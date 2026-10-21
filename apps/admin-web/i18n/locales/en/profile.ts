@@ -10,6 +10,7 @@ export default {
     tabGeneral: 'General',
     tabPersonal: 'Preferences',
     tabLogin: 'Sign-in history',
+    tabPassword: 'Password',
 
     // Basic information
     basicInfo: 'Basic information',
@@ -68,6 +69,14 @@ export default {
     nicknameRequired: 'Enter a nickname.',
     nicknameLength: 'Enter a nickname of 2–12 characters.',
     nicknameChars: 'Use only Korean, English letters, numbers and underscores (_), with a single space between words.',
+
+    // Change password (shared password fields and rules wording is in `account.ts`)
+    passwordTitle: 'Change password',
+    passwordIntro: 'Confirm your current password, then choose a new one.',
+    passwordChange: 'Change password',
+    passwordChanged: 'Your password was changed',
+    passwordLogoutNote: 'You are signed out on other devices. This device stays signed in.',
+    currentPasswordRequired: 'Enter your current password.',
 
     // States
     loadFailed: 'Could not load your profile',

@@ -1,5 +1,5 @@
 /**
- * Admin sign-in screen — email + password only (no social sign-in, sign-up or password recovery), session expiry, lockout.
+ * Admin sign-in screen — email + password only (no social sign-in or sign-up), session expiry, lockout.
  * Keys are two parts: `login.what`. Same keys and order as `ko/login.ts`.
  */
 export default {
@@ -20,6 +20,7 @@ export default {
     submitting: 'Signing in…',
     submitWait: 'Please wait. Do not close this screen.',
     lockWarning: 'Too many wrong passwords will lock sign-in for a while. (10 minutes after 5 failures in a row)',
+    forgotLink: 'Forgot your password?',
 
     // Returned after the session ended
     expiredTitle: 'Your session has ended.',

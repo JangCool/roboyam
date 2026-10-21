@@ -66,6 +66,10 @@
         />
         <p v-if="submitting" class="-mt-2 text-center text-xs text-muted-color" role="status">{{ t('login.submitWait') }}</p>
     </form>
+
+    <p class="mt-4 text-center text-sm">
+        <NuxtLink to="/forgot-password" class="text-primary hover:underline">{{ t('login.forgotLink') }}</NuxtLink>
+    </p>
 </template>
 
 <script setup lang="ts">

@@ -10,6 +10,7 @@ export default {
     tabGeneral: '일반',
     tabPersonal: '개인 설정',
     tabLogin: '로그인 이력',
+    tabPassword: '비밀번호',
 
     // 기본 정보
     basicInfo: '기본 정보',
@@ -68,6 +69,14 @@ export default {
     nicknameRequired: '닉네임을 입력해 주세요.',
     nicknameLength: '닉네임은 2~12자로 입력해 주세요.',
     nicknameChars: '닉네임은 한글, 영문, 숫자, 밑줄(_)만 쓸 수 있고 단어 사이에는 공백 한 칸만 쓸 수 있어요.',
+
+    // 비밀번호 변경 (공통 비밀번호 칸·규칙 문구는 `account.ts`)
+    passwordTitle: '비밀번호 변경',
+    passwordIntro: '현재 비밀번호를 확인한 뒤 새 비밀번호로 바꿔요.',
+    passwordChange: '비밀번호 바꾸기',
+    passwordChanged: '비밀번호를 바꿨어요',
+    passwordLogoutNote: '다른 기기에서는 로그아웃돼요. 지금 쓰는 기기는 로그인 상태로 남아요.',
+    currentPasswordRequired: '현재 비밀번호를 입력해 주세요.',
 
     // 상태
     loadFailed: '내 정보를 불러오지 못했어요',

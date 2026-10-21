@@ -5,6 +5,7 @@
  * ⚠ **`en/index.ts` 와 같은 목록이어야 한다.** 한쪽에만 있는 업무는 그 언어에서 한국어(폴백)로 보인다.
  * 레이어(`@roboyam/i18n`·`@roboyam/display-time`)가 이미 쓰는 최상위 키(`common`·`display`)는 여기서 다시 쓰지 않는다 — 합칠 때 한쪽이 덮인다.
  */
+import account from './account';
 import audit from './audit';
 import batch from './batch';
 import dashboard from './dashboard';
@@ -23,6 +24,7 @@ import shell from './shell';
 import site from './site';
 
 export default {
+    account,
     audit,
     batch,
     dashboard,

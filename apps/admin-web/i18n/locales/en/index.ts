@@ -5,6 +5,7 @@
  * ⚠ **Must be the same list as `ko/index.ts`.** A feature present in only one language shows in Korean (the fallback) in the other.
  * Do not reuse top-level keys the layers already own (`common`, `display`) — one would overwrite the other when merged.
  */
+import account from './account';
 import audit from './audit';
 import batch from './batch';
 import dashboard from './dashboard';
@@ -23,6 +24,7 @@ import shell from './shell';
 import site from './site';
 
 export default {
+    account,
     audit,
     batch,
     dashboard,
