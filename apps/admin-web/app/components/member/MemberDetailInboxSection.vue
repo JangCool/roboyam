@@ -9,6 +9,7 @@
         </dl>
         <p class="text-xs text-muted-color">{{ t('member.detail.inbox.note') }}</p>
     </div>
+    <EmptyState v-else icon="pi pi-bell" :title="t('member.detail.notReady.title')" :description="t('member.detail.notReady.inbox')" />
 </template>
 
 <script setup lang="ts">

@@ -328,9 +328,25 @@ const listSections = computed<{ id: string; label: string; roles: RoleView[] }[]
     (activeTab.value?.types ?? []).map((type) => ({
         id: type.roleTypeId,
         label: isAllTab.value ? UtilRole.typePathLabel(t, type) : UtilRole.typeLabel(t, type),
-        roles: tabRoles.value.filter((role) => role.roleTypeId === type.roleTypeId),
+        roles: sortedForType(
+            type.roleTypeId,
+            tabRoles.value.filter((role) => role.roleTypeId === type.roleTypeId),
+        ),
     })),
 );
+
+/**
+ * 한 유형 안의 표시 차례 — 등급 역할은 서버 목록의 차례(만든 순·아이디 순)가 서열과 다를 수 있어 등급 서열(`level`)대로 늘어놓는다. 등급 목록(`useGradeAppearance`)을 아직 못 받았거나
+ * 목록에 없는 등급 역할은 뒤에 두고, 그 밖의 유형은 서버 차례 그대로다.
+ */
+function sortedForType(roleTypeId: string, list: RoleView[]): RoleView[] {
+    if (roleTypeId !== UtilRole.TYPE_GRADE) return list;
+    const levelOf = (role: RoleView): number => {
+        const key = UtilGrade.gradeKeyOfRole(role.roleId, role.roleTypeId);
+        return (key ? gradeState.gradeOf(key)?.level : undefined) ?? Number.MAX_SAFE_INTEGER;
+    };
+    return [...list].sort((a, b) => levelOf(a) - levelOf(b));
+}
 /** 세부 유형이 둘 이상인 운영자 영역과 전체 탭만 소제목을 보인다(유형이 하나뿐이면 탭 이름과 같아서 반복이다) */
 const showHeadings = computed(() => (isAllTab.value || activeTab.value?.axis === 'OPERATOR') && (activeTab.value?.types.length ?? 0) > 1);
 
@@ -402,7 +418,8 @@ async function load() {
     busy.value = true;
     loadError.value = null;
     try {
-        const [types, list] = await Promise.all([typeApi.load(), api.load()]);
+        // 등급 목록은 등급 역할을 서열대로 늘어놓는 데 쓴다 — 못 받아도 던지지 않는다(그때는 서버 차례)
+        const [types, list] = await Promise.all([typeApi.load(), api.load(), gradeState.ensureLoaded()]);
         roleTypes.value = types;
         roles.value = list;
         // 고른 역할이 지금 탭에 없으면(없어졌거나 아직 고른 게 없으면) 첫 역할을 고른다
@@ -457,7 +474,10 @@ async function onSubmit(payload: RoleEditSubmit) {
     let createdRole: RoleView | null = null;
     try {
         if (editing) {
-            await api.update(payload.roleId, { roleName: payload.roleName, description: payload.description });
+            // 이름·설명이 그대로면 보내지 않는다 — 등급 역할(파생)은 이름·설명 수정을 서버가 거절(409 ROLE_DERIVED)하므로 권한만 고칠 수 있게 한다
+            const target = editTarget.value;
+            const identityChanged = !target || payload.roleName !== target.roleName || payload.description.trim() !== (target.description ?? '').trim();
+            if (identityChanged) await api.update(payload.roleId, { roleName: payload.roleName, description: payload.description });
             if (payload.permissionsChanged) await api.setPermissions(payload.roleId, payload.permissionCodes);
         } else {
             const created = await api.create({ roleTypeId: payload.roleTypeId, roleId: payload.roleId, roleName: payload.roleName, description: payload.description });

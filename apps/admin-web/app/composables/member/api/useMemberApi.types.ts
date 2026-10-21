@@ -1,11 +1,11 @@
 import type { DisplayValues } from '#layers/display-time/utils/util-time';
 
 /**
- * 회원 조회 API 가 주고받는 모양 — 후보 계약(`GET /api/admin/members`)이고 확정 전이다. 회원은 공개 사이트 이용자다(운영자 계정은 여기 나오지 않는다 — `docs/domain/operator-permissions.md`).
+ * 회원 조회 API 가 주고받는 모양 — 서버(`MemberController`·`member/dto`)와 맞춘 계약이다(상세의 보강 칸 중 서버에 데이터가 없는 것은 null/빈 값 — 아래 `MemberDetail`). 회원은 공개 사이트 이용자다(운영자 계정은 여기 나오지 않는다 — `docs/domain/operator-permissions.md`).
  * 칸의 근거는 community 의 `UserEntity`(계정·상태·이메일 인증·마지막 로그인)·`ProfileEntity`(닉네임·등급)다.
  * 시각은 UTC ISO(`Instant`)이고 화면은 `useDisplayTime()` 으로 그린다. ⚠ ID 는 문자열이다(Snowflake 64비트).
  *
- * 상세(`MemberDetail`)의 보강 칸은 모두 **후보 계약, 확정 전**이다. 근거는 세 가지다.
+ * 상세(`MemberDetail`)의 보강 칸 모양은 **후보 계약**이고, 서버가 지금 채우는 것은 일부뿐이다(나머지는 null/빈 값 — 기능·표가 생기면 채워진다). 모양의 근거는 세 가지다.
  *  · community 근거 — 한 줄 소개·소셜 연동·성인 확인·쪽지 수신·휴면 예정·활동(받은 추천·인기글)·닉네임 변경 이력·등급(자동 승급·진행도·변경 이력)·포인트(잔액·변경권·내역)·제재 요약·신고 요약·
  *    표시 형식·알림 설정·앱 푸시·차단/메모 건수·가입 동의(약관·개인정보처리방침·만 14세)·공동구매 주문(상태·배송지 스냅샷). 파일: community 관리자 `pages/members/[id].vue`, `types/admin-member.ts`·`admin-grade.ts`·`admin-point.ts`,
  *    문서 `docs/api-account.md`·`api-profile.md`·`api-display.md`·`api-notification.md`·`api-push.md`·`api-block-scrap.md`·`api-dm.md`·`api-dormancy.md`·`api-auth.md`·`api-commerce.md`·`api-commerce-admin.md`.
@@ -361,7 +361,8 @@ export interface MemberConsentChange {
 
 export interface MemberConsents {
     terms: MemberConsentRecord;
-    privacy: MemberConsentRecord;
+    /** 약관과 따로 저장하지 않아 서버가 아직 null 로 준다 */
+    privacy: MemberConsentRecord | null;
     /** 만 14세 이상 확인 시각 */
     ageConfirmedAt: string;
     optional: MemberOptionalConsent[];
@@ -407,17 +408,23 @@ export interface MemberGroupBuy {
 
 /**
  * 회원 상세 — 목록 한 줄의 칸 + 상세 전용 칸. 역할은 이름뿐 아니라 유형·게시판까지 준다.
- * 탈퇴한 회원은 `bio`·`adultConfirmed`·`acceptDm`·`dormancy`·`gradePoint`·`settings`·`contact`·`profile`·`consents`·`groupBuy` 가 null 이고 `social` 은 빈 배열, `withdrawnAt` 이 채워진다(줄어든 표시).
+ * **서버가 비워 주는 칸**(null/빈 값 — 화면은 해당 구획을 안내로 보인다): `statusReason`·`activity`·`sanctionSummary`·`reports`·`adultConfirmed`·`acceptDm`·`dormancy`·`gradePoint`·`settings`·`contact`·`profile`·`groupBuy`·`consents.privacy` 는 null,
+ * `sanctions`·`consents.optional`·`consents.history`·`roles[].boardNames` 는 빈 배열, `nicknameHistory` 는 빈 배열(`member.pii` 가 없으면 null), `point`·`sanctionCount` 는 늘 0, `statusChangedAt` 은 탈퇴 시각만.
+ * 실제 값이 있는 칸: 목록 한 줄의 칸, `roles`, `bio`, `social`, `withdrawnAt`, `consents.terms`/`ageConfirmedAt`, `piiMasked`.
+ * 탈퇴한 회원은 `bio`·`consents` 가 null 이고 `social` 은 빈 배열, `withdrawnAt` 이 채워진다(줄어든 표시).
  */
 export interface MemberDetail extends Omit<MemberRow, 'roles'> {
     roles: MemberRoleDetail[];
-    /** 지금 상태가 된 사유(정지 사유·탈퇴 방식 등). 없으면 null */
+    /** 지금 상태가 된 사유(정지 사유·탈퇴 방식 등). 없으면 null — 서버는 사유를 저장하는 곳이 아직 없어 늘 null */
     statusReason: string | null;
-    activity: MemberActivity;
-    /** 제재 이력 — 최근 것이 먼저 */
+    /** 활동 요약 — 글·댓글 표가 아직 없어 서버가 null */
+    activity: MemberActivity | null;
+    /** 제재 이력 — 최근 것이 먼저. 제재 표가 아직 없어 서버가 늘 빈 배열 */
     sanctions: MemberSanction[];
-    sanctionSummary: MemberSanctionSummary;
-    reports: MemberReportSummary;
+    /** 제재 요약 — 서버가 아직 null */
+    sanctionSummary: MemberSanctionSummary | null;
+    /** 신고 요약 — 서버가 아직 null */
+    reports: MemberReportSummary | null;
     /** 한 줄 소개 — 프로필·메모 탭에서 보인다 */
     bio: string | null;
     social: MemberSocialLink[];

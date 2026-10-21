@@ -1,9 +1,9 @@
 <template>
     <!--
-        회원 상세 — 연락처·위치 구획(읽기 전용, 그누보드7 연락처정보·위치정보에 대응하는 후보). 이메일은 기본 정보 구획과 같은 값을 다시 입력받지 않고 그대로 보인다.
+        회원 상세 — 연락처·위치 구획(읽기 전용, 서버가 `contact` 를 주지 않으면 「아직 연동되지 않았어요」 안내, 그누보드7 연락처정보·위치정보에 대응하는 후보). 이메일은 기본 정보 구획과 같은 값을 다시 입력받지 않고 그대로 보인다.
         휴대폰·전화·주소는 `member.pii` 가 없으면 서버가 가려서 주고(`piiMasked`) 이메일과 같은 방식으로 가려졌다는 표시를 한다. 언어·시간대는 개인 설정의 표시 형식과 같은 값이다. 빈 값은 `-`.
     -->
-    <div v-if="detail.contact && detail.settings" class="flex flex-col gap-5">
+    <div v-if="detail.contact" class="flex flex-col gap-5">
         <section :aria-labelledby="contactId">
             <h3 :id="contactId" class="mb-1 text-[13px] font-semibold">{{ t('member.detail.contact.title') }}</h3>
             <dl class="m-0 flex flex-col">
@@ -22,13 +22,16 @@
             <h3 :id="locationId" class="mb-1 text-[13px] font-semibold">{{ t('member.detail.contact.locationTitle') }}</h3>
             <dl class="m-0 flex flex-col">
                 <MemberDetailItem :label="t('member.detail.contact.country')" :empty="!detail.contact.country">{{ detail.contact.country ? UtilMember.countryName(detail.contact.country, locale) : '' }}</MemberDetailItem>
-                <MemberDetailItem :label="t('member.detail.contact.language')">{{ UtilMemberMessages.languageName(detail.settings.display) }}</MemberDetailItem>
-                <MemberDetailItem :label="t('member.detail.contact.timezone')">{{ UtilMemberMessages.zoneText(t, locale, detail.settings.display, now) }}</MemberDetailItem>
+                <template v-if="detail.settings">
+                    <MemberDetailItem :label="t('member.detail.contact.language')">{{ UtilMemberMessages.languageName(detail.settings.display) }}</MemberDetailItem>
+                    <MemberDetailItem :label="t('member.detail.contact.timezone')">{{ UtilMemberMessages.zoneText(t, locale, detail.settings.display, now) }}</MemberDetailItem>
+                </template>
                 <MemberDetailItem :label="t('member.detail.contact.address')" :empty="!detail.contact.address" :masked="detail.piiMasked">{{ detail.contact.address }}</MemberDetailItem>
             </dl>
-            <p class="mt-2 text-xs text-muted-color">{{ t('member.detail.contact.displayNote') }}</p>
+            <p v-if="detail.settings" class="mt-2 text-xs text-muted-color">{{ t('member.detail.contact.displayNote') }}</p>
         </section>
     </div>
+    <EmptyState v-else icon="pi pi-map-marker" :title="t('member.detail.notReady.title')" :description="t('member.detail.notReady.contact')" />
 </template>
 
 <script setup lang="ts">

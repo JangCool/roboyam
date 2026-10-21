@@ -1,5 +1,5 @@
 <template>
-    <!-- 회원 상세 — 역할·활동 구획(읽기 전용). 보유 회원 역할을 유형(등급·회원 유형·게시판 단위·사용자 정의)별로 묶어 보이고, 아래에 활동 요약 숫자를 둔다. 역할 이름·아이디는 역할 관리의 회원 역할과 같다 -->
+    <!-- 회원 상세 — 역할·활동 구획(읽기 전용). 보유 회원 역할을 유형(등급·회원 유형·게시판 단위·사용자 정의)별로 묶어 보이고, 아래에 활동 요약 숫자를 둔다. 역할 이름·아이디는 역할 관리의 회원 역할과 같다. 활동 요약(`activity`)은 서버가 아직 주지 않으면 안내 한 줄 -->
     <div class="flex flex-col gap-5">
         <section :aria-labelledby="rolesId">
             <h3 :id="rolesId" class="mb-2 text-[13px] font-semibold">{{ t('member.detail.rolesTitle') }}</h3>
@@ -26,7 +26,11 @@
 
         <section :aria-labelledby="activityId">
             <h3 :id="activityId" class="mb-2 text-[13px] font-semibold">{{ t('member.detail.activityTitle') }}</h3>
-            <dl class="m-0 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <p v-if="!activity" class="m-0 flex items-start gap-2 rounded-lg border border-(--line) px-3 py-2.5 text-[13px] text-muted-color">
+                <i class="pi pi-clock mt-0.5" aria-hidden="true" />
+                <span>{{ t('member.detail.notReady.activity') }}</span>
+            </p>
+            <dl v-else class="m-0 grid grid-cols-2 gap-2 sm:grid-cols-3">
                 <div v-for="item in activity" :key="item.key" class="rounded-lg border border-(--line) px-3 py-2">
                     <dt class="text-xs text-muted-color">{{ item.label }}</dt>
                     <dd class="m-0 mt-0.5 text-base font-semibold tabular-nums">{{ item.value.toLocaleString(locale) }}</dd>
@@ -53,8 +57,10 @@ const activityId = useId();
 /** 유형별 묶음 — 역할이 없는 유형은 뺀다 */
 const groups = computed(() => UtilMember.ROLE_TYPES.map((type) => ({ type, roles: props.detail.roles.filter((r: MemberRoleDetail) => r.typeId === type) })).filter((g) => g.roles.length > 0));
 
+/** 활동 요약 — 서버가 아직 주지 않으면(글·댓글 표 없음) null */
 const activity = computed(() => {
     const a = props.detail.activity;
+    if (!a) return null;
     return [
         { key: 'postCount', label: t('member.detail.activity.postCount'), value: a.postCount },
         { key: 'commentCount', label: t('member.detail.activity.commentCount'), value: a.commentCount },

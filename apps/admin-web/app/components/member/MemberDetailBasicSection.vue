@@ -1,7 +1,7 @@
 <template>
     <!--
         회원 상세 — 기본 정보 구획(읽기 전용). 이메일은 서버가 준 대로 그린다: `member.pii` 가 없으면 가려진 값이고 그렇다고 스크린리더에도 알린다.
-        소셜 연동·성인 확인(출생연도는 보이지 않는다)·쪽지 수신·휴면 예정은 정상 회원에게만, 탈퇴 회원은 줄어든 표시(탈퇴 시각이 보이고 이메일·소개 등이 없다).
+        소셜 연동·성인 확인(출생연도는 보이지 않는다)·쪽지 수신·휴면 예정은 정상 회원에게만(서버가 아직 모르는 성인 확인·쪽지 수신은 `-`), 탈퇴 회원은 줄어든 표시(탈퇴 시각이 보이고 이메일·소개 등이 없다).
         아래에 닉네임 변경 이력 — `member.pii` 가 없으면 값 대신 잠금 문구(이메일 가림과 같은 결). 한 줄 소개는 「프로필·메모」 구획에서 한 곳에만 보인다.
     -->
     <div class="flex flex-col gap-5">
@@ -52,7 +52,9 @@
                         <span v-if="detail.emailVerifiedAt" class="tabular-nums">{{ time.full(detail.emailVerifiedAt) }}</span>
                         <span v-else class="text-muted-color">{{ t('member.detail.notVerified') }}</span>
                     </template>
+                    <span v-else-if="field.key === 'adult' && detail.adultConfirmed === null" class="text-muted-color">{{ t('member.detail.empty') }}</span>
                     <MemberDetailTag v-else-if="field.key === 'adult'" :value="detail.adultConfirmed ? t('member.detail.adultYes') : t('member.detail.adultNo')" :icon="detail.adultConfirmed ? 'pi pi-check-circle' : 'pi pi-minus-circle'" :severity="detail.adultConfirmed ? 'success' : 'secondary'" />
+                    <span v-else-if="field.key === 'acceptDm' && detail.acceptDm === null" class="text-muted-color">{{ t('member.detail.empty') }}</span>
                     <MemberDetailTag v-else-if="field.key === 'acceptDm'" :value="detail.acceptDm ? t('member.detail.dmAccept') : t('member.detail.dmRefuse')" :icon="detail.acceptDm ? 'pi pi-envelope' : 'pi pi-ban'" :severity="detail.acceptDm ? 'success' : 'secondary'" />
                     <template v-else-if="field.key === 'lastLoginAt'">
                         <span v-if="detail.lastLoginAt" class="tabular-nums">{{ time.full(detail.lastLoginAt) }}</span>

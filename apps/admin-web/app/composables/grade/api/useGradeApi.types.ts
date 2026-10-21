@@ -1,8 +1,8 @@
 /**
- * 등급 API 가 주고받는 모양 — 후보 계약이고 확정 전이다. 칸 이름·오류 코드는 community `docs/api-grade.md` 의 "승급 기준"(`GET·PUT` 등급 기준 API)을 바탕으로 목록 기반으로 넓혔다.
+ * 등급 API 가 주고받는 모양 — 서버(`GradeController`·`grade/dto`)와 맞춘 계약이다. 칸 이름·오류 코드는 community `docs/api-grade.md` 의 "승급 기준"(`GET·PUT` 등급 기준 API)을 바탕으로 목록 기반으로 넓혔다.
  *
  * **등급은 4단계 고정이 아니라 순서 있는 목록이다**(정책 확정 2026-10-21 — 지금은 4단계지만 늘 수 있다). 등급 설정이 원천이고, 등급 역할(역할 관리의 회원 역할 > 등급)은 이 목록에서 자동으로 만들어진다.
- *  · `gradeKey`: 서버가 주는 **불변 식별자**(시드 SEEDLING·REGULAR·LOYAL·VETERAN, 새로 만든 등급은 서버가 `GRADE_5` … 형태로 발급한다 — 가정). 이름을 바꿔도, 순서를 옮겨도 그대로다. 역할 아이디는 `ROLE_GRADE_<gradeKey>` 로 파생한다.
+ *  · `gradeKey`: 서버가 주는 **불변 식별자**(시드 SEEDLING·REGULAR·LOYAL·VETERAN, 새로 만든 등급은 서버가 `GRADE_<번호>` 형태로 발급한다). 이름을 바꿔도, 순서를 옮겨도 그대로다. 역할 아이디는 `ROLE_GRADE_<gradeKey>` 로 파생한다.
  *  · `level`: 서열(1..N). 목록의 순서가 곧 서열이다. **첫 등급(level 1)은 기본 등급**이라 승급 조건이 없고(0·0), 지우거나 옮길 수 없다.
  *
  * ⚠ community 의 `minPopular`(인기글·출하 완료글 수)는 roboyam 에 같은 개념이 아직 없어 넣지 않았다 — 승급 조건 항목은 확정 전이다.

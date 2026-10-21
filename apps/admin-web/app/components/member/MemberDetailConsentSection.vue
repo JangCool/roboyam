@@ -1,7 +1,7 @@
 <template>
     <!--
         회원 상세 — 동의 이력 구획(읽기 전용). 가입 때 받는 필수 동의 3개(약관·개인정보처리방침·만 14세 — 시각과 버전), 선택 동의(마케팅·광고성 이메일·제3자 제공·정보 공개 — 동의 여부와 동의일),
-        동의 변경·철회 이력 표(일시 · 항목 · 동의/철회 · 경로). 이력 표는 community 에 없어 후보 계약(확정 전)이다. 광고성 이메일은 마케팅 동의의 하위 항목이다.
+        동의 변경·철회 이력 표(일시 · 항목 · 동의/철회 · 경로). 서버는 이용약관·만 14세 확인만 주고(개인정보처리방침·선택 동의·이력은 null/빈 목록) `consents` 가 null 이면 구획 전체를 안내로 대신한다. 이력 표는 community 에 없어 후보 계약(확정 전)이다. 광고성 이메일은 마케팅 동의의 하위 항목이다.
     -->
     <div v-if="detail.consents" class="flex flex-col gap-5">
         <section :aria-labelledby="requiredId">
@@ -11,9 +11,11 @@
                     <span class="tabular-nums">{{ time.full(detail.consents.terms.agreedAt) }}</span>
                     <span class="ml-1.5 text-xs text-muted-color">{{ t('member.detail.consent.version', { version: detail.consents.terms.version }) }}</span>
                 </MemberDetailItem>
-                <MemberDetailItem :label="t('member.detail.consent.item.PRIVACY')">
-                    <span class="tabular-nums">{{ time.full(detail.consents.privacy.agreedAt) }}</span>
-                    <span class="ml-1.5 text-xs text-muted-color">{{ t('member.detail.consent.version', { version: detail.consents.privacy.version }) }}</span>
+                <MemberDetailItem :label="t('member.detail.consent.item.PRIVACY')" :empty="!detail.consents.privacy">
+                    <template v-if="detail.consents.privacy">
+                        <span class="tabular-nums">{{ time.full(detail.consents.privacy.agreedAt) }}</span>
+                        <span class="ml-1.5 text-xs text-muted-color">{{ t('member.detail.consent.version', { version: detail.consents.privacy.version }) }}</span>
+                    </template>
                 </MemberDetailItem>
                 <MemberDetailItem :label="t('member.detail.consent.item.AGE')">
                     <span class="tabular-nums">{{ time.full(detail.consents.ageConfirmedAt) }}</span>
@@ -23,7 +25,8 @@
 
         <section :aria-labelledby="optionalId">
             <h3 :id="optionalId" class="mb-1 text-[13px] font-semibold">{{ t('member.detail.consent.optionalTitle') }}</h3>
-            <ul class="m-0 flex list-none flex-col p-0">
+            <p v-if="!optional.length" class="text-[13px] text-muted-color">{{ t('member.detail.consent.optionalNone') }}</p>
+            <ul v-else class="m-0 flex list-none flex-col p-0">
                 <li v-for="c in optional" :key="c.key" class="flex items-start justify-between gap-3 border-b border-(--line) py-2.5 last:border-b-0" :class="UtilMember.consentIsChild(c.key) ? 'pl-4' : ''">
                     <div class="min-w-0">
                         <p class="text-[13px]">
@@ -71,6 +74,7 @@
             </div>
         </section>
     </div>
+    <EmptyState v-else icon="pi pi-check-square" :title="t('member.detail.notReady.title')" :description="t('member.detail.notReady.consent')" />
 </template>
 
 <script setup lang="ts">

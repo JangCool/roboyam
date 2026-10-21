@@ -7,7 +7,7 @@ export default {
     subtitle: '공개 사이트 회원을 조건으로 찾아봅니다.',
     searchLabel: '회원 조회 조건',
     total: '전체 {count}명',
-    maskedHint: '이메일은 가려서 보입니다. 전체 이메일은 전체 이메일 열람 권한이 있을 때만 볼 수 있어요.',
+    maskedHint: '이메일은 가려서 보입니다. 전체 이메일은 전체 이메일 열람 권한이 있을 때만 볼 수 있어요. 이 권한이 없으면 이메일 검색은 전체 주소를 정확히 입력할 때만 찾아져요.',
     maskedCell: '가려진 이메일',
     none: '—',
     neverLoggedIn: '로그인 이력 없음',
@@ -153,6 +153,8 @@ export default {
     empty: '회원이 없어요',
     emptyHint: '공개 사이트에 가입한 회원이 아직 없어요.',
     clearConditions: '조건 지우기',
+    searchRejectedTitle: '조회 조건을 확인해 주세요',
+    searchRejectedHint: '서버가 받아들이지 않은 조건이 있어요. 표시된 칸을 고친 뒤 다시 검색해 주세요.',
 
     // 상세 서랍(읽기 전용)
     detail: {
@@ -169,6 +171,19 @@ export default {
         sectionInbox: '알림함',
         sectionSanctions: '제재 이력',
         pending: '준비 중',
+        // 서버가 아직 데이터를 주지 않는 구획의 안내(구획 11개는 늘 보이고 비는 구획만 이 안내가 보인다)
+        notReady: {
+            title: '아직 연동되지 않았어요',
+            contact: '연락처·주소 정보는 아직 서버에서 받아 오지 않아요.',
+            profile: '서명과 관리자 메모는 아직 서버에서 받아 오지 않아요.',
+            activity: '활동 요약은 글·댓글 기능이 생기면 보여요.',
+            gradePoint: '등급 변경 이력과 포인트는 아직 서버에서 받아 오지 않아요.',
+            settings: '표시 형식·알림 설정은 아직 서버에서 받아 오지 않아요.',
+            consent: '동의 이력은 아직 서버에서 받아 오지 않아요.',
+            groupBuy: '공동구매 주문은 공동구매 기능이 생기면 보여요.',
+            inbox: '알림함 건수는 아직 서버에서 받아 오지 않아요.',
+            sanctions: '제재·신고 이력은 아직 서버에서 받아 오지 않아요.',
+        },
         empty: '-',
         maskedSuffix: '(일부 가려짐)',
         notVerified: '미인증',
@@ -357,6 +372,7 @@ export default {
         consent: {
             requiredTitle: '가입 시 필수 동의',
             optionalTitle: '선택 동의',
+            optionalNone: '선택 동의 정보는 아직 서버에서 받아 오지 않아요.',
             item: {
                 TERMS: '이용약관',
                 PRIVACY: '개인정보처리방침',

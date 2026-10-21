@@ -75,7 +75,9 @@ export class ApiError extends Error {
 /** 오류 응답에서 `extras` 로 옮기지 않는 이름 — 이미 정해진 칸이거나 Spring 기본 오류 본문의 잡음이다 */
 const KNOWN_ERROR_KEYS: ReadonlySet<string> = new Set(['code', 'message', 'fields', 'retryAfterSeconds', 'status', 'error', 'path', 'timestamp', 'trace']);
 
-type QueryValue = string | number | boolean | null | undefined;
+type QueryScalar = string | number | boolean;
+/** 목록 값은 같은 이름을 반복해 보낸다(`statuses=A&statuses=B`) — 서버가 반복과 쉼표로 이은 값을 모두 받는다. 빈 목록은 보내지 않는다 */
+type QueryValue = QueryScalar | readonly QueryScalar[] | null | undefined;
 
 export interface RequestOptions {
     query?: Record<string, QueryValue>;
@@ -120,13 +122,15 @@ function readCookie(name: string): string | null {
     return null;
 }
 
-/** 질의 문자열은 우리가 만든다 — 값을 예외 없이 인코딩한다. 없는 값(undefined·null)은 뺀다. */
+/** 질의 문자열은 우리가 만든다 — 값을 예외 없이 인코딩한다. 없는 값(undefined·null)과 빈 목록은 뺀다. */
 function withQuery(url: string, query?: Record<string, QueryValue>): string {
     if (!query) return url;
     const parts: string[] = [];
     for (const [key, value] of Object.entries(query)) {
         if (value === undefined || value === null) continue;
-        parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+        for (const item of Array.isArray(value) ? value : [value]) {
+            parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(item))}`);
+        }
     }
     return parts.length ? `${url}${url.includes('?') ? '&' : '?'}${parts.join('&')}` : url;
 }

@@ -14,18 +14,20 @@
             <Button type="button" :label="t('member.detailToggle')" :icon="detailOpen ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" icon-pos="right" size="small" severity="secondary" variant="outlined" :aria-expanded="detailOpen" :aria-controls="detailId" @click="detailOpen = !detailOpen" />
         </div>
 
+        <p v-if="topError" role="alert" class="-mt-1 text-xs text-red-600 dark:text-red-400">{{ topError }}</p>
+
         <!-- ② 기본 조건 -->
-        <FilterRow :label="t('member.filter.status')">
+        <FilterRow :label="t('member.filter.status')" :error="errorOf('statuses')">
             <template #default="{ labelId }">
                 <FilterOptionGroup v-model="filter.statuses" multiple :all-label="t('common.all')" :options="statusOptions" :labelledby="labelId" />
             </template>
         </FilterRow>
 
-        <FilterRow :label="t('member.filter.role')" :label-for="ids.role">
+        <FilterRow :label="t('member.filter.role')" :label-for="ids.role" :error="errorOf('roleIds')">
             <AppMultiSelect v-model="filter.roleIds" :options="roleOptions" option-label="roleName" option-value="roleId" :input-id="ids.role" filter :placeholder="t('member.filter.rolePlaceholder')" :filter-placeholder="t('member.filter.roleSearch')" :empty-filter-message="t('member.filter.roleEmpty')" :selected-items-label="t('member.filter.rolesSelected', { count: '{0}' })" :max-selected-labels="2" class="max-w-xl" />
         </FilterRow>
 
-        <FilterRow :label="t('member.filter.joined')">
+        <FilterRow :label="t('member.filter.joined')" :error="errorOf('joinedFrom', 'joinedTo')">
             <DateRangeField v-model:from="filter.joinedFrom" v-model:to="filter.joinedTo" :presets="presets" :presets-label="t('member.presetsLabel')" :from-label="t('member.filter.joinedFrom')" :to-label="t('member.filter.joinedTo')" />
         </FilterRow>
 
@@ -34,7 +36,7 @@
             <h2 class="text-[13px] font-medium">{{ t('member.detailTitle') }}</h2>
             <p v-if="!detailRows.length" class="text-xs text-muted-color">{{ t('member.detailNone') }}</p>
 
-            <FilterRow v-if="shown('lastLogin')" :label="t('member.filter.lastLogin')">
+            <FilterRow v-if="shown('lastLogin')" :label="t('member.filter.lastLogin')" :error="errorOf('lastLoginFrom', 'lastLoginTo', 'noLoginHistory')">
                 <DateRangeField v-model:from="filter.lastLoginFrom" v-model:to="filter.lastLoginTo" :presets="presets" :presets-label="t('member.presetsLabel')" :from-label="t('member.filter.lastLoginFrom')" :to-label="t('member.filter.lastLoginTo')" :disabled="filter.noLoginHistory">
                     <div class="flex items-center gap-1.5">
                         <Checkbox binary :model-value="filter.noLoginHistory" :input-id="ids.noLogin" @update:model-value="onNoLogin" />
@@ -43,62 +45,65 @@
                 </DateRangeField>
             </FilterRow>
 
-            <FilterRow v-if="shown('grade')" :label="t('member.filter.grade')">
+            <FilterRow v-if="shown('grade')" :label="t('member.filter.grade')" :error="errorOf('grades')">
                 <template #default="{ labelId }">
                     <FilterOptionGroup v-model="filter.grades" multiple :options="gradeOptions" :labelledby="labelId" />
                 </template>
             </FilterRow>
 
-            <FilterRow v-if="shown('memberType')" :label="t('member.filter.memberType')">
+            <FilterRow v-if="shown('memberType')" :label="t('member.filter.memberType')" :error="errorOf('memberType')">
                 <template #default="{ labelId }">
                     <FilterOptionGroup v-model="filter.memberType" :options="typeOptions" :labelledby="labelId" />
                 </template>
             </FilterRow>
 
-            <FilterRow v-if="shown('emailVerified')" :label="t('member.filter.emailVerified')">
+            <FilterRow v-if="shown('emailVerified')" :label="t('member.filter.emailVerified')" :error="errorOf('emailVerified')">
                 <template #default="{ labelId }">
                     <FilterOptionGroup v-model="filter.emailVerified" :options="verifiedOptions" :labelledby="labelId" />
                 </template>
             </FilterRow>
 
-            <FilterRow v-if="shown('authMethod')" :label="t('member.filter.authMethod')">
+            <FilterRow v-if="shown('authMethod')" :label="t('member.filter.authMethod')" :error="errorOf('authMethods')">
                 <template #default="{ labelId }">
                     <FilterOptionGroup v-model="filter.authMethods" multiple :options="authOptions" :labelledby="labelId" />
                 </template>
             </FilterRow>
 
-            <FilterRow v-if="shown('dormant')" :label="t('member.filter.dormant')">
+            <FilterRow v-if="shown('dormant')" :label="t('member.filter.dormant')" :error="errorOf('dormantFrom', 'dormantTo')">
                 <DateRangeField v-model:from="filter.dormantFrom" v-model:to="filter.dormantTo" :from-label="t('member.filter.dormantFrom')" :to-label="t('member.filter.dormantTo')" />
             </FilterRow>
 
-            <FilterRow v-if="shown('statusChanged')" :label="t('member.filter.statusChanged')">
+            <FilterRow v-if="shown('statusChanged')" :label="t('member.filter.statusChanged')" :error="errorOf('statusChangedKind', 'statusChangedFrom', 'statusChangedTo')">
                 <Select :model-value="filter.statusChangedKind || 'ALL'" :options="changeKindOptions" option-label="label" option-value="value" :aria-label="t('member.filter.statusChangedKind')" class="w-32" @update:model-value="(value: string) => (filter.statusChangedKind = value === 'ALL' ? '' : (value as MemberFilter['statusChangedKind']))" />
                 <DateRangeField v-model:from="filter.statusChangedFrom" v-model:to="filter.statusChangedTo" :from-label="t('member.filter.statusChangedFrom')" :to-label="t('member.filter.statusChangedTo')" />
             </FilterRow>
 
-            <FilterRow v-if="shown('point')" :label="t('member.filter.point')">
+            <FilterRow v-if="shown('point')" :label="t('member.filter.point')" :error="pointReversed ? '' : errorOf('pointMin', 'pointMax')">
                 <div class="flex flex-wrap items-center gap-2">
                     <label class="sr-only" :for="ids.pointMin">{{ t('member.filter.pointMin') }}</label>
-                    <InputNumber v-model="filter.pointMin" :input-id="ids.pointMin" :min="0" :max-fraction-digits="0" :placeholder="t('member.filter.pointMin')" :invalid="pointReversed" class="w-36" />
+                    <InputNumber v-model="filter.pointMin" :input-id="ids.pointMin" :min="0" :max-fraction-digits="0" :placeholder="t('member.filter.pointMin')" :invalid="pointReversed || Boolean(errorOf('pointMin', 'pointMax'))" class="w-36" />
                     <span class="text-muted-color" aria-hidden="true">~</span>
                     <label class="sr-only" :for="ids.pointMax">{{ t('member.filter.pointMax') }}</label>
-                    <InputNumber v-model="filter.pointMax" :input-id="ids.pointMax" :min="0" :max-fraction-digits="0" :placeholder="t('member.filter.pointMax')" :invalid="pointReversed" class="w-36" />
+                    <InputNumber v-model="filter.pointMax" :input-id="ids.pointMax" :min="0" :max-fraction-digits="0" :placeholder="t('member.filter.pointMax')" :invalid="pointReversed || Boolean(errorOf('pointMin', 'pointMax'))" class="w-36" />
                     <span v-if="pointReversed" role="alert" class="text-xs text-red-600 dark:text-red-400">{{ t('member.filter.pointReversed') }}</span>
                 </div>
             </FilterRow>
 
-            <FilterRow v-if="shown('boardRole')" :label="t('member.filter.boardRole')">
+            <FilterRow v-if="shown('boardRole')" :label="t('member.filter.boardRole')" :error="errorOf('boardRole')">
                 <template #default="{ labelId }">
                     <FilterOptionGroup v-model="filter.boardRole" :options="boardRoleOptions" :labelledby="labelId" />
                 </template>
             </FilterRow>
 
-            <FilterRow v-if="shown('sanction')" :label="t('member.filter.sanction')">
+            <FilterRow v-if="shown('sanction')" :label="t('member.filter.sanction')" :error="errorOf('hasSanction')">
                 <template #default="{ labelId }">
                     <FilterOptionGroup v-model="filter.hasSanction" :options="sanctionOptions" :labelledby="labelId" />
                 </template>
             </FilterRow>
         </div>
+
+        <!-- 어느 칸에도 붙지 않는 서버 오류(쪽 번호·크기·정렬 등) -->
+        <p v-if="otherErrors" role="alert" class="text-xs text-red-600 dark:text-red-400">{{ otherErrors }}</p>
 
         <!-- ④ 맨 아래 줄 -->
         <div class="flex flex-wrap items-center justify-between gap-2 border-t border-(--line) pt-3 md:grid md:grid-cols-[1fr_auto_1fr]">
@@ -134,12 +139,20 @@ interface Props {
     busy?: boolean;
     /** 마지막으로 검색한 조건의 요약 글자들(비면 칩 줄을 감춘다) */
     summary?: string[];
+    /** 서버가 거절한 조건 문구(`400 VALIDATION`·`MEMBER_PERIOD_REVERSED`·`MEMBER_POINT_RANGE_REVERSED` 의 `fields` — 조회 조건 이름 → 문구). 서버 `message` 그대로 줄 아래에 붙는다 */
+    errors?: Record<string, string>;
 }
 
-withDefaults(defineProps<Props>(), { busy: false, summary: () => [] });
+const props = withDefaults(defineProps<Props>(), { busy: false, summary: () => [], errors: () => ({}) });
 const emit = defineEmits<{ search: []; reset: [] }>();
 
 const { t } = useI18n();
+/** 줄에 문구를 붙이는 조회 조건 이름 — 이 밖의 이름은 맨 아래 한 줄에 모은다 */
+const MAPPED_FIELDS = [
+    'searchField', 'keyword', 'statuses', 'roleIds', 'joinedFrom', 'joinedTo', 'lastLoginFrom', 'lastLoginTo', 'noLoginHistory', 'grades', 'memberType', 'emailVerified', 'authMethods',
+    'dormantFrom', 'dormantTo', 'statusChangedKind', 'statusChangedFrom', 'statusChangedTo', 'pointMin', 'pointMax', 'boardRole', 'hasSanction',
+];
+
 const detailId = useId();
 const ids = { role: useId(), noLogin: useId(), pointMin: useId(), pointMax: useId() };
 
@@ -171,6 +184,27 @@ const presets = computed(() => UtilDateRange.PRESETS.map((kind) => ({ kind, labe
 const detailRowItems = computed(() => UtilMember.DETAIL_ROWS.map((row) => ({ key: row as string, label: t(`member.filter.${row}`) })));
 
 const pointReversed = computed(() => UtilMember.pointReversed(filter.value));
+
+/** 줄 이름들 중 서버가 거절한 첫 문구 */
+function errorOf(...names: string[]): string {
+    for (const name of names) {
+        const message = props.errors[name];
+        if (message) return message;
+    }
+    return '';
+}
+
+/** 맨 윗줄(검색 대상·검색어)의 서버 오류 */
+const topError = computed(() => errorOf('searchField', 'keyword'));
+
+/** 줄에 붙은 이름이 아닌 서버 오류(알 수 없는 이름·쪽 번호·크기·정렬) — 한 줄로 모은다 */
+const otherErrors = computed(() => {
+    const mapped = new Set(MAPPED_FIELDS);
+    return Object.entries(props.errors)
+        .filter(([name]) => !mapped.has(name))
+        .map(([, message]) => message)
+        .join(' ');
+});
 
 function shown(row: MemberDetailRow): boolean {
     return detailRows.value.includes(row);

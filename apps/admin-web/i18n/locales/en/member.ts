@@ -7,7 +7,7 @@ export default {
     subtitle: 'Find public site members by condition.',
     searchLabel: 'Member search conditions',
     total: '{count} members',
-    maskedHint: 'Emails are masked. Full emails are shown only with the full email access permission.',
+    maskedHint: 'Emails are masked. Full emails are shown only with the full email access permission. Without it, an email search matches only when you type the full address exactly.',
     maskedCell: 'Masked email',
     none: '—',
     neverLoggedIn: 'Never logged in',
@@ -153,6 +153,8 @@ export default {
     empty: 'No members',
     emptyHint: 'No one has signed up to the public site yet.',
     clearConditions: 'Clear conditions',
+    searchRejectedTitle: 'Check the search conditions',
+    searchRejectedHint: 'The server did not accept some conditions. Fix the marked fields and search again.',
 
     // Detail drawer (read-only)
     detail: {
@@ -169,6 +171,19 @@ export default {
         sectionInbox: 'Inbox',
         sectionSanctions: 'Sanctions',
         pending: 'Coming soon',
+        // Notice for sections the server does not provide data for yet (all 11 sections always show; only empty ones show this)
+        notReady: {
+            title: 'Not connected yet',
+            contact: 'Contact and address details are not loaded from the server yet.',
+            profile: 'Signature and admin memo are not loaded from the server yet.',
+            activity: 'The activity summary will appear once posts and comments exist.',
+            gradePoint: 'Grade history and points are not loaded from the server yet.',
+            settings: 'Display and notification settings are not loaded from the server yet.',
+            consent: 'Consent history is not loaded from the server yet.',
+            groupBuy: 'Group-buy orders will appear once group buying exists.',
+            inbox: 'Inbox counts are not loaded from the server yet.',
+            sanctions: 'Sanction and report history is not loaded from the server yet.',
+        },
         empty: '-',
         maskedSuffix: '(partly hidden)',
         notVerified: 'Not verified',
@@ -357,6 +372,7 @@ export default {
         consent: {
             requiredTitle: 'Required at sign-up',
             optionalTitle: 'Optional consents',
+            optionalNone: 'Optional consents are not loaded from the server yet.',
             item: {
                 TERMS: 'Terms of service',
                 PRIVACY: 'Privacy policy',

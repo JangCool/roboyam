@@ -3,7 +3,9 @@
         회원 상세 서랍의 본문 — 탭이 아니라 **구획을 한 스크롤 영역에 모두 쌓고**, 오른쪽에 기존 구역 내비(`SectionNav`, 「이 화면의 구역」)를 붙인다.
         구획은 `AppGadget` 의 `anchor` 로 스스로 등록하고(`useSectionNav`), 항목을 누르면 그 구획으로 부드럽게 이동 + 제목 초점 + 테두리 강조, 스크롤하면 현재 구획 표시가 따라간다 — 셸의 화면들과 같은 부품·같은 동작이다.
         서랍은 자기 스크롤 영역(`.p-drawer-content`)이 있어서 셸과 따로 된 범위(`SECTION_NAV_SCOPE`, 서랍이 provide)로 쓴다 — 셸 오른쪽 내비에 섞이지 않는다.
-        본문이 좁으면(컨테이너 48rem 미만) 오른쪽 목록 대신 맨 위 「구역 이동」 선택 상자. 탈퇴한 회원은 줄어든 표시라 데이터가 없는 구획(연락처·프로필·등급·개인 설정·동의·공동구매·알림함·본인 인증)은 없다.
+        본문이 좁으면(컨테이너 48rem 미만) 오른쪽 목록 대신 맨 위 「구역 이동」 선택 상자.
+        구역 내비는 구획 11개를 늘 모두 보인다 — 서버가 아직 데이터를 주지 않는 구획(null/빈 값)은 구획 안에서 「아직 연동되지 않았어요」 안내(EmptyState)로 보이고, 데이터가 오면 그려진다.
+        탈퇴한 회원은 줄어든 표시라 서버가 비운 구획(연락처·프로필·등급·개인 설정·동의·공동구매·알림함·본인 인증)은 없다.
         본인 인증은 도입 전이라 구획 제목에 작은 「준비 중」 뱃지, 구역 내비의 항목은 글자만 받으므로 이름 뒤에 「(준비 중)」을 붙인다.
     -->
     <div ref="rootEl" class="@container px-4 py-3" :style="{ '--section-nav-offset': '0.75rem' }">
@@ -60,20 +62,22 @@ interface Section {
     pending: boolean;
 }
 
-/** 구획 차례 — 데이터가 없는 구획은 뺀다. 구획 제목과 구역 내비 이름은 같다(본인 인증만 내비에 「(준비 중)」) */
+/** 구획 차례 — 탈퇴 회원만 데이터가 없는 구획을 뺀다(정상 회원은 비어도 안내로 보인다). 구획 제목과 구역 내비 이름은 같다(본인 인증만 내비에 「(준비 중)」) */
 const sections = computed<Section[]>(() => {
     const d = props.detail;
+    // 탈퇴한 회원은 줄어든 표시 — 서버가 비운 구획은 없다. 정상 회원은 데이터가 없어도 구획을 두고 안내를 보인다
+    const shown = (data: unknown) => d.status !== 'WITHDRAWN' || data !== null;
     const all: { key: string; labelKey: string; show: boolean; pending?: boolean }[] = [
         { key: 'basic', labelKey: 'member.detail.sectionBasic', show: true },
-        { key: 'contact', labelKey: 'member.detail.sectionContact', show: d.contact !== null },
-        { key: 'profile', labelKey: 'member.detail.sectionProfile', show: d.profile !== null },
+        { key: 'contact', labelKey: 'member.detail.sectionContact', show: shown(d.contact) },
+        { key: 'profile', labelKey: 'member.detail.sectionProfile', show: shown(d.profile) },
         { key: 'roles', labelKey: 'member.detail.sectionRoles', show: true },
-        { key: 'gradePoint', labelKey: 'member.detail.sectionGradePoint', show: d.gradePoint !== null },
-        { key: 'settings', labelKey: 'member.detail.sectionSettings', show: d.settings !== null },
-        { key: 'consent', labelKey: 'member.detail.sectionConsent', show: d.consents !== null },
+        { key: 'gradePoint', labelKey: 'member.detail.sectionGradePoint', show: shown(d.gradePoint) },
+        { key: 'settings', labelKey: 'member.detail.sectionSettings', show: shown(d.settings) },
+        { key: 'consent', labelKey: 'member.detail.sectionConsent', show: shown(d.consents) },
         { key: 'identity', labelKey: 'member.detail.sectionIdentity', show: d.status !== 'WITHDRAWN', pending: true },
-        { key: 'groupBuy', labelKey: 'member.detail.sectionGroupBuy', show: d.groupBuy !== null },
-        { key: 'inbox', labelKey: 'member.detail.sectionInbox', show: d.settings !== null },
+        { key: 'groupBuy', labelKey: 'member.detail.sectionGroupBuy', show: shown(d.groupBuy) },
+        { key: 'inbox', labelKey: 'member.detail.sectionInbox', show: shown(d.settings) },
         { key: 'sanctions', labelKey: 'member.detail.sectionSanctions', show: true },
     ];
     return all

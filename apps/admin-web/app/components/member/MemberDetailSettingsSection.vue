@@ -51,6 +51,7 @@
             <p class="mt-2 text-xs text-muted-color">{{ t('member.detail.settings.countsNote') }}</p>
         </section>
     </div>
+    <EmptyState v-else icon="pi pi-cog" :title="t('member.detail.notReady.title')" :description="t('member.detail.notReady.settings')" />
 </template>
 
 <script setup lang="ts">

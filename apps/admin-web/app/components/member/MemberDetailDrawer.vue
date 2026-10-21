@@ -19,7 +19,8 @@
             </div>
         </template>
 
-        <ErrorState v-if="error" :title="t('member.detail.loadFailed')" :description="error.message" retry :retrying="loading" @retry="emit('retry')" />
+        <!-- 없는 회원(404 `MEMBER_NOT_FOUND`)은 다시 시도해도 같다 — 안내만 보이고 다시 시도 단추는 두지 않는다 -->
+        <ErrorState v-if="error" :title="t('member.detail.loadFailed')" :description="error.message" :code="error.status === 404 ? '404' : '!'" :retry="error.status !== 404" :retrying="loading" @retry="emit('retry')" />
 
         <!-- 받는 동안 뼈대 -->
         <div v-else-if="!detail" class="flex flex-col gap-3 px-4 py-4" role="status" :aria-label="t('common.loading')" aria-busy="true">

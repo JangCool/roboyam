@@ -2,13 +2,13 @@
     <!--
         회원 관리 — 공개 사이트 회원(이용자)을 조건으로 찾아보는 조회 화면이다. 운영자(관리자 앱 계정)는 여기 나오지 않는다(정책: docs/domain/operator-permissions.md).
         위쪽 조회 조건 카드는 그누보드 회원 관리의 필터 구조를 따른다(`MemberSearchPanel`). 조건은 「검색」(또는 Enter)을 눌렀을 때만 서버로 가고, 쪽·정렬은 마지막으로 검색한 조건으로 다시 묻는다.
-        표는 서버가 한 쪽씩 준다(`lazy`). 이메일은 서버가 가려서 준다(`member.pii` 가 있을 때만 원문) — 화면은 받은 대로 그린다.
+        표는 서버가 한 쪽씩 준다(`lazy`). 서버가 조건을 거절하면(400 + `fields`) 해당 칸 아래에 서버 문구가 붙는다(`searchErrors`). 이메일은 서버가 가려서 준다(`member.pii` 가 있을 때만 원문) — 화면은 받은 대로 그린다.
         행을 누르면(또는 Enter·Space) 회원 상세 서랍이 열린다(`MemberDetailDrawer`, 읽기 전용 — 조치는 후속). 행 액션은 없다. 본문 여백은 셸(`.app-content`)이 준다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('member.title')" :subtitle="t('member.subtitle')" />
 
-        <MemberSearchPanel :model-value="filter" v-model:detail-rows="detailRows" :role-options="roleOptions" :busy="busy" :summary="summary" @search="search" @reset="resetAll" />
+        <MemberSearchPanel :model-value="filter" v-model:detail-rows="detailRows" :role-options="roleOptions" :busy="busy" :summary="summary" :errors="searchErrors" @search="search" @reset="resetAll" />
 
         <div class="flex min-w-0 flex-col gap-2">
             <!-- 툴바 — 왼쪽 「전체 N명」·정렬 안내, 오른쪽 끝 「컬럼 선택」 -->
@@ -51,6 +51,8 @@
                     <template #empty>
                         <ErrorState v-if="loadError" :title="t('member.loadFailed')" :description="loadError.message" retry :retrying="busy" @retry="reload" />
                         <div v-else-if="busy" class="h-32" aria-hidden="true" />
+                        <!-- 서버가 조건을 받아들이지 않았다 — 해당 칸 아래에 서버 문구가 붙어 있다 -->
+                        <EmptyState v-else-if="hasSearchErrors" icon="pi pi-exclamation-circle" :title="t('member.searchRejectedTitle')" :description="t('member.searchRejectedHint')" />
                         <!-- 빈 상태를 구분한다 — 조건 때문인지 아직 회원이 없는 건지 -->
                         <EmptyState v-else-if="hasApplied" icon="pi pi-filter-slash" :title="t('common.emptyFiltered')">
                             <Button type="button" :label="t('member.clearConditions')" size="small" severity="secondary" variant="outlined" @click="resetAll" />
@@ -176,6 +178,10 @@ const busy = ref(false);
 /** 목록을 받지 못했을 때의 오류 — 표 자리에 오류 상태(다시 시도)로 보인다 */
 const loadError = ref<ApiError | null>(null);
 
+/** 서버가 거절한 조회 조건 문구(`400 VALIDATION` 등의 `fields` — 조건 이름 → 서버 문구). 검색 패널의 해당 칸 아래에 붙는다. 다시 검색하면 지운다 */
+const searchErrors = ref<Record<string, string>>({});
+const hasSearchErrors = computed(() => Object.keys(searchErrors.value).length > 0);
+
 /** 마지막으로 「검색」한 조건 — 쪽·정렬은 이것으로 다시 묻는다(타이핑 중인 조건이 아니다) */
 const appliedQuery = ref<MemberQuery>({});
 const appliedFilter = ref<MemberFilter>(UtilMember.emptyFilter());
@@ -240,6 +246,7 @@ onMounted(async () => {
 async function reload() {
     busy.value = true;
     loadError.value = null;
+    searchErrors.value = {};
     try {
         const found = await api.search({
             ...appliedQuery.value,
@@ -250,9 +257,12 @@ async function reload() {
         rows.value = found.items;
         total.value = found.total;
     } catch (e) {
-        loadError.value = errorOf(e);
+        const error = errorOf(e);
         rows.value = [];
         total.value = 0;
+        // 조건이 틀려 서버가 칸 이름과 함께 거절했으면(400 + fields) 오류 화면이 아니라 그 칸 아래에 서버 문구를 붙인다
+        if (error.status === 400 && error.fields && Object.keys(error.fields).length > 0) searchErrors.value = error.fields;
+        else loadError.value = error;
     } finally {
         busy.value = false;
     }

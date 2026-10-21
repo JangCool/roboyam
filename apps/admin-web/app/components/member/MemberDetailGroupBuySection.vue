@@ -57,6 +57,7 @@
             </ul>
         </section>
     </div>
+    <EmptyState v-else icon="pi pi-shopping-bag" :title="t('member.detail.notReady.title')" :description="t('member.detail.notReady.groupBuy')" />
 </template>
 
 <script setup lang="ts">

@@ -1,10 +1,10 @@
 <template>
     <!--
         회원 상세 — 제재 이력 구획(읽기 전용). 위에 제재 요약(경고 횟수 · 진행 중인 제재 · 다음 단계)과 신고 요약(받은 · 조치한 · 제기한 신고 수), 아래에 이력 표.
-        사이트 제재(경고·기간 정지·영구 정지)와 게시판 한정 제재를 구분해 최근 것부터 보인다. 종류·범위·상태 모두 글자와 아이콘을 함께 쓴다.
+        사이트 제재(경고·기간 정지·영구 정지)와 게시판 한정 제재를 구분해 최근 것부터 보인다. 서버에 제재·신고 표가 아직 없어 요약·이력이 모두 비면 구획 전체를 「아직 연동되지 않았어요」 안내로 보인다(요약 둘 중 하나만 오면 그 블록만 그린다). 종류·범위·상태 모두 글자와 아이콘을 함께 쓴다.
     -->
-    <div class="flex flex-col gap-5">
-        <section :aria-labelledby="summaryId">
+    <div v-if="hasData" class="flex flex-col gap-5">
+        <section v-if="detail.sanctionSummary" :aria-labelledby="summaryId">
             <h3 :id="summaryId" class="mb-2 text-[13px] font-semibold">{{ t('member.detail.sanction.summaryTitle') }}</h3>
             <dl class="m-0 flex flex-col">
                 <MemberDetailItem :label="t('member.detail.sanction.warningCount')">
@@ -24,7 +24,7 @@
             </dl>
         </section>
 
-        <section :aria-labelledby="reportId">
+        <section v-if="detail.reports" :aria-labelledby="reportId">
             <h3 :id="reportId" class="mb-2 text-[13px] font-semibold">{{ t('member.detail.reports.title') }}</h3>
             <dl class="m-0 grid grid-cols-3 gap-2">
                 <div v-for="item in reportItems" :key="item.key" class="rounded-lg border border-(--line) px-3 py-2">
@@ -53,6 +53,7 @@
             </ul>
         </section>
     </div>
+    <EmptyState v-else icon="pi pi-shield" :title="t('member.detail.notReady.title')" :description="t('member.detail.notReady.sanctions')" />
 </template>
 
 <script setup lang="ts">
@@ -72,9 +73,15 @@ const reportId = useId();
 const historyId = useId();
 
 const active = computed(() => UtilMember.activeSanctions(props.detail.sanctions));
-const reportItems = computed(() => [
-    { key: 'received', label: t('member.detail.reports.received'), value: props.detail.reports.receivedCount },
-    { key: 'actioned', label: t('member.detail.reports.actioned'), value: props.detail.reports.actionedCount },
-    { key: 'filed', label: t('member.detail.reports.filed'), value: props.detail.reports.filedCount },
-]);
+/** 제재 요약·신고 요약·이력 중 하나라도 있으면 그린다. 모두 없으면(서버에 제재·신고 표가 아직 없다) 구획 전체를 안내로 대신한다 */
+const hasData = computed(() => props.detail.sanctionSummary !== null || props.detail.reports !== null || props.detail.sanctions.length > 0);
+const reportItems = computed(() => {
+    const r = props.detail.reports;
+    if (!r) return [];
+    return [
+        { key: 'received', label: t('member.detail.reports.received'), value: r.receivedCount },
+        { key: 'actioned', label: t('member.detail.reports.actioned'), value: r.actionedCount },
+        { key: 'filed', label: t('member.detail.reports.filed'), value: r.filedCount },
+    ];
+});
 </script>
