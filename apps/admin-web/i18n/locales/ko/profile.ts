@@ -45,9 +45,16 @@ export default {
     // 개인 설정 — 알림 설정
     notifications: '알림 설정',
     emailNotification: '이메일 알림 수신',
-    emailNotificationHint: '관리자 알림을 이메일로도 받아요.',
+    emailNotificationHint: '알림 메일만 끄고, 초대·재설정 같은 시스템 메일은 끌 수 없어요.',
     emailNotificationOn: '알림 메일을 받아요',
     emailNotificationOff: '알림 메일을 받지 않아요',
+    events: '이벤트별 알림',
+    eventsHint: '이벤트마다 알림을 받을지 정해요. 끄면 그 이벤트의 알림이 오지 않아요.',
+    eventsLoadFailed: '이벤트 목록을 불러오지 못했어요.',
+    eventsEmpty: '지금 받을 수 있는 이벤트가 없어요.',
+    eventMandatory: '보안에 관한 알림이라 끌 수 없어요.',
+    eventReceiveOn: '{name} 알림을 받아요',
+    eventReceiveOff: '{name} 알림을 받지 않아요',
 
     // 로그인 이력
     loginHistory: '최근 로그인 이력',

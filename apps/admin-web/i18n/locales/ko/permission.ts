@@ -100,6 +100,12 @@ export default {
     siteManage: '사이트 설정 변경',
     siteManageDesc: '사이트 이름·소개와 표시 기본값(기본 언어·시간대·시간/날짜 형식)을 바꿉니다. 기본 설정을 쓰는 모든 화면의 표시가 달라집니다.',
 
+    // 사이트·연동(알림 화면)
+    notificationRead: '알림 이벤트 조회',
+    notificationReadDesc: '설정 메뉴의 「알림」에서 알림 이벤트와 이벤트별 사용 여부·이메일 전달 설정을 봅니다.',
+    notificationManage: '알림 이벤트 설정',
+    notificationManageDesc: '알림 이벤트의 사용 여부와 이메일 전달을 바꿉니다. 알림을 누가 받는지는 이벤트마다 정해져 있어 바꿀 수 없습니다.',
+
     // ── 회원 역할(공개 사이트 회원의 능력) — 정책 제안, 확정 전 ──
     memberGroup: {
         USE: '이용',

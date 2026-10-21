@@ -45,9 +45,16 @@ export default {
     // Preferences — alerts
     notifications: 'Alerts',
     emailNotification: 'Email alerts',
-    emailNotificationHint: 'Receive admin notifications by email.',
+    emailNotificationHint: 'Turns off notification emails only. System emails such as invitations and password resets cannot be turned off.',
     emailNotificationOn: 'You will receive notification emails',
     emailNotificationOff: 'You will no longer receive notification emails',
+    events: 'Alerts by event',
+    eventsHint: 'Choose which events send you alerts. A turned-off event no longer notifies you.',
+    eventsLoadFailed: 'Could not load the event list.',
+    eventsEmpty: 'There are no events you can receive right now.',
+    eventMandatory: 'This is a security alert, so it cannot be turned off.',
+    eventReceiveOn: 'You will receive {name} alerts',
+    eventReceiveOff: 'You will no longer receive {name} alerts',
 
     // Sign-in history
     loginHistory: 'Recent sign-ins',

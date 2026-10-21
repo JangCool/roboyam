@@ -7,6 +7,7 @@ export default {
     dashboard: '대시보드',
     system: '시스템',
     general: '일반',
+    notifications: '알림',
     member: '회원',
     members: '회원 관리',
     grades: '등급 설정',

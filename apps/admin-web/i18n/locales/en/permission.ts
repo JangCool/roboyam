@@ -100,6 +100,12 @@ export default {
     siteManage: 'Change site settings',
     siteManageDesc: 'Change the site name, tagline and display defaults (default language, time zone, time and date formats). It changes what every screen that uses the defaults shows.',
 
+    // Site and integrations (notifications screen)
+    notificationRead: 'View notification events',
+    notificationReadDesc: 'See the notification events, whether each is on, and the email settings on Notifications in the settings menu.',
+    notificationManage: 'Change notification events',
+    notificationManageDesc: 'Turn notification events on or off and choose whether they are also emailed. Who receives each event is fixed in the system and cannot be changed here.',
+
     // ── Member roles (abilities of public-site members) — policy proposal, not final ──
     memberGroup: {
         USE: 'Use',

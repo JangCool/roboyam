@@ -7,6 +7,7 @@ export default {
     dashboard: 'Dashboard',
     system: 'System',
     general: 'General',
+    notifications: 'Notifications',
     member: 'Members',
     members: 'Members',
     grades: 'Grade settings',

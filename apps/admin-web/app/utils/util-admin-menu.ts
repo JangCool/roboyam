@@ -82,13 +82,16 @@ export default class UtilAdminMenu {
                 { key: 'grades', to: '/grades', icon: 'pi pi-trophy', labelKey: 'menu.grades', permission: 'grade.read' },
             ],
         },
-        // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 지금은 「일반」 하나이고 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다
+        // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」과 「알림」(알림 이벤트 관리)이 있고 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다
         {
             key: 'settingsSystem',
             mode: 'settings',
             icon: 'pi pi-cog',
             labelKey: 'menu.system',
-            items: [{ key: 'siteGeneral', to: '/settings/general', icon: 'pi pi-sliders-h', labelKey: 'menu.general', permission: 'site.read' }],
+            items: [
+                { key: 'siteGeneral', to: '/settings/general', icon: 'pi pi-sliders-h', labelKey: 'menu.general', permission: 'site.read' },
+                { key: 'notifications', to: '/settings/notifications', icon: 'pi pi-bell', labelKey: 'menu.notifications', permission: 'notification.read' },
+            ],
         },
         {
             key: 'operatorsAndPermissions',

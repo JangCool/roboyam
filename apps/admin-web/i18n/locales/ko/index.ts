@@ -15,6 +15,7 @@ import login from './login';
 import member from './member';
 import menu from './menu';
 import notification from './notification';
+import notificationEvent from './notificationEvent';
 import operator from './operator';
 import permission from './permission';
 import profile from './profile';
@@ -34,6 +35,7 @@ export default {
     member,
     menu,
     notification,
+    notificationEvent,
     operator,
     permission,
     profile,

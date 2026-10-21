@@ -148,7 +148,7 @@ export default class UtilPermissionCatalog {
      *  · 감사·배치: 조회 `audit.read`·`batch.read` / 처리 `batch.manage` / 민감 `batch.run`(배치 즉시 실행). 이 유형의 설정 단위("배치 사용 여부")는 처리(`batch.manage`)에 포함했다.
      *  · 회원 조회: 조회 `member.read` / 민감 `member.pii`(전체 이메일 열람 — 없으면 이메일이 `ab***@gmail.com` 으로 가려진다).
      *  · 등급·포인트·휴면(지금은 등급 설정 화면만): 조회 `grade.read` / 설정 `grade.manage`(등급 승급 조건 변경).
-     *  · 사이트·연동(지금은 설정 메뉴의 「일반」 화면만): 조회 `site.read` / 설정 `site.manage`(사이트 이름·소개, 표시 기본값 변경).
+     *  · 사이트·연동(지금은 설정 메뉴의 「일반」·「알림」 화면만): 조회 `site.read` / 설정 `site.manage`(사이트 이름·소개, 표시 기본값 변경). 알림 이벤트 관리는 조회 `notification.read` / 설정 `notification.manage`(이벤트별 사용 여부·이메일 전달 변경 — 받는 사람은 코드에 고정이라 바꾸지 않는다).
      * 나머지는 화면이 아직 없는 기능의 권한이다(`featureReady: false`).
      */
     static readonly PERMISSIONS: readonly PermissionDef[] = [
@@ -229,6 +229,8 @@ export default class UtilPermissionCatalog {
         { code: 'batch.run', unit: 'SENSITIVE', type: 'auditBatch', nameKey: 'permission.batchRun', descKey: 'permission.batchRunDesc', featureReady: true },
         { code: 'site.read', unit: 'READ', type: 'siteIntegration', nameKey: 'permission.siteRead', descKey: 'permission.siteReadDesc', featureReady: true },
         { code: 'site.manage', unit: 'CONFIG', type: 'siteIntegration', nameKey: 'permission.siteManage', descKey: 'permission.siteManageDesc', featureReady: true },
+        { code: 'notification.read', unit: 'READ', type: 'siteIntegration', nameKey: 'permission.notificationRead', descKey: 'permission.notificationReadDesc', featureReady: true },
+        { code: 'notification.manage', unit: 'CONFIG', type: 'siteIntegration', nameKey: 'permission.notificationManage', descKey: 'permission.notificationManageDesc', featureReady: true },
         { code: 'site.secret', unit: 'SENSITIVE', type: 'siteIntegration', nameKey: 'permission.item.siteSecret', descKey: 'permission.item.siteSecretDesc', featureReady: false },
     ];
 
