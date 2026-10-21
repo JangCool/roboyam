@@ -31,7 +31,8 @@ import org.springframework.stereotype.Service;
  *       없는 이메일에도 <b>비밀번호 해시 비교를 한 번</b> 해서 응답 시간으로 계정 존재를 알 수 없게 한다.</li>
  *   <li>5회 연속 실패하면 10분 잠근다({@link AdminLoginAttemptService}). 잠금 확인은 해시 비교보다 앞이라 잠긴 동안은 맞는 비밀번호도 거절한다.</li>
  *   <li>72바이트를 넘는 비밀번호는 bcrypt 가 다룰 수 없어 — 예외(500) 대신 틀린 비밀번호로 처리한다.</li>
- *   <li>로그인 성공·실패는 감사 기록으로 남긴다(실패 사유는 기록에만 있고 응답에는 없다). 이메일·비밀번호는 기록에도 로그에도 남기지 않는다.</li>
+ *   <li>로그인 성공·실패는 감사 기록으로 남긴다(실패 사유는 기록에만 있고 응답에는 없다). 이메일·비밀번호는 기록에도 로그에도 남기지 않는다. 접속 환경은 User-Agent 원문이 아니라
+ *       {@link UserAgentSummary} 의 짧은 요약({@code 브라우저 / 운영체제 / 기기})만 {@code detail.agent} 로 남긴다(IP 와 같은 감사 보관 기간 365일). 잠금 중의 시도는 기록하지 않는다.</li>
  *   <li>이 클래스는 트랜잭션을 열지 않는다 — 느린 해시 비교 동안 DB 연결을 붙잡지 않고, 실패 기록은 {@link AdminLoginAttemptService} 의 짧은 트랜잭션이 남긴다.</li>
  * </ul>
  * 세션 만들기는 웹 계층의 일이다(컨트롤러의 {@code AdminSession}).
@@ -62,11 +63,12 @@ public class AdminLoginService {
      * 이메일·비밀번호를 확인한다. 성공하면 횟수를 지우고 마지막 로그인 시각을 갱신한 뒤 로그인 주체를 돌려준다.
      *
      * @param ip 요청자 IP(감사 기록용)
+     * @param userAgent 요청의 User-Agent 원문 — {@link UserAgentSummary} 로 요약(원문은 저장하지 않는다)해 로그인 성공·실패 감사 기록 {@code detail.agent} 에 남긴다. 없으면 null
      * @throws ValidationException                                          이메일 형식이 아니거나 비밀번호가 비었을 때(400 — 시도 횟수에 세지 않는다)
      * @throws com.community.adminauth.exception.AdminLoginLockedException    잠겨 있을 때(429)
      * @throws AdminInvalidCredentialsException                              맞지 않을 때(401)
      */
-    public OperatorPrincipal authenticate(String rawEmail, String password, String ip) {
+    public OperatorPrincipal authenticate(String rawEmail, String password, String ip, String userAgent) {
         String email = UserPolicy.normalizeEmail(rawEmail);
         Map<String, MessageRef> invalid = new LinkedHashMap<>();
         UserPolicy.emailViolation(email).ifPresent(message -> invalid.put("email", message));
@@ -92,14 +94,14 @@ public class AdminLoginService {
             } else {
                 event = event.with("key", Digests.sha256Hex("admin:" + email).substring(0, 12)); // 이메일 원문 대신 구분용 해시 조각
             }
-            audit.record(event);
+            audit.record(UserAgentSummary.attach(event, userAgent));
             log.info("관리자 로그인 실패 사유={}", reason);
             throw new AdminInvalidCredentialsException();
         }
 
         OperatorEntity operator = found.get();
         attempts.recordSuccess(email, operator.getId());
-        audit.record(AuditEvent.byOperator(operator.getId(), ip, AuditActions.LOGIN_SUCCESS, AuditResult.SUCCESS).target("OPERATOR", Long.toString(operator.getId())));
+        audit.record(UserAgentSummary.attach(AuditEvent.byOperator(operator.getId(), ip, AuditActions.LOGIN_SUCCESS, AuditResult.SUCCESS).target("OPERATOR", Long.toString(operator.getId())), userAgent));
         return new OperatorPrincipal(operator.getId());
     }
 

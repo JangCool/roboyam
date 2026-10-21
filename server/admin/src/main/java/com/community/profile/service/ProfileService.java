@@ -7,6 +7,8 @@ import com.community.audit.service.AuditLogService;
 import com.community.operator.dto.response.OperatorRoleRef;
 import com.community.operator.entity.OperatorEntity;
 import com.community.operator.repository.master.OperatorRepository;
+import com.community.operator.repository.master.OperatorRepositoryQDSL;
+import com.community.operator.service.OperatorIdentityLock;
 import com.community.permission.dto.AdminActor;
 import com.community.profile.dto.request.ProfileUpdateRequest;
 import com.community.profile.dto.response.ProfileResponse;
@@ -33,8 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li>닉네임 규칙은 공개 사이트와 같은 {@link UserPolicy#nicknameViolation}(2~12자, 한글 완성형·영문·숫자·밑줄, 글자 사이의 공백 한 칸)이다. 비어 있으면 별도 문구.
  *       위반은 {@code 400 VALIDATION} + {@code fields.nickname}.</li>
- *   <li>다른 운영자와 같은 이름(대소문자 무시)이면 {@code 409 NICKNAME_TAKEN}(목업과 같은 코드). {@code operators} 표에는 이름 유일 제약이 없어 서비스가 확인하고,
- *       같은 이름으로 동시에 바꾸는 요청은 어드바이저리 잠금({@link ProfileNicknameLock})으로 줄 세운다.</li>
+ *   <li>다른 운영자와 같은 이름(대소문자 무시)이면 {@code 409 NICKNAME_TAKEN}(목업과 같은 코드). 서비스가 먼저 확인하고(DB 에도 {@code ux_operators_name_lower} 유일 인덱스가 최종 방어한다),
+ *       같은 이름으로 동시에 바꾸는 요청은 어드바이저리 잠금({@link OperatorIdentityLock})으로 줄 세운다.</li>
  *   <li>바뀐 이름은 다음 요청부터 {@code auth/me} 의 {@code user.nickname} 에 비친다(행위자를 요청마다 DB 에서 다시 읽는다). 바뀐 때만 감사 {@code PROFILE_UPDATE}(전후 이름).</li>
  * </ul>
  */
@@ -44,12 +46,14 @@ public class ProfileService {
     private static final Logger log = LoggerFactory.getLogger(ProfileService.class);
 
     private final OperatorRepository operators;
+    private final OperatorRepositoryQDSL operatorQueries;
     private final RoleRepositoryQDSL roles;
     private final AuditLogService audit;
     private final EntityManager entityManager;
 
-    public ProfileService(OperatorRepository operators, RoleRepositoryQDSL roles, AuditLogService audit, EntityManager entityManager) {
+    public ProfileService(OperatorRepository operators, OperatorRepositoryQDSL operatorQueries, RoleRepositoryQDSL roles, AuditLogService audit, EntityManager entityManager) {
         this.operators = operators;
+        this.operatorQueries = operatorQueries;
         this.roles = roles;
         this.audit = audit;
         this.entityManager = entityManager;
@@ -69,14 +73,19 @@ public class ProfileService {
             throw ValidationException.of("nickname", violation);
         }
 
-        ProfileNicknameLock.acquire(entityManager);
+        OperatorIdentityLock.acquire(entityManager);
         OperatorEntity operator = operators.findWithLockById(actor.operatorId()).orElseThrow(() -> new CommonException(ErrorCode.UNAUTHENTICATED));
         String before = operator.getOperatorName();
         if (!nickname.equals(before)) {
-            if (operators.existsByOperatorNameIgnoreCaseAndIdNot(nickname, operator.getId())) {
+            if (operatorQueries.existsOtherWithName(nickname, operator.getId())) {
                 throw new UserNicknameTakenException();
             }
             operator.rename(nickname, Instant.now());
+            try {
+                entityManager.flush(); // 이름 유일 인덱스에 걸리는지 여기서 알아낸다(변경 감지는 커밋 때에야 내보내 여기서 못 잡는다)
+            } catch (RuntimeException e) {
+                throw OperatorIdentityLock.isNameViolation(e) ? new UserNicknameTakenException() : e;
+            }
             audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.PROFILE_UPDATE, AuditResult.SUCCESS)
                     .target("OPERATOR", Long.toString(actor.operatorId())).with("before", Map.of("nickname", before)).with("after", Map.of("nickname", nickname)));
             log.info("닉네임을 바꿨다 operatorId={}", actor.operatorId());

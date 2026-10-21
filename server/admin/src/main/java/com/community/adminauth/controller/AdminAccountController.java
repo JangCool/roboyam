@@ -78,7 +78,7 @@ public class AdminAccountController {
     @AdminPublic
     @PostMapping("/password-reset")
     public ResponseEntity<ApiResponse<AdminMeResponse>> resetPassword(@RequestBody PasswordResetRequest body, HttpServletRequest request, HttpServletResponse response) {
-        OperatorPrincipal principal = resets.reset(body.email(), body.certCode(), body.newPassword(), clientIps.resolve(request));
+        OperatorPrincipal principal = resets.reset(body.email(), body.certCode(), body.newPassword(), clientIps.resolve(request), request.getHeader("User-Agent"));
         adminSession.establish(request, response, principal);
         return noStore(meService.of(adminSession.resolve(request)));
     }

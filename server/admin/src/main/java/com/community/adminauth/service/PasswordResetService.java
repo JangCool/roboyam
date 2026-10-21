@@ -76,13 +76,14 @@ public class PasswordResetService {
      * 승인번호를 확인하고 비밀번호를 바꾼다.
      *
      * @param ip 요청자 IP(감사 기록용)
+     * @param userAgent 요청의 User-Agent 원문(로그인 이력용 — {@link UserAgentSummary} 로 요약해 {@code LOGIN_SUCCESS} 기록에만 남긴다). 없으면 null
      * @return 로그인시킬 주체
      * @throws ValidationException               입력 형식이 틀렸을 때(400 {@code fields.email|certCode|newPassword})
      * @throws CertCodeException                 승인번호를 쓸 수 없을 때(400 {@code CERT_CODE_*})
      * @throws PasswordResetNotAllowedException  계정이 로그인할 수 없는 상태일 때(403)
      */
     @Transactional(noRollbackFor = CertCodeException.class)
-    public OperatorPrincipal reset(String rawEmail, String certCode, String newPassword, String ip) {
+    public OperatorPrincipal reset(String rawEmail, String certCode, String newPassword, String ip, String userAgent) {
         String email = UserPolicy.normalizeEmail(rawEmail);
         Map<String, MessageRef> invalid = new LinkedHashMap<>();
         UserPolicy.emailViolation(email).ifPresent(message -> invalid.put("email", message));
@@ -142,7 +143,7 @@ public class PasswordResetService {
 
         String target = Long.toString(operatorId);
         audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.PASSWORD_RESET, AuditResult.SUCCESS).target("OPERATOR", target).with("sessionsEnded", ended));
-        audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.LOGIN_SUCCESS, AuditResult.SUCCESS).target("OPERATOR", target).with("via", "PASSWORD_RESET"));
+        audit.record(UserAgentSummary.attach(AuditEvent.byOperator(operatorId, ip, AuditActions.LOGIN_SUCCESS, AuditResult.SUCCESS).target("OPERATOR", target).with("via", "PASSWORD_RESET"), userAgent));
         log.info("비밀번호를 재설정했다 operatorId={} 끝낸 세션={}개", operatorId, ended);
         return new OperatorPrincipal(operatorId);
     }
