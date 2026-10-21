@@ -5,7 +5,6 @@ import com.community.auth.dto.response.RestrictionView;
 import com.community.auth.dto.response.UserView;
 import com.community.user.entity.Grade;
 import com.community.user.entity.ProfileEntity;
-import com.community.user.entity.Role;
 import com.community.user.entity.UserEntity;
 import com.community.user.entity.UserIdentityEntity;
 import com.community.user.entity.UserStatus;
@@ -16,7 +15,6 @@ import com.community.zconfiguration.message.Messages;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li>{@code restriction}: 제재 표가 아직 없다 — {@code SUSPENDED}·{@code BANNED} 일 때만 {@code { status, until: null, pendingNotices: 0 }}, 그 밖에는 null.</li>
- *   <li>{@code adminUrl}: 환경 변수 {@code ADMIN_URL}({@code roboyam.admin-url})이 {@code http(s)://} 로 시작하고, 운영자({@code ADMIN})이며 정상({@code ACTIVE})일 때만. 그 밖에는 null.</li>
+ *   <li>{@code adminUrl}: 항상 null — 운영자는 공개 사이트에 로그인하지 않는다(회원과 별도 계정, 관리자 앱에서만 일한다). 화면의 칸은 남겨 두었다.</li>
  *   <li>{@code businessStatus}: 사업자 기능이 없어 항상 null.</li>
  *   <li>{@code gradeLabel}: 요청 언어(Accept-Language)로 푼 등급 이름.</li>
  * </ul>
@@ -38,15 +36,12 @@ public class MeService {
     private final ProfileRepository profiles;
     private final UserIdentityRepository identities;
     private final Messages messages;
-    private final String adminUrl;
 
-    public MeService(UserRepository users, ProfileRepository profiles, UserIdentityRepository identities, Messages messages,
-                     @Value("${roboyam.admin-url:}") String adminUrl) {
+    public MeService(UserRepository users, ProfileRepository profiles, UserIdentityRepository identities, Messages messages) {
         this.users = users;
         this.messages = messages;
         this.profiles = profiles;
         this.identities = identities;
-        this.adminUrl = normalizeAdminUrl(adminUrl);
     }
 
     /**
@@ -76,13 +71,6 @@ public class MeService {
         boolean restricted = u.getStatus() == UserStatus.SUSPENDED || u.getStatus() == UserStatus.BANNED;
         RestrictionView restriction = restricted ? new RestrictionView(u.getStatus().name(), null, 0) : null;
 
-        String link = u.getRole() == Role.ADMIN && u.getStatus() == UserStatus.ACTIVE ? adminUrl : null;
-        return Optional.of(new MeResponse(true, view, restriction, link));
-    }
-
-    /** 앞뒤 공백을 자른다. {@code http(s)://} 로 시작하지 않으면(비었거나 잘못된 값) 아무에게도 주지 않는다 */
-    private static String normalizeAdminUrl(String value) {
-        String url = value == null ? "" : value.strip();
-        return url.startsWith("http://") || url.startsWith("https://") ? url : null;
+        return Optional.of(new MeResponse(true, view, restriction, null));
     }
 }

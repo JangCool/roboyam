@@ -65,11 +65,11 @@ public class InstallationRepositoryQDSL extends RoboyamRepositoryQDSL {
      * @param boardPreset 설치 때 고른 기본 게시판 구성의 아이디
      * @return 바뀐 행 수 — 이미 완료였으면 0
      */
-    public long markCompleted(long rootUserId, Instant installedAt, String boardPreset) {
+    public long markCompleted(long rootOperatorId, Instant installedAt, String boardPreset) {
         return query.update(INSTALLATION)
                 .set(INSTALLATION.status, InstallationStatus.COMPLETED)
                 .set(INSTALLATION.installedAt, installedAt)
-                .set(INSTALLATION.rootUserId, rootUserId)
+                .set(INSTALLATION.rootOperatorId, rootOperatorId)
                 .set(INSTALLATION.boardPreset, boardPreset)
                 .setNull(INSTALLATION.tokenHash)
                 .where(INSTALLATION.id.eq(InstallationEntity.ROW_ID), INSTALLATION.status.eq(InstallationStatus.PENDING))

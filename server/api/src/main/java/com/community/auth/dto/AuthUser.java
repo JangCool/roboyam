@@ -13,7 +13,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
  *
  * <p>{@link #getName()} 은 회원 ID 다 — Spring Session 이 이 값으로 {@code spring_session.principal_name} 을 채워
  * "이 회원의 모든 세션"을 찾을 수 있다(비밀번호 재설정 때 다른 기기 로그인을 끊는 데 쓸 자리).
- * 권한 이름은 {@code ROLE_USER} · {@code ROLE_STAFF} · {@code ROLE_ADMIN} 이다.
+ * 권한 이름은 {@code ROLE_USER} 다(운영자는 회원이 아니라 관리자 앱에서만 일한다).
  */
 public record AuthUser(long id, Role role) implements Principal, Serializable {
 

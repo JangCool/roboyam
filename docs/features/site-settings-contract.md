@@ -1,4 +1,4 @@
-# 사이트 일반 설정 계약 (화면 목업 단계 — 사용자 화면 확정 전, 2026-10-21 기준)
+# 사이트 일반 설정 계약 (**화면 확정 2026-10-21** — 서버는 `roles-contract.md` 의 1·2단계 뒤에 구현)
 
 **의도**: 관리자 앱 설정 > 일반(`/settings/general`)에서 사이트 기본 정보(이름·소개·로고·사이트 아이콘·링크 미리보기 이미지)와 표시 기본값을 다룬다. 이름·소개·공개 주소는 서버 `SiteSettingEntity` 에 이미 있고(설치 마법사 값, `install-contract.md`), 로고·아이콘·링크 미리보기 이미지·표시 기본값은 **서버에 칸이 없는 목업**이다.
 **참고(읽기 전용)**: community 의 `docs/api-site-icon.md`(`D:\project\community\workspace\community\docs\api-site-icon.md`) — 아이콘·OG 검사 규칙·저장 방식의 원본.

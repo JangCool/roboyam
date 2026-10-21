@@ -39,5 +39,3 @@ roboyam:
     verify-token-hours: 24        # 이메일 인증 링크의 유효 시간
     resend-cooldown-seconds: 60   # 인증 메일 재발송 간격(가장 최근에 보낸 링크 기준)
     session-timeout: 30d          # 로그인 세션: 마지막 활동 뒤 이 기간. spring.session.timeout 과 세션 쿠키 기한이 이 값을 따른다
-  # 관리자 앱 주소(환경 변수 ADMIN_URL, http(s)://…). 정상 상태의 운영자(ADMIN)에게만 로그인 정보의 adminUrl 로 내려간다. 비우면 아무에게도 주지 않는다
-  admin-url: ${ADMIN_URL:}

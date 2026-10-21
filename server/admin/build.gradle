@@ -12,6 +12,14 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
+    // 운영자 로그인: AdminAuthController·AdminSession 이 Authentication·보안 컨텍스트 저장소를 쓰고, AdminLoginService·OperatorService 가
+    // PasswordEncoder(bcrypt, shared 의 PasswordEncoderConfig 가 만든 빈)를 쓴다
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
     // 스키마 이관(Flyway). 마이그레이션 파일은 shared(db/migration/shared)와 이 앱의 자기 스트림(db/migration/admin)에 있다
     implementation 'org.springframework.boot:spring-boot-starter-flyway'
+
+    // 운영자 로그인 세션을 DB(admin 스트림 V1 의 admin_spring_session 표 — 공개 사이트의 spring_session 과 분리)에 둔다. AdminSession 이 CookieSerializer(spring-session-core)를 쓰고, 세션 저장소를 DB 로 바꾸는 런타임 구성이기도 하다.
+    // 쿠키 이름은 공개 사이트의 SESSION 과 분리된 ADMIN_SESSION 이다
+    implementation 'org.springframework.boot:spring-boot-starter-session-jdbc'
 }

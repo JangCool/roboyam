@@ -33,8 +33,8 @@ public class InstallationEntity {
 
     private Instant installedAt;
 
-    /** 설치 때 만든 루트 계정(첫 ADMIN) */
-    private Long rootUserId;
+    /** 설치 때 만든 루트 운영자(최고 관리자, operators.id) */
+    private Long rootOperatorId;
 
     /** 설치 때 고른 기본 게시판 구성의 아이디({@code NEUTRAL} · {@code ROBOYAM} …). 게시판을 실제로 만드는 적용은 게시판 기능에서 한다 */
     private String boardPreset;
@@ -54,8 +54,8 @@ public class InstallationEntity {
         return status == InstallationStatus.COMPLETED;
     }
 
-    public Long getRootUserId() {
-        return rootUserId;
+    public Long getRootOperatorId() {
+        return rootOperatorId;
     }
 
     public String getBoardPreset() {

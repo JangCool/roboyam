@@ -25,7 +25,7 @@ import org.springframework.security.web.savedrequest.NullRequestCache;
 /**
  * 보안 설정 — 공개 사이트(api)와 관리자 앱(admin)이 같이 쓴다.
  * <ul>
- *   <li>로그인은 Spring 의 기본 로그인 폼이 아니라 {@code POST /api/auth/login} 컨트롤러가 직접 확인하고 세션에 로그인 상태를 저장한다
+ *   <li>로그인은 Spring 의 기본 로그인 폼이 아니라 {@code POST /api/auth/login}(관리자 앱은 {@code POST /api/admin/auth/login}) 컨트롤러가 직접 확인하고 세션에 로그인 상태를 저장한다
  *       ({@link #securityContextRepository()} — 컨트롤러와 필터가 같은 저장소를 쓴다). 기본 로그인 폼·HTTP Basic·로그아웃 필터는 끈다.</li>
  *   <li>CSRF 는 쿠키(XSRF-TOKEN) + 헤더(X-XSRF-TOKEN) 방식이다(SPA). 쿠키는 어느 응답에서든 내려간다(설치 마법사는 {@code status} 응답이, 설치 뒤에는
  *       {@code GET /api/auth/me} 가 첫 쿠키다).</li>
@@ -60,6 +60,10 @@ public class SecurityConfig {
                         // 로그인 상태 조회·소셜 공급자 목록·로그인·로그아웃 — 로그인 전에도 부른다(로그아웃은 비로그인이어도 204)
                         .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/auth/providers").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/logout").permitAll()
+                        // 관리자 앱(admin)의 로그인 상태 조회·로그인·로그아웃 — 같은 규약이다(공개 사이트 서버에는 이 주소가 없다). 그 밖의 /api/admin/** 는 로그인이 필요하고,
+                        // 어떤 권한이 필요한지는 컨트롤러가 선언하며 선언이 없으면 거절된다(admin 의 AdminAccessInterceptor — fail-closed)
+                        .requestMatchers(HttpMethod.GET, "/api/admin/auth/me").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/admin/auth/login", "/api/admin/auth/logout").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
                 .exceptionHandling(e -> e

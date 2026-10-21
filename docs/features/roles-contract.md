@@ -1,6 +1,15 @@
-# 역할 · 운영자 · 등급 계약 (화면 목업 단계 — 사용자 화면 확정 전, 2026-10-21 기준)
+# 역할 · 운영자 · 등급 계약 (**화면 확정 2026-10-21** — 백엔드 구현 단계)
 
-**의도**: 운영자(관리자 앱 계정)와 그 역할·권한, 회원 역할(등급·회원 유형·게시판 단위·사용자 정의), 등급 설정을 관리자 앱에서 다룬다. 지금은 **프론트 목업만** 있고 서버 코드·마이그레이션이 없다(`server/` 에는 `V1~V6` 뿐). 화면 확정 전에는 백엔드를 시작하지 않는다.
+**의도**: 운영자(관리자 앱 계정)와 그 역할·권한, 회원 역할(등급·회원 유형·게시판 단위·사용자 정의), 등급 설정을 관리자 앱에서 다룬다. 화면은 확정됐고(`apps/admin-web` 목업이 기준), 서버는 아직 `server/admin` 에 진입점만 있다(`V1~V6`).
+
+## 백엔드 구현 순서와 가정 (2026-10-21)
+단계는 순서대로 한다(앞 단계가 뒤 단계의 기반이다). 한 단계가 끝나고 사용자가 확인한 뒤 다음으로 간다.
+1. **운영자 기반**(이번 단계): 권한 카탈로그(코드 enum `영역.행위`, 시작 때 DB 와 맞춤) · `operators`/`roles`/`role_permissions`/`operator_roles` 표 · 관리자 서버 로그인·세션·`me` · 권한 검사(`@RequirePermission` + 인터셉터, **선언 없는 API 거절** fail-closed) · 역할 API · 운영자 API(+초대·반려) · 설치 마법사 루트 계정을 `operators` 의 최고 관리자로 · 감사 기록 쓰기(표·서비스).
+2. 등급 설정 + 회원 조회(읽기): 지금 있는 표(`users`·`profiles`)로 가능한 범위만. 포인트·동의 이력·공동구매 등 아직 기능이 없는 칸은 목업으로 남긴다.
+3. 사이트 일반 설정(`site-settings-contract.md`): 이미지 업로드·변환·저장소.
+- **1단계 구현 결과(2026-10-21)**: Flyway shared `V7`(operators·permissions·roles·role_permissions·operator_roles·user_roles·operator_invitations·audit_logs)·`V8`(기존 ADMIN·STAFF 회원을 `operators` 로 이전, `users.role` 을 `USER` 만 허용), admin 스트림 `V1`(`admin_session`). 권한 78개(운영자)+19개(회원) enum 이 원천이고 기동 때 DB 와 맞춘다. 관리자 API 17개는 모두 `@RequirePermission`/`@AdminAuthenticated`/`@AdminPublic` 선언이 있어야 기동한다(fail-closed). 오류 코드는 프론트 목업 기준에 더해 `PERMISSION_DENIED`·`ROLE_TYPE_DERIVED`(등급 파생에 만들기)·`ROLE_GENERAL_SUPER_ONLY`·`ROLE_IN_USE` 등. 로그인 `role` 은 호환용이며 판정은 `isSuper`·`permissions` 로 한다. 초대 수락 경로는 `{ADMIN_URL}/invitation?token=` 로 가정(수락 API·화면 미구현), 운영자 생성은 임시 비밀번호를 메일로 안내(재설정 기능 없음). 서버 시드에는 영역별 관리자 같은 운영자 역할이 없고 내장 역할은 회원 4개뿐이다. 반려한 신청은 행을 지우고 감사 기록에만 남긴다.
+- **가정**(정책 문서의 미확정 세부, 구현 때 바꿀 수 있다): 관리자 로그인 실패 5회 잠금(해제는 10분 뒤 자동, 공개 사이트 `LoginAttemptService` 방식 참고), 세션 비활동 2시간·최대 12시간·쿠키 이름 `ADMIN_SESSION`(공개 `SESSION` 과 분리), 초대 유효 72시간, 반려 사유 200자, 감사 보관 1년(보관 배치는 후속), 운영자 비밀번호 규칙은 공개 사이트 가입 규칙과 같다.
+- **1단계 범위 밖**: 초대 링크를 받아 비밀번호를 정하는 화면·API(관리자 화면에 없음 — 데이터 모델과 토큰만 만든다), 신청서를 받는 공개 화면, 감사 로그 조회 API, 비밀번호 재설정, 회원 역할 수동 부여.
 **정책의 출처**: `docs/domain/operator-permissions.md`(확정 규칙·역할 유형 표·추가 확정). 이 문서는 화면이 정한 모양과 API 후보만 적는다.
 
 ## 화면 (admin-web, 목업)

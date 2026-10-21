@@ -24,7 +24,7 @@
 - **로그인 상태 계정**: `status = ACTIVE` 는 정상. `SUSPENDED`·`BANNED` 도 로그인은 되고 응답의 `restriction` 으로 알린다. `WITHDRAWN`·`deleted_at` 이 있는 계정은 로그인 불가(`INVALID_CREDENTIALS`). 성공하면 `users.last_login_at` 을 갱신한다.
 - **`restriction`**: 제재 표(`sanctions`)는 아직 없다. `status` 가 `SUSPENDED`/`BANNED` 일 때만 `{ status, until: null, pendingNotices: 0 }`, 그 밖에는 `null`. 기간·경고 상세는 제재 기능을 구현할 때 채운다.
 - **`user` 객체**: `id` 는 **문자열**(Snowflake). `grade` 는 `profiles.grade` 1~4 → `SEEDLING`·`REGULAR`·`LOYAL`·`VETERAN`, `gradeLabel` 은 새싹·일반·단골·베테랑. `emailVerified` 는 `email_verified_at` 유무. `authMethods` 는 비밀번호가 있으면 `EMAIL` + `user_identities` 의 공급자(`KAKAO`·`NAVER`·`GOOGLE`). `businessStatus` 는 `null`(사업자 기능 없음).
-- **`adminUrl`**: 환경 변수 `ADMIN_URL`(`roboyam.admin-url`)이 있고, `role = ADMIN` 이며 `status = ACTIVE` 일 때만 값이 있다. 그 밖에는 `null`(운영진 메뉴 권한은 아직 없다).
+- **`adminUrl`**: **항상 `null`** (2026-10-21 변경). 운영자는 `operators` 별도 계정이라 공개 사이트에 로그인하지 않는다(`docs/domain/operator-permissions.md`). 응답 칸은 user-web 타입 호환을 위해 남겨 둔다. 공개 서버는 더 이상 `ADMIN_URL` 을 읽지 않는다. 공개 `role` 은 `USER` 뿐이다(`users.role` CHECK).
 - **인증 메일 재발송**: `auth_tokens`(`VERIFY_EMAIL`, 유효 24시간, 새 링크를 만들면 이전 링크 무효, 토큰은 해시로 저장)를 만들고 `{공개 주소}/verify-email?token=…` 링크를 메일 설정(`mail_settings`, 설치 마법사가 저장)으로 보낸다. **60초에 한 번**(이전에 보낸 것도 포함). 메일 서버가 설정돼 있지 않거나 공개 주소가 없으면 보내지 못하고 로그만 남기며 `202` 로 끝난다. **인증 링크를 받아 처리하는 `POST /api/auth/email/verify` 와 `/verify-email` 화면은 이번 범위가 아니다**(회원가입 기능에서 만든다).
 - 비밀번호·토큰·세션 값은 로그·오류·`toString` 에 남기지 않는다. 입력 규칙: 이메일 형식 254자 이하(소문자로 바꿔 비교), 비밀번호는 비어 있지 않음(로그인은 가입 규칙을 다시 검사하지 않는다). 72바이트를 넘는 비밀번호도 500 이 아니라 `401` 로 끝나야 한다.
 - 로그인한 사용자 객체를 보안 컨텍스트에 어떻게 싣는지(권한 이름 등)는 이후 기능이 쓰기 쉽게 `ROLE_USER`·`ROLE_STAFF`·`ROLE_ADMIN` 으로 둔다.
