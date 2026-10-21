@@ -17,8 +17,6 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,9 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li><b>올리기만 한다</b> — 자동으로 내리지 않는다. 조건 두 개(가입 후 일수 · 글+댓글 수)를 <b>모두</b> 채운 가장 높은 등급으로 올린다(가정).</li>
- *   <li><b>시점</b>: 활동 수 조건은 사건(글·댓글)이 생길 때 즉시({@link #promoteOnEvent}), 가입 일수 조건은 시간이 지나야 채워지므로 배치({@link #promoteByElapsedTime}).
- *       배치는 관리자 서버의 스케줄러가 하루 한 번 부른다(admin {@code GradePromotionBatchJob}, 기본 04:30 KST — 배치 인프라). 글·댓글 작성 때 {@link #promoteOnEvent} 를 부르는 지점은
- *       아직 없다(글·댓글 기능이 없다).</li>
+ *   <li><b>시점</b>: 활동 수 조건은 사건(글·댓글)이 생길 때 즉시({@link #promoteOnEvent}), 가입 일수 조건은 시간이 지나야 채워지므로 배치.
+ *       배치는 <b>DB 배치</b>다 — 저장 프로시저 {@code batch_grade_promotion} 을 pg_cron 이 하루 한 번 부른다(기본 04:30 KST — {@code R__batch_15_grade_promotion.sql}). 글·댓글 작성 때
+ *       {@link #promoteOnEvent} 를 부르는 지점은 아직 없다(글·댓글 기능이 없다).</li>
+ *   <li><b>이중 구현 주의</b>: 같은 승급 판정이 <b>Java({@link #promoteAll}·{@link #promoteOnEvent}, {@code GradeRepositoryQDSL})와 SQL({@code R__batch_15_grade_promotion.sql})</b> 두 곳에 있다.
+ *       어느 쪽을 고치면 다른 쪽도 같이 고친다(조건·대상 회원·수동 상향 옵션·활동 수 가정). 두 쪽은 같은 데이터에서 같은 결과를 내야 한다.</li>
  *   <li><b>소급</b>: 기준을 낮추거나 등급을 추가하면 이미 조건을 채운 회원도 올린다({@link #promoteAll}) — 등급 저장 서비스가 저장 직후 부른다.</li>
  *   <li><b>대상</b>: 정상(ACTIVE) 회원만. 정지 회원은 자동 승급이 멈추고(제재로 중지) 탈퇴 회원은 대상이 아니다. 수동으로 올린 회원은 등급 옵션이
  *       {@code CONTINUE_AUTO} 일 때만 포함한다.</li>
@@ -39,8 +39,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class GradePromotionService {
-
-    private static final Logger log = LoggerFactory.getLogger(GradePromotionService.class);
 
     /** 글·댓글 데이터가 없는 동안 모든 회원이 가진 활동 수 */
     private static final long KNOWN_ACTIVITY = 0;
@@ -62,36 +60,10 @@ public class GradePromotionService {
         return minActivity <= KNOWN_ACTIVITY;
     }
 
-    /** 서열 순서의 조건 목록 */
-    public static List<GradeThreshold> thresholdsOf(List<GradeEntity> orderedGrades) {
-        return orderedGrades.stream().map(grade -> new GradeThreshold(grade.getGradeKey(), grade.getLevel(), grade.getMinDays(), grade.getMinActivity())).toList();
-    }
-
-    /** 지금 저장된 등급 옵션이 수동으로 올린 회원도 판정에 넣는가 */
-    @Transactional(readOnly = true)
-    public boolean includeManualNow() {
-        return settings.findById(GradeSettingEntity.ROW_ID).map(setting -> setting.getManualPolicy().includesManual()).orElse(true);
-    }
-
-    /**
-     * <b>배치</b> — 지금 저장된 등급 기준으로 모든 정상 회원을 판정해 올린다(가입 일수가 지나 새로 조건을 채운 회원 포함). 올린 회원 수.
-     * 관리자 서버의 배치 스케줄러가 하루 한 번(시각은 가정 — 정책 문서 미확정 11) 부르는 진입점이다.
-     *
-     * <p>등급 옵션 행을 먼저 잠근다 — 등급 설정 저장({@code GradeService#save}, 같은 행을 잠근다)이 진행 중이면 끝나기를 기다린 뒤 <b>저장된 등급 목록</b>으로 판정한다.
-     * 잠그지 않으면 저장 중인 등급 변경(삭제될 등급)을 모른 채 올리려다 등급 참조 오류로 실패할 수 있다.
-     */
-    @Transactional
-    public long promoteByElapsedTime(Instant now) {
-        settings.findWithLockById(GradeSettingEntity.ROW_ID);
-        List<GradeThreshold> ordered = thresholdsOf(gradeQueries.findAllOrdered());
-        long promoted = promoteAll(ordered, includeManualNow(), now);
-        log.info("등급 승급 배치: {}명 올림", promoted);
-        return promoted;
-    }
-
     /**
      * 주어진 서열 순서 조건으로 모든 정상 회원을 판정해 올린다. 높은 등급부터 처리하므로 회원은 채운 가장 높은 등급으로 한 번에 올라간다(조건은 위 등급일수록 같거나 크다).
-     * 소급 승급에서 일수 조건을 "다음 배치"로 미루려면 부르는 쪽이 일수를 저장 전 값 이상으로 올려 넘긴다.
+     * 소급 승급에서 일수 조건을 "다음 배치"로 미루려면 부르는 쪽이 일수를 저장 전 값 이상으로 올려 넘긴다. 하루 한 번 도는 일수 승급 배치는 SQL 프로시저
+     * ({@code batch_grade_promotion}) 이 같은 규칙으로 한다 — <b>이 메서드와 {@code GradeRepositoryQDSL#promote} 를 고치면 {@code R__batch_15_grade_promotion.sql} 도 고친다.</b>
      *
      * @param ordered 서열 순서(첫 등급은 기본 등급이라 판정 대상이 아니다). 키는 모두 존재하는 등급이어야 한다
      * @return 올린 회원 수
@@ -131,7 +103,7 @@ public class GradePromotionService {
 
     /**
      * <b>즉시</b> — 회원 한 명의 활동(글·댓글)이 늘었을 때 부른다. 일수와 활동 수 조건을 모두 채운 가장 높은 등급이 지금보다 높으면 올린다.
-     * 글·댓글 작성 서비스가 생기면 그 안에서 부른다(아직 부르는 곳이 없다).
+     * 글·댓글 작성 서비스가 생기면 그 안에서 부른다(아직 부르는 곳이 없다). 일수 승급 배치(SQL)와 같은 규칙이다 — 고치면 {@code R__batch_15_grade_promotion.sql} 도 고친다.
      *
      * @param activityCount 그 회원의 글+댓글 수
      * @return 올라간 등급 키. 올리지 않았으면 비어 있다

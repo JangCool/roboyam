@@ -22,8 +22,11 @@ import java.util.regex.Pattern;
  */
 public enum BatchCatalog {
 
-    /** 가입 일수 조건 등급 승급 — 하루 한 번. 시각은 정책 문서 미확정 11 의 가정(새벽 04:30) */
-    GRADE_PROMOTION("grade-promotion", BatchCategory.MEMBER, BatchSource.JAVA, "0 30 4 * * *", true),
+    /**
+     * 가입 일수 조건 등급 승급 — <b>DB 배치</b>, 기본 매일 04:30 KST(정책 문서 미확정 11 의 가정, 기본 cron 은 {@code R__batch_15_grade_promotion.sql} 이 가진다). 예전에는 Java 배치였다(키를 이어 쓴다).
+     * 같은 판정이 Java({@code GradePromotionService.promoteAll} — 등급 저장 직후 소급 승급)에도 있다 — 한쪽을 고치면 다른 쪽도 고친다. <b>업무 배치</b>라 pg_cron 이 없으면 승급이 멈춘다({@link #isBusinessCritical}).
+     */
+    GRADE_PROMOTION("grade-promotion", BatchCategory.MEMBER, BatchSource.POSTGRESQL, null, true),
 
     /** 만료된 이메일 인증·비밀번호 재설정 토큰 삭제 — DB 배치, 기본 매일 03:00 KST */
     AUTH_TOKEN_CLEANUP("auth-token-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
@@ -73,6 +76,14 @@ public enum BatchCatalog {
 
     public boolean isJava() {
         return source == BatchSource.JAVA;
+    }
+
+    /**
+     * 업무가 걸린 배치인가 — 정리(SYSTEM) 배치는 하루 늦어도 쌓일 뿐이지만, 이 배치는 멈추면 회원 등급 같은 서비스 동작이 멈춘다. DB 배치인데 pg_cron 을 쓸 수 없으면 기동 때 WARN 으로 알린다
+     * ({@code DbBatchGateway#prepare}). Java 폴백은 두지 않는다 — DB 배치로 하기로 한 배치다.
+     */
+    public boolean isBusinessCritical() {
+        return source == BatchSource.POSTGRESQL && category != BatchCategory.SYSTEM;
     }
 
     /** Java 배치의 기본 cron(Spring 6칸). DB 배치는 null — 기본 cron 은 마이그레이션이 정한다({@code batch_db_jobs}) */

@@ -18,7 +18,7 @@
 | `POST /batch-jobs/{jobName}/run` | `batch.run`(민감) | 지금 실행 — 끝날 때까지 기다린다 → 바뀐 목록 전체. 꺼져 있어도 돈다. 일이 실패해도 200(마지막 실행 상태 `FAIL`). DB 배치는 같은 저장 프로시저를 `CALL` |
 | `GET /batch-logs?jobName&status&trigger&from&to&page&size` | `batch.read` | `{items, total, page(0부터), size}`, 시작 시각 최근순. Java·DB 로그가 한 목록 |
 | `GET /batch-logs/{logId}` | `batch.read` | 상세 |
-- `jobName` = 배치 키. Java: `grade-promotion`. DB: `auth-token-cleanup` · `login-attempt-cleanup` · `operator-invitation-cleanup` · `audit-log-retention` · `batch-log-cleanup`. 오류: 404 `BATCH_NOT_FOUND`·`BATCH_LOG_NOT_FOUND`, **409 `BATCH_RUNNING`**(이미 실행 중), **409 `BATCH_UNAVAILABLE`**(DB 배치를 지금 쓸 수 없음 — pg_cron 없음·미등록. 이유는 목록의 `unavailableReason`), 400 `VALIDATION`(`fields.schedule` — 형식 오류·실행 시각 없음·간격 60초 미만, 로그 조건 칸).
+- `jobName` = 배치 키. Java: `file-orphan-cleanup`. DB: `grade-promotion`(업무 배치 — 아래) · `auth-token-cleanup` · `login-attempt-cleanup` · `operator-invitation-cleanup` · `audit-log-retention` · `batch-log-cleanup`. 오류: 404 `BATCH_NOT_FOUND`·`BATCH_LOG_NOT_FOUND`, **409 `BATCH_RUNNING`**(이미 실행 중), **409 `BATCH_UNAVAILABLE`**(DB 배치를 지금 쓸 수 없음 — pg_cron 없음·미등록. 이유는 목록의 `unavailableReason`), 400 `VALIDATION`(`fields.schedule` — 형식 오류·실행 시각 없음·간격 60초 미만, 로그 조건 칸).
 - `BatchJobView`: 목업 칸(`jobName displayName description i18n descI18n source schedule enabled lastRunAt lastStatus lastMessage runnable`) + `category`(`MEMBER`/`SYSTEM`) · `defaultSchedule` · `nextRunAt` · `lastAffectedCount` · `running` + **`available`**(쓸 수 있나) · **`unavailableReason`**(쓸 수 없는 이유, 요청 언어로 푼 글 — 쓸 수 있으면 null) · **`scheduleZone`**(`schedule` 을 해석하는 시간대 IANA 이름). `displayName`·`description`·`lastMessage` 는 **서버가 요청 언어로 푼 글**이고 `i18n`·`descI18n` 은 항상 null(화면은 `dbText` 규칙대로 서버 글을 쓴다).
   - `source`: `JAVA` 또는 `POSTGRESQL`. `schedule`/`defaultSchedule` 의 문법: JAVA = Spring 6칸(초 분 시 일 월 요일), POSTGRESQL = pg_cron 5칸(분 시 일 월 요일). 시간대: JAVA = `Asia/Seoul`, POSTGRESQL = pg_cron 의 `cron.timezone`(우리 구성은 `Asia/Seoul`, 설정이 없으면 `GMT`) — 그래서 `scheduleZone` 을 같이 본다.
   - `runnable`: JAVA 는 항상 true, POSTGRESQL 은 `available` 과 같다. `available=false`(DB 배치만 가능)면 `enabled=false`·`nextRunAt=null` 이고 `schedule` 은 기본 cron(모르면 빈 글)이며, 켜기/끄기·cron·지금 실행은 409 `BATCH_UNAVAILABLE`.
@@ -68,12 +68,13 @@
 | 일·요일 동시 지정 | AND | pg_cron(Vixie)은 OR — `nextRunAt` 이 어긋날 수 있다(둘 다 지정하는 식은 쓰지 않는 것을 권한다) |
 - 서버가 이미 정규화(공백 정리)해 `cron.alter_job` 에 넘기고, pg_cron 이 거절하면 같은 400 `fields.schedule` 로 답한다.
 
-### 등록된 DB 배치 (정리 배치 — 안 쌓이게)
+### 등록된 DB 배치 (정리 배치 — 안 쌓이게, 그리고 업무 배치 `grade-promotion`)
+- **`grade-promotion` 「등급 일수 승급」(MEMBER, 매일 04:30 KST)** — 정리가 아니라 **업무 배치**다. 예전 Java 배치를 사용자 지시로 DB 배치로 옮겼다(키를 이어 써서 로그·화면 이름이 그대로). 규칙·설정값·잠금은 `roles-contract.md` 「배치 인프라 결과」, 구현은 `R__batch_15_grade_promotion.sql`. **같은 판정이 Java(`GradePromotionService.promoteAll`/`promoteOnEvent`, `GradeRepositoryQDSL#promotable`)에도 있어 둘은 같이 고친다**(서로를 가리키는 주석이 있다). pg_cron 이 없으면 이 배치가 돌지 않아 승급이 멈춘다 → 기동 때 WARN 로그(`pg_cron 이 없어 DB 업무 배치 'grade-promotion' 가 돌지 않는다`)와 목록의 「사용 불가」+이유. DBA 는 `CALL batch_grade_promotion();` 으로 직접 돌릴 수 있다. Java 폴백은 없다.
 `docs/features/roles-contract.md` 「배치 인프라 결과」의 표를 본다. 설정값(`batch_params`)은 `UPDATE batch_params SET param_value = … WHERE job_key = … AND param_key = …` 로 바꾼다(화면은 후속). 범위를 벗어난 값은 무시하고 기본값을 쓴다.
 - 운영 확인 쿼리: `SELECT jobname, schedule, active FROM cron.job;` · `SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 20;`(pg_cron 자체 기록 — 프로시저 밖의 실패가 여기 있다) · `SELECT * FROM batch_runs WHERE source='POSTGRESQL' ORDER BY started_at DESC LIMIT 20;`
 
 ## 가정 / 미확정
-- 등급 승급 시각(04:30 KST 하루 한 번)·cron 간격 하한 60초·`batch.run` 을 지금 실행에만 쓰는 것, **DB 배치의 보관 기간·시각(03:00~03:40 KST)·덩어리 5000·상한 100000** 은 **가정**.
+- 등급 승급 시각(04:30 KST 하루 한 번)·cron 간격 하한 60초·`batch.run` 을 지금 실행에만 쓰는 것, **DB 배치의 보관 기간·시각(03:00~03:40 KST)·덩어리 5000·상한 100000(등급 승급은 상한 1000000)** 은 **가정**.
 - 지금 실행은 요청 스레드에서 끝날 때까지 돈다 — 오래 걸리는 배치가 생기면 비동기(202 + 상태 조회)로 바꿔야 한다. DB 배치도 같다(한 번 실행 상한 100000건이라 지금은 짧다).
 - 알림(배치 실패 알림)·실행 이력의 상세 처리 내역(건별)·감사 로그 조회 화면·`batch_params` 를 고치는 화면은 후속.
 - 서버가 내려가 있던 동안 놓친 Java 배치 예약은 따라잡지 않는다(다음 시각부터). DB 배치는 DB 가 내려가 있던 동안 놓친 시각을 pg_cron 이 따라잡지 않는다.
