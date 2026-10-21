@@ -12,6 +12,6 @@ import org.springframework.http.HttpStatus;
 public class OperatorNameTakenException extends CommonException {
 
     public OperatorNameTakenException() {
-        super(HttpStatus.CONFLICT, "NICKNAME_TAKEN", new MessageRef("error.NICKNAME_TAKEN"), Map.of("operatorName", new MessageRef("operator.name.duplicated")), null);
+        super(HttpStatus.CONFLICT, "NICKNAME_TAKEN", new MessageRef("operator.name.duplicated"), Map.of("operatorName", new MessageRef("operator.name.duplicated")), null);
     }
 }

@@ -123,6 +123,9 @@ public class OperatorService {
     @Transactional
     public OperatorView create(AdminActor actor, OperatorCreateRequest request) {
         String name = request.operatorName().strip();
+        UserPolicy.nicknameViolation(name).ifPresent(message -> {
+            throw ValidationException.of("operatorName", message);
+        });
         String email = UserPolicy.normalizeEmail(request.email());
         UserPolicy.emailViolation(email).ifPresent(message -> {
             throw ValidationException.of("email", message);
@@ -167,11 +170,16 @@ public class OperatorService {
         OperatorIdentityLock.acquire(entityManager);
         OperatorEntity operator = lock(operatorId);
         requireNotRoot(operator);
+        String name = request.operatorName().strip();
+        boolean renamed = !name.equals(operator.getOperatorName());
+        if (renamed) { // 이름이 그대로면 규칙을 다시 따지지 않는다(규칙을 통일하기 전에 만든 이름도 다른 항목은 고칠 수 있게)
+            UserPolicy.nicknameViolation(name).ifPresent(message -> {
+                throw ValidationException.of("operatorName", message);
+            });
+        }
         if (request.accountStartAt() != null && request.accountEndAt() != null && request.accountStartAt().isAfter(request.accountEndAt())) {
             throw new OperatorPeriodReversedException();
         }
-        String name = request.operatorName().strip();
-        boolean renamed = !name.equals(operator.getOperatorName());
         if (renamed && operatorQueries.existsOtherWithName(name, operator.getId())) {
             throw new OperatorNameTakenException();
         }

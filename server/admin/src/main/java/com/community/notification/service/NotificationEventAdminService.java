@@ -108,8 +108,18 @@ public class NotificationEventAdminService {
         boolean wasEmailEnabled = row.isEmailEnabled();
         if (wasEnabled != enabled || wasEmailEnabled != emailEnabled) {
             row.change(enabled, emailEnabled, actor.operatorId(), now);
+            Map<String, Object> before = new LinkedHashMap<>(); // 바뀐 값만 남긴다(그대로인 칸까지 「꺼짐 → 꺼짐」으로 찍히지 않게)
+            Map<String, Object> after = new LinkedHashMap<>();
+            if (wasEnabled != enabled) {
+                before.put("enabled", wasEnabled);
+                after.put("enabled", enabled);
+            }
+            if (wasEmailEnabled != emailEnabled) {
+                before.put("emailEnabled", wasEmailEnabled);
+                after.put("emailEnabled", emailEnabled);
+            }
             audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.NOTIFICATION_EVENT_UPDATE, AuditResult.SUCCESS).target("NOTIFICATION_EVENT", code)
-                    .with("before", Map.of("enabled", wasEnabled, "emailEnabled", wasEmailEnabled)).with("after", Map.of("enabled", enabled, "emailEnabled", emailEnabled)));
+                    .with("before", before).with("after", after));
             log.info("알림 이벤트 설정을 바꿨다 event={} enabled={} emailEnabled={} by operatorId={}", code, enabled, emailEnabled, actor.operatorId());
         }
         long sent = notifications.countByEventSince(now.minus(SENT_WINDOW)).getOrDefault(code, 0L);

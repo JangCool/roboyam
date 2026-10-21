@@ -93,6 +93,7 @@
 import type { OperatorRoleOption } from '~/components/operator/OperatorInfoForm.types';
 import type { OperatorUpdateRequest, OperatorView } from '~/composables/operator/api/useOperatorApi.types';
 import UtilOperator from '~/utils/util-operator';
+import UtilValidation from '~/utils/util-validation';
 
 interface Props {
     operator: OperatorView;
@@ -160,7 +161,11 @@ const nameProblem = computed(() => {
     if (!submitted.value) return '';
     const name = form.operatorName.trim();
     if (!name) return t('operator.nameRequired');
-    return name.length > UtilOperator.NAME_MAX ? t('operator.nameTooLong', { max: UtilOperator.NAME_MAX }) : '';
+    // 이름은 닉네임과 같은 규칙이다(서버 UserPolicy.nicknameViolation) — 이름이 그대로면 규칙을 다시 따지지 않는다
+    if (name === props.operator.operatorName) return '';
+    const problem = UtilValidation.nickname(name);
+    if (!problem) return '';
+    return problem === 'LENGTH' ? t('operator.nameLength') : t('operator.nameChars');
 });
 const periodProblem = computed(() => (UtilOperator.isPeriodReversed(form.accountStartAt, form.accountEndAt) ? t('operator.periodReversed') : ''));
 

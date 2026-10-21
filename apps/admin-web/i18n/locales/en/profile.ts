@@ -52,7 +52,8 @@ export default {
     eventsHint: 'Choose which events send you alerts. A turned-off event no longer notifies you.',
     eventsLoadFailed: 'Could not load the event list.',
     eventsEmpty: 'There are no events you can receive right now.',
-    eventMandatory: 'This is a security alert, so it cannot be turned off.',
+    eventMandatory: 'Required',
+    eventEmailable: 'Also sent by email',
     eventReceiveOn: 'You will receive {name} alerts',
     eventReceiveOff: 'You will no longer receive {name} alerts',
 

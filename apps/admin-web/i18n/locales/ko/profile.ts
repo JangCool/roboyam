@@ -52,7 +52,8 @@ export default {
     eventsHint: '이벤트마다 알림을 받을지 정해요. 끄면 그 이벤트의 알림이 오지 않아요.',
     eventsLoadFailed: '이벤트 목록을 불러오지 못했어요.',
     eventsEmpty: '지금 받을 수 있는 이벤트가 없어요.',
-    eventMandatory: '보안에 관한 알림이라 끌 수 없어요.',
+    eventMandatory: '필수 알림',
+    eventEmailable: '메일로도 받아요',
     eventReceiveOn: '{name} 알림을 받아요',
     eventReceiveOff: '{name} 알림을 받지 않아요',
 

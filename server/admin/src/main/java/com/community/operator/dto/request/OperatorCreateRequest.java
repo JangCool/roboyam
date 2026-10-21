@@ -9,7 +9,7 @@ import java.util.List;
  * 이름 1~20자, 이메일 형식은 서비스가 다시 본다. {@code roleIds} 는 비어도 된다(없으면 역할 없이 만든다).
  */
 public record OperatorCreateRequest(
-        @NotBlank(message = "{operator.name.required}") @Size(max = 20, message = "{operator.name.max}") String operatorName,
+        @NotBlank(message = "{operator.name.required}") String operatorName,
         @NotBlank(message = "{user.email.required}") @Size(max = 254, message = "{user.email.max}") String email,
         @Size(max = 50, message = "{operator.roles.max}") List<String> roleIds) {
 }

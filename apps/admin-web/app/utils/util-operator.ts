@@ -19,9 +19,6 @@ export default class UtilOperator {
     /** 반려 사유의 최대 길이 — 가정 */
     static readonly REJECT_REASON_MAX = 200;
 
-    /** 이름이 허용하는 최대 길이 — 서버와 같다(hamonica3 `UpdateMemberRequest.userName` 20자) */
-    static readonly NAME_MAX = 20;
-
     /**
      * 이 운영자의 상태 딱지들. 어느 것도 아니면 `normal` 하나.
      * @param {OperatorView} o - 운영자.

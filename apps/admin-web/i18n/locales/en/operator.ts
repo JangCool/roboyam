@@ -109,7 +109,8 @@ export default {
     periodWarn: 'Sign-in is blocked after the end. Extend the period to let them back in.',
     periodReversed: 'The start is later than the end.',
     nameRequired: 'Enter a name.',
-    nameTooLong: 'The name can be up to {max} characters.',
+    nameLength: 'Enter a name of 2–12 characters.',
+    nameChars: 'Use only Korean, English letters, numbers and underscores (_), with a single space between words.',
 
     // Account state — switched on means "can use"
     loginRule: 'Sign-in works only when the account is approved, not locked, in use and within its period.',

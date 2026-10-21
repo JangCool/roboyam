@@ -10,7 +10,7 @@ import java.util.List;
  * {@code roleIds} 가 없으면(null) 역할은 그대로 둔다 — 역할을 바꾸려면 {@code role.grant} 가 필요하다. 계정 기간은 둘 다 비면 제한 없음이고 시작이 끝보다 뒤면 400.
  */
 public record OperatorUpdateRequest(
-        @NotBlank(message = "{operator.name.required}") @Size(max = 20, message = "{operator.name.max}") String operatorName,
+        @NotBlank(message = "{operator.name.required}") String operatorName,
         @Size(max = 50, message = "{operator.roles.max}") List<String> roleIds,
         Instant accountStartAt,
         Instant accountEndAt) {

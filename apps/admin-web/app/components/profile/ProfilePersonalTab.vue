@@ -90,10 +90,16 @@
                                         <NotificationSeverityTag :kind="event.severity" />
                                     </div>
                                     <p class="m-0 mt-0.5 text-xs text-muted-color">{{ event.description }}</p>
-                                    <!-- 필수 이벤트는 끌 수 없다 — 잠금 표시와 이유를 보인다 -->
-                                    <p v-if="event.mandatory" class="m-0 mt-1 flex items-center gap-1 text-xs text-muted-color">
-                                        <i class="pi pi-lock text-[11px]" aria-hidden="true" />
-                                        {{ t('profile.eventMandatory') }}
+                                    <!-- 필수 이벤트는 끌 수 없다(이유는 위 설명이 말한다) — 잠금 표시만 보이고, 메일로도 오는 이벤트는 그것도 알린다 -->
+                                    <p v-if="event.mandatory || event.emailable" class="m-0 mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-color">
+                                        <span v-if="event.mandatory" class="inline-flex items-center gap-1">
+                                            <i class="pi pi-lock text-[11px]" aria-hidden="true" />
+                                            {{ t('profile.eventMandatory') }}
+                                        </span>
+                                        <span v-if="event.emailable" class="inline-flex items-center gap-1">
+                                            <i class="pi pi-envelope text-[11px]" aria-hidden="true" />
+                                            {{ t('profile.eventEmailable') }}
+                                        </span>
                                     </p>
                                 </div>
                                 <!-- 켜짐 = 받는다. 필수 이벤트는 켜진 채 잠긴다 -->
