@@ -6,6 +6,7 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
+import com.community.notification.service.AdminNotices;
 import com.community.operator.entity.OperatorEntity;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.permission.dto.AdminActor;
@@ -48,14 +49,16 @@ public class PasswordChangeService {
     private final PasswordEncoder encoder;
     private final AdminSessionTerminator sessions;
     private final AuditLogService audit;
+    private final AdminNotices notices;
 
     public PasswordChangeService(OperatorRepository operators, AdminPasswordMatcher matcher, PasswordEncoder encoder, AdminSessionTerminator sessions,
-                                 AuditLogService audit) {
+                                 AuditLogService audit, AdminNotices notices) {
         this.operators = operators;
         this.matcher = matcher;
         this.encoder = encoder;
         this.sessions = sessions;
         this.audit = audit;
+        this.notices = notices;
     }
 
     /**
@@ -93,6 +96,7 @@ public class PasswordChangeService {
         int ended = sessions.endOthers(actor.operatorId(), currentSessionId);
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.PASSWORD_CHANGE, AuditResult.SUCCESS)
                 .target("OPERATOR", Long.toString(actor.operatorId())).with("sessionsEnded", ended));
+        notices.passwordChanged(actor.operatorId());
         log.info("비밀번호를 바꿨다 operatorId={} 끝낸 다른 세션={}개", actor.operatorId(), ended);
     }
 }

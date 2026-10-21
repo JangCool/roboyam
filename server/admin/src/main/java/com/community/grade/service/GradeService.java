@@ -18,6 +18,7 @@ import com.community.grade.entity.GradeSettingEntity;
 import com.community.grade.repository.master.GradeRepository;
 import com.community.grade.repository.master.GradeRepositoryQDSL;
 import com.community.grade.repository.master.GradeSettingRepository;
+import com.community.notification.service.AdminNotices;
 import com.community.permission.dto.AdminActor;
 import com.community.role.service.GradeRoleSynchronizer;
 import jakarta.persistence.EntityManager;
@@ -60,9 +61,11 @@ public class GradeService {
     private final GradeRoleSynchronizer gradeRoles;
     private final AuditLogService audit;
     private final EntityManager entityManager;
+    private final AdminNotices notices;
 
     public GradeService(GradeRepository grades, GradeRepositoryQDSL gradeQueries, GradeSettingRepository settings, GradeSavePlanner planner,
-                        GradePromotionService promotion, GradeRoleSynchronizer gradeRoles, AuditLogService audit, EntityManager entityManager) {
+                        GradePromotionService promotion, GradeRoleSynchronizer gradeRoles, AuditLogService audit, EntityManager entityManager, AdminNotices notices) {
+        this.notices = notices;
         this.grades = grades;
         this.gradeQueries = gradeQueries;
         this.settings = settings;
@@ -211,6 +214,7 @@ public class GradeService {
                 event = event.with("manualPolicy", Map.of("from", previousPolicy, "to", plan.policy().name()));
             }
             audit.record(event);
+            notices.gradeSettingsSaved(actor);
             log.info("등급 설정을 저장했다 추가={}개 삭제={}개 수정={}개 승급={}명 operatorId={}", created.size(), deleted.size(), changed.size(), promoted, actor.operatorId());
         }
 

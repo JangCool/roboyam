@@ -4,6 +4,7 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
+import com.community.notification.service.AdminNotices;
 import com.community.permission.dto.AdminActor;
 import com.community.site.dto.request.SiteBasicRequest;
 import com.community.site.dto.response.SiteBasicResponse;
@@ -39,11 +40,13 @@ public class SiteBasicService {
     private final SiteSettingRepository settings;
     private final SiteAssets assets;
     private final AuditLogService audit;
+    private final AdminNotices notices;
 
-    public SiteBasicService(SiteSettingRepository settings, SiteAssets assets, AuditLogService audit) {
+    public SiteBasicService(SiteSettingRepository settings, SiteAssets assets, AuditLogService audit, AdminNotices notices) {
         this.settings = settings;
         this.assets = assets;
         this.audit = audit;
+        this.notices = notices;
     }
 
     @Transactional(readOnly = true)
@@ -78,6 +81,7 @@ public class SiteBasicService {
             row.changeBasic(name, tagline, actor.operatorId(), Instant.now());
             audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.SITE_BASIC_UPDATE, AuditResult.SUCCESS).target("SITE", "1")
                     .with("changed", changed).with("siteName", oldName + " -> " + name).with("tagline", (oldTagline == null ? "" : oldTagline) + " -> " + (tagline == null ? "" : tagline)));
+            notices.siteSettingsChanged(actor, "siteBasic");
             log.info("사이트 기본 정보를 바꿨다 changed={} operatorId={}", changed, actor.operatorId());
         }
         return view(row);

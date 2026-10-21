@@ -4,6 +4,7 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
+import com.community.notification.service.AdminNotices;
 import com.community.permission.dto.AdminActor;
 import com.community.site.dto.request.SiteDisplayDefaultsRequest;
 import com.community.site.dto.response.DisplayValuesView;
@@ -33,10 +34,12 @@ public class SiteDisplayService {
 
     private final SiteSettingRepository settings;
     private final AuditLogService audit;
+    private final AdminNotices notices;
 
-    public SiteDisplayService(SiteSettingRepository settings, AuditLogService audit) {
+    public SiteDisplayService(SiteSettingRepository settings, AuditLogService audit, AdminNotices notices) {
         this.settings = settings;
         this.audit = audit;
+        this.notices = notices;
     }
 
     @Transactional(readOnly = true)
@@ -61,6 +64,7 @@ public class SiteDisplayService {
             row.changeDisplay(language, zoneId, timeFormat, dateFormat, actor.operatorId(), Instant.now());
             audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.SITE_DISPLAY_UPDATE, AuditResult.SUCCESS).target("SITE", "1")
                     .with("from", before).with("to", language + "/" + zoneId + "/" + timeFormat + "/" + dateFormat));
+            notices.siteSettingsChanged(actor, "siteDisplay");
             log.info("표시 기본값을 바꿨다 operatorId={}", actor.operatorId());
         }
         return view(row);

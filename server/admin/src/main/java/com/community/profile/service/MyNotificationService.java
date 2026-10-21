@@ -22,7 +22,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 내 알림 수신 설정 — 관리자 알림을 이메일로 받을지(처음 값 켜짐). <b>설정만 저장한다</b> — 알림을 보내는 기능은 아직 없다.
+ * 내 알림 수신 설정 — 관리자 알림을 이메일로 받을지(처음 값 켜짐). 알림 메일({@code NotificationEmailSender})이 이 값을 본다 — 초대·재설정·승인번호 같은 시스템 메일은 이 설정과 상관없이 나간다.
+ * 이벤트별 끄기는 {@code MyNotificationEventService} 다.
  * 행이 없으면 처음 값으로 읽고, 처음 저장할 때 운영자 행을 잠근 뒤 설정 행을 만든다. 바뀐 때만 감사 {@code PROFILE_NOTIFICATION_UPDATE}.
  */
 @Service

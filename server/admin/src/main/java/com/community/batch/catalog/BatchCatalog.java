@@ -43,6 +43,9 @@ public enum BatchCatalog {
     /** 보관 기간(기본 90일)이 지난 배치 실행 로그 삭제 — DB 배치, 기본 매일 03:40 KST. 예전에는 Java 배치였다(키를 이어 쓴다) */
     BATCH_LOG_CLEANUP("batch-log-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
+    /** 관리자 알림 정리(읽은 지 30일 · 안 읽은 채 90일 · 운영자당 500건 초과) — DB 배치, 기본 매일 03:50 KST. 보관 값은 {@code batch_params} (docs/features/notification-contract.md) */
+    NOTIFICATION_CLEANUP("notification-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
     /** 올리기만 하고 어디에도 지정하지 않은 채 오래된 파일(files.status = PENDING) 삭제 — Java 배치(저장소 파일을 지우므로 DB 만으로 끝나지 않는다), 하루 한 번(새벽 03:45). 기준 시간은 {@code roboyam.media.orphan-retention-hours} */
     FILE_ORPHAN_CLEANUP("file-orphan-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 45 3 * * *", true);
 

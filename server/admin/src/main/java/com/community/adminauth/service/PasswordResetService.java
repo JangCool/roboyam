@@ -13,6 +13,7 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
+import com.community.notification.service.AdminNotices;
 import com.community.operator.entity.OperatorCertCodeEntity;
 import com.community.operator.entity.OperatorEntity;
 import com.community.operator.repository.master.OperatorCertCodeRepository;
@@ -60,9 +61,10 @@ public class PasswordResetService {
     private final AdminSessionTerminator sessions;
     private final AdminPasswordResetProperties props;
     private final AuditLogService audit;
+    private final AdminNotices notices;
 
     public PasswordResetService(OperatorRepository operators, OperatorCertCodeRepository certs, PasswordEncoder encoder, AdminLoginAttemptService attempts,
-                                AdminSessionTerminator sessions, AdminPasswordResetProperties props, AuditLogService audit) {
+                                AdminSessionTerminator sessions, AdminPasswordResetProperties props, AuditLogService audit, AdminNotices notices) {
         this.operators = operators;
         this.certs = certs;
         this.encoder = encoder;
@@ -70,6 +72,7 @@ public class PasswordResetService {
         this.sessions = sessions;
         this.props = props;
         this.audit = audit;
+        this.notices = notices;
     }
 
     /**
@@ -143,6 +146,7 @@ public class PasswordResetService {
         String target = Long.toString(operatorId);
         audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.PASSWORD_RESET, AuditResult.SUCCESS).target("OPERATOR", target).with("sessionsEnded", ended));
         audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.LOGIN_SUCCESS, AuditResult.SUCCESS).target("OPERATOR", target).with("via", "PASSWORD_RESET"));
+        notices.passwordReset(operatorId);
         log.info("비밀번호를 재설정했다 operatorId={} 끝낸 세션={}개", operatorId, ended);
         return new OperatorPrincipal(operatorId);
     }
