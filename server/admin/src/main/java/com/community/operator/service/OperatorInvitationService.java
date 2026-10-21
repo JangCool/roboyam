@@ -24,6 +24,7 @@ import com.community.user.service.UserPolicy;
 import com.community.zconfiguration.crypto.Digests;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
+import jakarta.persistence.EntityManager;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -48,7 +49,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li>링크는 유효 72시간(가정, {@code roboyam.admin-auth.invitation-valid-hours}). 토큰 원문은 <b>커밋된 뒤 메일로만</b> 나가고 DB 에는 SHA-256 해시만 남는다.</li>
  *   <li>같은 이메일에 <b>유효한 초대가 이미 있으면</b> 409 {@code INVITATION_DUPLICATED}, 기한이 지난 초대는 새 초대가 대신한다(옛 것을 지운다).
- *       이미 운영자인 이메일은 409 {@code OPERATOR_EMAIL_DUPLICATED}. 수락하지 않은 초대는 같은 이메일에 하나뿐이다(유일 인덱스).</li>
+ *       이미 운영자인 이메일은 409 {@code OPERATOR_EMAIL_DUPLICATED}(운영자 바로 추가가 같은 이메일의 유효한 초대를 막는 409 {@code OPERATOR_INVITATION_PENDING} 의 짝). 수락하지 않은 초대는 같은 이메일에 하나뿐이다(유일 인덱스).</li>
  *   <li>역할을 함께 정할 수 있고 {@link OperatorRoleAssignmentPolicy} 가 운영자에게 역할을 줄 때와 같은 검사를 한다(권한 상승 방지 포함).</li>
  *   <li>취소하면 초대를 지워 링크를 못 쓰게 한다. 링크를 받아 확인·수락하는 일은 {@link OperatorInvitationAcceptService}(로그인 전 공개 API) 가 한다. 취소한 초대는 행이 지워지므로 링크로는 「모르는 토큰」(404 {@code INVITATION_NOT_FOUND}) 과 구분되지 않는다.</li>
  * </ul>
@@ -68,10 +69,12 @@ public class OperatorInvitationService {
     private final SnowflakeIdGenerator ids;
     private final AuditLogService audit;
     private final ApplicationEventPublisher events;
+    private final EntityManager entityManager;
 
     public OperatorInvitationService(OperatorInvitationRepository invitations, OperatorInvitationRoleRepository invitationRoles, OperatorRepository operators,
                                      RoleRepository roles, OperatorRoleAssignmentPolicy rolePolicy, AdminAuthProperties props, SnowflakeIdGenerator ids,
-                                     AuditLogService audit, ApplicationEventPublisher events) {
+                                     AuditLogService audit, ApplicationEventPublisher events, EntityManager entityManager) {
+        this.entityManager = entityManager;
         this.invitations = invitations;
         this.invitationRoles = invitationRoles;
         this.operators = operators;
@@ -101,13 +104,17 @@ public class OperatorInvitationService {
                 invitation.getCreatedAt(), invitation.getExpiresAt(), invitation.isExpired(now))).toList();
     }
 
-    /** 초대 링크 메일을 보낸다(커밋 뒤). 검사 순서: 이메일 형식(400) → 이미 운영자(409) → 역할 → 유효한 초대가 이미 있음(409) */
+    /**
+     * 초대 링크 메일을 보낸다(커밋 뒤). 검사 순서: 이메일 형식(400) → 이미 운영자(409) → 역할 → 유효한 초대가 이미 있음(409).
+     * 운영자 바로 추가({@link OperatorService#create})와 같은 {@link OperatorIdentityLock} 아래에서 검사해, 같은 이메일로 동시에 직접 추가와 초대가 들어와도 하나만 성공한다.
+     */
     @Transactional
     public void invite(AdminActor actor, OperatorInviteRequest request) {
         String email = UserPolicy.normalizeEmail(request.email());
         UserPolicy.emailViolation(email).ifPresent(message -> {
             throw ValidationException.of("email", message);
         });
+        OperatorIdentityLock.acquire(entityManager);
         if (operators.existsByEmail(email)) {
             throw new OperatorEmailDuplicatedException();
         }

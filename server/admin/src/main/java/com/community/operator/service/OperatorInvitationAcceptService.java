@@ -17,7 +17,7 @@ import com.community.operator.exception.OperatorEmailDuplicatedException;
 import com.community.operator.repository.master.OperatorInvitationRepository;
 import com.community.operator.repository.master.OperatorInvitationRoleRepository;
 import com.community.operator.repository.master.OperatorRepository;
-import com.community.profile.service.ProfileNicknameLock;
+import com.community.operator.repository.master.OperatorRepositoryQDSL;
 import com.community.role.entity.OperatorRoleEntity;
 import com.community.role.entity.RoleEntity;
 import com.community.role.repository.master.OperatorRoleRepository;
@@ -67,6 +67,7 @@ public class OperatorInvitationAcceptService {
     private final OperatorInvitationRepository invitations;
     private final OperatorInvitationRoleRepository invitationRoles;
     private final OperatorRepository operators;
+    private final OperatorRepositoryQDSL operatorQueries;
     private final OperatorRoleRepository operatorRoles;
     private final RoleRepository roles;
     private final PasswordEncoder encoder;
@@ -74,12 +75,13 @@ public class OperatorInvitationAcceptService {
     private final AuditLogService audit;
     private final EntityManager entityManager;
 
-    public OperatorInvitationAcceptService(OperatorInvitationRepository invitations, OperatorInvitationRoleRepository invitationRoles, OperatorRepository operators,
+    public OperatorInvitationAcceptService(OperatorInvitationRepository invitations, OperatorInvitationRoleRepository invitationRoles, OperatorRepository operators, OperatorRepositoryQDSL operatorQueries,
                                            OperatorRoleRepository operatorRoles, RoleRepository roles, PasswordEncoder encoder, SnowflakeIdGenerator ids,
                                            AuditLogService audit, EntityManager entityManager) {
         this.invitations = invitations;
         this.invitationRoles = invitationRoles;
         this.operators = operators;
+        this.operatorQueries = operatorQueries;
         this.operatorRoles = operatorRoles;
         this.roles = roles;
         this.encoder = encoder;
@@ -102,13 +104,20 @@ public class OperatorInvitationAcceptService {
 
     /**
      * 초대를 수락해 운영자를 만든다. 검사 순서: 토큰(404·409·410) → 입력 형식(400 {@code fields.nickname|password}) → 이메일 중복(409) → 닉네임 중복(409).
+     * 모르는 토큰이 아니면 {@link OperatorIdentityLock} 을 먼저 잡은 뒤 초대 행을 잠가(잠금 순서: 식별 잠금 → 행 잠금) 직접 추가·초대 만들기와 경합해도 중복이 생기지 않는다.
      *
      * @param ip 요청자 IP(감사 기록용)
      */
     @Transactional
     public void accept(InvitationAcceptRequest request, String ip) {
         Instant now = Instant.now();
-        OperatorInvitationEntity invitation = invitations.findWithLockByTokenHash(hashOf(request.token())).orElseThrow(InvitationLinkNotFoundException::new);
+        String tokenHash = hashOf(request.token());
+        if (!invitations.existsByTokenHash(tokenHash)) {
+            throw new InvitationLinkNotFoundException(); // 모르는 토큰은 전역 잠금을 잡기 전에 거른다(공개 API 라 아무나 부를 수 있다)
+        }
+        // 잠금 순서: 운영자 식별 잠금 → 초대 행 잠금. 초대 만들기·직접 추가·닉네임 변경이 같은 순서로 잡아 교착이 없다. 초대 행은 잠근 뒤에 상태를 다시 본다
+        OperatorIdentityLock.acquire(entityManager);
+        OperatorInvitationEntity invitation = invitations.findWithLockByTokenHash(tokenHash).orElseThrow(InvitationLinkNotFoundException::new);
         requireUsable(invitation, now);
 
         String nickname = request.nickname();
@@ -126,20 +135,19 @@ public class OperatorInvitationAcceptService {
             throw new ValidationException(invalid);
         }
 
-        ProfileNicknameLock.acquire(entityManager); // 내 정보의 닉네임 변경과 같은 잠금 — 같은 이름으로 동시에 만드는 두 요청을 줄 세운다
         String email = invitation.getEmail();
         if (operators.existsByEmail(email)) {
             throw new OperatorEmailDuplicatedException();
         }
-        if (operators.existsByOperatorNameIgnoreCaseAndIdNot(nickname, 0L)) { // 0 은 없는 ID — 「다른 운영자」 조건이 모든 운영자를 뜻하게 한다
+        if (operatorQueries.existsOtherWithName(nickname, 0L)) { // 0 은 없는 ID — 「다른 운영자」 조건이 모든 운영자를 뜻하게 한다
             throw new UserNicknameTakenException();
         }
 
         OperatorEntity operator = OperatorEntity.createApproved(ids.nextId(), email, nickname, encoder.encode(password), now);
         try {
-            operators.persistAndFlush(operator); // 아래 역할 행이 참조하므로 먼저 내보낸다. 동시에 같은 이메일이 만들어지면 여기서 걸린다
+            operators.persistAndFlush(operator); // 아래 역할 행이 참조하므로 먼저 내보낸다. 위 잠금을 새는 경우의 마지막 방어는 유일 인덱스(이메일·이름)다
         } catch (DataIntegrityViolationException e) {
-            throw new OperatorEmailDuplicatedException();
+            throw OperatorIdentityLock.isNameViolation(e) ? new UserNicknameTakenException() : new OperatorEmailDuplicatedException();
         }
 
         Set<String> wanted = invitationRoles.findByInvitationIdIn(List.of(invitation.getId())).stream().map(OperatorInvitationRoleEntity::getRoleId).collect(Collectors.toCollection(TreeSet::new));

@@ -6,6 +6,7 @@ import com.community.operator.entity.OperatorTab;
 import com.community.operator.entity.QOperatorEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.Instant;
 import java.util.List;
@@ -29,6 +30,16 @@ public class OperatorRepositoryQDSL extends RoboyamRepositoryQDSL {
             where = where.and(OPERATOR.email.containsIgnoreCase(k).or(OPERATOR.operatorName.containsIgnoreCase(k)));
         }
         return query.selectFrom(OPERATOR).where(where).orderBy(OPERATOR.createdAt.desc(), OPERATOR.id.desc()).fetch();
+    }
+
+    /**
+     * 그 이름(대소문자 무시)을 쓰는 <b>다른</b> 운영자가 있는가 — {@code exceptId} 는 자기 자신(새로 만드는 쪽은 없는 ID 0). 유일 인덱스 {@code ux_operators_name_lower}
+     * ({@code lower(operator_name)})와 같은 함수로 견주도록 DB 의 {@code lower} 를 쓴다.
+     */
+    public boolean existsOtherWithName(String operatorName, long exceptId) {
+        return query.selectOne().from(OPERATOR)
+                .where(OPERATOR.operatorName.lower().eq(Expressions.stringTemplate("lower({0})", operatorName)), OPERATOR.id.ne(exceptId))
+                .fetchFirst() != null;
     }
 
     public OperatorCounts counts(Instant now) {

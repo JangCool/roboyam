@@ -18,6 +18,9 @@ public interface OperatorInvitationRepository extends RoboyamRepository<Operator
     /** 토큰 해시(SHA-256 16진)로 찾는다 — 링크 확인. 수락한 초대도 찾는다 */
     Optional<OperatorInvitationEntity> findByTokenHash(String tokenHash);
 
+    /** 그 토큰 해시의 초대 행이 있는가(수락한 것 포함) — 수락이 전역 잠금을 잡기 전에 모르는 토큰을 싸게 걸러낸다 */
+    boolean existsByTokenHash(String tokenHash);
+
     /** 토큰 해시로 찾아 행을 쓰기 잠금으로 읽는다 — 같은 초대를 동시에 수락하는 요청을 줄 세운다. 트랜잭션 안에서만 의미가 있다 */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<OperatorInvitationEntity> findWithLockByTokenHash(String tokenHash);

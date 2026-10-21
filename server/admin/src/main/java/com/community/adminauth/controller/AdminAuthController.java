@@ -64,7 +64,7 @@ public class AdminAuthController {
     @AdminPublic
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AdminMeResponse>> login(@RequestBody AdminLoginRequest body, HttpServletRequest request, HttpServletResponse response) {
-        OperatorPrincipal principal = loginService.authenticate(body.email(), body.password(), clientIps.resolve(request));
+        OperatorPrincipal principal = loginService.authenticate(body.email(), body.password(), clientIps.resolve(request), request.getHeader("User-Agent"));
         adminSession.establish(request, response, principal);
         return noStore(meService.of(adminSession.resolve(request)));
     }

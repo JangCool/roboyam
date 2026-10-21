@@ -42,6 +42,8 @@ public final class AuditActions {
     public static final String PASSWORD_RESET_REQUEST = "PASSWORD_RESET_REQUEST";
     public static final String PASSWORD_RESET = "PASSWORD_RESET";
     public static final String PASSWORD_CHANGE = "PASSWORD_CHANGE";
+    /** 이름 유일 제약(V30)을 걸기 전에 같은 이름(대소문자 무시)이던 운영자의 이름을 마이그레이션이 고친 일 — 앱이 아니라 SQL 이 SYSTEM 으로 남긴다 */
+    public static final String OPERATOR_NAME_DEDUP = "OPERATOR_NAME_DEDUP";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

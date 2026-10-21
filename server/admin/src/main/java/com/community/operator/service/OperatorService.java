@@ -15,10 +15,13 @@ import com.community.operator.dto.response.OperatorView;
 import com.community.operator.entity.OperatorEntity;
 import com.community.operator.entity.OperatorTab;
 import com.community.operator.exception.OperatorEmailDuplicatedException;
+import com.community.operator.exception.OperatorInvitationPendingException;
+import com.community.operator.exception.OperatorNameTakenException;
 import com.community.operator.exception.OperatorNotFoundException;
 import com.community.operator.exception.OperatorNotPendingException;
 import com.community.operator.exception.OperatorPeriodReversedException;
 import com.community.operator.exception.OperatorRootProtectedException;
+import com.community.operator.repository.master.OperatorInvitationRepository;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.operator.repository.master.OperatorRepositoryQDSL;
 import com.community.permission.dto.AdminActor;
@@ -33,6 +36,7 @@ import com.community.role.repository.master.RoleRepositoryQDSL;
 import com.community.user.service.UserPolicy;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -57,6 +61,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>역할을 주고 빼는 일은 {@link OperatorRoleAssignmentPolicy} 가 검사한다 — {@code role.grant} 필요, <b>권한 상승 방지</b>(자기 권한 범위 안에서만), 종합 관리 역할은 최고 관리자만.</li>
  *   <li>운영자 만들기는 승인된 상태로 만들고 <b>임시 비밀번호는 커밋된 뒤 이메일로만 안내</b>한다(응답·DB·로그에 남지 않는다. 메일 서버가 없으면 보내지 못한다 — 받은 사람은 비밀번호 재설정으로도 비밀번호를 정할 수 있다).</li>
  *   <li>반려는 승인 대기 건만 되고(409 {@code OPERATOR_NOT_PENDING}) 반려한 신청은 지운다(보관 방식은 미확정). 지우는 API 는 따로 없다 — 「사용 중지」가 대신한다.</li>
+ *   <li><b>이메일·이름의 유일성</b>: 만들기·이름 수정은 초대 만들기·수락, 내 정보 닉네임과 같은 {@link OperatorIdentityLock} 아래에서 사전 검사한다 — 이미 운영자인 이메일 · 같은 이메일의 <b>유효한 대기 초대</b>(409
+ *       {@code OPERATOR_INVITATION_PENDING}, 만료된 초대는 거절하지 않는다) · 같은 이름(대소문자 무시, 409 {@code NICKNAME_TAKEN} + {@code fields.operatorName}). 마지막 방어는 DB 유일 인덱스다(V30).</li>
  *   <li>같은 운영자를 동시에 바꾸는 요청은 행 잠금으로 줄 세운다. 모든 변경은 감사 기록으로 남긴다(비밀번호·토큰 제외).</li>
  * </ul>
  */
@@ -67,6 +73,8 @@ public class OperatorService {
 
     private final OperatorRepository operators;
     private final OperatorRepositoryQDSL operatorQueries;
+    private final OperatorInvitationRepository invitations;
+    private final EntityManager entityManager;
     private final RoleRepositoryQDSL roleQueries;
     private final OperatorRoleRepository operatorRoles;
     private final OperatorRoleAssignmentPolicy rolePolicy;
@@ -76,11 +84,13 @@ public class OperatorService {
     private final AccessDeniedRecorder denied;
     private final ApplicationEventPublisher events;
 
-    public OperatorService(OperatorRepository operators, OperatorRepositoryQDSL operatorQueries, RoleRepositoryQDSL roleQueries,
-                           OperatorRoleRepository operatorRoles, OperatorRoleAssignmentPolicy rolePolicy, PasswordEncoder encoder, SnowflakeIdGenerator ids,
-                           AuditLogService audit, AccessDeniedRecorder denied, ApplicationEventPublisher events) {
+    public OperatorService(OperatorRepository operators, OperatorRepositoryQDSL operatorQueries, OperatorInvitationRepository invitations, EntityManager entityManager,
+                           RoleRepositoryQDSL roleQueries, OperatorRoleRepository operatorRoles, OperatorRoleAssignmentPolicy rolePolicy, PasswordEncoder encoder,
+                           SnowflakeIdGenerator ids, AuditLogService audit, AccessDeniedRecorder denied, ApplicationEventPublisher events) {
         this.operators = operators;
         this.operatorQueries = operatorQueries;
+        this.invitations = invitations;
+        this.entityManager = entityManager;
         this.roleQueries = roleQueries;
         this.operatorRoles = operatorRoles;
         this.rolePolicy = rolePolicy;
@@ -101,7 +111,12 @@ public class OperatorService {
         return new OperatorPage(items, items.size(), operatorQueries.counts(now));
     }
 
-    /** 계정을 바로 만든다 — 승인된 상태로. 검사 순서: 이름·이메일 형식(400) → 이메일 중복(409) → 역할 */
+    /**
+     * 계정을 바로 만든다 — 승인된 상태로. 검사 순서: 이름·이메일 형식(400) → 이미 운영자인 이메일(409) → <b>같은 이메일로 유효한 초대가 있음(409 {@code OPERATOR_INVITATION_PENDING})</b>
+     * → 이름 중복(409 {@code NICKNAME_TAKEN}, {@code fields.operatorName}) → 역할.
+     * 기한이 지난 대기 초대는 거절하지 않는다(쓸 수 없는 링크이고 정리 배치가 지운다). 초대를 자동으로 지우지는 않는다 — 취소는 운영자가 한다.
+     * 초대 만들기·수락과 같은 {@link OperatorIdentityLock} 아래에서 검사해 동시에 직접 추가와 초대가 들어와도 둘 다 통과하지 못한다.
+     */
     @Transactional
     public OperatorView create(AdminActor actor, OperatorCreateRequest request) {
         String name = request.operatorName().strip();
@@ -109,18 +124,25 @@ public class OperatorService {
         UserPolicy.emailViolation(email).ifPresent(message -> {
             throw ValidationException.of("email", message);
         });
+        OperatorIdentityLock.acquire(entityManager);
         if (operators.existsByEmail(email)) {
             throw new OperatorEmailDuplicatedException();
         }
+        Instant now = Instant.now();
+        if (invitations.findByEmailAndConsumedAtIsNull(email).filter(invitation -> !invitation.isExpired(now)).isPresent()) {
+            throw new OperatorInvitationPendingException();
+        }
+        if (operatorQueries.existsOtherWithName(name, 0L)) { // 0 은 없는 ID — 「다른 운영자」 조건이 모든 운영자를 뜻하게 한다
+            throw new OperatorNameTakenException();
+        }
         List<RoleEntity> roles = rolePolicy.resolve(actor, request.roleIds(), Set.of());
 
-        Instant now = Instant.now();
         String temporaryPassword = TemporaryPassword.generate();
         OperatorEntity operator = OperatorEntity.createApproved(ids.nextId(), email, name, encoder.encode(temporaryPassword), now);
         try {
-            operators.persistAndFlush(operator); // 아래 역할 행이 참조하므로 먼저 내보낸다. 동시에 같은 이메일이 들어오면 여기서 걸린다
+            operators.persistAndFlush(operator); // 아래 역할 행이 참조하므로 먼저 내보낸다. 위 잠금을 새는 경우(다른 경로)의 마지막 방어는 유일 인덱스다
         } catch (DataIntegrityViolationException e) {
-            throw new OperatorEmailDuplicatedException();
+            throw OperatorIdentityLock.isNameViolation(e) ? new OperatorNameTakenException() : new OperatorEmailDuplicatedException();
         }
         for (RoleEntity role : roles) {
             operatorRoles.persist(OperatorRoleEntity.create(ids.nextId(), operator.getId(), role.getRoleId(), actor.operatorId(), now));
@@ -132,15 +154,22 @@ public class OperatorService {
     }
 
     /**
-     * 이름·역할·계정 기간을 고친다. 검사 순서: 없는 운영자(404) → 루트(409) → 이름(400) → 기간 거꾸로(400) → 역할.
+     * 이름·역할·계정 기간을 고친다. 검사 순서: 없는 운영자(404) → 루트(409) → 이름(400) → 기간 거꾸로(400) → 이름 중복(409 {@code NICKNAME_TAKEN}, {@code fields.operatorName}) → 역할.
+     * 이름이 그대로면 중복 검사를 하지 않는다(대소문자만 바꾸는 것은 자기 자신이라 통과). 이름을 정하는 다른 입구와 같은 {@link OperatorIdentityLock} 을 <b>행 잠금보다 먼저</b> 잡는다.
      * {@code roleIds} 가 없으면(null) 역할은 그대로 둔다.
      */
     @Transactional
     public OperatorView update(AdminActor actor, String operatorId, OperatorUpdateRequest request) {
+        OperatorIdentityLock.acquire(entityManager);
         OperatorEntity operator = lock(operatorId);
         requireNotRoot(operator);
         if (request.accountStartAt() != null && request.accountEndAt() != null && request.accountStartAt().isAfter(request.accountEndAt())) {
             throw new OperatorPeriodReversedException();
+        }
+        String name = request.operatorName().strip();
+        boolean renamed = !name.equals(operator.getOperatorName());
+        if (renamed && operatorQueries.existsOtherWithName(name, operator.getId())) {
+            throw new OperatorNameTakenException();
         }
 
         Instant now = Instant.now();
@@ -159,7 +188,14 @@ public class OperatorService {
                 event = event.with("rolesGranted", granted).with("rolesRevoked", revoked);
             }
         }
-        operator.updateProfile(request.operatorName().strip(), request.accountStartAt(), request.accountEndAt(), now);
+        operator.updateProfile(name, request.accountStartAt(), request.accountEndAt(), now);
+        if (renamed) {
+            try {
+                entityManager.flush(); // 이름 유일 인덱스에 걸리는지 여기서 알아낸다(변경 감지는 커밋 때에야 내보내 서비스가 못 잡는다)
+            } catch (RuntimeException e) {
+                throw OperatorIdentityLock.isNameViolation(e) ? new OperatorNameTakenException() : e;
+            }
+        }
         audit.record(event);
         return viewOf(operator, now);
     }
