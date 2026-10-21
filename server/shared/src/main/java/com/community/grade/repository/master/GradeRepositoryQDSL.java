@@ -78,6 +78,10 @@ public class GradeRepositoryQDSL extends RoboyamRepositoryQDSL {
         return query.update(PROFILE).set(PROFILE.gradeKey, toKey).set(PROFILE.updatedAt, now).where(promotable(scope)).execute();
     }
 
+    /**
+     * 승급 대상 조건 — ACTIVE·미탈퇴 회원, 가입 시각 기준 일수, 수동 상향 회원 포함 여부.
+     * <b>같은 규칙이 DB 배치(SQL) {@code R__batch_15_grade_promotion.sql} 에도 있다</b> — 여기를 고치면 그쪽도 같이 고친다(그 반대도).
+     */
     private static BooleanBuilder promotable(PromotionScope scope) {
         BooleanBuilder eligibleUsers = new BooleanBuilder();
         eligibleUsers.and(USER.status.eq(UserStatus.ACTIVE)).and(USER.deletedAt.isNull()).and(USER.createdAt.loe(scope.joinedBefore()));

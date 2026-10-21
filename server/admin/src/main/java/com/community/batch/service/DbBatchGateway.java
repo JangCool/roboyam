@@ -125,12 +125,31 @@ public class DbBatchGateway {
             Integer registered = jdbc.queryForObject("select batch_register_missing()", Integer.class);
             if ("READY".equals(status)) {
                 log.info("DB 배치(pg_cron)를 쓸 수 있다 — 새로 등록한 배치 {}개", registered);
+                Map<String, DbJob> registeredJobs = jobs(true);
+                for (BatchCatalog definition : BatchCatalog.databaseJobs()) {
+                    DbJob job = registeredJobs.get(definition.key());
+                    if (definition.isBusinessCritical() && (job == null || !job.scheduled())) {
+                        warnBusinessBatchIdle(definition, "pg_cron 에 등록되어 있지 않아");
+                    }
+                }
             } else {
                 log.warn("DB 배치(pg_cron)를 쓸 수 없다 status={} — 화면에 「사용 불가」로 보인다. Java 배치는 영향이 없다 (docs/features/batch-contract.md 「DB 배치」)", status);
+                warnBusinessBatchesIdle("pg_cron 이 없어");
             }
         } catch (DataAccessException e) {
             log.warn("DB 배치를 준비하지 못했다 — 화면에 「사용 불가」로 보인다: {}", e.getMostSpecificCause().getMessage());
+            warnBusinessBatchesIdle("pg_cron 을 확인하지 못해");
         }
+    }
+
+    private void warnBusinessBatchesIdle(String reason) {
+        BatchCatalog.databaseJobs().stream().filter(BatchCatalog::isBusinessCritical).forEach(definition -> warnBusinessBatchIdle(definition, reason));
+    }
+
+    /** 업무가 걸린 DB 배치(등급 일수 승급 등)는 멈추면 서비스 동작이 멈추므로 정리 배치와 달리 한 줄 더 눈에 띄게 남긴다 */
+    private void warnBusinessBatchIdle(BatchCatalog definition, String reason) {
+        log.warn("{} DB 업무 배치 '{}' 가 돌지 않는다 — 이 배치가 하는 일(예: 등급 일수 승급)이 멈춘다. pg_cron 을 설치·설정한 뒤 관리자 서버를 다시 시작하거나 DBA 가 "
+                + "CALL {}() 로 직접 돌려야 한다 (docs/features/batch-contract.md 「DB 배치」)", reason, definition.key(), definition.procedureName());
     }
 
     /**

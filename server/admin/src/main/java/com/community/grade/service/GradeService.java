@@ -42,7 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>삭제</b>: 그 등급의 회원은 저장돼 있는 서열에서 <b>바로 아래 남아 있는 등급</b>으로 이동한 뒤 등급이 지워진다. 첫 등급은 지울 수 없다.</li>
  *   <li><b>등급 역할(파생)</b>: 같은 트랜잭션에서 {@code ROLE_GRADE_<키>} 역할을 만들고(권한은 바로 아래 등급 역할의 것을 복사), 이름이 바뀌면 따라가고, 지워진 등급의 역할은 지운다.</li>
  *   <li><b>소급 승급</b>: 저장 직후 새 기준으로 이미 조건을 채운 회원을 올린다. 가입 일수 조건은 시간이 지나야 채워지는 조건이라 <b>저장 직후에는 기준을 낮춘 몫을 적용하지 않고</b>(저장 전 일수와 새 일수 중 큰 값으로 판정)
- *       다음 배치({@link GradePromotionService#promoteByElapsedTime})가 올린다. 활동 수 조건·새 등급·옵션을 "계속 자동 승급"으로 바꾼 경우는 저장 직후 올린다. 이동한 회원도 판정 대상이다.</li>
+ *       다음 배치(DB 배치 {@code grade-promotion} — 프로시저 {@code batch_grade_promotion})가 올린다. 활동 수 조건·새 등급·옵션을 "계속 자동 승급"으로 바꾼 경우는 저장 직후 올린다. 이동한 회원도 판정 대상이다.</li>
  *   <li>변경이 있으면 감사 기록({@code GRADE_UPDATE})을 남긴다 — 추가·삭제(이동 인원)·이름 변경·순서·옵션·소급 승급 인원.</li>
  * </ul>
  * 입구의 권한(읽기는 grade.read · member.read · role.read 중 하나, 저장·미리보기는 grade.manage)은 컨트롤러가 선언한다.

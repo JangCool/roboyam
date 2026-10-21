@@ -43,6 +43,13 @@
 ## 3. 작성 예시
 `R__batch_13_audit_log_retention.sql` (줄여서): 선언부 `v_days := batch_param(c_job,'retention_days',365,1,3650)` → `batch_run_begin` → `COMMIT` → 덩어리 루프 `DELETE FROM audit_logs WHERE id IN (SELECT id … LIMIT least(v_chunk, v_max - v_total))` → `batch_run_close` → `COMMIT`. 끝에 `batch_param_seed` 3줄과 `batch_define('audit-log-retention','batch_audit_log_retention',3,30)`.
 
+**대량 갱신(업무 배치) 예시** `R__batch_15_grade_promotion.sql`: 삭제가 아니라 `UPDATE` 라 처리한 행이 다시 대상이 되지 않아야 루프가 끝난다 — 대상 조건이 갱신 뒤 거짓이 되게(승급은 서열이 올라가므로 그렇다) 하고, `user_id > v_last` 키셋으로 덩어리를 이어 훑는다(앞쪽의 대상 아닌 행을 매번 다시 읽지 않게). 고른 뒤 다른 곳이 바꾼 행은 `UPDATE … WHERE 칸 = 고른 때의 값` 으로 건너뛴다. 다른 기능과 같은 행을 건드리면 그 기능이 잡는 잠금(예: `grade_settings` 행 `FOR UPDATE`)을 **덩어리마다** 먼저 잡고 `lock_timeout` 을 짧게 건다 — COMMIT 마다 잠금이 풀리므로 덩어리 안에서 다시 잡고 판정 기준(등급 목록 등)을 다시 읽는다.
+
+### 3-1. 업무 배치(정리가 아닌 DB 배치) 추가 규약
+* **Java 에도 같은 판정이 있으면 이중 구현이다** — SQL 파일 머리말과 Java 쪽 메서드 주석에 서로의 파일·메서드를 적고(어느 쪽을 고치면 다른 쪽도 고친다), 같은 데이터로 두 쪽의 결과가 같은지 확인한다(예: 등급 승급은 등급 저장 PUT = Java `promoteAll`, 지금 실행 = SQL 을 같은 시험 데이터에 각각 돌려 비교).
+* 정리 배치는 pg_cron 이 없어도 쌓일 뿐이지만 **업무 배치(`BatchCatalog#isBusinessCritical` — 분류가 SYSTEM 이 아닌 DB 배치)는 멈추면 서비스 동작이 멈춘다.** 그래서 기동 때 `DbBatchGateway#prepare` 가 pg_cron 을 못 쓰거나 등록이 없을 때 WARN 을 남긴다. Java 폴백은 만들지 않는다(DB 배치로 하기로 한 배치다).
+* 키를 Java 배치에서 DB 배치로 옮길 때는 키·로그 이름을 이어 쓴다. 옛 `batch_jobs` 행은 기동 때 `BatchCatalogSynchronizer` 가 지우므로 따로 마이그레이션하지 않는다(실행 로그는 `batch_runs` 에 남는다).
+
 ---
 
 ## 4. 금지 사항 (Anti-Patterns)
