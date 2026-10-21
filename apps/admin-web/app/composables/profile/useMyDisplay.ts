@@ -3,8 +3,8 @@ import type { DisplayValues, MyDisplayResponse } from '~/composables/profile/api
 import UtilAdminAuthMessages from '~/utils/util-admin-auth-messages';
 
 /**
- * 내 표기(언어·시간대·시간 형식·날짜 형식) — 관리자 표시 값의 층: **제품 기준 ← 내 표기**. 서버와 말하는 것은 `useProfileApi` 다.
- * 이 화면이 읽고 쓰는 것은 "내 표기를 쓴다"(`use`)와 내 값(`values`)이고, 화면에 적용되는 효과값(`use` 면 내 값, 아니면 제품 기준 `inherited`)은 공유 레이어(`@roboyam/display-time`)의 `useDisplay().setDisplay` 가 받는다.
+ * 내 표시 형식(언어·시간대·시간 형식·날짜 형식) — 관리자 표시 값의 층: **사이트 표시 기본값 ← 내 표시 형식**. 서버와 말하는 것은 `useProfileApi` 다.
+ * 이 화면이 읽고 쓰는 것은 "내 표시 형식을 쓴다"(`use`)와 내 값(`values`)이고, 화면에 적용되는 효과값(`use` 면 내 값, 아니면 사이트 표시 기본값 `inherited`)은 공유 레이어(`@roboyam/display-time`)의 `useDisplay().setDisplay` 가 받는다.
  * 레이어는 서버를 모르므로 값을 채우는 일은 앱이 한다: `plugins/display.client.ts` 가 로그인한 사람의 값을 받아 채우고(`apply`), 개인 설정 탭은 저장한 직후 응답의 효과값을 **바로** 채운다(저장했는데 화면이 안 바뀌면 사람은 자기가 뭘 잘못했나 찾는다).
  *
  * `view`: `undefined` = 아직 안 물어봄 · 값 = 받았음. 받기에 실패하면 `error` 에 담고 화면은 지금 값(레이어 폴백)을 그대로 쓴다.
@@ -22,7 +22,7 @@ export function useMyDisplay() {
         return e instanceof ApiError ? e : new ApiError({ status: 0, code: 'NETWORK', message: UtilAdminAuthMessages.fallback(t, 0, 'NETWORK') });
     }
 
-    /** 응답의 효과값을 화면 전체의 표시 값으로 채운다 — 내 표기를 쓰면 내 값, 아니면 제품 기준 */
+    /** 응답의 효과값을 화면 전체의 표시 값으로 채운다 — 내 표시 형식을 쓰면 내 값, 아니면 사이트 표시 기본값 */
     function apply(res: MyDisplayResponse): void {
         const effective: DisplayValues = res.use ? res.values : res.inherited;
         display.setDisplay(effective);

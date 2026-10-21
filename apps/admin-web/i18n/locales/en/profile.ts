@@ -25,6 +25,7 @@ export default {
     email: 'Email',
     emailHelp: 'Your email cannot be changed.',
     role: 'Role',
+    roleNone: 'No roles assigned',
 
     // Preferences — my formatting (language, time zone, time/date format): product defaults <- my formatting
     displayUseMine: 'Use my own formatting',

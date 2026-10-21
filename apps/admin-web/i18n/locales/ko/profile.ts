@@ -25,6 +25,7 @@ export default {
     email: '이메일',
     emailHelp: '이메일은 바꿀 수 없어요.',
     role: '역할',
+    roleNone: '받은 역할이 없어요',
 
     // 개인 설정 — 내 표시 형식(언어·시간대·시간/날짜 형식): 기본 설정 ← 내 설정. 어투는 공유 레이어(display-time)와 같은 "~요" 체
     displayUseMine: '내 표시 형식 사용',

@@ -57,8 +57,11 @@
 
                     <LabeledField :label="t('profile.role')">
                         <template #default="{ id, describedBy }">
-                            <div :id="id" class="flex min-h-10 items-center rounded-md border border-(--line-strong) bg-surface-100 px-3 dark:bg-surface-800" role="textbox" aria-readonly="true" :aria-describedby="describedBy">
-                                <RoleBadge :role="profile.role" />
+                            <!-- 읽기 전용 — 최고 관리자면 그 뱃지, 그리고 받은 역할 이름들. 둘 다 없으면 「받은 역할이 없어요」(역할이 없어도 내 정보는 볼 수 있다) -->
+                            <div :id="id" class="flex min-h-10 flex-wrap items-center gap-1.5 rounded-md border border-(--line-strong) bg-surface-100 px-3 py-1.5 dark:bg-surface-800" role="textbox" aria-readonly="true" :aria-describedby="describedBy">
+                                <RoleBadge v-if="profile.isSuper" role="ADMIN" />
+                                <Tag v-for="role in profile.roles" :key="role.roleId" :value="role.roleName" severity="secondary" />
+                                <span v-if="!profile.isSuper && !profile.roles.length" class="text-sm text-muted-color">{{ t('profile.roleNone') }}</span>
                             </div>
                         </template>
                     </LabeledField>
@@ -116,12 +119,9 @@ async function save() {
     fieldErrors.nickname = undefined;
     formError.value = '';
 
+    // 화면이 미리 알 수 있는 문제라도 서버에 보낸다 — 판정은 서버이고 칸 아래 문구는 서버 문구가 우선이다.
+    // 화면 문구(`problem`)는 서버가 판정하지 못했을 때(네트워크 끊김 등)만 대신 보인다.
     const problem = UtilValidation.nickname(form.nickname);
-    if (problem) {
-        fieldErrors.nickname = UtilProfileMessages.nicknameProblem(t, problem);
-        nicknameInput.value?.$el.focus();
-        return;
-    }
 
     saving.value = true;
     try {
@@ -134,6 +134,8 @@ async function save() {
         } else if (failure?.code === 'NICKNAME_TAKEN') {
             // 중복은 닉네임 칸의 문제다 — 서버 문구를 그대로 칸 아래에
             fieldErrors.nickname = failure.message;
+        } else if (problem && failure?.status === 0) {
+            fieldErrors.nickname = UtilProfileMessages.nicknameProblem(t, problem);
         } else {
             formError.value = failure?.message ?? t('common.failed');
         }

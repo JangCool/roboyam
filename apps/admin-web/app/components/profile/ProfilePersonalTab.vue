@@ -1,8 +1,8 @@
 <template>
     <!--
         내 정보 > 개인 설정 — hamonica 의 개인 설정 탭과 같은 구성이다:
-          ① "내 표기를 쓴다" 카드(스위치) ② 지금 무엇이 적용되는지 안내 ③ "언어 및 지역 · 시간 및 날짜 형식" 카드(공유 레이어의 `DisplayValueForm`) ④ 취소/저장 ⑤ "알림 설정" 카드(이메일 알림 수신)
-        표시 값은 두 층이다: **제품 기준 ← 내 표기**. 켜면 내 값이 이기고, 꺼도 내 값은 남는다. 꺼 두면 값 입력은 잠기고 제품 기준 값을 읽기 전용으로 보인다.
+          ① "내 표시 형식을 쓴다" 카드(스위치) ② 지금 무엇이 적용되는지 안내 ③ "언어 및 지역 · 시간 및 날짜 형식" 카드(공유 레이어의 `DisplayValueForm`) ④ 취소/저장 ⑤ "알림 설정" 카드(이메일 알림 수신)
+        표시 값은 두 층이다: **사이트 표시 기본값 ← 내 표시 형식**(「기본 설정」 = 일반 설정에서 저장한 사이트 표시 기본값, 서버가 `inherited` 로 준다). 켜면 내 값이 이기고, 꺼도 내 값은 남는다. 꺼 두면 값 입력은 잠기고 기본 설정 값을 읽기 전용으로 보인다.
         저장하면 응답의 효과값을 **바로** 화면에 적용한다(`useMyDisplay`). 화면 설정(색·밀도·메뉴 위치 등)은 이 탭이 아니라 화면 설정 서랍(상단 네비의 팔레트 단추)에서 바꾼다.
         알림 수신은 바꾸면 곧바로 저장한다. 구획 주소(`anchor`)는 우측 구역 내비가 쓴다 — 바뀐 칸 수·오류 칸 수를 구획마다 넘긴다.
     -->
@@ -39,7 +39,7 @@
             </Message>
 
             <AppGadget :title="t('profile.displaySection')" anchor="locale-format" :changes="valueChanges" :invalid="invalidCount">
-                <!-- 꺼져 있을 때는 물려받는 값(제품 기준)을 읽기 전용으로 보인다 — 내 값을 그리면 위에서 바꾼 것이 화면에 안 비친다 -->
+                <!-- 꺼져 있을 때는 물려받는 값(사이트 표시 기본값)을 읽기 전용으로 보인다 — 내 값을 그리면 위에서 바꾼 것이 화면에 안 비친다 -->
                 <DisplayValueForm v-model="shown" class="display-form-sm" :errors="fieldErrors" :disabled="!use || saving" />
             </AppGadget>
 
@@ -80,7 +80,7 @@ const values = ref<DisplayValues | null>(null);
 const saving = ref(false);
 const fieldErrors = ref<DisplayFieldErrors>({});
 
-/** 폼에 그릴 값 — 켜져 있으면 내 값, 꺼져 있으면 물려받는 값(제품 기준) */
+/** 폼에 그릴 값 — 켜져 있으면 내 값, 꺼져 있으면 물려받는 값(사이트 표시 기본값) */
 const shown = computed<DisplayValues>({
     get: () => (use.value ? (values.value ?? (view.value as NonNullable<typeof view.value>).values) : (view.value as NonNullable<typeof view.value>).inherited),
     set: (next) => {

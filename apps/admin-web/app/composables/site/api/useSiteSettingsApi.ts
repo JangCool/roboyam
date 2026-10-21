@@ -36,7 +36,7 @@ import type {
  *       · `DELETE /api/admin/site/og-image` → 200 `{ configured: false, … }`
  *   - `GET /api/admin/site/display-defaults` → 200 `{ values: { language, zoneId, timeFormat, dateFormat } }`  (`site.read`)
  *   - `PUT /api/admin/site/display-defaults` `{ values }` → 200 저장된 모양  (`site.manage`) · 400 VALIDATION(`fields.language|zoneId|timeFormat|dateFormat`, 시간대는 JDK 가 아는 IANA 이름만)
- *       ⚠ 이 값은 개인 설정 탭의 "기본 설정"(`GET /api/admin/profile/display` 의 `inherited`)이 되어야 하나, 내 정보 쪽은 아직 목업이라 이어지지 않았다.
+ *       이 값이 개인 설정 탭의 "기본 설정"(`GET /api/admin/profile/display` 의 `inherited`)이다 — 서버가 요청마다 읽어 주므로 저장 뒤 내 표시 값을 다시 받으면 따라온다(`general.vue` 가 저장 직후 `useMyDisplay().load()`).
  *
  * 그 밖의 오류: 503 `STORAGE_UNAVAILABLE`(저장소에 쓰지 못함) · 503 `IMAGE_BUSY`(이미지 동시 처리 자리 없음) · 413 `FILE_TOO_LARGE`(multipart 10MB 초과; 2MB 초과는 `fields.file` 문구로 안내) · 403 `PERMISSION_DENIED`.
  * 이미지 주소(`logoUrl`·`previewUrl`·`url`·`defaultPreviewUrl`·`defaultUrl`)는 `/media/…` 상대 주소다 — 운영은 같은 도메인에서 서빙되고, 개발 서버는 `nuxt.config.ts` 의 `/media` 프록시가 잇는다.

@@ -12,7 +12,7 @@
           ② 표시 기본값(`display-defaults`) — 언어·시간대·시간 형식·날짜 형식(공유 레이어의 `DisplayValueForm`). 이 값이 곧 내 정보 > 개인 설정 탭의 "기본 설정"(내 표시 형식을 쓰지 않을 때 따르는 값)이다.
         구획은 서로 따로 읽고 저장한다 — 한쪽이 실패해도 다른 쪽은 보인다. 구획 주소(`anchor`)는 우측 구역 내비가 쓴다.
         권한: 조회 `site.read`(메뉴), 변경 `site.manage` — 없으면 저장 줄이 사라지고 입력칸은 `readonly`(서버 값이 그대로 보인다). 감추는 것은 편의이고 막는 것은 서버다.
-        표시 기본값을 저장하면 내 표시 값(`useMyDisplay`)을 다시 받아 지금 화면에도 바로 적용한다(내 표시 형식을 쓰고 있으면 그대로다). ⚠ 내 정보 > 개인 설정의 "기본 설정"(`inherited`)은 아직 목업이라 이 저장 값을 따르지 않는다. 사이트 이름을 저장하면 로고 글자·탭 제목이 바로 새 이름을 따른다.
+        표시 기본값을 저장하면 내 표시 값(`useMyDisplay`)을 다시 받아 지금 화면에도 바로 적용한다(내 표시 형식을 쓰고 있으면 그대로다). 내 정보 > 개인 설정의 "기본 설정"(`inherited`)이 이 저장 값을 따른다(서버가 요청마다 사이트 표시 기본값을 읽어 준다). 사이트 이름을 저장하면 로고 글자·탭 제목이 바로 새 이름을 따른다.
     -->
     <div class="flex flex-col gap-4">
         <PageTitle :title="t('site.title')" :subtitle="t('site.subtitle')" />
@@ -602,7 +602,7 @@ async function saveDisplay(): Promise<void> {
     displayFormError.value = '';
     try {
         fillDisplay(await api.saveDisplayDefaults({ values: displayValues.value }));
-        // 이 값이 "기본 설정"이므로 내 표시 값(제품 기준 ← 내 표기)을 다시 받아 지금 화면에도 먹인다 — 저장했는데 화면이 안 바뀌면 저장됐는지 알 수 없다
+        // 이 값이 "기본 설정"이므로 내 표시 값(사이트 표시 기본값 ← 내 표시 형식)을 다시 받아 지금 화면에도 먹인다 — 저장했는데 화면이 안 바뀌면 저장됐는지 알 수 없다
         await reloadMyDisplay();
         toast.success(t('site.displaySaved'));
     } catch (e) {

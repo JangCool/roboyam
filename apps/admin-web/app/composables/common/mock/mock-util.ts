@@ -3,7 +3,7 @@
 
 import { ApiError } from '~/composables/common/useApiClient';
 
-/** 현재 주소의 `?mock=` 스위치들 — 쉼표로 여러 개(`?mock=profile-error,login-history-error`)이거나 `mock` 을 여러 번 써도 된다. 요청마다 읽는다(라우터가 쿼리를 떼도 유지된다) */
+/** 현재 주소의 `?mock=` 스위치들 — 쉼표로 여러 개(`?mock=notification-error,notification-new`)이거나 `mock` 을 여러 번 써도 된다. 요청마다 읽는다(라우터가 쿼리를 떼도 유지된다) */
 export function mockFlags(): Set<string> {
     const out = new Set<string>();
     if (typeof window === 'undefined') return out;
