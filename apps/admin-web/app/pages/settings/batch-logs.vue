@@ -64,12 +64,18 @@
                 </template>
             </Column>
 
+            <Column :header="t('batch.where')" style="width: 9rem">
+                <template #body="{ data }">
+                    <BatchSourceTag :source="data.source" />
+                </template>
+            </Column>
+
             <Column :header="t('batch.trigger')" style="width: 10rem">
                 <template #body="{ data }">
-                    <!-- 수동이면 누가 눌렀는지(운영자가 지워졌으면 이름 없음) -->
+                    <!-- 수동이면 누가 눌렀는지 — 운영자가 지워졌거나 DB 가 돌린 줄은 이름이 없다(「—」) -->
                     <div class="min-w-0">
                         <Tag :value="UtilBatchMessages.triggerLabel(t, data.trigger)" :icon="data.trigger === 'MANUAL' ? 'pi pi-user' : 'pi pi-clock'" severity="secondary" />
-                        <div v-if="data.operatorName" class="mt-0.5 truncate text-[11px] text-muted-color">{{ data.operatorName }}</div>
+                        <div v-if="data.trigger === 'MANUAL'" class="mt-0.5 truncate text-[11px] text-muted-color">{{ data.operatorName ?? '—' }}</div>
                     </div>
                 </template>
             </Column>
@@ -91,8 +97,14 @@
 
             <Column :header="t('batch.affected')" style="width: 7rem">
                 <template #body="{ data }">
-                    <!-- 0 과 비어 있음은 다르다. 0 이면 돌긴 돌았는데 할 일이 없던 것이고, 비어 있으면 아직 안 끝났거나 실패해서 센 값이 없는 것이다 -->
-                    <span class="text-[12px] tabular-nums text-muted-color">{{ data.affectedCount ?? '—' }}</span>
+                    <!-- 0 과 비어 있음은 다르다. 0 이면 돌긴 돌았는데 할 일이 없던 것이고, 비어 있으면 아직 안 끝났거나 센 값이 없는 것이다. 실패한 DB 배치 줄은 실패하기 전까지 처리한 건수를 가질 수 있다 -->
+                    <span
+                        v-tooltip.top="data.status === 'FAIL' && data.affectedCount != null ? t('batch.affectedBeforeFail') : undefined"
+                        class="text-[12px] tabular-nums text-muted-color"
+                        :class="{ 'underline decoration-dotted': data.status === 'FAIL' && data.affectedCount != null }"
+                    >
+                        {{ data.affectedCount ?? '—' }}
+                    </span>
                 </template>
             </Column>
 

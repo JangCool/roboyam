@@ -2,7 +2,7 @@
 
 **의도**: 관리자가 정해진 시각에 도는 일(배치)을 보고, 켜고 끄고, 주기(cron)를 바꾸고, 지금 실행하고, 실행 결과 로그를 본다. 배치는 두 종류다 — **JAVA**(관리자 서버가 돌린다)와 **POSTGRESQL**(DB 의 저장 프로시저를 pg_cron 이 부른다). 한 화면·한 API·한 로그 표(`batch_runs`)에 같이 보인다. 배치 정의(이름·설명·분류)는 코드(카탈로그)가 원천이다. 구조·테이블·락·가정은 `roles-contract.md` 「배치 인프라 결과」, DB 배치의 설치·규약은 아래 「DB 배치」.
 
-## 화면 (admin-web — 아직 목업 `// MOCK:`)
+## 화면 (admin-web — **실제 서버 연결 완료**, 2026-10-21: Java·DB(pg_cron) 배치 한 목록, 「어디서」 딱지, 사용 불가 DB 배치는 흐리게+이유, 주기 변경 대화상자 `batch.manage`, 지금 실행 `batch.run`)
 | 경로 | 내용 |
 |---|---|
 | `/settings/batches` | 배치 목록: 이름·설명·주기(cron)·켜기/끄기·마지막 실행·지금 실행 |
@@ -25,7 +25,7 @@
 - `BatchLogView`: 목업 칸 + `logId`(문자열) · `trigger`(`SCHEDULED`/`MANUAL`) · `operatorName`(수동 실행한 운영자). `source` 는 그 줄을 만든 쪽(`JAVA`/`POSTGRESQL`). `jobName` 은 키, `displayName` 은 배치 이름(카탈로그에서 사라진 배치는 키 그대로). `message` 는 성공/건너뜀이면 결과 요약, 실패면 사유. 상세는 거기에 `scheduledAt` · `summary` · `errorMessage` · `nodeId`(DB 배치 줄은 null).
 - 상태 값: `RUNNING`(실행 중) · `OK` · `FAIL` · `SKIP`(처리 건수 0). 실패한 DB 배치 줄의 `affectedCount` 는 실패하기 전까지 처리한 건수일 수 있다(Java 배치는 null).
 
-## 프론트 타입과의 차이 (`// MOCK:` → `// REAL:` 때)
+## 프론트 타입과의 차이 (연결 완료 — 아래는 연결 당시 기록이며 화면은 이미 반영했다)
 1. `BatchStatus` 에 **`RUNNING`** 이 없다 — 서버는 실행 중인 줄과 마지막 실행 상태에 `RUNNING` 을 준다(`util-batch.ts`·`util-batch-messages.ts` 의 딱지와 필터에 추가).
 2. 목업의 `jobName`(예: `audit-retention`)은 서버의 키(`audit-log-retention` …)와 다르다. **`source: 'POSTGRESQL'` 배치가 실제로 있다** — 목업의 「DB 가 돌립니다」 분기는 더는 「지금 실행 불가」가 아니다: DB 배치도 `runnable`(= `available`)이 true 면 **지금 실행·켜기/끄기·cron 수정이 모두 된다**(서버가 `cron.alter_job`·`CALL` 을 대신한다). `runnable=false`/`available=false` 일 때만 막고 `unavailableReason` 을 그대로 보인다.
 3. 서버는 `i18n`/`descI18n` 을 null 로 준다(이름·설명이 이미 번역돼 있다). 목록 호출은 `Accept-Language` 를 따른다.
