@@ -1,0 +1,16 @@
+package com.community.profile.dto.response;
+
+import java.time.Instant;
+
+/**
+ * 내 로그인 이력 한 줄.
+ *
+ * @param id     감사 기록 ID(문자열)
+ * @param at     시도한 시각
+ * @param ip     접속한 IP. 모르면 null
+ * @param agent  User-Agent — 서버가 아직 남기지 않아 늘 null(화면은 「알 수 없음」으로 보인다)
+ * @param result {@code OK} · {@code FAIL}
+ * @param reason 실패 사유 코드 — 실패면 늘 {@code INVALID_CREDENTIALS}(계정 상태·비밀번호 틀림을 가르지 않는다). 성공이면 null
+ */
+public record LoginHistoryItem(String id, Instant at, String ip, String agent, String result, String reason) {
+}

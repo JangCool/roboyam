@@ -81,6 +81,12 @@ public class OperatorEntity {
         this.updatedAt = now;
     }
 
+    /** 운영자 이름(닉네임)만 바꾼다 — 계정 기간은 그대로 둔다(내 정보에서 본인이 바꿀 때) */
+    public void rename(String operatorName, Instant now) {
+        this.operatorName = operatorName;
+        this.updatedAt = now;
+    }
+
     /** 상태를 바꾼다 — 값 그대로다(예: {@code locked=true} 는 잠금). 보내지 않은(null) 칸은 그대로 둔다 */
     public void changeStatus(Boolean approved, Boolean locked, Boolean expired, Boolean enabled, Instant now) {
         if (approved != null) {
@@ -161,6 +167,10 @@ public class OperatorEntity {
 
     public Instant getAccountEndAt() {
         return accountEndAt;
+    }
+
+    public Instant getLastLoginAt() {
+        return lastLoginAt;
     }
 
     public Instant getCreatedAt() {

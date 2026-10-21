@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * 감사 기록 쓰기 — 역할·권한·운영자 상태 변경, 로그인 성공/실패, 권한 거부를 {@code audit_logs} 에 남긴다(조회 API 는 이번 단계 밖).
+ * 감사 기록 쓰기 — 역할·권한·운영자 상태 변경, 로그인 성공/실패, 권한 거부를 {@code audit_logs} 에 남긴다(조회는 관리자 서버의 {@code AuditQueryService} — 새 작업 이름을 {@code AuditActions} 에 더하면 번들 {@code audit.action.<코드>} 도 두 언어에 더한다).
  *
  * <ul>
  *   <li>변경을 기록할 때는 <b>업무 트랜잭션 안에서 부른다</b> — 같은 트랜잭션에 실려 변경이 롤백되면 기록도 함께 사라진다(없던 일이 기록에 남지 않는다).</li>
