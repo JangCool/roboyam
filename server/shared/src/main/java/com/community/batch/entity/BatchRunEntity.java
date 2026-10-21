@@ -44,16 +44,21 @@ public class BatchRunEntity {
     /** 「지금 실행」을 누른 운영자 — 수동 실행만 있다 */
     private Long operatorId;
 
-    /** 실행한 서버의 {@code NODE_ID} */
+    /** 실행한 서버의 {@code NODE_ID}. DB 배치(저장 프로시저)가 만든 줄에는 없다 */
     private Integer nodeId;
+
+    /** 어디서 돈 배치인가. 앱이 만드는 줄은 {@code JAVA}, DB 프로시저가 만든 줄(V20 이후)은 {@code POSTGRESQL} */
+    @Enumerated(EnumType.STRING)
+    private BatchSource source;
 
     protected BatchRunEntity() {
     }
 
-    /** 시작 — 상태 {@code RUNNING} */
+    /** 시작 — 상태 {@code RUNNING}. 앱(Java 배치)이 만드는 줄이다 — DB 배치의 줄은 프로시저가 직접 넣는다 */
     public static BatchRunEntity start(long id, String jobKey, BatchTriggerType triggerType, Instant scheduledAt, Instant startedAt, Long operatorId, int nodeId) {
         BatchRunEntity run = new BatchRunEntity();
         run.id = id;
+        run.source = BatchSource.JAVA;
         run.jobKey = jobKey;
         run.status = BatchRunStatus.RUNNING;
         run.triggerType = triggerType;
@@ -124,5 +129,9 @@ public class BatchRunEntity {
 
     public Integer getNodeId() {
         return nodeId;
+    }
+
+    public BatchSource getSource() {
+        return source;
     }
 }

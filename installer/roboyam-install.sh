@@ -114,6 +114,7 @@ C_APP="$PROJECT-app"
 V_PG="$PROJECT-pgdata"
 V_MEDIA="$PROJECT-media"   # 올린 이미지(로고·사이트 아이콘·링크 미리보기 이미지) 볼륨 — templates/compose.yml 의 media
 N_NET="$PROJECT-net"
+PG_IMAGE_TAG="$PROJECT-postgres:18"   # 공식 postgres:18 + pg_cron(DB 배치용). 4단계에서 templates/postgres/Dockerfile 로 만든다
 
 STAMP=$(date +%Y%m%d-%H%M%S)
 RUN_ID="r-$STAMP-$(openssl rand -hex 4 2> /dev/null || printf '%s' "$$")"
@@ -224,6 +225,12 @@ build_image_cmd() {
         --build-arg "BASE_IMAGE=$BASE_IMAGE" -t "$IMAGE_TAG" .
 }
 
+build_pg_image_cmd() {
+    cd "$DIR/postgres" && exec docker build --progress=plain \
+        --label "$LABEL_PROJECT=$PROJECT" --label "$LABEL_RUN=$RUN_ID" \
+        -t "$PG_IMAGE_TAG" .
+}
+
 fail_with_logs() {   # <메시지> <컨테이너>
     local msg="$1" c="$2" logs l
     logs=$(container_log_tail "$c" 25)
@@ -272,6 +279,9 @@ find_conflicts() {
     if obj_exists network "$N_NET" && ! is_old_run network "$N_NET"; then list_add CONFLICTS "네트워크 $N_NET"; fi
     if [ "$BUILD_IMAGE" = 1 ] && obj_exists image "$IMAGE_TAG" && ! is_old_run image "$IMAGE_TAG"; then
         list_add CONFLICTS "이미지 $IMAGE_TAG"
+    fi
+    if obj_exists image "$PG_IMAGE_TAG" && ! is_old_run image "$PG_IMAGE_TAG"; then
+        list_add CONFLICTS "이미지 $PG_IMAGE_TAG"
     fi
     # 같은 프로젝트 라벨이 붙은 다른 설치의 흔적(이름은 달라도 같은 프로젝트다)
     while IFS= read -r n; do
@@ -586,7 +596,7 @@ step 3 "compose 파일 만들기"
 sed -e "s|@@PROJECT@@|$PROJECT|g" -e "s|@@RUN_ID@@|$RUN_ID|g" "$SCRIPT_DIR/templates/compose.yml" > "$DIR/compose.yml"
 ( compose_unset_ambient; cd "$DIR" && docker compose --env-file .env -f compose.yml config -q ) >> "${LOG_FILE:-/dev/null}" 2>&1 \
     || fail "compose 파일 검증에 실패했습니다(상세는 로그: ${LOG_FILE:-없음})."
-note "compose.yml 생성·검증 완료 — postgres:18 + app, 네트워크 $N_NET, 볼륨 $V_PG $V_MEDIA, 앱 포트 $BIND:$HTTP_PORT 만 바깥에 열림, 모든 자원에 라벨 $LABEL_PROJECT=$PROJECT"
+note "compose.yml 생성·검증 완료 — postgres(pg_cron) + app, 네트워크 $N_NET, 볼륨 $V_PG $V_MEDIA, 앱 포트 $BIND:$HTTP_PORT 만 바깥에 열림, 모든 자원에 라벨 $LABEL_PROJECT=$PROJECT"
 
 # =============================================================================
 # [4/6] 앱 이미지
@@ -607,6 +617,18 @@ if [ "$BUILD_IMAGE" = 1 ]; then
 else
     manifest_add image_built 0
 fi
+
+# DB 이미지 — 공식 postgres:18 에 pg_cron 을 더한다(DB 배치). 베이스(postgres:18)와 pgdg 저장소에서 패키지를 내려받으므로 인터넷(또는 사설 미러)이 필요하다.
+[ -f "$SCRIPT_DIR/templates/postgres/Dockerfile" ] || fail "템플릿이 없습니다: $SCRIPT_DIR/templates/postgres/Dockerfile"
+mkdir -p "$DIR/postgres"
+cp "$SCRIPT_DIR/templates/postgres/Dockerfile" "$SCRIPT_DIR/templates/postgres/init-pg-cron.sh" "$DIR/postgres/"
+manifest_add image "$PG_IMAGE_TAG"
+note "docker build $PG_IMAGE_TAG (postgres:18 + pg_cron — 패키지를 내려받는다)"
+started=$SECONDS
+run_logged "docker build $PG_IMAGE_TAG" build_pg_image_cmd \
+    || fail "DB 이미지 빌드에 실패했습니다(상세는 로그: ${LOG_FILE:-없음}). postgres:18 과 PostgreSQL 공식 apt 저장소(pgdg)에서 postgresql-18-cron 을 받을 수 있는지 확인하세요."
+obj_exists image "$PG_IMAGE_TAG" || fail "빌드는 끝났지만 이미지 $PG_IMAGE_TAG 가 없습니다."
+note "이미지 $PG_IMAGE_TAG 생성 완료($((SECONDS - started))초)"
 
 # DB 비밀번호를 암호화한다 — 앱 이미지 안의 SecretCipherTool(AES-256-GCM)로 한다.
 # 평문은 표준 입력으로만 넘기고(인자·로그에 남지 않는다), 키는 환경 변수 이름만 넘겨 docker 가 값을 읽게 한다.

@@ -8,7 +8,7 @@
 #   installer/dist/roboyam-installer-<버전>.tar.gz
 #     roboyam-installer-<버전>/
 #       roboyam-install.sh  roboyam-uninstall.sh
-#       lib/common.sh  templates/{compose.yml,Dockerfile}
+#       lib/common.sh  templates/{compose.yml,Dockerfile,postgres/{Dockerfile,init-pg-cron.sh}}   (postgres/ = pg_cron 이 든 DB 이미지의 빌드 파일)
 #       app/roboyam-api.jar        (앱 jar — 화면 포함. 먼저 pnpm --filter user-web generate → ./gradlew :server:api:bootJar)
 #       README.md                    (설치 안내)
 #       VERSION
@@ -58,7 +58,7 @@ case "$VERSION" in
     *[!A-Za-z0-9._-]*|"") die "버전에는 영숫자 . _ - 만 쓸 수 있습니다: $VERSION" ;;
 esac
 
-for f in roboyam-install.sh roboyam-uninstall.sh lib/common.sh templates/compose.yml templates/Dockerfile; do
+for f in roboyam-install.sh roboyam-uninstall.sh lib/common.sh templates/compose.yml templates/Dockerfile templates/postgres/Dockerfile templates/postgres/init-pg-cron.sh; do
     [ -f "$SCRIPT_DIR/$f" ] || die "필요한 파일이 없습니다: $SCRIPT_DIR/$f"
 done
 for f in roboyam-install.sh roboyam-uninstall.sh lib/common.sh; do
@@ -73,11 +73,12 @@ NAME="roboyam-installer-$VERSION"
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 PKG="$STAGE/$NAME"
-mkdir -p "$PKG/lib" "$PKG/templates"
+mkdir -p "$PKG/lib" "$PKG/templates/postgres"
 
 cp "$SCRIPT_DIR/roboyam-install.sh" "$SCRIPT_DIR/roboyam-uninstall.sh" "$PKG/"
 cp "$SCRIPT_DIR/lib/common.sh" "$PKG/lib/"
 cp "$SCRIPT_DIR/templates/compose.yml" "$SCRIPT_DIR/templates/Dockerfile" "$PKG/templates/"
+cp "$SCRIPT_DIR/templates/postgres/Dockerfile" "$SCRIPT_DIR/templates/postgres/init-pg-cron.sh" "$PKG/templates/postgres/"
 if [ -f "$REPO_ROOT/docs/install-script.md" ]; then
     cp "$REPO_ROOT/docs/install-script.md" "$PKG/README.md"
 else

@@ -9,10 +9,14 @@ import com.community.operator.entity.QOperatorEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.stereotype.Repository;
@@ -74,9 +78,24 @@ public class BatchRunRepositoryQDSL extends RoboyamRepositoryQDSL {
                 .execute();
     }
 
-    /** 끝난 지 오래된 로그를 지운다(실행 중인 로그는 지우지 않는다). 지운 줄 수 */
-    public long deleteFinishedBefore(Instant cutoff) {
-        return query.delete(RUN).where(RUN.status.ne(BatchRunStatus.RUNNING), RUN.finishedAt.lt(cutoff)).execute();
+    /**
+     * 배치마다 가장 최근에 시작한 로그 한 줄(목록의 「마지막 실행」 — DB 배치는 저장 프로시저가 로그만 남기고 {@code batch_jobs} 요약을 고치지 않으므로 여기서 읽는다).
+     * 시작 시각이 같은 줄이 둘이면 id 가 큰 쪽을 쓴다. 한 번도 안 돈 배치는 결과에 없다.
+     */
+    public Map<String, BatchRunEntity> latestByJobKey(Collection<String> jobKeys) {
+        if (jobKeys.isEmpty()) {
+            return Map.of();
+        }
+        QBatchRunEntity newer = new QBatchRunEntity("newer");
+        List<BatchRunEntity> rows = query.selectFrom(RUN)
+                .where(RUN.jobKey.in(jobKeys),
+                        JPAExpressions.selectOne().from(newer)
+                                .where(newer.jobKey.eq(RUN.jobKey), newer.startedAt.gt(RUN.startedAt).or(newer.startedAt.eq(RUN.startedAt).and(newer.id.gt(RUN.id))))
+                                .notExists())
+                .fetch();
+        Map<String, BatchRunEntity> latest = new HashMap<>();
+        rows.forEach(run -> latest.put(run.getJobKey(), run));
+        return latest;
     }
 
     private static BooleanExpression[] conditions(BatchRunCriteria criteria) {

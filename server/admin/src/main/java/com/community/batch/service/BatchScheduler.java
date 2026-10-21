@@ -92,7 +92,7 @@ public class BatchScheduler {
         Map<String, BatchJobEntity> settings = new HashMap<>();
         jobs.findAll().forEach(job -> settings.put(job.getJobKey(), job));
 
-        for (BatchCatalog definition : BatchCatalog.values()) {
+        for (BatchCatalog definition : BatchCatalog.javaJobs()) { // DB 배치는 pg_cron 이 돌린다 — 여기서 예약하지 않는다
             BatchJobEntity setting = settings.get(definition.key());
             Slot current = slots.get(definition.key());
             boolean wanted = setting != null && setting.isEnabled();

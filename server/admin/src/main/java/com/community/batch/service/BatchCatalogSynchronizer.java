@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 서버가 뜰 때 배치 카탈로그(코드)를 {@code batch_jobs} 표와 맞춘다(권한 카탈로그와 같은 방식).
+ * 서버가 뜰 때 배치 카탈로그(코드)의 <b>Java 배치</b>를 {@code batch_jobs} 표와 맞춘다(권한 카탈로그와 같은 방식). DB 배치의 설정은 pg_cron 이 원천이라 이 표에 두지 않는다.
  *
  * <ul>
  *   <li>카탈로그에 있는데 표에 없는 배치는 기본값(사용 여부·cron)으로 넣는다.</li>
@@ -46,14 +46,15 @@ public class BatchCatalogSynchronizer {
         jobs.findAll().forEach(job -> existing.put(job.getJobKey(), job));
 
         int added = 0;
-        for (BatchCatalog definition : BatchCatalog.values()) {
+        for (BatchCatalog definition : BatchCatalog.javaJobs()) {
             if (existing.remove(definition.key()) == null) {
                 jobs.persist(BatchJobEntity.create(definition.key(), definition.defaultEnabled(), definition.defaultCron(), now));
                 added++;
             }
         }
-        List<BatchJobEntity> stale = List.copyOf(existing.values()); // 카탈로그에 더는 없는 행
+        // 카탈로그에 더는 없는 행 — Java 배치에서 DB 배치로 옮겨 간 키(batch-log-cleanup)의 옛 행도 여기서 지워진다(사용 여부·cron 은 이제 pg_cron 이 원천이다)
+        List<BatchJobEntity> stale = List.copyOf(existing.values());
         jobs.deleteAll(stale);
-        log.info("배치 카탈로그를 맞췄다: 새로 {}개, 지움 {}개 (카탈로그 {}개)", added, stale.size(), BatchCatalog.values().length);
+        log.info("배치 카탈로그를 맞췄다: 새로 {}개, 지움 {}개 (Java 배치 {}개)", added, stale.size(), BatchCatalog.javaJobs().size());
     }
 }

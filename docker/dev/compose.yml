@@ -34,8 +34,22 @@ name: roboyam-dev
 
 services:
   postgres:
-    image: postgres:18
+    # pg_cron 이 더해진 이미지(docker/postgres/Dockerfile) — DB 배치(저장 프로시저 + pg_cron)용. docker compose up -d --build 가 만든다.
+    # 이미 쓰던 볼륨(데이터)은 그대로 쓴다(PostgreSQL 18 호환). pg_cron 확장은 관리자 앱이 뜰 때 만든다(DB 계정 POSTGRES_USER 가 슈퍼유저).
+    build: ../postgres
+    image: roboyam-postgres:18
     restart: unless-stopped
+    # shared_preload_libraries 는 서버를 다시 띄워야 적용된다. cron.database_name 은 앱 DB(POSTGRES_DB)와 같아야 한다. cron.timezone: DB 배치 cron 식의 시간대(한국시간).
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_cron
+      - -c
+      - cron.database_name=roboyam
+      - -c
+      - cron.use_background_workers=on
+      - -c
+      - cron.timezone=Asia/Seoul
     environment:
       POSTGRES_DB: roboyam
       POSTGRES_USER: ${DB_USERNAME}

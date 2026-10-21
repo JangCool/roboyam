@@ -53,5 +53,4 @@ roboyam:
     zone: Asia/Seoul              # cron 을 해석하는 시간대
     refresh-seconds: 30           # 다른 서버가 바꾼 사용 여부·cron 을 따라오는 주기
     min-interval-seconds: 60      # cron 으로 정할 수 있는 실행 간격의 하한
-    log-retention-days: 90        # 배치 실행 로그 보관 일수(「배치 로그 정리」 배치가 지운다)
     pool-size: 4                  # 예약 실행 스레드 수
