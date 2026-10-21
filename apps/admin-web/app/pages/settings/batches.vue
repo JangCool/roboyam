@@ -1,7 +1,7 @@
 <template>
     <!--
-        배치 관리 — hamonica3 의 `batches.vue`(설정 › 애플리케이션) 를 옮긴 것이다. 자바 스케줄러에서 도는 배치와 DB(pg_cron)에서 도는 배치를 **한 목록**에 담는다
-        (관리자에게는 "지금 무엇이 돌고 있나"가 한 덩어리다). pg_cron 것은 우리가 끄거나 실행할 수 없어(`runnable: false`) 스위치를 잠그고 "DB 가 돌립니다"를 보인다.
+        배치 관리 — hamonica3 의 `batches.vue`(설정 › 애플리케이션) 를 옮긴 것이다. 서버에 등록된 배치(자바 스케줄러)를 한 목록에 담고, 각 행에 주기·마지막 실행 요약·다음 실행 예정을 보인다.
+        행의 「로그 보기」는 그 배치로 걸러진 배치 로그 화면(`/settings/batch-logs?jobName=…`)으로 간다 — 목록에서 지난 실행 결과를 바로 따라가게 하려는 것이다.
         본문 여백은 셸(`.app-content`)이 준다 — hamonica3 의 `p-4 md:p-6` 은 옮기지 않았다.
     -->
     <div class="flex min-h-0 flex-col gap-4 lg:h-full">
@@ -22,59 +22,91 @@
             <Column :header="t('batch.batch')" style="min-width: 16rem">
                 <template #body="{ data }">
                     <div class="min-w-0">
-                        <div class="truncate text-[13px]">{{ dbText(data.i18n, data.displayName) }}</div>
-                        <div v-if="data.description" class="truncate text-[11px] leading-relaxed text-muted-color" :title="dbText(data.descI18n, data.description)">
-                            {{ dbText(data.descI18n, data.description) }}
+                        <div class="truncate text-[13px]">{{ data.displayName }}</div>
+                        <div v-if="data.description" class="truncate text-[11px] leading-relaxed text-muted-color" :title="data.description">
+                            {{ data.description }}
                         </div>
                     </div>
                 </template>
             </Column>
 
-            <Column :header="t('batch.where')" style="width: 9rem">
+            <Column :header="t('batch.schedule')" style="width: 12rem">
                 <template #body="{ data }">
-                    <!-- 어디서 도는지가 중요하다. pg_cron 것은 우리가 끌 수도 실행할 수도 없어서, 무엇을 할 수 있는지가 여기서 갈린다 -->
-                    <Tag :value="data.source === 'JAVA' ? t('batch.whereApp') : t('batch.whereDb')" :icon="data.source === 'JAVA' ? 'pi pi-server' : 'pi pi-database'" :severity="data.source === 'JAVA' ? 'info' : 'secondary'" />
+                    <!-- 사람이 읽는 설명 + 원문(cron). 설명으로 못 읽는 식은 원문만 -->
+                    <div class="min-w-0">
+                        <div v-if="UtilBatchMessages.scheduleText(t, data.schedule)" class="flex items-center gap-1.5 text-[12px]">
+                            <i class="pi pi-clock text-[11px] text-muted-color" aria-hidden="true" />
+                            {{ UtilBatchMessages.scheduleText(t, data.schedule) }}
+                        </div>
+                        <code class="text-[11px] text-muted-color">{{ data.schedule }}</code>
+                    </div>
                 </template>
             </Column>
 
-            <Column :header="t('batch.schedule')" style="width: 11rem">
-                <template #body="{ data }">
-                    <span class="inline-flex items-center gap-1.5">
-                        <i class="pi pi-clock text-[11px] text-muted-color" aria-hidden="true" />
-                        <code class="text-[12px] text-muted-color">{{ data.schedule }}</code>
-                    </span>
-                </template>
-            </Column>
-
-            <Column :header="t('batch.lastRun')" style="width: 13rem">
+            <Column :header="t('batch.lastRun')" style="min-width: 15rem">
                 <template #body="{ data }">
                     <div v-if="data.lastRunAt" class="min-w-0">
-                        <div class="text-[12px] tabular-nums text-muted-color">{{ time.full(data.lastRunAt) }}</div>
-                        <Tag :value="UtilBatchMessages.statusLabel(t, data.lastStatus)" :icon="UtilBatch.statusIcon(data.lastStatus)" :severity="UtilBatch.statusSeverity(data.lastStatus)" class="mt-0.5" />
+                        <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            <Tag :value="UtilBatchMessages.statusLabel(t, data.lastStatus)" :icon="UtilBatch.statusIcon(data.lastStatus)" :severity="UtilBatch.statusSeverity(data.lastStatus)" />
+                            <span class="text-[12px] tabular-nums text-muted-color">{{ time.full(data.lastRunAt) }}</span>
+                            <span v-if="data.lastAffectedCount != null" class="text-[12px] tabular-nums text-muted-color">· {{ t('batch.countCases', { n: data.lastAffectedCount }) }}</span>
+                        </div>
+                        <div v-if="data.lastMessage" v-tooltip.top="data.lastMessage" class="mt-0.5 truncate text-[11px]" :class="data.lastStatus === 'FAIL' ? 'text-red-600 dark:text-red-400' : 'text-muted-color'">
+                            {{ data.lastMessage }}
+                        </div>
                     </div>
                     <span v-else class="text-[12px] text-muted-color">{{ t('batch.neverRan') }}</span>
                 </template>
             </Column>
 
-            <Column :header="t('batch.enabled')" style="width: 6rem">
+            <Column :header="t('batch.nextRun')" style="width: 11rem">
                 <template #body="{ data }">
-                    <!-- pg_cron 은 여기서 못 끈다 — cron.alter_job 을 우리가 부르면 DB 의 시각표를 우리가 고치는 셈이라 그쪽 설정과 어긋난다 -->
-                    <ToggleSwitch
-                        :model-value="data.enabled"
-                        :disabled="data.source !== 'JAVA' || toggling === data.jobName"
-                        :aria-label="t('batch.toggleLabel', { name: dbText(data.i18n, data.displayName) })"
-                        @update:model-value="(v: boolean) => onToggle(data, v)"
-                    />
+                    <span v-if="data.nextRunAt" class="text-[12px] tabular-nums">{{ time.full(data.nextRunAt) }}</span>
+                    <span v-else class="text-[12px] text-muted-color">{{ data.enabled ? t('batch.nextRunNone') : t('batch.nextRunOff') }}</span>
                 </template>
             </Column>
 
-            <Column header="" style="width: 8rem">
+            <Column :header="t('batch.enabled')" style="width: 6rem">
                 <template #body="{ data }">
-                    <Button v-if="data.runnable" :label="t('batch.runNow')" icon="pi pi-play" size="small" severity="secondary" outlined :loading="running === data.jobName" @click="onRun(data)" />
-                    <span v-else v-tooltip.top="t('batch.dbRunsTooltip')" class="inline-flex items-center gap-1.5 text-[11px] text-muted-color">
-                        <i class="pi pi-lock text-[10px]" aria-hidden="true" />
-                        {{ t('batch.runByDb') }}
+                    <!-- 켜고 끌 권한이 없으면 잠그고 이유를 보인다. 비활성 요소는 마우스 이벤트를 안 받으므로 툴팁은 감싼 쪽에 건다 -->
+                    <span v-tooltip.top="canManage ? undefined : t('batch.noManageReason')" class="inline-flex">
+                        <ToggleSwitch
+                            :model-value="data.enabled"
+                            :disabled="!canManage || toggling === data.jobName"
+                            :aria-label="t('batch.toggleLabel', { name: data.displayName })"
+                            @update:model-value="(v: boolean) => onToggle(data, v)"
+                        />
                     </span>
+                </template>
+            </Column>
+
+            <Column header="" style="width: 17rem">
+                <template #body="{ data }">
+                    <div class="flex items-center justify-end gap-1.5">
+                        <span v-tooltip.top="canRun ? undefined : t('batch.noRunReason')" class="inline-flex">
+                            <Button
+                                :label="data.running ? t('batch.running') : t('batch.runNow')"
+                                icon="pi pi-play"
+                                size="small"
+                                severity="secondary"
+                                outlined
+                                class="whitespace-nowrap"
+                                :disabled="!canRun || !data.runnable || data.running"
+                                :loading="running === data.jobName"
+                                @click="onRun(data)"
+                            />
+                        </span>
+                        <Button
+                            :label="t('batch.viewLogs')"
+                            :aria-label="t('batch.viewLogsLabel', { name: data.displayName })"
+                            icon="pi pi-book"
+                            size="small"
+                            severity="secondary"
+                            variant="text"
+                            class="whitespace-nowrap"
+                            @click="viewLogs(data)"
+                        />
+                    </div>
                 </template>
             </Column>
         </DataTable>
@@ -86,6 +118,7 @@
                 {{ t('batch.batchLogsLink') }}
             </NuxtLink>
             {{ t('batch.remainsIn') }}
+            {{ t('batch.cronZoneNote') }}
         </p>
     </div>
 </template>
@@ -96,15 +129,21 @@ import type { BatchJobView } from '~/composables/batch/api/useBatchApi.types';
 import UtilBatch from '~/utils/util-batch';
 import UtilBatchMessages from '~/utils/util-batch-messages';
 
-const { t, te } = useI18n();
+const { t } = useI18n();
 useSeoMeta({ title: () => t('batch.title') });
 
 const api = useBatchApi();
 const toast = useAppToast();
 const errorOf = useApiErrorOf();
 const time = useDisplayTime();
+const { confirm } = useConfirmDialog();
+const { can } = useAdminPermission();
 // ⚠ 통째로 받아 `prefs.density` 를 쓰지 않으면 조밀 모드가 이 표에만 안 먹는다 — 템플릿에서 `prefs.density` 로 읽는다
 const { prefs } = useLayoutPrefs();
+
+/** 이 화면에서 하는 일에 필요한 권한(정의: util-permission-catalog.ts) — 숨기는 것은 편의이고 막는 것은 서버다 */
+const canManage = computed(() => can('batch.manage'));
+const canRun = computed(() => can('batch.run'));
 
 const jobs = ref<BatchJobView[]>([]);
 const busy = ref(false);
@@ -112,14 +151,6 @@ const toggling = ref<string | null>(null);
 const running = ref<string | null>(null);
 /** 목록을 받지 못했을 때의 오류 — 표 자리에 오류 상태(다시 시도)로 보인다. 켜고 끄기·실행 실패는 토스트다 */
 const loadError = ref<ApiError | null>(null);
-
-/**
- * 표에서 온 이름·설명을 사람 말로 — 우리가 넣은 행(자바 배치)에는 문구 열쇠가 있고, 고객사가 만든 행에는 없다.
- * 열쇠의 문구가 있을 때만 옮기고 없으면 적어 넣은 글자를 그대로 쓴다(남이 적은 말을 갈아치우지 않는다).
- */
-function dbText(key: string | null | undefined, saved: string | null | undefined): string {
-    return key && te(key) ? t(key) : (saved ?? '');
-}
 
 onMounted(reload);
 
@@ -136,11 +167,16 @@ async function reload() {
     }
 }
 
+/** 그 배치로 걸러진 배치 로그 화면으로 */
+function viewLogs(job: BatchJobView) {
+    void navigateTo({ path: '/settings/batch-logs', query: { jobName: job.jobName } });
+}
+
 async function onToggle(job: BatchJobView, enabled: boolean) {
     toggling.value = job.jobName;
     try {
         jobs.value = await api.toggle(job.jobName, enabled);
-        toast.success(`${dbText(job.i18n, job.displayName)} — ${enabled ? t('batch.turnedOn') : t('batch.turnedOff')}`);
+        toast.success(`${job.displayName} — ${enabled ? t('batch.turnedOn') : t('batch.turnedOff')}`);
     } catch (e) {
         toast.error(errorOf(e).message, 8000);
     } finally {
@@ -149,21 +185,31 @@ async function onToggle(job: BatchJobView, enabled: boolean) {
 }
 
 async function onRun(job: BatchJobView) {
+    // 되돌릴 수 없는 처리(예: 회원 등급 승급)를 바로 돌리므로 한 번 더 묻는다
+    const ok = await confirm({
+        title: t('batch.runConfirmTitle'),
+        message: t('batch.runConfirmMessage', { name: job.displayName }),
+        confirmLabel: t('batch.runConfirmLabel'),
+    });
+    if (!ok) return;
+
     running.value = job.jobName;
     try {
         jobs.value = await api.runNow(job.jobName);
-        // 결과를 그 자리에서 말한다. 「실행했습니다」만 하면 성공인지 실패인지 보려고 로그 화면까지 건너가야 한다
+        // 결과를 그 자리에서 말한다. 「실행했습니다」만 하면 성공인지 실패인지 보려고 로그 화면까지 건너가야 한다 (일이 실패해도 서버는 200 이고 마지막 상태가 FAIL 이다)
         const after = jobs.value.find((j) => j.jobName === job.jobName);
         const failed = after?.lastStatus === 'FAIL';
-        const summary = `${dbText(job.i18n, job.displayName)} — ${UtilBatchMessages.statusLabel(t, after?.lastStatus)}`;
+        const summary = `${job.displayName} — ${UtilBatchMessages.statusLabel(t, after?.lastStatus)}`;
         const message = after?.lastMessage ? `${summary}: ${after.lastMessage}` : summary;
         if (failed) toast.error(message, 10000);
         else toast.success(message, 4000);
     } catch (e) {
-        toast.error(errorOf(e).message, 8000);
+        const error = errorOf(e);
+        toast.error(error.message, 8000);
+        // 이미 다른 곳에서 돌고 있으면(409 BATCH_RUNNING) 목록의 「실행 중」 표시가 낡은 것이니 다시 읽는다
+        if (error.code === 'BATCH_RUNNING') await reload();
     } finally {
         running.value = null;
     }
 }
-
 </script>

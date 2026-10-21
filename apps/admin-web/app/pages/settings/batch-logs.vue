@@ -1,7 +1,7 @@
 <template>
     <!--
-        배치 로그 — hamonica3 의 `batch-logs.vue`(설정 › 애플리케이션) 를 옮긴 것이다. 자바(`batch_log`)와 pg_cron(`cron.job_run_details`) 두 곳의 실행 이력을 **섞어 시간 역순**으로 본다
-        (관리자에게는 "지난주에 무엇이 실패했나"가 한 물음이지 두 물음이 아니다). 서버가 한 쪽씩 준다(`lazy`).
+        배치 로그 — hamonica3 의 `batch-logs.vue`(설정 › 애플리케이션) 를 옮긴 것이다. 배치 실행 이력을 시작 시각 최근순으로 본다. 서버가 한 쪽씩 준다(`lazy`).
+        배치 관리 화면의 「로그 보기」가 `?jobName=<배치 키>` 로 들어오면 그 배치로 거른 채 열린다.
         본문 여백은 셸(`.app-content`)이 준다 — hamonica3 의 `p-4 md:p-6` 은 옮기지 않았다.
     -->
     <div class="flex min-h-0 flex-col gap-4 lg:h-full">
@@ -10,7 +10,7 @@
         <div class="flex flex-wrap items-end gap-2">
             <div>
                 <label class="mb-1 block text-[11px] text-muted-color" :for="ids.job">{{ t('batch.batch') }}</label>
-                <Select v-model="filter.jobName" :input-id="ids.job" :options="jobOptions" option-label="label" option-value="value" show-clear class="w-56" :placeholder="t('common.all')" @change="reloadFirst" />
+                <Select v-model="filter.jobName" :input-id="ids.job" :options="jobOptions" option-label="label" option-value="value" show-clear class="w-56" :placeholder="t('common.all')" @change="onJobChange" />
             </div>
             <div>
                 <label class="mb-1 block text-[11px] text-muted-color" :for="ids.status">{{ t('batch.result') }}</label>
@@ -23,7 +23,7 @@
 
         <DataTable
             :value="rows"
-            data-key="rowKey"
+            data-key="logId"
             lazy
             paginator
             :first="first"
@@ -40,7 +40,7 @@
             @page="onPage"
         >
             <template #empty>
-                <ErrorState v-if="loadError" :title="t('batch.logsLoadFailed')" :description="loadError.message" retry :retrying="busy" @retry="reload" />
+                <ErrorState v-if="loadError" :title="t('batch.logsLoadFailed')" :description="errorText(loadError)" retry :retrying="busy" @retry="reload" />
                 <div v-else-if="busy" class="h-32" aria-hidden="true" />
                 <!-- 빈 상태를 구분한다 — 거르기 때문인지 아직 아무 일도 없는 건지 -->
                 <EmptyState v-else-if="hasFilter" icon="pi pi-filter-slash" :title="t('common.emptyFiltered')">
@@ -60,9 +60,16 @@
 
             <Column :header="t('batch.batch')" style="min-width: 14rem">
                 <template #body="{ data }">
-                    <div class="flex min-w-0 items-center gap-1.5">
-                        <Tag :value="data.source === 'JAVA' ? t('batch.dbBadge') : t('batch.dbBadgeDb')" :icon="data.source === 'JAVA' ? 'pi pi-server' : 'pi pi-database'" :severity="data.source === 'JAVA' ? 'info' : 'secondary'" />
-                        <span class="truncate text-[13px]">{{ data.displayName }}</span>
+                    <span class="block truncate text-[13px]">{{ data.displayName }}</span>
+                </template>
+            </Column>
+
+            <Column :header="t('batch.trigger')" style="width: 10rem">
+                <template #body="{ data }">
+                    <!-- 수동이면 누가 눌렀는지(운영자가 지워졌으면 이름 없음) -->
+                    <div class="min-w-0">
+                        <Tag :value="UtilBatchMessages.triggerLabel(t, data.trigger)" :icon="data.trigger === 'MANUAL' ? 'pi pi-user' : 'pi pi-clock'" severity="secondary" />
+                        <div v-if="data.operatorName" class="mt-0.5 truncate text-[11px] text-muted-color">{{ data.operatorName }}</div>
                     </div>
                 </template>
             </Column>
@@ -84,7 +91,7 @@
 
             <Column :header="t('batch.affected')" style="width: 7rem">
                 <template #body="{ data }">
-                    <!-- 0 과 「안 셈」은 다르다. 0 이면 돌긴 돌았는데 할 일이 없던 것이고, 비어 있으면 애초에 세지 않는 배치다(pg_cron 은 늘 그렇다) -->
+                    <!-- 0 과 비어 있음은 다르다. 0 이면 돌긴 돌았는데 할 일이 없던 것이고, 비어 있으면 아직 안 끝났거나 실패해서 센 값이 없는 것이다 -->
                     <span class="text-[12px] tabular-nums text-muted-color">{{ data.affectedCount ?? '—' }}</span>
                 </template>
             </Column>
@@ -116,6 +123,7 @@ const time = useDisplayTime();
 // ⚠ 통째로 받아 `prefs.density` 를 쓰지 않으면 조밀 모드가 이 표에만 안 먹는다 — 템플릿에서 `prefs.density` 로 읽는다
 const { prefs } = useLayoutPrefs();
 
+const route = useRoute();
 const ids = { job: useId(), status: useId() };
 
 /** 쪽 안내(「전체 N건」). ⚠ `{totalRecords}` 는 PrimeVue 가 채우는 자리다 — 번역에서는 `{count}` 로 두고 여기서 PrimeVue 가 아는 이름으로 바꿔 준다 */
@@ -123,15 +131,13 @@ const totalTemplate = computed(() => t('common.totalCount', { count: '{totalReco
 
 // ⚠ `computed` 다 — 그냥 배열이면 처음 읽은 순간의 언어로 굳는다
 const statuses = computed(() => [
+    { label: t('batch.statusRunning'), value: 'RUNNING' },
     { label: t('batch.statusOk'), value: 'OK' },
     { label: t('batch.statusFail'), value: 'FAIL' },
     { label: t('batch.statusSkip'), value: 'SKIP' },
 ]);
 
-/** 화면이 줄을 알아보는 열쇠. 번호가 두 곳(자바·pg_cron)에서 오므로 이름+시각으로 만든다 */
-type Row = BatchLogView & { rowKey: string };
-
-const rows = ref<Row[]>([]);
+const rows = ref<BatchLogView[]>([]);
 const jobOptions = ref<{ label: string; value: string }[]>([]);
 const total = ref(0);
 const first = ref(0);
@@ -140,10 +146,26 @@ const busy = ref(false);
 /** 목록을 받지 못했을 때의 오류 — 표 자리에 오류 상태(다시 시도)로 보인다 */
 const loadError = ref<ApiError | null>(null);
 
+/** 주소의 `?jobName=` — 배치 관리 화면의 「로그 보기」가 건다. 문자열 하나만 받는다 */
+function jobNameFromRoute(): string | null {
+    const value = route.query.jobName;
+    return typeof value === 'string' && value ? value : null;
+}
+
 const filter = reactive<{ jobName: string | null; status: string | null }>({
-    jobName: null,
+    jobName: jobNameFromRoute(),
     status: null,
 });
+
+// 같은 화면 안에서 주소의 배치만 바뀐 경우(예: 사이드바의 「배치 로그」) — 걸린 거르기를 주소에 맞춘다
+watch(
+    () => route.query.jobName,
+    () => {
+        if (route.path !== '/settings/batch-logs' || filter.jobName === jobNameFromRoute()) return;
+        filter.jobName = jobNameFromRoute();
+        reloadFirst();
+    },
+);
 
 const hasFilter = computed(() => !!filter.jobName || !!filter.status);
 
@@ -173,7 +195,7 @@ async function reload() {
             page: Math.floor(first.value / size.value),
             size: size.value,
         });
-        rows.value = page.items.map((r) => ({ ...r, rowKey: `${r.jobName}-${r.startedAt}` }));
+        rows.value = page.items;
         total.value = page.total;
     } catch (e) {
         loadError.value = errorOf(e);
@@ -182,6 +204,18 @@ async function reload() {
     } finally {
         busy.value = false;
     }
+}
+
+/** 배치 고르개를 바꾸면 주소의 `?jobName=` 도 맞춘다 — 안 그러면 새로 고침이나 되돌아오기에서 지운 조건이 다시 걸린다 */
+function onJobChange() {
+    void navigateTo({ path: route.path, query: { ...route.query, jobName: filter.jobName || undefined } }, { replace: true });
+    reloadFirst();
+}
+
+/** 조회 조건이 틀린 400(`VALIDATION`)은 칸마다의 서버 문구가 있으면 그것을, 없으면(`fields` 가 없을 수 있다) 서버 `message` 를 그대로 보인다 */
+function errorText(e: ApiError): string {
+    const fieldMessages = Object.values(e.fields ?? {});
+    return fieldMessages.length ? fieldMessages.join(' ') : e.message;
 }
 
 /** 거르기를 바꾸면 첫 쪽으로. 안 그러면 스무 번째 쪽에서 빈 목록을 만난다 */
@@ -199,7 +233,7 @@ function onPage(e: { first: number; rows: number }) {
 function clearFilter() {
     filter.jobName = null;
     filter.status = null;
-    reloadFirst();
+    onJobChange();
 }
 
 /** 얼마나 걸렸나. 초 단위로 반올림하지 않는다 — 배치는 대개 1초 안에 끝나서, 반올림하면 전부 「0초」가 되어 「어느 것이 느린가」를 볼 수 없다 */
