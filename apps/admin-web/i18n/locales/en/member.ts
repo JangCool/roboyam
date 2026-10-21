@@ -185,6 +185,8 @@ export default {
             sanctions: 'Sanction and report history is not loaded from the server yet.',
         },
         empty: '-',
+        // Shared text when a history-style list is empty (nickname, consent, grade, point and sanction history)
+        historyEmpty: 'No history.',
         maskedSuffix: '(partly hidden)',
         notVerified: 'Not verified',
         withdrawnNotice: 'This member has left. Personal details such as email, bio and contact info have been erased.',
@@ -204,7 +206,6 @@ export default {
         dormancyEraseOn: 'Scheduled for {at}',
         nicknameTitle: 'Nickname history',
         nicknameLocked: 'Full email and nickname history are visible only to operators with permission.',
-        nicknameNone: 'No nickname changes.',
         nicknameTo: 'changed to',
         statusChangedOn: 'Changed {at}',
         statusReason: 'Reason: {reason}',
@@ -232,8 +233,6 @@ export default {
             recentCommentCount: 'Comments, last 7 days',
             recentLoginDays: 'Active days, last 7',
         },
-        noSanctions: 'No sanctions',
-        noSanctionsHint: 'Warnings and suspensions will be listed here.',
         sanction: {
             kind: {
                 WARNING: 'Warning',
@@ -322,7 +321,6 @@ export default {
             },
             nextNone: 'Already at the highest grade.',
             historyTitle: 'Grade changes',
-            historyNone: 'No grade changes.',
             changeKind: {
                 AUTO: 'Auto promotion',
                 ADMIN: 'Operator change',
@@ -337,7 +335,6 @@ export default {
             tickets: 'Nickname change tickets',
             ticketCount: '{count}',
             ledgerTitle: 'Recent point history',
-            ledgerNone: 'No point history.',
         },
 
         // Preferences
@@ -393,7 +390,6 @@ export default {
             notAgreed: 'Not agreed',
             historyTitle: 'Consent changes and withdrawals',
             candidate: 'Candidate, not final',
-            historyNone: 'No changes or withdrawals.',
             colAt: 'Date',
             colItem: 'Consent',
             colAction: 'Agree/Withdraw',

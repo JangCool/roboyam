@@ -83,7 +83,7 @@
                 <i class="pi pi-lock mt-0.5" aria-hidden="true" />
                 <span>{{ t('member.detail.nicknameLocked') }}</span>
             </p>
-            <p v-else-if="!detail.nicknameHistory.length" class="text-[13px] text-muted-color">{{ t('member.detail.nicknameNone') }}</p>
+            <p v-else-if="!detail.nicknameHistory.length" class="text-[13px] text-muted-color">{{ t('member.detail.historyEmpty') }}</p>
             <ul v-else class="m-0 flex list-none flex-col gap-1.5 p-0">
                 <li v-for="(change, index) in detail.nicknameHistory" :key="`${change.changedAt}-${index}`" class="rounded-lg border border-(--line) px-3 py-2 text-[13px]">
                     <span class="text-muted-color">{{ change.oldNickname }}</span>

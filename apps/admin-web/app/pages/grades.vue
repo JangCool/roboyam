@@ -217,8 +217,8 @@ const POLICY_TEXT: Record<GradeManualPolicy, { label: string; help: string }> = 
     CONTINUE_AUTO: { label: 'grade.policyContinueAuto', help: 'grade.policyContinueAutoHelp' },
     STOP_AUTO: { label: 'grade.policyStopAuto', help: 'grade.policyStopAutoHelp' },
 };
-/** 안내·동작 구획의 문구 키 — 등급 목록이 원천 · 판정 시점(활동 즉시 · 일수 배치) · 올리기만 · 소급 */
-const NOTES = ['grade.noteSource', 'grade.noteActivity', 'grade.noteDays', 'grade.noteUpOnly', 'grade.noteRetro'] as const;
+/** 안내·동작 구획의 문구 키 — 등급 목록이 원천 · 활동 수 한계 · 일수 배치(하루 한 번) · 올리기만 · 정상 회원만 · 저장 직후 소급 */
+const NOTES = ['grade.noteSource', 'grade.noteActivity', 'grade.noteDays', 'grade.noteUpOnly', 'grade.noteTarget', 'grade.noteRetro'] as const;
 
 /** 서버가 준 등급 목록(저장된 값). `null` = 아직 못 받았다 */
 const saved = ref<Grade[] | null>(null);

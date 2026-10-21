@@ -185,6 +185,8 @@ export default {
             sanctions: '제재·신고 이력은 아직 서버에서 받아 오지 않아요.',
         },
         empty: '-',
+        // 목록형 이력이 비었을 때(닉네임 변경·동의 변경·등급 변경·포인트 내역·제재 이력) 공통 한 문구
+        historyEmpty: '이력이 없습니다.',
         maskedSuffix: '(일부 가려짐)',
         notVerified: '미인증',
         withdrawnNotice: '탈퇴한 회원이에요. 이메일·소개·연락처 같은 개인 정보는 지워져 보이지 않아요.',
@@ -204,7 +206,6 @@ export default {
         dormancyEraseOn: '처리 예정일 {at}',
         nicknameTitle: '닉네임 변경 이력',
         nicknameLocked: '전체 이메일·닉네임 이력은 권한이 있는 운영자만 볼 수 있어요.',
-        nicknameNone: '닉네임을 바꾼 적이 없어요.',
         nicknameTo: '에서',
         statusChangedOn: '상태 변경 {at}',
         statusReason: '사유: {reason}',
@@ -232,8 +233,6 @@ export default {
             recentCommentCount: '최근 7일 댓글',
             recentLoginDays: '최근 7일 접속일',
         },
-        noSanctions: '제재 이력이 없어요',
-        noSanctionsHint: '경고·정지 이력이 생기면 여기에 쌓입니다.',
         sanction: {
             kind: {
                 WARNING: '경고',
@@ -322,7 +321,6 @@ export default {
             },
             nextNone: '가장 높은 등급이에요.',
             historyTitle: '등급 변경 이력',
-            historyNone: '등급 변경 이력이 없어요.',
             changeKind: {
                 AUTO: '자동 승급',
                 ADMIN: '운영자 변경',
@@ -337,7 +335,6 @@ export default {
             tickets: '닉네임 변경권',
             ticketCount: '{count}장',
             ledgerTitle: '최근 포인트 내역',
-            ledgerNone: '포인트 내역이 없어요.',
         },
 
         // 개인 설정
@@ -393,7 +390,6 @@ export default {
             notAgreed: '미동의',
             historyTitle: '동의 변경·철회 이력',
             candidate: '후보 · 확정 전',
-            historyNone: '변경·철회한 이력이 없어요.',
             colAt: '일시',
             colItem: '동의 항목',
             colAction: '동의/철회',

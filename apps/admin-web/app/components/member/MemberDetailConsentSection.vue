@@ -48,7 +48,7 @@
                 {{ t('member.detail.consent.historyTitle') }}
                 <MemberDetailTag :value="t('member.detail.consent.candidate')" icon="pi pi-info-circle" severity="secondary" />
             </h3>
-            <p v-if="!detail.consents.history.length" class="text-[13px] text-muted-color">{{ t('member.detail.consent.historyNone') }}</p>
+            <p v-if="!detail.consents.history.length" class="text-[13px] text-muted-color">{{ t('member.detail.historyEmpty') }}</p>
             <div v-else class="overflow-x-auto">
                 <table class="w-full border-collapse text-left text-[13px]">
                     <caption class="sr-only">{{ t('member.detail.consent.historyTitle') }}</caption>

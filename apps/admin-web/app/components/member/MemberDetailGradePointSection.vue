@@ -42,7 +42,7 @@
             <p v-else class="text-[13px] text-muted-color">{{ t('member.detail.grade.nextNone') }}</p>
 
             <h4 class="mb-1.5 mt-4 text-xs text-muted-color">{{ t('member.detail.grade.historyTitle') }}</h4>
-            <p v-if="!detail.gradePoint.gradeHistory.length" class="text-[13px] text-muted-color">{{ t('member.detail.grade.historyNone') }}</p>
+            <p v-if="!detail.gradePoint.gradeHistory.length" class="text-[13px] text-muted-color">{{ t('member.detail.historyEmpty') }}</p>
             <ul v-else class="m-0 flex list-none flex-col gap-1.5 p-0">
                 <li v-for="h in detail.gradePoint.gradeHistory" :key="h.changeId" class="flex flex-col gap-1 rounded-lg border border-(--line) px-3 py-2">
                     <div class="flex flex-wrap items-center gap-1.5">
@@ -76,7 +76,7 @@
             </dl>
 
             <h4 class="mb-1.5 mt-3 text-xs text-muted-color">{{ t('member.detail.point.ledgerTitle') }}</h4>
-            <p v-if="!detail.gradePoint.pointEntries.length" class="text-[13px] text-muted-color">{{ t('member.detail.point.ledgerNone') }}</p>
+            <p v-if="!detail.gradePoint.pointEntries.length" class="text-[13px] text-muted-color">{{ t('member.detail.historyEmpty') }}</p>
             <ul v-else class="m-0 flex list-none flex-col gap-1.5 p-0">
                 <li v-for="e in detail.gradePoint.pointEntries" :key="e.entryId" class="flex items-baseline justify-between gap-3 rounded-lg border border-(--line) px-3 py-2">
                     <div class="min-w-0">

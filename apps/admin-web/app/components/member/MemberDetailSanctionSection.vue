@@ -36,7 +36,7 @@
 
         <section :aria-labelledby="historyId">
             <h3 :id="historyId" class="mb-2 text-[13px] font-semibold">{{ t('member.detail.sanction.historyTitle') }}</h3>
-            <EmptyState v-if="!detail.sanctions.length" icon="pi pi-shield" :title="t('member.detail.noSanctions')" :description="t('member.detail.noSanctionsHint')" />
+            <p v-if="!detail.sanctions.length" class="text-[13px] text-muted-color">{{ t('member.detail.historyEmpty') }}</p>
             <ul v-else class="m-0 flex list-none flex-col gap-2 p-0">
                 <li v-for="s in detail.sanctions" :key="s.sanctionId" class="flex flex-col gap-1.5 rounded-lg border border-(--line) px-3 py-2.5">
                     <div class="flex flex-wrap items-center gap-1.5">
