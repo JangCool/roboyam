@@ -71,6 +71,10 @@ export default {
     operatorLockDesc: 'Lock an operator account or lift the lock. It blocks sign-in, so it is separate.',
     roleGrant: 'Change roles (privilege escalation)',
     roleGrantDesc: 'Add or remove permissions on a role and give roles to operators. You can only give permissions you hold yourself.',
+    teamRead: 'View the organization',
+    teamReadDesc: 'See teams and their members on Organization in the settings menu. Also needed to see team names when picking extra recipient teams in notification settings.',
+    teamManage: 'Manage the organization',
+    teamManageDesc: 'Create, edit and delete teams, and add or remove members. A team with members cannot be deleted; turn it off instead.',
 
     // Audit and batch
     auditRead: 'View audit log',
@@ -102,9 +106,9 @@ export default {
 
     // Site and integrations (notifications screen)
     notificationRead: 'View notification events',
-    notificationReadDesc: 'See the notification events, whether each is on, and the email settings on Notifications in the settings menu.',
+    notificationReadDesc: 'See the notification tools on Notifications in the settings menu, and whether each event is on, its delivery tools and its extra recipient teams.',
     notificationManage: 'Change notification events',
-    notificationManageDesc: 'Turn notification events on or off and choose whether they are also emailed. Who receives each event is fixed in the system and cannot be changed here.',
+    notificationManageDesc: 'Add, edit and delete notification tools, and change whether each event is on, its delivery tools and its extra recipient teams. Who receives each event by default is fixed per event and cannot be changed.',
 
     // ── Member roles (abilities of public-site members) — policy proposal, not final ──
     memberGroup: {

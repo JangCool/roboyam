@@ -1,7 +1,7 @@
 <template>
     <!--
         내 정보 > 개인 설정 — hamonica 의 개인 설정 탭과 같은 구성이다:
-          ① "내 표시 형식을 쓴다" 카드(스위치) ② 지금 무엇이 적용되는지 안내 ③ "언어 및 지역 · 시간 및 날짜 형식" 카드(공유 레이어의 `DisplayValueForm`) ④ 취소/저장 ⑤ "알림 설정" 카드(이메일 알림 수신 + 이벤트별 알림)
+          ① "내 표시 형식을 쓴다" 카드(스위치) ② 지금 무엇이 적용되는지 안내 ③ "언어 및 지역 · 시간 및 날짜 형식" 카드(공유 레이어의 `DisplayValueForm`) ④ 취소/저장 ⑤ "알림 설정" 카드(이메일 알림 수신 + 이 브라우저에서 알림 받기 + 이벤트별 알림)
         표시 값은 두 층이다: **사이트 표시 기본값 ← 내 표시 형식**(「기본 설정」 = 일반 설정에서 저장한 사이트 표시 기본값, 서버가 `inherited` 로 준다). 켜면 내 값이 이기고, 꺼도 내 값은 남는다. 꺼 두면 값 입력은 잠기고 기본 설정 값을 읽기 전용으로 보인다.
         저장하면 응답의 효과값을 **바로** 화면에 적용한다(`useMyDisplay`). 화면 설정(색·밀도·메뉴 위치 등)은 이 탭이 아니라 화면 설정 서랍(상단 네비의 팔레트 단추)에서 바꾼다.
         알림 수신(이메일 · 이벤트별 받기)은 바꾸면 곧바로 저장한다. 구획 주소(`anchor`)는 우측 구역 내비가 쓴다 — 바뀐 칸 수·오류 칸 수를 구획마다 넘긴다.
@@ -57,6 +57,18 @@
                 </div>
                 <!-- 바꾸면 곧바로 저장한다. 읽는 중·저장 중·못 읽었을 때는 잠근다 -->
                 <ToggleSwitch :input-id="emailId" :model-value="emailEnabled" :disabled="emailLocked" @update:model-value="changeEmail" />
+            </div>
+
+            <!--
+                이 브라우저에서 알림 받기 — 브라우저 알림(Web Notification API). 켜면 브라우저에 권한을 묻고, 허용되면 창이 가려져 있을 때 새 알림을 브라우저 알림으로 띄운다(눌러서 해당 화면으로 이동).
+                이 브라우저의 설정이라 서버에 올리지 않고 이 브라우저의 localStorage 에만 남는다(화면 설정 서랍의 「OS 알림」과 같은 값). 알림을 지원하지 않는 브라우저는 스위치가 잠기고 안내가 보인다.
+            -->
+            <div class="flex items-center justify-between gap-4 border-t border-(--line) py-1.5 pt-3">
+                <div class="min-w-0">
+                    <label :for="browserId" class="text-sm font-medium">{{ t('profile.browserNotification') }}</label>
+                    <p class="m-0 mt-0.5 text-xs" :class="browserBlocked ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="browserBlocked ? 'alert' : undefined">{{ browserHint }}</p>
+                </div>
+                <ToggleSwitch class="shrink-0" :input-id="browserId" :model-value="browserOn" :disabled="osPermission === 'unsupported'" @update:model-value="changeBrowser" />
             </div>
 
             <!-- 이벤트별 알림 — 내가 볼 수 있는 이벤트마다 받을지 정한다(켜 두면 받는다, 끄면 그 이벤트의 알림이 서랍·메일에 오지 않는다). 바꾸면 곧바로 저장하고, 필수(보안) 이벤트는 끌 수 없다 -->
@@ -132,8 +144,41 @@ const { view, loading, error, load, save: saveDisplay } = useMyDisplay();
 const { emailEnabled, locked: emailLocked, load: loadEmail, change: changeEmail } = useMyNotification();
 const { events, loading: eventsLoading, error: eventsError, isSaving: isEventSaving, load: loadEvents, setMuted } = useMyNotificationEvents();
 
+// 브라우저 알림 — 켜기/끄기는 화면 설정(`prefs.notifyOs`, 이 브라우저의 localStorage)이고 권한은 `useNotification` 의 `osPermission` 이다. 화면 설정 서랍의 「OS 알림」과 같은 값을 본다
+const { prefs, set: setPref } = useLayoutPrefs();
+const { osPermission, requestOsPermission, refreshOsPermission } = useNotification();
+
 const emailId = useId();
+const browserId = useId();
 const eventsId = useId();
+
+/** 켜져 있는가 — 켜 두었어도 브라우저 권한이 허용이 아니면 꺼진 것으로 보인다(거짓으로 켜져 보이지 않게) */
+const browserOn = computed(() => prefs.value.notifyOs && osPermission.value === 'granted');
+/** 브라우저가 이 사이트의 알림을 막고 있다 */
+const browserBlocked = computed(() => osPermission.value === 'denied');
+const browserHint = computed(() => {
+    if (osPermission.value === 'unsupported') return t('profile.browserNotificationUnsupported');
+    if (browserBlocked.value) return t('profile.browserNotificationDenied');
+    return t('profile.browserNotificationHint');
+});
+
+/** 켜면 브라우저에 권한을 묻는다(누른 자리에서만 물을 수 있다). 허용돼야 켜지고, 거부되면 안내를 보이고 꺼 둔다 */
+async function changeBrowser(on: boolean): Promise<void> {
+    if (!on) {
+        setPref('notifyOs', false);
+        toast.success(t('profile.browserNotificationOff'));
+        return;
+    }
+    if (osPermission.value === 'default') await requestOsPermission();
+    if (osPermission.value === 'granted') {
+        setPref('notifyOs', true);
+        toast.success(t('profile.browserNotificationOn'));
+    } else {
+        setPref('notifyOs', false);
+        // 거부(또는 닫음) — 안내 문구는 스위치 아래 줄에 이미 보인다
+        if (osPermission.value === 'denied') toast.error(t('profile.browserNotificationDenied'), 8000);
+    }
+}
 
 /** 영역별 묶음 — 영역 차례는 `UtilNotification.AREA_ORDER` */
 const eventGroups = computed(() => UtilNotification.groupByArea(events.value ?? []));
@@ -183,6 +228,8 @@ watch(
 );
 
 onMounted(() => {
+    // 브라우저 설정에서 권한이 바뀌었을 수 있다 — 열 때 다시 읽는다
+    refreshOsPermission();
     void load();
     // 메일 스위치는 표시 값과 무관하다 — 기다리지 않고 따로 읽는다
     void loadEmail();

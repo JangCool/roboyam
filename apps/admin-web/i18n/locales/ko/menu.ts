@@ -13,6 +13,7 @@ export default {
     grades: '등급 설정',
     operatorsAndPermissions: '운영자와 권한',
     operators: '운영자 관리',
+    teams: '조직 구성',
     roles: '역할 관리',
     rolesMember: '회원 역할',
     rolesOperator: '운영자 역할',

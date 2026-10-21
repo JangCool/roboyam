@@ -13,6 +13,7 @@ export default {
     grades: 'Grade settings',
     operatorsAndPermissions: 'Operators and permissions',
     operators: 'Operators',
+    teams: 'Organization',
     roles: 'Roles',
     rolesMember: 'Member roles',
     rolesOperator: 'Operator roles',

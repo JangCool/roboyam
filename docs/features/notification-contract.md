@@ -84,3 +84,47 @@ Java 배치와 DB(pg_cron) 배치 모두 요청 밖에서 끝난다. DB 프로�
 - 이메일 알림 템플릿은 간단한 한 통 형식(제목=알림 제목, 본문=알림 본문+링크).
 - 회원용(공개 사이트) 알림은 별도 설계(이벤트 구조는 같은 방식을 쓸 수 있다).
 - 「내 계정」 이벤트의 수신자는 로그인 상태와 무관하게 행이 쌓이고, 잠긴 계정은 로그인 후에 본다.
+
+## 알림 도구·조직 구성 (목업 단계 — 화면 확정 전, 서버 미구현)
+
+**의도**: 알림이 서랍 + 이메일뿐이던 것을 하모니카3처럼 **도구(채널)를 고를 수 있게** 넓힌다 — Slack · Mattermost · 이메일 · 브라우저 알림(카카오·SMS는 업체 계약 때문에 새로 만들지 않고 「준비 중」으로만 보인다). 팀 단위 수신을 위해 **조직 구성(팀)** 화면을 만들고, 이벤트의 「추가 수신 팀」으로 쓴다. 이메일은 지금 방식 그대로 설정 > 메일 서버 설정으로 보내고 도구 전용 SMTP 는 두지 않는다. 참고: 하모니카3 `settings/application/teams.vue`·`TeamFormDialog`·`TeamMemberDialog`, `settings/workspace/notifications.vue`·`NotificationConfigForm`·`NtfSecretField`, 서버 `ChannelSpec`.
+
+**화면 경로**
+- `/settings/teams` 조직 구성(설정 메뉴 > 운영자와 권한 > 조직 구성) — 왼쪽 팀 목록(검색·새 팀·위/아래 화살표·「사용 안 함」 딱지) + 오른쪽 팀 정보(직접 수정)·팀원(추가/빼기). 새 팀·팀원 추가는 다이얼로그.
+- `/settings/notifications` 알림 설정 — 새 구획 「알림 도구」(`#channels`) + 기존 이벤트 표의 「이메일 스위치」를 **「전달 도구」(다중 선택) + 「추가 수신 팀」(다중 선택)** 으로 교체. 구획 이동은 우측 구역 내비(탭 아님).
+- 내 정보 > 개인 설정 > 알림 설정에 「이 브라우저에서 알림 받기」 스위치.
+
+**필드·검증** (화면 선검사는 서버와 같은 규칙으로 서버가 다시 본다)
+- 팀: 이름(필수·50자·중복 불가) · 설명(선택·500자) · 사용 여부 · 정렬 순서(숫자 입력 없이 화살표만, 서버가 다시 매김). 팀원 = 운영자 계정(여러 명 선택, 이미 든 사람은 표시만). **팀원이 있는 팀은 삭제 불가**(409 `TEAM_HAS_MEMBERS`) → 「사용 안 함」.
+- 도구: 종류(만든 뒤 변경 불가) · 이름(필수·100자·중복 불가) · 설명 · 사용 여부. 종류별 칸 — Slack: 봇 토큰(비밀)+채널 / Mattermost: 웹훅 주소(비밀) 또는 서버 주소+봇 토큰(비밀)+채널 / 이메일·브라우저·서랍: 칸 없음. 주소는 `http(s)://`. **비밀 값은 응답에 없고** 화면은 「입력됨」만 보이며, 비워 두면 저장된 값을 그대로 쓴다.
+- 기본 제공: 서랍(항상 켜짐·끄기/지우기/이름 변경 불가) · 이메일 · 브라우저 알림(이름 변경·삭제 불가, 사용 여부만). 카카오·SMS 는 만들기 400 `NOTIFICATION_CHANNEL_TYPE_UNSUPPORTED`.
+- 연결 시험: 이메일·Slack·Mattermost 만. 결과(`ok`·`message`·`testedAt`)가 도구의 `lastTest` 로 남는다. 시험이 **실패한 것**은 오류가 아니라 200 `ok:false`.
+- 이벤트 전달: 서랍은 고르는 것이 아니라 항상 켜짐(필수 이벤트는 사용 자체가 잠김). 도구마다 이벤트에서 쓸 수 있는지가 다르다 — 이메일은 `emailable`, Slack·Mattermost·팀은 `broadcastAllowed`(본인에게만 가는 이벤트는 불가), 꺼진 도구·멈춘 팀은 **새로** 고를 수 없음(이미 고른 것은 해제 가능), 준비 중 이벤트는 모두 잠김.
+
+**권한**: 조직 구성 `team.read`(화면·조회) · `team.manage`(만들기·고치기·지우기·옮기기·팀원 관리) — 영역 시스템, 유형 「운영자·역할」(`operatorRole`). 알림 도구·전달 설정은 기존 `notification.read` / `notification.manage`. 팀 이름을 보려면 `team.read` 도 있어야 한다(없으면 알림 화면은 고른 팀 **개수**만 보인다).
+
+**API 후보** (`/api/admin`, 응답 `ApiResponse`, 쓰기는 CSRF — 상세 모양은 각 `use*Api.ts` 머리말)
+| | |
+|---|---|
+| `GET·POST /teams` · `PUT·DELETE /teams/{teamId}` | 팀 목록(팀원 포함)·만들기·고치기·지우기 |
+| `PUT /teams/{teamId}/move` | `{direction:'UP'\|'DOWN'}` → 목록 전부 |
+| `PUT /teams/{teamId}/members` | `{operatorIds}` 팀원 전체 교체 |
+| `GET /teams/{teamId}/candidates` | 활성 운영자 + `alreadyIn` |
+| `GET·POST /notification-channels` · `PUT·DELETE /notification-channels/{channelId}` | 도구 목록(비밀 제외, `secretKeys`로 「입력됨」)·만들기·고치기·지우기 |
+| `PUT /notification-channels/{channelId}/enabled` | `{enabled}` 켜기/끄기 |
+| `POST /notification-channels/{channelId}/test` | → `{ok, message, testedAt}` |
+| `GET·PUT /notification-events[/{code}]` 확장 | 응답에 `channels: string[]`(고른 도구 id, 이메일 도구 `email` 포함·서랍 제외)·`teamIds: string[]`·`broadcastAllowed`, 요청에 `channels`·`teamIds` 추가(서버가 `channels`의 `email` 여부를 `emailEnabled` 와 같은 값으로 봄) |
+
+**목업 가정** (화면 확정 때 되묻는다)
+1. **수신 의미**: 코드에 고정된 기본 수신 규칙은 그대로(권한 상승 방지 — 화면에서 못 바꾼다). 고른 팀의 팀원은 **서랍·이메일·브라우저 알림**으로 추가 수신하고(이벤트의 `requiredPermission` 이 없는 팀원은 걸러짐), **Slack·Mattermost 도구는 팀원에게 따로 가지 않고 도구에 설정한 채널로 한 번** 게시된다.
+2. 본인에게만 가는 이벤트(`*_ME`, 필수 보안 이벤트)는 팀·공유 채널로 보낼 수 없다(`broadcastAllowed=false`). 실제 판정은 이벤트 정의의 수신 규칙(`SELF`)이 한다.
+3. 멈춘 팀은 알림을 받지 않고 새로 고를 수 없다(이미 고른 선택은 남는다). 팀·도구를 지우면 이벤트 선택에서 함께 빠진다(서버 연쇄 삭제).
+4. 이메일 도구/이벤트의 이메일 전달만 **지금의 실제 서버 `emailEnabled`** 에 붙어 있고, 그 밖의 도구·팀·전달 선택은 메모리 목업이다(새로고침하면 처음으로 돌아감). 서버가 `channels`/`teamIds` 를 받으면 이 나눔이 없어진다.
+5. 브라우저 알림(개인)은 **목업이 아니라 실제 구현** — 서버 필요 없음. 새 설정을 만들지 않고 기존 화면 설정 `notifyOs`(이 브라우저의 localStorage) 와 20초 폴링의 OS 알림 경로를 같이 쓴다: 켜면 권한을 묻고, 창이 가려졌거나 다른 창을 볼 때 `new Notification` 을 띄우며, 알림이 한 건이면 누를 때 그 알림의 링크로 이동한다(여러 건이면 서랍). 이벤트별 개인 끄기는 기존 그대로.
+6. 목업 스위치(주소 `?mock=`): `team-error|team-empty|team-save-error|team-no-read`, `notification-channel-error|-save-error|-test-error|-no-read`, `notification-delivery-error|-save-error`.
+
+**미확정**
+- 팀 수신 권한: 팀원이 이벤트를 볼 권한(`requiredPermission`)이 없으면 건너뛰는 것으로 가정 — 서버 정책 확인 필요. 팀원 수 한도·팀 중첩(상위 팀) 없음.
+- Slack/Mattermost 게시 문구 형식·재시도·실패 알림, 연결 시험의 실제 동작(Slack `auth.test`/메시지 발송 여부), 비밀 암호화 방식(DB 비밀번호와 같은 `ROBOYAM_CRYPTO_KEY` 후보), 감사 로그 항목(`TEAM_*`·`NOTIFICATION_CHANNEL_*`, 비밀 값은 제외).
+- 권한 `team.read`/`team.manage` 는 서버 `Permission` 목록에 아직 없다 — 서버 구현 전에는 최고 관리자만 화면을 본다. 역할 편집기에서 이 권한을 체크해 저장하면 서버가 모르는 코드라 거절할 수 있다.
+- 이메일 도구를 이벤트의 `channels` 로 합치는 시점, 메일 서버 설정 화면(설정 > 메일 서버 설정)은 아직 없다(안내 문구만).

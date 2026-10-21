@@ -12,7 +12,8 @@ import UtilNotification from '~/utils/util-notification';
  *
  * ── 새 알림이 도착하면 (`receive`) ─ 화면 설정(`notifyToast` · `notifyOs`)을 따른다
  *   창을 보고 있다                              → 토스트(종 아래 오른쪽 위). 서랍이 열려 있으면 목록에 이미 떠오르므로 토스트를 또 얹지 않는다
- *   창이 가려졌다 · 다른 창에 초점이 있다         → OS 알림(권한이 허용됐을 때). 못 쓰면 토스트로 물러선다
+ *   창이 가려졌다 · 다른 창에 초점이 있다         → OS 알림 = 브라우저 알림(권한이 허용됐을 때). 못 쓰면 토스트로 물러선다. 알림이 한 건이면 눌렀을 때 그 알림의 링크로 이동한다(여러 건이면 서랍을 연다)
+ *   (켜고 끄기: 내 정보 > 개인 설정 「이 브라우저에서 알림 받기」 또는 화면 설정 서랍의 「OS 알림」 — 같은 화면 설정 `prefs.notifyOs` 를 보며 이 브라우저의 localStorage 에만 남는다)
  * 도착 경로는 폴링이다 — `useNotificationApi().subscribe`(`startWatching`)가 서랍이 닫힌 동안 20초마다 요약을 묻고, 최근 알림이 바뀌었으면 목록 첫 쪽을 `onPolled` 로 넘긴다.
  *
  * 항목을 누르면(`follow`) 읽음 처리 후 그 항목의 `link.path` 로 간다. 운영자가 그 화면을 열 권한이 없으면(`UtilAdminMenu.canOpen`) 이동하지 않고 읽음만 처리한다 — 권한 판정은 메뉴 정의가 이미 갖고 있어 그것을 쓴다.
@@ -200,11 +201,14 @@ export function useNotification() {
         const body = [first.title, first.body ?? '', arrived.length > 1 ? t('notification.toastMore', { n: arrived.length - 1 }) : ''].filter(Boolean);
         try {
             const note = new Notification(t('notification.osTitle', { product: siteLabel.value, n: arrived.length }), { body: body.join('\n') });
-            // 누르면 창을 앞으로 가져오고 알림 서랍을 연다
+            // 누르면 창을 앞으로 가져온다. 알림이 한 건이고 이동 경로를 열 수 있으면 그 화면으로 가고(읽음 처리 포함), 아니면 알림 서랍을 연다
+            const only = arrived.length === 1 ? first : undefined;
+            const target = only?.link?.path;
             note.onclick = () => {
                 window.focus();
-                open.value = true;
                 note.close();
+                if (only && target && UtilAdminMenu.canOpen(UtilNotification.pathOf(target), can)) void follow(only);
+                else open.value = true;
             };
         } catch {
             // 일부 브라우저(안드로이드 크롬)는 페이지에서 `new Notification` 을 막는다 — 토스트로 물러선다

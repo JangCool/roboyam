@@ -100,6 +100,8 @@ export default class UtilAdminMenu {
             labelKey: 'menu.operatorsAndPermissions',
             items: [
                 { key: 'operators', to: '/settings/operators', icon: 'pi pi-user-edit', labelKey: 'menu.operators', permission: 'operator.read' },
+                // 조직 구성 — 운영자를 팀으로 묶는다(알림 이벤트의 「추가 수신 팀」으로 쓴다). 운영자 관리 바로 아래에 둔다
+                { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
                 // 역할 관리는 하위 메뉴 셋을 가진 부모다 — 하위 주소의 마지막 조각이 화면 종류다(`pages/settings/roles/[[kind]].vue`). 부모 주소(`/settings/roles`)로 직접 들어오면 운영자 역할로 보낸다
                 {
                     key: 'roles',

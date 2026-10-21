@@ -22,6 +22,7 @@ import role from './role';
 import section from './section';
 import shell from './shell';
 import site from './site';
+import team from './team';
 
 export default {
     account,
@@ -41,4 +42,5 @@ export default {
     section,
     shell,
     site,
+    team,
 };

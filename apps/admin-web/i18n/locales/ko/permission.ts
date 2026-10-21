@@ -71,6 +71,10 @@ export default {
     operatorLockDesc: '운영자 계정을 잠그거나 잠금을 풉니다. 로그인을 막는 조치라 따로 둡니다.',
     roleGrant: '역할 변경(권한 상승)',
     roleGrantDesc: '역할에 권한을 주거나 빼고, 운영자에게 역할을 줍니다. 자기가 가진 권한 안에서만 줄 수 있습니다.',
+    teamRead: '조직 구성 조회',
+    teamReadDesc: '설정 메뉴의 「조직 구성」에서 팀과 팀원을 봅니다. 알림 설정에서 추가 수신 팀의 이름을 보는 데도 필요합니다.',
+    teamManage: '조직 구성 관리',
+    teamManageDesc: '팀을 만들고 고치고 지우며, 팀원을 넣고 뺍니다. 팀원이 있는 팀은 지울 수 없고 「사용 안 함」으로 멈춥니다.',
 
     // 감사·배치
     auditRead: '감사 로그 조회',
@@ -102,9 +106,9 @@ export default {
 
     // 사이트·연동(알림 화면)
     notificationRead: '알림 이벤트 조회',
-    notificationReadDesc: '설정 메뉴의 「알림」에서 알림 이벤트와 이벤트별 사용 여부·이메일 전달 설정을 봅니다.',
+    notificationReadDesc: '설정 메뉴의 「알림」에서 알림 도구와, 알림 이벤트별 사용 여부·전달 도구·추가 수신 팀을 봅니다.',
     notificationManage: '알림 이벤트 설정',
-    notificationManageDesc: '알림 이벤트의 사용 여부와 이메일 전달을 바꿉니다. 알림을 누가 받는지는 이벤트마다 정해져 있어 바꿀 수 없습니다.',
+    notificationManageDesc: '알림 도구를 추가·수정·삭제하고, 알림 이벤트의 사용 여부·전달 도구·추가 수신 팀을 바꿉니다. 기본으로 알림을 누가 받는지는 이벤트마다 정해져 있어 바꿀 수 없습니다.',
 
     // ── 회원 역할(공개 사이트 회원의 능력) — 정책 제안, 확정 전 ──
     memberGroup: {
