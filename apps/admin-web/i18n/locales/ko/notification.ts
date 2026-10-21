@@ -65,6 +65,7 @@ export default {
     deliveryPlaceholder: '도구 고르기',
     deliveryLabel: '{name} 전달 도구',
     deliveryCount: '{n}개 도구',
+    deliveryEmpty: '고를 수 있는 도구가 없어요. 설정 > 알림 도구에서 추가해 주세요.',
     drawerLocked: '서랍은 사용 중인 이벤트에 항상 전달돼요.',
     drawerLockedMandatory: '필수 이벤트라 서랍 알림을 끌 수 없어요.',
     teamsPlaceholder: '팀 고르기',
@@ -85,6 +86,13 @@ export default {
 
     // ── 알림 도구 구획 ──
     channelsTitle: '알림 도구',
+    channelsPageSubtitle: '알림을 보낼 곳(Slack·Mattermost·이메일·브라우저 알림)을 등록하고 연결을 시험해요.',
+    channelsListTitle: '등록된 도구',
+    channelsReadOnly: '알림 도구를 바꿀 권한이 없어 보기만 할 수 있어요.',
+    channelsToEvents: '이벤트마다 쓸 도구는 알림 화면에서 골라요.',
+    channelsLinkNote: '알림 도구는 설정 > 알림 도구에서 추가하고 관리해요.',
+    channelsLink: '알림 도구 열기',
+    channelsNoneUsable: '지금 고를 수 있는 알림 도구가 없어요. 도구를 켜거나 추가하면 이벤트마다 골라 쓸 수 있어요.',
     channelsHint: '알림을 보낼 곳이에요. 서랍은 항상 켜져 있고, 이메일은 설정 > 메일 서버 설정으로 보내요. Slack·Mattermost 도구를 추가하면 이벤트마다 골라 쓸 수 있어요.',
     channelsLoadFailed: '알림 도구를 불러오지 못했어요',
     channelsNoCustom: '아직 만든 도구가 없어요. [도구 추가]로 Slack이나 Mattermost를 연결해 보세요.',

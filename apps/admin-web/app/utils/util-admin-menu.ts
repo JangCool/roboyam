@@ -82,7 +82,7 @@ export default class UtilAdminMenu {
                 { key: 'grades', to: '/grades', icon: 'pi pi-trophy', labelKey: 'menu.grades', permission: 'grade.read' },
             ],
         },
-        // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」과 「알림」(알림 이벤트 관리)이 있고 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다
+        // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」·「알림」(알림 이벤트 관리)·「알림 도구」·「조직 구성」이 있고 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다
         {
             key: 'settingsSystem',
             mode: 'settings',
@@ -91,6 +91,9 @@ export default class UtilAdminMenu {
             items: [
                 { key: 'siteGeneral', to: '/settings/general', icon: 'pi pi-sliders-h', labelKey: 'menu.general', permission: 'site.read' },
                 { key: 'notifications', to: '/settings/notifications', icon: 'pi pi-bell', labelKey: 'menu.notifications', permission: 'notification.read' },
+                { key: 'notificationChannels', to: '/settings/notification-channels', icon: 'pi pi-send', labelKey: 'menu.notificationChannels', permission: 'notification.read' },
+                // 조직 구성 — 운영자를 팀으로 묶는다(알림 이벤트의 「추가 수신 팀」으로 쓴다). 알림 설정과 이어서 쓰므로 알림 · 알림 도구 바로 아래에 둔다
+                { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
             ],
         },
         {
@@ -100,8 +103,6 @@ export default class UtilAdminMenu {
             labelKey: 'menu.operatorsAndPermissions',
             items: [
                 { key: 'operators', to: '/settings/operators', icon: 'pi pi-user-edit', labelKey: 'menu.operators', permission: 'operator.read' },
-                // 조직 구성 — 운영자를 팀으로 묶는다(알림 이벤트의 「추가 수신 팀」으로 쓴다). 운영자 관리 바로 아래에 둔다
-                { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
                 // 역할 관리는 하위 메뉴 셋을 가진 부모다 — 하위 주소의 마지막 조각이 화면 종류다(`pages/settings/roles/[[kind]].vue`). 부모 주소(`/settings/roles`)로 직접 들어오면 운영자 역할로 보낸다
                 {
                     key: 'roles',

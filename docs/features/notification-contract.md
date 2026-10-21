@@ -90,8 +90,9 @@ Java 배치와 DB(pg_cron) 배치 모두 요청 밖에서 끝난다. DB 프로�
 **의도**: 알림이 서랍 + 이메일뿐이던 것을 하모니카3처럼 **도구(채널)를 고를 수 있게** 넓힌다 — Slack · Mattermost · 이메일 · 브라우저 알림(카카오·SMS는 업체 계약 때문에 새로 만들지 않고 「준비 중」으로만 보인다). 팀 단위 수신을 위해 **조직 구성(팀)** 화면을 만들고, 이벤트의 「추가 수신 팀」으로 쓴다. 이메일은 지금 방식 그대로 설정 > 메일 서버 설정으로 보내고 도구 전용 SMTP 는 두지 않는다. 참고: 하모니카3 `settings/application/teams.vue`·`TeamFormDialog`·`TeamMemberDialog`, `settings/workspace/notifications.vue`·`NotificationConfigForm`·`NtfSecretField`, 서버 `ChannelSpec`.
 
 **화면 경로**
-- `/settings/teams` 조직 구성(설정 메뉴 > 운영자와 권한 > 조직 구성) — 왼쪽 팀 목록(검색·새 팀·위/아래 화살표·「사용 안 함」 딱지) + 오른쪽 팀 정보(직접 수정)·팀원(추가/빼기). 새 팀·팀원 추가는 다이얼로그.
-- `/settings/notifications` 알림 설정 — 새 구획 「알림 도구」(`#channels`) + 기존 이벤트 표의 「이메일 스위치」를 **「전달 도구」(다중 선택) + 「추가 수신 팀」(다중 선택)** 으로 교체. 구획 이동은 우측 구역 내비(탭 아님).
+- `/settings/teams` 조직 구성(설정 메뉴 > 시스템 묶음 > 일반 · 알림 · 알림 도구 · **조직 구성** 순) — 왼쪽 팀 목록(검색·새 팀·위/아래 화살표·「사용 안 함」 딱지) + 오른쪽 팀 정보(직접 수정)·팀원(추가/빼기). 새 팀·팀원 추가는 다이얼로그.
+- `/settings/notification-channels` 알림 도구(설정 메뉴 > 시스템 묶음, 「알림」 바로 아래) — 도구 표(종류 딱지·이름·사용·최근 연결 시험·시험/수정/삭제)와 추가/수정 다이얼로그. 이벤트 관리와 **별도 화면**이고 도구 목록 상태는 두 화면이 공유한다.
+- `/settings/notifications` 알림 설정(이벤트 관리) — 기존 이벤트 표의 「이메일 스위치」를 **「전달 도구」(다중 선택, 등록된 도구 목록 사용) + 「추가 수신 팀」(다중 선택)** 으로 교체. 도구 관리는 위 알림 도구 화면으로 가는 안내 한 줄과 링크(고를 도구가 없거나 모두 꺼져 있으면 경고색 안내)만 둔다. 영역별 구획 이동은 우측 구역 내비(탭 아님).
 - 내 정보 > 개인 설정 > 알림 설정에 「이 브라우저에서 알림 받기」 스위치.
 
 **필드·검증** (화면 선검사는 서버와 같은 규칙으로 서버가 다시 본다)
@@ -101,7 +102,7 @@ Java 배치와 DB(pg_cron) 배치 모두 요청 밖에서 끝난다. DB 프로�
 - 연결 시험: 이메일·Slack·Mattermost 만. 결과(`ok`·`message`·`testedAt`)가 도구의 `lastTest` 로 남는다. 시험이 **실패한 것**은 오류가 아니라 200 `ok:false`.
 - 이벤트 전달: 서랍은 고르는 것이 아니라 항상 켜짐(필수 이벤트는 사용 자체가 잠김). 도구마다 이벤트에서 쓸 수 있는지가 다르다 — 이메일은 `emailable`, Slack·Mattermost·팀은 `broadcastAllowed`(본인에게만 가는 이벤트는 불가), 꺼진 도구·멈춘 팀은 **새로** 고를 수 없음(이미 고른 것은 해제 가능), 준비 중 이벤트는 모두 잠김.
 
-**권한**: 조직 구성 `team.read`(화면·조회) · `team.manage`(만들기·고치기·지우기·옮기기·팀원 관리) — 영역 시스템, 유형 「운영자·역할」(`operatorRole`). 알림 도구·전달 설정은 기존 `notification.read` / `notification.manage`. 팀 이름을 보려면 `team.read` 도 있어야 한다(없으면 알림 화면은 고른 팀 **개수**만 보인다).
+**권한**: 알림 도구 화면도 기존 `notification.read`(화면·조회) / `notification.manage`(변경·시험)를 그대로 쓴다. 조직 구성 `team.read`(화면·조회) · `team.manage`(만들기·고치기·지우기·옮기기·팀원 관리) — 영역 시스템, 유형 「운영자·역할」(`operatorRole`). 알림 도구·전달 설정은 기존 `notification.read` / `notification.manage`. 팀 이름을 보려면 `team.read` 도 있어야 한다(없으면 알림 화면은 고른 팀 **개수**만 보인다).
 
 **API 후보** (`/api/admin`, 응답 `ApiResponse`, 쓰기는 CSRF — 상세 모양은 각 `use*Api.ts` 머리말)
 | | |
@@ -121,7 +122,7 @@ Java 배치와 DB(pg_cron) 배치 모두 요청 밖에서 끝난다. DB 프로�
 3. 멈춘 팀은 알림을 받지 않고 새로 고를 수 없다(이미 고른 선택은 남는다). 팀·도구를 지우면 이벤트 선택에서 함께 빠진다(서버 연쇄 삭제).
 4. 이메일 도구/이벤트의 이메일 전달만 **지금의 실제 서버 `emailEnabled`** 에 붙어 있고, 그 밖의 도구·팀·전달 선택은 메모리 목업이다(새로고침하면 처음으로 돌아감). 서버가 `channels`/`teamIds` 를 받으면 이 나눔이 없어진다.
 5. 브라우저 알림(개인)은 **목업이 아니라 실제 구현** — 서버 필요 없음. 새 설정을 만들지 않고 기존 화면 설정 `notifyOs`(이 브라우저의 localStorage) 와 20초 폴링의 OS 알림 경로를 같이 쓴다: 켜면 권한을 묻고, 창이 가려졌거나 다른 창을 볼 때 `new Notification` 을 띄우며, 알림이 한 건이면 누를 때 그 알림의 링크로 이동한다(여러 건이면 서랍). 이벤트별 개인 끄기는 기존 그대로.
-6. 목업 스위치(주소 `?mock=`): `team-error|team-empty|team-save-error|team-no-read`, `notification-channel-error|-save-error|-test-error|-no-read`, `notification-delivery-error|-save-error`.
+6. 목업 스위치(주소 `?mock=`): `team-error|team-empty|team-save-error|team-no-read`, `notification-channel-error|-save-error|-test-error|-no-read`(알림 도구 화면), `notification-delivery-error|-save-error`(알림 설정 화면).
 
 **미확정**
 - 팀 수신 권한: 팀원이 이벤트를 볼 권한(`requiredPermission`)이 없으면 건너뛰는 것으로 가정 — 서버 정책 확인 필요. 팀원 수 한도·팀 중첩(상위 팀) 없음.

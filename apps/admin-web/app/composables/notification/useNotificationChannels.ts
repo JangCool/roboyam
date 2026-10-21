@@ -3,7 +3,8 @@ import type { NotificationChannelSaveRequest, NotificationChannelView } from '~/
 import UtilNotificationChannelMessages from '~/utils/util-notification-channel-messages';
 
 /**
- * 알림 도구 구획(`/settings/notifications` 의 「알림 도구」)의 상태 — 도구 목록과 만들기·고치기·지우기·사용 켜기/끄기·연결 시험. 이 화면에서만 쓰므로 화면이 setup 에서 부르고 `useState` 로 공유하지 않는다.
+ * 알림 도구 화면(`/settings/notification-channels`)의 상태 — 도구 목록과 만들기·고치기·지우기·사용 켜기/끄기·연결 시험.
+ * **도구 목록(`channels`·`loading`·`error`)은 `useState` 로 공유한다** — 이벤트 관리 화면(`/settings/notifications`)의 「전달 도구」 선택지가 같은 목록을 쓰기 때문이다(두 화면이 각자 mount 때 `load` 한다). 하는 중인 줄(`busy`)·저장 중(`saving`)은 화면 것이다.
  * 서버와 말하는 것은 `useNotificationChannelApi` 다.
  *
  * 만들기·고치기(`create`·`update`)는 다이얼로그가 서버 오류(`message`·`fields`)를 칸 아래에 붙여야 하므로 **`ApiError` 를 그대로 던진다**(`forms.md`). 성공하면 목록을 갈아 끼운다.
@@ -17,10 +18,10 @@ export function useNotificationChannels() {
     const errorOf = useApiErrorOf();
 
     /** `undefined` = 아직 안 받았다 · 배열 = 받았다(기본 제공 도구가 있어 비는 일은 없다) */
-    const channels = ref<NotificationChannelView[] | undefined>(undefined);
-    const loading = ref(false);
+    const channels = useState<NotificationChannelView[] | undefined>('notification-channels', () => undefined);
+    const loading = useState<boolean>('notification-channels-loading', () => false);
     /** 목록을 받지 못했을 때의 오류 — 구획 안 `ErrorState`(다시 시도) */
-    const error = ref<ApiError | null>(null);
+    const error = useState<ApiError | null>('notification-channels-error', () => null);
     /** 쓰기·시험을 하는 중인 도구 id 들 */
     const busy = ref<string[]>([]);
     /** 만들기·고치기 요청 중 */
@@ -128,5 +129,5 @@ export function useNotificationChannels() {
         }
     }
 
-    return { channels, loading, error, saving, isBusy, load, create, update, setEnabled, remove, test };
+    return { channels, loading, error, saving, busy, isBusy, load, create, update, setEnabled, remove, test };
 }

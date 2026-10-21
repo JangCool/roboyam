@@ -65,6 +65,7 @@ export default {
     deliveryPlaceholder: 'Pick tools',
     deliveryLabel: '{name}: delivery tools',
     deliveryCount: '{n} tools',
+    deliveryEmpty: 'There are no tools to pick. Add one under Settings > Notification tools.',
     drawerLocked: 'The drawer always receives events that are on.',
     drawerLockedMandatory: 'This event is required, so the drawer notification cannot be turned off.',
     teamsPlaceholder: 'Pick teams',
@@ -85,6 +86,13 @@ export default {
 
     // ── Notification tools section ──
     channelsTitle: 'Notification tools',
+    channelsPageSubtitle: 'Register where notifications go (Slack, Mattermost, email, browser notifications) and test the connection.',
+    channelsListTitle: 'Registered tools',
+    channelsReadOnly: 'You do not have permission to change notification tools, so this is view-only.',
+    channelsToEvents: 'Pick the tools each event uses on the Notification settings screen.',
+    channelsLinkNote: 'Add and manage notification tools under Settings > Notification tools.',
+    channelsLink: 'Open notification tools',
+    channelsNoneUsable: 'There are no notification tools you can pick right now. Turn one on or add one to use it per event.',
     channelsHint: 'Where notifications are sent. The drawer is always on, and email goes out through Settings > Mail server. Add Slack or Mattermost tools to pick them per event.',
     channelsLoadFailed: 'Could not load notification tools',
     channelsNoCustom: 'No tools yet. Use [Add tool] to connect Slack or Mattermost.',
