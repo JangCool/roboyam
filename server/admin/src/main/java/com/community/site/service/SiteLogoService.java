@@ -8,6 +8,7 @@ import com.community.media.entity.FileEntity;
 import com.community.media.entity.FilePurpose;
 import com.community.media.entity.FileStatus;
 import com.community.media.repository.master.FileRepository;
+import com.community.notification.service.AdminNotices;
 import com.community.permission.dto.AdminActor;
 import com.community.site.dto.response.SiteLogoResponse;
 import com.community.site.entity.SiteSettingEntity;
@@ -46,9 +47,11 @@ public class SiteLogoService {
     private final SiteImageFiles imageFiles;
     private final AuditLogService audit;
     private final TransactionTemplate tx;
+    private final AdminNotices notices;
 
     public SiteLogoService(SiteSettingRepository settings, FileRepository files, SiteAssets assets, SiteImageFiles imageFiles, AuditLogService audit,
-                           PlatformTransactionManager txManager) {
+                           PlatformTransactionManager txManager, AdminNotices notices) {
+        this.notices = notices;
         this.settings = settings;
         this.files = files;
         this.assets = assets;
@@ -78,6 +81,7 @@ public class SiteLogoService {
             file.markUsed(now);
             audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.SITE_LOGO_CHANGE, AuditResult.SUCCESS).target("SITE", "1")
                     .with("kind", "FILE").with("bytes", file.getSizeBytes()).with("width", file.getWidth()).with("height", file.getHeight()));
+            notices.siteSettingsChanged(actor, "siteLogo");
             return new Changed(assets.logoUrl(row).orElse(null), oldKey);
         });
         log.info("사이트 로고를 바꿨다(파일) operatorId={}", actor.operatorId());
@@ -94,6 +98,7 @@ public class SiteLogoService {
             row.changeLogoSvg(source, actor.operatorId(), Instant.now());
             audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.SITE_LOGO_CHANGE, AuditResult.SUCCESS).target("SITE", "1")
                     .with("kind", "SVG").with("length", source.length()));
+            notices.siteSettingsChanged(actor, "siteLogo");
             return new Changed(SiteAssets.svgDataUri(source), oldKey);
         });
         log.info("사이트 로고를 바꿨다(SVG) operatorId={}", actor.operatorId());
@@ -112,6 +117,7 @@ public class SiteLogoService {
             String oldKey = retireCurrentFile(row);
             row.clearLogo(actor.operatorId(), Instant.now());
             audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.SITE_LOGO_REMOVE, AuditResult.SUCCESS).target("SITE", "1").with("kind", kind));
+            notices.siteSettingsChanged(actor, "siteLogo");
             return new Changed(null, oldKey);
         });
         if (changed.oldKey() != null) {

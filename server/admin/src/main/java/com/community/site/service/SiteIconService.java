@@ -4,6 +4,7 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
+import com.community.notification.service.AdminNotices;
 import com.community.permission.dto.AdminActor;
 import com.community.site.dto.SiteIconUrls;
 import com.community.site.dto.response.SiteIconResponse;
@@ -47,9 +48,11 @@ public class SiteIconService {
     private final AuditLogService audit;
     private final TransactionTemplate tx;
     private final TransactionTemplate readTx;
+    private final AdminNotices notices;
 
     public SiteIconService(SiteSettingRepository settings, SiteIconProcessor processor, SiteImageFiles imageFiles, SiteAssets assets, AuditLogService audit,
-                           PlatformTransactionManager txManager) {
+                           PlatformTransactionManager txManager, AdminNotices notices) {
+        this.notices = notices;
         this.settings = settings;
         this.processor = processor;
         this.imageFiles = imageFiles;
@@ -96,6 +99,7 @@ public class SiteIconService {
             if (previous != null) {
                 row.changeIconToken(null, actor.operatorId(), Instant.now());
                 audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.SITE_ICON_RESET, AuditResult.SUCCESS).target("SITE", "1"));
+                notices.siteSettingsChanged(actor, "siteIcon");
             }
             return previous;
         });
@@ -122,6 +126,7 @@ public class SiteIconService {
                 row.changeIconToken(version, actor.operatorId(), Instant.now());
                 audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.SITE_ICON_CHANGE, AuditResult.SUCCESS).target("SITE", "1")
                         .with("kind", kind).with("sourceSide", result.sourceSide()));
+                notices.siteSettingsChanged(actor, "siteIcon");
                 return previous;
             });
         } catch (RuntimeException e) {

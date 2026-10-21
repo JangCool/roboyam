@@ -1,4 +1,4 @@
-# 관리자 알림(종 알림 서랍 + 이벤트 관리) 계약 (설계 확정 2026-10-22 — 서버·화면 목업 병행 구현)
+# 관리자 알림(종 알림 서랍 + 이벤트 관리) 계약 (설계 확정 2026-10-22 — 서버 구현 완료(roles-contract 7단계), 화면은 목업 병행)
 
 **의도**: 관리자 앱에서 일어나는 사건(**이벤트**)을 코드가 정의하고, 이벤트가 일어나면 수신 규칙에 맞는 운영자에게 **알림**으로 전달한다. 전달 경로는 앱 안 **종 알림 서랍**(필수)과 **이메일**(선택, 이벤트별 설정)이다. 운영자는 개인 설정에서 이벤트별로 끌 수 있고(필수 이벤트 제외), 권한이 있는 운영자는 **이벤트 관리 화면**에서 이벤트별 사용 여부·이메일 전달을 바꾼다. 회원용 알림(공개 사이트)은 별개다(이번 범위 밖).
 **참고**: 조사 결과는 하모니카3(`D:\project\hamonica3\workspace\hamonica3`)와 로보얌 현재 코드. 하모니카3의 "이벤트"는 모니터링 감지 규칙이고 읽음은 브라우저(IndexedDB)에서만 센다 — 사용자별 알림함이 없어 **UX(토스트·OS 알림·종 배지, 20초 폴링, 심각도 3단계, `use_yn` 로 끄기)와 운영 설계(중복 억제·커서·정리)만 가져오고 구조는 로보얌 방식으로 만든다.
@@ -16,9 +16,9 @@
 10. **링크**: 이벤트마다 이동 경로 템플릿이 있다(예: `/settings/operators?tab=pending`). 서랍에서 항목을 누르면 읽음 처리 후 그 경로로 이동한다(운영자가 그 화면의 권한이 없으면 이동하지 않고 읽음만 — 서버가 `link` 를 주되 화면이 `UtilAdminMenu.canOpen` 으로 확인). 이벤트 정의에 `requiredPermission` 이 있어, 권한이 없는 운영자에게는 항목 자체를 숨긴다.
 
 ## 이벤트 정의 방식 (코드가 원천 — `Permission` enum 과 같은 방식)
-- Java enum `AdminNotificationEvent`(shared, `com.community.notification`): `code`(안정 식별자, 한 번 정하면 불변 — 감사 `AuditActions` 규칙) · `area`(`PermissionArea` 재사용) · `severity` · **수신 규칙** `recipient`(`SELF`=대상 운영자 본인 / `PERMISSION_HOLDERS`(권한 코드들, 루트 포함) / `ROOT`) + `excludeActor`(행위자 제외) · `requiredPermission`(보기 권한, 없으면 누구나) · `mandatory` · `defaultEnabled` · `emailable` · `linkPath`(경로 템플릿, 인자 치환) · `collapseSeconds`(같은 이벤트·같은 키를 N초 안에 한 건으로 묶기, 0 이면 안 묶음) · `featureReady`(발행처가 아직 없는 예약 이벤트는 관리 화면에 「준비 중」으로만).
+- Java enum `AdminNotificationEvent`(shared, `com.community.notification`): `code`(안정 식별자, 한 번 정하면 불변 — 감사 `AuditActions` 규칙) · `area`(`NotificationArea` — `PermissionArea` 의 영역에서 「종합」을 빼고 알림 전용 「보안」 `security` 를 더한 것, id 는 같다) · `severity` · **수신 규칙** `recipient`(`SELF`=대상 운영자 본인 / `PERMISSION_HOLDERS`(권한 코드들, 루트 포함) / `ROOT`) + `excludeActor`(행위자 제외) · `requiredPermission`(보기 권한, 없으면 누구나) · `mandatory` · `defaultEnabled` · `emailable` · `linkPath`(경로 템플릿, 인자 치환) · `collapseSeconds`(같은 이벤트·같은 키를 N초 안에 한 건으로 묶기, 0 이면 안 묶음) · `featureReady`(발행처가 아직 없는 예약 이벤트는 관리 화면에 「준비 중」으로만).
 - 서버가 뜰 때 `notification_events` 표와 맞춘다(`PermissionCatalogSynchronizer` 패턴): 없으면 기본값으로 넣고, 운영자가 바꾼 `enabled`·`email_enabled` 는 덮어쓰지 않으며, 코드에서 사라진 이벤트는 지운다(알림 행은 이벤트 코드를 문자열로 갖고 이름은 문구 키로 푼다).
-- **이벤트 추가 방법**(작성 방식): ① enum 에 한 줄 ② `messages_ko/en` 에 `notification.event.<코드>.name`·`.description`·`.title`·`.body` ③ 사건이 일어나는 서비스에서 `publisher.publish(EVENT, args…)` 한 줄(+행위자·대상) ④ 끝. 새 화면·표·권한 변경 없음. 규약은 `.claude/guides/backend/notification.md`.
+- **이벤트 추가 방법**(작성 방식, 서버 구현에서 `.recipients` 가 더해졌다): ① enum 에 한 줄 ② `messages_ko/en` 에 `notification.event.<코드>.name`·`.description`·`.recipients`(수신 대상 한 줄)·`.title`·`.body`(빠지면 기동 때 `local`·`dev` 는 멈추고 그 밖은 ERROR) ③ 사건이 일어나는 서비스에서 `publisher.publish(EVENT, args…)` 한 줄(+행위자·대상) ④ 끝. 새 화면·표·권한 변경 없음. 규약은 `.claude/guides/backend/notification.md`.
 
 ## 초기 이벤트 (발행처가 이미 있는 것 — `featureReady=true`)
 | 코드 | 영역 | 수신 규칙 | 심각도 | 필수 | 이메일 | 링크 | 발행처 |
@@ -69,6 +69,15 @@ Java 배치와 DB(pg_cron) 배치 모두 요청 밖에서 끝난다. DB 프로�
 - **종 알림 서랍**(기존, `components/shell/NotificationDrawer.vue`·`useNotification`): `kind` 에 `critical` 추가, 항목에 `link`(누르면 읽음 + 이동), 「더 보기」 커서 페이지, 폴링 20초(`summary`)+탭 복귀 즉시, 새 알림 토스트·OS 알림은 기존 `receive` 유지. 영역 칩/아이콘은 선택(이벤트 코드→아이콘).
 - **이벤트 관리 `/settings/notifications`**(신규, 설정 메뉴 > 알림 — 권한 `notification.read`, 변경 `notification.manage`): 영역별 묶음 표 — 이벤트 이름·설명·수신 대상 문구·심각도·필수 표시·**사용 스위치**·**이메일 스위치**·최근 30일 발송 수·「준비 중」 표시. 저장은 스위치 즉시 적용(구획마다 따로 저장 아님).
 - **내 정보 > 개인 설정 > 알림 설정**(기존 구획 확장): 이메일 수신 스위치(기존) + 이벤트별 끄기 목록(필수는 잠금 표시).
+
+## 서버 구현 결과 (2026-10-22 — 상세·검증은 `docs/features/roles-contract.md` 「7단계 구현 결과」)
+- Flyway shared `V40__admin_notifications`(세 표 + `batch_runs.notified_at`) · `R__batch_16_notification_cleanup.sql`. 권한 `notification.read`·`notification.manage`(서버 `Permission` 80개).
+- 발행기는 shared(`NotificationPublisher`), API·이벤트 관리·감시자·카탈로그 맞춤은 admin. 알림 행은 **JDBC 세이브포인트** 안에서 업무 트랜잭션에 참여해 만들고(롤백되면 함께 사라짐, 실패해도 업무는 그대로), 이메일은 커밋 뒤 별도 스레드풀.
+- 묶기 규칙(확정): 묶음 시간 안의 같은 수신자·이벤트·묶음 키 중복은 **새 알림을 만들지 않는다**(처음 것이 남는다).
+- 수신 규칙의 「활성 운영자」 = 승인·잠기지 않음·만료 표시 없음·사용 중·계정 기간 안. 「내 계정」(`SELF`) 이벤트는 상태와 무관하게 쌓는다.
+- 이벤트 관리 `PUT` 검사 순서: 404 → 400(`fields.enabled|emailEnabled` 없음) → 409 `NOTIFICATION_EVENT_NOT_READY` → 409 `NOTIFICATION_MANDATORY` → 400 `fields.emailEnabled`(이메일 불가 이벤트). 감사 `NOTIFICATION_EVENT_UPDATE`(대상 종류 `NOTIFICATION_EVENT`, `before/after = {enabled, emailEnabled}`, 바뀐 때만).
+- 보관: 읽은 알림 30일은 **읽은 시각** 기준, 안 읽은 알림 90일은 **만든 시각** 기준, 운영자당 500건 초과는 안 읽은 것을 먼저 남기고 오래된 읽은 것부터 지운다.
+- 역할 삭제는 알림을 내지 않는다(쓰는 운영자가 있으면 삭제가 409 라 받을 사람이 없다). 로그인 잠금 알림은 계정이 있는 이메일일 때만 나가고 이메일 원문이 아니라 운영자 이름을 싣는다.
 
 ## 미확정·가정
 - 알림 보관값(30/90일·500건), 폴링 20초, 묶음 시간(사이트 설정 60초·배치 실패 30분)은 가정이며 설정값이다.

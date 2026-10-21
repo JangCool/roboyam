@@ -4,6 +4,7 @@ import com.community.adminauth.config.AdminAuthProperties;
 import com.community.adminauth.exception.AdminLoginLockedException;
 import com.community.auth.entity.LoginAttemptEntity;
 import com.community.auth.repository.master.LoginAttemptRepositoryQDSL;
+import com.community.notification.service.AdminNotices;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.zconfiguration.crypto.Digests;
 import java.time.Duration;
@@ -32,11 +33,13 @@ public class AdminLoginAttemptService {
     private final LoginAttemptRepositoryQDSL attempts;
     private final OperatorRepository operators;
     private final AdminAuthProperties props;
+    private final AdminNotices notices;
 
-    public AdminLoginAttemptService(LoginAttemptRepositoryQDSL attempts, OperatorRepository operators, AdminAuthProperties props) {
+    public AdminLoginAttemptService(LoginAttemptRepositoryQDSL attempts, OperatorRepository operators, AdminAuthProperties props, AdminNotices notices) {
         this.attempts = attempts;
         this.operators = operators;
         this.props = props;
+        this.notices = notices;
     }
 
     /**
@@ -69,6 +72,7 @@ public class AdminLoginAttemptService {
         }
         if (attempt.fail(now, props.loginMaxFailures(), props.loginLockSeconds())) {
             log.info("관리자 로그인 실패가 한도에 닿아 잠금을 시작했다 key={}…", key.substring(0, 8));
+            operators.findByEmail(email).ifPresent(operator -> notices.lockedByFailures(operator.getId(), operator.getOperatorName())); // 잠금이 시작되는 이 순간 한 번만(잠긴 동안의 실패는 위에서 돌아간다)
         }
     }
 

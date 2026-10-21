@@ -4,6 +4,7 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
+import com.community.notification.service.AdminNotices;
 import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.MemberPermission;
 import com.community.permission.entity.Permission;
@@ -75,15 +76,17 @@ public class RoleService {
     private final SnowflakeIdGenerator ids;
     private final AuditLogService audit;
     private final AccessDeniedRecorder denied;
+    private final AdminNotices notices;
 
     public RoleService(RoleRepository roles, RoleRepositoryQDSL roleQueries, RolePermissionRepository rolePermissions, SnowflakeIdGenerator ids,
-                       AuditLogService audit, AccessDeniedRecorder denied) {
+                       AuditLogService audit, AccessDeniedRecorder denied, AdminNotices notices) {
         this.roles = roles;
         this.roleQueries = roleQueries;
         this.rolePermissions = rolePermissions;
         this.ids = ids;
         this.audit = audit;
         this.denied = denied;
+        this.notices = notices;
     }
 
     /** 모든 유형의 역할(가진 권한·쓰는 운영자/회원 수 포함). 제품이 넣은 역할이 앞, 그다음 만든 순서 */
@@ -181,6 +184,9 @@ public class RoleService {
         }
         role.touch(now);
         audit.record(operatorEvent(actor, AuditActions.ROLE_PERMISSIONS_CHANGE, roleId).with("granted", granted).with("revoked", revoked));
+        if (operatorRole && (!granted.isEmpty() || !revoked.isEmpty())) {
+            notices.rolePermissionsChanged(actor, roleId, role.getRoleName(), !revoked.isEmpty()); // 그 역할을 받은 운영자에게
+        }
         log.info("역할 권한을 바꿨다 roleId={} 준 것={}개 뺀 것={}개 operatorId={}", roleId, granted.size(), revoked.size(), actor.operatorId());
         return view(role, new TreeSet<>(wanted), operatorCountOf(role), memberCountOf(role));
     }

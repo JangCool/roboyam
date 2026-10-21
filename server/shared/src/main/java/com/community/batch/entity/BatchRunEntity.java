@@ -1,5 +1,6 @@
 package com.community.batch.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -50,6 +51,10 @@ public class BatchRunEntity {
     /** 어디서 돈 배치인가. 앱이 만드는 줄은 {@code JAVA}, DB 프로시저가 만든 줄(V20 이후)은 {@code POSTGRESQL} */
     @Enumerated(EnumType.STRING)
     private BatchSource source;
+
+    /** 알림 감시자가 이 줄을 처리한 시각(V40) — 끝난 줄 중 비어 있는 것만 감시자가 본다. 읽기 전용 매핑이다(채우는 것은 감시자의 조건부 UPDATE) */
+    @Column(insertable = false, updatable = false)
+    private Instant notifiedAt;
 
     protected BatchRunEntity() {
     }
@@ -133,5 +138,9 @@ public class BatchRunEntity {
 
     public BatchSource getSource() {
         return source;
+    }
+
+    public Instant getNotifiedAt() {
+        return notifiedAt;
     }
 }

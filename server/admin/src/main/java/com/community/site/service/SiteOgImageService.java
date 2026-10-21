@@ -4,6 +4,7 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
+import com.community.notification.service.AdminNotices;
 import com.community.permission.dto.AdminActor;
 import com.community.site.dto.response.SiteOgImageResponse;
 import com.community.site.entity.SiteSettingEntity;
@@ -40,9 +41,11 @@ public class SiteOgImageService {
     private final AuditLogService audit;
     private final TransactionTemplate tx;
     private final TransactionTemplate readTx;
+    private final AdminNotices notices;
 
     public SiteOgImageService(SiteSettingRepository settings, SiteOgImageProcessor processor, SiteImageFiles imageFiles, SiteAssets assets, AuditLogService audit,
-                              PlatformTransactionManager txManager) {
+                              PlatformTransactionManager txManager, AdminNotices notices) {
+        this.notices = notices;
         this.settings = settings;
         this.processor = processor;
         this.imageFiles = imageFiles;
@@ -85,6 +88,7 @@ public class SiteOgImageService {
                 row.changeOgToken(version, actor.operatorId(), Instant.now());
                 audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.SITE_OG_CHANGE, AuditResult.SUCCESS).target("SITE", "1")
                         .with("sourceWidth", result.sourceWidth()).with("sourceHeight", result.sourceHeight()));
+                notices.siteSettingsChanged(actor, "siteOg");
                 return previous;
             });
         } catch (RuntimeException e) {
@@ -106,6 +110,7 @@ public class SiteOgImageService {
             if (previous != null) {
                 row.changeOgToken(null, actor.operatorId(), Instant.now());
                 audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.SITE_OG_RESET, AuditResult.SUCCESS).target("SITE", "1"));
+                notices.siteSettingsChanged(actor, "siteOg");
             }
             return previous;
         });

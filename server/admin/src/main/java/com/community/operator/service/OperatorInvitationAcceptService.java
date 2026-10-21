@@ -4,6 +4,7 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
+import com.community.notification.service.AdminNotices;
 import com.community.operator.dto.request.InvitationAcceptRequest;
 import com.community.operator.dto.response.InvitationCheckResponse;
 import com.community.operator.dto.response.OperatorRoleRef;
@@ -74,10 +75,11 @@ public class OperatorInvitationAcceptService {
     private final SnowflakeIdGenerator ids;
     private final AuditLogService audit;
     private final EntityManager entityManager;
+    private final AdminNotices notices;
 
     public OperatorInvitationAcceptService(OperatorInvitationRepository invitations, OperatorInvitationRoleRepository invitationRoles, OperatorRepository operators, OperatorRepositoryQDSL operatorQueries,
                                            OperatorRoleRepository operatorRoles, RoleRepository roles, PasswordEncoder encoder, SnowflakeIdGenerator ids,
-                                           AuditLogService audit, EntityManager entityManager) {
+                                           AuditLogService audit, EntityManager entityManager, AdminNotices notices) {
         this.invitations = invitations;
         this.invitationRoles = invitationRoles;
         this.operators = operators;
@@ -88,6 +90,7 @@ public class OperatorInvitationAcceptService {
         this.ids = ids;
         this.audit = audit;
         this.entityManager = entityManager;
+        this.notices = notices;
     }
 
     /** 초대 링크가 쓸 수 있는지 확인하고 초대받은 이메일·받을 역할·유효 기한을 돌려준다 */
@@ -161,6 +164,7 @@ public class OperatorInvitationAcceptService {
         AuditEvent event = AuditEvent.byOperator(operator.getId(), ip, AuditActions.INVITATION_ACCEPT, AuditResult.SUCCESS).target("OPERATOR", Long.toString(operator.getId()))
                 .with("invitationId", Long.toString(invitation.getId())).with("roles", granted);
         audit.record(skipped.isEmpty() ? event : event.with("rolesSkipped", skipped));
+        notices.invitationAccepted(operator.getId(), nickname, invitation.getInvitedBy());
         log.info("초대를 수락해 운영자를 만들었다 operatorId={} invitationId={} 역할={}개", operator.getId(), invitation.getId(), granted.size());
     }
 

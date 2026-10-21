@@ -4,6 +4,7 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
+import com.community.notification.service.AdminNotices;
 import com.community.operator.dto.OperatorCredentialsIssued;
 import com.community.operator.dto.request.OperatorCreateRequest;
 import com.community.operator.dto.request.OperatorRejectRequest;
@@ -83,10 +84,11 @@ public class OperatorService {
     private final AuditLogService audit;
     private final AccessDeniedRecorder denied;
     private final ApplicationEventPublisher events;
+    private final AdminNotices notices;
 
     public OperatorService(OperatorRepository operators, OperatorRepositoryQDSL operatorQueries, OperatorInvitationRepository invitations, EntityManager entityManager,
                            RoleRepositoryQDSL roleQueries, OperatorRoleRepository operatorRoles, OperatorRoleAssignmentPolicy rolePolicy, PasswordEncoder encoder,
-                           SnowflakeIdGenerator ids, AuditLogService audit, AccessDeniedRecorder denied, ApplicationEventPublisher events) {
+                           SnowflakeIdGenerator ids, AuditLogService audit, AccessDeniedRecorder denied, ApplicationEventPublisher events, AdminNotices notices) {
         this.operators = operators;
         this.operatorQueries = operatorQueries;
         this.invitations = invitations;
@@ -99,6 +101,7 @@ public class OperatorService {
         this.audit = audit;
         this.denied = denied;
         this.events = events;
+        this.notices = notices;
     }
 
     /** 탭별 목록과 탭마다 몇 명인지. 키워드는 이름·이메일 부분 일치(대소문자 무시), 비어 있으면 거르지 않는다. 최근 등록순 */
@@ -149,6 +152,7 @@ public class OperatorService {
         }
         audit.record(operatorEvent(actor, AuditActions.OPERATOR_CREATE, operator.getId()).with("roles", roles.stream().map(RoleEntity::getRoleId).toList()));
         events.publishEvent(new OperatorCredentialsIssued(email, name, temporaryPassword));
+        notices.accountCreated(actor, name);
         log.info("운영자를 만들었다 operatorId={} 역할={}개 by operatorId={}", operator.getId(), roles.size(), actor.operatorId());
         return view(operator, roles.stream().map(role -> new OperatorRoleRow(operator.getId(), role.getRoleId(), role.getRoleName())).toList(), now);
     }
@@ -186,8 +190,10 @@ public class OperatorService {
             }
             if (!granted.isEmpty() || !revoked.isEmpty()) {
                 event = event.with("rolesGranted", granted).with("rolesRevoked", revoked);
+                notices.rolesChanged(actor, operator.getId(), granted, revoked);
             }
         }
+        notices.periodChanging(actor, operator, request.accountStartAt(), request.accountEndAt());
         operator.updateProfile(name, request.accountStartAt(), request.accountEndAt(), now);
         if (renamed) {
             try {
@@ -242,6 +248,7 @@ public class OperatorService {
         if (!after.isEmpty()) {
             operator.changeStatus(request.approved(), request.locked(), request.expired(), request.enabled(), now);
             audit.record(operatorEvent(actor, AuditActions.OPERATOR_STATUS_CHANGE, operator.getId()).with("before", before).with("after", after));
+            notices.statusChanged(actor, operator.getId(), after);
             log.info("운영자 상태를 바꿨다 operatorId={} 바뀐 칸={} by operatorId={}", operator.getId(), after.keySet(), actor.operatorId());
         }
         return viewOf(operator, now);
