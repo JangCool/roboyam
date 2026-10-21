@@ -1,0 +1,77 @@
+# 관리자 알림(종 알림 서랍 + 이벤트 관리) 계약 (설계 확정 2026-10-22 — 서버·화면 목업 병행 구현)
+
+**의도**: 관리자 앱에서 일어나는 사건(**이벤트**)을 코드가 정의하고, 이벤트가 일어나면 수신 규칙에 맞는 운영자에게 **알림**으로 전달한다. 전달 경로는 앱 안 **종 알림 서랍**(필수)과 **이메일**(선택, 이벤트별 설정)이다. 운영자는 개인 설정에서 이벤트별로 끌 수 있고(필수 이벤트 제외), 권한이 있는 운영자는 **이벤트 관리 화면**에서 이벤트별 사용 여부·이메일 전달을 바꾼다. 회원용 알림(공개 사이트)은 별개다(이번 범위 밖).
+**참고**: 조사 결과는 하모니카3(`D:\project\hamonica3\workspace\hamonica3`)와 로보얌 현재 코드. 하모니카3의 "이벤트"는 모니터링 감지 규칙이고 읽음은 브라우저(IndexedDB)에서만 센다 — 사용자별 알림함이 없어 **UX(토스트·OS 알림·종 배지, 20초 폴링, 심각도 3단계, `use_yn` 로 끄기)와 운영 설계(중복 억제·커서·정리)만 가져오고 구조는 로보얌 방식으로 만든다.
+
+## 결정 (설계 질문 10개에 대한 답)
+1. **알림 저장 = 수신자별 행(fan-out)**: 이벤트가 일어난 시점에 수신 규칙으로 운영자를 정하고 운영자마다 한 행(`admin_notifications`)을 만든다. 읽음(`read_at`)이 행에 있다. 운영자 수가 적어 행 수 부담이 작다. 수신자가 나중에 권한을 잃으면 **조회 시점**에 이벤트의 `requiredPermission` 으로 걸러서 안 보이게 한다(행은 보관 정책이 지운다).
+2. **도착 경로 = 폴링**: 서랍이 열려 있지 않을 때는 가벼운 `GET /api/admin/notifications/summary`(안 읽은 수·최신 시각)를 **20초**마다, 탭이 다시 보이면 즉시 호출한다. 새 알림이 있으면 목록을 받아 토스트·OS 알림(기존 `useNotification.receive`)을 띄운다. 서버 푸시(SSE)는 만들지 않는다(다중 서버·프록시 부담, 하모니카3도 폴링).
+3. **심각도 4단계**: `info` · `success` · `warning` · **`critical`**(새로 추가 — 로그인 잠금 반복·결제 이상처럼 급한 것). 서랍 아이콘·토스트 색은 이에 맞춘다.
+4. **문구 = 키+인자로 저장하고 읽을 때 요청 언어로 푼다**: 발행은 행위자 요청 스레드에서 일어나 행위자의 언어가 수신자와 다를 수 있다. 행에는 `title_key`·`body_key`·`args`(JSON)를 저장하고 목록 조회 때 `Messages`(요청 `Accept-Language`)로 푼다(배치 실행 기록 `messageKey/messageArgs` 와 같은 방식). 키는 `messages_ko/en.properties` 에 같이 추가한다.
+5. **발행 = 업무 트랜잭션 안에서 행 삽입**(`NotificationPublisher.publish(...)` 이 호출자의 트랜잭션에 참여 — 업무가 롤백되면 알림도 없다, 커밋됐는데 알림이 사라지는 일이 없다). **이메일은 커밋 뒤**(`@TransactionalEventListener(AFTER_COMMIT)`) 보내고 실패해도 업무는 정상 종료(기존 메일 패턴). 요청 밖에서 나는 사건(**배치 실패**)은 아래 「배치 실패 알림」 방식.
+6. **이메일 채널 포함**: 이벤트마다 `emailable` 이고 운영자가 이메일을 끄지 않았고(`operator_preferences.email_notification`) 관리 화면에서 그 이벤트의 이메일이 켜져 있으면 보낸다. 알림 메일만 끌 수 있고 초대·재설정·승인번호 같은 시스템 메일은 끌 수 없다(문구 `profile.emailNotificationHint` 를 이에 맞게).
+7. **이벤트 관리 화면의 조절 범위 = 사용 여부 + 이메일 전달**(앱 안 전달은 항상 켜짐). **수신 규칙(누가 받는지)은 코드에 고정**하고 화면에서 바꾸지 않는다(권한 상승 방지 — 규칙을 바꾸면 보면 안 될 알림을 받을 수 있다). 필수(mandatory) 이벤트는 끌 수 없다. 권한: 새 권한 `notification.read`(조회)·`notification.manage`(설정) — 영역 시스템, 유형 「사이트·연동」.
+8. **개인별 구독(이벤트별 끄기) 허용**: 내 정보 > 개인 설정 > 알림 설정에서 내가 볼 수 있는 이벤트마다 끄기(`muted`). **필수 이벤트(보안: 비밀번호 변경·재설정, 내 계정 상태·권한이 바뀜)는 끌 수 없다.**
+9. **보관·정리 = DB 배치**: 읽은 알림 **30일**, 안 읽은 알림 **90일**, 운영자당 최대 **500건**(초과분은 오래된 읽은 것부터) — 프로시저 배치 `notification-cleanup`(`R__batch_16_…`, 보관 값은 `batch_params`). 서랍은 최근 30건씩 **커서 페이지**(「더 보기」). 목록 삭제 UI는 없다(읽음만).
+10. **링크**: 이벤트마다 이동 경로 템플릿이 있다(예: `/settings/operators?tab=pending`). 서랍에서 항목을 누르면 읽음 처리 후 그 경로로 이동한다(운영자가 그 화면의 권한이 없으면 이동하지 않고 읽음만 — 서버가 `link` 를 주되 화면이 `UtilAdminMenu.canOpen` 으로 확인). 이벤트 정의에 `requiredPermission` 이 있어, 권한이 없는 운영자에게는 항목 자체를 숨긴다.
+
+## 이벤트 정의 방식 (코드가 원천 — `Permission` enum 과 같은 방식)
+- Java enum `AdminNotificationEvent`(shared, `com.community.notification`): `code`(안정 식별자, 한 번 정하면 불변 — 감사 `AuditActions` 규칙) · `area`(`PermissionArea` 재사용) · `severity` · **수신 규칙** `recipient`(`SELF`=대상 운영자 본인 / `PERMISSION_HOLDERS`(권한 코드들, 루트 포함) / `ROOT`) + `excludeActor`(행위자 제외) · `requiredPermission`(보기 권한, 없으면 누구나) · `mandatory` · `defaultEnabled` · `emailable` · `linkPath`(경로 템플릿, 인자 치환) · `collapseSeconds`(같은 이벤트·같은 키를 N초 안에 한 건으로 묶기, 0 이면 안 묶음) · `featureReady`(발행처가 아직 없는 예약 이벤트는 관리 화면에 「준비 중」으로만).
+- 서버가 뜰 때 `notification_events` 표와 맞춘다(`PermissionCatalogSynchronizer` 패턴): 없으면 기본값으로 넣고, 운영자가 바꾼 `enabled`·`email_enabled` 는 덮어쓰지 않으며, 코드에서 사라진 이벤트는 지운다(알림 행은 이벤트 코드를 문자열로 갖고 이름은 문구 키로 푼다).
+- **이벤트 추가 방법**(작성 방식): ① enum 에 한 줄 ② `messages_ko/en` 에 `notification.event.<코드>.name`·`.description`·`.title`·`.body` ③ 사건이 일어나는 서비스에서 `publisher.publish(EVENT, args…)` 한 줄(+행위자·대상) ④ 끝. 새 화면·표·권한 변경 없음. 규약은 `.claude/guides/backend/notification.md`.
+
+## 초기 이벤트 (발행처가 이미 있는 것 — `featureReady=true`)
+| 코드 | 영역 | 수신 규칙 | 심각도 | 필수 | 이메일 | 링크 | 발행처 |
+|---|---|---|---|---|---|---|---|
+| `BATCH_RUN_FAILED` | 시스템 | `batch.read` 보유자 | warning | — | ✓ | `/settings/batch-logs?jobName={jobName}` | 배치 실패(아래 방식) |
+| `OPERATOR_INVITATION_ACCEPTED` | 시스템 | 초대한 운영자 + `operator.manage` 보유자(행위자 제외) | info | — | — | `/settings/operators` | 초대 수락 |
+| `OPERATOR_ACCOUNT_CREATED` | 시스템 | `operator.manage` 보유자(행위자 제외) | info | — | — | `/settings/operators` | 운영자 직접 추가 |
+| `OPERATOR_STATUS_CHANGED_ME` | 보안 | 본인 | warning | ✓ | ✓ | `/me` | 내 계정 잠금·사용 중지·승인·기간 변경 |
+| `OPERATOR_LOCKED_BY_FAILURES` | 보안 | `operator.lock` 보유자 | **critical** | — | ✓ | `/settings/operators` | 로그인 실패 5회로 잠금 시작 |
+| `ROLES_CHANGED_ME` | 보안 | 본인 | info/warning(회수) | ✓ | — | `/me` | 내 역할 추가·회수, 내 역할의 권한 변경 |
+| `PASSWORD_CHANGED_ME` | 보안 | 본인 | warning | ✓ | ✓ | `/me?tab=password` | 비밀번호 변경 |
+| `PASSWORD_RESET_DONE_ME` | 보안 | 본인 | warning | ✓ | ✓ | `/me?tab=password` | 비밀번호 재설정 |
+| `SITE_SETTINGS_CHANGED` | 시스템 | `site.read` 보유자(행위자 제외) | info | — | — | `/settings/general` | 사이트 설정 변경(묶음 60초) |
+| `GRADE_SETTINGS_SAVED` | 회원 | `grade.read` 보유자(행위자 제외) | info | — | — | `/grades` | 등급 설정 저장 |
+| `GRADE_PROMOTION_RUN` | 회원 | `grade.read` 보유자 | info | — | — | `/settings/batch-logs?jobName=grade-promotion` | 일수 승급 배치 종료(처리 건수>0) |
+
+**예약 이벤트(`featureReady=false`, 관리 화면에 「준비 중」)**: 정책 문서의 영역별 대기열형 — `REPORT_RECEIVED`(`report.manage`) · `SANCTION_APPEAL_FILED`(`appeal.manage`) · `BOARD_SANCTION_REPEAT_REVIEW`(`sanction.manage`, warning) · `NICKNAME_IMAGE_PENDING`(`nickname-image.manage`) · `CLUB_OPEN_REQUEST_PENDING`(`group.manage`) · `HOTDEAL_SUSPECTED_PROMO`(`hotdeal.manage`, warning) · `COMMERCE_ORDER_ANOMALY`·`COMMERCE_REFUND_REQUESTED`(`commerce.*`, warning/critical) · `BUSINESS_APPLICATION_PENDING`(`business.manage`) · `AD_REVIEW_PENDING`(`ad.manage`) · `OPERATOR_APPLICATION_PENDING`(`operator.manage`, 신청 기능 구현 후). 기능이 만들어질 때 `featureReady=true` 와 발행 한 줄만 더한다.
+
+## 배치 실패 알림
+Java 배치와 DB(pg_cron) 배치 모두 요청 밖에서 끝난다. DB 프로시저가 알림 수신자를 계산하게 하지 않기 위해 **Java 감시자**가 한다: `batch_runs` 에 `notified_at` 칸을 두고, 짧은 주기(30초)로 `status='FAIL' AND notified_at IS NULL` 행을 `FOR UPDATE SKIP LOCKED` 로 가져와 `BATCH_RUN_FAILED` 를 발행하고 `notified_at` 을 채운다(여러 서버 중복 방지, 최대 지연 약 30초, 같은 배치가 계속 실패하면 `collapseSeconds`(30분)로 묶는다). 등급 승급 배치 종료 알림(`GRADE_PROMOTION_RUN`)도 같은 감시자가 `OK` 이고 처리 건수>0 인 `grade-promotion` 행을 본다.
+
+## 데이터(Flyway shared V40~ — 병행 작업과 번호가 겹치지 않게 큰 수)
+- `notification_events`(code PK, `enabled`, `email_enabled`, updated_at/by) — 코드가 원천, 운영자가 바꾸는 값만.
+- `admin_notifications`(id Snowflake, operator_id FK, event_code, severity, title_key, body_key, args jsonb, link_path, dedupe_key, created_at, read_at) + 인덱스 `(operator_id, id DESC)`, 안 읽은 수용 부분 인덱스 `(operator_id) WHERE read_at IS NULL`.
+- `operator_notification_mutes`(operator_id, event_code, PK 둘).
+- `batch_runs.notified_at`.
+- 정리 DB 배치 `notification-cleanup`(`R__batch_16_notification_cleanup.sql`, 03:50 KST, `batch_params`: `read_retention_days` 30·`unread_retention_days` 90·`per_operator_cap` 500).
+
+## API (`/api/admin`, 응답 `ApiResponse`, 쓰기는 CSRF)
+**운영자 본인(로그인만 필요, `@AdminAuthenticated`)**
+| | |
+|---|---|
+| `GET /notifications?cursor&size` | → `{items:[{id,eventCode,area,kind('info'\|'success'\|'warning'\|'critical'),title,body\|null,link:{path}\|null,createdAt,read}], nextCursor\|null, unread}` 최근순, size 기본 30(최대 100), 권한이 없는 이벤트·내가 끈 이벤트는 제외 |
+| `GET /notifications/summary` | → `{unread, latestId\|null}` (폴링용, 가벼움) |
+| `POST /notifications/{id}/read` | 204 (내 것만, 없으면 404 `NOTIFICATION_NOT_FOUND`) |
+| `POST /notifications/read-all` | 204 |
+| `GET /profile/notification/events` | → `[{code,area,name,description,severity,mandatory,muted,emailable}]` 내가 볼 수 있는 이벤트만(준비 중 제외) |
+| `PUT /profile/notification/events/{code}` | `{muted}` → 200 같은 항목 / 필수 이벤트를 끄면 409 `NOTIFICATION_MANDATORY` |
+| 기존 `GET/PUT /profile/notification` | `{emailEnabled}` 유지 |
+
+**이벤트 관리(권한 `notification.read` / `notification.manage`)**
+| | |
+|---|---|
+| `GET /notification-events` | → `[{code,area,severity,name,description,recipientText,mandatory,emailable,enabled,emailEnabled,featureReady,sentLast30Days}]` 영역·코드순 |
+| `PUT /notification-events/{code}` | `{enabled,emailEnabled}` → 200 같은 항목 / 필수 이벤트를 끄면 409 `NOTIFICATION_MANDATORY`, 준비 중 이벤트는 409 `NOTIFICATION_EVENT_NOT_READY`, `emailable=false` 인데 이메일을 켜면 400 `fields.emailEnabled`. 감사 `NOTIFICATION_EVENT_UPDATE`(전·후 값) |
+
+## 화면
+- **종 알림 서랍**(기존, `components/shell/NotificationDrawer.vue`·`useNotification`): `kind` 에 `critical` 추가, 항목에 `link`(누르면 읽음 + 이동), 「더 보기」 커서 페이지, 폴링 20초(`summary`)+탭 복귀 즉시, 새 알림 토스트·OS 알림은 기존 `receive` 유지. 영역 칩/아이콘은 선택(이벤트 코드→아이콘).
+- **이벤트 관리 `/settings/notifications`**(신규, 설정 메뉴 > 알림 — 권한 `notification.read`, 변경 `notification.manage`): 영역별 묶음 표 — 이벤트 이름·설명·수신 대상 문구·심각도·필수 표시·**사용 스위치**·**이메일 스위치**·최근 30일 발송 수·「준비 중」 표시. 저장은 스위치 즉시 적용(구획마다 따로 저장 아님).
+- **내 정보 > 개인 설정 > 알림 설정**(기존 구획 확장): 이메일 수신 스위치(기존) + 이벤트별 끄기 목록(필수는 잠금 표시).
+
+## 미확정·가정
+- 알림 보관값(30/90일·500건), 폴링 20초, 묶음 시간(사이트 설정 60초·배치 실패 30분)은 가정이며 설정값이다.
+- 이메일 알림 템플릿은 간단한 한 통 형식(제목=알림 제목, 본문=알림 본문+링크).
+- 회원용(공개 사이트) 알림은 별도 설계(이벤트 구조는 같은 방식을 쓸 수 있다).
+- 「내 계정」 이벤트의 수신자는 로그인 상태와 무관하게 행이 쌓이고, 잠긴 계정은 로그인 후에 본다.
