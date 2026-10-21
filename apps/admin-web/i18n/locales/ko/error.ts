@@ -9,6 +9,7 @@ export default {
     LOGIN_LOCKED: '로그인이 잠시 제한됐어요. 잠시 후 다시 시도해 주세요.',
     UNAUTHENTICATED: '로그인이 필요해요.',
     FORBIDDEN: '권한이 없어요.',
+    PERMISSION_DENIED: '이 작업을 할 권한이 없어요.',
     CSRF_INVALID: '요청을 확인할 수 없어요. 페이지를 새로 고친 뒤 다시 시도해 주세요.',
     NOT_FOUND: '찾을 수 없어요.',
     NOT_INSTALLED: '설치가 끝나지 않았어요. 공개 사이트의 설치 화면에서 먼저 설치해 주세요.',

@@ -1,6 +1,6 @@
 // MOCK: 등급 API(`GET·PUT /api/admin/grades`, `POST …/preview`)의 메모리 목업 — `useGradeApi.ts` 가 이 파일의 함수를 부른다. 서버가 붙으면 `grade/api/mock/` 와 함께 지운다.
-// 등급 설정·역할 관리·회원 조회가 이 파일의 **같은 목록**을 읽는다(저장하면 세 화면이 함께 바뀐다). 역할 목업(`role-mock.ts`)의 등급 역할과 회원 목업(`member-mock.ts`)의 등급 이름·서열은
-// 이 파일의 `mockGradeSnapshot()` 에서 만든다(정적 시드가 아니다). 새로고침하면 처음 값으로 돌아간다.
+// 등급 설정·회원 조회(와 역할 관리의 등급 역할 화면)가 이 파일의 **같은 목록**을 읽는다(저장하면 화면들이 함께 바뀐다). 회원 목업(`member-mock.ts`)의 등급 이름·서열은
+// 이 파일의 `mockGradeSnapshot()` 에서 만든다(정적 시드가 아니다). 역할 API 는 이제 실제 서버라 등급 역할(`ROLE_GRADE_*`)은 서버가 만들 때까지 역할 화면에 나타나지 않는다. 새로고침하면 처음 값으로 돌아간다.
 //
 // ── 시드(목업 값 — community `grade_rules` 의 조건 시드, 뱃지는 임의로 정했다) ─
 //   새싹(SEEDLING) 0일·0개 gray `pi pi-circle` · 일반(REGULAR) 7일·10개 blue `pi pi-star` · 단골(LOYAL) 30일·50개 green `pi pi-heart` · 베테랑(VETERAN) 90일·200개 amber `pi pi-crown`
@@ -24,7 +24,7 @@
 //   · 옵션 변경도 소급 영향이 있다: `STOP_AUTO` → `CONTINUE_AUTO` 로 바꾸면 이미 조건을 채운 수동 상향 회원이 새로 승급될 수 있다.
 //
 // ── 서버 규칙 흉내 ─
-//   권한: 읽기는 `grade.read` · `member.read` · `role.read` 중 하나(회원 조회·역할 조회 화면도 등급 목록을 읽는다), 저장·미리보기는 `grade.manage` 가 없으면 `403 PERMISSION_DENIED`(로그인한 목업 계정 기준 — `admin-auth-mock.ts`).
+//   권한: 읽기는 `grade.read` · `member.read` · `role.read` 중 하나(회원 조회·역할 조회 화면도 등급 목록을 읽는다), 저장·미리보기는 `grade.manage` 가 없으면 `403 PERMISSION_DENIED`(실제 로그인한 운영자의 권한 기준 — `admin-auth-mock.ts`).
 //   저장·미리보기: 등급 2~10개(`409 GRADE_LIMIT`), 이름 필수·최대 8자(`fields.grades[i].label`)·고유(`409 GRADE_NAME_DUPLICATED`), 값은 정수·범위(`fields.grades[i].minDays`), 뱃지 색·아이콘은 허용 목록 안(`badgeColor`·`badgeIcon`),
 //   옵션은 두 값 중 하나(`fields.manualPolicy`), 첫 등급은 기본 등급이 맨 앞에 그대로(`fields.grades[0].gradeKey`), 위 등급일수록 같거나 커야 한다(`409 GRADE_RULES_NOT_MONOTONIC`).
 //   삭제(저장 때 요청에서 빠진 기존 등급): 첫 등급을 지우려 하면 `409 GRADE_FIRST_PROTECTED`. 소속 회원이 있어도 막지 않고 바로 아래 등급으로 옮긴다. 하나라도 틀리면 아무것도 저장하지 않는다.

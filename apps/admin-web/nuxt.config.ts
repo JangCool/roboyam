@@ -13,7 +13,8 @@ import { definePreset } from '@primeuix/themes';
  *   API_ORIGIN  기본 http://localhost:8920 (local 프로파일의 admin 서버)
  *   NUXT_PORT   기본 3200
  *
- * ⚠ 지금은 로그인·셸이 목업(`// MOCK:`)이라 아래 `/api` 프록시를 타는 요청이 없다. 백엔드(`/api/admin/auth/**`)가 붙으면 그때부터 이 프록시가 쓰인다.
+ * 인증·역할·역할 유형·운영자·초대 API 는 실제 서버(`/api/admin/**`)를 부르고 아래 `/api` 프록시가 그 요청을 잇는다. 아직 서버가 없는 영역(등급·회원 조회·사이트 설정·내 정보·감사·배치·알림)은 `// MOCK:` 이라 프록시를 타지 않는다.
+ * 세션 쿠키(`ADMIN_SESSION`)·CSRF 쿠키(`XSRF-TOKEN`)는 프록시를 지나 개발 서버 주소(`localhost:NUXT_PORT`)의 쿠키로 저장된다(쿠키는 포트를 가르지 않는다).
  */
 const API_ORIGIN = process.env.API_ORIGIN ?? 'http://localhost:8920';
 

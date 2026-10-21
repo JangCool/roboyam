@@ -16,6 +16,7 @@ const CODES: ReadonlySet<string> = new Set([
     'LOGIN_LOCKED',
     'UNAUTHENTICATED',
     'FORBIDDEN',
+    'PERMISSION_DENIED',
     'CSRF_INVALID',
     'NOT_FOUND',
     'NOT_INSTALLED',

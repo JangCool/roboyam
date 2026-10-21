@@ -1,8 +1,7 @@
 // MOCK: 사이트 설정 API(`GET·PUT /api/admin/site/basic`, `GET·PUT /api/admin/site/display-defaults`, 로고 `POST /api/admin/files`·`PUT·DELETE /api/admin/site/logo`)의 목업 — `useSiteSettingsApi.ts` 가 이 파일의 함수를 부른다. 서버가 붙으면 `site/api/mock/` 와 함께 지운다.
 // 이 파일이 **사이트 값의 원천**이다 — 다른 목업이 같은 값을 읽는다:
 //   · 표시 기본값 = 개인 설정 탭의 "기본 설정"(제품 기준) → `profile-mock.ts` 가 `mockSiteDisplayValues()` 로 읽는다. 일반 화면에서 저장하면 `/me?tab=personal` 의 기본 설정 값이 바뀐다.
-//   · 사이트 이름 → 로그인 목업(`admin-auth-mock.ts`)의 `siteName` 이 `mockSiteName()` 으로 읽는다(새로고침해도 새 이름).
-//   · 로고 → 같은 응답의 `siteLogoUrl` 이 `mockSiteLogoUrl()` 로 읽는다(상단 로고 자리). 올린 그림·SVG 는 data URI 로 이 저장에 든다 — 큰 그림은 localStorage 용량 때문에 이번 방문 동안만 남을 수 있다.
+//   · 사이트 이름·로고 → 로그인 응답(`me`)의 `siteName`·`siteLogoUrl` 은 이제 실제 서버가 준다(로고는 서버가 아직 늘 null). 이 목업의 이름·로고는 일반 화면 안에서만 보이고, 저장하면 그 방문 동안 `useAdminAuth` 의 상단 표시를 바꾼다(새로고침하면 서버 값으로 돌아온다).
 //   · 사이트 아이콘·링크 미리보기 이미지 → 이 파일 안에서만 쓴다(일반 화면의 두 줄). 그림이 커서(2MB 까지) 이름·로고 저장과 따로 localStorage(`roboyam:mock-site-images`)에 둔다 — 못 적으면 이번 방문 동안만 남는다.
 // 값은 메모리 + 이 브라우저의 localStorage(`roboyam:mock-site-settings`)에 둔다 — 서버라면 `site_settings` 행이다. 서버가 붙으면 이 저장도 함께 지운다.
 //
@@ -13,7 +12,7 @@
 //   site-save-error   저장 요청(둘 다)이 `500 INTERNAL` 로 실패(구획 안 오류 문구)
 //
 // ── 서버 규칙 흉내 ─
-//   권한: 읽기 `site.read` · 저장 `site.manage` — 없으면 `403 PERMISSION_DENIED`(로그인한 목업 계정 기준).
+//   권한: 읽기 `site.read` · 저장 `site.manage` — 없으면 `403 PERMISSION_DENIED`(실제 로그인한 운영자의 권한 기준).
 //   로고: 올리기는 PNG·JPG·GIF·WEBP 2MB 이하(`fields.file`), SVG 는 소스 글로만 100,000자 이하·`<svg` 포함(`fields.svgSource`) — 파일이 아니라 소스로 받는 이유는 SVG 가 스크립트를 품을 수 있는 문서라서다. 즉시 적용(저장 단추 없음), 권한은 저장과 같은 `site.manage`.
 //   아이콘(`GET·POST·DELETE /api/admin/site/icon`, SVG `PUT …/icon/svg`): PNG 만, 2MB 이하, 정사각, 한 변 512~4000px — 서버가 파일 첫 바이트로 순서대로 걸러 첫 문제 하나를 `fields.file` 로 준다(빈 파일 → 형식 → 용량 → 읽기 → 너무 큼 → 정사각 아님 → 너무 작음, 지금 크기 포함).
 //     SVG 는 소스 글로만(`fields.svgSource`): 로고와 같은 검사 + 서버 몫인 정사각 여부·`<script>` 요소(목업은 아주 단순하게만 흉내 낸다 — 진짜 판정은 서버). 올리면 서버가 PNG 로 바꿔 저장하지만 목업은 SVG 그림 그대로 둔다.
@@ -98,21 +97,11 @@ export function mockSiteDisplayValues(): DisplayValues {
     return { ...read().display };
 }
 
-/** 로그인 목업이 `me` 응답의 `siteName` 으로 주는 사이트 이름 */
-export function mockSiteName(): string {
-    return read().siteName;
-}
-
-/** 로그인 목업이 `me` 응답의 `siteLogoUrl` 로 주는 로고 — 상단 로고 자리가 쓴다 */
-export function mockSiteLogoUrl(): string | null {
-    return read().logoUrl;
-}
-
 function denied(): ApiError {
     return new ApiError({ status: 403, code: 'PERMISSION_DENIED', message: '이 작업을 할 권한이 없어요.' });
 }
 
-/** 로그인한 목업 계정이 이 권한을 가졌는지 — 아니면 401/403 */
+/** 로그인한 운영자가 이 권한을 가졌는지 — 아니면 401/403 */
 function requirePermission(code: string): void {
     const user = mockCurrentAdmin();
     if (!user) throw MOCK_ERRORS.unauthenticated();

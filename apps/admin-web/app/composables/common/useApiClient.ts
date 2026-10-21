@@ -23,8 +23,6 @@ import UtilRedirect from '~/utils/util-redirect';
  * **경로가 아니라 "지금 상태"로 가른다**(로그인 실패의 401 은 `INVALID_CREDENTIALS` 라 코드가 다르고, 그때는 원래 로그인 상태가 아니다).
  *
  * `baseURL` 은 두지 않는다. 화면과 API 가 같은 출처이므로 절대 경로(`/api/admin/…`) 그대로면 되고, 개발 중에는 Nuxt 프록시가 잇는다.
- *
- * ⚠ MOCK 단계: 로그인·셸은 아직 목업이라(`useAdminAuthApi`) 이 통로를 타는 요청이 없다. 여기서는 `ApiError` 모양과 세션 끊김 처리가 쓰인다.
  */
 
 /**

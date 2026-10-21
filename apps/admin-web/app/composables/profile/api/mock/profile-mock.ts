@@ -1,5 +1,5 @@
 // MOCK: 내 정보 API(`GET`·`PATCH /api/admin/profile`)의 메모리 목업 — `useProfileApi.ts` 가 이 파일의 함수를 부른다.
-// 서버가 붙으면 `profile/api/mock/` 와 함께 지운다. 로그인 상태는 로그인 목업(`auth/api/mock/admin-auth-mock.ts`)의 세션을 따른다 — 같은 계정이다.
+// 서버가 붙으면 `profile/api/mock/` 와 함께 지운다. 로그인 상태는 실제 로그인 상태(`auth/api/mock/admin-auth-mock.ts` 가 읽어 준다)를 따른다 — 같은 계정이다.
 //
 // ── 개발 전용 스위치 — 주소의 `?mock=이름` (쉼표로 여러 개) ─
 //   profile-error        내 정보를 읽는 요청이 `500 INTERNAL` 로 실패(화면이 오류 상태와 다시 시도를 보인다)
@@ -11,7 +11,7 @@
 //
 // ── 저장 흉내 ─
 //   닉네임이 서버 규칙(2~12자, 한글·영문·숫자·밑줄, 단어 사이 공백 한 칸)에 안 맞으면 `400 VALIDATION`(+`fields.nickname`),
-//   다른 계정이 쓰는 닉네임(예: `박운영`·`김관리`)이면 `409 NICKNAME_TAKEN` 이다. 바뀐 이름은 새로고침하면 처음으로 돌아간다(메모리).
+//   다른 운영자가 쓴다고 가정한 닉네임(`박운영`·`김관리`)이면 `409 NICKNAME_TAKEN` 이다. 바뀐 이름은 새로고침하면 처음으로 돌아간다(메모리).
 //   가입·최근 로그인 시각은 계정별 고정 예시다.
 
 import { ApiError } from '~/composables/common/useApiClient';
@@ -106,10 +106,10 @@ export async function mockProfileUpdate(body: ProfileUpdateRequest): Promise<Pro
             fields: { nickname: `닉네임은 ${UtilValidation.NICKNAME_MIN}~${UtilValidation.NICKNAME_MAX}자의 한글, 영문, 숫자, 밑줄(_)로 입력해 주세요.` },
         });
     }
-    if (user.email && mockNicknameTaken(user.email, body.nickname)) {
+    if (mockNicknameTaken(body.nickname)) {
         throw new ApiError({ status: 409, code: 'NICKNAME_TAKEN', message: '이미 사용 중인 닉네임이에요.' });
     }
-    if (user.email) mockRenameAdmin(user.email, body.nickname);
+    mockRenameAdmin(body.nickname);
     return toProfile();
 }
 

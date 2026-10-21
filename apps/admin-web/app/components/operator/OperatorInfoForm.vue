@@ -85,7 +85,7 @@
             <Button type="submit" :label="t('common.save')" size="small" :loading="saving" :disabled="!dirty" />
             <Button type="button" :label="t('common.reset')" size="small" severity="secondary" variant="text" :disabled="saving || !dirty" @click="fill" />
         </div>
-        <p v-else-if="!operator.isSuper" class="text-xs text-muted-color">{{ t('operator.readOnlyNote') }}</p>
+        <p v-else-if="!editable && !operator.isSuper" class="text-xs text-muted-color">{{ t('operator.readOnlyNote') }}</p>
     </form>
 </template>
 

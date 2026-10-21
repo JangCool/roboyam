@@ -9,6 +9,7 @@ export default {
     LOGIN_LOCKED: 'Sign-in is temporarily restricted. Please try again shortly.',
     UNAUTHENTICATED: 'You need to sign in.',
     FORBIDDEN: 'You do not have permission.',
+    PERMISSION_DENIED: 'You do not have permission to do this.',
     CSRF_INVALID: 'The request could not be verified. Refresh the page and try again.',
     NOT_FOUND: 'Not found.',
     NOT_INSTALLED: 'Setup is not finished. Run the install screen on the public site first.',

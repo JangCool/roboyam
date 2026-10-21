@@ -14,7 +14,7 @@
 //   권한: `member.read` 가 없으면 `403 PERMISSION_DENIED`. 이메일은 `member.pii` 가 없으면 `ab***@gmail.com` 으로 가려서 준다(`emailMasked: true`) —
 //   ⚠ 가려진 값으로는 찾을 수 없어야 하므로 `member.pii` 가 없을 때 이메일 검색은 **전체 주소가 같을 때만** 맞는다(정책 미확정 — 후보).
 //   오류: 기간이 거꾸로면 `400 MEMBER_PERIOD_REVERSED`, 포인트 범위가 거꾸로면 `400 MEMBER_POINT_RANGE_REVERSED`, 쪽 크기가 1~100 밖이면 `400 VALIDATION`.
-//   "나"는 로그인 목업(`admin-auth-mock.ts`)의 계정이다.
+//   "나"는 실제 로그인한 운영자(`admin-auth-mock.ts` 가 읽어 준다)다.
 //
 // ── 상세 보강(후보 계약, 확정 전 — 근거는 `useMemberApi.types.ts` 머리 주석: community 문서 / 그누보드7 회원 상세(사용자 제시)) ─
 //   상세(`mockMemberGet`)가 소개·소셜 연동·성인 확인·쪽지 수신·휴면 예정·닉네임 이력·등급·포인트·개인 설정·연락처·프로필·동의 이력·공동구매·제재/신고 요약을 시드 순번에서 파생해 채운다(새로고침해도 같다).
@@ -65,7 +65,7 @@ interface RoleDef extends MemberRoleOption {
     grantMode: MemberRoleGrantMode;
 }
 
-/** 등급 역할을 뺀 회원 역할 — 이름·아이디는 역할 관리 화면의 회원 역할 시드(`role-mock.ts`)와 같다. 정의는 별도 작업이라 이 목업이 문자열로 따로 들고 있다. 등급 역할은 등급 설정의 등급 목록에서 만든다(`roleDefs()`) */
+/** 등급 역할을 뺀 회원 역할 — 이름·아이디는 서버의 내장 회원 역할 시드(`BuiltinRoleSeeder`)와 같다. 정의는 별도 작업이라 이 목업이 문자열로 따로 들고 있다. 등급 역할은 등급 설정의 등급 목록에서 만든다(`roleDefs()`) */
 const STATIC_ROLE_DEFS: RoleDef[] = [
     { roleId: 'ROLE_MEMBER_GENERAL', roleName: '일반 회원', typeId: UtilRole.TYPE_KIND, grantMode: 'AUTO' },
     { roleId: 'ROLE_MEMBER_BUSINESS', roleName: '사업자 회원', typeId: UtilRole.TYPE_KIND, grantMode: 'AUTO' },
