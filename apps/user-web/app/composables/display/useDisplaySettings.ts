@@ -9,6 +9,8 @@ import UtilInstallState from '~/utils/util-install-state';
  * 여기는 서버 값을 거기에 채우고(`setDisplay`) "이 값이 누구 것인지"(`owner`)·받기 상태(`phase`)를 든다. 시각을 그리는 컴포넌트는 이것이 아니라 `useDisplayTime()` 을 쓴다.
  *
  * **층**: 개인 값(사용자 선택값) → 사이트 기본값 → 시스템 폴백. 합치는 것은 서버 한 곳이고 화면은 효과값 하나만 받는다(브라우저 시간대는 쓰지 않는다).
+ * `/api/display/effective` 가 아직 목업이라, **사이트 기본값은 실제 값(`GET /api/site/info` 의 `displayDefaults`, `useSiteInfo`)을 개인 값이 없을 때의 폴백으로만** 쓴다 —
+ * 첫 값(기억값이 없을 때)과 서버 효과값이 개인 값이 아닐 때. 개인 값이 있으면 개인 값이 이긴다(`UtilDisplaySettings`). 사이트 정보를 못 받았으면 이전과 같다.
  *
  * **처음 값은 기억값이다(깜빡임 방지)**: 이 브라우저에 마지막으로 받은 효과값(localStorage `roboyam:display` — 값 + 받은 사람 id)으로 **동기로** 시작한다(`follow()` 의 앞부분).
  * 받은 사람이 지금 사람과 다르면(다른 계정·비로그인 ↔ 로그인) 버리고 시스템 폴백으로 시작한다 — 다른 사람의 기억값을 쓰지 않는다. 서버 값이 오면 그것으로 바꾸고 다시 기억한다.
@@ -53,6 +55,11 @@ export function useDisplaySettings() {
     // ⚠ Nuxt 문맥은 부르는 순간(setup)에만 잡힌다 — 요청이 끝난 뒤(await 뒤)에는 쓸 수 없으니 필요한 것은 여기서 꺼내 둔다
     const api = useDisplayApi();
     const display = useDisplay();
+    // 사이트 표시 기본값 — 앱 시작 플러그인(`02.site-info`)이 먼저 받아 둔다. `load()` 는 같은 호출이 아직 오는 중이면 기다린다
+    const siteInfo = useSiteInfo();
+    const siteState = useSiteInfoState();
+    /** 지금 아는 사이트 표시 기본값 — 모르면 null */
+    const siteDefaults = (): DisplayValues | null => siteState.value?.displayDefaults ?? null;
     /** 지금 값이 누구 것인가 — `undefined` 는 아직 아무도 배선하지 않음(첫 `follow()` 가 기억값을 읽게 한다) */
     const owner = useState<string | null | undefined>(UtilDisplaySettings.OWNER_KEY, () => undefined);
     // 상태만 읽는다(`useAuth()`·`useInstallState()` 를 부르면 서버 호출 준비까지 딸려 온다) — 필요한 칸만 적은 최소 모양
@@ -74,11 +81,11 @@ export function useDisplaySettings() {
         const mine = ++loadSeq;
         const id = userId();
         phase.value = 'loading';
-        return api
-            .effective()
-            .then((res) => {
+        // 사이트 정보 호출(`ensureLoaded`)은 던지지 않는다 — 못 받으면 사이트 기본값 없이 서버 값을 그대로 쓴다
+        return Promise.all([api.effective(), siteInfo.ensureLoaded()])
+            .then(([res]) => {
                 if (mine !== loadSeq) return;
-                const values = UtilDisplaySettings.fromEffectiveResponse(res);
+                const values = UtilDisplaySettings.fromEffectiveResponse(res, siteDefaults());
                 if (!values) {
                     phase.value = 'error';
                     return;
@@ -98,7 +105,7 @@ export function useDisplaySettings() {
      * 설치 전이면 받지 않는다.
      */
     function follow(): Promise<void> {
-        const plan = UtilDisplaySettings.refreshPlan({ values: display.values.value, owner: owner.value }, userId(), readStoredRaw(), install.value?.phase ?? 'unknown');
+        const plan = UtilDisplaySettings.refreshPlan({ values: display.values.value, owner: owner.value }, userId(), readStoredRaw(), install.value?.phase ?? 'unknown', siteDefaults());
         display.setDisplay(plan.wiring.values);
         owner.value = plan.wiring.owner;
         loadSeq++; // 앞 사람(또는 앞 시작)의 늦은 응답은 쓰지 않는다
@@ -107,7 +114,7 @@ export function useDisplaySettings() {
 
     /** 개인 설정 응답의 효과값을 바로 적용한다 — 다시 묻지 않는다 */
     function applyMine(res: MyDisplayResponse): void {
-        const values = UtilDisplaySettings.fromMyResponse(res);
+        const values = UtilDisplaySettings.fromMyResponse(res, siteDefaults());
         if (!values) return;
         loadSeq++; // 아직 오는 중인 효과값 응답이 이 값을 덮어쓰지 않게
         apply(values, userId());

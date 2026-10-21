@@ -12,6 +12,10 @@ import UtilTime, { type DisplayValues } from '#layers/display-time/utils/util-ti
  * **다른 사람의 기억값을 쓰지 않는다**: 기억값에는 그 값을 받은 사람의 id(비로그인은 없음)를 같이 적는다. 지금 사람과 **다르면 버리고**
  * 시스템 폴백(`UtilTime.FALLBACK_DISPLAY`)으로 시작한다 — 개인 값은 사람마다 다르다. 서버에서 못 받거나 받은 값이 깨졌으면(서버에 API 가 없어 `404` 인 경우 포함)
  * 던지지 않고 지금 쓰던 값(기억값 → 폴백)을 그대로 둔다.
+ *
+ * **사이트 표시 기본값(`GET /api/site/info` 의 `displayDefaults`)은 개인 값이 없을 때의 폴백으로만 쓴다**: 첫 값(기억값이 없을 때)과, 서버 효과값이 개인 값(`from: USER`·`own`)이 아닐 때의 값.
+ * 개인 값이 있으면 개인 값이 이긴다. 사이트 기본값을 못 받았으면(`null`) 이전과 똑같다(기억값 → 시스템 폴백, 서버가 준 값). 층 관계(개인 → 사이트 → 시스템)의 최종 합치기는 서버 몫이다 —
+ * `/api/display/effective` 가 목업인 동안 목업이 합친 "사이트 기본값" 대신 실제 사이트 값을 쓰도록 여기서 한 번 바꿔 줄 뿐이다.
  */
 
 /** 이 브라우저에 기억한 효과값 — 값과 그 값을 받은 사람(비로그인은 null) */
@@ -35,21 +39,30 @@ export default class UtilDisplaySettings {
     static readonly OWNER_KEY = 'display-owner';
 
     /**
-     * `GET /api/display/effective` 응답에서 표시 값을 꺼낸다.
+     * `GET /api/display/effective` 응답에서 표시 값을 꺼낸다. 개인 값(`from: USER`)이 아니면 사이트 표시 기본값이 있을 때 그것을 쓴다.
      * @param {unknown} raw - 응답.
+     * @param {DisplayValues | null} [siteDefaults] - 사이트 표시 기본값(`GET /api/site/info`). 모르면 null.
      * @returns {DisplayValues | null} 표시 값. 응답이 없거나 깨졌으면 null.
      */
-    static fromEffectiveResponse(raw: unknown): DisplayValues | null {
-        return isObject(raw) ? UtilDisplayValues.sanitize(raw.values) : null;
+    static fromEffectiveResponse(raw: unknown, siteDefaults: DisplayValues | null = null): DisplayValues | null {
+        if (!isObject(raw)) return null;
+        const values = UtilDisplayValues.sanitize(raw.values);
+        if (!values) return null;
+        return raw.from !== 'USER' && siteDefaults ? UtilDisplayValues.copy(siteDefaults) : values;
     }
 
     /**
      * `GET`·`PUT`·`DELETE /api/me/display` 응답에서 효과값(`effective`)을 꺼낸다 — 저장·되돌리기 직후 화면에 바로 적용하는 값이다.
+     * 개인 값(`own`)이 없으면 사이트 표시 기본값이 있을 때 그것을 쓴다.
      * @param {unknown} raw - 응답.
+     * @param {DisplayValues | null} [siteDefaults] - 사이트 표시 기본값(`GET /api/site/info`). 모르면 null.
      * @returns {DisplayValues | null} 효과값. 응답이 깨졌으면 null.
      */
-    static fromMyResponse(raw: unknown): DisplayValues | null {
-        return isObject(raw) ? UtilDisplayValues.sanitize(raw.effective) : null;
+    static fromMyResponse(raw: unknown, siteDefaults: DisplayValues | null = null): DisplayValues | null {
+        if (!isObject(raw)) return null;
+        const effective = UtilDisplayValues.sanitize(raw.effective);
+        if (!effective) return null;
+        return UtilDisplayValues.sanitize(raw.own) === null && siteDefaults ? UtilDisplayValues.copy(siteDefaults) : effective;
     }
 
     /**
@@ -106,13 +119,15 @@ export default class UtilDisplaySettings {
     }
 
     /**
-     * 앱이 시작할 때 쓸 값 — 이 사람의 기억값, 없으면(다른 사람 것·깨짐·저장소 없음) 시스템 폴백.
+     * 앱이 시작할 때 쓸 값 — 이 사람의 기억값, 없으면(다른 사람 것·깨짐·저장소 없음) 사이트 표시 기본값, 그것도 모르면 시스템 폴백.
      * @param {string | null | undefined} raw - 저장소에서 읽은 글자.
      * @param {string | null} userId - 지금 사람. 비로그인은 null.
+     * @param {DisplayValues | null} [siteDefaults] - 사이트 표시 기본값(`GET /api/site/info`). 모르면 null.
      * @returns {{ values: DisplayValues; owner: string | null }} 쓸 값과 그 주인.
      */
-    static initial(raw: string | null | undefined, userId: string | null): { values: DisplayValues; owner: string | null } {
-        return { values: UtilDisplaySettings.rememberedFor(raw, userId) ?? UtilDisplayValues.copy(UtilTime.FALLBACK_DISPLAY), owner: userId || null };
+    static initial(raw: string | null | undefined, userId: string | null, siteDefaults: DisplayValues | null = null): { values: DisplayValues; owner: string | null } {
+        const fallback = siteDefaults ?? UtilTime.FALLBACK_DISPLAY;
+        return { values: UtilDisplaySettings.rememberedFor(raw, userId) ?? UtilDisplayValues.copy(fallback), owner: userId || null };
     }
 
     /**
@@ -123,11 +138,12 @@ export default class UtilDisplaySettings {
      * @param {string | null} userId - 지금 사람. 비로그인은 null.
      * @param {string | null | undefined} raw - 저장소에서 읽은 글자.
      * @param {string} installPhase - 설치 상태(`unknown` · `pending` · `installed` · `failed`).
+     * @param {DisplayValues | null} [siteDefaults] - 사이트 표시 기본값(`GET /api/site/info`) — 기억값이 없을 때의 처음 값. 모르면 null.
      * @returns {DisplayRefreshPlan} 쓸 값과 서버에 물을지.
      */
-    static refreshPlan(current: DisplayWiring, userId: string | null, raw: string | null | undefined, installPhase: string): DisplayRefreshPlan {
+    static refreshPlan(current: DisplayWiring, userId: string | null, raw: string | null | undefined, installPhase: string, siteDefaults: DisplayValues | null = null): DisplayRefreshPlan {
         const id = userId || null;
-        const wiring = current.owner === id ? { values: current.values, owner: id } : UtilDisplaySettings.initial(raw, id);
+        const wiring = current.owner === id ? { values: current.values, owner: id } : UtilDisplaySettings.initial(raw, id, siteDefaults);
         return { wiring, load: installPhase !== 'pending' };
     }
 }

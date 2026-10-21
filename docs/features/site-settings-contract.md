@@ -65,8 +65,30 @@ PNG 서명 기준 판별·다시 인코딩, 아이콘 크기별 PNG 생성, OG 1
 
 **테이블**: Flyway shared `V12__site_media`(`files`, `site_settings` 에 `logo_file_id`·`logo_svg`·`icon_token`·`og_token`·`display_*`). 파일 장부는 `PENDING`(올리기만 함) → `IN_USE`(로고로 지정). 올리고 지정하지 않은 파일은 배치 `file-orphan-cleanup`(03:45, 24시간 지난 PENDING 삭제)이 지운다.
 
-**공개 사이트가 읽을 경로 (구현 안 함, 후속)**: ① 공개 API 후보 `GET /api/site/info`(비로그인) → `{siteName, tagline, logoUrl, icon:{version,favicon32,favicon48,appleTouch}, ogImageUrl, displayDefaults}` — `SiteAssets` 가 이미 주소를 만든다(설정 행이 없으면 비어 있다). user-web `useSiteName`·`SiteBrand`·`useSiteTerms`(`siteIcon`·`tagline` 칸)가 채울 자리다. ② 탭 아이콘·링크 미리보기 메타·manifest 는 SPA 정적 `index.html` 로는 크롤러가 못 읽으므로 api 가 `index.html` 의 `<head>` 를 동적으로 채우거나 `/manifest.webmanifest` 를 동적으로 내려야 한다(community 방식).
+**공개 사이트가 읽을 경로 (후보였던 것 — 구현됨, 아래 「공개 읽기 경로 구현 결과」)**: ① 공개 API 후보 `GET /api/site/info`(비로그인) → `{siteName, tagline, logoUrl, icon:{version,favicon32,favicon48,appleTouch}, ogImageUrl, displayDefaults}` — `SiteAssets` 가 이미 주소를 만든다(설정 행이 없으면 비어 있다). user-web `useSiteName`·`SiteBrand`·`useSiteTerms`(`siteIcon`·`tagline` 칸)가 채울 자리다. ② 탭 아이콘·링크 미리보기 메타·manifest 는 SPA 정적 `index.html` 로는 크롤러가 못 읽으므로 api 가 `index.html` 의 `<head>` 를 동적으로 채우거나 `/manifest.webmanifest` 를 동적으로 내려야 한다(community 방식).
 
 **프론트 `// MOCK:` → `// REAL:` 때**: 로고 올리기 `purpose` 는 `SITE_LOGO`(화면 코드와 같음). `logoUrl`·`previewUrl`·`url` 은 `/media/…` 상대 주소 — 관리자 앱 dev 프록시에 `/media` 를 admin 서버로 넘기는 규칙이 필요하다(prod 는 서버가 직접 서빙). `me` 의 `siteLogoUrl` 은 SVG 일 때 큰 data URI(최대 약 133KB)일 수 있다. 서버는 `fields.site`(설정 행 없음)를 거의 내지 않는다.
 
 **가정/미확정 추가**: 표시 기본값은 `site_settings` 한 행에 둔다(사용자 층·공개 회원 값과의 관계는 미정). GIF 움직임·JPEG EXIF 회전 정보는 다시 만들 때 사라진다. 올리기만 하고 지정 전인 파일의 주소는 응답에 주지 않지만 `/media` 키를 알면 열린다(키에 64비트 무작위 토큰). 로고 SVG 는 그릴 수 있는지는 검사하지 않는다(위험 요소만 거절). 로고 지정 후 이전 파일은 곧바로 지운다(되돌리기 없음).
+
+## 공개 읽기 경로 구현 결과 (2026-10-22, `server/api` — 화면 연결은 후속)
+**`GET /api/site/info`**(비로그인, `ApiResponse`) → `{siteName|null, tagline|null, logoUrl|null, icon:{version,favicon32,favicon48,appleTouch,icon192,icon512}|null, ogImageUrl, displayDefaults:{language,zoneId,timeFormat,dateFormat}}`.
+- `logoUrl`·`icon.*` 은 관리자 `me` 와 같은 소스(`SiteAssets`)라 같은 주소(`/media/…` 상대, SVG 로고는 data URI). `icon` 은 올린 아이콘이 없으면 null(화면은 기본 `/media/default/site-icon.svg`). `ogImageUrl` 은 올린 이미지, 없으면 기본 PNG(`/media/default/site-og.png`) — 공개 주소가 있으면 절대 주소. 설정 행이 없으면 이름·소개·로고·아이콘이 null, `displayDefaults` 는 처음 값(ko·Asia/Seoul·H24·YMD_DASH).
+- 허용 필드만 담는다(이메일·설치 정보·내부 ID·공개 주소 원문 없음). 설치 전에는 기존 가드가 `503 NOT_INSTALLED`(`/api/**` 전체 규칙) — 화면은 설치 상태를 먼저 본다.
+- 캐시: 서버 메모리 사본 20초(`PublicSiteService` — 다시 읽다 실패하면 이전 값을 쓰고 5초 뒤 재시도), 응답 `Cache-Control: public, max-age=60` + `ETag`(사본 지문, `If-None-Match` 가 같으면 304). `SecurityConfig` 에 `GET /api/site/info` 허용(api 에만 있는 주소).
+
+**`GET /manifest.webmanifest`**(`application/manifest+json`, `ApiResponse` 로 감싸지 않는다 — 표준 형식) — `name`=사이트 이름(없으면 `Roboyam`), `short_name`(12자까지), `description`=슬로건, `lang`=표시 언어, `start_url`·`scope`=`/`, `display=standalone`, 색 `#ffffff`, `icons` = 올린 192·512 PNG(`purpose: any`) 또는 기본 SVG(`sizes: any`). 아이콘 주소는 상대 주소(같은 서버가 서빙) — 위 「서빙」의 「절대 주소」 안내와 달리 매니페스트는 상대로 뒀다(공개 주소와 접속 도메인이 달라도 깨지지 않게). 캐시·ETag 는 위와 같다.
+
+**`index.html` 머리 채우기**(`SiteHeadFilter` → `IndexHtmlRenderer`, 보안 필터 뒤)
+- 적용: 확장자 없는 GET·HEAD 주소(`/`·`/login` …)와 `/index.html`. `/api`·`/media`·`/actuator`·`/error`·`/_nuxt`·`/.well-known`·확장자 있는 주소는 건드리지 않는다.
+- 틀은 `classpath:/static/index.html`(user-web `pnpm generate` 가 `server/api/src/main/resources/static` 으로 내보냄 — gitignore, 별도 복사 단계 없음)이다. 머리에서 `<title>`·`description`·`og:*`·`twitter:*`·`rel=manifest` 를 지우고(`<script>`·`<style>` 안은 그대로) `<meta charset>` 바로 뒤에 넣는다: 아이콘 링크(올렸으면 32·48 `rel=icon` + 180 `apple-touch-icon` 으로 틀의 아이콘 링크를 대체, 안 올렸으면 틀의 링크를 두고 틀에도 없으면 기본 SVG), `rel=manifest`, `<title>`, `description`, `og:type=website`·`og:site_name`·`og:title`·`og:description`·`og:image`(절대 주소, 올린 이미지면 `og:image:width/height` 1200×630), `twitter:card=summary_large_image`·`twitter:title|description|image`. 제목은 「이름」 또는 「이름 — 슬로건」, 설명은 슬로건(없으면 이름). 이름·슬로건·주소는 모두 HTML 이스케이프(속성값 포함). `og:url`·`og:locale`·`canonical` 은 넣지 않는다.
+- 설정 행이 없으면(설치 전) 틀 그대로. 틀이 없거나(빌드 전) 머리를 만들다 실패하면 그대로 지나가 기존 처리(404 등)를 따른다. 결과는 설정 사본이 바뀔 때까지 캐시하고 `Cache-Control: no-cache` + `ETag`(304)로 내린다.
+
+**기본 og PNG**: 크롤러가 SVG `og:image` 를 못 읽는 경우가 있어 jar 에 `media-default/site-og.png`(1200×630, 기본 SVG 와 같은 그림)를 동봉했고 `SiteMediaKeys.DEFAULT_OG_PNG_URL` 로 공개 쪽(info·머리 메타)만 PNG 를 쓴다. 관리자 화면의 `defaultUrl` 은 기존 SVG 그대로. 디자인이 정해지면 같은 이름 파일만 바꾸면 된다.
+
+**미확정/후속**
+1. 관리자가 바꾼 설정은 이 서버에 최대 20초(+브라우저 60초) 뒤 보인다.
+2. 공개 응답에 `Set-Cookie: XSRF-TOKEN` 이 같이 나간다(기존 CSRF 필터) — CDN 이 응답을 캐시하려면 쿠키를 무시하게 설정해야 한다.
+3. user-web 의 `SiteTermsResponse` 는 `/api/site/terms` 에서 `siteName`·`siteIcon`(키 이름)·`tagline` 을 받는 모양이다. `/api/site/info` 의 `icon` 과 키 이름이 달라 화면 쪽 타입·로더를 새로 맞춘다.
+4. `/api/site/theme`·`/api/site/terms` 는 아직 서버에 없다(user-web 은 목업: 테마는 `useThemeApi` 의 `// MOCK:` 이 `{theme}` 후보 모양, 용어는 `useSiteTerms` 가 서버 값 없이 기본 이름).
+5. 서비스 워커·푸시 알림 아이콘은 범위 밖.

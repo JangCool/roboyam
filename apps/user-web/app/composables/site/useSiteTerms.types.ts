@@ -21,13 +21,10 @@ export type SiteTermKey =
 /** 키마다 이름이 하나씩 채워진 표 */
 export type SiteTerms = Record<SiteTermKey, string>;
 
-/** `GET /api/site/terms` 응답 */
+/**
+ * `GET /api/site/terms` 응답 — 서버에 아직 없다(용어는 목업 단계라 화면은 기본 이름을 쓴다).
+ * 사이트 이름·아이콘·슬로건은 이 응답이 아니라 `GET /api/site/info` 로 온다(`api/useSiteInfoApi.types.ts` 의 `SiteInfoResponse`, 아이콘 키는 `icon`) — 옛 후보 칸(`siteName`·`siteIcon`·`tagline`)은 뺐다.
+ */
 export interface SiteTermsResponse {
     terms: Partial<Record<SiteTermKey, string>>;
-    /** 사이트 이름(설치 마법사·운영자 설정) — 탭 제목에 붙는다. 옛 서버 응답에는 없을 수 있다 */
-    siteName?: string;
-    /** 운영자가 올린 사이트 아이콘의 주소들(docs/api-site-icon.md) — 올리지 않았으면 null/없음(기본 아이콘을 그대로 둔다). 옛 서버 응답에는 없을 수 있다 */
-    siteIcon?: { version?: string; favicon32?: string; favicon48?: string; appleTouch?: string } | null;
-    /** 사이트 슬로건(로고 밑 한 줄 소개, 0~100자) — 없으면 null(그 줄을 그리지 않는다). 옛 서버 응답에는 칸이 없을 수 있다 */
-    tagline?: string | null;
 }

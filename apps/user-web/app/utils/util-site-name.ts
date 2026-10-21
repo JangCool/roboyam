@@ -1,8 +1,8 @@
 /**
  * 사이트 이름(탭 제목에 붙는 이름)의 순수 규칙 — 서버 응답 읽기, 이 브라우저에 마지막 값을 저장하는 글자 다루기, 탭 제목 만들기. 상태도 요청도 없다
- * (상태는 `useSiteName`, 서버 호출은 `useSiteTermsApi`).
+ * (상태는 `useSiteInfo`·`useSiteName`, 서버 호출은 `useSiteInfoApi`).
  *
- * 이름은 설치 마법사·운영자 설정이 DB 에 정하는 값이고, 서버는 같은 값을 검색엔진용 초기 HTML 의 `<title>`·`og:site_name` 에 쓴다. 화면은 `GET /api/site/terms` 의
+ * 이름은 설치 마법사·운영자 설정이 DB 에 정하는 값이고, 서버는 같은 값을 검색엔진용 초기 HTML 의 `<title>`·`og:site_name` 에 쓴다. 화면은 `GET /api/site/info` 의
  * `siteName` 으로 받아 쓴다. 받지 못했으면(없음·실패·깨진 응답) **탭 제목에는 이름을 붙이지 않고** 서버가 초기 HTML 에 넣은 제목을 그대로 둔다.
  *
  * 로고 글자·설명 문구처럼 **글자가 꼭 있어야 하는 곳**은 이름을 모를 때 `DEFAULT` 를 쓴다(`label`). 앱의 진짜 이름이 정해지면(D-01) `DEFAULT` 한 곳만 바꾸면 된다
@@ -35,7 +35,7 @@ export default class UtilSiteName {
 
     /**
      * 서버 응답에서 사이트 이름을 꺼낸다.
-     * @param {unknown} raw - `GET /api/site/terms` 응답.
+     * @param {unknown} raw - `GET /api/site/info` 응답.
      * @returns {string | null} 쓸 수 있는 이름. 없거나 깨졌으면 null.
      */
     static fromResponse(raw: unknown): string | null {

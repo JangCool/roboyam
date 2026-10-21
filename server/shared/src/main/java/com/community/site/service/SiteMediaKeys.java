@@ -21,6 +21,12 @@ public final class SiteMediaKeys {
     /** 기본 링크 미리보기 이미지 */
     public static final String DEFAULT_OG_URL = "/media/default/site-og.svg";
 
+    /**
+     * 공개 사이트가 {@code og:image} 로 내보내는 기본 PNG(같은 그림, 1200×630). 링크 미리보기 크롤러(카카오톡·페이스북 등)가 SVG 를 읽지 못하는 경우가 있어
+     * 공개 쪽 메타·{@code /api/site/info} 는 이 PNG 를 쓴다(관리자 화면의 기본 미리보기는 위 SVG 그대로).
+     */
+    public static final String DEFAULT_OG_PNG_URL = "/media/default/site-og.png";
+
     /** 링크 미리보기 이미지의 가로·세로(px) — 서버가 늘 이 크기로 만든다 */
     public static final int OG_WIDTH = 1200;
     public static final int OG_HEIGHT = 630;

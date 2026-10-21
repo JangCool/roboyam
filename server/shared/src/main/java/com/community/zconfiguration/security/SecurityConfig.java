@@ -30,7 +30,7 @@ import org.springframework.security.web.savedrequest.NullRequestCache;
  *   <li>CSRF 는 쿠키(XSRF-TOKEN) + 헤더(X-XSRF-TOKEN) 방식이다(SPA). 쿠키는 어느 응답에서든 내려간다(설치 마법사는 {@code status} 응답이, 설치 뒤에는
  *       {@code GET /api/auth/me} 가 첫 쿠키다).</li>
  *   <li>설치 전에는 {@code /api/**} 중 설치 마법사만 열려 있고 나머지는 503 NOT_INSTALLED 다({@link InstallationGuardFilter} — CSRF 검사 앞).</li>
- *   <li>로그인 없이 쓰는 구간: {@code /api/system/installation/**}(토큰·설치 상태 검사는 서비스가 한다), {@code GET /api/auth/me}·{@code /api/auth/providers},
+ *   <li>로그인 없이 쓰는 구간: {@code /api/system/installation/**}(토큰·설치 상태 검사는 서비스가 한다), {@code GET /api/auth/me}·{@code /api/auth/providers}·{@code /api/site/info},
  *       {@code POST /api/auth/login}·{@code /api/auth/logout}. 그 밖의 {@code /api/**}(인증 메일 재발송 포함)는 인증이 필요하다 —
  *       인증이 없으면 JSON {@code 401 UNAUTHENTICATED}. 화면(정적 파일)·actuator 는 연다.</li>
  *   <li>오류는 JSON 으로 답한다(화면이 HTML 오류 페이지를 받지 않게). CSRF 거절은 {@code 403 CSRF_INVALID}.</li>
@@ -60,6 +60,8 @@ public class SecurityConfig {
                         // 로그인 상태 조회·소셜 공급자 목록·로그인·로그아웃 — 로그인 전에도 부른다(로그아웃은 비로그인이어도 204)
                         .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/auth/providers").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/logout").permitAll()
+                        // 공개 사이트 설정(이름·로고·아이콘·링크 미리보기 이미지·표시 기본값) — 로그인 전 화면도 읽는다(공개 사이트 서버(api)에만 있는 주소)
+                        .requestMatchers(HttpMethod.GET, "/api/site/info").permitAll()
                         // 관리자 앱(admin)의 로그인 상태 조회·로그인·로그아웃 — 같은 규약이다(공개 사이트 서버에는 이 주소가 없다). 그 밖의 /api/admin/** 는 로그인이 필요하고,
                         // 어떤 권한이 필요한지는 컨트롤러가 선언하며 선언이 없으면 거절된다(admin 의 AdminAccessInterceptor — fail-closed)
                         .requestMatchers(HttpMethod.GET, "/api/admin/auth/me").permitAll()

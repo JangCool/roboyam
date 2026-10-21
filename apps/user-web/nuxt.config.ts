@@ -1,7 +1,6 @@
 import tailwindcss from '@tailwindcss/vite';
 import Aura from '@primeuix/themes/aura';
 import { definePreset } from '@primeuix/themes';
-import UtilSiteName from './app/utils/util-site-name';
 
 /**
  * 화면은 Nuxt SPA 다 (`ssr: false`).
@@ -97,6 +96,15 @@ export default defineNuxtConfig({
                 target: API_ORIGIN + '/api',
                 changeOrigin: true,
             },
+            // 사이트 설정 이미지(`/media/**` — 올린 로고·아이콘, 기본 아이콘은 `/media/default/**`)와 웹 앱 매니페스트 — 같은 api 서버가 서빙한다. 마찬가지로 target 에 접두어를 붙인다.
+            '/media': {
+                target: API_ORIGIN + '/media',
+                changeOrigin: true,
+            },
+            '/manifest.webmanifest': {
+                target: API_ORIGIN + '/manifest.webmanifest',
+                changeOrigin: true,
+            },
         },
     },
 
@@ -152,8 +160,8 @@ export default defineNuxtConfig({
 
     app: {
         head: {
-            // 기본 제목 — 이름을 모를 때의 임시 이름. 설치 전에는 서버 값이 없다
-            title: UtilSiteName.DEFAULT,
+            // 기본 제목을 두지 않는다 — 운영에서는 서버가 초기 `index.html` 의 `<head>`(제목·소개·탭 아이콘·manifest·링크 미리보기)를 사이트 설정으로 채우는데,
+            // 여기 기본 제목이 있으면 화면이 뜰 때 그것을 덮어쓴다. 쪽 제목은 각 화면(`useSeoMeta`)과 `app.vue` 의 `titleTemplate` 이 정한다.
             htmlAttrs: { lang: 'ko' },
             meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1' }],
         },
