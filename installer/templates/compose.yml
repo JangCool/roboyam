@@ -20,10 +20,25 @@ x-labels: &labels
 
 services:
   postgres:
-    image: postgres:18
+    # 공식 postgres:18 에 pg_cron 만 더한 이미지 — 설치기가 postgres/Dockerfile 로 만든다(DB 배치용: 저장 프로시저 + pg_cron).
+    # 설정(command)을 빼거나 공식 이미지로 바꿔도 서버는 뜬다 — DB 배치만 화면에 「사용 불가」로 보인다.
+    image: @@PROJECT@@-postgres:18
+    pull_policy: never
     container_name: @@PROJECT@@-postgres
     restart: unless-stopped
     labels: *labels
+    # pg_cron: shared_preload_libraries 에 올리고(서버 재기동 필요 — 처음부터 주면 된다), pg_cron 이 도는 DB 를 앱 DB 로 맞춘다.
+    # 백그라운드 워커로 돌리지 않으면 job 마다 localhost 로 새로 접속한다(cron.use_background_workers). 시간대는 한국시간 — DB 배치의 cron 식이 이 시간대다.
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_cron
+      - -c
+      - cron.database_name=roboyam
+      - -c
+      - cron.use_background_workers=on
+      - -c
+      - cron.timezone=Asia/Seoul
     environment:
       POSTGRES_DB: roboyam
       POSTGRES_USER: ${DB_USERNAME}

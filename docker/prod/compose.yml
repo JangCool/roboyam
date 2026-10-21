@@ -13,6 +13,12 @@
 #     select datcollate, datctype from pg_database where datname = current_database();
 #     select cardinality(show_trgm('한글')) > 0;   -- true 여야 한다
 #
+# DB 배치(저장 프로시저 + pg_cron — 감사 로그·토큰·로그 정리 등)를 쓰려면 RDS 쪽 준비가 필요하다(없어도 앱은 뜨고 DB 배치만 관리자 화면에 「사용 불가」로 보인다):
+#   - 파라미터 그룹: shared_preload_libraries 에 pg_cron 추가(재부팅), cron.database_name = roboyam
+#   - 마스터 계정이 roboyam DB 에서 CREATE EXTENSION pg_cron; 앱 계정이 마스터가 아니면 GRANT USAGE ON SCHEMA cron TO <앱 계정>;
+#   - RDS 의 pg_cron 은 GMT 로 돈다 — 기본 cron 은 한국시간 기준 값을 서버가 GMT 로 환산해 등록한다
+#   자세히: docs/features/batch-contract.md 「DB 배치」
+#
 # 서버에서:
 #   cp .env.example .env      # 값을 채운다 (.env 는 저장소에 넣지 않는다)
 #   docker compose up -d
