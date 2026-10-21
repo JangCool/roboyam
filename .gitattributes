@@ -1,0 +1,26 @@
+# 줄 끝(line ending) 규칙 — CLAUDE.md 20번
+# 저장소(인덱스)는 항상 LF 다. 체크아웃되는 작업 폴더의 줄 끝은 여기서 정한다(개인 core.autocrlf 설정에 맡기지 않는다):
+#  - 소스·문서·설정·시험 표본은 어느 OS 에서도 LF 로 내려받는다(줄 끝을 그대로 읽는 도구·스크립트·시험이 OS 마다 다르게 동작하지 않게).
+#  - Windows 전용 스크립트(*.bat · *.cmd · *.ps1)만 CRLF.
+#  - 그림·글꼴·압축 파일은 변환하지 않는다.
+* text=auto eol=lf
+
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.pdf   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.eot   binary
+*.zip   binary
+*.gz    binary
+*.jar   binary

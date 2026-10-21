@@ -1,0 +1,15 @@
+/**
+ * 한국어 문구를 업무별 파일에서 모은다 (hamonica3 D-89 — 언어별 한 파일에 모두 넣지 않고 업무별로 나눈다).
+ *
+ * **업무 파일을 늘리면 여기에 한 줄 더한다**(`import` 와 아래 `export default` 목록). `import.meta.glob` 으로 자동 수집하지 않는 이유:
+ * 이 설정 파일은 Vite(클라이언트)뿐 아니라 Nitro(서버)에서도 번들되는데, `import.meta.glob` 은 Vite 전용이라 서버에서는 변환되지 않고 그대로 남아
+ * 모든 요청이 500(`Nuxt I18n server context has not been set up yet`)이 된다.
+ * 키는 `파일이름.무엇` 이다 — 파일 이름이 키의 첫 마디.
+ *
+ * ⚠ **`en/index.ts` 와 같은 목록이어야 한다.** 한쪽에만 있는 업무는 그 언어에서 한국어(폴백)로 보인다.
+ */
+import display from './display';
+
+export default {
+    display,
+};

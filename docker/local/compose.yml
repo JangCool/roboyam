@@ -1,0 +1,44 @@
+# ============================================================================
+# ROBOYAM 로컬 개발용 — PostgreSQL
+# ============================================================================
+#
+# 실행:
+#   cd docker/local
+#   docker compose up -d
+#
+# 개발 PC 전용이다. dev · prod 는 docker/dev, docker/prod 를 본다.
+# 호스트 포트는 community(5410)·hamonica3(5400)와 겹치지 않게 5420 으로 잡았다.
+# 여기의 접속 정보(roboyam / roboyam)는 이 PC 의 로컬 컨테이너에서만 쓰는 개발용 값이다 —
+# local 프로파일은 평문 비밀번호를 허용한다(ENC(...) 가 없으면 복호화 키를 요구하지 않는다).
+# ============================================================================
+
+name: roboyam-local
+
+services:
+  postgres:
+    # 운영 RDS 와 같은 메이저 버전(18)으로 맞춘다. pg_trgm 은 기본 이미지에 들어 있다.
+    image: postgres:18
+    container_name: roboyam-local-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: roboyam
+      POSTGRES_USER: roboyam
+      POSTGRES_PASSWORD: roboyam
+      # 한글 데이터가 들어가므로 UTF8 로 못 박는다. 로캘은 반드시 UTF-8 을 아는 C.UTF-8(libc)이어야 한다 — `--locale=C` 로 만들면
+      # pg_trgm 이 한글을 색인하지 못해(show_trgm('로봇') = {}) 한글 검색이 색인을 못 탄다.
+      # 로캘은 DB 를 만들 때만 정해진다: 이미 만든 볼륨에는 적용되지 않으니 바꾸려면 볼륨을 지우고 다시 만든다.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=libc --locale=C.UTF-8"
+      TZ: Asia/Seoul
+    ports:
+      - "5420:5432"
+    volumes:
+      # PostgreSQL 18 부터 공식 이미지의 데이터 위치가 /var/lib/postgresql/<메이저>/docker 로 바뀌었다
+      - roboyam-local-pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U roboyam -d roboyam"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  roboyam-local-pgdata:

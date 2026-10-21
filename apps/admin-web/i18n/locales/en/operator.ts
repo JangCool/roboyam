@@ -1,0 +1,151 @@
+/**
+ * Operators (moved from hamonica3 "member management"). Keys are `operator.what` (statuses and tags are `operator.status.*` / `operator.tag.*`). Same keys and order as `ko/operator.ts`.
+ * Terms: member = public-site user, **operator = admin-app account**. "Member" is never used on this screen.
+ * ⚠ `{0}` is filled by PrimeVue — the message uses `{count}` and the screen passes `{ count: '{0}' }`.
+ */
+export default {
+    title: 'Operators',
+    subtitle: 'Manage the accounts that sign in to the admin app and their account state.',
+
+    // Register buttons
+    add: 'Add operator',
+    invite: 'Invite',
+
+    // Tabs
+    tabsLabel: 'Operator groups',
+    tabActive: 'Active',
+    tabPending: 'New (awaiting approval)',
+    tabBlocked: 'Locked',
+    tabInvited: 'Invited',
+
+    // Search
+    searchPlaceholder: 'Name or email',
+    clearSearch: 'Clear search',
+
+    // List
+    loadFailed: 'Could not load the operator list',
+    emptyActive: 'No active operators',
+    emptyActiveHint: 'Operators you add or invite appear here.',
+    emptyPending: 'No operators awaiting approval',
+    emptyPendingHint: 'Approve or reject operator applications here when they arrive.',
+    emptyBlocked: 'No blocked operators',
+    emptyBlockedHint: 'Operators that are locked or past their account period appear here.',
+    emptyInvited: 'No pending invitations',
+    emptyInvitedHint: 'Invitation links you send appear here until they are accepted.',
+    inviteLoadFailed: 'Could not load the invitation list',
+    colName: 'Name',
+    colEmail: 'Email',
+    colRoles: 'Roles',
+    colPeriod: 'Period',
+    colStatus: 'Status',
+    superTag: 'Super administrator',
+    superAllPermissions: 'All permissions',
+    noRole: 'No roles',
+    rolesMore: '+{count}',
+    moreRoles: '{count} more roles: {names}',
+    unlimited: 'Unlimited',
+    approve: 'Approve',
+    approveLabel: 'Approve {name}',
+    approved: 'Approved the account of {name}',
+    reject: 'Reject',
+    rejectLabel: 'Reject {name}',
+    rejectTitle: 'Reject this application?',
+    rejectMessage: 'This rejects the operator application of "{name}". The application disappears from the list and this cannot be undone.',
+    rejectReason: 'Reason for rejection (optional)',
+    rejectReasonHelp: 'You can leave it empty. A reason you write is kept on record.',
+    rejectReasonPlaceholder: 'e.g. We could not verify this application.',
+    rejectReasonTooLong: 'The reason can be up to {max} characters.',
+    rejected: 'Rejected the application of {name}',
+
+    // Pending invitations
+    colInvitedAt: 'Invited at',
+    colExpiresAt: 'Valid until',
+    inviteExpiredTag: 'Expired',
+    inviteValidNote: 'An invitation link is valid for {hours} hours after it is sent (default). After that the link can no longer be used to register.',
+    cancelInvite: 'Cancel invitation',
+    cancelInviteLabel: 'Cancel the invitation for {email}',
+    cancelInviteTitle: 'Cancel this invitation?',
+    cancelInviteMessage: 'The invitation link sent to "{email}" stops working. You can invite them again if needed.',
+    cancelInviteKeep: 'Keep it',
+    inviteCancelled: 'Invitation cancelled',
+
+    // Status tags — one per reason the account is blocked
+    tag: {
+        pending: 'Awaiting approval',
+        locked: 'Locked',
+        expired: 'Period ended',
+        disabled: 'Not in use',
+        normal: 'Normal',
+    },
+
+    // Selected operator
+    detailTitle: 'Operator details',
+    tabBasic: 'Basic info',
+    tabStatus: 'Account state',
+    discardTitle: 'You have unsaved changes. Close anyway?',
+    discardMessage: 'Closing discards what you changed.',
+    discardConfirm: 'Close',
+    discardKeep: 'Keep editing',
+    superNotice: 'This is the super administrator account. Roles, state and period cannot be changed.',
+    superNoRoles: 'The super administrator has every permission without roles.',
+    readOnlyNote: 'You do not have permission to edit operators, so this is read-only.',
+
+    // Basic info
+    fieldName: 'Name',
+    fieldEmail: 'Email',
+    emailHelp: 'This is the sign-in ID and cannot be changed.',
+    fieldRoles: 'Roles',
+    rolesHelp: 'You can pick several. The permissions are the union of the roles you pick.',
+    rolesNeedGrant: 'Changing roles needs the "Change roles (privilege escalation)" permission.',
+    rolesPlaceholder: 'Pick roles',
+    rolesSelectedCount: '{count} selected',
+    rolesFilterPlaceholder: 'Find a role',
+    rolesEmpty: 'No roles to pick',
+    outOfScope: 'Beyond your permissions',
+    periodTitle: 'Account period',
+    periodStart: 'Start',
+    periodEnd: 'End',
+    periodOpen: 'Leave empty for no limit',
+    periodWarn: 'Sign-in is blocked after the end. Extend the period to let them back in.',
+    periodReversed: 'The start is later than the end.',
+    nameRequired: 'Enter a name.',
+    nameTooLong: 'The name can be up to {max} characters.',
+
+    // Account state — switched on means "can use"
+    loginRule: 'Sign-in works only when the account is approved, not locked, in use and within its period.',
+    lastSuperNote: 'The last remaining active super administrator cannot be locked or switched off. No one could manage the product otherwise.',
+    status: {
+        approval: 'Approved',
+        approvalHint: 'When off, they cannot sign in. It is off right after they apply.',
+        unlocked: 'Unlocked',
+        unlockedHint: 'When off, the account is locked by an administrator.',
+        notExpired: 'Not expired',
+        notExpiredHint: 'A batch job marks the account expired after its period. You can also switch it off here.',
+        inUse: 'In use',
+        inUseHint: 'When off, the account is not in use. Use this instead of deleting.',
+    },
+    needPermission: 'Permission needed: {permission}',
+    expiredNotice: 'The account period has ended.',
+    expiredNoticeTail: 'Switching expiry off does not help while the period stays the same — extend it under "Basic info".',
+    saveStatus: 'Save state',
+    statusSaved: 'Account state updated',
+
+    // Register dialog
+    dialogTitle: 'Register operator',
+    modeLabel: 'Method',
+    modeCreate: 'Add operator',
+    modeInvite: 'Invite',
+    createHint: 'The account is created right away and a temporary password is sent by email.',
+    inviteHint: 'An invitation link is emailed. The recipient registers themselves from the link. The link is valid for {hours} hours.',
+    inviteEmails: 'Emails to invite',
+    inviteList: 'People to invite',
+    inviteEmpty: 'No addresses added yet',
+    inviteEmptyHint: 'Enter an email and press "Add". You can invite several people at once.',
+    invalidEmail: 'The email format is not valid.',
+    alreadyInList: 'Already in the list.',
+    removeEmail: 'Remove {email}',
+    sendInvites: 'Send invitations',
+    created: 'Added operator {name}',
+    inviteSent: 'Sent {count} invitation emails',
+    inviteSomeFailed: '{count} could not be sent. Check the reasons, fix them and send again.',
+};

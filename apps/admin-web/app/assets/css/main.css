@@ -1,0 +1,431 @@
+@import 'tailwindcss';
+@plugin 'tailwindcss-primeui';
+
+/* 다크 판정은 html[data-theme='dark'] — PrimeVue 의 darkModeSelector 와 같다.
+   이 속성을 거는 코드는 화면 설정(`composables/shell/useLayoutPrefs.ts`)이고, 앱이 뜨기 전에 `plugins/00.layout-prefs.client.ts` 가 저장값으로 먼저 건다. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+html {
+    background-color: var(--p-surface-50);
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+}
+
+html[data-theme='dark'] {
+    background-color: var(--p-surface-950);
+    color-scheme: dark;
+}
+
+body {
+    margin: 0;
+    color: var(--p-text-color);
+    font-family: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+    font-size: 1rem;
+}
+
+/* 화면 전환 시 키보드 포커스 표시가 사라지지 않게 — 제목에 준 tabindex=-1 은 윤곽선을 그리지 않는다 */
+[tabindex='-1']:focus {
+    outline: none;
+}
+
+/* ── 셸 치수 토큰 — 값을 코드에 흩뿌리지 않고 여기 한 곳에서 정한다 ─────────────────────────────── */
+:root {
+    /* 보더 선 색 — 하모니카3 기준. 면 경계(`--line`)는 라이트 surface-200 · 다크 surface-800, 한 단계 진한 경계(`--line-strong`)는 라이트 300 · 다크 700.
+       PrimeVue 의 `content.borderColor` · `formField.borderColor` 도 `nuxt.config.ts` 프리셋에서 같은 값으로 맞춘다 */
+    --line: light-dark(var(--p-surface-200), var(--p-surface-800));
+    --line-strong: light-dark(var(--p-surface-300), var(--p-surface-700));
+    /* 상단 네비 높이(고정) · 페이지 툴바 높이 */
+    --h-topbar: 3rem;
+    --h-toolbar: 2.5rem;
+    /* 사이드바 폭(펼침) · 레일 폭(접힘, 아이콘만) — 상단 바의 브랜드 칸도 이 폭을 따라간다 */
+    --w-sidebar: 15rem;
+    --w-rail: 3rem;
+    /* 본문 폭 "가운데 제한"의 최대 폭. 관리 화면은 표가 넓어 공개 사이트(1100px)보다 넓게 둔다 */
+    --content-max: 1280px;
+    /* 상단 네비 색의 기본값(화면 설정이 인라인으로 덮어쓴다) */
+    --bar-bg: var(--p-primary-color);
+    --bar-fg: var(--p-primary-contrast-color);
+    --bar-shade: var(--p-surface-900);
+    --bar-line: var(--line);
+    --bar-avatar-bg: color-mix(in srgb, var(--bar-shade) 28%, transparent);
+    --bar-avatar-fg: var(--bar-fg);
+    /* 사이드바 메뉴 항목 높이 · 본문 여백 · 본문 기본 글자 — 밀도(화면 설정)가 바꾼다. 상단 네비 높이와 사이드바 폭은 밀도와 무관하게 고정이다 */
+    --h-menu-item: 2rem;
+    --pad-content: 1rem;
+    --pad-content-md: 1.5rem;
+    --font-body: 1rem;
+}
+html[data-density='compact'] {
+    --h-toolbar: 2.25rem;
+    --h-menu-item: 1.75rem;
+    --pad-content: 0.75rem;
+    --pad-content-md: 1rem;
+    --font-body: 0.9375rem;
+}
+
+/* ── 앱 셸 ─────────────────────────────────────────────────────────────────────────
+   상단 네비 아래에 `사이드바 | 본문`. 화면 높이를 꽉 채우고 스크롤은 본문(.app-content) 안에서만 한다.
+   사이드바는 PrimeVue Sidebar(자리 Spacer 가 폭을 고정하고 실제 패널이 그 위에 얹힌다). 아래 규칙은 PrimeVue 레이어보다 우선한다(레이어 밖). */
+/* 상단 메뉴 줄이 차지하는 한 줄 — 메뉴 위치가 사이드바면 0, 상단이면 툴바 높이. 세로를 꽉 채우는 자리가 calc(… - var(--h-appmenu)) 로 빼 쓴다 */
+.app-shell {
+    --h-appmenu: 0px;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+.app-shell[data-menu='top'] {
+    --h-appmenu: var(--h-toolbar);
+}
+
+/* 상단 네비 — 선택한 강조색을 배경으로 한다(브랜드 칸·검색·오른쪽 버튼 줄 모두). 배경·글자 색은 화면 설정이 `--bar-bg` · `--bar-fg` 로 건다(`UtilLayoutPrefs.barColors` —
+   강조색마다 글자 대비 4.5:1 이 나오게 PrimeVue 토큰(`--p-primary-*` · `--p-surface-*`)을 골라 둔다). 걸리기 전에는 primary 토큰으로 보인다.
+   안쪽의 PrimeVue 부품(Button · AutoComplete/InputText · Avatar 등)이 이 색 위에서 자연스럽게 보이도록, 이 범위 안에서만 PrimeVue 변수를 다시 가리킨다. */
+.app-topbar {
+    position: relative;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    height: var(--h-topbar);
+    flex-shrink: 0;
+    background: var(--bar-bg);
+    color: var(--bar-fg);
+    border-bottom: 1px solid var(--bar-line);
+    /* 글자 · 흐린 글자 */
+    --p-text-color: var(--bar-fg);
+    --p-text-muted-color: color-mix(in srgb, var(--bar-fg) 90%, var(--bar-bg));
+    /* 아이콘 단추(text · secondary) */
+    --p-button-text-secondary-color: var(--bar-fg);
+    --p-button-text-secondary-hover-background: color-mix(in srgb, var(--bar-shade) 16%, transparent);
+    --p-button-text-secondary-active-background: color-mix(in srgb, var(--bar-shade) 24%, transparent);
+    /* 검색 칸(InputText) — 바 색 위에 반대 명암(--bar-shade)을 옅게 깐 면 */
+    --p-inputtext-background: color-mix(in srgb, var(--bar-shade) 16%, transparent);
+    --p-inputtext-color: var(--bar-fg);
+    --p-inputtext-placeholder-color: color-mix(in srgb, var(--bar-fg) 90%, var(--bar-bg));
+    --p-inputtext-border-color: transparent;
+    --p-inputtext-hover-border-color: color-mix(in srgb, var(--bar-fg) 45%, transparent);
+    --p-inputtext-focus-border-color: var(--bar-fg);
+    --p-inputtext-shadow: none;
+    --p-inputtext-focus-ring-shadow: none;
+    /* 알림 종 뱃지(danger) — 라이트의 기본(red-500 + 흰 글자)은 글자 대비가 3.8:1 이라 한 단계 진하게 */
+    --p-badge-danger-background: light-dark(var(--p-red-700), var(--p-red-400));
+    --p-badge-danger-color: light-dark(var(--p-surface-0), var(--p-red-950));
+}
+/* 키보드 초점 윤곽 — 바 색 위에서 보이도록 글자색 */
+.app-topbar :focus-visible {
+    outline: 2px solid var(--bar-fg);
+    outline-offset: 2px;
+}
+/* 이니셜 아바타 — 바 위에서는 반대 명암을 옅게 깐 면(강조색 바와 같은 색이라 그대로 두면 안 보인다) */
+.app-topbar .avatar-primary {
+    background: var(--bar-avatar-bg);
+    color: var(--bar-avatar-fg);
+}
+/* 단축키 안내 */
+.app-kbd {
+    border: 1px solid color-mix(in srgb, var(--bar-fg) 45%, transparent);
+}
+/* 이니셜 아바타(바 밖 — 프로필 팝오버 등) */
+.avatar-primary {
+    background: var(--p-primary-color);
+    color: var(--p-primary-contrast-color);
+}
+
+/* 브랜드 칸 — 왼쪽 사이드바일 때(--linked) 폭이 사이드바에 연동되고(인라인 style) 오른쪽의 세로 구분선이 사이드바 경계와 한 줄로 이어진다 */
+.app-brand {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 100%;
+    min-width: 0;
+    flex-shrink: 0;
+    padding: 0 0.5rem 0 1rem;
+    transition: width 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+@media (min-width: 768px) {
+    .app-brand--linked::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 1px;
+        background: var(--bar-line);
+    }
+}
+/* 레일: 로고 자리에는 이름의 첫 글자만 — 사이드바 아이콘과 같은 중심선에 오게 가운데 정렬 */
+.app-brand--rail {
+    justify-content: center;
+    padding-inline: 0;
+}
+/* 모바일은 ☰ 단추 옆에 이름이 바로 붙는다 */
+@media (max-width: 767px) {
+    .app-brand {
+        padding-left: 0.5rem;
+    }
+}
+
+.app-brand-link {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    border-radius: 0.375rem;
+    padding: 0.25rem;
+    color: inherit;
+    text-decoration: none;
+}
+.app-brand-link:focus-visible,
+.app-profile:focus-visible,
+.notification-item:focus-visible,
+.swatch:focus-visible {
+    outline: var(--p-focus-ring-width) var(--p-focus-ring-style) var(--p-focus-ring-color);
+    outline-offset: var(--p-focus-ring-offset);
+}
+
+/* 프로필 단추 — 아바타(+ 데스크톱은 이름·역할) */
+.app-profile {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: 0.25rem;
+    padding: 0.125rem;
+    border: 0;
+    border-radius: 9999px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+@media (min-width: 768px) {
+    .app-profile {
+        padding-right: 0.625rem;
+    }
+}
+@media (hover: hover) {
+    .app-profile:hover {
+        background: color-mix(in srgb, var(--bar-shade) 16%, transparent);
+    }
+}
+
+/* 종 뱃지 — OverlayBadge 는 감싼 요소의 바깥 모서리에 붙는다. 둥근 아이콘 단추는 박스가 커서 뱃지가 아이콘에서 멀어지므로, 뱃지가 종 아이콘의 오른쪽 위 모서리에 겹치도록 단추 안쪽으로 당긴다.
+   숫자도 누르는 자리다(감싼 쪽이 누름을 받는다) — 손가락 커서를 함께 준다 */
+.badge-on-icon .p-badge {
+    transform: translate(1px, 0);
+    cursor: pointer;
+}
+
+.app-body {
+    position: relative;
+    flex: 1;
+    /* PrimeVue 의 .p-sidebar-layout 은 화면 높이(100svh)를 최소로 잡는다 — 셸이 높이를 정하므로 푼다 */
+    min-height: 0;
+}
+
+.app-main {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.app-content {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: var(--pad-content);
+    font-size: var(--font-body);
+    /* 우측 구역 내비: 구획으로 이동했을 때 구획 위쪽에 남기는 여백(`AppGadget` 의 `scroll-margin-top`). 상단 네비·메뉴 줄은 스크롤 영역 밖이라(이 영역은 그 아래에서 시작한다)
+       그 높이(`--h-topbar` · `--h-appmenu`)를 더하지 않고 작은 여유만 둔다. 상단에 고정되는 줄이 이 영역 안에 생기면 그 높이를 여기에 더한다 */
+    --section-nav-offset: 0.75rem;
+    /* 본문 영역의 폭으로 우측 구역 내비 목록/선택 상자를 가른다(창이 아니라 영역 기준 — 사이드바를 접고 펴도 맞는다) */
+    container: appmain / inline-size;
+}
+.app-content-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+}
+/* 우측 구역 내비 — 본문 영역이 56rem 이상이면 오른쪽 12rem 열에 목록(스크롤을 따라 붙는다), 아니면 본문 맨 위 선택 상자 */
+.section-nav-col {
+    display: none;
+}
+.section-nav-select {
+    margin-bottom: 1rem;
+}
+@container appmain (min-width: 56rem) {
+    .app-content-grid--nav {
+        grid-template-columns: minmax(0, 1fr) 12rem;
+        column-gap: 1.5rem;
+    }
+    .section-nav-col {
+        display: block;
+    }
+    .section-nav-select {
+        display: none;
+    }
+}
+.section-nav-list {
+    position: sticky;
+    top: 0;
+    max-height: calc(100dvh - var(--h-topbar) - var(--h-appmenu) - 3rem);
+    overflow-y: auto;
+    align-self: start;
+}
+/* 구획 제목은 구역 내비가 초점을 옮겨 주는 곳이다 — 키보드로 옮긴 경우(focus-visible)에만 윤곽선을 그린다 */
+[data-app-section] h2[tabindex='-1']:focus-visible {
+    outline: 2px solid var(--p-primary-color);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+/* 이동한 구획은 1.2초 동안 테두리를 강조한다(`useSectionNav` 가 `data-nav-flash` 를 건다). 움직임 줄이기 설정이면 전환 없이 켜졌다 꺼진다 */
+[data-app-section][data-nav-flash] {
+    outline: 2px solid var(--p-primary-color);
+    outline-offset: 2px;
+    transition: outline-color 200ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+    [data-app-section][data-nav-flash] {
+        transition: none;
+    }
+}
+@media (min-width: 768px) {
+    .app-content {
+        padding: var(--pad-content-md);
+    }
+}
+/* 글자 크기 — 화면 설정의 배율(0.9~1.25)을 본문 안쪽 래퍼에만 건다(CSS zoom). PrimeVue·Tailwind 가 모두 rem 이라 글자와 rem 여백이 같은 비율로 움직인다.
+   스크롤 영역(.app-content)과 그 여백은 배율 밖이라 스크롤·sticky 계산이 어긋나지 않는다. 상단 네비·사이드바·서랍은 이 래퍼 밖이라 변하지 않는다 */
+.app-zoom {
+    zoom: var(--text-scale, 1);
+}
+/* 본문 폭 "가운데 제한" — 페이지의 최상위 요소를 가운데로 모은다 */
+.app-content--boxed .app-zoom > * {
+    /* 글자 크기 배율(CSS zoom)이 최대 폭에도 곱해지므로 배율로 나눠 화면 폭이 늘 `--content-max` 가 되게 한다 */
+    max-width: calc(var(--content-max) / var(--text-scale, 1));
+    margin-inline: auto;
+}
+
+/* 사이드바 메뉴 항목 높이 — 밀도를 따른다(레일에서도 같은 높이) */
+.p-sidebar-menu-button {
+    height: var(--h-menu-item);
+}
+/* 레일(접힌 사이드바)에서는 아이콘을 버튼 한가운데에 둔다 — 버튼 폭(32px)보다 안쪽 여백(10px × 2)이 커서 아이콘이 오른쪽으로 쏠리는 것을 막는다 */
+.p-sidebar[data-state='collapsed'] .p-sidebar-menu-button {
+    justify-content: center;
+    padding-inline: 0;
+}
+/* 레일에서 이름 글자는 눈에만 감춘다(스크린리더에는 남는다) — 폭을 차지하면 아이콘이 가운데로 오지 못한다 */
+.p-sidebar[data-state='collapsed'] .p-sidebar-menu-button > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+/* 마우스를 올려 잠시 펼친(본문 위에 덮인) 사이드바는 그림자로 본문과 구별한다 */
+.p-sidebar[data-overlay][data-state='expanded'] .p-sidebar-aside {
+    box-shadow: var(--p-overlay-navigation-shadow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-brand,
+    .p-sidebar-spacer,
+    .p-sidebar-aside {
+        transition: none;
+    }
+}
+
+/* ── 상단 메뉴 줄 (메뉴 위치 = 상단) — PrimeVue Menubar. 상단 네비 바로 아래 한 줄 ───────────────────────────── */
+.app-menu-top {
+    position: relative;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    height: var(--h-toolbar);
+    flex-shrink: 0;
+    padding-inline: 1rem;
+    background: var(--p-content-background);
+    border-bottom: 1px solid var(--line);
+}
+@media (min-width: 768px) {
+    .app-menu-top {
+        padding-inline: 1.5rem;
+    }
+}
+.app-menubar {
+    /* 사이드바 메뉴 항목과 같은 글자 크기(14px) — Menubar 기본은 본문(1rem)을 물려받아 더 크다 */
+    font-size: 0.875rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+.app-menubar-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 0.375rem;
+    color: inherit;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.app-menubar-item--active {
+    background: var(--p-navigation-item-active-background);
+    color: var(--p-navigation-item-active-color);
+    font-weight: 500;
+}
+/* 설정 메뉴(상단)의 맨 앞 「메뉴로 돌아가기」 — 메뉴 항목들과 떨어뜨리고 흐린 글자색으로 구별한다 */
+.app-menubar-item--back {
+    margin-inline-end: 0.5rem;
+    border-radius: 0.375rem;
+    color: var(--p-text-muted-color);
+}
+
+/* ── 서랍 안의 부품 ───────────────────────────────────────────────────────────────── */
+
+/* 알림 한 건 — 안 읽은 알림은 강조색을 옅게 깐다 */
+.notification-item {
+    display: flex;
+    width: 100%;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border: 0;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+.notification-item--unread {
+    background: color-mix(in srgb, var(--p-primary-color) 8%, transparent);
+}
+@media (hover: hover) {
+    .notification-item:hover {
+        background: var(--p-content-hover-background);
+    }
+}
+
+/* 화면 설정 한 줄 */
+.setting-row {
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.5rem;
+    background: light-dark(var(--p-surface-100), var(--p-surface-800));
+}
+
+/* 강조색 견본 */
+.swatch {
+    display: grid;
+    height: 1.75rem;
+    place-items: center;
+    border: 0;
+    border-radius: 0.375rem;
+    cursor: pointer;
+}
+.swatch--bordered {
+    border: 1px solid var(--line);
+}
+.swatch--selected {
+    outline: 2px solid var(--p-text-color);
+    outline-offset: 2px;
+}

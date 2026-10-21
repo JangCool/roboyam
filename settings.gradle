@@ -1,0 +1,21 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+    plugins {
+        id 'org.springframework.boot'        version "$springBootVersion"
+        id 'io.spring.dependency-management' version "$springDependencyManagementVersion"
+    }
+}
+
+plugins {
+    // 툴체인(JDK)이 PC 에 없으면 내려받는다
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'roboyam'
+
+include 'server:shared'
+include 'server:api'
+include 'server:admin'

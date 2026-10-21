@@ -1,0 +1,24 @@
+plugins {
+    id 'roboyam.spring-app-conventions'
+}
+
+// 공개 사이트 서버. 관리자 앱(server/admin)과 서로 의존하지 않는다 — 둘이 같이 쓰는 것은 server/shared 에 둔다.
+// 이 모듈의 코드가 직접 import 하는 라이브러리만 선언한다(그 밖의 실행 때 필요한 것은 shared 에서 따라온다).
+dependencies {
+    implementation project(':server:shared')
+
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // 로그인: AuthController·LoginSession 이 Authentication·보안 컨텍스트 저장소를 쓰고, LoginService·InstallationInstaller 가 PasswordEncoder(bcrypt, shared 의 PasswordEncoderConfig 가 만든 빈)를 쓴다
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // 스키마 이관(Flyway). 마이그레이션 파일은 shared(db/migration/shared)와 이 앱의 자기 스트림(db/migration/api)에 있다
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+
+    // 설치 인증 세션과 로그인 세션을 DB(spring_session 표, V2)에 둔다. AuthController 가 CookieSerializer(spring-session-core)를 쓰고, 세션 저장소를 DB 로 바꾸는 런타임 구성이기도 하다
+    implementation 'org.springframework.boot:spring-boot-starter-session-jdbc'
+}

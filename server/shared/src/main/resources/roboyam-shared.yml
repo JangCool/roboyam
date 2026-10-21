@@ -1,0 +1,91 @@
+# 공개 사이트(server/api)와 관리자 앱(server/admin)이 같이 쓰는 설정 — 환경에 상관없는 기본값
+#
+# 두 앱의 application.yml 이 `spring.config.import: classpath:roboyam-shared.yml` 로 이 파일을 가져온다.
+#   - 환경(local · dev · prod)은 빌드가 아니라 실행 때 고른다: SPRING_PROFILES_ACTIVE=dev (지정하지 않으면 local, 기본값은 각 앱의 application.yml)
+#   - 환경마다 다른 값은 roboyam-shared-<환경>.yml(이 파일의 프로파일 변형)과 환경 변수가 정한다
+#   - 여기에는 환경에 상관없는 값과, 환경 변수로 받을 자리(기본값 없음)만 둔다
+#   - dev · prod 는 접속 정보에 기본값이 없다. 환경 변수가 빠지면 기동이 실패한다(빠뜨린 채 뜨지 않게)
+#   - 비밀값은 저장소에 넣지 않는다. 환경 변수 목록은 docker/<환경>/.env.example
+# 같은 키는 한 곳에서만 정한다 — 한 앱만 읽는 값은 그 앱의 application.yml 에 둔다.
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    # dev · prod 는 평문이 아니라 암호문 ENC(...) 를 넣는다. 기동 때 ROBOYAM_CRYPTO_KEY 로 복호화한다(EncryptedPropertyPostProcessor)
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+
+  # 스키마는 Flyway 마이그레이션(db/migration/<스트림>)이 만든다. Hibernate 가 만들지 않는다
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 100
+        order_inserts: true
+        order_updates: true
+
+  # 위치·이력 표(shared 스트림)와 자기 스트림 이관은 코드가 정한다(SchemaMigrationConfig) — 여기에 spring.flyway.locations 를 두지 않는다.
+  # 끄면(false) shared·자기 스트림 모두 이관되지 않는다(자동 구성이 이관 전략을 부르므로).
+  flyway:
+    enabled: true
+
+  # 서버가 응답에 싣는 문구(오류 message·입력 오류 fields·설치 점검·인증 메일)의 번들. 언어는 요청의 Accept-Language(ko|en, 기본 ko)로 정한다.
+  # 번들 위치·인코딩은 이 값을 따른다(MessageConfig). 키가 없는 언어는 ko 로 되돌아간다.
+  messages:
+    basename: messages/messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+
+  # 인증 메일 서버는 설치 마법사·설정 화면이 DB(mail_settings)에 저장한다. 여기에 spring.mail.* 기본값을 두지 않는다.
+
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  shutdown: graceful
+  # Caddy 뒤에서 도므로 X-Forwarded-* 를 따른다(원래 주소·https 여부 — 세션·CSRF 쿠키의 Secure 판단)
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+
+# 로그 줄마다 요청 ID(MDC requestId — RequestIdFilter)를 싣는다. 요청 밖의 로그는 빈 칸이다
+logging:
+  pattern:
+    level: "%5p [%X{requestId:-}]"
+
+# 도커·설치기는 앱을 /actuator/health/readiness 로 기다린다
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+roboyam:
+  # Snowflake ID 의 서버 번호(0~1023). 앱 서버마다 달라야 한다(공개 사이트·관리자 앱·서버 여러 대 모두 서로 다른 값). dev · prod 는 기본값이 없다 — 빠지면 기동이 실패한다
+  node-id: ${NODE_ID}
+  # 메일 서버 연결 시험의 시간 제한(설치 마법사 mail-check)
+  mail:
+    connect-timeout-millis: 5000
+    io-timeout-millis: 10000
+  # 설치 마법사(docs/features/install-contract.md). 서버를 처음 띄우면 설치 전이고 /install 에서 설치를 마쳐야 쓸 수 있다
+  install:
+    # 설치 토큰. 비우면 설치 전 기동 때 서버가 무작위 토큰(24자)을 만들어 로그에 한 번만 출력한다. 자동화·컨테이너·서버 여러 대는 환경 변수로 같은 토큰을 준다.
+    # local 만 개발용 기본값이 있다(roboyam-shared-local.yml) — dev · prod 에는 기본값이 없다
+    token: ${ROBOYAM_INSTALL_TOKEN:}
+    max-failures: 5               # 같은 IP 가 연속으로 틀릴 수 있는 횟수(이 횟수째 틀리면 잠근다)
+    lock-seconds: 600             # 잠그는 시간(10분)
+    global-per-minute: 30         # 서버 전체에서 분당 받는 토큰 확인 시도 상한
+    refresh-millis: 15000         # 설치 전에 다른 앱 서버가 끝낸 설치를 따라오는 주기(설치가 끝나면 멈춘다)

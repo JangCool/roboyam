@@ -1,0 +1,26 @@
+{
+    "version": "0.0.1",
+    "configurations": [
+        {
+            "name": "user-web",
+            "runtimeExecutable": "pnpm",
+            "runtimeArgs": ["--filter", "user-web", "dev"],
+            "port": 3100
+        },
+        {
+            "name": "admin-web",
+            "runtimeExecutable": "pnpm",
+            "runtimeArgs": ["--filter", "admin-web", "dev"],
+            "port": 3200
+        },
+        {
+            "name": "api",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": [
+                "/c",
+                "cd /d D:/project/roboyam&& set JAVA_HOME=%USERPROFILE%/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2&& D:/project/roboyam/gradlew.bat :server:api:bootRun --console=plain"
+            ],
+            "port": 8910
+        }
+    ]
+}

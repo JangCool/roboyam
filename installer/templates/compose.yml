@@ -1,0 +1,88 @@
+# =============================================================================
+# ROBOYAM 설치형 구성 — postgres + app (roboyam-install.sh 가 @@...@@ 자리를 채워 렌더링한다)
+# =============================================================================
+#
+# - 비밀은 이 파일에 없다. 같은 폴더의 .env(권한 600)와 secrets/db_password(권한 600)에 있다.
+#     · 앱은 .env 의 DB_PASSWORD=ENC(...) 암호문을 받아 ROBOYAM_CRYPTO_KEY 로 기동 때 복호화한다.
+#     · postgres 는 평문이 필요해서 secrets/db_password 를 POSTGRES_PASSWORD_FILE 로 읽는다(DB 를 처음 만들 때만 쓰인다).
+# - DB 는 바깥으로 포트를 열지 않는다. 같은 네트워크의 app 만 붙는다.
+# - 앱 포트만 INSTALLER_BIND:INSTALLER_HTTP_PORT 로 연다(기본 127.0.0.1 — 평문 HTTP 라서).
+# - 모든 자원에 설치 라벨이 붙는다. 설치 실패·제거 스크립트는 이 라벨이 붙은 것만 지운다.
+# - 설치 뒤 다루기: 이 폴더에서  docker compose ps / logs -f app / restart app / down(데이터는 남음)
+#
+# 환경 변수 이름은 docker/prod/.env.example 과 같다.
+
+name: @@PROJECT@@
+
+x-labels: &labels
+  com.roboyam.installer.project: "@@PROJECT@@"
+  com.roboyam.installer.run: "@@RUN_ID@@"
+
+services:
+  postgres:
+    image: postgres:18
+    container_name: @@PROJECT@@-postgres
+    restart: unless-stopped
+    labels: *labels
+    environment:
+      POSTGRES_DB: roboyam
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      # 로캘은 C.UTF-8(libc) — `--locale=C` 로 만들면 pg_trgm 이 한글을 색인하지 못해 한글 검색이 색인을 못 탄다. 새 설치는 처음부터 이 값으로 만든다
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=libc --locale=C.UTF-8"
+      TZ: Asia/Seoul
+    secrets:
+      - db_password
+    volumes:
+      - pgdata:/var/lib/postgresql
+    networks: [net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d roboyam"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    image: ${INSTALLER_IMAGE}
+    pull_policy: never
+    container_name: @@PROJECT@@-app
+    restart: unless-stopped
+    labels: *labels
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${INSTALLER_BIND:-127.0.0.1}:${INSTALLER_HTTP_PORT:-8910}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      DB_URL: jdbc:postgresql://postgres:5432/roboyam
+      DB_USERNAME: ${DB_USERNAME}
+      # 암호문 ENC(...) 와 그 복호화 키 — 한 쌍이다. 키를 잃으면 앱이 뜨지 않는다(백업)
+      DB_PASSWORD: ${DB_PASSWORD}
+      ROBOYAM_CRYPTO_KEY: ${ROBOYAM_CRYPTO_KEY}
+      # 설치 마법사(/install)의 설치 토큰 — 설치가 끝나면 쓰이지 않는다
+      ROBOYAM_INSTALL_TOKEN: ${ROBOYAM_INSTALL_TOKEN}
+      NODE_ID: ${NODE_ID:-1}
+      # 요청자 IP 판단(설치 토큰 잠금)에 쓰는 프록시 겹 수. 설치기는 앱 포트를 바로 열어 두므로 0
+      ROBOYAM_PROXY_TRUSTED_HOPS: ${ROBOYAM_PROXY_TRUSTED_HOPS:-0}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      # 평문 HTTP 로 쓰면 false(.env 의 PUBLIC_URL 이 http 일 때 설치기가 정한다). https 앞단이 있으면 true
+      SERVER_SERVLET_SESSION_COOKIE_SECURE: ${SERVER_SERVLET_SESSION_COOKIE_SECURE:-true}
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=70}
+    networks: [net]
+    stop_grace_period: 40s
+
+secrets:
+  db_password:
+    file: ./secrets/db_password
+
+networks:
+  net:
+    name: @@PROJECT@@-net
+    labels: *labels
+
+volumes:
+  pgdata:
+    name: @@PROJECT@@-pgdata
+    labels: *labels

@@ -1,0 +1,10 @@
+{
+    // Nuxt 가 .nuxt/ 에 만드는 설정을 묶는다. `pnpm typecheck`(nuxt typecheck → vue-tsc)가 이 파일을 찾는다.
+    "files": [],
+    "references": [
+        { "path": "./.nuxt/tsconfig.app.json" },
+        { "path": "./.nuxt/tsconfig.server.json" },
+        { "path": "./.nuxt/tsconfig.shared.json" },
+        { "path": "./.nuxt/tsconfig.node.json" }
+    ]
+}

@@ -1,0 +1,40 @@
+# ── Gradle ──
+.gradle/
+build/
+!**/gradle/wrapper/gradle-wrapper.jar
+
+# ── IDE ──
+.idea/
+*.iml
+.vscode/
+
+# ── Node ──
+node_modules/
+.output/
+.nuxt/
+dist/
+
+# ── OS ──
+.DS_Store
+Thumbs.db
+
+# ── 빌드 산출물 ──
+*.jar
+!**/gradle/wrapper/gradle-wrapper.jar
+logs/
+
+# 화면(Nuxt SPA) 빌드 산출물 — 각 앱의 nuxt.config.ts 가 서버 모듈의 static 으로 내보낸다. 빌드가 만드는 곳이라 저장소에 넣지 않는다
+server/api/src/main/resources/static/
+server/admin/src/main/resources/static/
+
+# ── 비밀값 ──
+# 환경 변수 파일은 저장소에 넣지 않는다. 목록만 .env.example 로 남긴다
+.env
+.env.*
+!.env.example
+
+# Claude Code 세션 잠금 파일(세션마다 바뀐다 — 커밋하지 않는다)
+.claude/scheduled_tasks.lock
+
+# 설치 패키지 산출물
+installer/dist/

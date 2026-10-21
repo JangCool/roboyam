@@ -1,0 +1,31 @@
+/*
+ * Querydsl QClass 생성 규약.
+ *
+ * 필요한 모듈에서만 apply 한다.
+ *
+ * ⚠ 생성 디렉터리는 애너테이션 처리기 전체가 공유한다 (build/generated/apt).
+ *   options.generatedSourceOutputDirectory 는 컴파일 태스크마다 하나뿐이라, 처리기마다
+ *   다른 값을 넣으면 나중 것이 이기고 앞의 생성물이 소스 경로에 남아
+ *   「Attempt to recreate a file for type Q...」로 빌드가 깨진다.
+ */
+
+plugins {
+    id 'roboyam.spring-conventions'
+}
+
+def generatedDir = layout.buildDirectory.dir('generated/apt')
+
+tasks.withType(JavaCompile).configureEach {
+    options.generatedSourceOutputDirectory.set(generatedDir)
+}
+
+sourceSets.main.java.srcDir generatedDir
+
+dependencies {
+    def querydslVersion = providers.gradleProperty('querydslVersion').get()
+
+    implementation      "com.querydsl:querydsl-jpa:${querydslVersion}:jakarta"
+    annotationProcessor "com.querydsl:querydsl-apt:${querydslVersion}:jakarta"
+    annotationProcessor "jakarta.annotation:jakarta.annotation-api"
+    annotationProcessor "jakarta.persistence:jakarta.persistence-api"
+}

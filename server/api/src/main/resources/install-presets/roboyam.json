@@ -1,0 +1,175 @@
+{
+  "id": "ROBOYAM",
+  "name": "ROBOYAM 예시 (AI·로봇)",
+  "nameEn": "ROBOYAM example (AI & robots)",
+  "description": "AI·테크, 로봇, 산업·주식, 게임, 스포츠 주제 게시판과 영상·짤, 자유게시판, 공지를 만들어요. 산업·주식 게시판에는 투자 고지가 붙어요.",
+  "descriptionEn": "Creates topic boards for AI & tech, robots, industry & stocks, games, and sports, plus Videos & Memes, Free, and Notice boards. Industry & Stocks gets an investment notice.",
+  "defaultPreset": false,
+  "order": 20,
+  "siteTagline": "로봇과 AI, 쉽게 풀어 함께 이야기해요",
+  "boards": [
+    {
+      "slug": "ai", "name": "AI·테크", "nameEn": "AI & Tech", "description": null, "layout": "LIST", "viewToggle": false,
+      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 10, "color": "BLUE",
+      "prefixes": [
+        { "name": "뉴스", "nameEn": "News", "common": false, "staffOnly": false, "sortOrder": 10 },
+        { "name": "해설", "nameEn": "Explainer", "common": false, "staffOnly": false, "sortOrder": 20 },
+        { "name": "툴", "nameEn": "Tools", "common": false, "staffOnly": false, "sortOrder": 30 },
+        { "name": "팁", "nameEn": "Tips", "common": false, "staffOnly": false, "sortOrder": 40 },
+        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
+        { "name": "후기", "nameEn": "Review", "common": true, "staffOnly": false, "sortOrder": 60 },
+        { "name": "잡담", "nameEn": "Chat", "common": true, "staffOnly": false, "sortOrder": 70 },
+        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+      ]
+    },
+    {
+      "slug": "robot", "name": "로봇", "nameEn": "Robots", "description": null, "layout": "LIST", "viewToggle": false,
+      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 20, "color": "PURPLE",
+      "prefixes": [
+        { "name": "뉴스", "nameEn": "News", "common": false, "staffOnly": false, "sortOrder": 10 },
+        { "name": "영상", "nameEn": "Video", "common": false, "staffOnly": false, "sortOrder": 20 },
+        { "name": "해설", "nameEn": "Explainer", "common": false, "staffOnly": false, "sortOrder": 30 },
+        { "name": "제품", "nameEn": "Products", "common": false, "staffOnly": false, "sortOrder": 40 },
+        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
+        { "name": "후기", "nameEn": "Review", "common": true, "staffOnly": false, "sortOrder": 60 },
+        { "name": "잡담", "nameEn": "Chat", "common": true, "staffOnly": false, "sortOrder": 70 },
+        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+      ]
+    },
+    {
+      "slug": "stock", "name": "산업·주식", "nameEn": "Industry & Stocks", "description": null, "layout": "LIST", "viewToggle": false,
+      "investmentNotice": true, "staffOnlyWrite": false, "sortOrder": 30, "color": "GREEN",
+      "prefixes": [
+        { "name": "산업해설", "nameEn": "Industry analysis", "common": false, "staffOnly": false, "sortOrder": 10 },
+        { "name": "실적", "nameEn": "Earnings", "common": false, "staffOnly": false, "sortOrder": 20 },
+        { "name": "공급망", "nameEn": "Supply chain", "common": false, "staffOnly": false, "sortOrder": 30 },
+        { "name": "이슈", "nameEn": "Issues", "common": false, "staffOnly": false, "sortOrder": 40 },
+        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
+        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+      ]
+    },
+    {
+      "slug": "game", "name": "게임", "nameEn": "Games", "description": null, "layout": "LIST", "viewToggle": false,
+      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 40, "color": "AMBER",
+      "prefixes": [
+        { "name": "소식", "nameEn": "News", "common": false, "staffOnly": false, "sortOrder": 10 },
+        { "name": "공략", "nameEn": "Guides", "common": false, "staffOnly": false, "sortOrder": 20 },
+        { "name": "로봇렌즈", "nameEn": "Robot Lens", "common": false, "staffOnly": false, "sortOrder": 30 },
+        { "name": "파티모집", "nameEn": "Party recruiting", "common": false, "staffOnly": false, "sortOrder": 40 },
+        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
+        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+      ]
+    },
+    {
+      "slug": "sports", "name": "스포츠", "nameEn": "Sports", "description": null, "layout": "LIST", "viewToggle": false,
+      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 50, "color": "TEAL",
+      "prefixes": [
+        { "name": "소식", "nameEn": "News", "common": false, "staffOnly": false, "sortOrder": 10 },
+        { "name": "경기", "nameEn": "Matches", "common": false, "staffOnly": false, "sortOrder": 20 },
+        { "name": "로봇렌즈", "nameEn": "Robot Lens", "common": false, "staffOnly": false, "sortOrder": 30 },
+        { "name": "직관", "nameEn": "Live games", "common": false, "staffOnly": false, "sortOrder": 40 },
+        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
+        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+      ]
+    },
+    {
+      "slug": "ai-groups", "name": "AI·테크 소모임", "nameEn": "AI & Tech groups", "description": null, "layout": "LIST", "viewToggle": false,
+      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 1010, "color": "BLUE",
+      "kind": "GROUP", "groupCategoryName": "AI·테크",
+      "prefixes": [
+        { "name": "뉴스", "nameEn": "News", "common": false, "staffOnly": false, "sortOrder": 10 },
+        { "name": "해설", "nameEn": "Explainer", "common": false, "staffOnly": false, "sortOrder": 20 },
+        { "name": "툴", "nameEn": "Tools", "common": false, "staffOnly": false, "sortOrder": 30 },
+        { "name": "팁", "nameEn": "Tips", "common": false, "staffOnly": false, "sortOrder": 40 },
+        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
+        { "name": "후기", "nameEn": "Review", "common": true, "staffOnly": false, "sortOrder": 60 },
+        { "name": "잡담", "nameEn": "Chat", "common": true, "staffOnly": false, "sortOrder": 70 },
+        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+      ]
+    },
+    {
+      "slug": "robot-groups", "name": "로봇 소모임", "nameEn": "Robot groups", "description": null, "layout": "LIST", "viewToggle": false,
+      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 1020, "color": "PURPLE",
+      "kind": "GROUP", "groupCategoryName": "로봇",
+      "prefixes": [
+        { "name": "뉴스", "nameEn": "News", "common": false, "staffOnly": false, "sortOrder": 10 },
+        { "name": "영상", "nameEn": "Video", "common": false, "staffOnly": false, "sortOrder": 20 },
+        { "name": "해설", "nameEn": "Explainer", "common": false, "staffOnly": false, "sortOrder": 30 },
+        { "name": "제품", "nameEn": "Products", "common": false, "staffOnly": false, "sortOrder": 40 },
+        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
+        { "name": "후기", "nameEn": "Review", "common": true, "staffOnly": false, "sortOrder": 60 },
+        { "name": "잡담", "nameEn": "Chat", "common": true, "staffOnly": false, "sortOrder": 70 },
+        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+      ]
+    },
+    {
+      "slug": "stock-groups", "name": "산업·주식 소모임", "nameEn": "Industry & Stocks groups", "description": null, "layout": "LIST", "viewToggle": false,
+      "investmentNotice": true, "staffOnlyWrite": false, "sortOrder": 1030, "color": "GREEN",
+      "kind": "GROUP", "groupCategoryName": "산업·주식",
+      "prefixes": [
+        { "name": "산업해설", "nameEn": "Industry analysis", "common": false, "staffOnly": false, "sortOrder": 10 },
+        { "name": "실적", "nameEn": "Earnings", "common": false, "staffOnly": false, "sortOrder": 20 },
+        { "name": "공급망", "nameEn": "Supply chain", "common": false, "staffOnly": false, "sortOrder": 30 },
+        { "name": "이슈", "nameEn": "Issues", "common": false, "staffOnly": false, "sortOrder": 40 },
+        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
+        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+      ]
+    },
+    {
+      "slug": "game-groups", "name": "게임 소모임", "nameEn": "Game groups", "description": null, "layout": "LIST", "viewToggle": false,
+      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 1040, "color": "AMBER",
+      "kind": "GROUP", "groupCategoryName": "게임",
+      "prefixes": [
+        { "name": "소식", "nameEn": "News", "common": false, "staffOnly": false, "sortOrder": 10 },
+        { "name": "공략", "nameEn": "Guides", "common": false, "staffOnly": false, "sortOrder": 20 },
+        { "name": "로봇렌즈", "nameEn": "Robot Lens", "common": false, "staffOnly": false, "sortOrder": 30 },
+        { "name": "파티모집", "nameEn": "Party recruiting", "common": false, "staffOnly": false, "sortOrder": 40 },
+        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
+        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+      ]
+    },
+    {
+      "slug": "sports-groups", "name": "스포츠 소모임", "nameEn": "Sports groups", "description": null, "layout": "LIST", "viewToggle": false,
+      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 1050, "color": "TEAL",
+      "kind": "GROUP", "groupCategoryName": "스포츠",
+      "prefixes": [
+        { "name": "소식", "nameEn": "News", "common": false, "staffOnly": false, "sortOrder": 10 },
+        { "name": "경기", "nameEn": "Matches", "common": false, "staffOnly": false, "sortOrder": 20 },
+        { "name": "로봇렌즈", "nameEn": "Robot Lens", "common": false, "staffOnly": false, "sortOrder": 30 },
+        { "name": "직관", "nameEn": "Live games", "common": false, "staffOnly": false, "sortOrder": 40 },
+        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
+        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+      ]
+    },
+    {
+      "slug": "video", "name": "영상·짤", "nameEn": "Videos & Memes", "description": null, "layout": "LIST", "viewToggle": true,
+      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 60, "color": null,
+      "prefixes": [
+        { "name": "영상", "nameEn": "Video", "common": false, "staffOnly": false, "sortOrder": 10 },
+        { "name": "짤", "nameEn": "Memes", "common": false, "staffOnly": false, "sortOrder": 20 },
+        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+      ]
+    },
+    {
+      "slug": "free", "name": "자유게시판", "nameEn": "Free board", "description": null, "layout": "LIST", "viewToggle": false,
+      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 70, "color": null,
+      "prefixes": [
+        { "name": "잡담", "nameEn": "Chat", "common": false, "staffOnly": false, "sortOrder": 10 },
+        { "name": "유머", "nameEn": "Humor", "common": false, "staffOnly": false, "sortOrder": 20 },
+        { "name": "정보", "nameEn": "Info", "common": false, "staffOnly": false, "sortOrder": 30 },
+        { "name": "일상", "nameEn": "Daily life", "common": false, "staffOnly": false, "sortOrder": 40 },
+        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
+        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+      ]
+    },
+    {
+      "slug": "notice", "name": "공지", "nameEn": "Notice", "description": null, "layout": "LIST", "viewToggle": false,
+      "investmentNotice": false, "staffOnlyWrite": true, "sortOrder": 80, "color": null,
+      "prefixes": [
+        { "name": "공지", "nameEn": "Notice", "common": false, "staffOnly": true, "sortOrder": 10 },
+        { "name": "업데이트", "nameEn": "Update", "common": false, "staffOnly": true, "sortOrder": 20 },
+        { "name": "점검", "nameEn": "Maintenance", "common": false, "staffOnly": true, "sortOrder": 30 }
+      ]
+    }
+  ]
+}

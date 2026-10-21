@@ -1,0 +1,43 @@
+# 공개 사이트 서버(user-web 용). 두 앱이 같이 쓰는 값은 server/shared 의 roboyam-shared.yml 에 있다.
+spring:
+  application:
+    name: roboyam-api
+  profiles:
+    default: local
+  config:
+    import: classpath:roboyam-shared.yml
+
+  # 설치 인증 세션과 로그인 세션은 DB(Spring Session JDBC, V2 의 spring_session 표)에 둔다. 표는 마이그레이션이 만들고 Spring 은 만들지 않는다.
+  # timeout 은 세션 기본 기한이다 = 로그인 세션의 "마지막 활동 뒤 30일"(roboyam.auth.session-timeout). 설치 인증 세션은 InstallSession 이 세션마다 1800초(30분)로
+  # 따로 정하므로 이 기본값과 섞이지 않는다(세션별 값이 이긴다). 로그인 세션도 LoginSession 이 같은 값을 세션마다 명시한다.
+  session:
+    jdbc:
+      initialize-schema: never
+    timeout: ${roboyam.auth.session-timeout}
+
+server:
+  port: ${SERVER_PORT:8910}
+  servlet:
+    session:
+      cookie:
+        name: SESSION
+        # 브라우저를 닫아도 로그인이 유지되게 쿠키에 기한을 둔다. 앱을 열 때마다 GET /api/auth/me 가 쿠키를 다시 써서 기한을 오늘부터로 늘린다(AuthController)
+        max-age: ${roboyam.auth.session-timeout}
+
+roboyam:
+  schema:
+    # 자기 스트림(db/migration/api). 이 값이 있어야 자기 스트림이 이관된다 — shared 는 늘 먼저 이관된다
+    stream: api
+  # 우리가 운영해 믿는 프록시(Caddy). 요청자 IP 는 X-Forwarded-For 의 뒤에서 trusted-hops 번째 값을 쓴다 — 앞쪽 값은 요청자가 꾸밀 수 있어 쓰지 않는다.
+  # 설치 토큰 IP 잠금이 쓴다(ClientIpResolver). 프록시 없이 앱을 바로 열어 두는 구성이면 0 으로 둔다(헤더를 믿지 않고 접속 주소만 쓴다)
+  proxy:
+    trusted-hops: 1
+  # 로그인·인증 (docs/features/login-contract.md)
+  auth:
+    login-max-failures: 5         # 같은 이메일로 연속으로 틀릴 수 있는 횟수(이 횟수째 틀리면 잠근다 — 5번째 응답까지는 401, 그 뒤가 429)
+    login-lock-seconds: 600       # 잠그는 시간(10분)
+    verify-token-hours: 24        # 이메일 인증 링크의 유효 시간
+    resend-cooldown-seconds: 60   # 인증 메일 재발송 간격(가장 최근에 보낸 링크 기준)
+    session-timeout: 30d          # 로그인 세션: 마지막 활동 뒤 이 기간. spring.session.timeout 과 세션 쿠키 기한이 이 값을 따른다
+  # 관리자 앱 주소(환경 변수 ADMIN_URL, http(s)://…). 정상 상태의 운영자(ADMIN)에게만 로그인 정보의 adminUrl 로 내려간다. 비우면 아무에게도 주지 않는다
+  admin-url: ${ADMIN_URL:}

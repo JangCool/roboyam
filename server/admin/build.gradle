@@ -1,0 +1,17 @@
+plugins {
+    id 'roboyam.spring-app-conventions'
+}
+
+// 관리자 앱 서버. 공개 사이트 서버(server/api)와 서로 의존하지 않는다 — 둘이 같이 쓰는 것은 server/shared 에 둔다.
+// 이 모듈의 코드가 직접 import 하는 라이브러리만 선언한다(그 밖의 실행 때 필요한 것은 shared 에서 따라온다).
+dependencies {
+    implementation project(':server:shared')
+
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // 스키마 이관(Flyway). 마이그레이션 파일은 shared(db/migration/shared)와 이 앱의 자기 스트림(db/migration/admin)에 있다
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+}

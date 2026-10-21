@@ -1,0 +1,45 @@
+/*
+ * MapStruct 규약 — 엔티티 → DTO 변환을 컴파일 때 생성한다.
+ *
+ * 필요한 모듈에서만 apply 한다.
+ *
+ *   매핑 누락   unmappedTargetPolicy=ERROR 를 전역으로 건다. 정말 안 채우는 필드는
+ *               @Mapping(target = "x", ignore = true) 로 밝혀 적는다.
+ *   스프링 빈   componentModel=spring 을 전역으로 건다. 매퍼에는 @Mapper 만 붙인다.
+ *   생성물      build/generated/apt (roboyam.querydsl-conventions 와 같은 값 — 다르면 빌드가 깨진다).
+ *
+ * ⚠ -A 옵션 이름을 지어내지 말 것. MapStruct 가 모르는 옵션은 조용히 무시된다.
+ *
+ * lombok: lombok 이 만든 getter 를 MapStruct 가 못 보고 빈 구현을 낼 수 있다.
+ *   엔티티·DTO 에 lombok 애너테이션을 쓰게 되면 아래 lombok-mapstruct-binding 줄의 주석을 푼다.
+ */
+
+plugins {
+    id 'roboyam.spring-conventions'
+}
+
+def generatedDir = layout.buildDirectory.dir('generated/apt')
+
+tasks.withType(JavaCompile).configureEach {
+    options.generatedSourceOutputDirectory.set(generatedDir)
+}
+
+// 처리기 옵션은 처리기가 있는 compileJava 에만 건다.
+tasks.named('compileJava') {
+    options.compilerArgs += [
+            '-Amapstruct.defaultComponentModel=spring',
+            '-Amapstruct.unmappedTargetPolicy=ERROR',
+    ]
+}
+
+sourceSets.main.java.srcDir generatedDir
+
+dependencies {
+    def mapstructVersion = providers.gradleProperty('mapstructVersion').get()
+
+    implementation      "org.mapstruct:mapstruct:${mapstructVersion}"
+    annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
+
+    // lombok 을 쓰게 되면 풀 것 — lombok 뒤에 선언되어야 한다.
+    // annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+}

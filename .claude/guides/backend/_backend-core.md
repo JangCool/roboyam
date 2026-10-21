@@ -1,0 +1,40 @@
+# 🏛️ Backend Core Guide (`_backend-core.md`)
+
+## 1. 역할 및 기본 원칙
+* 작업 전 빌드 설정·관련 코드·유사 기능을 확인하고 기존 구조를 따른다. 불필요한 계층·인터페이스·라이브러리를 추가하지 않는다.
+* 스택: Spring Boot 4.1 · Java 25 · Gradle 멀티프로젝트(`server/shared`, `server/api` 8910, `server/admin` 8920) · JPA/QueryDSL/MapStruct/Flyway · PostgreSQL 18. **lombok 을 쓰지 않는다**(생성자 주입, 레코드 DTO, 직접 쓴 getter).
+* 패키지: `com.community.<업무>/{controller,service,repository/master,entity,dto,exception}`, 공통 설정은 `com.community.zconfiguration/{jpa,mapper,exception,response,message,crypto,flyway,security,id}`. 두 앱이 같이 쓰는 코드는 `shared` 에 두고 `api` ↔ `admin` 은 서로 의존하지 않는다.
+
+---
+
+## 2. 주요 업무 및 규약
+
+### 2-1. 계층별 책무 (상세 가이드)
+* **Controller**: HTTP 수신·`@Valid`·Service 호출·응답 구성 (`controller.md`)
+* **Service**: 업무 규칙·트랜잭션·데이터 조합 (`service.md`)
+* **Repository**: 조회·저장 (`repository.md`)
+* **Entity**: 상태와 불변 조건. `protected` 기본 생성자, 정적 팩터리·도메인 메서드로만 만들고 바꾼다(setter 금지). 시각은 `Instant`, 연관은 `LAZY`, `toString` 에 민감값을 싣지 않는다.
+* **DTO**: Request/Response 분리 (`dto.md`) · **Mapper**: Entity → Response (`mapper.md`) · **예외·응답 문구** (`exception.md`)
+
+### 2-2. 공통 규칙
+* **ID**: Snowflake 를 앱이 발급한다(`SnowflakeIdGenerator`, `NODE_ID` 0~1023, 서버마다 다름). JSON 에서는 문자열이다.
+* **보안**: 서버 세션(Spring Session JDBC, 쿠키 `SESSION`) · CSRF(`XSRF-TOKEN` 쿠키 → `X-XSRF-TOKEN` 헤더) · 비밀번호 bcrypt(UTF-8 72바이트 초과는 입력 단계에서 `VALIDATION` 으로 거절 — `UserPolicy.passwordViolation`, 로그인은 예외 없이 불일치 처리) · 인증 없이 보호 API 를 부르면 JSON 401 · 설치 전 `/api/**` 는 503 `NOT_INSTALLED`.
+* **로그인**: 실패 사유와 무관하게 항상 같은 `INVALID_CREDENTIALS`(없는 이메일도 해시 비교를 한 번 한다). 이메일 단위 5회 연속 실패 시 10분 잠금.
+* **응답**: 모든 JSON 응답은 공통 래퍼 `ApiResponse`(`{success,data|error,meta}`)이고 요청마다 `X-Request-Id` 가 붙는다 (`controller.md`·`exception.md`).
+* **비밀값**: 비밀번호·토큰·시크릿은 로그·오류·`toString` 에 남기지 않는다. DB 비밀번호는 `ENC(...)`(AES-256-GCM, 키 `ROBOYAM_CRYPTO_KEY`)로만 설정한다(local 만 평문 허용). 메일 비밀번호·소셜 시크릿도 같은 방식으로 암호화해 저장한다.
+* **DB**: 스키마는 Flyway 만 만든다(`ddl-auto: none`). 스트림별 폴더 `db/migration/{shared,api,admin}` — `shared` 는 `flyway_schema_history`, 앱 스트림은 첫 파일에서 이력 표를 만든다. 번호는 스트림마다 연속·독립이고 적용된 파일은 고치지 않는다. 앱의 `roboyam.schema.stream` 이 자기 스트림을 정하고 api·admin 표는 서로 참조하지 않는다.
+* **설정**: `roboyam-shared.yml`(+ `-local`)을 각 앱 `application.yml` 이 import 한다. 환경은 빌드가 아니라 실행 때 `SPRING_PROFILES_ACTIVE`(기본 local)로 고른다. 환경 변수: `DB_URL`·`DB_USERNAME`·`DB_PASSWORD`(ENC)·`DB_POOL_SIZE`, `ROBOYAM_CRYPTO_KEY`, `ROBOYAM_INSTALL_TOKEN`, `NODE_ID`, `PUBLIC_URL`, `ADMIN_URL`, `ROBOYAM_PROXY_TRUSTED_HOPS`.
+* **설치·배포**: 첫 기동은 설치 전 상태이고 브라우저 `/install` 에서 토큰(`ROBOYAM_INSTALL_TOKEN`, 없으면 기동 로그에 1회 출력, IP당 5회 실패 시 10분 잠금) → 루트 계정 → 사이트 → 메일(건너뛰기) → 소셜(건너뛰기) → 기본 게시판 구성 → 확인 → 설치. 설치가 끝나면 마법사 API 는 닫힌다. `installer/roboyam-install.sh` 가 비밀을 자동 생성해 DB 비밀번호를 `ENC(...)` 로 `.env`(권한 600)에 기록하며 실패하면 만든 것을 모두 지운다. 암호화 키를 잃으면 암호문을 풀 수 없으므로 따로 백업한다.
+* **검증**: 개발 중에는 `./gradlew :server:api:compileJava :server:admin:compileJava` 같은 최소 검사만 한다. 컴파일 통과는 런타임 정상을 보증하지 않으므로 dev 서버에서 해당 API 를 한 번 실제로 호출한다. 전체 테스트·E2E·전체 빌드는 요청 시에만 실행한다.
+
+---
+
+## 3. 작성 예시
+유형별 예시는 각 상세 가이드를 본다. 새 기능은 가장 가까운 기존 업무(`auth`·`installation`)의 구조를 따른다.
+
+---
+
+## 4. 금지 사항 (Anti-Patterns)
+1. ❌ lombok 도입, 공통 응답 래퍼(`ApiResponse`) 밖의 JSON 본문 형태
+2. ❌ 비밀번호·토큰·개인정보·세션 값을 로그·오류·`toString` 에 남기는 행위
+3. ❌ 개발 중 전체 테스트·E2E 무단 실행, 적용된 마이그레이션 수정

@@ -1,0 +1,26 @@
+/*
+ * 실행 가능한 Spring Boot 애플리케이션 규약.
+ *
+ * 코어 스타터만 넣는다. web · data-jpa 처럼 모듈마다 다른 것은 각 모듈의 build.gradle 에서 선언한다.
+ *
+ * 환경(local · dev · prod)은 빌드가 아니라 실행 때 고른다.
+ * 산출물(jar)은 환경과 무관하게 한 벌이고, SPRING_PROFILES_ACTIVE 와 환경 변수로 갈린다.
+ */
+
+plugins {
+    id 'roboyam.spring-conventions'
+    id 'org.springframework.boot'
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter'
+}
+
+tasks.named('bootJar') {
+    archiveFileName = "roboyam-${project.name}.jar"
+}
+
+// 라이브러리 jar 는 만들지 않는다 — 실행 아카이브만 배포한다
+tasks.named('jar') {
+    enabled = false
+}

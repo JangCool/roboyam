@@ -1,0 +1,11 @@
+# 개발 서버의 HTTPS 종단 — 도메인은 환경 변수 DEV_DOMAIN · ADMIN_DOMAIN (.env)
+{$DEV_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:8080
+}
+
+# 관리자 앱 — 공개 사이트와 다른 도메인. 검색에 잡히면 안 된다
+{$ADMIN_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy admin:8080
+}

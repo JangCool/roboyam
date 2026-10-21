@@ -1,0 +1,75 @@
+/**
+ * My profile screen (`/me`). Server error messages are shown as the server sent them, so they are not here.
+ * Keys are two parts: `profile.what`. Same keys and order as `ko/profile.ts`.
+ */
+export default {
+    seoTitle: 'My profile',
+    title: 'My profile',
+    subtitle: 'Review your account, display preferences and sign-in history.',
+    menuLabel: 'My profile menu',
+    tabGeneral: 'General',
+    tabPersonal: 'Preferences',
+    tabLogin: 'Sign-in history',
+
+    // Basic information
+    basicInfo: 'Basic information',
+    accountId: 'ID',
+    joinedAt: 'Joined',
+    lastLoginAt: 'Last sign-in',
+
+    // Member information
+    memberInfo: 'Member information',
+    nickname: 'Nickname',
+    nicknameHint: '2–12 characters',
+    nicknameHelp: 'Korean, English letters, numbers and underscores (_), with a single space allowed between words.',
+    email: 'Email',
+    emailHelp: 'Your email cannot be changed.',
+    role: 'Role',
+
+    // Preferences — my formatting (language, time zone, time/date format): product defaults <- my formatting
+    displayUseMine: 'Use my own formatting',
+    displayMineOn: 'You see it the way you chose.',
+    displayMineOnTail: 'These values win over the product defaults.',
+    displayMineOff: 'Following the product defaults.',
+    displayMineOffTail: 'Turn this on to use the values below — they are kept even while it is off.',
+    displayAppliedNow: 'This screen is currently using {from}.',
+    displayFromSystem: 'the product defaults',
+    displayFromUser: 'your own settings',
+    displaySection: 'Language, region, time and date',
+    displayMineSaved: 'Using your own formatting',
+    displayMineOffSaved: 'Following the product defaults',
+    displayLoadFailed: 'Could not load your formatting',
+
+    // Preferences — alerts
+    notifications: 'Alerts',
+    emailNotification: 'Email alerts',
+    emailNotificationHint: 'Receive admin notifications by email.',
+    emailNotificationOn: 'You will receive notification emails',
+    emailNotificationOff: 'You will no longer receive notification emails',
+
+    // Sign-in history
+    loginHistory: 'Recent sign-ins',
+    noLoginHistory: 'No history yet',
+    noLoginHistoryBody: 'Sign-in records will show up here.',
+    loginHistoryLoadFailed: 'Could not load your sign-in history',
+    signInOk: 'Success',
+    signInFail: 'Failed',
+    reasonInvalidCredentials: 'Incorrect email or password',
+    reasonLoginLocked: 'Sign-in was temporarily locked',
+
+    // Sign-in history — environment (parsed from the User-Agent)
+    agentUnknown: 'Unknown',
+    device_desktop: 'Desktop',
+    device_mobile: 'Mobile',
+    device_tablet: 'Tablet',
+
+    // Input hints
+    nicknameRequired: 'Enter a nickname.',
+    nicknameLength: 'Enter a nickname of 2–12 characters.',
+    nicknameChars: 'Use only Korean, English letters, numbers and underscores (_), with a single space between words.',
+
+    // States
+    loadFailed: 'Could not load your profile',
+    emptyTitle: 'No profile to show',
+    emptyBody: 'Please try again in a moment.',
+};

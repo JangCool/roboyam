@@ -1,0 +1,21 @@
+{
+    "name": "@roboyam/i18n",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "description": "user-web · admin-web 이 같이 쓰는 화면 문구(한국어·영어) Nuxt 레이어 — @nuxtjs/i18n 설정, 공통 문구, 언어 적용(i18n 로캘 + PrimeVue 로캘), 동적 이름 헬퍼",
+    "main": "./nuxt.config.ts",
+    "dependencies": {
+        "@nuxtjs/i18n": "10.6.0"
+    },
+    "peerDependencies": {
+        "nuxt": "^4.6.2",
+        "primevue": "^5.0.2",
+        "vue": "^3.5.0"
+    },
+    "devDependencies": {
+        "nuxt": "4.6.2",
+        "primevue": "5.0.2",
+        "vue": "3.5.44"
+    }
+}

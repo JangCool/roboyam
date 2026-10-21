@@ -1,0 +1,33 @@
+{
+  "id": "NEUTRAL",
+  "name": "중립 (최소 구성)",
+  "nameEn": "Neutral (minimal)",
+  "description": "공지와 자유게시판만 만들어요. 주제별 게시판은 설치한 뒤 관리자 앱의 게시판 설정에서 직접 만들어요.",
+  "descriptionEn": "Creates only Notice and Free boards. Create topic boards yourself in the admin app's board settings after installing.",
+  "defaultPreset": true,
+  "order": 10,
+  "boards": [
+    {
+      "slug": "free", "name": "자유게시판", "nameEn": "Free board", "description": null, "layout": "LIST", "viewToggle": false,
+      "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 70, "color": null,
+      "prefixes": [
+        { "name": "잡담", "nameEn": "Chat", "common": false, "staffOnly": false, "sortOrder": 10 },
+        { "name": "유머", "nameEn": "Humor", "common": false, "staffOnly": false, "sortOrder": 20 },
+        { "name": "정보", "nameEn": "Info", "common": false, "staffOnly": false, "sortOrder": 30 },
+        { "name": "일상", "nameEn": "Daily life", "common": false, "staffOnly": false, "sortOrder": 40 },
+        { "name": "질문", "nameEn": "Question", "common": true, "staffOnly": false, "sortOrder": 50 },
+        { "name": "후기", "nameEn": "Review", "common": true, "staffOnly": false, "sortOrder": 60 },
+        { "name": "공지", "nameEn": "Notice", "common": true, "staffOnly": true, "sortOrder": 80 }
+      ]
+    },
+    {
+      "slug": "notice", "name": "공지", "nameEn": "Notice", "description": null, "layout": "LIST", "viewToggle": false,
+      "investmentNotice": false, "staffOnlyWrite": true, "sortOrder": 80, "color": null,
+      "prefixes": [
+        { "name": "공지", "nameEn": "Notice", "common": false, "staffOnly": true, "sortOrder": 10 },
+        { "name": "업데이트", "nameEn": "Update", "common": false, "staffOnly": true, "sortOrder": 20 },
+        { "name": "점검", "nameEn": "Maintenance", "common": false, "staffOnly": true, "sortOrder": 30 }
+      ]
+    }
+  ]
+}

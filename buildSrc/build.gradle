@@ -1,0 +1,15 @@
+plugins {
+    id 'groovy-gradle-plugin'
+}
+
+// buildSrc 는 별도 빌드라 루트의 gradle.properties 를 자동으로 보지 못한다.
+// 버전을 여기에 또 적으면 두 벌이 되어 어긋나므로 루트 파일을 직접 읽는다.
+def rootProps = new Properties()
+file('../gradle.properties').withInputStream { rootProps.load(it) }
+
+// 컨벤션 플러그인이 다른 플러그인을 apply 하려면
+// 그 플러그인의 구현체가 buildSrc 의 의존성으로 있어야 한다.
+dependencies {
+    implementation "org.springframework.boot:spring-boot-gradle-plugin:${rootProps.springBootVersion}"
+    implementation "io.spring.gradle:dependency-management-plugin:${rootProps.springDependencyManagementVersion}"
+}

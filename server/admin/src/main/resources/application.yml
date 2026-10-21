@@ -1,0 +1,17 @@
+# 관리자 앱 서버(admin-web 용). 두 앱이 같이 쓰는 값은 server/shared 의 roboyam-shared.yml 에 있다.
+# 접속 정보·환경 변수는 공개 사이트와 같은 이름(DB_URL … ROBOYAM_CRYPTO_KEY)이다.
+spring:
+  application:
+    name: roboyam-admin
+  profiles:
+    default: local
+  config:
+    import: classpath:roboyam-shared.yml
+
+server:
+  port: ${SERVER_PORT:8920}
+
+roboyam:
+  schema:
+    # 자기 스트림(db/migration/admin). shared 이관은 api 와 어느 쪽이 먼저 떠도 된다 — Flyway 가 DB 잠금으로 한 쪽만 적용한다
+    stream: admin

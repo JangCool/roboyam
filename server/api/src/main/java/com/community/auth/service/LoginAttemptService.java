@@ -1,0 +1,91 @@
+package com.community.auth.service;
+
+import com.community.auth.config.AuthProperties;
+import com.community.auth.entity.LoginAttemptEntity;
+import com.community.auth.exception.AuthLoginLockedException;
+import com.community.auth.repository.master.LoginAttemptRepositoryQDSL;
+import com.community.user.repository.master.UserRepository;
+import java.time.Duration;
+import java.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * 로그인 시도 제한: 같은 이메일로 연속 5회 틀리면 10분 잠근다(설정값 {@code roboyam.auth.*}).
+ *
+ * <ul>
+ *   <li><b>이메일 단위</b>로 세고 계정이 없는 이메일도 똑같이 센다(계정 존재를 알리지 않기 위해). 키는 정규화한 이메일의 SHA-256 이다.</li>
+ *   <li>5번째 틀린 응답까지는 401 이고, 그 5번째 실패가 잠금을 시작한다 — 그 뒤 요청이 429 다. 잠긴 동안은 맞는 비밀번호도 거절한다.</li>
+ *   <li>잠금이 풀리면 처음부터 다시 센다. 성공하면 횟수를 지운다.</li>
+ *   <li>각 메서드는 <b>짧은 독립 트랜잭션</b>이다 — 로그인 요청이 오류로 끝나도 실패 기록은 남고, 비밀번호 해시 비교(느린 연산)는 트랜잭션 밖에서 한다.</li>
+ * </ul>
+ * 이메일 원문을 로그에 남기지 않는다.
+ */
+@Service
+public class LoginAttemptService {
+
+    private static final Logger log = LoggerFactory.getLogger(LoginAttemptService.class);
+
+    private final LoginAttemptRepositoryQDSL attempts;
+    private final UserRepository users;
+    private final AuthProperties props;
+
+    public LoginAttemptService(LoginAttemptRepositoryQDSL attempts, UserRepository users, AuthProperties props) {
+        this.attempts = attempts;
+        this.users = users;
+        this.props = props;
+    }
+
+    /**
+     * 잠겨 있으면 {@code 429 LOGIN_LOCKED}.
+     *
+     * @param email 정규화한 이메일
+     */
+    @Transactional(readOnly = true)
+    public void assertNotLocked(String email) {
+        Instant now = Instant.now();
+        attempts.findLockedUntil(key(email)).filter(until -> until.isAfter(now)).ifPresent(until -> {
+            throw new AuthLoginLockedException(secondsUntil(until, now));
+        });
+    }
+
+    /**
+     * 실패를 기록한다. 이번 실패가 한도에 닿으면 잠금이 시작되지만 <b>이번 응답은 그대로 401</b> 이다(호출하는 쪽이 401 을 던진다).
+     * 이미 잠긴 이메일에 동시에 들어온 요청은 횟수를 더하지 않는다.
+     */
+    @Transactional
+    public void recordFailure(String email) {
+        String key = key(email);
+        Instant now = Instant.now();
+        attempts.insertIfAbsent(key, now);
+        LoginAttemptEntity attempt = attempts.findForUpdate(key)
+                .orElseThrow(() -> new IllegalStateException("login_attempts 행을 만들지 못했다"));
+        attempt.clearIfLockExpired(now); // 잠금이 풀렸으면 처음부터 다시 센다
+        if (attempt.isLocked(now)) {
+            return;
+        }
+        if (attempt.fail(now, props.loginMaxFailures(), props.loginLockSeconds())) {
+            log.info("로그인 실패가 한도에 닿아 잠금을 시작했다 key={}…", key.substring(0, 8));
+        }
+    }
+
+    /** 로그인에 성공했다 — 실패 횟수·잠금을 지우고 마지막 로그인 시각을 갱신한다 */
+    @Transactional
+    public void recordSuccess(String email, long userId) {
+        Instant now = Instant.now();
+        attempts.findForUpdate(key(email)).ifPresent(attempt -> attempt.reset(now));
+        users.findById(userId).ifPresent(user -> user.markLoggedIn(now));
+    }
+
+    private static String key(String email) {
+        return AuthTokens.sha256Hex(email);
+    }
+
+    /** 남은 초(올림, 최소 1) */
+    private static long secondsUntil(Instant target, Instant now) {
+        long millis = Duration.between(now, target).toMillis();
+        return Math.max(1, (millis + 999) / 1000);
+    }
+}

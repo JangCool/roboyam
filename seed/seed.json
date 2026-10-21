@@ -1,0 +1,874 @@
+{
+  "_readme": "로컬 개발 DB 에 시험 데이터를 채우는 파일. 로더: scripts/seed-local.mjs (docs/seed.md). 이 값은 모두 시험용이고 실제 계정·비밀번호가 아니다.",
+  "password": "Seed4d41894cd39a",
+  "users": [
+    {
+      "key": "e2e.author",
+      "email": "e2e.author@example.com",
+      "nickname": "e2eauthor",
+      "role": "USER",
+      "status": "ACTIVE",
+      "emailVerified": true,
+      "ageDays": 6
+    },
+    {
+      "key": "e2e.l1",
+      "email": "e2e.l1@example.com",
+      "nickname": "e2el1",
+      "role": "USER",
+      "status": "ACTIVE",
+      "emailVerified": true,
+      "ageDays": 6
+    },
+    {
+      "key": "e2e.l2",
+      "email": "e2e.l2@example.com",
+      "nickname": "e2el2",
+      "role": "USER",
+      "status": "ACTIVE",
+      "emailVerified": true,
+      "ageDays": 6
+    },
+    {
+      "key": "e2e.l3",
+      "email": "e2e.l3@example.com",
+      "nickname": "e2el3",
+      "role": "USER",
+      "status": "ACTIVE",
+      "emailVerified": true,
+      "ageDays": 6
+    },
+    {
+      "key": "e2e.admin",
+      "email": "e2e.admin@example.com",
+      "nickname": "e2eadmin",
+      "role": "ADMIN",
+      "status": "ACTIVE",
+      "emailVerified": true,
+      "ageDays": 6
+    },
+    {
+      "key": "e2e.l4",
+      "email": "e2e.l4@example.com",
+      "nickname": "e2el4",
+      "role": "USER",
+      "status": "ACTIVE",
+      "emailVerified": true,
+      "ageDays": 6
+    },
+    {
+      "key": "e2e.l5",
+      "email": "e2e.l5@example.com",
+      "nickname": "e2el5",
+      "role": "USER",
+      "status": "ACTIVE",
+      "emailVerified": true,
+      "ageDays": 6
+    },
+    {
+      "key": "e2e.banned",
+      "email": "e2e.banned@example.com",
+      "nickname": "e2ebanned",
+      "role": "USER",
+      "status": "SUSPENDED",
+      "emailVerified": true,
+      "ageDays": 6
+    },
+    {
+      "key": "e2e.user1",
+      "email": "e2e.user1@example.com",
+      "nickname": "로봇덕후",
+      "role": "USER",
+      "status": "ACTIVE",
+      "emailVerified": true,
+      "ageDays": 1
+    },
+    {
+      "key": "e2e.newbie",
+      "email": "e2e.newbie@example.com",
+      "nickname": "e2enewbie",
+      "role": "USER",
+      "status": "ACTIVE",
+      "emailVerified": true,
+      "ageDays": 1
+    },
+    {
+      "key": "e2e.unverified",
+      "email": "e2e.unverified@example.com",
+      "nickname": "e2eunver",
+      "role": "USER",
+      "status": "ACTIVE",
+      "emailVerified": false,
+      "ageDays": 1
+    }
+  ],
+  "posts": [
+    {
+      "key": "p1",
+      "author": "e2e.author",
+      "board": "ai",
+      "prefix": "뉴스",
+      "title": "인기글 확인용 글입니다",
+      "bodyHtml": "<p>추천이 모이면 인기글 순위에 오르는지 확인하는 글입니다.</p>"
+    },
+    {
+      "key": "p2",
+      "author": "e2e.author",
+      "board": "ai",
+      "prefix": "뉴스",
+      "title": "두 번째 인기글 확인 글",
+      "bodyHtml": "<p>목록 행과 인기글 화면의 표시를 확인하는 두 번째 글입니다.</p>"
+    },
+    {
+      "key": "p3",
+      "author": "e2e.author",
+      "board": "ai",
+      "prefix": "뉴스",
+      "title": "투표 화면 확인용 글 (수정)",
+      "bodyHtml": "<p>투표를 붙인 글의 본문입니다. 열 글자를 넘기는 내용을 적습니다.</p>"
+    },
+    {
+      "key": "p4",
+      "author": "e2e.admin",
+      "board": "ai",
+      "prefix": "뉴스",
+      "title": "예약 발행에 투표 싣기",
+      "bodyHtml": "<p>예약해 두었다가 발행되면 투표가 붙는지 확인하는 본문입니다.</p>",
+      "poll": {
+        "question": "예약 투표 질문",
+        "options": [
+          "찬성",
+          "반대"
+        ],
+        "multiple": false,
+        "closesInHours": -2,
+        "votes": []
+      }
+    },
+    {
+      "key": "p5",
+      "author": "e2e.author",
+      "board": "ai",
+      "prefix": "뉴스",
+      "title": "복수 선택 투표 확인",
+      "bodyHtml": "<p>복수 선택 투표가 체크박스로 보이는지 확인하는 글입니다.</p>",
+      "poll": {
+        "question": "마음에 드는 것을 모두 고르세요",
+        "options": [
+          "가",
+          "나",
+          "다",
+          "라",
+          "마",
+          "바"
+        ],
+        "multiple": true,
+        "closesInHours": null,
+        "votes": [
+          {
+            "user": "e2e.l2",
+            "options": [
+              "가",
+              "다"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "p6",
+      "author": "e2e.author",
+      "board": "ai",
+      "prefix": "뉴스",
+      "title": "삭제 시험 글",
+      "bodyHtml": "<p>삭제된 글이 목록과 순위에서 빠지는지 확인하는 글입니다.</p>",
+      "deleted": true
+    }
+  ],
+  "comments": [
+    {
+      "key": "c1",
+      "post": "p1",
+      "author": "e2e.author",
+      "body": "추천 시험용 댓글입니다"
+    },
+    {
+      "key": "c2",
+      "post": "p2",
+      "author": "e2e.l1",
+      "body": "알림 시험 댓글 하나입니다"
+    },
+    {
+      "key": "c3",
+      "post": "p2",
+      "author": "e2e.l2",
+      "body": "두 번째 사람의 댓글"
+    },
+    {
+      "key": "c4",
+      "post": "p2",
+      "author": "e2e.author",
+      "body": "글쓴이의 댓글"
+    },
+    {
+      "key": "c5",
+      "post": "p2",
+      "author": "e2e.l3",
+      "body": "글쓴이 댓글에 답글입니다",
+      "replyTo": "c4"
+    },
+    {
+      "key": "c6",
+      "post": "p2",
+      "author": "e2e.l4",
+      "body": "알림을 꺼 둔 뒤의 댓글"
+    },
+    {
+      "key": "c7",
+      "post": "p2",
+      "author": "e2e.l5",
+      "body": "켠 뒤에 다시 달린 댓글"
+    }
+  ],
+  "likes": [
+    {
+      "user": "e2e.l1",
+      "target": "p1"
+    },
+    {
+      "user": "e2e.l2",
+      "target": "p1"
+    },
+    {
+      "user": "e2e.l3",
+      "target": "p1"
+    },
+    {
+      "user": "e2e.l4",
+      "target": "p1"
+    },
+    {
+      "user": "e2e.l5",
+      "target": "p1"
+    },
+    {
+      "user": "e2e.l5",
+      "target": "c1"
+    },
+    {
+      "user": "e2e.l1",
+      "target": "p2"
+    },
+    {
+      "user": "e2e.l2",
+      "target": "p2"
+    },
+    {
+      "user": "e2e.l3",
+      "target": "p2"
+    },
+    {
+      "user": "e2e.l4",
+      "target": "p2"
+    },
+    {
+      "user": "e2e.l5",
+      "target": "p2"
+    },
+    {
+      "user": "e2e.l1",
+      "target": "p6"
+    },
+    {
+      "user": "e2e.l2",
+      "target": "p6"
+    },
+    {
+      "user": "e2e.l3",
+      "target": "p6"
+    },
+    {
+      "user": "e2e.l4",
+      "target": "p6"
+    },
+    {
+      "user": "e2e.l5",
+      "target": "p6"
+    }
+  ],
+  "drafts": [
+    {
+      "user": "e2e.author",
+      "board": "ai",
+      "prefix": "뉴스",
+      "title": "임시저장에 투표 싣기",
+      "bodyHtml": "<p>임시저장에 투표가 실리는지 확인하는 본문입니다.</p>",
+      "poll": {
+        "options": [
+          "첫 선택지"
+        ],
+        "closesAt": null,
+        "multiple": false,
+        "question": "임시 질문"
+      }
+    },
+    {
+      "user": "e2e.author",
+      "board": "sports",
+      "prefix": null,
+      "title": "",
+      "bodyHtml": "<p><code>import java.io;</code></p>"
+    },
+    {
+      "user": "e2e.author",
+      "board": "ai",
+      "prefix": null,
+      "title": "",
+      "bodyHtml": "<p>dsfdsf</p>"
+    }
+  ],
+  "commerce": {
+    "_note": "공동구매 시험 데이터(2026-10-07). 시각은 전부 '지금(DB 시각)' 기준 상대값이다. 판매자 정보·배송지·사업자 번호는 모두 시험용 가짜 값이다. 로더는 상품·공구를 이름(제목)으로 찾아 이미 있으면 건너뛰고, 시험 주문은 e2e.l2 가 첫 공구에 이미 주문한 적이 있으면 통째로 건너뛴다.",
+    "businessInfo": {
+      "name": "시험상사",
+      "representative": "홍길동",
+      "registrationNo": "123-45-67891",
+      "mailOrderNo": "제2026-서울강남-0001호",
+      "address": "서울 강남구 시험로 1",
+      "phone": "02-1234-5678",
+      "email": "shop@example.com",
+      "hours": "평일 10:00~17:00",
+      "privacyOfficer": "홍길동",
+      "hosting": "Amazon Web Services",
+      "shippingPolicy": "시험용 배송 안내입니다. 결제 확인 후 영업일 기준 1~3일 안에 발송합니다.",
+      "refundPolicy": "시험용 환불 안내입니다. 상품을 받은 날부터 7일 안에 청약 철회를 요청할 수 있습니다."
+    },
+    "settings": {
+      "salesEnabled": true,
+      "reservationMinutes": 10,
+      "lowStockPercent": 10,
+      "purchaseMinGrade": "NONE",
+      "addressRevealMinutes": 10,
+      "refundAdminConfirmAmount": 100000,
+      "returnShippingFee": 3000,
+      "featuredOrder": "SEQUENTIAL"
+    },
+    "product": {
+      "name": "로봇청소기 X1",
+      "summary": "한 줄 소개",
+      "description": "시험용 상품 설명입니다.\n둘째 줄입니다.",
+      "spec": "규격: 시험용\n구성: 본체 1 · 충전 독 1",
+      "listPrice": 59000,
+      "image": { "width": 600, "height": 400, "color": [60, 120, 220] }
+    },
+    "deals": [
+      {
+        "key": "d1",
+        "title": "로봇청소기 X1 공동구매",
+        "dealPrice": 39000,
+        "shippingFee": 3000,
+        "freeShippingOver": 50000,
+        "stockTotal": 6,
+        "perUserLimit": 2,
+        "startsInMinutes": -1,
+        "endsInHours": 48
+      },
+      {
+        "key": "d2",
+        "title": "로봇청소기 X1 공구 2",
+        "dealPrice": 35000,
+        "shippingFee": 3000,
+        "freeShippingOver": null,
+        "stockTotal": 10,
+        "perUserLimit": 2,
+        "startsInMinutes": -1,
+        "endsInHours": 30
+      },
+      {
+        "key": "d3",
+        "title": "로봇청소기 X1 공구 3",
+        "dealPrice": 33000,
+        "shippingFee": 3000,
+        "freeShippingOver": null,
+        "stockTotal": 10,
+        "perUserLimit": 2,
+        "startsInMinutes": -1,
+        "endsInHours": 80
+      },
+      {
+        "key": "d4",
+        "title": "로봇청소기 X1 공구 4",
+        "dealPrice": 41000,
+        "shippingFee": 3000,
+        "freeShippingOver": null,
+        "stockTotal": 10,
+        "perUserLimit": 2,
+        "startsInMinutes": -1,
+        "endsInHours": 6
+      }
+    ],
+    "shipping": {
+      "recipient": "홍길동",
+      "phone": "010-1234-5678",
+      "postcode": "06236",
+      "address1": "서울 강남구 시험로 1",
+      "address2": "101동 1203호",
+      "memo": "문 앞에 놔주세요"
+    },
+    "cashReceipt": { "type": "INCOME", "number": "010-1234-5678" },
+    "orders": [
+      {
+        "key": "o1",
+        "label": "배송완료 → 반품 → 부분 환불 → 세금계산서 발행 완료",
+        "user": "e2e.l2",
+        "deal": "d1",
+        "quantity": 1,
+        "steps": [
+          { "do": "pay" },
+          { "do": "prepare" },
+          { "do": "ship", "carrierCode": "CJ", "trackingNo": "1234-5678-90" },
+          { "do": "deliver" },
+          { "do": "returnRequest", "reasonCode": "CHANGE_OF_MIND", "reasonText": "단순 변심(시험 주문)" },
+          { "do": "returnApprove", "refundAmount": 36000, "returnShippingFee": 3000, "note": "회수 안내(시험)" },
+          { "do": "returnComplete", "refundAmount": 36000, "returnShippingFee": 3000, "restock": false },
+          { "do": "taxInvoiceRequest", "businessNo": "124-81-00998", "companyName": "시험 회사", "representative": "김대표", "email": "tax@example.com" },
+          { "do": "taxInvoiceIssued", "memo": "시험 발행" }
+        ]
+      },
+      {
+        "key": "o2",
+        "label": "결제 후 즉시 취소(전액 환불)",
+        "user": "e2e.l2",
+        "deal": "d1",
+        "quantity": 1,
+        "steps": [
+          { "do": "pay" },
+          { "do": "cancel", "reason": "단순 변심(시험 주문)" }
+        ]
+      },
+      {
+        "key": "o3",
+        "label": "결제 전 주문 후 취소",
+        "user": "e2e.l2",
+        "deal": "d1",
+        "quantity": 1,
+        "steps": [
+          { "do": "cancel", "reason": "" }
+        ]
+      },
+      {
+        "key": "o4",
+        "label": "결제만 한 상태(관리자 준비 전 처리 대기)",
+        "user": "e2e.l2",
+        "deal": "d1",
+        "quantity": 1,
+        "steps": [
+          { "do": "pay" }
+        ]
+      }
+    ]
+  },
+  "adBanners": {
+    "_note": "광고 슬롯 직접 배너(2026-10-07). 로더가 슬롯별 단색 PNG 를 만들어 올리고 켠다(코드 방식 슬롯·WebP 는 담지 않는다). 이미 켜진 슬롯은 건드리지 않는다. startsInHours·endsInHours 는 지금 기준 상대 시간이고, 없으면 기간 제한이 없다.",
+    "slots": [
+      {
+        "slot": "A",
+        "linkUrl": "https://example.com/seed/banner-a",
+        "alt": "시험 배너 A",
+        "images": {
+          "image": { "width": 1456, "height": 180, "color": [60, 120, 220] },
+          "imageMobile": { "width": 640, "height": 200, "color": [60, 160, 200] },
+          "imageMedium": { "width": 936, "height": 120, "color": [80, 140, 230] }
+        }
+      },
+      {
+        "slot": "B",
+        "linkUrl": "https://example.com/seed/banner-b",
+        "alt": "시험 배너 B",
+        "images": { "image": { "width": 960, "height": 150, "color": [90, 180, 90] } }
+      },
+      {
+        "slot": "C",
+        "linkUrl": "https://example.com/seed/banner-c",
+        "alt": "시험 배너 C",
+        "images": { "image": { "width": 600, "height": 500, "color": [170, 90, 200] } }
+      },
+      {
+        "slot": "D",
+        "linkUrl": "https://example.com/seed/banner-d",
+        "alt": "시험 배너 D",
+        "startsInHours": -1,
+        "endsInHours": 72,
+        "images": { "image": { "width": 640, "height": 200, "color": [220, 90, 60] } }
+      }
+    ]
+  },
+  "hotdealBusiness": {
+    "_note": "핫딜 입점(사업자) 시험 데이터(2026-10-07). 사업자 전용 계정 1개는 비밀번호가 위 password 한 값이다. 이미 같은 사업자등록번호로 심사 중·승인·정지인 사업자가 있는 DB 에서는 사업자 단계를 건너뛴다. 노출권(홈 상단)은 상품만 만들고 사업자가 사거나 글에 연결하지 않는다.",
+    "products": [
+      { "kind": "MONTHLY_PASS", "name": "월 입점권", "description": "30일간 30건", "supplyPrice": 100000, "durationDays": 30, "postQuota": 30, "sortOrder": 1 },
+      { "kind": "POST_TICKET", "name": "게시권 1건", "description": "한 건", "supplyPrice": 9990, "sortOrder": 2 },
+      { "kind": "PLACEMENT", "name": "홈 상단 노출 7일", "description": "노출권", "supplyPrice": 50000, "durationDays": 7, "slot": "HOME_TOP", "sortOrder": 3 }
+    ],
+    "account": {
+      "email": "biz.seed@example.com",
+      "nickname": "시드로보틱스",
+      "businessName": "시드로보틱스",
+      "registrationNo": "124-81-00998",
+      "representative": "홍길동",
+      "contactPhone": "02-1234-5678",
+      "siteUrl": "https://robotics.example.com",
+      "categories": ["ROBOT", "AI"]
+    },
+    "buyProduct": "월 입점권",
+    "deal": {
+      "board": "hotdeal",
+      "prefix": "로봇",
+      "title": "시드로보틱스 입문용 로봇 키트 특가",
+      "bodyHtml": "<p>시드로보틱스가 올리는 시험용 사업자 핫딜입니다. 입문용 로봇 키트를 특별 가격에 판매합니다.</p>",
+      "storeName": "시드로보틱스 공식몰",
+      "productUrl": "https://robotics.example.com/p/seed-kit",
+      "normalPrice": 89000,
+      "dealPrice": 69000,
+      "shippingFee": 0,
+      "couponCode": "SEED2026",
+      "couponNote": "신규 회원 쿠폰 적용",
+      "priceBasis": "정상가는 시드로보틱스 공식몰 기준",
+      "stockState": "IN_STOCK",
+      "endsInDays": 14
+    }
+  },
+  "promoBump": {
+    "_note": "직접홍보·끌올(V47) 시험 데이터 — 핫딜 입점 사업자(hotdealBusiness.account)가 홍보권(PROMO)·끌올 사용권(BUMP_PACK)을 사고, 홍보를 신청 → 운영자 승인 → 직접홍보 게시판에 글을 쓴다. 로더가 홍보 기간을 바로 진행 중으로 당긴다(개발 DB 전용).",
+    "products": [
+      {
+        "kind": "PROMO",
+        "name": "직접홍보 7일",
+        "description": "7일 동안 직접홍보 게시판 글쓰기와 한 줄 광고",
+        "supplyPrice": 70000,
+        "durationDays": 7,
+        "sortOrder": 10
+      },
+      {
+        "kind": "BUMP_PACK",
+        "name": "끌올 5회권",
+        "description": "30일 안에 5번 끌올",
+        "supplyPrice": 10000,
+        "durationDays": 30,
+        "postQuota": 5,
+        "sortOrder": 11
+      }
+    ],
+    "buyPromo": "직접홍보 7일",
+    "buyBump": "끌올 5회권",
+    "application": {
+      "productName": "시드 입문용 로봇 키트",
+      "description": "시드로보틱스가 직접 만든 입문용 로봇 키트입니다. 조립 설명서와 예제 코드가 함께 들어 있어요.",
+      "linkUrl": "https://robotics.example.com/p/seed-kit"
+    },
+    "post": {
+      "board": "promo",
+      "prefix": "제품",
+      "title": "[홍보] 시드로보틱스 입문용 로봇 키트를 소개합니다",
+      "bodyHtml": "<p>시드로보틱스가 직접 만든 입문용 로봇 키트를 소개합니다. 조립 설명서와 예제 코드가 함께 들어 있어요.</p>"
+    }
+  },
+  "homeGadgets": {
+    "_note": "홈 가젯(V51) 시험 데이터 — 템플릿 3종과 기본 가젯 28개는 마이그레이션이 만든다(시드가 아니다). 여기서는 이용자 유형별 템플릿 규칙 1줄(일반 회원 등급 3 이상 → 다음식)만 둔다. (화면 확인용으로 넣었던 「[시드] 로봇 게시판 새 글」 가젯은 홈에 시험 글처럼 보여서 뺐다.) 규칙이 하나도 없을 때만 넣는다. 기본 템플릿은 기본형(CLASSIC) 그대로다(이용자 개인 선택은 없다).",
+    "gadgets": [],
+    "rules": [
+      {
+        "audience": "GRADE_MIN",
+        "minGrade": 3,
+        "template": "DAUM",
+        "enabled": true
+      }
+    ]
+  },
+  "roboyamConcept": {
+    "siteTagline": "로봇과 AI, 쉽게 풀어 함께 이야기해요",
+    "_note": "ROBOYAM 운영 예시 — **운영자가 설정 화면에서 바꾼 값처럼** 넣는 시험 데이터다(범용 앱이라 코드·마이그레이션의 기본 이름은 중립이고, 이 값들은 ROBOYAM 개발 서버에서만 쓴다). 새 게시판(로보랩·로보팁 — 일반 게시판 — 과 각각의 소모임 게시판 로보랩 소모임·로보팁 소모임: boardKind GROUP 은 메뉴에 넣지 않고 groupCategoryName 의 소모임 분류에 할당한다), 서비스 이름(아이템샵 → 로보샵, 19금 → 후방), 홈 영역 제목(하이라이트 → 핫 로보픽), 영상·짤 게시판의 보기 모드·19금 허용·글 유형(AI 영상·AI 그림·사진·일상 풍경 사진·직접 촬영 영상·짤·유머). 이미 운영자가 바꾼 것은 건드리지 않는다.",
+    "boards": [
+      {
+        "slug": "lab",
+        "name": "로보랩",
+        "description": "로봇·AI 를 직접 만들고 개발하는 이야기를 나눠요.",
+        "layout": "LIST",
+        "ownPrefixes": [
+          "자랑",
+          "프로젝트",
+          "튜토리얼",
+          "자료",
+          "고민"
+        ]
+      },
+      {
+        "slug": "lab-groups",
+        "name": "로보랩 소모임",
+        "boardKind": "GROUP",
+        "groupCategoryName": "로보랩",
+        "description": "로봇·AI 를 직접 만들고 개발하는 이야기를 나눠요.",
+        "layout": "LIST",
+        "ownPrefixes": [
+          "자랑",
+          "프로젝트",
+          "튜토리얼",
+          "자료",
+          "고민"
+        ]
+      },
+      {
+        "slug": "tip",
+        "name": "로보팁",
+        "description": "쓰면서 알게 된 정보와 노하우를 모아요.",
+        "layout": "LIST",
+        "ownPrefixes": [
+          "꿀팁",
+          "사용기",
+          "가이드",
+          "정리",
+          "질문답"
+        ]
+      },
+      {
+        "slug": "tip-groups",
+        "name": "로보팁 소모임",
+        "boardKind": "GROUP",
+        "groupCategoryName": "로보팁",
+        "description": "쓰면서 알게 된 정보와 노하우를 모아요.",
+        "layout": "LIST",
+        "ownPrefixes": [
+          "꿀팁",
+          "사용기",
+          "가이드",
+          "정리",
+          "질문답"
+        ]
+      }
+    ],
+    "terms": {
+      "ITEM_SHOP": "로보샵",
+      "ADULT_LABEL": "후방"
+    },
+    "gadgetConfigs": [
+      { "template": "DAUM", "title": "핫 로보픽", "config": { "thumbs": "FIRST" } },
+      { "template": "NAVER", "title": "핫 로보픽", "config": { "thumbs": "FIRST" } },
+      { "template": "DAUM", "title": "방금 올라온 글", "config": { "thumbnail": "NONE" } }
+    ],
+    "gadgetTitles": [
+      {
+        "template": "DAUM",
+        "type": "HIGHLIGHT",
+        "from": "하이라이트",
+        "to": "핫 로보픽"
+      },
+      {
+        "template": "NAVER",
+        "type": "HIGHLIGHT",
+        "from": "하이라이트",
+        "to": "핫 로보픽"
+      }
+    ],
+    "postKinds": [
+      {
+        "name": "AI 영상",
+        "description": "AI 로 만든 영상이에요. 어떤 모델·도구·프롬프트를 썼는지 적어 주세요.",
+        "adultMode": "OPTIONAL",
+        "fieldGroups": [
+          {
+            "key": "AI_INFO",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "AI 그림·사진",
+        "description": "AI 로 만든 그림·사진이에요. 어떤 모델·도구·프롬프트를 썼는지 적어 주세요.",
+        "adultMode": "OPTIONAL",
+        "fieldGroups": [
+          {
+            "key": "AI_INFO",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "일상 풍경 사진",
+        "description": "직접 찍은 일상·풍경 사진이에요.",
+        "adultMode": "NONE",
+        "fieldGroups": [
+          {
+            "key": "PHOTO_INFO",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "직접 촬영 영상",
+        "description": "직접 찍은 영상이에요.",
+        "adultMode": "OPTIONAL",
+        "fieldGroups": [
+          {
+            "key": "PHOTO_INFO",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "짤·유머",
+        "description": "웃긴 짤과 영상이에요.",
+        "adultMode": "OPTIONAL",
+        "fieldGroups": []
+      }
+    ],
+    "boardSettings": [
+      {
+        "slug": "video",
+        "layout": "LIST",
+        "viewToggle": true,
+        "allowAdult": true,
+        "postKinds": [
+          "AI 영상",
+          "AI 그림·사진",
+          "일상 풍경 사진",
+          "직접 촬영 영상",
+          "짤·유머"
+        ]
+      }
+    ]
+  },
+  "galleryPosts": {
+    "_note": "영상·짤(video) 게시판 시험 글 — 이미지가 붙은 글(로더가 단색 PNG 800×600 을 올려 붙인다). 보기 전환·갤러리 격자·글 유형 입력칸(AI 정보·촬영 정보)·19금 노출을 눈으로 확인하는 용도. 글쓴이는 성인 확인(출생연도)을 한 상태로 만든다. 게시판에 글 유형이 연결돼 있으면(roboyamConcept.boardSettings) kind 를 이름으로 고른다.",
+    "board": "video",
+    "prefix": "짤",
+    "author": "e2e.author",
+    "authorBirthYear": 1990,
+    "width": 800,
+    "height": 600,
+    "items": [
+      {
+        "title": "파란 하늘 사진",
+        "color": [
+          64,
+          132,
+          232
+        ],
+        "kind": "일상 풍경 사진",
+        "kindData": {
+          "PHOTO_INFO": {
+            "place": "제주 한라산 둘레길",
+            "device": "스마트폰"
+          }
+        }
+      },
+      {
+        "title": "연두색 풀밭",
+        "color": [
+          112,
+          184,
+          96
+        ],
+        "kind": "일상 풍경 사진",
+        "kindData": {
+          "PHOTO_INFO": {
+            "place": "동네 공원",
+            "device": "미러리스 카메라",
+            "shotOn": "2026-09-20"
+          }
+        }
+      },
+      {
+        "title": "주황 노을",
+        "color": [
+          232,
+          144,
+          64
+        ],
+        "kind": "일상 풍경 사진"
+      },
+      {
+        "title": "보라 네온",
+        "color": [
+          152,
+          96,
+          208
+        ],
+        "kind": "AI 그림·사진",
+        "kindData": {
+          "AI_INFO": {
+            "model": "Midjourney v7",
+            "tool": "Discord",
+            "prompt": "neon purple city street at night, rain, cinematic, 35mm"
+          }
+        }
+      },
+      {
+        "title": "분홍 꽃",
+        "color": [
+          232,
+          112,
+          160
+        ],
+        "kind": "AI 영상",
+        "kindData": {
+          "AI_INFO": {
+            "model": "Runway Gen-4",
+            "tool": "Runway",
+            "prompt": "cherry blossoms falling slowly in the wind, soft light"
+          }
+        }
+      },
+      {
+        "title": "회색 콘크리트",
+        "color": [
+          128,
+          132,
+          140
+        ],
+        "kind": "짤·유머"
+      },
+      {
+        "title": "AI 노을 그림 — AI 정보 예시",
+        "color": [
+          220,
+          120,
+          80
+        ],
+        "kind": "AI 그림·사진",
+        "kindData": {
+          "AI_INFO": {
+            "model": "Stable Diffusion XL",
+            "tool": "ComfyUI",
+            "prompt": "sunset over the sea, oil painting, warm colors, highly detailed"
+          }
+        }
+      },
+      {
+        "title": "AI 영상 — 프롬프트 예시",
+        "color": [
+          90,
+          120,
+          200
+        ],
+        "kind": "AI 영상",
+        "kindData": {
+          "AI_INFO": {
+            "model": "Runway Gen-4",
+            "tool": "Runway",
+            "prompt": "a small robot walking through a rainy neon street, cinematic"
+          }
+        }
+      },
+      {
+        "title": "19금 표시 글 — 연령 제한 표현 예시",
+        "color": [
+          70,
+          70,
+          80
+        ],
+        "kind": "짤·유머",
+        "adult": true
+      }
+    ]
+  }
+}

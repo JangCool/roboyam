@@ -1,0 +1,88 @@
+package com.community.auth.service;
+
+import com.community.auth.dto.response.MeResponse;
+import com.community.auth.dto.response.RestrictionView;
+import com.community.auth.dto.response.UserView;
+import com.community.user.entity.Grade;
+import com.community.user.entity.ProfileEntity;
+import com.community.user.entity.Role;
+import com.community.user.entity.UserEntity;
+import com.community.user.entity.UserIdentityEntity;
+import com.community.user.entity.UserStatus;
+import com.community.user.repository.master.ProfileRepository;
+import com.community.user.repository.master.UserIdentityRepository;
+import com.community.user.repository.master.UserRepository;
+import com.community.zconfiguration.message.Messages;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * 로그인한 회원의 화면용 정보({@code me}). 로그인 응답도 같은 모양이다.
+ *
+ * <ul>
+ *   <li>{@code restriction}: 제재 표가 아직 없다 — {@code SUSPENDED}·{@code BANNED} 일 때만 {@code { status, until: null, pendingNotices: 0 }}, 그 밖에는 null.</li>
+ *   <li>{@code adminUrl}: 환경 변수 {@code ADMIN_URL}({@code roboyam.admin-url})이 {@code http(s)://} 로 시작하고, 운영자({@code ADMIN})이며 정상({@code ACTIVE})일 때만. 그 밖에는 null.</li>
+ *   <li>{@code businessStatus}: 사업자 기능이 없어 항상 null.</li>
+ *   <li>{@code gradeLabel}: 요청 언어(Accept-Language)로 푼 등급 이름.</li>
+ * </ul>
+ */
+@Service
+@Transactional(readOnly = true)
+public class MeService {
+
+    private final UserRepository users;
+    private final ProfileRepository profiles;
+    private final UserIdentityRepository identities;
+    private final Messages messages;
+    private final String adminUrl;
+
+    public MeService(UserRepository users, ProfileRepository profiles, UserIdentityRepository identities, Messages messages,
+                     @Value("${roboyam.admin-url:}") String adminUrl) {
+        this.users = users;
+        this.messages = messages;
+        this.profiles = profiles;
+        this.identities = identities;
+        this.adminUrl = normalizeAdminUrl(adminUrl);
+    }
+
+    /**
+     * 그 회원의 로그인 정보. 회원이나 프로필이 없거나 탈퇴한 계정이면 비어 있다 — 부르는 쪽은 그 세션을 낡은 것으로 본다.
+     */
+    public Optional<MeResponse> of(long userId) {
+        Optional<UserEntity> user = users.findById(userId).filter(u -> !u.isGone());
+        Optional<ProfileEntity> profile = profiles.findById(userId);
+        if (user.isEmpty() || profile.isEmpty()) {
+            return Optional.empty();
+        }
+        UserEntity u = user.get();
+        ProfileEntity p = profile.get();
+
+        List<String> methods = new ArrayList<>();
+        if (u.hasPassword()) {
+            methods.add("EMAIL");
+        }
+        for (UserIdentityEntity identity : identities.findByUserIdOrderByCreatedAtAsc(userId)) {
+            methods.add(identity.getProvider().name());
+        }
+
+        Grade grade = Grade.fromLevel(p.getGradeLevel());
+        UserView view = new UserView(Long.toString(u.getId()), p.getNickname(), grade.name(), messages.get(grade.labelKey()), u.getRole().name(), u.getEmail(),
+                u.isEmailVerified(), List.copyOf(methods), null);
+
+        boolean restricted = u.getStatus() == UserStatus.SUSPENDED || u.getStatus() == UserStatus.BANNED;
+        RestrictionView restriction = restricted ? new RestrictionView(u.getStatus().name(), null, 0) : null;
+
+        String link = u.getRole() == Role.ADMIN && u.getStatus() == UserStatus.ACTIVE ? adminUrl : null;
+        return Optional.of(new MeResponse(true, view, restriction, link));
+    }
+
+    /** 앞뒤 공백을 자른다. {@code http(s)://} 로 시작하지 않으면(비었거나 잘못된 값) 아무에게도 주지 않는다 */
+    private static String normalizeAdminUrl(String value) {
+        String url = value == null ? "" : value.strip();
+        return url.startsWith("http://") || url.startsWith("https://") ? url : null;
+    }
+}

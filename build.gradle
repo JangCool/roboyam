@@ -1,0 +1,16 @@
+/*
+ * 루트 빌드 — 조립만 한다.
+ *
+ * 실제 설정은 buildSrc 의 컨벤션 플러그인에 있다.
+ *   roboyam.java-conventions        자바 기본 (툴체인·인코딩·저장소·테스트)
+ *   roboyam.spring-conventions      Spring 라이브러리 (BOM·lombok·test)
+ *   roboyam.spring-app-conventions  실행 가능한 애플리케이션 (bootJar)
+ *   roboyam.querydsl-conventions    Querydsl QClass 생성
+ *   roboyam.mapstruct-conventions   MapStruct 엔티티 → DTO 매퍼 생성 (매핑 누락은 빌드 오류)
+ */
+
+plugins {
+    id 'base'
+}
+
+description = 'ROBOYAM'

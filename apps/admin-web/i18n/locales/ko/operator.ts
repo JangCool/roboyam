@@ -1,0 +1,151 @@
+/**
+ * 운영자 관리 (hamonica3 의 「회원 관리」를 옮김). 키는 `operator.무엇` 두 마디(상태·딱지는 `operator.status.*`·`operator.tag.*`). `en/operator.ts` 와 같은 키, 같은 차례.
+ * 용어: 회원 = 공개 사이트 이용자, **운영자 = 관리자 앱 계정**. 이 화면 어디에도 "회원"이라 쓰지 않는다.
+ * ⚠ `{0}` 는 PrimeVue 가 채우는 자리다 — 번역에서는 `{count}` 로 두고 화면이 `{ count: '{0}' }` 로 넘긴다.
+ */
+export default {
+    title: '운영자 관리',
+    subtitle: '관리자 앱에 로그인하는 계정과 계정 상태를 관리합니다.',
+
+    // 등록 단추
+    add: '운영자 추가',
+    invite: '초대',
+
+    // 탭
+    tabsLabel: '운영자 구분',
+    tabActive: '활성',
+    tabPending: '신규(승인 대기)',
+    tabBlocked: '잠김',
+    tabInvited: '초대 대기',
+
+    // 검색
+    searchPlaceholder: '이름 · 이메일',
+    clearSearch: '검색 지우기',
+
+    // 목록
+    loadFailed: '운영자 목록을 불러오지 못했어요',
+    emptyActive: '쓰고 있는 운영자가 없어요',
+    emptyActiveHint: '운영자를 추가하거나 초대하면 여기에 나와요.',
+    emptyPending: '승인을 기다리는 운영자가 없어요',
+    emptyPendingHint: '운영자 신청이 들어오면 여기에서 승인하거나 반려해요.',
+    emptyBlocked: '막힌 운영자가 없어요',
+    emptyBlockedHint: '잠그거나 사용 기간이 지난 운영자가 여기에 나와요.',
+    emptyInvited: '대기 중인 초대가 없어요',
+    emptyInvitedHint: '「초대」로 보낸 링크가 수락되기 전까지 여기에 나와요.',
+    inviteLoadFailed: '초대 목록을 불러오지 못했어요',
+    colName: '이름',
+    colEmail: '이메일',
+    colRoles: '역할',
+    colPeriod: '기간',
+    colStatus: '상태',
+    superTag: '최고 관리자',
+    superAllPermissions: '모든 권한',
+    noRole: '역할 없음',
+    rolesMore: '+{count}',
+    moreRoles: '외 {count}개 역할: {names}',
+    unlimited: '무기한',
+    approve: '승인',
+    approveLabel: '{name} 승인',
+    approved: '{name} 계정을 승인했어요',
+    reject: '반려',
+    rejectLabel: '{name} 반려',
+    rejectTitle: '신청을 반려할까요?',
+    rejectMessage: '「{name}」 님의 운영자 신청을 반려해요. 반려하면 신청이 목록에서 사라지고 되돌릴 수 없어요.',
+    rejectReason: '반려 사유 (선택)',
+    rejectReasonHelp: '비워 두어도 돼요. 적은 사유는 기록으로 남아요.',
+    rejectReasonPlaceholder: '예: 확인되지 않는 신청이에요.',
+    rejectReasonTooLong: '사유는 {max}자까지예요.',
+    rejected: '{name} 신청을 반려했어요',
+
+    // 대기 중인 초대
+    colInvitedAt: '초대한 시각',
+    colExpiresAt: '유효 기한',
+    inviteExpiredTag: '기한 지남',
+    inviteValidNote: '초대 링크는 보낸 뒤 {hours}시간 동안 유효해요(기본값). 기한이 지나면 링크로 등록할 수 없어요.',
+    cancelInvite: '초대 취소',
+    cancelInviteLabel: '{email} 초대 취소',
+    cancelInviteTitle: '초대를 취소할까요?',
+    cancelInviteMessage: '「{email}」에게 보낸 초대 링크를 쓸 수 없게 해요. 필요하면 다시 초대할 수 있어요.',
+    cancelInviteKeep: '그대로 두기',
+    inviteCancelled: '초대를 취소했어요',
+
+    // 상태 딱지 — 왜 막혔는지를 하나씩 짚는다
+    tag: {
+        pending: '승인 대기',
+        locked: '잠김',
+        expired: '기간 만료',
+        disabled: '사용 중지',
+        normal: '정상',
+    },
+
+    // 고른 운영자
+    detailTitle: '운영자 정보',
+    tabBasic: '기본 정보',
+    tabStatus: '계정 상태',
+    discardTitle: '저장하지 않은 변경이 있어요. 닫을까요?',
+    discardMessage: '닫으면 바뀐 내용이 사라져요.',
+    discardConfirm: '닫기',
+    discardKeep: '계속 편집',
+    superNotice: '최고 관리자 계정이에요. 역할·상태·기간을 바꿀 수 없어요.',
+    superNoRoles: '최고 관리자는 역할 없이 모든 권한을 가져요.',
+    readOnlyNote: '운영자를 고칠 권한이 없어 읽기만 할 수 있어요.',
+
+    // 기본 정보
+    fieldName: '이름',
+    fieldEmail: '이메일',
+    emailHelp: '로그인 아이디라 바꿀 수 없어요.',
+    fieldRoles: '역할',
+    rolesHelp: '여러 개를 고를 수 있어요. 권한은 고른 역할의 권한을 모두 합친 것이에요.',
+    rolesNeedGrant: '역할을 바꾸려면 「역할 변경(권한 상승)」 권한이 필요해요.',
+    rolesPlaceholder: '역할을 고르세요',
+    rolesSelectedCount: '{count}개 선택',
+    rolesFilterPlaceholder: '역할 찾기',
+    rolesEmpty: '고를 수 있는 역할이 없어요',
+    outOfScope: '내 권한 밖이에요',
+    periodTitle: '계정 기간',
+    periodStart: '시작',
+    periodEnd: '종료',
+    periodOpen: '비우면 제한 없음',
+    periodWarn: '종료가 지나면 로그인이 막혀요. 기간을 늘리면 다시 들어올 수 있어요.',
+    periodReversed: '시작이 종료보다 늦어요.',
+    nameRequired: '이름을 입력해 주세요.',
+    nameTooLong: '이름은 {max}자까지예요.',
+
+    // 계정 상태 — 켠 쪽이 "쓸 수 있는" 방향이다
+    loginRule: '로그인은 승인됨 · 잠기지 않음 · 사용 중 · 기간 안일 때만 돼요.',
+    lastSuperNote: '마지막으로 남은 활성 최고 관리자는 잠그거나 사용을 끌 수 없어요. 그러면 아무도 제품을 관리할 수 없어요.',
+    status: {
+        approval: '승인',
+        approvalHint: '끄면 로그인할 수 없어요. 신청한 직후에는 꺼져 있어요.',
+        unlocked: '잠금 해제',
+        unlockedHint: '끄면 관리자가 잠근 상태가 돼요.',
+        notExpired: '만료 아님',
+        notExpiredHint: '사용 기간이 지나면 배치가 자동으로 만료로 표시해요. 여기서 끌 수도 있어요.',
+        inUse: '사용',
+        inUseHint: '끄면 계정을 쓰지 않는 상태가 돼요. 지우는 대신 이것을 써요.',
+    },
+    needPermission: '권한이 필요해요: {permission}',
+    expiredNotice: '사용 기간이 지났어요.',
+    expiredNoticeTail: '만료를 꺼도 기간이 그대로면 다시 막혀요 — 「기본 정보」에서 기간을 늘려 주세요.',
+    saveStatus: '상태 저장',
+    statusSaved: '계정 상태를 바꿨어요',
+
+    // 운영자 등록 다이얼로그
+    dialogTitle: '운영자 등록',
+    modeLabel: '등록 방식',
+    modeCreate: '운영자 추가',
+    modeInvite: '초대',
+    createHint: '계정이 바로 만들어지고 임시 비밀번호가 이메일로 안내돼요.',
+    inviteHint: '초대 링크를 이메일로 보내요. 받은 사람이 링크에서 직접 등록해요. 링크는 {hours}시간 동안 유효해요.',
+    inviteEmails: '초대할 이메일',
+    inviteList: '초대할 사람',
+    inviteEmpty: '아직 추가한 주소가 없어요',
+    inviteEmptyHint: '이메일을 넣고 「추가」를 누르세요. 여러 명을 한 번에 초대할 수 있어요.',
+    invalidEmail: '이메일 형식이 올바르지 않아요.',
+    alreadyInList: '이미 목록에 있어요.',
+    removeEmail: '{email} 빼기',
+    sendInvites: '초대 보내기',
+    created: '{name} 운영자를 추가했어요',
+    inviteSent: '초대 메일을 {count}통 보냈어요',
+    inviteSomeFailed: '{count}건은 보내지 못했어요. 이유를 확인하고 고쳐서 다시 보내세요.',
+};

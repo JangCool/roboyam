@@ -1,0 +1,21 @@
+{
+    "name": "@roboyam/display-time",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "description": "user-web · admin-web 이 같이 쓰는 표시 값(언어·시간대·시간 형식·날짜 형식) Nuxt 레이어 — 시각 글자(UtilTime)·표시 값 상태·DatePicker·표시 값 폼",
+    "main": "./nuxt.config.ts",
+    "peerDependencies": {
+        "nuxt": "^4.6.2",
+        "primevue": "^5.0.2",
+        "vue": "^3.5.0"
+    },
+    "devDependencies": {
+        "nuxt": "4.6.2",
+        "primevue": "5.0.2",
+        "vue": "3.5.44"
+    },
+    "dependencies": {
+        "@roboyam/i18n": "workspace:*"
+    }
+}

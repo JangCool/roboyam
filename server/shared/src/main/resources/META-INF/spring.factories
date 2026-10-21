@@ -1,0 +1,2 @@
+org.springframework.boot.EnvironmentPostProcessor=\
+com.community.zconfiguration.crypto.EncryptedPropertyPostProcessor

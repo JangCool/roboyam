@@ -1,0 +1,34 @@
+plugins {
+    // 실행 앱이 아니라 평범한 라이브러리 jar 다 — bootJar 가 없다(roboyam.spring-app-conventions 를 쓰지 않는다).
+    id 'roboyam.spring-conventions'
+    // Q 클래스·매퍼 구현체는 엔티티·매퍼가 있는 이 모듈에서 만든다
+    id 'roboyam.querydsl-conventions'
+    id 'roboyam.mapstruct-conventions'
+}
+
+// api 와 admin 이 같이 쓰는 엔티티·저장소·서비스·DTO·공통 설정이 여기 있다.
+// 이 모듈의 코드가 직접 import 하는 라이브러리는 모두 여기서 선언한다 — 앱(api·admin)이 대신 선언해 주기를 기대하지 않는다.
+//
+// api(내보냄) = 이 모듈의 공개 시그니처(엔티티·저장소·서비스·DTO)에 타입이 나와서, 이 모듈을 쓰는 api·admin 의 컴파일에도 필요한 것.
+// implementation = 이 모듈 안에서만 쓰는 것.
+dependencies {
+    api 'org.springframework.boot:spring-boot-starter-data-jpa'
+    // RoboyamRepository 가 이 라이브러리의 타입을 상속한다. -hibernate-74 는 없어서 -hibernate-73 을 쓴다
+    api "io.hypersistence:hypersistence-utils-hibernate-73:${hypersistenceVersion}"
+    // 저장소·서비스 시그니처에 JPAQueryFactory·Q 타입이 나온다
+    api "com.querydsl:querydsl-jpa:${querydslVersion}:jakarta"
+
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    // GlobalExceptionHandler · SpaResourceConfig (zconfiguration)
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    // SecurityConfig (보안 필터 체인·CSRF·설치 가드) · PasswordEncoderConfig (bcrypt). starter 가 spring-security-crypto 를 함께 싣는다
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    // 메일 서버 설정의 연결 시험(MailSenderFactory · MailConnectionChecker) — JavaMailSenderImpl
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+    // 스키마 이관(Flyway). 앱이 동시에 기동해도 Flyway 가 DB 잠금으로 한 대만 적용한다. 마이그레이션 파일은 이 모듈(db/migration/shared)에 있다
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    // JDBC 드라이버. 실행 때만 필요하다
+    runtimeOnly 'org.postgresql:postgresql'
+}

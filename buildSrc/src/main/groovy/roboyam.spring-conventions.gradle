@@ -1,0 +1,29 @@
+/*
+ * Spring 라이브러리 모듈 규약. (bootJar 를 만들지 않는다)
+ *
+ * 실행 가능한 애플리케이션은 roboyam.spring-app-conventions 를 쓴다.
+ */
+
+plugins {
+    id 'roboyam.java-conventions'
+    id 'io.spring.dependency-management'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:" +
+                providers.gradleProperty('springBootVersion').get()
+    }
+}
+
+dependencies {
+    compileOnly             'org.projectlombok:lombok'
+    annotationProcessor     'org.projectlombok:lombok'
+    testCompileOnly         'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly    'org.junit.platform:junit-platform-launcher'
+}

@@ -1,0 +1,40 @@
+/*
+ * roboyam 자바 공통 규약.
+ *
+ * 모든 자바 모듈이 확실히 필요로 하는 것만 둔다.
+ */
+
+plugins {
+    // java-library — 모듈 간 의존에서 api / implementation 을 구분한다
+    id 'java-library'
+}
+
+group   = providers.gradleProperty('group').get()
+version = providers.gradleProperty('version').get()
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(
+                providers.gradleProperty('javaVersion').get() as int)
+    }
+}
+
+// 디렉토리명은 접두어 없이, 산출물 이름은 접두어를 붙인다
+base {
+    archivesName = "roboyam-${project.name}"
+}
+
+repositories {
+    mavenCentral()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-parameters'
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    // 시험 JVM 도 앱과 같이 UTC 로 돈다 — 호스트(개발 PC)의 시간대에 기대지 않는다
+    systemProperty 'user.timezone', 'UTC'
+}

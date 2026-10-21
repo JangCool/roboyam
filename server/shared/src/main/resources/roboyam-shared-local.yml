@@ -1,0 +1,22 @@
+# 로컬 개발 PC 전용 값 — docker/local/compose.yml 의 postgres 에 맞춘 기본값이다.
+# 환경 변수를 주면 그것이 먼저다. dev · prod 에는 기본값이 없다(roboyam-shared.yml).
+# 여기의 비밀번호는 개발용 평문이다 — ENC(...) 가 아니므로 복호화 키를 요구하지 않는다.
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5420/roboyam}
+    username: ${DB_USERNAME:roboyam}
+    password: ${DB_PASSWORD:roboyam}
+
+logging:
+  level:
+    root: INFO
+    com.community: DEBUG
+
+roboyam:
+  # Snowflake 서버 번호 — local 만 기본값이 있다(dev · prod 는 환경 변수 NODE_ID 가 필수)
+  node-id: ${NODE_ID:1}
+  # 설치 토큰 — local 만 개발용 기본값을 내장한다(화면 목업의 데모 값과 같다). 설치 전 DB 에서 /install 의 토큰 칸에 이 값을 넣으면 된다.
+  # 개발 PC 전용이다 — dev · prod 에서는 환경 변수 ROBOYAM_INSTALL_TOKEN 에 따로 만든 값을 넣거나 비워 두어 서버가 무작위 토큰을 로그에 출력하게 한다.
+  install:
+    token: ${ROBOYAM_INSTALL_TOKEN:roboyam-demo-token}

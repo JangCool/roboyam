@@ -1,0 +1,7 @@
+packages:
+  - apps/*
+  - apps-packages/*
+
+# 빌드 스크립트(postinstall)를 돌려도 되는 패키지 — esbuild 가 플랫폼 실행 파일을 연결한다(pnpm 12 의 승인 목록)
+allowBuilds:
+  esbuild: true
