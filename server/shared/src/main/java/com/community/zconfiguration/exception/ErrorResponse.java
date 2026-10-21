@@ -7,7 +7,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * 오류 응답 본문. 필드 오류가 없으면 {@code fields} 는 빈 객체이고, {@code retryAfterSeconds} 는 해당될 때만 나간다.
+ * 오류 응답 본문. 필드 오류가 없으면 {@code fields} 는 <b>나가지 않고</b>(빈 객체도 내지 않는다 — 화면은 {@code fields} 가 없는 것으로 읽는다), {@code retryAfterSeconds} 는 해당될 때만 나간다.
  *
  * <pre>{@code { "code": "VALIDATION", "message": "...", "fields": { "root.email": "..." }, "retryAfterSeconds": 600 } }</pre>
  *
@@ -16,7 +16,7 @@ import java.util.Map;
  * 키 이름 {@code code} 는 화면의 {@code useApiClient} 가 읽는 이름이다.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record ErrorResponse(String code, String message, Map<String, String> fields, Long retryAfterSeconds) {
+public record ErrorResponse(String code, String message, @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, String> fields, Long retryAfterSeconds) {
 
     public static ErrorResponse of(String code, String message) {
         return new ErrorResponse(code, message, Map.of(), null);

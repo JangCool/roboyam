@@ -1,6 +1,6 @@
 package com.community.audit.dto;
 
-/** 감사 기록의 행위 이름 — 운영자 기반(로그인·권한 거부·역할·운영자·초대)과 등급 설정·회원 상세 열람이 쓴다. 이름은 한 번 정하면 바꾸지 않는다(조회·필터가 기대는 값이다) */
+/** 감사 기록의 행위 이름 — 운영자 기반(로그인·권한 거부·역할·운영자·초대)과 등급 설정·회원 상세 열람·배치(켜기/끄기·cron·지금 실행)가 쓴다. 이름은 한 번 정하면 바꾸지 않는다(조회·필터가 기대는 값이다) */
 public final class AuditActions {
 
     public static final String LOGIN_SUCCESS = "LOGIN_SUCCESS";
@@ -19,6 +19,9 @@ public final class AuditActions {
     public static final String INVITATION_CANCEL = "INVITATION_CANCEL";
     public static final String GRADE_UPDATE = "GRADE_UPDATE";
     public static final String MEMBER_VIEW = "MEMBER_VIEW";
+    public static final String BATCH_TOGGLE = "BATCH_TOGGLE";
+    public static final String BATCH_SCHEDULE_CHANGE = "BATCH_SCHEDULE_CHANGE";
+    public static final String BATCH_RUN = "BATCH_RUN";
 
     private AuditActions() {
     }

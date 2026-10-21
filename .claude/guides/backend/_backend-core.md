@@ -25,6 +25,7 @@
 * **DB**: 스키마는 Flyway 만 만든다(`ddl-auto: none`). 스트림별 폴더 `db/migration/{shared,api,admin}` — `shared` 는 `flyway_schema_history`, 앱 스트림은 첫 파일에서 이력 표를 만든다. 번호는 스트림마다 연속·독립이고 적용된 파일은 고치지 않는다. 앱의 `roboyam.schema.stream` 이 자기 스트림을 정하고 api·admin 표는 서로 참조하지 않는다.
 * **설정**: `roboyam-shared.yml`(+ `-local`)을 각 앱 `application.yml` 이 import 한다. 환경은 빌드가 아니라 실행 때 `SPRING_PROFILES_ACTIVE`(기본 local)로 고른다. 환경 변수: `DB_URL`·`DB_USERNAME`·`DB_PASSWORD`(ENC)·`DB_POOL_SIZE`, `ROBOYAM_CRYPTO_KEY`, `ROBOYAM_INSTALL_TOKEN`, `NODE_ID`, `PUBLIC_URL`, `ADMIN_URL`, `ROBOYAM_PROXY_TRUSTED_HOPS`.
 * **설치·배포**: 첫 기동은 설치 전 상태이고 브라우저 `/install` 에서 토큰(`ROBOYAM_INSTALL_TOKEN`, 없으면 기동 로그에 1회 출력, IP당 5회 실패 시 10분 잠금) → 루트 계정 → 사이트 → 메일(건너뛰기) → 소셜(건너뛰기) → 기본 게시판 구성 → 확인 → 설치. 설치가 끝나면 마법사 API 는 닫힌다. `installer/roboyam-install.sh` 가 비밀을 자동 생성해 DB 비밀번호를 `ENC(...)` 로 `.env`(권한 600)에 기록하며 실패하면 만든 것을 모두 지운다. 암호화 키를 잃으면 암호문을 풀 수 없으므로 따로 백업한다.
+* **배치**: 예약 실행은 관리자 서버(`server/admin`, `com.community.batch`)가 맡는다. 배치 정의의 원천은 코드(`BatchCatalog`)이고 사용 여부·cron·실행 로그는 DB(`batch_jobs`·`batch_runs`)에 둔다. 새 배치는 `BatchJob` 구현(빈) 1개 + 카탈로그 1줄 + 메시지 번들(`batch.job.<키>.name/desc`, 결과 요약 키) 두 언어로 더한다 — 스케줄·락·로그·실패 처리는 실행기(`BatchRunner`)가 하므로 배치마다 `@Scheduled`·`try-catch` 를 쓰지 않는다. 구조·가정은 `docs/features/roles-contract.md` 「배치 인프라 결과」.
 * **검증**: 개발 중에는 `./gradlew :server:api:compileJava :server:admin:compileJava` 같은 최소 검사만 한다. 컴파일 통과는 런타임 정상을 보증하지 않으므로 dev 서버에서 해당 API 를 한 번 실제로 호출한다. 전체 테스트·E2E·전체 빌드는 요청 시에만 실행한다.
 
 ---

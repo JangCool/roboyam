@@ -10,9 +10,9 @@
 ## 2. 주요 업무 및 규약
 
 ### 2-1. 공통 응답 (`ApiResponse`) 과 오류 응답
-* 성공·실패 모두 같은 래퍼다: 성공 `{success:true, data, meta}`, 실패 `{success:false, error:{code, message, fields, retryAfterSeconds?}, meta}`(`error` 본문이 `ErrorResponse`). `null` 필드는 나가지 않는다(성공엔 `error` 없음, 실패엔 `data` 없음). 본문 없는 `204` 는 래퍼도 없다.
+* 성공·실패 모두 같은 래퍼다: 성공 `{success:true, data, meta}`, 실패 `{success:false, error:{code, message, fields?, retryAfterSeconds?}, meta}`(`error` 본문이 `ErrorResponse`). `null` 필드는 나가지 않는다(성공엔 `error` 없음, 실패엔 `data` 없음). 본문 없는 `204` 는 래퍼도 없다.
 * `meta` = `{timestamp(UTC ISO-8601), requestId, locale(ko|en)}`. `requestId` 는 요청 헤더 `X-Request-Id`(영숫자·`-`·`_` 64자 이하)를 쓰고 없거나 형식이 틀리면 서버가 UUID 를 만든다. 같은 값을 응답 헤더 `X-Request-Id` 와 로그(MDC `requestId`)에 싣는다. 필터·보안 단계에서 쓰는 오류 응답(`ErrorResponseWriter`)도 같은 모양이다.
-* `fields` 는 없으면 빈 객체, `retryAfterSeconds` 는 해당될 때만 나가고 `Retry-After` 헤더도 단다.
+* `fields` 는 칸 오류가 있을 때만 나가고(없으면 키 자체가 없다 — 화면은 `fields` 가 없는 것으로 읽는다), `retryAfterSeconds` 는 해당될 때만 나가고 `Retry-After` 헤더도 단다.
 * `CommonException` 은 HTTP 상태, 안정적인 `code`, 메시지 키(`MessageRef`)를 들고 온다. 핸들러가 하나라 새 예외를 만들 때 처리기를 고치지 않는다. 화면은 `code`(와 `fields` 경로)로 분기하므로 문구·언어가 바뀌어도 이 값은 유지된다.
 * 공통 코드(`ErrorCode`): `VALIDATION`·`MALFORMED_REQUEST`·`INVALID_PARAMETER`·`UNAUTHENTICATED`·`FORBIDDEN`·`CSRF_INVALID`·`NOT_FOUND`·`METHOD_NOT_ALLOWED`·`FILE_TOO_LARGE`·`CRYPTO_KEY_MISSING`·`DATABASE_UNAVAILABLE`·`INTERNAL`. 업무 코드는 여기에 추가하지 않고 업무 예외로 정의한다.
 * **`VALIDATION`(400)**: `fields` 키는 점·대괄호 경로(`root.email`, `items[0].name`)이고 DTO 선언 순서로 결정적이다. 칸마다 첫 문구만 담고 대표 `message` 는 첫 칸의 문구다. `@Valid` 실패는 처리기가, 서비스가 모으는 위반은 `ValidationException` 이 같은 응답으로 만든다(`service.md`).

@@ -28,7 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li><b>올리기만 한다</b> — 자동으로 내리지 않는다. 조건 두 개(가입 후 일수 · 글+댓글 수)를 <b>모두</b> 채운 가장 높은 등급으로 올린다(가정).</li>
  *   <li><b>시점</b>: 활동 수 조건은 사건(글·댓글)이 생길 때 즉시({@link #promoteOnEvent}), 가입 일수 조건은 시간이 지나야 채워지므로 배치({@link #promoteByElapsedTime}).
- *       배치 스케줄러·{@code /settings/batches} 연동은 아직 없다 — 이 메서드를 부르는 지점은 후속(스케줄러, 글·댓글 작성 서비스)이다.</li>
+ *       배치는 관리자 서버의 스케줄러가 하루 한 번 부른다(admin {@code GradePromotionBatchJob}, 기본 04:30 KST — 배치 인프라). 글·댓글 작성 때 {@link #promoteOnEvent} 를 부르는 지점은
+ *       아직 없다(글·댓글 기능이 없다).</li>
  *   <li><b>소급</b>: 기준을 낮추거나 등급을 추가하면 이미 조건을 채운 회원도 올린다({@link #promoteAll}) — 등급 저장 서비스가 저장 직후 부른다.</li>
  *   <li><b>대상</b>: 정상(ACTIVE) 회원만. 정지 회원은 자동 승급이 멈추고(제재로 중지) 탈퇴 회원은 대상이 아니다. 수동으로 올린 회원은 등급 옵션이
  *       {@code CONTINUE_AUTO} 일 때만 포함한다.</li>
@@ -74,10 +75,14 @@ public class GradePromotionService {
 
     /**
      * <b>배치</b> — 지금 저장된 등급 기준으로 모든 정상 회원을 판정해 올린다(가입 일수가 지나 새로 조건을 채운 회원 포함). 올린 회원 수.
-     * 스케줄러가 하루 한 번(주기는 미확정) 부르는 진입점이다.
+     * 관리자 서버의 배치 스케줄러가 하루 한 번(시각은 가정 — 정책 문서 미확정 11) 부르는 진입점이다.
+     *
+     * <p>등급 옵션 행을 먼저 잠근다 — 등급 설정 저장({@code GradeService#save}, 같은 행을 잠근다)이 진행 중이면 끝나기를 기다린 뒤 <b>저장된 등급 목록</b>으로 판정한다.
+     * 잠그지 않으면 저장 중인 등급 변경(삭제될 등급)을 모른 채 올리려다 등급 참조 오류로 실패할 수 있다.
      */
     @Transactional
     public long promoteByElapsedTime(Instant now) {
+        settings.findWithLockById(GradeSettingEntity.ROW_ID);
         List<GradeThreshold> ordered = thresholdsOf(gradeQueries.findAllOrdered());
         long promoted = promoteAll(ordered, includeManualNow(), now);
         log.info("등급 승급 배치: {}명 올림", promoted);

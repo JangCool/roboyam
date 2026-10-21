@@ -10,7 +10,7 @@ import java.time.temporal.ChronoUnit;
  *
  * <pre>{@code
  * 성공: { "success": true,  "data": { ... },  "meta": { "timestamp": "...", "requestId": "...", "locale": "ko" } }
- * 실패: { "success": false, "error": { "code": "...", "message": "...", "fields": {}, "retryAfterSeconds": 600 }, "meta": { ... } }
+ * 실패: { "success": false, "error": { "code": "...", "message": "...", "fields": { ... }(칸 오류가 있을 때만), "retryAfterSeconds": 600(해당될 때만) }, "meta": { ... } }
  * }</pre>
  *
  * <p>본문 없는 성공({@code 204})은 래퍼도 없다. 목록은 {@code data} 가 배열이다. {@code meta} 는 팩터리가 현재 요청 문맥({@link RequestIdHolder})에서 채우므로

@@ -1,6 +1,7 @@
 package com.community.role.repository.master;
 
 import com.community.grade.entity.GradeRoles;
+import com.community.grade.entity.QGradeEntity;
 import com.community.role.dto.OperatorRoleRow;
 import com.community.role.entity.QOperatorRoleEntity;
 import com.community.role.entity.QRoleEntity;
@@ -33,6 +34,7 @@ import org.springframework.stereotype.Repository;
 public class RoleRepositoryQDSL extends RoboyamRepositoryQDSL {
 
     private static final QRoleEntity ROLE = QRoleEntity.roleEntity;
+    private static final QGradeEntity GRADE = QGradeEntity.gradeEntity;
     private static final QRolePermissionEntity PERMISSION = QRolePermissionEntity.rolePermissionEntity;
     private static final QOperatorRoleEntity OPERATOR_ROLE = QOperatorRoleEntity.operatorRoleEntity;
     private static final QUserRoleEntity USER_ROLE = QUserRoleEntity.userRoleEntity;
@@ -43,9 +45,13 @@ public class RoleRepositoryQDSL extends RoboyamRepositoryQDSL {
         super(query);
     }
 
-    /** 모든 역할 — 제품이 넣은 역할이 앞, 그다음 만든 순서(같은 시각이면 아이디순) */
+    /**
+     * 모든 역할 — 제품이 넣은 역할이 앞이다. 그 안에서 등급이 아닌 역할은 만든 순서(같은 시각이면 아이디순), 등급 역할은 <b>등급 서열({@code grades.level}) 순</b>으로 그 뒤에 온다.
+     * 등급 역할의 만든 시각은 그 등급을 저장한 때라 가운데에 끼워 넣은 등급이 서열과 다른 자리에 오므로 서열로 정렬한다. 등급 역할 아이디가 {@code ROLE_GRADE_<등급 키>} 라서 등급 표와 아이디로 잇는다.
+     */
     public List<RoleEntity> findAllOrdered() {
-        return query.selectFrom(ROLE).orderBy(ROLE.builtin.desc(), ROLE.createdAt.asc(), ROLE.roleId.asc()).fetch();
+        return query.selectFrom(ROLE).leftJoin(GRADE).on(ROLE.roleId.eq(GRADE.gradeKey.prepend(GradeRoles.PREFIX)))
+                .orderBy(ROLE.builtin.desc(), GRADE.level.asc().nullsFirst(), ROLE.createdAt.asc(), ROLE.roleId.asc()).fetch();
     }
 
     /** 역할 유형마다 든 역할 수 */
