@@ -58,6 +58,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>종합 관리</b> 유형의 운영자 역할은 최고 관리자만 만들고 고치고 지운다(403 {@code ROLE_GENERAL_SUPER_ONLY}).</li>
  *   <li><b>권한 상승 방지</b>: 운영자 역할에 권한을 새로 줄 때는 요청한 운영자가 <b>가진 권한 안에서만</b> 줄 수 있다(403 {@code PERMISSION_ESCALATION}). 이미 있던 권한은 그대로 둘 수 있다.
  *       회원 역할에는 이 규칙이 없다. 운영자 역할의 권한을 바꾸려면 {@code role.grant}, 회원 역할은 {@code role.manage} 가 필요하다.</li>
+ *   <li>등급 역할(파생)은 이름·설명을 고치거나 직접 지울 수 없다(409 {@code ROLE_DERIVED}) — 권한만 고친다. 등급 설정이 만들고 지운다.</li>
  *   <li>내장 역할은 못 지운다(409 {@code ROLE_BUILTIN}), 쓰는 운영자·회원이 있으면 못 지운다(409 {@code ROLE_IN_USE}).</li>
  *   <li>변경은 감사 기록으로 남긴다(권한은 {@code granted}/{@code revoked}). 거부(권한 상승·종합 관리)도 따로 커밋되는 감사 기록으로 남는다.</li>
  * </ul>
@@ -188,6 +189,9 @@ public class RoleService {
     public void delete(AdminActor actor, String roleId) {
         RoleEntity role = lock(roleId);
         requireSuperIfGeneral(actor, role);
+        if (RoleTypes.GRADE.equals(role.getRoleTypeId())) {
+            throw new RoleDerivedException(); // 등급 역할은 등급 설정이 만들고 지운다 — 등급을 지우면 함께 사라진다
+        }
         if (role.isBuiltin()) {
             throw new RoleBuiltinException();
         }

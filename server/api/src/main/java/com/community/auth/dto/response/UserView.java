@@ -5,7 +5,7 @@ import java.util.List;
 /**
  * 화면에 내려가는 로그인한 회원 정보. ID 는 <b>문자열</b>이다(Snowflake 64비트라 JavaScript 숫자로 못 다룬다).
  *
- * @param grade          {@code SEEDLING} · {@code REGULAR} · {@code LOYAL} · {@code VETERAN}
+ * @param grade          등급 설정의 등급 키 — 기본은 {@code SEEDLING} · {@code REGULAR} · {@code LOYAL} · {@code VETERAN}, 운영자가 더한 등급은 {@code GRADE_5} …
  * @param role           {@code USER} · {@code STAFF} · {@code ADMIN}
  * @param email          소셜 가입자가 이메일을 안 줬으면 null
  * @param authMethods    비밀번호가 있으면 {@code EMAIL}, 연결된 소셜 공급자마다 {@code KAKAO} · {@code NAVER} · {@code GOOGLE}

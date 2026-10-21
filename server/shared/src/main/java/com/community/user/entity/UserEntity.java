@@ -85,6 +85,37 @@ public class UserEntity {
         return emailVerifiedAt != null;
     }
 
+    public Instant getEmailVerifiedAt() {
+        return emailVerifiedAt;
+    }
+
+    public String getTermsVersion() {
+        return termsVersion;
+    }
+
+    public Instant getTermsAgreedAt() {
+        return termsAgreedAt;
+    }
+
+    /** 만 14세 이상 확인 시각 */
+    public Instant getAgeConfirmedAt() {
+        return ageConfirmedAt;
+    }
+
+    public Instant getLastLoginAt() {
+        return lastLoginAt;
+    }
+
+    /** 가입 시각 */
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    /** 탈퇴한 시각 — 탈퇴하지 않았으면 null */
+    public Instant getDeletedAt() {
+        return deletedAt;
+    }
+
     /** 탈퇴했거나 지워진 계정인가 — 로그인할 수 없고 로그인 상태로 보지 않는다 */
     public boolean isGone() {
         return status == UserStatus.WITHDRAWN || deletedAt != null;

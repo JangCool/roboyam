@@ -29,6 +29,10 @@ public class UserIdentityEntity {
     protected UserIdentityEntity() {
     }
 
+    public Long getUserId() {
+        return userId;
+    }
+
     public SocialProvider getProvider() {
         return provider;
     }

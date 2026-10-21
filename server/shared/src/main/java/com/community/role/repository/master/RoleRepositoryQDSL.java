@@ -1,13 +1,19 @@
 package com.community.role.repository.master;
 
+import com.community.grade.entity.GradeRoles;
 import com.community.role.dto.OperatorRoleRow;
 import com.community.role.entity.QOperatorRoleEntity;
 import com.community.role.entity.QRoleEntity;
 import com.community.role.entity.QRolePermissionEntity;
 import com.community.role.entity.QUserRoleEntity;
+import com.community.role.entity.MemberRoleIds;
 import com.community.role.entity.RoleEntity;
+import com.community.user.entity.QProfileEntity;
+import com.community.user.entity.QUserEntity;
+import com.community.user.entity.UserStatus;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.core.Tuple;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.Collection;
 import java.util.HashMap;
@@ -15,6 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.springframework.stereotype.Repository;
 
@@ -29,6 +36,8 @@ public class RoleRepositoryQDSL extends RoboyamRepositoryQDSL {
     private static final QRolePermissionEntity PERMISSION = QRolePermissionEntity.rolePermissionEntity;
     private static final QOperatorRoleEntity OPERATOR_ROLE = QOperatorRoleEntity.operatorRoleEntity;
     private static final QUserRoleEntity USER_ROLE = QUserRoleEntity.userRoleEntity;
+    private static final QProfileEntity PROFILE = QProfileEntity.profileEntity;
+    private static final QUserEntity USER = QUserEntity.userEntity;
 
     public RoleRepositoryQDSL(JPAQueryFactory query) {
         super(query);
@@ -92,12 +101,20 @@ public class RoleRepositoryQDSL extends RoboyamRepositoryQDSL {
         return counts;
     }
 
-    /** 역할을 가진 회원 수 — 역할마다 */
+    /**
+     * 역할을 가진 회원 수 — 역할마다. 직접 부여한 역할은 {@code user_roles} 를 세고, <b>파생 역할</b>은 행이 없어 따로 센다:
+     * 등급 역할({@code ROLE_GRADE_<키>})은 그 등급의 회원, 일반 회원은 사업자 회원 역할이 없는 회원. 두 경우 모두 탈퇴 회원은 뺀다.
+     */
     public Map<String, Long> memberCountByRole() {
         Map<String, Long> counts = new HashMap<>();
         for (Tuple row : query.select(USER_ROLE.roleId, USER_ROLE.count()).from(USER_ROLE).groupBy(USER_ROLE.roleId).fetch()) {
             counts.put(row.get(USER_ROLE.roleId), row.get(USER_ROLE.count()));
         }
+        for (Tuple row : query.select(PROFILE.gradeKey, PROFILE.count()).from(PROFILE).join(USER).on(USER.id.eq(PROFILE.userId))
+                .where(USER.status.ne(UserStatus.WITHDRAWN)).groupBy(PROFILE.gradeKey).fetch()) {
+            counts.put(GradeRoles.roleIdOf(row.get(PROFILE.gradeKey)), row.get(PROFILE.count()));
+        }
+        counts.put(MemberRoleIds.GENERAL, generalMemberCount());
         return counts;
     }
 
@@ -106,9 +123,33 @@ public class RoleRepositoryQDSL extends RoboyamRepositoryQDSL {
         return count == null ? 0 : count;
     }
 
+    /** 역할을 가진 회원 수 — 파생 역할(등급·일반 회원)은 {@link #memberCountByRole()} 와 같은 규칙으로 센다 */
     public long memberCountOf(String roleId) {
+        if (MemberRoleIds.GENERAL.equals(roleId)) {
+            return generalMemberCount();
+        }
+        Optional<String> gradeKey = GradeRoles.gradeKeyOf(roleId);
+        if (gradeKey.isPresent()) {
+            Long count = query.select(PROFILE.count()).from(PROFILE).join(USER).on(USER.id.eq(PROFILE.userId))
+                    .where(PROFILE.gradeKey.eq(gradeKey.get()), USER.status.ne(UserStatus.WITHDRAWN)).fetchOne();
+            return count == null ? 0 : count;
+        }
         Long count = query.select(USER_ROLE.count()).from(USER_ROLE).where(USER_ROLE.roleId.eq(roleId)).fetchOne();
         return count == null ? 0 : count;
+    }
+
+    /** 일반 회원 수 — 탈퇴하지 않았고 사업자 회원 역할이 없는 회원 */
+    private long generalMemberCount() {
+        Long count = query.select(USER.count()).from(USER)
+                .where(USER.status.ne(UserStatus.WITHDRAWN),
+                        JPAExpressions.selectOne().from(USER_ROLE).where(USER_ROLE.userId.eq(USER.id), USER_ROLE.roleId.eq(MemberRoleIds.BUSINESS)).notExists())
+                .fetchOne();
+        return count == null ? 0 : count;
+    }
+
+    /** 그 역할을 직접 부여받은 회원 행을 모두 지운다(역할을 지울 때) */
+    public void deleteUserRoles(String roleId) {
+        query.delete(USER_ROLE).where(USER_ROLE.roleId.eq(roleId)).execute();
     }
 
     /** 운영자들이 받은 역할(이름 포함) — 운영자마다 역할 만든 순서 */

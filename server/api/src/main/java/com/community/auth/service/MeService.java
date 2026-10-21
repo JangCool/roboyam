@@ -3,7 +3,8 @@ package com.community.auth.service;
 import com.community.auth.dto.response.MeResponse;
 import com.community.auth.dto.response.RestrictionView;
 import com.community.auth.dto.response.UserView;
-import com.community.user.entity.Grade;
+import com.community.grade.entity.GradeEntity;
+import com.community.grade.repository.master.GradeRepository;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserEntity;
 import com.community.user.entity.UserIdentityEntity;
@@ -11,7 +12,6 @@ import com.community.user.entity.UserStatus;
 import com.community.user.repository.master.ProfileRepository;
 import com.community.user.repository.master.UserIdentityRepository;
 import com.community.user.repository.master.UserRepository;
-import com.community.zconfiguration.message.Messages;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>{@code restriction}: 제재 표가 아직 없다 — {@code SUSPENDED}·{@code BANNED} 일 때만 {@code { status, until: null, pendingNotices: 0 }}, 그 밖에는 null.</li>
  *   <li>{@code adminUrl}: 항상 null — 운영자는 공개 사이트에 로그인하지 않는다(회원과 별도 계정, 관리자 앱에서만 일한다). 화면의 칸은 남겨 두었다.</li>
  *   <li>{@code businessStatus}: 사업자 기능이 없어 항상 null.</li>
- *   <li>{@code gradeLabel}: 요청 언어(Accept-Language)로 푼 등급 이름.</li>
+ *   <li>{@code grade}: 등급 설정의 등급 키(기본 SEEDLING·REGULAR·LOYAL·VETERAN), {@code gradeLabel}: 그 등급의 이름 — 운영자가 등급 설정에서 입력한 값이라 요청 언어와 상관없이 같다.</li>
  * </ul>
  */
 @Service
@@ -35,11 +35,11 @@ public class MeService {
     private final UserRepository users;
     private final ProfileRepository profiles;
     private final UserIdentityRepository identities;
-    private final Messages messages;
+    private final GradeRepository grades;
 
-    public MeService(UserRepository users, ProfileRepository profiles, UserIdentityRepository identities, Messages messages) {
+    public MeService(UserRepository users, ProfileRepository profiles, UserIdentityRepository identities, GradeRepository grades) {
         this.users = users;
-        this.messages = messages;
+        this.grades = grades;
         this.profiles = profiles;
         this.identities = identities;
     }
@@ -64,8 +64,8 @@ public class MeService {
             methods.add(identity.getProvider().name());
         }
 
-        Grade grade = Grade.fromLevel(p.getGradeLevel());
-        UserView view = new UserView(Long.toString(u.getId()), p.getNickname(), grade.name(), messages.get(grade.labelKey()), u.getRole().name(), u.getEmail(),
+        String gradeLabel = grades.findById(p.getGradeKey()).map(GradeEntity::getLabel).orElse(p.getGradeKey()); // 등급 행이 없을 수는 없지만(외래키) 키라도 보인다
+        UserView view = new UserView(Long.toString(u.getId()), p.getNickname(), p.getGradeKey(), gradeLabel, u.getRole().name(), u.getEmail(),
                 u.isEmailVerified(), List.copyOf(methods), null);
 
         boolean restricted = u.getStatus() == UserStatus.SUSPENDED || u.getStatus() == UserStatus.BANNED;
