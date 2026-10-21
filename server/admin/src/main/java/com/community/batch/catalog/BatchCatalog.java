@@ -14,7 +14,10 @@ public enum BatchCatalog {
     GRADE_PROMOTION("grade-promotion", BatchCategory.MEMBER, "0 30 4 * * *", true),
 
     /** 보관 기간이 지난 배치 실행 로그 삭제 — 하루 한 번(새벽 03:30). 보관 일수는 {@code roboyam.batch.log-retention-days} */
-    BATCH_LOG_CLEANUP("batch-log-cleanup", BatchCategory.SYSTEM, "0 30 3 * * *", true);
+    BATCH_LOG_CLEANUP("batch-log-cleanup", BatchCategory.SYSTEM, "0 30 3 * * *", true),
+
+    /** 올리기만 하고 어디에도 지정하지 않은 채 오래된 파일(files.status = PENDING) 삭제 — 하루 한 번(새벽 03:45). 기준 시간은 {@code roboyam.media.orphan-retention-hours} */
+    FILE_ORPHAN_CLEANUP("file-orphan-cleanup", BatchCategory.SYSTEM, "0 45 3 * * *", true);
 
     private final String key;
     private final BatchCategory category;

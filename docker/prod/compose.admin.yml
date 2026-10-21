@@ -38,4 +38,10 @@ services:
       DB_POOL_SIZE: ${ADMIN_DB_POOL_SIZE:-5}
       PUBLIC_URL: ${PUBLIC_URL:-}
       JAVA_OPTS: ${ADMIN_JAVA_OPTS:--XX:MaxRAMPercentage=60}
+    # 올린 이미지 저장 폴더 — 관리자 앱이 쓰므로 공개 사이트 앱 서버(compose.yml)와 같은 공유 디스크 경로를 MEDIA_DIR 에 준다(자세한 설명은 compose.yml)
+    volumes:
+      - ${MEDIA_DIR:-roboyam-media}:/var/lib/roboyam/media
     stop_grace_period: 40s
+
+volumes:
+  roboyam-media:

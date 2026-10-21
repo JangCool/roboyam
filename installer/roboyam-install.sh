@@ -112,6 +112,7 @@ DIR=$(abs_path "$DIR")
 C_PG="$PROJECT-postgres"
 C_APP="$PROJECT-app"
 V_PG="$PROJECT-pgdata"
+V_MEDIA="$PROJECT-media"   # 올린 이미지(로고·사이트 아이콘·링크 미리보기 이미지) 볼륨 — templates/compose.yml 의 media
 N_NET="$PROJECT-net"
 
 STAMP=$(date +%Y%m%d-%H%M%S)
@@ -265,7 +266,7 @@ find_conflicts() {
     for n in "$C_PG" "$C_APP"; do
         if obj_exists container "$n" && ! is_old_run container "$n"; then list_add CONFLICTS "컨테이너 $n"; fi
     done
-    for n in "$V_PG"; do
+    for n in "$V_PG" "$V_MEDIA"; do
         if obj_exists volume "$n" && ! is_old_run volume "$n"; then list_add CONFLICTS "볼륨 $n"; fi
     done
     if obj_exists network "$N_NET" && ! is_old_run network "$N_NET"; then list_add CONFLICTS "네트워크 $N_NET"; fi
@@ -399,7 +400,7 @@ if [ -n "$CONFLICTS" ]; then
     while IFS= read -r n; do errp '   - %s\n' "$n"; done <<< "$CONFLICTS"
     fail "다른 --project 이름을 쓰거나, 이 자원이 이전 설치의 흔적이면 roboyam-uninstall.sh --project $PROJECT 로 먼저 정리하세요."
 fi
-note "이름 충돌 없음: 컨테이너 $C_PG $C_APP / 볼륨 $V_PG / 네트워크 $N_NET"
+note "이름 충돌 없음: 컨테이너 $C_PG $C_APP / 볼륨 $V_PG $V_MEDIA / 네트워크 $N_NET"
 
 if [ "$BIND" != "127.0.0.1" ]; then
     warn "--bind $BIND: 앱 포트가 이 서버 바깥에 열립니다. 요청이 평문 HTTP 로 오갑니다 — 앞단에 HTTPS 리버스 프록시(Caddy·nginx·ALB)를 두고, 설치가 끝날 때까지는 신뢰할 수 있는 망에서만 여세요."
@@ -585,7 +586,7 @@ step 3 "compose 파일 만들기"
 sed -e "s|@@PROJECT@@|$PROJECT|g" -e "s|@@RUN_ID@@|$RUN_ID|g" "$SCRIPT_DIR/templates/compose.yml" > "$DIR/compose.yml"
 ( compose_unset_ambient; cd "$DIR" && docker compose --env-file .env -f compose.yml config -q ) >> "${LOG_FILE:-/dev/null}" 2>&1 \
     || fail "compose 파일 검증에 실패했습니다(상세는 로그: ${LOG_FILE:-없음})."
-note "compose.yml 생성·검증 완료 — postgres:18 + app, 네트워크 $N_NET, 볼륨 $V_PG, 앱 포트 $BIND:$HTTP_PORT 만 바깥에 열림, 모든 자원에 라벨 $LABEL_PROJECT=$PROJECT"
+note "compose.yml 생성·검증 완료 — postgres:18 + app, 네트워크 $N_NET, 볼륨 $V_PG $V_MEDIA, 앱 포트 $BIND:$HTTP_PORT 만 바깥에 열림, 모든 자원에 라벨 $LABEL_PROJECT=$PROJECT"
 
 # =============================================================================
 # [4/6] 앱 이미지
@@ -632,6 +633,7 @@ step 5 "DB · 앱 기동과 대기"
 manifest_add container "$C_PG"
 manifest_add container "$C_APP"
 manifest_add volume "$V_PG"
+manifest_add volume "$V_MEDIA"
 manifest_add network "$N_NET"
 
 wait_db() {
@@ -700,7 +702,7 @@ note "앱 기동됨($((SECONDS - started))초): $INFO_BODY"
 # =============================================================================
 step 6 "설치 요약"
 say "   설치 폴더   : $DIR"
-say "   프로젝트    : $PROJECT  (컨테이너 $C_PG · $C_APP, 볼륨 $V_PG)"
+say "   프로젝트    : $PROJECT  (컨테이너 $C_PG · $C_APP, 볼륨 $V_PG · $V_MEDIA)"
 say "   앱 주소     : $PUBLIC_URL    (이 PC 에서: http://$PROBE_HOST:$HTTP_PORT)"
 say "   .env 위치   : $DIR/.env  (권한 600 — 암호화 키와 DB 비밀번호 암호문이 들어 있다)"
 say "   DB 평문     : $DIR/secrets/db_password  (권한 600 — postgres 컨테이너가 읽는다. 앱은 이 파일을 쓰지 않는다)"

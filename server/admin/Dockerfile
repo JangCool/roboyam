@@ -18,6 +18,11 @@ ENV JAVA_OPTS=""
 EXPOSE 8080
 
 RUN useradd --system --no-create-home roboyam
+
+# 올린 이미지(로고·사이트 아이콘·링크 미리보기 이미지) 저장 폴더 — 공개 사이트(api)와 관리자 앱(admin)이 같은 볼륨을 이 경로에 마운트한다(admin 이 쓰고 둘 다 /media/** 로 내보낸다).
+# 빈 볼륨은 이 폴더의 소유자를 물려받으므로 실행 계정으로 맞춰 둔다
+ENV ROBOYAM_STORAGE_PATH=/var/lib/roboyam/media
+RUN mkdir -p /var/lib/roboyam/media && chown roboyam /var/lib/roboyam/media
 USER roboyam
 
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]

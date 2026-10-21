@@ -41,6 +41,12 @@ roboyam:
   # 관리자 앱 주소(환경 변수 ADMIN_URL, http(s)://…) — 초대 메일의 링크 기준. 비어 있으면 초대 메일을 보내지 못하고 로그만 남긴다
   admin-url: ${ADMIN_URL:}
 
+  # 이미지 처리 보호 한도(사이트 로고·아이콘·링크 미리보기 이미지 올리기). 저장소 위치는 공유 설정 roboyam.storage
+  media:
+    max-concurrent-processing: 2  # 동시에 디코딩·변환할 이미지 수(디코딩한 그림은 메모리를 많이 쓴다). 모자라면 기다리다 10초가 지나면 503 IMAGE_BUSY
+    acquire-timeout-seconds: 10
+    orphan-retention-hours: 24    # 올리기만 하고 지정하지 않은 파일을 지우기까지 두는 시간
+
   # 배치 스케줄러 (docs/features/roles-contract.md 「배치 인프라 결과」 가정). 배치 정의는 코드(BatchCatalog), 사용 여부·cron 은 DB(batch_jobs)가 원천이다
   batch:
     scheduler-enabled: true       # 이 서버가 예약 실행을 하는가(false 면 「지금 실행」만 된다)

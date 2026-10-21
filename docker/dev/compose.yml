@@ -63,6 +63,9 @@ services:
       <<: *roboyam-env
       # Snowflake ID 서버 번호 — 앱·관리자 앱이 서로 달라야 ID 가 겹치지 않는다
       NODE_ID: ${NODE_ID}
+    # 올린 이미지(로고·사이트 아이콘·링크 미리보기 이미지) — 관리자 앱이 쓰고 두 앱이 같은 볼륨을 /media/** 로 내보낸다
+    volumes:
+      - roboyam-dev-media:/var/lib/roboyam/media
     stop_grace_period: 40s
 
   # 관리자 앱 — 공개 사이트(app)와 다른 도메인(ADMIN_DOMAIN)으로 접속한다. 같은 DB 를 쓰지만 세션은 따로다.
@@ -79,6 +82,8 @@ services:
       NODE_ID: ${ADMIN_NODE_ID}
       # 관리 콘솔은 트래픽이 작다 — 한 대에 같이 올리므로 힙을 작게 잡는다
       JAVA_OPTS: ${ADMIN_JAVA_OPTS:--Xmx512m}
+    volumes:
+      - roboyam-dev-media:/var/lib/roboyam/media
     stop_grace_period: 40s
 
   # HTTPS 종단. 인증서 발급·갱신(Let's Encrypt)은 Caddy 가 알아서 한다
@@ -101,5 +106,6 @@ services:
 
 volumes:
   roboyam-dev-pgdata:
+  roboyam-dev-media:
   roboyam-dev-caddy-data:
   roboyam-dev-caddy-config:

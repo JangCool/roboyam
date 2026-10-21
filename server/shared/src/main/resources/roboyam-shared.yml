@@ -46,6 +46,12 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
+  # 파일 올리기(multipart) 한도. 이미지 규칙(2MB)은 서비스가 판정하고 "지금 몇 MB" 를 문구로 알려야 하므로 그 위(10MB)까지는 받아 서비스가 거절한다. 그 위는 413 FILE_TOO_LARGE
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 11MB
+
 server:
   shutdown: graceful
   # Caddy 뒤에서 도므로 X-Forwarded-* 를 따른다(원래 주소·https 여부 — 세션·CSRF 쿠키의 Secure 판단)
@@ -74,6 +80,11 @@ management:
       show-details: never
 
 roboyam:
+  # 올린 이미지(로고·사이트 아이콘·링크 미리보기 이미지)의 저장소. 로컬 디스크 폴더를 공개 사이트(api)와 관리자 앱(admin)이 같이 본다 — admin 이 쓰고 둘 다 /media/** 로 읽는다.
+  # 도커·설치형은 같은 볼륨을 두 앱의 이 경로에 마운트한다(docker/*, installer/). 서버가 여러 대이면 공유 디스크(NFS·EFS)나 S3(후속)가 필요하다
+  storage:
+    type: local
+    local-path: ${ROBOYAM_STORAGE_PATH:/var/lib/roboyam/media}
   # Snowflake ID 의 서버 번호(0~1023). 앱 서버마다 달라야 한다(공개 사이트·관리자 앱·서버 여러 대 모두 서로 다른 값). dev · prod 는 기본값이 없다 — 빠지면 기동이 실패한다
   node-id: ${NODE_ID}
   # 메일 서버 연결 시험의 시간 제한(설치 마법사 mail-check)

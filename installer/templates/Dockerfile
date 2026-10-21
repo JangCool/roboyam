@@ -17,6 +17,10 @@ EXPOSE 8080
 # 실행 계정(root 가 아니게). Debian/Ubuntu 계열은 useradd, Alpine 은 adduser
 RUN (useradd --system --uid 10001 --no-create-home roboyam 2>/dev/null \
       || adduser -S -u 10001 -H roboyam)
+
+# 올린 이미지 저장 폴더 — 볼륨(media)을 여기에 마운트한다. 실행 계정이 쓸 수 있게 소유자를 맞춰 둔다(빈 볼륨은 이 폴더의 소유자를 물려받는다)
+ENV ROBOYAM_STORAGE_PATH=/var/lib/roboyam/media
+RUN mkdir -p /var/lib/roboyam/media && chown 10001 /var/lib/roboyam/media
 USER 10001
 
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]

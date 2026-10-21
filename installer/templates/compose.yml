@@ -69,7 +69,11 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-}
       # 평문 HTTP 로 쓰면 false(.env 의 PUBLIC_URL 이 http 일 때 설치기가 정한다). https 앞단이 있으면 true
       SERVER_SERVLET_SESSION_COOKIE_SECURE: ${SERVER_SERVLET_SESSION_COOKIE_SECURE:-true}
+      # 올린 이미지(로고·사이트 아이콘·링크 미리보기 이미지) 저장 폴더 — 아래 media 볼륨. 앱이 /media/** 로 내보낸다(이미지를 올리는 관리자 앱이 같은 볼륨을 쓰려면 함께 마운트한다)
+      ROBOYAM_STORAGE_PATH: /var/lib/roboyam/media
       JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=70}
+    volumes:
+      - media:/var/lib/roboyam/media
     networks: [net]
     stop_grace_period: 40s
 
@@ -85,4 +89,7 @@ networks:
 volumes:
   pgdata:
     name: @@PROJECT@@-pgdata
+    labels: *labels
+  media:
+    name: @@PROJECT@@-media
     labels: *labels

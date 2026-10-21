@@ -22,4 +22,7 @@ dependencies {
     // 운영자 로그인 세션을 DB(admin 스트림 V1 의 admin_spring_session 표 — 공개 사이트의 spring_session 과 분리)에 둔다. AdminSession 이 CookieSerializer(spring-session-core)를 쓰고, 세션 저장소를 DB 로 바꾸는 런타임 구성이기도 하다.
     // 쿠키 이름은 공개 사이트의 SESSION 과 분리된 ADMIN_SESSION 이다
     implementation 'org.springframework.boot:spring-boot-starter-session-jdbc'
+
+    // 사이트 아이콘의 SVG 소스를 크기별 PNG 로 그린다(SvgRasterizer). 순수 Java2D·의존 라이브러리 없음·MIT. 외부 자원 읽기는 끄고 쓴다. 공개 사이트(api)는 쓰지 않는다
+    implementation "com.github.weisj:jsvg:${jsvgVersion}"
 }
