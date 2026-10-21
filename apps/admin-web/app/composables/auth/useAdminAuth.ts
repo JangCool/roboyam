@@ -84,6 +84,14 @@ export function useAdminAuth() {
     }
 
     /**
+     * 서버가 로그인시킨 응답(`me` 모양)을 로그인 상태로 받아들인다 — 비밀번호 재설정 성공(`POST /password-reset`)이 이 경우다.
+     * `login` 과 같은 `apply` 를 거치므로 로그인 성공과 같은 결과다(표시 값 플러그인이 사용자가 바뀐 것을 보고 내 표시 형식을 받는다).
+     */
+    function adopt(res: AdminMeResponse): AdminUser | null {
+        return apply(res);
+    }
+
+    /**
      * 로그아웃. **서버가 실패해도 화면 상태는 지운다** — 여기서 붙잡으면 눌렀는데 로그인 상태로 남는다
      * (공용 PC 에서 가장 나쁜 결과).
      */
@@ -95,5 +103,5 @@ export function useAdminAuth() {
         }
     }
 
-    return { user, siteLabel, siteLogoUrl, setSiteName, setSiteLogoUrl, loaded, isLoggedIn, refresh, ensureLoaded, login, logout };
+    return { user, siteLabel, siteLogoUrl, setSiteName, setSiteLogoUrl, loaded, isLoggedIn, refresh, ensureLoaded, login, adopt, logout };
 }

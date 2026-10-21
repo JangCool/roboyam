@@ -1,15 +1,15 @@
 import type { TokenProblem } from '~/composables/account/api/useAdminAccountApi.types';
 
 /**
- * 운영자 계정 비밀번호 흐름(초대 수락 · 비밀번호 재설정)의 순수 규칙. 후보 계약이라 코드는 확정 전이다(`useAdminAccountApi.ts` 머리 주석).
+ * 운영자 계정 비밀번호 흐름(초대 수락 · 비밀번호 재설정)의 순수 규칙. 오류 코드는 서버 `AdminAccountController` 가 주는 것이다(`useAdminAccountApi.ts` 머리 주석).
  */
 
 /** 초대 링크가 쓸 수 없는 이유를 가르는 서버 오류 코드 */
 const INVITATION_CODES: Readonly<Record<string, TokenProblem>> = {
+    // 모르는·빈·취소된 토큰 모두 — 서버는 취소한 초대를 지우므로 취소를 따로 알리지 않는다
     INVITATION_NOT_FOUND: 'invalid',
     INVITATION_EXPIRED: 'expired',
     INVITATION_USED: 'used',
-    INVITATION_CANCELED: 'canceled',
 };
 
 export default class UtilAccount {
@@ -33,7 +33,7 @@ export default class UtilAccount {
     /**
      * 초대 확인·수락이 던진 오류 코드를 "초대를 쓸 수 없는 이유"로 바꿉니다. 그 밖의 코드(네트워크·서버 오류·입력 오류)는 null.
      * @param {string} code - `ApiError.code`.
-     * @returns {TokenProblem | null} `invalid` · `expired` · `used` · `canceled`, 해당 없으면 null.
+     * @returns {TokenProblem | null} `invalid` · `expired` · `used`, 해당 없으면 null.
      */
     static invitationProblem(code: string): TokenProblem | null {
         return INVITATION_CODES[code] ?? null;
@@ -41,6 +41,7 @@ export default class UtilAccount {
 
     /**
      * 승인번호 때문에 거절됐는가 — 틀림·만료·이미 씀·너무 많이 틀림·받은 적 없음(`CERT_CODE_*`). 승인번호 칸 아래에 서버 문구를 보인다.
+     * `PASSWORD_RESET_NOT_ALLOWED`(403, 계정이 막힘)는 `CERT_CODE_` 묶음이 아니라 false 다 — 폼 위쪽에 보인다.
      * @param {string} code - `ApiError.code`.
      * @returns {boolean} 승인번호 오류이면 true.
      */

@@ -2,12 +2,12 @@
     <!--
         초대 수락 `/invitation?token=…` — 로그인 전 화면. 초대 메일의 링크(유효 72시간)로 들어와 이름·비밀번호를 정하고 계정을 만든다. 배치·문구는 hamonica3 초대 가입(`signup.vue` 의 `?invite=`)을 따랐다:
         초대받은 역할 안내(info) · 이메일 읽기 전용 · 이름/비밀번호/확인 · 쓸 수 없는 초대는 경고(warn) 상자.
-        흐름: 토큰 확인 중(스켈레톤) → 유효하면 입력 폼 → 성공 안내(로그인으로) / 쓸 수 없는 초대(없음·올바르지 않음·만료·이미 사용·취소 — 각각 다른 문구) / 확인 실패(다시 시도).
-        MOCK: 서버가 없어 `useAdminAccountApi` 가 목업을 부른다. 시나리오는 주소의 `?mock=` (예: `&mock=invitation-expired`) — 목록은 `composables/account/api/mock/account-mock.ts` 머리 주석.
+        흐름: 토큰 확인 중(스켈레톤) → 유효하면 입력 폼 → 성공 안내(로그인으로) / 쓸 수 없는 초대(주소에 토큰 없음·사용할 수 없는 링크(모르는·취소된 토큰 — 서버는 같은 `INVITATION_NOT_FOUND`)·만료·이미 사용 — 각각 다른 문구) / 확인 실패(다시 시도).
+        칸에 붙지 않는 오류(`OPERATOR_EMAIL_DUPLICATED` 409 · 서버 오류 …)는 폼 위쪽에 서버 문구 그대로 보인다.
         이미 로그인한 사람이 열어도 막지 않는다(상단 안내만 — 다른 사람이 받은 링크일 수 있다). 비밀번호·토큰은 이 화면 메모리에만 두고 제출이 끝나면 비운다.
     -->
     <h1 ref="heading" tabindex="-1" class="text-center text-lg font-semibold outline-none">{{ t('account.invitationTitle') }}</h1>
-    <p v-if="phase === 'checking' || phase === 'ready'" class="mb-4 mt-1 text-center text-sm text-muted-color">{{ t('account.invitationSubtitle') }}</p>
+    <p v-if="phase === 'checking' || phase === 'ready'" class="mb-4 mt-2 text-center text-sm text-muted-color">{{ t('account.invitationSubtitle') }}</p>
 
     <!-- 이미 로그인한 사람의 안내 — 화면은 막지 않는다 -->
     <Message v-if="isLoggedIn" severity="info" :closable="false" size="small" class="mb-4">

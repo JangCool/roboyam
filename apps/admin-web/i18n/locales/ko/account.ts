@@ -57,14 +57,12 @@ export default {
     invitationDoneBody: '방금 정한 비밀번호로 로그인할 수 있어요.',
     invitation_missingTitle: '초대 링크를 확인해 주세요.',
     invitation_missingBody: '주소에 초대 정보가 없어요. 받은 메일의 링크를 그대로 열어 주세요.',
-    invitation_invalidTitle: '올바르지 않은 초대 링크예요.',
-    invitation_invalidBody: '링크가 잘못됐거나 일부만 복사됐을 수 있어요. 받은 메일의 링크를 다시 열어 보고, 그래도 안 되면 초대한 분께 다시 요청해 주세요.',
+    invitation_invalidTitle: '사용할 수 없는 초대 링크예요.',
+    invitation_invalidBody: '링크가 잘못됐거나 일부만 복사됐거나, 취소된 초대일 수 있어요. 받은 메일의 링크를 다시 열어 보고, 그래도 안 되면 초대한 분께 다시 요청해 주세요.',
     invitation_expiredTitle: '초대가 만료됐어요.',
     invitation_expiredBody: '초대한 분께 다시 요청해 주세요.',
     invitation_usedTitle: '이미 사용한 초대예요.',
     invitation_usedBody: '이 초대로는 계정을 이미 만들었어요. 로그인해 주세요. 비밀번호가 기억나지 않으면 비밀번호 재설정을 이용해 주세요.',
-    invitation_canceledTitle: '취소된 초대예요.',
-    invitation_canceledBody: '초대가 취소됐어요. 초대한 분께 확인해 주세요.',
 
     // 비밀번호 재설정 — ① 이메일로 승인번호 받기 ② 승인번호 + 새 비밀번호를 함께 보내기
     forgotSeoTitle: '비밀번호 재설정',
@@ -86,5 +84,5 @@ export default {
     reenter: '← 다시 입력',
     resetSubmit: '비밀번호 바꾸기',
     resetting: '바꾸는 중…',
-    resetDone: '비밀번호를 바꿨어요. 새 비밀번호로 로그인해 주세요.',
+    resetDone: '비밀번호를 바꿨어요',
 };

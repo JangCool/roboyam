@@ -6,6 +6,7 @@ import type {
     PasswordResetCodeResponse,
     PasswordResetRequest,
 } from '~/composables/account/api/useAdminAccountApi.types';
+import type { AdminMeResponse } from '~/composables/auth/api/useAdminAuthApi.types';
 import UtilAdminAuthMessages from '~/utils/util-admin-auth-messages';
 
 /**
@@ -34,7 +35,8 @@ export function useAdminAccount() {
         checkInvitation: (token: string): Promise<InvitationCheckResponse> => run(() => api.checkInvitation(token)),
         acceptInvitation: (body: InvitationAcceptRequest): Promise<void> => run(() => api.acceptInvitation(body)),
         requestPasswordResetCode: (email: string): Promise<PasswordResetCodeResponse> => run(() => api.requestPasswordResetCode({ email })),
-        resetPassword: (body: PasswordResetRequest): Promise<void> => run(() => api.resetPassword(body)),
+        /** 성공하면 서버가 곧바로 로그인시킨 `me` 를 돌려준다 — 화면이 `useAdminAuth().adopt` 로 로그인 상태에 반영한다 */
+        resetPassword: (body: PasswordResetRequest): Promise<AdminMeResponse> => run(() => api.resetPassword(body)),
         changePassword: (body: PasswordChangeRequest): Promise<void> => run(() => api.changePassword(body)),
         asApiError,
     };

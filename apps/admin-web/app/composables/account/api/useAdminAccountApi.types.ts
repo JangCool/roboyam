@@ -1,11 +1,10 @@
 /**
- * 운영자 계정의 비밀번호 흐름(초대 수락 · 비밀번호 재설정 · 비밀번호 변경) API 가 주고받는 모양 — **후보 계약, 확정 전**(목업이 부르는 모양).
- * 화면을 확정한 뒤 서버 구현과 함께 다시 맞춘다. 경로·오류 코드는 `useAdminAccountApi.ts` 머리 주석.
+ * 운영자 계정의 비밀번호 흐름(초대 수락 · 비밀번호 재설정 · 비밀번호 변경) API 가 주고받는 모양 — 서버 DTO(`InvitationCheckResponse` · `PasswordResetCodeResponse` …)와 같다. 경로·오류 코드는 `useAdminAccountApi.ts` 머리 주석.
+ * 비밀번호 재설정 성공 응답은 로그인 응답과 같은 `AdminMeResponse`(`auth/api/useAdminAuthApi.types`)다.
  * ⚠ ID 는 문자열이다(Snowflake 64비트). 시각은 UTC ISO 다. 비밀번호·토큰·승인번호는 화면 메모리에만 두고 URL·저장소·로그·토스트에 남기지 않는다(`forms.md` 2-1).
  *
  * 비밀번호 재설정은 hamonica3 의 비밀번호 찾기와 같은 두 걸음이다 — ① 이메일 → 승인번호를 메일로 ② 승인번호 + 새 비밀번호를 **한 번에** 보낸다.
- * 값(후보 — hamonica3 `CertService`·`CertEntity` 와 같다): 숫자 6자리 · 유효 10분 · 5번 틀리면 소진(다시 받아야 함) · 다시 받으면 이전 번호는 못 쓴다.
- * 다시 받기 간격 60초는 hamonica3 에는 없고 공개 사이트(`resendCooldownSeconds`)의 값이다.
+ * 값(서버 설정값 — hamonica3 `CertService`·`CertEntity` 와 같다): 숫자 6자리 · 유효 10분 · 5번 틀리면 소진(다시 받아야 함) · 다시 받으면 이전 번호는 못 쓴다 · 다시 받기 간격 60초(요청 응답의 `cooldownSeconds`, 너무 잦으면 429 의 `retryAfterSeconds`).
  */
 
 /** 초대로 받을 역할 하나 — 이름은 운영자가 정한 값 그대로 보인다 */
@@ -57,5 +56,8 @@ export interface PasswordChangeRequest {
     newPassword: string;
 }
 
-/** 초대 링크가 쓸 수 없는 이유 — 서버 오류 `code` 에서 나온다(화면이 `code` 로 가르고 문구는 화면이 고른다) */
-export type TokenProblem = 'invalid' | 'expired' | 'used' | 'canceled';
+/**
+ * 초대 링크가 쓸 수 없는 이유 — 서버 오류 `code` 에서 나온다(화면이 `code` 로 가르고 문구는 화면이 고른다).
+ * `invalid` 는 모르는·빈·취소된 토큰이다(서버는 취소한 초대를 지우므로 `INVITATION_NOT_FOUND` 로 보인다).
+ */
+export type TokenProblem = 'invalid' | 'expired' | 'used';

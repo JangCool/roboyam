@@ -1,6 +1,6 @@
 <template>
     <h1 class="text-center text-lg font-semibold">{{ t('login.title') }}</h1>
-    <p class="mb-4 mt-1 text-center text-sm text-muted-color">{{ t('login.subtitle') }}</p>
+    <p class="mb-4 mt-2 text-center text-sm text-muted-color">{{ t('login.subtitle') }}</p>
 
     <!-- 세션이 끝나 돌아온 경우(다른 화면에서 401 UNAUTHENTICATED) -->
     <Message v-if="route.query.expired === '1'" severity="warn" :closable="false" class="mb-4" size="small">

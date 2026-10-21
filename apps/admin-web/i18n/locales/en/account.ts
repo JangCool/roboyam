@@ -57,14 +57,12 @@ export default {
     invitationDoneBody: 'You can sign in with the password you just chose.',
     invitation_missingTitle: 'Check the invitation link.',
     invitation_missingBody: 'The address has no invitation in it. Open the link from the email exactly as it is.',
-    invitation_invalidTitle: 'This invitation link is not valid.',
-    invitation_invalidBody: 'The link may be wrong or only partly copied. Open the link from the email again, and if that does not work, ask the person who invited you.',
+    invitation_invalidTitle: 'This invitation link cannot be used.',
+    invitation_invalidBody: 'The link may be wrong, only partly copied, or the invitation may have been canceled. Open the link from the email again, and if that does not work, ask the person who invited you.',
     invitation_expiredTitle: 'The invitation has expired.',
     invitation_expiredBody: 'Ask the person who invited you to send it again.',
     invitation_usedTitle: 'This invitation was already used.',
     invitation_usedBody: 'An account was already created with this invitation. Sign in. If you do not remember the password, reset it.',
-    invitation_canceledTitle: 'This invitation was canceled.',
-    invitation_canceledBody: 'The invitation was canceled. Please check with the person who invited you.',
 
     // Reset password — 1) get an approval code by email 2) send the code and the new password together
     forgotSeoTitle: 'Reset password',
@@ -86,5 +84,5 @@ export default {
     reenter: '← Enter again',
     resetSubmit: 'Change password',
     resetting: 'Changing…',
-    resetDone: 'Your password was changed. Sign in with the new password.',
+    resetDone: 'Your password was changed',
 };

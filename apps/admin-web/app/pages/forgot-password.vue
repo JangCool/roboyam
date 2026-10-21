@@ -3,11 +3,11 @@
         비밀번호 재설정 `/forgot-password` — 로그인 전 화면. hamonica3 의 비밀번호 찾기(`find-password.vue`)와 같은 **한 화면 두 걸음**이다:
           ① 이메일을 넣으면 승인번호(숫자 6자리, 10분)가 메일로 간다  ② 승인번호와 새 비밀번호를 **함께** 넣어 한 번에 보낸다(승인번호만 먼저 확인받는 단계가 없다).
         **가입 여부를 알려 주지 않는다** — 어떤 이메일이든 「보냈어요」라고만 말한다(서버도 같은 답). [승인번호 다시 받기]는 60초 카운트다운 뒤에 켜진다.
-        성공하면 MOCK 은 로그인 화면으로 보내고 토스트로 알린다(REAL 은 서버가 곧바로 로그인시키면 홈으로 — `onReset` 의 REAL 주석).
-        MOCK: 서버가 없어 `useAdminAccountApi` 가 목업을 부른다. 시나리오는 주소의 `?mock=forgot-limited|reset-code-wrong|…` — 목록은 `composables/account/api/mock/account-mock.ts` 머리 주석. 승인번호는 어떤 6자리든 맞는 것으로 친다.
+        성공하면 서버가 곧바로 로그인시킨다(200 + 로그인된 `me`) — 로그인 화면으로 보내지 않고 그 응답으로 로그인 상태를 갱신한 뒤 홈(`/`)으로 간다. 이미 로그인한 사람이 열어도 막지 않는다(`guest` 미들웨어 없음).
+        칸에 붙지 않는 오류(`PASSWORD_RESET_NOT_ALLOWED` 403 · 서버 오류 · 이메일 형식 …)는 폼 위쪽에, 승인번호 오류(`CERT_CODE_*`)는 승인번호 칸 아래에 서버 문구 그대로 보인다.
     -->
     <h1 class="text-center text-lg font-semibold">{{ t('account.forgotTitle') }}</h1>
-    <p class="mb-4 mt-1 text-center text-sm text-muted-color">{{ step === 'email' ? t('account.forgotEmailSubtitle') : t('account.forgotCodeSubtitle') }}</p>
+    <p class="mb-4 mt-2 text-center text-sm text-muted-color">{{ step === 'email' ? t('account.forgotEmailSubtitle') : t('account.forgotCodeSubtitle') }}</p>
 
     <!-- ① 이메일 -->
     <form v-if="step === 'email'" class="flex flex-col gap-4" novalidate @submit.prevent="onRequest">
@@ -111,6 +111,7 @@ const { t } = useI18n();
 useSeoMeta({ title: () => t('account.forgotSeoTitle') });
 
 const account = useAdminAccount();
+const { adopt } = useAdminAuth();
 const toast = useAppToast();
 
 const step = ref<'email' | 'reset'>('email');
@@ -215,15 +216,15 @@ async function onReset() {
 
     submitting.value = true;
     try {
-        await account.resetPassword({ email: sentEmail.value, certCode: certCode.value.trim(), newPassword: password.value });
+        const me = await account.resetPassword({ email: sentEmail.value, certCode: certCode.value.trim(), newPassword: password.value });
         // 성공 — 입력한 값은 바로 비운다
         certCode.value = '';
         password.value = '';
         confirm.value = '';
-        // MOCK: 로그인 화면으로 보내고 토스트로 알린다(토스트는 화면을 옮겨도 이어서 보인다)
+        // 서버가 곧바로 로그인시켰다 — 그 응답으로 로그인 상태를 갱신하고(로그인 성공과 같은 처리) 홈으로. 토스트는 화면을 옮겨도 이어서 보인다
+        adopt(me);
         toast.success(t('account.resetDone'), 6000);
-        await navigateTo('/login', { replace: true });
-        // REAL: 서버가 곧바로 로그인시키면(hamonica3 방식) `await useAdminAuth().refresh(); await navigateTo('/', { replace: true });` — 자동 로그인 여부는 확정 필요
+        await navigateTo('/', { replace: true });
     } catch (e) {
         const failure = account.asApiError(e);
         if (UtilAccount.isCertCodeError(failure.code)) {
@@ -233,12 +234,17 @@ async function onReset() {
             await nextTick();
             codeInput.value?.$el.focus();
         } else if (failure.code === 'VALIDATION' && (failure.fields?.certCode || failure.fields?.newPassword)) {
+            // 승인번호 형식(숫자 6자리가 아님)은 CERT_CODE_INVALID 가 아니라 `fields.certCode` 로 온다
             fieldErrors.certCode = failure.fields.certCode;
             fieldErrors.password = failure.fields.newPassword;
             await nextTick();
             if (fieldErrors.certCode) codeInput.value?.$el.focus();
             else newPassword.value?.focusPassword();
+        } else if (failure.code === 'VALIDATION' && failure.fields?.email) {
+            // 이메일 칸은 ①단계에 있어 여기서 붙일 곳이 없다 — 서버 문구를 폼 위쪽에
+            error.value = new ApiError({ status: failure.status, code: failure.code, message: failure.fields.email });
         } else {
+            // 칸에 붙지 않는 오류 — PASSWORD_RESET_NOT_ALLOWED(403, 승인번호는 맞는데 계정이 막힘) · 서버 오류 · 네트워크 … 서버 문구 그대로 폼 위쪽에
             error.value = failure;
         }
     } finally {
