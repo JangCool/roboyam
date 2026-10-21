@@ -51,7 +51,7 @@ export interface LoginHistoryItem {
     at: string;
     /** 접속한 IP. 모르면 null */
     ip: string | null;
-    /** 로그인 요청의 `User-Agent` 원문. 화면이 브라우저·운영체제·기기 종류로 풀어 보인다(`UtilUserAgent`). ⚠ 서버가 아직 남기지 않아 지금은 늘 null — 그동안 화면은 접속 환경 줄을 그리지 않는다 */
+    /** 로그인 요청의 접속 환경 **요약**(서버 6단계) — `Chrome / Windows / Desktop`(영문 고정 낱말), 못 알아내면 정제한 원문 앞 80글자. 화면은 그대로 보인다. UA 를 남기기 전의 옛 기록이나 헤더가 없던 요청은 null — 화면은 접속 환경 줄을 그리지 않는다 */
     agent: string | null;
     result: LoginResult;
     /** 실패 사유 코드 — 지금 서버는 실패면 늘 `INVALID_CREDENTIALS`(틀린 비밀번호와 계정 상태를 가르지 않는다). 성공이면 null. 화면은 아는 코드만 문구로 바꾸고 모르는 코드는 그대로 보인다 */

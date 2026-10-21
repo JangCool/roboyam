@@ -1,6 +1,6 @@
 /**
  * 관리자 알림의 문구 — 종 알림 서랍과 알림 이벤트 관리 화면(`/settings/notifications`). 알림 제목·본문은 서버가 요청 언어로 만들어 주는 값이라 여기에 없다.
- * 영역 이름은 권한 영역(`permission.area.*`)을 같이 쓰고, 권한에 없는 `security`(보안)만 여기 있다(`areaSecurity`). 이벤트 이름·설명은 `notificationEvent.ts`(목업 전용).
+ * 영역 이름은 권한 영역(`permission.area.*`)을 같이 쓰고, 권한에 없는 `security`(보안)만 여기 있다(`areaSecurity`). 이벤트 이름·설명·수신 대상 문구도 서버가 요청 언어로 풀어 주므로 여기에 없다.
  * 키는 `notification.무엇` 두 마디(심각도 `severity.*` 만 세 마디). `en/notification.ts` 와 같은 키, 같은 차례.
  */
 export default {

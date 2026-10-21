@@ -45,7 +45,7 @@ export default {
     // Preferences — alerts
     notifications: 'Alerts',
     emailNotification: 'Email alerts',
-    emailNotificationHint: 'Turns off notification emails only. System emails such as invitations and password resets cannot be turned off.',
+    emailNotificationHint: 'Only notification emails can be turned off. System emails such as invitations, password resets and verification codes cannot be turned off.',
     emailNotificationOn: 'You will receive notification emails',
     emailNotificationOff: 'You will no longer receive notification emails',
     events: 'Alerts by event',

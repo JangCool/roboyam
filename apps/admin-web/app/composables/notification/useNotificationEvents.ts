@@ -63,7 +63,8 @@ export function useNotificationEvents() {
             // 그 줄만 되돌린다 — 서버 문구를 그대로 보인다
             replace(event.code, event);
             const failure = errorOf(e);
-            toast.error(failure.message, 8000);
+            // 400 VALIDATION 은 일반 문구(`message`)이고 구체적인 이유(이메일 불가 이벤트 등)는 칸 오류(`fields`)에 있다 — 있으면 그것을 보인다
+            toast.error(failure.fields?.emailEnabled ?? failure.fields?.enabled ?? failure.message, 8000);
             if (['NOTIFICATION_MANDATORY', 'NOTIFICATION_EVENT_NOT_READY', 'NOTIFICATION_EVENT_NOT_FOUND'].includes(failure.code)) await load(true);
         } finally {
             saving.value = saving.value.filter((code) => code !== event.code);

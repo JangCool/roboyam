@@ -15,6 +15,8 @@ import type { OperatorCreateRequest, OperatorInvitationView, OperatorInviteReque
  *   지우는 API 는 없다 — 운영자를 지우면 감사 기록의 주인이 사라진다. 「사용 중지」가 대신한다.
  * 오류 코드: `OPERATOR_NOT_FOUND` 404 · `OPERATOR_EMAIL_DUPLICATED` 409 · `OPERATOR_ROOT_PROTECTED` 409(루트 계정의 역할·상태·기간 변경) ·
  *   `OPERATOR_NOT_PENDING` 409(승인 대기가 아닌 계정 반려) · `INVITATION_NOT_FOUND` 404 · `INVITATION_DUPLICATED` 409 · `OPERATOR_PERIOD_REVERSED` 400 · `OPERATOR_ROLE_NOT_FOUND` 400 ·
+ *   `NICKNAME_TAKEN` 409(추가·수정의 이름이 다른 운영자와 같음 — 대소문자 무시, `fields.operatorName`) ·
+ *   `OPERATOR_INVITATION_PENDING` 409(직접 추가의 이메일로 유효한 대기 초대가 이미 있음 — `fields.email`, 초대를 취소한 뒤 다시 추가) ·
  *   `PERMISSION_ESCALATION` 403(내 권한 밖의 권한을 가진 역할을 주려 함) · `ROLE_GENERAL_SUPER_ONLY` 403 · `PERMISSION_DENIED` 403 · `VALIDATION` 400(`fields`).
  */
 const PATH = {

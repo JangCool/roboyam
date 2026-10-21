@@ -1,6 +1,6 @@
 /**
  * Admin notifications — the bell drawer and the notification events screen (`/settings/notifications`). Notification titles and bodies come from the server in the request language, so they are not here.
- * Area names reuse the permission areas (`permission.area.*`); only `security`, which permissions do not have, is here (`areaSecurity`). Event names and descriptions are in `notificationEvent.ts` (mock only).
+ * Area names reuse the permission areas (`permission.area.*`); only `security`, which permissions do not have, is here (`areaSecurity`). Event names, descriptions and recipient text are also resolved by the server in the request language, so they are not here.
  * Keys are two parts: `notification.what` (severity `severity.*` has three). Same keys and order as `ko/notification.ts`.
  */
 export default {

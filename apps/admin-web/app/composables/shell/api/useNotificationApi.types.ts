@@ -1,5 +1,5 @@
 /**
- * 관리자 알림(종 알림 서랍) API 가 주고받는 모양 — **설계 확정 — 계약서 참조**(`docs/features/notification-contract.md` 「API」). 서버 구현 전이라 목업이 이 모양을 흉내 낸다.
+ * 관리자 알림(종 알림 서랍) API 가 주고받는 모양 — 서버 `NotificationItemView`·`NotificationPageView`·`NotificationSummaryView` (`docs/features/notification-contract.md` 「API」).
  * ⚠ ID 는 문자열이다(Snowflake 64비트). 숫자로 바꾸지 않는다.
  */
 

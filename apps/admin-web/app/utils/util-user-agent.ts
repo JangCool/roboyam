@@ -1,6 +1,8 @@
 /**
- * User-Agent 문자열 해석 — 로그인 이력 한 줄에 "브라우저 · 운영체제 · 기기 종류"로 풀어 보이려고 쓴다. 입력만 보고 답하는 순수 함수라 브라우저 없이 시험한다.
- * 클라이언트 힌트(`navigator.userAgentData`)는 쓰지 않는다 — 서버가 저장해 준 **UA 원문**만 본다. 새 의존성은 없다.
+ * User-Agent 문자열 해석 — 로그인 이력 한 줄에 "브라우저 · 운영체제 · 기기 종류"로 보이려고 쓴다. 입력만 보고 답하는 순수 함수라 브라우저 없이 시험한다.
+ * 서버(6단계)는 로그인 감사 기록에 UA **원문이 아니라 요약**(`Chrome / Windows / Desktop`, `summaryDevice`)을 남긴다. 요약이면 글자를 그대로 보이고 기기 아이콘만 고른다.
+ * 요약이 아닌 값(브라우저·OS 를 못 알아내 서버가 정제한 원문 앞 80글자)은 아래 `parse` 규칙으로 한 번 더 풀어 본다.
+ * 클라이언트 힌트(`navigator.userAgentData`)는 쓰지 않는다 — 서버가 저장해 준 값만 본다. 새 의존성은 없다.
  *
  * 규칙(위에서부터 먼저 맞는 것):
  *  · 브라우저 — Edge(`Edg/`·`EdgA/`·`EdgiOS/`·`Edge/`) → Opera(`OPR/`·`Opera`) → Samsung Internet(`SamsungBrowser/`) → Firefox(`Firefox/`·`FxiOS/`) → Chrome(`Chrome/`·`CriOS/`) → Safari(`Version/` + `Safari/`).
@@ -27,6 +29,9 @@ export interface ParsedUserAgent {
     device: DeviceKind;
 }
 
+/** 서버 요약의 모양 — `브라우저 / 운영체제 / 기기`. 낱말은 영문 고정이다(서버 6단계) */
+const SUMMARY = /^(?:Edge|Opera|Firefox|Chrome|Safari) \/ (?:Windows|macOS|iOS|Android|Linux) \/ (Desktop|Mobile|Tablet)$/;
+
 /** 원문 UA 를 툴팁 등에 보일 때 자르는 길이(자) */
 const MAX_RAW = 300;
 
@@ -41,6 +46,19 @@ function major(ua: string, pattern: RegExp): string | null {
 export default class UtilUserAgent {
     /** 해석한 것이 하나도 없는 값 */
     static readonly UNKNOWN: ParsedUserAgent = { browser: null, browserVersion: null, os: null, osVersion: null, device: 'unknown' };
+
+    /**
+     * 서버가 남긴 요약(`Chrome / Windows / Desktop`)인지 보고 기기 종류를 돌려준다 — 요약이 아니면 null.
+     * @param {string | null | undefined} agent - 로그인 기록의 `agent`.
+     * @returns {DeviceKind | null} 요약이면 기기 종류, 아니면 null.
+     */
+    static summaryDevice(agent: string | null | undefined): DeviceKind | null {
+        const device = typeof agent === 'string' ? SUMMARY.exec(agent.trim())?.[1] : undefined;
+        if (device === 'Desktop') return 'desktop';
+        if (device === 'Mobile') return 'mobile';
+        if (device === 'Tablet') return 'tablet';
+        return null;
+    }
 
     /**
      * UA 문자열을 풀어 돌려준다. null·빈 값·모르는 모양은 `UNKNOWN`(모든 칸 null, 기기 unknown).

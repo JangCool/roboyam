@@ -1,5 +1,5 @@
 /**
- * 알림 이벤트 API 가 주고받는 모양 — **설계 확정 — 계약서 참조**(`docs/features/notification-contract.md` 「API」). 서버 구현 전이라 목업이 이 모양을 흉내 낸다.
+ * 알림 이벤트 API 가 주고받는 모양 — 서버 `NotificationEventView`·`MyNotificationEventView` (`docs/features/notification-contract.md` 「API」).
  * 이벤트의 정의(코드·영역·심각도·수신 규칙·필수 여부)는 서버 코드가 원천이고, 운영자가 바꾸는 것은 `enabled`·`emailEnabled` 뿐이다.
  */
 import type { NotificationKind } from '~/composables/shell/api/useNotificationApi.types';

@@ -6,11 +6,11 @@ export type NotificationTagSeverity = 'info' | 'success' | 'warn' | 'danger';
 /**
  * 관리자 알림 화면(종 알림 서랍 · 이벤트 관리 · 내 정보의 이벤트별 알림)이 함께 쓰는 순수 규칙 — 심각도 아이콘·색, 영역 차례·아이콘, 이벤트 아이콘, 이동 경로 읽기.
  * 문구는 i18n 키(`notification.severity.*` · `notification.area.*`)이고 여기에는 키를 고르는 규칙만 둔다.
- * 서버 쪽 이름: 영역 id 는 `PermissionArea`(`system` · `member` …)에 `security`(보안)가 더해진 것이다(계약서 「초기 이벤트」). 이벤트 코드는 `AdminNotificationEvent` 의 `code`.
+ * 서버 쪽 이름: 영역 id 는 `NotificationArea`(`security` · `system` · `member` · `content` · `safety` · `club` · `hotdeal` · `groupbuy` · `bizAd` — 권한 영역(`PermissionArea`)에서 「종합」을 빼고 `security`(보안)를 더한 것)이다. 이벤트 코드는 `AdminNotificationEvent` 의 `code`.
  */
 export default class UtilNotification {
     /** 영역을 보이는 차례 — 모르는 영역은 이 뒤에 서버가 준 차례로 붙는다 */
-    static readonly AREA_ORDER: readonly string[] = ['security', 'system', 'member', 'content', 'safety', 'club', 'hotdeal', 'groupbuy', 'bizAd', 'general'];
+    static readonly AREA_ORDER: readonly string[] = ['security', 'system', 'member', 'content', 'safety', 'club', 'hotdeal', 'groupbuy', 'bizAd'];
 
     private static readonly AREA_ICONS: Readonly<Record<string, string>> = {
         security: 'pi pi-shield',
@@ -22,7 +22,6 @@ export default class UtilNotification {
         hotdeal: 'pi pi-tag',
         groupbuy: 'pi pi-shopping-cart',
         bizAd: 'pi pi-megaphone',
-        general: 'pi pi-th-large',
     };
 
     /** 영역 아이콘보다 구체적인 이벤트 아이콘 */

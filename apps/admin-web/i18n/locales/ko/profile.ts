@@ -45,7 +45,7 @@ export default {
     // 개인 설정 — 알림 설정
     notifications: '알림 설정',
     emailNotification: '이메일 알림 수신',
-    emailNotificationHint: '알림 메일만 끄고, 초대·재설정 같은 시스템 메일은 끌 수 없어요.',
+    emailNotificationHint: '알림 메일만 끌 수 있고, 초대·재설정·승인번호 같은 시스템 메일은 끌 수 없어요.',
     emailNotificationOn: '알림 메일을 받아요',
     emailNotificationOff: '알림 메일을 받지 않아요',
     events: '이벤트별 알림',
