@@ -90,20 +90,18 @@ export default class UtilAdminMenu {
             labelKey: 'menu.system',
             items: [
                 { key: 'siteGeneral', to: '/settings/general', icon: 'pi pi-sliders-h', labelKey: 'menu.general', permission: 'site.read' },
-                // 알림은 하위 메뉴 둘을 가진 부모다 — 이벤트(무엇을 어떻게 알릴지)와 도구(Slack·Mattermost 등 보낼 곳). 부모 주소는 하위 주소들의 공통 앞부분이다
-                {
-                    key: 'notificationMenu',
-                    to: '/settings/notification',
-                    icon: 'pi pi-bell',
-                    labelKey: 'menu.notifications',
-                    permission: 'notification.read',
-                    children: [
-                        { key: 'notifications', to: '/settings/notifications', labelKey: 'menu.notificationEvents', permission: 'notification.read' },
-                        { key: 'notificationChannels', to: '/settings/notification-channels', labelKey: 'menu.notificationChannels', permission: 'notification.read' },
-                    ],
-                },
-                // 조직 구성 — 운영자를 팀으로 묶는다(알림 이벤트의 「추가 수신 팀」으로 쓴다). 알림 아래에 이어 둔다
+                // 조직 구성 — 운영자를 팀으로 묶는다(알림 이벤트의 「추가 수신 팀」으로 쓴다)
                 { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
+            ],
+        },
+        {
+            key: 'settingsNotification',
+            mode: 'settings',
+            icon: 'pi pi-bell',
+            labelKey: 'menu.notifications',
+            items: [
+                { key: 'notifications', to: '/settings/notifications', icon: 'pi pi-bell', labelKey: 'menu.notificationEvents', permission: 'notification.read' },
+                { key: 'notificationChannels', to: '/settings/notification-channels', icon: 'pi pi-send', labelKey: 'menu.notificationChannels', permission: 'notification.read' },
             ],
         },
         {

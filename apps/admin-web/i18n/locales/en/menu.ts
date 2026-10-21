@@ -9,7 +9,7 @@ export default {
     general: 'General',
     notifications: 'Notifications',
     notificationEvents: 'Events',
-    notificationChannels: 'Tools',
+    notificationChannels: 'Notification tools',
     teams: 'Organization',
     member: 'Members',
     members: 'Members',
