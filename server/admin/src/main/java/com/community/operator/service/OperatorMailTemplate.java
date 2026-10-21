@@ -9,12 +9,12 @@ import org.springframework.web.util.HtmlUtils;
  * 운영자 메일(계정 안내·초대)의 제목과 본문. 본문은 인라인 스타일만 쓴 단순한 HTML 이다(메일 앱은 CSS 를 거의 지원하지 않는다).
  * 사이트 이름·운영자 이름·링크는 HTML 로 가려서 넣는다. 문구는 메시지 번들({@code mail.operator*})에서 요청한 운영자의 언어로 만든다 — 발송은 요청 스레드 안에서 일어난다.
  */
-final class OperatorMailTemplate {
+public final class OperatorMailTemplate {
 
     /** 사이트 설정이 없을 때 쓰는 이름 */
     private static final String DEFAULT_SITE_NAME = "ROBOYAM";
 
-    record Mail(String subject, String html) {
+    public record Mail(String subject, String html) {
     }
 
     private OperatorMailTemplate() {
@@ -50,6 +50,22 @@ final class OperatorMailTemplate {
                 + note(messages.get(key("mail.operatorInvite.ignore"), locale));
         return new Mail(messages.get(key("mail.operatorInvite.subject", orDefault(siteName)), locale),
                 layout(messages, locale, site, messages.get(key("mail.operatorInvite.title"), locale), body));
+    }
+
+    /** 비밀번호 재설정 승인번호 메일 — 번호·유효 분·「요청하지 않았다면 무시」 안내. 번호는 숫자뿐이지만 HTML 로 가려서 넣는다 */
+    public static Mail passwordResetCode(Messages messages, Locale locale, String siteName, String code, int validMinutes) {
+        String site = HtmlUtils.htmlEscape(orDefault(siteName));
+        String body = p(messages.get(key("mail.operatorReset.greeting", site), locale))
+                + p(messages.get(key("mail.operatorReset.guide"), locale))
+                + "<p style=\"margin:16px 0;padding:14px 16px;background:#f3f4f6;border-radius:8px;font-size:13px;color:#5b6270\">"
+                + messages.get(key("mail.operatorReset.codeLabel"), locale)
+                + "<br><span style=\"font-size:26px;font-weight:700;letter-spacing:6px;color:#16181d;font-family:Consolas,monospace\">"
+                + HtmlUtils.htmlEscape(code) + "</span></p>"
+                + note(messages.get(key("mail.operatorReset.validity", String.valueOf(validMinutes)), locale))
+                + note(messages.get(key("mail.operatorReset.keep"), locale))
+                + note(messages.get(key("mail.operatorReset.ignore"), locale));
+        return new Mail(messages.get(key("mail.operatorReset.subject", orDefault(siteName)), locale),
+                layout(messages, locale, site, messages.get(key("mail.operatorReset.title"), locale), body));
     }
 
     private static MessageRef key(String key, Object... args) {

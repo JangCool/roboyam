@@ -64,6 +64,9 @@ public class SecurityConfig {
                         // 어떤 권한이 필요한지는 컨트롤러가 선언하며 선언이 없으면 거절된다(admin 의 AdminAccessInterceptor — fail-closed)
                         .requestMatchers(HttpMethod.GET, "/api/admin/auth/me").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/admin/auth/login", "/api/admin/auth/logout").permitAll()
+                        // 로그인 전 계정 흐름(초대 링크 확인·수락, 비밀번호 재설정 승인번호 요청·재설정) — 서비스가 토큰·승인번호·요청 한도를 검사한다
+                        .requestMatchers(HttpMethod.POST, "/api/admin/auth/invitation/check", "/api/admin/auth/invitation/accept",
+                                "/api/admin/auth/password-reset/code", "/api/admin/auth/password-reset").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
                 .exceptionHandling(e -> e

@@ -104,6 +104,12 @@ public class OperatorEntity {
         this.updatedAt = now;
     }
 
+    /** 비밀번호 해시를 바꾼다(비밀번호 재설정·변경) — 새 해시는 호출하는 쪽이 만든다. 평문을 받지 않는다 */
+    public void changePassword(String passwordHash, Instant now) {
+        this.passwordHash = passwordHash;
+        this.updatedAt = now;
+    }
+
     /** 로그인했다 — 마지막 로그인 시각만 고친다 */
     public void markLoggedIn(Instant now) {
         this.lastLoginAt = now;

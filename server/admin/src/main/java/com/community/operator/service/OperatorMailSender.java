@@ -24,7 +24,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * <ul>
  *   <li>메일 서버가 설정돼 있지 않거나 발송에 실패하면 <b>보내지 못한 채 로그만 남기고 정상 종료</b>한다(요청 결과는 그대로) — 공개 사이트의 인증 메일과 같다.</li>
  *   <li>초대 링크는 {@code {관리자 앱 주소}/invitation?token=…} 이다. 관리자 앱 주소({@code ADMIN_URL})가 없으면 링크를 만들 수 없어 보내지 못한다.
- *       링크를 받아 처리하는 화면·API 는 이번 단계 밖이다(경로는 가정).</li>
+ *       링크를 받아 처리하는 일은 {@link OperatorInvitationAcceptService}(경로는 admin-web {@code /invitation}).</li>
  * </ul>
  * 이메일 주소·토큰·임시 비밀번호를 로그에 남기지 않는다(예외도 클래스 이름만).
  */
@@ -33,7 +33,7 @@ public class OperatorMailSender {
 
     private static final Logger log = LoggerFactory.getLogger(OperatorMailSender.class);
 
-    /** 초대 링크가 가리키는 관리자 앱의 경로(가정 — 수락 화면은 후속 단계) */
+    /** 초대 링크가 가리키는 관리자 앱의 경로(admin-web {@code pages/invitation.vue}) */
     static final String INVITATION_PATH = "/invitation";
 
     private final MailDispatcher mail;

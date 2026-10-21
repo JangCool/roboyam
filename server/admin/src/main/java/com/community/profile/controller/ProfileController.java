@@ -4,6 +4,7 @@ import com.community.permission.annotation.AdminAuthenticated;
 import com.community.permission.dto.AdminActor;
 import com.community.profile.dto.request.MyDisplayRequest;
 import com.community.profile.dto.request.MyNotificationRequest;
+import com.community.profile.dto.request.PasswordChangeRequest;
 import com.community.profile.dto.request.ProfileUpdateRequest;
 import com.community.profile.dto.response.LoginHistoryResponse;
 import com.community.profile.dto.response.MyDisplayResponse;
@@ -12,8 +13,11 @@ import com.community.profile.dto.response.ProfileResponse;
 import com.community.profile.service.LoginHistoryService;
 import com.community.profile.service.MyDisplayService;
 import com.community.profile.service.MyNotificationService;
+import com.community.profile.service.PasswordChangeService;
 import com.community.profile.service.ProfileService;
 import com.community.zconfiguration.response.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,12 +41,15 @@ public class ProfileController {
     private final LoginHistoryService loginHistory;
     private final MyDisplayService display;
     private final MyNotificationService notification;
+    private final PasswordChangeService passwords;
 
-    public ProfileController(ProfileService profiles, LoginHistoryService loginHistory, MyDisplayService display, MyNotificationService notification) {
+    public ProfileController(ProfileService profiles, LoginHistoryService loginHistory, MyDisplayService display, MyNotificationService notification,
+                             PasswordChangeService passwords) {
         this.profiles = profiles;
         this.loginHistory = loginHistory;
         this.display = display;
         this.notification = notification;
+        this.passwords = passwords;
     }
 
     /** 내 정보 */
@@ -85,6 +92,14 @@ public class ProfileController {
     @PutMapping("/notification")
     public ResponseEntity<ApiResponse<MyNotificationResponse>> saveNotification(@RequestBody MyNotificationRequest body, AdminActor actor) {
         return noStore(notification.save(actor, body));
+    }
+
+    /** 비밀번호를 바꾼다 — 현재 비밀번호를 확인하고, 지금 세션은 유지한 채 다른 세션을 끝낸다. 현재 비밀번호가 틀리면 401 이 아니라 400 {@code INVALID_CURRENT_PASSWORD} */
+    @PutMapping("/password")
+    public ResponseEntity<Void> changePassword(@RequestBody PasswordChangeRequest body, AdminActor actor, HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        passwords.change(actor, body, session == null ? null : session.getId());
+        return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
     }
 
     private static <T> ResponseEntity<ApiResponse<T>> noStore(T body) {

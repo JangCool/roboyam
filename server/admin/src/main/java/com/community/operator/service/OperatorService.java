@@ -55,7 +55,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>루트 계정(최고 관리자)은 어떤 변경도 거절한다</b>(409 {@code OPERATOR_ROOT_PROTECTED}) — 루트가 하나뿐이고 전면 보호되므로 마지막 활성 최고 관리자는 늘 지켜진다.</li>
  *   <li>상태는 네 개(승인·잠금·만료·사용)다. 잠금({@code locked})을 바꾸려면 {@code operator.lock}, 나머지는 {@code operator.manage}.</li>
  *   <li>역할을 주고 빼는 일은 {@link OperatorRoleAssignmentPolicy} 가 검사한다 — {@code role.grant} 필요, <b>권한 상승 방지</b>(자기 권한 범위 안에서만), 종합 관리 역할은 최고 관리자만.</li>
- *   <li>운영자 만들기는 승인된 상태로 만들고 <b>임시 비밀번호는 커밋된 뒤 이메일로만 안내</b>한다(응답·DB·로그에 남지 않는다. 메일 서버가 없으면 보내지 못한다 — 비밀번호 재설정은 후속 단계).</li>
+ *   <li>운영자 만들기는 승인된 상태로 만들고 <b>임시 비밀번호는 커밋된 뒤 이메일로만 안내</b>한다(응답·DB·로그에 남지 않는다. 메일 서버가 없으면 보내지 못한다 — 받은 사람은 비밀번호 재설정으로도 비밀번호를 정할 수 있다).</li>
  *   <li>반려는 승인 대기 건만 되고(409 {@code OPERATOR_NOT_PENDING}) 반려한 신청은 지운다(보관 방식은 미확정). 지우는 API 는 따로 없다 — 「사용 중지」가 대신한다.</li>
  *   <li>같은 운영자를 동시에 바꾸는 요청은 행 잠금으로 줄 세운다. 모든 변경은 감사 기록으로 남긴다(비밀번호·토큰 제외).</li>
  * </ul>

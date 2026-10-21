@@ -50,7 +50,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>같은 이메일에 <b>유효한 초대가 이미 있으면</b> 409 {@code INVITATION_DUPLICATED}, 기한이 지난 초대는 새 초대가 대신한다(옛 것을 지운다).
  *       이미 운영자인 이메일은 409 {@code OPERATOR_EMAIL_DUPLICATED}. 수락하지 않은 초대는 같은 이메일에 하나뿐이다(유일 인덱스).</li>
  *   <li>역할을 함께 정할 수 있고 {@link OperatorRoleAssignmentPolicy} 가 운영자에게 역할을 줄 때와 같은 검사를 한다(권한 상승 방지 포함).</li>
- *   <li>취소하면 초대를 지워 링크를 못 쓰게 한다. 링크를 받아 비밀번호를 정하는 API·화면은 이번 단계 밖이다 — 토큰 데이터만 준비한다.</li>
+ *   <li>취소하면 초대를 지워 링크를 못 쓰게 한다. 링크를 받아 확인·수락하는 일은 {@link OperatorInvitationAcceptService}(로그인 전 공개 API) 가 한다. 취소한 초대는 행이 지워지므로 링크로는 「모르는 토큰」(404 {@code INVITATION_NOT_FOUND}) 과 구분되지 않는다.</li>
  * </ul>
  * 메일은 이 트랜잭션이 끝난 뒤 {@code OperatorMailSender} 가 보낸다(메일 서버가 느려도 DB 연결을 붙잡지 않는다). 이메일 주소·토큰을 로그에 남기지 않는다.
  */
