@@ -13,7 +13,8 @@ import { definePreset } from '@primeuix/themes';
  *   API_ORIGIN  기본 http://localhost:8920 (local 프로파일의 admin 서버)
  *   NUXT_PORT   기본 3200
  *
- * 인증·역할·역할 유형·운영자·초대·등급 설정·회원 조회·배치 API 는 실제 서버(`/api/admin/**`)를 부르고 아래 `/api` 프록시가 그 요청을 잇는다. 아직 서버가 없는 영역(사이트 설정·내 정보·감사·알림)은 `// MOCK:` 이라 프록시를 타지 않는다.
+ * 인증·역할·역할 유형·운영자·초대·등급 설정·회원 조회·배치·사이트 설정 API 는 실제 서버(`/api/admin/**`)를 부르고 아래 `/api` 프록시가 그 요청을 잇는다. 아직 서버가 없는 영역(내 정보·감사·알림)은 `// MOCK:` 이라 프록시를 타지 않는다.
+ * 사이트 설정의 이미지 주소(로고·아이콘·링크 미리보기 이미지)는 `/media/…` 상대 주소다 — 운영은 같은 도메인의 서버가 서빙하고, 개발 서버는 아래 `/media` 프록시가 같은 admin 서버로 잇는다.
  * 세션 쿠키(`ADMIN_SESSION`)·CSRF 쿠키(`XSRF-TOKEN`)는 프록시를 지나 개발 서버 주소(`localhost:NUXT_PORT`)의 쿠키로 저장된다(쿠키는 포트를 가르지 않는다).
  */
 const API_ORIGIN = process.env.API_ORIGIN ?? 'http://localhost:8920';
@@ -89,6 +90,11 @@ export default defineNuxtConfig({
         devProxy: {
             '/api': {
                 target: API_ORIGIN + '/api',
+                changeOrigin: true,
+            },
+            // 사이트 설정 이미지(`/media/**`, 기본 아이콘·OG 는 `/media/default/**`) — 같은 admin 서버가 서빙한다. 마찬가지로 target 에 `/media` 를 붙인다.
+            '/media': {
+                target: API_ORIGIN + '/media',
                 changeOrigin: true,
             },
         },

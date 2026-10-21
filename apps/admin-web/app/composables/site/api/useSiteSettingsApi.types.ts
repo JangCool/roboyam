@@ -1,7 +1,7 @@
 import type { DisplayValues } from '#layers/display-time/utils/util-time';
 
 /**
- * 사이트 설정 API 가 주고받는 모양 — 후보 계약(`GET`·`PUT /api/admin/site/basic`, `…/display-defaults`)이고 확정 전이다.
+ * 사이트 설정 API 가 주고받는 모양 — 서버 계약(`/api/admin/site/**`, `docs/features/site-settings-contract.md`)과 같은 모양이다.
  * 사이트 기본 정보는 서버 `SiteSettingEntity`(`site_settings`, 행 하나)의 `siteName`·`tagline`, 설치 마법사가 처음 정하는 값이다(`docs/features/install-contract.md`).
  * 공개 주소(`publicUrl`)는 소셜 로그인 콜백·메일 링크의 기준이라 이 화면 범위가 아니다(변경 정책 미확정).
  */
@@ -79,7 +79,7 @@ export interface SiteOgImageResponse {
 /**
  * 표시 기본값 — 언어·시간대·시간 형식·날짜 형식. 칸 모양은 공유 레이어(`@roboyam/display-time`)의 `DisplayValues` 와 같다.
  * 이 값이 곧 개인 설정 탭의 "기본 설정"(내 표시 형식을 쓰지 않을 때 따르는 값)이다.
- * ⚠ 서버에 아직 없는 데이터다(저장 위치·사용자 층과의 관계는 정책 결정 사항).
+ * ⚠ 서버는 `site_settings` 한 행에 둔다. 개인 설정 쪽 연결(`inherited`)과 공개 회원 값과의 관계는 미정.
  */
 export type { DisplayValues };
 

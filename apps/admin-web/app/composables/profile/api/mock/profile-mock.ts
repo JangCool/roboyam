@@ -17,7 +17,6 @@
 import { ApiError } from '~/composables/common/useApiClient';
 import { MOCK_ERRORS, mockDelay, mockFlags } from '~/composables/common/mock/mock-util';
 import { mockCurrentAdmin, mockNicknameTaken, mockRenameAdmin } from '~/composables/auth/api/mock/admin-auth-mock';
-import { mockSiteDisplayValues } from '~/composables/site/api/mock/site-settings-mock';
 import type { DisplayValues, LoginHistoryItem, LoginHistoryResponse, MyDisplayRequest, MyDisplayResponse, MyNotificationRequest, MyNotificationResponse, ProfileResponse, ProfileUpdateRequest } from '~/composables/profile/api/useProfileApi.types';
 import UtilDisplayValues from '#layers/display-time/utils/util-display-values';
 import UtilValidation from '~/utils/util-validation';
@@ -117,9 +116,12 @@ export async function mockProfileUpdate(body: ProfileUpdateRequest): Promise<Pro
 // 서버라면 사용자별 행에 있을 값을 이 브라우저의 localStorage 에 계정별로 둔다(`roboyam:mock-admin-display:<id>` · `roboyam:mock-admin-email-notify:<id>`) —
 // 새로고침해도 남고 다른 계정과는 섞이지 않는다. 서버가 붙으면 이 저장도 함께 지운다.
 
-/** 제품 기준 값(개인 설정 탭의 "기본 설정") — 사이트 설정 목업(`site-settings-mock.ts`)의 표시 기본값을 읽는다. 설정 메뉴의 「일반」에서 저장하면 여기도 바뀐다(처음 값은 한국어 · 서울 · 24시간 · `YYYY-MM-DD`) */
+/**
+ * 제품 기준 값(개인 설정 탭의 "기본 설정") — 한국어 · 서울 · 24시간 · `YYYY-MM-DD` 고정값이다.
+ * ⚠ 사이트 일반 설정의 표시 기본값은 이제 실제 서버(`/api/admin/site/display-defaults`)에 저장되지만 이 목업은 그것을 읽지 않는다 — 내 정보 API 가 서버에 붙을 때 `inherited` 가 그 값을 돌려주게 된다.
+ */
 function productDisplay(): DisplayValues {
-    return mockSiteDisplayValues();
+    return { language: 'ko', zoneId: 'Asia/Seoul', timeFormat: 'H24', dateFormat: 'YMD_DASH' };
 }
 
 function readJson<T>(key: string): T | null {

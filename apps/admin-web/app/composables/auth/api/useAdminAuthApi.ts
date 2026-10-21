@@ -5,7 +5,7 @@ import type { AdminLoginRequest, AdminMeResponse } from '~/composables/auth/api/
  * 화면(.vue)과 다른 컴포저블은 여기 함수만 부른다. 상태는 없다(화면이 쓰는 상태는 `useAdminAuth`).
  *
  * 계약(서버 `AdminAuthController`, `docs/features/roles-contract.md`). 오류는 모두 `ApiError`(useApiClient)로 던져진다.
- *   - `GET  /api/admin/auth/me`     항상 200. `{ authenticated, user, siteName, siteLogoUrl }`. 이 호출이 CSRF 쿠키를 내려준다. `siteLogoUrl` 은 아직 늘 null(사이트 설정 3단계).
+ *   - `GET  /api/admin/auth/me`     항상 200. `{ authenticated, user, siteName, siteLogoUrl }`. 이 호출이 CSRF 쿠키를 내려준다. `siteName`·`siteLogoUrl` 은 실제 사이트 설정 값이다(로고가 SVG 면 data URI 로 약 133KB 까지 커질 수 있다).
  *   - `POST /api/admin/auth/login`  `{ email, password }` → 200 me 와 같은 모양 · 401 INVALID_CREDENTIALS(없는 계정·틀린 비밀번호·로그인할 수 없는 운영자) ·
  *                                   429 LOGIN_LOCKED(+`retryAfterSeconds`) · 400 VALIDATION(+`fields`)
  *   - `POST /api/admin/auth/logout` → 204 (비로그인이어도 204)
