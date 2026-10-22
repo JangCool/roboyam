@@ -85,7 +85,7 @@ Java 배치와 DB(pg_cron) 배치 모두 요청 밖에서 끝난다. DB 프로�
 - 회원용(공개 사이트) 알림은 별도 설계(이벤트 구조는 같은 방식을 쓸 수 있다).
 - 「내 계정」 이벤트의 수신자는 로그인 상태와 무관하게 행이 쌓이고, 잠긴 계정은 로그인 후에 본다.
 
-## 알림 도구·조직 구성 (목업 단계 — 화면 확정 전, 서버 미구현)
+## 알림 도구·조직 구성 (화면은 목업으로 확정 — 서버는 아래 「서버 구현 결과 (알림 도구·조직 구성)」에서 구현됨, 프론트 연결은 다음 단계)
 
 **의도**: 알림이 서랍 + 이메일뿐이던 것을 하모니카3처럼 **도구(채널)를 고를 수 있게** 넓힌다 — Slack · Mattermost · 이메일 · 브라우저 알림(카카오·SMS는 업체 계약 때문에 새로 만들지 않고 「준비 중」으로만 보인다). 팀 단위 수신을 위해 **조직 구성(팀)** 화면을 만들고, 이벤트의 「추가 수신 팀」으로 쓴다. 이메일은 지금 방식 그대로 설정 > 메일 서버 설정으로 보내고 도구 전용 SMTP 는 두지 않는다. 참고: 하모니카3 `settings/application/teams.vue`·`TeamFormDialog`·`TeamMemberDialog`, `settings/workspace/notifications.vue`·`NotificationConfigForm`·`NtfSecretField`, 서버 `ChannelSpec`.
 
@@ -125,7 +125,51 @@ Java 배치와 DB(pg_cron) 배치 모두 요청 밖에서 끝난다. DB 프로�
 6. 목업 스위치(주소 `?mock=`): `team-error|team-empty|team-save-error|team-no-read`, `notification-channel-error|-save-error|-test-error|-no-read`(알림 도구 화면), `notification-delivery-error|-save-error`(알림 설정 화면).
 
 **미확정**
-- 팀 수신 권한: 팀원이 이벤트를 볼 권한(`requiredPermission`)이 없으면 건너뛰는 것으로 가정 — 서버 정책 확인 필요. 팀원 수 한도·팀 중첩(상위 팀) 없음.
-- Slack/Mattermost 게시 문구 형식·재시도·실패 알림, 연결 시험의 실제 동작(Slack `auth.test`/메시지 발송 여부), 비밀 암호화 방식(DB 비밀번호와 같은 `ROBOYAM_CRYPTO_KEY` 후보), 감사 로그 항목(`TEAM_*`·`NOTIFICATION_CHANNEL_*`, 비밀 값은 제외).
-- 권한 `team.read`/`team.manage` 는 서버 `Permission` 목록에 아직 없다 — 서버 구현 전에는 최고 관리자만 화면을 본다. 역할 편집기에서 이 권한을 체크해 저장하면 서버가 모르는 코드라 거절할 수 있다.
-- 이메일 도구를 이벤트의 `channels` 로 합치는 시점, 메일 서버 설정 화면(설정 > 메일 서버 설정)은 아직 없다(안내 문구만).
+- (확정됨 → 「서버 구현 결과」) 팀 수신 권한, Slack/Mattermost 게시 문구·시험 동작, 비밀 암호화 방식, 감사 항목, 서버 `Permission` 의 `team.read`/`team.manage`.
+- 팀원 수 한도·팀 중첩(상위 팀)은 없다(서버는 팀 100개·팀당 팀원 500명 상한만 둔다).
+- 메일 서버 설정 화면(설정 > 메일 서버 설정)은 아직 없다(안내 문구만). 이메일 도구를 이벤트의 `channels` 로 합치는 일은 서버가 끝냈다(`channels` 의 `email` = `emailEnabled`).
+
+## 서버 구현 결과 (알림 도구·조직 구성, 2026-10-22)
+
+프론트 목업 타입(`useTeamApi.types.ts`·`useNotificationChannelApi.types.ts`·`useNotificationEventApi.types.ts`)의 응답 모양을 그대로 따랐다. 코드: 팀 `server/shared/.../team/**`(엔티티·저장소)·`server/admin/.../team/**`, 알림 도구·전달 `server/shared/.../notification/{channel,net}/**`(게시·SSRF 방어)·`server/admin/.../notification/**`.
+
+**마이그레이션**: Flyway shared `V41__teams_notification_channels.sql` — `teams`(이름 `lower()` 유일) · `team_members`(복합 키, 팀 삭제는 `RESTRICT`, 운영자 삭제는 `CASCADE`) · `notification_channels`(Slack·Mattermost 만 행, 비밀은 `*_enc` 암호문 칸, 마지막 시험은 시각·성공·**사유 코드**만) · `notification_builtin_channels`(이메일·브라우저의 사용 여부·마지막 시험 — 두 행을 시드, 서랍은 항상 켜져 있어 행 없음) · `notification_events.browser_enabled` · `notification_event_channels` · `notification_event_teams`(둘 다 이벤트·도구/팀 삭제 때 `CASCADE`). 설정 JSON 대신 칸을 나눴다(`channel_target`·`mattermost_mode`·`server_url`·`bot_token_enc`·`webhook_url_enc`).
+
+**권한**: 서버 `Permission` 에 `team.read`(READ)·`team.manage`(MANAGE) 추가(영역 시스템·유형 `operatorRole`·`featureReady`, 프론트 `util-permission-catalog.ts` 와 같다 — 82개). 서버가 뜰 때 `permissions` 표와 자동으로 맞춘다. 알림 도구 API 는 기존 `notification.read`/`notification.manage`.
+
+**API** (`/api/admin`, 응답 `ApiResponse`, 쓰기는 CSRF — 모양은 프론트 `use*Api.ts` 머리말과 같고 다른 점만 적는다)
+| | |
+|---|---|
+| `GET /teams` (`team.read`) · `POST /teams` 201 · `PUT /teams/{id}` · `DELETE /teams/{id}` 204 · `PUT /teams/{id}/move` → 목록 전부 · `PUT /teams/{id}/members` → `TeamView` · `GET /teams/{id}/candidates` (`team.manage`) | 팀원 응답에 **`active`**(지금 로그인할 수 있는 운영자인가)가 더해졌다 — 멈춘 계정은 팀에 남지만 알림을 받지 않는다. `usedByEventCount` = 이 팀을 고른 이벤트 수. 이름·설명 앞뒤 공백을 자른다(이름 1~50자·제어문자 불가, 설명 500자, 팀 100개, 팀원 500명). 새 팀원은 **활성 운영자만**(아니면 400 `TEAM_OPERATOR_NOT_FOUND` `fields.operatorIds`), 이미 든 사람은 나중에 멈춰도 그대로 둘 수 있다 |
+| `GET /notification-channels` (`notification.read`) | 기본 제공 `drawer`·`email`·`browser`(id 가 이 문자열, `builtIn:true`, 이름은 요청 언어) → 만든 차례. 비밀은 값도 암호문도 없이 `secretKeys`(`botToken`·`webhookUrl`)만. `config` 는 값이 있는 키만(`channel`·`mattermostMode`·`serverUrl`) |
+| `POST /notification-channels` 201 · `PUT …/{id}` · `PUT …/{id}/enabled` · `DELETE …/{id}` 204 · `POST …/{id}/test` (`notification.manage`) | 만들기: Slack(봇 토큰+채널) / Mattermost(`mattermostMode`=`bot`: 서버 주소+봇 토큰+채널 · `webhook`: 웹훅 주소). 기본 제공 도구의 `PUT`·`enabled` 는 사용 여부만 바뀐다(이름 불변). 도구는 최대 20개 |
+| `GET·PUT /notification-events[/{code}]` | 응답에 `channels`(`email`·`browser` 가 있으면 앞에, 그다음 도구 id 순)·`teamIds`(id 순)·`broadcastAllowed` 가 더해졌다. 요청 `{enabled, emailEnabled, channels?, teamIds?}` |
+
+**이벤트 PUT 규칙**: `channels` 를 **보내면** 그 목록이 전부이고 `email` 포함 여부가 곧 `emailEnabled`(보낸 `emailEnabled` 는 무시), **안 보내면** 예전 요청처럼 `emailEnabled` 가 필요하고 다른 도구·브라우저는 그대로다. `teamIds` 도 보내야 바뀐다. 서랍(`drawer`)은 보내도 무시한다. 검사 순서: 404 → 400 `fields.enabled|emailEnabled` → 409 `NOTIFICATION_EVENT_NOT_READY` → 409 `NOTIFICATION_MANDATORY` → 400 `fields.emailEnabled`(예전 요청) / `fields.channels`(`channels` 로 보냈을 때) 이메일 불가 → 400 `NOTIFICATION_CHANNEL_NOT_FOUND`(`fields.channels`)·`TEAM_NOT_FOUND`(`fields.teamIds`) 모르는 id → 400 `NOTIFICATION_BROADCAST_NOT_ALLOWED`(걸린 칸 `fields.channels`·`fields.teamIds`; **`broadcastAllowed=false` 인 이벤트 = 수신 규칙 `SELF`(`*_ME`) 또는 필수(보안) 이벤트에 Slack/Mattermost 도구·팀을 지정**; 이메일·브라우저는 가능) → 403 `PERMISSION_DENIED`(아래) → 409 `NOTIFICATION_CHANNEL_DISABLED`(`fields.channels`)·`TEAM_DISABLED`(`fields.teamIds`) 꺼진 도구·멈춘 팀을 **새로** 고름(이미 고른 것은 그대로 둘 수 있고, 꺼진 이메일·브라우저 기본 제공 도구도 같다). `broadcastAllowed` 는 코드(`AdminNotificationEvent`)가 정의한다(화면·DB 에서 못 바꾼다).
+- **`teamIds` 를 바꾸려면 `team.read` 도 필요**하다(목업 가정 8번의 판단): 팀 이름은 `team.read` 로 읽으므로, 읽을 수 없는 운영자가 팀 id 를 더듬어 보내 팀의 존재·상태를 알아내지 못하게 한다(없는 팀/멈춘 팀 오류가 존재를 흘린다). 현재 선택을 그대로 보내거나 `teamIds` 를 안 보내는 것은 `notification.manage` 만으로 된다. 거부는 감사 `PERMISSION_DENIED` 로 남는다.
+- 감사 `NOTIFICATION_EVENT_UPDATE` 의 전·후 값에 `browserEnabled`·`channels`(Slack/Mattermost 도구 id)·`teamIds` 가 더해졌다(바뀐 칸만).
+
+**수신·게시 구현** (`NotificationPublisher`)
+- 기본 수신 규칙은 그대로이고, **사용 중인 추가 수신 팀의 팀원**을 받는 사람에 더한다: ① 지금 활성인 운영자만(멈춘 팀·사용 중지/잠금/기간 밖 운영자 제외) ② 이벤트의 `requiredPermission` 이 없는 팀원은 **건너뛴다**(알림 행을 만들지 않는다) ③ 이미 받는 사람은 한 번만(Set) ④ 행위자 제외·개인 끄기·묶기 규칙은 팀원에게도 같다 ⑤ `broadcastAllowed=false` 이벤트는 팀·공유 채널을 보지 않는다. 팀원의 서랍·이메일·(클라이언트) 브라우저 알림은 이 수신자 집합을 그대로 쓴다.
+- **Slack·Mattermost 는 도구에 설정한 채널로 이벤트당 도구마다 한 번**(수신자 수와 무관, 받을 사람이 없어도 게시) 커밋 뒤 별도 스레드풀(2개·대기 200)에서 올린다. 묶음 시간 때문에 받을 사람이 **모두** 사라진 경우(같은 알림이 방금 나감)는 채널에도 올리지 않는다(받을 사람이 처음부터 없으면 묶음 판정을 못 해 매번 올린다). 켜진 도구만, 롤백되면 게시도 없고, 도구 하나가 실패해도 업무·서랍·다른 도구는 정상이다. 글은 사이트 표시 기본 언어(없으면 ko): `<심각도 이모지> <굵은 제목>\n<본문>\n<열기 링크(ADMIN_URL + 경로)>`.
+- 이메일은 이벤트의 이메일 전달 **그리고** 기본 제공 이메일 도구가 켜져 있을 때만 나간다(도구를 끄면 서랍은 그대로, 메일만 멈춘다).
+- 브라우저 알림은 서버가 하는 일이 없다 — `browser_enabled` 선택만 저장하고 요약 API 는 그대로다.
+
+**연결 시험**: 서랍·브라우저는 400 `NOTIFICATION_CHANNEL_NOT_TESTABLE`. Slack·Mattermost 는 시험 글을 실제 게시(게시와 **같은 코드**), 이메일은 시험을 누른 운영자 본인에게 한 통. 결과는 `{ok, message, testedAt}` — 실패도 200 `ok:false`. `message` 는 **짧은 사유 코드**(`notification.channel.test.<코드>`: `OK`·`MAIL_OK`·`NOT_CONFIGURED`·`CRYPTO_KEY_MISSING`·`DECRYPT_FAILED`·`BLOCKED_TARGET`·`DNS_FAILED`·`CONNECT_FAILED`·`TIMEOUT`·`TLS_FAILED`·`NETWORK_ERROR`·`AUTH_FAILED`·`CHANNEL_NOT_FOUND`·`FORBIDDEN`·`NOT_FOUND`·`RATE_LIMITED`·`REDIRECTED`·`SERVER_ERROR`·`REJECTED`·`ERROR`·`MAIL_NOT_CONFIGURED`·`MAIL_FAILED`)를 요청 언어로 푼 문구이고, 외부 응답 본문·예외 문구·주소는 응답·로그·DB 어디에도 없다(Slack 오류 이름도 정해진 코드로만 옮긴다). 시각·결과·코드를 도구 행에 저장(`lastTest`)하고, 접속 정보(주소·토큰·채널·방식)를 고치면 지난 시험 결과를 비운다. 운영자당 분당 6회(`roboyam.notification.channel-test-per-minute`, 이 서버 안에서 센다) — 넘으면 429 `NOTIFICATION_CHANNEL_TEST_RATE_LIMITED`(+`Retry-After`). 존재·시험 가능 여부 검사를 먼저 하고 실제로 외부에 보내는 시험만 센다.
+
+**오류 코드(새)**: `TEAM_NOT_FOUND`(404, 이벤트 PUT 안의 모르는 id 는 400) · `TEAM_NAME_DUPLICATED`(409 `fields.teamName`) · `TEAM_HAS_MEMBERS`(409) · `TEAM_OPERATOR_NOT_FOUND`(400) · `TEAM_LIMIT_EXCEEDED`(409) · `TEAM_DISABLED`(409) · `NOTIFICATION_CHANNEL_NOT_FOUND`(404, 이벤트 PUT 안의 모르는 id 는 400) · `NOTIFICATION_CHANNEL_NAME_DUPLICATED`(409 `fields.name`) · `NOTIFICATION_CHANNEL_TYPE_UNSUPPORTED`(400 `fields.type`, 카카오·SMS) · `NOTIFICATION_CHANNEL_BUILTIN`(409, 기본 제공 종류 만들기/지우기) · `NOTIFICATION_CHANNEL_ALWAYS_ON`(409) · `NOTIFICATION_CHANNEL_NOT_TESTABLE`(400) · `NOTIFICATION_CHANNEL_TEST_RATE_LIMITED`(429) · `NOTIFICATION_CHANNEL_LIMIT_EXCEEDED`(409) · `NOTIFICATION_CHANNEL_DISABLED`(409) · `NOTIFICATION_BROADCAST_NOT_ALLOWED`(400). 종류는 만든 뒤 못 바꾼다(400 `fields.type`). 칸 검증은 400 `VALIDATION` + `fields.<칸>`(name 100자, description 300자, channel 형식, 주소·토큰 300자, 토큰은 공백·제어문자 불가, 주소 규칙은 아래).
+
+**보안 결정**
+- **비밀 암호화**: 새 방식을 만들지 않고 기존 `SecretEncryptor`(AES-256-GCM `v1:`, 키 `ROBOYAM_CRYPTO_KEY`)를 재사용 — 메일 비밀번호와 같다. 키가 없으면 비밀을 저장하는 쓰기는 503 `CRYPTO_KEY_MISSING`. 응답·로그·감사·예외에 평문/암호문 없음(응답은 `secretKeys` 만, 요청 DTO·엔티티 `toString` 은 값을 싣지 않는다). 비밀을 안 보내거나 빈 문자열이면 저장값 유지, 종류·방식이 바뀌어 안 쓰는 비밀(MM 봇↔웹훅 전환)과 칸은 DB 에서 지운다(하모니카3 `usedSecretKeys`).
+- **SSRF**(`OutboundTargetGuard`·`SafeHttpClient`): http/https 만, `user:pass@`·`#조각`·공백/제어문자·범위 밖 포트 거부(400 `fields.serverUrl|webhookUrl`), Mattermost 서버 주소는 질의 문자열도 거부. **항상 거부**: `169.254.0.0/16`(메타데이터), `fe80::/10`, AWS `fd00:ec2::/32`, 알리바바 `100.100.100.200`, `0.0.0.0/8`·`::`, 멀티캐스트·예약(`224.0.0.0/3`·`ff00::/8`) — IPv4-mapped/NAT64/6to4 안의 IPv4 도 같이 검사. **설정으로**: 로컬호스트·사설망(`127/8`·`10/8`·`172.16/12`·`192.168/16`·`100.64/10`·`::1`·`fc00::/7` 등)은 `roboyam.notification.allow-private-targets`(코드 기본 false, `roboyam-shared-local.yml` 만 true, 환경 변수 `ROBOYAM_NOTIFICATION_ALLOW_PRIVATE_TARGETS`). 저장할 때 DNS 를 풀어 검사하고(풀리지 않으면 통과 — 보낼 때 `DNS_FAILED`), **보낼 때 다시 풀어 나온 모든 IP 를 검사한 뒤 그 IP 로 소켓을 직접 연다**(재해석 없음 → DNS 재바인딩 우회 차단, https 는 그 소켓 위 TLS 에 SNI·호스트 이름 검증). 리다이렉트를 따라가지 않는다(3xx = 실패 `REDIRECTED`), 연결 3초·읽기 5초·전체 10초, 응답 본문 64KB, 헤더 값 줄바꿈 거부. 응답 본문은 Slack `ok` 판정에만 쓰고 돌려주지 않는다.
+- **메시지 주입 방지**(`ChannelMessageFormatter`): 글의 모든 입력 값에서 `@` 뒤에 폭 없는 공백을 끼워 멘션(`@channel`·`@here`·`@all`)을 끄고, Slack 은 `& < >` 를 엔티티로 바꿔 `<!here>`·`<@U…>` 를 못 만들며 서식 기호 앞에 폭 없는 공백, Mattermost 는 마크다운 기호를 역슬래시로 가린다. 제목은 한 줄·200자, 본문 1000자. (운영자 이름은 글자·숫자·밑줄·공백만이라 지금 입력 경로로는 닿지 않는 방어층이다 — 배치 이름·오류 요약 같은 값을 위해 둔다.)
+- 감사: `TEAM_CREATE|UPDATE|DELETE|MOVE|MEMBERS_UPDATE`(대상 `TEAM`), `NOTIFICATION_CHANNEL_CREATE|UPDATE|DELETE|TOGGLE|TEST`(대상 `NOTIFICATION_CHANNEL`). 비밀·주소·토큰은 값을 남기지 않고 **바뀐 칸 이름**만(`secretsSet`: `botToken`·`webhookUrl`·`serverUrl`), 팀원은 운영자 id 만(이메일 없음), 시험은 `ok`·`code` 만.
+
+**가정·미해결**
+- **팀이 지금 카탈로그에서는 받는 사람을 늘리지 못한다(확인 필요)**: 모든 이벤트에서 `requiredPermission`(= 수신 권한 첫 번째)이 기본 수신 규칙의 권한과 같아서, 「보는 권한이 있는 활성 팀원」은 이미 기본 수신자다. 팀이 실제로 바꾸는 것은 권한이 없는 팀원이 **받지 않는다**는 것뿐이다(수신자 집합 변화 없음). 팀이 수신 범위를 넓히려면 이벤트마다 「기본 수신 권한」보다 넓은 「보는 권한」(예: 링크 화면의 조회 권한)을 코드에 따로 정의해야 한다 — 정책 결정 필요(`Spec` 에 `viewPermission` 을 따로 두는 식).
+- Mattermost 봇 방식의 `channel` 은 채널 **id**(`channel_id`)다(이름만으로는 게시 API 가 채널을 못 찾는다 — 하모니카3와 같다). 화면 문구가 「채널 이름」이면 「채널 ID」로 고치거나 이름→id 조회를 더해야 한다.
+- 팀원이 운영자 삭제(반려)로 사라지면 DB 가 팀원 행도 지운다. 운영자가 사용 중지/잠금/기간 밖이 되면 팀원으로 남고 `active:false` 로 보인다(알림은 안 받음). 팀원 `email` 은 `team.read` 가진 운영자에게 보인다(운영자 목록과 같은 수준).
+- 공유 채널 게시는 재시도·실패 알림·전달 이력 표가 없다(로그에 도구 id·사유 코드만). 멈춘 도구는 게시하지 않는다. 서버가 여러 대면 시험 횟수 제한은 서버마다 따로 센다.
+- 도구·팀이 지워지는 순간 이벤트 선택 저장과 겹치면 외래키 오류(500)가 날 수 있다(드문 경합, 재시도하면 된다).
+- 기본 제공 도구의 `PUT` 은 `type` 이 같아야 한다(`EMAIL`·`BROWSER`·`DRAWER`, 대문자) — 프론트가 이미 `type` 을 함께 보낸다.
+- 프론트 `// MOCK:` → `// REAL:` 때: ① `NotificationEventView` 에 `channels`·`teamIds`·`broadcastAllowed` 가 합쳐지고 `deliveries`·`setDelivery` 는 없어진다 ② 목업 도구 id(`ch-…`)·팀 id(`t-…`)는 Snowflake 문자열로 바뀐다 ③ 팀원 `active` 를 화면에 보이면 좋다 ④ `team.read` 없는 운영자는 팀 선택을 바꾸면 403 이다(그대로 보내거나 `teamIds` 를 생략) ⑤ 이메일 도구를 끄면 이벤트의 `channels` 에는 `email` 이 남아 있어도 메일은 안 나간다.

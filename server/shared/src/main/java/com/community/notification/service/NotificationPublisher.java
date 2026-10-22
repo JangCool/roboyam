@@ -1,10 +1,13 @@
 package com.community.notification.service;
 
+import com.community.notification.dto.NotificationChannelPostRequested;
 import com.community.notification.dto.NotificationContext;
 import com.community.notification.dto.NotificationEmailRequested;
 import com.community.notification.entity.AdminNotificationEvent;
+import com.community.notification.entity.NotificationBuiltinChannelEntity;
 import com.community.notification.entity.NotificationRecipientRule;
 import com.community.notification.entity.NotificationSeverity;
+import com.community.notification.repository.master.NotificationDeliveryRepository;
 import com.community.notification.repository.master.NotificationRecipientRepositoryQDSL;
 import com.community.notification.repository.master.OperatorNotificationMuteRepository;
 import com.community.notification.service.NotificationEventSettings.State;
@@ -51,6 +54,10 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>받는 사람</b>은 이벤트의 수신 규칙({@link NotificationRecipientRule})이 정한다 — 본인 / 권한 보유자(+ 최고 관리자, 활성 운영자만) / 최고 관리자 — 에 맥락의 추가 수신자를 더하고, 행위자 제외
  * 이벤트면 행위자를 뺀다. 이벤트 관리에서 꺼진 이벤트(필수 이벤트는 못 끈다)와 운영자가 개인 설정에서 끈 이벤트(필수 이벤트는 무시)는 건너뛴다.
  *
+ * <p><b>추가 수신 팀·공유 채널</b>({@code broadcastAllowed} 인 이벤트만): 이벤트에 고른 사용 중인 팀의 팀원 중 <b>활성 운영자이고 이 이벤트를 볼 권한({@code requiredPermission})이 있는 사람</b>이 받는 사람에 더해진다
+ * (권한 없는 팀원은 건너뛴다 — 권한 상승 방지. 이미 받는 사람은 한 번만). Slack · Mattermost 도구는 받는 사람 수와 상관없이 <b>이벤트당 도구마다 한 번</b> 커밋 뒤에 올린다
+ * ({@code NotificationChannelPostSender}). 이메일은 이벤트의 이메일 전달과 기본 제공 이메일 도구가 모두 켜져 있을 때만 나간다.
+ *
  * <p><b>묶기</b>: 이벤트에 {@code collapseSeconds} 가 있으면, 같은 수신자가 같은 이벤트·같은 묶음 키({@code dedupeKey})의 알림을 그 시간 안에 이미 받았을 때 새 알림을 <b>만들지 않는다</b>
  * (처음 것이 남고 이후 중복은 사라진다 — 기존 행을 고치지 않는다. 그래서 새 알림 도착 감지({@code latestId})가 어긋나지 않고, 묶음 시간은 처음 알림의 생성 시각부터 센다).
  */
@@ -68,6 +75,7 @@ public class NotificationPublisher {
     private final NotificationEventSettings settings;
     private final NotificationRecipientRepositoryQDSL recipients;
     private final OperatorNotificationMuteRepository mutes;
+    private final NotificationDeliveryRepository delivery;
     private final SnowflakeIdGenerator ids;
     private final ApplicationEventPublisher events;
     private final EntityManager entityManager;
@@ -76,10 +84,12 @@ public class NotificationPublisher {
     private final DataSource dataSource;
 
     public NotificationPublisher(NotificationEventSettings settings, NotificationRecipientRepositoryQDSL recipients, OperatorNotificationMuteRepository mutes,
-                                 SnowflakeIdGenerator ids, ApplicationEventPublisher events, EntityManager entityManager, DataSource dataSource) {
+                                 NotificationDeliveryRepository delivery, SnowflakeIdGenerator ids, ApplicationEventPublisher events, EntityManager entityManager,
+                                 DataSource dataSource) {
         this.settings = settings;
         this.recipients = recipients;
         this.mutes = mutes;
+        this.delivery = delivery;
         this.ids = ids;
         this.events = events;
         this.entityManager = entityManager;
@@ -149,6 +159,7 @@ public class NotificationPublisher {
         }
 
         Set<Long> targets = recipientsOf(event, context, now);
+        addTeamMembers(event, targets, now);
         if (event.excludeActor() && context.actorId() != null) {
             targets.remove(context.actorId());
         }
@@ -156,34 +167,66 @@ public class NotificationPublisher {
             mutes.findByEventCodeAndOperatorIdIn(event.code(), targets).forEach(mute -> targets.remove(mute.getOperatorId()));
         }
         String dedupeKey = dedupeKeyOf(context.dedupeKey());
+        // 묶음 때문에 받을 사람이 모두 사라졌으면(= 같은 알림이 방금 나갔으면) 공유 채널에도 다시 올리지 않는다
+        boolean collapsed = false;
         if (event.collapseSeconds() > 0 && !targets.isEmpty()) {
             targets.removeAll(recentlyNotified(event, dedupeKey, targets, now));
-        }
-        if (targets.isEmpty()) {
-            return 0;
+            collapsed = targets.isEmpty();
         }
 
         NotificationSeverity severity = context.severity() != null ? context.severity() : event.severity();
         String argsJson = NotificationArgs.encode(context.args());
         String link = linkOf(event, context);
-        OffsetDateTime createdAt = OffsetDateTime.ofInstant(now, ZoneOffset.UTC);
-        List<Object[]> rows = new ArrayList<>();
-        for (Long operatorId : targets) {
-            rows.add(new Object[] {ids.nextId(), operatorId, event.code(), severity.name(), event.titleKey(), event.bodyKey(), argsJson, link, dedupeKey, createdAt});
-        }
-        // Native SQL(JDBC)인 이유: 알림 실패가 업무 트랜잭션을 망가뜨리지 않게 세이브포인트 안에서 영속성 컨텍스트를 거치지 않고 넣는다(클래스 설명)
-        jdbc.batchUpdate("insert into admin_notifications (id, operator_id, event_code, severity, title_key, body_key, args, link_path, dedupe_key, created_at) "
-                + "values (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?)", rows);
+        if (!targets.isEmpty()) {
+            OffsetDateTime createdAt = OffsetDateTime.ofInstant(now, ZoneOffset.UTC);
+            List<Object[]> rows = new ArrayList<>();
+            for (Long operatorId : targets) {
+                rows.add(new Object[] {ids.nextId(), operatorId, event.code(), severity.name(), event.titleKey(), event.bodyKey(), argsJson, link, dedupeKey, createdAt});
+            }
+            // Native SQL(JDBC)인 이유: 알림 실패가 업무 트랜잭션을 망가뜨리지 않게 세이브포인트 안에서 영속성 컨텍스트를 거치지 않고 넣는다(클래스 설명)
+            jdbc.batchUpdate("insert into admin_notifications (id, operator_id, event_code, severity, title_key, body_key, args, link_path, dedupe_key, created_at) "
+                    + "values (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?)", rows);
 
-        if (state.emailEnabled()) {
-            Set<Long> mailTargets = new LinkedHashSet<>(targets);
-            mailTargets.removeAll(recipients.emailOptedOut(targets));
-            if (!mailTargets.isEmpty()) {
-                events.publishEvent(new NotificationEmailRequested(event.code(), event.titleKey(), event.bodyKey(), argsJson, link, new ArrayList<>(mailTargets)));
+            // 이메일 도구(기본 제공)가 꺼져 있으면 이벤트에 이메일이 켜져 있어도 보내지 않는다
+            if (state.emailEnabled() && delivery.builtinEnabled(NotificationBuiltinChannelEntity.EMAIL)) {
+                Set<Long> mailTargets = new LinkedHashSet<>(targets);
+                mailTargets.removeAll(recipients.emailOptedOut(targets));
+                if (!mailTargets.isEmpty()) {
+                    events.publishEvent(new NotificationEmailRequested(event.code(), event.titleKey(), event.bodyKey(), argsJson, link, new ArrayList<>(mailTargets)));
+                }
             }
         }
-        log.info("알림을 만들었다 event={} 받는 사람={}명 actor={}", event.code(), targets.size(), context.actorId());
+
+        // 공유 채널(Slack · Mattermost): 받는 사람 수와 상관없이 도구마다 이벤트당 한 번. 본인 전용·필수 이벤트는 코드가 막는다(broadcastAllowed)
+        if (event.broadcastAllowed() && !collapsed) {
+            List<Long> channelIds = delivery.enabledChannelIdsOf(event.code());
+            if (!channelIds.isEmpty()) {
+                events.publishEvent(new NotificationChannelPostRequested(event.code(), severity, event.titleKey(), event.bodyKey(), argsJson, link, channelIds));
+            }
+        }
+        if (!targets.isEmpty()) {
+            log.info("알림을 만들었다 event={} 받는 사람={}명 actor={}", event.code(), targets.size(), context.actorId());
+        }
         return targets.size();
+    }
+
+    /**
+     * 이벤트의 「추가 수신 팀」 팀원을 받는 사람에 더한다. 코드에 고정된 기본 수신 규칙은 그대로이고(권한 상승 방지), 팀원은 <b>사용 중인 팀</b>의 <b>지금 활성인 운영자</b>이면서
+     * <b>이 이벤트를 볼 권한</b>({@code requiredPermission} — 최고 관리자는 모두)이 있는 사람만 받는다 — 권한이 없는 팀원에게 알림 행을 만들지 않는다. 이미 받는 사람은 한 번만 센다.
+     */
+    private void addTeamMembers(AdminNotificationEvent event, Set<Long> targets, Instant now) {
+        if (!event.broadcastAllowed()) {
+            return;
+        }
+        Set<Long> members = delivery.enabledTeamMemberIdsOf(event.code());
+        if (members.isEmpty()) {
+            return;
+        }
+        Set<Long> allowed = new LinkedHashSet<>(recipients.active(members, now));
+        if (event.requiredPermission() != null && !allowed.isEmpty()) {
+            allowed.retainAll(recipients.activeHolders(List.of(event.requiredPermission().code()), now));
+        }
+        targets.addAll(allowed);
     }
 
     /** 수신 규칙 + 추가 수신자. 「내 계정」 이벤트(SELF)는 계정 상태와 상관없이 쌓고, 권한 보유자·최고 관리자·추가 수신자는 지금 활성인 사람만 받는다 */

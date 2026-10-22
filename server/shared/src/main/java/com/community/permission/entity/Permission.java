@@ -91,6 +91,8 @@ public enum Permission {
     ROLE_MANAGE("role.manage", OPERATOR_ROLE, CONFIG, true),
     OPERATOR_LOCK("operator.lock", OPERATOR_ROLE, SENSITIVE, true),
     ROLE_GRANT("role.grant", OPERATOR_ROLE, SENSITIVE, true),
+    TEAM_READ("team.read", OPERATOR_ROLE, READ, true),
+    TEAM_MANAGE("team.manage", OPERATOR_ROLE, MANAGE, true),
     AUDIT_READ("audit.read", AUDIT_BATCH, READ, true),
     BATCH_READ("batch.read", AUDIT_BATCH, READ, true),
     BATCH_MANAGE("batch.manage", AUDIT_BATCH, MANAGE, true),

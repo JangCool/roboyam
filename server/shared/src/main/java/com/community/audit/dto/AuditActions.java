@@ -45,6 +45,16 @@ public final class AuditActions {
     /** 이름 유일 제약(V30)을 걸기 전에 같은 이름(대소문자 무시)이던 운영자의 이름을 마이그레이션이 고친 일 — 앱이 아니라 SQL 이 SYSTEM 으로 남긴다 */
     public static final String OPERATOR_NAME_DEDUP = "OPERATOR_NAME_DEDUP";
     public static final String NOTIFICATION_EVENT_UPDATE = "NOTIFICATION_EVENT_UPDATE";
+    public static final String TEAM_CREATE = "TEAM_CREATE";
+    public static final String TEAM_UPDATE = "TEAM_UPDATE";
+    public static final String TEAM_DELETE = "TEAM_DELETE";
+    public static final String TEAM_MOVE = "TEAM_MOVE";
+    public static final String TEAM_MEMBERS_UPDATE = "TEAM_MEMBERS_UPDATE";
+    public static final String NOTIFICATION_CHANNEL_CREATE = "NOTIFICATION_CHANNEL_CREATE";
+    public static final String NOTIFICATION_CHANNEL_UPDATE = "NOTIFICATION_CHANNEL_UPDATE";
+    public static final String NOTIFICATION_CHANNEL_DELETE = "NOTIFICATION_CHANNEL_DELETE";
+    public static final String NOTIFICATION_CHANNEL_TOGGLE = "NOTIFICATION_CHANNEL_TOGGLE";
+    public static final String NOTIFICATION_CHANNEL_TEST = "NOTIFICATION_CHANNEL_TEST";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();
