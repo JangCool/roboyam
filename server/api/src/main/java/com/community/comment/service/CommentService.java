@@ -38,6 +38,7 @@ import com.community.post.repository.master.PostCounterQueries;
 import com.community.post.repository.master.PostRepository;
 import com.community.post.service.PostQueryService;
 import com.community.post.service.PostWriteService;
+import com.community.post.service.WriterPromotion;
 import com.community.user.entity.ProfileEntity;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
@@ -68,6 +69,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li><b>쓰기 순서</b>(목업 {@code mockCommentCreate}): 글(404·403 숨김) → 게시판(403 꺼짐) → 댓글 판정(401·403 까닭) → 칸(본문 1~2,000자, 링크·이미지, 비회원, 답글 대상)
  *       → 금지어 → 자동입력 방지 → 작성 간격({@code 429 COMMENT_TOO_FAST}) → 하루 한도({@code 429 COMMENT_DAILY_LIMIT}). 답글은 1단계({@code parentId} = 원댓글).</li>
  *   <li>글의 보이는 댓글 수({@code posts.comment_count})는 쓰기·지우기·숨김이 같은 트랜잭션에서 원자적으로 고친다.</li>
+ *   <li>회원 댓글은 저장이 커밋된 뒤 활동 수 조건 즉시 승급을 판정한다({@link WriterPromotion} — 별도 트랜잭션, 실패해도 댓글쓰기는 성공).</li>
  * </ul>
  */
 @Service
@@ -91,12 +93,14 @@ public class CommentService {
     private final GuestPasswords passwords;
     private final CaptchaVerifier captcha;
     private final SnowflakeIdGenerator ids;
+    private final WriterPromotion promotion;
     private final TransactionTemplate tx;
     private final TransactionTemplate readTx;
 
     public CommentService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                           CommentRepositoryQDSL commentQueries, PostCounterQueries counters, AuthorViews authors, GuestPasswords passwords,
-                          CaptchaVerifier captcha, SnowflakeIdGenerator ids, PlatformTransactionManager txManager) {
+                          CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion, PlatformTransactionManager txManager) {
+        this.promotion = promotion;
         this.catalog = catalog;
         this.actors = actors;
         this.posts = posts;
@@ -259,7 +263,7 @@ public class CommentService {
         Long parent = parentId;
         Long replyTo = replyToId;
         String hash = passwordHash;
-        return tx.execute(status -> {
+        CommentView created = tx.execute(status -> {
             Instant now = Instant.now();
             checkRate(s, authorId, ip, now);
             CommentEntity comment = CommentEntity.create(id, post.getId(), b.id(), parent, replyTo, authorId, name, hash, ip, masked, now);
@@ -276,6 +280,8 @@ public class CommentService {
             Viewer self = new Viewer(userId, ip, false, 0, Set.of());
             return view(comment, self, byId, authors.members(memberIds), s, now);
         });
+        promotion.afterWrite(authorId); // 커밋 뒤 — 회원 댓글이면 활동 수 조건 즉시 승급(실패해도 댓글쓰기는 성공)
+        return created;
     }
 
     /** 작성 간격 → 하루 한도(작성자 단위 잠금 아래) */

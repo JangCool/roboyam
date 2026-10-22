@@ -18,6 +18,8 @@ public class ReportEntity {
     public static final String COMMENT = "COMMENT";
     public static final String PENDING = "PENDING";
     public static final String REJECTED = "REJECTED";
+    /** 수용(조치됨) — 관리자 신고 처리(후속)가 정한다 */
+    public static final String ACCEPTED = "ACCEPTED";
 
     @Id
     private Long id;

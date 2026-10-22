@@ -30,8 +30,8 @@ import org.springframework.stereotype.Component;
  *   <li><b>자동 승급 상태</b>: 정지(기간·영구) 회원은 {@code PAUSED_SANCTION}, 운영자가 올려 둔 회원({@code grade_manual})이고 등급 옵션이 「자동 승급 중지」면 {@code PAUSED_ADMIN}, 그 밖은 {@code ACTIVE}.
  *       (승급 판정 {@code GradePromotionService} 의 대상 규칙과 같다.)</li>
  *   <li><b>다음 등급</b>: 지금보다 서열이 높은 첫 등급. 조건은 가입 후 일수(실제 경과 일수, 상한 없음)와 글+댓글 수(활동 요약의 집계). 마지막 등급이면 null.
- *       달성도는 실제 값을 보이지만 <b>자동 승급 판정은 아직 활동 수를 0 으로 본다</b> — 조건을 모두 채워도 활동 조건이 있는 등급은 자동으로 올라가지 않는다
- *       (roles-contract.md 「회원 상세 활동·등급 이력(서버) 구현 결과」).</li>
+ *       활동 수는 즉시 승급과 같은 정의다. 활동 조건 승급은 글·댓글을 쓸 때 즉시 일어나고 일괄 경로(일수 배치·등급 저장의 소급)는 활동 수를 보지 않으므로,
+ *       조건을 모두 채웠는데 아직 그 등급이 아닌 회원은 다음 글·댓글 때 올라간다(roles-contract.md 「세션 정리 — 서버 수정 결과」).</li>
  *   <li><b>이력</b>: 최근 것이 먼저, 최대 {@value #HISTORY_LIMIT}건. 사유는 운영자 입력문이 우선, 없으면 시스템 사유 코드를 요청 언어로 푼다. 처리한 운영자가 지워졌으면 「삭제된 운영자」.</li>
  *   <li>포인트·닉네임 변경권 기능이 없어 {@code pointEntries} 는 빈 배열, {@code nicknameTicketCount} 는 0.</li>
  * </ul>

@@ -2,8 +2,10 @@ package com.community.user.repository.master;
 
 import com.community.user.entity.QProfileEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import java.util.Optional;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -11,6 +13,17 @@ public class ProfileRepositoryQDSL extends RoboyamRepositoryQDSL {
 
     public ProfileRepositoryQDSL(JPAQueryFactory query) {
         super(query);
+    }
+
+    /** 등급 상태 — 지금 등급 키와 수동 상향 여부 */
+    public record GradeState(String gradeKey, boolean gradeManual) {
+    }
+
+    /** 회원의 등급 상태를 엔티티로 올리지 않고 읽는다(즉시 승급의 사전 판정 — 올릴 때는 행을 잠그고 새로 읽는다) */
+    public Optional<GradeState> gradeStateOf(long userId) {
+        QProfileEntity profile = QProfileEntity.profileEntity;
+        Tuple row = query.select(profile.gradeKey, profile.gradeManual).from(profile).where(profile.userId.eq(userId)).fetchOne();
+        return row == null ? Optional.empty() : Optional.of(new GradeState(row.get(profile.gradeKey), Boolean.TRUE.equals(row.get(profile.gradeManual))));
     }
 
     /**

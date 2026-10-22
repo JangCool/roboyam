@@ -223,3 +223,23 @@
 
 ## 회원 상세 활동·등급 구획 프론트 연결 (2026-10-22)
 `MemberDetailRolesSection`·`MemberDetailGradePointSection` 이 서버의 `activity`·`gradePoint` 실제 값을 그린다(타입은 이미 서버 응답과 같아 변경 없음). 글·댓글·최근 7일 수는 숫자, 서버가 아직 집계하지 않는 추천·인기글·최근 7일 접속일과 닉네임 변경권·포인트 내역은 0 대신 「준비 중」(`UtilMember.activityPending`), 등급 이력은 최근 5건만 보이고 「더 보기」로 펼친다(서버 최대 50건), 활동 수 조건 줄에는 「활동 수 기준 승급은 아직 적용되지 않아요」 보조 안내(`UtilMember.activityPromotionNotApplied` — 서버 승급 엔진이 활동 수를 연결하면 판정과 문구를 함께 지운다), 탈퇴 회원은 활동 요약에 전용 문구(등급·포인트 구획은 기존대로 구획 자체를 뺀다).
+
+## 세션 정리 — 서버 수정 결과 (2026-10-22)
+**바뀐 집계 정의** — 회원 활동 수(관리자 회원 상세 `activity`·즉시 승급 판정)는 공개 게시판의 상태 모델을 쓴다. 한 곳(shared `com.community.member.repository.master.MemberActivityRepository`)에 두고 admin 회원 상세와 api 즉시 승급이 같이 쓴다.
+- 글: 회원 글 · `PUBLISHED` · `deleted_at IS NULL` · 예약 삭제 시각 전(`delete_scheduled_at IS NULL OR > now`) · 지금 숨김 아님(`hidden_at IS NULL OR (hidden_until IS NOT NULL AND hidden_until <= now)` — 임시조치가 끝나면 다시 센다). `PostEntity#isGoneAt`·`#isHiddenAt`, `PostRepositoryQDSL#alive`·`#notHidden` 과 같은 뜻.
+- 댓글: 회원 댓글 · 지우지 않음 · 지금 숨김 아님(같은 규칙, 댓글 칸 기준, 글의 상태는 보지 않는다).
+- 최근 7일 = `id >= floorIdAt(지금-7일) AND created_at >= 지금-7일`. `activity.likesReceived` = 위 기준으로 보이는 글·댓글의 `like_count` 합(이전에는 0).
+- 회원 상세 `reports`(이전 null) = `{receivedCount, actionedCount, filedCount}` — 받은 신고(`reports.target_author_id`), 그중 `status='ACCEPTED'`, 이 회원이 한 신고(`reporter_id`). 탈퇴 회원은 `activity`·`reports`·`gradePoint` 모두 null. **신고 표에 남은 것만 센다 — 보유기간 배치(`board-privacy-retention` 신고 기록 축)가 오래된 신고를 지우면 수가 줄어든다.** 신고 처리 기능이 아직 없어 `actionedCount` 는 지금 늘 0.
+
+**마이그레이션** — V45(`ix_posts_author`·`ix_comments_author`)는 **개발 DB(`roboyam`)에 이미 적용돼 있어**(V42~V47 이 2026-10-22 11:24~11:37 적용) 파일을 지우지 않았다. 대신
+- `V48__member_activity_report_indexes`: V45 의 두 작성자 부분 색인 DROP(새 정의는 `hidden_at IS NULL` 조건과 같지 않아 그 색인을 못 타고, V46 `ix_*_author_recent` 와 겹쳐 쓰기 비용만 늘린다) + `ix_reports_target_author (target_author_id, status) WHERE target_author_id IS NOT NULL`.
+- `V49__menu_hide_missing_screens`: mypage·group-buy 그룹의 앱 화면 항목 13개(user-web 에 화면 없음)를 `visible=false`, 바뀐 그룹 `version +1`. 폴더는 그대로(빈 폴더는 공개 응답에서 빠진다). main 은 그대로.
+- 활동 집계는 V46 의 `(author_id, id DESC) WHERE author_id IS NOT NULL` 색인을 탄다. 보임 판정은 지금 시각과 비교해 색인 조건에 못 넣으므로 행을 읽어 거른다. 일회용 DB 실측(글 33만·댓글 22만, 글 조각 10개): 글 3만·댓글 2만 작성자의 요약 한 문장 19.5ms(캐시 상태), 보통 작성자 2.2ms, 회원 상세 API 전체 54~78ms. 큰 작성자의 행이 heap 에 몰려 있는 시험 데이터라 실제(글이 여러 페이지에 흩어짐)·캐시 밖에서는 더 느릴 수 있다 — 그때는 카운터 표로 옮긴다.
+
+**즉시 승급 연결 범위** — api 글쓰기(`PostWriteService#create`)·댓글쓰기(`CommentService#create`)가 회원 글이면 **저장 커밋 뒤 별도 트랜잭션**으로 `GradePromotionService#promoteOnActivity` → `promoteOnEvent` 를 부른다(`WriterPromotion`, 실패는 WARN 로그만 — 글·댓글은 201 그대로). 일수 조건을 채운 상위 등급이 없으면 세지 않고, 있으면 그 등급들의 최대 `min_activity` 까지만 센다(`countUpTo` — `UNION ALL` + `LIMIT`, 실측 0.2~0.5ms). 올릴 때 프로필 행을 잠가 같은 회원의 동시 승급을 줄 세운다. 이력은 `member_grade_changes` kind `AUTO`. 응답의 작성자 등급 뱃지는 승급 전 값이다(승급이 커밋 뒤라서).
+- **일괄 경로는 여전히 활동 수를 보지 않는다**(`KNOWN_ACTIVITY = 0` — 등급 저장 PUT 의 미리보기·소급 승급, DB 배치 `grade-promotion`). 그래서 활동 조건을 이미 채웠거나 기준을 낮춰 채우게 된 회원, 일수가 나중에 차는 회원은 **다음 글·댓글 때** 올라간다. 글·댓글을 지우거나 숨겨도 등급은 내려가지 않는다(올리기만).
+
+**미해결**
+1. 일괄 경로의 활동 수(작성 쪽에서 증감하는 카운터 표 → 배치·미리보기·QDSL 이 같은 값을 보게).
+2. 활동이 없는 회원이 일수만 차서 활동 조건 등급에 닿는 경우는 다음 글·댓글까지 승급이 늦다(1과 같이 해결).
+3. 큰 작성자 요약의 비용(행 수에 비례) — 회원 상세가 느려지면 카운터 표.

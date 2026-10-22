@@ -61,6 +61,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * 작성자 열쇠는 회원 ID, 비회원은 작성 IP 다. 하루 = 최근 24시간(목업과 같음).
  *
  * <p>bcrypt(비회원 비밀번호 해시·확인)와 캡차 확인은 느리거나 외부 요청이라 트랜잭션 밖에서 하고, 저장은 {@link TransactionTemplate} 으로 짧게 연다.
+ *
+ * <p>회원 글은 저장이 커밋된 뒤 활동 수 조건 즉시 승급을 판정한다({@link WriterPromotion} — 별도 트랜잭션, 실패해도 글쓰기는 성공).
  */
 @Service
 public class PostWriteService {
@@ -74,11 +76,13 @@ public class PostWriteService {
     private final GuestPasswords passwords;
     private final CaptchaVerifier captcha;
     private final SnowflakeIdGenerator ids;
+    private final WriterPromotion promotion;
     private final TransactionTemplate tx;
 
     public PostWriteService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters,
-                            PostQueryService queries, GuestPasswords passwords, CaptchaVerifier captcha, SnowflakeIdGenerator ids,
+                            PostQueryService queries, GuestPasswords passwords, CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion,
                             PlatformTransactionManager txManager) {
+        this.promotion = promotion;
         this.catalog = catalog;
         this.actors = actors;
         this.posts = posts;
@@ -138,6 +142,7 @@ public class PostWriteService {
             checkRate(s, authorId, ip, title, content, now);
             posts.persist(PostEntity.create(id, b.id(), c.prefixId(), authorId, name, hash, ip, title, content, c.adult(), c.hasImage(), now));
         });
+        promotion.afterWrite(authorId); // 커밋 뒤 — 회원 글이면 활동 수 조건 즉시 승급(실패해도 글쓰기는 성공)
         return new PostWriteResult(Long.toString(id));
     }
 

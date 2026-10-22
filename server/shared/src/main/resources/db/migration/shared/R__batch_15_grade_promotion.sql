@@ -13,9 +13,11 @@
 --     가장 높은 등급으로 한 번에 올린다. 일수 = 가입 시각(users.created_at) <= 지금 - min_days 일.
 --   · 대상은 정상(ACTIVE) 회원이고 탈퇴 처리(deleted_at)되지 않은 회원만. 정지·탈퇴 회원은 자동 승급이 멈춘다.
 --   · 운영자가 수동으로 올린 회원(profiles.grade_manual)은 등급 옵션(grade_settings.manual_policy)이 CONTINUE_AUTO 일 때만 포함한다. 옵션 행이 없으면 포함한다.
---   · 활동 수: 승급 판정은 모든 회원의 활동 수를 0 으로 본다 — 활동 조건이 0 인 등급(조건이 일수뿐인 등급)만 올라갈 수 있다. 글·댓글 표(V42)는 있지만 잇지 않았다(의도 —
---     매일 전체 회원을 훑는 배치에서 회원마다 글 월 조각 + 댓글 64조각의 색인을 찌르는 집계가 너무 무겁다. 작성 쪽 카운터가 생기면 잇는다. roles-contract.md 「회원 상세 활동·등급 이력(서버) 구현 결과」).
---     (Java GradePromotionService.KNOWN_ACTIVITY 와 같은 가정. 잇게 되면 아래 c_known_activity 자리와 Java 의 activityReachable·QDSL 도 함께 고친다.)
+--   · 활동 수: 이 일괄 경로는 여전히 활동 수를 보지 않는다 — 모든 회원의 활동 수를 0 으로 보아 활동 조건이 0 인 등급(조건이 일수뿐인 등급)만 올린다.
+--     매일 전체 회원을 훑는 배치에서 회원마다 글 월 조각 + 댓글 64조각을 세는 집계가 너무 무거워서다(작성 쪽에서 증감하는 카운터 표가 생기면 잇는다 — 후속).
+--     활동 조건은 글·댓글을 쓸 때 즉시 경로(Java GradePromotionService.promoteOnActivity — 보이는 글·댓글을 필요한 수까지만 센다)가 판정한다. 그래서 활동 조건을 채운 회원은
+--     이 배치가 아니라 다음 글·댓글 때 올라간다. roles-contract.md 「세션 정리 — 서버 수정 결과」.
+--     (Java GradePromotionService.KNOWN_ACTIVITY — promoteAll·미리보기 — 와 같은 가정. 잇게 되면 아래 c_known_activity 자리와 Java 의 activityReachable·QDSL 도 함께 고친다.)
 --   · 이력: 올린 회원마다 member_grade_changes(V44)에 kind=AUTO 한 줄을 승급과 같은 문장에서 남긴다(Java GradeRepositoryQDSL#promote·promoteOnEvent 와 같다).
 --   · 등급 저장과의 충돌 방지: 덩어리를 시작할 때마다 grade_settings 행을 FOR UPDATE 로 잠근다. 등급 저장(GradeService.save)도 같은 행을 잠그고 시작하므로, 저장이 진행 중이면 끝나기를
 --     기다린 뒤 **저장이 끝난 등급 목록**으로 판정한다(잠그지 않으면 지워지는 등급을 참조하다 외래키 오류가 날 수 있다). 잠금은 덩어리의 COMMIT 으로 풀린다 — 덩어리마다 새로 잠그고 목록을 다시 읽는다.
@@ -30,7 +32,7 @@ CREATE OR REPLACE PROCEDURE batch_grade_promotion(p_trigger text DEFAULT 'SCHEDU
 LANGUAGE plpgsql AS $proc$
 DECLARE
     c_job            CONSTANT text := 'grade-promotion';
-    c_known_activity CONSTANT int  := 0;  -- 글·댓글 표가 없는 동안 모든 회원이 가진 활동 수 (Java GradePromotionService.KNOWN_ACTIVITY 와 같다)
+    c_known_activity CONSTANT int  := 0;  -- 일괄 경로가 모든 회원에게 가정하는 활동 수 — 활동 수를 세지 않는다 (Java GradePromotionService.KNOWN_ACTIVITY 와 같다)
     v_chunk          bigint := batch_param(c_job, 'chunk_size', 5000, 100, 100000);
     v_max            bigint := batch_param(c_job, 'max_per_run', 1000000, 1000, 100000000);
     v_now            timestamptz;
