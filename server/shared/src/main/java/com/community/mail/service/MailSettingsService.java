@@ -34,6 +34,8 @@ public class MailSettingsService {
     static final int HOST_MAX = 255;
     static final int USERNAME_MAX = 255;
     static final int PASSWORD_MAX = 500;
+    public static final int SENDER_NAME_MAX = 50;
+    public static final int SUBJECT_PREFIX_MAX = 30;
 
     private final MailSettingRepository settings;
     private final SecretEncryptor encryptor;
@@ -113,6 +115,39 @@ public class MailSettingsService {
             password = null; // 인증 없이 보낸다
         }
         return new MailValues(host, port, username, password, from, security);
+    }
+
+    /**
+     * 보내는 이름 — 앞뒤 공백을 자르고 비면 null. 1~{@value #SENDER_NAME_MAX}자, 줄바꿈·제어 문자 불가(메일 헤더 주입 방지). 위반은 {@code errors} 에 {@code field} 로.
+     */
+    public String normalizeSenderName(Map<String, MessageRef> errors, String field, String value) {
+        return normalizeHeaderText(errors, field, value, SENDER_NAME_MAX, "mail.senderName");
+    }
+
+    /**
+     * 제목 머리말 — 앞뒤 공백을 자르고 비면 null. 1~{@value #SUBJECT_PREFIX_MAX}자, 줄바꿈·제어 문자 불가(메일 헤더 주입 방지). 위반은 {@code errors} 에 {@code field} 로.
+     */
+    public String normalizeSubjectPrefix(Map<String, MessageRef> errors, String field, String value) {
+        return normalizeHeaderText(errors, field, value, SUBJECT_PREFIX_MAX, "mail.subjectPrefix");
+    }
+
+    /** 메일 헤더에 들어가는 한 줄 글자 — 길이는 글자(코드 포인트) 수로 센다(DB varchar 와 같다) */
+    private static String normalizeHeaderText(Map<String, MessageRef> errors, String field, String value, int max, String keyBase) {
+        String text = value == null ? null : value.strip();
+        if (text == null || text.isEmpty()) {
+            return null;
+        }
+        if (text.codePoints().anyMatch(MailSettingsService::isLineBreakOrControl)) {
+            errors.put(field, new MessageRef(keyBase + ".control"));
+        } else if (text.codePointCount(0, text.length()) > max) {
+            errors.put(field, new MessageRef(keyBase + ".length", max));
+        }
+        return text;
+    }
+
+    private static boolean isLineBreakOrControl(int c) {
+        int type = Character.getType(c);
+        return Character.isISOControl(c) || type == Character.LINE_SEPARATOR || type == Character.PARAGRAPH_SEPARATOR;
     }
 
     /**

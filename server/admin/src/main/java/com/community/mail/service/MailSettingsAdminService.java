@@ -42,7 +42,8 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li><b>같은 표·같은 행</b>({@code mail_settings}, id 1)을 읽고 쓴다 — 설치 마법사가 넣은 값이 그대로 보인다. 행이 없으면(설치 때 건너뜀) 저장이 새로 만든다.</li>
- *   <li><b>검사</b>는 설치 마법사와 같다({@link MailSettingsService#normalize}) — 틀린 칸을 모아 400 {@code VALIDATION} {@code fields.<칸>}(보내는 사람 칸은 {@code fromAddress}).</li>
+ *   <li><b>검사</b>는 설치 마법사와 같다({@link MailSettingsService#normalize}) — 틀린 칸을 모아 400 {@code VALIDATION} {@code fields.<칸>}(보내는 사람 칸은 {@code fromAddress}).
+ *       보내는 이름·제목 머리말(관리자 화면에서만)은 {@link MailSettingsService#normalizeSenderName}·{@link MailSettingsService#normalizeSubjectPrefix} — 비우면 null.</li>
  *   <li><b>비밀번호</b>: 보내지 않으면 저장된 값을 그대로 둔다. 다만 <b>사용자 이름 · 서버 주소 · 보안 방식</b>을 바꾸면서 비우면 {@code fields.password}
  *       {@code mail.password.reenter} — 저장된 자격 증명이 다른 서버로 가거나 암호화 없이 나가지 않게 한다. 보내면 암호화해 바꾼다(키가 없으면 503 {@code CRYPTO_KEY_MISSING}).
  *       사용자 이름을 비우면 비밀번호도 지운다. 같은 비밀번호를 다시 넣으면(풀어서 견준다) 바뀐 것이 아니다.</li>
@@ -90,11 +91,13 @@ public class MailSettingsAdminService {
 
     @Transactional
     public MailSettingsView save(AdminActor actor, MailSettingsSaveRequest body) {
-        MailSettingsSaveRequest in = body == null ? new MailSettingsSaveRequest(null, null, null, null, null, null) : body;
+        MailSettingsSaveRequest in = body == null ? new MailSettingsSaveRequest(null, null, null, null, null, null, null, null) : body;
         MailSettingEntity row = settings.findWithLockById(MailSettingEntity.ROW_ID).orElse(null);
 
         Map<String, MessageRef> raw = new LinkedHashMap<>();
         MailValues values = validator.normalize(raw, "", new MailInput(in.host(), in.port(), in.username(), in.password(), in.fromAddress(), in.security()), true);
+        String senderName = validator.normalizeSenderName(raw, MailSettingChange.SENDER_NAME, in.senderName());
+        String subjectPrefix = validator.normalizeSubjectPrefix(raw, MailSettingChange.SUBJECT_PREFIX, in.subjectPrefix());
 
         // 비밀번호를 비워 보냈다 — 저장된 것을 그대로 쓸 수 있는가
         boolean keepPassword = false;
@@ -136,6 +139,8 @@ public class MailSettingsAdminService {
             changes.add(MailSettingChange.password(passwordChange));
         }
         diff(changes, MailSettingChange.FROM_ADDRESS, row == null ? null : row.getFromAddress(), values.from());
+        diff(changes, MailSettingChange.SENDER_NAME, row == null ? null : row.getSenderName(), senderName);
+        diff(changes, MailSettingChange.SUBJECT_PREFIX, row == null ? null : row.getSubjectPrefix(), subjectPrefix);
         if (changes.isEmpty()) {
             return view(row);
         }
@@ -143,11 +148,12 @@ public class MailSettingsAdminService {
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS); // DB(timestamptz) 정밀도 — 저장 응답과 다시 읽은 값이 같게
         String action;
         if (row == null) {
-            row = MailSettingEntity.create(values.host(), values.port(), values.username(), afterEnc, values.from(), values.security(), actor.operatorId(), now);
+            row = MailSettingEntity.create(values.host(), values.port(), values.username(), afterEnc, values.from(), values.security(), senderName, subjectPrefix,
+                    actor.operatorId(), now);
             settings.persist(row);
             action = MailSettingHistoryEntity.ACTION_CREATE;
         } else {
-            row.change(values.host(), values.port(), values.username(), afterEnc, values.from(), values.security(), actor.operatorId(), now);
+            row.change(values.host(), values.port(), values.username(), afterEnc, values.from(), values.security(), senderName, subjectPrefix, actor.operatorId(), now);
             action = MailSettingHistoryEntity.ACTION_UPDATE;
         }
         history.record(action, MailSettingHistorySource.ADMIN, actor.operatorId(), now, changes);
@@ -243,7 +249,7 @@ public class MailSettingsAdminService {
                 : operators.findById(row.getUpdatedBy()).map(OperatorEntity::getOperatorName)
                         .orElseGet(() -> messages.get(new MessageRef("mail.history.operatorDeleted")));
         return new MailSettingsView(true, row.getHost(), row.getPort(), row.getSecurity().name(), row.getUsername(), row.getPasswordEnc() != null,
-                row.getFromAddress(), encryptor.isConfigured(), row.getUpdatedAt(), by);
+                row.getFromAddress(), row.getSenderName(), row.getSubjectPrefix(), encryptor.isConfigured(), row.getUpdatedAt(), by);
     }
 
     private static MailSettingHistoryItemView item(MailSettingHistoryRow row, String deletedName) {

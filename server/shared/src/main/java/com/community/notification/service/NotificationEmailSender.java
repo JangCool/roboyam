@@ -91,7 +91,7 @@ public class NotificationEmailSender {
                 NotificationMailTemplate.Mail content = NotificationMailTemplate.build(messages, locale, siteName, title == null ? "" : title, body, adminUrl,
                         event.linkPath());
                 try {
-                    if (!mail.send(operator.getEmail(), content.subject(), content.html())) {
+                    if (!mail.sendTagged(operator.getEmail(), content.subject(), content.untaggedSubject(), content.html())) {
                         return; // 메일 서버가 설정돼 있지 않다 — 나머지도 같다(이유는 MailDispatcher 가 로그로 남겼다)
                     }
                     sent++;

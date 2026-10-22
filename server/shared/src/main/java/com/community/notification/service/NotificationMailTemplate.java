@@ -14,7 +14,11 @@ final class NotificationMailTemplate {
 
     private static final String DEFAULT_SITE_NAME = "ROBOYAM";
 
-    record Mail(String subject, String html) {
+    /**
+     * @param subject         머리말이 없을 때의 제목 `[사이트 이름] 제목`
+     * @param untaggedSubject 메일 설정에 제목 머리말이 있을 때 머리말 뒤에 붙일 제목 — 자체 `[사이트 이름]` 을 뺀 알림 제목(머리말과 겹치지 않게, {@code MailDispatcher#sendTagged})
+     */
+    record Mail(String subject, String untaggedSubject, String html) {
     }
 
     private NotificationMailTemplate() {
@@ -42,7 +46,7 @@ final class NotificationMailTemplate {
         }
         content.append(note(HtmlUtils.htmlEscape(messages.get(new MessageRef("notification.mail.reason"), locale))));
         String subject = messages.get(new MessageRef("notification.mail.subject", site, title), locale);
-        return new Mail(subject, layout(messages, locale, HtmlUtils.htmlEscape(site), HtmlUtils.htmlEscape(title), content.toString()));
+        return new Mail(subject, title, layout(messages, locale, HtmlUtils.htmlEscape(site), HtmlUtils.htmlEscape(title), content.toString()));
     }
 
     private static String p(String text) {
