@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
  *
  * <ul>
  *   <li>전체 스위치가 꺼져 있으면 409 {@code BOARD_PRIVACY_DISABLED}. 배치(또는 다른 지금 실행)가 도는 중이면 409 {@code BOARD_PRIVACY_RUNNING}.</li>
- *   <li>신고 기록·처리 기록 축은 표가 아직 없어 0건이다.</li>
+ *   <li>신고 기록 축은 공개 게시판의 `reports` 표(V46)를 정리한다. 처리 기록 축은 신고 처리 기능이 없어 아직 0건이다.</li>
  *   <li>마친 뒤 마지막 실행 시각과 감사 기록({@code BOARD_PRIVACY_RUN}, 축·처리 수)을 남긴다.</li>
  * </ul>
  */
