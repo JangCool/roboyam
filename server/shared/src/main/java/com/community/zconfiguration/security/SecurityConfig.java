@@ -31,7 +31,7 @@ import org.springframework.security.web.savedrequest.NullRequestCache;
  *       {@code GET /api/auth/me} 가 첫 쿠키다).</li>
  *   <li>설치 전에는 {@code /api/**} 중 설치 마법사만 열려 있고 나머지는 503 NOT_INSTALLED 다({@link InstallationGuardFilter} — CSRF 검사 앞).</li>
  *   <li>로그인 없이 쓰는 구간: {@code /api/system/installation/**}(토큰·설치 상태 검사는 서비스가 한다), {@code GET /api/auth/me}·{@code /api/auth/providers}·{@code /api/site/info}·{@code /api/site/theme}·{@code /api/display/effective},
- *       {@code POST /api/auth/login}·{@code /api/auth/logout}. 그 밖의 {@code /api/**}(인증 메일 재발송 포함)는 인증이 필요하다 —
+ *       {@code POST /api/auth/login}·{@code /api/auth/logout}, 소셜 로그인 {@code /api/auth/social/*}(시작·콜백·가입 대기·가입 완료). 그 밖의 {@code /api/**}(인증 메일 재발송 포함)는 인증이 필요하다 —
  *       인증이 없으면 JSON {@code 401 UNAUTHENTICATED}. 화면(정적 파일)·actuator 는 연다.</li>
  *   <li>오류는 JSON 으로 답한다(화면이 HTML 오류 페이지를 받지 않게). CSRF 거절은 {@code 403 CSRF_INVALID}.</li>
  * </ul>
@@ -60,6 +60,10 @@ public class SecurityConfig {
                         // 로그인 상태 조회·소셜 공급자 목록·로그인·로그아웃 — 로그인 전에도 부른다(로그아웃은 비로그인이어도 204)
                         .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/auth/providers").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/logout").permitAll()
+                        // 소셜 로그인(공개 사이트 서버(api)에만 있는 주소) — 시작(페이지 이동)·공급자 콜백·가입 대기 조회·가입 완료. state·가입 대기는 서버 세션이 확인하고,
+                        // IP 한도는 서비스가 센다. 로그인한 회원의 연결 관리(/api/me/social/**)는 아래 규칙대로 로그인이 필요하다
+                        .requestMatchers(HttpMethod.GET, "/api/auth/social/*/start", "/api/auth/social/*/callback", "/api/auth/social/pending").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/social/complete").permitAll()
                         // 공개 사이트 설정(이름·로고·아이콘·링크 미리보기 이미지·표시 기본값) — 로그인 전 화면도 읽는다(공개 사이트 서버(api)에만 있는 주소)
                         .requestMatchers(HttpMethod.GET, "/api/site/info", "/api/site/theme").permitAll()
                         // 표시 효과값(docs/features/display-contract.md) — 비로그인은 사이트 기본값, 로그인했으면 개인 값까지 합친 값. 개인 값 API(/api/me/display)는 아래 규칙대로 로그인 필요

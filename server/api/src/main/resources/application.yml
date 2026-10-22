@@ -39,6 +39,20 @@ roboyam:
     verify-token-hours: 24        # 이메일 인증 링크의 유효 시간
     resend-cooldown-seconds: 60   # 인증 메일 재발송 간격(가장 최근에 보낸 링크 기준)
     session-timeout: 30d          # 로그인 세션: 마지막 활동 뒤 이 기간. spring.session.timeout 과 세션 쿠키 기한이 이 값을 따른다
+  # 소셜 로그인(카카오·네이버·구글, OAuth 2.0 인가 코드 흐름 — docs/features/login-contract.md 「소셜 로그인」). 공급자 주소는 코드에 고정이다(SocialEndpoints).
+  # 공급자 콘솔에 등록할 콜백 주소: {사이트 공개 주소}/api/auth/social/{kakao|naver|google}/callback
+  social:
+    state-ttl: 10m              # 시작한 흐름(state·PKCE·nonce)의 유효 시간 — 이 안에 공급자에서 돌아와야 한다
+    pending-ttl: 15m            # 처음 보는 소셜 계정의 가입 완료 대기 유효 시간(서버 세션)
+    rate-window: 10m            # IP 기준 요청 한도를 세는 창
+    start-per-window: 30        # 한 IP 가 창 안에 소셜 로그인·연결을 시작할 수 있는 횟수
+    complete-per-window: 10     # 한 IP 가 창 안에 가입 완료를 요청할 수 있는 횟수
+    connect-timeout: 3s         # 공급자 접속 제한 시간
+    read-timeout: 5s            # 공급자 응답 제한 시간
+    # 시험용 가짜 공급자 — local 프로필 + 루프백 주소일 때만 쓰인다(dev·prod 에서는 켜도 무시하고 경고만 남긴다). 기본 꺼짐
+    test-endpoints:
+      enabled: ${ROBOYAM_SOCIAL_TEST_ENDPOINTS_ENABLED:false}
+      base-url: ${ROBOYAM_SOCIAL_TEST_ENDPOINTS_BASE_URL:}
   # 비회원 글·댓글의 자동입력 방지(docs/features/board-public-contract.md 추가 결정 1). 비밀키가 비어 있으면 검증하지 않고 기동 로그에 경고한다(CaptchaConfig)
   captcha:
     turnstile-secret: ${TURNSTILE_SECRET_KEY:}
