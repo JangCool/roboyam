@@ -71,7 +71,7 @@
                         <span class="text-xs text-muted-color tabular-nums">{{ t('member.detail.dormancyNoticedAt', { at: time.full(detail.dormancy.noticedAt) }) }}</span>
                         <span class="text-xs text-muted-color tabular-nums">{{ t('member.detail.dormancyEraseOn', { at: time.date(detail.dormancy.eraseOn) }) }}</span>
                     </div>
-                    <span v-else-if="field.key === 'point'" class="tabular-nums">{{ detail.point.toLocaleString(locale) }}</span>
+                    <span v-else-if="field.key === 'point'" class="text-muted-color">{{ t('member.detail.pending') }}</span>
                 </dd>
             </div>
         </dl>

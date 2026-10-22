@@ -72,7 +72,7 @@ const sections = computed<Section[]>(() => {
         { key: 'contact', labelKey: 'member.detail.sectionContact', show: shown(d.contact) },
         { key: 'profile', labelKey: 'member.detail.sectionProfile', show: shown(d.profile) },
         { key: 'roles', labelKey: 'member.detail.sectionRoles', show: true },
-        { key: 'gradePoint', labelKey: 'member.detail.sectionGradePoint', show: shown(d.gradePoint) },
+        { key: 'gradePoint', labelKey: 'member.detail.sectionGradePoint', show: true },
         { key: 'settings', labelKey: 'member.detail.sectionSettings', show: shown(d.settings) },
         { key: 'consent', labelKey: 'member.detail.sectionConsent', show: shown(d.consents) },
         { key: 'identity', labelKey: 'member.detail.sectionIdentity', show: d.status !== 'WITHDRAWN', pending: true },
