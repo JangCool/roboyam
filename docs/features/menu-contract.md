@@ -5,7 +5,7 @@
 
 ## 화면 (기준 코드 — 칸 이름·범위·기본값의 원천)
 - `/menus/public` · `/menus/admin` (`/menus` → `/menus/public`).
-- 기준 코드: `apps/admin-web/app/composables/menu/api/useMenuApi.ts`(머리말 = API 후보·오류 코드 전체) · `useMenuApi.types.ts`(요청·응답 모양 = JSON 키) · `utils/util-menu.ts`(`LIMITS`·`TARGET_TYPES`·`BUILTINS` 앱 화면 레지스트리·주소 검사 `pathProblem`/`hrefProblem`·상태·미연결·미리보기 거르기) · `utils/util-menu-tree.ts`(서버 `fields` 경로 꼴) · `utils/util-admin-menu-config.ts`(관리자 메뉴 레지스트리·구조 규칙·검증) · `mock/menu-mock.ts`(서버 규칙 흉내 — 오류 코드·version·자동 추가 폴더 하나).
+- 기준 코드: `apps/admin-web/app/composables/menu/api/useMenuApi.ts`(머리말 = API 후보·오류 코드 전체) · `useMenuApi.types.ts`(요청·응답 모양 = JSON 키) · `utils/util-menu.ts`(`LIMITS`·`TARGET_TYPES`·`BUILTINS` 앱 화면 레지스트리·주소 검사 `pathProblem`/`hrefProblem`·상태·미연결·미리보기 거르기) · `utils/util-menu-tree.ts`(서버 `fields` 경로 꼴) · `utils/util-admin-menu-config.ts`(관리자 메뉴 레지스트리·구조 규칙·검증). 목업은 서버 연결 뒤 지워졌고 서버 규칙의 원천은 서버 코드다.
 - 공개 사이트가 받는 모양: `apps/user-web/app/composables/menu/api/useMenuApi.types.ts`(`GET /api/menu` 응답 — 바꾸지 않는다).
 
 ## 권한
@@ -53,9 +53,15 @@
 3. `PAGE`(고정 페이지) 유형은 CMS 기능이 생길 때.
 
 ## 화면 실제 연결 결과 (2026-10-22)
-- **admin-web** `composables/menu/api/useMenuApi.ts` 의 모든 호출이 서버(`MenuSetController`·`MenuTargetController`·`AdminMenuController`)를 부른다. 목업 `composables/menu/api/mock/menu-mock.ts` 와 그 시드 전용 `UtilAdminMenuConfig.seed()` 는 지웠다(위 「화면」 절의 `mock/menu-mock.ts` 언급은 이제 없는 파일). 포인트 목업이 쓰는 `common/mock/mock-util.ts` 는 남겼다.
+- **admin-web** `composables/menu/api/useMenuApi.ts` 의 모든 호출이 서버(`MenuSetController`·`MenuTargetController`·`AdminMenuController`)를 부른다. 목업 `composables/menu/api/mock/menu-mock.ts` 와 그 시드 전용 `UtilAdminMenuConfig.seed()` 는 지웠다. 포인트 목업이 쓰는 `common/mock/mock-util.ts` 는 남겼다.
 - 타입: `MenuItemDto.resolved?: { status }` 를 더했다 — 화면은 같은 규칙(`UtilMenu.itemStatus`)으로 상태를 스스로 계산하고 저장 요청에 싣지 않는다. `version` 은 뜻을 읽지 않고 그대로 돌려보낸다.
 - 409 `MENU_VERSION_CONFLICT`: 저장 줄에 서버 문구를 그대로 보이고 [다시 불러오기]로 최신 트리를 받는다(공개·관리자 메뉴 같음). 서버 `fields` 경로(`.settings.path`·`.settings.href`·`.targetKey`·`.kind`)는 기존 `UtilMenuTree.splitFieldErrors` 가 줄에 붙이고, `fields.nodes` 는 저장 줄 문구로 모은다.
 - **user-web** `composables/menu/api/useMenuApi.ts` 가 `GET /api/menu`(기본 `main`)를 부른다. 목업 폴더는 지웠다. 못 받으면 기존대로 `useMenu` 가 기본 메뉴(폴백)로 그린다.
 - 게시판 순서: 공개 내비게이션 순서의 주인은 메뉴(`main` 그룹). `/boards` 표 아래 안내를 「게시판 목록·글쓰기 게시판 고르기 순서」로 고치고 `layout.read` 가 있으면 `/menus/public` 링크를 둔다.
 - 일회용 환경 확인(develop jar + 새 DB, 설치 API 로 설치): 공개 메뉴 트리 조회·폴더 추가 저장·새로고침 뒤 유지, 다른 탭에서 게시판을 만든 뒤 열어 둔 트리 저장 → 409 문구 + 다시 불러오기로 새 게시판 포함 트리, 공개 사이트 내비에 새 게시판 표시, `GET /api/menu` `Cache-Control: no-store`, 관리자 메뉴 화면 조회. 관리자 메뉴 **저장**은 화면에서 눌러 보지 않았다.
+
+## 세션 정리 결정 (2026-10-22)
+- **공개 내비게이션 순서의 주인은 메뉴(main 그룹)**다. 게시판 `sort_order` 는 게시판 목록 API·글쓰기 게시판 고르기·폴백 메뉴·새 게시판의 처음 위치에만 쓰인다(`board-contract.md` 같은 절).
+- **관리자 메뉴의 원천은 아직 코드**다 — 사이드바는 `util-admin-menu.ts` 의 ITEMS 를 그리고, 저장한 관리자 메뉴 구성(admin V2)은 셸이 아직 읽지 않는다. 새 화면은 ITEMS 한 줄 + `menu.ts` ko/en + 서버 `AdminScreenRegistry` 한 줄을 **같게** 더한다(두 곳이 어긋나면 관리자 메뉴 관리 화면에 그 화면이 빠진다). 셸이 저장 구성을 읽게 되면 역할 화면의 메뉴 미리보기도 같은 원천으로 바꾼다.
+- **없는 화면을 가리키는 메뉴 시드는 숨긴다**(mypage·group-buy 그룹 중 user-web 에 화면이 없는 주소) — 화면이 생길 때 보이게 바꾼다.
+- 포인트 관리(`/points`)는 목업 화면이지만 메뉴는 `point.read` 보유 여부로만 감춘다(권한의 「준비 중」은 역할 권한 고르개 표시에만 쓰인다). 화면 확정 전 검토용으로 최고 관리자에게는 보인다 — 포인트 백엔드가 생길 때 서버 `Permission` 의 `point.*` 를 준비됨으로 바꾼다.

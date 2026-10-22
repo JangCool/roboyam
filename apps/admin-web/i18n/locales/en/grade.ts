@@ -107,7 +107,7 @@ export default {
     // Notes section
     notesTitle: 'Notes',
     noteSource: 'You add and remove grades on this screen. Grade roles are generated from this list, and in Roles you only set their permissions.',
-    noteActivity: 'Until the post and comment features are connected, activity counts as 0, so grades with an activity condition are not reached yet.',
+    noteActivity: 'Activity conditions are checked right when a member writes a post or comment. The daily promotion run only checks days since joining.',
     noteDays: 'The days since sign-up condition is applied by a batch that runs once a day.',
     noteUpOnly: 'Grades only go up. They are never lowered automatically.',
     noteTarget: 'Only active members are promoted. Suspended and withdrawn members are not.',
