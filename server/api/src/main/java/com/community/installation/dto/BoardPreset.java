@@ -7,8 +7,8 @@ import java.util.Locale;
 /**
  * 설치 때 고르는 <b>기본 게시판 구성(프리셋)</b> 하나 — {@code install-presets/*.json} 데이터의 모양이다. 프리셋은 코드에 박지 않고 데이터로 둔다.
  *
- * <p>JSON 에는 게시판을 실제로 만들 때 쓸 칸(주소·목록 모양·표시색·종류 …)도 들어 있다. 지금은 게시판 표가 없어 설치는 <b>선택(아이디)만 기록</b>하므로
- * 이 레코드는 목록에 보이는 칸과 검사에 필요한 칸만 읽고 나머지는 무시한다({@code ignoreUnknown}) — 게시판을 만드는 적용을 구현할 때 칸을 더한다.
+ * <p>JSON 에는 게시판을 실제로 만들 때 쓸 칸(주소·목록 모양·표시색·종류 …)도 들어 있다. 설치(와 이미 설치된 곳의 한 번 적용)가 이 칸으로 기본 게시판을 만든다
+ * ({@code BoardPresetApplier}). 모르는 칸(소모임 분류 이름 등)은 무시한다({@code ignoreUnknown}).
  *
  * @param id            {@code NEUTRAL} · {@code ROBOYAM} … 설치 요청의 {@code boardPreset} 값
  * <p>이름·설명은 기본값(한국어, {@code name}·{@code description})과 영문({@code nameEn}·{@code descriptionEn}) 짝으로 둔다 — 프로젝트의 "이름은 {@code name} + 선택 {@code nameEn}" 규칙과 같다.
@@ -36,11 +36,16 @@ public record BoardPreset(String id, String name, String nameEn, String descript
      *
      * @param nameEn    영문 이름
      * @param slug      게시판 주소 — 프리셋 안에서 겹치지 않는다
-     * @param kind      {@code GENERAL}(비우면 이것) · {@code GROUP}(소모임 게시판 — 메뉴에 없는 그릇이라 설치 화면 목록에 싣지 않는다)
-     * @param sortOrder 게시판 순서(10 단위)
+     * @param kind           {@code GENERAL}(비우면 이것) · {@code GROUP}(소모임 게시판 — 메뉴에 없는 그릇이라 설치 화면 목록에 싣지 않고, 소모임 기능 전까지 만들지 않는다)
+     * @param sortOrder      게시판 순서(10 단위)
+     * @param description    설명(없으면 빈 글자)
+     * @param layout         LIST · CARD · GALLERY(비우면 LIST)
+     * @param color          표시색 이름(없으면 자동)
+     * @param staffOnlyWrite 운영진만 글쓰기 — 게시판 정책 writeMin = STAFF 로 만든다
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Board(String slug, String name, String nameEn, String kind, int sortOrder, List<Prefix> prefixes) {
+    public record Board(String slug, String name, String nameEn, String kind, int sortOrder, List<Prefix> prefixes, String description, String layout,
+                        boolean viewToggle, String color, boolean investmentNotice, boolean staffOnlyWrite) {
 
         /** 소모임 게시판인가 */
         public boolean isGroupBoard() {
@@ -48,8 +53,11 @@ public record BoardPreset(String id, String name, String nameEn, String descript
         }
     }
 
-    /** 프리셋 안의 말머리 하나. {@code nameEn} 은 영문 이름 */
+    /**
+     * 프리셋 안의 말머리 하나. {@code nameEn} 은 영문 이름. {@code common} 이면 같은 이름의 공통 말머리(질문·후기·잡담·공지)를 켠다는 뜻이고,
+     * 아니면 고유 말머리({@code staffOnly} = 운영진 전용)다.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Prefix(String name, String nameEn, int sortOrder) {
+    public record Prefix(String name, String nameEn, int sortOrder, boolean common, boolean staffOnly) {
     }
 }

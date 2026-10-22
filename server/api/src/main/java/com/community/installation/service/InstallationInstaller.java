@@ -35,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>입력 검사는 이 클래스 밖({@link InstallationService})에서 끝낸 값({@link InstallCommand})만 받는다. 이 클래스는 <b>이미 있는 운영자 이메일</b>(DB 가 아는 것)만 다시 본다.
  * 입력의 닉네임은 루트 운영자의 이름({@code operator_name})이 되고 유일하지 않아도 된다.
- * 기본 게시판 구성은 고른 아이디만 {@code installation.board_preset} 에 적는다(게시판을 만드는 적용은 게시판 기능에서 한다).
+ * 기본 게시판 구성은 고른 아이디를 {@code installation.board_preset} 에 적고 같은 트랜잭션에서 그 구성으로 기본 게시판을 만든다({@link BoardPresetApplier}).
  * 로그에는 운영자 ID 만 남기고 이메일·비밀번호·시크릿을 남기지 않는다.
  */
 @Service
@@ -51,10 +51,11 @@ public class InstallationInstaller {
     private final MailSettingsService mailSettings;
     private final SocialSettingsService socialSettings;
     private final ApplicationEventPublisher events;
+    private final BoardPresetApplier boardPresets;
 
     public InstallationInstaller(InstallationRepositoryQDSL installation, OperatorRepository operators, PasswordEncoder encoder,
                                  SnowflakeIdGenerator ids, SiteSettingsService siteSettings, MailSettingsService mailSettings,
-                                 SocialSettingsService socialSettings, ApplicationEventPublisher events) {
+                                 SocialSettingsService socialSettings, ApplicationEventPublisher events, BoardPresetApplier boardPresets) {
         this.installation = installation;
         this.operators = operators;
         this.encoder = encoder;
@@ -63,6 +64,7 @@ public class InstallationInstaller {
         this.mailSettings = mailSettings;
         this.socialSettings = socialSettings;
         this.events = events;
+        this.boardPresets = boardPresets;
     }
 
     /**
@@ -103,6 +105,9 @@ public class InstallationInstaller {
         if (installation.markCompleted(rootId, now, command.boardPresetId()) == 0) {
             throw new InstallationAlreadyInstalledException(); // 완료를 표시하지 못했다(이미 완료)
         }
+        // 고른 게시판 구성으로 기본 게시판(+말머리)을 만든다 — 같은 트랜잭션이라 설치가 롤백되면 게시판도 없다
+        boardPresets.apply(command.boardPresetId(), rootId, now);
+        installation.markBoardPresetApplied(now);
         events.publishEvent(new InstallationCompleted(rootId));
         log.info("설치를 실행했다 rootOperatorId={} 메일={} 소셜={}건 게시판구성={}", rootId, command.mail() != null ? "설정" : "건너뜀",
                 command.social().size(), command.boardPresetId());

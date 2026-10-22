@@ -55,6 +55,20 @@ public final class AuditActions {
     public static final String NOTIFICATION_CHANNEL_DELETE = "NOTIFICATION_CHANNEL_DELETE";
     public static final String NOTIFICATION_CHANNEL_TOGGLE = "NOTIFICATION_CHANNEL_TOGGLE";
     public static final String NOTIFICATION_CHANNEL_TEST = "NOTIFICATION_CHANNEL_TEST";
+    /** 게시판 기본 설정(일반·신고 정책·보안·알림 화면) 저장 — 바뀐 칸만 */
+    public static final String BOARD_DEFAULTS_UPDATE = "BOARD_DEFAULTS_UPDATE";
+    public static final String BOARD_CREATE = "BOARD_CREATE";
+    /** 게시판 기본 정보·정책·말머리·안내문 저장 — 바뀐 칸만 */
+    public static final String BOARD_UPDATE = "BOARD_UPDATE";
+    public static final String BOARD_ACTIVE = "BOARD_ACTIVE";
+    public static final String BOARD_ORDER = "BOARD_ORDER";
+    public static final String BOARD_DELETE = "BOARD_DELETE";
+    public static final String BOARD_STAFF_APPOINT = "BOARD_STAFF_APPOINT";
+    public static final String BOARD_STAFF_REMOVE = "BOARD_STAFF_REMOVE";
+    /** 게시판 개인정보 보유기간 저장 — 바뀐 칸만 */
+    public static final String BOARD_PRIVACY_RETENTION_UPDATE = "BOARD_PRIVACY_RETENTION_UPDATE";
+    /** 게시판 개인정보 보유기간 「지금 실행」(축 하나) */
+    public static final String BOARD_PRIVACY_RUN = "BOARD_PRIVACY_RUN";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

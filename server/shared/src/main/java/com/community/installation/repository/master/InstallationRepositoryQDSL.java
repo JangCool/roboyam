@@ -60,6 +60,17 @@ public class InstallationRepositoryQDSL extends RoboyamRepositoryQDSL {
     }
 
     /**
+     * 고른 게시판 구성의 적용(또는 건너뜀)을 표시한다 — 표시가 없을 때만 먹는다(한 번만 적용하게).
+     *
+     * @return 바뀐 행 수 — 이미 표시돼 있었으면 0
+     */
+    public long markBoardPresetApplied(Instant appliedAt) {
+        return query.update(INSTALLATION).set(INSTALLATION.boardPresetAppliedAt, appliedAt)
+                .where(INSTALLATION.id.eq(InstallationEntity.ROW_ID), INSTALLATION.boardPresetAppliedAt.isNull())
+                .execute();
+    }
+
+    /**
      * 설치 완료를 표시한다(토큰 해시를 지운다). 설치 전일 때만 먹는 조건부 UPDATE 다.
      *
      * @param boardPreset 설치 때 고른 기본 게시판 구성의 아이디

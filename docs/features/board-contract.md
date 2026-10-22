@@ -1,0 +1,52 @@
+# 게시판 관리 계약 (**관리자 화면 확정 2026-10-22** — 이번 범위는 관리자 백엔드 + 화면 연결)
+
+**의도**: 관리자 앱에서 게시판을 만들고(목록·순서·켜고 끄기·삭제) 게시판마다 기본 정보·정책·말머리·안내문·매니저/스텝을 정하며, 모든 게시판에 일괄 적용되는 기본 설정(일반·신고 정책·보안·알림·개인정보 보유기간)을 다룬다. 그누보드7 게시판 환경설정 + community 의 `board_defaults`·게시판 설정을 roboyam 개념(목록 기반 등급, 게시판 매니저·스텝, 권한 코드, **비회원 글쓰기 있음**)으로 옮겼다.
+**참고(읽기 전용)**: community `D:\project\community\workspace\community` — `docs/api-board-settings.md`·`docs/api-content.md` 3절·`docs/data-model.md`·`docs/plans/board-menu-03-data-structure.md`, `server/shared/.../db/migration/shared/V3__board.sql`·`V10__rename_db_functions.sql`. 그누보드7 게시판 모듈 `config/settings/defaults.json`·`config/board.php`(limits).
+
+## 화면 (기준 코드 — 칸 이름·범위·기본값의 원천)
+- `/boards`(목록·만들기) · `/boards/[slug]`(게시판 설정) · `/boards/defaults/{general|report|security|notifications|privacy}`.
+- 기준 코드: `apps/admin-web/app/composables/board/api/useBoardApi.ts`(머리말 = API 후보 전체) · `useBoardApi.types.ts`(요청·응답 모양) · `utils/util-board.ts`(`SPECS`·`TAB_SPECS` = 칸별 범위·기본값·필요 권한, slug·이름·말머리 검사) · `mock/board-mock.ts`·`board-defaults-tab-mock.ts`(서버 규칙 흉내 — 오류 코드·덮어쓰기·자격 판정).
+
+## 권한
+조회 `board.read` · 만들기·기본 정보·말머리·켜고 끄기·순서 `board.manage` · 정책(기본 설정·게시판별 정책·안내문·쓰기 잠금) `board.settings` · 매니저/스텝 지정 `board.staff.manage` · 스텝 한도·인원 상한 `board.staff.limit` · 삭제 `board.delete`. 저장 한 번에 여러 부분이 바뀌면 **바뀐 부분의 권한만** 본다(목업과 같음).
+
+## 데이터 구조 (결정)
+- `boards`(게시판 정보, 파티션 없음) — **ID 는 Snowflake `bigint`**(`SnowflakeIdGenerator`), API 에서는 문자열. `slug` 는 `^[a-z][a-z0-9-]*$` 2~40자·유일·만든 뒤 변경 불가·예약어 `defaults`·`order`·`new`. 이름 1~40자, 대소문자 무시 유일.
+- 정책 칸은 게시판 행에 **NULL 허용**(NULL = 기본값 따름), 유효값 = 게시판 값 ?? 기본값. 기본값은 단일 행 표(`id = 1` CHECK).
+- 쓰기 자격 값: `GUEST`(비회원 포함) · 등급 키(등급 목록) · `STAFF`, 댓글은 `OFF` 추가. 핫딜·직접홍보 종류는 `GUEST` 불가, 핫딜은 일반 등급 미만 불가.
+- 글·댓글 표는 이번에 **만들기만** 한다(글쓰기 API 는 범위 밖). 글 수·말머리 사용 수·삭제 가능 판정·개인정보 대상 수가 이 표를 읽는다.
+  - `posts`: **`id` RANGE 월 파티션**(Snowflake 시각 = ID 범위). 조각은 DB 함수가 지난달~6개월 뒤까지 만들고(어드바이저리 락, 있으면 건너뜀) 앱 시작 때와 매일 배치로 부른다 — **조각 없는 달의 글은 저장 실패**. 글 조각은 떼거나 지우지 않는다. 게시판 기준(LIST) 파티션·게시판별 표는 쓰지 않는다(근거: community board-menu-03).
+  - `comments`: **`post_id` HASH 64**. 답글 1단계(`parent_id`, `reply_to_id`).
+  - 비회원 칸: 글·댓글에 작성자 이름·비밀번호 해시·작성 IP(회원 글도 IP). 파티션 표를 가리키는 외래 키는 두지 않는다.
+- 말머리 `board_prefixes`(게시판별 고유, 사용 중 최대 6) + 공통 말머리 4개(질문·후기·잡담·공지[운영진 전용]) 게시판별 켜고 끄기. 글이 있는 말머리는 삭제 불가(`PREFIX_IN_USE`).
+- 매니저·스텝 지정 표(게시판·회원·역할·지정 시각·지정한 운영자). 규칙은 `docs/domain/operator-permissions.md` 「게시판 매니저 · 스텝」(자격·인원·한 회원 최대 5게시판·하루 한도).
+- 설치 때 고른 프리셋(`installation.board_preset`)으로 기본 게시판을 만든다. 이미 설치된 곳은 게시판이 하나도 없을 때 한 번 적용한다.
+
+## API
+`useBoardApi.ts` 머리말 목록 그대로(`/api/admin/boards…`, `ApiResponse`, 입력 오류 `400 VALIDATION` + `fields`). 화면 주소가 slug 라 `GET /api/admin/boards/by-slug/{slug}` 를 둔다. 감사 기록: `BOARD_DEFAULTS_UPDATE`(하위 화면 포함)·`BOARD_CREATE`·`BOARD_UPDATE`·`BOARD_ACTIVE`·`BOARD_ORDER`·`BOARD_DELETE`·`BOARD_STAFF_APPOINT`·`BOARD_STAFF_REMOVE`·`BOARD_PRIVACY_RETENTION_UPDATE`·`BOARD_PRIVACY_RUN` — 바뀐 값만 남긴다.
+
+## 배치 (이번 범위)
+- `board-post-partitions`(매일) — 월 조각 유지.
+- `board-privacy-retention`(매일 03:30) — 마스터 스위치가 켜졌을 때만 축별(작성 IP·비회원 정보[익명화/삭제]·삭제된 원문·신고 기록·처리 기록) 처리. 신고·처리 기록 표가 아직 없으면 그 축은 대상 0. 「지금 실행」은 저장된 값으로 한 번.
+
+## 범위 밖 (후속)
+공개 사이트 게시판 화면·글/댓글 쓰기 API·신고/제재 처리·알림 발송·조회수·금지어 적용 지점(설정 저장만 한다)·포인트 백엔드. 순서의 주인(지금은 게시판 목록, 메뉴 구성 화면이 생기면 재검토).
+
+## 미확정 사항
+1. 개인정보 IP 보유 하한 90일은 권장값(통신비밀보호법 로그 보관 기간 원문 미확인 — 법무 확인).
+2. 신고 사유에 스텝 전용 사유(투자 권유·게시판 주제 불일치)를 넣을지.
+3. 회원 알림 보관 90일의 자리(지금 게시판 알림 설정).
+4. 게시판 삭제: 지금은 글 0개만. 글이 있는 게시판의 "삭제 예약 → 배치 정리" 는 사용자가 원하면 후속.
+5. 공개 사이트 게시판 주소 모양(`/free` vs `/b/free`) — 공개 화면 때 정한다.
+
+## 서버 구현 결과 (2026-10-22) — 화면 연결은 후속
+**DB** shared `V42__boards.sql`: `boards`(정책 칸 NULL = 기본값) · `board_prefixes`(공통 4개는 게시판마다 `common_key` 행, 켜고 끄기만) · `board_staff` · `board_defaults` + 하위 화면별 행 하나 표 4개(`board_report|security|notification|privacy_settings`, 범위는 CHECK) · `posts`(id 월 RANGE) · `comments`(post_id HASH 64) · `installation.board_preset_applied_at`. `R__batch_17`(월 조각 함수 + DB 배치 `board-post-partitions` 00:20) · `R__batch_18`(개인정보 판정 함수 + DB 배치 `board-privacy-retention` 03:30). 앱 시작 때 api·admin 모두 조각을 맞춘다(`BoardPartitionBootstrap`).
+**API** `useBoardApi.ts` 머리말 그대로(JSON 키 = `useBoardApi.types.ts`). 목업과 다른 점:
+- `PREFIX_LIMIT` 은 `400 VALIDATION fields.prefixes` 가 아니라 **409 `PREFIX_LIMIT`**(+`fields.prefixes`). `BOARD_NAME_DUPLICATE` 는 저장에서도 409(+`fields.name`). 검사 순서: 권한(바뀐 부분) → 400 → 409.
+- `PREFIX_IN_USE` 문구에 말머리 이름을 싣지 않는다. 새 오류 `409 BOARD_PRIVACY_RUNNING`(배치가 도는 중). 모르는 `axis` 는 `400 VALIDATION fields.axis`.
+- 카드형은 보기 전환이 서버에서 늘 false. 핫딜 글쓰기는 첫 등급(새싹) 불가(`policy.writeMin`). `prefixes` 를 빼고 보내면 고유 말머리는 그대로.
+- 후보 검색 `q`: 닉네임 일부 · 이메일 **전체 일치** · 회원 ID. 최대 20명. 자격 `BUSINESS` 는 판정하지 않는다(사업자 칸 없음).
+- `staff[].appointedBy` 는 운영자 이름(모르면 빈 글자). 개인정보 대상 보기 `id` = `post-<id>`·`comment-<id>`, 댓글 `title` = 본문 앞 40자.
+- 설정 저장에서 바뀐 칸이 없으면 `updatedAt/By` 가 그대로다.
+**설치 프리셋**: 설치 트랜잭션에서 기본 게시판을 만들고, 이미 설치된 곳은 api 기동 때 게시판이 0개면 한 번(멱등, 표시 칸). 소모임 게시판은 만들지 않음. 고유 말머리 이름이 공통 이름과 같으면 공통을 켠다(자유 「잡담」, 공지 「공지」).
+**미확정(추가)**: 등급을 지우면 그 키를 쓰는 `write_min`·`auto_hide_min_grade` 가 남는다(등급 저장 쪽 정리 필요). 금지어·신고·알림 설정은 저장만.

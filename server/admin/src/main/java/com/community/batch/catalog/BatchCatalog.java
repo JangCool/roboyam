@@ -46,6 +46,18 @@ public enum BatchCatalog {
     /** 관리자 알림 정리(읽은 지 30일 · 안 읽은 채 90일 · 운영자당 500건 초과) — DB 배치, 기본 매일 03:50 KST. 보관 값은 {@code batch_params} (docs/features/notification-contract.md) */
     NOTIFICATION_CLEANUP("notification-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
+    /**
+     * 글 표(posts) 월 조각 유지 — DB 배치, 기본 매일 00:20 KST({@code R__batch_17_board_post_partitions.sql}). 지난달~6개월 뒤 조각이 없으면 만든다.
+     * 앱이 뜰 때도 같은 함수를 부르므로({@code BoardPartitionBootstrap}) pg_cron 이 없어도 서버를 다시 띄우면 채워진다 — 그래서 정리(SYSTEM) 분류로 둔다.
+     */
+    BOARD_POST_PARTITIONS("board-post-partitions", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
+     * 게시판 개인정보 보유기간 적용(작성 IP·비회원 정보·삭제된 원문) — DB 배치, 기본 매일 03:30 KST({@code R__batch_18_board_privacy_retention.sql}).
+     * 설정은 관리자 화면(board_privacy_settings)이 원천이고 전체 스위치가 꺼져 있으면 SKIP. 관리자 화면의 축별 「지금 실행」도 같은 DB 함수를 부른다.
+     */
+    BOARD_PRIVACY_RETENTION("board-privacy-retention", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
     /** 올리기만 하고 어디에도 지정하지 않은 채 오래된 파일(files.status = PENDING) 삭제 — Java 배치(저장소 파일을 지우므로 DB 만으로 끝나지 않는다), 하루 한 번(새벽 03:45). 기준 시간은 {@code roboyam.media.orphan-retention-hours} */
     FILE_ORPHAN_CLEANUP("file-orphan-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 45 3 * * *", true);
 

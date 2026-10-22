@@ -82,6 +82,40 @@ export default class UtilAdminMenu {
                 { key: 'grades', to: '/grades', icon: 'pi pi-trophy', labelKey: 'menu.grades', permission: 'grade.read' },
             ],
         },
+        // 게시판 묶음 — 게시판 관리(게시판 목록·게시판별 설정)와 모든 게시판에 일괄 적용되는 기본 설정. community 의 「게시판 구성」·「게시판 기본 설정」, 그누보드7 의 게시판 관리·기본 설정에 대응한다
+        {
+            key: 'board',
+            icon: 'pi pi-list',
+            labelKey: 'menu.board',
+            items: [
+                { key: 'boards', to: '/boards', icon: 'pi pi-th-large', labelKey: 'menu.boards', permission: 'board.read' },
+                // 기본 설정은 하위 메뉴 다섯을 가진 부모다(그누보드7 게시판 기본 설정의 탭 다섯) — 역할 관리와 같은 방식. 부모 주소(`/boards/defaults`)로 들어오면 「일반」으로 보낸다
+                {
+                    key: 'boardDefaults',
+                    to: '/boards/defaults',
+                    icon: 'pi pi-sliders-v',
+                    labelKey: 'menu.boardDefaults',
+                    permission: 'board.read',
+                    children: [
+                        { key: 'boardDefaultsGeneral', to: '/boards/defaults/general', labelKey: 'menu.boardDefaultsGeneral', permission: 'board.read' },
+                        { key: 'boardDefaultsReport', to: '/boards/defaults/report', labelKey: 'menu.boardDefaultsReport', permission: 'board.read' },
+                        { key: 'boardDefaultsSecurity', to: '/boards/defaults/security', labelKey: 'menu.boardDefaultsSecurity', permission: 'board.read' },
+                        { key: 'boardDefaultsNotifications', to: '/boards/defaults/notifications', labelKey: 'menu.boardDefaultsNotifications', permission: 'board.read' },
+                        { key: 'boardDefaultsPrivacy', to: '/boards/defaults/privacy', labelKey: 'menu.boardDefaultsPrivacy', permission: 'board.read' },
+                    ],
+                },
+            ],
+        },
+        // 포인트 묶음 — 전체 포인트 내역(수동 지급·차감 포함)과 지급 규칙(포인트 정책). community 의 「포인트 설정」, 그누보드7 의 포인트 관리에 대응한다
+        {
+            key: 'point',
+            icon: 'pi pi-wallet',
+            labelKey: 'menu.point',
+            items: [
+                { key: 'points', to: '/points', icon: 'pi pi-receipt', labelKey: 'menu.points', permission: 'point.read' },
+                { key: 'pointPolicy', to: '/points/policy', icon: 'pi pi-percentage', labelKey: 'menu.pointPolicy', permission: 'point.read' },
+            ],
+        },
         // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」·「알림」(알림 이벤트 관리)·「알림 도구」·「조직 구성」이 있고 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다
         {
             key: 'settingsSystem',

@@ -8,6 +8,7 @@
 import account from './account';
 import audit from './audit';
 import batch from './batch';
+import board from './board';
 import dashboard from './dashboard';
 import error from './error';
 import grade from './grade';
@@ -17,6 +18,7 @@ import menu from './menu';
 import notification from './notification';
 import operator from './operator';
 import permission from './permission';
+import point from './point';
 import profile from './profile';
 import role from './role';
 import section from './section';
@@ -28,6 +30,7 @@ export default {
     account,
     audit,
     batch,
+    board,
     dashboard,
     error,
     grade,
@@ -37,6 +40,7 @@ export default {
     notification,
     operator,
     permission,
+    point,
     profile,
     role,
     section,

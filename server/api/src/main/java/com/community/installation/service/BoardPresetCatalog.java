@@ -1,5 +1,6 @@
 package com.community.installation.service;
 
+import com.community.board.service.BoardFields;
 import com.community.installation.dto.BoardPreset;
 import com.community.installation.dto.response.BoardPresetBoardItem;
 import com.community.installation.dto.response.BoardPresetItem;
@@ -27,7 +28,7 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <p>프리셋은 코드에 박지 않고 {@code install-presets/*.json} 데이터다 — 새 구성은 파일 하나를 더 두면 된다. 서버가 뜰 때 한 번 읽어 <b>모양을 검사하고</b>,
  * 틀린 것이 있으면 앱이 뜨지 않는다(설치 마법사가 한 번뿐인 트랜잭션 안에서 틀린 데이터에 걸려 실패하지 않게).
- * 게시판을 실제로 만드는 적용은 게시판 기능을 구현할 때 한다 — 지금 설치는 고른 아이디만 기록한다.
+ * 게시판을 실제로 만드는 적용은 {@link BoardPresetApplier} 가 한다(설치 트랜잭션 안, 그리고 이미 설치된 곳은 서버가 뜰 때 한 번).
  *
  * <p>검사하는 것: 아이디 형식·유일, 기본값 정확히 하나, 이름·설명, 게시판 주소 형식·유일, 게시판 이름 유일, 말머리 이름 유일,
  * 사이트 슬로건({@code siteTagline})은 사이트 설정의 슬로건 규칙을 지킴, 영문 이름·설명({@code nameEn}·{@code descriptionEn})이 있음.
@@ -172,6 +173,22 @@ public class BoardPresetCatalog {
         }
         requireText(where, "name", board.name(), NAME_MAX);
         requireText(where, "nameEn", board.nameEn(), NAME_MAX);
+        // 게시판을 만드는 적용(BoardPresetApplier)이 DB CHECK 에 걸리지 않게 값 목록을 미리 본다
+        if (board.description() != null && board.description().length() > DESCRIPTION_MAX) {
+            throw invalid(where, "description 은 " + DESCRIPTION_MAX + "자 이하여야 한다");
+        }
+        if (board.layout() != null && !BoardFields.LAYOUTS.contains(board.layout())) {
+            throw invalid(where, "layout 은 " + BoardFields.LAYOUTS + " 중 하나여야 한다");
+        }
+        if (board.color() != null && !BoardFields.COLORS.contains(board.color())) {
+            throw invalid(where, "color 는 " + BoardFields.COLORS + " 중 하나여야 한다");
+        }
+        if (board.kind() != null && !BoardFields.KINDS.contains(board.kind())) {
+            throw invalid(where, "kind 는 " + BoardFields.KINDS + " 중 하나여야 한다");
+        }
+        if (BoardFields.SLUG_RESERVED.contains(board.slug())) {
+            throw invalid(where, "쓸 수 없는 게시판 주소다");
+        }
         if (board.prefixes() == null || board.prefixes().isEmpty()) {
             throw invalid(where, "말머리가 하나도 없다(게시판은 말머리가 하나 이상 있어야 켤 수 있다)");
         }
