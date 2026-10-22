@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * 감사 기록의 행위 이름 — 운영자 기반(로그인·권한 거부·역할·운영자·초대), 등급 설정, 회원 상세 열람, 배치(켜기/끄기·cron·지금 실행),
  * 사이트 일반 설정(기본 정보·로고·아이콘·링크 미리보기 이미지·표시 기본값), 내 정보(닉네임·내 표시 형식·알림 설정·비밀번호 변경), 로그인 전 계정 흐름(초대 수락·비밀번호 재설정),
- * 관리자 알림(이벤트 설정·팀·알림 도구), 게시판 관리(기본 설정·게시판·순서·운영진·개인정보 보유기간), 메뉴 관리(공개 메뉴 그룹·트리, 관리자 사이트 메뉴)가 쓴다.
+ * 관리자 알림(이벤트 설정·팀·알림 도구), 게시판 관리(기본 설정·게시판·순서·운영진·개인정보 보유기간), 메뉴 관리(공개 메뉴 그룹·트리, 관리자 사이트 메뉴), 포인트(수동 조정·정책)가 쓴다.
  * 공개 사이트(api)의 회원 행동(글·댓글·추천·신고)은 감사 기록이 아니라 업무 표에 남는다. 이름은 한 번 정하면 바꾸지 않는다(조회·필터가 기대는 값이다)
  */
 public final class AuditActions {
@@ -82,6 +82,10 @@ public final class AuditActions {
     public static final String MENU_TREE_UPDATE = "MENU_TREE_UPDATE";
     /** 관리자 사이트 메뉴(두 모드) 전체 교체 — 전·후 트리 요약 */
     public static final String ADMIN_MENU_UPDATE = "ADMIN_MENU_UPDATE";
+    /** 회원 포인트 수동 지급·차감 — 대상 MEMBER + 회원 ID, 요청값·반영값·잔액·공개 사유 */
+    public static final String POINT_ADJUST = "POINT_ADJUST";
+    /** 포인트 정책 저장 — 바뀐 칸만 before/after */
+    public static final String POINT_SETTINGS_UPDATE = "POINT_SETTINGS_UPDATE";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

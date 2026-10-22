@@ -9,7 +9,7 @@ import java.util.List;
  *
  * <p>실제 값이 있는 칸: 목록의 칸, {@code roles}(유형·부여 방식), {@code bio}, {@code social}, {@code withdrawnAt}, {@code piiMasked}, {@code consents}(이용약관·만 14세 확인),
  * {@code activity}(글·댓글 수·받은 추천 합 — 인기글·접속 일수는 0), {@code reports}(받은 신고·조치된 신고·한 신고 수),
- * {@code gradePoint}(승급 상태·다음 등급 달성도·등급 변경 이력 — 포인트 내역은 빈 배열, 닉네임 변경권은 0).
+ * {@code point}(잔액), {@code gradePoint}(승급 상태·다음 등급 달성도·등급 변경 이력·최근 포인트 내역 — 닉네임 변경권은 교환 기능이 없어 0).
  * 비어 있는 칸(아직 데이터가 없다):
  * <ul>
  *   <li>{@code statusReason}·{@code sanctionSummary}·{@code dormancy}·{@code adultConfirmed}·{@code acceptDm} — null</li>

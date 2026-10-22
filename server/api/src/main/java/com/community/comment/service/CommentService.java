@@ -30,6 +30,10 @@ import com.community.comment.exception.CommentNotFoundException;
 import com.community.comment.exception.CommentTooFastException;
 import com.community.comment.repository.master.CommentRepository;
 import com.community.comment.repository.master.CommentRepositoryQDSL;
+import com.community.membernotification.dto.CommentNotice;
+import com.community.membernotification.service.MemberNotificationPublisher;
+import com.community.point.entity.PointReason;
+import com.community.point.service.PointService;
 import com.community.post.dto.WriteRateData;
 import com.community.post.dto.response.PostAuthorView;
 import com.community.post.entity.PostEntity;
@@ -70,6 +74,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       → 금지어 → 자동입력 방지 → 작성 간격({@code 429 COMMENT_TOO_FAST}) → 하루 한도({@code 429 COMMENT_DAILY_LIMIT}). 답글은 1단계({@code parentId} = 원댓글).</li>
  *   <li>글의 보이는 댓글 수({@code posts.comment_count})는 쓰기·지우기·숨김이 같은 트랜잭션에서 원자적으로 고친다.</li>
  *   <li>회원 댓글은 저장이 커밋된 뒤 활동 수 조건 즉시 승급을 판정한다({@link WriterPromotion} — 별도 트랜잭션, 실패해도 댓글쓰기는 성공).</li>
+ *   <li>같은 트랜잭션의 마지막에 댓글 포인트와 회원 알림({@code COMMENT}·{@code REPLY})을 낸다 — 둘 다 세이브포인트로 격리돼 실패해도 댓글쓰기는 성공한다. 지우면 받은 포인트를
+ *       0P 까지 회수하고, 추천이 인정된 추천 문턱을 채우면 작성자에게 추천 보너스를 준다({@link PointService}).</li>
  * </ul>
  */
 @Service
@@ -94,13 +100,18 @@ public class CommentService {
     private final CaptchaVerifier captcha;
     private final SnowflakeIdGenerator ids;
     private final WriterPromotion promotion;
+    private final PointService points;
+    private final MemberNotificationPublisher notices;
     private final TransactionTemplate tx;
     private final TransactionTemplate readTx;
 
     public CommentService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                           CommentRepositoryQDSL commentQueries, PostCounterQueries counters, AuthorViews authors, GuestPasswords passwords,
-                          CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion, PlatformTransactionManager txManager) {
+                          CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion, PointService points, MemberNotificationPublisher notices,
+                          PlatformTransactionManager txManager) {
         this.promotion = promotion;
+        this.points = points;
+        this.notices = notices;
         this.catalog = catalog;
         this.actors = actors;
         this.posts = posts;
@@ -278,7 +289,18 @@ public class CommentService {
             byId.values().forEach(t -> memberIds.add(t.getAuthorId()));
             // 쓴 사람에게는 공개 지연 없이 보인다
             Viewer self = new Viewer(userId, ip, false, 0, Set.of());
-            return view(comment, self, byId, authors.members(memberIds), s, now);
+            CommentView view = view(comment, self, byId, authors.members(memberIds), s, now);
+            // 같은 트랜잭션의 마지막에: 댓글 포인트(회원만) · 회원 알림 — 둘 다 실패해도 댓글쓰기는 그대로다(세이브포인트로 격리)
+            if (authorId != null) {
+                points.earn(authorId, PointReason.COMMENT, id);
+            }
+            Long replyTargetAuthor = null;
+            if (parent != null) {
+                CommentEntity target = replyTo != null ? byId.get(replyTo) : comments.findByPostIdAndId(post.getId(), parent).orElse(null);
+                replyTargetAuthor = target == null ? null : target.getAuthorId();
+            }
+            notices.commentWritten(new CommentNotice(post.getId(), post.getAuthorId(), id, authorId, name, replyTargetAuthor, parent != null));
+            return view;
         });
         promotion.afterWrite(authorId); // 커밋 뒤 — 회원 댓글이면 활동 수 조건 즉시 승급(실패해도 댓글쓰기는 성공)
         return created;
@@ -403,6 +425,9 @@ public class CommentService {
             if (wasVisible) {
                 counters.addCommentCount(locked.getPostId(), -1);
             }
+            if (locked.getAuthorId() != null) {
+                points.revokeContent(locked.getAuthorId(), PointService.REF_COMMENT, locked.getId()); // 본인 삭제 — 받은 포인트를 0P 까지 회수(알림 없음)
+            }
         });
     }
 
@@ -426,7 +451,9 @@ public class CommentService {
             if (!counters.insertCommentLike(comment.getId(), comment.getPostId(), userId)) {
                 throw new AlreadyLikedException(true);
             }
-            return new CommentLikeResult(counters.incrementCommentLikes(comment.getPostId(), comment.getId()), true);
+            int likes = counters.incrementCommentLikes(comment.getPostId(), comment.getId()); // 댓글 행 갱신 — 같은 댓글의 추천이 여기서 줄을 선다
+            points.likeBonus(comment.getAuthorId(), PointService.REF_COMMENT, comment.getId(), userId);
+            return new CommentLikeResult(likes, true);
         });
     }
 }

@@ -19,6 +19,8 @@ import com.community.board.service.GuestPasswords;
 import com.community.board.service.PublicBoardService;
 import com.community.captcha.CaptchaVerifier;
 import com.community.permission.entity.MemberPermission;
+import com.community.point.entity.PointReason;
+import com.community.point.service.PointService;
 import com.community.post.dto.WriteRateData;
 import com.community.post.dto.request.PostUpdateRequest;
 import com.community.post.dto.request.PostWriteRequest;
@@ -63,6 +65,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <p>bcrypt(비회원 비밀번호 해시·확인)와 캡차 확인은 느리거나 외부 요청이라 트랜잭션 밖에서 하고, 저장은 {@link TransactionTemplate} 으로 짧게 연다.
  *
  * <p>회원 글은 저장이 커밋된 뒤 활동 수 조건 즉시 승급을 판정한다({@link WriterPromotion} — 별도 트랜잭션, 실패해도 글쓰기는 성공).
+ *
+ * <p><b>포인트</b>({@link PointService}): 회원 글 저장 트랜잭션의 마지막에 글 포인트, 지우기(바로·예약 모두 — 본인 요청 시점)에 받은 포인트 회수, 추천이 인정된 추천 문턱을 채우면 작성자에게
+ * 추천 보너스. 모두 세이브포인트로 격리돼 실패해도 글쓰기·지우기·추천은 성공한다.
  */
 @Service
 public class PostWriteService {
@@ -77,12 +82,14 @@ public class PostWriteService {
     private final CaptchaVerifier captcha;
     private final SnowflakeIdGenerator ids;
     private final WriterPromotion promotion;
+    private final PointService points;
     private final TransactionTemplate tx;
 
     public PostWriteService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters,
                             PostQueryService queries, GuestPasswords passwords, CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion,
-                            PlatformTransactionManager txManager) {
+                            PointService points, PlatformTransactionManager txManager) {
         this.promotion = promotion;
+        this.points = points;
         this.catalog = catalog;
         this.actors = actors;
         this.posts = posts;
@@ -141,6 +148,9 @@ public class PostWriteService {
             Instant now = Instant.now();
             checkRate(s, authorId, ip, title, content, now);
             posts.persist(PostEntity.create(id, b.id(), c.prefixId(), authorId, name, hash, ip, title, content, c.adult(), c.hasImage(), now));
+            if (authorId != null) {
+                points.earn(authorId, PointReason.POST, id); // 실패·상한이어도 글은 그대로 올라간다
+            }
         });
         promotion.afterWrite(authorId); // 커밋 뒤 — 회원 글이면 활동 수 조건 즉시 승급(실패해도 글쓰기는 성공)
         return new PostWriteResult(Long.toString(id));
@@ -264,11 +274,18 @@ public class PostWriteService {
             if (protection.active() && "BLOCK".equals(protection.deleteMode())) {
                 throw new PostProtectedException(true, protection.threshold());
             }
+            PostDeleteResult result;
             if (protection.active() && "DELAY".equals(protection.deleteMode())) {
-                return new PostDeleteResult(locked.scheduleDelete(now.plus(Duration.ofMinutes(protection.delayMinutes())), now));
+                result = new PostDeleteResult(locked.scheduleDelete(now.plus(Duration.ofMinutes(protection.delayMinutes())), now));
+            } else {
+                locked.delete(now);
+                result = new PostDeleteResult(null);
             }
-            locked.delete(now);
-            return new PostDeleteResult(null);
+            if (locked.getAuthorId() != null) {
+                // 본인 삭제(예약 삭제도 요청 시점에) — 받은 글 포인트·추천 보너스를 0P 까지 회수한다. 본인이 지운 것이라 알림은 없다
+                points.revokeContent(locked.getAuthorId(), PointService.REF_POST, locked.getId());
+            }
+            return result;
         });
     }
 
@@ -302,7 +319,9 @@ public class PostWriteService {
             if (!counters.insertPostLike(post.getId(), userId)) {
                 throw new AlreadyLikedException(false);
             }
-            return new PostLikeResult(counters.incrementPostLikes(post.getId()), true);
+            int likes = counters.incrementPostLikes(post.getId()); // 글 행 갱신 — 같은 글의 추천이 여기서 줄을 선다
+            points.likeBonus(post.getAuthorId(), PointService.REF_POST, post.getId(), userId);
+            return new PostLikeResult(likes, true);
         });
     }
 

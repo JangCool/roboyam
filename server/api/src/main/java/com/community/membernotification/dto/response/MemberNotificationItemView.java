@@ -1,0 +1,25 @@
+package com.community.membernotification.dto.response;
+
+import java.time.Instant;
+
+/**
+ * 회원 알림 한 건 — community {@code NotificationItem} 을 roboyam 으로 옮긴 모양(docs/features/member-notification-contract.md). ID 는 문자열(Snowflake).
+ * {@code title}·{@code body} 는 서버가 요청 언어({@code Accept-Language})로 푼 문장이다(관리자 알림과 같은 방식). 나머지 칸은 화면이 직접 그릴 때 쓴다.
+ *
+ * @param type           {@code COMMENT} · {@code REPLY} · {@code POINTS_REVOKED} · {@code POST_HIDDEN} · {@code COMMENT_HIDDEN}
+ * @param category       {@code comment}(댓글·답글) · {@code system}
+ * @param title          한 줄 문장(예: 「고양이집사님이 내 글에 댓글을 달았어요」)
+ * @param body           둘째 줄 — 댓글 앞부분 · 숨겨진 글의 제목 · 회수 사유. 없으면 null
+ * @param link           누르면 갈 공개 사이트 경로(예: {@code /posts/123}). 갈 곳이 없으면 null(읽음 처리만)
+ * @param actor          일으킨 사람 — 댓글·답글만, 그 밖은 null
+ * @param post           가리키는 글 — 포인트 회수는 null
+ * @param commentId      가리키는 댓글(묶인 알림이면 가장 최근 댓글) — 댓글·답글·댓글 숨김만
+ * @param commentPreview 그 댓글의 앞 60자(공백은 한 칸) — 지웠거나 숨겼거나 글을 볼 수 없으면 null
+ * @param groupCount     묶인 댓글 수(1 이면 묶이지 않음)
+ * @param points         포인트 회수 알림만, 그 밖은 null
+ * @param hiddenUntil    숨김이 기간 뒤 풀리는 경우(권리침해 임시조치) 그 시각, 그 밖은 null
+ */
+public record MemberNotificationItemView(String id, String type, String category, boolean read, Instant createdAt, String title, String body, String link,
+                                         NotificationActorView actor, NotificationPostRefView post, String commentId, String commentPreview, int groupCount,
+                                         NotificationPointsView points, Instant hiddenUntil) {
+}

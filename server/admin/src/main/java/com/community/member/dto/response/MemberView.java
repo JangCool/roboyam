@@ -13,7 +13,7 @@ import java.util.List;
  * @param memberType     {@code GENERAL} · {@code BUSINESS}
  * @param status         {@code ACTIVE} · {@code SUSPENDED} · {@code BANNED} · {@code WITHDRAWN}({@code DORMANT} 는 휴면 기능이 생길 때)
  * @param authMethod     가입 방식 — 비밀번호가 있으면 {@code EMAIL}, 아니면 가장 먼저 연결한 소셜({@code KAKAO} · {@code NAVER} · {@code GOOGLE})
- * @param point          포인트 — 포인트 기능이 아직 없어 늘 0
+ * @param point          포인트 잔액(point_balances, 없으면 0 · 탈퇴 회원은 0)
  * @param dormantAt      휴면 전환 시각 — 휴면 기능이 아직 없어 늘 null
  * @param statusChangedAt 가장 최근 상태 변경 시각 — 탈퇴 시각만 안다(정지 이력 표가 아직 없다)
  * @param boardRole      {@code MANAGER} · {@code STAFF} · {@code NONE}

@@ -9,6 +9,7 @@ import com.community.member.dto.MemberSearchCriteria;
 import com.community.member.dto.MemberSearchCriteria.AuthMethod;
 import com.community.member.dto.UserRoleRow;
 import com.community.operator.entity.QOperatorEntity;
+import com.community.point.entity.QPointBalanceEntity;
 import com.community.role.entity.MemberRoleIds;
 import com.community.role.entity.QRoleEntity;
 import com.community.role.entity.QUserRoleEntity;
@@ -45,7 +46,7 @@ import org.springframework.stereotype.Repository;
  *
  * <p>조건이 파생 값을 가리킬 때의 뜻: 회원 유형은 사업자 회원 역할({@code user_roles})이 있으면 사업자·없으면 일반, 등급 역할은 프로필의 등급, 일반 회원 역할은 탈퇴하지 않았고 사업자가 아닌 회원,
  * 가입 방식 이메일은 비밀번호가 있는 계정·소셜은 그 연결이 있는 계정, 상태 변경 시각은 탈퇴 시각(정지·휴면 이력 표가 아직 없다).
- * 휴면·포인트·제재 이력은 데이터가 없어 그 조건을 걸면 해당 회원이 없는 것으로 판정한다.
+ * 포인트는 잔액 행({@code point_balances}, 없으면 0P)으로 거르고 정렬한다. 휴면·제재 이력은 데이터가 없어 그 조건을 걸면 해당 회원이 없는 것으로 판정한다.
  */
 @Repository
 public class MemberRepositoryQDSL extends RoboyamRepositoryQDSL {
@@ -58,6 +59,7 @@ public class MemberRepositoryQDSL extends RoboyamRepositoryQDSL {
     private static final QUserRoleEntity USER_ROLE = QUserRoleEntity.userRoleEntity;
     private static final QRoleEntity ROLE = QRoleEntity.roleEntity;
     private static final QUserIdentityEntity IDENTITY = QUserIdentityEntity.userIdentityEntity;
+    private static final QPointBalanceEntity BALANCE = QPointBalanceEntity.pointBalanceEntity;
 
     /** 어떤 회원도 맞지 않는 조건 — 데이터가 아직 없는 항목(휴면·제재·포인트)을 조건으로 걸었을 때 */
     private static final BooleanExpression NEVER = Expressions.booleanTemplate("1 = 0");
@@ -77,7 +79,7 @@ public class MemberRepositoryQDSL extends RoboyamRepositoryQDSL {
         return baseQuery()
                 .select(Projections.constructor(MemberRecord.class, USER.id, USER.email, PROFILE.nickname, PROFILE.gradeKey, USER.status,
                         new CaseBuilder().when(USER.passwordHash.isNotNull()).then(true).otherwise(false), USER.emailVerifiedAt, USER.createdAt,
-                        USER.lastLoginAt, USER.deletedAt))
+                        USER.lastLoginAt, USER.deletedAt, BALANCE.balance.coalesce(0L)))
                 .where(where(criteria, canPii))
                 .orderBy(orderOf(criteria))
                 .offset((long) criteria.page() * criteria.size()).limit(criteria.size())
@@ -89,7 +91,7 @@ public class MemberRepositoryQDSL extends RoboyamRepositoryQDSL {
         return Optional.ofNullable(baseQuery()
                 .select(Projections.constructor(MemberRecord.class, USER.id, USER.email, PROFILE.nickname, PROFILE.gradeKey, USER.status,
                         new CaseBuilder().when(USER.passwordHash.isNotNull()).then(true).otherwise(false), USER.emailVerifiedAt, USER.createdAt,
-                        USER.lastLoginAt, USER.deletedAt))
+                        USER.lastLoginAt, USER.deletedAt, BALANCE.balance.coalesce(0L)))
                 .where(USER.id.eq(userId)).fetchOne());
     }
 
@@ -136,7 +138,9 @@ public class MemberRepositoryQDSL extends RoboyamRepositoryQDSL {
     }
 
     private JPAQuery<?> baseQuery() {
-        return query.from(USER).join(PROFILE).on(PROFILE.userId.eq(USER.id)).join(GRADE).on(GRADE.gradeKey.eq(PROFILE.gradeKey));
+        // 잔액 행은 회원당 하나뿐이라(기본키 user_id) 왼쪽 조인이 줄을 늘리지 않는다. 행이 없으면 0P
+        return query.from(USER).join(PROFILE).on(PROFILE.userId.eq(USER.id)).join(GRADE).on(GRADE.gradeKey.eq(PROFILE.gradeKey))
+                .leftJoin(BALANCE).on(BALANCE.userId.eq(USER.id));
     }
 
     private static Predicate where(MemberSearchCriteria c, boolean canPii) {
@@ -182,8 +186,11 @@ public class MemberRepositoryQDSL extends RoboyamRepositoryQDSL {
             where.and(NEVER); // 휴면 전환 이력이 아직 없다
         }
         statusChange(where, c);
-        if ((c.pointMin() != null && c.pointMin() > 0) || (c.pointMax() != null && c.pointMax() < 0)) {
-            where.and(NEVER); // 포인트 기능이 아직 없어 모든 회원이 0 이다
+        if (c.pointMin() != null) {
+            where.and(BALANCE.balance.coalesce(0L).goe(c.pointMin()));
+        }
+        if (c.pointMax() != null) {
+            where.and(BALANCE.balance.coalesce(0L).loe(c.pointMax()));
         }
         if (c.boardRole() != null) {
             BooleanExpression manager = hasRole(MemberRoleIds.BOARD_MANAGER);
@@ -290,7 +297,8 @@ public class MemberRepositoryQDSL extends RoboyamRepositoryQDSL {
                 order.add(asc ? rank.asc() : rank.desc());
             }
             case LAST_LOGIN_AT -> order.add(nullsLast(USER.lastLoginAt, asc));
-            case JOINED_AT, POINT, DORMANT_AT -> order.add(asc ? USER.createdAt.asc() : USER.createdAt.desc()); // 포인트·휴면 전환일은 값이 모두 같아(없어) 가입 시각 순으로 본다
+            case POINT -> order.add(asc ? BALANCE.balance.coalesce(0L).asc() : BALANCE.balance.coalesce(0L).desc());
+            case JOINED_AT, DORMANT_AT -> order.add(asc ? USER.createdAt.asc() : USER.createdAt.desc()); // 휴면 전환일은 값이 모두 같아(없어) 가입 시각 순으로 본다
         }
         order.add(asc ? USER.id.asc() : USER.id.desc());
         return order.toArray(new OrderSpecifier<?>[0]);

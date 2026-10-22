@@ -47,6 +47,12 @@ public enum BatchCatalog {
     NOTIFICATION_CLEANUP("notification-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
     /**
+     * 회원 알림 정리(탈퇴 회원의 알림 · 읽은 지 30일 · 만든 지 보관 일수(게시판 기본 설정 「알림」, 기본 90일) · 회원당 500건 초과) — DB 배치, 기본 매일 04:00 KST
+     * ({@code R__batch_20_member_notification_cleanup.sql}, docs/features/member-notification-contract.md).
+     */
+    MEMBER_NOTIFICATION_CLEANUP("member-notification-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
      * 글 표(posts) 월 조각 유지 — DB 배치, 기본 매일 00:20 KST({@code R__batch_17_board_post_partitions.sql}). 지난달~6개월 뒤 조각이 없으면 만든다.
      * 앱이 뜰 때도 같은 함수를 부르므로({@code BoardPartitionBootstrap}) pg_cron 이 없어도 서버를 다시 띄우면 채워진다 — 그래서 정리(SYSTEM) 분류로 둔다.
      */
