@@ -5,7 +5,7 @@
 
 ## 화면 (기준 코드 — 칸 이름·범위·기본값의 원천)
 - `/boards`(목록·만들기) · `/boards/[slug]`(게시판 설정) · `/boards/defaults/{general|report|security|notifications|privacy}`.
-- 기준 코드: `apps/admin-web/app/composables/board/api/useBoardApi.ts`(머리말 = API 후보 전체) · `useBoardApi.types.ts`(요청·응답 모양) · `utils/util-board.ts`(`SPECS`·`TAB_SPECS` = 칸별 범위·기본값·필요 권한, slug·이름·말머리 검사) · `mock/board-mock.ts`·`board-defaults-tab-mock.ts`(서버 규칙 흉내 — 오류 코드·덮어쓰기·자격 판정).
+- 기준 코드: `apps/admin-web/app/composables/board/api/useBoardApi.ts`(머리말 = API 후보 전체) · `useBoardApi.types.ts`(요청·응답 모양) · `utils/util-board.ts`(`SPECS`·`TAB_SPECS` = 칸별 범위·기본값·필요 권한, slug·이름·말머리 검사). 목업(`mock/board-mock.ts` 등)은 서버 연결 뒤 지워졌고 서버 규칙의 원천은 서버 코드다.
 
 ## 권한
 조회 `board.read` · 만들기·기본 정보·말머리·켜고 끄기·순서 `board.manage` · 정책(기본 설정·게시판별 정책·안내문·쓰기 잠금) `board.settings` · 매니저/스텝 지정 `board.staff.manage` · 스텝 한도·인원 상한 `board.staff.limit` · 삭제 `board.delete`. 저장 한 번에 여러 부분이 바뀌면 **바뀐 부분의 권한만** 본다(목업과 같음).
@@ -30,7 +30,14 @@
 - `board-privacy-retention`(매일 03:30) — 마스터 스위치가 켜졌을 때만 축별(작성 IP·비회원 정보[익명화/삭제]·삭제된 원문·신고 기록·처리 기록) 처리. 신고·처리 기록 표가 아직 없으면 그 축은 대상 0. 「지금 실행」은 저장된 값으로 한 번.
 
 ## 범위 밖 (후속)
-공개 사이트 게시판 화면·글/댓글 쓰기 API·신고/제재 처리·알림 발송·조회수·금지어 적용 지점(설정 저장만 한다)·포인트 백엔드. 순서의 주인(지금은 게시판 목록, 메뉴 구성 화면이 생기면 재검토).
+신고 처리 화면·제재·포인트 백엔드. 공개 사이트 게시판 화면·글/댓글 쓰기·추천·조회수·신고 접수·금지어 적용은 공개 게시판 계약(`board-public-contract.md`)에서 구현됐다.
+
+## 세션 정리 결정 (2026-10-22)
+여러 세션(게시판 관리·공개 게시판·메뉴 관리)이 따로 정한 것을 하나로 맞췄다.
+- **공개 내비게이션 순서의 주인은 메뉴(main 그룹)**다(`menu-contract.md`). 게시판의 `sort_order` 는 게시판 목록 API(`GET /api/boards`·`/writable`)·글쓰기 게시판 고르기·메뉴를 못 받았을 때의 폴백 메뉴·새 게시판의 처음 위치에만 쓰인다. 관리자 `/boards` 에서 순서를 바꿔도 메뉴 순서는 바뀌지 않으며, 화면 안내 문구와 메뉴 관리 링크가 이를 알린다.
+- **새 게시판의 메뉴 등록**: 만들 때 main 그룹의 자동 추가 폴더 끝에 들어간다. 자동 추가 폴더가 없으면 메뉴에 들어가지 않는다(알림은 후속).
+- **게시판 삭제**: 글·댓글과 함께 그 글의 추천(`post_likes`·`comment_likes`)·조회(`post_views`) 행도 지운다. **신고(`reports`)는 증거라 지우지 않고** 개인정보 보유기간 배치(`board-privacy-retention`)의 신고 기록 축이 정리한다.
+- **숨김·삭제의 뜻**은 공개 게시판의 상태 모델이 정본이다 — 숨김은 `hidden_at` 이 있고 `hidden_until` 이 없거나 미래일 때, 예약 삭제 시각이 지나면 삭제로 본다. 회원 활동 수 집계·승급 판정도 이 뜻을 쓴다(`roles-contract.md` 「세션 정리」).
 
 ## 미확정 사항
 1. 개인정보 IP 보유 하한 90일은 권장값(통신비밀보호법 로그 보관 기간 원문 미확인 — 법무 확인).

@@ -35,7 +35,9 @@
 | `GRADE_SETTINGS_SAVED` | 회원 | `grade.read` 보유자(행위자 제외) | info | — | — | `/grades` | 등급 설정 저장 |
 | `GRADE_PROMOTION_RUN` | 회원 | `grade.read` 보유자 | info | — | — | `/settings/batch-logs?jobName=grade-promotion` | 일수 승급 배치 종료(처리 건수>0) |
 
-**예약 이벤트(`featureReady=false`, 관리 화면에 「준비 중」)**: 정책 문서의 영역별 대기열형 — `REPORT_RECEIVED`(`report.manage`) · `SANCTION_APPEAL_FILED`(`appeal.manage`) · `BOARD_SANCTION_REPEAT_REVIEW`(`sanction.manage`, warning) · `NICKNAME_IMAGE_PENDING`(`nickname-image.manage`) · `CLUB_OPEN_REQUEST_PENDING`(`group.manage`) · `HOTDEAL_SUSPECTED_PROMO`(`hotdeal.manage`, warning) · `COMMERCE_ORDER_ANOMALY`·`COMMERCE_REFUND_REQUESTED`(`commerce.*`, warning/critical) · `BUSINESS_APPLICATION_PENDING`(`business.manage`) · `AD_REVIEW_PENDING`(`ad.manage`) · `OPERATOR_APPLICATION_PENDING`(`operator.manage`, 신청 기능 구현 후). 기능이 만들어질 때 `featureReady=true` 와 발행 한 줄만 더한다.
+**예약 이벤트(`featureReady=false`, 관리 화면에 「준비 중」)**: 정책 문서의 영역별 대기열형 — `SANCTION_APPEAL_FILED`(`appeal.manage`) · `BOARD_SANCTION_REPEAT_REVIEW`(`sanction.manage`, warning) · `NICKNAME_IMAGE_PENDING`(`nickname-image.manage`) · `CLUB_OPEN_REQUEST_PENDING`(`group.manage`) · `HOTDEAL_SUSPECTED_PROMO`(`hotdeal.manage`, warning) · `COMMERCE_ORDER_ANOMALY`·`COMMERCE_REFUND_REQUESTED`(`commerce.*`, warning/critical) · `BUSINESS_APPLICATION_PENDING`(`business.manage`) · `AD_REVIEW_PENDING`(`ad.manage`) · `OPERATOR_APPLICATION_PENDING`(`operator.manage`, 신청 기능 구현 후). 기능이 만들어질 때 `featureReady=true` 와 발행 한 줄만 더한다.
+
+**예약이 풀린 이벤트**: `REPORT_RECEIVED`(`report.manage`) — 공개 게시판의 신고 접수(`ReportService`, api 서버)가 발행한다(2026-10-22, `board-public-contract.md`). 신고 처리 화면이 아직 없어 본문은 중립 문구이고 링크가 없다. api 서버 설정에는 `roboyam.admin-url` 이 없어 api 가 발행한 알림의 이메일 링크는 비어 있을 수 있다(후속). 신고로 인한 자동·즉시 숨김을 알리는 이벤트는 아직 정의하지 않았다(후속 검토).
 
 ## 배치 실패 알림
 Java 배치와 DB(pg_cron) 배치 모두 요청 밖에서 끝난다. DB 프로시저가 알림 수신자를 계산하게 하지 않기 위해 **Java 감시자**가 한다: `batch_runs` 에 `notified_at` 칸을 두고, 짧은 주기(30초)로 `status='FAIL' AND notified_at IS NULL` 행을 `FOR UPDATE SKIP LOCKED` 로 가져와 `BATCH_RUN_FAILED` 를 발행하고 `notified_at` 을 채운다(여러 서버 중복 방지, 최대 지연 약 30초, 같은 배치가 계속 실패하면 `collapseSeconds`(30분)로 묶는다). 등급 승급 배치 종료 알림(`GRADE_PROMOTION_RUN`)도 같은 감시자가 `OK` 이고 처리 건수>0 인 `grade-promotion` 행을 본다.
@@ -135,7 +137,7 @@ Java 배치와 DB(pg_cron) 배치 모두 요청 밖에서 끝난다. DB 프로�
 
 **마이그레이션**: Flyway shared `V41__teams_notification_channels.sql` — `teams`(이름 `lower()` 유일) · `team_members`(복합 키, 팀 삭제는 `RESTRICT`, 운영자 삭제는 `CASCADE`) · `notification_channels`(Slack·Mattermost 만 행, 비밀은 `*_enc` 암호문 칸, 마지막 시험은 시각·성공·**사유 코드**만) · `notification_builtin_channels`(이메일·브라우저의 사용 여부·마지막 시험 — 두 행을 시드, 서랍은 항상 켜져 있어 행 없음) · `notification_events.browser_enabled` · `notification_event_channels` · `notification_event_teams`(둘 다 이벤트·도구/팀 삭제 때 `CASCADE`). 설정 JSON 대신 칸을 나눴다(`channel_target`·`mattermost_mode`·`server_url`·`bot_token_enc`·`webhook_url_enc`).
 
-**권한**: 서버 `Permission` 에 `team.read`(READ)·`team.manage`(MANAGE) 추가(영역 시스템·유형 `operatorRole`·`featureReady`, 프론트 `util-permission-catalog.ts` 와 같다 — 82개). 서버가 뜰 때 `permissions` 표와 자동으로 맞춘다. 알림 도구 API 는 기존 `notification.read`/`notification.manage`.
+**권한**: 서버 `Permission` 에 `team.read`(READ)·`team.manage`(MANAGE) 추가(영역 시스템·유형 `operatorRole`·`featureReady`, 프론트 `util-permission-catalog.ts` 와 같다 — 그때 82개, 이후 메뉴 관리의 `admin-menu.manage` 가 더해져 83개). 서버가 뜰 때 `permissions` 표와 자동으로 맞춘다. 알림 도구 API 는 기존 `notification.read`/`notification.manage`.
 
 **API** (`/api/admin`, 응답 `ApiResponse`, 쓰기는 CSRF — 모양은 프론트 `use*Api.ts` 머리말과 같고 다른 점만 적는다)
 | | |
