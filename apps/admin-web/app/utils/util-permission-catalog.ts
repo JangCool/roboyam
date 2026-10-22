@@ -4,7 +4,7 @@
  * 권한은 네 단위로 나눈다: 조회(보기) · 처리(승인·삭제·상태 변경 같은 업무) · 설정(규칙·구성 변경) · 민감 조치(되돌리기 어려운 일). 설정도 권한으로 위임할 수 있다(문서).
  * **화면이 아직 없는 기능의 권한도 작성해 둔다**(`featureReady: false` — "기능 준비 중" 표시): 역할을 미리 설계해 둘 수 있게 모두 역할에 줄 수 있다. 화면이 생기면 `featureReady` 를 켜고 메뉴에 `permission` 을 연결한다.
  * 코드 이름 규칙: `영역.행위`(예: `report.manage`) 또는 `영역.대상.행위`(예: `commerce.order.manage`). 행위는 `read`(조회) · `manage`(처리) · `settings`(설정) · 그 밖의 동사(`approve`·`adjust`·`price` … 민감 조치).
- * ⚠ 서버가 원천이 되는 목록으로 바뀔 수 있다(hamonica3 는 서버 enum 이 원천 — `GET /api/admin/permissions` 후보). 그때는 이 파일의 `PERMISSIONS` 가 목업 값이 된다.
+ * ⚠ 원천은 서버 enum `Permission.java`(서버가 뜰 때 `permissions` 표와 맞춘다)다. 이 파일의 `PERMISSIONS` 는 그 사본이라 목록·순서·`featureReady` 를 서버와 같게 둔다(목록 API `GET /api/admin/permissions` 는 아직 없다).
  *
  * 운영자 역할은 영역(대분류) → 세부 유형(`TYPES` 24개) 두 단계로 나뉜다. 역할 하나는 세부 유형 하나에 속하고 그 유형의 권한만 후보로 고른다. 종합 관리 유형은 유형 제한 없이 모든 권한 중에서 고르며 최고 관리자만 만들고 고친다(권한 상승 방지).
  * 최고 관리자는 역할이 아니라 루트 계정의 속성(`isSuper`)이라 이 목록에 없다. `codes()` 는 모든 운영자 권한 코드(최고 관리자가 받는 목록)다.
@@ -147,9 +147,11 @@ export default class UtilPermissionCatalog {
      *  · 운영자·역할 관리: 조회 `operator.read`·`role.read` / 처리 `operator.manage` / 설정 `role.manage` / 민감 `operator.lock`(운영자 잠금·해제)·`role.grant`(역할 변경 = 권한 상승). 조직 구성(팀)은 조회 `team.read` / 처리 `team.manage`(팀 만들기·고치기·지우기·옮기기·팀원 관리)
      *  · 감사·배치: 조회 `audit.read`·`batch.read` / 처리 `batch.manage` / 민감 `batch.run`(배치 즉시 실행). 이 유형의 설정 단위("배치 사용 여부")는 처리(`batch.manage`)에 포함했다.
      *  · 회원 조회: 조회 `member.read` / 민감 `member.pii`(전체 이메일 열람 — 없으면 이메일이 `ab***@gmail.com` 으로 가려진다).
-     *  · 등급·포인트·휴면(지금은 등급 설정 화면만): 조회 `grade.read` / 설정 `grade.manage`(등급 승급 조건 변경).
+     *  · 등급·포인트·휴면(지금은 등급 설정 화면만): 조회 `grade.read` / 설정 `grade.manage`(등급 승급 조건 변경). 포인트(`point.*`)는 화면이 목업 단계이고 서버(포인트 백엔드)가 없어 준비 중이다.
+     *  · 게시판: 조회 `board.read` / 처리 `board.manage`·`board.staff.manage` / 설정 `board.settings`·`board.staff.limit` / 민감 `board.delete`(게시판 목록·설정·기본 설정·매니저/스텝).
+     *  · 사이트 화면 구성: 조회 `layout.read` / 설정 `layout.settings`(공개 사이트 메뉴)·`admin-menu.manage`(관리자 사이트 메뉴 구성 저장).
      *  · 사이트·연동(지금은 설정 메뉴의 「일반」·「알림」 화면만): 조회 `site.read` / 설정 `site.manage`(사이트 이름·소개, 표시 기본값 변경). 알림 이벤트 관리는 조회 `notification.read` / 설정 `notification.manage`(이벤트별 사용 여부·이메일 전달 변경 — 받는 사람은 코드에 고정이라 바꾸지 않는다).
-     * 나머지는 화면이 아직 없는 기능의 권한이다(`featureReady: false`).
+     * 나머지는 화면이 아직 없는 기능의 권한이다(`featureReady: false`). 목록·순서·`featureReady` 는 서버 `Permission.java` 가 원천이다 — 바꿀 때 두 곳을 같게 한다.
      */
     static readonly PERMISSIONS: readonly PermissionDef[] = [
         { code: 'notice.read', unit: 'READ', type: 'notice', nameKey: 'permission.item.noticeRead', descKey: 'permission.item.noticeReadDesc', featureReady: false },
@@ -185,9 +187,9 @@ export default class UtilPermissionCatalog {
         { code: 'grade.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.gradeRead', descKey: 'permission.gradeReadDesc', featureReady: true },
         { code: 'grade.manage', unit: 'CONFIG', type: 'gradePoint', nameKey: 'permission.gradeManage', descKey: 'permission.gradeManageDesc', featureReady: true },
         { code: 'grade.override', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.gradeOverride', descKey: 'permission.item.gradeOverrideDesc', featureReady: false },
-        { code: 'point.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.item.pointRead', descKey: 'permission.item.pointReadDesc', featureReady: true },
-        { code: 'point.settings', unit: 'CONFIG', type: 'gradePoint', nameKey: 'permission.item.pointSettings', descKey: 'permission.item.pointSettingsDesc', featureReady: true },
-        { code: 'point.adjust', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.pointAdjust', descKey: 'permission.item.pointAdjustDesc', featureReady: true },
+        { code: 'point.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.item.pointRead', descKey: 'permission.item.pointReadDesc', featureReady: false },
+        { code: 'point.settings', unit: 'CONFIG', type: 'gradePoint', nameKey: 'permission.item.pointSettings', descKey: 'permission.item.pointSettingsDesc', featureReady: false },
+        { code: 'point.adjust', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.pointAdjust', descKey: 'permission.item.pointAdjustDesc', featureReady: false },
         { code: 'dormancy.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.item.dormancyRead', descKey: 'permission.item.dormancyReadDesc', featureReady: false },
         { code: 'dormancy.settings', unit: 'CONFIG', type: 'gradePoint', nameKey: 'permission.item.dormancySettings', descKey: 'permission.item.dormancySettingsDesc', featureReady: false },
         { code: 'group.read', unit: 'READ', type: 'club', nameKey: 'permission.item.groupRead', descKey: 'permission.item.groupReadDesc', featureReady: false },
@@ -233,9 +235,9 @@ export default class UtilPermissionCatalog {
         { code: 'batch.run', unit: 'SENSITIVE', type: 'auditBatch', nameKey: 'permission.batchRun', descKey: 'permission.batchRunDesc', featureReady: true },
         { code: 'site.read', unit: 'READ', type: 'siteIntegration', nameKey: 'permission.siteRead', descKey: 'permission.siteReadDesc', featureReady: true },
         { code: 'site.manage', unit: 'CONFIG', type: 'siteIntegration', nameKey: 'permission.siteManage', descKey: 'permission.siteManageDesc', featureReady: true },
+        { code: 'site.secret', unit: 'SENSITIVE', type: 'siteIntegration', nameKey: 'permission.item.siteSecret', descKey: 'permission.item.siteSecretDesc', featureReady: false },
         { code: 'notification.read', unit: 'READ', type: 'siteIntegration', nameKey: 'permission.notificationRead', descKey: 'permission.notificationReadDesc', featureReady: true },
         { code: 'notification.manage', unit: 'CONFIG', type: 'siteIntegration', nameKey: 'permission.notificationManage', descKey: 'permission.notificationManageDesc', featureReady: true },
-        { code: 'site.secret', unit: 'SENSITIVE', type: 'siteIntegration', nameKey: 'permission.item.siteSecret', descKey: 'permission.item.siteSecretDesc', featureReady: false },
     ];
 
     // ── 회원 역할 ─ (구현 가정: 문서의 "회원 역할 (제안)" 대로 — 확정 전)

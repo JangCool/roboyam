@@ -324,7 +324,7 @@ export default {
                 ACTIVITY: '{current} / {required}',
             },
             nextNone: 'Already at the highest grade.',
-            activityNotApplied: 'Promotion by activity count is not applied yet.',
+            activityNotApplied: 'Promotion by activity count is checked right when the member writes a post or comment (the scheduled promotion batch only looks at days since joining).',
             historyTitle: 'Grade changes',
             historyMore: 'Show {count} older changes',
             historyLess: 'Show recent only',

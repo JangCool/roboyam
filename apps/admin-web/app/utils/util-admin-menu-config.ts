@@ -10,7 +10,7 @@ import UtilMenu from '~/utils/util-menu';
  * 관리자 사이트 메뉴 구성(메뉴 관리 › 관리자 메뉴)의 규칙 — 화면 레지스트리 · 시드 · 구조 규칙 · 검증 · 미연결 화면 · 미리보기 거르기. 순수 함수만 둔다.
  * 구조는 지금 관리자 메뉴(`util-admin-menu.ts`)와 같다: 묶음(`SECTION`, 최상위만) → 화면 항목(`SCREEN`) 또는 부모 항목(`FOLDER`, 최상위나 묶음 안) → 하위 화면 항목(부모 안, 아이콘 없음).
  * 권한은 편집하지 않는다 — 화면 항목의 권한은 화면 레지스트리(메뉴 정의의 `permission`)가 정하고, 외부 링크만 선택적으로 권한 하나를 고른다.
- * ⚠ 이번 단계에서 셸(사이드바)은 여전히 `UtilAdminMenu.ITEMS` 를 읽는다 — 이 구성은 목업에만 저장된다.
+ * 서버(`AdminMenuService`·`AdminScreenRegistry`)가 같은 구조 규칙으로 판정하고 구성을 저장한다. ⚠ 셸(사이드바)은 아직 저장한 구성이 아니라 `UtilAdminMenu.ITEMS` 를 읽는다(menu-contract 미확정 1).
  */
 
 /** 화면 편집 노드 */
@@ -96,7 +96,7 @@ export default class UtilAdminMenuConfig {
     ];
 
     /**
-     * 관리자 화면 레지스트리 — `UtilAdminMenu.ITEMS` 의 모든 잎 화면(부모 항목은 빠지고 그 하위가 들어간다). 메뉴 정의에 한 줄 더하면 여기에도 생긴다.
+     * 관리자 화면 레지스트리 — `UtilAdminMenu.ITEMS` 의 모든 잎 화면(부모 항목은 빠지고 그 하위가 들어간다). 메뉴 정의에 한 줄 더하면 여기에도 생긴다(서버 짝 `AdminScreenRegistry` 에도 같은 한 줄 — 저장한 적 없을 때의 기본 구성도 서버가 그 레지스트리로 만든다).
      * @returns {AdminScreenDef[]} 메뉴 정의 차례.
      */
     static screens(): AdminScreenDef[] {
@@ -121,26 +121,6 @@ export default class UtilAdminMenuConfig {
      */
     static screenOf(key: string | null): AdminScreenDef | undefined {
         return key ? UtilAdminMenuConfig.screens().find((s) => s.key === key) : undefined;
-    }
-
-    /**
-     * 지금 메뉴 정의(`UtilAdminMenu.ITEMS`)를 옮긴 구성 — 목업 시드이자 서버의 첫 데이터 후보.
-     * @returns {Record<AdminMenuMode, AdminMenuConfigNodeDto[]>} 모드별 트리.
-     */
-    static seed(): Record<AdminMenuMode, AdminMenuConfigNodeDto[]> {
-        const out: Record<AdminMenuMode, AdminMenuConfigNodeDto[]> = { normal: [], settings: [] };
-        const base = (): Omit<AdminMenuConfigNodeDto, 'kind'> => ({ id: null, labelKey: null, label: null, labelEn: null, icon: null, visible: true, targetType: null, targetKey: null, settings: null, permission: null, children: null });
-        const screen = (item: AdminMenuItem, withIcon: boolean): AdminMenuConfigNodeDto => ({ ...base(), kind: 'SCREEN', targetType: 'ADMIN_SCREEN', targetKey: item.key, icon: withIcon ? (item.icon ?? null) : null });
-        const entry = (item: AdminMenuItem): AdminMenuConfigNodeDto =>
-            item.children ? { ...base(), kind: 'FOLDER', labelKey: item.labelKey, icon: item.icon ?? null, children: item.children.map((child) => screen(child, false)) } : screen(item, true);
-        let seq = 1;
-        const withIds = (nodes: AdminMenuConfigNodeDto[]): AdminMenuConfigNodeDto[] => nodes.map((node) => ({ ...node, id: String(8000 + seq++), children: node.children ? withIds(node.children) : null }));
-        for (const node of UtilAdminMenu.ITEMS) {
-            const mode = UtilAdminMenu.modeOf(node);
-            if (UtilAdminMenu.isGroup(node)) out[mode].push({ ...base(), kind: 'SECTION', labelKey: node.labelKey, icon: node.icon, children: node.items.map(entry) });
-            else out[mode].push(entry(node));
-        }
-        return { normal: withIds(out.normal), settings: withIds(out.settings) };
     }
 
     // ── 받기 · 보내기 ─

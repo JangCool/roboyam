@@ -324,7 +324,7 @@ export default {
                 ACTIVITY: '{current} / {required}개',
             },
             nextNone: '가장 높은 등급이에요.',
-            activityNotApplied: '활동 수 기준 승급은 아직 적용되지 않아요.',
+            activityNotApplied: '활동 수 기준 승급은 글·댓글을 쓸 때 바로 판정돼요(정기 승급 배치는 가입 일수만 봐요).',
             historyTitle: '등급 변경 이력',
             historyMore: '이전 이력 {count}건 더 보기',
             historyLess: '최근 이력만 보기',

@@ -24,7 +24,8 @@ export default {
     moveDown: 'Move {name} down',
     orderSaved: 'Order updated',
     orderFailed: "Couldn't change the order",
-    orderNote: 'This is the board order on the public site. The up/down buttons save immediately.',
+    orderNote: 'This order is used for board lists and the board picker when writing. The public site menu order is set in Menus. The up/down buttons save immediately.',
+    orderMenuLink: 'Go to Public site menu',
     col: {
         order: 'Order',
         name: 'Board',

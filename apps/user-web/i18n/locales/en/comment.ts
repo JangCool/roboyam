@@ -1,5 +1,5 @@
 /**
- * 댓글 문구 — `ko/comment.ts` 와 같은 키, 같은 차례.
+ * Comment texts. Same keys and order as `ko/comment.ts`.
  */
 export default {
     title: 'Comments',

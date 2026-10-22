@@ -1,6 +1,6 @@
 /**
- * 메뉴(왼쪽·오른쪽·상단 메뉴, 햄버거, 모바일 상단 탭)의 상태·단추·접근성 문구 — `ko/menu.ts` 와 같은 키, 같은 차례.
- * ⚠ 문구 안의 `@`·`|` 는 글자가 아니다(`{'@'}`·`{'|'}` 로 감싼다).
+ * Menu (left, right and top menus, hamburger, mobile top tabs) states, buttons and accessibility texts. Same keys and order as `ko/menu.ts`.
+ * ⚠ `@` and `|` inside a message are not plain characters (wrap them as `{'@'}` · `{'|'}`).
  */
 export default {
     // 접근성 이름(스크린리더)

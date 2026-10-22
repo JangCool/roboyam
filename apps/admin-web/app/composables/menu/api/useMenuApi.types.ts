@@ -1,5 +1,5 @@
 /**
- * 메뉴 관리 API 가 주고받는 모양 — 공개 사이트 메뉴(메뉴 그룹 · 그룹별 트리)와 관리자 사이트 메뉴. 후보 계약은 `useMenuApi.ts` 머리말.
+ * 메뉴 관리 API 가 주고받는 모양 — 공개 사이트 메뉴(메뉴 그룹 · 그룹별 트리)와 관리자 사이트 메뉴. API 목록은 `useMenuApi.ts` 머리말, 서버 DTO 는 `server/admin/.../menu/dto/**`.
  * ⚠ ID 는 모두 문자열이다(Snowflake 64비트). 저장 전 새 노드는 `id: null`.
  *
  * 공개 사이트가 받는 `GET /api/menu?set=main` 응답(user-web `useMenuApi.types.ts` 의 `MenuResponse`)은 이 트리를 **서버가 보는 사람 기준으로 걸러** 만든다:
@@ -88,6 +88,11 @@ export interface MenuItemDto extends MenuNodeBase {
     settings: Record<string, unknown> | null;
     /** 모바일 상단 탭 — `SIDE` 그룹에서만, 그룹당 10개까지 */
     mobileTab: boolean;
+    /**
+     * 서버가 본 항목 상태(트리 응답에만 있다, 서버 `MenuItemView.Resolved`) — 화면은 같은 규칙(`UtilMenu.itemStatus`)으로 스스로 계산하고
+     * 저장 요청에는 싣지 않는다(`UtilMenu.toDto` 가 다시 만든다). 값은 `UtilMenu` 의 `MenuItemStatus` 와 같다.
+     */
+    resolved?: { status: 'OK' | 'BOARD_INACTIVE' | 'SALES_OFF' | 'TARGET_MISSING' | 'UNKNOWN_TYPE' } | null;
 }
 
 export type MenuNodeDto = MenuFolderDto | MenuItemDto;
@@ -96,7 +101,7 @@ export type MenuNodeDto = MenuFolderDto | MenuItemDto;
 export interface MenuTreeResponse {
     set: MenuSet;
     nodes: MenuNodeDto[];
-    /** 저장할 때 그대로 돌려보낸다 — 그사이 다른 사람이 저장했으면 409 `MENU_VERSION_CONFLICT` */
+    /** 저장할 때 그대로 돌려보낸다(서버는 숫자 문자열 — 화면은 뜻을 읽지 않는다) — 그사이 다른 사람이 저장했거나 게시판을 만들거나 지웠으면 409 `MENU_VERSION_CONFLICT` */
     version: string;
     /** 이 운영자가 저장할 수 있는가(`layout.settings`) — false 면 화면은 읽기 전용 */
     editable: boolean;

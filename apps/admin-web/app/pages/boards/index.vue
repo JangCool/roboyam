@@ -3,7 +3,8 @@
         게시판 관리(목록) — 게시판을 만들고, 켜고 끄고, 순서를 정하고, 행을 눌러 게시판 설정(`/boards/[slug]`)으로 간다. community 관리자 앱 `boards/index.vue` 를 roboyam 에 맞게 옮겼다.
         표: 순서(위·아래) · 이름(+영문명)·slug · 종류(읽기 전용 배지: 일반/핫딜/직접홍보/소모임) · 목록 모양 · 글 수 · 매니저·스텝 수 · 기본값과 다른 설정 N개 · 사용 여부(켜고 끄기).
         community 와 다른 점:
-          · **순서를 여기서 정한다** — community 는 순서의 주인이 메뉴 구성이라 게시판 순서 API 가 없었지만, roboyam 관리자 앱에는 메뉴 구성 화면이 없어 이 목록의 위·아래 단추로 정한다(가정). 누르면 바로 저장한다(`PUT …/order`, 모든 ID 의 새 순서).
+          · **게시판 목록 순서를 여기서 정한다**(`PUT …/order`, 모든 ID 의 새 순서 — 누르면 바로 저장). 이 순서는 게시판 목록·글쓰기 게시판 고르기에 쓰인다.
+            공개 사이트 내비게이션 순서의 주인은 메뉴(`main` 그룹, `/menus/public`)다 — 표 아래 안내에 그 화면 링크를 둔다(`layout.read` 가 있을 때만). 새 게시판은 서버가 `main` 그룹의 자동 추가 폴더 끝에 넣는다.
           · 묶음(menuPath)·소모임 분류 칸이 없다(개념 없음). 「지킴이 수」 대신 매니저·스텝 수.
           · 게시판 만들기에서 고유 말머리를 함께 받지 않는다 — 만든 뒤 설정 화면의 말머리 구획에서 더한다(공통 말머리 4개는 서버가 만든다). 만들면 그 게시판 설정 화면으로 간다.
         끄면 그 게시판은 공개 사이트의 목록·검색·글 상세에서 모두 숨는다(글은 지워지지 않고 다시 켜면 돌아온다) — 끌 때만 확인을 묻는다.
@@ -128,7 +129,10 @@
                     </Column>
                 </DataTable>
             </div>
-            <p class="text-xs text-muted-color">{{ t('board.orderNote') }}</p>
+            <p class="text-xs text-muted-color">
+                {{ t('board.orderNote') }}
+                <NuxtLink v-if="canReadMenu" to="/menus/public" class="ml-1 whitespace-nowrap text-primary hover:underline">{{ t('board.orderMenuLink') }}<i class="pi pi-arrow-right ml-1 text-[10px]" aria-hidden="true" /></NuxtLink>
+            </p>
         </template>
 
         <!-- 게시판 만들기 — 이 화면 전용 대화상자 -->
@@ -193,6 +197,8 @@ const { localizedName } = useLocalizedName();
 const idBase = useId();
 
 const canManage = computed(() => can('board.manage'));
+/** 공개 사이트 메뉴(순서의 주인) 링크 — 메뉴 관리 조회 권한이 있을 때만 */
+const canReadMenu = computed(() => can('layout.read'));
 
 const boards = ref<BoardListItem[] | null>(null);
 const loading = ref(false);

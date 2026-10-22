@@ -1,5 +1,5 @@
 /**
- * 글 보기·글쓰기·고치기·신고의 문구 — `ko/post.ts` 와 같은 키, 같은 차례.
+ * Post view, write, edit and report texts. Same keys and order as `ko/post.ts`.
  */
 export default {
     daysAgo: '{n}d ago',

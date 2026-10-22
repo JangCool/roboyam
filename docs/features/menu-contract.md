@@ -51,3 +51,11 @@
 1. 저장한 관리자 메뉴를 실제 관리자 셸이 언제부터 읽을지.
 2. 공동구매 판매 스위치(공동구매 기능 생길 때).
 3. `PAGE`(고정 페이지) 유형은 CMS 기능이 생길 때.
+
+## 화면 실제 연결 결과 (2026-10-22)
+- **admin-web** `composables/menu/api/useMenuApi.ts` 의 모든 호출이 서버(`MenuSetController`·`MenuTargetController`·`AdminMenuController`)를 부른다. 목업 `composables/menu/api/mock/menu-mock.ts` 와 그 시드 전용 `UtilAdminMenuConfig.seed()` 는 지웠다(위 「화면」 절의 `mock/menu-mock.ts` 언급은 이제 없는 파일). 포인트 목업이 쓰는 `common/mock/mock-util.ts` 는 남겼다.
+- 타입: `MenuItemDto.resolved?: { status }` 를 더했다 — 화면은 같은 규칙(`UtilMenu.itemStatus`)으로 상태를 스스로 계산하고 저장 요청에 싣지 않는다. `version` 은 뜻을 읽지 않고 그대로 돌려보낸다.
+- 409 `MENU_VERSION_CONFLICT`: 저장 줄에 서버 문구를 그대로 보이고 [다시 불러오기]로 최신 트리를 받는다(공개·관리자 메뉴 같음). 서버 `fields` 경로(`.settings.path`·`.settings.href`·`.targetKey`·`.kind`)는 기존 `UtilMenuTree.splitFieldErrors` 가 줄에 붙이고, `fields.nodes` 는 저장 줄 문구로 모은다.
+- **user-web** `composables/menu/api/useMenuApi.ts` 가 `GET /api/menu`(기본 `main`)를 부른다. 목업 폴더는 지웠다. 못 받으면 기존대로 `useMenu` 가 기본 메뉴(폴백)로 그린다.
+- 게시판 순서: 공개 내비게이션 순서의 주인은 메뉴(`main` 그룹). `/boards` 표 아래 안내를 「게시판 목록·글쓰기 게시판 고르기 순서」로 고치고 `layout.read` 가 있으면 `/menus/public` 링크를 둔다.
+- 일회용 환경 확인(develop jar + 새 DB, 설치 API 로 설치): 공개 메뉴 트리 조회·폴더 추가 저장·새로고침 뒤 유지, 다른 탭에서 게시판을 만든 뒤 열어 둔 트리 저장 → 409 문구 + 다시 불러오기로 새 게시판 포함 트리, 공개 사이트 내비에 새 게시판 표시, `GET /api/menu` `Cache-Control: no-store`, 관리자 메뉴 화면 조회. 관리자 메뉴 **저장**은 화면에서 눌러 보지 않았다.
