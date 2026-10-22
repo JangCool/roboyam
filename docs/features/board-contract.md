@@ -11,7 +11,7 @@
 조회 `board.read` · 만들기·기본 정보·말머리·켜고 끄기·순서 `board.manage` · 정책(기본 설정·게시판별 정책·안내문·쓰기 잠금) `board.settings` · 매니저/스텝 지정 `board.staff.manage` · 스텝 한도·인원 상한 `board.staff.limit` · 삭제 `board.delete`. 저장 한 번에 여러 부분이 바뀌면 **바뀐 부분의 권한만** 본다(목업과 같음).
 
 ## 데이터 구조 (결정)
-- `boards`(게시판 정보, 파티션 없음) — **ID 는 Snowflake `bigint`**(`SnowflakeIdGenerator`), API 에서는 문자열. `slug` 는 `^[a-z][a-z0-9-]*$` 2~40자·유일·만든 뒤 변경 불가·예약어 `defaults`·`order`·`new`. 이름 1~40자, 대소문자 무시 유일.
+- `boards`(게시판 정보, 파티션 없음) — **ID 는 Snowflake `bigint`**(`SnowflakeIdGenerator`), API 에서는 문자열. `slug` 는 `^[a-z][a-z0-9-]*$` 2~40자·유일·만든 뒤 변경 불가·예약어 `defaults`·`order`·`new`·`writable`(공개 API `/api/boards/writable` 과 겹침). 이름 1~40자, 대소문자 무시 유일.
 - 정책 칸은 게시판 행에 **NULL 허용**(NULL = 기본값 따름), 유효값 = 게시판 값 ?? 기본값. 기본값은 단일 행 표(`id = 1` CHECK).
 - 쓰기 자격 값: `GUEST`(비회원 포함) · 등급 키(등급 목록) · `STAFF`, 댓글은 `OFF` 추가. 핫딜·직접홍보 종류는 `GUEST` 불가, 핫딜은 일반 등급 미만 불가.
 - 글·댓글 표는 이번에 **만들기만** 한다(글쓰기 API 는 범위 밖). 글 수·말머리 사용 수·삭제 가능 판정·개인정보 대상 수가 이 표를 읽는다.
@@ -37,7 +37,7 @@
 2. 신고 사유에 스텝 전용 사유(투자 권유·게시판 주제 불일치)를 넣을지.
 3. 회원 알림 보관 90일의 자리(지금 게시판 알림 설정).
 4. 게시판 삭제: 지금은 글 0개만. 글이 있는 게시판의 "삭제 예약 → 배치 정리" 는 사용자가 원하면 후속.
-5. 공개 사이트 게시판 주소 모양(`/free` vs `/b/free`) — 공개 화면 때 정한다.
+5. ~~공개 사이트 게시판 주소 모양~~ → `/boards/{slug}` 로 확정(2026-10-22, `board-public-contract.md`).
 
 ## 서버 구현 결과 (2026-10-22) — 화면 연결은 후속
 **DB** shared `V42__boards.sql`: `boards`(정책 칸 NULL = 기본값) · `board_prefixes`(공통 4개는 게시판마다 `common_key` 행, 켜고 끄기만) · `board_staff` · `board_defaults` + 하위 화면별 행 하나 표 4개(`board_report|security|notification|privacy_settings`, 범위는 CHECK) · `posts`(id 월 RANGE) · `comments`(post_id HASH 64) · `installation.board_preset_applied_at`. `R__batch_17`(월 조각 함수 + DB 배치 `board-post-partitions` 00:20) · `R__batch_18`(개인정보 판정 함수 + DB 배치 `board-privacy-retention` 03:30). 앱 시작 때 api·admin 모두 조각을 맞춘다(`BoardPartitionBootstrap`).

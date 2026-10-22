@@ -9,6 +9,9 @@ public interface BoardStaffRepository extends RoboyamRepository<BoardStaffEntity
 
     List<BoardStaffEntity> findByBoardId(Long boardId);
 
+    /** 이 회원이 맡은 게시판 지정(공개 게시판의 「운영진」 판정) */
+    List<BoardStaffEntity> findByUserId(Long userId);
+
     /** 이 회원이 맡은 게시판 수(매니저·스텝 합산) */
     long countByUserId(Long userId);
 

@@ -1,5 +1,6 @@
 import type { DisplayValues } from '#layers/display-time/utils/util-time';
 import type { SiteIconResponse } from '~/composables/site/api/useSiteInfoApi.types';
+import type { BoardDisplaySettings } from '~/composables/board/api/useBoardApi.types';
 
 /**
  * 화면이 쓰는 사이트 정보 — `GET /api/site/info` 응답을 `UtilSiteInfo.fromResponse` 로 걸러 둔 것(쓸 수 없는 칸은 null).
@@ -16,4 +17,6 @@ export interface SiteInfo {
     icon: SiteIconResponse | null;
     /** 표시 기본값(사용자 개인 값이 없을 때의 폴백) — 못 읽으면 null(시스템 폴백) */
     displayDefaults: DisplayValues | null;
+    /** 공개 게시판 표시 기본값 — 못 읽으면 null(게시판 화면은 표준형·24시간) */
+    boardDisplay: BoardDisplaySettings | null;
 }

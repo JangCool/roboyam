@@ -9,7 +9,8 @@ package com.community.site.dto.response;
  * @param icon 올려 둔 사이트 아이콘. 없으면 null(기본 아이콘)
  * @param ogImageUrl 링크 미리보기 이미지 — 올려 둔 것, 없으면 기본 이미지. 공개 주소가 있으면 절대 주소
  * @param displayDefaults 표시 기본값
+ * @param boardDisplay 공개 게시판 표시 기본값(날짜 표시 방식·새 글 기준). 게시판 기본 설정 행이 없으면(설치 전) 처음 값
  */
 public record SiteInfoResponse(String siteName, String tagline, String logoUrl, SiteIconResponse icon, String ogImageUrl,
-                               SiteDisplayDefaultsView displayDefaults) {
+                               SiteDisplayDefaultsView displayDefaults, BoardDisplayView boardDisplay) {
 }

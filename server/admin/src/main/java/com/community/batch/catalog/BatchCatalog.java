@@ -58,6 +58,12 @@ public enum BatchCatalog {
      */
     BOARD_PRIVACY_RETENTION("board-privacy-retention", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
+    /**
+     * 공개 게시판 글 정리 — DB 배치, 기본 매일 00:40 KST({@code R__batch_19_board_post_upkeep.sql}). 예약 삭제 시각이 지난 글의 삭제 확정 + 조회수 중복 방지 기록 정리.
+     * 공개 서버는 시각이 지난 예약 삭제 글을 이미 지운 글로 보고 거르므로 늦게 돌아도 화면은 같다 — 그래서 정리(SYSTEM) 분류로 둔다.
+     */
+    BOARD_POST_UPKEEP("board-post-upkeep", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
     /** 올리기만 하고 어디에도 지정하지 않은 채 오래된 파일(files.status = PENDING) 삭제 — Java 배치(저장소 파일을 지우므로 DB 만으로 끝나지 않는다), 하루 한 번(새벽 03:45). 기준 시간은 {@code roboyam.media.orphan-retention-hours} */
     FILE_ORPHAN_CLEANUP("file-orphan-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 45 3 * * *", true);
 

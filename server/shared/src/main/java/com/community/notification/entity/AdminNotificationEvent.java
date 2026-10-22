@@ -62,9 +62,10 @@ public enum AdminNotificationEvent {
     GRADE_SETTINGS_SAVED(spec(MEMBER, INFO).holders(Permission.GRADE_READ).excludeActor().link("/grades")),
     /** 등급 일수 승급 배치 종료(처리 건수 &gt; 0) — 알림 감시자가 발행한다 */
     GRADE_PROMOTION_RUN(spec(MEMBER, INFO).holders(Permission.GRADE_READ).link("/settings/batch-logs?jobName=grade-promotion")),
+    /** 공개 사이트 글·댓글 신고 접수 — 신고 정책 notifyOperatorScope 가 PER_CASE 면 대상마다 첫 신고에만, PER_REPORT 면 신고마다(api ReportService). 처리 화면이 아직 없어 링크가 없다 */
+    REPORT_RECEIVED(spec(SAFETY, INFO).holders(Permission.REPORT_MANAGE)),
 
     // ── 예약 이벤트 (featureReady = false) — 기능이 만들어질 때 reserved() 를 지우고 발행 한 줄만 더한다 ──
-    REPORT_RECEIVED(spec(SAFETY, INFO).holders(Permission.REPORT_MANAGE).reserved()),
     SANCTION_APPEAL_FILED(spec(SAFETY, INFO).holders(Permission.APPEAL_MANAGE).reserved()),
     BOARD_SANCTION_REPEAT_REVIEW(spec(SAFETY, WARNING).holders(Permission.SANCTION_MANAGE).reserved()),
     NICKNAME_IMAGE_PENDING(spec(MEMBER, INFO).holders(Permission.NICKNAME_IMAGE_MANAGE).reserved()),

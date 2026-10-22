@@ -1,6 +1,9 @@
 package com.community.site.service;
 
+import com.community.board.entity.BoardDefaultsEntity;
+import com.community.board.repository.master.BoardDefaultsRepository;
 import com.community.site.dto.PublicSiteSnapshot;
+import com.community.site.dto.response.BoardDisplayView;
 import com.community.site.dto.response.SiteDisplayDefaultsView;
 import com.community.site.dto.response.SiteIconResponse;
 import com.community.site.dto.response.SiteInfoResponse;
@@ -41,9 +44,11 @@ public class PublicSiteService {
 
     private final SiteSettingRepository settings;
     private final SiteAssets assets;
+    private final BoardDefaultsRepository boardDefaults;
     private volatile Cached cached;
 
-    public PublicSiteService(SiteSettingRepository settings, SiteAssets assets) {
+    public PublicSiteService(SiteSettingRepository settings, SiteAssets assets, BoardDefaultsRepository boardDefaults) {
+        this.boardDefaults = boardDefaults;
         this.settings = settings;
         this.assets = assets;
     }
@@ -90,7 +95,9 @@ public class PublicSiteService {
                 .orElseGet(() -> new SiteDisplayDefaultsView(SiteSettingEntity.DEFAULT_LANGUAGE, SiteSettingEntity.DEFAULT_ZONE_ID,
                         SiteSettingEntity.DEFAULT_TIME_FORMAT, SiteSettingEntity.DEFAULT_DATE_FORMAT));
 
-        SiteInfoResponse info = new SiteInfoResponse(siteName, tagline, logoUrl, icon.orElse(null), ogImageUrl, display);
+        String dateDisplay = boardDefaults.findById(BoardDefaultsEntity.ROW_ID).map(row -> row.values().dateDisplay()).orElse("STANDARD");
+        BoardDisplayView boardDisplay = new BoardDisplayView(dateDisplay, BoardDisplayView.NEW_POST_HOURS);
+        SiteInfoResponse info = new SiteInfoResponse(siteName, tagline, logoUrl, icon.orElse(null), ogImageUrl, display, boardDisplay);
         WebManifestResponse manifest = manifest(siteName, tagline, display.language(), icon.orElse(null));
         boolean ogCustom = customOg.isPresent();
         return new PublicSiteSnapshot(info, manifest, ogCustom, fingerprint(info, manifest, ogCustom));

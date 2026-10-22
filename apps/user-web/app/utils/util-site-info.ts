@@ -1,6 +1,7 @@
 import UtilDisplayValues from '#layers/display-time/utils/util-display-values';
 import type { SiteIconResponse } from '~/composables/site/api/useSiteInfoApi.types';
 import type { SiteInfo } from '~/composables/site/useSiteInfo.types';
+import type { BoardDisplaySettings } from '~/composables/board/api/useBoardApi.types';
 import UtilSiteName from '~/utils/util-site-name';
 
 /**
@@ -97,6 +98,21 @@ export default class UtilSiteInfo {
             icon: UtilSiteInfo.cleanIcon(raw.icon),
             // 서버 값(`H24`·`YMD_DASH` 등)은 공유 레이어의 표시 값과 같은 이름이라 변환 없이 검사만 한다
             displayDefaults: UtilDisplayValues.sanitize(raw.displayDefaults),
+            boardDisplay: UtilSiteInfo.cleanBoardDisplay(raw.boardDisplay),
+        };
+    }
+
+    /**
+     * 공개 게시판 표시 기본값(`boardDisplay`) — 날짜 표시 방식이 `STANDARD`·`RELATIVE` 가 아니면 `STANDARD`, 새 글 기준이 1~720시간 정수가 아니면 24.
+     * @param {unknown} raw - 서버가 준 `boardDisplay`.
+     * @returns {BoardDisplaySettings | null} 걸러 낸 값. 칸이 없거나 객체가 아니면 null.
+     */
+    static cleanBoardDisplay(raw: unknown): BoardDisplaySettings | null {
+        if (!isObject(raw)) return null;
+        const hours = raw.newPostHours;
+        return {
+            dateDisplay: raw.dateDisplay === 'RELATIVE' ? 'RELATIVE' : 'STANDARD',
+            newPostHours: typeof hours === 'number' && Number.isInteger(hours) && hours >= 1 && hours <= 720 ? hours : 24,
         };
     }
 

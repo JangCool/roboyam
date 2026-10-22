@@ -11,6 +11,7 @@
 import auth from './auth';
 import board from './board';
 import business from './business';
+import comment from './comment';
 import commerce from './commerce';
 import dev from './dev';
 import error from './error';
@@ -20,6 +21,7 @@ import mail from './mail';
 import menu from './menu';
 import notification from './notification';
 import point from './point';
+import post from './post';
 import prompt from './prompt';
 import provider from './provider';
 import sanction from './sanction';
@@ -32,6 +34,7 @@ export default {
     auth,
     board,
     business,
+    comment,
     commerce,
     dev,
     error,
@@ -41,6 +44,7 @@ export default {
     menu,
     notification,
     point,
+    post,
     prompt,
     provider,
     sanction,

@@ -39,3 +39,6 @@ roboyam:
     verify-token-hours: 24        # 이메일 인증 링크의 유효 시간
     resend-cooldown-seconds: 60   # 인증 메일 재발송 간격(가장 최근에 보낸 링크 기준)
     session-timeout: 30d          # 로그인 세션: 마지막 활동 뒤 이 기간. spring.session.timeout 과 세션 쿠키 기한이 이 값을 따른다
+  # 비회원 글·댓글의 자동입력 방지(docs/features/board-public-contract.md 추가 결정 1). 비밀키가 비어 있으면 검증하지 않고 기동 로그에 경고한다(CaptchaConfig)
+  captcha:
+    turnstile-secret: ${TURNSTILE_SECRET_KEY:}

@@ -5,11 +5,29 @@
 //   menu-empty        메뉴가 비어 있음(`nodes: []`) → "보여 드릴 메뉴가 없어요" 자리
 
 import { MOCK_ERRORS, mockDelay, mockFlags } from '~/composables/common/mock/mock-util';
-import { MOCK_BOARDS } from '~/composables/board/api/mock/board-mock';
-import type { BoardView } from '~/composables/board/api/useBoardApi.types';
 import type { MenuItemNode, MenuNode, MenuResponse } from '~/composables/menu/api/useMenuApi.types';
 
-function boardItem(b: BoardView): MenuItemNode {
+/** 메뉴에 거는 게시판 — 게시판 목업이 서버로 바뀌어(2026-10-22) 메뉴에 필요한 칸만 여기로 옮겼다. 값은 ROBOYAM 예시 기본 게시판(`install-presets/roboyam.json`)과 같다 */
+interface MenuMockBoard {
+    id: string;
+    slug: string;
+    name: string;
+    nameEn: string | null;
+    color: string | null;
+    investmentNotice: boolean;
+}
+
+const MOCK_BOARDS: MenuMockBoard[] = [
+    { id: 'mock-board-1', slug: 'ai', name: 'AI·테크', nameEn: 'AI & Tech', color: 'BLUE', investmentNotice: false },
+    { id: 'mock-board-2', slug: 'robot', name: '로봇', nameEn: 'Robots', color: 'TEAL', investmentNotice: false },
+    { id: 'mock-board-3', slug: 'stock', name: '산업·주식', nameEn: 'Industry & Stocks', color: 'AMBER', investmentNotice: true },
+    { id: 'mock-board-4', slug: 'game', name: '게임', nameEn: null, color: 'PURPLE', investmentNotice: false },
+    { id: 'mock-board-5', slug: 'sports', name: '스포츠', nameEn: null, color: 'GREEN', investmentNotice: false },
+    { id: 'mock-board-6', slug: 'free', name: '자유게시판', nameEn: 'Free Board', color: null, investmentNotice: false },
+    { id: 'mock-board-7', slug: 'notice', name: '공지', nameEn: null, color: null, investmentNotice: false },
+];
+
+function boardItem(b: MenuMockBoard): MenuItemNode {
     return {
         id: `mock-menu-${b.slug}`,
         kind: 'ITEM',

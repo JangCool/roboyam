@@ -14,7 +14,7 @@ import { definePreset } from '@primeuix/themes';
  *   API_ORIGIN  기본 http://localhost:8910 (local 프로파일의 api)
  *   NUXT_PORT   기본 3100
  *
- * 개발 서버에서는 아래 `/api` 프록시가 api 서버(`API_ORIGIN`)로 이어 준다. 설치 마법사(`useInstallApi`)는 이 프록시로 실제 서버를 부르고, 로그인·셸은 아직 목업이다.
+ * 개발 서버에서는 아래 `/api` 프록시가 api 서버(`API_ORIGIN`)로 이어 준다. 설치 마법사(`useInstallApi`)·게시판(`useBoardApi`·`usePostApi`·`useCommentApi`·`useReportApi`)은 이 프록시로 실제 서버를 부르고, 로그인·셸은 아직 목업이다.
  *
  * 원본(community)과 달라진 점 — 마법사에 필요 없는 것을 뺐다: `extends` 레이어 중 rich-editor(display-time 은 공유 패키지 `@roboyam/display-time` 으로 가져왔다), tiptap, palettes/text-scale/home-gadget css(보기 설정),
  * 사이트 아이콘·웹 앱 매니페스트 링크, 소셜 로그인 프록시(`/oauth2`·`/login/oauth2`).

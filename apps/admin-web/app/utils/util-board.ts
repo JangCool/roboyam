@@ -259,7 +259,7 @@ export default class UtilBoard {
     static readonly SLUG_MIN = 2;
     static readonly SLUG_MAX = 40;
     /** slug 로 쓸 수 없는 말 — 관리자 화면 주소(`/boards/defaults/…`)·API 경로와 겹친다 */
-    static readonly SLUG_RESERVED: readonly string[] = ['defaults', 'order', 'new'];
+    static readonly SLUG_RESERVED: readonly string[] = ['defaults', 'order', 'new', 'writable'];
     /** 안내문의 보이는 글자 수 상한 */
     static readonly TEXT_MAX = 500;
     static readonly PREFIX_NAME_MAX = 20;

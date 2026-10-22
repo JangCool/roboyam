@@ -66,7 +66,7 @@ public final class BoardFields {
     public static final Pattern SLUG = Pattern.compile("^[a-z][a-z0-9-]*$");
     public static final int SLUG_MIN = 2;
     public static final int SLUG_MAX = 40;
-    public static final List<String> SLUG_RESERVED = List.of("defaults", "order", "new");
+    public static final List<String> SLUG_RESERVED = List.of("defaults", "order", "new", "writable");
     public static final int NAME_MAX = 40;
     public static final int NAME_EN_MAX = 40;
     public static final int DESCRIPTION_MAX = 200;

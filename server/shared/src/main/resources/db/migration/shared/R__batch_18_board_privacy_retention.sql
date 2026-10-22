@@ -5,7 +5,8 @@
 --   guest          작성한 지 guest_retention_days 일이 지난 비회원 글·댓글(0 이면 하지 않는다).
 --                  ANONYMIZE: 이름 ***·비밀번호 해시·IP 를 지우고 글은 남긴다. DELETE: 위에 더해 삭제 표시 + 제목·본문 파기, 비회원 글이면 그 글의 댓글·답글도 삭제·파기.
 --   deletedContent 삭제한 지 deleted_content_retention_days 일이 지난 글·댓글의 원문(제목·본문)을 파기한다(purged_at).
---   reportRecord · staffAction  신고 기록·스텝 처리 기록 표가 아직 없다 — 대상 0(표가 생기면 이 파일에 더한다).
+--   reportRecord   신고한 지 report_record_retention_days 일이 지난 신고 기록(reports — 신고자·사유·설명·당시 내용 스냅샷)을 행째 지운다(V46).
+--   staffAction    스텝 처리 기록 표가 아직 없다 — 대상 0(표가 생기면 이 파일에 더한다).
 -- 기본 실행: 매일 03:30 KST. 결과: 처리 건수 = 바꾼 글·댓글 행 수(축 합계), 0 이면 SKIP. 덩어리(기본 5000)마다 COMMIT, 한 번 실행 상한(기본 100000).
 -- 호출: CALL batch_board_privacy_retention();  (「지금 실행」(배치 화면)은 CALL batch_board_privacy_retention('MANUAL', 운영자ID, NULL))
 -- 같은 배치 잠금(pg_advisory 7340002 + 키)을 board_privacy_process 도 잡는다 — 배치가 도는 동안 관리자 화면의 축별 「지금 실행」은 -1(실행 중)을 받는다.
@@ -17,6 +18,7 @@ LANGUAGE sql STABLE AS $fn$
                WHEN 'ip' THEN now() - make_interval(days => s.ip_retention_days)
                WHEN 'guest' THEN CASE WHEN s.guest_retention_days > 0 THEN now() - make_interval(days => s.guest_retention_days) END
                WHEN 'deletedContent' THEN now() - make_interval(days => s.deleted_content_retention_days)
+               WHEN 'reportRecord' THEN now() - make_interval(days => s.report_record_retention_days)
            END
       FROM board_privacy_settings s
      WHERE s.id = 1
@@ -42,6 +44,8 @@ BEGIN
     ELSIF p_axis = 'deletedContent' THEN
         SELECT count(*) INTO v_posts FROM posts WHERE deleted_at IS NOT NULL AND purged_at IS NULL AND deleted_at < v_cutoff;
         SELECT count(*) INTO v_cmts FROM comments WHERE deleted_at IS NOT NULL AND purged_at IS NULL AND deleted_at < v_cutoff;
+    ELSIF p_axis = 'reportRecord' THEN
+        SELECT count(*) INTO v_posts FROM reports WHERE created_at < v_cutoff;
     END IF;
     RETURN v_posts + v_cmts;
 END
@@ -55,7 +59,17 @@ LANGUAGE plpgsql STABLE AS $fn$
 DECLARE
     v_cutoff timestamptz := board_privacy_cutoff(p_axis);
 BEGIN
-    IF v_cutoff IS NULL OR p_axis NOT IN ('ip', 'guest', 'deletedContent') THEN
+    IF v_cutoff IS NULL OR p_axis NOT IN ('ip', 'guest', 'deletedContent', 'reportRecord') THEN
+        RETURN;
+    END IF;
+    IF p_axis = 'reportRecord' THEN
+        -- 신고 기록: 제목 = 당시 글 제목(댓글 신고면 당시 본문 앞 40자). 신고자·설명은 싣지 않는다
+        RETURN QUERY
+        SELECT 'report-' || r.id, coalesce(r.snapshot_title, left(r.snapshot_content, 40), '')::text, b.name::text, r.created_at
+          FROM (SELECT x.id, x.snapshot_title, x.snapshot_content, x.board_id, x.created_at
+                  FROM reports x WHERE x.created_at < v_cutoff ORDER BY x.created_at LIMIT p_limit) r
+          LEFT JOIN boards b ON b.id = r.board_id
+         ORDER BY r.created_at;
         RETURN;
     END IF;
     RETURN QUERY
@@ -159,6 +173,11 @@ BEGIN
             GET DIAGNOSTICS v_n = ROW_COUNT;
             v_total := v_total + v_n;
         END IF;
+
+    ELSIF p_axis = 'reportRecord' THEN
+        DELETE FROM reports WHERE id IN (SELECT id FROM reports WHERE created_at < v_cutoff ORDER BY created_at LIMIT p_limit);
+        GET DIAGNOSTICS v_n = ROW_COUNT;
+        v_total := v_n;
     END IF;
     RETURN v_total;
 END
@@ -177,6 +196,7 @@ DECLARE
     v_ip     bigint := 0;
     v_guest   bigint := 0;
     v_deleted bigint := 0;
+    v_reports bigint := 0;
     v_total   bigint := 0;
     v_err     text;
     v_state   text;
@@ -195,7 +215,7 @@ BEGIN
         RETURN;
     END IF;
 
-    FOREACH v_axis IN ARRAY ARRAY['ip', 'guest', 'deletedContent'] LOOP
+    FOREACH v_axis IN ARRAY ARRAY['ip', 'guest', 'deletedContent', 'reportRecord'] LOOP
         LOOP
             v_req := least(v_chunk, v_max - v_total);
             BEGIN
@@ -209,7 +229,8 @@ BEGIN
                 v_n := 0; -- 같은 세션이 잠금을 쥐고 있어 오지 않는 경우지만 안전하게
             END IF;
             v_total := v_total + v_n;
-            CASE v_axis WHEN 'ip' THEN v_ip := v_ip + v_n; WHEN 'guest' THEN v_guest := v_guest + v_n; ELSE v_deleted := v_deleted + v_n; END CASE;
+            CASE v_axis WHEN 'ip' THEN v_ip := v_ip + v_n; WHEN 'guest' THEN v_guest := v_guest + v_n; WHEN 'reportRecord' THEN v_reports := v_reports + v_n;
+                        ELSE v_deleted := v_deleted + v_n; END CASE;
             COMMIT;
             EXIT WHEN v_n < v_req OR v_total >= v_max;
         END LOOP;
@@ -219,7 +240,7 @@ BEGIN
     UPDATE board_privacy_settings SET last_run_at = now() WHERE id = 1;
     PERFORM batch_run_close(p_run_id, c_job, v_total, v_err,
         CASE WHEN v_total >= v_max THEN 'batch.result.boardPrivacyRetention.capped' ELSE 'batch.result.boardPrivacyRetention' END,
-        CASE WHEN v_total >= v_max THEN batch_args(v_total::text, v_max::text) ELSE batch_args(v_total::text, v_ip::text, v_guest::text, v_deleted::text) END,
+        CASE WHEN v_total >= v_max THEN batch_args(v_total::text, v_max::text) ELSE batch_args(v_total::text, v_ip::text, v_guest::text, v_deleted::text, v_reports::text) END,
         'batch.result.boardPrivacyRetention.none', NULL);
     COMMIT;
 END

@@ -61,6 +61,14 @@ public class SnowflakeIdGenerator {
         return ((now - EPOCH_MS) << (NODE_BITS + SEQUENCE_BITS)) | (nodeId << SEQUENCE_BITS) | sequence;
     }
 
+    /**
+     * 그 시각에 발급될 수 있는 가장 작은 ID — 시각 범위를 ID 범위로 바꿔 id 로 나눈 표(글 월 조각)를 가지치기할 때 쓴다.
+     * DB 함수 {@code board_snowflake_floor}(R__batch_17)와 같은 식이다.
+     */
+    public static long floorIdAt(java.time.Instant at) {
+        return Math.max(0L, at.toEpochMilli() - EPOCH_MS) << (NODE_BITS + SEQUENCE_BITS);
+    }
+
     private long waitNextMillis(long last) {
         long now = clock.millis();
         while (now <= last) {
