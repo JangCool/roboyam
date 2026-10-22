@@ -10,8 +10,8 @@ import java.time.Instant;
 /**
  * 운영자가 등록한 소셜 로그인 키(공급자마다 한 행) — V3__social_provider_settings.sql.
  *
- * <p>시크릿은 <b>암호문만</b> 들고 있다({@code v1:} 로 시작). 평문 시크릿은 어디에도 저장하지 않는다. 설치 마법사가 처음 넣고, 공개 사이트 서버의 소셜 로그인이
- * 읽는다(설정 화면의 수정은 그 기능을 만들 때 더한다).
+ * <p>시크릿은 <b>암호문만</b> 들고 있다({@code v1:} 로 시작). 평문 시크릿은 어디에도 저장하지 않는다. 설치 마법사가 처음 넣고, 관리자 서버의 소셜 로그인 설정
+ * ({@code /api/admin/social-providers})이 고치거나 지우며, 공개 사이트 서버의 소셜 로그인이 읽는다.
  * {@link #toString()} 은 값을 싣지 않는다(기본 {@code Object.toString} 을 그대로 쓴다).
  */
 @Entity
@@ -29,7 +29,7 @@ public class SocialProviderSettingEntity {
 
     private boolean enabled;
 
-    /** 마지막으로 저장한 운영자(회원 ID). 설치 때는 루트 계정 */
+    /** 마지막으로 저장한 운영자({@code operators.id}). 설치 때는 루트 계정 */
     private Long updatedBy;
 
     private Instant updatedAt;
@@ -54,6 +54,21 @@ public class SocialProviderSettingEntity {
         return setting;
     }
 
+    /**
+     * 관리자 설정 화면의 저장 — 클라이언트 ID·켜짐을 바꾸고, 새 시크릿이 있으면 바꾼다.
+     *
+     * @param clientSecretEnc 새로 암호화한 시크릿({@code v1:…}). null 이면 저장된 시크릿을 그대로 둔다. 평문을 넘기지 않는다
+     */
+    public void change(String clientId, String clientSecretEnc, boolean enabled, long operatorId, Instant now) {
+        this.clientId = clientId;
+        if (clientSecretEnc != null) {
+            this.clientSecretEnc = clientSecretEnc;
+        }
+        this.enabled = enabled;
+        this.updatedBy = operatorId;
+        this.updatedAt = now;
+    }
+
     public SocialProvider getProvider() {
         return provider;
     }
@@ -69,6 +84,14 @@ public class SocialProviderSettingEntity {
 
     public boolean isEnabled() {
         return enabled;
+    }
+
+    public Long getUpdatedBy() {
+        return updatedBy;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
     }
 
     /** 로그인에 쓸 수 있는 키가 있는가(클라이언트 ID 와 암호화된 시크릿이 모두 있다) — 값 자체는 내보내지 않는다 */

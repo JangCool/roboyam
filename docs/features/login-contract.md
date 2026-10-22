@@ -92,3 +92,47 @@
 - **`/settings/account`**(`middleware: 'auth'` 새로 둠 — 비로그인은 `/login?next=`): 로그인 수단(비밀번호 유무) + 공급자 3줄(연결·해제, 꺼진 공급자는 단추 없음, 마지막 수단은 해제 비활성). 돌아온 `linked`·`link=taken`·`link=failed&reason` 은 토스트/안내로 보이고 쿼리를 지운다. 들어가는 길은 헤더 프로필 메뉴의 고정 항목 「계정·로그인 연결」(user-web 은 메뉴 관리의 MYPAGE 그룹을 그리지 않는다 — 관리자 레지스트리 `SETTINGS_ACCOUNT` 는 이미 이 경로다).
 - **검증**: 일회용 DB·jar(9061)·가짜 공급자(카카오·네이버 모양)·`nuxt dev` 3267, 공개 주소 `http://localhost:3267` 로 콜백이 프록시를 거쳐 돌아오는 것 확인. 신규 가입 완료(미확인·확인 이메일)·닉네임 중복·이메일 겹침·취소·invalid_state·가입 대기 만료·연결 성공/취소/taken·해제·마지막 해제 409 거절·연결된 소셜 로그인 후 `next`(한글 경로) 복귀.
 - **미확정**: 연결된 소셜로 로그인한 정지 회원의 제재 안내 착륙(원본 `useLoginLanding`)은 없다. `/signup`(이메일 가입)·`/password/forgot`·`/terms`·`/privacy` 화면은 아직 없어 링크가 비어 있다. 구글은 가짜 공급자로 시험하지 않았다.
+
+## 관리자 소셜 로그인 설정 (서버 구현 2026-10-23, 화면은 다음 단계)
+**의도**: 설치 마법사에서만 넣던 카카오·네이버·구글 클라이언트 ID·시크릿을 관리자 앱에서 보고·고치고·지운다. 화면은 community `admin/app/pages/social-login.vue`·`SocialProviderCard.vue` 를 옮기고, API 모양은 community `docs/api-admin-social.md` 를 따르되 roboyam 차이를 더했다. 코드: `server/admin/.../social/**`, shared `com.community.social`.
+
+### API (`/api/admin/social-providers`, 공통 래퍼, 모두 `Cache-Control: no-store`, 쓰기는 CSRF)
+| | 권한 | 요청 | 응답 |
+|---|---|---|---|
+| `GET /api/admin/social-providers` | `site.read` | — | `200 { cryptoKeyConfigured, publicUrlConfigured, providers: [항목 ×3] }` |
+| `PUT /api/admin/social-providers/{provider}` | `site.secret` | `{ clientId, clientSecret?, enabled? }` | `200 항목` · `400 VALIDATION`(`fields.clientId`→`clientSecret`→`enabled` 한꺼번에) · `404 PROVIDER_NOT_FOUND` · `503 CRYPTO_KEY_MISSING` · `403 PERMISSION_DENIED` |
+| `DELETE /api/admin/social-providers/{provider}` | `site.secret` | — | `204`(없는 설정도 204, 멱등) · `404 PROVIDER_NOT_FOUND` |
+| `GET /api/admin/social-providers/history?provider&page&size` | `site.read` | provider 생략 = 전체, page 0부터(기본 0), size 1~100(기본 20) | `200 { items, total, page, size }` · `400 VALIDATION`(`fields.provider`·`page`·`size`) |
+
+- `{provider}` = `KAKAO`·`NAVER`·`GOOGLE` 또는 소문자 id(대소문자 무시). 목록 순서는 **카카오 · 네이버 · 구글 고정**(공개 로그인 버튼과 같다 — community 의 NAVER 먼저와 다르다).
+- **항목** `{ provider, id, label, callbackUrl, source, enabled, active, clientId, secretSet, configured, updatedAt, updatedBy }`
+  - `provider` 대문자 코드, `id` 소문자(`/api/auth/providers` 의 id), `label` 요청 언어 이름.
+  - `callbackUrl` = `{site_settings.public_url}/api/auth/social/{id}/callback`(공급자 콘솔에 등록할 값). 공개 주소가 없으면 `null`.
+  - `source` = `SETTINGS`(행 있음) · `NONE`(미등록). roboyam 은 환경 변수 키가 없어 `ENV` 는 나오지 않는다.
+  - `enabled` = 저장된 켜짐 값(미등록이면 false). `active` = 지금 공개 로그인 화면에 버튼이 나오는가(켜짐 + 키 + 서버 암호화 키 — `GET /api/auth/providers` 와 같은 기준).
+  - `secretSet` = 시크릿이 있고 **지금 키로 풀 수 있는가**(값은 절대 내보내지 않는다). `configured` = clientId + 풀 수 있는 시크릿. 키가 없으면 풀어 볼 수 없어 `secretSet` 은 암호문 유무다.
+  - `updatedAt` 마지막 저장 시각(설치 값이면 설치 시각), `updatedBy` 운영자 이름(없거나 지워졌으면 null).
+- **이력 항목** `{ id, provider, providerLabel, action(CREATE|UPDATE|DELETE), source(INSTALL|ADMIN), operatorId, operatorName, operatorDeleted, changedAt, changes: [{ field, labelKey, before, after }] }` — 최신이 위(`changedAt`↓, `id`↓). `operatorName` 은 운영자를 찾을 수 없으면 요청 언어의 「삭제된 운영자」 + `operatorDeleted: true`. `labelKey` = `settingHistory.field.<field>`(admin-web i18n 이 정할 키).
+
+### 정책
+- **검사 순서**: 권한(401/403) → 공급자 이름(404) → 암호화 키(503, 입력이 틀려도 먼저 — community 와 같다) → 입력(400). `DELETE` 는 암호화 키가 없어도 된다.
+- **입력**: clientId 앞뒤 공백 자른 뒤 1~200자·공백/제어 문자 없음(필수). clientSecret 1~500자·공백/제어 문자 없음, **생략·빈 값이면 저장된 값 유지**. 저장된 것이 없으면 `fields.clientSecret`(「처음 등록할 때는…」), 저장된 것을 지금 키로 풀 수 없으면 `fields.clientSecret`(「다시 입력해 주세요」). V3 스키마가 clientId·시크릿 NOT NULL 이라 「켜려면 둘 다 있어야 함」은 저장 자체의 조건이다. `enabled` 생략 = true. 오류 문구에 입력값을 싣지 않는다.
+- **공개 주소가 없으면 켜기를 거절**한다(`fields.enabled`) — 콜백 주소를 만들 수 없어 공개 시작이 404 가 되기 때문. 끈 채로 저장은 된다. (설치가 공개 주소를 필수로 받고 `public_url` 이 NOT NULL 이라 실제로는 빈 값일 때만 해당)
+- **바뀐 칸이 없으면 쓰지 않는다**(시각·감사·이력 그대로). 같은 시크릿을 다시 넣은 것은 저장된 값과 풀어서 비교해 「안 바뀜」으로 본다.
+- **삭제** = 행을 지운다 → 그 공급자는 미등록(`NONE`)·꺼짐. 시크릿만 지우는 동작은 없다(스키마상 시크릿 없는 행이 없다 — community 의 「설정 삭제」와 같다).
+- **감사**(`audit_logs`): `SOCIAL_PROVIDER_UPDATE`(만들기·고치기) · `SOCIAL_PROVIDER_DELETE`, 대상 `SOCIAL_PROVIDER` + 공급자. `enabled` 만 before/after 값, clientId·clientSecret 은 칸 이름과 `SET`(만들기)/`CHANGED` 표시만 — **clientId 원문·가린 값·시크릿은 감사에 없다**.
+- **공개 반영**: 공개 서버(`SocialProviderService`·`SocialClientRegistry`)는 캐시 없이 요청마다 DB 를 읽는다 → 저장이 커밋된 직후 요청부터 `/api/auth/providers`·시작·콜백이 새 값을 쓴다(서버가 여러 대여도 같다).
+
+### 변경 이력 (`social_provider_setting_history`, shared V53, 메일 설정 이력과 같은 규칙의 별도 표, 보관 무기한)
+- 저장마다 한 줄: 공급자 · 운영자 · 시각 · 출처 `INSTALL`(설치 마법사 소셜 단계 — `SocialSettingsService.create`) / `ADMIN`(이 API) · `changes [{field, before, after}]`. 같은 값 재저장은 줄이 없다.
+- 값의 모양: **clientSecret 은 값 없이 표시 코드만** `SET`(처음 넣음) · `CHANGED`(바꿈, before 는 `SET`) · `CLEARED`(설정 삭제). **clientId 는 끝 4자리만** `****abcd`(4자 이하는 `****`). `enabled` 는 `"true"`/`"false"`. 만들기는 before null, 삭제는 after null(시크릿만 `SET`→`CLEARED`).
+- 이미 설치된 DB: V53 이 지금 행마다 `INSTALL · CREATE` 첫 줄을 만든다(시각 = `installation.installed_at`, 없으면 행의 `updated_at`, 운영자 = 행의 `updated_by`). 관리자 수정 API 가 없던 시점이라 지금 값 = 설치 값이다.
+- `operator_id` 는 FK 없음(운영자가 지워져도 이력 유지 — `audit_logs.actor_id` 와 같다).
+
+### 가정·미해결
+- **권한**: 새 권한 없이 기존 `site.read`(조회·이력) / `site.secret`(저장·삭제, 설명 「소셜 로그인 키·메일 서버 비밀번호 같은 비밀 값을 바꿉니다」)를 썼다. `site.secret` 의 `featureReady` 는 **서버·프론트 모두 아직 false** — 화면을 붙일 때 서버 `Permission.java` 와 `util-permission-catalog.ts` 를 같이 true 로 바꾼다. `site.read` 의 i18n 설명(「일반」 화면만 언급)도 그때 고친다.
+- **관리자 메뉴(제안, 레지스트리 미변경)**: `AdminScreenRegistry` 의 `menu.system` 묶음, `siteGeneral` 다음에 `s("socialLogin", "/settings/social-login", "menu.socialLogin", "pi pi-key", Permission.SITE_READ)`. 프론트가 페이지·`menu.socialLogin` 문구를 만들 때 같이 넣는다.
+- 관리자 알림(`SITE_SETTINGS_CHANGED`)은 보내지 않는다(링크가 `/settings/general` 고정이라 맞지 않음) — 필요하면 화면 단계에서 정한다.
+- 풀 수 없는 시크릿(키 교체)도 공개 `/api/auth/providers` 에는 버튼이 나온다(기존 공개 기준은 복호화를 해 보지 않는다) — 관리자 목록은 `active: true` · `secretSet: false` 로 보인다. 콜백에서 `provider_error` 로 끝난다.
+- `social_provider_settings.updated_by` 는 `operators` FK(ON DELETE 없음, V8)라 마지막으로 저장한 운영자를 지우면 FK 오류가 날 수 있다(기존 스키마 — 이번에 고치지 않음).
+- 같은 공급자를 처음 등록하는 두 요청이 동시에 오면 하나는 PK 충돌로 500 이 될 수 있다(드묾 — 행이 있으면 행 잠금으로 줄 세운다).
