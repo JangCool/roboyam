@@ -7,6 +7,12 @@
 </template>
 
 <script setup lang="ts">
+import UtilSiteName from '~/utils/util-site-name';
+
 const { t } = useI18n();
-useSeoMeta({ title: () => t('shell.tabHome') });
+const { siteName } = useSiteName();
+const { tagline } = useSiteTagline();
+
+// 홈의 탭 제목은 서버가 첫 HTML 에 넣는 「이름 — 소개」 와 같게 둔다(앱이 뜬 뒤 제목이 바뀌지 않게). 이름을 모를 때(설치 전·못 받음)만 "홈" 이다.
+useSeoMeta({ title: () => UtilSiteName.homeTitle(siteName.value, tagline.value) ?? t('shell.tabHome') });
 </script>
