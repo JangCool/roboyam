@@ -1,6 +1,7 @@
 <template>
-    <!-- 상단 바 — 모바일: ☰ · 로고 · 검색 · 로그인/닉네임, 데스크톱: 로고 · 검색 · 알림 종 · 쪽지 아이콘 · 로그인·가입 또는 계정 메뉴.
-         알림 종은 데스크톱에만 있다(모바일은 하단 탭의 "알림"이 같은 일을 한다). 쪽지 아이콘도 데스크톱에만 — 모바일은 "내 정보"의 "쪽지함" 줄로 들어간다 (design 01-shell 6) -->
+    <!-- 상단 바 — 모바일: ☰ · 로고 · 검색 · 로그인/닉네임, 데스크톱: 로고 · 검색 · 알림 종 · 로그인·가입 또는 계정 메뉴.
+         알림 종은 데스크톱에만 있다(모바일은 하단 탭의 "알림"이 같은 일을 한다).
+         쪽지(design 01-shell 6 의 쪽지 아이콘·메뉴의 "쪽지함" 줄)는 기능이 없어 감췄다 — 쪽지를 만들 때 git 기록의 `AppMessageLink`·`useDmBadge`·`useDmApi` 를 되살린다 -->
     <header class="app-nav sticky top-0 z-30 border-b">
         <div class="mx-auto flex h-12 w-full max-w-[var(--content-max)] items-center gap-1 px-2 md:px-4">
             <button
@@ -27,9 +28,6 @@
 
             <!-- 알림 종 + 알림 패널(드롭다운) — 로그인한 사람에게만, 데스크톱에서만 -->
             <NotificationBell v-if="loaded && user" />
-
-            <!-- 쪽지 아이콘 + 안 읽은 대화 수 — 로그인한 사람에게만, 데스크톱에서만 -->
-            <AppMessageLink v-if="loaded && user" />
 
             <nav v-if="loaded" class="flex items-center gap-2 text-sm" :aria-label="t('shell.accountNav')">
                 <template v-if="user">
@@ -88,7 +86,6 @@ const { user, loaded, adminUrl, emailVerified, restriction } = useAuth();
 const { term } = useSiteTerms();
 const { siteLabel } = useSiteName();
 const { run: logout } = useLogoutFlow();
-const { text: dmText } = useDmBadge();
 const points = usePointSummary();
 
 /** 오늘 출석을 권할 만한가(요약이 있고 출석 전이며 정지 중·인증 전이 아닐 때) — 메뉴 항목에 받을 포인트를 붙인다 */
@@ -108,7 +105,7 @@ const menuOpen = ref(false);
 const loginTarget = computed(() => UtilRedirect.toLogin(route.fullPath));
 
 /**
- * 프로필 드롭다운 — 맨 위에 보유 포인트, "포인트·출석체크"(오늘 출석 전이면 "· +10P")(8단계), "아이템샵", 쪽지함에는 안 읽은 대화가 있으면 수가 붙는다("쪽지함 · 안 읽음 3", design 01-shell 6),
+ * 프로필 드롭다운 — 맨 위에 보유 포인트, "포인트·출석체크"(오늘 출석 전이면 "· +10P", 출석 기능이 없으면(`attendanceAvailable=false`) 그냥 "포인트")(8단계), "아이템샵",
  * "사업자 센터"(신청했거나 사업자 전용 계정)·"사업자 신청"(일반 회원, 신청 전)(H-2). 사업자 전용 계정에는 포인트 줄·포인트 요약이 없다.
  * 운영자·운영진(`adminUrl` 이 있을 때)에게만 "관리자 앱"이 더해진다 — 별도 사이트라 `url`·`target` 으로 새 탭에서 연다.
  * 스크린리더 이름(`label`)에 새 탭이라는 말을 담고 보이는 글자(`text`)는 "관리자 앱"이다.
@@ -122,14 +119,15 @@ const menuItems = computed(() => [
                   label:
                       attendable.value && points.summary.value
                           ? t('point.entryWithReward', { amount: UtilPoint.number(points.summary.value.rules.attendance) })
-                          : t('point.entry'),
+                          : points.summary.value?.attendanceAvailable
+                            ? t('point.entry')
+                            : t('point.entryNoAttendance'),
                   icon: 'pi pi-wallet',
                   command: () => void navigateTo('/me/points'),
               },
               // 아이템샵 — 포인트로 닉네임 색상·프로필 테두리·교환권을 산다
               { label: term('ITEM_SHOP'), icon: 'pi pi-shopping-bag', command: () => void navigateTo(UtilShop.PATH) },
           ]),
-    { label: dmText.value ? t('shell.messageBoxUnread', { count: dmText.value }) : t('shell.messageBox'), icon: 'pi pi-envelope', command: () => void navigateTo('/messages') },
     // 사업자 센터(신청했거나 사업자 전용 계정) · 사업자 신청(일반 회원, 신청 전) — H-2
     ...(businessEntry.value
         ? [

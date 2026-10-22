@@ -147,7 +147,7 @@ export default class UtilPermissionCatalog {
      *  · 운영자·역할 관리: 조회 `operator.read`·`role.read` / 처리 `operator.manage` / 설정 `role.manage` / 민감 `operator.lock`(운영자 잠금·해제)·`role.grant`(역할 변경 = 권한 상승). 조직 구성(팀)은 조회 `team.read` / 처리 `team.manage`(팀 만들기·고치기·지우기·옮기기·팀원 관리)
      *  · 감사·배치: 조회 `audit.read`·`batch.read` / 처리 `batch.manage` / 민감 `batch.run`(배치 즉시 실행). 이 유형의 설정 단위("배치 사용 여부")는 처리(`batch.manage`)에 포함했다.
      *  · 회원 조회: 조회 `member.read` / 민감 `member.pii`(전체 이메일 열람 — 없으면 이메일이 `ab***@gmail.com` 으로 가려진다).
-     *  · 등급·포인트·휴면(지금은 등급 설정 화면만): 조회 `grade.read` / 설정 `grade.manage`(등급 승급 조건 변경). 포인트(`point.*`)는 화면이 목업 단계이고 서버(포인트 백엔드)가 없어 준비 중이다.
+     *  · 등급·포인트·휴면(등급 설정·포인트 내역·포인트 정책 화면): 조회 `grade.read` / 설정 `grade.manage`(등급 승급 조건 변경). 포인트는 조회 `point.read`(원장·정책 보기) / 설정 `point.settings`(지급 정책 저장) / 민감 `point.adjust`(수동 지급·차감).
      *  · 게시판: 조회 `board.read` / 처리 `board.manage`·`board.staff.manage` / 설정 `board.settings`·`board.staff.limit` / 민감 `board.delete`(게시판 목록·설정·기본 설정·매니저/스텝).
      *  · 사이트 화면 구성: 조회 `layout.read` / 설정 `layout.settings`(공개 사이트 메뉴)·`admin-menu.manage`(관리자 사이트 메뉴 구성 저장).
      *  · 사이트·연동(지금은 설정 메뉴의 「일반」·「알림」 화면만): 조회 `site.read` / 설정 `site.manage`(사이트 이름·소개, 표시 기본값 변경). 알림 이벤트 관리는 조회 `notification.read` / 설정 `notification.manage`(이벤트별 사용 여부·이메일 전달 변경 — 받는 사람은 코드에 고정이라 바꾸지 않는다).
@@ -187,9 +187,9 @@ export default class UtilPermissionCatalog {
         { code: 'grade.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.gradeRead', descKey: 'permission.gradeReadDesc', featureReady: true },
         { code: 'grade.manage', unit: 'CONFIG', type: 'gradePoint', nameKey: 'permission.gradeManage', descKey: 'permission.gradeManageDesc', featureReady: true },
         { code: 'grade.override', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.gradeOverride', descKey: 'permission.item.gradeOverrideDesc', featureReady: false },
-        { code: 'point.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.item.pointRead', descKey: 'permission.item.pointReadDesc', featureReady: false },
-        { code: 'point.settings', unit: 'CONFIG', type: 'gradePoint', nameKey: 'permission.item.pointSettings', descKey: 'permission.item.pointSettingsDesc', featureReady: false },
-        { code: 'point.adjust', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.pointAdjust', descKey: 'permission.item.pointAdjustDesc', featureReady: false },
+        { code: 'point.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.item.pointRead', descKey: 'permission.item.pointReadDesc', featureReady: true },
+        { code: 'point.settings', unit: 'CONFIG', type: 'gradePoint', nameKey: 'permission.item.pointSettings', descKey: 'permission.item.pointSettingsDesc', featureReady: true },
+        { code: 'point.adjust', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.pointAdjust', descKey: 'permission.item.pointAdjustDesc', featureReady: true },
         { code: 'dormancy.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.item.dormancyRead', descKey: 'permission.item.dormancyReadDesc', featureReady: false },
         { code: 'dormancy.settings', unit: 'CONFIG', type: 'gradePoint', nameKey: 'permission.item.dormancySettings', descKey: 'permission.item.dormancySettingsDesc', featureReady: false },
         { code: 'group.read', unit: 'READ', type: 'club', nameKey: 'permission.item.groupRead', descKey: 'permission.item.groupReadDesc', featureReady: false },

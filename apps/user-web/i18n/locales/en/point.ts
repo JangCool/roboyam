@@ -5,6 +5,8 @@ export default {
     // Entry to the points screen
     entry: 'Points & check-in',
     entryWithReward: 'Points & check-in · +{amount}P',
+    // When check-in doesn't exist (`attendanceAvailable=false`) or before the summary arrives
+    entryNoAttendance: 'Points',
 
     // Balance line — {points} looks like "1,280P"
     balanceLine: 'Points {points}',

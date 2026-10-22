@@ -271,7 +271,7 @@ export interface MemberGradePoint {
     /** 최근 것이 먼저 */
     gradeHistory: MemberGradeChange[];
     nicknameTicketCount: number;
-    /** 최근 N건(목업 8건), 최근 것이 먼저 */
+    /** 원장 최근 10줄, 최근 것이 먼저(사유는 요청 언어) */
     pointEntries: MemberPointEntry[];
 }
 
@@ -409,7 +409,7 @@ export interface MemberGroupBuy {
 /**
  * 회원 상세 — 목록 한 줄의 칸 + 상세 전용 칸. 역할은 이름뿐 아니라 유형·게시판까지 준다.
  * **서버가 비워 주는 칸**(null/빈 값 — 화면은 해당 구획을 안내로 보인다. `activity`·`gradePoint`·`reports` 는 이제 서버가 채우고 탈퇴 회원만 null — `useMemberApi.ts` 머리말): `statusReason`·`activity`·`sanctionSummary`·`reports`·`adultConfirmed`·`acceptDm`·`dormancy`·`gradePoint`·`settings`·`contact`·`profile`·`groupBuy`·`consents.privacy` 는 null,
- * `sanctions`·`consents.optional`·`consents.history`·`roles[].boardNames` 는 빈 배열, `nicknameHistory` 는 빈 배열(`member.pii` 가 없으면 null), `point`·`sanctionCount` 는 늘 0, `statusChangedAt` 은 탈퇴 시각만.
+ * `sanctions`·`consents.optional`·`consents.history`·`roles[].boardNames` 는 빈 배열, `nicknameHistory` 는 빈 배열(`member.pii` 가 없으면 null), `sanctionCount` 는 늘 0, `statusChangedAt` 은 탈퇴 시각만. `point` 는 포인트 잔액(탈퇴 0).
  * 실제 값이 있는 칸: 목록 한 줄의 칸, `roles`, `bio`, `social`, `withdrawnAt`, `consents.terms`/`ageConfirmedAt`, `piiMasked`.
  * 탈퇴한 회원은 `bio`·`consents` 가 null 이고 `social` 은 빈 배열, `withdrawnAt` 이 채워진다(줄어든 표시).
  */

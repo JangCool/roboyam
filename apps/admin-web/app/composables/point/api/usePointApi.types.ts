@@ -1,7 +1,8 @@
 import type { MemberPointKind } from '~/composables/member/api/useMemberApi.types';
 
 /**
- * 포인트 API 가 주고받는 모양 — 후보 계약이고 확정 전이다(목업 단계). community `docs/api-point.md` 의 관리자 API 를 roboyam 권한 코드로 옮기고, 전체 원장 조회를 더했다.
+ * 포인트 API 가 주고받는 모양 — 서버 `point/dto/response`(`PointLedgerItemView`·`PointLedgerPageView`·`PointSettingsResponse` …)와 같다(`docs/features/point-contract.md`).
+ * community `docs/api-point.md` 의 관리자 API 를 roboyam 권한 코드로 옮기고, 전체 원장 조회를 더했다.
  * 종류 이름(`EARN`·`USE`·`REVOKE`)은 회원 상세의 포인트 내역(`MemberPointKind`·`MemberPointEntry`)과 같고, 사유 코드는 community 원장(`point_ledger.reason`)과 같다(가입 포인트 `SIGNUP` 만 roboyam 추가).
  * ⚠ ID 는 문자열이다(Snowflake). 숫자로 바꾸지 않는다.
  */

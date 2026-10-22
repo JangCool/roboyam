@@ -7,7 +7,7 @@ export default {
     lastUpdated: 'Last changed {at} · {by}',
     neverUpdated: 'Never changed (defaults).',
     offTag: 'Off',
-    notReadyTag: 'Coming soon',
+    notReadyTag: 'Not applied yet',
     section: {
         attendance: 'Attendance',
         activity: 'Posts & comments',
@@ -76,6 +76,10 @@ export default {
         likeBonus: 'Only likes from active members of Regular grade or above count. When the threshold is reached, the author is paid once per post or comment.',
         dealEnd: 'Hot deals aren’t available yet. Rewards will use this value once they are.',
         signup: 'Matches Gnuboard’s sign-up points. Changing it doesn’t pay members who already joined.',
+        attendanceNotApplied: 'Check-in isn’t available yet. The value is saved and will be used once it is.',
+        popularNotApplied: 'Popular post rewards aren’t available yet. The value is saved and will be used once they are.',
+        signupNotApplied: 'Public sign-up isn’t available yet, so nothing is paid. The value is saved.',
+        shopNotApplied: 'Nickname ticket exchange isn’t available yet. The value is saved and will be used once it is.',
     },
     rule: {
         zeroOff: 'Setting a value to 0 turns that item off. There is no global switch for points.',
@@ -83,7 +87,7 @@ export default {
         floorZero: 'Balances never go below 0. Revokes and deductions stop at 0P.',
         restricted: 'Suspended or withdrawn members get no points. Points disappear on withdrawal.',
         revoke: 'Deleting a post or comment revokes its points. Hiding does not.',
-        boardToggle: 'Per board, points can only be turned on or off (the “Points” option in board settings).',
+        boardToggle: 'The same policy applies to every board. There’s no per-board on/off setting for points yet.',
         apply: 'Changes apply within 15 seconds and never apply retroactively.',
         noGrade: 'Points are not linked to grade promotion.',
         noExpiry: 'Points never expire.',

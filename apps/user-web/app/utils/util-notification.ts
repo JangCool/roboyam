@@ -1,8 +1,10 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
+import type { MemberNotificationType } from '~/composables/notification/api/useNotificationApi.types';
 
 /**
- * 알림 표시 중 셸(헤더의 종·하단 탭의 알림·쪽지 아이콘)의 안 읽은 수 배지가 쓰는 것만 남긴 단순 버전.
- * 원본(community)의 `UtilNotification` 은 알림 종류별 문구·이동 주소를 담은 1,100줄짜리 파일이다 — 알림 화면을 만들 때 원본으로 바꾼다.
+ * 알림 표시 중 셸(헤더의 종·하단 탭의 알림·알림 패널)이 쓰는 것 — 안 읽은 수 배지, 패널 한 줄의 아이콘·이동 주소 검사.
+ * 알림 문장(`title`·`body`)은 서버가 요청 언어로 풀어 주므로 여기서 만들지 않는다(종류별 문구를 화면이 만드는 community 와 다른 점).
+ * 쪽지 배지 이름(`dmBadgeLabel`)은 쪽지 기능이 없어 걷어 냈다 — 쪽지를 만들 때 git 기록의 `useDmBadge`·`useDmApi`·`AppMessageLink` 와 함께 되살린다.
  */
 export default class UtilNotification {
     /** 알림 점·숫자에 그대로 보이는 가장 큰 수 — 넘으면 "99+" */
@@ -44,18 +46,6 @@ export default class UtilNotification {
     }
 
     /**
-     * 쪽지함 링크의 이름(스크린리더용). 점·숫자는 시각 요소라서 이름에 안 읽은 대화 수를 넣습니다.
-     * @param {Translate} t - 번역 함수(`useTranslate()` / `useI18n().t`).
-     * @param {number} count - 안 읽은 대화 수.
-     * @returns {string} "쪽지함" · "쪽지함, 안 읽은 대화 3개" · "쪽지함, 안 읽은 대화 99개 이상".
-     */
-    static dmBadgeLabel(t: Translate, count: number): string {
-        const n = UtilNotification.clampCount(count);
-        if (n === 0) return t('notification.dmTitle');
-        return n > UtilNotification.BADGE_MAX ? t('notification.dmBadgeUnreadOver', { max: UtilNotification.BADGE_MAX }) : t('notification.dmBadgeUnread', { count: n });
-    }
-
-    /**
      * 알림 하나를 읽었을 때의 안 읽은 수(낙관적). 이미 읽은 알림이었으면 그대로입니다.
      * @param {number} count - 지금 보이는 안 읽은 수.
      * @param {boolean} wasUnread - 누른 알림이 안 읽은 상태였는가.
@@ -74,5 +64,27 @@ export default class UtilNotification {
      */
     static afterReadAll(count: number, unreadShown: number): number {
         return Math.max(0, UtilNotification.clampCount(count) - UtilNotification.clampCount(unreadShown));
+    }
+
+    /**
+     * 알림 한 줄의 아이콘 — 댓글은 말풍선, 답글은 답장, 포인트 회수는 지갑, 신고로 숨김은 가린 눈.
+     * @param {MemberNotificationType} type - 알림 종류.
+     * @returns {string} PrimeIcons 클래스.
+     */
+    static icon(type: MemberNotificationType): string {
+        if (type === 'POINTS_REVOKED') return 'pi pi-wallet';
+        if (type === 'POST_HIDDEN' || type === 'COMMENT_HIDDEN') return 'pi pi-eye-slash';
+        if (type === 'REPLY') return 'pi pi-reply';
+        return 'pi pi-comment';
+    }
+
+    /**
+     * 누르면 갈 주소 — 서버가 준 공개 사이트 경로(`/posts/123`)만 받는다. 바깥 주소(`https:`·`//host`)나 빈 값은 null(읽음 처리만 한다).
+     * @param {string | null | undefined} link - 알림의 `link`.
+     * @returns {string | null} 앱 안 경로 또는 null.
+     */
+    static internalLink(link: string | null | undefined): string | null {
+        if (typeof link !== 'string' || !link.startsWith('/') || link.startsWith('//') || link.includes('\\')) return null;
+        return link;
     }
 }

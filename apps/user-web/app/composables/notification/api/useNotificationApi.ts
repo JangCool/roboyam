@@ -1,33 +1,52 @@
-import { mockNotificationUnreadCount, mockRecentNotifications } from '~/composables/notification/api/mock/notification-mock';
-import type { MockNotification } from '~/composables/notification/api/useNotificationApi.types';
+import type {
+    MemberNotificationItem,
+    MemberNotificationPage,
+    MemberNotificationQuery,
+    ReadAllResponse,
+    UnreadCountResponse,
+} from '~/composables/notification/api/useNotificationApi.types';
 
 /**
- * 알림 API — 서버 주소 문자열(`/api/notifications/…`)이 있는 **유일한 곳**이다 (frontend-guide 2장). 상태는 없다(안 읽은 수의 상태는 `useNotificationBadge`).
+ * 회원 알림 API — 서버 주소 문자열(`/api/notifications/…`)이 있는 **유일한 곳**이다. 상태는 없다(안 읽은 수의 상태는 `useNotificationBadge`).
+ * 계약: `docs/features/member-notification-contract.md`. 로그인 필요(401), 내 알림만, 쓰기는 CSRF.
  *
- * ⚠ 단순 버전 — 원본(community)은 알림 목록·읽음 처리·설정 등 알림 화면 전체의 메서드를 가진다. 셸(종 배지·알림 패널)이 쓰는 안 읽은 수(`unreadCount`)와
- * 패널의 최근 알림(`recent`)만 남겼다. `recent` 의 모양(`MockNotification`)은 임시다 — 알림 화면을 만들 때 원본의 `NotificationItem` 으로 바꾼다.
- * ⚠ MOCK: 지금은 서버가 없어서 `./mock/notification-mock.ts` 의 목업을 부른다. 서버가 붙으면 `// MOCK:` 줄을 `// REAL:` 줄로 바꾼다.
+ *  - `GET  /api/notifications?filter=all|comment|system&size=1~50&cursor=` → `MemberNotificationPage`
+ *  - `GET  /api/notifications/unread-count` → `{ count }`(상한 100)
+ *  - `POST /api/notifications/{id}/read` → 204(이미 읽음도 204). 남의·없는 ID `404 NOTIFICATION_NOT_FOUND`
+ *  - `POST /api/notifications/read-all[?filter=]` → `{ updated }`
+ * 오류: `400 VALIDATION` `fields.filter|size|cursor`.
+ *
+ * 셸(종 배지·알림 패널)이 쓰는 것만 있다 — 알림 화면(목록·거르기·더보기)을 만들 때 `list` 를 그대로 쓴다.
  */
 const PATH = {
-    unreadCount: '/api/notifications/unread-count',
     list: '/api/notifications',
+    unreadCount: '/api/notifications/unread-count',
+    read: (id: string) => `/api/notifications/${encodeURIComponent(id)}/read`,
+    readAll: '/api/notifications/read-all',
 };
 
+/** 알림 패널에 보일 최근 알림 수 */
+const RECENT_SIZE = 8;
+
 export function useNotificationApi() {
-    // REAL: const client = useApiClient({ refreshCsrf: () => useAuthApi().me() });
-    void PATH;
+    // CSRF 쿠키를 다시 받는 호출 — setup 문맥에서 미리 잡아 둔다(콜백 안에서 컴포저블을 부르지 않는다)
+    const auth = useAuthApi();
+    const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
         /** 안 읽은 알림 수(서버 상한 100) */
-        unreadCount: (): Promise<{ count: number }> =>
-            // MOCK:
-            mockNotificationUnreadCount(),
-        // REAL: client.get<{ count: number }>(PATH.unreadCount),
+        unreadCount: (): Promise<UnreadCountResponse> => client.get<UnreadCountResponse>(PATH.unreadCount),
 
-        /** 알림 패널에 보일 최근 알림 */
-        recent: (): Promise<MockNotification[]> =>
-            // MOCK:
-            mockRecentNotifications(),
-        // REAL: client.get<…>(PATH.list, { query: { size: 8 } }),
+        /** 내 알림 한 쪽 */
+        list: (query: MemberNotificationQuery = {}): Promise<MemberNotificationPage> => client.get<MemberNotificationPage>(PATH.list, { query: { ...query } }),
+
+        /** 알림 패널에 보일 최근 알림(`size=8` 의 `items`) */
+        recent: (): Promise<MemberNotificationItem[]> => client.get<MemberNotificationPage>(PATH.list, { query: { size: RECENT_SIZE } }).then((page) => page.items),
+
+        /** 알림 하나를 읽음으로 — 이미 읽었어도 성공(204) */
+        markRead: (id: string): Promise<void> => client.post<void>(PATH.read(id)),
+
+        /** 모두 읽음 */
+        markAllRead: (): Promise<ReadAllResponse> => client.post<ReadAllResponse>(PATH.readAll),
     };
 }
