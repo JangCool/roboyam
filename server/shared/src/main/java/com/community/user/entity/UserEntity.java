@@ -50,6 +50,30 @@ public class UserEntity {
     protected UserEntity() {
     }
 
+    /**
+     * 소셜 계정으로 가입한 새 회원 — 비밀번호가 없다(소셜 로그인만 된다). 가입하면서 바로 로그인하므로 마지막 로그인 시각도 지금이다.
+     *
+     * @param email         공급자가 준 이메일(소문자로 정규화한 값). 안 줬으면 null
+     * @param emailVerified 공급자가 그 이메일을 확인했다고 했는가 — 그때만 인증 완료로 둔다(아니면 이메일 인증 흐름을 따른다)
+     * @param termsVersion  동의한 약관 버전. 이용약관·개인정보 처리방침·만 14세 이상 확인을 모두 {@code now} 에 받았다
+     */
+    public static UserEntity createSocial(long id, String email, boolean emailVerified, String termsVersion, Instant now) {
+        UserEntity user = new UserEntity();
+        user.id = id;
+        user.email = email;
+        user.passwordHash = null;
+        user.role = Role.USER;
+        user.status = UserStatus.ACTIVE;
+        user.emailVerifiedAt = email != null && emailVerified ? now : null;
+        user.termsVersion = termsVersion;
+        user.termsAgreedAt = now;
+        user.ageConfirmedAt = now;
+        user.lastLoginAt = now;
+        user.createdAt = now;
+        user.updatedAt = now;
+        return user;
+    }
+
     /** 로그인했다 — 마지막 로그인 시각만 고친다 */
     public void markLoggedIn(Instant now) {
         this.lastLoginAt = now;

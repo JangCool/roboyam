@@ -10,8 +10,8 @@ import java.time.Instant;
 /**
  * 운영자가 등록한 소셜 로그인 키(공급자마다 한 행) — V3__social_provider_settings.sql.
  *
- * <p>시크릿은 <b>암호문만</b> 들고 있다({@code v1:} 로 시작). 평문 시크릿은 어디에도 저장하지 않는다. 지금은 설치 마법사가 처음 넣는 일만 있다
- * (OAuth 로그인 클라이언트 등록·로그인 흐름·설정 화면의 수정은 그 기능을 만들 때 더한다).
+ * <p>시크릿은 <b>암호문만</b> 들고 있다({@code v1:} 로 시작). 평문 시크릿은 어디에도 저장하지 않는다. 설치 마법사가 처음 넣고, 공개 사이트 서버의 소셜 로그인이
+ * 읽는다(설정 화면의 수정은 그 기능을 만들 때 더한다).
  * {@link #toString()} 은 값을 싣지 않는다(기본 {@code Object.toString} 을 그대로 쓴다).
  */
 @Entity
@@ -60,6 +60,11 @@ public class SocialProviderSettingEntity {
 
     public String getClientId() {
         return clientId;
+    }
+
+    /** 시크릿의 암호문({@code v1:…}) — 소셜 로그인이 공급자와 코드를 바꿀 때만 복호화한다. 응답·로그에 싣지 않는다 */
+    public String getClientSecretEnc() {
+        return clientSecretEnc;
     }
 
     public boolean isEnabled() {
