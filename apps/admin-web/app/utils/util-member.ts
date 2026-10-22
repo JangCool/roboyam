@@ -1,5 +1,6 @@
 import UtilTime from '#layers/display-time/utils/util-time';
 import type {
+    MemberActivity,
     MemberAuthMethod,
     MemberAutoPromotion,
     MemberBoardRole,
@@ -302,6 +303,17 @@ export default class UtilMember {
         return kind === 'POST_DONE' || kind === 'POST_ANSWER';
     }
 
+    /** 활동 요약 칸의 표시 차례 */
+    static readonly ACTIVITY_KEYS: readonly (keyof MemberActivity)[] = ['postCount', 'commentCount', 'likesReceived', 'popularCount', 'recentPostCount', 'recentCommentCount', 'recentLoginDays'];
+
+    /** 서버가 아직 집계하지 않아 늘 0 으로 오는 활동 칸 — 추천·인기글 기능과 날짜별 접속 기록이 생기면 여기서 뺀다 */
+    private static readonly ACTIVITY_PENDING: readonly (keyof MemberActivity)[] = ['likesReceived', 'popularCount', 'recentLoginDays'];
+
+    /** 서버가 아직 집계하지 않는 칸인가 — 0 을 그대로 보이면 "활동이 없다"로 오해한다 */
+    static activityPending(key: keyof MemberActivity): boolean {
+        return UtilMember.ACTIVITY_PENDING.includes(key);
+    }
+
     static autoPromotionSeverity(state: MemberAutoPromotion): TagSeverity {
         return { ACTIVE: 'success', PAUSED_ADMIN: 'warn', PAUSED_SANCTION: 'danger' }[state] as TagSeverity;
     }
@@ -311,11 +323,19 @@ export default class UtilMember {
     }
 
     static gradeChangeKindSeverity(kind: MemberGradeChangeKind): TagSeverity {
-        return { AUTO: 'info', ADMIN: 'warn', RESUME: 'success' }[kind] as TagSeverity;
+        return ({ AUTO: 'info', ADMIN: 'warn', RESUME: 'success' } as Record<string, TagSeverity>)[kind] ?? 'secondary';
     }
 
     static gradeChangeKindIcon(kind: MemberGradeChangeKind): string {
-        return { AUTO: 'pi pi-arrow-up', ADMIN: 'pi pi-user-edit', RESUME: 'pi pi-play' }[kind];
+        return ({ AUTO: 'pi pi-arrow-up', ADMIN: 'pi pi-user-edit', RESUME: 'pi pi-play' } as Record<string, string>)[kind] ?? 'pi pi-circle';
+    }
+
+    /**
+     * 활동 수 조건인데 서버의 자동 승급 엔진이 아직 활동 수를 0 으로 봐서, 달성도가 차도 승급되지 않을 수 있는 줄인가.
+     * 엔진이 활동 수를 쓰게 되면(카운터 표 연결) 이 판정과 안내 문구를 함께 없앤다(`roles-contract.md`).
+     */
+    static activityPromotionNotApplied(requirement: MemberGradeRequirement): boolean {
+        return requirement.kind === 'ACTIVITY' && requirement.required > 0;
     }
 
     /** 승급 조건 진행도(0~100) — 기준이 0 이면 이미 채운 것으로 본다 */

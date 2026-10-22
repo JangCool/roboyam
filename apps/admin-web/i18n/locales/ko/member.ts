@@ -176,7 +176,7 @@ export default {
             title: '아직 연동되지 않았어요',
             contact: '연락처·주소 정보는 아직 서버에서 받아 오지 않아요.',
             profile: '서명과 관리자 메모는 아직 서버에서 받아 오지 않아요.',
-            activity: '활동 요약은 글·댓글 기능이 생기면 보여요.',
+            activity: '활동 요약을 아직 받아 오지 못했어요.',
             gradePoint: '등급 변경 이력과 포인트는 아직 서버에서 받아 오지 않아요.',
             settings: '표시 형식·알림 설정은 아직 서버에서 받아 오지 않아요.',
             consent: '동의 이력은 아직 서버에서 받아 오지 않아요.',
@@ -190,6 +190,9 @@ export default {
         maskedSuffix: '(일부 가려짐)',
         notVerified: '미인증',
         withdrawnNotice: '탈퇴한 회원이에요. 이메일·소개·연락처 같은 개인 정보는 지워져 보이지 않아요.',
+        withdrawnTitle: '탈퇴한 회원이에요',
+        withdrawnActivity: '탈퇴한 회원이라 활동 요약은 보이지 않아요.',
+        withdrawnGradePoint: '탈퇴한 회원이라 등급·포인트 정보는 보이지 않아요.',
         withdrawnAt: '탈퇴 시각',
         social: '소셜 연동',
         linked: '연동됨',
@@ -224,6 +227,7 @@ export default {
         },
         boards: '맡은 게시판: {names}',
         activityTitle: '활동 요약',
+        activityNote: '글·댓글은 공개된 것만 세요(임시저장·삭제·숨김 제외). 준비 중인 칸은 아직 집계하지 않아요.',
         activity: {
             postCount: '작성한 글',
             commentCount: '작성한 댓글',
@@ -320,7 +324,10 @@ export default {
                 ACTIVITY: '{current} / {required}개',
             },
             nextNone: '가장 높은 등급이에요.',
+            activityNotApplied: '활동 수 기준 승급은 아직 적용되지 않아요.',
             historyTitle: '등급 변경 이력',
+            historyMore: '이전 이력 {count}건 더 보기',
+            historyLess: '최근 이력만 보기',
             changeKind: {
                 AUTO: '자동 승급',
                 ADMIN: '운영자 변경',
@@ -335,6 +342,7 @@ export default {
             tickets: '닉네임 변경권',
             ticketCount: '{count}장',
             ledgerTitle: '최근 포인트 내역',
+            ledgerPending: '포인트 내역은 포인트 기능이 생기면 보여요.',
         },
 
         // 개인 설정

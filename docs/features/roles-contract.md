@@ -220,3 +220,6 @@
 - 날짜별 접속 기록(`recentLoginDays`), 추천·인기글, 포인트 내역·닉네임 변경권.
 - 숨김 글·댓글을 활동 수에 넣을지(권장 가정: 넣지 않음) — 운영 정책 확정 필요.
 - 프론트 후속: `MemberDetailRolesSection`·`MemberDetailGradePointSection` 의 안내문을 실제 값으로(null 처리는 이미 있음), 탈퇴 회원은 두 구획이 null 이라 기존 「준비 중」 문구가 뜨므로 탈퇴 전용 문구가 필요하면 추가, 「달성도 100% 인데 승급 안 됨」 안내.
+
+## 회원 상세 활동·등급 구획 프론트 연결 (2026-10-22)
+`MemberDetailRolesSection`·`MemberDetailGradePointSection` 이 서버의 `activity`·`gradePoint` 실제 값을 그린다(타입은 이미 서버 응답과 같아 변경 없음). 글·댓글·최근 7일 수는 숫자, 서버가 아직 집계하지 않는 추천·인기글·최근 7일 접속일과 닉네임 변경권·포인트 내역은 0 대신 「준비 중」(`UtilMember.activityPending`), 등급 이력은 최근 5건만 보이고 「더 보기」로 펼친다(서버 최대 50건), 활동 수 조건 줄에는 「활동 수 기준 승급은 아직 적용되지 않아요」 보조 안내(`UtilMember.activityPromotionNotApplied` — 서버 승급 엔진이 활동 수를 연결하면 판정과 문구를 함께 지운다), 탈퇴 회원은 활동 요약에 전용 문구(등급·포인트 구획은 기존대로 구획 자체를 뺀다).

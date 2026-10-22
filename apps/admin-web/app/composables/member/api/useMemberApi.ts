@@ -13,7 +13,8 @@ import type { MemberDetail, MemberPage, MemberQuery, MemberRoleOption } from '~/
  *     · 이메일은 `member.pii` 가 없으면 서버가 `ab***@gmail.com` 으로 가려서 준다(`emailMasked: true`) — 화면은 가공하지 않고 그대로 그린다. 그 경우 이메일 검색은 전체 주소가 같을 때만 맞는다.
  *   - `GET /api/admin/members/{memberId}` → 200 `MemberDetail` · 404 `MEMBER_NOT_FOUND`(번호 형식이 틀려도 같다) · 403 `PERMISSION_DENIED`. 이메일 마스킹 규칙은 목록과 같다. 상세를 열면 서버가 감사 기록 `MEMBER_VIEW` 를 남긴다.
  *     **서버가 가진 데이터만 채우고 나머지는 null/빈 배열이다** — 목록 한 줄의 칸 전부, `roles`(유형·부여 방식), `bio`, `social`, `withdrawnAt`, `consents.terms`/`ageConfirmedAt`, `piiMasked` 가 실제 값이다.
- *     비는 칸: `statusReason`·`activity`·`sanctionSummary`·`reports`·`adultConfirmed`·`acceptDm`·`dormancy`·`dormantAt`·`gradePoint`·`settings`·`contact`·`profile`·`groupBuy`·`consents.privacy`(null),
+ *     `activity`(글·댓글·최근 7일 수는 실제 집계, `likesReceived`·`popularCount`·`recentLoginDays` 는 아직 집계하지 않아 늘 0)와 `gradePoint`(`autoPromotion`·`next`·`gradeHistory` 는 실제 값, `nicknameTicketCount` 0·`pointEntries` 빈 배열은 기능 없음)도 실제 값이다 — 탈퇴 회원은 둘 다 null.
+ *     비는 칸: `statusReason`·`sanctionSummary`·`reports`·`adultConfirmed`·`acceptDm`·`dormancy`·`dormantAt`·`settings`·`contact`·`profile`·`groupBuy`·`consents.privacy`(null),
  *     `sanctions`·`consents.optional`·`consents.history`·`roles[].boardNames`(빈 배열), `nicknameHistory`(빈 배열, `member.pii` 없으면 null), `statusChangedAt`(탈퇴 시각만), `point`·`sanctionCount`(늘 0).
  *     화면은 비는 구획을 안내(EmptyState)로 보이고 데이터가 오면 그린다. 탈퇴 회원은 역할·소셜·동의·소개가 비고 `withdrawnAt` 만 채워진다.
  *     · 본인 인증(방법·여부·성인인증·이력)은 아직 도입하지 않아 계약에 칸이 없다(「본인 인증」 구획은 준비 중 표시).

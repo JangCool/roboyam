@@ -2,6 +2,8 @@
     <!--
         회원 상세 — 등급·포인트 구획(읽기 전용). 현재 등급·자동 승급 상태(정상 / 운영자 변경으로 중지 / 제재로 중지)·다음 등급까지의 진행도·등급 변경 이력, 포인트 잔액·닉네임 변경권·최근 포인트 내역.
         마일리지(그누보드7)는 roboyam 의 포인트로 대응한다. 등급 이름·색은 등급 설정 목록(`useGradeAppearance`)에서 읽는다. 변경·조정 같은 조치는 이번 범위 밖이라 단추가 없다.
+        서버가 채우는 것: 자동 승급 상태·다음 등급 달성도·등급 변경 이력(최대 50건 — 최근 5건만 보이고 펼친다). 포인트 내역·닉네임 변경권은 서버에 기능이 없어 「준비 중」(0 은 "없음"으로 오해된다).
+        활동 수 조건은 서버의 자동 승급 엔진이 아직 활동 수를 0 으로 보므로 달성도가 차도 승급되지 않을 수 있어 짧은 보조 안내를 붙인다. 탈퇴 회원은 서버가 구획을 비우고 상세 본문이 구획 자체를 빼므로 전용 문구는 방어용이다.
     -->
     <div v-if="detail.gradePoint" class="flex flex-col gap-5">
         <section :aria-labelledby="gradeId">
@@ -36,6 +38,7 @@
                             <span class="shrink-0 text-xs text-muted-color tabular-nums">{{ t(`member.detail.grade.reqValue.${r.kind}`, { current: r.current.toLocaleString(locale), required: r.required.toLocaleString(locale) }) }}</span>
                         </div>
                         <ProgressBar class="mt-1 h-1.5" :value="UtilMember.requirementPercent(r)" :show-value="false" :aria-label="t(`member.detail.grade.req.${r.kind}`)" />
+                        <p v-if="UtilMember.activityPromotionNotApplied(r)" class="mt-1 text-xs text-muted-color">{{ t('member.detail.grade.activityNotApplied') }}</p>
                     </li>
                 </ul>
             </template>
@@ -43,23 +46,37 @@
 
             <h4 class="mb-1.5 mt-4 text-xs text-muted-color">{{ t('member.detail.grade.historyTitle') }}</h4>
             <p v-if="!detail.gradePoint.gradeHistory.length" class="text-[13px] text-muted-color">{{ t('member.detail.historyEmpty') }}</p>
-            <ul v-else class="m-0 flex list-none flex-col gap-1.5 p-0">
-                <li v-for="h in detail.gradePoint.gradeHistory" :key="h.changeId" class="flex flex-col gap-1 rounded-lg border border-(--line) px-3 py-2">
-                    <div class="flex flex-wrap items-center gap-1.5">
-                        <MemberDetailTag :value="t(`member.detail.grade.changeKind.${h.kind}`)" :icon="UtilMember.gradeChangeKindIcon(h.kind)" :severity="UtilMember.gradeChangeKindSeverity(h.kind)" />
-                        <template v-if="h.fromGrade">
-                            <GradeBadge v-bind="gradeState.badgeOf(h.fromGrade)" size="small" />
-                            <span aria-hidden="true">→</span>
-                            <span class="sr-only">{{ t('member.detail.grade.changedTo') }}</span>
-                        </template>
-                        <GradeBadge v-bind="gradeState.badgeOf(h.toGrade)" size="small" />
-                    </div>
-                    <p v-if="h.reason" class="text-[13px]">{{ h.reason }}</p>
-                    <p class="text-xs text-muted-color tabular-nums">
-                        {{ time.full(h.changedAt) }} · {{ h.actorNickname ?? t('member.detail.grade.actorSystem') }}
-                    </p>
-                </li>
-            </ul>
+            <div v-else class="flex flex-col">
+                <ul class="m-0 flex list-none flex-col gap-1.5 p-0">
+                    <li v-for="h in shownHistory" :key="h.changeId" class="flex flex-col gap-1 rounded-lg border border-(--line) px-3 py-2">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <MemberDetailTag :value="kindLabel(h.kind)" :icon="UtilMember.gradeChangeKindIcon(h.kind)" :severity="UtilMember.gradeChangeKindSeverity(h.kind)" />
+                            <template v-if="h.fromGrade">
+                                <GradeBadge v-bind="gradeState.badgeOf(h.fromGrade)" size="small" />
+                                <span aria-hidden="true">→</span>
+                                <span class="sr-only">{{ t('member.detail.grade.changedTo') }}</span>
+                            </template>
+                            <GradeBadge v-bind="gradeState.badgeOf(h.toGrade)" size="small" />
+                        </div>
+                        <p v-if="h.reason" class="text-[13px]">{{ h.reason }}</p>
+                        <p class="text-xs text-muted-color tabular-nums">
+                            {{ time.full(h.changedAt) }} · {{ h.actorNickname ?? t('member.detail.grade.actorSystem') }}
+                        </p>
+                    </li>
+                </ul>
+                <Button
+                    v-if="hiddenHistoryCount > 0"
+                    class="mt-1.5 self-start"
+                    type="button"
+                    size="small"
+                    severity="secondary"
+                    variant="text"
+                    :icon="historyOpen ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+                    :label="historyOpen ? t('member.detail.grade.historyLess') : t('member.detail.grade.historyMore', { count: hiddenHistoryCount })"
+                    :aria-expanded="historyOpen"
+                    @click="historyOpen = !historyOpen"
+                />
+            </div>
         </section>
 
         <section :aria-labelledby="pointId">
@@ -71,12 +88,12 @@
                 </div>
                 <div class="rounded-lg border border-(--line) px-3 py-2">
                     <dt class="text-xs text-muted-color">{{ t('member.detail.point.tickets') }}</dt>
-                    <dd class="m-0 mt-0.5 text-base font-semibold tabular-nums">{{ t('member.detail.point.ticketCount', { count: detail.gradePoint.nicknameTicketCount }) }}</dd>
+                    <dd class="m-0 mt-0.5 text-[13px] text-muted-color">{{ t('member.detail.pending') }}</dd>
                 </div>
             </dl>
 
             <h4 class="mb-1.5 mt-3 text-xs text-muted-color">{{ t('member.detail.point.ledgerTitle') }}</h4>
-            <p v-if="!detail.gradePoint.pointEntries.length" class="text-[13px] text-muted-color">{{ t('member.detail.historyEmpty') }}</p>
+            <p v-if="!detail.gradePoint.pointEntries.length" class="text-[13px] text-muted-color">{{ t('member.detail.point.ledgerPending') }}</p>
             <ul v-else class="m-0 flex list-none flex-col gap-1.5 p-0">
                 <li v-for="e in detail.gradePoint.pointEntries" :key="e.entryId" class="flex items-baseline justify-between gap-3 rounded-lg border border-(--line) px-3 py-2">
                     <div class="min-w-0">
@@ -88,6 +105,7 @@
             </ul>
         </section>
     </div>
+    <EmptyState v-else-if="detail.status === 'WITHDRAWN'" icon="pi pi-user-minus" :title="t('member.detail.withdrawnTitle')" :description="t('member.detail.withdrawnGradePoint')" />
     <EmptyState v-else icon="pi pi-star" :title="t('member.detail.notReady.title')" :description="t('member.detail.notReady.gradePoint')" />
 </template>
 
@@ -99,11 +117,24 @@ interface Props {
     detail: MemberDetail;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
-const { t, locale } = useI18n();
+const { t, te, locale } = useI18n();
 const time = useDisplayTime();
 const gradeState = useGradeAppearance();
 const gradeId = useId();
 const pointId = useId();
+
+/** 변경 종류 글자 — 서버가 모르는 종류를 주면(새 종류가 먼저 배포된 경우) 키 글자 그대로 보인다 */
+function kindLabel(kind: string): string {
+    const key = `member.detail.grade.changeKind.${kind}`;
+    return te(key) ? t(key) : kind;
+}
+
+/** 등급 변경 이력은 서버가 최대 50건을 주므로 처음엔 최근 몇 건만 보이고 나머지는 펼친다 */
+const HISTORY_SHOWN = 5;
+const historyOpen = ref(false);
+const historyAll = computed(() => props.detail.gradePoint?.gradeHistory ?? []);
+const shownHistory = computed(() => (historyOpen.value ? historyAll.value : historyAll.value.slice(0, HISTORY_SHOWN)));
+const hiddenHistoryCount = computed(() => Math.max(0, historyAll.value.length - HISTORY_SHOWN));
 </script>

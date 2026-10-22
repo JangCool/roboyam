@@ -176,7 +176,7 @@ export default {
             title: 'Not connected yet',
             contact: 'Contact and address details are not loaded from the server yet.',
             profile: 'Signature and admin memo are not loaded from the server yet.',
-            activity: 'The activity summary will appear once posts and comments exist.',
+            activity: 'The activity summary has not been loaded yet.',
             gradePoint: 'Grade history and points are not loaded from the server yet.',
             settings: 'Display and notification settings are not loaded from the server yet.',
             consent: 'Consent history is not loaded from the server yet.',
@@ -190,6 +190,9 @@ export default {
         maskedSuffix: '(partly hidden)',
         notVerified: 'Not verified',
         withdrawnNotice: 'This member has left. Personal details such as email, bio and contact info have been erased.',
+        withdrawnTitle: 'This member has left',
+        withdrawnActivity: 'This member has left, so the activity summary is not shown.',
+        withdrawnGradePoint: 'This member has left, so grade and point details are not shown.',
         withdrawnAt: 'Left on',
         social: 'Social accounts',
         linked: 'Linked',
@@ -224,6 +227,7 @@ export default {
         },
         boards: 'Boards: {names}',
         activityTitle: 'Activity summary',
+        activityNote: 'Only published posts and comments are counted (drafts, deleted and hidden ones are excluded). Items marked "Coming soon" are not counted yet.',
         activity: {
             postCount: 'Posts',
             commentCount: 'Comments',
@@ -320,7 +324,10 @@ export default {
                 ACTIVITY: '{current} / {required}',
             },
             nextNone: 'Already at the highest grade.',
+            activityNotApplied: 'Promotion by activity count is not applied yet.',
             historyTitle: 'Grade changes',
+            historyMore: 'Show {count} older changes',
+            historyLess: 'Show recent only',
             changeKind: {
                 AUTO: 'Auto promotion',
                 ADMIN: 'Operator change',
@@ -335,6 +342,7 @@ export default {
             tickets: 'Nickname change tickets',
             ticketCount: '{count}',
             ledgerTitle: 'Recent point history',
+            ledgerPending: 'Point history will appear once the points feature exists.',
         },
 
         // Preferences

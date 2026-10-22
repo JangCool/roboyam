@@ -141,7 +141,7 @@ export interface MemberRoleDetail extends MemberRoleRef {
     boardNames: string[];
 }
 
-/** 활동 요약 — 숫자 몇 개(목업 값) */
+/** 활동 요약 — 글·댓글 수와 최근 7일 수는 서버 집계(공개·삭제 안 됨·숨김 아님), `likesReceived`·`popularCount`·`recentLoginDays` 는 서버가 아직 집계하지 않아 늘 0 이다(화면은 「준비 중」) */
 export interface MemberActivity {
     postCount: number;
     commentCount: number;
