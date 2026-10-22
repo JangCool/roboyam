@@ -2,7 +2,8 @@
     <!--
         회원 상세 — 등급·포인트 구획(읽기 전용). 현재 등급·자동 승급 상태(정상 / 운영자 변경으로 중지 / 제재로 중지)·다음 등급까지의 진행도·등급 변경 이력, 포인트 잔액·닉네임 변경권·최근 포인트 내역.
         마일리지(그누보드7)는 roboyam 의 포인트로 대응한다. 등급 이름·색은 등급 설정 목록(`useGradeAppearance`)에서 읽는다. 변경·조정 같은 조치는 이번 범위 밖이라 단추가 없다.
-        포인트 잔액도 포인트 기능이 없어 「준비 중」이다(서버 응답 `point` 는 늘 0 이라 그대로 보이면 "없음"으로 오해된다). 서버가 채우는 것: 자동 승급 상태·다음 등급 달성도·등급 변경 이력(최대 50건 — 최근 5건만 보이고 펼친다). 포인트 내역·닉네임 변경권은 서버에 기능이 없어 「준비 중」(0 은 "없음"으로 오해된다).
+        서버가 채우는 것: 자동 승급 상태·다음 등급 달성도·등급 변경 이력(최대 50건 — 최근 5건만 보이고 펼친다), 포인트 잔액(상세의 `point`)·최근 포인트 내역(원장 최근 10줄, 사유는 요청 언어).
+        닉네임 변경권은 교환 기능이 없어 서버가 늘 0 이라 「준비 중」이다(0 은 "없음"으로 오해된다). 회원 전체의 원장·수동 지급/차감은 「포인트 내역」 화면(`/points`)이 맡는다.
         활동 수 조건은 서버의 자동 승급 엔진이 아직 활동 수를 0 으로 보므로 달성도가 차도 승급되지 않을 수 있어 짧은 보조 안내를 붙인다. 탈퇴 회원은 서버가 구획을 비우지만 구획은 남기고 탈퇴 전용 문구를 보인다.
     -->
     <div v-if="detail.gradePoint" class="flex flex-col gap-5">
@@ -84,8 +85,9 @@
             <dl class="m-0 grid grid-cols-2 gap-2">
                 <div class="rounded-lg border border-(--line) px-3 py-2">
                     <dt class="text-xs text-muted-color">{{ t('member.detail.point.balance') }}</dt>
-                    <dd class="m-0 mt-0.5 text-[13px] text-muted-color">{{ t('member.detail.pending') }}</dd>
+                    <dd class="m-0 mt-0.5 text-[13px] font-semibold tabular-nums">{{ t('member.detail.point.amount', { amount: detail.point.toLocaleString(locale) }) }}</dd>
                 </div>
+                <!-- 닉네임 변경권 — 교환 기능이 없어 서버가 늘 0 이다(0 은 "없음"으로 오해되므로 「준비 중」) -->
                 <div class="rounded-lg border border-(--line) px-3 py-2">
                     <dt class="text-xs text-muted-color">{{ t('member.detail.point.tickets') }}</dt>
                     <dd class="m-0 mt-0.5 text-[13px] text-muted-color">{{ t('member.detail.pending') }}</dd>
@@ -93,7 +95,7 @@
             </dl>
 
             <h4 class="mb-1.5 mt-3 text-xs text-muted-color">{{ t('member.detail.point.ledgerTitle') }}</h4>
-            <p v-if="!detail.gradePoint.pointEntries.length" class="text-[13px] text-muted-color">{{ t('member.detail.point.ledgerPending') }}</p>
+            <p v-if="!detail.gradePoint.pointEntries.length" class="text-[13px] text-muted-color">{{ t('member.detail.point.ledgerEmpty') }}</p>
             <ul v-else class="m-0 flex list-none flex-col gap-1.5 p-0">
                 <li v-for="e in detail.gradePoint.pointEntries" :key="e.entryId" class="flex items-baseline justify-between gap-3 rounded-lg border border-(--line) px-3 py-2">
                     <div class="min-w-0">

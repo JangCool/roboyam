@@ -6,6 +6,8 @@ export default {
     // 포인트 화면 입구 이름
     entry: '포인트·출석체크',
     entryWithReward: '포인트·출석체크 · +{amount}P',
+    // 출석 기능이 없을 때(`attendanceAvailable=false`)·요약을 받기 전
+    entryNoAttendance: '포인트',
 
     // 보유 포인트 한 줄 — {points} 는 "1,280P" 꼴
     balanceLine: '포인트 {points}',

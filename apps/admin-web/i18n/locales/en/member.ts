@@ -341,8 +341,9 @@ export default {
             balance: 'Point balance',
             tickets: 'Nickname change tickets',
             ticketCount: '{count}',
+            amount: '{amount}P',
             ledgerTitle: 'Recent point history',
-            ledgerPending: 'Point history will appear once the points feature exists.',
+            ledgerEmpty: 'No point history yet.',
         },
 
         // Preferences

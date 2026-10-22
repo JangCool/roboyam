@@ -2,7 +2,8 @@
     <!--
         포인트 정책 — 어떤 활동에 몇 포인트를, 하루 몇 번까지 줄지 정한다. community 관리자 앱 `settings/points.vue`(`point_settings` 13칸)를 **빠짐없이** 옮기고 가입 포인트(`signupPoints`, 그누보드의 회원가입 포인트)를 더했다.
         community 와 다른 점: 최고 관리자 전용 → roboyam 권한(조회 `point.read`, 변경 `point.settings`). 지급 규칙 표 한 장 대신 업무별 구획(출석 · 글·댓글 · 인기글 보상 · 추천 보너스 · 핫딜 종료 요청 보상 · 가입 포인트 · 상점 · 운영 원칙)으로 나눠 우측 구역 내비(`SectionNav`)로 이동한다.
-        community 의 「새로고침」 단추·`defaults`(기본값으로 되돌리기)는 두지 않았다. 핫딜 기능은 roboyam 에 아직 없어 그 구획에 「기능 준비 중」 딱지를 단다(값은 저장된다). 인기글 보상이 등급 조건이 될 수 있다는 안내는 문구만이다(등급 조건에 인기글 칸이 아직 없다).
+        community 의 「새로고침」 단추·`defaults`(기본값으로 되돌리기)는 두지 않았다. 서버가 값을 저장만 하고 아직 지급하는 지점이 없는 구획(출석 · 인기글 보상 · 핫딜 종료 요청 · 가입 포인트 · 상점의 교환권 가격 — `point-contract.md` 「적용 지점 없음」)에는
+        「아직 적용되지 않아요」 딱지와 한 줄 안내를 단다(값은 저장된다). 실제로 지급되는 것은 글·댓글·추천 보너스(+ 본인 삭제 회수)다. 인기글 보상이 등급 조건이 될 수 있다는 안내는 문구만이다(등급 조건에 인기글 칸이 아직 없다).
         값이 0이면 그 항목이 꺼진다(전역 스위치 없음) — 꺼진 묶음에는 「꺼짐」 딱지가 붙는다(입력 중인 값 기준). 운영 원칙 구획은 community 확정 규칙의 읽기 전용 안내다.
         **저장은 한 번에**(14칸 모두, PUT 한 번) — [저장]·[되돌리기]·상태 글·저장 실패 문구는 `<form>` 맨 끝의 떠 있는 줄(`StickySaveBar`)에 둔다(`forms.md` 2-4). 칸은 `InputText` + `inputmode=numeric`(등급 설정과 같은 이유 — `InputNumber` 는 범위 밖 값을 말없이 고친다).
         범위 검사는 `UtilPoint`(서버와 같은 범위) — 하나라도 틀리면 저장 단추가 꺼진다. 서버가 거절한 칸(`400 VALIDATION` `fields.<칸>`)은 그 칸 아래에 서버 문구 그대로, 칸에 붙지 않는 것은 저장 줄 안에 보인다.
@@ -118,12 +119,19 @@ interface PolicySection {
     leadKey: string;
     groups: PolicyGroup[];
     notes: string[];
-    /** roboyam 에 아직 없는 기능(값은 저장된다) */
+    /** 서버가 저장만 하고 아직 적용(지급)하는 지점이 없는 구획 — 「아직 적용되지 않아요」 딱지 */
     notReady?: boolean;
 }
 
 const SECTIONS: PolicySection[] = [
-    { anchor: 'point-attendance', titleKey: 'point.section.attendance', leadKey: 'point.lead.attendance', groups: [{ group: 'attendance', fields: [{ field: 'attendancePoints', unit: 'point' }] }], notes: ['point.note.attendanceOnce'] },
+    {
+        anchor: 'point-attendance',
+        titleKey: 'point.section.attendance',
+        leadKey: 'point.lead.attendance',
+        groups: [{ group: 'attendance', fields: [{ field: 'attendancePoints', unit: 'point' }] }],
+        notes: ['point.note.attendanceOnce', 'point.note.attendanceNotApplied'],
+        notReady: true,
+    },
     {
         anchor: 'point-activity',
         titleKey: 'point.section.activity',
@@ -139,7 +147,8 @@ const SECTIONS: PolicySection[] = [
         titleKey: 'point.section.popular',
         leadKey: 'point.lead.popular',
         groups: [{ group: 'popular', fields: [{ field: 'popularRewardPoints', unit: 'point' }, { field: 'popularRewardTopN', unit: 'rank' }] }],
-        notes: ['point.note.popularGrade'],
+        notes: ['point.note.popularGrade', 'point.note.popularNotApplied'],
+        notReady: true,
     },
     {
         anchor: 'point-like-bonus',
@@ -156,8 +165,22 @@ const SECTIONS: PolicySection[] = [
         notes: ['point.note.dealEnd'],
         notReady: true,
     },
-    { anchor: 'point-signup', titleKey: 'point.section.signup', leadKey: 'point.lead.signup', groups: [{ group: 'signup', fields: [{ field: 'signupPoints', unit: 'point' }] }], notes: ['point.note.signup'] },
-    { anchor: 'point-shop', titleKey: 'point.section.shop', leadKey: 'point.lead.shop', groups: [{ group: 'shop', fields: [{ field: 'nicknameTicketPrice', unit: 'point' }] }], notes: [] },
+    {
+        anchor: 'point-signup',
+        titleKey: 'point.section.signup',
+        leadKey: 'point.lead.signup',
+        groups: [{ group: 'signup', fields: [{ field: 'signupPoints', unit: 'point' }] }],
+        notes: ['point.note.signup', 'point.note.signupNotApplied'],
+        notReady: true,
+    },
+    {
+        anchor: 'point-shop',
+        titleKey: 'point.section.shop',
+        leadKey: 'point.lead.shop',
+        groups: [{ group: 'shop', fields: [{ field: 'nicknameTicketPrice', unit: 'point' }] }],
+        notes: ['point.note.shopNotApplied'],
+        notReady: true,
+    },
 ];
 
 /** 운영 원칙(읽기 전용) — 0이면 꺼짐 · 하루 한도 · 0P 바닥 · 정지·탈퇴 · 삭제 회수 · 게시판별 켜고 끄기 · 15초 반영·소급 없음 · 등급과 무관 · 유효기간 없음 · 비회원 글·댓글 없음 */

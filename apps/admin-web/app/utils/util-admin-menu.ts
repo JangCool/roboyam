@@ -72,7 +72,7 @@ export default class UtilAdminMenu {
      * 운영자와 권한 묶음 — hamonica3 의 `사용자와 권한`(회원 관리 · 역할 관리)에 대응한다. 이 제품에서 회원은 공개 사이트 이용자이고 관리자 앱 계정은 운영자다.
      * 배치와 로그 묶음 — hamonica3 의 시스템 설정 메뉴(`배치와 로그`: 배치 관리 · 배치 로그 · 감사 로그)와 같은 이름·차례·아이콘·주소다.
      * 모드: 대시보드·회원(회원 관리·등급 설정)·메뉴 관리·게시판·포인트는 일반 메뉴, 「일반」·알림·운영자와 권한·배치와 로그는 설정 메뉴(`mode: 'settings'`)다. 등급 설정은 회원 운영 업무라 일반 메뉴에 남긴다(주소가 `/settings/…` 여도 모드는 메뉴 정의가 정한다).
-     * 포인트 묶음의 화면은 아직 목업(`usePointApi` `// MOCK:`)이다 — 권한(`point.read`)이 있는 운영자에게는 보인다.
+     * 포인트 묶음(포인트 내역·포인트 정책)은 실제 서버(`usePointApi`)를 부른다 — 권한(`point.read`)이 있는 운영자에게 보인다.
      */
     static readonly ITEMS: readonly AdminMenuNode[] = [
         { key: 'dashboard', to: '/', icon: 'pi pi-home', labelKey: 'menu.dashboard' },

@@ -341,8 +341,9 @@ export default {
             balance: '포인트 잔액',
             tickets: '닉네임 변경권',
             ticketCount: '{count}장',
+            amount: '{amount}P',
             ledgerTitle: '최근 포인트 내역',
-            ledgerPending: '포인트 내역은 포인트 기능이 생기면 보여요.',
+            ledgerEmpty: '포인트 내역이 없어요.',
         },
 
         // 개인 설정

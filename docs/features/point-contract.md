@@ -50,3 +50,10 @@
 2. 출석·교환·인기글 보상·가입 포인트·핫딜 기능이 생기면 `PointService` 에 사유별 지급 메서드를 더한다.
 3. 운영자·스텝의 글·댓글 삭제가 생기면 회수 + `POINTS_REVOKED`(`POST_DELETED`·`COMMENT_DELETED`) 를 그 지점에 연결한다.
 4. 회원 쪽 포인트 내역 API(`GET /api/me/points/ledger`)는 화면이 없어 만들지 않았다.
+
+## 프론트 연결 결과 (2026-10-23)
+- admin-web `usePointApi` 5개 메서드 실제 호출(`reasons` 반복 이름), `point/api/mock/`·`common/mock/mock-util.ts` 삭제 — 목업의 `point-settings-reject`(가입 포인트 상호 규칙) 시나리오는 서버에 없는 규칙이라 함께 없어졌다. 원장 쪽 크기 20·50·100(서버 1~100), 조건 오류는 `fields.from|to|kind|reasons` 를 그 줄 아래·`page|size` 를 조건 아래 한 줄에 서버 문구 그대로. 정책 칸 오류도 서버 문구 그대로(화면 검사는 서버와 같은 범위라 화면에서는 미리 막힌다).
+- 포인트 정책: 적용 지점이 없는 구획(출석·인기글 보상·핫딜 종료 요청·가입 포인트·상점의 교환권 가격)에 「아직 적용되지 않아요」 딱지 + 한 줄 안내. 운영 원칙의 「게시판별 켜고 끄기」 문구는 서버에 그런 설정이 없어 「모든 게시판에 같은 정책」으로 고쳤다.
+- 권한 카탈로그 `point.read`·`point.settings`·`point.adjust` → `featureReady: true`(서버 `Permission` 과 같다).
+- 회원 상세: 기본 정보의 포인트·등급·포인트 구획의 잔액·최근 내역 10줄을 실제 값으로(「준비 중」 제거). 닉네임 변경권은 늘 0 이라 「준비 중」 유지. 회원 목록의 `pointMin`·`pointMax`·`sort=point` 는 서버와 맞는 것을 확인.
+- user-web `usePointApi`(`GET /api/me/points`) 실제 호출, 타입에 `attendanceAvailable`·`today`(post·comment·likeBonus)·`rules` 전체 반영. `attendanceAvailable=false` 면 「오늘 출석하기」 안내를 그리지 않고 프로필 메뉴 줄 이름도 「포인트」(출석체크 없음).

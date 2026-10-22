@@ -13,8 +13,6 @@ export default {
     // 메뉴 줄
     menu: '메뉴',
     myInfo: '내 정보',
-    messageBox: '쪽지함',
-    messageBoxUnread: '쪽지함 · 안 읽음 {count}',
     adminApp: '관리자 앱',
     adminAppNewTab: '관리자 앱 (새 탭에서 열려요)',
 

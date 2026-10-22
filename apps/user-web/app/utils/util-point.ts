@@ -48,12 +48,14 @@ export default class UtilPoint {
     }
 
     /**
-     * 오늘 출석을 권할 만한가 — 요약이 있고 아직 출석 전이며 막는 까닭(정지 중·인증 전)이 없을 때.
+     * 오늘 출석을 권할 만한가 — 요약이 있고 서버에 출석 기능이 있으며(`attendanceAvailable`) 아직 출석 전이고 막는 까닭(정지 중·인증 전)이 없을 때.
+     * 출석 기능이 없으면(지금은 서버가 늘 false) 「오늘 출석하기」 안내를 그리지 않는다.
      * @param {PointSummary | null | undefined} summary - 포인트 요약(없으면 권하지 않는다).
      * @param {{ emailVerified: boolean; restriction: Restriction | null }} input - 로그인 정보.
      * @returns {boolean} 권할 만하면 true.
      */
     static attendable(summary: PointSummary | null | undefined, input: { emailVerified: boolean; restriction: Restriction | null }): boolean {
-        return Boolean(summary) && !summary!.today.attended && UtilPoint.blockedReason(input) === null;
+        if (!summary || !summary.attendanceAvailable) return false;
+        return !summary.today.attended && UtilPoint.blockedReason(input) === null;
     }
 }
