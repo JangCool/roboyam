@@ -130,8 +130,8 @@ export default class UtilDisplayChoices {
     /** 시간 형식 값의 순서 — 서버가 받는 값과 같은 이름 */
     static readonly TIME_FORMATS: readonly DisplayTimeFormat[] = ['H24', 'H12'];
 
-    /** 날짜 형식 값의 순서(처음 기본값 `YMD_DOT` 이 먼저) — 서버가 받는 값과 같은 이름 */
-    static readonly DATE_FORMATS: readonly DisplayDateFormat[] = ['YMD_DOT', 'YMD_DASH', 'DMY_SLASH', 'MDY_SLASH'];
+    /** 날짜 형식 값의 순서(처음 기본값 `YMD_DASH` — 서버 `SiteSettingEntity.DEFAULT_DATE_FORMAT`·`UtilTime.FALLBACK_DISPLAY` — 이 먼저) — 서버가 받는 값과 같은 이름 */
+    static readonly DATE_FORMATS: readonly DisplayDateFormat[] = ['YMD_DASH', 'YMD_DOT', 'DMY_SLASH', 'MDY_SLASH'];
 
     /** 시간 형식 이름 — 두 화면이 같은 이름을 쓴다 */
     static readonly TIME_FORMAT_NAMES: Readonly<Record<DisplayTimeFormat, string>> = { H24: '24시간', H12: '12시간' };
@@ -170,7 +170,7 @@ export default class UtilDisplayChoices {
      * @param {string} zoneId - 견본을 그릴 시간대(자정 근처에는 시간대에 따라 하루가 다르다).
      * @param {number} now - 견본으로 그릴 순간(밀리초).
      * @param {ChoiceI18n} [i18n] - 이름을 지금 언어로 만들 때 주는 번역 함수와 언어. 안 주면 한국어.
-     * @returns {DisplayChoice<DisplayDateFormat>[]} 선택지(값은 `YMD_DOT`·`YMD_DASH`·`DMY_SLASH`·`MDY_SLASH`).
+     * @returns {DisplayChoice<DisplayDateFormat>[]} 선택지(값은 `YMD_DASH`·`YMD_DOT`·`DMY_SLASH`·`MDY_SLASH`).
      */
     static dateFormatChoices(zoneId: string, now: number, i18n?: ChoiceI18n): DisplayChoice<DisplayDateFormat>[] {
         const iso = new Date(now).toISOString();

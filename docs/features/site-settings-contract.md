@@ -90,10 +90,10 @@ PNG 서명 기준 판별·다시 인코딩, 아이콘 크기별 PNG 생성, OG 1
 1. 관리자가 바꾼 설정은 이 서버에 최대 20초(+브라우저 60초) 뒤 보인다.
 2. 공개 응답에 `Set-Cookie: XSRF-TOKEN` 이 같이 나간다(기존 CSRF 필터) — CDN 이 응답을 캐시하려면 쿠키를 무시하게 설정해야 한다.
 3. user-web 의 `SiteTermsResponse` 는 `/api/site/terms` 에서 `siteName`·`siteIcon`(키 이름)·`tagline` 을 받는 모양이다. `/api/site/info` 의 `icon` 과 키 이름이 달라 화면 쪽 타입·로더를 새로 맞춘다.
-4. (`/api/site/theme` 은 2026-10-23 구현 — 아래 「테마」) `/api/site/theme`·`/api/site/terms` 는 아직 서버에 없다(user-web 은 목업: 테마는 `useThemeApi` 의 `// MOCK:` 이 `{theme}` 후보 모양, 용어는 `useSiteTerms` 가 서버 값 없이 기본 이름).
+4. (`/api/site/theme` 은 2026-10-23 구현·연결 — 아래 「테마」) `/api/site/terms` 는 아직 서버에 없다(용어는 `useSiteTerms` 가 서버 값 없이 기본 이름).
 5. 서비스 워커·푸시 알림 아이콘은 범위 밖.
 
-## 테마 (서버 구현 2026-10-23 — 관리자 화면·공개 화면 연결은 후속)
+## 테마 (서버 구현 2026-10-23 · 화면 연결 2026-10-23 — 관리자 설정 > 일반 「공개 사이트 테마」 구획(`site-theme`), user-web `useThemeApi` 실제 호출)
 **의도**: 운영자가 공개 사이트 테마 하나를 고른다(사용자 개인 테마 없음 — `.claude/guides/frontend/themes.md`). 공개 사이트는 비로그인에도 그 id 를 받아 루트 `data-theme`·셸을 고르고, 모르는 id 면 기본 테마로 그린다.
 
 **결정**: 공개 응답은 **기존 사이트 정보 사본에 합쳤다** — `PublicSiteService` 사본(20초 TTL)에 `theme` 를 넣어 `GET /api/site/info` 의 `theme` 칸으로 주고, 같은 사본에서 `GET /api/site/theme` 도 같은 값을 준다(user-web `useThemeApi` 후보 주소·모양 그대로라 프론트 변경이 `// REAL:` 교체뿐). 캐시·ETag·전파(관리자 저장 → 공개 서버 최대 20초 + 브라우저 60초)는 `/api/site/info` 와 같다.
@@ -109,5 +109,7 @@ PNG 서명 기준 판별·다시 인코딩, 아이콘 크기별 PNG 생성, OG 1
 - `themes` 는 고를 수 있는 id(보일 순서). 이름(화면 문구)은 화면이 id 로 i18n 키를 찾는다.
 
 **규칙**: 허용 id 의 원천은 서버 코드 `SiteThemes.IDS`(shared `com.community.site.service`) — user-web `utils/util-theme.ts` 의 `THEMES` 와 같은 id 를 같은 순서로 둔다(지금은 `default` 하나). 새 테마는 두 곳에 한 줄씩. DB 칸 `site_settings.theme varchar(32) NOT NULL DEFAULT 'default'`(V52, CHECK 없음 — 테마가 늘 때마다 마이그레이션이 필요 없게). 저장된 값이 목록에서 빠졌으면 읽을 때(관리자·공개 모두) `default` 로 본다. 바뀐 때만 감사 `SITE_THEME_UPDATE`(대상 `SITE`/`1`, `before/after.theme` → 「바뀐 내용」 `theme`)와 관리자 알림(사이트 설정 변경, 변형 `notification.variant.siteTheme`). 같은 값 저장은 아무것도 남기지 않는다.
+
+**화면**: `general.vue` ③ 구획 — 라디오 카드(이름·설명은 `site.themeName_<id>`·`site.themeDesc_<id>`, 모르는 id 는 id 그대로), 구획 안 [되돌리기]·[저장], `fields.theme` 는 고르기 아래·`fields.site` 와 그 밖은 구획 안 한 줄. 선택지가 하나면 「지금은 기본 테마 하나만 있어요」. `site.manage` 없으면 라디오 비활성·저장 줄 없음.
 
 **미확정**: 테마가 `default` 하나뿐이라 공개 응답 값이 실제로 바뀌는 것은 두 번째 테마가 생겨야 확인된다(전파 경로는 다른 사이트 설정과 같은 사본). 테마 미리보기·테마별 설정값(색 등)은 범위 밖.

@@ -9,8 +9,9 @@ import UtilInstallState from '~/utils/util-install-state';
  * 여기는 서버 값을 거기에 채우고(`setDisplay`) "이 값이 누구 것인지"(`owner`)·받기 상태(`phase`)를 든다. 시각을 그리는 컴포넌트는 이것이 아니라 `useDisplayTime()` 을 쓴다.
  *
  * **층**: 개인 값(사용자 선택값) → 사이트 기본값 → 시스템 폴백. 합치는 것은 서버 한 곳이고 화면은 효과값 하나만 받는다(브라우저 시간대는 쓰지 않는다).
- * `/api/display/effective` 가 아직 목업이라, **사이트 기본값은 실제 값(`GET /api/site/info` 의 `displayDefaults`, `useSiteInfo`)을 개인 값이 없을 때의 폴백으로만** 쓴다 —
- * 첫 값(기억값이 없을 때)과 서버 효과값이 개인 값이 아닐 때. 개인 값이 있으면 개인 값이 이긴다(`UtilDisplaySettings`). 사이트 정보를 못 받았으면 이전과 같다.
+ * **사이트 기본값(`GET /api/site/info` 의 `displayDefaults`, `useSiteInfo`)은 개인 값이 없을 때의 폴백으로만** 쓴다 — 첫 값(기억값이 없을 때)과 서버 효과값이 개인 값이 아닐 때.
+ * 서버(`/api/display/effective`·`/api/me/display`)가 같은 사이트 정보 사본에서 기본값을 합치므로 결과는 서버 값과 같고, 효과값을 받기 전 첫 화면을 사이트 값으로 맞추는 몫이 크다.
+ * 개인 값이 있으면 개인 값이 이긴다(`UtilDisplaySettings`). 사이트 정보를 못 받았으면 서버 값(못 받으면 기억값 → 시스템 폴백)을 그대로 쓴다.
  *
  * **처음 값은 기억값이다(깜빡임 방지)**: 이 브라우저에 마지막으로 받은 효과값(localStorage `roboyam:display` — 값 + 받은 사람 id)으로 **동기로** 시작한다(`follow()` 의 앞부분).
  * 받은 사람이 지금 사람과 다르면(다른 계정·비로그인 ↔ 로그인) 버리고 시스템 폴백으로 시작한다 — 다른 사람의 기억값을 쓰지 않는다. 서버 값이 오면 그것으로 바꾸고 다시 기억한다.

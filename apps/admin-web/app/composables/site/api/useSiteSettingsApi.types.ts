@@ -90,3 +90,18 @@ export interface SiteDisplayDefaultsResponse {
 export interface SiteDisplayDefaultsRequest {
     values: DisplayValues;
 }
+
+/**
+ * 공개 사이트 테마 — 지금 값과 고를 수 있는 id 목록(보일 순서). 서버 `SiteThemeResponse`(원천 `SiteThemes.IDS`, user-web `util-theme.ts` 의 `THEMES` 와 같은 id).
+ * 이름·설명(화면 문구)은 화면이 id 로 i18n 키(`site.themeName_<id>`·`site.themeDesc_<id>`)를 찾는다 — 키가 없는 id 는 id 그대로 보인다.
+ */
+export interface SiteThemeResponse {
+    /** 지금 테마 id(저장된 값이 목록에서 빠졌으면 서버가 `default` 로 본다) */
+    theme: string;
+    /** 고를 수 있는 테마 id(보일 순서) */
+    themes: string[];
+}
+
+export interface SiteThemeRequest {
+    theme: string;
+}

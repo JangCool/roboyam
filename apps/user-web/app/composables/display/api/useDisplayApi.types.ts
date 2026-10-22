@@ -1,5 +1,5 @@
 /**
- * 표시 값(언어·시간대·시간 형식·날짜 형식) API 가 주고받는 모양 — community `docs/api-display.md` 와 같다(roboyam 서버 계약은 아직 없다).
+ * 표시 값(언어·시간대·시간 형식·날짜 형식) API 가 주고받는 모양 — 서버 계약 `docs/features/display-contract.md`(원본 community `docs/api-display.md`)와 같다.
  * 값 자체(`DisplayValues`)는 공유 레이어 `@roboyam/display-time` 의 `UtilTime` 코어가 주인이다.
  */
 import type { DisplayValues } from '#layers/display-time/utils/util-time';
@@ -22,7 +22,7 @@ export interface MyDisplayResponse {
     effective: DisplayValues;
 }
 
-/** `PUT /api/me/display` 요청 — 세 칸을 모두 보낸다 */
+/** `PUT /api/me/display` 요청 — 화면은 네 칸을 모두 보낸다(서버는 `language` 를 선택으로 받는다 — 빼면 지금 값 유지, `ko|en` 밖이면 `fields.language`) */
 export interface MyDisplayRequest {
     values: DisplayValues;
 }
