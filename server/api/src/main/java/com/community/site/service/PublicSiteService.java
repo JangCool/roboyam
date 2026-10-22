@@ -23,7 +23,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * 공개 사이트가 읽는 사이트 설정의 <b>짧은 캐시 사본</b>({@link PublicSiteSnapshot}) — {@code /api/site/info}·{@code /manifest.webmanifest}·{@code index.html} 머리가 같은 사본을 쓴다.
+ * 공개 사이트가 읽는 사이트 설정의 <b>짧은 캐시 사본</b>({@link PublicSiteSnapshot}) — {@code /api/site/info}·{@code /api/site/theme}·{@code /manifest.webmanifest}·{@code index.html} 머리,
+ * 회원 표시 설정의 사이트 기본값({@code /api/display/effective}·{@code /api/me/display})이 같은 사본을 쓴다.
  * 요청마다 DB 를 읽지 않고 {@value #TTL_SECONDS}초마다 다시 읽는다(관리자 앱은 다른 서버라 설정을 바꿔도 이 서버에는 최대 그만큼 늦게 닿는다). 다시 읽다 실패하면 이전 사본을 쓰고 5초 뒤 다시 시도한다.
  *
  * <p>주소는 관리자 {@code me} 와 같은 소스({@link SiteAssets})로 만든다. 설정 행이 없으면(설치 전) 이름·소개·로고·아이콘이 비어 있고 표시 기본값은 설치 직후의 처음 값이다.
@@ -97,7 +98,8 @@ public class PublicSiteService {
 
         String dateDisplay = boardDefaults.findById(BoardDefaultsEntity.ROW_ID).map(row -> row.values().dateDisplay()).orElse("STANDARD");
         BoardDisplayView boardDisplay = new BoardDisplayView(dateDisplay, BoardDisplayView.NEW_POST_HOURS);
-        SiteInfoResponse info = new SiteInfoResponse(siteName, tagline, logoUrl, icon.orElse(null), ogImageUrl, display, boardDisplay);
+        String theme = SiteThemes.normalize(found.map(SiteSettingEntity::getTheme).orElse(null));
+        SiteInfoResponse info = new SiteInfoResponse(siteName, tagline, logoUrl, icon.orElse(null), ogImageUrl, display, boardDisplay, theme);
         WebManifestResponse manifest = manifest(siteName, tagline, display.language(), icon.orElse(null));
         boolean ogCustom = customOg.isPresent();
         return new PublicSiteSnapshot(info, manifest, ogCustom, fingerprint(info, manifest, ogCustom));

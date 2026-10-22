@@ -30,7 +30,7 @@ import org.springframework.security.web.savedrequest.NullRequestCache;
  *   <li>CSRF 는 쿠키(XSRF-TOKEN) + 헤더(X-XSRF-TOKEN) 방식이다(SPA). 쿠키는 어느 응답에서든 내려간다(설치 마법사는 {@code status} 응답이, 설치 뒤에는
  *       {@code GET /api/auth/me} 가 첫 쿠키다).</li>
  *   <li>설치 전에는 {@code /api/**} 중 설치 마법사만 열려 있고 나머지는 503 NOT_INSTALLED 다({@link InstallationGuardFilter} — CSRF 검사 앞).</li>
- *   <li>로그인 없이 쓰는 구간: {@code /api/system/installation/**}(토큰·설치 상태 검사는 서비스가 한다), {@code GET /api/auth/me}·{@code /api/auth/providers}·{@code /api/site/info},
+ *   <li>로그인 없이 쓰는 구간: {@code /api/system/installation/**}(토큰·설치 상태 검사는 서비스가 한다), {@code GET /api/auth/me}·{@code /api/auth/providers}·{@code /api/site/info}·{@code /api/site/theme}·{@code /api/display/effective},
  *       {@code POST /api/auth/login}·{@code /api/auth/logout}. 그 밖의 {@code /api/**}(인증 메일 재발송 포함)는 인증이 필요하다 —
  *       인증이 없으면 JSON {@code 401 UNAUTHENTICATED}. 화면(정적 파일)·actuator 는 연다.</li>
  *   <li>오류는 JSON 으로 답한다(화면이 HTML 오류 페이지를 받지 않게). CSRF 거절은 {@code 403 CSRF_INVALID}.</li>
@@ -61,7 +61,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/auth/providers").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/logout").permitAll()
                         // 공개 사이트 설정(이름·로고·아이콘·링크 미리보기 이미지·표시 기본값) — 로그인 전 화면도 읽는다(공개 사이트 서버(api)에만 있는 주소)
-                        .requestMatchers(HttpMethod.GET, "/api/site/info").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/site/info", "/api/site/theme").permitAll()
+                        // 표시 효과값(docs/features/display-contract.md) — 비로그인은 사이트 기본값, 로그인했으면 개인 값까지 합친 값. 개인 값 API(/api/me/display)는 아래 규칙대로 로그인 필요
+                        .requestMatchers(HttpMethod.GET, "/api/display/effective").permitAll()
                         // 공개 사이트 메뉴 — 비로그인도 읽는다(로그인했으면 그 사람 기준으로 거른다. 공개 사이트 서버(api)에만 있는 주소)
                         .requestMatchers(HttpMethod.GET, "/api/menu").permitAll()
                         // 공개 게시판(docs/features/board-public-contract.md) — 읽기는 누구나, 글·댓글 쓰기·고치기·지우기·비밀번호 확인은 비회원도(게시판이 허용하는지·비밀번호는

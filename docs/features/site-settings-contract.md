@@ -90,5 +90,24 @@ PNG 서명 기준 판별·다시 인코딩, 아이콘 크기별 PNG 생성, OG 1
 1. 관리자가 바꾼 설정은 이 서버에 최대 20초(+브라우저 60초) 뒤 보인다.
 2. 공개 응답에 `Set-Cookie: XSRF-TOKEN` 이 같이 나간다(기존 CSRF 필터) — CDN 이 응답을 캐시하려면 쿠키를 무시하게 설정해야 한다.
 3. user-web 의 `SiteTermsResponse` 는 `/api/site/terms` 에서 `siteName`·`siteIcon`(키 이름)·`tagline` 을 받는 모양이다. `/api/site/info` 의 `icon` 과 키 이름이 달라 화면 쪽 타입·로더를 새로 맞춘다.
-4. `/api/site/theme`·`/api/site/terms` 는 아직 서버에 없다(user-web 은 목업: 테마는 `useThemeApi` 의 `// MOCK:` 이 `{theme}` 후보 모양, 용어는 `useSiteTerms` 가 서버 값 없이 기본 이름).
+4. (`/api/site/theme` 은 2026-10-23 구현 — 아래 「테마」) `/api/site/theme`·`/api/site/terms` 는 아직 서버에 없다(user-web 은 목업: 테마는 `useThemeApi` 의 `// MOCK:` 이 `{theme}` 후보 모양, 용어는 `useSiteTerms` 가 서버 값 없이 기본 이름).
 5. 서비스 워커·푸시 알림 아이콘은 범위 밖.
+
+## 테마 (서버 구현 2026-10-23 — 관리자 화면·공개 화면 연결은 후속)
+**의도**: 운영자가 공개 사이트 테마 하나를 고른다(사용자 개인 테마 없음 — `.claude/guides/frontend/themes.md`). 공개 사이트는 비로그인에도 그 id 를 받아 루트 `data-theme`·셸을 고르고, 모르는 id 면 기본 테마로 그린다.
+
+**결정**: 공개 응답은 **기존 사이트 정보 사본에 합쳤다** — `PublicSiteService` 사본(20초 TTL)에 `theme` 를 넣어 `GET /api/site/info` 의 `theme` 칸으로 주고, 같은 사본에서 `GET /api/site/theme` 도 같은 값을 준다(user-web `useThemeApi` 후보 주소·모양 그대로라 프론트 변경이 `// REAL:` 교체뿐). 캐시·ETag·전파(관리자 저장 → 공개 서버 최대 20초 + 브라우저 60초)는 `/api/site/info` 와 같다.
+
+**API**
+| | 권한 | 요청 → 응답 |
+|---|---|---|
+| `GET /api/site/theme` (api, 비로그인) | — | → `{ theme }` · `Cache-Control: public, max-age=60` + `ETag`(사본 지문, 304) |
+| `GET /api/site/info` (api) | — | 기존 응답 끝에 `theme` 칸 추가 |
+| `GET /api/admin/site/theme` (admin) | `site.read` | → `{ theme, themes: string[] }` |
+| `PUT /api/admin/site/theme` (admin, CSRF) | `site.manage` | `{ theme }` → `{ theme, themes }` · 목록 밖·빈 값 `400 VALIDATION` `fields.theme`("알 수 없는 테마예요. 목록에서 골라 주세요.") · 설정 행 없음 `fields.site` |
+- 권한 없음 `403 PERMISSION_DENIED`. 표시 기본값 저장 API(`/site/display-defaults`)와 따로 둔 별도 PUT 이다(구획별 저장 — 일반 설정 화면의 한 구획 또는 표시 기본값 구획 안의 한 줄로 붙이면 된다).
+- `themes` 는 고를 수 있는 id(보일 순서). 이름(화면 문구)은 화면이 id 로 i18n 키를 찾는다.
+
+**규칙**: 허용 id 의 원천은 서버 코드 `SiteThemes.IDS`(shared `com.community.site.service`) — user-web `utils/util-theme.ts` 의 `THEMES` 와 같은 id 를 같은 순서로 둔다(지금은 `default` 하나). 새 테마는 두 곳에 한 줄씩. DB 칸 `site_settings.theme varchar(32) NOT NULL DEFAULT 'default'`(V52, CHECK 없음 — 테마가 늘 때마다 마이그레이션이 필요 없게). 저장된 값이 목록에서 빠졌으면 읽을 때(관리자·공개 모두) `default` 로 본다. 바뀐 때만 감사 `SITE_THEME_UPDATE`(대상 `SITE`/`1`, `before/after.theme` → 「바뀐 내용」 `theme`)와 관리자 알림(사이트 설정 변경, 변형 `notification.variant.siteTheme`). 같은 값 저장은 아무것도 남기지 않는다.
+
+**미확정**: 테마가 `default` 하나뿐이라 공개 응답 값이 실제로 바뀌는 것은 두 번째 테마가 생겨야 확인된다(전파 경로는 다른 사이트 설정과 같은 사본). 테마 미리보기·테마별 설정값(색 등)은 범위 밖.

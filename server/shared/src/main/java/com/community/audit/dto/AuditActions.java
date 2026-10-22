@@ -40,6 +40,7 @@ public final class AuditActions {
     public static final String SITE_OG_CHANGE = "SITE_OG_CHANGE";
     public static final String SITE_OG_RESET = "SITE_OG_RESET";
     public static final String SITE_DISPLAY_UPDATE = "SITE_DISPLAY_UPDATE";
+    public static final String SITE_THEME_UPDATE = "SITE_THEME_UPDATE";
     public static final String PROFILE_UPDATE = "PROFILE_UPDATE";
     public static final String PROFILE_DISPLAY_UPDATE = "PROFILE_DISPLAY_UPDATE";
     public static final String PROFILE_NOTIFICATION_UPDATE = "PROFILE_NOTIFICATION_UPDATE";

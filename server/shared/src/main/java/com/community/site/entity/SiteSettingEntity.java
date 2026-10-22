@@ -1,13 +1,14 @@
 package com.community.site.entity;
 
+import com.community.site.service.SiteThemes;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 사이트 설정(행이 하나뿐이다, {@code id = 1}) — V4__installation.sql, V5__site_tagline.sql, V12__site_media.sql.
- * 사이트 이름과 공개 주소(서버가 밖으로 내보내는 링크의 기준), 슬로건, 로고·사이트 아이콘·링크 미리보기 이미지, 표시 기본값이다.
+ * 사이트 설정(행이 하나뿐이다, {@code id = 1}) — V4__installation.sql, V5__site_tagline.sql, V12__site_media.sql, V52(테마).
+ * 사이트 이름과 공개 주소(서버가 밖으로 내보내는 링크의 기준), 슬로건, 로고·사이트 아이콘·링크 미리보기 이미지, 표시 기본값, 공개 사이트 테마다.
  * 행은 설치 때 처음 생기고, 이후 관리자 앱의 설정 > 일반 화면이 고친다(공개 주소는 그 화면이 건드리지 않는다).
  */
 @Entity
@@ -53,6 +54,9 @@ public class SiteSettingEntity {
 
     private String displayDateFormat;
 
+    /** 공개 사이트 테마 id — 허용 값은 {@link SiteThemes}(서버 코드). 설치 직후는 {@code default} */
+    private String theme;
+
     /** 마지막으로 저장한 운영자(회원 ID). 설치 때는 루트 계정 */
     private Long updatedBy;
 
@@ -72,6 +76,7 @@ public class SiteSettingEntity {
         setting.displayZoneId = DEFAULT_ZONE_ID;
         setting.displayTimeFormat = DEFAULT_TIME_FORMAT;
         setting.displayDateFormat = DEFAULT_DATE_FORMAT;
+        setting.theme = SiteThemes.DEFAULT;
         setting.updatedBy = updatedBy;
         setting.updatedAt = now;
         return setting;
@@ -126,6 +131,12 @@ public class SiteSettingEntity {
         touch(operatorId, now);
     }
 
+    /** 공개 사이트 테마를 바꾼다(값 검사는 부르는 쪽이 끝냈다) */
+    public void changeTheme(String theme, long operatorId, Instant now) {
+        this.theme = theme;
+        touch(operatorId, now);
+    }
+
     private void touch(long operatorId, Instant now) {
         this.updatedBy = operatorId;
         this.updatedAt = now;
@@ -177,6 +188,10 @@ public class SiteSettingEntity {
 
     public String getDisplayDateFormat() {
         return displayDateFormat;
+    }
+
+    public String getTheme() {
+        return theme;
     }
 
     public Long getUpdatedBy() {

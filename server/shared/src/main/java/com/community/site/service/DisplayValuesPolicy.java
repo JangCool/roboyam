@@ -9,7 +9,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 표시 형식(언어·시간대·시간 형식·날짜 형식) 네 칸의 허용 값과 검사 — 사이트 표시 기본값({@link SiteDisplayService})과 내 표시 형식(내 정보)이 같은 규칙을 쓴다.
+ * 표시 형식(언어·시간대·시간 형식·날짜 형식) 네 칸의 허용 값과 검사 — 사이트 표시 기본값(admin {@code SiteDisplayService}), 운영자 내 표시 형식(admin 내 정보),
+ * 공개 사이트 회원 표시 설정(api {@code MemberDisplayService}, {@code member_display_preferences})이 같은 규칙을 쓴다(그래서 shared 에 있다).
  * 허용 값은 공유 프론트 레이어({@code apps-packages/display-time})와 같다: 언어 {@code ko}·{@code en}, 시간 형식 {@code H24}·{@code H12},
  * 날짜 형식 {@code YMD_DASH}·{@code YMD_DOT}·{@code DMY_SLASH}·{@code MDY_SLASH}, 시간대는 IANA 이름(64자 이하, JDK 가 아는 이름).
  * 위반은 칸마다 한꺼번에 돌려준다({@code fields.language|zoneId|timeFormat|dateFormat}).
