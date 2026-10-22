@@ -67,7 +67,7 @@ public class EmailVerificationService {
         AuthMailTemplate.Mail content = AuthMailTemplate.verification(messages, messages.locale(), site.map(SiteValues::name).orElse(null), issued.nickname(), link,
                 props.verifyTokenHours());
         try {
-            if (mail.send(issued.email(), content.subject(), content.html())) {
+            if (mail.sendTagged(issued.email(), content.subject(), content.untaggedSubject(), content.html())) {
                 log.info("인증 메일을 보냈다 userId={}", userId);
             }
         } catch (RuntimeException e) {

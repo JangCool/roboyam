@@ -14,7 +14,11 @@ public final class OperatorMailTemplate {
     /** 사이트 설정이 없을 때 쓰는 이름 */
     private static final String DEFAULT_SITE_NAME = "ROBOYAM";
 
-    public record Mail(String subject, String html) {
+    /**
+     * @param subject         머리말이 없을 때의 제목 `[사이트 이름] 제목`
+     * @param untaggedSubject 메일 설정에 제목 머리말이 있을 때 머리말 뒤에 붙일 제목 — 자체 `[사이트 이름]` 을 뺀 것({@code MailDispatcher#sendTagged})
+     */
+    public record Mail(String subject, String untaggedSubject, String html) {
     }
 
     private OperatorMailTemplate() {
@@ -35,7 +39,8 @@ public final class OperatorMailTemplate {
             body.append(note(messages.get(key("mail.operatorCredentials.login", HtmlUtils.htmlEscape(adminUrl)), locale)));
         }
         body.append(note(messages.get(key("mail.operatorCredentials.keep"), locale)));
-        return new Mail(messages.get(key("mail.operatorCredentials.subject", orDefault(siteName)), locale),
+        String subject = messages.get(key("mail.operatorCredentials.subject"), locale);
+        return new Mail(tagged(messages, locale, siteName, subject), subject,
                 layout(messages, locale, site, messages.get(key("mail.operatorCredentials.title"), locale), body.toString()));
     }
 
@@ -48,7 +53,8 @@ public final class OperatorMailTemplate {
                 + note(messages.get(key("mail.operatorInvite.validity", String.valueOf(validHours)), locale))
                 + note(HtmlUtils.htmlEscape(link))
                 + note(messages.get(key("mail.operatorInvite.ignore"), locale));
-        return new Mail(messages.get(key("mail.operatorInvite.subject", orDefault(siteName)), locale),
+        String subject = messages.get(key("mail.operatorInvite.subject"), locale);
+        return new Mail(tagged(messages, locale, siteName, subject), subject,
                 layout(messages, locale, site, messages.get(key("mail.operatorInvite.title"), locale), body));
     }
 
@@ -64,8 +70,14 @@ public final class OperatorMailTemplate {
                 + note(messages.get(key("mail.operatorReset.validity", String.valueOf(validMinutes)), locale))
                 + note(messages.get(key("mail.operatorReset.keep"), locale))
                 + note(messages.get(key("mail.operatorReset.ignore"), locale));
-        return new Mail(messages.get(key("mail.operatorReset.subject", orDefault(siteName)), locale),
+        String subject = messages.get(key("mail.operatorReset.subject"), locale);
+        return new Mail(tagged(messages, locale, siteName, subject), subject,
                 layout(messages, locale, site, messages.get(key("mail.operatorReset.title"), locale), body));
+    }
+
+    /** `[사이트 이름] 제목` — 머리말이 없을 때의 제목 */
+    private static String tagged(Messages messages, Locale locale, String siteName, String subject) {
+        return messages.get(key("mail.common.siteTaggedSubject", orDefault(siteName), subject), locale);
     }
 
     private static MessageRef key(String key, Object... args) {

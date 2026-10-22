@@ -71,7 +71,7 @@ public class OperatorMailSender {
 
     private void send(String to, OperatorMailTemplate.Mail content, String purpose) {
         try {
-            if (mail.send(to, content.subject(), content.html())) {
+            if (mail.sendTagged(to, content.subject(), content.untaggedSubject(), content.html())) {
                 log.info("{} 메일을 보냈다", purpose);
             }
         } catch (RuntimeException e) {

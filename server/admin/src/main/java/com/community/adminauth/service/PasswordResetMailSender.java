@@ -66,7 +66,7 @@ public class PasswordResetMailSender {
         try {
             String siteName = siteSettings.current().map(SiteValues::name).orElse(null);
             OperatorMailTemplate.Mail content = OperatorMailTemplate.passwordResetCode(messages, event.locale(), siteName, event.code(), props.codeValidMinutes());
-            if (mail.send(event.email(), content.subject(), content.html())) {
+            if (mail.sendTagged(event.email(), content.subject(), content.untaggedSubject(), content.html())) {
                 log.info("운영자 비밀번호 재설정 승인번호 메일을 보냈다");
             }
         } catch (RuntimeException e) {
