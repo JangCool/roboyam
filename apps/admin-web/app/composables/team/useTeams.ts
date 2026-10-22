@@ -34,11 +34,23 @@ export function useTeams() {
         }
     }
 
+    /** 스켈레톤·오류 화면을 거치지 않고 뒤에서 목록만 다시 받는다 — 실패하면 지금 화면을 그대로 둔다 */
+    async function refresh(): Promise<void> {
+        try {
+            teams.value = await api.list();
+        } catch {
+            // 다음 조회 때 맞춰진다
+        }
+    }
+
     /** 서버가 돌려준 팀으로 목록의 그 줄만 갈아 끼운다. 없으면 맨 뒤에 붙인다 */
     function upsert(team: TeamView): void {
         const list = teams.value ?? [];
         teams.value = list.some((item) => item.teamId === team.teamId) ? list.map((item) => (item.teamId === team.teamId ? team : item)) : [...list, team];
     }
+
+    /** 목록이 낡았다는 신호의 오류 — 팀이 사라졌거나(다른 화면에서 지움) 팀원이 생겨 지울 수 없다. 던진 뒤 뒤에서 조용히 다시 받는다 */
+    const isStale = (failure: ApiError): boolean => ['TEAM_NOT_FOUND', 'TEAM_HAS_MEMBERS'].includes(failure.code);
 
     /** 쓰기 한 건을 돌린다 — 실패는 `ApiError` 로 바꿔 던진다 */
     async function write<T>(job: () => Promise<T>): Promise<T> {
@@ -46,7 +58,9 @@ export function useTeams() {
         try {
             return await job();
         } catch (e) {
-            throw errorOf(e);
+            const failure = errorOf(e);
+            if (isStale(failure)) void refresh();
+            throw failure;
         } finally {
             saving.value = false;
         }
@@ -89,7 +103,7 @@ export function useTeams() {
             }),
 
         /** 팀원 전체 목록으로 바꾼다 — 추가·제거 모두 이것이다 */
-        setMembers: (teamId: string, members: readonly TeamMemberView[]): Promise<TeamView> =>
+        setMembers: (teamId: string, members: readonly Pick<TeamMemberView, 'operatorId'>[]): Promise<TeamView> =>
             write(async () => {
                 const team = await api.setMembers(teamId, { operatorIds: members.map((member) => member.operatorId) });
                 upsert(team);

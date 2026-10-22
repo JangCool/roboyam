@@ -9,10 +9,12 @@
               · 사용 — 이 이벤트의 알림을 쓸지(필수 이벤트는 켜진 채 잠금).
               · **전달 도구**(다중 선택) — 서랍은 사용 중인 이벤트에 늘 켜져 있어 고르는 것이 아니라 잠긴 딱지로 보이고, 등록된 도구(이메일 · Slack · Mattermost · 브라우저 알림)를 고른다.
                 도구마다 이 이벤트에서 쓸 수 있는지가 다르다(이메일 불가 이벤트 · 본인에게만 가는 이벤트는 Slack·Mattermost 불가 · 꺼진 도구 · 준비 중 이벤트) — 못 고르는 이유가 선택지 옆에 적힌다.
-              · **추가 수신 팀**(다중 선택, 기본 없음) — 코드에 고정된 기본 수신 규칙은 그대로이고, 고른 팀의 팀원은 서랍 · 이메일 · 브라우저 알림으로 추가 수신한다. Slack · Mattermost 는 팀원에게 따로 가지 않고 그 도구에 설정한 채널로 한 번 올라간다(목업 가정).
+              · **추가 수신 팀**(다중 선택, 기본 없음) — 코드에 고정된 기본 수신 규칙은 그대로이고, 고른 팀의 팀원은 서랍 · 이메일 · 브라우저 알림으로 추가 수신한다. Slack · Mattermost 는 팀원에게 따로 가지 않고 그 도구에 설정한 채널로 한 번 올라간다.
+                팀 선택을 **바꾸려면** `team.read` 도 필요하다(서버가 403) — 없으면 팀 이름을 읽을 수 없어 고른 개수만 보이고 선택은 바꿀 수 없다(도구·사용 여부는 `notification.manage` 만으로 바뀐다).
             발행처가 아직 없는 예약 이벤트는 흐리게 「준비 중」으로만 보이고 바꿀 수 없다. 스위치·선택은 **바꾸면 즉시 저장**한다(구획 안에 [저장]이 없다 — forms.md 2-4). 낙관적 갱신이고, 서버가 거절하면 그 줄만 되돌리고 서버 문구를 토스트로 보인다.
         권한: 화면 `notification.read` (메뉴 정의가 걸러 낸다) · 변경 `notification.manage`. 팀 이름은 `team.read` 가 있어야 읽는다(없으면 개수만 보인다).
-        ⚠ 이벤트 목록은 실제 서버, **알림 도구 · 전달 도구 · 추가 수신 팀은 아직 목업**이다(`useNotificationChannelApi` · `useNotificationEventApi.deliveries`). 주소의 `?mock=notification-delivery-error` 등으로 상태를 확인한다(각 `*-mock.ts` 머리말).
+        서버 API: 이벤트 `GET·PUT /api/admin/notification-events`(응답의 `channels`·`teamIds`·`broadcastAllowed`, 요청 `{enabled, channels, teamIds}`) · 도구 `useNotificationChannelApi` ·
+        팀 이름 `useTeamApi`(`docs/features/notification-contract.md` 「서버 구현 결과 (알림 도구·조직 구성)」). 거절은 서버 문구 그대로 토스트로 보인다.
     -->
     <div class="flex flex-col gap-4">
         <PageTitle :title="t('notification.adminTitle')" :subtitle="t('notification.adminSubtitle')">
@@ -82,7 +84,7 @@
                                     :model-value="data.enabled"
                                     :disabled="enabledLock(data) !== undefined || isSaving(data.code)"
                                     :aria-label="t('notification.enabledLabel', { name: data.name })"
-                                    @update:model-value="(v: boolean) => change(data, { enabled: v })"
+                                    @update:model-value="(v: boolean) => change(data, v)"
                                 />
                             </span>
                         </template>
@@ -97,7 +99,7 @@
                                 </span>
                                 <AppMultiSelect
                                     class="min-w-44 flex-1"
-                                    :model-value="channelIdsOf(data)"
+                                    :model-value="data.channels"
                                     :options="channelOptionsOf(data)"
                                     option-disabled="disabled"
                                     :disabled="deliveryLock(data) !== undefined || isSaving(data.code)"
@@ -106,7 +108,7 @@
                                     :aria-label="t('notification.deliveryLabel', { name: data.name })"
                                     :selected-items-label="t('notification.deliveryCount', { n: '{0}' })"
                                     :max-selected-labels="2"
-                                    @update:model-value="(ids: unknown[]) => changeDelivery(data, { channelIds: ids as string[], teamIds: teamIdsOf(data) })"
+                                    @update:model-value="(ids: unknown[]) => changeDelivery(data, { channels: ids as string[], teamIds: data.teamIds })"
                                 >
                                     <template #option="{ option }">
                                         <span class="flex w-full min-w-0 items-center gap-2" :class="option.disabled ? 'opacity-60' : ''">
@@ -140,7 +142,7 @@
                                 :aria-label="t('notification.teamsLabel', { name: data.name })"
                                 :selected-items-label="t('notification.teamsCount', { n: '{0}' })"
                                 :max-selected-labels="1"
-                                @update:model-value="(ids: unknown[]) => changeDelivery(data, { channelIds: channelIdsOf(data), teamIds: ids as string[] })"
+                                @update:model-value="(ids: unknown[]) => changeDelivery(data, { channels: data.channels, teamIds: ids as string[] })"
                             >
                                 <template #option="{ option }">
                                     <span class="flex w-full min-w-0 items-center gap-2" :class="option.disabled ? 'opacity-60' : ''">
@@ -177,7 +179,7 @@ useSeoMeta({ title: () => t('notification.adminTitle') });
 const { can } = useAdminPermission();
 // ⚠ 통째로 받아 `prefs.density` 를 쓰지 않으면 조밀 모드가 이 표에만 안 먹는다 — 템플릿에서 `prefs.density` 로 읽는다
 const { prefs } = useLayoutPrefs();
-const { events, teams, loading, error, isSaving, channelIdsOf, deliveryOf, load, change, changeDelivery } = useNotificationEvents();
+const { events, teams, loading, error, isSaving, load, change, changeDelivery } = useNotificationEvents();
 // 등록된 도구 목록은 알림 도구 화면(`/settings/notification-channels`)과 공유하는 상태다 — 여기서는 「전달 도구」 선택지로만 쓴다
 const { channels, loading: channelsLoading, load: loadChannels } = useNotificationChannels();
 
@@ -215,7 +217,7 @@ function drawerHint(event: NotificationEventView): string {
 }
 
 /** 고른 추가 수신 팀 id 들 */
-const teamIdsOf = (event: NotificationEventView): string[] => deliveryOf(event.code)?.teamIds ?? [];
+const teamIdsOf = (event: NotificationEventView): string[] => event.teamIds;
 
 /** 선택지로 보일 도구들(서랍 제외, 카카오·SMS 제외) */
 const selectableChannels = computed(() => UtilNotificationChannel.selectable(channels.value ?? []));
@@ -228,9 +230,9 @@ const noUsableChannel = computed(() => channels.value !== undefined && !selectab
  * ⚠ 줄마다 다시 만든다(선택지의 글자가 처음 읽은 순간의 언어로 굳지 않게 `t` 를 템플릿 렌더 안에서 부른다).
  */
 function channelOptionsOf(event: NotificationEventView) {
-    const picked = channelIdsOf(event);
+    const picked = event.channels;
     return selectableChannels.value.map((channel) => {
-        const reason = UtilNotificationChannel.blockedReason(channel, event, deliveryOf(event.code));
+        const reason = UtilNotificationChannel.blockedReason(channel, event);
         return {
             value: channel.channelId,
             label: UtilNotificationChannelMessages.displayName(t, channel),
@@ -245,7 +247,7 @@ function channelOptionsOf(event: NotificationEventView) {
 function teamsLock(event: NotificationEventView): string | undefined {
     if (!canManage.value) return t('notification.noManageReason');
     if (!event.featureReady) return t('notification.notReadyHint');
-    if (deliveryOf(event.code)?.broadcastAllowed === false) return t('notification.teamsSelfOnly');
+    if (!event.broadcastAllowed) return t('notification.teamsSelfOnly');
     return undefined;
 }
 

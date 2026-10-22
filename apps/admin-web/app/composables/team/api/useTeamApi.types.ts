@@ -1,5 +1,5 @@
 /**
- * 조직 구성(팀) API 가 주고받는 모양 — 후보 계약이고 확정 전이다(목업 단계, `docs/features/notification-contract.md` 「알림 도구·조직 구성」).
+ * 조직 구성(팀) API 가 주고받는 모양 — 서버 `TeamView`·`TeamMemberView`·`TeamCandidateView` (`docs/features/notification-contract.md` 「서버 구현 결과 (알림 도구·조직 구성)」).
  * 칸 이름은 hamonica3 `TeamView`·`TeamMemberView`(`useTeamApi.ts`)를 따르되 이 제품의 말로 바꿨다(`userId` → `operatorId`, `userName` → `operatorName`, `use` → `enabled`).
  * 팀원은 **관리자 앱 운영자 계정**이다(공개 사이트 회원이 아니다). ⚠ ID 는 문자열이다(Snowflake). 숫자로 바꾸지 않는다.
  */
@@ -9,6 +9,8 @@ export interface TeamMemberView {
     operatorId: string;
     operatorName: string;
     email: string;
+    /** 지금 로그인할 수 있는 운영자인가. false 면(사용 중지·잠금·기간 만료) 팀에는 남아 있지만 알림을 받지 않는다 — 화면이 딱지로 구분해 보인다 */
+    active: boolean;
 }
 
 /** 팀 한 개 — 팀원까지 담겨 온다 */
@@ -42,7 +44,7 @@ export interface TeamMembersRequest {
     operatorIds: string[];
 }
 
-/** 팀에 넣을 수 있는 운영자 — 이미 든 사람도 함께 온다(화면이 짚어 주고 고르지 못하게 한다) */
-export interface TeamCandidateView extends TeamMemberView {
+/** 팀에 넣을 수 있는 운영자 — 활성 운영자만 오므로 `active` 칸이 없다. 이미 든 사람도 함께 온다(화면이 짚어 주고 고르지 못하게 한다) */
+export interface TeamCandidateView extends Omit<TeamMemberView, 'active'> {
     alreadyIn: boolean;
 }

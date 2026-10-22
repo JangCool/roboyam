@@ -67,8 +67,8 @@
                 </template>
 
                 <template v-for="key in fieldKeys" :key="key">
-                    <NotificationSecretField v-if="UtilNotificationChannel.isSecret(key)" v-model="secrets[key]" :label="UtilNotificationChannelMessages.fieldLabel(t, key)" :saved="isSaved(key)" :placeholder="placeholderOf(key)" :disabled="busy" :error="problemText(key) || fieldErrors[key]" />
-                    <LabeledField v-else :label="UtilNotificationChannelMessages.fieldLabel(t, key)" :help="helpOf(key)" :error="problemText(key) || fieldErrors[key]">
+                    <NotificationSecretField v-if="UtilNotificationChannel.isSecret(key)" v-model="secrets[key]" :label="UtilNotificationChannelMessages.fieldLabel(t, key, type)" :saved="isSaved(key)" :placeholder="placeholderOf(key)" :disabled="busy" :error="problemText(key) || fieldErrors[key]" />
+                    <LabeledField v-else :label="UtilNotificationChannelMessages.fieldLabel(t, key, type)":help="helpOf(key)" :error="problemText(key) || fieldErrors[key]">
                         <template #default="{ id, describedBy, invalid }">
                             <InputText :id="id" v-model="config[key as 'channel' | 'serverUrl']" :name="key" :placeholder="placeholderOf(key)" :disabled="busy" :invalid="invalid" :aria-describedby="describedBy" :aria-required="true" autocomplete="off" fluid />
                         </template>
@@ -200,7 +200,7 @@ const isSaved = (key: NotificationSecretKey): boolean => savedSecrets.value.incl
 
 function placeholderOf(key: ChannelFieldKey): string {
     if (key === 'botToken') return type.value === 'SLACK' ? 'xoxb-…' : '';
-    if (key === 'channel') return type.value === 'SLACK' ? '#ops-alerts' : 'town-square';
+    if (key === 'channel') return type.value === 'SLACK' ? '#ops-alerts' : 'a1b2c3d4e5f6g7h8i9j0k1l2m3';
     if (key === 'serverUrl') return 'https://chat.example.com';
     if (key === 'webhookUrl') return 'https://chat.example.com/hooks/…';
     return '';
@@ -225,7 +225,7 @@ const problems = computed(() =>
 
 function problemText(key: ChannelFieldKey): string {
     const problem = submitted.value ? problems.value[key] : undefined;
-    return problem ? UtilNotificationChannelMessages.problem(t, key, problem) : '';
+    return problem ? UtilNotificationChannelMessages.problem(t, key, problem, type.value) : '';
 }
 
 function submit(): void {

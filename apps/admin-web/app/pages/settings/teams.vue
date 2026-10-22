@@ -4,11 +4,12 @@
         왼쪽에 팀 목록(검색 · 새 팀 · 위·아래 화살표 · 「사용 안 함」 딱지), 오른쪽에 고른 팀의 정보(직접 고친다)와 팀원.
           · 팀 = 이름 · 설명 · 사용 여부 · 정렬 순서. **순서는 숫자를 적지 않고 위·아래 화살표로만** 옮긴다(서버가 다시 매긴다). 검색 중에도 끝 판정은 전체 목록 기준이다.
           · 팀원 = **관리자 운영자 계정**. 팀원 추가는 다이얼로그에서 운영자를 이름·이메일로 찾아 여러 명 고르고, 빼기는 한 명씩 확인 후.
-          · **팀원이 있는 팀은 지울 수 없다** — 삭제 단추가 잠기고 「사용 안 함」으로 멈추라고 안내한다. 멈춘 팀은 알림을 받지 않는다(목업 가정).
+          · **팀원이 있는 팀은 지울 수 없다** — 삭제 단추가 잠기고 「사용 안 함」으로 멈추라고 안내한다. 멈춘 팀은 알림을 받지 않는다.
           · 팀 정보는 모달이 아니라 오른쪽에서 직접 고치고 [저장]은 이 구획 안에 둔다(구획마다 따로 저장). 새 팀은 다이얼로그로 만든다.
         로딩 · 빈 결과(`EmptyState`) · 오류(`ErrorState`)를 모두 그린다. 저장하지 않은 변경이 있는 채 다른 팀을 고르거나 화면을 나가면 확인을 묻는다.
         권한: 화면 `team.read` (메뉴 정의가 걸러 낸다) · 만들기·고치기·지우기·옮기기·팀원 관리 `team.manage` — 없으면 단추가 숨고 읽기 전용이다. 감추는 것은 편의이고 막는 것은 서버다.
-        ⚠ 서버 API 는 아직 없다(목업, `useTeamApi`). 주소의 `?mock=team-error|team-empty|team-save-error|team-no-read` 로 상태를 확인한다(`team-mock.ts` 머리말).
+        팀원이 사용 중지·잠금·기간 만료 등으로 지금 로그인할 수 없으면(`active:false`) 팀원으로 남아 있되 「비활성」 딱지가 붙는다 — 알림은 받지 않는다.
+        서버 API: `useTeamApi`(`docs/features/notification-contract.md` 「서버 구현 결과 (알림 도구·조직 구성)」). 서버 문구(`message`·`fields`)를 그대로 보인다.
     -->
     <div class="flex flex-col gap-4">
         <PageTitle :title="t('team.title')" :subtitle="t('team.subtitle')">
@@ -155,7 +156,12 @@
                                 <li v-for="member in filteredMembers" :key="member.operatorId" class="flex items-center gap-3 py-2.5">
                                     <UserAvatar :name="member.operatorName" />
                                     <span class="min-w-0 flex-1">
-                                        <span class="block truncate text-[13px] font-medium">{{ member.operatorName }}</span>
+                                        <!-- 이름 옆의 딱지 줄은 flex + items-center 로 — 베이스라인에 맡기면 딱지가 글자 줄 아래로 처진다 -->
+                                        <span class="flex items-center gap-1.5">
+                                            <span class="min-w-0 truncate text-[13px] font-medium">{{ member.operatorName }}</span>
+                                            <!-- 지금 로그인할 수 없는 계정은 팀원으로 남아도 알림을 받지 않는다 -->
+                                            <Tag v-if="!member.active" v-tooltip.top="t('team.memberInactiveHint')" class="team-tag" :value="t('team.memberInactive')" severity="warn" />
+                                        </span>
                                         <span class="block truncate text-[11px] text-muted-color">{{ member.email }}</span>
                                     </span>
                                     <Button v-if="canManage" icon="pi pi-times" size="small" severity="danger" variant="text" rounded :disabled="saving" :aria-label="t('team.removeMember', { name: member.operatorName })" @click="removeMember(selected, member)" />
@@ -394,13 +400,17 @@ async function addMembers(operatorIds: string[]): Promise<void> {
     const team = selected.value;
     if (!team || operatorIds.length === 0) return;
     memberError.value = '';
-    const added: TeamMemberView[] = candidates.value.filter((candidate) => operatorIds.includes(candidate.operatorId) && !candidate.alreadyIn);
+    const added = candidates.value.filter((candidate) => operatorIds.includes(candidate.operatorId) && !candidate.alreadyIn);
     try {
         await setMembers(team.teamId, [...team.members, ...added]);
         memberOpen.value = false;
         toast.success(t('team.membersAdded', { n: added.length }));
     } catch (e) {
-        memberError.value = (e as ApiError).message;
+        // 칸 오류(`fields.operatorIds` — 활성이 아니거나 없는 운영자)가 있으면 그 문구를, 없으면 서버 `message` 를 그대로
+        const failure = e as ApiError;
+        memberError.value = failure.fields?.operatorIds ?? failure.message;
+        // 그 사이 운영자가 멈췄다면 후보가 낡은 것이다 — 목록을 다시 받아 고를 수 있는 사람만 남긴다
+        if (failure.code === 'TEAM_OPERATOR_NOT_FOUND') await loadCandidates();
     }
 }
 

@@ -28,10 +28,11 @@ export default class UtilNotificationChannelMessages {
      * 입력칸 라벨.
      * @param {Translate} t - 번역 함수.
      * @param {ChannelFieldKey} key - 칸 이름.
+     * @param {NotificationChannelType} [type] - 도구 종류. Mattermost 의 채널 칸은 이름이 아니라 **채널 ID** 라서 라벨이 다르다.
      * @returns {string} 라벨.
      */
-    static fieldLabel(t: Translate, key: ChannelFieldKey): string {
-        return t(`notification.channelField.${key}`);
+    static fieldLabel(t: Translate, key: ChannelFieldKey, type?: NotificationChannelType): string {
+        return t(key === 'channel' && type === 'MATTERMOST' ? 'notification.channelField.channelId' : `notification.channelField.${key}`);
     }
 
     /**
@@ -39,13 +40,16 @@ export default class UtilNotificationChannelMessages {
      * @param {Translate} t - 번역 함수.
      * @param {ChannelFieldKey} key - 칸 이름.
      * @param {ChannelProblem} problem - 문제.
+     * @param {NotificationChannelType} [type] - 도구 종류(칸 라벨이 종류마다 다르다).
      * @returns {string} 문구.
      */
-    static problem(t: Translate, key: ChannelFieldKey, problem: ChannelProblem): string {
-        if (problem === 'required') return t('notification.channelProblemRequired', { field: UtilNotificationChannelMessages.fieldLabel(t, key) });
-        if (problem === 'invalidUrl') return t('notification.channelProblemUrl', { field: UtilNotificationChannelMessages.fieldLabel(t, key) });
+    static problem(t: Translate, key: ChannelFieldKey, problem: ChannelProblem, type?: NotificationChannelType): string {
+        const field = UtilNotificationChannelMessages.fieldLabel(t, key, type);
+        if (problem === 'required') return t('notification.channelProblemRequired', { field });
+        if (problem === 'invalidUrl') return t('notification.channelProblemUrl', { field });
+        if (problem === 'invalidFormat') return t('notification.channelProblemFormat', { field });
         const max = key === 'name' ? UtilNotificationChannel.NAME_MAX : key === 'description' ? UtilNotificationChannel.DESC_MAX : UtilNotificationChannel.VALUE_MAX;
-        return t('notification.channelProblemTooLong', { field: UtilNotificationChannelMessages.fieldLabel(t, key), max });
+        return t('notification.channelProblemTooLong', { field, max });
     }
 
     /**

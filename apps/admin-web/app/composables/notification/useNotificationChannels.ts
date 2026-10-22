@@ -43,6 +43,25 @@ export function useNotificationChannels() {
         }
     }
 
+    /**
+     * 한 줄 동작의 실패를 토스트로 알린다 — 서버 문구 그대로 8초. 시험이 너무 잦아 429 이면 기다릴 시간(`Retry-After`)을 덧붙이고,
+     * 도구가 이미 사라졌으면(404 `NOTIFICATION_CHANNEL_NOT_FOUND`) 낡은 목록을 뒤에서 다시 받는다.
+     */
+    function fail(e: unknown): void {
+        const failure = errorOf(e);
+        toast.error(failure.retryAfterSeconds ? t('notification.channelRetryAfter', { message: failure.message, n: failure.retryAfterSeconds }) : failure.message, 8000);
+        if (failure.code === 'NOTIFICATION_CHANNEL_NOT_FOUND') void refresh();
+    }
+
+    /** 스켈레톤·오류 화면을 거치지 않고 뒤에서 목록만 다시 받는다 — 실패하면 지금 화면을 그대로 둔다 */
+    async function refresh(): Promise<void> {
+        try {
+            channels.value = await api.list();
+        } catch {
+            // 다음 조회 때 맞춰진다
+        }
+    }
+
     function replace(channelId: string, next: NotificationChannelView): void {
         channels.value = channels.value?.map((channel) => (channel.channelId === channelId ? next : channel));
     }
@@ -89,7 +108,7 @@ export function useNotificationChannels() {
             toast.success(t(enabled ? 'notification.channelEnabledOn' : 'notification.channelEnabledOff', { name: UtilNotificationChannelMessages.displayName(t, channel) }));
         } catch (e) {
             replace(channel.channelId, channel);
-            toast.error(errorOf(e).message, 8000);
+            fail(e);
         } finally {
             mark(channel.channelId, false);
         }
@@ -105,7 +124,7 @@ export function useNotificationChannels() {
             toast.success(t('notification.channelDeleted', { name: UtilNotificationChannelMessages.displayName(t, channel) }));
             return true;
         } catch (e) {
-            toast.error(errorOf(e).message, 8000);
+            fail(e);
             return false;
         } finally {
             mark(channel.channelId, false);
@@ -123,7 +142,7 @@ export function useNotificationChannels() {
             if (result.ok) toast.success(t('notification.channelTestOk', { name }));
             else toast.error(t('notification.channelTestFailed', { name, reason: result.message }), 8000);
         } catch (e) {
-            toast.error(errorOf(e).message, 8000);
+            fail(e);
         } finally {
             mark(channel.channelId, false);
         }

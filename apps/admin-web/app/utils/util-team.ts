@@ -5,7 +5,7 @@ export type TeamProblem = 'nameRequired' | 'nameTooLong' | 'descTooLong';
 
 /**
  * 조직 구성(팀) 화면의 순수 규칙 — 입력 검사, 팀 목록 걸러내기, 위·아래 이동 가능 여부, 알림 이벤트의 추가 수신 팀 선택지.
- * 서버 규칙 이름: 이름 필수·50자·설명 500자는 후보 계약 `TeamSaveRequest` 의 검사이고(서버가 같은 규칙으로 다시 본다), 이름 중복은 서버만 안다(409 `TEAM_NAME_DUPLICATED`). 서버 규칙은 목업 단계의 가정이다.
+ * 서버 규칙 이름: 이름 필수·50자·설명 500자는 서버 `TeamService` 의 `TeamSaveRequest` 검사와 같은 규칙이고(서버가 다시 본다), 이름 중복은 서버만 안다(409 `TEAM_NAME_DUPLICATED`).
  */
 export default class UtilTeam {
     /** 팀 이름 최대 글자 수 */
@@ -51,7 +51,7 @@ export default class UtilTeam {
      * @param {string} keyword - 검색어. 비면 전부.
      * @returns {T[]} 걸러낸 사람들(원래 차례).
      */
-    static filterMembers<T extends TeamMemberView>(members: readonly T[], keyword: string): T[] {
+    static filterMembers<T extends Pick<TeamMemberView, 'operatorName' | 'email'>>(members: readonly T[], keyword: string): T[] {
         const needle = keyword.trim().toLowerCase();
         if (!needle) return [...members];
         return members.filter((member) => member.operatorName.toLowerCase().includes(needle) || member.email.toLowerCase().includes(needle));

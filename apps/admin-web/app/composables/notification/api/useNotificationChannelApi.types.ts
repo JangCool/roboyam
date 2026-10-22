@@ -1,5 +1,5 @@
 /**
- * 알림 도구(채널) API 가 주고받는 모양 — 후보 계약이고 확정 전이다(목업 단계, `docs/features/notification-contract.md` 「알림 도구·조직 구성」).
+ * 알림 도구(채널) API 가 주고받는 모양 — 서버 `NotificationChannelView` 등 (`docs/features/notification-contract.md` 「서버 구현 결과 (알림 도구·조직 구성)」).
  * 칸 이름은 hamonica3 `useNotificationApi.ts`(`ConfigView`·`SaveConfigRequest`)와 서버 `ChannelSpec` 을 따르되 이 제품의 말로 바꿨다.
  * 비밀(Slack·Mattermost 봇 토큰, Mattermost 웹훅 주소)은 **서버가 응답에서 지운다** — 화면은 「입력됨」(`secretKeys`)만 안다. ⚠ ID 는 문자열이다(Snowflake). 숫자로 바꾸지 않는다.
  */
@@ -15,7 +15,7 @@ export type MattermostMode = 'webhook' | 'bot';
 
 /** 비밀이 아닌 설정 값 — 응답에도 그대로 실린다. 종류마다 쓰는 칸이 다르다(`UtilNotificationChannel.requiredKeys`) */
 export interface NotificationChannelConfig {
-    /** Slack: `#ops-alerts` 같은 채널 · Mattermost(봇 방식): 채널 이름 */
+    /** Slack: `#ops-alerts` 같은 채널 이름 또는 채널 ID · Mattermost(봇 방식): **채널 ID**(게시 API 가 이름이 아니라 ID 를 요구한다) */
     channel?: string;
     /** Mattermost 연결 방식 */
     mattermostMode?: MattermostMode;
@@ -37,7 +37,7 @@ export type NotificationSecretKey = keyof NotificationChannelSecrets;
 /** 연결 시험 한 번의 결과 — 시험하면 서버가 마지막 결과를 도구에 남긴다 */
 export interface NotificationChannelTestResult {
     ok: boolean;
-    /** 서버 문구(성공 안내 또는 실패 사유). 화면은 가공하지 않고 그대로 보인다 */
+    /** 서버가 요청 언어로 푼 짧은 문구(성공 안내 또는 실패 사유 — `TLS_FAILED`·`TIMEOUT`·`BLOCKED_TARGET` 등 정해진 사유 코드의 문구). 외부 서비스의 응답 본문·주소는 없다. 화면은 가공하지 않고 그대로 보인다 */
     message: string;
     /** 시험한 시각 — UTC ISO */
     testedAt: string;

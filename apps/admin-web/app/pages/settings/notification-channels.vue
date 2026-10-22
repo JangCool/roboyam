@@ -3,10 +3,11 @@
         알림 도구 — 알림을 보낼 곳(도구)을 정한다. 이벤트마다 어느 도구로 보낼지는 `/settings/notifications`(알림)에서 고른다.
         서랍(항상 켜진 기본 도구) · 이메일(설정 > 메일 서버 설정으로 발송, 설정 칸 없음) · 브라우저 알림(설정 칸 없는 기본 제공 도구)과 사용자가 만드는 Slack · Mattermost 를 한 표로 보인다(`NotificationChannelTable`).
         추가·수정은 다이얼로그(종류별 입력칸, 비밀 값은 「입력됨」만 — `NotificationChannelDialog`). 카카오톡 · SMS 는 종류 선택지에 「준비 중」으로 흐리게만 보이고 만들 수 없다.
-        연결 시험(목업)은 누를 때마다 성공 ↔ 실패를 번갈아 낸다. 사용 켜기/끄기는 누르면 즉시 저장(낙관적 갱신)이다. 서랍은 끌 수 없다. 도구를 지우면 그 도구를 고른 이벤트에서도 함께 빠진다(확인창이 개수를 말한다).
+        연결 시험은 서버가 실제로 시험 글/메일을 보내고(Slack·Mattermost 는 도구의 채널로 게시, 이메일은 누른 운영자에게 한 통) 결과를 도구에 남긴다 — 실패한 시험도 오류가 아니라 「실패」 결과(사유 문구는 서버가 준 그대로)이고,
+        너무 잦으면(분당 6회) 서버가 429 로 거절한다. 사용 켜기/끄기는 누르면 즉시 저장(낙관적 갱신)이다. 서랍은 끌 수 없다. 도구를 지우면 그 도구를 고른 이벤트에서도 함께 빠진다(확인창이 개수를 말한다).
         도구 목록은 이벤트 관리 화면과 공유하는 상태(`useNotificationChannels`)다. 구획이 하나뿐이라 우측 구역 내비는 없다.
         권한: 화면 `notification.read` (메뉴 정의가 걸러 낸다) · 변경·시험 `notification.manage` — 없으면 단추가 숨고 스위치가 잠긴다.
-        ⚠ 서버 API 는 아직 없다(목업, `useNotificationChannelApi`). 주소의 `?mock=notification-channel-error|-save-error|-test-error|-no-read` 로 상태를 확인한다(`notification-channel-mock.ts` 머리말).
+        서버 API: `useNotificationChannelApi`(`docs/features/notification-contract.md` 「서버 구현 결과 (알림 도구·조직 구성)」).
     -->
     <div class="flex flex-col gap-4">
         <PageTitle :title="t('notification.channelsTitle')" :subtitle="t('notification.channelsPageSubtitle')">
@@ -63,6 +64,9 @@ const { channels, loading, error, saving, busy, load, create, update, setEnabled
 const canManage = computed(() => can('notification.manage'));
 const hasCustom = computed(() => (channels.value ?? []).some((channel) => !channel.builtIn));
 
+/** 다이얼로그가 칸 아래에 서버 문구를 붙여 주는 칸들 — 그 밖의 `fields` 는 다이얼로그 오류 줄로 모은다 */
+const DIALOG_FIELDS: ReadonlySet<string> = new Set(['type', 'name', 'description', 'channel', 'serverUrl', 'botToken', 'webhookUrl']);
+
 const dialogOpen = ref(false);
 /** 수정 대상 — null 이면 추가 */
 const dialogTarget = ref<NotificationChannelView | null>(null);
@@ -88,10 +92,14 @@ async function submit(body: NotificationChannelSaveRequest): Promise<void> {
         dialogOpen.value = false;
         toast.success(t(target ? 'notification.channelSaved' : 'notification.channelCreated'));
     } catch (e) {
-        // 서버 거절 — 칸에 붙는 문구(`fields`)는 그 칸 아래에, 나머지는 다이얼로그 안에 서버 문구 그대로
+        // 서버 거절 — 칸에 붙는 문구(`fields`)는 그 칸 아래에, 나머지(칸이 없는 오류 · 다이얼로그에 칸이 없는 `fields.mattermostMode` 등)는 다이얼로그 안에 서버 문구 그대로
         const failure = e as ApiError;
-        dialogFieldErrors.value = failure.fields ?? {};
-        dialogError.value = Object.keys(dialogFieldErrors.value).length ? '' : failure.message;
+        const fields = failure.fields ?? {};
+        dialogFieldErrors.value = fields;
+        const unplaced = Object.entries(fields)
+            .filter(([key]) => !DIALOG_FIELDS.has(key))
+            .map(([, message]) => message);
+        dialogError.value = Object.keys(fields).length === 0 ? failure.message : unplaced.join(' ');
     }
 }
 

@@ -59,6 +59,8 @@ export default {
     removeTitle: '팀에서 뺄까요?',
     removeConfirm: '{name} 님을 「{team}」 팀에서 빼요. 운영자 계정은 그대로 남아요.',
     remove: '빼기',
+    memberInactive: '비활성',
+    memberInactiveHint: '사용 중지·잠금·기간 만료 등으로 지금 로그인할 수 없는 계정이에요. 팀원으로 남아 있지만 알림은 받지 않아요.',
     memberRemoved: '{name} 님을 팀에서 뺐어요',
     memberDialogTitle: '「{name}」 팀원 추가',
     searchOperator: '운영자 이름·이메일로 찾기',

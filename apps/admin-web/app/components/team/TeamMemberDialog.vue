@@ -91,6 +91,16 @@ watch(
     { immediate: true },
 );
 
+/** 후보를 다시 받으면(서버가 거절해 새로 받은 경우 등) 이제 고를 수 없는 사람을 선택에서 뺀다 */
+watch(
+    () => props.candidates,
+    (list) => {
+        const pickable = new Set(list.filter((candidate) => !candidate.alreadyIn).map((candidate) => candidate.operatorId));
+        if ([...chosen.value].every((id) => pickable.has(id))) return;
+        chosen.value = new Set([...chosen.value].filter((id) => pickable.has(id)));
+    },
+);
+
 const filtered = computed(() => UtilTeam.filterMembers(props.candidates, keyword.value));
 const chosenList = computed(() => props.candidates.filter((candidate) => chosen.value.has(candidate.operatorId)));
 

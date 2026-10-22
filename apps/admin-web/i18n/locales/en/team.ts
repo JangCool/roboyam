@@ -59,6 +59,8 @@ export default {
     removeTitle: 'Remove from the team?',
     removeConfirm: 'This removes {name} from the team "{team}". The operator account stays.',
     remove: 'Remove',
+    memberInactive: 'Inactive',
+    memberInactiveHint: 'This account cannot sign in right now (deactivated, locked or expired). It stays on the team but receives no notifications.',
     memberRemoved: '{name} was removed from the team',
     memberDialogTitle: 'Add members to "{name}"',
     searchOperator: 'Find an operator by name or email',

@@ -1,11 +1,11 @@
 import type { MattermostMode, NotificationChannelConfig, NotificationChannelSecrets, NotificationChannelType, NotificationChannelView, NotificationSecretKey } from '~/composables/notification/api/useNotificationChannelApi.types';
-import type { NotificationEventDelivery, NotificationEventView } from '~/composables/notification/api/useNotificationEventApi.types';
+import type { NotificationEventView } from '~/composables/notification/api/useNotificationEventApi.types';
 
 /** 도구 입력칸 이름 — 문구는 `notification.channelField.<이름>` */
 export type ChannelFieldKey = 'name' | 'description' | 'channel' | 'serverUrl' | 'botToken' | 'webhookUrl';
 
-/** 입력 검사 문제 — `required` 비었다 · `tooLong` 너무 길다 · `invalidUrl` 주소 모양이 아니다 */
-export type ChannelProblem = 'required' | 'tooLong' | 'invalidUrl';
+/** 입력 검사 문제 — `required` 비었다 · `tooLong` 너무 길다 · `invalidUrl` 주소 모양이 아니다 · `invalidFormat` 채널 칸에 쓸 수 없는 글자가 있다 */
+export type ChannelProblem = 'required' | 'tooLong' | 'invalidUrl' | 'invalidFormat';
 
 /** 이벤트에서 이 도구를 고를 수 없는 이유 — 문구는 `notification.channelBlocked.<이유>` */
 export type ChannelBlockedReason = 'notReady' | 'emailNotAvailable' | 'selfOnly' | 'disabled';
@@ -23,8 +23,9 @@ export interface ChannelInput {
 
 /**
  * 알림 도구(채널) 화면이 함께 쓰는 순수 규칙 — 종류별 아이콘·색·만들기 가능 여부, 종류별 입력칸과 화면 선검사, 이벤트에서 도구를 고를 수 있는지.
- * 서버 규칙 이름: 종류별 필수 칸은 hamonica3 서버 `ChannelSpec.requiredKeys`(Slack=botToken+channel, Mattermost=웹훅 주소 또는 서버 주소+봇 토큰+채널, 이메일·브라우저=없음)를 따른 후보 규칙이다.
- * 서버가 같은 규칙으로 다시 본다(감추는 것은 편의이고 막는 것은 서버다). 비밀 칸은 `ChannelSecrets` 가 정한다(봇 토큰·웹훅 주소).
+ * 서버 규칙 이름: 서버 `NotificationChannelService` 의 칸 검사 — 종류별 필수 칸(Slack=botToken+channel, Mattermost=웹훅 주소 또는 서버 주소+봇 토큰+채널, 이메일·브라우저=없음)과
+ * 채널 칸 형식(`SLACK_CHANNEL` `#?[글자·숫자_.-]{1,80}` · `MATTERMOST_CHANNEL` `[글자·숫자_.-]{1,64}`)을 같은 규칙으로 미리 본다. 서버가 다시 본다(감추는 것은 편의이고 막는 것은 서버다).
+ * Mattermost(봇 방식)의 채널 칸은 **채널 ID** 다 — 게시 API 가 이름이 아니라 ID 를 요구한다. 비밀 칸은 봇 토큰·웹훅 주소다.
  */
 export default class UtilNotificationChannel {
     /** 도구 이름 최대 글자 수 */
@@ -34,8 +35,10 @@ export default class UtilNotificationChannel {
     /** 채널·주소 칸 최대 글자 수 */
     static readonly VALUE_MAX = 300;
 
-    /** 기본 제공 이메일 도구의 id — 서버가 이벤트의 `emailEnabled` 로 갖고 있어서(후보 계약에서는 `channels` 에 합쳐진다) 이벤트 전달 선택에서 따로 다룬다 */
-    static readonly EMAIL_ID = 'email';
+    /** Slack 채널 칸 형식 — 이름(`#` 은 앞에 한 번) 또는 채널 ID */
+    private static readonly SLACK_CHANNEL = /^#?[\p{L}\p{N}_.-]{1,80}$/u;
+    /** Mattermost 채널 칸 형식 — 채널 ID(서버는 이름 모양도 통과시키지만 게시는 ID 로만 된다) */
+    private static readonly MATTERMOST_CHANNEL = /^[\p{L}\p{N}_.-]{1,64}$/u;
 
     /** 종류 선택지의 차례 — 서랍은 선택지가 아니다(기본 제공) */
     static readonly TYPE_ORDER: readonly NotificationChannelType[] = ['SLACK', 'MATTERMOST', 'EMAIL', 'BROWSER', 'KAKAO', 'SMS'];
@@ -163,6 +166,7 @@ export default class UtilNotificationChannel {
                 out[key] = 'required';
             } else if (text.length > UtilNotificationChannel.VALUE_MAX) out[key] = 'tooLong';
             else if (UtilNotificationChannel.isUrl(key) && !UtilNotificationChannel.isHttpUrl(text)) out[key] = 'invalidUrl';
+            else if (key === 'channel' && !(input.type === 'SLACK' ? UtilNotificationChannel.SLACK_CHANNEL : UtilNotificationChannel.MATTERMOST_CHANNEL).test(text)) out[key] = 'invalidFormat';
         }
         return out;
     }
@@ -172,13 +176,12 @@ export default class UtilNotificationChannel {
      * 이유가 여럿이면 이벤트 쪽 이유(준비 중 · 이메일 불가 · 본인 전용)가 도구 쪽 이유(꺼짐)보다 먼저다.
      * @param {NotificationChannelView} channel - 도구.
      * @param {NotificationEventView} event - 이벤트.
-     * @param {NotificationEventDelivery | undefined} delivery - 이벤트의 전달 설정(없으면 팀·공유 채널 허용으로 본다).
      * @returns {ChannelBlockedReason | null} 고를 수 있으면 null.
      */
-    static blockedReason(channel: NotificationChannelView, event: NotificationEventView, delivery: NotificationEventDelivery | undefined): ChannelBlockedReason | null {
+    static blockedReason(channel: NotificationChannelView, event: NotificationEventView): ChannelBlockedReason | null {
         if (!event.featureReady) return 'notReady';
         if (channel.type === 'EMAIL' && !event.emailable) return 'emailNotAvailable';
-        if ((channel.type === 'SLACK' || channel.type === 'MATTERMOST') && delivery?.broadcastAllowed === false) return 'selfOnly';
+        if ((channel.type === 'SLACK' || channel.type === 'MATTERMOST') && !event.broadcastAllowed) return 'selfOnly';
         if (!channel.enabled) return 'disabled';
         return null;
     }

@@ -173,3 +173,17 @@ Java 배치와 DB(pg_cron) 배치 모두 요청 밖에서 끝난다. DB 프로�
 - 도구·팀이 지워지는 순간 이벤트 선택 저장과 겹치면 외래키 오류(500)가 날 수 있다(드문 경합, 재시도하면 된다).
 - 기본 제공 도구의 `PUT` 은 `type` 이 같아야 한다(`EMAIL`·`BROWSER`·`DRAWER`, 대문자) — 프론트가 이미 `type` 을 함께 보낸다.
 - 프론트 `// MOCK:` → `// REAL:` 때: ① `NotificationEventView` 에 `channels`·`teamIds`·`broadcastAllowed` 가 합쳐지고 `deliveries`·`setDelivery` 는 없어진다 ② 목업 도구 id(`ch-…`)·팀 id(`t-…`)는 Snowflake 문자열로 바뀐다 ③ 팀원 `active` 를 화면에 보이면 좋다 ④ `team.read` 없는 운영자는 팀 선택을 바꾸면 403 이다(그대로 보내거나 `teamIds` 를 생략) ⑤ 이메일 도구를 끄면 이벤트의 `channels` 에는 `email` 이 남아 있어도 메일은 안 나간다.
+
+## 프론트 연결 결과 (알림 도구·조직 구성, 2026-10-22)
+
+`// MOCK:` 를 모두 `// REAL:` 로 바꿨다(admin-web 에 목업·`?mock=` 스위치·`composables/**/mock/` 는 없다). 일회용 서버(develop 5b82a2d 의 jar) + 로컬 `nuxt dev` 로 팀(만들기·고치기·순서·팀원·삭제 409)·도구(만들기·시험 성공/실패/429·고치기·지우기)·이벤트 전달(저장·새로고침 유지·게시)·권한별 화면을 브라우저로 확인했다.
+- **API 연결**: `useTeamApi`·`useNotificationChannelApi`·`useNotificationEventApi` 는 `useApiClient` 로 서버를 부른다. 이벤트는 `PUT {enabled, channels, teamIds}` 하나(`deliveries`·`setDelivery`·`NotificationEventDelivery` 삭제, `emailEnabled` 는 보내지 않는다 — `channels` 의 `email` 이 이메일 전달). id 는 문자열.
+- **오류 매핑**(서버 문구를 그대로 보인다, 분기는 `ApiError.code`):
+  - 팀: 이름 중복 409 `fields.teamName`·검증 400 `fields.teamName|description` → 칸 아래 / 삭제 409 `TEAM_HAS_MEMBERS`·404 `TEAM_NOT_FOUND` → 토스트 + 목록을 뒤에서 다시 받음 / 팀원 400 `TEAM_OPERATOR_NOT_FOUND` `fields.operatorIds` → 다이얼로그 줄 + 후보 다시 받기(선택에서 사라진 사람 제거) / 팀 한도 409 → 다이얼로그 줄.
+  - 도구 만들기·고치기: `fields.name|type|channel|serverUrl|botToken|webhookUrl` → 칸 아래, 칸이 없는 `fields`(`mattermostMode`)와 칸 없는 오류(409 한도·`CHANNEL_BUILTIN`, 503 `CRYPTO_KEY_MISSING`, 400 카카오·SMS)는 다이얼로그 오류 줄. 켜기·끄기·지우기·시험 실패는 토스트 8초(404 면 목록 다시 받기).
+  - 연결 시험: **실패**는 오류가 아니라 `lastTest`(서버가 요청 언어로 푼 사유 문구 — `TLS_FAILED`·`TIMEOUT`·`BLOCKED_TARGET` 등. 응답에 코드가 없고 문구만 와서 화면 문구 매핑은 없다). 429 `NOTIFICATION_CHANNEL_TEST_RATE_LIMITED` → 서버 문구 + 새 키 `notification.channelRetryAfter`(`Retry-After` 초).
+  - 이벤트 저장 거절은 토스트(`fields.channels|teamIds|enabled`, 없으면 `message`): `NOTIFICATION_MANDATORY`·`NOT_READY`·`BROADCAST_NOT_ALLOWED`·`CHANNEL_DISABLED`·`TEAM_DISABLED`·모르는 도구·팀. 낡았다는 신호면 이벤트·도구·팀 목록을 뒤에서 다시 받는다.
+- **팀원 `active`**: 중지·잠금·기간 만료 계정은 팀원 목록에 「비활성」 딱지(`team.memberInactive`·툴팁 `team.memberInactiveHint`). 후보 응답(`TeamCandidateView`)에는 `active` 칸이 없다(늘 활성).
+- **Mattermost 채널 ID**: 봇 방식의 채널 칸을 「채널 ID」(라벨·도움말·예시·요약 문구, `notification.channelField.channelId`)로 바로잡고 화면 선검사에 서버 형식(`SLACK_CHANNEL`·`MATTERMOST_CHANNEL`)을 더했다. 가짜 수신기로 이름(`town-square`)은 거절·ID 는 게시됨을 확인. Slack 은 서버가 `#이름` 과 채널 ID 모두 받는다(문구 그대로).
+- **`team.read` 없는 운영자**: 팀 목록을 부르지 않는다(불필요한 403 이 감사 `PERMISSION_DENIED` 로 쌓이므로) → 알림 설정 화면은 고른 팀 **개수**(「N개 팀」)만 보이고 팀 선택은 바꿀 수 없다. 사용·도구 변경은 현재 팀 선택을 그대로 보내므로 `notification.manage` 만으로 된다(확인). `team.read` 없이 팀을 바꾸는 요청은 403(API 로 확인). 읽기 전용(`*.manage` 없음) 운영자는 세 화면 모두 스위치·선택·단추가 잠기고 안내 한 줄이 뜬다.
+- **가정·미확정**: ① 브라우저 알림 도구는 서버가 선택만 저장한다(실제 OS 알림은 기존 클라이언트 경로). ② 화면은 항상 `channels` 전체를 보내므로 서버의 예전 요청(`emailEnabled` 만) 경로는 쓰지 않는다. ③ 팀이 받는 사람을 늘리지 못하는 정책 문제(서버 「가정·미해결」 첫 항목)는 그대로다. ④ 도구·팀 삭제와 이벤트 저장이 겹치는 경합(500)은 화면이 따로 다루지 않는다(오류 토스트).
