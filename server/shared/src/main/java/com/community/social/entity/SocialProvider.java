@@ -19,6 +19,11 @@ public enum SocialProvider {
         return id;
     }
 
+    /** 공급자 콘솔에 등록할 콜백 경로({@code /api/auth/social/kakao/callback}) — 공개 주소 뒤에 붙인다. 공개 서버 {@code SocialLoginService.CALLBACK_PATH} 와 같다 */
+    public String callbackPath() {
+        return "/api/auth/social/" + id + "/callback";
+    }
+
     /** 화면에 보이는 이름의 메시지 키({@code social.provider.<이름>}) — 요청 언어로 풀린다 */
     public String displayNameKey() {
         return "social.provider." + name();

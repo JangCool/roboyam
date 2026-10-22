@@ -87,6 +87,10 @@ public final class AuditActions {
     public static final String POINT_ADJUST = "POINT_ADJUST";
     /** 포인트 정책 저장 — 바뀐 칸만 before/after */
     public static final String POINT_SETTINGS_UPDATE = "POINT_SETTINGS_UPDATE";
+    /** 소셜 로그인 공급자 설정 등록·수정 — 대상 SOCIAL_PROVIDER + 공급자(KAKAO …). 켜짐만 before/after, 클라이언트 ID·시크릿은 「바뀜」 표시만(값 없음) */
+    public static final String SOCIAL_PROVIDER_UPDATE = "SOCIAL_PROVIDER_UPDATE";
+    /** 소셜 로그인 공급자 설정 삭제(그 공급자가 꺼지고 미등록이 된다) */
+    public static final String SOCIAL_PROVIDER_DELETE = "SOCIAL_PROVIDER_DELETE";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();
