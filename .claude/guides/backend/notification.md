@@ -45,6 +45,13 @@
 * 본인 API 는 `@AdminAuthenticated`(경로에 운영자 id 가 없고 대상은 늘 요청한 사람), 이벤트 관리는 `notification.read`/`notification.manage`. 목록·미읽음·요약·모두 읽음은 `NotificationVisibility` **한 곳의 같은 거르기**를 쓴다(권한 + 끄지 않음 + 발행처 있음).
 * 보관·정리는 DB 배치 `notification-cleanup`(`R__batch_16_…`, 읽은 지 30일 · 안 읽은 채 90일 · 운영자당 500건, `batch_params`). 새 표가 쌓이면 `db-batch.md` 를 따라 정리 규칙을 같이 만든다.
 
+### 2-8. 알림 도구(채널)·팀·이벤트별 전달
+* **도구**: 서랍·이메일·브라우저는 코드가 내려주는 **기본 제공**(id `drawer`·`email`·`browser`, 이메일·브라우저의 사용 여부·시험 결과만 `notification_builtin_channels`)이고, 사용자가 만드는 것은 **Slack·Mattermost 뿐**(`notification_channels`, 최대 20개). 카카오·SMS 는 enum 에도 만들지 않고 400 `fields.type`. 이메일은 설정 > 메일 서버로 보내며 도구 전용 SMTP 가 없다. 브라우저 알림은 순수 클라이언트 동작이라 서버는 이벤트의 `browser_enabled` 선택만 저장한다.
+* **이벤트별 전달**: 이벤트마다 `channels`(`email` = 기존 `email_enabled`, `browser`, Slack/Mattermost 도구 id)와 `teamIds`(추가 수신 팀). **`broadcastAllowed`**(코드 정의: 수신 규칙 `SELF` 가 아니고 `mandatory` 가 아님)가 false 인 이벤트에는 팀·Slack/Mattermost 를 지정할 수 없다(400 `NOTIFICATION_BROADCAST_NOT_ALLOWED`). 꺼진 도구·멈춘 팀은 **새로** 고를 수 없다(이미 고른 것은 둔다). 팀 선택을 바꾸려면 `team.read` 도 필요하다.
+* **수신**: 기본 수신 규칙 + 사용 중인 팀의 팀원 중 **활성 운영자이면서 `requiredPermission` 이 있는 사람**(Set 이라 중복 없음). 행위자 제외·개인 끄기·묶기는 팀원에게도 같다. Slack·Mattermost 는 수신자 수와 상관없이 도구마다 **이벤트당 한 번**, 커밋 뒤(`NotificationChannelPostSender`, `AFTER_COMMIT` + 별도 스레드풀)에 올린다 — 업무·서랍·다른 도구는 실패에 영향받지 않는다. 이메일은 이벤트의 이메일 전달 **그리고** 이메일 도구가 켜져 있어야 나간다.
+* **비밀·외부 요청**: 봇 토큰·웹훅 주소는 `SecretEncryptor` 암호문만 저장하고 응답·로그·감사·예외·`toString` 에 평문도 암호문도 싣지 않는다(응답은 `secretKeys`). 외부로 나가는 요청은 **반드시** `SafeHttpClient`(+`OutboundTargetGuard`)를 지난다 — 검사한 IP 로 직접 연결, 리다이렉트 안 따라감, 짧은 제한 시간, 응답 본문은 돌려주지 않고 **짧은 사유 코드**(`ChannelPostResult`, 번들 `notification.channel.test.<코드>`)만. 메시지에 값을 섞을 때는 `ChannelMessageFormatter` 로 멘션·마크다운을 무력화한다. 새 외부 연동(도구 종류)을 더할 때 `HttpClient`/`URL` 로 직접 요청하지 않는다.
+* 감사 `TEAM_*`·`NOTIFICATION_CHANNEL_*` — 비밀·주소는 값 없이 바뀐 칸 이름만. 구조·검증 결과는 `docs/features/notification-contract.md` 「서버 구현 결과 (알림 도구·조직 구성)」.
+
 ---
 
 ## 3. 작성 예시
@@ -71,3 +78,4 @@ publisher.publish(AdminNotificationEvent.BATCH_RUN_FAILED,
 3. ❌ 업무 트랜잭션 밖에서 알림 행을 만드는 것(롤백돼도 알림이 남는다), 알림 행을 JPA `persist` 로 올리는 것, 발행을 `try-catch` 로 감싸거나 알림 실패로 업무를 실패시키는 것
 4. ❌ 트랜잭션 안에서 메일을 보내는 것(이메일은 커밋 뒤 발송기가 한다), 메일 주소·내용을 로그에 남기는 것
 5. ❌ 배치 실패를 DB 프로시저·배치 코드가 직접 알리는 것(감시자 한 경로), 알림 조회에서 권한·끄기 거르기를 목록/요약마다 따로 구현하는 것
+6. ❌ 운영자가 입력한 주소로 `SafeHttpClient` 를 거치지 않고 요청하는 것, 외부 응답 본문·주소·토큰을 응답/로그/DB 에 남기는 것, 업무 트랜잭션 안에서 Slack·Mattermost 를 부르는 것, `broadcastAllowed=false` 이벤트를 팀·공유 채널로 보내는 것

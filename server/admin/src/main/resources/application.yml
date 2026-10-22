@@ -68,3 +68,5 @@ roboyam:
     watcher-enabled: true         # 이 서버가 배치 실패·종료 알림을 감시하는가(서버 여러 대여도 중복 알림은 없다 — 한 대만 켜도 된다)
     batch-watch-seconds: 30       # 감시 주기(초) — 배치가 끝난 뒤 알림까지 최대 이만큼 늦는다(재기동해야 바뀐다)
     batch-watch-max-age-hours: 24 # 끝난 지 이만큼 지난 줄은 알리지 않고 표시만 한다(감시가 오래 멈췄다 돌아온 경우)
+    channel-test-per-minute: 6    # 알림 도구 연결 시험을 운영자 한 명이 1분에 할 수 있는 횟수(서버마다 따로 센다). 넘으면 429 NOTIFICATION_CHANNEL_TEST_RATE_LIMITED
+    # 알림 도구(Slack · Mattermost)의 주소 규칙(allow-private-targets·slack-api-url·시간 제한)은 shared 가 읽는다 — 로컬호스트·사설망 허용은 local 프로파일만 true(roboyam-shared-local.yml)

@@ -16,6 +16,10 @@ logging:
 roboyam:
   # Snowflake 서버 번호 — local 만 기본값이 있다(dev · prod 는 환경 변수 NODE_ID 가 필수)
   node-id: ${NODE_ID:1}
+  # 알림 도구(Slack · Mattermost)의 주소로 로컬호스트·사설망을 허용한다 — 개발용 가짜 수신기로 시험하려고. dev · prod 는 기본 false(roboyam-shared.yml 에 두지 않고 코드 기본값)이다.
+  # 클라우드 메타데이터·링크 로컬·와일드카드 주소는 이 값과 상관없이 항상 막는다
+  notification:
+    allow-private-targets: ${ROBOYAM_NOTIFICATION_ALLOW_PRIVATE_TARGETS:true}
   # 이미지 저장 폴더 — 개발 PC 의 사용자 폴더(api·admin 을 어느 폴더에서 띄워도 같은 곳을 본다). ROBOYAM_STORAGE_PATH 로 바꿀 수 있다
   storage:
     local-path: ${ROBOYAM_STORAGE_PATH:${user.home}/.roboyam/media}

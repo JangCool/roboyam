@@ -159,8 +159,11 @@ public enum AdminNotificationEvent {
     private final String linkPath;
     private final int collapseSeconds;
     private final boolean featureReady;
+    private final boolean broadcastAllowed;
 
     AdminNotificationEvent(Spec spec) {
+        // 본인에게만 가는 이벤트(SELF)와 필수(보안) 이벤트는 다른 사람·공유 채널로 퍼뜨리면 안 된다 — 코드가 정한다(화면·DB 에서 바꾸지 않는다)
+        this.broadcastAllowed = spec.recipient != NotificationRecipientRule.SELF && !spec.mandatory;
         this.area = spec.area;
         this.severity = spec.severity;
         this.recipient = spec.recipient;
@@ -235,6 +238,14 @@ public enum AdminNotificationEvent {
 
     public boolean featureReady() {
         return featureReady;
+    }
+
+    /**
+     * 추가 수신 팀과 공유 채널(Slack · Mattermost)로 보낼 수 있는 이벤트인가. 본인에게만 가는 이벤트({@code *_ME} — 수신 규칙 {@code SELF})와 필수(보안) 이벤트는 false 다 —
+     * 다른 사람이나 여럿이 보는 채널에 나가면 안 된다. 이메일·브라우저 알림은 본인 몫이라 이 값과 상관없다.
+     */
+    public boolean broadcastAllowed() {
+        return broadcastAllowed;
     }
 
     /** 이름의 메시지 번들 키 */

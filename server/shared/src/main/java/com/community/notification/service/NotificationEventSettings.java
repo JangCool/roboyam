@@ -16,8 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class NotificationEventSettings {
 
-    /** 이벤트 하나에 적용되는 값 */
-    public record State(boolean enabled, boolean emailEnabled) {
+    /** 이벤트 하나에 적용되는 값 — {@code browserEnabled} 는 브라우저 알림 전달 선택(서버가 하는 일은 저장뿐이다) */
+    public record State(boolean enabled, boolean emailEnabled, boolean browserEnabled) {
     }
 
     private final NotificationEventRepository events;
@@ -46,6 +46,6 @@ public class NotificationEventSettings {
     private static State effective(AdminNotificationEvent event, NotificationEventEntity row) {
         boolean enabled = event.mandatory() || (row == null ? event.defaultEnabled() : row.isEnabled());
         boolean emailEnabled = event.emailable() && (row == null ? event.defaultEmailEnabled() : row.isEmailEnabled());
-        return new State(enabled, emailEnabled);
+        return new State(enabled, emailEnabled, row != null && row.isBrowserEnabled());
     }
 }

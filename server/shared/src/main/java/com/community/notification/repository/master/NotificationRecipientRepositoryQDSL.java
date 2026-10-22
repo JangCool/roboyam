@@ -39,12 +39,12 @@ public class NotificationRecipientRepositoryQDSL extends RoboyamRepositoryQDSL {
             holds = holds.or(JPAExpressions.selectOne().from(OPERATOR_ROLE).join(ROLE_PERMISSION).on(ROLE_PERMISSION.roleId.eq(OPERATOR_ROLE.roleId))
                     .where(OPERATOR_ROLE.operatorId.eq(OPERATOR.id), ROLE_PERMISSION.permissionCode.in(permissionCodes)).exists());
         }
-        return new LinkedHashSet<>(query.select(OPERATOR.id).from(OPERATOR).where(active(now), holds).orderBy(OPERATOR.id.asc()).fetch());
+        return new LinkedHashSet<>(query.select(OPERATOR.id).from(OPERATOR).where(isActive(now), holds).orderBy(OPERATOR.id.asc()).fetch());
     }
 
     /** 활성 최고 관리자 */
     public Set<Long> activeRoots(Instant now) {
-        return new LinkedHashSet<>(query.select(OPERATOR.id).from(OPERATOR).where(active(now), OPERATOR.root.isTrue()).orderBy(OPERATOR.id.asc()).fetch());
+        return new LinkedHashSet<>(query.select(OPERATOR.id).from(OPERATOR).where(isActive(now), OPERATOR.root.isTrue()).orderBy(OPERATOR.id.asc()).fetch());
     }
 
     /** 그 운영자들 중 활성인 사람 — 추가 수신자를 거를 때 */
@@ -52,7 +52,7 @@ public class NotificationRecipientRepositoryQDSL extends RoboyamRepositoryQDSL {
         if (operatorIds.isEmpty()) {
             return Set.of();
         }
-        return new LinkedHashSet<>(query.select(OPERATOR.id).from(OPERATOR).where(OPERATOR.id.in(operatorIds), active(now)).orderBy(OPERATOR.id.asc()).fetch());
+        return new LinkedHashSet<>(query.select(OPERATOR.id).from(OPERATOR).where(OPERATOR.id.in(operatorIds), isActive(now)).orderBy(OPERATOR.id.asc()).fetch());
     }
 
     /** 그 운영자들 중 계정이 있는 사람(상태와 상관없이) — 「내 계정」 이벤트의 수신자 */
@@ -78,7 +78,7 @@ public class NotificationRecipientRepositoryQDSL extends RoboyamRepositoryQDSL {
     }
 
     /** 지금 로그인할 수 있는 상태 — 승인됨 · 잠기지 않음 · 만료 표시 없음 · 사용 중 · 계정 기간 안 */
-    private static BooleanExpression active(Instant now) {
+    public static BooleanExpression isActive(Instant now) {
         BooleanExpression periodOver = OPERATOR.accountStartAt.isNotNull().and(OPERATOR.accountStartAt.gt(now))
                 .or(OPERATOR.accountEndAt.isNotNull().and(OPERATOR.accountEndAt.lt(now)));
         return OPERATOR.approved.isTrue().and(OPERATOR.locked.isFalse()).and(OPERATOR.expired.isFalse()).and(OPERATOR.enabled.isTrue()).and(periodOver.not());
