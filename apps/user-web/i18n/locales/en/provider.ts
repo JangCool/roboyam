@@ -13,7 +13,4 @@ export default {
     continueWith: 'Continue with {provider}',
     loginWith: 'Log in with {provider}',
     signupWith: 'Sign up with {provider}',
-
-    // Mock notice
-    mockNotice: 'Logging in with {provider} will be available once the server is connected (mock)',
 };

@@ -19,6 +19,9 @@
                 <a href="/privacy" target="_blank" rel="noopener" class="font-semibold hover:underline max-md:-my-2 max-md:py-2">{{ t('common.privacy') }}</a>
             </footer>
         </div>
+
+        <!-- 소셜 가입 마무리가 로그인 화면으로 돌려보낼 때의 안내(서버 문구) 등 — 셸이 없는 화면도 토스트를 보인다 -->
+        <AppToaster />
     </div>
 </template>
 

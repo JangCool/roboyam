@@ -1,5 +1,5 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
-import type { NicknameReason } from '~/composables/auth/api/useAuthApi.types';
+import type { NicknameReason, SocialFailureReason } from '~/composables/auth/api/useAuthApi.types';
 import type { EmailProblem, NicknameProblem } from '~/utils/util-validation';
 
 /**
@@ -51,7 +51,29 @@ const NICKNAME_REASON: Record<NicknameReason, string> = {
     RESERVED: 'auth.nicknameReserved',
 };
 
+/** 소셜 로그인·연결 실패 사유(`reason=`, 서버 `SocialFailure`) → `login.*` 키 */
+const SOCIAL_REASON: Record<SocialFailureReason, string> = {
+    cancelled: 'login.reasonCancelled',
+    invalid_state: 'login.reasonInvalidState',
+    expired: 'login.reasonExpired',
+    provider_error: 'login.reasonProviderError',
+    account_unavailable: 'login.reasonAccountUnavailable',
+    session_changed: 'login.reasonSessionChanged',
+    already_linked: 'login.reasonAlreadyLinked',
+};
+
 export default class UtilAuthMessages {
+    /**
+     * 소셜 로그인·연결이 끝나지 않은 사유(주소의 `reason` 쿼리 값)를 문구로 바꿉니다.
+     * @param {Translate} t - 번역 함수.
+     * @param {unknown} reason - 주소의 `reason` 값(없거나 모르는 값일 수 있다).
+     * @returns {string} 사유 한 줄. 모르는 사유면 일반 문구(`login.socialFailedBody`).
+     */
+    static socialReason(t: Translate, reason: unknown): string {
+        const key = typeof reason === 'string' && Object.prototype.hasOwnProperty.call(SOCIAL_REASON, reason) ? SOCIAL_REASON[reason as SocialFailureReason] : null;
+        return t(key ?? 'login.socialFailedBody');
+    }
+
     /**
      * 서버가 문구를 안 줬을 때의 한 줄
      * @param {Translate} t - 번역 함수(`useI18n().t` 또는 `useTranslate()`).

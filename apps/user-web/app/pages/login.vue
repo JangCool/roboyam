@@ -30,9 +30,9 @@
         tone="error"
         :title="t('login.socialFailedTitle', { provider: notice.provider })"
     >
-        {{ t('login.socialFailedBody') }}
+        {{ UtilAuthMessages.socialReason(t, notice.reason) }}
         <template #actions>
-            <SocialLoginButtons mode="continue" solid />
+            <SocialLoginButtons mode="continue" solid :next="nextQuery" />
             <Button :label="t('login.loginWithEmail')" variant="outlined" severity="secondary" fluid @click="dismissNotice" />
             <NuxtLink to="/" class="mt-1 text-sm text-primary hover:underline max-md:py-1.5">{{ t('login.browseWithout') }}</NuxtLink>
         </template>
@@ -126,7 +126,7 @@
         </p>
 
         <div class="mt-5">
-            <SocialLoginButtons mode="continue" :divider="t('login.socialDivider')" :disabled="busy" />
+            <SocialLoginButtons mode="continue" :divider="t('login.socialDivider')" :disabled="busy" :next="nextQuery" />
         </div>
 
         <p class="mt-5 text-center text-sm">
@@ -171,12 +171,18 @@ const busy = computed(() => submitting.value || locked.value);
 /** 이메일·비밀번호 중 어느 쪽이 틀렸는지 알려 주지 않는다 — 둘 다 붉게만 */
 const credentialsInvalid = computed(() => error.value?.code === 'INVALID_CREDENTIALS');
 
-/** `?error=` 로 돌아온 소셜 결과 (docs/api-auth.md 소셜 로그인 흐름) */
+/** 로그인 뒤 돌아갈 곳(주소의 `next`) — 소셜 버튼은 서버 규칙에 맞을 때만 넘긴다 */
+const nextQuery = computed(() => (typeof route.query.next === 'string' ? route.query.next : ''));
+
+/**
+ * `?error=` 로 돌아온 소셜 결과 (docs/features/login-contract.md 「소셜 로그인」 콜백 결과 표).
+ * `provider` 는 없을 수 있다(state 를 못 찾은 실패) — 그때 이름은 "소셜"(`provider.other`). `reason` 은 실패에만 있고 없거나 모르는 값이면 일반 문구다.
+ */
 const notice = computed(() => {
     const code = route.query.error;
     const provider = UtilProvider.name(t, typeof route.query.provider === 'string' ? route.query.provider : null);
     if (code === 'email_exists') return { kind: 'email_exists' as const, provider };
-    if (code === 'social_failed') return { kind: 'social_failed' as const, provider };
+    if (code === 'social_failed') return { kind: 'social_failed' as const, provider, reason: route.query.reason };
     // 화면이 붙이는 값 — 소셜 가입 정보(서버 세션)가 만료돼 /signup/social 에서 돌려보낸 경우
     if (code === 'social_expired') return { kind: 'social_expired' as const, provider };
     return null;

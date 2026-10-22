@@ -11,6 +11,9 @@ import type { RouteLocationRaw } from 'vue-router';
 /** 로그인 뒤 다시 보내면 고리가 생기는 곳(게스트 전용 화면) */
 const AUTH_PAGES = ['/login', '/signup'];
 
+/** 소셜 로그인 시작이 받는 `next` 길이 상한 — 서버 `SocialReturnPaths.NEXT_MAX_LENGTH` */
+const SOCIAL_NEXT_MAX = 512;
+
 export default class UtilRedirect {
     /**
      * 로그인 뒤 돌아갈 곳으로 써도 되는 값인지 봅니다.
@@ -39,6 +42,27 @@ export default class UtilRedirect {
         // 로그인 화면이 다시 로그인 화면으로 보내는 고리를 끊는다
         if (AUTH_PAGES.some((p) => path === p || path.startsWith(p + '/'))) return '/';
         return raw;
+    }
+
+    /**
+     * 소셜 로그인 시작(`GET /api/auth/social/{id}/start?next=`)에 넘길 `next` — 서버 `SocialReturnPaths.isSafeRelativePath` 와 같은 규칙을 미리 본다.
+     * 서버는 어기면 시작을 400 으로 거절하므로(페이지 이동이라 JSON 화면이 된다) 맞지 않으면 넘기지 않는다(null).
+     * 먼저 `safeNext` 로 거르고(로그인·가입 화면은 홈으로), 홈이면 넘기지 않는다. ASCII 밖의 글자(한글 경로)는 퍼센트 인코딩한다 — 서버는 ASCII 만 받는다.
+     * 그 뒤: `/` 로 시작, `//`·`/%2f`·`/%5c` 시작 불가, 역슬래시·공백·제어 문자 불가, 512자 이하, URI 로 읽히는 글자만.
+     * @param {unknown} value - 쿼리 `next` 값(배열일 수도 있다).
+     * @returns {string | null} 넘길 경로. 넘기지 않으면 null.
+     */
+    static socialNext(value: unknown): string | null {
+        const target = UtilRedirect.safeNext(value);
+        if (target === '/') return null;
+        const ascii = target.replace(/[^\u0000-\u007f]+/g, (run) => encodeURIComponent(run));
+        if (ascii.length > SOCIAL_NEXT_MAX) return null;
+        const lower = ascii.toLowerCase();
+        if (lower.startsWith('/%2f') || lower.startsWith('/%5c')) return null;
+        if (!UtilRedirect.isSafeNext(ascii)) return null;
+        // 서버가 `java.net.URI` 로 읽을 수 있는 글자만(경로·쿼리에 허용되는 글자, 올바른 퍼센트 인코딩, `#` 은 한 번)
+        if (!/^[A-Za-z0-9\-._~:/?#@!$&'()*+,;=%]+$/.test(ascii) || /%(?![0-9A-Fa-f]{2})/.test(ascii) || ascii.split('#').length > 2) return null;
+        return ascii;
     }
 
     /**

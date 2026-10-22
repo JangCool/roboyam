@@ -14,11 +14,12 @@ import { definePreset } from '@primeuix/themes';
  *   API_ORIGIN  기본 http://localhost:8910 (local 프로파일의 api)
  *   NUXT_PORT   기본 3100
  *
- * 개발 서버에서는 아래 `/api` 프록시가 api 서버(`API_ORIGIN`)로 이어 준다. 설치 마법사(`useInstallApi`)·로그인(`useAuthApi`)·사이트 정보(`useSiteInfoApi`)·메뉴(`useMenuApi`)·게시판(`useBoardApi`·`usePostApi`·`useCommentApi`·`useReportApi`)은 이 프록시로 실제 서버를 부른다.
- * 아직 `// MOCK:` 인 것: 보기 설정(`useDisplayApi`)·테마(`useThemeApi`)·알림·쪽지(`useNotificationApi`·`useDmApi`)·포인트(`usePointApi`), 소셜 로그인 시작.
+ * 개발 서버에서는 아래 `/api` 프록시가 api 서버(`API_ORIGIN`)로 이어 준다. 설치 마법사(`useInstallApi`)·로그인과 소셜 로그인(`useAuthApi`·`useMeSocialApi`)·사이트 정보(`useSiteInfoApi`)·메뉴(`useMenuApi`)·게시판(`useBoardApi`·`usePostApi`·`useCommentApi`·`useReportApi`)은 이 프록시로 실제 서버를 부른다.
+ * 소셜 로그인 시작·콜백도 `/api/auth/social/**` 라 같은 프록시를 탄다 — 공급자에 등록하는 콜백 주소는 사이트 공개 주소(`site_settings.public_url`) 기준이므로 로컬에서 시험하려면 공개 주소를 이 개발 서버 주소로 맞춘다.
+ * 아직 `// MOCK:` 인 것: 보기 설정(`useDisplayApi`)·테마(`useThemeApi`)·알림·쪽지(`useNotificationApi`·`useDmApi`)·포인트(`usePointApi`).
  *
  * 원본(community)과 달라진 점 — 마법사에 필요 없는 것을 뺐다: `extends` 레이어 중 rich-editor(display-time 은 공유 패키지 `@roboyam/display-time` 으로 가져왔다), tiptap, palettes/text-scale/home-gadget css(보기 설정),
- * 사이트 아이콘·웹 앱 매니페스트 링크, 소셜 로그인 프록시(`/oauth2`·`/login/oauth2`).
+ * 사이트 아이콘·웹 앱 매니페스트 링크, 원본의 소셜 로그인 프록시(`/oauth2`·`/login/oauth2` — roboyam 은 `/api/auth/social/**` 를 쓴다).
  */
 const API_ORIGIN = process.env.API_ORIGIN ?? 'http://localhost:8910';
 

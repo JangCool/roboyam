@@ -35,13 +35,22 @@ export default {
     emailExistsTitle: 'An account with this email already exists',
     emailExistsBody: 'The email from {provider} is already used by a {site} account.',
     emailExistsHint: 'Log in with your email, then link {provider} under {where} to log in with it next time.',
-    emailExistsWhere: 'Settings › Account',
+    emailExistsWhere: 'User menu › Account & sign-in',
     noAutoMerge: 'We never merge accounts automatically without verifying it is you.',
     loginWithEmail: 'Log in with email',
     signupOther: 'Sign up with another account',
     socialFailedTitle: 'Logging in with {provider} was not completed',
     socialFailedBody: 'You cancelled or the connection failed. Try again or choose another way.',
     socialExpired: 'Your social sign-up has timed out. Please start again.',
+
+    // Why social log-in or linking did not finish (the server sends `reason=`) — shared by the log-in screen and the account & sign-in screen
+    reasonCancelled: 'You cancelled on the consent screen.',
+    reasonInvalidState: 'We could not verify the request. Please start again in the same browser.',
+    reasonExpired: 'It took too long. Please start again.',
+    reasonProviderError: 'We could not get your social account details. Please try again later.',
+    reasonAccountUnavailable: 'The member account linked to this social account is not available.',
+    reasonSessionChanged: 'The account that started linking is not the one logged in now. Please try again.',
+    reasonAlreadyLinked: 'Another account from the same service is already linked to your account.',
 
     // Email verification banner
     verifyLabel: 'Email verification notice',
