@@ -14,7 +14,4 @@ export default {
     continueWith: '{providerRo} 계속하기',
     loginWith: '{providerRo} 로그인',
     signupWith: '{providerRo} 가입',
-
-    // 목업 안내
-    mockNotice: '{provider} 로그인은 서버를 연결한 뒤에 쓸 수 있어요 (목업)',
 };

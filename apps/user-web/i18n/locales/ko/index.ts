@@ -8,6 +8,7 @@
  *
  * ⚠ **`en/index.ts` 와 같은 목록이어야 한다.** 한쪽에만 있는 업무는 그 언어에서 한국어(폴백)로 보인다.
  */
+import account from './account';
 import auth from './auth';
 import board from './board';
 import business from './business';
@@ -26,11 +27,13 @@ import prompt from './prompt';
 import provider from './provider';
 import sanction from './sanction';
 import shell from './shell';
+import signup from './signup';
 import site from './site';
 import siteTerms from './siteTerms';
 import social from './social';
 
 export default {
+    account,
     auth,
     board,
     business,
@@ -49,6 +52,7 @@ export default {
     provider,
     sanction,
     shell,
+    signup,
     site,
     siteTerms,
     social,

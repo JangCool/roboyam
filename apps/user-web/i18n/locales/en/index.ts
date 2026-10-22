@@ -8,6 +8,7 @@
  *
  * ⚠ **Must be the same list as `ko/index.ts`.** A feature present in only one language shows in Korean (the fallback) in the other.
  */
+import account from './account';
 import auth from './auth';
 import board from './board';
 import business from './business';
@@ -26,11 +27,13 @@ import prompt from './prompt';
 import provider from './provider';
 import sanction from './sanction';
 import shell from './shell';
+import signup from './signup';
 import site from './site';
 import siteTerms from './siteTerms';
 import social from './social';
 
 export default {
+    account,
     auth,
     board,
     business,
@@ -49,6 +52,7 @@ export default {
     provider,
     sanction,
     shell,
+    signup,
     site,
     siteTerms,
     social,

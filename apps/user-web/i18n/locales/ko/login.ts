@@ -35,13 +35,22 @@ export default {
     emailExistsTitle: '이 이메일로 가입한 계정이 있어요',
     emailExistsBody: '{provider}에서 받은 이메일이 이미 {site} 계정에 쓰이고 있어요.',
     emailExistsHint: '이메일로 로그인한 뒤 {where}에서 {providerEul} 연동하면 다음부터 {providerRo}도 로그인할 수 있어요.',
-    emailExistsWhere: '설정 › 계정',
+    emailExistsWhere: '사용자 메뉴 › 계정·로그인 연결',
     noAutoMerge: '본인 확인 없이 계정을 자동으로 합치지 않아요.',
     loginWithEmail: '이메일로 로그인',
     signupOther: '다른 계정으로 가입',
     socialFailedTitle: '{provider} 로그인이 끝나지 않았어요',
     socialFailedBody: '로그인을 취소했거나 연결하지 못했어요. 다시 시도하거나 다른 방법을 골라 주세요.',
     socialExpired: '소셜 가입 시간이 지났어요. 처음부터 다시 시도해 주세요.',
+
+    // 소셜 로그인·연결이 끝나지 않은 사유(서버가 `reason=` 으로 준다) — 로그인 화면과 계정·로그인 연결 화면이 함께 쓴다
+    reasonCancelled: '동의 화면에서 취소했어요.',
+    reasonInvalidState: '요청을 확인하지 못했어요. 같은 브라우저에서 처음부터 다시 시도해 주세요.',
+    reasonExpired: '시간이 너무 오래 지났어요. 처음부터 다시 시도해 주세요.',
+    reasonProviderError: '소셜 계정 정보를 받지 못했어요. 잠시 후 다시 시도해 주세요.',
+    reasonAccountUnavailable: '이 소셜 계정에 연결된 회원 계정은 지금 이용할 수 없어요.',
+    reasonSessionChanged: '연결을 시작한 계정과 지금 로그인한 계정이 달라요. 다시 시도해 주세요.',
+    reasonAlreadyLinked: '이 계정에는 같은 서비스의 다른 소셜 계정이 이미 연결돼 있어요.',
 
     // 이메일 인증 배너
     verifyLabel: '이메일 인증 안내',

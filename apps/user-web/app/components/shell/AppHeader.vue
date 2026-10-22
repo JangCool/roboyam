@@ -108,13 +108,15 @@ const menuOpen = ref(false);
 const loginTarget = computed(() => UtilRedirect.toLogin(route.fullPath));
 
 /**
- * 프로필 드롭다운 — 맨 위에 보유 포인트, "포인트·출석체크"(오늘 출석 전이면 "· +10P")(8단계), "아이템샵", 쪽지함에는 안 읽은 대화가 있으면 수가 붙는다("쪽지함 · 안 읽음 3", design 01-shell 6),
+ * 프로필 드롭다운 — 맨 위에 보유 포인트, "내 정보" 다음에 "계정·로그인 연결"(`/settings/account`), "포인트·출석체크"(오늘 출석 전이면 "· +10P")(8단계), "아이템샵", 쪽지함에는 안 읽은 대화가 있으면 수가 붙는다("쪽지함 · 안 읽음 3", design 01-shell 6),
  * "사업자 센터"(신청했거나 사업자 전용 계정)·"사업자 신청"(일반 회원, 신청 전)(H-2). 사업자 전용 계정에는 포인트 줄·포인트 요약이 없다.
  * 운영자·운영진(`adminUrl` 이 있을 때)에게만 "관리자 앱"이 더해진다 — 별도 사이트라 `url`·`target` 으로 새 탭에서 연다.
  * 스크린리더 이름(`label`)에 새 탭이라는 말을 담고 보이는 글자(`text`)는 "관리자 앱"이다.
  */
 const menuItems = computed(() => [
     { label: t('shell.myInfo'), icon: 'pi pi-user', command: () => void navigateTo('/me') },
+    // 계정·로그인 연결(소셜 계정 연결·해제) — 셸 고정 항목이다(이 앱은 메뉴 관리의 마이페이지 그룹을 그리지 않는다)
+    { label: t('account.title'), icon: 'pi pi-link', command: () => void navigateTo('/settings/account') },
     ...(businessAccount.value
         ? []
         : [

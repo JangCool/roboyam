@@ -34,7 +34,8 @@ import UtilProvider from '~/utils/util-provider';
 /**
  * 소셜 로그인 버튼 묶음 (카카오·네이버·구글 — 서버가 키를 설정한 것만).
  * 누르면 요청이 아니라 **페이지 이동**이다 — 서버가 소셜 로그인 화면으로 보내고, 끝나면 화면 주소로 되돌려 보낸다.
- * ⚠ 목업: 지금은 이동하지 않고 토스트만 띄운다(`useAuthApi.startSocialLogin`). 원본이 이동 직전에 남기는 "소셜 로그인 시작" 표시(`useLoginLanding`)는 가져오지 않았다.
+ * 이동 주소는 `useAuthApi.startSocialLogin` 이 안다(`next` 는 서버 규칙에 맞을 때만 넘긴다). 원본이 이동 직전에 남기는 "소셜 로그인 시작" 표시(`useLoginLanding`)는 가져오지 않았다
+ * — 정지 회원이 연결된 소셜로 로그인하면 서버가 바로 `next` 로 보내므로 제재 안내(`/sanction`) 착륙은 아직 없다(제재 안내 화면을 만들 때 함께 가져온다).
  */
 interface Props {
     /** 버튼 글: 계속하기 · 로그인 · 가입 */
@@ -46,6 +47,8 @@ interface Props {
     divider?: string;
     /** 채운 버튼 */
     solid?: boolean;
+    /** 로그인 뒤 돌아갈 곳(주소의 `next` 쿼리 값) — 같은 사이트 상대 경로가 아니면 넘기지 않는다 */
+    next?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -54,6 +57,7 @@ const props = withDefaults(defineProps<Props>(), {
     disabled: false,
     divider: '',
     solid: false,
+    next: '',
 });
 
 /** 버튼 글 문구 키(`provider.ts`) — 이름에 조사가 붙는 문장이라 문장 전체가 키다 */
@@ -73,10 +77,7 @@ function label(p: { id: string; name: string }): string {
 
 function go(id: string) {
     redirecting.value = true; // 이동하는 동안 다른 버튼을 누르지 못하게
-    // REAL: 이동 직전에 "방금 소셜 로그인을 시작했다"는 표시를 남긴다 — 정지 중이면 돌아온 첫 화면이 제재 안내로 보낸다(7-2). 원본: useLoginLanding().markStarted() + middleware/sanction-landing.global.ts
-    api.startSocialLogin(id);
-    // MOCK: 목업은 페이지를 떠나지 않으므로 버튼을 바로 다시 연다(실제 연동 때 이 줄을 지운다)
-    redirecting.value = false;
+    api.startSocialLogin(id, props.next || undefined);
 }
 
 function onPageShow(e: PageTransitionEvent) {

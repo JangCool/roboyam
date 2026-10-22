@@ -84,3 +84,11 @@
 - 카카오 PKCE(`code_challenge`)와 카카오 동의 항목(이메일·닉네임)은 실제 콘솔에서 확인이 필요하다(가짜 공급자로만 검증). 구글 ID 토큰 서명 검증(JWKS)은 하지 않았다(위 근거).
 - 화면 경로 `/signup/social`·`/settings/account` 는 user-web 에 아직 없다(다음 단계에서 만든다). 연결 결과 쿼리 모양은 community `api-account.md` 와 같게 두었다.
 - `terms_version` 실제 값, 가입 완료 동시 요청의 `409 SOCIAL_ALREADY_REGISTERED`/`EMAIL_TAKEN` 뒤 가입 대기는 남는다(15분 뒤 만료 — 화면은 이 두 코드에서 로그인 화면으로 보낸다). 이메일 겹침 안내는 다른 소셜로 가입할 길이 없다(이메일 가입 화면이 아직 없다). 로그인 연속 실패 잠금(`login_attempts`)은 소셜과 무관하다. 마이그레이션은 없다(V53 미사용).
+
+## 소셜 로그인 프론트 연결 결과 (2026-10-23)
+- **실제 연결**: `useAuthApi.startSocialLogin(id, next)` → `location.assign('/api/auth/social/{id}/start?next=…')`. `next` 는 서버 `SocialReturnPaths` 규칙을 화면이 미리 보고(`UtilRedirect.socialNext` — 비ASCII 는 퍼센트 인코딩, 맞지 않으면 생략) 맞을 때만 붙인다. 버튼은 기존대로 `GET /api/auth/providers` 를 따른다. 가입 대기·완료는 `useAuthApi.socialPending`·`completeSocialSignup`(+`useAuth.completeSocialSignup`), 연결 관리는 `composables/auth/api/useMeSocialApi.ts`.
+- **`/login`**: `error=email_exists|social_failed|social_expired` 안내에 `reason` 문구(`login.reason*`, 모르는 값은 일반 문구)를 더했다. `provider` 가 없으면 "소셜". 이메일 겹침 안내의 길 이름은 「사용자 메뉴 › 계정·로그인 연결」.
+- **`/signup/social`**(레이아웃 `auth`, `guest`): 공급자·마스킹 이메일·닉네임 기본값, `emailVerified=false` 이고 이메일이 있으면 인증 메일 안내. 약관 동의는 원본 `TermsAgreement` 를 옮긴 `components/auth/TermsAgreement.vue`. 201 → `UtilSanction.afterLoginPath(restriction, pending.next ?? '/')`. 404 → `/login?error=social_expired`, `NICKNAME_TAKEN` → 닉네임 칸, `EMAIL_TAKEN` → `/login?error=email_exists&provider=…`, `SOCIAL_ALREADY_REGISTERED` → 토스트(서버 문구) + `/login`. `auth` 레이아웃에 토스트(`AppToaster`)를 두었다.
+- **`/settings/account`**(`middleware: 'auth'` 새로 둠 — 비로그인은 `/login?next=`): 로그인 수단(비밀번호 유무) + 공급자 3줄(연결·해제, 꺼진 공급자는 단추 없음, 마지막 수단은 해제 비활성). 돌아온 `linked`·`link=taken`·`link=failed&reason` 은 토스트/안내로 보이고 쿼리를 지운다. 들어가는 길은 헤더 프로필 메뉴의 고정 항목 「계정·로그인 연결」(user-web 은 메뉴 관리의 MYPAGE 그룹을 그리지 않는다 — 관리자 레지스트리 `SETTINGS_ACCOUNT` 는 이미 이 경로다).
+- **검증**: 일회용 DB·jar(9061)·가짜 공급자(카카오·네이버 모양)·`nuxt dev` 3267, 공개 주소 `http://localhost:3267` 로 콜백이 프록시를 거쳐 돌아오는 것 확인. 신규 가입 완료(미확인·확인 이메일)·닉네임 중복·이메일 겹침·취소·invalid_state·가입 대기 만료·연결 성공/취소/taken·해제·마지막 해제 409 거절·연결된 소셜 로그인 후 `next`(한글 경로) 복귀.
+- **미확정**: 연결된 소셜로 로그인한 정지 회원의 제재 안내 착륙(원본 `useLoginLanding`)은 없다. `/signup`(이메일 가입)·`/password/forgot`·`/terms`·`/privacy` 화면은 아직 없어 링크가 비어 있다. 구글은 가짜 공급자로 시험하지 않았다.

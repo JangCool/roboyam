@@ -96,12 +96,58 @@ export interface SocialSignupRequest extends Agreements {
     nickname: string;
 }
 
-/** 소셜 가입을 이어가는 중인 사람 (`useAuthApi().socialPending()`) */
+/**
+ * 소셜 가입을 이어가는 중인 사람 (`GET /api/auth/social/pending` — 서버 `SocialPendingResponse`).
+ * 서버 세션에만 있고 15분 뒤 사라진다(`404 NO_PENDING`).
+ */
 export interface SocialPending {
+    /** 공급자 id(`kakao` · `naver` · `google`) */
     provider: string;
+    /** 요청 언어의 공급자 이름 */
     providerName: string;
+    /** 공급자가 준 닉네임 중 닉네임 규칙에 맞는 것 — 없으면 null(구글은 늘 null) */
     suggestedNickname: string | null;
+    /** `a***@example.com` 모양. 공급자가 이메일을 안 줬으면 null */
     emailMasked: string | null;
+    /** 공급자가 이메일을 확인했다고 했는가 — false 면 가입 뒤 서버가 인증 메일을 보낸다(이메일이 없어도 false) */
+    emailVerified: boolean;
+    /** 가입 뒤 돌아갈 같은 사이트 상대 경로 — 없으면 null(`/`) */
+    next: string | null;
+}
+
+/** 서버가 콜백 결과에 싣는 사유 코드(`reason=`) — docs/features/login-contract.md 「소셜 로그인」, 서버 `SocialFailure` */
+export type SocialFailureReason =
+    | 'cancelled'
+    | 'invalid_state'
+    | 'expired'
+    | 'provider_error'
+    | 'account_unavailable'
+    | 'session_changed'
+    | 'already_linked';
+
+/** `GET /api/me/social` 의 한 줄 — 서버 `MeSocialProviderView` */
+export interface MeSocialProvider {
+    /** 공급자 id(`kakao` · `naver` · `google`) */
+    id: string;
+    /** 요청 언어의 공급자 이름 */
+    name: string;
+    /** 이 계정에 연결돼 있는가 */
+    linked: boolean;
+    /** 지금 연결을 시작할 수 있는가(운영자가 켜 두고 키가 있음 + 아직 연결 안 됨) */
+    linkable: boolean;
+    /** 연결돼 있고 해제해도 다른 로그인 수단(비밀번호 또는 다른 소셜)이 남는가 */
+    canUnlink: boolean;
+}
+
+/** `GET /api/me/social` — 서버 `MeSocialResponse`. 공급자는 카카오·네이버·구글 순 3개 */
+export interface MeSocialResponse {
+    hasPassword: boolean;
+    providers: MeSocialProvider[];
+}
+
+/** `POST /api/me/social/{provider}/link` — 공급자 인가 주소. 화면이 그리로 페이지 이동한다 */
+export interface SocialLinkStartResponse {
+    redirectUrl: string;
 }
 
 export interface PasswordResetRequest {

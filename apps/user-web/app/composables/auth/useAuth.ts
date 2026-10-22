@@ -1,4 +1,4 @@
-import type { AuthUser, LoginRequest, MeResponse } from '~/composables/auth/api/useAuthApi.types';
+import type { AuthUser, LoginRequest, MeResponse, SocialSignupRequest } from '~/composables/auth/api/useAuthApi.types';
 import type { Restriction } from '~/composables/auth/api/useAuthApi.types';
 import UtilAdminLink from '~/utils/util-admin-link';
 
@@ -11,7 +11,7 @@ import UtilAdminLink from '~/utils/util-admin-link';
  *
  * 서버와 말하는 것은 `useAuthApi` 다(frontend-guide 3장). 여기는 상태만 든다.
  *
- * ⚠ 원본(community)에서 가입(`signup`·`signupBusiness`·`signupSocial`)을 뺐다 — 가입 화면을 만들 때 원본에서 다시 가져온다.
+ * ⚠ 원본(community)에서 이메일·사업자 가입(`signup`·`signupBusiness`)을 뺐다 — 가입 화면을 만들 때 원본에서 다시 가져온다. 소셜 가입 마무리는 `completeSocialSignup`.
  */
 
 /** 진행 중인 `me` 호출 — 동시에 여러 곳이 물어도 한 번만 보낸다 */
@@ -84,6 +84,11 @@ export function useAuth() {
         return apply(await api.login(body));
     }
 
+    /** 소셜 가입 마무리 — 가입과 동시에 로그인된다(`201`, me 와 같은 모양). 실패하면 `ApiError` 를 던진다(409 NICKNAME_TAKEN · 400 VALIDATION …). */
+    async function completeSocialSignup(body: SocialSignupRequest): Promise<AuthUser | null> {
+        return apply(await api.completeSocialSignup(body));
+    }
+
     /**
      * 로그아웃. **서버가 실패해도 화면 상태는 지운다** — 여기서 붙잡으면 눌렀는데 로그인 상태로 남는다
      * (공용 PC 에서 가장 나쁜 결과).
@@ -105,5 +110,5 @@ export function useAuth() {
         adminUrlState.value = null;
     }
 
-    return { user, restriction, adminUrl, loaded, isLoggedIn, emailVerified, refresh, ensureLoaded, login, logout, clear };
+    return { user, restriction, adminUrl, loaded, isLoggedIn, emailVerified, refresh, ensureLoaded, login, completeSocialSignup, logout, clear };
 }
