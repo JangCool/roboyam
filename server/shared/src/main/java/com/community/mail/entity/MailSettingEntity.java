@@ -66,6 +66,22 @@ public class MailSettingEntity {
         return setting;
     }
 
+    /**
+     * 관리자 화면(설정 › 메일 서버)에서 고친다 — 행 잠금을 잡고 부른다. 사용자 이름이 없으면 비밀번호도 지운다.
+     *
+     * @param passwordEnc 이미 암호화한 비밀번호({@code v1:…}) 또는 null. 평문을 넘기지 않는다
+     */
+    public void change(String host, int port, String username, String passwordEnc, String fromAddress, MailSecurity security, long updatedBy, Instant now) {
+        this.host = host;
+        this.port = port;
+        this.username = username;
+        this.passwordEnc = username == null ? null : passwordEnc;
+        this.fromAddress = fromAddress;
+        this.security = security;
+        this.updatedBy = updatedBy;
+        this.updatedAt = now;
+    }
+
     public Integer getId() {
         return id;
     }
@@ -93,5 +109,14 @@ public class MailSettingEntity {
 
     public MailSecurity getSecurity() {
         return security;
+    }
+
+    /** 마지막으로 저장한 운영자 ID */
+    public Long getUpdatedBy() {
+        return updatedBy;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
     }
 }

@@ -17,9 +17,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 메일 서버 설정의 입력 검사와 저장. 설치 마법사가 쓴다(설치 뒤 설정 화면의 읽기·수정·삭제는 그 기능을 만들 때 더한다).
+ * 메일 서버 설정의 입력 검사와 첫 저장. 설치 마법사가 쓰고, 입력 검사({@link #normalize})는 관리자 화면의 저장(admin {@code MailSettingsAdminService})도 같이 쓴다.
  *
  * <ul>
+ *   <li>첫 저장({@link #create})은 설정 이력에 출처 {@code INSTALL} 한 줄을 함께 남긴다({@link MailSettingHistoryService}).</li>
  *   <li><b>비밀번호는 암호화해 저장</b>하고({@link SecretEncryptor}) <b>어떤 응답·로그·오류에도 싣지 않는다.</b></li>
  *   <li><b>사용자 이름과 비밀번호는 "둘 다 있거나 둘 다 비움"</b>이다 — 사용자 이름이 있으면 비밀번호가 필수이고(여기서는 저장된 값이 없다),
  *       비밀번호만 있으면 사용자 이름 오류다.</li>
@@ -36,10 +37,12 @@ public class MailSettingsService {
 
     private final MailSettingRepository settings;
     private final SecretEncryptor encryptor;
+    private final MailSettingHistoryService history;
 
-    public MailSettingsService(MailSettingRepository settings, SecretEncryptor encryptor) {
+    public MailSettingsService(MailSettingRepository settings, SecretEncryptor encryptor, MailSettingHistoryService history) {
         this.settings = settings;
         this.encryptor = encryptor;
+        this.history = history;
     }
 
     /**
@@ -114,13 +117,14 @@ public class MailSettingsService {
 
     /**
      * 검사를 마친 값을 처음 저장한다. <b>트랜잭션은 부르는 쪽이 연다</b> — 설치 마법사는 이것을 설치 트랜잭션 안에서 불러 실패하면 함께 되돌린다.
-     * 비밀번호가 있으면 암호화 키가 있어야 한다(없으면 {@code 503 CRYPTO_KEY_MISSING}).
+     * 비밀번호가 있으면 암호화 키가 있어야 한다(없으면 {@code 503 CRYPTO_KEY_MISSING}). 설정 이력에 출처 {@code INSTALL} 첫 줄을 같은 트랜잭션으로 남긴다.
      */
     @Transactional
     public void create(MailValues values, long adminId, Instant now) {
         String passwordEnc = values.password() == null ? null : encryptor.encrypt(values.password());
         settings.persist(MailSettingEntity.create(values.host(), values.port(), values.username(), passwordEnc, values.from(),
                 values.security(), adminId, now));
+        history.recordInstall(values, adminId, now);
         log.info("메일 서버 설정 저장(인증 {}) userId={}", values.username() == null ? "없음" : "사용", adminId);
     }
 }

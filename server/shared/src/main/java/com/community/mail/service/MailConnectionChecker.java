@@ -49,6 +49,7 @@ public class MailConnectionChecker {
     /**
      * 실패 원인을 가른다. 라이브러리 예외는 껍데기 안에 진짜 원인이 들어 있으므로 <b>원인 사슬 전체</b>를 본다.
      * 시간 초과 → 인증 거절 → TLS 문제 → 그 밖(접속 못 함) 순이다 — 접속 시간 초과는 접속 예외 안에 들어 있어 먼저 봐야 한다.
+     * 관리자 화면의 시험 발송도 같은 분류를 쓴다({@link MailSendFailures}).
      */
     static MailCheckReason classify(Throwable error) {
         List<Throwable> chain = chain(error);

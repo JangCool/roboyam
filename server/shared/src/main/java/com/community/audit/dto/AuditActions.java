@@ -41,6 +41,10 @@ public final class AuditActions {
     public static final String SITE_OG_RESET = "SITE_OG_RESET";
     public static final String SITE_DISPLAY_UPDATE = "SITE_DISPLAY_UPDATE";
     public static final String SITE_THEME_UPDATE = "SITE_THEME_UPDATE";
+    /** 메일 서버 설정 저장 — 대상 SITE + {@code mail}, 바뀐 칸 이름만({@code fields}). 비밀번호 값·암호문은 싣지 않는다 */
+    public static final String MAIL_SETTINGS_UPDATE = "MAIL_SETTINGS_UPDATE";
+    /** 메일 서버 시험 발송 — 성공 여부·원인 코드만(받는 주소·서버 응답은 싣지 않는다) */
+    public static final String MAIL_SETTINGS_TEST = "MAIL_SETTINGS_TEST";
     public static final String PROFILE_UPDATE = "PROFILE_UPDATE";
     public static final String PROFILE_DISPLAY_UPDATE = "PROFILE_DISPLAY_UPDATE";
     public static final String PROFILE_NOTIFICATION_UPDATE = "PROFILE_NOTIFICATION_UPDATE";
