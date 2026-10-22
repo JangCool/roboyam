@@ -1,0 +1,58 @@
+package com.community.membernotification.repository.master;
+
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import javax.sql.DataSource;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+/**
+ * 회원 알림 행 만들기·묶기와 그 판정에 필요한 읽기 — {@code MemberNotificationPublisher} 만 부른다.
+ *
+ * <p>Native SQL(JDBC)인 이유: 알림 실패가 업무(댓글쓰기·포인트 조정·신고)를 깨지 않도록 업무 트랜잭션 연결의 세이브포인트 안에서 영속성 컨텍스트를 거치지 않고 쓴다
+ * ({@code IsolatedSideWork}, 관리자 알림 {@code NotificationPublisher} 와 같은 방식). 업무 트랜잭션(JPA)의 같은 연결에 참여하므로 트랜잭션은 부르는 서비스가 연다.
+ */
+@Repository
+public class MemberNotificationWriter {
+
+    private final JdbcTemplate jdbc;
+
+    public MemberNotificationWriter(DataSource dataSource) {
+        this.jdbc = new JdbcTemplate(dataSource);
+    }
+
+    /** 알림을 받을 수 있는 회원인가 — 탈퇴·삭제된 회원은 받지 않는다(정지 회원은 받는다) */
+    public boolean receivable(long userId) {
+        return !jdbc.queryForList("select 1 from users where id = ? and status <> 'WITHDRAWN' and deleted_at is null", Integer.class, userId).isEmpty();
+    }
+
+    /** 게시판 기본 설정 「알림」 — 회원 알림 기본값 JSON 배열 글자와 묶음 시간(분). 행이 없으면 비어 있다 */
+    public Optional<BoardNotifyRow> boardSettings() {
+        List<BoardNotifyRow> rows = jdbc.query("select member_defaults::text, group_window_minutes from board_notification_settings where id = 1",
+                (rs, i) -> new BoardNotifyRow(rs.getString(1), rs.getInt(2)));
+        return rows.stream().findFirst();
+    }
+
+    /** 묶을 줄 — 같은 회원·같은 글의 안 읽은 COMMENT 중 {@code since} 뒤에 만든 가장 최근 줄(잠근다) */
+    public Optional<Long> groupable(long userId, long postId, Instant since) {
+        return jdbc.queryForList("select id from member_notifications where user_id = ? and type = 'COMMENT' and post_id = ? and read_at is null "
+                + "and created_at > ? order by id desc limit 1 for update", Long.class, userId, postId, Timestamp.from(since)).stream().findFirst();
+    }
+
+    /** 묶인 줄에 새 댓글을 더한다 — 일으킨 사람·가리키는 댓글은 가장 최근 것으로 바꾸고 묶인 수를 하나 늘린다(만든 시각·차례는 그대로) */
+    public void addToGroup(long id, Long actorUserId, String actorName, Long commentId) {
+        jdbc.update("update member_notifications set group_count = group_count + 1, actor_user_id = ?, actor_name = ?, comment_id = ? where id = ?",
+                actorUserId, actorName, commentId, id);
+    }
+
+    public void insert(long id, long userId, String type, Long actorUserId, String actorName, Long postId, Long commentId, String payloadJson, Instant createdAt) {
+        jdbc.update("insert into member_notifications (id, user_id, type, actor_user_id, actor_name, post_id, comment_id, payload, created_at) "
+                + "values (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?)", id, userId, type, actorUserId, actorName, postId, commentId, payloadJson, Timestamp.from(createdAt));
+    }
+
+    /** @param memberDefaults JSON 배열 글자 {@code [{kind, site, email, memberCanTurnOff}]} */
+    public record BoardNotifyRow(String memberDefaults, int groupWindowMinutes) {
+    }
+}

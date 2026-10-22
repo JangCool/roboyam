@@ -1,7 +1,7 @@
 # 🔔 Backend Notification Guide (`notification.md`)
 
 ## 1. 역할 및 기본 원칙
-* 관리자 앱의 사건(**이벤트**)을 알림으로 전달한다 — 앱 안 종 알림 서랍(필수)과 이메일(이벤트별 선택). 회원용(공개 사이트) 알림은 범위 밖이다. 설계·결정은 `docs/features/notification-contract.md`, 구현 사실은 `docs/features/roles-contract.md` 「7단계 구현 결과」.
+* 관리자 앱의 사건(**이벤트**)을 알림으로 전달한다 — 앱 안 종 알림 서랍(필수)과 이메일(이벤트별 선택). 회원용(공개 사이트) 알림은 별개다 — `docs/features/member-notification-contract.md`(shared `MemberNotificationPublisher`, 같은 세이브포인트 격리). 설계·결정은 `docs/features/notification-contract.md`, 구현 사실은 `docs/features/roles-contract.md` 「7단계 구현 결과」.
 * **이벤트의 정의는 코드(`AdminNotificationEvent` enum, shared `com.community.notification.entity`)가 원천**이다(`Permission`·`BatchCatalog` 와 같은 방식). 표 `notification_events` 는 운영자가 화면에서 바꾸는 값(사용 여부·이메일 전달)만 든다. **수신 규칙·심각도·필수 여부·링크는 코드에 고정**이고 화면에서 바꾸지 않는다(규칙을 바꾸면 보면 안 될 알림을 받을 수 있다 — 권한 상승 방지).
 * 알림은 이벤트가 일어난 시점에 수신자마다 한 행(`admin_notifications`)을 만든다(fan-out). 문구는 **키 + 인자**로 저장하고 읽을 때 읽는 사람의 요청 언어로 푼다.
 

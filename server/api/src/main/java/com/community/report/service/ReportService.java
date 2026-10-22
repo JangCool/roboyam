@@ -13,6 +13,7 @@ import com.community.board.service.ContentRules;
 import com.community.comment.entity.CommentEntity;
 import com.community.comment.repository.master.CommentRepository;
 import com.community.comment.repository.master.CommentRepositoryQDSL;
+import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.notification.dto.NotificationContext;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.service.NotificationPublisher;
@@ -62,6 +63,8 @@ import org.springframework.transaction.annotation.Transactional;
  * · 그 밖에는 자동 숨김 기준(서로 다른 회원 수, 신고 당시 최소 등급 이상인 신고만 센다)에 닿으면 숨김(REPORTED). 기준 숨김은 대상 종류(POST·COMMENT·BOTH)를 따르고,
  * 「운영자 작성물·공지 제외」가 켜져 있으면 고정 공지와 그 게시판 매니저·스텝이 쓴 글·댓글은 기준 숨김에서 뺀다. 숨긴 댓글은 글의 댓글 수에서 뺀다.
  *
+ * <p><b>작성자 알림</b>: 자동 숨김으로 보이던 글·댓글이 새로 숨겨지면 작성 회원에게 회원 알림 {@code POST_HIDDEN}·{@code COMMENT_HIDDEN}(끌 수 없음 — 신고자·사유 코드는 싣지 않는다).
+ *
  * <p><b>운영자 알림</b>: {@code REPORT_RECEIVED} — 정책 {@code notifyOperatorScope} 가 PER_CASE 면 대상의 첫 신고에만, PER_REPORT 면 신고마다.
  */
 @Service
@@ -83,11 +86,14 @@ public class ReportService {
     private final ProfileRepository profiles;
     private final BoardStaffRepository boardStaff;
     private final NotificationPublisher publisher;
+    private final MemberNotificationPublisher memberNotices;
     private final SnowflakeIdGenerator ids;
 
     public ReportService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                          CommentRepositoryQDSL commentQueries, PostCounterQueries counters, ReportRepository reports, ReportRepositoryQDSL reportQueries,
-                         ProfileRepository profiles, BoardStaffRepository boardStaff, NotificationPublisher publisher, SnowflakeIdGenerator ids) {
+                         ProfileRepository profiles, BoardStaffRepository boardStaff, NotificationPublisher publisher, MemberNotificationPublisher memberNotices,
+                         SnowflakeIdGenerator ids) {
+        this.memberNotices = memberNotices;
         this.catalog = catalog;
         this.actors = actors;
         this.posts = posts;
@@ -258,14 +264,21 @@ public class ReportService {
         }
         if (target.comment() == null) {
             PostEntity locked = posts.findWithLockById(target.post().getId()).orElseThrow(ReportTargetNotFoundException::new);
-            locked.hide(hideReason, until, now);
+            if (locked.hide(hideReason, until, now) && locked.getAuthorId() != null) {
+                // 작성 회원에게 알림(끌 수 없음, 신고자·사유 코드는 싣지 않는다) — 실패해도 신고는 그대로
+                memberNotices.contentHidden(locked.getAuthorId(), locked.getId(), null, locked.getTitle(), until);
+            }
             return;
         }
         CommentEntity locked = comments.findWithLockByPostIdAndId(target.comment().getPostId(), target.comment().getId())
                 .orElseThrow(ReportTargetNotFoundException::new);
         boolean wasVisible = !locked.isDeleted() && !locked.isHiddenAt(now);
-        if (locked.hide(hideReason, until, now) && wasVisible) {
+        boolean hidden = locked.hide(hideReason, until, now);
+        if (hidden && wasVisible) {
             counters.addCommentCount(locked.getPostId(), -1);
+        }
+        if (hidden && locked.getAuthorId() != null) {
+            memberNotices.contentHidden(locked.getAuthorId(), locked.getPostId(), locked.getId(), locked.getContent(), until);
         }
     }
 

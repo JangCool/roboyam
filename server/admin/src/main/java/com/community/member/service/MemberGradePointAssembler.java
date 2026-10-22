@@ -13,7 +13,10 @@ import com.community.member.dto.response.MemberGradeChange;
 import com.community.member.dto.response.MemberGradeNext;
 import com.community.member.dto.response.MemberGradePoint;
 import com.community.member.dto.response.MemberGradeRequirement;
+import com.community.member.dto.response.MemberPointEntry;
 import com.community.member.repository.master.MemberRepositoryQDSL;
+import com.community.point.repository.master.PointLedgerRepositoryQDSL;
+import com.community.point.service.PointLedgerQueryService;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserEntity;
 import com.community.user.entity.UserStatus;
@@ -21,6 +24,7 @@ import com.community.zconfiguration.message.Messages;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.stereotype.Component;
 
 /**
@@ -33,7 +37,7 @@ import org.springframework.stereotype.Component;
  *       활동 수는 즉시 승급과 같은 정의다. 활동 조건 승급은 글·댓글을 쓸 때 즉시 일어나고 일괄 경로(일수 배치·등급 저장의 소급)는 활동 수를 보지 않으므로,
  *       조건을 모두 채웠는데 아직 그 등급이 아닌 회원은 다음 글·댓글 때 올라간다(roles-contract.md 「세션 정리 — 서버 수정 결과」).</li>
  *   <li><b>이력</b>: 최근 것이 먼저, 최대 {@value #HISTORY_LIMIT}건. 사유는 운영자 입력문이 우선, 없으면 시스템 사유 코드를 요청 언어로 푼다. 처리한 운영자가 지워졌으면 「삭제된 운영자」.</li>
- *   <li>포인트·닉네임 변경권 기능이 없어 {@code pointEntries} 는 빈 배열, {@code nicknameTicketCount} 는 0.</li>
+ *   <li><b>포인트 내역</b>: 원장의 최근 {@value #POINT_ENTRY_LIMIT} 줄(최신이 위, 사유는 요청 언어). 닉네임 변경권은 교환 기능이 없어 {@code nicknameTicketCount} 가 0.</li>
  * </ul>
  */
 @Component
@@ -41,13 +45,18 @@ public class MemberGradePointAssembler {
 
     /** 상세에 싣는 등급 변경 이력의 최대 건수 */
     public static final int HISTORY_LIMIT = 50;
+    /** 상세에 싣는 최근 포인트 내역의 최대 줄 수 */
+    public static final int POINT_ENTRY_LIMIT = 10;
 
     private final GradeRepositoryQDSL gradeQueries;
     private final GradeSettingRepository settings;
     private final MemberRepositoryQDSL members;
+    private final PointLedgerRepositoryQDSL ledger;
     private final Messages messages;
 
-    public MemberGradePointAssembler(GradeRepositoryQDSL gradeQueries, GradeSettingRepository settings, MemberRepositoryQDSL members, Messages messages) {
+    public MemberGradePointAssembler(GradeRepositoryQDSL gradeQueries, GradeSettingRepository settings, MemberRepositoryQDSL members, PointLedgerRepositoryQDSL ledger,
+                                     Messages messages) {
+        this.ledger = ledger;
         this.gradeQueries = gradeQueries;
         this.settings = settings;
         this.members = members;
@@ -56,7 +65,16 @@ public class MemberGradePointAssembler {
 
     public MemberGradePoint assemble(UserEntity user, ProfileEntity profile, MemberActivity activity, Instant now) {
         long userId = user.getId();
-        return new MemberGradePoint(autoPromotionOf(user, profile), nextOf(user, profile, activity, now), historyOf(userId), 0, List.of());
+        return new MemberGradePoint(autoPromotionOf(user, profile), nextOf(user, profile, activity, now), historyOf(userId), 0, pointEntriesOf(userId));
+    }
+
+    /** 최근 포인트 내역 — 원장의 최신 {@value #POINT_ENTRY_LIMIT} 줄, 사유는 요청 언어의 이름 */
+    private List<MemberPointEntry> pointEntriesOf(long userId) {
+        Locale locale = messages.locale();
+        return ledger.recentOf(userId, POINT_ENTRY_LIMIT).stream()
+                .map(row -> new MemberPointEntry(Long.toString(row.id()), row.kind(), row.delta(), PointLedgerQueryService.reasonLabel(messages, row.reason(), locale),
+                        row.createdAt()))
+                .toList();
     }
 
     private String autoPromotionOf(UserEntity user, ProfileEntity profile) {

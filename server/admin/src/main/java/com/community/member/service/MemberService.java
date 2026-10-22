@@ -59,7 +59,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>상세 열람 기록</b>: 상세를 열면 감사 기록({@code MEMBER_VIEW})을 남긴다(대상 회원 ID와 이메일 원문 공개 여부만 — 이메일 값은 남기지 않는다). 목록은 남기지 않는다(가정).</li>
  *   <li>활동 요약({@code activity}: 글·댓글 수·최근 7일·받은 추천), 신고 요약({@code reports})과 등급·포인트 구획의 등급 변경 이력·승급 상태·다음 등급 달성도({@code gradePoint})는
  *       채운다 — {@link MemberActivityRepository}·{@link ReportRepositoryQDSL#countsOf}·{@link MemberGradePointAssembler}. 읽기 전용 조회라 새 감사 기록은 없다(열람은 {@code MEMBER_VIEW} 하나).</li>
- *   <li>서버에 아직 데이터가 없는 칸(포인트·휴면·제재·알림 설정·공동구매 등)은 null/빈 값으로 내려간다 — {@link MemberDetailView}.</li>
+ *   <li>포인트 잔액({@code point})은 목록·상세 모두 잔액 행({@code point_balances})의 값이고, 등급·포인트 구획의 최근 포인트 내역도 원장에서 채운다.</li>
+ *   <li>서버에 아직 데이터가 없는 칸(휴면·제재·알림 설정·공동구매 등)은 null/빈 값으로 내려간다 — {@link MemberDetailView}.</li>
  *   <li>탈퇴한 회원은 축약해 보인다(역할·소셜·동의·소개·활동 요약·신고 요약·등급 구획 없음, 탈퇴 시각만).</li>
  * </ul>
  */
@@ -116,7 +117,7 @@ public class MemberService {
             MemberRoles memberRoles = roles.get(row.id());
             items.add(new MemberView(Long.toString(row.id()), canPii ? row.email() : MemberMasking.email(row.email()), row.email() != null && !canPii, row.nickname(),
                     row.gradeKey(), memberRoles.memberType(), row.status().name(), authMethodOf(row, providers.getOrDefault(row.id(), List.of())), row.emailVerifiedAt(),
-                    row.createdAt(), row.lastLoginAt(), 0, memberRoles.roles().stream().map(role -> new MemberRoleRef(role.roleId(), role.roleName())).toList(), null,
+                    row.createdAt(), row.lastLoginAt(), pointOf(row), memberRoles.roles().stream().map(role -> new MemberRoleRef(role.roleId(), role.roleName())).toList(), null,
                     statusChangedAt(row), memberRoles.boardRole(), 0));
         }
         return new MemberPage(items, total, criteria.page(), criteria.size());
@@ -149,7 +150,7 @@ public class MemberService {
 
         MemberDetailView view = new MemberDetailView(Long.toString(id), canPii ? record.email() : MemberMasking.email(record.email()), emailMasked, record.nickname(),
                 record.gradeKey(), memberRoles.memberType(), record.status().name(), authMethodOf(record, providers), record.emailVerifiedAt(), record.createdAt(),
-                record.lastLoginAt(), 0, memberRoles.roles(), null, statusChangedAt(record), memberRoles.boardRole(), 0,
+                record.lastLoginAt(), pointOf(record), memberRoles.roles(), null, statusChangedAt(record), memberRoles.boardRole(), 0,
                 null, activity, List.of(), null, reports,
                 withdrawn ? null : profile.getBio(), social, null, null, null, withdrawn ? record.deletedAt() : null,
                 withdrawn || canPii ? List.of() : null, !canPii,
@@ -199,6 +200,11 @@ public class MemberService {
             return "EMAIL";
         }
         return providers.get(0).name();
+    }
+
+    /** 포인트 잔액 — 탈퇴한 회원은 포인트가 소멸하므로 0 으로 보인다 */
+    private static long pointOf(MemberRecord record) {
+        return record.status() == UserStatus.WITHDRAWN || record.point() == null ? 0 : record.point();
     }
 
     /** 가장 최근 상태 변경 시각 — 정지·휴면 이력 표가 아직 없어 탈퇴 시각만 안다 */

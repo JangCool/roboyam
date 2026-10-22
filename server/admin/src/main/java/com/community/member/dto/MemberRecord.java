@@ -9,9 +9,10 @@ import java.time.Instant;
  * @param id          회원 ID(회원번호)
  * @param hasPassword 비밀번호가 있는 계정인가(소셜로만 가입했으면 false)
  * @param deletedAt   탈퇴한 시각. 탈퇴하지 않았으면 null
+ * @param point       포인트 잔액(잔액 행이 없으면 0)
  */
 public record MemberRecord(Long id, String email, String nickname, String gradeKey, UserStatus status, Boolean hasPassword, Instant emailVerifiedAt,
-                           Instant createdAt, Instant lastLoginAt, Instant deletedAt) {
+                           Instant createdAt, Instant lastLoginAt, Instant deletedAt, Long point) {
 
     /** 이메일을 로그에 남기지 않는다 */
     @Override
