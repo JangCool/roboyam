@@ -1,4 +1,7 @@
 {
     "name": "roboyam",
-    "private": true
+    "private": true,
+    "scripts": {
+        "seed:local": "node scripts/seed-local.mjs"
+    }
 }
