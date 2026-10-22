@@ -7,7 +7,7 @@
         편집: 순서·묶음 이동·하위로 넣기(손잡이 끌기 · Alt+방향키 · 손잡이 메뉴) · 이름 덮어쓰기(ko/en, 비우면 기본 이름) · 아이콘(하위 화면은 없음) · 표시 여부 · 다른 메뉴(모드)로 옮기기(최상위 노드).
         「메뉴에 없는 화면 N개」 경고 + [넣기]. 미리보기: 운영자 역할을 골라 그 역할이 보는 메뉴.
         저장: 두 모드를 한 번에(`PUT /api/admin/admin-menu`, version) — 충돌·검증 오류 처리는 공개 사이트 메뉴와 같다. 권한: 조회 `layout.read` · 저장 `admin-menu.manage`.
-        ⚠ 이번 단계에서는 실제 셸(사이드바)이 여전히 `util-admin-menu.ts` 를 읽는다 — 이 화면은 목업에만 저장한다.
+        ⚠ 저장은 서버(`AdminMenuController`)에 되지만, 실제 셸(사이드바)은 아직 `util-admin-menu.ts` 를 읽는다 — 저장한 구성을 셸이 언제부터 읽을지는 미확정(menu-contract 미확정 1).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('menuConfig.adminTitle')" :subtitle="t('menuConfig.adminSubtitle')">

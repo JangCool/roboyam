@@ -141,7 +141,7 @@ export interface MemberRoleDetail extends MemberRoleRef {
     boardNames: string[];
 }
 
-/** 활동 요약 — 글·댓글 수와 최근 7일 수는 서버 집계(공개·삭제 안 됨·숨김 아님), `likesReceived`·`popularCount`·`recentLoginDays` 는 서버가 아직 집계하지 않아 늘 0 이다(화면은 「준비 중」) */
+/** 활동 요약 — 글·댓글 수·최근 7일 수·받은 추천(`likesReceived`, 보이는 글·댓글의 추천 합)은 서버 집계(공개·삭제 안 됨·숨김 아님), `popularCount`·`recentLoginDays` 는 서버가 아직 집계하지 않아 늘 0 이다(화면은 「준비 중」) */
 export interface MemberActivity {
     postCount: number;
     commentCount: number;
@@ -408,7 +408,7 @@ export interface MemberGroupBuy {
 
 /**
  * 회원 상세 — 목록 한 줄의 칸 + 상세 전용 칸. 역할은 이름뿐 아니라 유형·게시판까지 준다.
- * **서버가 비워 주는 칸**(null/빈 값 — 화면은 해당 구획을 안내로 보인다): `statusReason`·`activity`·`sanctionSummary`·`reports`·`adultConfirmed`·`acceptDm`·`dormancy`·`gradePoint`·`settings`·`contact`·`profile`·`groupBuy`·`consents.privacy` 는 null,
+ * **서버가 비워 주는 칸**(null/빈 값 — 화면은 해당 구획을 안내로 보인다. `activity`·`gradePoint`·`reports` 는 이제 서버가 채우고 탈퇴 회원만 null — `useMemberApi.ts` 머리말): `statusReason`·`activity`·`sanctionSummary`·`reports`·`adultConfirmed`·`acceptDm`·`dormancy`·`gradePoint`·`settings`·`contact`·`profile`·`groupBuy`·`consents.privacy` 는 null,
  * `sanctions`·`consents.optional`·`consents.history`·`roles[].boardNames` 는 빈 배열, `nicknameHistory` 는 빈 배열(`member.pii` 가 없으면 null), `point`·`sanctionCount` 는 늘 0, `statusChangedAt` 은 탈퇴 시각만.
  * 실제 값이 있는 칸: 목록 한 줄의 칸, `roles`, `bio`, `social`, `withdrawnAt`, `consents.terms`/`ageConfirmedAt`, `piiMasked`.
  * 탈퇴한 회원은 `bio`·`consents` 가 null 이고 `social` 은 빈 배열, `withdrawnAt` 이 채워진다(줄어든 표시).
@@ -423,7 +423,7 @@ export interface MemberDetail extends Omit<MemberRow, 'roles'> {
     sanctions: MemberSanction[];
     /** 제재 요약 — 서버가 아직 null */
     sanctionSummary: MemberSanctionSummary | null;
-    /** 신고 요약 — 서버가 아직 null */
+    /** 신고 요약 — 서버가 채운다(탈퇴 회원은 null). 제재 이력 구획 위쪽에 세 수치로 보인다 */
     reports: MemberReportSummary | null;
     /** 한 줄 소개 — 프로필·메모 탭에서 보인다 */
     bio: string | null;

@@ -13,8 +13,7 @@ import UtilMenuTree from '~/utils/util-menu-tree';
 
 /**
  * 공개 사이트 메뉴(메뉴 그룹별 트리)의 규칙 — 한도 · 연결 유형 표 · 앱 화면 레지스트리 · 검증 · 상태 · 미연결 게시판 · 미리보기 거르기. 순수 함수만 둔다.
- * 서버(후보: `server/admin` 의 `MenuTreeValidator`·`MenuTargetRegistry`)가 **같은 표·같은 규칙**을 가진다 — 화면 검사는 미리 알려 주는 용도이고 판정은 서버다(`forms.md`).
- * 목업(`composables/menu/api/mock/menu-mock.ts`)이 서버 흉내로 이 규칙을 다시 부른다.
+ * 서버(`server/shared` 의 `MenuTreeValidator`·`MenuTargetRegistry`·`MenuLimits`)가 **같은 표·같은 규칙**을 가진다 — 화면 검사는 미리 알려 주는 용도이고 판정은 서버다(`forms.md`).
  */
 
 // ── 화면 편집 모양 ─

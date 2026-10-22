@@ -1,14 +1,3 @@
-import {
-    mockAdminMenu,
-    mockAdminMenuSave,
-    mockMenuSetCreate,
-    mockMenuSetDelete,
-    mockMenuSets,
-    mockMenuSetUpdate,
-    mockMenuTargetOptions,
-    mockMenuTree,
-    mockMenuTreeSave,
-} from '~/composables/menu/api/mock/menu-mock';
 import type {
     AdminMenuConfigResponse,
     AdminMenuConfigSaveRequest,
@@ -24,7 +13,7 @@ import type {
  * 메뉴 관리 API — 서버 주소 문자열(`/api/admin/menu-sets…`·`/api/admin/menu/…`·`/api/admin/admin-menu`)이 있는 **유일한 곳**이다. 상태는 없다.
  * community `docs/api-menu.md`(공개 메뉴 트리 하나)를 roboyam 의 **메뉴 그룹(메뉴 세트) 여럿**으로 옮기고, 관리자 사이트 메뉴 구성을 더했다.
  *
- * 후보 계약(확정 전). 오류는 모두 `ApiError`(useApiClient)로 던져진다. 쓰기는 CSRF. 권한: 조회 `layout.read`, 공개 메뉴 저장 `layout.settings`, 관리자 메뉴 저장 `admin-menu.manage`.
+ * 계약: `docs/features/menu-contract.md`(서버 `MenuSetController`·`MenuTargetController`·`AdminMenuController`, 공개는 api 서버 `PublicMenuController`). 오류는 모두 `ApiError`(useApiClient)로 던져진다. 쓰기는 CSRF. 권한: 조회 `layout.read`, 공개 메뉴 저장 `layout.settings`, 관리자 메뉴 저장 `admin-menu.manage`.
  *   공개 사이트 메뉴 — 메뉴 그룹
  *   - `GET    /api/admin/menu-sets` → 200 `MenuSet[]` (만든 차례. `layout.read`)
  *   - `POST   /api/admin/menu-sets` `MenuSetCreateRequest` → 201 `MenuSet` (key `^[a-z][a-z0-9-]*$` 2~30자 · name 1~20자 · description 100자. 400 `VALIDATION` `fields.key|name|nameEn|placement|description` · 409 `MENU_SET_KEY_DUPLICATE`. `layout.settings`)
@@ -49,7 +38,11 @@ import type {
  *   - `GET    /api/menu?set=main` → 200 user-web `MenuResponse` (기존 모양 그대로, `set` 기본값 `main`. 꺼진 그룹은 빈 `nodes`)
  *   공통 오류: 403 `PERMISSION_DENIED` · 404 `MENU_SET_NOT_FOUND`.
  *
- * ⚠ MOCK: 지금은 서버가 없어서 `./mock/menu-mock.ts` 를 부른다. 서버가 붙으면 `// MOCK:` 줄(과 `can`·목업 import)을 지우고 `// REAL:` 줄을 되살린다.
+ * 서버 실제 모양(계약 「서버 구현 결과」): `version` 은 숫자 문자열(불투명하게 그대로 돌려보낸다) · 트리 항목에 서버가 본 상태 `resolved: { status }` 가 붙는다(화면은 같은 규칙으로 스스로 계산하고 저장 때 보내지 않는다) ·
+ *   입력 오류 경로는 BUILTIN `.targetKey` · PATH `.settings.path` · URL `.settings.href` · 깊이 초과는 그 줄의 `.kind` · 트리 전체 문제는 `fields.nodes`(첫 문제 하나) ·
+ *   게시판 만들기·삭제도 해당 그룹(`main` 등)의 `version` 을 올린다(화면을 열어 둔 채 저장하면 409 — 화면은 서버 문구를 보이고 [최신 다시 받기]를 낸다) · 관리자 메뉴를 저장한 적이 없으면 기본 구성을 `id: null` 로 준다.
+ *
+ * 서버 연결됨(2026-10-22).
  */
 const PATH = {
     sets: '/api/admin/menu-sets',
@@ -60,65 +53,36 @@ const PATH = {
 };
 
 export function useMenuApi() {
-    // REAL: const auth = useAdminAuthApi();
-    // REAL: const client = useApiClient({ refreshCsrf: () => auth.me() });
-    // MOCK: 목업이 서버처럼 내 권한(`layout.read`·`layout.settings`·`admin-menu.manage`)으로 403 을 낸다
-    const { can } = useAdminPermission();
-    void PATH;
+    // CSRF 쿠키를 다시 받는 호출 — setup 문맥에서 미리 잡아 둔다(콜백 안에서 컴포저블을 부르지 않는다)
+    const auth = useAdminAuthApi();
+    const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
         /** 메뉴 그룹 목록 */
-        sets: (): Promise<MenuSet[]> =>
-            // MOCK:
-            mockMenuSets(can),
-        // REAL: client.get<MenuSet[]>(PATH.sets),
+        sets: (): Promise<MenuSet[]> => client.get<MenuSet[]>(PATH.sets),
 
         /** 메뉴 그룹 만들기 */
-        createSet: (body: MenuSetCreateRequest): Promise<MenuSet> =>
-            // MOCK:
-            mockMenuSetCreate(can, body),
-        // REAL: client.post<MenuSet>(PATH.sets, body),
+        createSet: (body: MenuSetCreateRequest): Promise<MenuSet> => client.post<MenuSet>(PATH.sets, body),
 
         /** 메뉴 그룹 정보 바꾸기(key 제외) */
-        updateSet: (key: string, body: MenuSetUpdateRequest): Promise<MenuSet> =>
-            // MOCK:
-            mockMenuSetUpdate(can, key, body),
-        // REAL: client.put<MenuSet>(PATH.set(key), body),
+        updateSet: (key: string, body: MenuSetUpdateRequest): Promise<MenuSet> => client.put<MenuSet>(PATH.set(key), body),
 
         /** 메뉴 그룹 지우기(트리 포함) */
-        deleteSet: (key: string): Promise<void> =>
-            // MOCK:
-            mockMenuSetDelete(can, key),
-        // REAL: client.del<void>(PATH.set(key)),
+        deleteSet: (key: string): Promise<void> => client.del<void>(PATH.set(key)),
 
         /** 그룹의 트리 + 버전 */
-        tree: (key: string): Promise<MenuTreeResponse> =>
-            // MOCK:
-            mockMenuTree(can, key),
-        // REAL: client.get<MenuTreeResponse>(PATH.tree(key)),
+        tree: (key: string): Promise<MenuTreeResponse> => client.get<MenuTreeResponse>(PATH.tree(key)),
 
         /** 그룹의 트리를 통째로 바꾼다 */
-        saveTree: (key: string, body: MenuTreeSaveRequest): Promise<MenuTreeResponse> =>
-            // MOCK:
-            mockMenuTreeSave(can, key, body),
-        // REAL: client.put<MenuTreeResponse>(PATH.tree(key), body),
+        saveTree: (key: string, body: MenuTreeSaveRequest): Promise<MenuTreeResponse> => client.put<MenuTreeResponse>(PATH.tree(key), body),
 
         /** 대상 고르기·상태·미리보기에 쓰는 게시판·등급·판매 스위치 */
-        targetOptions: (key: string): Promise<MenuTargetOptions> =>
-            // MOCK:
-            mockMenuTargetOptions(can, key),
-        // REAL: client.get<MenuTargetOptions>(PATH.targetOptions, { query: { set: key } }),
+        targetOptions: (key: string): Promise<MenuTargetOptions> => client.get<MenuTargetOptions>(PATH.targetOptions, { query: { set: key } }),
 
         /** 관리자 사이트 메뉴(두 모드) */
-        adminMenu: (): Promise<AdminMenuConfigResponse> =>
-            // MOCK:
-            mockAdminMenu(can),
-        // REAL: client.get<AdminMenuConfigResponse>(PATH.adminMenu),
+        adminMenu: (): Promise<AdminMenuConfigResponse> => client.get<AdminMenuConfigResponse>(PATH.adminMenu),
 
         /** 관리자 사이트 메뉴를 통째로 바꾼다 */
-        saveAdminMenu: (body: AdminMenuConfigSaveRequest): Promise<AdminMenuConfigResponse> =>
-            // MOCK:
-            mockAdminMenuSave(can, body),
-        // REAL: client.put<AdminMenuConfigResponse>(PATH.adminMenu, body),
+        saveAdminMenu: (body: AdminMenuConfigSaveRequest): Promise<AdminMenuConfigResponse> => client.put<AdminMenuConfigResponse>(PATH.adminMenu, body),
     };
 }

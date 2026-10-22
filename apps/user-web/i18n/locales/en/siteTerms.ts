@@ -1,5 +1,5 @@
 /**
- * 서비스 이름(용어)의 기본 이름 — `ko/siteTerms.ts` 와 같은 키, 같은 차례.
+ * Default names of the service terms. Same keys and order as `ko/siteTerms.ts`.
  */
 export default {
     groupBuy: 'Group buys',

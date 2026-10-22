@@ -25,7 +25,8 @@ export default {
     moveDown: '{name} 아래로',
     orderSaved: '순서를 바꿨어요',
     orderFailed: '순서를 바꾸지 못했어요',
-    orderNote: '순서는 공개 사이트의 게시판 목록 순서예요. 위·아래 단추를 누르면 바로 저장돼요.',
+    orderNote: '여기 순서는 게시판 목록·글쓰기의 게시판 고르기에 쓰여요. 공개 사이트 메뉴의 순서는 메뉴 관리에서 바꿔요. 위·아래 단추를 누르면 바로 저장돼요.',
+    orderMenuLink: '공개 사이트 메뉴로 가기',
     col: {
         order: '순서',
         name: '게시판',

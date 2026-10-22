@@ -7,7 +7,7 @@
           저장할 때 `version` 을 보내 다른 사람이 먼저 저장했으면 409 `MENU_VERSION_CONFLICT`(→ [다시 불러오기]). 서버 입력 오류(`fields["nodes[1].children[2].label"]`)는 해당 줄 아래에 선다.
         메뉴 그룹 정보(추가·수정·삭제)는 트리 저장과 별개로 바로 저장한다.
         권한: 조회 `layout.read`(메뉴 정의가 건다) · 저장 `layout.settings` — 없으면(또는 서버가 `editable: false`) 읽기 전용(편집 단추·손잡이·저장 줄이 없다).
-        ⚠ MOCK: `useMenuApi` 가 목업을 부른다 — 스위치는 `composables/menu/api/mock/menu-mock.ts` 머리말.
+        서버 연결됨(`useMenuApi` → `MenuSetController`·`MenuTargetController`). 게시판을 만들거나 지워도 그룹 `version` 이 올라가므로, 열어 둔 채 저장하면 409(서버 문구 + [다시 불러오기]).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('menuConfig.publicTitle')" :subtitle="t('menuConfig.publicSubtitle')">

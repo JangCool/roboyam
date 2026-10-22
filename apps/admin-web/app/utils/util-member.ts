@@ -306,8 +306,8 @@ export default class UtilMember {
     /** 활동 요약 칸의 표시 차례 */
     static readonly ACTIVITY_KEYS: readonly (keyof MemberActivity)[] = ['postCount', 'commentCount', 'likesReceived', 'popularCount', 'recentPostCount', 'recentCommentCount', 'recentLoginDays'];
 
-    /** 서버가 아직 집계하지 않아 늘 0 으로 오는 활동 칸 — 추천·인기글 기능과 날짜별 접속 기록이 생기면 여기서 뺀다 */
-    private static readonly ACTIVITY_PENDING: readonly (keyof MemberActivity)[] = ['likesReceived', 'popularCount', 'recentLoginDays'];
+    /** 서버가 아직 집계하지 않아 늘 0 으로 오는 활동 칸 — 인기글 기능과 날짜별 접속 기록이 생기면 여기서 뺀다(받은 추천 `likesReceived` 는 서버가 보이는 글·댓글 추천 합으로 채운다) */
+    private static readonly ACTIVITY_PENDING: readonly (keyof MemberActivity)[] = ['popularCount', 'recentLoginDays'];
 
     /** 서버가 아직 집계하지 않는 칸인가 — 0 을 그대로 보이면 "활동이 없다"로 오해한다 */
     static activityPending(key: keyof MemberActivity): boolean {
@@ -331,8 +331,8 @@ export default class UtilMember {
     }
 
     /**
-     * 활동 수 조건인데 서버의 자동 승급 엔진이 아직 활동 수를 0 으로 봐서, 달성도가 차도 승급되지 않을 수 있는 줄인가.
-     * 엔진이 활동 수를 쓰게 되면(카운터 표 연결) 이 판정과 안내 문구를 함께 없앤다(`roles-contract.md`).
+     * 활동 수 조건 줄인가 — 안내(`member.detail.grade.activityNotApplied`)를 붙인다. 활동 수 기준 승급은 글·댓글을 쓸 때 서버가 바로 판정하고,
+     * 정기 승급 배치는 가입 일수만 본다(그래서 달성도가 차 있어도 다음 글·댓글을 쓸 때 승급된다). 배치도 활동 수를 보게 되면 이 판정과 안내를 함께 없앤다(`roles-contract.md`).
      */
     static activityPromotionNotApplied(requirement: MemberGradeRequirement): boolean {
         return requirement.kind === 'ACTIVITY' && requirement.required > 0;
