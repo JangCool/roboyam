@@ -1,13 +1,16 @@
 package com.community.social.service;
 
 import com.community.social.dto.SocialKeyValues;
+import com.community.social.dto.SocialSettingChange;
 import com.community.social.dto.SocialSettingsUpdate;
 import com.community.social.entity.SocialProvider;
 import com.community.social.entity.SocialProviderSettingEntity;
+import com.community.social.entity.SocialProviderSettingHistoryEntity;
 import com.community.social.repository.master.SocialProviderSettingRepository;
 import com.community.zconfiguration.crypto.SecretEncryptor;
 import com.community.zconfiguration.message.MessageRef;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,10 +32,12 @@ public class SocialSettingsService {
 
     private final SocialProviderSettingRepository settings;
     private final SecretEncryptor encryptor;
+    private final SocialSettingsHistory history;
 
-    public SocialSettingsService(SocialProviderSettingRepository settings, SecretEncryptor encryptor) {
+    public SocialSettingsService(SocialProviderSettingRepository settings, SecretEncryptor encryptor, SocialSettingsHistory history) {
         this.settings = settings;
         this.encryptor = encryptor;
+        this.history = history;
     }
 
     /**
@@ -58,13 +63,17 @@ public class SocialSettingsService {
 
     /**
      * 검사를 마친 키(시크릿 포함)를 암호화해 처음 저장한다. <b>트랜잭션은 부르는 쪽이 연다</b> — 설치 마법사는 이것을 설치 트랜잭션 안에서 불러
-     * 실패하면 함께 되돌린다.
+     * 실패하면 함께 되돌린다. <b>설치 마법사 전용</b>이라 변경 이력의 첫 줄을 출처 {@code INSTALL} 로 남긴다(관리자 화면의 저장은 관리자 서버가 따로 남긴다).
      *
      * @throws com.community.zconfiguration.exception.CommonException 암호화 키가 없을 때({@code 503 CRYPTO_KEY_MISSING})
      */
     @Transactional
     public void create(SocialProvider provider, SocialKeyValues key, long adminId, Instant now) {
         settings.persist(SocialProviderSettingEntity.create(provider, key.clientId(), encryptor.encrypt(key.clientSecret()), key.enabled(), adminId, now));
+        history.record(provider, SocialProviderSettingHistoryEntity.ACTION_CREATE, SocialProviderSettingHistoryEntity.SOURCE_INSTALL, adminId, now, List.of(
+                new SocialSettingChange(SocialSettingsHistory.FIELD_CLIENT_ID, null, SocialSettingsHistory.maskClientId(key.clientId())),
+                new SocialSettingChange(SocialSettingsHistory.FIELD_CLIENT_SECRET, null, SocialSettingsHistory.SECRET_SET),
+                new SocialSettingChange(SocialSettingsHistory.FIELD_ENABLED, null, String.valueOf(key.enabled()))));
         log.info("소셜 로그인 키 저장 provider={} userId={}", provider, adminId);
     }
 
