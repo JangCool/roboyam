@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 메일 서버 설정 API (docs/features/mail-settings-contract.md). 조회·이력 {@code site.read} 또는 {@code site.secret}, 저장·시험 발송 {@code site.secret}.
+ * 메일 서버 설정 API (docs/features/mail-settings-contract.md). 조회·이력 {@code site.read}, 저장·시험 발송 {@code site.secret}.
  * 비밀번호는 요청으로만 들어오고 응답에는 「입력됨」({@code passwordSet})만 나간다.
  */
 @RestController
@@ -35,7 +35,7 @@ public class MailSettingsController {
         this.tests = tests;
     }
 
-    @RequirePermission(anyOf = {Permission.SITE_READ, Permission.SITE_SECRET})
+    @RequirePermission(Permission.SITE_READ)
     @GetMapping
     public ApiResponse<MailSettingsView> load() {
         return ApiResponse.success(service.load());
@@ -54,9 +54,9 @@ public class MailSettingsController {
         return ApiResponse.success(tests.test(actor, body));
     }
 
-    @RequirePermission(anyOf = {Permission.SITE_READ, Permission.SITE_SECRET})
+    @RequirePermission(Permission.SITE_READ)
     @GetMapping("/history")
-    public ApiResponse<MailSettingHistoryPage> history(@RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
+    public ApiResponse<MailSettingHistoryPage> history(@RequestParam(required = false) String page, @RequestParam(required = false) String size) {
         return ApiResponse.success(service.history(page, size));
     }
 }

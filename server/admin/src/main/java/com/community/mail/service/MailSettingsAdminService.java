@@ -30,7 +30,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import org.slf4j.Logger;
@@ -59,6 +58,8 @@ public class MailSettingsAdminService {
 
     static final int HISTORY_MAX_SIZE = 100;
     static final int HISTORY_DEFAULT_SIZE = 20;
+    /** 이력의 칸 이름 화면 i18n 키 앞부분 — 소셜 로그인 설정 이력과 같다 */
+    private static final String LABEL_KEY_PREFIX = "settingHistory.field.";
 
     private final MailSettingRepository settings;
     private final MailSettingsService validator;
@@ -140,13 +141,16 @@ public class MailSettingsAdminService {
         }
 
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS); // DB(timestamptz) 정밀도 — 저장 응답과 다시 읽은 값이 같게
+        String action;
         if (row == null) {
             row = MailSettingEntity.create(values.host(), values.port(), values.username(), afterEnc, values.from(), values.security(), actor.operatorId(), now);
             settings.persist(row);
+            action = MailSettingHistoryEntity.ACTION_CREATE;
         } else {
             row.change(values.host(), values.port(), values.username(), afterEnc, values.from(), values.security(), actor.operatorId(), now);
+            action = MailSettingHistoryEntity.ACTION_UPDATE;
         }
-        history.record(MailSettingHistorySource.ADMIN, actor.operatorId(), now, changes);
+        history.record(action, MailSettingHistorySource.ADMIN, actor.operatorId(), now, changes);
         List<String> fields = changes.stream().map(MailSettingChange::field).toList();
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.MAIL_SETTINGS_UPDATE, AuditResult.SUCCESS).target("SITE", "mail")
                 .with("fields", fields));
@@ -155,15 +159,16 @@ public class MailSettingsAdminService {
     }
 
     @Transactional(readOnly = true)
-    public MailSettingHistoryPage history(Integer page, Integer size) {
+    public MailSettingHistoryPage history(String page, String size) {
         Map<String, MessageRef> fields = new LinkedHashMap<>();
-        int pageNumber = page == null ? 0 : page;
-        if (pageNumber < 0) {
-            fields.put("page", new MessageRef("mail.history.page.invalid"));
+        MessageRef range = new MessageRef("mail.history.page.range", String.valueOf(HISTORY_MAX_SIZE));
+        Integer pageNumber = integer(page, 0, 0, Integer.MAX_VALUE / HISTORY_MAX_SIZE);
+        if (pageNumber == null) {
+            fields.put("page", range);
         }
-        int pageSize = size == null ? HISTORY_DEFAULT_SIZE : size;
-        if (pageSize < 1 || pageSize > HISTORY_MAX_SIZE) {
-            fields.put("size", new MessageRef("notification.size.range", String.valueOf(HISTORY_MAX_SIZE)));
+        Integer pageSize = integer(size, HISTORY_DEFAULT_SIZE, 1, HISTORY_MAX_SIZE);
+        if (pageSize == null) {
+            fields.put("size", range);
         }
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
@@ -171,13 +176,25 @@ public class MailSettingsAdminService {
         long total = historyQueries.count();
         List<MailSettingHistoryItemView> items = new ArrayList<>();
         if (total > 0 && (long) pageNumber * pageSize < total) {
-            Locale locale = messages.locale();
-            String deleted = messages.get(new MessageRef("mail.history.operatorDeleted"), locale);
+            String deleted = messages.get(new MessageRef("mail.history.operatorDeleted"));
             for (MailSettingHistoryRow row : historyQueries.page(pageNumber, pageSize)) {
-                items.add(item(row, deleted, locale));
+                items.add(item(row, deleted));
             }
         }
         return new MailSettingHistoryPage(items, total, pageNumber, pageSize);
+    }
+
+    /** 비었으면 기본값, 정수가 아니거나 범위 밖이면 null(소셜 설정 이력과 같은 규칙) */
+    private static Integer integer(String raw, int fallback, int min, int max) {
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+        try {
+            int value = Integer.parseInt(raw.strip());
+            return value < min || value > max ? null : value;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     // ── 내부 ────────────────────────────────────────────────────────────────
@@ -203,7 +220,7 @@ public class MailSettingsAdminService {
 
     private static void diff(List<MailSettingChange> changes, String field, String before, String after) {
         if (!Objects.equals(before, after)) {
-            changes.add(MailSettingChange.value(field, before, after));
+            changes.add(new MailSettingChange(field, before, after));
         }
     }
 
@@ -229,17 +246,14 @@ public class MailSettingsAdminService {
                 row.getFromAddress(), encryptor.isConfigured(), row.getUpdatedAt(), by);
     }
 
-    private MailSettingHistoryItemView item(MailSettingHistoryRow row, String deletedName, Locale locale) {
+    private static MailSettingHistoryItemView item(MailSettingHistoryRow row, String deletedName) {
         MailSettingHistoryEntity entity = row.history();
-        boolean deleted = entity.getOperatorId() == null || row.operatorName() == null;
+        boolean deleted = row.operatorName() == null;
         List<MailSettingChangeView> changes = MailSettingHistoryService.parse(entity.getChanges()).stream()
-                .map(change -> new MailSettingChangeView(change.field(), fieldLabel(change.field(), locale), change.before(), change.after(), change.change()))
+                .map(change -> new MailSettingChangeView(change.field(), LABEL_KEY_PREFIX + change.field(), change.before(), change.after()))
                 .toList();
-        return new MailSettingHistoryItemView(entity.getId().toString(), entity.getChangedAt(), entity.getSource().name(),
-                entity.getOperatorId() == null ? null : entity.getOperatorId().toString(), deleted ? deletedName : row.operatorName(), deleted, changes);
-    }
-
-    private String fieldLabel(String field, Locale locale) {
-        return field != null && MailSettingChange.FIELDS.contains(field) ? messages.get(new MessageRef("mail.field." + field), locale) : field;
+        return new MailSettingHistoryItemView(entity.getId().toString(), entity.getAction(), entity.getSource().name(),
+                entity.getOperatorId() == null ? null : entity.getOperatorId().toString(), deleted ? deletedName : row.operatorName(), deleted,
+                entity.getChangedAt(), changes);
     }
 }
