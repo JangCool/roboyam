@@ -10,6 +10,8 @@ import type {
     SiteLogoResponse,
     SiteLogoSvgRequest,
     SiteOgImageResponse,
+    SiteThemeRequest,
+    SiteThemeResponse,
 } from '~/composables/site/api/useSiteSettingsApi.types';
 
 /**
@@ -37,6 +39,9 @@ import type {
  *   - `GET /api/admin/site/display-defaults` → 200 `{ values: { language, zoneId, timeFormat, dateFormat } }`  (`site.read`)
  *   - `PUT /api/admin/site/display-defaults` `{ values }` → 200 저장된 모양  (`site.manage`) · 400 VALIDATION(`fields.language|zoneId|timeFormat|dateFormat`, 시간대는 JDK 가 아는 IANA 이름만)
  *       이 값이 개인 설정 탭의 "기본 설정"(`GET /api/admin/profile/display` 의 `inherited`)이다 — 서버가 요청마다 읽어 주므로 저장 뒤 내 표시 값을 다시 받으면 따라온다(`general.vue` 가 저장 직후 `useMyDisplay().load()`).
+ *   - `GET /api/admin/site/theme` → 200 `{ theme, themes: string[] }`  (`site.read`) — `themes` 는 고를 수 있는 id(보일 순서). 이름은 화면이 id 로 i18n 키를 찾는다
+ *   - `PUT /api/admin/site/theme` `{ theme }` → 200 같은 모양  (`site.manage`) · 400 VALIDATION(`fields.theme` 목록 밖·빈 값, `fields.site` 설정 행 없음)
+ *       공개 사이트(`GET /api/site/theme`)는 서버 사본(20초) + 브라우저 캐시(60초) 뒤에 따라온다. 같은 값 저장은 감사·알림을 남기지 않는다.
  *
  * 그 밖의 오류: 503 `STORAGE_UNAVAILABLE`(저장소에 쓰지 못함) · 503 `IMAGE_BUSY`(이미지 동시 처리 자리 없음) · 413 `FILE_TOO_LARGE`(multipart 10MB 초과; 2MB 초과는 `fields.file` 문구로 안내) · 403 `PERMISSION_DENIED`.
  * 이미지 주소(`logoUrl`·`previewUrl`·`url`·`defaultPreviewUrl`·`defaultUrl`)는 `/media/…` 상대 주소다 — 운영은 같은 도메인에서 서빙되고, 개발 서버는 `nuxt.config.ts` 의 `/media` 프록시가 잇는다.
@@ -50,6 +55,7 @@ const PATH = {
     icon: '/api/admin/site/icon',
     iconSvg: '/api/admin/site/icon/svg',
     ogImage: '/api/admin/site/og-image',
+    theme: '/api/admin/site/theme',
 };
 
 /** 로고 그림을 올릴 때 서버에 알리는 용도 이름 */
@@ -119,5 +125,11 @@ export function useSiteSettingsApi() {
 
         /** 표시 기본값을 저장한다 — 저장된 모양을 돌려준다 */
         saveDisplayDefaults: (body: SiteDisplayDefaultsRequest): Promise<SiteDisplayDefaultsResponse> => client.put<SiteDisplayDefaultsResponse>(PATH.displayDefaults, body),
+
+        /** 공개 사이트 테마(지금 값과 고를 수 있는 id 목록) */
+        theme: (): Promise<SiteThemeResponse> => client.get<SiteThemeResponse>(PATH.theme),
+
+        /** 공개 사이트 테마를 저장한다 — 저장된 모양을 돌려준다 */
+        saveTheme: (body: SiteThemeRequest): Promise<SiteThemeResponse> => client.put<SiteThemeResponse>(PATH.theme, body),
     };
 }

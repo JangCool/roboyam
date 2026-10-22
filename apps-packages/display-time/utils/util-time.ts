@@ -22,7 +22,7 @@
  *  · 연 없는 짧은 날짜(`09.27`)는 날짜 형식의 순서·구분자를 따른다(`09-27`·`27/09`·`09/27`).
  *  · 말로 쓴 날짜("10월 5일 (일)")는 형식을 따르지 않는다(시간대만 따른다).
  *  · `ago` 의 상대 부분("방금"·"55분 전")은 시간대·형식과 무관하다(언어만 따른다).
- *  · 모르는 시간대·모르는 형식 값은 한국 시간·`YMD_DOT`·`H24` 로 대신한다(화면이 깨지지 않게).
+ *  · 모르는 시간대·모르는 형식 값은 한국 시간·`YMD_DASH`·`H24`(시스템 폴백) 로 대신한다(화면이 깨지지 않게).
  *  · **말(단어)은 표시 값의 `language` 를 따른다** — "방금/just now"·"어제/Yesterday"·"오전/AM"·요일·"10월 5일/Oct 5" 등. 단어표는 `util-time-words.ts`(`UtilTimeWords`)에 있다.
  *    `language` 가 없거나 모르는 값이면 한국어다. **한국어 출력은 서버 `ServerTimeText` 와 같은 말이라 바꾸지 않는다.**
  *    날짜 **형식**(`YMD_DOT` 등)이 정한 숫자 날짜의 순서·구분자는 영어에서도 그대로 따른다(`2026.10.02`·`10/02/2026`) — 영어로 바뀌는 것은 요일·월 이름·"어제" 같은 말뿐이다.
@@ -120,8 +120,8 @@ export type DisplayTime = {
 /** 서비스 하루(출석·한도·인기글·정산 등)의 시간대 — 표시 값과 무관하게 늘 한국 시간이다. 서버 `ServiceZone` 과 같은 값 */
 const SERVICE_ZONE = 'Asia/Seoul';
 
-/** 시스템 폴백 — 표시 값을 아직 모를 때(또는 받지 못했을 때) 쓴다. 서버의 시스템 폴백과 같은 값 */
-const FALLBACK: DisplayValues = Object.freeze({ zoneId: SERVICE_ZONE, timeFormat: 'H24', dateFormat: 'YMD_DOT', language: 'ko' });
+/** 시스템 폴백 — 표시 값을 아직 모를 때(또는 받지 못했을 때) 쓴다. 서버의 시스템 폴백(`SiteSettingEntity.DEFAULT_*` — 설정 행이 없을 때의 처음 값, 날짜 형식 `YMD_DASH`)과 같은 값 */
+const FALLBACK: DisplayValues = Object.freeze({ zoneId: SERVICE_ZONE, timeFormat: 'H24', dateFormat: 'YMD_DASH', language: 'ko' });
 
 function pad(n: number): string {
     return String(n).padStart(2, '0');
@@ -614,7 +614,7 @@ export default class UtilTime {
      * @param {string | null | undefined} iso - 서버가 준 UTC 시각(ISO-8601).
      * @param {TimeValues} display - 표시 값(시간대·날짜 형식을 읽는다).
      * @returns {string} 표시 시간대의 연 없는 날짜 글자. 시각이 없거나 잘못됐으면 빈 문자열.
-     * @example UtilTime.shortDate('2026-10-13T00:14:00Z', UtilTime.FALLBACK_DISPLAY) // '10.13'
+     * @example UtilTime.shortDate('2026-10-13T00:14:00Z', UtilTime.FALLBACK_DISPLAY) // '10-13'
      */
     static shortDate(iso: string | null | undefined, display: TimeValues): string {
         return shortDateAt(iso, display);
@@ -626,7 +626,7 @@ export default class UtilTime {
      * @param {string | null | undefined} iso - 서버가 준 UTC 시각(ISO-8601).
      * @param {TimeValues} display - 표시 값.
      * @returns {string} 표시 시간대의 연 없는 날짜와 시각 글자. 시각이 없거나 잘못됐으면 빈 문자열.
-     * @example UtilTime.shortDateTime('2026-10-13T00:14:00Z', UtilTime.FALLBACK_DISPLAY) // '10.13 09:14'
+     * @example UtilTime.shortDateTime('2026-10-13T00:14:00Z', UtilTime.FALLBACK_DISPLAY) // '10-13 09:14'
      */
     static shortDateTime(iso: string | null | undefined, display: TimeValues): string {
         return shortDateTimeAt(iso, display);

@@ -1,6 +1,6 @@
 <template>
     <!--
-        일반 — 설정 메뉴의 첫 화면(`/settings/general`). hamonica3 의 설정 > 일반(제품 기본 정보 + 표시 기본값)과 같은 짜임이다: 구획 둘, **저장 단추는 구획마다 따로**다(이름을 고치려던 사람이 표시 기본값까지 같이 저장하지 않게).
+        일반 — 설정 메뉴의 첫 화면(`/settings/general`). hamonica3 의 설정 > 일반(제품 기본 정보 + 표시 기본값)과 같은 짜임에 공개 사이트 테마를 더했다: 구획 셋, **저장 단추는 구획마다 따로**다(이름을 고치려던 사람이 표시 기본값까지 같이 저장하지 않게).
           ① 사이트 기본 정보(`site-basic`) — 사이트 이름(필수)·한 줄 소개(선택)·로고·사이트 아이콘·링크 미리보기 이미지. 이름·소개는 서버 `SiteSettingEntity` 에 실제 있는 칸이다. 공개 주소는 뺐다(소셜 로그인 콜백·메일 링크의 기준이라 변경 정책이 먼저다).
             로고는 hamonica3 「제품 기본 정보」의 로고 줄과 같다: 이미지 업로드(PNG·JPG·GIF·WEBP 2MB) 또는 SVG 소스 입력(SVG 는 스크립트를 품을 수 있는 문서라 파일로 받지 않고 소스로 받는다) · 제거. **[저장]이 없고 올리는 즉시 적용**되며(이름·소개의 [저장]과 따로),
             관리자 화면 상단 로고 자리(`SiteBrand` — `useAdminAuth().siteLogoUrl`)와 공개 사이트 로고 자리가 같이 쓴다. 그림은 `<img src>` 하나로만 그린다(`v-html` 금지). 서버 API(`/api/admin/site/**`·`/api/admin/files`)에 연결돼 있고, 올린 그림 주소는 `/media/…` 상대 주소다.
@@ -10,6 +10,8 @@
               · 링크 미리보기 이미지(og:image — 카톡·SNS 에 주소를 붙일 때 보이는 그림): PNG 1장, 2MB 이하, 가로 1200~4000px(세로도 4000 이하), 비율 1200:630 ±2% — 안 맞으면 **자르지 않고 거절**(비율 검사가 크기 부족 검사보다 먼저). 썸네일은 1200:630 비율. 나머지는 아이콘 줄과 같고 SVG 입구는 없다.
               두 줄 모두 서버 API 에 연결돼 있다(계약은 `useSiteSettingsApi.ts` 머리말) — 서버 거절 문구는 가공하지 않고 `fields.file`/`fields.svgSource` 그대로 보인다. 권한 `site.manage` 가 없으면 단추가 숨고 읽기 전용이다.
           ② 표시 기본값(`display-defaults`) — 언어·시간대·시간 형식·날짜 형식(공유 레이어의 `DisplayValueForm`). 이 값이 곧 내 정보 > 개인 설정 탭의 "기본 설정"(내 표시 형식을 쓰지 않을 때 따르는 값)이다.
+          ③ 공개 사이트 테마(`site-theme`) — 서버가 준 id 목록(`themes`, 보일 순서) 중 하나를 고른다(라디오 카드). 이름·설명은 id 로 i18n 키(`site.themeName_<id>`·`site.themeDesc_<id>`)를 찾고, 모르는 id 는 id 그대로 보인다.
+            고를 것이 하나뿐이어도 구획은 보이고 "지금은 기본 테마 하나만 있어요" 한 줄을 둔다. 거절 문구 `fields.theme` 는 고르기 아래, `fields.site`(설정 행 없음)·그 밖은 구획 안 한 줄. 공개 사이트는 서버 사본(20초) + 브라우저 캐시(60초) 뒤에 따라온다.
         구획은 서로 따로 읽고 저장한다 — 한쪽이 실패해도 다른 쪽은 보인다. 구획 주소(`anchor`)는 우측 구역 내비가 쓴다.
         권한: 조회 `site.read`(메뉴), 변경 `site.manage` — 없으면 저장 줄이 사라지고 입력칸은 `readonly`(서버 값이 그대로 보인다). 감추는 것은 편의이고 막는 것은 서버다.
         표시 기본값을 저장하면 내 표시 값(`useMyDisplay`)을 다시 받아 지금 화면에도 바로 적용한다(내 표시 형식을 쓰고 있으면 그대로다). 내 정보 > 개인 설정의 "기본 설정"(`inherited`)이 이 저장 값을 따른다(서버가 요청마다 사이트 표시 기본값을 읽어 준다). 사이트 이름을 저장하면 로고 글자·탭 제목이 바로 새 이름을 따른다.
@@ -179,6 +181,51 @@
                 </div>
             </div>
         </AppGadget>
+
+        <!-- ③ 공개 사이트 테마 -->
+        <AppGadget :title="t('site.themeTitle')" anchor="site-theme" :changes="themeChanged ? 1 : 0" :invalid="themeError ? 1 : 0">
+            <div v-if="themeLoading && !themeSaved" class="flex flex-col gap-3" role="status" :aria-label="t('common.loading')">
+                <Skeleton height="2.25rem" width="min(36rem, 100%)" />
+                <Skeleton height="4rem" width="min(36rem, 100%)" />
+            </div>
+
+            <ErrorState v-else-if="!themeSaved" :title="t('site.themeLoadFailed')" :description="themeLoadError?.message" retry :retrying="themeLoading" @retry="loadTheme" />
+
+            <div v-else class="flex flex-col gap-4">
+                <Message severity="info" :closable="false" size="small">{{ t('site.themeScope') }}</Message>
+
+                <div class="flex flex-col gap-1.5">
+                    <span :id="themeGroupId" class="text-sm font-medium">{{ t('site.themeGroupLabel') }}</span>
+                    <div role="radiogroup" :aria-labelledby="themeGroupId" :aria-describedby="themeError ? `${themeGroupId}-msg` : undefined" class="grid gap-3 sm:grid-cols-2">
+                        <label
+                            v-for="id in themeSaved.themes"
+                            :key="id"
+                            class="flex gap-3 rounded-lg border p-3"
+                            :class="[themeInput === id ? 'border-primary bg-primary-50 dark:bg-primary-950' : 'border-(--line)', canManage && !themeSaving ? 'cursor-pointer' : '']"
+                        >
+                            <RadioButton v-model="themeInput" :value="id" :name="`${themeGroupId}-theme`" :disabled="!canManage || themeSaving" class="mt-0.5 shrink-0" />
+                            <span class="flex min-w-0 flex-col gap-1">
+                                <span class="flex flex-wrap items-center gap-2 text-sm font-medium">
+                                    {{ themeName(id) }}
+                                    <Tag v-if="id === themeSaved.theme" :value="t('site.themeCurrent')" severity="secondary" />
+                                </span>
+                                <span v-if="themeDesc(id)" class="text-xs leading-relaxed text-muted-color">{{ themeDesc(id) }}</span>
+                            </span>
+                        </label>
+                    </div>
+                    <!-- 고를 것이 하나뿐이어도 구획은 보인다 — 왜 바꿀 수 없는지 한 줄로 말한다 -->
+                    <p v-if="themeSaved.themes.length <= 1" class="m-0 text-xs text-muted-color">{{ t('site.themeOnlyOne') }}</p>
+                    <p v-if="themeError" :id="`${themeGroupId}-msg`" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ themeError }}</p>
+                </div>
+
+                <Message v-if="themeFormError" severity="error" variant="simple" size="small">{{ themeFormError }}</Message>
+
+                <div v-if="canManage" class="flex flex-wrap items-center justify-end gap-2">
+                    <Button type="button" :label="t('common.reset')" severity="secondary" variant="outlined" :disabled="themeSaving || !themeChanged" @click="resetTheme" />
+                    <Button type="button" :label="t('common.save')" icon="pi pi-check" :loading="themeSaving" :disabled="!themeChanged" @click="saveTheme" />
+                </div>
+            </div>
+        </AppGadget>
     </div>
 </template>
 
@@ -186,13 +233,13 @@
 import UtilDisplayForm, { type DisplayFieldErrors } from '#layers/display-time/utils/util-display-form';
 import UtilDisplayValues from '#layers/display-time/utils/util-display-values';
 import type { ApiError } from '~/composables/common/useApiClient';
-import type { DisplayValues, SiteBasicResponse, SiteDisplayDefaultsResponse, SiteIconResponse, SiteOgImageResponse } from '~/composables/site/api/useSiteSettingsApi.types';
+import type { DisplayValues, SiteBasicResponse, SiteDisplayDefaultsResponse, SiteIconResponse, SiteOgImageResponse, SiteThemeResponse } from '~/composables/site/api/useSiteSettingsApi.types';
 import UtilSiteImage from '~/utils/util-site-image';
 import UtilSiteImageMessages from '~/utils/util-site-image-messages';
 import UtilSiteSetting from '~/utils/util-site-setting';
 import UtilSiteSettingMessages from '~/utils/util-site-setting-messages';
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 useSeoMeta({ title: () => t('site.seoTitle') });
 
 const api = useSiteSettingsApi();
@@ -613,11 +660,82 @@ async function saveDisplay(): Promise<void> {
     }
 }
 
+/* ── ③ 공개 사이트 테마 ──────────────────────────── */
+
+const themeSaved = ref<SiteThemeResponse | null>(null);
+const themeInput = ref('');
+const themeLoading = ref(false);
+const themeLoadError = ref<ApiError | null>(null);
+const themeSaving = ref(false);
+/** 서버가 거절한 고르기 문구(`fields.theme`) — 다른 것을 고르면 지운다 */
+const themeError = ref('');
+/** 칸에 붙지 않는 저장 오류(`fields.site` 등) */
+const themeFormError = ref('');
+const themeGroupId = useId();
+
+const themeChanged = computed(() => themeSaved.value !== null && themeInput.value !== themeSaved.value.theme);
+
+watch(themeInput, () => (themeError.value = ''));
+
+/** 테마 이름 — id 로 i18n 키를 찾는다. 화면이 아직 모르는 id(서버에 먼저 생긴 테마)는 id 그대로 */
+function themeName(id: string): string {
+    const key = `site.themeName_${id}`;
+    return te(key) ? t(key) : id;
+}
+
+/** 테마 설명 — 키가 없으면 비운다 */
+function themeDesc(id: string): string {
+    const key = `site.themeDesc_${id}`;
+    return te(key) ? t(key) : '';
+}
+
+function fillTheme(res: SiteThemeResponse): void {
+    themeSaved.value = res;
+    themeInput.value = res.theme;
+    themeError.value = '';
+    themeFormError.value = '';
+}
+
+function resetTheme(): void {
+    if (themeSaved.value) fillTheme(themeSaved.value);
+}
+
+async function loadTheme(): Promise<void> {
+    themeLoading.value = true;
+    themeLoadError.value = null;
+    try {
+        fillTheme(await api.theme());
+    } catch (e) {
+        themeLoadError.value = toApiError(e);
+    } finally {
+        themeLoading.value = false;
+    }
+}
+
+async function saveTheme(): Promise<void> {
+    if (themeSaving.value || !canManage.value || !themeChanged.value) return;
+    themeSaving.value = true;
+    themeError.value = '';
+    themeFormError.value = '';
+    try {
+        fillTheme(await api.saveTheme({ theme: themeInput.value }));
+        toast.success(t('site.themeSaved'));
+    } catch (e) {
+        const error = toApiError(e);
+        themeError.value = error.field('theme') ?? '';
+        // 칸에 붙지 않는 오류(설정 행 없음 `fields.site`·권한·네트워크)는 구획 위쪽 한 줄 — 서버 문구 그대로
+        if (!themeError.value) themeFormError.value = error.field('site') ?? error.message;
+    } finally {
+        themeSaving.value = false;
+    }
+}
+
 onMounted(() => {
     void loadBasic();
     void loadIcon();
     void loadOg();
     void loadDisplay();
+    void loadTheme();
 });
 </script>
 

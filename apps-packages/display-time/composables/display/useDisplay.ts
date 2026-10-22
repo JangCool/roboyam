@@ -6,7 +6,7 @@ import UtilTime, { type DisplayValues } from '#layers/display-time/utils/util-ti
  * 이 레이어는 서버를 부르지 않는다: 값을 **채우는 일은 쓰는 앱이 한다**(`useDisplay().setDisplay(values)`).
  * user-web 은 사용자 개인 값 → 사이트 기본값 → 시스템 폴백을 합쳐 넣고, admin-web 은 사이트 기본값을 넣는다. 시각을 그리는 컴포넌트는 이것이 아니라 `useDisplayTime()` 을 쓴다.
  *
- * 값을 받기 전(또는 받지 못했을 때)은 시스템 폴백(`UtilTime.FALLBACK_DISPLAY` — Asia/Seoul · 24시간 · `2026.10.02` 점 형식)이다 — 브라우저 시간대는 쓰지 않는다.
+ * 값을 받기 전(또는 받지 못했을 때)은 시스템 폴백(`UtilTime.FALLBACK_DISPLAY` — Asia/Seoul · 24시간 · `2026-10-02` 대시 형식, 서버 처음 값과 같다)이다 — 브라우저 시간대는 쓰지 않는다.
  * 상태가 바뀌면 이것을 읽는 모든 곳(시각 글자·DatePicker 의 형식과 시간대·PrimeVue 로캘)이 같이 바뀐다.
  *
  * ⚠ 컴포저블은 setup 에서 부른다(`await` 뒤에는 Nuxt 문맥이 없다) — 안에서 필요한 상태는 부를 때 미리 잡아 둔다.

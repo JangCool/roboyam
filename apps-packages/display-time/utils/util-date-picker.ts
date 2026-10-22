@@ -29,10 +29,10 @@ export default class UtilDatePicker {
     /**
      * PrimeVue `DatePicker` 의 `dateFormat`.
      * @param {DisplayValues} display - 표시 값.
-     * @returns {string} `yy.mm.dd` 등. 모르는 날짜 형식이면 기본(`yy.mm.dd`).
+     * @returns {string} `yy.mm.dd` 등. 모르는 날짜 형식이면 시스템 폴백의 형식(`yy-mm-dd`).
      */
     static dateFormat(display: DisplayValues): string {
-        return DATE_PATTERN[display.dateFormat] ?? DATE_PATTERN.YMD_DOT;
+        return DATE_PATTERN[display.dateFormat] ?? DATE_PATTERN[UtilTime.FALLBACK_DISPLAY.dateFormat];
     }
 
     /**
@@ -51,7 +51,7 @@ export default class UtilDatePicker {
      * @returns {string} `YYYY.MM.DD` · `YYYY.MM.DD HH:mm` · `MM/DD/YYYY hh:mm` 등.
      */
     static placeholder(display: DisplayValues, withTime: boolean): string {
-        const date = DATE_PLACEHOLDER[display.dateFormat] ?? DATE_PLACEHOLDER.YMD_DOT;
+        const date = DATE_PLACEHOLDER[display.dateFormat] ?? DATE_PLACEHOLDER[UtilTime.FALLBACK_DISPLAY.dateFormat];
         if (!withTime) return date;
         return `${date} ${UtilDatePicker.hourFormat(display) === '12' ? 'hh:mm' : 'HH:mm'}`;
     }

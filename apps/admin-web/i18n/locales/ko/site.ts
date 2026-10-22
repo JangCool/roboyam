@@ -5,7 +5,7 @@
 export default {
     seoTitle: '일반',
     title: '일반',
-    subtitle: '사이트 이름과 소개, 모두에게 기본으로 보이는 언어·시간 형식을 정해요.',
+    subtitle: '사이트 이름과 소개, 모두에게 기본으로 보이는 언어·시간 형식, 공개 사이트 테마를 정해요.',
     readOnly: '설정을 바꿀 권한이 없어서 조회만 할 수 있어요.',
 
     // 사이트 기본 정보
@@ -94,6 +94,17 @@ export default {
     displayScope: '여기서 고른 값이 「기본 설정」이에요. 내 표시 형식을 쓰지 않는 운영자의 화면에 이 값이 적용돼요.',
     displayLoadFailed: '표시 기본값을 불러오지 못했어요',
     displaySaved: '표시 기본값을 저장했어요',
+
+    // 공개 사이트 테마 — 이름·설명은 테마 id 로 찾는다(`themeName_<id>`·`themeDesc_<id>`, 서버 `SiteThemes.IDS`·user-web `util-theme.ts` 와 같은 id)
+    themeTitle: '공개 사이트 테마',
+    themeScope: '공개 사이트 전체의 모양(헤더·메뉴 위치 등)을 정해요. 회원이 따로 고를 수는 없어요. 저장하면 1~2분 안에 공개 사이트에 적용돼요.',
+    themeOnlyOne: '지금은 기본 테마 하나만 있어요.',
+    themeGroupLabel: '테마',
+    themeCurrent: '사용 중',
+    themeLoadFailed: '테마를 불러오지 못했어요',
+    themeSaved: '테마를 저장했어요',
+    themeName_default: '기본 테마',
+    themeDesc_default: '상단 바와 왼쪽 메뉴가 있는 기본 모양이에요.',
 
     // 화면이 미리 검사한 오류
     nameRequired: '사이트 이름을 입력해 주세요.',

@@ -15,7 +15,7 @@ import UtilTime, { type DisplayValues } from '#layers/display-time/utils/util-ti
  *
  * **사이트 표시 기본값(`GET /api/site/info` 의 `displayDefaults`)은 개인 값이 없을 때의 폴백으로만 쓴다**: 첫 값(기억값이 없을 때)과, 서버 효과값이 개인 값(`from: USER`·`own`)이 아닐 때의 값.
  * 개인 값이 있으면 개인 값이 이긴다. 사이트 기본값을 못 받았으면(`null`) 이전과 똑같다(기억값 → 시스템 폴백, 서버가 준 값). 층 관계(개인 → 사이트 → 시스템)의 최종 합치기는 서버 몫이다 —
- * `/api/display/effective` 가 목업인 동안 목업이 합친 "사이트 기본값" 대신 실제 사이트 값을 쓰도록 여기서 한 번 바꿔 줄 뿐이다.
+ * 서버는 같은 사이트 정보 사본(`PublicSiteService`)에서 기본값을 합치므로 바꿔 끼워도 결과가 같다. 여기서는 효과값을 받기 전 첫 값을 사이트 값으로 맞추는 데 주로 쓰인다.
  */
 
 /** 이 브라우저에 기억한 효과값 — 값과 그 값을 받은 사람(비로그인은 null) */

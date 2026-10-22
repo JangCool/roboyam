@@ -5,7 +5,7 @@
 export default {
     seoTitle: 'General',
     title: 'General',
-    subtitle: 'Set the site name and tagline, and the default language and time formats everyone sees.',
+    subtitle: 'Set the site name and tagline, the default language and time formats everyone sees, and the public site theme.',
     readOnly: 'You do not have permission to change these settings, so you can only view them.',
 
     // Site basics
@@ -94,6 +94,17 @@ export default {
     displayScope: 'The values you pick here are the "defaults". They apply to the screens of operators who do not use their own display format.',
     displayLoadFailed: 'Could not load the display defaults',
     displaySaved: 'Display defaults saved',
+
+    // Public site theme — names and descriptions are looked up by theme id (`themeName_<id>`, `themeDesc_<id>`; same ids as the server `SiteThemes.IDS` and user-web `util-theme.ts`)
+    themeTitle: 'Public site theme',
+    themeScope: 'Sets the look of the whole public site (header, menu position and so on). Members cannot pick their own. Changes reach the public site within a minute or two.',
+    themeOnlyOne: 'Only the default theme is available for now.',
+    themeGroupLabel: 'Theme',
+    themeCurrent: 'In use',
+    themeLoadFailed: 'Could not load the theme',
+    themeSaved: 'Theme saved',
+    themeName_default: 'Default theme',
+    themeDesc_default: 'The standard layout with a top bar and a left-side menu.',
 
     // Errors checked on the screen
     nameRequired: 'Enter a site name.',
