@@ -1,0 +1,53 @@
+# 메뉴 관리 계약 (**관리자 화면 확정 2026-10-22** — 이번 범위는 백엔드 구현, 화면 연결은 후속)
+
+**의도**: 공개 사이트 메뉴와 관리자 사이트 메뉴를 관리자 앱에서 구성한다. 공개 메뉴는 **메뉴 그룹**(좌측 사이드·마이페이지·공동구매·사용자 정의) 마다 트리를 따로 갖고, 트리는 폴더와 항목(게시판·앱 화면·페이지·외부 링크 연결)으로 이루어진다. 관리자 메뉴는 일반/설정 두 모드의 사이드 메뉴 순서·묶음·이름·아이콘·표시를 바꾼다(권한은 화면이 정한다).
+**참고(읽기 전용)**: community `D:\project\community\workspace\community` — `docs/api-menu.md`(트리·연결 유형·검증·리졸버 구조의 원본), `server/shared/.../menu/**`. roboyam 은 이를 **메뉴 그룹 여러 개**로 넓혔다.
+
+## 화면 (기준 코드 — 칸 이름·범위·기본값의 원천)
+- `/menus/public` · `/menus/admin` (`/menus` → `/menus/public`).
+- 기준 코드: `apps/admin-web/app/composables/menu/api/useMenuApi.ts`(머리말 = API 후보·오류 코드 전체) · `useMenuApi.types.ts`(요청·응답 모양 = JSON 키) · `utils/util-menu.ts`(`LIMITS`·`TARGET_TYPES`·`BUILTINS` 앱 화면 레지스트리·주소 검사 `pathProblem`/`hrefProblem`·상태·미연결·미리보기 거르기) · `utils/util-menu-tree.ts`(서버 `fields` 경로 꼴) · `utils/util-admin-menu-config.ts`(관리자 메뉴 레지스트리·구조 규칙·검증) · `mock/menu-mock.ts`(서버 규칙 흉내 — 오류 코드·version·자동 추가 폴더 하나).
+- 공개 사이트가 받는 모양: `apps/user-web/app/composables/menu/api/useMenuApi.types.ts`(`GET /api/menu` 응답 — 바꾸지 않는다).
+
+## 권한
+조회 `layout.read`(공개·관리자 메뉴 모두) · 공개 메뉴 그룹·트리 저장 `layout.settings` · 관리자 메뉴 저장 `admin-menu.manage`(새 코드). 서버 `Permission` 의 `LAYOUT_READ`·`LAYOUT_SETTINGS` 는 준비됨으로 켜고 `ADMIN_MENU_MANAGE` 를 더한다. 응답의 `editable` = 그 저장 권한 보유.
+
+## 공개 사이트 메뉴
+- **메뉴 그룹** `menu_sets`: `key`(PK, `^[a-z][a-z0-9-]*$` 2~30자, 변경 불가) · 이름 1~20자 · 영문명 ≤40자 · `placement` `SIDE`·`MYPAGE`·`GROUP_BUY`·`CUSTOM` · 사용 여부 · 설명 ≤100자 · `system`(기본 그룹 — 삭제·위치 변경 불가). 시드: `main`(SIDE) · `mypage`(MYPAGE) · `group-buy`(GROUP_BUY), 모두 system.
+- **노드** `menu_nodes`(그룹별 트리, `parent_id`): `FOLDER`(이름 필수, `collapsible`·`collapsed`, `autoAdd`) · `ITEM`(`targetType`·`targetId`·`targetKey`·`settings` jsonb·`mobileTab`). 공통: `label`(항목은 null = 대상 이름) · `nameEn` · `visible` · `audience` `ALL`·`GUEST`·`MEMBER`·`GRADE_MIN`·`STAFF` · `minGrade`(등급 **키**, GRADE_MIN 일 때만).
+- 한도(서버 상수 한 곳 = 화면 `UtilMenu.LIMITS`): 폴더 깊이 ≤3 · 항목 깊이 ≤4 · 그룹당 노드 ≤80 · 모바일 탭 ≤10 · 이름 1~20자(`<`·`>`·줄바꿈·제어 문자 금지). 부모는 폴더만.
+- **SIDE 그룹 전용**: `mobileTab` · `autoAdd`(그룹 안에서 한 폴더만 — 새로 켠 폴더가 있으면 기존 것을 끈다, 새로 켠 것이 둘 이상이면 400) · 미연결 게시판 경고. 다른 그룹에서 켜서 보내면 400.
+- **연결 유형**(코드 레지스트리 — 유형별 리졸버, `target_type` 에 CHECK 없음):
+  - `BOARD` — `targetId` = `boards.id`. 기본 이름 = 게시판 이름, 주소 `/boards/{slug}`, matchPrefix. 꺼진 게시판은 공개에서 빠지고 관리자 상태 `BOARD_INACTIVE`. **한 그룹 안에서 한 번**(다른 그룹엔 또 가능).
+  - `BUILTIN` — `targetKey` = 앱 화면 키(`UtilMenu.BUILTINS` 와 같은 표: key·주소·matchPrefix·로그인 필요·판매 스위치 필요). 한 그룹 안에서 한 번. 로그인 필요 키는 `audience` 가 `MEMBER`·`GRADE_MIN`·`STAFF` 가 아니면 400.
+  - `PATH` — `settings {path, newTab}`, 이름 필수, 주소 규칙 = `UtilMenu.pathProblem`. 중복 허용.
+  - `URL` — `settings {href, newTab}`, 이름 필수, 주소 규칙 = `UtilMenu.hrefProblem`. 중복 허용. 공개 응답에서 `https://` 면 `extra.external = true`.
+  - 준비 중(서버 유형 없음, 화면 표시만): `PAGE`(고정 페이지).
+  - 모르는 유형 행은 공개에서 빠지고 관리자 상태 `UNKNOWN_TYPE`, 저장 때는 받은 그대로 보존.
+- **상태**(관리자 `resolved.status`): `OK`·`BOARD_INACTIVE`·`SALES_OFF`·`TARGET_MISSING`·`UNKNOWN_TYPE`. 공동구매 판매 스위치는 roboyam 에 아직 없다 → `salesEnabled = true` 고정(스위치가 생기면 거기서 읽는다).
+- **게시판과의 연결**: 게시판을 만들면 `main` 그룹의 `autoAdd` 폴더 끝에 같은 트랜잭션으로 넣는다(폴더 없거나 한도 초과면 넣지 않음). 설치 프리셋으로 만든 게시판도 같다. 게시판을 지우면 그 게시판을 가리키는 항목을 모든 그룹에서 지운다. 게시판 목록 순서(`boards`)와 메뉴 순서는 별개다.
+- **공개 API** `GET /api/menu?set=main`(기본 `main`) — 보는 사람 기준 걸러진 트리(visible → audience → 리졸버 → 빈 폴더 제거). 꺼진 그룹은 `nodes: []`, 없는 그룹 404 `MENU_SET_NOT_FOUND`. 폴더는 `kind: 'GROUP'`. `mobileTabs` 는 SIDE 그룹에서만.
+
+## 관리자 사이트 메뉴
+- 모드 둘(`normal`·`settings`) 고정, 두 층: `SECTION`(최상위만) → `SCREEN` 또는 `FOLDER` → 하위 `SCREEN`(아이콘 없음). 유형 `ADMIN_SCREEN`(`targetKey` = 관리자 화면 키) · `URL`(권한 하나 선택 가능).
+- 화면 레지스트리(키 → 주소·권한)는 서버에도 둔다(`UtilAdminMenu.ITEMS` 잎과 같다). 한 화면은 두 모드 통틀어 한 번. 화면 권한은 요청으로 바꿀 수 없다.
+- 행이 없으면 레지스트리 기본 구성(지금 `UtilAdminMenu.ITEMS`)을 돌려준다. **관리자 셸은 이번에 바꾸지 않는다**(저장만).
+
+## API
+`useMenuApi.ts` 머리말 그대로: `/api/admin/menu-sets…`(목록·만들기·수정·삭제·트리 조회·트리 전체 교체 `version`·미리보기 후보) · `GET /api/admin/menu/target-options?set=` · `GET·PUT /api/admin/admin-menu` · 공개 `GET /api/menu`. 오류: 400 `VALIDATION` + `fields["nodes[i].children[j].<칸>"]` · 409 `MENU_VERSION_CONFLICT`·`MENU_SET_KEY_DUPLICATE`·`MENU_SET_SYSTEM` · 404 `MENU_SET_NOT_FOUND`. 감사: `MENU_SET_CREATE`·`MENU_SET_UPDATE`·`MENU_SET_DELETE`·`MENU_TREE_UPDATE`·`ADMIN_MENU_UPDATE`.
+
+## 서버 구현 결과 (2026-10-22) — 화면 연결은 후속
+**DB** shared `V43__menus.sql`(`menu_sets` · `menu_nodes`, 그룹별 게시판 부분 유일 색인, 시드 3그룹 — main 은 HOME + 자동 추가 폴더 「게시판」에 기존 게시판) · admin `V2__admin_menu.sql`(`admin_menu_state` 1행 + `admin_menu_nodes`, admin 서버만 쓰므로 admin 스트림·JDBC).
+**API** `useMenuApi.ts` 머리말 그대로 + `POST …/{key}/preview`·`GET /api/admin/menu/target-types` 구현(화면은 아직 안 부름). 공개 `GET /api/menu` 는 로그인 없이 열림, `Cache-Control: no-store`, 캐시 없음. 목업과 다른 점:
+- `version` 은 숫자 문자열. 트리 응답 항목에 `resolved: { status }` 추가.
+- fields 경로: BUILTIN 은 `.targetKey`, PATH `.settings.path`, URL `.settings.href`, 깊이 초과는 그 줄의 `.kind`, 트리 전체 문제는 `fields.nodes` 에 첫 문제 하나.
+- 더 거절(400): SIDE 아닌 그룹의 `mobileTab`·`autoAdd`, 없는 게시판·모르는 BUILTIN 키(`menu.target.missing`), 등급 목록에 없는 `minGrade`. 관리자 메뉴: 레지스트리에 없는 `labelKey`, 카탈로그에 없는 URL `permission`, 두 모드 합계 노드 200 초과.
+- 게시판 만들기·삭제도 해당 그룹 `version` 을 올린다(메뉴 화면을 열어 둔 채 저장하면 409). 바뀐 것 없는 저장은 version·감사 기록 그대로.
+- 관리자 메뉴를 저장한 적이 없으면 기본 구성을 `id: null` 로 준다. 부모 항목 안의 화면은 아이콘을 지운다.
+- 동시 저장: `menu_sets` 행·`admin_menu_state` 행 잠금 후 version 비교. 트리 저장은 그룹 노드 일괄 삭제 후 재삽입(같은 그룹의 ID 는 재사용).
+**보는 사람 판정**: STAFF = 게시판 매니저·스텝(`board_staff`)을 하나라도 맡은 회원(**2026-10-22 사용자 확정** — 운영자는 공개 사이트에서 일하지 않으므로 공개 메뉴의 STAFF 는 이 뜻뿐이다). 등급은 `profiles.grade_key` → `grades.level`. 회원이 없거나 탈퇴한 세션은 GUEST.
+**group-buy 시드**: 목업의 PATH `/boards/notice` 는 게시판 존재 보장이 없어 뺐다.
+
+## 미확정 사항
+1. 저장한 관리자 메뉴를 실제 관리자 셸이 언제부터 읽을지.
+2. 공동구매 판매 스위치(공동구매 기능 생길 때).
+3. `PAGE`(고정 페이지) 유형은 CMS 기능이 생길 때.

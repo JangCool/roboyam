@@ -69,6 +69,14 @@ public final class AuditActions {
     public static final String BOARD_PRIVACY_RETENTION_UPDATE = "BOARD_PRIVACY_RETENTION_UPDATE";
     /** 게시판 개인정보 보유기간 「지금 실행」(축 하나) */
     public static final String BOARD_PRIVACY_RUN = "BOARD_PRIVACY_RUN";
+    public static final String MENU_SET_CREATE = "MENU_SET_CREATE";
+    /** 메뉴 그룹 정보(이름·영문명·위치·사용 여부·설명) 저장 — 바뀐 칸만 */
+    public static final String MENU_SET_UPDATE = "MENU_SET_UPDATE";
+    public static final String MENU_SET_DELETE = "MENU_SET_DELETE";
+    /** 공개 사이트 메뉴 그룹의 트리 전체 교체 — 전·후 트리 요약 */
+    public static final String MENU_TREE_UPDATE = "MENU_TREE_UPDATE";
+    /** 관리자 사이트 메뉴(두 모드) 전체 교체 — 전·후 트리 요약 */
+    public static final String ADMIN_MENU_UPDATE = "ADMIN_MENU_UPDATE";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

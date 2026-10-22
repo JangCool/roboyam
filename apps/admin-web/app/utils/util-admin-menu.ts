@@ -82,6 +82,16 @@ export default class UtilAdminMenu {
                 { key: 'grades', to: '/grades', icon: 'pi pi-trophy', labelKey: 'menu.grades', permission: 'grade.read' },
             ],
         },
+        // 메뉴 관리 묶음 — 공개 사이트 메뉴(메뉴 그룹별 트리)와 관리자 사이트 메뉴 구성. community 의 「메뉴 구성」에 대응한다. 부모 주소(`/menus`)로 들어오면 공개 사이트 메뉴로 보낸다
+        {
+            key: 'siteMenu',
+            icon: 'pi pi-bars',
+            labelKey: 'menu.siteMenu',
+            items: [
+                { key: 'menusPublic', to: '/menus/public', icon: 'pi pi-globe', labelKey: 'menu.menusPublic', permission: 'layout.read' },
+                { key: 'menusAdmin', to: '/menus/admin', icon: 'pi pi-desktop', labelKey: 'menu.menusAdmin', permission: 'layout.read' },
+            ],
+        },
         // 게시판 묶음 — 게시판 관리(게시판 목록·게시판별 설정)와 모든 게시판에 일괄 적용되는 기본 설정. community 의 「게시판 구성」·「게시판 기본 설정」, 그누보드7 의 게시판 관리·기본 설정에 대응한다
         {
             key: 'board',

@@ -62,6 +62,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/logout").permitAll()
                         // 공개 사이트 설정(이름·로고·아이콘·링크 미리보기 이미지·표시 기본값) — 로그인 전 화면도 읽는다(공개 사이트 서버(api)에만 있는 주소)
                         .requestMatchers(HttpMethod.GET, "/api/site/info").permitAll()
+                        // 공개 사이트 메뉴 — 비로그인도 읽는다(로그인했으면 그 사람 기준으로 거른다. 공개 사이트 서버(api)에만 있는 주소)
+                        .requestMatchers(HttpMethod.GET, "/api/menu").permitAll()
                         // 관리자 앱(admin)의 로그인 상태 조회·로그인·로그아웃 — 같은 규약이다(공개 사이트 서버에는 이 주소가 없다). 그 밖의 /api/admin/** 는 로그인이 필요하고,
                         // 어떤 권한이 필요한지는 컨트롤러가 선언하며 선언이 없으면 거절된다(admin 의 AdminAccessInterceptor — fail-closed)
                         .requestMatchers(HttpMethod.GET, "/api/admin/auth/me").permitAll()

@@ -29,6 +29,7 @@ import com.community.board.repository.master.BoardPrefixRepository;
 import com.community.board.repository.master.BoardRepository;
 import com.community.grade.entity.GradeEntity;
 import com.community.grade.repository.master.GradeRepositoryQDSL;
+import com.community.menu.service.MenuBoardLinker;
 import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
 import com.community.permission.exception.PermissionDeniedException;
@@ -82,9 +83,11 @@ public class BoardService {
     private final SnowflakeIdGenerator ids;
     private final AuditLogService audit;
     private final AccessDeniedRecorder denied;
+    private final MenuBoardLinker menu;
 
     public BoardService(BoardRepository boards, BoardPrefixRepository prefixes, BoardContentQueries content, BoardCreator creator, BoardViews views,
-                        GradeRepositoryQDSL grades, SnowflakeIdGenerator ids, AuditLogService audit, AccessDeniedRecorder denied) {
+                        GradeRepositoryQDSL grades, SnowflakeIdGenerator ids, AuditLogService audit, AccessDeniedRecorder denied,
+                        MenuBoardLinker menu) {
         this.boards = boards;
         this.prefixes = prefixes;
         this.content = content;
@@ -94,6 +97,7 @@ public class BoardService {
         this.ids = ids;
         this.audit = audit;
         this.denied = denied;
+        this.menu = menu;
     }
 
     @Transactional(readOnly = true)
@@ -387,11 +391,14 @@ public class BoardService {
             throw new BoardHasPostsException();
         }
         content.deleteContent(board.getId());
+        // 공개 메뉴에서 이 게시판 항목을 모든 그룹에서 지운다(같은 트랜잭션 — 바뀐 그룹은 버전이 오른다)
+        List<String> menuSets = menu.boardDeleted(board.getId(), Instant.now());
         String slug = board.getSlug();
         String name = board.getName();
         boards.delete(board);
         boards.flush();
-        audit.record(event(actor, AuditActions.BOARD_DELETE, board.getId()).with("deleted", List.of(slug + " (" + name + ")")));
+        AuditEvent deleted = event(actor, AuditActions.BOARD_DELETE, board.getId()).with("deleted", List.of(slug + " (" + name + ")"));
+        audit.record(menuSets.isEmpty() ? deleted : deleted.with("menuSets", menuSets));
         log.info("게시판을 지웠다 boardId={} by operatorId={}", board.getId(), actor.operatorId());
     }
 

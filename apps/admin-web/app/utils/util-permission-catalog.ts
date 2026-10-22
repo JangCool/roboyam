@@ -164,8 +164,10 @@ export default class UtilPermissionCatalog {
         { code: 'board.staff.manage', unit: 'MANAGE', type: 'board', nameKey: 'permission.item.boardStaffManage', descKey: 'permission.item.boardStaffManageDesc', featureReady: true },
         { code: 'board.staff.limit', unit: 'CONFIG', type: 'board', nameKey: 'permission.item.boardStaffLimit', descKey: 'permission.item.boardStaffLimitDesc', featureReady: true },
         { code: 'board.delete', unit: 'SENSITIVE', type: 'board', nameKey: 'permission.item.boardDelete', descKey: 'permission.item.boardDeleteDesc', featureReady: true },
-        { code: 'layout.read', unit: 'READ', type: 'siteLayout', nameKey: 'permission.item.layoutRead', descKey: 'permission.item.layoutReadDesc', featureReady: false },
-        { code: 'layout.settings', unit: 'CONFIG', type: 'siteLayout', nameKey: 'permission.item.layoutSettings', descKey: 'permission.item.layoutSettingsDesc', featureReady: false },
+        // 사이트 화면 구성 — 조회(공개 사이트 메뉴·관리자 메뉴 보기) · 공개 사이트 메뉴 저장. 관리자 메뉴 저장은 모든 운영자의 작업 화면을 바꾸므로 따로 둔다(`admin-menu.manage`)
+        { code: 'layout.read', unit: 'READ', type: 'siteLayout', nameKey: 'permission.item.layoutRead', descKey: 'permission.item.layoutReadDesc', featureReady: true },
+        { code: 'layout.settings', unit: 'CONFIG', type: 'siteLayout', nameKey: 'permission.item.layoutSettings', descKey: 'permission.item.layoutSettingsDesc', featureReady: true },
+        { code: 'admin-menu.manage', unit: 'CONFIG', type: 'siteLayout', nameKey: 'permission.item.adminMenuManage', descKey: 'permission.item.adminMenuManageDesc', featureReady: true },
         { code: 'report.read', unit: 'READ', type: 'report', nameKey: 'permission.item.reportRead', descKey: 'permission.item.reportReadDesc', featureReady: false },
         { code: 'report.manage', unit: 'MANAGE', type: 'report', nameKey: 'permission.item.reportManage', descKey: 'permission.item.reportManageDesc', featureReady: false },
         { code: 'sanction.read', unit: 'READ', type: 'sanction', nameKey: 'permission.item.sanctionRead', descKey: 'permission.item.sanctionReadDesc', featureReady: false },

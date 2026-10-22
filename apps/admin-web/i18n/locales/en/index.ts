@@ -15,6 +15,7 @@ import grade from './grade';
 import login from './login';
 import member from './member';
 import menu from './menu';
+import menuConfig from './menuConfig';
 import notification from './notification';
 import operator from './operator';
 import permission from './permission';
@@ -37,6 +38,7 @@ export default {
     login,
     member,
     menu,
+    menuConfig,
     notification,
     operator,
     permission,

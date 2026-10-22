@@ -32,8 +32,10 @@ public enum Permission {
     BOARD_STAFF_MANAGE("board.staff.manage", BOARD, MANAGE, true),
     BOARD_STAFF_LIMIT("board.staff.limit", BOARD, CONFIG, true),
     BOARD_DELETE("board.delete", BOARD, SENSITIVE, true),
-    LAYOUT_READ("layout.read", SITE_LAYOUT, READ, false),
-    LAYOUT_SETTINGS("layout.settings", SITE_LAYOUT, CONFIG, false),
+    LAYOUT_READ("layout.read", SITE_LAYOUT, READ, true),
+    LAYOUT_SETTINGS("layout.settings", SITE_LAYOUT, CONFIG, true),
+    /** 관리자 사이트 메뉴 구성 저장 — 모든 운영자의 작업 화면을 바꾸므로 공개 사이트 메뉴 저장({@code layout.settings})과 따로 둔다 */
+    ADMIN_MENU_MANAGE("admin-menu.manage", SITE_LAYOUT, CONFIG, true),
     REPORT_READ("report.read", REPORT, READ, false),
     REPORT_MANAGE("report.manage", REPORT, MANAGE, false),
     SANCTION_READ("sanction.read", SANCTION, READ, false),
