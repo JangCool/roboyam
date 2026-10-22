@@ -157,3 +157,66 @@
 4. 종합 탭 영역별 관리자 역할을 서버 시드로 둘지, 권한 중 화면이 아직 없는 것(`featureReady:false`)까지 줄지.
 5. 운영자 로그인 세부(잠금 해제 방식, 비밀번호 재설정), 감사 보관 기간(1년은 가정), 신청 항목·승인자 권한.
 6. 서버 구조: `operators` 별도 테이블·역할/권한 3표, `users.role` 의 운영자 값 제거, 관리자 서버 인증 분리(`operator-permissions.md` "이 정책이 바꾸는 현재 코드").
+
+## 회원 상세 활동·등급 이력(서버) 구현 결과 (2026-10-22)
+화면(`MemberDetailRolesSection`·`MemberDetailGradePointSection`)은 아직 안내문 상태이고 서버만 채웠다(프론트 연결은 다음 단계 — `// MOCK:`/null 처리 교체). `GET /api/admin/members/{id}`(권한 `member.read`, 이메일 마스킹·감사 `MEMBER_VIEW` 그대로)의 **`activity`·`gradePoint`** 두 칸을 구체 레코드로 채운다. 나머지(연락처·프로필/메모·개인 설정·동의 변경 이력·공동구매·알림함·제재/신고·휴면·포인트 내역·`statusReason` …)는 도메인 기능이 없어 여전히 null/빈 배열이다.
+
+**마이그레이션** (shared, 번호는 다른 세션의 미커밋 `V43__menus` 와 겹치지 않게 V44·V45 를 썼다 — 합칠 때 번호를 다시 확인한다)
+- `V44__member_grade_changes`: 등급 변경 이력 표. `V45__post_comment_author_indexes`: 글·댓글 작성자 부분 색인 2개.
+- 반복 마이그레이션 `R__batch_15_grade_promotion.sql` 수정(승급과 같은 문장에서 이력 한 줄) — 내용이 바뀌어 기동 때 다시 적용된다.
+
+**응답 모양** (admin-web `MemberActivity`·`MemberGradePoint` 와 필드·값이 같다. `null` 칸은 키가 그대로 나간다)
+- `activity`: `postCount`·`commentCount`·`recentPostCount`·`recentCommentCount`(실제 집계) + `likesReceived`·`popularCount`·`recentLoginDays`(= 0). **탈퇴 회원은 `activity`·`gradePoint` 모두 null**(기존 축약 규칙).
+- `gradePoint`: `autoPromotion`(`ACTIVE`/`PAUSED_ADMIN`/`PAUSED_SANCTION`), `next`(다음 등급 `gradeKey` + `requirements[{kind: DAYS|ACTIVITY, current, required}]`, 마지막 등급이면 null), `gradeHistory`(최근 것이 먼저 최대 50건: `changeId`·`fromGrade`(null 가능)·`toGrade`·`kind`(`AUTO`/`ADMIN`/`RESUME`)·`reason`·`actorNickname`·`changedAt`), `nicknameTicketCount`(= 0), `pointEntries`(= 빈 배열).
+- 못 맞춘 칸 없음. 타입은 `MemberActivity`·`MemberGradePoint`(+`MemberGradeNext`·`MemberGradeRequirement`·`MemberGradeChange`·`MemberPointEntry`)로 `MemberDetailView` 의 `Object` 두 칸을 대체했다.
+
+**활동 요약 집계 기준 (가정)**
+- 글: 회원 글(`author_id` 있음) · `status='PUBLISHED'`(임시저장 제외) · `deleted_at IS NULL` · **`hidden_at IS NULL`(숨김은 세지 않는다)**. 댓글: 회원 댓글 · 삭제 안 됨 · 숨김 아님(그 댓글이 달린 글의 삭제·숨김 여부는 보지 않는다 — 글과 조인하면 색인만으로 끝나지 않는다). 비회원 글·댓글은 어느 회원에게도 세지 않는다.
+- 최근 7일 = `created_at >= 지금 - 7일`(경계 포함, 서버 시각 기준). 글·댓글 모두 `created_at` 기준.
+- `likesReceived`·`popularCount` = 0(추천·인기글 기능 없음). `recentLoginDays` = 0 — **로그인 성공은 `users.last_login_at` 하나뿐**이고 `login_attempts` 는 이메일별 실패 횟수/잠금 표라 「최근 7일 중 접속한 날」을 알 수 없다(마지막 로그인으로 0/1 을 만들면 오해를 부른다). 날짜별 접속 기록이 생기면 채운다.
+
+**인덱스 근거 (V45)**
+- `ix_posts_author (author_id, created_at DESC) WHERE author_id IS NOT NULL AND status='PUBLISHED' AND deleted_at IS NULL AND hidden_at IS NULL`, `ix_comments_author (author_id, created_at DESC) WHERE author_id IS NOT NULL AND deleted_at IS NULL AND hidden_at IS NULL`. 조회 조건이 색인 조건과 글자 그대로 같아 부분 색인을 타고, 전체 수는 색인 항목 수(index-only scan), 최근 7일은 같은 색인의 `created_at` 범위다. 삭제·임시저장·숨김·비회원 행은 색인에 들어가지 않는다.
+- 두 표 모두 작성자 조건으로는 파티션 가지치기가 안 된다(글 = id 월 범위, 댓글 = post_id 해시 64) → 조각마다 색인을 한 번씩 찌른다. 글은 달마다 1조각(연 12개씩 늘어난다), 댓글은 64개 고정. 글 id(Snowflake)로 최근 구간을 좁히는 가지치기는 일부러 쓰지 않았다(임시저장했다 나중에 공개한 글처럼 id 시각과 `created_at` 이 어긋나면 누락).
+- 부모 표에 만든 색인은 모든 조각에 생기고 `board_ensure_post_partitions` 가 만드는 새 조각에도 자동으로 붙는다(확인함).
+- 일회용 DB 실측: 글 약 46만(조각 16개)·댓글 약 62만 건에서 많이 쓴 작성자(글 2.97만·댓글 2만) 한 명의 네 개 수를 한 문장으로 세는 데 실행 13ms(계획 23ms), 회원 상세 API 전체 약 33ms, 보통 작성자는 약 27ms. 실행계획은 데이터가 있는 모든 조각에서 `Index Only Scan`(Heap Fetches 0), 데이터 없는 미래 조각만 비어 있어 `Seq Scan`(비용 0). 새 조각이 자라는 동안 자동 분석(autovacuum) 전에는 색인을 안 탈 수도 있으나 조각 하나의 크기에 비례할 뿐이다.
+- **잠금**: 일반 `CREATE INDEX` 는 만드는 동안 그 표의 쓰기를 막는다. 지금은 글·댓글 쓰기 기능이 없어 표가 비어 있어(V42 는 표만 만들었다) 즉시 끝난다. **쓰기 기능이 배포돼 데이터가 쌓인 뒤에 비슷한 색인을 더해야 하면 이 방식을 쓰지 않는다** — 부모에 `CREATE INDEX … ON ONLY`, 조각마다 `CREATE INDEX CONCURRENTLY`, `ALTER INDEX … ATTACH PARTITION` 을 트랜잭션 밖(별도 Flyway 비트랜잭션 스크립트 또는 운영 작업)에서 한다. V45 파일 머리말에 같은 지침을 적었다.
+- 매우 많이 쓴 작성자(수십만 건)는 정확한 수를 세는 비용이 그 작성자 색인 항목 수에 비례한다(만 건 단위에서는 수 ms). 더 필요해지면 작성 쪽에서 증감하는 카운터 표로 옮긴다.
+
+**등급 승급의 활동 수 판정은 연결하지 않았다 (판단)**
+- 현재 동작: Java `GradePromotionService`·`GradeRepositoryQDSL` 과 DB 배치 `grade-promotion` 모두 활동 수를 0 으로 본다 → 활동 조건이 있는 등급(기본 시드의 일반·단골·베테랑 중 `min_activity>0` 인 것)은 도달 불가.
+- 이유: ① DB 배치는 매일 **전체 정상 회원**을 훑으므로 회원마다 글 월 조각 + 댓글 64조각의 색인을 찔러야 한다(실측: 위 조건에서 회원 5천 명을 도는 데 약 0.7초 → 100만 명이면 일 수 분의 DB 시간이고, 조건을 영영 못 채우는 회원은 매일 다시 센다. 글 조각이 늘수록 선형으로 커진다). ② 승급 대상 판정이 Java(`promotable` QDSL·`promoteAll`·`countPromotedTo` 미리보기)와 SQL 두 곳이라 활동 수 서브쿼리를 양쪽·미리보기까지 같은 뜻으로 넣어야 하고, 등급 저장 PUT 한 번이 전체 회원 집계를 부르게 된다(요청 지연·잠금 시간 증가). ③ 글·댓글을 쓰는 기능이 아직 없어 지금 이으면 얻는 것이 없고 기본 시드 등급의 승급 동작만 바뀐다.
+- 대신 **회원 상세의 `next.requirements[ACTIVITY].current`** 는 실제 글+댓글 수를 보인다 → 달성도 100% 인데도 자동 승급이 안 되는 회원이 보일 수 있다(엔진이 활동 수를 아직 0 으로 보기 때문). 화면 문구/운영 안내에서 이 차이를 알려야 한다.
+- 잇는 방법(후속): 글·댓글 작성/삭제 트랜잭션이 `member_activity_counts(user_id, post_count, comment_count)` 를 증감하고, `promoteOnEvent` 가 그 값을 쓰며, SQL 배치·QDSL `promotable` 이 같은 카운터 표를 조인한다(Java `activityReachable`·SQL `c_known_activity` 제거). 그때 두 쪽이 같은 데이터에서 같은 결과를 내는지 다시 비교한다.
+
+**등급 변경 이력 (V44)**
+- 표 `member_grade_changes(id IDENTITY, user_id→users CASCADE, from_grade_key NULL, to_grade_key, kind, reason, reason_code, actor_operator_id, created_at)` + `(user_id, created_at DESC, id DESC)`. **id 는 Snowflake 가 아니라 DB 가 매긴다** — DB 배치(SQL)가 한 문장으로 수천 줄을 넣어 앱 발급기를 쓸 수 없다(가이드의 「ID 는 앱이 발급」의 예외로 적는다). 응답 `changeId` 는 문자열.
+- **등급 키는 값으로 보존**(외래키 없음): 등급이 지워져도 이력이 안 지워지고 삭제도 막히지 않는다. 키는 재사용하지 않으므로(`grade_settings.next_serial`) 옛 키가 다른 등급을 가리키지 않는다. 지워진 키는 화면이 중립 뱃지 + 키 글자로 그린다(`useGradeAppearance.badgeOf` 확인함).
+- **운영자**: `actor_operator_id` 에도 외래키를 두지 않는다. 응답 `actorNickname` = 자동(`AUTO`)이면 null, 운영자 현재 이름, **운영자가 지워졌으면 「삭제된 운영자」/「Deleted operator」**(요청 언어, 메시지 `member.gradeChange.actorDeleted`). null 로 두면 자동 승급처럼 보이기 때문이다. 이메일은 읽지도 내리지도 않는다.
+- **사유**: 운영자가 입력한 `reason` 이 우선, 없으면 시스템 `reason_code`(지금은 `GRADE_REMOVED`)를 요청 언어로 푼다(`member.gradeChange.reason.GRADE_REMOVED`). 모르는 코드는 null.
+- **kind**: `AUTO`(자동 승급) · `ADMIN`(운영자 변경, 등급 삭제로 인한 이동) · `RESUME`(자동 승급 재개). 프론트에 「등급 설정 변경」 종류가 없어 등급 삭제 이동은 `ADMIN` + 사유 코드로 표현했다.
+- **기록 지점** — 모두 변경과 **같은 SQL 문장(데이터 변경 CTE)·같은 트랜잭션**이라 함께 커밋/롤백된다:
+  1. DB 배치 `batch_grade_promotion`(`R__batch_15`): 올린 회원마다 `AUTO` 한 줄(덩어리 트랜잭션).
+  2. Java 일괄 승급 `GradePromotionService.promoteAll` → `GradeRepositoryQDSL.promote`(네이티브 CTE로 교체. 등급 저장 PUT 의 소급 승급이 여기로 온다): `AUTO`.
+  3. Java 즉시 승급 `promoteOnEvent`: 엔티티 한 줄 `AUTO`(아직 부르는 곳 없음).
+  4. 등급 삭제로 인한 회원 이동 `GradeService.save` → `GradeRepositoryQDSL.moveMembers`(운영자 ID 인자 추가): `ADMIN`+`GRADE_REMOVED`+저장한 운영자. 탈퇴 회원은 이동은 하되 이력은 남기지 않는다.
+  5. **운영자의 수동 등급 지정/해제·자동 승급 재개는 기능(`grade.override`) 자체가 아직 없어 기록 지점이 없다** — 기능을 만들 때 `MemberGradeChangeEntity.byOperator(...)` 로 같은 트랜잭션에서 남긴다(`ProfileEntity.changeGradeManually` 호출 옆).
+  이미 있던 과거 승급은 이력이 없다(만들지 않았다). 등급 이름만 바뀌는 저장은 키가 그대로라 이력을 남기지 않는다.
+- 이력 크기: 자동 승급은 올리기만 하므로 회원당 (등급 수−1)줄 이하 + 수동 변경 몇 줄 + 등급 삭제 이동. 별도 보관 배치는 두지 않았다(조회는 최근 50건만 읽는다).
+
+**`gradePoint` 나머지 칸**
+- `autoPromotion`: 정지(기간·영구) 회원 → `PAUSED_SANCTION`, `grade_manual=true` 이고 등급 옵션이 `STOP_AUTO` → `PAUSED_ADMIN`, 그 밖 `ACTIVE`(승급 판정의 대상 규칙과 같다. 정지가 우선).
+- `next`: 지금 등급보다 서열이 높은 첫 등급. `DAYS.current` = 가입 후 경과 일수(상한 없음, 승급 판정과 같은 날짜 계산), `ACTIVITY.current` = 글+댓글 수. 두 줄 모두 항상 내린다(필요 값이 0 이면 프론트가 100%/달성으로 그린다). 마지막 등급이면 null — 프론트가 `nextNone` 문구로 처리한다(확인함).
+
+**검증 (일회용 DB `rbverify_gp`, 끝나고 삭제)**
+- 활동: 공개 4/댓글 3, 최근 2/2 — 임시저장·삭제·숨김·비회원 글·남의 글 제외, 7일 경계 ±1시간 확인. 탈퇴 회원 `activity`·`gradePoint` null, 정지 회원 `PAUSED_SANCTION`, 수동 상향+`STOP_AUTO` → `PAUSED_ADMIN`, 마지막 등급 `next=null`.
+- 이력: 60건 중 50건·최근 먼저·같은 시각이면 번호 큰 것 먼저, 삭제된 운영자 대체 표시(ko/en), 지워진 등급 키·시스템 사유 풀이·모르는 코드 무시.
+- 승급: DB 배치 `CALL batch_grade_promotion` 이 올린 회원마다 `AUTO` 이력(대상 아닌 정지·탈퇴·너무 젊은 회원은 없음, 재실행해도 늘지 않음, `STOP_AUTO` 에서 수동 회원 제외), Java 경로(등급 저장 PUT)도 같은 이력, 등급 삭제 이동이 `ADMIN`+`GRADE_REMOVED`+저장 운영자 이력을 남기고 탈퇴 회원은 제외.
+- 권한: `member.read` 만 있으면 이메일 마스킹(`ac***@…`)·활동/등급 구획은 열람 가능, `member.pii` 면 원문, 권한 없는 운영자 403, 없는 회원 404.
+- 실행하지 않은 것: 전체 테스트·E2E(요청 시에만), `promoteOnEvent`(부르는 곳이 없다), pg_cron 예약 실행(일회용 DB 에서는 `WRONG_DATABASE` 라 프로시저를 직접 `CALL` 했다).
+
+**미해결**
+- 승급 판정의 활동 수 연결(카운터 표 설계 포함) — 위 「연결하지 않았다」.
+- 날짜별 접속 기록(`recentLoginDays`), 추천·인기글, 포인트 내역·닉네임 변경권.
+- 숨김 글·댓글을 활동 수에 넣을지(권장 가정: 넣지 않음) — 운영 정책 확정 필요.
+- 프론트 후속: `MemberDetailRolesSection`·`MemberDetailGradePointSection` 의 안내문을 실제 값으로(null 처리는 이미 있음), 탈퇴 회원은 두 구획이 null 이라 기존 「준비 중」 문구가 뜨므로 탈퇴 전용 문구가 필요하면 추가, 「달성도 100% 인데 승급 안 됨」 안내.

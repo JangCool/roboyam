@@ -40,7 +40,9 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li><b>저장은 한 번에</b>: 목록 순서가 곧 서열이고, 지금 저장된 목록과 비교해 추가({@code gradeKey} 없음 — 서버가 {@code GRADE_<번호>} 를 발급)·삭제(요청에 빠진 기존 등급)·순서·수정을 처리한다.
  *       검사({@link GradeSavePlanner})를 모두 통과한 뒤에야 쓰기 시작하고, 한 트랜잭션이라 중간에 실패하면 아무것도 저장되지 않는다. 같은 설정을 동시에 저장하는 요청은 옵션 행 잠금으로 줄 세운다.</li>
- *   <li><b>삭제</b>: 그 등급의 회원은 저장돼 있는 서열에서 <b>바로 아래 남아 있는 등급</b>으로 이동한 뒤 등급이 지워진다. 첫 등급은 지울 수 없다.</li>
+ *   <li><b>삭제</b>: 그 등급의 회원은 저장돼 있는 서열에서 <b>바로 아래 남아 있는 등급</b>으로 이동한 뒤 등급이 지워진다. 첫 등급은 지울 수 없다.
+ *       옮긴 회원마다(탈퇴 회원 제외) 등급 변경 이력({@code member_grade_changes}: kind=ADMIN, 사유 코드 GRADE_REMOVED, 저장한 운영자)이 이동과 같은 문장에서 남는다.
+ *       소급 승급({@code promoteAll})이 올린 회원은 kind=AUTO 이력이 남는다.</li>
  *   <li><b>등급 역할(파생)</b>: 같은 트랜잭션에서 {@code ROLE_GRADE_<키>} 역할을 만들고(권한은 바로 아래 등급 역할의 것을 복사), 이름이 바뀌면 따라가고, 지워진 등급의 역할은 지운다.</li>
  *   <li><b>소급 승급</b>: 저장 직후 새 기준으로 이미 조건을 채운 회원을 올린다. 가입 일수 조건은 시간이 지나야 채워지는 조건이라 <b>저장 직후에는 기준을 낮춘 몫을 적용하지 않고</b>(저장 전 일수와 새 일수 중 큰 값으로 판정)
  *       다음 배치(DB 배치 {@code grade-promotion} — 프로시저 {@code batch_grade_promotion})가 올린다. 활동 수 조건·새 등급·옵션을 "계속 자동 승급"으로 바꾼 경우는 저장 직후 올린다. 이동한 회원도 판정 대상이다.</li>
@@ -135,7 +137,7 @@ public class GradeService {
         List<Map<String, Object>> deleted = new ArrayList<>();
         for (Map.Entry<String, String> removed : plan.removedTo().entrySet()) {
             long count = gradeQueries.memberCountOf(removed.getKey());
-            gradeQueries.moveMembers(removed.getKey(), removed.getValue(), now);
+            gradeQueries.moveMembers(removed.getKey(), removed.getValue(), actor.operatorId(), now); // 옮긴 회원마다 등급 변경 이력도 같은 문장에서 남는다
             Map<String, Object> detail = new LinkedHashMap<>();
             detail.put("gradeKey", removed.getKey());
             detail.put("movedTo", removed.getValue());

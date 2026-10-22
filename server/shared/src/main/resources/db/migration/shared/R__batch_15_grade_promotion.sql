@@ -13,8 +13,10 @@
 --     가장 높은 등급으로 한 번에 올린다. 일수 = 가입 시각(users.created_at) <= 지금 - min_days 일.
 --   · 대상은 정상(ACTIVE) 회원이고 탈퇴 처리(deleted_at)되지 않은 회원만. 정지·탈퇴 회원은 자동 승급이 멈춘다.
 --   · 운영자가 수동으로 올린 회원(profiles.grade_manual)은 등급 옵션(grade_settings.manual_policy)이 CONTINUE_AUTO 일 때만 포함한다. 옵션 행이 없으면 포함한다.
---   · 활동 수: 글·댓글 표가 아직 없어 모든 회원의 활동 수를 0 으로 본다 — 활동 조건이 0 인 등급(조건이 일수뿐인 등급)만 올라갈 수 있다.
---     (Java GradePromotionService.KNOWN_ACTIVITY 와 같은 가정. 글·댓글 표가 생기면 아래 c_known_activity 자리에 회원별 집계를 넣고 Java 의 activityReachable·QDSL 도 함께 고친다.)
+--   · 활동 수: 승급 판정은 모든 회원의 활동 수를 0 으로 본다 — 활동 조건이 0 인 등급(조건이 일수뿐인 등급)만 올라갈 수 있다. 글·댓글 표(V42)는 있지만 잇지 않았다(의도 —
+--     매일 전체 회원을 훑는 배치에서 회원마다 글 월 조각 + 댓글 64조각의 색인을 찌르는 집계가 너무 무겁다. 작성 쪽 카운터가 생기면 잇는다. roles-contract.md 「회원 상세 활동·등급 이력(서버) 구현 결과」).
+--     (Java GradePromotionService.KNOWN_ACTIVITY 와 같은 가정. 잇게 되면 아래 c_known_activity 자리와 Java 의 activityReachable·QDSL 도 함께 고친다.)
+--   · 이력: 올린 회원마다 member_grade_changes(V44)에 kind=AUTO 한 줄을 승급과 같은 문장에서 남긴다(Java GradeRepositoryQDSL#promote·promoteOnEvent 와 같다).
 --   · 등급 저장과의 충돌 방지: 덩어리를 시작할 때마다 grade_settings 행을 FOR UPDATE 로 잠근다. 등급 저장(GradeService.save)도 같은 행을 잠그고 시작하므로, 저장이 진행 중이면 끝나기를
 --     기다린 뒤 **저장이 끝난 등급 목록**으로 판정한다(잠그지 않으면 지워지는 등급을 참조하다 외래키 오류가 날 수 있다). 잠금은 덩어리의 COMMIT 으로 풀린다 — 덩어리마다 새로 잠그고 목록을 다시 읽는다.
 --     30초 안에 잠금을 못 얻으면 그 실행은 FAIL 로 끝난다(다음 실행이 이어서 한다).
@@ -83,7 +85,13 @@ BEGIN
                    SET grade_key = picked.to_key, updated_at = v_now
                   FROM picked
                  WHERE p.user_id = picked.user_id AND p.grade_key = picked.from_key
-             RETURNING p.user_id
+             RETURNING p.user_id, picked.from_key, picked.to_key
+            ), history AS (
+                -- 올린 회원마다 등급 변경 이력 한 줄(kind=AUTO) — 승급과 같은 문장이라 같은 트랜잭션(덩어리)에서 함께 커밋된다.
+                -- (Java: GradeRepositoryQDSL#promote 가 같은 일을 한다.) 데이터 변경 CTE 는 아래 SELECT 가 참조하지 않아도 끝까지 실행된다.
+                INSERT INTO member_grade_changes (user_id, from_grade_key, to_grade_key, kind, created_at)
+                SELECT user_id, from_key, to_key, 'AUTO', v_now FROM moved
+                RETURNING 1
             )
             SELECT (SELECT count(*) FROM picked), (SELECT count(*) FROM moved), coalesce((SELECT max(user_id) FROM picked), v_last)
               INTO v_picked, v_n, v_last;

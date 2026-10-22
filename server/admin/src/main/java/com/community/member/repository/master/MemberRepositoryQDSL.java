@@ -2,10 +2,13 @@ package com.community.member.repository.master;
 
 import com.community.grade.entity.GradeRoles;
 import com.community.grade.entity.QGradeEntity;
+import com.community.grade.entity.QMemberGradeChangeEntity;
+import com.community.member.dto.MemberGradeChangeRow;
 import com.community.member.dto.MemberRecord;
 import com.community.member.dto.MemberSearchCriteria;
 import com.community.member.dto.MemberSearchCriteria.AuthMethod;
 import com.community.member.dto.UserRoleRow;
+import com.community.operator.entity.QOperatorEntity;
 import com.community.role.entity.MemberRoleIds;
 import com.community.role.entity.QRoleEntity;
 import com.community.role.entity.QUserRoleEntity;
@@ -50,6 +53,8 @@ public class MemberRepositoryQDSL extends RoboyamRepositoryQDSL {
     private static final QUserEntity USER = QUserEntity.userEntity;
     private static final QProfileEntity PROFILE = QProfileEntity.profileEntity;
     private static final QGradeEntity GRADE = QGradeEntity.gradeEntity;
+    private static final QMemberGradeChangeEntity GRADE_CHANGE = QMemberGradeChangeEntity.memberGradeChangeEntity;
+    private static final QOperatorEntity OPERATOR = QOperatorEntity.operatorEntity;
     private static final QUserRoleEntity USER_ROLE = QUserRoleEntity.userRoleEntity;
     private static final QRoleEntity ROLE = QRoleEntity.roleEntity;
     private static final QUserIdentityEntity IDENTITY = QUserIdentityEntity.userIdentityEntity;
@@ -114,6 +119,20 @@ public class MemberRepositoryQDSL extends RoboyamRepositoryQDSL {
             rows.computeIfAbsent(row.get(IDENTITY.userId), k -> new ArrayList<>()).add(row.get(IDENTITY.provider));
         }
         return rows;
+    }
+
+    /**
+     * 회원의 등급 변경 이력 — 최근 것이 먼저(같은 시각이면 번호가 큰 것이 먼저), 최대 {@code limit} 줄.
+     * 처리한 운영자의 이름은 운영자 표와 맞춰 보고, 운영자가 지워졌으면 이름만 null 이다. 이메일은 읽지 않는다. {@code (user_id, created_at DESC, id DESC)} 색인으로 끝난다.
+     */
+    public List<MemberGradeChangeRow> gradeChangesOf(long userId, int limit) {
+        return query.select(Projections.constructor(MemberGradeChangeRow.class, GRADE_CHANGE.id, GRADE_CHANGE.fromGradeKey, GRADE_CHANGE.toGradeKey, GRADE_CHANGE.kind,
+                        GRADE_CHANGE.reason, GRADE_CHANGE.reasonCode, GRADE_CHANGE.actorOperatorId, OPERATOR.operatorName, GRADE_CHANGE.createdAt))
+                .from(GRADE_CHANGE).leftJoin(OPERATOR).on(OPERATOR.id.eq(GRADE_CHANGE.actorOperatorId))
+                .where(GRADE_CHANGE.userId.eq(userId))
+                .orderBy(GRADE_CHANGE.createdAt.desc(), GRADE_CHANGE.id.desc())
+                .limit(limit)
+                .fetch();
     }
 
     private JPAQuery<?> baseQuery() {

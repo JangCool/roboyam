@@ -11,15 +11,18 @@ import com.community.member.dto.MemberRecord;
 import com.community.member.dto.MemberRoles;
 import com.community.member.dto.MemberSearchCriteria;
 import com.community.member.dto.request.MemberSearchRequest;
+import com.community.member.dto.response.MemberActivity;
 import com.community.member.dto.response.MemberConsentRecord;
 import com.community.member.dto.response.MemberConsents;
 import com.community.member.dto.response.MemberDetailView;
+import com.community.member.dto.response.MemberGradePoint;
 import com.community.member.dto.response.MemberPage;
 import com.community.member.dto.response.MemberRoleDetail;
 import com.community.member.dto.response.MemberRoleRef;
 import com.community.member.dto.response.MemberSocialLink;
 import com.community.member.dto.response.MemberView;
 import com.community.member.exception.MemberNotFoundException;
+import com.community.member.repository.master.MemberActivityRepository;
 import com.community.member.repository.master.MemberRepositoryQDSL;
 import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
@@ -33,6 +36,7 @@ import com.community.user.entity.UserEntity;
 import com.community.user.entity.UserStatus;
 import com.community.user.repository.master.ProfileRepository;
 import com.community.user.repository.master.UserRepository;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -51,14 +55,19 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>이메일 가림</b>: {@code member.pii} 가 없으면 이메일을 {@code ab***@gmail.com} 으로 가려서 주고 {@code emailMasked=true}. 가려진 값으로 짐작해 찾을 수 없게
  *       이메일 검색은 {@code member.pii} 가 있으면 부분 일치, 없으면 <b>전체 주소가 같을 때만</b> 맞는다.</li>
  *   <li><b>상세 열람 기록</b>: 상세를 열면 감사 기록({@code MEMBER_VIEW})을 남긴다(대상 회원 ID와 이메일 원문 공개 여부만 — 이메일 값은 남기지 않는다). 목록은 남기지 않는다(가정).</li>
- *   <li>서버에 아직 데이터가 없는 칸(포인트·휴면·제재·활동 수·알림 설정·공동구매 등)은 null/빈 값으로 내려간다 — {@link MemberDetailView}.</li>
- *   <li>탈퇴한 회원은 축약해 보인다(역할·소셜·동의·소개 없음, 탈퇴 시각만).</li>
+ *   <li>활동 요약({@code activity}: 글·댓글 수·최근 7일)과 등급·포인트 구획의 등급 변경 이력·승급 상태·다음 등급 달성도({@code gradePoint})는 채운다 —
+ *       {@link MemberActivityRepository}·{@link MemberGradePointAssembler}. 읽기 전용 조회라 새 감사 기록은 없다(열람은 {@code MEMBER_VIEW} 하나).</li>
+ *   <li>서버에 아직 데이터가 없는 칸(포인트·휴면·제재·알림 설정·공동구매 등)은 null/빈 값으로 내려간다 — {@link MemberDetailView}.</li>
+ *   <li>탈퇴한 회원은 축약해 보인다(역할·소셜·동의·소개·활동 요약·등급 구획 없음, 탈퇴 시각만).</li>
  * </ul>
  */
 @Service
 public class MemberService {
 
     private static final Logger log = LoggerFactory.getLogger(MemberService.class);
+
+    /** 활동 요약의 「최근」 구간 일수 */
+    private static final long RECENT_DAYS = 7;
 
     private final MemberRepositoryQDSL members;
     private final MemberSearchParser parser;
@@ -68,9 +77,14 @@ public class MemberService {
     private final UserRepository users;
     private final ProfileRepository profiles;
     private final AuditLogService audit;
+    private final MemberActivityRepository activities;
+    private final MemberGradePointAssembler gradePoints;
 
     public MemberService(MemberRepositoryQDSL members, MemberSearchParser parser, MemberRoleResolver roleResolver, GradeRepositoryQDSL gradeQueries,
-                         RoleRepositoryQDSL roleQueries, UserRepository users, ProfileRepository profiles, AuditLogService audit) {
+                         RoleRepositoryQDSL roleQueries, UserRepository users, ProfileRepository profiles, AuditLogService audit, MemberActivityRepository activities,
+                         MemberGradePointAssembler gradePoints) {
+        this.activities = activities;
+        this.gradePoints = gradePoints;
         this.members = members;
         this.parser = parser;
         this.roleResolver = roleResolver;
@@ -123,18 +137,32 @@ public class MemberService {
         List<MemberSocialLink> social = withdrawn ? List.of() : List.of(SocialProvider.KAKAO, SocialProvider.NAVER, SocialProvider.GOOGLE).stream()
                 .map(provider -> new MemberSocialLink(provider.name(), providers.contains(provider))).toList();
 
+        // 활동 요약·등급 이력은 탈퇴 회원에게는 내리지 않는다(축약). 글·댓글 집계는 작성자 색인으로 끝난다(V45) — 최근 구간은 지금 - 7일 이후
+        Instant now = Instant.now();
+        MemberActivity activity = withdrawn ? null : activityOf(id, now);
+        MemberGradePoint gradePoint = withdrawn ? null : gradePoints.assemble(user, profile, activity, now);
+
         MemberDetailView view = new MemberDetailView(Long.toString(id), canPii ? record.email() : MemberMasking.email(record.email()), emailMasked, record.nickname(),
                 record.gradeKey(), memberRoles.memberType(), record.status().name(), authMethodOf(record, providers), record.emailVerifiedAt(), record.createdAt(),
                 record.lastLoginAt(), 0, memberRoles.roles(), null, statusChangedAt(record), memberRoles.boardRole(), 0,
-                null, null, List.of(), null, null,
+                null, activity, List.of(), null, null,
                 withdrawn ? null : profile.getBio(), social, null, null, null, withdrawn ? record.deletedAt() : null,
                 withdrawn || canPii ? List.of() : null, !canPii,
-                null, null, null, null, consents, null);
+                gradePoint, null, null, null, consents, null);
 
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.MEMBER_VIEW, AuditResult.SUCCESS).target("MEMBER", Long.toString(id))
                 .with("emailRevealed", canPii && record.email() != null));
         log.info("회원 상세를 열었다 memberId={} operatorId={}", id, actor.operatorId());
         return view;
+    }
+
+    /**
+     * 활동 요약 — 글·댓글은 작성자 색인으로 센다({@link MemberActivityRepository}). 추천·인기글 기능은 아직 없어 0, 접속 일수는 날짜별 로그인 성공 기록이 없어 0
+     * (마지막 로그인 시각 하나뿐이라 「최근 7일 중 접속한 날 수」를 알 수 없다).
+     */
+    private MemberActivity activityOf(long userId, Instant now) {
+        MemberActivityRepository.Counts counts = activities.countOf(userId, now.minus(Duration.ofDays(RECENT_DAYS)));
+        return new MemberActivity(counts.posts(), counts.comments(), 0, 0, counts.recentPosts(), counts.recentComments(), 0);
     }
 
     /** 역할 고르개의 선택지 — 회원 역할 전부. 등급 역할이 먼저(등급 서열 순서), 그다음 회원 유형·게시판 단위·사용자 정의(역할 목록의 차례) */

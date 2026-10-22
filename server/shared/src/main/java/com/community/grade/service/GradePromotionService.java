@@ -5,7 +5,9 @@ import com.community.grade.dto.PromotionScope;
 import com.community.grade.entity.GradeEntity;
 import com.community.grade.entity.GradeManualPolicy;
 import com.community.grade.entity.GradeSettingEntity;
+import com.community.grade.entity.MemberGradeChangeEntity;
 import com.community.grade.repository.master.GradeRepositoryQDSL;
+import com.community.grade.repository.master.MemberGradeChangeRepository;
 import com.community.grade.repository.master.GradeSettingRepository;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserEntity;
@@ -33,8 +35,11 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>소급</b>: 기준을 낮추거나 등급을 추가하면 이미 조건을 채운 회원도 올린다({@link #promoteAll}) — 등급 저장 서비스가 저장 직후 부른다.</li>
  *   <li><b>대상</b>: 정상(ACTIVE) 회원만. 정지 회원은 자동 승급이 멈추고(제재로 중지) 탈퇴 회원은 대상이 아니다. 수동으로 올린 회원은 등급 옵션이
  *       {@code CONTINUE_AUTO} 일 때만 포함한다.</li>
- *   <li><b>활동 수</b>: 글·댓글 표가 아직 없어 모든 회원의 활동 수를 0 으로 본다 — 활동 조건이 0 인 등급(조건이 일수뿐인 등급)만 올라갈 수 있다.
- *       표가 생기면 {@link #activityReachable} 과 {@code GradeRepositoryQDSL} 의 대상 조건에 활동 수 집계를 더한다.</li>
+ *   <li><b>이력</b>: 올린 회원마다 등급 변경 이력({@code member_grade_changes}, kind=AUTO)을 <b>승급과 같은 문장·같은 트랜잭션</b>에서 남긴다 — 일괄({@link #promoteAll})은
+ *       {@code GradeRepositoryQDSL#promote} 의 한 문장, 한 명({@link #promoteOnEvent})은 엔티티 한 줄. DB 배치(SQL)도 같은 문장 안에서 남긴다.</li>
+ *   <li><b>활동 수</b>: 글·댓글 표는 있지만(V42) <b>승급 판정은 아직 활동 수를 모든 회원 0 으로 본다</b> — 활동 조건이 0 인 등급(조건이 일수뿐인 등급)만 올라갈 수 있다.
+ *       회원 상세의 활동 요약·다음 등급 달성도는 실제 집계를 보이지만, 승급 판정을 그 집계에 잇지 않은 것은 의도다(작성 쪽 카운터가 생길 때까지 — 근거는 roles-contract.md
+ *       「회원 상세 활동·등급 이력(서버) 구현 결과」). 잇게 되면 {@link #activityReachable}·{@code GradeRepositoryQDSL} 의 대상 조건·SQL 배치를 함께 고친다.</li>
  * </ul>
  */
 @Service
@@ -47,12 +52,15 @@ public class GradePromotionService {
     private final GradeSettingRepository settings;
     private final ProfileRepository profiles;
     private final UserRepository users;
+    private final MemberGradeChangeRepository changes;
 
-    public GradePromotionService(GradeRepositoryQDSL gradeQueries, GradeSettingRepository settings, ProfileRepository profiles, UserRepository users) {
+    public GradePromotionService(GradeRepositoryQDSL gradeQueries, GradeSettingRepository settings, ProfileRepository profiles, UserRepository users,
+                                 MemberGradeChangeRepository changes) {
         this.gradeQueries = gradeQueries;
         this.settings = settings;
         this.profiles = profiles;
         this.users = users;
+        this.changes = changes;
     }
 
     /** 활동 수 조건을 채울 수 있는 회원이 있는가 — 지금은 활동 수가 모두 0 이라 조건이 0 인 등급만 채울 수 있다 */
@@ -132,7 +140,9 @@ public class GradePromotionService {
         if (target == null) {
             return Optional.empty();
         }
+        String fromKey = p.getGradeKey();
         p.promoteAutomatically(target.getGradeKey(), now);
+        changes.persist(MemberGradeChangeEntity.automatic(userId, fromKey, target.getGradeKey(), now)); // 승급과 같은 트랜잭션에서 이력 한 줄
         return Optional.of(target.getGradeKey());
     }
 
