@@ -7,8 +7,8 @@ import UtilNotificationMessage from '~/utils/util-notification-message';
 /**
  * Slack · Mattermost 템플릿(메시지 카드의 겉모양 — 계약 `docs/features/message-template-contract.md` 「개정 4」)의 순수 규칙 — 색 막대 팔레트, 심각도 그림, 저장 전 검사,
  * 그 앱의 표기법(Slack `*굵게*` · `<주소|글자>` / Mattermost `**굵게**` · `[글자](주소)`)을 미리보기 HTML 로 그리기, 템플릿에 문구를 씌운 카드 값 만들기.
- * 서버 단계에서 같은 검사를 서버(가칭 `ChatTemplateValidator`)가 다시 보고, 실제로 올릴 때는 지금처럼(`ChannelMessageFormatter`) 변수 값의 멘션·표기 기호를 무력화한다(목업 가정).
- * 미리보기는 화면이 견본 값으로 그린다(서버 호출 없음 — 목업 가정).
+ * 같은 검사를 서버(`ChatTemplateAdminService`)가 다시 보고, 실제로 올릴 때는 서버 `ChatRenderer` 가 변수 값의 멘션·표기 기호를 무력화한다(`ChannelMessageFormatter`).
+ * 미리보기는 화면이 견본 값으로 그린다(서버 호출 없음). Mattermost 「열기」는 서버가 버튼이 아니라 본문 끝 링크로 붙인다(`ChatMessageCard` 가 같은 자리에 그린다).
  */
 
 /** 템플릿 칸의 검사할 곳 — 서버 `fields.*` 와 같은 이름 */

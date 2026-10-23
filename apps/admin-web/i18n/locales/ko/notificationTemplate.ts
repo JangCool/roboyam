@@ -160,7 +160,7 @@ export default {
     kakaoTitle: '카카오톡 템플릿',
     kakaoSubtitle: '카카오에 등록·승인된 알림톡 템플릿이에요(템플릿 코드 · 승인된 본문 · 변수 대응 · 버튼). 카카오톡 문구가 이 중 하나를 골라요.',
     kakaoPreparing: '카카오톡은 알림 도구에서 준비 중이라 아직 만들 수 없어요.',
-    kakaoPreparingBody: '카카오톡은 알림 도구에서 준비 중이에요(업체 계약 전). 예시 템플릿으로 칸과 말풍선 모양만 볼 수 있고, 만들거나 고칠 수는 없어요.',
+    kakaoPreparingBody: '카카오톡은 알림 도구에서 준비 중이에요(업체 계약 전). 카카오에 등록·승인된 템플릿이 생기면 여기서 볼 수 있지만, 만들거나 고칠 수는 없어요.',
     kakaoLoadFailed: '카카오톡 템플릿을 불러오지 못했어요',
     kakaoEmptyTitle: '카카오톡 템플릿이 없어요',
     newKakaoTemplate: '새 카카오톡 템플릿',

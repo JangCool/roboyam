@@ -5,7 +5,7 @@
         받는 사람을 고르지 않는다 — 한 화면에 「운영자에게 가는 메일」 · 「회원에게 가는 메일」 구획(운영자 먼저)으로 나눠 보인다(종류가 적어 메뉴로 나누지 않는다).
         구획마다 표: 이름(보안 메일 · 끌 수 없음 딱지 · 설명 · 코드) · 언어별 쓰는 문구 · 특수 상황 규칙 수 · 사용자 문구 수.
         행을 누르면 상세(`/settings/notification-messages/required-mails/[kind]`). 이 화면은 보기만 한다. 권한: 화면 `template.read`(메뉴가 거른다) — 403 이면 권한 없음 안내.
-        ⚠ MOCK: API 는 메모리 목업이다(`useNotificationMessageApi` · `?mock=…` 스위치는 `composables/template/api/mock/notification-template-mock.ts` 머리말).
+        API 는 실제 서버(`useNotificationMessageApi`)다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('notificationMessage.requiredTitle')" :subtitle="t('notificationMessage.requiredSubtitle')" />

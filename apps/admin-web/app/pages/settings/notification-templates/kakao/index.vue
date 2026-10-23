@@ -3,7 +3,7 @@
         카카오톡 템플릿(목록, `/settings/notification-templates/kakao`, 설정 > 알림·이벤트 > 템플릿 › 카카오톡) — **준비 중**. 계약 `docs/features/message-template-contract.md` 「개정 4」 유형별 템플릿 설정 칸.
         알림 도구에서 카카오가 준비 중(업체 계약 전)이라 화면을 흐리게 두고 새로 만들기를 막는다 — 맨 위 안내와 알림 도구 링크. 예시 템플릿 하나를 열어 칸(알림톡 템플릿 코드 · 승인된 본문 · 변수 대응표 · 버튼)과 말풍선 미리보기를 볼 수 있다.
         표: 이름 · 알림톡 템플릿 코드 · 검수 상태 · 쓰는 문구 수(→ 그 받는 사람의 문구 목록 `?channel=KAKAO&template=<id>`) · 마지막 수정. 행을 누르면 보기 화면(`…/kakao/[id]`).
-        권한: 화면 `template.read`(메뉴가 거른다). ⚠ MOCK: API 는 메모리 목업이다(`useKakaoTemplateApi` — 읽기만).
+        권한: 화면 `template.read`(메뉴가 거른다). API 는 실제 서버(`useKakaoTemplateApi` — 읽기만, 아직 행이 없어 빈 목록)다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('notificationTemplate.kakaoTitle')" :subtitle="t('notificationTemplate.kakaoSubtitle')">
@@ -77,7 +77,6 @@
 
 <script setup lang="ts">
 import type { DataTableRowClickEvent } from 'primevue/datatable';
-import { mockTemplateCan } from '~/composables/template/api/mock/notification-template-mock';
 import type { KakaoTemplateListItemView } from '~/composables/template/api/useKakaoTemplateApi.types';
 import type { MessageAudience } from '~/composables/template/api/useNotificationMessageApi.types';
 import UtilNotificationTemplateMessages from '~/utils/util-notification-template-messages';
@@ -90,9 +89,7 @@ const toApiError = useApiErrorOf();
 const time = useDisplayTime();
 const router = useRouter();
 const { prefs } = useLayoutPrefs();
-// MOCK: 목업 스위치(`?mock=template-readonly|template-denied`)로 권한을 흉내 낸다 — 서버가 붙으면 아래 REAL 줄로 바꾼다
-const can = mockTemplateCan(useAdminPermission().can);
-// REAL: const { can } = useAdminPermission();
+const { can } = useAdminPermission();
 
 const canManage = computed(() => can('template.manage'));
 

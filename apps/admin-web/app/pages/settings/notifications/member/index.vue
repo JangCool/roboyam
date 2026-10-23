@@ -1,12 +1,13 @@
 <template>
     <!--
-        회원 이벤트(`/settings/notifications/member`, 설정 > 알림·이벤트) — 공개 사이트 회원에게 가는 알림의 일. 계약 `docs/features/message-template-contract.md` 「개정 3」 이벤트 화면. **전부 목업**이다.
-        통합 목록: 지금 실제로 일어나는 5종(`MemberNotificationType` — 댓글·답글·포인트 회수·글 숨김·댓글 숨김) + 게시판 기본 설정 「알림」에만 있는 5종(멘션·인기글·운영 처리·스텝 처리·신고 결과)은 「준비 중」(흐리게, 바꿀 수 없음).
-        영역(콘텐츠 · 회원 · 안전 …)마다 구획 한 장 + 표. 줄마다: 사용 · 앱 알림 · 이메일 · 회원이 끌 수 있는지(계정·처리 알림은 코드가 잠금) · 쓰는 템플릿 요약(채널마다 한국어 쓸 템플릿) · 「상세」(`/settings/notifications/member/[code]`).
+        회원 이벤트(`/settings/notifications/member`, 설정 > 알림·이벤트) — 공개 사이트 회원에게 가는 알림의 일. 계약 `docs/features/message-template-contract.md` 「서버 구현 결과(회원 이벤트·이메일 확장)」.
+        통합 목록(서버 카탈로그 `MemberEvent`): 지금 실제로 일어나는 5종(댓글·답글·포인트 회수·글 숨김·댓글 숨김) + 「준비 중」 5종(멘션·인기글·운영 처리·스텝 처리·신고 결과 — 흐리게, 바꿀 수 없음, 서버 409 `MEMBER_EVENT_NOT_READY`).
+        준비 중 줄의 스위치 값은 V58 이 게시판 기본 설정에서 옮긴 값이라 켜져 있을 수 있다 — 바꿀 수 없게 잠그고 그대로 보인다(안내 한 줄).
+        영역(콘텐츠 · 회원 · 안전 …)마다 구획 한 장 + 표. 줄마다: 사용 · 앱 알림 · 이메일 · 회원이 끌 수 있는지(계정·처리 알림은 코드가 잠금) · 쓰는 문구 요약(채널마다 한국어 쓸 문구 — 준비 중은 문구 대상이 아니라 「—」) · 「상세」(`/settings/notifications/member/[code]`).
         스위치는 바꾸면 곧바로 저장한다(운영자 이벤트와 같은 방식 — 낙관적 갱신, 거절되면 그 줄만 되돌리고 서버 문구 토스트 8초).
-        맨 위 안내: 게시판 기본 설정 › 알림의 이벤트별 칸은 서버 단계에서 이 화면으로 옮긴다(그 탭은 지금 건드리지 않는다 — 링크만).
+        맨 위 안내: 게시판 기본 설정 › 알림에 있던 이벤트별 칸은 이 화면으로 옮겨 왔다(그 탭으로 가는 링크 — `board.read`).
         권한: 화면 `notification.read`(메뉴가 거른다) · 바꾸기 `notification.manage` · 쓰는 문구 칸은 `template.read` 가 있을 때만.
-        ⚠ MOCK: `useMemberEventApi`(스위치 `?mock=member-events-error|member-events-save-error|member-events-denied`) · `useNotificationMessageApi`.
+        서버 API: `useMemberEventApi`(`GET·PUT /api/admin/member-events`) · 문구 요약 `useNotificationMessageApi.targets`.
     -->
     <div class="flex flex-col gap-4">
         <PageTitle :title="t('notification.memberEvents.title')" :subtitle="t('notification.memberEvents.subtitle')">
@@ -90,7 +91,7 @@
                         </template>
                     </Column>
 
-                    <!-- 쓰는 문구(목업) — `template.read` 가 없거나 못 받으면 칸을 감춘다. 준비 중 이벤트는 문구가 없다(「—」) -->
+                    <!-- 쓰는 문구 — `template.read` 가 없거나 못 받으면 칸을 감춘다. 준비 중 이벤트는 서버가 문구 대상으로 주지 않는다(「—」) -->
                     <Column v-if="messageTargets" :header="t('notification.colMessages')" style="min-width: 11rem">
                         <template #body="{ data }">
                             <MessageUsageSummary :channels="messageTargets.get(data.code)?.channels ?? null" />
@@ -117,7 +118,6 @@
 
             <div class="flex flex-col gap-1">
                 <p v-if="messageTargets" class="m-0 text-xs text-muted-color">{{ t('notification.messagesNote') }}</p>
-                <!-- MOCK: 「준비 중」 줄은 화면 확인용이다(서버 단계에서는 실제로 일어나는 이벤트와 서버가 준 것만 보인다) -->
                 <p v-if="hasPlanned" class="m-0 text-xs text-muted-color">{{ t('notification.memberEvents.plannedNote') }}</p>
             </div>
         </template>
@@ -126,7 +126,6 @@
 
 <script setup lang="ts">
 import type { MemberEventUpdateRequest, MemberEventView } from '~/composables/notification/api/useMemberEventApi.types';
-import { mockTemplateCan } from '~/composables/template/api/mock/notification-template-mock';
 import type { MessageTargetView } from '~/composables/template/api/useNotificationMessageApi.types';
 import UtilNotification from '~/utils/util-notification';
 import UtilNotificationMessages from '~/utils/util-notification-messages';
@@ -141,8 +140,6 @@ const toApiError = useApiErrorOf();
 const { can } = useAdminPermission();
 // ⚠ 통째로 받아 `prefs.density` 를 쓰지 않으면 조밀 모드가 이 표에만 안 먹는다
 const { prefs } = useLayoutPrefs();
-// MOCK: 문구 읽기 권한은 목업 스위치(`?mock=template-denied`)로 흉내 낸다 — 서버가 붙으면 `can` 으로 바꾼다
-const templateCan = mockTemplateCan(can);
 
 const canManage = computed(() => can('notification.manage'));
 
@@ -167,12 +164,12 @@ function memberOffLock(event: MemberEventView): string | undefined {
     return lockOf(event) ?? (event.lockReason ? t(`notification.memberEvents.lock${event.lockReason}`) : undefined);
 }
 
-/* ── 쓰는 문구 요약(목업) ── */
+/* ── 쓰는 문구 요약 ── */
 
 const messageTargets = ref<Map<string, MessageTargetView> | null>(null);
 
 async function loadMessageTargets(): Promise<void> {
-    if (!templateCan('template.read')) {
+    if (!can('template.read')) {
         messageTargets.value = null;
         return;
     }

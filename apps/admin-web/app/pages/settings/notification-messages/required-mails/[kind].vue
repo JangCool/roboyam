@@ -4,7 +4,7 @@
         채널은 이메일뿐이고 받는 사람이 끌 수 없다. 머리에 받는 사람 · 보안 메일 · 끌 수 없음을 보인다. ①②는 `PUT targets/REQUIRED_MAIL/{kind}` 한 번으로 저장하므로 하단 떠 있는 저장 줄(`StickySaveBar`) 하나다.
         칸은 이벤트 상세와 같은 조각(`MessageChannelSelection`). 머리 단추: 「이 메일의 문구 보기」(받는 사람의 문구 목록 `?target=&channel=EMAIL`) · 「새 문구」(`/settings/notification-messages/new?audience=&target=&channel=EMAIL`).
         권한: 화면 `template.read`(메뉴가 거른다) · 바꾸기 `template.manage` — 없으면 입력 잠금, 저장 줄 없음. 저장하지 않은 변경이 있는 채 떠나면 묻는다.
-        ⚠ MOCK: API 는 메모리 목업이다(`useNotificationMessageApi`).
+        API 는 실제 서버(`useNotificationMessageApi`)다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <template v-if="loading && !detail">
@@ -62,7 +62,6 @@
 </template>
 
 <script setup lang="ts">
-import { mockTemplateCan } from '~/composables/template/api/mock/notification-template-mock';
 import type { MessageTargetDetailView } from '~/composables/template/api/useNotificationMessageApi.types';
 import UtilMailTemplate from '~/utils/util-mail-template';
 import type { MessageSelectionModel } from '~/utils/util-notification-message';
@@ -78,9 +77,7 @@ const toApiError = useApiErrorOf();
 const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirmDialog();
-// MOCK: 목업 스위치(`?mock=template-readonly|template-denied`)로 권한을 흉내 낸다 — 서버가 붙으면 아래 REAL 줄로 바꾼다
-const can = mockTemplateCan(useAdminPermission().can);
-// REAL: const { can } = useAdminPermission();
+const { can } = useAdminPermission();
 
 const canManage = computed(() => can('template.manage'));
 const code = computed(() => String(route.params.kind ?? ''));
@@ -155,10 +152,15 @@ async function save(): Promise<void> {
         const error = toApiError(e);
         const prefix = 'channels.EMAIL.';
         const found: Record<string, string> = {};
-        for (const [key, message] of Object.entries(error.fields ?? {})) if (key.startsWith(prefix)) found[key.slice(prefix.length)] = message;
+        const loose: string[] = [];
+        for (const [key, message] of Object.entries(error.fields ?? {})) {
+            if (key.startsWith(prefix)) found[key.slice(prefix.length)] = message;
+            else loose.push(message);
+        }
         serverErrors.value = found;
         // 칸에 붙지 않는 오류만 저장 줄 안 한 줄 — 서버 문구 그대로
-        if (Object.keys(found).length === 0) formError.value = error.message;
+        if (loose.length) formError.value = loose.join(' · ');
+        else if (Object.keys(found).length === 0) formError.value = error.message;
     } finally {
         saving.value = false;
     }

@@ -8,7 +8,7 @@
         기본 템플릿(회원 기본 · 운영자 기본)은 고치거나 지울 수 없다.
         삭제는 확인 후 바로 — 쓰는 문구가 있으면 단추를 잠그고 까닭을 보이며, 서버도 409 `TEMPLATE_IN_USE` 로 막는다(토스트 8초).
         권한: 화면 `template.read`(메뉴가 거른다) · 만들기·복사·삭제 `template.manage` — 없으면 단추가 숨는다.
-        ⚠ MOCK: API 는 메모리 목업이다(`useMailTemplateApi`).
+        API 는 실제 서버(`useMailTemplateApi`)다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('notificationTemplate.mailTitle')" :subtitle="t('notificationTemplate.mailSubtitle')">
@@ -116,7 +116,6 @@
 
 <script setup lang="ts">
 import type { DataTableRowClickEvent } from 'primevue/datatable';
-import { mockTemplateCan } from '~/composables/template/api/mock/notification-template-mock';
 import type { MailTemplateAudience, MailTemplateListItemView } from '~/composables/template/api/useMailTemplateApi.types';
 import { MAIL_TEMPLATE_LIMIT } from '~/composables/template/api/useMailTemplateApi.types';
 import UtilMailTemplate from '~/utils/util-mail-template';
@@ -132,9 +131,7 @@ const time = useDisplayTime();
 const router = useRouter();
 const { confirm } = useConfirmDialog();
 const { prefs } = useLayoutPrefs();
-// MOCK: 목업 스위치(`?mock=template-readonly|template-denied`)로 권한을 흉내 낸다 — 서버가 붙으면 아래 REAL 줄로 바꾼다
-const can = mockTemplateCan(useAdminPermission().can);
-// REAL: const { can } = useAdminPermission();
+const { can } = useAdminPermission();
 
 const canManage = computed(() => can('template.manage'));
 

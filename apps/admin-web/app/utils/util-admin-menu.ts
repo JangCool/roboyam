@@ -158,8 +158,7 @@ export default class UtilAdminMenu {
         },
         // 알림·이벤트 묶음(개정 4 — message-template-contract) — 알림 도구 · 템플릿(부모: 메일 · Slack · Mattermost · 카카오톡 — 도구별 겉모양) · 문구(부모: 운영자 · 회원 · 필수 안내 메일 — 이벤트·채널별 제목과 본문) · 이벤트(부모: 운영자 · 회원).
         // 옛 주소(개정 3 의 `/settings/notification-templates/templates|layouts|required-mails/**` · 그 전 `/settings/mail-*`)는 각 화면이 새 주소로 보낸다.
-        // 회원 이벤트와 템플릿·문구는 화면 목업 단계(API 목업)다. 운영자 이벤트·알림 도구는 실제 서버에 연결돼 있다.
-        // 권한 `template.read` 는 서버 `Permission` 에 아직 없어 지금은 최고 관리자에게만 템플릿·문구가 보인다. 서버 `AdminScreenRegistry` 의 키·주소(지금 `notifications` → `/settings/notifications`)는 서버 단계에서 맞춘다
+        // 모두 실제 서버에 연결돼 있다. 키·주소·권한(`template.read` · `notification.read`)은 서버 `AdminScreenRegistry` 와 같다.
         {
             key: 'settingsNotification',
             mode: 'settings',

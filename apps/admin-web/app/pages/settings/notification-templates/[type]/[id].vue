@@ -8,7 +8,7 @@
         - 쓰는 문구 수 → 운영자 문구 목록(`?channel=<종류>&template=<id>`). 삭제: 쓰는 문구가 있으면 단추를 잠그고, 서버도 409 `TEMPLATE_IN_USE`.
         - 변경 이력: 제목 옆 단추 → 오른쪽 `SettingHistoryDrawer`(처음 열 때 받는다 — components.md 2-5). 저장된 사용자 템플릿만.
         권한: 화면 `template.read` · 바꾸기 `template.manage`. 저장하지 않은 변경이 있는 채 떠나면 묻는다.
-        ⚠ MOCK: API 는 메모리 목업이다(`useChatTemplateApi`).
+        API 는 실제 서버(`useChatTemplateApi`)다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <template v-if="loading && !ready">
@@ -185,7 +185,6 @@
 </template>
 
 <script setup lang="ts">
-import { mockTemplateCan } from '~/composables/template/api/mock/notification-template-mock';
 import type { ChatTemplateSaveRequest, ChatTemplateType, ChatTemplateView } from '~/composables/template/api/useChatTemplateApi.types';
 import { CHAT_SEVERITIES } from '~/composables/template/api/useChatTemplateApi.types';
 import type { MessageLocale, MessageSeverity } from '~/composables/template/api/useNotificationMessageApi.types';
@@ -206,9 +205,7 @@ const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirmDialog();
 const { prefs } = useLayoutPrefs();
-// MOCK: 목업 스위치(`?mock=template-readonly|template-denied`)로 권한을 흉내 낸다 — 서버가 붙으면 아래 REAL 줄로 바꾼다
-const can = mockTemplateCan(useAdminPermission().can);
-// REAL: const { can } = useAdminPermission();
+const { can } = useAdminPermission();
 
 const canManage = computed(() => can('template.manage'));
 const colorGroupId = useId();

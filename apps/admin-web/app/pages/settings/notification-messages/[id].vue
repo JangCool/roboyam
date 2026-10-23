@@ -6,7 +6,7 @@
         공통 칸: 이름 · 대상(새로 만들 때만 고른다) · 채널(새로 만들 때만, 대상이 나가는 채널 중에서 — 카카오톡은 준비 중이라 고를 수 없다) · 받는 사람(읽기 전용) · 언어 · 변수 넣기.
         채널마다 칸과 미리보기가 다르다 — 앱 알림이 아니면 **그 채널의 템플릿 고르기**(「템플릿 고르기」) + **고른 템플릿에 이 문구를 씌운 미리보기**:
           · 이메일 — 메일 템플릿(받는 사람이 같거나 `ANY`) · 제목 · 본문(간단 에디터) · 버튼 블록 → 메일 미리보기(격리된 iframe — 서버가 그린다) + 「나에게 시험 발송」(`MailTestDialog`).
-          · Slack · Mattermost — 그 종류의 템플릿 · 제목 한 줄 · 본문(그 앱의 표기법) → 그 앱의 메시지 카드(`ChatMessageCard` — 템플릿의 색 막대·아이콘·꼬리말·버튼, 이벤트의 심각도) + 「알림 도구로 시험 보내기」(실제 알림 도구 목록에서 그 종류의 도구 — 보내기는 목업).
+          · Slack · Mattermost — 그 종류의 템플릿 · 제목 한 줄 · 본문(그 앱의 표기법) → 그 앱의 메시지 카드(`ChatMessageCard` — 템플릿의 색 막대·아이콘·꼬리말·버튼, 이벤트의 심각도) + 「알림 도구로 시험 보내기」(실제 알림 도구 목록에서 그 종류의 도구 — `POST chat-test`).
           · 카카오톡(준비 중) — 알림톡 템플릿 → 알림톡 말풍선(`KakaoMessageBubble` — 승인 본문을 이 대상의 견본 값으로). 본문을 쓰지 않는다. 모든 칸 읽기 전용.
           · 앱 알림 — 제목 한 줄 · 본문(평문) → 관리자 종 서랍 한 줄(운영자) 또는 회원 알림함 한 줄(회원). 템플릿 없음.
         - 새로 만들기: 대상·채널을 바꾸면 그 대상·채널·언어의 기본 문구 내용으로 채운다(고친 내용이 있으면 묻는다). 템플릿은 그 채널(받는 사람)의 기본 템플릿으로 시작한다. 복사: 원본의 대상·채널·내용·언어·템플릿, 이름 「원본 (복사)」.
@@ -15,7 +15,7 @@
         - 언어: 그 언어의 「쓸 문구」인 사용자 문구는 언어를 바꿀 수 없다. 삭제: 쓰는 중이면 단추를 잠그고, 서버도 409 `MESSAGE_IN_USE`.
         - 변경 이력: 제목 옆 단추 → 오른쪽 `SettingHistoryDrawer`(처음 열 때 받는다 — components.md 2-5). 저장된 사용자 문구만.
         권한: 화면 `template.read` · 바꾸기·시험 `template.manage`. 저장하지 않은 변경이 있는 채 떠나면 묻는다.
-        ⚠ MOCK: API 는 메모리 목업이다(`useNotificationMessageApi` · `useMailTemplateApi` · `useChatTemplateApi` · `useKakaoTemplateApi`). Slack·Mattermost 시험의 도구 목록만 실제 API(`useNotificationChannels`)다.
+        API 는 실제 서버다(`useNotificationMessageApi` · `useMailTemplateApi` · `useChatTemplateApi` · `useKakaoTemplateApi` · 시험 도구 목록 `useNotificationChannels`).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <template v-if="loading && !ready">
@@ -287,7 +287,7 @@
 
         <MailTestDialog v-model:visible="testOpen" v-model:to="testTo" :help="t('notificationMessage.testHelp')" :to-error="testToError" :error="testError" :testing="testing" :result="testResult" @send="runTest" />
 
-        <!-- Slack · Mattermost — 알림 도구로 시험 보내기(도구 목록은 실제 API, 보내기는 목업) -->
+        <!-- Slack · Mattermost — 알림 도구로 시험 보내기(도구 목록 `useNotificationChannels`, 보내기 `chatTest`) -->
         <Dialog v-model:visible="chatTestOpen" modal :header="t('notificationMessage.chatTestTitle', { tool: UtilNotificationTemplateMessages.channelLabel(t, channel) })" class="w-[28rem] max-w-[calc(100vw-2rem)]">
             <form class="flex flex-col gap-3" novalidate @submit.prevent="runChatTest">
                 <p v-if="toolsLoading && !chatTools.length" class="m-0 text-sm text-muted-color">{{ t('common.loading') }}</p>
@@ -317,7 +317,6 @@
 <script setup lang="ts">
 import type { MailTestDialogResult } from '~/components/mail/MailTestDialog.vue';
 import { ApiError } from '~/composables/common/useApiClient';
-import { mockTemplateCan } from '~/composables/template/api/mock/notification-template-mock';
 import type { ChatTemplateListItemView, ChatTemplateType, ChatTemplateView } from '~/composables/template/api/useChatTemplateApi.types';
 import type { KakaoTemplateListItemView, KakaoTemplateView } from '~/composables/template/api/useKakaoTemplateApi.types';
 import type { MailTemplateListItemView } from '~/composables/template/api/useMailTemplateApi.types';
@@ -350,9 +349,7 @@ const router = useRouter();
 const { user } = useAdminAuth();
 const { confirm } = useConfirmDialog();
 const { prefs } = useLayoutPrefs();
-// MOCK: 목업 스위치(`?mock=template-readonly|template-denied`)로 권한을 흉내 낸다 — 서버가 붙으면 아래 REAL 줄로 바꾼다
-const can = mockTemplateCan(useAdminPermission().can);
-// REAL: const { can } = useAdminPermission();
+const { can } = useAdminPermission();
 
 const canManage = computed(() => can('template.manage'));
 

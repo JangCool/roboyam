@@ -3,7 +3,7 @@ import type { MessageListItemView } from '~/composables/template/api/useNotifica
 /**
  * 문구 목록 화면(메뉴 「문구 › 운영자」 `/settings/notification-messages/operator` · 「문구 › 회원」 `…/member`)의 상태 — 목록을 받고, 한 줄을 지운다.
  * 두 화면이 setup 에서 부를 때마다 새 상태가 생긴다(`useState` 가 아니다 — 화면끼리 공유하지 않는다). 표·거르기는 `NotificationMessageList` 가 그리고, 이 상태를 props 로 받는다.
- * 서버 호출은 `useNotificationMessageApi` 한 겹이다(지금은 메모리 목업). 받는 사람으로 거르는 것은 화면이 한다(목업 가정 — 수가 적다).
+ * 서버 호출은 `useNotificationMessageApi` 한 겹이다. 서버는 모든 문구를 한 번에 주고(페이지 없음) 받는 사람으로 거르는 것은 화면이 한다(수가 적다 — 대상·채널당 사용자 문구 20).
  *
  * ⚠ 화면 setup 에서 부른다(오류를 `ApiError` 로 바꾸는 함수·번역 함수를 그때 붙잡는다).
  *

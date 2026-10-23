@@ -166,5 +166,15 @@
 ### 가정·미해결(다음 단계)
 - 회원 이벤트 **이메일 발송**(받는 사람 언어·메일 템플릿 = 문구 엔진), **수신 동의**, **조용한 시간**(게시판 기본 설정의 이메일 조용한 시간 칸은 남아 있지만 적용 지점이 없다), 회원 개인 끄기(`memberCanTurnOff` 의 적용 지점 — 회원 설정 화면이 아직 없다).
 - `enabled ← site OR email` 이전 규칙(가정). 준비 중 이벤트도 옛 칸 값을 옮겨 `enabled` 가 켜진 채일 수 있다(목업은 준비 중을 늘 꺼짐으로 그렸다 — 화면은 `featureReady=false` 면 「준비 중」으로만 보여 영향 없음).
-- 프론트 후속: 게시판 기본 설정 「알림」 탭(`pages/boards/defaults/notifications.vue`)의 이벤트별 표·`memberDefaults` 타입을 빼고, 회원 이벤트 목업(`useMemberEventApi`)을 실제 API 로, 운영자 이벤트 화면의 「서버 단계에서 열려요」 안내·`emailable=false` 처리를 정리한다(서버는 이제 준비 중이 아닌 이벤트에 `emailable=false` 를 주지 않는다). 이벤트 상세는 목록에서 찾지 않고 `GET notification-events/{code}` 를 쓸 수 있다.
+- 프론트 후속: 게시판 기본 설정 「알림」 탭(`pages/boards/defaults/notifications.vue`)의 이벤트별 표·`memberDefaults` 타입을 빼고, 회원 이벤트 목업(`useMemberEventApi`)을 실제 API 로, 운영자 이벤트 화면의 「서버 단계에서 열려요」 안내·`emailable=false` 처리를 정리한다(서버는 이제 준비 중이 아닌 이벤트에 `emailable=false` 를 주지 않는다). 이벤트 상세는 목록에서 찾지 않고 `GET notification-events/{code}` 를 쓸 수 있다. → 아래 「프론트 연결 결과」에서 했다.
+
+## 프론트 연결 결과 (2026-10-23)
+- **목업 → 실제 API**: admin-web `useNotificationMessageApi`(대상·문구·미리보기·시험·채팅 시험·이력) · `useMailTemplateApi` · `useChatTemplateApi` · `useKakaoTemplateApi` · `useMemberEventApi` 가 `useApiClient` 로 서버를 부른다. 목업 파일(`template/api/mock/`, `notification/api/mock/`, `common/mock/mock-util.ts` — 다른 쓰는 곳 없음)·`?mock=` 스위치·`mockTemplateCan` 을 지웠다. 권한은 `useAdminPermission().can` 그대로. 목업 전용 메일 그리기(`UtilMailTemplate.render`·`cleanHrefs`)도 지웠다 — 미리보기는 서버 HTML 을 빈 `sandbox` iframe 으로만 보인다.
+- **목업과 달라진 점 반영**: id 는 글자 그대로 쓴다(Snowflake · `builtin-…` · `mail-member` — 예시 id 를 가정한 코드는 없었다) · 채팅 시험 429 `MAIL_TEST_RATE_LIMITED` 는 「N초 뒤에」 문구 · Mattermost 미리보기 카드의 「열기」를 버튼 대신 본문 끝 링크로(`ChatMessageCard`) · 준비 중 회원 이벤트는 목록의 「쓰는 문구」가 「—」, 상세는 404 → 「아직 문구가 없어요」 안내 · 카카오톡 템플릿은 빈 목록(예시 문구 안내를 지웠다).
+- **이벤트**: 운영자 이벤트 상세는 `GET notification-events/{code}`(404 → 「찾을 수 없어요」), 회원 이벤트 상세는 한 줄 조회가 없어 목록에서 찾는다. 「서버 단계에서 열려요」 문구·키를 지웠다(`emailable=false` 가 오면 일반 「이메일로 보내지 않아요」). 준비 중 회원 이벤트는 스위치를 잠근 채 옮긴 값 그대로 보이고, 안내를 「옮겨 온 값 · 기능이 생기면 바꿀 수 있어요」로 바꿨다.
+- **게시판 기본 설정 「알림」**: 이벤트별 표와 `BoardNotificationSettings.memberDefaults`(+ `BoardMemberNotifyRow`·`BOARD_NOTIFY_LOCKED`·표 i18n)를 걷어 냈다. 남은 칸 = 묶는 시간 · 메일 조용한 시간 · 보관 일수. 맨 위 「회원 이벤트별 알림」 구획은 안내 + 「알림·이벤트 › 이벤트 › 회원」 링크(`notification.read` 가 있을 때, 없으면 안내만).
+- **오류 표시**: 대상 저장 `fields.channels.<채널>.selected.ko|en`·`.rules[i].condition|messageId`·`.rules` → 그 채널 구획의 칸 아래, `channels.<채널>` 자체(준비 중·대상에 없는 채널)와 409 는 저장 줄 안 한 줄(이벤트 상세 · 필수 안내 메일 상세). 문구·템플릿 저장의 `fields.*` 는 칸 아래, 목록 한 줄 실패(삭제 409 등)는 토스트 8초.
+- **권한 카탈로그**: `template.read`(READ)·`template.manage`(CONFIG) = 서버 `Permission.TEMPLATE_READ|MANAGE`(SITE_INTEGRATION, 준비됨)과 같다 — 「목업 후보」 주석을 정리했다.
+- **확인(일회용 DB·9191 서버·nuxt 3273)**: 템플릿 4종 목록 · 메일/Mattermost 복사·저장·이력 · 메일 미리보기(서버 HTML) · 문구 목록 · 이메일 문구 복사·저장·이력 · 시험 발송(mailpit 수신) · Mattermost 문구에 사용자 템플릿 적용 미리보기 · 채팅 시험(가짜 웹훅 수신 — 「열기」 본문 끝 링크 확인) · 429 · 이벤트 상세 쓸 문구·규칙 저장 · 쓰는 중 문구 삭제 잠금 · 필수 안내 메일 규칙 저장 · 회원 이벤트 저장 · 준비 중 상세 · 게시판 알림 탭 저장(`memberDefaults` 없이) · `template.read`·`notification.read`·`board.read` 만 가진 운영자의 읽기 전용(쓰기 API 403).
+- **서버에서 본 것(서버 확인 필요)**: ① 새로 설치한 DB 에서도 준비 중 회원 이벤트 5종이 `enabled=true`(운영 처리는 `email=true` 도) — 「처음 값: 준비 중 = 사용 꺼짐」과 다르다(V58 이 옛 게시판 기본값 줄을 옮긴 것으로 보임) ② 대상 저장 오류 문구 「카카오톡은(는)」 — 조사 처리.
 

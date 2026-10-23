@@ -1,8 +1,8 @@
 /**
- * 회원 이벤트 API 의 모양 — `docs/features/message-template-contract.md` 「개정 3」 이벤트 화면(회원 이벤트). **화면 목업 단계 — 서버에 아직 없다.**
- * 회원 이벤트 = 공개 사이트 회원이 받는 알림의 일. 지금 코드의 회원 알림 5종(`MemberNotificationType`)과 게시판 기본 설정 「알림」의 7종을 하나로 합친 목록이다 —
+ * 회원 이벤트 API 의 모양 — 서버 `MemberEventView`·`MemberEventUpdateRequest`(`docs/features/message-template-contract.md` 「서버 구현 결과(회원 이벤트·이메일 확장)」).
+ * 회원 이벤트 = 공개 사이트 회원이 받는 알림의 일. 카탈로그는 서버 코드(shared `MemberEvent`) — 실제 5종(`MemberNotificationType`) + 준비 중 5종.
  * 실제로 일어나는 것만 바꿀 수 있고(`featureReady`), 나머지는 「준비 중」. 이벤트의 정의(이름·영역·받는 사람·끌 수 있는지의 잠금)는 서버 코드가 원천이다.
- * 게시판 기본 설정 「알림」 탭의 이벤트별 칸(`board_notification_settings.member_defaults`)은 서버 단계에서 이 자원으로 옮긴다(목업 가정).
+ * 게시판 기본 설정 「알림」 탭의 옛 이벤트별 칸(`board_notification_settings.member_defaults`)은 V58 이 이 자원으로 옮겼다 — 그래서 준비 중 이벤트의 `enabled`·`email` 이 옮긴 값(켜짐)일 수 있다. 화면은 `featureReady=false` 면 값과 상관없이 「준비 중」으로만 보인다.
  */
 
 /** 회원이 이 이벤트를 끌 수 있는지가 코드로 잠긴 까닭 — 계정 알림(포인트 회수·신고로 숨김) · 운영 처리 알림(사유와 함께 보낸다) */
