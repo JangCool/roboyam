@@ -12,7 +12,9 @@ import java.net.ConnectException;
 import java.net.NoRouteToHostException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import com.community.notificationtemplate.engine.RenderedChat;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import javax.net.ssl.SSLException;
 import org.slf4j.Logger;
@@ -50,10 +52,31 @@ public class NotificationChannelPoster {
 
     /** 글을 올린다 */
     public ChannelPostResult post(NotificationChannelEntity channel, String text) {
+        return send(channel, Map.<String, Object>of("text", text), Map.<String, Object>of("text", text), Map.<String, Object>of("message", text));
+    }
+
+    /**
+     * 알림 템플릿 렌더링 엔진이 그린 메시지 카드(첨부 하나)를 올린다 — 연결 시험·글 올리기와 같은 길(SSRF 방어 · 사유 코드만)이다.
+     * Slack 은 {@code chat.postMessage} 의 {@code attachments}, Mattermost 웹훅은 {@code attachments}, 봇 API 는 {@code props.attachments} 로 감싼다.
+     */
+    public ChannelPostResult post(NotificationChannelEntity channel, RenderedChat message) {
+        List<Map<String, Object>> attachments = List.of(message.attachment());
+        Map<String, Object> bot = new LinkedHashMap<>();
+        bot.put("message", "");
+        bot.put("props", Map.of("attachments", attachments));
+        return send(channel, Map.<String, Object>of("attachments", attachments), Map.<String, Object>of("attachments", attachments), bot);
+    }
+
+    /**
+     * @param slackFields   Slack {@code chat.postMessage} 본문에 더할 칸(채널·펼치기 끄기는 여기서 붙인다)
+     * @param webhookFields Mattermost 웹훅 본문
+     * @param botFields     Mattermost 봇 API 본문에 더할 칸(채널 id 는 여기서 붙인다)
+     */
+    private ChannelPostResult send(NotificationChannelEntity channel, Map<String, Object> slackFields, Map<String, Object> webhookFields, Map<String, Object> botFields) {
         try {
             return switch (channel.getChannelType()) {
-                case SLACK -> slack(channel, text);
-                case MATTERMOST -> mattermost(channel, text);
+                case SLACK -> slack(channel, slackFields);
+                case MATTERMOST -> mattermost(channel, webhookFields, botFields);
             };
         } catch (BlockedTargetException e) {
             return ChannelPostResult.failure(e.reason() == Reason.DNS ? ChannelPostResult.DNS_FAILED : ChannelPostResult.BLOCKED_TARGET);
@@ -78,7 +101,7 @@ public class NotificationChannelPoster {
         }
     }
 
-    private ChannelPostResult slack(NotificationChannelEntity channel, String text) throws IOException {
+    private ChannelPostResult slack(NotificationChannelEntity channel, Map<String, Object> fields) throws IOException {
         String token = secret(channel.getBotTokenEnc());
         String room = channel.getChannelTarget();
         if (token == null || room == null || room.isBlank()) {
@@ -86,7 +109,7 @@ public class NotificationChannelPoster {
         }
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("channel", room);
-        payload.put("text", text);
+        payload.putAll(fields);
         payload.put("mrkdwn", true);
         payload.put("unfurl_links", false);
         payload.put("unfurl_media", false);
@@ -103,13 +126,13 @@ public class NotificationChannelPoster {
         return ChannelPostResult.success();
     }
 
-    private ChannelPostResult mattermost(NotificationChannelEntity channel, String text) throws IOException {
+    private ChannelPostResult mattermost(NotificationChannelEntity channel, Map<String, Object> webhookFields, Map<String, Object> botFields) throws IOException {
         if ("webhook".equals(channel.getMattermostMode())) {
             String url = secret(channel.getWebhookUrlEnc());
             if (url == null) {
                 return ChannelPostResult.failure(ChannelPostResult.NOT_CONFIGURED);
             }
-            Response response = http.postJson(url, Map.of(), JSON.writeValueAsString(Map.of("text", text)));
+            Response response = http.postJson(url, Map.of(), JSON.writeValueAsString(webhookFields));
             return byStatus(response.status());
         }
         String token = secret(channel.getBotTokenEnc());
@@ -121,7 +144,7 @@ public class NotificationChannelPoster {
         String base = server.endsWith("/") ? server.substring(0, server.length() - 1) : server;
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("channel_id", room);
-        payload.put("message", text);
+        payload.putAll(botFields);
         Response response = http.postJson(base + "/api/v4/posts", Map.of("Authorization", "Bearer " + token), JSON.writeValueAsString(payload));
         return byStatus(response.status());
     }

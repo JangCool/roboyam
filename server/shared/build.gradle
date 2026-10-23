@@ -27,6 +27,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     // 메일 서버 설정의 연결 시험(MailSenderFactory · MailConnectionChecker) — JavaMailSenderImpl
     implementation 'org.springframework.boot:spring-boot-starter-mail'
+    // 알림 이메일 본문·메일 템플릿 틀의 HTML 정화(MailHtml — 게시판 RichText 와 같은 허용 목록 정화기, 버전은 루트 gradle.properties)
+    implementation "com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer:${owaspHtmlSanitizerVersion}"
 
     // 스키마 이관(Flyway). 앱이 동시에 기동해도 Flyway 가 DB 잠금으로 한 대만 적용한다. 마이그레이션 파일은 이 모듈(db/migration/shared)에 있다
     implementation 'org.springframework.boot:spring-boot-starter-flyway'

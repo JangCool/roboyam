@@ -103,7 +103,11 @@ public enum Permission {
     SITE_MANAGE("site.manage", SITE_INTEGRATION, CONFIG, true),
     SITE_SECRET("site.secret", SITE_INTEGRATION, SENSITIVE, true),
     NOTIFICATION_READ("notification.read", SITE_INTEGRATION, READ, true),
-    NOTIFICATION_MANAGE("notification.manage", SITE_INTEGRATION, CONFIG, true);
+    NOTIFICATION_MANAGE("notification.manage", SITE_INTEGRATION, CONFIG, true),
+    /** 알림 템플릿(메일·Slack·Mattermost·카카오톡 겉모양)·문구(대상 × 채널 × 언어별 내용)·대상별 선택/규칙 조회 */
+    TEMPLATE_READ("template.read", SITE_INTEGRATION, READ, true),
+    /** 알림 템플릿·문구 만들기·고치기·지우기, 대상별 선택/규칙 저장, 시험 발송 */
+    TEMPLATE_MANAGE("template.manage", SITE_INTEGRATION, CONFIG, true);
 
     private static final Map<String, Permission> BY_CODE = Arrays.stream(values())
             .collect(Collectors.toUnmodifiableMap(Permission::code, Function.identity()));
