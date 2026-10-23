@@ -39,7 +39,7 @@
 
             <AppGadget v-for="group in groups" :key="group.area" :title="UtilNotificationMessages.areaLabel(t, group.area)" :anchor="UtilNotification.areaAnchor(group.area)">
                 <DataTable :value="group.items" data-key="code" :row-class="(row: MemberEventView) => (row.featureReady ? '' : 'opacity-60')" :size="prefs.density === 'compact' ? 'small' : undefined" scrollable>
-                    <Column :header="t('notification.colEvent')" style="min-width: 18rem">
+                    <Column :header="t('notification.colEvent')" style="min-width: 15rem">
                         <template #body="{ data }">
                             <div class="min-w-0">
                                 <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -52,13 +52,13 @@
                         </template>
                     </Column>
 
-                    <Column :header="t('notification.colRecipient')" style="min-width: 11rem">
+                    <Column :header="t('notification.colRecipient')" style="min-width: 9rem">
                         <template #body="{ data }">
                             <span class="text-[12px] leading-relaxed">{{ data.recipientText }}</span>
                         </template>
                     </Column>
 
-                    <Column :header="t('notification.colEnabled')" style="width: 5.5rem">
+                    <Column :header="t('notification.colEnabled')" style="width: 4.5rem">
                         <template #body="{ data }">
                             <span v-tooltip.top="lockOf(data)" class="inline-flex">
                                 <ToggleSwitch :model-value="data.enabled" :disabled="lockOf(data) !== undefined || isSaving(data.code)" :aria-label="t('notification.enabledLabel', { name: data.name })" @update:model-value="(v: boolean) => change(data, { enabled: v })" />
@@ -66,7 +66,7 @@
                         </template>
                     </Column>
 
-                    <Column :header="t('notification.memberEvents.colInApp')" style="width: 6rem">
+                    <Column :header="t('notification.memberEvents.colInApp')" style="width: 5.5rem">
                         <template #body="{ data }">
                             <span v-tooltip.top="lockOf(data)" class="inline-flex">
                                 <ToggleSwitch :model-value="data.inApp" :disabled="lockOf(data) !== undefined || isSaving(data.code)" :aria-label="t('notification.memberEvents.inAppLabel', { name: data.name })" @update:model-value="(v: boolean) => change(data, { inApp: v })" />
@@ -74,7 +74,7 @@
                         </template>
                     </Column>
 
-                    <Column :header="t('notification.memberEvents.colEmail')" style="width: 6rem">
+                    <Column :header="t('notification.memberEvents.colEmail')" style="width: 5rem">
                         <template #body="{ data }">
                             <span v-tooltip.top="lockOf(data)" class="inline-flex">
                                 <ToggleSwitch :model-value="data.email" :disabled="lockOf(data) !== undefined || isSaving(data.code)" :aria-label="t('notification.memberEvents.emailLabel', { name: data.name })" @update:model-value="(v: boolean) => change(data, { email: v })" />
@@ -82,7 +82,7 @@
                         </template>
                     </Column>
 
-                    <Column :header="t('notification.memberEvents.colMemberOff')" style="width: 8rem">
+                    <Column :header="t('notification.memberEvents.colMemberOff')" style="width: 6rem">
                         <template #body="{ data }">
                             <span v-tooltip.top="memberOffLock(data)" class="inline-flex">
                                 <ToggleSwitch :model-value="data.memberCanTurnOff" :disabled="memberOffLock(data) !== undefined || isSaving(data.code)" :aria-label="t('notification.memberEvents.memberOffLabel', { name: data.name })" @update:model-value="(v: boolean) => change(data, { memberCanTurnOff: v })" />
@@ -91,20 +91,20 @@
                     </Column>
 
                     <!-- 쓰는 문구(목업) — `template.read` 가 없거나 못 받으면 칸을 감춘다. 준비 중 이벤트는 문구가 없다(「—」) -->
-                    <Column v-if="messageTargets" :header="t('notification.colMessages')" style="min-width: 14rem">
+                    <Column v-if="messageTargets" :header="t('notification.colMessages')" style="min-width: 11rem">
                         <template #body="{ data }">
                             <MessageUsageSummary :channels="messageTargets.get(data.code)?.channels ?? null" />
                         </template>
                     </Column>
 
-                    <Column :header="t('notification.colSent')" style="width: 7rem">
+                    <Column :header="t('notification.colSent')" style="width: 6rem">
                         <template #body="{ data }">
                             <span v-if="data.featureReady" class="text-[12px] tabular-nums">{{ t('notification.sentCount', { n: data.sentLast30Days.toLocaleString() }) }}</span>
                             <span v-else class="text-[12px] text-muted-color" aria-hidden="true">—</span>
                         </template>
                     </Column>
 
-                    <Column :header="t('notification.detail')" style="width: 5.5rem">
+                    <Column :header="t('notification.detail')" style="width: 4.5rem">
                         <template #body="{ data }">
                             <NuxtLink :to="`/settings/notifications/member/${encodeURIComponent(data.code)}`" class="inline-flex items-center gap-1 text-[12px] text-primary hover:underline" :aria-label="t('notification.detailLabel', { name: data.name })">
                                 {{ t('notification.detail') }}

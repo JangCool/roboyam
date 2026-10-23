@@ -52,7 +52,7 @@
 
             <AppGadget v-for="group in groups" :key="group.area" :title="UtilNotificationMessages.areaLabel(t, group.area)" :anchor="UtilNotification.areaAnchor(group.area)">
                 <DataTable :value="group.items" data-key="code" :row-class="rowClass" :size="prefs.density === 'compact' ? 'small' : undefined" scrollable>
-                    <Column :header="t('notification.colEvent')" style="min-width: 18rem">
+                    <Column :header="t('notification.colEvent')" style="min-width: 15rem">
                         <template #body="{ data }">
                             <div class="min-w-0">
                                 <!-- 이름 옆의 딱지 줄은 flex + items-center 로 — 베이스라인에 맡기면 딱지가 글자 줄 아래로 처진다 -->
@@ -66,19 +66,19 @@
                         </template>
                     </Column>
 
-                    <Column :header="t('notification.colRecipient')" style="min-width: 14rem">
+                    <Column :header="t('notification.colRecipient')" style="min-width: 10rem">
                         <template #body="{ data }">
                             <span class="text-[12px] leading-relaxed">{{ data.recipientText }}</span>
                         </template>
                     </Column>
 
-                    <Column :header="t('notification.colSeverity')" style="width: 7.5rem">
+                    <Column :header="t('notification.colSeverity')" style="width: 5.5rem">
                         <template #body="{ data }">
                             <NotificationSeverityTag :kind="data.severity" />
                         </template>
                     </Column>
 
-                    <Column :header="t('notification.colEnabled')" style="width: 6rem">
+                    <Column :header="t('notification.colEnabled')" style="width: 4.5rem">
                         <template #body="{ data }">
                             <!-- 비활성 요소는 마우스 이벤트를 안 받으므로 툴팁은 감싼 쪽에 건다 -->
                             <span v-tooltip.top="enabledLock(data)" class="inline-flex">
@@ -92,7 +92,7 @@
                         </template>
                     </Column>
 
-                    <Column :header="t('notification.colDelivery')" style="min-width: 19rem">
+                    <Column :header="t('notification.colDelivery')" style="min-width: 14rem">
                         <template #body="{ data }">
                             <div class="flex flex-wrap items-center gap-1.5">
                                 <!-- 서랍은 사용 중인 이벤트에 늘 켜져 있다 — 고르는 것이 아니라 잠긴 딱지다 -->
@@ -126,7 +126,7 @@
                         </template>
                     </Column>
 
-                    <Column :header="t('notification.colTeams')" style="min-width: 14rem">
+                    <Column :header="t('notification.colTeams')" style="min-width: 11rem">
                         <template #body="{ data }">
                             <span v-if="teamsLock(data) !== undefined && teamIdsOf(data).length === 0" v-tooltip.top="teamsLock(data)" class="inline-flex text-[12px] text-muted-color" :aria-label="teamsLock(data)">—</span>
                             <!-- 팀 이름을 못 읽는 권한이면(`team.read` 없음) 고른 개수만 보인다 -->
@@ -157,19 +157,19 @@
                     </Column>
 
                     <!-- 쓰는 문구(목업) — `template.read` 가 없거나 못 받으면 칸을 감춘다 -->
-                    <Column v-if="messageTargets" :header="t('notification.colMessages')" style="min-width: 14rem">
+                    <Column v-if="messageTargets" :header="t('notification.colMessages')" style="min-width: 11rem">
                         <template #body="{ data }">
                             <MessageUsageSummary :channels="messageTargets.get(data.code)?.channels ?? null" />
                         </template>
                     </Column>
 
-                    <Column :header="t('notification.colSent')" style="width: 8rem">
+                    <Column :header="t('notification.colSent')" style="width: 6rem">
                         <template #body="{ data }">
                             <span v-if="data.featureReady" class="text-[12px] tabular-nums">{{ t('notification.sentCount', { n: data.sentLast30Days.toLocaleString() }) }}</span>
                             <span v-else class="text-[12px] text-muted-color" aria-hidden="true">—</span>
                         </template>
                     </Column>
-                    <Column :header="t('notification.detail')" style="width: 5.5rem">
+                    <Column :header="t('notification.detail')" style="width: 4.5rem">
                         <template #body="{ data }">
                             <NuxtLink :to="`/settings/notifications/operator/${encodeURIComponent(data.code)}`" class="inline-flex items-center gap-1 text-[12px] text-primary hover:underline" :aria-label="t('notification.detailLabel', { name: data.name })">
                                 {{ t('notification.detail') }}
