@@ -23,6 +23,9 @@ export default {
     // 배지 이름(스크린리더용)
     badgeUnread: '알림, 안 읽은 알림 {count}개',
     badgeUnreadOver: '알림, 안 읽은 알림 {max}개 이상',
+    dmTitle: '쪽지함',
+    dmBadgeUnread: '쪽지함, 안 읽은 대화 {count}개',
+    dmBadgeUnreadOver: '쪽지함, 안 읽은 대화 {max}개 이상',
 
     // 알림 화면(`/notifications`)·패널의 링크
     seoDescription: '{site}에서 받은 알림이에요.',

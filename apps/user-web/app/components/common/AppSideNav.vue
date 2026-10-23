@@ -9,8 +9,11 @@
             <li v-for="item in items" :key="item.to">
                 <NuxtLink
                     :to="item.to"
-                    class="flex min-h-10 w-full items-center gap-2 rounded-lg px-2.5 text-sm focus-visible:outline-2 focus-visible:outline-primary"
-                    :class="item.active ? 'bg-primary-50 font-medium text-primary-700 dark:bg-primary-950 dark:text-primary-300' : 'hover:bg-surface-100 dark:hover:bg-surface-800'"
+                    class="flex w-full items-center gap-2 rounded-lg text-sm focus-visible:outline-2 focus-visible:outline-primary"
+                    :class="[
+                        item.sub ? 'min-h-9 pl-8 pr-2.5 text-[13px]' : 'min-h-10 px-2.5',
+                        item.active ? 'bg-primary-50 font-medium text-primary-700 dark:bg-primary-950 dark:text-primary-300' : 'hover:bg-surface-100 dark:hover:bg-surface-800',
+                    ]"
                     :aria-current="item.active ? 'page' : undefined"
                     :data-testid="item.testid"
                 >
@@ -31,6 +34,8 @@ interface SideNavLink {
     icon?: string;
     /** 지금 화면인가 */
     active: boolean;
+    /** 바로 위 줄 아래의 하위 화면(들여 쓴다 — 설정의 「계정·로그인 연결」 › 이메일 변경·비밀번호 변경) */
+    sub?: boolean;
     testid?: string;
 }
 

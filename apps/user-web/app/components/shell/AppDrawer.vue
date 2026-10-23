@@ -43,6 +43,16 @@
                     >
                         <i class="pi pi-receipt text-xs" aria-hidden="true" />{{ t('commerce.ordersTitle') }}
                     </NuxtLink>
+                    <!-- 쪽지함 — 안 읽은 대화가 있으면 수가 붙는다(모바일은 헤더에 쪽지 아이콘이 없다) -->
+                    <NuxtLink
+                        to="/messages"
+                        class="mt-1 flex items-center gap-1 rounded text-xs text-muted-color hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+                        :aria-label="dm.label.value"
+                        data-testid="drawer-messages"
+                        @click="close"
+                    >
+                        <i class="pi pi-envelope text-xs" aria-hidden="true" />{{ dm.text.value ? t('shell.messageBoxUnread', { count: dm.text.value }) : t('shell.messageBox') }}
+                    </NuxtLink>
                     <div class="mt-2 flex gap-2">
                         <Button type="button" :label="t('shell.myInfo')" size="small" severity="secondary" variant="outlined" class="flex-1" @click="go('/me')" />
                         <Button type="button" :label="t('common.logout')" size="small" severity="secondary" variant="text" :loading="busy" @click="onLogout" />
@@ -100,6 +110,8 @@ const open = defineModel<boolean>('visible', { required: true });
 const { t } = useI18n();
 const route = useRoute();
 const { user, loaded, emailVerified, restriction } = useAuth();
+/** 안 읽은 쪽지 대화 수 — 셸이 주기로 조회해 둔다(`layouts/default.vue`) */
+const dm = useDmBadge();
 /** 서비스 이름 — 아이템샵 줄의 이름(`ITEM_SHOP`) */
 const { term } = useSiteTerms();
 const { busy, run } = useLogoutFlow();

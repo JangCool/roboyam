@@ -6,21 +6,24 @@
                 <p v-if="row.hiddenReason" class="flex items-center gap-1.5 px-4 py-3 text-sm text-muted-color">
                     <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t('board.hiddenPost') }}
                 </p>
-                <NuxtLink v-else :to="`/posts/${row.id}`" class="flex items-start gap-3 px-4 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
-                    <div class="min-w-0 flex-1">
-                        <p class="line-clamp-2 text-sm leading-snug"><PostRowTitle :row="row" :new-post-hours="newPostHours" /></p>
-                        <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
-                            <PostAuthorLabel :author="row.author" />
-                            <span aria-hidden="true">·</span>
-                            <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
-                            <span aria-hidden="true">·</span>
-                            <span>{{ t('board.viewsShort', { n: row.viewCount }) }}</span>
-                            <span aria-hidden="true">·</span>
-                            <span>{{ t('board.likesShort', { n: row.likeCount }) }}</span>
-                        </p>
-                    </div>
-                    <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" class="size-12 shrink-0 rounded-md object-cover" loading="lazy" />
-                </NuxtLink>
+                <!-- 차단한 회원·단어의 글은 접힌 한 줄(「보기」로 그 자리에서 펼친다) -->
+                <FoldedRow v-else :reason="foldOf(row)" kind="post" class="px-4 py-2.5 text-sm" hide-class="px-4 pb-2">
+                    <NuxtLink :to="`/posts/${row.id}`" class="flex items-start gap-3 px-4 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
+                        <div class="min-w-0 flex-1">
+                            <p class="line-clamp-2 text-sm leading-snug"><PostRowTitle :row="row" :new-post-hours="newPostHours" /></p>
+                            <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
+                                <PostAuthorLabel :author="row.author" />
+                                <span aria-hidden="true">·</span>
+                                <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
+                                <span aria-hidden="true">·</span>
+                                <span>{{ t('board.viewsShort', { n: row.viewCount }) }}</span>
+                                <span aria-hidden="true">·</span>
+                                <span>{{ t('board.likesShort', { n: row.likeCount }) }}</span>
+                            </p>
+                        </div>
+                        <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" class="size-12 shrink-0 rounded-md object-cover" loading="lazy" />
+                    </NuxtLink>
+                </FoldedRow>
             </li>
         </ul>
 
@@ -36,22 +39,36 @@
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="row in all" :key="`${pinnedIds.has(row.id) ? 'p' : ''}${row.id}`" class="border-b border-surface" :class="pinnedIds.has(row.id) ? 'bg-surface-100 dark:bg-surface-800/60' : 'hover:bg-surface-50 dark:hover:bg-surface-900'">
-                    <td v-if="row.hiddenReason" colspan="5" class="py-2.5 text-muted-color">
-                        <i class="pi pi-eye-slash mr-1.5 text-xs" aria-hidden="true" />{{ t('board.hiddenPost') }}
-                    </td>
-                    <template v-else>
-                        <td class="py-2.5 pr-3">
-                            <NuxtLink :to="`/posts/${row.id}`" class="line-clamp-1 hover:underline focus-visible:outline-2 focus-visible:outline-primary">
-                                <PostRowTitle :row="row" :new-post-hours="newPostHours" />
-                            </NuxtLink>
+                <!-- 차단한 회원·단어의 글은 표 한 줄을 통째로 접는다(펼치면 제목 칸에 「다시 숨기기」) -->
+                <FoldedRow
+                    v-for="row in all"
+                    :key="`${pinnedIds.has(row.id) ? 'p' : ''}${row.id}`"
+                    v-slot="{ revealed, hide }"
+                    :reason="row.hiddenReason ? null : foldOf(row)"
+                    kind="post"
+                    table
+                    :colspan="5"
+                >
+                    <tr class="border-b border-surface" :class="pinnedIds.has(row.id) ? 'bg-surface-100 dark:bg-surface-800/60' : 'hover:bg-surface-50 dark:hover:bg-surface-900'">
+                        <td v-if="row.hiddenReason" colspan="5" class="py-2.5 text-muted-color">
+                            <i class="pi pi-eye-slash mr-1.5 text-xs" aria-hidden="true" />{{ t('board.hiddenPost') }}
                         </td>
-                        <td class="py-2.5 text-xs text-muted-color"><PostAuthorLabel :author="row.author" class="max-w-full" /></td>
-                        <td class="py-2.5 text-center text-xs text-muted-color tabular-nums"><PostListDate :iso="row.createdAt" :mode="dateDisplay" /></td>
-                        <td class="py-2.5 text-right text-xs text-muted-color tabular-nums">{{ row.viewCount.toLocaleString() }}</td>
-                        <td class="py-2.5 pr-1 text-right text-xs text-muted-color tabular-nums">{{ row.likeCount.toLocaleString() }}</td>
-                    </template>
-                </tr>
+                        <template v-else>
+                            <td class="py-2.5 pr-3">
+                                <NuxtLink :to="`/posts/${row.id}`" class="line-clamp-1 hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+                                    <PostRowTitle :row="row" :new-post-hours="newPostHours" />
+                                </NuxtLink>
+                                <button v-if="revealed" type="button" class="rounded px-1 py-0.5 text-xs text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary" data-testid="folded-hide" @click="hide">
+                                    {{ t('block.hideAgain') }}
+                                </button>
+                            </td>
+                            <td class="py-2.5 text-xs text-muted-color"><PostAuthorLabel :author="row.author" link class="max-w-full" /></td>
+                            <td class="py-2.5 text-center text-xs text-muted-color tabular-nums"><PostListDate :iso="row.createdAt" :mode="dateDisplay" /></td>
+                            <td class="py-2.5 text-right text-xs text-muted-color tabular-nums">{{ row.viewCount.toLocaleString() }}</td>
+                            <td class="py-2.5 pr-1 text-right text-xs text-muted-color tabular-nums">{{ row.likeCount.toLocaleString() }}</td>
+                        </template>
+                    </tr>
+                </FoldedRow>
             </tbody>
         </table>
     </div>
@@ -59,12 +76,19 @@
 
 <script setup lang="ts">
 import type { BoardPostListProps } from '~/components/board/BoardPostList.types';
+import type { PostRow } from '~/composables/board/api/usePostApi.types';
 
 interface Props extends BoardPostListProps {}
 
 const props = withDefaults(defineProps<Props>(), {});
 
 const { t } = useI18n();
+const overrides = useBlockOverrides();
 const pinnedIds = computed(() => new Set(props.pinned.map((p) => p.id)));
 const all = computed(() => [...props.pinned, ...props.rows]);
+
+/** 접는 까닭 — 서버의 `blocked`(서버 후보)에 이 기기에서 방금 바꾼 차단을 겹친다. 목업 단계에는 받아 둔 차단 단어로 제목을 본다 */
+function foldOf(row: PostRow) {
+    return overrides.blockedOf(row.author.memberId, row.blocked, row.title);
+}
 </script>

@@ -7,13 +7,14 @@
         <p v-else-if="comment.state === 'HIDDEN'" class="flex items-center gap-1.5 text-sm text-muted-color">
             <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t('comment.hidden') }}
         </p>
-        <template v-else>
+        <!-- 차단한 회원·단어의 댓글은 접힌 한 줄(「보기」로 그 자리에서 펼친다) -->
+        <FoldedRow v-else :reason="foldReason" kind="comment" class="text-sm" hide-class="mt-1.5">
             <header class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-color">
                 <i v-if="reply" class="pi pi-reply rotate-180 text-xs" aria-hidden="true" />
                 <span v-if="best" class="inline-flex items-center justify-center rounded bg-primary px-1.5 py-1 text-[0.6875rem] font-semibold leading-none text-primary-contrast">
                     <span class="relative top-[-0.09em]">{{ t('comment.bestBadge') }}</span>
                 </span>
-                <PostAuthorLabel :author="comment.author" show-ip class="text-color" />
+                <PostAuthorLabel :author="comment.author" show-ip link class="text-color" />
                 <span aria-hidden="true">·</span>
                 <time :datetime="comment.createdAt" :title="time.full(comment.createdAt)">{{ time.ago(comment.createdAt) }}</time>
                 <span v-if="comment.updatedAt">{{ t('comment.edited') }}</span>
@@ -64,7 +65,7 @@
                     <Button v-if="reportable" type="button" :label="t('post.report')" size="small" variant="text" severity="secondary" @click="$emit('report')" />
                 </div>
             </template>
-        </template>
+        </FoldedRow>
         <slot name="after" />
     </article>
 </template>
@@ -100,4 +101,10 @@ const time = useDisplayTime();
 /** 내 댓글이거나 비회원 댓글(비밀번호로 확인) — 고치기·지우기 */
 const manageable = computed(() => !props.best && (props.comment.mine || props.comment.author.kind === 'GUEST'));
 const reportable = computed(() => props.reportEnabled && !props.comment.mine);
+
+/** 접는 까닭 — 보이는 댓글만. 서버의 `blocked`(서버 후보)에 이 기기에서 방금 바꾼 차단을 겹친다(목업 단계에는 받아 둔 차단 단어로 본문을 본다). 고치는 중이면 접지 않는다 */
+const overrides = useBlockOverrides();
+const foldReason = computed(() =>
+    props.comment.state === 'VISIBLE' && !props.editing && !props.comment.mine ? overrides.blockedOf(props.comment.author.memberId, props.comment.blocked, props.comment.content) : null,
+);
 </script>

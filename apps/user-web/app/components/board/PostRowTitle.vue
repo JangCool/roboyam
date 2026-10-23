@@ -8,7 +8,8 @@
             <span class="relative top-[-0.09em]" aria-hidden="true">19</span>
             <span class="sr-only">{{ t('board.adultMark') }}</span>
         </span>
-        <span class="break-words">{{ row.title }}</span>
+        <span v-if="tokens.length" class="break-words"><template v-for="(part, i) in titleParts" :key="i"><mark v-if="part.match" class="rounded-sm bg-transparent font-bold text-primary">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
+        <span v-else class="break-words">{{ row.title }}</span>
         <i v-if="row.hasImage" class="pi pi-image ml-1 text-xs text-muted-color" :title="t('board.hasImage')" aria-hidden="true" />
         <span v-if="row.hasImage" class="sr-only">{{ t('board.hasImage') }}</span>
         <span v-if="row.commentCount > 0" class="ml-1 text-xs font-semibold text-primary">
@@ -24,6 +25,7 @@
 <script setup lang="ts">
 import type { PostRow } from '~/composables/board/api/usePostApi.types';
 import UtilPost from '~/utils/util-post';
+import UtilSearchRules from '~/utils/util-search-rules';
 
 interface Props {
     row: PostRow;
@@ -32,13 +34,17 @@ interface Props {
     showPrefix?: boolean;
     /** 고정 공지에 핀 표시 */
     pinnedMark?: boolean;
+    /** 검색 결과의 일치 강조 단어(검색 응답의 `tokens`) — 비면 강조하지 않는다 */
+    tokens?: string[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
     showPrefix: true,
     pinnedMark: true,
+    tokens: () => [],
 });
 
 const { t } = useI18n();
+const titleParts = computed(() => UtilSearchRules.highlightParts(props.row.title, props.tokens));
 const isNew = computed(() => UtilPost.isNew(props.row.createdAt, props.newPostHours, Date.now()));
 </script>

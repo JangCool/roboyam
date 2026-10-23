@@ -17,4 +17,6 @@ export default {
 
     // 바로가기
     shortcuts: '바로가기',
+    entryProfile: '내 프로필 보기',
+    entryGrade: '등급 안내',
 };

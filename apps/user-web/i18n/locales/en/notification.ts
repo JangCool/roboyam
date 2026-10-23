@@ -21,6 +21,9 @@ export default {
     // Badge names (for screen readers)
     badgeUnread: 'Notifications, {count} unread',
     badgeUnreadOver: 'Notifications, {max}+ unread',
+    dmTitle: 'Messages',
+    dmBadgeUnread: 'Messages, {count} unread conversations',
+    dmBadgeUnreadOver: 'Messages, {max}+ unread conversations',
 
     // Notifications screen (`/notifications`) and panel links
     seoDescription: 'Notifications you received on {site}.',

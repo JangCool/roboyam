@@ -16,7 +16,8 @@ export function usePostComments(postId: MaybeRef<string>) {
     const data = ref<CommentListResponse | null>(null);
     const state = ref<CommentLoadState>('loading');
     const errorMessage = ref('');
-    const sort = ref<CommentSort>('OLDEST');
+    /** 처음 정렬은 보기 설정의 「댓글 정렬」(기본 오래된순) — 화면에서 바꾼 정렬은 이 글에서만 쓴다 */
+    const sort = ref<CommentSort>(useViewSettingsValues().value.commentOrder);
 
     let request = 0;
     let abort: AbortController | null = null;

@@ -9,57 +9,79 @@
  * ⚠ **Must be the same list as `ko/index.ts`.** A feature present in only one language shows in Korean (the fallback) in the other.
  */
 import account from './account';
+import adult from './adult';
 import auth from './auth';
+import block from './block';
 import board from './board';
 import business from './business';
 import comment from './comment';
 import commerce from './commerce';
 import dev from './dev';
+import dm from './dm';
 import error from './error';
+import feed from './feed';
+import grade from './grade';
 import install from './install';
 import login from './login';
 import mail from './mail';
 import me from './me';
 import menu from './menu';
+import nicknameImage from './nicknameImage';
 import notification from './notification';
+import onboarding from './onboarding';
+import password from './password';
 import point from './point';
 import post from './post';
 import profile from './profile';
 import prompt from './prompt';
 import provider from './provider';
 import sanction from './sanction';
+import search from './search';
 import settings from './settings';
 import shell from './shell';
 import signup from './signup';
 import site from './site';
 import siteTerms from './siteTerms';
 import social from './social';
+import verify from './verify';
+import view from './view';
 
 export default {
     account,
+    adult,
     auth,
+    block,
     board,
     business,
     comment,
     commerce,
     dev,
+    dm,
     error,
+    feed,
+    grade,
     install,
     login,
     mail,
     me,
     menu,
+    nicknameImage,
     notification,
+    onboarding,
+    password,
     point,
     post,
     profile,
     prompt,
     provider,
     sanction,
+    search,
     settings,
     shell,
     signup,
     site,
     siteTerms,
     social,
+    verify,
+    view,
 };

@@ -16,4 +16,6 @@ export default {
 
     // Shortcuts
     shortcuts: 'Shortcuts',
+    entryProfile: 'View my profile',
+    entryGrade: 'Grades',
 };
