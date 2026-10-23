@@ -50,6 +50,17 @@
 - 설정: `roboyam-shared.yml` 에 자리, **local 만 개발용 고정 키**(`roboyam-shared-local.yml`, 저장소에 공개된 값 — 다른 환경에 쓰지 않는다).
 - 설치·배포: `installer/roboyam-install.sh` 가 두 키를 만들어 `.env` 에 `ROBOYAM_DATA_KEY=1:<키>`·빈 `ROBOYAM_DATA_KEY_PREVIOUS`·`ROBOYAM_INDEX_KEY` 로 쓰고 백업 경고를 출력한다. `installer/templates/compose.yml`·`docker/dev`·`docker/prod`(앱·관리자) compose 와 `.env.example` 에 세 변수를 더했다. 새 키는 기존 `SecretCipherTool keygen`(base64 32바이트)으로 만들고 데이터 키는 앞에 `1:` 을 붙인다.
 - 아직 쓰는 곳이 없다 — 첫 사용처는 0-4(탈퇴 회원 연락처·본인인증 해시)다.
+- **테스트**(commerce.md 18절 — 규칙은 모두 테스트, 통과 필수): `server/shared/src/test/java/com/community/zconfiguration/crypto/` 의 `DataCipherTest`(24)·`BlindIndexTest`(8)·`DataCryptoSettingsTest`(3) 35개 통과(`./gradlew :server:shared:test --tests 'com.community.zconfiguration.crypto.*'`, 2026-10-23).
+  | 규칙(10-9·결정 3) | 테스트 |
+  |---|---|
+  | 키 버전을 붙인 암호문, 풀면 원래 값, 같은 값도 매번 다른 암호문 | `DataCipherTest.암복호화` |
+  | 용도가 다르거나 고친 암호문·다른 키는 풀리지 않는다, 설정 비밀값 `v1:` 과 섞이지 않는다 | `DataCipherTest.암복호화` |
+  | 키 교체: 옛 키로 풀고 새 키로 잠근다, 지금 키 판정, 다시 암호화, 예전 키가 빠지면 503 | `DataCipherTest.키_교체` |
+  | 키가 없으면 앱은 뜨고 그 요청만 503 `DATA_KEY_MISSING`·`INDEX_KEY_MISSING` | `DataCipherTest.키가_없을_때` · `BlindIndexTest` |
+  | 잘못된 키 형식은 기동을 멈추고, 키·평문을 오류 문구에 싣지 않는다 | `DataCipherTest.잘못된_설정은_기동을_멈춘다` · `BlindIndexTest` |
+  | 해시는 용도·값이 같을 때만 같고(HMAC-SHA256 용도 ‖ NUL ‖ 값), 정규화는 부르는 쪽 | `BlindIndexTest` |
+  | local 만 개발용 키, 공통 설정(dev·prod)에는 기본값 없음, 세 키는 서로 다르다 | `DataCryptoSettingsTest` |
+  - 테스트로 막지 않은 것: 설치 스크립트가 키를 만들어 `.env` 에 쓰는 것(셸 — `bash -n` 문법 검사만), compose 의 변수 전달(실행 확인 안 함).
 
 ## 미확정
 - 이미 설치된 환경(설치 스크립트로 깐 곳)에는 새 키가 자동으로 들어가지 않는다 — 업그레이드 스크립트가 없어 운영자가 `.env` 에 직접 넣는다(넣지 않아도 앱은 뜨고 커머스 개인정보 요청만 503).
