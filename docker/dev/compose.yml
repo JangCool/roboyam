@@ -23,6 +23,10 @@ x-roboyam-env: &roboyam-env
   # 암호문 ENC(...) — 복호화 키와 한 쌍이다
   DB_PASSWORD: ${DB_PASSWORD}
   ROBOYAM_CRYPTO_KEY: ${ROBOYAM_CRYPTO_KEY}
+  # 개인정보 칸 암호화 키·교체 중의 예전 키·중복 확인 해시 키 — 비어 있어도 뜨지만 그 키가 필요한 요청은 503
+  ROBOYAM_DATA_KEY: ${ROBOYAM_DATA_KEY:-}
+  ROBOYAM_DATA_KEY_PREVIOUS: ${ROBOYAM_DATA_KEY_PREVIOUS:-}
+  ROBOYAM_INDEX_KEY: ${ROBOYAM_INDEX_KEY:-}
   # 설치 마법사(/install) 토큰 — 비우면 서버가 뜰 때 무작위 토큰을 만들어 로그에 한 번 출력한다(docker compose logs app). 서버를 여러 대 띄우면 같은 값을 준다
   ROBOYAM_INSTALL_TOKEN: ${ROBOYAM_INSTALL_TOKEN:-}
   # 관리자 앱 주소(공개 사이트의 "관리자 앱" 링크). 비우면 링크가 보이지 않는다. 예: https://admin.dev.example.com

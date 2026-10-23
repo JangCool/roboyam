@@ -7,6 +7,7 @@
 #
 # 비밀은 사람이 입력하지 않는다. 설치기가 무작위로 만든다:
 #   - 암호화 키(ROBOYAM_CRYPTO_KEY, AES-256 용 32바이트)
+#   - 개인정보 칸 암호화 키(ROBOYAM_DATA_KEY, 버전 1) · 중복 확인 해시 키(ROBOYAM_INDEX_KEY) — 위 키와 따로 둔다(docs/domain/commerce.md 10-9)
 #   - DB 비밀번호 — 앱 이미지 안의 SecretCipherTool 로 위 키로 암호화해 .env 에 DB_PASSWORD=ENC(...) 로 둔다.
 #     앱은 기동 때 이 암호문을 복호화해 데이터소스에 쓴다.
 #   - postgres 컨테이너는 평문이 필요해서 같은 비밀번호를 secrets/db_password(권한 600)로 둔다.
@@ -530,13 +531,19 @@ note "설치 폴더: $DIR"
 
 # 비밀. 값은 이 셸 변수와 설치 폴더의 파일(.env · secrets/)에만 있다(명령줄 인자·로그에 넣지 않는다)
 #   CRYPTO_KEY   암호화 키(AES-256, base64 32바이트) — .env 의 ROBOYAM_CRYPTO_KEY
+#   DATA_KEY     개인정보 칸 암호화 키(AES-256, base64 32바이트) — .env 의 ROBOYAM_DATA_KEY=1:<키> (버전 1)
+#   INDEX_KEY    중복 확인 해시 키(HMAC, base64 32바이트) — .env 의 ROBOYAM_INDEX_KEY (바꿀 수 없는 키)
 #   DB_PASSWORD  DB 평문 비밀번호 — postgres 컨테이너용 secrets/db_password 에만 둔다. 앱용은 4단계에서 암호화한다
 CRYPTO_KEY=$(openssl rand -base64 32)
+DATA_KEY=$(openssl rand -base64 32)
+INDEX_KEY=$(openssl rand -base64 32)
 DB_PASSWORD=$(rand_alnum 32)
 # 설치 토큰: 환경 변수로 미리 준 값이 있으면 그것을(자동화용), 없으면 혼동되는 글자를 뺀 무작위 24자
 if [ -n "${ROBOYAM_INSTALL_TOKEN:-}" ]; then INSTALL_TOKEN=$ROBOYAM_INSTALL_TOKEN; else INSTALL_TOKEN=$(rand_alnum 24 'A-HJ-NP-Za-km-z2-9'); fi
 [[ $INSTALL_TOKEN =~ ^[A-Za-z0-9._-]{8,128}$ ]] || fail "설치 토큰은 영숫자 . _ - 로 8~128자여야 합니다(ROBOYAM_INSTALL_TOKEN 을 확인하세요)."
 [ "${#CRYPTO_KEY}" -eq 44 ] || fail "암호화 키 생성에 실패했습니다(openssl rand -base64 32 가 44자가 아님)."
+[ "${#DATA_KEY}" -eq 44 ] || fail "개인정보 암호화 키 생성에 실패했습니다(openssl rand -base64 32 가 44자가 아님)."
+[ "${#INDEX_KEY}" -eq 44 ] || fail "해시 키 생성에 실패했습니다(openssl rand -base64 32 가 44자가 아님)."
 [ "${#DB_PASSWORD}" -eq 32 ] || fail "DB 비밀번호 생성에 실패했습니다."
 
 # postgres 컨테이너가 읽는 평문 비밀번호 파일(POSTGRES_PASSWORD_FILE). 폴더 700 · 파일 600
@@ -569,6 +576,12 @@ write_env_file() {
             printf '\n%s\n' "# ── 비밀 ── (ROBOYAM_CRYPTO_KEY 를 잃으면 아래 DB_PASSWORD 암호문을 풀 수 없어 앱이 뜨지 않는다 — 따로 백업)"
             printf 'DB_USERNAME=roboyam\n'
             printf 'ROBOYAM_CRYPTO_KEY=%s\n' "$CRYPTO_KEY"
+            printf '%s\n' "# 개인정보 칸(배송지·환불 계좌·탈퇴 회원 연락처) 암호화 키 「<버전>:<키>」 — 잃으면 저장된 값을 영영 읽을 수 없다(따로 백업)"
+            printf 'ROBOYAM_DATA_KEY=1:%s\n' "$DATA_KEY"
+            printf '%s\n' "# 키를 교체할 때만 예전 키를 쉼표로 넣는다(예: 1:<옛 키>) — 교체 배치가 끝나면 비운다"
+            printf 'ROBOYAM_DATA_KEY_PREVIOUS=\n'
+            printf '%s\n' "# 중복 확인 해시 키(본인인증·재가입 제한) — 바꾸지 않는다. 잃으면 중복 확인이 처음부터 다시 쌓인다(따로 백업)"
+            printf 'ROBOYAM_INDEX_KEY=%s\n' "$INDEX_KEY"
             printf '%s\n' "# 설치 토큰 — 설치 마법사(/install)가 끝나면 쓸모가 없다(이 줄을 지워도 된다)"
             printf 'ROBOYAM_INSTALL_TOKEN=%s\n' "$INSTALL_TOKEN"
             printf '%s\n' "# DB_PASSWORD=ENC(...) 는 4단계(앱 이미지 준비)에서 이 파일 끝에 덧붙는다"
@@ -582,7 +595,7 @@ write_env_file() {
     chmod 600 "$f" 2> /dev/null || true
 }
 write_env_file
-note ".env 생성: $DIR/.env (암호화 키 base64 32바이트, PUBLIC_URL, prod 프로필 값), secrets/db_password (DB 비밀번호 32자)"
+note ".env 생성: $DIR/.env (암호화 키·개인정보 암호화 키·해시 키 base64 32바이트, PUBLIC_URL, prod 프로필 값), secrets/db_password (DB 비밀번호 32자)"
 if [ "$IS_WINDOWS" = 1 ]; then
     note "(Windows: chmod 600 은 NTFS 접근 권한을 바꾸지 않는다 — 이 폴더를 본인 계정만 읽도록 직접 확인하세요)"
 fi
@@ -735,6 +748,7 @@ out '   %s설치 토큰%s   : %s%s%s   (브라우저 /install 첫 화면에 입�
 log_raw "   설치 토큰   : (화면에만 출력 — 로그에 기록하지 않음)"
 say ""
 out '%s\n' "${C_YELLOW}${C_BOLD}암호화 키 백업${C_OFF}${C_YELLOW}: $DIR/.env 의 ROBOYAM_CRYPTO_KEY 를 안전한 곳에 따로 보관하세요. 이 키를 잃으면 .env 의 DB_PASSWORD 암호문을 풀 수 없어 앱이 뜨지 않습니다(DB 자체는 secrets/db_password 로 접속할 수 있어 새 키로 다시 암호화하면 복구됩니다).${C_OFF}"
+out '%s\n' "${C_YELLOW}${C_BOLD}개인정보 키 백업${C_OFF}${C_YELLOW}: $DIR/.env 의 ROBOYAM_DATA_KEY · ROBOYAM_INDEX_KEY 도 따로 보관하세요. ROBOYAM_DATA_KEY 를 잃으면 저장된 배송지·환불 계좌·탈퇴 회원 연락처를 영영 읽을 수 없고(복구 방법이 없습니다), ROBOYAM_INDEX_KEY 를 잃으면 본인인증 중복 확인·재가입 제한이 처음부터 다시 쌓입니다.${C_OFF}"
 log_raw "암호화 키 백업 경고 출력"
 if [ "$BIND" = "127.0.0.1" ]; then
     say "   이 주소는 이 서버 안에서만 열립니다(--bind 127.0.0.1). 다른 PC 에서 쓰려면 앞단에 HTTPS 리버스 프록시를 두세요."

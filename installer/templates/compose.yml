@@ -75,6 +75,10 @@ services:
       # 암호문 ENC(...) 와 그 복호화 키 — 한 쌍이다. 키를 잃으면 앱이 뜨지 않는다(백업)
       DB_PASSWORD: ${DB_PASSWORD}
       ROBOYAM_CRYPTO_KEY: ${ROBOYAM_CRYPTO_KEY}
+      # 개인정보 칸 암호화 키(「<버전>:<키>」, 잃으면 저장된 값을 못 읽는다 — 백업)와 교체 중의 예전 키, 중복 확인 해시 키(바꾸지 않는다)
+      ROBOYAM_DATA_KEY: ${ROBOYAM_DATA_KEY:-}
+      ROBOYAM_DATA_KEY_PREVIOUS: ${ROBOYAM_DATA_KEY_PREVIOUS:-}
+      ROBOYAM_INDEX_KEY: ${ROBOYAM_INDEX_KEY:-}
       # 설치 마법사(/install)의 설치 토큰 — 설치가 끝나면 쓰이지 않는다
       ROBOYAM_INSTALL_TOKEN: ${ROBOYAM_INSTALL_TOKEN}
       NODE_ID: ${NODE_ID:-1}

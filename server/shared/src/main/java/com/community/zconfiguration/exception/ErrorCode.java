@@ -23,6 +23,10 @@ public enum ErrorCode {
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED),
     FILE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE),
     CRYPTO_KEY_MISSING(HttpStatus.SERVICE_UNAVAILABLE),
+    /** 개인정보 칸 암호화 키({@code ROBOYAM_DATA_KEY})가 없거나 암호문 버전의 키가 빠졌다 — {@code DataCipher} */
+    DATA_KEY_MISSING(HttpStatus.SERVICE_UNAVAILABLE),
+    /** 중복 확인 해시 키({@code ROBOYAM_INDEX_KEY})가 없다 — {@code BlindIndex} */
+    INDEX_KEY_MISSING(HttpStatus.SERVICE_UNAVAILABLE),
     DATABASE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE),
     INTERNAL(HttpStatus.INTERNAL_SERVER_ERROR);
 

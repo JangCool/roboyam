@@ -32,6 +32,10 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       ROBOYAM_CRYPTO_KEY: ${ROBOYAM_CRYPTO_KEY}
+      # 개인정보 칸 암호화 키·교체 중의 예전 키·중복 확인 해시 키 — 공개 사이트 앱 서버와 같은 값
+      ROBOYAM_DATA_KEY: ${ROBOYAM_DATA_KEY:-}
+      ROBOYAM_DATA_KEY_PREVIOUS: ${ROBOYAM_DATA_KEY_PREVIOUS:-}
+      ROBOYAM_INDEX_KEY: ${ROBOYAM_INDEX_KEY:-}
       # Snowflake ID 서버 번호 — 공개 사이트 앱 서버 2대(NODE_ID)와 모두 달라야 한다 (예: 앱 1·2, 관리자 앱 3)
       NODE_ID: ${ADMIN_NODE_ID}
       # 공개 사이트 앱 서버 2대와 합친 풀 크기가 RDS 최대 연결 수보다 작아야 한다. 관리 콘솔은 작게 잡는다
