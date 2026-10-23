@@ -164,6 +164,7 @@ const { prompt } = useLoginPrompt();
 const { localizedName } = useLocalizedName();
 const { display, ensureLoaded: ensureDisplay } = useBoardDisplay();
 const viewMode = useBoardViewMode();
+const recentBoards = useRecentBoards();
 void ensureDisplay();
 
 const slug = computed(() => String(route.params.slug ?? ''));
@@ -190,6 +191,8 @@ async function loadBoard(): Promise<void> {
         detail.value = result;
         boardState.value = 'ready';
         current.setWrite({ slug: wanted, canWrite: result.viewer.canWrite, reason: result.viewer.writeBlockedReason });
+        // 게시판 모음(`/boards`)의 「최근 방문」 — 열린 게시판만 이 기기에 남긴다
+        recentBoards.record(wanted);
     } catch (e) {
         if (mine !== boardRequest) return;
         boardError.value = UtilBoardMessages.of(t, e);

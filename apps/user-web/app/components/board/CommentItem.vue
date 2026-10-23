@@ -13,7 +13,7 @@
                 <span v-if="best" class="inline-flex items-center justify-center rounded bg-primary px-1.5 py-1 text-[0.6875rem] font-semibold leading-none text-primary-contrast">
                     <span class="relative top-[-0.09em]">{{ t('comment.bestBadge') }}</span>
                 </span>
-                <PostAuthorLabel :author="comment.author" show-ip class="text-color" />
+                <PostAuthorLabel :author="comment.author" show-ip link class="text-color" />
                 <span aria-hidden="true">·</span>
                 <time :datetime="comment.createdAt" :title="time.full(comment.createdAt)">{{ time.ago(comment.createdAt) }}</time>
                 <span v-if="comment.updatedAt">{{ t('comment.edited') }}</span>

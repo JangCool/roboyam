@@ -1,0 +1,65 @@
+# 회원 활동·둘러보기(공개 사이트) 계약 (**화면 목업 2026-10-23 — 사용자 화면 확인 대기**)
+
+**의도**: community 에만 있던 「회원 활동·둘러보기」 화면(공개 회원 프로필·등급 안내·통합 검색·최신글 전체·인기글 전체·게시판 모음·제재 안내·이의제기)을 user-web 으로 옮긴다. UI 는 community 와 같게 두고, 서버에 있는 것(게시판 목록·글 목록·게시판 안 검색·메뉴·로그인 정보 `restriction`·포인트 요약)은 실제로, 없는 것은 community 계약 모양의 `// MOCK:`/`// REAL:` 짝 목업으로 먼저 확정한다.
+**참고(읽기 전용)**: community `frontend/app/pages/{users/[id]/index,me/grade,search,latest,popular,boards/index,sanction/index,sanction/appeal}.vue`, `docs/api-{profile,grade,board(검색 2-4),home,popular,sanction}.md`.
+
+## 화면 (user-web)
+| 경로 | 내용 | API |
+|---|---|---|
+| `/users/{id}?tab=posts\|comments` | 비회원도. 이니셜·닉네임+등급 뱃지·한 줄 소개·가입일 · 수치(글·댓글·받은 추천) · 탭(작성글·댓글, 커서 더보기). 내 프로필이면 「프로필 편집」 + 보유 포인트·다음 등급까지 카드 | 목업 `GET /api/users/{id}/profile`·`/posts`·`/comments` · 실제 `GET /api/me/points` · 목업 `GET /api/me/grade` |
+| `/me/grade` | 내 등급·다음 등급 진행도(로그인) · 자동 승급 멈춤 안내(정지 → 제재 안내 링크) · 등급 조건표(비회원도) · 계산 안내 | 목업 `GET /api/me/grade` · `GET /api/grade-rules` |
+| `/search?q&scope&board&order&page` | 검색 막대(Enter·단추로만) · 범위(전체·제목·본문·작성자)·게시판·정렬 · 최근 검색어(이 기기) · 결과(일치 강조, 데스크톱 쪽 번호 최대 10쪽 / 모바일 더보기) · 결과 없음 제안 · 시간 초과·잘못된 게시판 | 아래 「검색」 |
+| `/latest` | 켜진 모든 게시판의 최신글, 「더 보기」(커서), 투자 고지 | 목업 `GET /api/home/latest` |
+| `/popular?period=REALTIME\|YESTERDAY\|WEEK&page` | 기간 탭(키보드 이동)·순위 번호·채운 줄 표시(어제·지난주)·이번 주 범위·쪽 번호 | 목업 `GET /api/home/popular` |
+| `/boards` | 최근 방문(이 기기 5개, `/boards/{slug}` 가 기록) · 메뉴 그룹별 게시판(말머리 요약·투자 고지) · 메뉴 못 받으면 기본 메뉴 안내 | 실제 `GET /api/menu`·`GET /api/boards` |
+| `/sanction?next=` | 로그인 필요. 갈래: 확인하지 않은 경고(누적 N/2 막대·「안내를 확인했어요」→「확인하고 계속」) · 기간 정지 · 영구 정지(로그아웃) · 제한 없음 · 아래 늘 내 제재 이력 | 목업 `GET /api/me/sanctions`·`POST /api/me/sanctions/{id}/acknowledge` |
+| `/sanction/appeal?sanctionId=` | 접수 폼(10~500자·글자 수) → 접수 완료 / 검토 중 / 인용·기각(운영자 답변) / 무효·없는 제재 | 목업 `GET /api/me/sanctions`·`POST /api/me/appeals` |
+- **들어가는 길**: 글 보기 머리·댓글·데스크톱 목록 표의 회원 작성자 이름 → `/users/{id}`(`PostAuthorLabel link` — 모바일 목록 줄은 줄 전체가 링크라 켜지 않음) · `/me` 바로가기 「내 프로필 보기」「등급 안내」 · 헤더 돋보기 → `/search`(기존) · 로그인 직후 정지·확인 안 한 경고 → `/sanction?next=`(기존 `UtilSanction.afterLoginPath`) · 전역 정지 배너 「자세히 보기」(기존).
+- **메뉴**: 공개 메뉴 BUILTIN 레지스트리(서버 `MenuBuiltin`·admin `UtilMenu.BUILTINS`)에 이미 `BOARDS_HUB /boards`·`POPULAR /popular`·`LATEST /latest`·`SEARCH /search`·`MY_GRADE /me/grade` 가 있고 화면 주소를 거기에 맞췄다 — 레지스트리는 바꾸지 않았다. 단 메뉴 **시드**(V43)의 main 그룹에는 이 항목들이 없고, `MY_GRADE` 는 V49 가 숨겼다 → 운영자가 메뉴 관리에서 추가·켜면 된다(서버 마이그레이션은 하지 않았다 — 필요하면 결정).
+
+## 실제 API 사용
+- **검색의 실제 경로**: `board` 하나 + 범위 전체 + 최신순 + **한 단어**일 때만 `GET /api/boards/{slug}/posts?q&page`(서버 게시판 안 검색 = 제목·본문·작성자, 검색어 통째 부분 일치)로 간다(`useSearchApi.viaBoard`, 쪽 번호만 — 커서는 다음 쪽 번호). 없는 게시판 `404 BOARD_NOT_FOUND`·꺼진 게시판 `403 BOARD_INACTIVE` 는 「이 게시판에서는 검색할 수 없어요」.
+- **목업이 실제 글을 쓴다**: 최신·인기·검색(그 밖)·프로필 작성글 목업은 `GET /api/boards` + 게시판마다 `GET /api/boards/{slug}/posts` 앞 2쪽(검색은 단어마다 `q`)을 모아 흉내 낸다(`composables/common/mock/board-feed-mock.ts`, 15초 기억) — 목업 화면의 링크가 실제 글로 열린다.
+
+## 목업 API 후보 (서버에 없음 — 화면 확정 뒤 구현, 모양은 `.types.ts`)
+### 게시판이 섞인 글 줄 `PostFeedRow = PostRow + board{slug,name,nameEn,color}` · 커서 쪽 `PostFeedPage{items, hasNext, nextCursor}` (`usePostApi.types.ts`)
+### 최신·인기 (`composables/home/api/useHomeApi.ts`)
+- `GET /api/home/latest?size(1~50, 20)&cursor` → `PostFeedPage` · 틀린 커서 `400 VALIDATION fields.cursor`. 비회원도.
+- `GET /api/home/popular?period&page&size` → `PopularListResponse{pinned:[], items, page, totalPages, totalCount, hasNext, nextCursor:null, period, fills{글ID: YESTERDAY|LAST_WEEK}, from, to, weekStart}` · `400 VALIDATION fields.period|page|size`. `from`·`to` 는 이번 주 탭만(서비스 시간대 달력, `to` = 다음 주 시작).
+### 통합 검색 `GET /api/search?q&scope(all|title|body|author)&board&order(latest|oldest)&size&page(1~10)|cursor` (`useSearchApi.ts`)
+→ `SearchResponse{query, tokens, scope, board, items: SearchRow(PostFeedRow + snippet), page, totalPages(≤10)|null, hasNext, nextCursor}` · `400 VALIDATION fields.q|scope|board|order|page|cursor` · `503 SEARCH_TIMEOUT`. 단어는 공백으로 나눈 **AND**, 단어마다 2자 이상, 전체 2~50자, 5단어까지(화면 검사 `UtilSearchRules` = 서버 후보 `SearchQueryPolicy`).
+### 공개 프로필 (`composables/profile/api/useUserProfileApi.ts`)
+- `GET /api/users/{id}/profile` → `PublicProfile{id, nickname, grade(gradeKey), gradeLabel, role, bio|null, joinedAt, isMe, stats{posts, comments, likesReceived}}` · `404 PROFILE_NOT_FOUND`(없는·탈퇴·형식 틀림).
+- `GET /api/users/{id}/posts?size&cursor` → `PostFeedPage`(최신이 위, 삭제·숨김·꺼진 게시판 제외).
+- `GET /api/users/{id}/comments?size&cursor` → `{items: AuthorCommentRow{id, postId, postTitle, board{slug,name,nameEn}, bodyPreview(앞 100자), likeCount, reply, createdAt}, hasNext, nextCursor}` · `400 fields.cursor`.
+### 등급 (`composables/grade/api/useGradeApi.ts`)
+- `GET /api/grade-rules`(비회원도) → `{rules: [{code(gradeKey), label, minDays, minActivity}]}` 서열 순.
+- `GET /api/me/grade`(로그인, 정지 중에도) → `{grade{code,label}, autoPromotion: ACTIVE|PAUSED_SANCTION|PAUSED_ADMIN, next{code,label,requirements[{kind: DAYS|ACTIVITY, current(상한 없음), required, met}]}|null}` — 기준 0 인 조건은 싣지 않는다. 관리자 회원 상세 `gradePoint`(`MemberGradePointAssembler`)와 같은 셈을 본인용으로 내면 된다.
+### 제재 (`composables/sanction/api/useSanctionApi.ts`)
+- `GET /api/me/sanctions` → `{status, warningCount(0~2), current|null, items: MySanction{id, no, kind: WARNING|SUSPEND_3|SUSPEND_7|SUSPEND_30|BAN, status: ACTIVE|ENDED|LIFTED|VOIDED, reason, warningNo, startsAt, endsAt|null, createdAt, acknowledged, appeal{id,no,status: PENDING|ACCEPTED|REJECTED, reason, answer, createdAt, answeredAt}|null}[]}`(최근 것이 위, 최대 50, 무효 포함).
+- `POST /api/me/sanctions/{id}/acknowledge` → 204(멱등) · `404 SANCTION_NOT_FOUND`.
+- `POST /api/me/appeals {sanctionId, reason}` → `201 {id, no, status:'PENDING'}` · `400 VALIDATION fields.reason`(10~500) · `404 SANCTION_NOT_FOUND` · `409 APPEAL_ALREADY`(기각 뒤에도) · `409 SANCTION_NOT_APPEALABLE`(무효).
+- 모두 로그인만 필요(정지 중·인증 전에도), 비로그인 401. `restriction`(이미 있음)과 `pendingNotices` 는 이 데이터와 맞아야 한다.
+
+## 목업 가정
+1. 게시판마다 앞 2쪽만 모은다(오래된 글 빠짐). 인기 점수 = 추천×3 + 댓글×2 + 조회×0.1(감쇠 없음), 점수 0·19금 제외, 한 글쓴이 2개, 실시간 = 오늘(한국 달력)·이번 주 = 월요일 시작, 5개 미만이면 어제·지난주 글로 채움, 순위 50개.
+2. 검색 범위 목업: `title`·`author` 는 제목·닉네임에 모든 단어, `body` 는 서버 결과 중 제목·닉네임으로 걸리지 않은 글(본문을 몰라서), `snippet` 은 늘 null.
+3. 프로필: 닉네임·등급은 모은 글의 작성자 정보(본인은 로그인 정보), 글이 없으면 「회원 {ID 끝 4자리}」·새싹. 가입일·소개·댓글(0~23개, 실제 글에 붙인 가짜 댓글)은 ID 로 정한 가짜 값.
+4. 등급: 기본 시드 4등급(V9) 조건표, 내 등급 = 로그인 정보, 가입 128일·활동 31개 가짜 값, 정지 중이면 `PAUSED_SANCTION`.
+5. 제재: 스위치가 없으면 로그인 정보 `restriction` 을 따른다(영구 정지 / 정지 7일(끝 = `until`) / `pendingNotices` 만큼 경고 / 없음). 확인·접수는 목업 메모리에서만 바뀐다(새로고침하면 처음으로, 로그인 정보는 그대로).
+6. 개발 스위치(`?mock=`): `latest-fail|latest-empty|latest-more-fail` · `popular-fail|popular-empty|popular-anytime` · `search-fail|search-timeout|search-empty|search-more-fail` · `profile-notfound|profile-view-fail|profile-posts-fail|profile-comments-fail|profile-comments-empty` · `grade-rules-fail|grade-fail|grade-paused-sanction|grade-paused-admin|grade-highest` · `sanction-warning|sanction-warning2|sanction-suspended|sanction-banned|sanction-history|sanction-fail|sanction-ack-fail|appeal-fail|appeal-already`.
+
+## community 대비 뺀 것
+- **예약 글(`/scheduled`)**: 로보얌에 예약 발행이 없어 만들지 않았다(BUILTIN `MY_SCHEDULED` 는 레지스트리에 남아 있다).
+- 프로필: 프로필 이미지·아바타·닉네임 이미지·꾸미기 테두리, 차단·메모 ⋯ 시트·차단 띠, 쪽지 단추·쪽지함, 소모임·스크랩 탭, 인기글 수치(4칸 → 3칸), 신고(프로필 이미지·닉네임 이미지).
+- 등급: 인기글 조건(`minPopular`·`POPULAR`), 닉네임 이미지 신청, 공식 뱃지 안내.
+- 제재: 게시판 한정 제재(게시판 지킴이) 구획·`BOARD_SANCTION` 이의제기·알림에서 온 줄 강조, 소셜 로그인 직후 표시(`LOGIN_MARK_KEY`).
+- 검색·목록: 하이라이트·소모임 글·글 유형·끌올·예약 삭제 배지, 이모티콘 요약, 차단 접힘(FoldedRow), 홈 가젯 몫. 공통: 모바일 ‹ 머리(`InnerHeader`) — 로보얌 셸에 없어 제목을 그대로 보인다(검색 막대는 헤더 아래에 붙는다).
+
+## 미확정
+1. 메뉴 시드에 최신·인기·검색·게시판 모음 항목을 넣을지, `MY_GRADE` 를 다시 켤지(V49 가 숨김) — 서버 마이그레이션 여부.
+2. 공개 프로필의 한 줄 소개·가입일 공개 범위(`member-mypage-contract.md` 미확정 3과 같은 질문), 정지 회원 프로필 표시.
+3. 제재 종류: 관리자 회원 상세 자리표시(`MemberSanction.kind = WARNING|SUSPENSION|BAN`, `scope SITE|BOARD`)와 community 단계(`SUSPEND_3/7/30`) 중 무엇으로 갈지 — 화면은 둘 다 그린다(모르는 `SUSPEND*` 는 「정지」). 게시판 단위 제재를 둘지.
+4. 인기글 점수·기간·채우기·개수(관리자 인기글 설정이 없다) — 서버 상수로 둘지 설정으로 둘지.
+5. 통합 검색에서 게시판별 「검색 포함」 끄기(community `searchable`) 필요 여부, 검색 시간 제한 값.
+6. 이의제기 처리(관리자 화면)·답변 알림 이벤트(`APPEAL_ANSWERED` 등) — 회원 알림 카탈로그와 겹치는 개념이라 그 계약과 맞춘다.
