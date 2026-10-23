@@ -112,7 +112,7 @@ export default {
 
     // Slack · Mattermost templates
     chatTitle: '{tool} templates',
-    chatSubtitle: 'The look of the message card posted to {tool} channels (color bar · severity icon · footer · "Open" button). Each Slack or Mattermost message picks one.',
+    chatSubtitle: 'The look of the message card posted to {tool} channels (color bar · severity icon · footer · "Open" button — a link at the end of the text on Mattermost). Each Slack or Mattermost message picks one.',
     chatLoadFailed: 'Could not load {tool} templates',
     chatEmptyTitle: 'No templates',
     newChatTemplate: 'New {tool} template',
@@ -136,7 +136,7 @@ export default {
     },
     chatFooterLabel: 'Footer',
     chatShowSentAt: 'Show time sent',
-    chatOpenButtonLabel: '"Open" button',
+    chatOpenButtonLabel: '"Open" button (a link at the end of the text on Mattermost)',
     chatShowOpenButton: 'Show a button to the event page',
     chatOpenLabelFor: 'Button text ({locale})',
     chatOpenButtonHelp: 'The button goes to the event page in the admin app.',

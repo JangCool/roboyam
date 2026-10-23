@@ -115,7 +115,7 @@ export default {
 
     // Slack · Mattermost 템플릿
     chatTitle: '{tool} 템플릿',
-    chatSubtitle: '{tool} 채널에 올라가는 메시지 카드의 겉모양이에요(색 막대 · 심각도 그림 · 꼬리말 · 「열기」 버튼). Slack·Mattermost 문구마다 하나를 골라 써요.',
+    chatSubtitle: '{tool} 채널에 올라가는 메시지 카드의 겉모양이에요(색 막대 · 심각도 그림 · 꼬리말 · 「열기」 버튼 — Mattermost는 본문 끝 링크). Slack·Mattermost 문구마다 하나를 골라 써요.',
     chatLoadFailed: '{tool} 템플릿을 불러오지 못했어요',
     chatEmptyTitle: '템플릿이 없어요',
     newChatTemplate: '새 {tool} 템플릿',
@@ -139,7 +139,7 @@ export default {
     },
     chatFooterLabel: '꼬리말',
     chatShowSentAt: '보낸 시각 보이기',
-    chatOpenButtonLabel: '「열기」 버튼',
+    chatOpenButtonLabel: '「열기」 버튼(Mattermost는 본문 끝 링크)',
     chatShowOpenButton: '이벤트 화면으로 가는 버튼 보이기',
     chatOpenLabelFor: '버튼 글자({locale})',
     chatOpenButtonHelp: '버튼은 그 이벤트의 화면 주소(관리자 앱)로 가요.',
