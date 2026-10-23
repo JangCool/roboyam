@@ -18,7 +18,7 @@
 | 운영 조정 | admin `PointAdjustService` | `ADMIN_ADJUST` ±(부호로 EARN/REVOKE) |
 - 규칙(community 정본): 하루 = 한국 시간 0시부터 **지급한 횟수**(지운 글도 센다), 정상(ACTIVE) 회원만 받는다, 비회원 없음, 회수는 실제 지급량만·0P 바닥·반영 0 이면 줄 없음, 본인 삭제는 알림 없음, 숨김(신고)은 회수하지 않는다.
 - **인정된 추천** = 작성자가 아닌 정상 회원 중 등급이 가장 낮은 등급(서열 최솟값, 기본 새싹)보다 높은 회원의 추천. 방금 누른 추천이 인정되고 인정된 추천이 정확히 문턱 개가 될 때 한 번(소급 없음).
-- **적용 지점 없음(저장만)**: `attendancePoints`(출석) · `popularRewardPoints`·`popularRewardTopN`(인기글) · `dealEndRequestPoints`·`dealEndRequestDailyLimit`(핫딜) · `signupPoints`(가입 — 공개 가입 기능 없음) · `nicknameTicketPrice`(교환).
+- **적용 지점 없음(저장만)**: `attendancePoints`(출석) · `popularRewardPoints`·`popularRewardTopN`(인기글) · `dealEndRequestPoints`·`dealEndRequestDailyLimit`(핫딜) · `signupPoints`(가입 — 공개 가입 기능 없음. **지급 조건은 `docs/domain/commerce.md` 6-2 로 확정: 본인인증 완료 시 평생 1회**) · `nicknameTicketPrice`(교환).
 - **적립 실패가 글쓰기를 깨지 않는다**(community 와 다름 — 가정 1): 적립·회수·추천 보너스는 JDBC 세이브포인트(`IsolatedSideWork`) 안이고 실패하면 0(ERROR 로그). 정책 사본도 JDBC 로 읽는다(JPA 저장소 호출의 실패가 업무 트랜잭션을 롤백 전용으로 만들지 않게). 검증: 원장 INSERT 를 막아도 글·댓글 201.
 
 ## 정책 반영
@@ -43,7 +43,7 @@
 2. 예약 삭제(댓글 많은 글 보호 DELAY)는 **요청 시점에** 회수한다(예약을 취소하는 기능이 없다).
 3. 「인정된 추천」의 일반 등급 이상 = 서열 최솟값보다 높은 등급(등급 목록이 바뀌어도 「가장 낮은 등급 제외」).
 4. 지운 글에 달린 댓글은 댓글 포인트를 회수하지 않는다(community 도 글 삭제는 글 포인트만).
-5. 탈퇴 시 포인트 소멸 — 탈퇴 기능이 없어 지우는 코드는 없고, 조회(원장·후보·목록·상세)에서 탈퇴 회원을 0/제외로 보인다.
+5. 탈퇴 시 포인트 소멸 — 탈퇴 기능이 없어 지우는 코드는 없고, 조회(원장·후보·목록·상세)에서 탈퇴 회원을 0/제외로 보인다. **커머스 정책 확정(2026-10-23) 이후 탈퇴 규칙은 `docs/domain/commerce.md` 17절이 정본이다**: 적립(무상) 포인트는 소멸, 충전(유상) 포인트는 「환불받고 탈퇴」 또는 「포기하고 탈퇴」 선택, 원장은 지우지 않고 마지막 거래일부터 5년 보관(회원 행은 익명화), 정지·기능 제한 중 탈퇴 불가. 지금 `point_balances`·`point_ledger` 의 회원 삭제 연쇄(`ON DELETE CASCADE`)는 커머스 1단계 마이그레이션에서 바꾼다.
 
 ## 미확정·후속
 1. 글·댓글 작성 응답의 `pointsEarned`(community 의 "+20P" 토스트)는 응답 모양을 바꾸지 않으려고 넣지 않았다 — 필요하면 `PostWriteResult`·댓글 쓰기 응답에 더한다.
