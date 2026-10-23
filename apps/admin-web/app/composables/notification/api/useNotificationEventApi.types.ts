@@ -1,6 +1,6 @@
 /**
  * 알림 이벤트 API 가 주고받는 모양 — 서버 `NotificationEventView`·`MyNotificationEventView` (`docs/features/notification-contract.md` 「API」·「서버 구현 결과 (알림 도구·조직 구성)」).
- * 이벤트의 정의(코드·영역·심각도·수신 규칙·필수 여부·`broadcastAllowed`)는 서버 코드가 원천이고, 운영자가 바꾸는 것은 사용 여부·전달 도구(`channels`)·추가 수신 팀(`teamIds`)뿐이다.
+ * 이벤트의 정의(코드·영역·심각도·수신 규칙·필수 여부·`broadcastAllowed`)는 서버 코드가 원천이고, 운영자가 바꾸는 것은 사용 여부·전달 도구(`channels`)·받는 범위(`defaultRecipients`)·팀(`teamIds`)뿐이다.
  * ⚠ 도구·팀 id 는 문자열이다(Snowflake). 기본 제공 도구의 id 는 `drawer`·`email`·`browser` 다.
  */
 import type { NotificationKind } from '~/composables/shell/api/useNotificationApi.types';
@@ -34,6 +34,12 @@ export interface NotificationEventView {
     teamIds: string[];
     /** 팀·공유 채널(Slack·Mattermost)로 보낼 수 있는 이벤트인가. 본인에게만 가는 이벤트(`*_ME`)·필수(보안) 이벤트는 false — 이메일·브라우저는 가능 */
     broadcastAllowed: boolean;
+    /**
+     * 받는 범위 — true(「권한자 전원」) = 이 이벤트를 볼 권한이 있는 운영자 전원 + 고른 팀원(중복 없이), false(「팀에만」) = 고른 팀의 팀원 중 볼 권한이 있는 사람만.
+     * **없으면 true 로 본다**(이 칸이 생기기 전 서버) — 읽을 때는 `UtilNotification.defaultRecipientsOf` 를 쓴다. 본인 전용·필수 이벤트는 늘 true.
+     * 「팀에만」인데 고른 팀이 모두 없어지거나 받는 사람이 0명이면 서버가 보낼 때 권한자 전원으로 되돌린다(알림이 사라지지 않게).
+     */
+    defaultRecipients?: boolean;
 }
 
 /**
@@ -45,6 +51,11 @@ export interface NotificationEventUpdateRequest {
     enabled: boolean;
     channels: string[];
     teamIds: string[];
+    /**
+     * 받는 범위(보내지 않으면 서버가 지금 값을 둔다) — 화면은 늘 함께 보낸다. false 인데 `teamIds` 가 비면 400 `fields.teamIds`,
+     * 본인 전용(`broadcastAllowed=false`)·필수(`mandatory`) 이벤트에서 false 면 400 `fields.defaultRecipients`.
+     */
+    defaultRecipients?: boolean;
 }
 
 /** 내 정보 > 개인 설정의 이벤트 한 줄 — `GET /api/admin/profile/notification/events` (내가 볼 수 있는 이벤트만, 준비 중 제외) */

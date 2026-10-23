@@ -129,6 +129,26 @@ export default class UtilNotification {
     }
 
     /**
+     * 이벤트의 받는 범위가 「권한자 전원」인가 — 칸이 없으면(이 칸이 생기기 전 서버) 권한자 전원으로 본다.
+     * @param {{ defaultRecipients?: boolean }} event - 운영자 이벤트 한 줄(`NotificationEventView`).
+     * @returns {boolean} 권한자 전원이면 true, 「팀에만」이면 false.
+     */
+    static defaultRecipientsOf(event: { defaultRecipients?: boolean }): boolean {
+        return event.defaultRecipients !== false;
+    }
+
+    /**
+     * 받는 범위가 저장할 수 없는 모양인가 — 「팀에만」(`defaultRecipients=false`)인데 고른 팀이 없다.
+     * 서버 이벤트 `PUT` 의 같은 검사(400 `VALIDATION` `fields.teamIds`)를 미리 알려 주는 용도다(판정은 서버).
+     * @param {boolean} defaultRecipients - 받는 범위(true = 권한자 전원).
+     * @param {readonly string[]} teamIds - 고른 팀 id 들.
+     * @returns {boolean} 팀을 골라야 저장할 수 있으면 true.
+     */
+    static needsTeam(defaultRecipients: boolean, teamIds: readonly string[]): boolean {
+        return !defaultRecipients && teamIds.length === 0;
+    }
+
+    /**
      * 이동 경로에서 쿼리·조각을 뗀 주소 부분 — 화면 열기 권한 판정(`UtilAdminMenu.canOpen`)은 경로만 본다.
      * @param {string} link - 서버가 준 이동 경로(예: `/settings/batch-logs?jobName=x`).
      * @returns {string} 경로(예: `/settings/batch-logs`).

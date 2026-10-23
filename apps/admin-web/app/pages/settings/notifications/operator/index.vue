@@ -11,11 +11,13 @@
               · 사용 — 이 이벤트의 알림을 쓸지(필수 이벤트는 켜진 채 잠금).
               · **전달 도구**(다중 선택) — 서랍은 사용 중인 이벤트에 늘 켜져 있어 고르는 것이 아니라 잠긴 딱지로 보이고, 등록된 도구(이메일 · Slack · Mattermost · 브라우저 알림)를 고른다.
                 도구마다 이 이벤트에서 쓸 수 있는지가 다르다(이메일 불가 이벤트 · 본인에게만 가는 이벤트는 Slack·Mattermost 불가 · 꺼진 도구 · 준비 중 이벤트) — 못 고르는 이유가 선택지 옆에 적힌다.
-              · **추가 수신 팀**(다중 선택, 기본 없음) — 코드에 고정된 기본 수신 규칙은 그대로이고, 고른 팀의 팀원은 서랍 · 이메일 · 브라우저 알림으로 추가 수신한다. Slack · Mattermost 는 팀원에게 따로 가지 않고 그 도구에 설정한 채널로 한 번 올라간다.
-                팀 선택을 **바꾸려면** `team.read` 도 필요하다(서버가 403) — 없으면 팀 이름을 읽을 수 없어 고른 개수만 보이고 선택은 바꿀 수 없다(도구·사용 여부는 `notification.manage` 만으로 바뀐다).
+              · **받는 범위**(「권한자 전원」/「팀에만」, `defaultRecipients`) + 팀(다중 선택, 기본 없음) — 「권한자 전원」이면 코드에 고정된 기본 수신 규칙은 그대로이고, 고른 팀의 팀원은 서랍 · 이메일 · 브라우저 알림으로 추가 수신한다.
+                「팀에만」이면 고른 팀의 팀원 중 볼 권한이 있는 사람만 받는다(고른 팀이 모두 없어지거나 받을 사람이 0명이면 서버가 권한자 전원으로 되돌려 보낸다). 「팀에만」인데 팀을 고르지 않으면 저장하지 않고 그 줄에 붙잡아 안내한다(서버도 400 `fields.teamIds`).
+                본인 전용·필수 이벤트는 「권한자 전원」에 잠기고 팀 칸이 없다. Slack · Mattermost 는 팀원에게 따로 가지 않고 그 도구에 설정한 채널로 한 번 올라간다.
+                팀 선택을 **바꾸려면** `team.read` 도 필요하다(서버가 403) — 없으면 팀 이름을 읽을 수 없어 고른 개수만 보이고 팀·받는 범위는 바꿀 수 없다(도구·사용 여부는 `notification.manage` 만으로 바뀐다).
             발행처가 아직 없는 예약 이벤트는 흐리게 「준비 중」으로만 보이고 바꿀 수 없다. 스위치·선택은 **바꾸면 즉시 저장**한다(구획 안에 [저장]이 없다 — forms.md 2-4). 낙관적 갱신이고, 서버가 거절하면 그 줄만 되돌리고 서버 문구를 토스트로 보인다.
         권한: 화면 `notification.read` (메뉴 정의가 걸러 낸다) · 변경 `notification.manage`. 팀 이름은 `team.read` 가 있어야 읽는다(없으면 개수만 보인다).
-        서버 API: 이벤트 `GET·PUT /api/admin/notification-events`(응답의 `channels`·`teamIds`·`broadcastAllowed`, 요청 `{enabled, channels, teamIds}`) · 도구 `useNotificationChannelApi` ·
+        서버 API: 이벤트 `GET·PUT /api/admin/notification-events`(응답의 `channels`·`teamIds`·`broadcastAllowed`·`defaultRecipients`, 요청 `{enabled, channels, teamIds, defaultRecipients}`) · 도구 `useNotificationChannelApi` ·
         팀 이름 `useTeamApi`(`docs/features/notification-contract.md` 「서버 구현 결과 (알림 도구·조직 구성)」). 거절은 서버 문구 그대로 토스트로 보인다.
     -->
     <div class="flex flex-col gap-4">
@@ -126,33 +128,58 @@
                         </template>
                     </Column>
 
-                    <Column :header="t('notification.colTeams')" style="min-width: 11rem">
+                    <!-- 받는 범위 — 「권한자 전원」/「팀에만」 + 팀 고르기를 한 칸에 위아래로(열 폭을 늘리지 않는다) -->
+                    <Column :header="t('notification.colScope')" style="min-width: 11rem">
                         <template #body="{ data }">
-                            <span v-if="teamsLock(data) !== undefined && teamIdsOf(data).length === 0" v-tooltip.top="teamsLock(data)" class="inline-flex text-[12px] text-muted-color" :aria-label="teamsLock(data)">—</span>
-                            <!-- 팀 이름을 못 읽는 권한이면(`team.read` 없음) 고른 개수만 보인다 -->
-                            <span v-else-if="!teams" class="text-[12px] text-muted-color">{{ teamIdsOf(data).length ? t('notification.teamsUnknown', { n: teamIdsOf(data).length }) : '—' }}</span>
-                            <AppMultiSelect
-                                v-else
-                                :model-value="teamIdsOf(data)"
-                                :options="teamOptionsOf(data)"
-                                option-disabled="disabled"
-                                filter
-                                :disabled="teamsLock(data) !== undefined || isSaving(data.code)"
-                                :placeholder="t('notification.teamsPlaceholder')"
-                                :filter-placeholder="t('notification.teamsFilter')"
-                                :empty-message="t('notification.teamsEmpty')"
-                                :aria-label="t('notification.teamsLabel', { name: data.name })"
-                                :selected-items-label="t('notification.teamsCount', { n: '{0}' })"
-                                :max-selected-labels="1"
-                                @update:model-value="(ids: unknown[]) => changeDelivery(data, { channels: data.channels, teamIds: ids as string[] })"
-                            >
-                                <template #option="{ option }">
-                                    <span class="flex w-full min-w-0 items-center gap-2" :class="option.disabled ? 'opacity-60' : ''">
-                                        <span class="min-w-0 flex-1 truncate text-[13px]">{{ option.label }}</span>
-                                        <span v-if="option.reason" class="shrink-0 text-[11px] text-muted-color">{{ option.reason }}</span>
-                                    </span>
+                            <div class="flex min-w-0 flex-col items-start gap-1.5">
+                                <!-- 비활성 요소는 마우스 이벤트를 안 받으므로 툴팁은 감싼 쪽에 건다 -->
+                                <span v-tooltip.top="scopeLock(data)" class="inline-flex">
+                                    <SelectButton
+                                        :model-value="scopeOf(data)"
+                                        :options="scopeOptions"
+                                        option-label="label"
+                                        option-value="value"
+                                        :allow-empty="false"
+                                        size="small"
+                                        class="notification-scope"
+                                        :disabled="scopeLock(data) !== undefined || isSaving(data.code)"
+                                        :aria-label="t('notification.scopeLabel', { name: data.name })"
+                                        @update:model-value="(value: Scope) => changeScope(data, value)"
+                                    />
+                                </span>
+                                <!-- 팀을 고를 수 없는 이벤트(본인 전용·필수)는 팀 칸이 없다 — 잠긴 「권한자 전원」과 그 툴팁이 까닭을 말한다 -->
+                                <template v-if="teamsPossible(data) || teamIdsOf(data).length">
+                                    <span v-if="teamsLock(data) !== undefined && teamIdsOf(data).length === 0" class="text-[12px] text-muted-color">{{ t('notification.scopeNoTeams') }}</span>
+                                    <!-- 팀 이름을 못 읽는 권한이면(`team.read` 없음) 고른 개수만 보인다 -->
+                                    <span v-else-if="!teams" class="text-[12px] text-muted-color">{{ teamIdsOf(data).length ? t('notification.teamsUnknown', { n: teamIdsOf(data).length }) : t('notification.scopeNoTeams') }}</span>
+                                    <AppMultiSelect
+                                        v-else
+                                        class="w-full"
+                                        :model-value="teamIdsOf(data)"
+                                        :options="teamOptionsOf(data)"
+                                        option-disabled="disabled"
+                                        filter
+                                        :invalid="isPending(data)"
+                                        :disabled="teamsLock(data) !== undefined || isSaving(data.code)"
+                                        :placeholder="scopeOf(data) === 'TEAMS' ? t('notification.scopeTeamsPlaceholder') : t('notification.teamsPlaceholder')"
+                                        :filter-placeholder="t('notification.teamsFilter')"
+                                        :empty-message="t('notification.teamsEmpty')"
+                                        :aria-label="t(scopeOf(data) === 'TEAMS' ? 'notification.scopeTeamsLabel' : 'notification.teamsLabel', { name: data.name })"
+                                        :selected-items-label="t('notification.teamsCount', { n: '{0}' })"
+                                        :max-selected-labels="1"
+                                        @update:model-value="(ids: unknown[]) => changeTeams(data, ids as string[])"
+                                    >
+                                        <template #option="{ option }">
+                                            <span class="flex w-full min-w-0 items-center gap-2" :class="option.disabled ? 'opacity-60' : ''">
+                                                <span class="min-w-0 flex-1 truncate text-[13px]">{{ option.label }}</span>
+                                                <span v-if="option.reason" class="shrink-0 text-[11px] text-muted-color">{{ option.reason }}</span>
+                                            </span>
+                                        </template>
+                                    </AppMultiSelect>
                                 </template>
-                            </AppMultiSelect>
+                                <!-- 「팀에만」인데 팀을 고르지 않았다 — 저장하지 않고 붙잡아 둔다(서버도 400 `fields.teamIds`) -->
+                                <Message v-if="isPending(data)" severity="warn" variant="simple" size="small" :closable="false" class="text-[11px]!">{{ t('notification.scopeNeedTeam') }}</Message>
+                            </div>
                         </template>
                     </Column>
 
@@ -236,8 +263,11 @@ function drawerHint(event: NotificationEventView): string {
     return event.mandatory ? t('notification.drawerLockedMandatory') : t('notification.drawerLocked');
 }
 
-/** 고른 추가 수신 팀 id 들 */
-const teamIdsOf = (event: NotificationEventView): string[] => event.teamIds;
+/** 붙잡아 둔 줄이 보일 빈 팀 선택 — 같은 배열을 써서 다시 그릴 때마다 선택 칸이 새 값으로 읽지 않게 한다 */
+const NO_TEAMS: string[] = [];
+
+/** 지금 보이는 팀 id 들 — 「팀에만」을 붙잡아 둔 줄은 비어 있다(서버 값은 그대로) */
+const teamIdsOf = (event: NotificationEventView): string[] => (isPending(event) ? NO_TEAMS : event.teamIds);
 
 /** 선택지로 보일 도구들(서랍 제외, 카카오·SMS 제외) */
 const selectableChannels = computed(() => UtilNotificationChannel.selectable(channels.value ?? []));
@@ -263,12 +293,73 @@ function channelOptionsOf(event: NotificationEventView) {
     });
 }
 
-/** 추가 수신 팀이 잠긴 이유 — 권한 · 준비 중 · 본인에게만 가는 이벤트. 잠기지 않았으면 undefined */
+/** 팀 선택이 잠긴 이유 — 권한 · 준비 중 · 필수 · 본인에게만 가는 이벤트. 잠기지 않았으면 undefined */
 function teamsLock(event: NotificationEventView): string | undefined {
     if (!canManage.value) return t('notification.noManageReason');
     if (!event.featureReady) return t('notification.notReadyHint');
+    if (event.mandatory) return t('notification.scopeMandatory');
     if (!event.broadcastAllowed) return t('notification.teamsSelfOnly');
     return undefined;
+}
+
+/** 팀을 고를 수 있는 이벤트인가 — 본인 전용(`broadcastAllowed=false`)·필수 이벤트는 팀이 없다(서버 400 `NOTIFICATION_BROADCAST_NOT_ALLOWED`) */
+const teamsPossible = (event: NotificationEventView): boolean => event.broadcastAllowed && !event.mandatory;
+
+/* ── 받는 범위(권한자 전원 / 팀에만) ── */
+
+/** 받는 범위 선택 값 — `ALL` = 권한자 전원(`defaultRecipients=true`), `TEAMS` = 팀에만(false) */
+type Scope = 'ALL' | 'TEAMS';
+
+/** ⚠ 선택지 글자는 `computed` 로 — 모듈 상수에 굳히면 언어를 바꿔도 다시 계산되지 않는다 */
+const scopeOptions = computed<{ label: string; value: Scope }[]>(() => [
+    { label: t('notification.scopeAll'), value: 'ALL' },
+    { label: t('notification.scopeTeams'), value: 'TEAMS' },
+]);
+
+/**
+ * 「팀에만」을 골랐지만 팀이 없어 저장하지 않고 붙잡아 둔 줄의 코드들 — 이 줄은 「팀에만」·팀 없음으로 보이고 서버 값은 그대로다.
+ * 팀을 고르면(또는 「권한자 전원」으로 돌리면) 그때 저장한다. 다시 조회하면 지운다(서버 값으로 돌아간다).
+ */
+const pendingTeamsOnly = ref<string[]>([]);
+const isPending = (event: NotificationEventView): boolean => pendingTeamsOnly.value.includes(event.code);
+function setPending(event: NotificationEventView, on: boolean): void {
+    const others = pendingTeamsOnly.value.filter((code) => code !== event.code);
+    pendingTeamsOnly.value = on ? [...others, event.code] : others;
+}
+
+/** 지금 보이는 받는 범위 — 붙잡아 둔 줄은 「팀에만」 */
+function scopeOf(event: NotificationEventView): Scope {
+    if (isPending(event)) return 'TEAMS';
+    return UtilNotification.defaultRecipientsOf(event) ? 'ALL' : 'TEAMS';
+}
+
+/** 받는 범위가 잠긴 이유(툴팁) — 권한 · 준비 중 · 필수 · 본인 전용 · 팀을 볼 권한 없음. 잠기지 않았으면 undefined */
+function scopeLock(event: NotificationEventView): string | undefined {
+    if (!canManage.value) return t('notification.noManageReason');
+    if (!event.featureReady) return t('notification.notReadyHint');
+    if (event.mandatory) return t('notification.scopeMandatory');
+    if (!event.broadcastAllowed) return t('notification.scopeSelfOnly');
+    // 팀 이름을 못 읽으면(`team.read` 없음) 어느 팀에만 갈지 알 수 없다 — 팀 칸처럼 바꿀 수 없게 둔다
+    if (!teams.value) return t('notification.scopeNoTeamRead');
+    return undefined;
+}
+
+/** 받는 범위와 팀을 함께 정한다 — 「팀에만」인데 팀이 없으면 저장하지 않고 붙잡아 안내한다(`UtilNotification.needsTeam`) */
+function applyRecipients(event: NotificationEventView, defaultRecipients: boolean, teamIds: string[]): void {
+    if (UtilNotification.needsTeam(defaultRecipients, teamIds)) {
+        setPending(event, true);
+        return;
+    }
+    setPending(event, false);
+    void changeDelivery(event, { channels: event.channels, teamIds, defaultRecipients });
+}
+
+function changeScope(event: NotificationEventView, scope: Scope): void {
+    applyRecipients(event, scope === 'ALL', teamIdsOf(event));
+}
+
+function changeTeams(event: NotificationEventView, ids: string[]): void {
+    applyRecipients(event, scopeOf(event) === 'ALL', ids);
 }
 
 /** 팀 선택지 — 멈춘 팀은 새로 고를 수 없다(이미 골라 둔 것은 풀 수 있다) */
@@ -302,8 +393,18 @@ async function loadMessageTargets(): Promise<void> {
 
 /** 도구와 이벤트(와 쓰는 문구 요약)를 함께 다시 조회한다 */
 async function reloadAll(): Promise<void> {
+    // 붙잡아 둔 「팀에만」은 저장하지 않은 것이다 — 다시 조회하면 서버 값으로 돌아간다
+    pendingTeamsOnly.value = [];
     await Promise.all([loadChannels(), load(), loadMessageTargets()]);
 }
 
 onMounted(() => void reloadAll());
 </script>
+
+<style scoped>
+/* 받는 범위 단추는 표 칸 안이라 글자를 한 단계 줄여 열 폭을 늘리지 않는다 */
+.notification-scope :deep(.p-togglebutton) {
+    font-size: 12px;
+    white-space: nowrap;
+}
+</style>
