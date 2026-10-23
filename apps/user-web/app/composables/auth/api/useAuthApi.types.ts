@@ -154,3 +154,17 @@ export interface PasswordResetRequest {
     token: string;
     newPassword: string;
 }
+
+/**
+ * 메일 링크 확인(`POST /api/auth/email/verify`) 결과 — community `docs/api-auth.md`·`api-account.md`.
+ * `changed: true` 면 이메일 **변경** 링크였고 로그인 이메일이 새 주소로 바뀌었다. 인증 링크는 `changed: false`.
+ */
+export interface EmailVerifyResult {
+    verified: boolean;
+    changed: boolean;
+}
+
+/** 비밀번호 재설정 링크가 아직 쓸 수 있는가(`GET /api/auth/password/reset/check`) — 쓸 수 없으면 `400 TOKEN_INVALID`·`410 TOKEN_EXPIRED` 로 온다 */
+export interface PasswordResetCheck {
+    valid: boolean;
+}
