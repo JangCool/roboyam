@@ -13,6 +13,7 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
+import com.community.mfa.service.TrustedDeviceService;
 import com.community.notification.service.AdminNotices;
 import com.community.operator.entity.OperatorCertCodeEntity;
 import com.community.operator.entity.OperatorEntity;
@@ -42,7 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
  *       남는다({@code noRollbackFor}). 맞는 번호도 한 번 쓰면 못 쓴다. 행 잠금으로 같은 번호의 동시 시도를 줄 세운다.</li>
  *   <li><b>계정 열거 방어</b>: 없는 이메일·대상이 아닌 계정은 승인번호 요청 때 같은 모양의 <b>가짜 행</b>이 만들어져({@link PasswordResetCodeService}) 확인 응답(없음/틀림/소진/만료)이
  *       실제 계정과 같은 순서로 같은 문구·같은 작업량이다. 계정을 조회하는 일도 모든 경로에서 똑같이 한다. 새 비밀번호 해시(느린 연산)는 승인번호가 맞은 뒤에만 한다.</li>
- *   <li><b>성공하면</b>: 비밀번호 해시 교체 → 승인번호 소진 → <b>그 운영자의 모든 세션 종료</b> → 로그인 실패 횟수·잠금 초기화 → 감사 {@code PASSWORD_RESET}·{@code LOGIN_SUCCESS}(번호·비밀번호는 남기지 않는다).
+ *   <li><b>성공하면</b>: 비밀번호 해시 교체 → 승인번호 소진 → <b>그 운영자의 모든 세션 종료</b> → <b>관리자 2차 인증 신뢰 기기 모두 끊기</b> → 로그인 실패 횟수·잠금 초기화 → 감사 {@code PASSWORD_RESET}(번호·비밀번호는 남기지 않는다). 로그인 완성({@code LOGIN_SUCCESS} via PASSWORD_RESET)은 2차 인증 판정 뒤({@code AdminLoginFinisher}).
  *       계정이 잠금·미승인·만료·사용 중지·기간 밖이면 거부한다(403, 번호는 쓰지 않은 채 둔다).</li>
  * </ul>
  * 이메일·승인번호·비밀번호를 로그에 남기지 않는다.
@@ -62,9 +63,11 @@ public class PasswordResetService {
     private final AdminPasswordResetProperties props;
     private final AuditLogService audit;
     private final AdminNotices notices;
+    private final TrustedDeviceService trustedDevices;
 
     public PasswordResetService(OperatorRepository operators, OperatorCertCodeRepository certs, PasswordEncoder encoder, AdminLoginAttemptService attempts,
-                                AdminSessionTerminator sessions, AdminPasswordResetProperties props, AuditLogService audit, AdminNotices notices) {
+                                AdminSessionTerminator sessions, AdminPasswordResetProperties props, AuditLogService audit, AdminNotices notices,
+                                TrustedDeviceService trustedDevices) {
         this.operators = operators;
         this.certs = certs;
         this.encoder = encoder;
@@ -73,13 +76,14 @@ public class PasswordResetService {
         this.props = props;
         this.audit = audit;
         this.notices = notices;
+        this.trustedDevices = trustedDevices;
     }
 
     /**
      * 승인번호를 확인하고 비밀번호를 바꾼다.
      *
      * @param ip 요청자 IP(감사 기록용)
-     * @param userAgent 요청의 User-Agent 원문(로그인 이력용 — {@link UserAgentSummary} 로 요약해 {@code LOGIN_SUCCESS} 기록에만 남긴다). 없으면 null
+     * @param userAgent 요청의 User-Agent 원문 — 로그인 감사는 2차 인증 판정 뒤에 남겨 여기서는 쓰지 않는다(호출 모양을 유지한다). 없으면 null
      * @return 로그인시킬 주체
      * @throws ValidationException               입력 형식이 틀렸을 때(400 {@code fields.email|certCode|newPassword})
      * @throws CertCodeException                 승인번호를 쓸 수 없을 때(400 {@code CERT_CODE_*})
@@ -142,11 +146,12 @@ public class PasswordResetService {
         operator.changePassword(encoder.encode(newPassword), now);
         cert.markUsed(now);
         int ended = sessions.endAll(operatorId);
-        attempts.recordSuccess(email, operatorId); // 로그인 실패 횟수·잠금을 지우고 마지막 로그인 시각을 갱신한다(곧바로 로그인시킨다)
+        int devices = trustedDevices.revokeAll(operatorId, "PASSWORD_RESET", operatorId, ip); // 관리자 2차 인증의 신뢰 기기를 모두 끊는다
+        attempts.resetFailures(email); // 로그인 실패 횟수·잠금을 지운다. 로그인 완성(감사 LOGIN_SUCCESS via PASSWORD_RESET·마지막 로그인 시각)은 2차 인증 판정 뒤 컨트롤러 쪽이 한다
 
         String target = Long.toString(operatorId);
-        audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.PASSWORD_RESET, AuditResult.SUCCESS).target("OPERATOR", target).with("sessionsEnded", ended));
-        audit.record(UserAgentSummary.attach(AuditEvent.byOperator(operatorId, ip, AuditActions.LOGIN_SUCCESS, AuditResult.SUCCESS).target("OPERATOR", target).with("via", "PASSWORD_RESET"), userAgent));
+        audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.PASSWORD_RESET, AuditResult.SUCCESS).target("OPERATOR", target).with("sessionsEnded", ended)
+                .with("trustedDevicesRevoked", devices));
         notices.passwordReset(operatorId);
         log.info("비밀번호를 재설정했다 operatorId={} 끝낸 세션={}개", operatorId, ended);
         return new OperatorPrincipal(operatorId);

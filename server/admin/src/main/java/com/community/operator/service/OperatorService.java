@@ -4,6 +4,7 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
+import com.community.mfa.service.TrustedDeviceService;
 import com.community.notification.service.AdminNotices;
 import com.community.operator.dto.OperatorCredentialsIssued;
 import com.community.operator.dto.request.OperatorCreateRequest;
@@ -58,7 +59,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li><b>루트 계정(최고 관리자)은 어떤 변경도 거절한다</b>(409 {@code OPERATOR_ROOT_PROTECTED}) — 루트가 하나뿐이고 전면 보호되므로 마지막 활성 최고 관리자는 늘 지켜진다.</li>
- *   <li>상태는 네 개(승인·잠금·만료·사용)다. 잠금({@code locked})을 바꾸려면 {@code operator.lock}, 나머지는 {@code operator.manage}.</li>
+ *   <li>상태는 네 개(승인·잠금·만료·사용)다. 잠금({@code locked})을 바꾸려면 {@code operator.lock}, 나머지는 {@code operator.manage}. 잠그면 그 운영자의 관리자 2차 인증 신뢰 기기를 모두 끊는다.</li>
  *   <li>역할을 주고 빼는 일은 {@link OperatorRoleAssignmentPolicy} 가 검사한다 — {@code role.grant} 필요, <b>권한 상승 방지</b>(자기 권한 범위 안에서만), 종합 관리 역할은 최고 관리자만.</li>
  *   <li>운영자 만들기는 승인된 상태로 만들고 <b>임시 비밀번호는 커밋된 뒤 이메일로만 안내</b>한다(응답·DB·로그에 남지 않는다. 메일 서버가 없으면 보내지 못한다 — 받은 사람은 비밀번호 재설정으로도 비밀번호를 정할 수 있다).</li>
  *   <li>반려는 승인 대기 건만 되고(409 {@code OPERATOR_NOT_PENDING}) 반려한 신청은 지운다(보관 방식은 미확정). 지우는 API 는 따로 없다 — 「사용 중지」가 대신한다.</li>
@@ -85,10 +86,12 @@ public class OperatorService {
     private final AccessDeniedRecorder denied;
     private final ApplicationEventPublisher events;
     private final AdminNotices notices;
+    private final TrustedDeviceService trustedDevices;
 
     public OperatorService(OperatorRepository operators, OperatorRepositoryQDSL operatorQueries, OperatorInvitationRepository invitations, EntityManager entityManager,
                            RoleRepositoryQDSL roleQueries, OperatorRoleRepository operatorRoles, OperatorRoleAssignmentPolicy rolePolicy, PasswordEncoder encoder,
-                           SnowflakeIdGenerator ids, AuditLogService audit, AccessDeniedRecorder denied, ApplicationEventPublisher events, AdminNotices notices) {
+                           SnowflakeIdGenerator ids, AuditLogService audit, AccessDeniedRecorder denied, ApplicationEventPublisher events, AdminNotices notices,
+                           TrustedDeviceService trustedDevices) {
         this.operators = operators;
         this.operatorQueries = operatorQueries;
         this.invitations = invitations;
@@ -102,6 +105,7 @@ public class OperatorService {
         this.denied = denied;
         this.events = events;
         this.notices = notices;
+        this.trustedDevices = trustedDevices;
     }
 
     /** 탭별 목록과 탭마다 몇 명인지. 키워드는 이름·이메일 부분 일치(대소문자 무시), 비어 있으면 거르지 않는다. 최근 등록순 */
@@ -256,6 +260,9 @@ public class OperatorService {
         if (!after.isEmpty()) {
             operator.changeStatus(request.approved(), request.locked(), request.expired(), request.enabled(), now);
             audit.record(operatorEvent(actor, AuditActions.OPERATOR_STATUS_CHANGE, operator.getId()).with("before", before).with("after", after));
+            if (lockChange && request.locked()) {
+                trustedDevices.revokeAll(operator.getId(), "ACCOUNT_LOCKED", actor.operatorId(), actor.ip()); // 잠그면 관리자 2차 인증의 신뢰 기기를 모두 끊는다
+            }
             notices.statusChanged(actor, operator.getId(), after);
             log.info("운영자 상태를 바꿨다 operatorId={} 바뀐 칸={} by operatorId={}", operator.getId(), after.keySet(), actor.operatorId());
         }

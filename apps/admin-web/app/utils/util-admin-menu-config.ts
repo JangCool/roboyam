@@ -41,6 +41,8 @@ export interface AdminScreenDef {
     labelKey: string;
     to: string;
     permission: string | null;
+    /** 최고 관리자(루트)만 보는 화면(메뉴 정의의 `superOnly`) — 권한 칸 대신 `UtilAdminMenu.SUPER_ONLY` 로 다룬다 */
+    superOnly: boolean;
     /** 메뉴 정의의 아이콘(하위 항목은 없다) */
     icon: string | null;
     /** 메뉴 정의에서 속한 모드 */
@@ -103,7 +105,7 @@ export default class UtilAdminMenuConfig {
         const out: AdminScreenDef[] = [];
         const add = (items: readonly AdminMenuItem[], mode: AdminMenuMode, sectionLabelKey: string | null) => {
             for (const leaf of UtilAdminMenu.leaves(items)) {
-                out.push({ key: leaf.key, labelKey: leaf.labelKey, to: leaf.to, permission: leaf.permission ?? null, icon: leaf.icon ?? null, mode, sectionLabelKey });
+                out.push({ key: leaf.key, labelKey: leaf.labelKey, to: leaf.to, permission: leaf.permission ?? null, superOnly: leaf.superOnly === true, icon: leaf.icon ?? null, mode, sectionLabelKey });
             }
         };
         for (const node of UtilAdminMenu.ITEMS) {
@@ -341,14 +343,16 @@ export default class UtilAdminMenuConfig {
     // ── 표시 · 미리보기 ─
 
     /**
-     * 노드가 걸린 권한 — 관리자 화면은 레지스트리의 권한, 외부 링크는 고른 권한. 묶음·부모는 없음.
+     * 노드가 걸린 권한 — 관리자 화면은 레지스트리의 권한(최고 관리자 전용 화면은 예약 코드 `UtilAdminMenu.SUPER_ONLY`), 외부 링크는 고른 권한. 묶음·부모는 없음.
      * @param {AdminMenuEditNode} node - 노드.
      * @returns {string | null} 권한 코드.
      */
     static permissionOf(node: AdminMenuEditNode): string | null {
         if (node.kind !== 'SCREEN') return null;
         if (node.targetType === 'URL') return node.permission;
-        return UtilAdminMenuConfig.screenOf(node.targetKey)?.permission ?? null;
+        const screen = UtilAdminMenuConfig.screenOf(node.targetKey);
+        if (screen?.superOnly) return UtilAdminMenu.SUPER_ONLY;
+        return screen?.permission ?? null;
     }
 
     /**

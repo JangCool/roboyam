@@ -64,6 +64,10 @@ public enum AdminNotificationEvent {
     GRADE_PROMOTION_RUN(spec(MEMBER, INFO).holders(Permission.GRADE_READ).link("/settings/batch-logs?jobName=grade-promotion")),
     /** 공개 사이트 글·댓글 신고 접수 — 신고 정책 notifyOperatorScope 가 PER_CASE 면 대상마다 첫 신고에만, PER_REPORT 면 신고마다(api ReportService). 처리 화면이 아직 없어 링크가 없다 */
     REPORT_RECEIVED(spec(SAFETY, INFO).holders(Permission.REPORT_MANAGE)),
+    /** 최고 관리자가 관리자 2차 인증을 켬 — 운영자 전원에게 OTP 등록 안내(켠 사람 제외). 문구에 인자가 없다 */
+    MFA_ENABLED(spec(SECURITY, INFO).everyone().excludeActor().link("/me?tab=security")),
+    /** 최고 관리자가 관리자 2차 인증을 끔 — 운영자 전원에게 심각도 높음(끈 사람 포함 — 루트 세션을 남이 쓴 경우 알아채게). 이메일 전달이 처음부터 켜짐 */
+    MFA_DISABLED(spec(SECURITY, CRITICAL).everyone().email().link("/me?tab=security")),
 
     // ── 예약 이벤트 (featureReady = false) — 기능이 만들어질 때 reserved() 를 지우고 발행 한 줄만 더한다 ──
     SANCTION_APPEAL_FILED(spec(SAFETY, INFO).holders(Permission.APPEAL_MANAGE).reserved()),
@@ -108,6 +112,14 @@ public enum AdminNotificationEvent {
 
         private Spec self() {
             this.recipient = NotificationRecipientRule.SELF;
+            return this;
+        }
+
+        /** 활성 운영자 전원이 받는다. 보는 데 필요한 권한이 없다 */
+        private Spec everyone() {
+            this.recipient = NotificationRecipientRule.ALL_OPERATORS;
+            this.holders = List.of();
+            this.requires = null;
             return this;
         }
 

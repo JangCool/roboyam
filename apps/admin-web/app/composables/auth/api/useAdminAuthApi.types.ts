@@ -32,6 +32,23 @@ export interface AdminMeResponse {
     user: AdminUser | null;
     siteName?: string | null;
     siteLogoUrl?: string | null;
+    /**
+     * 2차 인증 단계(서버 `AdminLoginMfa`, `docs/features/commerce-foundation-contract.md` 「0-3」) — 칸은 늘 있고 없으면 null(2차 인증 없이 바로 들어간다).
+     * `VERIFY`(등록자 — 코드 물음)·`ENROLL`(유예 끝 — 강제 등록)이면 `authenticated:false`(2차 대기 세션), `GRACE`(미등록·유예 중)면 이미 로그인됐다.
+     * 로그인·비밀번호 재설정 응답과 `me`(대기 세션이면 새로고침해도 같은 단계)에 실린다.
+     */
+    mfa: AdminLoginMfa | null;
+    /** 2단계를 복구 코드로 통과했을 때만(`POST /api/admin/auth/mfa/verify`) — 남은 복구 코드 수 */
+    recoveryCodesLeft?: number;
+}
+
+/** 로그인 응답의 2차 인증 단계 */
+export interface AdminLoginMfa {
+    stage: 'VERIFY' | 'ENROLL' | 'GRACE';
+    /** GRACE 일 때만 — 유예 마감(UTC ISO). 다른 단계에서는 칸이 없다 */
+    graceEndsAt?: string;
+    /** 「이 기기에서 다시 묻지 않기」 일수(설정 개월 × 30) */
+    trustDays: number;
 }
 
 export interface AdminLoginRequest {

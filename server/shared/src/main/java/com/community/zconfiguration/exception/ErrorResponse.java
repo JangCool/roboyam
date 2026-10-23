@@ -8,6 +8,7 @@ import java.util.Map;
 
 /**
  * 오류 응답 본문. 필드 오류가 없으면 {@code fields} 는 <b>나가지 않고</b>(빈 객체도 내지 않는다 — 화면은 {@code fields} 가 없는 것으로 읽는다), {@code retryAfterSeconds} 는 해당될 때만 나간다.
+ * {@code remainingAttempts}(잠기기 전 남은 시도 횟수 — 관리자 2차 인증 코드 {@code MFA_CODE_INVALID})도 해당될 때만 나간다.
  *
  * <pre>{@code { "code": "VALIDATION", "message": "...", "fields": { "root.email": "..." }, "retryAfterSeconds": 600 } }</pre>
  *
@@ -16,7 +17,13 @@ import java.util.Map;
  * 키 이름 {@code code} 는 화면의 {@code useApiClient} 가 읽는 이름이다.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record ErrorResponse(String code, String message, @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, String> fields, Long retryAfterSeconds) {
+public record ErrorResponse(String code, String message, @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, String> fields, Long retryAfterSeconds,
+                            Integer remainingAttempts) {
+
+    /** 남은 시도 횟수가 없는 오류 */
+    public ErrorResponse(String code, String message, Map<String, String> fields, Long retryAfterSeconds) {
+        this(code, message, fields, retryAfterSeconds, null);
+    }
 
     public static ErrorResponse of(String code, String message) {
         return new ErrorResponse(code, message, Map.of(), null);
@@ -28,6 +35,6 @@ public record ErrorResponse(String code, String message, @JsonInclude(JsonInclud
 
     public static ErrorResponse of(CommonException e, Messages messages, Locale locale) {
         return new ErrorResponse(e.getErrorCode(), messages.get(e.getMessageRef(), locale), messages.get(e.getFields(), locale),
-                e.getRetryAfterSeconds());
+                e.getRetryAfterSeconds(), e.getRemainingAttempts());
     }
 }

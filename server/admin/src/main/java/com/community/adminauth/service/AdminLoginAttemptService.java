@@ -76,12 +76,12 @@ public class AdminLoginAttemptService {
         }
     }
 
-    /** 로그인에 성공했다 — 실패 횟수·잠금을 지우고 마지막 로그인 시각을 갱신한다 */
+    /**
+     * 비밀번호가 맞았다(로그인·비밀번호 재설정) — 실패 횟수·잠금을 지운다. 마지막 로그인 시각은 세션이 완성될 때(관리자 2차 인증 뒤) {@code MfaLoginService#complete} 가 갱신한다
+     */
     @Transactional
-    public void recordSuccess(String email, long operatorId) {
-        Instant now = Instant.now();
-        attempts.findForUpdate(key(email)).ifPresent(attempt -> attempt.reset(now));
-        operators.findById(operatorId).ifPresent(operator -> operator.markLoggedIn(now));
+    public void resetFailures(String email) {
+        attempts.findForUpdate(key(email)).ifPresent(attempt -> attempt.reset(Instant.now()));
     }
 
     /** 이메일 원문을 저장하지 않는 키 — 공개 사이트 회원 로그인과 섞이지 않게 접두어를 붙인다 */

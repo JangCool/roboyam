@@ -341,6 +341,7 @@ export default {
     permissionFixed: 'The screen sets the permission',
     permissionNone: 'No permission',
     permissionAll: 'Visible to everyone',
+    superOnly: 'Super admin only',
     urlPermissionHelp: 'If set, only operators with this permission see it.',
     iconHelp: 'A primeicons class. Pick one below or type it.',
     iconPick: 'Common icons',

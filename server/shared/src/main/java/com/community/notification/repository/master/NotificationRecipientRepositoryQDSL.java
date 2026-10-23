@@ -47,6 +47,11 @@ public class NotificationRecipientRepositoryQDSL extends RoboyamRepositoryQDSL {
         return new LinkedHashSet<>(query.select(OPERATOR.id).from(OPERATOR).where(isActive(now), OPERATOR.root.isTrue()).orderBy(OPERATOR.id.asc()).fetch());
     }
 
+    /** 활성 운영자 전원(루트 포함) — 수신 규칙 {@code ALL_OPERATORS} */
+    public Set<Long> allActive(Instant now) {
+        return new LinkedHashSet<>(query.select(OPERATOR.id).from(OPERATOR).where(isActive(now)).orderBy(OPERATOR.id.asc()).fetch());
+    }
+
     /** 그 운영자들 중 활성인 사람 — 추가 수신자를 거를 때 */
     public Set<Long> active(Collection<Long> operatorIds, Instant now) {
         if (operatorIds.isEmpty()) {

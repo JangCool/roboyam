@@ -1,7 +1,11 @@
 package com.community.permission.config;
 
 import com.community.adminauth.controller.AdminSession;
+import com.community.mfa.dto.MfaStage;
+import com.community.mfa.dto.PendingMfa;
+import com.community.mfa.exception.MfaPendingExpiredException;
 import com.community.permission.annotation.AdminAuthenticated;
+import com.community.permission.annotation.AdminMfaPending;
 import com.community.permission.annotation.AdminPublic;
 import com.community.permission.annotation.RequirePermission;
 import com.community.permission.dto.AdminActor;
@@ -26,7 +30,9 @@ import org.springframework.web.servlet.HandlerInterceptor;
  * <b>{@code /api/admin/**} 의 모든 요청이 거치는 권한 검사</b>(fail-closed).
  *
  * <ul>
- *   <li>핸들러는 {@link RequirePermission} · {@link AdminAuthenticated} · {@link AdminPublic} 중 <b>정확히 하나</b>를 선언해야 한다.
+ *   <li>핸들러는 {@link RequirePermission} · {@link AdminAuthenticated} · {@link AdminPublic} · {@link AdminMfaPending} 중 <b>정확히 하나</b>를 선언해야 한다.
+ *       {@link AdminMfaPending} 은 2차 대기 세션(로그인 아님)만 통과시키고 대기 정보를 요청 속성({@link #MFA_PENDING_ATTRIBUTE})에 싣는다 — 없거나 만료면 {@code 401 MFA_PENDING_EXPIRED}.
+ *       대기 세션은 보안 컨텍스트가 없어 로그인이 필요한 선언({@link AdminAuthenticated}·{@link RequirePermission})에서는 {@code 401 UNAUTHENTICATED} 다.
  *       선언이 없거나 여럿이거나 컨트롤러 메서드가 아닌 핸들러(정적 자원 등)면 <b>거절</b>한다 — 새 컨트롤러가 검사를 빼먹어도 열리지 않는다.</li>
  *   <li>로그인이 필요한 선언이면 세션의 운영자를 <b>요청마다 DB 에서 다시 읽어</b>({@link AdminSession#resolve}) 현재 상태(승인·잠금·사용·기간)와 권한 합집합으로 판단한다.
  *       캐시하지 않으므로 권한·상태 변경이 다음 요청부터 반영된다. 로그인하지 않았거나 세션이 낡았으면 {@code 401 UNAUTHENTICATED}.</li>
@@ -39,6 +45,9 @@ public class AdminAccessInterceptor implements HandlerInterceptor {
 
     /** 이 요청의 {@link AdminActor} 를 싣는 요청 속성 이름 */
     public static final String ACTOR_ATTRIBUTE = AdminAccessInterceptor.class.getName() + ".ACTOR";
+
+    /** {@link AdminMfaPending} 요청의 2차 대기 정보({@link PendingMfa})를 싣는 요청 속성 이름 */
+    public static final String MFA_PENDING_ATTRIBUTE = AdminAccessInterceptor.class.getName() + ".MFA_PENDING";
 
     private static final Logger log = LoggerFactory.getLogger(AdminAccessInterceptor.class);
 
@@ -55,6 +64,8 @@ public class AdminAccessInterceptor implements HandlerInterceptor {
         PUBLIC,
         AUTHENTICATED,
         PERMISSION,
+        /** 2차 대기 세션만({@link AdminMfaPending}) — 로그인 세션이 아니다 */
+        MFA_PENDING,
         NONE
     }
 
@@ -62,6 +73,14 @@ public class AdminAccessInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         Kind kind = handler instanceof HandlerMethod method ? kindOf(method) : Kind.NONE;
         if (kind == Kind.PUBLIC) {
+            return true;
+        }
+        if (kind == Kind.MFA_PENDING) {
+            // 2차 대기 세션은 로그인이 아니라 행위자(AdminActor)가 없다 — 대기 정보만 싣는다. 없거나 5분이 지났거나 그 단계가 아니면 401 MFA_PENDING_EXPIRED
+            List<MfaStage> allowed = List.of(pendingStagesOf((HandlerMethod) handler));
+            PendingMfa pending = adminSession.mfaPending(request).filter(found -> allowed.contains(found.stage()))
+                    .orElseThrow(MfaPendingExpiredException::new);
+            request.setAttribute(MFA_PENDING_ATTRIBUTE, pending);
             return true;
         }
 
@@ -120,14 +139,22 @@ public class AdminAccessInterceptor implements HandlerInterceptor {
         boolean isPublic = AnnotatedElementUtils.hasAnnotation(element, AdminPublic.class);
         boolean isAuthenticated = AnnotatedElementUtils.hasAnnotation(element, AdminAuthenticated.class);
         boolean isPermission = AnnotatedElementUtils.hasAnnotation(element, RequirePermission.class);
-        int count = (isPublic ? 1 : 0) + (isAuthenticated ? 1 : 0) + (isPermission ? 1 : 0);
+        boolean isMfaPending = AnnotatedElementUtils.hasAnnotation(element, AdminMfaPending.class);
+        int count = (isPublic ? 1 : 0) + (isAuthenticated ? 1 : 0) + (isPermission ? 1 : 0) + (isMfaPending ? 1 : 0);
         if (count == 0) {
             return null;
         }
         if (count > 1) {
             return Kind.NONE;
         }
-        return isPublic ? Kind.PUBLIC : isAuthenticated ? Kind.AUTHENTICATED : Kind.PERMISSION;
+        return isPublic ? Kind.PUBLIC : isAuthenticated ? Kind.AUTHENTICATED : isPermission ? Kind.PERMISSION : Kind.MFA_PENDING;
+    }
+
+    /** {@link AdminMfaPending} 이 허용하는 단계(메서드 선언이 이긴다). 단계를 비워 두면 아무 단계도 허용하지 않는다 */
+    private static MfaStage[] pendingStagesOf(HandlerMethod handler) {
+        AdminMfaPending onMethod = AnnotatedElementUtils.findMergedAnnotation(handler.getMethod(), AdminMfaPending.class);
+        AdminMfaPending declared = onMethod != null ? onMethod : AnnotatedElementUtils.findMergedAnnotation(handler.getBeanType(), AdminMfaPending.class);
+        return declared == null ? new MfaStage[0] : declared.value();
     }
 
     private static RequirePermission requirementOf(HandlerMethod handler) {

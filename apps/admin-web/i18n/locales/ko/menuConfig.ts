@@ -341,6 +341,7 @@ export default {
     permissionFixed: '권한은 화면이 정해요',
     permissionNone: '권한 없음',
     permissionAll: '모두에게 보이기',
+    superOnly: '최고 관리자만',
     urlPermissionHelp: '고르면 이 권한이 있는 운영자에게만 보여요.',
     iconHelp: 'primeicons 클래스예요. 아래에서 고르거나 직접 적어요.',
     iconPick: '자주 쓰는 아이콘',

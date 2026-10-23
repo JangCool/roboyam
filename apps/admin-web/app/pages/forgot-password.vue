@@ -4,6 +4,8 @@
           ① 이메일을 넣으면 승인번호(숫자 6자리, 10분)가 메일로 간다  ② 승인번호와 새 비밀번호를 **함께** 넣어 한 번에 보낸다(승인번호만 먼저 확인받는 단계가 없다).
         **가입 여부를 알려 주지 않는다** — 어떤 이메일이든 「보냈어요」라고만 말한다(서버도 같은 답). [승인번호 다시 받기]는 60초 카운트다운 뒤에 켜진다.
         성공하면 서버가 곧바로 로그인시킨다(200 + 로그인된 `me`) — 로그인 화면으로 보내지 않고 그 응답으로 로그인 상태를 갱신한 뒤 홈(`/`)으로 간다. 이미 로그인한 사람이 열어도 막지 않는다(`guest` 미들웨어 없음).
+        단, 2차 인증이 남았으면(`authenticated:false` + `mfa.stage = VERIFY|ENROLL` — 재설정은 신뢰 기기를 모두 끊는다) 로그인되지 않은 것이므로 `/login` 으로 보내 2단계를 이어 가게 한다.
+        유예 중(`GRACE`)은 이미 로그인된 것이라 지금처럼 홈으로 간다(유예 안내 단계는 생략 — 내 정보 › 로그인 보안과 다음 로그인에서 다시 안내된다).
         칸에 붙지 않는 오류(`PASSWORD_RESET_NOT_ALLOWED` 403 · 서버 오류 · 이메일 형식 …)는 폼 위쪽에, 승인번호 오류(`CERT_CODE_*`)는 승인번호 칸 아래에 서버 문구 그대로 보인다.
     -->
     <h1 class="text-center text-lg font-semibold">{{ t('account.forgotTitle') }}</h1>
@@ -221,10 +223,11 @@ async function onReset() {
         certCode.value = '';
         password.value = '';
         confirm.value = '';
-        // 서버가 곧바로 로그인시켰다 — 그 응답으로 로그인 상태를 갱신하고(로그인 성공과 같은 처리) 홈으로. 토스트는 화면을 옮겨도 이어서 보인다
+        // 서버가 곧바로 로그인시켰다 — 그 응답으로 로그인 상태를 갱신하고(로그인 성공과 같은 처리) 홈으로. 토스트는 화면을 옮겨도 이어서 보인다.
+        // 2차 대기면 로그인되지 않고 대기 단계만 남는다(`adopt` 가 `pendingMfa` 로 기억) — 로그인 화면이 그 단계로 이어 간다
         adopt(me);
         toast.success(t('account.resetDone'), 6000);
-        await navigateTo('/', { replace: true });
+        await navigateTo(me.authenticated ? '/' : '/login', { replace: true });
     } catch (e) {
         const failure = account.asApiError(e);
         if (UtilAccount.isCertCodeError(failure.code)) {

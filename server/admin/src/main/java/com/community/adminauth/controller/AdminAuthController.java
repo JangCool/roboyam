@@ -9,6 +9,8 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditEvent;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
+import com.community.mfa.dto.PendingMfa;
+import com.community.mfa.service.MfaLoginService;
 import com.community.permission.annotation.AdminPublic;
 import com.community.permission.dto.AdminActor;
 import com.community.zconfiguration.response.ApiResponse;
@@ -40,14 +42,18 @@ public class AdminAuthController {
     private final AdminSession adminSession;
     private final AuditLogService audit;
     private final ClientIpResolver clientIps;
+    private final AdminLoginFinisher finisher;
+    private final MfaLoginService mfaLogins;
 
     public AdminAuthController(AdminLoginService loginService, AdminMeService meService, AdminSession adminSession, AuditLogService audit,
-                               ClientIpResolver clientIps) {
+                               ClientIpResolver clientIps, AdminLoginFinisher finisher, MfaLoginService mfaLogins) {
         this.loginService = loginService;
         this.meService = meService;
         this.adminSession = adminSession;
         this.audit = audit;
         this.clientIps = clientIps;
+        this.finisher = finisher;
+        this.mfaLogins = mfaLogins;
     }
 
     /**
@@ -57,16 +63,26 @@ public class AdminAuthController {
     @AdminPublic
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<AdminMeResponse>> me(HttpServletRequest request) {
-        return noStore(meService.of(adminSession.resolve(request)));
+        Optional<AdminActor> actor = adminSession.resolve(request);
+        if (actor.isEmpty()) {
+            // 2차 대기 세션이면 비로그인 + 같은 단계(새로고침해도 단계가 유지된다)
+            Optional<PendingMfa> pending = adminSession.mfaPending(request);
+            if (pending.isPresent()) {
+                return noStore(meService.of(Optional.empty(), mfaLogins.view(pending.get()), null));
+            }
+        }
+        return noStore(meService.of(actor));
     }
 
-    /** 이메일 로그인. 성공하면 세션을 새로 만들고 {@code me} 와 같은 모양으로 답한다 */
+    /**
+     * 이메일 로그인. 비밀번호가 맞으면 관리자 2차 인증 판정에 따라 세션을 새로 만들거나(바로 로그인 — 유예 안이면 {@code mfa.stage = GRACE})
+     * 2차 대기 세션을 만든다({@code authenticated:false} + {@code mfa.stage = VERIFY|ENROLL}). 응답은 {@code me} 와 같은 모양
+     */
     @AdminPublic
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AdminMeResponse>> login(@RequestBody AdminLoginRequest body, HttpServletRequest request, HttpServletResponse response) {
         OperatorPrincipal principal = loginService.authenticate(body.email(), body.password(), clientIps.resolve(request), request.getHeader("User-Agent"));
-        adminSession.establish(request, response, principal);
-        return noStore(meService.of(adminSession.resolve(request)));
+        return noStore(finisher.afterPassword(request, response, principal, null));
     }
 
     /** 로그아웃 — 세션을 없앤다. 로그인하지 않은 상태에서도 204 */

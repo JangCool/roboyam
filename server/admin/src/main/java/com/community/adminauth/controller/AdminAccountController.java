@@ -5,7 +5,6 @@ import com.community.adminauth.dto.request.PasswordResetCodeRequest;
 import com.community.adminauth.dto.request.PasswordResetRequest;
 import com.community.adminauth.dto.response.AdminMeResponse;
 import com.community.adminauth.dto.response.PasswordResetCodeResponse;
-import com.community.adminauth.service.AdminMeService;
 import com.community.adminauth.service.PasswordResetCodeService;
 import com.community.adminauth.service.PasswordResetService;
 import com.community.operator.dto.request.InvitationAcceptRequest;
@@ -29,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>모두 {@link AdminPublic} + {@code SecurityConfig} 의 허용 주소다. 쓰기 요청이라 CSRF 헤더가 필요하다(쿠키는 {@code GET /api/admin/auth/me} 가 내려 준다). 토큰·승인번호·비밀번호는
  * URL 이 아니라 본문으로 받는다. 입력 검사·업무 규칙·계정 열거 방어는 서비스가 한다. 응답은 {@code Cache-Control: no-store}.
- * 재설정이 성공하면 곧바로 로그인시킨다 — 세션 만들기는 {@link AdminSession}(세션 고정 방지로 옛 세션을 없애고 새로 만든다).
+ * 재설정이 성공하면 곧바로 로그인시킨다 — 세션 만들기는 {@link AdminLoginFinisher}(관리자 2차 인증 판정을 거치고, 세션 고정 방지로 옛 세션을 없애고 새로 만든다).
  */
 @RestController
 @RequestMapping("/api/admin/auth")
@@ -38,17 +37,15 @@ public class AdminAccountController {
     private final OperatorInvitationAcceptService invitations;
     private final PasswordResetCodeService resetCodes;
     private final PasswordResetService resets;
-    private final AdminMeService meService;
-    private final AdminSession adminSession;
+    private final AdminLoginFinisher finisher;
     private final ClientIpResolver clientIps;
 
     public AdminAccountController(OperatorInvitationAcceptService invitations, PasswordResetCodeService resetCodes, PasswordResetService resets,
-                                  AdminMeService meService, AdminSession adminSession, ClientIpResolver clientIps) {
+                                  AdminLoginFinisher finisher, ClientIpResolver clientIps) {
         this.invitations = invitations;
         this.resetCodes = resetCodes;
         this.resets = resets;
-        this.meService = meService;
-        this.adminSession = adminSession;
+        this.finisher = finisher;
         this.clientIps = clientIps;
     }
 
@@ -74,13 +71,15 @@ public class AdminAccountController {
         return noStore(resetCodes.request(body.email(), clientIps.resolve(request)));
     }
 
-    /** 승인번호와 새 비밀번호로 비밀번호를 바꾸고 곧바로 로그인시킨다 — 로그인 응답과 같은 {@code me} 모양 */
+    /**
+     * 승인번호와 새 비밀번호로 비밀번호를 바꾸고 곧바로 로그인시킨다 — 로그인 응답과 같은 {@code me} 모양. 비밀번호 로그인과 같이 관리자 2차 인증 판정을 거친다
+     * (재설정은 신뢰 기기를 모두 끊으므로 켜져 있고 등록했으면 VERIFY 대기 — {@code authenticated:false} + {@code mfa}). 로그인 감사에는 {@code via = PASSWORD_RESET}
+     */
     @AdminPublic
     @PostMapping("/password-reset")
     public ResponseEntity<ApiResponse<AdminMeResponse>> resetPassword(@RequestBody PasswordResetRequest body, HttpServletRequest request, HttpServletResponse response) {
         OperatorPrincipal principal = resets.reset(body.email(), body.certCode(), body.newPassword(), clientIps.resolve(request), request.getHeader("User-Agent"));
-        adminSession.establish(request, response, principal);
-        return noStore(meService.of(adminSession.resolve(request)));
+        return noStore(finisher.afterPassword(request, response, principal, "PASSWORD_RESET"));
     }
 
     private static <T> ResponseEntity<ApiResponse<T>> noStore(T body) {

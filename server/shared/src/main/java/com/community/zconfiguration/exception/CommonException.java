@@ -42,18 +42,31 @@ public class CommonException extends RuntimeException {
     /** 다시 시도할 수 있기까지의 초(응답 본문과 {@code Retry-After} 헤더로 나간다). 없으면 null */
     private final Long retryAfterSeconds;
 
+    /** 잠기기 전까지 남은 시도 횟수(응답 본문의 {@code remainingAttempts} — 관리자 2차 인증 코드처럼 화면이 「N번 남았어요」를 보일 때). 없으면 null */
+    private final Integer remainingAttempts;
+
     protected CommonException(HttpStatus status, String errorCode, MessageRef message) {
         this(status, errorCode, message, Map.of(), null);
     }
 
     protected CommonException(HttpStatus status, String errorCode, MessageRef message, Map<String, MessageRef> fields,
                               Long retryAfterSeconds) {
+        this(status, errorCode, message, fields, retryAfterSeconds, null);
+    }
+
+    protected CommonException(HttpStatus status, String errorCode, MessageRef message, Map<String, MessageRef> fields,
+                              Long retryAfterSeconds, Integer remainingAttempts) {
         super(message.key(), null, false, false); // 로그용 — 응답 문구는 messageRef 를 요청 언어로 풀어 만든다
         this.status = status;
         this.errorCode = errorCode;
         this.messageRef = message;
         this.fields = fields == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(fields)); // 검사 순서를 지킨다
         this.retryAfterSeconds = retryAfterSeconds;
+        this.remainingAttempts = remainingAttempts;
+    }
+
+    public Integer getRemainingAttempts() {
+        return remainingAttempts;
     }
 
     public CommonException(ErrorCode code) {

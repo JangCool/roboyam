@@ -7,6 +7,8 @@
  * **아직 화면이 없는 기능의 항목은 넣지 않는다**(규약: 없는 기능의 메뉴·링크는 보여 주지 않는다 — `_frontend-core.md` 2-2).
  * 메뉴별 권한: 화면 항목에 `permission`(권한 코드, `util-permission-catalog.ts`)을 달면 그 권한이 없는 운영자에게는 메뉴·검색에서 감춘다(`visible`). 칸이 없는 항목(대시보드)은 모두에게 보인다.
  * 주소로 직접 들어오면 셸(`layouts/default.vue`)이 `canOpen` 으로 걸러 "권한 없음" 상태를 보인다. 감추는 것은 편의이고 막는 것은 서버다.
+ * 최고 관리자 전용(권한 코드로 위임하지 않는 화면 — 로그인 보안): 항목에 `superOnly: true` 를 단다. 판정은 같은 `can` 에 예약 코드 `SUPER_ONLY` 를 물어서 한다 —
+ * 로그인한 운영자의 `can`(`useAdminPermission`)은 최고 관리자에게만 모든 코드에 true 이고, 역할 미리보기의 `can`(그 역할이 가진 코드)에는 이 코드가 없어 늘 감춰진다.
  * 권한 카탈로그의 `featureReady`(기능 준비 중 표시)는 메뉴 감춤에 쓰지 않는다 — 감춤은 `permission` 보유만 본다.
  *
  * 구조는 hamonica3 의 메뉴(`menu` 표의 최상위 + 하위)를 따른다 — 두 층까지다.
@@ -40,6 +42,8 @@ export interface AdminMenuItem {
     labelKey: string;
     /** 이 화면을 열 수 있는 권한 코드. 없으면 모두에게 보인다 */
     permission?: string;
+    /** 최고 관리자(루트)만 — 권한 코드로 위임하지 않는 화면. `permission` 과 함께 쓰지 않는다 */
+    superOnly?: true;
     /** 하위 화면 항목 — 있으면 이 항목은 이동하지 않고 하위를 펼치는 부모다(`to` 는 하위 주소들의 공통 앞부분) */
     children?: readonly AdminMenuItem[];
 }
@@ -68,6 +72,20 @@ export interface AdminMenuSection {
 }
 
 export default class UtilAdminMenu {
+    /** 최고 관리자 전용 항목(`superOnly`)을 물을 때 쓰는 예약 코드 — 권한 카탈로그에 없는 값이라 최고 관리자의 `can` 만 true 를 준다 */
+    static readonly SUPER_ONLY = '$super';
+
+    /**
+     * 이 항목을 열 수 있는가 — 최고 관리자 전용이면 `SUPER_ONLY`, 권한이 걸렸으면 그 권한을 본다.
+     * @param {AdminMenuItem} item - 메뉴 항목.
+     * @param {(code: string) => boolean} can - 그 권한 코드를 가졌는가.
+     * @returns {boolean} 열 수 있으면 true.
+     */
+    static allowed(item: AdminMenuItem, can: (code: string) => boolean): boolean {
+        if (item.superOnly && !can(UtilAdminMenu.SUPER_ONLY)) return false;
+        return !item.permission || can(item.permission);
+    }
+
     /**
      * 지금 있는 화면의 메뉴. 새 화면이 생길 때 한 줄씩 더한다(서버 `AdminScreenRegistry` 에도 같은 한 줄 — 파일 머리말).
      * 운영자와 권한 묶음 — hamonica3 의 `사용자와 권한`(회원 관리 · 역할 관리)에 대응한다. 이 제품에서 회원은 공개 사이트 이용자이고 관리자 앱 계정은 운영자다.
@@ -141,6 +159,8 @@ export default class UtilAdminMenu {
                 { key: 'siteGeneral', to: '/settings/general', icon: 'pi pi-sliders-h', labelKey: 'menu.general', permission: 'site.read' },
                 // 소셜 로그인 설정(카카오·네이버·구글 키) — 조회는 `site.read`, 저장·삭제는 화면 안에서 `site.secret`
                 { key: 'socialLogin', to: '/settings/social-login', icon: 'pi pi-key', labelKey: 'menu.socialLogin', permission: 'site.read' },
+                // 로그인 보안(관리자 2차 인증 켜기·끄기와 값) — 최고 관리자만(commerce.md 13-3, 권한 코드로 위임하지 않는다). 서버 `AdminScreenRegistry` 에도 같은 한 줄이 필요하다(서버 단계)
+                { key: 'loginSecurity', to: '/settings/login-security', icon: 'pi pi-shield', labelKey: 'menu.loginSecurity', superOnly: true },
                 // 조직 구성 — 운영자를 팀으로 묶는다(알림 이벤트의 「추가 수신 팀」으로 쓴다)
                 { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
             ],
@@ -275,7 +295,7 @@ export default class UtilAdminMenu {
     static visibleItems(items: readonly AdminMenuItem[], can: (code: string) => boolean): AdminMenuItem[] {
         const out: AdminMenuItem[] = [];
         for (const item of items) {
-            if (item.permission && !can(item.permission)) continue;
+            if (!UtilAdminMenu.allowed(item, can)) continue;
             if (item.children) {
                 const children = UtilAdminMenu.visibleItems(item.children, can);
                 if (children.length) out.push({ ...item, children });
@@ -351,13 +371,13 @@ export default class UtilAdminMenu {
         for (const node of UtilAdminMenu.ITEMS) {
             const items = UtilAdminMenu.leaves(UtilAdminMenu.isGroup(node) ? node.items : [node]);
             const hit = items.find((item) => UtilAdminMenu.isActive(item, path));
-            if (hit) return !hit.permission || can(hit.permission);
+            if (hit) return UtilAdminMenu.allowed(hit, can);
         }
         // 어느 화면 항목에도 없지만 부모 아래인 주소(문구 편집 등)는 부모의 권한으로 본다
         for (const node of UtilAdminMenu.ITEMS) {
             const parents = UtilAdminMenu.parents(UtilAdminMenu.isGroup(node) ? node.items : [node]);
             const hit = parents.find((item) => UtilAdminMenu.isActive(item, path));
-            if (hit) return !hit.permission || can(hit.permission);
+            if (hit) return UtilAdminMenu.allowed(hit, can);
         }
         return true;
     }

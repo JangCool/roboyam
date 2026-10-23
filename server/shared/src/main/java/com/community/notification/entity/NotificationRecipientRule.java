@@ -8,5 +8,7 @@ public enum NotificationRecipientRule {
     /** 지정한 권한 중 하나라도 가진 역할을 받은 운영자 + 최고 관리자(루트) — 활성(승인·사용 중·잠기지 않음) 운영자만 */
     PERMISSION_HOLDERS,
     /** 최고 관리자(루트)만 */
-    ROOT
+    ROOT,
+    /** 활성 운영자 전원(루트 포함) — 모든 운영자의 로그인 방식이 바뀌는 사건(관리자 2차 인증 켜기·끄기) */
+    ALL_OPERATORS
 }

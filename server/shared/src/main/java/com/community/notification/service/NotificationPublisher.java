@@ -256,6 +256,7 @@ public class NotificationPublisher {
             }
             case PERMISSION_HOLDERS -> targets.addAll(recipients.activeHolders(event.recipientPermissions().stream().map(permission -> permission.code()).toList(), now));
             case ROOT -> targets.addAll(recipients.activeRoots(now));
+            case ALL_OPERATORS -> targets.addAll(recipients.allActive(now));
         }
         targets.addAll(recipients.active(context.extraRecipientIds(), now));
         return targets;
