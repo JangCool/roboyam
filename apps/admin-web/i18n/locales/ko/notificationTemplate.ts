@@ -71,6 +71,7 @@ export default {
 
     // 메일 템플릿 — 목록
     mailTitle: '메일 템플릿',
+    mailAudienceNav: '쓰는 대상',
     mailSubtitle: '이메일 본문을 감싸는 겉모양(머리말·꼬리말)이에요. 이메일 문구마다 받는 사람에 맞는 것 하나를 골라 써요.',
     mailLoadFailed: '메일 템플릿을 불러오지 못했어요',
     mailEmptyTitle: '메일 템플릿이 없어요',

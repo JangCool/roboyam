@@ -68,6 +68,7 @@ export default {
 
     // Mail templates — list
     mailTitle: 'Mail templates',
+    mailAudienceNav: 'Used for',
     mailSubtitle: 'The look (header and footer) that wraps an email body. Each email message picks one that fits its recipients.',
     mailLoadFailed: 'Could not load mail templates',
     mailEmptyTitle: 'No mail templates',
