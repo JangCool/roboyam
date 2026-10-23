@@ -6,7 +6,7 @@
 | 단위 | 내용 | 상태 |
 |---|---|---|
 | 0-1 | 필드 암호화 키링(`DataCipher`)·중복 확인 해시(`BlindIndex`), 설치 스크립트·compose 의 새 키 | **구현됨**(아래) |
-| 0-2 | 배치 보강: 작업 core 를 shared `batch.core` 로, 실행 요청 표(「지금 실행」 비동기), 단계·건별 실패·체크포인트·재실행, 워커 기록 | 대기 — 배치 화면 목업 먼저 |
+| 0-2 | 배치 보강: 작업 core 를 shared `batch.core` 로, 실행 요청 표(「지금 실행」 비동기), 단계·건별 실패·체크포인트·재실행, 워커 기록 | **서버 구현·화면 연결됨**(아래) |
 | 0-3 | 관리자 2차 인증(TOTP) | 대기 — 화면 목업 먼저 |
 | 0-4 | 본인인증·기능 제한·탈퇴 대비 표, 데이터 키 교체 배치 | 대기 — 0-1 필요, 화면 목업 먼저 |
 | 0-5 | 멱등·속도 제한·요청 제한 설정, 커머스 메일 대기열, 권한 코드 11개, 감사 보관 분류(13-4) | 대기 — 0-2 의 워커 기록 필요 |
@@ -15,7 +15,7 @@
 ## 마이그레이션 계획 (가번호 — 합칠 때 확정)
 | 가번호 | 스트림 | 표 | 단위 |
 |---|---|---|---|
-| V57 | shared | `batch_runs` 칸(run_mode·params·건수·resumed_from_run_id·checkpoint·request_id), `batch_run_steps`, `batch_run_failures`, `batch_run_requests`, `worker_heartbeats` | 0-2 |
+| V61 (V57 은 develop 의 알림 작업이 먼저 씀) | shared | `batch_runs` 칸(run_mode·params·건수·resumed_from_run_id·checkpoint·request_id), `batch_run_steps`, `batch_run_failures`, `batch_run_requests`, `worker_heartbeats` | 0-2 |
 | admin V3 | admin | `admin_security_settings`(1행·꺼짐), `operator_mfa`, `operator_mfa_recovery_codes`, `operator_trusted_devices` | 0-3 |
 | V58 | shared | `identity_verifications`, `identity_verification_attempts`, `member_restrictions`, `identity_withdrawals`, `withdrawn_member_contacts` | 0-4 |
 | V59 | shared | `idempotency_requests`, `request_rate_counters`(UNLOGGED), `request_rate_limits`(기본 4행) | 0-5 |
@@ -61,6 +61,14 @@
   | 해시는 용도·값이 같을 때만 같고(HMAC-SHA256 용도 ‖ NUL ‖ 값), 정규화는 부르는 쪽 | `BlindIndexTest` |
   | local 만 개발용 키, 공통 설정(dev·prod)에는 기본값 없음, 세 키는 서로 다르다 | `DataCryptoSettingsTest` |
   - 테스트로 막지 않은 것: 설치 스크립트가 키를 만들어 `.env` 에 쓰는 것(셸 — `bash -n` 문법 검사만), compose 의 변수 전달(실행 확인 안 함).
+
+## 0-2 구현 결과 (2026-10-23 — 화면 API 는 `batch-contract.md` 「0-2 보강」)
+- **구조(15-2)**: shared `com.community.batch.core` — `BatchCatalog`·`BatchCategory`·`BatchDefinition`, `BatchJob`(`definition`·`steps`·`mainStep`·`params`·`resumable`·`validate`·`run(BatchContext)`), `BatchContext`·`BatchStep`(덩어리 처리 도우미 `chunks(ChunkSource, ChunkProcessor)`), `BatchRunner`, `BatchRunRecorder`·`BatchFailureRecorder`, `BatchLockService`, `BatchRegistry`, `BatchParameterValidator`, `BatchRequestQueue`(요청 넣기·`SKIP LOCKED` 집기·남은 요청 정리)·`BatchRequestExecutor`(집은 요청 실행), `DbBatchCaller`(DB 배치 `CALL`), `WorkerHeartbeats`, `BatchErrorText`·`BatchMessageCodec`. 작업 구현 `FileOrphanCleanupJob` 은 shared `com.community.media.batch`. admin `com.community.batch` 에는 화면(컨트롤러·DTO·`BatchQueryService`·`BatchAdminService`·cron·`DbBatchGateway`)과 「언제 돌릴지」(`BatchScheduler`·`BatchRequestPoller`·`BatchBootstrapRunner`)만. 의존은 admin → shared.
+- core 의 기록은 **JDBC**(`JdbcTemplate` + 앱의 트랜잭션 관리자) — 덩어리 저장 확정과 단계 건수를 한 트랜잭션에, 실행 기록·실패 건은 따로 확정해야 하고, `SKIP LOCKED`·`ON CONFLICT`·부분 유일 색인을 쓰며, 별도 배치 서버로 뗄 때 JPA 구성 없이 돌게 하려고. 화면 조회는 읽기 전용 JPA 엔티티(`BatchRunStepEntity`·`BatchRunFailureEntity`·`BatchRunRequestEntity`) + QueryDSL(`BatchRunDetailRepositoryQDSL`).
+- **마이그레이션 V61**(shared, 가번호 — V57~V60 은 develop 의 알림 작업이 먼저 써서 2026-10-23 develop 에 맞추며 옮김): `batch_runs` 칸 8개 + `ux_batch_runs_resumed`(RESUME 은 원래 실행당 한 줄), `batch_run_steps`(PK run_id·step_name, CASCADE), `batch_run_failures`(CASCADE, 미해결 색인), `batch_run_requests`(끝나지 않은 요청 배치당 하나 — 부분 유일 색인, 집기 색인), `worker_heartbeats`, `batch_db_jobs.cadence`. 반복 마이그레이션: `R__batch_00_helpers.sql` 에 `batch_hourly_cron`·`batch_default_cron`·`batch_define_hourly`(기존 함수의 인자·반환형은 그대로), `R__batch_14` 가 끝난 요청도 정리.
+- **설정**: `roboyam.batch.enabled`(예약·요청 집기·워커, 옛 `scheduler-enabled` 대체) · `request-poll-millis`(2000) · `request-stale-seconds`(120) · `heartbeat-idle-seconds`(30), `spring.task.scheduling.pool.size: 4`. 작업별 `batch_params`: `chunk_size`(기본 500, 1~10000) · `failure_limit`(기본 100, 0~100000).
+- **워커 기록**: 요청 집기(`batch-request-poller`)·배치 알림 감시(`batch-run-watcher`)가 `worker_heartbeats` 를 쓴다(일이 없으면 30초에 한 번). 알림 감시의 켜기는 그대로 `roboyam.notification.watcher-enabled` 다.
+- **테스트**(commerce.md 18절): shared `com.community.batch.core.*` 32개 + admin `com.community.batch.*` 7개 통과(실제 PostgreSQL). 규칙 → 테스트: 덩어리 저장 확정·실패 덩어리만 한 건씩·성공 건 건별 기록 없음·실패 한도·건수 규칙·고를 수 없는 단계·실패 문구 가림 = `BatchChunkProcessingTest` / 실패 지점부터·한 번만 이어 받기·실패 건만 다시 = `BatchRerunTest` / 파라미터·단계 검사 = `BatchParameterValidatorTest` / 요청 하나·`SKIP LOCKED`·집을 때 실행 중이면 거절·남은 요청 정리 = `BatchRequestQueueTest` / 잠금 = `BatchLockTest` / 워커 기록 = `WorkerHeartbeatsTest` / 매시 도우미·로그 정리 CASCADE = `DbBatchHelpersTest` / 가림 = `BatchErrorTextTest` / `roboyam.batch.enabled` = admin `BatchEnabledSwitchTest` / 화면 API 한 바퀴 = admin `BatchScreenApiSmokeTest`.
 
 ## 시험 기반 (2026-10-23 — commerce.md 18절: 규칙은 모두 테스트, 통과 필수)
 - **Testcontainers(PostgreSQL)는 커머스 테스트에만 쓴다**(사용자 승인 2026-10-23). 버전은 Spring Boot BOM(4.1.1 → Testcontainers 2.0.5), 시험 PC 에 Docker 가 있어야 한다.

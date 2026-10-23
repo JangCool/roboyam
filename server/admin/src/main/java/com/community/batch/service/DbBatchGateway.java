@@ -1,10 +1,6 @@
 package com.community.batch.service;
 
-import com.community.batch.catalog.BatchCatalog;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import com.community.batch.core.BatchCatalog;
 import java.util.HashMap;
 import java.util.Map;
 import javax.sql.DataSource;
@@ -17,7 +13,8 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * DB 배치(저장 프로시저 + pg_cron)와 말하는 곳 — pg_cron 의 상태·등록된 job 읽기, 켜기/끄기와 cron 수정({@code cron.alter_job}), 「지금 실행」({@code CALL}).
+ * DB 배치(저장 프로시저 + pg_cron)의 화면 쪽 — pg_cron 의 상태·등록된 job 읽기, 켜기/끄기와 cron 수정({@code cron.alter_job}). 「지금 실행」의 {@code CALL} 은
+ * 배치를 켠 서버가 요청을 집어 core 의 {@code DbBatchCaller} 로 한다.
  *
  * <p>Native SQL 인 이유: {@code cron.job}·{@code cron.alter_job}·{@code CALL} 은 PostgreSQL/pg_cron 전용이라 JPQL·QueryDSL 에 대응 문법이 없고, 확장이 없는 DB 에서는
  * 엔티티로 매핑할 수 없는 표다(그래서 읽기도 이 클래스 한 곳에 모은다). 식별자(프로시저 이름)는 카탈로그 상수에서 만들고 값은 모두 바인딩한다.
@@ -25,16 +22,13 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>권한</b>: 앱 DB 계정이 cron job 의 소유자다(마이그레이션이 그 계정으로 {@code cron.schedule} 한다). 그래서 별도 GRANT 나 SECURITY DEFINER 래퍼 없이
  * 자기 job 을 읽고({@code cron.job} 은 소유자만 보이는 RLS) {@code cron.alter_job} 으로 고친다 — 권한 상승이 없다. 슈퍼유저가 아닌 계정은 {@code cron} 스키마의 USAGE 만 받으면 된다.
  *
- * <p>트랜잭션: 읽기와 {@code alter_job} 은 부르는 서비스의 트랜잭션에 참여한다. {@link #call}은 <b>트랜잭션 밖의 새 연결</b>에서 돌린다 — 프로시저가 덩어리마다
+ * <p>트랜잭션: 읽기와 {@code alter_job} 은 부르는 서비스의 트랜잭션에 참여한다. {@code CALL} 은 core 의 {@code DbBatchCaller} 가 트랜잭션 밖의 새 연결에서 한다 — 프로시저가 덩어리마다
  * COMMIT 하므로 이미 열린 트랜잭션 안에서는 실행할 수 없다.
  */
 @Component
 public class DbBatchGateway {
 
     private static final Logger log = LoggerFactory.getLogger(DbBatchGateway.class);
-
-    /** Java 배치 잠금({@code BatchLockService})과 같은 어드바이저리 잠금 이름공간 — 같은 키면 Java·DB 어느 쪽이 돌든 서로를 막는다 */
-    private static final int LOCK_NAMESPACE = 7_340_002;
 
     /** {@code UNREADABLE}: DB 의 배치 도구를 읽지 못했다(마이그레이션이 적용되지 않은 DB 등) */
     public static final String UNREADABLE = "UNREADABLE";
@@ -56,11 +50,9 @@ public class DbBatchGateway {
     }
 
     private final JdbcTemplate jdbc;
-    private final DataSource dataSource;
 
     public DbBatchGateway(DataSource dataSource) {
         this.jdbc = new JdbcTemplate(dataSource);
-        this.dataSource = dataSource;
     }
 
     /** pg_cron 의 상태. DB 의 배치 도구를 읽지 못하면 {@link #UNREADABLE}. 트랜잭션 밖에서 읽는다 — 읽기가 실패해도 호출한 쪽의 트랜잭션(PostgreSQL 은 실패하면 그 트랜잭션을 못 쓴다)을 망치지 않게 */
@@ -150,46 +142,5 @@ public class DbBatchGateway {
     private void warnBusinessBatchIdle(BatchCatalog definition, String reason) {
         log.warn("{} DB 업무 배치 '{}' 가 돌지 않는다 — 이 배치가 하는 일(예: 등급 일수 승급)이 멈춘다. pg_cron 을 설치·설정한 뒤 관리자 서버를 다시 시작하거나 DBA 가 "
                 + "CALL {}() 로 직접 돌려야 한다 (docs/features/batch-contract.md 「DB 배치」)", reason, definition.key(), definition.procedureName());
-    }
-
-    /**
-     * 「지금 실행」 — 저장 프로시저를 {@code CALL} 하고 끝날 때까지 기다린다. 돌려주는 값은 프로시저가 만든 로그 줄 ID 이고, 같은 배치가 이미 돌고 있으면 프로시저가 아무것도 하지 않고
-     * null 을 돌려준다. 새 연결(자동 커밋)에서 돌린다. 어드바이저리 잠금은 프로시저가 끝에서 푼다 — 오류로 끊기면 이 연결의 잠금을 풀고 예외를 그대로 던진다(풀 연결에 잠금이 남지 않게).
-     */
-    public Long call(BatchCatalog definition, long operatorId) throws SQLException {
-        String procedure = definition.procedureName();
-        try (Connection connection = dataSource.getConnection()) {
-            if (!connection.getAutoCommit()) {
-                connection.setAutoCommit(true);
-            }
-            try (PreparedStatement statement = connection.prepareStatement("call " + procedure + "('MANUAL', ?, NULL::bigint)")) {
-                statement.setLong(1, operatorId);
-                try (ResultSet result = statement.executeQuery()) {
-                    if (!result.next()) {
-                        return null;
-                    }
-                    long runId = result.getLong(1);
-                    return result.wasNull() ? null : runId;
-                }
-            } catch (SQLException e) {
-                unlock(connection, definition.key()); // 프로시저가 끝맺지 못했다 — 쥔 채로 풀에 돌아가지 않게 풀어 준다(정상이면 프로시저가 batch_run_close 에서 이미 풀었다)
-                throw e;
-            }
-        }
-    }
-
-    private static void unlock(Connection connection, String jobKey) {
-        try (PreparedStatement statement = connection.prepareStatement("select pg_advisory_unlock(?, hashtext(?))")) {
-            statement.setInt(1, LOCK_NAMESPACE);
-            statement.setString(2, jobKey);
-            statement.execute();
-        } catch (SQLException e) {
-            log.warn("DB 배치 잠금을 풀지 못했다 jobKey={}", jobKey, e);
-            try (PreparedStatement all = connection.prepareStatement("select pg_advisory_unlock_all()")) {
-                all.execute();
-            } catch (SQLException ignored) {
-                log.error("DB 배치 잠금을 모두 풀지 못했다 jobKey={}", jobKey);
-            }
-        }
     }
 }

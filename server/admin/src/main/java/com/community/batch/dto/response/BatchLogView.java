@@ -9,8 +9,10 @@ import java.time.Instant;
  * @param jobName       배치 키
  * @param trigger       {@code SCHEDULED} · {@code MANUAL}
  * @param status        {@code RUNNING} · {@code OK} · {@code FAIL} · {@code SKIP}
- * @param affectedCount 처리 건수. 끝나지 않았거나 실패면 null
+ * @param affectedCount 처리 건수. 끝나지 않았거나 센 값이 없으면 null
+ * @param runMode       {@code NORMAL} · {@code RESUME}(실패 지점부터 다시) · {@code RETRY_FAILED}(실패 건만 다시)
+ * @param failedCount   건별 실패 건수(단계 합). 건별 실패를 기록하지 않는 배치(DB 배치)이거나 아직 안 셌으면 null
  */
 public record BatchLogView(String logId, String jobName, String displayName, String source, String trigger, String operatorName, Instant startedAt,
-                           Instant finishedAt, String status, Long affectedCount, String message) {
+                           Instant finishedAt, String status, Long affectedCount, String message, String runMode, Long failedCount) {
 }

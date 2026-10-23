@@ -1,9 +1,10 @@
 package com.community.batch.dto.response;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
- * 배치 목록의 한 줄 — 카탈로그의 정의 + 운영 설정 + 마지막 실행 요약. Java 배치와 DB 배치(저장 프로시저 + pg_cron)가 같은 모양이다.
+ * 배치 목록의 한 줄 — 카탈로그의 정의 + 운영 설정 + 마지막 실행 요약 + 실행 요청·파라미터·단계. Java 배치와 DB 배치(저장 프로시저 + pg_cron)가 같은 모양이다.
  * 이름·설명은 서버가 요청 언어로 풀어 준다(그래서 {@code i18n}·{@code descI18n} 은 항상 null).
  *
  * @param jobName           배치 키
@@ -21,8 +22,14 @@ import java.time.Instant;
  *                          이때 켜기/끄기·cron 수정·지금 실행은 409 {@code BATCH_UNAVAILABLE}
  * @param unavailableReason {@code available=false} 인 이유(요청 언어로 푼 글). 쓸 수 있으면 null
  * @param scheduleZone      {@code schedule} 을 해석하는 시간대(IANA 이름). Java 배치는 {@code roboyam.batch.zone}, DB 배치는 pg_cron 의 {@code cron.timezone}(기본 GMT)
+ * @param lastRunId         마지막 실행(지금 도는 중이면 그 실행)의 로그 번호. 한 번도 안 돌았으면 null
+ * @param pendingRequest    아직 끝나지 않은 요청(PENDING·RUNNING). 없으면 null — 있는 동안 지금 실행은 409 {@code BATCH_RUNNING}
+ * @param params            받을 수 있는 실행 파라미터(없으면 빈 배열)
+ * @param steps             단계(차례대로 — 한 단계짜리도 1개)
+ * @param resumable         「실패 지점부터 다시」를 지원하나 — Java 작업만 true 일 수 있다
  */
 public record BatchJobView(String jobName, String displayName, String description, String i18n, String descI18n, String category, String source, String schedule,
                            String defaultSchedule, boolean enabled, Instant nextRunAt, Instant lastRunAt, String lastStatus, Long lastAffectedCount,
-                           String lastMessage, boolean running, boolean runnable, boolean available, String unavailableReason, String scheduleZone) {
+                           String lastMessage, boolean running, boolean runnable, boolean available, String unavailableReason, String scheduleZone,
+                           String lastRunId, BatchRunRequestView pendingRequest, List<BatchParamDefView> params, List<BatchStepDefView> steps, boolean resumable) {
 }
