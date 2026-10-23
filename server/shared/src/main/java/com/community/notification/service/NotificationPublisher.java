@@ -55,7 +55,8 @@ import org.springframework.transaction.annotation.Transactional;
  * 이벤트면 행위자를 뺀다. 이벤트 관리에서 꺼진 이벤트(필수 이벤트는 못 끈다)와 운영자가 개인 설정에서 끈 이벤트(필수 이벤트는 무시)는 건너뛴다.
  *
  * <p><b>추가 수신 팀·공유 채널</b>({@code broadcastAllowed} 인 이벤트만): 이벤트에 고른 사용 중인 팀의 팀원 중 <b>활성 운영자이고 이 이벤트를 볼 권한({@code requiredPermission})이 있는 사람</b>이 받는 사람에 더해진다
- * (권한 없는 팀원은 건너뛴다 — 권한 상승 방지. 이미 받는 사람은 한 번만). Slack · Mattermost 도구는 받는 사람 수와 상관없이 <b>이벤트당 도구마다 한 번</b> 커밋 뒤에 올린다
+ * (권한 없는 팀원은 건너뛴다 — 권한 상승 방지. 이미 받는 사람은 한 번만). 이벤트 관리에서 「권한자 전원에게 보내기」({@code defaultRecipients})를 끄면 기본 수신 규칙 없이 그 팀원에게만 보내고,
+ * 받을 팀원이 없으면 기본 수신으로 되돌린다({@link #chooseRecipients}). Slack · Mattermost 도구는 받는 사람 수와 상관없이 <b>이벤트당 도구마다 한 번</b> 커밋 뒤에 올린다
  * ({@code NotificationChannelPostSender}). 이메일은 이벤트의 이메일 전달과 기본 제공 이메일 도구가 모두 켜져 있을 때만 나간다.
  *
  * <p><b>묶기</b>: 이벤트에 {@code collapseSeconds} 가 있으면, 같은 수신자가 같은 이벤트·같은 묶음 키({@code dedupeKey})의 알림을 그 시간 안에 이미 받았을 때 새 알림을 <b>만들지 않는다</b>
@@ -158,8 +159,8 @@ public class NotificationPublisher {
             return 0;
         }
 
-        Set<Long> targets = recipientsOf(event, context, now);
-        TeamRecipients team = addTeamMembers(event, targets, now); // 팀으로 받는 사람 — 알림 메일 문구 조건 recipientSource
+        Set<Long> targets = new LinkedHashSet<>();
+        TeamRecipients team = chooseRecipients(event, state, context, targets, now); // 팀으로 받는 사람 — 알림 메일 문구 조건 recipientSource
         if (event.excludeActor() && context.actorId() != null) {
             targets.remove(context.actorId());
         }
@@ -216,27 +217,54 @@ public class NotificationPublisher {
     }
 
     /**
-     * 이벤트의 「추가 수신 팀」 팀원을 받는 사람에 더한다. 코드에 고정된 기본 수신 규칙은 그대로이고(권한 상승 방지), 팀원은 <b>사용 중인 팀</b>의 <b>지금 활성인 운영자</b>이면서
-     * <b>이 이벤트를 볼 권한</b>({@code requiredPermission} — 최고 관리자는 모두)이 있는 사람만 받는다 — 권한이 없는 팀원에게 알림 행을 만들지 않는다. 이미 받는 사람은 한 번만 센다.
+     * 받는 사람을 {@code targets} 에 채운다(행위자 제외·개인 끄기·묶기 전).
      *
-     * @return 팀으로 받는 운영자(기본 수신 규칙으로도 받을 수 있다) · 그중 기본 수신 규칙(+ 추가 수신자)에는 없는 운영자 — 알림 메일 문구의 조건 {@code recipientSource}
+     * <ul>
+     *   <li><b>기본 수신</b>({@code defaultRecipients=true} — 처음 값, 본인 전용·필수 이벤트는 늘 이것): 코드에 고정된 기본 수신 규칙(+ 추가 수신자) + 추가 수신 팀의 팀원(중복 없이).</li>
+     *   <li><b>팀에만</b>({@code false}): 추가 수신 팀의 팀원만 — 기본 수신 규칙도 맥락의 추가 수신자({@code alsoTo})도 보지 않는다. 팀원의 조건은 같다(사용 중인 팀 · 활성 운영자 · 보는 권한).</li>
+     *   <li><b>안전장치</b>: 팀에만 보내는데 고른 팀이 모두 멈췄거나 지워졌거나, 행위자를 빼고 나면 받을 팀원이 없으면 <b>기본 수신으로 되돌려</b> 보낸다(알림이 사라지지 않게) + WARN 로그.
+     *       개인 끄기·묶기로 0명이 된 것은 되돌리지 않는다(받는 사람이 고른 결과다).</li>
+     * </ul>
+     *
+     * @return 팀으로 받는 운영자 · 그중 기본 수신 규칙(+ 추가 수신자)으로는 받지 않는 운영자 — 알림 메일 문구의 조건 {@code recipientSource}
      */
-    private TeamRecipients addTeamMembers(AdminNotificationEvent event, Set<Long> targets, Instant now) {
+    private TeamRecipients chooseRecipients(AdminNotificationEvent event, State state, NotificationContext context, Set<Long> targets, Instant now) {
+        Set<Long> members = eligibleTeamMembers(event, now);
+        if (event.broadcastAllowed() && !state.defaultRecipients()) {
+            Set<Long> receiving = new LinkedHashSet<>(members);
+            if (event.excludeActor() && context.actorId() != null) {
+                receiving.remove(context.actorId());
+            }
+            if (!receiving.isEmpty()) {
+                targets.addAll(members);
+                return new TeamRecipients(members, members); // 모두 팀으로만 받는다 — recipientSource 는 TEAM 만
+            }
+            log.warn("팀에만 보내는 알림 이벤트인데 받을 팀원이 없어 기본 수신으로 되돌려 보낸다(고른 팀이 모두 멈췄거나 지워졌거나 받을 수 있는 팀원이 없음) event={}", event.code());
+        }
+        targets.addAll(recipientsOf(event, context, now));
+        Set<Long> teamOnly = new LinkedHashSet<>(members);
+        teamOnly.removeAll(targets);
+        targets.addAll(members);
+        return members.isEmpty() ? TeamRecipients.NONE : new TeamRecipients(members, teamOnly);
+    }
+
+    /**
+     * 이벤트의 「추가 수신 팀」 팀원 중 받을 수 있는 사람 — <b>사용 중인 팀</b>의 <b>지금 활성인 운영자</b>이면서 <b>이 이벤트를 볼 권한</b>({@code requiredPermission} — 최고 관리자는 모두)이
+     * 있는 사람만(권한이 없는 팀원에게 알림 행을 만들지 않는다 — 권한 상승 방지). 본인 전용·필수 이벤트({@code broadcastAllowed=false})는 팀을 보지 않는다.
+     */
+    private Set<Long> eligibleTeamMembers(AdminNotificationEvent event, Instant now) {
         if (!event.broadcastAllowed()) {
-            return TeamRecipients.NONE;
+            return Set.of();
         }
         Set<Long> members = delivery.enabledTeamMemberIdsOf(event.code());
         if (members.isEmpty()) {
-            return TeamRecipients.NONE;
+            return Set.of();
         }
         Set<Long> allowed = new LinkedHashSet<>(recipients.active(members, now));
         if (event.requiredPermission() != null && !allowed.isEmpty()) {
             allowed.retainAll(recipients.activeHolders(List.of(event.requiredPermission().code()), now));
         }
-        Set<Long> teamOnly = new LinkedHashSet<>(allowed);
-        teamOnly.removeAll(targets);
-        targets.addAll(allowed);
-        return new TeamRecipients(allowed, teamOnly);
+        return allowed;
     }
 
     /** 추가 수신 팀으로 받는 운영자 · 그중 팀으로만 받는 운영자 */

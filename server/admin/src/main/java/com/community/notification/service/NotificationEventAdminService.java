@@ -55,15 +55,19 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li><b>검사 순서</b>: 없는 이벤트(404 {@code NOTIFICATION_EVENT_NOT_FOUND}) → 입력 형식(400 {@code fields.enabled|emailEnabled}) → 준비 중 이벤트(409
- *       {@code NOTIFICATION_EVENT_NOT_READY}) → 필수 이벤트를 끄려 함(409 {@code NOTIFICATION_MANDATORY}) → 이메일을 보낼 수 없는 이벤트의 이메일을 켬(400 {@code fields.emailEnabled|channels})
+ *       {@code NOTIFICATION_EVENT_NOT_READY}) → 필수 이벤트를 끄려 함(409 {@code NOTIFICATION_MANDATORY}) → 필수·본인 전용 이벤트의 「권한자 전원에게 보내기」를 끔(400
+ *       {@code fields.defaultRecipients}) → 이메일을 보낼 수 없는 이벤트의 이메일을 켬(400 {@code fields.emailEnabled|channels})
  *       → 모르는 도구·팀(400 {@code NOTIFICATION_CHANNEL_NOT_FOUND}·{@code TEAM_NOT_FOUND}) → 본인 전용·필수 이벤트에 팀·공유 채널(400 {@code NOTIFICATION_BROADCAST_NOT_ALLOWED}
- *       {@code fields.channels|teamIds}) → 팀을 바꾸는데 {@code team.read} 없음(403) → 꺼진 도구·멈춘 팀을 새로 고름(409 {@code NOTIFICATION_CHANNEL_DISABLED}·{@code TEAM_DISABLED}).</li>
+ *       {@code fields.channels|teamIds}) → 팀에만 보내는데 저장 결과 팀이 없음(400 {@code fields.teamIds}) → 팀을 바꾸는데 {@code team.read} 없음(403)
+ *       → 꺼진 도구·멈춘 팀을 새로 고름(409 {@code NOTIFICATION_CHANNEL_DISABLED}·{@code TEAM_DISABLED}).</li>
+ *   <li><b>기본 수신</b>({@code defaultRecipients}, 「권한자 전원에게 보내기」): 끄면 고른 팀의 팀원에게만 보낸다(발행기 — 받을 팀원이 없으면 기본 수신으로 되돌린다).
+ *       보내지 않으면 그대로다(예전 요청 호환).</li>
  *   <li><b>전달 도구</b>: 요청의 {@code channels} 는 {@code email}(= 기존 {@code emailEnabled}) · {@code browser} · Slack/Mattermost 도구 id. 보내면 그 목록이 전부이고, 안 보내면(예전 요청) {@code emailEnabled} 만 바뀐다.
  *       서랍은 늘 켜져 있어 저장하지 않는다(보내도 무시). Slack · Mattermost 와 추가 수신 팀은 {@code broadcastAllowed} 인 이벤트에만 쓸 수 있다.
  *       브라우저 알림은 순수 클라이언트 동작이라 서버는 선택을 저장만 한다.</li>
  *   <li><b>이미 고른 것은 그대로 둘 수 있다</b> — 꺼진 도구·멈춘 팀은 <b>새로</b> 고를 수 없을 뿐이다. 도구·팀을 지우면 DB 가 이벤트 선택에서 함께 뺀다.</li>
  *   <li>추가 수신 팀의 <b>이름</b>은 {@code team.read} 가 있어야 팀 목록에서 읽으므로, 팀 선택을 <b>바꾸려면</b> {@code team.read} 도 필요하다(그대로 보내는 것은 된다).</li>
- *   <li>같은 이벤트를 동시에 바꾸는 요청은 행 잠금으로 줄 세운다. 바뀐 때만 감사 {@code NOTIFICATION_EVENT_UPDATE}(전·후 값: 사용·이메일·브라우저·도구 id·팀 id)를 남긴다.</li>
+ *   <li>같은 이벤트를 동시에 바꾸는 요청은 행 잠금으로 줄 세운다. 바뀐 때만 감사 {@code NOTIFICATION_EVENT_UPDATE}(전·후 값: 사용·이메일·브라우저·기본 수신·도구 id·팀 id)를 남긴다.</li>
  *   <li>목록의 「최근 30일 발송 수」는 그 기간에 만들어진 알림 행 수다(받은 사람마다 한 건). 공유 채널 게시는 센 수에 들지 않는다.</li>
  * </ul>
  * 입구의 권한(조회 {@code notification.read}, 변경 {@code notification.manage})은 컨트롤러가 선언한다.
@@ -145,6 +149,15 @@ public class NotificationEventAdminService {
         if (event.mandatory() && !enabled) {
             throw new NotificationMandatoryException();
         }
+        if (Boolean.FALSE.equals(request.defaultRecipients())) {
+            // 필수(보안)·본인 전용 이벤트는 기본 수신(= 본인)을 끌 수 없다 — 팀에만 보낼 수 없는 이벤트다(broadcastAllowed=false)
+            if (event.mandatory()) {
+                throw ValidationException.of("defaultRecipients", new MessageRef("notification.event.defaultRecipientsMandatory"));
+            }
+            if (!event.broadcastAllowed()) {
+                throw ValidationException.of("defaultRecipients", new MessageRef("notification.event.defaultRecipientsSelfOnly"));
+            }
+        }
         Selection selection = channelsGiven ? parseChannels(request.channels()) : null;
         boolean emailEnabled = channelsGiven ? selection.email() : request.emailEnabled();
         if (!event.emailable() && emailEnabled) {
@@ -169,8 +182,14 @@ public class NotificationEventAdminService {
         boolean wasEnabled = row.isEnabled();
         boolean wasEmailEnabled = row.isEmailEnabled();
         boolean wasBrowserEnabled = row.isBrowserEnabled();
+        boolean wasDefaultRecipients = !event.broadcastAllowed() || row.isDefaultRecipients();
         List<Long> currentCustom = delivery.channelIdsOf(code);
         List<Long> currentTeams = delivery.teamIdsOf(code);
+        boolean defaultRecipients = request.defaultRecipients() == null ? wasDefaultRecipients : request.defaultRecipients();
+        if (!defaultRecipients && (teamsGiven ? wantedTeams : currentTeams).isEmpty()) {
+            // 팀에만 보내는데 고른 팀이 없으면 아무도 받지 않는다 — 저장 결과 기준(teamIds 를 안 보냈으면 지금 선택)
+            throw ValidationException.of("teamIds", new MessageRef("notification.event.teamsRequired"));
+        }
 
         if (teamsGiven && !new HashSet<>(currentTeams).equals(wantedTeams) && !actor.can(Permission.TEAM_READ)) {
             // 팀 이름을 읽을 수 없는 운영자가 팀 id 를 더듬어 보내지 못하게 한다(없는 팀·멈춘 팀 오류로 팀의 존재가 새지 않게)
@@ -212,6 +231,10 @@ public class NotificationEventAdminService {
             before.put("browserEnabled", wasBrowserEnabled);
             after.put("browserEnabled", browserEnabled);
         }
+        if (wasDefaultRecipients != defaultRecipients) {
+            before.put("defaultRecipients", wasDefaultRecipients);
+            after.put("defaultRecipients", defaultRecipients);
+        }
         if (customChanged) {
             before.put("channels", currentCustom.stream().map(String::valueOf).toList());
             after.put("channels", newCustom.stream().map(String::valueOf).toList());
@@ -221,8 +244,8 @@ public class NotificationEventAdminService {
             after.put("teamIds", newTeams.stream().map(String::valueOf).toList());
         }
         if (!after.isEmpty()) {
-            if (wasEnabled != enabled || wasEmailEnabled != emailEnabled || wasBrowserEnabled != browserEnabled) {
-                row.change(enabled, emailEnabled, browserEnabled, actor.operatorId(), now);
+            if (wasEnabled != enabled || wasEmailEnabled != emailEnabled || wasBrowserEnabled != browserEnabled || wasDefaultRecipients != defaultRecipients) {
+                row.change(enabled, emailEnabled, browserEnabled, defaultRecipients, actor.operatorId(), now);
             }
             if (customChanged) {
                 delivery.replaceChannels(code, newCustom);
@@ -232,11 +255,11 @@ public class NotificationEventAdminService {
             }
             audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.NOTIFICATION_EVENT_UPDATE, AuditResult.SUCCESS).target("NOTIFICATION_EVENT", code)
                     .with("before", before).with("after", after));
-            log.info("알림 이벤트 설정을 바꿨다 event={} enabled={} emailEnabled={} browserEnabled={} 도구={}개 팀={}개 by operatorId={}", code, enabled, emailEnabled, browserEnabled,
-                    newCustom.size(), newTeams.size(), actor.operatorId());
+            log.info("알림 이벤트 설정을 바꿨다 event={} enabled={} emailEnabled={} browserEnabled={} defaultRecipients={} 도구={}개 팀={}개 by operatorId={}", code, enabled,
+                    emailEnabled, browserEnabled, defaultRecipients, newCustom.size(), newTeams.size(), actor.operatorId());
         }
         long sent = notifications.countByEventSince(now.minus(SENT_WINDOW)).getOrDefault(code, 0L);
-        return view(event, new State(enabled, emailEnabled, browserEnabled), sent, messages.locale(), newCustom, newTeams);
+        return view(event, new State(enabled, emailEnabled, browserEnabled, defaultRecipients), sent, messages.locale(), newCustom, newTeams);
     }
 
     // ── 입력 해석 ──────────────────────────────────────────────────────────
@@ -341,6 +364,6 @@ public class NotificationEventAdminService {
         return new NotificationEventView(event.code(), event.area().id(), event.severity().kind(), messages.get(new MessageRef(event.nameKey()), locale),
                 messages.get(new MessageRef(event.descriptionKey()), locale), messages.get(new MessageRef(event.recipientsKey()), locale), event.mandatory(),
                 event.emailable(), state.enabled(), state.emailEnabled(), event.featureReady(), sent, channelIds, teamIds.stream().map(String::valueOf).toList(),
-                event.broadcastAllowed());
+                event.broadcastAllowed(), state.defaultRecipients());
     }
 }

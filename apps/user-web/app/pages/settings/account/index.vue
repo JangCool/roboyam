@@ -1,5 +1,6 @@
 <template>
-    <div class="mx-auto max-w-2xl">
+    <!-- 설정 묶음(`pages/settings.vue`) 안의 한 화면 — 넓은 화면은 왼쪽 메뉴, 좁은 화면은 위에 「‹ 설정」 -->
+    <div>
         <h1 class="mb-4 text-lg font-bold">{{ t('account.title') }}</h1>
 
         <!-- 소셜 연결이 끝나지 않고 돌아왔다 — 다른 회원에 연결된 소셜 계정 · 취소·실패·시간 초과 -->
@@ -94,7 +95,7 @@ import UtilAuthMessages from '~/utils/util-auth-messages';
 import UtilProvider from '~/utils/util-provider';
 
 /**
- * 계정·로그인 연결 `/settings/account` — 로그인 필요(`auth` 미들웨어, 서버도 401). 사용자 메뉴(헤더 프로필 메뉴)의 「계정·로그인 연결」로 온다.
+ * 계정·로그인 연결 `/settings/account` — 로그인 필요(`auth` 미들웨어, 서버도 401). 사용자 메뉴(헤더 프로필 메뉴)의 「계정·로그인 연결」·설정 묶음의 메뉴로 온다.
  * 로그인 수단(비밀번호 유무)과 소셜 계정(카카오·네이버·구글) 연결·해제. 원본(community) `pages/settings/account/index.vue` 의 소셜 연동 부분만 옮겼다.
  *
  * - **연결**은 `POST /api/me/social/{id}/link` 로 시작하고 응답의 `redirectUrl` 로 **페이지 이동**한다. 끝나면 서버가 `?linked=` · `?link=taken|failed&provider=&reason=` 를 붙여 이 화면으로 되돌려 보낸다 —

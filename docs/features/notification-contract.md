@@ -168,7 +168,7 @@ Java 배치와 DB(pg_cron) 배치 모두 요청 밖에서 끝난다. DB 프로�
 - 감사: `TEAM_CREATE|UPDATE|DELETE|MOVE|MEMBERS_UPDATE`(대상 `TEAM`), `NOTIFICATION_CHANNEL_CREATE|UPDATE|DELETE|TOGGLE|TEST`(대상 `NOTIFICATION_CHANNEL`). 비밀·주소·토큰은 값을 남기지 않고 **바뀐 칸 이름**만(`secretsSet`: `botToken`·`webhookUrl`·`serverUrl`), 팀원은 운영자 id 만(이메일 없음), 시험은 `ok`·`code` 만.
 
 **가정·미해결**
-- **팀이 지금 카탈로그에서는 받는 사람을 늘리지 못한다(확인 필요)**: 모든 이벤트에서 `requiredPermission`(= 수신 권한 첫 번째)이 기본 수신 규칙의 권한과 같아서, 「보는 권한이 있는 활성 팀원」은 이미 기본 수신자다. 팀이 실제로 바꾸는 것은 권한이 없는 팀원이 **받지 않는다**는 것뿐이다(수신자 집합 변화 없음). 팀이 수신 범위를 넓히려면 이벤트마다 「기본 수신 권한」보다 넓은 「보는 권한」(예: 링크 화면의 조회 권한)을 코드에 따로 정의해야 한다 — 정책 결정 필요(`Spec` 에 `viewPermission` 을 따로 두는 식).
+- **팀이 지금 카탈로그에서는 받는 사람을 늘리지 못한다(→ 2026-10-23 결정: 팀은 넓히지 않고 **좁혀 보내는** 수단 — 아래 「팀에만 보내기」)**: 모든 이벤트에서 `requiredPermission`(= 수신 권한 첫 번째)이 기본 수신 규칙의 권한과 같아서, 「보는 권한이 있는 활성 팀원」은 이미 기본 수신자다. 팀이 실제로 바꾸는 것은 권한이 없는 팀원이 **받지 않는다**는 것뿐이다(수신자 집합 변화 없음). 팀이 수신 범위를 넓히려면 이벤트마다 「기본 수신 권한」보다 넓은 「보는 권한」(예: 링크 화면의 조회 권한)을 코드에 따로 정의해야 한다 — 정책 결정 필요(`Spec` 에 `viewPermission` 을 따로 두는 식).
 - Mattermost 봇 방식의 `channel` 은 채널 **id**(`channel_id`)다(이름만으로는 게시 API 가 채널을 못 찾는다 — 하모니카3와 같다). 화면 문구가 「채널 이름」이면 「채널 ID」로 고치거나 이름→id 조회를 더해야 한다.
 - 팀원이 운영자 삭제(반려)로 사라지면 DB 가 팀원 행도 지운다. 운영자가 사용 중지/잠금/기간 밖이 되면 팀원으로 남고 `active:false` 로 보인다(알림은 안 받음). 팀원 `email` 은 `team.read` 가진 운영자에게 보인다(운영자 목록과 같은 수준).
 - 공유 채널 게시는 재시도·실패 알림·전달 이력 표가 없다(로그에 도구 id·사유 코드만). 멈춘 도구는 게시하지 않는다. 서버가 여러 대면 시험 횟수 제한은 서버마다 따로 센다.
@@ -189,3 +189,30 @@ Java 배치와 DB(pg_cron) 배치 모두 요청 밖에서 끝난다. DB 프로�
 - **Mattermost 채널 ID**: 봇 방식의 채널 칸을 「채널 ID」(라벨·도움말·예시·요약 문구, `notification.channelField.channelId`)로 바로잡고 화면 선검사에 서버 형식(`SLACK_CHANNEL`·`MATTERMOST_CHANNEL`)을 더했다. 가짜 수신기로 이름(`town-square`)은 거절·ID 는 게시됨을 확인. Slack 은 서버가 `#이름` 과 채널 ID 모두 받는다(문구 그대로).
 - **`team.read` 없는 운영자**: 팀 목록을 부르지 않는다(불필요한 403 이 감사 `PERMISSION_DENIED` 로 쌓이므로) → 알림 설정 화면은 고른 팀 **개수**(「N개 팀」)만 보이고 팀 선택은 바꿀 수 없다. 사용·도구 변경은 현재 팀 선택을 그대로 보내므로 `notification.manage` 만으로 된다(확인). `team.read` 없이 팀을 바꾸는 요청은 403(API 로 확인). 읽기 전용(`*.manage` 없음) 운영자는 세 화면 모두 스위치·선택·단추가 잠기고 안내 한 줄이 뜬다.
 - **가정·미확정**: ① 브라우저 알림 도구는 서버가 선택만 저장한다(실제 OS 알림은 기존 클라이언트 경로). ② 화면은 항상 `channels` 전체를 보내므로 서버의 예전 요청(`emailEnabled` 만) 경로는 쓰지 않는다. ③ 팀이 받는 사람을 늘리지 못하는 정책 문제(서버 「가정·미해결」 첫 항목)는 그대로다. ④ 도구·팀 삭제와 이벤트 저장이 겹치는 경합(500)은 화면이 따로 다루지 않는다(오류 토스트).
+
+## 팀에만 보내기 (서버 구현, 2026-10-23 — 사용자 확정)
+
+**의도**: 보는 권한(`requiredPermission`) 보유자는 이미 기본 수신자라 「추가 수신 팀」이 받는 사람을 늘리지 못한다(위 「가정·미해결」 첫 항목). 그래서 팀을 **좁혀 보내는** 수단으로 쓴다 — 이벤트마다 「권한자 전원에게 보내기」(`defaultRecipients`)를 끄면 고른 팀에만 보낸다.
+
+- **데이터**: Flyway shared `V60__notification_event_default_recipients.sql` — `notification_events.default_recipients boolean NOT NULL DEFAULT true`(지금 이벤트는 모두 켜짐 = 지금 동작). 코드 맞춤(`reconcile`)이 본인 전용·필수 이벤트의 `false` 를 `true` 로 되돌린다.
+- **API**: `GET /notification-events`(목록·한 줄)·`PUT` 응답에 `defaultRecipients: boolean`(`broadcastAllowed=false` 이벤트는 늘 `true`). `PUT /notification-events/{code}` 요청에 `defaultRecipients?: boolean` — **빠지면 그대로**(옛 요청 `{enabled, emailEnabled}`·`{enabled, channels, teamIds}` 호환).
+- **검사**(기존 순서에 끼움): 404 → 400 `fields.enabled|emailEnabled` → 409 `NOT_READY` → 409 `MANDATORY` → **400 `fields.defaultRecipients`**(`false` 를 필수 이벤트에 — `notification.event.defaultRecipientsMandatory`, 본인 전용 이벤트에 — `…SelfOnly`) → 400 이메일 불가 → 400 모르는 도구·팀 → 400 `BROADCAST_NOT_ALLOWED` → **400 `fields.teamIds`**(`false` 인데 저장 결과 `teamIds` 가 빔 — 보낸 `teamIds`, 안 보냈으면 지금 선택 기준. 「팀에만 보내려면 팀을 하나 이상 골라 주세요」 `notification.event.teamsRequired`) → 403 `team.read` → 409 꺼진 도구·멈춘 팀을 새로. 지금 카탈로그의 본인 전용 이벤트(`*_ME`)는 모두 필수라 실제로는 `…Mandatory` 문구가 나간다. `false` 로 바꾸는 데 `team.read` 는 따로 요구하지 않는다(팀 선택을 바꿀 때만).
+- **수신**(`NotificationPublisher.chooseRecipients`): `true` = 지금 그대로(기본 수신 규칙 + 추가 수신자 `alsoTo` + 팀원, 중복 없음). `false` = **고른 팀 중 사용 중인 팀의 팀원 중 활성 운영자이면서 보는 권한이 있는 사람만** — 기본 수신 규칙도 `alsoTo` 도 보지 않는다. 행위자 제외·개인 끄기·묶기는 그 뒤에 똑같이.
+- **안전장치**: `false` 인데 ① 고른 팀이 모두 멈췄거나 지워졌거나 ② 받을 수 있는 팀원이 없거나(권한 없음·비활성) ③ 행위자를 빼면 남는 팀원이 없으면 → **기본 수신으로 되돌려**(`true` 와 같은 계산) 보내고 WARN 로그(`event=` 코드만). 개인 끄기·묶기로 0명이 된 것은 되돌리지 않는다(받는 사람의 선택·방금 나간 알림).
+  - 팀 **사용 중지**: 이벤트의 팀 선택은 그대로 남고(기존 규칙) 발행 때 위 ①로 되돌린다. 다시 켜면 팀에만 보내기가 다시 적용된다.
+  - 팀 **삭제**(팀원이 없는 팀만 가능): DB 연쇄 삭제로 이벤트 선택에서 빠진 뒤, 고른 팀이 하나도 남지 않은 `false` 이벤트를 **`true` 로 되돌린다**(`TeamService.delete` — 같은 트랜잭션, WARN 로그, 감사 `TEAM_DELETE` 에 `defaultRecipientsRestored: [이벤트 코드]`). 그대로 두면 「팀 없이 팀에만」이 저장된 상태라 그 이벤트의 다른 설정 저장이 400 `fields.teamIds` 로 막힌다.
+  - 운영자 삭제로 팀원이 사라지거나 팀원이 멈춘 경우는 ②로 처리된다(저장 값은 그대로).
+- **도구 채널**: Slack·Mattermost 는 그대로(수신자와 무관하게 이벤트당 도구마다 한 번 — 묶음으로 받는 사람이 모두 사라졌을 때만 건너뜀). 이메일은 계산된 수신자에게(이메일 전달·이메일 도구·개인 `email_notification` 조건 그대로).
+- **알림 메일 조건 `recipientSource`**: `false` 로 받는 팀원은 `TEAM` 만, `true`(되돌린 경우 포함)는 지금처럼(기본 수신 → `DEFAULT`, 팀원 → `TEAM`, 둘 다면 둘 다).
+- **감사**: `NOTIFICATION_EVENT_UPDATE` 의 전·후에 `defaultRecipients`(바뀐 때만).
+- **검증**(일회용 DB + 관리자 서버 9201, 배치 실패 이벤트 `BATCH_RUN_FAILED` · 운영자 A=권한+팀원 · B=권한·비팀원 · C=무권한 팀원): `true`+팀 → root·A·B / `false`+팀 → A 만(메일도 A 만, 조건 규칙 `TEAM` 문구) / 팀 사용 중지 → root·A·B(WARN) / 팀원 중 권한자 없음 → root·A·B / 팀원 없는 팀만 고른 `false` → root·A·B, 그 팀 삭제 → `defaultRecipients=true`·`teamIds=[]`·감사 `defaultRecipientsRestored` / 400 3종(`fields.teamIds` — 보낸 빈 목록·안 보낸 지금 선택, `fields.defaultRecipients` ko·en) / 옛 요청 2종은 `false` 유지 / 감사 전·후 확인.
+- **프론트 후속**: 응답 `defaultRecipients` 를 스위치로, 끄면 팀을 하나 이상 고르게(서버도 400 `fields.teamIds`). 본인 전용·필수 이벤트(`broadcastAllowed=false`)는 스위치를 켠 채 잠근다. 팀을 지운 뒤에는 이벤트 목록을 다시 받으면 `true` 로 돌아와 있다. 팀에만 보내는데 고른 팀이 모두 멈춰 있으면 「기본 수신으로 보내짐」 안내를 보이면 좋다(서버는 따로 알려 주지 않는다).
+## 팀에만 보내기(화면, 2026-10-23)
+
+운영자 이벤트마다 「권한자 전원」을 끄고 고른 팀에만 보낼 수 있다(사용자 확정). 서버 계약: 목록·한 줄 응답 `defaultRecipients: boolean`(없으면 true) · `PUT` 요청 `defaultRecipients?` · 400 `fields.teamIds`(false 인데 팀 없음) · 400 `fields.defaultRecipients`(본인 전용·필수에서 false). 켜짐 = 볼 권한이 있는 운영자 전원 + 고른 팀원(중복 없이), 꺼짐 = 고른 팀의 팀원 중 볼 권한이 있는 사람만, 고른 팀이 모두 없어지거나 받을 사람이 0명이면 서버가 권한자 전원으로 되돌려 보낸다.
+- **목록**(`/settings/notifications/operator`): 「추가 팀」 칸 → 「받는 범위」(en `Recipients`). 한 칸 안에 위아래로 작은 SelectButton(「권한자 전원」/「팀에만」) + 팀 다중 선택(열 폭은 그대로 11rem). 바꾸면 즉시 저장(PUT 본문에 `defaultRecipients` 를 늘 함께), 거절은 그 줄만 되돌리고 서버 문구 토스트(`fields.channels|teamIds|defaultRecipients|enabled` → `message`).
+- **사전 검사**(`UtilNotification.needsTeam`): 「팀에만」인데 팀이 없으면 저장하지 않고 그 줄을 붙잡아 둔다(팀 칸 붉은 테두리 + 「받을 팀을 골라야 저장돼요.」). 팀을 고르면 그때 저장, 「권한자 전원」으로 돌리면 풀린다(서버 값과 같으면 요청 없음). 「팀에만」에서 팀을 모두 빼도 같다. 다시 조회하면 붙잡은 것은 버린다.
+- **잠금**(툴팁): 권한 없음 · 준비 중 · 필수(「필수 이벤트는 권한자 전원에게 보내요.」) · 본인 전용(「…받는 범위를 바꿀 수 없어요.」) · `team.read` 없음(「팀을 볼 권한이 없어…」 — 팀 개수만 보이고 범위·팀 모두 못 바꾼다). 필수·본인 전용 이벤트는 팀 칸이 없다.
+- **상세**(`/settings/notifications/operator/[code]`): 이벤트 구획에 「받는 범위」 줄 — 「권한자 전원」(+ 「추가 수신 팀」 줄) / 「팀에만 — 팀 이름들」.
+- **확인 못 한 것**: 서버가 `defaultRecipients` 를 돌려주는 상태(「팀에만」 저장 뒤 유지·상세의 「팀에만 — …」 표시·400 두 가지 문구)는 서버 병합 뒤 확인. 옛 서버(e422d00)는 이 칸을 무시하고 200 을 준다(확인).
+- **가정**: `team.read` 없이 받는 범위만 바꾸는 것(팀 그대로)을 서버가 허용하는지 계약에 없어 화면은 막았다.

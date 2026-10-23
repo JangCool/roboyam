@@ -47,7 +47,8 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li>이름은 앞뒤 공백을 자른 1~50자이고 대소문자를 무시하고 유일하다(409 {@code TEAM_NAME_DUPLICATED}), 설명은 500자 이하. 팀은 최대 {@value #MAX_TEAMS}개(409 {@code TEAM_LIMIT_EXCEEDED}).</li>
  *   <li>정렬 순서는 서버가 정한다 — 새 팀은 맨 뒤, 옮기기는 한 칸 위·아래로 하고 전체를 1부터 다시 매긴다. 끝에서 더 옮기는 요청은 아무것도 바꾸지 않고 목록을 돌려준다.</li>
- *   <li><b>팀원이 있는 팀은 지울 수 없다</b>(409 {@code TEAM_HAS_MEMBERS}) — 대신 「사용 안 함」. 지우면 이 팀을 추가 수신 팀으로 고른 이벤트에서도 함께 빠진다(DB 연쇄 삭제).</li>
+ *   <li><b>팀원이 있는 팀은 지울 수 없다</b>(409 {@code TEAM_HAS_MEMBERS}) — 대신 「사용 안 함」. 지우면 이 팀을 추가 수신 팀으로 고른 이벤트에서도 함께 빠진다(DB 연쇄 삭제) —
+ *       그래서 고른 팀이 하나도 남지 않은 「팀에만 보내기」 이벤트는 기본 수신으로 되돌린다(감사 {@code defaultRecipientsRestored}).</li>
  *   <li>팀원 = 운영자 계정. 변경은 전체 교체이고, <b>새로 넣는 사람은 지금 활성인 운영자만</b> 된다(없거나 활성이 아니면 400 {@code TEAM_OPERATOR_NOT_FOUND}) — 이미 든 사람은 나중에
  *       멈춰도 그대로 둘 수 있다. 멈춘 팀과 활성이 아닌 팀원은 알림을 받지 않는다(발행기가 거른다). 운영자 계정이 지워지면 팀원 행도 함께 지워진다.</li>
  *   <li>같은 팀을 동시에 바꾸는 요청은 행 잠금으로 줄 세운다. 변경은 감사 기록으로 남긴다(이름·사용 여부 전후, 팀원은 추가/뺀 운영자 id — 이메일은 싣지 않는다).</li>
@@ -153,7 +154,14 @@ public class TeamService {
         String name = team.getTeamName();
         teams.delete(team);
         teams.flush();
-        audit.record(event(actor, AuditActions.TEAM_DELETE, team.getId()).with("deleted", List.of(name)));
+        // 이 팀만 골라 「팀에만 보내기」였던 이벤트는 고른 팀이 없어진다 — 기본 수신으로 되돌린다(알림이 사라지지 않게, 이벤트의 다른 설정도 저장할 수 있게)
+        List<String> restored = delivery.restoreDefaultRecipientsWithoutTeams();
+        AuditEvent deleted = event(actor, AuditActions.TEAM_DELETE, team.getId()).with("deleted", List.of(name));
+        if (!restored.isEmpty()) {
+            log.warn("팀을 지워 고른 팀이 없어진 「팀에만 보내기」 이벤트를 기본 수신으로 되돌렸다 teamId={} events={}", team.getId(), restored);
+            deleted = deleted.with("defaultRecipientsRestored", restored);
+        }
+        audit.record(deleted);
         log.info("팀을 지웠다 teamId={} by operatorId={}", team.getId(), actor.operatorId());
     }
 

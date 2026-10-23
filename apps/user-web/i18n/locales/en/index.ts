@@ -19,13 +19,16 @@ import error from './error';
 import install from './install';
 import login from './login';
 import mail from './mail';
+import me from './me';
 import menu from './menu';
 import notification from './notification';
 import point from './point';
 import post from './post';
+import profile from './profile';
 import prompt from './prompt';
 import provider from './provider';
 import sanction from './sanction';
+import settings from './settings';
 import shell from './shell';
 import signup from './signup';
 import site from './site';
@@ -44,13 +47,16 @@ export default {
     install,
     login,
     mail,
+    me,
     menu,
     notification,
     point,
     post,
+    profile,
     prompt,
     provider,
     sanction,
+    settings,
     shell,
     signup,
     site,

@@ -1,7 +1,7 @@
 <template>
     <!--
         이벤트 상세(회원·운영자 공통 — `/settings/notifications/member/[code]` · `/settings/notifications/operator/[code]`). 계약 `docs/features/message-template-contract.md` 「개정 3」 이벤트 화면 · 「개정 4」 채널·용어(문구).
-        ① 이벤트 구획 — 설명 · 받는 사람 · 수신 규칙(운영자만) · 지금 설정(사용 · 운영자는 전달 도구·추가 수신 팀, 회원은 채널·회원이 끌 수 있는지). **보여 주기만 한다** — 바꾸기는 목록에서(목록의 즉시 저장과 두 곳에서 같은 값을 고치지 않게).
+        ① 이벤트 구획 — 설명 · 받는 사람 · 수신 규칙(운영자만) · 지금 설정(사용 · 운영자는 전달 도구·받는 범위(권한자 전원 + 추가 수신 팀 / 팀에만 + 팀 이름), 회원은 채널·회원이 끌 수 있는지). **보여 주기만 한다** — 바꾸기는 목록에서(목록의 즉시 저장과 두 곳에서 같은 값을 고치지 않게).
            운영자 이벤트는 `GET /api/admin/notification-events/{code}`(도구 이름 `useNotificationChannels` · 팀 이름 `useTeamApi` — `team.read` 가 있을 때만), 회원 이벤트는 `GET /api/admin/member-events` 목록에서 찾는다(한 줄 조회가 없다).
         ② 채널마다 구획(운영자 = 앱 알림·이메일·Slack·Mattermost·카카오톡 — 본인에게만 가는 이벤트는 Slack·Mattermost 없음, 회원 = 앱 알림·이메일·카카오톡): 언어별 쓸 문구 + 특수 상황 규칙(`MessageChannelSelection`) + 「이 채널의 문구 보기」·「새 문구」.
            그 채널로 지금 보내지 않으면(목록에서 꺼짐 · Slack·Mattermost 는 그 종류의 도구를 골랐을 때만) 안내 한 줄 — 문구는 미리 정해 둘 수 있다.
@@ -71,8 +71,13 @@
                                 <NotificationChannelTypeTag type="DRAWER" />
                                 <span v-for="name in deliveryNames" :key="name" class="text-[12px]">{{ name }}</span>
                             </dd>
-                            <dt class="text-muted-color">{{ t('notification.eventDetail.teams') }}</dt>
-                            <dd class="m-0 text-[12px]">{{ teamText }}</dd>
+                            <!-- 받는 범위 — 권한자 전원(+ 추가 수신 팀) / 팀에만(+ 팀 이름) -->
+                            <dt class="text-muted-color">{{ t('notification.eventDetail.scope') }}</dt>
+                            <dd class="m-0 text-[12px]">{{ scopeText }}</dd>
+                            <template v-if="operatorDefaultRecipients">
+                                <dt class="text-muted-color">{{ t('notification.eventDetail.teams') }}</dt>
+                                <dd class="m-0 text-[12px]">{{ teamText }}</dd>
+                            </template>
                         </template>
                         <template v-else-if="memberEvent">
                             <dt class="text-muted-color">{{ t('notification.eventDetail.channels') }}</dt>
@@ -148,6 +153,7 @@ import type { NotificationEventView } from '~/composables/notification/api/useNo
 import type { TeamView } from '~/composables/team/api/useTeamApi.types';
 import type { MessageAudience, MessageChannel, MessageTargetDetailView } from '~/composables/template/api/useNotificationMessageApi.types';
 import type { MessageSelectionModel } from '~/utils/util-notification-message';
+import UtilNotification from '~/utils/util-notification';
 import UtilNotificationChannelMessages from '~/utils/util-notification-channel-messages';
 import UtilNotificationMessages from '~/utils/util-notification-messages';
 import UtilNotificationMessage from '~/utils/util-notification-message';
@@ -210,6 +216,11 @@ const teamText = computed(() => {
     if (!teams.value) return t('notification.teamsUnknown', { n: ids.length });
     return ids.map((id) => teams.value?.find((team) => team.teamId === id)?.teamName ?? id).join(', ');
 });
+/** 운영자 이벤트의 받는 범위가 「권한자 전원」인가(칸이 없으면 권한자 전원) — 「팀에만」이면 팀 이름은 받는 범위 줄에 함께 적는다 */
+const operatorDefaultRecipients = computed(() => (operatorEvent.value ? UtilNotification.defaultRecipientsOf(operatorEvent.value) : true));
+const scopeText = computed(() =>
+    operatorDefaultRecipients.value ? t('notification.scopeAll') : t('notification.eventDetail.scopeTeamsOnly', { teams: teamText.value }),
+);
 const memberChannelText = computed(() => {
     const event = memberEvent.value;
     if (!event) return '';
