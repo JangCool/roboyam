@@ -11,10 +11,11 @@ import type {
  *
  * 계약(서버 `NotificationController`, `docs/features/notification-contract.md` 「API」·「서버 구현 결과 (알림 도구·조직 구성)」). 오류는 모두 `ApiError`(useApiClient)로 던져진다. 쓰기는 CSRF.
  *   이벤트 관리(권한 `notification.read` / `notification.manage`)
- *   - `GET /api/admin/notification-events` → 200 `NotificationEventView[]` (영역·코드순. 이름·설명·수신 대상 문구는 서버가 요청 언어로 푼다. `channels`·`teamIds`·`broadcastAllowed` 포함)
+ *   - `GET /api/admin/notification-events` → 200 `NotificationEventView[]` (영역·코드순. 이름·설명·수신 대상 문구는 서버가 요청 언어로 푼다. `channels`·`teamIds`·`broadcastAllowed`·`defaultRecipients` 포함)
  *   - `GET /api/admin/notification-events/{code}` → 200 `NotificationEventView`(목록 한 줄과 같은 모양, 준비 중 포함) · 404 `NOTIFICATION_EVENT_NOT_FOUND`
  *     `emailable` = 준비 중이 아니면 모두 true(서버 「회원 이벤트·이메일 확장」).
- *   - `PUT /api/admin/notification-events/{code}` `{ enabled, channels, teamIds }` → 200 바뀐 한 줄. `channels` 에 `email` 이 있는지가 곧 이메일 전달이다. 검사 순서:
+ *   - `PUT /api/admin/notification-events/{code}` `{ enabled, channels, teamIds, defaultRecipients }` → 200 바뀐 한 줄. `channels` 에 `email` 이 있는지가 곧 이메일 전달이다.
+ *     받는 범위: `defaultRecipients=false`(「팀에만」)인데 팀이 비면 400 `fields.teamIds`, 본인 전용·필수 이벤트에서 false 면 400 `fields.defaultRecipients`. 그 밖의 검사 순서:
  *       404 `NOTIFICATION_EVENT_NOT_FOUND` → 400 `VALIDATION` `fields.enabled` → 409 `NOTIFICATION_EVENT_NOT_READY`(준비 중 이벤트) → 409 `NOTIFICATION_MANDATORY`(필수 이벤트를 끔)
  *       → 400 `VALIDATION` `fields.channels`(`emailable=false` 인데 이메일 도구를 고름) → 400 `NOTIFICATION_CHANNEL_NOT_FOUND` `fields.channels` · `TEAM_NOT_FOUND` `fields.teamIds`(모르는 id)
  *       → 400 `NOTIFICATION_BROADCAST_NOT_ALLOWED`(`fields.channels|teamIds` — 본인에게만 가는 이벤트·필수 이벤트에 Slack·Mattermost 도구·팀) → 403 `PERMISSION_DENIED`(`team.read` 없이 `teamIds` 를 **바꿈**)
@@ -24,7 +25,8 @@ import type {
  *   - `PUT /api/admin/profile/notification/events/{code}` `{ muted }` → 200 바뀐 한 줄 · 409 `NOTIFICATION_MANDATORY`(필수 이벤트를 끔) · 404 `NOTIFICATION_EVENT_NOT_FOUND`(모르는·준비 중·권한 없는 이벤트) · 400 `fields.muted`(없음)
  *   (이메일 수신 설정 `GET·PUT /api/admin/profile/notification` `{ emailEnabled }` 은 `useProfileApi` 가 갖고 있다 — 같은 자원이 아니다.)
  *
- * 수신 의미: 코드에 고정된 기본 수신 규칙은 그대로이고, 고른 팀의 활성 팀원(이벤트의 보기 권한이 있는 사람)은 서랍 · 이메일 · 브라우저 알림으로 추가 수신한다.
+ * 수신 의미: 「권한자 전원」(`defaultRecipients=true`)이면 코드에 고정된 기본 수신 규칙은 그대로이고, 고른 팀의 활성 팀원(이벤트의 보기 권한이 있는 사람)은 서랍 · 이메일 · 브라우저 알림으로 추가 수신한다.
+ * 「팀에만」(false)이면 고른 팀의 팀원 중 볼 권한이 있는 사람만 받는다(고른 팀이 모두 없어지거나 받을 사람이 0명이면 서버가 권한자 전원으로 되돌린다).
  * Slack · Mattermost 도구는 팀원에게 따로 가지 않고 **도구에 설정한 채널로 한 번** 게시된다.
  */
 const PATH = {
@@ -45,7 +47,7 @@ export function useNotificationEventApi() {
         /** 이벤트 하나(목록 한 줄과 같은 모양, 준비 중 포함) — 모르는 코드는 404 `NOTIFICATION_EVENT_NOT_FOUND` */
         get: (code: string): Promise<NotificationEventView> => client.get<NotificationEventView>(PATH.event(code)),
 
-        /** 이벤트 하나의 사용 여부·전달 도구·추가 수신 팀을 바꾼다. 바뀐 한 줄을 돌려받는다 */
+        /** 이벤트 하나의 사용 여부·전달 도구·받는 범위·팀을 바꾼다. 바뀐 한 줄을 돌려받는다 */
         update: (code: string, body: NotificationEventUpdateRequest): Promise<NotificationEventView> => client.put<NotificationEventView>(PATH.event(code), body),
 
         /** 내가 볼 수 있는 이벤트 목록(끈 것 표시 포함) */

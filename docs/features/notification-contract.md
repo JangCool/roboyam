@@ -207,3 +207,12 @@ Java 배치와 DB(pg_cron) 배치 모두 요청 밖에서 끝난다. DB 프로�
 - **감사**: `NOTIFICATION_EVENT_UPDATE` 의 전·후에 `defaultRecipients`(바뀐 때만).
 - **검증**(일회용 DB + 관리자 서버 9201, 배치 실패 이벤트 `BATCH_RUN_FAILED` · 운영자 A=권한+팀원 · B=권한·비팀원 · C=무권한 팀원): `true`+팀 → root·A·B / `false`+팀 → A 만(메일도 A 만, 조건 규칙 `TEAM` 문구) / 팀 사용 중지 → root·A·B(WARN) / 팀원 중 권한자 없음 → root·A·B / 팀원 없는 팀만 고른 `false` → root·A·B, 그 팀 삭제 → `defaultRecipients=true`·`teamIds=[]`·감사 `defaultRecipientsRestored` / 400 3종(`fields.teamIds` — 보낸 빈 목록·안 보낸 지금 선택, `fields.defaultRecipients` ko·en) / 옛 요청 2종은 `false` 유지 / 감사 전·후 확인.
 - **프론트 후속**: 응답 `defaultRecipients` 를 스위치로, 끄면 팀을 하나 이상 고르게(서버도 400 `fields.teamIds`). 본인 전용·필수 이벤트(`broadcastAllowed=false`)는 스위치를 켠 채 잠근다. 팀을 지운 뒤에는 이벤트 목록을 다시 받으면 `true` 로 돌아와 있다. 팀에만 보내는데 고른 팀이 모두 멈춰 있으면 「기본 수신으로 보내짐」 안내를 보이면 좋다(서버는 따로 알려 주지 않는다).
+## 팀에만 보내기(화면, 2026-10-23)
+
+운영자 이벤트마다 「권한자 전원」을 끄고 고른 팀에만 보낼 수 있다(사용자 확정). 서버 계약: 목록·한 줄 응답 `defaultRecipients: boolean`(없으면 true) · `PUT` 요청 `defaultRecipients?` · 400 `fields.teamIds`(false 인데 팀 없음) · 400 `fields.defaultRecipients`(본인 전용·필수에서 false). 켜짐 = 볼 권한이 있는 운영자 전원 + 고른 팀원(중복 없이), 꺼짐 = 고른 팀의 팀원 중 볼 권한이 있는 사람만, 고른 팀이 모두 없어지거나 받을 사람이 0명이면 서버가 권한자 전원으로 되돌려 보낸다.
+- **목록**(`/settings/notifications/operator`): 「추가 팀」 칸 → 「받는 범위」(en `Recipients`). 한 칸 안에 위아래로 작은 SelectButton(「권한자 전원」/「팀에만」) + 팀 다중 선택(열 폭은 그대로 11rem). 바꾸면 즉시 저장(PUT 본문에 `defaultRecipients` 를 늘 함께), 거절은 그 줄만 되돌리고 서버 문구 토스트(`fields.channels|teamIds|defaultRecipients|enabled` → `message`).
+- **사전 검사**(`UtilNotification.needsTeam`): 「팀에만」인데 팀이 없으면 저장하지 않고 그 줄을 붙잡아 둔다(팀 칸 붉은 테두리 + 「받을 팀을 골라야 저장돼요.」). 팀을 고르면 그때 저장, 「권한자 전원」으로 돌리면 풀린다(서버 값과 같으면 요청 없음). 「팀에만」에서 팀을 모두 빼도 같다. 다시 조회하면 붙잡은 것은 버린다.
+- **잠금**(툴팁): 권한 없음 · 준비 중 · 필수(「필수 이벤트는 권한자 전원에게 보내요.」) · 본인 전용(「…받는 범위를 바꿀 수 없어요.」) · `team.read` 없음(「팀을 볼 권한이 없어…」 — 팀 개수만 보이고 범위·팀 모두 못 바꾼다). 필수·본인 전용 이벤트는 팀 칸이 없다.
+- **상세**(`/settings/notifications/operator/[code]`): 이벤트 구획에 「받는 범위」 줄 — 「권한자 전원」(+ 「추가 수신 팀」 줄) / 「팀에만 — 팀 이름들」.
+- **확인 못 한 것**: 서버가 `defaultRecipients` 를 돌려주는 상태(「팀에만」 저장 뒤 유지·상세의 「팀에만 — …」 표시·400 두 가지 문구)는 서버 병합 뒤 확인. 옛 서버(e422d00)는 이 칸을 무시하고 200 을 준다(확인).
+- **가정**: `team.read` 없이 받는 범위만 바꾸는 것(팀 그대로)을 서버가 허용하는지 계약에 없어 화면은 막았다.
