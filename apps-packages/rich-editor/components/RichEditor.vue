@@ -375,5 +375,19 @@ onBeforeUnmount(() => {
 
 defineExpose({
     focus: () => editor.value?.commands.focus('end'),
+    /** 커서 자리에 글자를 넣는다(고른 글자가 있으면 바꾼다) — 관리자 메일 템플릿의 「변수 넣기」(`{{이름}}`)가 쓴다. 잠겨 있으면 아무 일도 하지 않는다 */
+    insertText: (text: string) => {
+        if (props.disabled || !editor.value) return;
+        editor.value.chain().focus().insertContent({ type: 'text', text }).run();
+    },
+    /** 커서가 있는 문단 바로 뒤에 글자 한 줄짜리 새 문단을 넣는다(메일 템플릿의 「버튼」 자리 `{{button}}`) */
+    insertParagraph: (text: string) => {
+        const e = editor.value;
+        if (props.disabled || !e) return;
+        e.chain()
+            .focus()
+            .insertContentAt(blockBoundary(e, e.state.selection.to), { type: 'paragraph', content: [{ type: 'text', text }] })
+            .run();
+    },
 });
 </script>

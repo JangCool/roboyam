@@ -42,5 +42,10 @@ export default {
         fromAddress: '보내는 사람 이메일',
         senderName: '보내는 이름',
         subjectPrefix: '제목 머리말',
+        // 메일 템플릿 변경 이력(목업 — 서버 단계에서 같은 labelKey 를 준다)
+        name: '이름',
+        locale: '언어',
+        subject: '제목',
+        bodyHtml: '본문',
     },
 };

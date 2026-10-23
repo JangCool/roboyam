@@ -9,6 +9,7 @@ export default {
     general: 'General',
     socialLogin: 'Social login',
     mailSettings: 'Mail server',
+    mailTemplates: 'Mail templates',
     notifications: 'Notifications',
     notificationEvents: 'Events',
     notificationChannels: 'Notification tools',

@@ -133,30 +133,8 @@
             />
         </SettingHistoryDrawer>
 
-        <!-- 시험 발송 — 어디로 보낼지 받는다. 저장된 설정 그대로 실제로 보낸다 -->
-        <Dialog v-model:visible="testOpen" modal :header="t('mail.testTitle')" class="w-[28rem] max-w-[calc(100vw-2rem)]">
-            <form class="flex flex-col gap-3" novalidate @submit.prevent="runTest">
-                <LabeledField :label="t('mail.testToLabel')" :help="t('mail.testHelp')" :error="testToError">
-                    <template #default="{ id, describedBy, invalid }">
-                        <InputText :id="id" v-model="testTo" name="to" type="email" size="small" autocomplete="email" placeholder="me@example.com" :invalid="invalid" :aria-describedby="describedBy" :readonly="testing" fluid />
-                    </template>
-                </LabeledField>
-
-                <div v-if="testResult" class="flex items-start gap-2 rounded-lg p-3 text-sm" :class="testResult.succeeded ? 'bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-300' : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'" :role="testResult.succeeded ? 'status' : 'alert'">
-                    <i :class="testResult.succeeded ? 'pi pi-check-circle' : 'pi pi-times-circle'" class="mt-0.5" aria-hidden="true" />
-                    <span class="min-w-0">
-                        <b class="block">{{ testResult.succeeded ? t('mail.testSucceeded') : t('mail.testFailed') }}</b>
-                        <span class="block">{{ testResult.succeeded ? t('mail.testSucceededHint', { to: testResult.to }) : testResult.text }}</span>
-                    </span>
-                </div>
-                <Message v-if="testError" severity="error" variant="simple" size="small">{{ testError }}</Message>
-
-                <div class="flex justify-end gap-2">
-                    <Button type="button" :label="t('common.close')" severity="secondary" variant="text" @click="testOpen = false" />
-                    <Button type="submit" :label="t('mail.testSend')" icon="pi pi-send" :loading="testing" :disabled="!testTo.trim()" />
-                </div>
-            </form>
-        </Dialog>
+        <!-- 시험 발송 — 어디로 보낼지 받는다. 저장된 설정 그대로 실제로 보낸다(대화상자 모양은 메일 템플릿 화면과 같은 `MailTestDialog`) -->
+        <MailTestDialog v-model:visible="testOpen" v-model:to="testTo" :to-error="testToError" :error="testError" :testing="testing" :result="testResult" @send="runTest" />
     </div>
 </template>
 

@@ -1,0 +1,56 @@
+import type { Translate } from '#layers/i18n/utils/util-i18n';
+import type { MailTemplateField, MailTemplateProblem } from '~/utils/util-mail-template';
+
+/**
+ * 메일 템플릿 화면의 문구 중 계산이 끼는 것 — 문구 본문은 `i18n/locales/{ko,en}/mailTemplate.ts`. `t` 를 첫 인자로 받는다.
+ * 검사 규칙은 `UtilMailTemplate`(서버가 같은 규칙으로 다시 본다 — 서버 문구가 오면 그것을 그대로 보인다).
+ */
+export default class UtilMailTemplateMessages {
+    /**
+     * 칸 아래 문구 — 화면 검사의 문제 한 건.
+     * @param t - 번역 함수.
+     * @param field - 칸.
+     * @param problem - 문제.
+     * @returns 한 줄.
+     */
+    static problem(t: Translate, field: MailTemplateField, problem: MailTemplateProblem): string {
+        const names = (problem.names ?? []).map((name) => `{{${name}}}`).join(', ');
+        switch (problem.code) {
+            case 'REQUIRED':
+                if (field === 'name') return t('mailTemplate.nameRequired');
+                if (field === 'subject') return t('mailTemplate.subjectRequired');
+                return t('mailTemplate.bodyRequired');
+            case 'TOO_LONG':
+                return t('mailTemplate.tooLong', { max: problem.max ?? 0 });
+            case 'MULTI_LINE':
+                return t('mailTemplate.subjectOneLine');
+            case 'UNKNOWN_VARIABLE':
+                return t('mailTemplate.unknownVariable', { names });
+            case 'MISSING_REQUIRED':
+                return t('mailTemplate.missingRequired', { names });
+            case 'BUTTON_MANY':
+                return t('mailTemplate.buttonMany');
+            case 'BUTTON_LABEL':
+                return t('mailTemplate.buttonLabelRequired');
+            case 'BUTTON_LINK':
+                return t('mailTemplate.buttonLinkRequired');
+            case 'CONTENT_MISSING':
+                return t('mailTemplate.contentMissing', { token: '{{content}}' });
+            case 'CONTENT_MANY':
+                return t('mailTemplate.contentMany', { token: '{{content}}' });
+        }
+        return t('mailTemplate.invalid');
+    }
+
+    /**
+     * 템플릿 언어 이름.
+     * @param t - 번역 함수.
+     * @param locale - `ko` · `en`.
+     * @returns 「한국어」 · 「English」.
+     */
+    static localeLabel(t: Translate, locale: string): string {
+        if (locale === 'ko') return t('mailTemplate.localeKo');
+        if (locale === 'en') return t('mailTemplate.localeEn');
+        return locale;
+    }
+}
