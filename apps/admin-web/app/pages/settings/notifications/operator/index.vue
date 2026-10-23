@@ -1,6 +1,8 @@
 <template>
     <!--
-        알림 설정(이벤트 관리) — 이벤트별 전달 도구·추가 수신 팀·사용 여부. 영역마다 구획 한 장이라 우측 구역 내비(`AppGadget` 의 `anchor`)로 오간다(탭을 쓰지 않는다).
+        운영자 이벤트(`/settings/notifications/operator`, 설정 > 알림·이벤트 — 개정 3 전 「이벤트」 `/settings/notifications`, 옛 주소는 `notifications/index.vue` 가 이리로 보낸다) — 이벤트별 전달 도구·추가 수신 팀·사용 여부.
+        계약 `docs/features/message-template-contract.md` 「개정 3」 이벤트 화면: 각 행에 「상세」(`/settings/notifications/operator/[code]` — 채널별 템플릿·특수 상황 규칙)와 「쓰는 템플릿」 요약(채널마다 한국어 쓸 템플릿 — **목업 데이터**, `useNotificationTemplateApi`)을 더했다.
+        이메일 칸: 서버 `emailable=false` 인 이벤트는 이메일 도구를 고를 수 없고 까닭이 「이 이벤트의 이메일은 서버 단계에서 열려요」로 보인다(목업 표시 — 실제 PUT 을 보내 400 이 나지 않게 고르지 못하게 둔다. 서버 단계에서 `emailable` 을 준비 중이 아닌 모든 이벤트로 넓힌다). 영역마다 구획 한 장이라 우측 구역 내비(`AppGadget` 의 `anchor`)로 오간다(탭을 쓰지 않는다).
         알림 **도구**(Slack · Mattermost · 이메일 · 브라우저 알림 …)를 등록·관리하는 곳은 별도 화면 `/settings/notification-channels`(알림 도구)다 — 이 화면은 등록된 도구 목록(`useNotificationChannels`, 두 화면이 공유)을 「전달 도구」 선택지로만 쓰고,
         안내 한 줄과 그 화면으로 가는 링크를 둔다(고를 수 있는 도구가 없거나 꺼져 있는 경우에도 같은 링크로 안내).
 
@@ -154,20 +156,38 @@
                         </template>
                     </Column>
 
+                    <!-- 쓰는 템플릿(목업) — `template.read` 가 없거나 못 받으면 칸을 감춘다 -->
+                    <Column v-if="templateTargets" :header="t('notification.colTemplates')" style="min-width: 14rem">
+                        <template #body="{ data }">
+                            <TemplateUsageSummary :channels="templateTargets.get(data.code)?.channels ?? null" />
+                        </template>
+                    </Column>
+
                     <Column :header="t('notification.colSent')" style="width: 8rem">
                         <template #body="{ data }">
                             <span v-if="data.featureReady" class="text-[12px] tabular-nums">{{ t('notification.sentCount', { n: data.sentLast30Days.toLocaleString() }) }}</span>
                             <span v-else class="text-[12px] text-muted-color" aria-hidden="true">—</span>
                         </template>
                     </Column>
+                    <Column :header="t('notification.detail')" style="width: 5.5rem">
+                        <template #body="{ data }">
+                            <NuxtLink :to="`/settings/notifications/operator/${encodeURIComponent(data.code)}`" class="inline-flex items-center gap-1 text-[12px] text-primary hover:underline" :aria-label="t('notification.detailLabel', { name: data.name })">
+                                {{ t('notification.detail') }}
+                                <i class="pi pi-angle-right text-[10px]" aria-hidden="true" />
+                            </NuxtLink>
+                        </template>
+                    </Column>
                 </DataTable>
             </AppGadget>
+            <p v-if="templateTargets" class="m-0 text-xs text-muted-color">{{ t('notification.templatesNote') }}</p>
         </template>
     </div>
 </template>
 
 <script setup lang="ts">
 import type { NotificationEventView } from '~/composables/notification/api/useNotificationEventApi.types';
+import { mockTemplateCan } from '~/composables/template/api/mock/notification-template-mock';
+import type { TemplateTargetView } from '~/composables/template/api/useNotificationTemplateApi.types';
 import UtilNotification from '~/utils/util-notification';
 import UtilNotificationChannel from '~/utils/util-notification-channel';
 import UtilNotificationChannelMessages from '~/utils/util-notification-channel-messages';
@@ -182,6 +202,9 @@ const { prefs } = useLayoutPrefs();
 const { events, teams, loading, error, isSaving, load, change, changeDelivery } = useNotificationEvents();
 // 등록된 도구 목록은 알림 도구 화면(`/settings/notification-channels`)과 공유하는 상태다 — 여기서는 「전달 도구」 선택지로만 쓴다
 const { channels, loading: channelsLoading, load: loadChannels } = useNotificationChannels();
+const templateApi = useNotificationTemplateApi();
+// MOCK: 템플릿 읽기 권한은 목업 스위치(`?mock=template-denied`)로 흉내 낸다 — 서버가 붙으면 `can` 으로 바꾼다
+const templateCan = mockTemplateCan(can);
 
 /** 이 화면에서 바꾸는 데 필요한 권한(정의: util-permission-catalog.ts) — 숨기는 것은 편의이고 막는 것은 서버다 */
 const canManage = computed(() => can('notification.manage'));
@@ -238,7 +261,8 @@ function channelOptionsOf(event: NotificationEventView) {
             label: UtilNotificationChannelMessages.displayName(t, channel),
             type: channel.type,
             disabled: reason !== null && !picked.includes(channel.channelId),
-            reason: reason ? UtilNotificationChannelMessages.blocked(t, reason) : '',
+            // 이메일 불가 이벤트는 「서버 단계에서 열려요」(목업 표시 — 개정 3, 고르지는 못한다)
+            reason: reason === 'emailNotAvailable' ? t('notification.channelBlocked.emailLater') : reason ? UtilNotificationChannelMessages.blocked(t, reason) : '',
         };
     });
 }
@@ -262,9 +286,27 @@ function teamOptionsOf(event: NotificationEventView) {
     }));
 }
 
-/** 도구와 이벤트를 함께 다시 조회한다 */
+/* ── 쓰는 템플릿 요약(목업) ── */
+
+/** 이벤트 코드 → 템플릿 대상(채널별 요약). null = 권한이 없거나 못 받았다(칸을 감춘다) */
+const templateTargets = ref<Map<string, TemplateTargetView> | null>(null);
+
+async function loadTemplates(): Promise<void> {
+    if (!templateCan('template.read')) {
+        templateTargets.value = null;
+        return;
+    }
+    try {
+        const list = await templateApi.targets({ type: 'EVENT', audience: 'OPERATOR' });
+        templateTargets.value = new Map(list.map((item) => [item.code, item]));
+    } catch {
+        templateTargets.value = null;
+    }
+}
+
+/** 도구와 이벤트(와 쓰는 템플릿 요약)를 함께 다시 조회한다 */
 async function reloadAll(): Promise<void> {
-    await Promise.all([loadChannels(), load()]);
+    await Promise.all([loadChannels(), load(), loadTemplates()]);
 }
 
 onMounted(() => void reloadAll());

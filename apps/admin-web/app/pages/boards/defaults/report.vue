@@ -131,7 +131,7 @@
                     <i class="pi pi-info-circle mt-0.5 text-[11px]" aria-hidden="true" />
                     <span>
                         {{ t('board.note.reportOperatorEvent') }}
-                        <NuxtLink to="/settings/notifications" class="underline">{{ t('board.openNotificationEvents') }}</NuxtLink>
+                        <NuxtLink to="/settings/notifications/operator" class="underline">{{ t('board.openNotificationEvents') }}</NuxtLink>
                     </span>
                 </p>
             </AppGadget>

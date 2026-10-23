@@ -1,4 +1,4 @@
-import { mockCreateLayout, mockDeleteLayout, mockLayout, mockLayoutHistory, mockLayouts, mockTemplateCan, mockUpdateLayout } from '~/composables/template/api/mock/mail-template-mock';
+import { mockCreateLayout, mockDeleteLayout, mockLayout, mockLayoutHistory, mockLayouts, mockTemplateCan, mockUpdateLayout } from '~/composables/template/api/mock/notification-template-mock';
 import type { MailLayoutAudienceQuery, MailLayoutHistoryPage, MailLayoutListItemView, MailLayoutSaveRequest, MailLayoutView } from '~/composables/template/api/useMailLayoutApi.types';
 
 /**
@@ -15,7 +15,7 @@ import type { MailLayoutAudienceQuery, MailLayoutHistoryPage, MailLayoutListItem
  *   - `GET    /api/admin/mail-layouts/{id}/history?page&size` → 200 `{ items, total, page, size }`(설정 이력 모양)
  *   공통 오류: 404 `LAYOUT_NOT_FOUND` · 403 `PERMISSION_DENIED`. 감사 후보: `MAIL_LAYOUT_CREATE|UPDATE|DELETE`.
  *
- * ⚠ MOCK: 서버가 없어서 `./mock/mail-template-mock.ts` 를 부른다(템플릿과 상태를 함께 쓴다). 서버가 붙으면 `// MOCK:` 줄(과 `can`·목업 import)을 지우고 `// REAL:` 줄을 되살린다.
+ * ⚠ MOCK: 서버가 없어서 `./mock/notification-template-mock.ts` 를 부른다(템플릿과 상태를 함께 쓴다). 서버가 붙으면 `// MOCK:` 줄(과 `can`·목업 import)을 지우고 `// REAL:` 줄을 되살린다.
  */
 const PATH = {
     root: '/api/admin/mail-layouts',

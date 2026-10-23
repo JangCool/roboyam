@@ -1,5 +1,5 @@
 import type { SettingHistoryItem, SettingHistoryPage } from '~/composables/common/useSettingHistory.types';
-import type { MailAudience, MailLocale, MailVariableView } from '~/composables/template/api/useMailTemplateApi.types';
+import type { TemplateAudience, TemplateLocale, TemplateVariableView } from '~/composables/template/api/useNotificationTemplateApi.types';
 
 /**
  * 메일 레이아웃 API 의 모양 — `docs/features/message-template-contract.md` 「개정」(레이아웃 여러 개, 템플릿마다 고른다)·「개정 2」(쓰는 대상). 화면 목업 단계 — 서버 단계에서 확정한다.
@@ -11,7 +11,7 @@ import type { MailAudience, MailLocale, MailVariableView } from '~/composables/t
 export type MailLayoutColor = 'BLUE' | 'INDIGO' | 'TEAL' | 'GREEN' | 'AMBER' | 'ORANGE' | 'RED' | 'SLATE';
 
 /** 레이아웃을 쓰는 대상 — 받는 사람 하나 또는 모두(`ANY` — 틀·꼬리말에서 두 받는 사람이 같이 쓰는 공통 변수 `siteName`·`recipientName` 만 쓴다) */
-export type MailLayoutAudience = MailAudience | 'ANY';
+export type MailLayoutAudience = TemplateAudience | 'ANY';
 
 /** 쓰는 대상의 차례(고르기·거르기 차례) */
 export const MAIL_LAYOUT_AUDIENCES: readonly MailLayoutAudience[] = ['MEMBER', 'OPERATOR', 'ANY'];
@@ -44,19 +44,19 @@ export interface MailLayoutView {
     /** 머리말 띠 색(팔레트) — null 이면 띠 없음 */
     headerColor: MailLayoutColor | null;
     /** 언어별 꼬리말 — 평문(줄바꿈 가능) + 공통 변수. 본문 아래 가는 줄 밑에 작은 회색 글씨로 보인다 */
-    footer: Record<MailLocale, string>;
+    footer: Record<TemplateLocale, string>;
     /** 언어별 틀 — 간단 서식 HTML, `{{content}}` 정확히 한 번 + 공통 변수 */
-    frames: Record<MailLocale, string>;
+    frames: Record<TemplateLocale, string>;
     templateCount: number;
     /** 이 레이아웃을 쓰는 템플릿 수(받는 사람별) — 쓰는 대상을 바꿀 때 맞지 않는 받는 사람의 템플릿이 있으면 막는다(400 `fields.audience`) */
-    templateCounts: Record<MailAudience, number>;
+    templateCounts: Record<TemplateAudience, number>;
     updatedAt: string | null;
     updatedByName: string | null;
     /** 사이트 설정의 로고 주소(읽기 전용 — 없으면 null) */
     logoUrl: string | null;
     siteName: string;
     /** 틀·꼬리말에서 쓸 수 있는 변수 — 쓰는 대상별(그 대상의 공통 변수 + 본문 자리 `content` — `content` 는 틀에서만). 편집 중 대상을 바꾸면 화면이 그 대상의 목록으로 바꾼다 */
-    variables: Record<MailLayoutAudience, MailVariableView[]>;
+    variables: Record<MailLayoutAudience, TemplateVariableView[]>;
 }
 
 /** `POST·PUT /api/admin/mail-layouts[/{id}]` — 미리보기의 저장 전 값(`MailPreviewRequest.layout`)도 이 모양 */
@@ -67,8 +67,8 @@ export interface MailLayoutSaveRequest {
     showLogo: boolean;
     showSiteName: boolean;
     headerColor: MailLayoutColor | null;
-    footer: Record<MailLocale, string>;
-    frames: Record<MailLocale, string>;
+    footer: Record<TemplateLocale, string>;
+    frames: Record<TemplateLocale, string>;
 }
 
 /** 레이아웃 변경 이력 — 설정 이력과 같은 모양(바뀐 칸 `name|audience|showLogo|showSiteName|headerColor|footerKo|footerEn|frameKo|frameEn`, 틀은 글자 요약) */

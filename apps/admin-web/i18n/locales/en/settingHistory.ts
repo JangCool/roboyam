@@ -47,7 +47,7 @@ export default {
         layoutId: 'Layout',
         audience: 'Used for',
         subject: 'Subject',
-        bodyHtml: 'Body',
+        body: 'Body',
         showLogo: 'Show logo',
         showSiteName: 'Show site name',
         headerColor: 'Header band color',

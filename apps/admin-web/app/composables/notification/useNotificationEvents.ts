@@ -3,7 +3,7 @@ import type { NotificationEventView } from '~/composables/notification/api/useNo
 import type { TeamView } from '~/composables/team/api/useTeamApi.types';
 
 /**
- * 알림 이벤트 관리 화면(`/settings/notifications`)의 상태 — 이벤트 목록과, 스위치·선택을 바꿀 때 **곧바로 저장**하는 동작. 이 화면에서만 쓰므로 화면이 setup 에서 부르고 `useState` 로 공유하지 않는다.
+ * 운영자 이벤트 화면(`/settings/notifications/operator`)의 상태 — 이벤트 목록과, 스위치·선택을 바꿀 때 **곧바로 저장**하는 동작. 이 화면에서만 쓰므로 화면이 setup 에서 부르고 `useState` 로 공유하지 않는다.
  * 서버와 말하는 것은 `useNotificationEventApi`(+ 팀 이름을 읽는 `useTeamApi`)다.
  *
  * 스위치(사용)와 **전달 도구 · 추가 수신 팀 선택**은 구획의 [저장] 없이 바꾸면 바로 저장한다(forms.md 2-4: 한 칸이 곧 저장 단위). **낙관적 갱신** — 화면을 먼저 바꾸고, 서버가 거절하면 그 줄만 되돌린다.

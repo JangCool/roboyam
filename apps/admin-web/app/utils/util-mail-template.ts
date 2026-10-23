@@ -1,5 +1,5 @@
 import type { MailLayoutAudience, MailLayoutColor, MailLayoutSaveRequest } from '~/composables/template/api/useMailLayoutApi.types';
-import type { MailAudience, MailLocale, MailTemplateListItemView, MailVariableView } from '~/composables/template/api/useMailTemplateApi.types';
+import type { TemplateAudience, TemplateLocale, TemplateVariableView } from '~/composables/template/api/useNotificationTemplateApi.types';
 
 /**
  * 메일 템플릿·레이아웃의 순수 규칙 — 변수(`{{이름}}`) 찾기, 「버튼」 블록 나누기·합치기, 저장 전 검사(템플릿·레이아웃), 미리보기 그리기(목업 서버가 쓴다).
@@ -34,7 +34,7 @@ export interface MailTemplateProblem {
     /** 문제의 변수 이름(모르는 변수 · 다른 받는 사람의 변수 · 빠진 필수 변수) */
     names?: string[];
     /** `AUDIENCE_VARIABLE` — 그 변수를 쓸 수 있는 받는 사람 */
-    audience?: MailAudience;
+    audience?: TemplateAudience;
     /** 길이 상한 */
     max?: number;
 }
@@ -57,21 +57,11 @@ export interface MailTemplateDraft {
 }
 
 /** 검사에 필요한 종류 정보 */
-export interface MailKindRules {
+export interface MailTemplateRules {
     /** 받는 사람 — 다른 받는 사람의 공통 변수를 쓰면 「이 메일에서는 쓸 수 없는 변수」로 따로 알린다 */
-    audience: MailAudience;
+    audience: TemplateAudience;
     security: boolean;
-    variables: MailVariableView[];
-}
-
-/** 템플릿 목록 거르기 값 — 기본/사용자 구분은 `origin` */
-export interface MailTemplateFilter {
-    audience: MailAudience | null;
-    kind: string | null;
-    locale: MailLocale | null;
-    origin: 'ALL' | 'BUILTIN' | 'USER';
-    layoutId: string | null;
-    keyword: string;
+    variables: TemplateVariableView[];
 }
 
 /** 그리기에 쓰는 레이아웃 값(이름·쓰는 대상은 필요 없다 — 변수 견본 값은 `variables` 로 따로 준다) */
@@ -79,10 +69,10 @@ export type MailRenderLayout = Omit<MailLayoutSaveRequest, 'name' | 'audience'>;
 
 /** 미리보기 그리기 입력(목업 서버의 `preview`·`test`) */
 export interface MailRenderInput {
-    locale: MailLocale;
+    locale: TemplateLocale;
     subject: string;
     bodyHtml: string;
-    variables: MailVariableView[];
+    variables: TemplateVariableView[];
     layout: MailRenderLayout;
     siteName: string;
     logoUrl: string | null;
@@ -104,7 +94,7 @@ const HEADER_COLORS: Record<MailLayoutColor, string> = {
  * 받는 사람마다 따로 있는 공통 변수(계약 「개정 2」 변수 차이 — 서버의 종류 정의 `audience` 가 정한다). `siteName`·`recipientName` 은 둘 다 쓴다.
  * 화면은 「다른 받는 사람의 변수」를 모르는 변수와 갈라 알리는 데만 쓴다(쓸 수 있는 변수 목록은 서버가 준다).
  */
-const AUDIENCE_VARIABLES: Record<MailAudience, readonly string[]> = { MEMBER: ['siteUrl'], OPERATOR: ['adminUrl'] };
+const AUDIENCE_VARIABLES: Record<TemplateAudience, readonly string[]> = { MEMBER: ['siteUrl'], OPERATOR: ['adminUrl'] };
 
 const VAR_RE = /\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}/g;
 const BUTTON_BLOCK_RE = /<p data-mail-button(?:="[^"]*")?>\s*<a href="\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}"[^>]*>([\s\S]*?)<\/a>\s*<\/p>/;
@@ -155,7 +145,7 @@ export default class UtilMailTemplate {
      * @param audience - 템플릿(종류)의 받는 사람.
      * @returns 쓸 수 있으면 true.
      */
-    static layoutFits(layout: MailLayoutAudience, audience: MailAudience): boolean {
+    static layoutFits(layout: MailLayoutAudience, audience: TemplateAudience): boolean {
         return layout === 'ANY' || layout === audience;
     }
 
@@ -246,7 +236,7 @@ export default class UtilMailTemplate {
      * @param rules - 종류의 보안 여부와 변수 목록.
      * @returns 칸별 문제(없으면 빈 객체).
      */
-    static validate(draft: MailTemplateDraft, rules: MailKindRules): MailTemplateProblems {
+    static validate(draft: MailTemplateDraft, rules: MailTemplateRules): MailTemplateProblems {
         const out: MailTemplateProblems = {};
         const known = new Set(rules.variables.map((v) => v.name));
         const name = draft.name.trim();
@@ -334,26 +324,6 @@ export default class UtilMailTemplate {
             if (frame) out[`frames.${locale}`] = frame;
         }
         return out;
-    }
-
-    /**
-     * 템플릿 목록 거르기 — 받는 사람 · 종류 · 언어 · 기본/사용자 · 레이아웃 · 검색어(이름·종류 이름·종류 코드, 대소문자 무시).
-     * @param items - 목록.
-     * @param filter - 거르기 값(null·'ALL'·빈 글자는 거르지 않음).
-     * @returns 걸러진 목록(원래 차례).
-     */
-    static filterTemplates(items: readonly MailTemplateListItemView[], filter: MailTemplateFilter): MailTemplateListItemView[] {
-        const keyword = filter.keyword.trim().toLowerCase();
-        return items.filter((item) => {
-            if (filter.audience && item.audience !== filter.audience) return false;
-            if (filter.kind && item.kind !== filter.kind) return false;
-            if (filter.locale && item.locale !== filter.locale) return false;
-            if (filter.origin === 'BUILTIN' && !item.builtin) return false;
-            if (filter.origin === 'USER' && item.builtin) return false;
-            if (filter.layoutId && item.layoutId !== filter.layoutId) return false;
-            if (keyword && ![item.name, item.kindName, item.kind].some((text) => text.toLowerCase().includes(keyword))) return false;
-            return true;
-        });
     }
 
     /**

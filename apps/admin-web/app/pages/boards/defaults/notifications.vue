@@ -108,7 +108,7 @@
                 <ul class="m-0 mt-2 flex list-none flex-col gap-1 p-0 text-xs text-muted-color">
                     <li v-for="code in OPERATOR_EVENTS" :key="code"><code>{{ code }}</code> — {{ t(`board.operatorEvent.${code}`) }}</li>
                 </ul>
-                <NuxtLink to="/settings/notifications" class="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 underline dark:text-primary-300">
+                <NuxtLink to="/settings/notifications/operator" class="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 underline dark:text-primary-300">
                     <i class="pi pi-bell text-xs" aria-hidden="true" />
                     {{ t('board.openNotificationEvents') }}
                 </NuxtLink>

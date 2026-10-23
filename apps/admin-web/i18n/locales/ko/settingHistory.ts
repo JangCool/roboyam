@@ -42,13 +42,13 @@ export default {
         fromAddress: '보내는 사람 이메일',
         senderName: '보내는 이름',
         subjectPrefix: '제목 머리말',
-        // 메일 템플릿·레이아웃 변경 이력(목업 — 서버 단계에서 같은 labelKey 를 준다)
+        // 알림 템플릿·메일 레이아웃 변경 이력(목업 — 서버 단계에서 같은 labelKey 를 준다)
         name: '이름',
         locale: '언어',
         layoutId: '레이아웃',
         audience: '쓰는 대상',
         subject: '제목',
-        bodyHtml: '본문',
+        body: '본문',
         showLogo: '로고 보이기',
         showSiteName: '사이트 이름 보이기',
         headerColor: '머리말 띠 색',
