@@ -46,6 +46,11 @@ components/
 
 ---
 
+### 2-5. 설정 변경 이력은 제목 옆 단추 + 오른쪽 서랍
+
+* 설정 화면의 변경 이력(설정 이력·템플릿 이력 등)은 **본문 아래 구획으로 두지 않는다**. 화면(또는 편집 드로어) 제목 옆 「변경 이력」 단추(`PageTitle` 의 `actions` 칸, `pi pi-history`·secondary outlined small)가 **오른쪽에서 나오는 서랍**을 연다 — 공용 `components/common/SettingHistoryDrawer.vue`(늘 오른쪽, 거르기는 `filters` 칸) 안에 `SettingHistoryTable` 을 넣는다.
+* 이력은 **서랍을 처음 열 때** 받는다(화면을 열 때마다 부르지 않는다). 저장·삭제 뒤에는 이미 받은 적이 있을 때만 첫 쪽부터 다시 받는다.
+
 ## 3. 작성 예시
 ```vue
 <script setup lang="ts">
