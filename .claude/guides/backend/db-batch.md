@@ -27,7 +27,7 @@
 * 처리 건수는 **실제로 바뀐 행 수**. 0 이면 SKIP — 「돌았지만 할 일이 없었다」를 OK 와 가른다.
 
 ### 2-3. 등록과 설정값 (R__ 멱등 규칙)
-* 파일 끝: `SELECT batch_param_seed('키','retention_days',기본)…` (처음에만 넣는다 — **운영자가 바꾼 값을 덮어쓰지 않는다**) + `SELECT batch_define('키','프로시저',시,분)` — 한국시간 매일 시각. `batch_define` 은 정의 표(`batch_db_jobs`)는 갱신하고 **pg_cron 에는 없을 때만** `cron.schedule` 한다. `cron.schedule` 은 같은 이름이 있으면 식을 덮어쓰므로 직접 부르지 않는다.
+* 파일 끝: `SELECT batch_param_seed('키','retention_days',기본)…` (처음에만 넣는다 — **운영자가 바꾼 값을 덮어쓰지 않는다**) + `SELECT batch_define('키','프로시저',시,분)` — 한국시간 매일 시각. `batch_define` 은 정의 표(`batch_db_jobs`)는 갱신하고 **pg_cron 에는 없을 때만** `cron.schedule` 한다. `cron.schedule` 은 같은 이름이 있으면 식을 덮어쓰므로 직접 부르지 않는다. 매시 도는 배치는 `SELECT batch_define_hourly('키','프로시저',분)`(같은 규칙 — 한국시간 기준 매시 M분, `batch_db_jobs.cadence = HOURLY`).
 * 그래서 `R__` 파일을 고쳐 다시 적용돼도 운영자가 바꾼 cron·사용 여부는 그대로다. 기본 cron 을 **바꾸는** 릴리스는 이미 등록된 곳에 반영되지 않는다 — 꼭 필요하면 새 `V` 마이그레이션에서 `batch_pg_cron_ready()` 일 때만 `cron.alter_job` 을 부른다.
 * 이미 적용된 `V` 파일은 고치지 않는다. 프로시저·공통 함수는 `R__` 를 고치고 `CREATE OR REPLACE` 로 둔다(반환형·인자 목록을 바꾸면 `DROP` 이 먼저 필요하다 — 새 `V` 에서).
 * 시각 환산: pg_cron 은 `cron.timezone`(우리 구성 `Asia/Seoul`, 없으면 GMT)으로 식을 읽는다. 시각은 항상 한국시간으로 적고 `batch_daily_cron` 이 환산한다. 매일이 아닌 식(주간·월간)은 환산 때 요일이 밀릴 수 있어 별도로 확인한다.
@@ -35,7 +35,7 @@
 
 ### 2-4. 앱 쪽 (건드릴 일이 거의 없다)
 * 목록·켜기/끄기·cron 수정·지금 실행·로그는 `source` 로 갈라 이미 구현돼 있다(`BatchQueryService` · `BatchAdminService` · `DbBatchGateway`). DB 배치를 더할 때 Java 코드는 카탈로그 한 줄뿐이다.
-* DB 읽기/쓰기는 `DbBatchGateway` 한 곳에 모은다(native SQL — `cron.*`·`CALL` 은 JPQL/QueryDSL 에 없다). 읽기는 트랜잭션 밖(NOT_SUPPORTED) — PostgreSQL 은 실패한 문장이 트랜잭션을 망가뜨려 화면 전체가 500 이 되기 때문이다. 「지금 실행」은 트랜잭션 밖의 새 연결에서 `CALL` 한다(프로시저가 COMMIT 하므로).
+* DB 읽기/쓰기는 `DbBatchGateway` 한 곳에 모은다(native SQL — `cron.*`·`CALL` 은 JPQL/QueryDSL 에 없다). 읽기는 트랜잭션 밖(NOT_SUPPORTED) — PostgreSQL 은 실패한 문장이 트랜잭션을 망가뜨려 화면 전체가 500 이 되기 때문이다. 「지금 실행」은 요청 표에 넣고, 배치를 켠 서버가 집어 core 의 `DbBatchCaller` 로 트랜잭션 밖의 새 연결에서 `CALL` 한다(프로시저가 COMMIT 하므로). DB 배치는 단계·건별 실패를 기록하지 않고 재실행(실패 지점부터·실패 건만)이 없다.
 * 켜기/끄기·cron 수정은 `cron.alter_job` 이고 감사 기록(`BATCH_TOGGLE`·`BATCH_SCHEDULE_CHANGE`·`BATCH_RUN`)은 Java 배치와 같다.
 
 ---

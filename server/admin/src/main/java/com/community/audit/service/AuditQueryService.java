@@ -9,7 +9,7 @@ import com.community.audit.dto.response.AuditPage;
 import com.community.audit.entity.AuditActorType;
 import com.community.audit.entity.AuditResult;
 import com.community.audit.repository.master.AuditLogRepositoryQDSL;
-import com.community.batch.catalog.BatchCatalog;
+import com.community.batch.core.BatchCatalog;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
 import com.community.zconfiguration.message.Messages;

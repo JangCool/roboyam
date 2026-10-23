@@ -3,7 +3,7 @@ package com.community.mfa;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.community.audit.dto.AuditActions;
-import com.community.batch.catalog.BatchCatalog;
+import com.community.batch.core.BatchCatalog;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.entity.NotificationArea;
 import com.community.notification.entity.NotificationRecipientRule;

@@ -1,7 +1,10 @@
 package com.community.batch.service;
 
-import com.community.batch.catalog.BatchCatalog;
 import com.community.batch.config.BatchProperties;
+import com.community.batch.core.BatchCatalog;
+import com.community.batch.core.BatchLockService;
+import com.community.batch.core.BatchRequestQueue;
+import com.community.batch.core.BatchRunner;
 import com.community.batch.entity.BatchJobEntity;
 import com.community.batch.repository.master.BatchJobRepository;
 import jakarta.annotation.PreDestroy;
@@ -51,14 +54,18 @@ public class BatchScheduler {
     private final BatchProperties properties;
     private final BatchJobRepository jobs;
     private final BatchRunner runner;
+    private final BatchRequestQueue requests;
+    private final BatchLockService locks;
     private final ThreadPoolTaskScheduler scheduler;
     private final Map<String, Slot> slots = new HashMap<>();
     private boolean started;
 
-    public BatchScheduler(BatchProperties properties, BatchJobRepository jobs, BatchRunner runner) {
+    public BatchScheduler(BatchProperties properties, BatchJobRepository jobs, BatchRunner runner, BatchRequestQueue requests, BatchLockService locks) {
         this.properties = properties;
         this.jobs = jobs;
         this.runner = runner;
+        this.requests = requests;
+        this.locks = locks;
         this.scheduler = new ThreadPoolTaskScheduler();
         scheduler.setPoolSize(properties.poolSize());
         scheduler.setThreadNamePrefix("batch-");
@@ -68,14 +75,14 @@ public class BatchScheduler {
         scheduler.setErrorHandler(error -> log.error("배치 스케줄러 오류", error));
     }
 
-    /** 서버가 뜬 뒤 한 번 부른다 — 예약을 맞추고, 주기적으로 DB 를 다시 읽는다. 예약 실행을 끈 서버({@code scheduler-enabled=false})는 아무것도 하지 않는다 */
+    /** 서버가 뜬 뒤 한 번 부른다 — 예약을 맞추고, 주기적으로 DB 를 다시 읽는다. 배치를 끈 서버({@code roboyam.batch.enabled=false})는 아무것도 하지 않는다 */
     public synchronized void start() {
         if (started) {
             return;
         }
         started = true;
-        if (!properties.schedulerEnabled()) {
-            log.info("이 서버는 배치 예약 실행을 하지 않는다(roboyam.batch.scheduler-enabled=false) — 「지금 실행」만 된다");
+        if (!properties.enabled()) {
+            log.info("이 서버는 배치를 돌지 않는다(roboyam.batch.enabled=false) — 예약 실행·요청 집기·워커가 꺼져 있다. 화면의 요청은 배치를 켠 다른 서버가 집는다");
             return;
         }
         scheduler.initialize();
@@ -86,7 +93,7 @@ public class BatchScheduler {
 
     /** 설정이 바뀐 직후 부른다 — DB 의 사용 여부·cron 에 예약을 다시 맞춘다 */
     public synchronized void reconcile() {
-        if (!started || !properties.schedulerEnabled()) {
+        if (!started || !properties.enabled()) {
             return;
         }
         Map<String, BatchJobEntity> settings = new HashMap<>();
@@ -116,11 +123,12 @@ public class BatchScheduler {
         scheduler.shutdown();
     }
 
-    /** 주기적으로: 다른 서버가 바꾼 설정을 따라오고, 죽은 서버가 남긴 「실행 중」 줄을 닫는다 */
+    /** 주기적으로: 다른 서버가 바꾼 설정을 따라오고, 죽은 서버가 남긴 「실행 중」 줄을 닫고, 집은 서버가 사라져 RUNNING 으로 남은 요청을 정리한다 */
     private void poll() {
         try {
             reconcile();
             runner.sweepInterrupted();
+            requests.sweepStale(properties.requestStale(), locks);
         } catch (RuntimeException e) {
             log.error("배치 설정을 다시 읽지 못했다", e);
         }

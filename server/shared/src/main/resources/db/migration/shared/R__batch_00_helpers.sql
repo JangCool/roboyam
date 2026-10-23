@@ -3,7 +3,8 @@
 --
 -- 이 파일이 DB 배치의 약속(규약)을 한 곳에 모은다. 모든 DB 배치 프로시저는 아래 도구로 로그를 남기고 설정을 읽고 자기를 등록한다.
 --   batch_enable_pg_cron()   pg_cron 확장을 만들 수 있으면 만든다 / 지금 상태를 돌려준다
---   batch_define(...)        배치 정의(batch_db_jobs) 갱신 + 아직 pg_cron 에 없으면 기본 cron 으로 등록(있으면 건드리지 않는다)
+--   batch_define(...)        배치 정의(batch_db_jobs) 갱신 + 아직 pg_cron 에 없으면 기본 cron 으로 등록(있으면 건드리지 않는다) — 매일 한국시간 H시 M분
+--   batch_define_hourly(...) batch_define 과 같은 규칙으로 매시 M분(한국시간 기준 분 — 30분 단위 시차가 있는 cron 시간대에서는 분이 바뀐다)
 --   batch_param(...)         설정값(batch_params) 읽기, 범위 밖이면 기본값
 --   batch_run_begin/close    batch_runs 에 시작(RUNNING) / 끝(OK·SKIP·FAIL) 기록 + 동시 실행 방지(어드바이저리 잠금)
 
@@ -73,6 +74,24 @@ BEGIN
 END
 $fn$;
 
+-- 「매시 (한국시간 기준) M분」을 pg_cron 시간대의 5칸 식으로 바꾼다. 시간대 차이가 정시 단위면 분이 그대로이고, 30분·45분 단위 시차(예: Asia/Kolkata)면 분이 바뀐다.
+CREATE OR REPLACE FUNCTION batch_hourly_cron(p_minute int) RETURNS text
+LANGUAGE plpgsql STABLE AS $fn$
+DECLARE
+    v_zone  text := coalesce(nullif(current_setting('cron.timezone', true), ''), 'GMT');
+    v_local timestamp;
+BEGIN
+    v_local := ((timestamp '2001-01-01 00:00:00' + make_interval(mins => p_minute)) AT TIME ZONE 'Asia/Seoul') AT TIME ZONE v_zone;
+    RETURN extract(minute FROM v_local)::int || ' * * * *';
+END
+$fn$;
+
+-- 정의(batch_db_jobs)의 주기 종류(cadence)에 맞는 기본 cron — DAILY 는 batch_daily_cron, HOURLY 는 batch_hourly_cron(p_hour 는 쓰지 않는다)
+CREATE OR REPLACE FUNCTION batch_default_cron(p_cadence text, p_hour int, p_minute int) RETURNS text
+LANGUAGE sql STABLE AS $fn$
+    SELECT CASE WHEN p_cadence = 'HOURLY' THEN batch_hourly_cron(p_minute) ELSE batch_daily_cron(p_hour, p_minute) END
+$fn$;
+
 -- ── 설정값 ───────────────────────────────────────────────────────────────────
 -- 값이 없거나 [p_min, p_max] 밖이면 기본값. 보관 일수가 0 이 되어 전부 지워지는 사고를 막는다.
 CREATE OR REPLACE FUNCTION batch_param(p_job text, p_key text, p_default bigint, p_min bigint, p_max bigint) RETURNS bigint
@@ -105,7 +124,7 @@ BEGIN
         RETURN 'NO_PG_CRON';
     END IF;
     -- 기본 cron 은 pg_cron 의 시간대에 달려 있다 — 등록하기 직전의 설정으로 다시 환산한다(pg_cron 이 없던 때 GMT 로 계산해 둔 값을 쓰지 않게)
-    v_def.default_cron := batch_daily_cron(v_def.kst_hour, v_def.kst_minute);
+    v_def.default_cron := batch_default_cron(v_def.cadence, v_def.kst_hour, v_def.kst_minute);
     UPDATE batch_db_jobs SET default_cron = v_def.default_cron WHERE job_key = p_job AND default_cron IS DISTINCT FROM v_def.default_cron;
     BEGIN
         EXECUTE 'SELECT EXISTS (SELECT 1 FROM cron.job WHERE jobname = $1)' INTO v_exists USING p_job;
@@ -144,11 +163,27 @@ CREATE OR REPLACE FUNCTION batch_define(p_job text, p_procedure text, p_hour int
 LANGUAGE plpgsql AS $fn$
 BEGIN
     PERFORM batch_enable_pg_cron();
-    INSERT INTO batch_db_jobs (job_key, procedure_name, kst_hour, kst_minute, default_cron, updated_at)
-    VALUES (p_job, p_procedure, p_hour, p_minute, batch_daily_cron(p_hour, p_minute), now())
+    INSERT INTO batch_db_jobs (job_key, procedure_name, kst_hour, kst_minute, default_cron, cadence, updated_at)
+    VALUES (p_job, p_procedure, p_hour, p_minute, batch_daily_cron(p_hour, p_minute), 'DAILY', now())
     ON CONFLICT (job_key) DO UPDATE
         SET procedure_name = EXCLUDED.procedure_name, kst_hour = EXCLUDED.kst_hour, kst_minute = EXCLUDED.kst_minute,
-            default_cron = EXCLUDED.default_cron, updated_at = EXCLUDED.updated_at;
+            default_cron = EXCLUDED.default_cron, cadence = EXCLUDED.cadence, updated_at = EXCLUDED.updated_at;
+    RETURN batch_register(p_job);
+END
+$fn$;
+
+-- 매시 도는 배치 하나를 정의한다(R__ 파일이 부른다) — batch_define 과 같은 규칙: 정의 표는 매번 갱신하고, pg_cron 에는 없을 때만 올리고(운영자가 바꾼 cron·사용 여부를
+-- 덮어쓰지 않는다), pg_cron 이 없으면 등록을 건너뛴다(NO_PG_CRON). p_minute 는 한국시간 기준 매시 몇 분인가(0~59). 돌려주는 값은 batch_register 와 같다.
+-- 예: 요청 속도 카운터 지난 창 정리(commerce.md 15-5 — 매시).
+CREATE OR REPLACE FUNCTION batch_define_hourly(p_job text, p_procedure text, p_minute int) RETURNS text
+LANGUAGE plpgsql AS $fn$
+BEGIN
+    PERFORM batch_enable_pg_cron();
+    INSERT INTO batch_db_jobs (job_key, procedure_name, kst_hour, kst_minute, default_cron, cadence, updated_at)
+    VALUES (p_job, p_procedure, 0, p_minute, batch_hourly_cron(p_minute), 'HOURLY', now())
+    ON CONFLICT (job_key) DO UPDATE
+        SET procedure_name = EXCLUDED.procedure_name, kst_hour = EXCLUDED.kst_hour, kst_minute = EXCLUDED.kst_minute,
+            default_cron = EXCLUDED.default_cron, cadence = EXCLUDED.cadence, updated_at = EXCLUDED.updated_at;
     RETURN batch_register(p_job);
 END
 $fn$;

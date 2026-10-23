@@ -1,6 +1,7 @@
 package com.community.notification.service;
 
-import com.community.batch.catalog.BatchCatalog;
+import com.community.batch.core.BatchCatalog;
+import com.community.batch.core.BatchMessageCodec;
 import com.community.batch.entity.BatchRunEntity;
 import com.community.batch.entity.BatchRunStatus;
 import com.community.notification.config.NotificationProperties;
@@ -77,7 +78,10 @@ public class BatchRunNotifier {
     private void publishFailed(BatchRunEntity run) {
         BatchCatalog definition = BatchCatalog.ofKey(run.getJobKey());
         Object name = definition == null ? run.getJobKey() : new MessageRef(definition.nameKey()); // 카탈로그에서 사라진 배치는 키 그대로
-        Object detail = run.getErrorMessage() == null || run.getErrorMessage().isBlank() ? new MessageRef("notification.batchRunFailed.noDetail") : run.getErrorMessage();
+        // 사유 글이 없으면 실패 문구 키(실패 한도 넘음·서버 멈춤)를, 그것도 없으면 「사유 없음」
+        MessageRef reason = BatchMessageCodec.decode(run.getMessageKey(), run.getMessageArgs());
+        Object detail = run.getErrorMessage() != null && !run.getErrorMessage().isBlank() ? run.getErrorMessage()
+                : reason != null ? reason : new MessageRef("notification.batchRunFailed.noDetail");
         int published = publisher.publish(AdminNotificationEvent.BATCH_RUN_FAILED,
                 NotificationContext.empty().args(name, run.getJobKey(), detail).dedupe(run.getJobKey()).link("jobName", run.getJobKey())
                         .condition(MessageCondition.JOB_NAME, run.getJobKey()));

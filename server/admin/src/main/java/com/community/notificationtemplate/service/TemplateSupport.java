@@ -1,6 +1,6 @@
 package com.community.notificationtemplate.service;
 
-import com.community.batch.catalog.BatchCatalog;
+import com.community.batch.core.BatchCatalog;
 import com.community.notificationtemplate.builtin.BuiltinMessages;
 import com.community.notificationtemplate.builtin.BuiltinTemplates;
 import com.community.notificationtemplate.catalog.MailTemplateAudience;
