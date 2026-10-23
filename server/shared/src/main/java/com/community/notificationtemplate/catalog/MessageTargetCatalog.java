@@ -1,5 +1,6 @@
 package com.community.notificationtemplate.catalog;
 
+import com.community.membernotification.entity.MemberEvent;
 import static com.community.notificationtemplate.catalog.MessageVariable.Sample;
 
 import com.community.notification.entity.AdminNotificationEvent;
@@ -189,7 +190,7 @@ public final class MessageTargetCatalog {
                 new MessageChannelDef(MessageChannel.IN_APP, concat(common, params), conditions),
                 new MessageChannelDef(MessageChannel.EMAIL, concat(common, params, sent), conditions),
                 new MessageChannelDef(MessageChannel.KAKAO, concat(common, params, sent), List.of()));
-        return new MessageTarget(MessageTargetType.EVENT, event.code(), MessageAudience.MEMBER, event.area(), null, event.nameKey(), event.descriptionKey(), false,
+        return new MessageTarget(MessageTargetType.EVENT, event.code(), MessageAudience.MEMBER, event.area().id(), null, event.nameKey(), event.descriptionKey(), false,
                 channels, inApp, path);
     }
 

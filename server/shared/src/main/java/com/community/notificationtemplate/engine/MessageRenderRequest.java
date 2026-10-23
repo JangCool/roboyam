@@ -2,7 +2,7 @@ package com.community.notificationtemplate.engine;
 
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.entity.NotificationSeverity;
-import com.community.notificationtemplate.catalog.MemberEvent;
+import com.community.membernotification.entity.MemberEvent;
 import com.community.notificationtemplate.catalog.MessageChannel;
 import com.community.notificationtemplate.catalog.MessageLocales;
 import com.community.notificationtemplate.catalog.MessageSeverity;
