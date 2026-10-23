@@ -41,5 +41,10 @@ export default {
         fromAddress: 'From address',
         senderName: 'Sender name',
         subjectPrefix: 'Subject prefix',
+        // Mail template history (mock — the server will send the same labelKey)
+        name: 'Name',
+        locale: 'Language',
+        subject: 'Subject',
+        bodyHtml: 'Body',
     },
 };

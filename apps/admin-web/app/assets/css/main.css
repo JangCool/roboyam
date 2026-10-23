@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 @plugin 'tailwindcss-primeui';
+/* 공유 레이어(apps-packages/*)는 이 앱 폴더 밖이라 Tailwind 가 저절로 훑지 않는다 — 레이어 컴포넌트가 쓰는 클래스를 만들도록 알린다(서식 에디터 — 메일 템플릿 편집) */
+@source '../../../../../apps-packages/rich-editor';
 
 /* 다크 판정은 html[data-theme='dark'] — PrimeVue 의 darkModeSelector 와 같다.
    이 속성을 거는 코드는 화면 설정(`composables/shell/useLayoutPrefs.ts`)이고, 앱이 뜨기 전에 `plugins/00.layout-prefs.client.ts` 가 저장값으로 먼저 건다. */

@@ -141,6 +141,8 @@ export default class UtilAdminMenu {
                 // 소셜 로그인 설정(카카오·네이버·구글 키) · 메일 서버 설정 — 조회는 `site.read`, 저장·삭제·시험 발송은 화면 안에서 `site.secret`
                 { key: 'socialLogin', to: '/settings/social-login', icon: 'pi pi-key', labelKey: 'menu.socialLogin', permission: 'site.read' },
                 { key: 'mailSettings', to: '/settings/mail', icon: 'pi pi-envelope', labelKey: 'menu.mailSettings', permission: 'site.read' },
+                // 메일 템플릿 — 화면 목업 단계(API 목업). 권한 `template.read` 는 서버 `Permission` 에 아직 없어 지금은 최고 관리자에게만 보인다
+                { key: 'mailTemplates', to: '/settings/mail-templates', icon: 'pi pi-file-edit', labelKey: 'menu.mailTemplates', permission: 'template.read' },
                 // 조직 구성 — 운영자를 팀으로 묶는다(알림 이벤트의 「추가 수신 팀」으로 쓴다)
                 { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
             ],

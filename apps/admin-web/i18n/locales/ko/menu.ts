@@ -9,6 +9,7 @@ export default {
     general: '일반',
     socialLogin: '소셜 로그인',
     mailSettings: '메일 서버',
+    mailTemplates: '메일 템플릿',
     notifications: '알림',
     notificationEvents: '이벤트',
     notificationChannels: '알림 도구',
