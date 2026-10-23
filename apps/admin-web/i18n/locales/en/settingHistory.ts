@@ -1,0 +1,44 @@
+/**
+ * Setting change history (the "Change history" section on the social login and mail server screens, `SettingHistoryTable`).
+ * `field.<name>` keys are the server's `labelKey` (`settingHistory.field.<field>`). Same keys and order as `ko/settingHistory.ts`.
+ */
+export default {
+    title: 'Change history',
+    loadFailed: "Couldn't load the change history",
+    emptyTitle: 'No changes yet',
+    emptyHint: 'Changes from installation and from this screen show up here.',
+    changedAt: 'Changed at',
+    sourceHeader: 'Source · action',
+    provider: 'Provider',
+    operator: 'Operator',
+    changes: 'Changed fields',
+    none: '(none)',
+    allProviders: 'All providers',
+
+    // Secret value codes
+    secretSet: 'Set',
+    secretChanged: 'Changed',
+    secretCleared: 'Removed',
+
+    // Source · action
+    sourceInstall: 'Install',
+    sourceAdmin: 'Admin',
+    actionCreate: 'First set',
+    actionUpdate: 'Changed',
+    actionDelete: 'Deleted',
+
+    // Field names — the server's `labelKey`
+    field: {
+        clientId: 'Client ID',
+        clientSecret: 'Client secret',
+        enabled: 'Turn on',
+        host: 'Server address',
+        port: 'Port',
+        security: 'Security',
+        username: 'Username',
+        password: 'Password',
+        fromAddress: 'From address',
+        senderName: 'Sender name',
+        subjectPrefix: 'Subject prefix',
+    },
+};

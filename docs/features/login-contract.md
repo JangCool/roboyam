@@ -136,3 +136,11 @@
 - 풀 수 없는 시크릿(키 교체)도 공개 `/api/auth/providers` 에는 버튼이 나온다(기존 공개 기준은 복호화를 해 보지 않는다) — 관리자 목록은 `active: true` · `secretSet: false` 로 보인다. 콜백에서 `provider_error` 로 끝난다.
 - `social_provider_settings.updated_by` 는 `operators` FK(ON DELETE 없음, V8)라 마지막으로 저장한 운영자를 지우면 FK 오류가 날 수 있다(기존 스키마 — 이번에 고치지 않음).
 - 같은 공급자를 처음 등록하는 두 요청이 동시에 오면 하나는 PK 충돌로 500 이 될 수 있다(드묾 — 행이 있으면 행 잠금으로 줄 세운다).
+
+### 프론트 결과 (관리자 소셜 로그인 설정, 2026-10-23)
+- **화면** admin-web `/settings/social-login`(메뉴 설정 › 시스템 › 「소셜 로그인」, `site.read`). 공급자 카드 3장(서버 순서, `components/social/SocialProviderCard.vue` — community 카드를 옮김: 상태 딱지 켜짐/켜 둠·안 보임/꺼 둠/미등록 + `active` 기준 설명, 콜백 주소 복사, 클라이언트 ID, 시크릿 「입력됨」(`NotificationSecretField` 재사용), 켜기, 설정 삭제) + 「설정 이력」 구획(공급자 거르기). 구획은 `AppGadget anchor` + 우측 구역 내비.
+- **저장 단위** 카드마다(카드 맨 아래 [되돌리기]·[저장], 왼쪽 [설정 삭제]). 한 번에 하나만(진행 중 다른 카드 잠금). 시크릿 필수 판정 `!secretSet`, 행이 있는데 `secretSet=false` 면 카드 위 「다시 입력」 경고. `callbackUrl=null` 이면 「공개 주소를 먼저 정해 주세요」 + 일반 설정 링크(일반 화면에는 아직 공개 주소 칸이 없다 — 미확정). `cryptoKeyConfigured=false` 면 상단 경고 + 입력·저장 잠금(삭제는 됨).
+- **오류** `fields.clientId|clientSecret|enabled` 는 그 칸 아래(켜기는 스위치 아래), 503 `CRYPTO_KEY_MISSING`(경고도 켬)·404·네트워크는 카드 안 한 줄. 화면 사전 검사는 `utils/util-social-login.ts`(서버 `SocialSettingsService` 규칙).
+- **읽기 전용** `site.secret` 없으면 입력 readonly/잠금, 저장·삭제 단추 없음. `site.secret` `featureReady` 는 서버 `Permission`·프론트 카탈로그 모두 true 로 바꿨다.
+- **코드** API `composables/social/api/useSocialProviderSettingsApi.ts`, 이력 공용 `composables/common/useSettingHistory.ts`(+`.types.ts`)·`components/common/SettingHistoryTable.vue`·`utils/util-setting-history-messages.ts`, 문구 `i18n/locales/{ko,en}/social.ts`·`settingHistory.ts`(칸 이름 `settingHistory.field.*`).
+- **검증** 일회용 DB·jar(api 9111·admin 9112)·`nuxt dev` 3270: 설치 API 로 카카오(켬)·네이버(끔) 등록 → 화면에 그대로, 이력 첫 줄 「설치 · 처음 설정」. 구글 시크릿 없이 저장 → 칸 오류, 넣고 저장 → 켜짐·이력. 카카오 ID 만 바꿔 저장 → 시크릿 유지(`입력됨`). 네이버 삭제(확인창) → 미등록·이력 「삭제」(시크릿 입력함 → 지움). 공급자 거르기. `site.read` 만 가진 운영자 → 읽기 전용, 메뉴에 「일반·소셜 로그인·메일 서버」.

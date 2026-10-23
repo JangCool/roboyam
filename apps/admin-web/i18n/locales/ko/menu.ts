@@ -7,6 +7,8 @@ export default {
     dashboard: '대시보드',
     system: '시스템',
     general: '일반',
+    socialLogin: '소셜 로그인',
+    mailSettings: '메일 서버',
     notifications: '알림',
     notificationEvents: '이벤트',
     notificationChannels: '알림 도구',

@@ -13,6 +13,7 @@ import dashboard from './dashboard';
 import error from './error';
 import grade from './grade';
 import login from './login';
+import mail from './mail';
 import member from './member';
 import menu from './menu';
 import menuConfig from './menuConfig';
@@ -23,8 +24,10 @@ import point from './point';
 import profile from './profile';
 import role from './role';
 import section from './section';
+import settingHistory from './settingHistory';
 import shell from './shell';
 import site from './site';
+import social from './social';
 import team from './team';
 
 export default {
@@ -36,6 +39,7 @@ export default {
     error,
     grade,
     login,
+    mail,
     member,
     menu,
     menuConfig,
@@ -46,7 +50,9 @@ export default {
     profile,
     role,
     section,
+    settingHistory,
     shell,
     site,
+    social,
     team,
 };

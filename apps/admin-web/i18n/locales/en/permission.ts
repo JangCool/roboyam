@@ -98,9 +98,9 @@ export default {
     gradeManage: 'Change grade promotion conditions',
     gradeManageDesc: 'Change the conditions for moving up a grade. They apply once saved, from when a member meets them, and grades are never lowered.',
 
-    // Site and integrations (General screen)
+    // Site and integrations (General, Social login and Mail server screens)
     siteRead: 'View site settings',
-    siteReadDesc: 'See the site name, tagline and display defaults on General in the settings menu.',
+    siteReadDesc: 'See the site name, tagline and display defaults, social login keys (without secrets), mail server settings (without the password) and their change history on General, Social login and Mail server in the settings menu.',
     siteManage: 'Change site settings',
     siteManageDesc: 'Change the site name, tagline and display defaults (default language, time zone, time and date formats). It changes what every screen that uses the defaults shows.',
 

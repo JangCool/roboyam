@@ -150,7 +150,7 @@ export default class UtilPermissionCatalog {
      *  · 등급·포인트·휴면(등급 설정·포인트 내역·포인트 정책 화면): 조회 `grade.read` / 설정 `grade.manage`(등급 승급 조건 변경). 포인트는 조회 `point.read`(원장·정책 보기) / 설정 `point.settings`(지급 정책 저장) / 민감 `point.adjust`(수동 지급·차감).
      *  · 게시판: 조회 `board.read` / 처리 `board.manage`·`board.staff.manage` / 설정 `board.settings`·`board.staff.limit` / 민감 `board.delete`(게시판 목록·설정·기본 설정·매니저/스텝).
      *  · 사이트 화면 구성: 조회 `layout.read` / 설정 `layout.settings`(공개 사이트 메뉴)·`admin-menu.manage`(관리자 사이트 메뉴 구성 저장).
-     *  · 사이트·연동(지금은 설정 메뉴의 「일반」·「알림」 화면만): 조회 `site.read` / 설정 `site.manage`(사이트 이름·소개, 표시 기본값 변경). 알림 이벤트 관리는 조회 `notification.read` / 설정 `notification.manage`(이벤트별 사용 여부·이메일 전달 변경 — 받는 사람은 코드에 고정이라 바꾸지 않는다).
+     *  · 사이트·연동(설정 메뉴의 「일반」·「소셜 로그인」·「메일 서버」·「알림」 화면): 조회 `site.read`(일반·소셜 로그인·메일 서버·설정 이력 보기) / 설정 `site.manage`(사이트 이름·소개, 표시 기본값 변경) / 민감 `site.secret`(소셜 로그인 키 저장·삭제, 메일 서버 저장·시험 발송). 알림 이벤트 관리는 조회 `notification.read` / 설정 `notification.manage`(이벤트별 사용 여부·이메일 전달 변경 — 받는 사람은 코드에 고정이라 바꾸지 않는다).
      * 나머지는 화면이 아직 없는 기능의 권한이다(`featureReady: false`). 목록·순서·`featureReady` 는 서버 `Permission.java` 가 원천이다 — 바꿀 때 두 곳을 같게 한다.
      */
     static readonly PERMISSIONS: readonly PermissionDef[] = [
@@ -235,7 +235,7 @@ export default class UtilPermissionCatalog {
         { code: 'batch.run', unit: 'SENSITIVE', type: 'auditBatch', nameKey: 'permission.batchRun', descKey: 'permission.batchRunDesc', featureReady: true },
         { code: 'site.read', unit: 'READ', type: 'siteIntegration', nameKey: 'permission.siteRead', descKey: 'permission.siteReadDesc', featureReady: true },
         { code: 'site.manage', unit: 'CONFIG', type: 'siteIntegration', nameKey: 'permission.siteManage', descKey: 'permission.siteManageDesc', featureReady: true },
-        { code: 'site.secret', unit: 'SENSITIVE', type: 'siteIntegration', nameKey: 'permission.item.siteSecret', descKey: 'permission.item.siteSecretDesc', featureReady: false },
+        { code: 'site.secret', unit: 'SENSITIVE', type: 'siteIntegration', nameKey: 'permission.item.siteSecret', descKey: 'permission.item.siteSecretDesc', featureReady: true },
         { code: 'notification.read', unit: 'READ', type: 'siteIntegration', nameKey: 'permission.notificationRead', descKey: 'permission.notificationReadDesc', featureReady: true },
         { code: 'notification.manage', unit: 'CONFIG', type: 'siteIntegration', nameKey: 'permission.notificationManage', descKey: 'permission.notificationManageDesc', featureReady: true },
     ];

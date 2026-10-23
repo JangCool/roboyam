@@ -101,7 +101,7 @@ public enum Permission {
     BATCH_RUN("batch.run", AUDIT_BATCH, SENSITIVE, true),
     SITE_READ("site.read", SITE_INTEGRATION, READ, true),
     SITE_MANAGE("site.manage", SITE_INTEGRATION, CONFIG, true),
-    SITE_SECRET("site.secret", SITE_INTEGRATION, SENSITIVE, false),
+    SITE_SECRET("site.secret", SITE_INTEGRATION, SENSITIVE, true),
     NOTIFICATION_READ("notification.read", SITE_INTEGRATION, READ, true),
     NOTIFICATION_MANAGE("notification.manage", SITE_INTEGRATION, CONFIG, true);
 
