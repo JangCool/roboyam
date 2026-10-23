@@ -843,7 +843,7 @@ DELIVERED → (반품 요청 승인·회수 확인) → REFUNDED(전액) 또는 
   - 규칙 하나에 테스트 하나 이상. 구현하는 세션이 바꾼 범위의 테스트를 쓰고 `--tests` 로 골라 돌린다(전체 테스트는 여전히 요청 때만). 실패한 채로 단계를 끝내지 않는다.
   - 완료 보고에는 「규칙 → 테스트」 대응표, 실행 명령, 통과·실패 수, 아직 테스트로 막지 못한 규칙과 그 이유를 적는다.
   - 원안 16장의 시나리오와 아래 표도 이 규칙에 포함된다.
-  - 잠금·동시성·조건부 UPDATE·`SKIP LOCKED`·트리거처럼 실제 PostgreSQL 이 있어야 하는 규칙은 Testcontainers(PostgreSQL)로 막는다. **사용자 승인 2026-10-23 — 커머스 테스트에만 쓴다**(다른 기능의 테스트에 퍼뜨리지 않는다).
+  - 잠금·동시성·조건부 UPDATE·`SKIP LOCKED`·트리거처럼 실제 PostgreSQL 이 있어야 하는 규칙은 Testcontainers(PostgreSQL)로 막는다. **사용자 승인 2026-10-23 — 커머스 테스트에만 쓴다**(다른 기능의 테스트에 퍼뜨리지 않는다). 공용 시험 DB 는 shared 의 testFixtures `com.community.testsupport.CommerceTestDatabase`(`postgres:18`, 앱과 같은 스트림 이관 — 사용법은 `docs/features/commerce-foundation-contract.md` 「시험 기반」).
 - 원안 C1~C6, P1~P14, 불변식은 유지. 원안 시나리오 중 선점 10분·결제 실패 즉시 FAILED·마감 순간 판정을 전제로 한 것은 이 문서 기준(선점 5분·EXPIRED·CLOSING 거쳐 판정)으로 읽는다. 개정으로 바뀌거나 더해지는 것:
 
 | # | 시나리오 | 기대 결과 |

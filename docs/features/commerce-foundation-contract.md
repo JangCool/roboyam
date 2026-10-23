@@ -62,6 +62,15 @@
   | local 만 개발용 키, 공통 설정(dev·prod)에는 기본값 없음, 세 키는 서로 다르다 | `DataCryptoSettingsTest` |
   - 테스트로 막지 않은 것: 설치 스크립트가 키를 만들어 `.env` 에 쓰는 것(셸 — `bash -n` 문법 검사만), compose 의 변수 전달(실행 확인 안 함).
 
+## 시험 기반 (2026-10-23 — commerce.md 18절: 규칙은 모두 테스트, 통과 필수)
+- **Testcontainers(PostgreSQL)는 커머스 테스트에만 쓴다**(사용자 승인 2026-10-23). 버전은 Spring Boot BOM(4.1.1 → Testcontainers 2.0.5), 시험 PC 에 Docker 가 있어야 한다.
+- 공용 시험 DB: `server/shared/src/testFixtures/java/com/community/testsupport/CommerceTestDatabase.java`(Gradle `java-test-fixtures`).
+  - shared 의 시험은 그대로 쓴다. api·admin 의 시험은 그 모듈 `build.gradle` 에 `testImplementation testFixtures(project(':server:shared'))` 를 더한다.
+  - `CommerceTestDatabase.migrated("admin")` 이 컨테이너(`postgres:18`, 시험 JVM 하나에 하나)를 띄우고, 앱과 같은 길(`SchemaMigration.STANDARD`, shared → 자기 스트림)로 이관한 `DataSource` 를 준다(풀 없음 — 동시성 시험은 연결을 따로 잡는다). 스프링 문맥에는 `jdbcUrl()`·`username()`·`password()`.
+  - DB 하나를 시험들이 같이 쓴다 — 자기가 만든 행만 보고(겹치지 않는 ID), 표 전체를 비우지 않는다. pg_cron 은 없다(DB 배치 프로시저는 `CALL` 로 직접 부른다).
+- 확인 시험 `CommerceTestDatabaseTest` 5개 통과(실제 컨테이너): shared 스트림이 끝까지 이관, 포인트 원장 수정 금지 트리거(5-1·5-4), 잔액 음수 불가(5-4), 「사유 + 대상」 유일(3절), 연결 여러 개.
+- 실행: `JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2 ./gradlew :server:<모듈>:test --tests '<패키지>.*'`(이 PC 의 셸에는 `JAVA_HOME` 이 없다).
+
 ## 미확정
 - 이미 설치된 환경(설치 스크립트로 깐 곳)에는 새 키가 자동으로 들어가지 않는다 — 업그레이드 스크립트가 없어 운영자가 `.env` 에 직접 넣는다(넣지 않아도 앱은 뜨고 커머스 개인정보 요청만 503).
 - 설치 마법사 점검 목록(`InstallationChecks`)에 새 키 표시는 넣지 않았다 — 판매 스위치 켜는 조건(20절)을 만들 때 함께 본다.

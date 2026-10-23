@@ -4,6 +4,8 @@ plugins {
     // Q 클래스·매퍼 구현체는 엔티티·매퍼가 있는 이 모듈에서 만든다
     id 'roboyam.querydsl-conventions'
     id 'roboyam.mapstruct-conventions'
+    // 커머스 테스트가 같이 쓰는 실제 PostgreSQL 시험 DB(src/testFixtures — CommerceTestDatabase). api·admin 의 시험은 testFixtures(project(':server:shared')) 로 쓴다
+    id 'java-test-fixtures'
 }
 
 // api 와 admin 이 같이 쓰는 엔티티·저장소·서비스·DTO·공통 설정이 여기 있다.
@@ -31,4 +33,11 @@ dependencies {
     implementation 'org.flywaydb:flyway-database-postgresql'
     // JDBC 드라이버. 실행 때만 필요하다
     runtimeOnly 'org.postgresql:postgresql'
+
+    // ── 커머스 테스트 전용 시험 DB (docs/domain/commerce.md 18절 — Testcontainers 는 커머스 테스트에만 쓰기로 승인 2026-10-23) ──
+    // 버전은 Spring Boot BOM(testcontainers-bom)이 정한다. 시험 PC 에 Docker 가 있어야 한다
+    testFixturesApi 'org.testcontainers:testcontainers-postgresql'
+    testFixturesImplementation 'org.springframework.boot:spring-boot-starter-flyway'
+    testFixturesImplementation 'org.flywaydb:flyway-database-postgresql'
+    testFixturesRuntimeOnly 'org.postgresql:postgresql'
 }
