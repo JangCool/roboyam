@@ -51,6 +51,8 @@ public final class AdminScreenRegistry {
                     leaf(s("pointPolicy", "/points/policy", "menu.pointPolicy", "pi pi-percentage", Permission.POINT_READ))),
             section(SETTINGS, "menu.system", "pi pi-cog",
                     leaf(s("siteGeneral", "/settings/general", "menu.general", "pi pi-sliders-h", Permission.SITE_READ)),
+                    leaf(s("socialLogin", "/settings/social-login", "menu.socialLogin", "pi pi-key", Permission.SITE_READ)),
+                    leaf(s("mailSettings", "/settings/mail", "menu.mailSettings", "pi pi-envelope", Permission.SITE_READ)),
                     leaf(s("teams", "/settings/teams", "menu.teams", "pi pi-sitemap", Permission.TEAM_READ))),
             section(SETTINGS, "menu.notifications", "pi pi-bell",
                     leaf(s("notifications", "/settings/notifications", "menu.notificationEvents", "pi pi-bell", Permission.NOTIFICATION_READ)),

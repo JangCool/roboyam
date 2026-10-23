@@ -130,7 +130,7 @@ export default class UtilAdminMenu {
                 { key: 'pointPolicy', to: '/points/policy', icon: 'pi pi-percentage', labelKey: 'menu.pointPolicy', permission: 'point.read' },
             ],
         },
-        // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」·「알림」(알림 이벤트 관리)·「알림 도구」·「조직 구성」이 있고 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다
+        // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」·「소셜 로그인」·「메일 서버」·「조직 구성」이 있고(「알림」·「알림 도구」는 다음 묶음) 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다
         {
             key: 'settingsSystem',
             mode: 'settings',
@@ -138,6 +138,9 @@ export default class UtilAdminMenu {
             labelKey: 'menu.system',
             items: [
                 { key: 'siteGeneral', to: '/settings/general', icon: 'pi pi-sliders-h', labelKey: 'menu.general', permission: 'site.read' },
+                // 소셜 로그인 설정(카카오·네이버·구글 키) · 메일 서버 설정 — 조회는 `site.read`, 저장·삭제·시험 발송은 화면 안에서 `site.secret`
+                { key: 'socialLogin', to: '/settings/social-login', icon: 'pi pi-key', labelKey: 'menu.socialLogin', permission: 'site.read' },
+                { key: 'mailSettings', to: '/settings/mail', icon: 'pi pi-envelope', labelKey: 'menu.mailSettings', permission: 'site.read' },
                 // 조직 구성 — 운영자를 팀으로 묶는다(알림 이벤트의 「추가 수신 팀」으로 쓴다)
                 { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
             ],

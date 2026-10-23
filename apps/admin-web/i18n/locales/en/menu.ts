@@ -7,6 +7,8 @@ export default {
     dashboard: 'Dashboard',
     system: 'System',
     general: 'General',
+    socialLogin: 'Social login',
+    mailSettings: 'Mail server',
     notifications: 'Notifications',
     notificationEvents: 'Events',
     notificationChannels: 'Notification tools',

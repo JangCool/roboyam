@@ -59,3 +59,14 @@
 ## 미확정
 - 시험 발송의 받는 주소를 운영자 본인 이메일로 기본 채울지(화면 결정, 서버는 아무 주소나 받는다).
 - 메일 서버 주소의 내부망 제한(알림 도구의 `OutboundTargetGuard` 같은)은 두지 않았다 — 설치 마법사와 같고, `site.secret` 가진 운영자만 바꾼다.
+
+## 프론트 결과 (2026-10-23)
+- **화면** admin-web `/settings/mail`(메뉴 설정 › 시스템 › 「메일 서버」, `site.read`) — 하모니카3 방식: 「메일 서버」 구획 하나(서버 주소·포트·보안 방식(SelectButton, 바꾸면 기본 포트 따라감)·사용자 이름·비밀번호(「입력됨」)·보내는 사람 이메일·**보내는 이름·제목 머리말**) + 구획 맨 아래 [시험 발송] · [되돌리기]·[저장], 그리고 「설정 이력」 구획(소셜과 같은 `SettingHistoryTable`).
+- **보내는 이름·제목 머리말**: 계약 확정분(shared V55, 다른 세션이 서버 구현 중)을 화면에 먼저 넣었다 — 응답에 칸이 없으면 null 로 다루고, `PUT` 에는 빈 값이면 null 로 보낸다. 사전 검사 1~50자·1~30자·줄바꿈 금지, `fields.senderName|subjectPrefix` 는 칸 아래. 서버가 합쳐지기 전 확인 환경에서는 저장해도 값이 돌아오지 않아 빈 칸으로 되돌아간다(서버 반영 뒤 최종 확인 필요).
+- **비밀번호 안내**: 사용자 이름·서버 주소(대소문자 무시)·보안 방식을 바꾸며 비밀번호를 비우면 칸에 바로 「다시 입력해 주세요」를 보이고 저장을 막는다(서버 `sameTarget` 과 같은 규칙, `utils/util-mail-settings.ts`). 사용자 이름을 비우면 「비밀번호도 지워져요」 안내. 암호화 키가 없으면 상단 경고 + 비밀번호 칸 잠금.
+- **설정 없음**(`configured=false`): 「아직 메일 서버가 없어요」 + 빈 폼(STARTTLS·587). 시험 발송은 저장된 설정이 있고 고친 값이 없을 때만(옆에 까닭).
+- **시험 발송**: 대화상자 `{to}` — 기본값은 로그인한 운영자 이메일(`me.user.email`, 없으면 빈 칸). 결과는 대화상자 안(성공 / 실패는 `reason` 코드별 `mail.reason*` 문구, 모르는 코드는 서버 `detail`). `fields.to` 는 칸 아래, 429 `MAIL_TEST_RATE_LIMITED` 는 `retryAfterSeconds` 와 함께 한 줄.
+- **읽기 전용** `site.secret` 없으면 입력 readonly, 저장 줄·시험 단추 없음.
+- **코드** API `composables/mail/api/useMailSettingsApi.ts`, 규칙·문구 `utils/util-mail-settings.ts`·`util-mail-settings-messages.ts`, 문구 `i18n/locales/{ko,en}/mail.ts`, 이력 칸 이름 `settingHistory.field.host|port|security|username|password|fromAddress|senderName|subjectPrefix`.
+- **검증** 일회용 환경: 설치 API 로 메일(Mailpit·사용자 이름+비밀번호) 넣고 설치 → 화면에 그대로·이력 첫 줄 「설치」. 시험 발송 성공(Mailpit 수신), 서버 주소만 바꿈 → 비밀번호 다시 입력 안내·저장 막힘(서버도 같은 400 확인), 서버 칸 오류 표시(`fields.security` 를 요청 가로채기로 유도), 사용자 이름 비우고 저장 → 이력 「사용자 이름 → (없음) · 비밀번호 입력함 → 지움」, 포트 1 로 저장 후 시험 → 「연결하지 못했어요」, 연속 시험 → 429 남은 초, 받는 주소 형식 오류. `site.read` 만 가진 운영자 읽기 전용, 설정 행이 없을 때 빈 폼 안내.
+- **미확정**: 시험 발송의 연결 실패는 서버가 분당 한도에 세지 않는 것으로 보인다(접속 실패 5번 뒤에도 429 가 바로 나지 않았다 — 계약 「실제로 접속하는 시험만 센다」와 같음).
