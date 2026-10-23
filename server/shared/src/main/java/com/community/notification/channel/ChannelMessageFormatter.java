@@ -50,6 +50,20 @@ public final class ChannelMessageFormatter {
         return neutralize(text, type == NotificationChannelType.SLACK, BODY_MAX);
     }
 
+    /**
+     * 템플릿에 넣을 <b>변수 값</b>을 무력화한다(알림 템플릿 렌더링 엔진이 쓴다 — 멘션·마크다운이 열리지 않게). 운영자가 쓴 문구·틀의 표기는 건드리지 않고 값만 가린다.
+     *
+     * @param slack Slack 이면 true, Mattermost 면 false
+     */
+    public static String neutralizeValue(boolean slack, String raw, int max) {
+        return neutralize(raw, slack, max);
+    }
+
+    /** 링크 변수 값을 그 앱의 링크 구문 안에 넣을 수 있게 — 구문을 깨는 글자만 인코딩한다(서버가 조립한 주소 · 무력화하면 주소가 깨진다) */
+    public static String linkValue(boolean slack, String url) {
+        return url == null ? "" : slack ? slackUrl(url) : markdownUrl(url);
+    }
+
     private static String emoji(NotificationSeverity severity) {
         return switch (severity == null ? NotificationSeverity.INFO : severity) {
             case CRITICAL -> ":rotating_light:";

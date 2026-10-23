@@ -25,6 +25,17 @@ public class ChannelTestRateLimiter {
 
     /** 이번 시험을 센다. 한도를 넘었으면 429 */
     public void acquire(long operatorId) {
+        long retry = tryAcquire(operatorId);
+        if (retry > 0) {
+            throw new NotificationChannelTestRateLimitedException(retry);
+        }
+    }
+
+    /**
+     * 이번 시험을 센다 — 한도 안이면 0, 넘었으면 다시 시도할 수 있기까지의 초(세지 않는다). 알림 문구의 Slack·Mattermost 시험 게시도 같은 한도를 쓴다
+     * (같은 운영자의 연결 시험과 문구 시험을 합쳐 센다 — 둘 다 외부로 실제 요청을 보낸다).
+     */
+    public long tryAcquire(long operatorId) {
         long now = System.currentTimeMillis();
         ArrayDeque<Long> window = attempts.computeIfAbsent(operatorId, key -> new ArrayDeque<>());
         synchronized (window) {
@@ -32,8 +43,7 @@ public class ChannelTestRateLimiter {
                 window.pollFirst();
             }
             if (window.size() >= perMinute) {
-                long retry = Math.max(1, (WINDOW_MILLIS - (now - window.peekFirst()) + 999) / 1000);
-                throw new NotificationChannelTestRateLimitedException(retry);
+                return Math.max(1, (WINDOW_MILLIS - (now - window.peekFirst()) + 999) / 1000);
             }
             window.addLast(now);
         }
@@ -44,5 +54,6 @@ public class ChannelTestRateLimiter {
                 }
             });
         }
+        return 0;
     }
 }

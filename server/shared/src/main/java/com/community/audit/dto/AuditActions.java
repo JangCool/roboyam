@@ -65,6 +65,18 @@ public final class AuditActions {
     public static final String NOTIFICATION_CHANNEL_DELETE = "NOTIFICATION_CHANNEL_DELETE";
     public static final String NOTIFICATION_CHANNEL_TOGGLE = "NOTIFICATION_CHANNEL_TOGGLE";
     public static final String NOTIFICATION_CHANNEL_TEST = "NOTIFICATION_CHANNEL_TEST";
+    /** 알림 문구(대상 × 채널 × 언어) 만들기·고치기·지우기 — 바뀐 칸 이름만 */
+    public static final String NOTIFICATION_MESSAGE_CREATE = "NOTIFICATION_MESSAGE_CREATE";
+    public static final String NOTIFICATION_MESSAGE_UPDATE = "NOTIFICATION_MESSAGE_UPDATE";
+    public static final String NOTIFICATION_MESSAGE_DELETE = "NOTIFICATION_MESSAGE_DELETE";
+    /** 대상의 채널별 「쓸 문구」·특수 상황 규칙 저장 */
+    public static final String NOTIFICATION_MESSAGE_TARGET_UPDATE = "NOTIFICATION_MESSAGE_TARGET_UPDATE";
+    /** 문구 시험 발송(이메일)·시험 게시(Slack·Mattermost) — 받는 주소는 남기지 않는다 */
+    public static final String NOTIFICATION_MESSAGE_TEST = "NOTIFICATION_MESSAGE_TEST";
+    /** 알림 템플릿(메일·Slack·Mattermost) 만들기·고치기·지우기 — 바뀐 칸 이름만 */
+    public static final String NOTIFICATION_TEMPLATE_CREATE = "NOTIFICATION_TEMPLATE_CREATE";
+    public static final String NOTIFICATION_TEMPLATE_UPDATE = "NOTIFICATION_TEMPLATE_UPDATE";
+    public static final String NOTIFICATION_TEMPLATE_DELETE = "NOTIFICATION_TEMPLATE_DELETE";
     /** 게시판 기본 설정(일반·신고 정책·보안·알림 화면) 저장 — 바뀐 칸만 */
     public static final String BOARD_DEFAULTS_UPDATE = "BOARD_DEFAULTS_UPDATE";
     public static final String BOARD_CREATE = "BOARD_CREATE";
