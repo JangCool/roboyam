@@ -1,6 +1,6 @@
 <template>
     <!--
-        시험 메일 보내기 대화상자 — 메일 서버 설정(`/settings/mail`)과 알림 템플릿 편집의 이메일(`/settings/notification-templates/templates/[id]`)의 「시험 발송」이 같은 모양으로 쓴다.
+        시험 메일 보내기 대화상자 — 메일 서버 설정(`/settings/mail`)과 문구 편집의 이메일(`/settings/notification-messages/[id]`)의 「시험 발송」이 같은 모양으로 쓴다.
         받는 주소 한 칸 + 결과(성공 · 실패 까닭) + 칸에 붙지 않는 오류 한 줄. 보내기는 부르는 쪽이 한다(`send` 이벤트) — 여기는 서버를 부르지 않는다.
     -->
     <Dialog v-model:visible="open" modal :header="t('mail.testTitle')" class="w-[28rem] max-w-[calc(100vw-2rem)]">

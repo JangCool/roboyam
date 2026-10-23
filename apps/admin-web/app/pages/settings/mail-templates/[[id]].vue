@@ -1,18 +1,22 @@
 <template>
     <!--
-        옛 주소(`/settings/mail-templates[/{id}]` — 개정 3 에서 알림 템플릿으로 옮겼다) — 화면이 없고 `/settings/notification-templates/templates[/{id}]` 로 보낸다.
-        옛 거르기 `?kind=` 는 새 `?target=` 으로 바꾸고(필수 안내 메일·이벤트 코드가 같다), 이메일 템플릿만 있던 화면이라 `?channel=EMAIL` 을 붙인다. 나머지 쿼리는 그대로.
+        옛 주소(`/settings/mail-templates[/{id}]` — 개정 전 메일 템플릿 화면, 개정 4 의 「문구」) — 화면이 없고 문구 화면으로 바로 보낸다.
+        목록은 이메일 문구만 있던 화면이라 `?channel=EMAIL` 을 붙여 운영자 문구(회원 이메일 인증 `?kind=MEMBER_EMAIL_VERIFY`·`?audience=MEMBER` 면 회원 문구)로, 하나는 `/settings/notification-messages/{id}`.
+        쿼리: `kind=` → `target=`, `layout=` → `template=`(그 밖은 그대로 — `UtilNotificationTemplateMessages.legacyMessageQuery`).
     -->
     <div />
 </template>
 
 <script setup lang="ts">
+import UtilNotificationTemplateMessages from '~/utils/util-notification-template-messages';
+
 definePageMeta({
     middleware: (to) => {
         const id = typeof to.params.id === 'string' ? to.params.id : '';
-        const { kind, ...rest } = to.query;
-        const query = { ...rest, ...(kind ? { target: kind } : {}), ...(id && id !== 'new' ? {} : { channel: 'EMAIL' }) };
-        return navigateTo({ path: `/settings/notification-templates/templates${id ? `/${encodeURIComponent(id)}` : ''}`, query }, { replace: true });
+        const { audience, ...query } = UtilNotificationTemplateMessages.legacyMessageQuery(to.query);
+        if (id) return navigateTo({ path: UtilNotificationTemplateMessages.messagePath(id), query: id === 'new' ? { ...query, channel: 'EMAIL', ...(audience ? { audience } : {}) } : query }, { replace: true });
+        const member = audience === 'MEMBER' || query.target === 'MEMBER_EMAIL_VERIFY';
+        return navigateTo({ path: UtilNotificationTemplateMessages.messageListPath(member ? 'MEMBER' : 'OPERATOR'), query: { ...query, channel: 'EMAIL' } }, { replace: true });
     },
 });
 </script>

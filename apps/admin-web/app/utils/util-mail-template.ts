@@ -1,9 +1,9 @@
-import type { MailLayoutAudience, MailLayoutColor, MailLayoutSaveRequest } from '~/composables/template/api/useMailLayoutApi.types';
-import type { TemplateAudience, TemplateLocale, TemplateVariableView } from '~/composables/template/api/useNotificationTemplateApi.types';
+import type { MailTemplateAudience, MailTemplateColor, MailTemplateSaveRequest } from '~/composables/template/api/useMailTemplateApi.types';
+import type { MessageAudience, MessageLocale, MessageVariableView } from '~/composables/template/api/useNotificationMessageApi.types';
 
 /**
- * 메일 템플릿·레이아웃의 순수 규칙 — 변수(`{{이름}}`) 찾기, 「버튼」 블록 나누기·합치기, 저장 전 검사(템플릿·레이아웃), 미리보기 그리기(목업 서버가 쓴다).
- * 계약: `docs/features/message-template-contract.md` 「변수」·「개정」·「개정 2」(받는 사람별 공통 변수 — 회원 `siteUrl` · 운영자 `adminUrl`). 서버 단계에서 같은 규칙을 서버(가칭 `MailTemplateValidator`·`MailLayoutValidator`·`MailTemplateRenderer`)가 다시 본다 —
+ * 이메일 문구와 메일 템플릿(겉모양 틀 — 개정 3 까지의 「메일 레이아웃」)의 순수 규칙 — 변수(`{{이름}}`) 찾기, 「버튼」 블록 나누기·합치기, 저장 전 검사(문구·메일 템플릿), 미리보기 그리기(목업 서버가 쓴다).
+ * 계약: `docs/features/message-template-contract.md` 「변수」·「개정」·「개정 2」·「개정 4」(받는 사람별 공통 변수 — 회원 `siteUrl` · 운영자 `adminUrl`). 서버 단계에서 같은 규칙을 서버(가칭 `MailMessageValidator`·`MailTemplateValidator`·`MailRenderer`)가 다시 본다 —
  * 화면 검사는 미리 알려 주는 용도이고 판정은 서버다(`forms.md`). 길이 상한은 계약 「미확정」 3 이라 가정 값이다.
  *
  * 버튼 블록 저장 모양(목업 가정): `<p data-mail-button=""><a href="{{링크 변수}}">글자</a></p>` 하나. 에디터 안에서는 그 자리에 `{{button}}` 한 줄로 보이고,
@@ -11,12 +11,12 @@ import type { TemplateAudience, TemplateLocale, TemplateVariableView } from '~/c
  */
 
 /** 검사할 칸 — 서버 `fields.*` 와 같은 이름. `button` 은 화면 전용(서버는 `bodyHtml` 로 준다) */
-export type MailTemplateField = 'name' | 'subject' | 'bodyHtml' | 'button';
+export type MailMessageField = 'name' | 'subject' | 'bodyHtml' | 'button';
 
-/** 레이아웃의 검사할 칸 — 서버 `fields.*` 와 같은 이름(`audience` 는 서버만 본다 — 쓰는 템플릿과 맞는가) */
-export type MailLayoutField = 'name' | 'audience' | 'footer.ko' | 'footer.en' | 'frames.ko' | 'frames.en';
+/** 메일 템플릿의 검사할 칸 — 서버 `fields.*` 와 같은 이름(`audience` 는 서버만 본다 — 쓰는 문구와 맞는가) */
+export type MailTemplateField = 'name' | 'audience' | 'footer.ko' | 'footer.en' | 'frames.ko' | 'frames.en';
 
-export type MailTemplateProblemCode =
+export type ContentProblemCode =
     | 'REQUIRED'
     | 'TOO_LONG'
     | 'MULTI_LINE'
@@ -29,18 +29,18 @@ export type MailTemplateProblemCode =
     | 'CONTENT_MISSING'
     | 'CONTENT_MANY';
 
-export interface MailTemplateProblem {
-    code: MailTemplateProblemCode;
+export interface ContentProblem {
+    code: ContentProblemCode;
     /** 문제의 변수 이름(모르는 변수 · 다른 받는 사람의 변수 · 빠진 필수 변수) */
     names?: string[];
     /** `AUDIENCE_VARIABLE` — 그 변수를 쓸 수 있는 받는 사람 */
-    audience?: TemplateAudience;
+    audience?: MessageAudience;
     /** 길이 상한 */
     max?: number;
 }
 
-export type MailTemplateProblems = Partial<Record<MailTemplateField, MailTemplateProblem>>;
-export type MailLayoutProblems = Partial<Record<MailLayoutField, MailTemplateProblem>>;
+export type MailMessageProblems = Partial<Record<MailMessageField, ContentProblem>>;
+export type ContentProblems = Partial<Record<MailTemplateField, ContentProblem>>;
 
 /** 에디터에서 보이는 버튼 블록 */
 export interface MailButton {
@@ -50,36 +50,36 @@ export interface MailButton {
 }
 
 /** 검사·저장에 쓰는 편집 값 — 본문은 버튼 블록이 합쳐진 HTML */
-export interface MailTemplateDraft {
+export interface MailMessageDraft {
     name: string;
     subject: string;
     bodyHtml: string;
 }
 
-/** 검사에 필요한 종류 정보 */
-export interface MailTemplateRules {
+/** 검사에 필요한 대상 정보 */
+export interface MailMessageRules {
     /** 받는 사람 — 다른 받는 사람의 공통 변수를 쓰면 「이 메일에서는 쓸 수 없는 변수」로 따로 알린다 */
-    audience: TemplateAudience;
+    audience: MessageAudience;
     security: boolean;
-    variables: TemplateVariableView[];
+    variables: MessageVariableView[];
 }
 
-/** 그리기에 쓰는 레이아웃 값(이름·쓰는 대상은 필요 없다 — 변수 견본 값은 `variables` 로 따로 준다) */
-export type MailRenderLayout = Omit<MailLayoutSaveRequest, 'name' | 'audience'>;
+/** 그리기에 쓰는 메일 템플릿 값(이름·쓰는 대상은 필요 없다 — 변수 견본 값은 `variables` 로 따로 준다) */
+export type MailRenderTemplate = Omit<MailTemplateSaveRequest, 'name' | 'audience'>;
 
 /** 미리보기 그리기 입력(목업 서버의 `preview`·`test`) */
 export interface MailRenderInput {
-    locale: TemplateLocale;
+    locale: MessageLocale;
     subject: string;
     bodyHtml: string;
-    variables: TemplateVariableView[];
-    layout: MailRenderLayout;
+    variables: MessageVariableView[];
+    template: MailRenderTemplate;
     siteName: string;
     logoUrl: string | null;
 }
 
 /** 머리말 띠 색 팔레트 — 메일 앱은 CSS 변수를 못 읽으므로 실제 색 값이다(화면의 견본 점도 같은 값). 흰 글씨가 잘 읽히는 진한 색만 둔다 */
-const HEADER_COLORS: Record<MailLayoutColor, string> = {
+const HEADER_COLORS: Record<MailTemplateColor, string> = {
     BLUE: '#1c5fcf',
     INDIGO: '#4f46e5',
     TEAL: '#0f766e',
@@ -91,10 +91,10 @@ const HEADER_COLORS: Record<MailLayoutColor, string> = {
 };
 
 /**
- * 받는 사람마다 따로 있는 공통 변수(계약 「개정 2」 변수 차이 — 서버의 종류 정의 `audience` 가 정한다). `siteName`·`recipientName` 은 둘 다 쓴다.
+ * 받는 사람마다 따로 있는 공통 변수(계약 「개정 2」 변수 차이 — 서버의 대상 정의 `audience` 가 정한다). `siteName`·`recipientName` 은 둘 다 쓴다.
  * 화면은 「다른 받는 사람의 변수」를 모르는 변수와 갈라 알리는 데만 쓴다(쓸 수 있는 변수 목록은 서버가 준다).
  */
-const AUDIENCE_VARIABLES: Record<TemplateAudience, readonly string[]> = { MEMBER: ['siteUrl'], OPERATOR: ['adminUrl'] };
+const AUDIENCE_VARIABLES: Record<MessageAudience, readonly string[]> = { MEMBER: ['siteUrl'], OPERATOR: ['adminUrl'] };
 
 const VAR_RE = /\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}/g;
 const BUTTON_BLOCK_RE = /<p data-mail-button(?:="[^"]*")?>\s*<a href="\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}"[^>]*>([\s\S]*?)<\/a>\s*<\/p>/;
@@ -132,30 +132,30 @@ export default class UtilMailTemplate {
     static readonly BUTTON_LABEL_MAX = 40;
     /** 버튼 자리 표시 변수(에디터 안에서만) */
     static readonly BUTTON = 'button';
-    /** 레이아웃의 본문 자리 */
+    /** 메일 템플릿의 본문 자리 */
     static readonly CONTENT = 'content';
-    /** 레이아웃 꼬리말 상한(가정 — 언어마다) */
+    /** 메일 템플릿 꼬리말 상한(가정 — 언어마다) */
     static readonly FOOTER_MAX = 500;
     /** 머리말 띠 색 팔레트의 차례 */
-    static readonly HEADER_COLORS: readonly MailLayoutColor[] = Object.keys(HEADER_COLORS) as MailLayoutColor[];
+    static readonly HEADER_COLORS: readonly MailTemplateColor[] = Object.keys(HEADER_COLORS) as MailTemplateColor[];
 
     /**
-     * 템플릿(받는 사람)이 이 레이아웃을 쓸 수 있는가 — 쓰는 대상이 같거나 `ANY`.
-     * @param layout - 레이아웃의 쓰는 대상.
-     * @param audience - 템플릿(종류)의 받는 사람.
+     * 이메일 문구(받는 사람)가 이 메일 템플릿을 쓸 수 있는가 — 쓰는 대상이 같거나 `ANY`.
+     * @param layout - 메일 템플릿의 쓰는 대상.
+     * @param audience - 문구(대상)의 받는 사람.
      * @returns 쓸 수 있으면 true.
      */
-    static layoutFits(layout: MailLayoutAudience, audience: TemplateAudience): boolean {
+    static templateFits(layout: MailTemplateAudience, audience: MessageAudience): boolean {
         return layout === 'ANY' || layout === audience;
     }
 
     /**
      * 모르는 변수의 문제 — 다른 받는 사람의 공통 변수(운영자 메일의 `siteUrl` …)가 섞였으면 그것을 따로 알린다.
      * @param unknown - 쓸 수 없는 변수 이름들(비어 있지 않다).
-     * @param audience - 이 글의 받는 사람(레이아웃은 `ANY` 일 수 있다).
+     * @param audience - 이 글의 받는 사람(메일 템플릿은 `ANY` 일 수 있다).
      * @returns 문제.
      */
-    static unknownProblem(unknown: readonly string[], audience: MailLayoutAudience): MailTemplateProblem {
+    static unknownProblem(unknown: readonly string[], audience: MailTemplateAudience): ContentProblem {
         for (const owner of ['MEMBER', 'OPERATOR'] as const) {
             if (owner === audience) continue;
             const names = unknown.filter((name) => AUDIENCE_VARIABLES[owner].includes(name));
@@ -233,11 +233,11 @@ export default class UtilMailTemplate {
     /**
      * 저장 전 검사 — 서버 규칙(계약 「변수」)과 같다: 모르는 변수 · 보안 메일의 필수 변수 없음 · 길이 · 제목 한 줄 · 버튼 하나까지(링크 변수만).
      * @param draft - 편집 값(본문은 버튼이 합쳐진 HTML).
-     * @param rules - 종류의 보안 여부와 변수 목록.
+     * @param rules - 대상의 보안 여부와 변수 목록.
      * @returns 칸별 문제(없으면 빈 객체).
      */
-    static validate(draft: MailTemplateDraft, rules: MailTemplateRules): MailTemplateProblems {
-        const out: MailTemplateProblems = {};
+    static validateMessage(draft: MailMessageDraft, rules: MailMessageRules): MailMessageProblems {
+        const out: MailMessageProblems = {};
         const known = new Set(rules.variables.map((v) => v.name));
         const name = draft.name.trim();
         if (!name) out.name = { code: 'REQUIRED' };
@@ -277,13 +277,13 @@ export default class UtilMailTemplate {
     }
 
     /**
-     * 레이아웃 틀 검사 — `{{content}}` 가 꼭 한 번, 모르는 변수 없음.
+     * 메일 템플릿 틀 검사 — `{{content}}` 가 꼭 한 번, 모르는 변수 없음.
      * @param frame - 틀 HTML.
      * @param known - 쓸 수 있는 변수 이름(쓰는 대상의 공통 변수).
-     * @param audience - 레이아웃의 쓰는 대상(다른 받는 사람의 변수를 갈라 알린다).
+     * @param audience - 메일 템플릿의 쓰는 대상(다른 받는 사람의 변수를 갈라 알린다).
      * @returns 문제(없으면 null).
      */
-    static validateFrame(frame: string, known: readonly string[], audience: MailLayoutAudience): MailTemplateProblem | null {
+    static validateFrame(frame: string, known: readonly string[], audience: MailTemplateAudience): ContentProblem | null {
         const count = (frame.match(CONTENT_RE) ?? []).length;
         if (count === 0) return { code: 'CONTENT_MISSING' };
         if (count > 1) return { code: 'CONTENT_MANY' };
@@ -293,27 +293,27 @@ export default class UtilMailTemplate {
     }
 
     /**
-     * 레이아웃 꼬리말 검사 — 평문, 길이, 모르는 변수 없음(`{{content}}` 도 쓸 수 없다). 비어도 된다.
+     * 메일 템플릿 꼬리말 검사 — 평문, 길이, 모르는 변수 없음(`{{content}}` 도 쓸 수 없다). 비어도 된다.
      * @param footer - 꼬리말 글.
      * @param known - 쓸 수 있는 변수 이름(쓰는 대상의 공통 변수).
-     * @param audience - 레이아웃의 쓰는 대상.
+     * @param audience - 메일 템플릿의 쓰는 대상.
      * @returns 문제(없으면 null).
      */
-    static validateFooter(footer: string, known: readonly string[], audience: MailLayoutAudience): MailTemplateProblem | null {
+    static validateFooter(footer: string, known: readonly string[], audience: MailTemplateAudience): ContentProblem | null {
         if (footer.length > UtilMailTemplate.FOOTER_MAX) return { code: 'TOO_LONG', max: UtilMailTemplate.FOOTER_MAX };
         const unknown = UtilMailTemplate.variablesIn(footer).filter((v) => !known.includes(v));
         return unknown.length ? UtilMailTemplate.unknownProblem(unknown, audience) : null;
     }
 
     /**
-     * 레이아웃 저장 전 검사 — 서버 규칙과 같다: 이름(필수·50자) · 언어별 꼬리말 · 언어별 틀(`{{content}}` 한 번). 변수는 쓰는 대상(`draft.audience`)의 공통 변수만.
-     * 쓰는 대상이 쓰는 템플릿과 맞는가(`fields.audience`)는 서버가 본다 — 화면은 맞지 않는 대상을 고르지 못하게 막는다.
+     * 메일 템플릿 저장 전 검사 — 서버 규칙과 같다: 이름(필수·50자) · 언어별 꼬리말 · 언어별 틀(`{{content}}` 한 번). 변수는 쓰는 대상(`draft.audience`)의 공통 변수만.
+     * 쓰는 대상이 쓰는 문구와 맞는가(`fields.audience`)는 서버가 본다 — 화면은 맞지 않는 대상을 고르지 못하게 막는다.
      * @param draft - 편집 값.
      * @param known - 쓸 수 있는 변수 이름(쓰는 대상의 공통 변수 — `content` 빼고).
      * @returns 칸별 문제(없으면 빈 객체).
      */
-    static validateLayout(draft: MailLayoutSaveRequest, known: readonly string[]): MailLayoutProblems {
-        const out: MailLayoutProblems = {};
+    static validateTemplate(draft: MailTemplateSaveRequest, known: readonly string[]): ContentProblems {
+        const out: ContentProblems = {};
         const name = draft.name.trim();
         if (!name) out.name = { code: 'REQUIRED' };
         else if (name.length > UtilMailTemplate.NAME_MAX) out.name = { code: 'TOO_LONG', max: UtilMailTemplate.NAME_MAX };
@@ -331,7 +331,7 @@ export default class UtilMailTemplate {
      * @param color - 팔레트 색(없으면 null).
      * @returns `#rrggbb`(없으면 null).
      */
-    static colorHex(color: MailLayoutColor | null): string | null {
+    static colorHex(color: MailTemplateColor | null): string | null {
         return color ? HEADER_COLORS[color] : null;
     }
 
@@ -359,9 +359,9 @@ export default class UtilMailTemplate {
     }
 
     /**
-     * 견본 값을 채우고 레이아웃을 씌운 미리보기 — 목업 서버(`preview`·`test`)가 쓴다. 값은 HTML 로 가린다. 모르는 변수는 그대로 둔다.
+     * 견본 값을 채우고 메일 템플릿을 씌운 미리보기 — 목업 서버(`preview`·`test`)가 쓴다. 값은 HTML 로 가린다. 모르는 변수는 그대로 둔다.
      * 결과 HTML 은 문서 전체라 화면은 `iframe srcdoc`(sandbox)으로만 보인다.
-     * @param input - 제목·본문·변수·레이아웃.
+     * @param input - 제목·본문·변수·메일 템플릿.
      * @returns 제목(사이트 이름 머리말 포함)과 문서 HTML.
      */
     static render(input: MailRenderInput): { subject: string; html: string } {
@@ -381,12 +381,12 @@ export default class UtilMailTemplate {
         });
         body = UtilMailTemplate.styled(fill(body, true), STYLE.p);
 
-        const frame = input.layout.frames[input.locale] ?? '';
+        const frame = input.template.frames[input.locale] ?? '';
         const [beforeRaw, afterRaw] = UtilMailTemplate.splitFrame(frame);
         const before = UtilMailTemplate.styled(fill(beforeRaw, true), STYLE.p);
         const after = UtilMailTemplate.styled(fill(afterRaw, true), STYLE.p);
         // 꼬리말은 평문 — 줄마다 값을 채운 뒤 통째로 가린다(줄바꿈은 문단으로)
-        const footerText = (input.layout.footer[input.locale] ?? '').trim();
+        const footerText = (input.template.footer[input.locale] ?? '').trim();
         const footer = footerText
             ? footerText
                   .split(/\r?\n/)
@@ -394,9 +394,9 @@ export default class UtilMailTemplate {
                   .join('')
             : '';
 
-        const band = UtilMailTemplate.colorHex(input.layout.headerColor);
-        const logo = input.layout.showLogo && input.logoUrl ? `<img src="${UtilMailTemplate.escape(input.logoUrl)}" alt="${UtilMailTemplate.escape(input.siteName)}" style="${STYLE.logo}">` : '';
-        const brand = input.layout.showSiteName ? `<p style="${band ? STYLE.bandBrand : STYLE.brand}">${UtilMailTemplate.escape(input.siteName)}</p>` : '';
+        const band = UtilMailTemplate.colorHex(input.template.headerColor);
+        const logo = input.template.showLogo && input.logoUrl ? `<img src="${UtilMailTemplate.escape(input.logoUrl)}" alt="${UtilMailTemplate.escape(input.siteName)}" style="${STYLE.logo}">` : '';
+        const brand = input.template.showSiteName ? `<p style="${band ? STYLE.bandBrand : STYLE.brand}">${UtilMailTemplate.escape(input.siteName)}</p>` : '';
         let head = logo + brand;
         // 띠 색이 있으면 머리말(로고·사이트 이름)을 띠 안에 흰 글씨로 — 머리말이 비었으면 얇은 띠만
         if (band) head = head ? `<div style="${STYLE.band};background:${band}">${head}</div>` : `<div style="${STYLE.bandStrip};background:${band}"></div>`;

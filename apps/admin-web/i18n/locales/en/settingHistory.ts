@@ -41,10 +41,10 @@ export default {
         fromAddress: 'From address',
         senderName: 'Sender name',
         subjectPrefix: 'Subject prefix',
-        // Mail template and layout history (mock — the server will send the same labelKey)
+        // Notification message and template (mail, Slack, Mattermost) history (mock — the server will send the same labelKey)
         name: 'Name',
         locale: 'Language',
-        layoutId: 'Layout',
+        templateId: 'Template',
         audience: 'Used for',
         subject: 'Subject',
         body: 'Body',
@@ -55,5 +55,14 @@ export default {
         footerEn: 'Footer (English)',
         frameKo: 'Frame (Korean)',
         frameEn: 'Frame (English)',
+        showSeverityIcon: 'Show severity icon',
+        boldTitle: 'Bold title',
+        colorInfo: 'Color bar (info)',
+        colorWarning: 'Color bar (warning)',
+        colorCritical: 'Color bar (critical)',
+        showSentAt: 'Show time sent',
+        showOpenButton: 'Show "Open" button',
+        openLabelKo: 'Button text (Korean)',
+        openLabelEn: 'Button text (English)',
     },
 };

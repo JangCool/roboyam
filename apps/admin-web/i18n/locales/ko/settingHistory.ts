@@ -42,10 +42,10 @@ export default {
         fromAddress: '보내는 사람 이메일',
         senderName: '보내는 이름',
         subjectPrefix: '제목 머리말',
-        // 알림 템플릿·메일 레이아웃 변경 이력(목업 — 서버 단계에서 같은 labelKey 를 준다)
+        // 알림 문구·템플릿(메일·Slack·Mattermost) 변경 이력(목업 — 서버 단계에서 같은 labelKey 를 준다)
         name: '이름',
         locale: '언어',
-        layoutId: '레이아웃',
+        templateId: '템플릿',
         audience: '쓰는 대상',
         subject: '제목',
         body: '본문',
@@ -56,5 +56,14 @@ export default {
         footerEn: '꼬리말(영어)',
         frameKo: '틀(한국어)',
         frameEn: '틀(영어)',
+        showSeverityIcon: '심각도 그림 보이기',
+        boldTitle: '제목 굵게',
+        colorInfo: '색 막대(안내)',
+        colorWarning: '색 막대(주의)',
+        colorCritical: '색 막대(긴급)',
+        showSentAt: '보낸 시각 보이기',
+        showOpenButton: '「열기」 버튼 보이기',
+        openLabelKo: '버튼 글자(한국어)',
+        openLabelEn: '버튼 글자(영어)',
     },
 };

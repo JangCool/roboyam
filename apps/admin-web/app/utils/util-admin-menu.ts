@@ -13,7 +13,7 @@
  *  · 화면 항목(`AdminMenuItem`): 주소(`to`)가 있는 갈 수 있는 항목.
  *  · 하위 항목(`children`): 화면 항목이 하위 화면 항목을 거느릴 수 있다(예: 역할 관리 › 회원 역할). 부모 항목은 눌러도 이동하지 않고 펼치고 접는다 — `to` 는 하위 주소들의 공통 앞부분(`/settings/roles`)이라
  *    하위 주소에 있으면 부모도 활성이 된다(부모 자체의 화면은 없다). 권한·모드·활성·열기 판정은 하위 항목까지 재귀로 본다(하위가 모두 숨겨지면 부모도 숨는다).
- *    어느 하위에도 속하지 않는 부모 아래 주소(하위 둘이 같이 쓰는 편집 화면 — 알림 템플릿 `templates/{id}`)는 부모만 활성이고, 권한·모드도 부모의 것으로 본다.
+ *    어느 하위에도 속하지 않는 부모 아래 주소(하위 둘이 같이 쓰는 편집 화면 — 문구 편집 `/settings/notification-messages/{id}`)는 부모만 활성이고, 권한·모드도 부모의 것으로 본다.
  *  · 묶음(`AdminMenuGroup`): 주소가 없고 아래에 화면 항목을 거느린다. 사이드바에서는 눌리지 않는 구획 제목이 되고(레일에서는 제목 없이 항목만),
  *    상단 메뉴 줄에서는 팝업을 여는 최상위 항목이 되며, 모바일 드로어는 사이드바와 같다.
  */
@@ -131,7 +131,7 @@ export default class UtilAdminMenu {
                 { key: 'pointPolicy', to: '/points/policy', icon: 'pi pi-percentage', labelKey: 'menu.pointPolicy', permission: 'point.read' },
             ],
         },
-        // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」·「소셜 로그인」·「조직 구성」이 있고(메일 서버는 다음 「메일」 묶음, 이벤트·알림 도구·알림 템플릿은 그다음 「알림·이벤트」 묶음) 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다
+        // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」·「소셜 로그인」·「조직 구성」이 있고(메일 서버는 다음 「메일」 묶음, 알림 도구·템플릿·문구·이벤트는 그다음 「알림·이벤트」 묶음) 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다
         {
             key: 'settingsSystem',
             mode: 'settings',
@@ -145,7 +145,7 @@ export default class UtilAdminMenu {
                 { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
             ],
         },
-        // 메일 묶음 — 메일 서버만(message-template-contract 「개정 3」 — 메일 종류·템플릿·레이아웃은 알림·이벤트 묶음의 「알림 템플릿」으로 옮겼다)
+        // 메일 묶음 — 메일 서버만(message-template-contract 「개정 3」 — 메일 종류·템플릿·레이아웃은 알림·이벤트 묶음으로 옮겼다 — 개정 4 의 「템플릿 › 메일」·「문구」)
         {
             key: 'settingsMail',
             mode: 'settings',
@@ -156,9 +156,10 @@ export default class UtilAdminMenu {
                 { key: 'mailSettings', to: '/settings/mail', icon: 'pi pi-server', labelKey: 'menu.mailSettings', permission: 'site.read' },
             ],
         },
-        // 알림·이벤트 묶음(개정 3) — 알림 도구 · 알림 템플릿(부모: 운영자 템플릿 · 회원 템플릿 · 메일 레이아웃 · 필수 안내 메일) · 이벤트(부모: 운영자 · 회원 — 옛 「이벤트」 `/settings/notifications` 는 새 주소로 보낸다).
-        // 회원 이벤트와 알림 템플릿은 화면 목업 단계(API 목업)다. 운영자 이벤트·알림 도구는 실제 서버에 연결돼 있다.
-        // 권한 `template.read` 는 서버 `Permission` 에 아직 없어 지금은 최고 관리자에게만 알림 템플릿이 보인다. 서버 `AdminScreenRegistry` 의 키·주소(지금 `notifications` → `/settings/notifications`)는 서버 단계에서 맞춘다
+        // 알림·이벤트 묶음(개정 4 — message-template-contract) — 알림 도구 · 템플릿(부모: 메일 · Slack · Mattermost · 카카오톡 — 도구별 겉모양) · 문구(부모: 운영자 · 회원 · 필수 안내 메일 — 이벤트·채널별 제목과 본문) · 이벤트(부모: 운영자 · 회원).
+        // 옛 주소(개정 3 의 `/settings/notification-templates/templates|layouts|required-mails/**` · 그 전 `/settings/mail-*`)는 각 화면이 새 주소로 보낸다.
+        // 회원 이벤트와 템플릿·문구는 화면 목업 단계(API 목업)다. 운영자 이벤트·알림 도구는 실제 서버에 연결돼 있다.
+        // 권한 `template.read` 는 서버 `Permission` 에 아직 없어 지금은 최고 관리자에게만 템플릿·문구가 보인다. 서버 `AdminScreenRegistry` 의 키·주소(지금 `notifications` → `/settings/notifications`)는 서버 단계에서 맞춘다
         {
             key: 'settingsNotification',
             mode: 'settings',
@@ -166,19 +167,33 @@ export default class UtilAdminMenu {
             labelKey: 'menu.notifications',
             items: [
                 { key: 'notificationChannels', to: '/settings/notification-channels', icon: 'pi pi-send', labelKey: 'menu.notificationChannels', permission: 'notification.read' },
-                // 알림 템플릿은 하위 메뉴 넷을 가진 부모다(역할 관리와 같은 방식). 부모 주소(`/settings/notification-templates`)로 들어오면 운영자 템플릿으로 보낸다.
-                // 템플릿 목록은 받는 사람(운영자 · 회원 — 이벤트 메뉴와 같은 차례)마다 메뉴 하나다 — 목록 안에서 받는 사람을 고르지 않는다. 편집 화면(`templates/{id}`)은 어느 하위에도 속하지 않아 부모만 활성이 되고, 권한·모드도 부모의 것으로 본다(`parents`)
+                // 템플릿은 하위 메뉴 넷을 가진 부모다(역할 관리와 같은 방식). 부모 주소(`/settings/notification-templates`)로 들어오면 메일 템플릿으로 보낸다.
+                // 편집 화면(`/{유형}/{id}`)은 그 유형의 하위 주소라 그 하위가 활성이다. 카카오톡은 준비 중(보기만) — 계약이 메뉴에 두기로 정했다
                 {
                     key: 'notificationTemplates',
                     to: '/settings/notification-templates',
-                    icon: 'pi pi-file-edit',
+                    icon: 'pi pi-palette',
                     labelKey: 'menu.notificationTemplates',
                     permission: 'template.read',
                     children: [
-                        { key: 'operatorTemplates', to: '/settings/notification-templates/templates/operator', labelKey: 'menu.operatorTemplates', permission: 'template.read' },
-                        { key: 'memberTemplates', to: '/settings/notification-templates/templates/member', labelKey: 'menu.memberTemplates', permission: 'template.read' },
-                        { key: 'mailLayouts', to: '/settings/notification-templates/layouts', labelKey: 'menu.mailLayouts', permission: 'template.read' },
-                        { key: 'requiredMails', to: '/settings/notification-templates/required-mails', labelKey: 'menu.requiredMails', permission: 'template.read' },
+                        { key: 'mailTemplates', to: '/settings/notification-templates/mail', labelKey: 'menu.mailTemplates', permission: 'template.read' },
+                        { key: 'slackTemplates', to: '/settings/notification-templates/slack', labelKey: 'menu.slackTemplates', permission: 'template.read' },
+                        { key: 'mattermostTemplates', to: '/settings/notification-templates/mattermost', labelKey: 'menu.mattermostTemplates', permission: 'template.read' },
+                        { key: 'kakaoTemplates', to: '/settings/notification-templates/kakao', labelKey: 'menu.kakaoTemplates', permission: 'template.read' },
+                    ],
+                },
+                // 문구는 하위 메뉴 셋을 가진 부모다. 부모 주소(`/settings/notification-messages`)로 들어오면 운영자 문구로 보낸다.
+                // 문구 목록은 받는 사람(운영자 · 회원 — 이벤트 메뉴와 같은 차례)마다 메뉴 하나다. 편집 화면(`/settings/notification-messages/{id}`)은 어느 하위에도 속하지 않아 부모만 활성이 되고, 권한·모드도 부모의 것으로 본다(`parents`)
+                {
+                    key: 'notificationMessages',
+                    to: '/settings/notification-messages',
+                    icon: 'pi pi-file-edit',
+                    labelKey: 'menu.notificationMessages',
+                    permission: 'template.read',
+                    children: [
+                        { key: 'operatorMessages', to: '/settings/notification-messages/operator', labelKey: 'menu.operatorMessages', permission: 'template.read' },
+                        { key: 'memberMessages', to: '/settings/notification-messages/member', labelKey: 'menu.memberMessages', permission: 'template.read' },
+                        { key: 'requiredMails', to: '/settings/notification-messages/required-mails', labelKey: 'menu.requiredMails', permission: 'template.read' },
                     ],
                 },
                 // 이벤트는 하위 메뉴 둘(운영자·회원)을 가진 부모다. 부모 주소(`/settings/notifications`)로 들어오면 운영자 이벤트로 보낸다
@@ -308,7 +323,7 @@ export default class UtilAdminMenu {
     }
 
     /**
-     * 하위를 가진 **부모** 항목들(하위까지 재귀) — 어느 하위에도 속하지 않는 부모 아래 주소(알림 템플릿 편집 `templates/{id}` — 받는 사람 메뉴 둘이 같이 쓴다)를 부모의 것으로 보는 데 쓴다.
+     * 하위를 가진 **부모** 항목들(하위까지 재귀) — 어느 하위에도 속하지 않는 부모 아래 주소(문구 편집 `/settings/notification-messages/{id}` — 받는 사람 메뉴 둘이 같이 쓴다)를 부모의 것으로 보는 데 쓴다.
      * @param {readonly AdminMenuItem[]} items - 항목들.
      * @returns {AdminMenuItem[]} 부모 항목.
      */
@@ -339,7 +354,7 @@ export default class UtilAdminMenu {
             const hit = items.find((item) => UtilAdminMenu.isActive(item, path));
             if (hit) return !hit.permission || can(hit.permission);
         }
-        // 어느 화면 항목에도 없지만 부모 아래인 주소(알림 템플릿 편집 등)는 부모의 권한으로 본다
+        // 어느 화면 항목에도 없지만 부모 아래인 주소(문구 편집 등)는 부모의 권한으로 본다
         for (const node of UtilAdminMenu.ITEMS) {
             const parents = UtilAdminMenu.parents(UtilAdminMenu.isGroup(node) ? node.items : [node]);
             const hit = parents.find((item) => UtilAdminMenu.isActive(item, path));
@@ -404,7 +419,7 @@ export default class UtilAdminMenu {
      * @returns {boolean} 하나라도 활성이면 true.
      */
     static isItemActive(item: AdminMenuItem, path: string): boolean {
-        // 부모는 하위 주소에 있을 때, 또는 어느 하위에도 속하지 않는 부모 아래 주소(알림 템플릿 편집 `templates/{id}`)에 있을 때 활성이다
+        // 부모는 하위 주소에 있을 때, 또는 어느 하위에도 속하지 않는 부모 아래 주소(문구 편집 `/settings/notification-messages/{id}`)에 있을 때 활성이다
         return UtilAdminMenu.leaves([item]).some((leaf) => UtilAdminMenu.isActive(leaf, path)) || (Boolean(item.children) && UtilAdminMenu.isActive(item, path));
     }
 }

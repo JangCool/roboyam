@@ -5,8 +5,8 @@
         영역(콘텐츠 · 회원 · 안전 …)마다 구획 한 장 + 표. 줄마다: 사용 · 앱 알림 · 이메일 · 회원이 끌 수 있는지(계정·처리 알림은 코드가 잠금) · 쓰는 템플릿 요약(채널마다 한국어 쓸 템플릿) · 「상세」(`/settings/notifications/member/[code]`).
         스위치는 바꾸면 곧바로 저장한다(운영자 이벤트와 같은 방식 — 낙관적 갱신, 거절되면 그 줄만 되돌리고 서버 문구 토스트 8초).
         맨 위 안내: 게시판 기본 설정 › 알림의 이벤트별 칸은 서버 단계에서 이 화면으로 옮긴다(그 탭은 지금 건드리지 않는다 — 링크만).
-        권한: 화면 `notification.read`(메뉴가 거른다) · 바꾸기 `notification.manage` · 쓰는 템플릿 칸은 `template.read` 가 있을 때만.
-        ⚠ MOCK: `useMemberEventApi`(스위치 `?mock=member-events-error|member-events-save-error|member-events-denied`) · `useNotificationTemplateApi`.
+        권한: 화면 `notification.read`(메뉴가 거른다) · 바꾸기 `notification.manage` · 쓰는 문구 칸은 `template.read` 가 있을 때만.
+        ⚠ MOCK: `useMemberEventApi`(스위치 `?mock=member-events-error|member-events-save-error|member-events-denied`) · `useNotificationMessageApi`.
     -->
     <div class="flex flex-col gap-4">
         <PageTitle :title="t('notification.memberEvents.title')" :subtitle="t('notification.memberEvents.subtitle')">
@@ -90,10 +90,10 @@
                         </template>
                     </Column>
 
-                    <!-- 쓰는 템플릿(목업) — `template.read` 가 없거나 못 받으면 칸을 감춘다. 준비 중 이벤트는 템플릿이 없다(「—」) -->
-                    <Column v-if="templateTargets" :header="t('notification.colTemplates')" style="min-width: 14rem">
+                    <!-- 쓰는 문구(목업) — `template.read` 가 없거나 못 받으면 칸을 감춘다. 준비 중 이벤트는 문구가 없다(「—」) -->
+                    <Column v-if="messageTargets" :header="t('notification.colMessages')" style="min-width: 14rem">
                         <template #body="{ data }">
-                            <TemplateUsageSummary :channels="templateTargets.get(data.code)?.channels ?? null" />
+                            <MessageUsageSummary :channels="messageTargets.get(data.code)?.channels ?? null" />
                         </template>
                     </Column>
 
@@ -116,7 +116,7 @@
             </AppGadget>
 
             <div class="flex flex-col gap-1">
-                <p v-if="templateTargets" class="m-0 text-xs text-muted-color">{{ t('notification.templatesNote') }}</p>
+                <p v-if="messageTargets" class="m-0 text-xs text-muted-color">{{ t('notification.messagesNote') }}</p>
                 <!-- MOCK: 「준비 중」 줄은 화면 확인용이다(서버 단계에서는 실제로 일어나는 이벤트와 서버가 준 것만 보인다) -->
                 <p v-if="hasPlanned" class="m-0 text-xs text-muted-color">{{ t('notification.memberEvents.plannedNote') }}</p>
             </div>
@@ -127,7 +127,7 @@
 <script setup lang="ts">
 import type { MemberEventUpdateRequest, MemberEventView } from '~/composables/notification/api/useMemberEventApi.types';
 import { mockTemplateCan } from '~/composables/template/api/mock/notification-template-mock';
-import type { TemplateTargetView } from '~/composables/template/api/useNotificationTemplateApi.types';
+import type { MessageTargetView } from '~/composables/template/api/useNotificationMessageApi.types';
 import UtilNotification from '~/utils/util-notification';
 import UtilNotificationMessages from '~/utils/util-notification-messages';
 
@@ -135,13 +135,13 @@ const { t } = useI18n();
 useSeoMeta({ title: () => t('notification.memberEvents.title') });
 
 const api = useMemberEventApi();
-const templateApi = useNotificationTemplateApi();
+const messageApi = useNotificationMessageApi();
 const toast = useAppToast();
 const toApiError = useApiErrorOf();
 const { can } = useAdminPermission();
 // ⚠ 통째로 받아 `prefs.density` 를 쓰지 않으면 조밀 모드가 이 표에만 안 먹는다
 const { prefs } = useLayoutPrefs();
-// MOCK: 템플릿 읽기 권한은 목업 스위치(`?mock=template-denied`)로 흉내 낸다 — 서버가 붙으면 `can` 으로 바꾼다
+// MOCK: 문구 읽기 권한은 목업 스위치(`?mock=template-denied`)로 흉내 낸다 — 서버가 붙으면 `can` 으로 바꾼다
 const templateCan = mockTemplateCan(can);
 
 const canManage = computed(() => can('notification.manage'));
@@ -167,20 +167,20 @@ function memberOffLock(event: MemberEventView): string | undefined {
     return lockOf(event) ?? (event.lockReason ? t(`notification.memberEvents.lock${event.lockReason}`) : undefined);
 }
 
-/* ── 쓰는 템플릿 요약(목업) ── */
+/* ── 쓰는 문구 요약(목업) ── */
 
-const templateTargets = ref<Map<string, TemplateTargetView> | null>(null);
+const messageTargets = ref<Map<string, MessageTargetView> | null>(null);
 
-async function loadTemplates(): Promise<void> {
+async function loadMessageTargets(): Promise<void> {
     if (!templateCan('template.read')) {
-        templateTargets.value = null;
+        messageTargets.value = null;
         return;
     }
     try {
-        const list = await templateApi.targets({ type: 'EVENT', audience: 'MEMBER' });
-        templateTargets.value = new Map(list.map((item) => [item.code, item]));
+        const list = await messageApi.targets({ type: 'EVENT', audience: 'MEMBER' });
+        messageTargets.value = new Map(list.map((item) => [item.code, item]));
     } catch {
-        templateTargets.value = null;
+        messageTargets.value = null;
     }
 }
 
@@ -189,7 +189,7 @@ async function load(): Promise<void> {
     loading.value = true;
     loadError.value = '';
     try {
-        const [list] = await Promise.all([api.list(), loadTemplates()]);
+        const [list] = await Promise.all([api.list(), loadMessageTargets()]);
         events.value = list;
     } catch (e) {
         loadError.value = toApiError(e).message;

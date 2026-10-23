@@ -110,11 +110,11 @@ export default {
     notificationManage: 'Change notification events',
     notificationManageDesc: 'Add, edit and delete notification tools, and change whether each event is on, its delivery tools and its extra recipient teams. Who receives each event by default is fixed per event and cannot be changed.',
 
-    // Site and integrations (notification templates, mail layouts and required emails screens — screen mockup candidate; the server permission comes in the server step)
-    templateRead: 'View notification templates',
-    templateReadDesc: 'See, in the Notifications & events section of the settings menu, the notification templates (in-app, email, chat), mail layouts and required emails, the templates in use and special-case rules of each event, and their change history.',
-    templateManage: 'Manage notification templates',
-    templateManageDesc: 'Create, edit and delete notification templates and mail layouts, change the templates in use and special-case rules of each event and required email, and send test emails and chat posts. Required variables of security emails cannot be removed.',
+    // Site and integrations (notification templates & messages screens — screen mockup candidate; the server permission comes in the server step)
+    templateRead: 'View notification templates & messages',
+    templateReadDesc: 'See, in the Notifications & events section of the settings menu, the templates (look of mail, Slack, Mattermost and KakaoTalk), the messages (title and body per event and channel), required emails, the messages in use and special-case rules of each event, and their change history.',
+    templateManage: 'Manage notification templates & messages',
+    templateManageDesc: 'Create, edit and delete templates and messages, change the messages in use and special-case rules of each event and required email, and send test emails and Slack or Mattermost posts. Required variables of security emails cannot be removed.',
 
     // ── Member roles (abilities of public-site members) — policy proposal, not final ──
     memberGroup: {

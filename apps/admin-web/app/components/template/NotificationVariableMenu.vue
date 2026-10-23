@@ -1,7 +1,7 @@
 <template>
     <!--
         「변수 넣기」 단추 + 변수 목록(떠 있는 메뉴) — 고르면 `pick` 으로 변수 이름을 알린다. 넣는 일(제목 칸의 커서 자리 · 에디터)은 부르는 쪽이 한다.
-        항목: `{{이름}}` · 설명 · 견본 값, 필수 변수는 「필수」, 링크 변수는 링크 아이콘. 알림 템플릿 편집 화면(이메일 제목·본문 · 채팅 본문 · 앱 알림 제목·본문)과 메일 레이아웃 편집 화면(틀·꼬리말)이 같이 쓴다.
+        항목: `{{이름}}` · 설명 · 견본 값, 필수 변수는 「필수」, 링크 변수는 링크 아이콘. 문구 편집 화면(제목·본문 — 앱 알림·이메일·Slack·Mattermost)과 메일 템플릿 편집 화면(틀·꼬리말) · Slack·Mattermost 템플릿 편집 화면(틀)이 같이 쓴다.
     -->
     <Button type="button" :label="label || t('notificationTemplate.insertVariable')" icon="pi pi-plus" size="small" severity="secondary" variant="text" :disabled="disabled || !variables.length" aria-haspopup="true" :aria-controls="menuId" @click="toggle" />
     <Menu :id="menuId" ref="menu" :model="items" popup class="max-h-80 w-80 max-w-[calc(100vw-2rem)] overflow-y-auto">
@@ -25,11 +25,11 @@
 
 <script setup lang="ts">
 import type { MenuItem } from 'primevue/menuitem';
-import type { TemplateVariableView } from '~/composables/template/api/useNotificationTemplateApi.types';
+import type { MessageVariableView } from '~/composables/template/api/useNotificationMessageApi.types';
 import UtilMailTemplate from '~/utils/util-mail-template';
 
 interface Props {
-    variables: TemplateVariableView[];
+    variables: MessageVariableView[];
     /** 단추 글자 — 없으면 「변수 넣기」 */
     label?: string;
     disabled?: boolean;
