@@ -5,8 +5,8 @@ import type { Restriction } from '~/composables/auth/api/useAuthApi.types';
 export type PointBlockedReason = 'EMAIL_NOT_VERIFIED' | 'SUSPENDED';
 
 /**
- * 포인트 표시·판정 중 셸(헤더 메뉴·햄버거)이 쓰는 것만 남긴 단순 버전.
- * 원본(community)의 `UtilPoint` 은 포인트 화면 전체(내역·교환·규칙 문구)를 담은 큰 파일이다 — 포인트 화면을 만들 때 원본으로 바꾼다.
+ * 포인트 표시·판정 — 셸(헤더 메뉴·햄버거)과 내 정보(`/me`)·포인트 화면(`/me/points`)이 쓴다.
+ * 원본(community)의 `UtilPoint` 에 있는 출석 달력·교환 규칙은 로보얌에 그 기능이 없어 옮기지 않았다.
  */
 
 /** 천 단위 쉼표 — 소수는 버린다 */
@@ -32,6 +32,38 @@ export default class UtilPoint {
      */
     static number(value: number): string {
         return grouped(Number.isFinite(value) ? value : 0);
+    }
+
+    /**
+     * 부호를 붙인 증감 — `+20P` · `−10P` · `0P`(내역 한 줄의 오른쪽). 빼기는 읽기 쉬운 마이너스 기호(U+2212)다.
+     * @param {number} delta - 증감.
+     * @returns {string} 부호가 붙은 포인트 글자.
+     */
+    static signed(delta: number): string {
+        const n = Number.isFinite(delta) ? Math.trunc(delta) : 0;
+        if (n > 0) return `+${UtilPoint.points(n)}`;
+        if (n < 0) return `−${UtilPoint.points(n)}`;
+        return UtilPoint.points(0);
+    }
+
+    /**
+     * 오늘 그 일로 더 받을 수 있는 횟수 — 상한이 0(꺼짐)이면 null.
+     * @param {{ count: number; cap: number }} value - 오늘 받은 횟수와 하루 상한.
+     * @returns {number | null} 남은 횟수(0 이상). 꺼져 있으면 null.
+     */
+    static remaining(value: { count: number; cap: number }): number | null {
+        if (!(value.cap > 0)) return null;
+        return Math.max(0, value.cap - Math.max(0, value.count));
+    }
+
+    /**
+     * 오늘 진행 막대의 비율(0~100) — 상한이 0(꺼짐)이면 0.
+     * @param {{ count: number; cap: number }} value - 오늘 받은 횟수와 하루 상한.
+     * @returns {number} 0~100.
+     */
+    static progress(value: { count: number; cap: number }): number {
+        if (!(value.cap > 0)) return 0;
+        return Math.min(100, Math.max(0, Math.round((value.count / value.cap) * 100)));
     }
 
     /**

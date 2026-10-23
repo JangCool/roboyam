@@ -1,4 +1,5 @@
 import type {
+    MemberNotificationFilter,
     MemberNotificationItem,
     MemberNotificationPage,
     MemberNotificationQuery,
@@ -16,7 +17,7 @@ import type {
  *  - `POST /api/notifications/read-all[?filter=]` → `{ updated }`
  * 오류: `400 VALIDATION` `fields.filter|size|cursor`.
  *
- * 셸(종 배지·알림 패널)이 쓰는 것만 있다 — 알림 화면(목록·거르기·더보기)을 만들 때 `list` 를 그대로 쓴다.
+ * 셸(종 배지·알림 패널)과 알림 화면(`/notifications` — 목록·거르기·더 보기)이 쓴다. 서버의 `filter` 는 묶음(all·comment·system)뿐이고 「안 읽은 것만」 거르기는 없다.
  */
 const PATH = {
     list: '/api/notifications',
@@ -46,7 +47,8 @@ export function useNotificationApi() {
         /** 알림 하나를 읽음으로 — 이미 읽었어도 성공(204) */
         markRead: (id: string): Promise<void> => client.post<void>(PATH.read(id)),
 
-        /** 모두 읽음 */
-        markAllRead: (): Promise<ReadAllResponse> => client.post<ReadAllResponse>(PATH.readAll),
+        /** 모두 읽음 — `filter` 를 주면 그 묶음(`comment`·`system`)의 알림만, 없거나 `all` 이면 전부 */
+        markAllRead: (filter?: MemberNotificationFilter): Promise<ReadAllResponse> =>
+            client.post<ReadAllResponse>(PATH.readAll, undefined, { query: { filter: filter && filter !== 'all' ? filter : undefined } }),
     };
 }

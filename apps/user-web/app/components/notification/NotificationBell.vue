@@ -26,7 +26,7 @@
         </button>
 
         <!-- 바깥 누르기·Esc 로 닫히고, 열릴 때 안쪽 패널이 만들어지며 목록을 새로 받는다 -->
-        <Popover ref="popover" :aria-label="t('notification.title')"class="w-[24rem] max-w-[calc(100vw-1rem)]" :pt="{ content: { class: 'p-0!' } }" @show="open = true" @hide="open = false">
+        <Popover ref="popover" :aria-label="t('notification.title')" class="w-[24rem] max-w-[calc(100vw-1rem)]" :pt="{ content: { class: 'p-0!' } }" @show="open = true" @hide="open = false">
             <NotificationPanel @close="close" />
         </Popover>
     </span>
