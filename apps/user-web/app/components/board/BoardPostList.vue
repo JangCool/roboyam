@@ -46,7 +46,7 @@
                                 <PostRowTitle :row="row" :new-post-hours="newPostHours" />
                             </NuxtLink>
                         </td>
-                        <td class="py-2.5 text-xs text-muted-color"><PostAuthorLabel :author="row.author" class="max-w-full" /></td>
+                        <td class="py-2.5 text-xs text-muted-color"><PostAuthorLabel :author="row.author" link class="max-w-full" /></td>
                         <td class="py-2.5 text-center text-xs text-muted-color tabular-nums"><PostListDate :iso="row.createdAt" :mode="dateDisplay" /></td>
                         <td class="py-2.5 text-right text-xs text-muted-color tabular-nums">{{ row.viewCount.toLocaleString() }}</td>
                         <td class="py-2.5 pr-1 text-right text-xs text-muted-color tabular-nums">{{ row.likeCount.toLocaleString() }}</td>

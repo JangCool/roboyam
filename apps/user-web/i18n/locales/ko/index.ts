@@ -16,6 +16,8 @@ import comment from './comment';
 import commerce from './commerce';
 import dev from './dev';
 import error from './error';
+import feed from './feed';
+import grade from './grade';
 import install from './install';
 import login from './login';
 import mail from './mail';
@@ -30,6 +32,7 @@ import profile from './profile';
 import prompt from './prompt';
 import provider from './provider';
 import sanction from './sanction';
+import search from './search';
 import settings from './settings';
 import shell from './shell';
 import signup from './signup';
@@ -47,6 +50,8 @@ export default {
     commerce,
     dev,
     error,
+    feed,
+    grade,
     install,
     login,
     mail,
@@ -61,6 +66,7 @@ export default {
     prompt,
     provider,
     sanction,
+    search,
     settings,
     shell,
     signup,

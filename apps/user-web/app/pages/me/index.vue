@@ -65,7 +65,7 @@
                 </template>
             </section>
 
-            <!-- 바로가기 — 지금 만들어진 화면만(쪽지·스크랩·아이템샵·등급 안내는 기능이 없어 넣지 않는다) -->
+            <!-- 바로가기 — 지금 만들어진 화면만(쪽지·스크랩·아이템샵은 기능이 없어 넣지 않는다). 내 프로필 보기·등급 안내는 회원 활동 화면 -->
             <nav class="rounded-xl border border-surface bg-surface-0 p-2 dark:bg-surface-900" :aria-label="t('me.shortcuts')">
                 <ul class="m-0 list-none p-0">
                     <li v-for="entry in entries" :key="entry.to">
@@ -106,12 +106,13 @@ import type { PointCount } from '~/composables/point/api/usePointApi.types';
 import type { MyProfile } from '~/composables/profile/api/useProfileApi.types';
 import UtilBusiness from '~/utils/util-business';
 import UtilPoint from '~/utils/util-point';
+import UtilProfile from '~/utils/util-profile';
 import UtilSettings from '~/utils/util-settings';
 
 /**
  * 내 정보 `/me` — 로그인 필요(`auth` 미들웨어). 하단 탭·헤더 프로필 메뉴·햄버거의 「내 정보」가 온다.
  * 프로필 요약(뱃지·닉네임·이메일 — 로그인 정보, 가입일·한 줄 소개 — 내 프로필 목업) · 포인트 요약(실제 `GET /api/me/points`) · 바로가기(포인트 내역·알림·설정 화면들) · 로그아웃.
- * 원본(community) `pages/me/index.vue` 의 구성에서 로보얌에 없는 것(스크랩·소모임·아이템샵·주문·등급 안내·쪽지·프로필 그림)을 뺐다.
+ * 원본(community) `pages/me/index.vue` 의 구성에서 로보얌에 없는 것(스크랩·소모임·아이템샵·주문·쪽지·프로필 그림)을 뺐다. 바로가기에 내 공개 프로필(`/users/{내 ID}`)·등급 안내(`/me/grade`)가 있다.
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();
@@ -188,6 +189,9 @@ interface Entry {
 /** 바로가기 — 포인트 내역(사업자 전용 계정 제외) · 알림(안 읽은 수) · 설정 묶음의 화면들 */
 const entries = computed<Entry[]>(() => {
     const list: Entry[] = [];
+    // 내 공개 프로필(남이 보는 모양) · 등급 안내 — `docs/features/member-activity-contract.md`
+    if (user.value) list.push({ to: UtilProfile.path(user.value.id), icon: 'pi pi-id-card', label: t('me.entryProfile'), hint: '', badge: '', testid: 'me-entry-profile' });
+    list.push({ to: '/me/grade', icon: 'pi pi-star', label: t('me.entryGrade'), hint: user.value?.role === 'USER' ? user.value.gradeLabel : '', badge: '', testid: 'me-entry-grade' });
     if (!businessAccount.value) {
         list.push({
             to: '/me/points',

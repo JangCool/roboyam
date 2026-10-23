@@ -36,7 +36,7 @@
                     <PostPrefixTag v-if="post.prefix" :prefix="post.prefix" class="mr-1.5 align-[3px]" />{{ post.title }}
                 </h1>
                 <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-color">
-                    <PostAuthorLabel :author="post.author" show-ip strong class="text-sm" />
+                    <PostAuthorLabel :author="post.author" show-ip strong link class="text-sm" />
                     <span aria-hidden="true">·</span>
                     <time :datetime="post.createdAt" :title="time.full(post.createdAt)">{{ time.detail(post.createdAt) }}</time>
                     <span v-if="post.updatedAt" :title="time.full(post.updatedAt)">{{ t('post.edited') }}</span>

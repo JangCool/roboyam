@@ -89,6 +89,30 @@ export interface PostListResponse {
     totalCount: number;
 }
 
+/**
+ * 게시판이 섞인 목록(최신글·인기글·검색·회원 프로필 작성글)의 게시판 표시 — 글 줄 앞에 게시판 이름 태그로 그린다.
+ * community `PostRow.board` 와 같은 자리다(`docs/features/member-activity-contract.md`). `nameEn` 은 영문 화면에서 이름 대신 쓴다.
+ */
+export interface PostBoardRef {
+    slug: string;
+    name: string;
+    nameEn: string | null;
+    /** 운영자가 고른 게시판 표시색의 프리셋 이름 또는 null(자동) */
+    color: string | null;
+}
+
+/** 게시판이 섞인 목록의 한 줄 — 목록 한 줄 + 그 글의 게시판 */
+export interface PostFeedRow extends PostRow {
+    board: PostBoardRef;
+}
+
+/** 커서로 이어 받는 목록 한 쪽(최신글 전체·회원 작성글) — `nextCursor` 를 다음 요청의 `cursor` 로 보낸다 */
+export interface PostFeedPage {
+    items: PostFeedRow[];
+    hasNext: boolean;
+    nextCursor: string | null;
+}
+
 /** 이전·다음 글 */
 export interface PostNeighbor {
     id: string;
