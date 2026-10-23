@@ -26,7 +26,7 @@ dependencies {
     // 사이트 아이콘의 SVG 소스를 크기별 PNG 로 그린다(SvgRasterizer). 순수 Java2D·의존 라이브러리 없음·MIT. 외부 자원 읽기는 끄고 쓴다. 공개 사이트(api)는 쓰지 않는다
     implementation "com.github.weisj:jsvg:${jsvgVersion}"
 
-    // 커머스 테스트 전용 실제 PostgreSQL 시험 DB(shared 의 testFixtures — CommerceTestDatabase, docs/domain/commerce.md 18절: Testcontainers 는 커머스 테스트에만).
-    // 0-2 배치 보강의 시험(roboyam.batch.enabled 스위치 — 요청 집기·예약 실행)이 쓴다
+    // 커머스 테스트 전용 실제 PostgreSQL 시험 DB(shared 의 testFixtures — CommerceTestDatabase, docs/domain/commerce.md 18절: Testcontainers 는 커머스 테스트에만, 버전은 Spring Boot BOM).
+    // 0-2 배치 보강의 시험(roboyam.batch.enabled 스위치 — 요청 집기·예약 실행)과 0-3 관리자 2차 인증의 규칙 시험이 쓴다. 시험 PC 에 Docker 가 있어야 한다
     testImplementation testFixtures(project(':server:shared'))
 }

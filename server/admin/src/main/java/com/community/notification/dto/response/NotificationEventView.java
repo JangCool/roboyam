@@ -14,9 +14,11 @@ import java.util.List;
  * @param teamIds         추가 수신 팀 id — 이름은 {@code team.read} 가 있어야 팀 목록에서 읽는다
  * @param broadcastAllowed 추가 수신 팀과 공유 채널(Slack · Mattermost)로 보낼 수 있는 이벤트인가(본인에게만 가는 이벤트·필수 이벤트는 false)
  * @param defaultRecipients 「권한자 전원에게 보내기」 — 기본 수신 규칙으로도 보내는가. false 면 고른 팀({@code teamIds})의 팀원에게만 보낸다(받을 팀원이 없으면 서버가 기본 수신으로 되돌린다).
- *                          {@code broadcastAllowed=false} 인 이벤트는 늘 true
+ *                          {@code broadcastAllowed=false} 인 이벤트와 {@code teamsOnlyBlockedReason} 이 있는 이벤트는 늘 true
+ * @param teamsOnlyBlockedReason 「팀에만 보내기」를 못 하는 이유(요청 언어) — 모든 운영자에게 닿아야 하는 보안 경보(2차 인증 꺼짐)만 있다. 없으면 null.
+ *                          이 값이 있으면 {@code defaultRecipients=false} 저장은 400 {@code fields.defaultRecipients}(같은 문구). 추가 수신 팀·공유 채널은 더할 수 있다
  */
 public record NotificationEventView(String code, String area, String severity, String name, String description, String recipientText, boolean mandatory,
                                     boolean emailable, boolean enabled, boolean emailEnabled, boolean featureReady, long sentLast30Days, List<String> channels,
-                                    List<String> teamIds, boolean broadcastAllowed, boolean defaultRecipients) {
+                                    List<String> teamIds, boolean broadcastAllowed, boolean defaultRecipients, String teamsOnlyBlockedReason) {
 }

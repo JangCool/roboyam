@@ -11,6 +11,7 @@ export default {
     tabPersonal: 'Preferences',
     tabLogin: 'Sign-in history',
     tabPassword: 'Password',
+    tabSecurity: 'Sign-in security',
 
     // Basic information
     basicInfo: 'Basic information',

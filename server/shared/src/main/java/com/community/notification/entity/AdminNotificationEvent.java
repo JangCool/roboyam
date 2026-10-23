@@ -64,6 +64,14 @@ public enum AdminNotificationEvent {
     GRADE_PROMOTION_RUN(spec(MEMBER, INFO).holders(Permission.GRADE_READ).link("/settings/batch-logs?jobName=grade-promotion")),
     /** 공개 사이트 글·댓글 신고 접수 — 신고 정책 notifyOperatorScope 가 PER_CASE 면 대상마다 첫 신고에만, PER_REPORT 면 신고마다(api ReportService). 처리 화면이 아직 없어 링크가 없다 */
     REPORT_RECEIVED(spec(SAFETY, INFO).holders(Permission.REPORT_MANAGE)),
+    /** 최고 관리자가 관리자 2차 인증을 켬 — 운영자 전원에게 OTP 등록 안내(켠 사람 제외). 문구에 인자가 없다 */
+    MFA_ENABLED(spec(SECURITY, INFO).everyone().excludeActor().link("/me?tab=security")),
+    /**
+     * 최고 관리자가 관리자 2차 인증을 끔 — 운영자 전원에게 심각도 높음(끈 사람 포함 — 루트 세션을 남이 쓴 경우 알아채게). 이메일 전달이 처음부터 켜짐.
+     * <b>「팀에만 보내기」 불가</b>({@code alwaysEveryone}): 누가 몰래 끈 것을 모든 운영자가 바로 알아채게 하는 보안 경보라, 받는 범위를 일부 팀으로 줄이면 경보가 닿지 않는 운영자가 생긴다.
+     * 끌 수는 있다(필수 이벤트가 아니다 — 필수는 본인 계정 알림만, commerce.md 13-3 은 「운영자 알림」만 정한다).
+     */
+    MFA_DISABLED(spec(SECURITY, CRITICAL).everyone().alwaysEveryone().email().link("/me?tab=security")),
 
     // ── 예약 이벤트 (featureReady = false) — 기능이 만들어질 때 reserved() 를 지우고 발행 한 줄만 더한다 ──
     SANCTION_APPEAL_FILED(spec(SAFETY, INFO).holders(Permission.APPEAL_MANAGE).reserved()),
@@ -88,6 +96,7 @@ public enum AdminNotificationEvent {
         private Permission requires;
         private boolean excludeActor;
         private boolean mandatory;
+        private boolean alwaysEveryone;
         private boolean emailByDefault;
         private String link;
         private int collapse;
@@ -111,8 +120,22 @@ public enum AdminNotificationEvent {
             return this;
         }
 
+        /** 활성 운영자 전원이 받는다. 보는 데 필요한 권한이 없다 */
+        private Spec everyone() {
+            this.recipient = NotificationRecipientRule.ALL_OPERATORS;
+            this.holders = List.of();
+            this.requires = null;
+            return this;
+        }
+
         private Spec excludeActor() {
             this.excludeActor = true;
+            return this;
+        }
+
+        /** 기본 수신(받는 범위 「권한자 전원」)을 끌 수 없다 — 「팀에만 보내기」로 줄이면 안 되는 경보. 이유 문구는 번들 {@code notification.event.<코드>.alwaysEveryoneReason} */
+        private Spec alwaysEveryone() {
+            this.alwaysEveryone = true;
             return this;
         }
 
@@ -163,8 +186,10 @@ public enum AdminNotificationEvent {
     private final int collapseSeconds;
     private final boolean featureReady;
     private final boolean broadcastAllowed;
+    private final boolean alwaysEveryone;
 
     AdminNotificationEvent(Spec spec) {
+        this.alwaysEveryone = spec.alwaysEveryone;
         // 본인에게만 가는 이벤트(SELF)와 필수(보안) 이벤트는 다른 사람·공유 채널로 퍼뜨리면 안 된다 — 코드가 정한다(화면·DB 에서 바꾸지 않는다)
         this.broadcastAllowed = spec.recipient != NotificationRecipientRule.SELF && !spec.mandatory;
         this.area = spec.area;
@@ -256,6 +281,14 @@ public enum AdminNotificationEvent {
         return broadcastAllowed;
     }
 
+    /**
+     * 받는 범위를 「팀에만」으로 줄일 수 없는 이벤트인가(기본 수신이 늘 켜짐) — 모든 운영자에게 닿아야 하는 보안 경보({@link #MFA_DISABLED}).
+     * 추가 수신 팀·공유 채널은 더할 수 있다(받는 사람이 늘 뿐이다). 이유 문구는 번들 {@code notification.event.<코드>.alwaysEveryoneReason}.
+     */
+    public boolean alwaysEveryone() {
+        return alwaysEveryone;
+    }
+
     /** 이름의 메시지 번들 키 */
     public String nameKey() {
         return key("name");
@@ -278,9 +311,15 @@ public enum AdminNotificationEvent {
         return key("body");
     }
 
-    /** 이 이벤트가 번들에 가져야 하는 문구 키 다섯 개 */
+    /** 「팀에만 보내기」를 못 하는 이유 문구의 키 — {@link #alwaysEveryone()} 인 이벤트만 번들에 있다 */
+    public String alwaysEveryoneReasonKey() {
+        return key("alwaysEveryoneReason");
+    }
+
+    /** 이 이벤트가 번들에 가져야 하는 문구 키 — 다섯 개, {@link #alwaysEveryone()} 이면 이유 문구까지 여섯 개 */
     public List<String> bundleKeys() {
-        return List.of(nameKey(), descriptionKey(), recipientsKey(), titleKey(), bodyKey());
+        List<String> keys = List.of(nameKey(), descriptionKey(), recipientsKey(), titleKey(), bodyKey());
+        return alwaysEveryone ? java.util.stream.Stream.concat(keys.stream(), java.util.stream.Stream.of(alwaysEveryoneReasonKey())).toList() : keys;
     }
 
     private String key(String part) {

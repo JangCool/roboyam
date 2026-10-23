@@ -1,4 +1,4 @@
-import type { AdminLoginRequest, AdminMeResponse, AdminUser } from '~/composables/auth/api/useAdminAuthApi.types';
+import type { AdminLoginMfa, AdminLoginRequest, AdminMeResponse, AdminUser } from '~/composables/auth/api/useAdminAuthApi.types';
 import UtilAdminSite from '~/utils/util-admin-site';
 
 /**
@@ -26,6 +26,11 @@ export function useAdminAuth() {
     const siteLogoUrl = useState<string | null>('admin-site-logo-url', () => null);
     /** `me` 를 한 번이라도 받았는가. false 인 동안 null 은 "로그인 안 함"이 아니라 "아직 모름"이다 */
     const loaded = useState<boolean>('admin-auth-loaded', () => false);
+    /**
+     * 비밀번호는 맞았고 2차 인증이 남은 「2차 대기」 단계(`VERIFY`·`ENROLL`) — 로그인이 아니다(`user` 는 null).
+     * 서버가 `me`·비밀번호 재설정 응답에 실어 준 값이고, 로그인 화면이 열릴 때 이 단계로 이어 간다(새로고침해도 2단계 유지). 없으면 null.
+     */
+    const pendingMfa = useState<AdminLoginMfa | null>('admin-auth-pending-mfa', () => null);
 
     const isLoggedIn = computed(() => user.value !== null);
     /** 화면에 글자로 꼭 보여야 하는 사이트 이름 — 모르면 기본 이름 */
@@ -33,6 +38,8 @@ export function useAdminAuth() {
 
     function apply(res: AdminMeResponse): AdminUser | null {
         user.value = res.authenticated ? res.user : null;
+        const stage = res.mfa?.stage;
+        pendingMfa.value = !res.authenticated && res.mfa && (stage === 'VERIFY' || stage === 'ENROLL') ? res.mfa : null;
         // 이름을 못 받았으면(응답에 칸이 없거나 쓸 수 없는 값) 알고 있던 이름을 지우지 않는다
         const name = UtilAdminSite.clean(res.siteName);
         if (name) siteName.value = name;
@@ -78,13 +85,27 @@ export function useAdminAuth() {
         }
     }
 
+    /** 2차 대기 단계를 잊는다 — 로그인 화면이 대기를 버렸거나(다른 계정으로 로그인) 서버가 대기 만료를 알렸을 때 */
+    function clearPendingMfa(): void {
+        pendingMfa.value = null;
+    }
+
     /** 로그인. 실패하면 `ApiError` 를 던진다(잘못된 정보 401 · 잠금 429 · 입력 400). */
     async function login(body: AdminLoginRequest): Promise<AdminUser | null> {
         return apply(await api.login(body));
     }
 
     /**
-     * 서버가 로그인시킨 응답(`me` 모양)을 로그인 상태로 받아들인다 — 비밀번호 재설정 성공(`POST /password-reset`)이 이 경우다.
+     * 로그인 요청만 보내고 응답을 그대로 돌려준다 — **로그인 상태(`user`)를 채우지 않는다.** 2차 인증 단계(`res.mfa`)가 있는 로그인 화면이 쓴다:
+     * 단계가 끝나면(또는 단계가 없으면) 화면이 `adopt` 로 받아들인다. 실패는 `login` 과 같다.
+     */
+    async function authenticate(body: AdminLoginRequest): Promise<AdminMeResponse> {
+        return api.login(body);
+    }
+
+    /**
+     * 서버가 로그인시킨 응답(`me` 모양)을 로그인 상태로 받아들인다 — 로그인 2단계 통과·비밀번호 재설정 성공(`POST /password-reset`)이 이 경우다.
+     * 응답이 2차 대기(`authenticated:false` + `mfa.stage = VERIFY|ENROLL`)면 로그인되지 않고 `pendingMfa` 만 남는다(로그인 화면이 이어 간다).
      * `login` 과 같은 `apply` 를 거치므로 로그인 성공과 같은 결과다(표시 값 플러그인이 사용자가 바뀐 것을 보고 내 표시 형식을 받는다).
      */
     function adopt(res: AdminMeResponse): AdminUser | null {
@@ -100,8 +121,9 @@ export function useAdminAuth() {
             await api.logout();
         } finally {
             user.value = null;
+            pendingMfa.value = null;
         }
     }
 
-    return { user, siteLabel, siteLogoUrl, setSiteName, setSiteLogoUrl, loaded, isLoggedIn, refresh, ensureLoaded, login, adopt, logout };
+    return { user, siteLabel, siteLogoUrl, setSiteName, setSiteLogoUrl, loaded, isLoggedIn, pendingMfa, clearPendingMfa, refresh, ensureLoaded, login, authenticate, adopt, logout };
 }

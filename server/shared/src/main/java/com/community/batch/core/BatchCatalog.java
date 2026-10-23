@@ -54,6 +54,12 @@ public enum BatchCatalog implements BatchDefinition {
     MEMBER_NOTIFICATION_CLEANUP("member-notification-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
     /**
+     * 관리자 2차 인증 기록 정리(기간이 끝난 신뢰 기기 · 10분 안에 끝내지 않은 OTP 등록 중 비밀키) — DB 배치, 기본 매일 04:10 KST.
+     * 표가 admin 스트림(V3)이라 프로시저도 admin 스트림의 {@code R__batch_30_admin_mfa_cleanup.sql} 에 있다(docs/features/commerce-foundation-contract.md 「0-3」).
+     */
+    ADMIN_MFA_CLEANUP("admin-mfa-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
      * 글 표(posts) 월 조각 유지 — DB 배치, 기본 매일 00:20 KST({@code R__batch_17_board_post_partitions.sql}). 지난달~6개월 뒤 조각이 없으면 만든다.
      * 앱이 뜰 때도 같은 함수를 부르므로({@code BoardPartitionBootstrap}) pg_cron 이 없어도 서버를 다시 띄우면 채워진다 — 그래서 정리(SYSTEM) 분류로 둔다.
      */

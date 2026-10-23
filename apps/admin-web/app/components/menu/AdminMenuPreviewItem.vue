@@ -6,7 +6,7 @@
             <span class="truncate" :class="permission ? 'text-primary' : ''">{{ name }}</span>
             <i v-if="entry.node.targetType === 'URL'" class="pi pi-external-link text-[9px] text-muted-color" :aria-label="t('menuConfig.externalLink')" />
             <i v-if="entry.node.kind === 'FOLDER'" class="pi pi-angle-down text-[10px] text-muted-color" aria-hidden="true" />
-            <span v-if="permission" v-tooltip.top="t('role.menuNeeds', { permission })" class="ml-auto inline-flex shrink-0 items-center" role="img" :aria-label="t('role.menuNeeds', { permission })">
+            <span v-if="permissionLabel" v-tooltip.top="t('role.menuNeeds', { permission: permissionLabel })" class="ml-auto inline-flex shrink-0 items-center" role="img" :aria-label="t('role.menuNeeds', { permission: permissionLabel })">
                 <i class="pi pi-key text-[10px] text-primary" aria-hidden="true" />
             </span>
         </div>
@@ -32,4 +32,5 @@ const { localizedName } = useLocalizedName();
 
 const name = computed(() => UtilMenuMessages.adminNodeName(t, props.entry.node, localizedName).text);
 const permission = computed(() => UtilAdminMenuConfig.permissionOf(props.entry.node));
+const permissionLabel = computed(() => (permission.value ? UtilMenuMessages.adminPermissionLabel(t, permission.value) : null));
 </script>

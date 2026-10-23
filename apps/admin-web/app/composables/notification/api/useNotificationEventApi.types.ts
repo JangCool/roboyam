@@ -40,6 +40,11 @@ export interface NotificationEventView {
      * 「팀에만」인데 고른 팀이 모두 없어지거나 받는 사람이 0명이면 서버가 보낼 때 권한자 전원으로 되돌린다(알림이 사라지지 않게).
      */
     defaultRecipients?: boolean;
+    /**
+     * 「팀에만」을 고를 수 없는 이유(서버가 요청 언어로) — 모든 운영자에게 닿아야 하는 보안 경보(2차 인증 꺼짐)만 있다. 없으면 null(옛 서버는 칸이 없다).
+     * 있으면 받는 범위는 늘 「권한자 전원」이고 false 저장은 400 `fields.defaultRecipients`. 팀 더하기는 된다.
+     */
+    teamsOnlyBlockedReason?: string | null;
 }
 
 /**

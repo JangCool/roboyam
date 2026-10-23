@@ -1,6 +1,6 @@
 <template>
     <!--
-        운영자 상세 — 표에서 행을 고르면 여는 PrimeVue `Drawer`(알림·화면 설정 서랍과 같이 설정의 "서랍 위치"를 따른다). 안의 구성은 탭 둘: ① 기본 정보(이름·이메일·역할·계정 기간) ② 계정 상태(승인·잠금 해제·만료 아님·사용).
+        운영자 상세 — 표에서 행을 고르면 여는 PrimeVue `Drawer`(알림·화면 설정 서랍과 같이 설정의 "서랍 위치"를 따른다). 안의 구성은 탭 둘: ① 기본 정보(이름·이메일·역할·계정 기간) ② 계정 상태(승인·잠금 해제·만료 아님·사용) + 그 아래 「2차 인증」 구획(상태 딱지·등록일·신뢰 기기 수, 루트이고 본인이 아니면 [OTP 초기화] — 값과 초기화 호출은 페이지가 한다).
         기본 정보의 저장·초기화는 하단 고정 푸터에 있다(그 탭에서만, 변경이 없으면 비활성). 계정 상태는 탭 안의 「상태 저장」을 쓴다. 최고 관리자(루트)는 읽기 전용이다.
         **표를 가리지 않는다(`modal=false`)** — 서랍이 열린 채로 다른 행을 누르면 내용이 그 운영자로 바뀐다. 대신 서랍·표 행·떠 있는 창(확인 대화상자·고르개 목록) 밖을 누르면 닫히도록 여기서 바깥 누르기를 듣는다. Esc 도 닫는다.
         닫기 요청(Esc·바깥·X)은 스스로 닫지 않고 `update:visible(false)` 로 알린다 — 저장하지 않은 변경이 있으면 부모가 확인을 묻고 닫는다. 변경 여부는 `update:dirty` 로 알린다.
@@ -54,6 +54,34 @@
                     </TabPanel>
                     <TabPanel value="status">
                         <OperatorStatusForm :operator="operator" :can-manage="canManage" :can-lock="canLock" :saving="statusSaving" :error="statusError" @save="(body: OperatorStatusRequest) => emit('save-status', body)" @update:dirty="(v: boolean) => (statusDirty = v)" />
+
+                        <!-- 2차 인증(commerce.md 13-3) — 읽기는 운영자 조회 권한자 모두, 초기화는 최고 관리자(본인 제외) -->
+                        <section class="mt-5 flex flex-col gap-3 border-t border-(--line) pt-4" :aria-labelledby="mfaTitleId">
+                            <h3 :id="mfaTitleId" class="text-sm font-medium">{{ t('mfa.operatorSection') }}</h3>
+                            <div v-if="mfaLoading && !mfa" class="flex flex-col gap-2" role="status" :aria-label="t('common.loading')">
+                                <Skeleton height="1.25rem" width="40%" />
+                                <Skeleton height="1rem" width="70%" />
+                            </div>
+                            <Message v-else-if="!mfa" severity="error" variant="simple" size="small" :closable="false">{{ mfaError || t('mfa.operatorLoadFailed') }}</Message>
+                            <template v-else>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <Tag :value="mfaBadge!.label" :icon="mfaBadge!.icon" :severity="mfaBadge!.severity" />
+                                </div>
+                                <dl v-if="mfa.siteEnabled" class="m-0 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-sm">
+                                    <dt class="text-muted-color">{{ t('mfa.enrolledAt') }}</dt>
+                                    <dd class="m-0 tabular-nums">{{ mfa.enrolledAt ? time.date(mfa.enrolledAt) : '—' }}</dd>
+                                    <template v-if="!mfa.enrolled && mfa.graceEndsAt">
+                                        <dt class="text-muted-color">{{ t('mfa.graceEndsAt') }}</dt>
+                                        <dd class="m-0 tabular-nums">{{ time.date(mfa.graceEndsAt) }}</dd>
+                                    </template>
+                                    <dt class="text-muted-color">{{ t('mfa.trustedDevicesLabel') }}</dt>
+                                    <dd class="m-0 tabular-nums">{{ t('mfa.trustedDevicesCount', { count: mfa.trustedDevices }) }}</dd>
+                                </dl>
+                                <div v-if="canResetMfa && (mfa.enrolled || mfa.trustedDevices > 0)">
+                                    <Button type="button" :label="t('mfa.resetOperator')" icon="pi pi-refresh" size="small" severity="danger" variant="outlined" :loading="mfaResetting" @click="emit('reset-mfa')" />
+                                </div>
+                            </template>
+                        </section>
                     </TabPanel>
                 </TabPanels>
             </Tabs>
@@ -71,7 +99,9 @@
 
 <script setup lang="ts">
 import type { OperatorRoleOption } from '~/components/operator/OperatorInfoForm.types';
+import type { OperatorMfaView } from '~/composables/mfa/api/useMfaApi.types';
 import type { OperatorStatusRequest, OperatorUpdateRequest, OperatorView } from '~/composables/operator/api/useOperatorApi.types';
+import UtilMfaMessages from '~/utils/util-mfa-messages';
 import UtilOperator from '~/utils/util-operator';
 import UtilOperatorMessages from '~/utils/util-operator-messages';
 
@@ -91,6 +121,14 @@ interface Props {
     infoFieldErrors?: Record<string, string>;
     statusSaving?: boolean;
     statusError?: string;
+    /** 이 운영자의 2차 인증 상태(페이지가 받는다). null = 받는 중이거나 못 받았다 */
+    mfa?: OperatorMfaView | null;
+    mfaLoading?: boolean;
+    /** 2차 인증 상태를 못 받았을 때 서버 문구 */
+    mfaError?: string;
+    /** [OTP 초기화]를 보인다 — 최고 관리자이고 본인이 아닐 때 */
+    canResetMfa?: boolean;
+    mfaResetting?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -103,6 +141,11 @@ const props = withDefaults(defineProps<Props>(), {
     infoFieldErrors: () => ({}),
     statusSaving: false,
     statusError: '',
+    mfa: null,
+    mfaLoading: false,
+    mfaError: '',
+    canResetMfa: false,
+    mfaResetting: false,
 });
 const emit = defineEmits<{
     'update:visible': [visible: boolean];
@@ -110,6 +153,8 @@ const emit = defineEmits<{
     'update:dirty': [dirty: boolean];
     'save-info': [body: OperatorUpdateRequest];
     'save-status': [body: OperatorStatusRequest];
+    /** [OTP 초기화] — 확인은 페이지가 묻는다 */
+    'reset-mfa': [];
     /** 서랍이 닫혔다(전환이 끝났다) — 부모가 눌렀던 행으로 초점을 돌려준다 */
     hide: [];
 }>();
@@ -118,6 +163,9 @@ const { t } = useI18n();
 // ⚠ 알림·화면 설정 서랍과 같은 규칙 — 열리는 쪽은 설정의 "서랍 위치"를 따른다
 const { prefs } = useLayoutPrefs();
 const titleId = useId();
+const mfaTitleId = useId();
+const time = useDisplayTime();
+const mfaBadge = computed(() => (props.mfa ? UtilMfaMessages.operatorStatus(t, props.mfa) : null));
 
 const tab = ref('basic');
 const infoDirty = ref(false);

@@ -13,7 +13,7 @@
                 <i v-if="node.targetType === 'URL'" class="pi pi-external-link text-[10px]" :aria-label="t('menuConfig.externalLink')" />
             </code>
             <span v-if="permission" v-tooltip.top="t('menuConfig.permissionFixed')" class="inline-flex">
-                <MenuTag :value="permission" icon="pi pi-key" severity="contrast" />
+                <MenuTag :value="UtilMenuMessages.adminPermissionLabel(t, permission)" icon="pi pi-key" severity="contrast" />
             </span>
             <MenuTag v-else-if="node.kind === 'SCREEN'" :value="t('menuConfig.permissionNone')" />
             <MenuTag v-if="!node.visible" :value="t('menuConfig.tag.hidden')" icon="pi pi-eye-slash" />

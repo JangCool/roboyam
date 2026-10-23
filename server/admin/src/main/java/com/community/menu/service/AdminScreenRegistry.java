@@ -22,8 +22,13 @@ public final class AdminScreenRegistry {
     public static final String SETTINGS = "settings";
     public static final List<String> MODES = List.of(NORMAL, SETTINGS);
 
-    /** 잎 화면 하나 */
-    public record Screen(String key, String path, String labelKey, String icon, Permission permission) {
+    /**
+     * 잎 화면 하나.
+     *
+     * @param permission 보는 데 필요한 권한(없으면 null — 로그인한 누구나)
+     * @param superOnly  최고 관리자(루트) 전용 — 권한 코드로 위임하지 않는 화면(로그인 보안). admin-web 메뉴 정의의 {@code superOnly: true} 와 같다
+     */
+    public record Screen(String key, String path, String labelKey, String icon, Permission permission, boolean superOnly) {
     }
 
     /** 기본 구성의 노드 — 묶음·부모 항목·화면 */
@@ -52,6 +57,8 @@ public final class AdminScreenRegistry {
             section(SETTINGS, "menu.system", "pi pi-cog",
                     leaf(s("siteGeneral", "/settings/general", "menu.general", "pi pi-sliders-h", Permission.SITE_READ)),
                     leaf(s("socialLogin", "/settings/social-login", "menu.socialLogin", "pi pi-key", Permission.SITE_READ)),
+                    // 로그인 보안(관리자 2차 인증 — commerce-foundation-contract 「0-3」) — 루트 전용, 권한 코드 없음
+                    leaf(superOnly("loginSecurity", "/settings/login-security", "menu.loginSecurity", "pi pi-shield")),
                     leaf(s("teams", "/settings/teams", "menu.teams", "pi pi-sitemap", Permission.TEAM_READ))),
             // 메일 묶음 — 메일 서버만(message-template-contract 「개정 3」·「개정 4」 — 메일 종류·템플릿·레이아웃은 알림·이벤트 묶음의 템플릿·문구로 옮겼다)
             section(SETTINGS, "menu.mail", "pi pi-envelope",
@@ -119,7 +126,12 @@ public final class AdminScreenRegistry {
     }
 
     private static Screen s(String key, String path, String labelKey, String icon, Permission permission) {
-        return new Screen(key, path, labelKey, icon, permission);
+        return new Screen(key, path, labelKey, icon, permission, false);
+    }
+
+    /** 최고 관리자(루트) 전용 화면 — 권한 코드가 없다 */
+    private static Screen superOnly(String key, String path, String labelKey, String icon) {
+        return new Screen(key, path, labelKey, icon, null, true);
     }
 
     private static Def leaf(Screen screen) {

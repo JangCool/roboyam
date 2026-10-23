@@ -90,6 +90,7 @@ export default {
     scopeMandatory: '필수 이벤트는 권한자 전원에게 보내요.',
     scopeSelfOnly: '본인에게만 가는 알림이라 받는 범위를 바꿀 수 없어요.',
     scopeNoTeamRead: '팀을 볼 권한이 없어 받는 범위를 바꿀 수 없어요.',
+    scopeAlwaysEveryone: '보안 경보 — 늘 운영자 전원',
     adminDeliverySaved: '{name} — 전달 설정을 저장했어요',
     // 이 이벤트에서 이 도구를 새로 고를 수 없는 이유(선택지 옆에 적힌다)
     channelBlocked: {

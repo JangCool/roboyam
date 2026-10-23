@@ -29,7 +29,7 @@
                 </div>
                 <div class="flex flex-wrap items-center gap-2 text-xs text-muted-color">
                     <span>{{ t('menuConfig.field.permission') }}</span>
-                    <MenuTag v-if="screenPermission" :value="screenPermission" icon="pi pi-key" severity="contrast" />
+                    <MenuTag v-if="screenPermission" :value="UtilMenuMessages.adminPermissionLabel(t, screenPermission)" icon="pi pi-key" severity="contrast" />
                     <MenuTag v-else :value="t('menuConfig.permissionNone')" />
                     <span>{{ t('menuConfig.permissionFixed') }}</span>
                 </div>

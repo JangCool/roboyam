@@ -19,6 +19,7 @@ import notificationTemplate from './notificationTemplate';
 import member from './member';
 import menu from './menu';
 import menuConfig from './menuConfig';
+import mfa from './mfa';
 import notification from './notification';
 import operator from './operator';
 import permission from './permission';
@@ -47,6 +48,7 @@ export default {
     member,
     menu,
     menuConfig,
+    mfa,
     notification,
     operator,
     permission,

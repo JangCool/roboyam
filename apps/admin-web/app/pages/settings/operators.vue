@@ -194,10 +194,16 @@
             :info-field-errors="infoFieldErrors"
             :status-saving="statusSaving"
             :status-error="statusError"
+            :mfa="drawerMfa"
+            :mfa-loading="mfaLoading"
+            :mfa-error="mfaError"
+            :can-reset-mfa="canResetMfa"
+            :mfa-resetting="mfaResetting"
             @update:visible="onDrawerVisible"
             @update:dirty="(v: boolean) => (drawerDirty = v)"
             @save-info="saveInfo"
             @save-status="saveStatus"
+            @reset-mfa="resetMfa"
             @hide="onDrawerHide"
         />
 
@@ -221,6 +227,7 @@
 import type { OperatorCreateMode, OperatorCreateSubmit } from '~/components/operator/OperatorCreateDialog.types';
 import type { OperatorRoleOption } from '~/components/operator/OperatorInfoForm.types';
 import type { ApiError } from '~/composables/common/useApiClient';
+import type { OperatorMfaView } from '~/composables/mfa/api/useMfaApi.types';
 import type { OperatorInvitationView, OperatorRoleRef, OperatorStatusRequest, OperatorTab, OperatorUpdateRequest, OperatorView } from '~/composables/operator/api/useOperatorApi.types';
 import type { RoleView } from '~/composables/role/api/useRoleApi.types';
 import type { RoleTypeView } from '~/composables/role/api/useRoleTypeApi.types';
@@ -232,6 +239,8 @@ const { t } = useI18n();
 useSeoMeta({ title: () => t('operator.title') });
 
 const api = useOperatorApi();
+const mfaApi = useMfaApi();
+const { user } = useAdminAuth();
 const roleApi = useRoleApi();
 const roleTypeApi = useRoleTypeApi();
 const toast = useAppToast();
@@ -419,6 +428,55 @@ function onDrawerHide() {
     const target = triggerRow?.isConnected ? triggerRow : document.querySelector<HTMLElement>('.operators-table tbody tr');
     triggerRow = null;
     void nextTick(() => target?.focus());
+}
+
+/* ── 2차 인증(commerce.md 13-3) — 서랍이 보여 주는 운영자의 상태. 읽기는 운영자 조회 권한자 모두, 초기화는 최고 관리자(본인 제외) ── */
+
+const drawerMfa = ref<OperatorMfaView | null>(null);
+const mfaLoading = ref(false);
+const mfaError = ref('');
+const mfaResetting = ref(false);
+/** [OTP 초기화]를 보일까 — 최고 관리자이고, 본인도 아니고 최고 관리자 계정도 아닐 때(본인은 서버도 409 `MFA_RESET_SELF`) */
+const canResetMfa = computed(() => isSuper.value && !!drawerOperator.value && drawerOperator.value.operatorId !== user.value?.id && !drawerOperator.value.isSuper);
+
+async function loadMfa(operatorId: string): Promise<void> {
+    mfaLoading.value = true;
+    mfaError.value = '';
+    drawerMfa.value = null;
+    try {
+        const view = await mfaApi.operatorMfa(operatorId);
+        // 그 사이 다른 운영자로 바뀌었으면 버린다
+        if (drawerOperator.value?.operatorId === operatorId) drawerMfa.value = view;
+    } catch (e) {
+        if (drawerOperator.value?.operatorId === operatorId) mfaError.value = errorOf(e).message;
+    } finally {
+        mfaLoading.value = false;
+    }
+}
+
+// 서랍이 열려 있고 운영자가 바뀌면 그 운영자의 2차 인증 상태를 받는다
+watch(
+    () => (drawerOpen.value ? (drawerOperator.value?.operatorId ?? null) : null),
+    (operatorId, previous) => {
+        if (operatorId && operatorId !== previous) void loadMfa(operatorId);
+    },
+);
+
+async function resetMfa(): Promise<void> {
+    const target = drawerOperator.value;
+    if (!target) return;
+    const ok = await confirm({ title: t('mfa.resetOperatorTitle', { name: target.operatorName }), message: t('mfa.resetOperatorMessage'), confirmLabel: t('mfa.resetOperator'), tone: 'danger' });
+    if (!ok) return;
+    mfaResetting.value = true;
+    try {
+        await mfaApi.resetOperatorMfa(target.operatorId);
+        toast.success(t('mfa.resetOperatorDone', { name: target.operatorName }));
+        await loadMfa(target.operatorId);
+    } catch (e) {
+        toast.error(errorOf(e).message, 8000);
+    } finally {
+        mfaResetting.value = false;
+    }
 }
 
 async function saveInfo(body: OperatorUpdateRequest) {

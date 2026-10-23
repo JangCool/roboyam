@@ -49,7 +49,8 @@ public class NotificationEventSettings {
     private static State effective(AdminNotificationEvent event, NotificationEventEntity row) {
         boolean enabled = event.mandatory() || (row == null ? event.defaultEnabled() : row.isEnabled());
         boolean emailEnabled = event.emailable() && (row == null ? event.defaultEmailEnabled() : row.isEmailEnabled());
-        boolean defaultRecipients = !event.broadcastAllowed() || row == null || row.isDefaultRecipients();
+        // 본인 전용·필수 이벤트와 「팀에만」으로 줄일 수 없는 경보(alwaysEveryone)는 DB 값과 상관없이 늘 기본 수신
+        boolean defaultRecipients = !event.broadcastAllowed() || event.alwaysEveryone() || row == null || row.isDefaultRecipients();
         return new State(enabled, emailEnabled, row != null && row.isBrowserEnabled(), defaultRecipients);
     }
 }

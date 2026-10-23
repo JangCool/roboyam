@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# installer/lib/common.sh — roboyam-install.sh · roboyam-uninstall.sh 공통 함수
+# installer/lib/common.sh — roboyam-install.sh · roboyam-uninstall.sh · roboyam-mfa-reset.sh 공통 함수
 # =============================================================================
 #
 # source 해서 쓴다(단독 실행하지 않는다). bash 3.2(macOS 기본)에서도 돌도록 bash 4 전용 문법

@@ -11,6 +11,7 @@ export default {
     tabPersonal: '개인 설정',
     tabLogin: '로그인 이력',
     tabPassword: '비밀번호',
+    tabSecurity: '로그인 보안',
 
     // 기본 정보
     basicInfo: '기본 정보',

@@ -1,5 +1,6 @@
 package com.community.permission.config;
 
+import com.community.mfa.dto.PendingMfa;
 import com.community.permission.dto.AdminActor;
 import java.util.List;
 import org.springframework.context.annotation.Configuration;
@@ -47,6 +48,23 @@ public class AdminWebConfig implements WebMvcConfigurer {
                     throw new IllegalStateException("AdminActor 를 받으려면 @RequirePermission 또는 @AdminAuthenticated 를 선언해야 한다");
                 }
                 return actor;
+            }
+        });
+        // 2차 대기 세션의 대기 정보 — @AdminMfaPending 을 선언한 API 만 받을 수 있다
+        resolvers.add(new HandlerMethodArgumentResolver() {
+            @Override
+            public boolean supportsParameter(MethodParameter parameter) {
+                return PendingMfa.class.equals(parameter.getParameterType());
+            }
+
+            @Override
+            public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer, NativeWebRequest webRequest,
+                                          WebDataBinderFactory binderFactory) {
+                Object pending = webRequest.getAttribute(AdminAccessInterceptor.MFA_PENDING_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST);
+                if (pending == null) {
+                    throw new IllegalStateException("PendingMfa 를 받으려면 @AdminMfaPending 을 선언해야 한다");
+                }
+                return pending;
             }
         });
     }

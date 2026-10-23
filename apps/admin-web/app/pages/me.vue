@@ -1,5 +1,5 @@
 <template>
-    <!-- 내 정보 — 제목 + 왼쪽 서브메뉴(`AppSideNav`: 일반 · 개인 설정 · 로그인 이력 · 비밀번호) + 탭 본문. 탭은 `?tab=general|personal|login|password` 로 들어오고 유지된다(모르는 값은 general).
+    <!-- 내 정보 — 제목 + 왼쪽 서브메뉴(`AppSideNav`: 일반 · 개인 설정 · 로그인 이력 · 비밀번호 · 로그인 보안) + 탭 본문. 탭은 `?tab=general|personal|login|password|security` 로 들어오고 유지된다(모르는 값은 general).
          탭 내용은 `components/profile/` 의 탭 컴포넌트가 맡고 이 페이지는 전환만 한다. 본문 폭은 화면 설정(꽉 채우기/가운데 제한)이 정한다 — 이 화면이 따로 최대 폭을 걸지 않는다. -->
     <div class="flex w-full flex-col gap-4">
         <PageTitle :title="t('profile.title')" :subtitle="t('profile.subtitle')" />
@@ -11,7 +11,8 @@
                 <ProfileGeneralTab v-if="activeTab === 'general'" />
                 <ProfilePersonalTab v-else-if="activeTab === 'personal'" />
                 <ProfileLoginTab v-else-if="activeTab === 'login'" />
-                <ProfilePasswordTab v-else />
+                <ProfilePasswordTab v-else-if="activeTab === 'password'" />
+                <ProfileSecurityTab v-else />
             </div>
         </div>
     </div>
@@ -20,7 +21,7 @@
 <script setup lang="ts">
 import type { SideNavItem } from '~/components/common/AppSideNav.types';
 
-type MeTab = 'general' | 'personal' | 'login' | 'password';
+type MeTab = 'general' | 'personal' | 'login' | 'password' | 'security';
 
 const { t } = useI18n();
 useSeoMeta({ title: () => t('profile.seoTitle') });
@@ -34,15 +35,17 @@ const TABS = computed<SideNavItem[]>(() => [
     { value: 'personal', label: t('profile.tabPersonal'), icon: 'pi pi-cog' },
     { value: 'login', label: t('profile.tabLogin'), icon: 'pi pi-history' },
     { value: 'password', label: t('profile.tabPassword'), icon: 'pi pi-key' },
+    // 2차 인증(OTP)·신뢰 기기 — docs/domain/commerce.md 13-3
+    { value: 'security', label: t('profile.tabSecurity'), icon: 'pi pi-shield' },
 ]);
 
 /** 지금 탭 — 주소의 `?tab=` 이 정한다. 모르는 값(없거나 엉뚱한 값)은 general. 프로필 메뉴의 "개인 설정"처럼 이미 이 화면에서 `?tab=` 만 바뀌어도 따라온다 */
 const activeTab = computed<MeTab>({
     get: () => {
         const tab = route.query.tab;
-        return tab === 'personal' || tab === 'login' || tab === 'password' ? tab : 'general';
+        return tab === 'personal' || tab === 'login' || tab === 'password' || tab === 'security' ? tab : 'general';
     },
-    // 탭을 누르면 주소에 반영한다(뒤로 가기 목록을 쌓지 않는다). 다른 쿼리(`mock` 등)는 그대로 둔다
+    // 탭을 누르면 주소에 반영한다(뒤로 가기 목록을 쌓지 않는다). 다른 쿼리는 그대로 둔다
     set: (tab) => void router.replace({ query: { ...route.query, tab } }),
 });
 </script>

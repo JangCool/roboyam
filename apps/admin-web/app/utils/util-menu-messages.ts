@@ -2,6 +2,7 @@ import type { Translate } from '#layers/i18n/utils/util-i18n';
 import { ApiError } from '~/composables/common/useApiClient';
 import type { MenuAudience, MenuGradeOption } from '~/composables/menu/api/useMenuApi.types';
 import type { AdminMenuEditNode, AdminMenuMoveProblem, AdminMenuProblemCode } from '~/utils/util-admin-menu-config';
+import UtilAdminMenu from '~/utils/util-admin-menu';
 import UtilAdminMenuConfig from '~/utils/util-admin-menu-config';
 import UtilAdminAuthMessages from '~/utils/util-admin-auth-messages';
 import type { MenuContext, MenuEditItem, MenuEditNode, MenuTreeProblem } from '~/utils/util-menu';
@@ -77,6 +78,16 @@ export default class UtilMenuMessages {
         if (node.label.trim()) return { text: localizedName(node.label.trim(), nameEn), following: false };
         const target = node.kind === 'ITEM' ? UtilMenuMessages.targetName(t, node, ctx, localizedName) : '';
         return { text: localizedName(target || t('menuConfig.untitled'), nameEn), following: true };
+    }
+
+    /**
+     * 관리자 메뉴 노드의 권한 표시 — 권한 코드는 그대로, 최고 관리자 전용 화면의 예약 코드(`UtilAdminMenu.SUPER_ONLY`)는 「최고 관리자만」.
+     * @param {Translate} t - 번역 함수.
+     * @param {string} code - `UtilAdminMenuConfig.permissionOf` 가 준 코드.
+     * @returns {string} 보일 글자.
+     */
+    static adminPermissionLabel(t: Translate, code: string): string {
+        return code === UtilAdminMenu.SUPER_ONLY ? t('menuConfig.superOnly') : code;
     }
 
     /**

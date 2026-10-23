@@ -43,7 +43,7 @@ public class AdminAccessVerifier implements ApplicationRunner {
             }
         }
         if (!undeclared.isEmpty()) {
-            throw new IllegalStateException("권한 선언(@RequirePermission · @AdminAuthenticated · @AdminPublic 중 하나)이 없는 관리자 API: " + undeclared);
+            throw new IllegalStateException("권한 선언(@RequirePermission · @AdminAuthenticated · @AdminPublic · @AdminMfaPending 중 하나)이 없는 관리자 API: " + undeclared);
         }
         log.info("관리자 API {}개의 권한 선언을 확인했다", checked);
     }

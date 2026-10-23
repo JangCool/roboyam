@@ -83,6 +83,10 @@ public class SecurityConfig {
                         // 로그인 전 계정 흐름(초대 링크 확인·수락, 비밀번호 재설정 승인번호 요청·재설정) — 서비스가 토큰·승인번호·요청 한도를 검사한다
                         .requestMatchers(HttpMethod.POST, "/api/admin/auth/invitation/check", "/api/admin/auth/invitation/accept",
                                 "/api/admin/auth/password-reset/code", "/api/admin/auth/password-reset").permitAll()
+                        // 관리자 2차 인증의 로그인 2단계(docs/features/commerce-foundation-contract.md 「0-3」) — 「2차 대기」 세션은 로그인이 아니다. 대기 세션 확인·단계 확인은
+                        // admin 의 AdminAccessInterceptor(@AdminMfaPending — 없거나 만료면 401 MFA_PENDING_EXPIRED)가, 대기 취소는 공개(@AdminPublic). CSRF 는 그대로 필요하다
+                        .requestMatchers(HttpMethod.POST, "/api/admin/auth/mfa/verify", "/api/admin/auth/mfa/cancel",
+                                "/api/admin/auth/mfa/enrollment", "/api/admin/auth/mfa/enrollment/confirm").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
                 .exceptionHandling(e -> e

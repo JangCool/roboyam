@@ -56,6 +56,11 @@ public class LoginAttemptEntity {
         updatedAt = now;
     }
 
+    /** 지금까지 연속으로 틀린 횟수 — 관리자 2차 인증이 남은 횟수를 알릴 때 쓴다 */
+    public int getFailCount() {
+        return failCount;
+    }
+
     public Instant getLockedUntil() {
         return lockedUntil;
     }
