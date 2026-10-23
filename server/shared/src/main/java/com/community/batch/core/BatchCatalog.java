@@ -38,7 +38,7 @@ public enum BatchCatalog implements BatchDefinition {
     /** 만료·수락된 운영자 초대 삭제 — DB 배치, 기본 매일 03:20 KST */
     OPERATOR_INVITATION_CLEANUP("operator-invitation-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
-    /** 보관 기간(기본 1년)이 지난 감사 로그 삭제 — DB 배치, 기본 매일 03:30 KST */
+    /** 보관 분류별 기간(일반 1년 · 개인정보 열람 2년 · 돈 관련 5년, 하한 있음 — commerce.md 13-4)이 지난 감사 로그 삭제 — DB 배치, 기본 매일 03:30 KST */
     AUDIT_LOG_RETENTION("audit-log-retention", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
     /** 보관 기간(기본 90일)이 지난 배치 실행 로그 삭제 — DB 배치, 기본 매일 03:40 KST. 예전에는 Java 배치였다(키를 이어 쓴다) */
@@ -76,6 +76,15 @@ public enum BatchCatalog implements BatchDefinition {
      * 공개 서버는 시각이 지난 예약 삭제 글을 이미 지운 글로 보고 거르므로 늦게 돌아도 화면은 같다 — 그래서 정리(SYSTEM) 분류로 둔다.
      */
     BOARD_POST_UPKEEP("board-post-upkeep", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /** 24시간이 지난 멱등 키(idempotency_requests) 삭제 — DB 배치, 기본 매일 04:20 KST({@code R__batch_21_idempotency_request_cleanup.sql}, commerce-foundation-contract 「0-5」) */
+    IDEMPOTENCY_REQUEST_CLEANUP("idempotency-request-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /** 요청 속도 카운터(request_rate_counters)의 지난 1분 창 삭제 — DB 배치, 기본 <b>매시</b> 05분 KST({@code R__batch_22_request_rate_counter_cleanup.sql}) */
+    REQUEST_RATE_COUNTER_CLEANUP("request-rate-counter-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /** 끝난 지 보관 기간(기본 365일)이 지난 커머스 메일 대기열 줄 삭제 — DB 배치, 기본 매일 04:40 KST({@code R__batch_23_mail_outbox_cleanup.sql}) */
+    MAIL_OUTBOX_CLEANUP("mail-outbox-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
     /** 올리기만 하고 어디에도 지정하지 않은 채 오래된 파일(files.status = PENDING) 삭제 — Java 배치(저장소 파일을 지우므로 DB 만으로 끝나지 않는다), 하루 한 번(새벽 03:45). 기준 시간은 {@code roboyam.media.orphan-retention-hours} */
     FILE_ORPHAN_CLEANUP("file-orphan-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 45 3 * * *", true);

@@ -126,6 +126,11 @@ public final class AuditActions {
     public static final String MFA_RESET = "MFA_RESET";
     /** 로그인 보안 설정(사용·유예 일수·기기 신뢰 개월·실패 한도) 저장 — 대상 LOGIN_SECURITY, 바뀐 칸만 before/after */
     public static final String MFA_SETTINGS_UPDATE = "MFA_SETTINGS_UPDATE";
+    // ── 커머스 0-5(돈 요청 보호·감사 보관, docs/features/commerce-foundation-contract.md 「0-5」) ──
+    /** 커머스 설정 › 요청 제한(요청 종류별 1분 한도) 저장 — 대상 COMMERCE_SETTINGS/{@code request-limits}, 바뀐 종류만 before/after */
+    public static final String COMMERCE_REQUEST_LIMIT_UPDATE = "COMMERCE_REQUEST_LIMIT_UPDATE";
+    /** 감사 보관 기간(분류별 일수) 저장 — 최고 관리자만, 대상 AUDIT_RETENTION/{@code audit-log-retention}, 바뀐 분류만 before/after. 보관 분류 MONEY(5년) */
+    public static final String AUDIT_RETENTION_UPDATE = "AUDIT_RETENTION_UPDATE";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

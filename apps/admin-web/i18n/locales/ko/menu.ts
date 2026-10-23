@@ -48,6 +48,9 @@ export default {
     point: '포인트',
     points: '포인트 내역',
     pointPolicy: '포인트 정책',
+    // 커머스 묶음(설정 모드) — 판매·결제 공통 설정
+    commerce: '커머스',
+    commerceSettings: '커머스 설정',
     operatorsAndPermissions: '운영자와 권한',
     operators: '운영자 관리',
     roles: '역할 관리',

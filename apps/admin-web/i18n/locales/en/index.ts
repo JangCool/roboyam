@@ -9,6 +9,7 @@ import account from './account';
 import audit from './audit';
 import batch from './batch';
 import board from './board';
+import commerce from './commerce';
 import dashboard from './dashboard';
 import error from './error';
 import grade from './grade';
@@ -38,6 +39,7 @@ export default {
     audit,
     batch,
     board,
+    commerce,
     dashboard,
     error,
     grade,

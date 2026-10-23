@@ -208,7 +208,7 @@
 
 ### 정리
 - 번들 키 지움: `notification.mail.subject`·`mail.common.noReply`(ko·en — 쓰는 곳 없음). `mail.verify.*`·`mail.operator*`·`mail.test.*`·`notification.mail.open|reason`·`notification.channel.post.open`·`member.notification.*` 는 기본 문구·상황별 제목의 원천이라 남긴다.
-- `mail_outbox`: 코드에 없어 만들지 않았다(커머스 메일 경로 없음).
+- `mail_outbox`: 이 단계에서는 코드에 없어 만들지 않았다. → 커머스 0-5 가 만들었다(`commerce-foundation-contract.md` 「0-5」 — 필수 안내 메일과 같은 문구 해석으로 보낸다).
 
 ### 검증(일회용 DB `rbverify_dispatch` = 개발 DB 복제, admin 9181 · api 9182 · 가짜 Slack/Mattermost 9185 · mailpit 1035)
 - 필수 안내 메일 5종: 기본 문구 결과가 옛 메일과 같은 글(템플릿 머리말·꼬리말만 기본 템플릿 모양), 요청 언어(시험·재설정 en) · 사용자 문구로 바꾸면 그 결과 · 소셜(비밀번호 없음) 회원은 `signupMethod=SOCIAL` 규칙 문구 · `inviteRole` 규칙 · 제목 머리말·보내는 이름 규칙.

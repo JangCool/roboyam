@@ -8,7 +8,12 @@
         본문 여백은 셸(`.app-content`)이 준다 — hamonica3 의 `p-4 md:p-6` 은 옮기지 않았다.
     -->
     <div class="flex min-h-0 flex-col gap-4 lg:h-full">
-        <PageTitle :title="t('audit.title')" :subtitle="t('audit.subtitle')" />
+        <PageTitle :title="t('audit.title')" :subtitle="t('audit.subtitle')">
+            <template #actions>
+                <!-- 보관 기간 — 분류별 일수를 보고(모두), 바꾼다(최고 관리자만). 대화상자는 이 화면 맨 아래 -->
+                <Button :label="t('audit.retentionButton')" icon="pi pi-calendar-clock" size="small" severity="secondary" variant="outlined" @click="openRetention" />
+            </template>
+        </PageTitle>
 
         <!-- 거르기 — 서버가 지원하는 조건(기간·사용자·작업·대상 종류·대상·결과)과 같다. 조건이 틀렸다는 서버 400(`fields.<칸>`)은 그 칸 아래에 서버 문구로 보인다 -->
         <div class="flex flex-wrap items-start gap-2">
@@ -167,13 +172,84 @@
                 </div>
             </template>
         </DataTable>
+
+        <!--
+            보관 기간(commerce.md 13-4) — 감사 기록은 행동마다 보관 분류(일반 운영 · 개인정보 열람·내려받기 · 돈 관련)가 붙고, 매일 정리 배치(`audit-log-retention`, 03:30)가 분류별 기간이 지난 기록을 지운다.
+            바꾸기는 최고 관리자(루트)만(확정 2026-10-24 — 감사 기록을 지우는 범위라 권한 코드로 위임하지 않는다). 판정은 `can(UtilAdminMenu.SUPER_ONLY)` 와 서버가 준 `canEdit` 둘 다 — 아니면 같은 대화상자를 읽기 전용으로 보인다. 막는 것은 서버(403)다.
+            일수는 정수, 하한~상한(서버가 분류마다 준다). 줄인 분류가 있으면 저장 전에 한 번 더 묻는다(다음 정리부터 그보다 오래된 기록이 지워지고 되돌릴 수 없다). 열 때마다 서버 값을 다시 받는다.
+        -->
+        <Dialog v-model:visible="retentionOpen" modal :draggable="false" :header="t('audit.retentionTitle')" :style="{ width: 'min(42rem, calc(100vw - 2rem))' }">
+            <div v-if="retentionLoading && !retention" class="flex flex-col gap-3" role="status" :aria-label="t('common.loading')">
+                <Skeleton v-for="n in 3" :key="n" height="3.5rem" />
+            </div>
+
+            <ErrorState v-else-if="!retention" :title="t('audit.retentionLoadFailed')" :description="retentionLoadError?.message" retry :retrying="retentionLoading" @retry="loadRetention" />
+
+            <form v-else :id="retentionFormId" class="flex flex-col gap-4" novalidate @submit.prevent="saveRetention">
+                <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('audit.retentionLead') }}</p>
+
+                <Message v-if="!retentionEditable" severity="secondary" :closable="false" size="small" icon="pi pi-lock">{{ t('audit.retentionSuperOnly') }}</Message>
+
+                <ul class="m-0 flex list-none flex-col divide-y divide-(--line) rounded-lg border border-(--line) p-0">
+                    <li v-for="item in retention.items" :key="item.category" class="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                        <div class="min-w-0 flex-1">
+                            <label :for="retentionIdOf(item.category)" class="text-sm font-medium">{{ t(`audit.retentionName.${item.category}`) }}</label>
+                            <p :id="`${retentionIdOf(item.category)}-desc`" class="m-0 mt-0.5 text-xs leading-relaxed text-muted-color">{{ t(`audit.retentionExample.${item.category}`) }}</p>
+                        </div>
+
+                        <div class="flex flex-col gap-1 sm:items-end">
+                            <div class="flex items-center gap-2">
+                                <InputText
+                                    :id="retentionIdOf(item.category)"
+                                    :model-value="retentionForm[item.category]"
+                                    :name="`days.${item.category}`"
+                                    inputmode="numeric"
+                                    autocomplete="off"
+                                    :readonly="!retentionEditable || retentionSaving"
+                                    :invalid="!!retentionErrorOf(item)"
+                                    :aria-describedby="`${retentionIdOf(item.category)}-desc ${retentionIdOf(item.category)}-msg`"
+                                    :aria-required="true"
+                                    class="w-24 text-right tabular-nums"
+                                    @update:model-value="(value: string | undefined) => onRetentionInput(item.category, value ?? '')"
+                                />
+                                <span class="text-sm text-muted-color">{{ t('audit.retentionUnitDays') }}</span>
+                                <span class="w-16 text-xs tabular-nums text-muted-color">{{ UtilAuditMessages.span(t, UtilAudit.parseDays(retentionForm[item.category] ?? '')) }}</span>
+                            </div>
+
+                            <!-- 칸 아래 — 오류(화면 검사 · 서버 문구) / 하한·기본값 -->
+                            <div :id="`${retentionIdOf(item.category)}-msg`" aria-live="polite" class="text-xs leading-relaxed sm:text-right">
+                                <p v-if="retentionErrorOf(item)" role="alert" class="m-0 text-red-600 dark:text-red-400">{{ retentionErrorOf(item) }}</p>
+                                <p v-else class="m-0 text-muted-color">{{ t('audit.retentionBounds', { min: item.minDays, def: item.defaultDays }) }}</p>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+
+                <p class="m-0 text-xs text-muted-color">
+                    {{ retention.updatedAt ? t('audit.retentionLastSaved', { at: time.full(retention.updatedAt), by: retention.updatedBy ?? '—' }) : t('audit.retentionNeverSaved') }}
+                </p>
+
+                <Message v-if="retentionError" severity="error" size="small" variant="simple" :closable="false" role="alert">{{ retentionError }}</Message>
+            </form>
+
+            <template #footer>
+                <template v-if="retention && retentionEditable">
+                    <Button type="button" :label="t('common.cancel')" severity="secondary" variant="text" :disabled="retentionSaving" @click="retentionOpen = false" />
+                    <Button type="submit" :form="retentionFormId" :label="t('common.save')" :loading="retentionSaving" :disabled="!retentionCanSave" />
+                </template>
+                <Button v-else type="button" :label="t('common.close')" severity="secondary" variant="outlined" @click="retentionOpen = false" />
+            </template>
+        </Dialog>
     </div>
 </template>
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { AuditFilterField, AuditLogView, AuditOptions, AuditResult } from '~/composables/audit/api/useAuditApi.types';
+import type { AuditRetentionCategory, AuditRetentionItem, AuditRetentionView } from '~/composables/audit/api/useAuditRetentionApi.types';
+import UtilAdminMenu from '~/utils/util-admin-menu';
 import UtilAudit from '~/utils/util-audit';
+import UtilAuditMessages from '~/utils/util-audit-messages';
 
 const { t, locale } = useI18n();
 useSeoMeta({ title: () => t('audit.title') });
@@ -347,5 +423,122 @@ function clearFilter() {
 /** 펼칠 때만 연다. 못 열어도 화면이 멈추면 안 된다 — 옛 기록의 모양이 다를 수 있다. */
 function changesOf(row: AuditLogView) {
     return UtilAudit.parseChanges(row.changes);
+}
+
+// ── 보관 기간 대화상자 ─────────────────────────────────────────────
+const retentionApi = useAuditRetentionApi();
+const toast = useAppToast();
+const { confirm } = useConfirmDialog();
+const { can } = useAdminPermission();
+
+const retentionFormId = useId();
+const retentionBaseId = useId();
+const retentionIdOf = (category: AuditRetentionCategory) => `${retentionBaseId}-${category}`;
+
+const retentionOpen = ref(false);
+const retention = ref<AuditRetentionView | null>(null);
+/** 입력 중인 일수 — 글자로 들고 저장할 때 바꾼다(`InputNumber` 는 범위 밖 값을 말없이 고친다) */
+const retentionForm = ref<Partial<Record<AuditRetentionCategory, string>>>({});
+const retentionLoading = ref(false);
+const retentionLoadError = ref<ApiError | null>(null);
+const retentionSaving = ref(false);
+/** 칸에 붙지 않는 저장 실패 한 줄 */
+const retentionError = ref('');
+/** 서버가 거절한 칸(400 `fields.days.<분류>`)의 문구 */
+const retentionServerErrors = ref<Partial<Record<AuditRetentionCategory, string>>>({});
+
+/** 바꿀 수 있는가 — 최고 관리자(로그인 보안과 같은 판정)이고 서버도 허락했을 때만 */
+const retentionEditable = computed(() => can(UtilAdminMenu.SUPER_ONLY) && retention.value?.canEdit === true);
+
+function retentionProblemOf(item: AuditRetentionItem) {
+    return UtilAudit.retentionProblem(retentionForm.value[item.category] ?? '', item);
+}
+
+function retentionErrorOf(item: AuditRetentionItem): string {
+    if (!retentionEditable.value) return '';
+    const problem = retentionProblemOf(item);
+    if (problem) return UtilAuditMessages.problem(t, problem, item);
+    return retentionServerErrors.value[item.category] ?? '';
+}
+
+/** 저장된 값과 다른 분류 — 숫자로 읽어 비교한다, 읽을 수 없는 글자는 바뀐 것으로 본다 */
+const retentionChanged = computed(() => (retention.value?.items ?? []).filter((item) => UtilAudit.parseDays(retentionForm.value[item.category] ?? '') !== item.days));
+const retentionCanSave = computed(() => retentionEditable.value && !retentionSaving.value && retentionChanged.value.length > 0 && (retention.value?.items ?? []).every((item) => !retentionProblemOf(item)));
+
+function onRetentionInput(category: AuditRetentionCategory, value: string): void {
+    retentionForm.value = { ...retentionForm.value, [category]: value };
+    if (retentionServerErrors.value[category]) {
+        const { [category]: _removed, ...rest } = retentionServerErrors.value;
+        retentionServerErrors.value = rest;
+    }
+}
+
+function applyRetention(view: AuditRetentionView): void {
+    retention.value = view;
+    retentionForm.value = Object.fromEntries(view.items.map((item) => [item.category, String(item.days)]));
+    retentionServerErrors.value = {};
+    retentionError.value = '';
+}
+
+/** 열 때마다 서버 값을 다시 받는다 — 다른 최고 관리자가 바꿨을 수 있고, 앞서 적다 만 값이 남으면 안 된다 */
+function openRetention(): void {
+    retentionOpen.value = true;
+    retention.value = null;
+    void loadRetention();
+}
+
+async function loadRetention(): Promise<void> {
+    retentionLoading.value = true;
+    retentionLoadError.value = null;
+    try {
+        applyRetention(await retentionApi.retention());
+    } catch (e) {
+        retentionLoadError.value = errorOf(e);
+    } finally {
+        retentionLoading.value = false;
+    }
+}
+
+async function saveRetention(): Promise<void> {
+    const current = retention.value;
+    if (!current || !retentionCanSave.value) return;
+    const days = {} as Record<AuditRetentionCategory, number>;
+    for (const item of current.items) {
+        const value = UtilAudit.parseDays(retentionForm.value[item.category] ?? '');
+        if (value === null) return;
+        days[item.category] = value;
+    }
+
+    // 줄인 분류가 있으면 한 번 더 묻는다 — 다음 정리부터 그보다 오래된 기록이 지워지고 되돌릴 수 없다
+    const shortened = current.items.filter((item) => days[item.category] < item.days);
+    if (shortened.length) {
+        const names = shortened.map((item) => t(`audit.retentionName.${item.category}`)).join(', ');
+        const ok = await confirm({ title: t('audit.retentionShrinkTitle'), message: t('audit.retentionShrinkMessage', { names }), confirmLabel: t('audit.retentionShrinkConfirm'), tone: 'danger' });
+        if (!ok) return;
+    }
+
+    retentionSaving.value = true;
+    retentionError.value = '';
+    retentionServerErrors.value = {};
+    try {
+        applyRetention(await retentionApi.saveRetention({ days }));
+        toast.success(t('audit.retentionSaved'));
+        retentionOpen.value = false;
+    } catch (e) {
+        const failure = errorOf(e);
+        const fields: Partial<Record<AuditRetentionCategory, string>> = {};
+        if (failure.code === 'VALIDATION') {
+            for (const item of current.items) {
+                const message = failure.field(`days.${item.category}`);
+                if (message) fields[item.category] = message;
+            }
+        }
+        retentionServerErrors.value = fields;
+        // 권한이 없다는 답(403)이면 읽기 전용으로 바꾼다 — 서버 문구는 그대로 보인다
+        if (failure.status === 403 && retention.value) retention.value = { ...retention.value, canEdit: false };
+        retentionError.value = Object.keys(fields).length ? t('audit.retentionFieldsRejected') : failure.message;
+    } finally {
+        retentionSaving.value = false;
+    }
 }
 </script>

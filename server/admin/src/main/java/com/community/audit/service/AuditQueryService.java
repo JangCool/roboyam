@@ -164,6 +164,8 @@ public class AuditQueryService {
             case "SITE" -> labels.text("audit.targetName.SITE");
             case "GRADE" -> labels.text("audit.targetName.GRADE");
             case "LOGIN_SECURITY" -> labels.text("audit.targetName.LOGIN_SECURITY");
+            case "COMMERCE_SETTINGS" -> labels.text("audit.targetName.COMMERCE_SETTINGS");
+            case "AUDIT_RETENTION" -> labels.text("audit.targetName.AUDIT_RETENTION");
             default -> null;
         };
     }

@@ -56,6 +56,18 @@ public enum Permission {
     POINT_READ("point.read", GRADE_POINT, READ, true),
     POINT_SETTINGS("point.settings", GRADE_POINT, CONFIG, true),
     POINT_ADJUST("point.adjust", GRADE_POINT, SENSITIVE, true),
+    /** 1회 ±10,000P 를 넘는 수동 조정(최대 ±100,000P) — commerce.md 13-2, 기능 준비 중 */
+    POINT_ADJUST_LARGE("point.adjust.large", GRADE_POINT, SENSITIVE, false),
+    /** 유상(충전) 포인트 환불 승인 */
+    POINT_REFUND_APPROVE("point.refund.approve", GRADE_POINT, SENSITIVE, false),
+    /** 고액 충전 포인트 환불(1회 100,000원 이상) */
+    POINT_REFUND_LARGE("point.refund.large", GRADE_POINT, SENSITIVE, false),
+    /** 상점 품목·충전 상품 조회 */
+    SHOP_READ("shop.read", GRADE_POINT, READ, false),
+    /** 상점 품목·충전 상품 관리 */
+    SHOP_MANAGE("shop.manage", GRADE_POINT, MANAGE, false),
+    /** 상점 구매 예외 환불 */
+    SHOP_REFUND("shop.refund", GRADE_POINT, SENSITIVE, false),
     DORMANCY_READ("dormancy.read", GRADE_POINT, READ, false),
     DORMANCY_SETTINGS("dormancy.settings", GRADE_POINT, CONFIG, false),
     GROUP_READ("group.read", CLUB, READ, false),
@@ -73,8 +85,16 @@ public enum Permission {
     COMMERCE_ORDER_MANAGE("commerce.order.manage", GB_ORDER, MANAGE, false),
     COMMERCE_REFUND_APPROVE("commerce.refund.approve", GB_ORDER, SENSITIVE, false),
     COMMERCE_ADDRESS_REVEAL("commerce.address.reveal", GB_ORDER, SENSITIVE, false),
+    /** 공구 중단(참여자 전원 전액 환불) — commerce.md 13-2, 기능 준비 중 */
+    COMMERCE_GROUPBUY_CANCEL("commerce.groupbuy.cancel", GB_ORDER, SENSITIVE, false),
+    /** 고액 공구 환불(1회 100,000원 이상) */
+    COMMERCE_REFUND_LARGE("commerce.refund.large", GB_ORDER, SENSITIVE, false),
     COMMERCE_SETTLEMENT_READ("commerce.settlement.read", GB_SETTLE, READ, false),
     COMMERCE_EXPORT("commerce.export", GB_SETTLE, SENSITIVE, false),
+    /** 결제 주문 조회 — commerce.md 13-2, 기능 준비 중 */
+    COMMERCE_PAYMENT_READ("commerce.payment.read", GB_SETTLE, READ, false),
+    /** 대사 불일치 처리 */
+    COMMERCE_RECONCILE_MANAGE("commerce.reconcile.manage", GB_SETTLE, SENSITIVE, false),
     COMMERCE_SETTINGS("commerce.settings", GB_CONFIG, CONFIG, false),
     BUSINESS_READ("business.read", BIZ_REVIEW, READ, false),
     BUSINESS_MANAGE("business.manage", BIZ_REVIEW, MANAGE, false),

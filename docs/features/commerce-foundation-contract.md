@@ -7,9 +7,9 @@
 |---|---|---|
 | 0-1 | 필드 암호화 키링(`DataCipher`)·중복 확인 해시(`BlindIndex`), 설치 스크립트·compose 의 새 키 | **구현됨**(아래) |
 | 0-2 | 배치 보강: 작업 core 를 shared `batch.core` 로, 실행 요청 표(「지금 실행」 비동기), 단계·건별 실패·체크포인트·재실행, 워커 기록 | **서버 구현·화면 연결됨**(아래) |
-| 0-3 | 관리자 2차 인증(TOTP) | **화면 확정·서버 구현·화면 연결됨**(아래 「0-3」, 규칙 테스트 통과) |
+| 0-3 | 관리자 2차 인증(TOTP) | **화면 확정·서버 구현·화면 연결됨**(아래 「0-3」, 규칙 테스트 통과) — develop 병합 b40d1a9. 병합 뒤 커머스 테스트 247개(shared 72·admin 175)를 `--rerun` 으로 다시 돌려 모두 통과(2026-10-23) |
 | 0-4 | 본인인증·기능 제한·탈퇴 대비 표, 데이터 키 교체 배치 | 대기 — 0-1 필요, 화면 목업 먼저 |
-| 0-5 | 멱등·속도 제한·요청 제한 설정, 커머스 메일 대기열, 권한 코드 11개, 감사 보관 분류(13-4) | 대기 — 0-2 의 워커 기록 필요 |
+| 0-5 | 멱등·속도 제한·요청 제한 설정, 커머스 메일 대기열, 권한 코드 10개(+ `member.withdrawn.contact` 는 0-4), 감사 보관 분류(13-4) | **화면 확정·서버 구현·화면 연결됨**(아래 「0-5」, 규칙 테스트 82개 통과 2026-10-24) |
 순서: 0-1 → (0-2 ∥ 0-3) → (0-4 ∥ 0-5). 병행은 세션마다 worktree, 마이그레이션 번호는 develop 에 합치는 순서로 매긴다(`_backend-core.md`).
 
 ## 마이그레이션 계획 (가번호 — 합칠 때 확정)
@@ -17,9 +17,11 @@
 |---|---|---|---|
 | V61 (V57 은 develop 의 알림 작업이 먼저 씀) | shared | `batch_runs` 칸(run_mode·params·건수·resumed_from_run_id·checkpoint·request_id), `batch_run_steps`, `batch_run_failures`, `batch_run_requests`, `worker_heartbeats` | 0-2 |
 | admin V3 | admin | `admin_security_settings`(1행·꺼짐), `operator_mfa`, `operator_mfa_recovery_codes`, `operator_trusted_devices` | 0-3 |
-| V58 | shared | `identity_verifications`, `identity_verification_attempts`, `member_restrictions`, `identity_withdrawals`, `withdrawn_member_contacts` | 0-4 |
-| V59 | shared | `idempotency_requests`, `request_rate_counters`(UNLOGGED), `request_rate_limits`(기본 4행) | 0-5 |
-| V60 | shared | `mail_outbox` | 0-5 |
+| V62~ (합칠 때 확정 — V57~V60 은 알림 작업이 먼저 썼다) | shared | `identity_verifications`, `identity_verification_attempts`, `member_restrictions`, `identity_withdrawals`, `withdrawn_member_contacts` | 0-4 |
+| V62~ (합칠 때 확정) | shared | `idempotency_requests`, `request_rate_counters`(UNLOGGED), `request_rate_limits`(기본 4행), `mail_outbox`, 감사 보관 분류 칸 | 0-5 |
+- 0-4·0-5 는 동시에 진행하므로 각자 가번호로 쓰고, **develop 에 먼저 합치는 쪽이 V62** 를 쓴다. 나중 쪽은 합치기 직전에 마지막 번호를 다시 보고 그다음 번호로 이름을 바꾼다(`_backend-core.md`).
+- **세션 정리 결정(0-4·0-5 겹침)**: 권한 `member.withdrawn.contact` 는 0-4 가 더한다(쓰는 곳이 0-4). 나머지 새 권한 10개는 0-5 가 더한다. 감사 보관 분류(행동 → 일반·개인정보 열람·돈 관련)의 표·정리 배치는 0-5 가 맡고, 0-4 는 새 감사 행위 이름만 정한다. 0-5 가 합칠 때 0-4 의 행위를 분류표에 넣는다(먼저 합친 쪽 것을 나중 쪽이 맞춘다).
+- 0-5 의 파일은 `V62__commerce_guards_outbox.sql`(한 파일 — 표 넷 + `audit_logs.retention_class`). 0-4 가 먼저 합치면 V63 으로 바꾼다.
 칸·제약·색인의 상세는 승인한 제안(세션 보고, 노트 `commerce-stage0-erd-package-proposal.md`)을 따르고 구현 세션이 이 표에 결과를 덧붙인다.
 
 ## 세션 정리 결정 (제안 ⑥ — 모두 추천안으로 승인 2026-10-23)
@@ -175,6 +177,67 @@
 - 실행: `JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2 ./gradlew :server:admin:test --rerun --tests 'com.community.mfa.*' --tests 'com.community.permission.config.AdminMfaPendingDeclarationTest' --tests 'com.community.menu.service.AdminScreenRegistryLoginSecurityTest'` → **168 통과·0 실패**(develop b9df197 합친 뒤).
 - **테스트로 막지 못한 것**: 설치 스크립트의 실제 설치 폴더 동작(셸 — `bash -n` + 임시 postgres 에서 psql 부분만 손으로 확인), pg_cron 등록(시험 DB 에 없음 — 정의와 `CALL` 결과만), 운영 세션 쿠키 이름 `ADMIN_SESSION`(목 서블릿은 `SESSION`), 알림 메일·Slack 실제 발송(서랍 알림 행까지만), 운영 서버의 접근·프록시 로그.
 
+## 0-5 돈 요청 보호·메일 대기열·권한·감사 보관 (화면 확정·서버 구현 2026-10-24)
+**의도**: 돈이 움직이는 회원 요청을 같은 요청 반복(멱등 키)과 남용(속도 제한)에서 지키고, 커머스 메일을 유실 없는 대기열로 보내고, 1~3단계가 쓸 권한 코드와 감사 보관 분류를 미리 둔다. 정책은 `commerce.md` 3절·12-4·13-2·13-4·14·15-4·15-5.
+
+### 화면 확정 때 정한 것 (추천안 승인 2026-10-24)
+1. 감사 보관 기간은 **최고 관리자만** 바꾼다(감사 기록을 지우는 범위라 권한 코드로 위임하지 않는다). 보기는 `audit.read`.
+2. 일반 운영의 하한은 1일(13-4 표의 「—」).
+3. 커머스 설정은 보기·저장 모두 `commerce.settings` 하나. 이 권한은 `featureReady=false` 그대로(판매 스위치가 들어올 때 준비됨으로 바꾼다).
+4. 메일 대기열 보관은 끝난 줄(SENT·DEAD·CANCELED) **365일**, 설정값 30~3650일(`batch_params` `mail-outbox-cleanup.retention_days`, 화면 없음).
+
+### 화면 (admin-web — 실제 서버 연결)
+- `/settings/commerce` 「커머스 설정」(설정 모드 새 묶음 「커머스」, 메뉴 키 `commerceSettings`, `commerce.settings`) — 첫 구획 「요청 제한」: 4줄(공구 참여 5 · 포인트 충전 3 · 상점 구매 10 · 환불 신청 3), 정수 0~100(0 = 제한 없음 태그), 기본값 되돌리기, 마지막 저장, `StickySaveBar`. 판매 스위치·사업자 정보 등은 이 화면에 구획으로 더한다.
+- `/settings/audit` 제목 옆 「보관 기간」 대화상자: 분류 3줄(일수·약 N년·하한·기본), 줄이면 저장 전 확인, 루트가 아니면 읽기 전용.
+- 코드: `pages/settings/commerce.vue`, `composables/commerce/api/useCommerceSettingsApi*`, `composables/audit/api/useAuditRetentionApi*`, `utils/util-commerce.ts`·`util-audit-messages.ts`, `pages/settings/audit.vue`, `utils/util-admin-menu.ts`, i18n `commerce`·`audit`·`menu`·`permission`.
+
+### API (공통 래퍼, `Cache-Control: no-store`, 쓰기는 CSRF)
+| | 선언 | 요청 → 응답 |
+|---|---|---|
+| `GET`·`PUT /api/admin/commerce/request-limits` | `commerce.settings` | `{ items: [{action, limitPerMinute, defaultLimit}], updatedAt, updatedBy }` · PUT `{ limits: { <코드>: 0~100 } }`(네 종류 모두) · 400 `VALIDATION` `fields.limits.<코드>`(모르는 코드는 `fields.limits`) |
+| `GET /api/admin/audit-logs/retention` | `audit.read` | `{ items: [{category, days, defaultDays, minDays, maxDays}], canEdit, updatedAt, updatedBy }` — `days` 는 배치가 실제로 쓰는 값(범위 밖 저장값은 기본값) |
+| `PUT /api/admin/audit-logs/retention` | 로그인 + **루트만** | `{ days: { GENERAL, PERSONAL_DATA, MONEY } }` · 400 `fields.days.<분류>`(하한~3650) · 403 `PERMISSION_DENIED`(+ 거부 감사) |
+- 감사: `COMMERCE_REQUEST_LIMIT_UPDATE`(대상 `COMMERCE_SETTINGS`/`request-limits`) · `AUDIT_RETENTION_UPDATE`(대상 `AUDIT_RETENTION`/`audit-log-retention`, 분류 MONEY) — 바뀐 칸만 `{before, after}`.
+- 메뉴: 서버 `AdminScreenRegistry` 에 `menu.commerce` 묶음 + `commerceSettings`(알림·이벤트와 운영자와 권한 사이).
+
+### 데이터·서버 규칙
+- **멱등**(shared `commerce.guard.service.IdempotencyService`): `idempotency_requests` PK (user_id, idem_key), 키 `[A-Za-z0-9_-]{8,64}`. 처리 중 행을 **새 트랜잭션으로 먼저** 저장 → 업무를 업무 트랜잭션에서 하고 **같은 트랜잭션에서** 결과(상태·응답 본문 ≤16KB)를 쓴다 → 업무가 던지면 처리 중 행을 지운다(같은 키로 다시 가능). 같은 키·다른 본문(또는 다른 요청 종류) 409 `IDEMPOTENCY_KEY_REUSED`, 처리 중 409 `IDEMPOTENCY_IN_PROGRESS`, 형식 400 `IDEMPOTENCY_KEY_INVALID`. 24시간 지난 행은 없는 것으로 본다. 해시 = SHA-256(요청 종류 ‖ 줄바꿈 ‖ 칸 이름순 정렬 JSON)(`RequestHashes`). 응답이 16KB 를 넘으면 결함으로 보고 업무를 되돌린다.
+- **api 입구 도우미**(`commerce.support.MoneyRequestGuard`): 헤더 `Idempotency-Key` 없으면 400 `IDEMPOTENCY_KEY_REQUIRED` → 속도 제한 → 멱등 → 업무. 저장하는 것은 응답 `data` 뿐이고 다시 줄 때 `meta` 는 새로, 머리글 `Idempotent-Replayed: true`. 같은 키로 다시 보낸 요청도 속도 제한에 한 번으로 센다. 아직 쓰는 API 는 없다(1~3단계의 충전 요청·공구 참여·상점 구매·환불 신청이 쓴다).
+- **속도 제한**(`RequestRateLimiter`): `request_rate_counters`(UNLOGGED) 1분 고정 창, `INSERT … ON CONFLICT … RETURNING count` 를 **업무와 따로 새 트랜잭션**으로. 한도 초과 429 `REQUEST_RATE_LIMITED` + `Retry-After`(창 끝까지 올림, 최소 1초). **한도 0 = 제한 없음, 세지도 않는다.** 한도는 `request_rate_limits`(0~100 CHECK, 기본 4행) 의 15초 사본(`RequestRateLimits` — 저장한 서버는 커밋 뒤 바로 비움). 시각은 앱 시계(서버 시계 차이는 NTP 범위로 본다).
+- **메일 대기열**(shared `mail.outbox`): `mail_outbox` — `dedupe_key` 유일, **받는 주소 칸 없음**(보낼 때 `users.email`), 끝난 줄(SENT·DEAD·CANCELED)에는 변수(본문)가 남지 않게 **DB CHECK**, `to_masked`(`ab***@example.com`). `MailOutbox.enqueue` 는 `@Transactional(MANDATORY)` + `ON CONFLICT DO NOTHING`(중복이면 false). 워커 `MailOutboxWorker.runOnce`: ① SENDING 10분 넘은 줄을 되돌림(한도면 DEAD) ② `FOR UPDATE SKIP LOCKED` 로 20줄 집어 SENDING·시도+1 커밋 ③ 트랜잭션 밖에서 보냄 → SENT / CANCELED / 재시도(1·2·4…분, 최대 2시간, 12번 — `roboyam.mail-outbox.max-attempts`·`batch-size`·`stale-minutes`) / DEAD. 상태 전이는 `… AND status='SENDING' AND locked_by=?` 조건부 UPDATE. 서버가 보낸 뒤 기록 전에 죽으면 한 번 더 갈 수 있다(적어도 한 번 — 받아들임).
+- **문구(결정 11)**: `mail_kind` = 필수 안내 메일 코드(`RequiredMail`), 기본 발송기 `RequiredMailOutboxSender` 가 `NotificationMessageRenderer.renderEmail(requiredMail(종류))`(쓸 문구·규칙·메일 템플릿) + `MailDispatcher.sendTagged`. 받는 사람: 회원이 없거나·탈퇴·주소 없음·**이메일 미인증**이면 CANCELED(`NO_RECIPIENT`·`WITHDRAWN`·`NO_EMAIL`·`EMAIL_NOT_VERIFIED`), 모르는 종류 `UNKNOWN_KIND`. 정지 회원도 받는다(돈 관련 안내). 언어 = 회원 표시 언어 → 사이트 기본, `recipientName` = 닉네임. 메일 서버 미설정은 재시도(P27). **지금 커머스 메일 종류는 없다** — 1~3단계가 `RequiredMail` 에 종류를 더하면 「필수 안내 메일」 화면에 나타나고 대기열이 그 문구를 쓴다(시험은 `MAIL_TEST`).
+- **워커 등록**(admin `batch.service.MailOutboxScheduler`): `roboyam.mail-outbox.poll-millis`(30초), `roboyam.batch.enabled` 인 서버만(결정 17), `worker_heartbeats` 키 `mail-outbox`(실패는 가린 한 줄).
+- **DB 정리 배치**(카탈로그 SYSTEM): `idempotency-request-cleanup`(매일 04:20, `retention_hours` 24, 24~168) · `request-rate-counter-cleanup`(**매시** 05분 — `batch_define_hourly`, `retention_minutes` 5) · `mail-outbox-cleanup`(매일 04:40, `retention_days` 365, 30~3650 — 끝난 줄만, PENDING·SENDING 은 지우지 않음).
+- **감사 보관 분류**: `audit_logs.retention_class`(GENERAL·PERSONAL_DATA·MONEY, 기본 GENERAL — SQL 이 직접 남기는 줄도) + 색인. `AuditLogEntity.create` 가 `AuditRetention.classify(행위)` 로 붙인다. 표: **MONEY** = `POINT_ADJUST`·`AUDIT_RETENTION_UPDATE`, **PERSONAL_DATA** = `MEMBER_VIEW`(회원 상세 — 13-4 L16 의 「개인정보가 보이는 화면 조회」), 나머지 GENERAL. **모든 `AuditActions` 행위가 표에 있어야 테스트가 통과한다** — 0-4·1~3단계가 행위를 더하면 분류를 정해 넣는다(0-4 는 develop 에 아직 없다 — 합칠 때 넣는다). `audit-log-retention` 은 분류별로 지운다: `retention_days`(일반, 365, 1~3650)·`personal_data_retention_days`(730, **365**~)·`money_retention_days`(1825, **1825**~) — 하한보다 짧은 값은 DB 를 직접 고쳐도 `batch_param` 이 무시하고 기본값(Java `AuditRetentionClass` 와 같은 범위). 결과 문구 `batch.result.auditLogRetention.classes`(옛 실행 기록의 키는 그대로 둔다).
+- **권한 10개**(`featureReady=false`, 결정 12): GB_ORDER `commerce.groupbuy.cancel`·`commerce.refund.large`(SENSITIVE) · GB_SETTLE `commerce.payment.read`(READ)·`commerce.reconcile.manage`(SENSITIVE) · GRADE_POINT `shop.read`(READ)·`shop.manage`(MANAGE)·`shop.refund`·`point.adjust.large`·`point.refund.large`·`point.refund.approve`(SENSITIVE). 서버 `Permission`·admin-web 카탈로그·i18n·`operator-permissions.md` 유형 표.
+
+### 0-5 규칙 → 테스트 (82개 통과 — shared 58 · api 5 · admin 19)
+| 규칙 | 테스트 |
+|---|---|
+| 같은 키·같은 본문이면 업무 없이 처음 응답, 같은 키·다른 본문 409(P26), 다른 요청 종류 409, 다른 회원은 별개 | `IdempotencyServiceTest.같은_키`, `MoneyRequestGuardTest` |
+| 처리 중 행은 따로 먼저 커밋 → 처리 중 409, 끝나면 다시 받기 | `IdempotencyServiceTest.같은_키.처리_중에…` |
+| 업무가 실패하면 행을 지워 같은 키로 다시 가능, 결과는 업무 트랜잭션 안(결과 저장 실패 → 업무도 되돌림), 응답 16KB | `IdempotencyServiceTest.실패와_트랜잭션`, `MoneyRequestGuardTest.업무가_실패하면…` |
+| 24시간만 기억, 키 형식 400, DB CHECK(키·크기·완료 조건) | `IdempotencyServiceTest.보관과_형식` |
+| 헤더 없음 400·형식 400, 속도 제한이 먼저(429 이면 업무 없음), `data` 재전송·머리글·no-store | `MoneyRequestGuardTest` |
+| 해시: 칸 차례 무관·DTO=맵·본문/종류가 다르면 다름 | `RequestHashesTest` |
+| 기본 4행(5·3·10·3), 한도까지 통과·넘으면 429 + Retry-After(올림·최소 1), 다음 창 허용, 회원·종류별 | `RequestRateLimiterTest` |
+| **한도 0 = 무제한(세지 않음)**, **카운터는 업무가 실패해도 남는다**, 여러 서버 동시에도 정확히 한도만, UNLOGGED | `RequestRateLimiterTest` |
+| 15초 사본·저장 서버는 바로 비움·행 없으면 기본값·DB 0~100 CHECK | `RequestRateLimitsTest`, `CommerceRequestLimitTest.저장하면…` |
+| 요청 제한 화면 API: 차례·기본값, 바뀐 종류만 저장·감사 전후, 변경 없으면 감사 없음, 0~100 정수 400(칸별·아무것도 저장 안 함), 모르는 코드, `commerce.settings` | `CommerceRequestLimitTest` |
+| 대기열 넣기 **MANDATORY**, **중복 넣기 막힘**(+ DB 유일), 업무 롤백이면 없음, 주소 칸 없음, 열쇠 1~200자 | `MailOutboxTest.넣기` |
+| SENT 면 본문 지우고 가린 주소, **메일 서버 장애 중 확정 성공 → 복구되면 발송(P27)**, 재시도 간격 1·2·4·8분·최대 2시간, 한도면 DEAD(본문 지움, 다시 안 집음), CANCELED, 죽은 워커의 SENDING 10분 뒤 되살림, 끝난 줄 본문 DB CHECK | `MailOutboxTest.발송` |
+| **여러 워커가 동시에 돌아도 같은 줄을 두 번 보내지 않음**(`SKIP LOCKED`) | `MailOutboxTest.발송.서버_여럿의_워커가…` |
+| 문구는 필수 안내 메일과 같은 해석·회원 표시 언어, 미인증·탈퇴·주소 없음·회원 없음·모르는 종류는 CANCELED, 정지 회원은 받음, 메일 서버 미설정은 RETRY, 주소 가림 | `RequiredMailOutboxSenderTest` |
+| 워커는 배치를 켠 서버만·워커 기록·실패 시 가린 오류 | admin `MailOutboxSchedulerTest` |
+| 정리 배치: 멱등 24시간, 카운터 지난 창(매시), 대기열 끝난 지 365일(PENDING 은 안 지움), 카탈로그·번들 | `CommerceCleanupBatchesTest` |
+| 감사 분류: **모든 행위가 표에 있다**, 돈=5년·개인정보 열람=2년·나머지 1년, 남길 때 분류가 붙음, 기본값·하한 | `AuditRetentionTest` |
+| 감사 정리는 분류별 기간, **하한보다 짧은 값은 DB 를 고쳐도 무시**, SQL 이 남긴 줄은 GENERAL | `CommerceCleanupBatchesTest` |
+| 보관 기간 API: 루트만(403 + 거부 감사), 하한·상한·정수 400, 저장 = 배치 설정값 + 감사(MONEY 분류, 바뀐 것만), 범위 밖 저장값은 기본값으로 보임, 선언(`audit.read`·로그인) | `AuditRetentionAdminTest` |
+| 권한 10개 유형·단위·준비 중, `permissions` 표 동기화, admin-web 카탈로그 같은 값, 커머스 설정 메뉴 위치·권한 | `CommercePermissionsAndMenuTest` |
+- 실행(2026-10-24): `JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2 ./gradlew :server:shared:test --tests 'com.community.commerce.*' --tests 'com.community.mail.outbox.*' --tests 'com.community.audit.dto.*' :server:api:test --tests 'com.community.commerce.*' :server:admin:test --tests 'com.community.commerce.*' --tests 'com.community.batch.service.MailOutboxSchedulerTest'` → 82 통과·0 실패. 바꾼 곳 둘레의 기존 시험(shared `batch.core.*`·`testsupport.*`, admin `batch.*`·`menu.*`·`permission.*`·`mfa.MfaCatalogTest`)도 다시 돌려 통과. api 모듈에 `testImplementation testFixtures(project(':server:shared'))` 를 더했다.
+- **테스트로 막지 못한 것**: pg_cron 등록(시험 DB 에 없음 — 정의·`CALL` 결과만), 실제 SMTP 발송(가짜 메일 서버까지), 화면 표시(타입 검사만 — 브라우저 확인은 개발자), 메일 워커의 실제 30초 예약(`@Scheduled` 주기 자체), 서버 시계 차이에 따른 창 경계, 「같은 키로 다시 보낸 요청도 속도 제한에 센다」는 순서의 사용자 체감.
+
 ## 미확정
+- 0-5: 커머스 메일 종류(결제 확인·환불·성사·발송 등)는 1~3단계가 `RequiredMail` 에 더한다 — 그때 「필수 안내 메일」 화면 문구·필수 변수를 정한다. 메일 대기열을 보거나 DEAD 를 다시 보내는 관리자 화면은 없다(4단계 알람과 함께 검토). 회원 알림 메일의 조용한 시간 「미뤄 보내기」(message-template-contract 가정)는 이 대기열이 생겼으니 바꿀 수 있다 — 범위 밖이라 그대로.
 - 이미 설치된 환경(설치 스크립트로 깐 곳)에는 새 키가 자동으로 들어가지 않는다 — 업그레이드 스크립트가 없어 운영자가 `.env` 에 직접 넣는다(넣지 않아도 앱은 뜨고 커머스 개인정보 요청만 503).
 - 설치 마법사 점검 목록(`InstallationChecks`)에 새 키 표시는 넣지 않았다 — 판매 스위치 켜는 조건(20절)을 만들 때 함께 본다.
