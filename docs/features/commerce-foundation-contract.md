@@ -33,7 +33,7 @@
 8. 2FA 를 켠 뒤 들어온 운영자의 유예 시작 = 켠 시각과 계정을 만든 시각 중 늦은 쪽.
 9. 포트원 설정(상점 ID·API 비밀키·본인인증 채널 키)은 관리자 화면의 DB 설정(소셜 로그인 설정처럼 `SecretEncryptor` 암호화). 0단계는 본인인증 칸만, 2a 에서 결제 칸을 더한다. 포트원/가짜 구현 선택은 배포 설정(프로퍼티), dev·prod 에서 가짜면 기동을 막는다.
 10. 메일 대기열은 보낸 뒤 본문을 남기지 않고 「언제·종류·가린 주소」만 남긴다. 보관 기간 숫자는 0-5 에서 정한다(설정값).
-11. 커머스 메일 종류는 알림 템플릿의 「필수 안내 메일」 목록에 들어갈 자리로 본다(`message-template-contract.md`). 템플릿 서버 단계 전까지 문구는 메시지 번들.
+11. 커머스 메일 종류는 알림 「문구 › 필수 안내 메일」 목록에 들어갈 자리로 본다(`message-template-contract.md` 확정본 — 겉모양은 메일 템플릿). 알림 문구 서버 단계 전까지 문구는 메시지 번들.
 12. 새 권한의 역할 유형: `shop.*`·`point.adjust.large`·`point.refund.large`·`point.refund.approve` = 포인트·등급(`GRADE_POINT`), `member.withdrawn.contact` = 회원 조회(`MEMBER_VIEW`), `commerce.groupbuy.cancel`·`commerce.refund.large` = 공구 주문(`GB_ORDER`), `commerce.payment.read`·`commerce.reconcile.manage` = 공구 정산(`GB_SETTLE`). `docs/domain/operator-permissions.md` 유형 표도 같이 고친다(0-5).
 13. 감사 보관 분류(13-4)는 0단계(0-5)에 넣는다.
 14. 탈퇴 대비 두 표와 정리 배치는 지금 만들고(본인인증이 재인증 제한을 읽는다), 쓰는 코드는 탈퇴 기능 때.
