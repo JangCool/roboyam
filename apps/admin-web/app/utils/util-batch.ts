@@ -8,8 +8,95 @@ export type CronShape =
 
 const DOW_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
-/** 배치 화면(배치 관리·배치 로그)이 함께 쓰는 순수 규칙 — 실행 결과 딱지의 색과 아이콘, cron 읽기. 문구는 `util-batch-messages.ts`. */
+/** 요청이 이만큼 `PENDING` 에 머물면 「배치를 켠 서버가 아직 집지 않았다」고 알린다 */
+const PENDING_STUCK_MS = 30_000;
+
+/** 배치 화면(배치 관리·배치 로그·실행 상세)이 함께 쓰는 순수 규칙 — 결과·단계·요청 딱지의 색과 아이콘, cron 읽기, 요청 상태 판정. 문구는 `util-batch-messages.ts`. */
 export default class UtilBatch {
+    /** 목록·상세가 대기·실행 중인 것을 다시 읽는 간격(ms) */
+    static readonly POLL_MS = 3000;
+
+    /**
+     * 그 배치가 지금 바쁜가 — 실행 중이거나 아직 끝나지 않은 요청(`PENDING`·`RUNNING`)이 있다. 이 동안 「지금 실행」을 잠근다(서버도 409 `BATCH_RUNNING`).
+     * @param {{ running: boolean; pendingRequest: unknown | null }} job - 배치 한 줄.
+     * @returns {boolean} 바쁘면 true.
+     */
+    static isBusy(job: { running: boolean; pendingRequest: unknown | null }): boolean {
+        return job.running || job.pendingRequest !== null;
+    }
+
+    /**
+     * 「파라미터 지정 실행」 단추를 둘 배치인가 — 받는 파라미터가 있거나, 단계가 둘 이상이고 그중 골라 돌릴 수 있는 단계가 있을 때.
+     * @param {{ params: unknown[]; steps: { selectable: boolean }[] }} job - 배치 한 줄.
+     * @returns {boolean} 둘 배치면 true.
+     */
+    static hasRunOptions(job: { params: unknown[]; steps: { selectable: boolean }[] }): boolean {
+        return job.params.length > 0 || (job.steps.length > 1 && job.steps.some((s) => s.selectable));
+    }
+
+    /**
+     * 요청이 너무 오래 대기 중인가 — 배치를 켠 서버(`roboyam.batch.enabled`)가 없거나 멈췄을 수 있다.
+     * @param {{ status: string; requestedAt: string } | null | undefined} request - 요청 한 줄.
+     * @param {number} now - 지금(ms).
+     * @returns {boolean} `PENDING` 이 30초를 넘었으면 true.
+     */
+    static isStuck(request: { status: string; requestedAt: string } | null | undefined, now: number): boolean {
+        return request?.status === 'PENDING' && now - new Date(request.requestedAt).getTime() > PENDING_STUCK_MS;
+    }
+
+    /**
+     * 요청이 아직 끝나지 않았나(`PENDING`·`RUNNING`).
+     * @param {{ status: string } | null | undefined} request - 요청 한 줄.
+     * @returns {boolean} 끝나지 않았으면 true.
+     */
+    static isRequestActive(request: { status: string } | null | undefined): boolean {
+        return request?.status === 'PENDING' || request?.status === 'RUNNING';
+    }
+
+    /**
+     * 단계 딱지의 색 — `PENDING`(안 돎)과 `SKIP`(건너뜀)은 회색이다.
+     * @param {string | null | undefined} status - 단계 상태(`PENDING` · `RUNNING` · `OK` · `FAIL` · `SKIP`).
+     * @returns {'success' | 'danger' | 'info' | 'secondary'} PrimeVue Tag 의 severity.
+     */
+    static stepSeverity(status: string | null | undefined): 'success' | 'danger' | 'info' | 'secondary' {
+        return status === 'PENDING' || status === 'SKIP' ? 'secondary' : UtilBatch.statusSeverity(status);
+    }
+
+    /**
+     * 단계 상태 아이콘.
+     * @param {string | null | undefined} status - 단계 상태.
+     * @returns {string} primeicons 클래스.
+     */
+    static stepIcon(status: string | null | undefined): string {
+        if (status === 'PENDING') return 'pi pi-circle';
+        if (status === 'SKIP') return 'pi pi-forward';
+        return UtilBatch.statusIcon(status) ?? 'pi pi-circle';
+    }
+
+    /**
+     * 요청 상태 띠의 색.
+     * @param {string | null | undefined} status - 요청 상태(`PENDING` · `RUNNING` · `DONE` · `REJECTED`).
+     * @returns {'info' | 'warn' | 'success' | 'error' | 'secondary'} PrimeVue Message 의 severity.
+     */
+    static requestSeverity(status: string | null | undefined): 'info' | 'warn' | 'success' | 'error' | 'secondary' {
+        if (status === 'PENDING') return 'warn';
+        if (status === 'RUNNING') return 'info';
+        if (status === 'DONE') return 'success';
+        if (status === 'REJECTED') return 'error';
+        return 'secondary';
+    }
+
+    /**
+     * 다시 실행 종류의 아이콘 — 보통 실행은 없다.
+     * @param {string | null | undefined} mode - `NORMAL` · `RESUME` · `RETRY_FAILED`.
+     * @returns {string | undefined} primeicons 클래스.
+     */
+    static runModeIcon(mode: string | null | undefined): string | undefined {
+        if (mode === 'RESUME') return 'pi pi-step-forward';
+        if (mode === 'RETRY_FAILED') return 'pi pi-replay';
+        return undefined;
+    }
+
     /**
      * 결과 딱지의 색.
      * @param {string | null | undefined} status - 실행 결과 코드(`RUNNING` · `OK` · `FAIL` · `SKIP`).

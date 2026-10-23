@@ -69,6 +69,14 @@ public class Messages {
         }
     }
 
+    /**
+     * 번들에 있을 수도 없을 수도 있는 키를 푼다(지금 요청의 언어) — 없으면 null 이고 오류 로그를 남기지 않는다. 작업마다 선택적으로 두는 문구(배치 단계·파라미터 이름 등)를
+     * 공통 이름으로 되돌릴 때 쓴다. 꼭 있어야 하는 문구는 {@link #get(MessageRef)} 를 쓴다.
+     */
+    public String find(MessageRef ref) {
+        return source.getMessage(ref.key(), ref.args(), null, RequestLocale.normalize(locale()));
+    }
+
     /** 칸별 문구를 푼다(칸 경로 키와 순서는 그대로) */
     public Map<String, String> get(Map<String, MessageRef> fields, Locale locale) {
         Map<String, String> resolved = new LinkedHashMap<>();

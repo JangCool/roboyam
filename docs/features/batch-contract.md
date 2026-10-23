@@ -1,4 +1,4 @@
-# 배치 계약 (서버 구현됨 2026-10-21 — Java 배치 + DB 배치(저장 프로시저·pg_cron). 화면 연결은 후속)
+# 배치 계약 (서버 구현됨 2026-10-21 — Java 배치 + DB 배치(저장 프로시저·pg_cron). 화면 연결됨. 0-2 요청 표·실행 상세 2026-10-23)
 
 **의도**: 관리자가 정해진 시각에 도는 일(배치)을 보고, 켜고 끄고, 주기(cron)를 바꾸고, 지금 실행하고, 실행 결과 로그를 본다. 배치는 두 종류다 — **JAVA**(관리자 서버가 돌린다)와 **POSTGRESQL**(DB 의 저장 프로시저를 pg_cron 이 부른다). 한 화면·한 API·한 로그 표(`batch_runs`)에 같이 보인다. 배치 정의(이름·설명·분류)는 코드(카탈로그)가 원천이다. 구조·테이블·락·가정은 `roles-contract.md` 「배치 인프라 결과」, DB 배치의 설치·규약은 아래 「DB 배치」.
 
@@ -15,7 +15,7 @@
 | `GET /batch-jobs` | `batch.read` | `BatchJobView[]` (카탈로그 순서 — Java 와 DB 배치가 섞여 있다) |
 | `PUT /batch-jobs/{jobName}` `{enabled}` | `batch.manage` | 켜기/끄기 → 바뀐 목록 전체. DB 배치는 `cron.alter_job(active)` |
 | `PUT /batch-jobs/{jobName}/schedule` `{schedule}` | `batch.manage` | cron 수정(재기동 없이 반영) → 바뀐 목록 전체. 화면에 아직 입력칸이 없다. **문법이 source 마다 다르다**(아래) |
-| `POST /batch-jobs/{jobName}/run` | `batch.run`(민감) | 지금 실행 — 끝날 때까지 기다린다 → 바뀐 목록 전체. 꺼져 있어도 돈다. 일이 실패해도 200(마지막 실행 상태 `FAIL`). DB 배치는 같은 저장 프로시저를 `CALL` |
+| `POST /batch-jobs/{jobName}/run` | `batch.run`(민감) | **0-2 에서 바뀜 — 아래 「0-2 보강」**: 요청 표에 넣고 202 + 요청. 꺼져 있어도 돈다. DB 배치는 요청을 집은 서버가 같은 저장 프로시저를 `CALL` |
 | `GET /batch-logs?jobName&status&trigger&from&to&page&size` | `batch.read` | `{items, total, page(0부터), size}`, 시작 시각 최근순. Java·DB 로그가 한 목록 |
 | `GET /batch-logs/{logId}` | `batch.read` | 상세 |
 - `jobName` = 배치 키. Java: `file-orphan-cleanup`. DB: `grade-promotion`(업무 배치 — 아래) · `auth-token-cleanup` · `login-attempt-cleanup` · `operator-invitation-cleanup` · `audit-log-retention` · `batch-log-cleanup` · `notification-cleanup`(관리자 알림 정리, 03:50 — `docs/features/notification-contract.md`). 오류: 404 `BATCH_NOT_FOUND`·`BATCH_LOG_NOT_FOUND`, **409 `BATCH_RUNNING`**(이미 실행 중), **409 `BATCH_UNAVAILABLE`**(DB 배치를 지금 쓸 수 없음 — pg_cron 없음·미등록. 이유는 목록의 `unavailableReason`), 400 `VALIDATION`(`fields.schedule` — 형식 오류·실행 시각 없음·간격 60초 미만, 로그 조건 칸).
@@ -31,6 +31,46 @@
 3. 서버는 `i18n`/`descI18n` 을 null 로 준다(이름·설명이 이미 번역돼 있다). 목록 호출은 `Accept-Language` 를 따른다.
 4. 새 칸(`nextRunAt`·`defaultSchedule`·`category`·`running`·`available`·`unavailableReason`·`scheduleZone`·`logId`·`trigger`·`operatorName`)과 cron 수정·로그 상세·기간/실행 방식 필터는 화면에 아직 없다. cron 입력칸을 만들 때 **source 별 문법 안내**(6칸 / 5칸)가 필요하고, 서버가 틀린 식에 `fields.schedule` 문구로 어느 문법인지 알려 준다.
 5. 지금 실행은 **`batch.run`** 권한이고 켜기/끄기는 `batch.manage` 다(목업 주석의 「권한 구분 미정」이 정해졌다).
+
+## 0-2 보강: 요청 표 · 실행 상세 · 다시 실행 (화면 확정 2026-10-23 · 서버 구현·화면 연결 2026-10-23)
+정책 원천은 `docs/domain/commerce.md` 15-2~15-4, 결정은 `commerce-foundation-contract.md` 6·7·16. 이 절이 위 「API」 표의 `POST …/run` 과 「가정」의 「지금 실행은 요청 스레드에서 끝날 때까지」를 대신한다.
+
+### 화면 (admin-web — 실제 서버 연결 완료 2026-10-23. 개발자 화면 확인 전)
+| 경로 | 바뀐 것 |
+|---|---|
+| `/settings/batches` | 「지금 실행」 = 요청만 넣는다(토스트 「요청했습니다 · 요청 #번호」). 대기·실행 중이면 행 딱지 + 단추 잠금 + 3초마다 목록 다시 읽기. 대기 30초 넘으면 「배치를 켠 서버가 요청을 아직 집지 않았어요」. 파라미터/고를 단계가 있는 배치는 지금 실행 **왼쪽**에 「파라미터 지정 실행」 아이콘(없는 행도 자리를 비워 줄을 맞춘다). 마지막 실행의 「상세 보기」는 같은 화면 서랍 |
+| `/settings/batch-logs` | 행 클릭·행 끝 「상세 보기」 단추 → 같은 화면 서랍. 실행 방식 칸에 「실패 지점부터」/「실패 건만」 딱지, 건수 칸 「처리 · 실패 n」. 거르기·쪽은 주소 쿼리 |
+| 실행 상세 서랍(`?run=<logId>`, 두 화면 공통 `BatchRunDetailDrawer`) | 머리 단추 「지금 실행」·「파라미터 지정 실행」·「실패 지점부터 다시」·「실패 건만 다시 (N건)」·「다시 조회」(실행 단추는 `batch.run`). 요청 상태 띠(대기 → 실행 중 → 끝남 + 새 실행 링크), 실행 정보, 건수 4칸(읽음·처리·실패·건너뜀)+체크포인트, 파라미터, 이어 받은/이어 준 실행, 단계별 진행, 실패 건(미해결/해결/전체, 10건씩), 오류 사유. 실행 중이거나 요청이 진행 중이면 3초마다 다시 읽는다. 서랍 안 링크는 서랍 내용만 바꾼다(← 로 앞 실행) |
+- 타입의 기준: `apps/admin-web/app/composables/batch/api/useBatchApi.types.ts`(`BatchRunRequestView`·`BatchRunDetailView`·`BatchRunStepView`·`BatchRunFailureView`·`BatchParamDef`·`BatchStepDef`).
+
+### API (`/api/admin`)
+| | 권한 | 내용 |
+|---|---|---|
+| `POST /batch-jobs/{jobName}/run` `{params?, steps?}` | `batch.run` | **202 `BatchRunRequestView`** — 요청 표에 넣고 바로 돌아온다. 꺼져 있어도 돈다. 409 `BATCH_RUNNING`(실행 중이거나 끝나지 않은 요청이 있음) · 409 `BATCH_UNAVAILABLE` · 400 `VALIDATION` `fields.params.<이름>`/`fields.steps` |
+| `GET /batch-requests/{requestId}` | `batch.read` | `BatchRunRequestView` · 404 `BATCH_REQUEST_NOT_FOUND` |
+| `GET /batch-logs/{logId}` | `batch.read` | `BatchRunDetailView`(기존 상세 칸 + 아래). 404 `BATCH_LOG_NOT_FOUND` |
+| `GET /batch-logs/{logId}/failures?resolved&page&size` | `batch.read` | `{items: BatchRunFailureView[], total, page, size}`, 일어난 시각 최근순 |
+| `POST /batch-logs/{logId}/resume` | `batch.run` | 202 요청(`RESUME`) · 409 `BATCH_RUNNING` · 409 `BATCH_NOT_RESUMABLE` |
+| `POST /batch-logs/{logId}/retry-failures` | `batch.run` | 202 요청(`RETRY_FAILED`) · 409 `BATCH_RUNNING` · 409 `BATCH_NO_FAILURES` |
+- `BatchJobView` 에 `lastRunId` · `pendingRequest`(PENDING/RUNNING 요청, 없으면 null) · `params: BatchParamDef[]` · `steps: BatchStepDef[]`(한 단계짜리도 1개) · `resumable` 을 더한다. `BatchLogView` 에 `runMode`(`NORMAL`/`RESUME`/`RETRY_FAILED`) · `failedCount`(DB 배치는 null).
+- 요청 `kind`: `NOW`(지금 실행·파라미터 지정 실행) · `RESUME` · `RETRY_FAILED`. `status`: `PENDING` → `RUNNING`(배치를 켠 서버가 집음, `runId` 생김) → `DONE` 또는 `REJECTED`(집을 때 이미 실행 중 등 — `message` 에 사유). `steps` 는 모두 돌리면 null.
+- 감사: 요청을 넣을 때 `BATCH_RUN`(종류·요청 번호).
+
+### 확정 규칙 (화면 단계에서 정함)
+1. 실행 단위 건수: 읽음·처리·건너뜀 = **주 단계**의 건수, 실패 = **단계 합**.
+2. 고를 수 없는 단계(`selectable=false`)는 단계를 골라 실행해도 **늘 돈다**.
+3. 한 실행은 **한 번만 이어 받는다** — 이어 받은(RESUME) 실행이 있으면 `canResume=false`. 이어 받은 실행이 또 실패하면 그 실행에서 다시 이어 받는다.
+4. 「실패 건만 다시」에서 또 실패한 건은 **새 실행에 새 줄**(시도 = 원래 + 1)로 남고 원래 줄은 미해결인 채 시도 횟수만 +1. 성공한 건은 원래 줄을 해결 표시(`resolvedByRunId` = 새 실행).
+
+### 서버 구현 결과 (2026-10-23 — 구조·시험은 `commerce-foundation-contract.md` 「0-2 구현 결과」)
+- 위 API 그대로. 「지금 실행」의 본문은 선택(`{params?, steps?}`), 202 + `BatchRunRequestView`. 409 순서: 없는 배치 404 → 쓸 수 없는 DB 배치 `BATCH_UNAVAILABLE` → 실행 중·끝나지 않은 요청 `BATCH_RUNNING` → 400 `VALIDATION`. 재실행은 `BATCH_NOT_RESUMABLE`/`BATCH_NO_FAILURES` 검사 뒤 `BATCH_RUNNING`.
+- 검사: 빈 값은 안 보낸 것으로 본다. `DATE` = 있는 날짜 `YYYY-MM-DD` · `LONG` = 1 이상 정수 · `STRING` = 200자까지. **작업이 정의하지 않은 파라미터 이름은 `fields.params` 한 칸**(입력한 이름을 경로에 쓰지 않는다). 단계는 고를 수 있는 단계만, 빈 목록은 거절.
+- 건수: 「실패 건만 다시」 실행의 읽음·처리·건너뜀은 **돈 단계의 합**(실패 건이 주 단계가 아닌 단계에 있을 수 있어서 — 목업과 같다). 그 밖은 확정 규칙 1. 처리·실패가 모두 0 이면 SKIP, 실패 건이 한도 안이면 실행은 OK(실패 건은 「실패 건만 다시」로). 실패 한도를 넘으면 FAIL(`batch.error.failure-limit`, 사유 글 없음 — 문구 키). 실행 중인 Java 실행의 상세 건수는 단계 건수로 계산해 보인다.
+- 「실패 건만 다시」에서 대상이 없어진 건은 건너뜀으로 세고 해결 표시한다.
+- 단계·파라미터 이름 문구: `batch.job.<키>.step.<단계>` → 없으면 공통 `batch.step.<단계>`(`main` = 「실행」) → 없으면 키. 파라미터 `batch.job.<키>.param.<이름>`(+`.help`, 없으면 null). 대상 종류 `batch.target.<코드>` → 없으면 코드.
+- DB 배치: 상세의 단계는 실행 줄로 만든 한 단계(`main`, 처리 건수만), `failedCount`·`readCount`·`skippedCount` null, 재실행 불가. 「지금 실행」도 요청 표를 거쳐 배치를 켠 서버가 `CALL` 한다(그동안 요청은 `RUNNING`, 실행 링크는 끝난 뒤 생긴다).
+- `nodeId` 는 문자열로 낸다. 감사 `BATCH_RUN` 의 `detail` = 종류·요청 번호(+ 원래 실행·고른 단계).
+- 지금 있는 Java 배치 `file-orphan-cleanup` 은 한 단계(`main`)·파라미터 없음·재시작 불가이고 건별 실패를 기록하지 않는다(저장소 삭제는 트랜잭션으로 되돌릴 수 없어 덩어리 처리 도우미를 쓰지 않았다).
 
 ## DB 배치 (저장 프로시저 + pg_cron)
 
@@ -75,7 +115,7 @@
 
 ## 가정 / 미확정
 - 등급 승급 시각(04:30 KST 하루 한 번)·cron 간격 하한 60초·`batch.run` 을 지금 실행에만 쓰는 것, **DB 배치의 보관 기간·시각(03:00~03:40 KST)·덩어리 5000·상한 100000(등급 승급은 상한 1000000)** 은 **가정**.
-- 지금 실행은 요청 스레드에서 끝날 때까지 돈다 — 오래 걸리는 배치가 생기면 비동기(202 + 상태 조회)로 바꿔야 한다. DB 배치도 같다(한 번 실행 상한 100000건이라 지금은 짧다).
+- ~~지금 실행은 요청 스레드에서 끝날 때까지 돈다~~ → 0-2 에서 요청 표(202 + 상태 다시 읽기)로 바꿨다(위 「0-2 보강」).
 - 알림(배치 실패 알림)·실행 이력의 상세 처리 내역(건별)·감사 로그 조회 화면·`batch_params` 를 고치는 화면은 후속.
 - 서버가 내려가 있던 동안 놓친 Java 배치 예약은 따라잡지 않는다(다음 시각부터). DB 배치는 DB 가 내려가 있던 동안 놓친 시각을 pg_cron 이 따라잡지 않는다.
 - **정책이 없어 DB 배치로 만들지 않은 것**: 탈퇴 회원(`users.deleted_at`) 개인정보 파기, 이메일 인증을 끝내지 않은 가입 계정 정리 — 보관 기간 정책 확정 뒤에 추가한다. **탈퇴 쪽 정책은 `docs/domain/commerce.md` 17-3 으로 확정(2026-10-23)**: 개인정보는 탈퇴 즉시 익명화(회원 행은 지우지 않음), 거래 기록(포인트 원장·결제·주문·환불)은 마지막 거래일부터 5년, 재가입 제한 해시는 30일 — 배치는 탈퇴 기능과 함께 만든다(분담은 commerce.md 15-5). 미인증 가입 계정 정리는 여전히 정책 없음. 세션 표(`spring_session`, `admin_spring_session`)는 Spring Session 이 매분 정리하므로 배치를 두지 않았다(아래 표).

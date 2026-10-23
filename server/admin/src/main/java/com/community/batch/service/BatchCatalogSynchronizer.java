@@ -1,6 +1,6 @@
 package com.community.batch.service;
 
-import com.community.batch.catalog.BatchCatalog;
+import com.community.batch.core.BatchCatalog;
 import com.community.batch.entity.BatchJobEntity;
 import com.community.batch.repository.master.BatchJobRepository;
 import com.community.permission.service.BootstrapLock;

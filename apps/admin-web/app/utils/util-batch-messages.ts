@@ -94,4 +94,130 @@ export default class UtilBatchMessages {
         if (trigger === 'MANUAL') return t('batch.triggerManual');
         return trigger || '—';
     }
+
+    /**
+     * 다시 실행 종류 딱지의 글 — 보통 실행(`NORMAL`)은 딱지가 없다(null).
+     * @param {Translate} t - 번역 함수.
+     * @param {string | null | undefined} mode - `NORMAL` · `RESUME` · `RETRY_FAILED`.
+     * @returns {string | null} 딱지 글자. 보통 실행이면 null.
+     */
+    static runModeLabel(t: Translate, mode: string | null | undefined): string | null {
+        if (mode === 'RESUME') return t('batch.runModeResume');
+        if (mode === 'RETRY_FAILED') return t('batch.runModeRetry');
+        return null;
+    }
+
+    /**
+     * 단계 상태를 말로 — 실행 결과(`statusLabel`)와 말이 다르다: 단계의 `SKIP` 은 「건너뜀」(고르지 않았거나 원래 실행이 이미 끝낸 단계), `PENDING` 은 「안 돎」.
+     * @param {Translate} t - 번역 함수.
+     * @param {string | null | undefined} status - 단계 상태.
+     * @returns {string} 딱지에 보일 글자.
+     */
+    static stepStatusLabel(t: Translate, status: string | null | undefined): string {
+        if (status === 'PENDING') return t('batch.stepPending');
+        if (status === 'RUNNING') return t('batch.stepRunning');
+        if (status === 'OK') return t('batch.stepOk');
+        if (status === 'FAIL') return t('batch.stepFail');
+        if (status === 'SKIP') return t('batch.stepSkip');
+        return status || '—';
+    }
+
+    /**
+     * 요청 종류를 말로.
+     * @param {Translate} t - 번역 함수.
+     * @param {string | null | undefined} kind - `NOW` · `RESUME` · `RETRY_FAILED`.
+     * @returns {string} 글자.
+     */
+    static requestKindLabel(t: Translate, kind: string | null | undefined): string {
+        if (kind === 'RESUME') return t('batch.kindResume');
+        if (kind === 'RETRY_FAILED') return t('batch.kindRetry');
+        if (kind === 'NOW') return t('batch.kindNow');
+        return kind || '—';
+    }
+
+    /**
+     * 요청 상태 띠의 한 줄 — 「요청 #12 · 실패 지점부터 다시 — 대기 중 …」.
+     * @param {Translate} t - 번역 함수.
+     * @param {{ requestId: string; kind: string; status: string }} request - 요청 한 줄.
+     * @returns {string} 띠에 보일 글.
+     */
+    static requestLine(t: Translate, request: { requestId: string; kind: string; status: string }): string {
+        const head = t('batch.requestHead', { id: request.requestId, kind: UtilBatchMessages.requestKindLabel(t, request.kind) });
+        if (request.status === 'PENDING') return `${head} — ${t('batch.requestPending')}`;
+        if (request.status === 'RUNNING') return `${head} — ${t('batch.requestRunning')}`;
+        if (request.status === 'DONE') return `${head} — ${t('batch.requestDone')}`;
+        if (request.status === 'REJECTED') return `${head} — ${t('batch.requestRejected')}`;
+        return head;
+    }
+
+    /**
+     * 걸린 시간. 초 단위로 반올림하지 않는다 — 배치는 대개 1초 안에 끝나서, 반올림하면 전부 「0초」가 되어 「어느 것이 느린가」를 볼 수 없다. 1분이 넘으면 분·초.
+     * @param {Translate} t - 번역 함수.
+     * @param {string | null | undefined} startedAt - 시작 UTC ISO.
+     * @param {string | null | undefined} finishedAt - 끝 UTC ISO. 없으면 「—」.
+     * @returns {string} 「850ms」 · 「3.2초」 · 「2분 05초」.
+     */
+    static elapsed(t: Translate, startedAt: string | null | undefined, finishedAt: string | null | undefined): string {
+        if (!startedAt || !finishedAt) return '—';
+        const ms = new Date(finishedAt).getTime() - new Date(startedAt).getTime();
+        if (ms < 1000) return `${Math.max(0, ms)}ms`;
+        if (ms < 60_000) return t('batch.runBySeconds', { n: (ms / 1000).toFixed(1) });
+        const s = Math.round(ms / 1000);
+        return t('batch.runByMinutes', { m: Math.floor(s / 60), s: String(s % 60).padStart(2, '0') });
+    }
+
+    /**
+     * 건수 칸 — 처리 건수에 실패가 있으면 「· 실패 n」을 붙인다. 처리 건수가 없으면 「—」.
+     * @param {Translate} t - 번역 함수.
+     * @param {number | null} processed - 처리 건수.
+     * @param {number | null} failed - 건별 실패 건수(DB 배치는 null).
+     * @returns {string} 「1,240」 · 「3,816 · 실패 4」.
+     */
+    static countText(t: Translate, processed: number | null, failed: number | null): string {
+        const head = processed == null ? '—' : processed.toLocaleString();
+        return failed ? `${head} · ${t('batch.countFailedN', { n: failed.toLocaleString() })}` : head;
+    }
+
+    /**
+     * 실행이 끝났을 때의 토스트 한 줄 — 「포인트 소멸 — 성공: 포인트 묶음 980개 소멸」. 결과 요약은 서버 글 그대로.
+     * @param {Translate} t - 번역 함수.
+     * @param {{ displayName: string; lastStatus: string | null; lastMessage: string | null }} job - 끝난 뒤의 배치 한 줄.
+     * @returns {string} 토스트 글.
+     */
+    static runResult(t: Translate, job: { displayName: string; lastStatus: string | null; lastMessage: string | null }): string {
+        const summary = `${job.displayName} — ${UtilBatchMessages.statusLabel(t, job.lastStatus)}`;
+        return job.lastMessage ? `${summary}: ${job.lastMessage}` : summary;
+    }
+
+    /**
+     * 「실패 지점부터 다시」가 잠긴 이유 — 권한 → 진행 중인 요청 → 실행 상태 순. 잠기지 않았으면 undefined.
+     * @param {Translate} t - 번역 함수.
+     * @param {{ canResume: boolean; status: string; checkpoint: string | null; resumedByRunIds: string[]; pendingRequest: unknown | null }} run - 실행 상세.
+     * @param {boolean} allowed - `batch.run` 권한이 있나.
+     * @returns {string | undefined} 툴팁 글.
+     */
+    static resumeLockReason(t: Translate, run: { canResume: boolean; status: string; checkpoint: string | null; resumedByRunIds: string[]; pendingRequest: unknown | null }, allowed: boolean): string | undefined {
+        if (!allowed) return t('batch.noRerunReason');
+        if (run.pendingRequest) return t('batch.rerunBusyReason');
+        if (run.canResume) return undefined;
+        if (run.status !== 'FAIL') return t('batch.resumeNotFailed');
+        if (!run.checkpoint) return t('batch.resumeNoCheckpoint');
+        if (run.resumedByRunIds.length) return t('batch.resumeAlready');
+        return t('batch.resumeUnavailable');
+    }
+
+    /**
+     * 「실패 건만 다시」가 잠긴 이유 — 권한 → 진행 중인 요청 → 미해결 건. 잠기지 않았으면 undefined.
+     * @param {Translate} t - 번역 함수.
+     * @param {{ canRetryFailures: boolean; unresolvedFailureCount: number; pendingRequest: unknown | null }} run - 실행 상세.
+     * @param {boolean} allowed - `batch.run` 권한이 있나.
+     * @returns {string | undefined} 툴팁 글.
+     */
+    static retryLockReason(t: Translate, run: { canRetryFailures: boolean; unresolvedFailureCount: number; pendingRequest: unknown | null }, allowed: boolean): string | undefined {
+        if (!allowed) return t('batch.noRerunReason');
+        if (run.pendingRequest) return t('batch.rerunBusyReason');
+        if (run.canRetryFailures) return undefined;
+        if (!run.unresolvedFailureCount) return t('batch.retryNoFailures');
+        return t('batch.retryUnavailable');
+    }
 }
