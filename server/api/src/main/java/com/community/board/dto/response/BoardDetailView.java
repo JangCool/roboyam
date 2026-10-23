@@ -12,7 +12,8 @@ import java.util.List;
  * @param reportEnabled        신고 기능 사용(관리자 신고 정책)
  */
 public record BoardDetailView(String id, String slug, String name, String nameEn, String description, boolean investmentNotice, boolean staffOnlyWrite,
-                              String writeMin, String commentMin, String writeLock, boolean imageUploadAllowed, String layout, boolean dealEnabled,
+                              String writeMin, String commentMin, String writeLock, boolean imageUploadAllowed, String postEditor, String commentEditor,
+                              String layout, boolean dealEnabled,
                               boolean promo, boolean viewToggle, boolean allowAdult, List<PrefixView> prefixes, String color, String writeMinGradeLabel,
                               String commentMinGradeLabel, String introText, String writeGuideText, boolean reportEnabled, BoardPolicyView policy,
                               BoardGuestRulesView guestRules, BoardNewMemberRulesView newMemberRules, BoardViewerView viewer) {

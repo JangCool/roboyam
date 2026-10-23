@@ -19,7 +19,9 @@ public class BoardDefaultsEntity {
     private String dateDisplay;
     private String writeMin;
     private String commentMin;
+    private String postEditor;
     private boolean imageUploadAllowed;
+    private String commentEditor;
     private int postGapSeconds;
     private int postDailyLimit;
     private int commentGapSeconds;
@@ -50,7 +52,7 @@ public class BoardDefaultsEntity {
     }
 
     public BoardDefaultsValues values() {
-        return new BoardDefaultsValues(dateDisplay, writeMin, commentMin, imageUploadAllowed, postGapSeconds, postDailyLimit, commentGapSeconds,
+        return new BoardDefaultsValues(dateDisplay, writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, postGapSeconds, postDailyLimit, commentGapSeconds,
                 commentDailyLimit, listSize, pinnedMax, indexable, searchable, inHome, attachmentPurgeEnabled, attachmentRetentionDays, pointMode,
                 commentProtectMin, commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, bestCommentMinLikes,
                 managerMax, staffMax, staffPostDailyLimit, staffCommentDailyLimit, staffSanctionDailyLimit);
@@ -61,7 +63,9 @@ public class BoardDefaultsEntity {
         this.dateDisplay = v.dateDisplay();
         this.writeMin = v.writeMin();
         this.commentMin = v.commentMin();
+        this.postEditor = v.postEditor();
         this.imageUploadAllowed = v.imageUploadAllowed();
+        this.commentEditor = v.commentEditor();
         this.postGapSeconds = v.postGapSeconds();
         this.postDailyLimit = v.postDailyLimit();
         this.commentGapSeconds = v.commentGapSeconds();

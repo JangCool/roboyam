@@ -1,7 +1,10 @@
 package com.community.comment.entity;
 
 import jakarta.persistence.Column;
+import com.community.post.entity.ContentFormat;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
@@ -32,6 +35,8 @@ public class CommentEntity {
     private String guestPasswordHash;
     private String authorIp;
     private String content;
+    @Enumerated(EnumType.STRING)
+    private ContentFormat contentFormat;
 
     @Column(updatable = false)
     private int likeCount;
@@ -49,7 +54,7 @@ public class CommentEntity {
     }
 
     public static CommentEntity create(long id, long postId, long boardId, Long parentId, Long replyToId, Long authorId, String guestName,
-                                       String guestPasswordHash, String authorIp, String content, Instant now) {
+                                       String guestPasswordHash, String authorIp, ContentFormat format, String content, Instant now) {
         CommentEntity comment = new CommentEntity();
         comment.id = id;
         comment.postId = postId;
@@ -60,13 +65,15 @@ public class CommentEntity {
         comment.guestName = authorId == null ? guestName : null;
         comment.guestPasswordHash = authorId == null ? guestPasswordHash : null;
         comment.authorIp = authorIp;
+        comment.contentFormat = format;
         comment.content = content;
         comment.createdAt = now;
         comment.updatedAt = now;
         return comment;
     }
 
-    public void edit(String content, Instant now) {
+    public void edit(ContentFormat format, String content, Instant now) {
+        this.contentFormat = format;
         this.content = content;
         this.editedAt = now;
         this.updatedAt = now;
@@ -136,6 +143,11 @@ public class CommentEntity {
 
     public String getAuthorIp() {
         return authorIp;
+    }
+
+    /** 본문 형식 — 칸이 비어 있던 옛 행은 TEXT */
+    public ContentFormat getContentFormat() {
+        return contentFormat == null ? ContentFormat.TEXT : contentFormat;
     }
 
     public String getContent() {

@@ -62,6 +62,10 @@ public final class BoardFields {
     public static final Map<String, String> COMMON_PREFIX_NAMES = orderedMap("QUESTION", "질문", "REVIEW", "후기", "CHAT", "잡담", "NOTICE", "공지");
     public static final Map<String, String> COMMON_PREFIX_NAMES_EN = orderedMap("QUESTION", "Question", "REVIEW", "Review", "CHAT", "Chat", "NOTICE", "Notice");
     public static final List<String> STAFF_ROLES = List.of("MANAGER", "STAFF");
+    /** 글 에디터 — 평문(에디터 없음) · 간단 · 고급. 고급만 이미지·제목·코드·글자색·YouTube 를 받는다 */
+    public static final String EDITOR_NONE = "NONE";
+    public static final String EDITOR_SIMPLE = "SIMPLE";
+    public static final String EDITOR_ADVANCED = "ADVANCED";
 
     public static final Pattern SLUG = Pattern.compile("^[a-z][a-z0-9-]*$");
     public static final int SLUG_MIN = 2;
@@ -82,7 +86,7 @@ public final class BoardFields {
     /** 일반 기본 설정의 칸(화면 순서) */
     public static final Map<String, Spec> DEFAULTS;
     /** 게시판별로 덮어쓸 수 있는 칸(admin-web {@code BOARD_POLICY_FIELDS} 순서) */
-    public static final List<String> POLICY_FIELDS = List.of("writeMin", "commentMin", "imageUploadAllowed", "listSize", "pinnedMax", "indexable", "searchable",
+    public static final List<String> POLICY_FIELDS = List.of("writeMin", "commentMin", "postEditor", "imageUploadAllowed", "commentEditor", "listSize", "pinnedMax", "indexable", "searchable",
             "inHome", "pointMode", "commentProtectMin", "commentProtectEdit", "commentProtectDelete", "commentProtectDelayMinutes", "commentGuestDelayMinutes",
             "managerMax", "staffPostDailyLimit", "staffCommentDailyLimit", "staffSanctionDailyLimit");
     /** 하위 화면(신고·보안·알림·개인정보)의 숫자·고르기 칸 — 모두 {@code board.settings} */
@@ -93,7 +97,9 @@ public final class BoardFields {
         choice(d, "dateDisplay", false, false, "STANDARD", "RELATIVE");
         put(d, new Spec("writeMin", Kind.WRITE_MIN, 0, 0, List.of(), true, false));
         put(d, new Spec("commentMin", Kind.COMMENT_MIN, 0, 0, List.of(), true, false));
+        choice(d, "postEditor", true, false, EDITOR_NONE, EDITOR_SIMPLE, EDITOR_ADVANCED);
         bool(d, "imageUploadAllowed", true);
+        choice(d, "commentEditor", true, false, EDITOR_NONE, EDITOR_SIMPLE);
         number(d, "postGapSeconds", 0, 3600, false, false);
         number(d, "postDailyLimit", 1, 1000, false, false);
         number(d, "commentGapSeconds", 0, 3600, false, false);

@@ -3,6 +3,7 @@ package com.community.comment.service;
 import com.community.board.dto.BoardActor;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.BoardSecurityValues;
+import com.community.board.dto.ContentBody;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.exception.AlreadyLikedException;
 import com.community.board.exception.BlockedWordException;
@@ -15,6 +16,7 @@ import com.community.board.service.BoardCatalog;
 import com.community.board.service.ContentRules;
 import com.community.board.service.GuestPasswords;
 import com.community.board.service.PublicBoardService;
+import com.community.board.service.RichText;
 import com.community.captcha.CaptchaVerifier;
 import com.community.comment.dto.request.CommentUpdateRequest;
 import com.community.comment.dto.request.CommentWriteRequest;
@@ -36,6 +38,7 @@ import com.community.point.entity.PointReason;
 import com.community.point.service.PointService;
 import com.community.post.dto.WriteRateData;
 import com.community.post.dto.response.PostAuthorView;
+import com.community.post.entity.ContentFormat;
 import com.community.post.entity.PostEntity;
 import com.community.post.exception.PostHiddenException;
 import com.community.post.repository.master.PostCounterQueries;
@@ -200,7 +203,8 @@ public class CommentService {
             }
         }
         return new CommentView(Long.toString(c.getId()), Long.toString(c.getPostId()), c.getParentId() == null ? null : Long.toString(c.getParentId()), replyTo,
-                DELETED.equals(state) ? AuthorViews.blank(author) : author, VISIBLE.equals(state) ? c.getContent() : null, state, c.getCreatedAt(),
+                DELETED.equals(state) ? AuthorViews.blank(author) : author, VISIBLE.equals(state) ? c.getContent() : null, c.getContentFormat().name(), state,
+                c.getCreatedAt(),
                 c.getEditedAt(), c.getLikeCount(), viewer.liked().contains(c.getId()), viewer.userId() != null && viewer.userId().equals(c.getAuthorId()));
     }
 
@@ -230,7 +234,7 @@ public class CommentService {
         BoardSecurityValues sec = s.security();
 
         Map<String, MessageRef> fields = new LinkedHashMap<>();
-        String content = checkContent(body.content(), writer(actor, b, s), sec, fields);
+        ContentBody content = checkContent(b, body.contentFormat(), body.content(), writer(actor, b, s), sec, fields);
         String guestName = null;
         if (actor.guest()) {
             ContentRules.checkGuest(body.guest(), sec, fields);
@@ -255,11 +259,11 @@ public class CommentService {
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
-        Optional<String> word = ContentRules.blockedWord(sec, content, guestName);
+        Optional<String> word = ContentRules.blockedWord(sec, content.wordsHaystack(), guestName);
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
         }
-        String masked = ContentRules.mask(sec, content);
+        ContentBody masked = content.masked(sec);
         String name = ContentRules.mask(sec, guestName);
         String passwordHash = null;
         if (actor.guest()) {
@@ -277,7 +281,8 @@ public class CommentService {
         CommentView created = tx.execute(status -> {
             Instant now = Instant.now();
             checkRate(s, authorId, ip, now);
-            CommentEntity comment = CommentEntity.create(id, post.getId(), b.id(), parent, replyTo, authorId, name, hash, ip, masked, now);
+            CommentEntity comment = CommentEntity.create(id, post.getId(), b.id(), parent, replyTo, authorId, name, hash, ip, masked.format(), masked.content(),
+                    now);
             comments.persist(comment);
             counters.addCommentCount(post.getId(), 1);
             Map<Long, CommentEntity> byId = new HashMap<>();
@@ -329,12 +334,27 @@ public class CommentService {
                 : BoardAccessPolicy.newMemberRules(b, actor, s) ? ContentRules.Writer.NEW_MEMBER : ContentRules.Writer.MEMBER;
     }
 
-    /** 본문 1~2,000자 + 링크·이미지(댓글은 이미지 불가) */
-    private static String checkContent(String raw, ContentRules.Writer writer, BoardSecurityValues sec, Map<String, MessageRef> fields) {
-        String content = ContentRules.normalize(raw);
-        int length = ContentRules.length(content);
+    /**
+     * 본문 형식 + 본문 1~2,000자(HTML 은 보이는 글자) + 링크·이미지(댓글은 이미지 불가). 형식이 빠지면 TEXT, 모르는 형식·댓글 에디터 NONE 게시판의 HTML 은
+     * {@code fields.contentFormat}. HTML 은 간단 에디터 허용 목록으로 정화한다(이미지 표식은 간단 목록에 없어 사라진다).
+     */
+    private static ContentBody checkContent(EffectiveBoard b, String formatText, String raw, ContentRules.Writer writer, BoardSecurityValues sec,
+                                            Map<String, MessageRef> fields) {
+        ContentFormat format = ContentRules.format(formatText);
+        if (format == null || (format == ContentFormat.HTML && !b.commentHtml())) {
+            fields.put("contentFormat", new MessageRef(format == null ? "board.content.format.unknown" : "board.content.format.notAllowed"));
+            return ContentBody.text(raw);
+        }
+        if (format == ContentFormat.HTML && raw != null && raw.length() > ContentRules.COMMENT_HTML_MAX * 2) {
+            fields.put("content", new MessageRef("board.comment.html.tooLong"));
+            return ContentBody.text("");
+        }
+        ContentBody content = format == ContentFormat.HTML ? ContentBody.html(raw, RichText.Level.SIMPLE) : ContentBody.text(raw);
+        int length = ContentRules.length(content.plain());
         if (length < 1 || length > ContentRules.COMMENT_MAX) {
             fields.put("content", new MessageRef("board.comment.length", String.format("%,d", ContentRules.COMMENT_MAX)));
+        } else if (content.isHtml() && content.content().length() > ContentRules.COMMENT_HTML_MAX) {
+            fields.put("content", new MessageRef("board.comment.html.tooLong"));
         } else {
             ContentRules.checkCommentLinksImages(content, writer, sec, fields);
         }
@@ -381,15 +401,15 @@ public class CommentService {
         ContentRules.Writer writer = comment.isGuest() ? ContentRules.Writer.GUEST : writer(actor, b, s);
         BoardSecurityValues sec = s.security();
         Map<String, MessageRef> fields = new LinkedHashMap<>();
-        String content = checkContent(body.content(), writer, sec, fields);
+        ContentBody content = checkContent(b, body.contentFormat(), body.content(), writer, sec, fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
-        Optional<String> word = ContentRules.blockedWord(sec, content);
+        Optional<String> word = ContentRules.blockedWord(sec, content.wordsHaystack());
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
         }
-        String masked = ContentRules.mask(sec, content);
+        ContentBody masked = content.masked(sec);
         return tx.execute(status -> {
             Instant now = Instant.now();
             CommentEntity locked = comments.findWithLockByPostIdAndId(comment.getPostId(), comment.getId()).filter(c -> !c.isDeleted())
@@ -397,7 +417,7 @@ public class CommentService {
             if (locked.isHiddenAt(now)) {
                 throw new CommentHiddenException();
             }
-            locked.edit(masked, now);
+            locked.edit(masked.format(), masked.content(), now);
             Map<Long, CommentEntity> byId = new HashMap<>();
             if (locked.getReplyToId() != null) {
                 comments.findByPostIdAndId(locked.getPostId(), locked.getReplyToId()).ifPresent(t -> byId.put(t.getId(), t));

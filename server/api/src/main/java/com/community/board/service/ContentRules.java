@@ -1,7 +1,9 @@
 package com.community.board.service;
 
 import com.community.board.dto.BoardSecurityValues;
+import com.community.board.dto.ContentBody;
 import com.community.board.dto.request.GuestCredentials;
+import com.community.post.entity.ContentFormat;
 import com.community.zconfiguration.message.MessageRef;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -25,6 +27,12 @@ public final class ContentRules {
     public static final int CONTENT_MAX = 200_000;
     /** 댓글 1~2,000자(관리자 설정에 없는 값 — 가정) */
     public static final int COMMENT_MAX = 2000;
+    /** HTML 본문(정화한 뒤, 태그 포함)의 상한 — 보이는 글자 상한과 별도로 서식이 지나치게 긴 본문을 막는다(가정) */
+    public static final int CONTENT_HTML_MAX = 400_000;
+    public static final int COMMENT_HTML_MAX = 20_000;
+    /** 글 하나에 넣을 수 있는 이미지·YouTube 수(새 회원은 보안 설정의 새 회원 이미지 수가 먼저 걸린다 — 가정) */
+    public static final int POST_IMAGE_MAX = 30;
+    public static final int POST_YOUTUBE_MAX = 10;
     /** 비회원 비밀번호 최대 길이(관리자 설정에 없는 값 — 가정) */
     public static final int GUEST_PASSWORD_MAX = 20;
     /** bcrypt 는 72바이트를 넘는 부분을 무시하므로 해시하기 전에 거절한다 */
@@ -75,6 +83,18 @@ public final class ContentRules {
         return value == null ? 0 : value.codePointCount(0, value.length());
     }
 
+    /** 요청의 본문 형식 — 빠지면 TEXT(예전 클라이언트), 모르는 값이면 null */
+    public static ContentFormat format(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return ContentFormat.TEXT;
+        }
+        try {
+            return ContentFormat.valueOf(raw.strip());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     /** 앞뒤 공백을 자르고 줄바꿈을 {@code \n} 으로 맞춘다(null 은 빈 글자) */
     public static String normalize(String value) {
         if (value == null) {
@@ -89,8 +109,12 @@ public final class ContentRules {
      * @param allowImages 이 글·댓글에 이미지를 넣을 수 있는가(댓글은 늘 false, 글은 게시판의 이미지 허용)
      */
     public static void checkLinksImages(String content, Writer writer, boolean allowImages, BoardSecurityValues s, String path, Map<String, MessageRef> out) {
-        int links = linkCount(content);
-        int images = imageCount(content);
+        checkLinksImages(linkCount(content), imageCount(content), writer, allowImages, s, path, out);
+    }
+
+    /** 링크·이미지 수를 이미 센 경우(HTML 본문 — {@link ContentBody}) */
+    public static void checkLinksImages(int links, int images, Writer writer, boolean allowImages, BoardSecurityValues s, String path,
+                                        Map<String, MessageRef> out) {
         if (writer == Writer.GUEST) {
             if (links > s.guestLinkLimit()) {
                 out.put(path, s.guestLinkLimit() == 0 ? new MessageRef("board.content.link.guestNone") : new MessageRef("board.content.link.guest", s.guestLinkLimit()));
@@ -112,8 +136,8 @@ public final class ContentRules {
     }
 
     /** 댓글에는 이미지를 넣지 않는다 — {@link #checkLinksImages} 를 이미지 불가로 부른 뒤 문구만 댓글용으로 바꾼다 */
-    public static void checkCommentLinksImages(String content, Writer writer, BoardSecurityValues s, Map<String, MessageRef> out) {
-        checkLinksImages(content, writer, false, s, "content", out);
+    public static void checkCommentLinksImages(ContentBody body, Writer writer, BoardSecurityValues s, Map<String, MessageRef> out) {
+        checkLinksImages(body.links(), body.images(), writer, false, s, "content", out);
         MessageRef ref = out.get("content");
         if (ref != null && ref.key().equals("board.content.image.board")) {
             out.put("content", new MessageRef("board.content.image.comment"));

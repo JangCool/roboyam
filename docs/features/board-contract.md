@@ -57,3 +57,10 @@
 - 설정 저장에서 바뀐 칸이 없으면 `updatedAt/By` 가 그대로다.
 **설치 프리셋**: 설치 트랜잭션에서 기본 게시판을 만들고, 이미 설치된 곳은 api 기동 때 게시판이 0개면 한 번(멱등, 표시 칸). 소모임 게시판은 만들지 않음. 고유 말머리 이름이 공통 이름과 같으면 공통을 켠다(자유 「잡담」, 공지 「공지」).
 **미확정(추가)**: 등급을 지우면 그 키를 쓰는 `write_min`·`auto_hide_min_grade` 가 남는다(등급 저장 쪽 정리 필요). 금지어·신고·알림 설정은 저장만.
+
+## 에디터·이미지 (2026-10-23, 서버 구현) — 공개 쪽 상세는 `board-public-contract.md` 「에디터·이미지」
+- **정책 칸 3개**(게시판 `boards` NULL = 기본값 따름, `board_defaults` NOT NULL — shared `V56__board_editor.sql`): `postEditor` `NONE|SIMPLE|ADVANCED`(기본 `SIMPLE`) · `imageUploadAllowed`(V42 에 **이미 있던 칸** 그대로, 기본 `true` — 새로 만들지 않았다) · `commentEditor` `NONE|SIMPLE`(기본 `NONE`). 권한 `board.settings`, 칸 범위 `BoardFields`(`POLICY_FIELDS` 차례 `writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, …`).
+- **관리자 API 모양은 기존 정책 칸과 같다**: 게시판 GET/PUT 의 `policy.<칸>`(저장값, null = 기본값 따름) + `defaults.<칸>`. 기존 응답에 `effective` 는 없다 — 유효값은 화면이 `policy ?? defaults` 로 계산한다(계약 초안의 `effective.<칸>` 은 만들지 않았다). 기본 설정 GET/PUT 은 `defaults.<칸>` + 따로 정한 게시판 `overrides.<칸>`(계약 초안의 `overridden` 이 아니라 기존 이름 `overrides`). 기본 설정 PUT 은 기존 칸처럼 **두 칸도 필수**(빠지면 `400 fields.postEditor`). 잘못된 값 `400 VALIDATION fields.postEditor`·`fields["policy.postEditor"]`.
+- **이미지 유효값 = 글 에디터 유효값이 `ADVANCED` 이고 이미지 칸 유효값이 true 일 때만 true**(사용자 확정 2026-10-23). `NONE`·`SIMPLE` 이면 저장값과 무관하게 false — 저장값은 그대로 저장한다(화면은 고급이 아니면 칸을 비활성으로 보이되 값은 보낸다). 평문 본문의 이미지 주소 규칙은 예전처럼 저장값(에디터와 무관)을 본다(`EffectiveBoard.imageSetting`).
+- 감사: 게시판 저장은 기존 `BOARD_UPDATE`(계약 초안의 `BOARD_SETTINGS_UPDATE` 는 로보얌에 없다), 기본 설정은 `BOARD_DEFAULTS_UPDATE` — 바뀐 칸만 `before/after` 에 들어간다.
+- `file-orphan-cleanup`(Java 배치, admin) 이 글 이미지도 정리한다 — 올린 뒤 24시간 안 쓴(또는 글에서 뺀) 이미지 + 지운·예약 삭제 시각이 지난·행이 없어진 글의 이미지. 지우기 전에 행을 잠가 상태를 다시 본다.

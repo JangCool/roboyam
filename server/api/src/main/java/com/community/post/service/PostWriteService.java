@@ -4,6 +4,7 @@ import com.community.board.dto.BoardActor;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.BoardPrefixInfo;
 import com.community.board.dto.BoardSecurityValues;
+import com.community.board.dto.ContentBody;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.exception.AlreadyLikedException;
 import com.community.board.exception.BlockedWordException;
@@ -17,6 +18,7 @@ import com.community.board.service.BoardCatalog;
 import com.community.board.service.ContentRules;
 import com.community.board.service.GuestPasswords;
 import com.community.board.service.PublicBoardService;
+import com.community.board.service.RichText;
 import com.community.captcha.CaptchaVerifier;
 import com.community.permission.entity.MemberPermission;
 import com.community.point.entity.PointReason;
@@ -29,8 +31,10 @@ import com.community.post.dto.response.PostDetailView;
 import com.community.post.dto.response.PostLikeResult;
 import com.community.post.dto.response.PostProtectionView;
 import com.community.post.dto.response.PostWriteResult;
+import com.community.post.entity.ContentFormat;
 import com.community.post.entity.PostEntity;
 import com.community.post.exception.DuplicatePostException;
+import com.community.post.exception.ImageUploadNotAllowedException;
 import com.community.post.exception.PostDailyLimitException;
 import com.community.post.exception.PostHiddenException;
 import com.community.post.exception.PostNotFoundException;
@@ -47,8 +51,10 @@ import com.community.zconfiguration.message.MessageRef;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -57,7 +63,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * 글 쓰기·고치기·지우기·비밀번호 확인·추천.
  *
  * <p><b>쓰기 검사 순서</b>(user-web 목업 {@code mockPostCreate} 와 같다): 게시판(404·403 꺼짐) → 쓰기 판정({@link BoardAccessPolicy} — 로그인 필요는 401, 나머지 403 까닭 코드)
- * → 칸(제목·본문 길이, 말머리, 19금, 링크·이미지 수, 비회원 이름·비밀번호·자동입력 방지 토큰 — {@code 400 VALIDATION}) → 금지어({@code 400 BLOCKED_WORD}, 가림 방식이면 가려 저장)
+ * → 칸(제목, 본문 형식 {@code contentFormat}, 본문 길이[HTML 은 보이는 글자], 말머리, 19금, 링크·이미지 수, 비회원 이름·비밀번호·자동입력 방지 토큰 — {@code 400 VALIDATION})
+ * → (HTML) 본문 이미지가 쓸 수 있는 것인지({@code 400 fields.content}) → 이미지 금지 게시판의 새 이미지({@code 422 IMAGE_UPLOAD_NOT_ALLOWED}) → 금지어({@code 400 BLOCKED_WORD}, 가림 방식이면 가려 저장)
  * → 자동입력 방지 확인(비회원, 트랜잭션 밖 외부 요청 — 실패는 {@code fields.guest.captchaToken}) → 작성 간격({@code 429 POST_TOO_FAST}) → 하루 한도({@code 429 POST_DAILY_LIMIT})
  * → 같은 글 반복({@code 409 DUPLICATE_POST}). 속도 판정과 저장은 작성자 단위 어드바이저리 잠금 아래 한 트랜잭션이다(같은 사람의 동시 요청이 한도를 넘지 못하게).
  * 작성자 열쇠는 회원 ID, 비회원은 작성 IP 다. 하루 = 최근 24시간(목업과 같음).
@@ -83,11 +90,13 @@ public class PostWriteService {
     private final SnowflakeIdGenerator ids;
     private final WriterPromotion promotion;
     private final PointService points;
+    private final PostImages postImages;
     private final TransactionTemplate tx;
 
     public PostWriteService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters,
                             PostQueryService queries, GuestPasswords passwords, CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion,
-                            PointService points, PlatformTransactionManager txManager) {
+                            PointService points, PostImages postImages, PlatformTransactionManager txManager) {
+        this.postImages = postImages;
         this.promotion = promotion;
         this.points = points;
         this.catalog = catalog;
@@ -103,7 +112,7 @@ public class PostWriteService {
     }
 
     /** 검사를 마친 글 칸 */
-    private record Cleaned(Long prefixId, String title, String content, boolean adult, boolean hasImage) {
+    private record Cleaned(Long prefixId, String title, ContentBody body, boolean adult, boolean hasImage) {
     }
 
     public PostWriteResult create(PostWriteRequest body, Long userId, String ip) {
@@ -116,7 +125,8 @@ public class PostWriteService {
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         ContentRules.Writer writer = actor.guest() ? ContentRules.Writer.GUEST
                 : BoardAccessPolicy.newMemberRules(b, actor, s) ? ContentRules.Writer.NEW_MEMBER : ContentRules.Writer.MEMBER;
-        Cleaned c = checkFields(b, actor.staffOf(b.id()), writer, null, body.prefixId(), body.title(), body.content(), body.adult(), sec, fields);
+        Cleaned c = checkFields(b, actor.staffOf(b.id()), writer, null, body.prefixId(), body.title(), body.contentFormat(), body.content(), body.adult(), sec,
+                fields);
         String guestName = null;
         if (actor.guest()) {
             ContentRules.checkGuest(body.guest(), sec, fields);
@@ -125,12 +135,19 @@ public class PostWriteService {
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
-        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.content(), guestName);
+        Long authorId = actor.guest() ? null : actor.userId();
+        if (!c.body().imageIds().isEmpty()) {
+            postImages.check(c.body().imageIds(), authorId, null); // 없거나 남의 이미지 — 400 fields.content
+            if (!b.imageUploadAllowed()) {
+                throw new ImageUploadNotAllowedException(); // 새 글의 이미지는 모두 새 이미지다
+            }
+        }
+        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack(), guestName);
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
         }
         String title = ContentRules.mask(sec, c.title());
-        String content = ContentRules.mask(sec, c.content());
+        ContentBody content = c.body().masked(sec);
         String name = ContentRules.mask(sec, guestName);
 
         String passwordHash = null;
@@ -143,11 +160,12 @@ public class PostWriteService {
 
         long id = ids.nextId();
         String hash = passwordHash;
-        Long authorId = actor.guest() ? null : actor.userId();
         tx.executeWithoutResult(status -> {
             Instant now = Instant.now();
-            checkRate(s, authorId, ip, title, content, now);
-            posts.persist(PostEntity.create(id, b.id(), c.prefixId(), authorId, name, hash, ip, title, content, c.adult(), c.hasImage(), now));
+            checkRate(s, authorId, ip, title, content.plain(), now);
+            String stored = content.isHtml() ? postImages.bind(content.content(), content.imageIds(), authorId, id, false, now) : content.content();
+            posts.persist(PostEntity.create(id, b.id(), c.prefixId(), authorId, name, hash, ip, title, content.format(), stored, content.plain(), c.adult(),
+                    c.hasImage(), now));
             if (authorId != null) {
                 points.earn(authorId, PointReason.POST, id); // 실패·상한이어도 글은 그대로 올라간다
             }
@@ -156,7 +174,7 @@ public class PostWriteService {
         return new PostWriteResult(Long.toString(id));
     }
 
-    /** 작성 간격 → 하루 한도 → 같은 글 반복(작성자 단위 잠금 아래) */
+    /** 작성 간격 → 하루 한도 → 같은 글 반복(작성자 단위 잠금 아래 — 같은 글은 제목 + 보이는 글자로 본다) */
     private void checkRate(BoardCatalogSnapshot s, Long authorId, String ip, String title, String content, Instant now) {
         counters.lockWriter("post:" + (authorId != null ? "m:" + authorId : "g:" + ip));
         int gap = s.defaults().postGapSeconds();
@@ -183,16 +201,20 @@ public class PostWriteService {
      * @param currentPrefixId 고치기면 지금 글의 말머리, 쓰기면 null
      */
     private static Cleaned checkFields(EffectiveBoard b, boolean staff, ContentRules.Writer writer, Long currentPrefixId, String prefixText, String titleText,
-                                       String contentText, Boolean adultFlag, BoardSecurityValues sec, Map<String, MessageRef> fields) {
+                                       String formatText, String contentText, Boolean adultFlag, BoardSecurityValues sec, Map<String, MessageRef> fields) {
         String title = ContentRules.normalize(titleText).replace('\n', ' ');
         int titleLength = ContentRules.length(title);
         if (titleLength < ContentRules.TITLE_MIN || titleLength > ContentRules.TITLE_MAX) {
             fields.put("title", new MessageRef("board.content.title.length", ContentRules.TITLE_MIN, ContentRules.TITLE_MAX));
         }
-        String content = ContentRules.normalize(contentText);
-        int contentLength = ContentRules.length(content);
-        if (contentLength < ContentRules.CONTENT_MIN || contentLength > ContentRules.CONTENT_MAX) {
-            fields.put("content", new MessageRef("board.content.body.length", ContentRules.CONTENT_MIN, String.format("%,d", ContentRules.CONTENT_MAX)));
+        ContentBody body = body(b, formatText, contentText, fields);
+        if (!fields.containsKey("contentFormat") && !fields.containsKey("content")) {
+            int contentLength = ContentRules.length(body.plain());
+            if (contentLength < ContentRules.CONTENT_MIN || contentLength > ContentRules.CONTENT_MAX) {
+                fields.put("content", new MessageRef("board.content.body.length", ContentRules.CONTENT_MIN, String.format("%,d", ContentRules.CONTENT_MAX)));
+            } else if (body.isHtml() && body.content().length() > ContentRules.CONTENT_HTML_MAX) {
+                fields.put("content", new MessageRef("board.content.html.tooLong"));
+            }
         }
         Long prefixId = null;
         if (prefixText != null && !prefixText.isBlank()) {
@@ -209,10 +231,44 @@ public class PostWriteService {
         if (adult && !b.allowAdult()) {
             fields.put("adult", new MessageRef("board.content.adult"));
         }
-        if (!fields.containsKey("content")) {
-            ContentRules.checkLinksImages(content, writer, b.imageUploadAllowed(), sec, "content", fields);
+        if (!fields.containsKey("content") && !fields.containsKey("contentFormat")) {
+            if (!body.isHtml()) {
+                // 평문: 이미지 주소·마크다운 이미지를 예전처럼 게시판의 이미지 허용 칸으로 본다
+                ContentRules.checkLinksImages(body.links(), body.images(), writer, b.imageSetting(), sec, "content", fields);
+            } else if (body.images() > ContentRules.POST_IMAGE_MAX) {
+                fields.put("content", new MessageRef("board.content.image.limit", ContentRules.POST_IMAGE_MAX));
+            } else if (body.youtube() > ContentRules.POST_YOUTUBE_MAX) {
+                fields.put("content", new MessageRef("board.content.youtube.limit", ContentRules.POST_YOUTUBE_MAX));
+            } else {
+                // HTML: 게시판의 이미지 금지는 새 이미지만 422 로 막는다(고치기에서 이미 있던 이미지는 둔다) — 여기서는 비회원·새 회원 규칙만
+                ContentRules.checkLinksImages(body.links(), body.images(), writer, true, sec, "content", fields);
+            }
         }
-        return new Cleaned(prefixId, title, content, adult, ContentRules.imageCount(content) > 0);
+        return new Cleaned(prefixId, title, body, adult, body.images() > 0);
+    }
+
+    /**
+     * 본문 형식과 본문 — 형식이 빠지면 TEXT. 모르는 형식 {@code fields.contentFormat}, 평문 게시판(글 에디터 NONE)에 HTML {@code fields.contentFormat}.
+     * HTML 은 게시판 에디터 수준(간단·고급)의 허용 목록으로 정화한다. 정화하기 전 길이가 상한의 두 배를 넘으면 정화하지 않고 거절한다.
+     */
+    private static ContentBody body(EffectiveBoard b, String formatText, String contentText, Map<String, MessageRef> fields) {
+        ContentFormat format = ContentRules.format(formatText);
+        if (format == null) {
+            fields.put("contentFormat", new MessageRef("board.content.format.unknown"));
+            return ContentBody.text(contentText);
+        }
+        if (format == ContentFormat.TEXT) {
+            return ContentBody.text(contentText);
+        }
+        if (!b.postHtml()) {
+            fields.put("contentFormat", new MessageRef("board.content.format.notAllowed"));
+            return ContentBody.text(contentText);
+        }
+        if (contentText != null && contentText.length() > ContentRules.CONTENT_HTML_MAX * 2) {
+            fields.put("content", new MessageRef("board.content.html.tooLong"));
+            return ContentBody.text("");
+        }
+        return ContentBody.html(contentText, RichText.level(b.postEditor()));
     }
 
     public PostDetailView update(String idText, PostUpdateRequest body, Long userId, String ip) {
@@ -233,16 +289,25 @@ public class PostWriteService {
                 : BoardAccessPolicy.newMemberRules(b, actor, s) ? ContentRules.Writer.NEW_MEMBER : ContentRules.Writer.MEMBER;
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         BoardSecurityValues sec = s.security();
-        Cleaned c = checkFields(b, actor.staffOf(b.id()), writer, post.getPrefixId(), body.prefixId(), body.title(), body.content(), body.adult(), sec, fields);
+        Cleaned c = checkFields(b, actor.staffOf(b.id()), writer, post.getPrefixId(), body.prefixId(), body.title(), body.contentFormat(), body.content(),
+                body.adult(), sec, fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
-        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.content());
+        List<Long> imageIds = c.body().imageIds();
+        if (!imageIds.isEmpty()) {
+            postImages.check(imageIds, post.getAuthorId(), post.getId()); // 글쓴이가 올린 새 이미지 또는 이 글이 쓰던 이미지만
+            Set<Long> existing = postImages.attachedTo(post.getId());
+            if (!b.imageUploadAllowed() && imageIds.stream().anyMatch(id -> !existing.contains(id))) {
+                throw new ImageUploadNotAllowedException(); // 이미지 금지 게시판 — 이미 있던 이미지는 둘 수 있고 새 이미지만 막는다
+            }
+        }
+        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack());
         if (word.isPresent()) {
             throw new BlockedWordException(word.get());
         }
         String title = ContentRules.mask(sec, c.title());
-        String content = ContentRules.mask(sec, c.content());
+        ContentBody content = c.body().masked(sec);
         return tx.execute(status -> {
             Instant now = Instant.now();
             PostEntity locked = posts.findWithLockById(post.getId()).filter(p -> !p.isGoneAt(now)).orElseThrow(PostNotFoundException::new);
@@ -252,7 +317,14 @@ public class PostWriteService {
             if (PostQueryService.protection(b, locked.getCommentCount()).editBlocked()) {
                 throw new PostProtectedException(false, b.commentProtectMin());
             }
-            locked.edit(c.prefixId(), title, content, c.adult(), c.hasImage(), now);
+            String stored;
+            if (content.isHtml()) {
+                stored = postImages.bind(content.content(), content.imageIds(), locked.getAuthorId(), locked.getId(), true, now);
+            } else {
+                postImages.releaseAll(locked.getId());
+                stored = content.content();
+            }
+            locked.edit(c.prefixId(), title, content.format(), stored, content.plain(), c.adult(), c.hasImage(), now);
             posts.flush();
             return queries.viewAfterEdit(locked, b, s, userId, now);
         });

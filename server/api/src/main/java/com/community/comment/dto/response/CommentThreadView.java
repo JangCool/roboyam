@@ -5,11 +5,11 @@ import java.time.Instant;
 import java.util.List;
 
 /** 원댓글 + 그 아래 답글(오래된순) — user-web {@code CommentThread}. 칸은 {@link CommentView} 와 같고 {@code replies} 가 더해진다 */
-public record CommentThreadView(String id, String postId, String parentId, ReplyToView replyTo, PostAuthorView author, String content, String state,
-                                Instant createdAt, Instant updatedAt, int likeCount, boolean liked, boolean mine, List<CommentView> replies) {
+public record CommentThreadView(String id, String postId, String parentId, ReplyToView replyTo, PostAuthorView author, String content, String contentFormat,
+                                String state, Instant createdAt, Instant updatedAt, int likeCount, boolean liked, boolean mine, List<CommentView> replies) {
 
     public static CommentThreadView of(CommentView top, List<CommentView> replies) {
-        return new CommentThreadView(top.id(), top.postId(), top.parentId(), top.replyTo(), top.author(), top.content(), top.state(), top.createdAt(),
-                top.updatedAt(), top.likeCount(), top.liked(), top.mine(), replies);
+        return new CommentThreadView(top.id(), top.postId(), top.parentId(), top.replyTo(), top.author(), top.content(), top.contentFormat(), top.state(),
+                top.createdAt(), top.updatedAt(), top.likeCount(), top.liked(), top.mine(), replies);
     }
 }

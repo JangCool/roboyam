@@ -2,6 +2,8 @@ package com.community.post.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
@@ -35,6 +37,10 @@ public class PostEntity {
     private String authorIp;
     private String title;
     private String content;
+    @Enumerated(EnumType.STRING)
+    private ContentFormat contentFormat;
+    /** HTML 글의 보이는 글자(검색·같은 글 반복 판정) — TEXT 글은 null(본문이 평문이다) */
+    private String contentText;
     private String status;
     private boolean adult;
     private boolean hasImage;
@@ -62,9 +68,11 @@ public class PostEntity {
 
     /**
      * 새 글. 회원 글이면 {@code authorId} 가 있고 비회원 정보는 null, 비회원 글이면 그 반대다.
+     *
+     * @param contentText HTML 글의 보이는 글자(TEXT 글은 무시하고 null 로 둔다)
      */
     public static PostEntity create(long id, long boardId, Long prefixId, Long authorId, String guestName, String guestPasswordHash, String authorIp,
-                                    String title, String content, boolean adult, boolean hasImage, Instant now) {
+                                    String title, ContentFormat format, String content, String contentText, boolean adult, boolean hasImage, Instant now) {
         PostEntity post = new PostEntity();
         post.id = id;
         post.boardId = boardId;
@@ -74,7 +82,9 @@ public class PostEntity {
         post.guestPasswordHash = authorId == null ? guestPasswordHash : null;
         post.authorIp = authorIp;
         post.title = title;
+        post.contentFormat = format;
         post.content = content;
+        post.contentText = format == ContentFormat.HTML ? contentText : null;
         post.status = PUBLISHED;
         post.adult = adult;
         post.hasImage = hasImage;
@@ -84,10 +94,12 @@ public class PostEntity {
     }
 
     /** 작성자가 고친다 */
-    public void edit(Long prefixId, String title, String content, boolean adult, boolean hasImage, Instant now) {
+    public void edit(Long prefixId, String title, ContentFormat format, String content, String contentText, boolean adult, boolean hasImage, Instant now) {
         this.prefixId = prefixId;
         this.title = title;
+        this.contentFormat = format;
         this.content = content;
+        this.contentText = format == ContentFormat.HTML ? contentText : null;
         this.adult = adult;
         this.hasImage = hasImage;
         this.editedAt = now;
@@ -169,6 +181,16 @@ public class PostEntity {
 
     public String getContent() {
         return content;
+    }
+
+    /** 본문 형식 — 칸이 비어 있던 옛 행은 TEXT */
+    public ContentFormat getContentFormat() {
+        return contentFormat == null ? ContentFormat.TEXT : contentFormat;
+    }
+
+    /** 보이는 글자 — HTML 글은 저장해 둔 평문, TEXT 글은 본문 그대로 */
+    public String plainContent() {
+        return getContentFormat() == ContentFormat.HTML && contentText != null ? contentText : content;
     }
 
     public boolean isAdult() {

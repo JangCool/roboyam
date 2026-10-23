@@ -21,4 +21,7 @@ dependencies {
 
     // 설치 인증 세션과 로그인 세션을 DB(spring_session 표, V2)에 둔다. AuthController 가 CookieSerializer(spring-session-core)를 쓰고, 세션 저장소를 DB 로 바꾸는 런타임 구성이기도 하다
     implementation 'org.springframework.boot:spring-boot-starter-session-jdbc'
+
+    // 글·댓글 HTML 본문 정화(허용 목록) — RichText. 에디터가 만든 HTML 이라도 서버가 반드시 거친다
+    implementation "com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer:${owaspHtmlSanitizerVersion}"
 }

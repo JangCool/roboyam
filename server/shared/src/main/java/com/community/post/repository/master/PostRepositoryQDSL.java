@@ -72,7 +72,7 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
      * 글 목록 한 쪽.
      *
      * @param prefixId      말머리 — null 이면 전체
-     * @param q             검색어(제목·본문·작성자 이름, 대소문자 무시) — null 이면 검색하지 않는다. 숨긴 글은 검색 결과에서 뺀다
+     * @param q             검색어(제목·본문[HTML 글은 태그를 뗀 평문 칸]·작성자 이름, 대소문자 무시) — null 이면 검색하지 않는다. 숨긴 글은 검색 결과에서 뺀다
      * @param oldest        오래된순(아니면 최신순)
      * @param excludePinned 고정 공지를 목록에서 뺀다(첫 쪽 위에 따로 보일 때)
      */
@@ -87,7 +87,7 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
         if (q != null) {
             QProfileEntity profile = QProfileEntity.profileEntity;
             where = where.and(notHidden(POST, now)).and(POST.title.containsIgnoreCase(q)
-                    .or(POST.content.containsIgnoreCase(q))
+                    .or(POST.contentText.coalesce(POST.content).containsIgnoreCase(q))
                     .or(POST.guestName.containsIgnoreCase(q))
                     .or(POST.authorId.in(JPAExpressions.select(profile.userId).from(profile).where(profile.nickname.containsIgnoreCase(q)))));
         }
@@ -130,11 +130,11 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
         return new WriteRateData(count, t == null ? null : t.get(1, Instant.class));
     }
 
-    /** {@code since} 뒤에 같은 작성자가 같은 제목·본문으로 쓴 글이 있는가(지운 글 제외) */
-    public boolean duplicate(Long authorId, String ip, Instant since, String title, String content) {
+    /** {@code since} 뒤에 같은 작성자가 같은 제목·보이는 본문(HTML 글은 평문 칸)으로 쓴 글이 있는가(지운 글 제외) */
+    public boolean duplicate(Long authorId, String ip, Instant since, String title, String plainContent) {
         return query.selectOne().from(POST)
                 .where(author(authorId, ip), POST.id.goe(SnowflakeIdGenerator.floorIdAt(since)), POST.createdAt.goe(since), POST.deletedAt.isNull(),
-                        POST.title.eq(title), POST.content.eq(content))
+                        POST.title.eq(title), POST.contentText.coalesce(POST.content).eq(plainContent))
                 .fetchFirst() != null;
     }
 }

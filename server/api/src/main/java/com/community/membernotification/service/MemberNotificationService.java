@@ -5,6 +5,7 @@ import com.community.board.dto.EffectiveBoard;
 import com.community.board.entity.BoardNotificationSettingEntity;
 import com.community.board.repository.master.BoardNotificationSettingRepository;
 import com.community.board.service.BoardCatalog;
+import com.community.board.service.RichText;
 import com.community.comment.entity.CommentEntity;
 import com.community.membernotification.dto.response.MemberNotificationItemView;
 import com.community.membernotification.dto.response.MemberNotificationPageView;
@@ -183,7 +184,7 @@ public class MemberNotificationService {
         if (row.getCommentId() != null && postAvailable) {
             CommentEntity c = commentById.get(row.getCommentId());
             if (c != null && !c.isDeleted() && !c.isHiddenAt(now)) {
-                commentPreview = preview(c.getContent());
+                commentPreview = preview(RichText.plainOf(c.getContentFormat(), c.getContent()));
             }
         }
 

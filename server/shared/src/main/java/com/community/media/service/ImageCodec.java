@@ -101,6 +101,28 @@ public class ImageCodec {
         }
     }
 
+    /** 장 수(GIF 의 프레임 수 — 움직이는 그림인지 알아본다). 읽을 수 없으면 {@link ImageUnreadableException}. {@link #limited} 안에서 부른다 */
+    public int frameCount(byte[] data, ImageFormat format) {
+        try (ImageInputStream in = ImageIO.createImageInputStream(new ByteArrayInputStream(data))) {
+            ImageReader reader = readerFor(in, format);
+            try {
+                reader.setInput(in, false, true);
+                int count = reader.getNumImages(true);
+                if (count <= 0) {
+                    throw new ImageUnreadableException("장이 없다");
+                }
+                return count;
+            } finally {
+                reader.dispose();
+            }
+        } catch (IOException | RuntimeException e) {
+            if (e instanceof ImageUnreadableException unreadable) {
+                throw unreadable;
+            }
+            throw new ImageUnreadableException("장 수를 읽지 못했다", e);
+        }
+    }
+
     /** WebP 의 메타데이터·뒤에 붙은 데이터를 뗀 새 파일(그림은 그대로) */
     public byte[] cleanWebp(byte[] data) {
         return WebpContainer.clean(data);
