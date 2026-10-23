@@ -36,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>검사 순서</b>: 없는 이벤트(404 {@code MEMBER_EVENT_NOT_FOUND}) → 입력 형식(400 {@code fields.enabled|inApp|email|memberCanTurnOff}) → 준비 중(409
  *       {@code MEMBER_EVENT_NOT_READY}) → 코드가 잠근 이벤트를 회원이 끌 수 있게 함(400 {@code VALIDATION} {@code fields.memberCanTurnOff}).</li>
  *   <li>같은 이벤트를 동시에 바꾸는 요청은 행 잠금으로 줄 세운다(줄이 없으면 처음 값으로 만든다). 바뀐 때만 감사 {@code MEMBER_EVENT_UPDATE}(바뀐 칸의 전·후 값).</li>
- *   <li>이메일 칸은 저장만 한다 — 회원 메일 발송은 다음 단계다. 앱 알림은 발행기({@code MemberNotificationPublisher})가 바로 본다.</li>
+ *   <li>발행기({@code MemberNotificationPublisher})가 앱 알림·이메일 칸을 바로 본다 — 이메일은 커밋 뒤 회원 알림 메일({@code MemberNotificationEmailSender}).</li>
  *   <li>「최근 30일 발송 수」는 그 기간에 만든 회원 알림 줄 수다(묶인 댓글 알림은 한 줄).</li>
  * </ul>
  * 입구의 권한(조회 {@code notification.read}, 변경 {@code notification.manage} — 운영자 이벤트와 같다)은 컨트롤러가 선언한다.

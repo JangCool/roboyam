@@ -3,7 +3,7 @@
 ## 1. 역할 및 기본 원칙
 * 관리자 앱의 사건(**이벤트**)을 알림으로 전달한다 — 앱 안 종 알림 서랍(필수)과 이메일(이벤트별 선택). 회원용(공개 사이트) 알림은 별개다 — `docs/features/member-notification-contract.md`(shared `MemberNotificationPublisher`, 같은 세이브포인트 격리). 설계·결정은 `docs/features/notification-contract.md`, 구현 사실은 `docs/features/roles-contract.md` 「7단계 구현 결과」.
 * **이벤트의 정의는 코드(`AdminNotificationEvent` enum, shared `com.community.notification.entity`)가 원천**이다(`Permission`·`BatchCatalog` 와 같은 방식). 표 `notification_events` 는 운영자가 화면에서 바꾸는 값(사용 여부·이메일 전달)만 든다. **수신 규칙·심각도·필수 여부·링크는 코드에 고정**이고 화면에서 바꾸지 않는다(규칙을 바꾸면 보면 안 될 알림을 받을 수 있다 — 권한 상승 방지).
-* 알림은 이벤트가 일어난 시점에 수신자마다 한 행(`admin_notifications`)을 만든다(fan-out). 문구는 **키 + 인자**로 저장하고 읽을 때 읽는 사람의 요청 언어로 푼다.
+* 알림은 이벤트가 일어난 시점에 수신자마다 한 행(`admin_notifications`)을 만든다(fan-out). 행에는 **인자**만 저장하고, 문구는 **알림 문구 엔진**(`NotificationMessageRenderer` — 운영자가 고른 문구·규칙·템플릿, 없으면 번들에서 만든 기본 문구)이 읽을 때·보낼 때 받는 사람 언어로 그린다(`AdminNotificationMessages` — 인자 → 카탈로그 `MessageTargetCatalog` 의 이름 붙은 변수). 회원 알림도 같다(`MemberNotificationMessages`). 결정·가정은 `docs/features/message-template-contract.md` 「서버 구현 결과(발송 연결)」.
 
 ---
 
@@ -40,7 +40,9 @@
 * 이벤트의 `linkPath` 는 관리자 앱 안의 경로 템플릿이고 `{이름}` 자리는 발행 때 `NotificationContext.link(이름, 값)` 으로 채운다(값은 URL 인코딩). 채울 값이 없으면 링크 없이 낸다. 서버는 `link.path` 만 주고, 권한이 없는 화면으로는 이동하지 않는 것은 화면의 몫이다.
 
 ### 2-6. 이메일
-* 커밋 뒤(`@TransactionalEventListener(AFTER_COMMIT)`) 별도 스레드풀에서 보낸다(`NotificationEmailSender`). `emailable` + 이벤트 관리의 이메일 전달 + 운영자의 `email_notification` 이 모두 참일 때만. 제목·본문은 **받는 사람의 언어**(내 표시 형식을 쓰면 그 언어 → 사이트 표시 기본 언어 → ko)로 풀고 HTML 로 가린다. 링크는 `ADMIN_URL` 기준 절대 주소. 메일 서버가 없으면 로그만. 주소·내용·예외 문구는 로그에 남기지 않는다.
+* 커밋 뒤(`@TransactionalEventListener(AFTER_COMMIT)`) 별도 스레드풀에서 보낸다(`NotificationEmailSender`). `emailable` + 이벤트 관리의 이메일 전달 + 운영자의 `email_notification` 이 모두 참일 때만. 제목·본문은 문구 엔진 `renderEmail` 이 **받는 사람의 언어**(내 표시 형식을 쓰면 그 언어 → 사이트 표시 기본 언어 → ko)로 그리고 값은 엔진이 HTML 로 가린다 → `MailDispatcher.sendTagged`. 링크는 `ADMIN_URL` 기준 절대 주소. 메일 서버가 없으면 로그만. 주소·내용·예외 문구는 로그에 남기지 않는다.
+* **조건 값**(문구의 특수 상황 규칙): 상황에 따라 문구가 갈려야 하면 발행 지점이 `NotificationContext.condition(MessageCondition.<이름>, 값…)` 을 채운다(카탈로그의 조건 선택지만 — 예: 배치 실패 `jobName`). 받는 사람마다 다른 `recipientSource` 는 발행기가 채운다. 새 조건은 `MessageTargetCatalog` 에 선택지 + 번들 `notificationTemplate.condition.*`.
+* 메일·Slack/Mattermost 문구를 코드에 직접 만들지 않는다 — 새 메일은 필수 안내 메일(`RequiredMail` + 카탈로그 + `BuiltinMessages`)이나 이벤트로 더하고 엔진으로 보낸다.
 
 ### 2-7. API·정리
 * 본인 API 는 `@AdminAuthenticated`(경로에 운영자 id 가 없고 대상은 늘 요청한 사람), 이벤트 관리는 `notification.read`/`notification.manage`. 목록·미읽음·요약·모두 읽음은 `NotificationVisibility` **한 곳의 같은 거르기**를 쓴다(권한 + 끄지 않음 + 발행처 있음).
@@ -50,7 +52,7 @@
 * **도구**: 서랍·이메일·브라우저는 코드가 내려주는 **기본 제공**(id `drawer`·`email`·`browser`, 이메일·브라우저의 사용 여부·시험 결과만 `notification_builtin_channels`)이고, 사용자가 만드는 것은 **Slack·Mattermost 뿐**(`notification_channels`, 최대 20개). 카카오·SMS 는 enum 에도 만들지 않고 400 `fields.type`. 이메일은 설정 > 메일 서버로 보내며 도구 전용 SMTP 가 없다. 브라우저 알림은 순수 클라이언트 동작이라 서버는 이벤트의 `browser_enabled` 선택만 저장한다.
 * **이벤트별 전달**: 이벤트마다 `channels`(`email` = 기존 `email_enabled`, `browser`, Slack/Mattermost 도구 id)와 `teamIds`(추가 수신 팀). **`broadcastAllowed`**(코드 정의: 수신 규칙 `SELF` 가 아니고 `mandatory` 가 아님)가 false 인 이벤트에는 팀·Slack/Mattermost 를 지정할 수 없다(400 `NOTIFICATION_BROADCAST_NOT_ALLOWED`). 꺼진 도구·멈춘 팀은 **새로** 고를 수 없다(이미 고른 것은 둔다). 팀 선택을 바꾸려면 `team.read` 도 필요하다.
 * **수신**: 기본 수신 규칙 + 사용 중인 팀의 팀원 중 **활성 운영자이면서 `requiredPermission` 이 있는 사람**(Set 이라 중복 없음). 행위자 제외·개인 끄기·묶기는 팀원에게도 같다. Slack·Mattermost 는 수신자 수와 상관없이 도구마다 **이벤트당 한 번**, 커밋 뒤(`NotificationChannelPostSender`, `AFTER_COMMIT` + 별도 스레드풀)에 올린다 — 업무·서랍·다른 도구는 실패에 영향받지 않는다. 이메일은 이벤트의 이메일 전달 **그리고** 이메일 도구가 켜져 있어야 나간다.
-* **비밀·외부 요청**: 봇 토큰·웹훅 주소는 `SecretEncryptor` 암호문만 저장하고 응답·로그·감사·예외·`toString` 에 평문도 암호문도 싣지 않는다(응답은 `secretKeys`). 외부로 나가는 요청은 **반드시** `SafeHttpClient`(+`OutboundTargetGuard`)를 지난다 — 검사한 IP 로 직접 연결, 리다이렉트 안 따라감, 짧은 제한 시간, 응답 본문은 돌려주지 않고 **짧은 사유 코드**(`ChannelPostResult`, 번들 `notification.channel.test.<코드>`)만. 메시지에 값을 섞을 때는 `ChannelMessageFormatter` 로 멘션·마크다운을 무력화한다. 새 외부 연동(도구 종류)을 더할 때 `HttpClient`/`URL` 로 직접 요청하지 않는다.
+* **비밀·외부 요청**: 봇 토큰·웹훅 주소는 `SecretEncryptor` 암호문만 저장하고 응답·로그·감사·예외·`toString` 에 평문도 암호문도 싣지 않는다(응답은 `secretKeys`). 외부로 나가는 요청은 **반드시** `SafeHttpClient`(+`OutboundTargetGuard`)를 지난다 — 검사한 IP 로 직접 연결, 리다이렉트 안 따라감, 짧은 제한 시간, 응답 본문은 돌려주지 않고 **짧은 사유 코드**(`ChannelPostResult`, 번들 `notification.channel.test.<코드>`)만. 알림 글은 문구 엔진 `renderChat` 이 그리고(변수 값은 엔진이 `ChannelMessageFormatter` 로 멘션·마크다운 무력화) `NotificationChannelPoster.post(channel, RenderedChat)` 로 올린다. 새 외부 연동(도구 종류)을 더할 때 `HttpClient`/`URL` 로 직접 요청하지 않는다.
 * 감사 `TEAM_*`·`NOTIFICATION_CHANNEL_*` — 비밀·주소는 값 없이 바뀐 칸 이름만. 구조·검증 결과는 `docs/features/notification-contract.md` 「서버 구현 결과 (알림 도구·조직 구성)」.
 
 ---

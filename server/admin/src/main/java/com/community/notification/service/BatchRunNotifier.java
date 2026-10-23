@@ -7,6 +7,7 @@ import com.community.notification.config.NotificationProperties;
 import com.community.notification.dto.NotificationContext;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.repository.master.BatchRunWatchRepositoryQDSL;
+import com.community.notificationtemplate.catalog.MessageCondition;
 import com.community.zconfiguration.message.MessageRef;
 import java.time.Duration;
 import java.time.Instant;
@@ -78,7 +79,8 @@ public class BatchRunNotifier {
         Object name = definition == null ? run.getJobKey() : new MessageRef(definition.nameKey()); // 카탈로그에서 사라진 배치는 키 그대로
         Object detail = run.getErrorMessage() == null || run.getErrorMessage().isBlank() ? new MessageRef("notification.batchRunFailed.noDetail") : run.getErrorMessage();
         int published = publisher.publish(AdminNotificationEvent.BATCH_RUN_FAILED,
-                NotificationContext.empty().args(name, run.getJobKey(), detail).dedupe(run.getJobKey()).link("jobName", run.getJobKey()));
+                NotificationContext.empty().args(name, run.getJobKey(), detail).dedupe(run.getJobKey()).link("jobName", run.getJobKey())
+                        .condition(MessageCondition.JOB_NAME, run.getJobKey()));
         log.info("배치 실패 알림 jobKey={} 받는 사람={}명", run.getJobKey(), published);
     }
 }

@@ -3,10 +3,10 @@ package com.community.adminauth.service;
 import com.community.adminauth.config.AdminPasswordResetProperties;
 import com.community.adminauth.dto.PasswordResetCodeIssued;
 import com.community.mail.service.MailDispatcher;
-import com.community.operator.service.OperatorMailTemplate;
-import com.community.site.dto.SiteValues;
-import com.community.site.service.SiteSettingsService;
-import com.community.zconfiguration.message.Messages;
+import com.community.notificationtemplate.catalog.RequiredMail;
+import com.community.notificationtemplate.engine.MessageRenderRequest;
+import com.community.notificationtemplate.engine.NotificationMessageRenderer;
+import com.community.notificationtemplate.engine.RenderedEmail;
 import jakarta.annotation.PreDestroy;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -25,7 +25,8 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * 요청 스레드에서 보내면 응답 시간(메일 서버 접속·전송)이 계정 존재를 알린다 — 그래서 작은 스레드풀에 맡기고 요청은 바로 끝낸다. 대기열이 가득 차면 그 메일은 버리고 경고만 남긴다
  * (사용자는 쿨다운 뒤 다시 받는다 — 요청 스레드로 되돌려 보내면 시간 차이가 생기므로 일부러 버린다).
  *
- * <p>메일 언어는 요청 스레드에서 알림에 담아 온 값이다. 메일 서버가 없거나 발송에 실패하면 로그만 남긴다(수신자·승인번호·예외 문구는 남기지 않는다 — 예외는 클래스 이름만).
+ * <p>제목·본문은 알림 문구 엔진(필수 안내 메일 {@link RequiredMail#OPERATOR_RESET_CODE})이 그린다. 메일 언어는 요청 스레드에서 알림에 담아 온 값이다.
+ * 메일 서버가 없거나 발송에 실패하면 로그만 남긴다(수신자·승인번호·예외 문구는 남기지 않는다 — 예외는 클래스 이름만).
  */
 @Component
 public class PasswordResetMailSender {
@@ -36,16 +37,14 @@ public class PasswordResetMailSender {
     private static final int QUEUE_CAPACITY = 100;
 
     private final MailDispatcher mail;
-    private final SiteSettingsService siteSettings;
     private final AdminPasswordResetProperties props;
-    private final Messages messages;
+    private final NotificationMessageRenderer renderer;
     private final ThreadPoolExecutor executor;
 
-    public PasswordResetMailSender(MailDispatcher mail, SiteSettingsService siteSettings, AdminPasswordResetProperties props, Messages messages) {
+    public PasswordResetMailSender(MailDispatcher mail, AdminPasswordResetProperties props, NotificationMessageRenderer renderer) {
         this.mail = mail;
-        this.siteSettings = siteSettings;
         this.props = props;
-        this.messages = messages;
+        this.renderer = renderer;
         this.executor = new ThreadPoolExecutor(THREADS, THREADS, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(QUEUE_CAPACITY), runnable -> {
             Thread thread = new Thread(runnable, "admin-reset-mail");
             thread.setDaemon(true);
@@ -64,10 +63,13 @@ public class PasswordResetMailSender {
 
     private void send(PasswordResetCodeIssued event) {
         try {
-            String siteName = siteSettings.current().map(SiteValues::name).orElse(null);
-            OperatorMailTemplate.Mail content = OperatorMailTemplate.passwordResetCode(messages, event.locale(), siteName, event.code(), props.codeValidMinutes());
+            RenderedEmail content = renderer.renderEmail(MessageRenderRequest.requiredMail(RequiredMail.OPERATOR_RESET_CODE)
+                    .locale(event.locale())
+                    .variable("code", event.code())
+                    .variable("validMinutes", props.codeValidMinutes())
+                    .build());
             if (mail.sendTagged(event.email(), content.subject(), content.untaggedSubject(), content.html())) {
-                log.info("운영자 비밀번호 재설정 승인번호 메일을 보냈다");
+                log.info("운영자 비밀번호 재설정 승인번호 메일을 보냈다 문구={}", content.messageId());
             }
         } catch (RuntimeException e) {
             // 예외 문구에 수신자 주소·서버 응답이 실릴 수 있어 클래스 이름만 남긴다

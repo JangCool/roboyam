@@ -2,13 +2,19 @@ package com.community.notification.service;
 
 import com.community.mail.service.MailDispatcher;
 import com.community.notification.dto.NotificationEmailRequested;
+import com.community.notification.entity.AdminNotificationEvent;
+import com.community.notificationtemplate.catalog.MessageChannel;
+import com.community.notificationtemplate.catalog.MessageCondition;
+import com.community.notificationtemplate.catalog.MessageVariable;
+import com.community.notificationtemplate.engine.MessageRenderRequest;
+import com.community.notificationtemplate.engine.NotificationMessageRenderer;
+import com.community.notificationtemplate.engine.RenderedEmail;
 import com.community.operator.entity.OperatorEntity;
 import com.community.operator.entity.OperatorPreferenceEntity;
 import com.community.operator.repository.master.OperatorPreferenceRepository;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.site.entity.SiteSettingEntity;
 import com.community.site.repository.master.SiteSettingRepository;
-import com.community.zconfiguration.message.Messages;
 import com.community.zconfiguration.message.RequestLocale;
 import jakarta.annotation.PreDestroy;
 import java.util.HashMap;
@@ -20,7 +26,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -30,8 +35,12 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * (접속 5초·읽기 10초 제한은 {@code MailSenderFactory}). 작은 스레드풀과 대기열이 가득 차면 그 메일은 버리고 경고만 남긴다(알림은 이미 서랍에 있다).
  *
  * <ul>
+ *   <li>제목·본문은 알림 문구 엔진({@link NotificationMessageRenderer})이 그린다 — 그 이벤트 이메일의 쓸 문구·특수 상황 규칙·메일 템플릿(없으면 기본 문구 「관리자 알림 메일」).
+ *       조건 값은 발행 지점이 채운 것(배치 실패 {@code jobName} 등) + 받는 사람마다 {@code recipientSource} — 기본 수신 규칙으로 받으면 {@code DEFAULT}, 추가 수신 팀의 팀원이면
+ *       {@code TEAM}(둘 다면 둘 다 — 위에서부터 맞는 첫 규칙).</li>
  *   <li>메일 서버가 설정돼 있지 않으면 보내지 않고 로그만 남긴다({@code MailDispatcher}). 한 통이 실패해도 다른 사람에게는 계속 보낸다.</li>
- *   <li>받는 사람마다 <b>자기 표시 언어</b>로 푼다 — 내 표시 형식을 쓰는 운영자는 그 언어({@code operator_preferences.display_language}), 아니면 사이트 표시 기본 언어, 그것도 없으면 {@code ko}.</li>
+ *   <li>받는 사람마다 <b>자기 표시 언어</b>로 그린다 — 내 표시 형식을 쓰는 운영자는 그 언어({@code operator_preferences.display_language}), 아니면 사이트 표시 기본 언어, 그것도 없으면 {@code ko}.</li>
+ *   <li>링크는 관리자 앱 주소({@code ADMIN_URL}) + 이동 경로 — 관리자 앱 주소가 없으면 링크 없이(버튼 없이) 보낸다.</li>
  *   <li>이메일 주소·메일 내용·예외 문구를 로그에 남기지 않는다(예외는 클래스 이름만).</li>
  * </ul>
  */
@@ -47,18 +56,18 @@ public class NotificationEmailSender {
     private final OperatorRepository operators;
     private final OperatorPreferenceRepository preferences;
     private final SiteSettingRepository siteSettings;
-    private final Messages messages;
-    private final String adminUrl;
+    private final AdminNotificationMessages texts;
+    private final NotificationMessageRenderer renderer;
     private final ThreadPoolExecutor executor;
 
     public NotificationEmailSender(MailDispatcher mail, OperatorRepository operators, OperatorPreferenceRepository preferences, SiteSettingRepository siteSettings,
-                                   Messages messages, @Value("${roboyam.admin-url:}") String adminUrl) {
+                                   AdminNotificationMessages texts, NotificationMessageRenderer renderer) {
         this.mail = mail;
         this.operators = operators;
         this.preferences = preferences;
         this.siteSettings = siteSettings;
-        this.messages = messages;
-        this.adminUrl = normalizeAdminUrl(adminUrl);
+        this.texts = texts;
+        this.renderer = renderer;
         this.executor = new ThreadPoolExecutor(THREADS, THREADS, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(QUEUE_CAPACITY), runnable -> {
             Thread thread = new Thread(runnable, "admin-notification-mail");
             thread.setDaemon(true);
@@ -77,19 +86,38 @@ public class NotificationEmailSender {
 
     private void send(NotificationEmailRequested event) {
         try {
+            AdminNotificationEvent notificationEvent = AdminNotificationEvent.ofCode(event.eventCode()).orElse(null);
+            if (notificationEvent == null) {
+                log.warn("코드에 없는 알림 이벤트라 메일을 보내지 않았다 event={}", event.eventCode());
+                return;
+            }
             SiteSettingEntity site = siteSettings.findById(SiteSettingEntity.ROW_ID).orElse(null);
-            String siteName = site == null ? null : site.getSiteName();
             String siteLanguage = site == null ? null : site.getDisplayLanguage();
             Map<Long, OperatorPreferenceEntity> prefs = new HashMap<>();
             preferences.findAllById(event.operatorIds()).forEach(pref -> prefs.put(pref.getOperatorId(), pref));
+            String adminUrl = renderer.adminUrl();
+            String link = event.linkPath() == null || adminUrl == null ? null : adminUrl + event.linkPath();
 
             int sent = 0;
             for (OperatorEntity operator : operators.findAllById(event.operatorIds())) {
                 Locale locale = localeOf(prefs.get(operator.getId()), siteLanguage);
-                String title = NotificationArgs.text(event.titleKey(), event.argsJson(), messages, locale);
-                String body = NotificationArgs.text(event.bodyKey(), event.argsJson(), messages, locale);
-                NotificationMailTemplate.Mail content = NotificationMailTemplate.build(messages, locale, siteName, title == null ? "" : title, body, adminUrl,
-                        event.linkPath());
+                RenderedEmail content;
+                try {
+                    MessageRenderRequest.Builder request = texts.request(notificationEvent, MessageChannel.EMAIL, event.argsJson(), locale, event.conditions())
+                            .variable(MessageVariable.RECIPIENT_NAME, operator.getOperatorName())
+                            .variable(MessageVariable.LINK, link)
+                            .occurredAt(event.occurredAt());
+                    if (!event.teamOnlyOperatorIds().contains(operator.getId())) {
+                        request.condition(MessageCondition.RECIPIENT_SOURCE, MessageCondition.DEFAULT);
+                    }
+                    if (event.teamOperatorIds().contains(operator.getId())) {
+                        request.condition(MessageCondition.RECIPIENT_SOURCE, MessageCondition.TEAM);
+                    }
+                    content = renderer.renderEmail(request.build());
+                } catch (RuntimeException e) {
+                    log.error("알림 메일을 그리지 못했다 event={} 원인={}", event.eventCode(), e.getClass().getSimpleName());
+                    continue;
+                }
                 try {
                     if (!mail.sendTagged(operator.getEmail(), content.subject(), content.untaggedSubject(), content.html())) {
                         return; // 메일 서버가 설정돼 있지 않다 — 나머지도 같다(이유는 MailDispatcher 가 로그로 남겼다)
@@ -115,14 +143,5 @@ public class NotificationEmailSender {
     @PreDestroy
     void shutdown() {
         executor.shutdown();
-    }
-
-    /** 앞뒤 공백을 자른다. {@code http(s)://} 로 시작하지 않으면(비었거나 잘못된 값) 없는 것으로 본다. 끝의 {@code /} 는 뗀다 */
-    private static String normalizeAdminUrl(String value) {
-        String url = value == null ? "" : value.strip();
-        if (!(url.startsWith("http://") || url.startsWith("https://"))) {
-            return null;
-        }
-        return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
 }

@@ -3,11 +3,18 @@ package com.community.auth.service;
 import com.community.auth.config.AuthProperties;
 import com.community.auth.dto.IssuedVerification;
 import com.community.mail.service.MailDispatcher;
+import com.community.notificationtemplate.catalog.MessageCondition;
+import com.community.notificationtemplate.catalog.RequiredMail;
+import com.community.notificationtemplate.engine.MessageRenderRequest;
+import com.community.notificationtemplate.engine.NotificationMessageRenderer;
+import com.community.notificationtemplate.engine.RenderedEmail;
 import com.community.site.dto.SiteValues;
 import com.community.site.service.SiteSettingsService;
+import com.community.zconfiguration.message.MessageRef;
 import com.community.zconfiguration.message.Messages;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,9 +28,10 @@ import org.springframework.stereotype.Service;
  *   <li>링크는 {@code {공개 주소}/verify-email?token=…} 이다. 공개 주소는 사이트 설정({@code site_settings})의 값이고, <b>보낼 때마다</b> 읽는다.</li>
  *   <li>메일 서버가 설정돼 있지 않거나 공개 주소가 없거나 발송에 실패하면 <b>보내지 못한 채 로그만 남기고 정상 종료</b>한다(요청은 202). 새 링크는 이미 만들어졌고
  *       60초 제한도 시작됐다.</li>
- *   <li>인증 링크를 받아 처리하는 일({@code POST /api/auth/email/verify}, {@code /verify-email} 화면)은 이번 범위가 아니다.</li>
+ *   <li>제목·본문은 알림 문구 엔진({@link NotificationMessageRenderer}, 필수 안내 메일 {@link RequiredMail#MEMBER_EMAIL_VERIFY})이 그린다 — 운영자가 고른 문구·메일 템플릿,
+ *       없으면 기본 문구. 비밀번호 없이 소셜로만 가입한 회원이면 조건 {@code signupMethod=SOCIAL}, 아니면 {@code EMAIL}.</li>
  * </ul>
- * 메일 본문은 요청한 회원의 언어(요청의 {@code Accept-Language}, ko|en)로 만든다 — 발송은 요청 스레드 안에서 이뤄진다.
+ * 메일 언어는 요청한 회원의 언어(요청의 {@code Accept-Language}, ko|en)다 — 발송은 요청 스레드 안에서 이뤄진다.
  * 이메일 주소·토큰을 로그에 남기지 않는다(예외도 클래스 이름만).
  */
 @Service
@@ -36,14 +44,16 @@ public class EmailVerificationService {
     private final MailDispatcher mail;
     private final AuthProperties props;
     private final Messages messages;
+    private final NotificationMessageRenderer renderer;
 
     public EmailVerificationService(VerificationTokenService tokenService, SiteSettingsService siteSettings, MailDispatcher mail,
-                                    AuthProperties props, Messages messages) {
+                                    AuthProperties props, Messages messages, NotificationMessageRenderer renderer) {
         this.tokenService = tokenService;
         this.siteSettings = siteSettings;
         this.mail = mail;
         this.props = props;
         this.messages = messages;
+        this.renderer = renderer;
     }
 
     /**
@@ -64,11 +74,19 @@ public class EmailVerificationService {
         }
 
         String link = baseUrl + "/verify-email?token=" + URLEncoder.encode(issued.token(), StandardCharsets.UTF_8);
-        AuthMailTemplate.Mail content = AuthMailTemplate.verification(messages, messages.locale(), site.map(SiteValues::name).orElse(null), issued.nickname(), link,
-                props.verifyTokenHours());
         try {
+            Locale locale = messages.locale();
+            String nickname = issued.nickname() != null ? issued.nickname() : messages.get(new MessageRef("mail.verify.defaultName"), locale);
+            RenderedEmail content = renderer.renderEmail(MessageRenderRequest.requiredMail(RequiredMail.MEMBER_EMAIL_VERIFY)
+                    .locale(locale)
+                    .variable("recipientName", nickname)
+                    .variable("nickname", nickname)
+                    .variable("verifyLink", link)
+                    .variable("validHours", props.verifyTokenHours())
+                    .condition(MessageCondition.SIGNUP_METHOD, issued.social() ? MessageCondition.SOCIAL : MessageCondition.EMAIL)
+                    .build());
             if (mail.sendTagged(issued.email(), content.subject(), content.untaggedSubject(), content.html())) {
-                log.info("인증 메일을 보냈다 userId={}", userId);
+                log.info("인증 메일을 보냈다 userId={} 문구={}", userId, content.messageId());
             }
         } catch (RuntimeException e) {
             // 사용자는 60초 뒤 다시 보내기로 재시도한다. 예외 문구에 수신자 주소·서버 응답이 실릴 수 있어 클래스 이름만 남긴다

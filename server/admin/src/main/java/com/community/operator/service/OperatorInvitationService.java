@@ -143,7 +143,7 @@ public class OperatorInvitationService {
         }
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.INVITATION_CREATE, AuditResult.SUCCESS)
                 .target("INVITATION", Long.toString(invitation.getId())).with("roles", chosen.stream().map(RoleEntity::getRoleId).toList()));
-        events.publishEvent(new OperatorInvitationIssued(email, token, expiresAt));
+        events.publishEvent(new OperatorInvitationIssued(email, token, expiresAt, chosen.stream().map(RoleEntity::getRoleId).toList()));
         log.info("운영자 초대를 만들었다 invitationId={} 역할={}개 by operatorId={}", invitation.getId(), chosen.size(), actor.operatorId());
     }
 

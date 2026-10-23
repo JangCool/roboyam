@@ -79,6 +79,6 @@ public class VerificationTokenService {
                 now.plus(Duration.ofHours(props.verifyTokenHours())), now));
 
         String nickname = profiles.findById(userId).map(ProfileEntity::getNickname).orElse(null); // 없으면 메일 본문이 요청 언어의 기본 호칭을 쓴다
-        return new IssuedVerification(user.getEmail(), nickname, raw);
+        return new IssuedVerification(user.getEmail(), nickname, raw, !user.hasPassword());
     }
 }

@@ -6,7 +6,8 @@ import java.util.regex.Pattern;
 
 /**
  * 이메일 한 통 그리기 — 문구(제목·간단 서식 본문·버튼 블록)에 변수 값을 채우고 메일 템플릿(머리말·틀·꼬리말)을 씌운 <b>문서 HTML</b>.
- * 메일 앱은 CSS 를 거의 받지 않으므로 지금 서버 메일({@code NotificationMailTemplate} · {@code AuthMailTemplate})과 같은 인라인 스타일을 쓴다.
+ * 메일 앱은 CSS 를 거의 받지 않으므로 인라인 스타일만 쓴다(예전 서버 메일 양식과 같은 모양 — 모든 서버 메일이 이 길로 나간다).
+ * 실제 발송({@code keepUnknown=false})에서는 주소가 없는 버튼과, 변수 하나만 든 문단의 값이 비었으면 그 문단을 걷는다.
  * admin-web {@code UtilMailTemplate.render}(목업 미리보기)와 같은 모양이다.
  *
  * <ul>
@@ -20,6 +21,8 @@ public final class MailRenderer {
 
     private static final Pattern BUTTON_BLOCK = Pattern.compile(
             "<p data-mail-button(?:=\"[^\"]*\")?>\\s*<a href=\"\\{\\{\\s*([A-Za-z][A-Za-z0-9_]*)\\s*\\}\\}\"[^>]*>([\\s\\S]*?)</a>\\s*</p>");
+    private static final Pattern VARIABLE_PARAGRAPH = Pattern.compile(
+            "<p>\\s*(?:<(?:strong|em|b)>\\s*)?\\{\\{\\s*([A-Za-z][A-Za-z0-9_]*)\\s*\\}\\}\\s*(?:</(?:strong|em|b)>\\s*)?</p>");
     private static final Pattern CONTENT_PARAGRAPH = Pattern.compile("<p>\\s*\\{\\{\\s*content\\s*\\}\\}\\s*</p>");
     private static final Pattern CONTENT = Pattern.compile("\\{\\{\\s*content\\s*\\}\\}");
     private static final Pattern LINE = Pattern.compile("\\r?\\n");
@@ -68,12 +71,19 @@ public final class MailRenderer {
         StringBuilder withButton = new StringBuilder();
         while (button.find()) {
             String href = value.apply(button.group(1));
-            String safeHref = TemplateText.isWebUrl(href) ? TemplateText.escape(href.strip()) : "#";
+            boolean web = TemplateText.isWebUrl(href);
+            if (!web && !keepUnknown) {
+                // 실제 발송: 주소가 없는(링크가 없는 이벤트 · ADMIN_URL 없음) 버튼은 「#」 단추로 남기지 않고 걷는다
+                button.appendReplacement(withButton, "");
+                continue;
+            }
+            String safeHref = web ? TemplateText.escape(href.strip()) : "#";
             button.appendReplacement(withButton, Matcher.quoteReplacement(
                     "<p style=\"margin:20px 0\"><a href=\"" + safeHref + "\" style=\"" + BUTTON + "\">" + button.group(2) + "</a></p>"));
         }
         button.appendTail(withButton);
-        String body = styled(TemplateText.fill(withButton.toString(), escaped, keepUnknown));
+        String bodySource = keepUnknown ? withButton.toString() : dropEmptyVariableParagraphs(withButton.toString(), value);
+        String body = styled(TemplateText.fill(bodySource, escaped, keepUnknown));
 
         String[] frame = splitFrame(template.frame(locale));
         String before = styled(TemplateText.fill(frame[0], escaped, keepUnknown));
@@ -106,6 +116,21 @@ public final class MailRenderer {
                 + "</div></body></html>";
         String filledSubject = TemplateText.oneLine(TemplateText.fill(subject, value, keepUnknown));
         return new Result(filledSubject, html);
+    }
+
+    /**
+     * 실제 발송: 변수 하나만 든 문단({@code <p>{{body}}</p>} · {@code <p><strong>{{title}}</strong></p>})의 값이 비었으면 문단째 걷는다 — 본문이 없는 알림 · 링크가 없는 이벤트에
+     * 빈 줄이 남지 않게. 운영자가 일부러 넣은 빈 문단(변수 없음)은 그대로 둔다.
+     */
+    private static String dropEmptyVariableParagraphs(String html, Function<String, String> value) {
+        Matcher matcher = VARIABLE_PARAGRAPH.matcher(html);
+        StringBuilder out = new StringBuilder();
+        while (matcher.find()) {
+            String raw = value.apply(matcher.group(1));
+            matcher.appendReplacement(out, raw == null || raw.isBlank() ? "" : Matcher.quoteReplacement(matcher.group()));
+        }
+        matcher.appendTail(out);
+        return out.toString();
     }
 
     /** 틀을 {@code {{content}}} 앞·뒤로 나눈다(그 한 줄만 있는 문단은 문단째) */

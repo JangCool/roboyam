@@ -8,6 +8,7 @@ import com.community.notification.entity.AdminNotificationEntity;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.exception.NotificationNotFoundException;
 import com.community.notification.repository.master.AdminNotificationRepositoryQDSL;
+import com.community.notificationtemplate.engine.RenderedInApp;
 import com.community.permission.dto.AdminActor;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
@@ -23,7 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 종 알림 서랍 — 운영자 <b>본인</b>의 알림만(모든 질의에 내 id 가 들어가고 경로에 운영자 id 가 없다). 목록·안 읽은 수·요약은 {@link NotificationVisibility} 의 <b>같은 거르기</b>를 쓴다
- * (권한이 없는 이벤트·내가 끈 이벤트는 모두에서 빠진다). 제목·본문은 저장된 문구 키 + 인자를 <b>읽는 사람의 요청 언어</b>로 푼다(발행은 다른 사람의 요청에서 일어났을 수 있다).
+ * (권한이 없는 이벤트·내가 끈 이벤트는 모두에서 빠진다). 제목·본문은 저장된 인자를 <b>읽는 사람의 요청 언어</b>로 알림 문구 엔진이 그린다(그 이벤트 앱 알림의 쓸 문구 —
+ * {@link AdminNotificationMessages}. 발행은 다른 사람의 요청에서 일어났을 수 있고, 운영자가 문구를 바꾸면 이미 쌓인 알림도 새 문구로 보인다). 제목이 비면 이벤트 이름.
  * 목록은 최근순 커서 쪽(커서 = 마지막으로 받은 알림의 id)이다.
  */
 @Service
@@ -37,11 +39,13 @@ public class NotificationQueryService {
     private final AdminNotificationRepositoryQDSL notifications;
     private final NotificationVisibility visibility;
     private final Messages messages;
+    private final AdminNotificationMessages texts;
 
-    public NotificationQueryService(AdminNotificationRepositoryQDSL notifications, NotificationVisibility visibility, Messages messages) {
+    public NotificationQueryService(AdminNotificationRepositoryQDSL notifications, NotificationVisibility visibility, Messages messages, AdminNotificationMessages texts) {
         this.notifications = notifications;
         this.visibility = visibility;
         this.messages = messages;
+        this.texts = texts;
     }
 
     /** 최근순 한 쪽. 커서·크기가 올바르지 않으면 400 {@code fields.cursor|size} */
@@ -58,13 +62,14 @@ public class NotificationQueryService {
         boolean more = rows.size() > limit;
         List<AdminNotificationEntity> pageRows = more ? rows.subList(0, limit) : rows;
 
+        long unread = notifications.unread(actor.operatorId(), codes); // DB 읽기를 먼저 끝낸다 — 문구 그리기는 엔진의 메모리 사본만 쓴다
         Locale locale = messages.locale();
         List<NotificationItemView> items = new ArrayList<>();
         for (AdminNotificationEntity row : pageRows) {
-            items.add(item(row, locale));
+            items.add(item(row, locale, actor.operatorName()));
         }
         String nextCursor = more ? items.get(items.size() - 1).id() : null;
-        return new NotificationPageView(items, nextCursor, notifications.unread(actor.operatorId(), codes));
+        return new NotificationPageView(items, nextCursor, unread);
     }
 
     /** 폴링용 요약 — 안 읽은 수와 가장 최근 알림의 id */
@@ -94,12 +99,12 @@ public class NotificationQueryService {
         notifications.markAllRead(actor.operatorId(), visibility.codesOf(actor), Instant.now());
     }
 
-    private NotificationItemView item(AdminNotificationEntity row, Locale locale) {
+    private NotificationItemView item(AdminNotificationEntity row, Locale locale, String readerName) {
         AdminNotificationEvent event = AdminNotificationEvent.ofCode(row.getEventCode()).orElseThrow(); // 거르기가 코드에 있는 이벤트만 통과시킨다
-        String title = NotificationArgs.text(row.getTitleKey(), row.getArgs(), messages, locale);
-        String body = NotificationArgs.text(row.getBodyKey(), row.getArgs(), messages, locale);
-        return new NotificationItemView(Long.toString(row.getId()), row.getEventCode(), event.area().id(), row.getSeverity().kind(),
-                title == null ? messages.get(new MessageRef(event.nameKey()), locale) : title, body,
+        RenderedInApp text = texts.inApp(event, row.getArgs(), locale, readerName);
+        String title = text.title() == null || text.title().isBlank() ? messages.get(new MessageRef(event.nameKey()), locale) : text.title();
+        String body = text.body() == null || text.body().isBlank() ? null : text.body();
+        return new NotificationItemView(Long.toString(row.getId()), row.getEventCode(), event.area().id(), row.getSeverity().kind(), title, body,
                 row.getLinkPath() == null ? null : new NotificationLink(row.getLinkPath()), row.getCreatedAt(), row.isRead());
     }
 

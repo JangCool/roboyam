@@ -33,10 +33,10 @@ public class MemberNotificationWriter {
         return jdbc.queryForList("select group_window_minutes from board_notification_settings where id = 1", Integer.class).stream().findFirst();
     }
 
-    /** 회원 이벤트 설정 한 줄(V58 {@code member_event_settings}) — 사용 여부와 앱 알림. 줄이 없으면 비어 있다(코드의 처음 값을 쓴다) */
+    /** 회원 이벤트 설정 한 줄(V58 {@code member_event_settings}) — 사용 여부 · 앱 알림 · 이메일. 줄이 없으면 비어 있다(코드의 처음 값을 쓴다) */
     public Optional<EventSwitch> eventSetting(String code) {
-        List<EventSwitch> rows = jdbc.query("select enabled, in_app from member_event_settings where code = ?",
-                (rs, i) -> new EventSwitch(rs.getBoolean(1), rs.getBoolean(2)), code);
+        List<EventSwitch> rows = jdbc.query("select enabled, in_app, email from member_event_settings where code = ?",
+                (rs, i) -> new EventSwitch(rs.getBoolean(1), rs.getBoolean(2), rs.getBoolean(3)), code);
         return rows.stream().findFirst();
     }
 
@@ -57,7 +57,17 @@ public class MemberNotificationWriter {
                 + "values (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?)", id, userId, type, actorUserId, actorName, postId, commentId, payloadJson, Timestamp.from(createdAt));
     }
 
-    /** 회원 이벤트의 사용 여부·앱 알림 */
-    public record EventSwitch(boolean enabled, boolean inApp) {
+    /** 회원 이벤트의 사용 여부·앱 알림·이메일 — 앱 알림·이메일은 사용 중일 때만 뜻이 있다 */
+    public record EventSwitch(boolean enabled, boolean inApp, boolean email) {
+
+        public EventSwitch {
+            inApp = enabled && inApp;
+            email = enabled && email;
+        }
+
+        /** 나가는 것이 하나라도 있는가 */
+        public boolean delivers() {
+            return inApp || email;
+        }
     }
 }

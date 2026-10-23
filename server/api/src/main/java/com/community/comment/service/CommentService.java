@@ -304,7 +304,8 @@ public class CommentService {
                 CommentEntity target = replyTo != null ? byId.get(replyTo) : comments.findByPostIdAndId(post.getId(), parent).orElse(null);
                 replyTargetAuthor = target == null ? null : target.getAuthorId();
             }
-            notices.commentWritten(new CommentNotice(post.getId(), post.getAuthorId(), id, authorId, name, replyTargetAuthor, parent != null));
+            notices.commentWritten(new CommentNotice(post.getId(), post.getAuthorId(), id, authorId, name, replyTargetAuthor, parent != null, post.getTitle(),
+                    masked.plain()));
             return view;
         });
         promotion.afterWrite(authorId); // 커밋 뒤 — 회원 댓글이면 활동 수 조건 즉시 승급(실패해도 댓글쓰기는 성공)

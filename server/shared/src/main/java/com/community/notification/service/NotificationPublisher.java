@@ -159,7 +159,7 @@ public class NotificationPublisher {
         }
 
         Set<Long> targets = recipientsOf(event, context, now);
-        addTeamMembers(event, targets, now);
+        TeamRecipients team = addTeamMembers(event, targets, now); // 팀으로 받는 사람 — 알림 메일 문구 조건 recipientSource
         if (event.excludeActor() && context.actorId() != null) {
             targets.remove(context.actorId());
         }
@@ -192,7 +192,12 @@ public class NotificationPublisher {
                 Set<Long> mailTargets = new LinkedHashSet<>(targets);
                 mailTargets.removeAll(recipients.emailOptedOut(targets));
                 if (!mailTargets.isEmpty()) {
-                    events.publishEvent(new NotificationEmailRequested(event.code(), event.titleKey(), event.bodyKey(), argsJson, link, new ArrayList<>(mailTargets)));
+                    Set<Long> viaTeam = new LinkedHashSet<>(team.members());
+                    viaTeam.retainAll(mailTargets);
+                    Set<Long> teamOnly = new LinkedHashSet<>(team.only());
+                    teamOnly.retainAll(mailTargets);
+                    events.publishEvent(new NotificationEmailRequested(event.code(), argsJson, link, new ArrayList<>(mailTargets), viaTeam, teamOnly,
+                            context.conditions(), now));
                 }
             }
         }
@@ -201,7 +206,7 @@ public class NotificationPublisher {
         if (event.broadcastAllowed() && !collapsed) {
             List<Long> channelIds = delivery.enabledChannelIdsOf(event.code());
             if (!channelIds.isEmpty()) {
-                events.publishEvent(new NotificationChannelPostRequested(event.code(), severity, event.titleKey(), event.bodyKey(), argsJson, link, channelIds));
+                events.publishEvent(new NotificationChannelPostRequested(event.code(), severity, argsJson, link, channelIds, context.conditions(), now));
             }
         }
         if (!targets.isEmpty()) {
@@ -213,20 +218,30 @@ public class NotificationPublisher {
     /**
      * 이벤트의 「추가 수신 팀」 팀원을 받는 사람에 더한다. 코드에 고정된 기본 수신 규칙은 그대로이고(권한 상승 방지), 팀원은 <b>사용 중인 팀</b>의 <b>지금 활성인 운영자</b>이면서
      * <b>이 이벤트를 볼 권한</b>({@code requiredPermission} — 최고 관리자는 모두)이 있는 사람만 받는다 — 권한이 없는 팀원에게 알림 행을 만들지 않는다. 이미 받는 사람은 한 번만 센다.
+     *
+     * @return 팀으로 받는 운영자(기본 수신 규칙으로도 받을 수 있다) · 그중 기본 수신 규칙(+ 추가 수신자)에는 없는 운영자 — 알림 메일 문구의 조건 {@code recipientSource}
      */
-    private void addTeamMembers(AdminNotificationEvent event, Set<Long> targets, Instant now) {
+    private TeamRecipients addTeamMembers(AdminNotificationEvent event, Set<Long> targets, Instant now) {
         if (!event.broadcastAllowed()) {
-            return;
+            return TeamRecipients.NONE;
         }
         Set<Long> members = delivery.enabledTeamMemberIdsOf(event.code());
         if (members.isEmpty()) {
-            return;
+            return TeamRecipients.NONE;
         }
         Set<Long> allowed = new LinkedHashSet<>(recipients.active(members, now));
         if (event.requiredPermission() != null && !allowed.isEmpty()) {
             allowed.retainAll(recipients.activeHolders(List.of(event.requiredPermission().code()), now));
         }
+        Set<Long> teamOnly = new LinkedHashSet<>(allowed);
+        teamOnly.removeAll(targets);
         targets.addAll(allowed);
+        return new TeamRecipients(allowed, teamOnly);
+    }
+
+    /** 추가 수신 팀으로 받는 운영자 · 그중 팀으로만 받는 운영자 */
+    private record TeamRecipients(Set<Long> members, Set<Long> only) {
+        static final TeamRecipients NONE = new TeamRecipients(Set.of(), Set.of());
     }
 
     /** 수신 규칙 + 추가 수신자. 「내 계정」 이벤트(SELF)는 계정 상태와 상관없이 쌓고, 권한 보유자·최고 관리자·추가 수신자는 지금 활성인 사람만 받는다 */

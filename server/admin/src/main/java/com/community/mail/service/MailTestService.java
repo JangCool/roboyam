@@ -8,6 +8,10 @@ import com.community.mail.dto.request.MailTestRequest;
 import com.community.mail.dto.response.MailTestResultView;
 import com.community.mail.entity.MailSettingEntity;
 import com.community.mail.repository.master.MailSettingRepository;
+import com.community.notificationtemplate.catalog.RequiredMail;
+import com.community.notificationtemplate.engine.MessageRenderRequest;
+import com.community.notificationtemplate.engine.NotificationMessageRenderer;
+import com.community.notificationtemplate.engine.RenderedEmail;
 import com.community.permission.dto.AdminActor;
 import com.community.user.service.UserPolicy;
 import com.community.zconfiguration.crypto.SecretEncryptor;
@@ -19,7 +23,6 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.util.HtmlUtils;
 
 /**
  * 메일 서버 시험 발송 — <b>저장된 설정으로</b> 실제 발송({@link MailDispatcher}, 인증·재설정 메일과 같은 길)을 한 통 한다. 입구 권한은 컨트롤러가 선언한다.
@@ -46,15 +49,17 @@ public class MailTestService {
     private final MailTestRateLimiter limiter;
     private final AuditLogService audit;
     private final Messages messages;
+    private final NotificationMessageRenderer renderer;
 
     public MailTestService(MailSettingRepository settings, MailDispatcher dispatcher, SecretEncryptor encryptor, MailTestRateLimiter limiter,
-                           AuditLogService audit, Messages messages) {
+                           AuditLogService audit, Messages messages, NotificationMessageRenderer renderer) {
         this.settings = settings;
         this.dispatcher = dispatcher;
         this.encryptor = encryptor;
         this.limiter = limiter;
         this.audit = audit;
         this.messages = messages;
+        this.renderer = renderer;
     }
 
     public MailTestResultView test(AdminActor actor, MailTestRequest body) {
@@ -94,9 +99,11 @@ public class MailTestService {
     /** @return 실패 원인 코드, 성공이면 null */
     private String send(String to) {
         try {
-            String subject = messages.get(new MessageRef("mail.test.subject"));
-            String body = messages.get(new MessageRef("mail.test.body"));
-            boolean sent = dispatcher.send(to, subject, "<p style=\"font-size:15px;line-height:1.6\">" + HtmlUtils.htmlEscape(body) + "</p>");
+            // 필수 안내 메일 「메일 서버 시험」 — 운영자가 고른 문구·템플릿(없으면 기본 문구), 요청한 운영자의 언어
+            RenderedEmail content = renderer.renderEmail(MessageRenderRequest.requiredMail(RequiredMail.MAIL_TEST)
+                    .locale(messages.locale())
+                    .build());
+            boolean sent = dispatcher.sendTagged(to, content.subject(), content.untaggedSubject(), content.html());
             return sent ? null : NOT_CONFIGURED;
         } catch (RuntimeException e) {
             String reason = MailSendFailures.classify(e);

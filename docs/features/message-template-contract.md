@@ -11,7 +11,7 @@
 5. 권한은 `template.read`(조회)·`template.manage`(편집·고르기·규칙) — 이름 「알림 템플릿·문구 조회·관리」. 이벤트 자체(사용·도구·팀)는 기존 `notification.read`·`notification.manage`.
 6. 카카오톡은 **준비 중**(알림 도구에서 업체 계약 전) — 화면에 보이되 흐리게, 만들기·고르기 잠금, 서버도 409 `CHANNEL_PREPARING`.
 ## 서버 구현 결과(엔진·관리 API) — 2026-10-23
-관리 API·데이터·렌더링 엔진까지. **실제 발송 경로(인증·초대·임시 비밀번호·승인번호·시험 메일, 관리자 알림 서랍·이메일, Slack·Mattermost 게시, 회원 알림)는 아직 옛 코드 그대로**이고 다음 단계가 아래 엔진 인터페이스로 바꾼다.
+관리 API·데이터·렌더링 엔진까지. 실제 발송 경로는 다음 단계에서 이 엔진으로 바꿨다 — 아래 「서버 구현 결과(발송 연결)」.
 - **저장(shared V57)**: `notification_mail_templates` · `notification_chat_templates`(tool SLACK|MATTERMOST) · `notification_kakao_templates`(표만, 행 없음) · `notification_messages`(사용자 문구) · `notification_message_selections`(대상×채널: `selected_ko|en` + `rules` jsonb `[{id,key,value,messageId}]`, 행 없으면 기본 문구·규칙 없음) · 이력 `notification_message_history` · `notification_mail_template_history` · `notification_chat_template_history`(설정 이력 모양, 바뀐 칸만). 템플릿·문구 참조는 글자 id(FK 없음 — 쓰는 중 검사는 서버).
 - **기본(builtin)은 코드가 원천 — 조회 때 합성, DB 행 없음**: 문구 `builtin-<대상코드>-<채널>-<언어>`(내용 = 지금 번들 문구, `{0}` → 이름 변수 — `BuiltinMessages`), 템플릿 `mail-member`·`mail-operator`·`slack-default`·`mattermost-default`(`BuiltinTemplates`, 꼬리말·버튼 글자는 번들). 카카오톡은 기본 문구 없음.
 - **대상 카탈로그(코드)** `MessageTargetCatalog`(shared `com.community.notificationtemplate.catalog`): 회원 이벤트 5(`MemberEvent` — **임시 정의, 통합 회원 이벤트 카탈로그가 생기면 그것으로 바꾼다**, 준비 중 5종은 문구 대상 아님) · 운영자 이벤트 22(`AdminNotificationEvent` 전부, `broadcastAllowed=false` 는 Slack·Mattermost 없음) · 필수 안내 메일 5(`RequiredMail`). 변수 설명·견본은 번들 `notificationTemplate.var.<id>.desc|sample`, 조건 `notificationTemplate.condition.*`(jobName 선택지 = 배치 카탈로그, inviteRole = 운영자 역할 DB).
@@ -24,7 +24,7 @@
   - 변수: `siteName`·`siteUrl`(site_settings.public_url)·`adminUrl`(`ADMIN_URL`)은 엔진이 채운다. 이메일·Slack·Mattermost 의 `title`·`body` 를 주지 않으면 같은 요청으로 앱 알림 문구를 먼저 그려 채운다. `occurredAt` 을 안 주고 `occurredAt(Instant)` 을 주면 사이트 시간대 `yyyy-MM-dd HH:mm`. 값 가리기 — 이메일 HTML 이스케이프(링크 변수는 버튼 href 로만, http·https 아니면 `#`), Slack·Mattermost `ChannelMessageFormatter` 무력화(링크 변수는 구문 인코딩만), 앱 알림 평문. 발송에서 값이 없는 변수는 지운다.
   - 캐시: `MessageTemplateStore` 15초 JDBC 사본(세이브포인트 안에서 불러도 업무 트랜잭션을 깨지 않는다), 관리 API 저장 커밋 뒤 그 서버는 바로 비운다. 카탈로그에 없는 대상·채널·준비 중 채널은 `IllegalArgumentException`.
 - **가정**: 상한(사용자 문구 대상·채널당 20 · 템플릿 종류당 20 · 규칙 10) · 길이(이름 50, 메일 제목 200·본문 20000·버튼 40, 앱 알림 100/300, 채팅 200/1500, 틀 메일 20000·채팅 500, 꼬리말 500, 버튼 글자 20) 목업 값. 이메일 본문·메일 틀 정화 = `MailHtml`(OWASP, 게시판 간단 허용 목록 + `p[data-mail-button]`, href 는 http·https·변수 하나). Mattermost 「열기」는 버튼이 아니라 본문 끝 링크(첨부 버튼은 연동 주소가 필요). Slack 보낸 시각은 `<!date^…>`, Mattermost 는 사이트 시간대 글자. 채팅 시험 429 는 목업대로 `MAIL_TEST_RATE_LIMITED`(한도는 알림 도구 연결 시험과 같은 창 — 분당 6). 메일 로고는 파일이면 공개 주소 붙인 절대 주소, SVG 면 data URI(메일 앱이 안 보일 수 있다).
-- **미해결**: ① 저장된 관리자 메뉴 구성(admin 스트림 `admin_menu`)에 옛 화면 키 `notifications` 가 있으면 다음 저장이 `adminMenu.screen.unknown` 으로 거절된다 — 운영자가 메뉴 관리에서 그 줄을 지우거나 admin 스트림 정리 마이그레이션이 필요 ② 운영자가 쓴 Slack·Mattermost 문구·틀의 `@here` 같은 멘션은 무력화하지 않는다(값만) ③ Mattermost 첨부 `title` 이 마크다운을 그리는지(무력화 역슬래시가 보일 수 있음) 실제 서버 확인 필요 ④ 카카오톡 등록·검수 흐름(미확정 12) ⑤ 발송 경로 교체(다음 단계).
+- **미해결**: ① 저장된 관리자 메뉴 구성(admin 스트림 `admin_menu`)에 옛 화면 키 `notifications` 가 있으면 다음 저장이 `adminMenu.screen.unknown` 으로 거절된다 — 운영자가 메뉴 관리에서 그 줄을 지우거나 admin 스트림 정리 마이그레이션이 필요 ② 운영자가 쓴 Slack·Mattermost 문구·틀의 `@here` 같은 멘션은 무력화하지 않는다(값만) ③ Mattermost 첨부 `title` 이 마크다운을 그리는지(무력화 역슬래시가 보일 수 있음) 실제 서버 확인 필요 ④ 카카오톡 등록·검수 흐름(미확정 12) ⑤ ~~발송 경로 교체~~ — 「서버 구현 결과(발송 연결)」.
 
 ## 화면 (설정 > 알림·이벤트, 차례)
 | 메뉴 | 경로 | 내용 |
@@ -164,7 +164,45 @@
 - `GET /api/admin/notification-events/{code}`(`notification.read`) 추가 — 목록 한 줄과 같은 모양(준비 중 포함), 모르는 코드 404 `NOTIFICATION_EVENT_NOT_FOUND`.
 
 ### 가정·미해결(다음 단계)
-- 회원 이벤트 **이메일 발송**(받는 사람 언어·메일 템플릿 = 문구 엔진), **수신 동의**, **조용한 시간**(게시판 기본 설정의 이메일 조용한 시간 칸은 남아 있지만 적용 지점이 없다), 회원 개인 끄기(`memberCanTurnOff` 의 적용 지점 — 회원 설정 화면이 아직 없다).
+- 회원 이벤트 ~~이메일 발송·조용한 시간~~(「서버 구현 결과(발송 연결)」), **수신 동의**, 회원 개인 끄기(`memberCanTurnOff` 의 적용 지점 — 회원 설정 화면이 아직 없다).
 - `enabled ← site OR email` 이전 규칙(가정). 준비 중 이벤트도 옛 칸 값을 옮겨 `enabled` 가 켜진 채일 수 있다(목업은 준비 중을 늘 꺼짐으로 그렸다 — 화면은 `featureReady=false` 면 「준비 중」으로만 보여 영향 없음).
 - 프론트 후속: 게시판 기본 설정 「알림」 탭(`pages/boards/defaults/notifications.vue`)의 이벤트별 표·`memberDefaults` 타입을 빼고, 회원 이벤트 목업(`useMemberEventApi`)을 실제 API 로, 운영자 이벤트 화면의 「서버 단계에서 열려요」 안내·`emailable=false` 처리를 정리한다(서버는 이제 준비 중이 아닌 이벤트에 `emailable=false` 를 주지 않는다). 이벤트 상세는 목록에서 찾지 않고 `GET notification-events/{code}` 를 쓸 수 있다.
+
+## 서버 구현 결과(발송 연결) (2026-10-23)
+모든 서버 알림·메일이 문구 엔진(`NotificationMessageRenderer`)을 지난다. API·DB 변경 없음(마이그레이션 없음). 옛 문구 클래스 `AuthMailTemplate`·`OperatorMailTemplate`·`NotificationMailTemplate`·`ChannelMessageFormatter.format` 은 지웠다(값 무력화 `neutralizeValue`·`linkValue`·`testMessage` 는 남김).
+
+### 필수 안내 메일 5종
+- 인증(`EmailVerificationService` · api) · 운영자 초대·임시 비밀번호(`OperatorMailSender`) · 재설정 승인번호(`PasswordResetMailSender`) · 메일 서버 시험(`MailTestService`) → `renderEmail(requiredMail(…))` + `MailDispatcher.sendTagged`(머리말·보내는 이름 규칙 그대로 — 시험 메일도 이제 `sendTagged`). 받는 사람 언어는 그대로(요청 언어 · 재설정은 요청 때 담은 언어).
+- 조건: 인증 `signupMethod` = **비밀번호 없이 소셜로만 가입한 회원이면 `SOCIAL`, 아니면 `EMAIL`**(가입 직후뿐 아니라 나중의 다시 보내기도 같은 판단 — `IssuedVerification.social`). 초대 `inviteRole` = 초대받는 역할 id 들(`OperatorInvitationIssued.roleIds`, 하나라도 맞으면). 닉네임이 없으면 `nickname`·`recipientName` = 번들 `mail.verify.defaultName`.
+
+### 운영자 이벤트 — 앱 알림은 **읽을 때 그린다**(지금 구조 유지)
+- `admin_notifications` 는 예전처럼 인자(`args` — 글자·수·읽을 때 풀리는 문구 참조)만 저장하고, 서랍(`NotificationQueryService`)이 **읽는 사람 언어**로 인자를 푼 뒤 카탈로그의 자리 이름(`InAppText.argNames` — 예: 배치 실패 `jobName`·`reason`)으로 변수를 넘겨 `renderInApp` 한다(`AdminNotificationMessages`, shared). `recipientName` = 읽는 운영자 이름. 제목이 비면 이벤트 이름.
+- **판단 근거**: ① 받는 사람마다 언어가 다르고 발행은 다른 사람의 요청에서 일어난다 — 보낼 때 그려 저장하면 수신자마다 언어를 알아내 행마다 다른 글을 써야 하고, 읽는 사람이 언어를 바꾸면 옛 알림은 옛 언어로 남는다 ② 배치 이름 같은 문구 참조는 읽을 때 풀려야 한다(지금 규약) ③ 운영자가 문구를 고치면 이미 쌓인 알림도 새 문구로 보인다(서랍은 「지금 무슨 일인지」 — 고친 문구가 옛 알림에 보이는 것은 받아들인다) ④ 행·마이그레이션 변경이 없다 ⑤ 엔진은 15초 메모리 사본만 읽어 목록당 비용이 작다(목록은 DB 읽기를 먼저 끝내고 그린다). 회원 알림함도 같은 판단.
+- 이메일(`NotificationEmailSender`) · Slack/Mattermost(`NotificationChannelPostSender` → `renderChat` + `NotificationChannelPoster.post(channel, RenderedChat)`)는 커밋 뒤 스레드풀에서 받는 사람 언어(이메일 — 운영자 표시 설정 → 사이트 기본) / 사이트 표시 기본 언어(채팅)로 그린다. 채팅 카드는 도구 종류마다 한 번 그린다. `link` = `ADMIN_URL` + 이동 경로(없으면 버튼 없이), `occurredAt` = 발행 시각(사이트 시간대), 심각도 = 발행 때 값.
+- **조건 값**: 발행 지점이 `NotificationContext.condition(key, values…)` 로 채운다(배치 실패 `jobName` = 배치 키 — `BatchRunNotifier`). 이메일의 `recipientSource` 는 발행기가 받는 사람마다: 기본 수신 규칙(+ 추가 수신자)으로 받으면 `DEFAULT`, 추가 수신 팀의 팀원이면 `TEAM`(**둘 다면 둘 다** — 위에서부터 맞는 첫 규칙).
+
+### 회원 이벤트
+- **앱 알림(알림함)**: 읽을 때 그린다(위와 같은 판단). api `MemberNotificationService` 가 지금처럼 읽을 때의 현재 값(닉네임·글 제목·댓글 앞부분)을 모아 `MemberNotificationMessages.Facts` 로 넘기면 변수 `actorName`·`postTitle`·`excerpt`·`otherCount`·`amount`·`reason`(포인트 회수 까닭 한 줄 — 번들 문장), 조건 `grouped`(`groupCount>1` → `GROUPED`)·`hideReason`(기간 있는 숨김 → `RIGHTS`, 아니면 `REPORTS`)으로 바꾼다.
+- **기본 문구의 상황별 제목(미확정 6 의 가정)**: 기본 문구가 골라졌을 때만 지금 코드의 특수 제목 — 묶인 댓글 「…님 외 N개의 댓글」, 권리 침해 임시 숨김 — 을 번들 문구로 낸다(기본 규칙 행은 만들지 않았다). 사용자 문구·규칙이 골라지면 그 문구 그대로.
+- **회원 이메일(새로)**: 설정 `enabled && email` 이면 발행기(`MemberNotificationPublisher`)가 세이브포인트 일의 마지막에 `MemberEmailRequested` 를 알리고, 커밋 뒤 `MemberNotificationEmailSender`(shared, 스레드풀 2·대기열 500, 가득 차면 버림)가 보낸다 — 실패·거절은 업무에 영향 없음. 앱 알림이 꺼져 있어도 메일은 나간다(사용 + 이메일만 본다).
+  - 받는 사람: 이메일이 있고 **인증을 마친** 회원만, 탈퇴·삭제 제외. **정지 회원**(`SUSPENDED`·`BANNED`)은 활동 알림(댓글·답글 — 잠기지 않은 이벤트) 메일을 받지 않고, 계정 알림(포인트 회수·신고로 숨김 — `lockReason` 잠김)은 받는다(판단: 정지 중에는 활동에 답할 수 없지만 계정에 일어난 일은 알아야 한다).
+  - 언어: 회원 표시 설정 언어(`member_display_preferences.language`), 없으면 사이트 표시 기본 언어. 메일의 `title`·`body` = 같은 언어로 그린 앱 알림 문구(상황별 제목 포함). `recipientName` = 받는 회원 닉네임. `link` = 사이트 공개 주소 + `/posts/{글}`(댓글·답글·댓글 숨김 — 알림함 링크와 같다, 없으면 버튼 없이).
+  - **조용한 시간 가정**: 게시판 기본 설정 「알림」의 이메일 조용한 시간이 켜져 있고 지금(사이트 표시 시간대)이 `[시작, 끝)` 안이면 **그 메일은 보내지 않고 로그만** 남긴다(앱 알림은 남음) — 미뤄 보낼 대기열(`mail_outbox`)이 아직 코드에 없다(커머스 계약 결정 11 의 대기열이 생기면 미뤄 보내기로 바꾼다). 자정을 넘는 구간 가능, 시작 = 끝이면 조용한 시간 없음.
+  - **묶인 댓글은 메일도 한 통**: 새 줄을 만들 때만 보내고, 묶음에 더해질 때(`addToGroup`)는 다시 보내지 않는다(판단: 묶음의 뜻이 「같은 글의 여러 댓글을 한 번 알림」이고, 묶음마다 메일이 나가면 묶는 의미가 없다). 앱 알림이 꺼져 있으면 묶을 줄이 없어 댓글마다 한 통.
+  - 회원 개인 끄기(`memberCanTurnOff`)는 범위 밖 — 회원 쪽 설정 화면·표가 없다.
+- `CommentNotice` 에 `postTitle`·`excerpt`(가린 뒤의 평문, 60자로 자름)를 더했다(메일 변수 — 알림함은 읽을 때의 현재 값).
+
+### 엔진 쪽 보탬
+- `MailRenderer`(실제 발송만): 링크 값이 없거나 http·https 가 아닌 버튼 블록은 「#」 단추로 남기지 않고 걷는다. 변수 하나만 든 문단(`<p>{{body}}</p>`·`<p><strong>{{title}}</strong></p>`)의 값이 비면 문단째 걷는다(운영자가 넣은 빈 문단은 둔다). 미리보기는 그대로(`#`·모르는 변수 보임).
+- 캐시·세이브포인트: 발송 쪽은 엔진을 업무 트랜잭션 밖(커밋 뒤 스레드풀·읽기 API)에서만 부른다. 읽기 API 는 DB 읽기를 끝낸 뒤 그린다.
+
+### 정리
+- 번들 키 지움: `notification.mail.subject`·`mail.common.noReply`(ko·en — 쓰는 곳 없음). `mail.verify.*`·`mail.operator*`·`mail.test.*`·`notification.mail.open|reason`·`notification.channel.post.open`·`member.notification.*` 는 기본 문구·상황별 제목의 원천이라 남긴다.
+- `mail_outbox`: 코드에 없어 만들지 않았다(커머스 메일 경로 없음).
+
+### 검증(일회용 DB `rbverify_dispatch` = 개발 DB 복제, admin 9181 · api 9182 · 가짜 Slack/Mattermost 9185 · mailpit 1035)
+- 필수 안내 메일 5종: 기본 문구 결과가 옛 메일과 같은 글(템플릿 머리말·꼬리말만 기본 템플릿 모양), 요청 언어(시험·재설정 en) · 사용자 문구로 바꾸면 그 결과 · 소셜(비밀번호 없음) 회원은 `signupMethod=SOCIAL` 규칙 문구 · `inviteRole` 규칙 · 제목 머리말·보내는 이름 규칙.
+- 운영자 이벤트(배치 실패, 감시자 경로): 서랍 ko·en · 이메일 · Slack(`attachments`[blocks]) · Mattermost 웹훅 — 기본 문구·템플릿, 값 무력화(`@here`·`<b>`·`*`), 사용자 문구·Slack 사용자 템플릿·이메일 `jobName` 규칙.
+- 회원 댓글: 이메일 꺼짐 → 메일 없음 · 켬 → 한 통, 묶인 댓글은 다시 안 보냄(앱 제목 「…외 1개」 ko·en) · 조용한 시간 → 메일 없음·앱 알림 있음 · 미인증·정지 → 메일 없음 · 회원 표시 언어 en → 영어 메일 · 사용자 앱 문구·묶음 규칙·회원 메일 문구.
+- 실행하지 않음: 포인트 회수·글/댓글 숨김의 메일(같은 경로, 직접 호출 안 함), 실제 Slack·Mattermost 서버, 팀 수신(`recipientSource=TEAM`), 단위·전체 테스트·E2E.
 

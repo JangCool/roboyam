@@ -17,6 +17,7 @@ import com.community.membernotification.entity.MemberNotificationEntity;
 import com.community.membernotification.entity.MemberNotificationType;
 import com.community.membernotification.exception.MemberNotificationNotFoundException;
 import com.community.membernotification.repository.master.MemberNotificationRepositoryQDSL;
+import com.community.notificationtemplate.engine.RenderedInApp;
 import com.community.post.entity.PostEntity;
 import com.community.post.repository.master.PostRepository;
 import com.community.user.entity.ProfileEntity;
@@ -50,7 +51,8 @@ import tools.jackson.databind.json.JsonMapper;
  * <ul>
  *   <li><b>목록</b> {@code filter}({@code all} 기본 · {@code comment} · {@code system}) · {@code size}(기본 {@value #DEFAULT_SIZE}, 1~{@value #MAX_SIZE}) · {@code cursor}(앞 응답의 {@code nextCursor}).
  *       최신이 위(ID 내림차순). 글·댓글·일으킨 사람은 <b>읽을 때의 현재 값</b>으로 채운다 — 지웠거나 숨긴 글은 제목을 내지 않고 {@code available=false}.</li>
- *   <li><b>문구</b>: 저장된 종류 + 칸을 읽는 사람의 요청 언어로 푼다({@code member.notification.*} 번들 키).</li>
+ *   <li><b>문구</b>: 저장된 종류 + 칸(읽을 때의 현재 값)을 변수로 알림 문구 엔진이 읽는 사람의 요청 언어로 그린다({@code MemberNotificationMessages} — 그 회원 이벤트 앱 알림의
+ *       쓸 문구·규칙, 없으면 기본 문구). 운영자가 문구를 바꾸면 이미 쌓인 알림도 새 문구로 보인다.</li>
  *   <li><b>안 읽은 수</b>는 거르기와 상관없이 전체, {@value #UNREAD_CAP} 까지만 센다.</li>
  *   <li><b>읽음</b>: 이미 읽은 알림도 성공(멱등). 남의 알림·없는 알림·형식이 틀린 ID 는 {@code 404 NOTIFICATION_NOT_FOUND}.</li>
  * </ul>
@@ -79,9 +81,11 @@ public class MemberNotificationService {
     private final BoardCatalog catalog;
     private final BoardNotificationSettingRepository boardNotifySettings;
     private final Messages messages;
+    private final MemberNotificationMessages texts;
 
     public MemberNotificationService(MemberNotificationRepositoryQDSL notifications, PostRepository posts, ProfileRepository profiles, UserRepository users,
-                                     BoardCatalog catalog, BoardNotificationSettingRepository boardNotifySettings, Messages messages) {
+                                     BoardCatalog catalog, BoardNotificationSettingRepository boardNotifySettings, Messages messages,
+                                     MemberNotificationMessages texts) {
         this.notifications = notifications;
         this.posts = posts;
         this.profiles = profiles;
@@ -89,6 +93,7 @@ public class MemberNotificationService {
         this.catalog = catalog;
         this.boardNotifySettings = boardNotifySettings;
         this.messages = messages;
+        this.texts = texts;
     }
 
     /** 내 알림 한 쪽. 틀린 조건은 400 {@code fields.filter|size|cursor} */
@@ -104,9 +109,11 @@ public class MemberNotificationService {
         List<MemberNotificationEntity> rows = notifications.page(userId, types, beforeId, limit + 1);
         boolean more = rows.size() > limit;
         List<MemberNotificationEntity> pageRows = more ? rows.subList(0, limit) : rows;
-        List<MemberNotificationItemView> items = items(pageRows);
+        int unread = notifications.unread(userId, UNREAD_CAP); // DB 읽기를 먼저 끝낸다 — 문구 그리기는 엔진의 메모리 사본만 쓴다
+        int retention = retentionDays();
+        List<MemberNotificationItemView> items = items(userId, pageRows);
         String nextCursor = more ? items.get(items.size() - 1).id() : null;
-        return new MemberNotificationPageView(items, more, nextCursor, notifications.unread(userId, UNREAD_CAP), retentionDays());
+        return new MemberNotificationPageView(items, more, nextCursor, unread, retention);
     }
 
     @Transactional(readOnly = true)
@@ -140,10 +147,11 @@ public class MemberNotificationService {
     // ── 한 건 만들기 ────────────────────────────────────────────────────────
 
     /** 알림 한 쪽 — 가리키는 글·댓글·일으킨 회원을 한 번에 읽어 채운다 */
-    private List<MemberNotificationItemView> items(List<MemberNotificationEntity> rows) {
+    private List<MemberNotificationItemView> items(long userId, List<MemberNotificationEntity> rows) {
         if (rows.isEmpty()) {
             return List.of();
         }
+        String recipientName = profiles.findById(userId).map(ProfileEntity::getNickname).orElse(null); // 문구 변수 recipientName
         Instant now = Instant.now();
         Set<Long> postIds = rows.stream().map(MemberNotificationEntity::getPostId).filter(Objects::nonNull).collect(Collectors.toSet());
         Set<Long> commentIds = rows.stream().map(MemberNotificationEntity::getCommentId).filter(Objects::nonNull).collect(Collectors.toSet());
@@ -162,14 +170,14 @@ public class MemberNotificationService {
         Locale locale = messages.locale();
         List<MemberNotificationItemView> out = new ArrayList<>();
         for (MemberNotificationEntity row : rows) {
-            out.add(item(row, postById, commentById, profileById, userById, snapshot, now, locale));
+            out.add(item(row, postById, commentById, profileById, userById, snapshot, now, locale, recipientName));
         }
         return out;
     }
 
     private MemberNotificationItemView item(MemberNotificationEntity row, Map<Long, PostEntity> postById, Map<Long, CommentEntity> commentById,
                                             Map<Long, ProfileEntity> profileById, Map<Long, UserEntity> userById, BoardCatalogSnapshot snapshot, Instant now,
-                                            Locale locale) {
+                                            Locale locale, String recipientName) {
         MemberNotificationType type = MemberNotificationType.of(row.getType()).orElse(MemberNotificationType.COMMENT);
         Map<String, Object> payload = payloadOf(row.getPayload());
 
@@ -193,22 +201,13 @@ public class MemberNotificationService {
             actor = actorOf(row, profileById, userById, locale);
         }
 
-        String title;
-        String body = null;
         String link = null;
         NotificationPointsView points = null;
         Instant hiddenUntil = null;
+        MemberNotificationMessages.Facts facts;
         switch (type) {
-            case COMMENT -> {
-                title = row.getGroupCount() > 1
-                        ? messages.get(new MessageRef("member.notification.COMMENT.grouped", actorName(actor), String.valueOf(row.getGroupCount() - 1)), locale)
-                        : messages.get(new MessageRef("member.notification.COMMENT.title", actorName(actor)), locale);
-                body = commentPreview;
-                link = postAvailable ? "/posts/" + row.getPostId() : null;
-            }
-            case REPLY -> {
-                title = messages.get(new MessageRef("member.notification.REPLY.title", actorName(actor)), locale);
-                body = commentPreview;
+            case COMMENT, REPLY -> {
+                facts = MemberNotificationMessages.Facts.comment(type, actorName(actor), post == null ? null : post.title(), commentPreview, row.getGroupCount());
                 link = postAvailable ? "/posts/" + row.getPostId() : null;
             }
             case POINTS_REVOKED -> {
@@ -216,20 +215,19 @@ public class MemberNotificationService {
                 String kind = payload.get("kind") instanceof String k ? k : "ADMIN_ADJUST";
                 String note = payload.get("note") instanceof String n && !n.isBlank() ? n : null;
                 points = new NotificationPointsView(kind, amount, note);
-                title = messages.get(new MessageRef("member.notification.POINTS_REVOKED.title", String.format("%,d", amount)), locale);
-                body = note == null ? messages.get(new MessageRef("member.notification.POINTS_REVOKED.body." + kind), locale)
-                        : messages.get(new MessageRef("member.notification.POINTS_REVOKED.body." + kind + ".note", note), locale);
+                facts = MemberNotificationMessages.Facts.points(kind, amount, note);
             }
-            case POST_HIDDEN, COMMENT_HIDDEN -> {
+            default -> { // POST_HIDDEN, COMMENT_HIDDEN
                 hiddenUntil = instantOf(payload.get("until"));
-                String key = "member.notification." + type.name() + (hiddenUntil != null ? ".temporary" : ".title");
-                title = messages.get(new MessageRef(key), locale);
-                body = payload.get("snapshot") instanceof String s && !s.isBlank() ? s : null;
+                facts = MemberNotificationMessages.Facts.hidden(type, payload.get("snapshot") instanceof String s && !s.isBlank() ? s : null, hiddenUntil != null);
                 // 숨긴 글은 열 수 없다(작성자 포함) — 댓글 숨김이면 그 글로 간다
                 link = type == MemberNotificationType.COMMENT_HIDDEN && postAvailable ? "/posts/" + row.getPostId() : null;
             }
-            default -> title = "";
         }
+        // 문구는 알림 문구 엔진이 읽는 사람 언어로 그린다(그 회원 이벤트 앱 알림의 쓸 문구 · 규칙 — 없으면 기본 문구)
+        RenderedInApp text = texts.inApp(facts, locale, recipientName);
+        String title = text.title();
+        String body = text.body() == null || text.body().isBlank() ? null : text.body();
         return new MemberNotificationItemView(Long.toString(row.getId()), type.name(), type.category(), row.isRead(), row.getCreatedAt(), title, body, link, actor,
                 post, row.getCommentId() == null ? null : Long.toString(row.getCommentId()), commentPreview, row.getGroupCount(), points, hiddenUntil);
     }

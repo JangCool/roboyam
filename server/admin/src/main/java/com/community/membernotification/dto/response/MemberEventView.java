@@ -8,7 +8,7 @@ package com.community.membernotification.dto.response;
  * @param name             요청 언어로 푼 이름
  * @param recipientText    누가 받는지 한 줄(요청 언어)
  * @param featureReady     실제로 발행되는가(false 면 「준비 중」 — 바꿀 수 없다)
- * @param email            이메일로도 보낸다 — 지금은 저장만(회원 메일 발송은 다음 단계)
+ * @param email            이메일로도 보낸다 — 커밋 뒤 회원 알림 메일({@code MemberNotificationEmailSender}, 이메일 인증된 회원만 · 조용한 시간 제외)
  * @param memberCanTurnOff 회원이 개인 설정에서 끌 수 있다 — {@code lockReason} 이 있으면 늘 false
  * @param lockReason       끌 수 있는지를 코드가 잠근 까닭({@code ACCOUNT} · {@code ACTION}) — null 이면 운영자가 정한다
  * @param boardSettingKind 예전 게시판 기본 설정 「알림」의 같은 종류(V58 이 옮긴 옛 칸) — 없으면 null
