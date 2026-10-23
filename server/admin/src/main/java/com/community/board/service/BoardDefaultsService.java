@@ -254,34 +254,11 @@ public class BoardDefaultsService {
         if (!CLOCK.matcher(end).matches()) {
             invalid.put("emailQuietEnd", new MessageRef("board.clock.format"));
         }
-        // 알림 종류마다 한 줄 — 모르는 종류·겹친 종류는 거절, 빠진 종류는 지금 값을 둔다. 잠긴 종류는 사이트 알림 켬·끌 수 없음으로 고정
-        Map<String, BoardNotificationValues.MemberNotifyRow> byKind = new LinkedHashMap<>();
-        row.values().memberDefaults().forEach(r -> byKind.put(r.kind(), r));
-        Set<String> given = new HashSet<>();
-        if (raw.memberDefaults() == null) {
-            invalid.put("memberDefaults", new MessageRef("board.field.required"));
-        } else {
-            for (BoardNotificationValues.MemberNotifyRow r : raw.memberDefaults()) {
-                if (r == null || !BoardFields.NOTIFY_KINDS.contains(r.kind()) || !given.add(r.kind()) || r.site() == null || r.email() == null
-                        || r.memberCanTurnOff() == null) {
-                    invalid.put("memberDefaults", new MessageRef("board.notify.rows"));
-                    break;
-                }
-                boolean locked = BoardFields.NOTIFY_LOCKED.contains(r.kind());
-                byKind.put(r.kind(), new BoardNotificationValues.MemberNotifyRow(r.kind(), locked || r.site(), r.email(), !locked && r.memberCanTurnOff()));
-            }
-        }
+        // 이벤트별 칸(memberDefaults — 옛 칸)은 회원 이벤트 설정(/api/admin/member-events)으로 옮겼다 — 요청에 와도 무시한다(BoardNotificationValues 가 모르는 칸)
         if (!invalid.isEmpty()) {
             throw new ValidationException(invalid);
         }
-        List<BoardNotificationValues.MemberNotifyRow> rows = new ArrayList<>();
-        for (String kind : BoardFields.NOTIFY_KINDS) {
-            BoardNotificationValues.MemberNotifyRow r = byKind.get(kind);
-            if (r != null) {
-                rows.add(r);
-            }
-        }
-        BoardNotificationValues body = new BoardNotificationValues(rows, raw.groupWindowMinutes(), raw.emailQuietHoursEnabled(), start, end,
+        BoardNotificationValues body = new BoardNotificationValues(raw.groupWindowMinutes(), raw.emailQuietHoursEnabled(), start, end,
                 raw.memberNotificationRetentionDays());
         if (changed(actor, AuditActions.BOARD_DEFAULTS_UPDATE, "notifications", row.values().toMap(), body.toMap())) {
             row.change(body, actor.operatorId(), Instant.now());

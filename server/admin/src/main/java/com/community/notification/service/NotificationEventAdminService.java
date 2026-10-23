@@ -115,6 +115,14 @@ public class NotificationEventAdminService {
                 .toList();
     }
 
+    /** 이벤트 한 줄(준비 중 포함) — 목록의 한 줄과 같은 모양. 모르는 코드면 404 */
+    @Transactional(readOnly = true)
+    public NotificationEventView one(String code) {
+        AdminNotificationEvent event = AdminNotificationEvent.ofCode(code).orElseThrow(NotificationEventNotFoundException::new);
+        long sent = notifications.countByEventSince(Instant.now().minus(SENT_WINDOW)).getOrDefault(event.code(), 0L);
+        return view(event, settings.of(event), sent, messages.locale(), delivery.channelIdsOf(event.code()), delivery.teamIdsOf(event.code()));
+    }
+
     @Transactional
     public NotificationEventView update(AdminActor actor, String code, NotificationEventUpdateRequest request) {
         AdminNotificationEvent event = AdminNotificationEvent.ofCode(code).orElseThrow(NotificationEventNotFoundException::new);

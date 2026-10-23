@@ -100,6 +100,13 @@ public class NotificationController {
         return ApiResponse.success(eventAdmin.list());
     }
 
+    /** 이벤트 한 줄 — 목록의 한 줄과 같은 모양(준비 중 포함). 모르는 코드면 404 {@code NOTIFICATION_EVENT_NOT_FOUND} */
+    @RequirePermission(Permission.NOTIFICATION_READ)
+    @GetMapping("/notification-events/{code}")
+    public ApiResponse<NotificationEventView> event(@PathVariable String code) {
+        return ApiResponse.success(eventAdmin.one(code));
+    }
+
     /** 이벤트의 사용 여부·이메일 전달을 바꾼다 — 저장된 이벤트 한 줄을 돌려준다 */
     @RequirePermission(Permission.NOTIFICATION_MANAGE)
     @PutMapping("/notification-events/{code}")
