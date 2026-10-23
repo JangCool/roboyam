@@ -54,7 +54,7 @@
 
 ## 감사·권한
 - 감사: `MAIL_SETTINGS_UPDATE`(대상 `SITE`/`mail`, `detail.fields` = 바뀐 칸 이름만) · `MAIL_SETTINGS_TEST`(성공 여부·원인 코드만, 받는 주소 없음). 번들 `audit.action.*` ko·en.
-- 권한: 새 권한 없이 기존 `site.read`(조회·이력) · `site.secret`(저장·시험) — 소셜 로그인 설정과 같다. `site.secret` 의 `featureReady` 는 아직 `false` 이고, 화면이 생길 때 서버 `Permission` 과 프론트 `util-permission-catalog.ts` 를 함께 `true` 로 바꾼다.
+- 권한: 새 권한 없이 기존 `site.read`(조회·이력) · `site.secret`(저장·시험) — 소셜 로그인 설정과 같다. `site.secret` 의 `featureReady` 는 화면을 붙이면서 서버·프론트 모두 `true` 로 바꿨다.
 
 ## 미확정
 - 시험 발송의 받는 주소를 운영자 본인 이메일로 기본 채울지(화면 결정, 서버는 아무 주소나 받는다).

@@ -130,7 +130,7 @@
 - `operator_id` 는 FK 없음(운영자가 지워져도 이력 유지 — `audit_logs.actor_id` 와 같다).
 
 ### 가정·미해결
-- **권한**: 새 권한 없이 기존 `site.read`(조회·이력) / `site.secret`(저장·삭제, 설명 「소셜 로그인 키·메일 서버 비밀번호 같은 비밀 값을 바꿉니다」)를 썼다. `site.secret` 의 `featureReady` 는 **서버·프론트 모두 아직 false** — 화면을 붙일 때 서버 `Permission.java` 와 `util-permission-catalog.ts` 를 같이 true 로 바꾼다. `site.read` 의 i18n 설명(「일반」 화면만 언급)도 그때 고친다.
+- **권한**: 새 권한 없이 기존 `site.read`(조회·이력) / `site.secret`(저장·삭제, 설명 「소셜 로그인 키·메일 서버 비밀번호 같은 비밀 값을 바꿉니다」)를 썼다. `site.secret` 의 `featureReady` 는 화면을 붙이면서 서버 `Permission.java`·프론트 `util-permission-catalog.ts` 모두 true 로 바꿨고, `site.read` 의 i18n 설명도 소셜·메일을 포함하도록 고쳤다.
 - **관리자 메뉴(제안, 레지스트리 미변경)**: `AdminScreenRegistry` 의 `menu.system` 묶음, `siteGeneral` 다음에 `s("socialLogin", "/settings/social-login", "menu.socialLogin", "pi pi-key", Permission.SITE_READ)`. 프론트가 페이지·`menu.socialLogin` 문구를 만들 때 같이 넣는다.
 - 관리자 알림(`SITE_SETTINGS_CHANGED`)은 보내지 않는다(링크가 `/settings/general` 고정이라 맞지 않음) — 필요하면 화면 단계에서 정한다.
 - 풀 수 없는 시크릿(키 교체)도 공개 `/api/auth/providers` 에는 버튼이 나온다(기존 공개 기준은 복호화를 해 보지 않는다) — 관리자 목록은 `active: true` · `secretSet: false` 로 보인다. 콜백에서 `provider_error` 로 끝난다.
