@@ -1,5 +1,6 @@
 package com.community.notification.config;
 
+import com.community.membernotification.entity.MemberEvent;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.service.NotificationCatalogSynchronizer;
 import java.io.IOException;
@@ -70,6 +71,15 @@ public class NotificationBootstrapRunner implements ApplicationRunner {
                     String value = bundle.getProperty(key);
                     boolean mustHaveText = !key.equals(event.bodyKey());
                     if (value == null || (mustHaveText && value.isBlank())) {
+                        missing.add(language + ":" + key);
+                    }
+                }
+            }
+            // 회원 이벤트(관리 화면의 이름·설명·받는 사람) — 셋 다 비어 있으면 안 된다
+            for (MemberEvent event : MemberEvent.values()) {
+                for (String key : event.bundleKeys()) {
+                    String value = bundle.getProperty(key);
+                    if (value == null || value.isBlank()) {
                         missing.add(language + ":" + key);
                     }
                 }

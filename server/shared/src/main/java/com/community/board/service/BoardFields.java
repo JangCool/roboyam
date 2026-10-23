@@ -171,11 +171,6 @@ public final class BoardFields {
         TABS = Collections.unmodifiableMap(t);
     }
 
-    /** 회원 알림 종류(표시 순서) */
-    public static final List<String> NOTIFY_KINDS = List.of("COMMENT_ON_POST", "REPLY_ON_COMMENT", "MENTION", "POST_POPULAR", "OPERATOR_ACTION", "STAFF_ACTION",
-            "REPORT_RESULT");
-    /** 회원이 끌 수 없는 알림(사이트 알림 켬·끌 수 없음으로 서버가 고정한다) */
-    public static final List<String> NOTIFY_LOCKED = List.of("OPERATOR_ACTION", "STAFF_ACTION");
     /** 개인정보 보유기간의 축 */
     public static final List<String> PRIVACY_AXES = List.of("ip", "guest", "deletedContent", "reportRecord", "staffAction");
 

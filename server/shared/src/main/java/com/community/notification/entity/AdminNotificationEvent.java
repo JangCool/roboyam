@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
  *   <li>수신 규칙 {@link #recipient()}(+ {@link #recipientPermissions()}) · {@link #excludeActor()} — 누가 받는가. <b>규칙을 화면에서 바꾸지 않는다</b>(보면 안 될 알림을 받을 수 있다)</li>
  *   <li>{@link #requiredPermission()} — 알림을 보는 데 필요한 권한. 없으면 누구나. 권한을 잃은 운영자는 <b>조회 시점에</b> 이 이벤트의 알림이 안 보인다(행은 보관 정책이 지운다)</li>
  *   <li>{@link #mandatory()} — 끌 수 없는 이벤트(보안: 내 계정의 상태·권한·비밀번호가 바뀜). 이벤트 관리에서도 개인 설정에서도 끄지 못한다</li>
- *   <li>{@link #defaultEnabled()} · {@link #emailable()} — 처음 사용 여부, 이메일로 보낼 수 있는가(처음 이메일 전달 값은 emailable 과 같다)</li>
+ *   <li>{@link #defaultEnabled()} · {@link #emailable()} · {@link #defaultEmailEnabled()} — 처음 사용 여부, 이메일로 보낼 수 있는가(준비 중이 아니면 모두), 처음 이메일 전달 값({@code email()} 로 정한 것만)</li>
  *   <li>{@link #linkPath()} — 이동 경로 템플릿({@code {이름}} 자리는 발행 때 {@code NotificationContext#link} 로 채운다)</li>
  *   <li>{@link #collapseSeconds()} — 같은 이벤트·같은 묶음 키를 N초 안에 한 건으로 묶기(0 이면 안 묶음)</li>
  *   <li>{@link #featureReady()} — 발행처가 이미 있는가. false 인 예약 이벤트는 관리 화면에 「준비 중」으로만 보이고 발행되지 않는다</li>
@@ -88,7 +88,7 @@ public enum AdminNotificationEvent {
         private Permission requires;
         private boolean excludeActor;
         private boolean mandatory;
-        private boolean emailable;
+        private boolean emailByDefault;
         private String link;
         private int collapse;
         private boolean ready = true;
@@ -121,8 +121,9 @@ public enum AdminNotificationEvent {
             return this;
         }
 
+        /** 이메일 전달이 <b>처음부터 켜진</b> 이벤트 — 이메일을 보낼 수 있는지는 이것과 상관없다(준비 중이 아니면 모두 보낼 수 있다) */
         private Spec email() {
-            this.emailable = true;
+            this.emailByDefault = true;
             return this;
         }
 
@@ -157,6 +158,7 @@ public enum AdminNotificationEvent {
     private final boolean excludeActor;
     private final boolean mandatory;
     private final boolean emailable;
+    private final boolean emailByDefault;
     private final String linkPath;
     private final int collapseSeconds;
     private final boolean featureReady;
@@ -172,7 +174,8 @@ public enum AdminNotificationEvent {
         this.requiredPermission = spec.requires;
         this.excludeActor = spec.excludeActor;
         this.mandatory = spec.mandatory;
-        this.emailable = spec.emailable;
+        this.emailable = spec.ready;
+        this.emailByDefault = spec.emailByDefault;
         this.linkPath = spec.link;
         this.collapseSeconds = spec.collapse;
         this.featureReady = spec.ready;
@@ -219,13 +222,17 @@ public enum AdminNotificationEvent {
         return true;
     }
 
+    /**
+     * 이메일로 보낼 수 있는가 — <b>준비 중이 아닌 이벤트는 모두</b> 보낼 수 있다(개정 3, 2026-10-23). 본인 전용·보안 이벤트도 받는 사람이 본인이라 이메일은 막지 않는다
+     * (공유 채널·팀은 {@link #broadcastAllowed()} 가 따로 막는다). 메일 양식은 지금 한 가지({@code NotificationMailTemplate}).
+     */
     public boolean emailable() {
         return emailable;
     }
 
-    /** 처음 이메일 전달 값 — 보낼 수 있는 이벤트는 켜진 채 시작한다 */
+    /** 처음 이메일 전달 값 — 코드가 {@code email()} 로 정한 이벤트만 켜진 채 시작한다(예전에 이메일을 보내던 5개). 나머지는 운영자가 켠다 */
     public boolean defaultEmailEnabled() {
-        return emailable;
+        return emailable && emailByDefault;
     }
 
     /** 이동 경로 템플릿(없으면 null) */

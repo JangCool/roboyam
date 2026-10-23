@@ -4,12 +4,13 @@
 **참고(읽기 전용)**: community `docs/api-notification.md`(`NotificationItem`·필터·읽음 규약). 프론트 기준 `apps/user-web/app/composables/notification/api/useNotificationApi.ts`(셸: `unreadCount`·`recent`).
 
 ## 종류 (서버 `MemberNotificationType` 이 원천 — 실제로 발행되는 것만)
-| `type` | 언제 | 받는 사람 | `category` | 끄기 |
+| `type` | 언제 | 받는 사람 | `category` | 회원이 끄기 |
 |---|---|---|---|---|
-| `COMMENT` | 내 글에 새 **원댓글** | 글쓴 회원 | comment | 게시판 기본 설정 「알림」 `COMMENT_ON_POST.site` |
-| `REPLY` | 내 댓글에 **답글**(`replyToId` 의 댓글, 없으면 원댓글) | 그 댓글의 작성 회원 | comment | `REPLY_ON_COMMENT.site` |
+| `COMMENT` | 내 글에 새 **원댓글** | 글쓴 회원 | comment | 운영자가 정함 |
+| `REPLY` | 내 댓글에 **답글**(`replyToId` 의 댓글, 없으면 원댓글) | 그 댓글의 작성 회원 | comment | 운영자가 정함 |
 | `POINTS_REVOKED` | 운영 조정 차감이 실제로 반영됨(`point-contract.md`) | 그 회원 | system | 끌 수 없음 |
 | `POST_HIDDEN` · `COMMENT_HIDDEN` | 신고 자동 숨김으로 **보이던** 글·댓글이 새로 숨겨짐(`ReportService#autoHide`) | 작성 회원 | system | 끌 수 없음 |
+- **운영자 끄기(2026-10-23 바뀜)**: 모든 종류가 회원 이벤트 설정(`member_event_settings` — 관리자 이벤트 › 회원, `message-template-contract.md` 「서버 구현 결과(회원 이벤트·이메일 확장)」)의 `enabled && inApp` 일 때만 만든다. 예전의 게시판 기본 설정 `<종류>.site`(옛 칸 `member_defaults`)는 V58 이 옮겼고 더 이상 읽지 않는다.
 - 내가 일으킨 일은 알리지 않는다(내 글에 내 댓글, 내 댓글에 내 답글). 글쓴이는 새 원댓글만 받고 남들끼리의 답글은 받지 않는다 — 답한 댓글의 작성자가 글쓴이여도 `REPLY` 하나만. 비회원 글·댓글의 작성자는 받지 않는다. 탈퇴·삭제된 회원은 받지 않는다(정지 회원은 받는다).
 - **묶기**: 같은 회원·같은 글의 **안 읽은** `COMMENT` 가 `board_notification_settings.group_window_minutes`(기본 10분, 0 = 묶지 않음) 안에 있으면 새 줄 대신 그 줄의 `groupCount` +1, 일으킨 사람·댓글은 가장 최근 것(만든 시각·차례는 그대로).
 - 신고 숨김 알림에는 신고자·사유 코드를 싣지 않는다. 권리침해 임시조치면 `hiddenUntil`(다시 보이는 시각)과 「임시로 숨겨졌어요」 문구.
@@ -46,7 +47,7 @@ interface MemberNotificationItem {
 
 ## 가정
 1. 문구는 서버가 푼다(관리자 알림과 같은 방식) — community 처럼 화면이 `type`+칸으로 만들 수도 있게 구조 칸을 함께 준다.
-2. 「사이트 알림 끔」은 게시판 기본 설정의 `site` 만 본다(`email` 전달·조용한 시간은 회원 이메일 발송이 없어 적용 지점 없음).
+2. 끄기는 회원 이벤트 설정의 사용·앱 알림만 본다(이메일 칸·조용한 시간은 회원 이메일 발송이 없어 적용 지점 없음 — 2026-10-23 게시판 기본 설정 `site` 에서 옮김).
 3. 신고 숨김은 「운영 처리」와 달리 시스템 자동 조치라 끌 수 없는 계정 알림으로 둔다(`OPERATOR_ACTION`·`REPORT_RESULT` 설정과 연결하지 않음).
 
 ## 미확정·후속

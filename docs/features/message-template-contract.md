@@ -39,6 +39,32 @@
 - **`?mock=` 스위치**: 개정 3 그대로이되 `template-in-use` 는 이제 **템플릿** 지우기 409(옛 `layout-in-use`), 문구 지우기 409 는 `message-in-use`.
 - **미확정(개정 4)**: 10. Slack·Mattermost 「열기」 버튼의 주소가 늘 이벤트 `link` 인지 11. 색 막대 팔레트·심각도 그림 이름 12. 카카오톡 템플릿의 등록·검수 흐름(화면에서 카카오 검수를 요청할지, 받아오기만 할지)과 대체 문자(SMS) 13. 회원 이벤트의 카카오톡(수신 동의·야간 발송 제한) 14. Slack 표기의 굵게가 한글 조사 바로 앞에서 풀리지 않는지(미리보기는 앞뒤가 빈칸·문장부호일 때만 굵게).
 
+## 서버 구현 결과(회원 이벤트·이메일 확장) (2026-10-23)
+문구·템플릿 엔진(`/api/admin/notification-messages`·`/notification-templates`, shared V57)은 이 절의 범위가 아니다.
+
+### 회원 이벤트 카탈로그 (코드가 원천 — shared `com.community.membernotification.entity.MemberEvent`)
+- 10종 = 실제 5종(`MemberNotificationType` 이름 그대로 — 사용 가능) + 준비 중 5종(`MENTION`·`POST_POPULAR`·`OPERATOR_ACTION`·`STAFF_ACTION`·`REPORT_RESULT`). 차례·영역·잠금·옛 칸 대응은 「목업 가정 — 개정 3」의 이름 대응 표 그대로(영역 `content`·`member`·`safety`, 잠금 `ACCOUNT` = 포인트 회수·글/댓글 숨김, `ACTION` = 운영·스텝 처리).
+- 이름·설명·받는 사람은 번들 `member.event.<코드>.name|description|recipients`(ko·en, 관리자 기동 때 빠진 키 검사 — 알림 이벤트와 같은 규칙).
+- 처음 값(설정 줄이 없을 때): 실제 = 사용·앱 알림 켬, 준비 중 = 사용 꺼짐·앱 알림 켬, 이메일 모두 꺼짐, 회원이 끌 수 있음 = 잠기지 않았으면 켬.
+- **발행기**(`MemberNotificationPublisher`)는 이제 이 설정의 `enabled && inApp` 을 본다 — 5종 모두(포인트 회수·숨김도 운영자가 끄면 안 나간다). 예전에 보던 게시판 설정 `site` 는 읽지 않는다. **이메일 칸은 저장만**(회원 메일 발송은 다음 단계).
+
+### 설정 표 · 데이터 이전 (shared `V58__member_event_settings.sql`)
+- `member_event_settings(code PK, enabled, in_app, email, member_can_turn_off, updated_at, updated_by → operators ON DELETE SET NULL)`. V58 이 10종 줄을 모두 넣는다.
+- 옛 칸 `board_notification_settings.member_defaults` → 이 표: `COMMENT ← COMMENT_ON_POST`, `REPLY ← REPLY_ON_COMMENT`, 준비 중 5종 ← 같은 이름. `in_app ← site`, `email ← email`, `member_can_turn_off ← memberCanTurnOff`(잠긴 이벤트는 false), **`enabled ← site OR email`**(둘 다 꺼져 있으면 나가는 것이 없었다 — 가정). 그 종류가 옛 칸에 없거나 값이 boolean 이 아니면 처음 값, 대응이 없는 3종(포인트 회수·숨김 2종)도 처음 값. 바꾼 시각 = 옛 행의 마지막 저장(없으면 V58 이 돈 시각), 바꾼 운영자 = 옛 행의 것(대응 없는 줄은 null).
+- **옛 칸**: `member_defaults` 는 지우지 않는다(이미 배포 호환). 앱은 더 이상 읽지도 쓰지도 않는다(엔티티 매핑에서 뺐다 — 마지막 값이 그대로 남는다).
+
+### API
+- `GET /api/admin/member-events`(`notification.read`) → `MemberEventView[]` 카탈로그 차례(목업과 같은 차례·칸): `{code, area, name, description, recipientText, featureReady, enabled, inApp, email, memberCanTurnOff, lockReason: 'ACCOUNT'|'ACTION'|null, boardSettingKind: string|null, sentLast30Days}`. 잠긴 이벤트의 `memberCanTurnOff` 는 늘 false. `sentLast30Days` = 최근 30일 `member_notifications` 줄 수(묶인 댓글은 한 줄, 준비 중은 0).
+- `PUT /api/admin/member-events/{code}`(`notification.manage`) `{enabled, inApp, email, memberCanTurnOff}`(네 칸 필수) → 200 바뀐 한 줄. 검사 순서: 404 `MEMBER_EVENT_NOT_FOUND` → 400 `VALIDATION` `fields.<빠진 칸>` → 409 `MEMBER_EVENT_NOT_READY` → 잠긴 이벤트에 `memberCanTurnOff: true` 400 `VALIDATION` `fields.memberCanTurnOff`(목업 규칙 그대로). 같은 이벤트 동시 저장은 행 잠금. 감사 `MEMBER_EVENT_UPDATE`(대상 `MEMBER_EVENT`, 바뀐 칸의 `before`/`after`).
+- **게시판 기본 설정 「알림」** `GET/PUT /api/admin/boards/defaults/notifications`: 응답 `settings` 에서 `memberDefaults` 를 뺐다 — `{groupWindowMinutes, emailQuietHoursEnabled, emailQuietStart, emailQuietEnd, memberNotificationRetentionDays}`. 요청에 `memberDefaults` 가 와도 **무시**(검사도 하지 않는다 — `board.notify.rows` 400 은 더 이상 없다). 감사 `BOARD_DEFAULTS_UPDATE`(tab `notifications`)는 남은 칸만 — 예전 기록은 그대로.
+- **운영자 이벤트 이메일**: `AdminNotificationEvent.emailable()` = **준비 중이 아니면 모두 true**(12종). 예외 없음 — 본인 전용·보안 이벤트(`*_ME`)도 받는 사람이 본인이라 허용(공유 채널·팀은 `broadcastAllowed` 가 그대로 막는다). 처음 이메일 전달 값은 예전 5개(`BATCH_RUN_FAILED`·`OPERATOR_LOCKED_BY_FAILURES`·`OPERATOR_STATUS_CHANGED_ME`·`PASSWORD_CHANGED_ME`·`PASSWORD_RESET_DONE_ME`)만 켬 — 이미 있는 DB 의 값은 바뀌지 않는다. 메일 양식은 지금 한 가지(`NotificationMailTemplate`) 그대로.
+- `GET /api/admin/notification-events/{code}`(`notification.read`) 추가 — 목록 한 줄과 같은 모양(준비 중 포함), 모르는 코드 404 `NOTIFICATION_EVENT_NOT_FOUND`.
+
+### 가정·미해결(다음 단계)
+- 회원 이벤트 **이메일 발송**(받는 사람 언어·메일 템플릿 = 문구 엔진), **수신 동의**, **조용한 시간**(게시판 기본 설정의 이메일 조용한 시간 칸은 남아 있지만 적용 지점이 없다), 회원 개인 끄기(`memberCanTurnOff` 의 적용 지점 — 회원 설정 화면이 아직 없다).
+- `enabled ← site OR email` 이전 규칙(가정). 준비 중 이벤트도 옛 칸 값을 옮겨 `enabled` 가 켜진 채일 수 있다(목업은 준비 중을 늘 꺼짐으로 그렸다 — 화면은 `featureReady=false` 면 「준비 중」으로만 보여 영향 없음).
+- 프론트 후속: 게시판 기본 설정 「알림」 탭(`pages/boards/defaults/notifications.vue`)의 이벤트별 표·`memberDefaults` 타입을 빼고, 회원 이벤트 목업(`useMemberEventApi`)을 실제 API 로, 운영자 이벤트 화면의 「서버 단계에서 열려요」 안내·`emailable=false` 처리를 정리한다(서버는 이제 준비 중이 아닌 이벤트에 `emailable=false` 를 주지 않는다). 이벤트 상세는 목록에서 찾지 않고 `GET notification-events/{code}` 를 쓸 수 있다.
+
 ## 개정 3 — 알림 템플릿·채널·이벤트 화면 분리 (2026-10-23, 사용자 확정 — 아래 「개정」·「개정 2」의 메뉴·화면 구성을 대체한다)
 **템플릿은 메일만의 것이 아니라 이벤트가 나가는 채널마다의 양식이다.** 템플릿 하나 = (이벤트 또는 필수 안내 메일) × 채널 × 언어.
 

@@ -55,6 +55,8 @@ public final class AuditActions {
     /** 이름 유일 제약(V30)을 걸기 전에 같은 이름(대소문자 무시)이던 운영자의 이름을 마이그레이션이 고친 일 — 앱이 아니라 SQL 이 SYSTEM 으로 남긴다 */
     public static final String OPERATOR_NAME_DEDUP = "OPERATOR_NAME_DEDUP";
     public static final String NOTIFICATION_EVENT_UPDATE = "NOTIFICATION_EVENT_UPDATE";
+    /** 회원 이벤트(사용·앱 알림·이메일·회원이 끌 수 있음) 저장 — 바뀐 칸만 */
+    public static final String MEMBER_EVENT_UPDATE = "MEMBER_EVENT_UPDATE";
     public static final String TEAM_CREATE = "TEAM_CREATE";
     public static final String TEAM_UPDATE = "TEAM_UPDATE";
     public static final String TEAM_DELETE = "TEAM_DELETE";

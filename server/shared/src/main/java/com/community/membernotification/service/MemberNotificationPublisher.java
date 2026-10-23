@@ -1,21 +1,19 @@
 package com.community.membernotification.service;
 
 import com.community.membernotification.dto.CommentNotice;
+import com.community.membernotification.entity.MemberEvent;
 import com.community.membernotification.entity.MemberNotificationType;
 import com.community.membernotification.repository.master.MemberNotificationWriter;
-import com.community.membernotification.repository.master.MemberNotificationWriter.BoardNotifyRow;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.jpa.IsolatedSideWork;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -26,8 +24,9 @@ import tools.jackson.databind.json.JsonMapper;
  *       (발행은 던지지 않는다 — 실패는 ERROR 로그만). 부르는 쪽은 try-catch 로 감싸지 않는다.</li>
  *   <li><b>받는 사람</b>: 탈퇴·삭제되지 않은 회원. <b>내가 일으킨 일은 나에게 알리지 않는다</b>(내 글에 내가 단 댓글, 내 댓글에 내가 단 답글). 글쓴이는 <b>새 댓글만</b> 받고
  *       남들끼리 이어 가는 답글은 받지 않는다 — 답한 댓글의 작성자가 글쓴이 본인이어도 {@code REPLY} 하나만 간다(community 규약).</li>
- *   <li><b>끄기</b>: 게시판 기본 설정 「알림」의 그 종류({@link MemberNotificationType#boardSettingKind()}) {@code site} 가 꺼져 있으면 만들지 않는다. 회원 개인 끄기는 아직 없다(계약 「미확정」).
- *       포인트 회수·신고로 숨김은 끌 수 없는 계정 알림이다.</li>
+ *   <li><b>끄기</b>: 회원 이벤트 설정({@link MemberEvent} · {@code member_event_settings} — 관리자 이벤트 › 회원)에서 그 이벤트가 사용 중이 아니거나 앱 알림이 꺼져 있으면 만들지 않는다
+ *       (모든 종류 — 포인트 회수·신고로 숨김도). 예전 게시판 기본 설정 「알림」의 {@code site}(옛 칸)는 V58 이 옮겼고 더 이상 읽지 않는다. 이메일 칸은 저장만 되고 회원 메일 발송은 다음 단계다.
+ *       회원 개인 끄기는 아직 없다(계약 「미확정」) — 포인트 회수·신고로 숨김은 회원이 끌 수 없는 계정 알림이다.</li>
  *   <li><b>묶기</b>: 같은 회원·같은 글의 <b>안 읽은</b> {@code COMMENT} 가 묶음 시간({@code group_window_minutes}, 0 = 묶지 않음) 안에 있으면 새 줄을 만들지 않고 그 줄의 묶인 수를 늘린다
  *       (일으킨 사람·가리키는 댓글은 가장 최근 것). 같은 글의 댓글 쓰기는 글 행 갱신(댓글 수)으로 줄을 서므로 동시 중복이 없다.</li>
  *   <li><b>개인정보</b>: 이메일·IP·비밀번호는 싣지 않는다. 비회원 작성자는 그때 이름만 남긴다. 문구는 저장하지 않고 읽을 때 요청 언어로 푼다.</li>
@@ -71,7 +70,7 @@ public class MemberNotificationPublisher {
             if (!deliverable(target, notice.commenterId(), MemberNotificationType.COMMENT)) {
                 return 0;
             }
-            int window = writer.boardSettings().map(BoardNotifyRow::groupWindowMinutes).orElse(0);
+            int window = writer.groupWindowMinutes().orElse(0);
             if (window > 0) {
                 var grouped = writer.groupable(target, notice.postId(), now.minus(Duration.ofMinutes(window)));
                 if (grouped.isPresent()) {
@@ -94,7 +93,8 @@ public class MemberNotificationPublisher {
      */
     public int contentHidden(long authorId, long postId, Long commentId, String snapshot, Instant until) {
         return isolated.run("member-notification:hidden", () -> {
-            if (!writer.receivable(authorId)) {
+            MemberNotificationType type = commentId == null ? MemberNotificationType.POST_HIDDEN : MemberNotificationType.COMMENT_HIDDEN;
+            if (!inAppOn(type) || !writer.receivable(authorId)) {
                 return 0;
             }
             Map<String, Object> payload = new LinkedHashMap<>();
@@ -102,7 +102,6 @@ public class MemberNotificationPublisher {
             if (until != null) {
                 payload.put("until", until.toString());
             }
-            MemberNotificationType type = commentId == null ? MemberNotificationType.POST_HIDDEN : MemberNotificationType.COMMENT_HIDDEN;
             writer.insert(ids.nextId(), authorId, type.name(), null, null, postId, commentId, MAPPER.writeValueAsString(payload), Instant.now());
             return 1;
         }, 0);
@@ -120,7 +119,7 @@ public class MemberNotificationPublisher {
             return 0;
         }
         return isolated.run("member-notification:points", () -> {
-            if (!writer.receivable(userId)) {
+            if (!inAppOn(MemberNotificationType.POINTS_REVOKED) || !writer.receivable(userId)) {
                 return 0;
             }
             Map<String, Object> payload = new LinkedHashMap<>();
@@ -132,31 +131,25 @@ public class MemberNotificationPublisher {
         }, 0);
     }
 
-    /** 받는 사람이 있고, 일으킨 사람이 아니고, 받을 수 있는 회원이고, 게시판 알림 설정에서 그 종류가 켜져 있다 */
+    /** 받는 사람이 있고, 일으킨 사람이 아니고, 그 회원 이벤트의 앱 알림이 켜져 있고, 받을 수 있는 회원이다 */
     private boolean deliverable(Long target, Long actor, MemberNotificationType type) {
         if (target == null || Objects.equals(target, actor)) {
             return false;
         }
-        if (!siteEnabled(type)) {
-            log.debug("게시판 알림 설정에서 꺼진 종류라 만들지 않는다 type={}", type);
-            return false;
-        }
-        return writer.receivable(target);
+        return inAppOn(type) && writer.receivable(target);
     }
 
-    /** 게시판 기본 설정 「알림」에서 그 종류의 사이트 알림이 켜져 있는가 — 줄이 없거나 읽지 못하면 켜진 것으로 본다(기본값이 켜짐) */
-    private boolean siteEnabled(MemberNotificationType type) {
-        if (type.boardSettingKind() == null) {
-            return true;
+    /**
+     * 회원 이벤트 설정(관리자 설정 › 이벤트 › 회원)에서 그 이벤트가 사용 중이고 앱 알림이 켜져 있는가 — 줄이 없으면 코드의 처음 값({@link MemberEvent}).
+     * 이메일 칸은 아직 보지 않는다(회원 메일 발송은 다음 단계).
+     */
+    private boolean inAppOn(MemberNotificationType type) {
+        MemberEvent event = MemberEvent.of(type);
+        boolean on = writer.eventSetting(event.code()).map(row -> row.enabled() && row.inApp()).orElse(event.defaultEnabled() && event.defaultInApp());
+        if (!on) {
+            log.debug("회원 이벤트 설정에서 꺼진 이벤트라 만들지 않는다 event={}", event);
         }
-        String json = writer.boardSettings().map(BoardNotifyRow::memberDefaults).orElse(null);
-        if (json == null || json.isBlank()) {
-            return true;
-        }
-        List<Map<String, Object>> rows = MAPPER.readValue(json, new TypeReference<List<Map<String, Object>>>() {
-        });
-        return rows.stream().filter(row -> type.boardSettingKind().equals(row.get("kind"))).findFirst()
-                .map(row -> !Boolean.FALSE.equals(row.get("site"))).orElse(true);
+        return on;
     }
 
     private static String guestName(CommentNotice notice) {

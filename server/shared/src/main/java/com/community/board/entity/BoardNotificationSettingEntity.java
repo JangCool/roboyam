@@ -5,27 +5,23 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
-import java.util.List;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.json.JsonMapper;
+import org.hibernate.annotations.DynamicUpdate;
 
-/** 게시판 기본 설정 「알림」(행 하나) — V42__boards.sql 의 {@code board_notification_settings}. 알림 발송은 후속이라 이번에는 저장만 한다 */
+/**
+ * 게시판 기본 설정 「알림」(행 하나) — V42__boards.sql 의 {@code board_notification_settings}.
+ *
+ * <p>옛 칸 {@code member_defaults}(종류별 사이트 알림·이메일·회원이 끌 수 있음)는 V58 이 회원 이벤트 설정({@code member_event_settings})으로 옮겼다. 칸은 이미 배포된 앱과의 호환 때문에
+ * 표에 남지만 이 앱은 <b>읽지도 쓰지도 않는다</b>(매핑하지 않는다 — 변경 감지가 그 칸을 건드리지 않게 {@link DynamicUpdate}).
+ */
 @Entity
 @Table(name = "board_notification_settings")
+@DynamicUpdate
 public class BoardNotificationSettingEntity {
 
     public static final int ROW_ID = 1;
 
-    private static final JsonMapper MAPPER = JsonMapper.builder().build();
-
     @Id
     private Integer id;
-
-    /** 회원 알림 기본값 JSON 배열 글자 */
-    @JdbcTypeCode(SqlTypes.JSON)
-    private String memberDefaults;
 
     private int groupWindowMinutes;
     private boolean emailQuietHoursEnabled;
@@ -39,14 +35,10 @@ public class BoardNotificationSettingEntity {
     }
 
     public BoardNotificationValues values() {
-        List<BoardNotificationValues.MemberNotifyRow> rows = memberDefaults == null || memberDefaults.isBlank() ? List.of()
-                : MAPPER.readValue(memberDefaults, new TypeReference<List<BoardNotificationValues.MemberNotifyRow>>() {
-                });
-        return new BoardNotificationValues(rows, groupWindowMinutes, emailQuietHoursEnabled, emailQuietStart, emailQuietEnd, memberNotificationRetentionDays);
+        return new BoardNotificationValues(groupWindowMinutes, emailQuietHoursEnabled, emailQuietStart, emailQuietEnd, memberNotificationRetentionDays);
     }
 
     public void change(BoardNotificationValues v, long operatorId, Instant now) {
-        this.memberDefaults = MAPPER.writeValueAsString(v.memberDefaults());
         this.groupWindowMinutes = v.groupWindowMinutes();
         this.emailQuietHoursEnabled = v.emailQuietHoursEnabled();
         this.emailQuietStart = v.emailQuietStart();
