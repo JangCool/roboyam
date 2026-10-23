@@ -134,11 +134,12 @@
   - 비밀번호 재설정 응답도 `authenticated:false` + VERIFY/ENROLL 일 수 있다(재설정이 신뢰 기기를 끊으므로 대개 VERIFY).
   - 등록 확정에 쓴 시간 칸을 마지막 칸으로 저장 — 같은 코드로 곧바로 로그인할 수 없다. 미등록이 「다시 등록」을 부르면 일반 등록 시작.
   - 알림: 새 수신 규칙 `ALL_OPERATORS`(활성 운영자 전원). `MFA_DISABLED` SECURITY·CRITICAL·이메일(끈 사람도 받는다 — 루트 세션을 남이 쓴 경우 알아채게), `MFA_ENABLED` SECURITY·INFO(켠 사람 제외), 링크 `/me?tab=security`.
+  - **「2차 인증 꺼짐」 알림은 「팀에만 보내기」 불가**(2026-10-23 사용자 확정 — 알림 「팀에만 보내기」와의 세션 정리 결정): 누군가 2차 인증을 몰래 껐을 때 모든 운영자가 바로 알아채야 하는 보안 경보라, 받는 범위를 일부 팀으로 줄이면 경보가 닿지 않는 운영자가 생긴다. 400 `fields.defaultRecipients` + 이유 문구, 이벤트 관리 화면은 받는 범위를 잠그고 「보안 경보 — 늘 운영자 전원」 + 이유 툴팁. 「켜짐」 알림은 막지 않는다. 상세는 `notification-contract.md` 「팀에만 보내기」의 예외.
   - 감사 대상 `LOGIN_SECURITY`/`1`. 신뢰 기기 끊기 `cause` = SELF·PASSWORD_CHANGE·PASSWORD_RESET·REENROLL·ACCOUNT_LOCKED. 루트의 화면 초기화는 그 운영자의 `mfa:` 실패 기록도 지운다. 미등록 운영자 초기화도 `RESET` + 감사(`wasEnrolled:false`).
   - 메뉴: `AdminScreenRegistry.Screen` 에 `superOnly`. 메뉴 구성 API 는 원래 화면 권한을 내리지 않아 응답에는 없다 — 셸·메뉴 관리 표시는 admin-web `util-admin-menu.ts` 의 `superOnly`(메뉴 관리 화면은 「최고 관리자만」으로 보인다).
   - 쿠키 `ADMIN_MFA_TRUST` 의 Secure 는 `request.isSecure()` 를 따른다. 저장 시각은 마이크로초로 자른다(DB 반올림 때문에 10분 경계가 흔들렸다).
 
-### 0-3 규칙 → 테스트 (server/admin/src/test, 163개 통과)
+### 0-3 규칙 → 테스트 (server/admin/src/test, 168개 통과)
 | 규칙 | 테스트 |
 |---|---|
 | TOTP RFC 6238 부록 B 벡터·30초 칸, ±1칸 허용·2칸 거절, 같은 코드·옛 칸 재사용 거절 | `TotpTest`, `MfaVerifyTest.OTP`, `MfaEnrollmentTest`(확정 코드 재사용) |
@@ -154,6 +155,7 @@
 | 다시 등록(비밀번호 확인, 확정 전 옛 키 유효, 확정 후 옛 키·코드·기기 무효)·등록 중 10분·이미 등록 409·복구 코드 재발급 | `MfaEnrollmentTest` |
 | **루트만** 설정·**켜려면 루트 본인 등록 먼저**(409)·켜면 유예 시작·바꾼 칸만 감사·범위 검사 | `LoginSecurityTest` |
 | **끌 때 감사 + 심각도 높은 알림**, 켤 때 등록 안내 | `LoginSecurityTest.끄기`·`켜기`, `MfaCatalogTest` |
+| 꺼짐 알림은 「팀에만」 불가(400 + 이유, DB 값이 false 여도 전원에게), 켜짐 알림은 막지 않음, 이유 문구 두 언어 | `MfaDisabledAlertScopeTest`, `MfaCatalogTest.팀에만_보내기를_못_하는…` |
 | **루트가 다른 운영자 OTP 초기화**(본인 409·비루트 403)·운영자 상세 조회 | `MfaRevocationTest` |
 | **설치 직후 꺼짐**·설정 1행·범위 CHECK·해시 유일·연쇄 삭제 | `MfaSchemaTest`(실제 PostgreSQL) |
 | 서버 초기화 명령 `admin_mfa_reset`(감사 SYSTEM·주입 불가)·정리 배치 | `MfaSchemaTest` |
@@ -162,7 +164,7 @@
 | 같은 TOTP·같은 복구 코드를 **동시에** 내면 하나만 통과(서비스 행 잠금 + 저장소 조건부 UPDATE 를 연결 여럿으로) | `MfaConcurrencyTest`(실제 PostgreSQL) |
 | 비밀키·OTP·복구 코드·쿠키 값·암호문·비밀번호가 **서버 로그에 없음**, DTO `toString` 감춤 | `MfaLogSecrecyTest`(실제 필터 체인 흐름 + 출력 캡처) |
 | 신뢰 기기 쿠키: https 면 Secure·HttpOnly·SameSite=Strict·path `/api/admin`·30일, 이 브라우저 기기/모두 끊으면 쿠키 지움, 다른 기기는 그대로 | `MfaTrustCookieHttpTest` |
-- 실행: `JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2 ./gradlew :server:admin:test --rerun --tests 'com.community.mfa.*' --tests 'com.community.permission.config.AdminMfaPendingDeclarationTest' --tests 'com.community.menu.service.AdminScreenRegistryLoginSecurityTest'` → **163 통과·0 실패**.
+- 실행: `JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2 ./gradlew :server:admin:test --rerun --tests 'com.community.mfa.*' --tests 'com.community.permission.config.AdminMfaPendingDeclarationTest' --tests 'com.community.menu.service.AdminScreenRegistryLoginSecurityTest'` → **168 통과·0 실패**(develop b9df197 합친 뒤).
 - **테스트로 막지 못한 것**: 설치 스크립트의 실제 설치 폴더 동작(셸 — `bash -n` + 임시 postgres 에서 psql 부분만 손으로 확인), pg_cron 등록(시험 DB 에 없음 — 정의와 `CALL` 결과만), 운영 세션 쿠키 이름 `ADMIN_SESSION`(목 서블릿은 `SESSION`), 알림 메일·Slack 실제 발송(서랍 알림 행까지만), 운영 서버의 접근·프록시 로그.
 
 ## 미확정

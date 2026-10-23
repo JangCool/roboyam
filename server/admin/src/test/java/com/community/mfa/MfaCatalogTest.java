@@ -86,6 +86,18 @@ class MfaCatalogTest {
     }
 
     @Test
+    void 팀에만_보내기를_못_하는_이벤트는_2차_인증_꺼짐뿐이고_이유가_두_언어에_있다() throws IOException {
+        List<AdminNotificationEvent> locked = java.util.Arrays.stream(AdminNotificationEvent.values()).filter(AdminNotificationEvent::alwaysEveryone).toList();
+
+        assertThat(locked).containsExactly(AdminNotificationEvent.MFA_DISABLED);
+        assertThat(AdminNotificationEvent.MFA_DISABLED.bundleKeys()).contains(AdminNotificationEvent.MFA_DISABLED.alwaysEveryoneReasonKey());
+        assertThat(AdminNotificationEvent.MFA_ENABLED.bundleKeys()).doesNotContain(AdminNotificationEvent.MFA_ENABLED.alwaysEveryoneReasonKey());
+        for (String language : List.of("ko", "en")) {
+            assertThat(bundle(language).getProperty(AdminNotificationEvent.MFA_DISABLED.alwaysEveryoneReasonKey())).as(language).isNotBlank();
+        }
+    }
+
+    @Test
     void 정리_배치가_카탈로그와_번들에_있다() throws IOException {
         BatchCatalog batch = BatchCatalog.ofKey("admin-mfa-cleanup");
 

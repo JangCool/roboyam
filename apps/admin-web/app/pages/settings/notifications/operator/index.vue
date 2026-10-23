@@ -147,6 +147,10 @@
                                         @update:model-value="(value: Scope) => changeScope(data, value)"
                                     />
                                 </span>
+                                <!-- 「팀에만」을 못 하는 경보는 까닭을 짧게 보이고, 전체 이유는 툴팁(서버 문구) -->
+                                <small v-if="data.teamsOnlyBlockedReason" v-tooltip.top="data.teamsOnlyBlockedReason" class="text-[11px] text-muted-color">
+                                    <i class="pi pi-shield mr-1 text-[10px]" aria-hidden="true" />{{ t('notification.scopeAlwaysEveryone') }}
+                                </small>
                                 <!-- 팀을 고를 수 없는 이벤트(본인 전용·필수)는 팀 칸이 없다 — 잠긴 「권한자 전원」과 그 툴팁이 까닭을 말한다 -->
                                 <template v-if="teamsPossible(data) || teamIdsOf(data).length">
                                     <span v-if="teamsLock(data) !== undefined && teamIdsOf(data).length === 0" class="text-[12px] text-muted-color">{{ t('notification.scopeNoTeams') }}</span>
@@ -339,6 +343,8 @@ function scopeLock(event: NotificationEventView): string | undefined {
     if (!event.featureReady) return t('notification.notReadyHint');
     if (event.mandatory) return t('notification.scopeMandatory');
     if (!event.broadcastAllowed) return t('notification.scopeSelfOnly');
+    // 모든 운영자에게 닿아야 하는 보안 경보(2차 인증 꺼짐) — 이유는 서버 문구
+    if (event.teamsOnlyBlockedReason) return event.teamsOnlyBlockedReason;
     // 팀 이름을 못 읽으면(`team.read` 없음) 어느 팀에만 갈지 알 수 없다 — 팀 칸처럼 바꿀 수 없게 둔다
     if (!teams.value) return t('notification.scopeNoTeamRead');
     return undefined;

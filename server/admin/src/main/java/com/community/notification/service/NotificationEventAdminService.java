@@ -157,6 +157,10 @@ public class NotificationEventAdminService {
             if (!event.broadcastAllowed()) {
                 throw ValidationException.of("defaultRecipients", new MessageRef("notification.event.defaultRecipientsSelfOnly"));
             }
+            // 모든 운영자에게 닿아야 하는 보안 경보(2차 인증 꺼짐) — 이벤트마다 이유 문구가 있다
+            if (event.alwaysEveryone()) {
+                throw ValidationException.of("defaultRecipients", new MessageRef(event.alwaysEveryoneReasonKey()));
+            }
         }
         Selection selection = channelsGiven ? parseChannels(request.channels()) : null;
         boolean emailEnabled = channelsGiven ? selection.email() : request.emailEnabled();
@@ -182,7 +186,7 @@ public class NotificationEventAdminService {
         boolean wasEnabled = row.isEnabled();
         boolean wasEmailEnabled = row.isEmailEnabled();
         boolean wasBrowserEnabled = row.isBrowserEnabled();
-        boolean wasDefaultRecipients = !event.broadcastAllowed() || row.isDefaultRecipients();
+        boolean wasDefaultRecipients = !event.broadcastAllowed() || event.alwaysEveryone() || row.isDefaultRecipients();
         List<Long> currentCustom = delivery.channelIdsOf(code);
         List<Long> currentTeams = delivery.teamIdsOf(code);
         boolean defaultRecipients = request.defaultRecipients() == null ? wasDefaultRecipients : request.defaultRecipients();
@@ -364,6 +368,6 @@ public class NotificationEventAdminService {
         return new NotificationEventView(event.code(), event.area().id(), event.severity().kind(), messages.get(new MessageRef(event.nameKey()), locale),
                 messages.get(new MessageRef(event.descriptionKey()), locale), messages.get(new MessageRef(event.recipientsKey()), locale), event.mandatory(),
                 event.emailable(), state.enabled(), state.emailEnabled(), event.featureReady(), sent, channelIds, teamIds.stream().map(String::valueOf).toList(),
-                event.broadcastAllowed(), state.defaultRecipients());
+                event.broadcastAllowed(), state.defaultRecipients(), event.alwaysEveryone() ? messages.get(new MessageRef(event.alwaysEveryoneReasonKey()), locale) : null);
     }
 }

@@ -90,6 +90,7 @@ export default {
     scopeMandatory: 'Required events go to everyone with access.',
     scopeSelfOnly: 'This notification goes only to the person it is about, so its recipients cannot be changed.',
     scopeNoTeamRead: 'You do not have permission to view teams, so the recipients cannot be changed.',
+    scopeAlwaysEveryone: 'Security alert — always every operator',
     adminDeliverySaved: '{name}: delivery settings saved',
     // Why this tool cannot be newly picked for this event (shown next to the option)
     channelBlocked: {
