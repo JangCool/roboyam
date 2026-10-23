@@ -1,0 +1,382 @@
+/*
+ * 본문(리치 텍스트) 모양 — 글 보기·댓글 보기의 서버 HTML(`v-html`)과 에디터(TipTap)가 **같은 모양**을 쓴다(쓰는 대로 보인다).
+ * `v-html` 로 그려진 것과 에디터 안 요소는 컴포넌트 스타일(scoped)이 닿지 않아 전역 클래스 하나로 둔다. 층(@layer) 밖 규칙이라 Tailwind 기본값(목록 점 없음 등)을 이긴다.
+ * community `layers/rich-editor/app/assets/css/rich-text.css` 에서 로보얌 에디터가 만드는 것만 남겼다(표·작업 목록·형광펜·첨자·이모티콘·GIF 정지는 뺐다).
+ * 색은 PrimeVue 토큰(`--p-*`)을 써서 다크 모드(`html[data-color-scheme='dark']`)를 따라간다.
+ */
+
+.rich-text {
+    line-height: 1.75;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+}
+
+.rich-text > :first-child {
+    margin-top: 0;
+}
+
+.rich-text > :last-child {
+    margin-bottom: 0;
+}
+
+.rich-text p {
+    margin: 0.75em 0;
+}
+
+.rich-text h2,
+.rich-text h3 {
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.rich-text h2 {
+    margin: 1.6em 0 0.5em;
+    font-size: 1.25em;
+}
+
+.rich-text h3 {
+    margin: 1.4em 0 0.4em;
+    font-size: 1.1em;
+}
+
+.rich-text ul,
+.rich-text ol {
+    margin: 0.75em 0;
+    padding-left: 1.5em;
+}
+
+.rich-text ul {
+    list-style: disc;
+}
+
+.rich-text ol {
+    list-style: decimal;
+}
+
+.rich-text li {
+    margin: 0.25em 0;
+}
+
+.rich-text li > p {
+    margin: 0;
+}
+
+.rich-text blockquote {
+    margin: 1em 0;
+    padding: 0.1em 0 0.1em 1em;
+    border-left: 3px solid color-mix(in srgb, var(--p-text-color) 25%, transparent);
+    color: var(--p-text-muted-color);
+}
+
+.rich-text code {
+    padding: 0.1em 0.35em;
+    border-radius: 0.3em;
+    background: color-mix(in srgb, var(--p-text-color) 9%, transparent);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9em;
+}
+
+.rich-text pre {
+    margin: 1em 0;
+    padding: 0.75em 1em;
+    overflow-x: auto;
+    border-radius: 0.5em;
+    background: color-mix(in srgb, var(--p-text-color) 9%, transparent);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.875em;
+    line-height: 1.6;
+    word-break: normal;
+    overflow-wrap: normal;
+    white-space: pre;
+}
+
+.rich-text pre code {
+    padding: 0;
+    background: none;
+    font-size: inherit;
+}
+
+.rich-text a {
+    color: var(--p-primary-color);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.rich-text hr {
+    margin: 1.5em 0;
+    border: 0;
+    border-top: 1px solid var(--p-content-border-color);
+}
+
+/* 배경색만 있는 글은 어두운 글자로 그려 밝은 배경 위에서 읽히게 한다(다크 모드 포함). 글자색이 같이 있으면 인라인 color 가 이긴다 */
+.rich-text span[style*='background-color'] {
+    padding: 0 0.15em;
+    border-radius: 0.2em;
+    color: #0f172a;
+}
+
+/* 블록 끌기 손잡이(⋮⋮, TipTap DragHandle) — 마우스 화면에서만 보인다 */
+.rt-drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.5rem;
+    border-radius: 0.3rem;
+    color: var(--p-text-muted-color);
+    font-size: 0.75rem;
+    cursor: grab;
+}
+
+.rt-drag-handle:hover {
+    background: color-mix(in srgb, var(--p-text-color) 9%, transparent);
+}
+
+.rt-drag-handle:active {
+    cursor: grabbing;
+}
+
+@media (hover: none) {
+    .rt-drag-handle {
+        display: none;
+    }
+}
+
+/* ── 에디터(ProseMirror) ── */
+
+.rich-text.ProseMirror {
+    outline: none;
+    white-space: pre-wrap;
+}
+
+.rich-text.ProseMirror pre {
+    white-space: pre;
+}
+
+.rich-text.ProseMirror a {
+    cursor: text;
+}
+
+/* ── 이미지·유튜브 ──
+ * 글 보기(`UtilRichBody.enhance` 가 서버 HTML 을 DOM API 로 손질한 것)와 에디터의 노드 화면(`editor/*`)이 같이 쓴다. 클래스는 `rt-` 로 시작한다.
+ * 크기는 `width`·`height` 속성(글 보기) 또는 `aspect-ratio`(자리표시)로 미리 잡아 화면이 밀리지 않는다.
+ */
+
+.rich-text img[data-image-id] {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0.75em 0;
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--p-text-color) 6%, transparent);
+}
+
+/* 이미지를 불러오지 못했을 때의 자리 */
+.rt-img-fail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    box-sizing: border-box;
+    width: 100%;
+    margin: 0.75em 0;
+    padding: 0 0.75rem;
+    border: 1px dashed var(--p-red-500);
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--p-text-color) 5%, transparent);
+    color: var(--p-text-muted-color);
+    font-size: 0.75rem;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.rt-img-fail b {
+    color: var(--p-red-600);
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+html[data-color-scheme='dark'] .rt-img-fail b {
+    color: var(--p-red-400);
+}
+
+/* 유튜브 — 썸네일 + 재생 단추(누르면 iframe 으로 바뀐다). 16:9 자리를 미리 잡는다 */
+.rt-yt {
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    margin: 0.75em 0;
+    overflow: hidden;
+    border-radius: 0.5rem;
+    background: #000;
+}
+
+.rt-yt img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    border-radius: 0;
+    object-fit: cover;
+}
+
+.rt-yt-play {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.rt-yt-play:focus-visible {
+    outline: 2px solid var(--p-primary-color);
+    outline-offset: -3px;
+}
+
+.rt-yt-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 3.5rem;
+    height: 2.5rem;
+    transform: translate(-50%, -50%);
+    border-radius: 0.75rem;
+    background: rgb(0 0 0 / 0.72);
+    pointer-events: none;
+}
+
+.rt-yt-icon::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-35%, -50%);
+    border-style: solid;
+    border-width: 0.55rem 0 0.55rem 0.9rem;
+    border-color: transparent transparent transparent #fff;
+}
+
+.rt-yt iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.rt-yt-label {
+    position: absolute;
+    left: 0.5rem;
+    bottom: 0.5rem;
+    padding: 0 0.375rem;
+    border-radius: 0.25rem;
+    background: rgb(0 0 0 / 0.65);
+    color: #fff;
+    font-size: 0.6875rem;
+    line-height: 1.25rem;
+}
+
+/* ── 에디터 안의 이미지·유튜브 노드 ── */
+
+.rt-figure {
+    margin: 0.75em 0;
+}
+
+.rt-figure-box {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    line-height: 0;
+    vertical-align: top;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.rt-figure-box img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0;
+    border-radius: 0.5rem;
+}
+
+.rt-figure-box--broken {
+    min-width: 12rem;
+    min-height: 6rem;
+    background: color-mix(in srgb, var(--p-text-color) 6%, transparent);
+}
+
+.rt-figure-box--broken img {
+    opacity: 0; /* 깨진 그림 아이콘과 대체 글자가 안내 문구와 겹치지 않게 */
+}
+
+.rt-figure-broken {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 0.5rem;
+    color: var(--p-text-muted-color);
+    font-size: 0.75rem;
+    line-height: 1.4;
+    text-align: center;
+}
+
+.rt-figure-broken[hidden] {
+    display: none;
+}
+
+.rt-figure .rt-yt {
+    margin: 0;
+}
+
+.rt-figure.ProseMirror-selectednode .rt-figure-box,
+.rt-figure.ProseMirror-selectednode .rt-yt {
+    outline: 2px solid var(--p-primary-color);
+    outline-offset: 2px;
+}
+
+.rt-remove {
+    position: absolute;
+    top: 0.375rem;
+    right: 0.375rem;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: 9999px;
+    background: rgb(0 0 0 / 0.65);
+    color: #fff;
+    font-size: 0.75rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.rt-remove:hover {
+    background: rgb(0 0 0 / 0.85);
+}
+
+.rt-remove:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 1px;
+    box-shadow: 0 0 0 4px var(--p-primary-color);
+}
+
+/* 손가락으로 누르는 화면에서는 ✕ 를 크게 */
+@media (pointer: coarse) {
+    .rt-remove {
+        width: 2.25rem;
+        height: 2.25rem;
+        font-size: 0.875rem;
+    }
+}

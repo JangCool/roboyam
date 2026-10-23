@@ -37,10 +37,14 @@ export interface BoardView {
     /** 읽기 전용 잠금 — `POST` 새 글만 막음 · `POST_COMMENT` 새 글·새 댓글 막음 · `null` 잠금 없음. 글은 그대로 읽을 수 있다. 서버가 아직 안 주면(옛 응답) `undefined` */
     writeLock?: BoardWriteLock | null;
     /**
-     * 글쓰기·수정 에디터에서 새 이미지를 올릴 수 있는가(유효값, `docs/api-board-settings.md` 16절, ADM-043) — 거짓이면 이미지 단추·올리기 띠·붙여넣기·끌어놓기를 막는다.
-     * 서버가 아직 안 주면(옛 응답) `undefined` — 그때는 허용으로 본다(`UtilMedia.imageUploadAllowed`)
+     * 글쓰기·수정 에디터에서 새 이미지를 올릴 수 있는가(유효값) — 고급 에디터(`postEditor === 'ADVANCED'`)에서만 뜻이 있다. 거짓이면 이미지 단추·올리기 띠·붙여넣기·끌어놓기를 막는다.
+     * 서버가 아직 안 주면(옛 응답) `undefined` — 그때는 **허용 안 함**으로 본다(`UtilBoard.imageUploadOn`, 공개 게시판 계약 「에디터 화면」)
      */
     imageUploadAllowed?: boolean;
+    /** 글 에디터 수준(유효값) — `NONE` 평문 Textarea · `SIMPLE` 간단 · `ADVANCED` 고급. 서버가 아직 안 주면(옛 응답) `undefined` — `NONE` 으로 본다 */
+    postEditor?: PostEditorLevel;
+    /** 댓글 에디터 수준(유효값) — `NONE` 평문 · `SIMPLE` 간단. 서버가 아직 안 주면(옛 응답) `undefined` — `NONE` 으로 본다 */
+    commentEditor?: CommentEditorLevel;
     /** 목록 모양 — `LIST` 글 행 · `CARD` 썸네일 카드(핫딜 같은 카드) · `GALLERY` 썸네일 격자(사진·영상). slug 로 짐작하지 않는다 */
     layout: BoardLayout;
     /**
@@ -65,6 +69,11 @@ export interface BoardView {
     /** 운영자가 고른 게시판 표시색의 프리셋 이름 또는 null(자동 — 화면이 순서로 정한다). 서버가 아직 안 주면(옛 응답) `undefined` */
     color?: string | null;
 }
+
+/** 글 에디터 수준(관리자 게시판 설정 `postEditor`) — 평문 · 간단 · 고급 */
+export type PostEditorLevel = 'NONE' | 'SIMPLE' | 'ADVANCED';
+/** 댓글 에디터 수준(관리자 게시판 설정 `commentEditor`) — 평문 · 간단 */
+export type CommentEditorLevel = 'NONE' | 'SIMPLE';
 
 /**
  * 게시판 목록 모양 — `LIST` 목록형(제목이 한 줄씩) · `CARD` 카드형(제목·요약 카드, 핫딜처럼) · `GALLERY` 갤러리형(사진·영상 썸네일 격자, 홈의 갤러리 가젯에 쓸 수 있다).

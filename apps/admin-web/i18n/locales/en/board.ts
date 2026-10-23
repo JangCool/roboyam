@@ -113,7 +113,7 @@ export default {
     // ── Sections ──
     section: {
         display: 'Display',
-        write: 'Write access',
+        write: 'Write access & editor',
         rate: 'Posting rate',
         list: 'List & exposure',
         attachment: 'Attachment cleanup',
@@ -149,7 +149,7 @@ export default {
     },
     sectionLead: {
         display: 'How post times are shown in board lists and posts.',
-        write: 'Who can write posts and comments. Members always need sign-in, a verified email and not being suspended.',
+        write: 'Who can write posts and comments, and with which editor. Members always need sign-in, a verified email and not being suspended.',
         rate: 'Intervals and daily limits against flooding. Not set per board.',
         list: 'Posts per page, pinned notices, and whether to include in search engines, site search and home.',
         attachment: 'When attachments of deleted posts are removed for good.',
@@ -165,7 +165,9 @@ export default {
         dateDisplay: 'Date display',
         writeMin: 'Who can post',
         commentMin: 'Who can comment',
+        postEditor: 'Post editor',
         imageUploadAllowed: 'Image upload in editor',
+        commentEditor: 'Comment editor',
         postGapSeconds: 'Post interval',
         postDailyLimit: 'Posts per day',
         commentGapSeconds: 'Comment interval',
@@ -248,7 +250,9 @@ export default {
         dateDisplay: 'How post times are shown.',
         writeMin: 'The first grade means every member with a verified email. "Everyone incl. guests" is chosen per board only.',
         commentMin: 'Replies too. "Off" stops new comments (existing ones stay visible).',
-        imageUploadAllowed: 'When off, images cannot be uploaded in the editor.',
+        postEditor: 'Plain text is a box without formatting. Simple adds bold, italic, underline, strikethrough, links, lists and quotes; Advanced adds headings, dividers, code, colors, images and YouTube. Existing posts switch when they are next edited.',
+        imageUploadAllowed: 'Lets members upload images in the Advanced post editor. When off, the upload button, drag and drop and paste are removed (guests can never upload).',
+        commentEditor: 'Simple allows only bold, italic, underline, strikethrough, links, lists and quotes (no images).',
         postGapSeconds: 'Wait time before the same member can post again. 0 means no limit.',
         postDailyLimit: 'Posts one member can write per day.',
         commentGapSeconds: 'Wait time before the same member can comment again. 0 means no limit.',
@@ -321,6 +325,15 @@ export default {
             STANDARD: 'Standard',
             RELATIVE: 'Relative',
         },
+        postEditor: {
+            NONE: 'Plain text',
+            SIMPLE: 'Simple',
+            ADVANCED: 'Advanced',
+        },
+        commentEditor: {
+            NONE: 'Plain text',
+            SIMPLE: 'Simple',
+        },
         pointMode: {
             ON: 'Award by rules',
             OFF: 'No points',
@@ -388,6 +401,7 @@ export default {
         rejectionOff: 'Not used while the rejection limit is 0 (off).',
         wordsOff: 'Not used while the blocked word check is off.',
         guestOff: 'Not used while guest post retention is 0 (no processing).',
+        imageEditor: 'Images are uploaded only in the Advanced post editor. Not used while the post editor is Plain text or Simple.',
     },
 
     // ── Section notes ──

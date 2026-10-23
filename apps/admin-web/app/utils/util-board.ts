@@ -9,6 +9,7 @@ import type {
     BoardListItem,
     BoardPolicy,
     BoardPolicyField,
+    BoardPostEditor,
     BoardPrefix,
     BoardPrefixSaveItem,
     BoardSaveRequest,
@@ -122,7 +123,9 @@ const SPECS: Record<BoardDefaultsField, BoardFieldSpec> = {
     dateDisplay: { field: 'dateDisplay', kind: 'dateDisplay', choices: ['STANDARD', 'RELATIVE'], overridable: false, permission: 'board.settings' },
     writeMin: { field: 'writeMin', kind: 'writeMin', overridable: true, permission: 'board.settings' },
     commentMin: { field: 'commentMin', kind: 'commentMin', overridable: true, permission: 'board.settings' },
+    postEditor: { field: 'postEditor', kind: 'choice', choices: ['NONE', 'SIMPLE', 'ADVANCED'], overridable: true, permission: 'board.settings' },
     imageUploadAllowed: { field: 'imageUploadAllowed', kind: 'bool', overridable: true, permission: 'board.settings' },
+    commentEditor: { field: 'commentEditor', kind: 'choice', choices: ['NONE', 'SIMPLE'], overridable: true, permission: 'board.settings' },
     postGapSeconds: { field: 'postGapSeconds', kind: 'number', min: 0, max: 3600, unit: 'seconds', overridable: false, permission: 'board.settings' },
     postDailyLimit: { field: 'postDailyLimit', kind: 'number', min: 1, max: 1000, unit: 'count', overridable: false, permission: 'board.settings' },
     commentGapSeconds: { field: 'commentGapSeconds', kind: 'number', min: 0, max: 3600, unit: 'seconds', overridable: false, permission: 'board.settings' },
@@ -215,7 +218,7 @@ export type BoardTabForm<T> = { [K in keyof T]: T[K] extends number ? string : T
 /** 기본 설정 화면의 구획 — 구획 주소(`anchor`) → 칸들. 「고정 규칙」 구획은 칸이 없어 여기 없다 */
 const DEFAULT_SECTIONS = {
     'defaults-display': ['dateDisplay'],
-    'defaults-write': ['writeMin', 'commentMin', 'imageUploadAllowed'],
+    'defaults-write': ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor'],
     'defaults-rate': ['postGapSeconds', 'postDailyLimit', 'commentGapSeconds', 'commentDailyLimit'],
     'defaults-list': ['listSize', 'pinnedMax', 'indexable', 'searchable', 'inHome'],
     'defaults-attachment': ['attachmentPurgeEnabled', 'attachmentRetentionDays'],
@@ -442,8 +445,9 @@ export default class UtilBoard {
     static policyFormOf(policy: BoardPolicy): BoardPolicyForm {
         const form = { ...policy } as unknown as Record<BoardPolicyField, BoardFieldValue>;
         for (const field of BOARD_POLICY_FIELDS) {
-            const value = policy[field];
-            if (UtilBoard.isNum(field)) form[field] = value === null ? null : String(value);
+            // 서버가 아직 주지 않는 칸(새 칸을 서버보다 먼저 배포한 경우 — 에디터 칸 등)은 「기본값 따름」(null)으로 본다
+            const value = policy[field] ?? null;
+            form[field] = UtilBoard.isNum(field) && value !== null ? String(value) : value;
         }
         return form as BoardPolicyForm;
     }
@@ -472,6 +476,15 @@ export default class UtilBoard {
             out[field] = UtilBoard.parse(value);
         }
         return out as BoardPolicy;
+    }
+
+    /**
+     * 이미지 올리기 칸이 지금 쓰이지 않는가 — 이미지는 고급 글 에디터에서만 올린다(간단 에디터는 이미지 태그를 만들지 않고, 평문은 에디터가 없다. 공개 게시판 계약 「에디터 화면」).
+     * @param {BoardPostEditor | undefined} postEditor - 유효 글 에디터(서버가 아직 안 주면 undefined — 그때는 끄지 않는다).
+     * @returns {boolean} 고급이 아니면 true.
+     */
+    static imageUploadIdle(postEditor: BoardPostEditor | undefined): boolean {
+        return postEditor !== undefined && postEditor !== 'ADVANCED';
     }
 
     /** 기본값과 다르게 정한(기본값 따름이 아닌) 정책 칸 수 — 잠금이 걸려 있으면 1을 더한다(잠금도 기본값과 다른 설정이다) */
@@ -560,7 +573,7 @@ export default class UtilBoard {
         const prefix = diff(form.commonPrefixes, base.commonPrefixes) + diff(form.prefixes.map(UtilBoard.prefixKey), base.prefixes.map(UtilBoard.prefixKey));
         return {
             basic,
-            write: policyDiff(['writeMin', 'commentMin', 'imageUploadAllowed']) + diff(form.writeLock, base.writeLock),
+            write: policyDiff(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor']) + diff(form.writeLock, base.writeLock),
             prefix,
             guide: diff(form.introText, base.introText) + diff(form.writeGuideText, base.writeGuideText),
             exposure: policyDiff(['listSize', 'pinnedMax', 'indexable', 'searchable', 'inHome']),

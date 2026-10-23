@@ -16,3 +16,5 @@
   1. `extends` 에 추가한다.
   2. 서버에서 받은 표시 값을 `useDisplay().setDisplay({ language, zoneId, timeFormat, dateFormat })` 로 채운다(서비스 시간대는 `setServiceZone`). 서버 호출은 앱의 `useDisplayApi` 한 겹이다.
   3. 시각은 UTC ISO 로 저장하고 `const time = useDisplayTime()` 의 `time.listLabel(iso)`·`time.full(iso)` 로 그린다(`UtilTime` 직접 호출·날짜 직접 조립 금지). 시각 입력은 `<AppDateTimePicker v-model="iso" />`(순간 ISO), 시간대와 무관한 날짜는 `<AppDatePicker v-model="ymd" />`(`YYYY-MM-DD`). 표시 값 입력은 `<DisplayValueForm v-model="values" />`(값만 주고받고 저장·서버 호출은 앱 화면이 한다). 표시 값이 바뀌면 형식·시간대가 같이 바뀐다.
+* **`@roboyam/rich-editor`** — 서식 에디터(TipTap, `@tiptap/*` 는 이 패키지의 의존). `<RichEditor v-model="html" level="SIMPLE|ADVANCED" :image-upload :upload="fn" />` — 레이어는 서버를 부르지 않으므로 이미지 올리기 함수는 앱이 API 컴포저블로 만들어 넘긴다. 보기는 서버가 정화한 HTML 을 `.rich-text` 요소에 `v-html` 로 넣고 `UtilRichBody.enhance(t, el)`(유튜브·이미지 손질). 글자 수·형식 바꾸기는 `UtilRichText`. 계약은 `docs/features/board-public-contract.md` 「에디터 화면」.
+* ⚠ **Tailwind 는 앱 폴더 밖(레이어)을 저절로 훑지 않는다** — 레이어 컴포넌트가 앱에 없는 클래스를 쓰면 앱 `main.css` 에 `@source '<레이어 경로>'` 를 둔다(user-web 은 rich-editor 를 걸었다).

@@ -1,0 +1,27 @@
+{
+    "name": "@roboyam/rich-editor",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "description": "user-web · admin-web 이 같이 쓰는 서식 에디터(TipTap) Nuxt 레이어 — 수준별(간단·고급) 도구 모음·확장, 이미지 블록·올리기 목록·드롭존, 유튜브 블록, 드래그 핸들, 본문 모양(rich-text.css)과 보기 손질",
+    "main": "./nuxt.config.ts",
+    "dependencies": {
+        "@roboyam/i18n": "workspace:*",
+        "@tiptap/extension-drag-handle": "3.31.3",
+        "@tiptap/extension-drag-handle-vue-3": "3.31.3",
+        "@tiptap/extension-text-style": "3.31.3",
+        "@tiptap/pm": "3.31.3",
+        "@tiptap/starter-kit": "3.31.3",
+        "@tiptap/vue-3": "3.31.3"
+    },
+    "peerDependencies": {
+        "nuxt": "^4.6.2",
+        "primevue": "^5.0.2",
+        "vue": "^3.5.0"
+    },
+    "devDependencies": {
+        "nuxt": "4.6.2",
+        "primevue": "5.0.2",
+        "vue": "3.5.44"
+    }
+}

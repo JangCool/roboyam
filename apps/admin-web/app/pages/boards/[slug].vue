@@ -132,9 +132,9 @@
                 </AppGadget>
 
                 <!-- 2. 글쓰기·댓글 -->
-                <AppGadget :title="t('board.section.boardWrite')" anchor="board-write" :changes="changes.write" :invalid="invalidOf(['writeMin', 'commentMin', 'imageUploadAllowed', 'writeLock'])">
+                <AppGadget :title="t('board.section.boardWrite')" anchor="board-write" :changes="changes.write" :invalid="invalidOf(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor', 'writeLock'])">
                     <div class="grid gap-x-8 gap-y-5 md:grid-cols-2">
-                        <BoardSettingField v-for="field in WRITE_FIELDS" :key="field" v-bind="policyBind(field)" :allow-guest="UtilBoard.guestAllowed(saved.kind)" :exclude-grades="field === 'writeMin' && saved.kind === 'DEAL' && firstGradeKey ? [firstGradeKey] : []" :note="writeNote(field)" @update:model-value="(value: BoardFieldValue) => onPolicy(field, value)" />
+                        <BoardSettingField v-for="field in WRITE_FIELDS" :key="field" v-bind="policyBind(field)" :allow-guest="UtilBoard.guestAllowed(saved.kind)" :exclude-grades="field === 'writeMin' && saved.kind === 'DEAL' && firstGradeKey ? [firstGradeKey] : []" :inactive="writeInactive(field)" :note="writeNote(field)" @update:model-value="(value: BoardFieldValue) => onPolicy(field, value)" />
 
                         <div class="flex flex-col gap-1.5">
                             <span :id="`${idBase}-lock`" class="text-sm font-medium">{{ t('board.field.writeLock') }}</span>
@@ -416,7 +416,7 @@ const canStaffLimit = computed(() => can('board.staff.limit'));
 const canStaffManage = computed(() => can('board.staff.manage'));
 const canDelete = computed(() => can('board.delete'));
 
-const WRITE_FIELDS = ['writeMin', 'commentMin', 'imageUploadAllowed'] as const;
+const WRITE_FIELDS = ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor'] as const;
 const EXPOSURE_FIELDS = ['listSize', 'pinnedMax', 'indexable', 'searchable', 'inHome'] as const;
 const PROTECT_FIELDS = ['commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes', 'pointMode'] as const;
 const STAFF_LIMIT_FIELDS = ['managerMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit'] as const;
@@ -544,8 +544,15 @@ function clearServer(field: string) {
     serverFields.value = rest;
 }
 
-/** 잠금이 걸리면 최소 자격 칸은 지금 쓰이지 않는다 */
+/** 이미지 올리기는 고급 글 에디터에서만 쓰인다 — 유효 글 에디터가 평문·간단이면 칸을 끄고 까닭을 보인다(값은 그대로 저장된다) */
+function writeInactive(field: (typeof WRITE_FIELDS)[number]): boolean {
+    if (field !== 'imageUploadAllowed' || !form.value || !saved.value) return false;
+    return UtilBoard.imageUploadIdle(UtilBoard.effective(form.value.policy, saved.value.defaults, 'postEditor'));
+}
+
+/** 잠금이 걸리면 최소 자격 칸은 지금 쓰이지 않는다 · 이미지 올리기는 고급 에디터가 아니면 쓰이지 않는다 */
 function writeNote(field: (typeof WRITE_FIELDS)[number]): string {
+    if (writeInactive(field)) return t('board.inactiveNote.imageEditor');
     const lock = form.value?.writeLock;
     if (!lock) return '';
     if (field === 'writeMin' || (field === 'commentMin' && lock === 'POST_COMMENT')) return t('board.lockedNote');

@@ -1,7 +1,8 @@
 <template>
     <!--
         글쓰기 `/write?board=slug` — 게시판 고르기(쓸 수 있는 게시판만, `?board` 로 미리 선택) → 말머리·제목·본문·이미지 자리·19금 → 비회원이면 이름·비밀번호·자동입력 방지 → 등록 후 글 보기로.
-        community 대비: 임시저장·글 유형(사진·영상·AI)·투표·핫딜/리뷰 칸·소모임 글·예약 발행·에디터를 뺐다(본문은 평문 Textarea — 에디터는 후속).
+        community 대비: 임시저장·글 유형(사진·영상·AI)·투표·핫딜/리뷰 칸·소모임 글·예약 발행을 뺐다. 본문은 게시판 글 에디터 설정(평문 Textarea / 간단·고급 서식 에디터)을 따르고,
+          에디터 설정이 다른 게시판으로 바꾸면 쓰던 본문을 그 형식으로 바꿔 들고 간다(평문 ↔ HTML — HTML → 평문은 서식·이미지가 빠진다).
           비회원 글쓰기(`writeMin = GUEST` 게시판)를 더했다.
         가정: 쓸 수 있는 게시판 목록은 서버가 판정해 준다(`GET /api/boards/writable` 후보). `?board` 가 쓸 수 없는 게시판이면 그 까닭을 보인다.
           금지어·작성 간격·하루 한도·같은 글 반복은 서버가 거절하고 그 문구를 폼 아래에 그대로 보인다. 저장하지 않고 나가면 확인을 묻는다.
@@ -44,6 +45,7 @@
                 :form-error="formError"
                 :submitting="submitting"
                 :submit-label="t('post.submitCreate')"
+                :upload="uploadImage"
                 @submit="submit"
                 @cancel="cancel"
             />
@@ -52,8 +54,10 @@
 </template>
 
 <script setup lang="ts">
+import type { RichImageUploader } from '#layers/rich-editor/components/RichEditor.types';
 import type { BoardDetail, BoardView, WriteBlockedReason } from '~/composables/board/api/useBoardApi.types';
 import { EMPTY_POST_FORM, type PostBoardOption, type PostFormValues } from '~/components/board/PostEditorForm.types';
+import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilPost from '~/utils/util-post';
 
@@ -70,6 +74,9 @@ const { prompt } = useLoginPrompt();
 const { localizedName } = useLocalizedName();
 const { user } = useAuth();
 const current = useCurrentBoard();
+const imageApi = useImageApi();
+/** 에디터 이미지 올리기 — 서버 호출은 API 컴포저블 한 겹(폼·에디터는 이 함수만 받는다) */
+const uploadImage: RichImageUploader = (file, options) => imageApi.upload(file, options);
 
 const requestedSlug = computed(() => (typeof route.query.board === 'string' ? route.query.board : ''));
 
@@ -139,6 +146,9 @@ async function loadBoard(): Promise<void> {
         // 다른 게시판의 말머리·19금 표시는 들고 가지 않는다
         if (form.value.prefixId && !detail.prefixes.some((p) => p.id === form.value.prefixId)) form.value = { ...form.value, prefixId: null };
         if (!detail.allowAdult && form.value.adult) form.value = { ...form.value, adult: false };
+        // 본문 형식은 게시판 글 에디터 설정을 따른다 — 다르면 쓰던 본문을 바꿔 들고 간다
+        const format = UtilBoard.postFormat(detail);
+        if (form.value.contentFormat !== format) form.value = { ...form.value, content: UtilPost.convertContent(form.value.content, form.value.contentFormat, format), contentFormat: format };
     } catch (e) {
         if (mine !== boardRequest) return;
         boardError.value = UtilBoardMessages.of(t, e);
@@ -158,7 +168,7 @@ const submitting = ref(false);
 /** 등록을 마쳤다 — 나가기 확인을 묻지 않는다 */
 let saved = false;
 
-const dirty = computed(() => form.value.title.trim() !== '' || form.value.content.trim() !== '');
+const dirty = computed(() => form.value.title.trim() !== '' || UtilPost.hasContent(form.value.content, form.value.contentFormat));
 
 async function submit(): Promise<void> {
     const b = board.value;
@@ -171,7 +181,9 @@ async function submit(): Promise<void> {
             boardSlug: b.slug,
             prefixId: form.value.prefixId,
             title: form.value.title.trim(),
-            content: form.value.content.trim(),
+            // 에디터 HTML 은 그대로 보낸다(서버가 정화한다), 평문은 앞뒤 공백을 뗀다
+            content: form.value.contentFormat === 'HTML' ? form.value.content : form.value.content.trim(),
+            contentFormat: form.value.contentFormat,
             adult: b.allowAdult && form.value.adult,
             guest: b.viewer.guest ? { name: form.value.guestName.trim(), password: form.value.guestPassword, captchaToken: form.value.captcha ? UtilPost.PLACEHOLDER_CAPTCHA_TOKEN : '' } : null,
         });
@@ -181,6 +193,7 @@ async function submit(): Promise<void> {
         await router.replace(`/posts/${result.id}`);
     } catch (e) {
         if (e instanceof ApiError && e.code === 'UNAUTHENTICATED') prompt('write');
+        else if (e instanceof ApiError && e.code === 'IMAGE_UPLOAD_NOT_ALLOWED') fieldErrors.value = { content: e.message }; // 이미지를 막은 게시판 — 본문 칸 아래에 서버 문구
         else if (e instanceof ApiError && e.code === 'VALIDATION' && e.fields && Object.keys(e.fields).length) fieldErrors.value = { ...e.fields };
         else formError.value = UtilBoardMessages.of(t, e);
     } finally {

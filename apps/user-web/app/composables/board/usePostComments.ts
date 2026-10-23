@@ -1,5 +1,5 @@
 import type { CommentListResponse, CommentSort, CommentView, CommentWriteRequest } from '~/composables/board/api/useCommentApi.types';
-import type { GuestCredentials } from '~/composables/board/api/usePostApi.types';
+import type { ContentFormat, GuestCredentials } from '~/composables/board/api/usePostApi.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
 
 /**
@@ -45,15 +45,15 @@ export function usePostComments(postId: MaybeRef<string>) {
         void load();
     }
 
-    async function create(content: string, target: { parentId: string | null; replyToId: string | null }, guest: GuestCredentials | null): Promise<CommentView> {
-        const body: CommentWriteRequest = { content, parentId: target.parentId, replyToId: target.replyToId, guest };
+    async function create(content: string, contentFormat: ContentFormat, target: { parentId: string | null; replyToId: string | null }, guest: GuestCredentials | null): Promise<CommentView> {
+        const body: CommentWriteRequest = { content, contentFormat, parentId: target.parentId, replyToId: target.replyToId, guest };
         const created = await api.create(toValue(postId), body);
         await load();
         return created;
     }
 
-    async function update(id: string, content: string, password: string | null): Promise<void> {
-        await api.update(id, { content, password });
+    async function update(id: string, content: string, contentFormat: ContentFormat, password: string | null): Promise<void> {
+        await api.update(id, { content, contentFormat, password });
         await load();
     }
 

@@ -1,5 +1,6 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
-import type { BoardView, PrefixView } from '~/composables/board/api/useBoardApi.types';
+import type { BoardView, CommentEditorLevel, PostEditorLevel, PrefixView } from '~/composables/board/api/useBoardApi.types';
+import type { ContentFormat } from '~/composables/board/api/usePostApi.types';
 import UtilColor from '~/utils/util-color';
 
 /**
@@ -194,5 +195,47 @@ export default class UtilBoard {
      */
     static selectablePrefixes(board: Pick<BoardView, 'prefixes'>, isStaff: boolean): PrefixView[] {
         return board.prefixes.filter((p) => isStaff || !p.staffOnly);
+    }
+
+    // ── 에디터(공개 게시판 계약 「에디터 화면」) — 서버 유효값. 모르는 값·옛 응답(칸 없음)은 평문/허용 안 함으로 본다 ─
+
+    /**
+     * 글 에디터 수준 — `NONE` 이면 Textarea, 아니면 그 수준의 에디터.
+     * @param {Pick<BoardView, 'postEditor'>} board - 게시판.
+     * @returns {PostEditorLevel} 수준.
+     */
+    static postEditor(board: Pick<BoardView, 'postEditor'> | null | undefined): PostEditorLevel {
+        const value = board?.postEditor;
+        return value === 'SIMPLE' || value === 'ADVANCED' ? value : 'NONE';
+    }
+
+    /**
+     * 댓글 에디터 수준 — `NONE` 이면 Textarea, `SIMPLE` 이면 간단 에디터.
+     * @param {Pick<BoardView, 'commentEditor'>} board - 게시판.
+     * @returns {CommentEditorLevel} 수준.
+     */
+    static commentEditor(board: Pick<BoardView, 'commentEditor'> | null | undefined): CommentEditorLevel {
+        return board?.commentEditor === 'SIMPLE' ? 'SIMPLE' : 'NONE';
+    }
+
+    /** 이 게시판의 새 글·고친 글 본문 형식 — 에디터면 `HTML` */
+    static postFormat(board: Pick<BoardView, 'postEditor'> | null | undefined): ContentFormat {
+        return UtilBoard.postEditor(board) === 'NONE' ? 'TEXT' : 'HTML';
+    }
+
+    /** 이 게시판의 새 댓글·고친 댓글 본문 형식 */
+    static commentFormat(board: Pick<BoardView, 'commentEditor'> | null | undefined): ContentFormat {
+        return UtilBoard.commentEditor(board) === 'NONE' ? 'TEXT' : 'HTML';
+    }
+
+    /**
+     * 에디터에서 새 이미지를 올릴 수 있는가 — 고급 에디터 + 게시판 허용 + 회원(비회원 글쓰기·비회원 글 고치기는 감춘다 — `POST /api/images` 는 회원만).
+     * 감추는 것은 편의이고 막는 것은 서버다(`422 IMAGE_UPLOAD_NOT_ALLOWED`).
+     * @param {Pick<BoardView, 'postEditor' | 'imageUploadAllowed'>} board - 게시판.
+     * @param {boolean} guest - 비회원으로 쓰거나 비회원 글을 고친다.
+     * @returns {boolean} 올릴 수 있으면 true.
+     */
+    static imageUploadOn(board: Pick<BoardView, 'postEditor' | 'imageUploadAllowed'> | null | undefined, guest: boolean): boolean {
+        return !guest && UtilBoard.postEditor(board) === 'ADVANCED' && board?.imageUploadAllowed === true;
     }
 }

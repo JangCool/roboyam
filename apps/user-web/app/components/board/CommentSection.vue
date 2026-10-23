@@ -54,13 +54,14 @@
                                 :board="board"
                                 :guest-rules="thread.author.kind === 'GUEST'"
                                 :initial-content="thread.content ?? ''"
+                                :initial-format="thread.contentFormat ?? 'TEXT'"
                                 :submit-label="t('common.save')"
                                 cancelable
                                 autofocus
                                 :submitting="busy === `edit:${thread.id}`"
                                 :field-errors="active === `edit:${thread.id}` ? fieldErrors : {}"
                                 :form-error="active === `edit:${thread.id}` ? formError : ''"
-                                @submit="submitEdit(thread, $event.content)"
+                                @submit="submitEdit(thread, $event.content, $event.contentFormat)"
                                 @cancel="closeForms"
                             />
                         </template>
@@ -87,13 +88,14 @@
                                 :board="board"
                                 :guest-rules="r.author.kind === 'GUEST'"
                                 :initial-content="r.content ?? ''"
+                                :initial-format="r.contentFormat ?? 'TEXT'"
                                 :submit-label="t('common.save')"
                                 cancelable
                                 autofocus
                                 :submitting="busy === `edit:${r.id}`"
                                 :field-errors="active === `edit:${r.id}` ? fieldErrors : {}"
                                 :form-error="active === `edit:${r.id}` ? formError : ''"
-                                @submit="submitEdit(r, $event.content)"
+                                @submit="submitEdit(r, $event.content, $event.contentFormat)"
                                 @cancel="closeForms"
                             />
                         </template>
@@ -155,7 +157,7 @@
 <script setup lang="ts">
 import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
 import type { CommentListResponse, CommentSort, CommentView } from '~/composables/board/api/useCommentApi.types';
-import type { GuestCredentials } from '~/composables/board/api/usePostApi.types';
+import type { ContentFormat, GuestCredentials } from '~/composables/board/api/usePostApi.types';
 import type { CommentLoadState } from '~/composables/board/usePostComments';
 import type { CommentActions } from '~/components/board/CommentSection.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
@@ -253,12 +255,12 @@ function openEdit(comment: CommentView): void {
     clearErrors(`edit:${comment.id}`);
 }
 
-async function submitNew(value: { content: string; guest: GuestCredentials | null }, target: { parentId: string; replyToId: string | null } | null): Promise<void> {
+async function submitNew(value: { content: string; contentFormat: ContentFormat; guest: GuestCredentials | null }, target: { parentId: string; replyToId: string | null } | null): Promise<void> {
     const key = target ? 'reply' : 'new';
     clearErrors(key);
     busy.value = key;
     try {
-        await props.actions.create(value.content, { parentId: target?.parentId ?? null, replyToId: target?.replyToId ?? null }, value.guest);
+        await props.actions.create(value.content, value.contentFormat, { parentId: target?.parentId ?? null, replyToId: target?.replyToId ?? null }, value.guest);
         formSeq.value += 1;
         closeForms();
         toast.show(t('comment.posted'), { tone: 'success' });
@@ -273,19 +275,19 @@ async function submitNew(value: { content: string; guest: GuestCredentials | nul
 const passwordOpen = ref(false);
 const passwordLoading = ref(false);
 const passwordError = ref('');
-const passwordFor = ref<{ mode: 'edit' | 'delete'; comment: CommentView; content: string } | null>(null);
+const passwordFor = ref<{ mode: 'edit' | 'delete'; comment: CommentView; content: string; contentFormat: ContentFormat } | null>(null);
 
-async function submitEdit(comment: CommentView, content: string): Promise<void> {
+async function submitEdit(comment: CommentView, content: string, contentFormat: ContentFormat): Promise<void> {
     clearErrors(`edit:${comment.id}`);
     if (comment.author.kind === 'GUEST') {
-        passwordFor.value = { mode: 'edit', comment, content };
+        passwordFor.value = { mode: 'edit', comment, content, contentFormat };
         passwordError.value = '';
         passwordOpen.value = true;
         return;
     }
     busy.value = `edit:${comment.id}`;
     try {
-        await props.actions.update(comment.id, content, null);
+        await props.actions.update(comment.id, content, contentFormat, null);
         closeForms();
         toast.show(t('comment.updated'), { tone: 'success' });
     } catch (e) {
@@ -297,7 +299,7 @@ async function submitEdit(comment: CommentView, content: string): Promise<void> 
 
 async function askDelete(comment: CommentView): Promise<void> {
     if (comment.author.kind === 'GUEST') {
-        passwordFor.value = { mode: 'delete', comment, content: '' };
+        passwordFor.value = { mode: 'delete', comment, content: '', contentFormat: 'TEXT' };
         passwordError.value = '';
         passwordOpen.value = true;
         return;
@@ -322,7 +324,7 @@ async function onPassword(password: string): Promise<void> {
             await props.actions.remove(target.comment.id, password);
             toast.show(t('comment.deletedToast'), { tone: 'success' });
         } else {
-            await props.actions.update(target.comment.id, target.content, password);
+            await props.actions.update(target.comment.id, target.content, target.contentFormat, password);
             closeForms();
             toast.show(t('comment.updated'), { tone: 'success' });
         }

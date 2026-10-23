@@ -2,7 +2,9 @@
     <!--
         글 고치기 `/posts/{id}/edit` — 글쓰기와 같은 폼(`PostEditorForm`), 게시판은 바꿀 수 없다.
         내 회원 글은 바로 고치고, 비회원 글은 먼저 비밀번호를 확인한 뒤(`verify-password`) 같은 비밀번호를 저장 요청에 싣는다 — 비밀번호는 이 화면 메모리에만 있다.
-        community 대비: 리비전·임시저장·에디터를 뺐다. 댓글 많은 글 보호로 수정이 막힌 글은 폼 대신 까닭을 보인다.
+        community 대비: 리비전·임시저장을 뺐다. 댓글 많은 글 보호로 수정이 막힌 글은 폼 대신 까닭을 보인다.
+        본문은 **지금** 게시판 글 에디터 설정을 따른다 — 글의 형식(`contentFormat`)과 다르면 바꿔서 연다(평문 → 에디터 HTML, 에디터 HTML → 평문은 서식·이미지가 빠진다 — 가정).
+        에디터는 불러온 HTML 을 정규화하므로 처음 만들어졌을 때의 HTML(`editorReady`)을 「고쳤는가」의 기준으로 삼는다.
         가정: 남의 회원 글은 `403`(화면은 들어온 순간 막는다), 보호 중 수정은 서버가 `409 POST_PROTECTED` 로 거절한다.
     -->
     <div class="mx-auto max-w-3xl">
@@ -49,6 +51,8 @@
             :form-error="formError"
             :submitting="submitting"
             :submit-label="t('post.submitUpdate')"
+            :upload="uploadImage"
+            @editor-ready="onEditorReady"
             @submit="submit"
             @cancel="cancel"
         />
@@ -56,10 +60,13 @@
 </template>
 
 <script setup lang="ts">
+import type { RichImageUploader } from '#layers/rich-editor/components/RichEditor.types';
 import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
 import type { PostDetail } from '~/composables/board/api/usePostApi.types';
 import { EMPTY_POST_FORM, type PostFormValues } from '~/components/board/PostEditorForm.types';
+import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilPost from '~/utils/util-post';
 
 definePageMeta({ shell: 'inner' });
 
@@ -71,6 +78,9 @@ const boardApi = useBoardApi();
 const toast = useAppToast();
 const { confirm } = useConfirmDialog();
 const current = useCurrentBoard();
+const imageApi = useImageApi();
+/** 에디터 이미지 올리기 — 서버 호출은 API 컴포저블 한 겹 */
+const uploadImage: RichImageUploader = (file, options) => imageApi.upload(file, options);
 
 const id = computed(() => String(route.params.id ?? ''));
 
@@ -90,7 +100,10 @@ async function load(): Promise<void> {
         board.value = await boardApi.board(loaded.board.slug);
         post.value = loaded;
         current.set(loaded.board.slug);
-        const values: PostFormValues = { ...EMPTY_POST_FORM, prefixId: loaded.prefix?.id ?? null, title: loaded.title, content: loaded.content, adult: loaded.adult };
+        // 지금 게시판 에디터 설정의 형식으로 연다 — 글의 형식과 다르면 바꾼다
+        const format = UtilBoard.postFormat(board.value);
+        const content = UtilPost.convertContent(loaded.content, loaded.contentFormat ?? 'TEXT', format);
+        const values: PostFormValues = { ...EMPTY_POST_FORM, prefixId: loaded.prefix?.id ?? null, title: loaded.title, content, contentFormat: format, adult: loaded.adult };
         form.value = { ...values };
         initial.value = { ...values };
         pageState.value = 'ready';
@@ -136,6 +149,12 @@ const dirty = computed(() => {
     return a.title !== b.title || a.content !== b.content || a.prefixId !== b.prefixId || a.adult !== b.adult;
 });
 
+/** 에디터가 불러온 본문을 정규화했다 — 그 HTML 을 처음 값으로 삼는다(열기만 해도 「고친 글」로 보이지 않게) */
+function onEditorReady(html: string): void {
+    if (form.value.content === initial.value.content) form.value = { ...form.value, content: html };
+    initial.value = { ...initial.value, content: html };
+}
+
 async function submit(): Promise<void> {
     const p = post.value;
     if (!p || submitting.value) return;
@@ -146,7 +165,9 @@ async function submit(): Promise<void> {
         await postApi.update(p.id, {
             prefixId: form.value.prefixId,
             title: form.value.title.trim(),
-            content: form.value.content.trim(),
+            // 에디터 HTML 은 그대로 보낸다(서버가 정화한다), 평문은 앞뒤 공백을 뗀다
+            content: form.value.contentFormat === 'HTML' ? form.value.content : form.value.content.trim(),
+            contentFormat: form.value.contentFormat,
             adult: Boolean(board.value?.allowAdult) && form.value.adult,
             password: p.author.kind === 'GUEST' ? password.value : null,
         });
@@ -155,7 +176,8 @@ async function submit(): Promise<void> {
         toast.success(t('post.updated'));
         await router.replace(`/posts/${p.id}`);
     } catch (e) {
-        if (e instanceof ApiError && e.code === 'VALIDATION' && e.fields && Object.keys(e.fields).length) fieldErrors.value = { ...e.fields };
+        if (e instanceof ApiError && e.code === 'IMAGE_UPLOAD_NOT_ALLOWED') fieldErrors.value = { content: e.message }; // 이미지를 막은 게시판 — 본문 칸 아래에 서버 문구
+        else if (e instanceof ApiError && e.code === 'VALIDATION' && e.fields && Object.keys(e.fields).length) fieldErrors.value = { ...e.fields };
         else formError.value = UtilBoardMessages.of(t, e);
     } finally {
         submitting.value = false;
