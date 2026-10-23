@@ -30,6 +30,10 @@ export interface PublicProfile {
     /** 보는 사람이 이 회원 본인인가(비회원은 false) */
     isMe: boolean;
     stats: ProfileStats;
+    /** 내가 이 회원을 차단했는가(비회원·본인은 false) — 소통 계약(`member-social-contract.md`)이 더하는 칸 */
+    blockedByMe?: boolean;
+    /** 내가 이 회원에게 남긴 이용자 메모(없으면 null) — 나에게만 온다 */
+    memo?: string | null;
 }
 
 /** 작성글 — `GET /api/users/{id}/posts?size&cursor`. 최신이 위, 삭제·숨김 글과 꺼진 게시판의 글은 빠진다 */

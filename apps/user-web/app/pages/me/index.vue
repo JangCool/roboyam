@@ -65,7 +65,7 @@
                 </template>
             </section>
 
-            <!-- 바로가기 — 지금 만들어진 화면만(쪽지·스크랩·아이템샵은 기능이 없어 넣지 않는다). 내 프로필 보기·등급 안내는 회원 활동 화면 -->
+            <!-- 바로가기 — 지금 만들어진 화면만(스크랩·아이템샵은 기능이 없어 넣지 않는다). 내 프로필 보기·등급 안내는 회원 활동 화면, 쪽지함은 소통 화면 -->
             <nav class="rounded-xl border border-surface bg-surface-0 p-2 dark:bg-surface-900" :aria-label="t('me.shortcuts')">
                 <ul class="m-0 list-none p-0">
                     <li v-for="entry in entries" :key="entry.to">
@@ -127,6 +127,7 @@ const profileApi = useProfileApi();
 const points = usePointSummary();
 const { summary, status: pointStatus } = points;
 const badge = useNotificationBadge();
+const dmBadge = useDmBadge();
 
 /** 사업자 전용 계정(H-2) — 포인트가 없다 */
 const businessAccount = computed(() => UtilBusiness.isBusinessAccount(user.value?.role));
@@ -203,6 +204,8 @@ const entries = computed<Entry[]>(() => {
         });
     }
     list.push({ to: '/notifications', icon: 'pi pi-bell', label: t('notification.title'), hint: '', badge: badge.text.value, ariaLabel: badge.label.value, testid: 'me-entry-notifications' });
+    // 쪽지함 — 안 읽은 대화 수(`docs/features/member-social-contract.md`)
+    list.push({ to: '/messages', icon: 'pi pi-envelope', label: t('notification.dmTitle'), hint: '', badge: dmBadge.text.value, ariaLabel: dmBadge.label.value, testid: 'me-entry-messages' });
     for (const entry of UtilSettings.ENTRIES) {
         list.push({ to: entry.to, icon: entry.icon, label: t(entry.labelKey), hint: '', badge: '', testid: `me-entry-${entry.testid}` });
     }

@@ -13,6 +13,18 @@ export default {
     display: 'Time display',
     displayHint: 'Language, time zone, time and date format',
     accountHint: 'Sign-in methods and linked social accounts',
+    nicknameImage: 'Nickname image',
+    nicknameImageHint: 'An image in place of your nickname · from Loyal',
+    adult: 'Age check',
+    adultHint: 'Confirm your birth year to see adult posts',
+    view: 'View',
+    viewHint: 'Dark mode, text size, comment order',
+    blocks: 'Block list',
+    blocksHint: 'Members and words you blocked',
+    memos: 'Member notes',
+    memosHint: 'Notes on members only you can see',
+    messages: 'Messages',
+    messagesHint: 'Whether to accept messages',
 
     // Leaving without saving
     leaveTitle: 'Leave without saving?',

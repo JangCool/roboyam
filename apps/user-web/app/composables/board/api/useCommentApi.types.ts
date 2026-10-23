@@ -3,6 +3,7 @@
  * ⚠ ID 는 모두 문자열이다(Snowflake 64비트). 시각은 UTC ISO 글자.
  */
 import type { ContentFormat, GuestCredentials, PostAuthor } from '~/composables/board/api/usePostApi.types';
+import type { BlockedBy } from '~/composables/block/api/useBlockApi.types';
 
 /**
  * 댓글 상태 — 보임 · 지움(답글이 있어 자리만 남김) · 신고로 숨김(검토 대기) · 비회원에게 늦게 보임(공개 전).
@@ -28,6 +29,8 @@ export interface CommentView {
     liked: boolean;
     /** 로그인한 내 댓글 */
     mine: boolean;
+    /** 차단한 회원의 댓글(`USER`)·본문에 차단한 단어(`WORD`) — **서버 후보**(`member-social-contract.md`), 지금 서버 응답에는 없다. 접는 것은 화면의 일 */
+    blocked?: BlockedBy | null;
 }
 
 /** 원댓글 + 그 아래 답글(오래된순) */

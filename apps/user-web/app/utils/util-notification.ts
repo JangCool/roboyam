@@ -4,7 +4,7 @@ import type { MemberNotificationType } from '~/composables/notification/api/useN
 /**
  * 알림 표시 중 셸(헤더의 종·하단 탭의 알림·알림 패널)이 쓰는 것 — 안 읽은 수 배지, 패널 한 줄의 아이콘·이동 주소 검사.
  * 알림 문장(`title`·`body`)은 서버가 요청 언어로 풀어 주므로 여기서 만들지 않는다(종류별 문구를 화면이 만드는 community 와 다른 점).
- * 쪽지 배지 이름(`dmBadgeLabel`)은 쪽지 기능이 없어 걷어 냈다 — 쪽지를 만들 때 git 기록의 `useDmBadge`·`useDmApi`·`AppMessageLink` 와 함께 되살린다.
+ * 쪽지함 배지 이름(`dmBadgeLabel`)도 여기 있다 — 헤더 쪽지 아이콘(`AppMessageLink`)·내 정보 메뉴의 「쪽지함」 줄(`useDmBadge`)이 쓴다.
  */
 export default class UtilNotification {
     /** 알림 점·숫자에 그대로 보이는 가장 큰 수 — 넘으면 "99+" */
@@ -43,6 +43,18 @@ export default class UtilNotification {
         const n = UtilNotification.clampCount(count);
         if (n === 0) return t('notification.title');
         return n > UtilNotification.BADGE_MAX ? t('notification.badgeUnreadOver', { max: UtilNotification.BADGE_MAX }) : t('notification.badgeUnread', { count: n });
+    }
+
+    /**
+     * 쪽지함 링크의 이름(스크린리더용). 점·숫자는 시각 요소라서 이름에 안 읽은 대화 수를 넣습니다.
+     * @param {Translate} t - 번역 함수(`useTranslate()` / `useI18n().t`).
+     * @param {number} count - 안 읽은 대화 수.
+     * @returns {string} "쪽지함" · "쪽지함, 안 읽은 대화 3개" · "쪽지함, 안 읽은 대화 99개 이상".
+     */
+    static dmBadgeLabel(t: Translate, count: number): string {
+        const n = UtilNotification.clampCount(count);
+        if (n === 0) return t('notification.dmTitle');
+        return n > UtilNotification.BADGE_MAX ? t('notification.dmBadgeUnreadOver', { max: UtilNotification.BADGE_MAX }) : t('notification.dmBadgeUnread', { count: n });
     }
 
     /**

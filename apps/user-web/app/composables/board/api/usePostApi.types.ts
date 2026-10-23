@@ -5,6 +5,7 @@
  */
 import type { Role } from '~/composables/auth/api/useAuthApi.types';
 import type { BoardProtectDelete, PrefixView } from '~/composables/board/api/useBoardApi.types';
+import type { BlockedBy } from '~/composables/block/api/useBlockApi.types';
 
 /**
  * 본문 형식 — `TEXT` 평문(Textarea, 글자로 그린다) · `HTML` 에디터 HTML(서버가 정화한 것만 돌려준다 — 글 보기·댓글 보기만 `v-html` 로 그린다).
@@ -35,6 +36,11 @@ export interface PostAuthor {
      * 비회원 글·댓글의 작성 IP 앞 두 묶음 — IPv4 `123.45.*.*` · IPv6 `2001:db8:*:*`. 서버가 가려서 준다(회원 글은 null).
      */
     ipMasked: string | null;
+    /**
+     * 내가 이 회원에게 남긴 이용자 메모(나에게만 오는 값) — **서버 후보**(`member-social-contract.md`). 지금 서버 응답에는 없다(칸이 없으면 메모 없음).
+     * 화면은 이 기기에서 방금 바꾼 것을 겹쳐 그린다(`useBlockOverrides().memoOf`).
+     */
+    memo?: string | null;
 }
 
 /** 말머리를 가리키는 짧은 모양 */
@@ -64,6 +70,11 @@ export interface PostRow {
     adult: boolean;
     /** 가려진 글이면 그 까닭 — 제목·작성자 자리에 「신고로 숨겨진 글이에요」 */
     hiddenReason: PostHiddenReason | null;
+    /**
+     * 내가 차단한 회원의 글(`USER`)·차단한 단어가 제목에 든 글(`WORD`) — **서버 후보**(`member-social-contract.md`). 지금 서버 응답에는 없다.
+     * 접는 것은 화면의 일이다(`FoldedRow`, `useBlockOverrides().blockedOf`).
+     */
+    blocked?: BlockedBy | null;
 }
 
 /** 목록 정렬 — 최신순 · 오래된순 */

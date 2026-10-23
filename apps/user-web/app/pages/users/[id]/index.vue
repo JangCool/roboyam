@@ -25,21 +25,81 @@
         <ErrorState v-else-if="status === 'error'" :title="t('profile.publicLoadFailed')" :description="errorMessage" retry data-testid="profile-error" @retry="load" />
 
         <template v-else-if="profile">
-            <!-- 머리: 이니셜 · 뱃지+닉네임 · 한 줄 소개 · 가입일 · (내 프로필이면) 프로필 편집 -->
+            <!-- 차단한 회원 — 프로필은 그대로 열리고 여기서 차단을 풀 수 있다. 아래 작성글·댓글은 직접 찾아 들어온 화면이라 접지 않는다 -->
+            <div
+                v-if="menuTarget?.blocked"
+                class="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-lg bg-surface-100 px-3 py-2.5 text-sm dark:bg-surface-800/60"
+                role="status"
+                data-testid="profile-blocked-banner"
+            >
+                <p class="m-0 min-w-0 flex-1 leading-snug">
+                    <b>{{ t('block.profileBlockedTitle') }}</b>
+                    <span class="block text-xs text-muted-color">{{ t('block.profileBlockedText') }}</span>
+                </p>
+                <Button type="button" :label="t('block.unblockAction')" size="small" severity="secondary" variant="outlined" :loading="unblocking" data-testid="profile-unblock" @click="onUnblock" />
+            </div>
+
+            <!-- 머리: 이니셜 · 뱃지+닉네임(+메모 칩) · 한 줄 소개 · 가입일 · (내 프로필이면) 프로필 편집·쪽지함 · (아니면) ⋯ -->
             <header class="flex flex-wrap items-start gap-x-3 gap-y-3">
                 <span class="grid size-[4.5rem] shrink-0 place-items-center rounded-full bg-surface-100 text-2xl font-bold text-muted-color dark:bg-surface-800" aria-hidden="true">{{ initial }}</span>
                 <div class="min-w-0 flex-1">
-                    <h1 class="m-0 flex min-w-0 items-center gap-1.5 text-lg font-bold leading-tight">
+                    <h1 class="m-0 flex min-w-0 flex-wrap items-center gap-1.5 text-lg font-bold leading-tight">
                         <span class="min-w-0 break-all" data-testid="profile-nickname">{{ profile.nickname }}</span>
-                        <GradeBadge :grade="profile.grade as Grade" :label="profile.gradeLabel" class="shrink-0" />
+                        <StaffBadge v-if="profile.role !== 'USER'" :role="profile.role" class="shrink-0" />
+                        <GradeBadge v-else :grade="profile.grade as Grade" :label="profile.gradeLabel" class="shrink-0" />
+                        <!-- 이용자 메모 — 나에게만 보이는 노란 칩 -->
+                        <span
+                            v-if="menuTarget?.memo"
+                            class="inline-flex min-w-0 max-w-[12rem] items-center rounded bg-amber-100 px-1.5 py-1 text-[0.6875rem] font-normal leading-none text-amber-900 dark:bg-amber-900/40 dark:text-amber-200"
+                            :title="t('block.memoChipTitle', { memo: menuTarget.memo })"
+                            data-testid="profile-memo"
+                            ><span class="relative top-[-0.09em] truncate">{{ t('block.memoChip', { memo: menuTarget.memo }) }}</span></span
+                        >
                     </h1>
                     <p v-if="profile.bio" class="mt-1 break-words text-sm leading-snug" data-testid="profile-bio">{{ profile.bio }}</p>
                     <p class="mt-1 text-xs text-muted-color">{{ t('profile.joined', { date: time.date(profile.joinedAt) }) }}</p>
                 </div>
                 <div v-if="profile.isMe" class="flex gap-2 max-md:w-full md:ml-auto">
                     <Button as="router-link" to="/settings/profile" :label="t('me.editProfile')" icon="pi pi-pencil" size="small" class="max-md:flex-1" data-testid="profile-edit" />
+                    <Button
+                        as="router-link"
+                        :to="UtilDm.INBOX_PATH"
+                        :label="t('notification.dmTitle')"
+                        icon="pi pi-envelope"
+                        size="small"
+                        severity="secondary"
+                        variant="outlined"
+                        class="max-md:flex-1"
+                        data-testid="profile-dm-inbox"
+                    />
                 </div>
+                <!-- ⋯ 시트(이 사용자 차단·메모) — 로그인했고 남의 프로필일 때. 비회원은 누르면 로그인 유도 -->
+                <button
+                    v-else-if="!profile.isMe && (menuTarget || !user)"
+                    type="button"
+                    class="ml-auto grid size-9 place-items-center rounded-full hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary dark:hover:bg-surface-800"
+                    :aria-label="t('block.memberMenuOpen')"
+                    aria-haspopup="dialog"
+                    data-testid="profile-menu"
+                    @click="openMenu"
+                >
+                    <i class="pi pi-ellipsis-h" aria-hidden="true" />
+                </button>
             </header>
+
+            <!-- 쪽지 보내기 — 남의 프로필에만. 프로필 본문과 따로 상태를 읽고, 못 읽으면 단추만 빠진다 -->
+            <div v-if="!profile.isMe && dmMode !== 'none'" class="mt-4" data-testid="profile-dm">
+                <template v-if="dmMode === 'guest'">
+                    <Button type="button" :label="t('dm.sendToProfile')" icon="pi pi-envelope" class="max-md:w-full" :aria-describedby="dmHelpId" data-testid="profile-dm-guest" @click="prompt('dm')" />
+                    <p :id="dmHelpId" class="m-0 mt-1.5 text-xs text-muted-color" data-testid="profile-dm-help">{{ t('dm.profileGuestHelp') }}</p>
+                </template>
+                <div v-else-if="dmMode === 'loading'" class="h-10 w-32 animate-pulse rounded-md bg-surface-200 max-md:w-full dark:bg-surface-800" role="status" :aria-label="t('dm.checking')" data-testid="profile-dm-loading" />
+                <Button v-else-if="dmMode === 'enabled'" as="router-link" :to="dmTo" :label="t('dm.sendToProfile')" icon="pi pi-envelope" class="max-md:w-full" data-testid="profile-dm-send" />
+                <template v-else>
+                    <Button type="button" :label="t('dm.sendToProfile')" icon="pi pi-envelope" disabled class="max-md:w-full" :aria-describedby="dmHelpId" data-testid="profile-dm-disabled" />
+                    <p :id="dmHelpId" class="m-0 mt-1.5 text-xs text-muted-color" data-testid="profile-dm-reason">{{ dmReasonLine }}</p>
+                </template>
+            </div>
 
             <!-- 보유 포인트 · 다음 등급까지 — 내 프로필에만. 포인트 화면·등급 안내로 가는 길을 겸한다. 둘 다 못 받으면 카드를 감춘다(프로필은 그대로) -->
             <section
@@ -152,6 +212,16 @@
             </ProfileFeed>
 
             <p v-if="tab === 'posts'" class="mt-4 text-center text-xs text-muted-color">{{ t('profile.hiddenPostsNote') }}</p>
+
+            <!-- 회원 ⋯ 시트 — 이 사용자 차단·차단 해제·메모(메모 작성은 셸의 메모 시트) -->
+            <AppSheet v-model:visible="menuOpen" :title="t('block.memberMenuTitle', { nickname: profile.nickname })">
+                <ul class="m-0 mt-3 list-none p-0">
+                    <UserActionItems :target="menuTarget" @action="onAction" />
+                </ul>
+                <div class="px-5 pt-3">
+                    <Button type="button" :label="t('common.close')" severity="secondary" variant="outlined" fluid @click="menuOpen = false" />
+                </div>
+            </AppSheet>
         </template>
     </div>
 </template>
@@ -159,7 +229,11 @@
 <script setup lang="ts">
 import type { Grade } from '~/composables/auth/api/useAuthApi.types';
 import type { ProfileStats, PublicProfile } from '~/composables/profile/api/useUserProfileApi.types';
+import type { DmCanSend } from '~/composables/dm/api/useDmApi.types';
+import type { UserAction } from '~/composables/block/useUserActions';
 import { ApiError } from '~/composables/common/useApiClient';
+import UtilDm from '~/utils/util-dm';
+import UtilDmMessages from '~/utils/util-dm-messages';
 import type { ProfileTab } from '~/utils/util-profile';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilBusiness from '~/utils/util-business';
@@ -172,7 +246,9 @@ import UtilProfile from '~/utils/util-profile';
  * 글 보기 머리·댓글·데스크톱 목록 표의 작성자 이름(`PostAuthorLabel link`)과 내 정보(`/me`)의 「내 프로필 보기」가 이곳으로 온다.
  * - 머리(프로필)와 탭의 목록은 따로 불러온다 — 목록이 실패해도 머리는 그대로, 그 목록만 다시 시도한다. 탭(작성글·댓글)은 주소의 쿼리가 상태다.
  * - 내 프로필(`isMe`)이면 「프로필 편집」과 보유 포인트·다음 등급까지 카드(`usePointSummary` 실제 · `useMyGrade` 목업)가 더해진다. 남의 프로필에는 포인트·진행도를 보이지 않는다.
- * ⚠ 목업 API(`useUserProfileApi` — 작성글은 실제 게시판 글에서 고른다). 원본과 달라진 점: 프로필 이미지·닉네임 이미지·꾸미기 테두리, 차단·메모 ⋯ 시트, 쪽지, 소모임·스크랩 탭, 인기글 수치는 로보얌에 없어 뺐다.
+ * - 남의 프로필: ⋯ 시트(이 사용자 차단·차단 해제·메모 — `useUserActions`), 차단한 회원이면 맨 위 「차단한 회원이에요 · 차단 해제」 띠, 닉네임 옆 메모 칩, 「쪽지 보내기」(보낼 수 있나를 따로 읽는다).
+ *   내 프로필: 「프로필 편집」 옆 「쪽지함」. 계약 `docs/features/member-social-contract.md`.
+ * ⚠ 목업 API(`useUserProfileApi`·`useBlockApi`·`useDmApi`). 원본과 달라진 점: 프로필 이미지·닉네임 이미지·꾸미기 테두리, 프로필 이미지·닉네임 이미지 신고, 소모임·스크랩 탭, 인기글 수치는 로보얌에 없어 뺐다.
  * 모바일 ‹ 머리(`InnerHeader`)가 없어 셸의 머리 그대로다.
  */
 const { t } = useI18n();
@@ -260,6 +336,98 @@ function goBack() {
     if (typeof window !== 'undefined' && window.history.state?.back) router.back();
     else void navigateTo('/');
 }
+
+/* ── 차단·메모 ⋯ 시트 (`docs/features/member-social-contract.md`) ── */
+const { prompt } = useLoginPrompt();
+const { targetOf, run, unblock } = useUserActions();
+/** ⋯ 메뉴가 다룰 회원 — 나·탈퇴는 null. 메모·차단 여부에는 이 기기에서 방금 바꾼 것이 겹쳐 있다 */
+const menuTarget = computed(() =>
+    profile.value ? targetOf({ id: profile.value.id, nickname: profile.value.nickname, role: profile.value.role, memo: profile.value.memo ?? null }, profile.value.blockedByMe ?? false) : null,
+);
+const menuOpen = ref(false);
+const unblocking = ref(false);
+
+function openMenu() {
+    if (!user.value) {
+        prompt('block');
+        return;
+    }
+    menuOpen.value = true;
+}
+
+function onAction(action: UserAction) {
+    menuOpen.value = false;
+    void run(action);
+}
+
+async function onUnblock() {
+    if (!menuTarget.value || unblocking.value) return;
+    unblocking.value = true;
+    try {
+        await unblock(menuTarget.value);
+    } finally {
+        unblocking.value = false;
+    }
+}
+
+/* ── 쪽지 보내기 단추 — 프로필 본문과 따로 읽는다(실패하면 단추만 숨긴다) ── */
+const dmApi = useDmApi();
+const { loaded } = useAuth();
+const dmHelpId = `${useId()}-dm-help`;
+const dmInfo = ref<DmCanSend | null>(null);
+const dmLoading = ref(false);
+let dmSeq = 0;
+const dmView = computed(() => UtilDm.button(dmInfo.value, userId.value));
+const dmTo = computed(() => (dmView.value.kind === 'enabled' ? dmView.value.to : ''));
+const dmReasonLine = computed(() =>
+    businessAccount.value
+        ? t('dm.lockBusiness')
+        : dmView.value.kind === 'disabled'
+          ? UtilDmMessages.profileReason(t, dmView.value.reason, time.value, { availableFrom: dmInfo.value?.availableFrom, newPartnerLimit: dmInfo.value?.quota.newPartnerLimit })
+          : '',
+);
+/** 무엇을 그리나 — 로그인 상태를 모르면 아무것도, 비회원이면 로그인 유도, 로그인했으면 읽은 상태대로 */
+const dmMode = computed<'none' | 'guest' | 'loading' | 'enabled' | 'disabled'>(() => {
+    if (!loaded.value) return 'none';
+    if (!user.value) return 'guest';
+    if (businessAccount.value) return 'disabled';
+    if (dmLoading.value) return 'loading';
+    return dmView.value.kind === 'hidden' ? 'none' : dmView.value.kind;
+});
+
+async function loadDm(): Promise<void> {
+    const mine = ++dmSeq;
+    if (!user.value || businessAccount.value || user.value.id === userId.value) {
+        dmInfo.value = null;
+        dmLoading.value = false;
+        return;
+    }
+    if (dmInfo.value === null) dmLoading.value = true;
+    try {
+        const res = await dmApi.canSend(userId.value);
+        if (mine === dmSeq) dmInfo.value = res;
+    } catch {
+        if (mine === dmSeq) dmInfo.value = null;
+    } finally {
+        if (mine === dmSeq) dmLoading.value = false;
+    }
+}
+
+watch(
+    [userId, () => user.value?.id ?? null],
+    () => {
+        dmInfo.value = null;
+        void loadDm();
+    },
+    { immediate: true },
+);
+// 차단 상태가 바뀌었다 — 차단 관계(`UNAVAILABLE`)가 생기거나 풀렸는지 다시 읽는다
+watch(
+    () => menuTarget.value?.blocked ?? false,
+    (now, before) => {
+        if (now !== before) void loadDm();
+    },
+);
 
 useSeoMeta({
     title: () => profile.value?.nickname ?? t('profile.publicTitle'),

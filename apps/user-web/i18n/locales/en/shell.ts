@@ -11,6 +11,8 @@ export default {
     // Menu rows
     menu: 'Menu',
     myInfo: 'My profile',
+    messageBox: 'Messages',
+    messageBoxUnread: 'Messages · {count} unread',
     adminApp: 'Admin app',
     adminAppNewTab: 'Admin app (opens in a new tab)',
 

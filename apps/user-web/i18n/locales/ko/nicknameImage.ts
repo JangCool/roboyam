@@ -1,0 +1,108 @@
+/**
+ * 닉네임 그림(`/settings/nickname-image`) 문구 — 신청·검토 대기·반려·적용 중·미리보기·오류 풀이. 입력칸 오류(`fields.file`)와 코드를 모르는 오류는 서버 `message`.
+ * 키는 `nicknameImage.무엇` 두 마디. `en/nicknameImage.ts` 와 같은 키, 같은 차례.
+ */
+export default {
+    seo: '{site}에서 닉네임 자리에 그림을 보여요.',
+    loading: '닉네임 그림 상태를 불러오는 중',
+    loadFailed: '닉네임 그림 상태를 불러오지 못했어요',
+    intro: '닉네임 자리에 그림이 대신 보여요. 등급 뱃지는 그대로예요. 운영팀 검토 후 적용돼요.',
+    nicknameKept: '글자 닉네임은 그림이 있어도 검색·차단에 그대로 쓰여요.',
+    flashNote: '깜빡이는 그림은 신고 대상이에요.',
+    gifNote: 'GIF 는 글 목록에서 정지 그림으로 보이고, 글 상세·프로필·댓글에서만 움직여요.',
+    verifyLink: '이메일 인증 안내 보기',
+
+    // 자격
+    myGrade: '내 등급',
+    requiredGrade: '필요한 등급',
+    cannotApply: '신청할 수 없어요',
+    gradeLink: '등급 안내 보기',
+    gradeTitle: '{grade} 등급부터 신청할 수 있어요.',
+    gradeText: '지금은 {grade} 등급이에요. 등급이 오르면 신청할 수 있어요.',
+    suspendedTitle: '정지 중에는 신청할 수 없어요',
+    suspendedText: '제재가 풀리면 다시 신청할 수 있어요. 적용 중인 그림은 그대로 보여요.',
+    blockedUnverifiedTitle: '이메일 인증이 필요해요',
+    blockedUnverifiedText: '이메일 인증을 마치면 닉네임 그림을 신청할 수 있어요. 지금은 보기만 할 수 있어요.',
+    blockedRestrictedTitle: '정지 중이라 신청할 수 없어요',
+    blockedRestrictedText: '정지 중에는 닉네임 그림을 신청할 수 없고, 보기는 계속 할 수 있어요.',
+
+    // 상태
+    pendingTag: '검토 대기',
+    pendingText: '운영팀이 확인하는 중이에요. 결과는 알림으로 알려 드려요.',
+    pendingKeepNote: '승인 전에는 지금 그림이 그대로 보여요.',
+    pendingPlainNote: '승인 전에는 글자 닉네임이 보여요.',
+    cancelRequest: '신청 취소',
+    requestedOn: '{date} 신청',
+    rejectedBanner: '신청이 반려됐어요. 사유를 확인하고 그림을 바꿔 다시 신청할 수 있어요.',
+    rejectedTag: '반려',
+    rejectReasonLabel: '반려 사유',
+    rejectReasonEmpty: '사유가 적혀 있지 않아요.',
+    reapply: '다시 신청하기',
+    reapplyNow: '지금 다시 신청할 수 있어요.',
+    reapplyIn: '{wait} 뒤에 다시 신청할 수 있어요.',
+    reapplyInAt: '{head} ({at}부터)',
+    reapplyRule: '반려되면 {wait} 뒤에 다시 신청할 수 있어요.',
+    currentBanner: '닉네임 그림이 적용돼 있어요.',
+    currentChangeNote: '그림을 바꾸면 다시 승인을 받아야 해요. 승인 전에는 지금 그림이 그대로 보여요.',
+    change: '그림 바꾸기',
+    remove: '해제',
+
+    // 미리보기
+    previewTitle: '이렇게 보여요',
+    previewList: '글 목록에서',
+    previewComment: '댓글에서',
+    previewSamplePost: '사람 vs 로봇 마라톤 비교',
+    previewSampleComment: '관절 토크 얘기 덕에 이해가 됐어요.',
+    previewMeta: '추천 9 · 어제',
+    altRequested: '신청한 닉네임 그림',
+    altRejected: '반려된 닉네임 그림',
+    altCurrent: '적용 중인 닉네임 그림',
+    altPicked: '고른 닉네임 그림 미리보기',
+    frameFailed: '그림을 불러오지 못했어요',
+
+    // 신청
+    formTitle: '닉네임 그림 신청',
+    ruleFormat: '{formats} · 최대 {max}',
+    ruleRatio: '가로:세로 {ratio} 그림만 올릴 수 있어요. {size} 크기로 맞춰 저장돼요.',
+    ruleGif: 'GIF 는 {n}프레임까지 올릴 수 있어요.',
+    pick: '그림 고르기',
+    pickAgain: '다시 고르기',
+    reading: '그림을 읽는 중',
+    consent: '사칭·부적절한 그림은 반려되거나 해제될 수 있다는 점을 확인했어요',
+    uploading: '올리는 중… {n}%',
+    processing: '그림을 처리하는 중…',
+    submit: '신청하기',
+    applyConfirmTitle: '닉네임 그림을 신청할까요?',
+    applyConfirmMessage: '운영팀이 확인하기 전에는 지금 모습 그대로 보여요.',
+    toastApplied: '닉네임 그림을 신청했어요. 운영팀이 확인하면 알림으로 알려 드려요',
+    toastCanceled: '신청을 취소했어요',
+    toastRemoved: '닉네임 그림을 해제했어요',
+    removeConfirmTitle: '닉네임 그림을 해제할까요?',
+    removeConfirmMessage: '글과 댓글에는 글자 닉네임("{nickname}")만 보여요. 다시 쓰려면 새로 신청해 승인받아야 해요.',
+    removeConfirmLabel: '해제하기',
+
+    // 올리기 전 검사
+    problemFormat: '닉네임 그림은 PNG·JPG·GIF·WebP 만 올릴 수 있어요.',
+    problemEmpty: '비어 있는 파일이에요. 다른 그림을 골라 주세요.',
+    problemTooLarge: '그림이 너무 커요({size}). {max} 이하로 올려 주세요.',
+    problemRatio: '가로세로 비율이 4:1 이어야 해요. 지금 그림은 {size} 이에요. {target} 처럼 가로가 세로의 4배인 그림을 골라 주세요.',
+    problemUnreadable: '그림을 읽을 수 없어요. 깨진 파일이 아닌지 확인하고 다른 그림을 골라 주세요.',
+
+    // 실패
+    failGrade: '단골 등급부터 신청할 수 있어요. 지금 등급을 다시 확인할게요.',
+    failReapply: '반려된 뒤 {wait}이 지나야 다시 신청할 수 있어요. 가능한 시각을 다시 확인할게요.',
+    failValidation: '그림을 올릴 수 없어요. 다른 그림을 골라 주세요.',
+    failRateLimited: '요청이 너무 많아요.',
+    failRetryIn: '{head} {time} 뒤에 다시 올릴 수 있어요.',
+    failTooLarge: '그림이 너무 커요. {max} 이하로 올려 주세요.',
+    failNotFound: '이미 처리된 신청이에요. 최신 상태로 다시 불러올게요.',
+    failOther: '잠시 후 다시 시도해 주세요.',
+
+    // 남은 시간
+    days: '{n}일',
+    hours: '{n}시간',
+    minutes: '{n}분',
+    waitSoon: '곧',
+    waitDaysHours: '{d}일 {h}시간',
+    waitHoursMinutes: '{h}시간 {m}분',
+};

@@ -26,7 +26,8 @@ import UtilSettings from '~/utils/util-settings';
 
 /**
  * 설정 묶음 `/settings/*` 의 부모 화면 — 로그인 필요(`auth` 미들웨어 — 아래 화면들도 각자 건다).
- * 화면: 프로필(`/settings/profile`) · 알림 설정(`/settings/notifications`) · 시간 표시(`/settings/display`) · 계정·로그인 연결(`/settings/account`)
+ * 화면(차례는 `UtilSettings.ENTRIES`): 프로필 · 닉네임 그림(`/settings/nickname-image`) · 성인 확인(`/settings/adult`) · 보기(`/settings/view`) · 시간 표시(`/settings/display`) ·
+ * 차단 관리(`/settings/blocks`) · 이용자 메모(`/settings/memos`) · 알림 설정(`/settings/notifications`) · 쪽지 수신(`/settings/messages`) · 계정·로그인 연결(`/settings/account`)
  * › 이메일 변경(`/settings/account/email`) · 비밀번호 변경(`/settings/account/password`).
  */
 definePageMeta({ middleware: 'auth' });
