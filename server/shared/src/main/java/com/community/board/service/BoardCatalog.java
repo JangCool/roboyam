@@ -137,13 +137,16 @@ public class BoardCatalog {
                 Collections.unmodifiableMap(gradeMap), firstGrade);
     }
 
-    /** 유효값 = 게시판 값 ?? 기본값 */
+    /** 유효값 = 게시판 값 ?? 기본값. 이미지 올리기는 고급 에디터에서만 참일 수 있다(간단·평문은 이미지를 받지 않는다) */
     static EffectiveBoard effective(BoardEntity b, BoardDefaultsValues d, List<BoardPrefixInfo> prefixes) {
         BoardPolicyValues p = b.policy();
+        String postEditor = or(p.postEditor(), d.postEditor());
+        boolean imageSetting = or(p.imageUploadAllowed(), d.imageUploadAllowed());
         String description = b.getDescription() == null || b.getDescription().isBlank() ? null : b.getDescription();
         return new EffectiveBoard(b.getId(), b.getSlug(), b.getName(), b.getNameEn(), description, b.getKind(), b.getLayout(), b.isViewToggle(), b.getColor(),
                 b.isAllowAdult(), b.isInvestmentNotice(), b.isActive(), b.getSortOrder(), b.getWriteLock(), b.getIntroText(), b.getWriteGuideText(),
-                or(p.writeMin(), d.writeMin()), or(p.commentMin(), d.commentMin()), or(p.imageUploadAllowed(), d.imageUploadAllowed()),
+                or(p.writeMin(), d.writeMin()), or(p.commentMin(), d.commentMin()), postEditor,
+                BoardFields.EDITOR_ADVANCED.equals(postEditor) && imageSetting, imageSetting, or(p.commentEditor(), d.commentEditor()),
                 or(p.listSize(), d.listSize()), or(p.pinnedMax(), d.pinnedMax()), or(p.commentProtectMin(), d.commentProtectMin()),
                 or(p.commentProtectEdit(), d.commentProtectEdit()), or(p.commentProtectDelete(), d.commentProtectDelete()),
                 or(p.commentProtectDelayMinutes(), d.commentProtectDelayMinutes()), or(p.commentGuestDelayMinutes(), d.commentGuestDelayMinutes()), prefixes);

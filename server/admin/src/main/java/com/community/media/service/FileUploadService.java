@@ -97,7 +97,8 @@ public class FileUploadService {
             return null;
         }
         try {
-            return FilePurpose.valueOf(text.strip());
+            FilePurpose purpose = FilePurpose.valueOf(text.strip());
+            return purpose == FilePurpose.POST_IMAGE ? null : purpose; // 글 이미지는 공개 사이트(POST /api/images)에서만 올린다
         } catch (IllegalArgumentException e) {
             return null;
         }
@@ -107,6 +108,7 @@ public class FileUploadService {
     private static Permission requiredPermission(FilePurpose purpose) {
         return switch (purpose) {
             case SITE_LOGO -> Permission.SITE_MANAGE;
+            case POST_IMAGE -> throw new IllegalStateException("글 이미지는 관리자 앱에서 올리지 않는다");
         };
     }
 }

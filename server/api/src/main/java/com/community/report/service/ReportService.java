@@ -10,6 +10,7 @@ import com.community.board.service.BoardAccessPolicy;
 import com.community.board.service.BoardActorResolver;
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.ContentRules;
+import com.community.board.service.RichText;
 import com.community.comment.entity.CommentEntity;
 import com.community.comment.repository.master.CommentRepository;
 import com.community.comment.repository.master.CommentRepositoryQDSL;
@@ -185,7 +186,8 @@ public class ReportService {
         boolean counted = minLevel == null || actor.gradeLevel() >= minLevel;
         String authorName = authorName(target);
         String snapshotTitle = target.comment() == null ? target.post().getTitle() : null;
-        String snapshotContent = truncate(target.comment() == null ? target.post().getContent() : target.comment().getContent());
+        String snapshotContent = truncate(target.comment() == null ? target.post().plainContent()
+                : RichText.plainOf(target.comment().getContentFormat(), target.comment().getContent())); // HTML 본문은 보이는 글자로 남긴다
         reports.persist(ReportEntity.create(ids.nextId(), target.type(), target.id(), target.post().getId(), target.board().id(), userId, target.authorId(),
                 reason, detail.isEmpty() ? null : detail, snapshotTitle, snapshotContent, authorName, counted, now));
         reports.flush();
@@ -278,7 +280,8 @@ public class ReportService {
             counters.addCommentCount(locked.getPostId(), -1);
         }
         if (hidden && locked.getAuthorId() != null) {
-            memberNotices.contentHidden(locked.getAuthorId(), locked.getPostId(), locked.getId(), locked.getContent(), until);
+            memberNotices.contentHidden(locked.getAuthorId(), locked.getPostId(), locked.getId(), RichText.plainOf(locked.getContentFormat(), locked.getContent()),
+                    until);
         }
     }
 

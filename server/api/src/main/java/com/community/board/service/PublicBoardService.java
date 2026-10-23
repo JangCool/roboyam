@@ -62,7 +62,8 @@ public class PublicBoardService {
         BoardSecurityValues sec = s.security();
         BoardView v = view(b);
         return new BoardDetailView(v.id(), v.slug(), v.name(), v.nameEn(), v.description(), v.investmentNotice(), v.staffOnlyWrite(), v.writeMin(),
-                v.commentMin(), v.writeLock(), v.imageUploadAllowed(), v.layout(), v.dealEnabled(), v.promo(), v.viewToggle(), v.allowAdult(), v.prefixes(),
+                v.commentMin(), v.writeLock(), v.imageUploadAllowed(), v.postEditor(), v.commentEditor(), v.layout(), v.dealEnabled(), v.promo(), v.viewToggle(),
+                v.allowAdult(), v.prefixes(),
                 v.color(), s.gradeLabel(b.writeMin()), s.gradeLabel(b.commentMin()), b.introText(), b.writeGuideText(),
                 Boolean.TRUE.equals(s.report().reportEnabled()),
                 new BoardPolicyView(b.listSize(), b.pinnedMax(), b.commentProtectMin(), b.commentProtectEdit(), b.commentProtectDelete(),
@@ -96,7 +97,7 @@ public class PublicBoardService {
                 .map(p -> new PrefixView(Long.toString(p.id()), p.name(), p.staffOnly(), p.common(), p.color()))
                 .toList();
         return new BoardView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.description(), b.investmentNotice(),
-                BoardFields.STAFF.equals(b.writeMin()), b.writeMin(), b.commentMin(), b.writeLock(), b.imageUploadAllowed(), b.layout(),
+                BoardFields.STAFF.equals(b.writeMin()), b.writeMin(), b.commentMin(), b.writeLock(), b.imageUploadAllowed(), b.postEditor(), b.commentEditor(), b.layout(),
                 BoardFields.KIND_DEAL.equals(b.kind()), BoardFields.KIND_PROMO.equals(b.kind()), b.viewToggle(), b.allowAdult(), prefixes, b.color());
     }
 }

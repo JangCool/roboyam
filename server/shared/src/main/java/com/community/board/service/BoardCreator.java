@@ -39,7 +39,7 @@ public class BoardCreator {
                 input.viewToggle(), input.color(), input.investmentNotice(), sortOrder, operatorId, now);
         if (input.writeMin() != null) {
             board.changePolicy(new BoardPolicyValues(input.writeMin(), null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                    null, null, null));
+                    null, null, null, null, null));
         }
         boards.persist(board);
         int order = 1;

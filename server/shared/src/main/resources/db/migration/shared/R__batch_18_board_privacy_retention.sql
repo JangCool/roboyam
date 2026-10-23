@@ -4,7 +4,8 @@
 --   ip             작성한 지 ip_retention_days 일이 지난 글·댓글의 작성 IP 를 지운다(회원·비회원 모두).
 --   guest          작성한 지 guest_retention_days 일이 지난 비회원 글·댓글(0 이면 하지 않는다).
 --                  ANONYMIZE: 이름 ***·비밀번호 해시·IP 를 지우고 글은 남긴다. DELETE: 위에 더해 삭제 표시 + 제목·본문 파기, 비회원 글이면 그 글의 댓글·답글도 삭제·파기.
---   deletedContent 삭제한 지 deleted_content_retention_days 일이 지난 글·댓글의 원문(제목·본문)을 파기한다(purged_at).
+--   deletedContent 삭제한 지 deleted_content_retention_days 일이 지난 글·댓글의 원문(제목·본문 — HTML 글의 평문 칸 content_text 포함, V56)을 파기한다(purged_at).
+--                  글 이미지 파일은 이 배치가 아니라 「올리다 만 파일 정리」(file-orphan-cleanup, Java)가 지운 글의 이미지로 보고 지운다.
 --   reportRecord   신고한 지 report_record_retention_days 일이 지난 신고 기록(reports — 신고자·사유·설명·당시 내용 스냅샷)을 행째 지운다(V46).
 --   staffAction    스텝 처리 기록 표가 아직 없다 — 대상 0(표가 생기면 이 파일에 더한다).
 -- 기본 실행: 매일 03:30 KST. 결과: 처리 건수 = 바꾼 글·댓글 행 수(축 합계), 0 이면 SKIP. 덩어리(기본 5000)마다 COMMIT, 한 번 실행 상한(기본 100000).
@@ -82,7 +83,7 @@ BEGIN
                  OR (p_axis = 'deletedContent' AND p.deleted_at IS NOT NULL AND p.purged_at IS NULL AND p.deleted_at < v_cutoff)
               ORDER BY p.created_at LIMIT p_limit)
             UNION ALL
-            (SELECT 'comment-' || c.id, left(c.content, 40), c.board_id, c.created_at
+            (SELECT 'comment-' || c.id, left(CASE WHEN c.content_format = 'HTML' THEN btrim(regexp_replace(c.content, '<[^>]*>', ' ', 'g')) ELSE c.content END, 40), c.board_id, c.created_at
                FROM comments c
               WHERE (p_axis = 'ip' AND c.author_ip IS NOT NULL AND c.created_at < v_cutoff)
                  OR (p_axis = 'guest' AND c.author_id IS NULL AND c.guest_processed_at IS NULL AND c.created_at < v_cutoff)
@@ -133,7 +134,7 @@ BEGIN
         IF v_ids IS NOT NULL THEN
             IF v_mode = 'DELETE' THEN
                 UPDATE posts SET guest_name = '***', guest_password_hash = NULL, author_ip = NULL, guest_processed_at = now(),
-                                 deleted_at = coalesce(deleted_at, now()), title = '', content = '', purged_at = coalesce(purged_at, now()), updated_at = now()
+                                 deleted_at = coalesce(deleted_at, now()), title = '', content = '', content_text = NULL, purged_at = coalesce(purged_at, now()), updated_at = now()
                  WHERE id = ANY (v_ids);
                 GET DIAGNOSTICS v_n = ROW_COUNT;
                 -- 그 글의 댓글·답글도 삭제·파기한다(대상 수에는 세지 않는다)
@@ -162,7 +163,7 @@ BEGIN
         END IF;
 
     ELSIF p_axis = 'deletedContent' THEN
-        UPDATE posts SET title = '', content = '', purged_at = now(), updated_at = now()
+        UPDATE posts SET title = '', content = '', content_text = NULL, purged_at = now(), updated_at = now()
          WHERE id IN (SELECT id FROM posts WHERE deleted_at IS NOT NULL AND purged_at IS NULL AND deleted_at < v_cutoff ORDER BY deleted_at LIMIT p_limit);
         GET DIAGNOSTICS v_n = ROW_COUNT;
         v_total := v_n;

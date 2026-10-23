@@ -37,7 +37,9 @@ public class BoardEntity {
 
     private String writeMin;
     private String commentMin;
+    private String postEditor;
     private Boolean imageUploadAllowed;
+    private String commentEditor;
     private Integer listSize;
     private Integer pinnedMax;
     private Boolean indexable;
@@ -109,7 +111,9 @@ public class BoardEntity {
     public void changePolicy(BoardPolicyValues policy) {
         this.writeMin = policy.writeMin();
         this.commentMin = policy.commentMin();
+        this.postEditor = policy.postEditor();
         this.imageUploadAllowed = policy.imageUploadAllowed();
+        this.commentEditor = policy.commentEditor();
         this.listSize = policy.listSize();
         this.pinnedMax = policy.pinnedMax();
         this.indexable = policy.indexable();
@@ -142,7 +146,7 @@ public class BoardEntity {
     }
 
     public BoardPolicyValues policy() {
-        return new BoardPolicyValues(writeMin, commentMin, imageUploadAllowed, listSize, pinnedMax, indexable, searchable, inHome, pointMode, commentProtectMin,
+        return new BoardPolicyValues(writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, listSize, pinnedMax, indexable, searchable, inHome, pointMode, commentProtectMin,
                 commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, managerMax, staffPostDailyLimit,
                 staffCommentDailyLimit, staffSanctionDailyLimit);
     }

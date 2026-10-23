@@ -37,7 +37,7 @@
 새 글 표시 24시간, 비회원 비밀번호 최대 20자, 댓글 1~2,000자, 신고 기타 설명 300자, 베스트 댓글 최대 3개. 제목 1~100자·본문 10~200,000자(고정 규칙).
 
 ## 범위 밖 (후속)
-에디터·이미지 올리기, 임시저장, 투표, 스크랩, 차단·메모, 수정 이력, 실제 캡차, 성인 인증, 스텝·매니저 처리 화면, 포인트 지급, 알림 발송, 조회수 중복 판정 저장(`post_views`).
+임시저장, 투표, 스크랩, 차단·메모, 수정 이력, 실제 캡차, 성인 인증, 스텝·매니저 처리 화면, 포인트 지급, 알림 발송, 조회수 중복 판정 저장(`post_views`).
 
 ## 추가 결정 (2026-10-22, 사용자 "권장대로")
 1. **자동입력 방지**: 서버에 검증기 인터페이스(`CaptchaVerifier`)를 두고 **Cloudflare Turnstile** 구현을 기본으로 한다(무료·개인정보 수집이 적고 사용자 퍼즐 없음). 비밀키가 설정되지 않은 환경(local·설치 직후)은 「검증 안 함」 구현으로 동작하고 기동 로그에 경고를 남긴다 — 그때 비회원 글은 작성 속도·하루 한도·링크 0개·금지어로만 막힌다. 화면은 지금 자리 표시 체크를 두고, 사이트 키를 공개 정보로 받으면 Turnstile 위젯으로 바꾼다(후속).
@@ -62,3 +62,45 @@
 **미확정(추가)**: ~~slug `writable` 충돌~~ → 예약어에 더함. ~~비밀번호 시도 제한이 서버 메모리~~ → DB 로 옮김(2026-10-22). 고정 공지를 거는 기능·운영자 신고 처리·작성자/신고자 알림은 후속.
 
 - 포인트 지급·회원 알림 발송(후속이던 것): `point-contract.md` · `member-notification-contract.md`(2026-10-23).
+
+## 에디터·이미지 (2026-10-23, 서버 구현 — 화면 연결은 프론트 작업)
+**의도**: community 텍스트 에디터를 가져와 게시판마다 글 에디터(없음·간단·고급)·에디터 이미지 올리기·댓글 에디터를 정한다. 관리자 칸은 `board-contract.md` 「에디터·이미지」.
+
+### 공개 게시판 응답
+`GET /api/boards`·`/writable`·`/{slug}` 게시판 칸에 유효값 `postEditor`(`NONE|SIMPLE|ADVANCED`)·`commentEditor`(`NONE|SIMPLE`)·`imageUploadAllowed`(이미 있던 칸 — **글 에디터 유효값이 `ADVANCED` 가 아니면 늘 false**). 관리자 저장이 닿기까지 최대 15초(카탈로그 사본).
+
+### 본문 형식
+- 글·댓글 요청에 `contentFormat: 'TEXT'|'HTML'`(빠지면 TEXT — 예전 클라이언트), 응답(`GET/PUT /api/posts/{id}`, 댓글 목록·쓰기·고치기)에 `contentFormat`. 행 칸 `posts.content_format`·`comments.content_format`(기존 행 TEXT), HTML 글의 평문 칸 `posts.content_text`. 파티션 표 칸 추가는 상수 기본값이라 표를 다시 쓰지 않는다(PG 18 에서 행이 있는 조각의 relfilenode 가 그대로임을 확인), CHECK 는 `NOT VALID`.
+- 모르는 형식 → `400 fields.contentFormat`. 게시판 유효 글 에디터(댓글은 댓글 에디터)가 `NONE` 인데 HTML → `400 fields.contentFormat`. 에디터 게시판이어도 TEXT 는 받는다.
+- **HTML 은 서버가 허용 목록으로 정화해 저장하고 정화된 것을 응답한다**(OWASP Java HTML Sanitizer, `RichText`). 공개 화면은 이 HTML 만 `v-html` 로 그린다.
+  - `SIMPLE`(글·댓글 — 댓글은 늘 이 수준): `p br strong em u s a ul ol li blockquote`. `a` 는 `http|https|mailto` 만, 저장 때 `target="_blank" rel="nofollow noopener noreferrer"` 를 붙인다.
+  - `ADVANCED`(글만): SIMPLE + `h2 h3 hr code pre` + 이미지 표식 `<img data-image-id="숫자">` + 글자색·배경색 `span`(`style` 의 `color`·`background-color` 만, 값은 팔레트 — 소문자 `#rrggbb`, `rgb(r, g, b)` 도 받아 바꾼다. 글자 `#dc2626 #ea580c #ca8a04 #16a34a #2563eb #9333ea #64748b`, 배경 `#fef08a #bbf7d0 #bfdbfe #fecaca #e9d5ff #e2e8f0` — community 와 같다. 팔레트 밖이면 버리고 남는 것이 없으면 span 을 벗긴다) + YouTube 표식 `<div data-youtube-id="11자"></div>`(ID 형식만 검사, iframe 은 저장하지 않는다 — 화면이 `youtube-nocookie` 로 그린다. 표식 안의 내용은 블록 뒤로 나온다).
+  - 그 밖의 태그·속성·`style`·이벤트 속성은 모두 지워진다(글자는 남는다 — 예 `<h1>제목</h1>` → `제목`). 간단 수준에 온 `img` 표식도 조용히 지워진다(422 가 아니다). 앞뒤 빈 문단은 저장하지 않는다.
+  - 서버가 채운 이미지 태그: `<img src="/media/post-image/…" data-image-id="ID" width="W" height="H" alt="" loading="lazy">`. 고칠 때 화면이 이 태그를 그대로 돌려보내면 정화가 `data-image-id` 만 남기고 다시 채운다.
+- **길이**: 보이는 글자(태그를 떼고 엔티티를 풀고, 블록 경계·`br` = 줄바꿈 1자, 이어진 공백·줄바꿈은 하나로) 기준 기존 범위(글 10~200,000 · 댓글 1~2,000). 정화된 HTML 상한 글 400,000자(`board.content.html.tooLong`)·댓글 20,000자, 정화 전 입력이 상한의 두 배를 넘으면 정화하지 않고 거절. 이미지만 있는 글도 보이는 글자 10자가 필요하다.
+- 글당 이미지 30장·YouTube 10개(서버 상수, `board.content.image.limit`·`youtube.limit`). 새 회원은 보안 설정의 새 회원 이미지 수가 먼저.
+- **평문을 쓰는 곳**: 검색(`coalesce(content_text, content)`), 같은 글 반복(제목 + 보이는 글자 — 서식만 바꾼 글도 같은 글), 금지어(보이는 글자 **+ 링크 주소** — 거부 방식은 `href` 에 든 금지어도 거절, 가림 방식은 태그 밖 글자만 가린다·주소는 가리지 않는다), 회원 알림 `commentPreview`·숨김 알림 미리보기, 신고 스냅샷(`snapshot_content`), 관리자 개인정보 대상 보기(댓글 앞 40자 — `R__batch_18`). 링크 수 = `<a href>` 하나당 1 + 링크 밖 글자 속 주소. 활동 수·포인트는 본문을 보지 않는다.
+
+### 이미지 올리기 `POST /api/images`
+- multipart `file` 한 장, **로그인 회원만**(비회원 401), CSRF. → `201 {id, url, width, height}`(`Cache-Control: no-store`). 게시판을 모른다.
+- 정지 `403 ACCOUNT_RESTRICTED`, 글쓰기 역할 권한 없음 `403 BOARD_RESTRICTED` → 칸(`400 fields.file`: 빈 파일·형식·용량·깨짐·화소) → 1분 20장 `429 IMAGE_RATE_LIMITED`(+`retryAfterSeconds`) → 최근 24시간 300장 `429 IMAGE_DAILY_LIMIT`. 10MB 초과는 multipart 한도라 `413 FILE_TOO_LARGE`. 값은 `roboyam.post-image.*`.
+- 형식은 첫 바이트로 JPEG·PNG·WebP·GIF 만(이름·Content-Type 무시 — 위장 파일·SVG 는 `post.image.type`). 화소 2,500만 초과는 디코딩 전에 거절. 디코딩해 실제 그림인지 확인.
+- 다시 만들기(메타데이터 제거): JPEG 는 EXIF 방향을 반영해 돌린 뒤 긴 변 2048 로 줄이고 다시 인코딩(EXIF 없음), PNG 는 줄여 다시 인코딩, 움직이는 GIF 는 원본 그대로(긴 변 2048 이하일 때 — 넘으면 첫 장 PNG), 한 장 GIF 는 PNG, WebP 는 디코더가 없어 컨테이너만 정리(EXIF·XMP 제거, **줄이지 않는다**).
+- 장부는 기존 `files`(용도 `POST_IMAGE`, 올린 회원 `uploaded_by_user`, 쓰는 글 `post_id`): 올리면 PENDING → 글에 쓰이면 IN_USE. 저장소 키 `post-image/{UTC 년월}/{무작위 32자}.{확장자}`, `/media/**` 1년 캐시. 이미지 코덱(`ImageCodec`·`ImageGate`)은 admin 에서 shared 로 옮겼다(api 도 쓴다).
+
+### 글 저장 때의 이미지 규칙
+- 검사 순서: 칸(400) → 본문 이미지가 쓸 수 있는 것인지(400) → 이미지 금지 게시판의 새 이미지(422) → 금지어 → 캡차 → 속도.
+- 본문의 `data-image-id` 는 **글쓴이가 올린 PENDING 이미지** 또는 **이 글이 이미 쓰던 이미지**만 — 없는 ID·남의 이미지·다른 글이 쓰는 이미지는 `400 VALIDATION fields.content`(「이미지를 찾을 수 없어요」, community 방식 — 조용히 지우지 않는다). 저장 트랜잭션에서 행을 잠가 다시 확인한다.
+- 이미지 유효값(고급 에디터 + 허용)이 false 인 게시판에 **새로 들어간** 이미지 ID 가 있으면 `422 IMAGE_UPLOAD_NOT_ALLOWED`. 고치기는 그 글이 쓰던 이미지 집합과 비교해 새 것만 막는다.
+- 비회원: 올리기 401 이고, 고급 게시판 HTML 에 이미지 표식을 넣으면 기존 비회원 이미지 규칙 `400 fields.content`(「비회원은 이미지를 넣을 수 없어요」).
+- 고치면서 빠진 이미지·평문으로 고친 글의 이미지는 PENDING 으로 돌아가고, 지운 글(바로·예약 삭제 시각 지남)·행이 없어진 글의 이미지와 함께 `file-orphan-cleanup`(매일 03:45, 관리자 앱)이 저장소·장부에서 지운다. 개인정보 파기(`R__batch_18`)는 `content_text` 도 지운다.
+- 목록 `thumbnailUrl` 은 아직 늘 null(후속), `hasImage` 는 이미지 표식이 있으면 true.
+
+### 이모티콘 — 범위 밖
+community 의 이모티콘은 아이템샵(포인트 구매) 품목이라 로보얌에는 없다. 토큰 `:emo-ID:` 는 평문 그대로 저장·표시된다. **아이템샵이 생기면** 이모티콘 표식·허용 목록을 후속으로 더한다.
+
+### 미확정
+1. 이미지만 있는 글도 보이는 글자 10자가 필요(기존 본문 최소 규칙 그대로) — 사진 글을 허용할지.
+2. WebP 는 줄이지 않는다(디코더 없음). CMYK JPEG 는 JDK 가 못 읽어 「읽을 수 없어요」.
+3. 목록 썸네일(첫 이미지)·갤러리 레이아웃 연결은 후속.
+4. 올리기 1분 한도는 서버 메모리(서버 대수만큼 늘 수 있다), 하루 한도는 DB.

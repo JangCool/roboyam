@@ -142,7 +142,7 @@ public class PostQueryService {
         Optional<PostNeighborData> older = postQueries.older(b.id(), post.getId(), now);
         Optional<PostNeighborData> newer = postQueries.newer(b.id(), post.getId(), now);
         return new PostDetailView(Long.toString(post.getId()), new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn()),
-                prefixRef(b, post.getPrefixId()), post.getTitle(), post.getContent(),
+                prefixRef(b, post.getPrefixId()), post.getTitle(), post.getContentFormat().name(), post.getContent(),
                 authors.of(post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), members, s), post.getCreatedAt(), post.getEditedAt(), viewCount,
                 post.getLikeCount(), liked, post.getCommentCount(), post.isAdult(), userId != null && userId.equals(post.getAuthorId()),
                 protection(b, post.getCommentCount()), post.getDeleteScheduledAt(), older.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null),
