@@ -90,7 +90,7 @@ export default class UtilAdminMenu {
      * 지금 있는 화면의 메뉴. 새 화면이 생길 때 한 줄씩 더한다(서버 `AdminScreenRegistry` 에도 같은 한 줄 — 파일 머리말).
      * 운영자와 권한 묶음 — hamonica3 의 `사용자와 권한`(회원 관리 · 역할 관리)에 대응한다. 이 제품에서 회원은 공개 사이트 이용자이고 관리자 앱 계정은 운영자다.
      * 배치와 로그 묶음 — hamonica3 의 시스템 설정 메뉴(`배치와 로그`: 배치 관리 · 배치 로그 · 감사 로그)와 같은 이름·차례·아이콘·주소다.
-     * 모드: 대시보드·회원(회원 관리·등급 설정)·메뉴 관리·게시판·포인트는 일반 메뉴, 「일반」·알림·운영자와 권한·배치와 로그는 설정 메뉴(`mode: 'settings'`)다. 등급 설정은 회원 운영 업무라 일반 메뉴에 남긴다(주소가 `/settings/…` 여도 모드는 메뉴 정의가 정한다).
+     * 모드: 대시보드·회원(회원 관리·등급 설정)·메뉴 관리·게시판·포인트·소모임은 일반 메뉴, 「일반」·알림·운영자와 권한·배치와 로그는 설정 메뉴(`mode: 'settings'`)다. 등급 설정은 회원 운영 업무라 일반 메뉴에 남긴다(주소가 `/settings/…` 여도 모드는 메뉴 정의가 정한다).
      * 포인트 묶음(포인트 내역·포인트 정책)은 실제 서버(`usePointApi`)를 부른다 — 권한(`point.read`)이 있는 운영자에게 보인다.
      */
     static readonly ITEMS: readonly AdminMenuNode[] = [
@@ -147,6 +147,21 @@ export default class UtilAdminMenu {
             items: [
                 { key: 'points', to: '/points', icon: 'pi pi-receipt', labelKey: 'menu.points', permission: 'point.read' },
                 { key: 'pointPolicy', to: '/points/policy', icon: 'pi pi-percentage', labelKey: 'menu.pointPolicy', permission: 'point.read' },
+            ],
+        },
+        // 소모임 묶음 — 소모임 목록(열림·비활성, 상세 서랍에서 비활성화·다시 열기) · 개설 승인 · 분류(소모임 게시판 할당) · 설정(개설 규칙·매니저·공개 범위·운영 한도). community 관리자 앱의 「소모임」 묶음에 대응한다.
+        // ⚠ 목업 단계(`useGroupAdminApi`·`useGroupCategoryApi`·`useGroupSettingsApi`) — 서버 `AdminScreenRegistry` 의 같은 네 줄과 권한 `group.*` 의 `featureReady` 는 서버 단계에서 더한다(group-contract 「관리자 화면」).
+        // 네 화면 모두 조회 `group.read` 로 열리고, 화면 안에서 처리 `group.manage`(승인·반려·비활성화·다시 열기) · 설정 `group.settings`(분류·설정 저장)를 따로 본다.
+        // 주소는 서로 앞부분이 겹치지 않게 둔다(`/groups` 와 `/group-…`) — 겹치면 목록 항목이 하위 화면에서도 같이 켜진다.
+        {
+            key: 'group',
+            icon: 'pi pi-comments',
+            labelKey: 'menu.group',
+            items: [
+                { key: 'groups', to: '/groups', icon: 'pi pi-users', labelKey: 'menu.groups', permission: 'group.read' },
+                { key: 'groupRequests', to: '/group-requests', icon: 'pi pi-inbox', labelKey: 'menu.groupRequests', permission: 'group.read' },
+                { key: 'groupCategories', to: '/group-categories', icon: 'pi pi-tags', labelKey: 'menu.groupCategories', permission: 'group.read' },
+                { key: 'groupSettings', to: '/group-settings', icon: 'pi pi-sliders-h', labelKey: 'menu.groupSettings', permission: 'group.read' },
             ],
         },
         // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」·「소셜 로그인」·「조직 구성」이 있고(메일 서버는 다음 「메일」 묶음, 알림 도구·템플릿·문구·이벤트는 그다음 「알림·이벤트」 묶음) 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다

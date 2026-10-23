@@ -12,6 +12,7 @@ import board from './board';
 import dashboard from './dashboard';
 import error from './error';
 import grade from './grade';
+import group from './group';
 import login from './login';
 import mail from './mail';
 import notificationMessage from './notificationMessage';
@@ -41,6 +42,7 @@ export default {
     dashboard,
     error,
     grade,
+    group,
     login,
     mail,
     notificationMessage,
