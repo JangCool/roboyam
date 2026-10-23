@@ -1,10 +1,11 @@
 /**
- * 설정 변경 이력(소셜 로그인 설정 · 메일 서버 설정 화면의 「설정 이력」 구획, `SettingHistoryTable`)의 문구.
+ * 설정 변경 이력(소셜 로그인 설정 · 메일 서버 설정 화면 제목 옆 「변경 이력」 단추가 여는 서랍 `SettingHistoryDrawer` + 표 `SettingHistoryTable`)의 문구.
  * 칸 이름 `field.<칸>` 은 서버 응답의 `labelKey`(`settingHistory.field.<field>`)가 가리키는 키다 — 서버가 새 칸을 이력에 남기면 여기에 한 줄 더한다.
  * `en/settingHistory.ts` 와 같은 키, 같은 차례.
  */
 export default {
     title: '설정 이력',
+    open: '변경 이력',
     loadFailed: '설정 이력을 불러오지 못했어요',
     emptyTitle: '아직 바뀐 기록이 없어요',
     emptyHint: '설치하거나 이 화면에서 저장하면 여기에 남아요.',

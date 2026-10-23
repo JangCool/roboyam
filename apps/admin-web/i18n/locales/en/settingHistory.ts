@@ -1,9 +1,10 @@
 /**
- * Setting change history (the "Change history" section on the social login and mail server screens, `SettingHistoryTable`).
+ * Setting change history (the drawer opened by the "Change history" button next to the social login and mail server screen titles — `SettingHistoryDrawer` + `SettingHistoryTable`).
  * `field.<name>` keys are the server's `labelKey` (`settingHistory.field.<field>`). Same keys and order as `ko/settingHistory.ts`.
  */
 export default {
     title: 'Change history',
+    open: 'Change history',
     loadFailed: "Couldn't load the change history",
     emptyTitle: 'No changes yet',
     emptyHint: 'Changes from installation and from this screen show up here.',

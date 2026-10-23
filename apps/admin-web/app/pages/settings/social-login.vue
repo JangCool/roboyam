@@ -1,7 +1,7 @@
 <template>
     <!--
         소셜 로그인 설정(`/settings/social-login`) — community `admin/app/pages/social-login.vue` 를 옮긴 것이다. 카카오·네이버·구글의 클라이언트 ID·시크릿을 보고·고치고·지운다.
-        구획: 공급자마다 카드 하나(서버 순서 — 카카오 → 네이버 → 구글, `SocialProviderCard`, **카드마다 따로 저장**) + 설정 이력(공급자 거르기). 구획은 `AppGadget anchor` 로 우측 구역 내비에 오른다.
+        구획: 공급자마다 카드 하나(서버 순서 — 카카오 → 네이버 → 구글, `SocialProviderCard`, **카드마다 따로 저장**) + 설정 이력(제목 옆 「변경 이력」 단추 → 오른쪽 서랍, 공급자 거르기). 구획은 `AppGadget anchor` 로 우측 구역 내비에 오른다.
         - 서버에 암호화 키가 없으면(`cryptoKeyConfigured=false`) 맨 위 경고 — 저장할 수 없다(삭제는 된다).
         - 저장·삭제는 **한 번에 하나만**(진행 중이면 다른 카드도 잠근다). 저장은 응답으로 그 카드만 바꾸고, 삭제(204)는 목록을 새로 받는다. 둘 다 이력을 첫 쪽부터 다시 받는다.
         - 입력 오류(`fields.clientId|clientSecret|enabled`)는 그 칸 아래, 503 `CRYPTO_KEY_MISSING`(경고도 켠다)·404·네트워크는 카드 안 한 줄(서버 문구 그대로).
@@ -10,7 +10,11 @@
         서버 API: `useSocialProviderSettingsApi`(`docs/features/login-contract.md` 「관리자 소셜 로그인 설정」).
     -->
     <div class="flex flex-col gap-4">
-        <PageTitle :title="t('social.title')" :subtitle="t('social.subtitle')" />
+        <PageTitle :title="t('social.title')" :subtitle="t('social.subtitle')">
+            <template #actions>
+                <Button :label="t('settingHistory.open')" icon="pi pi-history" severity="secondary" outlined size="small" @click="openHistory" />
+            </template>
+        </PageTitle>
 
         <Message v-if="!canSecret" severity="info" :closable="false" size="small">{{ t('social.readOnly') }}</Message>
 
@@ -53,13 +57,12 @@
             <p class="m-0 max-w-[72ch] px-1 text-xs leading-relaxed text-muted-color">{{ t('social.footnote') }}</p>
         </template>
 
-        <!-- 설정 이력 — 최신이 위, 공급자 거르기 -->
-        <AppGadget :title="t('settingHistory.title')" anchor="social-history">
-            <template #actions>
+        <!-- 설정 이력 — 제목 옆 단추가 오른쪽 서랍으로 연다(최신이 위, 공급자 거르기) -->
+        <SettingHistoryDrawer v-model:visible="historyOpen" :hint="t('social.historyHint')">
+            <template #filters>
                 <label :for="providerFilterId" class="sr-only">{{ t('settingHistory.provider') }}</label>
                 <Select v-model="providerFilter" :input-id="providerFilterId" :options="providerOptions" option-label="label" option-value="value" size="small" class="w-36" />
             </template>
-            <p class="m-0 mb-3 text-xs leading-relaxed text-muted-color">{{ t('social.historyHint') }}</p>
             <SettingHistoryTable
                 :items="history.rows.value"
                 :total="history.total.value"
@@ -73,7 +76,7 @@
                 @page="history.onPage"
                 @retry="history.load"
             />
-        </AppGadget>
+        </SettingHistoryDrawer>
     </div>
 </template>
 
@@ -133,7 +136,15 @@ const providerOptions = computed(() => [
 ]);
 
 const history = useSettingHistory((page, size) => api.history({ provider: providerFilter.value || null, page, size }));
-watch(providerFilter, () => void history.reloadFirst());
+/** 이력 서랍 — 처음 열 때 받는다(화면을 열 때마다 이력을 부르지 않는다) */
+const historyOpen = ref(false);
+function openHistory(): void {
+    historyOpen.value = true;
+    if (!history.loaded.value && !history.loading.value) void history.load();
+}
+watch(providerFilter, () => {
+    if (history.loaded.value) void history.reloadFirst();
+});
 
 /* ── 저장·삭제 ── */
 
@@ -152,7 +163,7 @@ async function save(setting: SocialProviderSettingView, body: SocialProviderSave
         const saved = await api.save(provider, body);
         if (view.value) view.value = { ...view.value, providers: view.value.providers.map((p) => (p.provider === saved.provider ? saved : p)) };
         toast.success(UtilSocialLoginMessages.saved(t, saved), 5000);
-        void history.reloadFirst();
+        if (history.loaded.value) void history.reloadFirst();
     } catch (e) {
         const error = toApiError(e);
         const fields: SocialFieldErrors = { clientId: error.field('clientId'), clientSecret: error.field('clientSecret'), enabled: error.field('enabled') };
@@ -178,7 +189,7 @@ async function remove(setting: SocialProviderSettingView): Promise<void> {
     try {
         await api.remove(provider);
         toast.success(t('social.removed', { name: setting.label }));
-        void history.reloadFirst();
+        if (history.loaded.value) void history.reloadFirst();
         try {
             view.value = await api.list();
         } catch (e) {
@@ -199,6 +210,5 @@ onBeforeRouteLeave(async () => {
 
 onMounted(() => {
     void load();
-    void history.load();
 });
 </script>

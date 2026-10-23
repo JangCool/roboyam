@@ -2,7 +2,7 @@
     <!--
         메일 서버 설정(`/settings/mail`) — 하모니카3 `settings/application/mail.vue` 방식이다: 폼 구획 하나 + [저장], 저장된 설정으로 [시험 발송](받는 주소 대화상자 → 결과).
         설치 마법사가 넣은 행을 서버가 그대로 준다(`mail_settings` 하나뿐). 설정이 없으면(설치 때 건너뜀) 빈 폼 + 「아직 메일 서버가 없어요」 안내.
-        구획: ① 메일 서버(`mail-server` — 구획 하나 = 저장 하나, 저장 줄은 구획 맨 아래) ② 설정 이력(`mail-history`). 우측 구역 내비가 둘을 잇는다.
+        구획: ① 메일 서버(`mail-server` — 구획 하나 = 저장 하나, 저장 줄은 구획 맨 아래) 설정 이력은 제목 옆 「변경 이력」 단추가 여는 오른쪽 서랍(`SettingHistoryDrawer`)이다.
         - 비밀번호는 서버가 주지 않는다 — 늘 빈 칸, 저장된 것이 있으면 「입력됨」. 비워 저장하면 그대로 둔다. 다만 사용자 이름·서버 주소·보안 방식을 바꾸며 비우면 서버가 `fields.password` 로 거절하므로
           화면이 그 칸에 미리 「다시 입력해 주세요」를 보인다(`UtilMailSettings.validate` — 서버 `sameTarget` 과 같은 규칙). 사용자 이름을 지우면 비밀번호도 지워진다는 안내도 그 칸에.
         - 서버에 암호화 키가 없으면 맨 위 경고 + 비밀번호 칸 잠금(새 비밀번호는 503 `CRYPTO_KEY_MISSING`).
@@ -13,7 +13,11 @@
         서버 API: `useMailSettingsApi`(`docs/features/mail-settings-contract.md`).
     -->
     <div class="flex flex-col gap-4">
-        <PageTitle :title="t('mail.title')" :subtitle="t('mail.subtitle')" />
+        <PageTitle :title="t('mail.title')" :subtitle="t('mail.subtitle')">
+            <template #actions>
+                <Button :label="t('settingHistory.open')" icon="pi pi-history" severity="secondary" outlined size="small" @click="openHistory" />
+            </template>
+        </PageTitle>
 
         <Message v-if="!canSecret" severity="info" :closable="false" size="small">{{ t('mail.readOnly') }}</Message>
         <Message v-if="view && !view.cryptoKeyConfigured" severity="warn" :closable="false" size="small">
@@ -113,9 +117,8 @@
             </form>
         </AppGadget>
 
-        <!-- ② 설정 이력 -->
-        <AppGadget :title="t('settingHistory.title')" anchor="mail-history">
-            <p class="m-0 mb-3 text-xs leading-relaxed text-muted-color">{{ t('mail.historyHint') }}</p>
+        <!-- 설정 이력 — 제목 옆 단추가 오른쪽 서랍으로 연다(최신이 위) -->
+        <SettingHistoryDrawer v-model:visible="historyOpen" :hint="t('mail.historyHint')">
             <SettingHistoryTable
                 :items="history.rows.value"
                 :total="history.total.value"
@@ -128,7 +131,7 @@
                 @page="history.onPage"
                 @retry="history.load"
             />
-        </AppGadget>
+        </SettingHistoryDrawer>
 
         <!-- 시험 발송 — 어디로 보낼지 받는다. 저장된 설정 그대로 실제로 보낸다 -->
         <Dialog v-model:visible="testOpen" modal :header="t('mail.testTitle')" class="w-[28rem] max-w-[calc(100vw-2rem)]">
@@ -275,7 +278,7 @@ async function save(): Promise<void> {
     try {
         fill(await api.save(UtilMailSettings.toRequest(form)));
         toast.success(t('mail.saved'));
-        void history.reloadFirst();
+        if (history.loaded.value) void history.reloadFirst();
     } catch (e) {
         const error = toApiError(e);
         const found: MailSettingsFieldErrors = {};
@@ -348,6 +351,12 @@ async function runTest(): Promise<void> {
 /* ── ② 설정 이력 ── */
 
 const history = useSettingHistory((page, size) => api.history(page, size));
+/** 이력 서랍 — 처음 열 때 받는다(화면을 열 때마다 이력을 부르지 않는다) */
+const historyOpen = ref(false);
+function openHistory(): void {
+    historyOpen.value = true;
+    if (!history.loaded.value && !history.loading.value) void history.load();
+}
 
 // 저장하지 않은 변경이 있는 채 다른 화면으로 가려 하면 묻는다
 onBeforeRouteLeave(async () => {
@@ -357,6 +366,5 @@ onBeforeRouteLeave(async () => {
 
 onMounted(() => {
     void load();
-    void history.load();
 });
 </script>
