@@ -2,7 +2,8 @@
     <!--
         필수 안내 메일(목록, `/settings/notification-templates/required-mails`, 설정 > 알림·이벤트 > 알림 템플릿) — 이벤트가 아닌 꼭 가는 메일(회원 이메일 인증 · 운영자 초대 · 임시 비밀번호 · 재설정 승인번호 · 메일 서버 시험).
         계약 `docs/features/message-template-contract.md` 「개정 3」 메뉴. 받는 사람이 끌 수 없고 채널은 이메일뿐이다. 개정 전 「메일 종류」의 계정·보안 메일 묶음을 옮겼다.
-        표: 이름(보안 메일 · 끌 수 없음 딱지 · 설명 · 코드) · 받는 사람 · 언어별 쓰는 템플릿 · 특수 상황 규칙 수 · 사용자 템플릿 수. 위쪽 거르기: 받는 사람(전체/회원/운영자 — 주소 `?audience=`).
+        받는 사람을 고르지 않는다 — 한 화면에 「운영자에게 가는 메일」 · 「회원에게 가는 메일」 구획(운영자 먼저)으로 나눠 보인다(종류가 적어 메뉴로 나누지 않는다).
+        구획마다 표: 이름(보안 메일 · 끌 수 없음 딱지 · 설명 · 코드) · 언어별 쓰는 템플릿 · 특수 상황 규칙 수 · 사용자 템플릿 수.
         행을 누르면 상세(`/settings/notification-templates/required-mails/[kind]`). 이 화면은 보기만 한다. 권한: 화면 `template.read`(메뉴가 거른다) — 403 이면 권한 없음 안내.
         ⚠ MOCK: API 는 메모리 목업이다(`useNotificationTemplateApi` · `?mock=…` 스위치는 `composables/template/api/mock/notification-template-mock.ts` 머리말).
     -->
@@ -27,18 +28,13 @@
             </AppGadget>
 
             <template v-else>
-                <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <SelectButton v-model="audienceFilter" :options="audienceOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('notificationTemplate.filterAudience')" />
-                    <p class="ml-auto text-[13px] text-muted-color" aria-live="polite">{{ t('notificationTemplate.listCount', { n: filtered.length, total: targets.length }) }}</p>
-                </div>
-
-                <div class="min-w-0 overflow-hidden rounded-xl border border-(--line) bg-(--p-content-background)">
-                    <DataTable :value="filtered" data-key="code" row-hover scrollable :size="prefs.density === 'compact' ? 'small' : undefined" :row-class="() => 'cursor-pointer'" @row-click="onRowClick">
-                        <template #empty>
-                            <EmptyState icon="pi pi-filter-slash" :title="t('common.emptyFiltered')">
-                                <Button type="button" :label="t('notificationTemplate.clearFilter')" size="small" severity="secondary" variant="outlined" @click="audienceFilter = 'ALL'" />
-                            </EmptyState>
-                        </template>
+                <!-- 받는 사람마다 구획 하나(운영자 먼저 — 메뉴 차례와 같다). 종류가 적어 메뉴로 나누지 않는다 -->
+                <AppGadget v-for="section in sections" :key="section.audience" :title="section.title">
+                    <template #title-extra>
+                        <span class="text-xs tabular-nums text-muted-color">{{ section.items.length }}</span>
+                    </template>
+                    <EmptyState v-if="!section.items.length" icon="pi pi-envelope" :title="t('notificationTemplate.requiredSectionEmpty')" />
+                    <DataTable v-else :value="section.items" data-key="code" row-hover scrollable :size="prefs.density === 'compact' ? 'small' : undefined" :row-class="() => 'cursor-pointer'" @row-click="onRowClick">
                         <Column :header="t('notificationTemplate.colRequiredMail')" style="min-width: 18rem">
                             <template #body="{ data }">
                                 <div class="flex min-w-0 flex-col gap-0.5">
@@ -50,14 +46,6 @@
                                     <span class="block truncate text-[11px] text-muted-color">{{ data.description }}</span>
                                     <code class="text-[10px] text-muted-color">{{ data.code }}</code>
                                 </div>
-                            </template>
-                        </Column>
-                        <Column :header="t('notificationTemplate.colAudience')" style="min-width: 6.5rem">
-                            <template #body="{ data }">
-                                <span class="inline-flex items-center gap-1.5 text-[12px]">
-                                    <i :class="UtilNotificationTemplateMessages.audienceIcon(data.audience)" class="text-[11px] text-muted-color" aria-hidden="true" />
-                                    {{ UtilNotificationTemplateMessages.audienceLabel(t, data.audience) }}
-                                </span>
                             </template>
                         </Column>
                         <Column :header="t('notificationTemplate.colUsing')" style="min-width: 14rem">
@@ -82,7 +70,7 @@
                             </template>
                         </Column>
                     </DataTable>
-                </div>
+                </AppGadget>
                 <p class="m-0 text-xs text-muted-color">{{ t('notificationTemplate.requiredNote') }}</p>
             </template>
         </template>
@@ -92,14 +80,13 @@
 <script setup lang="ts">
 import type { DataTableRowClickEvent } from 'primevue/datatable';
 import type { TemplateAudience, TemplateTargetView } from '~/composables/template/api/useNotificationTemplateApi.types';
-import { TEMPLATE_AUDIENCES, TEMPLATE_LIMIT, TEMPLATE_LOCALES } from '~/composables/template/api/useNotificationTemplateApi.types';
+import { TEMPLATE_LIMIT, TEMPLATE_LOCALES } from '~/composables/template/api/useNotificationTemplateApi.types';
 import UtilNotificationTemplateMessages from '~/utils/util-notification-template-messages';
 
 const { t } = useI18n();
 useSeoMeta({ title: () => t('notificationTemplate.requiredTitle') });
 
 const api = useNotificationTemplateApi();
-const route = useRoute();
 const router = useRouter();
 const toApiError = useApiErrorOf();
 // ⚠ 통째로 받아 `prefs.density` 를 쓰지 않으면 조밀 모드가 이 표에만 안 먹는다
@@ -111,23 +98,15 @@ const loadError = ref('');
 /** 읽기 권한이 없다(403) — 오류가 아니라 안내다(`forms.md`) */
 const denied = ref(false);
 
-/* ── 거르기 — 받는 사람, 주소 `?audience=` 에 남긴다 ── */
+/* ── 구획 — 받는 사람마다(운영자 먼저 — 메뉴 「운영자 템플릿 · 회원 템플릿」·이벤트와 같은 차례), 구획 안은 받은 차례 ── */
 
-const audienceOf = (value: unknown): TemplateAudience | 'ALL' => (value === 'MEMBER' || value === 'OPERATOR' ? value : 'ALL');
-const audienceFilter = ref<TemplateAudience | 'ALL'>(audienceOf(route.query.audience));
-watch(audienceFilter, (audience) => {
-    const query = { ...route.query };
-    if (audience !== 'ALL') query.audience = audience;
-    else delete query.audience;
-    void router.replace({ query });
-});
-const audienceOptions = computed(() => [{ value: 'ALL', label: t('common.all') }, ...TEMPLATE_AUDIENCES.map((value) => ({ value, label: UtilNotificationTemplateMessages.audienceLabel(t, value) }))]);
-/** 받는 사람 차례(회원 먼저), 같은 받는 사람 안은 받은 차례 */
-const filtered = computed(() =>
-    (targets.value ?? [])
-        .filter((item) => audienceFilter.value === 'ALL' || item.audience === audienceFilter.value)
-        .slice()
-        .sort((a, b) => TEMPLATE_AUDIENCES.indexOf(a.audience) - TEMPLATE_AUDIENCES.indexOf(b.audience)),
+const SECTION_AUDIENCES: readonly TemplateAudience[] = ['OPERATOR', 'MEMBER'];
+const sections = computed(() =>
+    SECTION_AUDIENCES.map((audience) => ({
+        audience,
+        title: audience === 'MEMBER' ? t('notificationTemplate.requiredMemberSection') : t('notificationTemplate.requiredOperatorSection'),
+        items: (targets.value ?? []).filter((item) => item.audience === audience),
+    })),
 );
 
 /** 필수 안내 메일의 채널은 이메일 하나다 */

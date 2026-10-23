@@ -98,8 +98,8 @@
 
                 <AppGadget v-for="channel in target.channels" :key="channel.channel" :title="UtilNotificationTemplateMessages.channelLabel(t, channel.channel)" :anchor="`channel-${channel.channel.toLowerCase().replace('_', '-')}`" :changes="changesOf(channel.channel)" :invalid="invalidOf(channel.channel)">
                     <template #actions>
-                        <NuxtLink :to="{ path: '/settings/notification-templates/templates', query: { target: info.code, channel: channel.channel } }" class="text-xs text-primary hover:underline">{{ t('notification.eventDetail.showTemplates') }}</NuxtLink>
-                        <NuxtLink v-if="canManage" :to="{ path: '/settings/notification-templates/templates/new', query: { target: info.code, channel: channel.channel } }" class="ml-3 text-xs text-primary hover:underline">{{ t('notification.eventDetail.newTemplate') }}</NuxtLink>
+                        <NuxtLink :to="{ path: UtilNotificationTemplateMessages.templateListPath(audienceCode), query: { target: info.code, channel: channel.channel } }" class="text-xs text-primary hover:underline">{{ t('notification.eventDetail.showTemplates') }}</NuxtLink>
+                        <NuxtLink v-if="canManage" :to="{ path: '/settings/notification-templates/templates/new', query: { audience: audienceCode, target: info.code, channel: channel.channel } }" class="ml-3 text-xs text-primary hover:underline">{{ t('notification.eventDetail.newTemplate') }}</NuxtLink>
                     </template>
                     <div class="flex flex-col gap-3">
                         <Message v-if="channelNote(channel.channel)" severity="secondary" :closable="false" size="small">{{ channelNote(channel.channel) }}</Message>

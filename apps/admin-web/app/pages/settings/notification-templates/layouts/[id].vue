@@ -52,7 +52,12 @@
             <div v-if="saved" class="-mt-2 flex flex-wrap items-center gap-2">
                 <Tag :value="t('notificationTemplate.audienceTag', { audience: UtilNotificationTemplateMessages.audienceLabel(t, saved.audience) })" :icon="UtilNotificationTemplateMessages.audienceIcon(saved.audience)" severity="secondary" class="mail-template-tag text-[11px]!" />
                 <Tag v-if="saved.builtin" :value="t('notificationTemplate.builtinTag')" icon="pi pi-lock" severity="secondary" class="mail-template-tag text-[11px]!" />
-                <NuxtLink v-if="saved.templateCount" :to="{ path: '/settings/notification-templates/templates', query: { channel: 'EMAIL', layout: saved.id } }" class="text-xs text-primary hover:underline">{{ t('notificationTemplate.layoutUsedBy', { count: saved.templateCount }) }}</NuxtLink>
+                <!-- 쓰는 템플릿 — 그 받는 사람의 템플릿 목록으로(「모두」 레이아웃은 운영자 · 회원 목록을 따로) -->
+                <template v-if="templateLinks.length">
+                    <NuxtLink v-for="link in templateLinks" :key="link.audience" :to="link.to" class="text-xs text-primary hover:underline">
+                        {{ saved.audience === 'ANY' ? t('notificationTemplate.layoutUsedByAudience', { audience: UtilNotificationTemplateMessages.audienceLabel(t, link.audience), count: link.count }) : t('notificationTemplate.layoutUsedBy', { count: link.count }) }}
+                    </NuxtLink>
+                </template>
                 <span v-else class="text-xs text-muted-color">{{ t('notificationTemplate.noTemplates') }}</span>
                 <span v-if="saved.updatedAt" class="text-xs text-muted-color">{{ saved.updatedByName ? t('notificationTemplate.updatedBy', { at: time.full(saved.updatedAt), name: saved.updatedByName }) : time.full(saved.updatedAt) }}</span>
             </div>
@@ -265,6 +270,8 @@ const commonNames = computed(() => footerVariables.value.map((v) => v.name));
 
 /** 저장된 레이아웃을 쓰는 템플릿 수(받는 사람별) — 새로 만들기는 아무도 안 쓴다 */
 const usedCounts = computed<Record<TemplateAudience, number>>(() => saved.value?.templateCounts ?? { MEMBER: 0, OPERATOR: 0 });
+/** 머리의 「쓰는 템플릿」 링크 — 저장된 쓰는 대상 기준(편집 중인 대상이 아니다) */
+const templateLinks = computed(() => (saved.value ? UtilNotificationTemplateMessages.layoutTemplateLinks(saved.value) : []));
 /** 이 대상으로 바꿀 수 없는 까닭이 되는 받는 사람(없으면 null) — 「회원」 전용인데 운영자 템플릿이 쓰는 중 … */
 function blockerOf(audience: MailLayoutAudience): TemplateAudience | null {
     if (audience === 'ANY') return null;

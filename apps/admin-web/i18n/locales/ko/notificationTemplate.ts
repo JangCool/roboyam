@@ -1,5 +1,5 @@
 /**
- * 설정 > 알림·이벤트 > 알림 템플릿(템플릿 `/settings/notification-templates/templates[/{id}]` · 메일 레이아웃 `…/layouts[/{id}]` · 필수 안내 메일 `…/required-mails[/{kind}]`)과
+ * 설정 > 알림·이벤트 > 알림 템플릿(운영자 템플릿 `…/templates/operator` · 회원 템플릿 `…/templates/member` · 편집 `/settings/notification-templates/templates/{id}` · 메일 레이아웃 `…/layouts[/{id}]` · 필수 안내 메일 `…/required-mails[/{kind}]`)과
  * 이벤트 상세의 채널별 템플릿 칸(`TemplateChannelSelection`)·미리보기·변수 메뉴의 문구. 계산이 낀 문구는 `utils/util-notification-template-messages.ts`.
  * 이벤트 목록·상세 화면 자체의 문구는 `notification.ts`(`memberEvents.*` · `eventDetail.*`).
  * ⚠ 문구 안에 `{{변수}}` 를 그대로 쓰지 않는다(vue-i18n 이 자리표시자로 읽는다) — `{token}`·`{names}` 처럼 값으로 넘긴다.
@@ -19,7 +19,6 @@ export default {
     audienceOperator: '운영자',
     audienceAny: '회원·운영자 모두',
     audienceTag: '받는 사람: {audience}',
-    colAudience: '받는 사람',
     builtinTag: '기본',
     userTag: '사용자',
     builtinUpdated: '코드에 들어 있어요',
@@ -97,7 +96,10 @@ export default {
     requiredLoadFailed: '필수 안내 메일을 불러오지 못했어요',
     requiredEmptyTitle: '필수 안내 메일이 없어요',
     requiredEmptyBody: '서버가 보내는 필수 안내 메일이 아직 없어요.',
-    requiredNote: '보안 메일은 꼭 넣어야 하는 변수가 있어요. 템플릿 내용은 「템플릿」 화면에서 고쳐요.',
+    requiredOperatorSection: '운영자에게 가는 메일',
+    requiredMemberSection: '회원에게 가는 메일',
+    requiredSectionEmpty: '이 받는 사람에게 가는 필수 안내 메일이 없어요',
+    requiredNote: '보안 메일은 꼭 넣어야 하는 변수가 있어요. 템플릿 내용은 「운영자 템플릿」 · 「회원 템플릿」 화면에서 고쳐요.',
     requiredNotFound: '필수 안내 메일을 찾을 수 없어요',
     requiredDetailLoadFailed: '이 메일을 불러오지 못했어요',
     requiredSaved: '쓸 템플릿과 규칙을 저장했어요',
@@ -109,14 +111,15 @@ export default {
     showMailTemplates: '이 메일의 템플릿 보기',
 
     // 템플릿 목록
-    templatesTitle: '알림 템플릿',
-    templatesSubtitle: '이벤트와 필수 안내 메일이 채널(앱 알림·이메일·채팅)마다 쓰는 양식이에요. 기본 템플릿은 코드에 들어 있어 고칠 수 없고, 복사해서 만든 사용자 템플릿을 고쳐 써요.',
+    templatesOperatorTitle: '운영자 템플릿',
+    templatesOperatorSubtitle: '운영자에게 가는 이벤트와 필수 안내 메일이 채널(앱 알림·이메일·채팅)마다 쓰는 양식이에요. 기본 템플릿은 코드에 들어 있어 고칠 수 없고, 복사해서 만든 사용자 템플릿을 고쳐 써요.',
+    templatesMemberTitle: '회원 템플릿',
+    templatesMemberSubtitle: '회원에게 가는 이벤트와 필수 안내 메일이 채널(앱 알림·이메일·채팅)마다 쓰는 양식이에요. 기본 템플릿은 코드에 들어 있어 고칠 수 없고, 복사해서 만든 사용자 템플릿을 고쳐 써요.',
     templatesLoadFailed: '알림 템플릿을 불러오지 못했어요',
     templatesEmptyTitle: '템플릿이 없어요',
     templatesEmptyBody: '템플릿을 쓰는 이벤트나 필수 안내 메일이 아직 없어요.',
     searchPlaceholder: '이름·대상 검색',
     filterChannel: '채널',
-    filterAudience: '받는 사람',
     filterTargetType: '대상 종류',
     filterTarget: '대상',
     filterTargetAll: '모든 대상',
@@ -214,10 +217,12 @@ export default {
     layoutsLoadFailed: '메일 레이아웃을 불러오지 못했어요',
     layoutsEmptyTitle: '레이아웃이 없어요',
     newLayout: '새 레이아웃',
-    colLayoutAudience: '쓰는 대상',
-    filterLayoutAudience: '쓰는 대상',
+    layoutOperatorSection: '운영자용',
+    layoutMemberSection: '회원용',
+    layoutAnySection: '모두(회원·운영자)',
     colTemplateCount: '쓰는 템플릿',
     templateCount: '{count}개',
+    templateCountOf: '{audience} {count}개',
     noTemplates: '쓰는 템플릿 없음',
     layoutsHint: '기본 레이아웃(회원 기본 · 운영자 기본)은 코드에 들어 있어 고칠 수 없고, 새 이메일 템플릿이 받는 사람에 따라 이것으로 시작해요. 쓰는 템플릿이 있는 레이아웃은 지울 수 없어요.',
     layoutLimitReached: '레이아웃은 {max}개까지 만들 수 있어요.',
@@ -234,6 +239,7 @@ export default {
     backToLayouts: '목록으로',
     builtinLayoutReadOnly: '기본 레이아웃은 고칠 수 없어요.',
     layoutUsedBy: '템플릿 {count}개가 써요',
+    layoutUsedByAudience: '{audience} 템플릿 {count}개가 써요',
     layoutAudienceLabel: '쓰는 대상',
     layoutAudienceHelp: '이 레이아웃을 고를 수 있는 템플릿의 받는 사람이에요. 「모두」는 회원·운영자 메일 모두에서 고를 수 있고, 틀·꼬리말에는 둘이 같이 쓰는 변수만 넣을 수 있어요.',
     layoutAudienceLocked: '{audience} 메일 템플릿 {count}개가 이 레이아웃을 쓰는 중이라 {other} 전용으로는 바꿀 수 없어요. 그 템플릿의 레이아웃을 먼저 바꿔 주세요.',

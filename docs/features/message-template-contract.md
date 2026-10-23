@@ -10,10 +10,10 @@
 - **메일** 묶음: 메일 서버(`/settings/mail`)만 남긴다. 「메일 종류」·「템플릿」·「레이아웃」 메뉴는 이 묶음에서 빠진다.
 - **알림·이벤트** 묶음(차례 — 묶음 이름은 「알림」에서 「알림·이벤트」로 바꿨다, i18n `menu.notifications` ko 「알림·이벤트」 · en 「Notifications & events」):
   1. **알림 도구** `/settings/notification-channels` (그대로)
-  2. **알림 템플릿** (하위 메뉴를 가진 부모 — 역할 관리처럼) `/settings/notification-templates`
-     - **템플릿** `/settings/notification-templates/templates` — 모든 템플릿(이메일·채팅·앱 알림) 표, 거르기: 채널·받는 사람·대상(이벤트/필수 안내 메일)·언어·기본/사용자·레이아웃. 편집 `/templates/[id]`, 새로 `/templates/new?target=&channel=`, 복사 `?from=`.
-     - **메일 레이아웃** `/settings/notification-templates/layouts` — 이메일 채널 전용 틀(받는 사람별 기본 2개 + 사용자 레이아웃, 「개정 2」 규칙 그대로).
-     - **필수 안내 메일** `/settings/notification-templates/required-mails` — 이벤트가 아닌 꼭 가는 메일(회원 이메일 인증·운영자 초대·임시 비밀번호·재설정 승인번호·메일 서버 시험, 받는 사람 열·거르기) 목록 → 상세 `/required-mails/[kind]`: 언어별 쓸 템플릿 + 특수 상황 규칙. 받는 사람이 끌 수 없다. 채널은 이메일뿐.
+  2. **알림 템플릿** (하위 메뉴를 가진 부모 — 역할 관리처럼) `/settings/notification-templates` → 운영자 템플릿으로 보낸다. **받는 사람은 메뉴로 나눈다** — 화면 안에서 「전체/회원/운영자」를 고르지 않는다(2026-10-23 사용자 지적).
+     - **운영자 템플릿** `/settings/notification-templates/templates/operator` · **회원 템플릿** `/settings/notification-templates/templates/member` (이벤트 메뉴처럼 운영자 먼저) — 그 받는 사람의 템플릿(이메일·채팅·앱 알림) 표, 왼쪽 위 채널 영역 + 거르기: 대상 종류(이벤트/필수 안내 메일)·대상(그 받는 사람의 것만)·언어·기본/사용자·레이아웃. 받는 사람 열·거르기 없음. 편집 `/templates/[id]`(두 메뉴 공용), 새로 `/templates/new?audience=&target=&channel=`, 복사 `?from=`. 옛 주소 `/templates` 는 `?audience=MEMBER` 면 회원, 그 밖은 운영자 템플릿으로(쿼리 유지).
+     - **메일 레이아웃** `/settings/notification-templates/layouts` — 이메일 채널 전용 틀(받는 사람별 기본 2개 + 사용자 레이아웃, 「개정 2」 규칙 그대로). 목록은 「운영자용」·「회원용」·「모두」 구획(쓰는 대상 고르기 없음).
+     - **필수 안내 메일** `/settings/notification-templates/required-mails` — 이벤트가 아닌 꼭 가는 메일(회원 이메일 인증·운영자 초대·임시 비밀번호·재설정 승인번호·메일 서버 시험) 목록 → 상세 `/required-mails/[kind]`: 언어별 쓸 템플릿 + 특수 상황 규칙. 받는 사람이 끌 수 없다. 채널은 이메일뿐. 목록은 한 화면에 「운영자에게 가는 메일」·「회원에게 가는 메일」 구획(종류가 적어 메뉴로 나누지 않는다).
   3. **이벤트** (하위 메뉴를 가진 부모, 2026-10-23 사용자 확정 — 묶음 맨 아래) `/settings/notifications` → **운영자** `/settings/notifications/operator`(지금 「이벤트」 화면 — 이름·주소 바뀜, 옛 주소는 새 주소로) · **회원** `/settings/notifications/member`(새로)
 - 「메일 종류」 화면(`/settings/mail-kinds`)은 없앤다 — 이벤트 메일의 양식은 이벤트 상세에서, 필수 안내 메일은 위 화면에서 정한다.
 
@@ -35,7 +35,10 @@
 - 변수는 대상(이벤트·필수 안내 메일)이 정하고, 받는 사람별 공통 변수(회원 `siteUrl`, 운영자 `adminUrl`)는 「개정 2」 그대로.
 
 ### 목업 가정 — 개정 3 (화면 목업 2026-10-23, 사용자 확인 전 — 아래 「목업 가정」·「목업 가정 — 개정 2」 중 화면 구성·메일 종류에 관한 것은 이것이 대체하고, 레이아웃·검사·받는 사람별 공통 변수 규칙은 그대로)
-- **화면·주소**: 메뉴는 위 「메뉴」 그대로(키 `memberEvents` · `operatorEvents` · `notificationChannels` · `notificationTemplates`(부모) › `notificationTemplateList` · `mailLayouts` · `requiredMails`). 옛 주소는 새 화면으로 보낸다 — `/settings/notifications` → `/settings/notifications/operator`, `/settings/mail-kinds[/{kind}]` → 필수 안내 메일(계정·보안 메일 코드) 또는 운영자 이벤트 상세(알림 이벤트 코드), `/settings/mail-templates[/{id}]` → `/settings/notification-templates/templates[/{id}]`(`?kind=` → `?target=`, 목록은 `?channel=EMAIL`), `/settings/mail-layouts[/{id}]` → `…/layouts[/{id}]`. 부모 `/settings/notification-templates` → 템플릿. 서버 `AdminScreenRegistry` 는 아직 옛 키(`notifications` → `/settings/notifications`, 이름 `menu.notificationEvents` — 값을 「운영자 이벤트」로 바꿔 둠)라 서버 단계에서 맞춘다.
+- **화면·주소**: 메뉴는 위 「메뉴」 그대로(키 `memberEvents` · `operatorEvents` · `notificationChannels` · `notificationTemplates`(부모) › `operatorTemplates` · `memberTemplates` · `mailLayouts` · `requiredMails`). 옛 주소는 새 화면으로 보낸다 — `/settings/notifications` → `/settings/notifications/operator`, `/settings/mail-kinds[/{kind}]` → 필수 안내 메일(계정·보안 메일 코드) 또는 운영자 이벤트 상세(알림 이벤트 코드), `/settings/mail-templates[/{id}]` → `/settings/notification-templates/templates[/{id}]`(`?kind=` → `?target=`, 목록은 `?channel=EMAIL`), `/settings/notification-templates/templates`(목록) → `?audience=MEMBER` 면 `…/templates/member`, 그 밖은 `…/templates/operator`(나머지 쿼리 유지), `/settings/mail-layouts[/{id}]` → `…/layouts[/{id}]`. 부모 `/settings/notification-templates` → 운영자 템플릿.
+- **받는 사람 = 메뉴**(2026-10-23 사용자 지적 「별도 메뉴로 뺀다며 왜 아직도 선택하게 되어 있냐」): 템플릿 목록·필수 안내 메일 목록·메일 레이아웃 목록에서 받는 사람(쓰는 대상)을 고르는 `SelectButton` 을 모두 없앴다. 템플릿 목록은 메뉴 둘(두 화면이 공용 조각 `NotificationTemplateList`(속성 `audience`) + 상태 `useNotificationTemplateList` 를 쓴다), 필수 안내 메일·메일 레이아웃은 한 화면 안 구획(운영자 먼저).
+  - 목록으로 가는 링크는 받는 사람을 넣어 새 주소로 바로 간다: 이벤트 상세 「이 채널의 템플릿 보기」(그 이벤트의 받는 사람), 필수 안내 메일 상세 「템플릿 보기」, 레이아웃 「쓰는 템플릿」(받는 사람 하나짜리는 그 목록, 「모두」는 운영자 n개 · 회원 m개를 따로 링크 — 목록 줄에도 받는 사람별 수 `templateCounts` 를 받는다), 템플릿 편집 「목록으로」·삭제 뒤(그 템플릿의 받는 사람 목록). 「새 템플릿」은 `?audience=` 를 붙이고, 편집 화면의 새로 만들기는 그 받는 사람의 대상만 고르게 한다(대상이 받는 사람을 정하므로 만든 템플릿은 그 목록에 남는다).
+  - 템플릿 편집(`templates/{id}`)은 두 메뉴 어디에도 속하지 않아 메뉴에서는 부모 「알림 템플릿」만 활성으로 보이고, 화면 권한·메뉴 모드는 부모의 것(`template.read`)으로 본다(`UtilAdminMenu.parents`). 서버 `AdminScreenRegistry` 는 아직 옛 키(`notifications` → `/settings/notifications`, 이름 `menu.notificationEvents` — 값을 「운영자 이벤트」로 바꿔 둠)라 서버 단계에서 맞춘다.
 - **대상 = 이벤트 · 필수 안내 메일**, 템플릿 하나 = 대상 × 채널 × 언어. 화면 주소는 대상 코드만 쓴다(`?target=<code>`) — 목업 가정: 코드는 이벤트·필수 안내 메일을 넘어 겹치지 않는다(겹칠 수 있으면 `type:code`).
   - 운영자 이벤트 = 서버 `AdminNotificationEvent` 22종(준비 중 포함). 채널 앱 알림·이메일·채팅 — 본인에게만 가는 4종(`*_ME`)은 채팅 없음(공유 채널 불가와 같은 기준).
   - 회원 이벤트(템플릿 대상) = 지금 일어나는 5종(`MemberNotificationType`). 채널 앱 알림·이메일. 「준비 중」 회원 이벤트는 템플릿 대상이 아니다(상세에서 「아직 템플릿이 없어요」).
@@ -65,7 +68,9 @@
   - 이메일·채팅의 `{{title}}`·`{{body}}` = 그 이벤트의 앱 알림 템플릿으로 만든 제목·본문(가정 — 이메일·채팅만 따로 고치고 싶으면 이벤트 변수를 직접 쓴다).
   - 지금 코드의 특수 문구(묶인 댓글 「…님 외 N개의 댓글이…」, 권리 침해 임시 숨김)는 목업에서 **사용자 템플릿 + 규칙**으로 넣어 두었다 — 서버 단계에서 기본 규칙으로 줄지 미확정(아래 6).
 - **사용자 템플릿 목업 7개 · 규칙 4개**: 소셜 가입 회원용(인증 메일, 규칙) · 긴급 배치 실패(배치 실패 이메일, 규칙 `jobName=grade-promotion`) · 초대 메일(간결)(초대, 한국어 쓸 템플릿) · Plain test(메일 시험, 안 씀) · 운영 채널용(짧게)(배치 실패 채팅, 한국어 쓸 템플릿) · 묶인 댓글(회원 댓글 앱 알림, 규칙) · 권리 침해 임시 숨김(글 숨김 앱 알림, 규칙).
-- **템플릿 목록**: 열 이름 · 채널 · 대상(이름 + 「회원 이벤트 / 운영자 이벤트 · 영역 / 필수 안내 메일」, 보안 메일 자물쇠, 대상 화면 링크) · 받는 사람 · 언어 · 레이아웃(이메일만, 그 밖 「—」) · 구분 · 마지막 수정 · 관리. 거르기: 검색 · 채널 · 받는 사람 · 대상 종류 · 대상(묶음 고르기, 검색 칸) · 언어 · 기본/사용자 · 레이아웃(채널이 전체·이메일일 때만). 주소 `?channel=&audience=&targetType=&target=&layout=`. 템플릿이 많아(161개) 50줄씩 쪽 나눔. 대상·채널당 사용자 템플릿 20개(가정).
+- **템플릿 목록**(운영자 템플릿 · 회원 템플릿 — 같은 조각): 화면 제목 「운영자 템플릿」/「회원 템플릿」. 열 이름 · 채널 · 대상(이름 + 「운영자 이벤트 · 영역 / 회원 이벤트 / 필수 안내 메일」, 보안 메일 자물쇠, 대상 화면 링크) · 언어 · 레이아웃(이메일만, 그 밖 「—」) · 구분 · 마지막 수정 · 관리. 왼쪽 위 채널 영역(전체·앱 알림·이메일·채팅 + 그 받는 사람의 수) + 거르기: 검색 · 대상 종류 · 대상(그 받는 사람의 것, 묶음 고르기, 검색 칸) · 언어 · 기본/사용자 · 레이아웃(채널이 전체·이메일일 때만). 주소 `?channel=&targetType=&target=&layout=`. 목록 API 는 그대로 전부 받아 화면이 받는 사람으로 거른다(가정 — 수가 적다). 50줄씩 쪽 나눔. 대상·채널당 사용자 템플릿 20개(가정).
+- **필수 안내 메일 목록**: 「운영자에게 가는 메일」 · 「회원에게 가는 메일」 구획(제목 옆 수, 빈 구획은 빈 안내). 표에서 받는 사람 열을 뺐다.
+- **메일 레이아웃 목록**: 「운영자용」 · 「회원용」 · 「모두(회원·운영자)」 구획(제목 옆 수, 빈 구획은 「레이아웃이 없어요」). 표에서 쓰는 대상 열을 뺐다. 「새 레이아웃」은 쿼리 없이(편집 화면 기본 — 회원 기본 레이아웃 값으로 시작). 목록 줄 API 모양에 `templateCounts: {MEMBER, OPERATOR}` 를 더했다(하나 조회와 같은 칸 — 「모두」 레이아웃의 받는 사람별 링크용).
 - **템플릿 편집(채널별 칸)**: 공통 — 이름 · 대상(새로 만들 때만, 묶음 고르기) · 채널(새로 만들 때만, 대상이 나가는 채널 중) · 받는 사람(읽기 전용) · 언어 · 변수 넣기 · 기본으로 되돌리기 · 변경 이력. 대상·채널을 바꾸면 그 기본 내용으로 다시 채운다(고친 내용이 있으면 묻는다).
   - 이메일: 개정 전 메일 템플릿 편집 그대로(레이아웃 · 제목 200자 · 간단 에디터 · 버튼 · iframe 미리보기 · 나에게 시험 발송).
   - 채팅: 글 한 칸(2000자 가정, 고정폭 글꼴) → 채팅 글 모양 미리보기(화면이 견본 값으로 그린다 — `UtilNotificationTemplate.renderChat`, 값은 가리고 `**`·`[글자](http…)`·`- ` 목록만 살린다). 「알림 도구로 시험 보내기」 → 대화상자에서 **실제 알림 도구 목록**(`GET /api/admin/notification-channels`)의 Slack·Mattermost 도구를 고른다(꺼진 도구는 고를 수 없음, 없으면 「알림 도구 열기」 안내). 보내기는 목업(`POST chat-test` → `{ok, message}`).
@@ -77,7 +82,7 @@
 - **미확정(개정 3)**: 5. 회원 이벤트 이메일의 수신 동의·조용한 시간(게시판 기본 설정의 이메일 조용한 시간을 옮길지) 6. 지금 코드의 특수 문구(묶인 댓글·임시 숨김)를 기본 규칙으로 줄지 7. 브라우저 알림(운영자 도구 `browser`)이 앱 알림 템플릿을 같이 쓰는지(가정: 같이 쓴다) 8. 이메일·채팅의 `{{title}}`·`{{body}}` 를 앱 알림 결과로 둘지 9. 대상 코드가 종류를 넘어 겹치지 않는다는 가정.
 
 ### API 후보 변화
-- 템플릿에 `channel`(`EMAIL|CHAT|IN_APP`)·`target`(`{type: 'EVENT'|'REQUIRED_MAIL', code, audience}`), 레이아웃은 이메일만. 대상별 설정: `GET/PUT /api/admin/notification-templates/targets/{type}/{code}` → 채널별 `{ selected: {ko, en}, rules: [...] }`. 메뉴 키(서버 `AdminScreenRegistry` 맞출 것): `memberEvents`, `operatorEvents`(옛 `notifications`), `notificationChannels`, `notificationTemplates`(부모) — `notificationTemplateList`, `mailLayouts`, `requiredMails`.
+- 템플릿에 `channel`(`EMAIL|CHAT|IN_APP`)·`target`(`{type: 'EVENT'|'REQUIRED_MAIL', code, audience}`), 레이아웃은 이메일만. 대상별 설정: `GET/PUT /api/admin/notification-templates/targets/{type}/{code}` → 채널별 `{ selected: {ko, en}, rules: [...] }`. 메뉴 키(서버 `AdminScreenRegistry` 맞출 것): `memberEvents`, `operatorEvents`(옛 `notifications`), `notificationChannels`, `notificationTemplates`(부모) — `operatorTemplates`(`/settings/notification-templates/templates/operator`), `memberTemplates`(`…/templates/member`), `mailLayouts`, `requiredMails`(옛 `notificationTemplateList` 는 없앴다). `GET /api/admin/mail-layouts` 목록 줄에 `templateCounts: {MEMBER, OPERATOR}`.
 
 ## 개정 (2026-10-23, 사용자 의견 — 아래 「화면」 절을 대체한다)
 - **레이아웃은 여러 개**다. 「공통 레이아웃 하나」가 아니라 레이아웃이 별도 목록(예: 기본·보안 안내·공지·간단)이고, **템플릿마다 어느 레이아웃을 쓸지 고른다**. 기본 레이아웃(코드 제공, 읽기 전용 — 복사해서 만들기)이 하나 있고 운영자가 레이아웃을 더 만든다. 레이아웃 = 이름·로고/사이트 이름 보이기·머리말 띠 색(팔레트)·꼬리말 문구·언어별 틀(`{{content}}` 필수 1번). 쓰는 템플릿이 있는 레이아웃은 삭제 막음(409 `LAYOUT_IN_USE`).

@@ -26,6 +26,8 @@ export interface MailLayoutListItemView {
     headerColor: MailLayoutColor | null;
     /** 이 레이아웃을 쓰는 템플릿 수(기본 템플릿 포함) — 0 일 때만 지울 수 있다 */
     templateCount: number;
+    /** 쓰는 템플릿 수(받는 사람별) — 「모두」 레이아웃은 받는 사람마다 그 템플릿 목록(운영자 템플릿 · 회원 템플릿)으로 따로 잇는다 */
+    templateCounts: Record<TemplateAudience, number>;
     /** UTC ISO — 기본 레이아웃은 null */
     updatedAt: string | null;
     updatedByName: string | null;

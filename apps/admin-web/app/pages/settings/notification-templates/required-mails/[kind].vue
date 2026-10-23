@@ -32,9 +32,9 @@
         <template v-else>
             <PageTitle :title="summary.name">
                 <template #actions>
-                    <Button :label="t('notificationTemplate.showMailTemplates')" icon="pi pi-list" size="small" severity="secondary" variant="outlined" @click="router.push({ path: '/settings/notification-templates/templates', query: { target: summary.code, channel: 'EMAIL' } })" />
-                    <Button v-if="canManage" :label="t('notificationTemplate.newTemplate')" icon="pi pi-plus" size="small" severity="secondary" variant="outlined" @click="router.push({ path: '/settings/notification-templates/templates/new', query: { target: summary.code, channel: 'EMAIL' } })" />
-                    <Button :label="t('notificationTemplate.backToList')" icon="pi pi-arrow-left" size="small" severity="secondary" variant="outlined" @click="router.push({ path: LIST_PATH, query: { audience: summary.audience } })" />
+                    <Button :label="t('notificationTemplate.showMailTemplates')" icon="pi pi-list" size="small" severity="secondary" variant="outlined" @click="router.push({ path: UtilNotificationTemplateMessages.templateListPath(summary.audience), query: { target: summary.code, channel: 'EMAIL' } })" />
+                    <Button v-if="canManage" :label="t('notificationTemplate.newTemplate')" icon="pi pi-plus" size="small" severity="secondary" variant="outlined" @click="router.push({ path: '/settings/notification-templates/templates/new', query: { audience: summary.audience, target: summary.code, channel: 'EMAIL' } })" />
+                    <Button :label="t('notificationTemplate.backToList')" icon="pi pi-arrow-left" size="small" severity="secondary" variant="outlined" @click="router.push(LIST_PATH)" />
                 </template>
             </PageTitle>
             <div class="-mt-2 flex flex-col gap-1">

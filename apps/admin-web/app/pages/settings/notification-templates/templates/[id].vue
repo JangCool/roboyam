@@ -1,6 +1,7 @@
 <template>
     <!--
-        알림 템플릿 편집(`/settings/notification-templates/templates/[id]`, 새로 만들기 `new?target=<대상 코드>&channel=<채널>` · 복사 `new?from=<id>`) — 계약 `docs/features/message-template-contract.md` 「개정 3」 템플릿 편집.
+        알림 템플릿 편집(`/settings/notification-templates/templates/[id]`, 새로 만들기 `new?audience=<받는 사람>&target=<대상 코드>&channel=<채널>` · 복사 `new?from=<id>`) — 계약 `docs/features/message-template-contract.md` 「개정 3」 템플릿 편집.
+        「목록으로」·지운 뒤에는 그 템플릿의 받는 사람 목록(메뉴 「운영자 템플릿」 `templates/operator` · 「회원 템플릿」 `templates/member`)으로 간다. 새로 만들기의 대상 고르기는 그 받는 사람의 대상만 보인다.
         한 화면: 머리(이름·딱지·「변경 이력」·복사·삭제·목록으로) → 왼쪽 편집 칸 → 오른쪽 미리보기. 저장은 화면 하나로 한 번(`POST`·`PUT templates`) → 하단 떠 있는 저장 줄(`StickySaveBar`, 「기본으로 되돌리기」는 그 줄의 왼쪽 단추).
         공통 칸: 이름 · 대상(이벤트 · 필수 안내 메일 — 새로 만들 때만 고른다) · 채널(새로 만들 때만, 대상이 나가는 채널 중에서) · 받는 사람(읽기 전용 — 대상이 정한다) · 언어 · 변수 넣기.
         채널마다 칸이 다르다:
@@ -27,13 +28,13 @@
         <template v-else-if="!ready || !target || !channelSummary">
             <PageTitle :title="isNew ? t('notificationTemplate.newTitle') : t('notificationTemplate.editTitle')">
                 <template #actions>
-                    <Button :label="t('notificationTemplate.backToList')" icon="pi pi-arrow-left" size="small" severity="secondary" variant="outlined" @click="router.push(LIST_PATH)" />
+                    <Button :label="t('notificationTemplate.backToList')" icon="pi pi-arrow-left" size="small" severity="secondary" variant="outlined" @click="router.push(listPath)" />
                 </template>
             </PageTitle>
             <Message v-if="denied" severity="info" :closable="false" size="small">{{ t('notificationTemplate.denied') }}</Message>
             <AppGadget v-else :title="t('notificationTemplate.editTitle')">
                 <ErrorState v-if="notFound" code="404" :title="t('notificationTemplate.templateNotFound')" :description="loadError">
-                    <Button :label="t('notificationTemplate.backToList')" icon="pi pi-arrow-left" severity="secondary" variant="outlined" @click="router.push(LIST_PATH)" />
+                    <Button :label="t('notificationTemplate.backToList')" icon="pi pi-arrow-left" severity="secondary" variant="outlined" @click="router.push(listPath)" />
                 </ErrorState>
                 <ErrorState v-else :title="t('notificationTemplate.templateLoadFailed')" :description="loadError" retry :retrying="loading" @retry="load" />
             </AppGadget>
@@ -49,7 +50,7 @@
                     <span v-if="canManage && saved && !saved.builtin" v-tooltip.top="deleteBlockedReason || undefined" class="inline-flex">
                         <Button type="button" :label="t('common.delete')" icon="pi pi-trash" size="small" severity="danger" variant="outlined" :disabled="Boolean(deleteBlockedReason) || deleting" :loading="deleting" :aria-description="deleteBlockedReason || undefined" @click="confirmDelete" />
                     </span>
-                    <Button :label="t('notificationTemplate.backToList')" icon="pi pi-arrow-left" size="small" severity="secondary" variant="outlined" @click="router.push(LIST_PATH)" />
+                    <Button :label="t('notificationTemplate.backToList')" icon="pi pi-arrow-left" size="small" severity="secondary" variant="outlined" @click="router.push(listPath)" />
                 </template>
             </PageTitle>
             <div class="-mt-2 flex flex-wrap items-center gap-2">
@@ -328,7 +329,8 @@ import UtilValidation from '~/utils/util-validation';
 
 const { t } = useI18n();
 
-const LIST_PATH = '/settings/notification-templates/templates';
+/** 편집 화면 주소의 앞부분(`templates/[id]` · `templates/new`) — 목록은 받는 사람 메뉴(`listPath`)다 */
+const BASE_PATH = '/settings/notification-templates/templates';
 const api = useNotificationTemplateApi();
 const layoutApi = useMailLayoutApi();
 const { channels: tools, loading: toolsLoading, load: loadTools } = useNotificationChannels();
@@ -385,6 +387,12 @@ const channelSummary = computed(() => target.value?.channels.find((item) => item
 const channelDetail = computed(() => detail.value?.channels.find((item) => item.channel === channel.value) ?? null);
 const variables = computed(() => channelSummary.value?.variables ?? []);
 const isEmail = computed(() => channel.value === 'EMAIL');
+/** 주소의 받는 사람(`?audience=` — 받는 사람 목록의 「새 템플릿」이 붙인다). 새로 만들기는 이 받는 사람의 대상으로 시작한다 */
+const queryAudience = computed<TemplateAudience | null>(() => (route.query.audience === 'MEMBER' || route.query.audience === 'OPERATOR' ? route.query.audience : null));
+/** 이 템플릿이 속한 받는 사람 목록(메뉴 「운영자 템플릿」 · 「회원 템플릿」) — 대상이 정한다. 받기 전·못 받았으면 주소 값, 그것도 없으면 운영자 */
+const listAudience = computed<TemplateAudience>(() => target.value?.audience ?? queryAudience.value ?? 'OPERATOR');
+/** 「목록으로」 · 지운 뒤 갈 곳 — 그 받는 사람의 템플릿 목록 */
+const listPath = computed(() => UtilNotificationTemplateMessages.templateListPath(listAudience.value));
 
 const defaultLayoutIdOf = (audience: TemplateAudience) => layouts.value.find((item) => item.builtin && item.audience === audience)?.id ?? '';
 const layoutUsable = (layoutId: string, audience: TemplateAudience) => {
@@ -413,10 +421,11 @@ const layoutOptions = computed(() => {
             label: item.builtin ? t('notificationTemplate.layoutBuiltinOption', { name: item.name }) : item.audience === 'ANY' ? t('notificationTemplate.layoutAnyOption', { name: item.name }) : item.name,
         }));
 });
-/** 대상 고르기 — 회원 이벤트 / 운영자 이벤트 · 영역 / 필수 안내 메일 묶음 */
+/** 대상 고르기 — 이 받는 사람의 대상만(받는 사람은 메뉴가 정한다), 운영자 이벤트 · 영역(회원 이벤트) / 필수 안내 메일 묶음 */
 const targetOptions = computed(() => {
     const groups = new Map<string, { label: string; items: { value: string; label: string }[] }>();
     for (const item of targets.value) {
+        if (item.audience !== listAudience.value) continue;
         const label = UtilNotificationTemplateMessages.targetGroupLabel(t, item.type, item.audience, item.area);
         const group = groups.get(label) ?? { label, items: [] };
         group.items.push({ value: item.code, label: item.name });
@@ -647,10 +656,11 @@ async function load(): Promise<void> {
                 pick = targetList.find((item) => item.code === from?.target.code);
                 wantedChannel = from.channel;
             } else {
-                // `?target=` 그 대상, 없으면 `?channel=` 채널이 있는 첫 대상, 둘 다 없으면 첫 대상(회원 이벤트 먼저)
+                // `?target=` 그 대상, 없으면 `?audience=` 받는 사람(없으면 모두) 중 `?channel=` 채널이 있는 첫 대상, 그것도 없으면 그 받는 사람의 첫 대상
                 const wanted = queryText(route.query.target);
                 wantedChannel = queryText(route.query.channel);
-                pick = targetList.find((item) => item.code === wanted) ?? targetList.find((item) => item.channels.some((c) => c.channel === wantedChannel)) ?? targetList[0];
+                const pool = queryAudience.value ? targetList.filter((item) => item.audience === queryAudience.value) : targetList;
+                pick = targetList.find((item) => item.code === wanted) ?? pool.find((item) => item.channels.some((c) => c.channel === wantedChannel)) ?? pool[0];
             }
         }
         // 대상이 하나도 없으면 만들 수 없다(없는 템플릿과 같게 보인다)
@@ -861,7 +871,7 @@ async function save(): Promise<void> {
             const created = await api.create(body);
             toast.success(t('notificationTemplate.created'));
             leaving = true;
-            await router.replace(`${LIST_PATH}/${encodeURIComponent(created.id)}`);
+            await router.replace(`${BASE_PATH}/${encodeURIComponent(created.id)}`);
             return;
         }
         saved.value = await api.update(saved.value.id, body);
@@ -885,7 +895,7 @@ async function save(): Promise<void> {
 
 function copySaved(): void {
     if (!saved.value || copyBlockedReason.value) return;
-    void router.push({ path: `${LIST_PATH}/new`, query: { from: saved.value.id } });
+    void router.push({ path: `${BASE_PATH}/new`, query: { from: saved.value.id } });
 }
 
 const deleting = ref(false);
@@ -900,7 +910,7 @@ async function confirmDelete(): Promise<void> {
         await api.remove(template.id);
         toast.success(t('notificationTemplate.deleted'));
         leaving = true;
-        await router.push(LIST_PATH);
+        await router.push(listPath.value);
     } catch (e) {
         toast.error(toApiError(e).message, 8000);
     } finally {

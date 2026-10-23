@@ -117,6 +117,28 @@ export default class UtilNotificationTemplateMessages {
     }
 
     /**
+     * 받는 사람의 템플릿 목록 주소 — 메뉴 「운영자 템플릿」 · 「회원 템플릿」(받는 사람을 목록 안에서 고르지 않는다 — 메뉴가 곧 받는 사람).
+     * @param audience - 받는 사람.
+     * @returns `/settings/notification-templates/templates/operator|member`.
+     */
+    static templateListPath(audience: TemplateAudience): string {
+        return `/settings/notification-templates/templates/${audience === 'MEMBER' ? 'member' : 'operator'}`;
+    }
+
+    /**
+     * 레이아웃의 「쓰는 템플릿」 링크 — 받는 사람 하나짜리 레이아웃은 그 받는 사람 목록 하나, 「모두」(`ANY`)는 받는 사람마다 따로(운영자 먼저, 쓰는 템플릿이 있는 쪽만).
+     * 목록은 이메일 · 이 레이아웃으로 걸러 연다(`?channel=EMAIL&layout=<id>`).
+     * @param layout - 레이아웃(id · 쓰는 대상 · 받는 사람별 쓰는 템플릿 수).
+     * @returns 링크들(쓰는 템플릿이 없으면 빈 배열).
+     */
+    static layoutTemplateLinks(layout: { id: string; audience: MailLayoutAudience; templateCounts: Record<TemplateAudience, number> }): { audience: TemplateAudience; count: number; to: { path: string; query: Record<string, string> } }[] {
+        const audiences: TemplateAudience[] = layout.audience === 'ANY' ? ['OPERATOR', 'MEMBER'] : [layout.audience];
+        return audiences
+            .map((audience) => ({ audience, count: layout.templateCounts[audience] ?? 0, to: { path: UtilNotificationTemplateMessages.templateListPath(audience), query: { channel: 'EMAIL', layout: layout.id } } }))
+            .filter((link) => link.count > 0);
+    }
+
+    /**
      * 템플릿 언어 이름.
      * @param t - 번역 함수.
      * @param locale - `ko` · `en`.

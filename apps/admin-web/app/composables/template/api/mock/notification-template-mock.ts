@@ -1074,7 +1074,7 @@ function listItem(template: TemplateView): TemplateListItemView {
 }
 
 function layoutListItem(row: LayoutRow): MailLayoutListItemView {
-    return { id: row.id, name: row.name, builtin: row.builtin, audience: row.audience, headerColor: row.headerColor, templateCount: layoutUseCount(row.id), updatedAt: row.updatedAt, updatedByName: row.updatedByName };
+    return { id: row.id, name: row.name, builtin: row.builtin, audience: row.audience, headerColor: row.headerColor, templateCount: layoutUseCount(row.id), templateCounts: layoutUseCounts(row.id), updatedAt: row.updatedAt, updatedByName: row.updatedByName };
 }
 
 function layoutView(row: LayoutRow): MailLayoutView {

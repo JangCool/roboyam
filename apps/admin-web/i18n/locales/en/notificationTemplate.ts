@@ -1,5 +1,5 @@
 /**
- * Text for Settings > Notifications & events > Notification templates (templates `/settings/notification-templates/templates[/{id}]` · mail layouts `…/layouts[/{id}]` · required emails `…/required-mails[/{kind}]`)
+ * Text for Settings > Notifications & events > Notification templates (operator templates `…/templates/operator` · member templates `…/templates/member` · editor `/settings/notification-templates/templates/{id}` · mail layouts `…/layouts[/{id}]` · required emails `…/required-mails[/{kind}]`)
  * and the per-channel template fields of the event details (`TemplateChannelSelection`), the previews and the variable menu. Computed text is in `utils/util-notification-template-messages.ts`.
  * Text of the event list and detail screens themselves is in `notification.ts` (`memberEvents.*` · `eventDetail.*`).
  * ⚠ Do not write `{{variable}}` in the text (vue-i18n reads it as a placeholder) — pass it as a value like `{token}` or `{names}`.
@@ -19,7 +19,6 @@ export default {
     audienceOperator: 'Operators',
     audienceAny: 'Members and operators',
     audienceTag: 'Recipients: {audience}',
-    colAudience: 'Recipients',
     builtinTag: 'Default',
     userTag: 'Custom',
     builtinUpdated: 'Built into the code',
@@ -97,7 +96,10 @@ export default {
     requiredLoadFailed: 'Could not load required emails',
     requiredEmptyTitle: 'No required emails',
     requiredEmptyBody: 'The server does not send any required emails yet.',
-    requiredNote: 'Security emails have variables that must be included. Edit the template content on the Templates screen.',
+    requiredOperatorSection: 'Emails to operators',
+    requiredMemberSection: 'Emails to members',
+    requiredSectionEmpty: 'No required emails go to these recipients',
+    requiredNote: 'Security emails have variables that must be included. Edit the template content on the Operator templates and Member templates screens.',
     requiredNotFound: 'Required email not found',
     requiredDetailLoadFailed: 'Could not load this email',
     requiredSaved: 'Saved the templates to use and the rules',
@@ -109,14 +111,15 @@ export default {
     showMailTemplates: 'Templates of this email',
 
     // Template list
-    templatesTitle: 'Notification templates',
-    templatesSubtitle: 'The forms events and required emails use for each channel (in-app, email, chat). Default templates are built into the code and cannot be edited; copy one to create a custom template you can edit.',
+    templatesOperatorTitle: 'Operator templates',
+    templatesOperatorSubtitle: 'The forms events and required emails to operators use for each channel (in-app, email, chat). Default templates are built into the code and cannot be edited; copy one to create a custom template you can edit.',
+    templatesMemberTitle: 'Member templates',
+    templatesMemberSubtitle: 'The forms events and required emails to members use for each channel (in-app, email, chat). Default templates are built into the code and cannot be edited; copy one to create a custom template you can edit.',
     templatesLoadFailed: 'Could not load notification templates',
     templatesEmptyTitle: 'No templates',
     templatesEmptyBody: 'No events or required emails use templates yet.',
     searchPlaceholder: 'Search name or target',
     filterChannel: 'Channel',
-    filterAudience: 'Recipients',
     filterTargetType: 'Target type',
     filterTarget: 'Target',
     filterTargetAll: 'All targets',
@@ -214,10 +217,12 @@ export default {
     layoutsLoadFailed: 'Could not load mail layouts',
     layoutsEmptyTitle: 'No layouts',
     newLayout: 'New layout',
-    colLayoutAudience: 'Used for',
-    filterLayoutAudience: 'Used for',
+    layoutOperatorSection: 'For operators',
+    layoutMemberSection: 'For members',
+    layoutAnySection: 'For both (members and operators)',
     colTemplateCount: 'Templates using it',
     templateCount: '{count}',
+    templateCountOf: '{audience}: {count}',
     noTemplates: 'No templates',
     layoutsHint: 'The default layouts (Member default · Operator default) are built into the code and cannot be edited; new email templates start with one according to their recipients. A layout that templates use cannot be deleted.',
     layoutLimitReached: 'You can create up to {max} layouts.',
@@ -234,6 +239,7 @@ export default {
     backToLayouts: 'Back to list',
     builtinLayoutReadOnly: 'Default layouts cannot be edited.',
     layoutUsedBy: 'Used by {count} templates',
+    layoutUsedByAudience: 'Used by {audience}: {count} templates',
     layoutAudienceLabel: 'Used for',
     layoutAudienceHelp: 'The recipients of the templates that can pick this layout. “All” can be picked by both member and operator emails, and its frame and footer can use only the variables both share.',
     layoutAudienceLocked: '{count} {audience} email templates use this layout, so it cannot be changed to {other} only. Change their layout first.',
