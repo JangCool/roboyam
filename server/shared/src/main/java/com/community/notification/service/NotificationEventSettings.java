@@ -16,8 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class NotificationEventSettings {
 
-    /** 이벤트 하나에 적용되는 값 — {@code browserEnabled} 는 브라우저 알림 전달 선택(서버가 하는 일은 저장뿐이다) */
-    public record State(boolean enabled, boolean emailEnabled, boolean browserEnabled) {
+    /**
+     * 이벤트 하나에 적용되는 값 — {@code browserEnabled} 는 브라우저 알림 전달 선택(서버가 하는 일은 저장뿐이다), {@code defaultRecipients} 는 기본 수신 규칙으로도 보내는가
+     * (false = 고른 추가 수신 팀에만 — 본인 전용·필수 이벤트는 늘 true)
+     */
+    public record State(boolean enabled, boolean emailEnabled, boolean browserEnabled, boolean defaultRecipients) {
     }
 
     private final NotificationEventRepository events;
@@ -46,6 +49,7 @@ public class NotificationEventSettings {
     private static State effective(AdminNotificationEvent event, NotificationEventEntity row) {
         boolean enabled = event.mandatory() || (row == null ? event.defaultEnabled() : row.isEnabled());
         boolean emailEnabled = event.emailable() && (row == null ? event.defaultEmailEnabled() : row.isEmailEnabled());
-        return new State(enabled, emailEnabled, row != null && row.isBrowserEnabled());
+        boolean defaultRecipients = !event.broadcastAllowed() || row == null || row.isDefaultRecipients();
+        return new State(enabled, emailEnabled, row != null && row.isBrowserEnabled(), defaultRecipients);
     }
 }

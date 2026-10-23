@@ -91,6 +91,17 @@ public class NotificationDeliveryRepository {
                 Long.class, eventCode));
     }
 
+    /**
+     * 「팀에만 보내기」({@code default_recipients=false})인데 고른 팀이 하나도 남지 않은 이벤트를 기본 수신으로 되돌린다 — 팀을 지워 이벤트 선택에서 빠졌을 때(연쇄 삭제) 부른다.
+     * 그대로 두면 저장된 값이 「팀 없이 팀에만」이 되어 그 이벤트의 다른 설정을 저장할 수 없다(400 {@code fields.teamIds}).
+     *
+     * @return 되돌린 이벤트 코드
+     */
+    public List<String> restoreDefaultRecipientsWithoutTeams() {
+        return jdbc.queryForList("update notification_events e set default_recipients = true where not e.default_recipients "
+                + "and not exists (select 1 from notification_event_teams et where et.event_code = e.code) returning e.code", String.class);
+    }
+
     /** 기본 제공 도구(이메일 · 브라우저)가 켜져 있는가. 상태 행이 없으면 켜진 것이다 */
     public boolean builtinEnabled(String channelKey) {
         List<Boolean> rows = jdbc.queryForList("select enabled from notification_builtin_channels where channel_key = ?", Boolean.class, channelKey);
