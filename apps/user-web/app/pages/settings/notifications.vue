@@ -33,7 +33,8 @@
                             <i class="pi pi-lock text-xs" aria-hidden="true" />{{ row.lockReason === 'ACTION' ? t('notification.lockedAction') : t('notification.lockedAccount') }}
                         </p>
 
-                        <div v-else class="flex shrink-0 items-center gap-5">
+                        <!-- 앱 알림 위 · 이메일 아래로 쌓고, 폭을 고정해 모든 줄의 스위치가 같은 세로선에 선다 -->
+                        <div v-else class="flex shrink-0 flex-col items-start gap-2 sm:w-32">
                             <label v-if="row.inAppOffered" class="flex items-center gap-2 text-sm">
                                 <ToggleSwitch
                                     v-model="choices[row.code]!.inApp"
