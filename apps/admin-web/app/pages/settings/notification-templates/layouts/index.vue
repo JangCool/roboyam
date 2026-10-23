@@ -1,103 +1,103 @@
 <template>
     <!--
-        메일 레이아웃(목록, `/settings/mail-layouts`, 설정 > 메일) — 메일 본문을 감싸는 틀(머리말·꼬리말). 템플릿마다 이 중 하나를 고른다. 계약 `docs/features/message-template-contract.md` 「개정」 4.
-        표: 이름(머리말 띠 색 점) · 쓰는 대상(회원 · 운영자 · 모두 — 개정 2) · 기본/사용자 · 쓰는 템플릿 수(누르면 그 레이아웃으로 거른 템플릿 목록) · 마지막 수정 · 관리(복사 · 삭제). 행을 누르면 편집 화면(`/settings/mail-layouts/[id]`).
+        메일 레이아웃(목록, `/settings/notification-templates/layouts`, 설정 > 알림·이벤트 > 알림 템플릿 › 메일 레이아웃) — 메일 본문을 감싸는 틀(머리말·꼬리말). 이메일 템플릿마다 이 중 하나를 고른다. 계약 `docs/features/message-template-contract.md` 「개정」 4 · 「개정 3」(위치만 옮겼다 — 개정 전 `/settings/mail-layouts`, 옛 주소는 이리로 보낸다).
+        표: 이름(머리말 띠 색 점) · 쓰는 대상(회원 · 운영자 · 모두 — 개정 2) · 기본/사용자 · 쓰는 템플릿 수(누르면 그 레이아웃으로 거른 템플릿 목록) · 마지막 수정 · 관리(복사 · 삭제). 행을 누르면 편집 화면(`/settings/notification-templates/layouts/[id]`).
         위쪽 거르기: 쓰는 대상(전체/회원/운영자/모두 — 값 그대로 맞는 것, 주소 `?audience=`).
-        새로 만들기 → `/settings/mail-layouts/new`(쓰는 대상을 회원·운영자로 거른 중이면 `?audience=` — 그 받는 사람의 기본 레이아웃 값으로 시작), 복사 → `new?from=<id>`(편집 화면에서 [저장] 때 만든다).
+        새로 만들기 → `/settings/notification-templates/layouts/new`(쓰는 대상을 회원·운영자로 거른 중이면 `?audience=` — 그 받는 사람의 기본 레이아웃 값으로 시작), 복사 → `new?from=<id>`(편집 화면에서 [저장] 때 만든다).
         기본 레이아웃(회원 기본 · 운영자 기본)은 고치거나 지울 수 없다.
         삭제는 확인 후 바로 — 쓰는 템플릿이 있으면 단추를 잠그고 까닭을 보이며, 서버도 409 `LAYOUT_IN_USE` 로 막는다(토스트 8초).
         권한: 화면 `template.read`(메뉴가 거른다) · 만들기·복사·삭제 `template.manage` — 없으면 단추가 숨는다.
         ⚠ MOCK: API 는 메모리 목업이다(`useMailLayoutApi`).
     -->
     <div class="flex min-w-0 flex-col gap-4">
-        <PageTitle :title="t('mailTemplate.layoutsTitle')" :subtitle="t('mailTemplate.layoutsSubtitle')">
+        <PageTitle :title="t('notificationTemplate.layoutsTitle')" :subtitle="t('notificationTemplate.layoutsSubtitle')">
             <template v-if="canManage && !denied" #actions>
                 <span v-tooltip.top="limitReason || undefined" class="inline-flex">
-                    <Button :label="t('mailTemplate.newLayout')" icon="pi pi-plus" size="small" :disabled="Boolean(limitReason)" @click="router.push({ path: '/settings/mail-layouts/new', query: audienceFilter === 'MEMBER' || audienceFilter === 'OPERATOR' ? { audience: audienceFilter } : {} })" />
+                    <Button :label="t('notificationTemplate.newLayout')" icon="pi pi-plus" size="small" :disabled="Boolean(limitReason)" @click="router.push({ path: '/settings/notification-templates/layouts/new', query: audienceFilter === 'MEMBER' || audienceFilter === 'OPERATOR' ? { audience: audienceFilter } : {} })" />
                 </span>
             </template>
         </PageTitle>
 
-        <Message v-if="denied" severity="info" :closable="false" size="small">{{ t('mailTemplate.denied') }}</Message>
+        <Message v-if="denied" severity="info" :closable="false" size="small">{{ t('notificationTemplate.denied') }}</Message>
 
         <template v-else>
-            <AppGadget v-if="loading && !layouts" :title="t('mailTemplate.layoutsTitle')">
+            <AppGadget v-if="loading && !layouts" :title="t('notificationTemplate.layoutsTitle')">
                 <div class="flex flex-col gap-2" role="status" :aria-label="t('common.loading')">
                     <Skeleton v-for="n in 4" :key="n" height="2.75rem" />
                 </div>
             </AppGadget>
 
-            <AppGadget v-else-if="!layouts" :title="t('mailTemplate.layoutsTitle')">
-                <ErrorState :title="t('mailTemplate.layoutsLoadFailed')" :description="loadError" retry :retrying="loading" @retry="load" />
+            <AppGadget v-else-if="!layouts" :title="t('notificationTemplate.layoutsTitle')">
+                <ErrorState :title="t('notificationTemplate.layoutsLoadFailed')" :description="loadError" retry :retrying="loading" @retry="load" />
             </AppGadget>
 
             <template v-else>
                 <!-- 조건 -->
                 <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <SelectButton v-model="audienceFilter" :options="audienceOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('mailTemplate.filterLayoutAudience')" />
-                    <p class="ml-auto text-[13px] text-muted-color" aria-live="polite">{{ t('mailTemplate.listCount', { n: filtered.length, total: layouts.length }) }}</p>
+                    <SelectButton v-model="audienceFilter" :options="audienceOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('notificationTemplate.filterLayoutAudience')" />
+                    <p class="ml-auto text-[13px] text-muted-color" aria-live="polite">{{ t('notificationTemplate.listCount', { n: filtered.length, total: layouts.length }) }}</p>
                 </div>
 
                 <div class="min-w-0 overflow-hidden rounded-xl border border-(--line) bg-(--p-content-background)">
                     <DataTable :value="filtered" data-key="id" row-hover scrollable :size="prefs.density === 'compact' ? 'small' : undefined" :row-class="() => 'cursor-pointer'" @row-click="onRowClick">
                         <template #empty>
                             <EmptyState v-if="audienceFilter !== 'ALL'" icon="pi pi-filter-slash" :title="t('common.emptyFiltered')">
-                                <Button type="button" :label="t('mailTemplate.clearFilter')" size="small" severity="secondary" variant="outlined" @click="audienceFilter = 'ALL'" />
+                                <Button type="button" :label="t('notificationTemplate.clearFilter')" size="small" severity="secondary" variant="outlined" @click="audienceFilter = 'ALL'" />
                             </EmptyState>
-                            <EmptyState v-else icon="pi pi-objects-column" :title="t('mailTemplate.layoutsEmptyTitle')" />
+                            <EmptyState v-else icon="pi pi-objects-column" :title="t('notificationTemplate.layoutsEmptyTitle')" />
                         </template>
-                        <Column :header="t('mailTemplate.colName')" style="min-width: 14rem">
+                        <Column :header="t('notificationTemplate.colName')" style="min-width: 14rem">
                             <template #body="{ data }">
                                 <div class="flex min-w-0 items-center gap-2">
-                                    <span class="size-2.5 shrink-0 rounded-full" :class="data.headerColor ? '' : 'border border-(--line)'" :style="data.headerColor ? { background: UtilMailTemplate.colorHex(data.headerColor) ?? undefined } : undefined" :title="t(`mailTemplate.color.${data.headerColor ?? 'NONE'}`)" aria-hidden="true" />
+                                    <span class="size-2.5 shrink-0 rounded-full" :class="data.headerColor ? '' : 'border border-(--line)'" :style="data.headerColor ? { background: UtilMailTemplate.colorHex(data.headerColor) ?? undefined } : undefined" :title="t(`notificationTemplate.color.${data.headerColor ?? 'NONE'}`)" aria-hidden="true" />
                                     <NuxtLink :to="editPath(data)" class="truncate text-[13px] font-medium hover:underline">{{ data.name }}</NuxtLink>
                                 </div>
                             </template>
                         </Column>
-                        <Column :header="t('mailTemplate.colLayoutAudience')" style="min-width: 9rem">
+                        <Column :header="t('notificationTemplate.colLayoutAudience')" style="min-width: 9rem">
                             <template #body="{ data }">
                                 <span class="inline-flex items-center gap-1.5 text-[12px]">
-                                    <i :class="UtilMailTemplateMessages.audienceIcon(data.audience)" class="text-[11px] text-muted-color" aria-hidden="true" />
-                                    {{ UtilMailTemplateMessages.audienceLabel(t, data.audience) }}
+                                    <i :class="UtilNotificationTemplateMessages.audienceIcon(data.audience)" class="text-[11px] text-muted-color" aria-hidden="true" />
+                                    {{ UtilNotificationTemplateMessages.audienceLabel(t, data.audience) }}
                                 </span>
                             </template>
                         </Column>
-                        <Column :header="t('mailTemplate.colOrigin')" style="min-width: 7rem">
+                        <Column :header="t('notificationTemplate.colOrigin')" style="min-width: 7rem">
                             <template #body="{ data }">
-                                <Tag v-if="data.builtin" :value="t('mailTemplate.builtinTag')" icon="pi pi-lock" severity="secondary" class="mail-template-tag text-[10px]!" />
-                                <span v-else class="text-[12px]">{{ t('mailTemplate.userTag') }}</span>
+                                <Tag v-if="data.builtin" :value="t('notificationTemplate.builtinTag')" icon="pi pi-lock" severity="secondary" class="mail-template-tag text-[10px]!" />
+                                <span v-else class="text-[12px]">{{ t('notificationTemplate.userTag') }}</span>
                             </template>
                         </Column>
-                        <Column :header="t('mailTemplate.colTemplateCount')" style="min-width: 10rem">
+                        <Column :header="t('notificationTemplate.colTemplateCount')" style="min-width: 10rem">
                             <template #body="{ data }">
-                                <NuxtLink v-if="data.templateCount" :to="{ path: '/settings/mail-templates', query: { layout: data.id } }" class="text-[13px] tabular-nums text-primary hover:underline">{{ t('mailTemplate.templateCount', { count: data.templateCount }) }}</NuxtLink>
-                                <span v-else class="text-[12px] text-muted-color">{{ t('mailTemplate.noTemplates') }}</span>
+                                <NuxtLink v-if="data.templateCount" :to="{ path: '/settings/notification-templates/templates', query: { channel: 'EMAIL', layout: data.id } }" class="text-[13px] tabular-nums text-primary hover:underline">{{ t('notificationTemplate.templateCount', { count: data.templateCount }) }}</NuxtLink>
+                                <span v-else class="text-[12px] text-muted-color">{{ t('notificationTemplate.noTemplates') }}</span>
                             </template>
                         </Column>
-                        <Column :header="t('mailTemplate.colUpdated')" style="min-width: 10rem">
+                        <Column :header="t('notificationTemplate.colUpdated')" style="min-width: 10rem">
                             <template #body="{ data }">
                                 <span v-if="data.updatedAt" class="text-[12px]">
                                     <span class="tabular-nums">{{ time.listLabel(data.updatedAt) }}</span>
                                     <span v-if="data.updatedByName" class="block text-[11px] text-muted-color">{{ data.updatedByName }}</span>
                                 </span>
-                                <span v-else class="text-[12px] text-muted-color">{{ t('mailTemplate.builtinUpdated') }}</span>
+                                <span v-else class="text-[12px] text-muted-color">{{ t('notificationTemplate.builtinUpdated') }}</span>
                             </template>
                         </Column>
-                        <Column v-if="canManage" :header="t('mailTemplate.colActions')" style="min-width: 8rem">
+                        <Column v-if="canManage" :header="t('notificationTemplate.colActions')" style="min-width: 8rem">
                             <template #body="{ data }">
                                 <div class="flex items-center gap-0.5">
-                                    <span v-tooltip.top="limitReason || t('mailTemplate.copy')" class="inline-flex">
-                                        <Button type="button" icon="pi pi-copy" size="small" severity="secondary" variant="text" rounded :disabled="Boolean(limitReason)" :aria-label="t('mailTemplate.copyLabel', { name: data.name })" :aria-description="limitReason || undefined" @click="router.push({ path: '/settings/mail-layouts/new', query: { from: data.id } })" />
+                                    <span v-tooltip.top="limitReason || t('notificationTemplate.copy')" class="inline-flex">
+                                        <Button type="button" icon="pi pi-copy" size="small" severity="secondary" variant="text" rounded :disabled="Boolean(limitReason)" :aria-label="t('notificationTemplate.copyLabel', { name: data.name })" :aria-description="limitReason || undefined" @click="router.push({ path: '/settings/notification-templates/layouts/new', query: { from: data.id } })" />
                                     </span>
-                                    <span v-if="!data.builtin" v-tooltip.top="data.templateCount ? t('mailTemplate.layoutDeleteInUse', { count: data.templateCount }) : t('common.delete')" class="inline-flex">
-                                        <Button type="button" icon="pi pi-trash" size="small" severity="danger" variant="text" rounded :disabled="data.templateCount > 0 || deletingId === data.id" :loading="deletingId === data.id" :aria-label="t('mailTemplate.deleteLabel', { name: data.name })" @click="confirmDelete(data)" />
+                                    <span v-if="!data.builtin" v-tooltip.top="data.templateCount ? t('notificationTemplate.layoutDeleteInUse', { count: data.templateCount }) : t('common.delete')" class="inline-flex">
+                                        <Button type="button" icon="pi pi-trash" size="small" severity="danger" variant="text" rounded :disabled="data.templateCount > 0 || deletingId === data.id" :loading="deletingId === data.id" :aria-label="t('notificationTemplate.deleteLabel', { name: data.name })" @click="confirmDelete(data)" />
                                     </span>
                                 </div>
                             </template>
                         </Column>
                     </DataTable>
                 </div>
-                <p class="m-0 text-xs text-muted-color">{{ t('mailTemplate.layoutsHint') }}</p>
+                <p class="m-0 text-xs text-muted-color">{{ t('notificationTemplate.layoutsHint') }}</p>
             </template>
         </template>
     </div>
@@ -105,14 +105,14 @@
 
 <script setup lang="ts">
 import type { DataTableRowClickEvent } from 'primevue/datatable';
-import { mockTemplateCan } from '~/composables/template/api/mock/mail-template-mock';
+import { mockTemplateCan } from '~/composables/template/api/mock/notification-template-mock';
 import type { MailLayoutAudience, MailLayoutListItemView } from '~/composables/template/api/useMailLayoutApi.types';
 import { MAIL_LAYOUT_AUDIENCES, MAIL_LAYOUT_LIMIT } from '~/composables/template/api/useMailLayoutApi.types';
 import UtilMailTemplate from '~/utils/util-mail-template';
-import UtilMailTemplateMessages from '~/utils/util-mail-template-messages';
+import UtilNotificationTemplateMessages from '~/utils/util-notification-template-messages';
 
 const { t } = useI18n();
-useSeoMeta({ title: () => t('mailTemplate.layoutsTitle') });
+useSeoMeta({ title: () => t('notificationTemplate.layoutsTitle') });
 
 const api = useMailLayoutApi();
 const toast = useAppToast();
@@ -143,11 +143,11 @@ watch(audienceFilter, (audience) => {
     else delete query.audience;
     void router.replace({ query });
 });
-const audienceOptions = computed(() => [{ value: 'ALL', label: t('common.all') }, ...MAIL_LAYOUT_AUDIENCES.map((value) => ({ value, label: UtilMailTemplateMessages.audienceLabel(t, value) }))]);
+const audienceOptions = computed(() => [{ value: 'ALL', label: t('common.all') }, ...MAIL_LAYOUT_AUDIENCES.map((value) => ({ value, label: UtilNotificationTemplateMessages.audienceLabel(t, value) }))]);
 const filtered = computed(() => (layouts.value ?? []).filter((item) => audienceFilter.value === 'ALL' || item.audience === audienceFilter.value));
 
 /** 사용자 레이아웃 상한(가정 20)이 차면 새로 만들기·복사를 잠근다 */
-const limitReason = computed(() => ((layouts.value ?? []).filter((item) => !item.builtin).length >= MAIL_LAYOUT_LIMIT ? t('mailTemplate.layoutLimitReached', { max: MAIL_LAYOUT_LIMIT }) : ''));
+const limitReason = computed(() => ((layouts.value ?? []).filter((item) => !item.builtin).length >= MAIL_LAYOUT_LIMIT ? t('notificationTemplate.layoutLimitReached', { max: MAIL_LAYOUT_LIMIT }) : ''));
 
 async function load(): Promise<void> {
     loading.value = true;
@@ -163,7 +163,7 @@ async function load(): Promise<void> {
     }
 }
 
-const editPath = (item: MailLayoutListItemView) => `/settings/mail-layouts/${encodeURIComponent(item.id)}`;
+const editPath = (item: MailLayoutListItemView) => `/settings/notification-templates/layouts/${encodeURIComponent(item.id)}`;
 
 /** 행을 누르면 편집 화면으로 — 줄 안의 단추·링크를 누른 것은 그 동작만 한다 */
 function onRowClick(event: DataTableRowClickEvent): void {
@@ -176,12 +176,12 @@ const deletingId = ref<string | null>(null);
 
 async function confirmDelete(item: MailLayoutListItemView): Promise<void> {
     if (deletingId.value) return;
-    const ok = await confirm({ title: t('mailTemplate.layoutDeleteTitle', { name: item.name }), message: t('mailTemplate.layoutDeleteMessage'), confirmLabel: t('common.delete'), tone: 'danger' });
+    const ok = await confirm({ title: t('notificationTemplate.layoutDeleteTitle', { name: item.name }), message: t('notificationTemplate.layoutDeleteMessage'), confirmLabel: t('common.delete'), tone: 'danger' });
     if (!ok) return;
     deletingId.value = item.id;
     try {
         await api.remove(item.id);
-        toast.success(t('mailTemplate.layoutDeleted'));
+        toast.success(t('notificationTemplate.layoutDeleted'));
         layouts.value = (layouts.value ?? []).filter((other) => other.id !== item.id);
     } catch (e) {
         // 목록 한 줄 조치의 실패는 토스트(사유 포함 8초 — forms.md 2-3), 서버 문구 그대로

@@ -14,7 +14,7 @@ import error from './error';
 import grade from './grade';
 import login from './login';
 import mail from './mail';
-import mailTemplate from './mailTemplate';
+import notificationTemplate from './notificationTemplate';
 import member from './member';
 import menu from './menu';
 import menuConfig from './menuConfig';
@@ -41,7 +41,7 @@ export default {
     grade,
     login,
     mail,
-    mailTemplate,
+    notificationTemplate,
     member,
     menu,
     menuConfig,

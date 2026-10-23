@@ -8,7 +8,7 @@
 
 ### 메뉴 (설정 메뉴)
 - **메일** 묶음: 메일 서버(`/settings/mail`)만 남긴다. 「메일 종류」·「템플릿」·「레이아웃」 메뉴는 이 묶음에서 빠진다.
-- **알림** 묶음(차례):
+- **알림·이벤트** 묶음(차례 — 묶음 이름은 「알림」에서 「알림·이벤트」로 바꿨다, i18n `menu.notifications` ko 「알림·이벤트」 · en 「Notifications & events」):
   1. **회원 이벤트** `/settings/notifications/member` (새로)
   2. **운영자 이벤트** `/settings/notifications/operator` (지금 「이벤트」 `/settings/notifications` — 이름·주소 바뀜, 옛 주소는 새 주소로 보낸다)
   3. **알림 도구** `/settings/notification-channels` (그대로)
@@ -34,6 +34,48 @@
 ### 템플릿 편집
 - 채널에 따라 칸이 다르다: 이메일(제목·본문 에디터·버튼·레이아웃 고르기·미리보기(레이아웃 적용)·시험 발송), 채팅(본문 한 칸 — 간단 마크다운 미리보기, 「알림 도구로 시험 보내기」(도구 고르기)), 앱 알림(제목·본문 평문, 서랍/알림함 모양 미리보기). 공통: 이름·대상·채널·언어(새로 만들 때만 대상·채널), 변수 삽입, 기본으로 되돌리기, 제목 옆 「변경 이력」 서랍.
 - 변수는 대상(이벤트·필수 안내 메일)이 정하고, 받는 사람별 공통 변수(회원 `siteUrl`, 운영자 `adminUrl`)는 「개정 2」 그대로.
+
+### 목업 가정 — 개정 3 (화면 목업 2026-10-23, 사용자 확인 전 — 아래 「목업 가정」·「목업 가정 — 개정 2」 중 화면 구성·메일 종류에 관한 것은 이것이 대체하고, 레이아웃·검사·받는 사람별 공통 변수 규칙은 그대로)
+- **화면·주소**: 메뉴는 위 「메뉴」 그대로(키 `memberEvents` · `operatorEvents` · `notificationChannels` · `notificationTemplates`(부모) › `notificationTemplateList` · `mailLayouts` · `requiredMails`). 옛 주소는 새 화면으로 보낸다 — `/settings/notifications` → `/settings/notifications/operator`, `/settings/mail-kinds[/{kind}]` → 필수 안내 메일(계정·보안 메일 코드) 또는 운영자 이벤트 상세(알림 이벤트 코드), `/settings/mail-templates[/{id}]` → `/settings/notification-templates/templates[/{id}]`(`?kind=` → `?target=`, 목록은 `?channel=EMAIL`), `/settings/mail-layouts[/{id}]` → `…/layouts[/{id}]`. 부모 `/settings/notification-templates` → 템플릿. 서버 `AdminScreenRegistry` 는 아직 옛 키(`notifications` → `/settings/notifications`, 이름 `menu.notificationEvents` — 값을 「운영자 이벤트」로 바꿔 둠)라 서버 단계에서 맞춘다.
+- **대상 = 이벤트 · 필수 안내 메일**, 템플릿 하나 = 대상 × 채널 × 언어. 화면 주소는 대상 코드만 쓴다(`?target=<code>`) — 목업 가정: 코드는 이벤트·필수 안내 메일을 넘어 겹치지 않는다(겹칠 수 있으면 `type:code`).
+  - 운영자 이벤트 = 서버 `AdminNotificationEvent` 22종(준비 중 포함). 채널 앱 알림·이메일·채팅 — 본인에게만 가는 4종(`*_ME`)은 채팅 없음(공유 채널 불가와 같은 기준).
+  - 회원 이벤트(템플릿 대상) = 지금 일어나는 5종(`MemberNotificationType`). 채널 앱 알림·이메일. 「준비 중」 회원 이벤트는 템플릿 대상이 아니다(상세에서 「아직 템플릿이 없어요」).
+  - 필수 안내 메일 = 개정 전 「메일 종류」의 계정·보안 메일 5종(코드 그대로). 채널 이메일뿐, 「끌 수 없음」 딱지. 개정 전 「알림 메일」 5종은 운영자 이벤트의 이메일 채널이 됐다.
+- **회원 이벤트 통합 목록(이름 대응)** — 실제 5종 + 게시판 기본 설정 「알림」(`BoardMemberNotifyKind`)에만 있는 5종은 「준비 중」:
+
+  | 회원 이벤트(코드) | 지금 코드 `MemberNotificationType` | 게시판 기본 설정 종류 | 상태 | 회원이 끌 수 있음 |
+  |---|---|---|---|---|
+  | 내 글에 댓글(`COMMENT`) | `COMMENT` | `COMMENT_ON_POST` | 사용 | 운영자가 정함 |
+  | 내 댓글에 답글(`REPLY`) | `REPLY` | `REPLY_ON_COMMENT` | 사용 | 운영자가 정함 |
+  | 포인트 회수(`POINTS_REVOKED`) | `POINTS_REVOKED` | — | 사용 | 잠금(계정 알림) |
+  | 내 글 숨김(신고)(`POST_HIDDEN`) | `POST_HIDDEN` | — | 사용 | 잠금(계정 알림) |
+  | 내 댓글 숨김(신고)(`COMMENT_HIDDEN`) | `COMMENT_HIDDEN` | — | 사용 | 잠금(계정 알림) |
+  | 멘션(`MENTION`) | — | `MENTION` | 준비 중 | 운영자가 정함 |
+  | 내 글이 인기글이 됨(`POST_POPULAR`) | — | `POST_POPULAR` | 준비 중 | 운영자가 정함 |
+  | 운영 처리(`OPERATOR_ACTION`) | — | `OPERATOR_ACTION` | 준비 중 | 잠금(처리 알림) |
+  | 스텝·매니저 처리(`STAFF_ACTION`) | — | `STAFF_ACTION` | 준비 중 | 잠금(처리 알림) |
+  | 신고 처리 결과(`REPORT_RESULT`) | — | `REPORT_RESULT` | 준비 중 | 운영자가 정함 |
+  - 회원 이벤트 줄: 사용 · 앱 알림 · 이메일 · 회원이 끌 수 있음(스위치 — 바로 저장, 낙관적 갱신) · 쓰는 템플릿 요약 · 상세. 이메일은 지금 회원 알림에 없어 모두 꺼진 채 시작(목업). 맨 위 안내 「게시판 기본 설정 › 알림의 이벤트별 칸은 서버 단계에서 이 화면으로 옮겨요」 + 그 탭 링크(탭은 건드리지 않았다). 권한은 `notification.read`·`notification.manage`(운영자 이벤트와 같다).
+- **운영자 이벤트 목록**: 실제 API 그대로(사용·전달 도구·추가 수신 팀 즉시 저장) + 「쓰는 템플릿」 칸(채널마다 한국어 쓸 템플릿, 영어가 다르면 「· EN …」, 규칙 수 — 목업) + 「상세」. 서버 `emailable=false` 인 이벤트의 이메일 도구는 지금처럼 고를 수 없고 까닭만 「이 이벤트의 이메일은 서버 단계에서 열려요」(실제 PUT 400 을 피한다). `template.read` 가 없으면 「쓰는 템플릿」 칸을 감춘다.
+- **이벤트 상세**(한 페이지 `/settings/notifications/[audience]/[code]`, 채널 칸은 필수 안내 메일 상세와 같은 조각 `TemplateChannelSelection`): ① 이벤트 구획은 **보여 주기만**(설명·받는 사람·수신 규칙(운영자)·사용·전달 도구·추가 수신 팀 / 회원은 채널·회원이 끌 수 있음 · 최근 30일 발송 — 바꾸기는 목록에서, 「목록에서 바꾸기」 링크). 목록의 즉시 저장과 상세의 한 번 저장이 같은 값을 두 곳에서 고치지 않게 했다. 운영자 이벤트 정보는 실제 `GET notification-events` 목록에서 찾는다(한 줄 조회 API 가 없다). ② 채널마다 구획: 쓸 템플릿(언어별) + 특수 상황 규칙 + 「이 채널의 템플릿 보기」·「새 템플릿」. 그 채널로 지금 안 보내면 안내 한 줄(목록에서 꺼짐 · 이메일은 서버 단계에서 열림 · 채팅은 Slack·Mattermost 도구를 골랐을 때만). 저장 줄 하나(`PUT targets/EVENT/{code}` — 채널 전부).
+- **조건(코드가 정한 선택지 — 목업)**: 운영자 이벤트 이메일 `recipientSource`(기본 수신 규칙 / 추가 수신 팀) · 채팅 `chatTool`(Slack / Mattermost) · 배치 실패의 이메일·채팅 `jobName`, 운영자 앱 알림은 조건 없음. 회원 댓글 `grouped`(댓글 하나 / 묶인 댓글), 글·댓글 숨김 `hideReason`(신고가 쌓여 / 권리 침해 임시 숨김). 필수 안내 메일은 개정 전 그대로(인증 `signupMethod`, 초대 `inviteRole`).
+- **기본 템플릿(목업 데이터)**:
+  - 이메일 — 지금 메일 문구(필수 안내 메일 = `mail.*`, 운영자 이벤트 = 한 양식 `NotificationMailTemplate`·`notification.mail.*`). 회원 이벤트 이메일은 지금 없어 같은 꼴의 새 문구(「사이트에서 보기」 버튼).
+  - 앱 알림 — 지금 알림 문구(`notification.event.<코드>.title|body`, `member.notification.<코드>.title`). 번들의 `{0}`·`{2}` 자리는 이름 붙은 변수로(`jobName`·`reason`·`operatorName`·`change`·`changedItems`·`count` / 회원 `actorName`·`excerpt`·`postTitle`·`amount`·`reason`·`otherCount`). 회원 앱 알림 본문은 지금 번들에 없어 `{{excerpt}}`·`{{postTitle}}`·`{{reason}}` 로 가정.
+  - 채팅 — 지금 `ChannelMessageFormatter.format` 의 모양: `{{severityIcon}} **{{title}}**` + 줄바꿈 `{{body}}` + `[열기]({{link}})`(번들 `notification.channel.post.open`). 간단 마크다운은 Mattermost 표기로 저장하고 Slack 으로 올릴 때 서버가 `*굵게*`·`<주소|글자>` 로 바꾼다(가정). 변수 값의 멘션·마크다운 무력화는 지금처럼 서버가 한다.
+  - 이메일·채팅의 `{{title}}`·`{{body}}` = 그 이벤트의 앱 알림 템플릿으로 만든 제목·본문(가정 — 이메일·채팅만 따로 고치고 싶으면 이벤트 변수를 직접 쓴다).
+  - 지금 코드의 특수 문구(묶인 댓글 「…님 외 N개의 댓글이…」, 권리 침해 임시 숨김)는 목업에서 **사용자 템플릿 + 규칙**으로 넣어 두었다 — 서버 단계에서 기본 규칙으로 줄지 미확정(아래 6).
+- **사용자 템플릿 목업 7개 · 규칙 4개**: 소셜 가입 회원용(인증 메일, 규칙) · 긴급 배치 실패(배치 실패 이메일, 규칙 `jobName=grade-promotion`) · 초대 메일(간결)(초대, 한국어 쓸 템플릿) · Plain test(메일 시험, 안 씀) · 운영 채널용(짧게)(배치 실패 채팅, 한국어 쓸 템플릿) · 묶인 댓글(회원 댓글 앱 알림, 규칙) · 권리 침해 임시 숨김(글 숨김 앱 알림, 규칙).
+- **템플릿 목록**: 열 이름 · 채널 · 대상(이름 + 「회원 이벤트 / 운영자 이벤트 · 영역 / 필수 안내 메일」, 보안 메일 자물쇠, 대상 화면 링크) · 받는 사람 · 언어 · 레이아웃(이메일만, 그 밖 「—」) · 구분 · 마지막 수정 · 관리. 거르기: 검색 · 채널 · 받는 사람 · 대상 종류 · 대상(묶음 고르기, 검색 칸) · 언어 · 기본/사용자 · 레이아웃(채널이 전체·이메일일 때만). 주소 `?channel=&audience=&targetType=&target=&layout=`. 템플릿이 많아(161개) 50줄씩 쪽 나눔. 대상·채널당 사용자 템플릿 20개(가정).
+- **템플릿 편집(채널별 칸)**: 공통 — 이름 · 대상(새로 만들 때만, 묶음 고르기) · 채널(새로 만들 때만, 대상이 나가는 채널 중) · 받는 사람(읽기 전용) · 언어 · 변수 넣기 · 기본으로 되돌리기 · 변경 이력. 대상·채널을 바꾸면 그 기본 내용으로 다시 채운다(고친 내용이 있으면 묻는다).
+  - 이메일: 개정 전 메일 템플릿 편집 그대로(레이아웃 · 제목 200자 · 간단 에디터 · 버튼 · iframe 미리보기 · 나에게 시험 발송).
+  - 채팅: 글 한 칸(2000자 가정, 고정폭 글꼴) → 채팅 글 모양 미리보기(화면이 견본 값으로 그린다 — `UtilNotificationTemplate.renderChat`, 값은 가리고 `**`·`[글자](http…)`·`- ` 목록만 살린다). 「알림 도구로 시험 보내기」 → 대화상자에서 **실제 알림 도구 목록**(`GET /api/admin/notification-channels`)의 Slack·Mattermost 도구를 고른다(꺼진 도구는 고를 수 없음, 없으면 「알림 도구 열기」 안내). 보내기는 목업(`POST chat-test` → `{ok, message}`).
+  - 앱 알림: 제목 한 줄(100자 가정) · 본문 평문(300자 가정, 비어도 됨) → 운영자는 관리자 종 서랍 한 줄, 회원은 회원 알림함 한 줄 모양 미리보기(화면이 견본 값으로 그린다). 시험 보내기 없음.
+  - 검사(서버도 같은 규칙): 이메일은 개정 전 그대로, 채팅·앱 알림은 이름(필수·50자) · 길이 · 제목 한 줄 · 모르는 변수(다른 받는 사람의 공통 변수는 따로 알린다). 서버 칸 `fields.name|channel|locale|layoutId|subject|body`(개정 전 `bodyHtml` 은 `body` — 이력의 바뀐 칸도 `body`).
+- **API 모양(목업)**: `useNotificationTemplateApi`(`/api/admin/notification-templates`) — `GET targets?type=&audience=` · `GET/PUT targets/{type}/{code}`(채널마다 `{selected, rules}`, 오류 `fields.channels.<채널>.selected.ko …`) · `GET/POST/PUT/DELETE templates[/{id}]`(요청 `{targetType, targetCode, channel, name, locale, layoutId|null, subject, body}`) · `POST preview`(이메일만, `target`) · `POST test`(이메일) · `POST chat-test` · `GET templates/{id}/history`. 회원 이벤트 `useMemberEventApi`(`/api/admin/member-events` — `GET` · `PUT /{code}` `{enabled, inApp, email, memberCanTurnOff}`). 메일 레이아웃 `/api/admin/mail-layouts` 는 그대로(이메일 템플릿만 센다).
+- **`?mock=` 스위치**: 개정 전 `template-*`·`layout-in-use` 그대로(`template-test-fail`·`template-test-limit` 은 채팅 시험에도) + 회원 이벤트 `member-events-error` · `member-events-save-error` · `member-events-denied`.
+- **권한 이름**: `template.read`·`template.manage` 의 이름을 「알림 템플릿 조회·관리」로 바꿨다(코드는 그대로 — 서버 `Permission` 에 아직 없다).
+- **미확정(개정 3)**: 5. 회원 이벤트 이메일의 수신 동의·조용한 시간(게시판 기본 설정의 이메일 조용한 시간을 옮길지) 6. 지금 코드의 특수 문구(묶인 댓글·임시 숨김)를 기본 규칙으로 줄지 7. 브라우저 알림(운영자 도구 `browser`)이 앱 알림 템플릿을 같이 쓰는지(가정: 같이 쓴다) 8. 이메일·채팅의 `{{title}}`·`{{body}}` 를 앱 알림 결과로 둘지 9. 대상 코드가 종류를 넘어 겹치지 않는다는 가정.
 
 ### API 후보 변화
 - 템플릿에 `channel`(`EMAIL|CHAT|IN_APP`)·`target`(`{type: 'EVENT'|'REQUIRED_MAIL', code, audience}`), 레이아웃은 이메일만. 대상별 설정: `GET/PUT /api/admin/notification-templates/targets/{type}/{code}` → 채널별 `{ selected: {ko, en}, rules: [...] }`. 메뉴 키(서버 `AdminScreenRegistry` 맞출 것): `memberEvents`, `operatorEvents`(옛 `notifications`), `notificationChannels`, `notificationTemplates`(부모) — `notificationTemplateList`, `mailLayouts`, `requiredMails`.

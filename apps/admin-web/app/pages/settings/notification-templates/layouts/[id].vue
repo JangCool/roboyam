@@ -1,6 +1,6 @@
 <template>
     <!--
-        메일 레이아웃 편집(`/settings/mail-layouts/[id]`, 새로 만들기 `new` · 복사 `new?from=<id>`) — 계약 `docs/features/message-template-contract.md` 「개정」 4.
+        메일 레이아웃 편집(`/settings/notification-templates/layouts/[id]`, 새로 만들기 `new` · 복사 `new?from=<id>`) — 계약 `docs/features/message-template-contract.md` 「개정」 4 · 「개정 3」(위치만 옮겼다). 레이아웃은 이메일 채널 전용이다.
         왼쪽 칸: 이름 · 쓰는 대상(회원 · 운영자 · 모두 — 개정 2) · 머리말(로고 보이기 · 사이트 이름 보이기 · 머리말 띠 색 — 팔레트, 없음 포함) · 언어별(한국어/영어 고르기) 틀(간단 에디터, `{{content}}` 정확히 한 번 — 지울 수 없음) + 꼬리말(평문, 줄바꿈 가능).
         오른쪽: 미리보기(견본 본문 한 줄 + 공통 변수 견본 값, 저장 전 값 그대로 — 격리된 iframe). 저장은 화면 하나로 한 번 → 하단 떠 있는 저장 줄(`StickySaveBar`).
         - 쓰는 대상: 이 레이아웃을 고를 수 있는 템플릿의 받는 사람. 틀·꼬리말의 변수 메뉴·검사·미리보기 견본 값이 그 대상의 공통 변수를 따른다(회원 `siteUrl` · 운영자 `adminUrl` · 모두는 `siteName`·`recipientName` 만).
@@ -10,12 +10,12 @@
         - 쓰는 템플릿 수 → 그 레이아웃으로 거른 템플릿 목록 링크. 삭제: 쓰는 템플릿이 있으면 단추를 잠그고, 서버도 409 `LAYOUT_IN_USE`.
         - 변경 이력: 제목 옆 단추 → 오른쪽 `SettingHistoryDrawer`(처음 열 때 받는다). 저장된 사용자 레이아웃만.
         권한: 화면 `template.read` · 바꾸기 `template.manage`. 저장하지 않은 변경이 있는 채 떠나면 묻는다.
-        ⚠ MOCK: API 는 메모리 목업이다(`useMailLayoutApi` · 미리보기는 `useMailTemplateApi.preview`).
+        ⚠ MOCK: API 는 메모리 목업이다(`useMailLayoutApi` · 미리보기는 `useNotificationTemplateApi.preview`).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <!-- 읽는 중 -->
         <template v-if="loading && !ready">
-            <PageTitle :title="isNew ? t('mailTemplate.newLayoutTitle') : t('mailTemplate.layoutTitle')" />
+            <PageTitle :title="isNew ? t('notificationTemplate.newLayoutTitle') : t('notificationTemplate.layoutTitle')" />
             <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]" role="status" :aria-label="t('common.loading')">
                 <Skeleton height="26rem" />
                 <Skeleton height="26rem" />
@@ -24,17 +24,17 @@
 
         <!-- 권한 없음 · 없는 레이아웃 · 읽기 실패 -->
         <template v-else-if="!ready || !base">
-            <PageTitle :title="isNew ? t('mailTemplate.newLayoutTitle') : t('mailTemplate.layoutTitle')">
+            <PageTitle :title="isNew ? t('notificationTemplate.newLayoutTitle') : t('notificationTemplate.layoutTitle')">
                 <template #actions>
-                    <Button :label="t('mailTemplate.backToLayouts')" icon="pi pi-arrow-left" size="small" severity="secondary" variant="outlined" @click="router.push('/settings/mail-layouts')" />
+                    <Button :label="t('notificationTemplate.backToLayouts')" icon="pi pi-arrow-left" size="small" severity="secondary" variant="outlined" @click="router.push('/settings/notification-templates/layouts')" />
                 </template>
             </PageTitle>
-            <Message v-if="denied" severity="info" :closable="false" size="small">{{ t('mailTemplate.denied') }}</Message>
-            <AppGadget v-else :title="t('mailTemplate.layoutTitle')">
-                <ErrorState v-if="notFound" code="404" :title="t('mailTemplate.layoutNotFound')" :description="loadError">
-                    <Button :label="t('mailTemplate.backToLayouts')" icon="pi pi-arrow-left" severity="secondary" variant="outlined" @click="router.push('/settings/mail-layouts')" />
+            <Message v-if="denied" severity="info" :closable="false" size="small">{{ t('notificationTemplate.denied') }}</Message>
+            <AppGadget v-else :title="t('notificationTemplate.layoutTitle')">
+                <ErrorState v-if="notFound" code="404" :title="t('notificationTemplate.layoutNotFound')" :description="loadError">
+                    <Button :label="t('notificationTemplate.backToLayouts')" icon="pi pi-arrow-left" severity="secondary" variant="outlined" @click="router.push('/settings/notification-templates/layouts')" />
                 </ErrorState>
-                <ErrorState v-else :title="t('mailTemplate.layoutLoadFailed')" :description="loadError" retry :retrying="loading" @retry="load" />
+                <ErrorState v-else :title="t('notificationTemplate.layoutLoadFailed')" :description="loadError" retry :retrying="loading" @retry="load" />
             </AppGadget>
         </template>
 
@@ -42,34 +42,34 @@
             <PageTitle :title="pageTitle">
                 <template #actions>
                     <Button v-if="saved && !saved.builtin" type="button" :label="t('settingHistory.open')" icon="pi pi-history" size="small" severity="secondary" variant="outlined" @click="openHistory" />
-                    <Button v-if="canManage && saved" type="button" :label="t('mailTemplate.copyCreate')" icon="pi pi-copy" size="small" severity="secondary" variant="outlined" @click="copySaved" />
+                    <Button v-if="canManage && saved" type="button" :label="t('notificationTemplate.copyCreate')" icon="pi pi-copy" size="small" severity="secondary" variant="outlined" @click="copySaved" />
                     <span v-if="canManage && saved && !saved.builtin" v-tooltip.top="deleteBlockedReason || undefined" class="inline-flex">
                         <Button type="button" :label="t('common.delete')" icon="pi pi-trash" size="small" severity="danger" variant="outlined" :disabled="Boolean(deleteBlockedReason) || deleting" :loading="deleting" :aria-description="deleteBlockedReason || undefined" @click="confirmDelete" />
                     </span>
-                    <Button :label="t('mailTemplate.backToLayouts')" icon="pi pi-arrow-left" size="small" severity="secondary" variant="outlined" @click="router.push('/settings/mail-layouts')" />
+                    <Button :label="t('notificationTemplate.backToLayouts')" icon="pi pi-arrow-left" size="small" severity="secondary" variant="outlined" @click="router.push('/settings/notification-templates/layouts')" />
                 </template>
             </PageTitle>
             <div v-if="saved" class="-mt-2 flex flex-wrap items-center gap-2">
-                <Tag :value="t('mailTemplate.audienceTag', { audience: UtilMailTemplateMessages.audienceLabel(t, saved.audience) })" :icon="UtilMailTemplateMessages.audienceIcon(saved.audience)" severity="secondary" class="mail-template-tag text-[11px]!" />
-                <Tag v-if="saved.builtin" :value="t('mailTemplate.builtinTag')" icon="pi pi-lock" severity="secondary" class="mail-template-tag text-[11px]!" />
-                <NuxtLink v-if="saved.templateCount" :to="{ path: '/settings/mail-templates', query: { layout: saved.id } }" class="text-xs text-primary hover:underline">{{ t('mailTemplate.layoutUsedBy', { count: saved.templateCount }) }}</NuxtLink>
-                <span v-else class="text-xs text-muted-color">{{ t('mailTemplate.noTemplates') }}</span>
-                <span v-if="saved.updatedAt" class="text-xs text-muted-color">{{ saved.updatedByName ? t('mailTemplate.updatedBy', { at: time.full(saved.updatedAt), name: saved.updatedByName }) : time.full(saved.updatedAt) }}</span>
+                <Tag :value="t('notificationTemplate.audienceTag', { audience: UtilNotificationTemplateMessages.audienceLabel(t, saved.audience) })" :icon="UtilNotificationTemplateMessages.audienceIcon(saved.audience)" severity="secondary" class="mail-template-tag text-[11px]!" />
+                <Tag v-if="saved.builtin" :value="t('notificationTemplate.builtinTag')" icon="pi pi-lock" severity="secondary" class="mail-template-tag text-[11px]!" />
+                <NuxtLink v-if="saved.templateCount" :to="{ path: '/settings/notification-templates/templates', query: { channel: 'EMAIL', layout: saved.id } }" class="text-xs text-primary hover:underline">{{ t('notificationTemplate.layoutUsedBy', { count: saved.templateCount }) }}</NuxtLink>
+                <span v-else class="text-xs text-muted-color">{{ t('notificationTemplate.noTemplates') }}</span>
+                <span v-if="saved.updatedAt" class="text-xs text-muted-color">{{ saved.updatedByName ? t('notificationTemplate.updatedBy', { at: time.full(saved.updatedAt), name: saved.updatedByName }) : time.full(saved.updatedAt) }}</span>
             </div>
 
             <Message v-if="saved?.builtin" severity="secondary" :closable="false" size="small">
-                <span>{{ t('mailTemplate.builtinLayoutReadOnly') }}</span>
-                <Button v-if="canManage" type="button" :label="t('mailTemplate.copyCreate')" icon="pi pi-copy" size="small" variant="link" class="ml-1 p-0!" @click="copySaved" />
+                <span>{{ t('notificationTemplate.builtinLayoutReadOnly') }}</span>
+                <Button v-if="canManage" type="button" :label="t('notificationTemplate.copyCreate')" icon="pi pi-copy" size="small" variant="link" class="ml-1 p-0!" @click="copySaved" />
             </Message>
-            <Message v-else-if="!canManage" severity="info" :closable="false" size="small">{{ t('mailTemplate.readOnly') }}</Message>
+            <Message v-else-if="!canManage" severity="info" :closable="false" size="small">{{ t('notificationTemplate.readOnly') }}</Message>
 
             <form class="flex flex-col gap-4" novalidate @submit.prevent="save">
                 <div class="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
                     <!-- 왼쪽 — 편집 칸 -->
                     <div :key="formKey" class="flex min-w-0 flex-col gap-4">
-                        <AppGadget :title="t('mailTemplate.layoutHeadTitle')">
+                        <AppGadget :title="t('notificationTemplate.layoutHeadTitle')">
                             <div class="flex flex-col gap-4">
-                                <LabeledField :label="t('mailTemplate.nameLabel')" :hint="t('mailTemplate.maxHint', { max: UtilMailTemplate.NAME_MAX })" :error="fieldError('name')">
+                                <LabeledField :label="t('notificationTemplate.nameLabel')" :hint="t('notificationTemplate.maxHint', { max: UtilMailTemplate.NAME_MAX })" :error="fieldError('name')">
                                     <template #default="{ id, describedBy, invalid }">
                                         <InputText :id="id" v-model="form.name" name="name" autocomplete="off" :readonly="readonly || saving" :invalid="invalid" :aria-describedby="describedBy" aria-required="true" fluid class="sm:max-w-sm" />
                                     </template>
@@ -77,58 +77,58 @@
 
                                 <!-- 쓰는 대상 — 쓰는 템플릿과 맞지 않는 대상은 잠근다 -->
                                 <div class="flex flex-col gap-1.5">
-                                    <span :id="audienceLabelId" class="text-sm font-medium">{{ t('mailTemplate.layoutAudienceLabel') }}</span>
+                                    <span :id="audienceLabelId" class="text-sm font-medium">{{ t('notificationTemplate.layoutAudienceLabel') }}</span>
                                     <SelectButton v-model="form.audience" :options="audienceOptions" option-label="label" option-value="value" option-disabled="disabled" :allow-empty="false" size="small" :disabled="readonly || saving" :invalid="Boolean(fieldError('audience'))" :aria-labelledby="audienceLabelId" :aria-describedby="audienceMessageId" class="self-start" />
                                     <div :id="audienceMessageId" aria-live="polite" class="flex flex-col gap-0.5 text-xs leading-relaxed">
                                         <p v-if="fieldError('audience')" role="alert" class="m-0 text-red-600 dark:text-red-400">{{ fieldError('audience') }}</p>
                                         <template v-else-if="!readonly">
                                             <p v-for="reason in audienceLockReasons" :key="reason" class="m-0 text-amber-700 dark:text-amber-400">{{ reason }}</p>
                                         </template>
-                                        <p class="m-0 text-muted-color">{{ t('mailTemplate.layoutAudienceHelp') }}</p>
+                                        <p class="m-0 text-muted-color">{{ t('notificationTemplate.layoutAudienceHelp') }}</p>
                                     </div>
                                 </div>
 
                                 <div class="flex flex-wrap gap-x-6 gap-y-2">
                                     <label class="inline-flex items-center gap-2 text-sm">
                                         <ToggleSwitch v-model="form.showLogo" :disabled="readonly || saving" />
-                                        {{ t('mailTemplate.showLogo') }}
+                                        {{ t('notificationTemplate.showLogo') }}
                                     </label>
                                     <label class="inline-flex items-center gap-2 text-sm">
                                         <ToggleSwitch v-model="form.showSiteName" :disabled="readonly || saving" />
-                                        {{ t('mailTemplate.showSiteName', { name: base.siteName }) }}
+                                        {{ t('notificationTemplate.showSiteName', { name: base.siteName }) }}
                                     </label>
                                 </div>
                                 <p v-if="form.showLogo && !base.logoUrl" class="-mt-2 m-0 text-xs text-muted-color">
-                                    {{ t('mailTemplate.noLogo') }}
-                                    <NuxtLink v-if="can('site.read')" to="/settings/general" class="ml-1 font-medium underline underline-offset-2">{{ t('mailTemplate.noLogoLink') }}</NuxtLink>
+                                    {{ t('notificationTemplate.noLogo') }}
+                                    <NuxtLink v-if="can('site.read')" to="/settings/general" class="ml-1 font-medium underline underline-offset-2">{{ t('notificationTemplate.noLogoLink') }}</NuxtLink>
                                 </p>
 
                                 <!-- 머리말 띠 색 — 팔레트 또는 없음(같은 이름의 네이티브 라디오, 게시판 표시색과 같은 방식) -->
                                 <div class="flex flex-col gap-1.5">
-                                    <span :id="colorLabelId" class="text-sm font-medium">{{ t('mailTemplate.headerColorLabel') }}</span>
+                                    <span :id="colorLabelId" class="text-sm font-medium">{{ t('notificationTemplate.headerColorLabel') }}</span>
                                     <div role="radiogroup" :aria-labelledby="colorLabelId" class="flex flex-wrap gap-1.5">
-                                        <label v-for="c in COLOR_CHOICES" :key="c" class="color-opt" :class="{ 'color-opt--disabled': readonly || saving }" :title="t(`mailTemplate.color.${c}`)">
-                                            <input v-model="colorModel" type="radio" class="sr-only" :name="colorLabelId" :value="c" :disabled="readonly || saving" :aria-label="t(`mailTemplate.color.${c}`)" />
+                                        <label v-for="c in COLOR_CHOICES" :key="c" class="color-opt" :class="{ 'color-opt--disabled': readonly || saving }" :title="t(`notificationTemplate.color.${c}`)">
+                                            <input v-model="colorModel" type="radio" class="sr-only" :name="colorLabelId" :value="c" :disabled="readonly || saving" :aria-label="t(`notificationTemplate.color.${c}`)" />
                                             <span v-if="c === 'NONE'" class="color-opt__none" aria-hidden="true" />
                                             <span v-else class="color-opt__dot" :style="{ background: UtilMailTemplate.colorHex(c) ?? undefined }" aria-hidden="true" />
                                         </label>
                                     </div>
-                                    <p class="m-0 text-xs text-muted-color">{{ t('mailTemplate.headerColorHelp', { name: t(`mailTemplate.color.${colorModel}`) }) }}</p>
+                                    <p class="m-0 text-xs text-muted-color">{{ t('notificationTemplate.headerColorHelp', { name: t(`notificationTemplate.color.${colorModel}`) }) }}</p>
                                 </div>
                             </div>
                         </AppGadget>
 
-                        <AppGadget :title="t('mailTemplate.layoutFrameTitle')">
+                        <AppGadget :title="t('notificationTemplate.layoutFrameTitle')">
                             <template #actions>
-                                <SelectButton v-model="locale" :options="localeOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('mailTemplate.localeLabel')" />
+                                <SelectButton v-model="locale" :options="localeOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('notificationTemplate.localeLabel')" />
                             </template>
                             <div class="flex flex-col gap-4">
-                                <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('mailTemplate.layoutFrameHint', { token: contentToken }) }}</p>
+                                <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('notificationTemplate.layoutFrameHint', { token: contentToken }) }}</p>
 
                                 <!-- 틀 -->
                                 <div class="flex flex-col gap-1.5">
                                     <div class="flex flex-wrap items-baseline justify-between gap-2">
-                                        <span :id="frameLabelId" class="text-sm font-medium">{{ t('mailTemplate.frameLabel', { locale: UtilMailTemplateMessages.localeLabel(t, locale) }) }}</span>
+                                        <span :id="frameLabelId" class="text-sm font-medium">{{ t('notificationTemplate.frameLabel', { locale: UtilNotificationTemplateMessages.localeLabel(t, locale) }) }}</span>
                                         <MailTemplateVariableMenu v-if="!readonly" :variables="frameVariables" :disabled="saving" @pick="insertFrame" />
                                     </div>
                                     <RichEditor
@@ -145,12 +145,12 @@
                                     />
                                     <div :id="frameMessageId" aria-live="polite" class="text-xs leading-relaxed">
                                         <p v-if="fieldError(`frames.${locale}`)" role="alert" class="m-0 text-red-600 dark:text-red-400">{{ fieldError(`frames.${locale}`) }}</p>
-                                        <p v-else class="m-0 text-muted-color">{{ t('mailTemplate.frameHelp', { token: contentToken }) }}</p>
+                                        <p v-else class="m-0 text-muted-color">{{ t('notificationTemplate.frameHelp', { token: contentToken }) }}</p>
                                     </div>
                                 </div>
 
                                 <!-- 꼬리말 -->
-                                <LabeledField :label="t('mailTemplate.footerLabel', { locale: UtilMailTemplateMessages.localeLabel(t, locale) })" :hint="t('mailTemplate.maxHint', { max: UtilMailTemplate.FOOTER_MAX })" :help="t('mailTemplate.footerHelp')" :error="fieldError(`footer.${locale}`)">
+                                <LabeledField :label="t('notificationTemplate.footerLabel', { locale: UtilNotificationTemplateMessages.localeLabel(t, locale) })" :hint="t('notificationTemplate.maxHint', { max: UtilMailTemplate.FOOTER_MAX })" :help="t('notificationTemplate.footerHelp')" :error="fieldError(`footer.${locale}`)">
                                     <template #aside>
                                         <MailTemplateVariableMenu v-if="!readonly" :variables="footerVariables" :disabled="saving" @pick="insertFooter" />
                                     </template>
@@ -159,14 +159,14 @@
                                     </template>
                                 </LabeledField>
 
-                                <p v-if="otherLocaleError" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ t('mailTemplate.otherLocaleError', { locale: UtilMailTemplateMessages.localeLabel(t, otherLocale) }) }}</p>
+                                <p v-if="otherLocaleError" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ t('notificationTemplate.otherLocaleError', { locale: UtilNotificationTemplateMessages.localeLabel(t, otherLocale) }) }}</p>
                             </div>
                         </AppGadget>
                     </div>
 
                     <!-- 오른쪽 — 미리보기(저장 전 값) -->
                     <div class="flex min-w-0 flex-col gap-4 xl:sticky xl:top-4">
-                        <AppGadget :title="t('mailTemplate.previewTitle')">
+                        <AppGadget :title="t('notificationTemplate.previewTitle')">
                             <MailTemplatePreviewFrame :subject="preview.subject" :html="preview.html" :loading="preview.loading" :error="preview.error" height="30rem" />
                         </AppGadget>
                     </div>
@@ -177,7 +177,7 @@
         </template>
 
         <!-- 레이아웃 변경 이력 — 제목 옆 단추가 오른쪽 서랍으로 연다(처음 열 때 받는다) -->
-        <SettingHistoryDrawer v-model:visible="historyOpen" :hint="t('mailTemplate.layoutHistoryHint')">
+        <SettingHistoryDrawer v-model:visible="historyOpen" :hint="t('notificationTemplate.layoutHistoryHint')">
             <SettingHistoryTable
                 :items="history.rows.value"
                 :total="history.total.value"
@@ -195,18 +195,18 @@
 </template>
 
 <script setup lang="ts">
-import { mockTemplateCan } from '~/composables/template/api/mock/mail-template-mock';
+import { mockTemplateCan } from '~/composables/template/api/mock/notification-template-mock';
 import type { MailLayoutAudience, MailLayoutColor, MailLayoutSaveRequest, MailLayoutView } from '~/composables/template/api/useMailLayoutApi.types';
 import { MAIL_LAYOUT_AUDIENCES } from '~/composables/template/api/useMailLayoutApi.types';
-import type { MailAudience, MailLocale } from '~/composables/template/api/useMailTemplateApi.types';
+import type { TemplateAudience, TemplateLocale } from '~/composables/template/api/useNotificationTemplateApi.types';
 import type { MailLayoutField } from '~/utils/util-mail-template';
 import UtilMailTemplate from '~/utils/util-mail-template';
-import UtilMailTemplateMessages from '~/utils/util-mail-template-messages';
+import UtilNotificationTemplateMessages from '~/utils/util-notification-template-messages';
 
 const { t } = useI18n();
 
 const api = useMailLayoutApi();
-const templateApi = useMailTemplateApi();
+const templateApi = useNotificationTemplateApi();
 const toast = useAppToast();
 const toApiError = useApiErrorOf();
 const time = useDisplayTime();
@@ -220,7 +220,7 @@ const can = mockTemplateCan(useAdminPermission().can);
 
 const canManage = computed(() => can('template.manage'));
 
-const LOCALES: readonly MailLocale[] = ['ko', 'en'];
+const LOCALES: readonly TemplateLocale[] = ['ko', 'en'];
 const COLOR_CHOICES = ['NONE', ...UtilMailTemplate.HEADER_COLORS] as const;
 const contentToken = UtilMailTemplate.token(UtilMailTemplate.CONTENT);
 const colorLabelId = useId();
@@ -246,10 +246,10 @@ const notFound = ref(false);
 const denied = ref(false);
 
 const readonly = computed(() => !canManage.value || Boolean(saved.value?.builtin));
-const pageTitle = computed(() => (isNew.value ? t('mailTemplate.newLayoutTitle') : (saved.value?.name ?? t('mailTemplate.layoutTitle'))));
+const pageTitle = computed(() => (isNew.value ? t('notificationTemplate.newLayoutTitle') : (saved.value?.name ?? t('notificationTemplate.layoutTitle'))));
 useSeoMeta({ title: () => pageTitle.value });
 
-const localeOptions = computed(() => LOCALES.map((value) => ({ value, label: UtilMailTemplateMessages.localeLabel(t, value) })));
+const localeOptions = computed(() => LOCALES.map((value) => ({ value, label: UtilNotificationTemplateMessages.localeLabel(t, value) })));
 
 /* ── 편집 값 ── */
 
@@ -264,24 +264,24 @@ const commonNames = computed(() => footerVariables.value.map((v) => v.name));
 /* ── 쓰는 대상 — 쓰는 템플릿의 받는 사람과 맞지 않는 대상은 잠근다 ── */
 
 /** 저장된 레이아웃을 쓰는 템플릿 수(받는 사람별) — 새로 만들기는 아무도 안 쓴다 */
-const usedCounts = computed<Record<MailAudience, number>>(() => saved.value?.templateCounts ?? { MEMBER: 0, OPERATOR: 0 });
+const usedCounts = computed<Record<TemplateAudience, number>>(() => saved.value?.templateCounts ?? { MEMBER: 0, OPERATOR: 0 });
 /** 이 대상으로 바꿀 수 없는 까닭이 되는 받는 사람(없으면 null) — 「회원」 전용인데 운영자 템플릿이 쓰는 중 … */
-function blockerOf(audience: MailLayoutAudience): MailAudience | null {
+function blockerOf(audience: MailLayoutAudience): TemplateAudience | null {
     if (audience === 'ANY') return null;
-    const other: MailAudience = audience === 'MEMBER' ? 'OPERATOR' : 'MEMBER';
+    const other: TemplateAudience = audience === 'MEMBER' ? 'OPERATOR' : 'MEMBER';
     return usedCounts.value[other] > 0 ? other : null;
 }
-const audienceOptions = computed(() => MAIL_LAYOUT_AUDIENCES.map((value) => ({ value, label: UtilMailTemplateMessages.audienceLabel(t, value), disabled: blockerOf(value) !== null && value !== saved.value?.audience })));
+const audienceOptions = computed(() => MAIL_LAYOUT_AUDIENCES.map((value) => ({ value, label: UtilNotificationTemplateMessages.audienceLabel(t, value), disabled: blockerOf(value) !== null && value !== saved.value?.audience })));
 /** 잠긴 대상마다 그 까닭 한 줄 */
 const audienceLockReasons = computed(() =>
     MAIL_LAYOUT_AUDIENCES.flatMap((locked) => {
         const blocker = locked === form.audience ? null : blockerOf(locked);
         if (!blocker) return [];
         return [
-            t('mailTemplate.layoutAudienceLocked', {
-                audience: UtilMailTemplateMessages.audienceLabel(t, blocker),
+            t('notificationTemplate.layoutAudienceLocked', {
+                audience: UtilNotificationTemplateMessages.audienceLabel(t, blocker),
                 count: usedCounts.value[blocker],
-                other: UtilMailTemplateMessages.audienceLabel(t, locked),
+                other: UtilNotificationTemplateMessages.audienceLabel(t, locked),
             }),
         ];
     }),
@@ -289,8 +289,8 @@ const audienceLockReasons = computed(() =>
 /** 처음 값 — 틀은 에디터가 정규화한 값으로 바꿔 둔다(`onFrameReady`) */
 const baseline = ref<MailLayoutSaveRequest>(JSON.parse(JSON.stringify(form)) as MailLayoutSaveRequest);
 const formKey = ref(0);
-const locale = ref<MailLocale>('ko');
-const otherLocale = computed<MailLocale>(() => (locale.value === 'ko' ? 'en' : 'ko'));
+const locale = ref<TemplateLocale>('ko');
+const otherLocale = computed<TemplateLocale>(() => (locale.value === 'ko' ? 'en' : 'ko'));
 const tried = ref(false);
 const serverErrors = ref<Record<string, string>>({});
 const formError = ref('');
@@ -304,7 +304,7 @@ const colorModel = computed<MailLayoutColor | 'NONE'>({
 function fill(): void {
     const from = base.value;
     if (!from) return;
-    form.name = saved.value ? from.name : isNew.value && queryText(route.query.from) ? t('mailTemplate.copyName', { name: from.name }).slice(0, UtilMailTemplate.NAME_MAX) : '';
+    form.name = saved.value ? from.name : isNew.value && queryText(route.query.from) ? t('notificationTemplate.copyName', { name: from.name }).slice(0, UtilMailTemplate.NAME_MAX) : '';
     form.audience = from.audience;
     form.showLogo = from.showLogo;
     form.showSiteName = from.showSiteName;
@@ -318,7 +318,7 @@ function fill(): void {
     formKey.value += 1;
 }
 
-function onFrameReady(at: MailLocale, html: string): void {
+function onFrameReady(at: TemplateLocale, html: string): void {
     if (form.frames[at] === baseline.value.frames[at]) {
         baseline.value = { ...baseline.value, frames: { ...baseline.value.frames, [at]: html } };
         form.frames[at] = html;
@@ -352,7 +352,7 @@ function fieldError(field: MailLayoutField): string {
     const problem = problems.value[field];
     if (!problem) return '';
     if (problem.code === 'REQUIRED' && !tried.value) return '';
-    return UtilMailTemplateMessages.problem(t, field, problem);
+    return UtilNotificationTemplateMessages.problem(t, field, problem);
 }
 
 const FIELDS: readonly MailLayoutField[] = ['name', 'audience', 'footer.ko', 'footer.en', 'frames.ko', 'frames.en'];
@@ -411,7 +411,7 @@ async function load(): Promise<void> {
             layout = current;
         } else {
             // 복사 원본, 없으면 받는 사람(`?audience=`, 없으면 회원)의 기본 레이아웃 값으로 채운다
-            const wanted: MailAudience = route.query.audience === 'OPERATOR' ? 'OPERATOR' : 'MEMBER';
+            const wanted: TemplateAudience = route.query.audience === 'OPERATOR' ? 'OPERATOR' : 'MEMBER';
             const fromId = queryText(route.query.from) ?? (await api.list()).find((item) => item.builtin && item.audience === wanted)?.id ?? '';
             layout = await api.get(fromId);
         }
@@ -458,8 +458,8 @@ async function runPreview(): Promise<void> {
         // 종류 없이 — 공통 변수만 견본 값으로 채운다
         const result = await templateApi.preview({
             locale: locale.value,
-            subject: t('mailTemplate.layoutSampleSubject'),
-            bodyHtml: `<p>${UtilMailTemplate.escape(t('mailTemplate.layoutSampleBody'))}</p>`,
+            subject: t('notificationTemplate.layoutSampleSubject'),
+            bodyHtml: `<p>${UtilMailTemplate.escape(t('notificationTemplate.layoutSampleBody'))}</p>`,
             layout: JSON.parse(JSON.stringify(form)) as MailLayoutSaveRequest,
         });
         if (mine !== previewSeq) return;
@@ -498,14 +498,14 @@ async function save(): Promise<void> {
     try {
         if (isNew.value || !saved.value) {
             const created = await api.create(body);
-            toast.success(t('mailTemplate.layoutCreated'));
+            toast.success(t('notificationTemplate.layoutCreated'));
             leaving = true;
-            await router.replace(`/settings/mail-layouts/${encodeURIComponent(created.id)}`);
+            await router.replace(`/settings/notification-templates/layouts/${encodeURIComponent(created.id)}`);
             return;
         }
         saved.value = await api.update(saved.value.id, body);
         base.value = saved.value;
-        toast.success(t('mailTemplate.layoutSaved'));
+        toast.success(t('notificationTemplate.layoutSaved'));
         fill();
         if (historyLoaded) void history.reloadFirst();
     } catch (e) {
@@ -526,23 +526,23 @@ async function save(): Promise<void> {
 
 function copySaved(): void {
     if (!saved.value) return;
-    void router.push({ path: '/settings/mail-layouts/new', query: { from: saved.value.id } });
+    void router.push({ path: '/settings/notification-templates/layouts/new', query: { from: saved.value.id } });
 }
 
-const deleteBlockedReason = computed(() => (saved.value?.templateCount ? t('mailTemplate.layoutDeleteInUse', { count: saved.value.templateCount }) : ''));
+const deleteBlockedReason = computed(() => (saved.value?.templateCount ? t('notificationTemplate.layoutDeleteInUse', { count: saved.value.templateCount }) : ''));
 const deleting = ref(false);
 
 async function confirmDelete(): Promise<void> {
     const layout = saved.value;
     if (!layout || deleting.value) return;
-    const ok = await confirm({ title: t('mailTemplate.layoutDeleteTitle', { name: layout.name }), message: t('mailTemplate.layoutDeleteMessage'), confirmLabel: t('common.delete'), tone: 'danger' });
+    const ok = await confirm({ title: t('notificationTemplate.layoutDeleteTitle', { name: layout.name }), message: t('notificationTemplate.layoutDeleteMessage'), confirmLabel: t('common.delete'), tone: 'danger' });
     if (!ok) return;
     deleting.value = true;
     try {
         await api.remove(layout.id);
-        toast.success(t('mailTemplate.layoutDeleted'));
+        toast.success(t('notificationTemplate.layoutDeleted'));
         leaving = true;
-        await router.push('/settings/mail-layouts');
+        await router.push('/settings/notification-templates/layouts');
     } catch (e) {
         toast.error(toApiError(e).message, 8000);
     } finally {
@@ -569,13 +569,13 @@ function openHistory(): void {
 
 onBeforeRouteLeave(async () => {
     if (leaving || !dirty.value) return true;
-    return confirm({ title: t('mailTemplate.leaveTitle'), message: t('mailTemplate.leaveMessage'), confirmLabel: t('mailTemplate.leaveConfirm'), tone: 'danger' });
+    return confirm({ title: t('notificationTemplate.leaveTitle'), message: t('notificationTemplate.leaveMessage'), confirmLabel: t('notificationTemplate.leaveConfirm'), tone: 'danger' });
 });
 
 onBeforeRouteUpdate(async (to, from) => {
     if (to.params.id === from.params.id && to.query.from === from.query.from) return true;
     if (leaving || !dirty.value) return true;
-    return confirm({ title: t('mailTemplate.leaveTitle'), message: t('mailTemplate.leaveMessage'), confirmLabel: t('mailTemplate.leaveConfirm'), tone: 'danger' });
+    return confirm({ title: t('notificationTemplate.leaveTitle'), message: t('notificationTemplate.leaveMessage'), confirmLabel: t('notificationTemplate.leaveConfirm'), tone: 'danger' });
 });
 watch(
     () => [id.value, route.query.from] as const,

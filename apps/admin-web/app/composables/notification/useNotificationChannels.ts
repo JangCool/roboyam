@@ -4,7 +4,7 @@ import UtilNotificationChannelMessages from '~/utils/util-notification-channel-m
 
 /**
  * 알림 도구 화면(`/settings/notification-channels`)의 상태 — 도구 목록과 만들기·고치기·지우기·사용 켜기/끄기·연결 시험.
- * **도구 목록(`channels`·`loading`·`error`)은 `useState` 로 공유한다** — 이벤트 관리 화면(`/settings/notifications`)의 「전달 도구」 선택지가 같은 목록을 쓰기 때문이다(두 화면이 각자 mount 때 `load` 한다). 하는 중인 줄(`busy`)·저장 중(`saving`)은 화면 것이다.
+ * **도구 목록(`channels`·`loading`·`error`)은 `useState` 로 공유한다** — 운영자 이벤트 화면(`/settings/notifications/operator`)·이벤트 상세·알림 템플릿 편집(채팅 시험의 도구 고르기)의 「전달 도구」 선택지가 같은 목록을 쓰기 때문이다(두 화면이 각자 mount 때 `load` 한다). 하는 중인 줄(`busy`)·저장 중(`saving`)은 화면 것이다.
  * 서버와 말하는 것은 `useNotificationChannelApi` 다.
  *
  * 만들기·고치기(`create`·`update`)는 다이얼로그가 서버 오류(`message`·`fields`)를 칸 아래에 붙여야 하므로 **`ApiError` 를 그대로 던진다**(`forms.md`). 성공하면 목록을 갈아 끼운다.

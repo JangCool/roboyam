@@ -1,6 +1,6 @@
 <template>
     <!--
-        알림 도구 — 알림을 보낼 곳(도구)을 정한다. 이벤트마다 어느 도구로 보낼지는 `/settings/notifications`(알림)에서 고른다.
+        알림 도구 — 알림을 보낼 곳(도구)을 정한다. 이벤트마다 어느 도구로 보낼지는 `/settings/notifications/operator`(운영자 이벤트)에서 고른다.
         서랍(항상 켜진 기본 도구) · 이메일(설정 > 메일 서버 설정으로 발송, 설정 칸 없음) · 브라우저 알림(설정 칸 없는 기본 제공 도구)과 사용자가 만드는 Slack · Mattermost 를 한 표로 보인다(`NotificationChannelTable`).
         추가·수정은 다이얼로그(종류별 입력칸, 비밀 값은 「입력됨」만 — `NotificationChannelDialog`). 카카오톡 · SMS 는 종류 선택지에 「준비 중」으로 흐리게만 보이고 만들 수 없다.
         연결 시험은 서버가 실제로 시험 글/메일을 보내고(Slack·Mattermost 는 도구의 채널로 게시, 이메일은 누른 운영자에게 한 통) 결과를 도구에 남긴다 — 실패한 시험도 오류가 아니라 「실패」 결과(사유 문구는 서버가 준 그대로)이고,
@@ -25,7 +25,7 @@
 
             <p class="m-0 mb-3 text-xs leading-relaxed text-muted-color">
                 {{ t('notification.channelsHint') }}
-                <NuxtLink to="/settings/notifications" class="text-primary underline-offset-2 hover:underline">{{ t('notification.channelsToEvents') }}</NuxtLink>
+                <NuxtLink to="/settings/notifications/operator" class="text-primary underline-offset-2 hover:underline">{{ t('notification.channelsToEvents') }}</NuxtLink>
             </p>
 
             <div v-if="loading && !channels" class="flex flex-col gap-2" aria-busy="true">

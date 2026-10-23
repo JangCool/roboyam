@@ -130,7 +130,7 @@ export default class UtilAdminMenu {
                 { key: 'pointPolicy', to: '/points/policy', icon: 'pi pi-percentage', labelKey: 'menu.pointPolicy', permission: 'point.read' },
             ],
         },
-        // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」·「소셜 로그인」·「조직 구성」이 있고(메일은 다음 「메일」 묶음, 「알림」·「알림 도구」는 그다음 묶음) 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다
+        // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」·「소셜 로그인」·「조직 구성」이 있고(메일 서버는 다음 「메일」 묶음, 이벤트·알림 도구·알림 템플릿은 그다음 「알림·이벤트」 묶음) 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다
         {
             key: 'settingsSystem',
             mode: 'settings',
@@ -144,8 +144,7 @@ export default class UtilAdminMenu {
                 { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
             ],
         },
-        // 메일 묶음 — 메일 서버(시스템 묶음에서 옮김) · 메일 종류(종류별 쓰는 템플릿·특수한 상황) · 템플릿 · 레이아웃(message-template-contract 「개정」).
-        // 메일 종류·템플릿·레이아웃은 화면 목업 단계(API 목업)다. 권한 `template.read` 는 서버 `Permission` 에 아직 없어 지금은 최고 관리자에게만 보인다(서버 `AdminScreenRegistry` 도 서버 단계에서 맞춘다)
+        // 메일 묶음 — 메일 서버만(message-template-contract 「개정 3」 — 메일 종류·템플릿·레이아웃은 알림·이벤트 묶음의 「알림 템플릿」으로 옮겼다)
         {
             key: 'settingsMail',
             mode: 'settings',
@@ -154,19 +153,33 @@ export default class UtilAdminMenu {
             items: [
                 // 메일 서버 설정 — 조회는 `site.read`, 저장·시험 발송은 화면 안에서 `site.secret`
                 { key: 'mailSettings', to: '/settings/mail', icon: 'pi pi-server', labelKey: 'menu.mailSettings', permission: 'site.read' },
-                { key: 'mailKinds', to: '/settings/mail-kinds', icon: 'pi pi-tags', labelKey: 'menu.mailKinds', permission: 'template.read' },
-                { key: 'mailTemplates', to: '/settings/mail-templates', icon: 'pi pi-file-edit', labelKey: 'menu.mailTemplates', permission: 'template.read' },
-                { key: 'mailLayouts', to: '/settings/mail-layouts', icon: 'pi pi-objects-column', labelKey: 'menu.mailLayouts', permission: 'template.read' },
             ],
         },
+        // 알림·이벤트 묶음(개정 3) — 회원 이벤트 · 운영자 이벤트(옛 「이벤트」 `/settings/notifications` — 옛 주소는 새 주소로 보낸다) · 알림 도구 · 알림 템플릿(부모: 템플릿 · 메일 레이아웃 · 필수 안내 메일).
+        // 회원 이벤트와 알림 템플릿은 화면 목업 단계(API 목업)다. 운영자 이벤트·알림 도구는 실제 서버에 연결돼 있다.
+        // 권한 `template.read` 는 서버 `Permission` 에 아직 없어 지금은 최고 관리자에게만 알림 템플릿이 보인다. 서버 `AdminScreenRegistry` 의 키·주소(지금 `notifications` → `/settings/notifications`)는 서버 단계에서 맞춘다
         {
             key: 'settingsNotification',
             mode: 'settings',
             icon: 'pi pi-bell',
             labelKey: 'menu.notifications',
             items: [
-                { key: 'notifications', to: '/settings/notifications', icon: 'pi pi-bell', labelKey: 'menu.notificationEvents', permission: 'notification.read' },
+                { key: 'memberEvents', to: '/settings/notifications/member', icon: 'pi pi-users', labelKey: 'menu.memberEvents', permission: 'notification.read' },
+                { key: 'operatorEvents', to: '/settings/notifications/operator', icon: 'pi pi-bell', labelKey: 'menu.operatorEvents', permission: 'notification.read' },
                 { key: 'notificationChannels', to: '/settings/notification-channels', icon: 'pi pi-send', labelKey: 'menu.notificationChannels', permission: 'notification.read' },
+                // 알림 템플릿은 하위 메뉴 셋을 가진 부모다(역할 관리와 같은 방식). 부모 주소(`/settings/notification-templates`)로 들어오면 「템플릿」으로 보낸다
+                {
+                    key: 'notificationTemplates',
+                    to: '/settings/notification-templates',
+                    icon: 'pi pi-file-edit',
+                    labelKey: 'menu.notificationTemplates',
+                    permission: 'template.read',
+                    children: [
+                        { key: 'notificationTemplateList', to: '/settings/notification-templates/templates', labelKey: 'menu.notificationTemplateList', permission: 'template.read' },
+                        { key: 'mailLayouts', to: '/settings/notification-templates/layouts', labelKey: 'menu.mailLayouts', permission: 'template.read' },
+                        { key: 'requiredMails', to: '/settings/notification-templates/required-mails', labelKey: 'menu.requiredMails', permission: 'template.read' },
+                    ],
+                },
             ],
         },
         {
