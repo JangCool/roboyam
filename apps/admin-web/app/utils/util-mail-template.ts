@@ -2,11 +2,11 @@ import type { MailTemplateAudience, MailTemplateColor, MailTemplateSaveRequest }
 import type { MessageAudience, MessageLocale, MessageVariableView } from '~/composables/template/api/useNotificationMessageApi.types';
 
 /**
- * 이메일 문구와 메일 템플릿(겉모양 틀 — 개정 3 까지의 「메일 레이아웃」)의 순수 규칙 — 변수(`{{이름}}`) 찾기, 「버튼」 블록 나누기·합치기, 저장 전 검사(문구·메일 템플릿), 미리보기 그리기(목업 서버가 쓴다).
- * 계약: `docs/features/message-template-contract.md` 「변수」·「개정」·「개정 2」·「개정 4」(받는 사람별 공통 변수 — 회원 `siteUrl` · 운영자 `adminUrl`). 서버 단계에서 같은 규칙을 서버(가칭 `MailMessageValidator`·`MailTemplateValidator`·`MailRenderer`)가 다시 본다 —
- * 화면 검사는 미리 알려 주는 용도이고 판정은 서버다(`forms.md`). 길이 상한은 계약 「미확정」 3 이라 가정 값이다.
+ * 이메일 문구와 메일 템플릿(겉모양 틀)의 순수 규칙 — 변수(`{{이름}}`) 찾기, 「버튼」 블록 나누기·합치기, 저장 전 검사(문구·메일 템플릿). 미리보기는 서버(`POST notification-messages/preview`)가 그린다.
+ * 계약: `docs/features/message-template-contract.md` 「변수」·「문구」(받는 사람별 공통 변수 — 회원 `siteUrl` · 운영자 `adminUrl`). 같은 규칙을 서버(`MessageContentValidator`·`MailTemplateAdminService`·`MailHtml`)가 다시 본다 —
+ * 화면 검사는 미리 알려 주는 용도이고 판정은 서버다(`forms.md`). 길이 상한은 서버와 같은 가정 값이다(계약 「미확정」 2).
  *
- * 버튼 블록 저장 모양(목업 가정): `<p data-mail-button=""><a href="{{링크 변수}}">글자</a></p>` 하나. 에디터 안에서는 그 자리에 `{{button}}` 한 줄로 보이고,
+ * 버튼 블록 저장 모양: `<p data-mail-button=""><a href="{{링크 변수}}">글자</a></p>` 하나(서버 `MailHtml` 허용 목록). 에디터 안에서는 그 자리에 `{{button}}` 한 줄로 보이고,
  * 글자·링크 변수는 에디터 아래 「버튼」 칸에서 고친다(간단 에디터가 버튼 블록을 그리지 못해서다). 링크는 변수로만 — 직접 쓴 주소는 받지 않는다.
  */
 
@@ -64,21 +64,7 @@ export interface MailMessageRules {
     variables: MessageVariableView[];
 }
 
-/** 그리기에 쓰는 메일 템플릿 값(이름·쓰는 대상은 필요 없다 — 변수 견본 값은 `variables` 로 따로 준다) */
-export type MailRenderTemplate = Omit<MailTemplateSaveRequest, 'name' | 'audience'>;
-
-/** 미리보기 그리기 입력(목업 서버의 `preview`·`test`) */
-export interface MailRenderInput {
-    locale: MessageLocale;
-    subject: string;
-    bodyHtml: string;
-    variables: MessageVariableView[];
-    template: MailRenderTemplate;
-    siteName: string;
-    logoUrl: string | null;
-}
-
-/** 머리말 띠 색 팔레트 — 메일 앱은 CSS 변수를 못 읽으므로 실제 색 값이다(화면의 견본 점도 같은 값). 흰 글씨가 잘 읽히는 진한 색만 둔다 */
+/** 머리말 띠 색 팔레트 — 화면의 견본 점 색. 서버 `MailColor` 와 같은 값(메일은 서버가 이 색으로 그린다) */
 const HEADER_COLORS: Record<MailTemplateColor, string> = {
     BLUE: '#1c5fcf',
     INDIGO: '#4f46e5',
@@ -100,26 +86,7 @@ const VAR_RE = /\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}/g;
 const BUTTON_BLOCK_RE = /<p data-mail-button(?:="[^"]*")?>\s*<a href="\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}"[^>]*>([\s\S]*?)<\/a>\s*<\/p>/;
 const BUTTON_TOKEN_P_RE = /<p>\s*\{\{\s*button\s*\}\}\s*<\/p>/;
 const BUTTON_TOKEN_RE = /\{\{\s*button\s*\}\}/g;
-const CONTENT_P_RE = /<p>\s*\{\{\s*content\s*\}\}\s*<\/p>/;
 const CONTENT_RE = /\{\{\s*content\s*\}\}/g;
-
-/* 메일 앱은 CSS 를 거의 받지 않으므로 서버 메일과 같은 인라인 스타일을 쓴다(`NotificationMailTemplate`·`AuthMailTemplate` 의 값) */
-const STYLE = {
-    body: "margin:0;padding:24px;background:#f3f4f6;font-family:-apple-system,'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif",
-    card: 'max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #e2e4e8;border-radius:12px;padding:28px',
-    brand: 'margin:0 0 18px;font-size:18px;font-weight:700;letter-spacing:.5px;color:#16181d',
-    band: 'margin:-28px -28px 22px;padding:18px 28px;border-radius:11px 11px 0 0',
-    bandStrip: 'margin:-28px -28px 22px;height:6px;border-radius:11px 11px 0 0',
-    bandBrand: 'margin:0;font-size:18px;font-weight:700;letter-spacing:.5px;color:#ffffff',
-    logo: 'display:block;max-height:40px;max-width:200px;margin:0 0 12px',
-    p: 'margin:0 0 14px;font-size:15px;line-height:1.6;color:#16181d;word-break:break-word',
-    foot: 'margin:0 0 6px;font-size:11px;line-height:1.5;color:#8b92a0',
-    hr: 'border:0;border-top:1px solid #e2e4e8;margin:22px 0',
-    quote: 'margin:0 0 14px;padding:4px 0 4px 12px;border-left:3px solid #e2e4e8;color:#5b6270',
-    list: 'margin:0 0 14px;padding-left:22px;font-size:15px;line-height:1.6;color:#16181d',
-    link: 'color:#1c5fcf',
-    button: 'display:inline-block;padding:12px 22px;background:#1c5fcf;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px',
-};
 
 export default class UtilMailTemplate {
     /** 이름 상한(가정) */
@@ -336,18 +303,6 @@ export default class UtilMailTemplate {
     }
 
     /**
-     * 본문에 직접 쓴 링크 주소 중 http·https 가 아닌 것(`javascript:` · `mailto:` …)의 `href` 를 걷는다 — 저장 때 서버가 하는 일의 흉내(변수 링크는 그대로).
-     * @param html - 본문.
-     * @returns 걷은 본문.
-     */
-    static cleanHrefs(html: string): string {
-        return html.replace(/<a\b([^>]*?)\shref="([^"]*)"([^>]*)>/gi, (whole, before: string, href: string, after: string) => {
-            if (/^\{\{\s*[A-Za-z][A-Za-z0-9_]*\s*\}\}$/.test(href) || /^https?:\/\//i.test(href)) return whole;
-            return `<a${before}${after}>`;
-        });
-    }
-
-    /**
      * 태그를 뗀 글자(이력의 본문 요약·「비었는가」).
      * @param html - HTML.
      * @returns 글자.
@@ -356,77 +311,6 @@ export default class UtilMailTemplate {
         return UtilMailTemplate.unescape(html.replace(/<br\s*\/?>/gi, ' ').replace(/<\/p>/gi, ' ').replace(/<[^>]*>/g, ''))
             .replace(/\s+/g, ' ')
             .trim();
-    }
-
-    /**
-     * 견본 값을 채우고 메일 템플릿을 씌운 미리보기 — 목업 서버(`preview`·`test`)가 쓴다. 값은 HTML 로 가린다. 모르는 변수는 그대로 둔다.
-     * 결과 HTML 은 문서 전체라 화면은 `iframe srcdoc`(sandbox)으로만 보인다.
-     * @param input - 제목·본문·변수·메일 템플릿.
-     * @returns 제목(사이트 이름 머리말 포함)과 문서 HTML.
-     */
-    static render(input: MailRenderInput): { subject: string; html: string } {
-        const values = new Map<string, string>(input.variables.map((v) => [v.name, v.sample]));
-        values.set('siteName', input.siteName);
-        const fill = (text: string, escape: boolean) =>
-            text.replace(VAR_RE, (whole, name: string) => {
-                const value = values.get(name);
-                if (value === undefined) return whole;
-                return escape ? UtilMailTemplate.escape(value) : value;
-            });
-
-        // 버튼 블록 → 서버 메일과 같은 단추
-        let body = input.bodyHtml.replace(new RegExp(BUTTON_BLOCK_RE.source, 'g'), (_whole, link: string, label: string) => {
-            const href = values.get(link) ?? '#';
-            return `<p style="margin:20px 0"><a href="${UtilMailTemplate.escape(href)}" style="${STYLE.button}">${label}</a></p>`;
-        });
-        body = UtilMailTemplate.styled(fill(body, true), STYLE.p);
-
-        const frame = input.template.frames[input.locale] ?? '';
-        const [beforeRaw, afterRaw] = UtilMailTemplate.splitFrame(frame);
-        const before = UtilMailTemplate.styled(fill(beforeRaw, true), STYLE.p);
-        const after = UtilMailTemplate.styled(fill(afterRaw, true), STYLE.p);
-        // 꼬리말은 평문 — 줄마다 값을 채운 뒤 통째로 가린다(줄바꿈은 문단으로)
-        const footerText = (input.template.footer[input.locale] ?? '').trim();
-        const footer = footerText
-            ? footerText
-                  .split(/\r?\n/)
-                  .map((line) => `<p style="${STYLE.foot}">${UtilMailTemplate.escape(fill(line, false)) || '&nbsp;'}</p>`)
-                  .join('')
-            : '';
-
-        const band = UtilMailTemplate.colorHex(input.template.headerColor);
-        const logo = input.template.showLogo && input.logoUrl ? `<img src="${UtilMailTemplate.escape(input.logoUrl)}" alt="${UtilMailTemplate.escape(input.siteName)}" style="${STYLE.logo}">` : '';
-        const brand = input.template.showSiteName ? `<p style="${band ? STYLE.bandBrand : STYLE.brand}">${UtilMailTemplate.escape(input.siteName)}</p>` : '';
-        let head = logo + brand;
-        // 띠 색이 있으면 머리말(로고·사이트 이름)을 띠 안에 흰 글씨로 — 머리말이 비었으면 얇은 띠만
-        if (band) head = head ? `<div style="${STYLE.band};background:${band}">${head}</div>` : `<div style="${STYLE.bandStrip};background:${band}"></div>`;
-        const html =
-            `<!DOCTYPE html><html lang="${input.locale}"><head><meta charset="utf-8"><base target="_blank"></head><body style="${STYLE.body}"><div style="${STYLE.card}">` +
-            head +
-            before +
-            body +
-            after +
-            (footer ? `<hr style="${STYLE.hr}">${footer}` : '') +
-            '</div></body></html>';
-        return { subject: `[${input.siteName}] ${fill(input.subject, false)}`, html };
-    }
-
-    /** 틀을 `{{content}}` 앞·뒤로 나눈다(그 한 줄만 있는 문단은 문단째) */
-    private static splitFrame(frame: string): [string, string] {
-        const marker = '\u0000';
-        const marked = CONTENT_P_RE.test(frame) ? frame.replace(CONTENT_P_RE, marker) : frame.replace(/\{\{\s*content\s*\}\}/, marker);
-        const at = marked.indexOf(marker);
-        if (at < 0) return [marked, ''];
-        return [marked.slice(0, at), marked.slice(at + 1)];
-    }
-
-    /** 간단 서식 태그에 메일용 인라인 스타일을 붙인다 */
-    private static styled(html: string, pStyle: string): string {
-        return html
-            .replace(/<p>/g, `<p style="${pStyle}">`)
-            .replace(/<blockquote>/g, `<blockquote style="${STYLE.quote}">`)
-            .replace(/<(ul|ol)>/g, `<$1 style="${STYLE.list}">`)
-            .replace(/<a (?![^>]*style=)/g, `<a style="${STYLE.link}" `);
     }
 
     /**

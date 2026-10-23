@@ -3,7 +3,7 @@
         카카오톡(알림톡) 템플릿 보기(`/settings/notification-templates/kakao/[id]`) — **준비 중**이라 모든 칸이 읽기 전용이다(흐리게, 저장 줄 없음 — 만들기·고치기는 업체 계약 뒤 서버 단계에서 정한다).
         계약 `docs/features/message-template-contract.md` 「개정 4」 유형별 템플릿 설정 칸: 이름 · 알림톡 템플릿 코드(카카오에 등록·승인된 것) · 검수 상태 · 승인된 본문(읽기 전용 — `#{이름}` 자리) · 변수 대응표(`#{이름}` ↔ 로보얌 변수 · 견본 값) · 버튼(이름 · 링크 변수).
         오른쪽: 알림톡 말풍선 미리보기(`KakaoMessageBubble` — 대응표의 견본 값으로 채운 본문). 쓰는 문구 수 → 그 받는 사람의 문구 목록(`?channel=KAKAO&template=<id>`).
-        새로 만들기(`new`)는 막는다 — 안내만. 권한: 화면 `template.read`. ⚠ MOCK: API 는 메모리 목업이다(`useKakaoTemplateApi`).
+        새로 만들기(`new`)는 막는다 — 안내만. 권한: 화면 `template.read`. API 는 실제 서버(`useKakaoTemplateApi`)다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <template v-if="loading && !template">

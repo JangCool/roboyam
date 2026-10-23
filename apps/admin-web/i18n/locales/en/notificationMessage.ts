@@ -13,7 +13,7 @@ export default {
     clearFilter: 'Clear filters',
     listCount: '{n} of {total}',
     kakaoPreparing: 'KakaoTalk is coming soon in Notification tools, so messages cannot be created yet.',
-    kakaoPreparingBody: 'KakaoTalk is coming soon in Notification tools (no provider contract yet). You can look at the fields and bubble with the example message, but you cannot create or edit.',
+    kakaoPreparingBody: 'KakaoTalk is coming soon in Notification tools (no provider contract yet). Messages registered with Kakao will show here, but you cannot create or edit them.',
 
     // Channels
     channel: {

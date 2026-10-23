@@ -3,7 +3,7 @@ import type { MailTestResultView } from '~/composables/mail/api/useMailSettingsA
 import type { MailTemplateSaveRequest } from '~/composables/template/api/useMailTemplateApi.types';
 
 /**
- * 알림 문구 API 의 모양 — `docs/features/message-template-contract.md` 「개정 4」(용어: **문구** = 이벤트·채널별 제목과 본문, **템플릿** = 도구별 겉모양). 화면 목업 단계 — 서버 단계에서 확정한다.
+ * 알림 문구 API 의 모양 — `docs/features/message-template-contract.md` 「개정 4」(용어: **문구** = 이벤트·채널별 제목과 본문, **템플릿** = 도구별 겉모양) — 서버 `notificationtemplate.dto` 와 같은 모양(이름도 같다).
  * **문구 하나 = 대상(이벤트 또는 필수 안내 메일) × 채널 × 언어.** 대상마다 채널별로 「언어별 쓸 문구」와 「특수 상황 규칙」을 정한다(개정 3 그대로 — 이름만 바뀌었다).
  * 받는 사람(회원 · 운영자 — 「개정 2」)은 대상이 정하고, 받는 사람이 공통 변수(회원 `siteUrl` · 운영자 `adminUrl`)와 고를 수 있는 메일 템플릿을 정한다.
  * 채널이 이메일 · Slack · Mattermost · 카카오톡이면 문구가 그 채널의 템플릿(겉모양) 하나를 고른다(`templateId`). 앱 알림은 화면 모양이 정해져 템플릿이 없다.
@@ -43,7 +43,7 @@ export const MESSAGE_TARGET_TYPES: readonly MessageTargetType[] = ['EVENT', 'REQ
 /** 이벤트의 심각도 — Slack · Mattermost 템플릿의 색 막대·아이콘을 고른다(운영자 이벤트만, 그 밖은 null) */
 export type MessageSeverity = 'INFO' | 'WARNING' | 'CRITICAL';
 
-/** 문구가 가리키는 대상. 목업 가정: `code` 는 종류(이벤트·필수 안내 메일)를 넘어 겹치지 않는다(화면 주소는 `?target=<code>` 만 쓴다) */
+/** 문구가 가리키는 대상. 가정(계약 미확정 9): `code` 는 종류(이벤트·필수 안내 메일)를 넘어 겹치지 않는다(화면 주소는 `?target=<code>` 만 쓴다) */
 export interface MessageTargetRef {
     type: MessageTargetType;
     code: string;
@@ -153,7 +153,7 @@ export interface MessageView {
     updatedByName: string | null;
 }
 
-/** `GET /api/admin/notification-messages/messages` 의 한 줄 — 모든 대상·채널의 문구(본문 없이). 거르기·검색은 화면이 한다(목업 가정 — 수가 적다) */
+/** `GET /api/admin/notification-messages/messages` 의 한 줄 — 모든 대상·채널의 문구(본문 없이). 거르기·검색은 화면이 한다(서버도 페이지 없이 전부 준다 — 수가 적다) */
 export interface MessageListItemView {
     id: string;
     target: MessageTargetRef;
@@ -224,12 +224,12 @@ export interface MessageSaveRequest {
 }
 
 /** `GET /api/admin/notification-messages/targets?type=&audience=` 거르기(선택) — 화면은 대개 전부 받아 화면에서 거른다 */
-export interface MessageTargetQuery {
+export type MessageTargetQuery = {
     type?: MessageTargetType;
     audience?: MessageAudience;
-}
+};
 
-/** `POST /api/admin/notification-messages/preview` — 이메일만(Slack·Mattermost·카카오톡·앱 알림 미리보기는 화면이 견본 값으로 그린다 — 목업 가정) */
+/** `POST /api/admin/notification-messages/preview` — 이메일만(Slack·Mattermost·카카오톡·앱 알림 미리보기는 화면이 견본 값으로 그린다) */
 export interface MailPreviewRequest {
     /** 대상(변수 견본 값) — 메일 템플릿 미리보기는 비운다(템플릿 쓰는 대상의 공통 변수만) */
     target?: { type: MessageTargetType; code: string };
@@ -286,5 +286,5 @@ export type MessageHistoryPage = SettingHistoryPage<MessageHistoryItemView>;
 /** 대상·채널당 사용자 문구 상한(계약 「미확정」 3 — 20 가정) */
 export const MESSAGE_LIMIT = 20;
 
-/** 특수 상황 규칙 수 상한(채널마다 — 목업 가정) */
+/** 특수 상황 규칙 수 상한(채널마다 — 서버 `RULE_MAX` 와 같다) */
 export const MESSAGE_RULE_MAX = 10;

@@ -1,7 +1,7 @@
 <template>
     <!--
-        Slack · Mattermost 메시지 카드 미리보기 — 채널에 올라가는 첨부(attachment) 모양: 봇 이름 줄 · 왼쪽 색 막대 · (심각도 그림 +) 굵은 제목 · 본문 · 꼬리말 · 「열기」 버튼.
-        두 앱의 모양을 가른다 — Slack: 네모난 봇 그림 + 「앱」 딱지, 둥근 막대 위 첨부, 흰 버튼(테두리). Mattermost: 둥근 봇 그림 + 「BOT」 딱지, 테두리 있는 첨부 상자 + 왼쪽 막대, 파란 글자 버튼.
+        Slack · Mattermost 메시지 카드 미리보기 — 채널에 올라가는 첨부(attachment) 모양: 봇 이름 줄 · 왼쪽 색 막대 · (심각도 그림 +) 굵은 제목 · 본문 · 꼬리말 · 「열기」.
+        두 앱의 모양을 가른다 — Slack: 네모난 봇 그림 + 「앱」 딱지, 둥근 막대 위 첨부, 꼬리말 아래 흰 버튼(테두리). Mattermost: 둥근 봇 그림 + 「BOT」 딱지, 테두리 있는 첨부 상자 + 왼쪽 막대, 「열기」는 버튼이 아니라 본문 끝 링크(서버 `ChatRenderer`).
         템플릿 편집(`/settings/notification-templates/{slack|mattermost}/[id]` — 견본 문구)과 문구 편집(`/settings/notification-messages/[id]` — 고른 템플릿에 그 문구를 씌운 것)이 같이 쓴다.
         값은 `UtilChatTemplate.card` 가 만든다(`bodyHtml` 은 값을 가린 뒤 표기법만 살린 태그뿐이라 `v-html` 로 보인다). 서버 호출은 없다.
     -->
@@ -26,12 +26,13 @@
                             </p>
                             <!-- eslint-disable-next-line vue/no-v-html -- 화면이 만든 태그(strong·em·del·code·a·ul·li·br)만 들어 있다(값은 가렸다 — UtilChatTemplate.renderMarkup) -->
                             <div v-if="card.bodyHtml" class="chat-card__body mt-0.5 break-words text-[14px] leading-relaxed" v-html="card.bodyHtml" />
+                            <!-- Mattermost 「열기」 — 첨부 버튼은 연동 주소가 있어야 해서 서버(`ChatRenderer`)가 본문 끝에 빈 줄 하나 띄운 링크로 붙인다 -->
+                            <p v-if="card.button && card.tool === 'MATTERMOST'" class="m-0 mt-3 text-[14px]">
+                                <span class="text-[#1c58d9] underline dark:text-[#5d89ea]">{{ card.button }}</span>
+                            </p>
                             <p v-if="card.footer" class="m-0 mt-1.5 text-[11px] text-[#616061] dark:text-[#ababad]">{{ card.footer }}</p>
-                            <div v-if="card.button" class="mt-2">
-                                <span
-                                    class="inline-flex items-center justify-center text-[13px] font-semibold leading-none"
-                                    :class="card.tool === 'SLACK' ? 'rounded border border-black/25 px-3 py-1.5 dark:border-white/25' : 'rounded bg-[#1c58d9]/10 px-3 py-2 text-[#1c58d9] dark:text-[#5d89ea]'"
-                                >
+                            <div v-if="card.button && card.tool === 'SLACK'" class="mt-2">
+                                <span class="inline-flex items-center justify-center rounded border border-black/25 px-3 py-1.5 text-[13px] font-semibold leading-none dark:border-white/25">
                                     <span class="chat-card__badge-label">{{ card.button }}</span>
                                 </span>
                             </div>

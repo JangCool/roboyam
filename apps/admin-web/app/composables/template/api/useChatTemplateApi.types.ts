@@ -2,7 +2,7 @@ import type { SettingHistoryItem, SettingHistoryPage } from '~/composables/commo
 import type { MessageLocale, MessageSeverity, MessageVariableView } from '~/composables/template/api/useNotificationMessageApi.types';
 
 /**
- * Slack · Mattermost 템플릿 API 의 모양 — `docs/features/message-template-contract.md` 「개정 4」 유형별 템플릿 설정 칸. 화면 목업 단계 — 서버 단계에서 확정한다.
+ * Slack · Mattermost 템플릿 API 의 모양 — `docs/features/message-template-contract.md` 「템플릿」 — 서버 `ChatTemplateListItemView`·`ChatTemplateView`·`ChatTemplateSaveRequest` 와 같은 모양.
  * 템플릿 = 채널에 올라가는 메시지 카드의 겉모양: 제목 줄 모양(심각도 아이콘 보이기 · 굵게) · 심각도별 색 막대(첨부 color) · 꼬리말(사이트 이름 · 보낸 시각 보이기) · 「열기」 버튼 · 본문 자리 `{{content}}`.
  * 두 종류는 같은 칸이되 올리는 모양이 다르다 — Slack 은 첨부(`attachments` — `color`·`title`·`text`·`footer`·`ts` + 버튼 블록, 표기 `*굵게*` · `<주소|글자>`),
  * Mattermost 는 `attachments`(`title`·`text`·`color`·`footer` + `actions` 버튼, 표기 `**굵게**` · `[글자](주소)`). 문구(제목·본문)는 그 종류의 표기법으로 쓴다.

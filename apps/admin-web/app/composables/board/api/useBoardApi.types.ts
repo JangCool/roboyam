@@ -402,24 +402,11 @@ export interface BoardSecuritySettings {
     guestImageUploadAllowed: boolean;
 }
 
-/** 회원이 받는 게시판 알림 종류 */
-export type BoardMemberNotifyKind = 'COMMENT_ON_POST' | 'REPLY_ON_COMMENT' | 'MENTION' | 'POST_POPULAR' | 'OPERATOR_ACTION' | 'STAFF_ACTION' | 'REPORT_RESULT';
-/** 회원이 끌 수 없는 알림(처리 종류별로 사유와 함께 보내고 끌 수 없다 — operator-permissions.md) */
-export const BOARD_NOTIFY_LOCKED: readonly BoardMemberNotifyKind[] = ['OPERATOR_ACTION', 'STAFF_ACTION'];
-
-/** 회원 알림 기본값 한 줄 */
-export interface BoardMemberNotifyRow {
-    kind: BoardMemberNotifyKind;
-    /** 사이트 알림(알림 서랍) */
-    site: boolean;
-    email: boolean;
-    /** 회원이 개인 설정에서 끌 수 있다 — 잠긴 종류는 늘 false */
-    memberCanTurnOff: boolean;
-}
-
-/** 알림(회원이 받는 게시판 알림의 기본값) — `GET·PUT /api/admin/boards/defaults/notifications` */
+/**
+ * 알림(회원 알림에 같이 쓰는 값) — `GET·PUT /api/admin/boards/defaults/notifications`.
+ * 이벤트별 칸(옛 `memberDefaults` — 사이트·이메일·회원이 끌 수 있음)은 회원 이벤트(`/api/admin/member-events`, shared V58)로 옮겨져 응답에 없다(서버는 요청에 와도 무시한다).
+ */
 export interface BoardNotificationSettings {
-    memberDefaults: BoardMemberNotifyRow[];
     /** 같은 글의 새 댓글 알림을 묶는 시간(분) 0~60, 0 = 묶지 않음 */
     groupWindowMinutes: number;
     /** 이메일 조용한 시간(이메일만 미룬다) */

@@ -5,7 +5,7 @@
         표: 이름(심각도별 색 점 셋) · 기본/사용자 · 쓰는 문구 수(→ 운영자 문구 목록 `?channel=<종류>&template=<id>` — Slack·Mattermost 는 운영자 이벤트만 보낸다) · 마지막 수정 · 관리(복사 · 삭제).
         기본 템플릿(코드 제공)은 하나이고 고치거나 지울 수 없다(복사해서 만든다). 새로 만들기 → `…/{종류}/new`(기본 템플릿 값으로 시작), 복사 → `new?from=<id>`(편집 화면에서 [저장] 때 만든다).
         삭제는 확인 후 바로 — 쓰는 문구가 있으면 단추를 잠그고, 서버도 409 `TEMPLATE_IN_USE`(토스트 8초). 실제 글을 올리는 곳(봇 토큰·채널)은 알림 도구 화면이다 — 안내 한 줄과 링크.
-        권한: 화면 `template.read`(메뉴가 거른다) · 만들기·복사·삭제 `template.manage`. ⚠ MOCK: API 는 메모리 목업이다(`useChatTemplateApi`).
+        권한: 화면 `template.read`(메뉴가 거른다) · 만들기·복사·삭제 `template.manage`. API 는 실제 서버(`useChatTemplateApi`)다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="title" :subtitle="type ? t('notificationTemplate.chatSubtitle', { tool: toolName }) : ''">
@@ -94,7 +94,6 @@
 
 <script setup lang="ts">
 import type { DataTableRowClickEvent } from 'primevue/datatable';
-import { mockTemplateCan } from '~/composables/template/api/mock/notification-template-mock';
 import type { ChatTemplateListItemView, ChatTemplateType } from '~/composables/template/api/useChatTemplateApi.types';
 import { CHAT_SEVERITIES, CHAT_TEMPLATE_LIMIT } from '~/composables/template/api/useChatTemplateApi.types';
 import UtilChatTemplate from '~/utils/util-chat-template';
@@ -111,9 +110,7 @@ const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirmDialog();
 const { prefs } = useLayoutPrefs();
-// MOCK: 목업 스위치(`?mock=template-readonly|template-denied`)로 권한을 흉내 낸다 — 서버가 붙으면 아래 REAL 줄로 바꾼다
-const can = mockTemplateCan(useAdminPermission().can);
-// REAL: const { can } = useAdminPermission();
+const { can } = useAdminPermission();
 
 const canManage = computed(() => can('template.manage'));
 

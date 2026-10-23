@@ -157,7 +157,7 @@ export default {
     kakaoTitle: 'KakaoTalk templates',
     kakaoSubtitle: 'AlimTalk templates registered and approved by Kakao (template code · approved body · variable mapping · buttons). Each KakaoTalk message picks one.',
     kakaoPreparing: 'KakaoTalk is coming soon in Notification tools, so templates cannot be created yet.',
-    kakaoPreparingBody: 'KakaoTalk is coming soon in Notification tools (no provider contract yet). You can look at the fields and bubble with the example template, but you cannot create or edit.',
+    kakaoPreparingBody: 'KakaoTalk is coming soon in Notification tools (no provider contract yet). Templates registered and approved by Kakao will show here, but you cannot create or edit them.',
     kakaoLoadFailed: 'Could not load KakaoTalk templates',
     kakaoEmptyTitle: 'No KakaoTalk templates',
     newKakaoTemplate: 'New KakaoTalk template',

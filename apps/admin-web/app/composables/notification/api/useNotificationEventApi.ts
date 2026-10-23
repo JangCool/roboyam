@@ -12,6 +12,8 @@ import type {
  * 계약(서버 `NotificationController`, `docs/features/notification-contract.md` 「API」·「서버 구현 결과 (알림 도구·조직 구성)」). 오류는 모두 `ApiError`(useApiClient)로 던져진다. 쓰기는 CSRF.
  *   이벤트 관리(권한 `notification.read` / `notification.manage`)
  *   - `GET /api/admin/notification-events` → 200 `NotificationEventView[]` (영역·코드순. 이름·설명·수신 대상 문구는 서버가 요청 언어로 푼다. `channels`·`teamIds`·`broadcastAllowed` 포함)
+ *   - `GET /api/admin/notification-events/{code}` → 200 `NotificationEventView`(목록 한 줄과 같은 모양, 준비 중 포함) · 404 `NOTIFICATION_EVENT_NOT_FOUND`
+ *     `emailable` = 준비 중이 아니면 모두 true(서버 「회원 이벤트·이메일 확장」).
  *   - `PUT /api/admin/notification-events/{code}` `{ enabled, channels, teamIds }` → 200 바뀐 한 줄. `channels` 에 `email` 이 있는지가 곧 이메일 전달이다. 검사 순서:
  *       404 `NOTIFICATION_EVENT_NOT_FOUND` → 400 `VALIDATION` `fields.enabled` → 409 `NOTIFICATION_EVENT_NOT_READY`(준비 중 이벤트) → 409 `NOTIFICATION_MANDATORY`(필수 이벤트를 끔)
  *       → 400 `VALIDATION` `fields.channels`(`emailable=false` 인데 이메일 도구를 고름) → 400 `NOTIFICATION_CHANNEL_NOT_FOUND` `fields.channels` · `TEAM_NOT_FOUND` `fields.teamIds`(모르는 id)
@@ -39,6 +41,9 @@ export function useNotificationEventApi() {
     return {
         /** 이벤트 목록 — 영역·코드순 */
         list: (): Promise<NotificationEventView[]> => client.get<NotificationEventView[]>(PATH.events),
+
+        /** 이벤트 하나(목록 한 줄과 같은 모양, 준비 중 포함) — 모르는 코드는 404 `NOTIFICATION_EVENT_NOT_FOUND` */
+        get: (code: string): Promise<NotificationEventView> => client.get<NotificationEventView>(PATH.event(code)),
 
         /** 이벤트 하나의 사용 여부·전달 도구·추가 수신 팀을 바꾼다. 바뀐 한 줄을 돌려받는다 */
         update: (code: string, body: NotificationEventUpdateRequest): Promise<NotificationEventView> => client.put<NotificationEventView>(PATH.event(code), body),

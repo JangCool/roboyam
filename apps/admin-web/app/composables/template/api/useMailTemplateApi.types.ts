@@ -2,7 +2,7 @@ import type { SettingHistoryItem, SettingHistoryPage } from '~/composables/commo
 import type { MessageAudience, MessageLocale, MessageVariableView } from '~/composables/template/api/useNotificationMessageApi.types';
 
 /**
- * 메일 템플릿 API 의 모양 — `docs/features/message-template-contract.md` 「개정 4」(개정 3 까지의 「메일 레이아웃」 — 메일의 겉모양 틀). 화면 목업 단계 — 서버 단계에서 확정한다.
+ * 메일 템플릿 API 의 모양 — `docs/features/message-template-contract.md` 「템플릿」(메일의 겉모양 틀) — 서버 `MailTemplateListItemView`·`MailTemplateView`·`MailTemplateSaveRequest` 와 같은 모양. id 는 기본 `mail-member`·`mail-operator`, 사용자 템플릿 Snowflake(문자열).
  * 칸은 개정 2 의 레이아웃 그대로다: 이름 · 쓰는 대상(회원/운영자/모두) · 로고·사이트 이름 보이기 · 머리말 띠 색 · 언어별 틀(`{{content}}` 1번) · 꼬리말.
  * 기본 메일 템플릿(코드가 준다, `builtin=true`)은 받는 사람별로 둘(「회원 기본」 · 「운영자 기본」)이고 읽기 전용이다 — 운영자가 복사해서 더 만든다. 쓰는 문구가 있는 템플릿은 지울 수 없다(409 `TEMPLATE_IN_USE`).
  * 이메일 문구는 받는 사람이 같거나 `ANY` 인 메일 템플릿만 고른다.
@@ -79,9 +79,9 @@ export type MailTemplateHistoryItemView = SettingHistoryItem;
 export type MailTemplateHistoryPage = SettingHistoryPage<MailTemplateHistoryItemView>;
 
 /** `GET /api/admin/notification-templates/mail?audience=` 거르기(쓰는 대상 그대로) — 화면은 전부 받아 화면에서 거른다 */
-export interface MailTemplateAudienceQuery {
+export type MailTemplateAudienceQuery = {
     audience?: MailTemplateAudience;
-}
+};
 
-/** 사용자 메일 템플릿 상한(가정 — 계약 「미확정」) */
+/** 사용자 메일 템플릿 상한(서버와 같은 가정 값 — 계약 「미확정」 2) */
 export const MAIL_TEMPLATE_LIMIT = 20;

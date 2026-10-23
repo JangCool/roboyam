@@ -238,9 +238,8 @@ export default class UtilPermissionCatalog {
         { code: 'site.secret', unit: 'SENSITIVE', type: 'siteIntegration', nameKey: 'permission.item.siteSecret', descKey: 'permission.item.siteSecretDesc', featureReady: true },
         { code: 'notification.read', unit: 'READ', type: 'siteIntegration', nameKey: 'permission.notificationRead', descKey: 'permission.notificationReadDesc', featureReady: true },
         { code: 'notification.manage', unit: 'CONFIG', type: 'siteIntegration', nameKey: 'permission.notificationManage', descKey: 'permission.notificationManageDesc', featureReady: true },
-        // ⚠ 알림 템플릿·문구(`/settings/notification-templates/**` — 메일·Slack·Mattermost·카카오톡 템플릿, `/settings/notification-messages/**` — 문구 · 필수 안내 메일, 이벤트 상세의 채널별 문구) — **화면 목업 확인용 후보**다. 서버 `Permission.java` 에는 아직 없다(서버 단계에서 같은 코드·단위로 만들고 `AdminScreenRegistry` 도 맞춘다).
-        //   그때까지 서버가 이 코드를 운영자 권한 목록에 주지 않으므로 화면은 최고 관리자에게만 보이고, 역할에 체크해 저장하면 서버가 모르는 코드로 거절할 수 있다.
-        //   설정 단위(CONFIG)는 `site.manage`·`notification.manage` 와 같은 분류(설정 메뉴의 구성 변경)다.
+        // 알림 템플릿·문구(`/settings/notification-templates/**` — 메일·Slack·Mattermost·카카오톡 템플릿, `/settings/notification-messages/**` — 문구 · 필수 안내 메일, 이벤트 상세의 채널별 문구).
+        //   서버 `Permission.TEMPLATE_READ`·`TEMPLATE_MANAGE`(SITE_INTEGRATION · READ / CONFIG · 준비됨)와 같은 값이다. 메뉴는 서버 `AdminScreenRegistry` 의 템플릿·문구 화면이 `template.read` 로 거른다.
         { code: 'template.read', unit: 'READ', type: 'siteIntegration', nameKey: 'permission.templateRead', descKey: 'permission.templateReadDesc', featureReady: true },
         { code: 'template.manage', unit: 'CONFIG', type: 'siteIntegration', nameKey: 'permission.templateManage', descKey: 'permission.templateManageDesc', featureReady: true },
     ];

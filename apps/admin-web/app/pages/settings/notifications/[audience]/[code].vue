@@ -2,13 +2,14 @@
     <!--
         이벤트 상세(회원·운영자 공통 — `/settings/notifications/member/[code]` · `/settings/notifications/operator/[code]`). 계약 `docs/features/message-template-contract.md` 「개정 3」 이벤트 화면 · 「개정 4」 채널·용어(문구).
         ① 이벤트 구획 — 설명 · 받는 사람 · 수신 규칙(운영자만) · 지금 설정(사용 · 운영자는 전달 도구·추가 수신 팀, 회원은 채널·회원이 끌 수 있는지). **보여 주기만 한다** — 바꾸기는 목록에서(목록의 즉시 저장과 두 곳에서 같은 값을 고치지 않게).
-           운영자 이벤트는 실제 서버(`GET /api/admin/notification-events` 의 한 줄 · 도구 이름 `useNotificationChannels` · 팀 이름 `useTeamApi` — `team.read` 가 있을 때만), 회원 이벤트는 목업(`useMemberEventApi`).
+           운영자 이벤트는 `GET /api/admin/notification-events/{code}`(도구 이름 `useNotificationChannels` · 팀 이름 `useTeamApi` — `team.read` 가 있을 때만), 회원 이벤트는 `GET /api/admin/member-events` 목록에서 찾는다(한 줄 조회가 없다).
         ② 채널마다 구획(운영자 = 앱 알림·이메일·Slack·Mattermost·카카오톡 — 본인에게만 가는 이벤트는 Slack·Mattermost 없음, 회원 = 앱 알림·이메일·카카오톡): 언어별 쓸 문구 + 특수 상황 규칙(`MessageChannelSelection`) + 「이 채널의 문구 보기」·「새 문구」.
-           그 채널로 지금 보내지 않으면(목록에서 꺼짐 · 이메일이 서버 단계에서 열림 · Slack·Mattermost 는 그 종류의 도구를 골랐을 때만) 안내 한 줄 — 문구는 미리 정해 둘 수 있다.
+           그 채널로 지금 보내지 않으면(목록에서 꺼짐 · Slack·Mattermost 는 그 종류의 도구를 골랐을 때만) 안내 한 줄 — 문구는 미리 정해 둘 수 있다.
+           저장 오류 `fields.channels.<채널>.selected.ko|en` · `.rules[i].condition|messageId` · `.rules` 는 그 채널 구획의 칸 아래, 칸에 붙지 않는 것(`channels.<채널>` 자체 · 409 등)은 저장 줄 안 한 줄.
            카카오톡은 준비 중(알림 도구에서 카카오가 업체 계약 전) — 구획을 흐리게 두고 고르기 칸 없이 안내 · 「이 채널의 문구 보기」만(저장에 넣지 않는다).
         저장은 채널 전부(준비 중 제외)를 `PUT targets/EVENT/{code}` 한 번으로 → 하단 떠 있는 저장 줄 하나(`StickySaveBar`). 문구 대상이 없으면(준비 중 회원 이벤트) 안내만, `template.read` 가 없으면 ②를 감추고 안내.
-        권한: 화면 `notification.read`(메뉴가 거른다) · 문구 고르기 `template.manage`. 저장하지 않은 변경이 있는 채 떠나면 묻는다.
-        ⚠ MOCK: 문구·회원 이벤트 API 는 메모리 목업이다(`useNotificationMessageApi` · `useMemberEventApi`). 운영자 이벤트 정보는 실제 API.
+        권한: 화면 `notification.read`(메뉴가 거른다) · 문구 보기 `template.read`(403 이면 ②를 감추고 안내) · 문구 고르기 `template.manage`. 저장하지 않은 변경이 있는 채 떠나면 묻는다.
+        준비 중 회원 이벤트는 서버가 문구 대상으로 주지 않는다(404 `MESSAGE_TARGET_NOT_FOUND` → 「문구 대상이 아니에요」 안내).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <template v-if="loading && !info">
@@ -145,7 +146,6 @@
 import type { MemberEventView } from '~/composables/notification/api/useMemberEventApi.types';
 import type { NotificationEventView } from '~/composables/notification/api/useNotificationEventApi.types';
 import type { TeamView } from '~/composables/team/api/useTeamApi.types';
-import { mockTemplateCan } from '~/composables/template/api/mock/notification-template-mock';
 import type { MessageAudience, MessageChannel, MessageTargetDetailView } from '~/composables/template/api/useNotificationMessageApi.types';
 import type { MessageSelectionModel } from '~/utils/util-notification-message';
 import UtilNotificationChannelMessages from '~/utils/util-notification-channel-messages';
@@ -165,10 +165,7 @@ const toApiError = useApiErrorOf();
 const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirmDialog();
-const { can: realCan } = useAdminPermission();
-// MOCK: 문구 권한은 목업 스위치(`?mock=template-readonly|template-denied`)로 흉내 낸다 — 서버가 붙으면 `realCan` 하나로 바꾼다
-const can = mockTemplateCan(realCan);
-// REAL: const can = realCan;
+const { can } = useAdminPermission();
 
 const canManage = computed(() => can('template.manage'));
 
@@ -262,8 +259,8 @@ function channelNote(channel: MessageChannel): string {
     const op = operatorEvent.value;
     if (op) {
         if (channel === 'EMAIL') {
-            // MOCK 표시: 서버 단계에서 `emailable` 을 준비 중이 아닌 모든 이벤트로 넓힌다(개정 3)
-            if (!op.emailable) return t('notification.eventDetail.emailLater');
+            // 서버는 준비 중이 아닌 이벤트를 모두 `emailable=true` 로 준다 — 그래도 false 면 이메일로 보내지 않는다는 한 줄
+            if (!op.emailable) return t('notification.channelBlocked.emailNotAvailable');
             if (!op.channels.includes('email')) return t('notification.eventDetail.channelOff');
         }
         if (channel === 'SLACK' || channel === 'MATTERMOST') {
@@ -294,14 +291,13 @@ function fillTarget(view: MessageTargetDetailView): void {
 async function loadInfo(): Promise<void> {
     if (!audienceValid.value) throw Object.assign(new Error(t('notification.eventDetail.notFound')), { status: 404 });
     if (audienceCode.value === 'OPERATOR') {
-        // 실제 API — 한 줄 조회가 없어 목록에서 찾는다. 도구 이름은 공유 상태, 팀 이름은 `team.read` 가 있을 때만
-        const [list] = await Promise.all([eventApi.list(), tools.value ? Promise.resolve() : loadTools()]);
-        if (realCan('team.read')) teams.value = await teamApi.list().catch(() => null);
-        const found = list.find((event) => event.code === code.value);
-        if (!found) throw Object.assign(new Error(t('notification.eventDetail.notFound')), { status: 404 });
+        // 한 줄 조회(모르는 코드는 404 `NOTIFICATION_EVENT_NOT_FOUND`). 도구 이름은 공유 상태, 팀 이름은 `team.read` 가 있을 때만
+        const [found] = await Promise.all([eventApi.get(code.value), tools.value ? Promise.resolve() : loadTools()]);
+        if (can('team.read')) teams.value = await teamApi.list().catch(() => null);
         operatorEvent.value = found;
         memberEvent.value = null;
     } else {
+        // 회원 이벤트는 한 줄 조회가 없다 — 목록(10종)에서 찾는다
         const found = (await memberEventApi.list()).find((event) => event.code === code.value);
         if (!found) throw Object.assign(new Error(t('notification.eventDetail.notFound')), { status: 404 });
         memberEvent.value = found;
@@ -365,17 +361,21 @@ async function save(): Promise<void> {
     } catch (e) {
         const error = toApiError(e);
         const found: Partial<Record<MessageChannel, Record<string, string>>> = {};
-        let placed = 0;
+        const loose: string[] = [];
         for (const [key, message] of Object.entries(error.fields ?? {})) {
             const match = /^channels\.(IN_APP|EMAIL|SLACK|MATTERMOST|KAKAO)\.(.+)$/.exec(key);
-            if (!match) continue;
+            if (!match) {
+                // `channels.<채널>` 자체(대상에 없는 채널 · 준비 중 채널)처럼 칸이 없는 것
+                loose.push(message);
+                continue;
+            }
             const channel = match[1] as MessageChannel;
             found[channel] = { ...(found[channel] ?? {}), [match[2] as string]: message };
-            placed += 1;
         }
         serverErrors.value = found;
         // 칸에 붙지 않는 오류만 저장 줄 안 한 줄 — 서버 문구 그대로
-        if (placed === 0) formError.value = error.message;
+        if (loose.length) formError.value = loose.join(' · ');
+        else if (Object.keys(found).length === 0) formError.value = error.message;
     } finally {
         saving.value = false;
     }

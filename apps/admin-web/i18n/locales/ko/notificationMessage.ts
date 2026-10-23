@@ -17,7 +17,7 @@ export default {
     clearFilter: '조건 지우기',
     listCount: '{n}개 / 전체 {total}개',
     kakaoPreparing: '카카오톡은 알림 도구에서 준비 중이라 아직 문구를 만들 수 없어요.',
-    kakaoPreparingBody: '카카오톡은 알림 도구에서 준비 중이에요(업체 계약 전). 예시 문구로 칸과 말풍선 모양만 볼 수 있고, 만들거나 고칠 수는 없어요.',
+    kakaoPreparingBody: '카카오톡은 알림 도구에서 준비 중이에요(업체 계약 전). 카카오에 등록한 문구가 생기면 여기서 볼 수 있지만, 만들거나 고칠 수는 없어요.',
 
     // 채널
     channel: {
