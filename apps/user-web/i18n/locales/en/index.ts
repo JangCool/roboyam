@@ -22,6 +22,8 @@ import mail from './mail';
 import me from './me';
 import menu from './menu';
 import notification from './notification';
+import onboarding from './onboarding';
+import password from './password';
 import point from './point';
 import post from './post';
 import profile from './profile';
@@ -34,6 +36,7 @@ import signup from './signup';
 import site from './site';
 import siteTerms from './siteTerms';
 import social from './social';
+import verify from './verify';
 
 export default {
     account,
@@ -50,6 +53,8 @@ export default {
     me,
     menu,
     notification,
+    onboarding,
+    password,
     point,
     post,
     profile,
@@ -62,4 +67,5 @@ export default {
     site,
     siteTerms,
     social,
+    verify,
 };

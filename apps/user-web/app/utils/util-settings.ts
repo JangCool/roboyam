@@ -7,6 +7,15 @@ export interface SettingsEntry {
     hintKey: string;
     icon: string;
     testid: string;
+    /** 이 화면 아래의 하위 화면 — 넓은 화면의 왼쪽 메뉴에만 들여 써서 보인다(좁은 화면 목록·`/me` 바로가기에는 없다 — 그 화면 안의 줄로 간다) */
+    children?: readonly SettingsSubEntry[];
+}
+
+/** 설정 화면 아래의 하위 화면 한 줄 */
+export interface SettingsSubEntry {
+    to: string;
+    labelKey: string;
+    testid: string;
 }
 
 /**
@@ -21,7 +30,17 @@ export default class UtilSettings {
         { to: '/settings/profile', labelKey: 'settings.profile', hintKey: 'settings.profileHint', icon: 'pi pi-user-edit', testid: 'settings-profile' },
         { to: '/settings/notifications', labelKey: 'settings.notifications', hintKey: 'settings.notificationsHint', icon: 'pi pi-bell', testid: 'settings-notifications' },
         { to: '/settings/display', labelKey: 'settings.display', hintKey: 'settings.displayHint', icon: 'pi pi-clock', testid: 'settings-display' },
-        { to: '/settings/account', labelKey: 'account.title', hintKey: 'settings.accountHint', icon: 'pi pi-link', testid: 'settings-account' },
+        {
+            to: '/settings/account',
+            labelKey: 'account.title',
+            hintKey: 'settings.accountHint',
+            icon: 'pi pi-link',
+            testid: 'settings-account',
+            children: [
+                { to: '/settings/account/email', labelKey: 'account.emailChange', testid: 'settings-account-email' },
+                { to: '/settings/account/password', labelKey: 'account.passwordChange', testid: 'settings-account-password' },
+            ],
+        },
     ];
 
     /**
@@ -32,5 +51,14 @@ export default class UtilSettings {
      */
     static isActive(path: string, to: string): boolean {
         return path === to || path.startsWith(`${to}/`);
+    }
+
+    /**
+     * 지금 주소가 하위 화면이면 그 부모 설정 화면 — 좁은 화면의 「‹ 돌아가기」가 설정 목록 대신 부모로 간다.
+     * @param {string} path - 지금 경로.
+     * @returns {SettingsEntry | null} 하위 화면의 부모. 하위 화면이 아니면 null.
+     */
+    static parentOf(path: string): SettingsEntry | null {
+        return UtilSettings.ENTRIES.find((entry) => entry.children?.some((child) => UtilSettings.isActive(path, child.to))) ?? null;
     }
 }
