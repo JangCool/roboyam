@@ -14,6 +14,7 @@
         "@primevue/nuxt-module": "5.0.2",
         "@roboyam/display-time": "workspace:*",
         "@roboyam/i18n": "workspace:*",
+        "@roboyam/rich-editor": "workspace:*",
         "nuxt": "4.6.2",
         "primeicons": "8.0.2",
         "primevue": "5.0.2",

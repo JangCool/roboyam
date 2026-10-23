@@ -32,6 +32,15 @@
                 >
                     <i class="pi pi-lock text-xs" aria-hidden="true" />{{ t('prompt.delayPlaceholder') }}
                 </button>
+                <!--
+                    에디터로 쓴 댓글(`contentFormat === 'HTML'`, 간단 에디터) — 서버가 정화한 HTML 만 온다(공개 게시판 계약 「에디터 화면」).
+                    새 `v-html` 은 이곳(댓글 본문)과 글 보기 본문(`pages/posts/[id]/index.vue`) 두 곳뿐이다. 답한 상대 이름은 글자로 따로 그린다(HTML 에 섞지 않는다) — 왼쪽에 띄워 첫 문단과 한 줄에 놓는다
+                -->
+                <div v-else-if="comment.contentFormat === 'HTML'" class="mt-1 break-words text-sm">
+                    <span v-if="comment.replyTo" class="float-left mr-1 font-semibold leading-[1.75] text-primary">@{{ comment.replyTo.name }}</span>
+                    <!-- eslint-disable-next-line vue/no-v-html -->
+                    <div class="rich-text" v-html="comment.content ?? ''" />
+                </div>
                 <p v-else class="mt-1 whitespace-pre-line break-words text-sm leading-relaxed">
                     <span v-if="comment.replyTo" class="mr-1 font-semibold text-primary">@{{ comment.replyTo.name }}</span>{{ comment.content }}
                 </p>

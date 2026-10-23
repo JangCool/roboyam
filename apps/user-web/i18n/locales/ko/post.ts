@@ -72,8 +72,8 @@ export default {
     titlePlaceholder: '제목을 입력해 주세요',
     contentLabel: '본문',
     contentPlaceholder: '내용을 입력해 주세요',
-    imageUpload: '이미지',
-    imageUploadLater: '이미지 올리기는 에디터와 함께 붙어요',
+    imagesUploading: '이미지를 올리는 중이에요. 다 올라간 뒤에 등록해 주세요.',
+    imagesFailed: '올리지 못한 이미지가 있어요. 에디터 아래 목록에서 지우거나 다시 시도해 주세요.',
     adultLabel: '19금 글이에요',
 
     // 글 보기

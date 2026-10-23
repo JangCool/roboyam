@@ -37,7 +37,7 @@
 새 글 표시 24시간, 비회원 비밀번호 최대 20자, 댓글 1~2,000자, 신고 기타 설명 300자, 베스트 댓글 최대 3개. 제목 1~100자·본문 10~200,000자(고정 규칙).
 
 ## 범위 밖 (후속)
-에디터·이미지 올리기, 임시저장, 투표, 스크랩, 차단·메모, 수정 이력, 실제 캡차, 성인 인증, 스텝·매니저 처리 화면, 포인트 지급, 알림 발송, 조회수 중복 판정 저장(`post_views`).
+~~에디터·이미지 올리기~~(→ 「에디터 화면」), 임시저장, 투표, 스크랩, 차단·메모, 수정 이력, 실제 캡차, 성인 인증, 스텝·매니저 처리 화면, 포인트 지급, 알림 발송, 조회수 중복 판정 저장(`post_views`).
 
 ## 추가 결정 (2026-10-22, 사용자 "권장대로")
 1. **자동입력 방지**: 서버에 검증기 인터페이스(`CaptchaVerifier`)를 두고 **Cloudflare Turnstile** 구현을 기본으로 한다(무료·개인정보 수집이 적고 사용자 퍼즐 없음). 비밀키가 설정되지 않은 환경(local·설치 직후)은 「검증 안 함」 구현으로 동작하고 기동 로그에 경고를 남긴다 — 그때 비회원 글은 작성 속도·하루 한도·링크 0개·금지어로만 막힌다. 화면은 지금 자리 표시 체크를 두고, 사이트 키를 공개 정보로 받으면 Turnstile 위젯으로 바꾼다(후속).
@@ -62,3 +62,14 @@
 **미확정(추가)**: ~~slug `writable` 충돌~~ → 예약어에 더함. ~~비밀번호 시도 제한이 서버 메모리~~ → DB 로 옮김(2026-10-22). 고정 공지를 거는 기능·운영자 신고 처리·작성자/신고자 알림은 후속.
 
 - 포인트 지급·회원 알림 발송(후속이던 것): `point-contract.md` · `member-notification-contract.md`(2026-10-23).
+
+## 에디터 화면 (2026-10-23 — 프론트 구현, 서버는 동시 구현 중)
+**의도**: 게시판 설정에 따라 글·댓글을 평문(Textarea) 또는 서식 에디터(community 에디터를 옮긴 공용 레이어 `@roboyam/rich-editor`)로 쓰고, 에디터 글은 서버가 정화한 HTML 로 보인다.
+- **게시판 칸**(공개 `GET /api/boards`·`/{slug}`·`/writable`): `postEditor: NONE|SIMPLE|ADVANCED` · `imageUploadAllowed` · `commentEditor: NONE|SIMPLE`(유효값, 없으면 `NONE`/`false`/`NONE`). 관리자 게시판 설정·기본 설정 「일반 › 쓰기 권한·에디터」에 같은 이름 칸(정책 칸 모양, 기본값 따르기). 전체 기본값 글 `SIMPLE`·이미지 `true`·댓글 `NONE`.
+- **본문 형식**: 글·댓글 요청/응답 `contentFormat: TEXT|HTML`(응답에 없으면 `TEXT`). `NONE` → Textarea + `TEXT`, 에디터 → HTML + `HTML`(HTML 은 다듬지 않고 그대로 보낸다). 길이(글 10~200,000 · 댓글 1~2,000)는 **태그를 뗀 보이는 글자 수**(연속 공백 하나, 앞뒤 자름 — `UtilRichText.visibleLength`).
+- **보기**: `contentFormat==='HTML'` 일 때만 서버 HTML 을 `v-html`(글 본문 `pages/posts/[id]/index.vue`, 댓글 `CommentItem.vue` — 이 두 곳뿐). 그린 뒤 `UtilRichBody.enhance` 가 `div[data-youtube-id]` 를 썸네일 → 누르면 `youtube-nocookie` iframe 으로, 못 불러온 `img[data-image-id]` 를 자리표시로 바꾼다. 모양은 `rich-text.css`(레이어가 넣는다).
+- **수준**: SIMPLE(글·댓글) `p br strong em u s a ul ol li blockquote` · ADVANCED(글만) + `h2 h3 hr code pre`, 팔레트 색 `span style="color|background-color: #rrggbb"`(community 팔레트 — TipTap 의 `rgb()` 직렬화를 `#rrggbb` 로 되돌려 보낸다), 이미지 `<img data-image-id src width height>`, 유튜브 `<div data-youtube-id>`, 블록 끌기 손잡이. 이모티콘·표·정렬·글꼴은 없다.
+- **이미지**: 고급 + `imageUploadAllowed` + 회원일 때만 단추·드롭존·붙여넣기·끌어놓기(비회원 글쓰기·비회원 글 고치기는 감춘다). `POST /api/images` multipart `file` → `201 {id,url,width,height}`(`useImageApi`, 진행률 XHR). 오류는 서버 문구, 다시 시도는 0·429·5xx 만. 올리는 중·실패가 남으면 등록을 막는다. 저장 `422 IMAGE_UPLOAD_NOT_ALLOWED` 는 본문 칸 아래 서버 문구.
+- **유튜브**: 서버 확인 API 가 없어 화면이 주소에서 ID 를 읽는다(`youtu.be`·`watch?v=`·`shorts`·`embed`·`live`).
+- **형식이 바뀐 글**(가정): 고치기는 **지금** 게시판 설정으로 연다 — 평문 글을 에디터 게시판에서 고치면 문단 HTML 로, 에디터 글을 평문 게시판에서 고치면 글자만 남긴다(서식·이미지 빠짐). 글쓰기에서 게시판을 바꿀 때도 같다.
+- **미확정**: ① 관리자 「이미지 올리기」 칸은 글 에디터가 **고급이 아니면** 끄고 안내한다(간단 에디터는 이미지를 만들지 않으므로 — 계약 문구 「평문이면」보다 넓게). ② 서버 정화의 `a` 속성(`target`·`rel`)·빈 `<p></p>`(에디터 끝 빈 문단) 처리. ③ 이미지 형식 미리 검사는 JPG·PNG·GIF·WebP 가정(크기·장수 한도는 서버 문구로만). ④ 서버 연동 확인은 서버가 develop 에 들어온 뒤.

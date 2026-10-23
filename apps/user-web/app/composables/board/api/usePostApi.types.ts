@@ -6,6 +6,12 @@
 import type { Role } from '~/composables/auth/api/useAuthApi.types';
 import type { BoardProtectDelete, PrefixView } from '~/composables/board/api/useBoardApi.types';
 
+/**
+ * 본문 형식 — `TEXT` 평문(Textarea, 글자로 그린다) · `HTML` 에디터 HTML(서버가 정화한 것만 돌려준다 — 글 보기·댓글 보기만 `v-html` 로 그린다).
+ * 쓰기 요청의 형식은 게시판 에디터 설정을 따른다(`UtilBoard.postFormat`·`commentFormat`). 응답에 없으면(옛 응답) `TEXT` 로 본다.
+ */
+export type ContentFormat = 'TEXT' | 'HTML';
+
 /** 작성자 종류 — 회원 · 비회원 */
 export type PostAuthorKind = 'MEMBER' | 'GUEST';
 
@@ -109,8 +115,10 @@ export interface PostDetail {
     board: { id: string; slug: string; name: string; nameEn: string | null };
     prefix: PostPrefixRef | null;
     title: string;
-    /** 본문 — 목업은 평문(빈 줄로 문단을 나눈다). 에디터·정화된 HTML 은 후속 */
+    /** 본문 — `contentFormat` 이 `TEXT` 면 평문(빈 줄로 문단을 나눈다), `HTML` 이면 서버가 정화한 HTML */
     content: string;
+    /** 본문 형식 — 없으면(옛 응답) `TEXT` */
+    contentFormat?: ContentFormat;
     author: PostAuthor;
     createdAt: string;
     /** 수정했으면 그 시각 */
@@ -150,6 +158,8 @@ export interface PostWriteRequest {
     prefixId: string | null;
     title: string;
     content: string;
+    /** 게시판 글 에디터가 `NONE` 이면 `TEXT`, 에디터면 `HTML` */
+    contentFormat: ContentFormat;
     adult: boolean;
     /** 비회원이면 필수, 회원이면 null */
     guest: GuestCredentials | null;
@@ -164,6 +174,7 @@ export interface PostUpdateRequest {
     prefixId: string | null;
     title: string;
     content: string;
+    contentFormat: ContentFormat;
     adult: boolean;
     password: string | null;
 }

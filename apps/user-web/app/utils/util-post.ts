@@ -1,10 +1,13 @@
 import type { BoardGuestRules, BoardNewMemberRules } from '~/composables/board/api/useBoardApi.types';
+import type { ContentFormat } from '~/composables/board/api/usePostApi.types';
+import UtilRichText from '#layers/rich-editor/utils/util-rich-text';
 
 /**
  * 글·댓글을 그리고 미리 검사하는 순수 규칙. 판정은 서버가 한다 — 여기 검사는 미리 알려 주는 용도다.
  * 서버 규칙 이름(후보): 글 길이 `PostPolicy.TITLE_*`·`CONTENT_*`, 비회원 `GuestPolicy`(관리자 보안 설정 `guest*`), 새 회원 `NewMemberPolicy`(`newMember*`).
  *
- * 본문은 목업 단계에서 평문이다 — HTML 로 해석하지 않고(`v-html` 금지) 빈 줄로 문단을, 줄바꿈으로 줄을 나누고 `http(s)://` 주소만 링크로 만든다.
+ * 본문 형식(`ContentFormat`)이 `TEXT` 면 평문이다 — HTML 로 해석하지 않고 빈 줄로 문단을, 줄바꿈으로 줄을 나누고 `http(s)://` 주소만 링크로 만든다.
+ * `HTML`(게시판 에디터)이면 길이는 보이는 글자 수(태그를 뗀 글자 — 서버 기준)로 재고, 그리기는 글 보기·댓글 보기가 서버가 정화한 HTML 을 `v-html` 로 한다.
  */
 
 /** 본문 한 조각 — 글자 또는 링크 */
@@ -178,14 +181,60 @@ export default class UtilPost {
     }
 
     /**
-     * 본문 문제 — 10~200,000자(앞뒤 공백 제외)
+     * 본문 글자 수 — 평문은 앞뒤 공백을 뺀 길이, 에디터 HTML 은 **보이는 글자 수**(태그를 뗀 글자 — 서버가 재는 기준, `UtilRichText.visibleLength`)
      * @param {string} content - 본문.
+     * @param {ContentFormat} format - 본문 형식.
+     * @returns {number} 글자 수.
+     */
+    static contentLength(content: string, format: ContentFormat = 'TEXT'): number {
+        return format === 'HTML' ? UtilRichText.visibleLength(content) : content.trim().length;
+    }
+
+    /**
+     * 내용이 있는가(나가기 확인용) — 에디터 HTML 은 보이는 글자나 이미지·유튜브가 있으면 true
+     * @param {string} content - 본문.
+     * @param {ContentFormat} format - 본문 형식.
+     * @returns {boolean} 내용이 있으면 true.
+     */
+    static hasContent(content: string, format: ContentFormat = 'TEXT'): boolean {
+        return format === 'HTML' ? UtilRichText.hasContent(content) : content.trim() !== '';
+    }
+
+    /**
+     * 본문을 다른 형식으로 바꾼다 — 평문 글을 에디터 게시판에서 고치거나(평문 → HTML), 에디터 글을 평문 게시판에서 고칠 때(HTML → 평문, 서식·이미지는 빠진다).
+     * 글쓰기에서 에디터 설정이 다른 게시판으로 바꿀 때도 쓴다.
+     * @param {string} content - 본문.
+     * @param {ContentFormat} from - 지금 형식.
+     * @param {ContentFormat} to - 바꿀 형식.
+     * @returns {string} 바꾼 본문(형식이 같으면 그대로).
+     */
+    static convertContent(content: string, from: ContentFormat, to: ContentFormat): string {
+        if (from === to) return content;
+        return to === 'HTML' ? UtilRichText.htmlFromText(content) : UtilRichText.textFromHtml(content);
+    }
+
+    /**
+     * 본문 문제 — 10~200,000자(평문은 앞뒤 공백 제외, 에디터 HTML 은 보이는 글자 수)
+     * @param {string} content - 본문.
+     * @param {ContentFormat} format - 본문 형식.
      * @returns {LengthProblem | null} 문제가 없으면 null.
      */
-    static contentProblem(content: string): LengthProblem | null {
-        const length = content.trim().length;
+    static contentProblem(content: string, format: ContentFormat = 'TEXT'): LengthProblem | null {
+        const length = UtilPost.contentLength(content, format);
         if (length === 0) return 'REQUIRED';
         return length < UtilPost.CONTENT_MIN || length > UtilPost.CONTENT_MAX ? 'LENGTH' : null;
+    }
+
+    /**
+     * 댓글 문제 — 1~2,000자(평문은 앞뒤 공백 제외, 에디터 HTML 은 보이는 글자 수)
+     * @param {string} content - 댓글.
+     * @param {ContentFormat} format - 본문 형식.
+     * @returns {LengthProblem | null} 문제가 없으면 null.
+     */
+    static commentProblem(content: string, format: ContentFormat = 'TEXT'): LengthProblem | null {
+        const length = UtilPost.contentLength(content, format);
+        if (length === 0) return 'REQUIRED';
+        return length > UtilPost.COMMENT_MAX ? 'LENGTH' : null;
     }
 
     /**
@@ -214,15 +263,16 @@ export default class UtilPost {
     /**
      * 링크·이미지 수가 규칙을 넘었는가 — 비회원 규칙이 먼저, 회원은 새 회원(첫 등급)일 때만 본다
      * @param {string} content - 본문.
-     * @param {{ guest: boolean; guestRules: BoardGuestRules; newMember: BoardNewMemberRules; allowImages: boolean }} rule - 적용할 규칙.
+     * @param {{ guest: boolean; guestRules: BoardGuestRules; newMember: BoardNewMemberRules; allowImages: boolean; format?: ContentFormat }} rule - 적용할 규칙(`format` 이 `HTML` 이면 링크는 `a[href]`+글자 속 주소, 이미지는 `img[data-image-id]` 로 센다).
      * @returns {'GUEST_LINK' | 'GUEST_IMAGE' | 'NEW_LINK' | 'NEW_IMAGE' | 'NO_IMAGE' | null} 넘은 규칙. 없으면 null.
      */
     static linkProblem(
         content: string,
-        rule: { guest: boolean; guestRules: BoardGuestRules; newMember: BoardNewMemberRules; allowImages: boolean },
+        rule: { guest: boolean; guestRules: BoardGuestRules; newMember: BoardNewMemberRules; allowImages: boolean; format?: ContentFormat },
     ): 'GUEST_LINK' | 'GUEST_IMAGE' | 'NEW_LINK' | 'NEW_IMAGE' | 'NO_IMAGE' | null {
-        const links = UtilPost.linkCount(content);
-        const images = UtilPost.imageCount(content);
+        const html = rule.format === 'HTML';
+        const links = html ? UtilRichText.linkCount(content) : UtilPost.linkCount(content);
+        const images = html ? UtilRichText.imageCount(content) : UtilPost.imageCount(content);
         if (rule.guest) {
             if (links > rule.guestRules.linkLimit) return 'GUEST_LINK';
             if (images > 0 && (!rule.guestRules.imageUploadAllowed || !rule.allowImages)) return 'GUEST_IMAGE';

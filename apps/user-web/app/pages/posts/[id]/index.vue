@@ -66,6 +66,13 @@
                     <Button type="button" :label="t('post.adultConfirm')" severity="danger" @click="adultConfirmed = true" />
                 </div>
             </div>
+            <!--
+                에디터로 쓴 글(`contentFormat === 'HTML'`) — 서버가 정화(sanitize)한 HTML 만 온다(공개 게시판 계약 「에디터 화면」: 서버가 허용 태그 밖을 지우고 이미지 주소를 채운다).
+                새 `v-html` 은 이곳(글 본문)과 `CommentItem`(댓글 본문) 두 곳뿐이다. 다른 경로의 글자(제목·닉네임·안내문 등)는 절대 넣지 않는다.
+                그린 뒤 유튜브(누르면 youtube-nocookie iframe)·이미지(실패 자리표시)는 `UtilRichBody.enhance` 가 DOM API 로만 손질한다. 평문 글은 아래처럼 글자로 그린다
+            -->
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <div v-else-if="post.contentFormat === 'HTML'" ref="htmlBody" class="rich-text py-5 text-[0.9375rem]" data-testid="post-body" v-html="post.content" />
             <div v-else class="py-5 text-[0.9375rem] leading-relaxed" data-testid="post-body">
                 <p v-for="(lines, i) in paragraphs" :key="i" class="mb-4 break-words last:mb-0">
                     <template v-for="(line, j) in lines" :key="j">
@@ -157,6 +164,7 @@ import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
 import type { PostDetail } from '~/composables/board/api/usePostApi.types';
 import type { ReportReason, ReportTargetType } from '~/composables/report/api/useReportApi.types';
 import type { CommentActions } from '~/components/board/CommentSection.types';
+import UtilRichBody from '#layers/rich-editor/utils/util-rich-body';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilPost from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
@@ -214,8 +222,8 @@ async function load(): Promise<void> {
 
 const comments = usePostComments(id);
 const commentActions: CommentActions = {
-    create: (content, target, guest) => comments.create(content, target, guest),
-    update: (commentId, content, password) => comments.update(commentId, content, password),
+    create: (content, contentFormat, target, guest) => comments.create(content, contentFormat, target, guest),
+    update: (commentId, content, contentFormat, password) => comments.update(commentId, content, contentFormat, password),
     remove: (commentId, password) => comments.remove(commentId, password),
     like: (commentId) => comments.like(commentId),
 };
@@ -234,6 +242,16 @@ onBeforeUnmount(() => {
 
 const boardName = computed(() => (board.value ? localizedName(board.value.name, board.value.nameEn) : post.value ? localizedName(post.value.board.name, post.value.board.nameEn) : ''));
 const paragraphs = computed(() => (post.value ? UtilPost.paragraphs(post.value.content) : []));
+
+/** 에디터 글 본문 — 그린 직후(마운트·본문이 바뀔 때)에 유튜브·이미지를 손질한다(`flush: 'post'` 라 `v-html` 이 DOM 에 들어간 뒤에 돈다) */
+const htmlBody = ref<HTMLElement | null>(null);
+watch(
+    [htmlBody, () => post.value?.content],
+    () => {
+        if (htmlBody.value) UtilRichBody.enhance(t, htmlBody.value);
+    },
+    { flush: 'post' },
+);
 /** 수정·삭제 단추 — 내 회원 글이거나 비회원 글(비밀번호로 확인) */
 const manageable = computed(() => Boolean(post.value && (post.value.mine || post.value.author.kind === 'GUEST')));
 const protectionNotice = computed(() => (post.value ? UtilPostMessages.protection(t, post.value.protection) : null));

@@ -5,3 +5,8 @@ packages:
 # 빌드 스크립트(postinstall)를 돌려도 되는 패키지 — esbuild 가 플랫폼 실행 파일을 연결한다(pnpm 12 의 승인 목록)
 allowBuilds:
   esbuild: true
+
+# `@tiptap/vue-3` 의 선택 의존(말풍선·떠 있는 메뉴)을 다른 tiptap 패키지와 같은 판으로 맞춘다 — `^3.31.3` 이 새 판(3.32)을 잡으면 core 3.31.3 과 peer 가 어긋난다(community 와 같은 3.31.3)
+overrides:
+  '@tiptap/extension-bubble-menu': 3.31.3
+  '@tiptap/extension-floating-menu': 3.31.3

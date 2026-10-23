@@ -64,8 +64,8 @@ export default {
     titlePlaceholder: 'Enter a title',
     contentLabel: 'Text',
     contentPlaceholder: 'Write something',
-    imageUpload: 'Image',
-    imageUploadLater: 'Image upload comes with the editor',
+    imagesUploading: 'Images are still uploading. Submit after they finish.',
+    imagesFailed: 'Some images failed to upload. Remove or retry them in the list below the editor.',
     adultLabel: 'This post is 18+',
 
     pageTitle: 'Post',

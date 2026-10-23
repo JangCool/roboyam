@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 @plugin 'tailwindcss-primeui';
+/* 공유 레이어(apps-packages/*)는 이 앱 폴더 밖이라 Tailwind 가 저절로 훑지 않는다 — 레이어 컴포넌트가 쓰는 클래스를 만들도록 알린다(서식 에디터) */
+@source '../../../../../apps-packages/rich-editor';
 
 /* 다크 판정은 html[data-color-scheme='dark'] — PrimeVue 의 darkModeSelector 와 같다.
    `data-theme` 는 사이트 테마(네이버·다음 …) 몫이라 다크 판정과 속성을 나눴다(`themes.md`).

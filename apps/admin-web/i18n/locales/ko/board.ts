@@ -114,7 +114,7 @@ export default {
     // ── 구획 ──
     section: {
         display: '표시',
-        write: '쓰기 권한',
+        write: '쓰기 권한·에디터',
         rate: '작성 속도',
         list: '목록·노출',
         attachment: '첨부파일 정리',
@@ -150,7 +150,7 @@ export default {
     },
     sectionLead: {
         display: '게시판 목록과 글에서 작성 시각을 어떻게 보일지 정해요.',
-        write: '누가 글과 댓글을 쓸 수 있는지 정해요. 회원은 로그인·이메일 인증·정지 아님이 늘 필요해요.',
+        write: '누가 글과 댓글을 쓸 수 있는지, 어떤 에디터로 쓰는지 정해요. 회원은 로그인·이메일 인증·정지 아님이 늘 필요해요.',
         rate: '도배를 막는 간격과 하루 한도예요. 게시판마다 따로 정하지 않아요.',
         list: '한 쪽의 글 수와 고정 공지 수, 검색엔진·통합검색·홈에 넣을지 정해요.',
         attachment: '삭제된 글의 첨부파일을 언제 영구히 지울지 정해요.',
@@ -166,7 +166,9 @@ export default {
         dateDisplay: '날짜 표시 방식',
         writeMin: '글쓰기 최소 자격',
         commentMin: '댓글 최소 자격',
+        postEditor: '글 에디터',
         imageUploadAllowed: '에디터 이미지 올리기',
+        commentEditor: '댓글 에디터',
         postGapSeconds: '글 작성 간격',
         postDailyLimit: '하루 글 수',
         commentGapSeconds: '댓글 작성 간격',
@@ -249,7 +251,9 @@ export default {
         dateDisplay: '작성 시각을 보이는 방식이에요.',
         writeMin: '첫 등급이면 이메일 인증을 마친 모든 회원이에요. 「비회원 포함 모두」는 게시판 설정에서만 골라요.',
         commentMin: '답글도 같아요. 「끔」이면 새 댓글을 받지 않아요(기존 댓글은 보여요).',
-        imageUploadAllowed: '끄면 글쓰기 에디터에서 이미지를 올릴 수 없어요.',
+        postEditor: '평문은 서식 없는 입력칸이에요. 간단은 굵게·기울임·밑줄·취소선·링크·목록·인용, 고급은 여기에 제목·구분선·코드·글자색·이미지·유튜브를 더해요. 이미 쓴 글은 바꾼 설정으로 고칠 때 바뀌어요.',
+        imageUploadAllowed: '고급 글 에디터에서 회원이 이미지를 올릴 수 있어요. 끄면 올리기 단추·끌어놓기·붙여넣기가 사라져요(비회원은 늘 못 올려요).',
+        commentEditor: '간단은 굵게·기울임·밑줄·취소선·링크·목록·인용만 써요(이미지 없음).',
         postGapSeconds: '같은 회원이 다음 글을 쓰기까지 기다리는 시간이에요. 0이면 제한 없음.',
         postDailyLimit: '한 회원이 하루에 쓸 수 있는 글 수예요.',
         commentGapSeconds: '같은 회원이 다음 댓글을 쓰기까지 기다리는 시간이에요. 0이면 제한 없음.',
@@ -322,6 +326,15 @@ export default {
             STANDARD: '표준형',
             RELATIVE: '유동형',
         },
+        postEditor: {
+            NONE: '평문',
+            SIMPLE: '간단',
+            ADVANCED: '고급',
+        },
+        commentEditor: {
+            NONE: '평문',
+            SIMPLE: '간단',
+        },
         pointMode: {
             ON: '규칙대로 지급',
             OFF: '지급 안 함',
@@ -389,6 +402,7 @@ export default {
         rejectionOff: '반려 누적 차단 횟수가 0(끔)이라 지금은 쓰이지 않아요.',
         wordsOff: '금지어 검사가 꺼져 있어 지금은 쓰이지 않아요.',
         guestOff: '비회원 글 보유기간이 0(처리 안 함)이라 지금은 쓰이지 않아요.',
+        imageEditor: '이미지는 고급 글 에디터에서만 올려요. 글 에디터가 평문·간단이라 지금은 쓰이지 않아요.',
     },
 
     // ── 구획 덧붙임 안내 ──

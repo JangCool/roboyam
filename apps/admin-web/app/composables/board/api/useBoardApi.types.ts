@@ -28,6 +28,10 @@ export type BoardLayout = 'LIST' | 'CARD' | 'GALLERY';
 export type BoardKind = 'GENERAL' | 'DEAL' | 'PROMO' | 'GROUP';
 /** 표시색 프리셋 12색 — `null` 은 색 없음(자동). 이름 → 색 값은 `UtilBoard.colorVar` 한 곳 */
 export type BoardColor = 'BLUE' | 'TEAL' | 'AMBER' | 'PURPLE' | 'GREEN' | 'ORANGE' | 'SLATE' | 'RED' | 'PINK' | 'INDIGO' | 'SKY' | 'BROWN';
+/** 글 에디터 수준 — 평문(Textarea) · 간단(굵게·기울임·밑줄·취소선·링크·목록·인용) · 고급(+ 제목·구분선·코드·글자색/배경색·이미지·유튜브). 공개 게시판 계약 「에디터 화면」 */
+export type BoardPostEditor = 'NONE' | 'SIMPLE' | 'ADVANCED';
+/** 댓글 에디터 수준 — 평문 · 간단 */
+export type BoardCommentEditor = 'NONE' | 'SIMPLE';
 /** 날짜 표시 방식 — 표준형(최근은 상대 시간, 올해는 월-일, 오래된 글은 연-월-일) · 유동형(모두 상대 시간) */
 export type BoardDateDisplay = 'STANDARD' | 'RELATIVE';
 /** 포인트 지급 — 포인트 규칙을 따름 · 지급 안 함 */
@@ -52,8 +56,12 @@ export interface BoardDefaults {
     dateDisplay: BoardDateDisplay;
     writeMin: BoardWriteMin;
     commentMin: BoardCommentMin;
-    /** 에디터 이미지 올리기 허용 */
+    /** 글 에디터 — 평문(Textarea) · 간단 · 고급. 전체 기본값 `SIMPLE` */
+    postEditor: BoardPostEditor;
+    /** 에디터 이미지 올리기 허용 — 고급 글 에디터에서만 쓰인다. 전체 기본값 `true` */
     imageUploadAllowed: boolean;
+    /** 댓글 에디터 — 평문 · 간단. 전체 기본값 `NONE` */
+    commentEditor: BoardCommentEditor;
     /** 글 작성 간격(초) 0~3600 */
     postGapSeconds: number;
     /** 하루 글 수 1~1000 */
@@ -103,7 +111,9 @@ export type BoardDefaultsField = keyof BoardDefaults;
 export const BOARD_POLICY_FIELDS = [
     'writeMin',
     'commentMin',
+    'postEditor',
     'imageUploadAllowed',
+    'commentEditor',
     'listSize',
     'pinnedMax',
     'indexable',

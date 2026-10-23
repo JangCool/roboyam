@@ -205,11 +205,12 @@ function canEdit(field: BoardDefaultsField): boolean {
     return can(UtilBoard.SPECS[field].permission);
 }
 
-/** 다른 칸 때문에 지금은 쓰이지 않는 칸 — 보존 기간(정리 꺼짐) · 예약 삭제 시간(예약 삭제가 아님) */
+/** 다른 칸 때문에 지금은 쓰이지 않는 칸 — 보존 기간(정리 꺼짐) · 예약 삭제 시간(예약 삭제가 아님) · 이미지 올리기(글 에디터가 고급이 아님) */
 function inactiveOf(field: BoardDefaultsField): boolean {
     if (!form.value) return false;
     if (field === 'attachmentRetentionDays') return !form.value.attachmentPurgeEnabled;
     if (field === 'commentProtectDelayMinutes') return form.value.commentProtectDelete !== 'DELAY';
+    if (field === 'imageUploadAllowed') return UtilBoard.imageUploadIdle(form.value.postEditor);
     return false;
 }
 
@@ -217,6 +218,7 @@ function noteOf(field: BoardDefaultsField): string {
     if (!form.value) return '';
     if (field === 'attachmentRetentionDays' && inactiveOf(field)) return t('board.inactiveNote.retention');
     if (field === 'commentProtectDelayMinutes' && inactiveOf(field)) return t('board.inactiveNote.delay');
+    if (field === 'imageUploadAllowed' && inactiveOf(field)) return t('board.inactiveNote.imageEditor');
     const protectOff = UtilBoard.parse(form.value.commentProtectMin) === 0;
     if (protectOff && (field === 'commentProtectEdit' || field === 'commentProtectDelete')) return t('board.inactiveNote.protectOff');
     return '';

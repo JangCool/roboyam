@@ -28,7 +28,7 @@ import UtilRedirect from '~/utils/util-redirect';
  *
  * `baseURL` 은 두지 않는다. 화면과 API 가 같은 출처이므로 절대 경로 그대로면 되고, 개발 중에는 Nuxt 프록시가 잇는다.
  *
- * ⚠ 단순 버전 — 원본(community)에서 파일 올리기(`upload`)를 뺐다. 파일 올리기 화면을 만들 때 원본에서 다시 가져온다.
+ * 파일 올리기(`upload` — 에디터 이미지)는 진행률이 필요해 XHR 로 보내지만 같은 통로 안이다 — CSRF·언어·오류 정규화·세션 끊김 처리가 똑같이 적용된다(원본 community 에서 다시 가져왔다).
  * 실제 서버를 부르는 API 컴포저블(설치·로그인·사이트 정보·메뉴·게시판·신고·표시 값·테마·회원 알림·포인트 등)은 모두 이 통로를 탄다.
  */
 
@@ -102,6 +102,12 @@ export interface RequestOptions {
     signal?: AbortSignal;
 }
 
+/** 파일 올리기 — 진행률을 알려면 XHR 이 필요해 `$fetch` 대신 이것을 쓴다(같은 통로 안에서) */
+export interface UploadOptions extends RequestOptions {
+    /** 0~1. 본문을 다 보냈을 때 1 이 된다(서버가 처리하는 시간은 포함하지 않는다) */
+    onProgress?: (fraction: number) => void;
+}
+
 export interface ApiClientOptions {
     /** CSRF 쿠키를 다시 받는 호출. 주소는 부르는 쪽(`useInstallApi` 등)이 안다. */
     refreshCsrf?: () => Promise<unknown>;
@@ -114,6 +120,8 @@ const CSRF_INVALID = 'CSRF_INVALID';
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 /** 메일 연결 확인(`mail-check`)은 서버가 접속 5초 + 읽기 10초까지 기다린다 — 그보다 길게 둔다 */
 const TIMEOUT_MS = 30_000;
+/** 파일 올리기는 느린 회선에서 본문을 보내는 데만 오래 걸린다 — 일반 요청보다 길게 둔다 */
+const UPLOAD_TIMEOUT_MS = 120_000;
 
 /** `$fetch` 가 던지는 오류 중 우리가 읽는 부분 (`ofetch` 를 직접 import 하지 않으려고 모양만 적는다) */
 interface FetchFailure {
@@ -222,6 +230,67 @@ function toApiError(error: unknown, t: Translate): ApiError {
     return new ApiError({ status, code, message, fields, retryAfterSeconds, requestId, extras });
 }
 
+/**
+ * `multipart/form-data` 한 번 보내기(XHR). 실패는 `$fetch` 가 던지는 것과 **같은 모양**(`FetchFailure`)으로 던져
+ * 아래 `run` 의 CSRF 재시도·`toApiError`·세션 끊김 처리가 그대로 적용된다(community `useApiClient` 의 `xhrPost`).
+ * ⚠ `Content-Type` 은 브라우저가 경계값과 함께 정하게 둔다(직접 쓰면 경계값이 빠진다).
+ */
+function xhrPost(url: string, form: FormData, headers: Record<string, string>, options: UploadOptions): Promise<{ data: unknown; status: number; requestId: string | null }> {
+    return new Promise((resolve, reject) => {
+        const { signal, onProgress } = options;
+        if (signal?.aborted) {
+            reject({ name: 'AbortError', message: 'aborted' } satisfies FetchFailure);
+            return;
+        }
+
+        const xhr = new XMLHttpRequest();
+        const onAbort = () => xhr.abort();
+        const cleanup = () => signal?.removeEventListener('abort', onAbort);
+
+        xhr.open('POST', url);
+        xhr.timeout = UPLOAD_TIMEOUT_MS;
+        xhr.setRequestHeader('Accept', 'application/json');
+        for (const [name, value] of Object.entries(headers)) xhr.setRequestHeader(name, value);
+
+        if (onProgress) {
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable && event.total > 0) onProgress(Math.min(1, event.loaded / event.total));
+            };
+            xhr.upload.onload = () => onProgress(1);
+        }
+
+        xhr.onload = () => {
+            cleanup();
+            let data: unknown = null;
+            try {
+                data = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+            } catch {
+                data = null; // JSON 이 아니다(프록시의 오류 페이지 등) — 상태 코드만으로 다룬다
+            }
+            if (xhr.status >= 200 && xhr.status < 300) {
+                resolve({ data, status: xhr.status, requestId: xhr.getResponseHeader('x-request-id') });
+                return;
+            }
+            reject({ status: xhr.status, data, response: { status: xhr.status, headers: { get: (name: string) => xhr.getResponseHeader(name) } } } satisfies FetchFailure);
+        };
+        xhr.onerror = () => {
+            cleanup();
+            reject({ status: 0, message: 'network error' } satisfies FetchFailure);
+        };
+        xhr.ontimeout = () => {
+            cleanup();
+            reject({ status: 0, message: 'timeout' } satisfies FetchFailure);
+        };
+        xhr.onabort = () => {
+            cleanup();
+            reject({ name: 'AbortError', message: 'aborted' } satisfies FetchFailure);
+        };
+
+        signal?.addEventListener('abort', onAbort, { once: true });
+        xhr.send(form);
+    });
+}
+
 export function useApiClient(options: ApiClientOptions = {}) {
     // ⚠ Nuxt 문맥은 부르는 순간(setup)에만 잡힌다. 요청이 끝난 뒤(await 뒤)에는 useNuxtApp() 이 안 된다.
     const nuxtApp = useNuxtApp();
@@ -315,11 +384,20 @@ export function useApiClient(options: ApiClientOptions = {}) {
         throw toApiError({ status, data: raw, response: { status, headers: { get: (name: string) => (name.toLowerCase() === 'x-request-id' ? headerRequestId : null) } } }, t);
     }
 
+    /** 파일 올리기(`multipart/form-data`, POST) — 진행률·취소·CSRF·언어·오류 정규화·세션 끊김 처리는 `send` 와 같다 */
+    function upload<T>(url: string, form: FormData, request: UploadOptions = {}): Promise<T> {
+        return run<T>(true, async () => {
+            const response = await xhrPost(withQuery(url, request.query), form, { ...languageHeaders(), ...csrfHeaders() }, request);
+            return unwrap<T>(response.data, response.status, response.requestId);
+        });
+    }
+
     return {
         get: <T>(url: string, request?: RequestOptions) => send<T>('GET', url, undefined, request),
         post: <T>(url: string, body?: unknown, request?: RequestOptions) => send<T>('POST', url, body, request),
         put: <T>(url: string, body?: unknown, request?: RequestOptions) => send<T>('PUT', url, body, request),
         patch: <T>(url: string, body?: unknown, request?: RequestOptions) => send<T>('PATCH', url, body, request),
         del: <T>(url: string, request?: RequestOptions) => send<T>('DELETE', url, undefined, request),
+        upload,
     };
 }
