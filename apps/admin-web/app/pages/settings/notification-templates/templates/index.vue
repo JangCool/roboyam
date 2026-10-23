@@ -34,14 +34,34 @@
                 <EmptyState icon="pi pi-file" :title="t('notificationTemplate.templatesEmptyTitle')" :description="t('notificationTemplate.templatesEmptyBody')" />
             </AppGadget>
 
-            <template v-else>
+            <div v-else class="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start">
+                <!-- 채널 — 왼쪽 위 별도 영역(전체·앱 알림·이메일·채팅, 채널마다 템플릿 수). 좁은 화면에서는 위로 올라간다 -->
+                <nav class="shrink-0 rounded-xl border border-(--line) bg-(--p-content-background) p-2 lg:w-52" :aria-label="t('notificationTemplate.filterChannel')">
+                    <p class="m-0 px-2 pb-1.5 pt-1 text-xs font-medium text-muted-color">{{ t('notificationTemplate.filterChannel') }}</p>
+                    <ul class="m-0 flex list-none flex-row gap-1 overflow-x-auto p-0 lg:flex-col">
+                        <li v-for="option in channelOptions" :key="option.value">
+                            <button
+                                type="button"
+                                class="flex w-full cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors"
+                                :class="channelFilter === option.value ? 'bg-(--p-highlight-background) font-medium text-(--p-highlight-color)' : 'text-color hover:bg-(--p-content-hover-background)'"
+                                :aria-current="channelFilter === option.value ? 'true' : undefined"
+                                @click="channelFilter = option.value"
+                            >
+                                <i :class="option.icon" class="text-[13px]" aria-hidden="true" />
+                                <span class="min-w-0 flex-1 truncate">{{ option.label }}</span>
+                                <span class="text-xs tabular-nums text-muted-color">{{ channelCount(option.value) }}</span>
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
+
+                <div class="flex min-w-0 flex-1 flex-col gap-4">
                 <!-- 조건 -->
                 <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
                     <IconField class="w-full sm:w-56">
                         <InputIcon class="pi pi-search" />
                         <InputText v-model="keyword" size="small" fluid :placeholder="t('notificationTemplate.searchPlaceholder')" :aria-label="t('notificationTemplate.searchPlaceholder')" autocomplete="off" />
                     </IconField>
-                    <SelectButton v-model="channelFilter" :options="channelOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('notificationTemplate.filterChannel')" />
                     <SelectButton v-model="audienceFilter" :options="audienceOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('notificationTemplate.filterAudience')" />
                     <SelectButton v-model="targetTypeFilter" :options="targetTypeOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('notificationTemplate.filterTargetType')" />
                     <Select v-model="targetFilter" :options="targetOptions" option-label="label" option-value="value" option-group-label="label" option-group-children="items" :placeholder="t('notificationTemplate.filterTargetAll')" show-clear filter size="small" class="w-full sm:w-60" :aria-label="t('notificationTemplate.filterTarget')" />
@@ -139,7 +159,8 @@
                     </DataTable>
                 </div>
                 <p class="m-0 text-xs text-muted-color">{{ t('notificationTemplate.listHint') }}</p>
-            </template>
+                </div>
+            </div>
         </template>
     </div>
 </template>
@@ -215,7 +236,16 @@ watch(channelFilter, (channel) => {
 });
 
 const allOption = computed(() => ({ value: 'ALL', label: t('common.all') }));
-const channelOptions = computed(() => [allOption.value, ...TEMPLATE_CHANNELS.map((value) => ({ value, label: UtilNotificationTemplateMessages.channelLabel(t, value) }))]);
+/** 왼쪽 채널 영역의 줄 — 전체 + 채널마다(아이콘·이름) */
+const channelOptions = computed<{ value: TemplateChannel | 'ALL'; label: string; icon: string }[]>(() => [
+    { value: 'ALL', label: t('common.all'), icon: 'pi pi-th-large' },
+    ...TEMPLATE_CHANNELS.map((value) => ({ value, label: UtilNotificationTemplateMessages.channelLabel(t, value), icon: UtilNotificationTemplateMessages.channelIcon(value) })),
+]);
+/** 채널마다 템플릿 수(다른 거르기와 무관한 전체 기준) */
+function channelCount(channel: TemplateChannel | 'ALL'): number {
+    const all = templates.value ?? [];
+    return channel === 'ALL' ? all.length : all.filter((item) => item.channel === channel).length;
+}
 const audienceOptions = computed(() => [allOption.value, ...TEMPLATE_AUDIENCES.map((value) => ({ value, label: UtilNotificationTemplateMessages.audienceLabel(t, value) }))]);
 const targetTypeOptions = computed(() => [allOption.value, { value: 'EVENT', label: t('notificationTemplate.targetEvent') }, { value: 'REQUIRED_MAIL', label: t('notificationTemplate.targetRequiredMail') }]);
 
