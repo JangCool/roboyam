@@ -51,12 +51,12 @@
 - `GET /api/admin/mail-templates/kinds` → 종류 목록(묶음·보안 여부·변수 목록·조건 선택지·언어별 쓰는 템플릿·규칙 수·사용자 템플릿 수)
 - `GET /api/admin/mail-templates/kinds/{kind}` → `{ kind, summary(목록 한 줄과 같은 모양), defaults: {ko, en}(기본 템플릿 id), selected: {ko, en}, rules: [{id, condition, templateId}], templates: [...] }`
 - `PUT /api/admin/mail-templates/kinds/{kind}` `{ selected, rules }`
-- `GET /api/admin/mail-templates/templates` → 모든 종류의 템플릿 목록(본문 없이) `{ id, kind, kindName, security, name, locale, layoutId, layoutName, builtin, updatedAt, updatedByName, defaultFor: [locale], ruleCount }` — 거르기·검색은 화면이 한다(수가 적다는 가정)
+- `GET /api/admin/mail-templates/templates` → 모든 종류의 템플릿 목록(본문 없이) `{ id, kind, audience, kindName, security, name, locale, layoutId, layoutName, builtin, updatedAt, updatedByName, defaultFor: [locale], ruleCount }` — 거르기·검색은 화면이 한다(수가 적다는 가정)
 - `GET/POST/PUT/DELETE /api/admin/mail-templates/templates[/{id}]` — `{ id, kind, name, locale, layoutId, subject, bodyHtml, builtin, updatedAt, updatedByName }`(기본 템플릿은 `builtin=true`, 읽기 전용. `PUT` 은 `kind` 를 바꾸지 못한다)
 - `POST /api/admin/mail-templates/preview` `{ kind?, subject, bodyHtml, locale, layoutId? | layout? }` → `{ subject, html }`(견본 값, 고른 레이아웃 또는 저장 전 레이아웃 값 — 둘 다 없으면 기본 레이아웃)
 - `POST /api/admin/mail-templates/test` `{ kind, locale, templateId | (subject, bodyHtml, layoutId), to }` → `{ succeeded, reason, detail }`(메일 설정 시험과 같은 모양·한도)
 - `GET /api/admin/mail-templates/templates/{id}/history` — 설정 이력 모양(`{items, total, page, size}`, 바뀐 칸 `name|locale|layoutId|subject|bodyHtml`)
-- `GET/POST/PUT/DELETE /api/admin/mail-layouts[/{id}]` — 목록 `{ id, name, builtin, headerColor, templateCount, updatedAt, updatedByName }`, 하나 `{ …목록 칸, showLogo, showSiteName, footer: {ko, en}, frames: {ko, en}, logoUrl, siteName, variables }`, 저장 `{ name, showLogo, showSiteName, headerColor, footer, frames }`
+- `GET/POST/PUT/DELETE /api/admin/mail-layouts[/{id}]` — 목록 `{ id, name, builtin, audience, headerColor, templateCount, updatedAt, updatedByName }`, 하나 `{ …목록 칸, showLogo, showSiteName, footer: {ko, en}, frames: {ko, en}, templateCounts: {MEMBER, OPERATOR}, logoUrl, siteName, variables: {MEMBER, OPERATOR, ANY} }`, 저장 `{ name, audience, showLogo, showSiteName, headerColor, footer, frames }`(개정 2 — `audience` 와 받는 사람별 칸은 「목업 가정 — 개정 2」)
 - `GET /api/admin/mail-layouts/{id}/history` — 설정 이력 모양(바뀐 칸 `name|showLogo|showSiteName|headerColor|footerKo|footerEn|frameKo|frameEn`)
 - 없앤 것: `GET/PUT /api/admin/mail-templates/layout`(공통 레이아웃 하나).
 - 오류: 400 `VALIDATION`(템플릿 `fields.name|locale|layoutId|subject|bodyHtml` — 모르는 변수·필수 변수 없음·길이·없는 레이아웃, 레이아웃 `fields.name|headerColor|footer.ko|footer.en|frames.ko|frames.en`), 409 `TEMPLATE_IN_USE`·`LAYOUT_IN_USE`(쓰는 중 삭제)·`TEMPLATE_BUILTIN`·`LAYOUT_BUILTIN`(기본 것 고치기·지우기)·`TEMPLATE_LIMIT`·`LAYOUT_LIMIT`, 404 `TEMPLATE_NOT_FOUND`·`MAIL_KIND_NOT_FOUND`·`LAYOUT_NOT_FOUND`, 403.
@@ -89,3 +89,19 @@
 - **변경 이력**: 템플릿·레이아웃 편집 화면 제목 옆 「변경 이력」 → 오른쪽 `SettingHistoryDrawer`(처음 열 때 받음, 저장 뒤 받은 적 있으면 첫 쪽부터 다시). 템플릿 바뀐 칸 `name|locale|layoutId|subject|bodyHtml`(레이아웃은 이름, 본문은 글자 요약 80자), 레이아웃 바뀐 칸 `name|showLogo|showSiteName|headerColor|footerKo|footerEn|frameKo|frameEn`(켜고 끄기는 `"true"/"false"`, 띠 색은 서버가 요청 언어의 색 이름, 틀은 글자 요약). `labelKey` = `settingHistory.field.<칸>`. 메일 종류 저장의 이력은 화면에 없다(감사 로그 후보).
 - **떠나기 확인**: 종류 상세·템플릿 편집·레이아웃 편집에서 저장하지 않은 변경이 있는 채 다른 화면(또는 같은 화면의 다른 항목 — 복사해서 만들기)으로 가면 묻는다. 새로 만들기는 처음 채운 값에서 고쳤을 때만.
 - **응답 언어**: 변수 설명·조건 이름·종류 이름·기본 템플릿/레이아웃 이름·오류 문구는 서버가 요청 언어로 줄 글이라 목업은 한국어만 준다.
+
+### 목업 가정 — 개정 2 받는 사람 구분 (2026-10-23, 사용자 확인 전 — 위 가정 중 이와 다른 것은 이것이 대체)
+- **모양**: 종류·템플릿(목록·하나)에 `audience: MEMBER|OPERATOR`(템플릿은 종류의 것 — 저장 요청에는 없다), 종류 묶음 `group: ACCOUNT|NOTIFICATION`(이전 `SYSTEM` 은 `ACCOUNT`), 레이아웃(목록·하나·저장)에 `audience: MEMBER|OPERATOR|ANY`. 레이아웃 하나에 `templateCounts: {MEMBER, OPERATOR}`(받는 사람별 쓰는 템플릿 수), `variables` 는 쓰는 대상별 `{MEMBER, OPERATOR, ANY}`. 목록 거르기 `GET kinds|templates|mail-layouts?audience=`(선택 — 화면은 전부 받아 화면에서 거른다). 이력 바뀐 칸에 레이아웃 `audience`(값은 「회원·운영자·모두」 — 서버가 요청 언어로).
+- **종류**: 회원 — 계정·보안 메일 1종(이메일 인증). 운영자 — 계정·보안 메일 4종(초대·임시 비밀번호·재설정 승인번호·메일 서버 시험) + 알림 메일 5종(관리자 알림 이벤트, 영역 보안 4 · 시스템 1). 알림 메일은 묶음 이름 옆에 영역(「알림 메일 · 보안」).
+  - **「준비 중」(목업 전용 — 화면 확인용)**: 회원 메일 6종(계정·보안: 비밀번호 찾기 · 제재 안내 · 휴면 전환 예정 / 알림: 내 글에 댓글 · 내 댓글에 답글 · 포인트 회수)을 메일 종류 목록에만 흐리게 「준비 중」 딱지로 보이고 누를 수 없다. API 가 아니라 `mockPlannedKinds()`(목업 파일)가 주고, 템플릿 고르기·목록에는 나오지 않는다. **서버 단계에서는 실제 있는 종류만 준다**(없는 기능은 감춘다 — 서버가 붙으면 이 줄과 함수를 지운다).
+- **공통 변수**: 회원 `siteName`·`siteUrl`(공개 사이트 주소)·`recipientName`, 운영자 `siteName`·`adminUrl`(관리 사이트 주소)·`recipientName`. 운영자 임시 비밀번호의 종류 변수였던 `adminUrl` 은 공통 변수로 옮겼다. 레이아웃 `ANY` 는 `siteName`·`recipientName` 만.
+  - 검사: 다른 받는 사람의 공통 변수(운영자 메일·운영자 레이아웃의 `{{siteUrl}}`, 회원 쪽의 `{{adminUrl}}`, `ANY` 레이아웃의 둘 다)는 「이 메일에서는 쓸 수 없는 변수예요: {{siteUrl}} — 회원 메일에서만 쓸 수 있어요.」(문제 코드 `AUDIENCE_VARIABLE`, 서버는 같은 `fields.subject|bodyHtml|footer.*|frames.*`). 그 밖의 모르는 변수는 이전 문구 그대로. 화면은 받는 사람별 변수 이름을 `UtilMailTemplate` 에 두고 가르는 데만 쓴다(쓸 수 있는 목록은 서버가 준다).
+  - 변수 메뉴·미리보기 견본 값도 받는 사람(레이아웃은 쓰는 대상)을 따른다 — 회원 `https://roboyam.example.com`, 운영자 `https://admin.roboyam.example.com`.
+- **레이아웃 목업 5개**: 「회원 기본」(builtin, 회원 — 로고·사이트 이름, 꼬리말 「{{siteName}}에서 보낸 발신 전용 메일」 + `{{siteUrl}}`) · 「운영자 기본」(builtin, 운영자 — 꼬리말 「관리 사이트의 운영자에게 보내는 메일」 + 「관리 사이트: {{adminUrl}}」) · 보안 안내(모두 — 회원 인증 템플릿 1 · 운영자 배치 실패 템플릿 1이 씀) · 공지(회원, 쓰는 템플릿 없음) · 간단(운영자, 초대 템플릿 1). 기본 템플릿은 받는 사람의 기본 레이아웃을 쓴다. 두 기본 레이아웃 모두 띠 없음(가정).
+- **화면**:
+  - 메일 종류 목록: 맨 위 「회원 메일 / 운영자 메일」 `SelectButton`(주소 `?audience=`, 없거나 모르는 값이면 회원) + 받는 사람별 공통 변수 안내 한 줄 → 묶음(계정·보안 메일 / 알림 메일)마다 제목·종 수·표(이전 「묶음」 열은 없앴다, 알림 메일은 줄에 영역). 빈 묶음은 「이 묶음에는 아직 메일이 없어요」. 종류 상세 머리에 「받는 사람: 회원」 딱지, 「목록으로」는 그 받는 사람 목록으로.
+  - 템플릿 목록: 「받는 사람」 열(아이콘 + 회원/운영자) + 거르기 `SelectButton` 전체/회원/운영자(주소 `?audience=`). 종류 고르기는 받는 사람별 묶음이고 받는 사람을 거르면 그 묶음만 — 받는 사람을 바꿀 때 맞지 않는 종류 거르기는 푼다. 「새 템플릿」은 거른 종류(`?kind=`), 없으면 거른 받는 사람(`?audience=` → 그 받는 사람의 첫 종류).
+  - 템플릿 편집: 머리에 「받는 사람: …」 딱지, 칸 「받는 사람」(읽기 전용 — 「메일 종류에서 정해져요」). 종류 고르기는 「회원 메일 · 계정·보안 메일」 같은 받는 사람 › 묶음 묶음. 레이아웃 고르기는 받는 사람이 같거나 `ANY` 인 것만(`ANY` 는 「이름 (모두)」). 새 템플릿은 그 받는 사람의 기본 레이아웃으로 시작하고, 새로 만들기에서 종류를 바꿔 받는 사람이 바뀌면 — 고른 레이아웃이 앞 받는 사람의 기본이었거나 새 받는 사람에게 맞지 않을 때만 — 새 받는 사람의 기본 레이아웃으로 바꾼다. 서버는 맞지 않는 레이아웃을 400 `fields.layoutId` 로 거절한다.
+  - 레이아웃 목록: 「쓰는 대상」 열 + 거르기 `SelectButton` 전체/회원/운영자/모두(값 그대로 맞는 것 — 「회원」은 `ANY` 를 넣지 않는다, 주소 `?audience=`). 「새 레이아웃」은 회원·운영자로 거른 중이면 `new?audience=` → 그 받는 사람의 기본 레이아웃 값으로 시작(없으면 회원 기본).
+  - 레이아웃 편집: 이름 아래 「쓰는 대상」 `SelectButton`(회원/운영자/모두). 쓰는 템플릿의 받는 사람과 맞지 않는 대상은 고를 수 없게 잠그고(예: 운영자 템플릿이 쓰는 레이아웃의 「회원」) 까닭 한 줄 — 서버도 400 `fields.audience`(칸 아래 그대로). 대상을 바꾸면 틀·꼬리말 변수 메뉴·검사·미리보기가 그 대상의 공통 변수로 바뀐다. 머리에 「받는 사람: …」 딱지. 기본 레이아웃은 대상도 바꿀 수 없다(읽기 전용).
+- `?mock=` 스위치는 그대로다(`template-empty` 면 「준비 중」 줄도 없다).

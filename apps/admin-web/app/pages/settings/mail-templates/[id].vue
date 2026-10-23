@@ -3,7 +3,10 @@
         메일 템플릿 편집(`/settings/mail-templates/[id]`, 새로 만들기 `/settings/mail-templates/new?kind=` · 복사 `new?from=<id>`) — 계약 `docs/features/message-template-contract.md` 「개정」 3.
         한 화면(서랍이 아니다): 머리(이름·딱지·「변경 이력」·복사·삭제·목록으로) → 왼쪽 편집 칸(이름 · 종류(새로 만들 때만 고른다) · 언어 · 레이아웃 · 제목 · 본문(간단 에디터 + 변수 넣기) · 버튼 블록) → 오른쪽 미리보기(고른 레이아웃으로, 격리된 iframe) + 「나에게 시험 발송」.
         저장은 화면 하나로 한 번(`POST`·`PUT templates`) → 하단 떠 있는 저장 줄(`StickySaveBar`, 「기본으로 되돌리기」는 그 줄의 왼쪽 단추).
-        - 새로 만들기: 종류를 고르면 그 종류·언어의 기본 템플릿 내용과 기본 레이아웃으로 채운다(고친 내용이 있으면 바꾸기 전에 묻는다). 복사: 원본의 내용·언어·레이아웃, 이름 「원본 (복사)」, 종류는 원본 것으로 고정.
+        - 받는 사람(개정 2): 종류에서 정해지는 읽기 전용 칸. 레이아웃 고르기는 받는 사람이 같거나 `ANY` 인 레이아웃만 보이고, 새 템플릿은 그 받는 사람의 기본 레이아웃(회원 기본 · 운영자 기본)으로 시작한다.
+          변수 메뉴·검사·미리보기 견본 값은 종류의 변수(받는 사람의 공통 변수 — 회원 `siteUrl` · 운영자 `adminUrl` 포함)를 따른다.
+        - 새로 만들기: 종류를 고르면 그 종류·언어의 기본 템플릿 내용과 그 받는 사람의 기본 레이아웃으로 채운다(고친 내용이 있으면 바꾸기 전에 묻는다. 고른 레이아웃이 새 받는 사람에게 맞으면 그대로 둔다).
+          `new?audience=` 는 그 받는 사람의 첫 종류로 시작한다. 복사: 원본의 내용·언어·레이아웃, 이름 「원본 (복사)」, 종류는 원본 것으로 고정.
           [저장] 때 만든다 — 만들면 그 템플릿의 편집 주소로 바뀐다.
         - 기본 템플릿과 권한이 `template.read` 뿐이면 읽기 전용이다(입력 `readonly`, 에디터 잠금, 저장 줄 없음). 기본 템플릿은 「복사해서 만들기」를 안내한다.
         - 「버튼」 블록은 에디터 안에서 `{{button}}` 한 줄로 보이고, 글자·링크 변수는 에디터 아래 칸에서 고른다(간단 에디터가 단추를 그리지 못해서다 — 저장 모양은 `UtilMailTemplate`).
@@ -53,6 +56,7 @@
                 </template>
             </PageTitle>
             <div class="-mt-2 flex flex-wrap items-center gap-2">
+                <Tag :value="t('mailTemplate.audienceTag', { audience: UtilMailTemplateMessages.audienceLabel(t, kind.audience) })" :icon="UtilMailTemplateMessages.audienceIcon(kind.audience)" severity="secondary" class="mail-template-tag text-[11px]!" />
                 <Tag v-if="saved?.builtin" :value="t('mailTemplate.builtinTag')" icon="pi pi-lock" severity="secondary" class="mail-template-tag text-[11px]!" />
                 <Tag v-if="kind.security" :value="t('mailTemplate.securityTag')" icon="pi pi-shield" severity="warn" class="mail-template-tag text-[11px]!" />
                 <Tag v-for="label in usage" :key="label" :value="label" severity="info" class="mail-template-tag text-[11px]!" />
@@ -86,6 +90,13 @@
                                     <template #default="{ id, describedBy }">
                                         <Select v-if="kindPickable" :model-value="kind.kind" :input-id="id" :options="kindOptions" option-label="label" option-value="value" option-group-label="label" option-group-children="items" :disabled="saving || switching" :aria-describedby="describedBy" fluid @update:model-value="pickKind" />
                                         <InputText v-else :id="id" :model-value="kind.name" readonly :aria-describedby="describedBy" fluid />
+                                    </template>
+                                </LabeledField>
+
+                                <!-- 받는 사람 — 종류에서 정해진다(바꿀 수 없다) -->
+                                <LabeledField :label="t('mailTemplate.audienceLabel')" :help="t('mailTemplate.audienceHelp')">
+                                    <template #default="{ id, describedBy }">
+                                        <InputText :id="id" :model-value="UtilMailTemplateMessages.audienceLabel(t, kind.audience)" readonly :aria-describedby="describedBy" fluid />
                                     </template>
                                 </LabeledField>
 
@@ -213,8 +224,8 @@ import type { MailTestDialogResult } from '~/components/mail/MailTestDialog.vue'
 import { ApiError } from '~/composables/common/useApiClient';
 import { mockTemplateCan } from '~/composables/template/api/mock/mail-template-mock';
 import type { MailLayoutListItemView } from '~/composables/template/api/useMailLayoutApi.types';
-import type { MailKindDetailView, MailKindView, MailLocale, MailTemplateView } from '~/composables/template/api/useMailTemplateApi.types';
-import { MAIL_TEMPLATE_LIMIT } from '~/composables/template/api/useMailTemplateApi.types';
+import type { MailAudience, MailKindDetailView, MailKindView, MailLocale, MailTemplateView } from '~/composables/template/api/useMailTemplateApi.types';
+import { MAIL_AUDIENCES, MAIL_TEMPLATE_LIMIT } from '~/composables/template/api/useMailTemplateApi.types';
 import type { MailButton, MailTemplateField } from '~/utils/util-mail-template';
 import UtilMailSettingsMessages from '~/utils/util-mail-settings-messages';
 import UtilMailTemplate from '~/utils/util-mail-template';
@@ -269,7 +280,13 @@ const denied = ref(false);
 const switching = ref(false);
 
 const kind = computed(() => detail.value?.summary ?? null);
-const builtinLayoutId = computed(() => layouts.value.find((item) => item.builtin)?.id ?? '');
+/** 받는 사람의 기본 레이아웃(builtin — 회원 기본 · 운영자 기본) */
+const defaultLayoutIdOf = (audience: MailAudience) => layouts.value.find((item) => item.builtin && item.audience === audience)?.id ?? '';
+/** 이 템플릿(받는 사람)이 쓸 수 있는 레이아웃인가 */
+const layoutUsable = (layoutId: string, audience: MailAudience) => {
+    const layout = layouts.value.find((item) => item.id === layoutId);
+    return Boolean(layout && UtilMailTemplate.layoutFits(layout.audience, audience));
+};
 /** 종류를 고를 수 있다 — 새로 만들기(복사가 아닐 때)만 */
 const kindPickable = computed(() => isNew.value && !source.value);
 const readonly = computed(() => !canManage.value || Boolean(saved.value?.builtin));
@@ -280,15 +297,27 @@ const pageTitle = computed(() => (isNew.value ? t('mailTemplate.newTitle') : (sa
 useSeoMeta({ title: () => pageTitle.value });
 
 const localeOptions = computed(() => LOCALES.map((value) => ({ value, label: UtilMailTemplateMessages.localeLabel(t, value) })));
-const layoutOptions = computed(() => layouts.value.map((item) => ({ value: item.id, label: item.builtin ? t('mailTemplate.layoutBuiltinOption', { name: item.name }) : item.name })));
-/** 종류 고르기 — 묶음(시스템 메일 / 관리자 알림 · 영역)별 */
+/** 레이아웃 고르기 — 받는 사람이 같거나 `ANY` 인 것만(기본 레이아웃 먼저 — 받은 차례) */
+const layoutOptions = computed(() => {
+    const audience = kind.value?.audience;
+    if (!audience) return [];
+    return layouts.value
+        .filter((item) => UtilMailTemplate.layoutFits(item.audience, audience))
+        .map((item) => ({
+            value: item.id,
+            label: item.builtin ? t('mailTemplate.layoutBuiltinOption', { name: item.name }) : item.audience === 'ANY' ? t('mailTemplate.layoutAnyOption', { name: item.name }) : item.name,
+        }));
+});
+/** 종류 고르기 — 받는 사람 › 묶음(계정·보안 메일 / 알림 메일 · 영역)별 */
 const kindOptions = computed(() => {
     const groups = new Map<string, { label: string; items: { value: string; label: string }[] }>();
-    for (const item of kinds.value) {
-        const label = UtilMailTemplateMessages.groupLabel(t, item.group, item.area);
-        const group = groups.get(label) ?? { label, items: [] };
-        group.items.push({ value: item.kind, label: item.name });
-        groups.set(label, group);
+    for (const audience of MAIL_AUDIENCES) {
+        for (const item of kinds.value.filter((other) => other.audience === audience)) {
+            const label = `${UtilMailTemplateMessages.audienceMailLabel(t, audience)} · ${UtilMailTemplateMessages.groupLabel(t, item.group, item.area)}`;
+            const group = groups.get(label) ?? { label, items: [] };
+            group.items.push({ value: item.kind, label: item.name });
+            groups.set(label, group);
+        }
     }
     return [...groups.values()];
 });
@@ -362,7 +391,8 @@ function fill(): void {
         setContent(source.value);
     } else {
         form.name = '';
-        form.layoutId = builtinLayoutId.value;
+        // 새 템플릿은 그 받는 사람의 기본 레이아웃으로 시작한다
+        form.layoutId = kind.value ? defaultLayoutIdOf(kind.value.audience) : '';
         const seed = defaultFor(form.locale);
         if (seed) setContent(seed);
     }
@@ -494,8 +524,10 @@ async function load(): Promise<void> {
                 from = await api.template(fromId);
                 kindCode = from.kind;
             } else {
+                // `?kind=` 그 종류, 없으면 `?audience=` 받는 사람의 첫 종류, 둘 다 없으면 첫 종류(회원 먼저)
                 const wanted = queryText(route.query.kind);
-                kindCode = kindList.find((item) => item.kind === wanted)?.kind ?? kindList[0]?.kind;
+                const audience = queryText(route.query.audience);
+                kindCode = kindList.find((item) => item.kind === wanted)?.kind ?? kindList.find((item) => item.audience === audience)?.kind ?? kindList[0]?.kind;
             }
         }
         // 메일 종류가 하나도 없으면 만들 수 없다(없는 종류와 같게 보인다)
@@ -530,10 +562,19 @@ async function pickKind(next: string): Promise<void> {
     // 고친 내용은 다른 종류에서 쓸 수 없는 변수가 섞이므로 그 종류의 기본 내용으로 바꾼다 — 고친 것이 있으면 묻는다
     if (contentChanged.value && !(await confirm({ title: t('mailTemplate.switchKindTitle'), message: t('mailTemplate.switchKindMessage'), confirmLabel: t('mailTemplate.switchConfirm'), tone: 'danger' }))) return;
     switching.value = true;
+    const prevAudience = kind.value?.audience;
     try {
         detail.value = await api.kind(next);
         reseed(defaultFor(form.locale));
-        void router.replace({ query: { ...route.query, kind: next } });
+        // 받는 사람이 바뀌면 — 고른 레이아웃이 앞 받는 사람의 기본이었거나 새 받는 사람에게 맞지 않으면 새 받는 사람의 기본 레이아웃으로
+        const audience = detail.value.summary.audience;
+        if (prevAudience && prevAudience !== audience && (form.layoutId === defaultLayoutIdOf(prevAudience) || !layoutUsable(form.layoutId, audience))) {
+            const untouched = baseline.value.layoutId === form.layoutId;
+            form.layoutId = defaultLayoutIdOf(audience);
+            if (untouched) baseline.value = { ...baseline.value, layoutId: form.layoutId };
+        }
+        const { audience: _audience, ...rest } = route.query;
+        void router.replace({ query: { ...rest, kind: next } });
     } catch (e) {
         toast.error(toApiError(e).message, 8000);
     } finally {

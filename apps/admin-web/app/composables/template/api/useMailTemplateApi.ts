@@ -13,6 +13,7 @@ import {
     mockUpdateTemplate,
 } from '~/composables/template/api/mock/mail-template-mock';
 import type {
+    MailAudienceQuery,
     MailKindDetailView,
     MailKindSaveRequest,
     MailKindView,
@@ -31,15 +32,16 @@ import type {
  *
  * 후보 계약(`docs/features/message-template-contract.md` 「개정」·「API 후보」, 서버 단계에서 확정). 오류는 모두 `ApiError`(useApiClient)로 던져진다. 쓰기는 CSRF.
  * 권한: 읽기 `template.read` · 쓰기(종류 저장·템플릿·시험) `template.manage` — 서버 `Permission` 에는 아직 없다(화면 목업 후보).
- *   - `GET    /api/admin/mail-templates/kinds` → 200 `MailKindView[]`(묶음·보안 여부·변수·조건 선택지·쓰는 템플릿·규칙 수)
+ *   개정 2: 종류·템플릿 응답에 받는 사람 `audience`(`MEMBER|OPERATOR`), 목록 거르기 `?audience=`(선택 — 화면은 전부 받아 화면에서 거른다). 템플릿의 레이아웃은 받는 사람이 같거나 `ANY` 인 것만(400 `fields.layoutId`).
+ *   - `GET    /api/admin/mail-templates/kinds?audience=` → 200 `MailKindView[]`(받는 사람·묶음·보안 여부·변수·조건 선택지·쓰는 템플릿·규칙 수)
  *   - `GET    /api/admin/mail-templates/kinds/{kind}` → 200 `MailKindDetailView`(`summary`·`defaults`·`selected`·`rules`·`templates`)
  *   - `PUT    /api/admin/mail-templates/kinds/{kind}` `MailKindSaveRequest` → 200 `MailKindDetailView` (400 `VALIDATION` `fields.selected.ko|en`·`rules[i].condition|templateId`)
- *   - `GET    /api/admin/mail-templates/templates` → 200 `MailTemplateListItemView[]`(모든 종류 — 본문 없이, 종류 이름·레이아웃 이름·쓰는 곳 포함)
+ *   - `GET    /api/admin/mail-templates/templates?audience=` → 200 `MailTemplateListItemView[]`(모든 종류 — 본문 없이, 종류 이름·레이아웃 이름·쓰는 곳 포함)
  *   - `GET    /api/admin/mail-templates/templates/{id}` → 200 `MailTemplateView`
  *   - `POST   /api/admin/mail-templates/templates` `MailTemplateSaveRequest` → 201 `MailTemplateView` (409 `TEMPLATE_LIMIT` — 종류당 20 가정)
  *   - `PUT    /api/admin/mail-templates/templates/{id}` `MailTemplateSaveRequest` → 200 `MailTemplateView` (기본 템플릿 409 `TEMPLATE_BUILTIN`, 종류는 바꾸지 못한다)
  *   - `DELETE /api/admin/mail-templates/templates/{id}` → 204 (쓰는 중 409 `TEMPLATE_IN_USE`)
- *       · 템플릿 저장의 400 `VALIDATION` `fields.name|locale|layoutId|subject|bodyHtml` — 모르는 변수 · 보안 메일 필수 변수 없음 · 길이 · 버튼(하나, 링크 변수만) · 없는 레이아웃
+ *       · 템플릿 저장의 400 `VALIDATION` `fields.name|locale|layoutId|subject|bodyHtml` — 모르는 변수(다른 받는 사람의 공통 변수 포함) · 보안 메일 필수 변수 없음 · 길이 · 버튼(하나, 링크 변수만) · 없는·받는 사람이 맞지 않는 레이아웃
  *   - `POST   /api/admin/mail-templates/preview` `MailPreviewRequest` → 200 `{ subject, html }`(견본 값 + `layoutId` 의 레이아웃, 또는 저장 전 `layout`)
  *       · 레이아웃 편집 화면의 미리보기는 `kind` 없이(공통 변수만) 저장 전 `layout` 을 보낸다
  *   - `POST   /api/admin/mail-templates/test` `MailTemplateTestRequest` → 200 `{ succeeded, reason, detail }`(메일 설정 시험과 같은 모양·한도 — 400 `fields.to`, 429 `MAIL_TEST_RATE_LIMITED`)
@@ -68,11 +70,11 @@ export function useMailTemplateApi() {
     void PATH;
 
     return {
-        /** 메일 종류 목록 */
-        kinds: (): Promise<MailKindView[]> =>
+        /** 메일 종류 목록(받는 사람으로 거를 수 있다) */
+        kinds: (query: MailAudienceQuery = {}): Promise<MailKindView[]> =>
             // MOCK:
-            mockKinds(can),
-        // REAL: client.get<MailKindView[]>(PATH.kinds()),
+            mockKinds(can, query),
+        // REAL: client.get<MailKindView[]>(PATH.kinds(), { query }),
 
         /** 한 종류의 정의·쓰는 템플릿·규칙·템플릿 목록 */
         kind: (kind: string): Promise<MailKindDetailView> =>
@@ -86,11 +88,11 @@ export function useMailTemplateApi() {
             mockSaveKind(can, kind, body),
         // REAL: client.put<MailKindDetailView>(PATH.kind(kind), body),
 
-        /** 모든 종류의 템플릿 목록(본문 없이) */
-        templates: (): Promise<MailTemplateListItemView[]> =>
+        /** 모든 종류의 템플릿 목록(본문 없이, 받는 사람으로 거를 수 있다) */
+        templates: (query: MailAudienceQuery = {}): Promise<MailTemplateListItemView[]> =>
             // MOCK:
-            mockTemplates(can),
-        // REAL: client.get<MailTemplateListItemView[]>(PATH.templates()),
+            mockTemplates(can, query),
+        // REAL: client.get<MailTemplateListItemView[]>(PATH.templates(), { query }),
 
         /** 템플릿 하나(본문 포함) */
         template: (id: string): Promise<MailTemplateView> =>

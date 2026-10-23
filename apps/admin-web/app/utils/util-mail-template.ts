@@ -1,9 +1,9 @@
-import type { MailLayoutColor, MailLayoutSaveRequest } from '~/composables/template/api/useMailLayoutApi.types';
-import type { MailLocale, MailTemplateListItemView, MailVariableView } from '~/composables/template/api/useMailTemplateApi.types';
+import type { MailLayoutAudience, MailLayoutColor, MailLayoutSaveRequest } from '~/composables/template/api/useMailLayoutApi.types';
+import type { MailAudience, MailLocale, MailTemplateListItemView, MailVariableView } from '~/composables/template/api/useMailTemplateApi.types';
 
 /**
  * 메일 템플릿·레이아웃의 순수 규칙 — 변수(`{{이름}}`) 찾기, 「버튼」 블록 나누기·합치기, 저장 전 검사(템플릿·레이아웃), 미리보기 그리기(목업 서버가 쓴다).
- * 계약: `docs/features/message-template-contract.md` 「변수」·「개정」. 서버 단계에서 같은 규칙을 서버(가칭 `MailTemplateValidator`·`MailLayoutValidator`·`MailTemplateRenderer`)가 다시 본다 —
+ * 계약: `docs/features/message-template-contract.md` 「변수」·「개정」·「개정 2」(받는 사람별 공통 변수 — 회원 `siteUrl` · 운영자 `adminUrl`). 서버 단계에서 같은 규칙을 서버(가칭 `MailTemplateValidator`·`MailLayoutValidator`·`MailTemplateRenderer`)가 다시 본다 —
  * 화면 검사는 미리 알려 주는 용도이고 판정은 서버다(`forms.md`). 길이 상한은 계약 「미확정」 3 이라 가정 값이다.
  *
  * 버튼 블록 저장 모양(목업 가정): `<p data-mail-button=""><a href="{{링크 변수}}">글자</a></p>` 하나. 에디터 안에서는 그 자리에 `{{button}}` 한 줄로 보이고,
@@ -13,14 +13,15 @@ import type { MailLocale, MailTemplateListItemView, MailVariableView } from '~/c
 /** 검사할 칸 — 서버 `fields.*` 와 같은 이름. `button` 은 화면 전용(서버는 `bodyHtml` 로 준다) */
 export type MailTemplateField = 'name' | 'subject' | 'bodyHtml' | 'button';
 
-/** 레이아웃의 검사할 칸 — 서버 `fields.*` 와 같은 이름 */
-export type MailLayoutField = 'name' | 'footer.ko' | 'footer.en' | 'frames.ko' | 'frames.en';
+/** 레이아웃의 검사할 칸 — 서버 `fields.*` 와 같은 이름(`audience` 는 서버만 본다 — 쓰는 템플릿과 맞는가) */
+export type MailLayoutField = 'name' | 'audience' | 'footer.ko' | 'footer.en' | 'frames.ko' | 'frames.en';
 
 export type MailTemplateProblemCode =
     | 'REQUIRED'
     | 'TOO_LONG'
     | 'MULTI_LINE'
     | 'UNKNOWN_VARIABLE'
+    | 'AUDIENCE_VARIABLE'
     | 'MISSING_REQUIRED'
     | 'BUTTON_MANY'
     | 'BUTTON_LABEL'
@@ -30,8 +31,10 @@ export type MailTemplateProblemCode =
 
 export interface MailTemplateProblem {
     code: MailTemplateProblemCode;
-    /** 문제의 변수 이름(모르는 변수 · 빠진 필수 변수) */
+    /** 문제의 변수 이름(모르는 변수 · 다른 받는 사람의 변수 · 빠진 필수 변수) */
     names?: string[];
+    /** `AUDIENCE_VARIABLE` — 그 변수를 쓸 수 있는 받는 사람 */
+    audience?: MailAudience;
     /** 길이 상한 */
     max?: number;
 }
@@ -55,12 +58,15 @@ export interface MailTemplateDraft {
 
 /** 검사에 필요한 종류 정보 */
 export interface MailKindRules {
+    /** 받는 사람 — 다른 받는 사람의 공통 변수를 쓰면 「이 메일에서는 쓸 수 없는 변수」로 따로 알린다 */
+    audience: MailAudience;
     security: boolean;
     variables: MailVariableView[];
 }
 
 /** 템플릿 목록 거르기 값 — 기본/사용자 구분은 `origin` */
 export interface MailTemplateFilter {
+    audience: MailAudience | null;
     kind: string | null;
     locale: MailLocale | null;
     origin: 'ALL' | 'BUILTIN' | 'USER';
@@ -68,8 +74,8 @@ export interface MailTemplateFilter {
     keyword: string;
 }
 
-/** 그리기에 쓰는 레이아웃 값(이름은 필요 없다) */
-export type MailRenderLayout = Omit<MailLayoutSaveRequest, 'name'>;
+/** 그리기에 쓰는 레이아웃 값(이름·쓰는 대상은 필요 없다 — 변수 견본 값은 `variables` 로 따로 준다) */
+export type MailRenderLayout = Omit<MailLayoutSaveRequest, 'name' | 'audience'>;
 
 /** 미리보기 그리기 입력(목업 서버의 `preview`·`test`) */
 export interface MailRenderInput {
@@ -93,6 +99,12 @@ const HEADER_COLORS: Record<MailLayoutColor, string> = {
     RED: '#b91c1c',
     SLATE: '#334155',
 };
+
+/**
+ * 받는 사람마다 따로 있는 공통 변수(계약 「개정 2」 변수 차이 — 서버의 종류 정의 `audience` 가 정한다). `siteName`·`recipientName` 은 둘 다 쓴다.
+ * 화면은 「다른 받는 사람의 변수」를 모르는 변수와 갈라 알리는 데만 쓴다(쓸 수 있는 변수 목록은 서버가 준다).
+ */
+const AUDIENCE_VARIABLES: Record<MailAudience, readonly string[]> = { MEMBER: ['siteUrl'], OPERATOR: ['adminUrl'] };
 
 const VAR_RE = /\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}/g;
 const BUTTON_BLOCK_RE = /<p data-mail-button(?:="[^"]*")?>\s*<a href="\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}"[^>]*>([\s\S]*?)<\/a>\s*<\/p>/;
@@ -136,6 +148,31 @@ export default class UtilMailTemplate {
     static readonly FOOTER_MAX = 500;
     /** 머리말 띠 색 팔레트의 차례 */
     static readonly HEADER_COLORS: readonly MailLayoutColor[] = Object.keys(HEADER_COLORS) as MailLayoutColor[];
+
+    /**
+     * 템플릿(받는 사람)이 이 레이아웃을 쓸 수 있는가 — 쓰는 대상이 같거나 `ANY`.
+     * @param layout - 레이아웃의 쓰는 대상.
+     * @param audience - 템플릿(종류)의 받는 사람.
+     * @returns 쓸 수 있으면 true.
+     */
+    static layoutFits(layout: MailLayoutAudience, audience: MailAudience): boolean {
+        return layout === 'ANY' || layout === audience;
+    }
+
+    /**
+     * 모르는 변수의 문제 — 다른 받는 사람의 공통 변수(운영자 메일의 `siteUrl` …)가 섞였으면 그것을 따로 알린다.
+     * @param unknown - 쓸 수 없는 변수 이름들(비어 있지 않다).
+     * @param audience - 이 글의 받는 사람(레이아웃은 `ANY` 일 수 있다).
+     * @returns 문제.
+     */
+    static unknownProblem(unknown: readonly string[], audience: MailLayoutAudience): MailTemplateProblem {
+        for (const owner of ['MEMBER', 'OPERATOR'] as const) {
+            if (owner === audience) continue;
+            const names = unknown.filter((name) => AUDIENCE_VARIABLES[owner].includes(name));
+            if (names.length) return { code: 'AUDIENCE_VARIABLE', names, audience: owner };
+        }
+        return { code: 'UNKNOWN_VARIABLE', names: [...unknown] };
+    }
 
     /**
      * 글 안의 변수 이름들(나온 차례, 겹침 없음).
@@ -221,7 +258,7 @@ export default class UtilMailTemplate {
         if (!subject.trim()) out.subject = { code: 'REQUIRED' };
         else if (/[\r\n]/.test(subject)) out.subject = { code: 'MULTI_LINE' };
         else if (subject.length > UtilMailTemplate.SUBJECT_MAX) out.subject = { code: 'TOO_LONG', max: UtilMailTemplate.SUBJECT_MAX };
-        else if (subjectUnknown.length) out.subject = { code: 'UNKNOWN_VARIABLE', names: subjectUnknown };
+        else if (subjectUnknown.length) out.subject = UtilMailTemplate.unknownProblem(subjectUnknown, rules.audience);
 
         const { editorHtml, button } = UtilMailTemplate.splitBody(draft.bodyHtml);
         const tokens = UtilMailTemplate.buttonTokens(editorHtml);
@@ -240,7 +277,7 @@ export default class UtilMailTemplate {
         if (!bodyText.trim() && !button) out.bodyHtml = { code: 'REQUIRED' };
         else if (draft.bodyHtml.length > UtilMailTemplate.BODY_MAX) out.bodyHtml = { code: 'TOO_LONG', max: UtilMailTemplate.BODY_MAX };
         else if (tokens > 1) out.bodyHtml = { code: 'BUTTON_MANY' };
-        else if (bodyUnknown.length) out.bodyHtml = { code: 'UNKNOWN_VARIABLE', names: bodyUnknown };
+        else if (bodyUnknown.length) out.bodyHtml = UtilMailTemplate.unknownProblem(bodyUnknown, rules.audience);
         else if (rules.security) {
             const used = new Set([...UtilMailTemplate.variablesIn(subject), ...bodyVars, ...(button ? [button.link] : [])]);
             const missing = rules.variables.filter((v) => v.required && !used.has(v.name)).map((v) => v.name);
@@ -252,34 +289,37 @@ export default class UtilMailTemplate {
     /**
      * 레이아웃 틀 검사 — `{{content}}` 가 꼭 한 번, 모르는 변수 없음.
      * @param frame - 틀 HTML.
-     * @param known - 쓸 수 있는 변수 이름(공통 변수).
+     * @param known - 쓸 수 있는 변수 이름(쓰는 대상의 공통 변수).
+     * @param audience - 레이아웃의 쓰는 대상(다른 받는 사람의 변수를 갈라 알린다).
      * @returns 문제(없으면 null).
      */
-    static validateFrame(frame: string, known: readonly string[]): MailTemplateProblem | null {
+    static validateFrame(frame: string, known: readonly string[], audience: MailLayoutAudience): MailTemplateProblem | null {
         const count = (frame.match(CONTENT_RE) ?? []).length;
         if (count === 0) return { code: 'CONTENT_MISSING' };
         if (count > 1) return { code: 'CONTENT_MANY' };
         if (frame.length > UtilMailTemplate.BODY_MAX) return { code: 'TOO_LONG', max: UtilMailTemplate.BODY_MAX };
         const unknown = UtilMailTemplate.variablesIn(frame).filter((v) => v !== UtilMailTemplate.CONTENT && !known.includes(v));
-        return unknown.length ? { code: 'UNKNOWN_VARIABLE', names: unknown } : null;
+        return unknown.length ? UtilMailTemplate.unknownProblem(unknown, audience) : null;
     }
 
     /**
      * 레이아웃 꼬리말 검사 — 평문, 길이, 모르는 변수 없음(`{{content}}` 도 쓸 수 없다). 비어도 된다.
      * @param footer - 꼬리말 글.
-     * @param known - 쓸 수 있는 변수 이름(공통 변수).
+     * @param known - 쓸 수 있는 변수 이름(쓰는 대상의 공통 변수).
+     * @param audience - 레이아웃의 쓰는 대상.
      * @returns 문제(없으면 null).
      */
-    static validateFooter(footer: string, known: readonly string[]): MailTemplateProblem | null {
+    static validateFooter(footer: string, known: readonly string[], audience: MailLayoutAudience): MailTemplateProblem | null {
         if (footer.length > UtilMailTemplate.FOOTER_MAX) return { code: 'TOO_LONG', max: UtilMailTemplate.FOOTER_MAX };
         const unknown = UtilMailTemplate.variablesIn(footer).filter((v) => !known.includes(v));
-        return unknown.length ? { code: 'UNKNOWN_VARIABLE', names: unknown } : null;
+        return unknown.length ? UtilMailTemplate.unknownProblem(unknown, audience) : null;
     }
 
     /**
-     * 레이아웃 저장 전 검사 — 서버 규칙과 같다: 이름(필수·50자) · 언어별 꼬리말 · 언어별 틀(`{{content}}` 한 번).
+     * 레이아웃 저장 전 검사 — 서버 규칙과 같다: 이름(필수·50자) · 언어별 꼬리말 · 언어별 틀(`{{content}}` 한 번). 변수는 쓰는 대상(`draft.audience`)의 공통 변수만.
+     * 쓰는 대상이 쓰는 템플릿과 맞는가(`fields.audience`)는 서버가 본다 — 화면은 맞지 않는 대상을 고르지 못하게 막는다.
      * @param draft - 편집 값.
-     * @param known - 쓸 수 있는 변수 이름(공통 변수 — `content` 빼고).
+     * @param known - 쓸 수 있는 변수 이름(쓰는 대상의 공통 변수 — `content` 빼고).
      * @returns 칸별 문제(없으면 빈 객체).
      */
     static validateLayout(draft: MailLayoutSaveRequest, known: readonly string[]): MailLayoutProblems {
@@ -288,16 +328,16 @@ export default class UtilMailTemplate {
         if (!name) out.name = { code: 'REQUIRED' };
         else if (name.length > UtilMailTemplate.NAME_MAX) out.name = { code: 'TOO_LONG', max: UtilMailTemplate.NAME_MAX };
         for (const locale of ['ko', 'en'] as const) {
-            const footer = UtilMailTemplate.validateFooter(draft.footer[locale] ?? '', known);
+            const footer = UtilMailTemplate.validateFooter(draft.footer[locale] ?? '', known, draft.audience);
             if (footer) out[`footer.${locale}`] = footer;
-            const frame = UtilMailTemplate.validateFrame(draft.frames[locale] ?? '', known);
+            const frame = UtilMailTemplate.validateFrame(draft.frames[locale] ?? '', known, draft.audience);
             if (frame) out[`frames.${locale}`] = frame;
         }
         return out;
     }
 
     /**
-     * 템플릿 목록 거르기 — 종류 · 언어 · 기본/사용자 · 레이아웃 · 검색어(이름·종류 이름·종류 코드, 대소문자 무시).
+     * 템플릿 목록 거르기 — 받는 사람 · 종류 · 언어 · 기본/사용자 · 레이아웃 · 검색어(이름·종류 이름·종류 코드, 대소문자 무시).
      * @param items - 목록.
      * @param filter - 거르기 값(null·'ALL'·빈 글자는 거르지 않음).
      * @returns 걸러진 목록(원래 차례).
@@ -305,6 +345,7 @@ export default class UtilMailTemplate {
     static filterTemplates(items: readonly MailTemplateListItemView[], filter: MailTemplateFilter): MailTemplateListItemView[] {
         const keyword = filter.keyword.trim().toLowerCase();
         return items.filter((item) => {
+            if (filter.audience && item.audience !== filter.audience) return false;
             if (filter.kind && item.kind !== filter.kind) return false;
             if (filter.locale && item.locale !== filter.locale) return false;
             if (filter.origin === 'BUILTIN' && !item.builtin) return false;

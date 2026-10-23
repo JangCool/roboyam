@@ -16,11 +16,15 @@
 //   template-history-error  변경 이력(템플릿·레이아웃)이 `500` 으로 실패
 //
 // ── 흉내 ─
-//   종류: 시스템 메일 5종(앞 4종은 보안 메일) + 이메일을 보낼 수 있는 관리자 알림 이벤트 5종(`AdminNotificationEvent` 의 `email()` — 보안 영역 4 · 시스템 영역 1).
-//   기본 템플릿 내용은 지금 서버 메일 문구(메시지 번들 `mail.*` · `notification.mail.*`)를 그대로 옮겼다. 알림 이벤트는 지금 한 양식(`NotificationMailTemplate`)이라 이벤트마다 같은 기본 템플릿이다. 기본 템플릿은 모두 기본 레이아웃을 쓴다.
-//   사용자 템플릿 4개(인증 메일 「소셜 가입 회원용」 — 규칙에서 씀·보안 안내 레이아웃 · 배치 실패 「긴급 배치 실패」 — 규칙에서 씀·보안 안내 레이아웃 · 초대 「초대 메일(간결)」 — 한국어 기본으로 씀·간단 레이아웃 · 시험 메일 「Plain test」 — 안 씀·기본 레이아웃).
-//   레이아웃 4개: 기본 레이아웃(builtin) · 보안 안내(빨강 띠, 템플릿 2개) · 공지(파랑 띠, 인사말 틀, 쓰는 템플릿 없음 — 지울 수 있다) · 간단(로고·사이트 이름·꼬리말 없음, 템플릿 1개).
-//   서버 규칙 흉내: 이름·제목·본문 검사(`UtilMailTemplate.validate` — 모르는 변수 · 보안 메일 필수 변수 · 길이 → 400 `VALIDATION` `fields.name|subject|bodyHtml|layoutId`),
+//   종류(개정 2 — 받는 사람 › 묶음): 회원 — 계정·보안 메일 1종(이메일 인증) · 운영자 — 계정·보안 메일 4종(초대 · 임시 비밀번호 · 재설정 승인번호 · 메일 서버 시험 — 앞의 3종과 인증은 보안 메일)
+//     + 알림 메일 5종(이메일을 보낼 수 있는 관리자 알림 이벤트 — `AdminNotificationEvent` 의 `email()`, 보안 영역 4 · 시스템 영역 1).
+//   「준비 중」 회원 메일 6종(`mockPlannedKinds` — 비밀번호 찾기 · 제재 안내 · 휴면 예정 · 회원 알림 메일 댓글·답글·포인트 회수)은 목록에 흐리게 보이는 화면 확인용일 뿐이다 — 서버 단계에서는 실제 있는 종류만 준다.
+//   공통 변수는 받는 사람별: 회원 `siteName`·`siteUrl`(공개 사이트 주소)·`recipientName`, 운영자 `siteName`·`adminUrl`(관리 사이트 주소)·`recipientName`. 레이아웃 `ANY` 는 `siteName`·`recipientName` 만.
+//   기본 템플릿 내용은 지금 서버 메일 문구(메시지 번들 `mail.*` · `notification.mail.*`)를 그대로 옮겼다. 알림 이벤트는 지금 한 양식(`NotificationMailTemplate`)이라 이벤트마다 같은 기본 템플릿이다. 기본 템플릿은 받는 사람의 기본 레이아웃을 쓴다.
+//   사용자 템플릿 4개(인증 메일 「소셜 가입 회원용」 — 규칙에서 씀·보안 안내 레이아웃 · 배치 실패 「긴급 배치 실패」 — 규칙에서 씀·보안 안내 레이아웃 · 초대 「초대 메일(간결)」 — 한국어 기본으로 씀·간단 레이아웃 · 시험 메일 「Plain test」 — 안 씀·운영자 기본).
+//   레이아웃 5개: 회원 기본 · 운영자 기본(builtin) · 보안 안내(모두, 빨강 띠, 회원·운영자 템플릿 1개씩) · 공지(회원, 파랑 띠, 인사말 틀, 쓰는 템플릿 없음 — 지울 수 있다) · 간단(운영자, 로고·사이트 이름·꼬리말 없음, 템플릿 1개).
+//   서버 규칙 흉내: 이름·제목·본문 검사(`UtilMailTemplate.validate` — 모르는 변수 · 다른 받는 사람의 변수 · 보안 메일 필수 변수 · 길이 → 400 `VALIDATION` `fields.name|subject|bodyHtml|layoutId`),
+//   받는 사람이 맞지 않는 레이아웃 고르기(`fields.layoutId`), 쓰는 템플릿과 맞지 않게 레이아웃 쓰는 대상 바꾸기(`fields.audience`),
 //   기본 템플릿·레이아웃 고치기·지우기 409 `TEMPLATE_BUILTIN`·`LAYOUT_BUILTIN`, 쓰는 중 지우기 409 `TEMPLATE_IN_USE`·`LAYOUT_IN_USE`, 종류당 20개·레이아웃 20개 넘게 만들기 409 `TEMPLATE_LIMIT`·`LAYOUT_LIMIT`,
 //   직접 쓴 링크의 http·https 아닌 주소 걷기, 레이아웃 검사(`UtilMailTemplate.validateLayout` — `fields.name|footer.ko|footer.en|frames.ko|frames.en|headerColor`),
 //   규칙의 조건·템플릿 확인(`fields.rules[0].templateId` …), 시험 받는 주소 형식(`fields.to`).
@@ -29,9 +33,19 @@
 import { ApiError } from '~/composables/common/useApiClient';
 import { MOCK_ERRORS, mockDelay, mockFlags } from '~/composables/common/mock/mock-util';
 import type { SettingHistoryChange } from '~/composables/common/useSettingHistory.types';
-import type { MailLayoutColor, MailLayoutHistoryPage, MailLayoutListItemView, MailLayoutSaveRequest, MailLayoutView } from '~/composables/template/api/useMailLayoutApi.types';
-import { MAIL_LAYOUT_LIMIT } from '~/composables/template/api/useMailLayoutApi.types';
 import type {
+    MailLayoutAudience,
+    MailLayoutAudienceQuery,
+    MailLayoutColor,
+    MailLayoutHistoryPage,
+    MailLayoutListItemView,
+    MailLayoutSaveRequest,
+    MailLayoutView,
+} from '~/composables/template/api/useMailLayoutApi.types';
+import { MAIL_LAYOUT_AUDIENCES, MAIL_LAYOUT_LIMIT } from '~/composables/template/api/useMailLayoutApi.types';
+import type {
+    MailAudience,
+    MailAudienceQuery,
     MailConditionView,
     MailKindDetailView,
     MailKindGroup,
@@ -68,13 +82,19 @@ export function mockTemplateCan(can: Can): Can {
 
 /* ── 정의(코드가 정하는 것) ── */
 
-const COMMON_VARS: MailVariableView[] = [
-    { name: 'siteName', description: '사이트 이름', sample: '로보얌', required: false, link: false },
-    { name: 'siteUrl', description: '공개 사이트 주소', sample: 'https://roboyam.example.com', required: false, link: true },
-    { name: 'recipientName', description: '받는 사람 이름(없으면 이메일)', sample: '홍길동', required: false, link: false },
-];
+const SITE_NAME_VAR: MailVariableView = { name: 'siteName', description: '사이트 이름', sample: '로보얌', required: false, link: false };
+const SITE_URL_VAR: MailVariableView = { name: 'siteUrl', description: '공개 사이트 주소', sample: 'https://roboyam.example.com', required: false, link: true };
+const ADMIN_URL_VAR: MailVariableView = { name: 'adminUrl', description: '관리 사이트 주소', sample: 'https://admin.roboyam.example.com', required: false, link: true };
+const RECIPIENT_VAR: MailVariableView = { name: 'recipientName', description: '받는 사람 이름(없으면 이메일)', sample: '홍길동', required: false, link: false };
 
-const v = (name: string, description: string, sample: string, extra: { required?: boolean; link?: boolean } = {}): MailVariableView => ({ name, description, sample, required: extra.required ?? false, link: extra.link ?? false });
+/** 받는 사람(레이아웃은 쓰는 대상)의 공통 변수 — 회원 `siteUrl` · 운영자 `adminUrl`, 모두(`ANY`)는 둘이 같이 쓰는 것만 */
+function commonVars(audience: MailLayoutAudience): MailVariableView[] {
+    if (audience === 'MEMBER') return [SITE_NAME_VAR, SITE_URL_VAR, RECIPIENT_VAR];
+    if (audience === 'OPERATOR') return [SITE_NAME_VAR, ADMIN_URL_VAR, RECIPIENT_VAR];
+    return [SITE_NAME_VAR, RECIPIENT_VAR];
+}
+
+const v =(name: string, description: string, sample: string, extra: { required?: boolean; link?: boolean } = {}): MailVariableView => ({ name, description, sample, required: extra.required ?? false, link: extra.link ?? false });
 
 const NOTIFICATION_CONDITIONS: MailConditionView[] = [
     {
@@ -98,6 +118,7 @@ const NOTIFICATION_CONDITIONS: MailConditionView[] = [
 
 interface KindDef {
     kind: string;
+    audience: MailAudience;
     group: MailKindGroup;
     area: string | null;
     name: string;
@@ -132,13 +153,14 @@ const NOTIFICATION_DEFAULTS: KindDef['defaults'] = {
 function notificationKind(kind: string, area: string, name: string, description: string, title: string, body: string, path: string): KindDef {
     return {
         kind,
+        audience: 'OPERATOR',
         group: 'NOTIFICATION',
         area,
         name,
         description,
         security: false,
         variables: [
-            ...COMMON_VARS,
+            ...commonVars('OPERATOR'),
             v('title', '알림 제목', title),
             v('body', '알림 본문', body),
             v('link', '관리자 앱에서 볼 주소', `https://admin.roboyam.example.com${path}`, { link: true }),
@@ -152,12 +174,13 @@ function notificationKind(kind: string, area: string, name: string, description:
 const KINDS: KindDef[] = [
     {
         kind: 'MEMBER_EMAIL_VERIFY',
-        group: 'SYSTEM',
+        audience: 'MEMBER',
+        group: 'ACCOUNT',
         area: null,
         name: '회원 이메일 인증',
         description: '회원이 가입하거나 이메일을 바꿀 때 인증 링크를 보내요.',
         security: true,
-        variables: [...COMMON_VARS, v('nickname', '회원 닉네임', '로보얌이'), v('verifyLink', '이메일 인증 링크', 'https://roboyam.example.com/verify-email?token=sample', { required: true, link: true }), v('validHours', '링크를 쓸 수 있는 시간', '24')],
+        variables: [...commonVars('MEMBER'), v('nickname', '회원 닉네임', '로보얌이'), v('verifyLink', '이메일 인증 링크', 'https://roboyam.example.com/verify-email?token=sample', { required: true, link: true }), v('validHours', '링크를 쓸 수 있는 시간', '24')],
         conditions: [
             {
                 key: 'signupMethod',
@@ -187,12 +210,13 @@ const KINDS: KindDef[] = [
     },
     {
         kind: 'OPERATOR_INVITE',
-        group: 'SYSTEM',
+        audience: 'OPERATOR',
+        group: 'ACCOUNT',
         area: null,
         name: '운영자 초대',
         description: '관리자 앱 운영자로 초대할 때 수락 링크를 보내요.',
         security: true,
-        variables: [...COMMON_VARS, v('inviteLink', '초대 수락 링크', 'https://admin.roboyam.example.com/invitation?token=sample', { required: true, link: true }), v('validHours', '링크를 쓸 수 있는 시간', '72')],
+        variables: [...commonVars('OPERATOR'), v('inviteLink', '초대 수락 링크', 'https://admin.roboyam.example.com/invitation?token=sample', { required: true, link: true }), v('validHours', '링크를 쓸 수 있는 시간', '72')],
         conditions: [
             {
                 key: 'inviteRole',
@@ -223,12 +247,14 @@ const KINDS: KindDef[] = [
     },
     {
         kind: 'OPERATOR_CREDENTIALS',
-        group: 'SYSTEM',
+        audience: 'OPERATOR',
+        group: 'ACCOUNT',
         area: null,
         name: '운영자 임시 비밀번호',
         description: '운영자를 직접 추가할 때 임시 비밀번호를 보내요.',
         security: true,
-        variables: [...COMMON_VARS, v('operatorName', '운영자 이름', '박운영'), v('temporaryPassword', '임시 비밀번호', 'Tmp-8f3K2q', { required: true }), v('adminUrl', '관리자 앱 주소', 'https://admin.roboyam.example.com', { link: true })],
+        // 관리 사이트 주소(`adminUrl`)는 운영자 메일의 공통 변수다(개정 2)
+        variables: [...commonVars('OPERATOR'), v('operatorName', '운영자 이름', '박운영'), v('temporaryPassword', '임시 비밀번호', 'Tmp-8f3K2q', { required: true })],
         conditions: [],
         defaults: {
             ko: {
@@ -245,12 +271,13 @@ const KINDS: KindDef[] = [
     },
     {
         kind: 'OPERATOR_RESET_CODE',
-        group: 'SYSTEM',
+        audience: 'OPERATOR',
+        group: 'ACCOUNT',
         area: null,
         name: '운영자 비밀번호 재설정 승인번호',
         description: '운영자가 비밀번호 재설정을 요청하면 승인번호를 보내요.',
         security: true,
-        variables: [...COMMON_VARS, v('code', '승인번호', '482913', { required: true }), v('validMinutes', '승인번호를 쓸 수 있는 시간(분)', '10')],
+        variables: [...commonVars('OPERATOR'), v('code', '승인번호', '482913', { required: true }), v('validMinutes', '승인번호를 쓸 수 있는 시간(분)', '10')],
         conditions: [],
         defaults: {
             ko: {
@@ -267,12 +294,13 @@ const KINDS: KindDef[] = [
     },
     {
         kind: 'MAIL_TEST',
-        group: 'SYSTEM',
+        audience: 'OPERATOR',
+        group: 'ACCOUNT',
         area: null,
         name: '메일 서버 시험',
         description: '메일 서버 설정의 「시험 발송」이 보내요.',
         security: false,
-        variables: [...COMMON_VARS],
+        variables: [...commonVars('OPERATOR')],
         conditions: [],
         defaults: {
             ko: { subject: '메일 서버 설정 시험 메일', bodyHtml: '<p>이 메일이 보이면 관리자 앱의 메일 서버 설정으로 메일이 잘 나가고 있는 거예요.</p>' },
@@ -286,6 +314,30 @@ const KINDS: KindDef[] = [
     notificationKind('BATCH_RUN_FAILED', 'system', '배치 실패', '배치가 실패하면 배치 조회 권한이 있는 운영자에게 보내요(같은 배치는 30분에 한 번).', '배치가 실패했어요', 'grade-promotion 배치가 실패했어요. DB 연결 시간이 지났어요.', '/settings/batch-logs?jobName=grade-promotion'),
 ];
 
+/** 「준비 중」 메일 종류 — 목업 전용(화면 확인용). 앞으로 생길 회원 메일을 목록에 흐리게(고를 수 없게) 보인다. 서버 단계에서는 실제 있는 종류만 준다(없는 기능은 감춘다) */
+export interface MockPlannedMailKind {
+    kind: string;
+    audience: MailAudience;
+    group: MailKindGroup;
+    name: string;
+    description: string;
+}
+
+const PLANNED_KINDS: MockPlannedMailKind[] = [
+    { kind: 'MEMBER_PASSWORD_RESET', audience: 'MEMBER', group: 'ACCOUNT', name: '회원 비밀번호 찾기', description: '회원이 비밀번호를 잊었을 때 다시 정하는 링크를 보내요.' },
+    { kind: 'MEMBER_SANCTION', audience: 'MEMBER', group: 'ACCOUNT', name: '제재 안내', description: '회원이 이용 제한을 받으면 까닭과 기간을 알려요.' },
+    { kind: 'MEMBER_DORMANT_NOTICE', audience: 'MEMBER', group: 'ACCOUNT', name: '휴면 전환 예정', description: '오래 로그인하지 않은 회원에게 휴면으로 바뀌기 전에 알려요.' },
+    { kind: 'MEMBER_POST_COMMENTED', audience: 'MEMBER', group: 'NOTIFICATION', name: '내 글에 댓글', description: '내 글에 댓글이 달리면 알려요.' },
+    { kind: 'MEMBER_COMMENT_REPLIED', audience: 'MEMBER', group: 'NOTIFICATION', name: '내 댓글에 답글', description: '내 댓글에 답글이 달리면 알려요.' },
+    { kind: 'MEMBER_POINT_REVOKED', audience: 'MEMBER', group: 'NOTIFICATION', name: '포인트 회수', description: '글이 지워지거나 제재를 받아 포인트가 회수되면 알려요.' },
+];
+
+/** 「준비 중」 메일 종류(목업 전용 — `template-empty` 면 없다). 서버 API 가 아니다 — 서버가 붙으면 이 함수와 화면의 「준비 중」 줄을 함께 지운다 */
+export function mockPlannedKinds(): MockPlannedMailKind[] {
+    if (mockFlags().has('template-empty')) return [];
+    return PLANNED_KINDS.map((item) => ({ ...item }));
+}
+
 /** 목업의 「나」 — 저장·이력의 운영자 이름 */
 const ME = '김관리';
 
@@ -295,16 +347,21 @@ const SITE_NAME = '로보얌';
 /** 로고는 사이트 설정 「일반」의 것 — 목업은 로고가 없는 사이트로 둔다 */
 const LOGO_URL: string | null = null;
 const CONTENT_VAR: MailVariableView = { name: 'content', description: '메일 본문이 들어갈 자리(지울 수 없어요)', sample: '', required: true, link: false };
-const LAYOUT_VARS: MailVariableView[] = [...COMMON_VARS, CONTENT_VAR];
-const COMMON_NAMES = COMMON_VARS.map((item) => item.name);
-const BUILTIN_LAYOUT_ID = 'layout-default';
-/** 이력에 남기는 띠 색 이름 — 서버가 요청 언어로 줄 글(목업은 한국어) */
+/** 받는 사람별 기본 레이아웃(builtin) — 새 템플릿이 이것으로 시작한다 */
+const DEFAULT_LAYOUT_ID: Record<MailAudience, string> = { MEMBER: 'layout-member', OPERATOR: 'layout-operator' };
+/** 이력에 남기는 띠 색·쓰는 대상 이름 — 서버가 요청 언어로 줄 글(목업은 한국어) */
 const COLOR_NAMES: Record<MailLayoutColor, string> = { BLUE: '파랑', INDIGO: '남색', TEAL: '청록', GREEN: '초록', AMBER: '호박', ORANGE: '주황', RED: '빨강', SLATE: '먹색' };
+const AUDIENCE_NAMES: Record<MailLayoutAudience, string> = { MEMBER: '회원', OPERATOR: '운영자', ANY: '모두' };
+
+/** 쓰는 대상의 틀·꼬리말 변수(공통 변수 + 본문 자리) */
+const layoutVars = (audience: MailLayoutAudience): MailVariableView[] => [...commonVars(audience), CONTENT_VAR];
+const commonNames = (audience: MailLayoutAudience): string[] => commonVars(audience).map((item) => item.name);
 
 interface LayoutRow {
     id: string;
     name: string;
     builtin: boolean;
+    audience: MailLayoutAudience;
     showLogo: boolean;
     showSiteName: boolean;
     headerColor: MailLayoutColor | null;
@@ -319,14 +376,34 @@ const PLAIN_FRAMES: Record<MailLocale, string> = { ko: '<p>{{content}}</p>', en:
 function initialLayouts(): LayoutRow[] {
     return [
         {
-            id: BUILTIN_LAYOUT_ID,
+            id: DEFAULT_LAYOUT_ID.MEMBER,
             // 이름은 서버가 요청 언어로 준다(목업은 한국어)
-            name: '기본 레이아웃',
+            name: '회원 기본',
             builtin: true,
+            audience: 'MEMBER',
             showLogo: true,
             showSiteName: true,
             headerColor: null,
-            footer: { ko: '이 메일은 발신 전용이에요. 회신하지 마세요.', en: 'This email is send-only. Please do not reply.' },
+            footer: {
+                ko: '이 메일은 {{siteName}}에서 보낸 발신 전용 메일이에요. 회신하지 마세요.\n{{siteUrl}}',
+                en: 'This is a send-only email from {{siteName}}. Please do not reply.\n{{siteUrl}}',
+            },
+            frames: { ...PLAIN_FRAMES },
+            updatedAt: null,
+            updatedByName: null,
+        },
+        {
+            id: DEFAULT_LAYOUT_ID.OPERATOR,
+            name: '운영자 기본',
+            builtin: true,
+            audience: 'OPERATOR',
+            showLogo: true,
+            showSiteName: true,
+            headerColor: null,
+            footer: {
+                ko: '{{siteName}} 관리 사이트의 운영자에게 보내는 메일이에요. 발신 전용이라 회신하지 마세요.\n관리 사이트: {{adminUrl}}',
+                en: 'This email is for operators of the {{siteName}} admin site. It is send-only, so please do not reply.\nAdmin site: {{adminUrl}}',
+            },
             frames: { ...PLAIN_FRAMES },
             updatedAt: null,
             updatedByName: null,
@@ -335,6 +412,7 @@ function initialLayouts(): LayoutRow[] {
             id: 'layout-security',
             name: '보안 안내',
             builtin: false,
+            audience: 'ANY',
             showLogo: true,
             showSiteName: true,
             headerColor: 'RED',
@@ -350,6 +428,7 @@ function initialLayouts(): LayoutRow[] {
             id: 'layout-notice',
             name: '공지',
             builtin: false,
+            audience: 'MEMBER',
             showLogo: true,
             showSiteName: true,
             headerColor: 'BLUE',
@@ -362,6 +441,7 @@ function initialLayouts(): LayoutRow[] {
             id: 'layout-simple',
             name: '간단',
             builtin: false,
+            audience: 'OPERATOR',
             showLogo: false,
             showSiteName: false,
             headerColor: null,
@@ -403,10 +483,11 @@ function builtins(): MailTemplateView[] {
         LOCALES.map((locale) => ({
             id: builtinId(def.kind, locale),
             kind: def.kind,
+            audience: def.audience,
             // 이름은 서버가 요청 언어로 준다(목업은 한국어)
             name: '기본 템플릿',
             locale,
-            layoutId: BUILTIN_LAYOUT_ID,
+            layoutId: DEFAULT_LAYOUT_ID[def.audience],
             subject: def.defaults[locale].subject,
             bodyHtml: def.defaults[locale].bodyHtml,
             builtin: true,
@@ -423,6 +504,7 @@ function state(): Store {
         {
             id: 'tpl-101',
             kind: 'MEMBER_EMAIL_VERIFY',
+            audience: 'MEMBER',
             name: '소셜 가입 회원용',
             locale: 'ko',
             layoutId: 'layout-security',
@@ -435,6 +517,7 @@ function state(): Store {
         {
             id: 'tpl-102',
             kind: 'BATCH_RUN_FAILED',
+            audience: 'OPERATOR',
             name: '긴급 배치 실패',
             locale: 'ko',
             layoutId: 'layout-security',
@@ -447,6 +530,7 @@ function state(): Store {
         {
             id: 'tpl-103',
             kind: 'OPERATOR_INVITE',
+            audience: 'OPERATOR',
             name: '초대 메일(간결)',
             locale: 'ko',
             layoutId: 'layout-simple',
@@ -459,9 +543,10 @@ function state(): Store {
         {
             id: 'tpl-104',
             kind: 'MAIL_TEST',
+            audience: 'OPERATOR',
             name: 'Plain test',
             locale: 'en',
-            layoutId: BUILTIN_LAYOUT_ID,
+            layoutId: DEFAULT_LAYOUT_ID.OPERATOR,
             subject: 'Test mail from {{siteName}}',
             bodyHtml: '<p>This is a test mail from {{siteName}}.</p>',
             builtin: false,
@@ -476,12 +561,12 @@ function state(): Store {
     (kinds.get('OPERATOR_INVITE') as KindState).selected.ko = 'tpl-103';
 
     const history: HistoryRow[] = [
-        historyRow('tpl-101', 'UPDATE', '2026-10-20T05:12:00Z', ME, [change('subject', '이메일 인증을 완료해 주세요', '받은 이메일이 맞는지 확인해 주세요'), change('layoutId', '기본 레이아웃', '보안 안내')]),
-        historyRow('tpl-101', 'CREATE', '2026-10-19T23:58:00Z', ME, [change('name', null, '소셜 가입 회원용'), change('locale', null, 'ko'), change('layoutId', null, '기본 레이아웃')]),
+        historyRow('tpl-101', 'UPDATE', '2026-10-20T05:12:00Z', ME, [change('subject', '이메일 인증을 완료해 주세요', '받은 이메일이 맞는지 확인해 주세요'), change('layoutId', '회원 기본', '보안 안내')]),
+        historyRow('tpl-101', 'CREATE', '2026-10-19T23:58:00Z', ME, [change('name', null, '소셜 가입 회원용'), change('locale', null, 'ko'), change('layoutId', null, '회원 기본')]),
         historyRow('tpl-102', 'CREATE', '2026-10-21T01:40:00Z', '박운영', [change('name', null, '긴급 배치 실패'), change('locale', null, 'ko'), change('layoutId', null, '보안 안내')]),
         historyRow('tpl-103', 'CREATE', '2026-10-22T08:05:00Z', ME, [change('name', null, '초대 메일(간결)'), change('locale', null, 'ko'), change('layoutId', null, '간단')]),
-        historyRow('tpl-104', 'CREATE', '2026-10-22T10:30:00Z', ME, [change('name', null, 'Plain test'), change('locale', null, 'en'), change('layoutId', null, '기본 레이아웃')]),
-        historyRow('layout-security', 'UPDATE', '2026-10-18T02:10:00Z', ME, [change('headerColor', '주황', '빨강')]),
+        historyRow('tpl-104', 'CREATE', '2026-10-22T10:30:00Z', ME, [change('name', null, 'Plain test'), change('locale', null, 'en'), change('layoutId', null, '운영자 기본')]),
+        historyRow('layout-security', 'UPDATE', '2026-10-18T02:10:00Z', ME, [change('headerColor', '주황', '빨강'), change('audience', '회원', '모두')]),
         historyRow('layout-security', 'CREATE', '2026-10-17T09:00:00Z', ME, [change('name', null, '보안 안내')]),
         historyRow('layout-notice', 'CREATE', '2026-10-19T07:45:00Z', '박운영', [change('name', null, '공지')]),
         historyRow('layout-simple', 'CREATE', '2026-10-20T00:30:00Z', ME, [change('name', null, '간단')]),
@@ -566,6 +651,12 @@ function layoutUseCount(id: string): number {
     return state().templates.filter((item) => item.layoutId === id).length;
 }
 
+/** 이 레이아웃을 쓰는 템플릿 수(받는 사람별) */
+function layoutUseCounts(id: string): Record<MailAudience, number> {
+    const using = state().templates.filter((item) => item.layoutId === id);
+    return { MEMBER: using.filter((item) => item.audience === 'MEMBER').length, OPERATOR: using.filter((item) => item.audience === 'OPERATOR').length };
+}
+
 /** 검사 문제 → 서버 문구(목업 — 서버가 요청 언어로 줄 글) */
 function problemText(field: string, problem: MailTemplateProblem): string {
     const names = (problem.names ?? []).map((name) => `{{${name}}}`).join(', ');
@@ -578,6 +669,8 @@ function problemText(field: string, problem: MailTemplateProblem): string {
             return '제목은 한 줄로 입력해 주세요.';
         case 'UNKNOWN_VARIABLE':
             return `이 메일에서 쓸 수 없는 변수예요: ${names}`;
+        case 'AUDIENCE_VARIABLE':
+            return `이 메일에서는 쓸 수 없는 변수예요: ${names} — ${problem.audience === 'OPERATOR' ? '운영자' : '회원'} 메일에서만 쓸 수 있어요.`;
         case 'MISSING_REQUIRED':
             return `보안 메일이라 꼭 넣어야 하는 변수가 빠졌어요: ${names}`;
         case 'BUTTON_MANY':
@@ -603,7 +696,9 @@ function validateTemplate(body: MailTemplateSaveRequest, def: KindDef): void {
         if (!fields[key]) fields[key] = problemText(field, problem);
     }
     if (body.locale !== 'ko' && body.locale !== 'en') fields.locale = '언어는 ko · en 중 하나예요.';
-    if (!state().layouts.some((item) => item.id === body.layoutId)) fields.layoutId = '레이아웃을 골라 주세요.';
+    const layout = state().layouts.find((item) => item.id === body.layoutId);
+    if (!layout) fields.layoutId = '레이아웃을 골라 주세요.';
+    else if (!UtilMailTemplate.layoutFits(layout.audience, def.audience)) fields.layoutId = `${AUDIENCE_NAMES[def.audience]} 메일에는 쓸 수 없는 레이아웃이에요. 쓰는 대상이 ${AUDIENCE_NAMES[def.audience]} 또는 모두인 레이아웃을 골라 주세요.`;
     if (Object.keys(fields).length) throw invalid(fields);
 }
 
@@ -616,6 +711,7 @@ function kindView(def: KindDef): MailKindView {
     };
     return {
         kind: def.kind,
+        audience: def.audience,
         group: def.group,
         area: def.area,
         name: def.name,
@@ -650,11 +746,12 @@ function listItem(template: MailTemplateView): MailTemplateListItemView {
 }
 
 function layoutListItem(row: LayoutRow): MailLayoutListItemView {
-    return { id: row.id, name: row.name, builtin: row.builtin, headerColor: row.headerColor, templateCount: layoutUseCount(row.id), updatedAt: row.updatedAt, updatedByName: row.updatedByName };
+    return { id: row.id, name: row.name, builtin: row.builtin, audience: row.audience, headerColor: row.headerColor, templateCount: layoutUseCount(row.id), updatedAt: row.updatedAt, updatedByName: row.updatedByName };
 }
 
 function layoutView(row: LayoutRow): MailLayoutView {
-    return clone({ ...row, templateCount: layoutUseCount(row.id), logoUrl: LOGO_URL, siteName: SITE_NAME, variables: LAYOUT_VARS });
+    const variables = Object.fromEntries(MAIL_LAYOUT_AUDIENCES.map((audience) => [audience, layoutVars(audience)])) as Record<MailLayoutAudience, MailVariableView[]>;
+    return clone({ ...row, templateCount: layoutUseCount(row.id), templateCounts: layoutUseCounts(row.id), logoUrl: LOGO_URL, siteName: SITE_NAME, variables });
 }
 
 /** 이력의 본문 값 — 글자 요약 80자(가정) */
@@ -671,10 +768,10 @@ function pageOf(targetId: string, page: number, size: number): MailTemplateHisto
 
 /* ── API — 메일 종류 ── */
 
-export async function mockKinds(can: Can): Promise<MailKindView[]> {
+export async function mockKinds(can: Can, query: MailAudienceQuery = {}): Promise<MailKindView[]> {
     await readList(can);
     if (mockFlags().has('template-empty')) return [];
-    return clone(KINDS.map(kindView));
+    return clone(KINDS.filter((def) => !query.audience || def.audience === query.audience).map(kindView));
 }
 
 export async function mockKindDetail(can: Can, kind: string): Promise<MailKindDetailView> {
@@ -708,10 +805,14 @@ export async function mockSaveKind(can: Can, kind: string, body: MailKindSaveReq
 
 /* ── API — 템플릿 ── */
 
-export async function mockTemplates(can: Can): Promise<MailTemplateListItemView[]> {
+export async function mockTemplates(can: Can, query: MailAudienceQuery = {}): Promise<MailTemplateListItemView[]> {
     await readList(can);
     if (mockFlags().has('template-empty')) return [];
-    return clone(state().templates.map(listItem));
+    return clone(
+        state()
+            .templates.filter((item) => !query.audience || item.audience === query.audience)
+            .map(listItem),
+    );
 }
 
 export async function mockTemplate(can: Can, id: string): Promise<MailTemplateView> {
@@ -731,6 +832,8 @@ export async function mockCreateTemplate(can: Can, body: MailTemplateSaveRequest
     const created: MailTemplateView = {
         id: `tpl-${nextId}`,
         kind: body.kind,
+        // 받는 사람은 종류가 정한다(요청에 없다)
+        audience: def.audience,
         name: body.name.trim(),
         locale: body.locale,
         layoutId: body.layoutId,
@@ -782,8 +885,11 @@ export async function mockDeleteTemplate(can: Can, id: string): Promise<void> {
 
 export async function mockPreview(can: Can, body: MailPreviewRequest): Promise<MailPreviewView> {
     await read(can);
-    const variables = body.kind ? defOf(body.kind).variables : COMMON_VARS;
-    const layout = body.layout ?? layoutOf(body.layoutId ?? BUILTIN_LAYOUT_ID);
+    const def = body.kind ? defOf(body.kind) : null;
+    // 레이아웃이 없으면 그 종류 받는 사람의 기본 레이아웃(종류도 없으면 회원 기본)
+    const layout = body.layout ?? layoutOf(body.layoutId ?? DEFAULT_LAYOUT_ID[def?.audience ?? 'MEMBER']);
+    // 견본 값 — 종류가 있으면 그 종류의 변수(받는 사람의 공통 변수 포함), 없으면(레이아웃 미리보기) 레이아웃 쓰는 대상의 공통 변수
+    const variables = def ? def.variables : commonVars(layout.audience);
     return UtilMailTemplate.render({
         locale: body.locale,
         subject: body.subject,
@@ -802,7 +908,10 @@ export async function mockTest(can: Can, body: MailTemplateTestRequest): Promise
     const flags = mockFlags();
     if (flags.has('template-test-limit')) throw new ApiError({ status: 429, code: 'MAIL_TEST_RATE_LIMITED', message: '시험 발송이 너무 잦아요.', retryAfterSeconds: 30 });
     if (body.templateId) templateOf(body.templateId);
-    else validateTemplate({ kind: body.kind, name: 'test', locale: body.locale, layoutId: body.layoutId ?? BUILTIN_LAYOUT_ID, subject: body.subject ?? '', bodyHtml: body.bodyHtml ?? '' }, defOf(body.kind));
+    else {
+        const def = defOf(body.kind);
+        validateTemplate({ kind: body.kind, name: 'test', locale: body.locale, layoutId: body.layoutId ?? DEFAULT_LAYOUT_ID[def.audience], subject: body.subject ?? '', bodyHtml: body.bodyHtml ?? '' }, def);
+    }
     if (flags.has('template-test-fail')) return { succeeded: false, reason: 'CONNECT_FAILED', detail: '메일 서버에 접속하지 못했어요. 서버 주소와 포트를 확인해 주세요.' };
     return { succeeded: true, reason: null, detail: null };
 }
@@ -816,18 +925,29 @@ export async function mockHistory(can: Can, id: string, page: number, size: numb
 
 /* ── API — 레이아웃 ── */
 
-function validateLayout(body: MailLayoutSaveRequest): void {
+/** 레이아웃 검사 — 고치기(`current`)는 쓰는 템플릿의 받는 사람과 맞지 않게 쓰는 대상을 바꾸면 거절한다(`fields.audience`) */
+function validateLayout(body: MailLayoutSaveRequest, current: LayoutRow | null = null): void {
     const fields: Record<string, string> = {};
-    for (const [field, problem] of Object.entries(UtilMailTemplate.validateLayout(body, COMMON_NAMES)) as [MailLayoutField, MailTemplateProblem][]) {
+    if (!MAIL_LAYOUT_AUDIENCES.includes(body.audience)) {
+        fields.audience = '쓰는 대상은 회원 · 운영자 · 모두 중 하나예요.';
+        throw invalid(fields);
+    }
+    for (const [field, problem] of Object.entries(UtilMailTemplate.validateLayout(body, commonNames(body.audience))) as [MailLayoutField, MailTemplateProblem][]) {
         fields[field] = field === 'name' && problem.code === 'REQUIRED' ? '이름을 입력해 주세요.' : problemText(field, problem);
     }
     if (body.headerColor !== null && !UtilMailTemplate.HEADER_COLORS.includes(body.headerColor)) fields.headerColor = '팔레트의 색 중에서 골라 주세요.';
+    if (current && body.audience !== current.audience && body.audience !== 'ANY') {
+        const counts = layoutUseCounts(current.id);
+        const other: MailAudience = body.audience === 'MEMBER' ? 'OPERATOR' : 'MEMBER';
+        if (counts[other] > 0) fields.audience = `이 레이아웃을 쓰는 ${AUDIENCE_NAMES[other]} 메일 템플릿이 ${counts[other]}개 있어 쓰는 대상을 바꿀 수 없어요. 그 템플릿의 레이아웃을 먼저 바꿔 주세요.`;
+    }
     if (Object.keys(fields).length) throw invalid(fields);
 }
 
 function layoutRowOf(body: MailLayoutSaveRequest): Omit<LayoutRow, 'id' | 'builtin' | 'updatedAt' | 'updatedByName'> {
     return {
         name: body.name.trim(),
+        audience: body.audience,
         showLogo: body.showLogo,
         showSiteName: body.showSiteName,
         headerColor: body.headerColor,
@@ -838,9 +958,13 @@ function layoutRowOf(body: MailLayoutSaveRequest): Omit<LayoutRow, 'id' | 'built
 
 const colorName = (color: MailLayoutColor | null) => (color ? COLOR_NAMES[color] : '없음');
 
-export async function mockLayouts(can: Can): Promise<MailLayoutListItemView[]> {
+export async function mockLayouts(can: Can, query: MailLayoutAudienceQuery = {}): Promise<MailLayoutListItemView[]> {
     await readList(can);
-    return clone(state().layouts.map(layoutListItem));
+    return clone(
+        state()
+            .layouts.filter((row) => !query.audience || row.audience === query.audience)
+            .map(layoutListItem),
+    );
 }
 
 export async function mockLayout(can: Can, id: string): Promise<MailLayoutView> {
@@ -858,7 +982,7 @@ export async function mockCreateLayout(can: Can, body: MailLayoutSaveRequest): P
     nextId += 1;
     const created: LayoutRow = { id: `layout-${nextId}`, builtin: false, ...layoutRowOf(body), updatedAt: new Date().toISOString(), updatedByName: ME };
     s.layouts.push(created);
-    s.history.unshift(historyRow(created.id, 'CREATE', created.updatedAt as string, ME, [change('name', null, created.name)]));
+    s.history.unshift(historyRow(created.id, 'CREATE', created.updatedAt as string, ME, [change('name', null, created.name), change('audience', null, AUDIENCE_NAMES[created.audience])]));
     return layoutView(created);
 }
 
@@ -866,10 +990,11 @@ export async function mockUpdateLayout(can: Can, id: string, body: MailLayoutSav
     await write(can);
     const row = layoutOf(id);
     if (row.builtin) throw new ApiError({ status: 409, code: 'LAYOUT_BUILTIN', message: '기본 레이아웃은 고칠 수 없어요. 복사해서 만들어 주세요.' });
-    validateLayout(body);
+    validateLayout(body, row);
     const next = layoutRowOf(body);
     const changes: SettingHistoryChange[] = [];
     if (next.name !== row.name) changes.push(change('name', row.name, next.name));
+    if (next.audience !== row.audience) changes.push(change('audience', AUDIENCE_NAMES[row.audience], AUDIENCE_NAMES[next.audience]));
     if (next.showLogo !== row.showLogo) changes.push(change('showLogo', String(row.showLogo), String(next.showLogo)));
     if (next.showSiteName !== row.showSiteName) changes.push(change('showSiteName', String(row.showSiteName), String(next.showSiteName)));
     if (next.headerColor !== row.headerColor) changes.push(change('headerColor', colorName(row.headerColor), colorName(next.headerColor)));

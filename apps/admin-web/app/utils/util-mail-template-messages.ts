@@ -1,5 +1,6 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
-import type { MailKindGroup } from '~/composables/template/api/useMailTemplateApi.types';
+import type { MailLayoutAudience } from '~/composables/template/api/useMailLayoutApi.types';
+import type { MailAudience, MailKindGroup } from '~/composables/template/api/useMailTemplateApi.types';
 import type { MailLayoutField, MailTemplateField, MailTemplateProblem } from '~/utils/util-mail-template';
 import UtilNotificationMessages from '~/utils/util-notification-messages';
 
@@ -28,6 +29,8 @@ export default class UtilMailTemplateMessages {
                 return t('mailTemplate.subjectOneLine');
             case 'UNKNOWN_VARIABLE':
                 return t('mailTemplate.unknownVariable', { names });
+            case 'AUDIENCE_VARIABLE':
+                return t('mailTemplate.audienceVariable', { names, audience: UtilMailTemplateMessages.audienceMailLabel(t, problem.audience ?? 'MEMBER') });
             case 'MISSING_REQUIRED':
                 return t('mailTemplate.missingRequired', { names });
             case 'BUTTON_MANY':
@@ -45,15 +48,49 @@ export default class UtilMailTemplateMessages {
     }
 
     /**
-     * 메일 종류의 묶음 이름 — 「시스템 메일」 · 「관리자 알림 · 보안」(영역 이름은 알림 화면과 같다).
+     * 메일 종류의 묶음 이름 — 「계정·보안 메일」 · 「알림 메일」(관리자 알림 이벤트는 「알림 메일 · 보안」 — 영역 이름은 알림 화면과 같다).
      * @param t - 번역 함수.
      * @param group - 묶음.
-     * @param area - 알림 이벤트의 영역(시스템 메일은 null).
+     * @param area - 관리자 알림 이벤트의 영역(없으면 null).
      * @returns 한 줄.
      */
     static groupLabel(t: Translate, group: MailKindGroup, area: string | null): string {
-        if (group === 'SYSTEM') return t('mailTemplate.groupSystem');
-        return t('mailTemplate.groupNotification', { area: UtilNotificationMessages.areaLabel(t, area ?? '') });
+        if (group === 'ACCOUNT') return t('mailTemplate.groupAccount');
+        if (!area) return t('mailTemplate.groupNotification');
+        return t('mailTemplate.groupNotificationArea', { area: UtilNotificationMessages.areaLabel(t, area) });
+    }
+
+    /**
+     * 받는 사람(레이아웃은 쓰는 대상) 이름 — 「회원」 · 「운영자」 · 「회원·운영자 모두」.
+     * @param t - 번역 함수.
+     * @param audience - 받는 사람 또는 `ANY`.
+     * @returns 한 줄.
+     */
+    static audienceLabel(t: Translate, audience: MailLayoutAudience): string {
+        if (audience === 'MEMBER') return t('mailTemplate.audienceMember');
+        if (audience === 'OPERATOR') return t('mailTemplate.audienceOperator');
+        return t('mailTemplate.audienceAny');
+    }
+
+    /**
+     * 받는 사람의 메일 묶음 이름 — 「회원 메일」 · 「운영자 메일」.
+     * @param t - 번역 함수.
+     * @param audience - 받는 사람.
+     * @returns 한 줄.
+     */
+    static audienceMailLabel(t: Translate, audience: MailAudience): string {
+        return audience === 'OPERATOR' ? t('mailTemplate.audienceOperatorMail') : t('mailTemplate.audienceMemberMail');
+    }
+
+    /**
+     * 받는 사람(쓰는 대상)의 아이콘 — 회원 `pi-users` · 운영자 `pi-briefcase` · 모두 `pi-globe`.
+     * @param audience - 받는 사람 또는 `ANY`.
+     * @returns PrimeIcons 클래스.
+     */
+    static audienceIcon(audience: MailLayoutAudience): string {
+        if (audience === 'MEMBER') return 'pi pi-users';
+        if (audience === 'OPERATOR') return 'pi pi-briefcase';
+        return 'pi pi-globe';
     }
 
     /**

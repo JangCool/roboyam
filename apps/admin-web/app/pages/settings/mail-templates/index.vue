@@ -1,9 +1,10 @@
 <template>
     <!--
         메일 템플릿(목록, `/settings/mail-templates`, 설정 > 메일) — 모든 메일 종류의 템플릿 표. 행을 누르면 편집 화면(`/settings/mail-templates/[id]`)으로 간다. 계약 `docs/features/message-template-contract.md` 「개정」 3.
-        표: 이름(쓰는 중 딱지) · 종류(보안 메일 자물쇠) · 언어 · 레이아웃 · 기본/사용자 · 마지막 수정 · 관리(복사 · 삭제).
-        위쪽 거르기: 종류 · 언어 · 기본/사용자 · 레이아웃 · 검색(이름·종류). 종류·레이아웃 거르기는 주소 `?kind=`·`?layout=` 에 남는다(메일 종류 상세 · 레이아웃 편집의 「템플릿 보기」가 이 주소로 들어온다).
-        새로 만들기 → `/settings/mail-templates/new`(종류를 거른 중이면 `?kind=`), 복사 → `new?from=<id>`(바로 만들지 않고 편집 화면에서 [저장] 때 만든다). 기본 템플릿은 지울 수 없다.
+        표: 이름(쓰는 중 딱지) · 받는 사람(회원 · 운영자 — 개정 2) · 종류(보안 메일 자물쇠) · 언어 · 레이아웃 · 기본/사용자 · 마지막 수정 · 관리(복사 · 삭제).
+        위쪽 거르기: 검색(이름·종류) · 받는 사람(전체/회원/운영자) · 종류(받는 사람별 묶음 — 받는 사람을 거르면 그 받는 사람의 종류만) · 언어 · 기본/사용자 · 레이아웃.
+        받는 사람·종류·레이아웃 거르기는 주소 `?audience=`·`?kind=`·`?layout=` 에 남는다(메일 종류 상세 · 레이아웃 편집의 「템플릿 보기」가 이 주소로 들어온다). 받는 사람을 바꿀 때 맞지 않는 종류 거르기는 푼다.
+        새로 만들기 → `/settings/mail-templates/new`(종류를 거른 중이면 `?kind=`, 받는 사람만 거른 중이면 `?audience=` — 그 받는 사람의 첫 종류), 복사 → `new?from=<id>`(바로 만들지 않고 편집 화면에서 [저장] 때 만든다). 기본 템플릿은 지울 수 없다.
         삭제는 확인 후 바로 — 쓰는 중이면 단추를 잠그고 까닭을 보이며, 서버도 409 `TEMPLATE_IN_USE` 로 막는다(토스트 8초). 종류당 사용자 템플릿 20개(가정)가 차면 복사를 잠근다.
         권한: 화면 `template.read`(메뉴가 거른다) · 만들기·복사·삭제 `template.manage` — 없으면 단추가 숨는다.
         ⚠ MOCK: API 는 메모리 목업이다(`useMailTemplateApi`).
@@ -11,7 +12,7 @@
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('mailTemplate.templatesTitle')" :subtitle="t('mailTemplate.templatesSubtitle')">
             <template v-if="canManage && !denied" #actions>
-                <Button :label="t('mailTemplate.newTemplate')" icon="pi pi-plus" size="small" @click="router.push({ path: '/settings/mail-templates/new', query: kindFilter ? { kind: kindFilter } : {} })" />
+                <Button :label="t('mailTemplate.newTemplate')" icon="pi pi-plus" size="small" @click="router.push({ path: '/settings/mail-templates/new', query: newQuery })" />
             </template>
         </PageTitle>
 
@@ -39,7 +40,8 @@
                         <InputIcon class="pi pi-search" />
                         <InputText v-model="keyword" size="small" fluid :placeholder="t('mailTemplate.searchPlaceholder')" :aria-label="t('mailTemplate.searchPlaceholder')" autocomplete="off" />
                     </IconField>
-                    <Select v-model="kindFilter" :options="kindOptions" option-label="label" option-value="value" :placeholder="t('mailTemplate.filterKindAll')" show-clear size="small" class="w-full sm:w-56" :aria-label="t('mailTemplate.filterKind')" />
+                    <SelectButton v-model="audienceFilter" :options="audienceOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('mailTemplate.filterAudience')" />
+                    <Select v-model="kindFilter" :options="kindOptions" option-label="label" option-value="value" option-group-label="label" option-group-children="items" :placeholder="t('mailTemplate.filterKindAll')" show-clear size="small" class="w-full sm:w-56" :aria-label="t('mailTemplate.filterKind')" />
                     <SelectButton v-model="localeFilter" :options="localeOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('mailTemplate.filterLocale')" />
                     <SelectButton v-model="originFilter" :options="originOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('mailTemplate.filterOrigin')" />
                     <Select v-model="layoutFilter" :options="layoutOptions" option-label="label" option-value="value" :placeholder="t('mailTemplate.filterLayoutAll')" show-clear size="small" class="w-full sm:w-44" :aria-label="t('mailTemplate.filterLayout')" />
@@ -62,6 +64,14 @@
                                         <Tag v-for="label in usageOf(data)" :key="label" :value="label" severity="info" class="mail-template-tag text-[10px]!" />
                                     </div>
                                 </div>
+                            </template>
+                        </Column>
+                        <Column :header="t('mailTemplate.colAudience')" style="min-width: 6.5rem">
+                            <template #body="{ data }">
+                                <span class="inline-flex items-center gap-1.5 text-[12px]">
+                                    <i :class="UtilMailTemplateMessages.audienceIcon(data.audience)" class="text-[11px] text-muted-color" aria-hidden="true" />
+                                    {{ UtilMailTemplateMessages.audienceLabel(t, data.audience) }}
+                                </span>
                             </template>
                         </Column>
                         <Column :header="t('mailTemplate.colKind')" style="min-width: 12rem">
@@ -122,8 +132,8 @@
 <script setup lang="ts">
 import type { DataTableRowClickEvent } from 'primevue/datatable';
 import { mockTemplateCan } from '~/composables/template/api/mock/mail-template-mock';
-import type { MailLocale, MailTemplateListItemView } from '~/composables/template/api/useMailTemplateApi.types';
-import { MAIL_TEMPLATE_LIMIT } from '~/composables/template/api/useMailTemplateApi.types';
+import type { MailAudience, MailLocale, MailTemplateListItemView } from '~/composables/template/api/useMailTemplateApi.types';
+import { MAIL_AUDIENCES, MAIL_TEMPLATE_LIMIT } from '~/composables/template/api/useMailTemplateApi.types';
 import type { MailTemplateFilter } from '~/utils/util-mail-template';
 import UtilMailTemplate from '~/utils/util-mail-template';
 import UtilMailTemplateMessages from '~/utils/util-mail-template-messages';
@@ -154,15 +164,19 @@ const denied = ref(false);
 /* ── 거르기 ── */
 
 const queryText = (value: unknown) => (typeof value === 'string' && value ? value : null);
+const audienceOf = (value: unknown): MailAudience | 'ALL' => (value === 'MEMBER' || value === 'OPERATOR' ? value : 'ALL');
 const keyword = ref('');
+const audienceFilter = ref<MailAudience | 'ALL'>(audienceOf(route.query.audience));
 const kindFilter = ref<string | null>(queryText(route.query.kind));
 const layoutFilter = ref<string | null>(queryText(route.query.layout));
 const localeFilter = ref<MailLocale | 'ALL'>('ALL');
 const originFilter = ref<MailTemplateFilter['origin']>('ALL');
 
-// 종류·레이아웃 거르기는 주소에 남긴다(뒤로 가기·링크로 다시 들어와도 같은 목록)
-watch([kindFilter, layoutFilter], ([kind, layout]) => {
+// 받는 사람·종류·레이아웃 거르기는 주소에 남긴다(뒤로 가기·링크로 다시 들어와도 같은 목록)
+watch([audienceFilter, kindFilter, layoutFilter], ([audience, kind, layout]) => {
     const query = { ...route.query };
+    if (audience !== 'ALL') query.audience = audience;
+    else delete query.audience;
     if (kind) query.kind = kind;
     else delete query.kind;
     if (layout) query.layout = layout;
@@ -170,11 +184,34 @@ watch([kindFilter, layoutFilter], ([kind, layout]) => {
     void router.replace({ query });
 });
 
-/** 종류 고르기 — 목록에 나온 종류(받은 차례) */
+// 받는 사람을 바꾸면 그 받는 사람의 종류가 아닌 종류 거르기는 푼다
+watch(audienceFilter, (audience) => {
+    if (audience === 'ALL' || !kindFilter.value) return;
+    const item = (templates.value ?? []).find((other) => other.kind === kindFilter.value);
+    if (item && item.audience !== audience) kindFilter.value = null;
+});
+
+const audienceOptions = computed(() => [{ value: 'ALL', label: t('common.all') }, ...MAIL_AUDIENCES.map((value) => ({ value, label: UtilMailTemplateMessages.audienceLabel(t, value) }))]);
+
+/** 종류 고르기 — 목록에 나온 종류를 받는 사람별 묶음으로(받은 차례). 받는 사람을 거르면 그 묶음만 */
 const kindOptions = computed(() => {
-    const seen = new Map<string, string>();
-    for (const item of templates.value ?? []) if (!seen.has(item.kind)) seen.set(item.kind, item.kindName);
-    return [...seen].map(([value, label]) => ({ value, label }));
+    const groups = new Map<MailAudience, { label: string; items: { value: string; label: string }[] }>();
+    const seen = new Set<string>();
+    for (const item of templates.value ?? []) {
+        if (seen.has(item.kind) || (audienceFilter.value !== 'ALL' && item.audience !== audienceFilter.value)) continue;
+        seen.add(item.kind);
+        const group = groups.get(item.audience) ?? { label: UtilMailTemplateMessages.audienceMailLabel(t, item.audience), items: [] };
+        group.items.push({ value: item.kind, label: item.kindName });
+        groups.set(item.audience, group);
+    }
+    return MAIL_AUDIENCES.flatMap((audience) => groups.get(audience) ?? []);
+});
+
+/** 새 템플릿 — 거른 종류, 없으면 거른 받는 사람(그 받는 사람의 첫 종류로 시작한다) */
+const newQuery = computed(() => {
+    if (kindFilter.value) return { kind: kindFilter.value };
+    if (audienceFilter.value !== 'ALL') return { audience: audienceFilter.value };
+    return {};
 });
 /** 레이아웃 고르기 — 목록에 나온 레이아웃(쓰는 템플릿이 없는 레이아웃은 나오지 않는다) */
 const layoutOptions = computed(() => {
@@ -197,6 +234,7 @@ const originOptions = computed(() => [
 
 const filtered = computed(() =>
     UtilMailTemplate.filterTemplates(templates.value ?? [], {
+        audience: audienceFilter.value === 'ALL' ? null : audienceFilter.value,
         kind: kindFilter.value,
         locale: localeFilter.value === 'ALL' ? null : localeFilter.value,
         origin: originFilter.value,
@@ -207,6 +245,7 @@ const filtered = computed(() =>
 
 function clearFilter(): void {
     keyword.value = '';
+    audienceFilter.value = 'ALL';
     kindFilter.value = null;
     layoutFilter.value = null;
     localeFilter.value = 'ALL';

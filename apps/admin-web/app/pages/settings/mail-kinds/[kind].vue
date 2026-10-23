@@ -1,6 +1,7 @@
 <template>
     <!--
-        메일 종류 상세(`/settings/mail-kinds/[kind]`) — 한 메일 종류의 ① 언어별 쓰는 템플릿 ② 특수한 상황(조건 규칙). 계약 `docs/features/message-template-contract.md` 「개정」 2.
+        메일 종류 상세(`/settings/mail-kinds/[kind]`) — 한 메일 종류의 ① 언어별 쓰는 템플릿 ② 특수한 상황(조건 규칙). 계약 `docs/features/message-template-contract.md` 「개정」 2 · 「개정 2」.
+        머리에 받는 사람(회원 · 운영자 — 종류가 정한다)과 묶음을 보인다. 「목록으로」는 그 받는 사람의 목록(`?audience=`)으로 돌아간다.
         ①②는 `PUT kinds/{kind}` 한 번으로 저장하므로 하단 떠 있는 저장 줄(`StickySaveBar`) 하나다(구획 안에 저장 단추를 두지 않는다 — forms.md 2-4).
         규칙: 위에서부터 차례로 보고 맞는 첫 규칙의 템플릿(없으면 ①). 조건은 종류마다 코드가 정한 선택지만. 순서 위/아래 · 추가(10개까지) · 삭제. 같은 조건이 위에 있으면 「쓰이지 않음」 경고만.
         머리 단추: 「이 종류의 템플릿 보기」 → 템플릿 목록을 이 종류로 거른 화면(`/settings/mail-templates?kind=`), 「새 템플릿」 → `/settings/mail-templates/new?kind=`.
@@ -37,11 +38,12 @@
                 <template #actions>
                     <Button :label="t('mailTemplate.showKindTemplates')" icon="pi pi-list" size="small" severity="secondary" variant="outlined" @click="router.push({ path: '/settings/mail-templates', query: { kind: kind.kind } })" />
                     <Button v-if="canManage" :label="t('mailTemplate.newTemplate')" icon="pi pi-plus" size="small" severity="secondary" variant="outlined" @click="router.push({ path: '/settings/mail-templates/new', query: { kind: kind.kind } })" />
-                    <Button :label="t('mailTemplate.backToKinds')" icon="pi pi-arrow-left" size="small" severity="secondary" variant="outlined" @click="router.push('/settings/mail-kinds')" />
+                    <Button :label="t('mailTemplate.backToKinds')" icon="pi pi-arrow-left" size="small" severity="secondary" variant="outlined" @click="router.push({ path: '/settings/mail-kinds', query: { audience: kind.audience } })" />
                 </template>
             </PageTitle>
             <div class="-mt-2 flex flex-col gap-1">
                 <div class="flex flex-wrap items-center gap-2">
+                    <Tag :value="t('mailTemplate.audienceTag', { audience: UtilMailTemplateMessages.audienceLabel(t, kind.audience) })" :icon="UtilMailTemplateMessages.audienceIcon(kind.audience)" severity="secondary" class="mail-template-tag text-[11px]!" />
                     <span class="text-xs text-muted-color">{{ UtilMailTemplateMessages.groupLabel(t, kind.group, kind.area) }}</span>
                     <Tag v-if="kind.security" :value="t('mailTemplate.securityTag')" icon="pi pi-shield" severity="warn" class="mail-template-tag text-[11px]!" />
                     <code class="text-[11px] text-muted-color">{{ kind.kind }}</code>

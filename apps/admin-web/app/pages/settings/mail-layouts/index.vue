@@ -1,8 +1,10 @@
 <template>
     <!--
         메일 레이아웃(목록, `/settings/mail-layouts`, 설정 > 메일) — 메일 본문을 감싸는 틀(머리말·꼬리말). 템플릿마다 이 중 하나를 고른다. 계약 `docs/features/message-template-contract.md` 「개정」 4.
-        표: 이름(머리말 띠 색 점) · 기본/사용자 · 쓰는 템플릿 수(누르면 그 레이아웃으로 거른 템플릿 목록) · 마지막 수정 · 관리(복사 · 삭제). 행을 누르면 편집 화면(`/settings/mail-layouts/[id]`).
-        새로 만들기 → `/settings/mail-layouts/new`, 복사 → `new?from=<id>`(편집 화면에서 [저장] 때 만든다). 기본 레이아웃은 고치거나 지울 수 없다.
+        표: 이름(머리말 띠 색 점) · 쓰는 대상(회원 · 운영자 · 모두 — 개정 2) · 기본/사용자 · 쓰는 템플릿 수(누르면 그 레이아웃으로 거른 템플릿 목록) · 마지막 수정 · 관리(복사 · 삭제). 행을 누르면 편집 화면(`/settings/mail-layouts/[id]`).
+        위쪽 거르기: 쓰는 대상(전체/회원/운영자/모두 — 값 그대로 맞는 것, 주소 `?audience=`).
+        새로 만들기 → `/settings/mail-layouts/new`(쓰는 대상을 회원·운영자로 거른 중이면 `?audience=` — 그 받는 사람의 기본 레이아웃 값으로 시작), 복사 → `new?from=<id>`(편집 화면에서 [저장] 때 만든다).
+        기본 레이아웃(회원 기본 · 운영자 기본)은 고치거나 지울 수 없다.
         삭제는 확인 후 바로 — 쓰는 템플릿이 있으면 단추를 잠그고 까닭을 보이며, 서버도 409 `LAYOUT_IN_USE` 로 막는다(토스트 8초).
         권한: 화면 `template.read`(메뉴가 거른다) · 만들기·복사·삭제 `template.manage` — 없으면 단추가 숨는다.
         ⚠ MOCK: API 는 메모리 목업이다(`useMailLayoutApi`).
@@ -11,7 +13,7 @@
         <PageTitle :title="t('mailTemplate.layoutsTitle')" :subtitle="t('mailTemplate.layoutsSubtitle')">
             <template v-if="canManage && !denied" #actions>
                 <span v-tooltip.top="limitReason || undefined" class="inline-flex">
-                    <Button :label="t('mailTemplate.newLayout')" icon="pi pi-plus" size="small" :disabled="Boolean(limitReason)" @click="router.push('/settings/mail-layouts/new')" />
+                    <Button :label="t('mailTemplate.newLayout')" icon="pi pi-plus" size="small" :disabled="Boolean(limitReason)" @click="router.push({ path: '/settings/mail-layouts/new', query: audienceFilter === 'MEMBER' || audienceFilter === 'OPERATOR' ? { audience: audienceFilter } : {} })" />
                 </span>
             </template>
         </PageTitle>
@@ -30,10 +32,19 @@
             </AppGadget>
 
             <template v-else>
+                <!-- 조건 -->
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <SelectButton v-model="audienceFilter" :options="audienceOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('mailTemplate.filterLayoutAudience')" />
+                    <p class="ml-auto text-[13px] text-muted-color" aria-live="polite">{{ t('mailTemplate.listCount', { n: filtered.length, total: layouts.length }) }}</p>
+                </div>
+
                 <div class="min-w-0 overflow-hidden rounded-xl border border-(--line) bg-(--p-content-background)">
-                    <DataTable :value="layouts" data-key="id" row-hover scrollable :size="prefs.density === 'compact' ? 'small' : undefined" :row-class="() => 'cursor-pointer'" @row-click="onRowClick">
+                    <DataTable :value="filtered" data-key="id" row-hover scrollable :size="prefs.density === 'compact' ? 'small' : undefined" :row-class="() => 'cursor-pointer'" @row-click="onRowClick">
                         <template #empty>
-                            <EmptyState icon="pi pi-objects-column" :title="t('mailTemplate.layoutsEmptyTitle')" />
+                            <EmptyState v-if="audienceFilter !== 'ALL'" icon="pi pi-filter-slash" :title="t('common.emptyFiltered')">
+                                <Button type="button" :label="t('mailTemplate.clearFilter')" size="small" severity="secondary" variant="outlined" @click="audienceFilter = 'ALL'" />
+                            </EmptyState>
+                            <EmptyState v-else icon="pi pi-objects-column" :title="t('mailTemplate.layoutsEmptyTitle')" />
                         </template>
                         <Column :header="t('mailTemplate.colName')" style="min-width: 14rem">
                             <template #body="{ data }">
@@ -41,6 +52,14 @@
                                     <span class="size-2.5 shrink-0 rounded-full" :class="data.headerColor ? '' : 'border border-(--line)'" :style="data.headerColor ? { background: UtilMailTemplate.colorHex(data.headerColor) ?? undefined } : undefined" :title="t(`mailTemplate.color.${data.headerColor ?? 'NONE'}`)" aria-hidden="true" />
                                     <NuxtLink :to="editPath(data)" class="truncate text-[13px] font-medium hover:underline">{{ data.name }}</NuxtLink>
                                 </div>
+                            </template>
+                        </Column>
+                        <Column :header="t('mailTemplate.colLayoutAudience')" style="min-width: 9rem">
+                            <template #body="{ data }">
+                                <span class="inline-flex items-center gap-1.5 text-[12px]">
+                                    <i :class="UtilMailTemplateMessages.audienceIcon(data.audience)" class="text-[11px] text-muted-color" aria-hidden="true" />
+                                    {{ UtilMailTemplateMessages.audienceLabel(t, data.audience) }}
+                                </span>
                             </template>
                         </Column>
                         <Column :header="t('mailTemplate.colOrigin')" style="min-width: 7rem">
@@ -87,9 +106,10 @@
 <script setup lang="ts">
 import type { DataTableRowClickEvent } from 'primevue/datatable';
 import { mockTemplateCan } from '~/composables/template/api/mock/mail-template-mock';
-import type { MailLayoutListItemView } from '~/composables/template/api/useMailLayoutApi.types';
-import { MAIL_LAYOUT_LIMIT } from '~/composables/template/api/useMailLayoutApi.types';
+import type { MailLayoutAudience, MailLayoutListItemView } from '~/composables/template/api/useMailLayoutApi.types';
+import { MAIL_LAYOUT_AUDIENCES, MAIL_LAYOUT_LIMIT } from '~/composables/template/api/useMailLayoutApi.types';
 import UtilMailTemplate from '~/utils/util-mail-template';
+import UtilMailTemplateMessages from '~/utils/util-mail-template-messages';
 
 const { t } = useI18n();
 useSeoMeta({ title: () => t('mailTemplate.layoutsTitle') });
@@ -98,6 +118,7 @@ const api = useMailLayoutApi();
 const toast = useAppToast();
 const toApiError = useApiErrorOf();
 const time = useDisplayTime();
+const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirmDialog();
 const { prefs } = useLayoutPrefs();
@@ -111,6 +132,19 @@ const layouts = ref<MailLayoutListItemView[] | null>(null);
 const loading = ref(false);
 const loadError = ref('');
 const denied = ref(false);
+
+/* ── 거르기 — 쓰는 대상(값 그대로), 주소 `?audience=` 에 남긴다 ── */
+
+const audienceOf = (value: unknown): MailLayoutAudience | 'ALL' => (MAIL_LAYOUT_AUDIENCES.includes(value as MailLayoutAudience) ? (value as MailLayoutAudience) : 'ALL');
+const audienceFilter = ref<MailLayoutAudience | 'ALL'>(audienceOf(route.query.audience));
+watch(audienceFilter, (audience) => {
+    const query = { ...route.query };
+    if (audience !== 'ALL') query.audience = audience;
+    else delete query.audience;
+    void router.replace({ query });
+});
+const audienceOptions = computed(() => [{ value: 'ALL', label: t('common.all') }, ...MAIL_LAYOUT_AUDIENCES.map((value) => ({ value, label: UtilMailTemplateMessages.audienceLabel(t, value) }))]);
+const filtered = computed(() => (layouts.value ?? []).filter((item) => audienceFilter.value === 'ALL' || item.audience === audienceFilter.value));
 
 /** 사용자 레이아웃 상한(가정 20)이 차면 새로 만들기·복사를 잠근다 */
 const limitReason = computed(() => ((layouts.value ?? []).filter((item) => !item.builtin).length >= MAIL_LAYOUT_LIMIT ? t('mailTemplate.layoutLimitReached', { max: MAIL_LAYOUT_LIMIT }) : ''));

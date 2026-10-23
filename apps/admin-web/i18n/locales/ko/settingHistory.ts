@@ -46,6 +46,7 @@ export default {
         name: '이름',
         locale: '언어',
         layoutId: '레이아웃',
+        audience: '쓰는 대상',
         subject: '제목',
         bodyHtml: '본문',
         showLogo: '로고 보이기',

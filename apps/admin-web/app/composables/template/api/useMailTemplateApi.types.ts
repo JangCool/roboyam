@@ -4,6 +4,7 @@ import type { MailLayoutSaveRequest } from '~/composables/template/api/useMailLa
 
 /**
  * 메일 템플릿 API 의 모양 — `docs/features/message-template-contract.md` 「개정」·「API 후보」(화면 목업 단계, 서버 단계에서 확정한다).
+ * 개정 2(받는 사람 구분): 종류의 최상위 구분은 받는 사람(`audience` — 회원 · 운영자)이고, 그 안의 묶음은 계정·보안 메일 · 알림 메일이다. 종류의 받는 사람이 공통 변수(`siteUrl` · `adminUrl`)와 고를 수 있는 레이아웃을 정한다.
  * 서버 DTO 이름은 아직 없다 — 서버를 만들 때 이 이름(`MailKindView` …)을 그대로 쓰거나, 서버 이름에 맞춰 이 파일을 고친다.
  * 레이아웃의 모양은 `useMailLayoutApi.types.ts`(주소의 주인이 다르다 — `/api/admin/mail-layouts`).
  */
@@ -11,8 +12,17 @@ import type { MailLayoutSaveRequest } from '~/composables/template/api/useMailLa
 /** 템플릿 언어 — 화면 언어와 같은 두 가지 */
 export type MailLocale = 'ko' | 'en';
 
-/** 메일 종류의 묶음 — 시스템 메일 · 관리자 알림(이벤트 영역별) */
-export type MailKindGroup = 'SYSTEM' | 'NOTIFICATION';
+/** 받는 사람 — 회원(공개 사이트) · 운영자(관리 사이트). 메일 종류의 최상위 구분이다(개정 2) */
+export type MailAudience = 'MEMBER' | 'OPERATOR';
+
+/** 받는 사람의 차례(화면의 전환·거르기 차례) */
+export const MAIL_AUDIENCES: readonly MailAudience[] = ['MEMBER', 'OPERATOR'];
+
+/** 메일 종류의 묶음(받는 사람 아래 두 번째 단계) — 계정·보안 메일(인증·초대·임시 비밀번호·승인번호·시험) · 알림 메일 */
+export type MailKindGroup = 'ACCOUNT' | 'NOTIFICATION';
+
+/** 묶음의 차례 */
+export const MAIL_KIND_GROUPS: readonly MailKindGroup[] = ['ACCOUNT', 'NOTIFICATION'];
 
 /** 종류 하나가 쓸 수 있는 변수 — 코드가 정한다(이름·설명·견본 값·필수 여부). 설명은 서버가 요청 언어로 준다 */
 export interface MailVariableView {
@@ -52,14 +62,17 @@ export interface MailSelectedTemplateView {
 export interface MailKindView {
     /** 종류 코드 — 시스템 메일(`MEMBER_EMAIL_VERIFY` …) 또는 알림 이벤트 코드(`BATCH_RUN_FAILED` …) */
     kind: string;
+    /** 받는 사람 — 공통 변수(회원 `siteUrl` · 운영자 `adminUrl`)와 고를 수 있는 레이아웃이 따른다 */
+    audience: MailAudience;
     group: MailKindGroup;
-    /** 알림 이벤트의 영역(`security`·`system` … — 알림 화면과 같은 값). 시스템 메일은 null */
+    /** 관리자 알림 이벤트의 영역(`security`·`system` … — 알림 화면과 같은 값). 계정·보안 메일은 null */
     area: string | null;
     /** 요청 언어의 이름·설명 */
     name: string;
     description: string;
     /** 보안 메일 — 필수 변수를 지우면 저장 안 됨, 보내기를 끌 수 없음 */
     security: boolean;
+    /** 쓸 수 있는 변수 — 받는 사람의 공통 변수(`siteName` · `siteUrl`|`adminUrl` · `recipientName`) + 종류 변수 */
     variables: MailVariableView[];
     conditions: MailConditionView[];
     selected: Record<MailLocale, MailSelectedTemplateView>;
@@ -85,9 +98,11 @@ export interface MailRuleView {
 export interface MailTemplateView {
     id: string;
     kind: string;
+    /** 받는 사람 — 종류에서 정해진다(바꿀 수 없다) */
+    audience: MailAudience;
     name: string;
     locale: MailLocale;
-    /** 이 템플릿을 씌울 레이아웃(`/api/admin/mail-layouts`) — 기본 템플릿은 기본 레이아웃 */
+    /** 이 템플릿을 씌울 레이아웃(`/api/admin/mail-layouts`) — 받는 사람이 같거나 `ANY` 인 것만. 기본 템플릿은 그 받는 사람의 기본 레이아웃 */
     layoutId: string;
     /** 한 줄 — `{{변수}}` 가능 */
     subject: string;
@@ -103,6 +118,8 @@ export interface MailTemplateView {
 export interface MailTemplateListItemView {
     id: string;
     kind: string;
+    /** 받는 사람(종류의 것) */
+    audience: MailAudience;
     /** 요청 언어의 종류 이름 */
     kindName: string;
     /** 종류가 보안 메일인가 */
@@ -140,7 +157,7 @@ export interface MailKindSaveRequest {
     rules: { id?: string; condition: MailRuleCondition; templateId: string }[];
 }
 
-/** `POST·PUT /api/admin/mail-templates/templates[/{id}]` — 고치기(`PUT`)는 `kind` 를 바꾸지 못한다(서버가 원래 값으로 본다) */
+/** `POST·PUT /api/admin/mail-templates/templates[/{id}]` — 고치기(`PUT`)는 `kind` 를 바꾸지 못한다(서버가 원래 값으로 본다). 받는 사람은 종류가 정하므로 보내지 않는다 */
 export interface MailTemplateSaveRequest {
     kind: string;
     name: string;
@@ -152,7 +169,7 @@ export interface MailTemplateSaveRequest {
 
 /** `POST /api/admin/mail-templates/preview` */
 export interface MailPreviewRequest {
-    /** 메일 종류(변수 견본 값) — 레이아웃 미리보기는 비운다(공통 변수만) */
+    /** 메일 종류(변수 견본 값) — 레이아웃 미리보기는 비운다(레이아웃 쓰는 대상의 공통 변수만) */
     kind?: string;
     locale: MailLocale;
     subject: string;
@@ -186,6 +203,11 @@ export type MailTemplateTestResultView = MailTestResultView;
 /** 템플릿 변경 이력 — 설정 이력과 같은 모양(바뀐 칸 `name|locale|layoutId|subject|bodyHtml`, 본문은 글자 요약, 레이아웃은 이름) */
 export type MailTemplateHistoryItemView = SettingHistoryItem;
 export type MailTemplateHistoryPage = SettingHistoryPage<MailTemplateHistoryItemView>;
+
+/** 목록 거르기(`GET kinds|templates?audience=`) — 화면은 전부 받아 화면에서 거른다(수가 적다는 가정) */
+export interface MailAudienceQuery {
+    audience?: MailAudience;
+}
 
 /** 종류당 사용자 템플릿 상한(계약 「미확정」 3 — 20 가정) */
 export const MAIL_TEMPLATE_LIMIT = 20;

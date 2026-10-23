@@ -45,6 +45,7 @@ export default {
         name: 'Name',
         locale: 'Language',
         layoutId: 'Layout',
+        audience: 'Used for',
         subject: 'Subject',
         bodyHtml: 'Body',
         showLogo: 'Show logo',

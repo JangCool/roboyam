@@ -1,9 +1,11 @@
 <template>
     <!--
         메일 레이아웃 편집(`/settings/mail-layouts/[id]`, 새로 만들기 `new` · 복사 `new?from=<id>`) — 계약 `docs/features/message-template-contract.md` 「개정」 4.
-        왼쪽 칸: 이름 · 머리말(로고 보이기 · 사이트 이름 보이기 · 머리말 띠 색 — 팔레트, 없음 포함) · 언어별(한국어/영어 고르기) 틀(간단 에디터, `{{content}}` 정확히 한 번 — 지울 수 없음) + 꼬리말(평문, 줄바꿈 가능).
+        왼쪽 칸: 이름 · 쓰는 대상(회원 · 운영자 · 모두 — 개정 2) · 머리말(로고 보이기 · 사이트 이름 보이기 · 머리말 띠 색 — 팔레트, 없음 포함) · 언어별(한국어/영어 고르기) 틀(간단 에디터, `{{content}}` 정확히 한 번 — 지울 수 없음) + 꼬리말(평문, 줄바꿈 가능).
         오른쪽: 미리보기(견본 본문 한 줄 + 공통 변수 견본 값, 저장 전 값 그대로 — 격리된 iframe). 저장은 화면 하나로 한 번 → 하단 떠 있는 저장 줄(`StickySaveBar`).
-        - 새로 만들기는 기본 레이아웃의 값으로 채운다(이름은 비움). 복사는 원본 값 + 이름 「원본 (복사)」. [저장] 때 만들고, 만들면 그 레이아웃의 편집 주소로 바뀐다.
+        - 쓰는 대상: 이 레이아웃을 고를 수 있는 템플릿의 받는 사람. 틀·꼬리말의 변수 메뉴·검사·미리보기 견본 값이 그 대상의 공통 변수를 따른다(회원 `siteUrl` · 운영자 `adminUrl` · 모두는 `siteName`·`recipientName` 만).
+          쓰는 템플릿과 맞지 않는 대상(예: 운영자 템플릿이 쓰는데 「회원」)은 고르지 못하게 잠그고 까닭을 보인다 — 서버도 400 `fields.audience`.
+        - 새로 만들기는 기본 레이아웃의 값으로 채운다(이름은 비움 — `?audience=MEMBER|OPERATOR` 면 그 받는 사람의 기본, 없으면 회원 기본). 복사는 원본 값 + 이름 「원본 (복사)」. [저장] 때 만들고, 만들면 그 레이아웃의 편집 주소로 바뀐다.
         - 기본 레이아웃(코드 제공)과 권한이 `template.read` 뿐이면 읽기 전용이다. 기본 레이아웃은 「복사해서 만들기」를 안내한다.
         - 쓰는 템플릿 수 → 그 레이아웃으로 거른 템플릿 목록 링크. 삭제: 쓰는 템플릿이 있으면 단추를 잠그고, 서버도 409 `LAYOUT_IN_USE`.
         - 변경 이력: 제목 옆 단추 → 오른쪽 `SettingHistoryDrawer`(처음 열 때 받는다). 저장된 사용자 레이아웃만.
@@ -48,6 +50,7 @@
                 </template>
             </PageTitle>
             <div v-if="saved" class="-mt-2 flex flex-wrap items-center gap-2">
+                <Tag :value="t('mailTemplate.audienceTag', { audience: UtilMailTemplateMessages.audienceLabel(t, saved.audience) })" :icon="UtilMailTemplateMessages.audienceIcon(saved.audience)" severity="secondary" class="mail-template-tag text-[11px]!" />
                 <Tag v-if="saved.builtin" :value="t('mailTemplate.builtinTag')" icon="pi pi-lock" severity="secondary" class="mail-template-tag text-[11px]!" />
                 <NuxtLink v-if="saved.templateCount" :to="{ path: '/settings/mail-templates', query: { layout: saved.id } }" class="text-xs text-primary hover:underline">{{ t('mailTemplate.layoutUsedBy', { count: saved.templateCount }) }}</NuxtLink>
                 <span v-else class="text-xs text-muted-color">{{ t('mailTemplate.noTemplates') }}</span>
@@ -71,6 +74,19 @@
                                         <InputText :id="id" v-model="form.name" name="name" autocomplete="off" :readonly="readonly || saving" :invalid="invalid" :aria-describedby="describedBy" aria-required="true" fluid class="sm:max-w-sm" />
                                     </template>
                                 </LabeledField>
+
+                                <!-- 쓰는 대상 — 쓰는 템플릿과 맞지 않는 대상은 잠근다 -->
+                                <div class="flex flex-col gap-1.5">
+                                    <span :id="audienceLabelId" class="text-sm font-medium">{{ t('mailTemplate.layoutAudienceLabel') }}</span>
+                                    <SelectButton v-model="form.audience" :options="audienceOptions" option-label="label" option-value="value" option-disabled="disabled" :allow-empty="false" size="small" :disabled="readonly || saving" :invalid="Boolean(fieldError('audience'))" :aria-labelledby="audienceLabelId" :aria-describedby="audienceMessageId" class="self-start" />
+                                    <div :id="audienceMessageId" aria-live="polite" class="flex flex-col gap-0.5 text-xs leading-relaxed">
+                                        <p v-if="fieldError('audience')" role="alert" class="m-0 text-red-600 dark:text-red-400">{{ fieldError('audience') }}</p>
+                                        <template v-else-if="!readonly">
+                                            <p v-for="reason in audienceLockReasons" :key="reason" class="m-0 text-amber-700 dark:text-amber-400">{{ reason }}</p>
+                                        </template>
+                                        <p class="m-0 text-muted-color">{{ t('mailTemplate.layoutAudienceHelp') }}</p>
+                                    </div>
+                                </div>
 
                                 <div class="flex flex-wrap gap-x-6 gap-y-2">
                                     <label class="inline-flex items-center gap-2 text-sm">
@@ -113,7 +129,7 @@
                                 <div class="flex flex-col gap-1.5">
                                     <div class="flex flex-wrap items-baseline justify-between gap-2">
                                         <span :id="frameLabelId" class="text-sm font-medium">{{ t('mailTemplate.frameLabel', { locale: UtilMailTemplateMessages.localeLabel(t, locale) }) }}</span>
-                                        <MailTemplateVariableMenu v-if="!readonly" :variables="base.variables" :disabled="saving" @pick="insertFrame" />
+                                        <MailTemplateVariableMenu v-if="!readonly" :variables="frameVariables" :disabled="saving" @pick="insertFrame" />
                                     </div>
                                     <RichEditor
                                         :key="`${formKey}-${locale}`"
@@ -180,8 +196,9 @@
 
 <script setup lang="ts">
 import { mockTemplateCan } from '~/composables/template/api/mock/mail-template-mock';
-import type { MailLayoutColor, MailLayoutSaveRequest, MailLayoutView } from '~/composables/template/api/useMailLayoutApi.types';
-import type { MailLocale } from '~/composables/template/api/useMailTemplateApi.types';
+import type { MailLayoutAudience, MailLayoutColor, MailLayoutSaveRequest, MailLayoutView } from '~/composables/template/api/useMailLayoutApi.types';
+import { MAIL_LAYOUT_AUDIENCES } from '~/composables/template/api/useMailLayoutApi.types';
+import type { MailAudience, MailLocale } from '~/composables/template/api/useMailTemplateApi.types';
 import type { MailLayoutField } from '~/utils/util-mail-template';
 import UtilMailTemplate from '~/utils/util-mail-template';
 import UtilMailTemplateMessages from '~/utils/util-mail-template-messages';
@@ -209,6 +226,8 @@ const contentToken = UtilMailTemplate.token(UtilMailTemplate.CONTENT);
 const colorLabelId = useId();
 const frameLabelId = useId();
 const frameMessageId = useId();
+const audienceLabelId = useId();
+const audienceMessageId = useId();
 
 const id = computed(() => String(route.params.id ?? ''));
 const isNew = computed(() => id.value === 'new');
@@ -231,13 +250,42 @@ const pageTitle = computed(() => (isNew.value ? t('mailTemplate.newLayoutTitle')
 useSeoMeta({ title: () => pageTitle.value });
 
 const localeOptions = computed(() => LOCALES.map((value) => ({ value, label: UtilMailTemplateMessages.localeLabel(t, value) })));
-/** 꼬리말은 본문 자리(`content`)를 쓸 수 없다 */
-const footerVariables = computed(() => (base.value?.variables ?? []).filter((v) => v.name !== UtilMailTemplate.CONTENT));
-const commonNames = computed(() => footerVariables.value.map((v) => v.name));
 
 /* ── 편집 값 ── */
 
-const form = reactive<MailLayoutSaveRequest>({ name: '', showLogo: true, showSiteName: true, headerColor: null, footer: { ko: '', en: '' }, frames: { ko: '', en: '' } });
+const form = reactive<MailLayoutSaveRequest>({ name: '', audience: 'MEMBER', showLogo: true, showSiteName: true, headerColor: null, footer: { ko: '', en: '' }, frames: { ko: '', en: '' } });
+
+/** 틀에서 쓸 수 있는 변수 — 지금 고른 쓰는 대상의 것(대상을 바꾸면 따라 바뀐다) */
+const frameVariables = computed(() => base.value?.variables[form.audience] ?? []);
+/** 꼬리말은 본문 자리(`content`)를 쓸 수 없다 */
+const footerVariables = computed(() => frameVariables.value.filter((v) => v.name !== UtilMailTemplate.CONTENT));
+const commonNames = computed(() => footerVariables.value.map((v) => v.name));
+
+/* ── 쓰는 대상 — 쓰는 템플릿의 받는 사람과 맞지 않는 대상은 잠근다 ── */
+
+/** 저장된 레이아웃을 쓰는 템플릿 수(받는 사람별) — 새로 만들기는 아무도 안 쓴다 */
+const usedCounts = computed<Record<MailAudience, number>>(() => saved.value?.templateCounts ?? { MEMBER: 0, OPERATOR: 0 });
+/** 이 대상으로 바꿀 수 없는 까닭이 되는 받는 사람(없으면 null) — 「회원」 전용인데 운영자 템플릿이 쓰는 중 … */
+function blockerOf(audience: MailLayoutAudience): MailAudience | null {
+    if (audience === 'ANY') return null;
+    const other: MailAudience = audience === 'MEMBER' ? 'OPERATOR' : 'MEMBER';
+    return usedCounts.value[other] > 0 ? other : null;
+}
+const audienceOptions = computed(() => MAIL_LAYOUT_AUDIENCES.map((value) => ({ value, label: UtilMailTemplateMessages.audienceLabel(t, value), disabled: blockerOf(value) !== null && value !== saved.value?.audience })));
+/** 잠긴 대상마다 그 까닭 한 줄 */
+const audienceLockReasons = computed(() =>
+    MAIL_LAYOUT_AUDIENCES.flatMap((locked) => {
+        const blocker = locked === form.audience ? null : blockerOf(locked);
+        if (!blocker) return [];
+        return [
+            t('mailTemplate.layoutAudienceLocked', {
+                audience: UtilMailTemplateMessages.audienceLabel(t, blocker),
+                count: usedCounts.value[blocker],
+                other: UtilMailTemplateMessages.audienceLabel(t, locked),
+            }),
+        ];
+    }),
+);
 /** 처음 값 — 틀은 에디터가 정규화한 값으로 바꿔 둔다(`onFrameReady`) */
 const baseline = ref<MailLayoutSaveRequest>(JSON.parse(JSON.stringify(form)) as MailLayoutSaveRequest);
 const formKey = ref(0);
@@ -257,6 +305,7 @@ function fill(): void {
     const from = base.value;
     if (!from) return;
     form.name = saved.value ? from.name : isNew.value && queryText(route.query.from) ? t('mailTemplate.copyName', { name: from.name }).slice(0, UtilMailTemplate.NAME_MAX) : '';
+    form.audience = from.audience;
     form.showLogo = from.showLogo;
     form.showSiteName = from.showSiteName;
     form.headerColor = from.headerColor;
@@ -280,6 +329,7 @@ const changeCount = computed(() => {
     const b = baseline.value;
     let n = 0;
     if (form.name !== b.name) n += 1;
+    if (form.audience !== b.audience) n += 1;
     if (form.showLogo !== b.showLogo) n += 1;
     if (form.showSiteName !== b.showSiteName) n += 1;
     if (form.headerColor !== b.headerColor) n += 1;
@@ -305,7 +355,7 @@ function fieldError(field: MailLayoutField): string {
     return UtilMailTemplateMessages.problem(t, field, problem);
 }
 
-const FIELDS: readonly MailLayoutField[] = ['name', 'footer.ko', 'footer.en', 'frames.ko', 'frames.en'];
+const FIELDS: readonly MailLayoutField[] = ['name', 'audience', 'footer.ko', 'footer.en', 'frames.ko', 'frames.en'];
 const invalidCount = computed(() => FIELDS.filter((field) => Boolean(fieldError(field))).length + (serverErrors.value.headerColor ? 1 : 0));
 /** 고르지 않은 언어 쪽에 고칠 곳이 있다 — 그 언어로 바꿔 보라고 알린다 */
 const otherLocaleError = computed(() => Boolean(fieldError(`frames.${otherLocale.value}`) || fieldError(`footer.${otherLocale.value}`)));
@@ -360,8 +410,9 @@ async function load(): Promise<void> {
             current = await api.get(id.value);
             layout = current;
         } else {
-            // 복사 원본, 없으면 기본 레이아웃의 값으로 채운다
-            const fromId = queryText(route.query.from) ?? (await api.list()).find((item) => item.builtin)?.id ?? '';
+            // 복사 원본, 없으면 받는 사람(`?audience=`, 없으면 회원)의 기본 레이아웃 값으로 채운다
+            const wanted: MailAudience = route.query.audience === 'OPERATOR' ? 'OPERATOR' : 'MEMBER';
+            const fromId = queryText(route.query.from) ?? (await api.list()).find((item) => item.builtin && item.audience === wanted)?.id ?? '';
             layout = await api.get(fromId);
         }
         if (mine !== loadSeq) return;
@@ -460,7 +511,7 @@ async function save(): Promise<void> {
     } catch (e) {
         const error = toApiError(e);
         const found: Record<string, string> = {};
-        for (const field of ['name', 'headerColor', 'footer.ko', 'footer.en', 'frames.ko', 'frames.en']) {
+        for (const field of ['name', 'audience', 'headerColor', 'footer.ko', 'footer.en', 'frames.ko', 'frames.en']) {
             const message = error.field(field);
             if (message) found[field] = message;
         }
