@@ -110,11 +110,11 @@ export default {
     notificationManage: 'Change notification events',
     notificationManageDesc: 'Add, edit and delete notification tools, and change whether each event is on, its delivery tools and its extra recipient teams. Who receives each event by default is fixed per event and cannot be changed.',
 
-    // Site and integrations (mail templates screen — screen mockup candidate; the server permission comes in the server step)
+    // Site and integrations (mail types, templates and layouts screens — screen mockup candidate; the server permission comes in the server step)
     templateRead: 'View mail templates',
-    templateReadDesc: 'See, on Mail templates in the settings menu, the templates in use and special-case rules of each mail kind, the template contents, the common layout and their change history.',
+    templateReadDesc: 'See, in the Mail section of the settings menu, the templates in use and special-case rules of each mail type, the templates, the layouts and their change history.',
     templateManage: 'Manage mail templates',
-    templateManageDesc: 'Create, edit and delete mail templates, change the templates in use, special-case rules and common layout of each mail kind, and send test emails. Required variables of security emails cannot be removed.',
+    templateManageDesc: 'Create, edit and delete mail templates and layouts, change the templates in use and special-case rules of each mail type, and send test emails. Required variables of security emails cannot be removed.',
 
     // ── Member roles (abilities of public-site members) — policy proposal, not final ──
     memberGroup: {

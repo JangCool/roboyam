@@ -1,8 +1,9 @@
-import type { MailLayoutSaveRequest, MailLocale, MailVariableView } from '~/composables/template/api/useMailTemplateApi.types';
+import type { MailLayoutColor, MailLayoutSaveRequest } from '~/composables/template/api/useMailLayoutApi.types';
+import type { MailLocale, MailTemplateListItemView, MailVariableView } from '~/composables/template/api/useMailTemplateApi.types';
 
 /**
- * 메일 템플릿의 순수 규칙 — 변수(`{{이름}}`) 찾기, 「버튼」 블록 나누기·합치기, 저장 전 검사, 미리보기 그리기(목업 서버가 쓴다).
- * 계약: `docs/features/message-template-contract.md` 「변수」. 서버 단계에서 같은 규칙을 서버(가칭 `MailTemplateValidator`·`MailTemplateRenderer`)가 다시 본다 —
+ * 메일 템플릿·레이아웃의 순수 규칙 — 변수(`{{이름}}`) 찾기, 「버튼」 블록 나누기·합치기, 저장 전 검사(템플릿·레이아웃), 미리보기 그리기(목업 서버가 쓴다).
+ * 계약: `docs/features/message-template-contract.md` 「변수」·「개정」. 서버 단계에서 같은 규칙을 서버(가칭 `MailTemplateValidator`·`MailLayoutValidator`·`MailTemplateRenderer`)가 다시 본다 —
  * 화면 검사는 미리 알려 주는 용도이고 판정은 서버다(`forms.md`). 길이 상한은 계약 「미확정」 3 이라 가정 값이다.
  *
  * 버튼 블록 저장 모양(목업 가정): `<p data-mail-button=""><a href="{{링크 변수}}">글자</a></p>` 하나. 에디터 안에서는 그 자리에 `{{button}}` 한 줄로 보이고,
@@ -11,6 +12,9 @@ import type { MailLayoutSaveRequest, MailLocale, MailVariableView } from '~/comp
 
 /** 검사할 칸 — 서버 `fields.*` 와 같은 이름. `button` 은 화면 전용(서버는 `bodyHtml` 로 준다) */
 export type MailTemplateField = 'name' | 'subject' | 'bodyHtml' | 'button';
+
+/** 레이아웃의 검사할 칸 — 서버 `fields.*` 와 같은 이름 */
+export type MailLayoutField = 'name' | 'footer.ko' | 'footer.en' | 'frames.ko' | 'frames.en';
 
 export type MailTemplateProblemCode =
     | 'REQUIRED'
@@ -33,6 +37,7 @@ export interface MailTemplateProblem {
 }
 
 export type MailTemplateProblems = Partial<Record<MailTemplateField, MailTemplateProblem>>;
+export type MailLayoutProblems = Partial<Record<MailLayoutField, MailTemplateProblem>>;
 
 /** 에디터에서 보이는 버튼 블록 */
 export interface MailButton {
@@ -54,16 +59,40 @@ export interface MailKindRules {
     variables: MailVariableView[];
 }
 
+/** 템플릿 목록 거르기 값 — 기본/사용자 구분은 `origin` */
+export interface MailTemplateFilter {
+    kind: string | null;
+    locale: MailLocale | null;
+    origin: 'ALL' | 'BUILTIN' | 'USER';
+    layoutId: string | null;
+    keyword: string;
+}
+
+/** 그리기에 쓰는 레이아웃 값(이름은 필요 없다) */
+export type MailRenderLayout = Omit<MailLayoutSaveRequest, 'name'>;
+
 /** 미리보기 그리기 입력(목업 서버의 `preview`·`test`) */
 export interface MailRenderInput {
     locale: MailLocale;
     subject: string;
     bodyHtml: string;
     variables: MailVariableView[];
-    layout: MailLayoutSaveRequest;
+    layout: MailRenderLayout;
     siteName: string;
     logoUrl: string | null;
 }
+
+/** 머리말 띠 색 팔레트 — 메일 앱은 CSS 변수를 못 읽으므로 실제 색 값이다(화면의 견본 점도 같은 값). 흰 글씨가 잘 읽히는 진한 색만 둔다 */
+const HEADER_COLORS: Record<MailLayoutColor, string> = {
+    BLUE: '#1c5fcf',
+    INDIGO: '#4f46e5',
+    TEAL: '#0f766e',
+    GREEN: '#15803d',
+    AMBER: '#b45309',
+    ORANGE: '#c2410c',
+    RED: '#b91c1c',
+    SLATE: '#334155',
+};
 
 const VAR_RE = /\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}/g;
 const BUTTON_BLOCK_RE = /<p data-mail-button(?:="[^"]*")?>\s*<a href="\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}"[^>]*>([\s\S]*?)<\/a>\s*<\/p>/;
@@ -77,6 +106,9 @@ const STYLE = {
     body: "margin:0;padding:24px;background:#f3f4f6;font-family:-apple-system,'Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',sans-serif",
     card: 'max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #e2e4e8;border-radius:12px;padding:28px',
     brand: 'margin:0 0 18px;font-size:18px;font-weight:700;letter-spacing:.5px;color:#16181d',
+    band: 'margin:-28px -28px 22px;padding:18px 28px;border-radius:11px 11px 0 0',
+    bandStrip: 'margin:-28px -28px 22px;height:6px;border-radius:11px 11px 0 0',
+    bandBrand: 'margin:0;font-size:18px;font-weight:700;letter-spacing:.5px;color:#ffffff',
     logo: 'display:block;max-height:40px;max-width:200px;margin:0 0 12px',
     p: 'margin:0 0 14px;font-size:15px;line-height:1.6;color:#16181d;word-break:break-word',
     foot: 'margin:0 0 6px;font-size:11px;line-height:1.5;color:#8b92a0',
@@ -98,8 +130,12 @@ export default class UtilMailTemplate {
     static readonly BUTTON_LABEL_MAX = 40;
     /** 버튼 자리 표시 변수(에디터 안에서만) */
     static readonly BUTTON = 'button';
-    /** 공통 레이아웃의 본문 자리 */
+    /** 레이아웃의 본문 자리 */
     static readonly CONTENT = 'content';
+    /** 레이아웃 꼬리말 상한(가정 — 언어마다) */
+    static readonly FOOTER_MAX = 500;
+    /** 머리말 띠 색 팔레트의 차례 */
+    static readonly HEADER_COLORS: readonly MailLayoutColor[] = Object.keys(HEADER_COLORS) as MailLayoutColor[];
 
     /**
      * 글 안의 변수 이름들(나온 차례, 겹침 없음).
@@ -214,7 +250,7 @@ export default class UtilMailTemplate {
     }
 
     /**
-     * 공통 레이아웃 틀 검사 — `{{content}}` 가 꼭 한 번, 모르는 변수 없음.
+     * 레이아웃 틀 검사 — `{{content}}` 가 꼭 한 번, 모르는 변수 없음.
      * @param frame - 틀 HTML.
      * @param known - 쓸 수 있는 변수 이름(공통 변수).
      * @returns 문제(없으면 null).
@@ -226,6 +262,66 @@ export default class UtilMailTemplate {
         if (frame.length > UtilMailTemplate.BODY_MAX) return { code: 'TOO_LONG', max: UtilMailTemplate.BODY_MAX };
         const unknown = UtilMailTemplate.variablesIn(frame).filter((v) => v !== UtilMailTemplate.CONTENT && !known.includes(v));
         return unknown.length ? { code: 'UNKNOWN_VARIABLE', names: unknown } : null;
+    }
+
+    /**
+     * 레이아웃 꼬리말 검사 — 평문, 길이, 모르는 변수 없음(`{{content}}` 도 쓸 수 없다). 비어도 된다.
+     * @param footer - 꼬리말 글.
+     * @param known - 쓸 수 있는 변수 이름(공통 변수).
+     * @returns 문제(없으면 null).
+     */
+    static validateFooter(footer: string, known: readonly string[]): MailTemplateProblem | null {
+        if (footer.length > UtilMailTemplate.FOOTER_MAX) return { code: 'TOO_LONG', max: UtilMailTemplate.FOOTER_MAX };
+        const unknown = UtilMailTemplate.variablesIn(footer).filter((v) => !known.includes(v));
+        return unknown.length ? { code: 'UNKNOWN_VARIABLE', names: unknown } : null;
+    }
+
+    /**
+     * 레이아웃 저장 전 검사 — 서버 규칙과 같다: 이름(필수·50자) · 언어별 꼬리말 · 언어별 틀(`{{content}}` 한 번).
+     * @param draft - 편집 값.
+     * @param known - 쓸 수 있는 변수 이름(공통 변수 — `content` 빼고).
+     * @returns 칸별 문제(없으면 빈 객체).
+     */
+    static validateLayout(draft: MailLayoutSaveRequest, known: readonly string[]): MailLayoutProblems {
+        const out: MailLayoutProblems = {};
+        const name = draft.name.trim();
+        if (!name) out.name = { code: 'REQUIRED' };
+        else if (name.length > UtilMailTemplate.NAME_MAX) out.name = { code: 'TOO_LONG', max: UtilMailTemplate.NAME_MAX };
+        for (const locale of ['ko', 'en'] as const) {
+            const footer = UtilMailTemplate.validateFooter(draft.footer[locale] ?? '', known);
+            if (footer) out[`footer.${locale}`] = footer;
+            const frame = UtilMailTemplate.validateFrame(draft.frames[locale] ?? '', known);
+            if (frame) out[`frames.${locale}`] = frame;
+        }
+        return out;
+    }
+
+    /**
+     * 템플릿 목록 거르기 — 종류 · 언어 · 기본/사용자 · 레이아웃 · 검색어(이름·종류 이름·종류 코드, 대소문자 무시).
+     * @param items - 목록.
+     * @param filter - 거르기 값(null·'ALL'·빈 글자는 거르지 않음).
+     * @returns 걸러진 목록(원래 차례).
+     */
+    static filterTemplates(items: readonly MailTemplateListItemView[], filter: MailTemplateFilter): MailTemplateListItemView[] {
+        const keyword = filter.keyword.trim().toLowerCase();
+        return items.filter((item) => {
+            if (filter.kind && item.kind !== filter.kind) return false;
+            if (filter.locale && item.locale !== filter.locale) return false;
+            if (filter.origin === 'BUILTIN' && !item.builtin) return false;
+            if (filter.origin === 'USER' && item.builtin) return false;
+            if (filter.layoutId && item.layoutId !== filter.layoutId) return false;
+            if (keyword && ![item.name, item.kindName, item.kind].some((text) => text.toLowerCase().includes(keyword))) return false;
+            return true;
+        });
+    }
+
+    /**
+     * 머리말 띠 색의 실제 값.
+     * @param color - 팔레트 색(없으면 null).
+     * @returns `#rrggbb`(없으면 null).
+     */
+    static colorHex(color: MailLayoutColor | null): string | null {
+        return color ? HEADER_COLORS[color] : null;
     }
 
     /**
@@ -252,7 +348,7 @@ export default class UtilMailTemplate {
     }
 
     /**
-     * 견본 값을 채우고 공통 레이아웃을 씌운 미리보기 — 목업 서버(`preview`·`test`)가 쓴다. 값은 HTML 로 가린다. 모르는 변수는 그대로 둔다.
+     * 견본 값을 채우고 레이아웃을 씌운 미리보기 — 목업 서버(`preview`·`test`)가 쓴다. 값은 HTML 로 가린다. 모르는 변수는 그대로 둔다.
      * 결과 HTML 은 문서 전체라 화면은 `iframe srcdoc`(sandbox)으로만 보인다.
      * @param input - 제목·본문·변수·레이아웃.
      * @returns 제목(사이트 이름 머리말 포함)과 문서 HTML.
@@ -277,18 +373,29 @@ export default class UtilMailTemplate {
         const frame = input.layout.frames[input.locale] ?? '';
         const [beforeRaw, afterRaw] = UtilMailTemplate.splitFrame(frame);
         const before = UtilMailTemplate.styled(fill(beforeRaw, true), STYLE.p);
-        const after = UtilMailTemplate.styled(fill(afterRaw, true), STYLE.foot);
+        const after = UtilMailTemplate.styled(fill(afterRaw, true), STYLE.p);
+        // 꼬리말은 평문 — 줄마다 값을 채운 뒤 통째로 가린다(줄바꿈은 문단으로)
+        const footerText = (input.layout.footer[input.locale] ?? '').trim();
+        const footer = footerText
+            ? footerText
+                  .split(/\r?\n/)
+                  .map((line) => `<p style="${STYLE.foot}">${UtilMailTemplate.escape(fill(line, false)) || '&nbsp;'}</p>`)
+                  .join('')
+            : '';
 
-        const head = [
-            input.layout.showLogo && input.logoUrl ? `<img src="${UtilMailTemplate.escape(input.logoUrl)}" alt="${UtilMailTemplate.escape(input.siteName)}" style="${STYLE.logo}">` : '',
-            input.layout.showSiteName ? `<p style="${STYLE.brand}">${UtilMailTemplate.escape(input.siteName)}</p>` : '',
-        ].join('');
+        const band = UtilMailTemplate.colorHex(input.layout.headerColor);
+        const logo = input.layout.showLogo && input.logoUrl ? `<img src="${UtilMailTemplate.escape(input.logoUrl)}" alt="${UtilMailTemplate.escape(input.siteName)}" style="${STYLE.logo}">` : '';
+        const brand = input.layout.showSiteName ? `<p style="${band ? STYLE.bandBrand : STYLE.brand}">${UtilMailTemplate.escape(input.siteName)}</p>` : '';
+        let head = logo + brand;
+        // 띠 색이 있으면 머리말(로고·사이트 이름)을 띠 안에 흰 글씨로 — 머리말이 비었으면 얇은 띠만
+        if (band) head = head ? `<div style="${STYLE.band};background:${band}">${head}</div>` : `<div style="${STYLE.bandStrip};background:${band}"></div>`;
         const html =
             `<!DOCTYPE html><html lang="${input.locale}"><head><meta charset="utf-8"><base target="_blank"></head><body style="${STYLE.body}"><div style="${STYLE.card}">` +
             head +
             before +
             body +
-            (after.trim() ? `<hr style="${STYLE.hr}">${after}` : '') +
+            after +
+            (footer ? `<hr style="${STYLE.hr}">${footer}` : '') +
             '</div></body></html>';
         return { subject: `[${input.siteName}] ${fill(input.subject, false)}`, html };
     }

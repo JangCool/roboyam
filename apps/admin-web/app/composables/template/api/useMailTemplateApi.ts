@@ -4,11 +4,11 @@ import {
     mockHistory,
     mockKindDetail,
     mockKinds,
-    mockLayout,
     mockPreview,
     mockSaveKind,
-    mockSaveLayout,
+    mockTemplate,
     mockTemplateCan,
+    mockTemplates,
     mockTest,
     mockUpdateTemplate,
 } from '~/composables/template/api/mock/mail-template-mock';
@@ -16,11 +16,10 @@ import type {
     MailKindDetailView,
     MailKindSaveRequest,
     MailKindView,
-    MailLayoutSaveRequest,
-    MailLayoutView,
     MailPreviewRequest,
     MailPreviewView,
     MailTemplateHistoryPage,
+    MailTemplateListItemView,
     MailTemplateSaveRequest,
     MailTemplateTestRequest,
     MailTemplateTestResultView,
@@ -28,23 +27,25 @@ import type {
 } from '~/composables/template/api/useMailTemplateApi.types';
 
 /**
- * 메일 템플릿 API — 서버 주소 문자열(`/api/admin/mail-templates…`)이 있는 **유일한 곳**이다. 상태는 없다.
+ * 메일 종류·템플릿 API — 서버 주소 문자열(`/api/admin/mail-templates…`)이 있는 **유일한 곳**이다. 상태는 없다. 레이아웃은 `useMailLayoutApi`(`/api/admin/mail-layouts`).
  *
- * 후보 계약(`docs/features/message-template-contract.md` 「API 후보」, 서버 단계에서 확정). 오류는 모두 `ApiError`(useApiClient)로 던져진다. 쓰기는 CSRF.
- * 권한: 읽기 `template.read` · 쓰기(종류 저장·템플릿·레이아웃·시험) `template.manage` — 서버 `Permission` 에는 아직 없다(화면 목업 후보).
+ * 후보 계약(`docs/features/message-template-contract.md` 「개정」·「API 후보」, 서버 단계에서 확정). 오류는 모두 `ApiError`(useApiClient)로 던져진다. 쓰기는 CSRF.
+ * 권한: 읽기 `template.read` · 쓰기(종류 저장·템플릿·시험) `template.manage` — 서버 `Permission` 에는 아직 없다(화면 목업 후보).
  *   - `GET    /api/admin/mail-templates/kinds` → 200 `MailKindView[]`(묶음·보안 여부·변수·조건 선택지·쓰는 템플릿·규칙 수)
- *   - `GET    /api/admin/mail-templates/kinds/{kind}` → 200 `MailKindDetailView`(`defaults`·`selected`·`rules`·`templates`)
+ *   - `GET    /api/admin/mail-templates/kinds/{kind}` → 200 `MailKindDetailView`(`summary`·`defaults`·`selected`·`rules`·`templates`)
  *   - `PUT    /api/admin/mail-templates/kinds/{kind}` `MailKindSaveRequest` → 200 `MailKindDetailView` (400 `VALIDATION` `fields.selected.ko|en`·`rules[i].condition|templateId`)
+ *   - `GET    /api/admin/mail-templates/templates` → 200 `MailTemplateListItemView[]`(모든 종류 — 본문 없이, 종류 이름·레이아웃 이름·쓰는 곳 포함)
+ *   - `GET    /api/admin/mail-templates/templates/{id}` → 200 `MailTemplateView`
  *   - `POST   /api/admin/mail-templates/templates` `MailTemplateSaveRequest` → 201 `MailTemplateView` (409 `TEMPLATE_LIMIT` — 종류당 20 가정)
- *   - `PUT    /api/admin/mail-templates/templates/{id}` `MailTemplateSaveRequest` → 200 `MailTemplateView` (기본 템플릿 409 `TEMPLATE_BUILTIN`)
+ *   - `PUT    /api/admin/mail-templates/templates/{id}` `MailTemplateSaveRequest` → 200 `MailTemplateView` (기본 템플릿 409 `TEMPLATE_BUILTIN`, 종류는 바꾸지 못한다)
  *   - `DELETE /api/admin/mail-templates/templates/{id}` → 204 (쓰는 중 409 `TEMPLATE_IN_USE`)
- *       · 템플릿 저장의 400 `VALIDATION` `fields.name|locale|subject|bodyHtml` — 모르는 변수 · 보안 메일 필수 변수 없음 · 길이 · 버튼(하나, 링크 변수만)
- *   - `POST   /api/admin/mail-templates/preview` `MailPreviewRequest` → 200 `{ subject, html }`(견본 값 + 공통 레이아웃)
- *       · 공통 레이아웃 미리보기는 `kind` 없이(공통 변수만) + 저장 전 `layout` 을 함께 보낸다
+ *       · 템플릿 저장의 400 `VALIDATION` `fields.name|locale|layoutId|subject|bodyHtml` — 모르는 변수 · 보안 메일 필수 변수 없음 · 길이 · 버튼(하나, 링크 변수만) · 없는 레이아웃
+ *   - `POST   /api/admin/mail-templates/preview` `MailPreviewRequest` → 200 `{ subject, html }`(견본 값 + `layoutId` 의 레이아웃, 또는 저장 전 `layout`)
+ *       · 레이아웃 편집 화면의 미리보기는 `kind` 없이(공통 변수만) 저장 전 `layout` 을 보낸다
  *   - `POST   /api/admin/mail-templates/test` `MailTemplateTestRequest` → 200 `{ succeeded, reason, detail }`(메일 설정 시험과 같은 모양·한도 — 400 `fields.to`, 429 `MAIL_TEST_RATE_LIMITED`)
- *   - `GET·PUT /api/admin/mail-templates/layout` → 200 `MailLayoutView` (400 `fields.frames.ko|en` — `{{content}}` 한 번)
- *   - `GET    /api/admin/mail-templates/templates/{id}/history?page&size` → 200 `{ items, total, page, size }`(설정 이력 모양, 바뀐 칸 `name|locale|subject|bodyHtml`)
- *   공통 오류: 404 `TEMPLATE_NOT_FOUND`·`MAIL_KIND_NOT_FOUND` · 403 `PERMISSION_DENIED`. 감사 후보: `MAIL_TEMPLATE_CREATE|UPDATE|DELETE` · `MAIL_KIND_UPDATE` · `MAIL_LAYOUT_UPDATE`.
+ *   - `GET    /api/admin/mail-templates/templates/{id}/history?page&size` → 200 `{ items, total, page, size }`(설정 이력 모양, 바뀐 칸 `name|locale|layoutId|subject|bodyHtml`)
+ *   공통 오류: 404 `TEMPLATE_NOT_FOUND`·`MAIL_KIND_NOT_FOUND` · 403 `PERMISSION_DENIED`. 감사 후보: `MAIL_TEMPLATE_CREATE|UPDATE|DELETE` · `MAIL_KIND_UPDATE`.
+ *   없앤 것(개정): `GET·PUT /api/admin/mail-templates/layout`(공통 레이아웃 하나) — 레이아웃은 여러 개가 되어 `/api/admin/mail-layouts` 로 옮겼다.
  *
  * ⚠ MOCK: 서버가 없어서 `./mock/mail-template-mock.ts` 를 부른다. 서버가 붙으면 `// MOCK:` 줄(과 `can`·목업 import)을 지우고 `// REAL:` 줄을 되살린다.
  */
@@ -57,7 +58,6 @@ const PATH = {
     history: (id: string) => `${PATH.template(id)}/history`,
     preview: () => `${PATH.root}/preview`,
     test: () => `${PATH.root}/test`,
-    layout: () => `${PATH.root}/layout`,
 };
 
 export function useMailTemplateApi() {
@@ -74,7 +74,7 @@ export function useMailTemplateApi() {
             mockKinds(can),
         // REAL: client.get<MailKindView[]>(PATH.kinds()),
 
-        /** 한 종류의 쓰는 템플릿·규칙·템플릿 목록 */
+        /** 한 종류의 정의·쓰는 템플릿·규칙·템플릿 목록 */
         kind: (kind: string): Promise<MailKindDetailView> =>
             // MOCK:
             mockKindDetail(can, kind),
@@ -85,6 +85,18 @@ export function useMailTemplateApi() {
             // MOCK:
             mockSaveKind(can, kind, body),
         // REAL: client.put<MailKindDetailView>(PATH.kind(kind), body),
+
+        /** 모든 종류의 템플릿 목록(본문 없이) */
+        templates: (): Promise<MailTemplateListItemView[]> =>
+            // MOCK:
+            mockTemplates(can),
+        // REAL: client.get<MailTemplateListItemView[]>(PATH.templates()),
+
+        /** 템플릿 하나(본문 포함) */
+        template: (id: string): Promise<MailTemplateView> =>
+            // MOCK:
+            mockTemplate(can, id),
+        // REAL: client.get<MailTemplateView>(PATH.template(id)),
 
         /** 사용자 템플릿을 만든다(기본 템플릿·다른 템플릿을 복사해 만들 때도 이것) */
         create: (body: MailTemplateSaveRequest): Promise<MailTemplateView> =>
@@ -103,7 +115,7 @@ export function useMailTemplateApi() {
             mockDeleteTemplate(can, id),
         // REAL: client.del<void>(PATH.template(id)),
 
-        /** 견본 값 + 공통 레이아웃으로 그린 미리보기 */
+        /** 견본 값 + 레이아웃으로 그린 미리보기 */
         preview: (body: MailPreviewRequest): Promise<MailPreviewView> =>
             // MOCK:
             mockPreview(can, body),
@@ -114,16 +126,6 @@ export function useMailTemplateApi() {
             // MOCK:
             mockTest(can, body),
         // REAL: client.post<MailTemplateTestResultView>(PATH.test(), body),
-
-        layout: (): Promise<MailLayoutView> =>
-            // MOCK:
-            mockLayout(can),
-        // REAL: client.get<MailLayoutView>(PATH.layout()),
-
-        saveLayout: (body: MailLayoutSaveRequest): Promise<MailLayoutView> =>
-            // MOCK:
-            mockSaveLayout(can, body),
-        // REAL: client.put<MailLayoutView>(PATH.layout(), body),
 
         /** 템플릿 변경 이력 — 최신이 위, `page` 는 0 부터 */
         history: (id: string, page: number, size: number): Promise<MailTemplateHistoryPage> =>

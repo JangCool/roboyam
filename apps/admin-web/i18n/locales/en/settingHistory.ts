@@ -41,10 +41,18 @@ export default {
         fromAddress: 'From address',
         senderName: 'Sender name',
         subjectPrefix: 'Subject prefix',
-        // Mail template history (mock — the server will send the same labelKey)
+        // Mail template and layout history (mock — the server will send the same labelKey)
         name: 'Name',
         locale: 'Language',
+        layoutId: 'Layout',
         subject: 'Subject',
         bodyHtml: 'Body',
+        showLogo: 'Show logo',
+        showSiteName: 'Show site name',
+        headerColor: 'Header band color',
+        footerKo: 'Footer (Korean)',
+        footerEn: 'Footer (English)',
+        frameKo: 'Frame (Korean)',
+        frameEn: 'Frame (English)',
     },
 };

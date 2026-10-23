@@ -130,7 +130,7 @@ export default class UtilAdminMenu {
                 { key: 'pointPolicy', to: '/points/policy', icon: 'pi pi-percentage', labelKey: 'menu.pointPolicy', permission: 'point.read' },
             ],
         },
-        // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」·「소셜 로그인」·「메일 서버」·「조직 구성」이 있고(「알림」·「알림 도구」는 다음 묶음) 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다
+        // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」·「소셜 로그인」·「조직 구성」이 있고(메일은 다음 「메일」 묶음, 「알림」·「알림 도구」는 그다음 묶음) 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다
         {
             key: 'settingsSystem',
             mode: 'settings',
@@ -138,13 +138,25 @@ export default class UtilAdminMenu {
             labelKey: 'menu.system',
             items: [
                 { key: 'siteGeneral', to: '/settings/general', icon: 'pi pi-sliders-h', labelKey: 'menu.general', permission: 'site.read' },
-                // 소셜 로그인 설정(카카오·네이버·구글 키) · 메일 서버 설정 — 조회는 `site.read`, 저장·삭제·시험 발송은 화면 안에서 `site.secret`
+                // 소셜 로그인 설정(카카오·네이버·구글 키) — 조회는 `site.read`, 저장·삭제는 화면 안에서 `site.secret`
                 { key: 'socialLogin', to: '/settings/social-login', icon: 'pi pi-key', labelKey: 'menu.socialLogin', permission: 'site.read' },
-                { key: 'mailSettings', to: '/settings/mail', icon: 'pi pi-envelope', labelKey: 'menu.mailSettings', permission: 'site.read' },
-                // 메일 템플릿 — 화면 목업 단계(API 목업). 권한 `template.read` 는 서버 `Permission` 에 아직 없어 지금은 최고 관리자에게만 보인다
-                { key: 'mailTemplates', to: '/settings/mail-templates', icon: 'pi pi-file-edit', labelKey: 'menu.mailTemplates', permission: 'template.read' },
                 // 조직 구성 — 운영자를 팀으로 묶는다(알림 이벤트의 「추가 수신 팀」으로 쓴다)
                 { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
+            ],
+        },
+        // 메일 묶음 — 메일 서버(시스템 묶음에서 옮김) · 메일 종류(종류별 쓰는 템플릿·특수한 상황) · 템플릿 · 레이아웃(message-template-contract 「개정」).
+        // 메일 종류·템플릿·레이아웃은 화면 목업 단계(API 목업)다. 권한 `template.read` 는 서버 `Permission` 에 아직 없어 지금은 최고 관리자에게만 보인다(서버 `AdminScreenRegistry` 도 서버 단계에서 맞춘다)
+        {
+            key: 'settingsMail',
+            mode: 'settings',
+            icon: 'pi pi-envelope',
+            labelKey: 'menu.mail',
+            items: [
+                // 메일 서버 설정 — 조회는 `site.read`, 저장·시험 발송은 화면 안에서 `site.secret`
+                { key: 'mailSettings', to: '/settings/mail', icon: 'pi pi-server', labelKey: 'menu.mailSettings', permission: 'site.read' },
+                { key: 'mailKinds', to: '/settings/mail-kinds', icon: 'pi pi-tags', labelKey: 'menu.mailKinds', permission: 'template.read' },
+                { key: 'mailTemplates', to: '/settings/mail-templates', icon: 'pi pi-file-edit', labelKey: 'menu.mailTemplates', permission: 'template.read' },
+                { key: 'mailLayouts', to: '/settings/mail-layouts', icon: 'pi pi-objects-column', labelKey: 'menu.mailLayouts', permission: 'template.read' },
             ],
         },
         {

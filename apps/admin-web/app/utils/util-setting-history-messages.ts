@@ -5,7 +5,7 @@ import type { SettingHistoryAction, SettingHistoryChange, SettingHistorySource }
  * 설정 변경 이력(소셜 로그인 · 메일 서버)의 문구 중 계산이 끼는 것 — 문구 본문은 `i18n/locales/{ko,en}/settingHistory.ts`. `t` 를 첫 인자로 받는다.
  * 값 모양은 서버가 정한다(`login-contract.md` 「변경 이력」·`mail-settings-contract.md` 「설정 이력」):
  *  · 비밀 값(`clientSecret`·`password`)은 값 없이 표시 코드만 — `SET`(입력함) · `CHANGED`(바꿈) · `CLEARED`(지움)
- *  · `clientId` 는 끝 4자리만(`****abcd`) — 그대로 보인다 · `enabled` 는 `"true"`/`"false"` · `security` 는 `NONE`·`STARTTLS`·`SSL` · 나머지는 글자 그대로
+ *  · `clientId` 는 끝 4자리만(`****abcd`) — 그대로 보인다 · `enabled`·`showLogo`·`showSiteName`(메일 레이아웃) 은 `"true"`/`"false"` · `security` 는 `NONE`·`STARTTLS`·`SSL` · 나머지는 글자 그대로
  *  · 값이 없으면(null — 만들기의 전 값, 지우기의 후 값) 「(없음)」
  */
 
@@ -42,7 +42,8 @@ export default class UtilSettingHistoryMessages {
             const key = SECRET_CODE_KEYS[value];
             return key ? t(key) : value;
         }
-        if (field === 'enabled') {
+        // 켜고 끄는 칸 — 메일 서버의 `enabled`, 메일 레이아웃의 로고·사이트 이름 보이기
+        if (field === 'enabled' || field === 'showLogo' || field === 'showSiteName') {
             if (value === 'true') return t('common.on');
             if (value === 'false') return t('common.off');
         }

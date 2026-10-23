@@ -1,9 +1,11 @@
 import type { SettingHistoryItem, SettingHistoryPage } from '~/composables/common/useSettingHistory.types';
 import type { MailTestResultView } from '~/composables/mail/api/useMailSettingsApi.types';
+import type { MailLayoutSaveRequest } from '~/composables/template/api/useMailLayoutApi.types';
 
 /**
- * 메일 템플릿 API 의 모양 — `docs/features/message-template-contract.md` 「API 후보」(화면 목업 단계, 서버 단계에서 확정한다).
+ * 메일 템플릿 API 의 모양 — `docs/features/message-template-contract.md` 「개정」·「API 후보」(화면 목업 단계, 서버 단계에서 확정한다).
  * 서버 DTO 이름은 아직 없다 — 서버를 만들 때 이 이름(`MailKindView` …)을 그대로 쓰거나, 서버 이름에 맞춰 이 파일을 고친다.
+ * 레이아웃의 모양은 `useMailLayoutApi.types.ts`(주소의 주인이 다르다 — `/api/admin/mail-layouts`).
  */
 
 /** 템플릿 언어 — 화면 언어와 같은 두 가지 */
@@ -85,6 +87,8 @@ export interface MailTemplateView {
     kind: string;
     name: string;
     locale: MailLocale;
+    /** 이 템플릿을 씌울 레이아웃(`/api/admin/mail-layouts`) — 기본 템플릿은 기본 레이아웃 */
+    layoutId: string;
     /** 한 줄 — `{{변수}}` 가능 */
     subject: string;
     /** 간단 서식 HTML(`p br strong em u s a ul ol li blockquote`) + `{{변수}}` + 버튼 블록(`<p data-mail-button><a href="{{링크 변수}}">글자</a></p>`) 하나까지 */
@@ -95,9 +99,32 @@ export interface MailTemplateView {
     updatedByName: string | null;
 }
 
+/** `GET /api/admin/mail-templates/templates` 의 한 줄 — 모든 종류의 템플릿(본문 없이). 거르기·검색은 화면이 한다(목업 가정 — 수가 적다) */
+export interface MailTemplateListItemView {
+    id: string;
+    kind: string;
+    /** 요청 언어의 종류 이름 */
+    kindName: string;
+    /** 종류가 보안 메일인가 */
+    security: boolean;
+    name: string;
+    locale: MailLocale;
+    layoutId: string;
+    layoutName: string;
+    builtin: boolean;
+    updatedAt: string | null;
+    updatedByName: string | null;
+    /** 이 템플릿을 「기본으로 쓰는」 언어(저장된 상태) */
+    defaultFor: MailLocale[];
+    /** 이 템플릿을 쓰는 특수한 상황 규칙 수 */
+    ruleCount: number;
+}
+
 /** `GET /api/admin/mail-templates/kinds/{kind}` */
 export interface MailKindDetailView {
     kind: string;
+    /** 종류 정의(목록 한 줄과 같은 모양 — 이름·설명·보안 여부·변수·조건) */
+    summary: MailKindView;
     /** 언어별 기본 템플릿 id */
     defaults: Record<MailLocale, string>;
     /** 언어별 「기본으로 쓸 템플릿」 id */
@@ -113,37 +140,41 @@ export interface MailKindSaveRequest {
     rules: { id?: string; condition: MailRuleCondition; templateId: string }[];
 }
 
-/** `POST·PUT /api/admin/mail-templates/templates[/{id}]` */
+/** `POST·PUT /api/admin/mail-templates/templates[/{id}]` — 고치기(`PUT`)는 `kind` 를 바꾸지 못한다(서버가 원래 값으로 본다) */
 export interface MailTemplateSaveRequest {
     kind: string;
     name: string;
     locale: MailLocale;
+    layoutId: string;
     subject: string;
     bodyHtml: string;
 }
 
 /** `POST /api/admin/mail-templates/preview` */
 export interface MailPreviewRequest {
-    /** 메일 종류(변수 견본 값) — 공통 레이아웃 미리보기는 비운다(공통 변수만) */
+    /** 메일 종류(변수 견본 값) — 레이아웃 미리보기는 비운다(공통 변수만) */
     kind?: string;
     locale: MailLocale;
     subject: string;
     bodyHtml: string;
-    /** 공통 레이아웃을 저장 전 값으로 미리 볼 때(레이아웃 구획) — 없으면 저장된 레이아웃 */
+    /** 씌울 레이아웃(저장된 것) — `layout` 이 없을 때 쓴다. 둘 다 없으면 기본 레이아웃 */
+    layoutId?: string;
+    /** 레이아웃을 저장 전 값으로 미리 볼 때(레이아웃 편집 화면) */
     layout?: MailLayoutSaveRequest;
 }
 
-/** 견본 값을 채우고 공통 레이아웃을 씌운 결과 — `html` 은 문서 전체(iframe `srcdoc` 로만 보인다) */
+/** 견본 값을 채우고 레이아웃을 씌운 결과 — `html` 은 문서 전체(iframe `srcdoc` 로만 보인다) */
 export interface MailPreviewView {
     subject: string;
     html: string;
 }
 
-/** `POST /api/admin/mail-templates/test` — 저장된 템플릿(`templateId`) 또는 고치는 중인 값(`subject`·`bodyHtml`) */
+/** `POST /api/admin/mail-templates/test` — 저장된 템플릿(`templateId`) 또는 고치는 중인 값(`subject`·`bodyHtml`·`layoutId`) */
 export interface MailTemplateTestRequest {
     kind: string;
     locale: MailLocale;
     templateId?: string;
+    layoutId?: string;
     subject?: string;
     bodyHtml?: string;
     to: string;
@@ -152,31 +183,7 @@ export interface MailTemplateTestRequest {
 /** 시험 발송 결과 — 메일 서버 설정의 시험과 같은 모양(실패도 200) */
 export type MailTemplateTestResultView = MailTestResultView;
 
-/** 공통 레이아웃 — 모든 메일이 이 틀 안에 들어간다. `frames` 의 `{{content}}` 자리에 본문이 들어간다(지울 수 없다) */
-export interface MailLayoutView {
-    /** 맨 위에 사이트 로고를 보인다(로고는 사이트 설정 「일반」의 것) */
-    showLogo: boolean;
-    /** 맨 위에 사이트 이름을 보인다 */
-    showSiteName: boolean;
-    /** 언어별 틀 — 간단 서식 HTML, `{{content}}` 한 번 + 공통 변수. `{{content}}` 뒤의 글은 꼬리말(작은 글씨)로 보인다 */
-    frames: Record<MailLocale, string>;
-    /** 사이트 설정의 로고 주소(읽기 전용 — 없으면 null) */
-    logoUrl: string | null;
-    siteName: string;
-    /** 틀에서 쓸 수 있는 변수(공통 변수 + 본문 자리 `content`) */
-    variables: MailVariableView[];
-    updatedAt: string | null;
-    updatedByName: string | null;
-}
-
-/** `PUT /api/admin/mail-templates/layout` */
-export interface MailLayoutSaveRequest {
-    showLogo: boolean;
-    showSiteName: boolean;
-    frames: Record<MailLocale, string>;
-}
-
-/** 템플릿 변경 이력 — 설정 이력과 같은 모양(바뀐 칸 `name|locale|subject|bodyHtml`, 본문은 글자 요약) */
+/** 템플릿 변경 이력 — 설정 이력과 같은 모양(바뀐 칸 `name|locale|layoutId|subject|bodyHtml`, 본문은 글자 요약, 레이아웃은 이름) */
 export type MailTemplateHistoryItemView = SettingHistoryItem;
 export type MailTemplateHistoryPage = SettingHistoryPage<MailTemplateHistoryItemView>;
 

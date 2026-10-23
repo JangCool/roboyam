@@ -1,7 +1,7 @@
 <template>
     <!--
         「변수 넣기」 단추 + 변수 목록(떠 있는 메뉴) — 고르면 `pick` 으로 변수 이름을 알린다. 넣는 일(제목 칸의 커서 자리 · 에디터)은 부르는 쪽이 한다.
-        항목: `{{이름}}` · 설명 · 견본 값, 필수 변수는 「필수」, 링크 변수는 링크 아이콘. 메일 템플릿 편집 서랍(제목·본문)과 공통 레이아웃 구획이 같이 쓴다.
+        항목: `{{이름}}` · 설명 · 견본 값, 필수 변수는 「필수」, 링크 변수는 링크 아이콘. 메일 템플릿 편집 화면(제목·본문)과 레이아웃 편집 화면(틀·꼬리말)이 같이 쓴다.
     -->
     <Button type="button" :label="label || t('mailTemplate.insertVariable')" icon="pi pi-plus" size="small" severity="secondary" variant="text" :disabled="disabled || !variables.length" aria-haspopup="true" :aria-controls="menuId" @click="toggle" />
     <Menu :id="menuId" ref="menu" :model="items" popup class="max-h-80 w-80 max-w-[calc(100vw-2rem)] overflow-y-auto">
