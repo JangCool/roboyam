@@ -164,8 +164,6 @@ export default class UtilAdminMenu {
             icon: 'pi pi-bell',
             labelKey: 'menu.notifications',
             items: [
-                { key: 'memberEvents', to: '/settings/notifications/member', icon: 'pi pi-users', labelKey: 'menu.memberEvents', permission: 'notification.read' },
-                { key: 'operatorEvents', to: '/settings/notifications/operator', icon: 'pi pi-bell', labelKey: 'menu.operatorEvents', permission: 'notification.read' },
                 { key: 'notificationChannels', to: '/settings/notification-channels', icon: 'pi pi-send', labelKey: 'menu.notificationChannels', permission: 'notification.read' },
                 // 알림 템플릿은 하위 메뉴 셋을 가진 부모다(역할 관리와 같은 방식). 부모 주소(`/settings/notification-templates`)로 들어오면 「템플릿」으로 보낸다
                 {
@@ -178,6 +176,18 @@ export default class UtilAdminMenu {
                         { key: 'notificationTemplateList', to: '/settings/notification-templates/templates', labelKey: 'menu.notificationTemplateList', permission: 'template.read' },
                         { key: 'mailLayouts', to: '/settings/notification-templates/layouts', labelKey: 'menu.mailLayouts', permission: 'template.read' },
                         { key: 'requiredMails', to: '/settings/notification-templates/required-mails', labelKey: 'menu.requiredMails', permission: 'template.read' },
+                    ],
+                },
+                // 이벤트는 하위 메뉴 둘(운영자·회원)을 가진 부모다. 부모 주소(`/settings/notifications`)로 들어오면 운영자 이벤트로 보낸다
+                {
+                    key: 'events',
+                    to: '/settings/notifications',
+                    icon: 'pi pi-bolt',
+                    labelKey: 'menu.events',
+                    permission: 'notification.read',
+                    children: [
+                        { key: 'operatorEvents', to: '/settings/notifications/operator', labelKey: 'menu.eventsOperator', permission: 'notification.read' },
+                        { key: 'memberEvents', to: '/settings/notifications/member', labelKey: 'menu.eventsMember', permission: 'notification.read' },
                     ],
                 },
             ],

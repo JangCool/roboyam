@@ -9,13 +9,12 @@
 ### 메뉴 (설정 메뉴)
 - **메일** 묶음: 메일 서버(`/settings/mail`)만 남긴다. 「메일 종류」·「템플릿」·「레이아웃」 메뉴는 이 묶음에서 빠진다.
 - **알림·이벤트** 묶음(차례 — 묶음 이름은 「알림」에서 「알림·이벤트」로 바꿨다, i18n `menu.notifications` ko 「알림·이벤트」 · en 「Notifications & events」):
-  1. **회원 이벤트** `/settings/notifications/member` (새로)
-  2. **운영자 이벤트** `/settings/notifications/operator` (지금 「이벤트」 `/settings/notifications` — 이름·주소 바뀜, 옛 주소는 새 주소로 보낸다)
-  3. **알림 도구** `/settings/notification-channels` (그대로)
-  4. **알림 템플릿** (하위 메뉴를 가진 부모 — 역할 관리처럼) `/settings/notification-templates`
+  1. **알림 도구** `/settings/notification-channels` (그대로)
+  2. **알림 템플릿** (하위 메뉴를 가진 부모 — 역할 관리처럼) `/settings/notification-templates`
      - **템플릿** `/settings/notification-templates/templates` — 모든 템플릿(이메일·채팅·앱 알림) 표, 거르기: 채널·받는 사람·대상(이벤트/필수 안내 메일)·언어·기본/사용자·레이아웃. 편집 `/templates/[id]`, 새로 `/templates/new?target=&channel=`, 복사 `?from=`.
      - **메일 레이아웃** `/settings/notification-templates/layouts` — 이메일 채널 전용 틀(받는 사람별 기본 2개 + 사용자 레이아웃, 「개정 2」 규칙 그대로).
      - **필수 안내 메일** `/settings/notification-templates/required-mails` — 이벤트가 아닌 꼭 가는 메일(회원 이메일 인증·운영자 초대·임시 비밀번호·재설정 승인번호·메일 서버 시험, 받는 사람 열·거르기) 목록 → 상세 `/required-mails/[kind]`: 언어별 쓸 템플릿 + 특수 상황 규칙. 받는 사람이 끌 수 없다. 채널은 이메일뿐.
+  3. **이벤트** (하위 메뉴를 가진 부모, 2026-10-23 사용자 확정 — 묶음 맨 아래) `/settings/notifications` → **운영자** `/settings/notifications/operator`(지금 「이벤트」 화면 — 이름·주소 바뀜, 옛 주소는 새 주소로) · **회원** `/settings/notifications/member`(새로)
 - 「메일 종류」 화면(`/settings/mail-kinds`)은 없앤다 — 이벤트 메일의 양식은 이벤트 상세에서, 필수 안내 메일은 위 화면에서 정한다.
 
 ### 채널

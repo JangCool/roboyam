@@ -13,6 +13,9 @@ export default {
     notifications: 'Notifications & events',
     memberEvents: 'Member events',
     operatorEvents: 'Operator events',
+    events: 'Events',
+    eventsOperator: 'Operators',
+    eventsMember: 'Members',
     // The server `AdminScreenRegistry` still uses this key (the old `notifications` screen) — remove it once the server switches to `operatorEvents`
     notificationEvents: 'Operator events',
     notificationChannels: 'Notification tools',

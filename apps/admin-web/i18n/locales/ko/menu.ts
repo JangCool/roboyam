@@ -13,6 +13,9 @@ export default {
     notifications: '알림·이벤트',
     memberEvents: '회원 이벤트',
     operatorEvents: '운영자 이벤트',
+    events: '이벤트',
+    eventsOperator: '운영자',
+    eventsMember: '회원',
     // 서버 `AdminScreenRegistry` 가 아직 이 키(옛 「이벤트」 화면 `notifications`)를 쓴다 — 서버 단계에서 `operatorEvents` 로 맞추면 지운다
     notificationEvents: '운영자 이벤트',
     notificationChannels: '알림 도구',
