@@ -105,6 +105,8 @@ export interface BoardDetailForm {
     writeLock: BoardWriteLock | null;
     introText: string;
     writeGuideText: string;
+    /** 가젯 노출 금지로 고른 가젯 키 — 게시판마다의 값(기본값 따름 없음) */
+    gadgetExclusions: string[];
     policy: BoardPolicyForm;
     commonPrefixes: BoardCommonPrefixForm[];
     prefixes: BoardPrefixForm[];
@@ -220,7 +222,8 @@ const DEFAULT_SECTIONS = {
     'defaults-display': ['dateDisplay'],
     'defaults-write': ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor'],
     'defaults-rate': ['postGapSeconds', 'postDailyLimit', 'commentGapSeconds', 'commentDailyLimit'],
-    'defaults-list': ['listSize', 'pinnedMax', 'indexable', 'searchable', 'inHome'],
+    // 「홈·인기·최신 포함」(inHome)은 게시판 설정의 「가젯 노출 금지」가 대신해 화면에서 다루지 않는다(서버 칸은 남아 있고 저장 요청은 받은 값을 그대로 돌려보낸다)
+    'defaults-list': ['listSize', 'pinnedMax', 'indexable', 'searchable'],
     'defaults-attachment': ['attachmentPurgeEnabled', 'attachmentRetentionDays'],
     'defaults-protect': ['pointMode', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes'],
     'defaults-guest': ['commentGuestDelayMinutes'],
@@ -522,6 +525,8 @@ export default class UtilBoard {
             writeLock: detail.writeLock,
             introText: detail.introText ?? '',
             writeGuideText: detail.writeGuideText ?? '',
+            // 서버가 아직 주지 않으면(새 칸을 서버보다 먼저 배포한 경우) 빈 목록
+            gadgetExclusions: [...(detail.gadgetExclusions ?? [])],
             policy: UtilBoard.policyFormOf(detail.policy),
             commonPrefixes: detail.prefixes.flatMap((p) => (p.common ? [{ id: p.id, common: p.common, staffOnly: p.staffOnly, active: p.active, usageCount: p.usageCount }] : [])),
             prefixes: detail.prefixes.flatMap((p) => (p.common ? [] : [{ key: p.id, id: p.id, name: p.name, staffOnly: p.staffOnly, color: p.color, active: p.active, usageCount: p.usageCount }])),
@@ -547,6 +552,7 @@ export default class UtilBoard {
             policy,
             commonPrefixes: form.commonPrefixes.map((p) => ({ id: p.id, active: p.active })),
             prefixes: form.prefixes.map((p): BoardPrefixSaveItem => ({ id: p.id, name: p.name.trim(), staffOnly: p.staffOnly, color: p.color, active: p.active })),
+            gadgetExclusions: [...form.gadgetExclusions],
         };
     }
 
@@ -576,10 +582,16 @@ export default class UtilBoard {
             write: policyDiff(['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor']) + diff(form.writeLock, base.writeLock),
             prefix,
             guide: diff(form.introText, base.introText) + diff(form.writeGuideText, base.writeGuideText),
-            exposure: policyDiff(['listSize', 'pinnedMax', 'indexable', 'searchable', 'inHome']),
+            // inHome 은 화면에서 다루지 않는다(가젯 노출 금지가 대신한다) — 가젯 선택은 순서 없이 묶음으로 1칸
+            exposure: policyDiff(['listSize', 'pinnedMax', 'indexable', 'searchable']) + diff(UtilBoard.gadgetKey(form.gadgetExclusions), UtilBoard.gadgetKey(base.gadgetExclusions)),
             protect: policyDiff(['pointMode', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes']),
             staff: policyDiff(['managerMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit']),
         };
+    }
+
+    /** 가젯 선택 비교 키 — 고른 차례와 무관하게 같은 묶음이면 같다 */
+    private static gadgetKey(keys: readonly string[]): string {
+        return JSON.stringify([...new Set(keys)].sort());
     }
 
     private static policyValueKey(value: BoardFieldValue): string {

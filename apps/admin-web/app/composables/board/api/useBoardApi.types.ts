@@ -237,12 +237,22 @@ export interface BoardDetail extends BoardRef {
     introText: string | null;
     /** 글쓰기 안내문 — 위와 같다 */
     writeGuideText: string | null;
+    /** 「가젯 노출 금지」로 고른 가젯 키(`gadgets[].key`, 목록 순서) — 게시판마다의 값(기본 설정에서 물려받지 않고 `diffCount` 에 세지 않는다) */
+    gadgetExclusions: string[];
     policy: BoardPolicy;
     /** 공통 4개 + 고유, 표시 순서대로 */
     prefixes: BoardPrefix[];
     /** 지금 기본 설정 — 「기본값 따름」 칸에 흐리게 보인다 */
     defaults: BoardDefaults;
     diffCount: number;
+    /** 「가젯 노출 금지」에 고를 수 있는 가젯 전부(목록 순서) — 홈 가젯이 생기면 늘어난다 */
+    gadgets: BoardGadgetOption[];
+}
+
+/** 고를 수 있는 가젯 하나 — `key` 는 서버 `BoardGadget` 이름(지금 `POPULAR` 인기글 · `LATEST` 최신글), `label` 은 서버가 요청 언어로 푼 이름 */
+export interface BoardGadgetOption {
+    key: string;
+    label: string;
 }
 
 /** 저장할 고유 말머리 — `id` 가 null 이면 새로 만든다. 목록 순서가 표시 순서이고, 빠진 기존 말머리는 지운다(쓰는 글이 있으면 409 `PREFIX_IN_USE`) */
@@ -262,7 +272,7 @@ export interface BoardCommonPrefixSaveItem {
 
 /**
  * `PUT /api/admin/boards/{id}` — 기본 정보 + 정책 + 말머리를 **한 트랜잭션**으로 저장한다. 응답은 `BoardDetail`.
- * 권한: 기본 정보·말머리 `board.manage`, 정책(잠금·안내문 포함) `board.settings`, 매니저·스텝 한도 칸 `board.staff.limit` — 바뀐 부분의 권한이 없으면 서버가 403.
+ * 권한: 기본 정보·말머리 `board.manage`, 정책(잠금·안내문·가젯 노출 금지 포함) `board.settings`, 매니저·스텝 한도 칸 `board.staff.limit` — 바뀐 부분의 권한이 없으면 서버가 403.
  */
 export interface BoardSaveRequest {
     name: string;
@@ -279,6 +289,8 @@ export interface BoardSaveRequest {
     policy: BoardPolicy;
     commonPrefixes: BoardCommonPrefixSaveItem[];
     prefixes: BoardPrefixSaveItem[];
+    /** 가젯 노출 금지 — `null` 이면 바꾸지 않는다(서버가 중복을 하나로, 목록 순서로 저장). 모르는 값은 400 `fields.gadgetExclusions`, 바꾸려면 `board.settings` */
+    gadgetExclusions: string[] | null;
 }
 
 /** 게시판 매니저·스텝 한 명 — `GET /api/admin/boards/{id}/staff` */
