@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Objects;
 import org.hibernate.annotations.DynamicUpdate;
 
 /**
@@ -32,6 +33,12 @@ public class ProfileEntity {
 
     /** 운영자가 등급을 수동으로 올린 적이 있는가 */
     private boolean gradeManual;
+
+    /** 가입 뒤 닉네임을 바꾼 횟수 — 가입 때 정한 닉네임은 세지 않는다(V66) */
+    private short nicknameChangeCount;
+
+    /** 마지막으로 닉네임을 바꾼 시각. 바꾼 적이 없으면 null */
+    private Instant nicknameChangedAt;
 
     private Instant createdAt;
     private Instant updatedAt;
@@ -64,6 +71,30 @@ public class ProfileEntity {
         this.updatedAt = now;
     }
 
+    /**
+     * 닉네임을 바꾼다 — 바꾼 횟수를 하나 늘리고 바꾼 시각을 남긴다. 형식·중복·횟수 한도는 부르는 서비스가 행을 잠근 뒤 먼저 확인한다.
+     *
+     * @return 바뀌기 전 닉네임(이력에 남긴다)
+     */
+    public String changeNickname(String nickname, Instant now) {
+        String previous = this.nickname;
+        this.nickname = nickname;
+        this.nicknameChangeCount = (short) (this.nicknameChangeCount + 1);
+        this.nicknameChangedAt = now;
+        this.updatedAt = now;
+        return previous;
+    }
+
+    /** 한 줄 소개를 바꾼다 — 빈 값은 null 로 저장한다(정규화·길이 검사는 부르는 쪽). 같은 값이면 고치지 않는다 */
+    public void changeBio(String bio, Instant now) {
+        String next = bio == null || bio.isEmpty() ? null : bio;
+        if (Objects.equals(this.bio, next)) {
+            return;
+        }
+        this.bio = next;
+        this.updatedAt = now;
+    }
+
     public Long getUserId() {
         return userId;
     }
@@ -83,5 +114,19 @@ public class ProfileEntity {
 
     public boolean isGradeManual() {
         return gradeManual;
+    }
+
+    /** 가입 뒤 닉네임을 바꾼 횟수 */
+    public int getNicknameChangeCount() {
+        return nicknameChangeCount;
+    }
+
+    public Instant getNicknameChangedAt() {
+        return nicknameChangedAt;
+    }
+
+    /** 프로필을 만든 시각(가입과 같은 트랜잭션) */
+    public Instant getCreatedAt() {
+        return createdAt;
     }
 }

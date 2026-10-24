@@ -2,6 +2,7 @@ package com.community.user.service;
 
 import com.community.zconfiguration.message.MessageRef;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -10,7 +11,7 @@ import java.util.regex.Pattern;
  * 회원 입력 규칙 — 이메일 정규화·형식, 닉네임 형식, 비밀번호 규칙. 화면(`util-validation.ts`)이 같은 규칙으로 미리 검사하고 판정은 서버가 한다.
  * 위반은 문구가 아니라 메시지 키 + 인자({@link MessageRef})로 돌려주고, 응답을 만드는 자리가 요청 언어로 푼다. 위반 문구에는 입력한 값을 싣지 않는다.
  *
- * <p>닉네임은 형식(2~12자, 한글 완성형·영문·숫자·밑줄, 글자 사이의 공백 한 칸)만 본다. 앞뒤 공백과 연속 공백은 눈으로 같은 이름이 다르게 저장되므로 허용하지 않는다. 예약어 검사는 하지 않는다 — 설치 마법사가 루트 계정에 "운영자" 같은 이름을 쓸 수 있어야 한다.
+ * <p>닉네임은 형식(2~12자, 한글 완성형·영문·숫자·밑줄, 글자 사이의 공백 한 칸)만 본다. 앞뒤 공백과 연속 공백은 눈으로 같은 이름이 다르게 저장되므로 허용하지 않는다. 예약어 검사는 하지 않는다 — 설치 마법사가 루트 계정에 "운영자" 같은 이름을 쓸 수 있어야 한다. 회원이 고르는 닉네임(프로필 변경)은 {@link #memberNicknameViolation} 으로 예약어까지 본다.
  */
 public final class UserPolicy {
 
@@ -61,6 +62,22 @@ public final class UserPolicy {
             return Optional.of(new MessageRef("user.nickname.chars"));
         }
         return Optional.empty();
+    }
+
+    /**
+     * 회원 닉네임 예약어 — 이 글자가 (대소문자 무시) 들어간 닉네임은 회원이 쓸 수 없다. 코드 고정이다(docs/features/member-mypage-contract.md 「결정」).
+     * 설치 마법사·운영자 이름은 이 검사를 하지 않는다({@link #nicknameViolation} 만).
+     */
+    public static final List<String> NICKNAME_RESERVED = List.of("admin", "운영자", "관리자", "roboyam");
+
+    /** 회원이 정하는 닉네임 — 형식({@link #nicknameViolation}) 다음에 예약어를 본다 */
+    public static Optional<MessageRef> memberNicknameViolation(String nickname) {
+        Optional<MessageRef> format = nicknameViolation(nickname);
+        if (format.isPresent()) {
+            return format;
+        }
+        String lower = nickname.toLowerCase(Locale.ROOT);
+        return NICKNAME_RESERVED.stream().anyMatch(lower::contains) ? Optional.of(new MessageRef("user.nickname.reserved")) : Optional.empty();
     }
 
     /**

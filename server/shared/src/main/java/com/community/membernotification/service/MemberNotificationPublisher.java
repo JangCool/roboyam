@@ -29,7 +29,8 @@ import tools.jackson.databind.json.JsonMapper;
  *       남들끼리 이어 가는 답글은 받지 않는다 — 답한 댓글의 작성자가 글쓴이 본인이어도 {@code REPLY} 하나만 간다(community 규약).</li>
  *   <li><b>설정</b>: 회원 이벤트 설정({@link MemberEvent} · {@code member_event_settings} — 관리자 이벤트 › 회원)에서 그 이벤트가 사용 중이어야 하고, 앱 알림({@code in_app})이 켜져 있으면
  *       알림 행을, 이메일({@code email})이 켜져 있으면 <b>커밋 뒤 회원 알림 메일</b>({@link MemberNotificationEmailSender} — 이메일 인증된 회원만, 조용한 시간 제외)을 낸다. 줄이 없으면 코드의 처음 값.
- *       회원 개인 끄기는 아직 없다(회원 설정 화면이 없다 — 계약 「미확정」).</li>
+ *       그다음 회원 개인 설정({@code member_notification_preferences} — {@code PUT /api/me/notification-settings}, 줄이 없으면 켬)을 더한다: 앱 알림 = 운영자 앱 알림 && 회원 앱 알림,
+ *       메일 = 운영자 이메일 && 회원 이메일. 회원이 끌 수 없는 이벤트(코드 잠금 {@code MemberEventLockReason} 또는 운영자 「회원이 끌 수 있음」 꺼짐)는 개인 설정을 무시한다.</li>
  *   <li><b>묶기</b>: 같은 회원·같은 글의 <b>안 읽은</b> {@code COMMENT} 가 묶음 시간({@code group_window_minutes}, 0 = 묶지 않음) 안에 있으면 새 줄을 만들지 않고 그 줄의 묶인 수를 늘린다
  *       (일으킨 사람·가리키는 댓글은 가장 최근 것). <b>묶인 댓글의 메일은 처음 한 통뿐</b>이다 — 묶음에 더해질 때는 다시 보내지 않는다. 같은 글의 댓글 쓰기는 글 행 갱신(댓글 수)으로
  *       줄을 서므로 동시 중복이 없다. 앱 알림이 꺼져 있으면 묶을 줄이 없어 댓글마다 한 통이다.</li>
@@ -68,7 +69,7 @@ public class MemberNotificationPublisher {
             if (target == null || Objects.equals(target, notice.commenterId())) {
                 return 0;
             }
-            EventSwitch on = switchOf(type);
+            EventSwitch on = switchOf(type, target);
             if (!on.delivers() || !writer.receivable(target)) {
                 return 0;
             }
@@ -105,7 +106,7 @@ public class MemberNotificationPublisher {
     public int contentHidden(long authorId, long postId, Long commentId, String snapshot, Instant until) {
         return isolated.run("member-notification:hidden", () -> {
             MemberNotificationType type = commentId == null ? MemberNotificationType.POST_HIDDEN : MemberNotificationType.COMMENT_HIDDEN;
-            EventSwitch on = switchOf(type);
+            EventSwitch on = switchOf(type, authorId);
             if (!on.delivers() || !writer.receivable(authorId)) {
                 return 0;
             }
@@ -140,7 +141,7 @@ public class MemberNotificationPublisher {
             return 0;
         }
         return isolated.run("member-notification:points", () -> {
-            EventSwitch on = switchOf(MemberNotificationType.POINTS_REVOKED);
+            EventSwitch on = switchOf(MemberNotificationType.POINTS_REVOKED, userId);
             if (!on.delivers() || !writer.receivable(userId)) {
                 return 0;
             }
@@ -166,13 +167,24 @@ public class MemberNotificationPublisher {
     }
 
     /**
-     * 회원 이벤트 설정(관리자 설정 › 이벤트 › 회원) — 사용 여부 · 앱 알림 · 이메일. 줄이 없으면 코드의 처음 값({@link MemberEvent}).
+     * 받는 회원에게 나가는 것 — 회원 이벤트 설정(관리자 설정 › 이벤트 › 회원)의 사용 여부 · 앱 알림 · 이메일(줄이 없으면 코드의 처음 값 {@link MemberEvent})에
+     * 회원 개인 설정({@code member_notification_preferences}, 줄이 없으면 둘 다 켬)을 더한다. 회원이 끌 수 없는 이벤트(코드 잠금 또는 운영자 「회원이 끌 수 있음」 꺼짐)는
+     * 개인 설정을 보지 않는다. 운영자 설정이 이미 아무것도 내보내지 않으면 개인 설정을 읽지 않는다.
      */
-    private EventSwitch switchOf(MemberNotificationType type) {
+    private EventSwitch switchOf(MemberNotificationType type, long userId) {
         MemberEvent event = MemberEvent.of(type);
-        EventSwitch on = writer.eventSetting(event.code()).orElse(new EventSwitch(event.defaultEnabled(), event.defaultInApp(), event.defaultEmail()));
+        EventSwitch site = writer.eventSetting(event.code())
+                .orElse(new EventSwitch(event.defaultEnabled(), event.defaultInApp(), event.defaultEmail(), event.defaultMemberCanTurnOff()));
+        EventSwitch on = new EventSwitch(site.enabled(), site.inApp(), site.email(), !event.locked() && site.memberCanTurnOff());
         if (!on.delivers()) {
             log.debug("회원 이벤트 설정에서 꺼진 이벤트라 만들지 않는다 event={}", event);
+            return on;
+        }
+        if (on.memberCanTurnOff()) {
+            on = on.withMemberChoice(writer.memberChoice(userId, event.code()).orElse(null));
+            if (!on.delivers()) {
+                log.debug("회원이 개인 설정에서 끈 이벤트라 만들지 않는다 event={}", event);
+            }
         }
         return on;
     }

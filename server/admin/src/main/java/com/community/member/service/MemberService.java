@@ -16,6 +16,7 @@ import com.community.member.dto.response.MemberConsentRecord;
 import com.community.member.dto.response.MemberConsents;
 import com.community.member.dto.response.MemberDetailView;
 import com.community.member.dto.response.MemberGradePoint;
+import com.community.member.dto.response.MemberNicknameChange;
 import com.community.member.dto.response.MemberPage;
 import com.community.member.dto.response.MemberReportSummary;
 import com.community.member.dto.response.MemberRoleDetail;
@@ -36,6 +37,7 @@ import com.community.social.entity.SocialProvider;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserEntity;
 import com.community.user.entity.UserStatus;
+import com.community.user.repository.master.ProfileNicknameHistoryRepository;
 import com.community.user.repository.master.ProfileRepository;
 import com.community.user.repository.master.UserRepository;
 import java.time.Duration;
@@ -83,10 +85,13 @@ public class MemberService {
     private final MemberActivityRepository activities;
     private final ReportRepositoryQDSL reportQueries;
     private final MemberGradePointAssembler gradePoints;
+    private final ProfileNicknameHistoryRepository nicknameHistory;
 
     public MemberService(MemberRepositoryQDSL members, MemberSearchParser parser, MemberRoleResolver roleResolver, GradeRepositoryQDSL gradeQueries,
                          RoleRepositoryQDSL roleQueries, UserRepository users, ProfileRepository profiles, AuditLogService audit, MemberActivityRepository activities,
-                         ReportRepositoryQDSL reportQueries, MemberGradePointAssembler gradePoints) {
+                         ReportRepositoryQDSL reportQueries, MemberGradePointAssembler gradePoints,
+                         ProfileNicknameHistoryRepository nicknameHistory) {
+        this.nicknameHistory = nicknameHistory;
         this.activities = activities;
         this.reportQueries = reportQueries;
         this.gradePoints = gradePoints;
@@ -153,13 +158,19 @@ public class MemberService {
                 record.lastLoginAt(), pointOf(record), memberRoles.roles(), null, statusChangedAt(record), memberRoles.boardRole(), 0,
                 null, activity, List.of(), null, reports,
                 withdrawn ? null : profile.getBio(), social, null, null, null, withdrawn ? record.deletedAt() : null,
-                withdrawn || canPii ? List.of() : null, !canPii,
+                withdrawn ? List.of() : canPii ? nicknameHistoryOf(id) : null, !canPii,
                 gradePoint, null, null, null, consents, null);
 
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.MEMBER_VIEW, AuditResult.SUCCESS).target("MEMBER", Long.toString(id))
                 .with("emailRevealed", canPii && record.email() != null));
         log.info("회원 상세를 열었다 memberId={} operatorId={}", id, actor.operatorId());
         return view;
+    }
+
+    /** 닉네임 변경 이력 — 최신이 위, 최근 20줄({@code member.pii} 가 있을 때만 부른다 — 이전 닉네임은 공개하지 않는 값) */
+    private List<MemberNicknameChange> nicknameHistoryOf(long userId) {
+        return nicknameHistory.findTop20ByUserIdOrderByIdDesc(userId).stream()
+                .map(row -> new MemberNicknameChange(row.getOldNickname(), row.getNewNickname(), row.getChangedAt())).toList();
     }
 
     /**

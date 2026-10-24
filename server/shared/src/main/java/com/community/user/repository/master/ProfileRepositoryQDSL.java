@@ -36,4 +36,12 @@ public class ProfileRepositoryQDSL extends RoboyamRepositoryQDSL {
                 .where(profile.nickname.lower().eq(Expressions.stringTemplate("lower({0})", nickname)))
                 .fetchFirst() != null;
     }
+
+    /** 그 회원 말고 그 닉네임(대소문자 무시)을 쓰는 회원이 있는가 — 내 닉네임의 대소문자만 바꾸는 변경이 나 자신과 겹쳤다고 보지 않게 */
+    public boolean existsByNicknameExcept(String nickname, long userId) {
+        QProfileEntity profile = QProfileEntity.profileEntity;
+        return query.selectOne().from(profile)
+                .where(profile.nickname.lower().eq(Expressions.stringTemplate("lower({0})", nickname)), profile.userId.ne(userId))
+                .fetchFirst() != null;
+    }
 }
