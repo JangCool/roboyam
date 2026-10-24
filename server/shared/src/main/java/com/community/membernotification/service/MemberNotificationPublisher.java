@@ -171,7 +171,7 @@ public class MemberNotificationPublisher {
             return 0;
         }
         return isolated.run("member-notification:dm", () -> {
-            EventSwitch on = switchOf(MemberNotificationType.DM);
+            EventSwitch on = switchOf(MemberNotificationType.DM, recipientId);
             if (!on.delivers() || !writer.receivable(recipientId)) {
                 return 0;
             }
@@ -199,7 +199,7 @@ public class MemberNotificationPublisher {
      */
     public int nicknameImageReviewed(long userId, long requestId, String result, String reason) {
         return isolated.run("member-notification:nickname-image", () -> {
-            EventSwitch on = switchOf(MemberNotificationType.NICKNAME_IMAGE_REVIEWED);
+            EventSwitch on = switchOf(MemberNotificationType.NICKNAME_IMAGE_REVIEWED, userId);
             if (!on.delivers() || !writer.receivable(userId)) {
                 return 0;
             }
