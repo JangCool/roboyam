@@ -4,7 +4,7 @@
 
 | 파일 | 역할 |
 |---|---|
-| `seed/seed.json` | **데이터**(community 에서 넘어온 그대로). 계정 11개 · 글 6개 · 댓글 7개 · 추천 16개. 그 밖의 칸(투표·임시저장·공동구매 등)은 로보얌에 아직 없는 기능이라 로더가 건너뛴다 |
+| `seed/seed.json` | **데이터**(community 에서 넘어온 그대로). 계정 13개(베테랑 2개 포함 — 2026-10-24 로보얌에서 더함) · 글 6개 · 댓글 7개 · 추천 16개. 그 밖의 칸(투표·임시저장·공동구매 등)은 로보얌에 아직 없는 기능이라 로더가 건너뛴다 |
 | `scripts/seed-local.mjs` | **로더**(Node 내장 `fetch` + `docker exec … psql`, 의존성 없음). 서버 코드는 바꾸지 않았다 |
 
 ## 쓰는 법
@@ -69,7 +69,7 @@ $env:SEED_API = "http://localhost:9091"; $env:SEED_DB_NAME = "roboyam_seedtest";
 | `users.created_at` | 지금 − `ageDays` 일(가입 일수 — 등급 승급 조건 `grades.min_days`·새 회원 규칙에 쓰인다) |
 | `users.email_verified_at` | `emailVerified` 면 가입 시각, 아니면 NULL(`e2e.unverified` — 이메일 미인증이라 글·댓글 쓰기가 막힌다) |
 | 필수 동의 `terms_version`·`terms_agreed_at`·`age_confirmed_at` | `v1`(공개 가입과 같은 약관 버전) · 가입 시각 · 가입 시각 |
-| `profiles` | 닉네임 · 기본 등급(`grades` 의 level 1, 기본 `SEEDLING`) · `grade_manual = false` |
+| `profiles` | 닉네임 · 등급 — 시드에 `grade`(등급 키, 예 `VETERAN`)가 있고 그 등급이 있으면 그것(`grade_manual = true`), 없으면 기본 등급(`grades` 의 level 1, 기본 `SEEDLING`)·`grade_manual = false` |
 
 소셜 연결(`user_identities`)·역할(`user_roles` — 일반 회원·등급 역할은 파생이라 행이 없다)·포인트 잔액은 만들지 않는다(공개 가입도 만들지 않는다). 닉네임을 다른 회원이 이미 쓰고 있으면(대소문자 무시) 그 계정은 만들지 않고 알린다.
 
@@ -115,3 +115,6 @@ $env:SEED_API = "http://localhost:9091"; $env:SEED_DB_NAME = "roboyam_seedtest";
 - 두 번째 실행: 계정 전부 「이미 있음」·로그인 11/11, 콘텐츠는 「글이 이미 6개 있어 건너뜀」(종료 0). `--force` 를 같은 10분 안에 돌리면 `409 DUPLICATE_POST` 로 같은 글이 거절된다(위 「쓰는 법」).
 - 안전장치: `SEED_DB_NAME` 없이 다른 서버 주소 → 멈춤, localhost 아님 → 멈춤, 설치 전 서버 + 설치된 DB(서버와 다른 DB) → 멈춤, 설치 전 DB → 멈춤.
 - 화면(Nuxt)에서 눈으로 본 확인은 하지 않았다.
+
+### 베테랑 계정 추가 (2026-10-24)
+- `e2e.veteran1`(베테랑일호)·`e2e.veteran2`(베테랑이호) — 가입 120일·이메일 인증·등급 `VETERAN`. 닉네임 이미지 신청(기본 조건 「베테랑 이상」)처럼 높은 등급이 필요한 흐름을 시험할 때 쓴다. 이미 있는 DB 에서도 로더를 다시 돌리면 이 둘만 새로 만든다.

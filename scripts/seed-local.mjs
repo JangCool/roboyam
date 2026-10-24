@@ -212,7 +212,7 @@ async function seedAccounts() {
         const hashVars = toCreate.map((_, i) => `h${i}`);
         const ids = toCreate.map((_, i) => snowflake(i));
         const values = toCreate.map((u, i) => `(${ids[i]},${q(u.email)}, ${q(u.nickname)}, ${q(u.status ?? 'ACTIVE')}, ${u.emailVerified ? 'true' : 'false'}, `
-            + `${Math.max(0, Math.trunc(Number(u.ageDays) || 0))}, :'${hashVars[i]}')`);
+            + `${Math.max(0, Math.trunc(Number(u.ageDays) || 0))}, ${q(u.grade ?? null)}, :'${hashVars[i]}')`);
         // 1단계: pgcrypto 로 bcrypt 해시를 만든다(확장이 없으면 만들고, 해시를 psql 변수에 받은 뒤 되돌린다 — DB 에 확장이 남지 않는다).
         // 2단계: 해시로 users·profiles 를 한 트랜잭션에 넣는다. 가입 시각·인증 시각·동의 시각은 모두 "지금 − 가입 일수"다(공개 가입과 같은 모양: 약관·개인정보·만 14세 동의 = 가입 시각)
         const script = [
@@ -221,7 +221,7 @@ async function seedAccounts() {
             `SELECT ${hashVars.map((h) => `crypt(${q(PASSWORD)}, gen_salt('bf', 10)) AS ${h}`).join(', ')} \\gset`,
             'ROLLBACK;',
             'BEGIN;',
-            `WITH src (id, email, nickname, status, verified, age_days, hash) AS (VALUES ${values.join(', ')}),`,
+            `WITH src (id, email, nickname, status, verified, age_days, grade, hash) AS (VALUES ${values.join(', ')}),`,
             '     ins AS (',
             '         INSERT INTO users (id, email, password_hash, role, status, email_verified_at, terms_version, terms_agreed_at, age_confirmed_at, created_at, updated_at)',
             `         SELECT s.id, s.email, s.hash, 'USER', s.status, CASE WHEN s.verified THEN t.at END, ${q(TERMS_VERSION)}, t.at, t.at, t.at, t.at`,
@@ -230,7 +230,9 @@ async function seedAccounts() {
             '         ON CONFLICT (email) WHERE email IS NOT NULL DO NOTHING',
             '         RETURNING id, email, created_at)',
             'INSERT INTO profiles (user_id, nickname, grade_key, grade_manual, created_at, updated_at)',
-            'SELECT i.id, s.nickname, (SELECT grade_key FROM grades ORDER BY level LIMIT 1), false, i.created_at, i.created_at',
+            // 등급: 시드에 grade(등급 키)가 있고 그 등급이 있으면 그것(수동 지정으로 남긴다), 없으면 첫 등급
+            "SELECT i.id, s.nickname, coalesce((SELECT grade_key FROM grades WHERE grade_key = s.grade), (SELECT grade_key FROM grades ORDER BY level LIMIT 1)),",
+            "       (s.grade IS NOT NULL AND EXISTS (SELECT 1 FROM grades WHERE grade_key = s.grade)), i.created_at, i.created_at",
             '  FROM ins i JOIN src s ON s.id = i.id',
             'RETURNING user_id;',
             'COMMIT;',
