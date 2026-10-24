@@ -89,7 +89,7 @@ public final class BoardFields {
     /** 게시판별로 덮어쓸 수 있는 칸(admin-web {@code BOARD_POLICY_FIELDS} 순서) */
     public static final List<String> POLICY_FIELDS = List.of("writeMin", "commentMin", "postEditor", "imageUploadAllowed", "commentEditor", "listSize", "pinnedMax", "indexable", "searchable",
             "inHome", "pointMode", "commentProtectMin", "commentProtectEdit", "commentProtectDelete", "commentProtectDelayMinutes", "commentGuestDelayMinutes",
-            "managerMax", "staffPostDailyLimit", "staffCommentDailyLimit", "staffSanctionDailyLimit");
+            "staffHiddenNotice", "managerMax", "staffPostDailyLimit", "staffCommentDailyLimit", "staffSanctionDailyLimit");
     /** 하위 화면(신고·보안·알림·개인정보)의 숫자·고르기 칸 — 모두 {@code board.settings} */
     public static final Map<String, Spec> TABS;
 
@@ -118,6 +118,7 @@ public final class BoardFields {
         choice(d, "commentProtectDelete", true, false, "BLOCK", "DELAY", "ALLOW");
         choice(d, "commentProtectDelayMinutes", true, false, 5, 10, 30);
         choice(d, "commentGuestDelayMinutes", true, false, 0, 10, 30, 60, 180);
+        bool(d, "staffHiddenNotice", true);
         number(d, "bestCommentMinLikes", 1, 100, false, false);
         number(d, "managerMax", 1, 10, true, true);
         number(d, "staffMax", 1, 10, false, true);

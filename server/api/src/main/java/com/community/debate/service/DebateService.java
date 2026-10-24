@@ -50,7 +50,9 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li><b>입장 바꾸기</b>: 로그인 회원만(SecurityConfig — 401). 글 읽기 규칙(404 POST_NOT_FOUND · 403 POST_HIDDEN · 403 BOARD_INACTIVE) → 댓글 쓰기 자격(403 까닭 — 댓글 쓰기와 같다)
  *       → {@code stance} PRO·CON(아니면 400 {@code fields.stance}) → 토론이 열려 있어야(409 DEBATE_NOT_OPEN) → 이미 정한 회원만(409 STANCE_NOT_SET). 같은 값이면 그대로(멱등).
- *       바꾼 뒤 쓰는 댓글부터 새 배지가 붙고 이미 쓴 댓글의 배지는 그대로다. 횟수 제한 없음.</li>
+ *       <b>소급한다</b>(사용자 결정 2026-10-24 — community 와 다름): 입장이 실제로 바뀌면 같은 트랜잭션에서 그 회원이 그 글에 쓴 입장 있는 댓글(원댓글·답글, 숨긴 것·지운 것 포함)의
+ *       배지도 새 입장으로 바꾼다({@link DebateQueries#moveOpinions}). 일반 댓글은 그대로, 고정·숨김 상태도 그대로. 응답 {@code moved} = 옮긴 의견 중 지우지 않은 것의 수.
+ *       감사·알림 없음. 횟수 제한 없음.</li>
  *   <li><b>@ 지정 후보</b>: 로그인 회원만(401 — 경로는 GET 이라 SecurityConfig 가 열어 두고 서비스가 막는다). 이 글에 지우거나 숨기지 않은 댓글을 쓴 회원 중
  *       나·내가 차단한 회원·탈퇴한 회원·비회원을 뺀 사람, 닉네임에 {@code q}(대소문자 무시, 앞 {@value #QUERY_MAX}자)가 든 사람을 가장 최근에 쓴 순으로 {@value #LIMIT}명.
  *       고른 회원의 {@code parentId}·{@code replyToId} 로 답글을 쓰면 기존 답글 규칙(답글 알림 포함) 그대로다 — 본문 앞 {@code @닉네임} 은 화면이 붙인다. 따로 멘션 알림은 없다.</li>
@@ -104,10 +106,12 @@ public class DebateService {
             throw new DebateNotOpenException();
         }
         DebateStance current = queries.stanceOf(post.getId(), userId).orElseThrow(StanceNotSetException::new);
+        int moved = 0;
         if (current != wanted) {
             queries.change(post.getId(), userId, wanted, now);
+            moved = queries.moveOpinions(post.getId(), userId, wanted); // 소급 — 같은 트랜잭션(사용자 결정 2026-10-24)
         }
-        return new StanceView(wanted.name());
+        return new StanceView(wanted.name(), moved);
     }
 
     @Transactional(readOnly = true)

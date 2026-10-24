@@ -9,12 +9,12 @@ import java.util.Map;
  */
 public record BoardPolicyValues(String writeMin, String commentMin, String postEditor, Boolean imageUploadAllowed, String commentEditor, Integer listSize, Integer pinnedMax, Boolean indexable,
                                 Boolean searchable, Boolean inHome, String pointMode, Integer commentProtectMin, Boolean commentProtectEdit,
-                                String commentProtectDelete, Integer commentProtectDelayMinutes, Integer commentGuestDelayMinutes, Integer managerMax,
+                                String commentProtectDelete, Integer commentProtectDelayMinutes, Integer commentGuestDelayMinutes, Boolean staffHiddenNotice, Integer managerMax,
                                 Integer staffPostDailyLimit, Integer staffCommentDailyLimit, Integer staffSanctionDailyLimit) {
 
     /** 모두 기본값을 따르는 정책 */
     public static BoardPolicyValues empty() {
-        return new BoardPolicyValues(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        return new BoardPolicyValues(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     /** 칸 이름 → 값(칸 순서대로, null 포함) */
@@ -36,6 +36,7 @@ public record BoardPolicyValues(String writeMin, String commentMin, String postE
         map.put("commentProtectDelete", commentProtectDelete);
         map.put("commentProtectDelayMinutes", commentProtectDelayMinutes);
         map.put("commentGuestDelayMinutes", commentGuestDelayMinutes);
+        map.put("staffHiddenNotice", staffHiddenNotice);
         map.put("managerMax", managerMax);
         map.put("staffPostDailyLimit", staffPostDailyLimit);
         map.put("staffCommentDailyLimit", staffCommentDailyLimit);

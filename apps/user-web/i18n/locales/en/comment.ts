@@ -27,6 +27,7 @@ export default {
     edited: '(edited)',
     deleted: 'This comment was deleted',
     hidden: 'Hidden after reports',
+    hiddenByStaff: 'Hidden by staff',
     likeLabel: '{n} likes',
     alreadyLiked: 'You already liked this comment.',
 
@@ -53,18 +54,37 @@ export default {
     debateGuestHint: 'Only signed-in members can post pro or con opinions.',
     stancePickLabel: 'Which side are you on?',
     stanceGeneral: 'General',
-    stancePickHint: 'Your first pro or con comment sets your side. After that, change it with "Change side".',
+    stancePickHint: 'Your first pro or con comment sets your side. You can switch later, and your existing opinions switch with you.',
     myStance: 'My side',
     myStanceHint: 'Your comments and replies on this post get this badge.',
-    changeStance: 'Change side',
-    changeStanceTitle: {
-        PRO: 'Switch to pro?',
-        CON: 'Switch to con?',
+    /** Button — names the side you switch to (key = new side) */
+    changeStanceTo: {
+        PRO: 'Switch to pro',
+        CON: 'Switch to con',
     },
-    changeStanceMessage: 'Comments you write after switching get the new badge. Existing comments keep theirs.',
+    /** Confirm title — key = new side */
+    changeStanceTitle: {
+        PRO: 'Switch from con → pro?',
+        CON: 'Switch from pro → con?',
+    },
+    /** Confirm body when you have opinions to move (`n` = `debate.myOpinionCount`) */
+    changeStanceMoves: {
+        PRO: 'Your {n} con opinion(s) so far will become pro too.',
+        CON: 'Your {n} pro opinion(s) so far will become con too.',
+    },
+    /** Confirm body when there is nothing to move */
+    changeStanceFuture: {
+        PRO: 'Opinions you write from now on get the pro badge.',
+        CON: 'Opinions you write from now on get the con badge.',
+    },
     stanceChanged: {
-        PRO: 'You are now on the pro side.',
-        CON: 'You are now on the con side.',
+        PRO: 'Switched to pro.',
+        CON: 'Switched to con.',
+    },
+    /** Success toast — `n` = response `moved` */
+    stanceChangedMoved: {
+        PRO: 'Switched to pro. {n} of your opinions moved too.',
+        CON: 'Switched to con. {n} of your opinions moved too.',
     },
     mention: 'Mention a member',
     mentionSearch: 'Find by nickname',

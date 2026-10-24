@@ -1,11 +1,11 @@
 <template>
-    <!-- 댓글 하나 — (토론 입장 배지)·작성자·시각·본문·[추천][답글][⋯ 고치기·지우기·신고]. 지운 댓글·신고로 숨긴 댓글은 자리만, 비회원에게 늦게 보이는 댓글은 로그인 안내 단추 -->
+    <!-- 댓글 하나 — (토론 입장 배지)·작성자·시각·본문·[추천][답글][⋯ 고치기·지우기·신고]. 지운 댓글·숨긴 댓글은 자리만(운영자가 숨겼고 게시판이 밝히기로 했으면 `hiddenBy` STAFF — 「운영자가 숨긴 댓글이에요」), 비회원에게 늦게 보이는 댓글은 로그인 안내 단추 -->
     <article :id="`comment-${comment.id}`" class="scroll-mt-20 py-3" :class="reply ? 'pl-6' : ''">
         <p v-if="comment.state === 'DELETED'" class="text-sm text-muted-color">
             <i v-if="reply" class="pi pi-reply mr-1 rotate-180 text-xs" aria-hidden="true" />{{ t('comment.deleted') }}
         </p>
         <p v-else-if="comment.state === 'HIDDEN'" class="flex items-center gap-1.5 text-sm text-muted-color">
-            <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t('comment.hidden') }}
+            <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t(comment.hiddenBy === 'STAFF' ? 'comment.hiddenByStaff' : 'comment.hidden') }}
         </p>
         <!-- 차단한 회원·단어의 댓글은 접힌 한 줄(「보기」로 그 자리에서 펼친다) -->
         <FoldedRow v-else :reason="foldReason" kind="comment" class="text-sm" hide-class="mt-1.5">

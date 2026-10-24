@@ -31,11 +31,22 @@ export interface DebateCounts {
 /** 댓글 목록의 토론 칸 — 늘 있다. 화면은 `enabled || pro + con > 0` 일 때 구분 탭을 보인다(끝난 하이라이트는 읽기 전용) */
 export interface CommentDebate extends DebateSummary {
     counts: DebateCounts;
+    /**
+     * 내가 이 글에 쓴 지금 입장(`myStance`)의 의견 수 — 원댓글·답글, 숨긴 것 포함, 지운 것 제외(비로그인·입장 없음 0).
+     * 입장 바꾸기 확인창의 「지금까지 쓴 … N개도 바뀌어요」에 쓴다(`PUT …/stance` 응답 `moved` 와 같은 기준). 옛 응답에는 없을 수 있다
+     */
+    myOpinionCount?: number;
 }
 
-/** `PUT /api/posts/{postId}/stance` — 요청과 응답이 같은 모양 */
+/** `PUT /api/posts/{postId}/stance` 요청 */
 export interface StanceBody {
     stance: DebateStance;
+}
+
+/** `PUT /api/posts/{postId}/stance` 응답 — 바뀐 입장 + 함께 옮긴 내 의견 수(지운 것 제외, 같은 값이면 0) */
+export interface StanceChangeResult {
+    stance: DebateStance;
+    moved: number;
 }
 
 /** @ 지정 후보 한 명 — 고르면 `parentId`·`replyToId` 로 그 회원의 최근 댓글에 답글을 쓴다 */

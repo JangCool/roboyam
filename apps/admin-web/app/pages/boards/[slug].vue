@@ -434,7 +434,7 @@ const canDelete = computed(() => can('board.delete'));
 const WRITE_FIELDS = ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor'] as const;
 /** 「홈·인기·최신 포함」(inHome)은 두지 않는다 — 가젯 노출 금지가 대신한다(서버 칸은 받은 값 그대로 저장 요청에 돌아간다) */
 const EXPOSURE_FIELDS = ['listSize', 'pinnedMax', 'indexable', 'searchable'] as const;
-const PROTECT_FIELDS = ['commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes', 'pointMode'] as const;
+const PROTECT_FIELDS = ['commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes', 'staffHiddenNotice', 'pointMode'] as const;
 const STAFF_LIMIT_FIELDS = ['managerMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit'] as const;
 const GUIDE_FIELDS = ['introText', 'writeGuideText'] as const;
 const ROLES: readonly BoardStaffRole[] = ['MANAGER', 'STAFF'];

@@ -5,6 +5,7 @@
         고정은 지금 이 목록의 차례만 바꾼다(홈 카드는 홈 작업 때). 글쓴이에게 알리지 않는다.
         서버 호출은 페이지가 준 `actions` 로만 한다. 바꾸면 그 줄을 서버가 준 모양으로 갈아 끼우고 차례가 바뀔 수 있어 그 쪽을 다시 읽는다 — 하이라이트 목록의 수는 `changed` 로 페이지가 다시 읽는다.
         처리 권한(`highlight.manage`)이 없으면 단추 없이 읽기만 한다.
+        입장 색은 공개 사이트와 같은 토큰(`main.css` 「토론 입장 색」): 탭 글자 `stance-*-text`, 줄의 배지 `stance-*-soft` — 찬성 파랑 · 반대 빨강, 늘 글자와 함께.
     -->
     <Drawer v-model:visible="open" position="right" :header="t('highlight.opinionsTitle')" :style="{ width: '44rem', maxWidth: '100vw' }">
         <div v-if="highlight" class="flex flex-col gap-3">
@@ -18,7 +19,11 @@
 
             <p v-if="!canManage" class="m-0 flex items-center gap-1.5 text-xs text-muted-color"><i class="pi pi-lock" aria-hidden="true" />{{ t('highlight.opinionsReadOnly') }}</p>
 
-            <SelectButton v-model="stance" :options="stanceOptions" option-label="label" option-value="value" :allow-empty="false" :aria-label="t('highlight.opinionsTabs')" class="self-start" @update:model-value="onStance" />
+            <SelectButton v-model="stance" :options="stanceOptions" option-label="label" option-value="value" :allow-empty="false" :aria-label="t('highlight.opinionsTabs')" class="self-start" @update:model-value="onStance">
+                <template #option="{ option }">
+                    <span class="font-semibold tabular-nums" :class="UtilHighlight.stanceTextClass(option.value)">{{ option.label }}</span>
+                </template>
+            </SelectButton>
 
             <div v-if="loading && !data" class="flex flex-col gap-2" role="status" :aria-label="t('common.loading')">
                 <Skeleton v-for="n in 4" :key="n" height="4rem" />
@@ -29,6 +34,7 @@
                 <ul v-else class="m-0 flex list-none flex-col divide-y divide-(--line) p-0" :aria-busy="loading">
                     <li v-for="op in page.items" :key="op.commentId" class="flex flex-col gap-1.5 py-2.5" :class="op.hidden ? 'opacity-70' : ''">
                         <div class="flex flex-wrap items-center gap-1.5 text-xs text-muted-color">
+                            <span class="inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[11px] font-semibold leading-tight" :class="UtilHighlight.stanceSoftClass(op.stance)">{{ t(`highlight.stance.${op.stance}`) }}</span>
                             <Tag v-if="op.pinned" :value="t('highlight.pinnedTag')" icon="pi pi-thumbtack" severity="info" class="text-[11px]!" />
                             <Tag v-if="op.hidden" :value="t(`highlight.hiddenReason.${op.hiddenReason ?? 'STAFF'}`)" icon="pi pi-eye-slash" severity="warn" class="text-[11px]!" />
                             <span class="font-medium text-color">{{ op.authorKind === 'GUEST' ? t('content.guestAuthor', { name: op.authorName }) : op.authorName }}</span>

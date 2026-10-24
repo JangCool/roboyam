@@ -1,5 +1,5 @@
 import type { CommentListResponse, CommentSort, CommentView, CommentWriteRequest } from '~/composables/board/api/useCommentApi.types';
-import type { CommentKind, DebateStance } from '~/composables/board/api/useDebateApi.types';
+import type { CommentKind, DebateStance, StanceChangeResult } from '~/composables/board/api/useDebateApi.types';
 import type { ContentFormat, GuestCredentials } from '~/composables/board/api/usePostApi.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
 
@@ -101,11 +101,11 @@ export function usePostComments(postId: MaybeRef<string>) {
         list.best.forEach(patch);
     }
 
-    /** 내 입장 바꾸기 — 바꾼 뒤 목록을 다시 받아 `debate.myStance` 를 맞춘다 */
-    async function changeStance(stance: DebateStance): Promise<DebateStance> {
+    /** 내 입장 바꾸기 — 기존 의견도 함께 옮겨 가므로(소급) 바꾼 뒤 목록을 다시 받아 `debate.myStance`·구분 탭 수·배지를 맞춘다 */
+    async function changeStance(stance: DebateStance): Promise<StanceChangeResult> {
         const result = await debateApi.changeStance(toValue(postId), stance);
         await load();
-        return result.stance;
+        return result;
     }
 
     /** @ 지정 후보 */

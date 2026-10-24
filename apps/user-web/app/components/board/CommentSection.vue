@@ -4,7 +4,9 @@
         서버 호출은 페이지가 `usePostComments` 로 하고 여기에는 그 함수(`actions`)만 내려온다. 비회원 비밀번호 확인·지우기 확인·로그인 안내는 여기서 띄운다.
         신고는 페이지의 신고 대화상자를 쓴다(`report` 이벤트).
         하이라이트 토론(`data.debate`, community `api-debate.md` 1~5절): 토론이 열렸거나(`enabled`) 이미 쓴 의견이 있으면 구분 탭(전체·일반·찬성·반대 + 수)을 보인다(끝난 토론은 읽기만).
-          열린 토론의 새 댓글 상자 위에는 — 입장을 정하지 않은 회원: [일반 · 찬성 · 반대] 고르기(찬성·반대로 처음 쓰면 입장이 정해진다) / 정한 회원: 「내 입장 [배지] · 입장 바꾸기」(확인 뒤 `PUT …/stance`) / 비회원: 로그인 안내 한 줄.
+          열린 토론의 새 댓글 상자 위에는 — 입장을 정하지 않은 회원: [일반 · 찬성 · 반대] 고르기(찬성·반대로 처음 쓰면 입장이 정해진다) / 정한 회원: 「내 입장 [배지] · 반대로 바꾸기(찬성으로 바꾸기)」 / 비회원: 로그인 안내 한 줄.
+          입장 바꾸기는 소급한다 — 확인창이 「찬성 → 반대로 바꿀까요?」와 옮겨 갈 내 의견 수(`debate.myOpinionCount`, 0 이면 앞으로 쓰는 의견 안내)를 보이고, `PUT …/stance` 의 `{ stance, moved }` 를 받은 뒤 목록(탭 수·배지)을 다시 받는다.
+          입장 색(`main.css` 「토론 입장 색」 — admin-web 과 같은 토큰): 찬성 파랑 · 반대 빨강 · 일반·전체 중립. 구분 탭·입장 고르개는 고르면 채운 칩(`stance-*-solid`), 아니면 그 색 글자(`stance-*-text`). 늘 글자와 함께 쓴다.
           회원은 「@ 회원 지정」으로 이 글에 댓글을 쓴 회원을 골라 그 회원의 최근 댓글에 답글로 쓴다(`parentId`·`replyToId` — 상대 이름은 `replyTo` 로 `@이름` 이 그려지므로 본문에 덧붙이지 않는다).
           입장 배지가 붙는 댓글의 글자 수는 `debate.opinionMax`. 토론 오류(`DEBATE_NOT_OPEN`·`STANCE_LOCKED`·`STANCE_NOT_SET`)는 서버 문구를 보이고 목록을 다시 받아 지금 상태로 맞춘다.
           토론이 없는 글(`enabled false` · 의견 0)은 예전 화면 그대로다.
@@ -151,7 +153,17 @@
                     <div class="flex flex-wrap items-center gap-2 text-sm">
                         <span class="text-xs text-muted-color">{{ t('comment.myStance') }}</span>
                         <DebateStanceBadge :stance="debate.myStance" />
-                        <Button type="button" :label="t('comment.changeStance')" icon="pi pi-sync" size="small" severity="secondary" variant="text" :loading="changingStance" @click="askChangeStance" />
+                        <Button
+                            type="button"
+                            :label="t(`comment.changeStanceTo.${nextStance}`)"
+                            icon="pi pi-sync"
+                            size="small"
+                            severity="secondary"
+                            variant="text"
+                            :class="nextStance === 'PRO' ? 'stance-pro-text!' : 'stance-con-text!'"
+                            :loading="changingStance"
+                            @click="askChangeStance"
+                        />
                     </div>
                     <p class="m-0 text-xs text-muted-color">{{ t('comment.myStanceHint') }}</p>
                 </template>
@@ -306,30 +318,54 @@ function kindCount(k: CommentKind): number {
     return k === 'PRO' ? counts.pro : counts.con;
 }
 
+/** 고른 칩의 색 — 찬성 파랑 · 반대 빨강 · 일반·전체 중립(`main.css` 「토론 입장 색」) */
+const SOLID_NEUTRAL = 'bg-surface-900 text-surface-0 dark:bg-surface-100 dark:text-surface-900';
+function solidTone(stance: DebateStance | null): string {
+    if (stance === 'PRO') return 'stance-pro-solid';
+    if (stance === 'CON') return 'stance-con-solid';
+    return SOLID_NEUTRAL;
+}
+/** 고르지 않은 칩의 글자색 — 찬성·반대는 그 색, 일반·전체는 흐린 글자 */
+function idleText(stance: DebateStance | null): string {
+    if (stance === 'PRO') return 'stance-pro-text';
+    if (stance === 'CON') return 'stance-con-text';
+    return 'text-muted-color hover:text-color';
+}
+function kindStance(k: CommentKind): DebateStance | null {
+    return k === 'PRO' || k === 'CON' ? k : null;
+}
+
 function kindClass(k: CommentKind): string {
     return [
         'rounded-full px-2.5 py-1 focus-visible:outline-2 focus-visible:outline-primary',
-        props.kind === k ? 'bg-primary font-semibold text-primary-contrast' : 'bg-surface-100 text-muted-color hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700',
+        props.kind === k ? `${solidTone(kindStance(k))} font-semibold` : `${idleText(kindStance(k))} bg-surface-100 hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700`,
     ].join(' ');
 }
 
 function stanceClass(choice: DebateStance | null): string {
-    const tone = choice === 'PRO' ? 'bg-blue-600 text-white' : choice === 'CON' ? 'bg-red-600 text-white' : 'bg-surface-900 text-surface-0 dark:bg-surface-100 dark:text-surface-900';
-    return ['rounded-full px-3 py-1 focus-visible:outline-2 focus-visible:outline-primary', pickedStance.value === choice ? `${tone} font-semibold` : 'bg-surface-0 text-muted-color hover:text-color dark:bg-surface-900'].join(' ');
+    return ['rounded-full px-3 py-1 focus-visible:outline-2 focus-visible:outline-primary', pickedStance.value === choice ? `${solidTone(choice)} font-semibold` : `${idleText(choice)} bg-surface-0 dark:bg-surface-900`].join(' ');
 }
 
-/** 입장 바꾸기 — 지금 입장의 반대로. 바꾼 뒤 쓰는 댓글부터 새 배지(이미 쓴 댓글은 그대로) */
+/** 바꿀 입장 — 지금 입장의 반대 */
+const nextStance = computed<DebateStance>(() => (debate.value?.myStance === 'PRO' ? 'CON' : 'PRO'));
+
+/**
+ * 입장 바꾸기 — 지금 입장의 반대로. 기존 의견도 함께 옮겨 간다(소급).
+ * 확인창: 「찬성 → 반대로 바꿀까요?」 + 옮겨 갈 의견 수(`debate.myOpinionCount`) — 0 이면 앞으로 쓰는 의견 안내. 성공하면 목록을 다시 받은 뒤 바뀐 입장·옮긴 수를 알린다.
+ */
 const changingStance = ref(false);
 async function askChangeStance(): Promise<void> {
     const current = debate.value?.myStance;
     if (!current || changingStance.value) return;
     const next: DebateStance = current === 'PRO' ? 'CON' : 'PRO';
-    const ok = await confirm({ title: t(`comment.changeStanceTitle.${next}`), message: t('comment.changeStanceMessage'), confirmLabel: t('comment.changeStance') });
+    const count = debate.value?.myOpinionCount ?? 0;
+    const message = count > 0 ? t(`comment.changeStanceMoves.${next}`, { n: count }) : t(`comment.changeStanceFuture.${next}`);
+    const ok = await confirm({ title: t(`comment.changeStanceTitle.${next}`), message, confirmLabel: t(`comment.changeStanceTo.${next}`) });
     if (!ok) return;
     changingStance.value = true;
     try {
-        const stance = await props.actions.changeStance(next);
-        toast.show(t(`comment.stanceChanged.${stance}`), { tone: 'success' });
+        const { stance, moved } = await props.actions.changeStance(next);
+        toast.show(moved > 0 ? t(`comment.stanceChangedMoved.${stance}`, { n: moved }) : t(`comment.stanceChanged.${stance}`), { tone: 'success' });
     } catch (e) {
         if (e instanceof ApiError && e.code === 'UNAUTHENTICATED') prompt('opinion');
         else {

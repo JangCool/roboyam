@@ -39,6 +39,7 @@ public class BoardDefaultsEntity {
     private String commentProtectDelete;
     private int commentProtectDelayMinutes;
     private int commentGuestDelayMinutes;
+    private boolean staffHiddenNotice;
     private int bestCommentMinLikes;
     private int managerMax;
     private int staffMax;
@@ -54,7 +55,7 @@ public class BoardDefaultsEntity {
     public BoardDefaultsValues values() {
         return new BoardDefaultsValues(dateDisplay, writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, postGapSeconds, postDailyLimit, commentGapSeconds,
                 commentDailyLimit, listSize, pinnedMax, indexable, searchable, inHome, attachmentPurgeEnabled, attachmentRetentionDays, pointMode,
-                commentProtectMin, commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, bestCommentMinLikes,
+                commentProtectMin, commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice, bestCommentMinLikes,
                 managerMax, staffMax, staffPostDailyLimit, staffCommentDailyLimit, staffSanctionDailyLimit);
     }
 
@@ -83,6 +84,7 @@ public class BoardDefaultsEntity {
         this.commentProtectDelete = v.commentProtectDelete();
         this.commentProtectDelayMinutes = v.commentProtectDelayMinutes();
         this.commentGuestDelayMinutes = v.commentGuestDelayMinutes();
+        this.staffHiddenNotice = v.staffHiddenNotice();
         this.bestCommentMinLikes = v.bestCommentMinLikes();
         this.managerMax = v.managerMax();
         this.staffMax = v.staffMax();

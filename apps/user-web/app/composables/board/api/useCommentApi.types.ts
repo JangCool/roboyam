@@ -32,8 +32,13 @@ export interface CommentView {
     mine: boolean;
     /** 차단한 회원의 댓글(`USER`)·본문에 차단한 단어(`WORD`) — **서버 후보**(`member-social-contract.md`), 지금 서버 응답에는 없다. 접는 것은 화면의 일 */
     blocked?: BlockedBy | null;
-    /** 하이라이트 토론의 입장 배지 PRO · CON(일반 댓글 null) — 쓸 때 정해진 값이라 입장을 바꿔도 그대로. 답글·지운 자리·숨긴 자리에도 남는다 */
+    /** 하이라이트 토론의 입장 배지 PRO · CON(일반 댓글 null) — 입장을 바꾸면 그 회원의 기존 의견도 새 입장으로 함께 바뀐다(소급). 답글·지운 자리·숨긴 자리에도 남는다 */
     stance?: DebateStance | null;
+    /**
+     * 숨긴 까닭을 밝힐 때만 `STAFF`(운영자가 숨김) — `state` 가 HIDDEN 이고 그 게시판의 정책 `staffHiddenNotice` 가 켜졌을 때만 온다.
+     * 그 밖(옵션이 꺼진 게시판·신고 숨김·숨기지 않은 댓글)은 null — 화면은 지금처럼 「신고로 숨겨진 댓글이에요」를 보인다.
+     */
+    hiddenBy?: 'STAFF' | null;
 }
 
 /** 원댓글 + 그 아래 답글(오래된순) */

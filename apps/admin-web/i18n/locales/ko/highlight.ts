@@ -26,7 +26,8 @@ export default {
     },
     debateTag: '의견 받는 중',
     postGone: '글이 지워졌어요',
-    commentCounts: '댓글 {all} · 찬성 {pro} · 반대 {con} · 일반 {general}',
+    /** `{pro}`·`{con}` 자리에는 화면이 입장 색을 입힌 `stanceTab` 글자를 넣는다 */
+    commentCounts: '댓글 {all} · {pro} · {con} · 일반 {general}',
     updatedBy: '{name} · {at}',
     visibleShort: '노출',
     opinions: '의견 {n}',
@@ -107,6 +108,10 @@ export default {
     stanceTab: {
         PRO: '찬성 {n}',
         CON: '반대 {n}',
+    },
+    stance: {
+        PRO: '찬성',
+        CON: '반대',
     },
     opinionsLoadFailed: '의견을 불러오지 못했어요',
     opinionsEmpty: '이 입장의 의견이 없어요',

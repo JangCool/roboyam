@@ -150,7 +150,8 @@ public class BoardCatalog {
                 BoardFields.EDITOR_ADVANCED.equals(postEditor) && imageSetting, imageSetting, or(p.commentEditor(), d.commentEditor()),
                 or(p.listSize(), d.listSize()), or(p.pinnedMax(), d.pinnedMax()), or(p.commentProtectMin(), d.commentProtectMin()),
                 or(p.commentProtectEdit(), d.commentProtectEdit()), or(p.commentProtectDelete(), d.commentProtectDelete()),
-                or(p.commentProtectDelayMinutes(), d.commentProtectDelayMinutes()), or(p.commentGuestDelayMinutes(), d.commentGuestDelayMinutes()), prefixes,
+                or(p.commentProtectDelayMinutes(), d.commentProtectDelayMinutes()), or(p.commentGuestDelayMinutes(), d.commentGuestDelayMinutes()),
+                or(p.staffHiddenNotice(), d.staffHiddenNotice()), prefixes,
                 Set.copyOf(b.getGadgetExclusions()));
     }
 

@@ -91,6 +91,8 @@ export interface BoardDefaults {
     commentProtectDelayMinutes: number;
     /** 비회원에게 댓글을 늦게 보이는 시간(분) 0·10·30·60·180 */
     commentGuestDelayMinutes: number;
+    /** 운영자가 숨긴 댓글임을 공개 화면에 밝힌다(켜면 「운영자가 숨긴 댓글이에요」, 끄면 신고 숨김과 같은 문구). 전체 기본값 `false` */
+    staffHiddenNotice: boolean;
     /** 베스트 댓글 최소 추천 수 1~100 */
     bestCommentMinLikes: number;
     /** 게시판당 매니저 수 1~10 */
@@ -125,6 +127,7 @@ export const BOARD_POLICY_FIELDS = [
     'commentProtectDelete',
     'commentProtectDelayMinutes',
     'commentGuestDelayMinutes',
+    'staffHiddenNotice',
     'managerMax',
     'staffPostDailyLimit',
     'staffCommentDailyLimit',

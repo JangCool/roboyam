@@ -16,8 +16,14 @@
 - **하이라이트 칸**: community 의 제목·요약·대표 이미지·노출·순서·토론 켜기를 따르되 로보얌 미디어 저장소·서식 규칙에 맞춘다. 소모임·출하 완료글 같은 로보얌에 없는 개념은 뺀다.
 - **알림·감사**: community 운영 로그 코드는 로보얌 감사(`AuditActions`)로 옮긴다.
 
+- **운영자가 숨긴 의견의 공개 표시는 게시판 옵션**(2026-10-24 사용자): 게시판 정책 칸 하나(게시판별, 비우면 기본 설정을 따름 — 기존 정책 칸과 같은 구조)로 「운영자가 숨긴 댓글임을 공개 화면에 밝힐지」를 정한다. **켜면** 그 댓글 자리에 「운영자가 숨긴 댓글이에요」, **끄면(기본)** 지금처럼 「신고로 숨겨진 댓글이에요」. 끈 게시판에서는 서버가 숨긴 까닭을 내려 주지 않는다(신고 숨김과 구별되지 않게).
+
+- **입장 바꾸기는 소급한다**(2026-10-24 사용자 — community 와 다름): 입장을 바꾸면 그 글에 내가 쓴 기존 찬성/반대 의견(원댓글·답글)의 입장도 새 입장으로 함께 바꿔 찬성·반대 수가 옮겨 간다. 입장을 정하기 전에 쓴 일반 댓글은 그대로 일반. 숨긴 의견도 함께 바꾼다(수는 보이는 것만 센다).
+- **바뀔 입장을 밝힌다**: 단추는 「반대로 바꾸기」/「찬성으로 바꾸기」처럼 바뀔 입장을 쓰고, 확인창은 「찬성 → 반대로 바꿀까요? 지금까지 쓴 찬성 의견 N개도 반대로 바뀌어요」처럼 어디로·몇 개가 바뀌는지 알린다.
+- **찬성·반대 색**: 찬성 = 파랑 계열, 반대 = 빨강 계열. 공개(배지·탭·입장 고르개·내 입장)와 관리자(의견 관리 탭·배지, 하이라이트 줄의 찬성·반대 수)가 같은 색을 쓴다. 다크 모드 대비를 지킨다.
+
 ## 마이그레이션 (배정)
-shared `V74`(인기글 설정·제외) · `V75`(하이라이트) · `V76`(토론). 월요일 커머스 병합 때 커머스 shared 마이그레이션은 **V77부터**로 미룬다.
+shared `V74`(인기글 설정·제외) · `V75`(하이라이트) · `V76`(토론). 게시판 옵션(운영자 숨김 공개)이 **V77**. 월요일 커머스 병합 때 커머스 shared 마이그레이션은 **V78부터**로 미룬다.
 
 ## 서버 구현 결과 (2026-10-24 — 서버만, 화면은 다음 세션. 실제 DB 에서 아직 돌려 보지 않았다)
 공통: 응답은 `ApiResponse` 래퍼(`{success,data|error,meta}`), ID 는 문자열, 시각은 ISO-8601 UTC, 관리자 응답은 모두 `Cache-Control: no-store`, 쓰기는 CSRF. 칸 오류는 `400 VALIDATION` + `fields.<칸>`(모아서). 관리자 입구는 `@RequirePermission`(권한 없음 `403 PERMISSION_DENIED`, 루트는 모두).
@@ -104,11 +110,13 @@ HighlightItem { id, order(1부터), title|null, summary|null, imageFileId|null, 
 ### 공개 사이트 토론 (server/api — 기존 댓글·차단 동작은 그대로)
 - 토론이 열려 있다 = 그 글의 하이라이트가 노출 켬 + 기간 안 + `debate` 켬. 요청마다 DB 를 바로 읽는다(사본 없음).
 - **`GET /api/posts/{id}`** `PostDetailView` 끝에 두 칸: `highlighted`(노출 중인 하이라이트 글 — 「찬성·반대 의견 받기」와 무관) · `debate: { enabled, myStance: "PRO"|"CON"|null, opinionMax }`. `myStance` 는 하이라이트가 끝나도 남는다. `PUT /api/posts/{id}` 응답도 같은 칸.
-- **`GET /api/posts/{postId}/comments?sort=&kind=`** — `kind` ALL(기본)·GENERAL·PRO·CON(대소문자 무시, 그 밖 `400 fields.kind`). 원댓글의 입장으로 가르고 답글은 원댓글을 따라간다(지운·숨긴 자리도 입장을 간직해 같은 탭). `best` 는 ALL 이 아니면 그 구분의 원댓글 중에서만. 응답 `CommentListResponse` 에 `kind` · `debate: { enabled, myStance, opinionMax, counts: { all, general, pro, con } }` 추가(늘 있다, 하이라이트가 아니면 `enabled false`). `counts.all` = `totalCount`(글 전체, kind 와 무관) · general/pro/con = 지우거나 숨기지 않은 원댓글 수. 화면은 `enabled || pro+con > 0` 일 때 탭을 보인다(끝난 하이라이트는 읽기 전용).
-- **`CommentView`·`CommentThreadView` 에 `stance`**(PRO·CON·null — 쓸 때의 배지, 답글·DELETED·HIDDEN 자리에도 남음). 차단 `blocked`·메모·`state` 는 그대로.
+- **`GET /api/posts/{postId}/comments?sort=&kind=`** — `kind` ALL(기본)·GENERAL·PRO·CON(대소문자 무시, 그 밖 `400 fields.kind`). 원댓글의 입장으로 가르고 답글은 원댓글을 따라간다(지운·숨긴 자리도 입장을 간직해 같은 탭). `best` 는 ALL 이 아니면 그 구분의 원댓글 중에서만. 응답 `CommentListResponse` 에 `kind` · `debate: { enabled, myStance, opinionMax, counts: { all, general, pro, con } }` 추가(늘 있다, 하이라이트가 아니면 `enabled false`). `counts.all` = `totalCount`(글 전체, kind 와 무관) · general/pro/con = 지우거나 숨기지 않은 원댓글 수. **`debate.myOpinionCount`**(int) = 내가 이 글에 쓴 지금 입장(`myStance`)의 의견 수(원댓글·답글, 숨긴 것 포함, 지운 것 제외 — 비로그인·입장 없음 0) — 입장 바꾸기 확인창의 「N개도 바뀌어요」(아래 `moved` 와 같은 기준). 화면은 `enabled || pro+con > 0` 일 때 탭을 보인다(끝난 하이라이트는 읽기 전용).
+- **`CommentView`·`CommentThreadView` 에 `stance`**(PRO·CON·null — 쓸 때의 배지, 입장 바꾸기로 소급해 바뀐다. 답글·DELETED·HIDDEN 자리에도 남음). 차단 `blocked`·메모·`state` 는 그대로.
+- **`CommentView`·`CommentThreadView` 에 `hiddenBy`**(`"STAFF"` | null): `state` 가 HIDDEN 이고 운영자가 숨겼으며(`hidden_reason` STAFF) 그 게시판의 정책 칸 **`staffHiddenNotice`** 유효값이 true 일 때만 `"STAFF"`. 옵션이 꺼진 게시판(기본)·신고 숨김·숨기지 않은 댓글은 늘 null — 꺼진 게시판에서는 운영자 숨김이 신고 숨김과 구별되지 않는다. 화면: `hiddenBy === 'STAFF'` 면 「운영자가 숨긴 댓글이에요」, 그 밖 HIDDEN 은 지금 문구. 게시판 값은 게시판 사본 주기(15초)만큼 늦게 반영될 수 있다.
 - **`POST /api/posts/{postId}/comments`** 요청에 `stance`(선택, PRO·CON, 대소문자·공백 무시). 해석(community 표 그대로): 보냈는데 토론이 닫힘 `409 DEBATE_NOT_OPEN` · 내 입장 없음 → 그 입장으로 쓰고 입장이 정해짐 · 같음 → 그대로 · 다름 `409 STANCE_LOCKED`(입장은 PUT 으로만) · 안 보냈고 열림 + 내 입장 있음 → 서버가 배지를 붙인다(답글 포함) · 그 밖 일반 댓글. 처음 정하는 입장은 댓글과 한 트랜잭션(쓰기가 실패하면 입장도 없다, 동시에 다른 입장으로 처음 쓰면 늦은 쪽 409 STANCE_LOCKED). **비회원이 `stance` 를 보내면 `400 fields.stance`**(형식 오류도 `fields.stance`). 응답 201 `CommentView` 에 `stance`.
 - **글자 수 한도**: 배지가 붙는 댓글 `opinionMax` = 2,000자, 일반 댓글 2,000자(기존 `COMMENT_MAX`) — community 는 토론 2,000 · 일반 1,000 이었지만 로보얌 일반 댓글이 이미 2,000 이라 같은 값(따로 둔 상수 `DebateReader.OPINION_MAX`). 고칠 때도 배지 여부로 정한다(고치는 요청에는 입장이 없다).
-- **`PUT /api/posts/{postId}/stance`** `{ stance }` → 200 `{ stance }` — 로그인 필수(401), 글 읽기 규칙(404 POST_NOT_FOUND · 403 POST_HIDDEN · 403 BOARD_INACTIVE) → 댓글 쓰기 자격(댓글 쓰기와 같은 403) → `400 fields.stance` → `409 DEBATE_NOT_OPEN` → `409 STANCE_NOT_SET`(정한 적 없음). 같은 값이면 그대로(멱등). 바꾼 뒤 쓰는 댓글부터 새 배지.
+- **`PUT /api/posts/{postId}/stance`** `{ stance }` → 200 `{ stance, moved }` — 로그인 필수(401), 글 읽기 규칙(404 POST_NOT_FOUND · 403 POST_HIDDEN · 403 BOARD_INACTIVE) → 댓글 쓰기 자격(댓글 쓰기와 같은 403) → `400 fields.stance` → `409 DEBATE_NOT_OPEN` → `409 STANCE_NOT_SET`(정한 적 없음). 같은 값이면 아무것도 바꾸지 않는다(`moved 0`, 멱등).
+  **소급**(사용자 결정 2026-10-24): 입장이 실제로 바뀌면 같은 트랜잭션에서 그 회원이 그 글에 쓴 입장 있는 댓글(원댓글·답글, 숨긴 것 포함)의 `comments.stance` 를 새 입장으로 바꾼다(`DebateQueries.moveOpinions`). 지운 댓글도 함께 바꾼다(답글이 달린 지운 자리가 옛 탭에 남지 않게) — 다만 `moved` 에는 세지 않는다. 일반 댓글(배지 없음)은 그대로, 고정(`debate_pins`)·숨김 상태도 그대로. `moved` = 옮긴 의견 중 지우지 않은 것의 수(목록 `debate.myOpinionCount` 와 같은 기준). 감사·알림 없음. 이후 쓰는 댓글도 새 배지.
 - **`GET /api/posts/{postId}/commenters?q=`** → `{ items: [ { author: PostAuthorView(memo 포함), parentId, replyToId } ] }` — 로그인 필수(서비스가 401). 이 글에 지우거나 숨기지 않은 댓글을 쓴 회원 중 나·내가 차단한 회원·탈퇴 회원·비회원 제외, 닉네임에 `q`(대소문자 무시, 20자에서 자름, 비우면 전체), 가장 최근에 쓴 회원 먼저 10명. 고른 회원에게는 `POST …/comments` 에 `parentId`(그 회원의 최근 댓글의 원댓글)·`replyToId`(그 최근 댓글)를 보내 답글로 쓴다(답글 알림은 기존 그대로, 따로 멘션 알림 없음, `@닉네임` 은 화면이 본문 앞에). community 는 `replyToId` 하나였지만 로보얌 답글은 `parentId` 가 필요해 둘 다 준다.
 - 새 오류 코드: `DEBATE_NOT_OPEN`(409) · `STANCE_LOCKED`(409) · `STANCE_NOT_SET`(409) · `DEBATE_OPINION_NOT_FOUND`(404) · `HIGHLIGHT_NOT_FOUND`(404) · `HIGHLIGHT_POST_INVALID`(400) · `HIGHLIGHT_DUPLICATE`(409). 문구는 `messages_{ko,en}`.
 
@@ -116,6 +124,7 @@ HighlightItem { id, order(1부터), title|null, summary|null, imageFileId|null, 
 - `V74__popular_settings_exclusions.sql`: `popular_settings`(행 하나 id=1, 11칸 + updated_at·updated_by, 범위 CHECK) · `popular_exclusions(post_id PK, reason CHECK 5종, memo, excluded_by, excluded_at)` — 글 외래 키 없음(파티션 표).
 - `V75__highlights.sql`: `highlights(id, post_id UNIQUE, title 40, summary 100, image_file_id → files, visible, show_from, show_until, debate, sort_order, created_*/updated_*)` · `files.purpose` CHECK 에 `HIGHLIGHT_IMAGE`.
 - `V76__highlight_debate.sql`: `comments.stance`(PRO·CON CHECK) · `comments.hidden_reason` CHECK 에 `STAFF`(DROP 뒤 다시 만들기) · 색인 `ix_comments_opinion(post_id, stance, id) WHERE parent_id IS NULL AND stance IS NOT NULL`(파티션 부모 — 만드는 동안 댓글 쓰기가 잠긴다) · `post_stances(post_id, user_id PK, stance, …)` · `debate_pins(comment_id PK, post_id, pinned_by, created_at)`. 회원 알림 type CHECK 는 바꾸지 않았다(새 알림 없음).
+- `V77__board_staff_hidden_notice.sql`: 게시판 정책 칸 `boards.staff_hidden_notice boolean`(NULL = 기본값 따름) · `board_defaults.staff_hidden_notice boolean NOT NULL DEFAULT false`. 관리자 API 칸 이름 **`staffHiddenNotice`**(기본 false) — 게시판 GET/PUT `policy.staffHiddenNotice`(null = 기본값 따름) + `defaults.staffHiddenNotice`, 기본 설정 GET/PUT `defaults.staffHiddenNotice`(PUT 필수 — 빠지면 `400 VALIDATION fields.staffHiddenNotice`, 다른 불리언 정책 칸과 같은 검사) + `overrides.staffHiddenNotice`. 권한 `board.settings`, 감사 `BOARD_UPDATE`·`BOARD_DEFAULTS_UPDATE`(바뀐 때만 before/after), `diffCount` 에 센다 — 기존 정책 칸과 같은 처리(`BoardFields.POLICY_FIELDS` 차례 `… commentGuestDelayMinutes, staffHiddenNotice, managerMax …`). admin-web `util-board.ts` `SPECS`·`BOARD_POLICY_FIELDS` 에 같은 칸을 더해야 한다(화면 세션 몫).
 - 감사: 작업 12개(`POPULAR_SETTINGS_UPDATE` · `POPULAR_EXCLUDE` · `POPULAR_RESTORE` · `HIGHLIGHT_CREATE|UPDATE|DELETE|ORDER|VISIBLE` · `HIGHLIGHT_OPINION_PIN|UNPIN|HIDE|UNHIDE`), 대상 종류 4개(`POPULAR_SETTINGS` · `POST` · `HIGHLIGHT` · `COMMENT`).
 
 ## 화면 구현 결과 (2026-10-24 — 목업 없이 실제 API 에 연결, 브라우저 확인 전)
@@ -158,6 +167,12 @@ HighlightItem { id, order(1부터), title|null, summary|null, imageFileId|null, 
 - @ 회원 지정(열린 토론·회원만): [회원 지정] → 닉네임 찾기(250ms 뒤 `GET …/commenters?q=`, 비우면 최근 10명) → 고르면 「@이름님에게 답글로 써요」 + 새 댓글 상자가 그 회원의 최근 댓글에 대한 답글(`parentId`·`replyToId`)이 된다.
 - 오류: `DEBATE_NOT_OPEN`·`STANCE_LOCKED`·`STANCE_NOT_SET` 은 서버 문구를 폼 아래(입장 바꾸기는 토스트)에 보이고 목록을 다시 받아 열림·내 입장을 맞춘다(쓰던 글은 남는다). 401 은 로그인 안내.
 
+### 사용자 결정 반영 (2026-10-24 — 운영자 숨김 공개 · 입장 바꾸기 소급 · 찬성·반대 색, 브라우저 확인 전)
+- **게시판 옵션 `staffHiddenNotice`**(admin-web): `useBoardApi.types.ts` `BoardDefaults`·`BOARD_POLICY_FIELDS`(`commentGuestDelayMinutes` 다음)·`util-board.ts` `SPECS`(bool, 덮어쓰기 가능, `board.settings`). 기본 설정 › 일반의 「댓글 공개 시간·숨김 표시」 구획(`defaults-guest`, 구획 이름을 바꿈)과 게시판 설정의 「보호·공개 시간·포인트」 구획(`PROTECT_FIELDS`·`detailChanges.protect`)에 칸 「운영자가 숨긴 댓글임을 밝히기」. 문구 `board.field|fieldHelp.staffHiddenNotice`(ko·en).
+- **공개 숨김 문구**(user-web `CommentItem`): `hiddenBy === 'STAFF'` 면 「운영자가 숨긴 댓글이에요」(`comment.hiddenByStaff`), 그 밖 HIDDEN 은 「신고로 숨겨진 댓글이에요」 그대로. 타입 `CommentView.hiddenBy?: 'STAFF' | null`.
+- **입장 바꾸기**(user-web `CommentSection`): 단추가 바뀔 입장(「반대로 바꾸기」/「찬성으로 바꾸기」, `comment.changeStanceTo.*`). 확인창 제목 「찬성 → 반대로 바꿀까요?」, 본문은 `debate.myOpinionCount` ≥ 1 이면 「지금까지 쓴 찬성 의견 N개도 반대로 바뀌어요.」, 0 이면 「앞으로 쓰는 의견에 반대 배지가 붙어요.」. `PUT …/stance` 응답 `{ stance, moved }`(`StanceChangeResult`)를 받고 목록을 다시 받은 뒤 토스트 「반대로 바꿨어요. 내 의견 N개도 반대로 옮겼어요.」(`moved 0` 이면 앞 문장만).
+- **찬성·반대 색**: 두 앱 `assets/css/main.css` 에 같은 토큰 구획 「토론 입장 색」 — `--stance-{pro,con}-{text,soft-bg,soft-text,solid-bg,solid-text}`(PrimeVue `--p-blue-*`·`--p-red-*` + `light-dark()`) + 유틸 `stance-{pro,con}-{text,soft,solid}`. 공개: 배지·「내 입장」 칩 `soft`, 구분 탭·입장 고르개는 고르면 `solid`(전체·일반은 중립 surface 채움), 아니면 그 색 글자, 바꾸기 단추는 바뀔 입장 글자색. 관리자: 의견 관리 서랍 탭 글자 `text`·줄마다 입장 배지 `soft`(`UtilHighlight.stanceTextClass|stanceSoftClass`), 하이라이트 줄의 찬성·반대 수 `text`(`highlight.commentCounts` 를 `{pro}`·`{con}` 자리 채우기로 바꿈). 대비 라이트·다크 모두 4.5:1 이상(가장 낮은 것 흰 글자/red-600 4.8:1), 늘 「찬성」·「반대」 글자와 함께.
+
 ### 화면 구현 세션 결정 · 서버와 맞춘 점
 - **@ 지정의 `@닉네임` 은 본문에 붙이지 않는다** — 로보얌 `CommentItem` 이 `replyTo` 로 `@이름` 을 이미 그려 둘이 겹친다(서버는 `replyToId` 가 원댓글이어도 `replyTo` 를 채운다). 계약의 「`@닉네임` 은 화면이 본문 앞에」를 이렇게 바꾼다.
 - 하이라이트·인기글 화면의 「글 링크」는 글 번호 복사로 대신한다 — admin-web 은 공개 사이트 주소를 모른다(`me` 응답·설정에 없음).
@@ -170,5 +185,6 @@ HighlightItem { id, order(1부터), title|null, summary|null, imageFileId|null, 
 - 다시 계산은 요청 표를 거쳐 배치를 켠 서버가 돌리므로 응답 직후 화면이 바로 읽으면 아직 옛 순위일 수 있다(`recomputePending` 으로 표시).
 - 첫 하이라이트를 동시에 같은 글로 두 번 만들면 잠글 행이 없어 유일 제약 위반(500)이 날 수 있다(드묾).
 - SQL·마이그레이션은 실제 DB 에서 아직 돌려 보지 않았다(메인 세션이 적용).
-- (화면 세션) 공개 댓글 `CommentView` 에는 숨긴 까닭이 없어 운영자가 숨긴 의견(STAFF)도 공개 화면에서 「신고로 숨겨진 댓글이에요」로 보인다 — 서버가 까닭(예: `hiddenBy: STAFF|REPORT`)을 주거나 문구를 「숨겨진 댓글이에요」로 넓힐지 정해야 한다.
+- ~~(화면 세션) 공개 댓글에 숨긴 까닭이 없다~~ → 게시판 옵션 `staffHiddenNotice` + `CommentView.hiddenBy` 로 정리(2026-10-24, 위 「공개 사이트 토론」·「표」).
+- 입장 바꾸기와 같은 때에 옛 입장을 읽은 댓글 쓰기가 커밋되면 그 댓글 하나는 옛 배지로 남을 수 있다(드묾 — 다시 바꾸면 따라온다).
 - (화면 세션) 하이라이트 화면의 게시판 거르기용 가벼운 게시판 목록(`highlight.read` 로 읽는)이 서버에 없다. 공개 사이트 글 링크용 공개 주소도 admin-web 에 없다.

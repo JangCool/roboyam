@@ -15,6 +15,7 @@ import java.util.Set;
  * @param imageUploadAllowed 에디터 이미지 올리기 유효값 — 이미지는 고급 에디터만 받으므로 글 에디터가 ADVANCED 가 아니면 늘 false
  * @param imageSetting       이미지 허용 칸의 값 그대로(게시판 값 ?? 기본값, 에디터와 무관) — 평문 본문의 이미지 주소 규칙(예전과 같다)이 본다
  * @param commentEditor      댓글 에디터 유효값 NONE · SIMPLE
+ * @param staffHiddenNotice  운영자가 숨긴 댓글임을 공개 화면에 밝히는가(게시판 값 ?? 기본값, 기본 false) — 끄면 운영자 숨김도 신고 숨김과 구별되지 않게 까닭을 내리지 않는다
  * @param prefixes           이 게시판의 말머리 전부(꺼진 것 포함, 정렬 순서대로)
  * @param gadgetExclusions   이 게시판 글을 내지 않을 홈 가젯(게시판 값 그대로 — 기본 설정에서 물려받지 않는다)
  */
@@ -24,7 +25,7 @@ public record EffectiveBoard(long id, String slug, String name, String nameEn, S
                              String commentEditor,
                              int listSize, int pinnedMax,
                              int commentProtectMin, boolean commentProtectEdit, String commentProtectDelete, int commentProtectDelayMinutes,
-                             int commentGuestDelayMinutes, List<BoardPrefixInfo> prefixes, Set<BoardGadget> gadgetExclusions) {
+                             int commentGuestDelayMinutes, boolean staffHiddenNotice, List<BoardPrefixInfo> prefixes, Set<BoardGadget> gadgetExclusions) {
 
     public EffectiveBoard {
         gadgetExclusions = gadgetExclusions == null || gadgetExclusions.isEmpty() ? Set.of() : Collections.unmodifiableSet(EnumSet.copyOf(gadgetExclusions));

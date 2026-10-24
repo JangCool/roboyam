@@ -26,7 +26,8 @@ export default {
     },
     debateTag: 'Taking opinions',
     postGone: 'The post was deleted',
-    commentCounts: '{all} comments · {pro} pro · {con} con · {general} general',
+    /** `{pro}`·`{con}` are filled with the stance-colored `stanceTab` text */
+    commentCounts: '{all} comments · {pro} · {con} · {general} general',
     updatedBy: '{name} · {at}',
     visibleShort: 'Show',
     opinions: 'Opinions {n}',
@@ -107,6 +108,10 @@ export default {
     stanceTab: {
         PRO: 'Pro {n}',
         CON: 'Con {n}',
+    },
+    stance: {
+        PRO: 'Pro',
+        CON: 'Con',
     },
     opinionsLoadFailed: 'Could not load opinions',
     opinionsEmpty: 'No opinions on this side',

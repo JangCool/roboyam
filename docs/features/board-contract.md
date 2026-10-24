@@ -65,3 +65,6 @@
 - **이미지 유효값 = 글 에디터 유효값이 `ADVANCED` 이고 이미지 칸 유효값이 true 일 때만 true**(사용자 확정 2026-10-23). `NONE`·`SIMPLE` 이면 저장값과 무관하게 false — 저장값은 그대로 저장한다(화면은 고급이 아니면 칸을 비활성으로 보이되 값은 보낸다). 평문 본문의 이미지 주소 규칙은 예전처럼 저장값(에디터와 무관)을 본다(`EffectiveBoard.imageSetting`).
 - 감사: 게시판 저장은 기존 `BOARD_UPDATE`(계약 초안의 `BOARD_SETTINGS_UPDATE` 는 로보얌에 없다), 기본 설정은 `BOARD_DEFAULTS_UPDATE` — 바뀐 칸만 `before/after` 에 들어간다.
 - `file-orphan-cleanup`(Java 배치, admin) 이 글 이미지도 정리한다 — 올린 뒤 24시간 안 쓴(또는 글에서 뺀) 이미지 + 지운·예약 삭제 시각이 지난·행이 없어진 글의 이미지. 지우기 전에 행을 잠가 상태를 다시 본다.
+
+## 운영자 숨김 공개 표시 (2026-10-24, 서버 구현) — 상세는 `popular-highlight-contract.md` 「서버 구현 결과」
+- **정책 칸 `staffHiddenNotice`**(불리언, 게시판 `boards.staff_hidden_notice` NULL = 기본값 따름, `board_defaults` NOT NULL **기본 false** — shared `V77__board_staff_hidden_notice.sql`): 운영자가 숨긴 댓글임을 공개 화면에 밝힐지. 켜면 공개 댓글 응답의 운영자 숨김(`hidden_reason` STAFF) 자리에 `hiddenBy: "STAFF"`, 끄면 null(신고 숨김과 구별되지 않음). 관리자 API·권한(`board.settings`)·감사·`overrides`·`diffCount` 는 다른 정책 칸과 같다(`POLICY_FIELDS` 차례 `commentGuestDelayMinutes` 다음).

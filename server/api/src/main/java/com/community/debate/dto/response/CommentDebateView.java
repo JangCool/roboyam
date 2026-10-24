@@ -8,6 +8,8 @@ package com.community.debate.dto.response;
  * @param myStance   {@link DebateSummaryView#myStance()} 와 같다
  * @param opinionMax {@link DebateSummaryView#opinionMax()} 와 같다
  * @param counts     구분별 수 — {@code kind} 로 걸러도 글 전체 기준이다
+ * @param myOpinionCount 내가 이 글에 쓴 지금 입장({@code myStance})의 의견 수 — 원댓글·답글, 숨긴 것 포함, 지운 것 제외. 입장을 바꾸면({@code PUT …/stance}) 이만큼이 새 입장으로
+ *                       옮겨 간다(확인창의 「N개가 바뀐다」). 비로그인·입장 없음은 0
  */
-public record CommentDebateView(boolean enabled, String myStance, int opinionMax, DebateCountsView counts) {
+public record CommentDebateView(boolean enabled, String myStance, int opinionMax, DebateCountsView counts, int myOpinionCount) {
 }

@@ -28,6 +28,7 @@ export default {
     edited: '(수정됨)',
     deleted: '삭제된 댓글이에요',
     hidden: '신고로 숨겨진 댓글이에요',
+    hiddenByStaff: '운영자가 숨긴 댓글이에요',
     likeLabel: '추천 {n}',
     alreadyLiked: '이미 추천한 댓글이에요.',
 
@@ -54,18 +55,37 @@ export default {
     debateGuestHint: '찬성·반대 의견은 로그인한 회원만 쓸 수 있어요.',
     stancePickLabel: '어떤 입장으로 쓸까요?',
     stanceGeneral: '일반',
-    stancePickHint: '찬성·반대로 처음 쓰면 그 입장이 정해져요. 정한 뒤에는 「입장 바꾸기」로만 바꿀 수 있어요.',
+    stancePickHint: '찬성·반대로 처음 쓰면 그 입장이 정해져요. 정한 뒤에도 바꿀 수 있고, 바꾸면 이미 쓴 의견도 함께 바뀌어요.',
     myStance: '내 입장',
     myStanceHint: '이 글에 쓰는 댓글·답글에 이 입장 배지가 붙어요.',
-    changeStance: '입장 바꾸기',
-    changeStanceTitle: {
-        PRO: '입장을 찬성으로 바꿀까요?',
-        CON: '입장을 반대로 바꿀까요?',
+    /** 단추 — 바뀔 입장을 쓴다(키 = 바뀔 입장) */
+    changeStanceTo: {
+        PRO: '찬성으로 바꾸기',
+        CON: '반대로 바꾸기',
     },
-    changeStanceMessage: '바꾼 뒤에 쓰는 댓글부터 새 배지가 붙어요. 이미 쓴 댓글의 배지는 그대로예요.',
+    /** 확인창 제목 — 키 = 바뀔 입장 */
+    changeStanceTitle: {
+        PRO: '반대 → 찬성으로 바꿀까요?',
+        CON: '찬성 → 반대로 바꿀까요?',
+    },
+    /** 확인창 본문 — 옮겨 갈 내 의견이 있을 때(`n` = `debate.myOpinionCount`) */
+    changeStanceMoves: {
+        PRO: '지금까지 쓴 반대 의견 {n}개도 찬성으로 바뀌어요.',
+        CON: '지금까지 쓴 찬성 의견 {n}개도 반대로 바뀌어요.',
+    },
+    /** 확인창 본문 — 옮겨 갈 의견이 없을 때 */
+    changeStanceFuture: {
+        PRO: '앞으로 쓰는 의견에 찬성 배지가 붙어요.',
+        CON: '앞으로 쓰는 의견에 반대 배지가 붙어요.',
+    },
     stanceChanged: {
-        PRO: '입장을 찬성으로 바꿨어요.',
-        CON: '입장을 반대로 바꿨어요.',
+        PRO: '찬성으로 바꿨어요.',
+        CON: '반대로 바꿨어요.',
+    },
+    /** 성공 토스트 — `n` = 응답 `moved` */
+    stanceChangedMoved: {
+        PRO: '찬성으로 바꿨어요. 내 의견 {n}개도 찬성으로 옮겼어요.',
+        CON: '반대로 바꿨어요. 내 의견 {n}개도 반대로 옮겼어요.',
     },
     mention: '회원 지정',
     mentionSearch: '닉네임으로 찾기',

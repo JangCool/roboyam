@@ -12,7 +12,7 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
                                   Integer postDailyLimit, Integer commentGapSeconds, Integer commentDailyLimit, Integer listSize, Integer pinnedMax,
                                   Boolean indexable, Boolean searchable, Boolean inHome, Boolean attachmentPurgeEnabled, Integer attachmentRetentionDays,
                                   String pointMode, Integer commentProtectMin, Boolean commentProtectEdit, String commentProtectDelete,
-                                  Integer commentProtectDelayMinutes, Integer commentGuestDelayMinutes, Integer bestCommentMinLikes, Integer managerMax,
+                                  Integer commentProtectDelayMinutes, Integer commentGuestDelayMinutes, Boolean staffHiddenNotice, Integer bestCommentMinLikes, Integer managerMax,
                                   Integer staffMax, Integer staffPostDailyLimit, Integer staffCommentDailyLimit, Integer staffSanctionDailyLimit) {
 
     /** 칸 이름 → 값(칸 순서대로) */
@@ -41,6 +41,7 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
         map.put("commentProtectDelete", commentProtectDelete);
         map.put("commentProtectDelayMinutes", commentProtectDelayMinutes);
         map.put("commentGuestDelayMinutes", commentGuestDelayMinutes);
+        map.put("staffHiddenNotice", staffHiddenNotice);
         map.put("bestCommentMinLikes", bestCommentMinLikes);
         map.put("managerMax", managerMax);
         map.put("staffMax", staffMax);

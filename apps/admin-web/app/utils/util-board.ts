@@ -145,6 +145,7 @@ const SPECS: Record<BoardDefaultsField, BoardFieldSpec> = {
     commentProtectDelete: { field: 'commentProtectDelete', kind: 'choice', choices: ['BLOCK', 'DELAY', 'ALLOW'], overridable: true, permission: 'board.settings' },
     commentProtectDelayMinutes: { field: 'commentProtectDelayMinutes', kind: 'choice', choices: [5, 10, 30], unit: 'minutes', overridable: true, permission: 'board.settings' },
     commentGuestDelayMinutes: { field: 'commentGuestDelayMinutes', kind: 'choice', choices: [0, 10, 30, 60, 180], unit: 'minutes', overridable: true, permission: 'board.settings' },
+    staffHiddenNotice: { field: 'staffHiddenNotice', kind: 'bool', overridable: true, permission: 'board.settings' },
     bestCommentMinLikes: { field: 'bestCommentMinLikes', kind: 'number', min: 1, max: 100, unit: 'likes', overridable: false, permission: 'board.settings' },
     managerMax: { field: 'managerMax', kind: 'number', min: 1, max: 10, unit: 'people', overridable: true, permission: 'board.staff.limit' },
     staffMax: { field: 'staffMax', kind: 'number', min: 1, max: 10, unit: 'people', overridable: false, permission: 'board.staff.limit' },
@@ -226,7 +227,7 @@ const DEFAULT_SECTIONS = {
     'defaults-list': ['listSize', 'pinnedMax', 'indexable', 'searchable'],
     'defaults-attachment': ['attachmentPurgeEnabled', 'attachmentRetentionDays'],
     'defaults-protect': ['pointMode', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes'],
-    'defaults-guest': ['commentGuestDelayMinutes'],
+    'defaults-guest': ['commentGuestDelayMinutes', 'staffHiddenNotice'],
     'defaults-best': ['bestCommentMinLikes'],
     'defaults-staff': ['managerMax', 'staffMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit'],
 } as const satisfies Record<string, readonly BoardDefaultsField[]>;
@@ -584,7 +585,7 @@ export default class UtilBoard {
             guide: diff(form.introText, base.introText) + diff(form.writeGuideText, base.writeGuideText),
             // inHome 은 화면에서 다루지 않는다(가젯 노출 금지가 대신한다) — 가젯 선택은 순서 없이 묶음으로 1칸
             exposure: policyDiff(['listSize', 'pinnedMax', 'indexable', 'searchable']) + diff(UtilBoard.gadgetKey(form.gadgetExclusions), UtilBoard.gadgetKey(base.gadgetExclusions)),
-            protect: policyDiff(['pointMode', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes']),
+            protect: policyDiff(['pointMode', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes', 'staffHiddenNotice']),
             staff: policyDiff(['managerMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit']),
         };
     }

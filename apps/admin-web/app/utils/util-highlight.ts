@@ -1,5 +1,5 @@
 import type { AdminPostRef } from '~/composables/content/api/usePopularApi.types';
-import type { HighlightCommentCounts, HighlightItem, HighlightSaveRequest, HighlightStatus } from '~/composables/content/api/useHighlightApi.types';
+import type { DebateStance, HighlightCommentCounts, HighlightItem, HighlightSaveRequest, HighlightStatus } from '~/composables/content/api/useHighlightApi.types';
 import UtilSiteSetting from '~/utils/util-site-setting';
 
 /**
@@ -77,6 +77,16 @@ export default class UtilHighlight {
 
     static opinionCount(counts: HighlightCommentCounts): number {
         return counts.pro + counts.con;
+    }
+
+    /** 입장 글자색 — 찬성 파랑 · 반대 빨강(`main.css` 「토론 입장 색」, 공개 사이트와 같은 토큰) */
+    static stanceTextClass(stance: DebateStance): string {
+        return stance === 'PRO' ? 'stance-pro-text' : 'stance-con-text';
+    }
+
+    /** 입장 배지(옅은 칩) 색 */
+    static stanceSoftClass(stance: DebateStance): string {
+        return stance === 'PRO' ? 'stance-pro-soft' : 'stance-con-soft';
     }
 
     /** 글자 수 — 앞뒤 공백을 떼고 유니코드 한 글자씩(서버와 같다) */

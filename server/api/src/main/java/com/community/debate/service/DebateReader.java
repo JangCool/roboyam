@@ -1,6 +1,7 @@
 package com.community.debate.service;
 
 import com.community.board.service.ContentRules;
+import com.community.comment.entity.CommentEntity;
 import com.community.debate.dto.response.CommentDebateView;
 import com.community.debate.dto.response.DebateCountsView;
 import com.community.debate.dto.response.DebateSummaryView;
@@ -11,6 +12,7 @@ import com.community.debate.repository.master.DebateQueries;
 import com.community.highlight.entity.HighlightEntity;
 import com.community.highlight.repository.master.HighlightRepository;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
@@ -80,11 +82,23 @@ public class DebateReader {
         return new DebateSummaryView(status.open(), mine == null ? null : mine.name(), OPINION_MAX);
     }
 
-    /** 댓글 목록의 토론 칸 */
-    public CommentDebateView forComments(long postId, Long userId, Instant now, DebateCountsView counts) {
+    /**
+     * 댓글 목록의 토론 칸.
+     *
+     * @param all 그 글의 댓글 전부(목록이 이미 읽은 것) — 내 의견 수({@code myOpinionCount})를 센다
+     */
+    public CommentDebateView forComments(long postId, Long userId, Instant now, DebateCountsView counts, List<CommentEntity> all) {
         Status status = status(postId, now);
         DebateStance mine = myStance(postId, userId);
-        return new CommentDebateView(status.open(), mine == null ? null : mine.name(), OPINION_MAX, counts);
+        int myOpinions = 0;
+        if (mine != null) {
+            for (CommentEntity c : all) {
+                if (userId.equals(c.getAuthorId()) && !c.isDeleted() && mine.name().equals(c.getStance())) {
+                    myOpinions++;
+                }
+            }
+        }
+        return new CommentDebateView(status.open(), mine == null ? null : mine.name(), OPINION_MAX, counts, myOpinions);
     }
 
     /**

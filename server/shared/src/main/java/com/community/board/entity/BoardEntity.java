@@ -58,6 +58,7 @@ public class BoardEntity {
     private String commentProtectDelete;
     private Integer commentProtectDelayMinutes;
     private Integer commentGuestDelayMinutes;
+    private Boolean staffHiddenNotice;
     private Integer managerMax;
     private Integer staffPostDailyLimit;
     private Integer staffCommentDailyLimit;
@@ -137,6 +138,7 @@ public class BoardEntity {
         this.commentProtectDelete = policy.commentProtectDelete();
         this.commentProtectDelayMinutes = policy.commentProtectDelayMinutes();
         this.commentGuestDelayMinutes = policy.commentGuestDelayMinutes();
+        this.staffHiddenNotice = policy.staffHiddenNotice();
         this.managerMax = policy.managerMax();
         this.staffPostDailyLimit = policy.staffPostDailyLimit();
         this.staffCommentDailyLimit = policy.staffCommentDailyLimit();
@@ -159,7 +161,7 @@ public class BoardEntity {
 
     public BoardPolicyValues policy() {
         return new BoardPolicyValues(writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, listSize, pinnedMax, indexable, searchable, inHome, pointMode, commentProtectMin,
-                commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, managerMax, staffPostDailyLimit,
+                commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice, managerMax, staffPostDailyLimit,
                 staffCommentDailyLimit, staffSanctionDailyLimit);
     }
 

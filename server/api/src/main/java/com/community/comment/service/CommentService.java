@@ -77,7 +77,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  *
  * <ul>
  *   <li><b>목록</b>: 원댓글(정렬 OLDEST·LATEST) + 그 아래 답글(오래된순, 지운 답글은 뺀다). 지운 원댓글은 답글이 있을 때만 자리를 남긴다({@code DELETED}, 본문·작성자 이름 없음).
- *       신고로 숨긴 댓글은 {@code HIDDEN}. 비회원이 보면 최근 {@code commentGuestDelayMinutes} 분 안의 댓글은 {@code DELAYED}(본문을 보내지 않는다) — 단 같은 IP 가 쓴 댓글은
+ *       신고·운영자가 숨긴 댓글은 {@code HIDDEN} — 운영자 숨김은 게시판 옵션 {@code staffHiddenNotice} 가 켜졌을 때만 {@code hiddenBy STAFF} 로 밝힌다(끄면 신고 숨김과 구별되지 않는다). 비회원이 보면 최근 {@code commentGuestDelayMinutes} 분 안의 댓글은 {@code DELAYED}(본문을 보내지 않는다) — 단 같은 IP 가 쓴 댓글은
  *       본인 것으로 보고 바로 보인다(목업의 「이 브라우저가 방금 쓴 댓글」을 IP 로 가늠한다 — 가정). 베스트는 추천 {@code bestCommentMinLikes} 이상·보이는 댓글, 추천 많은 순 최대 3개.</li>
  *   <li><b>쓰기 순서</b>(목업 {@code mockCommentCreate}): 글(404·403 숨김) → 게시판(403 꺼짐) → 댓글 판정(401·403 까닭) → 칸(본문 1~2,000자, 링크·이미지, 비회원, 답글 대상)
  *       → 금지어 → 자동입력 방지 → 작성 간격({@code 429 COMMENT_TOO_FAST}) → 하루 한도({@code 429 COMMENT_DAILY_LIMIT}). 답글은 1단계({@code parentId} = 원댓글).</li>
@@ -97,6 +97,8 @@ public class CommentService {
     static final String DELETED = "DELETED";
     static final String HIDDEN = "HIDDEN";
     static final String DELAYED = "DELAYED";
+    /** 공개 응답 {@code hiddenBy} — 운영자 숨김을 밝히는 게시판에서만 */
+    static final String HIDDEN_BY_STAFF = "STAFF";
     /** 베스트 댓글 최대 수(가정) */
     static final int BEST_MAX = 3;
     /** 목록 구분 — 원댓글의 입장으로 가른다 */
@@ -150,8 +152,12 @@ public class CommentService {
 
     // ── 목록 ──────────────────────────────────────────────────────────────
 
-    /** 보는 사람 — 댓글 상태·내 것·추천 판정 */
-    private record Viewer(Long userId, String ip, boolean guest, int delayMinutes, Set<Long> liked, ViewerBlocks.Lens lens) {
+    /**
+     * 보는 사람 — 댓글 상태·내 것·추천 판정.
+     *
+     * @param staffHiddenNotice 게시판 옵션 「운영자가 숨긴 댓글임을 밝히기」 유효값 — 켜졌을 때만 운영자 숨김에 {@code hiddenBy STAFF} 를 싣는다
+     */
+    private record Viewer(Long userId, String ip, boolean guest, int delayMinutes, Set<Long> liked, ViewerBlocks.Lens lens, boolean staffHiddenNotice) {
     }
 
     /** @param kindRaw 구분 ALL(기본) · GENERAL · PRO · CON(대소문자 무시) — 그 밖은 400 {@code fields.kind}. 하이라이트가 아닌 글의 PRO·CON 은 빈 목록이다 */
@@ -171,7 +177,8 @@ public class CommentService {
             List<CommentEntity> all = comments.findByPostIdOrderByIdAsc(post.getId());
             Viewer viewer = new Viewer(userId, ip, userId == null, b.commentGuestDelayMinutes(),
                     userId == null || all.isEmpty() ? Set.of() : counters.likedComments(post.getId(), userId),
-                    all.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(userId, all.stream().map(CommentEntity::getAuthorId).toList()));
+                    all.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(userId, all.stream().map(CommentEntity::getAuthorId).toList()),
+                    b.staffHiddenNotice());
             Map<Long, ProfileEntity> members = authors.members(all.stream().map(CommentEntity::getAuthorId).toList());
             Map<Long, CommentEntity> byId = new HashMap<>();
             all.forEach(c -> byId.put(c.getId(), c));
@@ -203,7 +210,7 @@ public class CommentService {
                     .sorted(Comparator.comparingInt(CommentView::likeCount).reversed().thenComparing(CommentView::id))
                     .limit(BEST_MAX)
                     .toList();
-            CommentDebateView debateView = debate.forComments(post.getId(), userId, now, counts);
+            CommentDebateView debateView = debate.forComments(post.getId(), userId, now, counts, all);
             return new CommentListResponse(threads, best, post.getCommentCount(), kind, debateView);
         });
     }
@@ -262,7 +269,8 @@ public class CommentService {
                 DELETED.equals(state) ? AuthorViews.blank(author) : author, VISIBLE.equals(state) ? c.getContent() : null, c.getContentFormat().name(), state,
                 c.getCreatedAt(),
                 c.getEditedAt(), c.getLikeCount(), viewer.liked().contains(c.getId()), viewer.userId() != null && viewer.userId().equals(c.getAuthorId()),
-                VISIBLE.equals(state) ? viewer.lens().blockedOf(c.getAuthorId(), RichText.plainOf(c.getContentFormat(), c.getContent())) : null, c.getStance());
+                VISIBLE.equals(state) ? viewer.lens().blockedOf(c.getAuthorId(), RichText.plainOf(c.getContentFormat(), c.getContent())) : null, c.getStance(),
+                HIDDEN.equals(state) && viewer.staffHiddenNotice() && c.isStaffHiddenAt(now) ? HIDDEN_BY_STAFF : null);
     }
 
     /** 비회원에게 아직 보이지 않는 댓글인가 — 같은 IP 가 쓴 비회원 댓글은 본인 것으로 본다 */
@@ -366,7 +374,7 @@ public class CommentService {
             memberIds.add(authorId);
             byId.values().forEach(t -> memberIds.add(t.getAuthorId()));
             // 쓴 사람에게는 공개 지연 없이 보인다
-            Viewer self = new Viewer(userId, ip, false, 0, Set.of(), ViewerBlocks.Lens.none());
+            Viewer self = new Viewer(userId, ip, false, 0, Set.of(), ViewerBlocks.Lens.none(), b.staffHiddenNotice());
             CommentView view = view(comment, self, byId, authors.members(memberIds), s, now);
             // 같은 트랜잭션의 마지막에: 댓글 포인트(회원만) · 회원 알림 — 둘 다 실패해도 댓글쓰기는 그대로다(세이브포인트로 격리)
             if (authorId != null) {
@@ -502,7 +510,7 @@ public class CommentService {
             memberIds.add(locked.getAuthorId());
             byId.values().forEach(t -> memberIds.add(t.getAuthorId()));
             Set<Long> liked = userId == null ? Set.of() : counters.likedComments(locked.getPostId(), userId);
-            return view(locked, new Viewer(userId, ip, false, 0, liked, ViewerBlocks.Lens.none()), byId, authors.members(memberIds), s, now);
+            return view(locked, new Viewer(userId, ip, false, 0, liked, ViewerBlocks.Lens.none(), b.staffHiddenNotice()), byId, authors.members(memberIds), s, now);
         });
     }
 

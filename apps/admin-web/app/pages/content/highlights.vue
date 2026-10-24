@@ -68,7 +68,12 @@
                                 </div>
                                 <p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs tabular-nums text-muted-color">
                                     <span><i class="pi pi-calendar mr-1 text-[10px]" aria-hidden="true" />{{ UtilHighlightMessages.period(t, time, item) }}</span>
-                                    <span>{{ t('highlight.commentCounts', { all: item.commentCounts.all, pro: item.commentCounts.pro, con: item.commentCounts.con, general: item.commentCounts.general }) }}</span>
+                                    <i18n-t keypath="highlight.commentCounts" tag="span" scope="global">
+                                        <template #all>{{ item.commentCounts.all }}</template>
+                                        <template #pro><span class="font-medium stance-pro-text">{{ t('highlight.stanceTab.PRO', { n: item.commentCounts.pro }) }}</span></template>
+                                        <template #con><span class="font-medium stance-con-text">{{ t('highlight.stanceTab.CON', { n: item.commentCounts.con }) }}</span></template>
+                                        <template #general>{{ item.commentCounts.general }}</template>
+                                    </i18n-t>
                                     <span v-if="item.updatedBy">{{ t('highlight.updatedBy', { name: item.updatedBy.name ?? '—', at: time.listLabel(item.updatedAt) }) }}</span>
                                 </p>
                             </div>
