@@ -1,4 +1,4 @@
-# 회원 소통·개인 설정(공개 사이트) 계약 (화면 목업 2026-10-23 · **쪽지·차단·메모·닉네임 이미지 서버 구현·화면 연결 2026-10-24** — 성인 확인은 아직 목업)
+# 회원 소통·개인 설정(공개 사이트) 계약 (화면 목업 2026-10-23 · **쪽지·차단·메모·닉네임 이미지·보기 설정 서버 구현·화면 연결 2026-10-24** — 성인 확인은 아직 목업)
 
 **의도**: community 에만 있던 「소통·개인 설정」 화면(쪽지·차단·이용자 메모·닉네임 그림·성인 확인·보기 설정)을 user-web 으로 옮긴다. UI 는 community 와 같게 두고, 서버에 API 가 하나도 없어 모두 community 계약 모양의 `// MOCK:`/`// REAL:` 짝 목업으로 먼저 확정한다. 서버 코드는 바꾸지 않았다.
 **참고(읽기 전용)**: community `frontend/app/pages/{messages*,settings/{messages,blocks,memos,nickname-image,adult,view}}.vue`, `docs/api-{dm,block-scrap,nickname-image,profile(설정·보기)}.md`, 4차 계약 B절(성인 확인).
@@ -46,14 +46,16 @@
 - `GET /api/me/adult` → `{birthYear|null, adult, method: SELF|IDENTITY|null, confirmedAt, minYear, maxYear}`(저장 전에도 200) · `PUT {birthYear, confirm:true}` → 같은 모양 · `400 fields.birthYear`(범위·만 14세 미만)·`fields.confirm`. 성인 = 한국 시간 올해 − 출생연도 ≥ 19. 출생연도는 개인정보(로그 금지).
 ### 보기 설정 (`composables/view/api/useViewSettingsApi.ts`) — community `GET·PUT /api/me/settings` 경로·규칙, 칸 셋
 - `GET` → `{theme: AUTO|LIGHT|DARK, textScale: 90|100|110|125, commentOrder: OLDEST|LATEST}`(저장 전 기본값 AUTO·100·OLDEST) · `PUT` 세 칸 통째 → 저장된 값 · `400 fields.<칸>`. 서버는 값만 저장, 적용은 화면.
+- **서버 구현 결과 (2026-10-24)**: api `com.community.viewsetting`(`MyViewSettingsController` `GET·PUT /api/me/settings`, `MemberViewSettingsService`, 허용 값 `ViewSettingsPolicy`) — 응답은 `ViewSettings` 그대로(`textScale` JSON 정수), 둘 다 `Cache-Control: no-store`. 로그인 필요(`/api/**` 규칙, 401)·`PUT` CSRF·본인만, 이메일 인증·정지 검사 없음. `PUT` 은 세 칸 모두 필수 — 빠진 칸·타입 틀림(`"100"`·`100.5`)·없는 값은 `400 VALIDATION fields.theme|textScale|commentOrder` 를 한꺼번에(저장 없음), 본문 없음도 세 칸 오류. 표 `member_view_settings`(shared `V73__member_view_settings.sql`, 회원당 한 행, 값 CHECK, `users` FK `ON DELETE CASCADE`), 행이 없으면 기본값 AUTO·100·OLDEST(GET 은 행을 만들지 않는다). 문구 `viewSettings.*.invalid`(ko·en).
+- **화면 연결 (2026-10-24)**: `useViewSettingsApi` 가 실제 `GET·PUT` 을 부른다(목업 `view-mock.ts`·`?mock=view-*` 스위치 삭제, CSRF 는 `useApiClient` 재시도). 비로그인은 서버를 부르지 않고 이 브라우저 사본(`roboyam:view-settings`)만 쓴다. 로그인하면 첫 그림은 사본으로 그리고(`view-theme.client.ts`) 서버 값이 오면 이긴다(`view-settings.client.ts` — 로그인한 사람이 바뀔 때마다 다시 받음). 서버에 저장한 적 없는 회원은 기본값이 와서 사본도 기본값으로 덮인다(계정 값이 정본 — 비회원 보기 설정은 두지 않으므로 의도대로).
 
 ## 목업 가정
-1. 모든 목업은 메모리 상태라 새로고침하면 처음으로 돌아간다(보기 설정만 처음 읽을 때 이 브라우저 사본을 「서버 값」으로 삼는다). 보는 사람은 한 명으로 본다.
+1. 모든 목업은 메모리 상태라 새로고침하면 처음으로 돌아간다. 보는 사람은 한 명으로 본다. (보기 설정은 서버에 연결됨 — 위 「화면 연결」.)
 2. **가짜 회원 명부**(`composables/common/mock/member-mock.ts`) 8명 — 쪽지 상대·받는 사람 검색·차단·메모 대상. 명부 밖 ID 는 실제 게시판 글의 작성자 이름을 빌리고, 없으면 「회원 {끝 4자리}」. 공개 프로필 목업도 명부 이름·역할·`blockedByMe`·`memo` 를 쓴다. 「조용한관찰자」는 쪽지를 받지 않고, 「운영지기」는 운영진(차단 불가).
 3. 쪽지 처음 상태: 대화 6개(안 읽음 2통 · 답장 전 첫 쪽지(링크·연락처 막힘) · 탈퇴한 회원 · 수신 거부 회원 · 차단한 회원 · 열흘 전 안 읽음). 보낼 자격은 로그인 정보로 정한다(인증 전 → 정지 → 사업자 → 가입 7일 전(`?mock=dm-too-new` — 로그인 정보에 가입일이 없다) → 한도). 상대가 나를 차단한 경우는 만들지 않았다.
 4. 차단 처음 상태: 「로봇팔장인」 차단(사흘 전), 단어 「스포일러」, 메모 2개. **서버 응답에 `blocked`·`memo` 가 없어서** 셸이 로그인할 때 목업의 차단·단어·메모 한 벌을 받아 이 기기의 표시(`useBlockOverrides`)에 깐다(`useBlockOverridesLoader`, `useBlockApi().mockSnapshot`) — 서버가 붙으면 이 로더와 「단어 차단을 화면이 대신 판정」하는 줄을 지운다.
 5. 닉네임 그림: 자격은 로그인 정보의 등급(단골·베테랑)·정지 여부. 올린 그림은 브라우저 안 주소(`blob:`)로만 보인다. 승인·반려는 관리자 화면 몫이라 스위치로만 흉내 낸다.
-6. 개발 스위치(`?mock=`): 쪽지 `dm-empty|dm-inbox-fail|dm-room-fail|dm-too-new|dm-daily-limit|dm-partner-limit|dm-send-fail|dm-send-offline|dm-recipients-fail|dm-settings-fail|dm-settings-save-fail|dm-reply` · 차단·메모 `block-fail|blocks-users-fail|blocks-words-fail|blocks-empty|memo-save-fail|memos-fail|memos-empty` · 닉네임 그림 `nickimg-eligible|nickimg-pending|nickimg-rejected|nickimg-current|nickimg-fail|nickimg-apply-fail|nickimg-approve` · 성인 확인 `adult-fail|adult-save-fail|adult-confirmed|adult-minor` · 보기 `view-fail|view-save-fail`.
+6. 개발 스위치(`?mock=`): 쪽지 `dm-empty|dm-inbox-fail|dm-room-fail|dm-too-new|dm-daily-limit|dm-partner-limit|dm-send-fail|dm-send-offline|dm-recipients-fail|dm-settings-fail|dm-settings-save-fail|dm-reply` · 차단·메모 `block-fail|blocks-users-fail|blocks-words-fail|blocks-empty|memo-save-fail|memos-fail|memos-empty` · 닉네임 그림 `nickimg-eligible|nickimg-pending|nickimg-rejected|nickimg-current|nickimg-fail|nickimg-apply-fail|nickimg-approve` · 성인 확인 `adult-fail|adult-save-fail|adult-confirmed|adult-minor`.
 
 ## community 대비 뺀 것
 - **보기 설정**: 주 색상·배경 색상·본문 너비·목록 밀도·메뉴 위치·「화면 꾸미기 되돌리기」 — 로보얌은 사이트 테마(운영자 설정)가 정하고 개인 테마·보기 설정을 두지 않는다(`.claude/guides/frontend/themes.md`). 이미지 숨기기·답글 접기·한 번에 보는 댓글 수 — 적용할 곳(본문 이미지 가리기·답글 묶음 접기·댓글 쪽 나누기)이 아직 없다. 시간 표시는 기존 `/settings/display` 를 그대로 두고 「보기」에서 잇는다(합치지 않음). 비회원 보기 설정(설정 묶음 전체가 로그인 필요).
