@@ -45,15 +45,15 @@
 | `GET /api/terms/{kind}/versions/{version}` | → `{version,effectiveDate,publishedAt,changeNote,status,body}` · 없으면 `404` |
 - 모르는 `{kind}` 는 `404`. 캐시는 서버 사본 짧게 + `Cache-Control: public, max-age=60`(사이트 정보와 같은 방식).
 
-## 가입 연결 (합칠 때 메인 세션)
-- shared 조회 메서드: `com.community.terms.service.TermsService#currentAgreementVersion()` → `T{n}.P{m}`. 가입(`POST /api/auth/signup`)과 소셜 가입 마무리(`SocialAccountWriter.SIGNUP_TERMS_VERSION = "v1"` 상수 자리)가 이 값을 `users.terms_version` 에 넣는다.
+## 가입 연결 (2026-10-24 병합 때 연결함)
+- 이메일 가입(`SignupService`)과 소셜 가입 마무리(`SocialAccountWriter`)는 `com.community.auth.service.TermsVersionProvider#currentTermsVersion()` 한 곳에서 버전을 받고, 그 몸통이 `TermsService#currentAgreementVersion()`(`T{n}.P{m}`)을 부른다.
 
 ## 미확정
 - 오픈 전 법무 검토(개인정보 수집 항목·목적·보유 기간 고지 요건, 변경 공지 기간 — 지금은 최소 하루 뒤 시행이다).
 - 회원에게 메일·알림으로 변경을 알리는 것은 하지 않았다(필요하면 회원 이벤트로 더한다).
 
 ## 서버 구현 결과 (2026-10-24)
-- **가입 동의 버전**: `com.community.terms.service.TermsService#currentAgreementVersion()`(server/shared, `@Service`) → `T{n}.P{m}`. 가입·`SocialAccountWriter` 연결은 아직 안 했다(합칠 때 메인).
+- **가입 동의 버전**: `com.community.terms.service.TermsService#currentAgreementVersion()`(server/shared, `@Service`) → `T{n}.P{m}`. 가입·소셜 가입 연결은 위 「가입 연결」.
 - **마이그레이션**: shared `V62__terms.sql` — `terms_versions`(UNIQUE(kind, version), FK 없는 `published_by`), `terms_drafts`(PK = 종류), `site_settings.terms_links_visible`. 권한 부여 데이터는 없다(역할은 사용자가 만들고 루트는 모든 권한, 카탈로그는 기동 때 코드에서 맞춘다).
 - **계약과 달라진 점**: `DELETE /terms/{kind}/draft` 는 `204`(본문 없음 — 다른 삭제 API 와 같다). 공개 `history` 는 모든 게시본(지금·예정·지난, 최신 먼저)이고 화면이 `status` 로 거른다. 변경 안내의 「시행된 지 7일 안」= 시행일부터 0~6일째. 공개 사본은 20초(`PublicSiteService` 와 같다) — 관리자 게시·옵션이 공개 화면에 최대 20초 + 브라우저 60초 늦게 보인다. 지난·예정 버전 본문은 사본 없이 그때 읽는다.
 - **감사 대상 이름**: `TERMS` 대상은 종류로 이름을 낸다(`audit.targetName.TERMS.TERMS`=이용약관 · `.PRIVACY`=개인정보처리방침, `AuditQueryService.targetName`).
