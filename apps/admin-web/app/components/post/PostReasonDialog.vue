@@ -1,6 +1,6 @@
 <template>
     <!--
-        글 하나의 조치 대화창 — 숨기기·숨김 해제·삭제·복구·공지로 지정·고정·고정 해제. 사유(1~200자) 필수, 숨기기는 「작성자에게 알림 보내기」 체크.
+        글 하나의 조치 대화창 — 숨기기·숨김 해제·삭제·복구·공지로 지정·고정·고정 해제 · 투표 지우기(서랍의 투표 구획, post-poll-contract). 사유(1~200자) 필수, 숨기기는 「작성자에게 알림 보내기」 체크.
         열 때마다 사유를 비운다(앞 글에 적던 사유가 다음 글에 딸려 가면 안 된다). 서버 호출은 부른 화면이 `submit` 을 받아 한다.
         칸 오류(`fields.reason`)는 사유 칸 아래, 그 밖 거절(`PIN_LIMIT` 등 — 서버 문구 그대로)은 대화창 안 한 줄. 실패해도 쓰던 사유는 그대로 둔다.
     -->
@@ -33,14 +33,14 @@
 
 <script setup lang="ts">
 import type { AdminPostItem } from '~/composables/post/api/usePostApi.types';
-import UtilPost, { type PostActionKind } from '~/utils/util-post';
+import UtilPost, { type PostReasonKind } from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
 
 const open = defineModel<boolean>('visible', { required: true });
 
 interface Props {
-    /** 조치(이동 제외) — 없으면 아무것도 그리지 않는다 */
-    kind?: Exclude<PostActionKind, 'MOVE'> | null;
+    /** 조치(이동 제외) 또는 투표 지우기(`POLL_DELETE`) — 없으면 아무것도 그리지 않는다 */
+    kind?: PostReasonKind | null;
     item?: AdminPostItem | null;
     busy?: boolean;
     /** 칸에 붙지 않는 오류(서버 문구 그대로) */

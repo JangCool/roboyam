@@ -4,7 +4,7 @@
 
 | 파일 | 역할 |
 |---|---|
-| `seed/seed.json` | **데이터**(community 에서 넘어온 그대로). 계정 13개(베테랑 2개 포함 — 2026-10-24 로보얌에서 더함) · 글 6개 · 댓글 7개 · 추천 16개. 그 밖의 칸(투표·임시저장·공동구매 등)은 로보얌에 아직 없는 기능이라 로더가 건너뛴다 |
+| `seed/seed.json` | **데이터**(community 에서 넘어온 그대로). 계정 13개(베테랑 2개 포함 — 2026-10-24 로보얌에서 더함) · 글 6개 · 댓글 7개 · 추천 16개. 그 밖의 칸(임시저장·공동구매 등)은 로보얌에 아직 없는 기능이라 로더가 건너뛴다 |
 | `scripts/seed-local.mjs` | **로더**(Node 내장 `fetch` + `docker exec … psql`, 의존성 없음). 서버 코드는 바꾸지 않았다 |
 
 ## 쓰는 법
@@ -82,11 +82,12 @@ $env:SEED_API = "http://localhost:9091"; $env:SEED_DB_NAME = "roboyam_seedtest";
 - **말머리 규칙**: 옮긴 게시판에 같은 이름의 말머리가 있고 운영진 전용이 아니면 그것, 아니면 말머리 없이 쓴다(`free` 에는 `뉴스` 가 없어 말머리 없이).
 - **답글**: 로보얌 답글은 1단계다 — `parentId` = 답한 댓글의 원댓글, `replyToId` = 답한 댓글.
 - **작성 간격**: 로보얌은 작성 속도를 따로 표에 두지 않고 `posts`·`comments` 의 `created_at` 최댓값으로 판정한다(기본 글 60초·댓글 10초). `429 POST_TOO_FAST`·`COMMENT_TOO_FAST` 를 받으면 그 시드 회원의 최근(1시간 안) 글·댓글의 `created_at`·`updated_at` 을 응답의 `retryAfterSeconds` + 1초만큼 앞으로 당기고 다시 쓴다. 하루 한도(`*_DAILY_LIMIT`, 기본 글 30·댓글 200)는 비우지 않는다(시드 양으로는 닿지 않는다).
+- 투표(`p4`·`p5` 의 `poll`): 그 게시판의 「글쓴이가 투표를 붙일 수 있음」(`pollEnabled`)이 켜져 있으면 글쓰기 본문 `poll` 로 붙이고 `votes` 를 공개 API 로 넣는다. 꺼져 있으면 글만 쓰고 「못 한 것」에 알린다(로더는 게시판 정책을 바꾸지 않는다 — 관리자 게시판 설정에서 켜고 `--force`). 지난 마감(`closesInHours` 0 이하)은 표를 넣은 뒤 SQL 로 마감 시각을 되돌린다.
 - 끝에 시드 회원별 포인트 잔액·회원 알림 수를 출력한다.
 
 ### 건너뛰는 것(로보얌에 아직 없는 기능 — 실행할 때 목록으로 출력한다)
 
-투표(`p4`·`p5` 의 `poll` — 글은 투표 없이 쓴다) · 운영자 역할(`e2e.admin`) · 임시저장(`drafts`) · 공동구매(`commerce`) · 광고 직접 배너(`adBanners`) · 핫딜 입점(`hotdealBusiness`) · 직접홍보·끌올(`promoBump`) · 홈 가젯(`homeGadgets`) · ROBOYAM 운영 예시(`roboyamConcept`) · 영상·짤 시험 글(`galleryPosts`).
+운영자 역할(`e2e.admin`) · 임시저장(`drafts`) · 공동구매(`commerce`) · 광고 직접 배너(`adBanners`) · 핫딜 입점(`hotdealBusiness`) · 직접홍보·끌올(`promoBump`) · 홈 가젯(`homeGadgets`) · ROBOYAM 운영 예시(`roboyamConcept`) · 영상·짤 시험 글(`galleryPosts`).
 
 ## 계정
 

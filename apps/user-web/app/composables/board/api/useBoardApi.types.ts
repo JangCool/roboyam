@@ -214,6 +214,11 @@ export interface BoardDetail extends BoardView {
      * 가정: 게시판 응답의 맨 위 칸(`allowAdult`·`reportEnabled` 와 같은 자리)
      */
     debateEnabled?: boolean;
+    /**
+     * 글쓴이(회원)가 글쓰기·고치기에서 투표를 붙일 수 있다(유효 정책 `pollEnabled` — post-poll-contract, 기본 끔). 옛 응답에는 없을 수 있다(없으면 끔).
+     * 가정: `debateEnabled` 와 같은 자리(게시판 응답의 맨 위 칸)
+     */
+    pollEnabled?: boolean;
     policy: BoardPublicPolicy;
     guestRules: BoardGuestRules;
     newMemberRules: BoardNewMemberRules;

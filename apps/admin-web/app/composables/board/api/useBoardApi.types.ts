@@ -108,6 +108,8 @@ export interface BoardDefaults {
     pinRequestReviewers: BoardPinReviewer[];
     /** 글쓴이(회원)가 글쓰기·고치기에서 찬반 토론을 열 수 있다(post-debate-contract). 끄면 운영자·그 게시판 매니저만 연다 — 나중에 꺼도 이미 연 토론은 그대로. 전체 기본값 `false` */
     debateEnabled: boolean;
+    /** 글쓴이(회원)가 글쓰기·고치기에서 글에 투표를 붙일 수 있다(post-poll-contract). 끄면 새로 붙일 수 없다 — 이미 붙은 투표는 그대로. 전체 기본값 `false` */
+    pollEnabled: boolean;
     /** 베스트 댓글 최소 추천 수 1~100 */
     bestCommentMinLikes: number;
     /** 게시판당 매니저 수 1~10 */
@@ -148,6 +150,7 @@ export const BOARD_POLICY_FIELDS = [
     'commentDislikeLabel',
     'pinRequestReviewers',
     'debateEnabled',
+    'pollEnabled',
     'managerMax',
     'staffPostDailyLimit',
     'staffCommentDailyLimit',

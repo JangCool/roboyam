@@ -4,7 +4,9 @@
         열린 채 다른 줄을 누르면 그 글로 바뀐다. 서랍·표 줄·떠 있는 창(대화창·고르개·메뉴·의견 서랍) 밖을 누르면 닫는다. Esc 는 PrimeVue Drawer 가 맡는다.
         머리: 제목 · 상태 알약(숨김 까닭·시각 …) · 글 번호(복사) · 이전/다음 글(지금 쪽의 줄 순서).
         본문(위에서 아래): 글 요약(게시판·말머리·작성자·작성/수정일·추천/댓글/조회·신고 대기·칩) · 상태 띠(지운 글 / 원문 파기 / 숨긴 글) · 본문(HTML 은 서버 정화본을 `rich-text` 로, 평문은 줄바꿈 그대로) ·
-          **찬반 토론 구획**(상태 요약 + [토론 설정](`DebateSettingsDialog`) + [의견 관리](`DebateOpinionsDrawer`) — 두 부품은 부른 화면이 연다) · 조치 기록(최근 것부터, 처리자·사유·덧붙임).
+          **찬반 토론 구획**(상태 요약 + [토론 설정](`DebateSettingsDialog`) + [의견 관리](`DebateOpinionsDrawer`) — 두 부품은 부른 화면이 연다) ·
+          **투표 구획**(글에 투표가 있을 때만 — 질문 · 마감/진행 · 복수/단일 · 다시 투표 허용 · 마감 시각 · 선택지별 득표 막대·퍼센트 · 참여 수. 누가 골랐는지는 없다. `post.manage` 면 [투표 지우기] → 부른 화면이 사유 대화창을 연다) ·
+          조치 기록(최근 것부터, 처리자·사유·덧붙임).
         바닥: 상태가 허락하는 조치 단추만(`actions`) — 없으면 까닭 한 줄(읽기 전용 · 복구 권한 없음 · 원문 파기).
         서버 호출은 하지 않는다(`components.md`) — 글은 `usePostDetail`, 토론 요약은 `useDebateSettingsActions().get` 으로 부른 화면이 받는다.
         [공개 사이트에서 보기](새 탭)는 서버가 준 `publicUrl` 이 있을 때만 머리에 보인다(사이트 공개 주소를 정하지 않았으면 null). 글 번호 복사는 늘 있다.
@@ -73,6 +75,7 @@
                     <Tag v-if="post.pinned" :value="t('post.chip.pinned')" icon="pi pi-thumbtack" severity="info" class="text-[11px]!" />
                     <Tag v-if="post.adult" :value="t('post.chip.adult')" severity="danger" class="text-[11px]!" />
                     <Tag v-if="post.debate" :value="t('post.chip.debate')" icon="pi pi-comments" severity="secondary" class="text-[11px]!" />
+                    <Tag v-if="post.poll" :value="t('post.chip.poll')" icon="pi pi-chart-bar" severity="secondary" class="text-[11px]!" />
                 </dd>
                 <dt class="text-muted-color">{{ t('post.col.author') }}</dt>
                 <dd class="m-0">{{ UtilPostMessages.author(t, post) }}</dd>
@@ -149,6 +152,48 @@
                         <div><Tag :value="t('debate.debateNone')" severity="secondary" class="text-[11px]!" /></div>
                         <span>{{ t('debate.noneHint') }}</span>
                     </template>
+                </div>
+            </section>
+
+            <!-- 투표(post-poll-contract) — 글에 투표가 있을 때만 -->
+            <section v-if="poll" class="flex flex-col gap-2" :aria-labelledby="`${titleId}-poll`" data-testid="post-drawer-poll">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <h3 :id="`${titleId}-poll`" class="text-sm font-semibold">{{ t('post.pollTitle') }}</h3>
+                    <Button
+                        v-if="canManage"
+                        type="button"
+                        :label="t('post.action.POLL_DELETE')"
+                        icon="pi pi-trash"
+                        size="small"
+                        severity="danger"
+                        variant="outlined"
+                        :disabled="busy || loading"
+                        data-testid="post-drawer-poll-delete"
+                        @click="emit('poll-delete')"
+                    />
+                </div>
+                <div class="flex flex-col gap-2.5 rounded-lg border border-(--line) px-3 py-2.5">
+                    <p class="m-0 text-[13px] font-medium break-words [overflow-wrap:anywhere]">{{ poll.question }}</p>
+                    <div class="flex flex-wrap items-center gap-1.5 text-xs text-muted-color">
+                        <Tag :value="pollClosed ? t('post.pollClosed') : t('post.pollOpen')" :severity="pollClosed ? 'secondary' : 'success'" class="text-[11px]!" />
+                        <Tag :value="poll.multiple ? t('post.pollMultiple') : t('post.pollSingle')" severity="secondary" class="text-[11px]!" />
+                        <Tag :value="poll.changeAllowed ? t('post.pollChangeAllowed') : t('post.pollChangeLocked')" severity="secondary" class="text-[11px]!" />
+                        <span class="tabular-nums">{{ poll.closesAt ? t('post.pollClosesAt', { at: time.full(poll.closesAt) }) : t('post.pollNoClose') }}</span>
+                    </div>
+                    <ul class="m-0 flex list-none flex-col gap-2 p-0">
+                        <li v-for="row in pollRows" :key="row.option.id" class="flex flex-col gap-1">
+                            <div class="flex items-baseline justify-between gap-2 text-[13px]">
+                                <span class="min-w-0 break-words [overflow-wrap:anywhere]">{{ row.option.label }}</span>
+                                <span class="shrink-0 text-xs tabular-nums text-muted-color">{{ t('post.pollResult', { p: row.percent, n: row.option.votes }) }}</span>
+                            </div>
+                            <div class="h-1.5 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700" aria-hidden="true">
+                                <div class="h-full rounded-full bg-primary" :style="{ width: `${row.percent}%` }" />
+                            </div>
+                        </li>
+                    </ul>
+                    <p class="m-0 text-xs text-muted-color">
+                        <span class="tabular-nums">{{ t('post.pollVoters', { n: poll.voterCount }) }}</span> · {{ t('post.pollAnonymous') }}
+                    </p>
                 </div>
             </section>
 
@@ -247,6 +292,8 @@ const emit = defineEmits<{
     'debate-settings': [];
     'debate-opinions': [];
     'debate-retry': [];
+    /** [투표 지우기] — 사유 대화창은 부른 화면이 연다 */
+    'poll-delete': [];
     /** 서랍이 다 닫혔다(전환 끝) */
     closed: [];
 }>();
@@ -267,6 +314,10 @@ const bodyEmpty = computed(() => {
     return props.detail?.content.format === 'HTML' ? UtilPost.isHtmlEmpty(body) : body.trim() === '';
 });
 const actionList = computed(() => UtilPost.actionList(props.actions));
+/** 글의 투표(없으면 null) */
+const poll = computed(() => props.detail?.poll ?? null);
+const pollRows = computed(() => (poll.value ? UtilPost.pollRows(poll.value) : []));
+const pollClosed = computed(() => Boolean(poll.value?.closed));
 
 /** 단추가 없을 때(또는 지운 글) 까닭 한 줄 */
 const footerNote = computed(() => {

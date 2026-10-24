@@ -7,13 +7,14 @@ import java.time.Instant;
  * 최신글·인기글·통합 검색·회원 작성글이 쓴다.
  *
  * @param blocked 보는 사람 기준 차단({@code USER}·{@code WORD}, 내 글·숨긴 글·비로그인 null) — 게시판 글 목록과 같은 판정({@code ViewerBlocks})
+ * @param hasPoll 글에 투표가 붙었는가(숨긴 글은 false)
  */
 public record PostFeedRowView(String id, PostPrefixRefView prefix, String title, int commentCount, boolean hasImage, String thumbnailUrl, PostAuthorView author,
                               Instant createdAt, int viewCount, int likeCount, boolean pinned, boolean adult, String hiddenReason, String blocked,
-                              PostBoardRefView board) {
+                              boolean hasPoll, PostBoardRefView board) {
 
     public static PostFeedRowView of(PostRowView row, PostBoardRefView board) {
         return new PostFeedRowView(row.id(), row.prefix(), row.title(), row.commentCount(), row.hasImage(), row.thumbnailUrl(), row.author(), row.createdAt(),
-                row.viewCount(), row.likeCount(), row.pinned(), row.adult(), row.hiddenReason(), row.blocked(), board);
+                row.viewCount(), row.likeCount(), row.pinned(), row.adult(), row.hiddenReason(), row.blocked(), row.hasPoll(), board);
     }
 }

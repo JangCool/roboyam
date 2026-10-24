@@ -25,6 +25,8 @@ public class PostModerationEventEntity {
     public static final String UNPINNED = "UNPINNED";
     /** 신고 자동 숨김(공개 서버 ReportService) */
     public static final String REPORT_HIDDEN = "REPORT_HIDDEN";
+    /** 운영자가 글의 투표를 지움(V81 — docs/features/post-poll-contract.md) */
+    public static final String POLL_DELETED = "POLL_DELETED";
 
     public static final String BY_OPERATOR = "OPERATOR";
     public static final String BY_SYSTEM = "SYSTEM";

@@ -13,6 +13,9 @@ import com.community.permission.entity.Permission;
 import com.community.permission.exception.PermissionDeniedException;
 import com.community.permission.service.AccessDeniedRecorder;
 import com.community.point.service.PointService;
+import com.community.poll.dto.PollData;
+import com.community.poll.exception.PollNotFoundException;
+import com.community.poll.repository.master.PollQueries;
 import com.community.post.dto.request.AdminPostBulkRequest;
 import com.community.post.dto.request.AdminPostHideRequest;
 import com.community.post.dto.request.AdminPostMoveRequest;
@@ -48,7 +51,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * 게시글 관리 조치 — 숨기기 · 숨김 해제 · 삭제 · 복구 · 이동 · 공지 지정 · 고정 · 고정 해제 · 일괄. docs/features/post-admin-contract.md.
+ * 게시글 관리 조치 — 숨기기 · 숨김 해제 · 삭제 · 복구 · 이동 · 공지 지정 · 고정 · 고정 해제 · 일괄 · 투표 지우기({@link #deletePoll}). docs/features/post-admin-contract.md.
  *
  * <ul>
  *   <li><b>공통</b>: 사유 1~200자 필수(앞뒤 공백을 뗀 글자 수 — 400 {@code fields.reason}) → 글 행 잠금(없는 글 404 POST_NOT_FOUND) → 상태 확인(맞지 않으면 409 POST_STATE_INVALID)
@@ -84,10 +87,11 @@ public class AdminPostModerationService {
     private final PointService points;
     private final AuditLogService audit;
     private final AccessDeniedRecorder denied;
+    private final PollQueries polls;
     private final TransactionTemplate tx;
 
     public AdminPostModerationService(PostRepository posts, AdminPostRepositoryQDSL queries, BoardCatalog catalog, PostModerationLog moderation,
-                                      MemberNotificationPublisher memberNotices, PointService points, AuditLogService audit, AccessDeniedRecorder denied,
+                                      MemberNotificationPublisher memberNotices, PointService points, AuditLogService audit, AccessDeniedRecorder denied, PollQueries polls,
                                       PlatformTransactionManager txManager) {
         this.posts = posts;
         this.queries = queries;
@@ -97,6 +101,7 @@ public class AdminPostModerationService {
         this.points = points;
         this.audit = audit;
         this.denied = denied;
+        this.polls = polls;
         this.tx = new TransactionTemplate(txManager);
     }
 
@@ -194,6 +199,24 @@ public class AdminPostModerationService {
         }
         moderation.operator(post.getId(), PostModerationEventEntity.MOVED, actor.operatorId(), reason, detail, now);
         record(actor, AuditActions.POST_MOVE, post.getId(), reason, detail);
+    }
+
+    /**
+     * 글의 투표 지우기 — 표가 있어도(글 상태 무관). 투표·선택지·표가 함께 사라지고 글쓴이는 새 투표를 다시 붙일 수 있다. 투표가 없으면 404 POLL_NOT_FOUND.
+     * 조치 기록 {@code POLL_DELETED}·감사 {@code POST_POLL_DELETE} 에는 질문·참여 수만 남긴다(누가 골랐는지는 남기지 않는다). docs/features/post-poll-contract.md.
+     */
+    @Transactional
+    public void deletePoll(AdminActor actor, String idText, AdminPostReasonRequest body) {
+        String reason = reasonOf(body == null ? null : body.reason());
+        PostEntity post = lock(idText);
+        PollData poll = polls.findForUpdate(post.getId()).orElseThrow(PollNotFoundException::new);
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("pollId", Long.toString(poll.id()));
+        detail.put("question", poll.question());
+        detail.put("voterCount", polls.voterCount(poll.id()));
+        polls.delete(poll.id());
+        moderation.operator(post.getId(), PostModerationEventEntity.POLL_DELETED, actor.operatorId(), reason, detail, Instant.now());
+        record(actor, AuditActions.POST_POLL_DELETE, post.getId(), reason, detail);
     }
 
     @Transactional

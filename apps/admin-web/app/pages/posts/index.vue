@@ -11,6 +11,8 @@
           `409 POST_STATE_INVALID`·`404 POST_NOT_FOUND`·`409 POST_PURGED`(그 사이 바뀜)는 토스트 + 새로 받기. 복구는 `post.restore` 가 있을 때만.
         - 일괄: 줄을 고르면 아래에 일괄 줄 — 숨기기·숨김 해제·삭제(삭제는 `post.bulk-delete`)를 사유 하나로 → 결과 대화창(글마다 처리됨/못 함 + 까닭).
         - 글의 찬반 토론: 서랍의 토론 구획(상태 요약) + [토론 설정](`DebateSettingsDialog`) + [의견 관리](`DebateOpinionsDrawer`) — 하이라이트 화면과 같은 재사용 부품(`useDebateActions`).
+        - 글의 투표(post-poll-contract): 목록 줄 「투표」 칩(`poll`) · 서랍의 투표 구획(결과 표) + [투표 지우기](`post.manage`, 표가 있어도) → 사유 대화창(`PostReasonDialog` kind `POLL_DELETE`) → `DELETE /api/admin/posts/{id}/poll { reason }`.
+          `404 POLL_NOT_FOUND`(그새 없어짐)는 다른 조치처럼 토스트 + 새로 받기. 조치 기록에 `POLL_DELETED` 가 남는다.
         - 권한: 보기 `post.read`(메뉴) — 조치 기록·토론 보기는 된다. `post.manage` 가 없으면 읽기 전용 안내 + 체크·조치 없음. 감추는 것은 편의이고 막는 것은 서버다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -170,6 +172,7 @@
                                 <Tag v-if="data.pinned" :value="t('post.chip.pinned')" icon="pi pi-thumbtack" severity="info" class="text-[11px]!" />
                                 <Tag v-if="data.adult" :value="t('post.chip.adult')" severity="danger" class="text-[11px]!" />
                                 <Tag v-if="data.debate" :value="t('post.chip.debate')" icon="pi pi-comments" severity="secondary" class="text-[11px]!" />
+                                <Tag v-if="data.poll" :value="t('post.chip.poll')" icon="pi pi-chart-bar" severity="secondary" class="text-[11px]!" />
                                 <button
                                     type="button"
                                     class="min-w-0 text-left text-[13px] font-medium break-words [overflow-wrap:anywhere] hover:underline focus-visible:outline-2 focus-visible:outline-primary"
@@ -314,6 +317,7 @@
             @debate-settings="debateSettingsOpen = true"
             @debate-opinions="opinionsOpen = true"
             @debate-retry="loadDebate()"
+            @poll-delete="openPollDelete"
             @closed="onDrawerClosed"
         />
 
@@ -329,7 +333,7 @@ import type { DebateItem } from '~/composables/content/api/useDebateApi.types';
 import type { DebateDrawerTarget } from '~/components/debate/DebateOpinionsDrawer.types';
 import type { AdminPostItem, AdminPostListView, AdminPostBoardOption, PostBulkAction, PostBulkResult, PostStateFilter } from '~/composables/post/api/usePostApi.types';
 import UtilDateRange from '~/utils/util-date-range';
-import UtilPost, { type PostActionKind, type PostFilters } from '~/utils/util-post';
+import UtilPost, { type PostActionKind, type PostFilters, type PostReasonKind } from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
 
 const { t, locale } = useI18n();
@@ -638,7 +642,7 @@ async function submitBulk(payload: { reason: string; notify: boolean }): Promise
 const acting = ref(false);
 
 const reasonOpen = ref(false);
-const reasonKind = ref<Exclude<PostActionKind, 'MOVE'> | null>(null);
+const reasonKind = ref<PostReasonKind | null>(null);
 const reasonTarget = ref<AdminPostItem | null>(null);
 const reasonError = ref('');
 const reasonFieldError = ref('');
@@ -720,6 +724,44 @@ async function runAct(item: AdminPostItem, kind: PostActionKind, input: { reason
     return { done: true };
 }
 
+/* ── 글의 투표 지우기 ── */
+
+/** 서랍의 [투표 지우기] — 사유 대화창을 연다 */
+function openPollDelete(): void {
+    const item = detail.detail.value?.post;
+    if (!item || acting.value) return;
+    reasonTarget.value = item;
+    reasonKind.value = 'POLL_DELETE';
+    reasonError.value = '';
+    reasonFieldError.value = '';
+    reasonOpen.value = true;
+}
+
+/** 그 사이 투표가 없어졌다 — 다른 조치의 「그 사이 바뀜」처럼 알리고 새로 받는다 */
+const POLL_STALE_CODES = new Set(['POLL_NOT_FOUND', 'POST_NOT_FOUND']);
+
+async function runPollDelete(item: AdminPostItem, reason: string): Promise<ActOutcome> {
+    if (acting.value) return { done: false, error: '', fields: {} };
+    acting.value = true;
+    try {
+        await api.deletePoll(item.id, { reason });
+    } catch (e) {
+        const error = errorOf(e);
+        if (POLL_STALE_CODES.has(error.code)) {
+            toast.error(t('post.staleFailed', { reason: error.message }), 8000);
+            await refreshAfter(item.id);
+            return { done: true };
+        }
+        if (error.status === 400 && error.fields && Object.keys(error.fields).length > 0) return { done: false, error: '', fields: { ...error.fields } };
+        return { done: false, error: error.message, fields: {} };
+    } finally {
+        acting.value = false;
+    }
+    toast.success(UtilPostMessages.done(t, 'POLL_DELETE', false));
+    await refreshAfter(item.id);
+    return { done: true };
+}
+
 /** 조치 뒤 — 목록(상태·고정·건수)과 열린 글(알약·띠·조치 기록)을 새로 받는다 */
 async function refreshAfter(id: string): Promise<void> {
     await load(true);
@@ -732,7 +774,7 @@ async function submitReason(payload: { reason: string; notify: boolean }): Promi
     if (!item || !kind) return;
     reasonError.value = '';
     reasonFieldError.value = '';
-    const outcome = await runAct(item, kind, payload);
+    const outcome = kind === 'POLL_DELETE' ? await runPollDelete(item, payload.reason) : await runAct(item, kind, payload);
     if (outcome.done) {
         reasonOpen.value = false;
         return;

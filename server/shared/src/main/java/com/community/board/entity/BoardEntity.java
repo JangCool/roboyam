@@ -67,6 +67,8 @@ public class BoardEntity {
     private String pinRequestReviewers;
     /** 「글쓴이가 찬반 토론을 열 수 있음」(V79, NULL = 기본값 따름) */
     private Boolean debateEnabled;
+    /** 「글쓴이가 투표를 붙일 수 있음」(V81, NULL = 기본값 따름) */
+    private Boolean pollEnabled;
     private Integer managerMax;
     private Integer staffPostDailyLimit;
     private Integer staffCommentDailyLimit;
@@ -152,6 +154,7 @@ public class BoardEntity {
         this.commentDislikeLabel = policy.commentDislikeLabel();
         this.pinRequestReviewers = BoardFields.joinReviewers(policy.pinRequestReviewers());
         this.debateEnabled = policy.debateEnabled();
+        this.pollEnabled = policy.pollEnabled();
         this.managerMax = policy.managerMax();
         this.staffPostDailyLimit = policy.staffPostDailyLimit();
         this.staffCommentDailyLimit = policy.staffCommentDailyLimit();
@@ -175,7 +178,7 @@ public class BoardEntity {
     public BoardPolicyValues policy() {
         return new BoardPolicyValues(writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, listSize, pinnedMax, indexable, searchable, inHome, pointMode, commentProtectMin,
                 commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice, commentDislikeEnabled,
-                commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, managerMax, staffPostDailyLimit,
+                commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, pollEnabled, managerMax, staffPostDailyLimit,
                 staffCommentDailyLimit, staffSanctionDailyLimit);
     }
 

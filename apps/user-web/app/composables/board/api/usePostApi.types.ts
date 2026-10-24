@@ -7,6 +7,7 @@ import type { Role } from '~/composables/auth/api/useAuthApi.types';
 import type { BoardProtectDelete, PrefixView } from '~/composables/board/api/useBoardApi.types';
 import type { BlockedBy } from '~/composables/block/api/useBlockApi.types';
 import type { DebateSummary, PostDebateOpen } from '~/composables/board/api/useDebateApi.types';
+import type { PollInput, PollView } from '~/composables/board/api/usePollApi.types';
 
 /**
  * 본문 형식 — `TEXT` 평문(Textarea, 글자로 그린다) · `HTML` 에디터 HTML(서버가 정화한 것만 돌려준다 — 글 보기·댓글 보기만 `v-html` 로 그린다).
@@ -74,6 +75,8 @@ export interface PostRow {
     adult: boolean;
     /** 가려진 글이면 그 까닭 — 제목·작성자 자리에 「신고로 숨겨진 글이에요」 */
     hiddenReason: PostHiddenReason | null;
+    /** 투표가 붙은 글 — 제목 옆 투표 칩(post-poll-contract). 옛 응답에는 없을 수 있다(없으면 없음) */
+    hasPoll?: boolean;
     /**
      * 내가 차단한 회원의 글(`USER`)·차단한 단어가 제목에 든 글(`WORD`) — **서버 후보**(`member-social-contract.md`). 지금 서버 응답에는 없다.
      * 접는 것은 화면의 일이다(`FoldedRow`, `useBlockOverrides().blockedOf`).
@@ -187,6 +190,8 @@ export interface PostDetail {
     highlighted?: boolean;
     /** 찬반 토론 요약 — 늘 있다(토론이 없으면 `enabled false`). 옛 응답에는 없을 수 있다 */
     debate?: DebateSummary;
+    /** 글에 붙은 투표(post-poll-contract) — 없으면 null. 옛 응답에는 없을 수 있다 */
+    poll?: PollView | null;
 }
 
 /** 비회원 작성 정보 — 이름·비밀번호(수정·삭제용, 서버는 해시로만 저장)·자동입력 방지 토큰 */
@@ -213,6 +218,8 @@ export interface PostWriteRequest {
     guest: GuestCredentials | null;
     /** 글과 함께 찬반 토론을 연다(회원이고 게시판 `debateEnabled` 일 때만 — 아니면 `400 fields.debate`). 열지 않으면 null */
     debate?: PostDebateOpen | null;
+    /** 글과 함께 투표를 붙인다(회원이고 게시판 `pollEnabled` 일 때만 — 아니면 `400 fields.poll`). 붙이지 않으면 null */
+    poll?: PollInput | null;
 }
 
 export interface PostWriteResult {
@@ -227,6 +234,11 @@ export interface PostUpdateRequest {
     contentFormat: ContentFormat;
     adult: boolean;
     password: string | null;
+    /**
+     * 투표 — 보내면 만들기·고치기, `null` 이면 빼기(첫 표 뒤면 `409 POLL_LOCKED`, 지금과 같은 내용은 그대로). **칸을 아예 빼면 그대로 둔다**
+     * (화면은 투표 칸을 바꾸지 않았거나 표가 있어 고칠 수 없을 때 칸을 뺀다)
+     */
+    poll?: PollInput | null;
 }
 
 /** `DELETE /api/posts/{id}` 본문 — 비회원 글은 `password` 필수 */

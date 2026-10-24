@@ -7,6 +7,7 @@ import type {
     PostBulkResult,
     PostHideRequest,
     PostMoveRequest,
+    PostPollDeleteRequest,
     PostReasonRequest,
 } from '~/composables/post/api/usePostApi.types';
 
@@ -20,6 +21,7 @@ import type {
  *       · 사유 1~200자 필수(400 `fields.reason`) · 상태가 맞지 않음 409 `POST_STATE_INVALID` · 고정 한도 409 `PIN_LIMIT` · 파기된 글 복구 409 `POST_PURGED`
  *       · 이동: 같은 자리·켜진 말머리가 아님 400 `fields.prefixId` · 꺼진 게시판 400 `fields.boardId`
  *   - `POST /bulk { action, ids(1~50), reason, notifyAuthor }` (`post.manage`, DELETE 는 `post.bulk-delete` 도) → 200 `{ done, failed: [{id, code}] }` — 글마다 따로
+ *   - `DELETE /{id}/poll { reason }` (`post.manage`, 표가 있어도) → 204 — 글의 투표 지우기(post-poll-contract). 감사 `POST_POLL_DELETE`, 조치 기록 `POLL_DELETED`
  * 쓰기는 CSRF(`useApiClient` 가 붙인다). 응답은 `Cache-Control: no-store`.
  */
 const ROOT = '/api/admin/posts';
@@ -29,6 +31,7 @@ const PATH = {
     bulk: `${ROOT}/bulk`,
     one: (id: string) => `${ROOT}/${encodeURIComponent(id)}`,
     act: (id: string, action: 'hide' | 'unhide' | 'delete' | 'restore' | 'move' | 'notice' | 'pin' | 'unpin') => `${ROOT}/${encodeURIComponent(id)}/${action}`,
+    poll: (id: string) => `${ROOT}/${encodeURIComponent(id)}/poll`,
 };
 
 export function usePostApi() {
@@ -68,6 +71,10 @@ export function usePostApi() {
         notice: (id: string, body: PostReasonRequest): Promise<void> => client.post<void>(PATH.act(id, 'notice'), body),
         pin: (id: string, body: PostReasonRequest): Promise<void> => client.post<void>(PATH.act(id, 'pin'), body),
         unpin: (id: string, body: PostReasonRequest): Promise<void> => client.post<void>(PATH.act(id, 'unpin'), body),
+
+        // REAL:
+        /** 글의 투표 지우기 — 사유를 본문에 싣는 DELETE */
+        deletePoll: (id: string, body: PostPollDeleteRequest): Promise<void> => client.del<void>(PATH.poll(id), undefined, body),
 
         /** 일괄 숨김·숨김 해제·삭제 — 글마다 따로 처리하고 실패한 글만 까닭과 함께 */
         bulk: (body: PostBulkRequest): Promise<PostBulkResult> => client.post<PostBulkResult>(PATH.bulk, body),

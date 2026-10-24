@@ -13,7 +13,7 @@ public record BoardPolicyValues(String writeMin, String commentMin, String postE
                                 Boolean searchable, Boolean inHome, String pointMode, Integer commentProtectMin, Boolean commentProtectEdit,
                                 String commentProtectDelete, Integer commentProtectDelayMinutes, Integer commentGuestDelayMinutes, Boolean staffHiddenNotice,
                                 Boolean commentDislikeEnabled, String commentLikeLabel, String commentDislikeLabel, List<String> pinRequestReviewers,
-                                Boolean debateEnabled, Integer managerMax,
+                                Boolean debateEnabled, Boolean pollEnabled, Integer managerMax,
                                 Integer staffPostDailyLimit, Integer staffCommentDailyLimit, Integer staffSanctionDailyLimit) {
 
     /** 추천·비추천 이름은 앞뒤 공백을 자르고 비면 null(= 기본값 따름) */
@@ -26,7 +26,7 @@ public record BoardPolicyValues(String writeMin, String commentMin, String postE
     /** 모두 기본값을 따르는 정책 */
     public static BoardPolicyValues empty() {
         return new BoardPolicyValues(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
     }
 
     /** 칸 이름 → 값(칸 순서대로, null 포함) */
@@ -54,6 +54,7 @@ public record BoardPolicyValues(String writeMin, String commentMin, String postE
         map.put("commentDislikeLabel", commentDislikeLabel);
         map.put("pinRequestReviewers", pinRequestReviewers);
         map.put("debateEnabled", debateEnabled);
+        map.put("pollEnabled", pollEnabled);
         map.put("managerMax", managerMax);
         map.put("staffPostDailyLimit", staffPostDailyLimit);
         map.put("staffCommentDailyLimit", staffCommentDailyLimit);

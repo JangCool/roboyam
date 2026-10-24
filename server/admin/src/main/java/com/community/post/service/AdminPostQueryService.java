@@ -6,6 +6,8 @@ import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.BoardCatalog;
 import com.community.operator.entity.OperatorEntity;
 import com.community.operator.repository.master.OperatorRepository;
+import com.community.poll.dto.PollData;
+import com.community.poll.repository.master.PollQueries;
 import com.community.post.dto.AdminPostListRow;
 import com.community.post.dto.AdminPostSearch;
 import com.community.post.dto.response.AdminPostAuthorView;
@@ -20,6 +22,8 @@ import com.community.post.dto.response.AdminPostItemView;
 import com.community.post.dto.response.AdminPostListView;
 import com.community.post.dto.response.AdminPostPrefixOptionView;
 import com.community.post.dto.response.AdminPostPrefixRefView;
+import com.community.post.dto.response.AdminPollOptionView;
+import com.community.post.dto.response.AdminPollView;
 import com.community.post.entity.PostEntity;
 import com.community.post.entity.PostModerationEventEntity;
 import com.community.post.exception.AdminPostNotFoundException;
@@ -99,9 +103,11 @@ public class AdminPostQueryService {
     private final OperatorRepository operators;
     private final BoardCatalog catalog;
     private final SiteSettingsService site;
+    private final PollQueries polls;
 
     public AdminPostQueryService(AdminPostRepositoryQDSL posts, PostRepository postEntities, PostModerationEventRepository events, ProfileRepository profiles,
-                                 UserRepository users, OperatorRepository operators, BoardCatalog catalog, SiteSettingsService site) {
+                                 UserRepository users, OperatorRepository operators, BoardCatalog catalog, SiteSettingsService site, PollQueries polls) {
+        this.polls = polls;
         this.site = site;
         this.posts = posts;
         this.postEntities = postEntities;
@@ -145,7 +151,7 @@ public class AdminPostQueryService {
         Instant now = Instant.now();
         AdminPostItemView item = items(List.of(row), now).get(0);
         AdminPostContentView content = new AdminPostContentView(post.getContentFormat().name(), post.isPurged() ? null : post.getContent(), post.getEditedAt());
-        return new AdminPostDetailView(item, content, eventViews(events.findByPostIdOrderByIdDesc(id)), publicUrlOf(id));
+        return new AdminPostDetailView(item, content, eventViews(events.findByPostIdOrderByIdDesc(id)), publicUrlOf(id), pollOf(id, now));
     }
 
     /** 글 한 줄(조치 서비스가 결과를 돌려줄 때도 쓴다) */
@@ -164,15 +170,16 @@ public class AdminPostQueryService {
         }
         Map<Long, Integer> reports = posts.openReports(ids);
         Set<Long> debates = posts.debateOpen(ids);
+        Set<Long> withPoll = polls.postIdsWithPoll(ids);
         List<AdminPostItemView> out = new ArrayList<>(rows.size());
         for (AdminPostListRow r : rows) {
-            out.add(item(r, s, profileById, userById, reports, debates, now));
+            out.add(item(r, s, profileById, userById, reports, debates, withPoll, now));
         }
         return out;
     }
 
     private static AdminPostItemView item(AdminPostListRow r, BoardCatalogSnapshot s, Map<Long, ProfileEntity> profileById, Map<Long, UserEntity> userById,
-                                          Map<Long, Integer> reports, Set<Long> debates, Instant now) {
+                                          Map<Long, Integer> reports, Set<Long> debates, Set<Long> withPoll, Instant now) {
         EffectiveBoard b = r.boardId() == null ? null : s.board(r.boardId()).orElse(null);
         AdminPostBoardRefView board = new AdminPostBoardRefView(r.boardId() == null ? null : Long.toString(r.boardId()), b == null ? null : b.name(),
                 b == null ? null : b.nameEn(), b == null ? null : b.slug());
@@ -195,7 +202,7 @@ public class AdminPostQueryService {
                 : AdminPostListRow.DELETED.equals(state) && r.deleteScheduledAt() != null ? r.deleteScheduledAt() : null;
         return new AdminPostItemView(Long.toString(r.id()), board, prefix, r.title(), author, state, hidden ? r.hiddenReason() : null,
                 hidden ? r.hiddenAt() : null, hidden ? r.hiddenUntil() : null, deletedAt, r.deleteScheduledAt(), r.purgedAt() != null, r.pinnedAt() != null,
-                p != null && NOTICE_KEY.equals(p.commonKey()), Boolean.TRUE.equals(r.adult()), debates.contains(r.id()), n(r.likeCount()),
+                p != null && NOTICE_KEY.equals(p.commonKey()), Boolean.TRUE.equals(r.adult()), debates.contains(r.id()), withPoll.contains(r.id()), n(r.likeCount()),
                 n(r.commentCount()), n(r.viewCount()), reports.getOrDefault(r.id(), 0), r.createdAt());
     }
 
@@ -217,7 +224,20 @@ public class AdminPostQueryService {
         return out;
     }
 
-    /** 공개 사이트의 글 주소 — 사이트 설정 공개 주소(소셜 로그인·메일 링크와 같은 값)가 없으면 null */
+    /** 글의 투표 — 집계만(참여 수·선택지별 득표, 마감 전에도), 누가 골랐는지는 없다. 투표가 없으면 null */
+    private AdminPollView pollOf(long postId, Instant now) {
+        PollData poll = polls.find(postId).orElse(null);
+        if (poll == null) {
+            return null;
+        }
+        Map<Long, Integer> counts = polls.votesByOption(poll.id());
+        List<AdminPollOptionView> options = polls.options(poll.id()).stream()
+                .map(o -> new AdminPollOptionView(Long.toString(o.id()), o.label(), counts.getOrDefault(o.id(), 0))).toList();
+        return new AdminPollView(Long.toString(poll.id()), poll.question(), poll.multiple(), poll.changeAllowed(), poll.closesAt(), poll.closedAt(now),
+                polls.voterCount(poll.id()), options, poll.createdAt());
+    }
+
+    /** 공개 사이트의 글 주소 —사이트 설정 공개 주소(소셜 로그인·메일 링크와 같은 값)가 없으면 null */
     private String publicUrlOf(long postId) {
         return site.current().map(SiteValues::publicUrl).filter(url -> url != null && !url.isBlank())
                 .map(url -> url.strip().replaceAll("/+$", "") + "/posts/" + postId).orElse(null);

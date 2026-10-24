@@ -16,10 +16,11 @@ import java.time.Instant;
  * @param pinned            고정 글인가
  * @param notice            말머리가 공통 「공지」(NOTICE)인가
  * @param debate            찬반 토론이 열려 있는가
+ * @param poll              투표가 붙어 있는가(목록 칩)
  * @param openReports       이 글에 대한 처리 대기 신고 수(글 신고만)
  */
 public record AdminPostItemView(String id, AdminPostBoardRefView board, AdminPostPrefixRefView prefix, String title, AdminPostAuthorView author, String state,
                                 String hiddenReason, Instant hiddenAt, Instant hiddenUntil, Instant deletedAt, Instant deleteScheduledAt, boolean purged,
-                                boolean pinned, boolean notice, boolean adult, boolean debate, int likeCount, int commentCount, int viewCount,
+                                boolean pinned, boolean notice, boolean adult, boolean debate, boolean poll, int likeCount, int commentCount, int viewCount,
                                 int openReports, Instant createdAt) {
 }

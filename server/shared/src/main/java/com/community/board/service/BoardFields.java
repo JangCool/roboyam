@@ -96,7 +96,7 @@ public final class BoardFields {
     /** 게시판별로 덮어쓸 수 있는 칸(admin-web {@code BOARD_POLICY_FIELDS} 순서) */
     public static final List<String> POLICY_FIELDS = List.of("writeMin", "commentMin", "postEditor", "imageUploadAllowed", "commentEditor", "listSize", "pinnedMax", "indexable", "searchable",
             "inHome", "pointMode", "commentProtectMin", "commentProtectEdit", "commentProtectDelete", "commentProtectDelayMinutes", "commentGuestDelayMinutes",
-            "staffHiddenNotice", "commentDislikeEnabled", "commentLikeLabel", "commentDislikeLabel", "pinRequestReviewers", "debateEnabled", "managerMax", "staffPostDailyLimit", "staffCommentDailyLimit",
+            "staffHiddenNotice", "commentDislikeEnabled", "commentLikeLabel", "commentDislikeLabel", "pinRequestReviewers", "debateEnabled", "pollEnabled", "managerMax", "staffPostDailyLimit", "staffCommentDailyLimit",
             "staffSanctionDailyLimit");
     /** 댓글 추천·비추천 단추 이름 최대 글자 수(V78 varchar(10)) */
     public static final int REACTION_LABEL_MAX = 10;
@@ -160,6 +160,7 @@ public final class BoardFields {
         put(d, new Spec("commentDislikeLabel", Kind.LABEL, 1, REACTION_LABEL_MAX, List.of(), true, false));
         put(d, new Spec("pinRequestReviewers", Kind.MULTI, 0, 0, List.of(PIN_REVIEWER_POST_AUTHOR, PIN_REVIEWER_BOARD_MANAGER, PIN_REVIEWER_OPERATOR), true, false));
         bool(d, "debateEnabled", true);
+        bool(d, "pollEnabled", true);
         number(d, "bestCommentMinLikes", 1, 100, false, false);
         number(d, "managerMax", 1, 10, true, true);
         number(d, "staffMax", 1, 10, false, true);

@@ -1,5 +1,7 @@
 import type { LocationQuery } from 'vue-router';
 import type {
+    AdminPollOptionView,
+    AdminPollView,
     AdminPostBoardOption,
     AdminPostItem,
     AdminPostQuery,
@@ -51,6 +53,15 @@ export type PostMoveProblem = 'BOARD_REQUIRED' | 'SAME_LOCATION';
 /** 글 하나의 조치 */
 export type PostActionKind = 'HIDE' | 'UNHIDE' | 'DELETE' | 'RESTORE' | 'MOVE' | 'NOTICE' | 'PIN' | 'UNPIN';
 
+/** 사유 대화창(`PostReasonDialog`)이 받는 조치 — 이동 말고 글 조치 + 글의 투표 지우기(post-poll-contract, 서랍의 투표 구획에서만) */
+export type PostReasonKind = Exclude<PostActionKind, 'MOVE'> | 'POLL_DELETE';
+
+/** 서랍 투표 구획의 득표 막대 한 줄 — 퍼센트 = 득표 / 참여한 사람 수(복수 선택은 합이 100 을 넘을 수 있다) */
+export interface PostPollRow {
+    option: AdminPollOptionView;
+    percent: number;
+}
+
 /** 글 한 줄에서 누를 수 있는 조치 — 화면이 메뉴·단추를 그릴지 가른다 */
 export type PostActions = Record<PostActionKind, boolean>;
 
@@ -83,6 +94,7 @@ const EVENT_SEVERITY: Record<PostModerationEventType, Severity> = {
     NOTICE: 'info',
     PINNED: 'info',
     UNPINNED: 'secondary',
+    POLL_DELETED: 'danger',
 };
 
 /** 유니코드 한 글자씩 센다(서버도 코드포인트로 센다) */
@@ -313,8 +325,20 @@ export default class UtilPost {
     }
 
     /** 위험한 조치 — 빨강 단추 */
-    static isDanger(kind: PostActionKind): boolean {
-        return kind === 'HIDE' || kind === 'DELETE';
+    static isDanger(kind: PostActionKind | PostReasonKind): boolean {
+        return kind === 'HIDE' || kind === 'DELETE' || kind === 'POLL_DELETE';
+    }
+
+    /* ── 투표 ── */
+
+    /**
+     * 서랍 투표 구획의 득표 막대 — 선택지 차례, 퍼센트 = 득표 / 참여한 사람 수(반올림, 참여 0 이면 0).
+     * @param {AdminPollView} poll - 글의 투표.
+     * @returns {PostPollRow[]} 줄.
+     */
+    static pollRows(poll: AdminPollView): PostPollRow[] {
+        const total = poll.voterCount;
+        return poll.options.map((option) => ({ option, percent: total > 0 ? Math.round((option.votes / total) * 100) : 0 }));
     }
 
     static actionIcon(kind: PostActionKind): string {

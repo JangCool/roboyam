@@ -280,7 +280,7 @@
                     </p>
                 </AppGadget>
 
-                <!-- 7. 찬반 토론·댓글 추천 — 글쓴이 토론(`debateEnabled`) · 비추천 켬 · 추천/비추천 이름(비우면 기본 설정 따름) · 고정 요청 확인자. 토론 의견도 이 게시판 설정을 따른다 -->
+                <!-- 7. 찬반 토론·댓글 추천 — 글쓴이 토론(`debateEnabled`) · 글쓴이 투표(`pollEnabled`) · 비추천 켬 · 추천/비추천 이름(비우면 기본 설정 따름) · 고정 요청 확인자. 토론 의견도 이 게시판 설정을 따른다 -->
                 <AppGadget :title="t('board.section.reaction')" anchor="board-reaction" :changes="changes.reaction" :invalid="invalidOf([...REACTION_FIELDS])">
                     <div class="grid gap-x-8 gap-y-5 md:grid-cols-2">
                         <BoardSettingField
@@ -454,7 +454,7 @@ const WRITE_FIELDS = ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowe
 /** 「홈·인기·최신 포함」(inHome)은 두지 않는다 — 가젯 노출 금지가 대신한다(서버 칸은 받은 값 그대로 저장 요청에 돌아간다) */
 const EXPOSURE_FIELDS = ['listSize', 'pinnedMax', 'indexable', 'searchable'] as const;
 const PROTECT_FIELDS = ['commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes', 'staffHiddenNotice', 'pointMode'] as const;
-const REACTION_FIELDS = ['debateEnabled', 'commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers'] as const;
+const REACTION_FIELDS = ['debateEnabled', 'pollEnabled', 'commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers'] as const;
 const STAFF_LIMIT_FIELDS = ['managerMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit'] as const;
 const GUIDE_FIELDS = ['introText', 'writeGuideText'] as const;
 const ROLES: readonly BoardStaffRole[] = ['MANAGER', 'STAFF'];

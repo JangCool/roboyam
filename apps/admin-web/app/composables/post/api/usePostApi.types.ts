@@ -61,6 +61,8 @@ export interface AdminPostItem {
     adult: boolean;
     /** 찬반 토론이 열려 있다 */
     debate: boolean;
+    /** 투표가 붙어 있다(post-poll-contract). 옛 응답에는 없을 수 있다 */
+    poll?: boolean;
     likeCount: number;
     commentCount: number;
     viewCount: number;
@@ -136,7 +138,7 @@ export interface AdminPostContent {
 }
 
 /** 조치 기록 종류 — `REPORT_HIDDEN` 은 신고 자동 숨김(시스템) */
-export type PostModerationEventType = 'HIDDEN' | 'UNHIDDEN' | 'DELETED' | 'RESTORED' | 'MOVED' | 'NOTICE' | 'PINNED' | 'UNPINNED' | 'REPORT_HIDDEN';
+export type PostModerationEventType = 'HIDDEN' | 'UNHIDDEN' | 'DELETED' | 'RESTORED' | 'MOVED' | 'NOTICE' | 'PINNED' | 'UNPINNED' | 'REPORT_HIDDEN' | 'POLL_DELETED';
 
 export interface PostModerationActor {
     kind: 'OPERATOR' | 'SYSTEM';
@@ -163,6 +165,34 @@ export interface AdminPostDetail {
     events: PostModerationEvent[];
     /** 공개 사이트의 그 글 절대 주소 — 사이트 공개 주소를 정하지 않았으면 null */
     publicUrl: string | null;
+    /** 글에 붙은 투표(post-poll-contract) — 없으면 null. 옛 응답에는 없을 수 있다 */
+    poll?: AdminPollView | null;
+}
+
+/** 투표 선택지 하나와 그 득표 수 — 누가 골랐는지는 없다(익명) */
+export interface AdminPollOptionView {
+    id: string;
+    label: string;
+    votes: number;
+}
+
+/**
+ * 게시글 관리 상세의 투표(서버 `AdminPollView`) — **집계만**: 마감 전에도 참여 수·선택지별 득표를 보이고, 누가 무엇을 골랐는지는 없다(계약 「API」 관리자).
+ */
+export interface AdminPollView {
+    id: string;
+    question: string;
+    multiple: boolean;
+    changeAllowed: boolean;
+    /** 마감 시각 — null 이면 마감 없음 */
+    closesAt: string | null;
+    /** 마감 시각이 지났다 */
+    closed: boolean;
+    /** 참여한 사람 수(복수 선택이어도 한 사람은 한 번) */
+    voterCount: number;
+    /** 선택지 차례대로 — 득표 포함 */
+    options: AdminPollOptionView[];
+    createdAt: string;
 }
 
 /** 사유만 받는 조치(숨김 해제·삭제·복구·공지·고정·고정 해제) */
@@ -179,6 +209,11 @@ export interface PostHideRequest {
 export interface PostMoveRequest {
     boardId: string;
     prefixId: string | null;
+    reason: string;
+}
+
+/** `DELETE /api/admin/posts/{id}/poll` 본문 — 사유 1~200자 */
+export interface PostPollDeleteRequest {
     reason: string;
 }
 

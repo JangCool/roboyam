@@ -153,7 +153,7 @@ public class BoardCatalog {
                 or(p.commentProtectDelayMinutes(), d.commentProtectDelayMinutes()), or(p.commentGuestDelayMinutes(), d.commentGuestDelayMinutes()),
                 or(p.staffHiddenNotice(), d.staffHiddenNotice()), or(p.commentDislikeEnabled(), d.commentDislikeEnabled()),
                 or(p.commentLikeLabel(), d.commentLikeLabel()), or(p.commentDislikeLabel(), d.commentDislikeLabel()),
-                or(p.pinRequestReviewers(), d.pinRequestReviewers()), or(p.debateEnabled(), d.debateEnabled()), prefixes,
+                or(p.pinRequestReviewers(), d.pinRequestReviewers()), or(p.debateEnabled(), d.debateEnabled()), or(p.pollEnabled(), d.pollEnabled()), prefixes,
                 Set.copyOf(b.getGadgetExclusions()));
     }
 

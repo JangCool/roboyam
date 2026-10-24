@@ -31,6 +31,7 @@ import notification from './notification';
 import onboarding from './onboarding';
 import password from './password';
 import point from './point';
+import poll from './poll';
 import post from './post';
 import profile from './profile';
 import prompt from './prompt';
@@ -71,6 +72,7 @@ export default {
     onboarding,
     password,
     point,
+    poll,
     post,
     profile,
     prompt,

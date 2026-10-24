@@ -21,6 +21,7 @@ import java.util.Set;
  * @param commentDislikeLabel 댓글 비추천 단추 이름(같은 규칙)
  * @param pinRequestReviewers 의견 고정 요청을 확인하는 사람(게시판 값 ?? 기본값) — POST_AUTHOR · BOARD_MANAGER · OPERATOR, 비면 고정 요청 끔
  * @param debateEnabled      글쓴이가 자기 글에 찬반 토론을 열 수 있는가(게시판 값 ?? 기본값, 기본 false — docs/features/post-debate-contract.md). 나중에 꺼도 이미 연 토론은 그대로
+ * @param pollEnabled        글쓴이(회원)가 자기 글에 투표를 붙일 수 있는가(게시판 값 ?? 기본값, 기본 false — docs/features/post-poll-contract.md). 나중에 꺼도 이미 붙은 투표는 그대로
  * @param prefixes           이 게시판의 말머리 전부(꺼진 것 포함, 정렬 순서대로)
  * @param gadgetExclusions   이 게시판 글을 내지 않을 홈 가젯(게시판 값 그대로 — 기본 설정에서 물려받지 않는다)
  */
@@ -31,7 +32,7 @@ public record EffectiveBoard(long id, String slug, String name, String nameEn, S
                              int listSize, int pinnedMax,
                              int commentProtectMin, boolean commentProtectEdit, String commentProtectDelete, int commentProtectDelayMinutes,
                              int commentGuestDelayMinutes, boolean staffHiddenNotice, boolean commentDislikeEnabled, String commentLikeLabel,
-                             String commentDislikeLabel, List<String> pinRequestReviewers, boolean debateEnabled, List<BoardPrefixInfo> prefixes, Set<BoardGadget> gadgetExclusions) {
+                             String commentDislikeLabel, List<String> pinRequestReviewers, boolean debateEnabled, boolean pollEnabled, List<BoardPrefixInfo> prefixes, Set<BoardGadget> gadgetExclusions) {
 
     public EffectiveBoard {
         pinRequestReviewers = pinRequestReviewers == null ? List.of() : List.copyOf(pinRequestReviewers);

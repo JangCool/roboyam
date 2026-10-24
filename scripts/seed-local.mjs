@@ -9,9 +9,10 @@
  *    users(비밀번호는 pgcrypto 의 bcrypt `crypt(pw, gen_salt('bf', 10))` — 서버 BCryptPasswordEncoder 와 호환, 상태·이메일 인증·가입 일수·필수 동의)
  *    + profiles(닉네임·기본 등급). 같은 이메일이 이미 있으면 건너뛴다. 만든 뒤 모든 계정을 공개 API 로 실제 로그인해 본다.
  *    `role: ADMIN` 도 회원으로만 만든다(로보얌의 운영자는 operators 표의 별도 계정 — 관리자 화면은 설치 때 만든 루트 계정으로 들어간다).
- * 2) 콘텐츠: 글·댓글·추천·지우기는 그 회원으로 로그인해 공개 API 로 한다(서버 규칙·카운터·포인트·회원 알림이 그대로 적용된다).
+ * 2) 콘텐츠: 글·투표·댓글·추천·지우기는 그 회원으로 로그인해 공개 API 로 한다(서버 규칙·카운터·포인트·회원 알림이 그대로 적용된다).
+ *    투표는 글쓰기 본문 `poll` 로 붙이고(그 게시판 pollEnabled 가 꺼져 있으면 글만 쓰고 알린다 — 게시판 정책은 바꾸지 않는다), 시드의 votes 를 공개 API 로 넣는다.
  *    API 로 못 하는 것만 SQL 로 한다: 작성 간격(429 *_TOO_FAST)에 걸리면 그 시드 회원의 최근 글·댓글 작성 시각을 기다릴 초만큼 앞으로 당긴다
- *    (로보얌의 작성 속도 판정은 따로 표가 없고 posts·comments 의 created_at 으로 센다).
+ *    (로보얌의 작성 속도 판정은 따로 표가 없고 posts·comments 의 created_at 으로 센다). 지난 마감 투표(closesInHours 0 이하)는 표를 넣은 뒤 마감 시각을 되돌린다.
  *
  * 안전장치: 서버(SEED_API)는 localhost 만, 서버 주소를 기본과 다르게 주면 SEED_DB_NAME 필수, 서버와 DB 의 설치 상태가 다르면(또는 설치 전이면)
  * 아무것도 바꾸기 전에 멈춘다. 설치는 하지 않는다(설치 마법사를 먼저 마친다). 비밀번호는 출력하지 않는다(psql 에는 명령 인자가 아니라 표준 입력으로 넘긴다).
@@ -280,7 +281,20 @@ async function seedAccounts() {
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 const createdPosts = new Map(); // seed key → { id, author }
 const createdComments = new Map(); // seed key → { id, postId, author }
-const counts = { posts: 0, comments: 0, likes: 0, deleted: 0, skipped: [] };
+const counts = { posts: 0, polls: 0, votes: 0, comments: 0, likes: 0, deleted: 0, skipped: [] };
+const pollPosts = []; // 투표를 붙여 쓴 글 { key, postId, poll(시드 모양) }
+
+/**
+ * 시드 투표(`{ question, options, multiple, closesInHours, votes }`) → 글쓰기 본문의 `poll`(PollInput — docs/features/post-poll-contract.md).
+ * 마감: null 이면 없음, 앞으로면 지금 + 그 시간(최소 2분 — 서버는 지금+1분 뒤 이후만 받는다), 지난 시각(0 이하)이면 마감 없이 만들고 투표를 넣은 뒤 SQL 로 되돌린다.
+ * 「다시 투표 허용」은 시드에 없어 끈다(서버 기본값과 같다).
+ */
+function pollInput(poll) {
+    const hours = Number(poll.closesInHours);
+    const future = poll.closesInHours !== null && poll.closesInHours !== undefined && Number.isFinite(hours) && hours > 0;
+    const closesAt = future ? new Date(Date.now() + Math.max(hours * 3_600_000, 120_000)).toISOString() : null;
+    return { question: poll.question, options: poll.options ?? [], multiple: poll.multiple === true, closesAt, changeAllowed: false };
+}
 
 /**
  * 작성 간격(429 POST_TOO_FAST·COMMENT_TOO_FAST)에 걸리면 <b>그 시드 회원</b>이 간격 안에 쓴 글(또는 댓글)의 작성 시각을 기다릴 초만큼 앞으로 당기고 다시 쓴다.
@@ -333,9 +347,13 @@ async function seedContent(sessions) {
         const prefix = p.prefix ? (board.prefixes ?? []).find((x) => x.name === p.prefix && !x.staffOnly) : null;
         // 본문 형식: 에디터 게시판(SIMPLE·ADVANCED)이면 HTML 그대로, 평문 게시판(NONE)이면 태그를 뗀 글자(board-public-contract 「본문 형식」)
         const html = board.postEditor && board.postEditor !== 'NONE';
+        // 투표: 그 게시판의 pollEnabled 가 켜져 있을 때만 글과 함께 붙인다(꺼져 있으면 글만 쓰고 알린다 — 로더는 게시판 정책을 바꾸지 않는다)
+        const pollAllowed = p.poll && board.pollEnabled === true;
+        if (p.poll && !pollAllowed) counts.skipped.push(`투표 ${p.key} — 게시판 ${target} 의 「글쓴이가 투표를 붙일 수 있음」(pollEnabled)이 꺼져 있어 글만 썼다`);
         const r = await writeWithGap(session, 'post', '/api/posts', {
             boardSlug: target, prefixId: prefix?.id ?? null, title: p.title,
             contentFormat: html ? 'HTML' : 'TEXT', content: html ? p.bodyHtml : htmlToText(p.bodyHtml), adult: false,
+            ...(pollAllowed ? { poll: pollInput(p.poll) } : {}),
         });
         if (r.status !== 201 || !r.data?.id) {
             counts.skipped.push(`글 ${p.key} — ${r.status} ${r.code ?? ''}`);
@@ -343,9 +361,40 @@ async function seedContent(sessions) {
         }
         createdPosts.set(p.key, { id: r.data.id, author: p.author });
         counts.posts++;
+        if (pollAllowed) {
+            counts.polls++;
+            pollPosts.push({ key: p.key, postId: r.data.id, poll: p.poll });
+        }
         const moved = target !== p.board ? ` (게시판 ${p.board} → ${target})` : '';
         const prefixNote = p.prefix && !prefix ? ` (말머리 ${p.prefix} 없음 → 말머리 없이)` : '';
-        console.log(`  ${p.key} → ${r.data.id} · ${target}${moved}${prefixNote}${p.poll ? ' · 투표는 건너뜀' : ''}`);
+        const pollNote = p.poll ? (pollAllowed ? ' · 투표 붙임' : ' · 투표 건너뜀(게시판 pollEnabled 꺼짐)') : '';
+        console.log(`  ${p.key} → ${r.data.id} · ${target}${moved}${prefixNote}${pollNote}`);
+    }
+
+    // 투표하기(시드의 votes — 고른 선택지 이름을 그 투표의 선택지 ID 로 바꿔 공개 API 로) → 지난 마감(closesInHours 음수)은 투표 뒤에 SQL 로 마감 시각을 되돌린다
+    // (공개 API 는 마감 시각을 지금+1분 뒤 이후로만 받아 「마감된 투표」를 만들 수 없다 — API 로 못 하는 것만 SQL 로)
+    if (pollPosts.length) console.log('\n투표');
+    for (const { key, postId, poll } of pollPosts) {
+        for (const v of poll.votes ?? []) {
+            const voter = sessions.get(v.user);
+            if (!voter) {
+                counts.skipped.push(`투표하기 ${key} ← ${v.user} — 로그인하지 못했다`);
+                continue;
+            }
+            const view = (await voter.request('GET', `/api/posts/${postId}/poll`)).data;
+            const optionIds = (v.options ?? []).map((label) => view?.options?.find((o) => o.label === label)?.id).filter(Boolean);
+            const r = optionIds.length === (v.options ?? []).length
+                ? await voter.request('POST', `/api/posts/${postId}/poll/votes`, { optionIds })
+                : { status: 0, code: '선택지 이름이 투표에 없다' };
+            if (r.status === 200) counts.votes++;
+            else counts.skipped.push(`투표하기 ${key} ← ${v.user} — ${r.status} ${r.code ?? ''}`);
+        }
+        const hours = Number(poll.closesInHours);
+        if (poll.closesInHours !== null && poll.closesInHours !== undefined && Number.isFinite(hours) && hours <= 0) {
+            sql(`UPDATE polls SET closes_at = now() + make_interval(secs => ${Math.round(hours * 3600)}) WHERE post_id = ${BigInt(postId)}`);
+        }
+        const closed = Number.isFinite(hours) && poll.closesInHours !== null && hours <= 0 ? ` · 마감(${hours}시간 전으로)` : '';
+        console.log(`  ${key} (${postId}) · 표 ${(poll.votes ?? []).length}개 요청${closed}`);
     }
 
     console.log('\n댓글');
@@ -423,8 +472,6 @@ async function seedContent(sessions) {
 /** 로보얌에 아직 없는 기능의 시드 데이터 — 건너뛴다 */
 function listUnsupported() {
     const out = [];
-    const polls = (seed.posts ?? []).filter((p) => p.poll).map((p) => p.key);
-    if (polls.length) out.push(`투표 ${polls.length}개(글 ${polls.join('·')} — 글은 투표 없이 쓴다)`);
     const admins = seed.users.filter((u) => u.role === 'ADMIN').map((u) => u.key);
     if (admins.length) out.push(`운영자 역할(${admins.join('·')} — 회원으로만 만든다. 관리자 화면은 설치 때 만든 루트 계정으로)`);
     const labels = {
@@ -450,7 +497,7 @@ function printSummary() {
     const lines = rows(sql(`SELECT p.nickname, coalesce(b.balance, 0), (SELECT count(*) FROM member_notifications n WHERE n.user_id = u.id)
                               FROM users u JOIN profiles p ON p.user_id = u.id LEFT JOIN point_balances b ON b.user_id = u.id
                              WHERE u.email IN (${emails}) ORDER BY u.created_at, u.id`));
-    console.log(`\n결과: 글 ${counts.posts} · 댓글 ${counts.comments} · 추천 ${counts.likes} · 지우기 ${counts.deleted}`);
+    console.log(`\n결과: 글 ${counts.posts} · 투표 ${counts.polls}(표 ${counts.votes}) · 댓글 ${counts.comments} · 추천 ${counts.likes} · 지우기 ${counts.deleted}`);
     console.log('회원별 포인트·알림');
     for (const [nickname, balance, notifications] of lines) {
         if (balance !== '0' || notifications !== '0') console.log(`  ${nickname.padEnd(12)} ${balance}P · 알림 ${notifications}`);

@@ -8,6 +8,9 @@
         가정: 남의 회원 글은 `403`(화면은 들어온 순간 막는다), 보호 중 수정은 서버가 `409 POST_PROTECTED` 로 거절한다.
         찬반 토론(post-debate-contract): 내 회원 글이고 서버가 「바꿀 수 있다」(`debate.canManage`)고 하면 「찬반 토론」 칸을 보인다. 운영자·매니저가 연 토론(`openedBy OPERATOR`)은 읽기 전용 안내,
           투표가 있어 닫을 수 없는 토론(`canClose false`)은 열기 칸을 끄지 못한다. 글 수정 본문에는 토론 칸이 없다 — 글을 저장한 뒤 토론 칸이 바뀌었을 때만 `PUT /api/posts/{id}/debate`.
+        투표(post-poll-contract): 내 회원 글에서 — 투표가 있으면 그 투표, 없으면 게시판 `pollEnabled` 일 때 「투표」 칸(찬반 토론 칸 위). 표가 들어와 `poll.editable false` 면 읽기 전용 요약 + 「표가 들어와 투표를 고칠 수 없어요」.
+          글 수정 본문(`PUT /api/posts/{id}`)의 `poll`: 칸을 바꿨을 때만 보낸다(켬 → 만들기·고치기, 끔 → null 로 빼기). 바꾸지 않았거나 잠긴 투표면 칸을 아예 빼서 그대로 둔다.
+          `409 POLL_LOCKED`(그새 첫 표가 들어옴)는 투표 칸 안 서버 문구 + 투표를 다시 읽어 잠근다.
     -->
     <div class="mx-auto max-w-3xl">
         <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface px-2 py-1.5 md:hidden">
@@ -59,6 +62,7 @@
             @cancel="cancel"
         >
             <template #extra>
+                <PollSettingsFields v-if="pollMode !== 'hidden'" v-model="poll" :locked="pollMode === 'locked'" :disabled="submitting" :errors="pollErrors" />
                 <DebateSettingsFields
                     v-if="debateMode !== 'hidden'"
                     v-model="debate"
@@ -77,9 +81,12 @@ import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
 import type { PostDetail } from '~/composables/board/api/usePostApi.types';
 import { DEFAULT_DEBATE_SETTINGS, type DebateSettingsValues } from '~/components/board/DebateSettingsFields.types';
 import { EMPTY_POST_FORM, type PostFormValues } from '~/components/board/PostEditorForm.types';
+import type { PollFormValues } from '~/components/board/PollSettingsFields.types';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilDebate from '~/utils/util-debate';
+import UtilPoll from '~/utils/util-poll';
+import UtilPollMessages from '~/utils/util-poll-messages';
 import UtilPost from '~/utils/util-post';
 
 definePageMeta({ shell: 'inner' });
@@ -90,6 +97,7 @@ const router = useRouter();
 const postApi = usePostApi();
 const boardApi = useBoardApi();
 const debateApi = useDebateApi();
+const pollApi = usePollApi();
 const toast = useAppToast();
 const { confirm } = useConfirmDialog();
 const current = useCurrentBoard();
@@ -123,6 +131,8 @@ async function load(): Promise<void> {
         initial.value = { ...values };
         debateInitial.value = UtilDebate.settingsOf(loaded.debate);
         debate.value = { ...debateInitial.value };
+        pollInitial.value = UtilPoll.formOf(loaded.poll);
+        poll.value = UtilPoll.formOf(loaded.poll);
         pageState.value = 'ready';
     } catch (e) {
         pageError.value = UtilBoardMessages.of(t, e);
@@ -150,6 +160,44 @@ const debateMode = computed<'hidden' | 'edit' | 'readonly'>(() => {
 /** 투표가 있어 닫을 수 없다 — 열린 토론의 열기 칸을 막는다 */
 const debateCloseLocked = computed(() => Boolean(post.value?.debate?.enabled && !post.value.debate.canClose));
 const debateChanged = computed(() => debateMode.value === 'edit' && !UtilDebate.sameSettings(debate.value, debateInitial.value));
+
+/* ── 투표 칸 ── */
+const poll = ref<PollFormValues>(UtilPoll.emptyForm());
+const pollInitial = ref<PollFormValues>(UtilPoll.emptyForm());
+/**
+ * 칸의 모습 — 내 회원 글에서만. 투표가 있으면 첫 표 전(`editable`)은 고치기, 표가 있으면 잠금(읽기 전용 요약).
+ * 투표가 없으면 게시판이 받을 때(`pollEnabled`)만 새로 붙이기 칸, 그 밖은 감춘다
+ */
+const pollMode = computed<'hidden' | 'edit' | 'locked'>(() => {
+    const p = post.value;
+    if (!p || !p.mine || p.author.kind !== 'MEMBER') return 'hidden';
+    if (p.poll) return p.poll.editable ? 'edit' : 'locked';
+    return board.value?.pollEnabled ? 'edit' : 'hidden';
+});
+/** 투표 칸을 바꿨다 — 바꿨을 때만 본문에 `poll` 을 싣는다 */
+const pollChanged = computed(() => pollMode.value === 'edit' && !UtilPoll.same(poll.value, pollInitial.value));
+/** 한 번 [저장]을 누른 뒤부터 투표 칸의 화면 검사 문구를 보인다 — 고치지 않은 지난 마감 시각은 다시 검사하지 않는다 */
+const pollTried = ref(false);
+const pollProblems = computed(() => UtilPoll.problems(poll.value, Date.now(), pollInitial.value.closesAt));
+const pollErrors = computed(() => UtilPollMessages.fieldErrors(t, fieldErrors.value, pollTried.value && pollChanged.value ? pollProblems.value : null));
+// 투표 칸을 고치면 그 칸의 낡은 서버 오류를 지운다
+watch(poll, () => {
+    fieldErrors.value = UtilPoll.withoutPollFields(fieldErrors.value);
+});
+
+/** 그새 첫 표가 들어왔다(`409 POLL_LOCKED`) — 투표를 다시 읽어 잠근다(못 읽으면 그대로) */
+async function reloadPoll(postId: string): Promise<void> {
+    const p = post.value;
+    if (!p) return;
+    try {
+        p.poll = await pollApi.poll(postId);
+    } catch (e) {
+        if (!(e instanceof ApiError && e.code === 'POLL_NOT_FOUND')) return;
+        p.poll = null;
+    }
+    pollInitial.value = UtilPoll.formOf(p.poll);
+    poll.value = UtilPoll.formOf(p.poll);
+}
 
 /* ── 비회원 글 비밀번호 ── */
 const password = ref('');
@@ -180,7 +228,7 @@ let saved = false;
 const dirty = computed(() => {
     const a = form.value;
     const b = initial.value;
-    return a.title !== b.title || a.content !== b.content || a.prefixId !== b.prefixId || a.adult !== b.adult || debateChanged.value;
+    return a.title !== b.title || a.content !== b.content || a.prefixId !== b.prefixId || a.adult !== b.adult || debateChanged.value || pollChanged.value;
 });
 
 /** 에디터가 불러온 본문을 정규화했다 — 그 HTML 을 처음 값으로 삼는다(열기만 해도 「고친 글」로 보이지 않게) */
@@ -192,6 +240,8 @@ function onEditorReady(html: string): void {
 async function submit(): Promise<void> {
     const p = post.value;
     if (!p || submitting.value) return;
+    pollTried.value = true;
+    if (pollChanged.value && UtilPoll.hasProblem(UtilPoll.problems(poll.value, Date.now(), pollInitial.value.closesAt))) return;
     fieldErrors.value = {};
     formError.value = '';
     submitting.value = true;
@@ -204,6 +254,8 @@ async function submit(): Promise<void> {
             contentFormat: form.value.contentFormat,
             adult: Boolean(board.value?.allowAdult) && form.value.adult,
             password: p.author.kind === 'GUEST' ? password.value : null,
+            // 바꾸지 않았거나 잠긴 투표는 칸을 아예 빼서 그대로 둔다(끄면 null 로 빼기)
+            ...(pollChanged.value ? { poll: UtilPoll.inputOf(poll.value) } : {}),
         });
         saved = true;
         password.value = '';
@@ -214,7 +266,12 @@ async function submit(): Promise<void> {
     } catch (e) {
         if (e instanceof ApiError && e.code === 'IMAGE_UPLOAD_NOT_ALLOWED') fieldErrors.value = { content: e.message }; // 이미지를 막은 게시판 — 본문 칸 아래에 서버 문구
         else if (e instanceof ApiError && e.code === 'VALIDATION' && e.fields && Object.keys(e.fields).length) fieldErrors.value = { ...e.fields };
-        else formError.value = UtilBoardMessages.of(t, e);
+        else if (e instanceof ApiError && e.code === 'POLL_LOCKED') {
+            // 그새 첫 표가 들어왔다 — 투표 칸 안에 서버 문구, 투표를 다시 읽어 잠근다(다시 [저장]하면 투표는 그대로 두고 글만 고친다)
+            await reloadPoll(p.id);
+            await nextTick(); // 투표 칸이 바뀌어 낡은 오류를 지우는 감시가 먼저 돈 뒤에 싣는다
+            fieldErrors.value = { poll: e.message };
+        } else formError.value = UtilBoardMessages.of(t, e);
     } finally {
         submitting.value = false;
     }

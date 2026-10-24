@@ -16,6 +16,7 @@ import com.community.post.service.AdminPostQueryService;
 import com.community.zconfiguration.response.ApiResponse;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -126,7 +127,15 @@ public class AdminPostController {
         return ResponseEntity.noContent().build();
     }
 
-    /** 일괄 숨김·해제·삭제 — 글마다 따로(200 {@code { done, failed }}). DELETE 는 {@code post.bulk-delete} 도 */
+    /** 글의 투표 지우기(표가 있어도) — 본문 {@code { reason }}. 투표가 없으면 404 POLL_NOT_FOUND */
+    @RequirePermission(Permission.POST_MANAGE)
+    @DeleteMapping("/{id}/poll")
+    public ResponseEntity<Void> deletePoll(@PathVariable String id, @RequestBody(required = false) AdminPostReasonRequest body, AdminActor actor) {
+        moderation.deletePoll(actor, id, body);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 일괄 숨김·해제·삭제 —글마다 따로(200 {@code { done, failed }}). DELETE 는 {@code post.bulk-delete} 도 */
     @RequirePermission(Permission.POST_MANAGE)
     @PostMapping("/bulk")
     public ResponseEntity<ApiResponse<AdminPostBulkResultView>> bulk(@RequestBody(required = false) AdminPostBulkRequest body, AdminActor actor) {

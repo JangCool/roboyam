@@ -9,6 +9,8 @@ import com.community.board.service.BoardCatalog;
 import com.community.board.service.ContentRules;
 import com.community.board.service.PublicBoardService;
 import com.community.debate.service.DebateReader;
+import com.community.poll.repository.master.PollQueries;
+import com.community.poll.service.PollReader;
 import com.community.post.dto.PostNeighborData;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.response.PostAuthorView;
@@ -32,6 +34,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,9 +59,13 @@ public class PostQueryService {
     private final AuthorViews authors;
     private final ViewerBlocks viewerBlocks;
     private final DebateReader debate;
+    private final PollReader pollReader;
+    private final PollQueries pollQueries;
 
     public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors,
-                            ViewerBlocks viewerBlocks, DebateReader debate) {
+                            ViewerBlocks viewerBlocks, DebateReader debate, PollReader pollReader, PollQueries pollQueries) {
+        this.pollReader = pollReader;
+        this.pollQueries = pollQueries;
         this.debate = debate;
         this.catalog = catalog;
         this.posts = posts;
@@ -114,18 +121,20 @@ public class PostQueryService {
         List<Long> authorIds = Stream.concat(pinned.stream(), result.items().stream()).map(PostRowData::authorId).toList();
         Map<Long, ProfileEntity> members = authors.members(authorIds);
         ViewerBlocks.Lens lens = viewerBlocks.lens(viewerId, authorIds);
+        Set<Long> polls = pollQueries.postIdsWithPoll(Stream.concat(pinned.stream(), result.items().stream()).map(PostRowData::id).toList());
         int totalPages = (int) ((result.total() + listSize - 1) / listSize);
-        return new PostListResponse(pinned.stream().map(r -> row(r, b, s, members, now, lens)).toList(),
-                result.items().stream().map(r -> row(r, b, s, members, now, lens)).toList(), current, totalPages, result.total());
+        return new PostListResponse(pinned.stream().map(r -> row(r, b, s, members, now, lens, polls)).toList(),
+                result.items().stream().map(r -> row(r, b, s, members, now, lens, polls)).toList(), current, totalPages, result.total());
     }
 
-    private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, Map<Long, ProfileEntity> members, Instant now, ViewerBlocks.Lens lens) {
+    private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, Map<Long, ProfileEntity> members, Instant now, ViewerBlocks.Lens lens,
+                            Set<Long> polls) {
         boolean hidden = r.hiddenAt(now);
         PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
         return new PostRowView(Long.toString(r.id()), hidden ? null : prefixRef(b, r.prefixId()), hidden ? "" : r.title(), hidden ? 0 : r.commentCount(),
                 !hidden && Boolean.TRUE.equals(r.hasImage()), null, hidden ? AuthorViews.blank(author) : author, r.createdAt(), r.viewCount(), r.likeCount(),
                 r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),
-                hidden ? null : lens.blockedOf(r.authorId(), r.title()));
+                hidden ? null : lens.blockedOf(r.authorId(), r.title()), !hidden && polls.contains(r.id()));
     }
 
     /**
@@ -172,7 +181,8 @@ public class PostQueryService {
                 post.getLikeCount(), liked, post.getCommentCount(), post.isAdult(), userId != null && userId.equals(post.getAuthorId()),
                 protection(b, post.getCommentCount()), post.getDeleteScheduledAt(), older.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null),
                 newer.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null), Boolean.TRUE.equals(s.security().externalLinkNofollow()),
-                lens.blockedOf(post.getAuthorId(), post.getTitle()), highlight.highlighted(), debate.summary(highlight, post, b, userId, now));
+                lens.blockedOf(post.getAuthorId(), post.getTitle()), highlight.highlighted(), debate.summary(highlight, post, b, userId, now),
+                pollReader.forPost(post, userId, now));
     }
 
     /** 댓글 많은 글 보호 — 보이는 댓글 수가 기준 이상이면 보호 중 */

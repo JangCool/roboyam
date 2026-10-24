@@ -1,6 +1,7 @@
 package com.community.post.dto.response;
 
 import com.community.debate.dto.response.DebateSummaryView;
+import com.community.poll.dto.response.PollView;
 import java.time.Instant;
 
 /**
@@ -19,9 +20,10 @@ import java.time.Instant;
  *                             게시판 글 목록과 같은 판정({@code ViewerBlocks}). 본문은 그대로 주고 가리는 것은 화면 몫. {@code PUT} 응답은 늘 null
  * @param highlighted          지금 하이라이트로 노출 중인 글인가(노출 켬 + 기간 안) — 화면이 제목 옆에 「하이라이트」 표시를 단다. 「찬성·반대 의견 받기」와 무관
  * @param debate               하이라이트 토론 요약(늘 있다 — 하이라이트가 아니면 {@code enabled false}) — docs/features/popular-highlight-contract.md 「서버 구현 결과」
+ * @param poll                 글에 붙은 투표, 없으면 null — docs/features/post-poll-contract.md
  */
 public record PostDetailView(String id, PostBoardRefView board, PostPrefixRefView prefix, String title, String contentFormat, String content, PostAuthorView author,
                              Instant createdAt, Instant updatedAt, int viewCount, int likeCount, boolean liked, int commentCount, boolean adult, boolean mine,
                              PostProtectionView protection, Instant deleteScheduledAt, PostNeighborView prev, PostNeighborView next,
-                             boolean externalLinkNofollow, String blocked, boolean highlighted, DebateSummaryView debate) {
+                             boolean externalLinkNofollow, String blocked, boolean highlighted, DebateSummaryView debate, PollView poll) {
 }

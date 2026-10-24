@@ -1,6 +1,6 @@
 <template>
     <!--
-        글 보기 `/posts/{id}` — 머리(말머리·제목·작성자·시각·조회) → 본문(19금이면 확인 전 가림) → (찬반 토론) → [추천][링크 복사][신고] · [찬반 토론 열기][수정][삭제] → 투자 고지 → 이전·다음 글 → 댓글.
+        글 보기 `/posts/{id}` — 머리(말머리·제목·작성자·시각·조회) → 본문(19금이면 확인 전 가림) → (투표) → (찬반 토론) → [추천][링크 복사][신고] · [찬반 토론 열기][수정][삭제] → 투자 고지 → 이전·다음 글 → 댓글.
         community 대비: 투표·스크랩·글 ⋯ 메뉴의 차단·메모·지킴이 처리·리비전·소모임 글·핫딜/리뷰 글 모양을 뺐다. 본문은 에디터 HTML 이 아니라 평문(빈 줄 = 문단, 주소만 링크 — `v-html` 없음).
           비회원 글이 있어 작성자 옆에 「비회원」과 작성 IP 앞 두 자리가 보이고, 비회원 글의 수정·삭제는 비밀번호 확인 뒤에 한다.
         비회원 글 IP 는 서버가 앞 두 묶음만 남겨 준다(IPv4 `123.45.*.*` · IPv6 `2001:db8:*:*`, 회원 글은 없다). 19금 글은 성인 인증이 아직 없어 「성인입니다」 확인 단추로 이번 방문만 연다.
@@ -15,6 +15,8 @@
           그때만 의견 목록을 부른다(글 상세의 `debate` 또는 일반 목록의 `debate` 로 판정). 토론이 없는 글은 예전처럼 댓글만. 차단으로 본문이 접히거나 19금 확인 전이면 토론도 함께 가린다.
           토론을 바꿀 수 있는 사람(`debate.canManage`)은 토론 구획 머리의 [토론 설정], 토론이 없는 글에서는 글 아래 [찬반 토론 열기]로 설정 대화창(`DebateSettingsDialog`)을 열어 `PUT /api/posts/{id}/debate` 한다.
           응답(새 토론 요약)을 글에 넣고 두 댓글 목록을 다시 받는다. `403 DEBATE_MANAGE_DENIED` 는 토스트 + 목록 다시 받기, `409 DEBATE_HAS_VOTES` 는 대화창 안 서버 문구 + 목록 다시 받기.
+        투표(post-poll-contract): 글에 `poll` 이 있으면 본문 바로 다음·찬반 토론 위에 투표 카드(`PostPollCard`). 투표·다시 읽기·지우기는 `usePollApi` 로 이 화면이 하고(카드는 `actions` 만 받는다),
+          카드가 올린 새 투표(지우면 null)를 글의 `poll` 에 넣는다. 차단으로 본문이 접히거나 19금 확인 전이면 함께 가린다.
     -->
     <div>
         <!-- 모바일 안쪽 화면 머리 — 셸의 위·아래 막대가 숨겨진다(`shell: 'inner'`) -->
@@ -117,6 +119,9 @@
                     </p>
                 </div>
 
+                <!-- 투표 — 본문 바로 다음, 찬반 토론 위(19금 확인 전에는 본문과 함께 가린다) -->
+                <PostPollCard v-if="post.poll && !(post.adult && !adultConfirmed)" :poll="post.poll" :actions="pollActions" @update:poll="onPollUpdate" />
+
                 <!-- 찬반 토론 — 본문 바로 다음, 추천 줄 위(19금 확인 전에는 본문과 함께 가린다) -->
                 <CommentSection
                     v-if="showDebate && !(post.adult && !adultConfirmed)"
@@ -214,9 +219,11 @@
 <script setup lang="ts">
 import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
 import type { PostDetail } from '~/composables/board/api/usePostApi.types';
+import type { PollView } from '~/composables/board/api/usePollApi.types';
 import type { ReportReason, ReportTargetType } from '~/composables/report/api/useReportApi.types';
 import type { CommentActions, DebateActions } from '~/components/board/CommentSection.types';
 import type { DebateSettingsValues } from '~/components/board/DebateSettingsFields.types';
+import type { PollCardActions } from '~/components/board/PostPollCard.types';
 import UtilRichBody from '#layers/rich-editor/utils/util-rich-body';
 import UtilBlockMessages from '~/utils/util-block-messages';
 import UtilBoardMessages from '~/utils/util-board-messages';
@@ -233,6 +240,7 @@ const postApi = usePostApi();
 const boardApi = useBoardApi();
 const reportApi = useReportApi();
 const debateApi = useDebateApi();
+const pollApi = usePollApi();
 const toast = useAppToast();
 const { confirm } = useConfirmDialog();
 const { prompt } = useLoginPrompt();
@@ -324,6 +332,18 @@ function startOpinions(): void {
 }
 // 글 상세로는 몰랐지만 일반 목록이 의견이 있다고 알려 줄 때(닫힌 토론 등)·토론을 새로 열었을 때
 watch(showDebate, () => startOpinions());
+
+/* ── 투표 ── */
+/** 투표 카드가 부르는 동작 — 지금 보는 글의 투표 */
+const pollActions: PollCardActions = {
+    vote: (optionIds) => pollApi.vote(id.value, optionIds),
+    reload: () => pollApi.poll(id.value),
+    remove: () => pollApi.remove(id.value),
+};
+/** 카드가 올린 새 투표 — 지웠거나 없어졌으면 null(카드가 사라진다) */
+function onPollUpdate(next: PollView | null): void {
+    if (post.value) post.value.poll = next;
+}
 
 /* ── 토론 열기·설정·닫기 ── */
 /** 가장 최근의 토론 요약 — 의견 목록 → 일반 목록 → 글 상세 차례 */
