@@ -26,8 +26,10 @@ export default {
     },
     debateTag: '의견 받는 중',
     postGone: '글이 지워졌어요',
-    /** `{pro}`·`{con}` 자리에는 화면이 입장 색을 입힌 `stanceTab` 글자를 넣는다 */
-    commentCounts: '댓글 {all} · {pro} · {con} · 일반 {general}',
+    /** 토론이 있는 줄 — `{stances}` 자리에는 화면이 입장 색을 입힌 `stanceTab` 글자(투표 수)를 ` · ` 로 이어 넣는다. 참여 = 입장을 고른 사람 수, 의견 = 입장 있는 원댓글 수 */
+    debateCounts: '참여 {total}명({stances}) · 의견 {opinions} · 일반 댓글 {general}',
+    /** 토론이 없는 줄 */
+    plainCounts: '댓글 {all}',
     updatedBy: '{name} · {at}',
     visibleShort: '노출',
     opinions: '의견 {n}',
@@ -96,11 +98,14 @@ export default {
     periodFromOnly: '{from} 부터',
     periodUntilOnly: '~ {until}',
     debateLabel: '찬성·반대 의견 받기',
-    debateHelp: '켜면 노출 중인 동안 이 글의 댓글에서 찬성·반대 입장을 고르고, 찬성·반대·일반 탭으로 나눠 볼 수 있어요. 끝나면 이미 쓴 의견은 읽기만 돼요.',
+    debateHelp: '켜면 노출 중인 동안 이 글에서 찬성·반대(·중립) 입장을 고르고 의견을 쓸 수 있어요. 끝나면 이미 쓴 의견은 읽기만 돼요.',
+    neutralLabel: '중립도 받기',
+    neutralHelp: '끄면 공개 토론에 찬성·반대만 보이고 새 중립 선택을 막아요. 이미 중립을 고른 표와 의견은 남아요.',
+    neutralIdle: '찬성·반대 의견 받기를 켜야 쓰여요.',
 
     // ── 의견 관리 ──
     opinionsTitle: '의견 관리',
-    opinionsLead: '찬성·반대 입장이 붙은 원댓글이에요. 고정한 것 먼저, 추천 많은 순.',
+    opinionsLead: '찬성·반대·중립 입장이 붙은 원댓글이에요. 고정한 것 먼저, 추천 많은 순.',
     debateOpen: '토론 열림',
     debateClosed: '토론 닫힘',
     opinionsReadOnly: '의견을 고정하거나 숨길 권한이 없어 볼 수만 있어요.',
@@ -108,15 +113,18 @@ export default {
     stanceTab: {
         PRO: '찬성 {n}',
         CON: '반대 {n}',
+        NEUTRAL: '중립 {n}',
     },
     stance: {
         PRO: '찬성',
         CON: '반대',
+        NEUTRAL: '중립',
     },
     opinionsLoadFailed: '의견을 불러오지 못했어요',
     opinionsEmpty: '이 입장의 의견이 없어요',
-    opinionStats: '추천 {likes} · 답글 {replies}',
+    opinionStats: '추천 {likes} · 비추천 {dislikes} · 답글 {replies}',
     pinnedTag: '고정',
+    pinRequestPendingTag: '고정 요청 대기',
     hiddenReason: {
         STAFF: '운영자 숨김',
         REPORTED: '신고로 숨김',
@@ -136,4 +144,22 @@ export default {
         hideOff: '숨김을 풀었어요.',
     },
     opinionActionFailed: '처리하지 못했어요.',
+
+    // ── 의견 고정 요청 ──
+    pinRequestsTab: '고정 요청 {n}',
+    pinRequestsLead: '의견을 쓴 회원이 보낸 고정 요청이에요(오래된 것부터). 고정하면 공개 토론 의견 맨 위에 올라가요. 결과는 요청한 회원에게 알려요.',
+    pinRequestsLoadFailed: '고정 요청을 불러오지 못했어요',
+    pinRequestsEmpty: '대기 중인 고정 요청이 없어요',
+    pinRequestedAt: '요청 {at}',
+    opinionGone: '지운 의견',
+    pinRequestReject: '거절',
+    pinRequestApproveOf: '{name} 님의 의견 고정',
+    pinRequestRejectOf: '{name} 님의 고정 요청 거절',
+    rejectReasonLabel: '거절 사유(선택)',
+    rejectReasonHelp: '요청한 회원에게 알림으로 가요. 비워도 돼요.',
+    rejectConfirm: '거절하기',
+    pinRequestDone: {
+        approve: '요청을 승인해 의견을 고정했어요.',
+        reject: '고정 요청을 거절했어요.',
+    },
 };

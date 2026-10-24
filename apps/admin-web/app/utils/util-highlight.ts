@@ -1,11 +1,12 @@
 import type { AdminPostRef } from '~/composables/content/api/usePopularApi.types';
-import type { DebateStance, HighlightCommentCounts, HighlightItem, HighlightSaveRequest, HighlightStatus } from '~/composables/content/api/useHighlightApi.types';
+import type { DebateStance, HighlightCommentCounts, HighlightItem, HighlightOpinionListView, HighlightOpinionPage, HighlightSaveRequest, HighlightStatus } from '~/composables/content/api/useHighlightApi.types';
 import UtilSiteSetting from '~/utils/util-site-setting';
 
 /**
  * 하이라이트 화면의 순수 계산 — 서버 규칙을 **미리 알려 주는 용도**이고 판정은 서버다(`forms.md`).
  * 서버 규칙 이름: `HighlightAdminService`(제목 40자 · 요약 100자 — 앞뒤 공백을 떼고 비면 null, 끝은 시작보다 늦어야 한다), 글 찾기 `post-search`(숫자 15~19자리 = 글 번호, 아니면 제목 2자 이상),
- * 후보 `candidates`(days 0~365 · minLikes 1~1000), 대표 이미지는 로고와 같은 검사(`FileUploadService` — PNG·JPG·GIF·WEBP 2MB, `UtilSiteSetting.logoFile` 재사용).
+ * 후보 `candidates`(days 0~365 · minLikes 1~1000), 대표 이미지는 로고와 같은 검사(`FileUploadService` — PNG·JPG·GIF·WEBP 2MB, `UtilSiteSetting.logoFile` 재사용),
+ * 고정 요청 거절 사유 `HighlightOpinionService`(0~100자, 앞뒤 공백을 떼고 비면 없음).
  */
 
 /** 만들기·고치기 입력 — 기간은 순간 ISO 글자, 비면 '' (상시) */
@@ -20,6 +21,8 @@ export interface HighlightForm {
     showFrom: string;
     showUntil: string;
     debate: boolean;
+    /** 「중립도 받기」 */
+    neutralEnabled: boolean;
 }
 
 export type HighlightFormField = 'postId' | 'title' | 'summary' | 'showUntil' | 'imageFileId';
@@ -45,6 +48,10 @@ export default class UtilHighlight {
     static readonly DAY_OPTIONS: readonly number[] = [1, 3, 7, 30, 90, 365, 0];
     /** 의견 한 쪽 크기 */
     static readonly OPINION_PAGE_SIZE = 20;
+    /** 입장 차례 — 찬성 · 반대 · 중립 */
+    static readonly STANCES: readonly DebateStance[] = ['PRO', 'CON', 'NEUTRAL'];
+    /** 고정 요청 거절 사유 최대 글자 수 */
+    static readonly REJECT_REASON_MAX = 100;
     static readonly IMAGE_ACCEPT = UtilSiteSetting.LOGO_ACCEPT;
     static readonly IMAGE_MAX_BYTES = UtilSiteSetting.LOGO_MAX_BYTES;
 
@@ -70,23 +77,54 @@ export default class UtilHighlight {
         return item.title ?? item.post?.title ?? '';
     }
 
-    /** 의견(찬성·반대)이 있거나 의견 받기가 켜져 있으면 의견 관리를 연다 */
+    /** 의견·투표가 있거나 의견 받기가 켜져 있으면 의견 관리를 연다 */
     static hasDebate(item: Pick<HighlightItem, 'debate' | 'commentCounts'>): boolean {
-        return item.debate || UtilHighlight.opinionCount(item.commentCounts) > 0;
+        return item.debate || UtilHighlight.opinionCount(item.commentCounts) > 0 || item.commentCounts.votes.total > 0;
     }
 
+    /** 의견(입장 있는 원댓글) 수 — 찬성 + 반대 + 중립 */
     static opinionCount(counts: HighlightCommentCounts): number {
-        return counts.pro + counts.con;
+        return counts.pro + counts.con + counts.neutral;
     }
 
-    /** 입장 글자색 — 찬성 파랑 · 반대 빨강(`main.css` 「토론 입장 색」, 공개 사이트와 같은 토큰) */
+    /** 하이라이트 줄에 중립 수를 보이는가 — 중립을 받거나, 끄기 전에 쌓인 중립 표·의견이 있을 때 */
+    static showNeutral(item: Pick<HighlightItem, 'neutralEnabled' | 'commentCounts'>): boolean {
+        return item.neutralEnabled || item.commentCounts.votes.neutral > 0 || item.commentCounts.neutral > 0;
+    }
+
+    /** 의견 관리 서랍에 중립 탭을 보이는가 — 서버 안내대로 `neutralEnabled || neutral.total > 0` */
+    static showNeutralTab(view: Pick<HighlightOpinionListView, 'neutralEnabled' | 'neutral'>): boolean {
+        return view.neutralEnabled || view.neutral.total > 0;
+    }
+
+    /** 의견 목록 응답에서 그 입장의 쪽 */
+    static pageOf(view: HighlightOpinionListView, stance: DebateStance): HighlightOpinionPage {
+        return stance === 'PRO' ? view.pro : stance === 'CON' ? view.con : view.neutral;
+    }
+
+    /** 입장 → 수 칸 이름(`pro`·`con`·`neutral`) */
+    static countKey(stance: DebateStance): 'pro' | 'con' | 'neutral' {
+        return stance === 'PRO' ? 'pro' : stance === 'CON' ? 'con' : 'neutral';
+    }
+
+    /** 입장 글자색 — 찬성 파랑 · 반대 빨강 · 중립 초록(`main.css` 「토론 입장 색」, 공개 사이트와 같은 토큰) */
     static stanceTextClass(stance: DebateStance): string {
-        return stance === 'PRO' ? 'stance-pro-text' : 'stance-con-text';
+        return stance === 'PRO' ? 'stance-pro-text' : stance === 'CON' ? 'stance-con-text' : 'stance-neutral-text';
     }
 
     /** 입장 배지(옅은 칩) 색 */
     static stanceSoftClass(stance: DebateStance): string {
-        return stance === 'PRO' ? 'stance-pro-soft' : 'stance-con-soft';
+        return stance === 'PRO' ? 'stance-pro-soft' : stance === 'CON' ? 'stance-con-soft' : 'stance-neutral-soft';
+    }
+
+    /** 고정 요청 거절 사유가 너무 긴가(앞뒤 공백을 뗀 유니코드 한 글자씩) */
+    static rejectReasonTooLong(reason: string): boolean {
+        return UtilHighlight.length(reason) > UtilHighlight.REJECT_REASON_MAX;
+    }
+
+    /** 거절 사유 → 요청 값(비면 null) */
+    static rejectReasonOf(reason: string): string | null {
+        return reason.trim() || null;
     }
 
     /** 글자 수 — 앞뒤 공백을 떼고 유니코드 한 글자씩(서버와 같다) */
@@ -95,7 +133,7 @@ export default class UtilHighlight {
     }
 
     static emptyForm(post: AdminPostRef | null = null): HighlightForm {
-        return { post, title: '', summary: '', imageFileId: null, imageUrl: null, visible: true, showFrom: '', showUntil: '', debate: false };
+        return { post, title: '', summary: '', imageFileId: null, imageUrl: null, visible: true, showFrom: '', showUntil: '', debate: false, neutralEnabled: true };
     }
 
     static formOf(item: HighlightItem): HighlightForm {
@@ -109,6 +147,7 @@ export default class UtilHighlight {
             showFrom: item.showFrom ?? '',
             showUntil: item.showUntil ?? '',
             debate: item.debate,
+            neutralEnabled: item.neutralEnabled,
         };
     }
 
@@ -135,6 +174,7 @@ export default class UtilHighlight {
             showFrom: form.showFrom || null,
             showUntil: form.showUntil || null,
             debate: form.debate,
+            neutralEnabled: form.neutralEnabled,
         };
     }
 

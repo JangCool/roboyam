@@ -120,6 +120,7 @@ export default {
         attachment: '첨부파일 정리',
         protect: '포인트·글 보호',
         guest: '댓글 공개 시간·숨김 표시',
+        reaction: '댓글 추천·의견 고정 요청',
         best: '베스트 댓글',
         staff: '게시판 매니저·스텝',
         fixed: '고정 규칙',
@@ -156,6 +157,7 @@ export default {
         attachment: '삭제된 글의 첨부파일을 언제 영구히 지울지 정해요.',
         protect: '포인트 지급과, 댓글이 많이 달린 글을 글쓴이가 고치거나 지우는 것을 막는 규칙이에요.',
         guest: '비회원(로그인하지 않은 사람)에게 새 댓글을 늦게 보이는 시간과, 운영자가 숨긴 댓글을 공개 화면에 어떻게 보일지 정해요.',
+        reaction: '댓글·토론 의견의 추천·비추천 단추와 그 이름, 토론 의견의 고정 요청을 누가 확인할지 정해요.',
         best: '댓글이 베스트 댓글로 올라가는 기준이에요. 사이트 전체에 하나예요.',
         staff: '게시판마다 지정하는 매니저·스텝의 인원과 하루 처리 한도의 기본값이에요.',
         fixed: '바꿀 수 없는 규칙이에요. 참고로만 보여요.',
@@ -187,6 +189,10 @@ export default {
         commentProtectDelayMinutes: '예약 삭제까지',
         commentGuestDelayMinutes: '비회원 댓글 공개 지연',
         staffHiddenNotice: '운영자가 숨긴 댓글임을 밝히기',
+        commentDislikeEnabled: '비추천도 보이기',
+        commentLikeLabel: '추천 이름',
+        commentDislikeLabel: '비추천 이름',
+        pinRequestReviewers: '의견 고정 요청을 확인하는 사람',
         bestCommentMinLikes: '베스트 댓글 최소 추천',
         managerMax: '게시판당 매니저 수',
         staffMax: '게시판당 스텝 수',
@@ -273,6 +279,10 @@ export default {
         commentProtectDelete: '보호 중인 글을 글쓴이가 지우려 할 때의 방식이에요.',
         commentProtectDelayMinutes: '「예약 삭제」일 때 지워지기까지 기다리는 시간이에요.',
         commentGuestDelayMinutes: '새 댓글이 비회원에게 보이기까지 기다리는 시간이에요. 회원에게는 바로 보여요.',
+        commentDislikeEnabled: '끄면 댓글·의견에 추천만 보여요. 이미 쌓인 비추천 수는 지우지 않고 감춰요.',
+        commentLikeLabel: '비우면 「추천」이에요.',
+        commentDislikeLabel: '비우면 「비추천」이에요.',
+        pinRequestReviewers: '고른 사람 중 누구든 승인하면 고정돼요. 모두 끄면 고정 요청을 받지 않아요.',
         staffHiddenNotice: '켜면 운영자가 숨긴 댓글 자리에 「운영자가 숨긴 댓글이에요」가 보여요. 끄면 신고로 숨긴 것과 같은 「신고로 숨겨진 댓글이에요」가 보여요.',
         bestCommentMinLikes: '추천이 이 수 이상인 댓글이 베스트 댓글이 될 수 있어요.',
         managerMax: '게시판 하나에 지정할 수 있는 매니저 수예요.',
@@ -325,6 +335,11 @@ export default {
         guestMode: '익명화는 작성자 이름을 ***로 가리고 비밀번호·IP 를 파기해요(글은 남아요). 삭제는 글을 지우고 제목·본문·첨부를 파기해요.',
         gadgetExclusions: '고른 가젯에는 이 게시판 글이 나오지 않아요.',
     },
+    /** 게시판 설정 화면에서만 뜻이 다른 칸 안내(이름 칸의 빈 값 = 기본 설정 따름) */
+    fieldHelpBoard: {
+        commentLikeLabel: '비우면 기본 설정의 이름을 따라요. 기본 설정에 이름이 있으면 여기서 「추천」으로 되돌릴 수 없어 「추천」을 직접 적어야 해요.',
+        commentDislikeLabel: '비우면 기본 설정의 이름을 따라요. 기본 설정에 이름이 있으면 여기서 「비추천」으로 되돌릴 수 없어 「비추천」을 직접 적어야 해요.',
+    },
     choice: {
         dateDisplay: {
             STANDARD: '표준형',
@@ -365,7 +380,23 @@ export default {
             ANONYMIZE: '익명화',
             DELETE: '삭제',
         },
+        pinRequestReviewers: {
+            POST_AUTHOR: '글쓴이',
+            BOARD_MANAGER: '게시판 매니저',
+            OPERATOR: '운영자',
+        },
     },
+    /** 여러 개 고르기 칸에서 아무것도 고르지 않았을 때의 값 이름 */
+    multiNone: {
+        pinRequestReviewers: '받지 않음',
+    },
+    /** 이름 칸을 비웠을 때 쓰이는 화면 기본 이름 */
+    labelDefault: {
+        commentLikeLabel: '추천',
+        commentDislikeLabel: '비추천',
+    },
+    labelBuiltIn: '{name}(기본 이름)',
+    labelCounter: '{n}/{max}',
     unit: {
         seconds: '{n}초',
         count: '{n}개',
@@ -407,6 +438,8 @@ export default {
         wordsOff: '금지어 검사가 꺼져 있어 지금은 쓰이지 않아요.',
         guestOff: '비회원 글 보유기간이 0(처리 안 함)이라 지금은 쓰이지 않아요.',
         imageEditor: '이미지는 고급 글 에디터에서만 올려요. 글 에디터가 평문·간단이라 지금은 쓰이지 않아요.',
+        dislikeOff: '비추천을 보이지 않아 지금은 쓰이지 않아요.',
+        pinRequestOff: '아무도 고르지 않아 고정 요청을 받지 않아요.',
     },
 
     // ── 구획 덧붙임 안내 ──
@@ -419,6 +452,7 @@ export default {
         protectStaff: '운영진·매니저·스텝의 숨기기·삭제와 신고 처리는 보호와 무관하게 바로 처리돼요.',
         pointAmount: '지급 포인트 값은 포인트 설정이 정해요. 이미 받은 포인트의 회수는 그대로예요.',
         guestDelay: '0이면 바로 보여요. 회원·운영진에게는 늘 바로 보여요.',
+        reactionDebate: '토론 의견도 그 글의 게시판 설정을 따라요. 운영자는 관리자 의견 관리의 「고정 요청」 탭에서 처리해요.',
         staffEligible: '지정 자격: 정상 회원 · 이메일 인증 완료 · 첫 등급(새싹) 아님 · 사업자 아님. 한 회원은 최대 5개 게시판을 맡아요.',
         staffAutoRelease: '첫 등급 강등 · 정지 시작 · 탈퇴 · 사업자 전환이면 그 회원의 모든 게시판 지정이 자동으로 끝나요.',
         staffDaily: '하루는 한국 시간 0시 기준이고, 되돌려도 한도는 복구되지 않아요. 넘으면 거절하고 남은 횟수를 알려요.',
@@ -443,7 +477,6 @@ export default {
     },
     fixed: {
         noSecret: '비밀글·익명 글은 없어요.',
-        noDislike: '비추천은 없어요(추천만).',
         noAutoHide: '신고가 쌓여도 자동으로 숨기지 않아요 — 신고 처리에서 운영자가 판단해요.',
         replyDepth: '답글은 1단계까지예요.',
         lengths: '제목 100자 · 본문 10~200,000자예요.',
@@ -568,6 +601,8 @@ export default {
     problemRequired: '값을 입력해 주세요.',
     problemInteger: '정수로 입력해 주세요.',
     problemRange: '{min}~{max} 사이로 입력해 주세요.',
+    problemLabelLength: '{max}자까지 쓸 수 있어요.',
+    problemLabelChars: '줄바꿈·탭 같은 제어 문자는 쓸 수 없어요.',
     problemNameRequired: '이름을 입력해 주세요.',
     problemNameLength: '이름은 {max}자까지예요.',
     problemNameDuplicate: '같은 이름의 게시판이 있어요.',

@@ -198,7 +198,8 @@ public class MemberNotificationService {
         }
 
         NotificationActorView actor = null;
-        if (type == MemberNotificationType.COMMENT || type == MemberNotificationType.REPLY || type == MemberNotificationType.DM) {
+        if (type == MemberNotificationType.COMMENT || type == MemberNotificationType.REPLY || type == MemberNotificationType.DM
+                || type == MemberNotificationType.OPINION_PIN_REQUESTED) {
             actor = actorOf(row, profileById, userById, locale);
         }
 
@@ -222,6 +223,17 @@ public class MemberNotificationService {
                 // 쪽지 내용은 싣지 않는다(보낸 회원의 닉네임만) — 누르면 그 대화방
                 facts = MemberNotificationMessages.Facts.dm(actorName(actor));
                 link = payload.get("threadId") instanceof String thread && !thread.isBlank() ? "/messages/" + thread : "/messages";
+            }
+            case OPINION_PIN_REQUESTED -> {
+                // 요청한 회원 · 글 · 의견 앞부분 — 누르면 그 글(확인할 대기 요청은 글 상세의 debate.pendingPinRequests · GET …/pin-requests)
+                facts = MemberNotificationMessages.Facts.pinRequested(actorName(actor), post == null ? null : post.title(), commentPreview);
+                link = postAvailable ? "/posts/" + row.getPostId() : null;
+            }
+            case OPINION_PIN_REVIEWED -> {
+                String result = payload.get("result") instanceof String r ? r : "APPROVED";
+                String reason = payload.get("reason") instanceof String why && !why.isBlank() ? why : null;
+                facts = MemberNotificationMessages.Facts.pinReviewed(result, reason, post == null ? null : post.title());
+                link = postAvailable ? "/posts/" + row.getPostId() : null;
             }
             case NICKNAME_IMAGE_REVIEWED -> {
                 String result = payload.get("result") instanceof String r ? r : "APPROVED";

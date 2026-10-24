@@ -119,6 +119,7 @@ export default {
         attachment: 'Attachment cleanup',
         protect: 'Points & post protection',
         guest: 'Comment delay & hidden notice',
+        reaction: 'Comment likes & pin requests',
         best: 'Best comments',
         staff: 'Board managers & staff',
         fixed: 'Fixed rules',
@@ -155,6 +156,7 @@ export default {
         attachment: 'When attachments of deleted posts are removed for good.',
         protect: 'Point rewards, and rules that stop authors from editing or deleting posts with many comments.',
         guest: 'How long new comments are hidden from guests (not signed in), and how comments hidden by staff appear on the public site.',
+        reaction: 'Like and dislike buttons on comments and debate opinions, their names, and who reviews requests to pin an opinion.',
         best: 'The bar for a comment to become a best comment. One value for the whole site.',
         staff: 'Default headcount and daily action limits for managers and staff assigned per board.',
         fixed: "Rules you can't change. Shown for reference.",
@@ -186,6 +188,10 @@ export default {
         commentProtectDelayMinutes: 'Scheduled delete after',
         commentGuestDelayMinutes: 'Guest comment delay',
         staffHiddenNotice: 'Say when staff hid a comment',
+        commentDislikeEnabled: 'Show dislikes too',
+        commentLikeLabel: 'Like button name',
+        commentDislikeLabel: 'Dislike button name',
+        pinRequestReviewers: 'Who reviews opinion pin requests',
         bestCommentMinLikes: 'Best comment min likes',
         managerMax: 'Managers per board',
         staffMax: 'Staff per board',
@@ -272,6 +278,10 @@ export default {
         commentProtectDelete: 'What happens when an author deletes a protected post.',
         commentProtectDelayMinutes: 'Wait time before a "scheduled delete" happens.',
         commentGuestDelayMinutes: 'Wait time before new comments are shown to guests. Members see them right away.',
+        commentDislikeEnabled: 'When off, comments and opinions show likes only. Existing dislike counts are kept but hidden.',
+        commentLikeLabel: 'Leave empty to use "Like".',
+        commentDislikeLabel: 'Leave empty to use "Dislike".',
+        pinRequestReviewers: 'Anyone you pick can approve, and the opinion is pinned. Turn all off to stop taking pin requests.',
         staffHiddenNotice: 'When on, a comment hidden by staff shows "Hidden by staff". When off, it shows "Hidden after reports", the same as a reported comment.',
         bestCommentMinLikes: 'Comments with at least this many likes can become best comments.',
         managerMax: 'Managers that can be assigned to one board.',
@@ -324,6 +334,11 @@ export default {
         guestMode: 'Anonymize masks the author name with *** and destroys password and IP (the post stays). Delete removes the post and destroys title, body and attachments.',
         gadgetExclusions: "This board's posts won't appear in the selected gadgets.",
     },
+    /** Help that differs on the board settings page (an empty name = use the default) */
+    fieldHelpBoard: {
+        commentLikeLabel: 'Leave empty to use the default settings. If the defaults set a name, you cannot go back to "Like" here; type "Like" yourself.',
+        commentDislikeLabel: 'Leave empty to use the default settings. If the defaults set a name, you cannot go back to "Dislike" here; type "Dislike" yourself.',
+    },
     choice: {
         dateDisplay: {
             STANDARD: 'Standard',
@@ -364,7 +379,23 @@ export default {
             ANONYMIZE: 'Anonymize',
             DELETE: 'Delete',
         },
+        pinRequestReviewers: {
+            POST_AUTHOR: 'Post author',
+            BOARD_MANAGER: 'Board manager',
+            OPERATOR: 'Operator',
+        },
     },
+    /** Value name when nothing is picked in a multi-pick field */
+    multiNone: {
+        pinRequestReviewers: 'Not accepted',
+    },
+    /** Built-in names used when a name field is empty */
+    labelDefault: {
+        commentLikeLabel: 'Like',
+        commentDislikeLabel: 'Dislike',
+    },
+    labelBuiltIn: '{name} (built-in)',
+    labelCounter: '{n}/{max}',
     unit: {
         seconds: '{n} s',
         count: '{n}',
@@ -406,6 +437,8 @@ export default {
         wordsOff: 'Not used while the blocked word check is off.',
         guestOff: 'Not used while guest post retention is 0 (no processing).',
         imageEditor: 'Images are uploaded only in the Advanced post editor. Not used while the post editor is Plain text or Simple.',
+        dislikeOff: 'Not used while dislikes are hidden.',
+        pinRequestOff: 'Nobody is picked, so pin requests are not accepted.',
     },
 
     // ── Section notes ──
@@ -418,6 +451,7 @@ export default {
         protectStaff: 'Hiding/deleting by operators, managers and staff, and report handling, bypass protection.',
         pointAmount: 'Point amounts are set in point settings. Points already earned are not taken back.',
         guestDelay: '0 shows comments right away. Members and operators always see them right away.',
+        reactionDebate: "Debate opinions follow their post's board settings. Operators handle pin requests in the Pin requests tab of the admin opinion manager.",
         staffEligible: 'Eligible: active member · verified email · not the first grade · not a business account. A member can take up to 5 boards.',
         staffAutoRelease: 'Demotion to the first grade, suspension, withdrawal or switching to business ends all of that member\'s board assignments.',
         staffDaily: 'A day starts at 00:00 KST, and undoing an action does not restore the limit. Over the limit, actions are refused with the remaining count.',
@@ -442,7 +476,6 @@ export default {
     },
     fixed: {
         noSecret: 'No secret or anonymous posts.',
-        noDislike: 'No dislikes (likes only).',
         noAutoHide: 'Reports never hide posts automatically — operators decide in report handling.',
         replyDepth: 'Replies go one level deep.',
         lengths: 'Title up to 100 chars · body 10–200,000 chars.',
@@ -567,6 +600,8 @@ export default {
     problemRequired: 'Enter a value.',
     problemInteger: 'Enter a whole number.',
     problemRange: 'Enter a value from {min} to {max}.',
+    problemLabelLength: 'Use up to {max} characters.',
+    problemLabelChars: 'Line breaks, tabs and other control characters are not allowed.',
     problemNameRequired: 'Enter a name.',
     problemNameLength: 'Name can be up to {max} chars.',
     problemNameDuplicate: 'A board with this name already exists.',

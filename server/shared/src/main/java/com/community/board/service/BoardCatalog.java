@@ -151,7 +151,9 @@ public class BoardCatalog {
                 or(p.listSize(), d.listSize()), or(p.pinnedMax(), d.pinnedMax()), or(p.commentProtectMin(), d.commentProtectMin()),
                 or(p.commentProtectEdit(), d.commentProtectEdit()), or(p.commentProtectDelete(), d.commentProtectDelete()),
                 or(p.commentProtectDelayMinutes(), d.commentProtectDelayMinutes()), or(p.commentGuestDelayMinutes(), d.commentGuestDelayMinutes()),
-                or(p.staffHiddenNotice(), d.staffHiddenNotice()), prefixes,
+                or(p.staffHiddenNotice(), d.staffHiddenNotice()), or(p.commentDislikeEnabled(), d.commentDislikeEnabled()),
+                or(p.commentLikeLabel(), d.commentLikeLabel()), or(p.commentDislikeLabel(), d.commentDislikeLabel()),
+                or(p.pinRequestReviewers(), d.pinRequestReviewers()), prefixes,
                 Set.copyOf(b.getGadgetExclusions()));
     }
 

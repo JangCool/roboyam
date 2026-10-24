@@ -7,6 +7,7 @@ import com.community.audit.service.AuditLogService;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.BoardCatalog;
+import com.community.debate.repository.master.DebateQueries;
 import com.community.highlight.dto.request.HighlightOrderRequest;
 import com.community.highlight.dto.request.HighlightSaveRequest;
 import com.community.highlight.dto.request.HighlightVisibleRequest;
@@ -97,6 +98,7 @@ public class HighlightAdminService {
     private final AdminPostRepositoryQDSL posts;
     private final AdminPostSummaries summaries;
     private final HighlightCommentRepositoryQDSL commentCounts;
+    private final DebateQueries debateQueries;
     private final BoardCatalog catalog;
     private final FileRepository files;
     private final ImageStorage storage;
@@ -106,12 +108,13 @@ public class HighlightAdminService {
     private final SnowflakeIdGenerator ids;
 
     public HighlightAdminService(HighlightRepository highlights, AdminPostRepositoryQDSL posts, AdminPostSummaries summaries,
-                                 HighlightCommentRepositoryQDSL commentCounts, BoardCatalog catalog, FileRepository files, ImageStorage storage,
+                                 HighlightCommentRepositoryQDSL commentCounts, DebateQueries debateQueries, BoardCatalog catalog, FileRepository files, ImageStorage storage,
                                  SiteImageFiles imageFiles, OperatorRepository operators, AuditLogService audit, SnowflakeIdGenerator ids) {
         this.highlights = highlights;
         this.posts = posts;
         this.summaries = summaries;
         this.commentCounts = commentCounts;
+        this.debateQueries = debateQueries;
         this.catalog = catalog;
         this.files = files;
         this.storage = storage;
@@ -192,7 +195,7 @@ public class HighlightAdminService {
 
     @Transactional
     public HighlightItemView create(AdminActor actor, HighlightSaveRequest body) {
-        HighlightSaveRequest b = body == null ? new HighlightSaveRequest(null, null, null, null, null, null, null, null) : body;
+        HighlightSaveRequest b = body == null ? new HighlightSaveRequest(null, null, null, null, null, null, null, null, null) : body;
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         Long postId = null;
         if (b.postId() == null || b.postId().isBlank()) {
@@ -219,8 +222,9 @@ public class HighlightAdminService {
         int order = all.stream().mapToInt(HighlightEntity::getSortOrder).max().orElse(0) + 1;
         boolean visible = b.visible() == null || b.visible();
         boolean debate = Boolean.TRUE.equals(b.debate());
+        boolean neutralEnabled = b.neutralEnabled() == null || b.neutralEnabled();
         HighlightEntity row = HighlightEntity.create(ids.nextId(), postId, f.title(), f.summary(), image == null ? null : image.getId(), visible, b.showFrom(),
-                b.showUntil(), debate, order, actor.operatorId(), now);
+                b.showUntil(), debate, neutralEnabled, order, actor.operatorId(), now);
         highlights.persist(row);
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.HIGHLIGHT_CREATE, AuditResult.SUCCESS)
                 .target("HIGHLIGHT", Long.toString(row.getId())).with("postId", Long.toString(postId)).with("after", snapshot(row)));
@@ -231,7 +235,7 @@ public class HighlightAdminService {
     @Transactional
     public HighlightItemView update(AdminActor actor, String idText, HighlightSaveRequest body) {
         HighlightEntity row = requireLocked(idText);
-        HighlightSaveRequest b = body == null ? new HighlightSaveRequest(null, null, null, null, null, null, null, null) : body;
+        HighlightSaveRequest b = body == null ? new HighlightSaveRequest(null, null, null, null, null, null, null, null, null) : body;
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         Fields f = checkFields(b, fields);
         Long imageFileId = imageFileIdOf(b.imageFileId(), fields); // 여기서는 형식만 — 새 파일이면 attachImage 가 용도·상태를 확인한다
@@ -246,7 +250,8 @@ public class HighlightAdminService {
             attachImage(newImage, oldImage, now);
         }
         row.change(f.title(), f.summary(), newImage, b.visible() == null ? row.isVisible() : b.visible(), b.showFrom(), b.showUntil(),
-                b.debate() == null ? row.isDebate() : b.debate(), actor.operatorId(), now);
+                b.debate() == null ? row.isDebate() : b.debate(), b.neutralEnabled() == null ? row.isNeutralEnabled() : b.neutralEnabled(), actor.operatorId(),
+                now);
         Map<String, Object> after = snapshot(row);
         Map<String, Object> changedBefore = new LinkedHashMap<>();
         Map<String, Object> changedAfter = new LinkedHashMap<>();
@@ -435,6 +440,7 @@ public class HighlightAdminService {
         map.put("showFrom", row.getShowFrom() == null ? null : row.getShowFrom().toString());
         map.put("showUntil", row.getShowUntil() == null ? null : row.getShowUntil().toString());
         map.put("debate", row.isDebate());
+        map.put("neutralEnabled", row.isNeutralEnabled());
         return map;
     }
 
@@ -467,7 +473,7 @@ public class HighlightAdminService {
         Map<Long, ProfileEntity> members = summaries.authors(postRows.values());
         Map<Long, Integer> visibleAll = new HashMap<>();
         postRows.values().forEach(r -> visibleAll.put(r.id(), r.commentCount() == null ? 0 : r.commentCount()));
-        Map<Long, HighlightCommentCountsView> counts = commentCounts.counts(postIds, visibleAll, now);
+        Map<Long, HighlightCommentCountsView> counts = commentCounts.counts(postIds, visibleAll, debateQueries.votesOf(postIds), now);
         Map<Long, String> imageUrls = new HashMap<>();
         List<Long> imageIds = rows.stream().map(HighlightEntity::getImageFileId).filter(Objects::nonNull).toList();
         if (!imageIds.isEmpty()) {
@@ -486,7 +492,7 @@ public class HighlightAdminService {
             String status = status(h, postView, now);
             out.add(new HighlightItemView(Long.toString(h.getId()), order++, h.getTitle(), h.getSummary(),
                     h.getImageFileId() == null ? null : Long.toString(h.getImageFileId()), h.getImageFileId() == null ? null : imageUrls.get(h.getImageFileId()),
-                    h.isVisible(), h.getShowFrom(), h.getShowUntil(), status, h.isDebate(), postView, counts.get(h.getPostId()), h.getCreatedAt(),
+                    h.isVisible(), h.getShowFrom(), h.getShowUntil(), status, h.isDebate(), h.isNeutralEnabled(), postView, counts.get(h.getPostId()), h.getCreatedAt(),
                     h.getUpdatedAt(), h.getUpdatedBy() == null ? null : new HighlightOperatorView(Long.toString(h.getUpdatedBy()), operatorNames.get(h.getUpdatedBy()))));
         }
         return out;

@@ -69,6 +69,16 @@ public class MemberNotificationMessages {
             return new Facts(MemberNotificationType.NICKNAME_IMAGE_REVIEWED, null, null, null, 1, 0, null, reason, false, null, result);
         }
 
+        /** 의견 고정 요청이 옴 — 요청한 회원(메일은 보낼 때 지금 닉네임으로 채운다)·글 제목·의견 앞부분 */
+        public static Facts pinRequested(String actorName, String postTitle, String excerpt) {
+            return new Facts(MemberNotificationType.OPINION_PIN_REQUESTED, actorName, postTitle, excerpt, 1, 0, null, null, false, null, null);
+        }
+
+        /** 의견 고정 요청 결과({@code APPROVED}·{@code REJECTED}) — 거절이면 사유(없으면 null) */
+        public static Facts pinReviewed(String result, String reason, String postTitle) {
+            return new Facts(MemberNotificationType.OPINION_PIN_REVIEWED, null, postTitle, null, 1, 0, null, reason, false, null, result);
+        }
+
         public static Facts comment(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount) {
             return new Facts(type, actorName, postTitle, excerpt, groupCount, 0, null, null, false, null);
         }
@@ -126,6 +136,10 @@ public class MemberNotificationMessages {
             case DM -> builder.variable("actorName", facts.actorName());
             case NICKNAME_IMAGE_REVIEWED -> builder.variable("result", messages.get(new MessageRef(reviewResultKey(facts.result())), locale))
                     .variable("reason", facts.note() == null ? "" : facts.note());
+            case OPINION_PIN_REQUESTED -> builder.variable("actorName", facts.actorName()).variable("postTitle", facts.postTitle())
+                    .variable("excerpt", facts.excerpt());
+            case OPINION_PIN_REVIEWED -> builder.variable("result", messages.get(new MessageRef(pinResultKey(facts.result())), locale))
+                    .variable("postTitle", facts.postTitle()).variable("reason", facts.note() == null ? "" : facts.note());
         }
         return builder;
     }
@@ -153,12 +167,24 @@ public class MemberNotificationMessages {
         if (facts.type() == MemberNotificationType.NICKNAME_IMAGE_REVIEWED) {
             return messages.get(new MessageRef("member.notification.NICKNAME_IMAGE_REVIEWED.title." + reviewResult(facts.result())), locale);
         }
+        if (facts.type() == MemberNotificationType.OPINION_PIN_REVIEWED) {
+            return messages.get(new MessageRef("member.notification.OPINION_PIN_REVIEWED.title." + pinResult(facts.result())), locale);
+        }
         return null;
     }
 
     /** 검토 결과 — 모르는 값은 승인으로 본다(예전 기록의 모양이 달라도 목록이 멈추지 않게) */
     private static String reviewResult(String result) {
         return "REJECTED".equals(result) || "REVOKED".equals(result) ? result : "APPROVED";
+    }
+
+    /** 고정 요청 결과 — 모르는 값은 승인으로 본다 */
+    private static String pinResult(String result) {
+        return "REJECTED".equals(result) ? result : "APPROVED";
+    }
+
+    private static String pinResultKey(String result) {
+        return "member.notification.OPINION_PIN_REVIEWED.result." + pinResult(result);
     }
 
     private static String reviewResultKey(String result) {

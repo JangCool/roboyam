@@ -1,6 +1,7 @@
 package com.community.board.entity;
 
 import com.community.board.dto.BoardPolicyValues;
+import com.community.board.service.BoardFields;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -59,6 +60,11 @@ public class BoardEntity {
     private Integer commentProtectDelayMinutes;
     private Integer commentGuestDelayMinutes;
     private Boolean staffHiddenNotice;
+    private Boolean commentDislikeEnabled;
+    private String commentLikeLabel;
+    private String commentDislikeLabel;
+    /** 고정 요청 확인자 — 쉼표로 이은 값(빈 글자 = 끔, NULL = 기본값 따름). API 는 목록 */
+    private String pinRequestReviewers;
     private Integer managerMax;
     private Integer staffPostDailyLimit;
     private Integer staffCommentDailyLimit;
@@ -139,6 +145,10 @@ public class BoardEntity {
         this.commentProtectDelayMinutes = policy.commentProtectDelayMinutes();
         this.commentGuestDelayMinutes = policy.commentGuestDelayMinutes();
         this.staffHiddenNotice = policy.staffHiddenNotice();
+        this.commentDislikeEnabled = policy.commentDislikeEnabled();
+        this.commentLikeLabel = policy.commentLikeLabel();
+        this.commentDislikeLabel = policy.commentDislikeLabel();
+        this.pinRequestReviewers = BoardFields.joinReviewers(policy.pinRequestReviewers());
         this.managerMax = policy.managerMax();
         this.staffPostDailyLimit = policy.staffPostDailyLimit();
         this.staffCommentDailyLimit = policy.staffCommentDailyLimit();
@@ -161,7 +171,8 @@ public class BoardEntity {
 
     public BoardPolicyValues policy() {
         return new BoardPolicyValues(writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, listSize, pinnedMax, indexable, searchable, inHome, pointMode, commentProtectMin,
-                commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice, managerMax, staffPostDailyLimit,
+                commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice, commentDislikeEnabled,
+                commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), managerMax, staffPostDailyLimit,
                 staffCommentDailyLimit, staffSanctionDailyLimit);
     }
 

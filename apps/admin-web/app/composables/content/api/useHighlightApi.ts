@@ -7,6 +7,8 @@ import type {
     HighlightOpinion,
     HighlightOpinionListView,
     HighlightOpinionQuery,
+    HighlightPinRequest,
+    HighlightPinRequestListView,
     HighlightSaveRequest,
 } from '~/composables/content/api/useHighlightApi.types';
 
@@ -18,7 +20,9 @@ import type {
  *   - `GET /candidates?days=&minLikes=&boardId=` → 추천 많은 순 30개 · 400 `fields.days|minLikes|boardId`
  *   - `POST` → 201 한 줄 · `PUT /{id}` → 200 한 줄(모든 칸) · 400 `fields.postId|title|summary|showUntil|imageFileId` · 400 `HIGHLIGHT_POST_INVALID` · 409 `HIGHLIGHT_DUPLICATE` · 404 `HIGHLIGHT_NOT_FOUND`
  *   - `PUT /order { ids }` → 204(전체 ID 의 새 차례, 집합이 다르면 400 `fields.ids`) · `PUT /{id}/visible { visible }` → 200 한 줄 · `DELETE /{id}` → 204
- *   - `GET /{id}/opinions?stance=&page=&size=` → 의견 목록 · `POST|DELETE /{id}/opinions/{commentId}/pin|hide` → 200 바뀐 의견 · 404 `DEBATE_OPINION_NOT_FOUND`
+ *   - `GET /{id}/opinions?stance=&page=&size=` → 의견 목록(찬성·반대·중립) · `POST|DELETE /{id}/opinions/{commentId}/pin|hide` → 200 바뀐 의견 · 404 `DEBATE_OPINION_NOT_FOUND`
+ *   - `GET /{id}/pin-requests` → 대기 중인 고정 요청(⚠ 서버가 읽기에도 `highlight.manage` 를 요구한다) · `POST /{id}/pin-requests/{requestId}/approve` · `POST …/reject { reason? }` → 200 요청(처리 뒤)
+ *     · 404 `PIN_REQUEST_NOT_FOUND` · 409 `PIN_REQUEST_DECIDED` · 409 `OPINION_UNAVAILABLE` · 400 `fields.reason`
  */
 const PATH = {
     root: '/api/admin/highlights',
@@ -30,6 +34,8 @@ const PATH = {
     opinions: (id: string) => `/api/admin/highlights/${encodeURIComponent(id)}/opinions`,
     pin: (id: string, commentId: string) => `/api/admin/highlights/${encodeURIComponent(id)}/opinions/${encodeURIComponent(commentId)}/pin`,
     hide: (id: string, commentId: string) => `/api/admin/highlights/${encodeURIComponent(id)}/opinions/${encodeURIComponent(commentId)}/hide`,
+    pinRequests: (id: string) => `/api/admin/highlights/${encodeURIComponent(id)}/pin-requests`,
+    pinRequest: (id: string, requestId: string, action: 'approve' | 'reject') => `/api/admin/highlights/${encodeURIComponent(id)}/pin-requests/${encodeURIComponent(requestId)}/${action}`,
 };
 
 export function useHighlightApi() {
@@ -65,5 +71,12 @@ export function useHighlightApi() {
         unpin: (id: string, commentId: string): Promise<HighlightOpinion> => client.del<HighlightOpinion>(PATH.pin(id, commentId)),
         hide: (id: string, commentId: string): Promise<HighlightOpinion> => client.post<HighlightOpinion>(PATH.hide(id, commentId)),
         unhide: (id: string, commentId: string): Promise<HighlightOpinion> => client.del<HighlightOpinion>(PATH.hide(id, commentId)),
+
+        /** 대기 중인 의견 고정 요청(오래된 것부터) */
+        pinRequests: (id: string): Promise<HighlightPinRequestListView> => client.get<HighlightPinRequestListView>(PATH.pinRequests(id)),
+        /** 고정 요청 승인 — 그 의견을 고정한다 */
+        approvePinRequest: (id: string, requestId: string): Promise<HighlightPinRequest> => client.post<HighlightPinRequest>(PATH.pinRequest(id, requestId, 'approve')),
+        /** 고정 요청 거절 — 사유(선택)는 요청한 회원에게 알림 본문으로 간다 */
+        rejectPinRequest: (id: string, requestId: string, reason: string | null): Promise<HighlightPinRequest> => client.post<HighlightPinRequest>(PATH.pinRequest(id, requestId, 'reject'), { reason }),
     };
 }

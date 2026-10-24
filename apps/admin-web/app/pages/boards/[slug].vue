@@ -1,6 +1,6 @@
 <template>
     <!--
-        게시판 설정(게시판 하나) — 기본 정보 · 글쓰기·댓글 · 말머리 · 안내문 · 노출 · 보호·공개 시간·포인트 · 게시판 매니저·스텝 · 위험 구역. community 관리자 앱 `boards/[slug].vue` + `BoardSettingsDrawer` 를 한 화면으로 옮겼다.
+        게시판 설정(게시판 하나) — 기본 정보 · 글쓰기·댓글 · 말머리 · 안내문 · 노출 · 보호·공개 시간·포인트 · 댓글 추천·의견 고정 요청 · 게시판 매니저·스텝 · 위험 구역. community 관리자 앱 `boards/[slug].vue` + `BoardSettingsDrawer` 를 한 화면으로 옮겼다.
         **저장 단위 둘**:
           · 기본 정보 + 정책 + 말머리(+ 안내문·한도 칸)는 **화면 하나로 한 번 저장**(`PUT /api/admin/boards/{id}`, 한 트랜잭션) → 하단 떠 있는 줄(`StickySaveBar`). 투자 고지를 새로 켜면 저장 전에 「다시 끌 수 없어요」를 묻는다.
           · 매니저·스텝 지정/해제, 게시판 켜고 끄기, 삭제는 **누르면 바로**(확인창 + 토스트) — 저장 줄과 무관하다.
@@ -280,7 +280,26 @@
                     </p>
                 </AppGadget>
 
-                <!-- 7. 게시판 매니저·스텝 — 지정/해제는 바로, 한도 칸은 저장 줄로 -->
+                <!-- 7. 댓글 추천·의견 고정 요청 — 비추천 켬 · 추천/비추천 이름(비우면 기본 설정 따름) · 고정 요청 확인자. 토론 의견도 이 게시판 설정을 따른다 -->
+                <AppGadget :title="t('board.section.reaction')" anchor="board-reaction" :changes="changes.reaction" :invalid="invalidOf([...REACTION_FIELDS])">
+                    <div class="grid gap-x-8 gap-y-5 md:grid-cols-2">
+                        <BoardSettingField
+                            v-for="field in REACTION_FIELDS"
+                            :key="field"
+                            v-bind="policyBind(field)"
+                            :inactive="reactionInactive(field)"
+                            :note="reactionNote(field)"
+                            :help="UtilBoard.isLabel(field) ? t(`board.fieldHelpBoard.${field}`) : ''"
+                            @update:model-value="(value: BoardFieldValue) => onPolicy(field, value)"
+                        />
+                    </div>
+                    <p class="mt-4 flex items-start gap-2 border-t border-(--line) pt-3 text-xs leading-relaxed text-muted-color">
+                        <i class="pi pi-info-circle mt-0.5 text-[11px]" aria-hidden="true" />
+                        <span>{{ t('board.note.reactionDebate') }}</span>
+                    </p>
+                </AppGadget>
+
+                <!-- 8. 게시판 매니저·스텝 — 지정/해제는 바로, 한도 칸은 저장 줄로 -->
                 <AppGadget :title="t('board.section.staff')" anchor="board-staff" :changes="changes.staff" :invalid="invalidOf([...STAFF_LIMIT_FIELDS])">
                     <Message v-if="saved.kind !== 'GENERAL'" severity="warn" :closable="false" size="small" class="mb-4">{{ t('board.staffKindBlocked') }}</Message>
                     <p class="mb-4 text-xs leading-relaxed text-muted-color">{{ t('board.staffLead') }}</p>
@@ -324,7 +343,7 @@
                     </div>
                 </AppGadget>
 
-                <!-- 8. 위험 구역 — 바로 동작 -->
+                <!-- 9. 위험 구역 — 바로 동작 -->
                 <AppGadget v-if="canManage || canDelete" :title="t('board.section.danger')" anchor="board-danger">
                     <ul class="m-0 flex list-none flex-col divide-y divide-(--line) p-0">
                         <li v-if="canManage" class="flex flex-wrap items-center gap-3 py-3 first:pt-0">
@@ -435,6 +454,7 @@ const WRITE_FIELDS = ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowe
 /** 「홈·인기·최신 포함」(inHome)은 두지 않는다 — 가젯 노출 금지가 대신한다(서버 칸은 받은 값 그대로 저장 요청에 돌아간다) */
 const EXPOSURE_FIELDS = ['listSize', 'pinnedMax', 'indexable', 'searchable'] as const;
 const PROTECT_FIELDS = ['commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes', 'staffHiddenNotice', 'pointMode'] as const;
+const REACTION_FIELDS = ['commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers'] as const;
 const STAFF_LIMIT_FIELDS = ['managerMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit'] as const;
 const GUIDE_FIELDS = ['introText', 'writeGuideText'] as const;
 const ROLES: readonly BoardStaffRole[] = ['MANAGER', 'STAFF'];
@@ -489,7 +509,7 @@ const gadgetModel = computed<string[]>({
 
 // ── 바뀐 칸 · 오류 ─
 
-const changes = computed(() => (form.value && saved.value ? UtilBoard.detailChanges(form.value, saved.value) : { basic: 0, write: 0, prefix: 0, guide: 0, exposure: 0, protect: 0, staff: 0 }));
+const changes = computed(() => (form.value && saved.value ? UtilBoard.detailChanges(form.value, saved.value) : { basic: 0, write: 0, prefix: 0, guide: 0, exposure: 0, protect: 0, reaction: 0, staff: 0 }));
 const changeCount = computed(() => Object.values(changes.value).reduce((a, b) => a + b, 0));
 const dirty = computed(() => changeCount.value > 0);
 const diffNow = computed(() => (form.value ? UtilBoard.diffCount(form.value.policy, form.value.writeLock) : 0));
@@ -596,6 +616,19 @@ function protectNote(field: (typeof PROTECT_FIELDS)[number]): string {
     if (protectInactive(field)) return t('board.inactiveNote.delay');
     const off = UtilBoard.effective(form.value.policy, saved.value.defaults, 'commentProtectMin') === 0;
     if (off && (field === 'commentProtectEdit' || field === 'commentProtectDelete')) return t('board.inactiveNote.protectOff');
+    return '';
+}
+
+/** 비추천 이름은 비추천을 보일 때만 쓰인다(유효값 기준 — 값은 그대로 저장된다) */
+function reactionInactive(field: (typeof REACTION_FIELDS)[number]): boolean {
+    if (field !== 'commentDislikeLabel' || !form.value || !saved.value) return false;
+    return !UtilBoard.effective(form.value.policy, saved.value.defaults, 'commentDislikeEnabled');
+}
+
+function reactionNote(field: (typeof REACTION_FIELDS)[number]): string {
+    if (!form.value || !saved.value) return '';
+    if (reactionInactive(field)) return t('board.inactiveNote.dislikeOff');
+    if (field === 'pinRequestReviewers' && UtilBoard.effective(form.value.policy, saved.value.defaults, 'pinRequestReviewers').length === 0) return t('board.inactiveNote.pinRequestOff');
     return '';
 }
 

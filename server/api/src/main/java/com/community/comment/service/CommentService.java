@@ -23,11 +23,16 @@ import com.community.comment.dto.request.CommentUpdateRequest;
 import com.community.comment.dto.request.CommentWriteRequest;
 import com.community.comment.dto.response.CommentLikeResult;
 import com.community.comment.dto.response.CommentListResponse;
+import com.community.comment.dto.response.CommentReactionsView;
 import com.community.comment.dto.response.CommentThreadView;
 import com.community.comment.dto.response.CommentView;
+import com.community.comment.dto.response.PinRequestStateView;
 import com.community.comment.dto.response.ReplyToView;
 import com.community.comment.entity.CommentEntity;
+import com.community.comment.exception.AlreadyDislikedException;
+import com.community.comment.exception.CannotDislikeOwnException;
 import com.community.comment.exception.CommentDailyLimitException;
+import com.community.comment.exception.CommentDislikeDisabledException;
 import com.community.comment.exception.CommentHiddenException;
 import com.community.comment.exception.CommentNotFoundException;
 import com.community.comment.exception.CommentTooFastException;
@@ -35,7 +40,10 @@ import com.community.comment.repository.master.CommentRepository;
 import com.community.comment.repository.master.CommentRepositoryQDSL;
 import com.community.debate.dto.response.CommentDebateView;
 import com.community.debate.dto.response.DebateCountsView;
+import com.community.debate.entity.DebatePinRequestEntity;
 import com.community.debate.entity.DebateStance;
+import com.community.debate.repository.master.DebatePinRequestRepository;
+import com.community.debate.repository.master.DebateQueries;
 import com.community.debate.service.DebateReader;
 import com.community.membernotification.dto.CommentNotice;
 import com.community.membernotification.service.MemberNotificationPublisher;
@@ -62,6 +70,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -82,9 +91,13 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li><b>쓰기 순서</b>(목업 {@code mockCommentCreate}): 글(404·403 숨김) → 게시판(403 꺼짐) → 댓글 판정(401·403 까닭) → 칸(본문 1~2,000자, 링크·이미지, 비회원, 답글 대상)
  *       → 금지어 → 자동입력 방지 → 작성 간격({@code 429 COMMENT_TOO_FAST}) → 하루 한도({@code 429 COMMENT_DAILY_LIMIT}). 답글은 1단계({@code parentId} = 원댓글).</li>
  *   <li>글의 보이는 댓글 수({@code posts.comment_count})는 쓰기·지우기·숨김이 같은 트랜잭션에서 원자적으로 고친다.</li>
- *   <li><b>하이라이트 토론</b>(docs/features/popular-highlight-contract.md 「서버 구현 결과」): 목록 {@code kind}(ALL · GENERAL · PRO · CON — 원댓글의 입장으로 가른다)와
- *       {@code debate}(열림·내 입장·구분별 수), 댓글마다 {@code stance} 배지. 쓰기의 {@code stance} 는 {@link DebateReader#resolveForWrite} 로 해석하고, 처음 정하는 입장은 댓글과
- *       같은 트랜잭션에서 저장한다(쓰기가 실패하면 입장도 없다). 배지가 붙는 댓글의 글자 수 한도는 {@link DebateReader#OPINION_MAX}.</li>
+ *   <li><b>하이라이트 토론</b>(docs/features/popular-highlight-contract.md 「서버 구현 결과」): 목록 {@code kind}(ALL · GENERAL · OPINION · PRO · CON · NEUTRAL — 원댓글의 입장으로
+ *       가른다. 토론 구획은 OPINION(또는 한 입장), 댓글 구획은 GENERAL)와 {@code debate}(열림·내 입장·중립 받기·투표 수·의견/일반 수), 댓글마다 {@code stance} 배지.
+ *       쓰기는 의견 표시({@code opinion}·{@code stance})가 있는 원댓글과 의견에 단 답글만 입장 의견이다({@link DebateReader#resolveForWrite}) — 입장은 쓰기로 정해지지 않는다(투표로만).
+ *       입장 의견의 글자 수 한도는 {@link DebateReader#OPINION_MAX}.</li>
+ *   <li><b>추천·비추천</b>: 한 회원이 한 댓글에 둘 중 하나만 — 하나를 누르면 다른 하나는 같은 트랜잭션에서 풀린다. 비추천은 게시판 정책 {@code commentDislikeEnabled} 가 켜졌을 때만
+ *       (끄면 409 {@code COMMENT_DISLIKE_DISABLED}, 쌓인 수는 보존하되 응답에 싣지 않는다). 비추천은 포인트·알림에 쓰지 않는다. 추천을 비추천이 풀어도 이미 준 추천 보너스는 회수하지 않는다.</li>
+ *   <li><b>고정한 의견</b>: 토론 의견 구분(OPINION·PRO·CON·NEUTRAL)에서 운영자가 고정한(또는 고정 요청이 승인된) 보이는 의견이 고정한 시각 순으로 맨 위에 온다.</li>
  *   <li>회원 댓글은 저장이 커밋된 뒤 활동 수 조건 즉시 승급을 판정한다({@link WriterPromotion} — 별도 트랜잭션, 실패해도 댓글쓰기는 성공).</li>
  *   <li>같은 트랜잭션의 마지막에 댓글 포인트와 회원 알림({@code COMMENT}·{@code REPLY})을 낸다 — 둘 다 세이브포인트로 격리돼 실패해도 댓글쓰기는 성공한다. 지우면 받은 포인트를
  *       0P 까지 회수하고, 추천이 인정된 추천 문턱을 채우면 작성자에게 추천 보너스를 준다({@link PointService}).</li>
@@ -101,10 +114,11 @@ public class CommentService {
     static final String HIDDEN_BY_STAFF = "STAFF";
     /** 베스트 댓글 최대 수(가정) */
     static final int BEST_MAX = 3;
-    /** 목록 구분 — 원댓글의 입장으로 가른다 */
+    /** 목록 구분 — 원댓글의 입장으로 가른다. ALL 두 구획 모두(기본) · GENERAL 일반 댓글(댓글 구획) · OPINION 입장 의견 전체(토론 구획) · PRO · CON · NEUTRAL 그 입장의 의견만 */
     static final String KIND_ALL = "ALL";
     static final String KIND_GENERAL = "GENERAL";
-    static final List<String> KINDS = List.of(KIND_ALL, KIND_GENERAL, DebateStance.PRO.name(), DebateStance.CON.name());
+    static final String KIND_OPINION = "OPINION";
+    static final List<String> KINDS = List.of(KIND_ALL, KIND_GENERAL, KIND_OPINION, DebateStance.PRO.name(), DebateStance.CON.name(), DebateStance.NEUTRAL.name());
 
     private final BoardCatalog catalog;
     private final BoardActorResolver actors;
@@ -122,15 +136,20 @@ public class CommentService {
     private final MemberNotificationPublisher notices;
     private final ViewerBlocks viewerBlocks;
     private final DebateReader debate;
+    private final DebateQueries debateQueries;
+    private final DebatePinRequestRepository pinRequests;
     private final TransactionTemplate tx;
     private final TransactionTemplate readTx;
 
     public CommentService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                           CommentRepositoryQDSL commentQueries, PostCounterQueries counters, AuthorViews authors, GuestPasswords passwords,
                           CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion, PointService points, MemberNotificationPublisher notices,
-                          ViewerBlocks viewerBlocks, DebateReader debate, PlatformTransactionManager txManager) {
+                          ViewerBlocks viewerBlocks, DebateReader debate, DebateQueries debateQueries, DebatePinRequestRepository pinRequests,
+                          PlatformTransactionManager txManager) {
         this.viewerBlocks = viewerBlocks;
         this.debate = debate;
+        this.debateQueries = debateQueries;
+        this.pinRequests = pinRequests;
         this.promotion = promotion;
         this.points = points;
         this.notices = notices;
@@ -156,11 +175,24 @@ public class CommentService {
      * 보는 사람 — 댓글 상태·내 것·추천 판정.
      *
      * @param staffHiddenNotice 게시판 옵션 「운영자가 숨긴 댓글임을 밝히기」 유효값 — 켜졌을 때만 운영자 숨김에 {@code hiddenBy STAFF} 를 싣는다
+     * @param dislikeEnabled    게시판 정책 {@code commentDislikeEnabled} 유효값 — 꺼졌으면 비추천 칸이 null
+     * @param disliked          내가 비추천한 댓글
+     * @param pinned            고정한 의견(댓글 ID)
+     * @param myPinRequests     내 의견의 고정 요청 상태(댓글 ID → 상태, 대기·거절만)
      */
-    private record Viewer(Long userId, String ip, boolean guest, int delayMinutes, Set<Long> liked, ViewerBlocks.Lens lens, boolean staffHiddenNotice) {
+    private record Viewer(Long userId, String ip, boolean guest, int delayMinutes, Set<Long> liked, ViewerBlocks.Lens lens, boolean staffHiddenNotice,
+                          boolean dislikeEnabled, Set<Long> disliked, Set<Long> pinned, Map<Long, PinRequestStateView> myPinRequests) {
+
+        /** 쓰기·고치기 응답용 — 목록 칸(추천·비추천·고정·내 요청)은 부르는 쪽이 정한다 */
+        static Viewer self(Long userId, String ip, Set<Long> liked, EffectiveBoard b, Set<Long> disliked, Set<Long> pinned) {
+            return new Viewer(userId, ip, false, 0, liked, ViewerBlocks.Lens.none(), b.staffHiddenNotice(), b.commentDislikeEnabled(), disliked, pinned, Map.of());
+        }
     }
 
-    /** @param kindRaw 구분 ALL(기본) · GENERAL · PRO · CON(대소문자 무시) — 그 밖은 400 {@code fields.kind}. 하이라이트가 아닌 글의 PRO·CON 은 빈 목록이다 */
+    /**
+     * @param kindRaw 구분 ALL(기본 — 지금까지처럼 모든 댓글) · GENERAL · OPINION · PRO · CON · NEUTRAL(대소문자 무시) — 그 밖은 400 {@code fields.kind}.
+     *                의견이 없는 글의 OPINION·PRO·CON·NEUTRAL 은 빈 목록이다
+     */
     public CommentListResponse list(String postIdText, String sort, String kindRaw, Long userId, String ip) {
         String kind = kindRaw == null || kindRaw.isBlank() ? KIND_ALL : kindRaw.strip().toUpperCase(Locale.ROOT);
         if (!KINDS.contains(kind)) {
@@ -175,19 +207,25 @@ public class CommentService {
                 throw new PostHiddenException();
             }
             List<CommentEntity> all = comments.findByPostIdOrderByIdAsc(post.getId());
+            List<Long> pinOrder = all.isEmpty() ? List.of() : debateQueries.pinnedInOrder(post.getId());
             Viewer viewer = new Viewer(userId, ip, userId == null, b.commentGuestDelayMinutes(),
                     userId == null || all.isEmpty() ? Set.of() : counters.likedComments(post.getId(), userId),
                     all.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(userId, all.stream().map(CommentEntity::getAuthorId).toList()),
-                    b.staffHiddenNotice());
+                    b.staffHiddenNotice(), b.commentDislikeEnabled(),
+                    userId == null || all.isEmpty() || !b.commentDislikeEnabled() ? Set.of() : counters.dislikedComments(post.getId(), userId),
+                    new HashSet<>(pinOrder), userId == null || all.isEmpty() ? Map.of() : myPinRequests(post.getId(), userId));
             Map<Long, ProfileEntity> members = authors.members(all.stream().map(CommentEntity::getAuthorId).toList());
             Map<Long, CommentEntity> byId = new HashMap<>();
             all.forEach(c -> byId.put(c.getId(), c));
 
             List<CommentEntity> allTops = all.stream().filter(c -> c.getParentId() == null).toList();
-            DebateCountsView counts = counts(allTops, post.getCommentCount(), now);
+            DebateCountsView counts = counts(all, post.getCommentCount(), now);
             List<CommentEntity> tops = new ArrayList<>(allTops.stream().filter(c -> inKind(c, kind)).toList());
             if ("LATEST".equals(sort)) {
                 tops.sort(Comparator.comparing(CommentEntity::getId, Comparator.reverseOrder()));
+            }
+            if (!KIND_ALL.equals(kind) && !KIND_GENERAL.equals(kind) && !pinOrder.isEmpty()) {
+                tops = pinnedFirst(tops, pinOrder, now); // 토론 의견 — 고정한 보이는 의견을 고정한 시각 순으로 맨 위에
             }
             Map<Long, List<CommentEntity>> replies = new HashMap<>();
             all.stream().filter(c -> c.getParentId() != null && !c.isDeleted()).forEach(c -> replies.computeIfAbsent(c.getParentId(), k -> new ArrayList<>()).add(c));
@@ -210,38 +248,94 @@ public class CommentService {
                     .sorted(Comparator.comparingInt(CommentView::likeCount).reversed().thenComparing(CommentView::id))
                     .limit(BEST_MAX)
                     .toList();
-            CommentDebateView debateView = debate.forComments(post.getId(), userId, now, counts, all);
-            return new CommentListResponse(threads, best, post.getCommentCount(), kind, debateView);
+            CommentDebateView debateView = debate.forComments(post, b, userId, now, counts, all, byId);
+            return new CommentListResponse(threads, best, post.getCommentCount(), kind, debateView,
+                    new CommentReactionsView(b.commentDislikeEnabled(), b.commentLikeLabel(), b.commentDislikeLabel()));
         });
     }
 
-    /** 원댓글이 그 구분에 드는가 — GENERAL = 배지 없음, PRO·CON = 그 배지. 지운·숨긴 자리도 배지를 간직하므로 같은 탭에 남는다 */
+    /** 고정한 보이는(지우거나 숨기지 않은) 의견을 고정한 시각 순으로 앞에, 나머지는 받은 차례 그대로 */
+    private static List<CommentEntity> pinnedFirst(List<CommentEntity> tops, List<Long> pinOrder, Instant now) {
+        Map<Long, CommentEntity> visible = new HashMap<>();
+        tops.stream().filter(c -> !c.isDeleted() && !c.isHiddenAt(now)).forEach(c -> visible.put(c.getId(), c));
+        List<CommentEntity> out = new ArrayList<>();
+        Set<Long> raised = new HashSet<>();
+        for (Long id : pinOrder) {
+            CommentEntity c = visible.get(id);
+            if (c != null) {
+                out.add(c);
+                raised.add(id);
+            }
+        }
+        tops.stream().filter(c -> !raised.contains(c.getId())).forEach(out::add);
+        return out;
+    }
+
+    /** 내 의견의 고정 요청 상태 — 의견마다 가장 최근 요청이 대기·거절이면 그 상태 */
+    private Map<Long, PinRequestStateView> myPinRequests(long postId, long userId) {
+        Map<Long, DebatePinRequestEntity> latest = new HashMap<>();
+        for (DebatePinRequestEntity r : pinRequests.findByPostIdAndRequesterId(postId, userId)) {
+            latest.merge(r.getCommentId(), r, (a, b) -> a.getId() > b.getId() ? a : b);
+        }
+        Map<Long, PinRequestStateView> out = new HashMap<>();
+        latest.forEach((commentId, r) -> {
+            if (!DebatePinRequestEntity.APPROVED.equals(r.getStatus())) {
+                out.put(commentId, new PinRequestStateView(Long.toString(r.getId()), r.getStatus(), r.getRejectReason()));
+            }
+        });
+        return out;
+    }
+
+    /** 원댓글이 그 구분에 드는가 — GENERAL = 배지 없음, OPINION = 배지 있음, PRO·CON·NEUTRAL = 그 배지. 지운·숨긴 자리도 배지를 간직하므로 같은 구분에 남는다 */
     private static boolean inKind(CommentEntity top, String kind) {
         return switch (kind) {
             case KIND_ALL -> true;
             case KIND_GENERAL -> top.getStance() == null;
+            case KIND_OPINION -> top.getStance() != null;
             default -> kind.equals(top.getStance());
         };
     }
 
-    /** 구분별 수 — {@code all} 은 글의 보이는 댓글 수(답글 포함), 나머지는 지우거나 숨기지 않은 원댓글만 */
-    private static DebateCountsView counts(List<CommentEntity> tops, int visibleAll, Instant now) {
+    /**
+     * 구분별 수 — {@code all} 은 글의 보이는 댓글 수(답글 포함). 나머지는 지우거나 숨기지 않은 것만: 원댓글 수는 그 원댓글의 입장으로, 구획 합계({@code generalTotal}·
+     * {@code opinionsTotal})는 답글까지 그 <b>원댓글</b>의 구획으로 센다(답글 자신의 배지가 아니라 — 목록이 답글을 원댓글 아래에 두는 것과 같게).
+     */
+    private static DebateCountsView counts(List<CommentEntity> all, int visibleAll, Instant now) {
+        Map<Long, String> topStance = new HashMap<>();
+        for (CommentEntity c : all) {
+            if (c.getParentId() == null) {
+                topStance.put(c.getId(), c.getStance());
+            }
+        }
         int general = 0;
-        int pro = 0;
-        int con = 0;
-        for (CommentEntity c : tops) {
+        int generalTotal = 0;
+        int opinionsTotal = 0;
+        int[] byStance = new int[DebateStance.values().length];
+        for (CommentEntity c : all) {
             if (c.isDeleted() || c.isHiddenAt(now)) {
                 continue;
             }
-            if (c.getStance() == null) {
-                general++;
-            } else if (DebateStance.PRO.name().equals(c.getStance())) {
-                pro++;
+            boolean top = c.getParentId() == null;
+            if (!top && !topStance.containsKey(c.getParentId())) {
+                continue; // 원댓글을 모르는 답글(없어야 한다) — 목록에도 나오지 않는다
+            }
+            String section = top ? c.getStance() : topStance.get(c.getParentId());
+            if (section == null) {
+                generalTotal++;
+                if (top) {
+                    general++;
+                }
             } else {
-                con++;
+                opinionsTotal++;
+                if (top) {
+                    byStance[DebateStance.valueOf(section).ordinal()]++;
+                }
             }
         }
-        return new DebateCountsView(visibleAll, general, pro, con);
+        int pro = byStance[DebateStance.PRO.ordinal()];
+        int con = byStance[DebateStance.CON.ordinal()];
+        int neutral = byStance[DebateStance.NEUTRAL.ordinal()];
+        return new DebateCountsView(visibleAll, general, generalTotal, pro + con + neutral, opinionsTotal, pro, con, neutral);
     }
 
     private CommentView view(CommentEntity c, Viewer viewer, Map<Long, CommentEntity> byId, Map<Long, ProfileEntity> members, BoardCatalogSnapshot s,
@@ -270,7 +364,10 @@ public class CommentService {
                 c.getCreatedAt(),
                 c.getEditedAt(), c.getLikeCount(), viewer.liked().contains(c.getId()), viewer.userId() != null && viewer.userId().equals(c.getAuthorId()),
                 VISIBLE.equals(state) ? viewer.lens().blockedOf(c.getAuthorId(), RichText.plainOf(c.getContentFormat(), c.getContent())) : null, c.getStance(),
-                HIDDEN.equals(state) && viewer.staffHiddenNotice() && c.isStaffHiddenAt(now) ? HIDDEN_BY_STAFF : null);
+                HIDDEN.equals(state) && viewer.staffHiddenNotice() && c.isStaffHiddenAt(now) ? HIDDEN_BY_STAFF : null,
+                !DELETED.equals(state) && !HIDDEN.equals(state) && viewer.pinned().contains(c.getId()),
+                viewer.dislikeEnabled() ? c.getDislikeCount() : null, viewer.dislikeEnabled() ? viewer.disliked().contains(c.getId()) : null,
+                viewer.userId() != null && viewer.userId().equals(c.getAuthorId()) ? viewer.myPinRequests().get(c.getId()) : null);
     }
 
     /** 비회원에게 아직 보이지 않는 댓글인가 — 같은 IP 가 쓴 비회원 댓글은 본인 것으로 본다 */
@@ -299,40 +396,46 @@ public class CommentService {
         BoardSecurityValues sec = s.security();
 
         Map<String, MessageRef> fields = new LinkedHashMap<>();
-        // 하이라이트 토론의 입장 — 칸 오류(형식·비회원)면 해석하지 않는다. 해석은 409(DEBATE_NOT_OPEN · STANCE_LOCKED)를 던질 수 있다
+        // 답글 대상 — 답글이 의견인지(원댓글이 의견인지)를 정하므로 입장보다 먼저 본다
+        Long parentId = null;
+        Long replyToId = null;
+        CommentEntity parentRow = null;
+        if (body.parentId() != null && !body.parentId().isBlank()) {
+            parentId = PostQueryService.parseId(body.parentId());
+            Optional<CommentEntity> parent = parentId == null ? Optional.empty() : comments.findByPostIdAndId(post.getId(), parentId);
+            if (parent.isEmpty() || parent.get().getParentId() != null || parent.get().isDeleted()) {
+                fields.put("parentId", new MessageRef("board.comment.parent"));
+            } else {
+                parentRow = parent.get();
+                if (body.replyToId() != null && !body.replyToId().isBlank()) {
+                    replyToId = PostQueryService.parseId(body.replyToId());
+                    Long parentKey = parentId;
+                    Optional<CommentEntity> target = replyToId == null ? Optional.empty() : comments.findByPostIdAndId(post.getId(), replyToId);
+                    if (target.isEmpty() || !(target.get().getId().equals(parentKey) || parentKey.equals(target.get().getParentId()))) {
+                        fields.put("parentId", new MessageRef("board.comment.parent"));
+                    }
+                }
+            }
+        }
+        // 하이라이트 토론 — 의견 쓰기 = 원댓글은 의견 표시(opinion·stance), 답글은 원댓글이 의견일 때(답글의 opinion 은 보지 않고, stance 를 보냈으면 지금 입장과 맞춰 본다). 칸 오류(형식·비회원·답글 대상)면 해석하지 않는다.
+        // 해석은 409(DEBATE_NOT_OPEN · STANCE_REQUIRED · STANCE_LOCKED)를 던질 수 있다. 입장은 여기서 정해지지 않는다(PUT …/stance 투표로만)
         DebateStance requested = null;
         try {
             requested = DebateStance.parse(body.stance());
         } catch (IllegalArgumentException e) {
             fields.put("stance", new MessageRef("debate.stance.invalid"));
         }
-        if (requested != null && actor.guest()) {
+        boolean opinion = parentRow != null ? parentRow.getStance() != null : (Boolean.TRUE.equals(body.opinion()) || requested != null);
+        if (opinion && actor.guest() && !fields.containsKey("stance")) {
             fields.put("stance", new MessageRef("debate.stance.memberOnly"));
-            requested = null;
         }
-        DebateReader.WriteStance stance = fields.containsKey("stance") ? new DebateReader.WriteStance(null, false)
-                : debate.resolveForWrite(post.getId(), actor.guest() ? null : actor.userId(), requested, start);
+        DebateReader.WriteStance stance = fields.containsKey("stance") || fields.containsKey("parentId") || actor.guest() ? DebateReader.WriteStance.GENERAL
+                : debate.resolveForWrite(post.getId(), actor.userId(), opinion, requested, start);
         ContentBody content = checkContent(b, body.contentFormat(), body.content(), writer(actor, b, s), sec, stance.bodyMax(), fields);
         String guestName = null;
         if (actor.guest()) {
             ContentRules.checkGuest(body.guest(), sec, fields);
             guestName = body.guest() == null ? null : ContentRules.normalize(body.guest().name());
-        }
-        Long parentId = null;
-        Long replyToId = null;
-        if (body.parentId() != null && !body.parentId().isBlank()) {
-            parentId = PostQueryService.parseId(body.parentId());
-            Optional<CommentEntity> parent = parentId == null ? Optional.empty() : comments.findByPostIdAndId(post.getId(), parentId);
-            if (parent.isEmpty() || parent.get().getParentId() != null || parent.get().isDeleted()) {
-                fields.put("parentId", new MessageRef("board.comment.parent"));
-            } else if (body.replyToId() != null && !body.replyToId().isBlank()) {
-                replyToId = PostQueryService.parseId(body.replyToId());
-                Long parentKey = parentId;
-                Optional<CommentEntity> target = replyToId == null ? Optional.empty() : comments.findByPostIdAndId(post.getId(), replyToId);
-                if (target.isEmpty() || !(target.get().getId().equals(parentKey) || parentKey.equals(target.get().getParentId()))) {
-                    fields.put("parentId", new MessageRef("board.comment.parent"));
-                }
-            }
         }
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
@@ -359,9 +462,6 @@ public class CommentService {
         CommentView created = tx.execute(status -> {
             Instant now = Instant.now();
             checkRate(s, authorId, ip, now);
-            if (authorId != null) {
-                debate.settle(post.getId(), authorId, stance, now); // 처음 정하는 입장 — 다른 입장이 먼저 정해졌으면 409(댓글도 롤백)
-            }
             CommentEntity comment = CommentEntity.create(id, post.getId(), b.id(), parent, replyTo, authorId, name, hash, ip, masked.format(), masked.content(),
                     stance.stanceName(), now);
             comments.persist(comment);
@@ -374,7 +474,7 @@ public class CommentService {
             memberIds.add(authorId);
             byId.values().forEach(t -> memberIds.add(t.getAuthorId()));
             // 쓴 사람에게는 공개 지연 없이 보인다
-            Viewer self = new Viewer(userId, ip, false, 0, Set.of(), ViewerBlocks.Lens.none(), b.staffHiddenNotice());
+            Viewer self = Viewer.self(userId, ip, Set.of(), b, Set.of(), Set.of());
             CommentView view = view(comment, self, byId, authors.members(memberIds), s, now);
             // 같은 트랜잭션의 마지막에: 댓글 포인트(회원만) · 회원 알림 — 둘 다 실패해도 댓글쓰기는 그대로다(세이브포인트로 격리)
             if (authorId != null) {
@@ -484,7 +584,7 @@ public class CommentService {
         ContentRules.Writer writer = comment.isGuest() ? ContentRules.Writer.GUEST : writer(actor, b, s);
         BoardSecurityValues sec = s.security();
         Map<String, MessageRef> fields = new LinkedHashMap<>();
-        int max = comment.getStance() == null ? ContentRules.COMMENT_MAX : DebateReader.OPINION_MAX; // 배지는 고칠 때 바뀌지 않는다
+        int max = comment.getStance() == null ? ContentRules.COMMENT_MAX : DebateReader.OPINION_MAX; // 의견이면 의견 한도 — 배지는 고칠 때 바뀌지 않는다
         ContentBody content = checkContent(b, body.contentFormat(), body.content(), writer, sec, max, fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
@@ -510,7 +610,9 @@ public class CommentService {
             memberIds.add(locked.getAuthorId());
             byId.values().forEach(t -> memberIds.add(t.getAuthorId()));
             Set<Long> liked = userId == null ? Set.of() : counters.likedComments(locked.getPostId(), userId);
-            return view(locked, new Viewer(userId, ip, false, 0, liked, ViewerBlocks.Lens.none(), b.staffHiddenNotice()), byId, authors.members(memberIds), s, now);
+            Set<Long> disliked = userId == null || !b.commentDislikeEnabled() ? Set.of() : counters.dislikedComments(locked.getPostId(), userId);
+            Set<Long> pinned = locked.getStance() == null ? Set.of() : new HashSet<>(debateQueries.pinnedInOrder(locked.getPostId()));
+            return view(locked, Viewer.self(userId, ip, liked, b, disliked, pinned), byId, authors.members(memberIds), s, now);
         });
     }
 
@@ -535,7 +637,7 @@ public class CommentService {
         });
     }
 
-    /** 추천 — 회원만, 정지 403, 내 댓글 400, 이미 추천 409. 취소 없음 */
+    /** 추천 — 회원만, 정지 403, 내 댓글 400, 이미 추천 409. 취소 없음. 내 비추천이 있으면 같은 트랜잭션에서 푼다 */
     public CommentLikeResult like(String idText, Long userId) {
         if (userId == null) {
             throw new CommonException(ErrorCode.UNAUTHENTICATED);
@@ -545,7 +647,7 @@ public class CommentService {
         return tx.execute(status -> {
             Instant now = Instant.now();
             CommentEntity comment = requireComment(idText, now);
-            PublicBoardService.requireActive(s, comment.getBoardId());
+            EffectiveBoard b = PublicBoardService.requireActive(s, comment.getBoardId());
             if (comment.isHiddenAt(now)) {
                 throw new CommentHiddenException();
             }
@@ -555,9 +657,62 @@ public class CommentService {
             if (!counters.insertCommentLike(comment.getId(), comment.getPostId(), userId)) {
                 throw new AlreadyLikedException(true);
             }
-            int likes = counters.incrementCommentLikes(comment.getPostId(), comment.getId()); // 댓글 행 갱신 — 같은 댓글의 추천이 여기서 줄을 선다
+            counters.incrementCommentLikes(comment.getPostId(), comment.getId()); // 댓글 행 갱신 — 같은 댓글의 추천·비추천이 여기서 줄을 선다
+            if (counters.deleteCommentDislike(comment.getId(), userId)) {
+                counters.addCommentDislikes(comment.getPostId(), comment.getId(), -1); // 추천과 비추천은 둘 중 하나만
+            }
             points.likeBonus(comment.getAuthorId(), PointService.REF_COMMENT, comment.getId(), userId);
-            return new CommentLikeResult(likes, true);
+            return reactionResult(comment, b, true, false);
         });
+    }
+
+    /**
+     * 비추천 누르기({@code on}) · 취소 — 회원만(401), 정지 403(추천과 같은 자격), 비추천이 꺼진 게시판 409 {@code COMMENT_DISLIKE_DISABLED}, 숨긴 댓글 403, 내 댓글 400
+     * {@code CANNOT_DISLIKE_OWN}, 이미 비추천 409 {@code ALREADY_DISLIKED}(누르기). 취소는 비추천이 없어도 지금 상태로 200. 누르면 내 추천이 같은 트랜잭션에서 풀린다
+     * (이미 준 추천 보너스는 회수하지 않는다). 포인트·알림 없음.
+     */
+    public CommentLikeResult dislike(String idText, Long userId, boolean on) {
+        if (userId == null) {
+            throw new CommonException(ErrorCode.UNAUTHENTICATED);
+        }
+        BoardCatalogSnapshot s = catalog.snapshot();
+        PostWriteService.requireReactable(actors.resolve(userId, s));
+        return tx.execute(status -> {
+            Instant now = Instant.now();
+            CommentEntity comment = requireComment(idText, now);
+            EffectiveBoard b = PublicBoardService.requireActive(s, comment.getBoardId());
+            if (!b.commentDislikeEnabled()) {
+                throw new CommentDislikeDisabledException();
+            }
+            if (comment.isHiddenAt(now)) {
+                throw new CommentHiddenException();
+            }
+            if (userId.equals(comment.getAuthorId())) {
+                throw new CannotDislikeOwnException();
+            }
+            boolean liked;
+            if (on) {
+                if (!counters.insertCommentDislike(comment.getId(), comment.getPostId(), userId)) {
+                    throw new AlreadyDislikedException();
+                }
+                counters.addCommentDislikes(comment.getPostId(), comment.getId(), 1);
+                if (counters.deleteCommentLike(comment.getId(), userId)) {
+                    counters.decrementCommentLikes(comment.getPostId(), comment.getId()); // 추천과 비추천은 둘 중 하나만
+                }
+                liked = false;
+            } else {
+                if (counters.deleteCommentDislike(comment.getId(), userId)) {
+                    counters.addCommentDislikes(comment.getPostId(), comment.getId(), -1);
+                }
+                liked = counters.commentLiked(comment.getId(), userId);
+            }
+            return reactionResult(comment, b, liked, on);
+        });
+    }
+
+    /** 누른 뒤의 수(댓글 행을 다시 읽는다)와 내 상태 — 비추천이 꺼진 게시판은 비추천 칸이 null */
+    private CommentLikeResult reactionResult(CommentEntity comment, EffectiveBoard b, boolean liked, boolean disliked) {
+        int[] n = counters.commentReactionCounts(comment.getPostId(), comment.getId());
+        return new CommentLikeResult(n[0], liked, b.commentDislikeEnabled() ? n[1] : null, b.commentDislikeEnabled() ? disliked : null);
     }
 }

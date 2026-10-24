@@ -15,6 +15,7 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,7 +38,7 @@ public class CommentController {
         this.ipResolver = ipResolver;
     }
 
-    /** 원댓글 + 답글 + 베스트 + 보이는 수 + 토론 칸. {@code sort} OLDEST(기본) · LATEST, {@code kind} ALL(기본) · GENERAL · PRO · CON(하이라이트 토론 구분) */
+    /** 원댓글 + 답글 + 베스트 + 보이는 수 + 토론 칸 + 추천·비추천 표시. {@code sort} OLDEST(기본) · LATEST, {@code kind} ALL(기본) · GENERAL · OPINION · PRO · CON · NEUTRAL */
     @GetMapping("/api/posts/{postId}/comments")
     public ResponseEntity<ApiResponse<CommentListResponse>> list(@PathVariable String postId, @RequestParam(required = false, defaultValue = "OLDEST") String sort,
                                                                  @RequestParam(required = false) String kind, Authentication authentication,
@@ -71,6 +72,18 @@ public class CommentController {
     @PostMapping("/api/comments/{id}/like")
     public ApiResponse<CommentLikeResult> like(@PathVariable String id, Authentication authentication) {
         return ApiResponse.success(service.like(id, userId(authentication)));
+    }
+
+    /** 비추천(누르기) — 로그인 필요. 게시판의 비추천이 꺼졌으면 409 COMMENT_DISLIKE_DISABLED. 내 추천은 풀린다 */
+    @PostMapping("/api/comments/{id}/dislike")
+    public ApiResponse<CommentLikeResult> dislike(@PathVariable String id, Authentication authentication) {
+        return ApiResponse.success(service.dislike(id, userId(authentication), true));
+    }
+
+    /** 비추천 취소 — 비추천하지 않았어도 지금 상태로 200 */
+    @DeleteMapping("/api/comments/{id}/dislike")
+    public ApiResponse<CommentLikeResult> undislike(@PathVariable String id, Authentication authentication) {
+        return ApiResponse.success(service.dislike(id, userId(authentication), false));
     }
 
     static Long userId(Authentication authentication) {

@@ -28,7 +28,6 @@ export default {
     deleted: 'This comment was deleted',
     hidden: 'Hidden after reports',
     hiddenByStaff: 'Hidden by staff',
-    likeLabel: '{n} likes',
     alreadyLiked: 'You already liked this comment.',
 
     editTitle: 'Edit comment',
@@ -37,59 +36,90 @@ export default {
     deletedToast: 'Comment deleted.',
     passwordDescription: 'Enter the password you set when commenting.',
 
-    // ── Highlight debate (pro and con opinions) ──
+    // ── Comment like / dislike (board settings — empty names use the defaults) ──
+    likeDefault: 'Like',
+    dislikeDefault: 'Dislike',
+    reactionAria: '{name} {n}',
+
+    // ── Highlight debate (pro / con / neutral votes and opinions) — debate block inside the post body ──
     stance: {
         PRO: 'Pro',
         CON: 'Con',
+        NEUTRAL: 'Neutral',
     },
-    kindLabel: 'Comment type',
+    /** "to ~" form — key = side */
+    stanceTo: {
+        PRO: 'pro',
+        CON: 'con',
+        NEUTRAL: 'neutral',
+    },
+    debateTitle: 'Pro & con debate',
+    debateSummary: '{people} voted · {opinions} opinions',
+    voteLabel: 'Pick your side',
+    voteCount: '{n}',
+    voteAria: '{stance}, {n} people',
+    changeStanceAria: 'Switch to {to}, {n} people now',
+    voteShare: '{stance} {n} ({p}%)',
+    voteHint: 'Tap pro or con to pick your side right away. Leaving an opinion is optional.',
+    voteHintNeutral: 'Tap pro, con or neutral to pick your side right away. Leaving an opinion is optional.',
+    neutralClosed: 'This post no longer accepts new neutral votes.',
+    votedHint: 'You voted {to}. Leaving an opinion below is optional. Tap another button to switch.',
+    voted: 'Voted {to}.',
+    voteFirst: 'Pick a side above first.',
+    debateClosed: 'The debate has ended. Existing opinions are read-only.',
+    debateGuestHint: 'Only signed-in members can vote and post opinions.',
+    kindLabel: 'Filter opinions',
     kind: {
-        ALL: 'All',
-        GENERAL: 'General',
+        OPINION: 'All opinions',
         PRO: 'Pro',
         CON: 'Con',
+        NEUTRAL: 'Neutral',
     },
-    kindEmpty: 'No comments of this type yet',
-    debateClosed: 'The debate has ended. Existing opinions are read-only.',
-    debateGuestHint: 'Only signed-in members can post pro or con opinions.',
-    stancePickLabel: 'Which side are you on?',
-    stanceGeneral: 'General',
-    stancePickHint: 'Your first pro or con comment sets your side. You can switch later, and your existing opinions switch with you.',
+    kindEmpty: 'No opinions on this side yet',
+    opinionEmpty: 'No opinions yet',
     myStance: 'My side',
-    myStanceHint: 'Your comments and replies on this post get this badge.',
-    /** Button — names the side you switch to (key = new side) */
-    changeStanceTo: {
-        PRO: 'Switch to pro',
-        CON: 'Switch to con',
-    },
-    /** Confirm title — key = new side */
-    changeStanceTitle: {
-        PRO: 'Switch from con → pro?',
-        CON: 'Switch from pro → con?',
-    },
+    myStanceHint: 'Tap another button to switch — your existing opinions move with you.',
+    opinionInput: 'Write an opinion',
+    opinionPlaceholder: 'Share your {stance} opinion (optional)',
+    opinionSubmit: 'Post opinion',
+    opinionPosted: 'Opinion posted.',
+    /** Button / confirm — `to` = new side (stanceTo), `from` = current side */
+    changeStanceTo: 'Switch to {to}',
+    changeStanceTitle: 'Switch from {from} → {to}?',
     /** Confirm body when you have opinions to move (`n` = `debate.myOpinionCount`) */
-    changeStanceMoves: {
-        PRO: 'Your {n} con opinion(s) so far will become pro too.',
-        CON: 'Your {n} pro opinion(s) so far will become con too.',
-    },
+    changeStanceMoves: 'Your {n} {from} opinion(s) so far will become {to} too.',
     /** Confirm body when there is nothing to move */
-    changeStanceFuture: {
-        PRO: 'Opinions you write from now on get the pro badge.',
-        CON: 'Opinions you write from now on get the con badge.',
-    },
-    stanceChanged: {
-        PRO: 'Switched to pro.',
-        CON: 'Switched to con.',
-    },
+    changeStanceFuture: 'Opinions you write from now on get the {stance} badge.',
+    stanceChanged: 'Switched to {to}.',
     /** Success toast — `n` = response `moved` */
-    stanceChangedMoved: {
-        PRO: 'Switched to pro. {n} of your opinions moved too.',
-        CON: 'Switched to con. {n} of your opinions moved too.',
-    },
+    stanceChangedMoved: 'Switched to {to}. {n} of your opinions moved too.',
     mention: 'Mention a member',
     mentionSearch: 'Find by nickname',
-    mentionHelp: 'Pick a member who commented on this post to reply to their latest comment.',
+    mentionHelp: 'Pick a member who posted an opinion here to reply to their latest opinion.',
     mentionEmpty: 'No members to pick.',
     mentionTarget: "Replying to {'@'}{name}",
     mentionClear: 'Clear',
+
+    // ── Pinned opinions ──
+    pinned: 'Pinned',
+    pinRequest: 'Request pin',
+    pinRequestAgain: 'Request pin again',
+    pinRequestPending: 'Pin requested · awaiting review',
+    pinRequestCancel: 'Cancel',
+    pinRequestRejected: 'Your pin request was declined.',
+    pinRequestRejectedReason: 'Your pin request was declined · Reason: {reason}',
+    pinRequestSent: 'Pin request sent. You’ll get a notification with the result.',
+    pinRequestCanceled: 'Pin request canceled.',
+    pinReviewTitle: '{n} pin request(s)',
+    pinReviewHint: 'Pinned opinions show at the top of the debate. The member gets a notification with the result.',
+    pinReviewLoading: 'Loading pin requests',
+    pinReviewEmpty: 'No pin requests to review.',
+    pinReviewExcerpt: '“{text}”',
+    pinApprove: 'Pin',
+    pinReject: 'Decline',
+    pinRejectReason: 'Reason for declining (optional)',
+    pinRejectSubmit: 'Decline',
+    pinRejectTooLong: 'Reasons can be up to {max} characters.',
+    pinApproved: 'Opinion pinned.',
+    pinRejectedToast: 'Pin request declined.',
 };

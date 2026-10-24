@@ -13,7 +13,8 @@ import java.time.Instant;
  * @param showFrom    노출 시작(포함, 비우면 바로)
  * @param showUntil   노출 끝(미포함, 비우면 상시) — {@code showFrom} 보다 늦어야 한다
  * @param debate      「찬성·반대 의견 받기」 — 만들 때 비우면 false, 고칠 때 비우면 그대로
+ * @param neutralEnabled 「중립도 받기」 — 만들 때 비우면 true, 고칠 때 비우면 그대로. 끄면 회원이 새로 중립을 고를 수 없다(이미 고른 중립·쓴 중립 의견은 남는다)
  */
 public record HighlightSaveRequest(String postId, String title, String summary, String imageFileId, Boolean visible, Instant showFrom, Instant showUntil,
-                                   Boolean debate) {
+                                   Boolean debate, Boolean neutralEnabled) {
 }

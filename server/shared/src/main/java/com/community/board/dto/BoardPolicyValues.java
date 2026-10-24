@@ -1,6 +1,8 @@
 package com.community.board.dto;
 
+import com.community.board.service.BoardFields;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -9,12 +11,22 @@ import java.util.Map;
  */
 public record BoardPolicyValues(String writeMin, String commentMin, String postEditor, Boolean imageUploadAllowed, String commentEditor, Integer listSize, Integer pinnedMax, Boolean indexable,
                                 Boolean searchable, Boolean inHome, String pointMode, Integer commentProtectMin, Boolean commentProtectEdit,
-                                String commentProtectDelete, Integer commentProtectDelayMinutes, Integer commentGuestDelayMinutes, Boolean staffHiddenNotice, Integer managerMax,
+                                String commentProtectDelete, Integer commentProtectDelayMinutes, Integer commentGuestDelayMinutes, Boolean staffHiddenNotice,
+                                Boolean commentDislikeEnabled, String commentLikeLabel, String commentDislikeLabel, List<String> pinRequestReviewers,
+                                Integer managerMax,
                                 Integer staffPostDailyLimit, Integer staffCommentDailyLimit, Integer staffSanctionDailyLimit) {
+
+    /** 추천·비추천 이름은 앞뒤 공백을 자르고 비면 null(= 기본값 따름) */
+    public BoardPolicyValues {
+        commentLikeLabel = BoardDefaultsValues.label(commentLikeLabel);
+        commentDislikeLabel = BoardDefaultsValues.label(commentDislikeLabel);
+        pinRequestReviewers = BoardFields.canonicalReviewers(pinRequestReviewers);
+    }
 
     /** 모두 기본값을 따르는 정책 */
     public static BoardPolicyValues empty() {
-        return new BoardPolicyValues(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        return new BoardPolicyValues(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null);
     }
 
     /** 칸 이름 → 값(칸 순서대로, null 포함) */
@@ -37,6 +49,10 @@ public record BoardPolicyValues(String writeMin, String commentMin, String postE
         map.put("commentProtectDelayMinutes", commentProtectDelayMinutes);
         map.put("commentGuestDelayMinutes", commentGuestDelayMinutes);
         map.put("staffHiddenNotice", staffHiddenNotice);
+        map.put("commentDislikeEnabled", commentDislikeEnabled);
+        map.put("commentLikeLabel", commentLikeLabel);
+        map.put("commentDislikeLabel", commentDislikeLabel);
+        map.put("pinRequestReviewers", pinRequestReviewers);
         map.put("managerMax", managerMax);
         map.put("staffPostDailyLimit", staffPostDailyLimit);
         map.put("staffCommentDailyLimit", staffCommentDailyLimit);

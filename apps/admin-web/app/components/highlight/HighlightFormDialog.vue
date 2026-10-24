@@ -1,6 +1,6 @@
 <template>
     <!--
-        하이라이트 만들기·고치기 대화상자 — 대상 글(만들 때만 고른다: 글 번호·제목으로 찾기) · 노출 제목(40자) · 요약(100자) · 대표 이미지 · 노출 켬/끔 · 노출 기간 · 찬성·반대 의견 받기.
+        하이라이트 만들기·고치기 대화상자 — 대상 글(만들 때만 고른다: 글 번호·제목으로 찾기) · 노출 제목(40자) · 요약(100자) · 대표 이미지 · 노출 켬/끔 · 노출 기간 · 찬성·반대 의견 받기 · 중립도 받기(기본 켬).
         서버 호출은 페이지가 준 `actions`(글 찾기·이미지 올리기)와 `save` 이벤트(만들기·고치기 요청)로만 한다. 열 때마다 입력을 새로 채운다(고칠 때는 그 하이라이트 값, 만들 때는 빈 칸).
         대표 이미지는 고르는 즉시 올려(`purpose=HIGHLIGHT_IMAGE`) 받은 파일 ID 를 저장 때 보낸다 — 저장하지 않으면 그 파일은 서버의 「올리다 만 파일 정리」가 지운다. [지우기]는 저장 때 `imageFileId: null`(지우기)로 간다.
         화면 검사(`UtilHighlight`)는 미리 알려 주는 것이고, 서버가 거절한 칸(`fields.postId|title|summary|showUntil|imageFileId`)은 그 칸 아래에 서버 문구 그대로, 칸에 붙지 않는 것은 아래 한 줄.
@@ -121,6 +121,17 @@
                     <label :for="`${formId}-debate`" class="text-sm font-medium">{{ t('highlight.debateLabel') }}</label>
                 </div>
                 <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('highlight.debateHelp') }}</p>
+            </div>
+
+            <!-- 중립도 받기 — 의견 받기가 꺼져 있으면 비활성으로 보이되 값은 그대로 보낸다 -->
+            <div class="flex flex-col gap-1 pl-4">
+                <div class="flex items-center gap-3">
+                    <ToggleSwitch v-model="form.neutralEnabled" :input-id="`${formId}-neutral`" :disabled="saving || !form.debate" :aria-describedby="`${formId}-neutral-help`" />
+                    <label :for="`${formId}-neutral`" class="text-sm font-medium" :class="form.debate ? '' : 'text-muted-color'">{{ t('highlight.neutralLabel') }}</label>
+                </div>
+                <p :id="`${formId}-neutral-help`" class="m-0 text-xs leading-relaxed text-muted-color">
+                    {{ t('highlight.neutralHelp') }}<template v-if="!form.debate"> {{ t('highlight.neutralIdle') }}</template>
+                </p>
             </div>
 
             <Message v-if="formError" severity="error" size="small" variant="simple" :closable="false">{{ formError }}</Message>

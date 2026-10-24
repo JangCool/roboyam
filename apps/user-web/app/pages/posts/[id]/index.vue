@@ -1,6 +1,6 @@
 <template>
     <!--
-        글 보기 `/posts/{id}` — 머리(말머리·제목·작성자·시각·조회) → 본문(19금이면 확인 전 가림) → [추천][링크 복사][신고] · [수정][삭제] → 투자 고지 → 이전·다음 글 → 댓글.
+        글 보기 `/posts/{id}` — 머리(말머리·제목·작성자·시각·조회) → 본문(19금이면 확인 전 가림) → (하이라이트 토론) → [추천][링크 복사][신고] · [수정][삭제] → 투자 고지 → 이전·다음 글 → 댓글.
         community 대비: 투표·스크랩·글 ⋯ 메뉴의 차단·메모·지킴이 처리·리비전·소모임 글·핫딜/리뷰 글 모양을 뺐다. 본문은 에디터 HTML 이 아니라 평문(빈 줄 = 문단, 주소만 링크 — `v-html` 없음).
           비회원 글이 있어 작성자 옆에 「비회원」과 작성 IP 앞 두 자리가 보이고, 비회원 글의 수정·삭제는 비밀번호 확인 뒤에 한다.
         비회원 글 IP 는 서버가 앞 두 묶음만 남겨 준다(IPv4 `123.45.*.*` · IPv6 `2001:db8:*:*`, 회원 글은 없다). 19금 글은 성인 인증이 아직 없어 「성인입니다」 확인 단추로 이번 방문만 연다.
@@ -8,7 +8,10 @@
           댓글 많은 글 보호(commentProtect*)는 서버가 `protection` 으로 알려 주고, 막힌 동작은 단추를 누르면 까닭을 알린다.
         차단한 회원의 글·차단한 단어가 제목에 든 글(`blocked`)은 제목·본문·추천 줄을 「차단한 사용자의 글이에요 · 보기」로 접는다(목록처럼 제목도 가린다 — 단어 차단은 제목에 걸린다).
           게시판 이름·작성자 줄(메모 칩)·예약 삭제/보호 알림·수정/삭제·이전·다음 글·댓글(댓글은 따로 접힌다)은 남긴다. 「보기」를 누르면 그 자리에서 펼치고 「다시 숨기기」로 다시 접는다.
-        지금 하이라이트로 노출 중인 글(`highlighted`)은 게시판 이름 옆에 「하이라이트」 표시. 찬성·반대 토론(입장·구분 탭·배지·@ 지정)은 댓글 구획(`CommentSection`)이 댓글 목록의 `debate` 로 그린다.
+        지금 하이라이트로 노출 중인 글(`highlighted`)은 게시판 이름 옆에 「하이라이트」 표시.
+        하이라이트 토론(확정 시안 — `popular-highlight-contract.md` 「결정」 토론 화면 배치): **본문 영역 안**(본문 글 바로 다음, 추천 줄 위)에 토론 구획(`CommentSection variant="debate"`, 목록 `kind=OPINION|PRO|CON|NEUTRAL`),
+          **맨 아래 원래 댓글 자리**에 일반 댓글(`variant="general"`, 늘 `kind=GENERAL`). 댓글 목록을 둘 부른다(`usePostComments` 두 개). 토론 구획은 `UtilDebate.visible`(열림 · 표 · 의견이 있음)일 때만 보이고,
+          그때만 의견 목록을 부른다(글 상세의 `debate` 또는 일반 목록의 `debate` 로 판정). 토론이 없는 글은 예전처럼 댓글만. 차단으로 본문이 접히거나 19금 확인 전이면 토론도 함께 가린다.
     -->
     <div>
         <!-- 모바일 안쪽 화면 머리 — 셸의 위·아래 막대가 숨겨진다(`shell: 'inner'`) -->
@@ -111,6 +114,23 @@
                     </p>
                 </div>
 
+                <!-- 하이라이트 토론 — 본문 바로 다음, 추천 줄 위(19금 확인 전에는 본문과 함께 가린다) -->
+                <CommentSection
+                    v-if="showDebate && !(post.adult && !adultConfirmed)"
+                    variant="debate"
+                    :board="board"
+                    :data="opinions.data.value"
+                    :state="opinions.state.value"
+                    :error-message="opinions.errorMessage.value"
+                    :sort="opinions.sort.value"
+                    :kind="opinions.kind.value"
+                    :actions="opinionActions"
+                    :debate-actions="debateActions"
+                    @kind="opinions.setKind"
+                    @retry="opinions.load"
+                    @report="(c) => openReport('COMMENT', c.id)"
+                />
+
                 <!-- 추천 · 링크 복사 · 신고 -->
                 <div class="flex flex-wrap items-center justify-center gap-2 py-3">
                     <Button
@@ -153,16 +173,17 @@
                 <Button type="button" icon="pi pi-list" :label="t('post.backToBoard')" severity="secondary" variant="outlined" size="small" @click="goBoard" />
             </div>
 
+            <!-- 일반 댓글 — 맨 아래 원래 댓글 자리(입장 없는 원댓글 + 답글) -->
             <CommentSection
+                variant="general"
                 :board="board"
                 :data="comments.data.value"
                 :state="comments.state.value"
                 :error-message="comments.errorMessage.value"
                 :sort="comments.sort.value"
-                :kind="comments.kind.value"
+                kind="GENERAL"
                 :actions="commentActions"
                 @sort="comments.setSort"
-                @kind="comments.setKind"
                 @retry="comments.load"
                 @report="(c) => openReport('COMMENT', c.id)"
             />
@@ -186,10 +207,11 @@
 import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
 import type { PostDetail } from '~/composables/board/api/usePostApi.types';
 import type { ReportReason, ReportTargetType } from '~/composables/report/api/useReportApi.types';
-import type { CommentActions } from '~/components/board/CommentSection.types';
+import type { CommentActions, DebateActions } from '~/components/board/CommentSection.types';
 import UtilRichBody from '#layers/rich-editor/utils/util-rich-body';
 import UtilBlockMessages from '~/utils/util-block-messages';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilDebate from '~/utils/util-debate';
 import UtilPost from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
 
@@ -239,7 +261,9 @@ async function load(): Promise<void> {
         board.value = loadedBoard;
         current.set(loaded.board.slug);
         pageState.value = 'ready';
+        opinionsStarted = false;
         void comments.load();
+        startOpinions();
     } catch (e) {
         if (mine !== request) return;
         pageError.value = UtilBoardMessages.of(t, e);
@@ -248,19 +272,54 @@ async function load(): Promise<void> {
     }
 }
 
-const comments = usePostComments(id);
-const commentActions: CommentActions = {
-    create: (content, contentFormat, target, guest, stance) => comments.create(content, contentFormat, target, guest, stance),
-    update: (commentId, content, contentFormat, password) => comments.update(commentId, content, contentFormat, password),
-    remove: (commentId, password) => comments.remove(commentId, password),
-    like: (commentId) => comments.like(commentId),
-    changeStance: (stance) => comments.changeStance(stance),
-    commenters: (q, signal) => comments.commenters(q, signal),
+/** 댓글 동작 한 벌 — 목록 하나(`usePostComments`)의 함수들 */
+function actionsOf(list: ReturnType<typeof usePostComments>): CommentActions {
+    return {
+        create: (content, contentFormat, target, guest, opinionStance) => list.create(content, contentFormat, target, guest, opinionStance),
+        update: (commentId, content, contentFormat, password) => list.update(commentId, content, contentFormat, password),
+        remove: (commentId, password) => list.remove(commentId, password),
+        like: (commentId) => list.like(commentId),
+        dislike: (commentId) => list.dislike(commentId),
+        undislike: (commentId) => list.undislike(commentId),
+    };
+}
+
+/** 일반 댓글(맨 아래) — 늘 `GENERAL` */
+const comments = usePostComments(id, 'GENERAL');
+const commentActions = actionsOf(comments);
+/** 토론 의견(본문 영역 안) — `OPINION` 에서 시작, 칩으로 한 입장 */
+const opinions = usePostComments(id, 'OPINION');
+const opinionActions = actionsOf(opinions);
+const debateActions: DebateActions = {
+    vote: (stance) => opinions.vote(stance),
+    commenters: (q, signal) => opinions.commenters(q, signal),
+    requestPin: (commentId) => opinions.requestPin(commentId),
+    cancelPin: (commentId) => opinions.cancelPin(commentId),
+    pinRequests: () => opinions.pinRequests(),
+    approvePin: (requestId) => opinions.approvePin(requestId),
+    rejectPin: (requestId, reason) => opinions.rejectPin(requestId, reason),
 };
-// 댓글 수가 바뀌면(쓰기·지우기) 글 머리의 보호 상태가 달라질 수 있다 — 글은 다시 받지 않고 댓글 수만 맞춘다
+
+/** 토론 구획을 보일까 — 가장 최근 목록의 `debate`(의견 수 포함), 받기 전에는 글 상세의 `debate`(열림·표 수) */
+const showDebate = computed(() => {
+    const listed = opinions.data.value?.debate ?? comments.data.value?.debate;
+    return listed ? UtilDebate.visible(listed) : UtilDebate.visible(post.value?.debate);
+});
+/** 이 글의 의견 목록을 이미 불렀다 — 토론이 보일 때 한 번만 부르고, 그 뒤로는 목록이 스스로 다시 받는다 */
+let opinionsStarted = false;
+function startOpinions(): void {
+    if (opinionsStarted || pageState.value !== 'ready' || !showDebate.value) return;
+    opinionsStarted = true;
+    void opinions.load();
+}
+// 글 상세로는 몰랐지만 일반 목록이 의견이 있다고 알려 줄 때(끝난 하이라이트 등)
+watch(showDebate, () => startOpinions());
+
+// 댓글 수가 바뀌면(쓰기·지우기) 글 머리의 보호 상태가 달라질 수 있다 — 글은 다시 받지 않고 댓글 수만 맞춘다(두 목록 모두 글 전체 수를 준다)
 watch(
-    () => comments.data.value?.totalCount,
-    (count) => {
+    () => [comments.data.value?.totalCount, opinions.data.value?.totalCount] as const,
+    ([general, opinion], [prevGeneral, prevOpinion]) => {
+        const count = opinion !== prevOpinion && opinion !== undefined ? opinion : general;
         if (post.value && count !== undefined) post.value.commentCount = count;
     },
 );

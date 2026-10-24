@@ -14,11 +14,13 @@ import java.time.Instant;
  * @param status        SHOWING(지금 노출 중) · SCHEDULED(노출 기간 전) · EXPIRED(기간이 지났다) · OFF(노출을 껐다) · BLOCKED(글을 지금 볼 수 없다).
  *                      앞의 것이 이긴다: BLOCKED → OFF → SCHEDULED → EXPIRED → SHOWING
  * @param debate        「찬성·반대 의견 받기」 — 켜져 있고 SHOWING 일 때만 그 글에 토론이 열린다
+ * @param neutralEnabled 「중립도 받기」 — 끄면 새로 중립을 고를 수 없다(이미 고른 중립·쓴 중립 의견은 남고 수에도 든다)
  * @param post          대상 글(글 행이 아예 없으면 null — 상태 BLOCKED). {@code post.state} PUBLIC · HIDDEN · DELETED · ADULT · BOARD_OFF
- * @param commentCounts 글의 댓글 수 구분
+ * @param commentCounts 글의 댓글 수 구분(입장별 의견 수 + 투표 수 {@code votes})
  * @param updatedBy     마지막으로 고친 운영자(없으면 null)
  */
 public record HighlightItemView(String id, int order, String title, String summary, String imageFileId, String imageUrl, boolean visible, Instant showFrom,
-                                Instant showUntil, String status, boolean debate, AdminPostRefView post, HighlightCommentCountsView commentCounts,
+                                Instant showUntil, String status, boolean debate, boolean neutralEnabled, AdminPostRefView post,
+                                HighlightCommentCountsView commentCounts,
                                 Instant createdAt, Instant updatedAt, HighlightOperatorView updatedBy) {
 }

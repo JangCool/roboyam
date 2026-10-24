@@ -43,8 +43,10 @@ public class CommentEntity {
 
     @Column(updatable = false)
     private int likeCount;
+    /** 비추천 수(V78) — {@code PostCounterQueries} 가 원자적으로 고친다. 게시판의 비추천이 꺼져 있으면 응답에 싣지 않는다 */
+    private int dislikeCount;
 
-    /** 하이라이트 토론의 입장 배지(PRO · CON — {@code DebateStance}), 일반 댓글은 null. 쓸 때 정해지고 바뀌지 않는다(V76) */
+    /** 하이라이트 토론의 입장 배지(PRO · CON · NEUTRAL — {@code DebateStance}), 일반 댓글은 null. 쓸 때 정해지고, 글쓴이가 입장을 바꾸면 소급해 바뀐다(V76·V78) */
     private String stance;
 
     private Instant hiddenAt;
@@ -64,7 +66,7 @@ public class CommentEntity {
         return create(id, postId, boardId, parentId, replyToId, authorId, guestName, guestPasswordHash, authorIp, format, content, null, now);
     }
 
-    /** @param stance 하이라이트 토론의 입장 배지(PRO · CON), 일반 댓글이면 null */
+    /** @param stance 하이라이트 토론의 입장 배지(PRO · CON · NEUTRAL), 일반 댓글이면 null */
     public static CommentEntity create(long id, long postId, long boardId, Long parentId, Long replyToId, Long authorId, String guestName,
                                        String guestPasswordHash, String authorIp, ContentFormat format, String content, String stance, Instant now) {
         CommentEntity comment = new CommentEntity();
@@ -200,6 +202,10 @@ public class CommentEntity {
 
     public int getLikeCount() {
         return likeCount;
+    }
+
+    public int getDislikeCount() {
+        return dislikeCount;
     }
 
     public Instant getEditedAt() {

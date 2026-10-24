@@ -1,9 +1,10 @@
 <template>
     <!--
         하이라이트 — 운영자가 고른 글을 하이라이트로 지정해 순서·노출·기간을 정하고, 그 글에 찬성·반대 의견(토론)을 받는다(계약 `docs/features/popular-highlight-contract.md`, community `api-content.md` 1절).
-        목록: 순서(↑↓ 한 칸씩 — 전체 ID 를 새 차례로 보낸다) · 대표 이미지 · 제목(없으면 글 제목)·요약 · 상태 딱지(SHOWING·SCHEDULED·EXPIRED·OFF·BLOCKED) · 노출 기간 · 의견 수 · 노출 켜기/끄기 · [의견] · [고치기] · [지우기](확인).
-        만들기·고치기는 대화상자(`HighlightFormDialog` — 글 찾기·제목·요약·대표 이미지 올리기·노출·기간·의견 받기). 후보 구획은 추천 많은 글(최근 일수·최소 추천·게시판)을 보여 주고 [하이라이트로 보내기]로 바로 만든다(기본: 노출 켬·기간 없음·맨 끝).
-        의견 관리는 오른쪽 서랍(`HighlightOpinionsDrawer` — 찬성·반대 탭, 고정·숨김).
+        목록: 순서(↑↓ 한 칸씩 — 전체 ID 를 새 차례로 보낸다) · 대표 이미지 · 제목(없으면 글 제목)·요약 · 상태 딱지(SHOWING·SCHEDULED·EXPIRED·OFF·BLOCKED) · 노출 기간 · 수 · 노출 켜기/끄기 · [의견] · [고치기] · [지우기](확인).
+          수: 토론이 있는 줄은 「참여 N명(찬성 · 반대 · 중립) · 의견 N · 일반 댓글 N」 — 투표 수(사람, `commentCounts.votes`)와 의견 수(원댓글)를 구별하고 입장 숫자는 입장 색. 중립은 `neutralEnabled || votes.neutral > 0 || neutral > 0` 일 때만. 토론이 없는 줄은 「댓글 N」.
+        만들기·고치기는 대화상자(`HighlightFormDialog` — 글 찾기·제목·요약·대표 이미지 올리기·노출·기간·의견 받기·중립도 받기). 후보 구획은 추천 많은 글(최근 일수·최소 추천·게시판)을 보여 주고 [하이라이트로 보내기]로 바로 만든다(기본: 노출 켬·기간 없음·맨 끝).
+        의견 관리는 오른쪽 서랍(`HighlightOpinionsDrawer` — 찬성·반대·중립 탭, 고정·숨김, 「고정 요청」 탭에서 승인·거절).
         로보얌 홈은 아직 자리표시라 **공개 홈 표시는 없다**(홈 + 테마 작업 때) — 지금 하이라이트가 하는 일은 그 글의 「하이라이트」 표시와 토론(의견 받기가 켜졌을 때)이다. 화면이 그 사실을 안내한다.
         권한: 보기 `highlight.read`(메뉴), 바꾸기 `highlight.manage` — 없으면 처리 단추가 없고 안내 한 줄(의견은 읽기만). 후보의 게시판 고르개는 게시판 목록을 볼 권한(`board.read`)이 있을 때만.
         사라진 하이라이트(`404 HIGHLIGHT_NOT_FOUND`)·순서 집합 불일치(`fields.ids`)는 서버 문구를 토스트로 보이고 목록을 다시 받는다.
@@ -68,12 +69,19 @@
                                 </div>
                                 <p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs tabular-nums text-muted-color">
                                     <span><i class="pi pi-calendar mr-1 text-[10px]" aria-hidden="true" />{{ UtilHighlightMessages.period(t, time, item) }}</span>
-                                    <i18n-t keypath="highlight.commentCounts" tag="span" scope="global">
-                                        <template #all>{{ item.commentCounts.all }}</template>
-                                        <template #pro><span class="font-medium stance-pro-text">{{ t('highlight.stanceTab.PRO', { n: item.commentCounts.pro }) }}</span></template>
-                                        <template #con><span class="font-medium stance-con-text">{{ t('highlight.stanceTab.CON', { n: item.commentCounts.con }) }}</span></template>
+                                    <!-- 토론이 있으면 투표 수(사람)와 의견 수(원댓글)를 나눠 보인다 — 입장 숫자는 입장 색 -->
+                                    <i18n-t v-if="UtilHighlight.hasDebate(item)" keypath="highlight.debateCounts" tag="span" scope="global">
+                                        <template #total>{{ item.commentCounts.votes.total }}</template>
+                                        <template #stances>
+                                            <template v-for="(stance, i) in stancesOf(item)" :key="stance">
+                                                <template v-if="i > 0"> · </template>
+                                                <span class="font-medium" :class="UtilHighlight.stanceTextClass(stance)">{{ t(`highlight.stanceTab.${stance}`, { n: item.commentCounts.votes[UtilHighlight.countKey(stance)] }) }}</span>
+                                            </template>
+                                        </template>
+                                        <template #opinions>{{ UtilHighlight.opinionCount(item.commentCounts) }}</template>
                                         <template #general>{{ item.commentCounts.general }}</template>
                                     </i18n-t>
+                                    <span v-else>{{ t('highlight.plainCounts', { all: item.commentCounts.all }) }}</span>
                                     <span v-if="item.updatedBy">{{ t('highlight.updatedBy', { name: item.updatedBy.name ?? '—', at: time.listLabel(item.updatedAt) }) }}</span>
                                 </p>
                             </div>
@@ -131,14 +139,14 @@
         </AppGadget>
 
         <HighlightFormDialog v-model:visible="formOpen" :item="editing" :actions="formActions" :saving="saving" :server-errors="formFieldErrors" :form-error="formError" @save="save" />
-        <HighlightOpinionsDrawer v-model:visible="opinionsOpen" :highlight="opinionsTarget" :actions="opinionActions" :can-manage="canManage" @changed="reloadQuietly" />
+        <HighlightOpinionsDrawer v-model:visible="opinionsOpen" :highlight="opinionsTarget" :actions="opinionActions" :can-read="canRead" :can-manage="canManage" @changed="reloadQuietly" />
     </div>
 </template>
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { AdminPostRef } from '~/composables/content/api/usePopularApi.types';
-import type { HighlightCandidateQuery, HighlightItem, HighlightListView, HighlightSaveRequest } from '~/composables/content/api/useHighlightApi.types';
+import type { DebateStance, HighlightCandidateQuery, HighlightItem, HighlightListView, HighlightSaveRequest } from '~/composables/content/api/useHighlightApi.types';
 import type { BoardListItem } from '~/composables/board/api/useBoardApi.types';
 import type { HighlightFormActions } from '~/components/highlight/HighlightFormDialog.types';
 import type { HighlightOpinionActions } from '~/components/highlight/HighlightOpinionsDrawer.types';
@@ -161,6 +169,8 @@ const ids = { days: useId(), minLikes: useId(), board: useId() };
 
 /** 바꾸기 권한(정의: util-permission-catalog.ts) — 숨기는 것은 편의이고 막는 것은 서버다 */
 const canManage = computed(() => can('highlight.manage'));
+/** 보기 권한 — 의견 서랍의 「고정 요청」 탭(요청 목록 읽기는 `highlight.read`) */
+const canRead = computed(() => can('highlight.read'));
 const canReadBoards = computed(() => can('board.read'));
 
 /** 이미 바뀐 하이라이트(다른 운영자가 지웠거나 순서가 바뀌었다) — 목록을 다시 받는다 */
@@ -272,6 +282,11 @@ const saving = ref(false);
 const formFieldErrors = ref<Record<string, string>>({});
 const formError = ref('');
 
+/** 줄에 보일 입장 — 중립은 받거나 쌓인 표·의견이 있을 때만 */
+function stancesOf(item: HighlightItem): DebateStance[] {
+    return UtilHighlight.STANCES.filter((stance) => stance !== 'NEUTRAL' || UtilHighlight.showNeutral(item));
+}
+
 const formActions: HighlightFormActions = {
     searchPosts: (q, signal) => api.searchPosts(q, signal),
     uploadImage: async (file) => (await fileApi.upload(file, 'HIGHLIGHT_IMAGE')).fileId,
@@ -336,6 +351,9 @@ const opinionActions: HighlightOpinionActions = {
     load: (query) => api.opinions(requireTarget(), query),
     pin: (commentId, on) => (on ? api.pin(requireTarget(), commentId) : api.unpin(requireTarget(), commentId)),
     hide: (commentId, on) => (on ? api.hide(requireTarget(), commentId) : api.unhide(requireTarget(), commentId)),
+    pinRequests: () => api.pinRequests(requireTarget()),
+    approvePinRequest: (requestId) => api.approvePinRequest(requireTarget(), requestId),
+    rejectPinRequest: (requestId, reason) => api.rejectPinRequest(requireTarget(), requestId, reason),
 };
 
 function requireTarget(): string {
@@ -392,7 +410,7 @@ async function sendCandidate(post: AdminPostRef): Promise<void> {
     if (sendingId.value) return;
     sendingId.value = post.id;
     try {
-        await api.create({ postId: post.id, title: null, summary: null, imageFileId: null, visible: null, showFrom: null, showUntil: null, debate: null });
+        await api.create({ postId: post.id, title: null, summary: null, imageFileId: null, visible: null, showFrom: null, showUntil: null, debate: null, neutralEnabled: null });
         toast.success(t('highlight.sent', { title: post.title }));
         await reload();
         void loadCandidates();

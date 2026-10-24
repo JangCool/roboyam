@@ -17,8 +17,12 @@ import type {
 } from '~/composables/board/api/useBoardApi.types';
 import { BOARD_MIN_GUEST, BOARD_POLICY_FIELDS } from '~/composables/board/api/useBoardApi.types';
 
-/** 칸 하나를 그리는 방식 — 숫자 글자 입력 · 켜고 끄기 · 고르기 · 등급 고르기(글쓰기·댓글) */
-export type BoardFieldKind = 'number' | 'bool' | 'choice' | 'writeMin' | 'commentMin' | 'grade';
+/**
+ * 칸 하나를 그리는 방식 — 숫자 글자 입력 · 켜고 끄기 · 고르기 · 등급 고르기(글쓰기·댓글)
+ *  · 짧은 이름(`label` — 글자 `min`~`max`, 앞뒤 공백을 떼고 비면 null. 서버 `BoardFields.Kind.LABEL`)
+ *  · 여러 개 고르기(`multi` — `choices` 안에서 겹치지 않게, 빈 목록 허용, 늘 `choices` 차례로. 서버 `BoardFields.Kind.MULTI`)
+ */
+export type BoardFieldKind = 'number' | 'bool' | 'choice' | 'writeMin' | 'commentMin' | 'grade' | 'label' | 'multi';
 /** 숫자 칸의 단위 문구 키(`board.unit.*`) */
 export type BoardUnit = 'seconds' | 'count' | 'days' | 'minutes' | 'hours' | 'people' | 'times' | 'likes' | 'chars';
 /** 칸을 고치는 데 필요한 권한 */
@@ -43,6 +47,10 @@ export interface BoardFieldSpec {
 export type BoardLevelProblem = 'GUEST_NOT_ALLOWED' | 'DEAL_FIRST_GRADE';
 /** 숫자 칸 검사 결과 */
 export type BoardNumProblem = 'REQUIRED' | 'NOT_INTEGER' | 'OUT_OF_RANGE';
+/** 이름 칸 검사 결과 — 글자 수 초과 · 줄바꿈 등 제어 문자 */
+export type BoardLabelProblem = 'LABEL_LENGTH' | 'LABEL_CHARS';
+/** 정책 칸 하나의 화면 검사 결과(숫자 칸 + 이름 칸) — 문구는 `UtilBoardMessages.numProblem` */
+export type BoardFieldProblem = BoardNumProblem | BoardLabelProblem;
 /** 게시판 만들기·기본 정보·말머리 검사 결과 — 문구는 `UtilBoardMessages.problem` */
 export type BoardTextProblem = 'NAME_REQUIRED' | 'NAME_LENGTH' | 'NAME_DUPLICATE' | 'SLUG_REQUIRED' | 'SLUG_FORMAT' | 'SLUG_LENGTH' | 'SLUG_RESERVED' | 'SLUG_DUPLICATE' | 'DESC_LENGTH' | 'NAME_EN_LENGTH' | 'TEXT_LENGTH' | 'PREFIX_NAME_REQUIRED' | 'PREFIX_NAME_LENGTH' | 'PREFIX_NAME_DUPLICATE';
 
@@ -69,8 +77,8 @@ export type BoardNumField = (typeof BOARD_NUM_FIELDS)[number];
 export type BoardDefaultsForm = Omit<BoardDefaults, BoardNumField> & Record<BoardNumField, string>;
 /** 게시판별 정책 입력 — `null` = 기본값 따름, 숫자 칸은 글자 */
 export type BoardPolicyForm = { [K in BoardPolicyField]: K extends BoardNumField ? string | null : BoardDefaults[K] | null };
-/** 칸 하나의 입력값 */
-export type BoardFieldValue = string | number | boolean | null;
+/** 칸 하나의 입력값 — 여러 개 고르기 칸은 글자 배열 */
+export type BoardFieldValue = string | number | boolean | string[] | null;
 
 /** 고유 말머리 입력 행 — `key` 는 화면 안 식별자(새 행은 `new-N`) */
 export interface BoardPrefixForm {
@@ -112,6 +120,9 @@ export interface BoardDetailForm {
     prefixes: BoardPrefixForm[];
 }
 
+/** 게시판 설정 화면의 저장 구획(바뀐 칸 세기 단위) */
+export type BoardDetailSection = 'basic' | 'write' | 'prefix' | 'guide' | 'exposure' | 'protect' | 'reaction' | 'staff';
+
 /** 서버가 거절한 칸 — 칸 이름(정책은 `policy.` 를 뗀 이름, 말머리는 `prefixes[i].name`) → 문구, 칸에 붙지 않는 것은 `form` */
 export interface BoardFieldErrors {
     fields: Record<string, string>;
@@ -146,6 +157,10 @@ const SPECS: Record<BoardDefaultsField, BoardFieldSpec> = {
     commentProtectDelayMinutes: { field: 'commentProtectDelayMinutes', kind: 'choice', choices: [5, 10, 30], unit: 'minutes', overridable: true, permission: 'board.settings' },
     commentGuestDelayMinutes: { field: 'commentGuestDelayMinutes', kind: 'choice', choices: [0, 10, 30, 60, 180], unit: 'minutes', overridable: true, permission: 'board.settings' },
     staffHiddenNotice: { field: 'staffHiddenNotice', kind: 'bool', overridable: true, permission: 'board.settings' },
+    commentDislikeEnabled: { field: 'commentDislikeEnabled', kind: 'bool', overridable: true, permission: 'board.settings' },
+    commentLikeLabel: { field: 'commentLikeLabel', kind: 'label', min: 1, max: 10, overridable: true, permission: 'board.settings' },
+    commentDislikeLabel: { field: 'commentDislikeLabel', kind: 'label', min: 1, max: 10, overridable: true, permission: 'board.settings' },
+    pinRequestReviewers: { field: 'pinRequestReviewers', kind: 'multi', choices: ['POST_AUTHOR', 'BOARD_MANAGER', 'OPERATOR'], overridable: true, permission: 'board.settings' },
     bestCommentMinLikes: { field: 'bestCommentMinLikes', kind: 'number', min: 1, max: 100, unit: 'likes', overridable: false, permission: 'board.settings' },
     managerMax: { field: 'managerMax', kind: 'number', min: 1, max: 10, unit: 'people', overridable: true, permission: 'board.staff.limit' },
     staffMax: { field: 'staffMax', kind: 'number', min: 1, max: 10, unit: 'people', overridable: false, permission: 'board.staff.limit' },
@@ -228,6 +243,7 @@ const DEFAULT_SECTIONS = {
     'defaults-attachment': ['attachmentPurgeEnabled', 'attachmentRetentionDays'],
     'defaults-protect': ['pointMode', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes'],
     'defaults-guest': ['commentGuestDelayMinutes', 'staffHiddenNotice'],
+    'defaults-reaction': ['commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers'],
     'defaults-best': ['bestCommentMinLikes'],
     'defaults-staff': ['managerMax', 'staffMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit'],
 } as const satisfies Record<string, readonly BoardDefaultsField[]>;
@@ -402,45 +418,94 @@ export default class UtilBoard {
         return null;
     }
 
+    // ── 이름 칸 · 여러 개 고르기 칸 ─
+
+    /** 짧은 이름 칸인가(댓글 추천·비추천 이름) */
+    static isLabel(field: string): boolean {
+        return UtilBoard.spec(field).kind === 'label';
+    }
+
+    /** 여러 개 고르기 칸인가(고정 요청 확인자) */
+    static isMulti(field: string): boolean {
+        return UtilBoard.spec(field).kind === 'multi';
+    }
+
+    /** 이름 입력 → 저장 값 — 앞뒤 공백을 떼고 비면 null(서버 `BoardDefaultsValues.label` 과 같다) */
+    static labelValue(value: unknown): string | null {
+        return typeof value === 'string' ? value.trim() || null : null;
+    }
+
+    /**
+     * 이름 칸의 문제 — 비면 문제 없음(null 저장). 글자 수는 앞뒤 공백을 뗀 유니코드 한 글자씩(서버와 같다).
+     * @param {string} field - 칸.
+     * @param {unknown} value - 입력.
+     * @returns {BoardLabelProblem | null} 문제가 없으면 null.
+     */
+    static labelProblem(field: string, value: unknown): BoardLabelProblem | null {
+        const text = UtilBoard.labelValue(value);
+        if (text === null) return null;
+        // eslint-disable-next-line no-control-regex -- 서버가 거절하는 제어 문자(줄바꿈·탭 등)를 미리 알린다
+        if (/[\u0000-\u001f\u007f-\u009f]/.test(text)) return 'LABEL_CHARS';
+        return [...text].length > (UtilBoard.spec(field).max ?? Number.MAX_SAFE_INTEGER) ? 'LABEL_LENGTH' : null;
+    }
+
+    /** 여러 개 고르기 값 → 칸 정의의 차례로(목록 밖 값은 뺀다 — 서버가 저장 차례로 정리한 값과 비교하려고). 배열이 아니면 null */
+    static multiValue(field: string, value: unknown): string[] | null {
+        if (!Array.isArray(value)) return null;
+        return (UtilBoard.spec(field).choices ?? []).filter((choice): choice is string => typeof choice === 'string' && value.includes(choice));
+    }
+
+    /** 두 값이 같은가 — 숫자 칸은 앞뒤 공백 무시, 이름 칸은 정리한 값, 여러 개 고르기는 차례와 무관하게 */
+    static sameValue(field: string, a: unknown, b: unknown): boolean {
+        if (UtilBoard.isNumber(field)) return String(a ?? '').trim() === String(b ?? '');
+        if (UtilBoard.isLabel(field)) return UtilBoard.labelValue(a) === UtilBoard.labelValue(b);
+        if (UtilBoard.isMulti(field)) return JSON.stringify(UtilBoard.multiValue(field, a)) === JSON.stringify(UtilBoard.multiValue(field, b));
+        return a === b;
+    }
+
     // ── 기본 설정 ─
 
-    /** 서버 값 → 입력 */
+    /** 서버 값 → 입력(목록 칸은 복사) */
     static defaultsFormOf(defaults: BoardDefaults): BoardDefaultsForm {
         const form = { ...defaults } as unknown as BoardDefaultsForm;
         for (const field of BOARD_NUM_FIELDS) form[field] = String(defaults[field]);
+        form.pinRequestReviewers = [...(defaults.pinRequestReviewers ?? [])];
         return form;
     }
 
-    /** 기본 설정 입력의 숫자 칸 문제들 */
-    static defaultsProblems(form: BoardDefaultsForm): Partial<Record<BoardDefaultsField, BoardNumProblem>> {
-        const out: Partial<Record<BoardDefaultsField, BoardNumProblem>> = {};
+    /** 기본 설정 입력의 칸 문제들(숫자 칸 · 이름 칸) */
+    static defaultsProblems(form: BoardDefaultsForm): Partial<Record<BoardDefaultsField, BoardFieldProblem>> {
+        const out: Partial<Record<BoardDefaultsField, BoardFieldProblem>> = {};
         for (const field of BOARD_NUM_FIELDS) {
             const problem = UtilBoard.numProblem(field, form[field]);
+            if (problem) out[field] = problem;
+        }
+        for (const field of Object.keys(SPECS) as BoardDefaultsField[]) {
+            if (!UtilBoard.isLabel(field)) continue;
+            const problem = UtilBoard.labelProblem(field, form[field]);
             if (problem) out[field] = problem;
         }
         return out;
     }
 
     /**
-     * 입력 → 요청. 숫자 칸이 하나라도 맞지 않으면 null.
+     * 입력 → 요청. 칸이 하나라도 맞지 않으면 null. 이름 칸은 앞뒤 공백을 떼고 비면 null, 여러 개 고르기는 칸 정의 차례로.
      * @param {BoardDefaultsForm} form - 입력.
      * @returns {BoardDefaults | null} 요청 본문.
      */
     static toDefaults(form: BoardDefaultsForm): BoardDefaults | null {
+        if (Object.keys(UtilBoard.defaultsProblems(form)).length) return null;
         const out = { ...form } as unknown as BoardDefaults;
-        for (const field of BOARD_NUM_FIELDS) {
-            if (UtilBoard.numProblem(field, form[field])) return null;
-            out[field] = UtilBoard.parse(form[field]) as number;
-        }
+        for (const field of BOARD_NUM_FIELDS) out[field] = UtilBoard.parse(form[field]) as number;
+        out.commentLikeLabel = UtilBoard.labelValue(form.commentLikeLabel);
+        out.commentDislikeLabel = UtilBoard.labelValue(form.commentDislikeLabel);
+        out.pinRequestReviewers = (UtilBoard.multiValue('pinRequestReviewers', form.pinRequestReviewers) ?? []) as BoardDefaults['pinRequestReviewers'];
         return out;
     }
 
     /** 저장된 값과 다른 기본 설정 칸들 */
     static defaultsChanged(form: BoardDefaultsForm, saved: BoardDefaults): BoardDefaultsField[] {
-        return (Object.keys(SPECS) as BoardDefaultsField[]).filter((field) => {
-            const value = form[field];
-            return UtilBoard.isNum(field) ? String(value).trim() !== String(saved[field]) : value !== saved[field];
-        });
+        return (Object.keys(SPECS) as BoardDefaultsField[]).filter((field) => !UtilBoard.sameValue(field, form[field], saved[field]));
     }
 
     // ── 게시판별 정책 ─
@@ -451,34 +516,40 @@ export default class UtilBoard {
         for (const field of BOARD_POLICY_FIELDS) {
             // 서버가 아직 주지 않는 칸(새 칸을 서버보다 먼저 배포한 경우 — 에디터 칸 등)은 「기본값 따름」(null)으로 본다
             const value = policy[field] ?? null;
-            form[field] = UtilBoard.isNum(field) && value !== null ? String(value) : value;
+            form[field] = UtilBoard.isNum(field) && value !== null ? String(value) : Array.isArray(value) ? [...value] : value;
         }
         return form as BoardPolicyForm;
     }
 
-    /** 정책 입력의 숫자 칸 문제들(기본값 따름 칸은 보지 않는다) */
-    static policyProblems(policy: BoardPolicyForm): Partial<Record<BoardPolicyField, BoardNumProblem>> {
-        const out: Partial<Record<BoardPolicyField, BoardNumProblem>> = {};
+    /** 정책 입력의 칸 문제들 — 숫자 칸 · 이름 칸(기본값 따름 칸은 보지 않는다) */
+    static policyProblems(policy: BoardPolicyForm): Partial<Record<BoardPolicyField, BoardFieldProblem>> {
+        const out: Partial<Record<BoardPolicyField, BoardFieldProblem>> = {};
         for (const field of BOARD_POLICY_FIELDS) {
-            if (!UtilBoard.isNum(field)) continue;
-            const value = policy[field] as string | null;
+            const value = policy[field] as BoardFieldValue;
             if (value === null) continue;
-            const problem = UtilBoard.numProblem(field, value);
+            const problem = UtilBoard.isNum(field) ? UtilBoard.numProblem(field, String(value)) : UtilBoard.isLabel(field) ? UtilBoard.labelProblem(field, value) : null;
             if (problem) out[field] = problem;
         }
         return out;
     }
 
-    /** 정책 입력 → 요청(숫자 칸이 틀렸으면 null) */
+    /**
+     * 정책 칸 하나의 저장 값 — 숫자 칸은 정수(틀렸으면 그대로 글자), 이름 칸은 앞뒤 공백을 떼고 비면 null(= 기본 설정 따름), 여러 개 고르기는 칸 정의 차례로.
+     * @returns {BoardFieldValue} `null` = 기본값 따름.
+     */
+    static policyValue(field: BoardPolicyField, value: BoardFieldValue): BoardFieldValue {
+        if (value === null) return null;
+        if (UtilBoard.isNum(field)) return UtilBoard.parse(String(value)) ?? value;
+        if (UtilBoard.isLabel(field)) return UtilBoard.labelValue(value);
+        if (UtilBoard.isMulti(field)) return UtilBoard.multiValue(field, value);
+        return value;
+    }
+
+    /** 정책 입력 → 요청(칸이 틀렸으면 null) */
     static toPolicy(policy: BoardPolicyForm): BoardPolicy | null {
+        if (Object.keys(UtilBoard.policyProblems(policy)).length) return null;
         const out = { ...policy } as unknown as Record<BoardPolicyField, BoardFieldValue>;
-        for (const field of BOARD_POLICY_FIELDS) {
-            if (!UtilBoard.isNum(field)) continue;
-            const value = policy[field] as string | null;
-            if (value === null) continue;
-            if (UtilBoard.numProblem(field, value)) return null;
-            out[field] = UtilBoard.parse(value);
-        }
+        for (const field of BOARD_POLICY_FIELDS) out[field] = UtilBoard.policyValue(field, policy[field] as BoardFieldValue);
         return out as BoardPolicy;
     }
 
@@ -493,7 +564,8 @@ export default class UtilBoard {
 
     /** 기본값과 다르게 정한(기본값 따름이 아닌) 정책 칸 수 — 잠금이 걸려 있으면 1을 더한다(잠금도 기본값과 다른 설정이다) */
     static diffCount(policy: BoardPolicyForm | BoardPolicy, writeLock: BoardWriteLock | null): number {
-        return BOARD_POLICY_FIELDS.filter((field) => policy[field] !== null).length + (writeLock ? 1 : 0);
+        // 이름 칸을 비우면 저장 때 null(= 기본값 따름)이 되므로 세지 않는다
+        return BOARD_POLICY_FIELDS.filter((field) => UtilBoard.policyValue(field, policy[field] as BoardFieldValue) !== null).length + (writeLock ? 1 : 0);
     }
 
     /**
@@ -503,6 +575,7 @@ export default class UtilBoard {
     static effective<K extends BoardPolicyField>(policy: BoardPolicyForm, defaults: BoardDefaults, field: K): BoardDefaults[K] {
         const value = policy[field] as BoardFieldValue;
         if (value === null) return defaults[field];
+        if (UtilBoard.isLabel(field)) return (UtilBoard.labelValue(value) ?? defaults[field]) as BoardDefaults[K];
         if (UtilBoard.isNum(field)) {
             const parsed = UtilBoard.parse(String(value));
             return (parsed ?? defaults[field]) as BoardDefaults[K];
@@ -570,12 +643,12 @@ export default class UtilBoard {
 
     /**
      * 바뀐 칸을 구획별로 센다(게시판 설정 화면).
-     * @returns {Record<'basic' | 'write' | 'prefix' | 'guide' | 'exposure' | 'protect' | 'staff', number>} 구획 → 바뀐 칸 수.
+     * @returns {Record<BoardDetailSection, number>} 구획 → 바뀐 칸 수.
      */
-    static detailChanges(form: BoardDetailForm, saved: BoardDetail): Record<'basic' | 'write' | 'prefix' | 'guide' | 'exposure' | 'protect' | 'staff', number> {
+    static detailChanges(form: BoardDetailForm, saved: BoardDetail): Record<BoardDetailSection, number> {
         const base = UtilBoard.detailFormOf(saved);
         const diff = (a: unknown, b: unknown) => (JSON.stringify(a) === JSON.stringify(b) ? 0 : 1);
-        const policyDiff = (fields: readonly BoardPolicyField[]) => fields.reduce((sum, f) => sum + diff(UtilBoard.policyValueKey(form.policy[f]), UtilBoard.policyValueKey(base.policy[f])), 0);
+        const policyDiff = (fields: readonly BoardPolicyField[]) => fields.reduce((sum, f) => sum + diff(UtilBoard.policyValueKey(f, form.policy[f]), UtilBoard.policyValueKey(f, base.policy[f])), 0);
         const basic = (['name', 'nameEn', 'description', 'layout', 'viewToggle', 'color', 'allowAdult', 'investmentNotice'] as const).reduce((sum, k) => sum + diff(form[k], base[k]), 0);
         const prefix = diff(form.commonPrefixes, base.commonPrefixes) + diff(form.prefixes.map(UtilBoard.prefixKey), base.prefixes.map(UtilBoard.prefixKey));
         return {
@@ -586,6 +659,7 @@ export default class UtilBoard {
             // inHome 은 화면에서 다루지 않는다(가젯 노출 금지가 대신한다) — 가젯 선택은 순서 없이 묶음으로 1칸
             exposure: policyDiff(['listSize', 'pinnedMax', 'indexable', 'searchable']) + diff(UtilBoard.gadgetKey(form.gadgetExclusions), UtilBoard.gadgetKey(base.gadgetExclusions)),
             protect: policyDiff(['pointMode', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes', 'staffHiddenNotice']),
+            reaction: policyDiff(['commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers']),
             staff: policyDiff(['managerMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit']),
         };
     }
@@ -595,8 +669,12 @@ export default class UtilBoard {
         return JSON.stringify([...new Set(keys)].sort());
     }
 
-    private static policyValueKey(value: BoardFieldValue): string {
-        return value === null ? 'null' : String(value).trim();
+    /** 바뀐 칸 비교 키 — 이름 칸의 빈 글자는 「기본값 따름」(null)과 같고, 여러 개 고르기는 차례와 무관하다 */
+    private static policyValueKey(field: BoardPolicyField, value: BoardFieldValue): string {
+        if (value === null) return 'null';
+        if (UtilBoard.isLabel(field)) return JSON.stringify(UtilBoard.labelValue(value));
+        if (UtilBoard.isMulti(field)) return JSON.stringify(UtilBoard.multiValue(field, value));
+        return String(value).trim();
     }
 
     private static prefixKey(p: BoardPrefixForm): string {

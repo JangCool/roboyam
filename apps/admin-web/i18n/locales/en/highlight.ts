@@ -26,8 +26,10 @@ export default {
     },
     debateTag: 'Taking opinions',
     postGone: 'The post was deleted',
-    /** `{pro}`·`{con}` are filled with the stance-colored `stanceTab` text */
-    commentCounts: '{all} comments · {pro} · {con} · {general} general',
+    /** Rows with a debate — `{stances}` is filled with stance-colored `stanceTab` text (votes) joined by ` · `. Voted = people who picked a side, opinions = top-level comments with a side */
+    debateCounts: '{total} voted ({stances}) · {opinions} opinions · {general} general comments',
+    /** Rows without a debate */
+    plainCounts: '{all} comments',
     updatedBy: '{name} · {at}',
     visibleShort: 'Show',
     opinions: 'Opinions {n}',
@@ -96,11 +98,14 @@ export default {
     periodFromOnly: 'From {from}',
     periodUntilOnly: 'Until {until}',
     debateLabel: 'Take pro and con opinions',
-    debateHelp: 'While showing, commenters on this post can pick a pro or con side and comments split into pro, con and general tabs. Afterwards existing opinions are read-only.',
+    debateHelp: 'While showing, members can pick a pro or con (or neutral) side on this post and write opinions. Afterwards existing opinions are read-only.',
+    neutralLabel: 'Take neutral too',
+    neutralHelp: 'When off, the public debate shows only pro and con and new neutral picks are blocked. Existing neutral votes and opinions stay.',
+    neutralIdle: 'Used only while pro and con opinions are on.',
 
     // ── Opinions ──
     opinionsTitle: 'Opinions',
-    opinionsLead: 'Top-level comments with a pro or con side. Pinned first, then most liked.',
+    opinionsLead: 'Top-level comments with a pro, con or neutral side. Pinned first, then most liked.',
     debateOpen: 'Debate open',
     debateClosed: 'Debate closed',
     opinionsReadOnly: 'You can read opinions but not pin or hide them.',
@@ -108,15 +113,18 @@ export default {
     stanceTab: {
         PRO: 'Pro {n}',
         CON: 'Con {n}',
+        NEUTRAL: 'Neutral {n}',
     },
     stance: {
         PRO: 'Pro',
         CON: 'Con',
+        NEUTRAL: 'Neutral',
     },
     opinionsLoadFailed: 'Could not load opinions',
     opinionsEmpty: 'No opinions on this side',
-    opinionStats: '{likes} likes · {replies} replies',
+    opinionStats: '{likes} likes · {dislikes} dislikes · {replies} replies',
     pinnedTag: 'Pinned',
+    pinRequestPendingTag: 'Pin requested',
     hiddenReason: {
         STAFF: 'Hidden by staff',
         REPORTED: 'Hidden by report',
@@ -136,4 +144,22 @@ export default {
         hideOff: 'Unhidden.',
     },
     opinionActionFailed: 'Could not do that.',
+
+    // ── Opinion pin requests ──
+    pinRequestsTab: 'Pin requests {n}',
+    pinRequestsLead: 'Requests from members to pin their opinion (oldest first). Pinned opinions go to the top of the public debate. The member is notified of the result.',
+    pinRequestsLoadFailed: 'Could not load pin requests',
+    pinRequestsEmpty: 'No pending pin requests',
+    pinRequestedAt: 'Requested {at}',
+    opinionGone: 'Deleted opinion',
+    pinRequestReject: 'Reject',
+    pinRequestApproveOf: "Pin {name}'s opinion",
+    pinRequestRejectOf: "Reject {name}'s pin request",
+    rejectReasonLabel: 'Reason (optional)',
+    rejectReasonHelp: 'Sent to the member in the notification. You can leave it empty.',
+    rejectConfirm: 'Reject request',
+    pinRequestDone: {
+        approve: 'Request approved and the opinion pinned.',
+        reject: 'Pin request rejected.',
+    },
 };

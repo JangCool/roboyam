@@ -220,6 +220,63 @@ public class MemberNotificationPublisher {
         }, 0);
     }
 
+    /**
+     * 의견 고정 요청이 왔다 — 확인할 수 있는 회원(글쓴이·게시판 매니저)에게 {@code OPINION_PIN_REQUESTED}. 요청한 회원 자신에게는 보내지 않는다.
+     *
+     * @param postTitle 글 제목(메일 문구)
+     * @param excerpt   의견 앞부분(메일 문구)
+     */
+    public int opinionPinRequested(long recipientId, long requesterId, long postId, long commentId, String postTitle, String excerpt) {
+        if (recipientId == requesterId) {
+            return 0;
+        }
+        return isolated.run("member-notification:pin-request", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.OPINION_PIN_REQUESTED, recipientId);
+            if (!on.delivers() || !writer.receivable(recipientId)) {
+                return 0;
+            }
+            int made = 0;
+            if (on.inApp()) {
+                writer.insert(ids.nextId(), recipientId, MemberNotificationType.OPINION_PIN_REQUESTED.name(), requesterId, null, postId, commentId, null, Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(recipientId, MemberNotificationMessages.Facts.pinRequested(null, cut(postTitle, SNAPSHOT_MAX), cut(excerpt, SNAPSHOT_MAX)), requesterId,
+                        postId);
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
+     * 의견 고정 요청 결과 — 요청한 회원에게 {@code OPINION_PIN_REVIEWED}(끌 수 없는 처리 알림).
+     *
+     * @param result {@code APPROVED} · {@code REJECTED}
+     * @param reason 거절 사유(없으면 null)
+     */
+    public int opinionPinReviewed(long requesterId, long requestId, long postId, long commentId, String result, String reason, String postTitle) {
+        return isolated.run("member-notification:pin-reviewed", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.OPINION_PIN_REVIEWED, requesterId);
+            if (!on.delivers() || !writer.receivable(requesterId)) {
+                return 0;
+            }
+            int made = 0;
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("result", result);
+                payload.put("reason", reason);
+                payload.put("requestId", Long.toString(requestId));
+                writer.insert(ids.nextId(), requesterId, MemberNotificationType.OPINION_PIN_REVIEWED.name(), null, null, postId, commentId,
+                        MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(requesterId, MemberNotificationMessages.Facts.pinReviewed(result, reason, cut(postTitle, SNAPSHOT_MAX)), null, postId);
+            }
+            return made;
+        }, 0);
+    }
+
     /** 회원 알림 메일 — 커밋 뒤 발송기가 보낸다. 세이브포인트 일의 <b>마지막</b>에 부른다(뒤에서 실패해 행이 되돌려졌는데 메일만 나가는 일이 없게) */
     private void requestEmail(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId) {
         events.publishEvent(new MemberEmailRequested(userId, facts, actorUserId, postId));

@@ -29,7 +29,6 @@ export default {
     deleted: '삭제된 댓글이에요',
     hidden: '신고로 숨겨진 댓글이에요',
     hiddenByStaff: '운영자가 숨긴 댓글이에요',
-    likeLabel: '추천 {n}',
     alreadyLiked: '이미 추천한 댓글이에요.',
 
     editTitle: '댓글 고치기',
@@ -38,59 +37,90 @@ export default {
     deletedToast: '댓글을 지웠어요.',
     passwordDescription: '댓글을 쓸 때 정한 비밀번호를 입력해 주세요.',
 
-    // ── 하이라이트 토론(찬성·반대 의견) ──
+    // ── 댓글 추천·비추천(게시판 설정 — 이름이 비면 기본 이름) ──
+    likeDefault: '추천',
+    dislikeDefault: '비추천',
+    reactionAria: '{name} {n}',
+
+    // ── 하이라이트 토론(찬성·반대·중립 투표와 의견) — 본문 영역 안 토론 구획 ──
     stance: {
         PRO: '찬성',
         CON: '반대',
+        NEUTRAL: '중립',
     },
-    kindLabel: '댓글 구분',
+    /** 「~으로」 꼴 — 키 = 입장 */
+    stanceTo: {
+        PRO: '찬성으로',
+        CON: '반대로',
+        NEUTRAL: '중립으로',
+    },
+    debateTitle: '찬성·반대 토론',
+    debateSummary: '{people}명 참여 · 의견 {opinions}',
+    voteLabel: '내 입장 고르기',
+    voteCount: '{n}명',
+    voteAria: '{stance} {n}명',
+    changeStanceAria: '{to} 바꾸기, 지금 {n}명',
+    voteShare: '{stance} {n}명 ({p}%)',
+    voteHint: '찬성·반대 중 하나를 누르면 바로 입장이 정해져요. 의견은 쓰고 싶을 때만 남기면 돼요.',
+    voteHintNeutral: '찬성·반대·중립 중 하나를 누르면 바로 입장이 정해져요. 의견은 쓰고 싶을 때만 남기면 돼요.',
+    neutralClosed: '이 글은 이제 새 중립 입장을 받지 않아요.',
+    votedHint: '{to} 투표했어요. 의견은 아래에 남겨도 되고 안 남겨도 돼요. 다른 단추를 누르면 입장이 바뀌어요.',
+    voted: '{to} 투표했어요.',
+    voteFirst: '먼저 위에서 입장을 골라 주세요.',
+    debateClosed: '토론이 끝났어요. 이미 쓴 의견만 볼 수 있어요.',
+    debateGuestHint: '투표와 의견은 로그인한 회원만 할 수 있어요.',
+    kindLabel: '의견 거르기',
     kind: {
-        ALL: '전체',
-        GENERAL: '일반',
+        OPINION: '의견 전체',
         PRO: '찬성',
         CON: '반대',
+        NEUTRAL: '중립',
     },
-    kindEmpty: '이 구분의 댓글이 아직 없어요',
-    debateClosed: '토론이 끝났어요. 이미 쓴 의견만 볼 수 있어요.',
-    debateGuestHint: '찬성·반대 의견은 로그인한 회원만 쓸 수 있어요.',
-    stancePickLabel: '어떤 입장으로 쓸까요?',
-    stanceGeneral: '일반',
-    stancePickHint: '찬성·반대로 처음 쓰면 그 입장이 정해져요. 정한 뒤에도 바꿀 수 있고, 바꾸면 이미 쓴 의견도 함께 바뀌어요.',
+    kindEmpty: '이 입장의 의견이 아직 없어요',
+    opinionEmpty: '아직 의견이 없어요',
     myStance: '내 입장',
-    myStanceHint: '이 글에 쓰는 댓글·답글에 이 입장 배지가 붙어요.',
-    /** 단추 — 바뀔 입장을 쓴다(키 = 바뀔 입장) */
-    changeStanceTo: {
-        PRO: '찬성으로 바꾸기',
-        CON: '반대로 바꾸기',
-    },
-    /** 확인창 제목 — 키 = 바뀔 입장 */
-    changeStanceTitle: {
-        PRO: '반대 → 찬성으로 바꿀까요?',
-        CON: '찬성 → 반대로 바꿀까요?',
-    },
+    myStanceHint: '다른 단추를 누르면 바뀌고, 이미 쓴 의견도 함께 옮겨 가요.',
+    opinionInput: '의견 쓰기',
+    opinionPlaceholder: '{stance} 의견을 남겨 보세요 (선택)',
+    opinionSubmit: '의견 등록',
+    opinionPosted: '의견을 남겼어요.',
+    /** 단추·확인 — `to` = 바뀔 입장(stanceTo), `from` = 지금 입장 */
+    changeStanceTo: '{to} 바꾸기',
+    changeStanceTitle: '{from} → {to} 바꿀까요?',
     /** 확인창 본문 — 옮겨 갈 내 의견이 있을 때(`n` = `debate.myOpinionCount`) */
-    changeStanceMoves: {
-        PRO: '지금까지 쓴 반대 의견 {n}개도 찬성으로 바뀌어요.',
-        CON: '지금까지 쓴 찬성 의견 {n}개도 반대로 바뀌어요.',
-    },
+    changeStanceMoves: '지금까지 쓴 {from} 의견 {n}개도 {to} 바뀌어요.',
     /** 확인창 본문 — 옮겨 갈 의견이 없을 때 */
-    changeStanceFuture: {
-        PRO: '앞으로 쓰는 의견에 찬성 배지가 붙어요.',
-        CON: '앞으로 쓰는 의견에 반대 배지가 붙어요.',
-    },
-    stanceChanged: {
-        PRO: '찬성으로 바꿨어요.',
-        CON: '반대로 바꿨어요.',
-    },
+    changeStanceFuture: '앞으로 쓰는 의견에 {stance} 배지가 붙어요.',
+    stanceChanged: '{to} 바꿨어요.',
     /** 성공 토스트 — `n` = 응답 `moved` */
-    stanceChangedMoved: {
-        PRO: '찬성으로 바꿨어요. 내 의견 {n}개도 찬성으로 옮겼어요.',
-        CON: '반대로 바꿨어요. 내 의견 {n}개도 반대로 옮겼어요.',
-    },
+    stanceChangedMoved: '{to} 바꿨어요. 내 의견 {n}개도 {to} 옮겼어요.',
     mention: '회원 지정',
     mentionSearch: '닉네임으로 찾기',
-    mentionHelp: '이 글에 댓글을 쓴 회원을 고르면 그 회원의 최근 댓글에 답글로 달려요.',
+    mentionHelp: '이 글에 의견을 쓴 회원을 고르면 그 회원의 최근 의견에 답글로 달려요.',
     mentionEmpty: '고를 수 있는 회원이 없어요.',
     mentionTarget: "{'@'}{name}님에게 답글로 써요",
     mentionClear: '지정 풀기',
+
+    // ── 의견 고정 ──
+    pinned: '고정',
+    pinRequest: '고정 요청',
+    pinRequestAgain: '다시 고정 요청',
+    pinRequestPending: '고정 요청 보냄 · 확인 기다리는 중',
+    pinRequestCancel: '취소',
+    pinRequestRejected: '고정 요청이 거절됐어요.',
+    pinRequestRejectedReason: '고정 요청이 거절됐어요 · 사유: {reason}',
+    pinRequestSent: '고정 요청을 보냈어요. 결과는 알림으로 알려 드려요.',
+    pinRequestCanceled: '고정 요청을 취소했어요.',
+    pinReviewTitle: '고정 요청 {n}건',
+    pinReviewHint: '고정하면 토론 의견 맨 위에 보여요. 결과는 요청한 회원에게 알림으로 가요.',
+    pinReviewLoading: '고정 요청을 불러오는 중',
+    pinReviewEmpty: '확인할 고정 요청이 없어요.',
+    pinReviewExcerpt: '「{text}」',
+    pinApprove: '고정',
+    pinReject: '거절',
+    pinRejectReason: '거절 사유 (선택)',
+    pinRejectSubmit: '거절하기',
+    pinRejectTooLong: '사유는 {max}자까지 쓸 수 있어요.',
+    pinApproved: '의견을 고정했어요.',
+    pinRejectedToast: '고정 요청을 거절했어요.',
 };

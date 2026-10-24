@@ -161,6 +161,9 @@ public final class AuditActions {
     public static final String HIGHLIGHT_OPINION_UNPIN = "HIGHLIGHT_OPINION_UNPIN";
     public static final String HIGHLIGHT_OPINION_HIDE = "HIGHLIGHT_OPINION_HIDE";
     public static final String HIGHLIGHT_OPINION_UNHIDE = "HIGHLIGHT_OPINION_UNHIDE";
+    /** 의견 고정 요청 승인·거절(운영자) — 대상 COMMENT + 댓글 ID, {@code highlightId}·{@code postId}·{@code requestId}·{@code requesterId}·거절이면 {@code reason} */
+    public static final String HIGHLIGHT_PIN_REQUEST_APPROVE = "HIGHLIGHT_PIN_REQUEST_APPROVE";
+    public static final String HIGHLIGHT_PIN_REQUEST_REJECT = "HIGHLIGHT_PIN_REQUEST_REJECT";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

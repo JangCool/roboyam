@@ -42,6 +42,8 @@ export type BoardProtectDelete = 'BLOCK' | 'DELAY' | 'ALLOW';
 export type BoardWriteLock = 'POST' | 'POST_COMMENT';
 /** 공통 말머리 4개 — 질문 · 후기 · 잡담 · 공지(운영진 전용 고정) */
 export type BoardCommonPrefix = 'QUESTION' | 'REVIEW' | 'CHAT' | 'NOTICE';
+/** 의견 고정 요청을 확인하는 사람 — 글쓴이 · 그 게시판 매니저 · 운영자(`highlight.manage`). 서버 `BoardFields.PIN_REVIEWERS` 차례 */
+export type BoardPinReviewer = 'POST_AUTHOR' | 'BOARD_MANAGER' | 'OPERATOR';
 /** 게시판 담당 역할 — 매니저 · 스텝 */
 export type BoardStaffRole = 'MANAGER' | 'STAFF';
 /** 담당 지정 자격 미달 사유 — 새싹 등급 · 이메일 미인증 · 정지 · 사업자 · 이미 5개 게시판 담당 · 이미 이 게시판 담당 */
@@ -93,6 +95,17 @@ export interface BoardDefaults {
     commentGuestDelayMinutes: number;
     /** 운영자가 숨긴 댓글임을 공개 화면에 밝힌다(켜면 「운영자가 숨긴 댓글이에요」, 끄면 신고 숨김과 같은 문구). 전체 기본값 `false` */
     staffHiddenNotice: boolean;
+    /** 댓글 비추천도 보인다(끄면 추천만 — 쌓인 비추천 수는 지우지 않고 감춘다). 토론 의견도 그 글의 게시판 설정을 따른다. 전체 기본값 `false` */
+    commentDislikeEnabled: boolean;
+    /**
+     * 댓글 추천 단추 이름(1~10자, 앞뒤 공백을 떼고 비면 null). 기본 설정의 null = 화면 기본 이름 「추천」, 게시판 정책의 null = 기본 설정 따름
+     * (그래서 기본 설정에 이름이 있으면 게시판에서 「추천」으로 되돌릴 수 없다 — 같은 글자를 적는다). 기본 설정 PUT 에서도 비워 둘 수 있다
+     */
+    commentLikeLabel: string | null;
+    /** 댓글 비추천 단추 이름 — `commentLikeLabel` 과 같은 규칙(기본 이름 「비추천」) */
+    commentDislikeLabel: string | null;
+    /** 하이라이트 토론의 의견 고정 요청을 확인하는 사람(서버 차례 글쓴이 → 매니저 → 운영자, 겹치지 않게). 빈 배열 = 고정 요청 끔. 전체 기본값 `['OPERATOR']`, 기본 설정 PUT 에서는 필수 */
+    pinRequestReviewers: BoardPinReviewer[];
     /** 베스트 댓글 최소 추천 수 1~100 */
     bestCommentMinLikes: number;
     /** 게시판당 매니저 수 1~10 */
@@ -128,6 +141,10 @@ export const BOARD_POLICY_FIELDS = [
     'commentProtectDelayMinutes',
     'commentGuestDelayMinutes',
     'staffHiddenNotice',
+    'commentDislikeEnabled',
+    'commentLikeLabel',
+    'commentDislikeLabel',
+    'pinRequestReviewers',
     'managerMax',
     'staffPostDailyLimit',
     'staffCommentDailyLimit',

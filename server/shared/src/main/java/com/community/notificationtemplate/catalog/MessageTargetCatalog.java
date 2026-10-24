@@ -181,6 +181,12 @@ public final class MessageTargetCatalog {
                 new InAppText("member.notification.DM.title", null, null, List.of("actorName")), "/messages/123", List.of()));
         out.add(member(MemberEvent.NICKNAME_IMAGE_REVIEWED, List.of(MessageVariable.of("result", "nicknameImageResult"), MessageVariable.of("reason", "nicknameImageReason")),
                 new InAppText("member.notification.NICKNAME_IMAGE_REVIEWED.title", null, "{{reason}}", List.of("result")), "/settings/nickname-image", List.of()));
+        out.add(member(MemberEvent.OPINION_PIN_REQUESTED, List.of(MessageVariable.of("actorName", "pinRequester"), MessageVariable.of("postTitle", "postTitle"),
+                        MessageVariable.of("excerpt", "opinionExcerpt")),
+                new InAppText("member.notification.OPINION_PIN_REQUESTED.title", null, "{{excerpt}}", List.of("actorName")), "/posts/123", List.of()));
+        out.add(member(MemberEvent.OPINION_PIN_REVIEWED, List.of(MessageVariable.of("result", "pinRequestResult"), MessageVariable.of("postTitle", "postTitle"),
+                        MessageVariable.of("reason", "pinRejectReason")),
+                new InAppText("member.notification.OPINION_PIN_REVIEWED.title", null, "{{reason}}", List.of("result")), "/posts/123", List.of()));
         return out;
     }
 

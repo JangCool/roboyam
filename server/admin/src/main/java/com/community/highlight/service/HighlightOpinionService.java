@@ -6,11 +6,18 @@ import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
 import com.community.comment.entity.CommentEntity;
 import com.community.comment.repository.master.CommentRepository;
+import com.community.debate.entity.DebatePinRequestEntity;
 import com.community.debate.entity.DebateStance;
+import com.community.debate.exception.PinRequestException;
+import com.community.debate.repository.master.DebatePinRequestRepository;
 import com.community.debate.repository.master.DebateQueries;
+import com.community.debate.service.DebatePinDecisions;
+import com.community.highlight.dto.request.HighlightPinRejectRequest;
 import com.community.highlight.dto.response.HighlightOpinionListView;
 import com.community.highlight.dto.response.HighlightOpinionPageView;
 import com.community.highlight.dto.response.HighlightOpinionView;
+import com.community.highlight.dto.response.HighlightPinRequestListView;
+import com.community.highlight.dto.response.HighlightPinRequestView;
 import com.community.highlight.entity.HighlightEntity;
 import com.community.highlight.exception.HighlightNotFoundException;
 import com.community.highlight.exception.HighlightOpinionNotFoundException;
@@ -43,10 +50,12 @@ import org.springframework.web.util.HtmlUtils;
  * 의견 = 그 하이라이트 글의 <b>입장 배지가 붙은 원댓글</b>(지운 것 제외).
  *
  * <ul>
- *   <li><b>목록</b>: 입장마다 고정한 의견 먼저 → 추천 많은 순 → 최근 순. 숨긴 의견도 들어 있다({@code hidden}). {@code stance} 를 주면 그쪽만 읽고 다른 쪽은 {@code total} 만.</li>
+ *   <li><b>목록</b>: 입장(찬성·반대·중립)마다 고정한 의견 먼저 → 추천 많은 순 → 최근 순. 숨긴 의견도 들어 있다({@code hidden}). {@code stance} 를 주면 그쪽만 읽고 다른 쪽은 {@code total} 만.</li>
  *   <li><b>고정</b>({@code debate_pins}): 이미 고정이면 그대로. 지금은 관리자 목록의 순서만 바꾼다(공개 홈 카드는 홈 작업 때).</li>
  *   <li><b>숨김</b>: 신고 숨김과 같은 칸에 까닭 STAFF 로 숨긴다 — 공개 댓글 목록에는 자리(HIDDEN)만 남고 글의 보이는 댓글 수에서 빠진다. 숨김 해제는 STAFF 숨김만 풀고 수를 되돌린다
  *       (신고 숨김은 그대로 — 여기서 풀지 않는다). 이미 그 상태면 그대로. 글쓴이에게 알리지 않는다.</li>
+ *   <li><b>고정 요청</b>(V78): 대기 목록({@code highlight.read})·승인·거절({@code highlight.manage} —게시판 정책 {@code pinRequestReviewers} 에 OPERATOR 가 없어도 운영자는 처리할 수 있다 — 직접 고정과 같다).
+ *       규칙은 {@link DebatePinDecisions}(요청한 회원에게 알림). 운영자가 의견을 직접 고정하면 그 의견의 대기 요청은 승인으로 닫힌다. 감사 HIGHLIGHT_PIN_REQUEST_APPROVE · REJECT.</li>
  *   <li>대상이 그 글의 의견이 아니면 {@code 404 DEBATE_OPINION_NOT_FOUND}. 바뀐 일만 감사(HIGHLIGHT_OPINION_PIN · UNPIN · HIDE · UNHIDE, 대상 COMMENT)에 남는다.</li>
  * </ul>
  */
@@ -67,15 +76,19 @@ public class HighlightOpinionService {
     private final PostCounterQueries counters;
     private final ProfileRepository profiles;
     private final AuditLogService audit;
+    private final DebatePinRequestRepository pinRequests;
+    private final DebatePinDecisions pinDecisions;
 
     public HighlightOpinionService(HighlightRepository highlights, CommentRepository comments, DebateQueries debate, PostCounterQueries counters,
-                                   ProfileRepository profiles, AuditLogService audit) {
+                                   ProfileRepository profiles, AuditLogService audit, DebatePinRequestRepository pinRequests, DebatePinDecisions pinDecisions) {
         this.highlights = highlights;
         this.comments = comments;
         this.debate = debate;
         this.counters = counters;
         this.profiles = profiles;
         this.audit = audit;
+        this.pinRequests = pinRequests;
+        this.pinDecisions = pinDecisions;
     }
 
     @Transactional(readOnly = true)
@@ -106,9 +119,12 @@ public class HighlightOpinionService {
         all.stream().filter(c -> c.getParentId() != null && !c.isDeleted() && !c.isHiddenAt(now)).forEach(c -> replies.merge(c.getParentId(), 1, Integer::sum));
         List<CommentEntity> opinions = all.stream().filter(c -> isOpinion(c)).toList();
         Map<Long, ProfileEntity> members = members(opinions);
-        HighlightOpinionPageView pro = page(opinions, DebateStance.PRO, only, page, size, pinned, replies, members, now);
-        HighlightOpinionPageView con = page(opinions, DebateStance.CON, only, page, size, pinned, replies, members, now);
-        return new HighlightOpinionListView(Long.toString(h.getId()), Long.toString(h.getPostId()), h.isDebate(), h.isDebateOpenAt(now), pro, con);
+        Map<Long, Long> pending = pendingByComment(h.getPostId());
+        HighlightOpinionPageView pro = page(opinions, DebateStance.PRO, only, page, size, pinned, replies, members, pending, now);
+        HighlightOpinionPageView con = page(opinions, DebateStance.CON, only, page, size, pinned, replies, members, pending, now);
+        HighlightOpinionPageView neutral = page(opinions, DebateStance.NEUTRAL, only, page, size, pinned, replies, members, pending, now);
+        return new HighlightOpinionListView(Long.toString(h.getId()), Long.toString(h.getPostId()), h.isDebate(), h.isDebateOpenAt(now), h.isNeutralEnabled(), pro,
+                con, neutral);
     }
 
     @Transactional
@@ -120,6 +136,7 @@ public class HighlightOpinionService {
         if (was != on) {
             if (on) {
                 debate.pin(c.getId(), h.getPostId(), actor.operatorId(), now);
+                pinDecisions.closeOnDirectPin(c.getId(), actor.operatorId(), now); // 대기 요청이 있으면 승인으로 닫는다
             } else {
                 debate.unpin(c.getId());
             }
@@ -154,7 +171,68 @@ public class HighlightOpinionService {
         return viewOne(h, c, now);
     }
 
+    /** 대기 중인 고정 요청(오래된 것부터) — 지우거나 숨긴 의견의 요청은 뺀다 */
+    @Transactional(readOnly = true)
+    public HighlightPinRequestListView pinRequests(String idText) {
+        HighlightEntity h = requireHighlight(idText);
+        Instant now = Instant.now();
+        Map<Long, CommentEntity> byId = new HashMap<>();
+        List<CommentEntity> all = comments.findByPostIdOrderByIdAsc(h.getPostId());
+        all.forEach(c -> byId.put(c.getId(), c));
+        Set<Long> pinned = debate.pinnedOf(h.getPostId());
+        Map<Long, Integer> replies = new HashMap<>();
+        all.stream().filter(c -> c.getParentId() != null && !c.isDeleted() && !c.isHiddenAt(now)).forEach(c -> replies.merge(c.getParentId(), 1, Integer::sum));
+        List<DebatePinRequestEntity> rows = pinRequests.findByPostIdAndStatusOrderByIdAsc(h.getPostId(), DebatePinRequestEntity.PENDING).stream()
+                .filter(r -> {
+                    CommentEntity c = byId.get(r.getCommentId());
+                    return c != null && !c.isDeleted() && !c.isHiddenAt(now);
+                }).toList();
+        Map<Long, ProfileEntity> members = members(rows.stream().map(r -> byId.get(r.getCommentId())).toList());
+        Map<Long, Long> pending = pendingByComment(h.getPostId());
+        List<HighlightPinRequestView> items = rows.stream()
+                .map(r -> pinRequestView(r, view(byId.get(r.getCommentId()), pinned, replies, members, pending, now))).toList();
+        return new HighlightPinRequestListView(Long.toString(h.getId()), Long.toString(h.getPostId()), items);
+    }
+
+    /** 고정 요청 승인·거절 — 그 하이라이트 글의 요청이 아니면 404 PIN_REQUEST_NOT_FOUND. 거절 사유 100자 초과 400 {@code fields.reason} */
+    @Transactional
+    public HighlightPinRequestView decidePinRequest(AdminActor actor, String idText, String requestIdText, boolean approve, HighlightPinRejectRequest body) {
+        String reason = approve || body == null ? null : body.reason();
+        if (reason != null && reason.strip().codePointCount(0, reason.strip().length()) > DebatePinRequestEntity.REASON_MAX) {
+            throw ValidationException.of("reason", new MessageRef("debate.pinRequest.reason.tooLong", String.valueOf(DebatePinRequestEntity.REASON_MAX)));
+        }
+        HighlightEntity h = requireHighlight(idText);
+        Long requestId = HighlightAdminService.parseId(requestIdText);
+        DebatePinRequestEntity row = requestId == null ? null : pinRequests.findWithLockById(requestId).filter(r -> r.getPostId().equals(h.getPostId())).orElse(null);
+        if (row == null) {
+            throw PinRequestException.notFound();
+        }
+        Instant now = Instant.now();
+        pinDecisions.decide(row, approve, reason, DebatePinRequestEntity.BY_OPERATOR, actor.operatorId(), actor.operatorId(), now);
+        AuditEvent event = AuditEvent.byOperator(actor.operatorId(), actor.ip(),
+                        approve ? AuditActions.HIGHLIGHT_PIN_REQUEST_APPROVE : AuditActions.HIGHLIGHT_PIN_REQUEST_REJECT, AuditResult.SUCCESS)
+                .target("COMMENT", Long.toString(row.getCommentId())).with("highlightId", Long.toString(h.getId()))
+                .with("postId", Long.toString(h.getPostId())).with("requestId", Long.toString(row.getId())).with("requesterId", Long.toString(row.getRequesterId()));
+        // detail 맵은 null 값을 받지 않는다(Map.copyOf) — 승인이거나 사유 없이 거절하면 사유 칸을 뺀다
+        audit.record(row.getRejectReason() == null ? event : event.with("reason", row.getRejectReason()));
+        log.info("의견 고정 요청 {} requestId={} by operatorId={}", approve ? "승인" : "거절", row.getId(), actor.operatorId());
+        CommentEntity c = comments.findByPostIdAndId(h.getPostId(), row.getCommentId()).filter(x -> !x.isDeleted()).orElse(null);
+        return pinRequestView(row, c == null ? null : viewOne(h, c, now));
+    }
+
     // ── 안쪽 ──────────────────────────────────────────────────────────────
+
+    private static HighlightPinRequestView pinRequestView(DebatePinRequestEntity r, HighlightOpinionView opinion) {
+        return new HighlightPinRequestView(Long.toString(r.getId()), Long.toString(r.getCommentId()), r.getStatus(), opinion, Long.toString(r.getRequesterId()),
+                r.getRejectReason(), r.getCreatedAt(), r.getDecidedAt());
+    }
+
+    /** 댓글 ID → 대기 요청 ID */
+    private Map<Long, Long> pendingByComment(long postId) {
+        Map<Long, Long> out = new HashMap<>();
+        pinRequests.findByPostIdAndStatusOrderByIdAsc(postId, DebatePinRequestEntity.PENDING).forEach(r -> out.put(r.getCommentId(), r.getId()));
+        return out;
+    }
 
     private static boolean isOpinion(CommentEntity c) {
         return c.getParentId() == null && c.getStance() != null && !c.isDeleted();
@@ -184,7 +262,7 @@ public class HighlightOpinionService {
     }
 
     private HighlightOpinionPageView page(List<CommentEntity> opinions, DebateStance stance, DebateStance only, int page, int size, Set<Long> pinned,
-                                          Map<Long, Integer> replies, Map<Long, ProfileEntity> members, Instant now) {
+                                          Map<Long, Integer> replies, Map<Long, ProfileEntity> members, Map<Long, Long> pending, Instant now) {
         List<CommentEntity> side = opinions.stream().filter(c -> stance.name().equals(c.getStance()))
                 .sorted(Comparator.<CommentEntity>comparingInt(c -> pinned.contains(c.getId()) ? 0 : 1)
                         .thenComparing(Comparator.comparingInt(CommentEntity::getLikeCount).reversed())
@@ -194,7 +272,7 @@ public class HighlightOpinionService {
             return new HighlightOpinionPageView(side.size(), page, size, false, List.of());
         }
         long from = (long) (page - 1) * size;
-        List<HighlightOpinionView> items = side.stream().skip(from).limit(size).map(c -> view(c, pinned, replies, members, now)).toList();
+        List<HighlightOpinionView> items = side.stream().skip(from).limit(size).map(c -> view(c, pinned, replies, members, pending, now)).toList();
         return new HighlightOpinionPageView(side.size(), page, size, from + items.size() < side.size(), items);
     }
 
@@ -203,16 +281,18 @@ public class HighlightOpinionService {
         Map<Long, Integer> replies = new HashMap<>();
         replies.put(c.getId(), (int) comments.findByPostIdOrderByIdAsc(h.getPostId()).stream()
                 .filter(r -> c.getId().equals(r.getParentId()) && !r.isDeleted() && !r.isHiddenAt(now)).count());
-        return view(c, pinned, replies, members(List.of(c)), now);
+        return view(c, pinned, replies, members(List.of(c)), pendingByComment(h.getPostId()), now);
     }
 
-    private static HighlightOpinionView view(CommentEntity c, Set<Long> pinned, Map<Long, Integer> replies, Map<Long, ProfileEntity> members, Instant now) {
+    private static HighlightOpinionView view(CommentEntity c, Set<Long> pinned, Map<Long, Integer> replies, Map<Long, ProfileEntity> members,
+                                             Map<Long, Long> pending, Instant now) {
         ProfileEntity profile = c.getAuthorId() == null ? null : members.get(c.getAuthorId());
         String name = c.getAuthorId() == null ? (c.getGuestName() == null ? "" : c.getGuestName()) : (profile == null ? "" : profile.getNickname());
         boolean hidden = c.isHiddenAt(now);
         return new HighlightOpinionView(Long.toString(c.getId()), c.getStance(), c.getAuthorId() == null ? "GUEST" : "MEMBER",
                 c.getAuthorId() == null ? null : Long.toString(c.getAuthorId()), name, preview(c.getContentFormat(), c.getContent()), c.getLikeCount(),
-                replies.getOrDefault(c.getId(), 0), c.getCreatedAt(), pinned.contains(c.getId()), hidden, hidden ? c.getHiddenReason() : null);
+                replies.getOrDefault(c.getId(), 0), c.getCreatedAt(), pinned.contains(c.getId()), hidden, hidden ? c.getHiddenReason() : null, c.getDislikeCount(),
+                pending.containsKey(c.getId()) ? Long.toString(pending.get(c.getId())) : null);
     }
 
     private Map<Long, ProfileEntity> members(List<CommentEntity> list) {

@@ -4,7 +4,7 @@ import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.message.MessageRef;
 import org.springframework.http.HttpStatus;
 
-/** 이미 이 글에서 입장을 정한 회원이 다른 입장으로 쓰려 한다(409) — 입장은 {@code PUT /api/posts/{id}/stance} 로만 바꾼다. 동시에 처음 쓴 두 요청 중 늦은 쪽도 이것을 받는다 */
+/** 의견 쓰기에 보낸 {@code stance} 가 내 지금 입장과 다르다(409) — 다른 창에서 입장을 바꿨을 때 옛 입장으로 쓰지 않게 막는다. 입장은 {@code PUT /api/posts/{id}/stance} 로만 바꾼다 */
 public class StanceLockedException extends CommonException {
 
     public StanceLockedException() {

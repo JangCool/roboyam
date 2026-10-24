@@ -24,6 +24,8 @@ public class HighlightEntity {
     private Instant showFrom;
     private Instant showUntil;
     private boolean debate;
+    /** 「중립도 받기」(V78, 기본 켬) — 끄면 새로 중립을 고를 수 없다. 이미 고른 중립 입장·의견은 그대로 */
+    private boolean neutralEnabled;
     private int sortOrder;
     private Long createdBy;
     private Instant createdAt;
@@ -34,7 +36,7 @@ public class HighlightEntity {
     }
 
     public static HighlightEntity create(long id, long postId, String title, String summary, Long imageFileId, boolean visible, Instant showFrom,
-                                         Instant showUntil, boolean debate, int sortOrder, long operatorId, Instant now) {
+                                         Instant showUntil, boolean debate, boolean neutralEnabled, int sortOrder, long operatorId, Instant now) {
         HighlightEntity row = new HighlightEntity();
         row.id = id;
         row.postId = postId;
@@ -45,6 +47,7 @@ public class HighlightEntity {
         row.showFrom = showFrom;
         row.showUntil = showUntil;
         row.debate = debate;
+        row.neutralEnabled = neutralEnabled;
         row.sortOrder = sortOrder;
         row.createdBy = operatorId;
         row.createdAt = now;
@@ -54,8 +57,8 @@ public class HighlightEntity {
     }
 
     /** 칸을 고친다(대상 글은 바꾸지 않는다) */
-    public void change(String title, String summary, Long imageFileId, boolean visible, Instant showFrom, Instant showUntil, boolean debate, long operatorId,
-                       Instant now) {
+    public void change(String title, String summary, Long imageFileId, boolean visible, Instant showFrom, Instant showUntil, boolean debate,
+                       boolean neutralEnabled, long operatorId, Instant now) {
         this.title = title;
         this.summary = summary;
         this.imageFileId = imageFileId;
@@ -63,6 +66,7 @@ public class HighlightEntity {
         this.showFrom = showFrom;
         this.showUntil = showUntil;
         this.debate = debate;
+        this.neutralEnabled = neutralEnabled;
         this.updatedBy = operatorId;
         this.updatedAt = now;
     }
@@ -121,6 +125,10 @@ public class HighlightEntity {
 
     public boolean isDebate() {
         return debate;
+    }
+
+    public boolean isNeutralEnabled() {
+        return neutralEnabled;
     }
 
     public int getSortOrder() {

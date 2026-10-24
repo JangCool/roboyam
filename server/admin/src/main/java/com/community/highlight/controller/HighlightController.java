@@ -1,6 +1,7 @@
 package com.community.highlight.controller;
 
 import com.community.highlight.dto.request.HighlightOrderRequest;
+import com.community.highlight.dto.request.HighlightPinRejectRequest;
 import com.community.highlight.dto.request.HighlightSaveRequest;
 import com.community.highlight.dto.request.HighlightVisibleRequest;
 import com.community.highlight.dto.response.HighlightCandidatesView;
@@ -8,6 +9,8 @@ import com.community.highlight.dto.response.HighlightItemView;
 import com.community.highlight.dto.response.HighlightListView;
 import com.community.highlight.dto.response.HighlightOpinionListView;
 import com.community.highlight.dto.response.HighlightOpinionView;
+import com.community.highlight.dto.response.HighlightPinRequestListView;
+import com.community.highlight.dto.response.HighlightPinRequestView;
 import com.community.highlight.service.HighlightAdminService;
 import com.community.highlight.service.HighlightOpinionService;
 import com.community.permission.annotation.RequirePermission;
@@ -103,7 +106,7 @@ public class HighlightController {
         return ResponseEntity.noContent().build();
     }
 
-    /** 의견 목록 — {@code stance} PRO · CON(선택) · {@code page}(1부터) · {@code size}(기본 30, 최대 100) */
+    /** 의견 목록 — {@code stance} PRO · CON · NEUTRAL(선택) · {@code page}(1부터) · {@code size}(기본 30, 최대 100) */
     @RequirePermission(Permission.HIGHLIGHT_READ)
     @GetMapping("/{id}/opinions")
     public ResponseEntity<ApiResponse<HighlightOpinionListView>> opinions(@PathVariable String id, @RequestParam(required = false) String stance,
@@ -134,6 +137,27 @@ public class HighlightController {
     @DeleteMapping("/{id}/opinions/{commentId}/hide")
     public ResponseEntity<ApiResponse<HighlightOpinionView>> unhide(@PathVariable String id, @PathVariable String commentId, AdminActor actor) {
         return noStore(opinions.hide(actor, id, commentId, false));
+    }
+
+    /** 대기 중인 의견 고정 요청 — 읽기는 {@code highlight.read}(승인·거절은 {@code highlight.manage}) */
+    @RequirePermission(Permission.HIGHLIGHT_READ)
+    @GetMapping("/{id}/pin-requests")
+    public ResponseEntity<ApiResponse<HighlightPinRequestListView>> pinRequests(@PathVariable String id) {
+        return noStore(opinions.pinRequests(id));
+    }
+
+    @RequirePermission(Permission.HIGHLIGHT_MANAGE)
+    @PostMapping("/{id}/pin-requests/{requestId}/approve")
+    public ResponseEntity<ApiResponse<HighlightPinRequestView>> approvePinRequest(@PathVariable String id, @PathVariable String requestId, AdminActor actor) {
+        return noStore(opinions.decidePinRequest(actor, id, requestId, true, null));
+    }
+
+    /** 거절 — 본문 {@code { reason? }}(0~100자) */
+    @RequirePermission(Permission.HIGHLIGHT_MANAGE)
+    @PostMapping("/{id}/pin-requests/{requestId}/reject")
+    public ResponseEntity<ApiResponse<HighlightPinRequestView>> rejectPinRequest(@PathVariable String id, @PathVariable String requestId,
+                                                                                @RequestBody(required = false) HighlightPinRejectRequest body, AdminActor actor) {
+        return noStore(opinions.decidePinRequest(actor, id, requestId, false, body));
     }
 
     private static <T> ResponseEntity<ApiResponse<T>> noStore(T body) {
