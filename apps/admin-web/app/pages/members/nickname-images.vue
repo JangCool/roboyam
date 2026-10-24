@@ -9,6 +9,12 @@
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('nicknameImage.title')" :subtitle="t('nicknameImage.subtitle')" />
 
+        <!-- 신청 조건 설정(설정 메뉴 › 회원 › 닉네임 이미지)으로 — 그 화면을 볼 권한이 있을 때만 -->
+        <NuxtLink v-if="can('nickname-image.read')" to="/settings/nickname-image" class="-mt-2 inline-flex items-center gap-1.5 self-start text-sm text-primary hover:underline">
+            <i class="pi pi-sliders-h text-xs" aria-hidden="true" />
+            {{ t('nicknameImage.openSettings') }}
+        </NuxtLink>
+
         <!-- 탭 줄 — 심사 대기에는 수를 함께 보인다. 의미는 글자로 전한다 -->
         <SelectButton v-model="status" :options="tabOptions" option-label="label" option-value="value" :allow-empty="false" :aria-label="t('nicknameImage.tabsLabel')" class="nickimg-tabs self-start" @update:model-value="onTab">
             <template #option="{ option }">

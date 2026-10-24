@@ -167,6 +167,14 @@ export default class UtilAdminMenu {
                 { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
             ],
         },
+        // 회원 설정 묶음 — 회원 기능의 사이트 규칙. 닉네임 이미지 신청 조건(조회 `nickname-image.read`, 저장은 화면 안에서 `nickname-image.manage`)
+        {
+            key: 'settingsMember',
+            mode: 'settings',
+            icon: 'pi pi-users',
+            labelKey: 'menu.memberSettings',
+            items: [{ key: 'nicknameImageSettings', to: '/settings/nickname-image', icon: 'pi pi-image', labelKey: 'menu.nicknameImageSettings', permission: 'nickname-image.read' }],
+        },
         // 메일 묶음 — 메일 서버만(message-template-contract 「개정 3」 — 메일 종류·템플릿·레이아웃은 알림·이벤트 묶음으로 옮겼다 — 개정 4 의 「템플릿 › 메일」·「문구」)
         {
             key: 'settingsMail',

@@ -12,7 +12,7 @@
 | `/settings/messages` | 쪽지 받기/받지 않기(고르면 바로 저장, 실패하면 되돌림) · 법적 고지 2줄 · 쪽지함 열기 | `GET·PUT /api/me/dm/settings` |
 | `/settings/blocks` | 탭 「닉네임 N」(차단한 회원·해제(실행 취소)·더 보기) / 「단어 N」(2~20자·최대 50개 추가·삭제) | `GET /api/me/blocks/users` · `PUT·DELETE /api/users/{id}/block` · `GET·POST /api/me/blocks/words` · `DELETE …/{id}` |
 | `/settings/memos` | 내가 남긴 메모 목록 · 수정(셸의 메모 시트) · 삭제(확인) · 더 보기 | `GET /api/me/memos` · `PUT·DELETE /api/users/{id}/memo` |
-| `/settings/nickname-image` | 자격 미달(내/필요 등급·등급 안내) · 신청(파일 → 형식·200KB·4:1 화면 검사 → 4:1 미리보기 → 동의 → 확인 → 진행률) · 검토 대기(취소) · 반려(사유·재신청까지 남은 시간) · 적용 중(목록·댓글 미리보기·바꾸기·해제) | `GET·POST·DELETE /api/me/nickname-image` · `DELETE /api/me/nickname-image/request` |
+| `/settings/nickname-image` | 자격 미달(신청 조건 체크리스트 — 「지금 N / 필요 M」·등급 안내) · 신청(파일 → 형식·200KB·4:1 화면 검사 → 4:1 미리보기 → 동의 → 확인 → 진행률) · 검토 대기(취소) · 반려(사유·재신청까지 남은 시간) · 적용 중(목록·댓글 미리보기·바꾸기·해제) | `GET·POST·DELETE /api/me/nickname-image` · `DELETE /api/me/nickname-image/request` |
 | `/settings/adult` | 상태 카드 · 출생연도(올해−14~올해−100) · 사실 확인 체크 · 저장 · 안내 3줄 | `GET·PUT /api/me/adult` |
 | `/settings/view` | 화면: 야간 모드(자동·라이트·다크)·글자 크기(90/100/110/125%) · 댓글: 처음 정렬 · 시간 표시(기존 `/settings/display`)로 잇는 줄 · 라이트/다크 미리보기 | `GET·PUT /api/me/settings` |
 - **들어가는 길**: 데스크톱 헤더 쪽지 아이콘(안 읽은 대화 수 배지, `AppMessageLink`) · 프로필 메뉴 「쪽지함 · 안 읽음 N」 · 햄버거 메뉴 「쪽지함」 · `/me` 바로가기 「쪽지함」(배지) · 설정 왼쪽 메뉴/목록(차례: 프로필 · 닉네임 그림 · 성인 확인 · 보기 · 시간 표시 · 차단 관리 · 이용자 메모 · 알림 설정 · 쪽지 수신 · 계정).
@@ -39,8 +39,8 @@
 - `PUT /api/users/{id}/memo {memo}` → `{memo|null}`(빈 메모 = 삭제) · `400 fields.memo`(20자·한 줄) · `400 MEMO_SELF` · `404` · `409 MEMO_LIMIT_REACHED`(500, 처음 남길 때만) · `DELETE` 204 · `GET /api/me/memos` → `{total, items[{id(상대 회원), nickname, grade, gradeLabel, role, memo, updatedAt}], …}`(처음 남긴 순)
 - **이미 있는 응답에 더할 칸(서버 후보, 화면 타입에 선택 칸으로 넣어 둠)**: 글 줄 `PostRow.blocked`·댓글 `CommentView.blocked` = `USER|WORD|null`(차단 단어는 글 **제목**·댓글 **본문** 부분 일치, 내 것은 늘 null), 작성자 `PostAuthor.memo`, 공개 프로필 `PublicProfile.blockedByMe`·`memo`. 접는 것은 화면 몫(검색 결과는 서버가 뺀다 — 통합 검색 서버를 만들 때).
 ### 닉네임 그림 (`composables/profile/api/useNicknameImageApi.ts`) — community `docs/api-nickname-image.md` 2·4절(변경권 칸 없음)
-- `GET /api/me/nickname-image` → `{eligible, ineligibleReason: GRADE_TOO_LOW|SUSPENDED|null, grade{code,label}, requiredGrade, current{id,url,still}|null, request{id, status: PENDING|REJECTED, url, createdAt, rejectReason, canReapplyAt}|null, reapplyAt, limits{maxBytes:204800, width:240, height:60, ratio:"4:1", maxGifFrames:30, formats, rejectedReapplyHours:72}}`
-- `POST`(multipart `file`) → `201` 같은 모양 · `403 NICKNAME_IMAGE_GRADE_TOO_LOW` · `409 NICKNAME_IMAGE_REAPPLY_TOO_SOON`(`retryAfterSeconds`·`canReapplyAt`) · `400 VALIDATION fields.file` · `429 RATE_LIMITED`(10초·하루 10번) · `403 EMAIL_NOT_VERIFIED`·`ACCOUNT_RESTRICTED`. 대기 신청은 회원당 하나(새로 올리면 대체). 검토 대기가 생기면 운영자 알림 **`NICKNAME_IMAGE_PENDING`**(이미 예약된 이벤트).
+- `GET /api/me/nickname-image` → `{eligible, ineligibleReason: REQUIREMENTS_NOT_MET|SUSPENDED|null, grade{code,label}, requirements{mode, items}(아래 「신청 조건」), current{id,url,still}|null, request{id, status: PENDING|REJECTED, url, createdAt, rejectReason, canReapplyAt}|null, reapplyAt, limits{maxBytes:204800, width:240, height:60, ratio:"4:1", maxGifFrames:30, formats, rejectedReapplyHours:72}}`
+- `POST`(multipart `file`) → `201` 같은 모양 · `403 NICKNAME_IMAGE_REQUIREMENTS_NOT_MET` · `409 NICKNAME_IMAGE_REAPPLY_TOO_SOON`(`retryAfterSeconds`·`canReapplyAt`) · `400 VALIDATION fields.file` · `429 RATE_LIMITED`(10초·하루 10번) · `403 EMAIL_NOT_VERIFIED`(설정이 요구할 때만)·`ACCOUNT_RESTRICTED`. 대기 신청은 회원당 하나(새로 올리면 대체). 검토 대기가 생기면 운영자 알림 **`NICKNAME_IMAGE_PENDING`**(이미 예약된 이벤트).
 - `DELETE /api/me/nickname-image/request` 204 · `404 NICKNAME_IMAGE_REQUEST_NOT_FOUND` · `DELETE /api/me/nickname-image` 204 · `404 NICKNAME_IMAGE_NOT_FOUND`
 ### 성인 확인 (`composables/adult/api/useAdultApi.ts`) — community 4차 계약 B절
 - `GET /api/me/adult` → `{birthYear|null, adult, method: SELF|IDENTITY|null, confirmedAt, minYear, maxYear}`(저장 전에도 200) · `PUT {birthYear, confirm:true}` → 같은 모양 · `400 fields.birthYear`(범위·만 14세 미만)·`fields.confirm`. 성인 = 한국 시간 올해 − 출생연도 ≥ 19. 출생연도는 개인정보(로그 금지).
@@ -105,7 +105,7 @@
 - 화면: 셸 로더 `useBlockOverridesLoader`·목업 한 벌·화면의 단어 차단 판정을 지웠다. 차단/해제·메모 직후 바로 보이게 하는 이 기기 덮어쓰기(`useBlockOverrides`)는 남겼다. 공개 프로필 목업(`user-profile-mock.ts`, 다른 작업 몫)은 `blockedByMe: false`·`memo: null` 을 준다 — 실제 프로필 서버가 붙으면 채워진다.
 
 ### 닉네임 이미지 (api·admin)
-- **자격(가정)**: `eligible` = 회원 역할 권한 `nickname-image.request` 를 가졌는가(없으면 `GRADE_TOO_LOW`, 있는데 정지면 `SUSPENDED`). `requiredGrade` = 일반 회원 역할이 그 권한을 주면 첫 등급, 아니면 그 권한을 가진 등급 역할 중 가장 낮은 등급. **기본 시드에서는 일반 회원 역할이 이 권한을 줘서 모든 일반 회원이 자격이 있다** — community 처럼 「단골 이상」으로 하려면 `/settings/roles` 에서 일반 회원 역할의 권한을 빼고 등급 역할에 준다.
+- **자격**: 관리자 설정 「신청 조건」으로 판정한다(아래 「결정 (2026-10-24 4차)」·「신청 조건 설정 결과」). 처음 구현의 회원 역할 권한 `nickname-image.request` 방식은 없앴다.
 - 저장: 기존 미디어(`ImageStorage`·`ImageCodec`·`ImageGate`), 키 `nickname-image/{무작위 32자}/image.{확장자}`, 움직이는 GIF 는 첫 장면 `still.png` 를 따로 둔다(WebP·GIF 는 원본 크기 — 화면이 240×60 틀에 맞춰 그린다). **심사 전 이미지도 `/media/**` 공개 주소**(글 이미지와 같은 판단 — 짐작할 수 없는 주소). 형식은 파일 서명으로 판정, 200KB · 최소 120×30 · 4:1(±1%) · 400만 화소 · GIF 30프레임, 움직이는 WebP 거절. 반려 파일은 다음 신청까지 두고 취소·대체·해제된 파일은 지운다.
 - `409 NICKNAME_IMAGE_REAPPLY_TOO_SOON` 은 `retryAfterSeconds` 만 싣는다(`extras.canReapplyAt` 없음 — 같은 값은 GET 의 `reapplyAt`·`request.canReapplyAt`). 하루 10번은 저장된 신청만 센다.
 - 관리자 API(admin, `ApiResponse`, 쓰기 CSRF): `GET /api/admin/nickname-images?status=PENDING|APPROVED|REJECTED|REVOKED&keyword&page(1부터 — 다른 관리자 목록은 0부터)&size(1~100, 기본 20)` → `{items[{id, member{id,nickname,grade,gradeLabel}, status, url|null(파일을 지운 신청), contentType, bytes, width, height, frames, createdAt, reviewedAt, reviewer{id,name|null}|null, rejectReason, revokedAt, revokeReason}], total, page, size, pendingCount}`(`nickname-image.read`) · `POST /{id}/approve`·`/{id}/reject {reason}`·`/{id}/revoke {reason}`(1~200자) → 200 같은 항목(`nickname-image.manage`). 오류 `404 NICKNAME_IMAGE_NOT_FOUND` · `409 NICKNAME_IMAGE_NOT_PENDING` · `409 NICKNAME_IMAGE_NOT_ACTIVE` · `400 fields.reason`. 승인은 앞 이미지를 바꾸고, 반려 뒤 72시간·**해제 뒤 7일**(community 값을 따른 가정) 재신청 금지. 감사 `NICKNAME_IMAGE_APPROVE|REJECT|REVOKE`(대상 종류 `NICKNAME_IMAGE`).
@@ -121,3 +121,17 @@
 2. 받는 사람 검색 `LIKE '%q%'` 는 회원이 많아지면 `pg_trgm` 색인이 필요하다.
 3. 해제 뒤 재신청 7일은 가정. 탈퇴 때 쪽지·차단·닉네임 이미지 정리는 탈퇴 기능이 생길 때.
 4. 작성자 표시에 닉네임 이미지 그리기(`nicknameImage` 칸)·쪽지 신고·글/댓글 ⋯ 메뉴의 차단·메모는 범위 밖.
+
+## 결정 (2026-10-24 4차, 사용자 지시)
+- **닉네임 이미지 신청 조건은 관리자 설정 화면에서 정한다**. 방식은 둘이다. ① **등급 기준**: 최소 등급 하나를 고르고, 이메일 인증은 늘 필요하다. ② **사용자 정의**: 최소 등급(없어도 됨)·가입 후 일수·글·댓글 수·보유 포인트·이메일 인증 필요 여부(끌 수 있음)를 정하고, 조건은 모두 채워야 한다. 0 은 「조건 없음」이다. 기본값은 **등급 기준 · 베테랑 이상**.
+- 회원 역할 권한 `nickname-image.request`(「닉네임 이미지 신청」)는 없앤다. 설정 하나가 자격의 원천이다.
+- 설정 화면은 설정 메뉴에 따로 둔다: 새 묶음 「회원」 › 「닉네임 이미지」 `/settings/nickname-image`(보기 `nickname-image.read`, 저장 `nickname-image.manage`).
+
+## 신청 조건 설정 결과 (2026-10-24)
+- 저장: shared `V72` 에 `nickname_image_settings`(행 하나 `id=1` · `mode` GRADE|CUSTOM · `grade_key`(외래 키 없음) · `min_days` 0~3650 · `min_activity` 0~100000 · `min_points` 0~100000000 · `require_email_verified` · `updated_at/by`)를 더했다. 기본 행은 GRADE·VETERAN이고, 기존 DB에서 VETERAN이 지워졌으면 가장 높은 등급을 넣는다. GRADE면 등급이 꼭 있고 이메일 인증은 true다(CHECK). 설정은 요청마다 읽는다(저장하면 바로 반영).
+- `nickname-image.request` 삭제: admin 서버가 뜰 때 `PermissionCatalogSynchronizer` 가 `role_permissions` → `permissions` 순서로 정리한다(같은 트랜잭션). 정리 SQL은 따로 없다.
+- 회원 `GET /api/me/nickname-image` 의 `requirements = {mode, items}`: 켜진 조건만, `EMAIL_VERIFIED{met}` → `GRADE{required{code,label}|null(지워진 등급), current, met}` → `DAYS`·`ACTIVITY`·`POINTS{required, current, met}` 차례로 온다. `ACTIVITY` 는 즉시 승급과 같은 셈(`MemberActivityRepository.countUpTo`, 필요한 수에서 멈춤)이고, `POINTS` 는 포인트 잔액(`point_balances`)이다. 고른 등급이 지워졌으면 등급 조건을 못 채운 것으로 본다.
+- `ineligibleReason`·POST 오류 차례: 이메일 인증(설정이 요구할 때) → 정지(`SUSPENDED`/`403 ACCOUNT_RESTRICTED`) → 나머지 조건(`REQUIREMENTS_NOT_MET`/`403 NICKNAME_IMAGE_REQUIREMENTS_NOT_MET` — `GRADE_TOO_LOW` 대체). 취소·해제는 정지만 막고, 이메일 인증은 설정이 요구할 때만 본다. 이미 적용 중인 이미지는 조건이 바뀌어도 그대로다.
+- 관리자 `GET/PUT /api/admin/nickname-image-settings` → `{mode, gradeKey|null, minDays, minActivity, minPoints, requireEmailVerified, gradeMissing, grades[{key,label,level}](등급 고르개 — grade.read 없이도 보임), updatedAt, updatedBy{id,name|null}|null}`. 오류는 `400 VALIDATION fields.<칸>`. GRADE로 저장해도 사용자 정의 칸 값은 남는다(이메일 인증은 true로). 바뀐 칸이 없으면 쓰지 않는다. 감사 기록 `NICKNAME_IMAGE_SETTINGS_UPDATE`(대상 `NICKNAME_IMAGE_SETTINGS`, 바뀐 칸만 전·후 값).
+- 화면: 관리자 설정 화면(지금 조건·「저장하면」 요약 한 줄, 방식 고르기, 최소 등급 고르개, 사용자 정의 칸, 지워진 등급 경고, 하단 저장 줄, 처리 권한이 없으면 읽기 전용), 심사 화면에서 설정으로 가는 링크, 회원 화면의 조건 체크리스트(이메일 인증 막음은 조건에 있을 때만).
+- 공용 파일: `MemberPermission`(줄 삭제) · `BuiltinRoleSeeder` · `AuditActions`·`AuditLabels` · `AdminScreenRegistry`/`util-admin-menu.ts`(설정 쪽 `menu.system` 바로 뒤에 묶음 `menu.memberSettings`) · `util-permission-catalog.ts`(회원 권한 줄 삭제) · admin-web locale `menu`·`permission`·`nicknameImage` · `messages_ko/en`.

@@ -59,4 +59,6 @@ export default {
     batches: '배치 관리',
     batchLogs: '배치 로그',
     audit: '감사 로그',
+    memberSettings: '회원',
+    nicknameImageSettings: '닉네임 이미지',
 };

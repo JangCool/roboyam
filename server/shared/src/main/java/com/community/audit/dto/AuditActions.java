@@ -133,6 +133,8 @@ public final class AuditActions {
     public static final String NICKNAME_IMAGE_REJECT = "NICKNAME_IMAGE_REJECT";
     /** 적용 중인 닉네임 그림 해제 — {@code reason} */
     public static final String NICKNAME_IMAGE_REVOKE = "NICKNAME_IMAGE_REVOKE";
+    /** 닉네임 그림 신청 조건(방식·최소 등급·일수·활동·포인트·이메일 인증) 저장 — 대상 NICKNAME_IMAGE_SETTINGS, 바뀐 칸만 before/after */
+    public static final String NICKNAME_IMAGE_SETTINGS_UPDATE = "NICKNAME_IMAGE_SETTINGS_UPDATE";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

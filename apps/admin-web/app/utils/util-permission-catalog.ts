@@ -266,7 +266,6 @@ export default class UtilPermissionCatalog {
         { code: 'file.attach', group: 'USE', type: 'memberSite', nameKey: 'permission.memberFileAttach', descKey: 'permission.memberFileAttachDesc', featureReady: true },
         { code: 'post.react', group: 'USE', type: 'memberSite', nameKey: 'permission.memberPostReact', descKey: 'permission.memberPostReactDesc', featureReady: true },
         { code: 'report.create', group: 'USE', type: 'memberSite', nameKey: 'permission.memberReportCreate', descKey: 'permission.memberReportCreateDesc', featureReady: true },
-        { code: 'nickname-image.request', group: 'USE', type: 'memberSite', nameKey: 'permission.memberNicknameImage', descKey: 'permission.memberNicknameImageDesc', featureReady: true },
         { code: 'shop.use', group: 'USE', type: 'memberSite', nameKey: 'permission.memberShopUse', descKey: 'permission.memberShopUseDesc', featureReady: true },
         { code: 'group.create', group: 'USE', type: 'memberSite', nameKey: 'permission.memberGroupCreate', descKey: 'permission.memberGroupCreateDesc', featureReady: false },
         { code: 'hotdeal.write', group: 'USE', type: 'memberSite', nameKey: 'permission.memberHotdealWrite', descKey: 'permission.memberHotdealWriteDesc', featureReady: false },

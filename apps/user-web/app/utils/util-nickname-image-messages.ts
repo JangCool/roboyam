@@ -1,7 +1,7 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
 import UtilTime from '#layers/display-time/utils/util-time';
 import type { DisplayTime } from '#layers/display-time/utils/util-time';
-import type { NicknameImageGrade, NicknameImageIneligibleReason, NicknameImageLimits } from '~/composables/profile/api/useNicknameImageApi.types';
+import type { NicknameImageIneligibleReason, NicknameImageLimits, NicknameImageRequirement } from '~/composables/profile/api/useNicknameImageApi.types';
 import UtilAuthMessages from '~/utils/util-auth-messages';
 import UtilNicknameImage from '~/utils/util-nickname-image';
 import type { NicknameImageOutcome, NicknameImageProblemCode } from '~/utils/util-nickname-image';
@@ -92,13 +92,39 @@ export default class UtilNicknameImageMessages {
      * 신청할 수 없는 까닭의 안내.
      * @param {Translate} t - 번역 함수.
      * @param {NicknameImageIneligibleReason | null} reason - 까닭.
-     * @param {NicknameImageGrade} grade - 내 등급.
-     * @param {NicknameImageGrade} required - 필요한 등급.
      * @returns {NicknameImageCopy} 안내.
      */
-    static ineligible(t: Translate, reason: NicknameImageIneligibleReason | null, grade: NicknameImageGrade, required: NicknameImageGrade): NicknameImageCopy {
+    static ineligible(t: Translate, reason: NicknameImageIneligibleReason | null): NicknameImageCopy {
         if (reason === 'SUSPENDED') return { title: t('nicknameImage.suspendedTitle'), text: t('nicknameImage.suspendedText') };
-        return { title: t('nicknameImage.gradeTitle', { grade: required.label }), text: t('nicknameImage.gradeText', { grade: grade.label }) };
+        return { title: t('nicknameImage.requirementsTitle'), text: t('nicknameImage.requirementsText') };
+    }
+
+    /**
+     * 신청 조건 한 줄 — 이름(`label`)과, 못 채웠을 때 지금 값과 필요한 값(`detail`, 채웠으면 빈 글자).
+     * 등급: 「베테랑 이상」 + 「지금 단골 / 베테랑 이상」, 관리자가 고른 등급이 지워졌으면 「신청 조건을 확인 중이에요」.
+     * @param {Translate} t - 번역 함수.
+     * @param {NicknameImageRequirement} item - 조건.
+     * @param {string} locale - 숫자 표기 언어.
+     * @returns {{ label: string; detail: string }} 글자.
+     */
+    static requirement(t: Translate, item: NicknameImageRequirement, locale: string): { label: string; detail: string } {
+        const n = (value: number) => value.toLocaleString(locale);
+        switch (item.kind) {
+            case 'EMAIL_VERIFIED':
+                return { label: t('nicknameImage.reqEmail'), detail: item.met ? '' : t('nicknameImage.reqEmailMissing') };
+            case 'GRADE':
+                if (!item.required) return { label: t('nicknameImage.reqGradeUnknown'), detail: item.met ? '' : t('nicknameImage.reqChecking') };
+                return {
+                    label: t('nicknameImage.reqGrade', { grade: item.required.label }),
+                    detail: item.met ? '' : t('nicknameImage.reqGradeNow', { current: item.current.label, required: item.required.label }),
+                };
+            case 'DAYS':
+                return { label: t('nicknameImage.reqDays', { n: n(item.required) }), detail: item.met ? '' : t('nicknameImage.reqDaysNow', { current: n(item.current), required: n(item.required) }) };
+            case 'ACTIVITY':
+                return { label: t('nicknameImage.reqActivity', { n: n(item.required) }), detail: item.met ? '' : t('nicknameImage.reqActivityNow', { current: n(item.current), required: n(item.required) }) };
+            default:
+                return { label: t('nicknameImage.reqPoints', { n: n(item.required) }), detail: item.met ? '' : t('nicknameImage.reqPointsNow', { current: n(item.current), required: n(item.required) }) };
+        }
     }
 
     /**
@@ -141,8 +167,8 @@ export default class UtilNicknameImageMessages {
     ): string {
         const message = (detail.message ?? '').trim();
         switch (outcome) {
-            case 'GRADE_TOO_LOW':
-                return t('nicknameImage.failGrade');
+            case 'REQUIREMENTS_NOT_MET':
+                return t('nicknameImage.failRequirements');
             case 'REAPPLY_TOO_SOON':
                 return t('nicknameImage.failReapply', { wait: UtilNicknameImageMessages.hoursLabel(t, UtilNicknameImage.reapplyHoursOf(detail.reapplyHours)) });
             case 'RESTRICTED':

@@ -137,8 +137,6 @@ export default {
     memberPostReactDesc: '글과 댓글을 추천하거나 비추천합니다.',
     memberReportCreate: '신고',
     memberReportCreateDesc: '규칙을 어긴 글·댓글·회원을 신고합니다.',
-    memberNicknameImage: '닉네임 이미지 신청',
-    memberNicknameImageDesc: '닉네임 옆에 보일 이미지를 신청합니다.',
     memberShopUse: '포인트 상점 이용',
     memberShopUseDesc: '포인트로 상점 품목을 삽니다.',
     memberGroupCreate: '소모임 개설',

@@ -61,6 +61,9 @@ public final class AdminScreenRegistry {
                     // 로그인 보안(관리자 2차 인증 — commerce-foundation-contract 「0-3」) — 루트 전용, 권한 코드 없음
                     leaf(superOnly("loginSecurity", "/settings/login-security", "menu.loginSecurity", "pi pi-shield")),
                     leaf(s("teams", "/settings/teams", "menu.teams", "pi pi-sitemap", Permission.TEAM_READ))),
+            // 회원 설정 묶음 — 닉네임 이미지 신청 조건(member-social-contract 「닉네임 그림」). admin-web UtilAdminMenu 와 같은 키·주소·권한
+            section(SETTINGS, "menu.memberSettings", "pi pi-users",
+                    leaf(s("nicknameImageSettings", "/settings/nickname-image", "menu.nicknameImageSettings", "pi pi-image", Permission.NICKNAME_IMAGE_READ))),
             // 메일 묶음 — 메일 서버만(message-template-contract 「개정 3」·「개정 4」 — 메일 종류·템플릿·레이아웃은 알림·이벤트 묶음의 템플릿·문구로 옮겼다)
             section(SETTINGS, "menu.mail", "pi pi-envelope",
                     leaf(s("mailSettings", "/settings/mail", "menu.mailSettings", "pi pi-server", Permission.SITE_READ))),

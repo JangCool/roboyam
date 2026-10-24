@@ -59,4 +59,6 @@ export default {
     batches: 'Batch jobs',
     batchLogs: 'Batch logs',
     audit: 'Audit log',
+    memberSettings: 'Members',
+    nicknameImageSettings: 'Nickname image',
 };

@@ -1,7 +1,27 @@
-import type { NicknameImageStatus } from '~/composables/member/api/useNicknameImageApi.types';
+import { ApiError } from '~/composables/common/useApiClient';
+import type { NicknameImageGradeOption, NicknameImageSettingsField, NicknameImageSettingsMode, NicknameImageSettingsRequest, NicknameImageStatus } from '~/composables/member/api/useNicknameImageApi.types';
 
 /** 반려·해제 사유 입력의 문제 */
 export type NicknameImageReasonProblem = 'REQUIRED' | 'TOO_LONG';
+
+/** 신청 조건의 숫자 칸 */
+export type NicknameImageNumberField = 'minDays' | 'minActivity' | 'minPoints';
+
+/**
+ * 신청 조건 입력 중인 값 — 숫자 칸은 글자로 들고 저장할 때 바꾼다(`InputNumber` 는 범위 밖 값을 말없이 고친다 — 포인트 정책과 같은 이유).
+ * 등급은 `''` = 등급 조건 없음(고르개가 null 값 항목을 다루기 어려워 빈 글자로 든다) — 보낼 때 null.
+ */
+export interface NicknameImageSettingsForm {
+    mode: NicknameImageSettingsMode;
+    gradeKey: string;
+    minDays: string;
+    minActivity: string;
+    minPoints: string;
+    requireEmailVerified: boolean;
+}
+
+/** 칸의 문제 — 숫자 칸(빈칸·정수 아님·범위 밖) · 등급(등급 기준인데 안 고름 · 지워진 등급) */
+export type NicknameImageSettingsProblem = 'REQUIRED' | 'NOT_INTEGER' | 'OUT_OF_RANGE' | 'GRADE_REQUIRED' | 'GRADE_MISSING';
 
 /**
  * 닉네임 이미지 심사(`/members/nickname-images`)의 순수 규칙 — 상태 탭·딱지 모양, 파일 정보 글자, 사유 입력 검사. 상태도 요청도 없다.
@@ -86,5 +106,122 @@ export default class UtilNicknameImage {
         if (length === 0) return 'REQUIRED';
         if (length > UtilNicknameImage.REASON_MAX) return 'TOO_LONG';
         return null;
+    }
+
+    // ── 신청 조건 설정(`/settings/nickname-image`) ─ 범위는 서버 검증과 같고 판정은 늘 서버가 한다
+
+    /** 방식 차례 — 등급 기준이 먼저(기본값) */
+    static readonly MODES: readonly NicknameImageSettingsMode[] = ['GRADE', 'CUSTOM'];
+
+    /** 숫자 칸 차례와 범위(0 = 그 조건 없음) */
+    static readonly NUMBER_FIELDS: readonly NicknameImageNumberField[] = ['minDays', 'minActivity', 'minPoints'];
+    static readonly LIMITS: Readonly<Record<NicknameImageNumberField, readonly [number, number]>> = {
+        minDays: [0, 3650],
+        minActivity: [0, 100000],
+        minPoints: [0, 100000000],
+    };
+
+    /** 서버가 칸 오류로 돌려줄 수 있는 칸 */
+    static readonly SETTINGS_FIELDS: readonly NicknameImageSettingsField[] = ['mode', 'gradeKey', 'minDays', 'minActivity', 'minPoints', 'requireEmailVerified'];
+
+    /** 저장된 값 → 입력 값 */
+    static settingsFormOf(value: NicknameImageSettingsRequest): NicknameImageSettingsForm {
+        return {
+            mode: value.mode,
+            gradeKey: value.gradeKey ?? '',
+            minDays: String(value.minDays),
+            minActivity: String(value.minActivity),
+            minPoints: String(value.minPoints),
+            requireEmailVerified: value.requireEmailVerified,
+        };
+    }
+
+    /**
+     * 숫자 칸 글자를 정수로 — 앞뒤 공백·천 단위 쉼표는 떼고 본다.
+     * @param {string} text - 입력한 글자.
+     * @returns {number | null} 0 이상의 정수가 아니면 null.
+     */
+    static parseCount(text: string): number | null {
+        const cleaned = text.trim().replace(/,/g, '');
+        if (!/^\d+$/.test(cleaned)) return null;
+        return Number(cleaned);
+    }
+
+    /**
+     * 칸별 문제 — 화면이 미리 알리는 용도. 숫자 칸은 사용자 정의일 때만 본다(등급 기준이면 쓰이지 않는다).
+     * @param {NicknameImageSettingsForm} form - 입력 값.
+     * @param {readonly NicknameImageGradeOption[]} grades - 고를 수 있는 등급.
+     * @returns {Partial<Record<NicknameImageSettingsField, NicknameImageSettingsProblem>>} 문제가 있는 칸만.
+     */
+    static settingsProblems(form: NicknameImageSettingsForm, grades: readonly NicknameImageGradeOption[]): Partial<Record<NicknameImageSettingsField, NicknameImageSettingsProblem>> {
+        const out: Partial<Record<NicknameImageSettingsField, NicknameImageSettingsProblem>> = {};
+        if (form.gradeKey && !grades.some((grade) => grade.key === form.gradeKey)) out.gradeKey = 'GRADE_MISSING';
+        else if (form.mode === 'GRADE' && !form.gradeKey) out.gradeKey = 'GRADE_REQUIRED';
+        if (form.mode !== 'CUSTOM') return out;
+        for (const field of UtilNicknameImage.NUMBER_FIELDS) {
+            if (!form[field].trim()) {
+                out[field] = 'REQUIRED';
+                continue;
+            }
+            const value = UtilNicknameImage.parseCount(form[field]);
+            const [min, max] = UtilNicknameImage.LIMITS[field];
+            if (value === null) out[field] = 'NOT_INTEGER';
+            else if (value < min || value > max) out[field] = 'OUT_OF_RANGE';
+        }
+        return out;
+    }
+
+    /**
+     * 보낼 값 — 등급 기준이면 이메일 인증은 늘 켜서 보낸다. 숫자 칸이 정수가 아니면(등급 기준에서 비운 칸 등) 저장된 값을 그대로 보낸다.
+     * @param {NicknameImageSettingsForm} form - 입력 값.
+     * @param {NicknameImageSettingsRequest} saved - 저장된 값.
+     * @returns {NicknameImageSettingsRequest} 요청 본문.
+     */
+    static toSettingsRequest(form: NicknameImageSettingsForm, saved: NicknameImageSettingsRequest): NicknameImageSettingsRequest {
+        const count = (field: NicknameImageNumberField): number => UtilNicknameImage.parseCount(form[field]) ?? saved[field];
+        return {
+            mode: form.mode,
+            gradeKey: form.gradeKey || null,
+            minDays: count('minDays'),
+            minActivity: count('minActivity'),
+            minPoints: count('minPoints'),
+            requireEmailVerified: form.mode === 'GRADE' ? true : form.requireEmailVerified,
+        };
+    }
+
+    /**
+     * 저장된 값과 다른 칸 — 숫자 칸은 정수로 바꿔 비교한다(`030` 과 `30` 은 같다).
+     * @param {NicknameImageSettingsForm} form - 입력 값.
+     * @param {NicknameImageSettingsRequest} saved - 저장된 값.
+     * @returns {NicknameImageSettingsField[]} 바뀐 칸.
+     */
+    static changedSettings(form: NicknameImageSettingsForm, saved: NicknameImageSettingsRequest): NicknameImageSettingsField[] {
+        const out: NicknameImageSettingsField[] = [];
+        if (form.mode !== saved.mode) out.push('mode');
+        if ((form.gradeKey || null) !== saved.gradeKey) out.push('gradeKey');
+        for (const field of UtilNicknameImage.NUMBER_FIELDS) {
+            const value = UtilNicknameImage.parseCount(form[field]);
+            if (value === null ? form[field].trim() !== String(saved[field]) : value !== saved[field]) out.push(field);
+        }
+        // 등급 기준은 이메일 인증을 늘 켜서 보낸다 — 보낼 값으로 비교한다
+        const email = form.mode === 'GRADE' ? true : form.requireEmailVerified;
+        if (email !== saved.requireEmailVerified) out.push('requireEmailVerified');
+        return out;
+    }
+
+    /**
+     * 서버가 칸별로 거절한 문구(`400 VALIDATION fields.<칸>`) — 아는 칸은 칸 아래로, 모르는 칸은 한 줄로 모은다.
+     * @param {unknown} e - 저장 오류.
+     * @returns {{ fields: Partial<Record<NicknameImageSettingsField, string>>; rest: string } | null} 칸 오류가 없으면 null.
+     */
+    static settingsFieldErrorsOf(e: unknown): { fields: Partial<Record<NicknameImageSettingsField, string>>; rest: string } | null {
+        if (!(e instanceof ApiError) || !e.fields || Object.keys(e.fields).length === 0) return null;
+        const fields: Partial<Record<NicknameImageSettingsField, string>> = {};
+        const rest: string[] = [];
+        for (const [key, message] of Object.entries(e.fields)) {
+            if ((UtilNicknameImage.SETTINGS_FIELDS as readonly string[]).includes(key)) fields[key as NicknameImageSettingsField] = message;
+            else rest.push(message);
+        }
+        return { fields, rest: rest.join(' ') };
     }
 }

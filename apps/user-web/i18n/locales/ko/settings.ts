@@ -15,7 +15,7 @@ export default {
     displayHint: '언어·시간대·시간과 날짜 모양',
     accountHint: '로그인 수단·소셜 계정 연결',
     nicknameImage: '닉네임 이미지',
-    nicknameImageHint: '닉네임 자리에 이미지 · 단골 등급부터',
+    nicknameImageHint: '닉네임 자리에 이미지 · 조건을 채우면 신청',
     adult: '성인 확인',
     adultHint: '19금 글을 보려면 출생연도를 확인해요',
     view: '보기',

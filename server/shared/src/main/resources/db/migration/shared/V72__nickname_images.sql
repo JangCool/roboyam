@@ -44,3 +44,30 @@ CREATE INDEX ix_nickname_image_requests_status ON nickname_image_requests (statu
 ALTER TABLE member_notifications DROP CONSTRAINT ck_member_notifications_type;
 ALTER TABLE member_notifications ADD CONSTRAINT ck_member_notifications_type
     CHECK (type IN ('COMMENT', 'REPLY', 'POINTS_REVOKED', 'POST_HIDDEN', 'COMMENT_HIDDEN', 'DM', 'NICKNAME_IMAGE_REVIEWED'));
+
+-- 닉네임 그림 신청 조건(행 하나) — 관리자 「닉네임 이미지 설정」(admin, 조회 nickname-image.read · 저장 nickname-image.manage). 회원 화면(api)은 요청마다 이 행을 읽어 판정한다.
+--   mode = GRADE   등급 기준: grade_key(최소 등급) 이상 + 이메일 인증(늘 필요 — require_email_verified 는 true 로 저장된다).
+--   mode = CUSTOM  사용자 정의: grade_key(없으면 등급 조건 없음) · 가입 후 일수 · 글+댓글 수 · 보유 포인트 · 이메일 인증(끌 수 있음)을 모두 채워야 한다. 0 인 칸은 조건이 아니다.
+--   GRADE 로 저장해도 CUSTOM 칸(min_*)은 받은 값을 그대로 둔다(다시 CUSTOM 으로 바꿀 때 앞 값이 보이게).
+-- grade_key 는 grades 를 외래 키로 걸지 않는다(등급을 지워도 설정이 남는다) — 없는 등급이면 등급 조건은 채우지 못한 것으로 보고 관리자 화면에 gradeMissing 으로 알린다.
+-- 이미 적용 중인 그림은 조건이 바뀌거나 등급이 내려가도 그대로 둔다(판정은 새 신청 때만).
+-- 기본 행: GRADE · 베테랑(VETERAN — 없으면 가장 높은 등급) · 나머지 0 · 이메일 인증 필요.
+CREATE TABLE nickname_image_settings (
+    id                      integer      PRIMARY KEY,
+    mode                    varchar(10)  NOT NULL,
+    grade_key               varchar(19),
+    min_days                integer      NOT NULL DEFAULT 0,
+    min_activity            integer      NOT NULL DEFAULT 0,
+    min_points              integer      NOT NULL DEFAULT 0,
+    require_email_verified  boolean      NOT NULL DEFAULT true,
+    updated_at              timestamptz,
+    updated_by              bigint       REFERENCES operators (id) ON DELETE SET NULL,
+    CONSTRAINT ck_nickname_image_settings_single_row CHECK (id = 1),
+    CONSTRAINT ck_nickname_image_settings_mode CHECK (mode IN ('GRADE', 'CUSTOM')),
+    CONSTRAINT ck_nickname_image_settings_grade CHECK (mode <> 'GRADE' OR (grade_key IS NOT NULL AND require_email_verified)),
+    CONSTRAINT ck_nickname_image_settings_ranges CHECK (min_days BETWEEN 0 AND 3650 AND min_activity BETWEEN 0 AND 100000 AND min_points BETWEEN 0 AND 100000000)
+);
+INSERT INTO nickname_image_settings (id, mode, grade_key)
+VALUES (1, 'GRADE', COALESCE((SELECT grade_key FROM grades WHERE grade_key = 'VETERAN'),
+                             (SELECT grade_key FROM grades ORDER BY level DESC LIMIT 1),
+                             'VETERAN'));

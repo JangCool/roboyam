@@ -1,4 +1,4 @@
-import type { NicknameImagePage, NicknameImageQuery, NicknameImageReasonRequest, NicknameImageView } from '~/composables/member/api/useNicknameImageApi.types';
+import type { NicknameImagePage, NicknameImageQuery, NicknameImageReasonRequest, NicknameImageSettingsRequest, NicknameImageSettingsView, NicknameImageView } from '~/composables/member/api/useNicknameImageApi.types';
 
 /**
  * 닉네임 이미지 심사 API — 서버 주소 문자열(`/api/admin/nickname-images…`)이 있는 **유일한 곳**이다. 상태는 없다.
@@ -10,12 +10,18 @@ import type { NicknameImagePage, NicknameImageQuery, NicknameImageReasonRequest,
  *  - `POST /api/admin/nickname-images/{id}/revoke` `{ reason }` → 200 `NicknameImageView`
  * 오류: `404 NICKNAME_IMAGE_NOT_FOUND` · `409 NICKNAME_IMAGE_NOT_PENDING`(이미 처리된 신청을 승인·반려) · `409 NICKNAME_IMAGE_NOT_ACTIVE`(적용 중이 아닌 그림을 해제) ·
  * `400 VALIDATION fields.reason`(1~200자) · `403 PERMISSION_DENIED`.
+ *
+ * 신청 조건 설정(`/settings/nickname-image`):
+ *  - `GET /api/admin/nickname-image-settings` → `NicknameImageSettingsView`(`nickname-image.read`)
+ *  - `PUT /api/admin/nickname-image-settings` `NicknameImageSettingsRequest` → 200 `NicknameImageSettingsView`(`nickname-image.manage`, CSRF)
+ *    오류 `400 VALIDATION fields.<칸>`(등급 기준인데 등급 없음 · 범위 밖 숫자 · 없는 등급).
  */
 const PATH = {
     root: '/api/admin/nickname-images',
     approve: (id: string) => `${PATH.root}/${encodeURIComponent(id)}/approve`,
     reject: (id: string) => `${PATH.root}/${encodeURIComponent(id)}/reject`,
     revoke: (id: string) => `${PATH.root}/${encodeURIComponent(id)}/revoke`,
+    settings: '/api/admin/nickname-image-settings',
 };
 
 export function useNicknameImageApi() {
@@ -34,5 +40,11 @@ export function useNicknameImageApi() {
 
         /** 해제 — 적용 중인 그림을 내린다 */
         revoke: (id: string, body: NicknameImageReasonRequest): Promise<NicknameImageView> => client.post<NicknameImageView>(PATH.revoke(id), body),
+
+        /** 신청 조건 설정 */
+        loadSettings: (): Promise<NicknameImageSettingsView> => client.get<NicknameImageSettingsView>(PATH.settings),
+
+        /** 신청 조건을 통째로 저장한다 — 저장된 값을 돌려준다 */
+        saveSettings: (body: NicknameImageSettingsRequest): Promise<NicknameImageSettingsView> => client.put<NicknameImageSettingsView>(PATH.settings, body),
     };
 }

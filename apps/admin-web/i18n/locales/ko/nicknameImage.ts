@@ -1,5 +1,5 @@
 /**
- * 닉네임 이미지 심사(`/members/nickname-images`) 문구. 키는 `nicknameImage.무엇` 두 마디(상태는 `nicknameImage.status.*`). `en/nicknameImage.ts` 와 같은 키, 같은 차례.
+ * 닉네임 이미지 심사(`/members/nickname-images`)·신청 조건 설정(`/settings/nickname-image`, `settings*`·`summary*`) 문구. 키는 `nicknameImage.무엇` 두 마디(상태는 `nicknameImage.status.*`). `en/nicknameImage.ts` 와 같은 키, 같은 차례.
  * 처리 실패 문구는 서버 `message` 를 그대로 쓴다(`404 NICKNAME_IMAGE_NOT_FOUND`·`409 NICKNAME_IMAGE_NOT_PENDING`·`409 NICKNAME_IMAGE_NOT_ACTIVE`·`fields.reason`).
  * ⚠ `{0}` 는 PrimeVue 가 채우는 자리다 — 번역에서는 `{count}` 로 두고 화면이 `{ count: '{0}' }` 로 넘긴다.
  */
@@ -66,4 +66,61 @@ export default {
     reasonHelp: '1~{max}자',
     reasonRequired: '사유를 적어 주세요.',
     reasonTooLong: '사유는 {max}자까지 적을 수 있어요.',
+
+    // 심사 화면 → 신청 조건 설정
+    openSettings: '신청 조건 설정',
+
+    // 신청 조건 설정(`/settings/nickname-image`)
+    settingsTitle: '닉네임 이미지 신청 조건',
+    settingsSubtitle: '회원이 닉네임 이미지를 신청할 수 있는 조건을 정합니다. 신청한 이미지는 닉네임 이미지 심사에서 승인합니다.',
+    settingsSection: '신청 조건',
+    settingsLoadFailed: '신청 조건을 불러오지 못했어요',
+    settingsLastUpdated: '마지막 변경 {at} · {by}',
+    settingsNeverUpdated: '아직 바꾼 적이 없어요(기본값: 베테랑 이상 · 이메일 인증).',
+    summaryNow: '지금 조건',
+    summaryAfter: '저장하면',
+    summaryGradeMissing: '지워진 등급',
+    summaryEmail: '이메일 인증',
+    summaryNoEmail: '이메일 인증 없이',
+    summaryDays: '가입 {days}일',
+    summaryActivity: '글·댓글 {count}개',
+    summaryPoints: '포인트 {points}',
+    summaryOpen: '조건 없음 — 모든 회원이 신청할 수 있어요',
+    settingsGradeMissing: '고른 등급이 지워졌어요. 등급을 다시 골라 저장해 주세요.',
+    settingsModeLabel: '조건 방식',
+    modeGrade: '등급 기준',
+    modeCustom: '사용자 정의',
+    settingsModeGradeHelp: '고른 등급 이상이고 이메일 인증을 마친 회원이 신청할 수 있어요.',
+    settingsModeCustomHelp: '아래 조건을 모두 채운 회원이 신청할 수 있어요. 0 으로 둔 조건은 보지 않아요.',
+    settingsGradeLabel: '최소 등급',
+    settingsGradeHelpGrade: '이 등급보다 낮은 회원은 신청할 수 없어요.',
+    settingsGradeHelpCustom: '「등급 조건 없음」이면 등급을 보지 않아요.',
+    settingsGradePlaceholder: '등급을 골라 주세요',
+    settingsGradeAtLeast: '{grade} 이상',
+    settingsNoGrade: '등급 조건 없음',
+    settingsGradeRequired: '등급 기준에서는 등급을 골라야 해요.',
+    settingsGradeMissingProblem: '지워진 등급이에요. 다른 등급을 골라 주세요.',
+    settingsDaysLabel: '가입 후 일수',
+    settingsActivityLabel: '글·댓글 수',
+    settingsPointsLabel: '보유 포인트',
+    unitDays: '일',
+    unitCount: '개',
+    unitPoints: 'P',
+    settingsRange: '{min} ~ {max}',
+    settingsZeroOff: '0 이면 이 조건을 보지 않아요.',
+    settingsNumberRequired: '숫자를 적어 주세요(조건을 끄려면 0).',
+    settingsNumberNotInteger: '0 이상의 정수로 적어 주세요.',
+    settingsNumberRange: '{min} ~ {max} 사이로 적어 주세요.',
+    settingsEmailLabel: '이메일 인증 필요',
+    settingsEmailHelp: '켜면 이메일 인증을 마친 회원만 신청할 수 있어요.',
+    settingsNoteApplied: '이미 적용 중인 닉네임 이미지는 조건이 바뀌어도 그대로 보여요. 바뀐 조건은 새로 신청할 때부터 봐요.',
+    settingsNoteSuspended: '정지된 회원은 조건과 상관없이 신청할 수 없어요.',
+    settingsReadOnly: '보기 권한만 있어요. 조건을 바꾸려면 닉네임 이미지 처리 권한이 필요해요.',
+    settingsSaved: '신청 조건을 저장했어요',
+    settingsSaveFailed: '저장하지 못했어요',
+    settingsFieldsRejected: '맞지 않는 칸이 있어요.',
+    leaveTitle: '저장하지 않은 변경이 있어요',
+    leaveMessage: '이 화면을 떠나면 바꾼 값이 사라져요.',
+    leaveConfirm: '버리고 나가기',
+    leaveCancel: '계속 편집',
 };

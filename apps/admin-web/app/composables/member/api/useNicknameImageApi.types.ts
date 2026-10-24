@@ -69,3 +69,49 @@ export interface NicknameImageQuery {
 export interface NicknameImageReasonRequest {
     reason: string;
 }
+
+// ── 신청 조건 설정(`/api/admin/nickname-image-settings`) ─
+
+/** 조건 방식 — 등급 기준(최소 등급 + 이메일 인증, 늘 필요) · 사용자 정의(최소 등급·가입 후 일수·글·댓글 수·보유 포인트·이메일 인증을 모두 채워야 한다) */
+export type NicknameImageSettingsMode = 'GRADE' | 'CUSTOM';
+
+/** 고를 수 있는 등급 — 서열 순 */
+export interface NicknameImageGradeOption {
+    key: GradeKey;
+    label: string;
+    level: number;
+}
+
+/** 마지막으로 저장한 운영자 */
+export interface NicknameImageSettingsEditor {
+    id: string;
+    /** 운영자 계정이 지워졌으면 null */
+    name: string | null;
+}
+
+/** 저장하는 값 — 숫자 칸의 0 은 그 조건 없음. 등급 기준이면 `gradeKey` 필수, 사용자 정의에서 null = 등급 조건 없음 */
+export interface NicknameImageSettingsRequest {
+    mode: NicknameImageSettingsMode;
+    gradeKey: GradeKey | null;
+    /** 가입 후 일수 0~3650 */
+    minDays: number;
+    /** 글·댓글 수 0~100000 */
+    minActivity: number;
+    /** 보유 포인트 0~100000000 */
+    minPoints: number;
+    /** 사용자 정의에서만 끌 수 있다(등급 기준은 서버가 늘 요구한다) */
+    requireEmailVerified: boolean;
+}
+
+/** `GET`·`PUT /api/admin/nickname-image-settings` — 저장된 값 + 고를 수 있는 등급 */
+export interface NicknameImageSettingsView extends NicknameImageSettingsRequest {
+    /** 고른 등급이 지워졌다(`gradeKey` 가 `grades` 에 없다) — 다시 골라야 한다 */
+    gradeMissing: boolean;
+    grades: NicknameImageGradeOption[];
+    /** 한 번도 저장하지 않았으면 null(기본값: 등급 기준 · 베테랑 이상) */
+    updatedAt: string | null;
+    updatedBy: NicknameImageSettingsEditor | null;
+}
+
+/** 서버가 `fields.<칸>` 으로 거절할 수 있는 칸 */
+export type NicknameImageSettingsField = keyof NicknameImageSettingsRequest;
