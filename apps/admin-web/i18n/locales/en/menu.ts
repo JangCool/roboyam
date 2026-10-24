@@ -58,4 +58,5 @@ export default {
     batches: 'Batch jobs',
     batchLogs: 'Batch logs',
     audit: 'Audit log',
+    terms: 'Terms',
 };

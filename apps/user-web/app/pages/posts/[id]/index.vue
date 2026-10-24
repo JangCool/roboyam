@@ -68,7 +68,7 @@
             </div>
             <!--
                 에디터로 쓴 글(`contentFormat === 'HTML'`) — 서버가 정화(sanitize)한 HTML 만 온다(공개 게시판 계약 「에디터 화면」: 서버가 허용 태그 밖을 지우고 이미지 주소를 채운다).
-                새 `v-html` 은 이곳(글 본문)과 `CommentItem`(댓글 본문) 두 곳뿐이다. 다른 경로의 글자(제목·닉네임·안내문 등)는 절대 넣지 않는다.
+                새 `v-html` 은 이곳(글 본문)과 `CommentItem`(댓글 본문)·`TermsDocumentView`(약관 본문 — 서버 정화본) 세 곳뿐이다. 다른 경로의 글자(제목·닉네임·안내문 등)는 절대 넣지 않는다.
                 그린 뒤 유튜브(누르면 youtube-nocookie iframe)·이미지(실패 자리표시)는 `UtilRichBody.enhance` 가 DOM API 로만 손질한다. 평문 글은 아래처럼 글자로 그린다
             -->
             <!-- eslint-disable-next-line vue/no-v-html -->

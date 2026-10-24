@@ -32,6 +32,7 @@ import shell from './shell';
 import site from './site';
 import social from './social';
 import team from './team';
+import terms from './terms';
 
 export default {
     account,
@@ -61,4 +62,5 @@ export default {
     site,
     social,
     team,
+    terms,
 };

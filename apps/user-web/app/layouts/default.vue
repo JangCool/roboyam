@@ -21,6 +21,8 @@
                 <RestrictionBanner />
                 <AppTopTabs v-if="!inner" class="md:hidden" />
                 <EmailVerifyBanner />
+                <!-- 약관 변경 안내 띠(약관 요약의 `notice`, 닫기는 이 브라우저에 기억) -->
+                <TermsChangeNotice />
             </template>
 
             <slot />

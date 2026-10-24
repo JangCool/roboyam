@@ -242,6 +242,9 @@ export default class UtilPermissionCatalog {
         //   서버 `Permission.TEMPLATE_READ`·`TEMPLATE_MANAGE`(SITE_INTEGRATION · READ / CONFIG · 준비됨)와 같은 값이다. 메뉴는 서버 `AdminScreenRegistry` 의 템플릿·문구 화면이 `template.read` 로 거른다.
         { code: 'template.read', unit: 'READ', type: 'siteIntegration', nameKey: 'permission.templateRead', descKey: 'permission.templateReadDesc', featureReady: true },
         { code: 'template.manage', unit: 'CONFIG', type: 'siteIntegration', nameKey: 'permission.templateManage', descKey: 'permission.templateManageDesc', featureReady: true },
+        // 약관(`/settings/terms`, docs/features/terms-contract.md) — 서버 `Permission.TERMS_READ`·`TERMS_MANAGE`(SITE_INTEGRATION · READ / CONFIG · 준비됨)와 같은 값
+        { code: 'terms.read', unit: 'READ', type: 'siteIntegration', nameKey: 'permission.termsRead', descKey: 'permission.termsReadDesc', featureReady: true },
+        { code: 'terms.manage', unit: 'CONFIG', type: 'siteIntegration', nameKey: 'permission.termsManage', descKey: 'permission.termsManageDesc', featureReady: true },
     ];
 
     // ── 회원 역할 ─ (구현 가정: 문서의 "회원 역할 (제안)" 대로 — 확정 전)

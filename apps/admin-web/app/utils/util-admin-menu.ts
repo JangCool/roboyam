@@ -163,6 +163,7 @@ export default class UtilAdminMenu {
                 { key: 'loginSecurity', to: '/settings/login-security', icon: 'pi pi-shield', labelKey: 'menu.loginSecurity', superOnly: true },
                 // 조직 구성 — 운영자를 팀으로 묶는다(알림 이벤트의 「추가 수신 팀」으로 쓴다)
                 { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
+                { key: 'terms', to: '/settings/terms', icon: 'pi pi-file', labelKey: 'menu.terms', permission: 'terms.read' },
             ],
         },
         // 메일 묶음 — 메일 서버만(message-template-contract 「개정 3」 — 메일 종류·템플릿·레이아웃은 알림·이벤트 묶음으로 옮겼다 — 개정 4 의 「템플릿 › 메일」·「문구」)

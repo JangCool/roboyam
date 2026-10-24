@@ -22,8 +22,8 @@
                 <label :for="`${uid}-${item.key}`" class="flex-1 cursor-pointer text-sm">
                     <em class="mr-1 text-xs font-medium not-italic text-primary">{{ t('signup.requiredMark') }}</em>{{ item.label }}
                 </label>
-                <!-- 약관 본문 링크는 로그인 카드 아래(레이아웃 `auth`)와 같은 곳 — 라우터 밖 링크라 새 탭에서 열린다. 지금은 숨김(`SHOW_TERMS_LINKS`) -->
-                <a v-if="SHOW_TERMS_LINKS && item.href" :href="item.href" target="_blank" rel="noopener" class="shrink-0 text-xs text-primary hover:underline max-md:-my-1.5 max-md:py-1.5">
+                <!-- 약관 본문 링크는 로그인 카드 아래(레이아웃 `auth`)와 같은 곳 — 라우터 밖 링크라 새 탭에서 열린다. 관리자 옵션(약관 요약의 `showLinks`)이 켜졌을 때만 -->
+                <a v-if="showTermsLinks && item.href" :href="item.href" target="_blank" rel="noopener" class="shrink-0 text-xs text-primary hover:underline max-md:-my-1.5 max-md:py-1.5">
                     {{ t('signup.view') }}<span class="sr-only"> {{ t('signup.viewNewTab', { label: item.label }) }}</span>
                 </a>
             </div>
@@ -63,11 +63,11 @@ const { t } = useI18n();
 const uid = useId();
 
 /**
- * 약관 본문 「보기」 링크를 보일지 — 지금은 숨긴다(동의 체크는 그대로 필수).
- * 이유: 약관 본문 화면(`/terms`·`/privacy`)은 약관 기능에서 만든다(community 에도 없다) — 그 전에는 새 탭이 빈 화면이 된다.
- * `member-account-contract.md` 「결정 (2026-10-24 2차)」 약관 본문. 약관 화면이 생기면 `true` 로 되돌린다(항목의 `href` 는 그대로 둔다).
+ * 약관 본문 「보기」 링크를 보일지 — 관리자 옵션 「가입·로그인 화면에 약관 보기 링크 표시」(약관 요약 `GET /api/terms/summary` 의 `showLinks`, `docs/features/terms-contract.md`).
+ * 불러오기 전·실패 시 숨긴다. 동의 체크는 이 값과 관계없이 늘 필수다. 요약은 레이아웃 `auth` 와 같은 상태(`useTermsSummary`)를 쓴다.
  */
-const SHOW_TERMS_LINKS = false;
+const { showLinks: showTermsLinks, ensureLoaded: ensureTermsSummary } = useTermsSummary();
+void ensureTermsSummary();
 
 /** 항목 — 언어를 바꾸면 다시 계산된다 */
 const items = computed<{ key: Key; label: string; href?: string; missing: string }[]>(() => [
