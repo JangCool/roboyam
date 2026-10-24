@@ -76,6 +76,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/posts", "/api/posts/*/delete", "/api/posts/*/verify-password", "/api/posts/*/comments",
                                 "/api/comments/*/delete").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/posts/*", "/api/comments/*").permitAll()
+                        // 회원 활동·둘러보기(docs/features/member-activity-contract.md) — 최신글·인기글·통합 검색·등급 조건표는 비회원도 읽는다. 내 등급(/api/me/grade)은 아래 규칙대로 로그인 필요
+                        .requestMatchers(HttpMethod.GET, "/api/home/latest", "/api/home/popular", "/api/search", "/api/grade-rules").permitAll()
                         // 관리자 앱(admin)의 로그인 상태 조회·로그인·로그아웃 — 같은 규약이다(공개 사이트 서버에는 이 주소가 없다). 그 밖의 /api/admin/** 는 로그인이 필요하고,
                         // 어떤 권한이 필요한지는 컨트롤러가 선언하며 선언이 없으면 거절된다(admin 의 AdminAccessInterceptor — fail-closed)
                         .requestMatchers(HttpMethod.GET, "/api/admin/auth/me").permitAll()

@@ -5,6 +5,7 @@
 --   batch_enable_pg_cron()   pg_cron 확장을 만들 수 있으면 만든다 / 지금 상태를 돌려준다
 --   batch_define(...)        배치 정의(batch_db_jobs) 갱신 + 아직 pg_cron 에 없으면 기본 cron 으로 등록(있으면 건드리지 않는다) — 매일 한국시간 H시 M분
 --   batch_define_hourly(...) batch_define 과 같은 규칙으로 매시 M분(한국시간 기준 분 — 30분 단위 시차가 있는 cron 시간대에서는 분이 바뀐다)
+--   batch_define_every_minutes(...) batch_define 과 같은 규칙으로 N분마다(*/N — 시간대와 무관하다)
 --   batch_param(...)         설정값(batch_params) 읽기, 범위 밖이면 기본값
 --   batch_run_begin/close    batch_runs 에 시작(RUNNING) / 끝(OK·SKIP·FAIL) 기록 + 동시 실행 방지(어드바이저리 잠금)
 
@@ -89,7 +90,9 @@ $fn$;
 -- 정의(batch_db_jobs)의 주기 종류(cadence)에 맞는 기본 cron — DAILY 는 batch_daily_cron, HOURLY 는 batch_hourly_cron(p_hour 는 쓰지 않는다)
 CREATE OR REPLACE FUNCTION batch_default_cron(p_cadence text, p_hour int, p_minute int) RETURNS text
 LANGUAGE sql STABLE AS $fn$
-    SELECT CASE WHEN p_cadence = 'HOURLY' THEN batch_hourly_cron(p_minute) ELSE batch_daily_cron(p_hour, p_minute) END
+    SELECT CASE WHEN p_cadence = 'HOURLY' THEN batch_hourly_cron(p_minute)
+                WHEN p_cadence = 'MINUTES' THEN '*/' || p_minute || ' * * * *' -- N분마다(p_minute = 간격 분, 시간대와 무관) — batch_define_every_minutes
+                ELSE batch_daily_cron(p_hour, p_minute) END
 $fn$;
 
 -- ── 설정값 ───────────────────────────────────────────────────────────────────
@@ -181,6 +184,22 @@ BEGIN
     PERFORM batch_enable_pg_cron();
     INSERT INTO batch_db_jobs (job_key, procedure_name, kst_hour, kst_minute, default_cron, cadence, updated_at)
     VALUES (p_job, p_procedure, 0, p_minute, batch_hourly_cron(p_minute), 'HOURLY', now())
+    ON CONFLICT (job_key) DO UPDATE
+        SET procedure_name = EXCLUDED.procedure_name, kst_hour = EXCLUDED.kst_hour, kst_minute = EXCLUDED.kst_minute,
+            default_cron = EXCLUDED.default_cron, cadence = EXCLUDED.cadence, updated_at = EXCLUDED.updated_at;
+    RETURN batch_register(p_job);
+END
+$fn$;
+
+-- N분마다 도는 배치 하나를 정의한다(R__ 파일이 부른다) — batch_define 과 같은 규칙: 정의 표는 매번 갱신하고, pg_cron 에는 없을 때만 올리고(운영자가 바꾼 cron·사용 여부를
+-- 덮어쓰지 않는다), pg_cron 이 없으면 등록을 건너뛴다(NO_PG_CRON). p_minutes 는 간격(1~59분, kst_minute 칸에 둔다 — V68 CHECK). 기본 cron 은 */N 이라 시간대와 무관하다
+-- (60 을 나누지 않는 N 은 매시 0분에 다시 센다 — pg_cron 의 */N 규칙). 돌려주는 값은 batch_register 와 같다. 예: 인기글 순위(R__batch_24 — 5분마다).
+CREATE OR REPLACE FUNCTION batch_define_every_minutes(p_job text, p_procedure text, p_minutes int) RETURNS text
+LANGUAGE plpgsql AS $fn$
+BEGIN
+    PERFORM batch_enable_pg_cron();
+    INSERT INTO batch_db_jobs (job_key, procedure_name, kst_hour, kst_minute, default_cron, cadence, updated_at)
+    VALUES (p_job, p_procedure, 0, p_minutes, batch_default_cron('MINUTES', 0, p_minutes), 'MINUTES', now())
     ON CONFLICT (job_key) DO UPDATE
         SET procedure_name = EXCLUDED.procedure_name, kst_hour = EXCLUDED.kst_hour, kst_minute = EXCLUDED.kst_minute,
             default_cron = EXCLUDED.default_cron, cadence = EXCLUDED.cadence, updated_at = EXCLUDED.updated_at;
