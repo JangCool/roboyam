@@ -162,7 +162,8 @@ public class TermsAdminService {
         LocalDate effectiveDate = parseDate(request == null ? null : request.effectiveDate(), errors);
         if (effectiveDate != null) {
             Optional<TermsVersionMeta> latest = timeline.latest();
-            if (effectiveDate.isBefore(today)) {
+            // 시행일은 내일부터 — 오늘 시행은 받지 않는다(게시와 시행 사이에 변경 안내가 보일 하루 이상을 둔다)
+            if (!effectiveDate.isAfter(today)) {
                 errors.put("effectiveDate", new MessageRef("terms.effectiveDate.past"));
             } else if (latest.isPresent() && effectiveDate.isBefore(latest.get().effectiveDate())) {
                 errors.put("effectiveDate", new MessageRef("terms.effectiveDate.beforeLast", latest.get().effectiveDate().toString()));

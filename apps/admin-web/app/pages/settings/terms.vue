@@ -380,13 +380,13 @@ async function deleteDraft(): Promise<void> {
 /** 저장한 초안이 있고 저장하지 않은 변경이 없을 때만 */
 const canPublish = computed(() => canManage.value && Boolean(detail.value?.draft) && !dirty.value && working.value === null);
 
-/** 오늘(표시 시간대의 달력 날짜) — 시행일의 하한. 판정은 서버(사이트 시간대)다 */
+/** 오늘(표시 시간대의 달력 날짜) — 시행일의 하한(내일)을 셈하는 기준. 판정은 서버(사이트 시간대)다 */
 function today(): string {
     const parts = time.value.parts(new Date().toISOString());
     return parts ? UtilTerms.ymd(parts.y, parts.mo, parts.d) : new Date().toISOString().slice(0, 10);
 }
 
-const minDate = ref(today());
+const minDate = ref(UtilTerms.minEffectiveDate(today(), null));
 const publishOpen = ref(false);
 const publishing = ref(false);
 const publishError = ref('');

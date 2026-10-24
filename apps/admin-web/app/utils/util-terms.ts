@@ -19,14 +19,17 @@ export default class UtilTerms {
     }
 
     /**
-     * 시행일로 고를 수 있는 가장 이른 날 — 오늘과 그 종류의 마지막 게시본 시행일 중 늦은 날(같은 날 허용).
-     * 서버 규칙: 시행일은 오늘(사이트 시간대) 이후이고 마지막 게시본 시행일 이후여야 한다. 화면의 오늘은 편의이며 판정은 서버다.
+     * 시행일로 고를 수 있는 가장 이른 날 — 내일과 그 종류의 마지막 게시본 시행일 중 늦은 날(마지막 시행일과 같은 날 허용).
+     * 서버 규칙: 시행일은 내일(사이트 시간대) 이후이고 마지막 게시본 시행일 이후여야 한다(오늘 시행은 받지 않는다). 화면의 오늘은 편의이며 판정은 서버다.
      * @param {string} today - 오늘(`YYYY-MM-DD`).
      * @param {string | null | undefined} lastEffectiveDate - 마지막 게시본 시행일(없으면 null).
      * @returns {string} `YYYY-MM-DD`.
      */
     static minEffectiveDate(today: string, lastEffectiveDate: string | null | undefined): string {
-        return lastEffectiveDate && lastEffectiveDate > today ? lastEffectiveDate : today;
+        const [y, mo, d] = today.split('-').map(Number);
+        const next = new Date(Date.UTC(y!, mo! - 1, d! + 1));
+        const tomorrow = UtilTerms.ymd(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate());
+        return lastEffectiveDate && lastEffectiveDate > tomorrow ? lastEffectiveDate : tomorrow;
     }
 
     /**
