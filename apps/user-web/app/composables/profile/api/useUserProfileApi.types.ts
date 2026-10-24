@@ -1,6 +1,6 @@
 /**
- * 공개 회원 프로필 API 가 주고받는 모양 — **서버에 아직 없다**(목업). 모양은 community `docs/api-profile.md`「공개 프로필」에서 로보얌에 있는 것만 남겼다
- * (프로필 이미지·닉네임 이미지·꾸미기·차단·메모·소모임·스크랩·인기글 수 없음). 계약 후보: `docs/features/member-activity-contract.md`.
+ * 공개 회원 프로필 API 가 주고받는 모양 — **서버 연결됨**(server/api `PublicProfileView`·`AuthorCommentPageView`, 작성글은 `PostFeedPageView`). 모양은 community `docs/api-profile.md`「공개 프로필」에서 로보얌에 있는 것만 남겼다
+ * (프로필 이미지·닉네임 이미지·꾸미기·소모임·스크랩·인기글 수 없음). 계약: `docs/features/member-activity-contract.md` 「공개 프로필」.
  * ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO.
  */
 import type { Role } from '~/composables/auth/api/useAuthApi.types';
@@ -30,9 +30,9 @@ export interface PublicProfile {
     /** 보는 사람이 이 회원 본인인가(비회원은 false) */
     isMe: boolean;
     stats: ProfileStats;
-    /** 내가 이 회원을 차단했는가(비회원·본인은 false) — 소통 계약(`member-social-contract.md`)이 더하는 칸 */
+    /** 내가 이 회원을 차단했는가(비회원·본인은 false) — 소통 계약(`member-social-contract.md`)이 더하는 칸. 서버는 아직 내려 주지 않는다(없으면 false 로 본다) */
     blockedByMe?: boolean;
-    /** 내가 이 회원에게 남긴 이용자 메모(없으면 null) — 나에게만 온다 */
+    /** 내가 이 회원에게 남긴 이용자 메모(없으면 null) — 나에게만 온다. 소통 계약이 더하는 칸이라 서버는 아직 내려 주지 않는다 */
     memo?: string | null;
 }
 
@@ -44,6 +44,7 @@ export interface AuthorCommentRow {
     id: string;
     postId: string;
     postTitle: string;
+    /** 서버는 게시판 `id` 도 함께 준다(화면은 쓰지 않는다) */
     board: { slug: string; name: string; nameEn: string | null };
     /** 댓글 앞 100자(줄바꿈은 공백 한 칸, 넘으면 `…`) */
     bodyPreview: string;
@@ -53,7 +54,7 @@ export interface AuthorCommentRow {
     createdAt: string;
 }
 
-/** `GET /api/users/{id}/comments?size&cursor` — 최신이 위. 삭제한 댓글과 볼 수 없는 글의 댓글은 빠진다. 틀린 커서 `400 VALIDATION fields.cursor` */
+/** `GET /api/users/{id}/comments?size&cursor` — 최신이 위. 삭제한 댓글과 볼 수 없는 글의 댓글은 빠진다. `size` 범위 밖 `400 VALIDATION fields.size` · 틀린 커서 `fields.cursor` */
 export interface AuthorCommentPage {
     items: AuthorCommentRow[];
     hasNext: boolean;
@@ -63,6 +64,6 @@ export interface AuthorCommentPage {
 /** 작성글·댓글 요청 */
 export interface UserFeedQuery {
     cursor?: string;
-    /** 1~50, 기본 20 */
+    /** 1~50, 기본 20 — 범위 밖은 서버가 잘라 맞추지 않고 `400 VALIDATION fields.size` */
     size?: number;
 }

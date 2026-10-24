@@ -58,7 +58,7 @@
                 <p class="mt-3 text-xs leading-relaxed text-muted-color">{{ t('point.rulesRevokeNote') }}</p>
             </section>
 
-            <!-- 내역 — 목업 `GET /api/me/points/ledger`(서버에 아직 없다). 거르기는 전체·적립·차감(교환 기능이 없어 「사용」은 두지 않는다) -->
+            <!-- 내역 — `GET /api/me/points/ledger`. 거르기는 전체·적립·차감(교환 기능이 없어 「사용」은 두지 않는다) -->
             <section class="rounded-xl border border-surface bg-surface-0 dark:bg-surface-900" :aria-labelledby="`${uid}-ledger`" data-testid="points-ledger">
                 <div class="flex flex-wrap items-center justify-between gap-2 px-4 pt-4">
                     <h2 :id="`${uid}-ledger`" class="text-sm font-semibold">{{ t('point.history') }}</h2>
@@ -122,7 +122,7 @@ import UtilPoint from '~/utils/util-point';
 
 /**
  * 포인트 `/me/points` — 로그인 필요(`auth` 미들웨어). 헤더 프로필 메뉴의 「포인트」·햄버거의 포인트 줄·내 정보의 「포인트 내역」이 온다.
- * 보유 포인트·오늘 적립(횟수/상한)·적립 규칙은 실제 `GET /api/me/points`, 내역 목록은 목업 `GET /api/me/points/ledger`(커서 더 보기).
+ * 보유 포인트·오늘 적립(횟수/상한)·적립 규칙은 `GET /api/me/points`, 내역 목록은 `GET /api/me/points/ledger`(커서 더 보기) — 둘 다 서버 연결됨.
  * 출석 기능이 없으면(`attendanceAvailable=false`, 지금은 늘) 출석 줄·출석 규칙을 그리지 않는다. 인기글 보상·닉네임 변경권도 지급 지점이 없어 그리지 않는다.
  */
 definePageMeta({ middleware: 'auth' });

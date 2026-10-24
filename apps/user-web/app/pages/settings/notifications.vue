@@ -28,9 +28,9 @@
                             <p :id="`${uid}-${row.code}-desc`" class="mt-0.5 text-xs leading-snug text-muted-color">{{ row.description }}</p>
                         </div>
 
-                        <!-- 끌 수 없는 알림 — 스위치 대신 잠금 안내 -->
+                        <!-- 끌 수 없는 알림 — 스위치 대신 잠금 안내(코드 잠금은 까닭별, 운영자가 끌 수 없게 한 이벤트는 `lockReason=null`) -->
                         <p v-if="!row.memberCanTurnOff" class="flex shrink-0 items-center gap-1.5 text-xs text-muted-color" data-testid="notify-settings-locked">
-                            <i class="pi pi-lock text-xs" aria-hidden="true" />{{ row.lockReason === 'ACTION' ? t('notification.lockedAction') : t('notification.lockedAccount') }}
+                            <i class="pi pi-lock text-xs" aria-hidden="true" />{{ t(LOCK_TEXT[row.lockReason ?? 'SITE']) }}
                         </p>
 
                         <!-- 앱 알림 위 · 이메일 아래로 쌓고, 폭을 고정해 모든 줄의 스위치가 같은 세로선에 선다 -->
@@ -69,13 +69,15 @@
 
 <script setup lang="ts">
 import type { MemberNotificationType } from '~/composables/notification/api/useNotificationApi.types';
-import type { MemberEventArea, MyNotificationSetting, MyNotificationSettings } from '~/composables/notification/api/useNotificationSettingsApi.types';
+import type { MemberEventArea, MemberEventLockReason, MyNotificationSetting, MyNotificationSettings } from '~/composables/notification/api/useNotificationSettingsApi.types';
 import UtilAuthMessages from '~/utils/util-auth-messages';
 
 /**
- * 알림 설정 `/settings/notifications` — 로그인 필요. 회원 이벤트별로 앱 알림·이메일 받기를 끈다(서버 API 가 없어 목업 `GET/PUT /api/me/notification-settings`).
+ * 알림 설정 `/settings/notifications` — 로그인 필요. 회원 이벤트별로 앱 알림·이메일 받기를 끈다(`GET/PUT /api/me/notification-settings` — 서버 연결됨).
  * - 이벤트 목록·이름·잠금은 서버 회원 이벤트 카탈로그가 준다(준비 중 제외). 영역별(내 글·댓글 / 내 계정 / 신고·운영)로 묶는다.
- * - **운영자가 그 채널로 보내는 이벤트만** 스위치가 있다(`inAppOffered`·`emailOffered`). 회원이 끌 수 없는 이벤트(`memberCanTurnOff=false`)는 잠금 안내.
+ * - **운영자가 그 채널로 보내는 이벤트만** 스위치가 있다(`inAppOffered`·`emailOffered`). 회원이 끌 수 없는 이벤트(`memberCanTurnOff=false`)는 잠금 안내 —
+ *   코드 잠금은 `lockReason`(계정·운영 처리)으로, 운영자가 끌 수 없게 한 이벤트(`lockReason=null`)는 「운영자가 정한 알림」으로 보인다.
+ * - 저장은 끌 수 있는 이벤트 전부를 줄마다 `code·inApp·email` 세 칸 모두 채워 보낸다(서버가 운영자가 보내지 않는 채널 값은 바꾸지 않는다).
  * - 이메일 인증 전·이메일 없는 계정은 이메일 스위치가 잠긴다(`emailReceivable=false`).
  * - 한 번에 저장(PUT 하나) → 하단 떠 있는 저장 줄(`StickySaveBar`). 떠나기 전 저장 안 한 변경을 묻는다.
  */
@@ -95,6 +97,12 @@ const AREA_TITLE: Record<MemberEventArea, string> = {
     safety: 'notification.areaSafety',
 };
 const AREA_ORDER: MemberEventArea[] = ['content', 'member', 'safety'];
+/** 잠금 안내 문구 — `SITE` 는 코드 잠금이 아니라 운영자가 끌 수 없게 한 이벤트(`lockReason=null`) */
+const LOCK_TEXT: Record<MemberEventLockReason | 'SITE', string> = {
+    ACCOUNT: 'notification.lockedAccount',
+    ACTION: 'notification.lockedAction',
+    SITE: 'notification.lockedSite',
+};
 
 const status = ref<'loading' | 'ready' | 'error'>('loading');
 const loadError = ref('');

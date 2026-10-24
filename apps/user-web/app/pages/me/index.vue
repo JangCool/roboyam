@@ -3,7 +3,7 @@
         <h1 class="text-lg font-bold">{{ t('me.title') }}</h1>
 
         <template v-if="user">
-            <!-- 프로필 요약 — 뱃지·닉네임·이메일은 로그인 정보, 가입일·한 줄 소개는 내 프로필(`/api/me/profile`, 목업)에서 -->
+            <!-- 프로필 요약 — 뱃지·닉네임·이메일은 로그인 정보, 가입일·한 줄 소개는 내 프로필(`/api/me/profile`)에서 -->
             <section class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-labelledby="`${uid}-profile`" data-testid="me-profile">
                 <h2 :id="`${uid}-profile`" class="sr-only">{{ t('me.profileTitle') }}</h2>
                 <div class="flex items-start gap-3">
@@ -111,7 +111,7 @@ import UtilSettings from '~/utils/util-settings';
 
 /**
  * 내 정보 `/me` — 로그인 필요(`auth` 미들웨어). 하단 탭·헤더 프로필 메뉴·햄버거의 「내 정보」가 온다.
- * 프로필 요약(뱃지·닉네임·이메일 — 로그인 정보, 가입일·한 줄 소개 — 내 프로필 목업) · 포인트 요약(실제 `GET /api/me/points`) · 바로가기(포인트 내역·알림·설정 화면들) · 로그아웃.
+ * 프로필 요약(뱃지·닉네임·이메일 — 로그인 정보, 가입일·한 줄 소개 — 내 프로필 `GET /api/me/profile`) · 포인트 요약(`GET /api/me/points`) · 바로가기(포인트 내역·알림·설정 화면들) · 로그아웃.
  * 원본(community) `pages/me/index.vue` 의 구성에서 로보얌에 없는 것(스크랩·소모임·아이템샵·주문·쪽지·프로필 그림)을 뺐다. 바로가기에 내 공개 프로필(`/users/{내 ID}`)·등급 안내(`/me/grade`)가 있다.
  */
 definePageMeta({ middleware: 'auth' });

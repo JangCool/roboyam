@@ -57,3 +57,4 @@
 - 권한 카탈로그 `point.read`·`point.settings`·`point.adjust` → `featureReady: true`(서버 `Permission` 과 같다).
 - 회원 상세: 기본 정보의 포인트·등급·포인트 구획의 잔액·최근 내역 10줄을 실제 값으로(「준비 중」 제거). 닉네임 변경권은 늘 0 이라 「준비 중」 유지. 회원 목록의 `pointMin`·`pointMax`·`sort=point` 는 서버와 맞는 것을 확인.
 - user-web `usePointApi`(`GET /api/me/points`) 실제 호출, 타입에 `attendanceAvailable`·`today`(post·comment·likeBonus)·`rules` 전체 반영. `attendanceAvailable=false` 면 「오늘 출석하기」 안내를 그리지 않고 프로필 메뉴 줄 이름도 「포인트」(출석체크 없음).
+- (2026-10-24) 미확정 4 의 회원 포인트 내역 `GET /api/me/points/ledger` 를 만들고 `/me/points` 를 연결했다 — `member-mypage-contract.md` 「서버 구현·연결 결과」.

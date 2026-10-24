@@ -58,4 +58,5 @@ export default {
     lockedAction: 'Moderation notice — can’t be turned off',
     emailNotVerified: 'Verify your email to get these by email too.',
     emailNoAddress: 'Your account has no email, so you can’t get these by email.',
+    lockedSite: 'Set by the site — can’t be turned off',
 };

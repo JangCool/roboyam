@@ -1,11 +1,11 @@
 /**
- * 내 프로필 API 가 주고받는 모양 — **서버에 아직 없다**(목업). 계약 후보: `docs/features/member-mypage-contract.md` 「프로필」.
+ * 내 프로필 API 가 주고받는 모양 — **서버 연결됨**(server/api `MyProfileView`·`NicknameChangeView`·`MyProfileRequest`). 계약: `docs/features/member-mypage-contract.md` 「프로필」.
  * ⚠ 시각은 UTC ISO. 회원 ID 는 경로·본문에 없다(본인 것만, 세션으로 안다).
  */
 
 /**
  * 닉네임 변경 규칙의 지금 상태 — `member-mypage-contract.md` 「결정」 닉네임 변경.
- * 가입 때 정한 닉네임은 가입 뒤 `freeLimit`번(서버 상수 1)만 바꿀 수 있다. 그 1번은 언제든(날짜 대기 없음), 쓰고 나면 더 바꿀 수 없다(`409 NICKNAME_CHANGE_LIMIT`).
+ * 가입 때 정한 닉네임은 가입 뒤 `freeLimit`번(서버 상수 `MyProfileService.NICKNAME_FREE_LIMIT` = 1)만 바꿀 수 있다. 그 1번은 언제든(날짜 대기 없음), 쓰고 나면 더 바꿀 수 없다(`409 NICKNAME_CHANGE_LIMIT`).
  * 모양은 community `docs/api-profile.md` 의 `nicknameChange` 에서 `nextChangeAt`·변경권 칸(`ticketCount`·`ticketPrice`)을 뺐다.
  */
 export interface NicknameChange {
@@ -34,6 +34,6 @@ export interface MyProfileRequest {
     bio: string;
 }
 
-/** 한 줄 소개 최대 글자 수(서버 규칙 후보 — 가정) */
+/** 한 줄 소개 최대 글자 수 — 서버 `MyProfileService.BIO_MAX`(앞뒤 공백을 자른 뒤 0~100자, 서버는 코드 포인트로 센다) */
 export const PROFILE_BIO_MAX = 100;
 
