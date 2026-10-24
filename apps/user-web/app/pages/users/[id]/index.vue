@@ -185,25 +185,28 @@
             <ProfileFeed v-else :key="`comments:${userId}`" :load="loadComments" :label="t('profile.tabComments')" :error-title="t('profile.commentsErrorTitle')" class="mt-1">
                 <template #item="{ item }">
                     <li class="border-b border-surface last:border-b-0">
-                        <NuxtLink
-                            :to="`/posts/${item.postId}#comment-${item.id}`"
-                            class="block px-4 py-2.5 hover:bg-surface-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:px-2 dark:hover:bg-surface-800/60"
-                            data-testid="profile-comment"
-                        >
-                            <p class="m-0 line-clamp-2 break-words text-sm leading-snug">
-                                <span v-if="item.reply" class="mr-1 inline-flex items-center justify-center rounded bg-surface-200 px-1.5 py-1 align-[1px] text-[0.6875rem] leading-none text-surface-600 dark:bg-surface-700 dark:text-surface-300">
-                                    <span class="relative top-[-0.09em]">{{ t('profile.replyTag') }}</span>
-                                </span>
-                                {{ item.bodyPreview }}
-                            </p>
-                            <p class="mt-1 flex items-center gap-1 text-xs text-muted-color">
-                                <span class="min-w-0 truncate">{{ t('profile.commentMeta', { board: localizedName(item.board.name, item.board.nameEn), title: item.postTitle }) }}</span>
-                                <span class="shrink-0" aria-hidden="true">·</span>
-                                <span class="shrink-0">{{ t('board.likesShort', { n: item.likeCount }) }}</span>
-                                <span class="shrink-0" aria-hidden="true">·</span>
-                                <time class="shrink-0" :datetime="item.createdAt" :title="time.full(item.createdAt)">{{ time.listLabel(item.createdAt) }}</time>
-                            </p>
-                        </NuxtLink>
+                        <!-- 차단한 회원·단어의 댓글은 접힌 한 줄(댓글 목록과 같은 `FoldedRow` — 「보기」로 그 자리에서 펼친다) -->
+                        <FoldedRow :reason="commentFold(item)" kind="comment" class="px-4 py-2.5 text-sm md:px-2" hide-class="px-4 pb-2 md:px-2">
+                            <NuxtLink
+                                :to="`/posts/${item.postId}#comment-${item.id}`"
+                                class="block px-4 py-2.5 hover:bg-surface-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:px-2 dark:hover:bg-surface-800/60"
+                                data-testid="profile-comment"
+                            >
+                                <p class="m-0 line-clamp-2 break-words text-sm leading-snug">
+                                    <span v-if="item.reply" class="mr-1 inline-flex items-center justify-center rounded bg-surface-200 px-1.5 py-1 align-[1px] text-[0.6875rem] leading-none text-surface-600 dark:bg-surface-700 dark:text-surface-300">
+                                        <span class="relative top-[-0.09em]">{{ t('profile.replyTag') }}</span>
+                                    </span>
+                                    {{ item.bodyPreview }}
+                                </p>
+                                <p class="mt-1 flex items-center gap-1 text-xs text-muted-color">
+                                    <span class="min-w-0 truncate">{{ t('profile.commentMeta', { board: localizedName(item.board.name, item.board.nameEn), title: item.postTitle }) }}</span>
+                                    <span class="shrink-0" aria-hidden="true">·</span>
+                                    <span class="shrink-0">{{ t('board.likesShort', { n: item.likeCount }) }}</span>
+                                    <span class="shrink-0" aria-hidden="true">·</span>
+                                    <time class="shrink-0" :datetime="item.createdAt" :title="time.full(item.createdAt)">{{ time.listLabel(item.createdAt) }}</time>
+                                </p>
+                            </NuxtLink>
+                        </FoldedRow>
                     </li>
                 </template>
                 <template #empty>
@@ -228,7 +231,7 @@
 
 <script setup lang="ts">
 import type { Grade } from '~/composables/auth/api/useAuthApi.types';
-import type { ProfileStats, PublicProfile } from '~/composables/profile/api/useUserProfileApi.types';
+import type { AuthorCommentRow, ProfileStats, PublicProfile } from '~/composables/profile/api/useUserProfileApi.types';
 import type { DmCanSend } from '~/composables/dm/api/useDmApi.types';
 import type { UserAction } from '~/composables/block/useUserActions';
 import { ApiError } from '~/composables/common/useApiClient';
@@ -331,6 +334,11 @@ onBeforeUnmount(() => {
 /* ── 탭의 목록 — 한 쪽씩 커서로 ── */
 const loadPosts = (cursor: string | undefined, signal: AbortSignal) => api.posts(userId.value, { cursor }, signal);
 const loadComments = (cursor: string | undefined, signal: AbortSignal) => api.comments(userId.value, { cursor }, signal);
+/** 작성 댓글 줄을 접는 까닭 — 모두 이 회원의 댓글이다. 서버의 `blocked`(`USER|WORD|null`)에 이 기기에서 방금 바꾼 차단을 겹친다(댓글 목록과 같다) */
+const blockOverrides = useBlockOverrides();
+function commentFold(item: AuthorCommentRow) {
+    return blockOverrides.blockedOf(userId.value, item.blocked);
+}
 
 function goBack() {
     if (typeof window !== 'undefined' && window.history.state?.back) router.back();

@@ -4,6 +4,7 @@
  * ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO.
  */
 import type { Role } from '~/composables/auth/api/useAuthApi.types';
+import type { BlockedBy } from '~/composables/block/api/useBlockApi.types';
 import type { PostFeedPage } from '~/composables/board/api/usePostApi.types';
 
 /** 활동 수치 — 보이는 글 수 · 지우지 않은 댓글 수 · 글·댓글이 받은 추천 합(서버가 최대 60초 늦을 수 있다) */
@@ -52,6 +53,8 @@ export interface AuthorCommentRow {
     /** 답글인가 */
     reply: boolean;
     createdAt: string;
+    /** 내가 차단한 회원(`USER`)·단어(`WORD`, 댓글 본문)라 접어 그릴 줄 — 서버 `ViewerBlocks`. 비로그인·본인은 null(칸이 없으면 접지 않는다) */
+    blocked?: BlockedBy | null;
 }
 
 /** `GET /api/users/{id}/comments?size&cursor` — 최신이 위. 삭제한 댓글과 볼 수 없는 글의 댓글은 빠진다. `size` 범위 밖 `400 VALIDATION fields.size` · 틀린 커서 `fields.cursor` */
