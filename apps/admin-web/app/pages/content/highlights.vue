@@ -1,12 +1,14 @@
 <template>
     <!--
-        하이라이트 — 운영자가 고른 글을 하이라이트로 지정해 순서·노출·기간을 정하고, 그 글에 찬성·반대 의견(토론)을 받는다(계약 `docs/features/popular-highlight-contract.md`, community `api-content.md` 1절).
+        하이라이트 — 운영자가 고른 글을 하이라이트로 지정해 순서·노출·기간을 정한다(계약 `docs/features/popular-highlight-contract.md`, community `api-content.md` 1절).
+        찬반 토론은 **게시글 기능**이다(`post-debate-contract.md`): 하이라이트 폼의 토론 칸은 그 글의 토론을 열고·바꾸고·닫으며, 하이라이트를 내리거나 지워도 토론은 그대로다.
+          줄의 [토론 설정](`DebateSettingsDialog`)·[의견 N](`DebateOpinionsDrawer`)은 글 번호로 쓰는 재사용 부품이다(다음 작업의 게시글 관리도 같은 부품을 쓴다) — 권한은 글 권한 `post.read`(보기)·`post.manage`(바꾸기).
         목록: 순서(↑↓ 한 칸씩 — 전체 ID 를 새 차례로 보낸다) · 대표 이미지 · 제목(없으면 글 제목)·요약 · 상태 딱지(SHOWING·SCHEDULED·EXPIRED·OFF·BLOCKED) · 노출 기간 · 수 · 노출 켜기/끄기 · [의견] · [고치기] · [지우기](확인).
           수: 토론이 있는 줄은 「참여 N명(찬성 · 반대 · 중립) · 의견 N · 일반 댓글 N」 — 투표 수(사람, `commentCounts.votes`)와 의견 수(원댓글)를 구별하고 입장 숫자는 입장 색. 중립은 `neutralEnabled || votes.neutral > 0 || neutral > 0` 일 때만. 토론이 없는 줄은 「댓글 N」.
-        만들기·고치기는 대화상자(`HighlightFormDialog` — 글 찾기·제목·요약·대표 이미지 올리기·노출·기간·의견 받기·중립도 받기). 후보 구획은 추천 많은 글(최근 일수·최소 추천·게시판)을 보여 주고 [하이라이트로 보내기]로 바로 만든다(기본: 노출 켬·기간 없음·맨 끝).
-        의견 관리는 오른쪽 서랍(`HighlightOpinionsDrawer` — 찬성·반대·중립 탭, 고정·숨김, 「고정 요청」 탭에서 승인·거절).
+        만들기·고치기는 대화상자(`HighlightFormDialog` — 글 찾기·제목·요약·대표 이미지 올리기·노출·기간·이 글의 찬반 토론·중립도 받기·입장 바꾸기 허용). 후보 구획은 추천 많은 글(최근 일수·최소 추천·게시판)을 보여 주고 [하이라이트로 보내기]로 바로 만든다(기본: 노출 켬·기간 없음·맨 끝, 글의 토론은 그대로).
+        의견 관리는 오른쪽 서랍(`DebateOpinionsDrawer` — 글 번호로, 찬성·반대·중립 탭, 고정·숨김, 「고정 요청」 탭에서 승인·거절).
         로보얌 홈은 아직 자리표시라 **공개 홈 표시는 없다**(홈 + 테마 작업 때) — 지금 하이라이트가 하는 일은 그 글의 「하이라이트」 표시와 토론(의견 받기가 켜졌을 때)이다. 화면이 그 사실을 안내한다.
-        권한: 보기 `highlight.read`(메뉴), 바꾸기 `highlight.manage` — 없으면 처리 단추가 없고 안내 한 줄(의견은 읽기만). 후보의 게시판 고르개는 게시판 목록을 볼 권한(`board.read`)이 있을 때만.
+        권한: 보기 `highlight.read`(메뉴), 바꾸기 `highlight.manage` — 없으면 처리 단추가 없고 안내 한 줄. 토론 설정·의견 서랍은 `post.read` 가 있을 때 보이고 `post.manage` 가 없으면 읽기만. 후보의 게시판 고르개는 게시판 목록을 볼 권한(`board.read`)이 있을 때만.
         사라진 하이라이트(`404 HIGHLIGHT_NOT_FOUND`)·순서 집합 불일치(`fields.ids`)는 서버 문구를 토스트로 보이고 목록을 다시 받는다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -75,7 +77,7 @@
                                         <template #stances>
                                             <template v-for="(stance, i) in stancesOf(item)" :key="stance">
                                                 <template v-if="i > 0"> · </template>
-                                                <span class="font-medium" :class="UtilHighlight.stanceTextClass(stance)">{{ t(`highlight.stanceTab.${stance}`, { n: item.commentCounts.votes[UtilHighlight.countKey(stance)] }) }}</span>
+                                                <span class="font-medium" :class="UtilDebate.stanceTextClass(stance)">{{ t(`debate.stanceTab.${stance}`, { n: item.commentCounts.votes[UtilDebate.countKey(stance)] }) }}</span>
                                             </template>
                                         </template>
                                         <template #opinions>{{ UtilHighlight.opinionCount(item.commentCounts) }}</template>
@@ -93,7 +95,8 @@
                                     <ToggleSwitch :model-value="item.visible" :input-id="`hl-visible-${item.id}`" :disabled="togglingId === item.id" @update:model-value="(v: boolean) => setVisible(item, v)" />
                                 </div>
                                 <div class="flex flex-wrap gap-1">
-                                    <Button v-if="UtilHighlight.hasDebate(item)" type="button" :label="t('highlight.opinions', { n: UtilHighlight.opinionCount(item.commentCounts) })" icon="pi pi-comments" size="small" severity="secondary" variant="outlined" @click="openOpinions(item)" />
+                                    <Button v-if="canReadPost && item.post && UtilHighlight.hasDebate(item)" type="button" :label="t('highlight.opinions', { n: UtilHighlight.opinionCount(item.commentCounts) })" icon="pi pi-comments" size="small" severity="secondary" variant="outlined" @click="openOpinions(item)" />
+                                    <Button v-if="canReadPost && item.post" type="button" :label="t('highlight.debateSettings')" icon="pi pi-sliders-h" size="small" severity="secondary" variant="text" @click="openDebateSettings(item)" />
                                     <Button v-if="canManage" type="button" :label="t('common.edit')" icon="pi pi-pencil" size="small" severity="secondary" variant="text" @click="openEdit(item)" />
                                     <Button v-if="canManage" type="button" :label="t('common.delete')" icon="pi pi-trash" size="small" severity="danger" variant="text" :loading="removingId === item.id" @click="remove(item)" />
                                 </div>
@@ -139,17 +142,27 @@
         </AppGadget>
 
         <HighlightFormDialog v-model:visible="formOpen" :item="editing" :actions="formActions" :saving="saving" :server-errors="formFieldErrors" :form-error="formError" @save="save" />
-        <HighlightOpinionsDrawer v-model:visible="opinionsOpen" :highlight="opinionsTarget" :actions="opinionActions" :can-read="canRead" :can-manage="canManage" @changed="reloadQuietly" />
+        <DebateOpinionsDrawer v-model:visible="opinionsOpen" :target="drawerTarget" :actions="opinionActions" :can-read="canReadPost" :can-manage="canManagePost" @changed="reloadQuietly" />
+        <DebateSettingsDialog
+            v-model:visible="debateSettingsOpen"
+            :post-id="debateSettingsTarget?.post?.id ?? null"
+            :title="debateSettingsTarget ? UtilHighlight.displayTitle(debateSettingsTarget) : ''"
+            :actions="debateSettingsActions"
+            :can-manage="canManagePost"
+            @changed="reloadQuietly"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { AdminPostRef } from '~/composables/content/api/usePopularApi.types';
-import type { DebateStance, HighlightCandidateQuery, HighlightItem, HighlightListView, HighlightSaveRequest } from '~/composables/content/api/useHighlightApi.types';
+import type { DebateStance } from '~/composables/content/api/useDebateApi.types';
+import type { HighlightCandidateQuery, HighlightItem, HighlightListView, HighlightSaveRequest } from '~/composables/content/api/useHighlightApi.types';
 import type { BoardListItem } from '~/composables/board/api/useBoardApi.types';
+import type { DebateDrawerTarget } from '~/components/debate/DebateOpinionsDrawer.types';
 import type { HighlightFormActions } from '~/components/highlight/HighlightFormDialog.types';
-import type { HighlightOpinionActions } from '~/components/highlight/HighlightOpinionsDrawer.types';
+import UtilDebate from '~/utils/util-debate';
 import UtilHighlight from '~/utils/util-highlight';
 import UtilHighlightMessages from '~/utils/util-highlight-messages';
 
@@ -169,8 +182,9 @@ const ids = { days: useId(), minLikes: useId(), board: useId() };
 
 /** 바꾸기 권한(정의: util-permission-catalog.ts) — 숨기는 것은 편의이고 막는 것은 서버다 */
 const canManage = computed(() => can('highlight.manage'));
-/** 보기 권한 — 의견 서랍의 「고정 요청」 탭(요청 목록 읽기는 `highlight.read`) */
-const canRead = computed(() => can('highlight.read'));
+/** 글의 찬반 토론(설정 대화창·의견 서랍) — 글 권한. 보기 `post.read`, 바꾸기 `post.manage`(post-debate-contract 범위 변경 2026-10-24) */
+const canReadPost = computed(() => can('post.read'));
+const canManagePost = computed(() => can('post.manage'));
 const canReadBoards = computed(() => can('board.read'));
 
 /** 이미 바뀐 하이라이트(다른 운영자가 지웠거나 순서가 바뀌었다) — 목록을 다시 받는다 */
@@ -347,22 +361,29 @@ async function save(body: HighlightSaveRequest): Promise<void> {
 const opinionsOpen = ref(false);
 const opinionsTarget = ref<HighlightItem | null>(null);
 
-const opinionActions: HighlightOpinionActions = {
-    load: (query) => api.opinions(requireTarget(), query),
-    pin: (commentId, on) => (on ? api.pin(requireTarget(), commentId) : api.unpin(requireTarget(), commentId)),
-    hide: (commentId, on) => (on ? api.hide(requireTarget(), commentId) : api.unhide(requireTarget(), commentId)),
-    pinRequests: () => api.pinRequests(requireTarget()),
-    approvePinRequest: (requestId) => api.approvePinRequest(requireTarget(), requestId),
-    rejectPinRequest: (requestId, reason) => api.rejectPinRequest(requireTarget(), requestId, reason),
-};
+const opinionActions = useDebateOpinionActions();
 
-function requireTarget(): string {
-    return opinionsTarget.value?.id ?? '';
-}
+/** 서랍이 다룰 글 — 하이라이트 줄에서 글 번호·제목·입장별 의견 수 */
+const drawerTarget = computed<DebateDrawerTarget | null>(() => {
+    const item = opinionsTarget.value;
+    if (!item?.post) return null;
+    const counts = item.commentCounts;
+    return { postId: item.post.id, title: UtilHighlight.displayTitle(item), neutralEnabled: item.neutralEnabled, counts: { pro: counts.pro, con: counts.con, neutral: counts.neutral } };
+});
 
 function openOpinions(item: HighlightItem): void {
     opinionsTarget.value = item;
     opinionsOpen.value = true;
+}
+
+/* ── 글의 토론 설정 ── */
+const debateSettingsActions = useDebateSettingsActions();
+const debateSettingsOpen = ref(false);
+const debateSettingsTarget = ref<HighlightItem | null>(null);
+
+function openDebateSettings(item: HighlightItem): void {
+    debateSettingsTarget.value = item;
+    debateSettingsOpen.value = true;
 }
 
 /* ── 후보 ── */
@@ -410,7 +431,7 @@ async function sendCandidate(post: AdminPostRef): Promise<void> {
     if (sendingId.value) return;
     sendingId.value = post.id;
     try {
-        await api.create({ postId: post.id, title: null, summary: null, imageFileId: null, visible: null, showFrom: null, showUntil: null, debate: null, neutralEnabled: null });
+        await api.create({ postId: post.id, title: null, summary: null, imageFileId: null, visible: null, showFrom: null, showUntil: null, debate: null, neutralEnabled: null, stanceChangeAllowed: null });
         toast.success(t('highlight.sent', { title: post.title }));
         await reload();
         void loadCandidates();

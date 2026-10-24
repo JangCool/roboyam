@@ -74,10 +74,10 @@ public enum AdminNotificationEvent {
      */
     MFA_DISABLED(spec(SECURITY, CRITICAL).everyone().alwaysEveryone().email().link("/me?tab=security")),
     /**
-     * 하이라이트 의견 고정 요청 — 회원이 요청할 때(api PinRequestService), 그 게시판 정책 {@code pinRequestReviewers} 에 OPERATOR 가 있을 때만. 5분 안의 연속 요청은 한 건.
-     * 처리는 관리자 하이라이트 › 의견 관리. 코드는 회원 이벤트 {@code OPINION_PIN_REQUESTED} 와 겹치면 안 된다(문구 대상 코드는 회원·운영자를 넘어 하나 — {@code MessageTargetCatalog})
+     * 토론 의견 고정 요청 — 회원이 요청할 때(api PinRequestService), 그 게시판 정책 {@code pinRequestReviewers} 에 OPERATOR 가 있을 때만. 같은 글의 5분 안 연속 요청은 한 건.
+     * 처리는 관리자 게시글 관리의 그 글 상세 서랍 토론 구획({@code /posts?post=} — docs/features/post-debate-contract.md, 화면은 다음 작업). 코드는 회원 이벤트 {@code OPINION_PIN_REQUESTED} 와 겹치면 안 된다(문구 대상 코드는 회원·운영자를 넘어 하나 — {@code MessageTargetCatalog})
      */
-    OPINION_PIN_REQUEST_PENDING(spec(CONTENT, INFO).holders(Permission.HIGHLIGHT_MANAGE).link("/content/highlights").collapse(300)),
+    OPINION_PIN_REQUEST_PENDING(spec(CONTENT, INFO).holders(Permission.POST_MANAGE).link("/posts?post={postId}").collapse(300)),
 
     // ── 예약 이벤트 (featureReady = false) — 기능이 만들어질 때 reserved() 를 지우고 발행 한 줄만 더한다 ──
     SANCTION_APPEAL_FILED(spec(SAFETY, INFO).holders(Permission.APPEAL_MANAGE).reserved()),

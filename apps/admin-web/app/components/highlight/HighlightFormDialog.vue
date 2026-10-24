@@ -1,6 +1,8 @@
 <template>
     <!--
-        하이라이트 만들기·고치기 대화상자 — 대상 글(만들 때만 고른다: 글 번호·제목으로 찾기) · 노출 제목(40자) · 요약(100자) · 대표 이미지 · 노출 켬/끔 · 노출 기간 · 찬성·반대 의견 받기 · 중립도 받기(기본 켬).
+        하이라이트 만들기·고치기 대화상자 — 대상 글(만들 때만 고른다: 글 번호·제목으로 찾기) · 노출 제목(40자) · 요약(100자) · 대표 이미지 · 노출 켬/끔 · 노출 기간 · 이 글의 찬반 토론(중립도 받기 · 입장 바꾸기 허용, 기본 켬).
+        토론 칸은 하이라이트가 아니라 **그 글의 토론**이다(post-debate-contract): 고칠 때는 지금 글의 토론 상태가 보이고(글쓴이가 연 토론이면 「글쓴이가 연 토론」 딱지), 끄면 글의 토론을 닫는다.
+          만들 때 토론 칸을 손대지 않으면 셋 다 null 로 보내 그 글에 이미 있는 토론을 그대로 둔다(`debateTouched`).
         서버 호출은 페이지가 준 `actions`(글 찾기·이미지 올리기)와 `save` 이벤트(만들기·고치기 요청)로만 한다. 열 때마다 입력을 새로 채운다(고칠 때는 그 하이라이트 값, 만들 때는 빈 칸).
         대표 이미지는 고르는 즉시 올려(`purpose=HIGHLIGHT_IMAGE`) 받은 파일 ID 를 저장 때 보낸다 — 저장하지 않으면 그 파일은 서버의 「올리다 만 파일 정리」가 지운다. [지우기]는 저장 때 `imageFileId: null`(지우기)로 간다.
         화면 검사(`UtilHighlight`)는 미리 알려 주는 것이고, 서버가 거절한 칸(`fields.postId|title|summary|showUntil|imageFileId`)은 그 칸 아래에 서버 문구 그대로, 칸에 붙지 않는 것은 아래 한 줄.
@@ -115,23 +117,36 @@
                 <p v-else class="m-0 text-xs text-muted-color">{{ t('highlight.periodHelp') }}</p>
             </section>
 
+            <!-- 이 글의 찬반 토론 — 하이라이트가 아니라 글의 토론을 열고·바꾸고·닫는다 -->
             <div class="flex flex-col gap-1">
-                <div class="flex items-center gap-3">
-                    <ToggleSwitch v-model="form.debate" :input-id="`${formId}-debate`" :disabled="saving" />
+                <div class="flex flex-wrap items-center gap-3">
+                    <ToggleSwitch :model-value="form.debate" :input-id="`${formId}-debate`" :disabled="saving" @update:model-value="(v: boolean) => setDebate({ debate: v })" />
                     <label :for="`${formId}-debate`" class="text-sm font-medium">{{ t('highlight.debateLabel') }}</label>
+                    <Tag v-if="item?.debateOpenedBy" :value="item.debateOpenedBy === 'MEMBER' ? t('highlight.debateOpenedByMember') : t('highlight.debateOpenedByOperator')" :severity="item.debateOpenedBy === 'MEMBER' ? 'info' : 'secondary'" class="text-[11px]!" />
                 </div>
-                <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('highlight.debateHelp') }}</p>
+                <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('highlight.debateHelp') }}<template v-if="!item"> {{ t('highlight.debateCreateHelp') }}</template></p>
             </div>
 
-            <!-- 중립도 받기 — 의견 받기가 꺼져 있으면 비활성으로 보이되 값은 그대로 보낸다 -->
-            <div class="flex flex-col gap-1 pl-4">
-                <div class="flex items-center gap-3">
-                    <ToggleSwitch v-model="form.neutralEnabled" :input-id="`${formId}-neutral`" :disabled="saving || !form.debate" :aria-describedby="`${formId}-neutral-help`" />
-                    <label :for="`${formId}-neutral`" class="text-sm font-medium" :class="form.debate ? '' : 'text-muted-color'">{{ t('highlight.neutralLabel') }}</label>
+            <!-- 중립도 받기 · 입장 바꾸기 허용 — 토론이 꺼져 있으면 비활성으로 보이되 값은 그대로 보낸다 -->
+            <div class="flex flex-col gap-3 pl-4">
+                <div class="flex flex-col gap-1">
+                    <div class="flex items-center gap-3">
+                        <ToggleSwitch :model-value="form.neutralEnabled" :input-id="`${formId}-neutral`" :disabled="saving || !form.debate" :aria-describedby="`${formId}-neutral-help`" @update:model-value="(v: boolean) => setDebate({ neutralEnabled: v })" />
+                        <label :for="`${formId}-neutral`" class="text-sm font-medium" :class="form.debate ? '' : 'text-muted-color'">{{ t('highlight.neutralLabel') }}</label>
+                    </div>
+                    <p :id="`${formId}-neutral-help`" class="m-0 text-xs leading-relaxed text-muted-color">
+                        {{ t('highlight.neutralHelp') }}<template v-if="!form.debate"> {{ t('highlight.neutralIdle') }}</template>
+                    </p>
                 </div>
-                <p :id="`${formId}-neutral-help`" class="m-0 text-xs leading-relaxed text-muted-color">
-                    {{ t('highlight.neutralHelp') }}<template v-if="!form.debate"> {{ t('highlight.neutralIdle') }}</template>
-                </p>
+                <div class="flex flex-col gap-1">
+                    <div class="flex items-center gap-3">
+                        <ToggleSwitch :model-value="form.stanceChangeAllowed" :input-id="`${formId}-change`" :disabled="saving || !form.debate" :aria-describedby="`${formId}-change-help`" @update:model-value="(v: boolean) => setDebate({ stanceChangeAllowed: v })" />
+                        <label :for="`${formId}-change`" class="text-sm font-medium" :class="form.debate ? '' : 'text-muted-color'">{{ t('highlight.stanceChangeLabel') }}</label>
+                    </div>
+                    <p :id="`${formId}-change-help`" class="m-0 text-xs leading-relaxed" :class="form.stanceChangeAllowed || !form.debate ? 'text-muted-color' : 'font-medium text-amber-700 dark:text-amber-300'">
+                        {{ form.stanceChangeAllowed ? t('highlight.stanceChangeHelp') : t('highlight.stanceChangeOff') }}<template v-if="!form.debate"> {{ t('highlight.neutralIdle') }}</template>
+                    </p>
+                </div>
             </div>
 
             <Message v-if="formError" severity="error" size="small" variant="simple" :closable="false">{{ formError }}</Message>
@@ -234,6 +249,11 @@ function choosePost(post: AdminPostRef): void {
     searched.value = false;
 }
 
+/** 토론 칸을 바꾼다 — 만들 때 손댄 것으로 표시해 셋 다 보낸다 */
+function setDebate(change: Partial<Pick<HighlightForm, 'debate' | 'neutralEnabled' | 'stanceChangeAllowed'>>): void {
+    form.value = { ...form.value, ...change, debateTouched: true };
+}
+
 function clearPost(): void {
     form.value = { ...form.value, post: null };
 }
@@ -311,6 +331,6 @@ function submit(): void {
     tried.value = true;
     touched.value = new Set();
     if (props.saving || uploading.value || Object.keys(problems.value).length > 0) return;
-    emit('save', UtilHighlight.toRequest(form.value));
+    emit('save', UtilHighlight.toRequest(form.value, !props.item));
 }
 </script>

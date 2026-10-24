@@ -6,7 +6,7 @@
 import type { Role } from '~/composables/auth/api/useAuthApi.types';
 import type { BoardProtectDelete, PrefixView } from '~/composables/board/api/useBoardApi.types';
 import type { BlockedBy } from '~/composables/block/api/useBlockApi.types';
-import type { DebateSummary } from '~/composables/board/api/useDebateApi.types';
+import type { DebateSummary, PostDebateOpen } from '~/composables/board/api/useDebateApi.types';
 
 /**
  * 본문 형식 — `TEXT` 평문(Textarea, 글자로 그린다) · `HTML` 에디터 HTML(서버가 정화한 것만 돌려준다 — 글 보기·댓글 보기만 `v-html` 로 그린다).
@@ -180,9 +180,9 @@ export interface PostDetail {
      * 서버는 본문을 그대로 싣는다 — 접는 것은 화면의 일이다(`FoldedRow`, `useBlockOverrides().blockedOf`).
      */
     blocked?: BlockedBy | null;
-    /** 지금 하이라이트로 노출 중인 글(노출 켬 + 기간 안) — 제목 위에 「하이라이트」 표시. 「찬성·반대 의견 받기」와 무관(2026-10-24) */
+    /** 지금 하이라이트로 노출 중인 글(노출 켬 + 기간 안) — 제목 위에 「하이라이트」 표시. 찬반 토론과 무관(토론은 글의 기능) */
     highlighted?: boolean;
-    /** 하이라이트 토론 요약 — 늘 있다(하이라이트가 아니면 `enabled false`). 옛 응답에는 없을 수 있다 */
+    /** 찬반 토론 요약 — 늘 있다(토론이 없으면 `enabled false`). 옛 응답에는 없을 수 있다 */
     debate?: DebateSummary;
 }
 
@@ -208,6 +208,8 @@ export interface PostWriteRequest {
     adult: boolean;
     /** 비회원이면 필수, 회원이면 null */
     guest: GuestCredentials | null;
+    /** 글과 함께 찬반 토론을 연다(회원이고 게시판 `debateEnabled` 일 때만 — 아니면 `400 fields.debate`). 열지 않으면 null */
+    debate?: PostDebateOpen | null;
 }
 
 export interface PostWriteResult {

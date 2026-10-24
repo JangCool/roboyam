@@ -1,4 +1,5 @@
-import type { CommentDebate, DebateStance, DebateSummary, DebateVotes, OpinionKind } from '~/composables/board/api/useDebateApi.types';
+import type { CommentDebate, DebateSettingsBody, DebateStance, DebateSummary, DebateVotes, OpinionKind, PostDebateOpen } from '~/composables/board/api/useDebateApi.types';
+import { DEFAULT_DEBATE_SETTINGS, type DebateSettingsValues } from '~/components/board/DebateSettingsFields.types';
 
 /** 비율 막대 한 칸 — 사람 수와 그 비율(0~100, 반올림) */
 export interface DebateShare {
@@ -8,7 +9,7 @@ export interface DebateShare {
 }
 
 /**
- * 하이라이트 토론 화면의 판정·색 — 순수 함수만(docs/features/popular-highlight-contract.md 「서버 구현 결과」 공개 사이트 토론).
+ * 게시글 찬반 토론 화면의 판정·색·설정 값 — 순수 함수만(docs/features/popular-highlight-contract.md 「서버 구현 결과」 공개 사이트 토론, docs/features/post-debate-contract.md).
  * 색은 `main.css` 「토론 입장 색」 유틸(`stance-{pro,con,neutral}-{text,soft,solid}`)이다 — 늘 입장 글자와 함께 쓴다.
  */
 export default class UtilDebate {
@@ -16,7 +17,7 @@ export default class UtilDebate {
     static readonly EMPTY_VOTES: DebateVotes = { pro: 0, con: 0, neutral: 0, total: 0 };
 
     /**
-     * 토론 구획을 보일까 — 지금 열렸거나 이미 표·의견이 있다(끝난 하이라이트는 읽기 전용).
+     * 토론 구획을 보일까 — 지금 열렸거나 이미 표·의견이 있다(닫힌 토론은 읽기 전용).
      * @param {CommentDebate | DebateSummary | null | undefined} debate - 댓글 목록의 `debate`(의견 수가 있음) 또는 글 상세의 `debate`.
      * @returns {boolean} 보이면 true.
      */
@@ -27,7 +28,7 @@ export default class UtilDebate {
     }
 
     /**
-     * 중립 칸(투표 단추·칩·막대)을 보일까 — 하이라이트가 중립을 받거나 이미 중립 표·의견이 있다.
+     * 중립 칸(투표 단추·칩·막대)을 보일까 — 토론이 중립을 받거나 이미 중립 표·의견이 있다.
      * @param {CommentDebate} debate - 댓글 목록의 `debate`.
      * @returns {boolean} 보이면 true.
      */
@@ -77,6 +78,53 @@ export default class UtilDebate {
      */
     static kindStance(kind: OpinionKind): DebateStance | null {
         return kind === 'OPINION' ? null : kind;
+    }
+
+    /**
+     * 입장을 바꿀 수 없는 토론인가(「입장 바꾸기 허용」 꺼짐). 옛 응답에 칸이 없으면 바꿀 수 있다고 본다.
+     * @param {CommentDebate | DebateSummary | null | undefined} debate - 토론 요약.
+     * @returns {boolean} 잠겼으면 true.
+     */
+    static stanceLocked(debate: CommentDebate | DebateSummary | null | undefined): boolean {
+        return debate?.stanceChangeAllowed === false;
+    }
+
+    /**
+     * 글의 토론 요약 → 설정 세 칸 값. 닫혀 있으면 서버가 두 설정을 true 로 준다(= 새로 열 때의 기본값).
+     * @param {CommentDebate | DebateSummary | null | undefined} debate - 토론 요약.
+     * @returns {DebateSettingsValues} 칸 값.
+     */
+    static settingsOf(debate: CommentDebate | DebateSummary | null | undefined): DebateSettingsValues {
+        if (!debate) return { ...DEFAULT_DEBATE_SETTINGS };
+        return { enabled: debate.enabled, neutralEnabled: debate.neutralEnabled ?? true, stanceChangeAllowed: debate.stanceChangeAllowed ?? true };
+    }
+
+    /**
+     * 설정 두 값이 같은가 — 닫힌 채로 두는 동안의 두 설정은 뜻이 없어 비교하지 않는다.
+     * @returns {boolean} 같으면 true.
+     */
+    static sameSettings(a: DebateSettingsValues, b: DebateSettingsValues): boolean {
+        if (a.enabled !== b.enabled) return false;
+        if (!a.enabled) return true;
+        return a.neutralEnabled === b.neutralEnabled && a.stanceChangeAllowed === b.stanceChangeAllowed;
+    }
+
+    /**
+     * 설정 칸 → `PUT /api/posts/{id}/debate` 본문.
+     * @param {DebateSettingsValues} values - 칸 값.
+     * @returns {DebateSettingsBody} 요청 본문.
+     */
+    static settingsBody(values: DebateSettingsValues): DebateSettingsBody {
+        return { enabled: values.enabled, neutralEnabled: values.neutralEnabled, stanceChangeAllowed: values.stanceChangeAllowed };
+    }
+
+    /**
+     * 글쓰기 칸 → `POST /api/posts` 본문의 `debate`(열지 않으면 null).
+     * @param {DebateSettingsValues} values - 칸 값.
+     * @returns {PostDebateOpen | null} 본문 칸.
+     */
+    static openBody(values: DebateSettingsValues): PostDebateOpen | null {
+        return values.enabled ? { neutralEnabled: values.neutralEnabled, stanceChangeAllowed: values.stanceChangeAllowed } : null;
     }
 
     /**

@@ -7,7 +7,10 @@ import com.community.audit.service.AuditLogService;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.BoardCatalog;
+import com.community.debate.entity.PostDebateEntity;
 import com.community.debate.repository.master.DebateQueries;
+import com.community.debate.repository.master.PostDebateRepository;
+import com.community.debate.service.DebateAdminService;
 import com.community.highlight.dto.request.HighlightOrderRequest;
 import com.community.highlight.dto.request.HighlightSaveRequest;
 import com.community.highlight.dto.request.HighlightVisibleRequest;
@@ -67,6 +70,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *   <li><b>대표 이미지</b>: {@code POST /api/admin/files}(purpose HIGHLIGHT_IMAGE)로 올린 파일을 지정하면 그 파일이 쓰는 중(IN_USE)이 되고, 바꾸거나 지우면 예전 파일의 장부 행을 지우고
  *       저장소 파일은 커밋 뒤에 지운다(하이라이트를 지울 때도).</li>
  *   <li><b>순서</b>: 새 하이라이트는 맨 끝. 순서 바꾸기는 전체 ID 를 보낸다(집합이 다르면 {@code fields.ids}). 만들기·순서는 하이라이트 전체를 잠가 줄 세운다.</li>
+ *   <li><b>토론 칸</b>: 하이라이트는 토론을 갖지 않는다 — {@code debate}·{@code neutralEnabled}·{@code stanceChangeAllowed} 는 그 <b>글의</b> 토론을 연다·바꾼다·닫는다
+ *       (관리자 토론 PUT 과 같은 {@link DebateAdminService#apply} — 감사 DEBATE_OPEN · UPDATE · CLOSE, {@code via HIGHLIGHT}). 줄의 같은 칸은 글의 토론에서 읽는다.
+ *       하이라이트를 지우거나 내려도 토론은 그대로다(docs/features/post-debate-contract.md).</li>
  *   <li>모든 변경은 감사(HIGHLIGHT_CREATE · UPDATE · DELETE · ORDER · VISIBLE)에 남는다.</li>
  * </ul>
  */
@@ -99,6 +105,8 @@ public class HighlightAdminService {
     private final AdminPostSummaries summaries;
     private final HighlightCommentRepositoryQDSL commentCounts;
     private final DebateQueries debateQueries;
+    private final PostDebateRepository debates;
+    private final DebateAdminService debateAdmin;
     private final BoardCatalog catalog;
     private final FileRepository files;
     private final ImageStorage storage;
@@ -108,13 +116,16 @@ public class HighlightAdminService {
     private final SnowflakeIdGenerator ids;
 
     public HighlightAdminService(HighlightRepository highlights, AdminPostRepositoryQDSL posts, AdminPostSummaries summaries,
-                                 HighlightCommentRepositoryQDSL commentCounts, DebateQueries debateQueries, BoardCatalog catalog, FileRepository files, ImageStorage storage,
+                                 HighlightCommentRepositoryQDSL commentCounts, DebateQueries debateQueries, PostDebateRepository debates,
+                                 DebateAdminService debateAdmin, BoardCatalog catalog, FileRepository files, ImageStorage storage,
                                  SiteImageFiles imageFiles, OperatorRepository operators, AuditLogService audit, SnowflakeIdGenerator ids) {
         this.highlights = highlights;
         this.posts = posts;
         this.summaries = summaries;
         this.commentCounts = commentCounts;
         this.debateQueries = debateQueries;
+        this.debates = debates;
+        this.debateAdmin = debateAdmin;
         this.catalog = catalog;
         this.files = files;
         this.storage = storage;
@@ -195,7 +206,7 @@ public class HighlightAdminService {
 
     @Transactional
     public HighlightItemView create(AdminActor actor, HighlightSaveRequest body) {
-        HighlightSaveRequest b = body == null ? new HighlightSaveRequest(null, null, null, null, null, null, null, null, null) : body;
+        HighlightSaveRequest b = body == null ? new HighlightSaveRequest(null, null, null, null, null, null, null, null, null, null) : body;
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         Long postId = null;
         if (b.postId() == null || b.postId().isBlank()) {
@@ -221,11 +232,10 @@ public class HighlightAdminService {
         FileEntity image = attachImage(imageFileId, null, now);
         int order = all.stream().mapToInt(HighlightEntity::getSortOrder).max().orElse(0) + 1;
         boolean visible = b.visible() == null || b.visible();
-        boolean debate = Boolean.TRUE.equals(b.debate());
-        boolean neutralEnabled = b.neutralEnabled() == null || b.neutralEnabled();
         HighlightEntity row = HighlightEntity.create(ids.nextId(), postId, f.title(), f.summary(), image == null ? null : image.getId(), visible, b.showFrom(),
-                b.showUntil(), debate, neutralEnabled, order, actor.operatorId(), now);
+                b.showUntil(), order, actor.operatorId(), now);
         highlights.persist(row);
+        applyDebate(actor, postId, b, true);
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.HIGHLIGHT_CREATE, AuditResult.SUCCESS)
                 .target("HIGHLIGHT", Long.toString(row.getId())).with("postId", Long.toString(postId)).with("after", snapshot(row)));
         log.info("하이라이트를 만들었다 id={} postId={} by operatorId={}", row.getId(), postId, actor.operatorId());
@@ -235,7 +245,7 @@ public class HighlightAdminService {
     @Transactional
     public HighlightItemView update(AdminActor actor, String idText, HighlightSaveRequest body) {
         HighlightEntity row = requireLocked(idText);
-        HighlightSaveRequest b = body == null ? new HighlightSaveRequest(null, null, null, null, null, null, null, null, null) : body;
+        HighlightSaveRequest b = body == null ? new HighlightSaveRequest(null, null, null, null, null, null, null, null, null, null) : body;
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         Fields f = checkFields(b, fields);
         Long imageFileId = imageFileIdOf(b.imageFileId(), fields); // 여기서는 형식만 — 새 파일이면 attachImage 가 용도·상태를 확인한다
@@ -249,9 +259,8 @@ public class HighlightAdminService {
         if (!Objects.equals(oldImage, newImage)) {
             attachImage(newImage, oldImage, now);
         }
-        row.change(f.title(), f.summary(), newImage, b.visible() == null ? row.isVisible() : b.visible(), b.showFrom(), b.showUntil(),
-                b.debate() == null ? row.isDebate() : b.debate(), b.neutralEnabled() == null ? row.isNeutralEnabled() : b.neutralEnabled(), actor.operatorId(),
-                now);
+        row.change(f.title(), f.summary(), newImage, b.visible() == null ? row.isVisible() : b.visible(), b.showFrom(), b.showUntil(), actor.operatorId(), now);
+        applyDebate(actor, row.getPostId(), b, false);
         Map<String, Object> after = snapshot(row);
         Map<String, Object> changedBefore = new LinkedHashMap<>();
         Map<String, Object> changedAfter = new LinkedHashMap<>();
@@ -315,7 +324,7 @@ public class HighlightAdminService {
         return viewOf(row);
     }
 
-    /** 하이라이트만 지운다 — 대상 글은 그대로다. 이미 쓴 의견·입장도 글에 그대로 남는다 */
+    /** 하이라이트만 지운다 — 대상 글은 그대로다. 글의 토론(열림·설정)·이미 쓴 의견·입장도 그대로 남는다 */
     @Transactional
     public void delete(AdminActor actor, String idText) {
         HighlightEntity row = requireLocked(idText);
@@ -330,6 +339,21 @@ public class HighlightAdminService {
     }
 
     // ── 안쪽 ──────────────────────────────────────────────────────────────
+
+    /**
+     * 폼의 토론 칸 → 글의 토론. {@code debate} true = 열기(열려 있으면 두 칸만 바꾸기), 고칠 때 false = 닫기, null = 그대로(열려 있으면 두 칸 중 보낸 것만 바꾼다).
+     * 만들 때 false 는 그대로다(글쓴이가 연 토론을 모르고 닫지 않게).
+     */
+    private void applyDebate(AdminActor actor, long postId, HighlightSaveRequest b, boolean creating) {
+        Boolean want = b.debate();
+        if (want == null || (!want && creating)) {
+            if (b.neutralEnabled() == null && b.stanceChangeAllowed() == null || !debates.existsById(postId)) {
+                return;
+            }
+            want = true; // 열려 있는 토론의 설정만 바꾼다
+        }
+        debateAdmin.apply(actor, postId, want, b.neutralEnabled(), b.stanceChangeAllowed(), "HIGHLIGHT");
+    }
 
     /** 검사를 통과한 글자 칸 */
     private record Fields(String title, String summary) {
@@ -439,8 +463,6 @@ public class HighlightAdminService {
         map.put("visible", row.isVisible());
         map.put("showFrom", row.getShowFrom() == null ? null : row.getShowFrom().toString());
         map.put("showUntil", row.getShowUntil() == null ? null : row.getShowUntil().toString());
-        map.put("debate", row.isDebate());
-        map.put("neutralEnabled", row.isNeutralEnabled());
         return map;
     }
 
@@ -474,6 +496,8 @@ public class HighlightAdminService {
         Map<Long, Integer> visibleAll = new HashMap<>();
         postRows.values().forEach(r -> visibleAll.put(r.id(), r.commentCount() == null ? 0 : r.commentCount()));
         Map<Long, HighlightCommentCountsView> counts = commentCounts.counts(postIds, visibleAll, debateQueries.votesOf(postIds), now);
+        Map<Long, PostDebateEntity> debateOf = new HashMap<>();
+        debates.findAllById(postIds).forEach(d -> debateOf.put(d.getPostId(), d));
         Map<Long, String> imageUrls = new HashMap<>();
         List<Long> imageIds = rows.stream().map(HighlightEntity::getImageFileId).filter(Objects::nonNull).toList();
         if (!imageIds.isEmpty()) {
@@ -490,9 +514,11 @@ public class HighlightAdminService {
             AdminPostRow post = postRows.get(h.getPostId());
             AdminPostRefView postView = post == null ? null : summaries.view(post, s, members, now);
             String status = status(h, postView, now);
+            PostDebateEntity d = debateOf.get(h.getPostId());
             out.add(new HighlightItemView(Long.toString(h.getId()), order++, h.getTitle(), h.getSummary(),
                     h.getImageFileId() == null ? null : Long.toString(h.getImageFileId()), h.getImageFileId() == null ? null : imageUrls.get(h.getImageFileId()),
-                    h.isVisible(), h.getShowFrom(), h.getShowUntil(), status, h.isDebate(), h.isNeutralEnabled(), postView, counts.get(h.getPostId()), h.getCreatedAt(),
+                    h.isVisible(), h.getShowFrom(), h.getShowUntil(), status, d != null, d == null || d.isNeutralEnabled(), d == null || d.isStanceChangeAllowed(),
+                    d == null ? null : d.openedByView(), postView, counts.get(h.getPostId()), h.getCreatedAt(),
                     h.getUpdatedAt(), h.getUpdatedBy() == null ? null : new HighlightOperatorView(Long.toString(h.getUpdatedBy()), operatorNames.get(h.getUpdatedBy()))));
         }
         return out;

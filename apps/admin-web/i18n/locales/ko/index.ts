@@ -35,6 +35,7 @@ import team from './team';
 import terms from './terms';
 import nicknameImage from './nicknameImage';
 import content from './content';
+import debate from './debate';
 import highlight from './highlight';
 import popular from './popular';
 
@@ -69,6 +70,7 @@ export default {
     terms,
     nicknameImage,
     content,
+    debate,
     highlight,
     popular,
 };

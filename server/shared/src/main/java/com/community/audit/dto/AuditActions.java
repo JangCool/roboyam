@@ -156,14 +156,21 @@ public final class AuditActions {
     public static final String HIGHLIGHT_ORDER = "HIGHLIGHT_ORDER";
     /** 하이라이트 노출 켜기·끄기 — from/to */
     public static final String HIGHLIGHT_VISIBLE = "HIGHLIGHT_VISIBLE";
-    /** 하이라이트 의견 고정·고정 해제·숨김·숨김 해제 — 대상 COMMENT + 댓글 ID, {@code highlightId}·{@code postId}·{@code stance} */
+    /** 토론 의견 고정·고정 해제·숨김·숨김 해제(이름은 예전 하이라이트 의견 관리 그대로 — 기록 호환) — 대상 COMMENT + 댓글 ID, {@code postId}·{@code stance} */
     public static final String HIGHLIGHT_OPINION_PIN = "HIGHLIGHT_OPINION_PIN";
     public static final String HIGHLIGHT_OPINION_UNPIN = "HIGHLIGHT_OPINION_UNPIN";
     public static final String HIGHLIGHT_OPINION_HIDE = "HIGHLIGHT_OPINION_HIDE";
     public static final String HIGHLIGHT_OPINION_UNHIDE = "HIGHLIGHT_OPINION_UNHIDE";
-    /** 의견 고정 요청 승인·거절(운영자) — 대상 COMMENT + 댓글 ID, {@code highlightId}·{@code postId}·{@code requestId}·{@code requesterId}·거절이면 {@code reason} */
+    /** 의견 고정 요청 승인·거절(운영자) — 대상 COMMENT + 댓글 ID, {@code postId}·{@code requestId}·{@code requesterId}·거절이면 {@code reason} */
     public static final String HIGHLIGHT_PIN_REQUEST_APPROVE = "HIGHLIGHT_PIN_REQUEST_APPROVE";
     public static final String HIGHLIGHT_PIN_REQUEST_REJECT = "HIGHLIGHT_PIN_REQUEST_REJECT";
+    // ── 글 찬반 토론(docs/features/post-debate-contract.md) ──
+    /** 글의 토론 열기(관리자 토론 PUT · 하이라이트 만들기·고치기) — 대상 POST + 글 ID, {@code after}(neutralEnabled·stanceChangeAllowed·openedBy), 하이라이트에서 했으면 {@code via HIGHLIGHT} */
+    public static final String DEBATE_OPEN = "DEBATE_OPEN";
+    /** 글의 토론 설정 바꾸기 — 바뀐 칸만 before/after */
+    public static final String DEBATE_UPDATE = "DEBATE_UPDATE";
+    /** 글의 토론 닫기(행 지움 — 입장·의견·고정은 그대로) — {@code before} */
+    public static final String DEBATE_CLOSE = "DEBATE_CLOSE";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

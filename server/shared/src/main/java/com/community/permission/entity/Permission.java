@@ -25,7 +25,7 @@ public enum Permission {
     NOTICE_SETTINGS("notice.settings", NOTICE, CONFIG, false),
     /** 하이라이트 목록·글 찾기·후보·의견 목록 조회 — docs/features/popular-highlight-contract.md */
     HIGHLIGHT_READ("highlight.read", NOTICE, READ, true),
-    /** 하이라이트 만들기·고치기·순서·노출·지우기·대표 이미지 올리기, 의견 고정·숨김 */
+    /** 하이라이트 만들기·고치기·순서·노출·지우기·대표 이미지 올리기(폼의 토론 칸은 글의 토론을 연다·바꾼다·닫는다) */
     HIGHLIGHT_MANAGE("highlight.manage", NOTICE, MANAGE, true),
     /** 인기글 관리(기간별 순위·뺀 글) 조회, 인기글 설정 조회 */
     POPULAR_READ("popular.read", NOTICE, READ, true),
@@ -33,7 +33,9 @@ public enum Permission {
     POPULAR_MANAGE("popular.manage", NOTICE, MANAGE, true),
     /** 인기글 설정(점수식·조건·주 시작 요일) 저장 */
     POPULAR_SETTINGS("popular.settings", NOTICE, CONFIG, true),
+    /** 게시글 관리 조회 — 지금은 글의 찬반 토론 단건·토론 의견 목록·대기 고정 요청(docs/features/post-debate-contract.md). 게시글 관리 화면이 생기면 featureReady 를 켠다 */
     POST_READ("post.read", POST, READ, false),
+    /** 게시글 관리 처리 — 지금은 글의 토론 열기·설정·닫기, 토론 의견 고정·숨김, 의견 고정 요청 승인·거절 */
     POST_MANAGE("post.manage", POST, MANAGE, false),
     POST_BULK_DELETE("post.bulk-delete", POST, SENSITIVE, false),
     BOARD_READ("board.read", BOARD, READ, true),

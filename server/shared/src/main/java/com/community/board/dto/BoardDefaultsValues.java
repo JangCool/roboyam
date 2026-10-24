@@ -16,7 +16,7 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
                                   String pointMode, Integer commentProtectMin, Boolean commentProtectEdit, String commentProtectDelete,
                                   Integer commentProtectDelayMinutes, Integer commentGuestDelayMinutes, Boolean staffHiddenNotice,
                                   Boolean commentDislikeEnabled, String commentLikeLabel, String commentDislikeLabel, List<String> pinRequestReviewers,
-                                  Integer bestCommentMinLikes, Integer managerMax,
+                                  Boolean debateEnabled, Integer bestCommentMinLikes, Integer managerMax,
                                   Integer staffMax, Integer staffPostDailyLimit, Integer staffCommentDailyLimit, Integer staffSanctionDailyLimit) {
 
     /** 추천·비추천 이름은 앞뒤 공백을 자르고 비면 null(= 화면 기본 이름) */
@@ -66,6 +66,7 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
         map.put("commentLikeLabel", commentLikeLabel);
         map.put("commentDislikeLabel", commentDislikeLabel);
         map.put("pinRequestReviewers", pinRequestReviewers);
+        map.put("debateEnabled", debateEnabled);
         map.put("bestCommentMinLikes", bestCommentMinLikes);
         map.put("managerMax", managerMax);
         map.put("staffMax", staffMax);

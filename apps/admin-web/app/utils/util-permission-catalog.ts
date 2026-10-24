@@ -149,7 +149,8 @@ export default class UtilPermissionCatalog {
      *  · 회원 조회: 조회 `member.read` / 민감 `member.pii`(전체 이메일 열람 — 없으면 이메일이 `ab***@gmail.com` 으로 가려진다).
      *  · 닉네임 이미지 심사(`/members/nickname-images`): 조회 `nickname-image.read` / 처리 `nickname-image.manage`(승인·반려·해제).
      *  · 등급·포인트·휴면(등급 설정·포인트 내역·포인트 정책 화면): 조회 `grade.read` / 설정 `grade.manage`(등급 승급 조건 변경). 포인트는 조회 `point.read`(원장·정책 보기) / 설정 `point.settings`(지급 정책 저장) / 민감 `point.adjust`(수동 지급·차감).
-     *  · 하이라이트·인기글(콘텐츠 메뉴): 하이라이트 조회 `highlight.read` / 처리 `highlight.manage`(만들기·고치기·순서·노출·지우기, 의견 고정·숨김), 인기글 조회 `popular.read`(순위·뺀 글·설정 보기) / 처리 `popular.manage`(빼기·다시 넣기) / 설정 `popular.settings`(점수식 저장).
+     *  · 게시글: 조회 `post.read`(글의 찬반 토론 설정·의견 보기) / 처리 `post.manage`(토론 열기·설정·닫기, 의견 고정·숨김·고정 요청 처리) — 지금은 하이라이트 화면의 토론 부품이 쓴다(게시글 관리 화면은 다음 작업).
+     *  · 하이라이트·인기글(콘텐츠 메뉴): 하이라이트 조회 `highlight.read` / 처리 `highlight.manage`(만들기·고치기·순서·노출·지우기), 인기글 조회 `popular.read`(순위·뺀 글·설정 보기) / 처리 `popular.manage`(빼기·다시 넣기) / 설정 `popular.settings`(점수식 저장).
      *  · 게시판: 조회 `board.read` / 처리 `board.manage`·`board.staff.manage` / 설정 `board.settings`·`board.staff.limit` / 민감 `board.delete`(게시판 목록·설정·기본 설정·매니저/스텝).
      *  · 사이트 화면 구성: 조회 `layout.read` / 설정 `layout.settings`(공개 사이트 메뉴)·`admin-menu.manage`(관리자 사이트 메뉴 구성 저장).
      *  · 사이트·연동(설정 메뉴의 「일반」·「소셜 로그인」·「메일 서버」·「알림」 화면): 조회 `site.read`(일반·소셜 로그인·메일 서버·설정 이력 보기) / 설정 `site.manage`(사이트 이름·소개, 표시 기본값 변경) / 민감 `site.secret`(소셜 로그인 키 저장·삭제, 메일 서버 저장·시험 발송). 알림 이벤트 관리는 조회 `notification.read` / 설정 `notification.manage`(이벤트별 사용 여부·이메일 전달 변경 — 받는 사람은 코드에 고정이라 바꾸지 않는다).
@@ -165,6 +166,7 @@ export default class UtilPermissionCatalog {
         { code: 'popular.read', unit: 'READ', type: 'notice', nameKey: 'permission.item.popularRead', descKey: 'permission.item.popularReadDesc', featureReady: true },
         { code: 'popular.manage', unit: 'MANAGE', type: 'notice', nameKey: 'permission.item.popularManage', descKey: 'permission.item.popularManageDesc', featureReady: true },
         { code: 'popular.settings', unit: 'CONFIG', type: 'notice', nameKey: 'permission.item.popularSettings', descKey: 'permission.item.popularSettingsDesc', featureReady: true },
+        // 게시글 — 지금은 글의 찬반 토론(하이라이트 화면의 토론 설정·의견 서랍, post-debate-contract)이 쓴다. 게시글 관리 화면은 다음 작업. ⚠ 서버 `Permission` 의 featureReady 와 맞출 것
         { code: 'post.read', unit: 'READ', type: 'post', nameKey: 'permission.item.postRead', descKey: 'permission.item.postReadDesc', featureReady: false },
         { code: 'post.manage', unit: 'MANAGE', type: 'post', nameKey: 'permission.item.postManage', descKey: 'permission.item.postManageDesc', featureReady: false },
         { code: 'post.bulk-delete', unit: 'SENSITIVE', type: 'post', nameKey: 'permission.item.postBulkDelete', descKey: 'permission.item.postBulkDeleteDesc', featureReady: false },

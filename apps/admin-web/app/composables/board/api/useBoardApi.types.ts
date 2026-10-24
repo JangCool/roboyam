@@ -106,6 +106,8 @@ export interface BoardDefaults {
     commentDislikeLabel: string | null;
     /** 하이라이트 토론의 의견 고정 요청을 확인하는 사람(서버 차례 글쓴이 → 매니저 → 운영자, 겹치지 않게). 빈 배열 = 고정 요청 끔. 전체 기본값 `['OPERATOR']`, 기본 설정 PUT 에서는 필수 */
     pinRequestReviewers: BoardPinReviewer[];
+    /** 글쓴이(회원)가 글쓰기·고치기에서 찬반 토론을 열 수 있다(post-debate-contract). 끄면 운영자·그 게시판 매니저만 연다 — 나중에 꺼도 이미 연 토론은 그대로. 전체 기본값 `false` */
+    debateEnabled: boolean;
     /** 베스트 댓글 최소 추천 수 1~100 */
     bestCommentMinLikes: number;
     /** 게시판당 매니저 수 1~10 */
@@ -145,6 +147,7 @@ export const BOARD_POLICY_FIELDS = [
     'commentLikeLabel',
     'commentDislikeLabel',
     'pinRequestReviewers',
+    'debateEnabled',
     'managerMax',
     'staffPostDailyLimit',
     'staffCommentDailyLimit',

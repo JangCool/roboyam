@@ -4,7 +4,7 @@ import type { ContentFormat, GuestCredentials } from '~/composables/board/api/us
 import UtilBoardMessages from '~/utils/util-board-messages';
 
 /**
- * 글 보기의 댓글 목록 하나 — 목록·정렬·구분·쓰기·고치기·지우기·추천·비추천 + 하이라이트 토론(투표·@ 지정·의견 고정 요청·요청 확인).
+ * 글 보기의 댓글 목록 하나 — 목록·정렬·구분·쓰기·고치기·지우기·추천·비추천 + 찬반 토론(투표·@ 지정·의견 고정 요청·요청 확인).
  * 글 상세는 이것을 둘 쓴다: 댓글 구획(`GENERAL` 고정) · 토론 구획(`OPINION` 에서 시작, 칩으로 한 입장). 서버 호출은 `useCommentApi`·`useDebateApi` 한 겹이고 상태는 이 화면의 `ref` 다.
  * 쓰기·고치기·지우기·투표·요청 승인/거절이 끝나면 목록을 다시 받는다(답글 자리·베스트·고정 차례·구분별 수·내 입장을 서버가 정하므로 화면이 짐작해 고치지 않는다).
  * 추천·비추천·내 고정 요청은 응답 값으로 그 댓글만 고친다. 실패는 `ApiError` 를 그대로 던진다 — 폼이 `fields` 를 칸 아래에 붙인다.

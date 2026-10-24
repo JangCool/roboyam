@@ -46,6 +46,8 @@ public class BoardDefaultsEntity {
     private String commentDislikeLabel;
     /** 고정 요청 확인자 — 쉼표로 이은 값(빈 글자 = 끔). API 는 목록 */
     private String pinRequestReviewers;
+    /** 「글쓴이가 찬반 토론을 열 수 있음」(V79, 기본 끔) */
+    private boolean debateEnabled;
     private int bestCommentMinLikes;
     private int managerMax;
     private int staffMax;
@@ -62,7 +64,7 @@ public class BoardDefaultsEntity {
         return new BoardDefaultsValues(dateDisplay, writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, postGapSeconds, postDailyLimit, commentGapSeconds,
                 commentDailyLimit, listSize, pinnedMax, indexable, searchable, inHome, attachmentPurgeEnabled, attachmentRetentionDays, pointMode,
                 commentProtectMin, commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice,
-                commentDislikeEnabled, commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), bestCommentMinLikes,
+                commentDislikeEnabled, commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, bestCommentMinLikes,
                 managerMax, staffMax, staffPostDailyLimit, staffCommentDailyLimit, staffSanctionDailyLimit);
     }
 
@@ -96,6 +98,7 @@ public class BoardDefaultsEntity {
         this.commentLikeLabel = v.commentLikeLabel();
         this.commentDislikeLabel = v.commentDislikeLabel();
         this.pinRequestReviewers = BoardFields.joinReviewers(v.pinRequestReviewers());
+        this.debateEnabled = v.debateEnabled();
         this.bestCommentMinLikes = v.bestCommentMinLikes();
         this.managerMax = v.managerMax();
         this.staffMax = v.staffMax();

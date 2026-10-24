@@ -4,6 +4,8 @@
 **정책 원본(읽기 전용)**: community `D:\community\docs\api-popular.md`(8·9절 관리자, 2·3절 규칙), `api-content.md` 1절(하이라이트)·1-2절(인기글 관리), `api-debate.md`(토론 전부). 로보얌의 현재 인기글 구현은 `member-activity-contract.md` 「서버 구현 결과」(DB 배치 `popular-rank`, `R__batch_24_popular_rank.sql`, 표 `post_rank_snapshots`).
 
 ## 결정 (2026-10-24, 사용자)
+
+> **토론은 게시글 기능으로 옮김**(2026-10-24 사용자, 정본 = `post-debate-contract.md`): 토론과 그 설정(중립 받기·입장 바꾸기 허용)은 하이라이트가 아니라 **글**(`post_debates`)에 붙는다. 이 문서의 「하이라이트의 debate·neutralEnabled·stanceChangeAllowed」·「노출 중인 하이라이트에서만 토론」·`/api/admin/highlights/{id}/opinions·pin-requests` 는 그 계약이 대신한다. 토론 안의 규칙(투표·의견·소급·고정·고정 요청·비추천)은 이 문서 그대로.
 - **인기글 설정·인기글 관리·하이라이트 셋 다 만든다**(앞서 「서버 상수로 둔다」던 `member-activity-contract.md` 결정을 바꾼다).
 - **하이라이트는 관리자 화면·서버만 먼저**: 로보얌 홈(`/`)이 아직 자리표시라 공개 홈 표시는 하지 않는다. 홈은 나중에 **테마 형식을 접목해** 구성하고, 그때 하이라이트 표시를 붙인다.
 - **토론(찬성·반대 의견 받기)도 함께 가져온다** — 관리자 의견 관리와 공개 사이트의 글 상세·댓글 쪽 토론(입장 탭·배지·입장 바꾸기·글자 수 한도)까지. 공개 홈 하이라이트 가젯의 토론 요약(`api-debate.md` 6절)은 홈과 함께 뒤로 미룬다.
@@ -35,11 +37,15 @@
 
 - **의견 고정 요청**(2026-10-24 사용자): 의견을 쓴 본인이 「고정 요청」을 보내고, 확인하는 사람이 승인하면 고정된다. **누가 확인할지는 게시판 옵션** — 글쓴이·게시판 매니저·운영자 중 여러 개(하나라도 승인하면 고정, 기본 운영자만, 빈 목록 = 요청 끔). 글쓴이·매니저는 공개 글 상세의 토론 구획에서, 운영자는 관리자 의견 관리에서 처리한다. 새 요청은 확인하는 사람에게, 결과는 요청한 사람에게 알린다.
 
+- **입장 바꾸기 허용은 하이라이트마다**(2026-10-24 사용자): 하이라이트 만들기·고치기에 「입장 바꾸기 허용」(기본 켬). 끄면 한 번 고른 입장은 바꿀 수 없고(서버 409), 공개 사이트는 투표 단추를 누를 때 「찬성으로 정할까요? 한 번 정하면 바꿀 수 없어요」 확인을 한 번 더 받은 뒤 정한다. 정한 뒤에는 다른 단추를 막고 안내를 보인다. **서버 정리**: 관리자가 나중에 끄면 이미 고른 입장·쓴 의견은 그대로 두고 그 뒤의 바꾸기만 막는다(`409 STANCE_CHANGE_LOCKED`, V79).
+
 ## 마이그레이션 (배정)
-shared `V74`(인기글 설정·제외) · `V75`(하이라이트) · `V76`(토론). 게시판 옵션(운영자 숨김 공개)이 **V77**, 중립 입장·중립 받기·댓글 비추천·의견 고정 요청·게시판 정책 칸 4개가 **V78** 하나(`V78__debate_neutral_dislike_pin_request.sql`). 월요일 커머스 병합 때 커머스 shared 마이그레이션은 **V79부터**로 미룬다(V78 은 회원 알림 type CHECK 도 다시 만든다 — 커머스가 같은 CHECK 를 고치면 합집합으로).
+shared `V74`(인기글 설정·제외) · `V75`(하이라이트) · `V76`(토론). 게시판 옵션(운영자 숨김 공개)이 **V77**, 중립 입장·중립 받기·댓글 비추천·의견 고정 요청·게시판 정책 칸 4개가 **V78** 하나(`V78__debate_neutral_dislike_pin_request.sql`). **V79 = `post_debates`**(찬반 토론을 하이라이트에서 글로 옮김 · 「입장 바꾸기 허용」 포함 — `post-debate-contract.md`). 월요일 커머스 병합 때 커머스 shared 마이그레이션은 **V81부터**로(V80 = 게시글 관리 `post-admin-contract.md`) 미룬다(V78 은 회원 알림 type CHECK 도 다시 만든다 — 커머스가 같은 CHECK 를 고치면 합집합으로).
 
 ## 서버 구현 결과 (2026-10-24 — 서버만, 화면은 다음 세션. 실제 DB 에서 아직 돌려 보지 않았다)
 > **V78 갱신**(2026-10-24 — 중립 · 입장 = 투표 · 의견/일반 분리 · 투표 수 · 고정 의견 맨 위 · 댓글 비추천 · 의견 고정 요청): 아래 「공개 사이트 토론」·「댓글 추천·비추천」·「의견 고정 요청」이 새 모양이다. 뒤의 「화면 구현 결과」는 2026-10-24 화면 갱신(V78)으로 이 모양에 맞췄다.
+> **토론 옮김**(2026-10-24): 아래의 「하이라이트 토론」(열림 판정·`debate`·`neutralEnabled`·`stanceChangeAllowed`·의견 관리 경로)은 `post-debate-contract.md` 가 정본이다 — 토론은 글의 것(`post_debates`, V79)이고 의견 관리는 `/api/admin/debates/{postId}/…`.
+> **V79 갱신**(2026-10-24 — 입장 바꾸기 허용, 서버만 · 지금은 글 토론 칸): 하이라이트 `stanceChangeAllowed`(관리자 만들기·고치기·목록 줄 · 공개 `debate`) · `PUT …/stance` 의 새 `409 STANCE_CHANGE_LOCKED`. 화면은 아직 반영 전.
 
 공통: 응답은 `ApiResponse` 래퍼(`{success,data|error,meta}`), ID 는 문자열, 시각은 ISO-8601 UTC, 관리자 응답은 모두 `Cache-Control: no-store`, 쓰기는 CSRF. 칸 오류는 `400 VALIDATION` + `fields.<칸>`(모아서). 관리자 입구는 `@RequirePermission`(권한 없음 `403 PERMISSION_DENIED`, 루트는 모두).
 
@@ -97,15 +103,15 @@ AdminPostRef { id, title, boardId, boardName, boardNameEn, prefixName, authorKin
 - `GET` — `highlight.read` → `{ visibleCount, total, items: [HighlightItem] }`
 ```
 HighlightItem { id, order(1부터), title|null, summary|null, imageFileId|null, imageUrl|null, visible, showFrom|null, showUntil|null,
-  status(SHOWING|SCHEDULED|EXPIRED|OFF|BLOCKED), debate, neutralEnabled, post: AdminPostRef|null,
+  status(SHOWING|SCHEDULED|EXPIRED|OFF|BLOCKED), debate, neutralEnabled, stanceChangeAllowed, post: AdminPostRef|null,
   commentCounts: {all, general, pro, con, neutral, votes: {pro, con, neutral, total}},
   createdAt, updatedAt, updatedBy: {id, name|null}|null }
 ```
-  `status` 판정 차례: 글이 PUBLIC 아님(또는 글 없음) BLOCKED → 노출 끔 OFF → 시작 전 SCHEDULED → 끝남 EXPIRED → SHOWING. `visibleCount` = SHOWING 수. `commentCounts.all` = 글의 보이는 댓글 수(답글 포함), general/pro/con/neutral 은 지우거나 숨기지 않은 원댓글의 입장별 수(의견 수), `votes` = 입장을 고른 사람 수(`post_stances`, 공개 `debate.votes` 와 같다). `neutralEnabled` = 「중립도 받기」(V78, 기본 true).
+  `status` 판정 차례: 글이 PUBLIC 아님(또는 글 없음) BLOCKED → 노출 끔 OFF → 시작 전 SCHEDULED → 끝남 EXPIRED → SHOWING. `visibleCount` = SHOWING 수. `commentCounts.all` = 글의 보이는 댓글 수(답글 포함), general/pro/con/neutral 은 지우거나 숨기지 않은 원댓글의 입장별 수(의견 수), `votes` = 입장을 고른 사람 수(`post_stances`, 공개 `debate.votes` 와 같다). `neutralEnabled` = 「중립도 받기」(V78, 기본 true). `stanceChangeAllowed` = 「입장 바꾸기 허용」(V79, 기본 true).
 - `GET /post-search?q=` — `highlight.read` → `AdminPostRef[]`(최대 10). `q` 가 숫자 15~19자리면 글 번호, 아니면 제목 일부(2자 이상, 50자에서 자름, 대소문자 무시 — 최신순). 2자 미만 `400 fields.q`. **지정할 수 있는 글만**: 보이는 글·숨김 아님·19금 아님·켜진 게시판·아직 하이라이트 아님.
 - `GET /candidates?days=&minLikes=&boardId=` — `highlight.read` → `{ days, minLikes, boardId|null, items: AdminPostRef[] }`(추천 많은 순, 같으면 최신, 최대 30). `days` 0~365(0 = 전체, 기본 7) · `minLikes` 1~1000(기본 3) · `boardId` 켜진 게시판(선택). 틀리면 `fields.days|minLikes|boardId`. 대상은 post-search 와 같다. 「하이라이트로 보내기」 = 그 `id` 로 `POST /api/admin/highlights { postId }`.
-- `POST` `{ postId, title?, summary?, imageFileId?, visible?, showFrom?, showUntil?, debate?, neutralEnabled? }` → **201** `HighlightItem` — `highlight.manage`. 비우면 `visible true`·`debate false`·`neutralEnabled true`·기간 없음·맨 끝 순서.
-- `PUT /{id}` 같은 본문(**모든 칸을 보낸다**, `postId` 는 무시) → 200 `HighlightItem`. `visible`·`debate`·`neutralEnabled` 가 null 이면 그대로(감사 `HIGHLIGHT_UPDATE` 의 바뀐 칸에 `neutralEnabled` 포함), `imageFileId` 는 null 이면 **대표 이미지를 지운다**·지금과 같으면 그대로·새 파일이면 바꾼다. 감사 `HIGHLIGHT_UPDATE` 는 바뀐 칸만.
+- `POST` `{ postId, title?, summary?, imageFileId?, visible?, showFrom?, showUntil?, debate?, neutralEnabled?, stanceChangeAllowed? }` → **201** `HighlightItem` — `highlight.manage`. 비우면 `visible true`·`debate false`·`neutralEnabled true`·`stanceChangeAllowed true`·기간 없음·맨 끝 순서.
+- `PUT /{id}` 같은 본문(**모든 칸을 보낸다**, `postId` 는 무시) → 200 `HighlightItem`. `visible`·`debate`·`neutralEnabled`·`stanceChangeAllowed` 가 null 이면 그대로(감사 `HIGHLIGHT_CREATE` 의 `after`·`HIGHLIGHT_UPDATE` 의 바뀐 칸에 `neutralEnabled`·`stanceChangeAllowed` 포함), `imageFileId` 는 null 이면 **대표 이미지를 지운다**·지금과 같으면 그대로·새 파일이면 바꾼다. 감사 `HIGHLIGHT_UPDATE` 는 바뀐 칸만.
 - 칸 오류(모아서): `fields.postId`(만들 때 비었음·숫자 아님) · `fields.title`(40자 초과) · `fields.summary`(100자 초과) · `fields.showUntil`(시작보다 늦지 않음) · `fields.imageFileId`(올려 둔 HIGHLIGHT_IMAGE 파일이 아니거나 이미 다른 데 쓰임). 제목·요약은 앞뒤 공백을 떼고 비면 null.
 - 글 오류: `400 HIGHLIGHT_POST_INVALID`(`fields.postId` 문구로 까닭 — 없는 글 · 지웠거나 숨김 · 19금 · 꺼진 게시판) · `409 HIGHLIGHT_DUPLICATE`(같은 글 두 번) · `404 HIGHLIGHT_NOT_FOUND`.
 - `PUT /order` `{ ids: [...] }` → 204 — 전체 ID 를 새 차례로(집합이 지금과 다르면 `400 fields.ids`). 감사 `HIGHLIGHT_ORDER`(바뀐 때만).
@@ -128,11 +134,11 @@ HighlightItem { id, order(1부터), title|null, summary|null, imageFileId|null, 
 
 ### 공개 사이트 토론 (server/api — V78 갱신, 기존 댓글·차단 동작은 그대로)
 - 토론이 열려 있다 = 그 글의 하이라이트가 노출 켬 + 기간 안 + `debate` 켬. 요청마다 DB 를 바로 읽는다(사본 없음). 입장 = `PRO`·`CON`·`NEUTRAL`.
-- **`GET /api/posts/{id}`** `PostDetailView` 끝 두 칸: `highlighted`(노출 중인 하이라이트 글) · `debate: { enabled, myStance: "PRO"|"CON"|"NEUTRAL"|null, opinionMax, neutralEnabled, votes: {pro, con, neutral, total}, pendingPinRequests: number|null, pinRequestEnabled }`. `myStance` 는 하이라이트가 끝나도 남는다. `neutralEnabled` = 하이라이트의 「중립도 받기」(하이라이트가 없으면 false). `votes` = 입장을 고른 **사람 수**(`post_stances`). `pendingPinRequests` = 내가 확인할 대기 고정 요청 수(아래 「의견 고정 요청」 — 확인 권한자가 아니거나 하이라이트가 아닌 글은 null). `pinRequestEnabled`(2026-10-24) = 이 글의 게시판이 의견 고정 요청을 받는가 — 유효 정책 `pinRequestReviewers` 가 비어 있지 않다(`PIN_REQUEST_OFF` 와 같은 기준, 게시판 값만 — 토론 열림·내 의견 여부는 따로). `PUT /api/posts/{id}` 응답도 같은 칸.
+- **`GET /api/posts/{id}`** `PostDetailView` 끝 두 칸: `highlighted`(노출 중인 하이라이트 글) · `debate: { enabled, myStance: "PRO"|"CON"|"NEUTRAL"|null, opinionMax, neutralEnabled, stanceChangeAllowed, votes: {pro, con, neutral, total}, pendingPinRequests: number|null, pinRequestEnabled }`. `myStance` 는 하이라이트가 끝나도 남는다. `neutralEnabled` = 하이라이트의 「중립도 받기」(하이라이트가 없으면 false). `stanceChangeAllowed`(V79) = 하이라이트의 「입장 바꾸기 허용」(하이라이트가 없으면 true — 토론이 닫혀 어차피 고를 수 없다) — false 이고 `myStance` 가 있으면 다른 입장 단추를 막는다. `votes` = 입장을 고른 **사람 수**(`post_stances`). `pendingPinRequests` = 내가 확인할 대기 고정 요청 수(아래 「의견 고정 요청」 — 확인 권한자가 아니거나 하이라이트가 아닌 글은 null). `pinRequestEnabled`(2026-10-24) = 이 글의 게시판이 의견 고정 요청을 받는가 — 유효 정책 `pinRequestReviewers` 가 비어 있지 않다(`PIN_REQUEST_OFF` 와 같은 기준, 게시판 값만 — 토론 열림·내 의견 여부는 따로). `PUT /api/posts/{id}` 응답도 같은 칸.
 - **`GET /api/posts/{postId}/comments?sort=&kind=`** — `kind`: `ALL`(**기본** — 지금까지처럼 모든 댓글, 토론이 열린 글도 깨지지 않게) · `GENERAL`(입장 없는 원댓글 = **댓글 구획**) · `OPINION`(입장 있는 원댓글 전체 = **토론 구획**) · `PRO`·`CON`·`NEUTRAL`(토론 구획의 거르기). 대소문자 무시, 그 밖 `400 fields.kind`. 원댓글의 입장으로 가르고 답글은 원댓글을 따라간다(지운·숨긴 자리도 입장을 간직해 같은 구분). **화면은 댓글 구획을 늘 `GENERAL`, 토론 구획을 `OPINION`(또는 한 입장)으로 부른다.** 토론 구분(`OPINION`·`PRO`·`CON`·`NEUTRAL`)에서는 **고정한 보이는 의견이 고정한 시각 순으로 맨 위**, 나머지는 `sort` 차례(숨기거나 지운 의견은 고정이어도 올리지 않는다). `best` 는 ALL 이 아니면 그 구분의 원댓글 중에서만.
   응답 `CommentListResponse { threads, best, totalCount, kind, debate, reactions }`:
   ```
-  debate: { enabled, myStance, opinionMax, neutralEnabled, votes: {pro, con, neutral, total},
+  debate: { enabled, myStance, opinionMax, neutralEnabled, stanceChangeAllowed, votes: {pro, con, neutral, total},
             counts: { all, general, generalTotal, opinions, opinionsTotal, pro, con, neutral },
             myOpinionCount, pendingPinRequests: number|null, pinRequestEnabled }   // pinRequestEnabled = 글 상세와 같다
   reactions: { dislikeEnabled, likeLabel|null, dislikeLabel|null }   // 아래 「댓글 추천·비추천」
@@ -144,10 +150,11 @@ HighlightItem { id, order(1부터), title|null, summary|null, imageFileId|null, 
   - 답글: 요청 표시와 무관하게 **원댓글을 따른다** — 의견에 단 답글 = 의견(쓴 사람의 지금 입장), 일반 댓글에 단 답글 = 일반(`opinion`·`stance` 를 보내도 무시).
   - 의견 쓰기 판정 차례: 비회원 `400 fields.stance`(형식 오류도 `fields.stance`) → 토론 닫힘 `409 DEBATE_NOT_OPEN`(닫힌 글의 의견에 답글도) → 내 입장 없음 **`409 STANCE_REQUIRED`**(먼저 `PUT …/stance` 로 투표) → `stance` 를 보냈는데 지금 입장과 다름 `409 STANCE_LOCKED`(다른 창에서 바꿨을 때) → 내 **지금 입장**을 배지로. **쓰기는 입장을 정하지 않는다**(투표로만 — 예전의 「처음 의견으로 입장이 정해짐」 없앰). 응답 201 `CommentView`.
 - **글자 수 한도**: 의견(배지 있음) `opinionMax` = 2,000자(`DebateReader.OPINION_MAX`), 일반 댓글 2,000자(`COMMENT_MAX`). 고칠 때도 배지 여부로 정한다.
-- **`PUT /api/posts/{postId}/stance`** `{ stance }` → 200 `{ stance, moved }` — **처음 고르기(투표)도 이것**. 로그인 필수(401), 글 읽기 규칙(404 POST_NOT_FOUND · 403 POST_HIDDEN · 403 BOARD_INACTIVE) → 댓글 쓰기 자격(댓글 쓰기와 같은 403) → `400 fields.stance`(PRO·CON·NEUTRAL 밖) → `409 DEBATE_NOT_OPEN` → 중립이 꺼진 하이라이트에서 **새로** NEUTRAL 을 고르면 `400 fields.stance`(문구 「이 글은 중립 입장을 받지 않아요」 — 이미 중립이면 같은 값이라 그대로 200). 처음이면 입장을 만들고 `moved 0`, 같은 값이면 아무것도 바꾸지 않는다(멱등, `moved 0`). **입장 취소는 없다.** ~~`409 STANCE_NOT_SET`~~ 없앰.
-  **소급**(사용자 결정 2026-10-24): 입장이 실제로 바뀌면 같은 트랜잭션에서 그 회원이 그 글에 쓴 입장 있는 댓글(원댓글·답글, 숨긴 것 포함, 세 입장 모두)의 `comments.stance` 를 새 입장으로 바꾼다(`DebateQueries.moveOpinions`). 지운 댓글도 함께 바꾸되 `moved` 에는 세지 않는다. 일반 댓글은 그대로, 고정·숨김 상태도 그대로. 감사·알림 없음. 동시에 처음 고르는 두 요청은 한 행만 남고 늦은 쪽은 바꾸기로 이어 간다(`post_stances` 행 잠금).
+- **`PUT /api/posts/{postId}/stance`** `{ stance }` → 200 `{ stance, moved }` — **처음 고르기(투표)도 이것**. 로그인 필수(401), 글 읽기 규칙(404 POST_NOT_FOUND · 403 POST_HIDDEN · 403 BOARD_INACTIVE) → 댓글 쓰기 자격(댓글 쓰기와 같은 403) → `400 fields.stance`(PRO·CON·NEUTRAL 밖) → `409 DEBATE_NOT_OPEN` → 「입장 바꾸기 허용」이 꺼진 하이라이트에서 이미 고른 입장을 **다른 값으로** 바꾸면 **`409 STANCE_CHANGE_LOCKED`**(V79 — 문구 「이 토론은 한 번 고른 입장을 바꿀 수 없어요.」, 처음 고르기·같은 값은 걸리지 않는다) → 중립이 꺼진 하이라이트에서 **새로** NEUTRAL 을 고르면 `400 fields.stance`(문구 「이 글은 중립 입장을 받지 않아요」 — 이미 중립이면 같은 값이라 그대로 200). 처음이면 입장을 만들고 `moved 0`, 같은 값이면 아무것도 바꾸지 않는다(멱등, `moved 0`). **입장 취소는 없다.** ~~`409 STANCE_NOT_SET`~~ 없앰.
+  **소급**(사용자 결정 2026-10-24): 입장이 실제로 바뀌면 같은 트랜잭션에서 그 회원이 그 글에 쓴 입장 있는 댓글(원댓글·답글, 숨긴 것 포함, 세 입장 모두)의 `comments.stance` 를 새 입장으로 바꾼다(`DebateQueries.moveOpinions`). 지운 댓글도 함께 바꾸되 `moved` 에는 세지 않는다. 일반 댓글은 그대로, 고정·숨김 상태도 그대로. 감사·알림 없음. 동시에 처음 고르는 두 요청은 한 행만 남고 늦은 쪽은 바꾸기로 이어 간다(`post_stances` 행 잠금 — 바꾸기가 막힌 하이라이트면 늦은 쪽이 다른 값일 때 409 STANCE_CHANGE_LOCKED).
+  **입장 바꾸기 잠금**(V79, 사용자 결정 2026-10-24): 소급은 바꾸기가 허용될 때만 일어난다(막히면 입장·의견 모두 그대로). 관리자가 **나중에** 허용을 끄면 이미 고른 입장·쓴 의견은 그대로 두고 그 뒤의 바꾸기만 막는다(되돌리거나 지우지 않는다). 다시 켜면 바로 바꿀 수 있다.
 - **`GET /api/posts/{postId}/commenters?q=`** → `{ items: [ { author: PostAuthorView(memo 포함), parentId, replyToId } ] }` — 로그인 필수(서비스가 401). **@ 지정은 의견에만**: 이 글에 지우거나 숨기지 않은 **의견**(의견 원댓글과 그 아래 답글)을 쓴 회원 중 나·내가 차단한 회원·탈퇴 회원·비회원 제외, 닉네임에 `q`(대소문자 무시, 20자에서 자름, 비우면 전체), 가장 최근에 쓴 회원 먼저 10명. `parentId`(그 회원의 최근 의견의 원댓글)·`replyToId` 로 답글을 쓰면 의견 답글이 된다.
-- 오류 코드(토론): `DEBATE_NOT_OPEN`(409) · `STANCE_LOCKED`(409 — 뜻이 「보낸 stance 가 지금 입장과 다름」으로 바뀜) · **`STANCE_REQUIRED`(409, 새)** · ~~`STANCE_NOT_SET`~~(없앰) · `DEBATE_OPINION_NOT_FOUND`(404) · `HIGHLIGHT_NOT_FOUND`(404) · `HIGHLIGHT_POST_INVALID`(400) · `HIGHLIGHT_DUPLICATE`(409). 문구는 `messages_{ko,en}`.
+- 오류 코드(토론): `DEBATE_NOT_OPEN`(409) · `STANCE_LOCKED`(409 — 뜻이 「보낸 stance 가 지금 입장과 다름」으로 바뀜) · **`STANCE_CHANGE_LOCKED`(409, V79 새 — 입장 바꾸기가 막힌 하이라이트에서 바꾸기)** · **`STANCE_REQUIRED`(409, 새)** · ~~`STANCE_NOT_SET`~~(없앰) · `DEBATE_OPINION_NOT_FOUND`(404) · `HIGHLIGHT_NOT_FOUND`(404) · `HIGHLIGHT_POST_INVALID`(400) · `HIGHLIGHT_DUPLICATE`(409). 문구는 `messages_{ko,en}`.
 
 ### 댓글 추천·비추천 (server/api — V78, 사용자 결정 2026-10-24)
 - **모든 댓글**(일반 댓글·의견·답글)에 추천·비추천. 한 회원이 한 댓글에 **둘 중 하나만** — 하나를 누르면 다른 하나는 같은 트랜잭션에서 풀린다. 글(게시글) 추천은 바꾸지 않았다.
@@ -170,6 +177,7 @@ HighlightItem { id, order(1부터), title|null, summary|null, imageFileId|null, 
 - **알림**: 새 요청 → 회원 이벤트 **`OPINION_PIN_REQUESTED`**(받는 사람 = 정책의 글쓴이·게시판 매니저, 요청한 본인 제외 — 회원이 끌 수 있음, 일으킨 사람·글·댓글을 가리킴, 누르면 그 글) + 정책에 OPERATOR 가 있으면 관리자 이벤트 **`OPINION_PIN_REQUEST_PENDING`**(회원 이벤트와 코드가 겹치면 안 돼 이름을 달리함 — 문구 대상 코드는 회원·운영자를 넘어 하나, `highlight.manage` 보유자, 영역 콘텐츠, 5분 묶음, 링크 `/content/highlights`). 승인·거절 → 요청한 회원에게 회원 이벤트 **`OPINION_PIN_REVIEWED`**(처리 알림 — 끌 수 없음, 거절 사유가 본문). 문구 키 `member.event.*`·`member.notification.*`·`notification.event.*`·알림 문구 변수 `pinRequester`·`opinionExcerpt`·`pinRequestResult`·`pinRejectReason`(ko·en). 회원 알림 `type` CHECK 는 V78 이 다시 만들었다.
 
 ### 표 (마이그레이션)
+- `V79__post_debates.sql`(옛 `V79__highlight_stance_change_allowed` 는 어느 DB 에도 적용되기 전에 이것으로 대신했다): `post_debates` 표(글의 토론 — 「중립도 받기」·「입장 바꾸기 허용」·연 사람), `highlights.debate=true` 행 옮기기, `highlights.debate`·`neutral_enabled` 칸 지우기, 게시판 정책 `debate_enabled`. 상세는 `post-debate-contract.md` 「서버 구현 결과」.
 - `V74__popular_settings_exclusions.sql`: `popular_settings`(행 하나 id=1, 11칸 + updated_at·updated_by, 범위 CHECK) · `popular_exclusions(post_id PK, reason CHECK 5종, memo, excluded_by, excluded_at)` — 글 외래 키 없음(파티션 표).
 - `V75__highlights.sql`: `highlights(id, post_id UNIQUE, title 40, summary 100, image_file_id → files, visible, show_from, show_until, debate, sort_order, created_*/updated_*)` · `files.purpose` CHECK 에 `HIGHLIGHT_IMAGE`.
 - `V76__highlight_debate.sql`: `comments.stance`(PRO·CON CHECK) · `comments.hidden_reason` CHECK 에 `STAFF`(DROP 뒤 다시 만들기) · 색인 `ix_comments_opinion(post_id, stance, id) WHERE parent_id IS NULL AND stance IS NOT NULL`(파티션 부모 — 만드는 동안 댓글 쓰기가 잠긴다) · `post_stances(post_id, user_id PK, stance, …)` · `debate_pins(comment_id PK, post_id, pinned_by, created_at)`. 회원 알림 type CHECK 는 바꾸지 않았다(새 알림 없음).

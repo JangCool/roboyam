@@ -1,4 +1,4 @@
-package com.community.highlight.dto.response;
+package com.community.debate.dto.response;
 
 import java.util.List;
 
@@ -8,5 +8,5 @@ import java.util.List;
  * @param total 그 쪽 전체 의견 수(숨긴 것 포함)
  * @param items {@code stance} 로 다른 쪽만 읽었으면 빈 배열
  */
-public record HighlightOpinionPageView(int total, int page, int size, boolean hasNext, List<HighlightOpinionView> items) {
+public record DebateOpinionPageView(int total, int page, int size, boolean hasNext, List<DebateOpinionView> items) {
 }

@@ -42,7 +42,7 @@ export default {
     dislikeDefault: '비추천',
     reactionAria: '{name} {n}',
 
-    // ── 하이라이트 토론(찬성·반대·중립 투표와 의견) — 본문 영역 안 토론 구획 ──
+    // ── 찬반 토론(찬성·반대·중립 투표와 의견 — 글의 기능) — 본문 영역 안 토론 구획 ──
     stance: {
         PRO: '찬성',
         CON: '반대',
@@ -67,7 +67,7 @@ export default {
     votedHint: '{to} 투표했어요. 의견은 아래에 남겨도 되고 안 남겨도 돼요. 다른 단추를 누르면 입장이 바뀌어요.',
     voted: '{to} 투표했어요.',
     voteFirst: '먼저 위에서 입장을 골라 주세요.',
-    debateClosed: '토론이 끝났어요. 이미 쓴 의견만 볼 수 있어요.',
+    debateClosed: '토론이 닫혔어요. 이미 쓴 의견만 볼 수 있어요.',
     debateGuestHint: '투표와 의견은 로그인한 회원만 할 수 있어요.',
     kindLabel: '의견 거르기',
     kind: {
@@ -100,6 +100,32 @@ export default {
     mentionEmpty: '고를 수 있는 회원이 없어요.',
     mentionTarget: "{'@'}{name}님에게 답글로 써요",
     mentionClear: '지정 풀기',
+
+    // ── 입장 바꾸기 잠금(토론 설정 「입장 바꾸기 허용」 끔) — `to` = 고를 입장(stanceTo) ──
+    lockedVoteTitle: '{to} 정할까요?',
+    lockedVoteMessage: '이 토론은 한 번 정하면 바꿀 수 없어요.',
+    lockedVoteConfirm: '{to} 정하기',
+    voteHintLocked: '한 번 고른 입장은 바꿀 수 없어요.',
+    votedHintLocked: '{to} 투표했어요. 이 토론은 입장을 바꿀 수 없어요.',
+    myStanceLockedHint: '이 토론은 입장을 바꿀 수 없어요.',
+
+    // ── 토론 설정(글쓰기·고치기 칸, 글 상세 「토론 설정」 대화창) ──
+    debateSettingsLegend: '찬반 토론',
+    debateSettings: '토론 설정',
+    debateOpenAction: '찬반 토론 열기',
+    debateOpenLabel: '찬반 토론 열기',
+    debateOpenHelp: '켜면 글 아래에서 찬성·반대 투표와 의견을 받아요.',
+    debateCloseLocked: '투표가 있어 토론을 닫을 수 없어요. 설정은 바꿀 수 있어요.',
+    debateNeutralLabel: '중립도 받기',
+    debateNeutralHelp: '끄면 찬성·반대만 고를 수 있어요. 이미 고른 중립 표와 의견은 남아요.',
+    debateStanceChangeLabel: '입장 바꾸기 허용',
+    debateStanceChangeHelp: '고른 입장을 나중에 바꿀 수 있어요. 바꾸면 쓴 의견도 함께 옮겨 가요.',
+    debateStanceChangeOff: '한 번 고른 입장은 바꿀 수 없어요.',
+    debateOperatorOpened: '운영자가 연 토론이라 여기서 바꿀 수 없어요.',
+    debateOpenedToast: '찬반 토론을 열었어요.',
+    debateClosedToast: '찬반 토론을 닫았어요.',
+    debateSavedToast: '토론 설정을 저장했어요.',
+    debateSaveAfterPostFailed: '글은 저장했지만 토론 설정은 바꾸지 못했어요. {message}',
 
     // ── 의견 고정 ──
     pinned: '고정',

@@ -1,6 +1,6 @@
 <template>
     <!--
-        글 보기 `/posts/{id}` — 머리(말머리·제목·작성자·시각·조회) → 본문(19금이면 확인 전 가림) → (하이라이트 토론) → [추천][링크 복사][신고] · [수정][삭제] → 투자 고지 → 이전·다음 글 → 댓글.
+        글 보기 `/posts/{id}` — 머리(말머리·제목·작성자·시각·조회) → 본문(19금이면 확인 전 가림) → (찬반 토론) → [추천][링크 복사][신고] · [찬반 토론 열기][수정][삭제] → 투자 고지 → 이전·다음 글 → 댓글.
         community 대비: 투표·스크랩·글 ⋯ 메뉴의 차단·메모·지킴이 처리·리비전·소모임 글·핫딜/리뷰 글 모양을 뺐다. 본문은 에디터 HTML 이 아니라 평문(빈 줄 = 문단, 주소만 링크 — `v-html` 없음).
           비회원 글이 있어 작성자 옆에 「비회원」과 작성 IP 앞 두 자리가 보이고, 비회원 글의 수정·삭제는 비밀번호 확인 뒤에 한다.
         비회원 글 IP 는 서버가 앞 두 묶음만 남겨 준다(IPv4 `123.45.*.*` · IPv6 `2001:db8:*:*`, 회원 글은 없다). 19금 글은 성인 인증이 아직 없어 「성인입니다」 확인 단추로 이번 방문만 연다.
@@ -9,9 +9,12 @@
         차단한 회원의 글·차단한 단어가 제목에 든 글(`blocked`)은 제목·본문·추천 줄을 「차단한 사용자의 글이에요 · 보기」로 접는다(목록처럼 제목도 가린다 — 단어 차단은 제목에 걸린다).
           게시판 이름·작성자 줄(메모 칩)·예약 삭제/보호 알림·수정/삭제·이전·다음 글·댓글(댓글은 따로 접힌다)은 남긴다. 「보기」를 누르면 그 자리에서 펼치고 「다시 숨기기」로 다시 접는다.
         지금 하이라이트로 노출 중인 글(`highlighted`)은 게시판 이름 옆에 「하이라이트」 표시.
-        하이라이트 토론(확정 시안 — `popular-highlight-contract.md` 「결정」 토론 화면 배치): **본문 영역 안**(본문 글 바로 다음, 추천 줄 위)에 토론 구획(`CommentSection variant="debate"`, 목록 `kind=OPINION|PRO|CON|NEUTRAL`),
+        찬반 토론은 글의 기능이다(`post-debate-contract.md` — 하이라이트와 무관, 글쓴이·운영자·그 게시판 매니저가 연다).
+        토론 화면 배치(확정 시안 — `popular-highlight-contract.md` 「결정」): **본문 영역 안**(본문 글 바로 다음, 추천 줄 위)에 토론 구획(`CommentSection variant="debate"`, 목록 `kind=OPINION|PRO|CON|NEUTRAL`),
           **맨 아래 원래 댓글 자리**에 일반 댓글(`variant="general"`, 늘 `kind=GENERAL`). 댓글 목록을 둘 부른다(`usePostComments` 두 개). 토론 구획은 `UtilDebate.visible`(열림 · 표 · 의견이 있음)일 때만 보이고,
           그때만 의견 목록을 부른다(글 상세의 `debate` 또는 일반 목록의 `debate` 로 판정). 토론이 없는 글은 예전처럼 댓글만. 차단으로 본문이 접히거나 19금 확인 전이면 토론도 함께 가린다.
+          토론을 바꿀 수 있는 사람(`debate.canManage`)은 토론 구획 머리의 [토론 설정], 토론이 없는 글에서는 글 아래 [찬반 토론 열기]로 설정 대화창(`DebateSettingsDialog`)을 열어 `PUT /api/posts/{id}/debate` 한다.
+          응답(새 토론 요약)을 글에 넣고 두 댓글 목록을 다시 받는다. `403 DEBATE_MANAGE_DENIED` 는 토스트 + 목록 다시 받기, `409 DEBATE_HAS_VOTES` 는 대화창 안 서버 문구 + 목록 다시 받기.
     -->
     <div>
         <!-- 모바일 안쪽 화면 머리 — 셸의 위·아래 막대가 숨겨진다(`shell: 'inner'`) -->
@@ -114,7 +117,7 @@
                     </p>
                 </div>
 
-                <!-- 하이라이트 토론 — 본문 바로 다음, 추천 줄 위(19금 확인 전에는 본문과 함께 가린다) -->
+                <!-- 찬반 토론 — 본문 바로 다음, 추천 줄 위(19금 확인 전에는 본문과 함께 가린다) -->
                 <CommentSection
                     v-if="showDebate && !(post.adult && !adultConfirmed)"
                     variant="debate"
@@ -129,6 +132,7 @@
                     @kind="opinions.setKind"
                     @retry="opinions.load"
                     @report="(c) => openReport('COMMENT', c.id)"
+                    @settings="openDebateSettings"
                 />
 
                 <!-- 추천 · 링크 복사 · 신고 -->
@@ -150,10 +154,13 @@
                 </div>
             </FoldedRow>
 
-            <!-- 수정·삭제 — 내 글은 바로, 비회원 글은 비밀번호 -->
-            <div v-if="manageable" class="flex justify-end gap-1 border-t border-surface pt-2">
-                <Button type="button" icon="pi pi-pencil" :label="t('common.edit')" size="small" severity="secondary" variant="text" data-testid="post-edit" @click="onEdit" />
-                <Button type="button" icon="pi pi-trash" :label="t('common.delete')" size="small" severity="danger" variant="text" data-testid="post-delete" @click="onDelete" />
+            <!-- 찬반 토론 열기(토론이 없는 글 — 열 수 있는 사람만) · 수정·삭제 — 내 글은 바로, 비회원 글은 비밀번호 -->
+            <div v-if="manageable || canOpenDebate" class="flex flex-wrap justify-end gap-1 border-t border-surface pt-2">
+                <Button v-if="canOpenDebate" type="button" icon="pi pi-comments" :label="t('comment.debateOpenAction')" size="small" severity="secondary" variant="text" data-testid="post-debate-open" @click="openDebateSettings" />
+                <template v-if="manageable">
+                    <Button type="button" icon="pi pi-pencil" :label="t('common.edit')" size="small" severity="secondary" variant="text" data-testid="post-edit" @click="onEdit" />
+                    <Button type="button" icon="pi pi-trash" :label="t('common.delete')" size="small" severity="danger" variant="text" data-testid="post-delete" @click="onDelete" />
+                </template>
             </div>
 
             <BoardInvestmentNotice v-if="board.investmentNotice" variant="post" class="mt-3" />
@@ -199,6 +206,7 @@
             :error="passwordError"
             @submit="deleteWithPassword"
         />
+        <DebateSettingsDialog v-model:visible="debateDialogOpen" :initial="debateInitial" :close-locked="debateCloseLocked" :loading="debateSaving" :error="debateError" @save="saveDebate" />
         <BoardReportDialog v-model:visible="reportOpen" :target="reportTarget?.type ?? 'POST'" :loading="reporting" :error="reportError" :field-error="reportFieldError" @submit="submitReport" />
     </div>
 </template>
@@ -208,6 +216,7 @@ import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
 import type { PostDetail } from '~/composables/board/api/usePostApi.types';
 import type { ReportReason, ReportTargetType } from '~/composables/report/api/useReportApi.types';
 import type { CommentActions, DebateActions } from '~/components/board/CommentSection.types';
+import type { DebateSettingsValues } from '~/components/board/DebateSettingsFields.types';
 import UtilRichBody from '#layers/rich-editor/utils/util-rich-body';
 import UtilBlockMessages from '~/utils/util-block-messages';
 import UtilBoardMessages from '~/utils/util-board-messages';
@@ -223,6 +232,7 @@ const router = useRouter();
 const postApi = usePostApi();
 const boardApi = useBoardApi();
 const reportApi = useReportApi();
+const debateApi = useDebateApi();
 const toast = useAppToast();
 const { confirm } = useConfirmDialog();
 const { prompt } = useLoginPrompt();
@@ -312,8 +322,62 @@ function startOpinions(): void {
     opinionsStarted = true;
     void opinions.load();
 }
-// 글 상세로는 몰랐지만 일반 목록이 의견이 있다고 알려 줄 때(끝난 하이라이트 등)
+// 글 상세로는 몰랐지만 일반 목록이 의견이 있다고 알려 줄 때(닫힌 토론 등)·토론을 새로 열었을 때
 watch(showDebate, () => startOpinions());
+
+/* ── 토론 열기·설정·닫기 ── */
+/** 가장 최근의 토론 요약 — 의견 목록 → 일반 목록 → 글 상세 차례 */
+const currentDebate = computed(() => opinions.data.value?.debate ?? comments.data.value?.debate ?? post.value?.debate ?? null);
+/** 토론이 없는 글에서 열 수 있다(글쓴이 규칙·그 게시판 매니저) — 토론 구획이 보이면 그 머리의 [토론 설정]을 쓴다 */
+const canOpenDebate = computed(() => Boolean(currentDebate.value?.canManage) && !showDebate.value);
+const debateInitial = computed<DebateSettingsValues>(() => UtilDebate.settingsOf(currentDebate.value));
+/** 투표가 있어 닫을 수 없다(글쓴이) */
+const debateCloseLocked = computed(() => Boolean(currentDebate.value?.enabled && !currentDebate.value.canClose));
+const debateDialogOpen = ref(false);
+const debateSaving = ref(false);
+const debateError = ref('');
+
+function openDebateSettings(): void {
+    debateError.value = '';
+    debateDialogOpen.value = true;
+}
+
+/** 두 댓글 목록을 다시 받아 토론 상태(열림·설정·권한)를 맞춘다 — 의견 목록은 이미 불렀거나 토론이 보일 때만 */
+function reloadDebateLists(): void {
+    void comments.load();
+    if (opinionsStarted) void opinions.load();
+    else startOpinions();
+}
+
+async function saveDebate(values: DebateSettingsValues): Promise<void> {
+    const p = post.value;
+    if (!p || debateSaving.value) return;
+    const before = debateInitial.value;
+    debateSaving.value = true;
+    debateError.value = '';
+    try {
+        p.debate = await debateApi.settings(p.id, UtilDebate.settingsBody(values));
+        debateDialogOpen.value = false;
+        toast.success(!before.enabled && values.enabled ? t('comment.debateOpenedToast') : before.enabled && !values.enabled ? t('comment.debateClosedToast') : t('comment.debateSavedToast'));
+        reloadDebateLists();
+    } catch (e) {
+        if (e instanceof ApiError && e.code === 'UNAUTHENTICATED') {
+            debateDialogOpen.value = false;
+            prompt('opinion');
+        } else if (e instanceof ApiError && e.code === 'DEBATE_MANAGE_DENIED') {
+            // 그새 바꿀 수 없게 됐다(운영자가 연 토론·게시판 옵션 꺼짐 등) — 알리고 지금 상태로
+            debateDialogOpen.value = false;
+            toast.error(e.message, 8000);
+            reloadDebateLists();
+        } else {
+            // 409 DEBATE_HAS_VOTES(그새 투표가 생김) 등 — 대화창 안에 서버 문구, 목록을 다시 받아 「닫을 수 없음」을 맞춘다
+            debateError.value = e instanceof ApiError && e.fields ? Object.values(e.fields).join(' ') || e.message : UtilBoardMessages.of(t, e);
+            if (e instanceof ApiError && e.code === 'DEBATE_HAS_VOTES') reloadDebateLists();
+        }
+    } finally {
+        debateSaving.value = false;
+    }
+}
 
 // 댓글 수가 바뀌면(쓰기·지우기) 글 머리의 보호 상태가 달라질 수 있다 — 글은 다시 받지 않고 댓글 수만 맞춘다(두 목록 모두 글 전체 수를 준다)
 watch(

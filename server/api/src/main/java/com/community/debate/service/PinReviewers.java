@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 의견 고정 요청을 누가 확인하는가 — 게시판 정책 {@code pinRequestReviewers}(유효값) 중 회원 쪽: {@code POST_AUTHOR}(그 글을 쓴 회원) · {@code BOARD_MANAGER}(그 게시판의
- * 매니저 — {@code board_staff} 역할 MANAGER, 스텝은 아니다). {@code OPERATOR} 는 관리자 앱에서 {@code highlight.manage} 로 확인한다. 자기 요청은 자기가 확인할 수 없다.
+ * 매니저 — {@code board_staff} 역할 MANAGER, 스텝은 아니다). {@code OPERATOR} 는 관리자 앱에서 {@code post.manage} 로 확인한다. 자기 요청은 자기가 확인할 수 없다.
  */
 @Component
 public class PinReviewers {
@@ -41,8 +41,13 @@ public class PinReviewers {
         if (who.contains(BoardFields.PIN_REVIEWER_POST_AUTHOR) && userId.equals(post.getAuthorId())) {
             return true;
         }
-        return who.contains(BoardFields.PIN_REVIEWER_BOARD_MANAGER)
-                && staff.findByBoardId(b.id()).stream().anyMatch(s -> BoardStaffEntity.MANAGER.equals(s.getRole()) && userId.equals(s.getUserId()));
+        return who.contains(BoardFields.PIN_REVIEWER_BOARD_MANAGER) && isBoardManager(b.id(), userId);
+    }
+
+    /** 이 회원이 그 게시판의 매니저인가({@code board_staff} 역할 MANAGER — 스텝은 아니다). 토론 설정({@link DebateReader#manage})도 이 판정을 쓴다 */
+    public boolean isBoardManager(long boardId, Long userId) {
+        return userId != null
+                && staff.findByBoardId(boardId).stream().anyMatch(s -> BoardStaffEntity.MANAGER.equals(s.getRole()) && userId.equals(s.getUserId()));
     }
 
     /** 새 요청을 알릴 회원(글쓴이·게시판 매니저 — 정책에 든 쪽만, 겹치지 않게) */

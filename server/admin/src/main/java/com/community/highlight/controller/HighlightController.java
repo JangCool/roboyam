@@ -1,18 +1,12 @@
 package com.community.highlight.controller;
 
 import com.community.highlight.dto.request.HighlightOrderRequest;
-import com.community.highlight.dto.request.HighlightPinRejectRequest;
 import com.community.highlight.dto.request.HighlightSaveRequest;
 import com.community.highlight.dto.request.HighlightVisibleRequest;
 import com.community.highlight.dto.response.HighlightCandidatesView;
 import com.community.highlight.dto.response.HighlightItemView;
 import com.community.highlight.dto.response.HighlightListView;
-import com.community.highlight.dto.response.HighlightOpinionListView;
-import com.community.highlight.dto.response.HighlightOpinionView;
-import com.community.highlight.dto.response.HighlightPinRequestListView;
-import com.community.highlight.dto.response.HighlightPinRequestView;
 import com.community.highlight.service.HighlightAdminService;
-import com.community.highlight.service.HighlightOpinionService;
 import com.community.permission.annotation.RequirePermission;
 import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
@@ -33,8 +27,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 하이라이트 관리 API(관리자 앱) — 목록·글 찾기·후보·의견 목록은 {@code highlight.read}, 나머지(만들기·고치기·순서·노출·지우기·의견 고정·숨김)는 {@code highlight.manage}(CSRF).
- * 규칙은 {@link HighlightAdminService}·{@link HighlightOpinionService}. 대표 이미지는 {@code POST /api/admin/files}(purpose HIGHLIGHT_IMAGE)로 먼저 올린다.
+ * 하이라이트 관리 API(관리자 앱) — 목록·글 찾기·후보는 {@code highlight.read}, 나머지(만들기·고치기·순서·노출·지우기)는 {@code highlight.manage}(CSRF).
+ * 규칙은 {@link HighlightAdminService}. 토론 의견 관리는 글 번호 기준 {@code /api/admin/debates/{postId}/…} 로 옮겼다(docs/features/post-debate-contract.md). 대표 이미지는 {@code POST /api/admin/files}(purpose HIGHLIGHT_IMAGE)로 먼저 올린다.
  * 모든 응답은 {@code Cache-Control: no-store}.
  */
 @RestController
@@ -42,11 +36,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class HighlightController {
 
     private final HighlightAdminService service;
-    private final HighlightOpinionService opinions;
 
-    public HighlightController(HighlightAdminService service, HighlightOpinionService opinions) {
+    public HighlightController(HighlightAdminService service) {
         this.service = service;
-        this.opinions = opinions;
     }
 
     @RequirePermission(Permission.HIGHLIGHT_READ)
@@ -104,60 +96,6 @@ public class HighlightController {
     public ResponseEntity<Void> delete(@PathVariable String id, AdminActor actor) {
         service.delete(actor, id);
         return ResponseEntity.noContent().build();
-    }
-
-    /** 의견 목록 — {@code stance} PRO · CON · NEUTRAL(선택) · {@code page}(1부터) · {@code size}(기본 30, 최대 100) */
-    @RequirePermission(Permission.HIGHLIGHT_READ)
-    @GetMapping("/{id}/opinions")
-    public ResponseEntity<ApiResponse<HighlightOpinionListView>> opinions(@PathVariable String id, @RequestParam(required = false) String stance,
-                                                                         @RequestParam(required = false) String page,
-                                                                         @RequestParam(required = false) String size) {
-        return noStore(opinions.list(id, stance, page, size));
-    }
-
-    @RequirePermission(Permission.HIGHLIGHT_MANAGE)
-    @PostMapping("/{id}/opinions/{commentId}/pin")
-    public ResponseEntity<ApiResponse<HighlightOpinionView>> pin(@PathVariable String id, @PathVariable String commentId, AdminActor actor) {
-        return noStore(opinions.pin(actor, id, commentId, true));
-    }
-
-    @RequirePermission(Permission.HIGHLIGHT_MANAGE)
-    @DeleteMapping("/{id}/opinions/{commentId}/pin")
-    public ResponseEntity<ApiResponse<HighlightOpinionView>> unpin(@PathVariable String id, @PathVariable String commentId, AdminActor actor) {
-        return noStore(opinions.pin(actor, id, commentId, false));
-    }
-
-    @RequirePermission(Permission.HIGHLIGHT_MANAGE)
-    @PostMapping("/{id}/opinions/{commentId}/hide")
-    public ResponseEntity<ApiResponse<HighlightOpinionView>> hide(@PathVariable String id, @PathVariable String commentId, AdminActor actor) {
-        return noStore(opinions.hide(actor, id, commentId, true));
-    }
-
-    @RequirePermission(Permission.HIGHLIGHT_MANAGE)
-    @DeleteMapping("/{id}/opinions/{commentId}/hide")
-    public ResponseEntity<ApiResponse<HighlightOpinionView>> unhide(@PathVariable String id, @PathVariable String commentId, AdminActor actor) {
-        return noStore(opinions.hide(actor, id, commentId, false));
-    }
-
-    /** 대기 중인 의견 고정 요청 — 읽기는 {@code highlight.read}(승인·거절은 {@code highlight.manage}) */
-    @RequirePermission(Permission.HIGHLIGHT_READ)
-    @GetMapping("/{id}/pin-requests")
-    public ResponseEntity<ApiResponse<HighlightPinRequestListView>> pinRequests(@PathVariable String id) {
-        return noStore(opinions.pinRequests(id));
-    }
-
-    @RequirePermission(Permission.HIGHLIGHT_MANAGE)
-    @PostMapping("/{id}/pin-requests/{requestId}/approve")
-    public ResponseEntity<ApiResponse<HighlightPinRequestView>> approvePinRequest(@PathVariable String id, @PathVariable String requestId, AdminActor actor) {
-        return noStore(opinions.decidePinRequest(actor, id, requestId, true, null));
-    }
-
-    /** 거절 — 본문 {@code { reason? }}(0~100자) */
-    @RequirePermission(Permission.HIGHLIGHT_MANAGE)
-    @PostMapping("/{id}/pin-requests/{requestId}/reject")
-    public ResponseEntity<ApiResponse<HighlightPinRequestView>> rejectPinRequest(@PathVariable String id, @PathVariable String requestId,
-                                                                                @RequestBody(required = false) HighlightPinRejectRequest body, AdminActor actor) {
-        return noStore(opinions.decidePinRequest(actor, id, requestId, false, body));
     }
 
     private static <T> ResponseEntity<ApiResponse<T>> noStore(T body) {

@@ -8,26 +8,29 @@ import com.community.debate.dto.response.CommentDebateView;
 import com.community.debate.dto.response.DebateCountsView;
 import com.community.debate.dto.response.DebateSummaryView;
 import com.community.debate.entity.DebateStance;
+import com.community.debate.entity.PostDebateEntity;
 import com.community.debate.exception.DebateNotOpenException;
 import com.community.debate.exception.StanceLockedException;
 import com.community.debate.exception.StanceRequiredException;
 import com.community.debate.repository.master.DebateQueries;
-import com.community.highlight.entity.HighlightEntity;
+import com.community.debate.repository.master.PostDebateRepository;
 import com.community.highlight.repository.master.HighlightRepository;
 import com.community.post.entity.PostEntity;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 /**
- * 하이라이트 토론(찬성·반대·중립 의견)의 판정 — 글 상세·댓글 목록·댓글 쓰기·입장 고르기가 부른다(docs/features/popular-highlight-contract.md 「서버 구현 결과」).
- * <b>DB 를 바로 읽는다</b>(하이라이트 표의 글 하나 유일 키 조회 — 사본 없음): 운영자가 하이라이트를 내리면 다음 요청부터 바로 닫힌다. 트랜잭션은 부르는 쪽이 연다.
+ * 글의 찬반 토론(찬성·반대·중립 의견)의 판정 — 글 상세·댓글 목록·댓글 쓰기·입장 고르기·토론 설정이 부른다(docs/features/post-debate-contract.md,
+ * 토론 안의 규칙은 popular-highlight-contract.md 「서버 구현 결과」). <b>DB 를 바로 읽는다</b>(글 하나 유일 키 조회 — 사본 없음): 닫으면 다음 요청부터 바로 닫힌다.
+ * 트랜잭션은 부르는 쪽이 연다.
  *
  * <ul>
- *   <li><b>하이라이트 글</b>({@code highlighted}): 그 글의 하이라이트가 노출을 켰고 노출 기간 안이다(글이 보이는지는 부르는 쪽이 이미 확인했다).</li>
- *   <li><b>토론이 열려 있다</b>({@code enabled}): 하이라이트 글이면서 「찬성·반대 의견 받기」가 켜져 있다.</li>
+ *   <li><b>하이라이트 글</b>({@code highlighted}): 그 글의 하이라이트가 노출을 켰고 노출 기간 안이다(글이 보이는지는 부르는 쪽이 이미 확인했다). 토론과 무관하다.</li>
+ *   <li><b>토론이 열려 있다</b>({@code enabled}): 그 글의 {@code post_debates} 행이 있다(하이라이트·노출과 무관).</li>
+ *   <li><b>토론 설정</b>({@code canManage}): 그 게시판 매니저, 또는 글쓴이(회원 글 + 게시판 정책 {@code debateEnabled} + 토론이 없거나 글쓴이가 연 토론).
+ *       닫기({@code canClose})는 열려 있을 때 — 글쓴이는 투표가 없을 때만.</li>
  *   <li><b>입장 = 투표</b>(사용자 결정 2026-10-24): 입장은 {@code PUT /api/posts/{id}/stance} 로만 고르고 바꾼다. 댓글 쓰기는 입장을 정하지 않는다.</li>
  *   <li><b>의견과 일반 댓글은 따로</b>: 의견 표시({@code opinion: true} 또는 {@code stance})가 있는 원댓글과 의견에 단 답글만 입장 의견이다({@link #resolveForWrite}).
  *       그 밖은 입장을 가진 회원이 써도 일반 댓글(배지 없음).</li>
@@ -40,24 +43,59 @@ public class DebateReader {
     public static final int OPINION_MAX = 2000;
 
     private final HighlightRepository highlights;
+    private final PostDebateRepository debates;
     private final DebateQueries queries;
     private final PinReviewers pinReviewers;
 
-    public DebateReader(HighlightRepository highlights, DebateQueries queries, PinReviewers pinReviewers) {
+    public DebateReader(HighlightRepository highlights, PostDebateRepository debates, DebateQueries queries, PinReviewers pinReviewers) {
         this.highlights = highlights;
+        this.debates = debates;
         this.queries = queries;
         this.pinReviewers = pinReviewers;
     }
 
     /**
-     * 그 글의 하이라이트 상태.
+     * 그 글의 하이라이트·토론 상태.
      *
-     * @param neutralEnabled 하이라이트의 「중립도 받기」 — 하이라이트가 없으면 false
-     * @param exists         그 글의 하이라이트 행이 있다(노출과 무관 — 고정 요청 수를 셀지)
+     * @param highlighted 노출 중인 하이라이트 글(토론과 무관)
+     * @param debate      그 글의 토론({@code post_debates} — 닫혀 있으면 null)
      */
-    public record Status(boolean highlighted, boolean open, boolean neutralEnabled, boolean exists) {
+    public record Status(boolean highlighted, PostDebateEntity debate) {
 
-        static final Status NONE = new Status(false, false, false, false);
+        /** 토론이 열려 있다 */
+        public boolean open() {
+            return debate != null;
+        }
+
+        /** 「중립도 받기」 — 닫혀 있으면 true(기본값) */
+        public boolean neutralEnabled() {
+            return debate == null || debate.isNeutralEnabled();
+        }
+
+        /** 「입장 바꾸기 허용」 — 닫혀 있으면 true(기본값 — 닫혀 있어 어차피 고를 수 없다) */
+        public boolean stanceChangeAllowed() {
+            return debate == null || debate.isStanceChangeAllowed();
+        }
+
+        /** 연 사람 MEMBER · OPERATOR(매니저가 연 것 포함) — 닫혀 있으면 null */
+        public String openedBy() {
+            return debate == null ? null : debate.openedByView();
+        }
+    }
+
+    /**
+     * 지금 보는 사람의 토론 설정 자격({@code PUT /api/posts/{id}/debate}).
+     *
+     * @param manager 그 게시판 매니저(어느 글이든 열고 바꾸고 닫는다 — 투표가 있어도 닫는다)
+     * @param author  글쓴이 규칙을 채운다(회원 글 + 게시판 정책 {@code debateEnabled} + 토론이 없거나 글쓴이가 연 토론)
+     */
+    public record Manage(boolean manager, boolean author) {
+
+        static final Manage NONE = new Manage(false, false);
+
+        public boolean canManage() {
+            return manager || author;
+        }
     }
 
     /**
@@ -80,8 +118,23 @@ public class DebateReader {
     }
 
     public Status status(long postId, Instant now) {
-        Optional<HighlightEntity> highlight = highlights.findByPostId(postId);
-        return highlight.map(h -> new Status(h.isShowingAt(now), h.isDebateOpenAt(now), h.isNeutralEnabled(), true)).orElse(Status.NONE);
+        boolean highlighted = highlights.findByPostId(postId).map(h -> h.isShowingAt(now)).orElse(false);
+        return new Status(highlighted, debates.findById(postId).orElse(null));
+    }
+
+    /** 이 사람이 이 글의 토론 설정을 바꿀 수 있는가 — 비로그인은 없음. 매니저 판정은 고정 요청 확인과 같은 코드({@link PinReviewers#isBoardManager}) */
+    public Manage manage(Status status, PostEntity post, EffectiveBoard b, Long userId) {
+        if (userId == null || b == null) {
+            return Manage.NONE;
+        }
+        boolean manager = pinReviewers.isBoardManager(b.id(), userId);
+        boolean author = userId.equals(post.getAuthorId()) && b.debateEnabled() && (status.debate() == null || status.debate().openedByMember());
+        return new Manage(manager, author);
+    }
+
+    /** 닫을 수 있는가 — 열려 있고, 매니저이거나 글쓴이면 투표가 없을 때 */
+    private static boolean canClose(Status status, Manage m, DebateVotesView votes) {
+        return status.open() && (m.manager() || (m.author() && votes.total() == 0));
     }
 
     /** 내 입장(비로그인·미정 null) */
@@ -92,9 +145,11 @@ public class DebateReader {
     /** 글 상세의 토론 요약 */
     public DebateSummaryView summary(Status status, PostEntity post, EffectiveBoard b, Long userId, Instant now) {
         DebateStance mine = myStance(post.getId(), userId);
-        Integer pending = status.exists() ? pinReviewers.pendingFor(b, post, userId, now, null) : null;
-        return new DebateSummaryView(status.open(), mine == null ? null : mine.name(), OPINION_MAX, status.neutralEnabled(), queries.votesOf(post.getId()), pending,
-                pinRequestEnabled(b));
+        DebateVotesView votes = queries.votesOf(post.getId());
+        Integer pending = status.open() || votes.total() > 0 ? pinReviewers.pendingFor(b, post, userId, now, null) : null;
+        Manage m = manage(status, post, b, userId);
+        return new DebateSummaryView(status.open(), mine == null ? null : mine.name(), OPINION_MAX, status.neutralEnabled(), status.stanceChangeAllowed(),
+                votes, pending, pinRequestEnabled(b), status.openedBy(), m.canManage(), canClose(status, m, votes));
     }
 
     /**
@@ -117,9 +172,10 @@ public class DebateReader {
             }
         }
         DebateVotesView votes = queries.votesOf(postId);
-        Integer pending = status.exists() ? pinReviewers.pendingFor(b, post, userId, now, byId) : null;
-        return new CommentDebateView(status.open(), mine == null ? null : mine.name(), OPINION_MAX, status.neutralEnabled(), votes, counts, myOpinions, pending,
-                pinRequestEnabled(b));
+        Integer pending = status.open() || votes.total() > 0 ? pinReviewers.pendingFor(b, post, userId, now, byId) : null;
+        Manage m = manage(status, post, b, userId);
+        return new CommentDebateView(status.open(), mine == null ? null : mine.name(), OPINION_MAX, status.neutralEnabled(), status.stanceChangeAllowed(), votes, counts,
+                myOpinions, pending, pinRequestEnabled(b), status.openedBy(), m.canManage(), canClose(status, m, votes));
     }
 
     /** 이 게시판이 의견 고정 요청을 받는가 — 유효 정책 {@code pinRequestReviewers} 가 비어 있지 않다({@code PIN_REQUEST_OFF} 판정과 같은 기준) */

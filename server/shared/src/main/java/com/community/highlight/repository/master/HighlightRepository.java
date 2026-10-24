@@ -3,6 +3,7 @@ package com.community.highlight.repository.master;
 import com.community.highlight.entity.HighlightEntity;
 import com.community.zconfiguration.jpa.RoboyamRepository;
 import jakarta.persistence.LockModeType;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.Lock;
@@ -16,6 +17,9 @@ public interface HighlightRepository extends RoboyamRepository<HighlightEntity, 
     Optional<HighlightEntity> findByPostId(Long postId);
 
     boolean existsByPostId(Long postId);
+
+    /** 그 글들의 하이라이트(관리자 토론 줄의 highlightId) */
+    List<HighlightEntity> findByPostIdIn(Collection<Long> postIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<HighlightEntity> findWithLockById(Long id);

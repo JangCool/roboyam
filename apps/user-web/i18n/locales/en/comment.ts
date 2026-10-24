@@ -41,7 +41,7 @@ export default {
     dislikeDefault: 'Dislike',
     reactionAria: '{name} {n}',
 
-    // ── Highlight debate (pro / con / neutral votes and opinions) — debate block inside the post body ──
+    // ── Pro & con debate (votes and opinions — a post feature) — debate block inside the post body ──
     stance: {
         PRO: 'Pro',
         CON: 'Con',
@@ -66,7 +66,7 @@ export default {
     votedHint: 'You voted {to}. Leaving an opinion below is optional. Tap another button to switch.',
     voted: 'Voted {to}.',
     voteFirst: 'Pick a side above first.',
-    debateClosed: 'The debate has ended. Existing opinions are read-only.',
+    debateClosed: 'The debate is closed. Existing opinions are read-only.',
     debateGuestHint: 'Only signed-in members can vote and post opinions.',
     kindLabel: 'Filter opinions',
     kind: {
@@ -99,6 +99,32 @@ export default {
     mentionEmpty: 'No members to pick.',
     mentionTarget: "Replying to {'@'}{name}",
     mentionClear: 'Clear',
+
+    // ── Side-change lock (debate setting "Allow switching sides" off) — `to` = side to pick (stanceTo) ──
+    lockedVoteTitle: 'Go with {to}?',
+    lockedVoteMessage: "In this debate you can't change your side once picked.",
+    lockedVoteConfirm: 'Go with {to}',
+    voteHintLocked: "You can't change your side once picked.",
+    votedHintLocked: "You voted {to}. Sides can't be changed in this debate.",
+    myStanceLockedHint: "Sides can't be changed in this debate.",
+
+    // ── Debate settings (write / edit form, "Debate settings" dialog on the post) ──
+    debateSettingsLegend: 'Pro & con debate',
+    debateSettings: 'Debate settings',
+    debateOpenAction: 'Open a pro & con debate',
+    debateOpenLabel: 'Open a pro & con debate',
+    debateOpenHelp: 'When on, readers can vote pro or con and post opinions under the post.',
+    debateCloseLocked: "There are votes, so the debate can't be closed. You can still change the settings.",
+    debateNeutralLabel: 'Accept neutral too',
+    debateNeutralHelp: 'When off, only pro and con can be picked. Existing neutral votes and opinions stay.',
+    debateStanceChangeLabel: 'Allow switching sides',
+    debateStanceChangeHelp: 'Readers can change their side later, and their opinions move with them.',
+    debateStanceChangeOff: "Once picked, a side can't be changed.",
+    debateOperatorOpened: "Staff opened this debate, so you can't change it here.",
+    debateOpenedToast: 'Debate opened.',
+    debateClosedToast: 'Debate closed.',
+    debateSavedToast: 'Debate settings saved.',
+    debateSaveAfterPostFailed: "Post saved, but the debate settings weren't changed. {message}",
 
     // ── Pinned opinions ──
     pinned: 'Pinned',

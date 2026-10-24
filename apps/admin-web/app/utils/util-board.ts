@@ -161,6 +161,7 @@ const SPECS: Record<BoardDefaultsField, BoardFieldSpec> = {
     commentLikeLabel: { field: 'commentLikeLabel', kind: 'label', min: 1, max: 10, overridable: true, permission: 'board.settings' },
     commentDislikeLabel: { field: 'commentDislikeLabel', kind: 'label', min: 1, max: 10, overridable: true, permission: 'board.settings' },
     pinRequestReviewers: { field: 'pinRequestReviewers', kind: 'multi', choices: ['POST_AUTHOR', 'BOARD_MANAGER', 'OPERATOR'], overridable: true, permission: 'board.settings' },
+    debateEnabled: { field: 'debateEnabled', kind: 'bool', overridable: true, permission: 'board.settings' },
     bestCommentMinLikes: { field: 'bestCommentMinLikes', kind: 'number', min: 1, max: 100, unit: 'likes', overridable: false, permission: 'board.settings' },
     managerMax: { field: 'managerMax', kind: 'number', min: 1, max: 10, unit: 'people', overridable: true, permission: 'board.staff.limit' },
     staffMax: { field: 'staffMax', kind: 'number', min: 1, max: 10, unit: 'people', overridable: false, permission: 'board.staff.limit' },
@@ -243,7 +244,7 @@ const DEFAULT_SECTIONS = {
     'defaults-attachment': ['attachmentPurgeEnabled', 'attachmentRetentionDays'],
     'defaults-protect': ['pointMode', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes'],
     'defaults-guest': ['commentGuestDelayMinutes', 'staffHiddenNotice'],
-    'defaults-reaction': ['commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers'],
+    'defaults-reaction': ['debateEnabled', 'commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers'],
     'defaults-best': ['bestCommentMinLikes'],
     'defaults-staff': ['managerMax', 'staffMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit'],
 } as const satisfies Record<string, readonly BoardDefaultsField[]>;
@@ -659,7 +660,7 @@ export default class UtilBoard {
             // inHome 은 화면에서 다루지 않는다(가젯 노출 금지가 대신한다) — 가젯 선택은 순서 없이 묶음으로 1칸
             exposure: policyDiff(['listSize', 'pinnedMax', 'indexable', 'searchable']) + diff(UtilBoard.gadgetKey(form.gadgetExclusions), UtilBoard.gadgetKey(base.gadgetExclusions)),
             protect: policyDiff(['pointMode', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes', 'staffHiddenNotice']),
-            reaction: policyDiff(['commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers']),
+            reaction: policyDiff(['debateEnabled', 'commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers']),
             staff: policyDiff(['managerMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit']),
         };
     }

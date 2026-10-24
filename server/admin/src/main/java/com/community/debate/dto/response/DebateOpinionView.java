@@ -1,9 +1,9 @@
-package com.community.highlight.dto.response;
+package com.community.debate.dto.response;
 
 import java.time.Instant;
 
 /**
- * 하이라이트 의견 한 줄(관리자) — 의견 = 그 글의 입장 배지가 붙은 원댓글.
+ * 토론 의견 한 줄(관리자) — 의견 = 그 글의 입장 배지가 붙은 원댓글. 예전 하이라이트 의견 관리와 같은 모양.
  *
  * @param stance       PRO · CON · NEUTRAL
  * @param authorKind   MEMBER · GUEST
@@ -17,6 +17,6 @@ import java.time.Instant;
  * @param dislikeCount 비추천 수(게시판의 비추천이 꺼져 있어도 쌓인 수 그대로 — 관리자는 늘 본다)
  * @param pinRequestId 대기 중인 고정 요청 ID(없으면 null) — 승인·거절은 {@code …/pin-requests/{requestId}/approve|reject}
  */
-public record HighlightOpinionView(String commentId, String stance, String authorKind, String authorId, String authorName, String bodyPreview, int likeCount,
-                                   int replyCount, Instant createdAt, boolean pinned, boolean hidden, String hiddenReason, int dislikeCount, String pinRequestId) {
+public record DebateOpinionView(String commentId, String stance, String authorKind, String authorId, String authorName, String bodyPreview, int likeCount,
+                                int replyCount, Instant createdAt, boolean pinned, boolean hidden, String hiddenReason, int dislikeCount, String pinRequestId) {
 }

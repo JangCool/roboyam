@@ -12,12 +12,18 @@ import com.community.board.service.ContentRules;
 import com.community.board.service.PublicBoardService;
 import com.community.comment.entity.CommentEntity;
 import com.community.comment.repository.master.CommentRepository;
+import com.community.debate.dto.request.DebateSettingsRequest;
 import com.community.debate.dto.request.StanceRequest;
 import com.community.debate.dto.response.CommenterListView;
 import com.community.debate.dto.response.CommenterView;
+import com.community.debate.dto.response.DebateSummaryView;
 import com.community.debate.dto.response.StanceView;
 import com.community.debate.entity.DebateStance;
+import com.community.debate.entity.PostDebateEntity;
+import com.community.debate.exception.DebateHasVotesException;
+import com.community.debate.exception.DebateManageDeniedException;
 import com.community.debate.exception.DebateNotOpenException;
+import com.community.debate.exception.StanceChangeLockedException;
 import com.community.debate.repository.master.DebateQueries;
 import com.community.post.entity.PostEntity;
 import com.community.post.exception.PostHiddenException;
@@ -39,17 +45,25 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 하이라이트 토론의 공개 API — 입장 고르기·바꾸기({@code PUT /api/posts/{postId}/stance})와 @ 지정 후보({@code GET /api/posts/{postId}/commenters?q=}).
- * 판정은 {@link DebateReader}. docs/features/popular-highlight-contract.md 「서버 구현 결과」.
+ * 글 찬반 토론의 공개 API — 토론 열기·설정·닫기({@code PUT /api/posts/{postId}/debate}), 입장 고르기·바꾸기({@code PUT /api/posts/{postId}/stance}),
+ * @ 지정 후보({@code GET /api/posts/{postId}/commenters?q=}). 판정은 {@link DebateReader}. docs/features/post-debate-contract.md · popular-highlight-contract.md 「서버 구현 결과」.
  *
  * <ul>
+ *   <li><b>토론 설정</b>: 로그인 회원만(401). 글 읽기 규칙(404 · 403 POST_HIDDEN · 403 BOARD_INACTIVE) → {@code enabled} 필수(400 {@code fields.enabled})
+ *       → 자격({@link DebateReader#manage} — 그 게시판 매니저 또는 글쓴이 규칙, 아니면 403 DEBATE_MANAGE_DENIED) → 글쓴이(매니저 아님)가 투표 있는 토론을 닫으면 409 DEBATE_HAS_VOTES.
+ *       글쓴이가 열면 {@code opened_by_kind MEMBER}, 매니저가 열면 {@code MANAGER}(공개 {@code openedBy} 는 OPERATOR — 글쓴이에게 읽기 전용). 저장은 {@link PostDebateWriter}.
+ *       응답은 글 상세의 {@code debate} 와 같은 모양. 감사 없음(회원 행위).</li>
  *   <li><b>입장 고르기 = 투표</b>(사용자 결정 2026-10-24): 로그인 회원만(SecurityConfig — 401). 글 읽기 규칙(404 POST_NOT_FOUND · 403 POST_HIDDEN · 403 BOARD_INACTIVE)
  *       → 댓글 쓰기 자격(403 까닭 — 댓글 쓰기와 같다) → {@code stance} PRO·CON·NEUTRAL(아니면 400 {@code fields.stance}) → 토론이 열려 있어야(409 DEBATE_NOT_OPEN)
- *       → 중립이 꺼진 하이라이트에서 새로 NEUTRAL 을 고르면 400 {@code fields.stance}(이미 중립이면 그대로 — 멱등). 처음이면 입장을 만들고({@code moved 0}), 같은 값이면 그대로(멱등).
+ *       → 「입장 바꾸기 허용」이 꺼졌는데 이미 고른 입장을 다른 값으로 바꾸면 409 STANCE_CHANGE_LOCKED
+ *       → 중립이 꺼진 토론에서 새로 NEUTRAL 을 고르면 400 {@code fields.stance}(이미 중립이면 그대로 — 멱등). 처음이면 입장을 만들고({@code moved 0}), 같은 값이면 그대로(멱등).
+ *       바꾸기 잠금은 처음 고르기·같은 값에는 걸리지 않고, 나중에 꺼도 이미 고른 입장은 그대로 두고 그 뒤의 바꾸기만 막는다.
  *       입장 취소는 없다.
  *       <b>소급한다</b>(사용자 결정 2026-10-24 — community 와 다름): 입장이 실제로 바뀌면 같은 트랜잭션에서 그 회원이 그 글에 쓴 입장 있는 댓글(원댓글·답글, 숨긴 것·지운 것 포함)의
  *       배지도 새 입장으로 바꾼다({@link DebateQueries#moveOpinions}). 일반 댓글은 그대로, 고정·숨김 상태도 그대로. 응답 {@code moved} = 옮긴 의견 중 지우지 않은 것의 수.
@@ -63,6 +77,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DebateService {
 
+    private static final Logger log = LoggerFactory.getLogger(DebateService.class);
+
     static final int QUERY_MAX = 20;
     static final int LIMIT = 10;
 
@@ -75,9 +91,10 @@ public class DebateService {
     private final AuthorViews authors;
     private final UserRepository users;
     private final ViewerBlocks viewerBlocks;
+    private final PostDebateWriter debateWriter;
 
     public DebateService(BoardCatalog catalog, BoardActorResolver actors, PostQueryService postQueries, CommentRepository comments, DebateReader reader,
-                         DebateQueries queries, AuthorViews authors, UserRepository users, ViewerBlocks viewerBlocks) {
+                         DebateQueries queries, AuthorViews authors, UserRepository users, ViewerBlocks viewerBlocks, PostDebateWriter debateWriter) {
         this.catalog = catalog;
         this.actors = actors;
         this.postQueries = postQueries;
@@ -87,6 +104,38 @@ public class DebateService {
         this.authors = authors;
         this.users = users;
         this.viewerBlocks = viewerBlocks;
+        this.debateWriter = debateWriter;
+    }
+
+    @Transactional
+    public DebateSummaryView changeDebate(String postIdText, DebateSettingsRequest body, Long userId) {
+        if (userId == null) {
+            throw new CommonException(ErrorCode.UNAUTHENTICATED);
+        }
+        Instant now = Instant.now();
+        PostEntity post = postQueries.requireVisible(postIdText, now);
+        BoardCatalogSnapshot s = catalog.snapshot();
+        EffectiveBoard b = PublicBoardService.requireActive(s, post.getBoardId());
+        if (post.isHiddenAt(now)) {
+            throw new PostHiddenException();
+        }
+        if (body == null || body.enabled() == null) {
+            throw ValidationException.of("enabled", new MessageRef("debate.enabled.required"));
+        }
+        DebateReader.Status status = reader.status(post.getId(), now);
+        DebateReader.Manage manage = reader.manage(status, post, b, userId);
+        if (!manage.canManage()) {
+            throw new DebateManageDeniedException();
+        }
+        if (!body.enabled() && status.open() && !manage.manager() && queries.votesOf(post.getId()).total() > 0) {
+            throw new DebateHasVotesException();
+        }
+        String kind = manage.manager() ? PostDebateEntity.BY_MANAGER : PostDebateEntity.BY_MEMBER;
+        PostDebateWriter.Change change = debateWriter.apply(post.getId(), body.enabled(), body.neutralEnabled(), body.stanceChangeAllowed(), kind, userId, now);
+        if (change.opened() || change.closed() || change.updated()) {
+            log.info("글 토론 {} postId={} by userId={}({})", change.opened() ? "열기" : change.closed() ? "닫기" : "설정 바꾸기", post.getId(), userId, kind);
+        }
+        return reader.summary(reader.status(post.getId(), now), post, b, userId, now);
     }
 
     @Transactional
@@ -109,12 +158,14 @@ public class DebateService {
             throw new DebateNotOpenException();
         }
         DebateStance current = queries.lockStance(post.getId(), userId).orElse(null);
+        requireChangeAllowed(wanted, current, status);
         requireNeutralAllowed(wanted, current, status);
         if (current == null) {
             if (queries.insertIfAbsent(post.getId(), userId, wanted, now)) {
                 return new StanceView(wanted.name(), 0); // 처음 고르기(투표) — 옮길 의견이 없다
             }
             current = queries.lockStance(post.getId(), userId).orElseThrow(); // 같은 회원의 다른 요청이 방금 먼저 골랐다 — 바꾸기로 이어 간다
+            requireChangeAllowed(wanted, current, status);
             requireNeutralAllowed(wanted, current, status);
         }
         int moved = 0;
@@ -181,7 +232,17 @@ public class DebateService {
         return new CommenterListView(out);
     }
 
-    /** 중립이 꺼진 하이라이트에서 <b>새로</b> 중립을 고르면 400 {@code fields.stance} — 이미 중립이면 그대로 둔다(기존 중립 표·의견은 남긴다) */
+    /**
+     * 「입장 바꾸기 허용」이 꺼진 토론에서 이미 고른 입장을 다른 값으로 바꾸려 하면 409 STANCE_CHANGE_LOCKED — 처음 고르기({@code current} null)·같은 값은 통과.
+     * 막히면 소급 이동도 일어나지 않는다. 나중에 꺼도 이미 고른 입장은 그대로다.
+     */
+    private static void requireChangeAllowed(DebateStance wanted, DebateStance current, DebateReader.Status status) {
+        if (current != null && current != wanted && !status.stanceChangeAllowed()) {
+            throw new StanceChangeLockedException();
+        }
+    }
+
+    /** 중립이 꺼진 토론에서 <b>새로</b> 중립을 고르면 400 {@code fields.stance} — 이미 중립이면 그대로 둔다(기존 중립 표·의견은 남긴다) */
     private static void requireNeutralAllowed(DebateStance wanted, DebateStance current, DebateReader.Status status) {
         if (wanted == DebateStance.NEUTRAL && current != DebateStance.NEUTRAL && !status.neutralEnabled()) {
             throw ValidationException.of("stance", new MessageRef("debate.stance.neutralOff"));

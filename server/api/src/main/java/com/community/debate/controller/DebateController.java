@@ -1,9 +1,11 @@
 package com.community.debate.controller;
 
 import com.community.auth.dto.AuthUser;
+import com.community.debate.dto.request.DebateSettingsRequest;
 import com.community.debate.dto.request.PinRequestRejectRequest;
 import com.community.debate.dto.request.StanceRequest;
 import com.community.debate.dto.response.CommenterListView;
+import com.community.debate.dto.response.DebateSummaryView;
 import com.community.debate.dto.response.PinRequestListView;
 import com.community.debate.dto.response.PinRequestView;
 import com.community.debate.dto.response.StanceView;
@@ -24,7 +26,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 하이라이트 토론의 공개 API — 입장 고르기·바꾸기 · @ 지정 후보 · 의견 고정 요청. 모두 로그인 회원만(쓰기는 SecurityConfig 가, GET 은 서비스가 401).
+ * 글 찬반 토론의 공개 API — 토론 열기·설정·닫기 · 입장 고르기·바꾸기 · @ 지정 후보 · 의견 고정 요청. 모두 로그인 회원만(쓰기는 SecurityConfig 가, GET 은 서비스가 401).
  * 댓글 목록의 구분·배지와 댓글 쓰기의 입장은 {@code CommentController} 에 있다.
  */
 @RestController
@@ -36,6 +38,13 @@ public class DebateController {
     public DebateController(DebateService service, PinRequestService pinRequests) {
         this.service = service;
         this.pinRequests = pinRequests;
+    }
+
+    /** 글의 토론 열기·설정 바꾸기·닫기 — 본문 {@code { enabled, neutralEnabled, stanceChangeAllowed }}, 응답은 글 상세의 {@code debate} 와 같은 모양 */
+    @PutMapping("/api/posts/{postId}/debate")
+    public ApiResponse<DebateSummaryView> changeDebate(@PathVariable String postId, @RequestBody(required = false) DebateSettingsRequest body,
+                                                       Authentication authentication) {
+        return ApiResponse.success(service.changeDebate(postId, body, userId(authentication)));
     }
 
     @PutMapping("/api/posts/{postId}/stance")

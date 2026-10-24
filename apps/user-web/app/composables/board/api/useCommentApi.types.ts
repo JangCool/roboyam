@@ -32,7 +32,7 @@ export interface CommentView {
     mine: boolean;
     /** 차단한 회원의 댓글(`USER`)·본문에 차단한 단어(`WORD`) — **서버 후보**(`member-social-contract.md`), 지금 서버 응답에는 없다. 접는 것은 화면의 일 */
     blocked?: BlockedBy | null;
-    /** 하이라이트 토론의 입장 배지 PRO · CON · NEUTRAL(일반 댓글 null) — 입장을 바꾸면 그 회원의 기존 의견도 새 입장으로 함께 바뀐다(소급). 답글·지운 자리·숨긴 자리에도 남는다 */
+    /** 찬반 토론의 입장 배지 PRO · CON · NEUTRAL(일반 댓글 null) — 입장을 바꾸면 그 회원의 기존 의견도 새 입장으로 함께 바뀐다(소급). 답글·지운 자리·숨긴 자리에도 남는다 */
     stance?: DebateStance | null;
     /**
      * 숨긴 까닭을 밝힐 때만 `STAFF`(운영자가 숨김) — `state` 가 HIDDEN 이고 그 게시판의 정책 `staffHiddenNotice` 가 켜졌을 때만 온다.
@@ -66,7 +66,7 @@ export interface CommentListResponse {
     totalCount: number;
     /** 이 응답의 구분 — 옛 응답에는 없을 수 있다 */
     kind?: CommentKind;
-    /** 하이라이트 토론 칸 — 늘 있다(하이라이트가 아니면 `enabled false`). 옛 응답에는 없을 수 있다 */
+    /** 찬반 토론 칸 — 늘 있다(토론이 없으면 `enabled false`). 옛 응답에는 없을 수 있다 */
     debate?: CommentDebate;
     /** 이 게시판의 댓글 추천·비추천 표시 — 옛 응답에는 없을 수 있다(그때는 추천만, 기본 이름) */
     reactions?: CommentReactions;

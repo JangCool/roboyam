@@ -6,8 +6,9 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * 하이라이트 — V75__highlights.sql 의 {@code highlights}(글마다 하나). 관리자 앱이 만들고 고치며, 공개 서버는 토론(찬성·반대 의견)이 열려 있는지 판단할 때 읽는다.
+ * 하이라이트 — V75__highlights.sql 의 {@code highlights}(글마다 하나). 관리자 앱이 만들고 고치며, 공개 서버는 글 상세의 {@code highlighted}(노출 중인 하이라이트 글)를 판단할 때 읽는다.
  * 「노출 중」 = {@link #isShowingAt}(노출 켬 + 기간 안) 이고 글이 지금 볼 수 있을 때다(글 상태는 부르는 쪽이 본다).
+ * 하이라이트는 토론을 갖지 않는다 — 찬반 토론은 글의 것이다({@code post_debates}, V79 — docs/features/post-debate-contract.md).
  */
 @Entity
 @Table(name = "highlights")
@@ -23,9 +24,6 @@ public class HighlightEntity {
     private boolean visible;
     private Instant showFrom;
     private Instant showUntil;
-    private boolean debate;
-    /** 「중립도 받기」(V78, 기본 켬) — 끄면 새로 중립을 고를 수 없다. 이미 고른 중립 입장·의견은 그대로 */
-    private boolean neutralEnabled;
     private int sortOrder;
     private Long createdBy;
     private Instant createdAt;
@@ -36,7 +34,7 @@ public class HighlightEntity {
     }
 
     public static HighlightEntity create(long id, long postId, String title, String summary, Long imageFileId, boolean visible, Instant showFrom,
-                                         Instant showUntil, boolean debate, boolean neutralEnabled, int sortOrder, long operatorId, Instant now) {
+                                         Instant showUntil, int sortOrder, long operatorId, Instant now) {
         HighlightEntity row = new HighlightEntity();
         row.id = id;
         row.postId = postId;
@@ -46,8 +44,6 @@ public class HighlightEntity {
         row.visible = visible;
         row.showFrom = showFrom;
         row.showUntil = showUntil;
-        row.debate = debate;
-        row.neutralEnabled = neutralEnabled;
         row.sortOrder = sortOrder;
         row.createdBy = operatorId;
         row.createdAt = now;
@@ -57,16 +53,13 @@ public class HighlightEntity {
     }
 
     /** 칸을 고친다(대상 글은 바꾸지 않는다) */
-    public void change(String title, String summary, Long imageFileId, boolean visible, Instant showFrom, Instant showUntil, boolean debate,
-                       boolean neutralEnabled, long operatorId, Instant now) {
+    public void change(String title, String summary, Long imageFileId, boolean visible, Instant showFrom, Instant showUntil, long operatorId, Instant now) {
         this.title = title;
         this.summary = summary;
         this.imageFileId = imageFileId;
         this.visible = visible;
         this.showFrom = showFrom;
         this.showUntil = showUntil;
-        this.debate = debate;
-        this.neutralEnabled = neutralEnabled;
         this.updatedBy = operatorId;
         this.updatedAt = now;
     }
@@ -84,11 +77,6 @@ public class HighlightEntity {
     /** 노출을 켰고 지금이 노출 기간 안인가(시작 포함·끝 미포함, 비어 있으면 상시) — 글 상태는 보지 않는다 */
     public boolean isShowingAt(Instant now) {
         return visible && (showFrom == null || !showFrom.isAfter(now)) && (showUntil == null || showUntil.isAfter(now));
-    }
-
-    /** 노출 중이고 「찬성·반대 의견 받기」가 켜져 있는가 — 글 상태는 보지 않는다 */
-    public boolean isDebateOpenAt(Instant now) {
-        return debate && isShowingAt(now);
     }
 
     public Long getId() {
@@ -121,14 +109,6 @@ public class HighlightEntity {
 
     public Instant getShowUntil() {
         return showUntil;
-    }
-
-    public boolean isDebate() {
-        return debate;
-    }
-
-    public boolean isNeutralEnabled() {
-        return neutralEnabled;
     }
 
     public int getSortOrder() {

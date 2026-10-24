@@ -27,7 +27,7 @@
                 >
                     <i class="pi pi-thumbtack text-[0.625rem]" aria-hidden="true" /><span class="relative top-[-0.09em]">{{ t('comment.pinned') }}</span>
                 </span>
-                <!-- 하이라이트 토론의 입장 배지(지금 입장 — 입장을 바꾸면 따라 바뀐다) -->
+                <!-- 찬반 토론의 입장 배지(지금 입장 — 입장을 바꾸면 따라 바뀐다) -->
                 <DebateStanceBadge v-if="comment.stance" :stance="comment.stance" />
                 <PostAuthorLabel :author="comment.author" show-ip link class="text-color" />
                 <span aria-hidden="true">·</span>

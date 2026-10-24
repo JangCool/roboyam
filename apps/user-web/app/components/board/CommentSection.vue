@@ -1,13 +1,16 @@
 <template>
     <!--
-        글 보기의 댓글 목록 구획 — 두 가지로 쓴다(확정 시안 `popular-highlight-contract.md` 「결정」 토론 화면 배치).
+        글 보기의 댓글 목록 구획 — 두 가지로 쓴다(확정 시안 `popular-highlight-contract.md` 「결정」 토론 화면 배치 — 토론은 글의 기능, `post-debate-contract.md`).
           `general`(맨 아래 원래 댓글 자리): 「댓글 N」(`counts.generalTotal`) · 정렬 · 베스트 · 일반 원댓글 + 답글 · 새 댓글. 입장 고르개·배지 없음 — 입장을 정한 회원이 써도 일반 댓글(`opinion` 을 보내지 않는다).
           `debate`(본문 영역 안, 본문 글 바로 다음): 「찬성·반대 토론 · N명 참여 · 의견 M」 · [찬성 n명][반대 n명][중립 n명] 투표 단추(`PUT …/stance` — 처음 고르기·바꾸기, 바꾸면 확인창 + 기존 의견 소급) ·
             비율 막대·범례(= `votes`, 사람 수) · 안내 한 줄 · (확인 권한자) 「고정 요청 N건」 · 의견 거르기 칩(의견 전체·찬성·반대·중립 = `counts`, 의견 수 → `kind`) · 의견 목록(고정 의견 맨 위 「고정」) ·
             의견 쓰기(투표한 회원만 — 내 입장 배지 · @ 회원 지정 · `opinionMax` · `opinion: true` 로 보낸다). 중립 칸은 `neutralEnabled || votes.neutral || counts.neutral` 일 때만(`UtilDebate.neutralVisible`).
-            끝난 토론(`enabled false`)은 읽기 전용(투표·쓰기·고정 요청 없음). 의견 답글은 원댓글을 따른다(서버가 정한다 — 투표하지 않았으면 먼저 고르라고 알린다).
+            닫힌 토론(`enabled false`)은 읽기 전용(투표·쓰기·고정 요청 없음). 의견 답글은 원댓글을 따른다(서버가 정한다 — 투표하지 않았으면 먼저 고르라고 알린다).
+            토론을 바꿀 수 있는 사람(`debate.canManage` — 글쓴이 규칙 또는 그 게시판 매니저)에게는 머리에 [토론 설정](`settings` 이벤트 → 페이지 대화창).
+            「입장 바꾸기 허용」이 꺼진 토론(`stanceChangeAllowed false`): 처음 고를 때 확인창(「찬성으로 정할까요? 한 번 정하면 바꿀 수 없어요」)을 한 번 더 받고, 고른 뒤에는 다른 단추를 막고 안내한다.
+              그 사이 잠겨 `409 STANCE_CHANGE_LOCKED` 를 받으면 서버 문구 토스트 후 목록을 다시 받는다.
         두 구획 모두: 추천·비추천(`reactions` — 하나를 누르면 다른 하나가 풀린 서버 값을 그대로), 고치기·지우기(비회원 비밀번호), 신고(`report` 이벤트 → 페이지 대화상자), 숨김 문구(`hiddenBy`)·차단 접기(`FoldedRow`)는 `CommentItem`.
-        서버 호출은 페이지가 `usePostComments` 로 하고 여기에는 그 함수(`actions`·`debateActions`)만 내려온다. 토론 오류(`DEBATE_NOT_OPEN`·`STANCE_REQUIRED`·`STANCE_LOCKED`)는 서버 문구를 보이고 목록을 다시 받아 지금 상태로 맞춘다.
+        서버 호출은 페이지가 `usePostComments` 로 하고 여기에는 그 함수(`actions`·`debateActions`)만 내려온다. 토론 오류(`DEBATE_NOT_OPEN`·`STANCE_REQUIRED`·`STANCE_LOCKED`·`STANCE_CHANGE_LOCKED`)는 서버 문구를 보이고 목록을 다시 받아 지금 상태로 맞춘다.
         입장 색은 `main.css` 「토론 입장 색」(찬성 파랑 · 반대 빨강 · 중립 초록) — 늘 입장 글자와 함께 쓴다.
     -->
     <section
@@ -17,10 +20,25 @@
     >
         <!-- ── 토론 머리: 제목 · 투표 · 막대 · 안내 ── -->
         <template v-if="isDebate">
-            <h2 :id="headingId" class="m-0 flex flex-wrap items-baseline gap-x-1.5 text-[0.9375rem] font-semibold">
-                {{ t('comment.debateTitle') }}
-                <span v-if="debate" class="text-[0.8125rem] font-normal text-muted-color tabular-nums">{{ t('comment.debateSummary', { people: votes.total, opinions: debate.counts.opinions }) }}</span>
-            </h2>
+            <div class="flex items-start justify-between gap-2">
+                <h2 :id="headingId" class="m-0 flex flex-wrap items-baseline gap-x-1.5 text-[0.9375rem] font-semibold">
+                    {{ t('comment.debateTitle') }}
+                    <span v-if="debate" class="text-[0.8125rem] font-normal text-muted-color tabular-nums">{{ t('comment.debateSummary', { people: votes.total, opinions: debate.counts.opinions }) }}</span>
+                </h2>
+                <!-- 토론을 바꿀 수 있는 사람(글쓴이 규칙·그 게시판 매니저) — 열기·설정·닫기 대화창은 페이지가 연다 -->
+                <Button
+                    v-if="debate?.canManage"
+                    type="button"
+                    icon="pi pi-sliders-h"
+                    :label="t('comment.debateSettings')"
+                    size="small"
+                    severity="secondary"
+                    variant="text"
+                    class="-my-1 shrink-0"
+                    data-testid="debate-settings-open"
+                    @click="$emit('settings')"
+                />
+            </div>
             <template v-if="debate">
                 <div class="grid grid-cols-[repeat(auto-fit,minmax(5.5rem,1fr))] gap-2" role="group" :aria-label="t('comment.voteLabel')" data-testid="debate-votes">
                     <button
@@ -204,7 +222,7 @@
             <div class="flex flex-wrap items-center gap-2 text-sm">
                 <span class="text-xs text-muted-color">{{ t('comment.myStance') }}</span>
                 <DebateStanceBadge :stance="debate.myStance" />
-                <span class="text-xs text-muted-color">{{ t('comment.myStanceHint') }}</span>
+                <span class="text-xs text-muted-color">{{ stanceLocked ? t('comment.myStanceLockedHint') : t('comment.myStanceHint') }}</span>
             </div>
 
             <!-- @ 회원 지정 — 이 글에 의견을 쓴 회원을 골라 그 회원의 최근 의견에 답글로 쓴다 -->
@@ -316,12 +334,12 @@ const props = withDefaults(defineProps<Props>(), {
     debateActions: null,
 });
 
-const emit = defineEmits<{ sort: [value: CommentSort]; kind: [value: CommentKind]; retry: []; report: [comment: CommentView] }>();
+const emit = defineEmits<{ sort: [value: CommentSort]; kind: [value: CommentKind]; retry: []; report: [comment: CommentView]; settings: [] }>();
 
 const SORTS: readonly CommentSort[] = ['OLDEST', 'LATEST'];
 const KINDS: readonly OpinionKind[] = ['OPINION', 'PRO', 'CON', 'NEUTRAL'];
 /** 토론 상태가 바뀐 거절 — 서버 문구를 보이고 목록을 다시 받아 지금 상태(열림·내 입장)로 맞춘다 */
-const DEBATE_CODES: ReadonlySet<string> = new Set(['DEBATE_NOT_OPEN', 'STANCE_LOCKED', 'STANCE_REQUIRED']);
+const DEBATE_CODES: ReadonlySet<string> = new Set(['DEBATE_NOT_OPEN', 'STANCE_LOCKED', 'STANCE_REQUIRED', 'STANCE_CHANGE_LOCKED']);
 /** 고정 요청이 지금 상태와 맞지 않는 거절 — 알리고 목록을 맞춘다 */
 const PIN_CODES: ReadonlySet<string> = new Set(['PIN_REQUEST_NOT_OPINION', 'OPINION_UNAVAILABLE', 'DEBATE_NOT_OPEN', 'OPINION_ALREADY_PINNED', 'PIN_REQUEST_EXISTS']);
 /** 고른 칩 — 중립 surface 채움(시안: 글자·바탕을 뒤집은 칩) */
@@ -349,11 +367,13 @@ const blockedText = computed(() => UtilBoardMessages.commentBlocked(t, props.boa
 const reactions = computed(() => props.data?.reactions ?? null);
 const isDebate = computed(() => props.variant === 'debate');
 
-/* ── 하이라이트 토론 ── */
+/* ── 찬반 토론 ── */
 const debate = computed(() => props.data?.debate ?? null);
 const votes = computed(() => debate.value?.votes ?? UtilDebate.EMPTY_VOTES);
-/** 지금 의견을 받는다(끝난 토론은 읽기 전용) */
+/** 지금 의견을 받는다(닫힌 토론은 읽기 전용) */
 const debateOpen = computed(() => Boolean(debate.value?.enabled));
+/** 「입장 바꾸기 허용」이 꺼졌다 — 처음 고를 때 한 번 더 묻고, 고른 뒤에는 다른 단추를 막는다 */
+const stanceLocked = computed(() => UtilDebate.stanceLocked(debate.value));
 const neutralShown = computed(() => (debate.value ? UtilDebate.neutralVisible(debate.value) : false));
 const shownStances = computed(() => UtilDebate.stances(neutralShown.value));
 const shownKinds = computed(() => KINDS.filter((k) => k !== 'NEUTRAL' || neutralShown.value));
@@ -386,11 +406,12 @@ function stanceTo(s: DebateStance): string {
     return t(`comment.stanceTo.${s}`);
 }
 
-/** 중립이 꺼진 하이라이트 — 이미 중립인 회원 말고는 새로 고를 수 없다 */
+/** 중립이 꺼진 토론 — 이미 중립인 회원 말고는 새로 고를 수 없다. 입장 바꾸기가 막힌 토론 — 이미 고른 회원은 다른 단추를 누를 수 없다 */
 function voteDisabled(s: DebateStance): boolean {
     const d = debate.value;
     if (!d || !debateOpen.value || Boolean(voting.value)) return true;
     if (!props.board.viewer.guest && !props.board.viewer.canComment) return true;
+    if (stanceLocked.value && d.myStance && d.myStance !== s) return true;
     return s === 'NEUTRAL' && !d.neutralEnabled && d.myStance !== 'NEUTRAL';
 }
 
@@ -417,8 +438,9 @@ const voteHint = computed(() => {
     if (!d.enabled) return t('comment.debateClosed');
     if (props.board.viewer.guest) return t('comment.debateGuestHint');
     if (!props.board.viewer.canComment) return blockedText.value;
-    if (d.myStance) return t('comment.votedHint', { to: stanceTo(d.myStance) });
-    const hint = neutralShown.value && d.neutralEnabled ? t('comment.voteHintNeutral') : t('comment.voteHint');
+    if (d.myStance) return stanceLocked.value ? t('comment.votedHintLocked', { to: stanceTo(d.myStance) }) : t('comment.votedHint', { to: stanceTo(d.myStance) });
+    const base = neutralShown.value && d.neutralEnabled ? t('comment.voteHintNeutral') : t('comment.voteHint');
+    const hint = stanceLocked.value ? `${base} ${t('comment.voteHintLocked')}` : base;
     return !d.neutralEnabled && neutralShown.value ? `${hint} ${t('comment.neutralClosed')}` : hint;
 });
 
@@ -441,6 +463,7 @@ function chipClass(k: OpinionKind): string {
 
 /**
  * 입장 고르기(투표) — 처음이면 바로 정하고, 이미 고른 회원이 다른 단추를 누르면 확인창(「찬성 → 반대로 바꿀까요?」 + 옮겨 갈 내 의견 수) 뒤에 바꾼다(소급).
+ * 입장 바꾸기가 막힌 토론은 처음 고를 때 확인창(「찬성으로 정할까요? 한 번 정하면 바꿀 수 없어요」)을 받고, 이미 고른 뒤에는 바꾸지 않는다(단추도 막혀 있다).
  * 같은 단추는 아무것도 하지 않는다(입장 취소는 없다). 비회원은 로그인 안내.
  */
 const voting = ref<DebateStance | null>(null);
@@ -450,7 +473,11 @@ async function onVote(next: DebateStance): Promise<void> {
     if (props.board.viewer.guest) return prompt('opinion');
     if (!d.enabled || d.myStance === next) return;
     const current = d.myStance;
-    if (current) {
+    if (stanceLocked.value) {
+        if (current) return;
+        const ok = await confirm({ title: t('comment.lockedVoteTitle', { to: stanceTo(next) }), message: t('comment.lockedVoteMessage'), confirmLabel: t('comment.lockedVoteConfirm', { to: stanceTo(next) }) });
+        if (!ok) return;
+    } else if (current) {
         const count = d.myOpinionCount;
         const message = count > 0 ? t('comment.changeStanceMoves', { from: stanceName(current), to: stanceTo(next), n: count }) : t('comment.changeStanceFuture', { stance: stanceName(next) });
         const ok = await confirm({ title: t('comment.changeStanceTitle', { from: stanceName(current), to: stanceTo(next) }), message, confirmLabel: t('comment.changeStanceTo', { to: stanceTo(next) }) });
@@ -466,7 +493,7 @@ async function onVote(next: DebateStance): Promise<void> {
         if (e instanceof ApiError && e.code === 'UNAUTHENTICATED') prompt('opinion');
         else {
             toast.error(e instanceof ApiError && e.field('stance') ? (e.field('stance') ?? '') : UtilBoardMessages.of(t, e), 8000);
-            // 토론이 그새 닫혔거나 중립을 받지 않게 됐다 — 목록을 다시 받아 지금 상태로
+            // 토론이 그새 닫혔거나 중립·입장 바꾸기를 받지 않게 됐다 — 목록을 다시 받아 지금 상태로
             if (e instanceof ApiError && (DEBATE_CODES.has(e.code) || e.field('stance'))) emit('retry');
         }
     } finally {

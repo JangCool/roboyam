@@ -4,6 +4,7 @@
         community 대비: 임시저장·글 유형(사진·영상·AI)·투표·핫딜/리뷰 칸·소모임 글·예약 발행을 뺐다. 본문은 게시판 글 에디터 설정(평문 Textarea / 간단·고급 서식 에디터)을 따르고,
           에디터 설정이 다른 게시판으로 바꾸면 쓰던 본문을 그 형식으로 바꿔 들고 간다(평문 ↔ HTML — HTML → 평문은 서식·이미지가 빠진다).
           비회원 글쓰기(`writeMin = GUEST` 게시판)를 더했다.
+        찬반 토론(post-debate-contract): 게시판 `debateEnabled` 이고 회원이면 「찬반 토론」 칸(열기 + 중립도 받기 · 입장 바꾸기 허용, 기본 켬). 켜면 `POST /api/posts` 본문 `debate` 로 글과 함께 연다.
         가정: 쓸 수 있는 게시판 목록은 서버가 판정해 준다(`GET /api/boards/writable` 후보). `?board` 가 쓸 수 없는 게시판이면 그 까닭을 보인다.
           금지어·작성 간격·하루 한도·같은 글 반복은 서버가 거절하고 그 문구를 폼 아래에 그대로 보인다. 저장하지 않고 나가면 확인을 묻는다.
     -->
@@ -48,7 +49,12 @@
                 :upload="uploadImage"
                 @submit="submit"
                 @cancel="cancel"
-            />
+            >
+                <!-- 찬반 토론 — 게시판이 글쓴이 토론을 받고(`debateEnabled`) 회원일 때만. 켜면 글과 함께 연다 -->
+                <template #extra>
+                    <DebateSettingsFields v-if="debateShown" v-model="debate" :disabled="submitting" :error="fieldErrors.debate ?? ''" />
+                </template>
+            </PostEditorForm>
         </template>
     </div>
 </template>
@@ -56,9 +62,11 @@
 <script setup lang="ts">
 import type { RichImageUploader } from '#layers/rich-editor/components/RichEditor.types';
 import type { BoardDetail, BoardView, WriteBlockedReason } from '~/composables/board/api/useBoardApi.types';
+import { DEFAULT_DEBATE_SETTINGS, type DebateSettingsValues } from '~/components/board/DebateSettingsFields.types';
 import { EMPTY_POST_FORM, type PostBoardOption, type PostFormValues } from '~/components/board/PostEditorForm.types';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilDebate from '~/utils/util-debate';
 import UtilPost from '~/utils/util-post';
 
 definePageMeta({ shell: 'inner' });
@@ -168,6 +176,10 @@ const submitting = ref(false);
 /** 등록을 마쳤다 — 나가기 확인을 묻지 않는다 */
 let saved = false;
 
+/** 찬반 토론 칸 — 게시판을 바꿔도 값은 들고 가고, 받지 않는 게시판이면 칸을 감추고 보내지 않는다 */
+const debate = ref<DebateSettingsValues>({ ...DEFAULT_DEBATE_SETTINGS });
+const debateShown = computed(() => Boolean(board.value?.debateEnabled) && board.value?.viewer.guest === false);
+
 const dirty = computed(() => form.value.title.trim() !== '' || UtilPost.hasContent(form.value.content, form.value.contentFormat));
 
 async function submit(): Promise<void> {
@@ -186,9 +198,11 @@ async function submit(): Promise<void> {
             contentFormat: form.value.contentFormat,
             adult: b.allowAdult && form.value.adult,
             guest: b.viewer.guest ? { name: form.value.guestName.trim(), password: form.value.guestPassword, captchaToken: form.value.captcha ? UtilPost.PLACEHOLDER_CAPTCHA_TOKEN : '' } : null,
+            debate: debateShown.value ? UtilDebate.openBody(debate.value) : null,
         });
         saved = true;
         form.value = { ...EMPTY_POST_FORM };
+        debate.value = { ...DEFAULT_DEBATE_SETTINGS };
         toast.success(t('post.created'));
         await router.replace(`/posts/${result.id}`);
     } catch (e) {

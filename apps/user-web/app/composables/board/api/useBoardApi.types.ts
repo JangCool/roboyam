@@ -209,6 +209,11 @@ export interface BoardDetail extends BoardView {
     writeGuideText: string | null;
     /** 신고 기능 사용(관리자 신고 정책 `reportEnabled`) */
     reportEnabled: boolean;
+    /**
+     * 글쓴이(회원)가 글쓰기·고치기에서 찬반 토론을 열 수 있다(유효 정책 `debateEnabled` — post-debate-contract). 옛 응답에는 없을 수 있다(없으면 끔).
+     * 가정: 게시판 응답의 맨 위 칸(`allowAdult`·`reportEnabled` 와 같은 자리)
+     */
+    debateEnabled?: boolean;
     policy: BoardPublicPolicy;
     guestRules: BoardGuestRules;
     newMemberRules: BoardNewMemberRules;

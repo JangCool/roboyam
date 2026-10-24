@@ -1,5 +1,6 @@
 /**
- * 하이라이트 토론(찬성·반대·중립 투표와 의견)이 주고받는 모양 — 서버 `server/api/.../debate/dto` 와 같다(docs/features/popular-highlight-contract.md 「서버 구현 결과」 V78 갱신).
+ * 게시글 찬반 토론(찬성·반대·중립 투표와 의견)이 주고받는 모양 — 서버 `server/api/.../debate/dto` 와 같다.
+ * 토론 안의 규칙은 docs/features/popular-highlight-contract.md 「서버 구현 결과」(V78), 토론이 어디에 붙고 누가 여는지는 docs/features/post-debate-contract.md(토론 = 글의 기능, `post_debates` 행이 있으면 열림).
  * 글 상세의 `debate`·댓글 목록의 `debate`·댓글의 `stance` 도 여기 타입을 쓴다. ⚠ ID 는 모두 문자열이다.
  */
 import type { PostAuthor } from '~/composables/board/api/usePostApi.types';
@@ -24,16 +25,45 @@ export interface DebateVotes {
     total: number;
 }
 
-/** 글 상세(`GET /api/posts/{id}`)의 토론 요약 — 늘 있다(하이라이트가 아니면 `enabled false`) */
-export interface DebateSummary {
-    /** 지금 이 글이 의견을 받는가(노출 중인 하이라이트 + 「찬성·반대 의견 받기」 켬) */
+/** 토론을 연 쪽 — 글쓴이(회원) · 운영자(관리자·그 게시판 매니저). 운영자가 연 토론은 글쓴이에게 읽기 전용 */
+export type DebateOpenedBy = 'MEMBER' | 'OPERATOR';
+
+/**
+ * 토론 설정 세 칸(post-debate-contract 「화면」) — 글 고치기·글 상세 「토론 설정」이 같이 쓴다.
+ * `PUT /api/posts/{id}/debate` 본문 그대로. 열 때 `neutralEnabled`·`stanceChangeAllowed` 가 null 이면 서버 기본(true)
+ */
+export interface DebateSettingsBody {
     enabled: boolean;
-    /** 내가 이 글에서 고른 입장 — 고르지 않았거나 비로그인이면 null. 하이라이트가 끝나도 남는다 */
+    neutralEnabled: boolean | null;
+    stanceChangeAllowed: boolean | null;
+}
+
+/** `POST /api/posts` 본문의 `debate` — 있으면 글과 함께 토론을 연다(회원이고 게시판 `debateEnabled` 일 때만, 아니면 `400 fields.debate`) */
+export interface PostDebateOpen {
+    neutralEnabled: boolean;
+    stanceChangeAllowed: boolean;
+}
+
+/**
+ * 글 상세(`GET /api/posts/{id}`)의 토론 요약 — 늘 있다(토론이 없으면 `enabled false`). `PUT /api/posts/{id}/debate` 의 응답도 이 모양이다.
+ */
+export interface DebateSummary {
+    /** 지금 이 글에 토론이 열려 있다(`post_debates` 행이 있음 — 하이라이트·노출과 무관) */
+    enabled: boolean;
+    /** 내가 이 글에서 고른 입장 — 고르지 않았거나 비로그인이면 null. 토론이 닫혀도 남는다 */
     myStance: DebateStance | null;
     /** 입장 의견의 글자 수 한도 */
     opinionMax: number;
-    /** 하이라이트의 「중립도 받기」 — false 면 새로 중립을 고를 수 없다(이미 고른 중립 표·쓴 의견은 남고 수에도 든다). 옛 응답에는 없을 수 있다 */
+    /** 「중립도 받기」(닫혀 있으면 true) — false 면 새로 중립을 고를 수 없다(이미 고른 중립 표·쓴 의견은 남고 수에도 든다). 옛 응답에는 없을 수 있다 */
     neutralEnabled?: boolean;
+    /** 「입장 바꾸기 허용」(닫혀 있으면 true) — false 면 처음 고를 때 확인을 한 번 더 받고, 고른 뒤에는 다른 입장 단추를 막는다(`409 STANCE_CHANGE_LOCKED`) */
+    stanceChangeAllowed: boolean;
+    /** 토론을 연 쪽 — 닫혀 있으면 null */
+    openedBy: DebateOpenedBy | null;
+    /** 지금 보는 사람이 `PUT /api/posts/{id}/debate` 로 열기·설정·닫기를 할 수 있나(글쓴이 규칙 또는 그 게시판 매니저) */
+    canManage: boolean;
+    /** 닫기까지 되나 — 글쓴이는 투표가 하나라도 있으면 닫을 수 없다(`409 DEBATE_HAS_VOTES`, 설정은 바꿀 수 있다) */
+    canClose: boolean;
     /** 입장을 고른 사람 수 — 옛 응답에는 없을 수 있다 */
     votes?: DebateVotes;
     /** 내가 확인할 대기 고정 요청 수(게시판 정책의 글쓴이·게시판 매니저일 때만 숫자, 아니면 null) */
@@ -60,7 +90,7 @@ export interface DebateCounts {
 }
 
 /**
- * 댓글 목록의 토론 칸 — 늘 있다. 화면은 `enabled || votes.total > 0 || counts.opinions > 0` 일 때 토론 구획을 보인다(끝난 하이라이트는 읽기 전용),
+ * 댓글 목록의 토론 칸 — 늘 있다. 화면은 `enabled || votes.total > 0 || counts.opinions > 0` 일 때 토론 구획을 보인다(닫힌 토론은 읽기 전용),
  * 중립 칸은 `neutralEnabled || votes.neutral > 0 || counts.neutral > 0` 일 때(`UtilDebate`). 막대·투표 단추 = `votes`(사람 수), 칩 = `counts`(의견 수)
  */
 export interface CommentDebate {
@@ -68,6 +98,11 @@ export interface CommentDebate {
     myStance: DebateStance | null;
     opinionMax: number;
     neutralEnabled: boolean;
+    /** 글 상세와 같다 — 「입장 바꾸기 허용」(닫혀 있으면 true) */
+    stanceChangeAllowed: boolean;
+    openedBy: DebateOpenedBy | null;
+    canManage: boolean;
+    canClose: boolean;
     votes: DebateVotes;
     counts: DebateCounts;
     /** 내가 쓴 지금 입장의 의견 수(원댓글·답글, 숨긴 것 포함, 지운 것 제외) — 입장 바꾸기 확인창의 「N개도 바뀌어요」 */

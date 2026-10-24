@@ -140,7 +140,8 @@ public class PinRequestService {
             memberNotices.opinionPinRequested(reviewer, userId, post.getId(), c.getId(), post.getTitle(), excerpt);
         }
         if (reviewers.operatorsReview(b)) {
-            operatorNotices.publish(AdminNotificationEvent.OPINION_PIN_REQUEST_PENDING, NotificationContext.empty());
+            operatorNotices.publish(AdminNotificationEvent.OPINION_PIN_REQUEST_PENDING,
+                    NotificationContext.empty().dedupe("post:" + post.getId()).link("postId", Long.toString(post.getId()))); // 게시글 관리의 그 글 서랍으로
         }
         log.info("의견 고정 요청 requestId={} postId={} commentId={} by userId={}", row.getId(), post.getId(), c.getId(), userId);
         return view(row);
