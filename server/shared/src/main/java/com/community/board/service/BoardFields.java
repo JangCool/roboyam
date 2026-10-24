@@ -1,5 +1,6 @@
 package com.community.board.service;
 
+import com.community.board.entity.BoardGadget;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -180,6 +181,11 @@ public final class BoardFields {
     /** 이 종류의 게시판이 「비회원 포함 모두」(GUEST)를 받는가 — 핫딜·직접홍보는 받지 않는다 */
     public static boolean guestAllowed(String kind) {
         return KIND_GENERAL.equals(kind) || KIND_GROUP.equals(kind);
+    }
+
+    /** 새 게시판의 가젯 노출 금지 시작값 — 핫딜·직접홍보는 인기글에서 뺀다(사용자 결정 2026-10-24), 그 밖은 없음. 만든 뒤에는 게시판 설정에서 바꾼다 */
+    public static List<BoardGadget> defaultGadgetExclusions(String kind) {
+        return KIND_DEAL.equals(kind) || KIND_PROMO.equals(kind) ? List.of(BoardGadget.POPULAR) : List.of();
     }
 
     private static void put(Map<String, Spec> map, Spec spec) {

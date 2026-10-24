@@ -36,6 +36,7 @@ public class PostFeedRepositoryQDSL extends RoboyamRepositoryQDSL {
 
     /**
      * 최신글 — 주어진 게시판의 보이고 숨기지 않은 글, id(= 작성 시각) 내림차순.
+     * 게시판 고르기(켜진 게시판 · 「가젯 노출 금지」에 최신글 LATEST 를 고르지 않은 게시판)는 부르는 쪽({@code LatestFeedService})이 게시판 사본으로 한다.
      *
      * @param beforeId 이 ID 보다 오래된 글만(커서) — null 이면 처음부터
      * @param limit    읽을 줄 수(다음 쪽이 있는지 보려면 쪽 크기 + 1)

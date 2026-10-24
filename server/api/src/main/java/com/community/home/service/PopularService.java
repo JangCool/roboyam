@@ -2,6 +2,7 @@ package com.community.home.service;
 
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
+import com.community.board.entity.BoardGadget;
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.BoardFields;
 import com.community.home.dto.response.PopularListResponse;
@@ -31,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li>순위는 DB 배치 {@code popular-rank}(5분마다, {@code R__batch_24_popular_rank.sql})가 계산해 둔 스냅샷이다 — 점수·조건·채우기·글쓴이 상한은 그 파일의 서버 상수.
  *       pg_cron 이 없으면 스냅샷이 비어 늘 빈 목록이다.</li>
- *   <li>읽을 때 지금 상태로 다시 거른다(스냅샷 순서는 그대로, 쪽은 거른 뒤에 나눈다): 지움·임시저장·예약 삭제 시각 지남·신고 숨김·19금 글, 꺼진 게시판·핫딜·직접홍보 게시판(DEAL·PROMO)·운영진 전용 게시판
+ *   <li>읽을 때 지금 상태로 다시 거른다(스냅샷 순서는 그대로, 쪽은 거른 뒤에 나눈다): 지움·임시저장·예약 삭제 시각 지남·신고 숨김·19금 글, 꺼진 게시판·「가젯 노출 금지」에 인기글(POPULAR)을 고른 게시판(핫딜·직접홍보는 이 값으로 시작)·운영진 전용 게시판
  *       (유효 글쓰기 자격 STAFF)의 글은 빠진다 — 배치의 후보 조건과 같다.</li>
  *   <li>{@code from}·{@code to} 는 이번 주 탭만(DB 시각으로 요청마다 계산 — 배치와 같은 SQL 함수). {@code weekStart} 는 늘 MONDAY. 자정 직후 한 배치 주기 동안은 스냅샷이 앞 기간의 것일 수 있다.</li>
  *   <li>틀린 값은 모아서 {@code 400 VALIDATION} — {@code fields.period} · {@code fields.page}(1 미만) · {@code fields.size}(1~50).</li>
@@ -104,10 +105,9 @@ public class PopularService {
                 range == null ? null : range.from(), range == null ? null : range.to(), WEEK_START);
     }
 
-    /** 인기글에 오를 수 있는 게시판인가 — 켜져 있고 핫딜·직접홍보가 아니며 운영진 전용(유효 글쓰기 자격 STAFF)이 아니다(배치의 후보 조건과 같다) */
+    /** 인기글에 오를 수 있는 게시판인가 — 켜져 있고 「가젯 노출 금지」에 인기글이 없으며 운영진 전용(유효 글쓰기 자격 STAFF)이 아니다(배치의 후보 조건과 같다) */
     private static boolean rankable(BoardCatalogSnapshot s, Long boardId) {
         EffectiveBoard b = boardId == null ? null : s.board(boardId).orElse(null);
-        return b != null && b.active() && !BoardFields.KIND_DEAL.equals(b.kind()) && !BoardFields.KIND_PROMO.equals(b.kind())
-                && !BoardFields.STAFF.equals(b.writeMin());
+        return b != null && b.active() && !b.excludedFrom(BoardGadget.POPULAR) && !BoardFields.STAFF.equals(b.writeMin());
     }
 }

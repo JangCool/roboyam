@@ -1,7 +1,11 @@
 package com.community.board.dto;
 
+import com.community.board.entity.BoardGadget;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 게시판 하나와 그 <b>유효 정책</b>(게시판 값 ?? 기본값)의 읽기 사본 — {@link com.community.board.service.BoardCatalog} 가 만든다.
@@ -12,6 +16,7 @@ import java.util.Optional;
  * @param imageSetting       이미지 허용 칸의 값 그대로(게시판 값 ?? 기본값, 에디터와 무관) — 평문 본문의 이미지 주소 규칙(예전과 같다)이 본다
  * @param commentEditor      댓글 에디터 유효값 NONE · SIMPLE
  * @param prefixes           이 게시판의 말머리 전부(꺼진 것 포함, 정렬 순서대로)
+ * @param gadgetExclusions   이 게시판 글을 내지 않을 홈 가젯(게시판 값 그대로 — 기본 설정에서 물려받지 않는다)
  */
 public record EffectiveBoard(long id, String slug, String name, String nameEn, String description, String kind, String layout, boolean viewToggle,
                              String color, boolean allowAdult, boolean investmentNotice, boolean active, int sortOrder, String writeLock, String introText,
@@ -19,7 +24,16 @@ public record EffectiveBoard(long id, String slug, String name, String nameEn, S
                              String commentEditor,
                              int listSize, int pinnedMax,
                              int commentProtectMin, boolean commentProtectEdit, String commentProtectDelete, int commentProtectDelayMinutes,
-                             int commentGuestDelayMinutes, List<BoardPrefixInfo> prefixes) {
+                             int commentGuestDelayMinutes, List<BoardPrefixInfo> prefixes, Set<BoardGadget> gadgetExclusions) {
+
+    public EffectiveBoard {
+        gadgetExclusions = gadgetExclusions == null || gadgetExclusions.isEmpty() ? Set.of() : Collections.unmodifiableSet(EnumSet.copyOf(gadgetExclusions));
+    }
+
+    /** 이 가젯에 이 게시판 글을 내지 않는가(게시판 설정 「가젯 노출 금지」) */
+    public boolean excludedFrom(BoardGadget gadget) {
+        return gadgetExclusions.contains(gadget);
+    }
 
     /** 글 본문으로 HTML 을 받는가(간단·고급 에디터) */
     public boolean postHtml() {

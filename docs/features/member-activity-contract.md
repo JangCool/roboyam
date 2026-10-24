@@ -76,14 +76,14 @@
 
 ## 서버 구현 결과 (2026-10-24 — 최신·인기·통합 검색·등급. 공개 프로필·제재·이의제기는 아직 목업)
 **API** (`server/api` — `home`·`search`·`grade` 패키지, 모양은 위 「목업 API 후보」 그대로. 비회원도: latest·popular·search·grade-rules — `SecurityConfig` GET permitAll)
-- `GET /api/home/latest?size&cursor` → `PostFeedPageView`(`PostFeedRowView` = `PostRowView` + `PostBoardRefView board`). 켜진 게시판의 보이는 글, 최신순, 19금은 표시와 함께 포함. 커서 = 마지막 글 ID. `400 VALIDATION fields.size|cursor`.
-- `GET /api/home/popular?period&page&size` → `PopularListResponse`. 스냅샷 순서대로 읽을 때 다시 거른다(삭제·숨김·19금·꺼진 게시판·핫딜·직접홍보 게시판·운영진 전용 게시판). `from`·`to` 는 WEEK 만(그 밖 null), `weekStart` 는 늘 `MONDAY`. 순위가 없으면 `page 1·totalPages 1`, 범위를 넘는 쪽은 빈 `items`. `400 fields.period|page|size`.
+- `GET /api/home/latest?size&cursor` → `PostFeedPageView`(`PostFeedRowView` = `PostRowView` + `PostBoardRefView board`). 켜진 게시판(「가젯 노출 금지」에 `LATEST` 를 고른 게시판 제외 — `board-contract.md`)의 보이는 글, 최신순, 19금은 표시와 함께 포함. 커서 = 마지막 글 ID. `400 VALIDATION fields.size|cursor`.
+- `GET /api/home/popular?period&page&size` → `PopularListResponse`. 스냅샷 순서대로 읽을 때 다시 거른다(삭제·숨김·19금·꺼진 게시판·「가젯 노출 금지」에 `POPULAR` 를 고른 게시판·운영진 전용 게시판). `from`·`to` 는 WEEK 만(그 밖 null), `weekStart` 는 늘 `MONDAY`. 순위가 없으면 `page 1·totalPages 1`, 범위를 넘는 쪽은 빈 `items`. `400 fields.period|page|size`.
 - `GET /api/search` → `SearchResponse`(`SearchRowView` = 피드 줄 + `snippet`). 쪽 모드면 `page`·`totalPages`(최대 10, 결과 없으면 0), 커서 모드면 둘 다 null. `snippet` = 일치 자리 앞 40자부터 120자, 잘리면 「…」. 없는·꺼진 게시판 `400 fields.board`, `page`+`cursor` 동시 `fields.page`, 3초 예산(문장마다 남은 시간을 `statement_timeout`) 넘으면 `503 SEARCH_TIMEOUT`. 19금 글 포함, `author` 범위는 비회원 이름도 찾는다. 단어 규칙 `SearchQueryPolicy` = 화면 `UtilSearchRules`.
 - `GET /api/grade-rules`(`no-cache`) · `GET /api/me/grade`(`no-store`, 비로그인·탈퇴 401). 셈은 shared `GradeProgress` 하나 — 관리자 회원 상세(`MemberGradePointAssembler`)도 이것을 쓴다. `label` 은 등급 이름 그대로(등급 표에 영어 이름 칸이 없다).
 - `PostBoardRefView` 에 `color` 칸(마지막)을 더했다 — 마이페이지 세션과 같은 줄(세션 정리 결정). JSON 에 `id` 도 있다(화면 타입에는 없음, 무해).
 
 **인기글 순위 = DB 배치 `popular-rank`**(저장 프로시저 + pg_cron, 분류 MEMBER, 기본 `*/5 * * * *` — 가정, 배치 화면에서 바꿀 수 있다). `R__batch_24_popular_rank.sql`: 기간 함수 `popular_period_range`(Java 응답의 `from`·`to` 도 이것을 부른다) · 후보 함수 · 프로시저 `batch_popular_rank`(기간마다 DELETE+INSERT 후 COMMIT — 실패한 기간은 예전 스냅샷 유지, 처리 건수 0 이면 SKIP). 표 `post_rank_snapshots(period, rank, post_id, score, fill, computed_at)`.
-- 서버 상수(결정 — 설정 화면 없음): 점수 추천×3 + 댓글×2 + 조회×0.1, 실시간만 `÷ (경과 시간 + 2)^1.5`, 최소 추천 3, 점수 0 제외, 한 글쓴이 한 탭 2개(채운 글 포함), 탭마다 50개, 실시간·이번 주가 5개 미만이면 어제(`YESTERDAY`)·지난주(`LAST_WEEK`) 글로 채움, 어제는 채우지 않음, 같은 점수면 ID 큰 글 먼저, 한국 달력·주 시작 월요일. 제외: 19금·삭제·숨김·꺼진 게시판·**핫딜·직접홍보 게시판(`kind` DEAL·PROMO — 사용자 결정 2026-10-24)**·운영진 전용 게시판(유효 글쓰기 자격 `STAFF`).
+- 서버 상수(결정 — 설정 화면 없음): 점수 추천×3 + 댓글×2 + 조회×0.1, 실시간만 `÷ (경과 시간 + 2)^1.5`, 최소 추천 3, 점수 0 제외, 한 글쓴이 한 탭 2개(채운 글 포함), 탭마다 50개, 실시간·이번 주가 5개 미만이면 어제(`YESTERDAY`)·지난주(`LAST_WEEK`) 글로 채움, 어제는 채우지 않음, 같은 점수면 ID 큰 글 먼저, 한국 달력·주 시작 월요일. 제외: 19금·삭제·숨김·꺼진 게시판·**게시판 설정 「가젯 노출 금지」에 인기글(`POPULAR`)을 고른 게시판(`boards.gadget_exclusions`, shared V69 — 핫딜·직접홍보 DEAL·PROMO 는 이 값으로 시작, 사용자 결정 2026-10-24)**·운영진 전용 게시판(유효 글쓰기 자격 `STAFF`).
 - 비회원 글의 「글쓴이」는 작성 IP(`author_ip`, 보유 기간이 지나 지워졌으면 이름)로 가른다.
 - pg_cron 이 없으면 순위가 계산되지 않아 인기글이 늘 비어 있다(`grade-promotion` 과 같음 — 관리자 서버 기동 WARN·배치 목록 「사용 불가」). 실행 로그가 하루 288줄 쌓인다(`batch-log-cleanup` 90일 보관).
 
@@ -91,6 +91,6 @@
 
 **미확정(서버)**
 1. 인기 주기 5분·최소 추천 3 은 가정(소규모 사이트에서는 인기글이 자주 빌 수 있다 — 채우기도 같은 최소 추천을 지킨다).
-2. ~~핫딜·직접홍보 게시판 제외 여부~~ → 뺀다(사용자 결정 2026-10-24, 배치·읽기 둘 다).
+2. ~~핫딜·직접홍보 게시판 제외 여부~~ → 게시판 설정 「가젯 노출 금지」로 정한다(DEAL·PROMO 는 `{POPULAR}` 로 시작, 사용자 결정 2026-10-24, 배치·읽기 둘 다).
 3. 차단한 회원의 글 제외는 합칠 때 붙인다(차단 기능 세션).
 4. SQL·마이그레이션·검색 시간 제한(57014 → 503)은 실제 DB 에서 아직 돌려 보지 않았다.

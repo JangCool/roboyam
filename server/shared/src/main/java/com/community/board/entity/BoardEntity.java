@@ -5,11 +5,16 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import org.hibernate.annotations.DynamicUpdate;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * 게시판 — V42__boards.sql 의 {@code boards}. ID 는 Snowflake(앱 발급)라 새 행은 {@code persist()} 로 넣는다.
  * 정책 칸은 null = 기본 설정({@link BoardDefaultsEntity})을 따른다. slug·종류는 만든 뒤 바꾸지 않는다.
+ * 가젯 노출 금지({@code gadget_exclusions}, V69)는 게시판마다의 값이다(기본 설정에서 물려받지 않는다) — {@link BoardGadget} 이름, enum 순서·중복 없음.
  */
 @Entity
 @Table(name = "boards")
@@ -34,6 +39,8 @@ public class BoardEntity {
     private String writeLock;
     private String introText;
     private String writeGuideText;
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    private String[] gadgetExclusions = new String[0];
 
     private String writeMin;
     private String commentMin;
@@ -105,6 +112,11 @@ public class BoardEntity {
         this.writeLock = writeLock;
         this.introText = introText;
         this.writeGuideText = writeGuideText;
+    }
+
+    /** 가젯 노출 금지를 바꾼다(enum 순서·중복 없이 저장) */
+    public void changeGadgetExclusions(Collection<BoardGadget> gadgets) {
+        this.gadgetExclusions = BoardGadget.toNames(gadgets);
     }
 
     /** 정책 칸 전체를 바꾼다(null = 기본값 따름) */
@@ -213,6 +225,11 @@ public class BoardEntity {
 
     public String getWriteGuideText() {
         return writeGuideText;
+    }
+
+    /** 가젯 노출 금지(enum 순서) */
+    public List<BoardGadget> getGadgetExclusions() {
+        return BoardGadget.parse(gadgetExclusions);
     }
 
     public Integer getManagerMax() {
