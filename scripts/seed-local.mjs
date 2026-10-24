@@ -65,6 +65,20 @@ function sql(script, { sensitive = false } = {}) {
 const q = (s) => (s === null || s === undefined ? 'NULL' : `'${String(s).replace(/'/g, "''")}'`);
 const rows = (out) => (out ? out.split('\n').filter(Boolean).map((line) => line.split('|')) : []);
 
+/**
+ * 시드 글 본문(community 의 HTML)을 평문 게시판(`postEditor` NONE)에 맞는 글자로 바꾼다 — 블록 태그·`<br>` 는 줄바꿈, 나머지 태그는 떼고, 자주 쓰는 문자 참조만 푼다.
+ * 그대로 보내면 TEXT 글 본문에 `<p>` 가 글자 그대로 남아 글 상세·검색 미리보기에 보인다.
+ */
+function htmlToText(html) {
+    return String(html ?? '')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/(p|div|li|h[1-6]|blockquote)>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
 // ── HTTP (회원마다 쿠키 항아리 하나 — CSRF 는 XSRF-TOKEN 쿠키를 X-XSRF-TOKEN 헤더로 되돌린다). 응답은 ApiResponse{success,data|error} ──
 class Session {
     constructor(label) {
@@ -315,8 +329,11 @@ async function seedContent(sessions) {
         }
         // 말머리 규칙: 옮긴 게시판에 같은 이름의 말머리가 있고 운영진 전용이 아니면 그것, 아니면 말머리 없이
         const prefix = p.prefix ? (board.prefixes ?? []).find((x) => x.name === p.prefix && !x.staffOnly) : null;
+        // 본문 형식: 에디터 게시판(SIMPLE·ADVANCED)이면 HTML 그대로, 평문 게시판(NONE)이면 태그를 뗀 글자(board-public-contract 「본문 형식」)
+        const html = board.postEditor && board.postEditor !== 'NONE';
         const r = await writeWithGap(session, 'post', '/api/posts', {
-            boardSlug: target, prefixId: prefix?.id ?? null, title: p.title, content: p.bodyHtml, adult: false,
+            boardSlug: target, prefixId: prefix?.id ?? null, title: p.title,
+            contentFormat: html ? 'HTML' : 'TEXT', content: html ? p.bodyHtml : htmlToText(p.bodyHtml), adult: false,
         });
         if (r.status !== 201 || !r.data?.id) {
             counts.skipped.push(`글 ${p.key} — ${r.status} ${r.code ?? ''}`);
