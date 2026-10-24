@@ -1,6 +1,7 @@
 package com.community.sociallogin.service;
 
 import com.community.auth.dto.AuthUser;
+import com.community.auth.service.TermsVersionProvider;
 import com.community.social.entity.SocialProvider;
 import com.community.sociallogin.dto.CallbackOutcome;
 import com.community.sociallogin.dto.PendingSignup;
@@ -47,22 +48,22 @@ public class SocialAccountWriter {
 
     private static final Logger log = LoggerFactory.getLogger(SocialAccountWriter.class);
 
-    /** 가입 때 동의 받은 약관 버전 — 약관 기능이 생기면 그 버전으로 바꾼다(docs/features/login-contract.md 「소셜 로그인」 미해결) */
-    static final String SIGNUP_TERMS_VERSION = "v1";
-
     private final UserRepository users;
     private final ProfileRepository profiles;
     private final ProfileRepositoryQDSL profileQueries;
     private final UserIdentityRepository identities;
     private final SnowflakeIdGenerator ids;
+    /** 가입 때 동의 받은 약관 버전 — 이메일 가입과 같은 한 곳({@link TermsVersionProvider#currentTermsVersion()})이 정한다 */
+    private final TermsVersionProvider terms;
 
     public SocialAccountWriter(UserRepository users, ProfileRepository profiles, ProfileRepositoryQDSL profileQueries, UserIdentityRepository identities,
-                               SnowflakeIdGenerator ids) {
+                               SnowflakeIdGenerator ids, TermsVersionProvider terms) {
         this.users = users;
         this.profiles = profiles;
         this.profileQueries = profileQueries;
         this.identities = identities;
         this.ids = ids;
+        this.terms = terms;
     }
 
     /**
@@ -145,7 +146,7 @@ public class SocialAccountWriter {
         Instant now = Instant.now();
         long userId = ids.nextId();
         try {
-            users.persist(UserEntity.createSocial(userId, pending.email(), pending.emailVerified(), SIGNUP_TERMS_VERSION, now));
+            users.persist(UserEntity.createSocial(userId, pending.email(), pending.emailVerified(), terms.currentTermsVersion(), now));
             profiles.persist(ProfileEntity.create(userId, nickname, now));
             identities.persist(UserIdentityEntity.create(ids.nextId(), userId, pending.provider(), pending.subject(), pending.email(), now));
             identities.flush();

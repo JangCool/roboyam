@@ -206,6 +206,14 @@ public final class MessageTargetCatalog {
         out.add(required(RequiredMail.OPERATOR_RESET_CODE, List.of(MessageVariable.required("code", "resetCode"), MessageVariable.of("validMinutes", "resetValidMinutes")),
                 List.of()));
         out.add(required(RequiredMail.MAIL_TEST, List.of(), List.of()));
+        out.add(required(RequiredMail.MEMBER_PASSWORD_RESET, List.of(MessageVariable.of("nickname", "nickname"), MessageVariable.requiredLink("resetLink", "memberResetLink"),
+                MessageVariable.of("validMinutes", "memberResetValidMinutes")), List.of()));
+        out.add(required(RequiredMail.MEMBER_PASSWORD_SOCIAL, List.of(MessageVariable.of("nickname", "nickname"), MessageVariable.of("providerName", "socialProviderName"),
+                MessageVariable.requiredLink("socialLink", "socialLoginLink")), List.of()));
+        out.add(required(RequiredMail.MEMBER_EMAIL_CHANGE, List.of(MessageVariable.of("nickname", "nickname"), MessageVariable.requiredLink("changeLink", "emailChangeLink"),
+                MessageVariable.of("validHours", "emailChangeValidHours")), List.of()));
+        out.add(required(RequiredMail.MEMBER_EMAIL_CHANGE_NOTICE, List.of(MessageVariable.of("nickname", "nickname"), MessageVariable.of("newEmail", "maskedNewEmail")),
+                List.of()));
         return out;
     }
 
