@@ -1,4 +1,4 @@
-# 회원 마이페이지(공개 사이트) 계약 (**화면 목업 2026-10-23 — 사용자 화면 확인 대기**)
+# 회원 마이페이지(공개 사이트) 계약 (**화면 확정 · 서버 구현·연결 2026-10-24** — 아래 「서버 구현·연결 결과」)
 
 **의도**: 셸(헤더 프로필 메뉴·모바일 하단 탭·햄버거)의 「내 정보」「포인트」「알림」「계정·로그인 연결」이 실제 화면으로 가게 한다. 서버 API 가 있는 곳(로그인 정보·포인트 요약·회원 알림·표시 설정·소셜 연결)은 실제로 부르고, 없는 곳(프로필·포인트 내역·알림 설정)은 `// MOCK:`/`// REAL:` 짝 목업으로 화면을 먼저 확정한다.
 **참고(읽기 전용)**: community `pages/me/{index,points}.vue`·`pages/settings/{index,profile}.vue`·`pages/notifications/*` — 로보얌에 없는 기능(스크랩·소모임·아이템샵·주문·등급 안내·쪽지·차단·메모·19금·닉네임 그림·출석 달력·교환)은 옮기지 않았다.
@@ -106,3 +106,13 @@ interface MyNotificationSetting {
 | server/admin `MemberGradePointAssembler`·`MemberGradePoint`, admin-web 회원 상세 | `nicknameTicketCount` = 0, 화면은 「준비 중」 |
 | server/shared `PointSettingEntity`·`PointRules`, admin-web `pages/points/policy.vue` | `nicknameTicketPrice` 는 저장만 하고 쓰는 곳이 없다 |
 - 데이터: 변경권 보유·사용 기록 표(community `nickname_tickets` 류)와 마이그레이션이 새로 필요하다. 아이템샵 구매 기록과 같은 구조로 둘지는 아이템샵 설계 때 정한다.
+
+## 서버 구현·연결 결과 (2026-10-24)
+위 「목업 API 후보」 모양 그대로 서버에 만들고(api 서버, `ApiResponse` 감싸기, `Cache-Control: no-store`, 쓰기는 CSRF) user-web 을 실제 호출로 바꿨다 — `useProfileApi`·`usePointApi.ledger`·`useNotificationSettingsApi` 의 `// MOCK:` 줄과 목업 파일(`profile-mock.ts`·`point-mock.ts`·`notification-settings-mock.ts`)을 지웠다. 위 「목업 가정」 5의 `?mock=` 스위치는 목업과 함께 없어졌다.
+- **저장**: shared `V66__profile_nickname_change.sql` — `profiles.nickname_change_count`(0 시작, 가입 때 닉네임은 세지 않음) · 비공개 이력 `profile_nickname_history(user_id, old_nickname, new_nickname, changed_at)`. `bio`·`nickname_changed_at` 은 V2 에 이미 있던 칸을 이제 채운다. shared `V67__member_notification_preferences.sql` — 회원 개인 알림 설정 `member_notification_preferences(user_id, event_code, in_app, email, PK(user_id, event_code))`, 줄이 없으면 둘 다 켬(`member-notification-contract.md` 미확정 1 의 `member_notification_mutes` 후보 대신 이 모양).
+- **프로필** `MyProfileService`: 검사 순서 401 → `403 ACCOUNT_RESTRICTED`(글쓰기와 같은 예외) → 프로필 행 쓰기 잠금 → `400 VALIDATION fields.nickname|bio` → `409 NICKNAME_CHANGE_LIMIT` → `409 NICKNAME_TAKEN`(동시 저장이 유일 색인에 걸려도). 닉네임이 글자 그대로 같으면(소개만) 검사·횟수 없음, **대소문자만 바꿔도 변경**이다. 소개 글자 수는 코드 포인트로 센다(화면은 UTF-16 — 이모지에서 화면이 더 엄격). 예약어는 `UserPolicy.memberNicknameViolation`(admin·운영자·관리자·roboyam, 대소문자 무시 부분 일치) — **가입은 아직 예약어를 검사하지 않는다**(계정 흐름이 같은 메서드를 쓰면 된다). `/api/auth/me` 는 닉네임을 DB 에서 읽으므로(세션엔 ID·역할만) 저장 뒤 다시 받으면 셸이 맞는다.
+- **포인트 내역** `MyPointService#ledger`: `reason` = 관리자 원장과 같은 `point.reason.<코드>` 번들. `target` 은 `ref_type` 이 글·댓글일 때만(댓글이면 그 글), 글을 볼 수 없으면 `available=false`·`title=null`, 댓글을 못 찾으면 `postId` 도 null. `size` 범위 밖은 잘라 맞추지 않고 `400 fields.size`.
+- **알림 설정** `MyNotificationSettingsService`: `lockReason` 은 코드 잠금(ACCOUNT·ACTION)만 — 운영자가 「회원이 끌 수 있음」을 끈 이벤트는 `memberCanTurnOff=false`·`lockReason=null`(화면은 「운영자가 정한 알림이라 끌 수 없어요」, 키 `notification.lockedSite`). PUT 은 줄마다 `code·inApp·email` 모두 필요(`fields.events`·`fields.events[i].code|inApp|email` — 모르는·준비 중·중복 코드는 `code`), 잠긴 이벤트에 `true` 는 무시, 운영자가 보내지 않는 채널은 회원의 이전 값을 지킨다. **발행기**(`MemberNotificationPublisher`): 알림함 줄 = `enabled && inApp && 회원 inApp`, 메일 = `enabled && email && 회원 email`, 잠긴 이벤트(코드·운영자)는 회원 값을 무시한다. 회원 값 읽기도 세이브포인트 안이라 실패가 업무를 깨지 않는다.
+- **관리자 회원 상세**: `nicknameHistory` 를 이력 표로 채운다(최신 20줄, `member.pii` 없으면 null 그대로). `settings`(알림·표시·차단·메모 건수·알림함)는 차단·메모가 소통 세션 데이터라 이번에 채우지 않았다 — 칸별 nullable 로 바꾸거나 합친 뒤 한 번에 채운다.
+- **검증**: `:server:shared/api/admin:compileJava` · `pnpm --filter user-web typecheck` 만. DB·마이그레이션 적용·API 실제 호출·테스트는 하지 않았다.
+- **남은 것**: 알림 설정 저장 중 `409 NOTIFICATION_SETTING_LOCKED`(그사이 운영자가 잠금) 이면 화면은 서버 문구만 보이고 다시 불러오지 않는다(새로고침 필요).

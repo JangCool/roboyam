@@ -73,3 +73,9 @@
 - **인기글(미확정 4)**: 처음에는 서버 상수로 둔다(관리자 인기글 설정 화면은 필요해질 때). 규칙은 community `api-popular.md` 를 따른다 — 기간 탭 실시간·어제·이번 주, 한 글쓴이는 한 탭에 최대 2개, 탭마다 상위 50개 보관, 실시간이 모자라면 어제 글로 채운다(출처 `fill`). 19금 글은 모음에 싣지 않는다.
 - **검색(미확정 5)**: 게시판별 「통합 검색에 포함」 끄기는 이번에 두지 않는다(필요해지면 게시판 설정 칸으로 더한다). 검색 한 번의 시간 제한은 3초 서버 상수, 넘으면 `503 SEARCH_TIMEOUT`(화면은 「검색어를 더 구체적으로」).
 - **이의제기·제재 알림(미확정 6)**: 이의제기 처리(관리자 화면)는 제재 기능을 만들 때 함께 만든다. 그때 회원 이벤트 `SANCTION_ISSUED`·`SANCTION_LIFTED`·`APPEAL_ANSWERED` 를 회원 이벤트 카탈로그(`MemberEvent`)에 더한다 — 모두 끌 수 없는 계정 알림(묶음 `system`), 이의제기 답변은 알림과 이메일로 간다.
+
+## 공개 프로필 서버 구현·연결 (2026-10-24, member-mypage 세션)
+- `GET /api/users/{id}/profile|posts|comments` 를 api 서버에 만들고(비회원도 — 보안 설정 `permitAll` 한 줄) `useUserProfileApi` 를 실제 호출로 바꿨다(`user-profile-mock.ts` 삭제, 위 목업 가정 3·스위치 `profile-*` 는 없어짐 — `board-feed-mock.ts` 는 최신·인기·검색 목업이 써서 남김).
+- 수치는 바로 센다(지연 없음): 글 = 켜진 게시판의 지우지·숨기지 않은 글, 댓글 = 지우지·숨기지 않은 댓글 중 볼 수 있는 글의 것, 받은 추천 = 그 글·댓글의 추천 합(19금 글도 센다). `gradeLabel` 은 등급 이름(영어 이름이 없어 요청 언어와 무관).
+- 작성글 줄 = `PostFeedRowView`(`PostRowView` 칸 + `board`), 쪽 = `PostFeedPageView` — 최신·인기·검색과 같은 이름·위치(`com.community.post.dto.response`). `PostBoardRefView` 에 `color` 를 더했다(글 상세 `board` 에도 나간다). 숨긴 글은 목록에서 아예 빠진다(게시판 목록처럼 자리를 남기지 않음). `size` 1~50 밖은 `400 fields.size`, 틀린 커서 `400 fields.cursor` — 회원 404 보다 먼저.
+- `blockedByMe`·`memo` 는 아직 내려가지 않는다(소통 세션이 이 응답에 더한다).

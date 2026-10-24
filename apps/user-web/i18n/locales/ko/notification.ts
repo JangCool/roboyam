@@ -60,4 +60,5 @@ export default {
     lockedAction: '운영 처리 알림이라 끌 수 없어요',
     emailNotVerified: '이메일 인증을 마치면 이메일로도 받을 수 있어요.',
     emailNoAddress: '계정에 이메일이 없어 이메일로는 받을 수 없어요.',
+    lockedSite: '운영자가 정한 알림이라 끌 수 없어요',
 };

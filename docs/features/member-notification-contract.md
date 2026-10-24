@@ -61,3 +61,6 @@ interface MemberNotificationItem {
 - 알림 패널(데스크톱 종): 문장은 서버 `title`/`body` 그대로(묶인 댓글·탈퇴한 회원·임시 숨김 문구 포함), 시각은 `time.ago`. 한 줄을 누르면 읽음(낙관적 + 배지 갱신) 뒤 `link` 로 이동 — `link` 는 앱 안 경로(`/…`, `//` 제외)만 링크로, 없으면 읽음만 하고 패널에 남는다. 바닥 줄 「모두 읽음」(안 읽은 것이 있을 때만). 비로그인은 호출하지 않는다(배지 `refresh` 가 로그인 확인).
 - 알림 화면(`/notifications`)·알림 설정 화면이 없어 패널의 「알림 모두 보기」·설정 단추는 감췄다. 모바일 하단 탭 「알림」은 여전히 없는 `/notifications` 로 간다(셸 범위 밖 — 알림 화면을 만들 때 해결).
 - 쪽지 배지: 쪽지 기능이 없어 헤더 쪽지 아이콘(`AppMessageLink`)·프로필 메뉴의 쪽지함 줄·`useDmBadge`·`useDmApi`·쪽지 문구 키를 걷어 냈다(되살릴 때는 이 커밋 전 기록).
+
+## 회원 개인 알림 끄기 (2026-10-24, member-mypage 세션)
+- 위 미확정 1 을 만들었다: `GET/PUT /api/me/notification-settings`, 표 `member_notification_preferences`(shared V67). 발행기는 회원이 끈 채널(앱 알림·메일)을 각각 보내지 않는다 — 잠긴 이벤트(코드 잠금·운영자 「회원이 끌 수 있음」 끔)는 무시. 상세는 `member-mypage-contract.md` 「서버 구현·연결 결과」.

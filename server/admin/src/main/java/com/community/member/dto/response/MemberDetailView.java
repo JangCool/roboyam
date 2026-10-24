@@ -15,7 +15,7 @@ import java.util.List;
  *   <li>{@code statusReason}·{@code sanctionSummary}·{@code dormancy}·{@code adultConfirmed}·{@code acceptDm} — null</li>
  *   <li>{@code settings}·{@code contact}·{@code profile}·{@code groupBuy} — null (알림·표시 설정, 연락처, 서명·관리자 메모, 공동구매 주문이 아직 없다.
  *       모양은 admin-web {@code MemberSettings}·{@code MemberContact}·{@code MemberProfile}·{@code MemberGroupBuy} — 만들 때 이 필드 타입을 그 모양의 레코드로 바꾼다)</li>
- *   <li>{@code sanctions} — 빈 배열, {@code nicknameHistory} — 빈 배열({@code member.pii} 가 없으면 null)</li>
+ *   <li>{@code sanctions} — 빈 배열</li>
  * </ul>
  * 탈퇴한 회원은 축약해 내려간다 — 역할·소셜·동의·소개·활동 요약·신고 요약·등급 구획이 비고 {@code withdrawnAt} 만 채워진다.
  *
@@ -27,7 +27,7 @@ import java.util.List;
  * @param dormancy       휴면 예정 안내 — null. 모양은 {@code MemberDormancy}
  * @param adultConfirmed 성인 확인 여부 — 출생연도 입력이 없다(null). 가입 때의 「만 14세 이상 확인」과는 다르다
  * @param acceptDm       쪽지 수신 여부 — null
- * @param nicknameHistory 닉네임 변경 이력 — {@code member.pii} 가 없으면 null
+ * @param nicknameHistory 닉네임 변경 이력(최신이 위, 최근 20줄) — {@code member.pii} 가 없으면 null, 탈퇴한 회원은 빈 배열
  * @param piiMasked      휴대폰·전화·주소·배송지가 가려져 왔는가({@code member.pii} 없음) — 그 칸들이 아직 없어 이메일 가림과 같은 값이다
  */
 public record MemberDetailView(

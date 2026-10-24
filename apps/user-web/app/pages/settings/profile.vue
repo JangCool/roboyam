@@ -88,7 +88,7 @@ import UtilSanction from '~/utils/util-sanction';
 import UtilValidation from '~/utils/util-validation';
 
 /**
- * 프로필 `/settings/profile` — 로그인 필요. 닉네임·한 줄 소개를 고친다(서버 API 가 없어 목업 `GET/PUT /api/me/profile`).
+ * 프로필 `/settings/profile` — 로그인 필요. 닉네임·한 줄 소개를 고친다(`GET/PUT /api/me/profile` — 서버 연결됨).
  * 닉네임 규칙은 가입 화면과 같은 화면 검사(`UtilValidation.nickname` — 서버 `UserPolicy`)로 미리 알리고, 중복·예약어·변경 횟수는 서버가 정한다:
  * `409 NICKNAME_TAKEN` · `400 VALIDATION fields.nickname|bio` 는 칸 아래, `409 NICKNAME_CHANGE_LIMIT` 은 닉네임 칸 아래 + 칸 잠금, 그 밖은 저장 줄 안 한 줄.
  * 닉네임 변경(`member-mypage-contract.md` 결정): 가입 뒤 1번만 — 그 1번은 언제든(날짜 대기 없음), 쓰고 나면 더 못 바꾼다(변경권 없음).

@@ -73,7 +73,7 @@ export interface MyPointLedgerTarget {
     available: boolean;
 }
 
-/** `GET /api/me/points/ledger` 한 줄(**서버에 아직 없다** — 목업. 관리자 원장 `PointLedgerItem` 에서 회원·운영자 칸을 빼고 글을 더한 모양) */
+/** `GET /api/me/points/ledger` 한 줄(**서버 연결됨** — server/api `MyPointLedgerItemView`. 관리자 원장 `PointLedgerItem` 에서 회원·운영자 칸을 빼고 글을 더한 모양) */
 export interface MyPointLedgerItem {
     entryId: string;
     kind: MyPointLedgerKind;
