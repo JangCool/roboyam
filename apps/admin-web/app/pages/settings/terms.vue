@@ -4,7 +4,7 @@
         구획: ① 링크 옵션(「가입·로그인 화면에 약관 보기 링크 표시」 스위치 — 누르면 바로 저장) ② 종류 탭(이용약관·개인정보처리방침) — 상태(지금 버전·시행일, 시행 예정),
         초안 편집기 [초안 저장]·[초안 삭제]·[게시…](시행일·변경 요지 대화상자 — `TermsPublishDialog`), 이력 표(버전·시행일·게시 시각·게시자·상태) → 본문 보기 대화상자(`TermsVersionDialog`) · [이 본문으로 초안 만들기].
         - 게시한 버전은 고치지 않는다. [게시] 는 **저장한 초안**으로 새 버전을 만들고 초안을 비운다 — 저장하지 않은 변경이 있으면 [게시] 를 막고 먼저 저장하라고 알린다.
-        - 본문 편집은 `@roboyam/rich-editor` 의 간단 수준(`SIMPLE` — 굵게·기울임·밑줄·취소선·링크·목록·인용). 서버 허용 태그(`… h2 h3 hr`)보다 좁다 — 고급 수준은 서버가 버리는 코드·글자색·유튜브까지 켜므로 쓰지 않는다.
+        - 본문 편집은 `@roboyam/rich-editor` 의 문서 수준(`DOCUMENT` — 간단 + 제목 h2·h3·구분선). 서버 허용 태그(`p br strong em u s a ul ol li blockquote h2 h3 hr`)와 같다 — 고급 수준은 서버가 버리는 코드·글자색·유튜브까지 켜므로 쓰지 않는다.
         - 입력 오류는 서버 `fields.body` 를 편집기 아래, 게시는 대화상자의 칸 아래(`fields.effectiveDate`·`changeNote`, 칸 밖 `fields.draft`)에 서버 문구 그대로.
         - 권한: 화면 `terms.read`(메뉴가 거른다) · 초안·게시·옵션 `terms.manage` — 없으면 스위치가 잠기고 편집기는 읽기 전용, 단추가 없다. 감사는 서버가 남긴다.
         - 저장하지 않은 초안 변경이 있는데 다른 탭·화면으로 가면 묻는다.
@@ -87,7 +87,7 @@
                         <RichEditor
                             :key="`terms-editor-${activeKind}-${editorKey}`"
                             v-model="editorHtml"
-                            level="SIMPLE"
+                            level="DOCUMENT"
                             :disabled="!canManage || working !== null"
                             :invalid="Boolean(bodyError)"
                             :labelledby="bodyLabelId"

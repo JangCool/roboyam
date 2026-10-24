@@ -62,9 +62,8 @@
 - 관리자 `pages/settings/terms.vue` + `components/terms/TermsPublishDialog.vue`·`TermsVersionDialog.vue`, `composables/terms/api/useTermsApi(.types).ts`. 옵션 스위치는 누르면 바로 저장(실패 시 되돌림). [게시…] 는 저장된 초안이 있고 저장 안 한 변경이 없을 때만. 「이 본문으로 초안 만들기」는 편집기에만 넣는다([초안 저장] 을 눌러야 남는다). 시행일 최소값(오늘·마지막 시행일)은 화면 편의고 판정은 서버.
 - 공개 `pages/terms.vue`·`privacy.vue` → `components/terms/TermsDocumentView.vue`, 띠 `components/terms/TermsChangeNotice.vue`(기본 레이아웃 `#after-header` 끝, 그 종류 화면에서는 숨김, 닫기 localStorage `roboyam:terms-notice:<KIND>`), 요약 공유 상태 `composables/terms/useTermsSummary.ts`(상태 키 `terms-summary`). 띠 문구: 시행 예정 「…이 바뀌어요」, 최근 시행 「…이 바뀌었어요」. 날짜는 표시 날짜 형식(`time.serviceDate`).
 - 이름은 용어 기능(`useSiteTerms`·`/api/site/terms`)과 겹치지 않게 `composables/terms/`·`Terms*`·i18n `terms` 로 뒀다.
-- **편집기 수준 = `SIMPLE`**(굵게·목록·인용·링크). `ADVANCED` 는 서버가 버리는 코드·글자색·이미지·유튜브까지 켜서 고르지 않았다 — 그래서 **제목(h2·h3)·구분선은 지금 편집기로 만들 수 없다**(서버는 허용). 필요하면 `@roboyam/rich-editor` 에 수준 하나(SIMPLE + 제목·구분선)를 더한다(두 앱 공용 레이어라 이번엔 손대지 않음).
+- **편집기 수준 = `DOCUMENT`**(2026-10-24 사용자 요청으로 `@roboyam/rich-editor` 에 더함 — SIMPLE + 제목 h2·h3·구분선, 서버 허용 목록과 같다). `ADVANCED` 는 서버가 버리는 코드·글자색·이미지·유튜브까지 켜서 쓰지 않는다.
 
 ## 미확정 (구현 뒤)
-- 약관 본문에 제목·구분선이 필요한지(위 편집기 수준).
 - 감사 화면의 대상 이름: `AuditQueryService.targetName` 에 `TERMS` 분기가 없어 대상 이름 칸이 빈다.
 - 실제 서버에서 API·화면·Flyway V62 적용을 아직 확인하지 않았다.

@@ -8,6 +8,7 @@ import type { RichEditorLevel } from '#layers/rich-editor/components/RichEditor.
  * 서버 정화가 허용하는 것만 만든다 — 확장을 켜지 않은 서식은 붙여넣어도 문서에 들어오지 않는다(그래서 서버에서 사라질 것이 에디터에 보이지 않는다).
  *  - `SIMPLE`: `p br strong em u s a ul ol li blockquote`
  *  - `ADVANCED`: SIMPLE + `h2 h3 hr code pre` + 팔레트 색 `span[style="color|background-color"]`(이미지·유튜브·올리기 자리 노드는 부르는 쪽이 이어 붙인다)
+ *  - `DOCUMENT`: SIMPLE + `h2 h3 hr`
  * community 에 있던 글꼴·크기·줄 간격·정렬·형광펜·첨자·작업 목록·표는 계약에 없어 켜지 않는다.
  *
  * `editor/` 폴더 — TipTap 확장은 `@tiptap/vue-3`(→ `vue`)를 쓰므로 레이어의 순수 코어(`utils/`)에 두지 않는다. 명시 import(`#layers/rich-editor/editor/…`)로만 쓴다.
@@ -16,11 +17,12 @@ import type { RichEditorLevel } from '#layers/rich-editor/components/RichEditor.
  */
 export function richFormatExtensions(level: RichEditorLevel): Extensions {
     const advanced = level === 'ADVANCED';
+    const structured = advanced || level === 'DOCUMENT';
     const starter = StarterKit.configure({
-        heading: advanced ? { levels: [2, 3] } : false,
+        heading: structured ? { levels: [2, 3] } : false,
         code: advanced ? {} : false,
         codeBlock: advanced ? {} : false,
-        horizontalRule: advanced ? {} : false,
+        horizontalRule: structured ? {} : false,
         link: {
             openOnClick: false,
             autolink: true,
