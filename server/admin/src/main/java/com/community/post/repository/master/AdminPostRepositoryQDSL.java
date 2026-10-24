@@ -19,6 +19,7 @@ import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -136,18 +137,31 @@ public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
         };
     }
 
-    /** 상태를 뺀 거르기 — 글 번호 · 검색어(제목 · 본문[HTML 글은 평문 칸] · 비회원 이름 · 회원 닉네임, 대소문자 무시) · 게시판 · 말머리 */
+    /** 작성 시각 ↔ 글 ID(Snowflake) 범위의 여유 — 발급 시각과 {@code created_at} 의 작은 어긋남을 덮는다. 정확한 경계는 {@code created_at} 조건이 정한다 */
+    private static final Duration ID_RANGE_SLACK = Duration.ofHours(1);
+
+    /**
+     * 상태를 뺀 거르기 — 글 번호 · 제목(대소문자 무시, pg_trgm 색인) · 작성자(회원 닉네임 · 비회원 이름) · 작성 기간 · 게시판 · 말머리. 본문은 찾지 않는다.
+     * 작성 기간은 {@code created_at} 조건을 그대로 두고, id 범위(여유 포함)를 함께 걸어 월 조각 가지치기와 id 색인을 탄다.
+     */
     private static BooleanBuilder filter(AdminPostSearch c) {
         BooleanBuilder where = new BooleanBuilder();
         if (c.postId() != null) {
             where = where.and(POST.id.eq(c.postId()));
         }
-        if (c.text() != null) {
+        if (c.title() != null) {
+            where = where.and(POST.title.containsIgnoreCase(c.title()));
+        }
+        if (c.author() != null) {
             QProfileEntity profile = QProfileEntity.profileEntity;
-            where = where.and(POST.title.containsIgnoreCase(c.text())
-                    .or(POST.contentText.coalesce(POST.content).containsIgnoreCase(c.text()))
-                    .or(POST.guestName.containsIgnoreCase(c.text()))
-                    .or(POST.authorId.in(JPAExpressions.select(profile.userId).from(profile).where(profile.nickname.containsIgnoreCase(c.text())))));
+            where = where.and(POST.authorId.isNull().and(POST.guestName.containsIgnoreCase(c.author()))
+                    .or(POST.authorId.in(JPAExpressions.select(profile.userId).from(profile).where(profile.nickname.containsIgnoreCase(c.author())))));
+        }
+        if (c.createdFrom() != null) {
+            where = where.and(POST.id.goe(SnowflakeIdGenerator.floorIdAt(c.createdFrom().minus(ID_RANGE_SLACK)))).and(POST.createdAt.goe(c.createdFrom()));
+        }
+        if (c.createdTo() != null) {
+            where = where.and(POST.id.lt(SnowflakeIdGenerator.floorIdAt(c.createdTo().plus(ID_RANGE_SLACK)))).and(POST.createdAt.loe(c.createdTo()));
         }
         if (c.boardId() != null) {
             where = where.and(POST.boardId.eq(c.boardId()));

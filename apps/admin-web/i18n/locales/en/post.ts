@@ -9,9 +9,19 @@ export default {
 
     // ── Filters ──
     searchLabel: 'Search posts',
-    searchPlaceholder: 'Title, body, author or #post number',
-    searchHelp: 'Enter at least 2 characters. #number or a 15+ digit number finds a post by number.',
+    searchFieldLabel: 'Search in',
+    searchField: {
+        TITLE: 'Title',
+        AUTHOR: 'Author',
+        ID: 'Post No.',
+    },
+    searchPlaceholder: {
+        TITLE: 'Enter a title',
+        AUTHOR: 'Enter an author',
+        ID: 'Enter a post number',
+    },
     searchTooShort: 'Enter at least 2 characters.',
+    searchIdInvalid: 'Post numbers can only contain digits.',
     searchClear: 'Clear search',
     filterBoard: 'Board',
     filterPrefix: 'Prefix',
@@ -19,6 +29,9 @@ export default {
     filterAll: 'All',
     optionsFailed: 'Couldn’t load boards.',
     optionsRetry: 'Reload',
+    filterCreated: 'Created',
+    filterCreatedFrom: 'Created from',
+    filterCreatedTo: 'Created to',
     stateLabel: 'Status',
     stateTab: {
         ALL: 'All {n}',

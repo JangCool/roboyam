@@ -2,9 +2,9 @@
     <!--
         게시글 관리 — 모든 게시판의 글을 찾아 숨기기·숨김 해제·삭제·복구·이동·공지 지정·고정을 하고, 글의 조치 기록과 찬반 토론을 한 화면에서 본다.
         계약 `docs/features/post-admin-contract.md`(community `admin/app/pages/posts` 의 동작·구성을 로보얌 글 상태·권한·admin-web 모양으로 옮김 — 소모임·출하·예약 발행·글 유형은 뺐다).
-        - 조회 카드: 검색 한 칸(`#번호`·15~19자리 숫자 = 글 번호, 그 밖 제목·본문·작성자 2자 이상) · 게시판 → 말머리(한 줄) · 상태 탭(전체/공개/숨김/삭제 + 건수 — 상태 조건만 뺀 건수).
+        - 조회 카드: 검색 대상(제목·작성자·글번호) + 검색 칸(제목·작성자 2자 이상, 글번호는 숫자 — 앞의 # 허용) · 게시판 → 말머리(한 줄) · 작성일 기간(빠른 선택) · 상태 탭(전체/공개/숨김/삭제 + 건수 — 상태 조건만 뺀 건수).
           목록(회원 관리와 같은 자리): 정렬은 표의 「작성일」 머리(내림차순 = 최신순 · 오름차순 = 오래된순 — 서버가 이 둘만 안다) · 표 위 툴바에 건수·정렬 안내 · 쪽 넘김의 쪽 크기(10/20/50, 서버 상한 50).
-          **모두 주소 쿼리**(`?q=&board=&prefix=&state=&sort=&page=&size=&post=`)라 새로고침·공유해도 그대로다. 조건·정렬·쪽 크기를 바꾸면 1쪽으로(replace), 쪽만 바꾸면 push. `page` 는 1부터(API 는 0부터).
+          **모두 주소 쿼리**(`?field=&q=&board=&prefix=&from=&to=&state=&sort=&page=&size=&post=`)라 새로고침·공유해도 그대로다. 조건·정렬·쪽 크기를 바꾸면 1쪽으로(replace), 쪽만 바꾸면 push. `page` 는 1부터(API 는 0부터).
         - 표(DataTable, 서버가 한 쪽씩): 체크(공개·숨김 글, `post.manage`) · 번호(복사) · 게시판 · 말머리·칩(공지/고정/19금/토론)·제목 · 작성자(비회원·탈퇴) · 상태 알약(숨김 까닭·시각, 삭제 예정·파기) · 신고 대기 · 추천/댓글/조회 · 작성일 · ⋯ 조치 메뉴.
           줄·제목을 누르면 글 서랍(`PostDetailDrawer`, 주소 `?post=` — replace, 목록을 다시 받지 않는다)이 열린다. 이전/다음은 지금 쪽의 줄 순서. 운영자 알림 링크 `/posts?post={id}` 도 같은 서랍을 연다.
         - 조치: 사유 대화창(`PostReasonDialog` — 숨기기는 「작성자에게 알림」) · 이동 대화창(`PostMoveDialog` — 게시판 → 말머리, 「고정은 풀려요」) · 공지 지정·고정(`PIN_LIMIT` 은 대화창 안 서버 문구).
@@ -20,47 +20,53 @@
             </template>
         </PageTitle>
 
-        <!-- 조건 — 회원 관리 조회 카드(`MemberSearchPanel`)·포인트 내역과 같은 구조: 맨 윗줄 검색 칸 → 라벨 열 + 입력 줄(`FilterRow`) → 구분선 아래 가운데 「검색」·「초기화」.
-             검색어는 「검색」(또는 Enter)을 눌러야 주소로 가고, 게시판·말머리·상태·정렬은 고르는 즉시 주소로 간다(전과 같다). -->
+        <!-- 조건 — 회원 관리 조회 카드(`MemberSearchPanel`)·포인트 내역과 같은 구조: 맨 윗줄 검색 대상 + 검색 칸 → 라벨 열 + 입력 줄(`FilterRow`: 게시판 → 작성일 → 상태) → 구분선 아래 가운데 「검색」·「초기화」.
+             검색 대상·검색어·작성일은 「검색」(또는 Enter)을 눌러야 주소로 가고, 게시판·말머리·상태·정렬은 고르는 즉시 주소로 간다. -->
         <form class="flex flex-col gap-3 rounded-xl border border-(--line) bg-(--p-content-background) p-4" role="search" :aria-label="t('post.searchLabel')" novalidate @submit.prevent="submitSearch">
-            <!-- ① 맨 윗줄 — 검색 칸 -->
+            <!-- ① 맨 윗줄 — 검색 대상 + 검색 칸(회원 관리 맨 윗줄과 같은 모양·크기) -->
             <div class="flex flex-wrap items-center gap-2">
+                <Select v-model="searchField" :options="searchFieldOptions" option-label="label" option-value="value" :aria-label="t('post.searchFieldLabel')" class="w-32 shrink-0" />
                 <InputText
                     v-model="searchText"
                     type="search"
                     :maxlength="UtilPost.SEARCH_MAX"
-                    :placeholder="t('post.searchPlaceholder')"
+                    :placeholder="t(`post.searchPlaceholder.${searchField}`)"
                     :aria-label="t('post.searchLabel')"
-                    :aria-describedby="`${uid}-search-help`"
-                    :invalid="Boolean(searchError)"
+                    :invalid="Boolean(searchMessage)"
                     autocomplete="off"
                     class="min-w-0 flex-1 basis-56"
                 />
                 <Button v-if="filters.q" type="button" icon="pi pi-times" size="small" severity="secondary" variant="text" :aria-label="t('post.searchClear')" @click="clearSearch" />
             </div>
-            <p v-if="searchError" role="alert" class="-mt-1 text-xs text-red-600 dark:text-red-400">{{ searchError }}</p>
-            <p v-else :id="`${uid}-search-help`" class="-mt-1 text-xs text-muted-color">{{ t('post.searchHelp') }}</p>
+            <p v-if="searchMessage" role="alert" class="-mt-1 text-xs text-red-600 dark:text-red-400">{{ searchMessage }}</p>
 
             <!-- ② 조건 줄 -->
-            <!-- 게시판 → 말머리를 한 줄에(회원 관리 「상태 변경」 줄처럼 한 줄 여러 칸). 라벨은 게시판 칸에 붙고 말머리 칸은 자기 aria-label 을 쓴다 -->
+            <!-- 게시판 → 말머리를 한 줄에(회원 관리 「상태 변경」 줄처럼 한 줄 여러 칸). 줄 라벨은 게시판 칸에 붙고, 말머리 칸 앞에는 FilterRow 라벨과 같은 모양의 「말머리」 라벨을 둔다 -->
             <FilterRow :label="t('post.filterBoard')" :label-for="`${uid}-board`">
                 <Select :model-value="filters.board || ALL" :input-id="`${uid}-board`" :options="boardFilterOptions" option-label="label" option-value="value" filter :loading="optionsLoading" class="w-56" @update:model-value="setBoard" />
-                <Select
-                    :model-value="filters.prefix || ALL"
-                    :input-id="`${uid}-prefix`"
-                    :options="prefixFilterOptions"
-                    option-label="label"
-                    option-value="value"
-                    :disabled="!filters.board"
-                    :title="filters.board ? undefined : t('post.filterPrefixNeedBoard')"
-                    :aria-label="t('post.filterPrefix')"
-                    class="w-44"
-                    @update:model-value="setPrefix"
-                />
+                <div class="flex items-center gap-2">
+                    <label :for="`${uid}-prefix`" class="text-[13px] leading-8 font-normal text-muted-color">{{ t('post.filterPrefix') }}</label>
+                    <Select
+                        :model-value="filters.prefix || ALL"
+                        :input-id="`${uid}-prefix`"
+                        :options="prefixFilterOptions"
+                        option-label="label"
+                        option-value="value"
+                        :disabled="!filters.board"
+                        :title="filters.board ? undefined : t('post.filterPrefixNeedBoard')"
+                        class="w-44"
+                        @update:model-value="setPrefix"
+                    />
+                </div>
                 <p v-if="optionsError" class="m-0 flex flex-wrap items-center gap-2 text-xs text-red-600 dark:text-red-400" role="alert">
                     {{ optionsError }}
                     <Button type="button" :label="t('post.optionsRetry')" size="small" severity="secondary" variant="text" @click="loadOptions" />
                 </p>
+            </FilterRow>
+
+            <!-- 작성일 — 회원 관리 「가입일」 줄과 같은 부품(달력 날짜 두 칸 + 빠른 선택) -->
+            <FilterRow :label="t('post.filterCreated')" :error="fieldErrors.createdFrom || fieldErrors.createdTo || ''">
+                <DateRangeField v-model:from="createdFrom" v-model:to="createdTo" :presets="presets" :presets-label="t('member.presetsLabel')" :from-label="t('post.filterCreatedFrom')" :to-label="t('post.filterCreatedTo')" />
             </FilterRow>
 
             <FilterRow :label="t('post.stateLabel')">
@@ -333,6 +339,7 @@ import type { ApiError } from '~/composables/common/useApiClient';
 import type { DebateItem } from '~/composables/content/api/useDebateApi.types';
 import type { DebateDrawerTarget } from '~/components/debate/DebateOpinionsDrawer.types';
 import type { AdminPostItem, AdminPostListView, AdminPostBoardOption, PostBulkAction, PostBulkResult, PostStateFilter } from '~/composables/post/api/usePostApi.types';
+import UtilDateRange from '~/utils/util-date-range';
 import UtilPost, { type PostActionKind, type PostFilters } from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
 
@@ -345,6 +352,7 @@ const router = useRouter();
 const toast = useAppToast();
 const errorOf = useApiErrorOf();
 const time = useDisplayTime();
+const displayValues = useDisplayValues();
 const { can } = useAdminPermission();
 const { prefs } = useLayoutPrefs();
 const { localizedName } = useLocalizedName();
@@ -395,35 +403,65 @@ function onPage(e: { page: number; rows: number }): void {
 function onSort(e: { sortOrder?: number | null }): void {
     apply(UtilPost.change(filters.value, { sort: e.sortOrder === 1 ? 'oldest' : 'newest' }));
 }
+/** 「초기화」 — 검색 대상·검색어·작성일(입력 중인 것 포함)과 게시판·말머리·상태를 비운다(정렬·쪽 크기는 그대로) */
 function resetFilters(): void {
+    const empty = UtilPost.emptyFilters();
+    searchField.value = empty.field;
     searchText.value = '';
+    createdFrom.value = '';
+    createdTo.value = '';
     searchError.value = '';
     apply(UtilPost.clear(filters.value));
 }
 
 const hasConditions = computed(() => UtilPost.hasConditions(filters.value));
 
-/* ── 검색 ── */
+/* ── 검색 대상·검색어·작성일(「검색」을 눌러야 주소로 간다) ── */
 
+const searchField = ref(filters.value.field);
 const searchText = ref(filters.value.q);
+const createdFrom = ref(filters.value.from);
+const createdTo = ref(filters.value.to);
+/** 화면 검사 문구(서버에 보내지 않았다) */
 const searchError = ref('');
+/** 서버가 거절한 조건 문구(`400` 의 `fields` — `q`·`searchField`·`createdFrom`·`createdTo`). 목록을 다시 받을 때 비운다 */
+const fieldErrors = ref<Record<string, string>>({});
+const FIELD_KEYS = ['q', 'searchField', 'createdFrom', 'createdTo'];
+/** 검색 줄 아래 문구 — 화면 검사가 먼저 */
+const searchMessage = computed(() => searchError.value || fieldErrors.value.q || fieldErrors.value.searchField || '');
+
+// ⚠ `computed` 다 — 그냥 배열이면 처음 읽은 순간의 언어로 굳는다
+const searchFieldOptions = computed(() => UtilPost.SEARCH_FIELDS.map((value) => ({ value, label: t(`post.searchField.${value}`) })));
+const presets = computed(() => UtilDateRange.PRESETS.map((kind) => ({ kind, label: t(`member.preset.${kind}`) })));
+
+// 주소가 바뀌면(뒤로 가기·초기화·검색 풀기) 입력 칸을 주소에 맞춘다 — 게시판·상태만 바뀌면 입력 중인 값은 그대로
 watch(
-    () => filters.value.q,
-    (q) => {
+    () => [filters.value.field, filters.value.q, filters.value.from, filters.value.to] as const,
+    ([field, q, from, to]) => {
+        searchField.value = field;
         searchText.value = q;
+        createdFrom.value = from;
+        createdTo.value = to;
         searchError.value = '';
     },
 );
+// 대상을 바꾸면 그 대상의 검사 문구가 아니게 되니 지운다
+watch(searchField, () => {
+    searchError.value = '';
+});
 
-/** 보낼 때 정한다(글자마다 서버를 부르지 않는다). 한 글자면 보내지 않고 알린다. 비우고 보내면 검색을 푼다 */
+/** 보낼 때 정한다(글자마다 서버를 부르지 않는다). 제목·작성자는 2자 이상, 글번호는 숫자만 — 틀리면 보내지 않고 칸 아래에 알린다. 비우고 보내면 검색을 푼다 */
 function submitSearch(): void {
-    const parsed = UtilPost.parseSearch(searchText.value);
-    if (parsed.kind === 'TOO_SHORT') {
-        searchError.value = t('post.searchTooShort');
+    const parsed = UtilPost.parseSearch(searchField.value, searchText.value);
+    if (parsed.kind === 'TOO_SHORT' || parsed.kind === 'ID_INVALID') {
+        searchError.value = t(parsed.kind === 'TOO_SHORT' ? 'post.searchTooShort' : 'post.searchIdInvalid');
         return;
     }
     searchError.value = '';
-    apply(UtilPost.change(filters.value, { q: parsed.text }));
+    const next = UtilPost.change(filters.value, { field: searchField.value, q: parsed.text, from: createdFrom.value, to: createdTo.value });
+    // 같은 조건으로 다시 누르면 다시 받는다(서버가 거절한 조건을 고치지 않고 누른 때 등)
+    if (UtilPost.key(next) === UtilPost.key(filters.value)) void load();
+    else apply(next);
 }
 function clearSearch(): void {
     searchText.value = '';
@@ -499,19 +537,29 @@ async function load(silent = false): Promise<void> {
     abort = new AbortController();
     busy.value = true;
     refreshing.value = silent;
-    if (!silent) loadError.value = null;
+    if (!silent) {
+        loadError.value = null;
+        fieldErrors.value = {};
+    }
     try {
-        const found = await api.list(UtilPost.toApi(filters.value), abort.signal);
+        const found = await api.list(UtilPost.toApi(filters.value, displayValues.value.zoneId), abort.signal);
         if (mine !== seq) return;
         view.value = found;
         loadError.value = null;
+        fieldErrors.value = {};
         selection.value = selection.value.filter((id) => selectableIds.value.includes(id));
         // 건수는 있는데 이 쪽이 비었다(큰 쪽 번호·마지막 쪽을 다 처리함) — 마지막 쪽으로
         if (found.items.length === 0 && found.total > 0 && filters.value.page > 1) apply(UtilPost.change(filters.value, { page: UtilPost.pageCount(found.total, found.size || filters.value.size) }));
     } catch (e) {
         if (mine !== seq) return;
         const error = errorOf(e);
-        if (silent && view.value) toast.error(t('post.refreshFailed', { reason: error.message }), 8000);
+        const fields = error.status === 400 ? (error.fields ?? {}) : {};
+        if (Object.keys(fields).some((key) => FIELD_KEYS.includes(key))) {
+            // 조건이 틀려 서버가 거절했다 — 그 칸 아래에 서버 문구(검색 줄 · 작성일 줄). 표는 비운다
+            fieldErrors.value = { ...fields };
+            view.value = null;
+            loadError.value = null;
+        } else if (silent && view.value) toast.error(t('post.refreshFailed', { reason: error.message }), 8000);
         else {
             view.value = null;
             loadError.value = error;

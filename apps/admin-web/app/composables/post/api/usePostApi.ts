@@ -12,7 +12,8 @@ import type {
 
 /**
  * 게시글 관리 API — 서버 주소(`/api/admin/posts…`)가 있는 **유일한 곳**이다. 상태는 없다. 계약: `docs/features/post-admin-contract.md` 「API」.
- *   - `GET  /api/admin/posts?q=&board=&prefix=&state=&sort=&page=&size=` (`post.read`) → `AdminPostListView`(`counts` 는 상태 조건만 뺀 건수)
+ *   - `GET  /api/admin/posts?searchField=TITLE|AUTHOR|ID&q=&board=&prefix=&createdFrom=&createdTo=&state=&sort=&page=&size=` (`post.read`) → `AdminPostListView`(`counts` 는 상태 조건만 뺀 건수)
+ *       · 조건이 틀리면 400 `fields.q`·`fields.searchField`·`fields.createdFrom`·`fields.createdTo`
  *   - `GET  /board-options` (`post.read`) → 켜진 게시판·말머리
  *   - `GET  /{id}` (`post.read`) → 글 + 본문 + 조치 기록 · 404 `POST_NOT_FOUND`
  *   - `POST /{id}/hide|unhide|delete|restore|move|notice|pin|unpin` (`post.manage`, 복구는 `post.restore`) → 204
@@ -40,8 +41,11 @@ export function usePostApi() {
             client.get<AdminPostListView>(PATH.list, {
                 query: {
                     q: query.q || undefined,
+                    searchField: query.q ? query.searchField : undefined,
                     board: query.board || undefined,
                     prefix: query.prefix || undefined,
+                    createdFrom: query.createdFrom || undefined,
+                    createdTo: query.createdTo || undefined,
                     state: query.state && query.state !== 'ALL' ? query.state : undefined,
                     sort: query.sort,
                     page: query.page,

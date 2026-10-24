@@ -6,24 +6,32 @@ import type {
     PostBulkAction,
     PostBulkResult,
     PostModerationEventType,
+    PostSearchField,
     PostSort,
     PostState,
     PostStateFilter,
 } from '~/composables/post/api/usePostApi.types';
+import UtilMember from '~/utils/util-member';
 
 /**
- * 게시글 관리 화면(`/posts`)의 순수 로직 — 주소 쿼리 ↔ 필터 · 검색어 읽기 · 사유 검사 · 글마다 가능한 조치 · 일괄 대상 · 이동 검사 · 상태·기록 색.
+ * 게시글 관리 화면(`/posts`)의 순수 로직 — 주소 쿼리 ↔ 필터 · 검색어 검사(대상별) · 작성일 기간 · 사유 검사 · 글마다 가능한 조치 · 일괄 대상 · 이동 검사 · 상태·기록 색.
  * 계약 `docs/features/post-admin-contract.md` 와 같은 규칙이다(community `util-admin-post.ts` 를 로보얌 상태·권한에 맞게 옮김). 서버가 거절할 것을 미리 알려 주는 용도이고 **판정은 늘 서버가 한다**.
  * 계산이 낀 문구는 `util-post-messages.ts`.
  */
 
 /** 주소 쿼리에 실리는 필터 — `page` 는 1부터(사람이 읽는 쪽 번호), API 에 보낼 때 0부터로 바꾼다 */
 export interface PostFilters {
+    /** 검색 대상(기본 `TITLE`) */
+    field: PostSearchField;
     q: string;
     /** 게시판 ID(없으면 빈 글자) */
     board: string;
     /** 말머리 ID(게시판을 골랐을 때만) */
     prefix: string;
+    /** 작성일 시작(`YYYY-MM-DD`, 사이트 시간대의 날짜 — 없으면 빈 글자) */
+    from: string;
+    /** 작성일 끝(`YYYY-MM-DD`, 없으면 빈 글자) */
+    to: string;
     state: PostStateFilter;
     sort: PostSort;
     page: number;
@@ -31,8 +39,8 @@ export interface PostFilters {
     size: number;
 }
 
-/** 검색어의 갈래 — 비었다 / 너무 짧다 / 글 번호 / 제목·본문·작성자 */
-export type PostSearchKind = 'NONE' | 'TOO_SHORT' | 'ID' | 'TEXT';
+/** 검색어 검사 결과 — 비었다 / 너무 짧다(제목·작성자) / 숫자가 아니다(글 번호) / 보낼 수 있다 */
+export type PostSearchKind = 'NONE' | 'TOO_SHORT' | 'ID_INVALID' | 'OK';
 
 /** 사유 입력의 문제 */
 export type PostReasonProblem = 'REQUIRED' | 'TOO_LONG';
@@ -54,13 +62,14 @@ export interface PostActionPermissions {
 
 type Severity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast';
 
-/** 글 번호(Snowflake)로 읽는 긴 숫자 — 15~19자리 */
-const LONG_ID = /^\d{15,19}$/;
-/** `#번호` */
-const HASH_ID = /^#\s*\d+$/;
+/** 글 번호 검색어 — 숫자만(앞의 `#` 허용) */
+const ID_INPUT = /^#?\s*(\d+)$/;
+/** 달력 날짜 글자 */
+const YMD = /^(\d{4})-(\d{2})-(\d{2})$/;
 /** 주소의 `post` — 숫자만 */
 const POST_ID = /^\d{1,19}$/;
 
+const SEARCH_FIELDS: readonly PostSearchField[] = ['TITLE', 'AUTHOR', 'ID'];
 const STATE_FILTERS: readonly PostStateFilter[] = ['ALL', 'PUBLIC', 'HIDDEN', 'DELETED'];
 const SORTS: readonly PostSort[] = ['newest', 'oldest'];
 
@@ -86,12 +95,23 @@ function first(value: LocationQuery[string] | undefined): string {
     return typeof v === 'string' ? v : '';
 }
 
+/** 있는 날짜인 `YYYY-MM-DD` 만 — 아니면 빈 글자 */
+function ymd(value: string): string {
+    const m = YMD.exec(value);
+    if (!m) return '';
+    const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    const date = new Date(Date.UTC(y, mo - 1, d));
+    return date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d ? value : '';
+}
+
 export default class UtilPost {
     /** 한 쪽의 기본 건수 — 서버 기본값과 같다 */
     static readonly PAGE_SIZE = 20;
     /** 쪽 크기 고르개의 선택지 — 서버 상한이 50 이다 */
     static readonly PAGE_SIZES: readonly number[] = [10, 20, 50];
-    /** 검색어의 최소 글자 수 — 한 글자는 서버가 무시한다 */
+    /** 검색 대상 고르개의 차례 — 첫째가 기본 */
+    static readonly SEARCH_FIELDS = SEARCH_FIELDS;
+    /** 제목·작성자 검색어의 최소 글자 수 */
     static readonly SEARCH_MIN = 2;
     /** 검색칸의 `maxlength` */
     static readonly SEARCH_MAX = 100;
@@ -111,24 +131,28 @@ export default class UtilPost {
 
     /** 기본 필터 */
     static emptyFilters(): PostFilters {
-        return { q: '', board: '', prefix: '', state: 'ALL', sort: 'newest', page: 1, size: UtilPost.PAGE_SIZE };
+        return { field: 'TITLE', q: '', board: '', prefix: '', from: '', to: '', state: 'ALL', sort: 'newest', page: 1, size: UtilPost.PAGE_SIZE };
     }
 
     /**
-     * 주소의 쿼리를 필터로 읽는다 — 모르는 값은 기본값. 말머리는 게시판이 있을 때만 읽는다.
+     * 주소의 쿼리를 필터로 읽는다 — 모르는 값은 기본값. 말머리는 게시판이 있을 때만 읽는다. 작성일(`from`·`to`)은 있는 `YYYY-MM-DD` 만.
      * @param {LocationQuery} query - `route.query`.
      * @returns {PostFilters} 필터.
      */
     static parse(query: LocationQuery): PostFilters {
+        const field = first(query.field).toUpperCase() as PostSearchField;
         const state = first(query.state).toUpperCase() as PostStateFilter;
         const sort = first(query.sort).toLowerCase() as PostSort;
         const page = Number.parseInt(first(query.page), 10);
         const size = Number.parseInt(first(query.size), 10);
         const board = first(query.board).trim();
         return {
+            field: SEARCH_FIELDS.includes(field) ? field : 'TITLE',
             q: Array.from(first(query.q).trim()).slice(0, UtilPost.SEARCH_MAX).join(''),
             board,
             prefix: board ? first(query.prefix).trim() : '',
+            from: ymd(first(query.from).trim()),
+            to: ymd(first(query.to).trim()),
             state: STATE_FILTERS.includes(state) ? state : 'ALL',
             sort: SORTS.includes(sort) ? sort : 'newest',
             page: Number.isFinite(page) && page >= 1 ? page : 1,
@@ -143,9 +167,12 @@ export default class UtilPost {
      */
     static toQuery(f: PostFilters): Record<string, string> {
         const query: Record<string, string> = {};
+        if (f.field !== 'TITLE') query.field = f.field;
         if (f.q) query.q = f.q;
         if (f.board) query.board = f.board;
         if (f.board && f.prefix) query.prefix = f.prefix;
+        if (f.from) query.from = f.from;
+        if (f.to) query.to = f.to;
         if (f.state !== 'ALL') query.state = f.state;
         if (f.sort !== 'newest') query.sort = f.sort;
         if (f.page > 1) query.page = String(f.page);
@@ -153,9 +180,25 @@ export default class UtilPost {
         return query;
     }
 
-    /** API 조건 — 쪽은 0부터 */
-    static toApi(f: PostFilters): AdminPostQuery {
-        return { q: f.q, board: f.board, prefix: f.prefix, state: f.state, sort: f.sort, page: f.page - 1, size: f.size };
+    /**
+     * API 조건 — 쪽은 0부터. 작성일은 회원 관리 가입일과 같은 변환(사이트 시간대 그날 00:00:00.000 ~ 23:59:59.999 → UTC ISO).
+     * @param {PostFilters} f - 필터.
+     * @param {string} zoneId - 기간 경계를 잡을 시간대(표시 시간대 = 사이트 시간대).
+     * @returns {AdminPostQuery} API 조건(빈 값은 API 층이 뺀다).
+     */
+    static toApi(f: PostFilters, zoneId: string): AdminPostQuery {
+        return {
+            q: f.q,
+            searchField: f.q ? f.field : undefined,
+            board: f.board,
+            prefix: f.prefix,
+            createdFrom: f.from ? UtilMember.dayStart(f.from, zoneId) : undefined,
+            createdTo: f.to ? UtilMember.dayEnd(f.to, zoneId) : undefined,
+            state: f.state,
+            sort: f.sort,
+            page: f.page - 1,
+            size: f.size,
+        };
     }
 
     /** 필터가 같은지 가르는 열쇠 — 바뀌면 목록을 다시 받는다 */
@@ -171,12 +214,12 @@ export default class UtilPost {
         return next;
     }
 
-    /** 조건(검색·게시판·말머리·상태)이 걸려 있다 — 정렬·쪽·쪽 크기는 조건이 아니다 */
+    /** 조건(검색·게시판·말머리·작성일·상태)이 걸려 있다 — 검색 대상만 고른 것·정렬·쪽·쪽 크기는 조건이 아니다 */
     static hasConditions(f: PostFilters): boolean {
-        return f.q !== '' || f.board !== '' || f.prefix !== '' || f.state !== 'ALL';
+        return f.q !== '' || f.board !== '' || f.prefix !== '' || f.from !== '' || f.to !== '' || f.state !== 'ALL';
     }
 
-    /** 조건만 지운다(정렬·쪽 크기는 그대로) */
+    /** 조건만 지운다(검색 대상·작성일 포함 — 정렬·쪽 크기는 그대로) */
     static clear(f: PostFilters): PostFilters {
         return { ...UtilPost.emptyFilters(), sort: f.sort, size: f.size };
     }
@@ -195,20 +238,20 @@ export default class UtilPost {
     /* ── 검색 ── */
 
     /**
-     * 검색어를 읽는다 — `#번호`·15~19자리 숫자는 글 번호, 그 밖은 제목·본문·작성자(2자 이상).
+     * 검색어를 대상에 맞춰 검사한다 — 제목·작성자는 2자 이상, 글 번호는 숫자만(앞의 `#` 는 떼고 보낸다). 판정은 서버도 한다(`fields.q`).
+     * @param {PostSearchField} field - 검색 대상.
      * @param {string} raw - 입력한 검색어.
-     * @returns {{ kind: PostSearchKind; text: string }} 갈래와 서버에 보낼 글자(보내지 않으면 빈 글자).
+     * @returns {{ kind: PostSearchKind; text: string }} 결과와 서버에 보낼 글자(보내지 않으면 빈 글자).
      */
-    static parseSearch(raw: string): { kind: PostSearchKind; text: string } {
+    static parseSearch(field: PostSearchField, raw: string): { kind: PostSearchKind; text: string } {
         const text = raw.trim();
         if (text === '') return { kind: 'NONE', text: '' };
-        if (HASH_ID.test(text) || LONG_ID.test(text)) return { kind: 'ID', text };
+        if (field === 'ID') {
+            const m = ID_INPUT.exec(text);
+            return m?.[1] ? { kind: 'OK', text: m[1] } : { kind: 'ID_INVALID', text: '' };
+        }
         if (lengthOf(text) < UtilPost.SEARCH_MIN) return { kind: 'TOO_SHORT', text: '' };
-        return { kind: 'TEXT', text };
-    }
-
-    static searchTooShort(raw: string): boolean {
-        return UtilPost.parseSearch(raw).kind === 'TOO_SHORT';
+        return { kind: 'OK', text };
     }
 
     /* ── 사유 ── */

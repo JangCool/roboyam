@@ -41,14 +41,18 @@ public class AdminPostController {
         this.moderation = moderation;
     }
 
-    /** 목록 — {@code q}·{@code board}(게시판 ID)·{@code prefix}(말머리 ID)·{@code state}(ALL·PUBLIC·HIDDEN·DELETED)·{@code sort}(newest·oldest)·{@code page}(0부터)·{@code size}(기본 20, 최대 50) */
+    /**
+     * 목록 — {@code searchField}(TITLE·AUTHOR·ID)·{@code q}·{@code createdFrom}·{@code createdTo}(UTC ISO 순간, 양 끝 포함)·{@code board}(게시판 ID)·
+     * {@code prefix}(말머리 ID)·{@code state}(ALL·PUBLIC·HIDDEN·DELETED)·{@code sort}(newest·oldest)·{@code page}(0부터)·{@code size}(기본 20, 최대 50)
+     */
     @RequirePermission(Permission.POST_READ)
     @GetMapping
-    public ResponseEntity<ApiResponse<AdminPostListView>> list(@RequestParam(required = false) String q, @RequestParam(required = false) String board,
-                                                               @RequestParam(required = false) String prefix, @RequestParam(required = false) String state,
-                                                               @RequestParam(required = false) String sort, @RequestParam(required = false) String page,
-                                                               @RequestParam(required = false) String size) {
-        return noStore(queries.list(q, board, prefix, state, sort, page, size));
+    public ResponseEntity<ApiResponse<AdminPostListView>> list(@RequestParam(required = false) String searchField, @RequestParam(required = false) String q,
+                                                               @RequestParam(required = false) String createdFrom, @RequestParam(required = false) String createdTo,
+                                                               @RequestParam(required = false) String board, @RequestParam(required = false) String prefix,
+                                                               @RequestParam(required = false) String state, @RequestParam(required = false) String sort,
+                                                               @RequestParam(required = false) String page, @RequestParam(required = false) String size) {
+        return noStore(queries.list(searchField, q, createdFrom, createdTo, board, prefix, state, sort, page, size));
     }
 
     /** 게시판 고르기(거르기·이동) — 켜진 게시판·말머리 */

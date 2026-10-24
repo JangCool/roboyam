@@ -10,9 +10,19 @@ export default {
 
     // ── 조건 ──
     searchLabel: '글 검색',
-    searchPlaceholder: '제목·본문·작성자 또는 #글번호',
-    searchHelp: '두 글자 이상 적어 주세요. #번호나 15자리 이상 숫자는 글 번호로 찾아요.',
+    searchFieldLabel: '검색 대상',
+    searchField: {
+        TITLE: '제목',
+        AUTHOR: '작성자',
+        ID: '글번호',
+    },
+    searchPlaceholder: {
+        TITLE: '제목을 입력하세요',
+        AUTHOR: '작성자를 입력하세요',
+        ID: '글번호를 입력하세요',
+    },
     searchTooShort: '두 글자 이상 적어 주세요.',
+    searchIdInvalid: '글번호는 숫자만 적어 주세요.',
     searchClear: '검색어 지우기',
     filterBoard: '게시판',
     filterPrefix: '말머리',
@@ -20,6 +30,9 @@ export default {
     filterAll: '전체',
     optionsFailed: '게시판 목록을 불러오지 못했어요.',
     optionsRetry: '다시 불러오기',
+    filterCreated: '작성일',
+    filterCreatedFrom: '작성일 시작',
+    filterCreatedTo: '작성일 끝',
     stateLabel: '상태',
     stateTab: {
         ALL: '전체 {n}',

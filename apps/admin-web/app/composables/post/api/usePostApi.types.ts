@@ -9,6 +9,9 @@ export type PostState = 'PUBLIC' | 'HIDDEN' | 'DELETED';
 /** 상태 탭 — `ALL`(기본)은 상태 조건 없음 */
 export type PostStateFilter = 'ALL' | PostState;
 
+/** 검색 대상 — 제목(기본) · 작성자 · 글 번호. 본문 검색은 없다 */
+export type PostSearchField = 'TITLE' | 'AUTHOR' | 'ID';
+
 /** 정렬 — 최신순(기본) · 오래된순 */
 export type PostSort = 'newest' | 'oldest';
 
@@ -86,8 +89,14 @@ export interface AdminPostListView {
 
 /** `GET /api/admin/posts` 조건 — 빈 값은 보내지 않는다 */
 export interface AdminPostQuery {
-    /** `#번호`·15~19자리 숫자 = 글 번호, 그 밖 제목·본문·작성자 2자 이상 */
+    /** 검색어 — 제목·작성자는 2자 이상, 글 번호는 숫자만(`searchField` 와 함께 보낸다) */
     q?: string;
+    /** 검색 대상 — `q` 가 있을 때만 보낸다 */
+    searchField?: PostSearchField;
+    /** 작성일 시작 순간(UTC ISO — 사이트 시간대 그날 00:00:00.000) */
+    createdFrom?: string;
+    /** 작성일 끝 순간(UTC ISO — 사이트 시간대 그날 23:59:59.999) */
+    createdTo?: string;
     /** 게시판 ID */
     board?: string;
     /** 말머리 ID(게시판을 고른 뒤) */

@@ -33,10 +33,14 @@ import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserEntity;
 import com.community.user.repository.master.ProfileRepository;
 import com.community.user.repository.master.UserRepository;
+import com.community.zconfiguration.exception.ValidationException;
+import com.community.zconfiguration.message.MessageRef;
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -53,7 +57,11 @@ import tools.jackson.databind.json.JsonMapper;
  * 게시글 관리 읽기({@code post.read}) — 목록 · 게시판 고르기 · 글 상세(본문 · 조치 기록). docs/features/post-admin-contract.md.
  *
  * <ul>
- *   <li><b>검색어</b>: {@code #번호} 또는 15~19자리 숫자 = 글 번호. 그 밖에는 제목 · 본문 · 작성자 닉네임(비회원 이름) 부분 일치(대소문자 무시, 앞뒤 공백을 뗀 2자 이상 — 한 글자는 무시, 50자에서 자른다).</li>
+ *   <li><b>검색</b>: {@code searchField} 로 고른 한 칸만 — {@code TITLE}(기본) 제목 · {@code AUTHOR} 작성자 닉네임(비회원 이름) 부분 일치(대소문자 무시, 앞뒤 공백을 뗀 2자 이상 —
+ *       한 글자는 무시, 50자에서 자른다) · {@code ID} 글 번호 정확히 일치(앞의 {@code #} 허용, 숫자가 아니면 {@code 400 fields.q}). 본문 검색은 하지 않는다(성능).
+ *       모르는 {@code searchField} 는 {@code 400 fields.searchField}.</li>
+ *   <li><b>작성 기간</b>: {@code createdFrom}·{@code createdTo} = UTC ISO 순간(양 끝 포함, 화면이 사이트 시간대 하루 시작·끝을 바꿔 보낸다). 형식 오류는 그 칸 400,
+ *       시작 &gt; 끝은 {@code 400 fields.createdTo}.</li>
  *   <li><b>거르기</b>: {@code board} = 게시판 ID, {@code prefix} = 말머리 ID(게시판을 고른 뒤 — 게시판 없이 오면 무시). 깨진 ID 는 「아무 글도 안 맞음」.
  *       모르는 {@code state}·{@code sort} 는 기본값(ALL · newest). {@code page} 는 0 부터, {@code size} 기본 20 · 최대 50.</li>
  *   <li><b>지운 글 본문</b>: 파기 전까지 {@code post.read} 이면 누구나 본다(community Q-5 ① 과 같다). 읽기는 감사 기록에 남기지 않는다.</li>
@@ -70,9 +78,15 @@ public class AdminPostQueryService {
     static final int SIZE_MAX = 50;
     static final int QUERY_MIN = 2;
     static final int QUERY_MAX = 50;
-    /** 글 번호로 보는 숫자 길이(Snowflake) */
-    static final int ID_DIGITS_MIN = 15;
+    /** 글 번호 최대 자릿수(Snowflake, long) */
     static final int ID_DIGITS_MAX = 19;
+    /** 검색 기준 */
+    static final String FIELD_TITLE = "TITLE";
+    static final String FIELD_AUTHOR = "AUTHOR";
+    static final String FIELD_ID = "ID";
+    /** 작성 기간으로 받는 순간의 범위(1~9999년) */
+    private static final Instant INSTANT_MIN = Instant.parse("0001-01-01T00:00:00Z");
+    private static final Instant INSTANT_MAX = Instant.parse("9999-12-31T23:59:59.999999999Z");
 
     static final String MEMBER = "MEMBER";
     static final String GUEST = "GUEST";
@@ -100,11 +114,12 @@ public class AdminPostQueryService {
     }
 
     /** 목록 한 쪽 + 상태별 건수 */
-    public AdminPostListView list(String q, String board, String prefix, String state, String sort, String pageRaw, String sizeRaw) {
+    public AdminPostListView list(String searchField, String q, String createdFrom, String createdTo, String board, String prefix, String state, String sort,
+                                  String pageRaw, String sizeRaw) {
         Instant now = Instant.now();
         int page = Math.max(0, intOr(pageRaw, 0));
         int size = Math.min(SIZE_MAX, Math.max(1, intOr(sizeRaw, SIZE_DEFAULT)));
-        AdminPostSearch search = criteria(q, board, prefix, state, sort);
+        AdminPostSearch search = criteria(searchField, q, createdFrom, createdTo, board, prefix, state, sort);
         AdminPostRepositoryQDSL.Counts counts = posts.counts(search.withoutState(), now);
         AdminPostRepositoryQDSL.ListPage result = posts.search(search, (long) page * size, size, now);
         return new AdminPostListView(new AdminPostCountsView(counts.all(), counts.publicCount(), counts.hidden(), counts.deleted()), result.total(), page, size,
@@ -229,7 +244,43 @@ public class AdminPostQueryService {
 
     // ── 요청 값 풀기 ──────────────────────────────────────────────────────
 
-    private AdminPostSearch criteria(String q, String board, String prefix, String state, String sort) {
+    private AdminPostSearch criteria(String searchField, String q, String createdFrom, String createdTo, String board, String prefix, String state, String sort) {
+        Map<String, MessageRef> invalid = new LinkedHashMap<>();
+        String field = trim(searchField) == null ? FIELD_TITLE : trim(searchField).toUpperCase(Locale.ROOT);
+        if (!FIELD_TITLE.equals(field) && !FIELD_AUTHOR.equals(field) && !FIELD_ID.equals(field)) {
+            invalid.put("searchField", new MessageRef("post.admin.query.searchField.invalid"));
+        }
+        Instant from = instant("createdFrom", createdFrom, invalid);
+        Instant to = instant("createdTo", createdTo, invalid);
+
+        Long postId = null;
+        String title = null;
+        String author = null;
+        boolean noPost = false;
+        String query = trim(q);
+        if (query != null && FIELD_ID.equals(field)) {
+            String digits = query.startsWith("#") ? query.substring(1).strip() : query;
+            if (digits.isEmpty() || !digits.chars().allMatch(c -> c >= '0' && c <= '9')) {
+                invalid.put("q", new MessageRef("post.admin.query.id.invalid"));
+            } else {
+                postId = parseId(digits);
+                noPost = postId == null; // 0·자릿수 넘침 — 그런 글은 없다
+            }
+        } else if (query != null && query.codePointCount(0, query.length()) >= QUERY_MIN) {
+            String text = query.codePointCount(0, query.length()) <= QUERY_MAX ? query : query.substring(0, query.offsetByCodePoints(0, QUERY_MAX));
+            if (FIELD_AUTHOR.equals(field)) {
+                author = text;
+            } else {
+                title = text;
+            }
+        }
+        if (!invalid.isEmpty()) {
+            throw new ValidationException(invalid);
+        }
+        if (from != null && to != null && from.isAfter(to)) {
+            throw ValidationException.of("createdTo", new MessageRef("post.admin.query.period.reversed"));
+        }
+
         boolean oldest = "oldest".equalsIgnoreCase(trim(sort));
         String st = trim(state) == null ? null : trim(state).toUpperCase(Locale.ROOT);
         String stateFilter = AdminPostListRow.PUBLIC.equals(st) || AdminPostListRow.HIDDEN.equals(st) || AdminPostListRow.DELETED.equals(st) ? st : null;
@@ -244,20 +295,25 @@ public class AdminPostQueryService {
                 none = prefixId == null;
             }
         }
-        Long postId = null;
-        String text = null;
-        String query = trim(q);
-        if (query != null) {
-            String digits = query.startsWith("#") ? query.substring(1).strip() : query;
-            boolean numberLike = !digits.isEmpty() && digits.chars().allMatch(Character::isDigit);
-            if (numberLike && (query.startsWith("#") || (digits.length() >= ID_DIGITS_MIN && digits.length() <= ID_DIGITS_MAX))) {
-                postId = parseId(digits);
-                none = none || postId == null;
-            } else if (query.codePointCount(0, query.length()) >= QUERY_MIN) {
-                text = query.codePointCount(0, query.length()) <= QUERY_MAX ? query : query.substring(0, query.offsetByCodePoints(0, QUERY_MAX));
-            }
+        return new AdminPostSearch(postId, title, author, from, to, boardId, prefixId, stateFilter, oldest, none || noPost);
+    }
+
+    /** UTC ISO 순간(회원 관리 {@code joinedFrom}·{@code joinedTo} 와 같은 규칙) — 비었으면 null, 형식이 틀리면 칸 오류 */
+    private static Instant instant(String field, String raw, Map<String, MessageRef> invalid) {
+        String s = trim(raw);
+        if (s == null) {
+            return null;
         }
-        return new AdminPostSearch(postId, text, boardId, prefixId, stateFilter, oldest, none);
+        try {
+            Instant at = Instant.parse(s);
+            if (at.isBefore(INSTANT_MIN) || at.isAfter(INSTANT_MAX)) {
+                throw new DateTimeParseException("out of range", s, 0); // 밀리초 계산이 넘치지 않게
+            }
+            return at;
+        } catch (DateTimeParseException e) {
+            invalid.put(field, new MessageRef("post.admin.query.date.invalid"));
+            return null;
+        }
     }
 
     private static String trim(String raw) {
