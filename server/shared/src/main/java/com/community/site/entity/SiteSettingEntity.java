@@ -62,6 +62,9 @@ public class SiteSettingEntity {
 
     private Instant updatedAt;
 
+    /** 가입·로그인 화면에 약관 「보기」 링크를 보일지(V62, 기본 끔) — docs/features/terms-contract.md */
+    private boolean termsLinksVisible;
+
     protected SiteSettingEntity() {
     }
 
@@ -137,6 +140,12 @@ public class SiteSettingEntity {
         touch(operatorId, now);
     }
 
+    /** 약관 「보기」 링크 표시를 바꾼다 */
+    public void changeTermsLinksVisible(boolean visible, long operatorId, Instant now) {
+        this.termsLinksVisible = visible;
+        touch(operatorId, now);
+    }
+
     private void touch(long operatorId, Instant now) {
         this.updatedBy = operatorId;
         this.updatedAt = now;
@@ -200,5 +209,9 @@ public class SiteSettingEntity {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public boolean isTermsLinksVisible() {
+        return termsLinksVisible;
     }
 }
