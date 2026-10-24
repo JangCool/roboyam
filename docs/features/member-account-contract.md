@@ -102,7 +102,7 @@
 **서버 쪽 남은 것**
 - 비밀번호 찾기 60초 제한(메모리)은 서버마다 따로다. 가입·확인·verify·forgot 에 IP 단위 요청 한도는 없다.
 - `auth_tokens.new_email` 은 평문(`users.email` 과 같은 수준, 만료 뒤 배치가 지움).
-- 기존 `notificationTemplate.requiredMail.MEMBER_EMAIL_VERIFY.description` 문구가 「이메일을 바꿀 때」도 이 메일이라고 한다 — 이제 변경은 `MEMBER_EMAIL_CHANGE` 가 따로 보낸다. 공용 문구 줄을 고치지 않는 규칙이라 그대로 두었다(병합 때 고칠지 결정).
+- `notificationTemplate.requiredMail.MEMBER_EMAIL_VERIFY.description` 문구를 「가입·인증 메일 다시 요청 때」로 고쳤다(이메일 변경 확인은 `MEMBER_EMAIL_CHANGE` 가 보낸다 — 사용자 지시 2026-10-24).
 
 ## 화면 연결 (2026-10-24)
 - `useAuthApi`(가입·이메일/닉네임 확인·메일 링크 확인·비밀번호 찾기·재설정 확인·재설정)와 `useAccountApi`(내 계정·비밀번호 변경·이메일 변경)를 실제 호출로 바꾸고 `auth-mock.ts`·`account-mock.ts` 를 지웠다.
