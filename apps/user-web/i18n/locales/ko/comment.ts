@@ -72,9 +72,9 @@ export default {
     kindLabel: '의견 거르기',
     kind: {
         OPINION: '의견 전체',
-        PRO: '찬성',
-        CON: '반대',
-        NEUTRAL: '중립',
+        PRO: '찬성 의견',
+        CON: '반대 의견',
+        NEUTRAL: '중립 의견',
     },
     kindEmpty: '이 입장의 의견이 아직 없어요',
     opinionEmpty: '아직 의견이 없어요',

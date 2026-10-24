@@ -71,9 +71,9 @@ export default {
     kindLabel: 'Filter opinions',
     kind: {
         OPINION: 'All opinions',
-        PRO: 'Pro',
-        CON: 'Con',
-        NEUTRAL: 'Neutral',
+        PRO: 'Pro opinions',
+        CON: 'Con opinions',
+        NEUTRAL: 'Neutral opinions',
     },
     kindEmpty: 'No opinions on this side yet',
     opinionEmpty: 'No opinions yet',
