@@ -11,7 +11,8 @@
 --   한 글쓴이는 한 탭에 최대 2개(채운 글 포함 탭 전체로 센다) · 탭마다 상위 50개 보관 · 채우기 기준 5개:
 --   실시간 자기 글이 5개 미만이면 어제 글을 감쇠 없는 점수 순으로 모자란 만큼(fill = YESTERDAY), 이번 주가 5개 미만이면 지난주 글(fill = LAST_WEEK), 어제 탭은 채우지 않는다.
 --   점수가 같으면 ID 가 큰(나중에 쓴) 글이 먼저.
--- 제외: 19금 글 · 임시저장 · 삭제 · 예약 삭제 시각이 지난 글 · 지금 숨김 중인 글(임시조치가 끝난 글은 다시 후보) · 꺼진 게시판 · 운영진 전용 게시판
+-- 제외: 19금 글 · 임시저장 · 삭제 · 예약 삭제 시각이 지난 글 · 지금 숨김 중인 글(임시조치가 끝난 글은 다시 후보) · 꺼진 게시판 · 핫딜·직접홍보 게시판(kind DEAL·PROMO,
+--   사용자 결정 2026-10-24 — community 와 같다) · 운영진 전용 게시판
 --   (유효 글쓰기 자격 = 게시판 값 ?? 기본값 이 STAFF 인 게시판 — 공개 게시판의 「운영진만 글쓰기」, BoardFields.STAFF). 공개 API 는 읽을 때 지금 상태로 다시 거른다.
 -- 글쓴이 구분(popular_author_key): 회원은 회원 ID, 비회원은 작성 IP(PostRepositoryQDSL 의 작성 속도 판정과 같은 기준) — 보유기간이 지나 IP 를 지운 글은 입력한 이름.
 -- 기간 판정: 글 표는 id(Snowflake = 시각) 월 범위 파티션이라 id 범위(board_snowflake_floor, R__batch_17)로 조각을 가지치기하고 created_at 으로 정확히 자른다.
@@ -65,6 +66,7 @@ LANGUAGE sql STABLE AS $fn$
        AND (p.hidden_at IS NULL OR (p.hidden_until IS NOT NULL AND p.hidden_until <= p_now))
        AND NOT p.adult
        AND b.active
+       AND b.kind NOT IN ('DEAL', 'PROMO')
        AND coalesce(b.write_min, d.write_min) <> 'STAFF'
        AND p.like_count >= 3 AND p.comment_count >= 0 AND p.view_count >= 0
        AND (p.like_count * 3 + p.comment_count * 2 + p.view_count * 0.1) > 0
