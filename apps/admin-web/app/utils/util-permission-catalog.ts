@@ -114,7 +114,7 @@ export default class UtilPermissionCatalog {
         { id: 'general', nameKey: 'permission.area.general' },
     ];
 
-    /** 권한 묶음(세부 유형) — 문서의 "역할 유형" 표 그대로(24개, 종합 관리 포함). 영역(`AREAS`) 아래에 있고 권한 코드가 이 묶음에 속한다 */
+    /** 권한 묶음(세부 유형) — 문서의 "역할 유형" 표에서 권한이 있는 것(23개, 종합 관리 포함 — 권한 없는 금칙어 유형은 뺐다). 영역(`AREAS`) 아래에 있고 권한 코드가 이 묶음에 속한다 */
     static readonly TYPES: readonly RoleTypeDef[] = [
         { id: 'notice', area: 'content', nameKey: 'permission.type.notice' },
         { id: 'post', area: 'content', nameKey: 'permission.type.post' },
@@ -122,7 +122,6 @@ export default class UtilPermissionCatalog {
         { id: 'siteLayout', area: 'content', nameKey: 'permission.type.siteLayout' },
         { id: 'report', area: 'safety', nameKey: 'permission.type.report' },
         { id: 'sanction', area: 'safety', nameKey: 'permission.type.sanction' },
-        { id: 'badword', area: 'safety', nameKey: 'permission.type.badword' },
         { id: 'staffAudit', area: 'safety', nameKey: 'permission.type.staffAudit' },
         { id: 'memberView', area: 'member', nameKey: 'permission.type.memberView' },
         { id: 'nicknameImage', area: 'member', nameKey: 'permission.type.nicknameImage' },

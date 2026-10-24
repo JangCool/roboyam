@@ -24,7 +24,6 @@ export default {
         siteLayout: '사이트 화면 구성',
         report: '신고·검토',
         sanction: '제재·이의제기',
-        badword: '금칙어',
         staffAudit: '스텝 처리 감독',
         memberView: '회원 조회',
         nicknameImage: '닉네임 이미지 심사',

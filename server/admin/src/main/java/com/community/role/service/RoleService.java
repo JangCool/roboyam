@@ -55,7 +55,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li>역할은 <b>역할 유형</b> 하나에 속한다({@link RoleTypes}). 운영자 역할은 세부 유형의 권한만 후보로 고르고(종합 관리는 전부), 회원 역할은 사이트 범위면 이용 권한·게시판 범위면 게시판 운영 권한만 고른다.</li>
- *   <li>새로 만들 수 있는 것은 운영자 세부 유형 24개와 회원의 <b>사용자 정의</b>뿐이다. 등급(파생)은 409 {@code ROLE_TYPE_DERIVED}, 회원 유형·게시판 단위(제품 고정)는 409 {@code ROLE_TYPE_FIXED}.</li>
+ *   <li>새로 만들 수 있는 것은 운영자 세부 유형 23개와 회원의 <b>사용자 정의</b>뿐이다. 등급(파생)은 409 {@code ROLE_TYPE_DERIVED}, 회원 유형·게시판 단위(제품 고정)는 409 {@code ROLE_TYPE_FIXED}.</li>
  *   <li><b>종합 관리</b> 유형의 운영자 역할은 최고 관리자만 만들고 고치고 지운다(403 {@code ROLE_GENERAL_SUPER_ONLY}).</li>
  *   <li><b>권한 상승 방지</b>: 운영자 역할에 권한을 새로 줄 때는 요청한 운영자가 <b>가진 권한 안에서만</b> 줄 수 있다(403 {@code PERMISSION_ESCALATION}). 이미 있던 권한은 그대로 둘 수 있다.
  *       회원 역할에는 이 규칙이 없다. 운영자 역할의 권한을 바꾸려면 {@code role.grant}, 회원 역할은 {@code role.manage} 가 필요하다.</li>

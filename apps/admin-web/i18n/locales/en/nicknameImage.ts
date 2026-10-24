@@ -22,6 +22,7 @@ export default {
     // Table
     colImage: 'Image',
     colMember: 'Member',
+    openMember: 'Open member details of {name}',
     colFile: 'File',
     colCreatedAt: 'Requested',
     colReview: 'Review',

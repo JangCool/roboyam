@@ -1,5 +1,6 @@
 package com.community.viewsetting.service;
 
+import com.community.user.entity.MemberViewSettingEntity;
 import com.community.viewsetting.dto.request.ViewSettingsRequest;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
@@ -17,9 +18,9 @@ public final class ViewSettingsPolicy {
     static final List<Integer> TEXT_SCALES = List.of(90, 100, 110, 125);
     static final List<String> COMMENT_ORDERS = List.of("OLDEST", "LATEST");
 
-    static final String DEFAULT_THEME = "AUTO";
-    static final int DEFAULT_TEXT_SCALE = 100;
-    static final String DEFAULT_COMMENT_ORDER = "OLDEST";
+    static final String DEFAULT_THEME = MemberViewSettingEntity.DEFAULT_THEME;
+    static final int DEFAULT_TEXT_SCALE = MemberViewSettingEntity.DEFAULT_TEXT_SCALE;
+    static final String DEFAULT_COMMENT_ORDER = MemberViewSettingEntity.DEFAULT_COMMENT_ORDER;
 
     /** 검사를 마친 세 칸 */
     public record Checked(String theme, int textScale, String commentOrder) {

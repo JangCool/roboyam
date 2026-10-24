@@ -51,7 +51,7 @@ public class MyProfileService {
     private static final Logger log = LoggerFactory.getLogger(MyProfileService.class);
 
     /** 가입 뒤 닉네임을 바꿀 수 있는 횟수(서버 상수) */
-    public static final int NICKNAME_FREE_LIMIT = 1;
+    public static final int NICKNAME_FREE_LIMIT = ProfileEntity.NICKNAME_FREE_LIMIT;
     /** 한 줄 소개 최대 글자 수 */
     public static final int BIO_MAX = 100;
 

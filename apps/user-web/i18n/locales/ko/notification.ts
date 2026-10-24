@@ -49,6 +49,8 @@ export default {
     settingsSeo: '{site}에서 어떤 알림을 받을지 정해요.',
     settingsLoading: '알림 설정을 불러오는 중',
     settingsLoadFailed: '알림 설정을 불러오지 못했어요',
+    /** 저장 중 `409 NOTIFICATION_SETTING_LOCKED` — 그사이 운영자가 끌 수 없게 바꾼 알림이 있다 */
+    settingsLockedReloaded: '그사이 끌 수 없게 바뀐 알림이 있어 설정을 다시 불러왔어요. 확인한 뒤 다시 저장해 주세요.',
     settingsIntro: '운영자가 보내는 알림 중 받고 싶지 않은 것을 끌 수 있어요. 이메일 스위치는 이메일로도 보내는 알림에만 있어요.',
     settingsEmpty: '지금 받을 수 있는 알림이 없어요',
     areaContent: '내 글·댓글',

@@ -4,6 +4,7 @@
           「다시 투표 허용」(기본 끔, 끄면 「한 번 투표하면 바꿀 수 없어요」). 글쓰기·고치기 폼(`PostEditorForm` 의 `extra` 자리)이 찬반 토론 칸(`DebateSettingsFields`)과 같은 모양으로 쓴다.
         그리기만 하고 검사 문구·저장은 부르는 화면이 한다(`errors` — 서버 `fields."poll.*"` 또는 화면 검사). 같은 선택지(대소문자 무시) 칸은 빨간 테두리.
         `locked`(고치기 — 표가 들어와 서버 `editable false`)면 칸 대신 투표 요약 + 「표가 들어와 투표를 고칠 수 없어요」.
+        `removeOnly`(고치기 — 게시판 `pollEnabled` 가 꺼졌는데 첫 표 전 투표가 있다)면 「투표 붙이기」 끄기 토글만 + 읽기 전용 요약 + 「이 게시판은 이제 투표를 받지 않아요…」(서버는 같은 내용·빼기만 받는다).
     -->
     <fieldset class="m-0 flex min-w-0 flex-col gap-3 rounded-lg border border-surface p-3.5" data-testid="poll-settings">
         <legend v-if="legend" class="px-1 text-sm font-semibold">{{ t('poll.legend') }}</legend>
@@ -35,10 +36,22 @@
                     />
                     <span>{{ t('poll.enableLabel') }}</span>
                 </label>
-                <p :id="`${uid}-enabled-help`" class="m-0 text-xs leading-relaxed text-muted-color">{{ t('poll.enableHelp') }}</p>
+                <p v-if="removeOnly" :id="`${uid}-enabled-help`" class="m-0 flex items-start gap-1.5 text-xs leading-relaxed text-amber-700 dark:text-amber-300" data-testid="poll-settings-remove-only">
+                    <i class="pi pi-info-circle mt-0.5 text-[0.6875rem]" aria-hidden="true" />{{ t('poll.removeOnlyNotice') }}
+                </p>
+                <p v-else :id="`${uid}-enabled-help`" class="m-0 text-xs leading-relaxed text-muted-color">{{ t('poll.enableHelp') }}</p>
             </div>
 
-            <div v-if="modelValue.enabled" class="flex flex-col gap-4 border-l-2 border-surface pl-3.5">
+            <!-- 빼기만 — 고칠 수 없으니 읽기 전용 요약 -->
+            <div v-if="modelValue.enabled && removeOnly" class="flex flex-col gap-1.5 rounded-md bg-surface-50 px-3 py-2.5 dark:bg-surface-800/60" data-testid="poll-settings-summary">
+                <p class="m-0 break-words text-sm font-medium">{{ modelValue.question }}</p>
+                <ol class="m-0 flex list-decimal flex-col gap-0.5 pl-5 text-sm">
+                    <li v-for="(option, i) in filled" :key="i" class="break-words">{{ option }}</li>
+                </ol>
+                <p class="m-0 text-xs text-muted-color">{{ summaryLine }}</p>
+            </div>
+
+            <div v-else-if="modelValue.enabled" class="flex flex-col gap-4 border-l-2 border-surface pl-3.5">
                 <!-- 질문 -->
                 <div class="flex flex-col gap-1">
                     <div class="flex items-baseline justify-between gap-2">
@@ -211,12 +224,14 @@ interface Props {
     legend?: boolean;
     /** 표가 들어와 고칠 수 없다(서버 `editable false`) — 요약만 보인다 */
     locked?: boolean;
+    /** 게시판이 투표를 받지 않게 바뀌었다 — 「투표 붙이기」 끄기(빼기)만 되고 나머지는 읽기 전용 요약 */
+    removeOnly?: boolean;
     disabled?: boolean;
     /** 칸별 오류(서버 문구 또는 화면 검사 문구) */
     errors?: PollFieldErrors;
 }
 
-const props = withDefaults(defineProps<Props>(), { legend: true, locked: false, disabled: false, errors: () => ({ ...EMPTY_POLL_FIELD_ERRORS }) });
+const props = withDefaults(defineProps<Props>(), { legend: true, locked: false, removeOnly: false, disabled: false, errors: () => ({ ...EMPTY_POLL_FIELD_ERRORS }) });
 const emit = defineEmits<{ 'update:modelValue': [value: PollFormValues] }>();
 
 /** 선택지 글자 수는 이만큼부터 보인다(평소에는 칸이 지저분하지 않게) */
@@ -234,7 +249,7 @@ const filled = computed(() => UtilPoll.filledOptions(props.modelValue.options));
 const atMax = computed(() => props.modelValue.options.length >= UtilPoll.OPTIONS_MAX);
 const duplicates = computed(() => UtilPoll.duplicateIndexes(props.modelValue.options));
 
-/** 잠긴 투표의 요약 한 줄 — 복수/단일 · 마감 · 다시 투표 */
+/** 잠긴(또는 빼기만 되는) 투표의 요약 한 줄 — 복수/단일 · 마감 · 다시 투표 */
 const summaryLine = computed(() => {
     const v = props.modelValue;
     return [

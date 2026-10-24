@@ -29,6 +29,11 @@
                         <span class="min-w-0 flex-1">
                             <span class="block text-sm font-medium">{{ t('account.emailRow') }}</span>
                             <small class="block break-all text-xs leading-snug text-muted-color">{{ user?.email ?? t('account.noEmail') }}</small>
+                            <!-- 이메일 변경을 요청했고 새 주소의 링크를 아직 누르지 않았다(`GET /api/me/account` 의 `pendingEmail`, 서버가 가린 값) — 변경 화면과 같은 안내 -->
+                            <small v-if="pendingEmail" class="mt-1 flex items-start gap-1 text-xs leading-snug text-blue-700 dark:text-blue-300" data-testid="account-email-pending">
+                                <i class="pi pi-info-circle mt-0.5 text-[11px]" aria-hidden="true" />
+                                <span class="break-all">{{ t('account.pendingNote', { email: pendingEmail }) }}</span>
+                            </small>
                         </span>
                         <span
                             v-if="user?.email"
@@ -164,7 +169,8 @@ import UtilTime from '#layers/display-time/utils/util-time';
  * 로그아웃·회원 탈퇴 줄은 옮기지 않았다(로그아웃은 셸 메뉴·`/me`, 탈퇴는 다른 세션 범위).
  *
  * - **로그인 정보**: 이메일·인증 여부는 로그인 정보(`useAuth().user`), 비밀번호 유무는 `GET /api/me/social` 의 `hasPassword` — 모두 실제. 인증 전이면 「인증 메일 다시 받기」(실제 재발송, 배너와 같은 쿨다운).
- *   비밀번호가 없는(소셜 가입) 계정은 이메일·비밀번호 변경 줄을 감추지 않고 「사용 불가」와 이유를 적는다. 변경 대기 이메일 안내는 변경 화면에만 있다(`GET /api/me/account` 가 아직 없다).
+ *   비밀번호가 없는(소셜 가입) 계정은 이메일·비밀번호 변경 줄을 감추지 않고 「사용 불가」와 이유를 적는다. 변경 대기 이메일(`GET /api/me/account` 의 `pendingEmail`)이 있으면 이메일 줄 아래에 변경 화면과 같은 안내 한 줄
+ *   (따로 받는다 — 못 받으면 안내만 빠지고 화면은 그대로).
  * - **연결**은 `POST /api/me/social/{id}/link` 로 시작하고 응답의 `redirectUrl` 로 **페이지 이동**한다. 끝나면 서버가 `?linked=` · `?link=taken|failed&provider=&reason=` 를 붙여 이 화면으로 되돌려 보낸다 —
  *   읽은 뒤 주소에서 지운다(새로고침해도 같은 안내가 다시 뜨지 않게). 연결 완료는 토스트, 실패는 위의 안내.
  * - **해제**는 확인 대화상자를 거친다(`DELETE`). `409 SOCIAL_LAST_LOGIN_METHOD` 는 「다른 로그인 수단이 없어 해제할 수 없어요」, 그 밖의 실패는 서버 문구를 토스트(8초)로 보이고 서버 상태를 다시 받는다.
@@ -178,6 +184,7 @@ useSeoMeta({ title: () => t('account.title'), description: () => t('account.seoD
 const route = useRoute();
 const router = useRouter();
 const api = useMeSocialApi();
+const accountApi = useAccountApi();
 const auth = useAuth();
 const user = auth.user;
 const toast = useAppToast();
@@ -209,6 +216,8 @@ const loadError = ref('');
 const view = ref<MeSocialResponse | null>(null);
 /** 연결 시작·해제 요청을 보내는 중인 공급자 id — 그 줄만 로딩이고 나머지 단추는 잠긴다 */
 const busyId = ref<string | null>(null);
+/** 변경 대기 이메일(서버가 가린 값) — 없거나 못 받았으면 null */
+const pendingEmail = ref<string | null>(null);
 /** 연결하지 못하고 돌아왔을 때의 안내 */
 const linkNotice = ref<{ title: string; text: string } | null>(null);
 
@@ -279,8 +288,18 @@ function readLinkResult() {
     if (handled || 'link' in q || 'provider' in q || 'reason' in q) void router.replace({ path: route.path, hash: route.hash });
 }
 
+/** 변경 대기 이메일 — 실패해도 안내만 빠진다(로그인 정보·연결 화면은 그대로) */
+async function loadPendingEmail() {
+    try {
+        pendingEmail.value = (await accountApi.account()).pendingEmail;
+    } catch {
+        pendingEmail.value = null;
+    }
+}
+
 readLinkResult();
 void load();
+void loadPendingEmail();
 onBeforeUnmount(() => loadSeq++);
 
 /** 연결 시작 — 응답의 주소로 페이지 이동한다(이동하는 동안 단추는 로딩인 채로 둔다) */

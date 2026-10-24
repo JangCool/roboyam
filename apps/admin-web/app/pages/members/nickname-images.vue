@@ -4,7 +4,7 @@
         **탭이 목록을 가른다**: 심사 대기(수가 붙는다) · 승인 · 반려 · 해제. 닉네임 검색은 「검색」(또는 Enter)을 눌렀을 때만 서버로 간다. 표는 서버가 한 쪽씩 준다(`lazy`, 쪽은 1부터).
         미리보기는 실제 크기 그대로(240×60, 투명 부분은 체크 무늬) 그리고 누르면 확대해 본다. 승인은 바로, 반려·해제는 사유(1~200자, 회원에게 보인다)를 받는 대화상자에서.
         권한: 보기 `nickname-image.read`(메뉴·셸이 막는다), 처리 `nickname-image.manage` — 없으면 처리 단추 칸을 그리지 않고 안내 한 줄을 보인다(감추는 것은 편의이고 막는 것은 서버다).
-        이미 다른 운영자가 처리했으면(`404`·`409`) 서버 문구를 토스트로 보이고 목록을 다시 받는다. 운영자 알림 `NICKNAME_IMAGE_PENDING` 의 링크가 이 화면이다(`?status=` 로 첫 탭을 고를 수 있다).
+        이미 다른 운영자가 처리했으면(`404`·`409`) 서버 문구를 토스트로 보이고 목록을 다시 받는다. 닉네임을 누르면 회원 상세 서랍이 열린다(`member.read` 가 있을 때만). 운영자 알림 `NICKNAME_IMAGE_PENDING` 의 링크가 이 화면이다(`?status=` 로 첫 탭을 고를 수 있다).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('nicknameImage.title')" :subtitle="t('nicknameImage.subtitle')" />
@@ -96,7 +96,18 @@
                     <template #body="{ data }">
                         <div class="flex min-w-0 flex-wrap items-center gap-1.5">
                             <GradeBadge v-bind="badgeOf(data)" />
-                            <span class="min-w-0 truncate text-[13px]" :title="data.member.nickname">{{ data.member.nickname }}</span>
+                            <!-- 닉네임을 누르면 회원 상세 서랍(회원 관리와 같은 서랍) — 회원 조회 권한이 있을 때만 -->
+                            <button
+                                v-if="canViewMember"
+                                type="button"
+                                class="nickimg-member-link min-w-0 truncate text-left text-[13px] text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+                                :title="data.member.nickname"
+                                :aria-label="t('nicknameImage.openMember', { name: data.member.nickname })"
+                                @click="openMember(data)"
+                            >
+                                {{ data.member.nickname }}
+                            </button>
+                            <span v-else class="min-w-0 truncate text-[13px]" :title="data.member.nickname">{{ data.member.nickname }}</span>
                         </div>
                     </template>
                 </Column>
@@ -190,6 +201,9 @@
             </div>
         </Dialog>
 
+        <!-- 회원 상세 서랍 — 회원 관리와 같은 서랍. 목록 행이 없으니 머리는 상세가 온 뒤에 그린다 -->
+        <MemberDetailDrawer v-if="canViewMember" v-model:visible="memberDrawerOpen" ignore-selector=".nickimg-member-link" :member="null" :detail="memberDetail" :loading="memberLoading" :error="memberError" @retry="retryMember" />
+
         <!-- 반려·해제 사유 — 열 때마다 비운다. 사유는 회원에게 보인다 -->
         <Dialog v-model:visible="reasonOpen" modal :draggable="false" :header="reasonMode === 'REJECT' ? t('nicknameImage.rejectTitle') : t('nicknameImage.revokeTitle')" :style="{ width: 'min(30rem, calc(100vw - 2rem))' }">
             <form :id="reasonFormId" class="flex flex-col gap-4" novalidate @submit.prevent="submitReason">
@@ -235,6 +249,21 @@ const gradeState = useGradeAppearance();
 
 /** 승인·반려·해제 권한(정의: util-permission-catalog.ts) — 숨기는 것은 편의이고 막는 것은 서버다 */
 const canManage = computed(() => can('nickname-image.manage'));
+
+// ── 회원 상세 서랍 — 닉네임을 누르면 연다(회원 관리 화면과 같은 `useMemberDetail` · `MemberDetailDrawer`)
+const canViewMember = computed(() => can('member.read'));
+const { detail: memberDetail, loading: memberLoading, error: memberError, open: openMemberDetail, retry: retryMember, clear: clearMember } = useMemberDetail();
+const memberDrawerOpen = ref(false);
+
+function openMember(row: NicknameImageView): void {
+    memberDrawerOpen.value = true;
+    void openMemberDetail(row.member.id);
+}
+
+// 닫으면 비운다 — 다음에 열 때 앞 회원의 내용이 비치면 안 된다
+watch(memberDrawerOpen, (isOpen) => {
+    if (!isOpen) clearMember();
+});
 
 /** 처리 결과가 이미 바뀐 신청(다른 운영자가 먼저 처리했거나 지워졌다) — 목록을 다시 받는다 */
 const STALE_CODES: ReadonlySet<string> = new Set(['NICKNAME_IMAGE_NOT_FOUND', 'NICKNAME_IMAGE_NOT_PENDING', 'NICKNAME_IMAGE_NOT_ACTIVE']);

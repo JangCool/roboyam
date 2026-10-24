@@ -28,6 +28,8 @@ export default {
     changeAllowedOff: 'Once someone votes, they can’t change it.',
     anonymousNote: 'Votes are anonymous. Voters see results right away, and everyone sees them once it closes. After the first vote, the poll can’t be edited or removed.',
     lockedNotice: 'This poll has votes, so it can’t be edited.',
+    /** 게시판이 투표를 받지 않게 바뀐 뒤 고치기 — 빼기만 된다 */
+    removeOnlyNotice: 'This board no longer accepts polls. You can only remove this poll.',
     questionRequired: 'Enter a question.',
     questionTooLong: 'The question can be up to {max} characters.',
     optionsTooFew: 'Fill in at least {min} options.',

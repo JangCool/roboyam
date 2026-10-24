@@ -126,7 +126,7 @@
                     <h3 :id="`${titleId}-debate`" class="text-sm font-semibold">{{ t('post.debateTitle') }}</h3>
                     <div class="flex flex-wrap gap-1">
                         <Button type="button" :label="t('post.debateSettings')" icon="pi pi-sliders-h" size="small" severity="secondary" variant="outlined" @click="emit('debate-settings')" />
-                        <Button v-if="debate" type="button" :label="t('post.debateOpinions')" icon="pi pi-comments" size="small" severity="secondary" variant="outlined" @click="emit('debate-opinions')" />
+                        <Button v-if="debate || closedWithOpinions" type="button" :label="t('post.debateOpinions')" icon="pi pi-comments" size="small" severity="secondary" variant="outlined" @click="emit('debate-opinions')" />
                     </div>
                 </div>
                 <div class="flex flex-col gap-1 rounded-lg border border-(--line) px-3 py-2 text-xs text-muted-color">
@@ -153,6 +153,12 @@
                                 <template #pending>{{ debate.pendingPinRequests }}</template>
                             </i18n-t>
                         </span>
+                    </template>
+                    <!-- 토론은 닫혔지만 의견·대기 고정 요청이 남았다 — 요약과 [의견 관리]를 그대로 둔다 -->
+                    <template v-else-if="closedWithOpinions">
+                        <div><Tag :value="t('debate.debateClosed')" severity="secondary" class="text-[11px]!" /></div>
+                        <span class="tabular-nums">{{ t('debate.closedSummaryLine', { opinions: closedCounts.opinions, pending: closedCounts.pending }) }}</span>
+                        <span>{{ t('debate.closedHint') }}</span>
                     </template>
                     <template v-else>
                         <div><Tag :value="t('debate.debateNone')" severity="secondary" class="text-[11px]!" /></div>
@@ -216,8 +222,11 @@
                             <time :datetime="ev.at" :title="time.full(ev.at)" class="tabular-nums">{{ time.listLabel(ev.at) }}</time>
                         </div>
                         <p v-if="ev.reason" class="m-0 text-[13px] break-words whitespace-pre-line">{{ ev.reason }}</p>
-                        <p v-if="UtilPost.detailPairs(ev.detail).length" class="m-0 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-color">
-                            <span v-for="[k, v] in UtilPost.detailPairs(ev.detail)" :key="k">{{ k }}: {{ v }}</span>
+                        <p v-if="detailLinesOf(ev.detail).length" class="m-0 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-color">
+                            <template v-for="line in detailLinesOf(ev.detail)" :key="line.key">
+                                <NuxtLink v-if="line.reportCaseId && canReadReports" :to="{ path: '/reports', query: { report: line.reportCaseId } }" class="text-primary hover:underline">{{ line.text }}</NuxtLink>
+                                <span v-else-if="!line.reportCaseId">{{ line.text }}</span>
+                            </template>
                         </p>
                     </li>
                 </ol>
@@ -249,10 +258,10 @@
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { DebateItem } from '~/composables/content/api/useDebateApi.types';
-import type { AdminPostDetail, AdminPostItem } from '~/composables/post/api/usePostApi.types';
+import type { AdminPostBoardOption, AdminPostDetail, AdminPostItem } from '~/composables/post/api/usePostApi.types';
 import UtilDebate from '~/utils/util-debate';
 import UtilPost, { type PostActionKind, type PostActions } from '~/utils/util-post';
-import UtilPostMessages from '~/utils/util-post-messages';
+import UtilPostMessages, { type PostEventDetailLine } from '~/utils/util-post-messages';
 
 const open = defineModel<boolean>('visible', { required: true });
 
@@ -274,8 +283,10 @@ interface Props {
     /** `post.manage` · `post.restore` — 바닥 줄 안내에 쓴다 */
     canManage?: boolean;
     canRestore?: boolean;
-    /** `report.read` — 신고 대기 줄을 신고 관리(`/reports?postId=`)로 잇는다 */
+    /** `report.read` — 신고 대기 줄을 신고 관리(`/reports?postId=`)로, 조치 기록의 신고 사건을 `/reports?report=` 로 잇는다 */
     canReadReports?: boolean;
+    /** 게시판 선택지(`board-options`) — 조치 기록의 게시판·말머리 ID 를 이름으로 푼다 */
+    boards?: AdminPostBoardOption[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -292,6 +303,7 @@ const props = withDefaults(defineProps<Props>(), {
     canManage: false,
     canRestore: false,
     canReadReports: false,
+    boards: () => [],
 });
 const emit = defineEmits<{
     retry: [];
@@ -327,6 +339,24 @@ const actionList = computed(() => UtilPost.actionList(props.actions));
 const poll = computed(() => props.detail?.poll ?? null);
 const pollRows = computed(() => (poll.value ? UtilPost.pollRows(poll.value) : []));
 const pollClosed = computed(() => Boolean(poll.value?.closed));
+
+/** 조치 기록 덧붙임의 게시판·말머리 이름 — 선택지에 없는(꺼진) 게시판·말머리는 null(`#ID` 로 보인다) */
+const detailNames = computed(() => {
+    const boardNames = new Map(props.boards.map((b) => [b.id, localizedName(b.name, b.nameEn)]));
+    const prefixNames = new Map(props.boards.flatMap((b) => b.prefixes.map((p) => [p.id, p.name] as const)));
+    return { board: (id: string) => boardNames.get(id) ?? null, prefix: (id: string) => prefixNames.get(id) ?? null };
+});
+function detailLinesOf(detail: Record<string, unknown> | null): PostEventDetailLine[] {
+    return UtilPostMessages.eventDetailLines(t, time.value, detail, detailNames.value);
+}
+
+/** 닫힌 토론에 남은 의견·대기 고정 요청 수(목록 줄의 칸 — 옛 응답이면 0) */
+const closedCounts = computed(() => {
+    const p = props.detail?.post ?? props.item;
+    return { opinions: p?.opinionCount ?? 0, pending: p?.pendingPinRequests ?? 0 };
+});
+/** 토론이 닫혔는데(열린 토론이 없다) 의견이나 대기 고정 요청이 남았나 — 그러면 토론 구획 요약과 [의견 관리]를 보인다 */
+const closedWithOpinions = computed(() => !props.debate && !props.debateLoading && !props.debateError && (closedCounts.value.opinions > 0 || closedCounts.value.pending > 0));
 
 /** 단추가 없을 때(또는 지운 글) 까닭 한 줄 */
 const footerNote = computed(() => {

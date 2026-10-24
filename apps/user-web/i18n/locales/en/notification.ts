@@ -47,6 +47,8 @@ export default {
     settingsSeo: 'Choose which notifications you get on {site}.',
     settingsLoading: 'Loading notification settings',
     settingsLoadFailed: 'Couldn’t load notification settings',
+    /** 저장 중 `409 NOTIFICATION_SETTING_LOCKED` — 그사이 운영자가 끌 수 없게 바꾼 알림이 있다 */
+    settingsLockedReloaded: 'Some notifications can no longer be turned off, so your settings were reloaded. Check them and save again.',
     settingsIntro: 'Turn off notifications you don’t want. The email switch appears only for notifications that are also sent by email.',
     settingsEmpty: 'There are no notifications you can get right now',
     areaContent: 'My posts & comments',

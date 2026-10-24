@@ -43,10 +43,10 @@ export interface ReportTarget {
     postId: string;
     /** 댓글 대상이면 댓글 ID */
     commentId: string | null;
-    /** 대상 글 제목(댓글이면 그 댓글이 달린 글 제목) */
-    title: string;
-    /** 대상 본문 앞 80자 */
-    excerpt: string;
+    /** 대상 글 제목(댓글이면 그 댓글이 달린 글 제목). 원문을 파기한 대상은 null — 화면은 「원문 파기됨」 */
+    title: string | null;
+    /** 대상 본문 앞 80자. 원문을 파기한 대상은 null */
+    excerpt: string | null;
     state: ReportTargetState;
     hiddenReason: ReportHiddenReason | null;
     /** 권리침해 임시조치면 다시 보이는 시각 */

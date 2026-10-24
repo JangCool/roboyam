@@ -23,7 +23,7 @@
 - 이메일: 형식·254자(`UtilValidation.email`). 가입은 입력이 멈추고 400ms 뒤 `email-available`(`useDebouncedCheck` — 늦은 응답 무시), 확인 실패여도 다음 단계로 갈 수 있다(제출 때 서버가 다시 본다).
 - 비밀번호(가입·재설정·변경의 새 비밀번호): 8~64자·UTF-8 72바이트·영문+숫자(`PasswordRules`). 확인 칸 일치 전에는 단추가 꺼진다. 변경은 「현재와 다르게」까지.
 - 닉네임: 2~12자, 한글·영문·숫자·밑줄 + 글자 사이 공백 한 칸, 400ms 뒤 `nickname-available`(사유 `LENGTH|CHARS|DUPLICATE|RESERVED`), 12자 넘게 넣으면 안내.
-- 약관: `agreeTerms`·`agreePrivacy`·`ageConfirmed` 모두 true(소셜 가입과 같은 부품). 이용약관·개인정보처리방침의 「보기」 링크는 숨겼다(`TermsAgreement` 의 `SHOW_TERMS_LINKS = false` — 약관 화면이 생기면 켠다).
+- 약관: `agreeTerms`·`agreePrivacy`·`ageConfirmed` 모두 true(소셜 가입과 같은 부품). 이용약관·개인정보처리방침의 「보기」 링크는 관리자 옵션(약관 요약 `GET /api/terms/summary` 의 `showLinks` — `useTermsSummary().showLinks`, `terms-contract.md`)이 켜졌을 때만 보인다(`TermsAgreement`).
 - 비밀번호는 그 화면의 `ref` 에만, 성공·잠금 때 비운다. 주소·저장소·토스트·로그에 없다.
 
 ## API — 실제
@@ -67,7 +67,7 @@
 ## 미확정
 1. 소셜 전용 회원이 비밀번호를 **만드는** 기능을 둘지(요청에는 있었으나 community 에 없다 — 둔다면 API·화면을 새로 정해야 한다).
 2. 온보딩 운영 원칙 문구(원본 시안 초안 — 전문 검토 대상)와 로보얌에 맞는 예시(「휴머노이드 출하량」) 여부.
-3. 약관 본문 화면(`/terms`·`/privacy`)이 없어 가입의 「보기」 링크가 빈 화면이다.
+3. ~~약관 본문 화면(`/terms`·`/privacy`)이 없어 가입의 「보기」 링크가 빈 화면이다.~~ → 해결: `/terms`·`/privacy` 화면이 있고, 「보기」 링크는 `useTermsSummary().showLinks`(관리자 옵션)를 따른다.
 4. 가입 직후 인증 메일 재발송 60초 제한을 서버가 첫 메일에도 거는지(community 는 건다 — 화면은 가입 직후 `markSent()`).
 5. 정지 회원의 이메일·비밀번호 변경 허용 여부(community 는 개인 설정이라 허용).
 

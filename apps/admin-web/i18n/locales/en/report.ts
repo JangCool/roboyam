@@ -35,7 +35,8 @@ export default {
     filterTo: 'Last reported to',
     statusLabel: 'Status',
     statusFilter: {
-        OPEN: 'Open',
+        OPEN: 'Open (pending · in review)',
+        PENDING: 'Pending',
         IN_REVIEW: 'In review',
         RESOLVED: 'Resolved',
         DISMISSED: 'Dismissed',
@@ -184,6 +185,8 @@ export default {
 
     // ── Case drawer ──
     drawerTitle: 'Report case',
+    /** 원문을 파기한 대상(제목·본문 앞부분이 null)의 자리 글자 */
+    targetPurged: 'Original purged',
     prevCase: 'Previous case',
     nextCase: 'Next case',
     detailLoadFailed: "Couldn't load the case",
@@ -226,6 +229,13 @@ export default {
         REOPENED: 'Reopened',
     },
     eventReason: 'Reason: {reason}',
+    /** 처리 기록의 덧붙임(서버 `detail`)을 푼 문구 — 모르는 키(`reportId` 등)는 보이지 않는다 */
+    eventDetail: {
+        revokedPoints: '{n} points revoked',
+        restored: 'Auto-hide lifted',
+        bulk: 'Bulk',
+        falseReportCleared: 'False-report mark cleared',
+    },
     actorSystem: 'System',
     actorMember: 'Member',
     actorGone: '(removed operator)',

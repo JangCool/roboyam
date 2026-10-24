@@ -18,9 +18,11 @@ import java.time.Instant;
  * @param debate            찬반 토론이 열려 있는가
  * @param poll              투표가 붙어 있는가(목록 칩)
  * @param openReports       이 글에 대한 처리 대기 신고 수(글 신고만)
+ * @param opinionCount      의견 수 — 입장 있는 원댓글(지운 것 제외·숨긴 것 포함). 토론이 닫혀도 센다(닫힌 토론도 의견 관리를 열 수 있게)
+ * @param pendingPinRequests 대기 중인 의견 고정 요청 수
  */
 public record AdminPostItemView(String id, AdminPostBoardRefView board, AdminPostPrefixRefView prefix, String title, AdminPostAuthorView author, String state,
                                 String hiddenReason, Instant hiddenAt, Instant hiddenUntil, Instant deletedAt, Instant deleteScheduledAt, boolean purged,
                                 boolean pinned, boolean notice, boolean adult, boolean debate, boolean poll, int likeCount, int commentCount, int viewCount,
-                                int openReports, Instant createdAt) {
+                                int openReports, Instant createdAt, int opinionCount, int pendingPinRequests) {
 }

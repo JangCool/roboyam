@@ -5,7 +5,7 @@
         중립 탭은 서버 안내대로 `neutralEnabled || neutral.total > 0` 일 때만(중립을 끈 뒤에도 쌓인 중립 의견은 다룰 수 있게).
         숨김은 신고 숨김과 같은 칸(까닭 STAFF)이라 공개 댓글 목록에 「숨긴 댓글」 자리만 남고 글의 댓글 수가 1 줄어든다. 숨김 풀기는 **운영자 숨김만** 풀린다(신고로 숨긴 의견은 여기서 풀지 않는다).
         고정은 이 목록과 공개 토론 의견 목록의 맨 위를 정한다. 직접 고정하면 그 의견의 대기 고정 요청은 서버가 승인으로 닫는다(요청 탭도 다시 읽는다). 글쓴이에게 알리지 않는다.
-        「고정 요청」 탭: 의견을 쓴 회원이 보낸 대기 요청(오래된 것부터) — 줄마다 입장 배지·글쓴이·요청 시각·의견 미리보기 + [고정](승인) · [거절](그 자리에 사유 0~100자 선택 입력을 펼친다).
+        「고정 요청」 탭(`initialTab="PIN_REQUESTS"` 면 이 탭으로 연다): 의견을 쓴 회원이 보낸 대기 요청(오래된 것부터) — 줄마다 입장 배지·글쓴이·요청 시각·의견 미리보기 + [고정](승인) · [거절](그 자리에 사유 0~100자 선택 입력을 펼친다).
           처리 뒤 요청 목록·의견 목록을 다시 읽고 `changed` 로 부른 화면의 목록 수도 다시 읽게 한다. `404 PIN_REQUEST_NOT_FOUND`·`409 PIN_REQUEST_DECIDED`·`409 OPINION_UNAVAILABLE` 은 서버 문구 토스트 + 다시 읽기, `400 fields.reason` 은 사유 칸 아래.
           요청 목록 읽기는 `post.read`(`canRead`)라 보기 권한이면 이 탭이 보이고, [고정]·[거절] 단추는 처리 권한(`post.manage`)일 때만 보인다.
         서버 호출은 페이지가 준 `actions`(`useDebateOpinionActions`)로만 한다. 바꾸면 차례가 바뀔 수 있어 그 쪽을 다시 읽는다.
@@ -165,7 +165,7 @@
 <script setup lang="ts">
 import { ApiError } from '~/composables/common/useApiClient';
 import type { DebateOpinion, DebateOpinionListView, DebateOpinionPage, DebatePinRequest, DebatePinRequestListView, DebateStance } from '~/composables/content/api/useDebateApi.types';
-import type { DebateDrawerTarget, DebateOpinionActions } from '~/components/debate/DebateOpinionsDrawer.types';
+import type { DebateDrawerInitialTab, DebateDrawerTarget, DebateOpinionActions } from '~/components/debate/DebateOpinionsDrawer.types';
 import UtilDebate from '~/utils/util-debate';
 
 interface Props {
@@ -176,9 +176,11 @@ interface Props {
     canRead?: boolean;
     /** 처리 권한(`post.manage`) — 의견 고정·숨김, 요청 [고정]·[거절] */
     canManage?: boolean;
+    /** 열 때 처음 보일 탭 — 고정 요청 알림 링크(`?opinions=pins`)는 `PIN_REQUESTS` */
+    initialTab?: DebateDrawerInitialTab;
 }
 
-const props = withDefaults(defineProps<Props>(), { target: null, canRead: false, canManage: false });
+const props = withDefaults(defineProps<Props>(), { target: null, canRead: false, canManage: false, initialTab: 'OPINIONS' });
 const emit = defineEmits<{ changed: [] }>();
 const open = defineModel<boolean>('visible', { required: true });
 
@@ -371,12 +373,12 @@ async function reject(r: DebatePinRequest): Promise<void> {
     }
 }
 
-// 열 때마다 찬성 첫 쪽부터 + 대기 요청(탭 머리의 수)
+// 열 때마다 찬성 첫 쪽부터 + 대기 요청(탭 머리의 수). 처음 탭이 고정 요청이면(보기 권한이 있을 때) 그 탭을 보인다 — 의견 목록은 찬성 첫 쪽을 함께 읽어 둔다
 watch(
     () => [open.value, props.target?.postId] as const,
     ([visible]) => {
         if (!visible || !props.target) return;
-        tab.value = 'PRO';
+        tab.value = props.initialTab === 'PIN_REQUESTS' && props.canRead ? REQUESTS : 'PRO';
         stance.value = 'PRO';
         pageNo.value = 1;
         data.value = null;

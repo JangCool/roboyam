@@ -16,6 +16,9 @@ export default {
     },
     /** `{stances}` 자리에는 화면이 입장 색을 입힌 `stanceTab` 글자(투표 수)를 ` · ` 로 이어 넣는다 */
     summaryLine: '참여 {total}명({stances}) · 의견 {opinions} · 대기 고정 요청 {pending}',
+    /** 토론을 닫았지만 의견·대기 고정 요청이 남은 글 */
+    closedSummaryLine: '의견 {opinions} · 대기 고정 요청 {pending}',
+    closedHint: '토론은 닫혔지만 남은 의견과 고정 요청을 다룰 수 있어요.',
     neutralLabel: '중립도 받기',
     neutralHelp: '끄면 공개 토론에 찬성·반대만 보이고 새 중립 선택을 막아요. 이미 중립을 고른 표와 의견은 남아요.',
     stanceChangeLabel: '입장 바꾸기 허용',

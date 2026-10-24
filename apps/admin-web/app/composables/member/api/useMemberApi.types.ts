@@ -215,6 +215,36 @@ export interface MemberNicknameChange {
     changedAt: string;
 }
 
+/** 닉네임 변경 횟수 — 무료로 바꿀 수 있는 횟수(`freeLimit`, 서버 상수) 중 몇 번 썼나(서버 `MemberNicknameChangeUsage`) */
+export interface MemberNicknameChangeUsage {
+    changeCount: number;
+    freeLimit: number;
+}
+
+/** 지금 쓰는(승인된, 파일 있음) 닉네임 이미지 — 승인 시각은 검토 시각(서버 `MemberNicknameImageView.Current`) */
+export interface MemberNicknameImageCurrent {
+    imageUrl: string;
+    approvedAt: string;
+}
+
+/** 닉네임 이미지 신청의 상태 — 심사 대기 · 반려(승인되면 `current` 로 간다) */
+export type MemberNicknameImageRequestStatus = 'PENDING' | 'REJECTED';
+
+/** 가장 최근 닉네임 이미지 신청 — 심사 대기이거나 반려된 것만(서버 `MemberNicknameImageView.Request`) */
+export interface MemberNicknameImageRequest {
+    id: string;
+    status: MemberNicknameImageRequestStatus;
+    /** 파일을 지운 신청이면 null */
+    imageUrl: string | null;
+    requestedAt: string;
+    rejectReason: string | null;
+}
+
+export interface MemberNicknameImage {
+    current: MemberNicknameImageCurrent | null;
+    request: MemberNicknameImageRequest | null;
+}
+
 // ── 상세 보강 — 등급·포인트 ─
 
 /** 자동 승급 상태 — 정상 · 운영자가 등급을 바꿔 중지 · 제재로 중지 */
@@ -278,34 +308,53 @@ export interface MemberGradePoint {
 // ── 상세 보강 — 개인 설정 ─
 
 /**
- * 알림 종류 — `COMMENT`(댓글)·`REPLY`(답글)·`POPULAR_REWARD`(인기글 보상)·`DM`(쪽지)은 community `api-notification.md`, `POST_DONE`(게시글 완료)·`POST_ANSWER`(게시글 답변)는 그누보드7 항목이다.
- * 그누보드7 의 「댓글 알림」「답변 알림」은 community 의 `COMMENT`·`REPLY` 와 같은 종류라 한 줄로 합쳤다.
+ * 알림 설정 한 줄 — 회원 이벤트 카탈로그(shared `MemberEvent`)의 이벤트마다 하나, 카탈로그 차례대로 온다. 이름은 서버가 요청 언어로 준 것을 그대로 보인다.
+ * 받기(`inApp`·`email`)가 null 이면 화면은 「—」(값을 모름). `locked` 는 회원이 끌 수 없는 이벤트(계정·운영 알림 또는 운영자가 끌 수 없게 함).
  */
-export type MemberNotificationKind = 'COMMENT' | 'REPLY' | 'POPULAR_REWARD' | 'DM' | 'POST_DONE' | 'POST_ANSWER';
-
 export interface MemberNotificationSetting {
-    kind: MemberNotificationKind;
-    /** 켜짐 여부. roboyam 에 대응 기능이 아직 없는 종류(`POST_DONE`·`POST_ANSWER`)는 null — 화면은 「준비 중」으로 보인다 */
-    enabled: boolean | null;
+    code: string;
+    name: string;
+    inApp: boolean | null;
+    email: boolean | null;
+    locked: boolean;
 }
 
 export interface MemberInbox {
-    totalCount: number;
-    unreadCount: number;
+    totalCount: number | null;
+    unreadCount: number | null;
 }
 
-/** 개인 설정 탭 — 회원이 직접 정한 값을 운영자가 읽기만 한다. 차단·메모는 건수만(내용은 내려오지 않는다), 알림함도 건수만 */
+/** 야간 모드 — `AUTO` 는 기기 설정을 따른다(user-web 보기 설정 `ThemeSetting`) */
+export type MemberViewTheme = 'AUTO' | 'LIGHT' | 'DARK';
+/** 댓글 기본 정렬(user-web 보기 설정 `CommentOrderSetting`) */
+export type MemberViewCommentOrder = 'OLDEST' | 'LATEST';
+
+/** 보기 설정(user-web `/settings/view`, 서버 `MemberViewSettingsView`) — `own` 이 false 면 회원이 정한 적이 없어 세 칸이 기본값(`AUTO`·`100`·`OLDEST`) */
+export interface MemberViewSettings {
+    theme: MemberViewTheme | null;
+    /** 글자 크기(백분율) */
+    textScale: number | null;
+    commentOrder: MemberViewCommentOrder | null;
+    own: boolean;
+}
+
+/**
+ * 개인 설정·알림함 구획(서버 `MemberSettingsView`) — 회원이 직접 정한 값을 운영자가 읽기만 한다. 차단·메모는 건수만(내용은 내려오지 않는다), 알림함도 건수만. 칸이 null 이면 화면은 `-`.
+ * 탈퇴한 회원은 구획 전체가 null. `pushSubscribed` 는 푸시 기능이 없어 지금 늘 null.
+ */
 export interface MemberSettings {
     /** 이 회원에게 적용되는 표시 형식(언어·시간대·시간 형식·날짜 형식) — 연락처·위치 탭의 언어·시간대도 이 값이다 */
     display: DisplayValues;
     /** true 면 회원이 직접 고른 값, false 면 사이트 기본값 */
     displayOwn: boolean;
+    /** 보기 설정 — 모르면 null */
+    view: MemberViewSettings | null;
     notifications: MemberNotificationSetting[];
-    pushSubscribed: boolean;
-    blockedUserCount: number;
-    blockedWordCount: number;
-    memoCount: number;
-    inbox: MemberInbox;
+    pushSubscribed: boolean | null;
+    blockedUserCount: number | null;
+    blockedWordCount: number | null;
+    memoCount: number | null;
+    inbox: MemberInbox | null;
 }
 
 // ── 상세 보강 — 연락처·위치, 프로필·메모 (그누보드7) ─
@@ -360,8 +409,9 @@ export interface MemberConsentChange {
 }
 
 export interface MemberConsents {
+    /** 이용약관 동의 시각·버전 */
     terms: MemberConsentRecord;
-    /** 약관과 따로 저장하지 않아 서버가 아직 null 로 준다 */
+    /** 개인정보처리방침 동의 시각·버전 — 약관과 따로 온다(버전이 다를 수 있다). 기록이 없으면 null */
     privacy: MemberConsentRecord | null;
     /** 만 14세 이상 확인 시각 */
     ageConfirmedAt: string;
@@ -408,7 +458,7 @@ export interface MemberGroupBuy {
 
 /**
  * 회원 상세 — 목록 한 줄의 칸 + 상세 전용 칸. 역할은 이름뿐 아니라 유형·게시판까지 준다.
- * **서버가 비워 주는 칸**(null/빈 값 — 화면은 해당 구획을 안내로 보인다. `activity`·`gradePoint`·`reports` 는 이제 서버가 채우고 탈퇴 회원만 null — `useMemberApi.ts` 머리말): `statusReason`·`activity`·`sanctionSummary`·`reports`·`adultConfirmed`·`acceptDm`·`dormancy`·`gradePoint`·`settings`·`contact`·`profile`·`groupBuy`·`consents.privacy` 는 null,
+ * **서버가 비워 주는 칸**(null/빈 값 — 화면은 해당 구획을 안내로 보인다. `activity`·`gradePoint`·`reports`·`settings`·`acceptDm`·`nicknameChange`·`nicknameImage`·`consents.privacy` 는 이제 서버가 채우고 탈퇴 회원만 null — `useMemberApi.ts` 머리말): `statusReason`·`sanctionSummary`·`adultConfirmed`·`dormancy`·`contact`·`profile`·`groupBuy` 는 null,
  * `sanctions`·`consents.optional`·`consents.history`·`roles[].boardNames` 는 빈 배열, `nicknameHistory` 는 빈 배열(`member.pii` 가 없으면 null), `sanctionCount` 는 늘 0, `statusChangedAt` 은 탈퇴 시각만. `point` 는 포인트 잔액(탈퇴 0).
  * 실제 값이 있는 칸: 목록 한 줄의 칸, `roles`, `bio`, `social`, `withdrawnAt`, `consents.terms`/`ageConfirmedAt`, `piiMasked`.
  * 탈퇴한 회원은 `bio`·`consents` 가 null 이고 `social` 은 빈 배열, `withdrawnAt` 이 채워진다(줄어든 표시).
@@ -430,8 +480,12 @@ export interface MemberDetail extends Omit<MemberRow, 'roles'> {
     social: MemberSocialLink[];
     /** 성인 확인 여부(출생연도 자기 입력 — community `api-post-kinds.md`). 출생연도는 PII 라 내려오지 않는다. 본인 인증과는 별개다 */
     adultConfirmed: boolean | null;
-    /** 쪽지 수신 여부 */
+    /** 쪽지 수신 여부 — 서버가 채운다(탈퇴 회원은 칸이 보이지 않는다) */
     acceptDm: boolean | null;
+    /** 닉네임 변경 횟수 — 기본 정보의 닉네임 줄에 「변경 N/한도 회 사용」. 모르면 null */
+    nicknameChange: MemberNicknameChangeUsage | null;
+    /** 닉네임 이미지 — 지금 이미지와 최근 신청(심사 대기·반려). 모르면 null */
+    nicknameImage: MemberNicknameImage | null;
     dormancy: MemberDormancy | null;
     /** 탈퇴 시각 — 탈퇴한 회원만 */
     withdrawnAt: string | null;

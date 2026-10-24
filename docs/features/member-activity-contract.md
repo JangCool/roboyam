@@ -19,7 +19,7 @@
 
 ## 실제 API 사용
 - **검색**: 모든 검색이 실제 `GET /api/search` 다(2026-10-24 — 게시판 안 검색 우회 `viaBoard` 는 지웠다). 없는·꺼진 게시판은 `400 fields.board` → 「이 게시판에서는 검색할 수 없어요」.
-- **목업이 실제 글을 쓴다**: 프로필 작성글 목업은 `GET /api/boards` + 게시판마다 `GET /api/boards/{slug}/posts` 앞 2쪽을 모아 흉내 낸다(`composables/common/mock/board-feed-mock.ts`, 15초 기억). 최신·인기·검색은 2026-10-24 실제 API 로 바뀌었다.
+- ~~**목업이 실제 글을 쓴다**~~: 프로필 작성글·최신·인기·검색이 모두 실제 API 로 바뀌어(2026-10-24) 게시판 글을 모으던 목업(`board-feed-mock.ts`)과 가짜 회원 명부(`member-mock.ts`)는 지웠다. 남은 목업(제재·이의제기·성인 확인)은 `composables/common/mock/mock-util.ts` 만 쓴다.
 
 ## 목업 API 후보 (서버에 없음 — 화면 확정 뒤 구현, 모양은 `.types.ts`)
 ### 게시판이 섞인 글 줄 `PostFeedRow = PostRow + board{slug,name,nameEn,color}` · 커서 쪽 `PostFeedPage{items, hasNext, nextCursor}` (`usePostApi.types.ts`)
@@ -75,7 +75,7 @@
 - **이의제기·제재 알림(미확정 6)**: 이의제기 처리(관리자 화면)는 제재 기능을 만들 때 함께 만든다. 그때 회원 이벤트 `SANCTION_ISSUED`·`SANCTION_LIFTED`·`APPEAL_ANSWERED` 를 회원 이벤트 카탈로그(`MemberEvent`)에 더한다 — 모두 끌 수 없는 계정 알림(묶음 `system`), 이의제기 답변은 알림과 이메일로 간다.
 
 ## 공개 프로필 서버 구현·연결 (2026-10-24, member-mypage 세션)
-- `GET /api/users/{id}/profile|posts|comments` 를 api 서버에 만들고(비회원도 — 보안 설정 `permitAll` 한 줄) `useUserProfileApi` 를 실제 호출로 바꿨다(`user-profile-mock.ts` 삭제, 위 목업 가정 3·스위치 `profile-*` 는 없어짐 — `board-feed-mock.ts` 는 최신·인기·검색 목업이 써서 남김).
+- `GET /api/users/{id}/profile|posts|comments` 를 api 서버에 만들고(비회원도 — 보안 설정 `permitAll` 한 줄) `useUserProfileApi` 를 실제 호출로 바꿨다(`user-profile-mock.ts` 삭제, 위 목업 가정 3·스위치 `profile-*` 는 없어짐. 쓰는 곳이 없어진 `board-feed-mock.ts`·`member-mock.ts` 도 뒤에 지웠다).
 - 수치는 바로 센다(지연 없음): 글 = 켜진 게시판의 지우지·숨기지 않은 글, 댓글 = 지우지·숨기지 않은 댓글 중 볼 수 있는 글의 것, 받은 추천 = 그 글·댓글의 추천 합(19금 글도 센다). `gradeLabel` 은 등급 이름(영어 이름이 없어 요청 언어와 무관).
 - 작성글 줄 = `PostFeedRowView`(`PostRowView` 칸 + `board`), 쪽 = `PostFeedPageView` — 최신·인기·검색과 같은 이름·위치(`com.community.post.dto.response`). `PostBoardRefView` 에 `color` 를 더했다(글 상세 `board` 에도 나간다). 숨긴 글은 목록에서 아예 빠진다(게시판 목록처럼 자리를 남기지 않음). `size` 1~50 밖은 `400 fields.size`, 틀린 커서 `400 fields.cursor` — 회원 404 보다 먼저.
 - ~~`blockedByMe`·`memo` 는 아직 내려가지 않는다~~ → 합친 뒤 붙였다(2026-10-24): 프로필 `blockedByMe`(회원 차단만)·`memo`, 작성글 줄 `blocked`·작성자 `memo`, 작성 댓글 줄 `blocked`(새 칸, 단어는 댓글 본문) — 소통 세션의 `ViewerBlocks` 로 게시판 목록·댓글과 같은 판정. 비로그인·본인은 비어 있다.

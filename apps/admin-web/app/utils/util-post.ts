@@ -242,6 +242,11 @@ export default class UtilPost {
         return POST_ID.test(id) ? id : null;
     }
 
+    /** 주소의 `opinions` — `pins` 면 의견 서랍을 「고정 요청」 탭으로 연다(의견 고정 요청 알림 링크). 그 밖은 null */
+    static parseOpinions(query: LocationQuery): 'pins' | null {
+        return first(query.opinions).trim() === 'pins' ? 'pins' : null;
+    }
+
     /** 신고 관리에서 그 글과 그 글 댓글의 사건만 보는 주소(report-admin-contract — 「신고」 칸·서랍의 신고 대기 줄) */
     static reportsLink(postId: string): { path: string; query: { postId: string } } {
         return { path: '/reports', query: { postId } };
@@ -415,14 +420,6 @@ export default class UtilPost {
 
     static eventSeverity(type: string): Severity {
         return EVENT_SEVERITY[type as PostModerationEventType] ?? 'secondary';
-    }
-
-    /** 조치 기록의 덧붙임 중 글자로 보일 수 있는 것(문자·숫자·참거짓)만 — 모양은 서버가 정한다 */
-    static detailPairs(detail: Record<string, unknown> | null): [string, string][] {
-        if (!detail) return [];
-        return Object.entries(detail)
-            .filter(([, v]) => typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean')
-            .map(([k, v]) => [k, String(v)]);
     }
 
     /** HTML 본문이 비었나 — 글자도 그림·영상·표도 없다 */

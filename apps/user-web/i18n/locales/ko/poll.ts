@@ -28,6 +28,8 @@ export default {
     changeAllowedOff: '한 번 투표하면 바꿀 수 없어요.',
     anonymousNote: '투표는 익명이에요. 투표한 사람은 바로, 마감되면 모두 결과를 볼 수 있어요. 첫 표가 들어오면 투표를 고치거나 뺄 수 없어요.',
     lockedNotice: '표가 들어와 투표를 고칠 수 없어요.',
+    /** 게시판이 투표를 받지 않게 바뀐 뒤 고치기 — 빼기만 된다 */
+    removeOnlyNotice: '이 게시판은 이제 투표를 받지 않아요. 지금 투표를 빼는 것만 할 수 있어요.',
     questionRequired: '질문을 입력해 주세요.',
     questionTooLong: '질문은 {max}자까지 쓸 수 있어요.',
     optionsTooFew: '선택지를 {min}개 이상 채워 주세요.',

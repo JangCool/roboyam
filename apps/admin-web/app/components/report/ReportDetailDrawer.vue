@@ -23,7 +23,7 @@
         <template #header>
             <div class="flex min-w-0 flex-1 flex-col gap-1.5">
                 <div class="flex min-w-0 items-start gap-2">
-                    <h2 :id="titleId" class="min-w-0 flex-1 text-base font-semibold break-words [overflow-wrap:anywhere]">{{ item?.target.title ?? t('report.drawerTitle') }}</h2>
+                    <h2 :id="titleId" class="min-w-0 flex-1 text-base font-semibold break-words [overflow-wrap:anywhere]">{{ item ? (item.target.title ?? t('report.targetPurged')) : t('report.drawerTitle') }}</h2>
                     <div class="flex shrink-0 items-center gap-0.5">
                         <Button v-tooltip.bottom="t('report.prevCase')" type="button" icon="pi pi-chevron-up" size="small" severity="secondary" variant="text" rounded :aria-label="t('report.prevCase')" :disabled="!hasPrev" @click="emit('prev')" />
                         <Button v-tooltip.bottom="t('report.nextCase')" type="button" icon="pi pi-chevron-down" size="small" severity="secondary" variant="text" rounded :aria-label="t('report.nextCase')" :disabled="!hasNext" @click="emit('next')" />
@@ -192,8 +192,8 @@
                         </div>
                         <p v-if="UtilReportMessages.eventLines(t, ev).length" class="m-0 text-[13px]">{{ UtilReportMessages.eventLines(t, ev).join(' · ') }}</p>
                         <p v-if="typeof ev.detail?.note === 'string' && ev.detail.note" class="m-0 text-[13px] break-words whitespace-pre-line">{{ ev.detail.note }}</p>
-                        <p v-if="UtilReport.extraPairs(ev.detail).length" class="m-0 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-color">
-                            <span v-for="[k, v] in UtilReport.extraPairs(ev.detail)" :key="k">{{ k }}: {{ v }}</span>
+                        <p v-if="UtilReportMessages.extraLines(t, time, ev.detail).length" class="m-0 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-color">
+                            <span v-for="(line, i) in UtilReportMessages.extraLines(t, time, ev.detail)" :key="i">{{ line }}</span>
                         </p>
                     </li>
                 </ol>

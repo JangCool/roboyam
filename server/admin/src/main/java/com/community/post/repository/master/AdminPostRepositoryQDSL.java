@@ -1,6 +1,8 @@
 package com.community.post.repository.master;
 
 import com.community.comment.entity.QCommentEntity;
+import com.community.debate.entity.DebatePinRequestEntity;
+import com.community.debate.entity.QDebatePinRequestEntity;
 import com.community.debate.entity.QPostDebateEntity;
 import com.community.post.dto.AdminPostListRow;
 import com.community.post.dto.AdminPostRow;
@@ -228,6 +230,41 @@ public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
         }
         QPostDebateEntity debate = QPostDebateEntity.postDebateEntity;
         return new HashSet<>(query.select(debate.postId).from(debate).where(debate.postId.in(postIds)).fetch());
+    }
+
+    /**
+     * 글별 의견 수 — 입장 있는 원댓글({@code parent_id IS NULL AND stance IS NOT NULL}), 지운 것 제외·숨긴 것 포함(관리자 의견 관리 {@code DebateOpinionService#isOpinion} 과 같은 뜻).
+     * 토론이 닫혀도 센다. 글 ID 묶음으로 한 번에 묶어 센다(색인 {@code ix_comments_opinion}). 0 인 글은 빠진다
+     */
+    public Map<Long, Integer> opinionCounts(Collection<Long> postIds) {
+        Map<Long, Integer> out = new HashMap<>();
+        if (postIds.isEmpty()) {
+            return out;
+        }
+        QCommentEntity comment = QCommentEntity.commentEntity;
+        for (Tuple t : query.select(comment.postId, comment.id.count()).from(comment)
+                .where(comment.postId.in(postIds), comment.parentId.isNull(), comment.stance.isNotNull(), comment.deletedAt.isNull())
+                .groupBy(comment.postId).fetch()) {
+            Long n = t.get(1, Long.class);
+            out.put(t.get(0, Long.class), n == null ? 0 : n.intValue());
+        }
+        return out;
+    }
+
+    /** 글별 대기 중인 의견 고정 요청 수 — 글 ID 묶음으로 한 번에(색인 {@code ix_debate_pin_requests_post}). 0 인 글은 빠진다 */
+    public Map<Long, Integer> pendingPinRequests(Collection<Long> postIds) {
+        Map<Long, Integer> out = new HashMap<>();
+        if (postIds.isEmpty()) {
+            return out;
+        }
+        QDebatePinRequestEntity request = QDebatePinRequestEntity.debatePinRequestEntity;
+        for (Tuple t : query.select(request.postId, request.id.count()).from(request)
+                .where(request.postId.in(postIds), request.status.eq(DebatePinRequestEntity.PENDING))
+                .groupBy(request.postId).fetch()) {
+            Long n = t.get(1, Long.class);
+            out.put(t.get(0, Long.class), n == null ? 0 : n.intValue());
+        }
+        return out;
     }
 
     /** 글을 옮기면 그 글의 댓글 게시판 칸도 함께 옮긴다(댓글 표는 글 ID 해시 조각 — 한 조각만 고친다). 부르는 서비스의 트랜잭션 안에서 */

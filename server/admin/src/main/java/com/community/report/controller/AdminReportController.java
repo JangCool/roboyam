@@ -3,6 +3,8 @@ package com.community.report.controller;
 import com.community.permission.annotation.RequirePermission;
 import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
+import com.community.post.dto.response.AdminPostBoardOptionsView;
+import com.community.post.service.AdminPostQueryService;
 import com.community.report.dto.request.ReportBulkDismissRequest;
 import com.community.report.dto.request.ReportDismissRequest;
 import com.community.report.dto.request.ReportResolveRequest;
@@ -33,10 +35,12 @@ public class AdminReportController {
 
     private final AdminReportQueryService queries;
     private final ReportCaseActionService actions;
+    private final AdminPostQueryService posts;
 
-    public AdminReportController(AdminReportQueryService queries, ReportCaseActionService actions) {
+    public AdminReportController(AdminReportQueryService queries, ReportCaseActionService actions, AdminPostQueryService posts) {
         this.queries = queries;
         this.actions = actions;
+        this.posts = posts;
     }
 
     /**
@@ -59,6 +63,13 @@ public class AdminReportController {
     @GetMapping("/summary")
     public ResponseEntity<ApiResponse<ReportSummaryView>> summary() {
         return noStore(queries.summary());
+    }
+
+    /** 게시판 고르기(목록 거르기) — 게시글 관리 {@code GET /api/admin/posts/board-options} 와 같은 모양·같은 서비스(켜진 게시판·말머리). 권한만 {@code report.read} */
+    @RequirePermission(Permission.REPORT_READ)
+    @GetMapping("/board-options")
+    public ResponseEntity<ApiResponse<AdminPostBoardOptionsView>> boardOptions() {
+        return noStore(posts.boardOptions());
     }
 
     /** 사건 상세 — 처리 권한이 있고 처리 대기면 검토 중이 된다(검토자 = 나). 없는 사건 404 REPORT_CASE_NOT_FOUND */

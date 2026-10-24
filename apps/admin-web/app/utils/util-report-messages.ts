@@ -81,14 +81,31 @@ export default class UtilReportMessages {
         return actor.name ?? t('report.actorGone');
     }
 
-    /** 처리 기록 덧붙임 중 문구로 푸는 줄 — 조치 · 사유 코드 · 허위 표시 */
+    /** 처리 기록 덧붙임 중 문구로 푸는 줄 — 조치 · 사유 코드 · 신고 사유(`reason`) · 허위 표시 */
     static eventLines(t: Translate, ev: ReportEvent): string[] {
         const d = ev.detail ?? {};
         const lines: string[] = [];
         if (typeof d.action === 'string' && ['HIDE', 'DELETE', 'KEEP_HIDDEN'].includes(d.action)) lines.push(t(`report.actionName.${d.action}`));
         if (typeof d.reasonCode === 'string') lines.push(t('report.eventReason', { reason: UtilReportMessages.reasonName(t, d.reasonCode) }));
-        if (typeof d.reason === 'string' && ev.type === 'REPORTED') lines.push(UtilReportMessages.reasonName(t, d.reason));
+        if (typeof d.reason === 'string') lines.push(UtilReportMessages.reasonName(t, d.reason));
         if (d.falseReport === true) lines.push(t('report.falseReportMarked'));
+        return lines;
+    }
+
+    /**
+     * 처리 기록 덧붙임의 나머지 작은 줄 — 키 원문 대신 문구. 포인트 회수 · 자동 숨김 복구 · 일괄 · 허위 표시 해제 · 숨김 까닭·기한.
+     * `eventLines` 와 글(`note`)이 푸는 키와 신고 번호(`reportId`)는 여기 없고, **모르는 키는 숨긴다**.
+     */
+    static extraLines(t: Translate, time: DisplayTime, detail: Record<string, unknown> | null): string[] {
+        if (!detail) return [];
+        const d = detail;
+        const lines: string[] = [];
+        if (typeof d.revokedPoints === 'number' && d.revokedPoints > 0) lines.push(t('report.eventDetail.revokedPoints', { n: d.revokedPoints }));
+        if (d.restored === true) lines.push(t('report.eventDetail.restored'));
+        if (d.bulk === true) lines.push(t('report.eventDetail.bulk'));
+        if (d.falseReportCleared === true) lines.push(t('report.eventDetail.falseReportCleared'));
+        if (typeof d.hiddenReason === 'string' && ['REPORTED', 'ILLEGAL', 'RIGHTS', 'STAFF'].includes(d.hiddenReason)) lines.push(t(`report.hiddenReason.${d.hiddenReason}`));
+        if (typeof d.hiddenUntil === 'string' && d.hiddenUntil) lines.push(t('report.hiddenUntil', { at: time.listLabel(d.hiddenUntil) }));
         return lines;
     }
 

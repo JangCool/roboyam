@@ -24,6 +24,7 @@ export default {
     // 표
     colImage: '이미지',
     colMember: '회원',
+    openMember: '{name}님의 회원 상세 열기',
     colFile: '파일',
     colCreatedAt: '신청 시각',
     colReview: '처리',

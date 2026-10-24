@@ -151,10 +151,10 @@
                                     <button
                                         type="button"
                                         class="min-w-0 text-left text-[13px] font-medium break-words [overflow-wrap:anywhere] hover:underline focus-visible:outline-2 focus-visible:outline-primary"
-                                        :class="data.target.state === 'DELETED' ? 'text-muted-color line-through' : ''"
+                                        :class="data.target.title === null ? 'font-normal text-muted-color' : data.target.state === 'DELETED' ? 'text-muted-color line-through' : ''"
                                         @click.stop="openCase(data)"
                                     >
-                                        {{ data.target.title }}
+                                        {{ data.target.title ?? t('report.targetPurged') }}
                                     </button>
                                 </div>
                                 <p v-if="data.targetType === 'COMMENT' && data.target.excerpt" class="m-0 line-clamp-2 text-xs text-muted-color">{{ data.target.excerpt }}</p>
@@ -289,7 +289,6 @@ const { t, locale } = useI18n();
 useSeoMeta({ title: () => t('report.title') });
 
 const api = useReportApi();
-const postApi = usePostApi();
 const route = useRoute();
 const router = useRouter();
 const toast = useAppToast();
@@ -418,19 +417,17 @@ function clearSearch(): void {
     apply(UtilReport.change(filters.value, { q: '' }));
 }
 
-/* ── 게시판 선택지(게시글 관리의 게시판 선택지를 빌려 쓴다 — `post.read`) ── */
+/* ── 게시판 선택지(신고 관리의 `board-options` — `report.read`, 모양은 게시글 관리 선택지와 같다) ── */
 
 const boards = ref<AdminPostBoardOption[]>([]);
 const optionsLoading = ref(false);
 const optionsError = ref('');
 
 async function loadOptions(): Promise<void> {
-    // 권한이 없으면 부르지 않는다(403 은 오류가 아니다) — 고르개에는 「전체」만
-    if (!canViewPost.value) return;
     optionsLoading.value = true;
     optionsError.value = '';
     try {
-        boards.value = (await postApi.boardOptions()).boards;
+        boards.value = (await api.boardOptions()).boards;
     } catch (e) {
         const error = errorOf(e);
         if (error.status !== 403) optionsError.value = `${t('report.optionsFailed')} ${error.message}`;
@@ -560,7 +557,7 @@ async function submitBulk(payload: { note: string; falseReport: boolean }): Prom
     bulkFieldError.value = '';
     try {
         const result = await api.bulkDismiss({ ids: targets.map((item) => item.id), falseReport: payload.falseReport, note: payload.note || undefined });
-        bulkTitles.value = Object.fromEntries(targets.map((item) => [item.id, `${UtilReportMessages.caseNo(t, item)} ${item.target.title}`]));
+        bulkTitles.value = Object.fromEntries(targets.map((item) => [item.id, `${UtilReportMessages.caseNo(t, item)} ${item.target.title ?? t('report.targetPurged')}`]));
         bulkResult.value = { done: result.done ?? [], failed: result.failed ?? [] };
         selection.value = [];
         toast.show(UtilReportMessages.bulkSummary(t, bulkResult.value), { tone: bulkResult.value.failed.length === 0 ? 'success' : 'default', life: 6000 });

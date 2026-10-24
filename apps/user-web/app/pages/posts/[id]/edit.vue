@@ -9,6 +9,7 @@
         찬반 토론(post-debate-contract): 내 회원 글이고 서버가 「바꿀 수 있다」(`debate.canManage`)고 하면 「찬반 토론」 칸을 보인다. 운영자·매니저가 연 토론(`openedBy OPERATOR`)은 읽기 전용 안내,
           투표가 있어 닫을 수 없는 토론(`canClose false`)은 열기 칸을 끄지 못한다. 글 수정 본문에는 토론 칸이 없다 — 글을 저장한 뒤 토론 칸이 바뀌었을 때만 `PUT /api/posts/{id}/debate`.
         투표(post-poll-contract): 내 회원 글에서 — 투표가 있으면 그 투표, 없으면 게시판 `pollEnabled` 일 때 「투표」 칸(찬반 토론 칸 위). 표가 들어와 `poll.editable false` 면 읽기 전용 요약 + 「표가 들어와 투표를 고칠 수 없어요」.
+          첫 표 전인데 게시판 `pollEnabled` 가 꺼졌으면 「빼기만」 — 끄기 토글 + 읽기 전용 요약 + 「이 게시판은 이제 투표를 받지 않아요…」.
           글 수정 본문(`PUT /api/posts/{id}`)의 `poll`: 칸을 바꿨을 때만 보낸다(켬 → 만들기·고치기, 끔 → null 로 빼기). 바꾸지 않았거나 잠긴 투표면 칸을 아예 빼서 그대로 둔다.
           `409 POLL_LOCKED`(그새 첫 표가 들어옴)는 투표 칸 안 서버 문구 + 투표를 다시 읽어 잠근다.
     -->
@@ -62,7 +63,7 @@
             @cancel="cancel"
         >
             <template #extra>
-                <PollSettingsFields v-if="pollMode !== 'hidden'" v-model="poll" :locked="pollMode === 'locked'" :disabled="submitting" :errors="pollErrors" />
+                <PollSettingsFields v-if="pollMode !== 'hidden'" v-model="poll" :locked="pollMode === 'locked'" :remove-only="pollMode === 'removeOnly'" :disabled="submitting" :errors="pollErrors" />
                 <DebateSettingsFields
                     v-if="debateMode !== 'hidden'"
                     v-model="debate"
@@ -166,16 +167,20 @@ const poll = ref<PollFormValues>(UtilPoll.emptyForm());
 const pollInitial = ref<PollFormValues>(UtilPoll.emptyForm());
 /**
  * 칸의 모습 — 내 회원 글에서만. 투표가 있으면 첫 표 전(`editable`)은 고치기, 표가 있으면 잠금(읽기 전용 요약).
+ * 첫 표 전인데 게시판 `pollEnabled` 가 꺼졌으면 빼기만(`removeOnly` — 서버는 같은 내용·빼기만 받는다).
  * 투표가 없으면 게시판이 받을 때(`pollEnabled`)만 새로 붙이기 칸, 그 밖은 감춘다
  */
-const pollMode = computed<'hidden' | 'edit' | 'locked'>(() => {
+const pollMode = computed<'hidden' | 'edit' | 'locked' | 'removeOnly'>(() => {
     const p = post.value;
     if (!p || !p.mine || p.author.kind !== 'MEMBER') return 'hidden';
-    if (p.poll) return p.poll.editable ? 'edit' : 'locked';
+    if (p.poll) {
+        if (!p.poll.editable) return 'locked';
+        return board.value && !board.value.pollEnabled ? 'removeOnly' : 'edit';
+    }
     return board.value?.pollEnabled ? 'edit' : 'hidden';
 });
-/** 투표 칸을 바꿨다 — 바꿨을 때만 본문에 `poll` 을 싣는다 */
-const pollChanged = computed(() => pollMode.value === 'edit' && !UtilPoll.same(poll.value, pollInitial.value));
+/** 투표 칸을 바꿨다 — 바꿨을 때만 본문에 `poll` 을 싣는다(빼기만 모드는 끄기만 바뀔 수 있어 `null` 로 빼기) */
+const pollChanged = computed(() => (pollMode.value === 'edit' || pollMode.value === 'removeOnly') && !UtilPoll.same(poll.value, pollInitial.value));
 /** 한 번 [저장]을 누른 뒤부터 투표 칸의 화면 검사 문구를 보인다 — 고치지 않은 지난 마감 시각은 다시 검사하지 않는다 */
 const pollTried = ref(false);
 const pollProblems = computed(() => UtilPoll.problems(poll.value, Date.now(), pollInitial.value.closesAt));

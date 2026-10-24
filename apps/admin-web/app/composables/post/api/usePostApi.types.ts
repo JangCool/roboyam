@@ -61,6 +61,10 @@ export interface AdminPostItem {
     adult: boolean;
     /** 찬반 토론이 열려 있다 */
     debate: boolean;
+    /** 토론 의견(입장 있는 원댓글) 수 — 토론이 닫혀도 남는다 */
+    opinionCount: number;
+    /** 대기 중인 의견 고정 요청 수 — 토론이 닫혀도 남는다 */
+    pendingPinRequests: number;
     /** 투표가 붙어 있다(post-poll-contract). 옛 응답에는 없을 수 있다 */
     poll?: boolean;
     likeCount: number;

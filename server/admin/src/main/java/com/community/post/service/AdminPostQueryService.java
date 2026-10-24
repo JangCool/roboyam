@@ -171,15 +171,18 @@ public class AdminPostQueryService {
         Map<Long, Integer> reports = posts.openReports(ids);
         Set<Long> debates = posts.debateOpen(ids);
         Set<Long> withPoll = polls.postIdsWithPoll(ids);
+        Map<Long, Integer> opinions = posts.opinionCounts(ids);
+        Map<Long, Integer> pinRequests = posts.pendingPinRequests(ids);
         List<AdminPostItemView> out = new ArrayList<>(rows.size());
         for (AdminPostListRow r : rows) {
-            out.add(item(r, s, profileById, userById, reports, debates, withPoll, now));
+            out.add(item(r, s, profileById, userById, reports, debates, withPoll, opinions, pinRequests, now));
         }
         return out;
     }
 
     private static AdminPostItemView item(AdminPostListRow r, BoardCatalogSnapshot s, Map<Long, ProfileEntity> profileById, Map<Long, UserEntity> userById,
-                                          Map<Long, Integer> reports, Set<Long> debates, Set<Long> withPoll, Instant now) {
+                                          Map<Long, Integer> reports, Set<Long> debates, Set<Long> withPoll, Map<Long, Integer> opinions,
+                                          Map<Long, Integer> pinRequests, Instant now) {
         EffectiveBoard b = r.boardId() == null ? null : s.board(r.boardId()).orElse(null);
         AdminPostBoardRefView board = new AdminPostBoardRefView(r.boardId() == null ? null : Long.toString(r.boardId()), b == null ? null : b.name(),
                 b == null ? null : b.nameEn(), b == null ? null : b.slug());
@@ -203,7 +206,8 @@ public class AdminPostQueryService {
         return new AdminPostItemView(Long.toString(r.id()), board, prefix, r.title(), author, state, hidden ? r.hiddenReason() : null,
                 hidden ? r.hiddenAt() : null, hidden ? r.hiddenUntil() : null, deletedAt, r.deleteScheduledAt(), r.purgedAt() != null, r.pinnedAt() != null,
                 p != null && NOTICE_KEY.equals(p.commonKey()), Boolean.TRUE.equals(r.adult()), debates.contains(r.id()), withPoll.contains(r.id()), n(r.likeCount()),
-                n(r.commentCount()), n(r.viewCount()), reports.getOrDefault(r.id(), 0), r.createdAt());
+                n(r.commentCount()), n(r.viewCount()), reports.getOrDefault(r.id(), 0), r.createdAt(), opinions.getOrDefault(r.id(), 0),
+                pinRequests.getOrDefault(r.id(), 0));
     }
 
     private List<AdminPostEventView> eventViews(List<PostModerationEventEntity> rows) {

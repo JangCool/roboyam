@@ -80,8 +80,8 @@ const YMD = /^(\d{4})-(\d{2})-(\d{2})$/;
 const NUMERIC_ID = /^\d{1,19}$/;
 
 const SEARCH_FIELDS: readonly ReportSearchField[] = ['TITLE', 'AUTHOR', 'CASE_NO'];
-/** 상태 라디오 차례 — 처리 대기(대기 + 검토 중, 기본) · 검토 중 · 처리됨 · 무시 · 전체 */
-const STATUS_FILTERS: readonly ReportStatusFilter[] = ['OPEN', 'IN_REVIEW', 'RESOLVED', 'DISMISSED', 'ALL'];
+/** 상태 라디오 차례 — 열린 사건(대기 + 검토 중, 기본) · 대기 · 검토 중 · 처리됨 · 무시 · 전체 */
+const STATUS_FILTERS: readonly ReportStatusFilter[] = ['OPEN', 'PENDING', 'IN_REVIEW', 'RESOLVED', 'DISMISSED', 'ALL'];
 const TARGET_TYPES: readonly ReportTargetType[] = ['POST', 'COMMENT'];
 /** 신고 사유 차례 — 게시판 신고 정책 화면의 사유 표와 같다 */
 const REASONS: readonly ReportReasonCode[] = ['SPAM_AD', 'ABUSE', 'OBSCENE', 'ILLEGAL_FILMING', 'RIGHTS', 'OTHER'];
@@ -434,15 +434,6 @@ export default class UtilReport {
 
     static eventSeverity(type: string): Severity {
         return EVENT_SEVERITY[type as ReportEventType] ?? 'secondary';
-    }
-
-    /** 처리 기록의 덧붙임 중 문구로 따로 푸는 것(사유 코드·글·허위 표시·조치)을 뺀 나머지 — 글자로 보일 수 있는 것만 */
-    static extraPairs(detail: Record<string, unknown> | null): [string, string][] {
-        if (!detail) return [];
-        const known = new Set(['reasonCode', 'note', 'falseReport', 'action']);
-        return Object.entries(detail)
-            .filter(([k, v]) => !known.has(k) && (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'))
-            .map(([k, v]) => [k, String(v)]);
     }
 
     /** HTML 본문이 비었나 — 글자도 그림·영상·표도 없다 */

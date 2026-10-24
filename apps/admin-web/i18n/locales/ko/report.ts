@@ -35,7 +35,8 @@ export default {
     filterTo: '마지막 신고일 끝',
     statusLabel: '상태',
     statusFilter: {
-        OPEN: '처리 대기',
+        OPEN: '열린 사건(대기·검토 중)',
+        PENDING: '대기',
         IN_REVIEW: '검토 중',
         RESOLVED: '처리됨',
         DISMISSED: '무시',
@@ -184,6 +185,8 @@ export default {
 
     // ── 사건 서랍 ──
     drawerTitle: '신고 사건',
+    /** 원문을 파기한 대상(제목·본문 앞부분이 null)의 자리 글자 */
+    targetPurged: '원문 파기됨',
     prevCase: '이전 사건',
     nextCase: '다음 사건',
     detailLoadFailed: '사건을 불러오지 못했어요',
@@ -226,6 +229,13 @@ export default {
         REOPENED: '다시 열림',
     },
     eventReason: '사유: {reason}',
+    /** 처리 기록의 덧붙임(서버 `detail`)을 푼 문구 — 모르는 키(`reportId` 등)는 보이지 않는다 */
+    eventDetail: {
+        revokedPoints: '포인트 {n} 회수',
+        restored: '자동 숨김 복구',
+        bulk: '일괄',
+        falseReportCleared: '허위 표시 해제',
+    },
     actorSystem: '시스템',
     actorMember: '회원',
     actorGone: '(없어진 운영자)',

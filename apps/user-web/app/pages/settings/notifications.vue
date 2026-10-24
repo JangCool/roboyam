@@ -78,6 +78,7 @@ import UtilAuthMessages from '~/utils/util-auth-messages';
  * - **운영자가 그 채널로 보내는 이벤트만** 스위치가 있다(`inAppOffered`·`emailOffered`). 회원이 끌 수 없는 이벤트(`memberCanTurnOff=false`)는 잠금 안내 —
  *   코드 잠금은 `lockReason`(계정·운영 처리)으로, 운영자가 끌 수 없게 한 이벤트(`lockReason=null`)는 「운영자가 정한 알림」으로 보인다.
  * - 저장은 끌 수 있는 이벤트 전부를 줄마다 `code·inApp·email` 세 칸 모두 채워 보낸다(서버가 운영자가 보내지 않는 채널 값은 바꾸지 않는다).
+ *   그사이 운영자가 끌 수 없게 바꾼 이벤트를 끄려 했으면 `409 NOTIFICATION_SETTING_LOCKED` — 안내 토스트 뒤 서버 값을 다시 받는다(고치던 값은 버린다).
  * - 이메일 인증 전·이메일 없는 계정은 이메일 스위치가 잠긴다(`emailReceivable=false`).
  * - 한 번에 저장(PUT 하나) → 하단 떠 있는 저장 줄(`StickySaveBar`). 떠나기 전 저장 안 한 변경을 묻는다.
  */
@@ -136,6 +137,15 @@ async function load() {
 }
 void load();
 
+/** 화면을 로딩으로 되돌리지 않고 다시 받는다 — 못 받으면 폼 위 오류 */
+async function reloadQuietly() {
+    try {
+        fill(await api.get());
+    } catch (e) {
+        formError.value = messageOf(e);
+    }
+}
+
 /** 화면에 그릴 이벤트 — 운영자가 어느 채널로도 보내지 않는 이벤트는 감춘다(받을 것이 없다) */
 const visible = computed(() => (view.value?.events ?? []).filter((row) => row.inAppOffered || row.emailOffered));
 const groups = computed(() =>
@@ -172,7 +182,13 @@ async function save() {
         fill(await api.save({ events }));
         toast.success(t('common.saved'));
     } catch (e) {
-        formError.value = messageOf(e);
+        // 그사이 운영자가 끌 수 없게 바꾼 알림이 있다 — 안내하고 서버 값을 다시 받는다(고치던 값은 버린다)
+        if (e instanceof ApiError && e.code === 'NOTIFICATION_SETTING_LOCKED') {
+            toast.show(t('notification.settingsLockedReloaded'));
+            await reloadQuietly();
+        } else {
+            formError.value = messageOf(e);
+        }
     } finally {
         saving.value = false;
     }

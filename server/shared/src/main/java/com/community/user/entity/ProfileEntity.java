@@ -20,6 +20,9 @@ import org.hibernate.annotations.DynamicUpdate;
 @DynamicUpdate
 public class ProfileEntity {
 
+    /** 가입 뒤 닉네임을 바꿀 수 있는 횟수(서버 상수) — 회원 프로필 저장(api)과 관리자 회원 상세(admin)가 같이 쓴다 */
+    public static final int NICKNAME_FREE_LIMIT = 1;
+
     @Id
     private Long userId;
 

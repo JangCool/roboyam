@@ -11,6 +11,9 @@ export interface DebateDrawerTarget {
     counts: { pro: number; con: number; neutral: number } | null;
 }
 
+/** 서랍을 열 때 처음 보일 탭 — 의견(찬성 탭) · 고정 요청(보기 권한 `canRead` 가 있을 때만, 없으면 의견) */
+export type DebateDrawerInitialTab = 'OPINIONS' | 'PIN_REQUESTS';
+
 /** 서랍이 부르는 서버 동작(글 번호로) — `useDebateOpinionActions` 가 만든다. 실패하면 `ApiError` 를 던진다 */
 export interface DebateOpinionActions {
     load: (postId: string, query: DebateOpinionQuery) => Promise<DebateOpinionListView>;

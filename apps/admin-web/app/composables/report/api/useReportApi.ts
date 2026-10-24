@@ -1,3 +1,4 @@
+import type { AdminPostBoardOptionsView } from '~/composables/post/api/usePostApi.types';
 import type {
     ReportBulkDismissRequest,
     ReportBulkResult,
@@ -14,6 +15,7 @@ import type {
  *   - `GET  /api/admin/reports?status=&targetType=&reason=&searchField=&q=&from=&to=&board=&postId=&sort=&page=&size=` (`report.read`) → `ReportCaseListView`
  *       · 조건이 틀리면 400 `fields.q`·`fields.searchField`·`fields.from`·`fields.to`(가정 — 게시글 관리와 같은 규칙)
  *   - `GET  /summary` (`report.read`) → `{ pending, inReview }`
+ *   - `GET  /board-options` (`report.read`) → `{ boards: [...] }` — 게시판 고르개. 모양은 게시글 관리 `GET /api/admin/posts/board-options` 와 같다(`AdminPostBoardOptionsView`)
  *   - `GET  /{id}` (`report.read`) → 상세 — PENDING 이면 열람과 함께 IN_REVIEW · 404 `REPORT_CASE_NOT_FOUND`
  *   - `POST /{id}/resolve { action, reasonCode, note }` (`report.manage`) → 200 상세 · 409 `REPORT_CASE_CLOSED`·`REPORT_ACTION_INVALID` · 400 `fields.action|reasonCode|note`
  *   - `POST /{id}/dismiss { reasonCode?, note?, falseReport }` (`report.manage`) → 200 상세 · 409 `REPORT_CASE_CLOSED`
@@ -25,6 +27,7 @@ const ROOT = '/api/admin/reports';
 const PATH = {
     list: ROOT,
     summary: `${ROOT}/summary`,
+    boardOptions: `${ROOT}/board-options`,
     bulkDismiss: `${ROOT}/dismiss`,
     one: (id: string) => `${ROOT}/${encodeURIComponent(id)}`,
     act: (id: string, action: 'resolve' | 'dismiss' | 'reopen') => `${ROOT}/${encodeURIComponent(id)}/${action}`,
@@ -59,6 +62,10 @@ export function useReportApi() {
         // REAL:
         /** 대기·검토 중 건수 */
         summary: (): Promise<ReportSummary> => client.get<ReportSummary>(PATH.summary),
+
+        // REAL:
+        /** 게시판 고르개 — 게시판·말머리(모양은 게시글 관리 선택지와 같다) */
+        boardOptions: (): Promise<AdminPostBoardOptionsView> => client.get<AdminPostBoardOptionsView>(PATH.boardOptions),
 
         // REAL:
         /** 사건 하나 — 대기 사건은 열람과 함께 검토 중이 된다 */

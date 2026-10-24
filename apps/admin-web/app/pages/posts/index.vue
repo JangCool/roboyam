@@ -11,6 +11,7 @@
           `409 POST_STATE_INVALID`·`404 POST_NOT_FOUND`·`409 POST_PURGED`(그 사이 바뀜)는 토스트 + 새로 받기. 복구는 `post.restore` 가 있을 때만.
         - 일괄: 줄을 고르면 아래에 일괄 줄 — 숨기기·숨김 해제·삭제(삭제는 `post.bulk-delete`)를 사유 하나로 → 결과 대화창(글마다 처리됨/못 함 + 까닭).
         - 글의 찬반 토론: 서랍의 토론 구획(상태 요약) + [토론 설정](`DebateSettingsDialog`) + [의견 관리](`DebateOpinionsDrawer`) — 하이라이트 화면과 같은 재사용 부품(`useDebateActions`).
+          토론이 닫혀도 의견·대기 고정 요청이 남았으면(`opinionCount`·`pendingPinRequests`) 요약과 [의견 관리]가 남는다. 목록 줄에는 대기 고정 요청 수 칩. 주소 `?post={id}&opinions=pins` 는 의견 서랍을 「고정 요청」 탭으로 연다.
         - 글의 투표(post-poll-contract): 목록 줄 「투표」 칩(`poll`) · 서랍의 투표 구획(결과 표) + [투표 지우기](`post.manage`, 표가 있어도) → 사유 대화창(`PostReasonDialog` kind `POLL_DELETE`) → `DELETE /api/admin/posts/{id}/poll { reason }`.
           `404 POLL_NOT_FOUND`(그새 없어짐)는 다른 조치처럼 토스트 + 새로 받기. 조치 기록에 `POLL_DELETED` 가 남는다.
         - 권한: 보기 `post.read`(메뉴) — 조치 기록·토론 보기는 된다. `post.manage` 가 없으면 읽기 전용 안내 + 체크·조치 없음. 감추는 것은 편의이고 막는 것은 서버다.
@@ -172,6 +173,14 @@
                                 <Tag v-if="data.pinned" :value="t('post.chip.pinned')" icon="pi pi-thumbtack" severity="info" class="text-[11px]!" />
                                 <Tag v-if="data.adult" :value="t('post.chip.adult')" severity="danger" class="text-[11px]!" />
                                 <Tag v-if="data.debate" :value="t('post.chip.debate')" icon="pi pi-comments" severity="secondary" class="text-[11px]!" />
+                                <Tag
+                                    v-if="(data.pendingPinRequests ?? 0) > 0"
+                                    :value="t('post.chip.pinRequests', { n: data.pendingPinRequests })"
+                                    :aria-label="t('post.chip.pinRequestsLabel', { n: data.pendingPinRequests })"
+                                    icon="pi pi-thumbtack"
+                                    severity="warn"
+                                    class="text-[11px]!"
+                                />
                                 <Tag v-if="data.poll" :value="t('post.chip.poll')" icon="pi pi-chart-bar" severity="secondary" class="text-[11px]!" />
                                 <button
                                     type="button"
@@ -321,19 +330,20 @@
             :can-manage="canManage"
             :can-restore="canRestore"
             :can-read-reports="canReadReports"
+            :boards="boards"
             @retry="detail.reload(false)"
             @act="onDrawerAct"
             @prev="neighbors.prev && openPost(neighbors.prev)"
             @next="neighbors.next && openPost(neighbors.next)"
             @debate-settings="debateSettingsOpen = true"
-            @debate-opinions="opinionsOpen = true"
+            @debate-opinions="openOpinions('OPINIONS')"
             @debate-retry="loadDebate()"
             @poll-delete="openPollDelete"
             @closed="onDrawerClosed"
         />
 
         <DebateSettingsDialog v-model:visible="debateSettingsOpen" :post-id="detail.openId.value" :title="drawerItem?.title ?? ''" :actions="debateSettingsActions" :can-manage="canManage" @changed="onDebateChanged" />
-        <DebateOpinionsDrawer v-model:visible="opinionsOpen" :target="opinionsTarget" :actions="opinionActions" :can-read="true" :can-manage="canManage" @changed="loadDebate(true)" />
+        <DebateOpinionsDrawer v-model:visible="opinionsOpen" :target="opinionsTarget" :actions="opinionActions" :can-read="true" :can-manage="canManage" :initial-tab="opinionsInitialTab" @changed="onOpinionsChanged" />
     </div>
 </template>
 
@@ -341,7 +351,7 @@
 import type { MenuItem } from 'primevue/menuitem';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { DebateItem } from '~/composables/content/api/useDebateApi.types';
-import type { DebateDrawerTarget } from '~/components/debate/DebateOpinionsDrawer.types';
+import type { DebateDrawerInitialTab, DebateDrawerTarget } from '~/components/debate/DebateOpinionsDrawer.types';
 import type { AdminPostItem, AdminPostListView, AdminPostBoardOption, PostBulkAction, PostBulkResult, PostStateFilter } from '~/composables/post/api/usePostApi.types';
 import UtilDateRange from '~/utils/util-date-range';
 import UtilPost, { type PostActionKind, type PostFilters, type PostReasonKind } from '~/utils/util-post';
@@ -957,6 +967,34 @@ const opinionsTarget = computed<DebateDrawerTarget | null>(() => {
     const id = detail.openId.value;
     if (!id) return null;
     return { postId: id, title: drawerItem.value?.title ?? `#${id}`, neutralEnabled: debate.value?.neutralEnabled ?? false, counts: null };
+});
+
+/** 의견 서랍을 열 때 처음 탭 */
+const opinionsInitialTab = ref<DebateDrawerInitialTab>('OPINIONS');
+function openOpinions(initial: DebateDrawerInitialTab): void {
+    opinionsInitialTab.value = initial;
+    opinionsOpen.value = true;
+}
+
+/** 의견·고정 요청을 처리했다 — 토론 요약과 목록 줄(대기 고정 요청 수)·서랍의 글을 조용히 새로 받는다 */
+function onOpinionsChanged(): void {
+    void loadDebate(true);
+    void load(true);
+    void detail.reload();
+}
+
+// 주소 `?post={id}&opinions=pins`(의견 고정 요청 알림 링크) — 글 서랍(위의 `post` 감시가 연다)과 함께 의견 서랍을 「고정 요청」 탭으로 연다
+watch(
+    () => [UtilPost.parsePost(route.query), UtilPost.parseOpinions(route.query)] as const,
+    ([id, opinions]) => {
+        if (id && opinions === 'pins') openOpinions('PIN_REQUESTS');
+    },
+    { immediate: true },
+);
+
+// 의견 서랍을 닫으면 주소의 `opinions` 만 지운다(글 서랍은 그대로)
+watch(opinionsOpen, (isOpen) => {
+    if (!isOpen && UtilPost.parseOpinions(route.query) !== null) setPostQuery(detail.openId.value);
 });
 
 // 필터(검색·게시판·말머리·상태·정렬·쪽)가 바뀌면 선택을 비우고 다시 받는다. 처음 한 번도 여기서 받는다(`post` 는 열쇠에 없다).

@@ -24,7 +24,6 @@ export default {
         siteLayout: 'Site layout',
         report: 'Reports and review',
         sanction: 'Sanctions and appeals',
-        badword: 'Banned words',
         staffAudit: 'Staff action oversight',
         memberView: 'Member lookup',
         nicknameImage: 'Nickname image review',

@@ -18,6 +18,11 @@ import org.hibernate.annotations.DynamicUpdate;
 @DynamicUpdate
 public class MemberViewSettingEntity {
 
+    /** 행이 없을 때의 기본값 — 회원 보기 설정(api {@code ViewSettingsPolicy})과 관리자 회원 상세(admin)가 같이 쓴다 */
+    public static final String DEFAULT_THEME = "AUTO";
+    public static final int DEFAULT_TEXT_SCALE = 100;
+    public static final String DEFAULT_COMMENT_ORDER = "OLDEST";
+
     @Id
     private Long userId;
 

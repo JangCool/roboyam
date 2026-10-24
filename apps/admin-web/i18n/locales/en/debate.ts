@@ -16,6 +16,9 @@ export default {
     },
     /** `{stances}` gets the side-colored `stanceTab` texts (vote counts) joined with ` · ` by the screen */
     summaryLine: '{total} voted ({stances}) · {opinions} opinions · {pending} pending pin requests',
+    /** 토론을 닫았지만 의견·대기 고정 요청이 남은 글 */
+    closedSummaryLine: '{opinions} opinions · {pending} pending pin requests',
+    closedHint: 'The debate is closed, but you can still handle its opinions and pin requests.',
     neutralLabel: 'Take neutral too',
     neutralHelp: 'When off, the public debate shows only pro and con and new neutral picks are blocked. Existing neutral votes and opinions stay.',
     stanceChangeLabel: 'Allow switching sides',
