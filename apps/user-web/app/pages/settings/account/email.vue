@@ -128,7 +128,7 @@ import UtilValidation from '~/utils/util-validation';
  * 오류는 서버 문구를 그대로 쓰고 코드로 갈라 자리에 붙인다 —
  *  - `400 VALIDATION`(`fields.newEmail`)·`409 EMAIL_TAKEN` → 새 이메일 칸 아래 · `401 CURRENT_PASSWORD_WRONG`·`429 LOGIN_LOCKED` → 비밀번호 칸 아래(잠금 동안은 입력·단추 잠금)
  *  - `429 RESEND_COOLDOWN` → 남은 시간을 단추에 · `409 EMAIL_CHANGE_NOT_ALLOWED`(소셜 가입자) → 폼 대신 안내 · 그 밖의 실패 → 「인증 메일을 보내지 못했어요」 + 「다시 시도」
- * ⚠ MOCK: `GET /api/me/account`·`POST /api/me/email-change` 는 서버에 없어 목업(`useAccountApi` — 내 계정은 실제 `/api/me/social` + 로그인 정보로 만든다).
+ * 변경 대기 이메일(`pendingEmail`)은 서버가 이미 가린 값(`m***@…`)이라 그대로 보인다.
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();
@@ -276,14 +276,11 @@ async function onFailed(e: unknown) {
             emailError.value = e.message;
             return;
         case 'VALIDATION':
-            if (e.field('newEmail')) {
-                await backToForm();
-                emailError.value = e.field('newEmail') ?? e.message;
-            } else if (e.field('password')) {
-                passwordError.value = e.field('password') ?? e.message;
-            } else {
-                formError.value = e.message;
-            }
+            // 서버는 `fields.newEmail`·`fields.password` 를 한꺼번에 준다 — 둘 다 칸에 붙인다
+            if (e.field('newEmail')) await backToForm();
+            emailError.value = e.field('newEmail') ?? '';
+            passwordError.value = e.field('password') ?? '';
+            if (!emailError.value && !passwordError.value) formError.value = e.message;
             return;
         case 'CURRENT_PASSWORD_WRONG':
             passwordError.value = e.message;

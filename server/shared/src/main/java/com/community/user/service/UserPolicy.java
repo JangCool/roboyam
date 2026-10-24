@@ -64,6 +64,21 @@ public final class UserPolicy {
     }
 
     /**
+     * 회원이 고르는 닉네임의 예약어 — 운영자로 오해될 이름. 소문자로 바꾸고 공백·밑줄을 뺀 닉네임에 <b>들어 있으면</b> 쓸 수 없다(community 입력 규칙 「예약어 불가」).
+     * 형식 검사({@link #nicknameViolation})와 따로 둔다 — 설치 마법사의 루트 계정은 예약어를 쓸 수 있어야 한다. 회원 가입·닉네임 확인(·닉네임 변경)이 부른다.
+     */
+    public static final java.util.List<String> RESERVED_NICKNAME_WORDS = java.util.List.of("admin", "운영자", "관리자", "운영진", "roboyam", "로보얌");
+
+    /** 예약어가 들어 있는 닉네임인가({@link #RESERVED_NICKNAME_WORDS}) — 위반 문구는 {@code user.nickname.reserved} */
+    public static boolean isReservedNickname(String nickname) {
+        if (nickname == null) {
+            return false;
+        }
+        String folded = nickname.toLowerCase(Locale.ROOT).replace(" ", "").replace("_", "");
+        return RESERVED_NICKNAME_WORDS.stream().anyMatch(folded::contains);
+    }
+
+    /**
      * 비밀번호 규칙(8~64자, UTF-8 72바이트 이하, 영문과 숫자를 모두 포함)을 어기면 위반 문구를 돌려준다.
      * bcrypt 는 72바이트를 넘는 부분을 무시하므로 해시하기 전에 거절한다 — 비밀번호를 해시하는 모든 입구가 이 검사를 거친다.
      */

@@ -13,7 +13,12 @@ public enum RequiredMail {
     OPERATOR_INVITE(MessageAudience.OPERATOR, true),
     OPERATOR_CREDENTIALS(MessageAudience.OPERATOR, true),
     OPERATOR_RESET_CODE(MessageAudience.OPERATOR, true),
-    MAIL_TEST(MessageAudience.OPERATOR, false);
+    MAIL_TEST(MessageAudience.OPERATOR, false),
+    // 회원 계정 흐름(docs/features/member-account-contract.md) — 보안 메일: 비밀번호 재설정 링크 · 소셜 전용 회원 안내 · 이메일 변경 링크(새 주소) · 이메일 변경 알림(지금 주소)
+    MEMBER_PASSWORD_RESET(MessageAudience.MEMBER, true),
+    MEMBER_PASSWORD_SOCIAL(MessageAudience.MEMBER, true),
+    MEMBER_EMAIL_CHANGE(MessageAudience.MEMBER, true),
+    MEMBER_EMAIL_CHANGE_NOTICE(MessageAudience.MEMBER, true);
 
     private final MessageAudience audience;
     private final boolean security;
