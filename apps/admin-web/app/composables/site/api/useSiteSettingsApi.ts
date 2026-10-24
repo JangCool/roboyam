@@ -22,7 +22,7 @@ import type {
  *   - `PUT /api/admin/site/basic` `{ siteName, tagline|null }` → 200 저장된 모양  (`site.manage`)
  *       · 400 VALIDATION(`fields.siteName` 1~50자·`<` `>` 제어 문자 없음, `fields.tagline` 0~100자·`<` `>` 없음, 둘 다 한꺼번에) · 403 PERMISSION_DENIED
  *   - 로고(저장 단추 없이 즉시 적용, `site.manage`) — 바이트와 "로고로 삼기"를 두 걸음으로 가른다(폼 JSON 과 multipart 를 한 API 가 받지 않는다):
- *       · `POST /api/admin/files` multipart `file`·`purpose=SITE_LOGO` → **201** `{ fileId }` · 400 VALIDATION(`fields.file`·`fields.purpose`)
+ *       · `POST /api/admin/files` multipart `file`·`purpose=SITE_LOGO` → **201** `{ fileId }` · 400 VALIDATION(`fields.file`·`fields.purpose`) — 주소는 `useFileApi` 에 있다
  *       · `PUT /api/admin/site/logo` `{ fileId }` → 200 `{ logoUrl }`(`/media/…` 상대 주소) · 400 VALIDATION(`fields.fileId` 없는 파일)
  *       · `PUT /api/admin/site/logo/svg` `{ svgSource }` → 200 `{ logoUrl }`(서버가 만든 SVG data URI — 화면은 `<img src>` 에만 넣고 `v-html` 을 쓰지 않는다) · 400 VALIDATION(`fields.svgSource` — 위험 요소는 정화하지 않고 거절)
  *       · `DELETE /api/admin/site/logo` → 200 `{ logoUrl: null }`
@@ -51,23 +51,11 @@ const PATH = {
     displayDefaults: '/api/admin/site/display-defaults',
     logo: '/api/admin/site/logo',
     logoSvg: '/api/admin/site/logo/svg',
-    files: '/api/admin/files',
     icon: '/api/admin/site/icon',
     iconSvg: '/api/admin/site/icon/svg',
     ogImage: '/api/admin/site/og-image',
     theme: '/api/admin/site/theme',
 };
-
-/** 로고 그림을 올릴 때 서버에 알리는 용도 이름 */
-const LOGO_PURPOSE = 'SITE_LOGO';
-
-/** 올리기 본문 — 바이트는 JSON 이 아니라 multipart 다(Base64 로 부풀리지 않는다) */
-function logoForm(file: File): FormData {
-    const form = new FormData();
-    form.append('file', file);
-    form.append('purpose', LOGO_PURPOSE);
-    return form;
-}
 
 /** 아이콘·링크 미리보기 이미지 올리기 본문 — `file` 한 파트(multipart) */
 function imageForm(file: File): FormData {
@@ -79,6 +67,8 @@ function imageForm(file: File): FormData {
 export function useSiteSettingsApi() {
     const auth = useAdminAuthApi();
     const client = useApiClient({ refreshCsrf: () => auth.me() });
+    // 로고 바이트 올리기는 파일 API(`/api/admin/files` 의 유일한 자리)에 맡긴다
+    const files = useFileApi();
 
     return {
         /** 사이트 기본 정보(이름·한 줄 소개·로고) */
@@ -88,7 +78,7 @@ export function useSiteSettingsApi() {
         saveBasic: (body: SiteBasicRequest): Promise<SiteBasicResponse> => client.put<SiteBasicResponse>(PATH.basic, body),
 
         /** 로고 그림 파일을 올린다 — 받은 `fileId` 로 `setLogoFile` 을 부른다(바이트와 로고 지정은 두 걸음) */
-        uploadLogoFile: (file: File): Promise<SiteLogoFileUploadResponse> => client.post<SiteLogoFileUploadResponse>(PATH.files, logoForm(file)),
+        uploadLogoFile: (file: File): Promise<SiteLogoFileUploadResponse> => files.upload(file, 'SITE_LOGO'),
 
         /** 올려 둔 그림을 로고로 삼는다 */
         setLogoFile: (body: SiteLogoFileRequest): Promise<SiteLogoResponse> => client.put<SiteLogoResponse>(PATH.logo, body),

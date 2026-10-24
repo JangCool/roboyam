@@ -85,6 +85,7 @@ export default {
     back: '돌아가기',
     backToBoard: '목록으로',
     edited: '(수정됨)',
+    highlighted: '하이라이트',
     views: '조회 {n}',
     likes: '추천 {n}',
     deleteScheduledNotice: '{at}에 지워질 예정인 글이에요.',

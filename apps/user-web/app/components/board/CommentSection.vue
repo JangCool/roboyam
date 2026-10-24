@@ -3,6 +3,11 @@
         글 보기의 댓글 구획 — 베스트 댓글(위에 따로) · 정렬(오래된순·최신순) · 원댓글 + 답글 1단계 · 새 댓글 입력.
         서버 호출은 페이지가 `usePostComments` 로 하고 여기에는 그 함수(`actions`)만 내려온다. 비회원 비밀번호 확인·지우기 확인·로그인 안내는 여기서 띄운다.
         신고는 페이지의 신고 대화상자를 쓴다(`report` 이벤트).
+        하이라이트 토론(`data.debate`, community `api-debate.md` 1~5절): 토론이 열렸거나(`enabled`) 이미 쓴 의견이 있으면 구분 탭(전체·일반·찬성·반대 + 수)을 보인다(끝난 토론은 읽기만).
+          열린 토론의 새 댓글 상자 위에는 — 입장을 정하지 않은 회원: [일반 · 찬성 · 반대] 고르기(찬성·반대로 처음 쓰면 입장이 정해진다) / 정한 회원: 「내 입장 [배지] · 입장 바꾸기」(확인 뒤 `PUT …/stance`) / 비회원: 로그인 안내 한 줄.
+          회원은 「@ 회원 지정」으로 이 글에 댓글을 쓴 회원을 골라 그 회원의 최근 댓글에 답글로 쓴다(`parentId`·`replyToId` — 상대 이름은 `replyTo` 로 `@이름` 이 그려지므로 본문에 덧붙이지 않는다).
+          입장 배지가 붙는 댓글의 글자 수는 `debate.opinionMax`. 토론 오류(`DEBATE_NOT_OPEN`·`STANCE_LOCKED`·`STANCE_NOT_SET`)는 서버 문구를 보이고 목록을 다시 받아 지금 상태로 맞춘다.
+          토론이 없는 글(`enabled false` · 의견 0)은 예전 화면 그대로다.
     -->
     <section :aria-labelledby="headingId" class="mt-6">
         <div class="flex items-center justify-between gap-2 border-b border-surface pb-2">
@@ -12,6 +17,16 @@
             <div class="flex gap-1 text-xs" role="group" :aria-label="t('comment.sortLabel')">
                 <button v-for="s in SORTS" :key="s" type="button" :class="sortClass(s)" :aria-pressed="sort === s" @click="$emit('sort', s)">{{ t(s === 'OLDEST' ? 'comment.sortOldest' : 'comment.sortLatest') }}</button>
             </div>
+        </div>
+
+        <!-- 하이라이트 토론 구분 탭 — 열린 토론이거나 이미 쓴 의견이 있을 때만(없는 글은 예전 그대로) -->
+        <div v-if="debate && showTabs" class="mt-2 flex flex-col gap-1.5" data-testid="comment-kinds">
+            <div class="flex flex-wrap gap-1 text-xs" role="group" :aria-label="t('comment.kindLabel')">
+                <button v-for="k in KINDS" :key="k" type="button" :class="kindClass(k)" :aria-pressed="kind === k" @click="$emit('kind', k)">
+                    {{ t(`comment.kind.${k}`) }} <span class="tabular-nums opacity-80">{{ kindCount(k) }}</span>
+                </button>
+            </div>
+            <p v-if="!debate.enabled" class="m-0 text-xs text-muted-color">{{ t('comment.debateClosed') }}</p>
         </div>
 
         <div v-if="state === 'loading'" class="py-4" role="status" :aria-label="t('comment.loading')">
@@ -31,7 +46,8 @@
                 </div>
             </div>
 
-            <EmptyState v-if="data.threads.length === 0" :title="t('comment.emptyTitle')" :description="board.viewer.canComment ? t('comment.emptyText') : ''" icon="pi pi-comments" />
+            <EmptyState v-if="data.threads.length === 0 && kind !== 'ALL'" :title="t('comment.kindEmpty')" icon="pi pi-comments" />
+            <EmptyState v-else-if="data.threads.length === 0" :title="t('comment.emptyTitle')" :description="board.viewer.canComment ? t('comment.emptyText') : ''" icon="pi pi-comments" />
 
             <div v-else class="divide-y divide-surface">
                 <div v-for="thread in data.threads" :key="thread.id">
@@ -108,6 +124,7 @@
                             :guest-mode="board.viewer.guest"
                             :guest-rules="board.viewer.guest"
                             :reply-to-name="replyTarget.name"
+                            :max-length="replyMax"
                             :submit-label="t('comment.replySubmit')"
                             cancelable
                             autofocus
@@ -124,16 +141,70 @@
 
         <!-- 새 댓글 — 막혔으면 까닭(댓글 받지 않음·로그인 필요·등급 미달·잠금) -->
         <div class="mt-4 border-t border-surface pt-4">
+            <!-- 열린 토론 — 입장 고르기 · 내 입장과 바꾸기 · 비회원 안내 · @ 회원 지정 -->
+            <div v-if="debateOpen && board.viewer.canComment" class="mb-3 flex flex-col gap-2 rounded-lg bg-surface-100 px-3 py-2.5 dark:bg-surface-800/60" data-testid="comment-debate">
+                <p v-if="board.viewer.guest" class="m-0 flex flex-wrap items-center gap-2 text-xs text-muted-color">
+                    <span>{{ t('comment.debateGuestHint') }}</span>
+                    <Button type="button" :label="t('common.login')" size="small" variant="text" @click="prompt('opinion')" />
+                </p>
+                <template v-else-if="debate?.myStance">
+                    <div class="flex flex-wrap items-center gap-2 text-sm">
+                        <span class="text-xs text-muted-color">{{ t('comment.myStance') }}</span>
+                        <DebateStanceBadge :stance="debate.myStance" />
+                        <Button type="button" :label="t('comment.changeStance')" icon="pi pi-sync" size="small" severity="secondary" variant="text" :loading="changingStance" @click="askChangeStance" />
+                    </div>
+                    <p class="m-0 text-xs text-muted-color">{{ t('comment.myStanceHint') }}</p>
+                </template>
+                <template v-else>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span :id="stanceLabelId" class="text-xs text-muted-color">{{ t('comment.stancePickLabel') }}</span>
+                        <div class="flex gap-1 text-xs" role="radiogroup" :aria-labelledby="stanceLabelId">
+                            <button v-for="choice in STANCE_CHOICES" :key="choice ?? 'GENERAL'" type="button" role="radio" :class="stanceClass(choice)" :aria-checked="pickedStance === choice" @click="pickedStance = choice">
+                                {{ choice ? t(`comment.stance.${choice}`) : t('comment.stanceGeneral') }}
+                            </button>
+                        </div>
+                    </div>
+                    <p class="m-0 text-xs text-muted-color">{{ t('comment.stancePickHint') }}</p>
+                </template>
+
+                <!-- @ 회원 지정 — 이 글에 댓글을 쓴 회원을 골라 그 회원의 최근 댓글에 답글로 쓴다 -->
+                <div v-if="!board.viewer.guest" class="flex flex-col gap-1.5">
+                    <div v-if="mentionTarget" class="flex flex-wrap items-center gap-1.5 text-xs">
+                        <span class="font-semibold text-primary">{{ t('comment.mentionTarget', { name: mentionTarget.name }) }}</span>
+                        <Button type="button" :label="t('comment.mentionClear')" size="small" severity="secondary" variant="text" @click="mentionTarget = null" />
+                    </div>
+                    <Button v-else-if="!mentionOpen" type="button" :label="t('comment.mention')" icon="pi pi-at" size="small" severity="secondary" variant="text" class="self-start" @click="openMention" />
+                    <div v-if="mentionOpen && !mentionTarget" class="flex flex-col gap-1.5">
+                        <div class="flex gap-2">
+                            <InputText v-model="mentionQuery" type="search" size="small" class="min-w-0 flex-1" :placeholder="t('comment.mentionSearch')" :aria-label="t('comment.mentionSearch')" />
+                            <Button type="button" :label="t('common.cancel')" size="small" severity="secondary" variant="text" @click="mentionOpen = false" />
+                        </div>
+                        <p class="m-0 text-xs text-muted-color">{{ t('comment.mentionHelp') }}</p>
+                        <p v-if="mentionError" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ mentionError }}</p>
+                        <p v-else-if="!mentionLoading && mentionItems.length === 0" class="m-0 text-xs text-muted-color">{{ t('comment.mentionEmpty') }}</p>
+                        <ul v-else class="m-0 flex list-none flex-col p-0" :aria-busy="mentionLoading">
+                            <li v-for="c in mentionItems" :key="c.replyToId">
+                                <button type="button" class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-surface-200 focus-visible:outline-2 focus-visible:outline-primary dark:hover:bg-surface-700" @click="chooseMention(c)">
+                                    <PostAuthorLabel :author="c.author" />
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
             <CommentForm
                 v-if="board.viewer.canComment"
                 :key="`new-${formSeq}`"
                 :board="board"
                 :guest-mode="board.viewer.guest"
                 :guest-rules="board.viewer.guest"
+                :reply-to-name="mentionTarget?.name ?? ''"
+                :max-length="newMax"
                 :submitting="busy === 'new'"
                 :field-errors="active === 'new' ? fieldErrors : {}"
                 :form-error="active === 'new' ? formError : ''"
-                @submit="submitNew($event, null)"
+                @submit="submitNew($event, mentionTarget)"
             />
             <div v-else class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-100 px-4 py-3 text-sm text-muted-color dark:bg-surface-800/60" data-testid="comment-blocked">
                 <span><i class="pi pi-comment mr-1.5" aria-hidden="true" />{{ blockedText }}</span>
@@ -157,10 +228,12 @@
 <script setup lang="ts">
 import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
 import type { CommentListResponse, CommentSort, CommentView } from '~/composables/board/api/useCommentApi.types';
+import type { Commenter, CommentKind, DebateStance } from '~/composables/board/api/useDebateApi.types';
 import type { ContentFormat, GuestCredentials } from '~/composables/board/api/usePostApi.types';
 import type { CommentLoadState } from '~/composables/board/usePostComments';
 import type { CommentActions } from '~/components/board/CommentSection.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilPost from '~/utils/util-post';
 
 interface Props {
     board: BoardDetail;
@@ -168,16 +241,24 @@ interface Props {
     state: CommentLoadState;
     errorMessage?: string;
     sort: CommentSort;
+    /** 하이라이트 토론 구분 — 탭이 없는 글은 늘 ALL */
+    kind?: CommentKind;
     actions: CommentActions;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     errorMessage: '',
+    kind: 'ALL',
 });
 
-const emit = defineEmits<{ sort: [value: CommentSort]; retry: []; report: [comment: CommentView] }>();
+const emit = defineEmits<{ sort: [value: CommentSort]; kind: [value: CommentKind]; retry: []; report: [comment: CommentView] }>();
 
 const SORTS: readonly CommentSort[] = ['OLDEST', 'LATEST'];
+const KINDS: readonly CommentKind[] = ['ALL', 'GENERAL', 'PRO', 'CON'];
+/** 입장 고르기 — 일반(null) · 찬성 · 반대 */
+const STANCE_CHOICES: readonly (DebateStance | null)[] = [null, 'PRO', 'CON'];
+/** 토론 상태가 바뀐 거절 — 서버 문구를 보이고 목록을 다시 받아 지금 상태(열림·내 입장)로 맞춘다 */
+const DEBATE_CODES: ReadonlySet<string> = new Set(['DEBATE_NOT_OPEN', 'STANCE_LOCKED', 'STANCE_NOT_SET']);
 
 const { t } = useI18n();
 const route = useRoute();
@@ -185,6 +266,7 @@ const toast = useAppToast();
 const { confirm } = useConfirmDialog();
 const { prompt } = useLoginPrompt();
 const headingId = useId();
+const stanceLabelId = useId();
 
 /** 지금 열린 폼과 그 서버 오류 — `new` · `reply` · `edit:{id}` */
 const active = ref('');
@@ -198,6 +280,122 @@ const replyTarget = ref<{ parentId: string; replyToId: string | null; name: stri
 const editingId = ref<string | null>(null);
 
 const blockedText = computed(() => UtilBoardMessages.commentBlocked(t, props.board.viewer.commentBlockedReason, props.board.commentMinGradeLabel));
+
+/* ── 하이라이트 토론 ── */
+const debate = computed(() => props.data?.debate ?? null);
+/** 지금 찬성·반대 의견을 받는다 */
+const debateOpen = computed(() => Boolean(debate.value?.enabled));
+/** 구분 탭 — 열린 토론이거나 이미 쓴 의견이 있다(끝난 하이라이트는 읽기만) */
+const showTabs = computed(() => Boolean(debate.value && (debate.value.enabled || debate.value.counts.pro + debate.value.counts.con > 0)));
+/** 새 댓글의 입장 — 입장을 정하지 않은 회원이 고른다(일반 = null) */
+const pickedStance = ref<DebateStance | null>(null);
+/** 새 댓글에 입장 배지가 붙으면 토론 한도 — 열린 토론에서 고른 입장이 있거나 이미 정한 입장이 있다 */
+const newMax = computed(() => {
+    const d = debate.value;
+    if (!d || !d.enabled || props.board.viewer.guest || !(pickedStance.value || d.myStance)) return UtilPost.COMMENT_MAX;
+    return d.opinionMax;
+});
+/** 답글 — 열린 토론이고 내 입장이 있으면 서버가 배지를 붙인다 */
+const replyMax = computed(() => (debate.value?.enabled && debate.value.myStance ? debate.value.opinionMax : UtilPost.COMMENT_MAX));
+
+function kindCount(k: CommentKind): number {
+    const counts = debate.value?.counts;
+    if (!counts) return 0;
+    if (k === 'ALL') return counts.all;
+    if (k === 'GENERAL') return counts.general;
+    return k === 'PRO' ? counts.pro : counts.con;
+}
+
+function kindClass(k: CommentKind): string {
+    return [
+        'rounded-full px-2.5 py-1 focus-visible:outline-2 focus-visible:outline-primary',
+        props.kind === k ? 'bg-primary font-semibold text-primary-contrast' : 'bg-surface-100 text-muted-color hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700',
+    ].join(' ');
+}
+
+function stanceClass(choice: DebateStance | null): string {
+    const tone = choice === 'PRO' ? 'bg-blue-600 text-white' : choice === 'CON' ? 'bg-red-600 text-white' : 'bg-surface-900 text-surface-0 dark:bg-surface-100 dark:text-surface-900';
+    return ['rounded-full px-3 py-1 focus-visible:outline-2 focus-visible:outline-primary', pickedStance.value === choice ? `${tone} font-semibold` : 'bg-surface-0 text-muted-color hover:text-color dark:bg-surface-900'].join(' ');
+}
+
+/** 입장 바꾸기 — 지금 입장의 반대로. 바꾼 뒤 쓰는 댓글부터 새 배지(이미 쓴 댓글은 그대로) */
+const changingStance = ref(false);
+async function askChangeStance(): Promise<void> {
+    const current = debate.value?.myStance;
+    if (!current || changingStance.value) return;
+    const next: DebateStance = current === 'PRO' ? 'CON' : 'PRO';
+    const ok = await confirm({ title: t(`comment.changeStanceTitle.${next}`), message: t('comment.changeStanceMessage'), confirmLabel: t('comment.changeStance') });
+    if (!ok) return;
+    changingStance.value = true;
+    try {
+        const stance = await props.actions.changeStance(next);
+        toast.show(t(`comment.stanceChanged.${stance}`), { tone: 'success' });
+    } catch (e) {
+        if (e instanceof ApiError && e.code === 'UNAUTHENTICATED') prompt('opinion');
+        else {
+            toast.error(UtilBoardMessages.of(t, e), 8000);
+            if (e instanceof ApiError && DEBATE_CODES.has(e.code)) emit('retry');
+        }
+    } finally {
+        changingStance.value = false;
+    }
+}
+
+/* ── @ 회원 지정 — 고른 회원의 최근 댓글에 답글로 쓴다 ── */
+const mentionOpen = ref(false);
+const mentionQuery = ref('');
+const mentionItems = ref<Commenter[]>([]);
+const mentionLoading = ref(false);
+const mentionError = ref('');
+const mentionTarget = ref<{ parentId: string; replyToId: string | null; name: string } | null>(null);
+let mentionTimer: ReturnType<typeof setTimeout> | null = null;
+let mentionAbort: AbortController | null = null;
+
+async function searchMention(): Promise<void> {
+    mentionAbort?.abort();
+    const abort = new AbortController();
+    mentionAbort = abort;
+    mentionLoading.value = true;
+    mentionError.value = '';
+    try {
+        const found = await props.actions.commenters(mentionQuery.value.trim(), abort.signal);
+        if (mentionAbort !== abort) return;
+        mentionItems.value = found.items;
+    } catch (e) {
+        if (e instanceof ApiError && e.code === 'ABORTED') return;
+        if (e instanceof ApiError && e.code === 'UNAUTHENTICATED') {
+            mentionOpen.value = false;
+            prompt('comment');
+            return;
+        }
+        mentionItems.value = [];
+        mentionError.value = UtilBoardMessages.of(t, e);
+    } finally {
+        if (mentionAbort === abort) mentionLoading.value = false;
+    }
+}
+
+function openMention(): void {
+    mentionOpen.value = true;
+    mentionQuery.value = '';
+    void searchMention();
+}
+
+watch(mentionQuery, () => {
+    if (!mentionOpen.value) return;
+    if (mentionTimer) clearTimeout(mentionTimer);
+    mentionTimer = setTimeout(() => void searchMention(), 250);
+});
+
+function chooseMention(c: Commenter): void {
+    mentionTarget.value = { parentId: c.parentId, replyToId: c.replyToId, name: c.author.name };
+    mentionOpen.value = false;
+}
+
+onBeforeUnmount(() => {
+    if (mentionTimer) clearTimeout(mentionTimer);
+    mentionAbort?.abort();
+});
 
 function sortClass(s: CommentSort): string {
     return [
@@ -233,8 +431,16 @@ function showError(e: unknown, action: 'comment' | 'reply'): void {
         return;
     }
     if (handleStale(e)) return;
-    if (e instanceof ApiError && e.fields && Object.keys(e.fields).length) fieldErrors.value = { ...e.fields };
-    else formError.value = UtilBoardMessages.of(t, e);
+    if (e instanceof ApiError && e.fields && Object.keys(e.fields).length) {
+        fieldErrors.value = { ...e.fields };
+        // 답글 대상 오류(@ 회원 지정한 댓글이 그새 지워짐 등)는 폼에 칸이 없다 — 아래 한 줄로
+        if (e.fields.parentId) formError.value = e.fields.parentId;
+    } else formError.value = UtilBoardMessages.of(t, e);
+    // 토론이 그새 닫혔거나 다른 입장이 이미 정해졌다 — 목록을 다시 받아 지금 상태(열림·내 입장)로 맞춘다(쓰던 글은 그대로)
+    if (e instanceof ApiError && DEBATE_CODES.has(e.code)) {
+        pickedStance.value = null;
+        emit('retry');
+    }
 }
 
 function closeForms(): void {
@@ -256,16 +462,24 @@ function openEdit(comment: CommentView): void {
 }
 
 async function submitNew(value: { content: string; contentFormat: ContentFormat; guest: GuestCredentials | null }, target: { parentId: string; replyToId: string | null } | null): Promise<void> {
-    const key = target ? 'reply' : 'new';
+    // 새 댓글 상자(@ 회원 지정으로 답글이 되어도 이 상자)인가 · 답글 상자인가
+    const fromNewBox = !target || target === mentionTarget.value;
+    const key = fromNewBox ? 'new' : 'reply';
     clearErrors(key);
     busy.value = key;
+    // 입장은 새 댓글 상자에서, 입장을 정하지 않은 회원이 고른 것만 보낸다(정한 회원은 서버가 붙인다)
+    const stance = fromNewBox && debateOpen.value && !props.board.viewer.guest && !debate.value?.myStance ? pickedStance.value : null;
     try {
-        await props.actions.create(value.content, value.contentFormat, { parentId: target?.parentId ?? null, replyToId: target?.replyToId ?? null }, value.guest);
+        await props.actions.create(value.content, value.contentFormat, { parentId: target?.parentId ?? null, replyToId: target?.replyToId ?? null }, value.guest, stance);
         formSeq.value += 1;
         closeForms();
+        if (fromNewBox) {
+            pickedStance.value = null;
+            mentionTarget.value = null;
+        }
         toast.show(t('comment.posted'), { tone: 'success' });
     } catch (e) {
-        showError(e, target ? 'reply' : 'comment');
+        showError(e, fromNewBox ? 'comment' : 'reply');
     } finally {
         busy.value = '';
     }

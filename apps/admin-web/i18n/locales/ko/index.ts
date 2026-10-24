@@ -34,6 +34,9 @@ import social from './social';
 import team from './team';
 import terms from './terms';
 import nicknameImage from './nicknameImage';
+import content from './content';
+import highlight from './highlight';
+import popular from './popular';
 
 export default {
     account,
@@ -65,4 +68,7 @@ export default {
     team,
     terms,
     nicknameImage,
+    content,
+    highlight,
+    popular,
 };

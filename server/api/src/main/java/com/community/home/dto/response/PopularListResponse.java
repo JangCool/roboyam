@@ -13,9 +13,9 @@ import java.util.Map;
  * @param totalPages 최소 1
  * @param nextCursor 늘 null(쪽 번호 방식)
  * @param fills      이번 응답에 든 채운 줄만 — 글 ID → YESTERDAY · LAST_WEEK. 없으면 빈 객체
- * @param from       이번 주 탭(WEEK)일 때만 그 주의 시작(한국시간 월요일 0시) — 다른 탭은 null
+ * @param from       이번 주 탭(WEEK)일 때만 그 주의 시작(한국시간, 설정의 주 시작 요일 0시) — 다른 탭은 null
  * @param to         이번 주 탭일 때만 다음 주 시작(미포함) — 다른 탭은 null
- * @param weekStart  늘 MONDAY
+ * @param weekStart  설정(인기글 설정)의 주 시작 요일 MONDAY · SUNDAY — 어느 탭에도 늘 실린다
  */
 public record PopularListResponse(List<PostFeedRowView> pinned, List<PostFeedRowView> items, int page, int totalPages, long totalCount, boolean hasNext,
                                   String nextCursor, String period, Map<String, String> fills, Instant from, Instant to, String weekStart) {

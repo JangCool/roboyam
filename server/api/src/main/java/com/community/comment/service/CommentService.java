@@ -33,6 +33,10 @@ import com.community.comment.exception.CommentNotFoundException;
 import com.community.comment.exception.CommentTooFastException;
 import com.community.comment.repository.master.CommentRepository;
 import com.community.comment.repository.master.CommentRepositoryQDSL;
+import com.community.debate.dto.response.CommentDebateView;
+import com.community.debate.dto.response.DebateCountsView;
+import com.community.debate.entity.DebateStance;
+import com.community.debate.service.DebateReader;
 import com.community.membernotification.dto.CommentNotice;
 import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.point.entity.PointReason;
@@ -60,6 +64,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -77,6 +82,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li><b>쓰기 순서</b>(목업 {@code mockCommentCreate}): 글(404·403 숨김) → 게시판(403 꺼짐) → 댓글 판정(401·403 까닭) → 칸(본문 1~2,000자, 링크·이미지, 비회원, 답글 대상)
  *       → 금지어 → 자동입력 방지 → 작성 간격({@code 429 COMMENT_TOO_FAST}) → 하루 한도({@code 429 COMMENT_DAILY_LIMIT}). 답글은 1단계({@code parentId} = 원댓글).</li>
  *   <li>글의 보이는 댓글 수({@code posts.comment_count})는 쓰기·지우기·숨김이 같은 트랜잭션에서 원자적으로 고친다.</li>
+ *   <li><b>하이라이트 토론</b>(docs/features/popular-highlight-contract.md 「서버 구현 결과」): 목록 {@code kind}(ALL · GENERAL · PRO · CON — 원댓글의 입장으로 가른다)와
+ *       {@code debate}(열림·내 입장·구분별 수), 댓글마다 {@code stance} 배지. 쓰기의 {@code stance} 는 {@link DebateReader#resolveForWrite} 로 해석하고, 처음 정하는 입장은 댓글과
+ *       같은 트랜잭션에서 저장한다(쓰기가 실패하면 입장도 없다). 배지가 붙는 댓글의 글자 수 한도는 {@link DebateReader#OPINION_MAX}.</li>
  *   <li>회원 댓글은 저장이 커밋된 뒤 활동 수 조건 즉시 승급을 판정한다({@link WriterPromotion} — 별도 트랜잭션, 실패해도 댓글쓰기는 성공).</li>
  *   <li>같은 트랜잭션의 마지막에 댓글 포인트와 회원 알림({@code COMMENT}·{@code REPLY})을 낸다 — 둘 다 세이브포인트로 격리돼 실패해도 댓글쓰기는 성공한다. 지우면 받은 포인트를
  *       0P 까지 회수하고, 추천이 인정된 추천 문턱을 채우면 작성자에게 추천 보너스를 준다({@link PointService}).</li>
@@ -91,6 +99,10 @@ public class CommentService {
     static final String DELAYED = "DELAYED";
     /** 베스트 댓글 최대 수(가정) */
     static final int BEST_MAX = 3;
+    /** 목록 구분 — 원댓글의 입장으로 가른다 */
+    static final String KIND_ALL = "ALL";
+    static final String KIND_GENERAL = "GENERAL";
+    static final List<String> KINDS = List.of(KIND_ALL, KIND_GENERAL, DebateStance.PRO.name(), DebateStance.CON.name());
 
     private final BoardCatalog catalog;
     private final BoardActorResolver actors;
@@ -107,14 +119,16 @@ public class CommentService {
     private final PointService points;
     private final MemberNotificationPublisher notices;
     private final ViewerBlocks viewerBlocks;
+    private final DebateReader debate;
     private final TransactionTemplate tx;
     private final TransactionTemplate readTx;
 
     public CommentService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                           CommentRepositoryQDSL commentQueries, PostCounterQueries counters, AuthorViews authors, GuestPasswords passwords,
                           CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion, PointService points, MemberNotificationPublisher notices,
-                          ViewerBlocks viewerBlocks, PlatformTransactionManager txManager) {
+                          ViewerBlocks viewerBlocks, DebateReader debate, PlatformTransactionManager txManager) {
         this.viewerBlocks = viewerBlocks;
+        this.debate = debate;
         this.promotion = promotion;
         this.points = points;
         this.notices = notices;
@@ -140,7 +154,12 @@ public class CommentService {
     private record Viewer(Long userId, String ip, boolean guest, int delayMinutes, Set<Long> liked, ViewerBlocks.Lens lens) {
     }
 
-    public CommentListResponse list(String postIdText, String sort, Long userId, String ip) {
+    /** @param kindRaw 구분 ALL(기본) · GENERAL · PRO · CON(대소문자 무시) — 그 밖은 400 {@code fields.kind}. 하이라이트가 아닌 글의 PRO·CON 은 빈 목록이다 */
+    public CommentListResponse list(String postIdText, String sort, String kindRaw, Long userId, String ip) {
+        String kind = kindRaw == null || kindRaw.isBlank() ? KIND_ALL : kindRaw.strip().toUpperCase(Locale.ROOT);
+        if (!KINDS.contains(kind)) {
+            throw ValidationException.of("kind", new MessageRef("debate.kind.invalid"));
+        }
         return readTx.execute(status -> {
             Instant now = Instant.now();
             PostEntity post = postQueries.requireVisible(postIdText, now);
@@ -157,7 +176,9 @@ public class CommentService {
             Map<Long, CommentEntity> byId = new HashMap<>();
             all.forEach(c -> byId.put(c.getId(), c));
 
-            List<CommentEntity> tops = new ArrayList<>(all.stream().filter(c -> c.getParentId() == null).toList());
+            List<CommentEntity> allTops = all.stream().filter(c -> c.getParentId() == null).toList();
+            DebateCountsView counts = counts(allTops, post.getCommentCount(), now);
+            List<CommentEntity> tops = new ArrayList<>(allTops.stream().filter(c -> inKind(c, kind)).toList());
             if ("LATEST".equals(sort)) {
                 tops.sort(Comparator.comparing(CommentEntity::getId, Comparator.reverseOrder()));
             }
@@ -175,14 +196,45 @@ public class CommentService {
             }
             int minLikes = s.defaults().bestCommentMinLikes();
             List<CommentView> best = all.stream()
+                    .filter(c -> KIND_ALL.equals(kind) || (c.getParentId() == null && inKind(c, kind)))
                     .filter(c -> !c.isDeleted() && !c.isHiddenAt(now) && c.getLikeCount() >= minLikes)
                     .map(c -> view(c, viewer, byId, members, s, now))
                     .filter(v -> VISIBLE.equals(v.state()))
                     .sorted(Comparator.comparingInt(CommentView::likeCount).reversed().thenComparing(CommentView::id))
                     .limit(BEST_MAX)
                     .toList();
-            return new CommentListResponse(threads, best, post.getCommentCount());
+            CommentDebateView debateView = debate.forComments(post.getId(), userId, now, counts);
+            return new CommentListResponse(threads, best, post.getCommentCount(), kind, debateView);
         });
+    }
+
+    /** 원댓글이 그 구분에 드는가 — GENERAL = 배지 없음, PRO·CON = 그 배지. 지운·숨긴 자리도 배지를 간직하므로 같은 탭에 남는다 */
+    private static boolean inKind(CommentEntity top, String kind) {
+        return switch (kind) {
+            case KIND_ALL -> true;
+            case KIND_GENERAL -> top.getStance() == null;
+            default -> kind.equals(top.getStance());
+        };
+    }
+
+    /** 구분별 수 — {@code all} 은 글의 보이는 댓글 수(답글 포함), 나머지는 지우거나 숨기지 않은 원댓글만 */
+    private static DebateCountsView counts(List<CommentEntity> tops, int visibleAll, Instant now) {
+        int general = 0;
+        int pro = 0;
+        int con = 0;
+        for (CommentEntity c : tops) {
+            if (c.isDeleted() || c.isHiddenAt(now)) {
+                continue;
+            }
+            if (c.getStance() == null) {
+                general++;
+            } else if (DebateStance.PRO.name().equals(c.getStance())) {
+                pro++;
+            } else {
+                con++;
+            }
+        }
+        return new DebateCountsView(visibleAll, general, pro, con);
     }
 
     private CommentView view(CommentEntity c, Viewer viewer, Map<Long, CommentEntity> byId, Map<Long, ProfileEntity> members, BoardCatalogSnapshot s,
@@ -210,7 +262,7 @@ public class CommentService {
                 DELETED.equals(state) ? AuthorViews.blank(author) : author, VISIBLE.equals(state) ? c.getContent() : null, c.getContentFormat().name(), state,
                 c.getCreatedAt(),
                 c.getEditedAt(), c.getLikeCount(), viewer.liked().contains(c.getId()), viewer.userId() != null && viewer.userId().equals(c.getAuthorId()),
-                VISIBLE.equals(state) ? viewer.lens().blockedOf(c.getAuthorId(), RichText.plainOf(c.getContentFormat(), c.getContent())) : null);
+                VISIBLE.equals(state) ? viewer.lens().blockedOf(c.getAuthorId(), RichText.plainOf(c.getContentFormat(), c.getContent())) : null, c.getStance());
     }
 
     /** 비회원에게 아직 보이지 않는 댓글인가 — 같은 IP 가 쓴 비회원 댓글은 본인 것으로 본다 */
@@ -239,7 +291,20 @@ public class CommentService {
         BoardSecurityValues sec = s.security();
 
         Map<String, MessageRef> fields = new LinkedHashMap<>();
-        ContentBody content = checkContent(b, body.contentFormat(), body.content(), writer(actor, b, s), sec, fields);
+        // 하이라이트 토론의 입장 — 칸 오류(형식·비회원)면 해석하지 않는다. 해석은 409(DEBATE_NOT_OPEN · STANCE_LOCKED)를 던질 수 있다
+        DebateStance requested = null;
+        try {
+            requested = DebateStance.parse(body.stance());
+        } catch (IllegalArgumentException e) {
+            fields.put("stance", new MessageRef("debate.stance.invalid"));
+        }
+        if (requested != null && actor.guest()) {
+            fields.put("stance", new MessageRef("debate.stance.memberOnly"));
+            requested = null;
+        }
+        DebateReader.WriteStance stance = fields.containsKey("stance") ? new DebateReader.WriteStance(null, false)
+                : debate.resolveForWrite(post.getId(), actor.guest() ? null : actor.userId(), requested, start);
+        ContentBody content = checkContent(b, body.contentFormat(), body.content(), writer(actor, b, s), sec, stance.bodyMax(), fields);
         String guestName = null;
         if (actor.guest()) {
             ContentRules.checkGuest(body.guest(), sec, fields);
@@ -286,8 +351,11 @@ public class CommentService {
         CommentView created = tx.execute(status -> {
             Instant now = Instant.now();
             checkRate(s, authorId, ip, now);
+            if (authorId != null) {
+                debate.settle(post.getId(), authorId, stance, now); // 처음 정하는 입장 — 다른 입장이 먼저 정해졌으면 409(댓글도 롤백)
+            }
             CommentEntity comment = CommentEntity.create(id, post.getId(), b.id(), parent, replyTo, authorId, name, hash, ip, masked.format(), masked.content(),
-                    now);
+                    stance.stanceName(), now);
             comments.persist(comment);
             counters.addCommentCount(post.getId(), 1);
             Map<Long, CommentEntity> byId = new HashMap<>();
@@ -341,10 +409,11 @@ public class CommentService {
     }
 
     /**
-     * 본문 형식 + 본문 1~2,000자(HTML 은 보이는 글자) + 링크·이미지(댓글은 이미지 불가). 형식이 빠지면 TEXT, 모르는 형식·댓글 에디터 NONE 게시판의 HTML 은
+     * 본문 형식 + 본문 1~{@code max}자(HTML 은 보이는 글자 — 일반 댓글 {@link ContentRules#COMMENT_MAX}, 입장 배지가 붙는 댓글 {@link DebateReader#OPINION_MAX})
+     * + 링크·이미지(댓글은 이미지 불가). 형식이 빠지면 TEXT, 모르는 형식·댓글 에디터 NONE 게시판의 HTML 은
      * {@code fields.contentFormat}. HTML 은 간단 에디터 허용 목록으로 정화한다(이미지 표식은 간단 목록에 없어 사라진다).
      */
-    private static ContentBody checkContent(EffectiveBoard b, String formatText, String raw, ContentRules.Writer writer, BoardSecurityValues sec,
+    private static ContentBody checkContent(EffectiveBoard b, String formatText, String raw, ContentRules.Writer writer, BoardSecurityValues sec, int max,
                                             Map<String, MessageRef> fields) {
         ContentFormat format = ContentRules.format(formatText);
         if (format == null || (format == ContentFormat.HTML && !b.commentHtml())) {
@@ -357,8 +426,8 @@ public class CommentService {
         }
         ContentBody content = format == ContentFormat.HTML ? ContentBody.html(raw, RichText.Level.SIMPLE) : ContentBody.text(raw);
         int length = ContentRules.length(content.plain());
-        if (length < 1 || length > ContentRules.COMMENT_MAX) {
-            fields.put("content", new MessageRef("board.comment.length", String.format("%,d", ContentRules.COMMENT_MAX)));
+        if (length < 1 || length > max) {
+            fields.put("content", new MessageRef("board.comment.length", String.format("%,d", max)));
         } else if (content.isHtml() && content.content().length() > ContentRules.COMMENT_HTML_MAX) {
             fields.put("content", new MessageRef("board.comment.html.tooLong"));
         } else {
@@ -407,7 +476,8 @@ public class CommentService {
         ContentRules.Writer writer = comment.isGuest() ? ContentRules.Writer.GUEST : writer(actor, b, s);
         BoardSecurityValues sec = s.security();
         Map<String, MessageRef> fields = new LinkedHashMap<>();
-        ContentBody content = checkContent(b, body.contentFormat(), body.content(), writer, sec, fields);
+        int max = comment.getStance() == null ? ContentRules.COMMENT_MAX : DebateReader.OPINION_MAX; // 배지는 고칠 때 바뀌지 않는다
+        ContentBody content = checkContent(b, body.contentFormat(), body.content(), writer, sec, max, fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }

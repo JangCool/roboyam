@@ -89,6 +89,7 @@
 - `PostBoardRefView` 에 `color` 칸(마지막)을 더했다 — 마이페이지 세션과 같은 줄(세션 정리 결정). JSON 에 `id` 도 있다(화면 타입에는 없음, 무해).
 
 **인기글 순위 = DB 배치 `popular-rank`**(저장 프로시저 + pg_cron, 분류 MEMBER, 기본 `*/5 * * * *` — 가정, 배치 화면에서 바꿀 수 있다). `R__batch_24_popular_rank.sql`: 기간 함수 `popular_period_range`(Java 응답의 `from`·`to` 도 이것을 부른다) · 후보 함수 · 프로시저 `batch_popular_rank`(기간마다 DELETE+INSERT 후 COMMIT — 실패한 기간은 예전 스냅샷 유지, 처리 건수 0 이면 SKIP). 표 `post_rank_snapshots(period, rank, post_id, score, fill, computed_at)`.
+- → popular-highlight-contract 로 설정화(2026-10-24 — 아래 상수는 설정 표 `popular_settings` 의 기본값이 됐다. 관리자 「인기글 설정」·「인기글 관리(빼기)」, `weekStart` 는 설정 값).
 - 서버 상수(결정 — 설정 화면 없음): 점수 추천×3 + 댓글×2 + 조회×0.1, 실시간만 `÷ (경과 시간 + 2)^1.5`, 최소 추천 3, 점수 0 제외, 한 글쓴이 한 탭 2개(채운 글 포함), 탭마다 50개, 실시간·이번 주가 5개 미만이면 어제(`YESTERDAY`)·지난주(`LAST_WEEK`) 글로 채움, 어제는 채우지 않음, 같은 점수면 ID 큰 글 먼저, 한국 달력·주 시작 월요일. 제외: 19금·삭제·숨김·꺼진 게시판·**게시판 설정 「가젯 노출 금지」에 인기글(`POPULAR`)을 고른 게시판(`boards.gadget_exclusions`, shared V69 — 핫딜·직접홍보 DEAL·PROMO 는 이 값으로 시작, 사용자 결정 2026-10-24)**·운영진 전용 게시판(유효 글쓰기 자격 `STAFF`).
 - 비회원 글의 「글쓴이」는 작성 IP(`author_ip`, 보유 기간이 지나 지워졌으면 이름)로 가른다.
 - pg_cron 이 없으면 순위가 계산되지 않아 인기글이 늘 비어 있다(`grade-promotion` 과 같음 — 관리자 서버 기동 WARN·배치 목록 「사용 불가」). 실행 로그가 하루 288줄 쌓인다(`batch-log-cleanup` 90일 보관).

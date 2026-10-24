@@ -8,6 +8,7 @@ import com.community.board.service.AuthorViews;
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.ContentRules;
 import com.community.board.service.PublicBoardService;
+import com.community.debate.service.DebateReader;
 import com.community.post.dto.PostNeighborData;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.response.PostAuthorView;
@@ -55,9 +56,11 @@ public class PostQueryService {
     private final PostCounterQueries counters;
     private final AuthorViews authors;
     private final ViewerBlocks viewerBlocks;
+    private final DebateReader debate;
 
     public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors,
-                            ViewerBlocks viewerBlocks) {
+                            ViewerBlocks viewerBlocks, DebateReader debate) {
+        this.debate = debate;
         this.catalog = catalog;
         this.posts = posts;
         this.postQueries = postQueries;
@@ -163,13 +166,14 @@ public class PostQueryService {
         Optional<PostNeighborData> older = postQueries.older(b.id(), post.getId(), now);
         Optional<PostNeighborData> newer = postQueries.newer(b.id(), post.getId(), now);
         PostAuthorView author = authors.of(post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), members, s).withMemo(lens.memoOf(post.getAuthorId()));
+        DebateReader.Status highlight = debate.status(post.getId(), now);
         return new PostDetailView(Long.toString(post.getId()), new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()),
                 prefixRef(b, post.getPrefixId()), post.getTitle(), post.getContentFormat().name(), post.getContent(),
                 author, post.getCreatedAt(), post.getEditedAt(), viewCount,
                 post.getLikeCount(), liked, post.getCommentCount(), post.isAdult(), userId != null && userId.equals(post.getAuthorId()),
                 protection(b, post.getCommentCount()), post.getDeleteScheduledAt(), older.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null),
                 newer.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null), Boolean.TRUE.equals(s.security().externalLinkNofollow()),
-                lens.blockedOf(post.getAuthorId(), post.getTitle()));
+                lens.blockedOf(post.getAuthorId(), post.getTitle()), highlight.highlighted(), debate.summary(highlight, post.getId(), userId));
     }
 
     /** 댓글 많은 글 보호 — 보이는 댓글 수가 기준 이상이면 보호 중 */

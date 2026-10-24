@@ -1,5 +1,5 @@
 <template>
-    <!-- 댓글 하나 — 작성자·시각·본문·[추천][답글][⋯ 고치기·지우기·신고]. 지운 댓글·신고로 숨긴 댓글은 자리만, 비회원에게 늦게 보이는 댓글은 로그인 안내 단추 -->
+    <!-- 댓글 하나 — (토론 입장 배지)·작성자·시각·본문·[추천][답글][⋯ 고치기·지우기·신고]. 지운 댓글·신고로 숨긴 댓글은 자리만, 비회원에게 늦게 보이는 댓글은 로그인 안내 단추 -->
     <article :id="`comment-${comment.id}`" class="scroll-mt-20 py-3" :class="reply ? 'pl-6' : ''">
         <p v-if="comment.state === 'DELETED'" class="text-sm text-muted-color">
             <i v-if="reply" class="pi pi-reply mr-1 rotate-180 text-xs" aria-hidden="true" />{{ t('comment.deleted') }}
@@ -14,6 +14,8 @@
                 <span v-if="best" class="inline-flex items-center justify-center rounded bg-primary px-1.5 py-1 text-[0.6875rem] font-semibold leading-none text-primary-contrast">
                     <span class="relative top-[-0.09em]">{{ t('comment.bestBadge') }}</span>
                 </span>
+                <!-- 하이라이트 토론의 입장 배지(쓸 때의 입장) -->
+                <DebateStanceBadge v-if="comment.stance" :stance="comment.stance" />
                 <PostAuthorLabel :author="comment.author" show-ip link class="text-color" />
                 <span aria-hidden="true">·</span>
                 <time :datetime="comment.createdAt" :title="time.full(comment.createdAt)">{{ time.ago(comment.createdAt) }}</time>

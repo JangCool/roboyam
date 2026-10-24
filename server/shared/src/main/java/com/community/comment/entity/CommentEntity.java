@@ -21,6 +21,9 @@ import org.hibernate.annotations.DynamicUpdate;
 @DynamicUpdate
 public class CommentEntity {
 
+    /** 운영자가 숨긴 의견의 숨김 까닭({@code comments.hidden_reason}, V76) — 신고 숨김 까닭(REPORTED · ILLEGAL · RIGHTS)과 같은 칸 */
+    public static final String STAFF_HIDDEN = "STAFF";
+
     @Id
     private Long postId;
 
@@ -41,6 +44,9 @@ public class CommentEntity {
     @Column(updatable = false)
     private int likeCount;
 
+    /** 하이라이트 토론의 입장 배지(PRO · CON — {@code DebateStance}), 일반 댓글은 null. 쓸 때 정해지고 바뀌지 않는다(V76) */
+    private String stance;
+
     private Instant hiddenAt;
     private String hiddenReason;
     private Instant hiddenUntil;
@@ -55,7 +61,14 @@ public class CommentEntity {
 
     public static CommentEntity create(long id, long postId, long boardId, Long parentId, Long replyToId, Long authorId, String guestName,
                                        String guestPasswordHash, String authorIp, ContentFormat format, String content, Instant now) {
+        return create(id, postId, boardId, parentId, replyToId, authorId, guestName, guestPasswordHash, authorIp, format, content, null, now);
+    }
+
+    /** @param stance 하이라이트 토론의 입장 배지(PRO · CON), 일반 댓글이면 null */
+    public static CommentEntity create(long id, long postId, long boardId, Long parentId, Long replyToId, Long authorId, String guestName,
+                                       String guestPasswordHash, String authorIp, ContentFormat format, String content, String stance, Instant now) {
         CommentEntity comment = new CommentEntity();
+        comment.stance = stance;
         comment.id = id;
         comment.postId = postId;
         comment.boardId = boardId;
@@ -94,6 +107,28 @@ public class CommentEntity {
         this.hiddenUntil = until;
         this.updatedAt = now;
         return true;
+    }
+
+    /** 운영자가 의견을 숨긴다(관리자 하이라이트 의견 관리) — 까닭 {@value #STAFF_HIDDEN}, 기간 없음. 이미 숨겨져 있으면(신고 숨김 포함) 그대로(false) */
+    public boolean hideByStaff(Instant now) {
+        return hide(STAFF_HIDDEN, null, now);
+    }
+
+    /** 운영자 숨김을 푼다 — 까닭이 {@value #STAFF_HIDDEN} 인 숨김만(신고 숨김은 풀지 않는다). 풀었으면 true */
+    public boolean unhideByStaff(Instant now) {
+        if (!STAFF_HIDDEN.equals(hiddenReason) || hiddenAt == null) {
+            return false;
+        }
+        this.hiddenAt = null;
+        this.hiddenReason = null;
+        this.hiddenUntil = null;
+        this.updatedAt = now;
+        return true;
+    }
+
+    /** 운영자가 숨긴 의견인가(지금 숨김 중이고 까닭이 STAFF) */
+    public boolean isStaffHiddenAt(Instant now) {
+        return isHiddenAt(now) && STAFF_HIDDEN.equals(hiddenReason);
     }
 
     public boolean isGuest() {
@@ -152,6 +187,15 @@ public class CommentEntity {
 
     public String getContent() {
         return content;
+    }
+
+    /** 입장 배지(PRO · CON), 일반 댓글은 null */
+    public String getStance() {
+        return stance;
+    }
+
+    public String getHiddenReason() {
+        return hiddenReason;
     }
 
     public int getLikeCount() {

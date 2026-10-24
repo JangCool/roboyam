@@ -6,6 +6,7 @@
 import type { Role } from '~/composables/auth/api/useAuthApi.types';
 import type { BoardProtectDelete, PrefixView } from '~/composables/board/api/useBoardApi.types';
 import type { BlockedBy } from '~/composables/block/api/useBlockApi.types';
+import type { DebateSummary } from '~/composables/board/api/useDebateApi.types';
 
 /**
  * 본문 형식 — `TEXT` 평문(Textarea, 글자로 그린다) · `HTML` 에디터 HTML(서버가 정화한 것만 돌려준다 — 글 보기·댓글 보기만 `v-html` 로 그린다).
@@ -179,6 +180,10 @@ export interface PostDetail {
      * 서버는 본문을 그대로 싣는다 — 접는 것은 화면의 일이다(`FoldedRow`, `useBlockOverrides().blockedOf`).
      */
     blocked?: BlockedBy | null;
+    /** 지금 하이라이트로 노출 중인 글(노출 켬 + 기간 안) — 제목 위에 「하이라이트」 표시. 「찬성·반대 의견 받기」와 무관(2026-10-24) */
+    highlighted?: boolean;
+    /** 하이라이트 토론 요약 — 늘 있다(하이라이트가 아니면 `enabled false`). 옛 응답에는 없을 수 있다 */
+    debate?: DebateSummary;
 }
 
 /** 비회원 작성 정보 — 이름·비밀번호(수정·삭제용, 서버는 해시로만 저장)·자동입력 방지 토큰 */

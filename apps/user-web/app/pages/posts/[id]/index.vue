@@ -8,6 +8,7 @@
           댓글 많은 글 보호(commentProtect*)는 서버가 `protection` 으로 알려 주고, 막힌 동작은 단추를 누르면 까닭을 알린다.
         차단한 회원의 글·차단한 단어가 제목에 든 글(`blocked`)은 제목·본문·추천 줄을 「차단한 사용자의 글이에요 · 보기」로 접는다(목록처럼 제목도 가린다 — 단어 차단은 제목에 걸린다).
           게시판 이름·작성자 줄(메모 칩)·예약 삭제/보호 알림·수정/삭제·이전·다음 글·댓글(댓글은 따로 접힌다)은 남긴다. 「보기」를 누르면 그 자리에서 펼치고 「다시 숨기기」로 다시 접는다.
+        지금 하이라이트로 노출 중인 글(`highlighted`)은 게시판 이름 옆에 「하이라이트」 표시. 찬성·반대 토론(입장·구분 탭·배지·@ 지정)은 댓글 구획(`CommentSection`)이 댓글 목록의 `debate` 로 그린다.
     -->
     <div>
         <!-- 모바일 안쪽 화면 머리 — 셸의 위·아래 막대가 숨겨진다(`shell: 'inner'`) -->
@@ -33,7 +34,13 @@
         <article v-else :aria-labelledby="titleId">
             <!-- 머리 -->
             <header class="border-b border-surface pb-3">
-                <NuxtLink :to="`/boards/${board.slug}`" class="text-xs font-semibold text-primary hover:underline max-md:hidden">{{ boardName }}</NuxtLink>
+                <div class="flex items-center gap-2">
+                    <NuxtLink :to="`/boards/${board.slug}`" class="text-xs font-semibold text-primary hover:underline max-md:hidden">{{ boardName }}</NuxtLink>
+                    <!-- 지금 하이라이트로 노출 중인 글 -->
+                    <span v-if="post.highlighted" class="inline-flex items-center justify-center gap-1 rounded bg-amber-100 px-1.5 py-1 text-[0.6875rem] font-semibold leading-none text-amber-800 dark:bg-amber-900/50 dark:text-amber-200" data-testid="post-highlighted">
+                        <span class="relative top-[-0.09em]">{{ t('post.highlighted') }}</span>
+                    </span>
+                </div>
                 <!-- 접힌 글은 제목(말머리)을 가린다 — 글의 이름표(`aria-labelledby`)는 접힌 까닭으로 둔다(아래 접힌 줄이 같은 글자를 보이므로 화면에서는 숨김) -->
                 <h1 v-if="folded && foldReason" :id="titleId" class="sr-only">{{ UtilBlockMessages.folded(t, foldReason, 'post') }}</h1>
                 <h1 v-else :id="titleId" class="mt-1 break-words text-lg font-bold leading-snug md:text-xl">
@@ -152,8 +159,10 @@
                 :state="comments.state.value"
                 :error-message="comments.errorMessage.value"
                 :sort="comments.sort.value"
+                :kind="comments.kind.value"
                 :actions="commentActions"
                 @sort="comments.setSort"
+                @kind="comments.setKind"
                 @retry="comments.load"
                 @report="(c) => openReport('COMMENT', c.id)"
             />
@@ -241,10 +250,12 @@ async function load(): Promise<void> {
 
 const comments = usePostComments(id);
 const commentActions: CommentActions = {
-    create: (content, contentFormat, target, guest) => comments.create(content, contentFormat, target, guest),
+    create: (content, contentFormat, target, guest, stance) => comments.create(content, contentFormat, target, guest, stance),
     update: (commentId, content, contentFormat, password) => comments.update(commentId, content, contentFormat, password),
     remove: (commentId, password) => comments.remove(commentId, password),
     like: (commentId) => comments.like(commentId),
+    changeStance: (stance) => comments.changeStance(stance),
+    commenters: (q, signal) => comments.commenters(q, signal),
 };
 // 댓글 수가 바뀌면(쓰기·지우기) 글 머리의 보호 상태가 달라질 수 있다 — 글은 다시 받지 않고 댓글 수만 맞춘다
 watch(

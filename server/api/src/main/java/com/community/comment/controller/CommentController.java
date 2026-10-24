@@ -37,12 +37,13 @@ public class CommentController {
         this.ipResolver = ipResolver;
     }
 
-    /** 원댓글 + 답글 + 베스트 + 보이는 수. {@code sort} OLDEST(기본) · LATEST */
+    /** 원댓글 + 답글 + 베스트 + 보이는 수 + 토론 칸. {@code sort} OLDEST(기본) · LATEST, {@code kind} ALL(기본) · GENERAL · PRO · CON(하이라이트 토론 구분) */
     @GetMapping("/api/posts/{postId}/comments")
     public ResponseEntity<ApiResponse<CommentListResponse>> list(@PathVariable String postId, @RequestParam(required = false, defaultValue = "OLDEST") String sort,
-                                                                 Authentication authentication, HttpServletRequest request) {
+                                                                 @RequestParam(required = false) String kind, Authentication authentication,
+                                                                 HttpServletRequest request) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-                .body(ApiResponse.success(service.list(postId, sort, userId(authentication), ipResolver.resolve(request))));
+                .body(ApiResponse.success(service.list(postId, sort, kind, userId(authentication), ipResolver.resolve(request))));
     }
 
     /** 쓰기(201) — 새 댓글 */

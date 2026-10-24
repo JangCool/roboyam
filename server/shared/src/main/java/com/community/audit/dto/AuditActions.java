@@ -139,6 +139,28 @@ public final class AuditActions {
     public static final String NICKNAME_IMAGE_REVOKE = "NICKNAME_IMAGE_REVOKE";
     /** 닉네임 그림 신청 조건(방식·최소 등급·일수·활동·포인트·이메일 인증) 저장 — 대상 NICKNAME_IMAGE_SETTINGS, 바뀐 칸만 before/after */
     public static final String NICKNAME_IMAGE_SETTINGS_UPDATE = "NICKNAME_IMAGE_SETTINGS_UPDATE";
+    // ── 인기글·하이라이트·토론(docs/features/popular-highlight-contract.md) ──
+    /** 인기글 설정 저장 — 대상 POPULAR_SETTINGS + {@code popular}, 바뀐 칸만 before/after, 다시 계산 요청 여부 {@code recomputeRequested} */
+    public static final String POPULAR_SETTINGS_UPDATE = "POPULAR_SETTINGS_UPDATE";
+    /** 인기글에서 빼기 — 대상 POST + 글 ID, {@code reason}·{@code memo} */
+    public static final String POPULAR_EXCLUDE = "POPULAR_EXCLUDE";
+    /** 인기글에 다시 넣기 — 대상 POST + 글 ID, 뺐던 {@code reason} */
+    public static final String POPULAR_RESTORE = "POPULAR_RESTORE";
+    /** 하이라이트 만들기 — 대상 HIGHLIGHT + 하이라이트 ID, {@code postId}·칸 값 */
+    public static final String HIGHLIGHT_CREATE = "HIGHLIGHT_CREATE";
+    /** 하이라이트 고치기 — 바뀐 칸만 before/after */
+    public static final String HIGHLIGHT_UPDATE = "HIGHLIGHT_UPDATE";
+    /** 하이라이트 지우기 — {@code postId} */
+    public static final String HIGHLIGHT_DELETE = "HIGHLIGHT_DELETE";
+    /** 하이라이트 순서 바꾸기 — 대상 HIGHLIGHT + {@code order}, before/after ID 차례 */
+    public static final String HIGHLIGHT_ORDER = "HIGHLIGHT_ORDER";
+    /** 하이라이트 노출 켜기·끄기 — from/to */
+    public static final String HIGHLIGHT_VISIBLE = "HIGHLIGHT_VISIBLE";
+    /** 하이라이트 의견 고정·고정 해제·숨김·숨김 해제 — 대상 COMMENT + 댓글 ID, {@code highlightId}·{@code postId}·{@code stance} */
+    public static final String HIGHLIGHT_OPINION_PIN = "HIGHLIGHT_OPINION_PIN";
+    public static final String HIGHLIGHT_OPINION_UNPIN = "HIGHLIGHT_OPINION_UNPIN";
+    public static final String HIGHLIGHT_OPINION_HIDE = "HIGHLIGHT_OPINION_HIDE";
+    public static final String HIGHLIGHT_OPINION_UNHIDE = "HIGHLIGHT_OPINION_UNHIDE";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

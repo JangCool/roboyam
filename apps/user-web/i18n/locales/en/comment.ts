@@ -35,4 +35,41 @@ export default {
     deleteMessage: 'Deleted comments can’t be restored.',
     deletedToast: 'Comment deleted.',
     passwordDescription: 'Enter the password you set when commenting.',
+
+    // ── Highlight debate (pro and con opinions) ──
+    stance: {
+        PRO: 'Pro',
+        CON: 'Con',
+    },
+    kindLabel: 'Comment type',
+    kind: {
+        ALL: 'All',
+        GENERAL: 'General',
+        PRO: 'Pro',
+        CON: 'Con',
+    },
+    kindEmpty: 'No comments of this type yet',
+    debateClosed: 'The debate has ended. Existing opinions are read-only.',
+    debateGuestHint: 'Only signed-in members can post pro or con opinions.',
+    stancePickLabel: 'Which side are you on?',
+    stanceGeneral: 'General',
+    stancePickHint: 'Your first pro or con comment sets your side. After that, change it with "Change side".',
+    myStance: 'My side',
+    myStanceHint: 'Your comments and replies on this post get this badge.',
+    changeStance: 'Change side',
+    changeStanceTitle: {
+        PRO: 'Switch to pro?',
+        CON: 'Switch to con?',
+    },
+    changeStanceMessage: 'Comments you write after switching get the new badge. Existing comments keep theirs.',
+    stanceChanged: {
+        PRO: 'You are now on the pro side.',
+        CON: 'You are now on the con side.',
+    },
+    mention: 'Mention a member',
+    mentionSearch: 'Find by nickname',
+    mentionHelp: 'Pick a member who commented on this post to reply to their latest comment.',
+    mentionEmpty: 'No members to pick.',
+    mentionTarget: "Replying to {'@'}{name}",
+    mentionClear: 'Clear',
 };

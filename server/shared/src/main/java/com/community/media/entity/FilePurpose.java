@@ -7,5 +7,8 @@ public enum FilePurpose {
     SITE_LOGO,
 
     /** 글 본문 이미지(JPEG·PNG·WebP·GIF) — 저장소 키 {@code post-image/{년월}/{버전}.{확장자}}. 회원이 공개 사이트 에디터에서 올린다({@code POST /api/images}) */
-    POST_IMAGE
+    POST_IMAGE,
+
+    /** 하이라이트 대표 이미지(PNG·JPG·GIF·WEBP — GIF 는 첫 장면 PNG) — 저장소 키 {@code highlight/{버전}/image.{확장자}}. 운영자가 올린다(권한 highlight.manage, V75) */
+    HIGHLIGHT_IMAGE
 }
