@@ -50,18 +50,6 @@ export default class UtilBlock {
     }
 
     /**
-     * 글 제목·댓글 본문에 차단한 단어가 들어 있는가 — 대소문자 무시·부분 일치(서버 규칙과 같다).
-     * @param {string | null | undefined} text - 볼 글자.
-     * @param {readonly string[]} words - 차단한 단어들.
-     * @returns {boolean} 하나라도 들어 있으면 true.
-     */
-    static wordHit(text: string | null | undefined, words: readonly string[]): boolean {
-        if (!text || words.length === 0) return false;
-        const hay = text.toLowerCase();
-        return words.some((w) => w && hay.includes(w.toLowerCase()));
-    }
-
-    /**
      * 서버에 보낼 단어 — 앞뒤 공백을 자르고 속의 연속 공백은 한 칸으로.
      * @param {string} text - 입력한 단어.
      * @returns {string} 정리한 단어.

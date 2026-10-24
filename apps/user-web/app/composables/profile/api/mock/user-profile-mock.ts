@@ -7,7 +7,8 @@
 //   profile-comments-empty 댓글이 없다
 //
 // ── 목업 규칙(가정 — 계약 「목업 가정」) ─
-//   · 소통(`member-social-contract.md`): 가짜 회원 명부(`member-mock.ts`)의 회원이면 그 이름·등급·역할, `blockedByMe`·`memo` 는 차단 목업 상태.
+//   · 소통(`member-social-contract.md`): 가짜 회원 명부(`member-mock.ts`)의 회원이면 그 이름·등급·역할. 차단·메모는 실제 서버로 옮겨 가 목업이 모른다 —
+//     `blockedByMe` 는 늘 false·`memo` 는 null(이 기기에서 방금 차단·메모한 것은 화면이 `useBlockOverrides` 로 겹쳐 보인다).
 //   · 회원 정보: 본인이면 로그인 정보, 아니면 모은 글에서 그 회원이 쓴 글의 닉네임·등급. 글이 없으면 「회원 {ID 끝 4자리}」·새싹으로 그린다(진짜 서버는 404 일 수도 있다).
 //   · 가입일·한 줄 소개는 ID 로 정한 가짜 값이다(본인의 소개는 `/api/me/profile` 목업과 따로다).
 //   · 수치: 글 = 모은 글 중 그 회원 글 수, 받은 추천 = 그 글들의 추천 합, 댓글 = 아래 가짜 댓글 수.
@@ -18,7 +19,6 @@ import { MOCK_ERRORS, mockClone, mockDelay, mockFlags } from '~/composables/comm
 import type { BoardFeedSource } from '~/composables/common/mock/board-feed-mock';
 import { mockBoardFeed, mockCursorStart } from '~/composables/common/mock/board-feed-mock';
 import { mockDirectoryMember } from '~/composables/common/mock/member-mock';
-import { mockIsBlocked, mockMemoOf } from '~/composables/block/api/mock/block-mock';
 import type { AuthUser } from '~/composables/auth/api/useAuthApi.types';
 import type { PostFeedRow } from '~/composables/board/api/usePostApi.types';
 import type { AuthorCommentPage, AuthorCommentRow, PublicProfile, UserFeedQuery, UserPostPage } from '~/composables/profile/api/useUserProfileApi.types';
@@ -92,8 +92,9 @@ export async function mockUserProfile(source: BoardFeedSource, id: string, me: A
         grade: isMe ? me!.grade : (listed?.grade ?? author?.grade ?? 'SEEDLING'),
         gradeLabel: isMe ? me!.gradeLabel : (listed?.gradeLabel ?? author?.gradeLabel ?? '새싹'),
         role: listed?.role ?? 'USER',
-        blockedByMe: !isMe && Boolean(me) && mockIsBlocked(id),
-        memo: !isMe && me ? mockMemoOf(id) : null,
+        // 차단·메모 목업은 지웠다(실제 차단·메모 API) — 공개 프로필 서버가 붙으면 서버 값이 온다
+        blockedByMe: false,
+        memo: null,
         bio: BIOS[seed % BIOS.length] || null,
         joinedAt: new Date(Date.now() - (30 + (seed % 400)) * DAY).toISOString(),
         isMe,

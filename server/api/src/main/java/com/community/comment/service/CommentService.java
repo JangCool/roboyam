@@ -1,5 +1,6 @@
 package com.community.comment.service;
 
+import com.community.block.service.ViewerBlocks;
 import com.community.board.dto.BoardActor;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.BoardSecurityValues;
@@ -105,13 +106,15 @@ public class CommentService {
     private final WriterPromotion promotion;
     private final PointService points;
     private final MemberNotificationPublisher notices;
+    private final ViewerBlocks viewerBlocks;
     private final TransactionTemplate tx;
     private final TransactionTemplate readTx;
 
     public CommentService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                           CommentRepositoryQDSL commentQueries, PostCounterQueries counters, AuthorViews authors, GuestPasswords passwords,
                           CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion, PointService points, MemberNotificationPublisher notices,
-                          PlatformTransactionManager txManager) {
+                          ViewerBlocks viewerBlocks, PlatformTransactionManager txManager) {
+        this.viewerBlocks = viewerBlocks;
         this.promotion = promotion;
         this.points = points;
         this.notices = notices;
@@ -134,7 +137,7 @@ public class CommentService {
     // ── 목록 ──────────────────────────────────────────────────────────────
 
     /** 보는 사람 — 댓글 상태·내 것·추천 판정 */
-    private record Viewer(Long userId, String ip, boolean guest, int delayMinutes, Set<Long> liked) {
+    private record Viewer(Long userId, String ip, boolean guest, int delayMinutes, Set<Long> liked, ViewerBlocks.Lens lens) {
     }
 
     public CommentListResponse list(String postIdText, String sort, Long userId, String ip) {
@@ -148,7 +151,8 @@ public class CommentService {
             }
             List<CommentEntity> all = comments.findByPostIdOrderByIdAsc(post.getId());
             Viewer viewer = new Viewer(userId, ip, userId == null, b.commentGuestDelayMinutes(),
-                    userId == null || all.isEmpty() ? Set.of() : counters.likedComments(post.getId(), userId));
+                    userId == null || all.isEmpty() ? Set.of() : counters.likedComments(post.getId(), userId),
+                    all.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(userId, all.stream().map(CommentEntity::getAuthorId).toList()));
             Map<Long, ProfileEntity> members = authors.members(all.stream().map(CommentEntity::getAuthorId).toList());
             Map<Long, CommentEntity> byId = new HashMap<>();
             all.forEach(c -> byId.put(c.getId(), c));
@@ -193,7 +197,7 @@ public class CommentService {
         } else {
             state = VISIBLE;
         }
-        PostAuthorView author = authors.of(c.getAuthorId(), c.getGuestName(), c.getAuthorIp(), members, s);
+        PostAuthorView author = authors.of(c.getAuthorId(), c.getGuestName(), c.getAuthorIp(), members, s).withMemo(viewer.lens().memoOf(c.getAuthorId()));
         ReplyToView replyTo = null;
         if (c.getReplyToId() != null) {
             CommentEntity target = byId.get(c.getReplyToId());
@@ -205,7 +209,8 @@ public class CommentService {
         return new CommentView(Long.toString(c.getId()), Long.toString(c.getPostId()), c.getParentId() == null ? null : Long.toString(c.getParentId()), replyTo,
                 DELETED.equals(state) ? AuthorViews.blank(author) : author, VISIBLE.equals(state) ? c.getContent() : null, c.getContentFormat().name(), state,
                 c.getCreatedAt(),
-                c.getEditedAt(), c.getLikeCount(), viewer.liked().contains(c.getId()), viewer.userId() != null && viewer.userId().equals(c.getAuthorId()));
+                c.getEditedAt(), c.getLikeCount(), viewer.liked().contains(c.getId()), viewer.userId() != null && viewer.userId().equals(c.getAuthorId()),
+                VISIBLE.equals(state) ? viewer.lens().blockedOf(c.getAuthorId(), RichText.plainOf(c.getContentFormat(), c.getContent())) : null);
     }
 
     /** 비회원에게 아직 보이지 않는 댓글인가 — 같은 IP 가 쓴 비회원 댓글은 본인 것으로 본다 */
@@ -293,7 +298,7 @@ public class CommentService {
             memberIds.add(authorId);
             byId.values().forEach(t -> memberIds.add(t.getAuthorId()));
             // 쓴 사람에게는 공개 지연 없이 보인다
-            Viewer self = new Viewer(userId, ip, false, 0, Set.of());
+            Viewer self = new Viewer(userId, ip, false, 0, Set.of(), ViewerBlocks.Lens.none());
             CommentView view = view(comment, self, byId, authors.members(memberIds), s, now);
             // 같은 트랜잭션의 마지막에: 댓글 포인트(회원만) · 회원 알림 — 둘 다 실패해도 댓글쓰기는 그대로다(세이브포인트로 격리)
             if (authorId != null) {
@@ -427,7 +432,7 @@ public class CommentService {
             memberIds.add(locked.getAuthorId());
             byId.values().forEach(t -> memberIds.add(t.getAuthorId()));
             Set<Long> liked = userId == null ? Set.of() : counters.likedComments(locked.getPostId(), userId);
-            return view(locked, new Viewer(userId, ip, false, 0, liked), byId, authors.members(memberIds), s, now);
+            return view(locked, new Viewer(userId, ip, false, 0, liked, ViewerBlocks.Lens.none()), byId, authors.members(memberIds), s, now);
         });
     }
 

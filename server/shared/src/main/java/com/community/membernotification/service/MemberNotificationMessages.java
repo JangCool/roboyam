@@ -48,9 +48,26 @@ public class MemberNotificationMessages {
      * @param note       회원에게 공개되는 회수 사유(없으면 null)
      * @param temporary  권리 침해 임시 숨김인가(기간이 있는 숨김)
      * @param snapshot   숨길 때 남긴 글 제목·댓글 앞부분
+     * @param result     닉네임 그림 검토 결과({@code APPROVED}·{@code REJECTED}·{@code REVOKED}) — 그 밖 null. 반려·해제 사유는 {@code note}
      */
     public record Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
-                        boolean temporary, String snapshot) {
+                        boolean temporary, String snapshot, String result) {
+
+        /** 검토 결과 칸이 없는 예전 모양 — 결과는 null */
+        public Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
+                     boolean temporary, String snapshot) {
+            this(type, actorName, postTitle, excerpt, groupCount, amount, pointsKind, note, temporary, snapshot, null);
+        }
+
+        /** 쪽지 받음 — 보낸 회원의 닉네임(메일은 보낼 때 지금 닉네임으로 채운다) */
+        public static Facts dm(String actorName) {
+            return new Facts(MemberNotificationType.DM, actorName, null, null, 1, 0, null, null, false, null, null);
+        }
+
+        /** 닉네임 그림 검토 결과 — 반려·해제면 사유 */
+        public static Facts nicknameReviewed(String result, String reason) {
+            return new Facts(MemberNotificationType.NICKNAME_IMAGE_REVIEWED, null, null, null, 1, 0, null, reason, false, null, result);
+        }
 
         public static Facts comment(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount) {
             return new Facts(type, actorName, postTitle, excerpt, groupCount, 0, null, null, false, null);
@@ -106,6 +123,9 @@ public class MemberNotificationMessages {
                     .condition(MessageCondition.HIDE_REASON, facts.temporary() ? MessageCondition.RIGHTS : MessageCondition.REPORTS);
             case COMMENT_HIDDEN -> builder.variable("excerpt", facts.snapshot())
                     .condition(MessageCondition.HIDE_REASON, facts.temporary() ? MessageCondition.RIGHTS : MessageCondition.REPORTS);
+            case DM -> builder.variable("actorName", facts.actorName());
+            case NICKNAME_IMAGE_REVIEWED -> builder.variable("result", messages.get(new MessageRef(reviewResultKey(facts.result())), locale))
+                    .variable("reason", facts.note() == null ? "" : facts.note());
         }
         return builder;
     }
@@ -130,7 +150,19 @@ public class MemberNotificationMessages {
         if ((facts.type() == MemberNotificationType.POST_HIDDEN || facts.type() == MemberNotificationType.COMMENT_HIDDEN) && facts.temporary()) {
             return messages.get(new MessageRef("member.notification." + facts.type().name() + ".temporary"), locale);
         }
+        if (facts.type() == MemberNotificationType.NICKNAME_IMAGE_REVIEWED) {
+            return messages.get(new MessageRef("member.notification.NICKNAME_IMAGE_REVIEWED.title." + reviewResult(facts.result())), locale);
+        }
         return null;
+    }
+
+    /** 검토 결과 — 모르는 값은 승인으로 본다(예전 기록의 모양이 달라도 목록이 멈추지 않게) */
+    private static String reviewResult(String result) {
+        return "REJECTED".equals(result) || "REVOKED".equals(result) ? result : "APPROVED";
+    }
+
+    private static String reviewResultKey(String result) {
+        return "member.notification.NICKNAME_IMAGE_REVIEWED.result." + reviewResult(result);
     }
 
     /** 받는 회원의 언어 — 회원 표시 설정의 언어(ko·en), 없으면 사이트 표시 기본 언어, 그것도 없으면 ko */

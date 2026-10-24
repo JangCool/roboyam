@@ -1,4 +1,4 @@
-# 회원 소통·개인 설정(공개 사이트) 계약 (**화면 목업 2026-10-23 — 사용자 화면 확인 대기**)
+# 회원 소통·개인 설정(공개 사이트) 계약 (화면 목업 2026-10-23 · **쪽지·차단·메모·닉네임 이미지 서버 구현·화면 연결 2026-10-24** — 성인 확인은 아직 목업)
 
 **의도**: community 에만 있던 「소통·개인 설정」 화면(쪽지·차단·이용자 메모·닉네임 그림·성인 확인·보기 설정)을 user-web 으로 옮긴다. UI 는 community 와 같게 두고, 서버에 API 가 하나도 없어 모두 community 계약 모양의 `// MOCK:`/`// REAL:` 짝 목업으로 먼저 확정한다. 서버 코드는 바꾸지 않았다.
 **참고(읽기 전용)**: community `frontend/app/pages/{messages*,settings/{messages,blocks,memos,nickname-image,adult,view}}.vue`, `docs/api-{dm,block-scrap,nickname-image,profile(설정·보기)}.md`, 4차 계약 B절(성인 확인).
@@ -78,3 +78,46 @@
 - **글·댓글의 차단·메모(미확정 3)**: 로보얌 글 상세·댓글에 회원 메뉴(⋯)가 생길 때 차단·메모를 넣는다. 이번 범위가 아니다.
 - **성인 확인(미확정 5)**: 19금 글은 성인 열람자(성인 확인 회원·글쓴이·운영진)만 보고 그 밖에는 글 ID 로 와도 `404`, 여러 게시판 모음에는 싣지 않는다(community `api-board.md`). **본인인증과의 관계는 커머스 0-4(본인인증·기능 제한) 병합 뒤에 정한다** — 커머스는 다른 작업에서 진행 중이다.
 - **글자 크기(미확정 6)**: 보기 설정의 글자 크기를 PrimeVue 위젯(단추·입력칸·선택 등) 글자에도 적용한다. community 의 `--text-scale` 방식을 user-web 에 맞춰 옮긴다(화면 몫, 서버 계약은 그대로).
+
+## 결정 (2026-10-24 3차, 사용자 지시)
+- **용어**: 「닉네임 그림」을 **「닉네임 이미지」**로, 관리자 처리를 **「심사」**로 통일한다(관리자 메뉴·화면 「닉네임 이미지 심사」, 대기 = 「심사 대기」). 회원 화면·서버 문구(오류·알림·이벤트 이름) 모두 같다. 권한 카탈로그 이름과 같다.
+
+## 서버 구현·화면 연결 결과 (2026-10-24)
+응답 모양은 위 「목업 API 후보」와 각 `.types.ts` 그대로이고, 아래는 달라진 점·정한 것만 적는다. 테스트·마이그레이션 적용·실제 호출은 하지 않았다(컴파일·타입 검사만).
+
+### 저장 (shared)
+- `V70__dm.sql`: `dm_threads`(두 회원 짝 유일) · `dm_boxes`(회원마다 쪽지함 줄 — 읽은 위치·지운 위치) · `dm_messages` · `dm_user_states`(수신 설정 + 오늘 한도 줄, 잠가서 한 트랜잭션에 차감).
+- `V71__blocks_memos.sql`: `user_blocks` · `blocked_words`(`lower(word)` 유일) · `user_memos`.
+- `V72__nickname_images.sql`: `nickname_image_requests`(상태 `PENDING·APPROVED·REJECTED·REVOKED·CANCELED·REMOVED`, 대기·적용 중은 회원당 하나 — 부분 유일 색인). **같은 파일에서 `ck_member_notifications_type` 을 DROP 뒤 다시 만든다**(`DM`·`NICKNAME_IMAGE_REVIEWED` 추가) — 다른 작업도 이 CHECK 를 다시 만들면 나중 것만 남으니 합칠 때 값 목록의 합집합을 확인한다.
+- DB 배치 `dm-retention`(`R__batch_21_dm_retention.sql`, 매일 04:20 KST, `BatchCatalog.DM_RETENTION`): 마지막 쪽지가 365일보다 오래된 대화는 통째로, 남는 대화는 365일 지난 쪽지만 지운다. 「신고된 대화는 처리 끝까지 보관」은 신고 대상에 쪽지가 생길 때 넣는다.
+- admin `V5` 는 쓰지 않았다(관리자 메뉴는 코드 `AdminScreenRegistry` 동기화).
+
+### 쪽지 (api)
+- 보낼 자격은 글쓰기 판정과 같은 `BoardActorResolver`: 이메일 인증 `email_verified_at` · 정지 `users.status` SUSPENDED/BANNED → `ACCOUNT_RESTRICTED` · 사업자 `ROLE_MEMBER_BUSINESS` → `BUSINESS_RESTRICTED` · 가입 7일 `users.created_at`. 새 제재·기능 제한 모델은 만들지 않았다(커머스 0-4 몫).
+- **이유 하나 추가**: 회원 역할에 회원 권한 `message.send` 가 없으면 `reason: NOT_PERMITTED` / `403 DM_NOT_PERMITTED`(차례: 사업자 다음, `TOO_NEW` 앞). 기본 시드에서는 사업자만 이 권한이 없어 그 앞에서 걸린다. 화면 `DmReason`·문구 반영.
+- `429 RATE_LIMITED`(3초, `retryAfterSeconds`)는 새 공용 오류 코드. `DM_DAILY_LIMIT`·`DM_NEW_PARTNER_LIMIT` 도 `retryAfterSeconds`(한국 시간 0시까지).
+- 받는 사람 검색은 `lower(nickname) LIKE '%q%'`(앞부분 일치 먼저, 최대 10명).
+- 회원 알림 `DM`(category **`dm`**, `filter=dm` 도 받음 — 화면 거르기 단추는 전체/댓글/계정 그대로): `actor` = 보낸 회원, `link` = `/messages/{threadId}`. **같은 대화의 안 읽은 DM 알림이 있으면 새 줄·메일을 만들지 않는다**. 대화를 읽음·지움·답장하면 그 대화의 DM 알림도 읽음. 회원이 끌 수 있음(잠금 없음).
+
+### 차단·메모 (api)
+- 운영진(`BLOCK_TARGET_PROTECTED`) = 게시판 매니저·스텝을 하나라도 맡은 회원(기존 규칙).
+- 칸을 채우는 곳: 게시판 글 목록 `GET /api/boards/{slug}/posts`(로그인 때)의 `PostRowView.blocked`·`PostAuthorView.memo`, 댓글 목록의 `CommentView.blocked`·작성자 `memo`. 그 밖의 응답(최신·인기·검색·공개 프로필)은 null — **합칠 때 메인 세션이 붙인다**.
+- 화면: 셸 로더 `useBlockOverridesLoader`·목업 한 벌·화면의 단어 차단 판정을 지웠다. 차단/해제·메모 직후 바로 보이게 하는 이 기기 덮어쓰기(`useBlockOverrides`)는 남겼다. 공개 프로필 목업(`user-profile-mock.ts`, 다른 작업 몫)은 `blockedByMe: false`·`memo: null` 을 준다 — 실제 프로필 서버가 붙으면 채워진다.
+
+### 닉네임 이미지 (api·admin)
+- **자격(가정)**: `eligible` = 회원 역할 권한 `nickname-image.request` 를 가졌는가(없으면 `GRADE_TOO_LOW`, 있는데 정지면 `SUSPENDED`). `requiredGrade` = 일반 회원 역할이 그 권한을 주면 첫 등급, 아니면 그 권한을 가진 등급 역할 중 가장 낮은 등급. **기본 시드에서는 일반 회원 역할이 이 권한을 줘서 모든 일반 회원이 자격이 있다** — community 처럼 「단골 이상」으로 하려면 `/settings/roles` 에서 일반 회원 역할의 권한을 빼고 등급 역할에 준다.
+- 저장: 기존 미디어(`ImageStorage`·`ImageCodec`·`ImageGate`), 키 `nickname-image/{무작위 32자}/image.{확장자}`, 움직이는 GIF 는 첫 장면 `still.png` 를 따로 둔다(WebP·GIF 는 원본 크기 — 화면이 240×60 틀에 맞춰 그린다). **심사 전 이미지도 `/media/**` 공개 주소**(글 이미지와 같은 판단 — 짐작할 수 없는 주소). 형식은 파일 서명으로 판정, 200KB · 최소 120×30 · 4:1(±1%) · 400만 화소 · GIF 30프레임, 움직이는 WebP 거절. 반려 파일은 다음 신청까지 두고 취소·대체·해제된 파일은 지운다.
+- `409 NICKNAME_IMAGE_REAPPLY_TOO_SOON` 은 `retryAfterSeconds` 만 싣는다(`extras.canReapplyAt` 없음 — 같은 값은 GET 의 `reapplyAt`·`request.canReapplyAt`). 하루 10번은 저장된 신청만 센다.
+- 관리자 API(admin, `ApiResponse`, 쓰기 CSRF): `GET /api/admin/nickname-images?status=PENDING|APPROVED|REJECTED|REVOKED&keyword&page(1부터 — 다른 관리자 목록은 0부터)&size(1~100, 기본 20)` → `{items[{id, member{id,nickname,grade,gradeLabel}, status, url|null(파일을 지운 신청), contentType, bytes, width, height, frames, createdAt, reviewedAt, reviewer{id,name|null}|null, rejectReason, revokedAt, revokeReason}], total, page, size, pendingCount}`(`nickname-image.read`) · `POST /{id}/approve`·`/{id}/reject {reason}`·`/{id}/revoke {reason}`(1~200자) → 200 같은 항목(`nickname-image.manage`). 오류 `404 NICKNAME_IMAGE_NOT_FOUND` · `409 NICKNAME_IMAGE_NOT_PENDING` · `409 NICKNAME_IMAGE_NOT_ACTIVE` · `400 fields.reason`. 승인은 앞 이미지를 바꾸고, 반려 뒤 72시간·**해제 뒤 7일**(community 값을 따른 가정) 재신청 금지. 감사 `NICKNAME_IMAGE_APPROVE|REJECT|REVOKE`(대상 종류 `NICKNAME_IMAGE`).
+- 운영자 이벤트 `NICKNAME_IMAGE_PENDING` 예약 해제(링크 `/members/nickname-images`, 5분 묶음). 회원 알림 `NICKNAME_IMAGE_REVIEWED`(승인·반려·해제마다 한 줄, category system, 잠금 `ACTION` — 회원이 끌 수 없음, `body` = 사유, `link` = `/settings/nickname-image`).
+- 관리자 화면 `/members/nickname-images`(회원 묶음 등급 뒤, 메뉴 「닉네임 이미지 심사」): 상태 탭(심사 대기 N·승인·반려·해제) · 닉네임 검색 · 240×60 미리보기(누르면 3배 확대) · 회원 등급·닉네임 · 파일 정보 · 신청·처리 정보 · 승인 / 반려·해제(사유 대화상자). `nickname-image.manage` 가 없으면 처리 칸이 없다. 권한 `nickname-image.read`·`manage` 는 `featureReady=true`.
+- 관리자 메뉴 `UtilAdminMenu.isActive` 가 **가장 구체적인 메뉴 항목**에 주소를 준다(`/members/nickname-images` 에서 「회원」이 같이 켜지지 않게 — `/points/policy`·`/boards/defaults/*` 도 그 하위 메뉴만 켜진다).
+
+### 건드린 공용 파일 (줄만 더함)
+`Permission`(`NICKNAME_IMAGE_READ/MANAGE` featureReady) · `AdminScreenRegistry`(`nicknameImages`) · `MemberEvent`·`MemberNotificationType`(끝에 `DM`·`NICKNAME_IMAGE_REVIEWED`) · `AdminNotificationEvent`(`NICKNAME_IMAGE_PENDING` 예약 해제) · `AuditActions`·admin `AuditLabels` · `BatchCatalog`(`DM_RETENTION`) · `MessageTargetCatalog`(회원 문구 대상 2개) · `messages_ko/en.properties`(끝에 묶음, `error.PROFILE_NOT_FOUND`·`error.RATE_LIMITED` 새로 — 다른 작업과 겹치면 하나로) · admin-web `util-admin-menu.ts`·`util-permission-catalog.ts`·`i18n/locales/{ko,en}/{menu,index}.ts` · user-web `i18n/locales/{ko,en}/dm.ts`. 보안 설정은 그대로.
+
+### 미확정·후속
+1. 닉네임 이미지 자격의 기본값(모든 일반 회원 vs community 「단골 이상」) — 역할 설정으로 바꿀 수 있다.
+2. 받는 사람 검색 `LIKE '%q%'` 는 회원이 많아지면 `pg_trgm` 색인이 필요하다.
+3. 해제 뒤 재신청 7일은 가정. 탈퇴 때 쪽지·차단·닉네임 이미지 정리는 탈퇴 기능이 생길 때.
+4. 작성자 표시에 닉네임 이미지 그리기(`nicknameImage` 칸)·쪽지 신고·글/댓글 ⋯ 메뉴의 차단·메모는 범위 밖.

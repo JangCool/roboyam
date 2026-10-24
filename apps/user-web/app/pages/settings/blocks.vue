@@ -149,7 +149,7 @@ import UtilProfile from '~/utils/util-profile';
  *  - 닉네임 해제는 확인 없이 바로 풀고 토스트의 **실행 취소**로 되돌린다(`useUserActions` — 프로필 ⋯ 메뉴와 같은 흐름).
  *  - 단어는 글자 수(2~20자)를 보내기 전에 알려 주고, 같은 단어·50개 초과 같은 서버 오류는 서버 문구 그대로 입력칸 아래에.
  *  - 두 목록은 따로 불러온다 — 한쪽이 실패해도 다른 쪽은 그대로 쓴다.
- * ⚠ 목업 API(`useBlockApi`). 단어 차단으로 글·댓글을 접는 것은 목업 단계에 이 기기가 대신 판정한다(`useBlockOverrides().setWords`).
+ * 단어 차단으로 글·댓글을 접는 판정은 서버가 한다(글 줄·댓글의 `blocked: 'WORD'`) — 단어를 바꾼 뒤 다시 받은 목록부터 반영된다.
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();
@@ -159,7 +159,6 @@ useSeoMeta({ title: () => t('settings.blocks'), description: () => t('block.bloc
 const api = useBlockApi();
 const toast = useAppToast();
 const time = useDisplayTime();
-const overrides = useBlockOverrides();
 const uid = useId();
 
 type TabKey = 'users' | 'words';
@@ -278,11 +277,6 @@ const wordDescribedBy = computed(() => (shownWordError.value ? `${wordErrorId} $
 
 watch(wordInput, () => (serverWordError.value = ''));
 
-/** MOCK: 단어 차단으로 접는 것을 이 기기가 대신 판정하는 동안 목록을 맞춘다(서버가 붙으면 지운다) */
-function syncWords() {
-    overrides.setWords(words.value.map((w) => w.word));
-}
-
 let wordsRequest = 0;
 async function loadWords() {
     const mine = ++wordsRequest;
@@ -310,7 +304,6 @@ async function addWord() {
         const created = await api.addWord(UtilBlock.normalizeWord(wordInput.value));
         words.value = [created, ...words.value.filter((w) => w.id !== created.id)];
         wordInput.value = '';
-        syncWords();
         toast.success(t('block.wordAdded'));
     } catch (e) {
         serverWordError.value = e instanceof ApiError ? (e.field('word') ?? e.message) : UtilBoardMessages.of(t, e);
@@ -325,7 +318,6 @@ async function removeWord(row: BlockedWordView) {
     try {
         await api.removeWord(row.id);
         words.value = words.value.filter((w) => w.id !== row.id);
-        syncWords();
         toast.show(t('block.wordRemoved', { word: row.word }));
     } catch (e) {
         toast.error(UtilBlockMessages.failure(t, t('block.wordRemoveFailed'), e), 6000);

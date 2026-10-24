@@ -1,7 +1,7 @@
 /**
- * 닉네임 그림(닉네임 이미지) API 가 주고받는 모양 — **서버에 아직 없다**(목업). 모양은 community `docs/api-nickname-image.md` 2절에서
+ * 닉네임 이미지(닉네임 이미지) API 가 주고받는 모양 — **서버에 아직 없다**(목업). 모양은 community `docs/api-nickname-image.md` 2절에서
  * 로보얌에 없는 아이템샵 변경권 칸(`ticketCount`·`ticketRequired`)을 뺀 것이다. 계약 후보: `docs/features/member-social-contract.md`.
- * 신청은 관리자 검토 뒤 적용된다 — 검토 대기가 생기면 운영자 알림 `NICKNAME_IMAGE_PENDING`(이미 예약된 이벤트)이 나간다(서버 몫).
+ * 신청은 관리자 심사 뒤 적용된다 — 심사 대기가 생기면 운영자 알림 `NICKNAME_IMAGE_PENDING`(이미 예약된 이벤트)이 나간다(서버 몫).
  */
 
 /** 적용 중인 이미지 한 장 — `url`(240×60, GIF 는 움직인다) · `still`(GIF 일 때만 정지 이미지) · `id`(적용한 신청 ID) */

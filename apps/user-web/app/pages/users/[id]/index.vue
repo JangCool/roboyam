@@ -248,7 +248,7 @@ import UtilProfile from '~/utils/util-profile';
  * - 내 프로필(`isMe`)이면 「프로필 편집」과 보유 포인트·다음 등급까지 카드(`usePointSummary` 실제 · `useMyGrade` 목업)가 더해진다. 남의 프로필에는 포인트·진행도를 보이지 않는다.
  * - 남의 프로필: ⋯ 시트(이 사용자 차단·차단 해제·메모 — `useUserActions`), 차단한 회원이면 맨 위 「차단한 회원이에요 · 차단 해제」 띠, 닉네임 옆 메모 칩, 「쪽지 보내기」(보낼 수 있나를 따로 읽는다).
  *   내 프로필: 「프로필 편집」 옆 「쪽지함」. 계약 `docs/features/member-social-contract.md`.
- * ⚠ 목업 API(`useUserProfileApi`·`useBlockApi`·`useDmApi`). 원본과 달라진 점: 프로필 이미지·닉네임 이미지·꾸미기 테두리, 프로필 이미지·닉네임 이미지 신고, 소모임·스크랩 탭, 인기글 수치는 로보얌에 없어 뺐다.
+ * ⚠ 목업 API(`useUserProfileApi` — 차단·메모·쪽지(`useBlockApi`·`useMemoApi`·`useDmApi`)는 실제 API). 원본과 달라진 점: 프로필 이미지·닉네임 이미지·꾸미기 테두리, 프로필 이미지·닉네임 이미지 신고, 소모임·스크랩 탭, 인기글 수치는 로보얌에 없어 뺐다.
  * 모바일 ‹ 머리(`InnerHeader`)가 없어 셸의 머리 그대로다.
  */
 const { t } = useI18n();

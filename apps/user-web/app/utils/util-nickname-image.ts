@@ -26,7 +26,7 @@ function extensionOf(name: string): string {
 }
 
 /**
- * 닉네임 그림 계산 — 올리기 전 검사(형식·용량·4:1)·재신청까지 남은 시간·화면 덩어리·서버 오류 갈래(community `UtilNicknameImage`, 변경권 규칙은 뺐다).
+ * 닉네임 이미지 계산 — 올리기 전 검사(형식·용량·4:1)·재신청까지 남은 시간·화면 덩어리·서버 오류 갈래(community `UtilNicknameImage`, 변경권 규칙은 뺐다).
  * 규칙의 출처는 서버다(서버 후보 `NicknameImagePolicy`) — 화면은 거절당할 것을 보내기 전에 알려 줄 뿐이고, GIF 프레임 수·깨진 파일은 서버만 안다.
  */
 export default class UtilNicknameImage {
@@ -99,7 +99,7 @@ export default class UtilNicknameImage {
 
     /**
      * 화면 덩어리 — 적용 중 · 대기/반려 · 신청 칸 · 열기 단추 · 재신청 대기.
-     *  - 대기 중이면 신청 칸이 없다. 자격이 없으면 신청 칸이 없다(적용 중인 그림은 그대로 보인다).
+     *  - 대기 중이면 신청 칸이 없다. 자격이 없으면 신청 칸이 없다(적용 중인 이미지는 그대로 보인다).
      *  - 신청한 적도 적용된 적도 없으면 칸이 바로 열려 있다. 적용 중·반려면 단추를 눌러야 열린다.
      * @param {MyNicknameImage} state - 서버 상태.
      * @param {boolean} opened - 신청 칸을 열었나.

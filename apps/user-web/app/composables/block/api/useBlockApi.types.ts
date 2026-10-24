@@ -1,5 +1,5 @@
 /**
- * 차단(닉네임·단어) API 가 주고받는 모양 — **서버에 아직 없다**(목업). 모양은 community `docs/api-block-scrap.md` 「닉네임 차단」「차단 단어」 그대로다
+ * 차단(닉네임·단어) API 가 주고받는 모양 — 서버(api)도 이 모양으로 준다. 모양은 community `docs/api-block-scrap.md` 「닉네임 차단」「차단 단어」 그대로다
  * (닉네임 이미지 칸 `nicknameImage` 는 로보얌 작성자 표시에 없어 뺐다). 계약 후보: `docs/features/member-social-contract.md`.
  * ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO.
  */

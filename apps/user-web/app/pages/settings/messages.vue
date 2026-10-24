@@ -68,7 +68,7 @@ import UtilDm from '~/utils/util-dm';
  * 쪽지 수신 설정 `/settings/messages` — 로그인 필요(community `pages/settings/messages.vue`, `docs/api-dm.md`).
  * 「쪽지 받기 / 받지 않기」 둘 중 하나를 고르면 **바로 저장한다** — 먼저 반영하고(낙관적) 실패하면 되돌리고 서버 문구를 토스트(8초). 성공은 토스트(3초).
  * 저장 요청은 한 줄로 세워 차례로 보내고, 차례가 되면 그때의 화면 값을 보낸다. 받지 않아도 이미 받은 쪽지·기존 대화는 그대로다.
- * ⚠ 목업 API(`useDmApi` — `GET·PUT /api/me/dm/settings`).
+ * API 는 `useDmApi`(`GET·PUT /api/me/dm/settings`).
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();

@@ -9,7 +9,7 @@
                 </div>
                 <FoldedRow
                     v-else
-                    :reason="overrides.blockedOf(row.author.memberId, row.blocked, row.title)"
+                    :reason="overrides.blockedOf(row.author.memberId, row.blocked)"
                     kind="post"
                     class="aspect-square content-center justify-center rounded-lg bg-surface-100 px-2 text-center text-xs dark:bg-surface-800"
                     hide-class="pt-1 text-center"

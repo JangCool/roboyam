@@ -42,7 +42,12 @@ public enum MemberEvent {
     POST_POPULAR(NotificationArea.CONTENT, null, null, "POST_POPULAR"),
     OPERATOR_ACTION(NotificationArea.SAFETY, null, MemberEventLockReason.ACTION, "OPERATOR_ACTION"),
     STAFF_ACTION(NotificationArea.SAFETY, null, MemberEventLockReason.ACTION, "STAFF_ACTION"),
-    REPORT_RESULT(NotificationArea.SAFETY, null, null, "REPORT_RESULT");
+    REPORT_RESULT(NotificationArea.SAFETY, null, null, "REPORT_RESULT"),
+
+    /** 쪽지 받음 — 회원이 끌 수 있다(잠금 없음) */
+    DM(NotificationArea.MEMBER, MemberNotificationType.DM, null, null),
+    /** 닉네임 그림 검토 결과(승인·반려·해제) — 운영자 처리 알림이라 회원이 끌 수 없다 */
+    NICKNAME_IMAGE_REVIEWED(NotificationArea.MEMBER, MemberNotificationType.NICKNAME_IMAGE_REVIEWED, MemberEventLockReason.ACTION, null);
 
     private static final Map<String, MemberEvent> BY_CODE = Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(MemberEvent::code, Function.identity()));
 

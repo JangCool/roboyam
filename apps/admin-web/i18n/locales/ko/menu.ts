@@ -34,6 +34,7 @@ export default {
     member: '회원',
     members: '회원 관리',
     grades: '등급 설정',
+    nicknameImages: '닉네임 이미지 심사',
     siteMenu: '메뉴 관리',
     menusPublic: '공개 사이트 메뉴',
     menusAdmin: '관리자 메뉴',

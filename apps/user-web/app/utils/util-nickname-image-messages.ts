@@ -16,7 +16,7 @@ export interface NicknameImageCopy {
 export type NicknameImageBlockedReason = 'EMAIL_NOT_VERIFIED' | 'ACCOUNT_RESTRICTED';
 
 /**
- * 닉네임 그림 화면의 **계산이 낀** 문구 — 안내·상태·확인 대화상자·서버 오류 풀이(community `UtilNicknameImageMessages`, 변경권 문구는 뺐다).
+ * 닉네임 이미지 화면의 **계산이 낀** 문구 — 안내·상태·확인 대화상자·서버 오류 풀이(community `UtilNicknameImageMessages`, 변경권 문구는 뺐다).
  * 상수 문구는 컴포넌트가 `t('nicknameImage.*')` 로 쓴다. 서버 `message` 는 입력칸 오류(`fields.file`)와 코드를 모르는 오류에만 쓴다.
  */
 export default class UtilNicknameImageMessages {
