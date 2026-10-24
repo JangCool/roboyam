@@ -46,6 +46,8 @@ export default {
     boardDefaultsSecurity: 'Security',
     boardDefaultsNotifications: 'Notifications',
     boardDefaultsPrivacy: 'Data retention',
+    safety: 'Community safety',
+    reports: 'Reports',
     content: 'Content',
     posts: 'Posts',
     highlights: 'Highlights',

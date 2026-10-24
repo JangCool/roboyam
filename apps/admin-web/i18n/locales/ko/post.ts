@@ -88,6 +88,7 @@ export default {
     guestAuthor: '{name} (비회원)',
     withdrawnAuthor: '{name} (탈퇴)',
     reportsPending: '신고 대기 {n}',
+    reportsOpenLabel: '신고 대기 {n}건 — 신고 관리에서 보기',
     stats: '추천 {likes} · 댓글 {comments} · 조회 {views}',
 
     // ── 조치 ──

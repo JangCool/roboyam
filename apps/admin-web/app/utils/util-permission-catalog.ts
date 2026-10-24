@@ -152,6 +152,7 @@ export default class UtilPermissionCatalog {
      *  · 게시글(게시글 관리 화면 `/posts`): 조회 `post.read`(글 검색·보기·조치 기록, 글의 찬반 토론 설정·의견 보기) / 처리 `post.manage`(숨김·해제·삭제·이동·공지·고정·일괄 숨김/해제, 토론 열기·설정·닫기, 의견 고정·숨김·고정 요청 처리)
      *    / 민감 `post.restore`(지운 글 복구 — 회수한 포인트를 되돌림)·`post.bulk-delete`(일괄 삭제).
      *  · 하이라이트·인기글(콘텐츠 메뉴): 하이라이트 조회 `highlight.read` / 처리 `highlight.manage`(만들기·고치기·순서·노출·지우기), 인기글 조회 `popular.read`(순위·뺀 글·설정 보기) / 처리 `popular.manage`(빼기·다시 넣기) / 설정 `popular.settings`(점수식 저장).
+     *  · 신고(신고 관리 화면 `/reports`): 조회 `report.read` / 처리 `report.manage`. 금지어는 따로 권한이 없다 — 게시판 기본 설정 › 보안(`board.settings`)이 다룬다(옛 `bannedword.*` 는 뺐다).
      *  · 게시판: 조회 `board.read` / 처리 `board.manage`·`board.staff.manage` / 설정 `board.settings`·`board.staff.limit` / 민감 `board.delete`(게시판 목록·설정·기본 설정·매니저/스텝).
      *  · 사이트 화면 구성: 조회 `layout.read` / 설정 `layout.settings`(공개 사이트 메뉴)·`admin-menu.manage`(관리자 사이트 메뉴 구성 저장).
      *  · 사이트·연동(설정 메뉴의 「일반」·「소셜 로그인」·「메일 서버」·「알림」 화면): 조회 `site.read`(일반·소셜 로그인·메일 서버·설정 이력 보기) / 설정 `site.manage`(사이트 이름·소개, 표시 기본값 변경) / 민감 `site.secret`(소셜 로그인 키 저장·삭제, 메일 서버 저장·시험 발송). 알림 이벤트 관리는 조회 `notification.read` / 설정 `notification.manage`(이벤트별 사용 여부·이메일 전달 변경 — 받는 사람은 코드에 고정이라 바꾸지 않는다).
@@ -182,14 +183,13 @@ export default class UtilPermissionCatalog {
         { code: 'layout.read', unit: 'READ', type: 'siteLayout', nameKey: 'permission.item.layoutRead', descKey: 'permission.item.layoutReadDesc', featureReady: true },
         { code: 'layout.settings', unit: 'CONFIG', type: 'siteLayout', nameKey: 'permission.item.layoutSettings', descKey: 'permission.item.layoutSettingsDesc', featureReady: true },
         { code: 'admin-menu.manage', unit: 'CONFIG', type: 'siteLayout', nameKey: 'permission.item.adminMenuManage', descKey: 'permission.item.adminMenuManageDesc', featureReady: true },
-        { code: 'report.read', unit: 'READ', type: 'report', nameKey: 'permission.item.reportRead', descKey: 'permission.item.reportReadDesc', featureReady: false },
-        { code: 'report.manage', unit: 'MANAGE', type: 'report', nameKey: 'permission.item.reportManage', descKey: 'permission.item.reportManageDesc', featureReady: false },
+        // 신고 — 신고 관리 화면(`/reports`, report-admin-contract). 조회 `report.read`(사건 목록·상세 — 신고자 정보 포함) / 처리 `report.manage`(숨기기·자동 숨김 확정·삭제·무시·일괄 무시·다시 열기)
+        { code: 'report.read', unit: 'READ', type: 'report', nameKey: 'permission.item.reportRead', descKey: 'permission.item.reportReadDesc', featureReady: true },
+        { code: 'report.manage', unit: 'MANAGE', type: 'report', nameKey: 'permission.item.reportManage', descKey: 'permission.item.reportManageDesc', featureReady: true },
         { code: 'sanction.read', unit: 'READ', type: 'sanction', nameKey: 'permission.item.sanctionRead', descKey: 'permission.item.sanctionReadDesc', featureReady: false },
         { code: 'sanction.manage', unit: 'MANAGE', type: 'sanction', nameKey: 'permission.item.sanctionManage', descKey: 'permission.item.sanctionManageDesc', featureReady: false },
         { code: 'appeal.manage', unit: 'MANAGE', type: 'sanction', nameKey: 'permission.item.appealManage', descKey: 'permission.item.appealManageDesc', featureReady: false },
         { code: 'sanction.ban', unit: 'SENSITIVE', type: 'sanction', nameKey: 'permission.item.sanctionBan', descKey: 'permission.item.sanctionBanDesc', featureReady: false },
-        { code: 'bannedword.read', unit: 'READ', type: 'badword', nameKey: 'permission.item.bannedwordRead', descKey: 'permission.item.bannedwordReadDesc', featureReady: false },
-        { code: 'bannedword.settings', unit: 'CONFIG', type: 'badword', nameKey: 'permission.item.bannedwordSettings', descKey: 'permission.item.bannedwordSettingsDesc', featureReady: false },
         { code: 'keeper-action.read', unit: 'READ', type: 'staffAudit', nameKey: 'permission.item.keeperActionRead', descKey: 'permission.item.keeperActionReadDesc', featureReady: false },
         { code: 'keeper-action.restore', unit: 'SENSITIVE', type: 'staffAudit', nameKey: 'permission.item.keeperActionRestore', descKey: 'permission.item.keeperActionRestoreDesc', featureReady: false },
         { code: 'member.read', unit: 'READ', type: 'memberView', nameKey: 'permission.memberRead', descKey: 'permission.memberReadDesc', featureReady: true },

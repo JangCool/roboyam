@@ -154,6 +154,12 @@ public class PostEntity {
         this.updatedAt = now;
     }
 
+    /** 자동 숨김을 운영자가 확정한다(관리자 신고 관리 「자동 숨김 확정」) — 권리침해 임시조치면 기한을 지워 계속 숨긴다. 까닭은 그대로. 상태 확인은 부르는 서비스가 한다 */
+    public void keepHidden(Instant now) {
+        this.hiddenUntil = null;
+        this.updatedAt = now;
+    }
+
     /** 운영자가 지운다 — 고정을 푼다(원문은 보유기간까지 남는다) */
     public void staffDelete(Instant now) {
         this.deletedAt = now;

@@ -87,6 +87,7 @@ export default {
     guestAuthor: '{name} (guest)',
     withdrawnAuthor: '{name} (left)',
     reportsPending: '{n} open reports',
+    reportsOpenLabel: '{n} open reports — view in Reports',
     stats: '{likes} likes · {comments} comments · {views} views',
 
     // ── Actions ──

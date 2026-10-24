@@ -2,6 +2,7 @@ package com.community.comment.entity;
 
 import jakarta.persistence.Column;
 import com.community.post.entity.ContentFormat;
+import com.community.report.entity.ReportReasons;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -126,6 +127,43 @@ public class CommentEntity {
         this.hiddenUntil = null;
         this.updatedAt = now;
         return true;
+    }
+
+    /**
+     * 신고 자동 숨김(까닭 REPORTED · ILLEGAL · RIGHTS)을 푼다 — 관리자 신고 관리에서 사건을 무시하면 복구한다. 운영자 숨김(STAFF)·기한이 지난 임시조치는 그대로(false). 풀었으면 true
+     */
+    public boolean unhideReported(Instant now) {
+        if (!isHiddenAt(now) || !ReportReasons.isAutoHidden(hiddenReason)) {
+            return false;
+        }
+        this.hiddenAt = null;
+        this.hiddenReason = null;
+        this.hiddenUntil = null;
+        this.updatedAt = now;
+        return true;
+    }
+
+    /** 자동 숨김을 운영자가 확정한다(관리자 신고 관리 「자동 숨김 확정」) — 권리침해 임시조치면 기한을 지워 계속 숨긴다. 까닭은 그대로 */
+    public void keepHidden(Instant now) {
+        this.hiddenUntil = null;
+        this.updatedAt = now;
+    }
+
+    /** 숨김 중이면 그 까닭(기한이 지난 임시조치는 null) */
+    public String hiddenReasonAt(Instant now) {
+        return isHiddenAt(now) ? hiddenReason : null;
+    }
+
+    public Instant getHiddenUntil() {
+        return hiddenUntil;
+    }
+
+    public Instant getDeletedAt() {
+        return deletedAt;
+    }
+
+    public Instant getPurgedAt() {
+        return purgedAt;
     }
 
     /** 운영자가 숨긴 의견인가(지금 숨김 중이고 까닭이 STAFF) */

@@ -51,14 +51,14 @@ public enum Permission {
     LAYOUT_SETTINGS("layout.settings", SITE_LAYOUT, CONFIG, true),
     /** 관리자 사이트 메뉴 구성 저장 — 모든 운영자의 작업 화면을 바꾸므로 공개 사이트 메뉴 저장({@code layout.settings})과 따로 둔다 */
     ADMIN_MENU_MANAGE("admin-menu.manage", SITE_LAYOUT, CONFIG, true),
-    REPORT_READ("report.read", REPORT, READ, false),
-    REPORT_MANAGE("report.manage", REPORT, MANAGE, false),
+    /** 신고 관리 조회 — 사건 목록·요약·상세(대상 원문·신고 당시 스냅샷·신고자·작성자 카드·처리 기록). 상세를 열어도 검토 시작은 {@code report.manage} 가 있을 때만(docs/features/report-admin-contract.md) */
+    REPORT_READ("report.read", REPORT, READ, true),
+    /** 신고 처리 — 조치(숨기기·삭제·자동 숨김 확정)·무시(허위 표시)·일괄 무시·다시 열기 */
+    REPORT_MANAGE("report.manage", REPORT, MANAGE, true),
     SANCTION_READ("sanction.read", SANCTION, READ, false),
     SANCTION_MANAGE("sanction.manage", SANCTION, MANAGE, false),
     APPEAL_MANAGE("appeal.manage", SANCTION, MANAGE, false),
     SANCTION_BAN("sanction.ban", SANCTION, SENSITIVE, false),
-    BANNEDWORD_READ("bannedword.read", BADWORD, READ, false),
-    BANNEDWORD_SETTINGS("bannedword.settings", BADWORD, CONFIG, false),
     KEEPER_ACTION_READ("keeper-action.read", STAFF_AUDIT, READ, false),
     KEEPER_ACTION_RESTORE("keeper-action.restore", STAFF_AUDIT, SENSITIVE, false),
     MEMBER_READ("member.read", MEMBER_VIEW, READ, true),

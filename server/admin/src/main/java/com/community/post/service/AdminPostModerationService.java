@@ -66,6 +66,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       <b>고정</b>: 공개 글 · 고정 아님. <b>고정 해제</b>: 고정 글. 고정 한도 = 게시판 정책 {@code pinnedMax}(그 게시판의 보이는 고정 글 수, 0 이면 고정 불가 → 409 PIN_LIMIT).</li>
  *   <li><b>일괄</b>({@link #bulk}): HIDE · UNHIDE · DELETE(DELETE 는 {@code post.bulk-delete} 도 — 없으면 403 PERMISSION_DENIED + 거부 감사), 글마다 따로 트랜잭션
  *       (한 글 실패가 다른 글을 막지 않는다). 글마다 조치 기록(덧붙임 {@code bulk true}), 감사는 {@code POST_BULK} 한 줄.</li>
+ *   <li><b>신고 관리</b>({@link #hideForReport} · {@link #unhideForReport} · {@link #deleteForReport}): 관리자 신고 관리가 사건을 처리하는 트랜잭션 안에서 같은 조치 몸통을 부른다
+ *       — 상태 확인·감사({@code REPORT_*})·작성자 알림(게시판 신고 정책 {@code notifyAuthorOnAction}, 사유 코드 포함)은 부르는 쪽이 한다. 조치 기록에는 덧붙임으로 사건 ID·사유 코드가 남는다.</li>
  * </ul>
  */
 @Service
@@ -351,18 +353,12 @@ public class AdminPostModerationService {
     // ── 조치 몸통(트랜잭션 안, 글 행 잠금 뒤) ─────────────────────────────
 
     private Map<String, Object> applyHide(AdminActor actor, PostEntity post, String reason, boolean notify, Instant now, boolean bulk) {
-        requirePublic(post, now);
-        boolean wasPinned = post.getPinnedAt() != null;
-        post.staffHide(now);
-        Map<String, Object> detail = new LinkedHashMap<>();
-        detail.put("notifyAuthor", notify);
-        if (wasPinned) {
-            detail.put("unpinned", true);
-        }
+        Map<String, Object> extra = new LinkedHashMap<>();
+        extra.put("notifyAuthor", notify);
         if (bulk) {
-            detail.put("bulk", true);
+            extra.put("bulk", true);
         }
-        moderation.operator(post.getId(), PostModerationEventEntity.HIDDEN, actor.operatorId(), reason, detail, now);
+        Map<String, Object> detail = hideCore(actor, post, reason, extra, now);
         if (notify && post.getAuthorId() != null) {
             memberNotices.postHiddenByStaff(post.getAuthorId(), post.getId(), post.getTitle(), reason);
         }
@@ -370,6 +366,32 @@ public class AdminPostModerationService {
     }
 
     private Map<String, Object> applyUnhide(AdminActor actor, PostEntity post, String reason, Instant now, boolean bulk) {
+        return unhideCore(actor, post, reason, bulk ? Map.of("bulk", true) : Map.of(), now);
+    }
+
+    private Map<String, Object> applyDelete(AdminActor actor, PostEntity post, String reason, Instant now, boolean bulk) {
+        Map<String, Object> detail = deleteCore(actor, post, reason, bulk ? Map.of("bulk", true) : Map.of(), now);
+        if (post.getAuthorId() != null) {
+            memberNotices.postRemoved(post.getAuthorId(), post.getId(), post.getTitle(), reason, revokedOf(detail));
+        }
+        return detail;
+    }
+
+    /** 숨기기 몸통 — 공개 글만(아니면 409 POST_STATE_INVALID), 까닭 STAFF·고정 해제, 조치 기록 HIDDEN(덧붙임 = {@code extra} + 고정 해제) */
+    private Map<String, Object> hideCore(AdminActor actor, PostEntity post, String reason, Map<String, Object> extra, Instant now) {
+        requirePublic(post, now);
+        boolean wasPinned = post.getPinnedAt() != null;
+        post.staffHide(now);
+        Map<String, Object> detail = new LinkedHashMap<>(extra);
+        if (wasPinned) {
+            detail.put("unpinned", true);
+        }
+        moderation.operator(post.getId(), PostModerationEventEntity.HIDDEN, actor.operatorId(), reason, detail, now);
+        return detail;
+    }
+
+    /** 숨김 해제 몸통 — 숨긴 글만(까닭 무엇이든, 아니면 409 POST_STATE_INVALID), 조치 기록 UNHIDDEN(덧붙임 = 풀기 전 까닭 + {@code extra}) */
+    private Map<String, Object> unhideCore(AdminActor actor, PostEntity post, String reason, Map<String, Object> extra, Instant now) {
         if (post.isGoneAt(now) || !post.isHiddenAt(now)) {
             throw new PostStateInvalidException();
         }
@@ -377,14 +399,13 @@ public class AdminPostModerationService {
         post.unhide(now);
         Map<String, Object> detail = new LinkedHashMap<>();
         detail.put("hiddenReason", before);
-        if (bulk) {
-            detail.put("bulk", true);
-        }
+        detail.putAll(extra);
         moderation.operator(post.getId(), PostModerationEventEntity.UNHIDDEN, actor.operatorId(), reason, detail, now);
         return detail;
     }
 
-    private Map<String, Object> applyDelete(AdminActor actor, PostEntity post, String reason, Instant now, boolean bulk) {
+    /** 삭제 몸통 — 지우지 않은 글만(아니면 409 POST_STATE_INVALID), 고정 해제·포인트 회수, 조치 기록 DELETED(덧붙임 = 회수한 포인트 + 고정 해제 + {@code extra}) */
+    private Map<String, Object> deleteCore(AdminActor actor, PostEntity post, String reason, Map<String, Object> extra, Instant now) {
         if (post.isGoneAt(now)) {
             throw new PostStateInvalidException();
         }
@@ -397,14 +418,36 @@ public class AdminPostModerationService {
         if (wasPinned) {
             detail.put("unpinned", true);
         }
-        if (bulk) {
-            detail.put("bulk", true);
-        }
+        detail.putAll(extra);
         moderation.operator(post.getId(), PostModerationEventEntity.DELETED, actor.operatorId(), reason, detail, now);
-        if (post.getAuthorId() != null) {
-            memberNotices.postRemoved(post.getAuthorId(), post.getId(), post.getTitle(), reason, revoked);
-        }
         return detail;
+    }
+
+    /** 덧붙임의 회수한 포인트 */
+    public static long revokedOf(Map<String, Object> detail) {
+        return detail.get("revokedPoints") instanceof Number n ? n.longValue() : 0;
+    }
+
+    // ── 신고 관리(docs/features/report-admin-contract.md)가 부르는 조치 — 부르는 쪽의 트랜잭션 안, 글 행 잠금 뒤. 감사·작성자 알림은 부르는 쪽이 ──
+
+    /**
+     * 신고 처리 「숨기기」 — 공개 글을 운영자 숨김(STAFF)으로. 조치 기록 HIDDEN(덧붙임 {@code extra} — 사건 ID·사유 코드).
+     *
+     * @param reason 조치 기록의 사유(운영자가 적은 글, {@value PostModerationEventEntity#REASON_MAX}자 안 — 부르는 쪽이 자른다)
+     * @return 조치 기록 덧붙임
+     */
+    public Map<String, Object> hideForReport(AdminActor actor, PostEntity post, String reason, Map<String, Object> extra, Instant now) {
+        return hideCore(actor, post, reason, extra, now);
+    }
+
+    /** 신고 처리 「무시」의 자동 숨김 복구 — 숨긴 글의 숨김을 푼다. 조치 기록 UNHIDDEN(덧붙임 = 풀기 전 까닭 + {@code extra}) */
+    public Map<String, Object> unhideForReport(AdminActor actor, PostEntity post, String reason, Map<String, Object> extra, Instant now) {
+        return unhideCore(actor, post, reason, extra, now);
+    }
+
+    /** 신고 처리 「삭제」 — 게시글 관리 삭제와 같은 규칙(고정 해제·포인트 회수). 조치 기록 DELETED. 회수한 포인트는 {@link #revokedOf} */
+    public Map<String, Object> deleteForReport(AdminActor actor, PostEntity post, String reason, Map<String, Object> extra, Instant now) {
+        return deleteCore(actor, post, reason, extra, now);
     }
 
     // ── 안쪽 ──────────────────────────────────────────────────────────────

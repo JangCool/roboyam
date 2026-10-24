@@ -7,6 +7,7 @@
 --   deletedContent 삭제한 지 deleted_content_retention_days 일이 지난 글·댓글의 원문(제목·본문 — HTML 글의 평문 칸 content_text 포함, V56)을 파기한다(purged_at).
 --                  글 이미지 파일은 이 배치가 아니라 「올리다 만 파일 정리」(file-orphan-cleanup, Java)가 지운 글의 이미지로 보고 지운다.
 --   reportRecord   신고한 지 report_record_retention_days 일이 지난 신고 기록(reports — 신고자·사유·설명·당시 내용 스냅샷)을 행째 지운다(V46).
+--                  열린(처리 대기·검토 중) 신고 사건(report_cases, V82)에 묶인 신고는 지우지 않는다 — 사건이 닫힌 뒤 다음 실행이 지운다.
 --   staffAction    스텝 처리 기록 표가 아직 없다 — 대상 0(표가 생기면 이 파일에 더한다).
 -- 기본 실행: 매일 03:30 KST. 결과: 처리 건수 = 바꾼 글·댓글 행 수(축 합계), 0 이면 SKIP. 덩어리(기본 5000)마다 COMMIT, 한 번 실행 상한(기본 100000).
 -- 호출: CALL batch_board_privacy_retention();  (「지금 실행」(배치 화면)은 CALL batch_board_privacy_retention('MANUAL', 운영자ID, NULL))
@@ -46,7 +47,7 @@ BEGIN
         SELECT count(*) INTO v_posts FROM posts WHERE deleted_at IS NOT NULL AND purged_at IS NULL AND deleted_at < v_cutoff;
         SELECT count(*) INTO v_cmts FROM comments WHERE deleted_at IS NOT NULL AND purged_at IS NULL AND deleted_at < v_cutoff;
     ELSIF p_axis = 'reportRecord' THEN
-        SELECT count(*) INTO v_posts FROM reports WHERE created_at < v_cutoff;
+        SELECT count(*) INTO v_posts FROM reports r WHERE r.created_at < v_cutoff AND NOT EXISTS (SELECT 1 FROM report_cases c WHERE c.id = r.case_id AND c.status IN ('PENDING', 'IN_REVIEW'));
     END IF;
     RETURN v_posts + v_cmts;
 END
@@ -68,7 +69,8 @@ BEGIN
         RETURN QUERY
         SELECT 'report-' || r.id, coalesce(r.snapshot_title, left(r.snapshot_content, 40), '')::text, b.name::text, r.created_at
           FROM (SELECT x.id, x.snapshot_title, x.snapshot_content, x.board_id, x.created_at
-                  FROM reports x WHERE x.created_at < v_cutoff ORDER BY x.created_at LIMIT p_limit) r
+                  FROM reports x WHERE x.created_at < v_cutoff AND NOT EXISTS (SELECT 1 FROM report_cases c WHERE c.id = x.case_id AND c.status IN ('PENDING', 'IN_REVIEW'))
+                 ORDER BY x.created_at LIMIT p_limit) r
           LEFT JOIN boards b ON b.id = r.board_id
          ORDER BY r.created_at;
         RETURN;
@@ -176,7 +178,8 @@ BEGIN
         END IF;
 
     ELSIF p_axis = 'reportRecord' THEN
-        DELETE FROM reports WHERE id IN (SELECT id FROM reports WHERE created_at < v_cutoff ORDER BY created_at LIMIT p_limit);
+        DELETE FROM reports WHERE id IN (SELECT r.id FROM reports r WHERE r.created_at < v_cutoff AND NOT EXISTS (SELECT 1 FROM report_cases c WHERE c.id = r.case_id AND c.status IN ('PENDING', 'IN_REVIEW'))
+                                          ORDER BY r.created_at LIMIT p_limit);
         GET DIAGNOSTICS v_n = ROW_COUNT;
         v_total := v_n;
     END IF;

@@ -52,6 +52,9 @@ public final class AdminScreenRegistry {
                             s("boardDefaultsSecurity", "/boards/defaults/security", "menu.boardDefaultsSecurity", null, Permission.BOARD_READ),
                             s("boardDefaultsNotifications", "/boards/defaults/notifications", "menu.boardDefaultsNotifications", null, Permission.BOARD_READ),
                             s("boardDefaultsPrivacy", "/boards/defaults/privacy", "menu.boardDefaultsPrivacy", null, Permission.BOARD_READ))),
+            // 커뮤니티 안전 묶음 — 신고 관리(docs/features/report-admin-contract.md). admin-web UtilAdminMenu 와 같은 키·주소·권한
+            section(NORMAL, "menu.safety", "pi pi-shield",
+                    leaf(s("reports", "/reports", "menu.reports", "pi pi-flag", Permission.REPORT_READ))),
             // 콘텐츠 묶음 — 게시글 관리(docs/features/post-admin-contract.md)·하이라이트·인기글 관리·인기글 설정(docs/features/popular-highlight-contract.md).
             // admin-web UtilAdminMenu 와 같은 키·주소·권한
             section(NORMAL, "menu.content", "pi pi-star",

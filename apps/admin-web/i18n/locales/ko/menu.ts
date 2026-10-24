@@ -46,6 +46,8 @@ export default {
     boardDefaultsSecurity: '보안',
     boardDefaultsNotifications: '알림',
     boardDefaultsPrivacy: '개인정보 보유기간',
+    safety: '커뮤니티 안전',
+    reports: '신고 관리',
     content: '콘텐츠',
     posts: '게시글 관리',
     highlights: '하이라이트',

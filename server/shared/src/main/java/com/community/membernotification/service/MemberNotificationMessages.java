@@ -28,8 +28,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class MemberNotificationMessages {
 
-    /** 운영자가 숨긴 글의 숨김 알림 — {@link Facts#result()} 와 알림 덧붙임 {@code by} 의 값 */
+    /** 운영자가 숨긴 글·댓글의 숨김 알림 — {@link Facts#result()} 와 알림 덧붙임 {@code by} 의 값 */
     public static final String BY_STAFF = "STAFF";
+    /** 신고 처리 결과 — 조치됨(숨김·삭제·자동 숨김 확정) */
+    public static final String REPORT_ACTIONED = "ACTIONED";
+    /** 신고 처리 결과 — 위반이 확인되지 않음(무시) */
+    public static final String REPORT_NO_VIOLATION = "NO_VIOLATION";
 
     private final NotificationMessageRenderer renderer;
     private final Messages messages;
@@ -51,16 +55,24 @@ public class MemberNotificationMessages {
      * @param note       회원에게 공개되는 회수 사유(없으면 null)
      * @param temporary  권리 침해 임시 숨김인가(기간이 있는 숨김)
      * @param snapshot   숨길 때 남긴 글 제목·댓글 앞부분
-     * @param result     닉네임 그림 검토 결과({@code APPROVED}·{@code REJECTED}·{@code REVOKED}) · 의견 고정 요청 결과 · 운영자 숨김({@link #BY_STAFF} — 글 숨김 알림) — 그 밖 null.
-     *                   반려·해제·거절·운영자 숨김·운영자 삭제 사유는 {@code note}
+     * @param result     닉네임 그림 검토 결과({@code APPROVED}·{@code REJECTED}·{@code REVOKED}) · 의견 고정 요청 결과 · 운영자 숨김({@link #BY_STAFF} — 글·댓글 숨김 알림)
+     *                   · 신고 처리 결과({@link #REPORT_ACTIONED}·{@link #REPORT_NO_VIOLATION}) — 그 밖 null. 반려·해제·거절·운영자 숨김·운영자 삭제 사유는 {@code note}
+     * @param reasonCode 운영자 조치 사유 코드(신고 사유 체계 — 관리자 신고 관리의 숨김·삭제, 없으면 null). 있으면 사유 변수는 「코드 이름: note」
+     * @param targetType 신고 처리 결과의 대상 종류({@code POST}·{@code COMMENT}) — 그 밖 null
      */
     public record Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
-                        boolean temporary, String snapshot, String result) {
+                        boolean temporary, String snapshot, String result, String reasonCode, String targetType) {
 
         /** 검토 결과 칸이 없는 예전 모양 — 결과는 null */
         public Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
                      boolean temporary, String snapshot) {
-            this(type, actorName, postTitle, excerpt, groupCount, amount, pointsKind, note, temporary, snapshot, null);
+            this(type, actorName, postTitle, excerpt, groupCount, amount, pointsKind, note, temporary, snapshot, null, null, null);
+        }
+
+        /** 사유 코드·대상 종류 칸이 없는 모양 — 둘 다 null */
+        public Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
+                     boolean temporary, String snapshot, String result) {
+            this(type, actorName, postTitle, excerpt, groupCount, amount, pointsKind, note, temporary, snapshot, result, null, null);
         }
 
         /** 쪽지 받음 — 보낸 회원의 닉네임(메일은 보낼 때 지금 닉네임으로 채운다) */
@@ -99,6 +111,35 @@ public class MemberNotificationMessages {
         /** 운영자가 글을 지움(관리자 게시글 관리) — 글 제목·사유 */
         public static Facts removed(String snapshot, String reason) {
             return new Facts(MemberNotificationType.POST_REMOVED, null, null, null, 1, 0, null, reason, false, snapshot, null);
+        }
+
+        /**
+         * 운영자가 글·댓글을 숨김(관리자 신고 관리 — 사유 코드 + 글).
+         *
+         * @param type {@code POST_HIDDEN} · {@code COMMENT_HIDDEN}
+         */
+        public static Facts hiddenByStaff(MemberNotificationType type, String snapshot, String reason, String reasonCode) {
+            return new Facts(type, null, null, null, 1, 0, null, reason, false, snapshot, BY_STAFF, reasonCode, null);
+        }
+
+        /**
+         * 운영자가 글·댓글을 지움(관리자 신고 관리 — 사유 코드 + 글).
+         *
+         * @param type {@code POST_REMOVED} · {@code COMMENT_REMOVED}
+         */
+        public static Facts removed(MemberNotificationType type, String snapshot, String reason, String reasonCode) {
+            return new Facts(type, null, null, null, 1, 0, null, reason, false, snapshot, null, reasonCode, null);
+        }
+
+        /**
+         * 내 신고의 처리 결과.
+         *
+         * @param result     {@link #REPORT_ACTIONED} · {@link #REPORT_NO_VIOLATION}
+         * @param targetType {@code POST} · {@code COMMENT}
+         * @param snapshot   신고 당시 글 제목·댓글 앞부분
+         */
+        public static Facts reportResult(String result, String targetType, String snapshot) {
+            return new Facts(MemberNotificationType.REPORT_RESULT, null, null, null, 1, 0, null, null, false, snapshot, result, null, targetType);
         }
 
         /** 운영자가 숨긴 글의 숨김 알림인가 */
@@ -153,11 +194,15 @@ public class MemberNotificationMessages {
                     .condition(MessageCondition.GROUPED, facts.groupCount() > 1 ? MessageCondition.GROUPED_VALUE : MessageCondition.SINGLE);
             case REPLY -> builder.variable("actorName", facts.actorName()).variable("excerpt", facts.excerpt());
             case POINTS_REVOKED -> builder.variable("amount", String.format("%,d", facts.amount())).variable("reason", pointsReason(facts, locale));
-            case POST_HIDDEN -> builder.variable("postTitle", facts.snapshot()).variable("reason", facts.note() == null ? "" : facts.note())
+            case POST_HIDDEN -> builder.variable("postTitle", facts.snapshot()).variable("reason", actionReason(facts, locale))
                     .condition(MessageCondition.HIDE_REASON, facts.byStaff() ? MessageCondition.STAFF : facts.temporary() ? MessageCondition.RIGHTS : MessageCondition.REPORTS);
-            case POST_REMOVED -> builder.variable("postTitle", facts.snapshot()).variable("reason", facts.note() == null ? "" : facts.note());
-            case COMMENT_HIDDEN -> builder.variable("excerpt", facts.snapshot())
-                    .condition(MessageCondition.HIDE_REASON, facts.temporary() ? MessageCondition.RIGHTS : MessageCondition.REPORTS);
+            case POST_REMOVED -> builder.variable("postTitle", facts.snapshot()).variable("reason", actionReason(facts, locale));
+            case COMMENT_HIDDEN -> builder.variable("excerpt", facts.snapshot()).variable("reason", actionReason(facts, locale))
+                    .condition(MessageCondition.HIDE_REASON, facts.byStaff() ? MessageCondition.STAFF : facts.temporary() ? MessageCondition.RIGHTS : MessageCondition.REPORTS);
+            case COMMENT_REMOVED -> builder.variable("excerpt", facts.snapshot()).variable("reason", actionReason(facts, locale));
+            case REPORT_RESULT -> builder.variable("result", messages.get(new MessageRef("member.notification.REPORT_RESULT.result." + reportResult(facts.result())), locale))
+                    .variable("target", facts.snapshot())
+                    .condition(MessageCondition.REPORT_RESULT, reportResult(facts.result()));
             case DM -> builder.variable("actorName", facts.actorName());
             case NICKNAME_IMAGE_REVIEWED -> builder.variable("result", messages.get(new MessageRef(reviewResultKey(facts.result())), locale))
                     .variable("reason", facts.note() == null ? "" : facts.note());
@@ -167,6 +212,18 @@ public class MemberNotificationMessages {
                     .variable("postTitle", facts.postTitle()).variable("reason", facts.note() == null ? "" : facts.note());
         }
         return builder;
+    }
+
+    /**
+     * 운영자 조치 사유 한 줄 — 사유 코드가 있으면 「코드 이름: 글」(글이 없으면 코드 이름만, 관리자 신고 관리), 없으면 운영자가 적은 글 그대로(관리자 게시글 관리). 둘 다 없으면 빈 글자
+     */
+    private String actionReason(Facts facts, Locale locale) {
+        String note = facts.note() == null || facts.note().isBlank() ? null : facts.note();
+        if (facts.reasonCode() == null) {
+            return note == null ? "" : note;
+        }
+        String label = messages.get(new MessageRef("report.reason." + facts.reasonCode()), locale);
+        return note == null ? label : messages.get(new MessageRef("member.notification.actionReason", label, note), locale);
     }
 
     /** 포인트 회수 까닭 한 줄(번들 — 사유가 있으면 「운영 조정: 사유」) */
@@ -186,8 +243,12 @@ public class MemberNotificationMessages {
         if (facts.type() == MemberNotificationType.COMMENT && facts.groupCount() > 1) {
             return messages.get(new MessageRef("member.notification.COMMENT.grouped", nz(facts.actorName()), String.valueOf(facts.groupCount() - 1)), locale);
         }
-        if (facts.type() == MemberNotificationType.POST_HIDDEN && facts.byStaff()) {
-            return messages.get(new MessageRef("member.notification.POST_HIDDEN.staff"), locale);
+        if ((facts.type() == MemberNotificationType.POST_HIDDEN || facts.type() == MemberNotificationType.COMMENT_HIDDEN) && facts.byStaff()) {
+            return messages.get(new MessageRef("member.notification." + facts.type().name() + ".staff"), locale);
+        }
+        if (facts.type() == MemberNotificationType.REPORT_RESULT) {
+            String target = "COMMENT".equals(facts.targetType()) ? "COMMENT" : "POST";
+            return messages.get(new MessageRef("member.notification.REPORT_RESULT.title." + reportResult(facts.result()) + "." + target), locale);
         }
         if ((facts.type() == MemberNotificationType.POST_HIDDEN || facts.type() == MemberNotificationType.COMMENT_HIDDEN) && facts.temporary()) {
             return messages.get(new MessageRef("member.notification." + facts.type().name() + ".temporary"), locale);
@@ -206,11 +267,16 @@ public class MemberNotificationMessages {
         if (picked == null || !picked.builtin()) {
             return null;
         }
-        if (facts.type() == MemberNotificationType.POST_HIDDEN && facts.byStaff()) {
-            return messages.get(new MessageRef("member.notification.POST_HIDDEN.staff.body", nz(facts.snapshot()), nz(facts.note())),
-                    MessageLocales.locale(picked.locale()));
+        if ((facts.type() == MemberNotificationType.POST_HIDDEN || facts.type() == MemberNotificationType.COMMENT_HIDDEN) && facts.byStaff()) {
+            Locale locale = MessageLocales.locale(picked.locale());
+            return messages.get(new MessageRef("member.notification." + facts.type().name() + ".staff.body", nz(facts.snapshot()), actionReason(facts, locale)), locale);
         }
         return null;
+    }
+
+    /** 신고 처리 결과 — 모르는 값은 조치됨으로 본다 */
+    private static String reportResult(String result) {
+        return REPORT_NO_VIOLATION.equals(result) ? REPORT_NO_VIOLATION : REPORT_ACTIONED;
     }
 
     /** 검토 결과 — 모르는 값은 승인으로 본다(예전 기록의 모양이 달라도 목록이 멈추지 않게) */

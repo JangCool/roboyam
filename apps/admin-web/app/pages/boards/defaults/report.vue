@@ -9,7 +9,8 @@
           · daily_report_limit 10 · rejection_limit 5회/30일 → 그대로. 차단 기간 rejectionBlockDays 7일은 그누보드에 없어 추가. 신고 간격 60초는 그누보드 보안 탭의 값을 이 화면으로 옮겼다.
           · notify_admin_on_report + scope(per_case/per_report) → 범위만 여기, 받는 운영자·채널은 설정 › 알림 › 이벤트 `REPORT_RECEIVED`. notify_author_on_report_action → 그대로. 신고자에게 결과 알림은 추가.
         신고 사유는 스텝·매니저 처리 사유 코드(`docs/domain/operator-permissions.md` 처리 규칙)와 같은 코드 체계(`BoardReportReason` 주석)다 — 사유 표는 읽기 전용.
-        권한: 조회 `board.read`, 변경 `board.settings` — 없으면 칸 readonly·저장 줄 대신 안내. 서버 연결됨(`useBoardApi`) — 신고 설정은 저장만 하고 집행은 후속이다.
+        권한: 조회 `board.read`, 변경 `board.settings` — 없으면 칸 readonly·저장 줄 대신 안내. 서버 연결됨(`useBoardApi`).
+        신고 관리(`/reports`, report-admin-contract)가 집행하는 것: 반려 제한(「반려」 = 허위 신고로 표시한 무시만 센다) · 작성자 알림(`notifyAuthorOnAction` — 자동 숨김·숨기기·삭제) · 신고자 결과 알림(`notifyReporterOnResult`) · 무시하면 자동 숨김 복구 — 안내 문구도 이에 맞췄다.
     -->
     <div class="flex flex-col gap-4">
         <PageTitle :title="t('board.tabTitle.report')" :subtitle="t('board.tabSubtitle.report')" />

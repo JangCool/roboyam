@@ -13,7 +13,7 @@
 - **첫 표가 들어온 투표는 고치거나 뺄 수 없다**(`409 POLL_LOCKED`, 지금과 똑같은 내용을 다시 보내면 글만 고친다). 고치는 쪽 `FOR UPDATE`, 투표하는 쪽 `FOR SHARE`. 고치지 않은 지난 마감 시각은 다시 검사하지 않는다.
 - 마감은 시각이 지나면 그 자리에서 마감(배치 없음).
 
-## DB (shared `V81__post_polls.sql` — 커머스 shared 는 **V82부터**)
+## DB (shared `V81__post_polls.sql` — V82 = 신고 관리, 커머스 shared 는 **V83부터**)
 - `polls(id, post_id UNIQUE, question, multiple, change_allowed, closes_at, created_at, updated_at)` · `poll_options(id, poll_id → polls ON DELETE CASCADE, position, label)` · `poll_votes(poll_id, user_id, option_id, created_at, PK(poll_id, user_id, option_id))` — 득표·참여 수는 `poll_votes` 에서 센다(필요하면 `poll_options.vote_count`·`polls.voter_count` 사본, 서버 판단). 글은 파티션 표라 post_id 외래 키 없음.
 - 게시판 정책 `boards.poll_enabled boolean`(NULL = 기본값) · `board_defaults.poll_enabled boolean NOT NULL DEFAULT false`.
 

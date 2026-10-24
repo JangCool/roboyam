@@ -190,6 +190,15 @@ public final class AuditActions {
     public static final String POST_BULK = "POST_BULK";
     /** 글의 투표 지우기(표가 있어도 — docs/features/post-poll-contract.md) — {@code reason}·{@code pollId}·{@code question}·{@code voterCount}(누가 골랐는지는 남기지 않는다) */
     public static final String POST_POLL_DELETE = "POST_POLL_DELETE";
+    // ── 신고 관리(docs/features/report-admin-contract.md) — 대상 REPORT_CASE + 사건 ID ──
+    /** 사건 조치(숨김·삭제·자동 숨김 확정) — {@code caseNo}·{@code action}·{@code reasonCode}·{@code note}·{@code targetType}·{@code targetId}·{@code reportCount} */
+    public static final String REPORT_RESOLVE = "REPORT_RESOLVE";
+    /** 사건 무시 — {@code caseNo}·{@code falseReport}·{@code reasonCode}·{@code note}·자동 숨김을 풀었으면 {@code restored} */
+    public static final String REPORT_DISMISS = "REPORT_DISMISS";
+    /** 일괄 무시 — 대상 REPORT_CASE + {@code bulk}, {@code falseReport}·{@code note}·{@code done}·{@code failed}(사건 ID 목록) */
+    public static final String REPORT_BULK_DISMISS = "REPORT_BULK_DISMISS";
+    /** 무시한 사건 다시 열기 — {@code caseNo} */
+    public static final String REPORT_REOPEN = "REPORT_REOPEN";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

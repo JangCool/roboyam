@@ -242,6 +242,11 @@ export default class UtilPost {
         return POST_ID.test(id) ? id : null;
     }
 
+    /** 신고 관리에서 그 글과 그 글 댓글의 사건만 보는 주소(report-admin-contract — 「신고」 칸·서랍의 신고 대기 줄) */
+    static reportsLink(postId: string): { path: string; query: { postId: string } } {
+        return { path: '/reports', query: { postId } };
+    }
+
     /** 쪽 수 */
     static pageCount(total: number, size: number): number {
         return Math.max(1, Math.ceil(total / Math.max(1, size)));

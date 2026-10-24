@@ -63,8 +63,11 @@ public enum AdminNotificationEvent {
     GRADE_SETTINGS_SAVED(spec(MEMBER, INFO).holders(Permission.GRADE_READ).excludeActor().link("/grades")),
     /** 등급 일수 승급 배치 종료(처리 건수 &gt; 0) — 알림 감시자가 발행한다 */
     GRADE_PROMOTION_RUN(spec(MEMBER, INFO).holders(Permission.GRADE_READ).link("/settings/batch-logs?jobName=grade-promotion")),
-    /** 공개 사이트 글·댓글 신고 접수 — 신고 정책 notifyOperatorScope 가 PER_CASE 면 대상마다 첫 신고에만, PER_REPORT 면 신고마다(api ReportService). 처리 화면이 아직 없어 링크가 없다 */
-    REPORT_RECEIVED(spec(SAFETY, INFO).holders(Permission.REPORT_MANAGE)),
+    /**
+     * 공개 사이트 글·댓글 신고 접수 — 신고 정책 notifyOperatorScope 가 PER_CASE 면 사건마다 첫 신고에만(닫힌 사건 뒤의 새 사건은 다시), PER_REPORT 면 신고마다(api ReportService).
+     * 링크는 관리자 신고 관리의 그 사건 서랍({@code caseId})
+     */
+    REPORT_RECEIVED(spec(SAFETY, INFO).holders(Permission.REPORT_MANAGE).link("/reports?report={caseId}")),
     /** 최고 관리자가 관리자 2차 인증을 켬 — 운영자 전원에게 OTP 등록 안내(켠 사람 제외). 문구에 인자가 없다 */
     MFA_ENABLED(spec(SECURITY, INFO).everyone().excludeActor().link("/me?tab=security")),
     /**

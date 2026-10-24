@@ -19,6 +19,7 @@ import com.community.membernotification.exception.MemberNotificationNotFoundExce
 import com.community.membernotification.repository.master.MemberNotificationRepositoryQDSL;
 import com.community.notificationtemplate.engine.RenderedInApp;
 import com.community.post.entity.PostEntity;
+import com.community.report.entity.ReportReasons;
 import com.community.post.repository.master.PostRepository;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserEntity;
@@ -241,16 +242,25 @@ public class MemberNotificationService {
                 facts = MemberNotificationMessages.Facts.nicknameReviewed(result, reason);
                 link = "/settings/nickname-image";
             }
-            case POST_REMOVED -> {
-                // 운영자가 지운 글 — 열 수 없어 링크가 없다(글 제목은 지울 때 남긴 것, 본문 둘째 줄은 사유)
+            case POST_REMOVED, COMMENT_REMOVED -> {
+                // 운영자가 지운 글·댓글 — 지운 글은 열 수 없어 링크가 없고, 지운 댓글은 그 글로 간다(제목·앞부분은 지울 때 남긴 것, 본문 둘째 줄은 사유 — 신고 관리면 「사유 코드 이름: 글」)
                 String reason = payload.get("reason") instanceof String why && !why.isBlank() ? why : null;
-                facts = MemberNotificationMessages.Facts.removed(payload.get("snapshot") instanceof String s && !s.isBlank() ? s : null, reason);
+                facts = MemberNotificationMessages.Facts.removed(type, payload.get("snapshot") instanceof String s && !s.isBlank() ? s : null, reason, reasonCodeOf(payload));
+                link = type == MemberNotificationType.COMMENT_REMOVED && postAvailable ? "/posts/" + row.getPostId() : null;
+            }
+            case REPORT_RESULT -> {
+                // 내 신고의 처리 결과 — 조치됨 · 위반 아님(신고 당시 제목·앞부분). 글을 볼 수 있으면 그 글로
+                String result = payload.get("result") instanceof String r ? r : MemberNotificationMessages.REPORT_ACTIONED;
+                String targetType = payload.get("targetType") instanceof String t ? t : "POST";
+                facts = MemberNotificationMessages.Facts.reportResult(result, targetType, payload.get("snapshot") instanceof String s && !s.isBlank() ? s : null);
+                link = postAvailable ? "/posts/" + row.getPostId() : null;
             }
             default -> { // POST_HIDDEN, COMMENT_HIDDEN
                 hiddenUntil = instantOf(payload.get("until"));
                 String hiddenSnapshot = payload.get("snapshot") instanceof String s && !s.isBlank() ? s : null;
                 facts = MemberNotificationMessages.BY_STAFF.equals(payload.get("by"))
-                        ? MemberNotificationMessages.Facts.hiddenByStaff(hiddenSnapshot, payload.get("reason") instanceof String why && !why.isBlank() ? why : null)
+                        ? MemberNotificationMessages.Facts.hiddenByStaff(type, hiddenSnapshot, payload.get("reason") instanceof String why && !why.isBlank() ? why : null,
+                        reasonCodeOf(payload))
                         : MemberNotificationMessages.Facts.hidden(type, hiddenSnapshot, hiddenUntil != null);
                 // 숨긴 글은 열 수 없다(작성자 포함) — 댓글 숨김이면 그 글로 간다
                 link = type == MemberNotificationType.COMMENT_HIDDEN && postAvailable ? "/posts/" + row.getPostId() : null;
@@ -262,6 +272,11 @@ public class MemberNotificationService {
         String body = text.body() == null || text.body().isBlank() ? null : text.body();
         return new MemberNotificationItemView(Long.toString(row.getId()), type.name(), type.category(), row.isRead(), row.getCreatedAt(), title, body, link, actor,
                 post, row.getCommentId() == null ? null : Long.toString(row.getCommentId()), commentPreview, row.getGroupCount(), points, hiddenUntil);
+    }
+
+    /** 운영자 조치 사유 코드(관리자 신고 관리 — 신고 사유 체계) — 없거나 모르는 값이면 null */
+    private static String reasonCodeOf(Map<String, Object> payload) {
+        return payload.get("reasonCode") instanceof String code && ReportReasons.ALL.contains(code) ? code : null;
     }
 
     /** 일으킨 사람 — 회원은 지금 닉네임(탈퇴·없음은 「탈퇴한 회원」), 비회원은 그때 이름 */

@@ -13,7 +13,7 @@
 - 고정 한도: community 의 2개 대신 게시판 정책 `pinnedMax`(0이면 고정 불가 → `409 PIN_LIMIT`).
 - 상태: 로보얌 글 칸(`hiddenAt/hiddenReason/hiddenUntil` · `deleteScheduledAt` · `deletedAt` · `purgedAt` · `adult` · 비회원 글) 기준. 원문을 파기한(`purgedAt`) 글은 복구 불가(`409 POST_PURGED`).
 
-## DB (shared `V80__post_moderation.sql` — V81 = 게시글 투표, 월요일 커머스 shared 는 **V82부터**)
+## DB (shared `V80__post_moderation.sql` — V81 = 게시글 투표, V82 = 신고 관리, 월요일 커머스 shared 는 **V83부터**)
 - `posts.hidden_reason` CHECK 에 `STAFF` 추가(파티션 부모에서 DROP 뒤 다시).
 - `post_moderation_events(id, post_id, type, actor_kind(OPERATOR|SYSTEM), actor_id, reason varchar(200), detail jsonb, created_at)` — type: `HIDDEN · UNHIDDEN · DELETED · RESTORED · MOVED · NOTICE · PINNED · UNPINNED · REPORT_HIDDEN`(신고 자동 숨김도 여기에 남긴다 — `ReportService.autoHide`). 색인 `(post_id, id desc)`.
 - 회원 알림 type CHECK 에 `POST_REMOVED`(V78 목록과 합집합 — 커머스 병합 때 다시 합집합).

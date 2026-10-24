@@ -53,7 +53,7 @@ interface MemberNotificationItem {
 ## 미확정·후속
 1. **회원 개인 알림 끄기**는 이번 범위 밖. 표가 필요하면 `member_notification_mutes(user_id, kind, created_at, PK(user_id, kind))` — `kind` 는 게시판 설정 종류(`COMMENT_ON_POST`…)와 같은 이름, `memberCanTurnOff=false` 종류는 거절. API 후보 `GET/PUT /api/notifications/settings`(community 모양).
 2. 관리자 회원 상세 `settings.inbox`: `settings` 가 통째로 null 이고 admin-web `MemberSettings` 의 다른 칸(`display` 등)이 non-null 타입이라 inbox 만 채울 수 없어 채우지 않았다 — 타입을 칸별 nullable 로 바꾸거나 `inbox` 를 바깥 칸으로 옮기면 `member_notifications` 로 `{totalCount, unreadCount}` 를 바로 채울 수 있다.
-3. 쪽지(`DM`)·인기글(`POPULAR_REWARD`)·멘션은 기능이 없어 종류를 만들지 않았다. 운영자·스텝이 글을 지우는 기능이 생기면 `POINTS_REVOKED` 의 `POST_DELETED`·`COMMENT_DELETED` 와 처리 알림을 더한다.
+3. 쪽지(`DM`)·인기글(`POPULAR_REWARD`)·멘션은 기능이 없어 종류를 만들지 않았다. 운영자·스텝이 글을 지우는 기능이 생기면 `POINTS_REVOKED` 의 `POST_DELETED`·`COMMENT_DELETED` 와 처리 알림을 더한다. → 운영자 처리 알림은 `POST_REMOVED`(게시글 관리)·`COMMENT_REMOVED`·신고 결과 `REPORT_RESULT`(`report-admin-contract.md`, 2026-10-24 — 회수 포인트는 덧붙임 `revokedPoints`, 따로 `POINTS_REVOKED` 는 내지 않는다). 스텝 처리는 후속.
 4. pg_cron 이 없으면 정리 배치가 돌지 않는다(목록에 「사용 불가」) — 쌓이기만 한다.
 
 ## 프론트 연결 결과 (2026-10-23)

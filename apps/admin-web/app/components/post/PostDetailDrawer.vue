@@ -87,7 +87,13 @@
                 <dt class="text-muted-color">{{ t('post.col.stats') }}</dt>
                 <dd class="m-0 tabular-nums">{{ t('post.stats', { likes: post.likeCount, comments: post.commentCount, views: post.viewCount }) }}</dd>
                 <dt class="text-muted-color">{{ t('post.col.reports') }}</dt>
-                <dd class="m-0 tabular-nums" :class="post.openReports > 0 ? 'font-medium text-red-600 dark:text-red-400' : ''">{{ t('post.reportsPending', { n: post.openReports }) }}</dd>
+                <dd class="m-0 tabular-nums" :class="post.openReports > 0 ? 'font-medium text-red-600 dark:text-red-400' : ''">
+                    <!-- 신고 대기가 있으면 신고 관리의 그 글 사건으로(report-admin-contract) -->
+                    <NuxtLink v-if="post.openReports > 0 && canReadReports" :to="UtilPost.reportsLink(post.id)" class="rounded hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+                        {{ t('post.reportsPending', { n: post.openReports }) }} <i class="pi pi-arrow-right text-[10px]" aria-hidden="true" />
+                    </NuxtLink>
+                    <template v-else>{{ t('post.reportsPending', { n: post.openReports }) }}</template>
+                </dd>
             </dl>
 
             <!-- 상태 띠 -->
@@ -268,6 +274,8 @@ interface Props {
     /** `post.manage` · `post.restore` — 바닥 줄 안내에 쓴다 */
     canManage?: boolean;
     canRestore?: boolean;
+    /** `report.read` — 신고 대기 줄을 신고 관리(`/reports?postId=`)로 잇는다 */
+    canReadReports?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -283,6 +291,7 @@ const props = withDefaults(defineProps<Props>(), {
     debateError: '',
     canManage: false,
     canRestore: false,
+    canReadReports: false,
 });
 const emit = defineEmits<{
     retry: [];

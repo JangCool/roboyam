@@ -14,7 +14,7 @@
 - 글쓴이 규칙: 회원 글만(비회원 글 불가). 글쓴이가 연 토론(`openedBy MEMBER`)만 글쓴이가 바꾼다 — 운영자·매니저가 연 토론은 글쓴이에게 읽기 전용. 글쓴이는 **투표가 하나라도 있으면 닫을 수 없다**(`409 DEBATE_HAS_VOTES`) — 설정(중립·바꾸기)은 바꿀 수 있다. 게시판 옵션을 나중에 꺼도 이미 연 토론은 그대로.
 - 닫기 = 토론 행을 지운다. 이미 고른 입장·쓴 의견·고정·고정 요청은 지우지 않는다(다시 열면 그대로 돌아온다). 닫힌 글의 표시는 지금의 「토론 닫힘」과 같다(의견·투표가 있으면 읽기 전용 구획).
 
-## DB (shared `V79__post_debates.sql` — 커밋 전 V79 `highlight_stance_change_allowed` 를 대신한다. V80 = 게시글 관리, V81 = 게시글 투표, 커머스는 V82부터)
+## DB (shared `V79__post_debates.sql` — 커밋 전 V79 `highlight_stance_change_allowed` 를 대신한다. V80 = 게시글 관리, V81 = 게시글 투표, V82 = 신고 관리, 커머스는 V83부터)
 - `post_debates(post_id bigint PK, neutral_enabled boolean NOT NULL DEFAULT true, stance_change_allowed boolean NOT NULL DEFAULT true, opened_by_kind varchar(10) NOT NULL CHECK MEMBER|OPERATOR, opened_by bigint, created_at, updated_at, updated_by_kind, updated_by)` — 행이 있으면 토론 열림. 글은 파티션 표라 외래 키 없음.
 - 옮기기: `highlights.debate = true` 인 행 → `post_debates`(neutral_enabled 그대로, OPERATOR, created_by). 그다음 `highlights.debate`·`highlights.neutral_enabled` 칸을 지운다.
 - 게시판 정책: `boards.debate_enabled boolean`(NULL = 기본값) · `board_defaults.debate_enabled boolean NOT NULL DEFAULT false`.

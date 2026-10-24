@@ -39,6 +39,7 @@ import debate from './debate';
 import highlight from './highlight';
 import popular from './popular';
 import post from './post';
+import report from './report';
 
 export default {
     account,
@@ -75,4 +76,5 @@ export default {
     highlight,
     popular,
     post,
+    report,
 };

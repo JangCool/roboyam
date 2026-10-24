@@ -26,7 +26,9 @@ import com.community.post.entity.PostModerationEventEntity;
 import com.community.post.service.PostModerationLog;
 import com.community.post.service.PostQueryService;
 import com.community.report.dto.request.ReportRequest;
+import com.community.report.entity.ReportCaseEntity;
 import com.community.report.entity.ReportEntity;
+import com.community.report.entity.ReportEventEntity;
 import com.community.report.entity.ReportReasons;
 import com.community.report.exception.AlreadyReportedException;
 import com.community.report.exception.CannotReportOwnException;
@@ -35,8 +37,10 @@ import com.community.report.exception.ReportDailyLimitException;
 import com.community.report.exception.ReportDisabledException;
 import com.community.report.exception.ReportTargetNotFoundException;
 import com.community.report.exception.ReportTooFastException;
+import com.community.report.repository.master.ReportCaseRepository;
 import com.community.report.repository.master.ReportRepository;
 import com.community.report.repository.master.ReportRepositoryQDSL;
+import com.community.report.service.ReportCaseLog;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.repository.master.ProfileRepository;
 import com.community.zconfiguration.exception.CommonException;
@@ -55,22 +59,27 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 신고 접수 {@code POST /api/reports} — 회원만. 관리자 신고 정책(board_report_settings)을 적용한다. 운영자 처리 화면은 후속이다.
+ * 신고 접수 {@code POST /api/reports} — 회원만. 관리자 신고 정책(board_report_settings)을 적용한다. 운영자 처리는 관리자 신고 관리(docs/features/report-admin-contract.md).
  *
  * <p><b>검사 순서</b>: 로그인(401) → 정지 {@code 403 ACCOUNT_RESTRICTED} · 역할 권한 {@code report.create} 없음 {@code 403 BOARD_RESTRICTED} → 신고 기능 꺼짐 {@code 403 REPORT_DISABLED}
  * → 칸({@code 400 VALIDATION}: targetType·targetId·reason·detail — 기타는 설명 필수, 300자) → 대상(없음·지움·숨김·꺼진 게시판 {@code 404 REPORT_TARGET_NOT_FOUND})
  * → 내 것 {@code 400 CANNOT_REPORT_OWN} → 반려 누적 차단 {@code 403 REPORT_BLOCKED} → 간격 {@code 429 REPORT_TOO_FAST} → 하루 한도(한국시간 0시) {@code 429 REPORT_DAILY_LIMIT}
- * → 같은 대상 {@code 409 ALREADY_REPORTED}. 간격·한도·중복 확인과 저장은 신고자 단위 잠금 아래 한 트랜잭션이다.
+ * → 같은 대상 {@code 409 ALREADY_REPORTED}. 간격·한도·중복 확인과 저장은 신고자 단위 잠금 아래 한 트랜잭션이다. 반려 누적은 관리자가 <b>허위 신고로 표시한 무시</b>(REJECTED)만 센다.
+ *
+ * <p><b>사건</b>(V82 {@code report_cases}): 대상 단위 잠금 아래 대상의 열린 사건(대기·검토 중)을 잠가 읽어 신고를 붙이고, 없으면 새 사건을 연다(닫힌 사건 뒤의 신고는 새 사건으로 0부터).
+ * 사건의 신고 수·마지막 신고 시각을 고치고 기록 {@code REPORTED}(신고자 ID 는 남기지 않는다).
  *
  * <p><b>자동 숨김</b>(같은 트랜잭션, 대상 행 잠금): 불법촬영물 사유는 1건으로 즉시 숨김(ILLEGAL, 끌 수 없음) · 권리침해 사유는 임시조치 기간 동안 숨김(RIGHTS, 기간이 끝나면 다시 보인다 — 가정)
- * · 그 밖에는 자동 숨김 기준(서로 다른 회원 수, 신고 당시 최소 등급 이상인 신고만 센다)에 닿으면 숨김(REPORTED). 기준 숨김은 대상 종류(POST·COMMENT·BOTH)를 따르고,
+ * · 그 밖에는 자동 숨김 기준(<b>열린 사건의</b> 서로 다른 회원 수, 신고 당시 최소 등급 이상인 신고만 센다)에 닿으면 숨김(REPORTED). 기준 숨김은 대상 종류(POST·COMMENT·BOTH)를 따르고,
  * 「운영자 작성물·공지 제외」가 켜져 있으면 고정 공지와 그 게시판 매니저·스텝이 쓴 글·댓글은 기준 숨김에서 뺀다. 숨긴 댓글은 글의 댓글 수에서 뺀다.
  *
- * <p><b>조치 기록</b>: 글이 새로 자동 숨김되면 {@code post_moderation_events} 에 {@code REPORT_HIDDEN}(SYSTEM — 숨김 까닭·기간) 한 줄(관리자 게시글 관리의 조치 기록).
+ * <p><b>조치 기록</b>: 글이 새로 자동 숨김되면 {@code post_moderation_events} 에 {@code REPORT_HIDDEN}(SYSTEM — 숨김 까닭·기간) 한 줄(관리자 게시글 관리의 조치 기록),
+ * 사건 기록에 {@code AUTO_HIDDEN}(SYSTEM — 숨김 까닭·기간).
  *
- * <p><b>작성자 알림</b>: 자동 숨김으로 보이던 글·댓글이 새로 숨겨지면 작성 회원에게 회원 알림 {@code POST_HIDDEN}·{@code COMMENT_HIDDEN}(끌 수 없음 — 신고자·사유 코드는 싣지 않는다).
+ * <p><b>작성자 알림</b>: 자동 숨김으로 보이던 글·댓글이 새로 숨겨지면 — 정책 {@code notifyAuthorOnAction} 이 켜졌을 때만 — 작성 회원에게 회원 알림 {@code POST_HIDDEN}·{@code COMMENT_HIDDEN}
+ * (끌 수 없음 — 신고자·사유 코드는 싣지 않는다).
  *
- * <p><b>운영자 알림</b>: {@code REPORT_RECEIVED} — 정책 {@code notifyOperatorScope} 가 PER_CASE 면 대상의 첫 신고에만, PER_REPORT 면 신고마다.
+ * <p><b>운영자 알림</b>: {@code REPORT_RECEIVED}(링크 {@code /reports?report={caseId}}) — 정책 {@code notifyOperatorScope} 가 PER_CASE 면 사건의 첫 신고에만, PER_REPORT 면 신고마다.
  */
 @Service
 public class ReportService {
@@ -94,11 +103,15 @@ public class ReportService {
     private final MemberNotificationPublisher memberNotices;
     private final SnowflakeIdGenerator ids;
     private final PostModerationLog moderation;
+    private final ReportCaseRepository cases;
+    private final ReportCaseLog caseLog;
 
     public ReportService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                          CommentRepositoryQDSL commentQueries, PostCounterQueries counters, ReportRepository reports, ReportRepositoryQDSL reportQueries,
                          ProfileRepository profiles, BoardStaffRepository boardStaff, NotificationPublisher publisher, MemberNotificationPublisher memberNotices,
-                         SnowflakeIdGenerator ids, PostModerationLog moderation) {
+                         SnowflakeIdGenerator ids, PostModerationLog moderation, ReportCaseRepository cases, ReportCaseLog caseLog) {
+        this.cases = cases;
+        this.caseLog = caseLog;
         this.memberNotices = memberNotices;
         this.moderation = moderation;
         this.catalog = catalog;
@@ -194,17 +207,35 @@ public class ReportService {
         String snapshotTitle = target.comment() == null ? target.post().getTitle() : null;
         String snapshotContent = truncate(target.comment() == null ? target.post().plainContent()
                 : RichText.plainOf(target.comment().getContentFormat(), target.comment().getContent())); // HTML 본문은 보이는 글자로 남긴다
-        reports.persist(ReportEntity.create(ids.nextId(), target.type(), target.id(), target.post().getId(), target.board().id(), userId, target.authorId(),
-                reason, detail.isEmpty() ? null : detail, snapshotTitle, snapshotContent, authorName, counted, now));
+        ReportCaseEntity reportCase = openCase(target, now);
+        long reportId = ids.nextId();
+        reports.persist(ReportEntity.create(reportId, reportCase.getId(), target.type(), target.id(), target.post().getId(), target.board().id(), userId,
+                target.authorId(), reason, detail.isEmpty() ? null : detail, snapshotTitle, snapshotContent, authorName, counted, now));
+        reportCase.reportAdded(target.post().getId(), target.board().id(), now);
+        caseLog.reported(reportCase.getId(), reportId, reason, now);
         reports.flush();
 
-        autoHide(target, reason, policy, now);
+        autoHide(target, reportCase.getId(), reason, policy, now);
 
-        long reportsOnTarget = reportQueries.countForTarget(target.type(), target.id());
-        if (!"PER_CASE".equals(policy.notifyOperatorScope()) || reportsOnTarget == 1) {
-            publisher.publish(AdminNotificationEvent.REPORT_RECEIVED, NotificationContext.empty());
+        if (!"PER_CASE".equals(policy.notifyOperatorScope()) || reportCase.getReportCount() == 1) {
+            publisher.publish(AdminNotificationEvent.REPORT_RECEIVED, NotificationContext.empty().link("caseId", Long.toString(reportCase.getId())));
         }
     }
+
+    /**
+     * 대상의 열린 사건 — 대상 단위 잠금(관리자 「다시 열기」도 같은 잠금을 잡는다) 아래 열린 사건을 잠가 읽고, 없으면 새로 연다(신고 0건 — 부르는 쪽이 하나 더한다).
+     * 운영자가 막 닫은 사건은 잠금이 풀린 뒤 조건을 다시 보므로 붙지 않는다.
+     */
+    private ReportCaseEntity openCase(Target target, Instant now) {
+        counters.lockWriter(ReportCaseEntity.lockKey(target.type(), target.id()));
+        return cases.findWithLockByTargetTypeAndTargetIdAndStatusIn(target.type(), target.id(), ReportCaseEntity.OPEN).orElseGet(() -> {
+            ReportCaseEntity opened = ReportCaseEntity.open(ids.nextId(), target.type(), target.id(), target.post().getId(), target.board().id(), target.authorId(),
+                    now);
+            cases.persist(opened);
+            return opened;
+        });
+    }
+
 
     /** 반려 누적 차단 → 간격 → 하루 한도 */
     private void checkLimits(BoardReportValues policy, long userId, Instant now) {
@@ -255,8 +286,8 @@ public class ReportService {
         return s.board(boardId).filter(EffectiveBoard::active).orElseThrow(ReportTargetNotFoundException::new);
     }
 
-    /** 자동 숨김 — 대상 행을 잠그고 판정한다 */
-    private void autoHide(Target target, String reason, BoardReportValues policy, Instant now) {
+    /** 자동 숨김 — 대상 행을 잠그고 판정한다. 기준 숨김은 열린 사건의 신고만 센다 */
+    private void autoHide(Target target, long caseId, String reason, BoardReportValues policy, Instant now) {
         String hideReason = null;
         Instant until = null;
         if (ReportReasons.ILLEGAL_FILMING.equals(reason)) {
@@ -264,12 +295,16 @@ public class ReportService {
         } else if (ReportReasons.RIGHTS.equals(reason)) {
             hideReason = ReportReasons.HIDDEN_RIGHTS;
             until = now.plus(Duration.ofDays(policy.rightsTempMeasureDays()));
-        } else if (thresholdApplies(target, policy) && reportQueries.countedReporters(target.type(), target.id()) >= policy.autoHideThreshold()) {
+        } else if (thresholdApplies(target, policy) && reportQueries.countedReporters(caseId) >= policy.autoHideThreshold()) {
             hideReason = ReportReasons.HIDDEN_REPORTED;
         }
         if (hideReason == null) {
             return;
         }
+        boolean notifyAuthor = Boolean.TRUE.equals(policy.notifyAuthorOnAction());
+        Map<String, Object> hidden = new LinkedHashMap<>();
+        hidden.put("hiddenReason", hideReason);
+        hidden.put("hiddenUntil", until == null ? null : until.toString());
         if (target.comment() == null) {
             PostEntity locked = posts.findWithLockById(target.post().getId()).orElseThrow(ReportTargetNotFoundException::new);
             if (!locked.hide(hideReason, until, now)) {
@@ -280,7 +315,8 @@ public class ReportService {
             detail.put("hiddenReason", hideReason);
             detail.put("hiddenUntil", until == null ? null : until.toString());
             moderation.system(locked.getId(), PostModerationEventEntity.REPORT_HIDDEN, detail, now);
-            if (locked.getAuthorId() != null) {
+            caseLog.system(caseId, ReportEventEntity.AUTO_HIDDEN, hidden, now);
+            if (notifyAuthor && locked.getAuthorId() != null) {
                 // 작성 회원에게 알림(끌 수 없음, 신고자·사유 코드는 싣지 않는다) — 실패해도 신고는 그대로
                 memberNotices.contentHidden(locked.getAuthorId(), locked.getId(), null, locked.getTitle(), until);
             }
@@ -289,11 +325,14 @@ public class ReportService {
         CommentEntity locked = comments.findWithLockByPostIdAndId(target.comment().getPostId(), target.comment().getId())
                 .orElseThrow(ReportTargetNotFoundException::new);
         boolean wasVisible = !locked.isDeleted() && !locked.isHiddenAt(now);
-        boolean hidden = locked.hide(hideReason, until, now);
-        if (hidden && wasVisible) {
+        boolean madeHidden = locked.hide(hideReason, until, now);
+        if (madeHidden && wasVisible) {
             counters.addCommentCount(locked.getPostId(), -1);
         }
-        if (hidden && locked.getAuthorId() != null) {
+        if (madeHidden) {
+            caseLog.system(caseId, ReportEventEntity.AUTO_HIDDEN, hidden, now);
+        }
+        if (madeHidden && notifyAuthor && locked.getAuthorId() != null) {
             memberNotices.contentHidden(locked.getAuthorId(), locked.getPostId(), locked.getId(), RichText.plainOf(locked.getContentFormat(), locked.getContent()),
                     until);
         }

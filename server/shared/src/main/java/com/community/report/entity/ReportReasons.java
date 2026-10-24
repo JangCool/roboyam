@@ -29,6 +29,14 @@ public final class ReportReasons {
     /** 숨김 까닭: 운영자가 숨김(관리자 게시글 관리 — V80). 공개 목록에는 게시판 옵션 staffHiddenNotice 가 켜졌을 때만 이 값으로 밝힌다 */
     public static final String HIDDEN_STAFF = "STAFF";
 
+    /** 신고 자동 숨김 까닭 — 관리자 신고 관리에서 「무시」하면 풀고(복구), 「자동 숨김 확정」은 이 까닭일 때만 한다. 운영자 숨김({@link #HIDDEN_STAFF})은 들지 않는다 */
+    public static final List<String> AUTO_HIDDEN = List.of(HIDDEN_REPORTED, HIDDEN_ILLEGAL, HIDDEN_RIGHTS);
+
+    /** 신고 자동 숨김 까닭인가 */
+    public static boolean isAutoHidden(String hiddenReason) {
+        return hiddenReason != null && AUTO_HIDDEN.contains(hiddenReason);
+    }
+
     private ReportReasons() {
     }
 }

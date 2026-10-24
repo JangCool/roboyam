@@ -35,8 +35,12 @@ public enum MemberNotificationType {
     OPINION_PIN_REQUESTED("comment"),
     /** 내 의견 고정 요청이 승인·거절됐다(거절 사유와 함께, V78) */
     OPINION_PIN_REVIEWED("system"),
-    /** 운영자가 내 글을 지웠다(관리자 게시글 관리 — 글 제목·사유, V80). 지운 글은 열 수 없어 링크가 없다 */
-    POST_REMOVED("system");
+    /** 운영자가 내 글을 지웠다(관리자 게시글 관리·신고 관리 — 글 제목·사유, V80). 지운 글은 열 수 없어 링크가 없다 */
+    POST_REMOVED("system"),
+    /** 운영자가 내 댓글을 지웠다(관리자 신고 관리 — 댓글 앞부분·사유, V82). 링크는 그 글 */
+    COMMENT_REMOVED("system"),
+    /** 내가 한 신고가 처리됐다(관리자 신고 관리 — 조치됨 · 위반 아님, V82). 게시판 신고 정책 notifyReporterOnResult 가 켜졌을 때만 */
+    REPORT_RESULT("system");
 
     private final String category;
 

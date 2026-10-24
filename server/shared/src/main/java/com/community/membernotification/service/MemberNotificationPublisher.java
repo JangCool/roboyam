@@ -136,24 +136,41 @@ public class MemberNotificationPublisher {
      * @param reason 운영자가 적은 사유
      */
     public int postHiddenByStaff(long authorId, long postId, String title, String reason) {
+        return hiddenByStaff(authorId, postId, null, title, reason, null);
+    }
+
+    /**
+     * 운영자가 글·댓글을 숨겼다 — 작성 회원에게 {@code POST_HIDDEN}·{@code COMMENT_HIDDEN}(덧붙임 {@code by STAFF}·{@code reason}·있으면 {@code reasonCode}). 비회원 것이면 부르지 않는다.
+     * 관리자 신고 관리의 「숨기기」·「자동 숨김 확정」은 사유 코드와 글을 함께 싣는다(문구는 「코드 이름: 글」).
+     *
+     * @param commentId  댓글이면 그 ID, 글이면 null
+     * @param snapshot   글 제목 또는 댓글 앞부분(잘라서 남긴다)
+     * @param reason     운영자가 적은 글(없으면 null)
+     * @param reasonCode 조치 사유 코드(신고 사유 체계, 없으면 null)
+     */
+    public int hiddenByStaff(long authorId, long postId, Long commentId, String snapshot, String reason, String reasonCode) {
         return isolated.run("member-notification:staff-hidden", () -> {
-            EventSwitch on = switchOf(MemberNotificationType.POST_HIDDEN, authorId);
+            MemberNotificationType type = commentId == null ? MemberNotificationType.POST_HIDDEN : MemberNotificationType.COMMENT_HIDDEN;
+            EventSwitch on = switchOf(type, authorId);
             if (!on.delivers() || !writer.receivable(authorId)) {
                 return 0;
             }
-            String cut = cut(title, SNAPSHOT_MAX);
+            String cut = cut(snapshot, SNAPSHOT_MAX);
             int made = 0;
             if (on.inApp()) {
                 Map<String, Object> payload = new LinkedHashMap<>();
                 payload.put("snapshot", cut);
                 payload.put("by", MemberNotificationMessages.BY_STAFF);
                 payload.put("reason", reason);
-                writer.insert(ids.nextId(), authorId, MemberNotificationType.POST_HIDDEN.name(), null, null, postId, null, MAPPER.writeValueAsString(payload),
-                        Instant.now());
+                if (reasonCode != null) {
+                    payload.put("reasonCode", reasonCode);
+                }
+                writer.insert(ids.nextId(), authorId, type.name(), null, null, postId, commentId, MAPPER.writeValueAsString(payload), Instant.now());
                 made = 1;
             }
             if (on.email()) {
-                requestEmail(authorId, MemberNotificationMessages.Facts.hiddenByStaff(cut, reason), null, null);
+                // 숨긴 글은 열 수 없다 — 댓글 숨김이면 그 글로 간다(알림함 링크와 같다)
+                requestEmail(authorId, MemberNotificationMessages.Facts.hiddenByStaff(type, cut, reason, reasonCode), null, commentId == null ? null : postId);
             }
             return made;
         }, 0);
@@ -166,24 +183,73 @@ public class MemberNotificationPublisher {
      * @param revokedPoints 함께 회수한 포인트(없으면 0)
      */
     public int postRemoved(long authorId, long postId, String title, String reason, long revokedPoints) {
-        return isolated.run("member-notification:post-removed", () -> {
-            EventSwitch on = switchOf(MemberNotificationType.POST_REMOVED, authorId);
+        return removedByStaff(authorId, postId, null, title, reason, null, revokedPoints);
+    }
+
+    /**
+     * 운영자가 글·댓글을 지웠다 — 작성 회원에게 {@code POST_REMOVED}·{@code COMMENT_REMOVED}(끌 수 없는 처리 알림, 덧붙임 {@code snapshot}·{@code reason}·있으면 {@code reasonCode}·
+     * {@code revokedPoints}). 지운 글은 링크가 없고, 지운 댓글은 그 글로 간다. 비회원 것이면 부르지 않는다.
+     *
+     * @param commentId     댓글이면 그 ID, 글이면 null
+     * @param snapshot      글 제목 또는 댓글 앞부분(잘라서 남긴다)
+     * @param reasonCode    조치 사유 코드(신고 사유 체계 — 관리자 신고 관리, 없으면 null)
+     * @param revokedPoints 함께 회수한 포인트(없으면 0)
+     */
+    public int removedByStaff(long authorId, long postId, Long commentId, String snapshot, String reason, String reasonCode, long revokedPoints) {
+        return isolated.run("member-notification:removed", () -> {
+            MemberNotificationType type = commentId == null ? MemberNotificationType.POST_REMOVED : MemberNotificationType.COMMENT_REMOVED;
+            EventSwitch on = switchOf(type, authorId);
             if (!on.delivers() || !writer.receivable(authorId)) {
                 return 0;
             }
-            String cut = cut(title, SNAPSHOT_MAX);
+            String cut = cut(snapshot, SNAPSHOT_MAX);
             int made = 0;
             if (on.inApp()) {
                 Map<String, Object> payload = new LinkedHashMap<>();
                 payload.put("snapshot", cut);
                 payload.put("reason", reason);
+                if (reasonCode != null) {
+                    payload.put("reasonCode", reasonCode);
+                }
                 payload.put("revokedPoints", revokedPoints);
-                writer.insert(ids.nextId(), authorId, MemberNotificationType.POST_REMOVED.name(), null, null, postId, null, MAPPER.writeValueAsString(payload),
-                        Instant.now());
+                writer.insert(ids.nextId(), authorId, type.name(), null, null, postId, commentId, MAPPER.writeValueAsString(payload), Instant.now());
                 made = 1;
             }
             if (on.email()) {
-                requestEmail(authorId, MemberNotificationMessages.Facts.removed(cut, reason), null, null);
+                requestEmail(authorId, MemberNotificationMessages.Facts.removed(type, cut, reason, reasonCode), null, commentId == null ? null : postId);
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
+     * 내 신고가 처리됐다(관리자 신고 관리 — 사건을 조치·무시로 닫음) — 신고한 회원에게 {@code REPORT_RESULT}(덧붙임 {@code result}·{@code targetType}·{@code snapshot}).
+     * 게시판 신고 정책 {@code notifyReporterOnResult} 가 켜졌을 때만 부른다. 처리 사유·작성자는 싣지 않는다.
+     *
+     * @param commentId  댓글 신고면 그 ID, 글 신고면 null
+     * @param targetType {@code POST} · {@code COMMENT}
+     * @param snapshot   신고 당시 글 제목·댓글 앞부분(잘라서 남긴다)
+     * @param result     {@link MemberNotificationMessages#REPORT_ACTIONED} · {@link MemberNotificationMessages#REPORT_NO_VIOLATION}
+     */
+    public int reportResult(long reporterId, long postId, Long commentId, String targetType, String snapshot, String result) {
+        return isolated.run("member-notification:report-result", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.REPORT_RESULT, reporterId);
+            if (!on.delivers() || !writer.receivable(reporterId)) {
+                return 0;
+            }
+            String cut = cut(snapshot, SNAPSHOT_MAX);
+            int made = 0;
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("result", result);
+                payload.put("targetType", targetType);
+                payload.put("snapshot", cut);
+                writer.insert(ids.nextId(), reporterId, MemberNotificationType.REPORT_RESULT.name(), null, null, postId, commentId,
+                        MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(reporterId, MemberNotificationMessages.Facts.reportResult(result, targetType, cut), null, null);
             }
             return made;
         }, 0);

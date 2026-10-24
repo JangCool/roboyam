@@ -5,7 +5,7 @@
         - 조회 카드: 검색 대상(제목·작성자·글번호) + 검색 칸(제목·작성자 2자 이상, 글번호는 숫자 — 앞의 # 허용) · 게시판 → 말머리(한 줄) · 작성일 기간(빠른 선택) · 상태 탭(전체/공개/숨김/삭제 + 건수 — 상태 조건만 뺀 건수).
           목록(회원 관리와 같은 자리): 정렬은 표의 「작성일」 머리(내림차순 = 최신순 · 오름차순 = 오래된순 — 서버가 이 둘만 안다) · 표 위 툴바에 건수·정렬 안내 · 쪽 넘김의 쪽 크기(10/20/50, 서버 상한 50).
           **모두 주소 쿼리**(`?field=&q=&board=&prefix=&from=&to=&state=&sort=&page=&size=&post=`)라 새로고침·공유해도 그대로다. 조건·정렬·쪽 크기를 바꾸면 1쪽으로(replace), 쪽만 바꾸면 push. `page` 는 1부터(API 는 0부터).
-        - 표(DataTable, 서버가 한 쪽씩): 체크(공개·숨김 글, `post.manage`) · 번호(복사) · 게시판 · 말머리·칩(공지/고정/19금/토론)·제목 · 작성자(비회원·탈퇴) · 상태 알약(숨김 까닭·시각, 삭제 예정·파기) · 신고 대기 · 추천/댓글/조회 · 작성일 · ⋯ 조치 메뉴.
+        - 표(DataTable, 서버가 한 쪽씩): 체크(공개·숨김 글, `post.manage`) · 번호(복사) · 게시판 · 말머리·칩(공지/고정/19금/토론)·제목 · 작성자(비회원·탈퇴) · 상태 알약(숨김 까닭·시각, 삭제 예정·파기) · 신고 대기(누르면 신고 관리 `/reports?postId=`, report-admin-contract) · 추천/댓글/조회 · 작성일 · ⋯ 조치 메뉴.
           줄·제목을 누르면 글 서랍(`PostDetailDrawer`, 주소 `?post=` — replace, 목록을 다시 받지 않는다)이 열린다. 이전/다음은 지금 쪽의 줄 순서. 운영자 알림 링크 `/posts?post={id}` 도 같은 서랍을 연다.
         - 조치: 사유 대화창(`PostReasonDialog` — 숨기기는 「작성자에게 알림」) · 이동 대화창(`PostMoveDialog` — 게시판 → 말머리, 「고정은 풀려요」) · 공지 지정·고정(`PIN_LIMIT` 은 대화창 안 서버 문구).
           `409 POST_STATE_INVALID`·`404 POST_NOT_FOUND`·`409 POST_PURGED`(그 사이 바뀜)는 토스트 + 새로 받기. 복구는 `post.restore` 가 있을 때만.
@@ -199,7 +199,17 @@
 
                     <Column :header="t('post.col.reports')" style="min-width: 5rem">
                         <template #body="{ data }">
-                            <Tag v-if="data.openReports > 0" :value="t('post.reportsPending', { n: data.openReports })" icon="pi pi-flag" severity="danger" class="text-[11px]!" />
+                            <!-- 신고 대기가 있으면 신고 관리의 그 글 사건으로(`/reports?postId=`, `report.read` 가 있을 때만 링크) -->
+                            <NuxtLink
+                                v-if="data.openReports > 0 && canReadReports"
+                                :to="UtilPost.reportsLink(data.id)"
+                                class="inline-flex rounded-md focus-visible:outline-2 focus-visible:outline-primary"
+                                :aria-label="t('post.reportsOpenLabel', { n: data.openReports })"
+                                @click.stop
+                            >
+                                <Tag :value="t('post.reportsPending', { n: data.openReports })" icon="pi pi-flag" severity="danger" class="cursor-pointer text-[11px]! hover:underline" />
+                            </NuxtLink>
+                            <Tag v-else-if="data.openReports > 0" :value="t('post.reportsPending', { n: data.openReports })" icon="pi pi-flag" severity="danger" class="text-[11px]!" />
                             <span v-else class="text-[12px] text-muted-color">—</span>
                         </template>
                     </Column>
@@ -310,6 +320,7 @@
             :debate-error="debateError"
             :can-manage="canManage"
             :can-restore="canRestore"
+            :can-read-reports="canReadReports"
             @retry="detail.reload(false)"
             @act="onDrawerAct"
             @prev="neighbors.prev && openPost(neighbors.prev)"
@@ -355,6 +366,8 @@ const uid = useId();
 const canManage = computed(() => can('post.manage'));
 const canRestore = computed(() => can('post.restore'));
 const canBulkDelete = computed(() => can('post.bulk-delete'));
+/** 「신고」 칸·서랍의 신고 대기 줄을 신고 관리로 잇는다 */
+const canReadReports = computed(() => can('report.read'));
 
 function actionsOf(item: AdminPostItem) {
     return UtilPost.actionsOf(item, { manage: canManage.value, restore: canRestore.value });

@@ -7,7 +7,8 @@ import com.community.post.dto.AdminPostRow;
 import com.community.post.dto.AdminPostSearch;
 import com.community.post.entity.PostEntity;
 import com.community.post.entity.QPostEntity;
-import com.community.report.entity.QReportEntity;
+import com.community.report.entity.QReportCaseEntity;
+import com.community.report.entity.ReportCaseEntity;
 import com.community.report.entity.ReportEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
@@ -35,7 +36,7 @@ import org.springframework.stereotype.Repository;
  * 「지정할 수 있는 글」 = 보이는 글({@link PostRepositoryQDSL#alive}) · 숨김 아님 · 19금 아님 · 켜진 게시판({@code boardIds} — 부르는 쪽이 게시판 사본으로 고른다).
  * 제목 찾기는 {@code lower(title)} 의 pg_trgm GIN 색인(V68)을 탄다.
  *
- * <p><b>게시글 관리</b>(docs/features/post-admin-contract.md): 모든 글 목록({@link #search}), 게시판 고정 수, 글별 대기 신고 수·토론 열림.
+ * <p><b>게시글 관리</b>(docs/features/post-admin-contract.md): 모든 글 목록({@link #search}), 게시판 고정 수, 글별 열린 신고 사건의 신고 수·토론 열림.
  * 상태 = DELETED(지움·예약 삭제 시각 지남·임시저장) · HIDDEN(지우지 않았고 숨김 중) · PUBLIC(그 밖) — {@link AdminPostListRow#stateAt} 와 같은 기준.
  */
 @Repository
@@ -202,18 +203,20 @@ public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
         return count == null ? 0 : count;
     }
 
-    /** 글별 처리 대기 신고 수(글 신고만 — 댓글 신고는 세지 않는다) */
+    /**
+     * 글별 열린 신고 사건(처리 대기·검토 중)의 신고 수 — 그 글 자체의 사건만(댓글 사건은 세지 않는다). 게시글 관리 목록의 「신고」 칸(누르면 신고 관리 {@code /reports?postId=})
+     */
     public Map<Long, Integer> openReports(Collection<Long> postIds) {
         Map<Long, Integer> out = new HashMap<>();
         if (postIds.isEmpty()) {
             return out;
         }
-        QReportEntity report = QReportEntity.reportEntity;
-        for (Tuple t : query.select(report.targetId, report.id.count()).from(report)
-                .where(report.targetType.eq(ReportEntity.POST), report.targetId.in(postIds), report.status.eq(ReportEntity.PENDING))
-                .groupBy(report.targetId).fetch()) {
-            Long count = t.get(1, Long.class);
-            out.put(t.get(0, Long.class), count == null ? 0 : count.intValue());
+        QReportCaseEntity reportCase = QReportCaseEntity.reportCaseEntity;
+        for (Tuple t : query.select(reportCase.targetId, reportCase.reportCount).from(reportCase)
+                .where(reportCase.targetType.eq(ReportEntity.POST), reportCase.targetId.in(postIds), reportCase.status.in(ReportCaseEntity.OPEN))
+                .fetch()) {
+            Integer count = t.get(1, Integer.class);
+            out.put(t.get(0, Long.class), count == null ? 0 : count);
         }
         return out;
     }
