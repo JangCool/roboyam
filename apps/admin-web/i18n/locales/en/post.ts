@@ -33,12 +33,6 @@ export default {
     filterCreatedFrom: 'Created from',
     filterCreatedTo: 'Created to',
     stateLabel: 'Status',
-    stateTab: {
-        ALL: 'All {n}',
-        PUBLIC: 'Public {n}',
-        HIDDEN: 'Hidden {n}',
-        DELETED: 'Deleted {n}',
-    },
     sortBy: 'Sorted by {field}, {dir}',
     sortAsc: 'ascending',
     sortDesc: 'descending',

@@ -18,8 +18,4 @@ import java.time.Instant;
  */
 public record AdminPostSearch(Long postId, String title, String author, Instant createdFrom, Instant createdTo, Long boardId, Long prefixId, String state,
                               boolean oldest, boolean none) {
-
-    public AdminPostSearch withoutState() {
-        return new AdminPostSearch(postId, title, author, createdFrom, createdTo, boardId, prefixId, null, oldest, none);
-    }
 }

@@ -34,12 +34,6 @@ export default {
     filterCreatedFrom: '작성일 시작',
     filterCreatedTo: '작성일 끝',
     stateLabel: '상태',
-    stateTab: {
-        ALL: '전체 {n}',
-        PUBLIC: '공개 {n}',
-        HIDDEN: '숨김 {n}',
-        DELETED: '삭제 {n}',
-    },
     sortBy: '정렬: {field} {dir}',
     sortAsc: '오름차순',
     sortDesc: '내림차순',

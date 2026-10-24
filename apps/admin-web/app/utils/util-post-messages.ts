@@ -5,14 +5,9 @@ import type { PostMoveProblem, PostReasonProblem } from '~/utils/util-post';
 import UtilPost from '~/utils/util-post';
 
 /**
- * 게시글 관리 화면의 계산이 낀 문구 — 상태 탭·숨김 줄·사유/이동 문제·일괄 결과·조치 기록의 처리자. 상수 문구는 화면이 `t('post.*')` 로 부른다.
+ * 게시글 관리 화면의 계산이 낀 문구 — 숨김 줄·사유/이동 문제·일괄 결과·조치 기록의 처리자. 상수 문구는 화면이 `t('post.*')` 로 부른다.
  */
 export default class UtilPostMessages {
-    /** 상태 탭 — 「숨김 3」 */
-    static tab(t: Translate, state: PostStateFilter, count: number, locale: string): string {
-        return t(`post.stateTab.${state}`, { n: count.toLocaleString(locale) });
-    }
-
     /** 사유 칸 문제 */
     static reasonProblem(t: Translate, problem: PostReasonProblem | null): string {
         if (problem === 'REQUIRED') return t('post.reasonRequired');

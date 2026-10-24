@@ -70,17 +70,7 @@
 
             <FilterRow :label="t('post.stateLabel')">
                 <template #default="{ labelId }">
-                    <SelectButton
-                        :model-value="filters.state"
-                        :options="stateOptions"
-                        option-label="label"
-                        option-value="value"
-                        :allow-empty="false"
-                        size="small"
-                        :aria-labelledby="labelId"
-                        class="post-tabs"
-                        @update:model-value="setState"
-                    />
+                    <FilterOptionGroup :model-value="filters.state" :options="stateOptions" :labelledby="labelId" @update:model-value="(v) => setState(v as PostStateFilter)" />
                 </template>
             </FilterRow>
 
@@ -504,13 +494,7 @@ const prefixFilterOptions = computed(() => {
 });
 
 // ⚠ `computed` 다 — 그냥 배열이면 처음 읽은 순간의 언어로 굳는다
-const stateOptions = computed(() =>
-    UtilPost.STATE_FILTERS.map((value) => {
-        const c = view.value?.counts;
-        const count = !c ? null : value === 'ALL' ? c.all : value === 'PUBLIC' ? c.public : value === 'HIDDEN' ? c.hidden : c.deleted;
-        return { value, label: count === null ? t(`post.state.${value}`) : UtilPostMessages.tab(t, value, count, locale.value) };
-    }),
-);
+const stateOptions = computed(() => UtilPost.STATE_FILTERS.map((value) => ({ value, label: t(`post.state.${value}`) })));
 /** 툴바의 정렬 안내 — 회원 관리와 같은 꼴(「정렬: 작성일 내림차순」) */
 const sortText = computed(() => t('post.sortBy', { field: t('post.col.createdAt'), dir: t(filters.value.sort === 'oldest' ? 'post.sortAsc' : 'post.sortDesc') }));
 
@@ -933,18 +917,6 @@ watch(
 </script>
 
 <style scoped>
-/* 상태 탭 — 고른 탭을 강조색으로 짚는다(인기글 관리 기간 탭과 같은 모양) */
-.post-tabs :deep(.p-togglebutton-checked) {
-    background: var(--p-primary-color);
-    color: var(--p-primary-contrast-color);
-    border-color: var(--p-primary-color);
-}
-
-.post-tabs :deep(.p-togglebutton-content) {
-    background: transparent;
-    box-shadow: none;
-}
-
 /* 서랍에 열린 글의 줄 */
 .post-table :deep(tr.post-row-open) {
     background: var(--p-highlight-background);

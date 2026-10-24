@@ -13,7 +13,6 @@ import com.community.post.dto.response.AdminPostBoardOptionView;
 import com.community.post.dto.response.AdminPostBoardOptionsView;
 import com.community.post.dto.response.AdminPostBoardRefView;
 import com.community.post.dto.response.AdminPostContentView;
-import com.community.post.dto.response.AdminPostCountsView;
 import com.community.post.dto.response.AdminPostDetailView;
 import com.community.post.dto.response.AdminPostEventActorView;
 import com.community.post.dto.response.AdminPostEventView;
@@ -113,16 +112,15 @@ public class AdminPostQueryService {
         this.catalog = catalog;
     }
 
-    /** 목록 한 쪽 + 상태별 건수 */
+    /** 목록 한 쪽(상태별 건수는 세지 않는다 — 사용자 결정 2026-10-24) */
     public AdminPostListView list(String searchField, String q, String createdFrom, String createdTo, String board, String prefix, String state, String sort,
                                   String pageRaw, String sizeRaw) {
         Instant now = Instant.now();
         int page = Math.max(0, intOr(pageRaw, 0));
         int size = Math.min(SIZE_MAX, Math.max(1, intOr(sizeRaw, SIZE_DEFAULT)));
         AdminPostSearch search = criteria(searchField, q, createdFrom, createdTo, board, prefix, state, sort);
-        AdminPostRepositoryQDSL.Counts counts = posts.counts(search.withoutState(), now);
         AdminPostRepositoryQDSL.ListPage result = posts.search(search, (long) page * size, size, now);
-        return new AdminPostListView(new AdminPostCountsView(counts.all(), counts.publicCount(), counts.hidden(), counts.deleted()), result.total(), page, size,
+        return new AdminPostListView(result.total(), page, size,
                 items(result.items(), now));
     }
 

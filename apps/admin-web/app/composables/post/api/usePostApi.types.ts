@@ -69,17 +69,8 @@ export interface AdminPostItem {
     createdAt: string;
 }
 
-/** 상태 조건만 뺀 건수 */
-export interface AdminPostCounts {
-    all: number;
-    public: number;
-    hidden: number;
-    deleted: number;
-}
-
 /** `GET /api/admin/posts` */
 export interface AdminPostListView {
-    counts: AdminPostCounts;
     total: number;
     /** 0부터 */
     page: number;

@@ -35,7 +35,7 @@ import org.springframework.stereotype.Repository;
  * 「지정할 수 있는 글」 = 보이는 글({@link PostRepositoryQDSL#alive}) · 숨김 아님 · 19금 아님 · 켜진 게시판({@code boardIds} — 부르는 쪽이 게시판 사본으로 고른다).
  * 제목 찾기는 {@code lower(title)} 의 pg_trgm GIN 색인(V68)을 탄다.
  *
- * <p><b>게시글 관리</b>(docs/features/post-admin-contract.md): 모든 글 목록({@link #search}·상태별 건수 {@link #counts}), 게시판 고정 수, 글별 대기 신고 수·토론 열림.
+ * <p><b>게시글 관리</b>(docs/features/post-admin-contract.md): 모든 글 목록({@link #search}), 게시판 고정 수, 글별 대기 신고 수·토론 열림.
  * 상태 = DELETED(지움·예약 삭제 시각 지남·임시저장) · HIDDEN(지우지 않았고 숨김 중) · PUBLIC(그 밖) — {@link AdminPostListRow#stateAt} 와 같은 기준.
  */
 @Repository
@@ -108,9 +108,6 @@ public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
     public record ListPage(List<AdminPostListRow> items, long total) {
     }
 
-    /** 상태별 건수 */
-    public record Counts(long all, long publicCount, long hidden, long deleted) {
-    }
 
     private static ConstructorExpression<AdminPostListRow> listRow() {
         return Projections.constructor(AdminPostListRow.class, POST.id, POST.boardId, POST.prefixId, POST.authorId, POST.guestName, POST.title, POST.status,
@@ -190,25 +187,6 @@ public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
                 .offset(offset).limit(limit)
                 .fetch();
         return new ListPage(items, total);
-    }
-
-    /** 상태 조건만 뺀 상태별 건수(탭 숫자) — 전체 · 지운 글 · 숨긴 글을 세고 공개는 나머지 */
-    public Counts counts(AdminPostSearch c, Instant now) {
-        if (c.none()) {
-            return new Counts(0, 0, 0, 0);
-        }
-        long all = count(filter(c));
-        if (all == 0) {
-            return new Counts(0, 0, 0, 0);
-        }
-        long deleted = count(filter(c).and(stateIs(AdminPostListRow.DELETED, now)));
-        long hidden = count(filter(c).and(stateIs(AdminPostListRow.HIDDEN, now)));
-        return new Counts(all, Math.max(0, all - deleted - hidden), hidden, deleted);
-    }
-
-    private long count(BooleanBuilder where) {
-        Long n = query.select(POST.id.count()).from(POST).where(where).fetchOne();
-        return n == null ? 0 : n;
     }
 
     /** 글 한 줄(상태와 무관) */
