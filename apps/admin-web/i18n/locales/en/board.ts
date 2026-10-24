@@ -151,7 +151,7 @@ export default {
         display: 'How post times are shown in board lists and posts.',
         write: 'Who can write posts and comments, and with which editor. Members always need sign-in, a verified email and not being suspended.',
         rate: 'Intervals and daily limits against flooding. Not set per board.',
-        list: 'Posts per page, pinned notices, and whether to include in search engines, site search and home.',
+        list: 'Posts per page, pinned notices, and whether to include in search engines and site search.',
         attachment: 'When attachments of deleted posts are removed for good.',
         protect: 'Point rewards, and rules that stop authors from editing or deleting posts with many comments.',
         guest: 'How long new comments are hidden from guests (not signed in).',
@@ -245,6 +245,7 @@ export default {
         guestLinkLimit: 'Guest external links',
         guestRetentionDays: 'Guest posts',
         guestMode: 'Guest post handling',
+        gadgetExclusions: 'Hide from gadgets',
     },
     fieldHelp: {
         dateDisplay: 'How post times are shown.',
@@ -319,6 +320,7 @@ export default {
         guestLinkLimit: 'External links in one guest post or comment. 0 means no links (recommended).',
         guestRetentionDays: 'Guest posts past this period are handled as below. 0 means no processing.',
         guestMode: 'Anonymize masks the author name with *** and destroys password and IP (the post stays). Delete removes the post and destroys title, body and attachments.',
+        gadgetExclusions: "This board's posts won't appear in the selected gadgets.",
     },
     choice: {
         dateDisplay: {

@@ -1,10 +1,10 @@
-// MOCK: 게시판이 섞인 목록(최신글·인기글·통합 검색·회원 프로필 작성글)의 목업들이 같이 쓰는 「실제 게시판 글 모으기」.
-// 서버에 전체 게시판을 한 번에 읽는 API(`/api/home/latest`·`/api/home/popular`·`/api/search`·`/api/users/{id}/posts`)가 없어,
+// MOCK: 게시판이 섞인 목록(회원 프로필 작성글)과 회원 이름 빌리기(`member-mock.ts`)의 목업들이 같이 쓰는 「실제 게시판 글 모으기」.
+// 서버에 회원별로 읽는 API(`/api/users/{id}/profile`·`/api/users/{id}/posts`)가 아직 없어,
 // **실제 공개 API**(`GET /api/boards` + 게시판마다 `GET /api/boards/{slug}/posts` 첫 몇 쪽)로 글을 모아 그 API 들을 흉내 낸다 — 목업 화면의 글 링크가 실제 글로 열린다.
 // 이 파일은 서버 주소를 모른다 — 부르는 API 컴포저블이 `useBoardApi` 의 함수를 넘긴다. 서버가 붙으면 쓰는 목업과 함께 지운다.
 //
 // 가정(계약 「목업 가정」): 게시판마다 앞 `PAGES` 쪽만 읽는다(오래된 글은 빠진다) · 꺼진 게시판·못 읽은 게시판은 건너뛴다 · 신고로 숨겨진 글은 뺀다 ·
-// 같은 검색어(`q`)로 15초 안에 다시 물으면 모아 둔 것을 쓴다(더보기·쪽 이동마다 게시판 수만큼 요청이 나가지 않게).
+// 15초 안에 다시 물으면 모아 둔 것을 쓴다(더보기·쪽 이동마다 게시판 수만큼 요청이 나가지 않게).
 
 import type { BoardView } from '~/composables/board/api/useBoardApi.types';
 import type { PostFeedRow, PostListQuery, PostListResponse } from '~/composables/board/api/usePostApi.types';
@@ -33,7 +33,7 @@ function compareId(a: string, b: string): number {
 }
 
 /** 최신이 위 — 같은 시각이면 ID 가 큰 것이 위 */
-export function mockNewestFirst(a: PostFeedRow, b: PostFeedRow): number {
+function mockNewestFirst(a: PostFeedRow, b: PostFeedRow): number {
     return Date.parse(b.createdAt) - Date.parse(a.createdAt) || compareId(b.id, a.id);
 }
 

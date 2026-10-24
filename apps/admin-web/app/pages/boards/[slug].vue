@@ -5,6 +5,7 @@
           · 기본 정보 + 정책 + 말머리(+ 안내문·한도 칸)는 **화면 하나로 한 번 저장**(`PUT /api/admin/boards/{id}`, 한 트랜잭션) → 하단 떠 있는 줄(`StickySaveBar`). 투자 고지를 새로 켜면 저장 전에 「다시 끌 수 없어요」를 묻는다.
           · 매니저·스텝 지정/해제, 게시판 켜고 끄기, 삭제는 **누르면 바로**(확인창 + 토스트) — 저장 줄과 무관하다.
         정책 칸은 모두 「기본값 따름」(null)을 고를 수 있고 그때 지금 기본값을 흐리게 보인다(`BoardSettingField`, 칸 정의는 `UtilBoard.SPECS` — 기본 설정 화면과 같은 부품). 읽기 전용 잠금(writeLock)은 기본값이 없는 게시판 전용 칸이다.
+        「노출」의 가젯 노출 금지(gadgetExclusions)도 기본값이 없는 게시판 전용 칸이다(서버가 준 `gadgets` 순서의 체크 목록, 권한 `board.settings`). 이 칸이 「홈·인기·최신 포함」(inHome)을 대신해 inHome 은 화면에서 다루지 않는다(받은 값 그대로 저장 요청에 돌아간다).
         community 와 다른 점:
           · 최소 자격은 등급 목록(`useGradeAppearance`)의 등급 또는 운영진만(댓글은 끔도). 「지킴이」 → 매니저·스텝(정책 `docs/domain/operator-permissions.md`): 매니저 기본 3·최대 10, 스텝 최대 10, 한 회원 최대 5개 게시판. 핫딜·직접홍보·소모임 게시판은 지정 불가.
           · 말머리를 따로 저장하지 않고 게시판 저장에 함께 보낸다(서버가 목록을 diff — 빠진 말머리는 지우고, 쓰는 글이 있으면 409 `PREFIX_IN_USE`). 화면은 글이 있는 말머리의 삭제 단추를 잠그고 끄기를 안내한다. 사용 중 고유 말머리는 최대 6개.
@@ -248,9 +249,23 @@
                 </AppGadget>
 
                 <!-- 5. 노출 -->
-                <AppGadget :title="t('board.section.exposure')" anchor="board-exposure" :changes="changes.exposure" :invalid="invalidOf([...EXPOSURE_FIELDS])">
+                <AppGadget :title="t('board.section.exposure')" anchor="board-exposure" :changes="changes.exposure" :invalid="invalidOf([...EXPOSURE_FIELDS, 'gadgetExclusions'])">
                     <div class="grid gap-x-8 gap-y-5 md:grid-cols-2">
                         <BoardSettingField v-for="field in EXPOSURE_FIELDS" :key="field" v-bind="policyBind(field)" @update:model-value="(value: BoardFieldValue) => onPolicy(field, value)" />
+
+                        <!-- 가젯 노출 금지 — 게시판마다의 값(기본값 따름 없음). 고른 가젯에 이 게시판 글을 내지 않는다. 가젯 목록·이름은 서버가 준다 -->
+                        <div class="flex flex-col gap-1.5" role="group" :aria-labelledby="`${idBase}-gadget`" :aria-describedby="`${idBase}-gadget-help`">
+                            <span :id="`${idBase}-gadget`" class="text-sm font-medium">{{ t('board.field.gadgetExclusions') }}</span>
+                            <ul v-if="saved.gadgets?.length" class="m-0 flex min-h-8 list-none flex-wrap items-center gap-x-5 gap-y-2 p-0">
+                                <li v-for="g in saved.gadgets" :key="g.key" class="flex items-center gap-1.5">
+                                    <Checkbox v-model="gadgetModel" :value="g.key" :input-id="`${idBase}-gadget-${g.key}`" :disabled="!canSettings || saving" />
+                                    <label :for="`${idBase}-gadget-${g.key}`" class="text-[13px]">{{ g.label }}</label>
+                                </li>
+                            </ul>
+                            <p :id="`${idBase}-gadget-help`" class="m-0 text-xs leading-relaxed" :class="serverFields.gadgetExclusions ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="serverFields.gadgetExclusions ? 'alert' : undefined">
+                                {{ serverFields.gadgetExclusions || t('board.fieldHelp.gadgetExclusions') }}
+                            </p>
+                        </div>
                     </div>
                 </AppGadget>
 
@@ -417,7 +432,8 @@ const canStaffManage = computed(() => can('board.staff.manage'));
 const canDelete = computed(() => can('board.delete'));
 
 const WRITE_FIELDS = ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor'] as const;
-const EXPOSURE_FIELDS = ['listSize', 'pinnedMax', 'indexable', 'searchable', 'inHome'] as const;
+/** 「홈·인기·최신 포함」(inHome)은 두지 않는다 — 가젯 노출 금지가 대신한다(서버 칸은 받은 값 그대로 저장 요청에 돌아간다) */
+const EXPOSURE_FIELDS = ['listSize', 'pinnedMax', 'indexable', 'searchable'] as const;
 const PROTECT_FIELDS = ['commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes', 'pointMode'] as const;
 const STAFF_LIMIT_FIELDS = ['managerMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit'] as const;
 const GUIDE_FIELDS = ['introText', 'writeGuideText'] as const;
@@ -458,6 +474,16 @@ const colorModel = computed<string>({
     get: () => form.value?.color ?? 'AUTO',
     set: (value) => {
         if (form.value) form.value.color = value === 'AUTO' ? null : (value as BoardColor);
+    },
+});
+
+/** 가젯 노출 금지 — 체크 목록이 고른 키 배열을 주고받는다. 고치면 그 칸의 서버 오류를 지운다 */
+const gadgetModel = computed<string[]>({
+    get: () => form.value?.gadgetExclusions ?? [],
+    set: (value) => {
+        if (!form.value) return;
+        form.value.gadgetExclusions = value;
+        clearServer('gadgetExclusions');
     },
 });
 

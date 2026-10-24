@@ -16,6 +16,7 @@ import com.community.board.dto.response.BoardDetailView;
 import com.community.board.dto.response.BoardListItemView;
 import com.community.board.dto.response.BoardListResponse;
 import com.community.board.entity.BoardEntity;
+import com.community.board.entity.BoardGadget;
 import com.community.board.entity.BoardPrefixEntity;
 import com.community.board.exception.BoardHasPostsException;
 import com.community.board.exception.BoardInvestmentNoticeLockedException;
@@ -39,6 +40,7 @@ import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.MessageRef;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -59,11 +61,12 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li>권한: 입구는 컨트롤러가 선언하고, 저장({@link #save})은 <b>바뀐 부분의 권한만</b> 여기서 본다 — 기본 정보·말머리 {@code board.manage},
- *       정책(잠금·안내문 포함) {@code board.settings}, 매니저·스텝 한도 칸 {@code board.staff.limit}. 모자라면 403 {@code PERMISSION_DENIED} + 감사 기록(DENIED).</li>
+ *       정책(잠금·안내문·가젯 노출 금지 포함) {@code board.settings}, 매니저·스텝 한도 칸 {@code board.staff.limit}. 모자라면 403 {@code PERMISSION_DENIED} + 감사 기록(DENIED).</li>
  *   <li>입력 오류는 400 {@code VALIDATION} + 칸 경로({@code name} · {@code policy.writeMin} · {@code prefixes[0].name} …). 칸 범위·값 목록은 {@link BoardFields}.</li>
  *   <li>이름은 대소문자 무시 유일(409 {@code BOARD_NAME_DUPLICATE}), slug 는 유일·만든 뒤 변경 불가(409 {@code BOARD_SLUG_DUPLICATE}).
  *       투자 고지는 켜기만(409 {@code BOARD_INVESTMENT_NOTICE_LOCKED}). 사용 중 고유 말머리 최대 6(409 {@code PREFIX_LIMIT}), 글이 있는 말머리는 못 지운다(409 {@code PREFIX_IN_USE}).</li>
  *   <li>쓰기 자격: GUEST · 등급 키(등급 표에 있는 것) · STAFF, 댓글은 OFF 도. 핫딜·직접홍보는 GUEST 불가, 핫딜 글쓰기는 첫 등급(새싹) 불가.</li>
+ *   <li>가젯 노출 금지({@code gadgetExclusions}): null 이면 그대로, 중복은 하나로(목록 순서로 저장), 모르는 값은 400 {@code gadgetExclusions}.</li>
  *   <li>삭제는 삭제되지 않은 글(임시저장 포함)이 없을 때만(409 {@code BOARD_HAS_POSTS}) — 남은 삭제된 글·댓글도 함께 지운다.</li>
  *   <li>감사 기록은 바뀐 값만 before/after 로 남긴다.</li>
  * </ul>
@@ -200,7 +203,8 @@ public class BoardService {
                 | diff(before, after, "investmentNotice", board.isInvestmentNotice(), in.investmentNotice);
         boolean settingsChanged = diff(before, after, "writeLock", board.getWriteLock(), in.writeLock)
                 | diff(before, after, "introText", board.getIntroText(), in.introText)
-                | diff(before, after, "writeGuideText", board.getWriteGuideText(), in.writeGuideText);
+                | diff(before, after, "writeGuideText", board.getWriteGuideText(), in.writeGuideText)
+                | diff(before, after, "gadgetExclusions", gadgetNames(board.getGadgetExclusions()), gadgetNames(in.gadgetExclusions));
         boolean limitChanged = false;
         Map<String, Object> oldPolicy = board.policy().toMap();
         Map<String, Object> newPolicy = in.policy.toMap();
@@ -266,6 +270,9 @@ public class BoardService {
             invalid.putIfAbsent("policy.writeMin", new MessageRef("board.policy.dealGrade"));
         }
         checkPrefixes(in.prefixes, currentOwn, invalid);
+        if (in.gadgetUnknown) {
+            invalid.put("gadgetExclusions", new MessageRef("board.field.choice"));
+        }
         if (!invalid.isEmpty()) {
             throw new ValidationException(invalid);
         }
@@ -304,6 +311,7 @@ public class BoardService {
         Instant now = Instant.now();
         board.changeBasic(in.name, in.nameEn, in.description, in.layout, in.viewToggle, in.color, in.allowAdult, in.investmentNotice);
         board.changeGuides(in.writeLock, in.introText, in.writeGuideText);
+        board.changeGadgetExclusions(in.gadgetExclusions);
         board.changePolicy(in.policy);
         board.touch(actor.operatorId(), now);
         for (BoardPrefixEntity p : commonById.values()) {
@@ -419,6 +427,9 @@ public class BoardService {
         String writeGuideText;
         BoardPolicyValues policy;
         List<BoardPrefixSaveRequest> prefixes;
+        /** 고를 가젯(enum 순서·중복 없음 — 모르는 값은 빼고 {@link #gadgetUnknown}) */
+        List<BoardGadget> gadgetExclusions;
+        boolean gadgetUnknown;
 
         /** 카드형은 보기 전환이 늘 꺼진다 */
         boolean viewToggleEffective() {
@@ -441,6 +452,15 @@ public class BoardService {
         in.writeGuideText = BoardRules.normalizeText(request.writeGuideText());
         in.policy = request.policy() == null ? board.policy() : request.policy();
         in.prefixes = request.prefixes() == null ? null : request.prefixes().stream().filter(Objects::nonNull).toList();
+        if (request.gadgetExclusions() == null) {
+            in.gadgetExclusions = board.getGadgetExclusions();
+        } else {
+            Set<BoardGadget> wanted = EnumSet.noneOf(BoardGadget.class);
+            for (String name : request.gadgetExclusions()) {
+                BoardGadget.find(name).ifPresentOrElse(wanted::add, () -> in.gadgetUnknown = true);
+            }
+            in.gadgetExclusions = List.copyOf(wanted);
+        }
         return in;
     }
 
@@ -496,6 +516,10 @@ public class BoardService {
                 invalid.put(path + ".color", new MessageRef("board.field.choice"));
             }
         }
+    }
+
+    private static List<String> gadgetNames(List<BoardGadget> gadgets) {
+        return gadgets.stream().map(Enum::name).toList();
     }
 
     private static List<String> activeCommon(java.util.Collection<BoardPrefixEntity> common) {
