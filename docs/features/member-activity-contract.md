@@ -1,4 +1,4 @@
-# 회원 활동·둘러보기(공개 사이트) 계약 (**화면 목업 2026-10-23 — 사용자 화면 확인 대기**)
+# 회원 활동·둘러보기(공개 사이트) 계약 (**화면 확정 · 최신·인기·검색·등급 서버 구현 + 화면 연결 2026-10-24** — 공개 프로필·제재·이의제기는 목업)
 
 **의도**: community 에만 있던 「회원 활동·둘러보기」 화면(공개 회원 프로필·등급 안내·통합 검색·최신글 전체·인기글 전체·게시판 모음·제재 안내·이의제기)을 user-web 으로 옮긴다. UI 는 community 와 같게 두고, 서버에 있는 것(게시판 목록·글 목록·게시판 안 검색·메뉴·로그인 정보 `restriction`·포인트 요약)은 실제로, 없는 것은 community 계약 모양의 `// MOCK:`/`// REAL:` 짝 목업으로 먼저 확정한다.
 **참고(읽기 전용)**: community `frontend/app/pages/{users/[id]/index,me/grade,search,latest,popular,boards/index,sanction/index,sanction/appeal}.vue`, `docs/api-{profile,grade,board(검색 2-4),home,popular,sanction}.md`.
@@ -7,10 +7,10 @@
 | 경로 | 내용 | API |
 |---|---|---|
 | `/users/{id}?tab=posts\|comments` | 비회원도. 이니셜·닉네임+등급 뱃지·한 줄 소개·가입일 · 수치(글·댓글·받은 추천) · 탭(작성글·댓글, 커서 더보기). 내 프로필이면 「프로필 편집」 + 보유 포인트·다음 등급까지 카드 | 목업 `GET /api/users/{id}/profile`·`/posts`·`/comments` · 실제 `GET /api/me/points` · 목업 `GET /api/me/grade` |
-| `/me/grade` | 내 등급·다음 등급 진행도(로그인) · 자동 승급 멈춤 안내(정지 → 제재 안내 링크) · 등급 조건표(비회원도) · 계산 안내 | 목업 `GET /api/me/grade` · `GET /api/grade-rules` |
+| `/me/grade` | 내 등급·다음 등급 진행도(로그인) · 자동 승급 멈춤 안내(정지 → 제재 안내 링크) · 등급 조건표(비회원도) · 계산 안내 | 실제 `GET /api/me/grade` · `GET /api/grade-rules` |
 | `/search?q&scope&board&order&page` | 검색 막대(Enter·단추로만) · 범위(전체·제목·본문·작성자)·게시판·정렬 · 최근 검색어(이 기기) · 결과(일치 강조, 데스크톱 쪽 번호 최대 10쪽 / 모바일 더보기) · 결과 없음 제안 · 시간 초과·잘못된 게시판 | 아래 「검색」 |
-| `/latest` | 켜진 모든 게시판의 최신글, 「더 보기」(커서), 투자 고지 | 목업 `GET /api/home/latest` |
-| `/popular?period=REALTIME\|YESTERDAY\|WEEK&page` | 기간 탭(키보드 이동)·순위 번호·채운 줄 표시(어제·지난주)·이번 주 범위·쪽 번호 | 목업 `GET /api/home/popular` |
+| `/latest` | 켜진 모든 게시판의 최신글, 「더 보기」(커서), 투자 고지 | 실제 `GET /api/home/latest` |
+| `/popular?period=REALTIME\|YESTERDAY\|WEEK&page` | 기간 탭(키보드 이동)·순위 번호·채운 줄 표시(어제·지난주)·이번 주 범위·쪽 번호 | 실제 `GET /api/home/popular` |
 | `/boards` | 최근 방문(이 기기 5개, `/boards/{slug}` 가 기록) · 메뉴 그룹별 게시판(말머리 요약·투자 고지) · 메뉴 못 받으면 기본 메뉴 안내 | 실제 `GET /api/menu`·`GET /api/boards` |
 | `/sanction?next=` | 로그인 필요. 갈래: 확인하지 않은 경고(누적 N/2 막대·「안내를 확인했어요」→「확인하고 계속」) · 기간 정지 · 영구 정지(로그아웃) · 제한 없음 · 아래 늘 내 제재 이력 | 목업 `GET /api/me/sanctions`·`POST /api/me/sanctions/{id}/acknowledge` |
 | `/sanction/appeal?sanctionId=` | 접수 폼(10~500자·글자 수) → 접수 완료 / 검토 중 / 인용·기각(운영자 답변) / 무효·없는 제재 | 목업 `GET /api/me/sanctions`·`POST /api/me/appeals` |
@@ -18,8 +18,8 @@
 - **메뉴**: 공개 메뉴 BUILTIN 레지스트리(서버 `MenuBuiltin`·admin `UtilMenu.BUILTINS`)에 이미 `BOARDS_HUB /boards`·`POPULAR /popular`·`LATEST /latest`·`SEARCH /search`·`MY_GRADE /me/grade` 가 있고 화면 주소를 거기에 맞췄다 — 레지스트리는 바꾸지 않았다. 단 메뉴 **시드**(V43)의 main 그룹에는 이 항목들이 없고, `MY_GRADE` 는 V49 가 숨겼다 → 운영자가 메뉴 관리에서 추가·켜면 된다(서버 마이그레이션은 하지 않았다 — 필요하면 결정).
 
 ## 실제 API 사용
-- **검색의 실제 경로**: `board` 하나 + 범위 전체 + 최신순 + **한 단어**일 때만 `GET /api/boards/{slug}/posts?q&page`(서버 게시판 안 검색 = 제목·본문·작성자, 검색어 통째 부분 일치)로 간다(`useSearchApi.viaBoard`, 쪽 번호만 — 커서는 다음 쪽 번호). 없는 게시판 `404 BOARD_NOT_FOUND`·꺼진 게시판 `403 BOARD_INACTIVE` 는 「이 게시판에서는 검색할 수 없어요」.
-- **목업이 실제 글을 쓴다**: 최신·인기·검색(그 밖)·프로필 작성글 목업은 `GET /api/boards` + 게시판마다 `GET /api/boards/{slug}/posts` 앞 2쪽(검색은 단어마다 `q`)을 모아 흉내 낸다(`composables/common/mock/board-feed-mock.ts`, 15초 기억) — 목업 화면의 링크가 실제 글로 열린다.
+- **검색**: 모든 검색이 실제 `GET /api/search` 다(2026-10-24 — 게시판 안 검색 우회 `viaBoard` 는 지웠다). 없는·꺼진 게시판은 `400 fields.board` → 「이 게시판에서는 검색할 수 없어요」.
+- **목업이 실제 글을 쓴다**: 프로필 작성글 목업은 `GET /api/boards` + 게시판마다 `GET /api/boards/{slug}/posts` 앞 2쪽을 모아 흉내 낸다(`composables/common/mock/board-feed-mock.ts`, 15초 기억). 최신·인기·검색은 2026-10-24 실제 API 로 바뀌었다.
 
 ## 목업 API 후보 (서버에 없음 — 화면 확정 뒤 구현, 모양은 `.types.ts`)
 ### 게시판이 섞인 글 줄 `PostFeedRow = PostRow + board{slug,name,nameEn,color}` · 커서 쪽 `PostFeedPage{items, hasNext, nextCursor}` (`usePostApi.types.ts`)
@@ -42,12 +42,12 @@
 - 모두 로그인만 필요(정지 중·인증 전에도), 비로그인 401. `restriction`(이미 있음)과 `pendingNotices` 는 이 데이터와 맞아야 한다.
 
 ## 목업 가정
-1. 게시판마다 앞 2쪽만 모은다(오래된 글 빠짐). 인기 점수 = 추천×3 + 댓글×2 + 조회×0.1(감쇠 없음), 점수 0·19금 제외, 한 글쓴이 2개, 실시간 = 오늘(한국 달력)·이번 주 = 월요일 시작, 5개 미만이면 어제·지난주 글로 채움, 순위 50개.
-2. 검색 범위 목업: `title`·`author` 는 제목·닉네임에 모든 단어, `body` 는 서버 결과 중 제목·닉네임으로 걸리지 않은 글(본문을 몰라서), `snippet` 은 늘 null.
+1. ~~최신·인기 목업~~ → 서버 구현(아래 「서버 구현 결과」). 프로필 작성글 목업만 게시판마다 앞 2쪽을 모은다.
+2. ~~검색 범위 목업~~ → 서버 구현.
 3. 프로필: 닉네임·등급은 모은 글의 작성자 정보(본인은 로그인 정보), 글이 없으면 「회원 {ID 끝 4자리}」·새싹. 가입일·소개·댓글(0~23개, 실제 글에 붙인 가짜 댓글)은 ID 로 정한 가짜 값.
-4. 등급: 기본 시드 4등급(V9) 조건표, 내 등급 = 로그인 정보, 가입 128일·활동 31개 가짜 값, 정지 중이면 `PAUSED_SANCTION`.
+4. ~~등급 목업~~ → 서버 구현.
 5. 제재: 스위치가 없으면 로그인 정보 `restriction` 을 따른다(영구 정지 / 정지 7일(끝 = `until`) / `pendingNotices` 만큼 경고 / 없음). 확인·접수는 목업 메모리에서만 바뀐다(새로고침하면 처음으로, 로그인 정보는 그대로).
-6. 개발 스위치(`?mock=`): `latest-fail|latest-empty|latest-more-fail` · `popular-fail|popular-empty|popular-anytime` · `search-fail|search-timeout|search-empty|search-more-fail` · `profile-notfound|profile-view-fail|profile-posts-fail|profile-comments-fail|profile-comments-empty` · `grade-rules-fail|grade-fail|grade-paused-sanction|grade-paused-admin|grade-highest` · `sanction-warning|sanction-warning2|sanction-suspended|sanction-banned|sanction-history|sanction-fail|sanction-ack-fail|appeal-fail|appeal-already`.
+6. 개발 스위치(`?mock=`): `profile-notfound|profile-view-fail|profile-posts-fail|profile-comments-fail|profile-comments-empty` · `sanction-warning|sanction-warning2|sanction-suspended|sanction-banned|sanction-history|sanction-fail|sanction-ack-fail|appeal-fail|appeal-already`. (최신·인기·검색·등급 스위치는 목업과 함께 지웠다)
 
 ## community 대비 뺀 것
 - **예약 글(`/scheduled`)**: 로보얌에 예약 발행이 없어 만들지 않았다(BUILTIN `MY_SCHEDULED` 는 레지스트리에 남아 있다).
@@ -73,3 +73,24 @@
 - **인기글(미확정 4)**: 처음에는 서버 상수로 둔다(관리자 인기글 설정 화면은 필요해질 때). 규칙은 community `api-popular.md` 를 따른다 — 기간 탭 실시간·어제·이번 주, 한 글쓴이는 한 탭에 최대 2개, 탭마다 상위 50개 보관, 실시간이 모자라면 어제 글로 채운다(출처 `fill`). 19금 글은 모음에 싣지 않는다.
 - **검색(미확정 5)**: 게시판별 「통합 검색에 포함」 끄기는 이번에 두지 않는다(필요해지면 게시판 설정 칸으로 더한다). 검색 한 번의 시간 제한은 3초 서버 상수, 넘으면 `503 SEARCH_TIMEOUT`(화면은 「검색어를 더 구체적으로」).
 - **이의제기·제재 알림(미확정 6)**: 이의제기 처리(관리자 화면)는 제재 기능을 만들 때 함께 만든다. 그때 회원 이벤트 `SANCTION_ISSUED`·`SANCTION_LIFTED`·`APPEAL_ANSWERED` 를 회원 이벤트 카탈로그(`MemberEvent`)에 더한다 — 모두 끌 수 없는 계정 알림(묶음 `system`), 이의제기 답변은 알림과 이메일로 간다.
+
+## 서버 구현 결과 (2026-10-24 — 최신·인기·통합 검색·등급. 공개 프로필·제재·이의제기는 아직 목업)
+**API** (`server/api` — `home`·`search`·`grade` 패키지, 모양은 위 「목업 API 후보」 그대로. 비회원도: latest·popular·search·grade-rules — `SecurityConfig` GET permitAll)
+- `GET /api/home/latest?size&cursor` → `PostFeedPageView`(`PostFeedRowView` = `PostRowView` + `PostBoardRefView board`). 켜진 게시판의 보이는 글, 최신순, 19금은 표시와 함께 포함. 커서 = 마지막 글 ID. `400 VALIDATION fields.size|cursor`.
+- `GET /api/home/popular?period&page&size` → `PopularListResponse`. 스냅샷 순서대로 읽을 때 다시 거른다(삭제·숨김·19금·꺼진 게시판·운영진 전용 게시판). `from`·`to` 는 WEEK 만(그 밖 null), `weekStart` 는 늘 `MONDAY`. 순위가 없으면 `page 1·totalPages 1`, 범위를 넘는 쪽은 빈 `items`. `400 fields.period|page|size`.
+- `GET /api/search` → `SearchResponse`(`SearchRowView` = 피드 줄 + `snippet`). 쪽 모드면 `page`·`totalPages`(최대 10, 결과 없으면 0), 커서 모드면 둘 다 null. `snippet` = 일치 자리 앞 40자부터 120자, 잘리면 「…」. 없는·꺼진 게시판 `400 fields.board`, `page`+`cursor` 동시 `fields.page`, 3초 예산(문장마다 남은 시간을 `statement_timeout`) 넘으면 `503 SEARCH_TIMEOUT`. 19금 글 포함, `author` 범위는 비회원 이름도 찾는다. 단어 규칙 `SearchQueryPolicy` = 화면 `UtilSearchRules`.
+- `GET /api/grade-rules`(`no-cache`) · `GET /api/me/grade`(`no-store`, 비로그인·탈퇴 401). 셈은 shared `GradeProgress` 하나 — 관리자 회원 상세(`MemberGradePointAssembler`)도 이것을 쓴다. `label` 은 등급 이름 그대로(등급 표에 영어 이름 칸이 없다).
+- `PostBoardRefView` 에 `color` 칸(마지막)을 더했다 — 마이페이지 세션과 같은 줄(세션 정리 결정). JSON 에 `id` 도 있다(화면 타입에는 없음, 무해).
+
+**인기글 순위 = DB 배치 `popular-rank`**(저장 프로시저 + pg_cron, 분류 MEMBER, 기본 `*/5 * * * *` — 가정, 배치 화면에서 바꿀 수 있다). `R__batch_24_popular_rank.sql`: 기간 함수 `popular_period_range`(Java 응답의 `from`·`to` 도 이것을 부른다) · 후보 함수 · 프로시저 `batch_popular_rank`(기간마다 DELETE+INSERT 후 COMMIT — 실패한 기간은 예전 스냅샷 유지, 처리 건수 0 이면 SKIP). 표 `post_rank_snapshots(period, rank, post_id, score, fill, computed_at)`.
+- 서버 상수(결정 — 설정 화면 없음): 점수 추천×3 + 댓글×2 + 조회×0.1, 실시간만 `÷ (경과 시간 + 2)^1.5`, 최소 추천 3, 점수 0 제외, 한 글쓴이 한 탭 2개(채운 글 포함), 탭마다 50개, 실시간·이번 주가 5개 미만이면 어제(`YESTERDAY`)·지난주(`LAST_WEEK`) 글로 채움, 어제는 채우지 않음, 같은 점수면 ID 큰 글 먼저, 한국 달력·주 시작 월요일. 제외: 19금·삭제·숨김·꺼진 게시판·운영진 전용 게시판(유효 글쓰기 자격 `STAFF`).
+- 비회원 글의 「글쓴이」는 작성 IP(`author_ip`, 보유 기간이 지나 지워졌으면 이름)로 가른다.
+- pg_cron 이 없으면 순위가 계산되지 않아 인기글이 늘 비어 있다(`grade-promotion` 과 같음 — 관리자 서버 기동 WARN·배치 목록 「사용 불가」). 실행 로그가 하루 288줄 쌓인다(`batch-log-cleanup` 90일 보관).
+
+**마이그레이션** shared `V68__popular_rank_and_search.sql`: `batch_db_jobs.cadence` 에 `MINUTES`(간격 분 = `kst_minute` 1~59) · `post_rank_snapshots` · pg_trgm GIN 색인 4개(`lower(title)`·`lower(coalesce(content_text, content))`·비회원 `lower(guest_name)`·`profiles lower(nickname)` — 파티션 부모라 CONCURRENTLY 불가, 만드는 동안 글쓰기가 잠긴다). `V69` 는 쓰지 않았다. `R__batch_00_helpers.sql` 에 `batch_define_every_minutes` + `batch_default_cron` 의 `MINUTES` 분기.
+
+**미확정(서버)**
+1. 인기 주기 5분·최소 추천 3 은 가정(소규모 사이트에서는 인기글이 자주 빌 수 있다 — 채우기도 같은 최소 추천을 지킨다).
+2. community 는 핫딜·직접홍보 게시판을 인기글에서 뺐다 — 로보얌 게시판 종류(DEAL·PROMO)에 같은 제외가 필요한지.
+3. 차단한 회원의 글 제외는 합칠 때 붙인다(차단 기능 세션).
+4. SQL·마이그레이션·검색 시간 제한(57014 → 503)은 실제 DB 에서 아직 돌려 보지 않았다.

@@ -27,9 +27,9 @@
                     </span>
                     <PostRowTitle :row="row" :new-post-hours="newPostHours" :pinned-mark="false" :tokens="tokens" />
                 </p>
-                <!-- 본문이 걸린 검색 결과만 — 일치한 자리 앞뒤 글자 -->
+                <!-- 본문이 걸린 검색 결과만 — 일치한 자리 앞뒤 글자(잘린 쪽의 「…」는 서버가 붙여 준다) -->
                 <p v-if="snippet" class="mt-1 line-clamp-2 break-words text-sm leading-snug text-muted-color">
-                    <span aria-hidden="true">…</span><template v-for="(part, i) in snippetParts" :key="i"><mark v-if="part.match" class="bg-transparent font-bold text-color">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template><span aria-hidden="true">…</span>
+                    <template v-for="(part, i) in snippetParts" :key="i"><mark v-if="part.match" class="bg-transparent font-bold text-color">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template>
                 </p>
                 <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
                     <PostAuthorLabel :author="row.author" />

@@ -136,7 +136,7 @@
             <!-- 검색이 3초를 넘겨 중단(503 SEARCH_TIMEOUT) — 서버 문구 그대로 + 더 구체적으로 -->
             <ErrorState v-else-if="status === 'timeout'" :title="errorMessage" :description="t('search.timeoutHint')" retry @retry="load" />
 
-            <!-- 게시판 주소가 잘못됐다(400 fields.board · 게시판 안 검색의 404 BOARD_NOT_FOUND·403 BOARD_INACTIVE) -->
+            <!-- 게시판 주소가 잘못됐다(400 fields.board — 없는·꺼진 게시판) -->
             <ErrorState v-else-if="status === 'board-invalid'" :title="t('search.boardInvalidTitle')" :description="t('search.boardInvalidText')">
                 <Button as="router-link" :to="to({ board: '' })" :label="t('search.searchAllBoards')" />
             </ErrorState>
@@ -205,7 +205,7 @@ import UtilSearchRules from '~/utils/util-search-rules';
  * 주소의 쿼리가 화면의 상태다(뒤로 가기·공유·새로고침이 같은 결과로 돌아온다). 범위·게시판·정렬·쪽은 링크라서 주소만 바뀌고,
  * 검색어는 입력칸에 쓴 것을 **Enter·검색 단추로만** 보낸다(자동 검색·자동완성 없음). 모바일은 더보기(커서), 데스크톱은 쪽 번호(최대 10쪽).
  * 앞 요청이 끝나기 전에 새 요청을 보내면 앞 요청을 끊고, 늦게 온 옛 결과는 요청 번호로 버린다. 방금 본 검색은 스켈레톤 없이 바로 보이고 뒤에서 새로 받는다.
- * ⚠ API: 게시판 하나 + 범위 전체 + 최신순 + 한 단어는 실제 게시판 안 검색, 그 밖은 목업(`useSearchApi`). 최근 검색어는 이 기기에만.
+ * API 는 `useSearchApi().search`(`GET /api/search`). 최근 검색어는 이 기기에만.
  */
 const { t } = useI18n();
 const route = useRoute();
@@ -378,7 +378,7 @@ async function load() {
             inputError.value = e.field('q') ?? '';
             return;
         }
-        if (e instanceof ApiError && ((e.status === 400 && e.field('board')) || e.code === 'BOARD_NOT_FOUND' || e.code === 'BOARD_INACTIVE')) {
+        if (e instanceof ApiError && e.status === 400 && e.field('board')) {
             status.value = 'board-invalid';
             return;
         }
