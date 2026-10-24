@@ -33,11 +33,14 @@ public enum Permission {
     POPULAR_MANAGE("popular.manage", NOTICE, MANAGE, true),
     /** 인기글 설정(점수식·조건·주 시작 요일) 저장 */
     POPULAR_SETTINGS("popular.settings", NOTICE, CONFIG, true),
-    /** 게시글 관리 조회 — 지금은 글의 찬반 토론 단건·토론 의견 목록·대기 고정 요청(docs/features/post-debate-contract.md). 게시글 관리 화면이 생기면 featureReady 를 켠다 */
-    POST_READ("post.read", POST, READ, false),
-    /** 게시글 관리 처리 — 지금은 글의 토론 열기·설정·닫기, 토론 의견 고정·숨김, 의견 고정 요청 승인·거절 */
-    POST_MANAGE("post.manage", POST, MANAGE, false),
-    POST_BULK_DELETE("post.bulk-delete", POST, SENSITIVE, false),
+    /** 게시글 관리 조회 — 글 목록·글 상세(본문·조치 기록)·게시판 고르기, 글의 찬반 토론 단건·토론 의견 목록·대기 고정 요청(docs/features/post-admin-contract.md·post-debate-contract.md) */
+    POST_READ("post.read", POST, READ, true),
+    /** 게시글 관리 처리 — 숨기기·숨김 해제·삭제·이동·공지 지정·고정·고정 해제·일괄 숨김/해제, 글의 토론 열기·설정·닫기, 토론 의견 고정·숨김, 의견 고정 요청 승인·거절 */
+    POST_MANAGE("post.manage", POST, MANAGE, true),
+    /** 지운 글 복구(파기 전) — 회수한 포인트를 되돌린다 */
+    POST_RESTORE("post.restore", POST, SENSITIVE, true),
+    /** 일괄 삭제({@code post.manage} 와 함께) */
+    POST_BULK_DELETE("post.bulk-delete", POST, SENSITIVE, true),
     BOARD_READ("board.read", BOARD, READ, true),
     BOARD_MANAGE("board.manage", BOARD, MANAGE, true),
     BOARD_SETTINGS("board.settings", BOARD, CONFIG, true),

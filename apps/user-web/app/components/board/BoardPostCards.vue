@@ -5,7 +5,7 @@
         <ul class="m-0 mt-3 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-2">
             <li v-for="row in rows" :key="row.id" class="overflow-hidden rounded-lg border border-surface bg-surface-0 dark:bg-surface-900">
                 <p v-if="row.hiddenReason" class="flex items-center gap-1.5 px-4 py-6 text-sm text-muted-color">
-                    <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t('board.hiddenPost') }}
+                    <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t(row.hiddenReason === 'STAFF' ? 'board.hiddenPostStaff' : 'board.hiddenPost') }}
                 </p>
                 <FoldedRow v-else :reason="overrides.blockedOf(row.author.memberId, row.blocked)" kind="post" class="px-4 py-6 text-sm" hide-class="px-3 pb-2">
                     <NuxtLink :to="`/posts/${row.id}`" class="flex gap-3 p-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">

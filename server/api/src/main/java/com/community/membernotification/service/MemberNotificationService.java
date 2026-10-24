@@ -241,9 +241,17 @@ public class MemberNotificationService {
                 facts = MemberNotificationMessages.Facts.nicknameReviewed(result, reason);
                 link = "/settings/nickname-image";
             }
+            case POST_REMOVED -> {
+                // 운영자가 지운 글 — 열 수 없어 링크가 없다(글 제목은 지울 때 남긴 것, 본문 둘째 줄은 사유)
+                String reason = payload.get("reason") instanceof String why && !why.isBlank() ? why : null;
+                facts = MemberNotificationMessages.Facts.removed(payload.get("snapshot") instanceof String s && !s.isBlank() ? s : null, reason);
+            }
             default -> { // POST_HIDDEN, COMMENT_HIDDEN
                 hiddenUntil = instantOf(payload.get("until"));
-                facts = MemberNotificationMessages.Facts.hidden(type, payload.get("snapshot") instanceof String s && !s.isBlank() ? s : null, hiddenUntil != null);
+                String hiddenSnapshot = payload.get("snapshot") instanceof String s && !s.isBlank() ? s : null;
+                facts = MemberNotificationMessages.BY_STAFF.equals(payload.get("by"))
+                        ? MemberNotificationMessages.Facts.hiddenByStaff(hiddenSnapshot, payload.get("reason") instanceof String why && !why.isBlank() ? why : null)
+                        : MemberNotificationMessages.Facts.hidden(type, hiddenSnapshot, hiddenUntil != null);
                 // 숨긴 글은 열 수 없다(작성자 포함) — 댓글 숨김이면 그 글로 간다
                 link = type == MemberNotificationType.COMMENT_HIDDEN && postAvailable ? "/posts/" + row.getPostId() : null;
             }

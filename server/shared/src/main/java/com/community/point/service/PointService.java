@@ -23,7 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>하루 상한</b>은 한국 시간 0시부터 그 사유로 <b>지급한 횟수</b>(원장 줄) — 지운 글·댓글도 센다. 상한에 닿으면 글은 그대로 올라가고 포인트만 없다. 잔액 행 잠금 아래에서 세므로 동시 요청도 넘지 않는다.</li>
  *   <li><b>받는 사람</b>: 정상(ACTIVE) 회원만. 같은 대상에 두 번 지급·회수하지 않는다(멱등 — 원장 유일 색인이 마지막 방어).</li>
  *   <li><b>회수</b>({@link #revokeContent}): 지운 글·댓글의 <b>실제로 지급했던 양</b>만(글·댓글 포인트 + 그 대상이 받은 추천 보너스), <b>0P 까지만</b>(마이너스 없음), 반영 0 이면 줄을 만들지 않는다.
- *       본인 삭제라 알림은 없다. 숨김은 회수하지 않는다.</li>
+ *       본인 삭제라 알림은 없다(운영자 삭제는 관리자 게시글 관리가 회원 알림 POST_REMOVED 를 낸다). 숨김은 회수하지 않는다.</li>
+ *   <li><b>복구 되돌림</b>({@link #restoreContent}): 운영자가 지운 글을 복구하면 회수했던 만큼 {@code POST_RESTORE} 로 되돌린다. 원장 유일 색인(사유·대상)으로 같은 글에 회수·되돌림이
+ *       한 번씩만 생긴다 — 복구한 글을 다시 지워도 두 번째 회수는 없다(되돌림도 두 번 없다).</li>
  *   <li><b>조정</b>({@link #adjust}): 운영자의 명시적 조치 — 정지 회원에게도 한다. 차감은 0P 까지라 반영값이 요청보다 작을 수 있다. 이 일 자체가 업무라 격리하지 않는다(실패하면 요청이 실패한다).</li>
  * </ul>
  */
@@ -112,6 +114,28 @@ public class PointService {
         PointReason revoke = REF_POST.equals(refType) ? PointReason.POST_REVOKE : PointReason.COMMENT_REVOKE;
         return isolated.run("point:revoke", () -> revoke(userId, earned, revoke, refType, refId) + revoke(userId, PointReason.LIKE_BONUS, PointReason.LIKE_BONUS_REVOKE,
                 refType, refId), 0L);
+    }
+
+    /**
+     * 지운 글을 복구했다 — 그 글로 <b>회수했던 만큼</b>(글 포인트 회수 + 추천 보너스 회수의 합) {@link PointReason#POST_RESTORE} 한 줄로 되돌려 준다(관리자 게시글 관리 — 상한 없음).
+     * 탈퇴·삭제된 회원에게는 주지 않는다(정지 회원은 받는다 — 회수가 운영 조치의 결과였으므로). 같은 글에 한 번만(원장 유일 색인과 같은 멱등).
+     * <b>되돌림 실패가 복구를 깨지 않는다</b>(세이브포인트 — 실패하면 0, 로그만).
+     *
+     * @return 되돌려 준 포인트(없으면 0)
+     */
+    public long restoreContent(long userId, long postId) {
+        return isolated.run("point:restore", () -> {
+            long revoked = -(ledger.granted(userId, PointReason.POST_REVOKE.name(), REF_POST, postId)
+                    + ledger.granted(userId, PointReason.LIKE_BONUS_REVOKE.name(), REF_POST, postId));
+            if (revoked <= 0 || revoked > Integer.MAX_VALUE || !ledger.restorable(userId) || ledger.exists(PointReason.POST_RESTORE.name(), REF_POST, postId)) {
+                return 0L;
+            }
+            Instant now = Instant.now();
+            long balance = ledger.lockBalance(userId, now);
+            ledger.append(ids.nextId(), userId, PointReason.POST_RESTORE.kindOf(revoked), PointReason.POST_RESTORE.name(), (int) revoked, balance + revoked, null,
+                    REF_POST, postId, null, now);
+            return revoked;
+        }, 0L);
     }
 
     /**

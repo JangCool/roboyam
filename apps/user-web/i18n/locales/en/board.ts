@@ -13,6 +13,7 @@ export default {
     commentCountLabel: 'Comments',
     newMark: 'New',
     hiddenPost: 'Hidden after reports',
+    hiddenPostStaff: 'Hidden by the moderators',
     viewsShort: '{n} views',
     likesShort: '{n} likes',
 

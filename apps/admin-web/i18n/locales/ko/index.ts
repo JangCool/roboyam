@@ -38,6 +38,7 @@ import content from './content';
 import debate from './debate';
 import highlight from './highlight';
 import popular from './popular';
+import post from './post';
 
 export default {
     account,
@@ -73,4 +74,5 @@ export default {
     debate,
     highlight,
     popular,
+    post,
 };

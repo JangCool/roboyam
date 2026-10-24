@@ -20,7 +20,6 @@ import com.community.profile.dto.response.ProfileStatsView;
 import com.community.profile.dto.response.PublicProfileView;
 import com.community.profile.exception.ProfileNotFoundException;
 import com.community.profile.repository.master.UserActivityQueries;
-import com.community.report.entity.ReportReasons;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserEntity;
 import com.community.user.repository.master.ProfileRepository;
@@ -139,7 +138,7 @@ public class UserProfileService {
                 .orElse(null);
         return new PostFeedRowView(Long.toString(r.id()), prefix, hidden ? "" : r.title(), hidden ? 0 : r.commentCount(), !hidden && Boolean.TRUE.equals(r.hasImage()),
                 null, hidden ? AuthorViews.blank(author) : author, r.createdAt(), r.viewCount(), r.likeCount(), r.pinnedAt() != null,
-                !hidden && Boolean.TRUE.equals(r.adult()), hidden ? ReportReasons.HIDDEN_REPORTED : null, hidden ? null : lens.blockedOf(r.authorId(), r.title()),
+                !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()), hidden ? null : lens.blockedOf(r.authorId(), r.title()),
                 new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()));
     }
 

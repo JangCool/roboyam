@@ -25,7 +25,6 @@ import com.community.post.exception.PostNotFoundException;
 import com.community.post.repository.master.PostCounterQueries;
 import com.community.post.repository.master.PostRepository;
 import com.community.post.repository.master.PostRepositoryQDSL;
-import com.community.report.entity.ReportReasons;
 import com.community.user.entity.ProfileEntity;
 import com.community.zconfiguration.crypto.Digests;
 import java.time.Duration;
@@ -42,7 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li>목록: 고정 공지는 첫 쪽이고 말머리·검색어가 없을 때만 위에 따로(최대 유효 {@code pinnedMax}), 그때 목록에서는 뺀다. 신고로 숨긴 글은 <b>자리만</b>(제목·작성자 이름 비움,
- *       {@code hiddenReason = REPORTED}) 남고 검색 결과에서는 빠진다. 정렬은 id(= 작성 시각) 순.</li>
+ *       {@code hiddenReason = REPORTED}, 운영자 숨김은 게시판 옵션 {@code staffHiddenNotice} 가 켜졌으면 {@code STAFF}) 남고 검색 결과에서는 빠진다. 정렬은 id(= 작성 시각) 순.</li>
  *   <li>글 하나: 숨긴 글 {@code 403 POST_HIDDEN}, 없거나 지운 글(예약 삭제 시각이 지난 글 포함) {@code 404 POST_NOT_FOUND}, 꺼진 게시판 {@code 403 BOARD_INACTIVE}.</li>
  *   <li>조회수: 같은 회원(비회원은 IP 의 해시)이 보안 설정 {@code viewCountDedupHours} 시간 안에 다시 보면 세지 않는다({@code post_views} 기록, 정리는 DB 배치 board-post-upkeep).</li>
  * </ul>
@@ -125,7 +124,7 @@ public class PostQueryService {
         PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
         return new PostRowView(Long.toString(r.id()), hidden ? null : prefixRef(b, r.prefixId()), hidden ? "" : r.title(), hidden ? 0 : r.commentCount(),
                 !hidden && Boolean.TRUE.equals(r.hasImage()), null, hidden ? AuthorViews.blank(author) : author, r.createdAt(), r.viewCount(), r.likeCount(),
-                r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), hidden ? ReportReasons.HIDDEN_REPORTED : null,
+                r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),
                 hidden ? null : lens.blockedOf(r.authorId(), r.title()));
     }
 

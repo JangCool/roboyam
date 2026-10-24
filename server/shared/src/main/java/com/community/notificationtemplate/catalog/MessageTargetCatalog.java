@@ -165,6 +165,7 @@ public final class MessageTargetCatalog {
     private static List<MessageTarget> memberEvents() {
         MessageCondition grouped = MessageCondition.fixed(MessageCondition.GROUPED, MessageCondition.SINGLE, MessageCondition.GROUPED_VALUE);
         MessageCondition hide = MessageCondition.fixed(MessageCondition.HIDE_REASON, MessageCondition.REPORTS, MessageCondition.RIGHTS);
+        MessageCondition postHide = MessageCondition.fixed(MessageCondition.HIDE_REASON, MessageCondition.REPORTS, MessageCondition.RIGHTS, MessageCondition.STAFF);
         List<MessageTarget> out = new ArrayList<>();
         out.add(member(MemberEvent.COMMENT, List.of(MessageVariable.of("actorName", "commentActor"), MessageVariable.of("postTitle", "postTitle"),
                         MessageVariable.of("excerpt", "commentExcerpt"), MessageVariable.of("otherCount", "otherCount")),
@@ -173,8 +174,8 @@ public final class MessageTargetCatalog {
                 new InAppText("member.notification.REPLY.title", null, "{{excerpt}}", List.of("actorName")), "/boards/free/123#c-456", List.of()));
         out.add(member(MemberEvent.POINTS_REVOKED, List.of(MessageVariable.of("amount", "revokedAmount"), MessageVariable.of("reason", "revokeReason")),
                 new InAppText("member.notification.POINTS_REVOKED.title", null, "{{reason}}", List.of("amount")), "/me/points", List.of()));
-        out.add(member(MemberEvent.POST_HIDDEN, List.of(MessageVariable.of("postTitle", "hiddenPostTitle")),
-                new InAppText("member.notification.POST_HIDDEN.title", null, "{{postTitle}}", List.of()), "/me/posts", List.of(hide)));
+        out.add(member(MemberEvent.POST_HIDDEN, List.of(MessageVariable.of("postTitle", "hiddenPostTitle"), MessageVariable.of("reason", "staffHideReason")),
+                new InAppText("member.notification.POST_HIDDEN.title", null, "{{postTitle}}", List.of()), "/me/posts", List.of(postHide)));
         out.add(member(MemberEvent.COMMENT_HIDDEN, List.of(MessageVariable.of("excerpt", "hiddenCommentExcerpt")),
                 new InAppText("member.notification.COMMENT_HIDDEN.title", null, "{{excerpt}}", List.of()), "/me/comments", List.of(hide)));
         out.add(member(MemberEvent.DM, List.of(MessageVariable.of("actorName", "dmSender")),
@@ -187,6 +188,8 @@ public final class MessageTargetCatalog {
         out.add(member(MemberEvent.OPINION_PIN_REVIEWED, List.of(MessageVariable.of("result", "pinRequestResult"), MessageVariable.of("postTitle", "postTitle"),
                         MessageVariable.of("reason", "pinRejectReason")),
                 new InAppText("member.notification.OPINION_PIN_REVIEWED.title", null, "{{reason}}", List.of("result")), "/posts/123", List.of()));
+        out.add(member(MemberEvent.POST_REMOVED, List.of(MessageVariable.of("postTitle", "removedPostTitle"), MessageVariable.of("reason", "removeReason")),
+                new InAppText("member.notification.POST_REMOVED.title", null, "{{reason}}", List.of("postTitle")), "/me/posts", List.of()));
         return out;
     }
 

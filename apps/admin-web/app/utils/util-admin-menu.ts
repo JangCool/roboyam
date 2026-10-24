@@ -141,13 +141,15 @@ export default class UtilAdminMenu {
                 },
             ],
         },
-        // 콘텐츠 묶음 — 하이라이트(토론 의견 관리 포함)·인기글 관리(빼기·다시 넣기)·인기글 설정(점수식). 서버 `AdminScreenRegistry` 의 `menu.content` 와 같은 키·주소·권한·차례(docs/features/popular-highlight-contract.md).
+        // 콘텐츠 묶음 — 게시글 관리(맨 앞)·하이라이트(토론 의견 관리 포함)·인기글 관리(빼기·다시 넣기)·인기글 설정(점수식). 서버 `AdminScreenRegistry` 의 `menu.content` 와 같은 키·주소·권한·차례(docs/features/popular-highlight-contract.md).
         // `/content/popular/settings` 는 `/content/popular` 아래지만 다른 화면이다(`isActive` 가 더 구체적인 항목에 주소를 준다)
         {
             key: 'content',
             icon: 'pi pi-star',
             labelKey: 'menu.content',
             items: [
+                // 게시글 관리 — 모든 게시판의 글을 찾아 숨기기·삭제·복구·이동·공지·고정(docs/features/post-admin-contract.md). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한
+                { key: 'posts', to: '/posts', icon: 'pi pi-file-edit', labelKey: 'menu.posts', permission: 'post.read' },
                 { key: 'highlights', to: '/content/highlights', icon: 'pi pi-bookmark', labelKey: 'menu.highlights', permission: 'highlight.read' },
                 { key: 'popularPosts', to: '/content/popular', icon: 'pi pi-chart-line', labelKey: 'menu.popularPosts', permission: 'popular.read' },
                 { key: 'popularSettings', to: '/content/popular/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.popularSettings', permission: 'popular.read' },

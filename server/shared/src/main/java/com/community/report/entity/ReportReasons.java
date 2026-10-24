@@ -26,6 +26,8 @@ public final class ReportReasons {
     public static final String HIDDEN_ILLEGAL = "ILLEGAL";
     /** 숨김 까닭: 권리침해 임시조치(기간이 끝나면 다시 보인다) */
     public static final String HIDDEN_RIGHTS = "RIGHTS";
+    /** 숨김 까닭: 운영자가 숨김(관리자 게시글 관리 — V80). 공개 목록에는 게시판 옵션 staffHiddenNotice 가 켜졌을 때만 이 값으로 밝힌다 */
+    public static final String HIDDEN_STAFF = "STAFF";
 
     private ReportReasons() {
     }

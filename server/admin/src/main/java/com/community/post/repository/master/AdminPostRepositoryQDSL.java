@@ -1,23 +1,41 @@
 package com.community.post.repository.master;
 
+import com.community.comment.entity.QCommentEntity;
+import com.community.debate.entity.QPostDebateEntity;
+import com.community.post.dto.AdminPostListRow;
 import com.community.post.dto.AdminPostRow;
+import com.community.post.dto.AdminPostSearch;
+import com.community.post.entity.PostEntity;
 import com.community.post.entity.QPostEntity;
+import com.community.report.entity.QReportEntity;
+import com.community.report.entity.ReportEntity;
+import com.community.user.entity.QProfileEntity;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
+import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.Tuple;
 import com.querydsl.core.types.ConstructorExpression;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Repository;
 
 /**
  * 관리자 화면의 글 질의 — 글 ID 로 줄 읽기(상태와 무관), 하이라이트 대상 찾기(제목·글 번호)·후보(추천 많은 글).
  * 「지정할 수 있는 글」 = 보이는 글({@link PostRepositoryQDSL#alive}) · 숨김 아님 · 19금 아님 · 켜진 게시판({@code boardIds} — 부르는 쪽이 게시판 사본으로 고른다).
  * 제목 찾기는 {@code lower(title)} 의 pg_trgm GIN 색인(V68)을 탄다.
+ *
+ * <p><b>게시글 관리</b>(docs/features/post-admin-contract.md): 모든 글 목록({@link #search}·상태별 건수 {@link #counts}), 게시판 고정 수, 글별 대기 신고 수·토론 열림.
+ * 상태 = DELETED(지움·예약 삭제 시각 지남·임시저장) · HIDDEN(지우지 않았고 숨김 중) · PUBLIC(그 밖) — {@link AdminPostListRow#stateAt} 와 같은 기준.
  */
 @Repository
 public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
@@ -81,6 +99,146 @@ public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
             where = where.and(POST.id.goe(SnowflakeIdGenerator.floorIdAt(since))).and(POST.createdAt.goe(since));
         }
         return query.select(row()).from(POST).where(where).orderBy(POST.likeCount.desc(), POST.id.desc()).limit(limit).fetch();
+    }
+
+    // ── 게시글 관리 ─────────────────────────────────────────────────────────
+
+    /** 한 쪽 결과 */
+    public record ListPage(List<AdminPostListRow> items, long total) {
+    }
+
+    /** 상태별 건수 */
+    public record Counts(long all, long publicCount, long hidden, long deleted) {
+    }
+
+    private static ConstructorExpression<AdminPostListRow> listRow() {
+        return Projections.constructor(AdminPostListRow.class, POST.id, POST.boardId, POST.prefixId, POST.authorId, POST.guestName, POST.title, POST.status,
+                POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.pinnedAt, POST.hiddenAt, POST.hiddenReason, POST.hiddenUntil,
+                POST.deleteScheduledAt, POST.deletedAt, POST.purgedAt, POST.createdAt);
+    }
+
+    /** 지운 글 — 지움 · 공개 아님(임시저장) · 예약 삭제 시각 지남 */
+    private static BooleanExpression gone(Instant now) {
+        return POST.deletedAt.isNotNull().or(POST.status.ne(PostEntity.PUBLISHED)).or(POST.deleteScheduledAt.isNotNull().and(POST.deleteScheduledAt.loe(now)));
+    }
+
+    /** 숨김 중(임시조치는 기간 안) — 지움 여부는 보지 않는다 */
+    private static BooleanExpression hiddenNow(Instant now) {
+        return POST.hiddenAt.isNotNull().and(POST.hiddenUntil.isNull().or(POST.hiddenUntil.gt(now)));
+    }
+
+    private static BooleanExpression stateIs(String state, Instant now) {
+        BooleanExpression alive = PostRepositoryQDSL.alive(POST, now);
+        return switch (state) {
+            case AdminPostListRow.DELETED -> gone(now);
+            case AdminPostListRow.HIDDEN -> alive.and(hiddenNow(now));
+            default -> alive.and(PostRepositoryQDSL.notHidden(POST, now));
+        };
+    }
+
+    /** 상태를 뺀 거르기 — 글 번호 · 검색어(제목 · 본문[HTML 글은 평문 칸] · 비회원 이름 · 회원 닉네임, 대소문자 무시) · 게시판 · 말머리 */
+    private static BooleanBuilder filter(AdminPostSearch c) {
+        BooleanBuilder where = new BooleanBuilder();
+        if (c.postId() != null) {
+            where = where.and(POST.id.eq(c.postId()));
+        }
+        if (c.text() != null) {
+            QProfileEntity profile = QProfileEntity.profileEntity;
+            where = where.and(POST.title.containsIgnoreCase(c.text())
+                    .or(POST.contentText.coalesce(POST.content).containsIgnoreCase(c.text()))
+                    .or(POST.guestName.containsIgnoreCase(c.text()))
+                    .or(POST.authorId.in(JPAExpressions.select(profile.userId).from(profile).where(profile.nickname.containsIgnoreCase(c.text())))));
+        }
+        if (c.boardId() != null) {
+            where = where.and(POST.boardId.eq(c.boardId()));
+        }
+        if (c.prefixId() != null) {
+            where = where.and(POST.prefixId.eq(c.prefixId()));
+        }
+        return where;
+    }
+
+    /** 목록 한 쪽 — 정렬은 id(= 작성 시각) 순 */
+    public ListPage search(AdminPostSearch c, long offset, int limit, Instant now) {
+        if (c.none()) {
+            return new ListPage(List.of(), 0);
+        }
+        BooleanBuilder where = filter(c);
+        if (c.state() != null) {
+            where = where.and(stateIs(c.state(), now));
+        }
+        Long total = query.select(POST.id.count()).from(POST).where(where).fetchOne();
+        if (total == null || total == 0 || offset >= total) {
+            return new ListPage(List.of(), total == null ? 0 : total);
+        }
+        List<AdminPostListRow> items = query.select(listRow()).from(POST).where(where)
+                .orderBy(c.oldest() ? POST.id.asc() : POST.id.desc())
+                .offset(offset).limit(limit)
+                .fetch();
+        return new ListPage(items, total);
+    }
+
+    /** 상태 조건만 뺀 상태별 건수(탭 숫자) — 전체 · 지운 글 · 숨긴 글을 세고 공개는 나머지 */
+    public Counts counts(AdminPostSearch c, Instant now) {
+        if (c.none()) {
+            return new Counts(0, 0, 0, 0);
+        }
+        long all = count(filter(c));
+        if (all == 0) {
+            return new Counts(0, 0, 0, 0);
+        }
+        long deleted = count(filter(c).and(stateIs(AdminPostListRow.DELETED, now)));
+        long hidden = count(filter(c).and(stateIs(AdminPostListRow.HIDDEN, now)));
+        return new Counts(all, Math.max(0, all - deleted - hidden), hidden, deleted);
+    }
+
+    private long count(BooleanBuilder where) {
+        Long n = query.select(POST.id.count()).from(POST).where(where).fetchOne();
+        return n == null ? 0 : n;
+    }
+
+    /** 글 한 줄(상태와 무관) */
+    public AdminPostListRow listRow(long id) {
+        return query.select(listRow()).from(POST).where(POST.id.eq(id)).fetchOne();
+    }
+
+    /** 이 게시판에 지금 고정된(보이는) 글 수 — {@code exceptId} 는 빼고 센다 */
+    public long pinnedCount(long boardId, long exceptId, Instant now) {
+        Long count = query.select(POST.id.count()).from(POST)
+                .where(POST.boardId.eq(boardId), POST.pinnedAt.isNotNull(), PostRepositoryQDSL.alive(POST, now), POST.id.ne(exceptId))
+                .fetchOne();
+        return count == null ? 0 : count;
+    }
+
+    /** 글별 처리 대기 신고 수(글 신고만 — 댓글 신고는 세지 않는다) */
+    public Map<Long, Integer> openReports(Collection<Long> postIds) {
+        Map<Long, Integer> out = new HashMap<>();
+        if (postIds.isEmpty()) {
+            return out;
+        }
+        QReportEntity report = QReportEntity.reportEntity;
+        for (Tuple t : query.select(report.targetId, report.id.count()).from(report)
+                .where(report.targetType.eq(ReportEntity.POST), report.targetId.in(postIds), report.status.eq(ReportEntity.PENDING))
+                .groupBy(report.targetId).fetch()) {
+            Long count = t.get(1, Long.class);
+            out.put(t.get(0, Long.class), count == null ? 0 : count.intValue());
+        }
+        return out;
+    }
+
+    /** 토론이 열린 글 */
+    public Set<Long> debateOpen(Collection<Long> postIds) {
+        if (postIds.isEmpty()) {
+            return Set.of();
+        }
+        QPostDebateEntity debate = QPostDebateEntity.postDebateEntity;
+        return new HashSet<>(query.select(debate.postId).from(debate).where(debate.postId.in(postIds)).fetch());
+    }
+
+    /** 글을 옮기면 그 글의 댓글 게시판 칸도 함께 옮긴다(댓글 표는 글 ID 해시 조각 — 한 조각만 고친다). 부르는 서비스의 트랜잭션 안에서 */
+    public long moveComments(long postId, long boardId) {
+        QCommentEntity comment = QCommentEntity.commentEntity;
+        return query.update(comment).set(comment.boardId, boardId).where(comment.postId.eq(postId)).execute();
     }
 
     private static String escapeLike(String text) {

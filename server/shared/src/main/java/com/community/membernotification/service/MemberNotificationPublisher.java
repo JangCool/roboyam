@@ -130,6 +130,66 @@ public class MemberNotificationPublisher {
     }
 
     /**
+     * 운영자가 글을 숨겼다(관리자 게시글 관리 「작성자에게 알림」) — 작성 회원에게 {@code POST_HIDDEN}(덧붙임 {@code by STAFF}·{@code reason}). 비회원 글이면 부르지 않는다.
+     *
+     * @param title  글 제목(잘라서 남긴다)
+     * @param reason 운영자가 적은 사유
+     */
+    public int postHiddenByStaff(long authorId, long postId, String title, String reason) {
+        return isolated.run("member-notification:staff-hidden", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.POST_HIDDEN, authorId);
+            if (!on.delivers() || !writer.receivable(authorId)) {
+                return 0;
+            }
+            String cut = cut(title, SNAPSHOT_MAX);
+            int made = 0;
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("snapshot", cut);
+                payload.put("by", MemberNotificationMessages.BY_STAFF);
+                payload.put("reason", reason);
+                writer.insert(ids.nextId(), authorId, MemberNotificationType.POST_HIDDEN.name(), null, null, postId, null, MAPPER.writeValueAsString(payload),
+                        Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(authorId, MemberNotificationMessages.Facts.hiddenByStaff(cut, reason), null, null);
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
+     * 운영자가 글을 지웠다(관리자 게시글 관리) — 작성 회원에게 {@code POST_REMOVED}(끌 수 없는 처리 알림, 덧붙임 {@code snapshot}·{@code reason}·회수한 포인트 {@code revokedPoints}).
+     * 지운 글은 열 수 없으므로 메일에도 링크가 없다. 비회원 글이면 부르지 않는다.
+     *
+     * @param revokedPoints 함께 회수한 포인트(없으면 0)
+     */
+    public int postRemoved(long authorId, long postId, String title, String reason, long revokedPoints) {
+        return isolated.run("member-notification:post-removed", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.POST_REMOVED, authorId);
+            if (!on.delivers() || !writer.receivable(authorId)) {
+                return 0;
+            }
+            String cut = cut(title, SNAPSHOT_MAX);
+            int made = 0;
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("snapshot", cut);
+                payload.put("reason", reason);
+                payload.put("revokedPoints", revokedPoints);
+                writer.insert(ids.nextId(), authorId, MemberNotificationType.POST_REMOVED.name(), null, null, postId, null, MAPPER.writeValueAsString(payload),
+                        Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(authorId, MemberNotificationMessages.Facts.removed(cut, reason), null, null);
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
      * 포인트가 회수됐다(실제로 깎인 양이 있을 때만 부른다).
      *
      * @param kind   {@code ADMIN_ADJUST}(운영 조정) — 글·댓글 삭제 회수 알림({@code POST_DELETED}·{@code COMMENT_DELETED})은 운영진 삭제가 생길 때 더한다

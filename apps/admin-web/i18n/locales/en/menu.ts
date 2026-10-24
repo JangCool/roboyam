@@ -47,6 +47,7 @@ export default {
     boardDefaultsNotifications: 'Notifications',
     boardDefaultsPrivacy: 'Data retention',
     content: 'Content',
+    posts: 'Posts',
     highlights: 'Highlights',
     popularPosts: 'Popular posts',
     popularSettings: 'Popular post settings',

@@ -47,6 +47,7 @@ export default {
     boardDefaultsNotifications: '알림',
     boardDefaultsPrivacy: '개인정보 보유기간',
     content: '콘텐츠',
+    posts: '게시글 관리',
     highlights: '하이라이트',
     popularPosts: '인기글 관리',
     popularSettings: '인기글 설정',

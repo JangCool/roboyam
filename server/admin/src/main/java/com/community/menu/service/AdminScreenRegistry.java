@@ -52,8 +52,10 @@ public final class AdminScreenRegistry {
                             s("boardDefaultsSecurity", "/boards/defaults/security", "menu.boardDefaultsSecurity", null, Permission.BOARD_READ),
                             s("boardDefaultsNotifications", "/boards/defaults/notifications", "menu.boardDefaultsNotifications", null, Permission.BOARD_READ),
                             s("boardDefaultsPrivacy", "/boards/defaults/privacy", "menu.boardDefaultsPrivacy", null, Permission.BOARD_READ))),
-            // 콘텐츠 묶음 — 하이라이트·인기글 관리·인기글 설정(docs/features/popular-highlight-contract.md). admin-web UtilAdminMenu 와 같은 키·주소·권한
+            // 콘텐츠 묶음 — 게시글 관리(docs/features/post-admin-contract.md)·하이라이트·인기글 관리·인기글 설정(docs/features/popular-highlight-contract.md).
+            // admin-web UtilAdminMenu 와 같은 키·주소·권한
             section(NORMAL, "menu.content", "pi pi-star",
+                    leaf(s("posts", "/posts", "menu.posts", "pi pi-file-edit", Permission.POST_READ)),
                     leaf(s("highlights", "/content/highlights", "menu.highlights", "pi pi-bookmark", Permission.HIGHLIGHT_READ)),
                     leaf(s("popularPosts", "/content/popular", "menu.popularPosts", "pi pi-chart-line", Permission.POPULAR_READ)),
                     leaf(s("popularSettings", "/content/popular/settings", "menu.popularSettings", "pi pi-sliders-h", Permission.POPULAR_READ))),

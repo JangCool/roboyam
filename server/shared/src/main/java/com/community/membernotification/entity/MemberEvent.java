@@ -51,7 +51,9 @@ public enum MemberEvent {
     /** 의견 고정 요청이 옴(확인할 수 있는 글쓴이·게시판 매니저에게) — 회원이 끌 수 있다 */
     OPINION_PIN_REQUESTED(NotificationArea.CONTENT, MemberNotificationType.OPINION_PIN_REQUESTED, null, null),
     /** 내 의견 고정 요청의 결과(승인·거절) — 처리 알림이라 회원이 끌 수 없다 */
-    OPINION_PIN_REVIEWED(NotificationArea.CONTENT, MemberNotificationType.OPINION_PIN_REVIEWED, MemberEventLockReason.ACTION, null);
+    OPINION_PIN_REVIEWED(NotificationArea.CONTENT, MemberNotificationType.OPINION_PIN_REVIEWED, MemberEventLockReason.ACTION, null),
+    /** 운영자가 내 글을 지움(관리자 게시글 관리 — 사유와 함께) — 처리 알림이라 회원이 끌 수 없다 */
+    POST_REMOVED(NotificationArea.SAFETY, MemberNotificationType.POST_REMOVED, MemberEventLockReason.ACTION, null);
 
     private static final Map<String, MemberEvent> BY_CODE = Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(MemberEvent::code, Function.identity()));
 

@@ -4,25 +4,29 @@
         값(`v-model`)은 `YYYY-MM-DD` 글자이고 비면 ''. 달력에서 고른 날 그대로이며 **시간대로 환산하지 않는다**(어느 PC 에서도 같은 글자) — 서비스 날짜(통계 기간 등)처럼 시간대와 무관한 날짜용이다.
         **보이는 모양**은 표시 값의 날짜 형식(`2026.10.02` · `2026-10-02` · `02/10/2026` · `10/02/2026`)을 따르고, 표시 값이 바뀌면 즉시 바뀐다(`useDisplay().setDisplay`).
         값(글자)은 형식과 무관하게 늘 `YYYY-MM-DD` 다. 순간(시각)을 고르는 쓰임은 `AppDateTimePicker` 를 쓴다.
+        입력 안 왼쪽에 달력 아이콘을 둔다(`calendarIcon`, 기본 켬 — PrimeVue `IconField` + `InputIcon`, 회원 관리 기간 칸과 같은 모양). 아이콘 자리·패딩 규칙은 `assets/date-field-icon.css`(AppDateTimePicker 와 같이 쓴다).
     -->
-    <DatePicker
-        :key="formatKey"
-        :model-value="asDate"
-        :input-id="inputId"
-        :date-format="dateFormat"
-        :show-button-bar="showButtonBar"
-        :min-date="minDate"
-        :max-date="maxDate"
-        :size="size"
-        :disabled="disabled"
-        :readonly="readonly"
-        :invalid="invalid"
-        :placeholder="placeholder ?? defaultPlaceholder"
-        :input-class="inputClass"
-        :pt="inputPt"
-        fluid
-        @update:model-value="onUpdate"
-    />
+    <IconField class="app-date-field" :class="{ 'app-date-field--icon': calendarIcon }">
+        <InputIcon v-if="calendarIcon" class="pi pi-calendar app-date-icon" aria-hidden="true" />
+        <DatePicker
+            :key="formatKey"
+            :model-value="asDate"
+            :input-id="inputId"
+            :date-format="dateFormat"
+            :show-button-bar="showButtonBar"
+            :min-date="minDate"
+            :max-date="maxDate"
+            :size="size"
+            :disabled="disabled"
+            :readonly="readonly"
+            :invalid="invalid"
+            :placeholder="placeholder ?? defaultPlaceholder"
+            :input-class="inputClass"
+            :pt="inputPt"
+            fluid
+            @update:model-value="onUpdate"
+        />
+    </IconField>
 </template>
 
 <script setup lang="ts">
@@ -48,6 +52,8 @@ interface Props {
     describedBy?: string;
     /** 하단 버튼 줄(오늘·지우기) */
     showButtonBar?: boolean;
+    /** 입력 안 왼쪽에 달력 아이콘(장식 — 눌러도 입력이 눌린다) */
+    calendarIcon?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -62,6 +68,7 @@ const props = withDefaults(defineProps<Props>(), {
     inputClass: undefined,
     describedBy: undefined,
     showButtonBar: true,
+    calendarIcon: true,
 });
 
 /** 표시 값 — 날짜 형식을 따른다(시간대는 쓰지 않는다 — 값이 순간이 아니라 달력 날짜 글자다) */
@@ -89,3 +96,5 @@ function onUpdate(value: Date | Date[] | (Date | null)[] | null | undefined | st
     model.value = typeof value === 'string' ? value : UtilDatePicker.fromCalendarDate(value);
 }
 </script>
+
+<style src="../assets/date-field-icon.css"></style>

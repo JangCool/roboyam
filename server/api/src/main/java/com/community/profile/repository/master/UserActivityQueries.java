@@ -86,7 +86,7 @@ public class UserActivityQueries extends RoboyamRepositoryQDSL {
         }
         return query.select(Projections.constructor(PostRowData.class, POST.id, POST.boardId, POST.prefixId, POST.authorId, POST.guestName, POST.authorIp,
                         POST.title, POST.hasImage, POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.pinnedAt, POST.hiddenAt, POST.hiddenUntil,
-                        POST.createdAt))
+                        POST.hiddenReason, POST.createdAt))
                 .from(POST).where(where)
                 .orderBy(POST.id.desc())
                 .limit(limit + 1L)

@@ -88,6 +88,8 @@ export default class UtilNotification {
         if (type === 'NICKNAME_IMAGE_REVIEWED') return 'pi pi-image';
         if (type === 'POINTS_REVOKED') return 'pi pi-wallet';
         if (type === 'POST_HIDDEN' || type === 'COMMENT_HIDDEN') return 'pi pi-eye-slash';
+        if (type === 'POST_REMOVED') return 'pi pi-trash';
+        if (type === 'OPINION_PIN_REQUESTED' || type === 'OPINION_PIN_REVIEWED') return 'pi pi-thumbtack';
         if (type === 'REPLY') return 'pi pi-reply';
         return 'pi pi-comment';
     }

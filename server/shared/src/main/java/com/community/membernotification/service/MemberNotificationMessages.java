@@ -28,6 +28,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class MemberNotificationMessages {
 
+    /** 운영자가 숨긴 글의 숨김 알림 — {@link Facts#result()} 와 알림 덧붙임 {@code by} 의 값 */
+    public static final String BY_STAFF = "STAFF";
+
     private final NotificationMessageRenderer renderer;
     private final Messages messages;
 
@@ -48,7 +51,8 @@ public class MemberNotificationMessages {
      * @param note       회원에게 공개되는 회수 사유(없으면 null)
      * @param temporary  권리 침해 임시 숨김인가(기간이 있는 숨김)
      * @param snapshot   숨길 때 남긴 글 제목·댓글 앞부분
-     * @param result     닉네임 그림 검토 결과({@code APPROVED}·{@code REJECTED}·{@code REVOKED}) — 그 밖 null. 반려·해제 사유는 {@code note}
+     * @param result     닉네임 그림 검토 결과({@code APPROVED}·{@code REJECTED}·{@code REVOKED}) · 의견 고정 요청 결과 · 운영자 숨김({@link #BY_STAFF} — 글 숨김 알림) — 그 밖 null.
+     *                   반려·해제·거절·운영자 숨김·운영자 삭제 사유는 {@code note}
      */
     public record Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
                         boolean temporary, String snapshot, String result) {
@@ -87,6 +91,21 @@ public class MemberNotificationMessages {
             return new Facts(MemberNotificationType.POINTS_REVOKED, null, null, null, 1, amount, kind, note, false, null);
         }
 
+        /** 운영자가 글을 숨김(관리자 게시글 관리) — 글 제목·사유 */
+        public static Facts hiddenByStaff(String snapshot, String reason) {
+            return new Facts(MemberNotificationType.POST_HIDDEN, null, null, null, 1, 0, null, reason, false, snapshot, BY_STAFF);
+        }
+
+        /** 운영자가 글을 지움(관리자 게시글 관리) — 글 제목·사유 */
+        public static Facts removed(String snapshot, String reason) {
+            return new Facts(MemberNotificationType.POST_REMOVED, null, null, null, 1, 0, null, reason, false, snapshot, null);
+        }
+
+        /** 운영자가 숨긴 글의 숨김 알림인가 */
+        public boolean byStaff() {
+            return BY_STAFF.equals(result);
+        }
+
         public static Facts hidden(MemberNotificationType type, String snapshot, boolean temporary) {
             return new Facts(type, null, null, null, 1, 0, null, null, temporary, snapshot);
         }
@@ -96,8 +115,13 @@ public class MemberNotificationMessages {
     public RenderedInApp inApp(Facts facts, Locale locale, String recipientName) {
         MessageRenderRequest request = request(facts, MessageChannel.IN_APP, locale).variable(MessageVariable.RECIPIENT_NAME, recipientName).build();
         RenderedInApp rendered = renderer.renderInApp(request);
-        String variant = builtinVariantTitle(facts, renderer.pick(request));
-        return variant == null ? rendered : new RenderedInApp(rendered.messageId(), variant, rendered.body());
+        MessageValues picked = renderer.pick(request);
+        String variant = builtinVariantTitle(facts, picked);
+        if (variant == null) {
+            return rendered;
+        }
+        String body = builtinVariantBody(facts, picked);
+        return new RenderedInApp(rendered.messageId(), variant, body == null ? rendered.body() : body);
     }
 
     /**
@@ -129,8 +153,9 @@ public class MemberNotificationMessages {
                     .condition(MessageCondition.GROUPED, facts.groupCount() > 1 ? MessageCondition.GROUPED_VALUE : MessageCondition.SINGLE);
             case REPLY -> builder.variable("actorName", facts.actorName()).variable("excerpt", facts.excerpt());
             case POINTS_REVOKED -> builder.variable("amount", String.format("%,d", facts.amount())).variable("reason", pointsReason(facts, locale));
-            case POST_HIDDEN -> builder.variable("postTitle", facts.snapshot())
-                    .condition(MessageCondition.HIDE_REASON, facts.temporary() ? MessageCondition.RIGHTS : MessageCondition.REPORTS);
+            case POST_HIDDEN -> builder.variable("postTitle", facts.snapshot()).variable("reason", facts.note() == null ? "" : facts.note())
+                    .condition(MessageCondition.HIDE_REASON, facts.byStaff() ? MessageCondition.STAFF : facts.temporary() ? MessageCondition.RIGHTS : MessageCondition.REPORTS);
+            case POST_REMOVED -> builder.variable("postTitle", facts.snapshot()).variable("reason", facts.note() == null ? "" : facts.note());
             case COMMENT_HIDDEN -> builder.variable("excerpt", facts.snapshot())
                     .condition(MessageCondition.HIDE_REASON, facts.temporary() ? MessageCondition.RIGHTS : MessageCondition.REPORTS);
             case DM -> builder.variable("actorName", facts.actorName());
@@ -161,6 +186,9 @@ public class MemberNotificationMessages {
         if (facts.type() == MemberNotificationType.COMMENT && facts.groupCount() > 1) {
             return messages.get(new MessageRef("member.notification.COMMENT.grouped", nz(facts.actorName()), String.valueOf(facts.groupCount() - 1)), locale);
         }
+        if (facts.type() == MemberNotificationType.POST_HIDDEN && facts.byStaff()) {
+            return messages.get(new MessageRef("member.notification.POST_HIDDEN.staff"), locale);
+        }
         if ((facts.type() == MemberNotificationType.POST_HIDDEN || facts.type() == MemberNotificationType.COMMENT_HIDDEN) && facts.temporary()) {
             return messages.get(new MessageRef("member.notification." + facts.type().name() + ".temporary"), locale);
         }
@@ -169,6 +197,18 @@ public class MemberNotificationMessages {
         }
         if (facts.type() == MemberNotificationType.OPINION_PIN_REVIEWED) {
             return messages.get(new MessageRef("member.notification.OPINION_PIN_REVIEWED.title." + pinResult(facts.result())), locale);
+        }
+        return null;
+    }
+
+    /** 기본 문구가 골라졌을 때만 — 운영자 숨김의 본문(글 제목 · 사유). 그 밖은 null(그려진 본문 그대로) */
+    private String builtinVariantBody(Facts facts, MessageValues picked) {
+        if (picked == null || !picked.builtin()) {
+            return null;
+        }
+        if (facts.type() == MemberNotificationType.POST_HIDDEN && facts.byStaff()) {
+            return messages.get(new MessageRef("member.notification.POST_HIDDEN.staff.body", nz(facts.snapshot()), nz(facts.note())),
+                    MessageLocales.locale(picked.locale()));
         }
         return null;
     }

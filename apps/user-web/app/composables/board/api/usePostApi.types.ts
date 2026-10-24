@@ -47,8 +47,11 @@ export interface PostAuthor {
 /** 말머리를 가리키는 짧은 모양 */
 export type PostPrefixRef = Pick<PrefixView, 'id' | 'name' | 'staffOnly' | 'color'>;
 
-/** 목록에서 가려진 까닭 — 서버의 숨김 까닭(신고 누적·불법촬영물·권리침해)이 무엇이든 목록에는 늘 `REPORTED` 로 온다 */
-export type PostHiddenReason = 'REPORTED';
+/**
+ * 목록에서 가려진 까닭 — 신고 숨김(신고 누적·불법촬영물·권리침해)은 늘 `REPORTED` 로 온다.
+ * 운영자 숨김은 게시판 옵션 `staffHiddenNotice` 가 켜졌으면 `STAFF`(「운영자가 숨긴 글이에요」), 꺼졌으면 `REPORTED` 로 온다(post-admin-contract 「공개 쪽 영향」).
+ */
+export type PostHiddenReason = 'REPORTED' | 'STAFF';
 
 /** 목록 한 줄 */
 export interface PostRow {

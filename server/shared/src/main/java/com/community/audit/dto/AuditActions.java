@@ -171,6 +171,23 @@ public final class AuditActions {
     public static final String DEBATE_UPDATE = "DEBATE_UPDATE";
     /** 글의 토론 닫기(행 지움 — 입장·의견·고정은 그대로) — {@code before} */
     public static final String DEBATE_CLOSE = "DEBATE_CLOSE";
+    // ── 게시글 관리(docs/features/post-admin-contract.md) — 대상 POST + 글 ID, {@code reason}(운영자가 적은 사유)과 조치별 덧붙임 ──
+    /** 숨기기 — {@code notifyAuthor} */
+    public static final String POST_HIDE = "POST_HIDE";
+    /** 숨김 해제 — 풀기 전 {@code hiddenReason} */
+    public static final String POST_UNHIDE = "POST_UNHIDE";
+    /** 삭제 — 회수한 포인트 {@code revokedPoints} */
+    public static final String POST_DELETE = "POST_DELETE";
+    /** 복구 — 되돌려 준 포인트 {@code restoredPoints} */
+    public static final String POST_RESTORE = "POST_RESTORE";
+    /** 이동 — {@code from}/{@code to}(boardId·prefixId) */
+    public static final String POST_MOVE = "POST_MOVE";
+    /** 공지 지정(공통 「공지」 말머리 + 고정) — {@code from}/{@code to}(prefixId) */
+    public static final String POST_NOTICE = "POST_NOTICE";
+    public static final String POST_PIN = "POST_PIN";
+    public static final String POST_UNPIN = "POST_UNPIN";
+    /** 일괄 숨김·해제·삭제 — 대상 POST + {@code bulk}, {@code action}·{@code done}·{@code failed}(글 ID 목록) */
+    public static final String POST_BULK = "POST_BULK";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

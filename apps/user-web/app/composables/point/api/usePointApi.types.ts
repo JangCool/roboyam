@@ -64,7 +64,7 @@ export type MyPointLedgerKind = 'EARN' | 'USE' | 'REVOKE';
  * 내 포인트 내역 한 줄의 사유 코드 — 관리자 원장(`PointReasonCode`, admin-web)과 같은 이름 중 **지금 실제로 생기는 것**만 적었다(`point-contract.md` 「적립·회수」).
  * 출석·인기글·교환·핫딜·가입 사유는 기능이 생기면 더한다. 모르는 코드가 와도 화면은 서버 `reason` 글자를 그대로 보인다.
  */
-export type MyPointReasonCode = 'POST' | 'COMMENT' | 'LIKE_BONUS' | 'POST_REVOKE' | 'COMMENT_REVOKE' | 'LIKE_BONUS_REVOKE' | 'ADMIN_ADJUST';
+export type MyPointReasonCode = 'POST' | 'COMMENT' | 'LIKE_BONUS' | 'POST_REVOKE' | 'POST_RESTORE' | 'COMMENT_REVOKE' | 'LIKE_BONUS_REVOKE' | 'ADMIN_ADJUST';
 
 /** 그 줄이 가리키는 글 — 글·댓글 사유만. 지웠거나 숨겼거나 볼 수 없으면 `available=false`, `title=null` */
 export interface MyPointLedgerTarget {

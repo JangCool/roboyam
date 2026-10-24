@@ -8,7 +8,8 @@
  * 알림 종류(서버 `MemberNotificationType`). `DM` = 쪽지 받음(`link` `/messages/{threadId}`), `NICKNAME_IMAGE_REVIEWED` = 닉네임 그림 검토 결과(`link` `/settings/nickname-image`) —
  * `docs/features/member-social-contract.md`. 화면은 종류별 문구를 만들지 않으므로(서버 `title`/`body`) 모르는 종류가 와도 기본 아이콘으로 그린다.
  */
-export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'POST_HIDDEN' | 'COMMENT_HIDDEN' | 'DM' | 'NICKNAME_IMAGE_REVIEWED';
+export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'POST_HIDDEN' | 'COMMENT_HIDDEN' | 'DM' | 'NICKNAME_IMAGE_REVIEWED'
+    | 'OPINION_PIN_REQUESTED' | 'OPINION_PIN_REVIEWED' | 'POST_REMOVED';
 
 /** 알림 묶음 — 댓글·답글 · 계정(포인트 회수·신고 숨김·닉네임 그림 검토) · 쪽지(`DM` — 거르기 없이 「전체」에만 보인다) */
 export type MemberNotificationCategory = 'comment' | 'system' | 'dm';

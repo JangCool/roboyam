@@ -1,0 +1,27 @@
+/*
+ * 날짜 고르개(`AppDatePicker`·`AppDateTimePicker`)의 입력 안 왼쪽 달력 아이콘(`calendarIcon`) — PrimeVue `IconField` + `InputIcon`.
+ * 두 컴포넌트가 `<style src>` 로 이 파일 하나를 같이 쓴다(어느 한쪽만 쓰는 화면에서도 규칙이 실린다). 그래서 scoped 가 아니라 이름을 앞에 붙인 전역 규칙이다.
+ *  · DatePicker 는 입력을 한 겹 더 감싸므로 IconField 의 기본 규칙(`.p-inputtext:not(:first-child)` 에 왼쪽 패딩)이 안쪽 입력(자기 래퍼의 첫 자식)에 닿지 않는다 — 입력 글자의 왼쪽 패딩을 직접 준다.
+ *  · 아이콘은 입력 위에 겹쳐 그리되(`z-index` — DatePicker 래퍼가 relative 라 그대로면 입력 뒤로 숨는다) 누름은 입력으로 통과시킨다(`pointer-events: none`) — 아이콘 자리를 눌러도 입력이 눌려 달력이 열린다. 장식이라 `aria-hidden`.
+ *  · 여백은 입력 크기를 따른다 — 기본은 `--p-form-field-padding-x`, small(admin-web 은 pt 로 모든 입력이 small)·large 는 그 크기의 토큰.
+ */
+.app-date-field--icon > .app-date-icon {
+    z-index: 1;
+    pointer-events: none;
+    inset-inline-start: var(--p-form-field-padding-x, 0.75rem);
+}
+.app-date-field--icon:has(.p-inputtext-sm) > .app-date-icon {
+    inset-inline-start: var(--p-form-field-sm-padding-x, 0.625rem);
+}
+.app-date-field--icon:has(.p-inputtext-lg) > .app-date-icon {
+    inset-inline-start: var(--p-form-field-lg-padding-x, 0.875rem);
+}
+.app-date-field--icon .p-datepicker-input {
+    padding-inline-start: calc(var(--p-form-field-padding-x, 0.75rem) * 2 + var(--p-icon-size, 1rem));
+}
+.app-date-field--icon .p-datepicker-input.p-inputtext-sm {
+    padding-inline-start: calc(var(--p-form-field-sm-padding-x, 0.625rem) * 2 + var(--p-icon-size, 1rem));
+}
+.app-date-field--icon .p-datepicker-input.p-inputtext-lg {
+    padding-inline-start: calc(var(--p-form-field-lg-padding-x, 0.875rem) * 2 + var(--p-icon-size, 1rem));
+}
