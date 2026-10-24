@@ -45,6 +45,7 @@ import siteTerms from './siteTerms';
 import social from './social';
 import verify from './verify';
 import view from './view';
+import terms from './terms';
 
 export default {
     account,
@@ -84,4 +85,5 @@ export default {
     social,
     verify,
     view,
+    terms,
 };

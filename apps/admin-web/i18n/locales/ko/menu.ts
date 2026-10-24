@@ -58,4 +58,5 @@ export default {
     batches: '배치 관리',
     batchLogs: '배치 로그',
     audit: '감사 로그',
+    terms: '약관',
 };

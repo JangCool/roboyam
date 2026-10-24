@@ -126,6 +126,10 @@ public final class AuditActions {
     public static final String MFA_RESET = "MFA_RESET";
     /** 로그인 보안 설정(사용·유예 일수·기기 신뢰 개월·실패 한도) 저장 — 대상 LOGIN_SECURITY, 바뀐 칸만 before/after */
     public static final String MFA_SETTINGS_UPDATE = "MFA_SETTINGS_UPDATE";
+    /** 약관 새 버전 게시 — 대상 TERMS(대상 ID = 종류 TERMS·PRIVACY), after {@code version}·{@code effectiveDate} (docs/features/terms-contract.md) */
+    public static final String TERMS_PUBLISH = "TERMS_PUBLISH";
+    /** 가입·로그인 화면 약관 「보기」 링크 표시 저장 — 대상 SITE, 바뀐 때만 before/after {@code showLinks} */
+    public static final String TERMS_LINKS_UPDATE = "TERMS_LINKS_UPDATE";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

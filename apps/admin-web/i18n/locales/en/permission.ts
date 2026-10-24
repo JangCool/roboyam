@@ -115,6 +115,11 @@ export default {
     templateReadDesc: 'See, in the Notifications & events section of the settings menu, the templates (look of mail, Slack, Mattermost and KakaoTalk), the messages (title and body per event and channel), required emails, the messages in use and special-case rules of each event, and their change history.',
     templateManage: 'Manage notification templates & messages',
     templateManageDesc: 'Create, edit and delete templates and messages, change the messages in use and special-case rules of each event and required email, and send test emails and Slack or Mattermost posts. Required variables of security emails cannot be removed.',
+    // Site and integrations (terms screen `/settings/terms`)
+    termsRead: 'View terms',
+    termsReadDesc: 'See, on the Terms screen of the settings menu, the drafts, publish history and text of the Terms of Service and Privacy Policy, and the terms links option.',
+    termsManage: 'Manage terms',
+    termsManageDesc: 'Save and delete terms drafts and publish new versions (published versions cannot be edited), and turn the terms links on sign-up and login screens on or off.',
 
     // ── Member roles (abilities of public-site members) — policy proposal, not final ──
     memberGroup: {
