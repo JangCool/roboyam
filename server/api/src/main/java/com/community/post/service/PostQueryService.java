@@ -146,25 +146,30 @@ public class PostQueryService {
         int viewCount = counters.recordView(post.getId(), viewer, now.minus(Duration.ofHours(dedupHours))) ? counters.incrementViews(post.getId())
                 : post.getViewCount();
         boolean liked = userId != null && counters.postLiked(post.getId(), userId);
-        return view(post, b, s, userId, viewCount, liked, now);
+        List<Long> authorIds = post.getAuthorId() == null ? List.of() : List.of(post.getAuthorId());
+        return view(post, b, s, userId, viewCount, liked, now, viewerBlocks.lens(userId, authorIds));
     }
 
-    /** 고친 뒤의 글(조회수는 그대로) — {@link PostWriteService#update} 가 같은 트랜잭션에서 부른다 */
+    /** 고친 뒤의 글(조회수는 그대로) — {@link PostWriteService#update} 가 같은 트랜잭션에서 부른다. 차단·메모는 싣지 않는다(응답 모양 그대로, 두 칸 null) */
     PostDetailView viewAfterEdit(PostEntity post, EffectiveBoard b, BoardCatalogSnapshot s, Long userId, Instant now) {
         boolean liked = userId != null && counters.postLiked(post.getId(), userId);
-        return view(post, b, s, userId, post.getViewCount(), liked, now);
+        return view(post, b, s, userId, post.getViewCount(), liked, now, ViewerBlocks.Lens.none());
     }
 
-    private PostDetailView view(PostEntity post, EffectiveBoard b, BoardCatalogSnapshot s, Long userId, int viewCount, boolean liked, Instant now) {
+    /** @param lens 보는 사람의 차단·메모 — 글 {@code blocked}(제목 단어 판정, 게시판 글 목록과 같음)와 작성자 {@code memo} */
+    private PostDetailView view(PostEntity post, EffectiveBoard b, BoardCatalogSnapshot s, Long userId, int viewCount, boolean liked, Instant now,
+                                ViewerBlocks.Lens lens) {
         Map<Long, ProfileEntity> members = authors.members(post.getAuthorId() == null ? List.of() : List.of(post.getAuthorId()));
         Optional<PostNeighborData> older = postQueries.older(b.id(), post.getId(), now);
         Optional<PostNeighborData> newer = postQueries.newer(b.id(), post.getId(), now);
+        PostAuthorView author = authors.of(post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), members, s).withMemo(lens.memoOf(post.getAuthorId()));
         return new PostDetailView(Long.toString(post.getId()), new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()),
                 prefixRef(b, post.getPrefixId()), post.getTitle(), post.getContentFormat().name(), post.getContent(),
-                authors.of(post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), members, s), post.getCreatedAt(), post.getEditedAt(), viewCount,
+                author, post.getCreatedAt(), post.getEditedAt(), viewCount,
                 post.getLikeCount(), liked, post.getCommentCount(), post.isAdult(), userId != null && userId.equals(post.getAuthorId()),
                 protection(b, post.getCommentCount()), post.getDeleteScheduledAt(), older.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null),
-                newer.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null), Boolean.TRUE.equals(s.security().externalLinkNofollow()));
+                newer.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null), Boolean.TRUE.equals(s.security().externalLinkNofollow()),
+                lens.blockedOf(post.getAuthorId(), post.getTitle()));
     }
 
     /** 댓글 많은 글 보호 — 보이는 댓글 수가 기준 이상이면 보호 중 */

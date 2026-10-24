@@ -14,9 +14,11 @@ import java.time.Instant;
  * @param prev                 이전 글(더 오래된 글), 없으면 null
  * @param next                 다음 글(더 새 글), 없으면 null
  * @param externalLinkNofollow 본문 외부 링크에 nofollow 를 단다(관리자 보안 설정)
+ * @param blocked              보는 사람이 작성 회원을 차단했으면 {@code USER}, 제목에 차단 단어가 들었으면 {@code WORD}, 아니면 null(내 글·비로그인 늘 null) —
+ *                             게시판 글 목록과 같은 판정({@code ViewerBlocks}). 본문은 그대로 주고 가리는 것은 화면 몫. {@code PUT} 응답은 늘 null
  */
 public record PostDetailView(String id, PostBoardRefView board, PostPrefixRefView prefix, String title, String contentFormat, String content, PostAuthorView author,
                              Instant createdAt, Instant updatedAt, int viewCount, int likeCount, boolean liked, int commentCount, boolean adult, boolean mine,
                              PostProtectionView protection, Instant deleteScheduledAt, PostNeighborView prev, PostNeighborView next,
-                             boolean externalLinkNofollow) {
+                             boolean externalLinkNofollow, String blocked) {
 }

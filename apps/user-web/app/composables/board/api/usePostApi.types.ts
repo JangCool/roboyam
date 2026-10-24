@@ -174,6 +174,11 @@ export interface PostDetail {
     next: PostNeighbor | null;
     /** 본문 외부 링크에 `rel="nofollow ugc noopener"` 를 단다(관리자 보안 `externalLinkNofollow`) */
     externalLinkNofollow: boolean;
+    /**
+     * 내가 차단한 회원의 글(`USER`)·차단한 단어가 제목에 든 글(`WORD`) — 게시판 글 목록 줄과 같은 판정(2026-10-24). 비로그인·내 글·수정 응답은 null.
+     * 서버는 본문을 그대로 싣는다 — 접는 것은 화면의 일이다(`FoldedRow`, `useBlockOverrides().blockedOf`).
+     */
+    blocked?: BlockedBy | null;
 }
 
 /** 비회원 작성 정보 — 이름·비밀번호(수정·삭제용, 서버는 해시로만 저장)·자동입력 방지 토큰 */
