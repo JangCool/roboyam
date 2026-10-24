@@ -1,5 +1,6 @@
 package com.community.post.service;
 
+import com.community.block.service.ViewerBlocks;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.BoardPrefixInfo;
 import com.community.board.dto.EffectiveBoard;
@@ -53,13 +54,16 @@ public class PostQueryService {
     private final PostRepositoryQDSL postQueries;
     private final PostCounterQueries counters;
     private final AuthorViews authors;
+    private final ViewerBlocks viewerBlocks;
 
-    public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors) {
+    public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors,
+                            ViewerBlocks viewerBlocks) {
         this.catalog = catalog;
         this.posts = posts;
         this.postQueries = postQueries;
         this.counters = counters;
         this.authors = authors;
+        this.viewerBlocks = viewerBlocks;
     }
 
     /**
@@ -70,6 +74,17 @@ public class PostQueryService {
      */
     @Transactional(readOnly = true)
     public PostListResponse list(String slug, String prefix, String sort, String q, int page) {
+        return list(slug, prefix, sort, q, page, null);
+    }
+
+    /**
+     * 보는 사람의 차단·메모를 싣는 글 목록 — 줄의 {@code blocked}(차단한 작성자 {@code USER} · 제목의 차단 단어 {@code WORD}, 내 글·숨긴 글은 null)와 작성자 {@code memo}.
+     * 목록 하나에 차단·단어·메모 질의를 한 번씩만 한다({@link ViewerBlocks}).
+     *
+     * @param viewerId 로그인한 회원(비로그인 null — 두 칸 모두 null)
+     */
+    @Transactional(readOnly = true)
+    public PostListResponse list(String slug, String prefix, String sort, String q, int page, Long viewerId) {
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = PublicBoardService.requireActive(s, slug);
         Instant now = Instant.now();
@@ -94,18 +109,21 @@ public class PostQueryService {
         PostRepositoryQDSL.Page result = impossible ? new PostRepositoryQDSL.Page(List.of(), 0)
                 : postQueries.page(b.id(), prefixId, search, oldest, plain, (long) (current - 1) * listSize, listSize, now);
 
-        Map<Long, ProfileEntity> members = authors.members(Stream.concat(pinned.stream(), result.items().stream()).map(PostRowData::authorId).toList());
+        List<Long> authorIds = Stream.concat(pinned.stream(), result.items().stream()).map(PostRowData::authorId).toList();
+        Map<Long, ProfileEntity> members = authors.members(authorIds);
+        ViewerBlocks.Lens lens = viewerBlocks.lens(viewerId, authorIds);
         int totalPages = (int) ((result.total() + listSize - 1) / listSize);
-        return new PostListResponse(pinned.stream().map(r -> row(r, b, s, members, now)).toList(),
-                result.items().stream().map(r -> row(r, b, s, members, now)).toList(), current, totalPages, result.total());
+        return new PostListResponse(pinned.stream().map(r -> row(r, b, s, members, now, lens)).toList(),
+                result.items().stream().map(r -> row(r, b, s, members, now, lens)).toList(), current, totalPages, result.total());
     }
 
-    private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, Map<Long, ProfileEntity> members, Instant now) {
+    private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, Map<Long, ProfileEntity> members, Instant now, ViewerBlocks.Lens lens) {
         boolean hidden = r.hiddenAt(now);
-        PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s);
+        PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
         return new PostRowView(Long.toString(r.id()), hidden ? null : prefixRef(b, r.prefixId()), hidden ? "" : r.title(), hidden ? 0 : r.commentCount(),
                 !hidden && Boolean.TRUE.equals(r.hasImage()), null, hidden ? AuthorViews.blank(author) : author, r.createdAt(), r.viewCount(), r.likeCount(),
-                r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), hidden ? ReportReasons.HIDDEN_REPORTED : null);
+                r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), hidden ? ReportReasons.HIDDEN_REPORTED : null,
+                hidden ? null : lens.blockedOf(r.authorId(), r.title()));
     }
 
     /**

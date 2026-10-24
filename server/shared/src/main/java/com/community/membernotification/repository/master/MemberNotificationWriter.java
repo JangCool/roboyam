@@ -66,6 +66,12 @@ public class MemberNotificationWriter {
                 actorUserId, actorName, commentId, id);
     }
 
+    /** 이 대화의 안 읽은 쪽지 알림(DM)이 있는가 — 덧붙임 {@code threadId} 로 찾는다(안 읽은 알림 부분 색인 {@code (user_id, id)} 안에서 거른다) */
+    public boolean unreadDmExists(long userId, long threadId) {
+        return !jdbc.queryForList("select 1 from member_notifications where user_id = ? and type = 'DM' and read_at is null and payload ->> 'threadId' = ? limit 1",
+                Integer.class, userId, Long.toString(threadId)).isEmpty();
+    }
+
     public void insert(long id, long userId, String type, Long actorUserId, String actorName, Long postId, Long commentId, String payloadJson, Instant createdAt) {
         jdbc.update("insert into member_notifications (id, user_id, type, actor_user_id, actor_name, post_id, comment_id, payload, created_at) "
                 + "values (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?)", id, userId, type, actorUserId, actorName, postId, commentId, payloadJson, Timestamp.from(createdAt));

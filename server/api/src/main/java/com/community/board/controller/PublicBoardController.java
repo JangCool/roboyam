@@ -50,12 +50,13 @@ public class PublicBoardController {
         return noStore(ApiResponse.success(boardService.board(slug, userId(authentication))));
     }
 
-    /** 글 목록 — {@code prefix}(말머리 ID)·{@code sort}(LATEST·OLDEST)·{@code q}(검색어)·{@code page}(1부터) */
+    /** 글 목록 — {@code prefix}(말머리 ID)·{@code sort}(LATEST·OLDEST)·{@code q}(검색어)·{@code page}(1부터). 로그인했으면 줄마다 차단({@code blocked})·작성자 메모를 싣는다 */
     @GetMapping("/{slug}/posts")
     public ResponseEntity<ApiResponse<PostListResponse>> posts(@PathVariable String slug, @RequestParam(required = false) String prefix,
                                                                @RequestParam(required = false, defaultValue = "LATEST") String sort,
-                                                               @RequestParam(required = false) String q, @RequestParam(required = false, defaultValue = "1") int page) {
-        return noStore(ApiResponse.success(postQueries.list(slug, prefix, sort, q, page)));
+                                                               @RequestParam(required = false) String q, @RequestParam(required = false, defaultValue = "1") int page,
+                                                               Authentication authentication) {
+        return noStore(ApiResponse.success(postQueries.list(slug, prefix, sort, q, page, userId(authentication))));
     }
 
     static Long userId(Authentication authentication) {

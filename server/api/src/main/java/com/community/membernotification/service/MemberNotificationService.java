@@ -49,7 +49,7 @@ import tools.jackson.databind.json.JsonMapper;
  * 회원 알림 — <b>로그인한 회원 본인 것만</b>(경로에 회원 ID 가 없고 모든 질의에 내 ID 가 들어간다). docs/features/member-notification-contract.md.
  *
  * <ul>
- *   <li><b>목록</b> {@code filter}({@code all} 기본 · {@code comment} · {@code system}) · {@code size}(기본 {@value #DEFAULT_SIZE}, 1~{@value #MAX_SIZE}) · {@code cursor}(앞 응답의 {@code nextCursor}).
+ *   <li><b>목록</b> {@code filter}({@code all} 기본 · {@code comment} · {@code system} · {@code dm}(쪽지)) · {@code size}(기본 {@value #DEFAULT_SIZE}, 1~{@value #MAX_SIZE}) · {@code cursor}(앞 응답의 {@code nextCursor}).
  *       최신이 위(ID 내림차순). 글·댓글·일으킨 사람은 <b>읽을 때의 현재 값</b>으로 채운다 — 지웠거나 숨긴 글은 제목을 내지 않고 {@code available=false}.</li>
  *   <li><b>문구</b>: 저장된 종류 + 칸(읽을 때의 현재 값)을 변수로 알림 문구 엔진이 읽는 사람의 요청 언어로 그린다({@code MemberNotificationMessages} — 그 회원 이벤트 앱 알림의
  *       쓸 문구·규칙, 없으면 기본 문구). 운영자가 문구를 바꾸면 이미 쌓인 알림도 새 문구로 보인다.</li>
@@ -72,7 +72,8 @@ public class MemberNotificationService {
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
     private static final Map<String, List<String>> FILTERS = Map.of(
             "comment", typesOf("comment"),
-            "system", typesOf("system"));
+            "system", typesOf("system"),
+            "dm", typesOf("dm"));
 
     private final MemberNotificationRepositoryQDSL notifications;
     private final PostRepository posts;
@@ -197,7 +198,7 @@ public class MemberNotificationService {
         }
 
         NotificationActorView actor = null;
-        if (type == MemberNotificationType.COMMENT || type == MemberNotificationType.REPLY) {
+        if (type == MemberNotificationType.COMMENT || type == MemberNotificationType.REPLY || type == MemberNotificationType.DM) {
             actor = actorOf(row, profileById, userById, locale);
         }
 
@@ -216,6 +217,17 @@ public class MemberNotificationService {
                 String note = payload.get("note") instanceof String n && !n.isBlank() ? n : null;
                 points = new NotificationPointsView(kind, amount, note);
                 facts = MemberNotificationMessages.Facts.points(kind, amount, note);
+            }
+            case DM -> {
+                // 쪽지 내용은 싣지 않는다(보낸 회원의 닉네임만) — 누르면 그 대화방
+                facts = MemberNotificationMessages.Facts.dm(actorName(actor));
+                link = payload.get("threadId") instanceof String thread && !thread.isBlank() ? "/messages/" + thread : "/messages";
+            }
+            case NICKNAME_IMAGE_REVIEWED -> {
+                String result = payload.get("result") instanceof String r ? r : "APPROVED";
+                String reason = payload.get("reason") instanceof String why && !why.isBlank() ? why : null;
+                facts = MemberNotificationMessages.Facts.nicknameReviewed(result, reason);
+                link = "/settings/nickname-image";
             }
             default -> { // POST_HIDDEN, COMMENT_HIDDEN
                 hiddenUntil = instantOf(payload.get("until"));

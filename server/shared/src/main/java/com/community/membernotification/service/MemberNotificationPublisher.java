@@ -161,9 +161,73 @@ public class MemberNotificationPublisher {
         }, 0);
     }
 
+    /**
+     * 쪽지를 받았다 — 받는 회원에게 {@code DM}(보낸 회원 = 일으킨 사람, 덧붙임 {@code threadId}). <b>같은 대화의 안 읽은 쪽지 알림이 이미 있으면 새로 만들지 않는다</b>
+     * (안 읽은 쪽지가 쌓이는 동안 알림이 여러 개 생기지 않게 — 대화를 읽으면 그 알림도 읽음이 되고 다음 쪽지부터 다시 알린다, community {@code api-dm.md}).
+     * 알림에는 쪽지 내용을 싣지 않는다(닉네임만). 보내기 트랜잭션의 마지막에 부른다.
+     */
+    public int dmReceived(long recipientId, long senderId, long threadId) {
+        if (recipientId == senderId) {
+            return 0;
+        }
+        return isolated.run("member-notification:dm", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.DM);
+            if (!on.delivers() || !writer.receivable(recipientId)) {
+                return 0;
+            }
+            if (on.inApp() && writer.unreadDmExists(recipientId, threadId)) {
+                return 0; // 같은 대화의 안 읽은 알림이 남아 있다 — 메일도 다시 보내지 않는다
+            }
+            int made = 0;
+            if (on.inApp()) {
+                writer.insert(ids.nextId(), recipientId, MemberNotificationType.DM.name(), senderId, null, null, null,
+                        MAPPER.writeValueAsString(Map.of("threadId", Long.toString(threadId))), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(recipientId, MemberNotificationMessages.Facts.dm(null), senderId, null, "/messages/" + threadId);
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
+     * 닉네임 그림 검토 결과 — 신청한 회원에게 {@code NICKNAME_IMAGE_REVIEWED}(끌 수 없는 처리 알림). 본인의 취소·해제에는 부르지 않는다.
+     *
+     * @param result {@code APPROVED} · {@code REJECTED} · {@code REVOKED}
+     * @param reason 반려·해제 사유(운영자가 적은 문구 그대로), 승인이면 null
+     */
+    public int nicknameImageReviewed(long userId, long requestId, String result, String reason) {
+        return isolated.run("member-notification:nickname-image", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.NICKNAME_IMAGE_REVIEWED);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("result", result);
+                payload.put("reason", reason);
+                payload.put("requestId", Long.toString(requestId));
+                writer.insert(ids.nextId(), userId, MemberNotificationType.NICKNAME_IMAGE_REVIEWED.name(), null, null, null, null, MAPPER.writeValueAsString(payload),
+                        Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.nicknameReviewed(result, reason), null, null, "/settings/nickname-image");
+            }
+            return made;
+        }, 0);
+    }
+
     /** 회원 알림 메일 — 커밋 뒤 발송기가 보낸다. 세이브포인트 일의 <b>마지막</b>에 부른다(뒤에서 실패해 행이 되돌려졌는데 메일만 나가는 일이 없게) */
     private void requestEmail(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId) {
         events.publishEvent(new MemberEmailRequested(userId, facts, actorUserId, postId));
+    }
+
+    /** 글이 아닌 화면을 가리키는 메일({@code path} = 사이트 안 경로) */
+    private void requestEmail(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId, String path) {
+        events.publishEvent(new MemberEmailRequested(userId, facts, actorUserId, postId, path));
     }
 
     /**

@@ -34,6 +34,7 @@ export default {
     member: 'Members',
     members: 'Members',
     grades: 'Grade settings',
+    nicknameImages: 'Nickname image review',
     siteMenu: 'Menus',
     menusPublic: 'Public site menu',
     menusAdmin: 'Admin menu',
@@ -59,4 +60,6 @@ export default {
     batchLogs: 'Batch logs',
     audit: 'Audit log',
     terms: 'Terms',
+    memberSettings: 'Members',
+    nicknameImageSettings: 'Nickname image',
 };

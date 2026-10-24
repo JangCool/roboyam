@@ -33,6 +33,7 @@ import site from './site';
 import social from './social';
 import team from './team';
 import terms from './terms';
+import nicknameImage from './nicknameImage';
 
 export default {
     account,
@@ -63,4 +64,5 @@ export default {
     social,
     team,
     terms,
+    nicknameImage,
 };

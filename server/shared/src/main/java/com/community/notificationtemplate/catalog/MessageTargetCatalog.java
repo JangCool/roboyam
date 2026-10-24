@@ -177,6 +177,10 @@ public final class MessageTargetCatalog {
                 new InAppText("member.notification.POST_HIDDEN.title", null, "{{postTitle}}", List.of()), "/me/posts", List.of(hide)));
         out.add(member(MemberEvent.COMMENT_HIDDEN, List.of(MessageVariable.of("excerpt", "hiddenCommentExcerpt")),
                 new InAppText("member.notification.COMMENT_HIDDEN.title", null, "{{excerpt}}", List.of()), "/me/comments", List.of(hide)));
+        out.add(member(MemberEvent.DM, List.of(MessageVariable.of("actorName", "dmSender")),
+                new InAppText("member.notification.DM.title", null, null, List.of("actorName")), "/messages/123", List.of()));
+        out.add(member(MemberEvent.NICKNAME_IMAGE_REVIEWED, List.of(MessageVariable.of("result", "nicknameImageResult"), MessageVariable.of("reason", "nicknameImageReason")),
+                new InAppText("member.notification.NICKNAME_IMAGE_REVIEWED.title", null, "{{reason}}", List.of("result")), "/settings/nickname-image", List.of()));
         return out;
     }
 

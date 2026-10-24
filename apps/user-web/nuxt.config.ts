@@ -20,7 +20,7 @@ import { definePreset } from '@primeuix/themes';
  * 계정 흐름(`docs/features/member-account-contract.md`): 이메일 가입·이메일/닉네임 확인·메일 링크 확인·비밀번호 찾기·재설정(`useAuthApi` 의 해당 메서드) · 내 계정·비밀번호 변경·이메일 변경(`useAccountApi`).
  * 회원 활동·둘러보기(`docs/features/member-activity-contract.md`): 최신·인기(`useHomeApi`)·통합 검색(`useSearchApi`, 게시판 하나·한 단어 검색만 실제)·공개 프로필(`useUserProfileApi`)·등급(`useGradeApi`)·제재(`useSanctionApi`)도 목업이다.
  * 소셜 로그인 시작·콜백도 `/api/auth/social/**` 라 같은 프록시를 탄다 — 공급자에 등록하는 콜백 주소는 사이트 공개 주소(`site_settings.public_url`) 기준이므로 로컬에서 시험하려면 공개 주소를 이 개발 서버 주소로 맞춘다.
- * 쪽지는 기능이 없어 화면에서 감췄다(헤더 아이콘·메뉴 줄 없음).
+ * 소통·개인 설정(`docs/features/member-social-contract.md`): 쪽지(`useDmApi` — 헤더 쪽지 아이콘·메뉴·햄버거·`/me` 의 「쪽지함」)·차단(`useBlockApi`)·이용자 메모(`useMemoApi`)·닉네임 그림(`useNicknameImageApi`)은 실제 서버, 성인 확인(`useAdultApi`)·보기 설정(`useViewSettingsApi`)은 목업이다.
  *
  * 원본(community)과 달라진 점 — 마법사에 필요 없는 것을 뺐다: palettes/home-gadget css(보기 설정 — PrimeVue 글자 크기 `text-scale.css` 는 다시 옮겨 왔다)(display-time·rich-editor 레이어는 공유 패키지 `@roboyam/display-time`·`@roboyam/rich-editor` 로 가져왔다 — tiptap 은 rich-editor 패키지의 의존이고 `rich-text.css` 도 그 레이어가 넣는다),
  * 사이트 아이콘·웹 앱 매니페스트 링크, 원본의 소셜 로그인 프록시(`/oauth2`·`/login/oauth2` — roboyam 은 `/api/auth/social/**` 를 쓴다).

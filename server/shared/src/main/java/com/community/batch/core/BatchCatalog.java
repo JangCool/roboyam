@@ -84,7 +84,13 @@ public enum BatchCatalog implements BatchDefinition {
     POPULAR_RANK("popular-rank", BatchCategory.MEMBER, BatchSource.POSTGRESQL, null, true),
 
     /** 올리기만 하고 어디에도 지정하지 않은 채 오래된 파일(files.status = PENDING) 삭제 — Java 배치(저장소 파일을 지우므로 DB 만으로 끝나지 않는다), 하루 한 번(새벽 03:45). 기준 시간은 {@code roboyam.media.orphan-retention-hours} */
-    FILE_ORPHAN_CLEANUP("file-orphan-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 45 3 * * *", true);
+    FILE_ORPHAN_CLEANUP("file-orphan-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 45 3 * * *", true),
+
+    /**
+     * 쪽지 1년 보관 정리 — DB 배치, 기본 매일 04:20 KST({@code R__batch_21_dm_retention.sql}, docs/features/member-social-contract.md 「쪽지」). 마지막 쪽지가 1년보다 오래된 대화는 통째로,
+     * 남는 대화는 1년 지난 쪽지만 지운다. 신고된 대화의 보관은 신고 대상에 쪽지가 생길 때 더한다.
+     */
+    DM_RETENTION("dm-retention", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true);
 
     private static final Pattern PROCEDURE_NAME = Pattern.compile("[a-z][a-z0-9_]{0,62}");
 

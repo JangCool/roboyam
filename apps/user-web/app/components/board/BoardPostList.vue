@@ -87,8 +87,8 @@ const overrides = useBlockOverrides();
 const pinnedIds = computed(() => new Set(props.pinned.map((p) => p.id)));
 const all = computed(() => [...props.pinned, ...props.rows]);
 
-/** 접는 까닭 — 서버의 `blocked`(서버 후보)에 이 기기에서 방금 바꾼 차단을 겹친다. 목업 단계에는 받아 둔 차단 단어로 제목을 본다 */
+/** 접는 까닭 — 서버의 `blocked`(`USER|WORD|null`)에 이 기기에서 방금 바꾼 차단을 겹친다 */
 function foldOf(row: PostRow) {
-    return overrides.blockedOf(row.author.memberId, row.blocked, row.title);
+    return overrides.blockedOf(row.author.memberId, row.blocked);
 }
 </script>

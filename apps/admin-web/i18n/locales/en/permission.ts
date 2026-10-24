@@ -142,8 +142,6 @@ export default {
     memberPostReactDesc: 'Upvote or downvote posts and comments.',
     memberReportCreate: 'Report',
     memberReportCreateDesc: 'Report posts, comments or members that break the rules.',
-    memberNicknameImage: 'Request a nickname image',
-    memberNicknameImageDesc: 'Request an image shown next to the nickname.',
     memberShopUse: 'Use the point shop',
     memberShopUseDesc: 'Buy shop items with points.',
     memberGroupCreate: 'Open a club',

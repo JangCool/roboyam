@@ -103,6 +103,8 @@ export default class UtilAdminMenu {
             items: [
                 { key: 'members', to: '/members', icon: 'pi pi-user', labelKey: 'menu.members', permission: 'member.read' },
                 { key: 'grades', to: '/grades', icon: 'pi pi-trophy', labelKey: 'menu.grades', permission: 'grade.read' },
+                // 닉네임 이미지 심사 — 주소가 `/members` 아래지만 회원 관리와 다른 화면·권한이다(`isActive` 가 더 구체적인 항목에 주소를 준다)
+                { key: 'nicknameImages', to: '/members/nickname-images', icon: 'pi pi-image', labelKey: 'menu.nicknameImages', permission: 'nickname-image.read' },
             ],
         },
         // 메뉴 관리 묶음 — 공개 사이트 메뉴(메뉴 그룹별 트리)와 관리자 사이트 메뉴 구성. community 의 「메뉴 구성」에 대응한다. 부모 주소(`/menus`)로 들어오면 공개 사이트 메뉴로 보낸다
@@ -165,6 +167,14 @@ export default class UtilAdminMenu {
                 { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
                 { key: 'terms', to: '/settings/terms', icon: 'pi pi-file', labelKey: 'menu.terms', permission: 'terms.read' },
             ],
+        },
+        // 회원 설정 묶음 — 회원 기능의 사이트 규칙. 닉네임 이미지 신청 조건(조회 `nickname-image.read`, 저장은 화면 안에서 `nickname-image.manage`)
+        {
+            key: 'settingsMember',
+            mode: 'settings',
+            icon: 'pi pi-users',
+            labelKey: 'menu.memberSettings',
+            items: [{ key: 'nicknameImageSettings', to: '/settings/nickname-image', icon: 'pi pi-image', labelKey: 'menu.nicknameImageSettings', permission: 'nickname-image.read' }],
         },
         // 메일 묶음 — 메일 서버만(message-template-contract 「개정 3」 — 메일 종류·템플릿·레이아웃은 알림·이벤트 묶음으로 옮겼다 — 개정 4 의 「템플릿 › 메일」·「문구」)
         {
@@ -413,13 +423,35 @@ export default class UtilAdminMenu {
 
     /**
      * 지금 주소가 이 항목의 화면인가 — 홈(`/`)은 정확히 같을 때만, 나머지는 하위 주소(`/members/12`)까지 같은 항목으로 본다.
+     * 단 그 하위 주소를 **더 구체적인 다른 메뉴 항목**이 가지면(`/members` 아래의 `/members/nickname-images`, `/points` 아래의 `/points/policy`) 그 항목의 화면이다 —
+     * 활성 표시가 둘로 갈라지지 않고, 열기 권한(`canOpen`)·모드(`modeOfPath`)도 그 항목의 것으로 본다.
      * @param {AdminMenuItem} item - 메뉴 항목.
      * @param {string} path - 지금 주소의 경로(`route.path`).
      * @returns {boolean} 그 항목이 활성이면 true.
      */
     static isActive(item: AdminMenuItem, path: string): boolean {
         if (item.to === '/') return path === '/';
-        return path === item.to || path.startsWith(`${item.to}/`);
+        if (!UtilAdminMenu.under(path, item.to)) return false;
+        return !UtilAdminMenu.allItems().some((other) => other.to.length > item.to.length && UtilAdminMenu.under(other.to, item.to) && UtilAdminMenu.under(path, other.to));
+    }
+
+    /**
+     * 주소가 그 경로이거나 그 아래인가.
+     * @param {string} path - 볼 주소.
+     * @param {string} to - 메뉴 항목의 경로.
+     * @returns {boolean} 같거나 `to/` 로 시작하면 true.
+     */
+    static under(path: string, to: string): boolean {
+        return path === to || path.startsWith(`${to}/`);
+    }
+
+    /**
+     * 메뉴의 모든 화면 항목(부모·하위 포함) — 더 구체적인 항목을 찾는 데 쓴다.
+     * @returns {AdminMenuItem[]} 모든 항목.
+     */
+    static allItems(): AdminMenuItem[] {
+        const walk = (items: readonly AdminMenuItem[]): AdminMenuItem[] => items.flatMap((item) => [item, ...(item.children ? walk(item.children) : [])]);
+        return walk(UtilAdminMenu.ITEMS.flatMap((node) => (UtilAdminMenu.isGroup(node) ? node.items : [node])));
     }
 
     /**

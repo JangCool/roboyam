@@ -72,7 +72,7 @@ import UtilDm from '~/utils/util-dm';
  * 쪽지 — `/messages`(쪽지함) · `/messages/{threadId}`(대화방) · `/messages/new?to=`(새 쪽지)의 **부모 라우트**(community `pages/messages.vue`, `docs/api-dm.md`).
  * 쪽지함 목록을 여기 한 번만 두어 데스크톱에서 대화를 눌러도 목록이 다시 그려지지 않는다. 상태·서버 호출은 `useDmInbox`(대화방이 읽음·보내기·삭제를 바로 적어 두는 공유 상태).
  * 보이는 동안 약 60초마다 첫 쪽을 다시 받아 합친다(`useDmPoll`). 안쪽 화면(`shell: 'inner'`)인지는 자식 페이지가 정한다. 로그인 필요, `noindex,nofollow`.
- * ⚠ 목업 API(`useDmApi`) — `docs/features/member-social-contract.md`.
+ * API 는 `useDmApi` — `docs/features/member-social-contract.md`.
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();

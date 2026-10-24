@@ -7,7 +7,7 @@
                 <p v-if="row.hiddenReason" class="flex items-center gap-1.5 px-4 py-6 text-sm text-muted-color">
                     <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t('board.hiddenPost') }}
                 </p>
-                <FoldedRow v-else :reason="overrides.blockedOf(row.author.memberId, row.blocked, row.title)" kind="post" class="px-4 py-6 text-sm" hide-class="px-3 pb-2">
+                <FoldedRow v-else :reason="overrides.blockedOf(row.author.memberId, row.blocked)" kind="post" class="px-4 py-6 text-sm" hide-class="px-3 pb-2">
                     <NuxtLink :to="`/posts/${row.id}`" class="flex gap-3 p-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
                         <div class="aspect-[4/3] w-28 shrink-0 overflow-hidden rounded-md bg-surface-100 dark:bg-surface-800">
                             <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" class="size-full object-cover" loading="lazy" />

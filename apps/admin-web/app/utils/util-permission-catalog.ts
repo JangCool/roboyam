@@ -147,6 +147,7 @@ export default class UtilPermissionCatalog {
      *  · 운영자·역할 관리: 조회 `operator.read`·`role.read` / 처리 `operator.manage` / 설정 `role.manage` / 민감 `operator.lock`(운영자 잠금·해제)·`role.grant`(역할 변경 = 권한 상승). 조직 구성(팀)은 조회 `team.read` / 처리 `team.manage`(팀 만들기·고치기·지우기·옮기기·팀원 관리)
      *  · 감사·배치: 조회 `audit.read`·`batch.read` / 처리 `batch.manage` / 민감 `batch.run`(배치 즉시 실행). 이 유형의 설정 단위("배치 사용 여부")는 처리(`batch.manage`)에 포함했다.
      *  · 회원 조회: 조회 `member.read` / 민감 `member.pii`(전체 이메일 열람 — 없으면 이메일이 `ab***@gmail.com` 으로 가려진다).
+     *  · 닉네임 이미지 심사(`/members/nickname-images`): 조회 `nickname-image.read` / 처리 `nickname-image.manage`(승인·반려·해제).
      *  · 등급·포인트·휴면(등급 설정·포인트 내역·포인트 정책 화면): 조회 `grade.read` / 설정 `grade.manage`(등급 승급 조건 변경). 포인트는 조회 `point.read`(원장·정책 보기) / 설정 `point.settings`(지급 정책 저장) / 민감 `point.adjust`(수동 지급·차감).
      *  · 게시판: 조회 `board.read` / 처리 `board.manage`·`board.staff.manage` / 설정 `board.settings`·`board.staff.limit` / 민감 `board.delete`(게시판 목록·설정·기본 설정·매니저/스텝).
      *  · 사이트 화면 구성: 조회 `layout.read` / 설정 `layout.settings`(공개 사이트 메뉴)·`admin-menu.manage`(관리자 사이트 메뉴 구성 저장).
@@ -182,8 +183,8 @@ export default class UtilPermissionCatalog {
         { code: 'keeper-action.restore', unit: 'SENSITIVE', type: 'staffAudit', nameKey: 'permission.item.keeperActionRestore', descKey: 'permission.item.keeperActionRestoreDesc', featureReady: false },
         { code: 'member.read', unit: 'READ', type: 'memberView', nameKey: 'permission.memberRead', descKey: 'permission.memberReadDesc', featureReady: true },
         { code: 'member.pii', unit: 'SENSITIVE', type: 'memberView', nameKey: 'permission.memberPii', descKey: 'permission.memberPiiDesc', featureReady: true },
-        { code: 'nickname-image.read', unit: 'READ', type: 'nicknameImage', nameKey: 'permission.item.nicknameImageRead', descKey: 'permission.item.nicknameImageReadDesc', featureReady: false },
-        { code: 'nickname-image.manage', unit: 'MANAGE', type: 'nicknameImage', nameKey: 'permission.item.nicknameImageManage', descKey: 'permission.item.nicknameImageManageDesc', featureReady: false },
+        { code: 'nickname-image.read', unit: 'READ', type: 'nicknameImage', nameKey: 'permission.item.nicknameImageRead', descKey: 'permission.item.nicknameImageReadDesc', featureReady: true },
+        { code: 'nickname-image.manage', unit: 'MANAGE', type: 'nicknameImage', nameKey: 'permission.item.nicknameImageManage', descKey: 'permission.item.nicknameImageManageDesc', featureReady: true },
         { code: 'grade.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.gradeRead', descKey: 'permission.gradeReadDesc', featureReady: true },
         { code: 'grade.manage', unit: 'CONFIG', type: 'gradePoint', nameKey: 'permission.gradeManage', descKey: 'permission.gradeManageDesc', featureReady: true },
         { code: 'grade.override', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.gradeOverride', descKey: 'permission.item.gradeOverrideDesc', featureReady: false },
@@ -268,7 +269,6 @@ export default class UtilPermissionCatalog {
         { code: 'file.attach', group: 'USE', type: 'memberSite', nameKey: 'permission.memberFileAttach', descKey: 'permission.memberFileAttachDesc', featureReady: true },
         { code: 'post.react', group: 'USE', type: 'memberSite', nameKey: 'permission.memberPostReact', descKey: 'permission.memberPostReactDesc', featureReady: true },
         { code: 'report.create', group: 'USE', type: 'memberSite', nameKey: 'permission.memberReportCreate', descKey: 'permission.memberReportCreateDesc', featureReady: true },
-        { code: 'nickname-image.request', group: 'USE', type: 'memberSite', nameKey: 'permission.memberNicknameImage', descKey: 'permission.memberNicknameImageDesc', featureReady: true },
         { code: 'shop.use', group: 'USE', type: 'memberSite', nameKey: 'permission.memberShopUse', descKey: 'permission.memberShopUseDesc', featureReady: true },
         { code: 'group.create', group: 'USE', type: 'memberSite', nameKey: 'permission.memberGroupCreate', descKey: 'permission.memberGroupCreateDesc', featureReady: false },
         { code: 'hotdeal.write', group: 'USE', type: 'memberSite', nameKey: 'permission.memberHotdealWrite', descKey: 'permission.memberHotdealWriteDesc', featureReady: false },

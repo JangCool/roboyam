@@ -130,6 +130,15 @@ public final class AuditActions {
     public static final String TERMS_PUBLISH = "TERMS_PUBLISH";
     /** 가입·로그인 화면 약관 「보기」 링크 표시 저장 — 대상 SITE, 바뀐 때만 before/after {@code showLinks} */
     public static final String TERMS_LINKS_UPDATE = "TERMS_LINKS_UPDATE";
+    // ── 닉네임 그림 검토(docs/features/member-social-contract.md 「닉네임 그림」) — 대상 NICKNAME_IMAGE + 신청 ID, detail 에 회원 ID·사유 ──
+    /** 닉네임 그림 승인 — 회원의 지금 그림이 된다(앞 그림은 교체) */
+    public static final String NICKNAME_IMAGE_APPROVE = "NICKNAME_IMAGE_APPROVE";
+    /** 닉네임 그림 반려 — {@code reason} */
+    public static final String NICKNAME_IMAGE_REJECT = "NICKNAME_IMAGE_REJECT";
+    /** 적용 중인 닉네임 그림 해제 — {@code reason} */
+    public static final String NICKNAME_IMAGE_REVOKE = "NICKNAME_IMAGE_REVOKE";
+    /** 닉네임 그림 신청 조건(방식·최소 등급·일수·활동·포인트·이메일 인증) 저장 — 대상 NICKNAME_IMAGE_SETTINGS, 바뀐 칸만 before/after */
+    public static final String NICKNAME_IMAGE_SETTINGS_UPDATE = "NICKNAME_IMAGE_SETTINGS_UPDATE";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

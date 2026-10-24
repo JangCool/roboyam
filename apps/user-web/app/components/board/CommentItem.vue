@@ -102,9 +102,9 @@ const time = useDisplayTime();
 const manageable = computed(() => !props.best && (props.comment.mine || props.comment.author.kind === 'GUEST'));
 const reportable = computed(() => props.reportEnabled && !props.comment.mine);
 
-/** 접는 까닭 — 보이는 댓글만. 서버의 `blocked`(서버 후보)에 이 기기에서 방금 바꾼 차단을 겹친다(목업 단계에는 받아 둔 차단 단어로 본문을 본다). 고치는 중이면 접지 않는다 */
+/** 접는 까닭 — 보이는 댓글만. 서버의 `blocked`(`USER|WORD|null`)에 이 기기에서 방금 바꾼 차단을 겹친다. 고치는 중이면 접지 않는다 */
 const overrides = useBlockOverrides();
 const foldReason = computed(() =>
-    props.comment.state === 'VISIBLE' && !props.editing && !props.comment.mine ? overrides.blockedOf(props.comment.author.memberId, props.comment.blocked, props.comment.content) : null,
+    props.comment.state === 'VISIBLE' && !props.editing && !props.comment.mine ? overrides.blockedOf(props.comment.author.memberId, props.comment.blocked) : null,
 );
 </script>
