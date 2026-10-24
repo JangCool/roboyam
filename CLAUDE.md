@@ -40,6 +40,8 @@
 - 전체 테스트가 필요해 보이더라도 임의로 실행하지 말고 필요성과 예상 범위를 보고한다.
 - UI의 시각적 리뷰와 브라우저 확인은 개발자가 직접 수행한다. 화면 리뷰를 에이전트에게 맡기지 않는다.
 - 에이전트가 브라우저를 써야 할 때는 앱 내장 브라우저(Browser 패널)를 쓰지 않고, 사용자가 실제로 쓰는 Chrome(Claude in Chrome)을 쓴다. 개발 서버를 띄울 때 내장 브라우저 탭이 열리면 닫는다(서버만 쓴다).
+- 브라우저 화면 오른쪽 아래의 빨간 「Invalid PrimeUI License」 표시는 앱이 아니라 Chrome 확장 프로그램이 띄운 것이다. 무시하고 보고하지 않는다.
+- 로컬 메일은 community 의 Mailpit 컨테이너(`community-local-mailpit`, SMTP `localhost:1035`, 받은 메일 http://localhost:8035)를 함께 쓴다. 메일이 필요한 흐름(가입 인증·비밀번호 재설정·이메일 변경)은 여기서 확인한다.
 
 ## 에이전트 사용
 - 화면 구현은 `frontend-developer`, 서버 구현은 `backend-developer`, 명시적인 QA 요청은 `qa-reviewer`를 사용한다.
