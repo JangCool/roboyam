@@ -59,7 +59,11 @@ public class PopularService {
         this.rows = rows;
     }
 
-    public PopularListResponse popular(String periodRaw, String pageRaw, String sizeRaw) {
+    /**
+     * @param viewerId 로그인한 회원(비로그인 null) — 줄의 {@code blocked}·작성자 {@code memo} 를 게시판 목록과 같게 싣는다(빼지 않고 표시만).
+     *                 스냅샷(회원 공통)으로 순서·쪽을 정한 뒤 이 쪽의 줄을 만들 때 붙인다 — 스냅샷·순위에는 회원별 값이 들어가지 않는다
+     */
+    public PopularListResponse popular(String periodRaw, String pageRaw, String sizeRaw, Long viewerId) {
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         String period = periodRaw == null || periodRaw.isBlank() ? REALTIME : periodRaw.strip().toUpperCase(Locale.ROOT);
         if (!PERIODS.contains(period)) {
@@ -92,7 +96,7 @@ public class PopularService {
         int totalPages = Math.max(1, (total + size - 1) / size);
         int fromIndex = (int) Math.min((long) (page - 1) * size, total);
         List<PostRowData> slice = eligible.subList(fromIndex, Math.min(fromIndex + size, total));
-        List<PostFeedRowView> items = rows.of(slice, s, now);
+        List<PostFeedRowView> items = rows.of(slice, s, now, viewerId);
         Map<String, String> fills = new LinkedHashMap<>();
         for (PostFeedRowView item : items) {
             String fill = fillOf.get(Long.parseLong(item.id()));

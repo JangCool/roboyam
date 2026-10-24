@@ -29,20 +29,25 @@ public class UserProfileController {
 
     @GetMapping("/profile")
     public ApiResponse<PublicProfileView> profile(@PathVariable String id, Authentication authentication) {
-        Long viewer = authentication != null && authentication.getPrincipal() instanceof AuthUser principal ? principal.id() : null;
-        return ApiResponse.success(service.profile(id, viewer));
+        return ApiResponse.success(service.profile(id, viewerId(authentication)));
     }
 
-    /** 작성글 — 최신이 위 */
+    /** 작성글 — 최신이 위. 로그인했으면 줄의 차단·작성자 메모를 싣는다 */
     @GetMapping("/posts")
-    public ApiResponse<PostFeedPageView> posts(@PathVariable String id, @RequestParam(required = false) String size, @RequestParam(required = false) String cursor) {
-        return ApiResponse.success(service.posts(id, size, cursor));
+    public ApiResponse<PostFeedPageView> posts(@PathVariable String id, @RequestParam(required = false) String size, @RequestParam(required = false) String cursor,
+                                               Authentication authentication) {
+        return ApiResponse.success(service.posts(id, size, cursor, viewerId(authentication)));
     }
 
-    /** 작성 댓글 — 최신이 위 */
+    /** 작성 댓글 — 최신이 위. 로그인했으면 줄의 차단을 싣는다 */
     @GetMapping("/comments")
     public ApiResponse<AuthorCommentPageView> comments(@PathVariable String id, @RequestParam(required = false) String size,
-                                                       @RequestParam(required = false) String cursor) {
-        return ApiResponse.success(service.comments(id, size, cursor));
+                                                       @RequestParam(required = false) String cursor, Authentication authentication) {
+        return ApiResponse.success(service.comments(id, size, cursor, viewerId(authentication)));
+    }
+
+    /** 로그인한 회원(비회원 null) */
+    private static Long viewerId(Authentication authentication) {
+        return authentication != null && authentication.getPrincipal() instanceof AuthUser principal ? principal.id() : null;
     }
 }

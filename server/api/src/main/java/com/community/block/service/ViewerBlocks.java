@@ -10,7 +10,7 @@ import java.util.Set;
 import org.springframework.stereotype.Component;
 
 /**
- * 보는 사람의 차단·메모를 이미 있는 응답(게시판 글 목록 줄·댓글)에 싣는 도우미 — 목록 하나에 <b>질의 세 번</b>(차단한 작성자 · 차단 단어 · 메모)으로 끝낸다(N+1 없음).
+ * 보는 사람의 차단·메모를 이미 있는 응답(게시판 글 목록 줄·댓글 · 최신·인기·통합 검색·공개 프로필 작성글/댓글 줄 · 공개 프로필 머리)에 싣는 도우미 — 목록 하나에 <b>질의 세 번</b>(차단한 작성자 · 차단 단어 · 메모)으로 끝낸다(N+1 없음).
  * docs/features/member-social-contract.md 「이미 있는 응답에 더할 칸」.
  *
  * <ul>
@@ -73,5 +73,23 @@ public class ViewerBlocks {
         List<Long> ids = authorIds.stream().filter(Objects::nonNull).filter(id -> !id.equals(viewerId)).distinct().toList();
         List<String> words = queries.words(viewerId).stream().map(w -> w.toLowerCase(Locale.ROOT)).toList();
         return new Lens(viewerId, queries.blockedAmong(viewerId, ids), words, queries.memosAmong(viewerId, ids));
+    }
+
+    /** 한 회원을 향한 내 차단·메모(공개 프로필 머리의 {@code blockedByMe}·{@code memo}) — 차단은 회원 차단({@code USER})만 본다(단어와 무관) */
+    public record Toward(boolean blocked, String memo) {
+
+        public static final Toward NONE = new Toward(false, null);
+    }
+
+    /**
+     * @param viewerId 보는 회원(비로그인 null — 질의하지 않는다)
+     * @param targetId 그 회원(본인이면 늘 {@link Toward#NONE})
+     */
+    public Toward toward(Long viewerId, long targetId) {
+        if (viewerId == null || viewerId == targetId) {
+            return Toward.NONE;
+        }
+        List<Long> ids = List.of(targetId);
+        return new Toward(queries.blockedAmong(viewerId, ids).contains(targetId), queries.memosAmong(viewerId, ids).get(targetId));
     }
 }

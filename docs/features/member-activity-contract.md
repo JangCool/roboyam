@@ -78,7 +78,7 @@
 - `GET /api/users/{id}/profile|posts|comments` 를 api 서버에 만들고(비회원도 — 보안 설정 `permitAll` 한 줄) `useUserProfileApi` 를 실제 호출로 바꿨다(`user-profile-mock.ts` 삭제, 위 목업 가정 3·스위치 `profile-*` 는 없어짐 — `board-feed-mock.ts` 는 최신·인기·검색 목업이 써서 남김).
 - 수치는 바로 센다(지연 없음): 글 = 켜진 게시판의 지우지·숨기지 않은 글, 댓글 = 지우지·숨기지 않은 댓글 중 볼 수 있는 글의 것, 받은 추천 = 그 글·댓글의 추천 합(19금 글도 센다). `gradeLabel` 은 등급 이름(영어 이름이 없어 요청 언어와 무관).
 - 작성글 줄 = `PostFeedRowView`(`PostRowView` 칸 + `board`), 쪽 = `PostFeedPageView` — 최신·인기·검색과 같은 이름·위치(`com.community.post.dto.response`). `PostBoardRefView` 에 `color` 를 더했다(글 상세 `board` 에도 나간다). 숨긴 글은 목록에서 아예 빠진다(게시판 목록처럼 자리를 남기지 않음). `size` 1~50 밖은 `400 fields.size`, 틀린 커서 `400 fields.cursor` — 회원 404 보다 먼저.
-- `blockedByMe`·`memo` 는 아직 내려가지 않는다(소통 세션이 이 응답에 더한다).
+- ~~`blockedByMe`·`memo` 는 아직 내려가지 않는다~~ → 합친 뒤 붙였다(2026-10-24): 프로필 `blockedByMe`(회원 차단만)·`memo`, 작성글 줄 `blocked`·작성자 `memo`, 작성 댓글 줄 `blocked`(새 칸, 단어는 댓글 본문) — 소통 세션의 `ViewerBlocks` 로 게시판 목록·댓글과 같은 판정. 비로그인·본인은 비어 있다.
 
 ## 서버 구현 결과 (2026-10-24 — 최신·인기·통합 검색·등급. 공개 프로필·제재·이의제기는 아직 목업)
 **API** (`server/api` — `home`·`search`·`grade` 패키지, 모양은 위 「목업 API 후보」 그대로. 비회원도: latest·popular·search·grade-rules — `SecurityConfig` GET permitAll)
@@ -98,5 +98,5 @@
 **미확정(서버)**
 1. 인기 주기 5분·최소 추천 3 은 가정(소규모 사이트에서는 인기글이 자주 빌 수 있다 — 채우기도 같은 최소 추천을 지킨다).
 2. ~~핫딜·직접홍보 게시판 제외 여부~~ → 게시판 설정 「가젯 노출 금지」로 정한다(DEAL·PROMO 는 `{POPULAR}` 로 시작, 사용자 결정 2026-10-24, 배치·읽기 둘 다).
-3. 차단한 회원의 글 제외는 합칠 때 붙인다(차단 기능 세션).
+3. ~~차단한 회원의 글 제외는 합칠 때 붙인다~~ → 빼지 않고 표시만 한다(2026-10-24): 최신·인기·검색 줄에 `blocked`(USER·WORD)·작성자 `memo` 를 `ViewerBlocks` 로 싣고(게시판 목록과 같음, 개수·쪽 수 그대로), 접는 것은 화면 몫. 인기글 스냅샷은 회원 공통 그대로, 표시는 줄을 만들 때 붙인다.
 4. SQL·마이그레이션·검색 시간 제한(57014 → 503)은 실제 DB 에서 아직 돌려 보지 않았다.

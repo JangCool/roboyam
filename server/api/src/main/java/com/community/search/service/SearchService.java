@@ -72,7 +72,8 @@ public class SearchService {
         this.tx.setReadOnly(true);
     }
 
-    public SearchResponse search(String qRaw, String scopeRaw, String boardRaw, String orderRaw, String pageRaw, String cursorRaw, String sizeRaw) {
+    /** @param viewerId 로그인한 회원(비로그인 null) — 줄의 {@code blocked}·작성자 {@code memo} 를 게시판 목록과 같게 싣는다(결과에서 빼지 않고 표시만, 개수·쪽 수도 그대로) */
+    public SearchResponse search(String qRaw, String scopeRaw, String boardRaw, String orderRaw, String pageRaw, String cursorRaw, String sizeRaw, Long viewerId) {
         BoardCatalogSnapshot s = catalog.snapshot();
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         SearchQueryPolicy.Problem problem = SearchQueryPolicy.check(qRaw);
@@ -120,7 +121,7 @@ public class SearchService {
         int currentPage = page;
         long deadline = System.nanoTime() + Duration.ofMillis(TIME_LIMIT_MILLIS).toNanos();
         try {
-            return tx.execute(status -> run(s, criteria, query, boardSlug, cursorMode, currentPage, size, deadline));
+            return tx.execute(status -> run(s, criteria, query, boardSlug, cursorMode, currentPage, size, deadline, viewerId));
         } catch (RuntimeException e) {
             if (canceled(e)) {
                 throw new SearchTimeoutException();
@@ -130,7 +131,7 @@ public class SearchService {
     }
 
     private SearchResponse run(BoardCatalogSnapshot s, PostSearchQueries.Criteria c, String query, String boardSlug, boolean cursorMode, int page, int size,
-                               long deadline) {
+                               long deadline, Long viewerId) {
         if (c.boardIds().isEmpty()) {
             return new SearchResponse(query, c.tokens(), c.scope(), boardSlug, List.of(), cursorMode ? null : page, cursorMode ? null : 0, false, null);
         }
@@ -159,7 +160,7 @@ public class SearchService {
             }
         }
         List<SearchRowView> items = new ArrayList<>(ordered.size());
-        for (PostFeedRowView row : rows.of(ordered, s, c.now())) {
+        for (PostFeedRowView row : rows.of(ordered, s, c.now(), viewerId)) {
             items.add(SearchRowView.of(row, snippets.get(row.id())));
         }
         String next = hasNext && !shown.isEmpty() ? Long.toString(shown.getLast().id()) : null;

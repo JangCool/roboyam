@@ -102,6 +102,7 @@
 ### 차단·메모 (api)
 - 운영진(`BLOCK_TARGET_PROTECTED`) = 게시판 매니저·스텝을 하나라도 맡은 회원(기존 규칙).
 - 칸을 채우는 곳: 게시판 글 목록 `GET /api/boards/{slug}/posts`(로그인 때)의 `PostRowView.blocked`·`PostAuthorView.memo`, 댓글 목록의 `CommentView.blocked`·작성자 `memo`. 그 밖의 응답(최신·인기·검색·공개 프로필)은 null — **합칠 때 메인 세션이 붙인다**.
+- **합친 뒤 붙임(2026-10-24)**: 최신 `/api/home/latest`·인기 `/api/home/popular`·통합 검색 `/api/search`·프로필 작성글 `/api/users/{id}/posts` 의 줄(`PostFeedRowView`·`SearchRowView`)에 `blocked`·작성자 `memo`, 프로필 작성 댓글 줄(`AuthorCommentRowView`)에 `blocked`(단어는 댓글 본문), 공개 프로필 `blockedByMe`(회원 차단만)·`memo` 를 싣는다 — 모두 `ViewerBlocks`(같은 칸·같은 판정, 쪽마다 한 번 모아 읽음, 비로그인·본인은 비어 있음). **검색도 결과에서 빼지 않고 표시만 한다**(위 「검색 결과는 서버가 뺀다」를 대신함 — 게시판 목록과 같게, 화면이 접는다). 인기글은 회원 공통 스냅샷으로 순서·쪽을 정한 뒤 줄을 만들 때 붙인다(공유 캐시 없음).
 - 화면: 셸 로더 `useBlockOverridesLoader`·목업 한 벌·화면의 단어 차단 판정을 지웠다. 차단/해제·메모 직후 바로 보이게 하는 이 기기 덮어쓰기(`useBlockOverrides`)는 남겼다. 공개 프로필 목업(`user-profile-mock.ts`, 다른 작업 몫)은 `blockedByMe: false`·`memo: null` 을 준다 — 실제 프로필 서버가 붙으면 채워진다.
 
 ### 닉네임 이미지 (api·admin)

@@ -1,5 +1,6 @@
 package com.community.profile.service;
 
+import com.community.block.service.ViewerBlocks;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.AuthorViews;
@@ -42,6 +43,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>없는 회원·탈퇴(삭제)한 회원·형식이 틀린 ID → {@code 404 PROFILE_NOT_FOUND}. 정지된 회원도 보인다. 이전 닉네임·이메일은 싣지 않는다.</li>
  *   <li>볼 수 있는 글·댓글의 정의는 {@link UserActivityQueries} — 지움·숨김·꺼진 게시판 제외. 수치는 읽을 때 바로 센다(캐시 없음).</li>
  *   <li>작성글 줄은 게시판 목록({@code GET /api/boards/{slug}/posts})과 같은 방식으로 만든다(작성자 표시 {@link AuthorViews}, 말머리, 19금 표시) + 그 글의 게시판.</li>
+ *   <li>보는 사람의 차단·메모({@link ViewerBlocks}): 머리의 {@code blockedByMe}·{@code memo}, 작성글 줄의 {@code blocked}·작성자 {@code memo}, 작성 댓글 줄의 {@code blocked}
+ *       — 게시판 목록·댓글과 같은 판정(단어는 글 제목·댓글 본문), 쪽마다 한 번 모아 읽는다. 줄은 빼지 않는다(화면이 접는다). 본인·비회원은 비어 있다.</li>
  *   <li>쪽: {@code size} 1~{@value #MAX_SIZE}(기본 {@value #DEFAULT_SIZE}), {@code cursor} = 앞 응답의 {@code nextCursor}(마지막 줄 id). 틀리면 {@code 400 VALIDATION fields.size|cursor}
  *       — 회원 확인보다 먼저 본다.</li>
  * </ul>
@@ -62,13 +65,16 @@ public class UserProfileService {
     private final UserActivityQueries activity;
     private final BoardCatalog catalog;
     private final AuthorViews authors;
+    private final ViewerBlocks viewerBlocks;
 
-    public UserProfileService(UserRepository users, ProfileRepository profiles, UserActivityQueries activity, BoardCatalog catalog, AuthorViews authors) {
+    public UserProfileService(UserRepository users, ProfileRepository profiles, UserActivityQueries activity, BoardCatalog catalog, AuthorViews authors,
+                              ViewerBlocks viewerBlocks) {
         this.users = users;
         this.profiles = profiles;
         this.activity = activity;
         this.catalog = catalog;
         this.authors = authors;
+        this.viewerBlocks = viewerBlocks;
     }
 
     /** @param viewerId 보는 회원(비회원 null) */
@@ -79,12 +85,14 @@ public class UserProfileService {
         String gradeKey = m.profile().getGradeKey();
         String label = s.gradeLabel(gradeKey);
         String bio = m.profile().getBio();
+        ViewerBlocks.Toward toward = viewerBlocks.toward(viewerId, m.id());
         return new PublicProfileView(Long.toString(m.id()), m.profile().getNickname(), gradeKey, label == null ? gradeKey : label, ROLE_USER,
                 bio == null || bio.isBlank() ? null : bio, m.user().getCreatedAt(), viewerId != null && viewerId == m.id(),
-                new ProfileStatsView(stats.posts(), stats.comments(), stats.likesReceived()));
+                new ProfileStatsView(stats.posts(), stats.comments(), stats.likesReceived()), toward.blocked(), toward.memo());
     }
 
-    public PostFeedPageView posts(String idText, String sizeText, String cursor) {
+    /** @param viewerId 보는 회원(비회원 null) */
+    public PostFeedPageView posts(String idText, String sizeText, String cursor, Long viewerId) {
         int size = sizeOf(sizeText);
         Long before = cursorOf(cursor);
         Member m = requireMember(idText);
@@ -94,34 +102,44 @@ public class UserProfileService {
         boolean more = rows.size() > size;
         List<PostRowData> page = more ? rows.subList(0, size) : rows;
         Map<Long, ProfileEntity> members = authors.members(page.stream().map(PostRowData::authorId).toList());
-        List<PostFeedRowView> items = page.stream().map(r -> feedRow(r, s.board(r.boardId()).orElseThrow(), s, members, now)).toList();
+        ViewerBlocks.Lens lens = lensOf(viewerId, m.id(), page.isEmpty());
+        List<PostFeedRowView> items = page.stream().map(r -> feedRow(r, s.board(r.boardId()).orElseThrow(), s, members, now, lens)).toList();
         return new PostFeedPageView(items, more, more ? items.get(items.size() - 1).id() : null);
     }
 
-    public AuthorCommentPageView comments(String idText, String sizeText, String cursor) {
+    /** @param viewerId 보는 회원(비회원 null) */
+    public AuthorCommentPageView comments(String idText, String sizeText, String cursor, Long viewerId) {
         int size = sizeOf(sizeText);
         Long before = cursorOf(cursor);
         Member m = requireMember(idText);
         BoardCatalogSnapshot s = catalog.snapshot();
         List<UserActivityQueries.CommentRow> rows = activity.comments(m.id(), activeBoardIds(s), before, size, Instant.now());
         boolean more = rows.size() > size;
-        List<AuthorCommentRowView> items = (more ? rows.subList(0, size) : rows).stream().map(r -> {
+        List<UserActivityQueries.CommentRow> page = more ? rows.subList(0, size) : rows;
+        ViewerBlocks.Lens lens = lensOf(viewerId, m.id(), page.isEmpty());
+        List<AuthorCommentRowView> items = page.stream().map(r -> {
             EffectiveBoard b = s.board(r.boardId()).orElseThrow();
+            String text = RichText.plainOf(r.format(), r.content());
             return new AuthorCommentRowView(Long.toString(r.id()), Long.toString(r.postId()), r.postTitle(), new CommentBoardRefView(b.slug(), b.name(), b.nameEn()),
-                    preview(RichText.plainOf(r.format(), r.content())), r.likeCount(), r.reply(), r.createdAt());
+                    preview(text), r.likeCount(), r.reply(), r.createdAt(), lens.blockedOf(m.id(), text));
         }).toList();
         return new AuthorCommentPageView(items, more, more ? items.get(items.size() - 1).id() : null);
     }
 
+    /** 이 쪽을 보는 동안의 차단·메모 — 작성자는 프로필 주인 한 명. 비회원·본인(늘 비어 있다)·빈 쪽은 읽지 않는다 */
+    private ViewerBlocks.Lens lensOf(Long viewerId, long ownerId, boolean empty) {
+        return empty || viewerId == null || viewerId == ownerId ? ViewerBlocks.Lens.none() : viewerBlocks.lens(viewerId, List.of(ownerId));
+    }
+
     /** 게시판 목록 한 줄({@code PostQueryService} 와 같은 규칙 — 숨긴 글은 여기 오지 않지만 같은 가림을 둔다) + 게시판 */
-    private PostFeedRowView feedRow(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, Map<Long, ProfileEntity> members, Instant now) {
+    private PostFeedRowView feedRow(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, Map<Long, ProfileEntity> members, Instant now, ViewerBlocks.Lens lens) {
         boolean hidden = r.hiddenAt(now);
-        PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s);
+        PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
         PostPrefixRefView prefix = hidden ? null : b.prefix(r.prefixId()).map(p -> new PostPrefixRefView(Long.toString(p.id()), p.name(), p.staffOnly(), p.color()))
                 .orElse(null);
         return new PostFeedRowView(Long.toString(r.id()), prefix, hidden ? "" : r.title(), hidden ? 0 : r.commentCount(), !hidden && Boolean.TRUE.equals(r.hasImage()),
                 null, hidden ? AuthorViews.blank(author) : author, r.createdAt(), r.viewCount(), r.likeCount(), r.pinnedAt() != null,
-                !hidden && Boolean.TRUE.equals(r.adult()), hidden ? ReportReasons.HIDDEN_REPORTED : null,
+                !hidden && Boolean.TRUE.equals(r.adult()), hidden ? ReportReasons.HIDDEN_REPORTED : null, hidden ? null : lens.blockedOf(r.authorId(), r.title()),
                 new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()));
     }
 

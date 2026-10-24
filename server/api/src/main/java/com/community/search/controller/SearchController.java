@@ -1,10 +1,12 @@
 package com.community.search.controller;
 
+import com.community.auth.dto.AuthUser;
 import com.community.search.dto.response.SearchResponse;
 import com.community.search.service.SearchService;
 import com.community.zconfiguration.response.ApiResponse;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -29,7 +31,8 @@ public class SearchController {
     public ResponseEntity<ApiResponse<SearchResponse>> search(@RequestParam(required = false) String q, @RequestParam(required = false) String scope,
                                                               @RequestParam(required = false) String board, @RequestParam(required = false) String order,
                                                               @RequestParam(required = false) String page, @RequestParam(required = false) String cursor,
-                                                              @RequestParam(required = false) String size) {
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(service.search(q, scope, board, order, page, cursor, size)));
+                                                              @RequestParam(required = false) String size, Authentication authentication) {
+        Long viewer = authentication != null && authentication.getPrincipal() instanceof AuthUser principal ? principal.id() : null;
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(service.search(q, scope, board, order, page, cursor, size, viewer)));
     }
 }

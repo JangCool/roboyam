@@ -43,7 +43,8 @@ public class LatestFeedService {
         this.rows = rows;
     }
 
-    public PostFeedPageView latest(String sizeRaw, String cursorRaw) {
+    /** @param viewerId 로그인한 회원(비로그인 null) — 줄의 {@code blocked}·작성자 {@code memo} 를 게시판 목록과 같게 싣는다(빼지 않고 표시만) */
+    public PostFeedPageView latest(String sizeRaw, String cursorRaw, Long viewerId) {
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         int size = FeedParams.size(sizeRaw, fields);
         Long cursor = FeedParams.cursor(cursorRaw, fields);
@@ -56,7 +57,7 @@ public class LatestFeedService {
         List<PostRowData> found = feeds.latest(boardIds, cursor, size + 1, now);
         boolean hasNext = found.size() > size;
         List<PostRowData> page = hasNext ? found.subList(0, size) : found;
-        List<PostFeedRowView> items = rows.of(page, s, now);
+        List<PostFeedRowView> items = rows.of(page, s, now, viewerId);
         String next = hasNext ? Long.toString(page.getLast().id()) : null;
         return new PostFeedPageView(items, hasNext, next);
     }
