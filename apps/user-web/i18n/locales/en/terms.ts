@@ -7,8 +7,8 @@ export default {
     versionLine: 'Version {version} · effective {date}',
     changeNote: 'Summary of changes',
     emptyTitle: {
-        TERMS: 'No Terms of Service published yet',
-        PRIVACY: 'No Privacy Policy published yet',
+        TERMS: 'No Terms of Service in effect yet',
+        PRIVACY: 'No Privacy Policy in effect yet',
     },
     upcomingLabel: 'Upcoming change',
     upcomingBox: {
@@ -20,7 +20,7 @@ export default {
     viewingPast: 'This is a past version.',
     viewCurrent: 'View the current version',
     versionMissing: "We couldn't find that version",
-    historyTitle: 'Other versions',
+    historyTitle: 'Version history',
     status: {
         CURRENT: 'Current',
         UPCOMING: 'Upcoming',

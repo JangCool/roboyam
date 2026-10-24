@@ -8,8 +8,8 @@ export default {
     versionLine: '버전 {version} · 시행 {date}',
     changeNote: '변경 요지',
     emptyTitle: {
-        TERMS: '아직 게시된 이용약관이 없어요',
-        PRIVACY: '아직 게시된 개인정보처리방침이 없어요',
+        TERMS: '아직 시행 중인 이용약관이 없어요',
+        PRIVACY: '아직 시행 중인 개인정보처리방침이 없어요',
     },
     upcomingLabel: '시행 예정 안내',
     upcomingBox: {
@@ -21,7 +21,7 @@ export default {
     viewingPast: '지난 버전이에요.',
     viewCurrent: '지금 약관 보기',
     versionMissing: '그 버전을 찾을 수 없어요',
-    historyTitle: '이전 버전',
+    historyTitle: '버전 기록',
     status: {
         CURRENT: '지금',
         UPCOMING: '시행 예정',
