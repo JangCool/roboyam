@@ -41,27 +41,26 @@
             <p v-if="searchMessage" role="alert" class="-mt-1 text-xs text-red-600 dark:text-red-400">{{ searchMessage }}</p>
 
             <!-- ② 조건 줄 -->
-            <!-- 게시판 → 말머리를 한 줄에(회원 관리 「상태 변경」 줄처럼 한 줄 여러 칸). 줄 라벨은 게시판 칸에 붙고, 말머리 칸 앞에는 FilterRow 라벨과 같은 모양의 「말머리」 라벨을 둔다 -->
+            <!-- 게시판 줄 아래에 말머리 줄(게시판을 고르기 전에는 말머리 칸이 꺼져 있다) -->
             <FilterRow :label="t('post.filterBoard')" :label-for="`${uid}-board`">
                 <Select :model-value="filters.board || ALL" :input-id="`${uid}-board`" :options="boardFilterOptions" option-label="label" option-value="value" filter :loading="optionsLoading" class="w-56" @update:model-value="setBoard" />
-                <div class="flex items-center gap-2">
-                    <label :for="`${uid}-prefix`" class="text-[13px] leading-8 font-normal text-muted-color">{{ t('post.filterPrefix') }}</label>
-                    <Select
-                        :model-value="filters.prefix || ALL"
-                        :input-id="`${uid}-prefix`"
-                        :options="prefixFilterOptions"
-                        option-label="label"
-                        option-value="value"
-                        :disabled="!filters.board"
-                        :title="filters.board ? undefined : t('post.filterPrefixNeedBoard')"
-                        class="w-44"
-                        @update:model-value="setPrefix"
-                    />
-                </div>
                 <p v-if="optionsError" class="m-0 flex flex-wrap items-center gap-2 text-xs text-red-600 dark:text-red-400" role="alert">
                     {{ optionsError }}
                     <Button type="button" :label="t('post.optionsRetry')" size="small" severity="secondary" variant="text" @click="loadOptions" />
                 </p>
+            </FilterRow>
+            <FilterRow :label="t('post.filterPrefix')" :label-for="`${uid}-prefix`">
+                <Select
+                    :model-value="filters.prefix || ALL"
+                    :input-id="`${uid}-prefix`"
+                    :options="prefixFilterOptions"
+                    option-label="label"
+                    option-value="value"
+                    :disabled="!filters.board"
+                    :title="filters.board ? undefined : t('post.filterPrefixNeedBoard')"
+                    class="w-56"
+                    @update:model-value="setPrefix"
+                />
             </FilterRow>
 
             <!-- 작성일 — 회원 관리 「가입일」 줄과 같은 부품(달력 날짜 두 칸 + 빠른 선택) -->
