@@ -22,7 +22,7 @@ import { definePreset } from '@primeuix/themes';
  * 소셜 로그인 시작·콜백도 `/api/auth/social/**` 라 같은 프록시를 탄다 — 공급자에 등록하는 콜백 주소는 사이트 공개 주소(`site_settings.public_url`) 기준이므로 로컬에서 시험하려면 공개 주소를 이 개발 서버 주소로 맞춘다.
  * 쪽지는 기능이 없어 화면에서 감췄다(헤더 아이콘·메뉴 줄 없음).
  *
- * 원본(community)과 달라진 점 — 마법사에 필요 없는 것을 뺐다: palettes/text-scale/home-gadget css(보기 설정)(display-time·rich-editor 레이어는 공유 패키지 `@roboyam/display-time`·`@roboyam/rich-editor` 로 가져왔다 — tiptap 은 rich-editor 패키지의 의존이고 `rich-text.css` 도 그 레이어가 넣는다),
+ * 원본(community)과 달라진 점 — 마법사에 필요 없는 것을 뺐다: palettes/home-gadget css(보기 설정 — PrimeVue 글자 크기 `text-scale.css` 는 다시 옮겨 왔다)(display-time·rich-editor 레이어는 공유 패키지 `@roboyam/display-time`·`@roboyam/rich-editor` 로 가져왔다 — tiptap 은 rich-editor 패키지의 의존이고 `rich-text.css` 도 그 레이어가 넣는다),
  * 사이트 아이콘·웹 앱 매니페스트 링크, 원본의 소셜 로그인 프록시(`/oauth2`·`/login/oauth2` — roboyam 은 `/api/auth/social/**` 를 쓴다).
  */
 const API_ORIGIN = process.env.API_ORIGIN ?? 'http://localhost:8910';
@@ -143,7 +143,8 @@ export default defineNuxtConfig({
     // Tailwind 4 는 설정 파일이 없다 (CSS-first — main.css 의 @theme)
     vite: { plugins: [tailwindcss()] },
 
-    css: ['~/assets/css/main.css', 'primeicons/primeicons.css'],
+    // text-scale.css(PrimeVue 위젯 글자 크기)는 보기 설정이 `<html>` 에 거는 `--text-scale` 을 본다(층 밖 — PrimeVue 변수를 이긴다)
+    css: ['~/assets/css/main.css', '~/assets/css/text-scale.css', 'primeicons/primeicons.css'],
 
     primevue: {
         options: {

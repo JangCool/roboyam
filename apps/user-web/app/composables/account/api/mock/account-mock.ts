@@ -21,6 +21,7 @@
 //   · 같은 사람이 60초 안에 다시 보내면 `429 RESEND_COOLDOWN`(남은 초).
 //   · 새 비밀번호가 규칙(8~64자·영문+숫자·72바이트)을 어기면 `400 VALIDATION fields.newPassword`, 현재와 같으면 `400 SAME_PASSWORD`.
 //   · 목업은 비밀번호를 실제로 바꾸지도, 비교해 보지도 않는다(맞고 틀림은 위 스위치로만). 값은 어디에도 남기지 않는다.
+//   · 정지 중(로그인 정보 `restriction`)에도 이메일·비밀번호 변경은 된다 — 개인 설정이다(계약 「결정 (2026-10-24 2차)」, 정지 중 막는 것은 탈퇴뿐).
 
 import { ApiError } from '~/composables/common/useApiClient';
 import { MOCK_ERRORS, mockDelay, mockFlags } from '~/composables/common/mock/mock-util';

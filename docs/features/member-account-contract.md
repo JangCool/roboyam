@@ -11,7 +11,7 @@
 | `/password/forgot` | `auth`·`guest` | 이메일 → 항상 같은 「보냈어요」(계정 존재를 알리지 않음) + 다시 보내기(60초) | 목업 `POST /api/auth/password/forgot` |
 | `/password/reset?token=` | `auth` | 링크 확인 → 새 비밀번호·확인(규칙 줄) → 완료(로그인으로). 토큰 없음·만료·이미 씀 = 같은 안내 | 목업 `GET …/reset/check`·`POST …/reset` |
 | `/password/social?provider=` | `auth` | 소셜 전용 회원에게 가는 메일 링크 화면 — 「○○로 가입한 계정이에요」 + 그 공급자 로그인 단추(켜져 있을 때) | 실제 `GET /api/auth/providers`(단추) |
-| `/onboarding` | `auth`·`auth` | 환영(등급 뱃지·닉네임) → 운영 원칙 3장(출처·비방 금지·투자 고지) → 시작하기(`/`), 건너뛰기 | 없음(로그인 정보만) |
+| `/onboarding` | `auth`·`auth` | 환영(등급 뱃지·닉네임) → 운영 원칙 3장(출처·비방 금지·투자 고지 — 문구는 초안 그대로, 예시만 로봇·AI 주제) → 시작하기(`/`), 건너뛰기 | 없음(로그인 정보만) |
 | `/settings/account` | 설정 묶음 | **로그인 정보 구획을 더함**: 이메일 + 인증됨/미인증 딱지, 미인증이면 「인증 메일 다시 받기」(배너와 같은 쿨다운), 비밀번호 유무, 「이메일 변경」「비밀번호 변경」 줄(소셜 가입자는 감추지 않고 「사용 불가」+이유). 소셜 연결은 그대로 | 실제 `GET /api/me/social`·`/api/auth/me`·resend |
 | `/settings/account/email` | 설정 묶음 | 현재 이메일(읽기 전용)·새 이메일·현재 비밀번호 → 「보냈어요」(새 주소, 60초 뒤 다시 보내기 — 비밀번호 다시 받음, 다른 이메일로 다시 입력), 변경 대기 안내, 소셜 가입자 안내 | 목업 `GET /api/me/account`·`POST /api/me/email-change` |
 | `/settings/account/password` | 설정 묶음 | 현재·새·확인(규칙 + 「현재 비밀번호와 다르게」) → 완료 화면 + 토스트, 잠금 안내(분 단위), 소셜 가입자 안내 | 목업 `GET /api/me/account`·`PUT /api/me/password` |
@@ -23,7 +23,7 @@
 - 이메일: 형식·254자(`UtilValidation.email`). 가입은 입력이 멈추고 400ms 뒤 `email-available`(`useDebouncedCheck` — 늦은 응답 무시), 확인 실패여도 다음 단계로 갈 수 있다(제출 때 서버가 다시 본다).
 - 비밀번호(가입·재설정·변경의 새 비밀번호): 8~64자·UTF-8 72바이트·영문+숫자(`PasswordRules`). 확인 칸 일치 전에는 단추가 꺼진다. 변경은 「현재와 다르게」까지.
 - 닉네임: 2~12자, 한글·영문·숫자·밑줄 + 글자 사이 공백 한 칸, 400ms 뒤 `nickname-available`(사유 `LENGTH|CHARS|DUPLICATE|RESERVED`), 12자 넘게 넣으면 안내.
-- 약관: `agreeTerms`·`agreePrivacy`·`ageConfirmed` 모두 true(소셜 가입과 같은 부품).
+- 약관: `agreeTerms`·`agreePrivacy`·`ageConfirmed` 모두 true(소셜 가입과 같은 부품). 이용약관·개인정보처리방침의 「보기」 링크는 숨겼다(`TermsAgreement` 의 `SHOW_TERMS_LINKS = false` — 약관 화면이 생기면 켠다).
 - 비밀번호는 그 화면의 `ref` 에만, 성공·잠금 때 비운다. 주소·저장소·토스트·로그에 없다.
 
 ## API — 실제
@@ -51,6 +51,7 @@
 3. 갈래 값(비밀번호 값은 쓰지 않는다): 이메일에 `taken` → 이미 가입/사용 중 · 닉네임 `taken`·`사용중` 중복, `admin`·`운영자`·`관리자`·`roboyam` 예약어 · 메일 링크 토큰 `expired`·`invalid`·`changed`·`taken`(인증), `expired`·`invalid`(재설정).
 4. `?mock=` 스위치: `signup-fail` · `email-check-fail` · `nickname-check-fail` · `verify-fail` · `forgot-fail` · `reset-check-fail` · `reset-fail` · `reset-same` · `account-fail` · `account-social` · `account-pending` · `password-wrong` · `password-locked` · `password-change-fail` · `password-not-set` · `email-send-fail` · `email-cooldown` · `email-not-allowed`.
 5. 목업은 비밀번호를 비교·저장하지 않는다(맞고 틀림은 스위치로만). 비밀번호 변경·재설정은 실제로 바뀌지 않는다.
+6. 이메일·비밀번호 변경(`/settings/account/*`)은 정지 중에도 막지 않는다(화면·목업 모두 정지 검사 없음).
 
 ## 백엔드에 필요한 것
 - 위 목업 API 9개(경로·모양·오류 코드 그대로). 토큰은 기존 `auth_tokens`(용도 `VERIFY_EMAIL` 외 재설정·이메일 변경 용도 추가), 링크 주소는 사이트 공개 주소 기준.
@@ -59,7 +60,7 @@
 - 이메일 변경 알림 메일(지금 주소)·재설정 메일·소셜 전용 안내 메일의 필수 안내 문구(`RequiredMail` 에 추가 필요 — 알림 문구 엔진).
 
 ## community 대비 뺀 것·바꾼 것
-- 가입: 사업자 전용 계정 가입 링크(로보얌에 사업자 가입 화면 없음), 「본인인증도 없어요」(본인인증은 다른 세션 범위), 「닉네임은 30일에 1번」(변경 주기 미확정 → 「설정에서 바꿀 수 있어요」). 닉네임 칸은 별도 부품(`NicknameField`) 대신 화면 안에 둠(한 화면만 씀).
+- 가입: 사업자 전용 계정 가입 링크(로보얌에 사업자 가입 화면 없음), 「본인인증도 없어요」(본인인증은 다른 세션 범위), 「닉네임은 30일에 1번」(로보얌은 가입 뒤 1번만 바꿀 수 있다 — `member-mypage-contract.md` 결정, 가입 닉네임 단계가 그렇게 알린다). 닉네임 칸은 별도 부품(`NicknameField`) 대신 화면 안에 둠(한 화면만 씀).
 - 계정 화면: 로그아웃·회원 탈퇴 줄(탈퇴는 커머스 세션 「탈퇴 대비」 범위), 변경 대기 이메일 안내(`GET /api/me/account` 가 생기면 옮긴다). 모바일 안쪽 헤더(`InnerHeader`) 대신 설정 묶음의 돌아가기 링크.
 - `/password/social` 은 community 처럼 **안내 화면**이다(비밀번호 만들기 아님 — community 에도 만들기 API 가 없다).
 
@@ -72,3 +73,9 @@
 
 ## 결정 (2026-10-24, 사용자 "추천대로")
 - **소셜 회원 비밀번호 만들기**: 지금은 만들지 않는다(community 에도 없는 기능). `/password/social` 은 안내 화면으로 둔다.
+
+## 결정 (2026-10-24 2차, 사용자 "추천대로" — community 정책을 로보얌에 맞춤)
+- **온보딩 문구(미확정 2)**: 운영 원칙 3장은 원본 초안 문구를 쓰고, 예시만 로보얌 주제(로봇·AI)로 바꾼다. 문구 전문 검토는 오픈 전 할 일로 남긴다.
+- **약관 본문(미확정 3)**: `/terms`·`/privacy` 화면은 약관 기능에서 만든다(community 에도 없다). 그 전까지 가입 약관 동의의 「보기」 링크는 숨긴다(동의 체크는 그대로 필수).
+- **첫 인증 메일의 60초 제한(미확정 4)**: 건다. 서버의 재발송 60초는 가입 때 보낸 첫 메일도 센다(`login-contract.md` 「이전에 보낸 것도 포함」과 같다). 화면은 가입 직후 `markSent()` 를 유지한다.
+- **정지 회원의 이메일·비밀번호 변경(미확정 5)**: 허용한다 — 개인 설정이다(community `api-account.md`). 정지 중에 막는 것은 탈퇴뿐이다.
