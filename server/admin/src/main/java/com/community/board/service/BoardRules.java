@@ -33,7 +33,7 @@ final class BoardRules {
             String path = pathPrefix + entry.getKey();
             Object value = entry.getValue();
             if (value == null) {
-                if (!nullable) {
+                if (!nullable && spec.kind() != BoardFields.Kind.LABEL) { // 단추 이름은 기본 설정에서도 비울 수 있다(= 화면 기본 이름)
                     out.put(path, new MessageRef("board.field.required"));
                 }
                 continue;
@@ -44,7 +44,7 @@ final class BoardRules {
                         out.put(path, new MessageRef("board.field.range", String.valueOf(spec.min()), String.valueOf(spec.max())));
                     }
                 }
-                case BOOL, CHOICE -> {
+                case BOOL, CHOICE, MULTI -> {
                     if (!spec.accepts(value)) {
                         out.put(path, new MessageRef("board.field.choice"));
                     }
@@ -60,6 +60,11 @@ final class BoardRules {
                 case GRADE -> {
                     if (!gradeKeys.contains(String.valueOf(value))) {
                         out.put(path, new MessageRef("board.field.grade"));
+                    }
+                }
+                case LABEL -> {
+                    if (!spec.accepts(value)) {
+                        out.put(path, new MessageRef("board.field.label", String.valueOf(spec.max())));
                     }
                 }
             }

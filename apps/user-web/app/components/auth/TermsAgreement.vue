@@ -22,8 +22,8 @@
                 <label :for="`${uid}-${item.key}`" class="flex-1 cursor-pointer text-sm">
                     <em class="mr-1 text-xs font-medium not-italic text-primary">{{ t('signup.requiredMark') }}</em>{{ item.label }}
                 </label>
-                <!-- 약관 본문 링크는 로그인 카드 아래(레이아웃 `auth`)와 같은 곳 — 라우터 밖 링크라 새 탭에서 열린다 -->
-                <a v-if="item.href" :href="item.href" target="_blank" rel="noopener" class="shrink-0 text-xs text-primary hover:underline max-md:-my-1.5 max-md:py-1.5">
+                <!-- 약관 본문 링크는 로그인 카드 아래(레이아웃 `auth`)와 같은 곳 — 라우터 밖 링크라 새 탭에서 열린다. 관리자 옵션(약관 요약의 `showLinks`)이 켜졌을 때만 -->
+                <a v-if="showTermsLinks && item.href" :href="item.href" target="_blank" rel="noopener" class="shrink-0 text-xs text-primary hover:underline max-md:-my-1.5 max-md:py-1.5">
                     {{ t('signup.view') }}<span class="sr-only"> {{ t('signup.viewNewTab', { label: item.label }) }}</span>
                 </a>
             </div>
@@ -41,7 +41,7 @@ import type { Agreements } from '~/composables/auth/api/useAuthApi.types';
 
 /**
  * 약관 동의 — 전체 동의 · 이용약관 · 개인정보처리방침 · 만 14세 이상 확인(모두 필수). 원본(community) `components/auth/TermsAgreement.vue` 를 옮겼다(문구는 i18n 키).
- * 소셜 가입 마무리가 쓰고, 이메일 가입 화면을 만들면 같이 쓴다. 약관 본문 페이지(`/terms`, `/privacy`)는 아직 없어 새 탭이 비어 있을 수 있다.
+ * 소셜 가입 마무리와 이메일 가입 화면이 쓴다.
  *
  * 어긋난 항목의 안내는 그 항목을 건드린 뒤(또는 화면·서버가 지적했을 때 — `errors`)부터 보인다 — 처음부터 붉게 시작하지 않는다.
  */
@@ -61,6 +61,13 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { t } = useI18n();
 const uid = useId();
+
+/**
+ * 약관 본문 「보기」 링크를 보일지 — 관리자 옵션 「가입·로그인 화면에 약관 보기 링크 표시」(약관 요약 `GET /api/terms/summary` 의 `showLinks`, `docs/features/terms-contract.md`).
+ * 불러오기 전·실패 시 숨긴다. 동의 체크는 이 값과 관계없이 늘 필수다. 요약은 레이아웃 `auth` 와 같은 상태(`useTermsSummary`)를 쓴다.
+ */
+const { showLinks: showTermsLinks, ensureLoaded: ensureTermsSummary } = useTermsSummary();
+void ensureTermsSummary();
 
 /** 항목 — 언어를 바꾸면 다시 계산된다 */
 const items = computed<{ key: Key; label: string; href?: string; missing: string }[]>(() => [

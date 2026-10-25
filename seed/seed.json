@@ -100,6 +100,26 @@
       "status": "ACTIVE",
       "emailVerified": false,
       "ageDays": 1
+    },
+    {
+      "key": "e2e.veteran1",
+      "email": "e2e.veteran1@example.com",
+      "nickname": "베테랑일호",
+      "role": "USER",
+      "status": "ACTIVE",
+      "emailVerified": true,
+      "ageDays": 120,
+      "grade": "VETERAN"
+    },
+    {
+      "key": "e2e.veteran2",
+      "email": "e2e.veteran2@example.com",
+      "nickname": "베테랑이호",
+      "role": "USER",
+      "status": "ACTIVE",
+      "emailVerified": true,
+      "ageDays": 120,
+      "grade": "VETERAN"
     }
   ],
   "posts": [

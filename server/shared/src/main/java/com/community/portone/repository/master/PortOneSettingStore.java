@@ -9,7 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 포트원 설정 표({@code portone_settings}, shared V62) 읽기·쓰기 — {@code PortOneSettingsService} 만 부른다.
+ * 포트원 설정 표({@code portone_settings}, shared V84) 읽기·쓰기 — {@code PortOneSettingsService} 만 부른다.
  *
  * <p>JDBC(native SQL)인 이유: 칸마다 한 줄인 키-값 표라 {@code INSERT … ON CONFLICT DO UPDATE} 한 문장으로 저장하고, 바꾼 사람 이름을 운영자 표와 이어 한 번에 읽는다.
  * 값은 암호문({@code v1:})으로만 오간다. 트랜잭션은 부르는 서비스의 것을 따른다.

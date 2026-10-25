@@ -12,7 +12,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 탈퇴 회원 연락용 이메일 표({@code withdrawn_member_contacts}, shared V62) — {@code WithdrawnContactStore} 만 부른다(일반 회원 조회는 이 표를 읽지 않는다 — 논리적 분리, commerce.md 17-2).
+ * 탈퇴 회원 연락용 이메일 표({@code withdrawn_member_contacts}, shared V84) — {@code WithdrawnContactStore} 만 부른다(일반 회원 조회는 이 표를 읽지 않는다 — 논리적 분리, commerce.md 17-2).
  * 이메일은 암호문({@code d<버전>:})으로만 오간다. JDBC 인 이유: 데이터 키 교체 배치(JDBC)와 같은 칸을 같은 방식으로 다루고, 회원 엔티티 목록에 이 표가 끼지 않게.
  */
 @Repository

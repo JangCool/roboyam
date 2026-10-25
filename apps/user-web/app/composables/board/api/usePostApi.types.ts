@@ -5,6 +5,9 @@
  */
 import type { Role } from '~/composables/auth/api/useAuthApi.types';
 import type { BoardProtectDelete, PrefixView } from '~/composables/board/api/useBoardApi.types';
+import type { BlockedBy } from '~/composables/block/api/useBlockApi.types';
+import type { DebateSummary, PostDebateOpen } from '~/composables/board/api/useDebateApi.types';
+import type { PollInput, PollView } from '~/composables/board/api/usePollApi.types';
 
 /**
  * 본문 형식 — `TEXT` 평문(Textarea, 글자로 그린다) · `HTML` 에디터 HTML(서버가 정화한 것만 돌려준다 — 글 보기·댓글 보기만 `v-html` 로 그린다).
@@ -35,13 +38,21 @@ export interface PostAuthor {
      * 비회원 글·댓글의 작성 IP 앞 두 묶음 — IPv4 `123.45.*.*` · IPv6 `2001:db8:*:*`. 서버가 가려서 준다(회원 글은 null).
      */
     ipMasked: string | null;
+    /**
+     * 내가 이 회원에게 남긴 이용자 메모(나에게만 오는 값) — **서버 후보**(`member-social-contract.md`). 지금 서버 응답에는 없다(칸이 없으면 메모 없음).
+     * 화면은 이 기기에서 방금 바꾼 것을 겹쳐 그린다(`useBlockOverrides().memoOf`).
+     */
+    memo?: string | null;
 }
 
 /** 말머리를 가리키는 짧은 모양 */
 export type PostPrefixRef = Pick<PrefixView, 'id' | 'name' | 'staffOnly' | 'color'>;
 
-/** 목록에서 가려진 까닭 — 서버의 숨김 까닭(신고 누적·불법촬영물·권리침해)이 무엇이든 목록에는 늘 `REPORTED` 로 온다 */
-export type PostHiddenReason = 'REPORTED';
+/**
+ * 목록에서 가려진 까닭 — 신고 숨김(신고 누적·불법촬영물·권리침해)은 늘 `REPORTED` 로 온다.
+ * 운영자 숨김은 게시판 옵션 `staffHiddenNotice` 가 켜졌으면 `STAFF`(「운영자가 숨긴 글이에요」), 꺼졌으면 `REPORTED` 로 온다(post-admin-contract 「공개 쪽 영향」).
+ */
+export type PostHiddenReason = 'REPORTED' | 'STAFF';
 
 /** 목록 한 줄 */
 export interface PostRow {
@@ -64,6 +75,13 @@ export interface PostRow {
     adult: boolean;
     /** 가려진 글이면 그 까닭 — 제목·작성자 자리에 「신고로 숨겨진 글이에요」 */
     hiddenReason: PostHiddenReason | null;
+    /** 투표가 붙은 글 — 제목 옆 투표 칩(post-poll-contract). 옛 응답에는 없을 수 있다(없으면 없음) */
+    hasPoll?: boolean;
+    /**
+     * 내가 차단한 회원의 글(`USER`)·차단한 단어가 제목에 든 글(`WORD`) — **서버 후보**(`member-social-contract.md`). 지금 서버 응답에는 없다.
+     * 접는 것은 화면의 일이다(`FoldedRow`, `useBlockOverrides().blockedOf`).
+     */
+    blocked?: BlockedBy | null;
 }
 
 /** 목록 정렬 — 최신순 · 오래된순 */
@@ -87,6 +105,30 @@ export interface PostListResponse {
     page: number;
     totalPages: number;
     totalCount: number;
+}
+
+/**
+ * 게시판이 섞인 목록(최신글·인기글·검색·회원 프로필 작성글)의 게시판 표시 — 글 줄 앞에 게시판 이름 태그로 그린다.
+ * community `PostRow.board` 와 같은 자리다(`docs/features/member-activity-contract.md`). `nameEn` 은 영문 화면에서 이름 대신 쓴다.
+ */
+export interface PostBoardRef {
+    slug: string;
+    name: string;
+    nameEn: string | null;
+    /** 운영자가 고른 게시판 표시색의 프리셋 이름 또는 null(자동) */
+    color: string | null;
+}
+
+/** 게시판이 섞인 목록의 한 줄 — 목록 한 줄 + 그 글의 게시판 */
+export interface PostFeedRow extends PostRow {
+    board: PostBoardRef;
+}
+
+/** 커서로 이어 받는 목록 한 쪽(최신글 전체·회원 작성글) — `nextCursor` 를 다음 요청의 `cursor` 로 보낸다 */
+export interface PostFeedPage {
+    items: PostFeedRow[];
+    hasNext: boolean;
+    nextCursor: string | null;
 }
 
 /** 이전·다음 글 */
@@ -139,6 +181,17 @@ export interface PostDetail {
     next: PostNeighbor | null;
     /** 본문 외부 링크에 `rel="nofollow ugc noopener"` 를 단다(관리자 보안 `externalLinkNofollow`) */
     externalLinkNofollow: boolean;
+    /**
+     * 내가 차단한 회원의 글(`USER`)·차단한 단어가 제목에 든 글(`WORD`) — 게시판 글 목록 줄과 같은 판정(2026-10-24). 비로그인·내 글·수정 응답은 null.
+     * 서버는 본문을 그대로 싣는다 — 접는 것은 화면의 일이다(`FoldedRow`, `useBlockOverrides().blockedOf`).
+     */
+    blocked?: BlockedBy | null;
+    /** 지금 하이라이트로 노출 중인 글(노출 켬 + 기간 안) — 제목 위에 「하이라이트」 표시. 찬반 토론과 무관(토론은 글의 기능) */
+    highlighted?: boolean;
+    /** 찬반 토론 요약 — 늘 있다(토론이 없으면 `enabled false`). 옛 응답에는 없을 수 있다 */
+    debate?: DebateSummary;
+    /** 글에 붙은 투표(post-poll-contract) — 없으면 null. 옛 응답에는 없을 수 있다 */
+    poll?: PollView | null;
 }
 
 /** 비회원 작성 정보 — 이름·비밀번호(수정·삭제용, 서버는 해시로만 저장)·자동입력 방지 토큰 */
@@ -163,6 +216,10 @@ export interface PostWriteRequest {
     adult: boolean;
     /** 비회원이면 필수, 회원이면 null */
     guest: GuestCredentials | null;
+    /** 글과 함께 찬반 토론을 연다(회원이고 게시판 `debateEnabled` 일 때만 — 아니면 `400 fields.debate`). 열지 않으면 null */
+    debate?: PostDebateOpen | null;
+    /** 글과 함께 투표를 붙인다(회원이고 게시판 `pollEnabled` 일 때만 — 아니면 `400 fields.poll`). 붙이지 않으면 null */
+    poll?: PollInput | null;
 }
 
 export interface PostWriteResult {
@@ -177,6 +234,11 @@ export interface PostUpdateRequest {
     contentFormat: ContentFormat;
     adult: boolean;
     password: string | null;
+    /**
+     * 투표 — 보내면 만들기·고치기, `null` 이면 빼기(첫 표 뒤면 `409 POLL_LOCKED`, 지금과 같은 내용은 그대로). **칸을 아예 빼면 그대로 둔다**
+     * (화면은 투표 칸을 바꾸지 않았거나 표가 있어 고칠 수 없을 때 칸을 뺀다)
+     */
+    poll?: PollInput | null;
 }
 
 /** `DELETE /api/posts/{id}` 본문 — 비회원 글은 `password` 필수 */

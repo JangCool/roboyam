@@ -2,7 +2,7 @@ import type { Translate } from '#layers/i18n/utils/util-i18n';
 import { ApiError } from '~/composables/common/useApiClient';
 import type { BoardStaffIneligible } from '~/composables/board/api/useBoardApi.types';
 import { BOARD_MIN_GUEST, BOARD_MIN_OFF, BOARD_MIN_STAFF } from '~/composables/board/api/useBoardApi.types';
-import type { BoardFieldValue, BoardNumProblem, BoardTextProblem } from '~/utils/util-board';
+import type { BoardFieldProblem, BoardFieldValue, BoardTextProblem } from '~/utils/util-board';
 import UtilBoard from '~/utils/util-board';
 import UtilAdminAuthMessages from '~/utils/util-admin-auth-messages';
 
@@ -18,9 +18,11 @@ export default class UtilBoardMessages {
         return e instanceof ApiError ? e.message : UtilAdminAuthMessages.fallback(t, 0, 'NETWORK');
     }
 
-    /** 숫자 칸 문제 → 문구(범위를 넣는다) */
-    static numProblem(t: Translate, field: string, problem: BoardNumProblem): string {
+    /** 칸 문제(숫자 칸 · 이름 칸) → 문구(범위를 넣는다) */
+    static numProblem(t: Translate, field: string, problem: BoardFieldProblem): string {
         const spec = UtilBoard.spec(field);
+        if (problem === 'LABEL_LENGTH') return t('board.problemLabelLength', { max: spec.max ?? 0 });
+        if (problem === 'LABEL_CHARS') return t('board.problemLabelChars');
         if (problem === 'REQUIRED') return t('board.problemRequired');
         if (problem === 'NOT_INTEGER') return t('board.problemInteger');
         return t('board.problemRange', { min: (spec.min ?? 0).toLocaleString(), max: (spec.max ?? 0).toLocaleString() });
@@ -83,9 +85,13 @@ export default class UtilBoardMessages {
      * @returns {string} 예: 「20개」, 「켬」, 「일반 이상」.
      */
     static valueText(t: Translate, field: string, value: BoardFieldValue, gradeLabel: (key: string) => string): string {
-        if (value === null) return '';
         const spec = UtilBoard.spec(field);
+        // 이름 칸의 null = 화면 기본 이름(「추천」·「비추천」)
+        if (spec.kind === 'label') return UtilBoard.labelValue(value) ?? UtilBoardMessages.builtInLabel(t, field);
+        if (value === null) return '';
         switch (spec.kind) {
+            case 'multi':
+                return UtilBoardMessages.multiText(t, field, value);
             case 'bool':
                 return t(value ? 'common.on' : 'common.off');
             case 'writeMin':
@@ -98,6 +104,17 @@ export default class UtilBoardMessages {
             case 'number':
                 return UtilBoardMessages.withUnit(t, field, Number(value));
         }
+    }
+
+    /** 이름 칸의 화면 기본 이름 — 「추천(기본 이름)」 */
+    static builtInLabel(t: Translate, field: string): string {
+        return t('board.labelBuiltIn', { name: t(`board.labelDefault.${field}`) });
+    }
+
+    /** 여러 개 고르기 값 → 「글쓴이 · 운영자」, 비었으면 「받지 않음」 */
+    static multiText(t: Translate, field: string, value: BoardFieldValue): string {
+        const picked = UtilBoard.multiValue(field, value) ?? [];
+        return picked.length ? picked.map((v) => t(`board.choice.${field}.${v}`)).join(' · ') : t(`board.multiNone.${field}`);
     }
 
     /** 숫자 + 단위 */

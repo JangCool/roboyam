@@ -1,8 +1,41 @@
 /**
- * Sign-up screens: finishing a social sign-up (`/signup/social`) and terms agreement (`TermsAgreement`, also for the email sign-up screen).
- * Nickname rule texts are in `auth.ts`. Same keys and order as `ko/signup.ts`.
+ * Sign-up screens: email sign-up (`/signup`), finishing a social sign-up (`/signup/social`) and terms agreement (`TermsAgreement`, shared by both).
+ * Nickname rule texts are in `auth.ts`, the password confirmation field in `password.ts`. Same keys and order as `ko/signup.ts`.
  */
 export default {
+    // Email sign-up
+    title: 'Sign up',
+    seoDescription: 'Sign up for {site}. No real name or contact details — just choose a nickname.',
+    emailSignup: 'Email sign-up',
+    progressLabel: 'Sign-up progress',
+    stepCount: '{step} / 3 · {label}',
+    stepAccount: 'Account',
+    stepNickname: 'Nickname',
+    stepTerms: 'Terms',
+    methodTitle: 'How would you like to sign up?',
+    methodSubtitle: 'After signing up you only choose a nickname. We never ask for your real name or contact details.',
+    accountTitle: 'Sign up with email',
+    accountSubtitle: 'You only need to choose a nickname. We never ask for your real name or contact details.',
+    nicknameTitle: 'Choose a nickname for the community',
+    nicknameSubtitle: 'It does not have to be your real name. It appears with your grade badge on posts and comments.',
+    termsTitle: 'Please agree to use {site}',
+    withEmail: 'Sign up with email',
+    socialDivider: 'or with a social account',
+    haveAccount: 'Already have an account?',
+    ageLead: 'You must be 14 or older to sign up. We check this in the last step.',
+    checking: 'Checking…',
+    emailAvailable: 'This email is available. The verification email will go here.',
+    emailTaken: 'This email is already registered.',
+    emailTakenHelp: 'This email is already registered. {login} or {forgot}',
+    emailCheckFailed: 'Could not check the email. You can still continue — it is checked again at the end.',
+    nicknameAvailable: 'This nickname is available.',
+    nicknameCheckFailed: 'Could not check the nickname. You can still continue — it is checked again at the end.',
+    nicknameOverflow: 'Up to {max} characters.',
+    previewLabel: 'How it looks',
+    nicknameNote: 'No real name or contact details needed. After signing up, you can change your nickname only once.',
+    noRealName: 'This site never asks for your real name or contact details.',
+    submitEmail: 'Sign up and get the verification email',
+
     // Finish social sign-up
     socialTitle: 'Finish signing up',
     socialSeoDescription: 'The last step of signing up with a social account. Choose a nickname and agree to the terms.',

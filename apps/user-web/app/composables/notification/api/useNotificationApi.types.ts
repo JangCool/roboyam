@@ -5,16 +5,22 @@
  */
 
 /**
- * 알림 종류(서버 `MemberNotificationType`). `FEATURE_RESTRICTED` = 내 계정에 기능 제한(포인트 동결·공구 참여 제한·충전 제한)이 걸림(커머스 0-4 — 영역 SAFETY, 회원이 끌 수 없음,
- * 종류·끝·공개 사유를 서버가 `title`·`body` 로 풀어 준다. 운영 메모는 없다).
+ * 알림 종류(서버 `MemberNotificationType`). `DM` = 쪽지 받음(`link` `/messages/{threadId}`), `NICKNAME_IMAGE_REVIEWED` = 닉네임 그림 검토 결과(`link` `/settings/nickname-image`) —
+ * `docs/features/member-social-contract.md`. `FEATURE_RESTRICTED` = 내 계정에 기능 제한(포인트 동결·공구 참여 제한·충전 제한)이 걸림(커머스 0-4 — 영역 SAFETY, 회원이 끌 수 없음,
+ * 종류·끝·공개 사유를 서버가 `title`·`body` 로 풀어 준다. 운영 메모는 없다). 화면은 종류별 문구를 만들지 않으므로(서버 `title`/`body`) 모르는 종류가 와도 기본 아이콘으로 그린다.
  */
-export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'POST_HIDDEN' | 'COMMENT_HIDDEN' | 'FEATURE_RESTRICTED';
+export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'POST_HIDDEN' | 'COMMENT_HIDDEN' | 'DM' | 'NICKNAME_IMAGE_REVIEWED'
+    | 'OPINION_PIN_REQUESTED' | 'OPINION_PIN_REVIEWED' | 'POST_REMOVED'
+    /** 운영자가 내 댓글을 지움 · 내 신고의 처리 결과(조치됨 / 위반이 확인되지 않음) — `docs/features/report-admin-contract.md` */
+    | 'COMMENT_REMOVED' | 'REPORT_RESULT'
+    /** 내 계정에 기능 제한이 걸림(커머스 0-4) */
+    | 'FEATURE_RESTRICTED';
 
-/** 알림 묶음 — 댓글·답글 · 계정(포인트 회수·신고 숨김·기능 제한) */
-export type MemberNotificationCategory = 'comment' | 'system';
+/** 알림 묶음 — 댓글·답글 · 계정(포인트 회수·신고 숨김·닉네임 그림 검토·기능 제한) · 쪽지(`DM` — 거르기 없이 「전체」에만 보인다) */
+export type MemberNotificationCategory = 'comment' | 'system' | 'dm';
 
-/** 목록 거르기(`filter`) */
-export type MemberNotificationFilter = 'all' | MemberNotificationCategory;
+/** 목록 거르기(`filter`) — 쪽지 묶음(`dm`)은 거르기에 없다 */
+export type MemberNotificationFilter = 'all' | 'comment' | 'system';
 
 /** 알림을 일으킨 사람 — 댓글·답글만. 읽을 때의 현재 값(탈퇴면 `withdrawn` + 「탈퇴한 회원」) */
 export interface NotificationActor {

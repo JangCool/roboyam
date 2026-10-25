@@ -15,6 +15,7 @@ export default {
     commentCountLabel: '댓글',
     newMark: '새 글',
     hiddenPost: '신고로 숨겨진 글이에요',
+    hiddenPostStaff: '운영자가 숨긴 글이에요',
     viewsShort: '조회 {n}',
     likesShort: '추천 {n}',
 

@@ -23,9 +23,24 @@ public enum Permission {
     NOTICE_READ("notice.read", NOTICE, READ, false),
     NOTICE_MANAGE("notice.manage", NOTICE, MANAGE, false),
     NOTICE_SETTINGS("notice.settings", NOTICE, CONFIG, false),
-    POST_READ("post.read", POST, READ, false),
-    POST_MANAGE("post.manage", POST, MANAGE, false),
-    POST_BULK_DELETE("post.bulk-delete", POST, SENSITIVE, false),
+    /** 하이라이트 목록·글 찾기·후보·의견 목록 조회 — docs/features/popular-highlight-contract.md */
+    HIGHLIGHT_READ("highlight.read", NOTICE, READ, true),
+    /** 하이라이트 만들기·고치기·순서·노출·지우기·대표 이미지 올리기(폼의 토론 칸은 글의 토론을 연다·바꾼다·닫는다) */
+    HIGHLIGHT_MANAGE("highlight.manage", NOTICE, MANAGE, true),
+    /** 인기글 관리(기간별 순위·뺀 글) 조회, 인기글 설정 조회 */
+    POPULAR_READ("popular.read", NOTICE, READ, true),
+    /** 인기글에서 빼기·다시 넣기 */
+    POPULAR_MANAGE("popular.manage", NOTICE, MANAGE, true),
+    /** 인기글 설정(점수식·조건·주 시작 요일) 저장 */
+    POPULAR_SETTINGS("popular.settings", NOTICE, CONFIG, true),
+    /** 게시글 관리 조회 — 글 목록·글 상세(본문·조치 기록)·게시판 고르기, 글의 찬반 토론 단건·토론 의견 목록·대기 고정 요청(docs/features/post-admin-contract.md·post-debate-contract.md) */
+    POST_READ("post.read", POST, READ, true),
+    /** 게시글 관리 처리 — 숨기기·숨김 해제·삭제·이동·공지 지정·고정·고정 해제·일괄 숨김/해제, 글의 토론 열기·설정·닫기, 토론 의견 고정·숨김, 의견 고정 요청 승인·거절 */
+    POST_MANAGE("post.manage", POST, MANAGE, true),
+    /** 지운 글 복구(파기 전) — 회수한 포인트를 되돌린다 */
+    POST_RESTORE("post.restore", POST, SENSITIVE, true),
+    /** 일괄 삭제({@code post.manage} 와 함께) */
+    POST_BULK_DELETE("post.bulk-delete", POST, SENSITIVE, true),
     BOARD_READ("board.read", BOARD, READ, true),
     BOARD_MANAGE("board.manage", BOARD, MANAGE, true),
     BOARD_SETTINGS("board.settings", BOARD, CONFIG, true),
@@ -36,22 +51,22 @@ public enum Permission {
     LAYOUT_SETTINGS("layout.settings", SITE_LAYOUT, CONFIG, true),
     /** 관리자 사이트 메뉴 구성 저장 — 모든 운영자의 작업 화면을 바꾸므로 공개 사이트 메뉴 저장({@code layout.settings})과 따로 둔다 */
     ADMIN_MENU_MANAGE("admin-menu.manage", SITE_LAYOUT, CONFIG, true),
-    REPORT_READ("report.read", REPORT, READ, false),
-    REPORT_MANAGE("report.manage", REPORT, MANAGE, false),
+    /** 신고 관리 조회 — 사건 목록·요약·상세(대상 원문·신고 당시 스냅샷·신고자·작성자 카드·처리 기록). 상세를 열어도 검토 시작은 {@code report.manage} 가 있을 때만(docs/features/report-admin-contract.md) */
+    REPORT_READ("report.read", REPORT, READ, true),
+    /** 신고 처리 — 조치(숨기기·삭제·자동 숨김 확정)·무시(허위 표시)·일괄 무시·다시 열기 */
+    REPORT_MANAGE("report.manage", REPORT, MANAGE, true),
     SANCTION_READ("sanction.read", SANCTION, READ, false),
     SANCTION_MANAGE("sanction.manage", SANCTION, MANAGE, false),
     APPEAL_MANAGE("appeal.manage", SANCTION, MANAGE, false),
     SANCTION_BAN("sanction.ban", SANCTION, SENSITIVE, false),
-    BANNEDWORD_READ("bannedword.read", BADWORD, READ, false),
-    BANNEDWORD_SETTINGS("bannedword.settings", BADWORD, CONFIG, false),
     KEEPER_ACTION_READ("keeper-action.read", STAFF_AUDIT, READ, false),
     KEEPER_ACTION_RESTORE("keeper-action.restore", STAFF_AUDIT, SENSITIVE, false),
     MEMBER_READ("member.read", MEMBER_VIEW, READ, true),
     MEMBER_PII("member.pii", MEMBER_VIEW, SENSITIVE, true),
     /** 탈퇴 회원 연락용 이메일(분리 보관) 열람 — 사유 + 감사(commerce.md 17-2, 커머스 0-4) */
     MEMBER_WITHDRAWN_CONTACT("member.withdrawn.contact", MEMBER_VIEW, SENSITIVE, true),
-    NICKNAME_IMAGE_READ("nickname-image.read", NICKNAME_IMAGE, READ, false),
-    NICKNAME_IMAGE_MANAGE("nickname-image.manage", NICKNAME_IMAGE, MANAGE, false),
+    NICKNAME_IMAGE_READ("nickname-image.read", NICKNAME_IMAGE, READ, true),
+    NICKNAME_IMAGE_MANAGE("nickname-image.manage", NICKNAME_IMAGE, MANAGE, true),
     GRADE_READ("grade.read", GRADE_POINT, READ, true),
     GRADE_MANAGE("grade.manage", GRADE_POINT, CONFIG, true),
     GRADE_OVERRIDE("grade.override", GRADE_POINT, SENSITIVE, false),
@@ -109,7 +124,11 @@ public enum Permission {
     /** 알림 템플릿(메일·Slack·Mattermost·카카오톡 겉모양)·문구(대상 × 채널 × 언어별 내용)·대상별 선택/규칙 조회 */
     TEMPLATE_READ("template.read", SITE_INTEGRATION, READ, true),
     /** 알림 템플릿·문구 만들기·고치기·지우기, 대상별 선택/규칙 저장, 시험 발송 */
-    TEMPLATE_MANAGE("template.manage", SITE_INTEGRATION, CONFIG, true);
+    TEMPLATE_MANAGE("template.manage", SITE_INTEGRATION, CONFIG, true),
+    /** 약관(이용약관·개인정보처리방침) 게시본·초안·「보기」 링크 옵션 조회 — docs/features/terms-contract.md */
+    TERMS_READ("terms.read", SITE_INTEGRATION, READ, true),
+    /** 약관 초안 저장·삭제, 새 버전 게시, 「보기」 링크 옵션 저장 */
+    TERMS_MANAGE("terms.manage", SITE_INTEGRATION, CONFIG, true);
 
     private static final Map<String, Permission> BY_CODE = Arrays.stream(values())
             .collect(Collectors.toUnmodifiableMap(Permission::code, Function.identity()));

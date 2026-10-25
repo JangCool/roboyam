@@ -1,4 +1,4 @@
-import type { AuthUser, LoginRequest, MeResponse, SocialSignupRequest } from '~/composables/auth/api/useAuthApi.types';
+import type { AuthUser, LoginRequest, MeResponse, SignupRequest, SocialSignupRequest } from '~/composables/auth/api/useAuthApi.types';
 import type { Restriction } from '~/composables/auth/api/useAuthApi.types';
 import UtilAdminLink from '~/utils/util-admin-link';
 
@@ -11,7 +11,7 @@ import UtilAdminLink from '~/utils/util-admin-link';
  *
  * 서버와 말하는 것은 `useAuthApi` 다(frontend-guide 3장). 여기는 상태만 든다.
  *
- * ⚠ 원본(community)에서 이메일·사업자 가입(`signup`·`signupBusiness`)을 뺐다 — 가입 화면을 만들 때 원본에서 다시 가져온다. 소셜 가입 마무리는 `completeSocialSignup`.
+ * 이메일 가입은 `signup`, 소셜 가입 마무리는 `completeSocialSignup`. 원본(community)의 사업자 가입(`signupBusiness`)은 로보얌에 없어 뺐다.
  */
 
 /** 진행 중인 `me` 호출 — 동시에 여러 곳이 물어도 한 번만 보낸다 */
@@ -84,6 +84,15 @@ export function useAuth() {
         return apply(await api.login(body));
     }
 
+    /**
+     * 이메일 가입 — 가입과 동시에 로그인된다(`201`, me 와 같은 모양). 실패하면 `ApiError` 를 던진다(409 EMAIL_TAKEN·NICKNAME_TAKEN · 400 VALIDATION …).
+     * 서버가 옛 세션을 없애고 새 세션 쿠키를 응답에 싣는다(로그인과 같은 `LoginSession.establish`) — 응답 me 를 그대로 담으면 화면 상태와 서버 세션이 맞는다.
+     * CSRF 는 세션과 따로인 쿠키 방식이라 세션이 바뀌어도 다시 받을 필요가 없다(`useApiClient` 가 요청마다 쿠키를 읽는다).
+     */
+    async function signup(body: SignupRequest): Promise<AuthUser | null> {
+        return apply(await api.signup(body));
+    }
+
     /** 소셜 가입 마무리 — 가입과 동시에 로그인된다(`201`, me 와 같은 모양). 실패하면 `ApiError` 를 던진다(409 NICKNAME_TAKEN · 400 VALIDATION …). */
     async function completeSocialSignup(body: SocialSignupRequest): Promise<AuthUser | null> {
         return apply(await api.completeSocialSignup(body));
@@ -110,5 +119,5 @@ export function useAuth() {
         adminUrlState.value = null;
     }
 
-    return { user, restriction, adminUrl, loaded, isLoggedIn, emailVerified, refresh, ensureLoaded, login, completeSocialSignup, logout, clear };
+    return { user, restriction, adminUrl, loaded, isLoggedIn, emailVerified, refresh, ensureLoaded, login, signup, completeSocialSignup, logout, clear };
 }

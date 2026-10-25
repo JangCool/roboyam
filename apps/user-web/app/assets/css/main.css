@@ -5,8 +5,45 @@
 
 /* 다크 판정은 html[data-color-scheme='dark'] — PrimeVue 의 darkModeSelector 와 같다.
    `data-theme` 는 사이트 테마(네이버·다음 …) 몫이라 다크 판정과 속성을 나눴다(`themes.md`).
-   ⚠ 원본(community)은 plugins/theme.client.ts(보기 설정)가 이 속성을 건다. 이 앱에는 아직 없으므로 지금은 항상 라이트다 */
+   이 속성은 보기 설정의 야간 모드가 건다(`plugins/view-theme.client.ts` — 기본 `AUTO` 는 기기 설정을 따른다) */
 @custom-variant dark (&:where([data-color-scheme='dark'], [data-color-scheme='dark'] *));
+
+/*
+ * 글자 크기(보기 설정) — Tailwind 글자 크기 토큰(`text-xs`…`text-4xl`)에 배율을 곱한다. 글자만 바뀌고 여백·테두리는 그대로다(community 와 같은 방식).
+ * 배율 `--text-scale` 은 `<html>` 에 걸린다(`plugins/view-theme.client.ts`, 1 = 100%). 뿌리(html)의 rem 은 키우지 않는다 — 여백까지 커지면 확대이지 글자 크기가 아니다.
+ * 목록에 없는 임의 크기(`text-[0.6875rem]` 같은 것)는 아래 `@layer utilities` 에 따로 적는다. PrimeVue 위젯(단추·입력칸·선택 등) 글자는 `text-scale.css` 가 PrimeVue 글자 크기 토큰에 같은 배율을 곱한다.
+ */
+@theme {
+    --text-xs: calc(0.75rem * var(--text-scale, 1));
+    --text-sm: calc(0.875rem * var(--text-scale, 1));
+    --text-base: calc(1rem * var(--text-scale, 1));
+    --text-lg: calc(1.125rem * var(--text-scale, 1));
+    --text-xl: calc(1.25rem * var(--text-scale, 1));
+    --text-2xl: calc(1.5rem * var(--text-scale, 1));
+    --text-3xl: calc(1.875rem * var(--text-scale, 1));
+    --text-4xl: calc(2.25rem * var(--text-scale, 1));
+}
+
+@layer utilities {
+    .text-\[0\.5625rem\] {
+        font-size: calc(0.5625rem * var(--text-scale, 1));
+    }
+    .text-\[0\.625rem\] {
+        font-size: calc(0.625rem * var(--text-scale, 1));
+    }
+    .text-\[0\.6875rem\] {
+        font-size: calc(0.6875rem * var(--text-scale, 1));
+    }
+    .text-\[0\.8125rem\] {
+        font-size: calc(0.8125rem * var(--text-scale, 1));
+    }
+    .text-\[0\.9375rem\] {
+        font-size: calc(0.9375rem * var(--text-scale, 1));
+    }
+    .text-\[13px\] {
+        font-size: calc(13px * var(--text-scale, 1));
+    }
+}
 
 html {
     background-color: var(--p-surface-50);
@@ -23,7 +60,8 @@ body {
     margin: 0;
     color: var(--p-text-color);
     font-family: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
-    font-size: 1rem;
+    /* 클래스 없는 글자의 기준 — 보기 설정의 글자 크기 배율을 곱한다(배율 1 이면 16px) */
+    font-size: calc(1rem * var(--text-scale, 1));
 }
 
 /* 화면 전환 시 키보드 포커스 표시가 사라지지 않게 — 제목에 준 tabindex=-1 은 윤곽선을 그리지 않는다 */
@@ -45,6 +83,67 @@ body {
  */
 :root {
     --content-max: 1100px;
+}
+
+/*
+ * 토론 입장 색 — 찬성 = 파랑 · 반대 = 빨강 · 중립 = 초록(emerald) · 일반(입장 없음) = surface. admin-web·user-web 이 **같은 값**을 둔다(두 앱 main.css 의 이 구획을 함께 고친다 — 계약 `popular-highlight-contract.md` 「결정」 찬성·반대 색).
+ * PrimeVue 기본 팔레트(`--p-blue-*`·`--p-red-*`)를 가리키고, 다크는 `light-dark()` 로 html 의 `color-scheme` 을 따른다. 대비(글자 ↔ 바탕):
+ *   글자(`stance-*-text`, 페이지·surface-100 위)  라이트 blue-700 6.1:1 이상 · red-700 6.0:1 이상 / 다크 blue-300 · red-300 8:1 이상(surface-800·900 위)
+ *   옅은 칩(`stance-*-soft`, 배지)             라이트 blue-800/blue-100 7.2:1 · red-800/red-100 6.8:1 / 다크 blue-200/blue-950 10.3:1 · red-200/red-950 11.2:1
+ *   채운 칩(`stance-*-solid`, 고른 탭·고르개)   흰 글자/blue-600 5.2:1 · 흰 글자/red-600 4.8:1(라이트·다크 같음)
+ *   중립(2026-10-24)  글자 라이트 emerald-700 흰 바탕 5.5:1·surface-100 5.0:1 / 다크 emerald-300 9.6:1 이상 · 옅은 칩 emerald-800/emerald-100 6.8:1 · 다크 emerald-200/emerald-950 11.8:1
+ *                     채운 칩 흰 글자/emerald-700 5.5:1(emerald-600 은 3.8:1 이라 쓰지 않는다)
+ * 색만으로 가르지 않는다 — 늘 「찬성」·「반대」·「중립」 글자와 함께 쓴다.
+ */
+:root {
+    --stance-pro-text: light-dark(var(--p-blue-700), var(--p-blue-300));
+    --stance-pro-soft-bg: light-dark(var(--p-blue-100), var(--p-blue-950));
+    --stance-pro-soft-text: light-dark(var(--p-blue-800), var(--p-blue-200));
+    --stance-pro-solid-bg: var(--p-blue-600);
+    --stance-pro-solid-text: #ffffff;
+    --stance-con-text: light-dark(var(--p-red-700), var(--p-red-300));
+    --stance-con-soft-bg: light-dark(var(--p-red-100), var(--p-red-950));
+    --stance-con-soft-text: light-dark(var(--p-red-800), var(--p-red-200));
+    --stance-con-solid-bg: var(--p-red-600);
+    --stance-con-solid-text: #ffffff;
+    --stance-neutral-text: light-dark(var(--p-emerald-700), var(--p-emerald-300));
+    --stance-neutral-soft-bg: light-dark(var(--p-emerald-100), var(--p-emerald-950));
+    --stance-neutral-soft-text: light-dark(var(--p-emerald-800), var(--p-emerald-200));
+    --stance-neutral-solid-bg: var(--p-emerald-700);
+    --stance-neutral-solid-text: #ffffff;
+}
+@utility stance-pro-text {
+    color: var(--stance-pro-text);
+}
+@utility stance-con-text {
+    color: var(--stance-con-text);
+}
+@utility stance-pro-soft {
+    background-color: var(--stance-pro-soft-bg);
+    color: var(--stance-pro-soft-text);
+}
+@utility stance-con-soft {
+    background-color: var(--stance-con-soft-bg);
+    color: var(--stance-con-soft-text);
+}
+@utility stance-pro-solid {
+    background-color: var(--stance-pro-solid-bg);
+    color: var(--stance-pro-solid-text);
+}
+@utility stance-con-solid {
+    background-color: var(--stance-con-solid-bg);
+    color: var(--stance-con-solid-text);
+}
+@utility stance-neutral-text {
+    color: var(--stance-neutral-text);
+}
+@utility stance-neutral-soft {
+    background-color: var(--stance-neutral-soft-bg);
+    color: var(--stance-neutral-soft-text);
+}
+@utility stance-neutral-solid {
+    background-color: var(--stance-neutral-solid-bg);
+    color: var(--stance-neutral-solid-text);
 }
 
 /*

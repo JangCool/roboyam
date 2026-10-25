@@ -59,6 +59,9 @@
                 </template>
             </LabeledField>
 
+            <!-- 가입 뒤 닉네임 변경은 1번뿐(`member-mypage-contract.md` 결정) — 이메일 가입 2/3 닉네임 단계와 같은 안내 -->
+            <Message severity="secondary" :closable="false" size="small" data-testid="social-nickname-note">{{ t('signup.nicknameNote') }}</Message>
+
             <TermsAgreement v-model="agreements" :errors="termsErrors" :disabled="submitting" />
 
             <Button type="submit" :label="submitting ? t('signup.submitting') : t('signup.submit')" fluid size="large" :loading="submitting" data-testid="social-submit" />

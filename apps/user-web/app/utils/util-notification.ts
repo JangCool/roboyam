@@ -4,7 +4,7 @@ import type { MemberNotificationType } from '~/composables/notification/api/useN
 /**
  * 알림 표시 중 셸(헤더의 종·하단 탭의 알림·알림 패널)이 쓰는 것 — 안 읽은 수 배지, 패널 한 줄의 아이콘·이동 주소 검사.
  * 알림 문장(`title`·`body`)은 서버가 요청 언어로 풀어 주므로 여기서 만들지 않는다(종류별 문구를 화면이 만드는 community 와 다른 점).
- * 쪽지 배지 이름(`dmBadgeLabel`)은 쪽지 기능이 없어 걷어 냈다 — 쪽지를 만들 때 git 기록의 `useDmBadge`·`useDmApi`·`AppMessageLink` 와 함께 되살린다.
+ * 쪽지함 배지 이름(`dmBadgeLabel`)도 여기 있다 — 헤더 쪽지 아이콘(`AppMessageLink`)·내 정보 메뉴의 「쪽지함」 줄(`useDmBadge`)이 쓴다.
  */
 export default class UtilNotification {
     /** 알림 점·숫자에 그대로 보이는 가장 큰 수 — 넘으면 "99+" */
@@ -46,6 +46,18 @@ export default class UtilNotification {
     }
 
     /**
+     * 쪽지함 링크의 이름(스크린리더용). 점·숫자는 시각 요소라서 이름에 안 읽은 대화 수를 넣습니다.
+     * @param {Translate} t - 번역 함수(`useTranslate()` / `useI18n().t`).
+     * @param {number} count - 안 읽은 대화 수.
+     * @returns {string} "쪽지함" · "쪽지함, 안 읽은 대화 3개" · "쪽지함, 안 읽은 대화 99개 이상".
+     */
+    static dmBadgeLabel(t: Translate, count: number): string {
+        const n = UtilNotification.clampCount(count);
+        if (n === 0) return t('notification.dmTitle');
+        return n > UtilNotification.BADGE_MAX ? t('notification.dmBadgeUnreadOver', { max: UtilNotification.BADGE_MAX }) : t('notification.dmBadgeUnread', { count: n });
+    }
+
+    /**
      * 알림 하나를 읽었을 때의 안 읽은 수(낙관적). 이미 읽은 알림이었으면 그대로입니다.
      * @param {number} count - 지금 보이는 안 읽은 수.
      * @param {boolean} wasUnread - 누른 알림이 안 읽은 상태였는가.
@@ -67,14 +79,19 @@ export default class UtilNotification {
     }
 
     /**
-     * 알림 한 줄의 아이콘 — 댓글은 말풍선, 답글은 답장, 포인트 회수는 지갑, 신고로 숨김은 가린 눈, 기능 제한은 금지 표시. 모르는 종류는 말풍선.
+     * 알림 한 줄의 아이콘 — 댓글은 말풍선, 답글은 답장, 포인트 회수는 지갑, 신고로 숨김은 가린 눈, 글·댓글 삭제는 휴지통, 신고 처리 결과는 깃발, 쪽지는 봉투, 닉네임 이미지 심사는 이미지, 기능 제한은 금지 표시. 모르는 종류는 말풍선.
      * @param {MemberNotificationType} type - 알림 종류.
      * @returns {string} PrimeIcons 클래스.
      */
     static icon(type: MemberNotificationType): string {
+        if (type === 'DM') return 'pi pi-envelope';
+        if (type === 'NICKNAME_IMAGE_REVIEWED') return 'pi pi-image';
         if (type === 'POINTS_REVOKED') return 'pi pi-wallet';
         if (type === 'POST_HIDDEN' || type === 'COMMENT_HIDDEN') return 'pi pi-eye-slash';
         if (type === 'FEATURE_RESTRICTED') return 'pi pi-ban';
+        if (type === 'POST_REMOVED' || type === 'COMMENT_REMOVED') return 'pi pi-trash';
+        if (type === 'REPORT_RESULT') return 'pi pi-flag';
+        if (type === 'OPINION_PIN_REQUESTED' || type === 'OPINION_PIN_REVIEWED') return 'pi pi-thumbtack';
         if (type === 'REPLY') return 'pi pi-reply';
         return 'pi pi-comment';
     }

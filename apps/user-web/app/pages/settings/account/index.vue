@@ -18,11 +18,50 @@
         <ErrorState v-else-if="status === 'error'" :title="t('account.loadFailed')" :description="loadError" retry data-testid="account-error" @retry="load()" />
 
         <template v-else-if="view">
-            <!-- 로그인 수단 — 비밀번호가 있는가 -->
+            <!-- 로그인 정보 — 이메일(인증 상태 + 미인증이면 인증 메일 다시 보내기) · 비밀번호 유무 · 이메일 변경 · 비밀번호 변경 -->
             <section class="mb-6" :aria-labelledby="`${uid}-methods`">
                 <h2 :id="`${uid}-methods`" class="mb-2 px-1 text-xs font-semibold text-muted-color">{{ t('account.methodsTitle') }}</h2>
                 <div class="rounded-xl border border-surface bg-surface-0 dark:bg-surface-900">
-                    <div class="flex min-h-14 items-center gap-3 px-4 py-2.5" data-testid="account-password-row">
+                    <div class="flex min-h-14 items-center gap-3 border-b border-surface px-4 py-2.5" data-testid="account-email">
+                        <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-100 text-muted-color dark:bg-surface-800" aria-hidden="true">
+                            <i class="pi pi-at" />
+                        </span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-medium">{{ t('account.emailRow') }}</span>
+                            <small class="block break-all text-xs leading-snug text-muted-color">{{ user?.email ?? t('account.noEmail') }}</small>
+                            <!-- 이메일 변경을 요청했고 새 주소의 링크를 아직 누르지 않았다(`GET /api/me/account` 의 `pendingEmail`, 서버가 가린 값) — 변경 화면과 같은 안내 -->
+                            <small v-if="pendingEmail" class="mt-1 flex items-start gap-1 text-xs leading-snug text-blue-700 dark:text-blue-300" data-testid="account-email-pending">
+                                <i class="pi pi-info-circle mt-0.5 text-[11px]" aria-hidden="true" />
+                                <span class="break-all">{{ t('account.pendingNote', { email: pendingEmail }) }}</span>
+                            </small>
+                        </span>
+                        <span
+                            v-if="user?.email"
+                            class="inline-flex shrink-0 items-center justify-center rounded-full px-2 py-1 text-xs font-medium leading-none"
+                            :class="user.emailVerified ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'"
+                            data-testid="account-email-status"
+                        >
+                            <span class="relative -top-[0.09em]">{{ user.emailVerified ? t('account.verified') : t('account.unverified') }}</span>
+                        </span>
+                    </div>
+
+                    <!-- 인증 전 — 인증 메일 다시 보내기(60초 쿨다운은 상단 안내 배너와 같이 센다 — 실제 `POST /api/auth/email/resend`) -->
+                    <div v-if="user?.email && !user.emailVerified" class="border-b border-surface px-4 py-3" data-testid="account-resend">
+                        <Button
+                            type="button"
+                            :label="t('login.resendLabel')"
+                            size="small"
+                            :loading="sending"
+                            :disabled="coolingDown"
+                            data-testid="account-resend-button"
+                            @click="onResend"
+                        />
+                        <p class="mt-2 text-xs leading-relaxed text-muted-color">
+                            <template v-if="coolingDown">{{ t('account.resendWait', { time: UtilTime.mss(cooldownRemaining) }) }} · </template>{{ t('account.checkSpam') }}
+                        </p>
+                    </div>
+
+                    <div class="flex min-h-14 items-center gap-3 border-b border-surface px-4 py-2.5" data-testid="account-password-row">
                         <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-100 text-muted-color dark:bg-surface-800" aria-hidden="true">
                             <i class="pi pi-envelope" />
                         </span>
@@ -31,6 +70,35 @@
                             <small class="block text-xs leading-snug text-muted-color">{{ view.hasPassword ? t('account.passwordOn') : t('account.passwordOff') }}</small>
                         </span>
                     </div>
+
+                    <!-- 쓸 수 없는 줄은 감추지 않고 이유를 적는다 — 소셜 가입자의 이메일·비밀번호 변경 -->
+                    <template v-for="row in changeRows" :key="row.to">
+                        <NuxtLink
+                            v-if="view.hasPassword"
+                            :to="row.to"
+                            class="flex min-h-14 items-center gap-3 border-b border-surface px-4 py-2.5 last:rounded-b-xl last:border-b-0 hover:bg-surface-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary dark:hover:bg-surface-800"
+                            :data-testid="row.testid"
+                        >
+                            <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-100 text-muted-color dark:bg-surface-800" aria-hidden="true">
+                                <i :class="row.icon" />
+                            </span>
+                            <span class="min-w-0 flex-1">
+                                <span class="block text-sm font-medium">{{ row.label }}</span>
+                                <small class="block text-xs leading-snug text-muted-color">{{ row.hint }}</small>
+                            </span>
+                            <i class="pi pi-angle-right text-muted-color" aria-hidden="true" />
+                        </NuxtLink>
+                        <div v-else class="flex min-h-14 items-center gap-3 border-b border-surface px-4 py-2.5 opacity-70 last:border-b-0" aria-disabled="true" :data-testid="row.testid">
+                            <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-100 text-muted-color dark:bg-surface-800" aria-hidden="true">
+                                <i :class="row.icon" />
+                            </span>
+                            <span class="min-w-0 flex-1">
+                                <span class="block text-sm font-medium">{{ row.label }}</span>
+                                <small class="block text-xs leading-snug text-muted-color">{{ row.reason }}</small>
+                            </span>
+                            <span class="shrink-0 text-xs text-muted-color">{{ t('account.notAvailable') }}</span>
+                        </div>
+                    </template>
                 </div>
             </section>
 
@@ -93,11 +161,16 @@
 import type { MeSocialProvider, MeSocialResponse } from '~/composables/auth/api/useAuthApi.types';
 import UtilAuthMessages from '~/utils/util-auth-messages';
 import UtilProvider from '~/utils/util-provider';
+import UtilTime from '#layers/display-time/utils/util-time';
 
 /**
  * 계정·로그인 연결 `/settings/account` — 로그인 필요(`auth` 미들웨어, 서버도 401). 사용자 메뉴(헤더 프로필 메뉴)의 「계정·로그인 연결」·설정 묶음의 메뉴로 온다.
- * 로그인 수단(비밀번호 유무)과 소셜 계정(카카오·네이버·구글) 연결·해제. 원본(community) `pages/settings/account/index.vue` 의 소셜 연동 부분만 옮겼다.
+ * 원본(community) `pages/settings/account/index.vue` 에서 로그인 정보(이메일·인증 상태·인증 메일 다시 보내기·이메일 변경·비밀번호 변경으로 가는 줄)와 소셜 연동을 옮겼다.
+ * 로그아웃·회원 탈퇴 줄은 옮기지 않았다(로그아웃은 셸 메뉴·`/me`, 탈퇴는 다른 세션 범위).
  *
+ * - **로그인 정보**: 이메일·인증 여부는 로그인 정보(`useAuth().user`), 비밀번호 유무는 `GET /api/me/social` 의 `hasPassword` — 모두 실제. 인증 전이면 「인증 메일 다시 받기」(실제 재발송, 배너와 같은 쿨다운).
+ *   비밀번호가 없는(소셜 가입) 계정은 이메일·비밀번호 변경 줄을 감추지 않고 「사용 불가」와 이유를 적는다. 변경 대기 이메일(`GET /api/me/account` 의 `pendingEmail`)이 있으면 이메일 줄 아래에 변경 화면과 같은 안내 한 줄
+ *   (따로 받는다 — 못 받으면 안내만 빠지고 화면은 그대로).
  * - **연결**은 `POST /api/me/social/{id}/link` 로 시작하고 응답의 `redirectUrl` 로 **페이지 이동**한다. 끝나면 서버가 `?linked=` · `?link=taken|failed&provider=&reason=` 를 붙여 이 화면으로 되돌려 보낸다 —
  *   읽은 뒤 주소에서 지운다(새로고침해도 같은 안내가 다시 뜨지 않게). 연결 완료는 토스트, 실패는 위의 안내.
  * - **해제**는 확인 대화상자를 거친다(`DELETE`). `409 SOCIAL_LAST_LOGIN_METHOD` 는 「다른 로그인 수단이 없어 해제할 수 없어요」, 그 밖의 실패는 서버 문구를 토스트(8초)로 보이고 서버 상태를 다시 받는다.
@@ -111,16 +184,40 @@ useSeoMeta({ title: () => t('account.title'), description: () => t('account.seoD
 const route = useRoute();
 const router = useRouter();
 const api = useMeSocialApi();
+const accountApi = useAccountApi();
 const auth = useAuth();
+const user = auth.user;
 const toast = useAppToast();
 const { confirm } = useConfirmDialog();
+const { sending, cooldownRemaining, coolingDown, errorMessage: resendError, resend } = useEmailResend();
 const uid = useId();
+
+/** 이메일·비밀번호 변경으로 가는 줄 — 비밀번호가 없는 계정은 이유(`reason`)와 함께 「사용 불가」 */
+const changeRows = computed(() => [
+    { to: '/settings/account/email', icon: 'pi pi-envelope', label: t('account.emailChange'), hint: t('account.emailChangeHint'), reason: t('account.noEmailChangeReason'), testid: 'account-email-change' },
+    { to: '/settings/account/password', icon: 'pi pi-lock', label: t('account.passwordChange'), hint: t('account.passwordChangeHint'), reason: t('account.noPasswordReason'), testid: 'account-password-change' },
+]);
+
+/** 인증 메일 다시 보내기 — 쿨다운은 `useEmailResend` 가 센다(상단 안내 배너와 같은 값) */
+async function onResend() {
+    try {
+        const outcome = await resend();
+        if (outcome === 'sent') toast.success(t('account.resendDone'));
+        else if (outcome === 'cooldown') toast.show(t('error.RESEND_COOLDOWN'));
+        else if (outcome === 'already') toast.show(t('login.resendAlready'));
+        else toast.error(resendError.value, 8000);
+    } catch (e) {
+        toast.error(messageOf(e), 8000);
+    }
+}
 
 const status = ref<'loading' | 'ready' | 'error'>('loading');
 const loadError = ref('');
 const view = ref<MeSocialResponse | null>(null);
 /** 연결 시작·해제 요청을 보내는 중인 공급자 id — 그 줄만 로딩이고 나머지 단추는 잠긴다 */
 const busyId = ref<string | null>(null);
+/** 변경 대기 이메일(서버가 가린 값) — 없거나 못 받았으면 null */
+const pendingEmail = ref<string | null>(null);
 /** 연결하지 못하고 돌아왔을 때의 안내 */
 const linkNotice = ref<{ title: string; text: string } | null>(null);
 
@@ -191,8 +288,18 @@ function readLinkResult() {
     if (handled || 'link' in q || 'provider' in q || 'reason' in q) void router.replace({ path: route.path, hash: route.hash });
 }
 
+/** 변경 대기 이메일 — 실패해도 안내만 빠진다(로그인 정보·연결 화면은 그대로) */
+async function loadPendingEmail() {
+    try {
+        pendingEmail.value = (await accountApi.account()).pendingEmail;
+    } catch {
+        pendingEmail.value = null;
+    }
+}
+
 readLinkResult();
 void load();
+void loadPendingEmail();
 onBeforeUnmount(() => loadSeq++);
 
 /** 연결 시작 — 응답의 주소로 페이지 이동한다(이동하는 동안 단추는 로딩인 채로 둔다) */

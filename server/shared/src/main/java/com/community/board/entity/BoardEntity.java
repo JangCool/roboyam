@@ -1,15 +1,21 @@
 package com.community.board.entity;
 
 import com.community.board.dto.BoardPolicyValues;
+import com.community.board.service.BoardFields;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import org.hibernate.annotations.DynamicUpdate;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * 게시판 — V42__boards.sql 의 {@code boards}. ID 는 Snowflake(앱 발급)라 새 행은 {@code persist()} 로 넣는다.
  * 정책 칸은 null = 기본 설정({@link BoardDefaultsEntity})을 따른다. slug·종류는 만든 뒤 바꾸지 않는다.
+ * 가젯 노출 금지({@code gadget_exclusions}, V69)는 게시판마다의 값이다(기본 설정에서 물려받지 않는다) — {@link BoardGadget} 이름, enum 순서·중복 없음.
  */
 @Entity
 @Table(name = "boards")
@@ -34,6 +40,8 @@ public class BoardEntity {
     private String writeLock;
     private String introText;
     private String writeGuideText;
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    private String[] gadgetExclusions = new String[0];
 
     private String writeMin;
     private String commentMin;
@@ -51,6 +59,16 @@ public class BoardEntity {
     private String commentProtectDelete;
     private Integer commentProtectDelayMinutes;
     private Integer commentGuestDelayMinutes;
+    private Boolean staffHiddenNotice;
+    private Boolean commentDislikeEnabled;
+    private String commentLikeLabel;
+    private String commentDislikeLabel;
+    /** 고정 요청 확인자 — 쉼표로 이은 값(빈 글자 = 끔, NULL = 기본값 따름). API 는 목록 */
+    private String pinRequestReviewers;
+    /** 「글쓴이가 찬반 토론을 열 수 있음」(V79, NULL = 기본값 따름) */
+    private Boolean debateEnabled;
+    /** 「글쓴이가 투표를 붙일 수 있음」(V81, NULL = 기본값 따름) */
+    private Boolean pollEnabled;
     private Integer managerMax;
     private Integer staffPostDailyLimit;
     private Integer staffCommentDailyLimit;
@@ -107,6 +125,11 @@ public class BoardEntity {
         this.writeGuideText = writeGuideText;
     }
 
+    /** 가젯 노출 금지를 바꾼다(enum 순서·중복 없이 저장) */
+    public void changeGadgetExclusions(Collection<BoardGadget> gadgets) {
+        this.gadgetExclusions = BoardGadget.toNames(gadgets);
+    }
+
     /** 정책 칸 전체를 바꾼다(null = 기본값 따름) */
     public void changePolicy(BoardPolicyValues policy) {
         this.writeMin = policy.writeMin();
@@ -125,6 +148,13 @@ public class BoardEntity {
         this.commentProtectDelete = policy.commentProtectDelete();
         this.commentProtectDelayMinutes = policy.commentProtectDelayMinutes();
         this.commentGuestDelayMinutes = policy.commentGuestDelayMinutes();
+        this.staffHiddenNotice = policy.staffHiddenNotice();
+        this.commentDislikeEnabled = policy.commentDislikeEnabled();
+        this.commentLikeLabel = policy.commentLikeLabel();
+        this.commentDislikeLabel = policy.commentDislikeLabel();
+        this.pinRequestReviewers = BoardFields.joinReviewers(policy.pinRequestReviewers());
+        this.debateEnabled = policy.debateEnabled();
+        this.pollEnabled = policy.pollEnabled();
         this.managerMax = policy.managerMax();
         this.staffPostDailyLimit = policy.staffPostDailyLimit();
         this.staffCommentDailyLimit = policy.staffCommentDailyLimit();
@@ -147,7 +177,8 @@ public class BoardEntity {
 
     public BoardPolicyValues policy() {
         return new BoardPolicyValues(writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, listSize, pinnedMax, indexable, searchable, inHome, pointMode, commentProtectMin,
-                commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, managerMax, staffPostDailyLimit,
+                commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice, commentDislikeEnabled,
+                commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, pollEnabled, managerMax, staffPostDailyLimit,
                 staffCommentDailyLimit, staffSanctionDailyLimit);
     }
 
@@ -213,6 +244,11 @@ public class BoardEntity {
 
     public String getWriteGuideText() {
         return writeGuideText;
+    }
+
+    /** 가젯 노출 금지(enum 순서) */
+    public List<BoardGadget> getGadgetExclusions() {
+        return BoardGadget.parse(gadgetExclusions);
     }
 
     public Integer getManagerMax() {

@@ -1,3 +1,4 @@
+import type { CommentKind } from '~/composables/board/api/useDebateApi.types';
 import type {
     CommentDeleteRequest,
     CommentLikeResult,
@@ -12,10 +13,14 @@ import type {
  * 댓글 API — 서버 주소(`/api/posts/{id}/comments`·`/api/comments/{id}`)가 있는 유일한 곳. 상태는 없다(화면 상태는 `usePostComments`).
  * 규약: `docs/features/board-public-contract.md`.
  *
- *  - `GET /api/posts/{id}/comments?sort=OLDEST|LATEST` 원댓글 + 답글(1단계) + 베스트 + 보이는 수. 비회원이 보면 최근 N분 댓글은 `state: DELAYED`(본문 없음, 같은 IP 의 비회원에게는 바로 보인다)
- *  - `POST /api/posts/{id}/comments` 쓰기(비회원은 `guest` 칸) → 새 댓글(쓴 사람에게 늘 `VISIBLE`)
+ *  - `GET /api/posts/{id}/comments?sort=OLDEST|LATEST&kind=ALL|GENERAL|OPINION|PRO|CON|NEUTRAL` 원댓글 + 답글(1단계) + 베스트 + 보이는 수 + 토론 칸(`debate`) + 추천·비추천 표시(`reactions`).
+ *      비회원이 보면 최근 N분 댓글은 `state: DELAYED`(본문 없음, 같은 IP 의 비회원에게는 바로 보인다). `kind` 는 원댓글의 입장으로 가른다(답글은 원댓글을 따라간다), 그 밖 값은 400 `fields.kind`.
+ *      토론 구분(OPINION·PRO·CON·NEUTRAL)은 고정한 보이는 의견이 맨 위. 화면은 댓글 구획을 `GENERAL`, 토론 구획을 `OPINION`(또는 한 입장)으로 부른다
+ *  - `POST /api/posts/{id}/comments` 쓰기(비회원은 `guest` 칸, 토론 의견은 `opinion: true`(+ `stance`)) → 새 댓글(쓴 사람에게 늘 `VISIBLE`).
+ *      토론 오류 409 `DEBATE_NOT_OPEN`·`STANCE_REQUIRED`(먼저 투표)·`STANCE_LOCKED`(보낸 입장이 지금 입장과 다름)
  *  - `PUT /api/comments/{id}` 고치기 · `POST /api/comments/{id}/delete` 지우기(204) — 비회원 댓글은 본문에 `password`
- *  - `POST /api/comments/{id}/like` 추천(취소 없음) → `{ likeCount, liked }`
+ *  - `POST /api/comments/{id}/like` 추천(취소 없음) · `POST /api/comments/{id}/dislike` 비추천 · `DELETE /api/comments/{id}/dislike` 비추천 취소 → `{ likeCount, liked, dislikeCount, disliked }`
+ *      (하나를 누르면 다른 하나가 풀린다). 비추천 오류: 409 `COMMENT_DISLIKE_DISABLED`(게시판이 받지 않음) · 400 `CANNOT_DISLIKE_OWN` · 409 `ALREADY_DISLIKED`
  * 오류: `400 VALIDATION` + `fields`(`content`·`guest.*`·`parentId` — 답글 대상 오류 포함), 금지어 `400 BLOCKED_WORD`, 간격 `429 COMMENT_TOO_FAST`, 하루 한도 `429 COMMENT_DAILY_LIMIT`,
  * 비밀번호 `403 PASSWORD_MISMATCH`·`429 PASSWORD_ATTEMPTS_EXCEEDED`, 없는 댓글 `404 COMMENT_NOT_FOUND`, 숨긴 댓글 `403 COMMENT_HIDDEN`, 로그인 필요 `401 UNAUTHENTICATED`, 쓸 수 없음 `403 {WriteBlockedReason}`.
  *
@@ -26,6 +31,7 @@ const PATH = {
     comment: (id: string) => `/api/comments/${encodeURIComponent(id)}`,
     remove: (id: string) => `/api/comments/${encodeURIComponent(id)}/delete`,
     like: (id: string) => `/api/comments/${encodeURIComponent(id)}/like`,
+    dislike: (id: string) => `/api/comments/${encodeURIComponent(id)}/dislike`,
 };
 
 export function useCommentApi() {
@@ -34,8 +40,8 @@ export function useCommentApi() {
     const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
-        list: (postId: string, sort: CommentSort, signal?: AbortSignal): Promise<CommentListResponse> =>
-            client.get<CommentListResponse>(PATH.list(postId), { query: { sort }, signal }),
+        list: (postId: string, sort: CommentSort, kind: CommentKind, signal?: AbortSignal): Promise<CommentListResponse> =>
+            client.get<CommentListResponse>(PATH.list(postId), { query: { sort, ...(kind === 'ALL' ? {} : { kind }) }, signal }),
 
         create: (postId: string, body: CommentWriteRequest): Promise<CommentView> => client.post<CommentView>(PATH.list(postId), body),
 
@@ -44,5 +50,9 @@ export function useCommentApi() {
         remove: (id: string, body: CommentDeleteRequest): Promise<void> => client.post<void>(PATH.remove(id), body),
 
         like: (id: string): Promise<CommentLikeResult> => client.post<CommentLikeResult>(PATH.like(id)),
+
+        dislike: (id: string): Promise<CommentLikeResult> => client.post<CommentLikeResult>(PATH.dislike(id)),
+
+        undislike: (id: string): Promise<CommentLikeResult> => client.del<CommentLikeResult>(PATH.dislike(id)),
     };
 }

@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 본인인증 표(shared V62 — {@code identity_verifications} · {@code identity_verification_attempts}) 읽기·쓰기 — {@code IdentityVerificationService}·{@code IdentityWithdrawalRecorder} 가 부른다.
+ * 본인인증 표(shared V84 — {@code identity_verifications} · {@code identity_verification_attempts}) 읽기·쓰기 — {@code IdentityVerificationService}·{@code IdentityWithdrawalRecorder} 가 부른다.
  *
  * <p>JDBC(native SQL)인 이유: 1인 1계정은 DI·CI·업체 건 번호의 <b>유일 제약</b>이 마지막으로 지키는데, 동시에 들어온 두 확정 중 진 쪽이 예외로 트랜잭션을 망가뜨리지 않게
  * {@code INSERT … ON CONFLICT DO NOTHING}(들어갔는지 행 수로 안다)을 쓴다. 시도 상태는 조건부 UPDATE(발급 상태일 때만)로 한 번만 바꾼다. 트랜잭션은 부르는 서비스가 연다.

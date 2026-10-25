@@ -1,9 +1,42 @@
 /**
- * 가입 화면의 문구 — 소셜 가입 마무리(`/signup/social`)와 약관 동의(`TermsAgreement`, 이메일 가입 화면도 같이 쓸 부품).
- * 원본(community) `pages/signup/social.vue`·`components/auth/TermsAgreement.vue` 의 글을 그대로 옮겼다. 닉네임 규칙 안내는 `auth.ts`.
+ * 가입 화면의 문구 — 이메일 가입(`/signup`), 소셜 가입 마무리(`/signup/social`)와 약관 동의(`TermsAgreement`, 두 가입 화면이 같이 쓴다).
+ * 원본(community) `pages/signup/{index,social}.vue`·`components/auth/TermsAgreement.vue` 의 글을 옮겼다. 닉네임 규칙 안내는 `auth.ts`, 비밀번호 확인 칸은 `password.ts`.
  * 키는 `signup.무엇` 두 마디. `en/signup.ts` 와 같은 키, 같은 차례.
  */
 export default {
+    // 이메일 가입
+    title: '가입',
+    seoDescription: '{site}에 가입해요. 실명·연락처 없이 닉네임만 정하면 돼요.',
+    emailSignup: '이메일 가입',
+    progressLabel: '가입 진행',
+    stepCount: '{step} / 3 · {label}',
+    stepAccount: '계정 정보',
+    stepNickname: '닉네임',
+    stepTerms: '약관 동의',
+    methodTitle: '어떤 방법으로 가입할까요?',
+    methodSubtitle: '가입 후 닉네임만 정하면 끝이에요. 실명·연락처는 묻지 않아요.',
+    accountTitle: '이메일로 가입',
+    accountSubtitle: '닉네임만 정하면 끝이에요. 실명·연락처는 묻지 않아요.',
+    nicknameTitle: '커뮤니티에서 쓸 닉네임을 정해 주세요',
+    nicknameSubtitle: '실명이 아니어도 돼요. 글·댓글에 등급 뱃지와 함께 보여요.',
+    termsTitle: '{site} 이용을 위해 동의가 필요해요',
+    withEmail: '이메일로 가입',
+    socialDivider: '또는 소셜 계정으로',
+    haveAccount: '이미 계정이 있으세요?',
+    ageLead: '만 14세 이상만 가입할 수 있어요. 가입 마지막 단계에서 확인해요.',
+    checking: '확인하는 중…',
+    emailAvailable: '사용할 수 있는 이메일이에요. 인증 메일이 이 주소로 가요.',
+    emailTaken: '이미 가입된 이메일이에요.',
+    emailTakenHelp: '이미 가입된 이메일이에요. {login} 또는 {forgot}',
+    emailCheckFailed: '이메일을 확인하지 못했어요. 그래도 다음으로 갈 수 있고, 마지막에 한 번 더 확인해요.',
+    nicknameAvailable: '사용할 수 있는 닉네임이에요.',
+    nicknameCheckFailed: '닉네임을 확인하지 못했어요. 그래도 다음으로 갈 수 있고, 마지막에 한 번 더 확인해요.',
+    nicknameOverflow: '{max}자까지 입력할 수 있어요.',
+    previewLabel: '이렇게 보여요',
+    nicknameNote: '실명·연락처를 입력하지 않아도 돼요. 닉네임은 가입한 뒤에는 1번만 바꿀 수 있어요.',
+    noRealName: '이 사이트는 실명·연락처를 요구하지 않아요.',
+    submitEmail: '가입하고 인증 메일 받기',
+
     // 소셜 가입 마무리
     socialTitle: '가입 마무리',
     socialSeoDescription: '소셜 계정으로 가입하는 마지막 단계예요. 닉네임을 정하고 약관에 동의해 주세요.',

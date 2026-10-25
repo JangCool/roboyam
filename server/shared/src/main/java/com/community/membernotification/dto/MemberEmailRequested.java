@@ -10,8 +10,14 @@ import com.community.membernotification.service.MemberNotificationMessages;
  * @param facts       문구 변수의 원천(일으킨 회원의 닉네임은 발송 때 채운다 — {@code actorUserId})
  * @param actorUserId 일으킨 회원(댓글·답글, 비회원이면 null — 이름은 {@code facts.actorName})
  * @param postId      링크가 가리키는 글(없으면 null)
+ * @param path        메일 버튼이 가리키는 사이트 안 경로(사이트 공개 주소 뒤, 없으면 null — 버튼 없이). 글 알림은 {@code /posts/{postId}}
  */
-public record MemberEmailRequested(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId) {
+public record MemberEmailRequested(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId, String path) {
+
+    /** 글을 가리키는 알림 — 경로는 그 글({@code /posts/{postId}}, 글이 없으면 버튼 없이) */
+    public MemberEmailRequested(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId) {
+        this(userId, facts, actorUserId, postId, postId == null ? null : "/posts/" + postId);
+    }
 
     @Override
     public String toString() {

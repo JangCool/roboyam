@@ -2,6 +2,7 @@
     <!--
         회원 상세 — 기본 정보 구획(읽기 전용). 이메일은 서버가 준 대로 그린다: `member.pii` 가 없으면 가려진 값이고 그렇다고 스크린리더에도 알린다.
         소셜 연동·성인 확인(출생연도는 보이지 않는다)·쪽지 수신·휴면 예정은 정상 회원에게만(서버가 아직 모르는 성인 확인·쪽지 수신은 `-`), 탈퇴 회원은 줄어든 표시(탈퇴 시각이 보이고 이메일·소개 등이 없다).
+        닉네임 줄에는 변경 횟수(「변경 N/한도회 사용」), 닉네임 이미지 줄에는 지금 이미지·최근 신청(심사 대기면 심사 화면 링크 — `nickname-image.read` 가 있을 때만).
         아래에 닉네임 변경 이력 — `member.pii` 가 없으면 값 대신 잠금 문구(이메일 가림과 같은 결). 한 줄 소개는 「프로필·메모」 구획에서 한 곳에만 보인다.
     -->
     <div class="flex flex-col gap-5">
@@ -26,7 +27,48 @@
                         </template>
                         <span v-else class="text-muted-color">{{ t('member.none') }}</span>
                     </template>
-                    <template v-else-if="field.key === 'nickname'">{{ detail.nickname }}</template>
+                    <template v-else-if="field.key === 'nickname'">
+                        <span>{{ detail.nickname }}</span>
+                        <span v-if="detail.nicknameChange" class="ml-1.5 text-xs text-muted-color tabular-nums">{{ t('member.detail.nicknameUsage', { count: detail.nicknameChange.changeCount, limit: detail.nicknameChange.freeLimit }) }}</span>
+                    </template>
+                    <span v-else-if="field.key === 'nicknameImage' && !detail.nicknameImage" class="text-muted-color">{{ t('member.detail.empty') }}</span>
+                    <div v-else-if="field.key === 'nicknameImage' && detail.nicknameImage" class="flex flex-col gap-2">
+                        <span v-if="!detail.nicknameImage.current && !detail.nicknameImage.request" class="text-muted-color">{{ t('member.detail.nicknameImageNone') }}</span>
+                        <!-- 지금 쓰는 이미지 -->
+                        <div v-if="detail.nicknameImage.current" class="flex flex-wrap items-center gap-2">
+                            <span class="member-nickimg-frame block shrink-0 overflow-hidden rounded border border-(--line)" :style="thumbStyle">
+                                <img :src="detail.nicknameImage.current.imageUrl" :alt="t('nicknameImage.imageAlt', { name: detail.nickname })" class="block size-full object-contain" loading="lazy" decoding="async" />
+                            </span>
+                            <MemberDetailTag :value="t('nicknameImage.status.APPROVED')" :icon="UtilNicknameImage.statusIcon('APPROVED')" :severity="UtilNicknameImage.statusSeverity('APPROVED')" />
+                            <span class="text-xs text-muted-color tabular-nums">{{ t('member.detail.nicknameImageApprovedAt', { at: time.full(detail.nicknameImage.current.approvedAt) }) }}</span>
+                        </div>
+                        <!-- 최근 신청(심사 대기·반려) -->
+                        <div v-if="detail.nicknameImage.request" class="flex flex-col gap-1">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span v-if="detail.nicknameImage.request.imageUrl" class="member-nickimg-frame block shrink-0 overflow-hidden rounded border border-(--line)" :style="thumbStyle">
+                                    <img :src="detail.nicknameImage.request.imageUrl" :alt="t('nicknameImage.imageAlt', { name: detail.nickname })" class="block size-full object-contain" loading="lazy" decoding="async" />
+                                </span>
+                                <span v-else class="grid shrink-0 place-items-center rounded border border-dashed border-(--line) px-1 text-center text-[10px] leading-tight text-muted-color" :style="thumbStyle">{{ t('nicknameImage.fileGone') }}</span>
+                                <MemberDetailTag
+                                    :value="t(`nicknameImage.status.${detail.nicknameImage.request.status}`)"
+                                    :icon="UtilNicknameImage.statusIcon(detail.nicknameImage.request.status)"
+                                    :severity="UtilNicknameImage.statusSeverity(detail.nicknameImage.request.status)"
+                                />
+                                <span class="text-xs text-muted-color tabular-nums">{{ t('member.detail.nicknameImageRequestedAt', { at: time.full(detail.nicknameImage.request.requestedAt) }) }}</span>
+                            </div>
+                            <span v-if="detail.nicknameImage.request.status === 'REJECTED' && detail.nicknameImage.request.rejectReason" class="text-xs text-muted-color break-words">
+                                {{ t('member.detail.nicknameImageRejectReason', { reason: detail.nicknameImage.request.rejectReason }) }}
+                            </span>
+                            <NuxtLink
+                                v-if="detail.nicknameImage.request.status === 'PENDING' && can('nickname-image.read')"
+                                to="/members/nickname-images"
+                                class="inline-flex items-center gap-1 self-start text-xs text-primary hover:underline"
+                            >
+                                <i class="pi pi-arrow-right text-[10px]" aria-hidden="true" />
+                                {{ t('member.detail.nicknameImageReview') }}
+                            </NuxtLink>
+                        </div>
+                    </div>
                     <GradeBadge v-else-if="field.key === 'grade'" v-bind="gradeState.badgeOf(detail.grade)" />
                     <Tag v-else-if="field.key === 'memberType'" :value="t(`member.type.${detail.memberType}`)" :icon="UtilMember.typeIcon(detail.memberType)" :severity="detail.memberType === 'BUSINESS' ? 'contrast' : 'secondary'" />
                     <div v-else-if="field.key === 'status'" class="flex flex-col gap-1">
@@ -100,6 +142,7 @@
 <script setup lang="ts">
 import type { MemberDetail } from '~/composables/member/api/useMemberApi.types';
 import UtilMember from '~/utils/util-member';
+import UtilNicknameImage from '~/utils/util-nickname-image';
 
 interface Props {
     detail: MemberDetail;
@@ -110,13 +153,17 @@ const props = defineProps<Props>();
 const { t, locale } = useI18n();
 const time = useDisplayTime();
 const nicknameId = useId();
+const { can } = useAdminPermission();
+/** 닉네임 이미지 썸네일 — 실제 크기(240×60)의 절반 */
+const thumbStyle = { width: `${UtilNicknameImage.WIDTH / 2 + 2}px`, height: `${UtilNicknameImage.HEIGHT / 2 + 2}px` };
 // 등급 뱃지 — 등급 설정의 이름·색·아이콘(앱 전체가 공유하는 등급 목록)
 const gradeState = useGradeAppearance();
 
-type FieldKey = 'memberNo' | 'email' | 'nickname' | 'grade' | 'memberType' | 'status' | 'authMethod' | 'social' | 'joinedAt' | 'withdrawnAt' | 'emailVerifiedAt' | 'adult' | 'acceptDm' | 'lastLoginAt' | 'dormantAt' | 'dormancy' | 'point';
-const KEYS: readonly FieldKey[] = ['memberNo', 'email', 'nickname', 'grade', 'memberType', 'status', 'authMethod', 'social', 'joinedAt', 'withdrawnAt', 'emailVerifiedAt', 'adult', 'acceptDm', 'lastLoginAt', 'dormantAt', 'dormancy', 'point'];
+type FieldKey = 'memberNo' | 'email' | 'nickname' | 'nicknameImage' | 'grade' | 'memberType' | 'status' | 'authMethod' | 'social' | 'joinedAt' | 'withdrawnAt' | 'emailVerifiedAt' | 'adult' | 'acceptDm' | 'lastLoginAt' | 'dormantAt' | 'dormancy' | 'point';
+const KEYS: readonly FieldKey[] = ['memberNo', 'email', 'nickname', 'nicknameImage', 'grade', 'memberType', 'status', 'authMethod', 'social', 'joinedAt', 'withdrawnAt', 'emailVerifiedAt', 'adult', 'acceptDm', 'lastLoginAt', 'dormantAt', 'dormancy', 'point'];
 /** 표에 없는 칸의 이름 — 목록 표 칸 이름(`member.col.*`)에 없는 것은 상세 전용 키 */
 const LABELS: Partial<Record<FieldKey, string>> = {
+    nicknameImage: 'member.detail.nicknameImage',
     social: 'member.detail.social',
     withdrawnAt: 'member.detail.withdrawnAt',
     adult: 'member.detail.adult',
@@ -124,12 +171,12 @@ const LABELS: Partial<Record<FieldKey, string>> = {
     dormancy: 'member.detail.dormancy',
 };
 
-/** 이 회원에게 보일 칸 — 탈퇴한 회원은 줄어든 표시(탈퇴 시각이 보이고 소셜·성인·쪽지·휴면 예정은 없다), 휴면 예정은 있을 때만 */
+/** 이 회원에게 보일 칸 — 탈퇴한 회원은 줄어든 표시(탈퇴 시각이 보이고 닉네임 이미지·소셜·성인·쪽지·휴면 예정은 없다), 휴면 예정은 있을 때만 */
 const fields = computed(() => {
     const withdrawn = props.detail.status === 'WITHDRAWN';
     return KEYS.filter((key) => {
         if (key === 'withdrawnAt') return withdrawn;
-        if (key === 'social' || key === 'adult' || key === 'acceptDm') return !withdrawn;
+        if (key === 'social' || key === 'adult' || key === 'acceptDm' || key === 'nicknameImage') return !withdrawn;
         if (key === 'dormancy') return props.detail.dormancy !== null;
         return true;
     }).map((key) => ({ key, label: t(LABELS[key] ?? `member.col.${key}`) }));
@@ -137,3 +184,17 @@ const fields = computed(() => {
 
 const socials = computed(() => UtilMember.SOCIAL_PROVIDERS.map((provider) => ({ provider, linked: props.detail.social.some((s) => s.provider === provider && s.linked) })));
 </script>
+
+<style scoped>
+/* 닉네임 이미지의 투명한 부분이 보이게 체크 무늬 바탕(심사 화면과 같은 무늬) */
+.member-nickimg-frame {
+    background-color: var(--p-content-background);
+    background-image: conic-gradient(
+        light-dark(var(--p-surface-200), var(--p-surface-700)) 25%,
+        transparent 0 50%,
+        light-dark(var(--p-surface-200), var(--p-surface-700)) 0 75%,
+        transparent 0
+    );
+    background-size: 8px 8px;
+}
+</style>

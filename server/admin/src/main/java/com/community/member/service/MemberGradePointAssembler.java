@@ -7,6 +7,7 @@ import com.community.grade.entity.GradeSettingEntity;
 import com.community.grade.entity.MemberGradeChangeEntity;
 import com.community.grade.repository.master.GradeRepositoryQDSL;
 import com.community.grade.repository.master.GradeSettingRepository;
+import com.community.grade.service.GradeProgress;
 import com.community.member.dto.MemberGradeChangeRow;
 import com.community.member.dto.response.MemberActivity;
 import com.community.member.dto.response.MemberGradeChange;
@@ -19,9 +20,7 @@ import com.community.point.repository.master.PointLedgerRepositoryQDSL;
 import com.community.point.service.PointLedgerQueryService;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserEntity;
-import com.community.user.entity.UserStatus;
 import com.community.zconfiguration.message.Messages;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -78,24 +77,16 @@ public class MemberGradePointAssembler {
     }
 
     private String autoPromotionOf(UserEntity user, ProfileEntity profile) {
-        if (user.getStatus() != UserStatus.ACTIVE) {
-            return "PAUSED_SANCTION";
-        }
         GradeManualPolicy policy = settings.findById(GradeSettingEntity.ROW_ID).map(GradeSettingEntity::getManualPolicy).orElse(GradeManualPolicy.CONTINUE_AUTO);
-        return profile.isGradeManual() && !policy.includesManual() ? "PAUSED_ADMIN" : "ACTIVE";
+        return GradeProgress.autoPromotion(user.getStatus(), profile.isGradeManual(), policy); // 공개 사이트 내 등급(GET /api/me/grade)과 같은 셈
     }
 
     private MemberGradeNext nextOf(UserEntity user, ProfileEntity profile, MemberActivity activity, Instant now) {
-        List<GradeEntity> grades = gradeQueries.findAllOrdered();
-        GradeEntity current = grades.stream().filter(grade -> grade.getGradeKey().equals(profile.getGradeKey())).findFirst().orElse(null);
-        if (current == null) {
-            return null;
-        }
-        GradeEntity next = grades.stream().filter(grade -> grade.getLevel() > current.getLevel()).findFirst().orElse(null); // 서열 순서라 처음 만나는 것이 바로 위 등급
+        GradeEntity next = GradeProgress.next(gradeQueries.findAllOrdered(), profile.getGradeKey()).orElse(null);
         if (next == null) {
             return null;
         }
-        long days = Math.max(0, Duration.between(user.getCreatedAt(), now).toDays()); // 승급 판정(가입 시각 <= 지금 - 일수)과 같은 날짜 계산
+        long days = GradeProgress.elapsedDays(user.getCreatedAt(), now); // 승급 판정(가입 시각 <= 지금 - 일수)과 같은 날짜 계산
         return new MemberGradeNext(next.getGradeKey(), List.of(
                 new MemberGradeRequirement(MemberGradeRequirement.DAYS, days, next.getMinDays()),
                 new MemberGradeRequirement(MemberGradeRequirement.ACTIVITY, activity.postCount() + activity.commentCount(), next.getMinActivity())));

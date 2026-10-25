@@ -18,7 +18,7 @@
 | 운영 조정 | admin `PointAdjustService` | `ADMIN_ADJUST` ±(부호로 EARN/REVOKE) |
 - 규칙(community 정본): 하루 = 한국 시간 0시부터 **지급한 횟수**(지운 글도 센다), 정상(ACTIVE) 회원만 받는다, 비회원 없음, 회수는 실제 지급량만·0P 바닥·반영 0 이면 줄 없음, 본인 삭제는 알림 없음, 숨김(신고)은 회수하지 않는다.
 - **인정된 추천** = 작성자가 아닌 정상 회원 중 등급이 가장 낮은 등급(서열 최솟값, 기본 새싹)보다 높은 회원의 추천. 방금 누른 추천이 인정되고 인정된 추천이 정확히 문턱 개가 될 때 한 번(소급 없음).
-- **적용 지점 없음(저장만)**: `attendancePoints`(출석) · `popularRewardPoints`·`popularRewardTopN`(인기글) · `dealEndRequestPoints`·`dealEndRequestDailyLimit`(핫딜) · `signupPoints`(가입 — 공개 가입 기능 없음. **지급 조건은 `docs/domain/commerce.md` 6-2 로 확정: 본인인증 완료 시 평생 1회**) · `nicknameTicketPrice`(교환).
+- **적용 지점 없음(저장만)**: `attendancePoints`(출석) · `popularRewardPoints`·`popularRewardTopN`(인기글) · `dealEndRequestPoints`·`dealEndRequestDailyLimit`(핫딜) · `signupPoints`(가입 — 공개 가입 기능 없음. **지급 조건은 `docs/domain/commerce.md` 6-2 로 확정: 본인인증 완료 시 평생 1회**) · `nicknameTicketPrice`(교환 — 닉네임 변경권은 아이템샵이 생길 때 품목으로 만든다, 할 일은 `member-mypage-contract.md` 「후속 작업: 닉네임 변경권」).
 - **적립 실패가 글쓰기를 깨지 않는다**(community 와 다름 — 가정 1): 적립·회수·추천 보너스는 JDBC 세이브포인트(`IsolatedSideWork`) 안이고 실패하면 0(ERROR 로그). 정책 사본도 JDBC 로 읽는다(JPA 저장소 호출의 실패가 업무 트랜잭션을 롤백 전용으로 만들지 않게). 검증: 원장 INSERT 를 막아도 글·댓글 201.
 
 ## 정책 반영
@@ -57,3 +57,4 @@
 - 권한 카탈로그 `point.read`·`point.settings`·`point.adjust` → `featureReady: true`(서버 `Permission` 과 같다).
 - 회원 상세: 기본 정보의 포인트·등급·포인트 구획의 잔액·최근 내역 10줄을 실제 값으로(「준비 중」 제거). 닉네임 변경권은 늘 0 이라 「준비 중」 유지. 회원 목록의 `pointMin`·`pointMax`·`sort=point` 는 서버와 맞는 것을 확인.
 - user-web `usePointApi`(`GET /api/me/points`) 실제 호출, 타입에 `attendanceAvailable`·`today`(post·comment·likeBonus)·`rules` 전체 반영. `attendanceAvailable=false` 면 「오늘 출석하기」 안내를 그리지 않고 프로필 메뉴 줄 이름도 「포인트」(출석체크 없음).
+- (2026-10-24) 미확정 4 의 회원 포인트 내역 `GET /api/me/points/ledger` 를 만들고 `/me/points` 를 연결했다 — `member-mypage-contract.md` 「서버 구현·연결 결과」.

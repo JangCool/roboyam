@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 기능 제한 표({@code member_restrictions}, shared V62) 읽기·쓰기 — {@code MemberRestrictionService} 만 부른다.
+ * 기능 제한 표({@code member_restrictions}, shared V84) 읽기·쓰기 — {@code MemberRestrictionService} 만 부른다.
  *
  * <p>JDBC(native SQL)인 이유: 「진행 중」 판정이 막힌 기능 확인·포인트 적립(세이브포인트 안 — 영속성 컨텍스트를 거치지 않아야 한다, {@code IsolatedSideWork})에 함께 쓰이고,
  * 해제는 조건부 UPDATE(진행 중일 때만) 한 문장으로 한 번만 이기며, 자동 부여는 회원별 권고 잠금({@code pg_advisory_xact_lock})으로 줄을 세운다. 트랜잭션은 부르는 서비스가 연다.

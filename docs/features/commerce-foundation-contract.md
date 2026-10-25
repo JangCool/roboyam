@@ -17,11 +17,12 @@
 |---|---|---|---|
 | V61 (V57 은 develop 의 알림 작업이 먼저 씀) | shared | `batch_runs` 칸(run_mode·params·건수·resumed_from_run_id·checkpoint·request_id), `batch_run_steps`, `batch_run_failures`, `batch_run_requests`, `worker_heartbeats` | 0-2 |
 | admin V3 | admin | `admin_security_settings`(1행·꺼짐), `operator_mfa`, `operator_mfa_recovery_codes`, `operator_trusted_devices` | 0-3 |
-| 가번호 V62 | shared | `identity_verifications`, `identity_verification_attempts`, `member_restrictions`, `identity_withdrawals`, `withdrawn_member_contacts`, `portone_settings` | 0-4 |
+| **V84** | shared | `identity_verifications`, `identity_verification_attempts`, `member_restrictions`, `identity_withdrawals`, `withdrawn_member_contacts`, `portone_settings` | 0-4 |
 | 가번호 | shared | `idempotency_requests`, `request_rate_counters`(UNLOGGED), `request_rate_limits`(기본 4행) | 0-5 |
 | 가번호 | shared | `mail_outbox` | 0-5 |
 칸·제약·색인의 상세는 승인한 제안(세션 보고, 노트 `commerce-stage0-erd-package-proposal.md`)을 따르고 구현 세션이 이 표에 결과를 덧붙인다.
 - **번호(2026-10-23 정리)**: shared V57~V61 은 이미 쓰였다(V57~V60 알림 작업, V61 0-2). 0-4·0-5 는 가번호로 쓰고 **develop 에 먼저 합치는 쪽이 V62**, 나중 쪽은 합칠 때 다음 번호로 파일 이름을 바꾼다(이미 적용된 파일이 아니므로 고쳐도 된다).
+- **번호(2026-10-26 develop 346c3d1 에 맞춤)**: develop 이 shared V82 까지 썼다 → **0-5 = V83, 0-4 = V84**(`V84__member_identity_restrictions.sql`). 반복 마이그레이션은 develop 의 `R__batch_21_dm_retention`·`R__batch_24_popular_rank` 와 0-5 의 25~27, admin 스트림 `R__batch_30` 을 피해 **0-4 = `R__batch_28_member_privacy_retention`**(시각도 쪽지 정리 04:20 과 겹치지 않게 **04:25**).
 
 ## 세션 정리 결정 (제안 ⑥ — 모두 추천안으로 승인 2026-10-23)
 1. 본인인증 표 이름은 `identity_verifications`(문서의 `user_identity` 는 V2 `user_identities`(소셜 계정 연결)와 헷갈려 바꿨다).
@@ -225,7 +226,7 @@
 
 ### 0-4 서버 구현 결과 (2026-10-26)
 - **코드**: shared `com.community.identity`(`IdentityVerifier` — `PortOneIdentityVerifier`·`FakeIdentityVerifier`, `IdentityConfig` 기동 검사, `IdentityVerificationService`, `AdultAge`, JDBC `IdentityStore`) · `restriction`(`MemberRestrictionService`·`MemberRestrictionStore`, `RestrictionType`·`RestrictedFeature`) · `withdrawal`(`IdentityWithdrawalRecorder`·`WithdrawnContactStore`) · `portone`(`PortOneSettingsService`·`PortOneSettingStore`) · `datakey.batch`(`DataKeyRotationJob`·`DataKeyColumns`) · `zconfiguration.time.ServiceTime`(서비스 날짜 KST). api `IdentityVerificationController`. admin `MemberRestrictionController`·`WithdrawnContactController`·`PortOneSettingsController`, 회원 상세 `identity`, `AdminScreenRegistry` `portone`, `AuditLabels` `PORTONE_SETTINGS`.
-- **마이그레이션**(가번호 — 합칠 때 다시 매김): shared `V…__member_identity_restrictions.sql`(표 6개 + `member_notifications.type` CHECK 에 `FEATURE_RESTRICTED`), `R__batch_…_member_privacy_retention.sql`(매일 04:20, 덩어리 5000·한 번 100000, `attempt_retention_days` 30). 새 표는 FK 없음, ID Snowflake(인증 번호 `iv-<snowflake>`).
+- **마이그레이션**(가번호 — 합칠 때 다시 매김): shared `V84__member_identity_restrictions.sql`(표 6개 + `member_notifications.type` CHECK 에 `FEATURE_RESTRICTED` — develop V82 의 종류 목록 위에 더함), `R__batch_28_member_privacy_retention.sql`(매일 04:25, 덩어리 5000·한 번 100000, `attempt_retention_days` 30). 새 표는 FK 없음, ID Snowflake(인증 번호 `iv-<snowflake>`).
 - **계약에 더한 것**
   - 오류 추가 값: `CommonException.extra(이름, 값)` → `ErrorResponse` 가 최상위 칸으로 낸다(`@JsonAnyGetter`, 정해진 칸 이름은 못 씀).
   - 본인인증: 서비스 날짜는 KST 고정(`ServiceTime`). `retryAfter` = 막힘이 끝나는 순간을 KST 날짜로 올림. 끝난 번호(실패 포함)·구현이 바뀐 뒤의 번호는 410. 입력 400·503 은 시도를 끝내지 않는다. 시도 실패 기록은 업무 트랜잭션과 따로 확정. 해시 키가 없으면 시작부터 503 `INDEX_KEY_MISSING`(저장 못 할 유료 인증을 열지 않게). 포트원 READY(미완료)도 502 로 끝. `provider_tx_id` = 포트원 인증 번호 / 가짜 `fake:<번호>`.
@@ -267,8 +268,14 @@
 | 권한 `member.withdrawn.contact`(MEMBER_VIEW·SENSITIVE)·admin-web 사본 일치·메뉴 줄·감사 대상 | `Commerce04AdminCatalogTest`, `AdminScreenRegistryLoginSecurityTest` |
 | 오류 코드·감사·배치·알림 이벤트 문구 두 언어 | `Commerce04CatalogTest` |
 | 키 교체: 새 키로·지금 키는 안 건드림·조건부 UPDATE·건별 실패·체크포인트 이어 받기·0-1 절차 끝까지(예전 키 뺀 서버에서 읽힘) | `DataKeyRotationJobTest` |
-- **실행**(2026-10-26): `JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2 ./gradlew --continue :server:shared:test --rerun --tests 'com.community.{commerce,identity,restriction,withdrawal,portone,zconfiguration,batch.core,datakey,testsupport}.*' :server:api:test --rerun --tests 'com.community.{identity,restriction,point,withdrawal}.*' :server:admin:test --rerun --tests 'com.community.{commerce,permission.config,menu,batch,mfa}.*'`(패턴은 하나씩 `--tests`) → **shared 133 · api 67 · admin 208(0-3 의 mfa 168 포함) 통과, 0 실패**. admin-web·user-web 타입 검사 통과.
+- **실행**(2026-10-26): `JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2 ./gradlew --continue :server:shared:test --rerun --tests 'com.community.{commerce,identity,restriction,withdrawal,portone,zconfiguration,batch.core,datakey,testsupport}.*' :server:api:test --rerun --tests 'com.community.{identity,restriction,point,withdrawal}.*' :server:admin:test --rerun --tests 'com.community.{commerce,permission.config,menu,batch,mfa}.*'`(패턴은 하나씩 `--tests`) → **shared 133 · api 67 · admin 208(0-3 의 mfa 168 포함) 통과, 0 실패**. admin-web·user-web 타입 검사 통과. **develop 346c3d1 을 합치고 번호를 V84·`R__batch_28` 로 옮긴 뒤 같은 묶음(+ admin `member.*`·`audit.*`·`permission.*`)을 다시 돌려 같은 수 통과·0 실패**(2026-10-26), 두 앱 타입 검사 통과.
 - **테스트로 막지 못한 것**: 실제 포트원 호출(응답 모양·`storeId` 쿼리 필요 여부·다날/KCP 의 ci·di·인증 번호 길이 제한은 포트원 V2 문서 기준으로 만들고 실제 호출로 확인하지 못함 — 대역 HTTP 로만), pg_cron 등록(시험 DB 에 없음 — 정의와 `CALL` 만), 기능 제한 알림 메일 실제 발송(알림함 행·문구까지), 운영 키 교체의 재기동(시험은 `DataCipher` 를 키별로 새로 만들어 대신), 포트원 설정 동시 저장(마지막 저장이 이김 — 시험 안 함), 화면(타입 검사만 — 브라우저 확인은 개발자).
+
+### 0-4 세션 정리 결정 (develop 346c3d1 합칠 때, 2026-10-26)
+1. **「성인 확인」 ≠ 본인인증의 만 19세**: develop 의 user-web `/settings/adult`(출생연도 자기 입력 — 19금 글 보기)와 관리자 회원 상세의 「성인 확인」은 커뮤니티 기능이고, **충전·공구 결제의 만 19세 판정은 본인인증 생년월일(`requireAdult`)만** 쓴다(자기 입력 출생연도는 결제 판정에 쓰지 않는다). 설정 묶음에는 두 항목이 따로 있다.
+2. **기능 제한 ≠ 제재(정지·이의제기)**: develop 신고 관리(`report-admin-contract.md`)의 작성자 카드 「제재 — 준비 중」 자리는 그대로 두고 커머스 기능 제한을 싣지 않는다. 제재 기능을 만들 때 commerce.md 12-3 대로 같은 관리 화면에서 함께 다룬다. 회원 상세의 「제재 이력」 구획과 「기능 제한」 구획도 따로다.
+3. **기능 제한 알림의 잠금 이유는 `ACCOUNT`**: develop 은 운영자 처리 알림(글 삭제·닉네임 그림 검토 등)에 `ACTION` 을 쓰지만 기능 제한은 자동 부여도 있어 계정 알림(`ACCOUNT` — 포인트 회수·신고 숨김과 같은 무리)으로 둔다. 둘 다 회원이 끌 수 없다.
+4. **정본 확인**: 권한(`Permission` — `member.withdrawn.contact` 는 `MEMBER_PII` 다음, develop 이 바꾼 `nickname-image.*` featureReady true 그대로), 메뉴(`AdminScreenRegistry` — socialLogin → portone → loginSecurity), 감사 대상(`AuditLabels` — develop 목록 끝에 `PORTONE_SETTINGS`), 배치 카탈로그(develop `POPULAR_RANK` 다음에 0-4 두 줄), 회원 알림(`MemberNotificationType` develop 종류 뒤에 `FEATURE_RESTRICTED`, `Facts` 는 develop 의 13칸 + `restriction`)을 develop 원천에 맞췄다.
 
 ### 0-4 화면 연결 (2026-10-26)
 - 목업 파일·`?mock=` 스위치를 지우고 실제 API 로 바꿨다. 오류 추가 값은 기존 `ApiError.extras` 가 최상위 칸을 그대로 읽는다.

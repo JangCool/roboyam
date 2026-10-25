@@ -15,6 +15,18 @@ export default {
     displayHint: '언어·시간대·시간과 날짜 모양',
     accountHint: '로그인 수단·소셜 계정 연결',
     identityHint: '휴대폰 본인인증·만 19세 확인',
+    nicknameImage: '닉네임 이미지',
+    nicknameImageHint: '닉네임 자리에 이미지 · 조건을 채우면 신청',
+    adult: '성인 확인',
+    adultHint: '19금 글을 보려면 출생연도를 확인해요',
+    view: '보기',
+    viewHint: '야간 모드·글자 크기·댓글 정렬',
+    blocks: '차단 관리',
+    blocksHint: '차단한 회원·단어',
+    memos: '이용자 메모',
+    memosHint: '나에게만 보이는 회원 메모',
+    messages: '쪽지 수신',
+    messagesHint: '쪽지를 받을지',
 
     // 저장하지 않고 떠날 때
     leaveTitle: '저장하지 않고 나갈까요?',

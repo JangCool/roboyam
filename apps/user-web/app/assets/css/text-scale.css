@@ -1,0 +1,44 @@
+/*
+ * 글자 크기(보기 설정) — PrimeVue 위젯의 글자 크기 토큰에 배율(`--text-scale`, 1 = 100%)을 곱한다. 글자만 바뀌고 여백·테두리는 그대로다.
+ * 원본(community) `assets/css/text-scale.css` 를 옮겼다(`member-social-contract.md` 「결정 (2026-10-24 2차)」 글자 크기). 배율은 `plugins/view-theme.client.ts` 가 `<html>` 에 건다.
+ *
+ * Aura 의 글자 크기 토큰 중 **값이 직접 적힌 30개**만 여기서 다시 적는다 —
+ * 나머지는 이 토큰을 참조(`var(--p-typography-font-size)` 등)하므로 따라온다(참조까지 곱하면 두 번 곱해진다). `--p-icon-size` 는 PrimeVue 아이콘(`.pi`·`.p-icon`) 크기다.
+ * 이 파일은 층 밖이라 PrimeVue 의 변수(`@layer primevue`)를 항상 이긴다. 단추·입력칸·선택 상자의 기본 크기는 `--p-typography-font-size`(0.875rem = 14px)를 따르므로
+ * 이 파일만으로 배율이 걸린다. community 는 옛 Aura 가 `1rem` 을 박아 두어 프리셋 `css` 로 보정했지만, 지금 버전에서 그 보정을 옮기면 기본이 16px 로 한 단계 커진다 — 옮기지 않는다.
+ *
+ * 값은 community 가 `@primeuix/themes` Aura(3.0.0)에서 뽑은 것이다(이 앱은 3.0.1). PrimeVue 를 올려 토큰이 늘거나 바뀌면 같은 방법으로 다시 뽑는다.
+ * admin-web 은 보기 설정이 없어 이 파일을 쓰지 않는다.
+ */
+html {
+    --p-icon-size: calc(0.875rem * var(--text-scale, 1));
+    --p-form-field-lg-font-size: calc(1rem * var(--text-scale, 1));
+    --p-form-field-sm-font-size: calc(0.75rem * var(--text-scale, 1));
+    --p-typography-font-size: calc(0.875rem * var(--text-scale, 1));
+    --p-avatar-xl-font-size: calc(1.75rem * var(--text-scale, 1));
+    --p-avatar-lg-font-size: calc(1.25rem * var(--text-scale, 1));
+    --p-badge-xl-font-size: calc(0.875rem * var(--text-scale, 1));
+    --p-badge-lg-font-size: calc(0.75rem * var(--text-scale, 1));
+    --p-badge-sm-font-size: calc(0.5rem * var(--text-scale, 1));
+    --p-badge-font-size: calc(0.625rem * var(--text-scale, 1));
+    --p-card-subtitle-font-size: calc(1rem * var(--text-scale, 1));
+    --p-card-title-font-size: calc(1.125rem * var(--text-scale, 1));
+    --p-chip-label-font-size: calc(0.75rem * var(--text-scale, 1));
+    --p-commandmenu-input-font-size: calc(1rem * var(--text-scale, 1));
+    --p-dialog-title-font-size: calc(1.125rem * var(--text-scale, 1));
+    --p-drawer-title-font-size: calc(1.125rem * var(--text-scale, 1));
+    --p-fileupload-file-size-font-size: calc(0.75rem * var(--text-scale, 1));
+    --p-floatlabel-active-font-size: calc(0.625rem * var(--text-scale, 1));
+    --p-iftalabel-font-size: calc(0.625rem * var(--text-scale, 1));
+    --p-knob-text-font-size: calc(1.125rem * var(--text-scale, 1));
+    --p-message-text-lg-font-size: calc(1rem * var(--text-scale, 1));
+    --p-message-text-sm-font-size: calc(0.75rem * var(--text-scale, 1));
+    --p-progressbar-label-font-size: calc(0.625rem * var(--text-scale, 1));
+    --p-sidebar-menu-badge-font-size: calc(0.75rem * var(--text-scale, 1));
+    --p-sidebar-group-label-font-size: calc(0.75rem * var(--text-scale, 1));
+    --p-stepper-step-number-font-size: calc(1rem * var(--text-scale, 1));
+    --p-steps-item-number-font-size: calc(1.143rem * var(--text-scale, 1));
+    --p-tag-font-size: calc(0.75rem * var(--text-scale, 1));
+    --p-toast-detail-font-size: calc(0.75rem * var(--text-scale, 1));
+    --p-tooltip-font-size: calc(0.75rem * var(--text-scale, 1));
+}

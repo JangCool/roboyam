@@ -15,7 +15,9 @@ import type { MemberDetail, MemberPage, MemberQuery, MemberRoleOption } from '~/
  *     **서버가 가진 데이터만 채우고 나머지는 null/빈 배열이다** — 목록 한 줄의 칸 전부, `roles`(유형·부여 방식), `bio`, `social`, `withdrawnAt`, `consents.terms`/`ageConfirmedAt`, `piiMasked` 가 실제 값이다.
  *     `activity`(글·댓글·최근 7일 수와 `likesReceived`(보이는 글·댓글이 받은 추천 합)는 실제 집계, `popularCount`·`recentLoginDays` 는 아직 집계하지 않아 늘 0)와 `gradePoint`(`autoPromotion`·`next`·`gradeHistory`·`pointEntries`(원장 최근 10줄) 는 실제 값, `nicknameTicketCount` 는 교환 기능이 없어 0)도 실제 값이다 — 탈퇴 회원은 둘 다 null.
  *     `reports`(`{receivedCount, actionedCount, filedCount}`)도 실제 값이다 — 탈퇴 회원은 null.
- *     비는 칸: `statusReason`·`sanctionSummary`·`adultConfirmed`·`acceptDm`·`dormancy`·`dormantAt`·`settings`·`contact`·`profile`·`groupBuy`·`consents.privacy`(null),
+ *     `settings`(표시 형식·보기 설정·알림 설정 `[{code, name, inApp, email, locked}]`·푸시·차단/메모 건수·알림함 건수 — 칸이 null 이면 화면은 「—」), `acceptDm`(boolean), `nicknameChange`(`{changeCount, freeLimit}`),
+ *     `nicknameImage`(`{current, request}`), `consents.privacy`(개인정보처리방침 시각·버전 — 이용약관과 따로)도 실제 값이다 — 탈퇴 회원은 null.
+ *     비는 칸: `statusReason`·`sanctionSummary`·`adultConfirmed`·`dormancy`·`dormantAt`·`contact`·`profile`·`groupBuy`(null),
  *     `sanctions`·`consents.optional`·`consents.history`·`roles[].boardNames`(빈 배열), `nicknameHistory`(빈 배열, `member.pii` 없으면 null), `statusChangedAt`(탈퇴 시각만), `sanctionCount`(늘 0). `point` 는 포인트 잔액(탈퇴 0)이고 목록의 `pointMin`·`pointMax`·`sort=point` 도 잔액으로 거르고 줄 세운다.
  *     화면은 비는 구획을 안내(EmptyState)로 보이고 데이터가 오면 그린다. 탈퇴 회원은 역할·소셜·동의·소개가 비고 `withdrawnAt` 만 채워진다.
  *     · `identity`(커머스 0-4 — `{ verified, verifiedAt, adult, provider }`): 미인증도 `{ verified:false, verifiedAt:null, adult:null, provider:null }` 로 오고, null 은 탈퇴 회원뿐이다.

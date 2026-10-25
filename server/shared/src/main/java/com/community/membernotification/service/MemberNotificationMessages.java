@@ -31,6 +31,13 @@ import org.springframework.stereotype.Component;
 @Component
 public class MemberNotificationMessages {
 
+    /** 운영자가 숨긴 글·댓글의 숨김 알림 — {@link Facts#result()} 와 알림 덧붙임 {@code by} 의 값 */
+    public static final String BY_STAFF = "STAFF";
+    /** 신고 처리 결과 — 조치됨(숨김·삭제·자동 숨김 확정) */
+    public static final String REPORT_ACTIONED = "ACTIONED";
+    /** 신고 처리 결과 — 위반이 확인되지 않음(무시) */
+    public static final String REPORT_NO_VIOLATION = "NO_VIOLATION";
+
     private final NotificationMessageRenderer renderer;
     private final Messages messages;
 
@@ -51,15 +58,19 @@ public class MemberNotificationMessages {
      * @param note       회원에게 공개되는 회수 사유(없으면 null)
      * @param temporary  권리 침해 임시 숨김인가(기간이 있는 숨김)
      * @param snapshot   숨길 때 남긴 글 제목·댓글 앞부분
+     * @param result     닉네임 그림 검토 결과({@code APPROVED}·{@code REJECTED}·{@code REVOKED}) · 의견 고정 요청 결과 · 운영자 숨김({@link #BY_STAFF} — 글·댓글 숨김 알림)
+     *                   · 신고 처리 결과({@link #REPORT_ACTIONED}·{@link #REPORT_NO_VIOLATION}) — 그 밖 null. 반려·해제·거절·운영자 숨김·운영자 삭제 사유는 {@code note}
+     * @param reasonCode 운영자 조치 사유 코드(신고 사유 체계 — 관리자 신고 관리의 숨김·삭제, 없으면 null). 있으면 사유 변수는 「코드 이름: note」
+     * @param targetType 신고 처리 결과의 대상 종류({@code POST}·{@code COMMENT}) — 그 밖 null
      * @param restriction 걸린 기능 제한(기능 제한 알림만 — 운영 메모 없음)
      */
     public record Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
-                        boolean temporary, String snapshot, Restriction restriction) {
+                        boolean temporary, String snapshot, String result, String reasonCode, String targetType, Restriction restriction) {
 
-        /** 기능 제한 알림 밖의 사실 */
+        /** 기능 제한 알림 밖의 사실 — 제한은 null */
         public Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
-                     boolean temporary, String snapshot) {
-            this(type, actorName, postTitle, excerpt, groupCount, amount, pointsKind, note, temporary, snapshot, null);
+                     boolean temporary, String snapshot, String result, String reasonCode, String targetType) {
+            this(type, actorName, postTitle, excerpt, groupCount, amount, pointsKind, note, temporary, snapshot, result, reasonCode, targetType, null);
         }
 
         /**
@@ -74,7 +85,40 @@ public class MemberNotificationMessages {
         }
 
         public static Facts restricted(String kind, Instant until, String reason, String autoRule) {
-            return new Facts(MemberNotificationType.FEATURE_RESTRICTED, null, null, null, 1, 0, null, null, false, null, new Restriction(kind, until, reason, autoRule));
+            return new Facts(MemberNotificationType.FEATURE_RESTRICTED, null, null, null, 1, 0, null, null, false, null, null, null, null,
+                    new Restriction(kind, until, reason, autoRule));
+        }
+
+        /** 검토 결과 칸이 없는 예전 모양 — 결과는 null */
+        public Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
+                     boolean temporary, String snapshot) {
+            this(type, actorName, postTitle, excerpt, groupCount, amount, pointsKind, note, temporary, snapshot, null, null, null);
+        }
+
+        /** 사유 코드·대상 종류 칸이 없는 모양 — 둘 다 null */
+        public Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
+                     boolean temporary, String snapshot, String result) {
+            this(type, actorName, postTitle, excerpt, groupCount, amount, pointsKind, note, temporary, snapshot, result, null, null);
+        }
+
+        /** 쪽지 받음 — 보낸 회원의 닉네임(메일은 보낼 때 지금 닉네임으로 채운다) */
+        public static Facts dm(String actorName) {
+            return new Facts(MemberNotificationType.DM, actorName, null, null, 1, 0, null, null, false, null, null);
+        }
+
+        /** 닉네임 그림 검토 결과 — 반려·해제면 사유 */
+        public static Facts nicknameReviewed(String result, String reason) {
+            return new Facts(MemberNotificationType.NICKNAME_IMAGE_REVIEWED, null, null, null, 1, 0, null, reason, false, null, result);
+        }
+
+        /** 의견 고정 요청이 옴 — 요청한 회원(메일은 보낼 때 지금 닉네임으로 채운다)·글 제목·의견 앞부분 */
+        public static Facts pinRequested(String actorName, String postTitle, String excerpt) {
+            return new Facts(MemberNotificationType.OPINION_PIN_REQUESTED, actorName, postTitle, excerpt, 1, 0, null, null, false, null, null);
+        }
+
+        /** 의견 고정 요청 결과({@code APPROVED}·{@code REJECTED}) — 거절이면 사유(없으면 null) */
+        public static Facts pinReviewed(String result, String reason, String postTitle) {
+            return new Facts(MemberNotificationType.OPINION_PIN_REVIEWED, null, postTitle, null, 1, 0, null, reason, false, null, result);
         }
 
         public static Facts comment(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount) {
@@ -83,6 +127,50 @@ public class MemberNotificationMessages {
 
         public static Facts points(String kind, long amount, String note) {
             return new Facts(MemberNotificationType.POINTS_REVOKED, null, null, null, 1, amount, kind, note, false, null);
+        }
+
+        /** 운영자가 글을 숨김(관리자 게시글 관리) — 글 제목·사유 */
+        public static Facts hiddenByStaff(String snapshot, String reason) {
+            return new Facts(MemberNotificationType.POST_HIDDEN, null, null, null, 1, 0, null, reason, false, snapshot, BY_STAFF);
+        }
+
+        /** 운영자가 글을 지움(관리자 게시글 관리) — 글 제목·사유 */
+        public static Facts removed(String snapshot, String reason) {
+            return new Facts(MemberNotificationType.POST_REMOVED, null, null, null, 1, 0, null, reason, false, snapshot, null);
+        }
+
+        /**
+         * 운영자가 글·댓글을 숨김(관리자 신고 관리 — 사유 코드 + 글).
+         *
+         * @param type {@code POST_HIDDEN} · {@code COMMENT_HIDDEN}
+         */
+        public static Facts hiddenByStaff(MemberNotificationType type, String snapshot, String reason, String reasonCode) {
+            return new Facts(type, null, null, null, 1, 0, null, reason, false, snapshot, BY_STAFF, reasonCode, null);
+        }
+
+        /**
+         * 운영자가 글·댓글을 지움(관리자 신고 관리 — 사유 코드 + 글).
+         *
+         * @param type {@code POST_REMOVED} · {@code COMMENT_REMOVED}
+         */
+        public static Facts removed(MemberNotificationType type, String snapshot, String reason, String reasonCode) {
+            return new Facts(type, null, null, null, 1, 0, null, reason, false, snapshot, null, reasonCode, null);
+        }
+
+        /**
+         * 내 신고의 처리 결과.
+         *
+         * @param result     {@link #REPORT_ACTIONED} · {@link #REPORT_NO_VIOLATION}
+         * @param targetType {@code POST} · {@code COMMENT}
+         * @param snapshot   신고 당시 글 제목·댓글 앞부분
+         */
+        public static Facts reportResult(String result, String targetType, String snapshot) {
+            return new Facts(MemberNotificationType.REPORT_RESULT, null, null, null, 1, 0, null, null, false, snapshot, result, null, targetType);
+        }
+
+        /** 운영자가 숨긴 글의 숨김 알림인가 */
+        public boolean byStaff() {
+            return BY_STAFF.equals(result);
         }
 
         public static Facts hidden(MemberNotificationType type, String snapshot, boolean temporary) {
@@ -94,8 +182,13 @@ public class MemberNotificationMessages {
     public RenderedInApp inApp(Facts facts, Locale locale, String recipientName) {
         MessageRenderRequest request = request(facts, MessageChannel.IN_APP, locale).variable(MessageVariable.RECIPIENT_NAME, recipientName).build();
         RenderedInApp rendered = renderer.renderInApp(request);
-        String variant = builtinVariantTitle(facts, renderer.pick(request));
-        return variant == null ? rendered : new RenderedInApp(rendered.messageId(), variant, rendered.body());
+        MessageValues picked = renderer.pick(request);
+        String variant = builtinVariantTitle(facts, picked);
+        if (variant == null) {
+            return rendered;
+        }
+        String body = builtinVariantBody(facts, picked);
+        return new RenderedInApp(rendered.messageId(), variant, body == null ? rendered.body() : body);
     }
 
     /**
@@ -127,10 +220,22 @@ public class MemberNotificationMessages {
                     .condition(MessageCondition.GROUPED, facts.groupCount() > 1 ? MessageCondition.GROUPED_VALUE : MessageCondition.SINGLE);
             case REPLY -> builder.variable("actorName", facts.actorName()).variable("excerpt", facts.excerpt());
             case POINTS_REVOKED -> builder.variable("amount", String.format("%,d", facts.amount())).variable("reason", pointsReason(facts, locale));
-            case POST_HIDDEN -> builder.variable("postTitle", facts.snapshot())
-                    .condition(MessageCondition.HIDE_REASON, facts.temporary() ? MessageCondition.RIGHTS : MessageCondition.REPORTS);
-            case COMMENT_HIDDEN -> builder.variable("excerpt", facts.snapshot())
-                    .condition(MessageCondition.HIDE_REASON, facts.temporary() ? MessageCondition.RIGHTS : MessageCondition.REPORTS);
+            case POST_HIDDEN -> builder.variable("postTitle", facts.snapshot()).variable("reason", actionReason(facts, locale))
+                    .condition(MessageCondition.HIDE_REASON, facts.byStaff() ? MessageCondition.STAFF : facts.temporary() ? MessageCondition.RIGHTS : MessageCondition.REPORTS);
+            case POST_REMOVED -> builder.variable("postTitle", facts.snapshot()).variable("reason", actionReason(facts, locale));
+            case COMMENT_HIDDEN -> builder.variable("excerpt", facts.snapshot()).variable("reason", actionReason(facts, locale))
+                    .condition(MessageCondition.HIDE_REASON, facts.byStaff() ? MessageCondition.STAFF : facts.temporary() ? MessageCondition.RIGHTS : MessageCondition.REPORTS);
+            case COMMENT_REMOVED -> builder.variable("excerpt", facts.snapshot()).variable("reason", actionReason(facts, locale));
+            case REPORT_RESULT -> builder.variable("result", messages.get(new MessageRef("member.notification.REPORT_RESULT.result." + reportResult(facts.result())), locale))
+                    .variable("target", facts.snapshot())
+                    .condition(MessageCondition.REPORT_RESULT, reportResult(facts.result()));
+            case DM -> builder.variable("actorName", facts.actorName());
+            case NICKNAME_IMAGE_REVIEWED -> builder.variable("result", messages.get(new MessageRef(reviewResultKey(facts.result())), locale))
+                    .variable("reason", facts.note() == null ? "" : facts.note());
+            case OPINION_PIN_REQUESTED -> builder.variable("actorName", facts.actorName()).variable("postTitle", facts.postTitle())
+                    .variable("excerpt", facts.excerpt());
+            case OPINION_PIN_REVIEWED -> builder.variable("result", messages.get(new MessageRef(pinResultKey(facts.result())), locale))
+                    .variable("postTitle", facts.postTitle()).variable("reason", facts.note() == null ? "" : facts.note());
             case FEATURE_RESTRICTED -> builder.variable("restriction", restrictionName(facts, locale)).variable("until", restrictionUntil(facts, locale))
                     .variable("reason", restrictionReason(facts, locale));
         }
@@ -163,6 +268,18 @@ public class MemberNotificationMessages {
 
     private static final DateTimeFormatter UNTIL_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
+    /**
+     * 운영자 조치 사유 한 줄 — 사유 코드가 있으면 「코드 이름: 글」(글이 없으면 코드 이름만, 관리자 신고 관리), 없으면 운영자가 적은 글 그대로(관리자 게시글 관리). 둘 다 없으면 빈 글자
+     */
+    private String actionReason(Facts facts, Locale locale) {
+        String note = facts.note() == null || facts.note().isBlank() ? null : facts.note();
+        if (facts.reasonCode() == null) {
+            return note == null ? "" : note;
+        }
+        String label = messages.get(new MessageRef("report.reason." + facts.reasonCode()), locale);
+        return note == null ? label : messages.get(new MessageRef("member.notification.actionReason", label, note), locale);
+    }
+
     /** 포인트 회수 까닭 한 줄(번들 — 사유가 있으면 「운영 조정: 사유」) */
     private String pointsReason(Facts facts, Locale locale) {
         String kind = facts.pointsKind() == null ? "ADMIN_ADJUST" : facts.pointsKind();
@@ -180,10 +297,58 @@ public class MemberNotificationMessages {
         if (facts.type() == MemberNotificationType.COMMENT && facts.groupCount() > 1) {
             return messages.get(new MessageRef("member.notification.COMMENT.grouped", nz(facts.actorName()), String.valueOf(facts.groupCount() - 1)), locale);
         }
+        if ((facts.type() == MemberNotificationType.POST_HIDDEN || facts.type() == MemberNotificationType.COMMENT_HIDDEN) && facts.byStaff()) {
+            return messages.get(new MessageRef("member.notification." + facts.type().name() + ".staff"), locale);
+        }
+        if (facts.type() == MemberNotificationType.REPORT_RESULT) {
+            String target = "COMMENT".equals(facts.targetType()) ? "COMMENT" : "POST";
+            return messages.get(new MessageRef("member.notification.REPORT_RESULT.title." + reportResult(facts.result()) + "." + target), locale);
+        }
         if ((facts.type() == MemberNotificationType.POST_HIDDEN || facts.type() == MemberNotificationType.COMMENT_HIDDEN) && facts.temporary()) {
             return messages.get(new MessageRef("member.notification." + facts.type().name() + ".temporary"), locale);
         }
+        if (facts.type() == MemberNotificationType.NICKNAME_IMAGE_REVIEWED) {
+            return messages.get(new MessageRef("member.notification.NICKNAME_IMAGE_REVIEWED.title." + reviewResult(facts.result())), locale);
+        }
+        if (facts.type() == MemberNotificationType.OPINION_PIN_REVIEWED) {
+            return messages.get(new MessageRef("member.notification.OPINION_PIN_REVIEWED.title." + pinResult(facts.result())), locale);
+        }
         return null;
+    }
+
+    /** 기본 문구가 골라졌을 때만 — 운영자 숨김의 본문(글 제목 · 사유). 그 밖은 null(그려진 본문 그대로) */
+    private String builtinVariantBody(Facts facts, MessageValues picked) {
+        if (picked == null || !picked.builtin()) {
+            return null;
+        }
+        if ((facts.type() == MemberNotificationType.POST_HIDDEN || facts.type() == MemberNotificationType.COMMENT_HIDDEN) && facts.byStaff()) {
+            Locale locale = MessageLocales.locale(picked.locale());
+            return messages.get(new MessageRef("member.notification." + facts.type().name() + ".staff.body", nz(facts.snapshot()), actionReason(facts, locale)), locale);
+        }
+        return null;
+    }
+
+    /** 신고 처리 결과 — 모르는 값은 조치됨으로 본다 */
+    private static String reportResult(String result) {
+        return REPORT_NO_VIOLATION.equals(result) ? REPORT_NO_VIOLATION : REPORT_ACTIONED;
+    }
+
+    /** 검토 결과 — 모르는 값은 승인으로 본다(예전 기록의 모양이 달라도 목록이 멈추지 않게) */
+    private static String reviewResult(String result) {
+        return "REJECTED".equals(result) || "REVOKED".equals(result) ? result : "APPROVED";
+    }
+
+    /** 고정 요청 결과 — 모르는 값은 승인으로 본다 */
+    private static String pinResult(String result) {
+        return "REJECTED".equals(result) ? result : "APPROVED";
+    }
+
+    private static String pinResultKey(String result) {
+        return "member.notification.OPINION_PIN_REVIEWED.result." + pinResult(result);
+    }
+
+    private static String reviewResultKey(String result) {
+        return "member.notification.NICKNAME_IMAGE_REVIEWED.result." + reviewResult(result);
     }
 
     /** 받는 회원의 언어 — 회원 표시 설정의 언어(ko·en), 없으면 사이트 표시 기본 언어, 그것도 없으면 ko */

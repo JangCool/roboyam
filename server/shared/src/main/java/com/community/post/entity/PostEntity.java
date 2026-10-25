@@ -25,6 +25,8 @@ import org.hibernate.annotations.DynamicUpdate;
 public class PostEntity {
 
     public static final String PUBLISHED = "PUBLISHED";
+    /** 숨김 까닭: 운영자가 숨김(관리자 게시글 관리 — V80). 신고 숨김 까닭은 {@code ReportReasons.HIDDEN_*} */
+    public static final String STAFF_HIDDEN = "STAFF";
 
     @Id
     private Long id;
@@ -133,6 +135,80 @@ public class PostEntity {
         return true;
     }
 
+    // ── 운영자 조치(관리자 게시글 관리 — docs/features/post-admin-contract.md). 상태 확인은 부르는 서비스가 한다 ──
+
+    /** 운영자가 숨긴다 — 까닭 {@value #STAFF_HIDDEN}, 기간 없음. 고정을 푼다 */
+    public void staffHide(Instant now) {
+        this.hiddenAt = now;
+        this.hiddenReason = STAFF_HIDDEN;
+        this.hiddenUntil = null;
+        this.pinnedAt = null;
+        this.updatedAt = now;
+    }
+
+    /** 숨김을 푼다(까닭이 무엇이든 — 신고 숨김도) */
+    public void unhide(Instant now) {
+        this.hiddenAt = null;
+        this.hiddenReason = null;
+        this.hiddenUntil = null;
+        this.updatedAt = now;
+    }
+
+    /** 자동 숨김을 운영자가 확정한다(관리자 신고 관리 「자동 숨김 확정」) — 권리침해 임시조치면 기한을 지워 계속 숨긴다. 까닭은 그대로. 상태 확인은 부르는 서비스가 한다 */
+    public void keepHidden(Instant now) {
+        this.hiddenUntil = null;
+        this.updatedAt = now;
+    }
+
+    /** 운영자가 지운다 — 고정을 푼다(원문은 보유기간까지 남는다) */
+    public void staffDelete(Instant now) {
+        this.deletedAt = now;
+        this.pinnedAt = null;
+        this.updatedAt = now;
+    }
+
+    /** 지운 글을 되살린다(예약 삭제도 거둔다) — 숨김 상태는 그대로 둔다 */
+    public void restore(Instant now) {
+        this.deletedAt = null;
+        this.deleteScheduledAt = null;
+        this.updatedAt = now;
+    }
+
+    /** 다른 게시판·말머리로 옮긴다 — 고정을 푼다 */
+    public void moveTo(long boardId, Long prefixId, Instant now) {
+        this.boardId = boardId;
+        this.prefixId = prefixId;
+        this.pinnedAt = null;
+        this.updatedAt = now;
+    }
+
+    /** 말머리를 바꾼다(공지 지정) */
+    public void changePrefix(Long prefixId, Instant now) {
+        this.prefixId = prefixId;
+        this.updatedAt = now;
+    }
+
+    /** 고정한다 — 이미 고정돼 있으면 처음 시각 그대로 */
+    public void pin(Instant now) {
+        if (pinnedAt == null) {
+            this.pinnedAt = now;
+            this.updatedAt = now;
+        }
+    }
+
+    /** 고정을 푼다 */
+    public void unpin(Instant now) {
+        if (pinnedAt != null) {
+            this.pinnedAt = null;
+            this.updatedAt = now;
+        }
+    }
+
+    /** 원문을 파기했는가(보유기간 배치) — 복구할 수 없다 */
+    public boolean isPurged() {
+        return purgedAt != null;
+    }
+
     public boolean isGuest() {
         return authorId == null;
     }
@@ -223,6 +299,22 @@ public class PostEntity {
 
     public String getHiddenReason() {
         return hiddenReason;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public Instant getHiddenUntil() {
+        return hiddenUntil;
+    }
+
+    public Instant getDeletedAt() {
+        return deletedAt;
+    }
+
+    public Instant getPurgedAt() {
+        return purgedAt;
     }
 
     public Instant getDeleteScheduledAt() {

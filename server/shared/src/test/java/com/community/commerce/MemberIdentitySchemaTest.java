@@ -17,7 +17,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 
 /**
- * shared V62(커머스 0-4 표)의 제약을 실제 PostgreSQL 에서 확인한다(commerce.md 18절 — 유일 제약·CHECK 는 DB 가 마지막으로 지킨다).
+ * shared V84(커머스 0-4 표)의 제약을 실제 PostgreSQL 에서 확인한다(commerce.md 18절 — 유일 제약·CHECK 는 DB 가 마지막으로 지킨다).
  * DB 를 다른 시험과 같이 쓴다 — 겹치지 않는 ID·해시만 쓰고 표를 비우지 않는다.
  */
 class MemberIdentitySchemaTest {

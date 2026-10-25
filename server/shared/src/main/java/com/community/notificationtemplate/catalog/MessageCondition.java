@@ -33,10 +33,15 @@ public record MessageCondition(String key, Source source, List<String> values) {
     public static final String GROUPED = "grouped";
     public static final String SINGLE = "SINGLE";
     public static final String GROUPED_VALUE = "GROUPED";
-    /** 회원 글·댓글 숨김 — 신고가 쌓여({@link #REPORTS}) · 권리 침해 임시 숨김({@link #RIGHTS}) */
+    /** 회원 글·댓글 숨김 — 신고가 쌓여({@link #REPORTS}) · 권리 침해 임시 숨김({@link #RIGHTS}) · 운영자가 숨김({@link #STAFF} — 관리자 게시글 관리·신고 관리) */
     public static final String HIDE_REASON = "hideReason";
     public static final String REPORTS = "REPORTS";
     public static final String RIGHTS = "RIGHTS";
+    public static final String STAFF = "STAFF";
+    /** 회원 「내 신고의 처리 결과」 — 조치됨({@link #ACTIONED}) · 위반 아님({@link #NO_VIOLATION}) */
+    public static final String REPORT_RESULT = "reportResult";
+    public static final String ACTIONED = "ACTIONED";
+    public static final String NO_VIOLATION = "NO_VIOLATION";
     /** 회원 이메일 인증 — 이메일 가입({@link #EMAIL}) · 소셜 가입의 미확인 이메일({@link #SOCIAL}) */
     public static final String SIGNUP_METHOD = "signupMethod";
     public static final String EMAIL = "EMAIL";

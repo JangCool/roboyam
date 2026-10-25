@@ -1,6 +1,8 @@
 package com.community.board.dto;
 
+import com.community.board.service.BoardFields;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -12,8 +14,26 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
                                   Integer postDailyLimit, Integer commentGapSeconds, Integer commentDailyLimit, Integer listSize, Integer pinnedMax,
                                   Boolean indexable, Boolean searchable, Boolean inHome, Boolean attachmentPurgeEnabled, Integer attachmentRetentionDays,
                                   String pointMode, Integer commentProtectMin, Boolean commentProtectEdit, String commentProtectDelete,
-                                  Integer commentProtectDelayMinutes, Integer commentGuestDelayMinutes, Integer bestCommentMinLikes, Integer managerMax,
+                                  Integer commentProtectDelayMinutes, Integer commentGuestDelayMinutes, Boolean staffHiddenNotice,
+                                  Boolean commentDislikeEnabled, String commentLikeLabel, String commentDislikeLabel, List<String> pinRequestReviewers,
+                                  Boolean debateEnabled, Boolean pollEnabled, Integer bestCommentMinLikes, Integer managerMax,
                                   Integer staffMax, Integer staffPostDailyLimit, Integer staffCommentDailyLimit, Integer staffSanctionDailyLimit) {
+
+    /** 추천·비추천 이름은 앞뒤 공백을 자르고 비면 null(= 화면 기본 이름) */
+    public BoardDefaultsValues {
+        commentLikeLabel = label(commentLikeLabel);
+        commentDislikeLabel = label(commentDislikeLabel);
+        pinRequestReviewers = BoardFields.canonicalReviewers(pinRequestReviewers);
+    }
+
+    /** 단추 이름 정리 — 앞뒤 공백을 자르고 비면 null */
+    public static String label(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String stripped = raw.strip();
+        return stripped.isEmpty() ? null : stripped;
+    }
 
     /** 칸 이름 → 값(칸 순서대로) */
     public Map<String, Object> toMap() {
@@ -41,6 +61,13 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
         map.put("commentProtectDelete", commentProtectDelete);
         map.put("commentProtectDelayMinutes", commentProtectDelayMinutes);
         map.put("commentGuestDelayMinutes", commentGuestDelayMinutes);
+        map.put("staffHiddenNotice", staffHiddenNotice);
+        map.put("commentDislikeEnabled", commentDislikeEnabled);
+        map.put("commentLikeLabel", commentLikeLabel);
+        map.put("commentDislikeLabel", commentDislikeLabel);
+        map.put("pinRequestReviewers", pinRequestReviewers);
+        map.put("debateEnabled", debateEnabled);
+        map.put("pollEnabled", pollEnabled);
         map.put("bestCommentMinLikes", bestCommentMinLikes);
         map.put("managerMax", managerMax);
         map.put("staffMax", staffMax);

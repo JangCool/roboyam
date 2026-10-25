@@ -294,6 +294,7 @@ export function useApiClient(options: ApiClientOptions = {}) {
         post: <T>(url: string, body?: unknown, request?: RequestOptions) => send<T>('POST', url, body, request),
         put: <T>(url: string, body?: unknown, request?: RequestOptions) => send<T>('PUT', url, body, request),
         patch: <T>(url: string, body?: unknown, request?: RequestOptions) => send<T>('PATCH', url, body, request),
-        del: <T>(url: string, request?: RequestOptions) => send<T>('DELETE', url, undefined, request),
+        /** 본문이 있는 DELETE(사유 등)는 세 번째 인자로 싣는다 */
+        del: <T>(url: string, request?: RequestOptions, body?: unknown) => send<T>('DELETE', url, body, request),
     };
 }

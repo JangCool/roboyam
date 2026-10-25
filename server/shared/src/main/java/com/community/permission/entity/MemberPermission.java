@@ -19,7 +19,6 @@ public enum MemberPermission {
     FILE_ATTACH("file.attach", MemberPermissionGroup.USE, true, false),
     POST_REACT("post.react", MemberPermissionGroup.USE, true, false),
     REPORT_CREATE("report.create", MemberPermissionGroup.USE, true, false),
-    NICKNAME_IMAGE_REQUEST("nickname-image.request", MemberPermissionGroup.USE, true, false),
     SHOP_USE("shop.use", MemberPermissionGroup.USE, true, false),
     GROUP_CREATE("group.create", MemberPermissionGroup.USE, false, false),
     HOTDEAL_WRITE("hotdeal.write", MemberPermissionGroup.USE, false, false),

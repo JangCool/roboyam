@@ -64,7 +64,7 @@ export type MyPointLedgerKind = 'EARN' | 'USE' | 'REVOKE';
  * 내 포인트 내역 한 줄의 사유 코드 — 관리자 원장(`PointReasonCode`, admin-web)과 같은 이름 중 **지금 실제로 생기는 것**만 적었다(`point-contract.md` 「적립·회수」).
  * 출석·인기글·교환·핫딜·가입 사유는 기능이 생기면 더한다. 모르는 코드가 와도 화면은 서버 `reason` 글자를 그대로 보인다.
  */
-export type MyPointReasonCode = 'POST' | 'COMMENT' | 'LIKE_BONUS' | 'POST_REVOKE' | 'COMMENT_REVOKE' | 'LIKE_BONUS_REVOKE' | 'ADMIN_ADJUST';
+export type MyPointReasonCode = 'POST' | 'COMMENT' | 'LIKE_BONUS' | 'POST_REVOKE' | 'POST_RESTORE' | 'COMMENT_REVOKE' | 'LIKE_BONUS_REVOKE' | 'ADMIN_ADJUST';
 
 /** 그 줄이 가리키는 글 — 글·댓글 사유만. 지웠거나 숨겼거나 볼 수 없으면 `available=false`, `title=null` */
 export interface MyPointLedgerTarget {
@@ -73,7 +73,7 @@ export interface MyPointLedgerTarget {
     available: boolean;
 }
 
-/** `GET /api/me/points/ledger` 한 줄(**서버에 아직 없다** — 목업. 관리자 원장 `PointLedgerItem` 에서 회원·운영자 칸을 빼고 글을 더한 모양) */
+/** `GET /api/me/points/ledger` 한 줄(**서버 연결됨** — server/api `MyPointLedgerItemView`. 관리자 원장 `PointLedgerItem` 에서 회원·운영자 칸을 빼고 글을 더한 모양) */
 export interface MyPointLedgerItem {
     entryId: string;
     kind: MyPointLedgerKind;

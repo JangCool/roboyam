@@ -2,6 +2,7 @@ package com.community.user.service;
 
 import com.community.zconfiguration.message.MessageRef;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -10,7 +11,7 @@ import java.util.regex.Pattern;
  * 회원 입력 규칙 — 이메일 정규화·형식, 닉네임 형식, 비밀번호 규칙. 화면(`util-validation.ts`)이 같은 규칙으로 미리 검사하고 판정은 서버가 한다.
  * 위반은 문구가 아니라 메시지 키 + 인자({@link MessageRef})로 돌려주고, 응답을 만드는 자리가 요청 언어로 푼다. 위반 문구에는 입력한 값을 싣지 않는다.
  *
- * <p>닉네임은 형식(2~12자, 한글 완성형·영문·숫자·밑줄, 글자 사이의 공백 한 칸)만 본다. 앞뒤 공백과 연속 공백은 눈으로 같은 이름이 다르게 저장되므로 허용하지 않는다. 예약어 검사는 하지 않는다 — 설치 마법사가 루트 계정에 "운영자" 같은 이름을 쓸 수 있어야 한다.
+ * <p>닉네임은 형식(2~12자, 한글 완성형·영문·숫자·밑줄, 글자 사이의 공백 한 칸)만 본다. 앞뒤 공백과 연속 공백은 눈으로 같은 이름이 다르게 저장되므로 허용하지 않는다. 예약어 검사는 하지 않는다 — 설치 마법사가 루트 계정에 "운영자" 같은 이름을 쓸 수 있어야 한다. 회원이 고르는 닉네임(프로필 변경)은 {@link #memberNicknameViolation} 으로 예약어까지 본다.
  */
 public final class UserPolicy {
 
@@ -61,6 +62,30 @@ public final class UserPolicy {
             return Optional.of(new MessageRef("user.nickname.chars"));
         }
         return Optional.empty();
+    }
+
+    /**
+     * 회원이 고르는 닉네임의 예약어 — 운영자로 오해될 이름. 소문자로 바꾸고 공백·밑줄을 뺀 닉네임에 <b>들어 있으면</b> 쓸 수 없다(community 입력 규칙 「예약어 불가」).
+     * 형식 검사({@link #nicknameViolation})와 따로 둔다 — 설치 마법사의 루트 계정은 예약어를 쓸 수 있어야 한다. 회원 가입·닉네임 확인·닉네임 변경이 부른다(목록은 코드 고정 — docs/features/member-mypage-contract.md 「결정」).
+     */
+    public static final List<String> RESERVED_NICKNAME_WORDS = List.of("admin", "운영자", "관리자", "운영진", "roboyam", "로보얌");
+
+    /** 예약어가 들어 있는 닉네임인가({@link #RESERVED_NICKNAME_WORDS}) — 위반 문구는 {@code user.nickname.reserved} */
+    public static boolean isReservedNickname(String nickname) {
+        if (nickname == null) {
+            return false;
+        }
+        String folded = nickname.toLowerCase(Locale.ROOT).replace(" ", "").replace("_", "");
+        return RESERVED_NICKNAME_WORDS.stream().anyMatch(folded::contains);
+    }
+
+    /** 회원이 정하는 닉네임 — 형식({@link #nicknameViolation}) 다음에 예약어({@link #isReservedNickname})를 본다. 닉네임 변경이 부른다 */
+    public static Optional<MessageRef> memberNicknameViolation(String nickname) {
+        Optional<MessageRef> format = nicknameViolation(nickname);
+        if (format.isPresent()) {
+            return format;
+        }
+        return isReservedNickname(nickname) ? Optional.of(new MessageRef("user.nickname.reserved")) : Optional.empty();
     }
 
     /**
