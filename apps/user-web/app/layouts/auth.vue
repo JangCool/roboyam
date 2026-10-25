@@ -13,8 +13,8 @@
                 <slot />
             </main>
 
-            <!-- 약관 본문 페이지는 아직 없다(19-info). 라우터 밖 링크라 새 탭에서 열린다 -->
-            <footer class="mt-5 flex justify-center gap-4 text-xs text-muted-color">
+            <!-- 약관 본문 링크 — 관리자 옵션(약관 요약의 `showLinks`)이 켜졌을 때만, 불러오기 전·실패 시 숨긴다. 라우터 밖 링크라 새 탭에서 열린다 -->
+            <footer v-if="showTermsLinks" class="mt-5 flex justify-center gap-4 text-xs text-muted-color">
                 <a href="/terms" target="_blank" rel="noopener" class="hover:underline max-md:-my-2 max-md:py-2">{{ t('common.terms') }}</a>
                 <a href="/privacy" target="_blank" rel="noopener" class="font-semibold hover:underline max-md:-my-2 max-md:py-2">{{ t('common.privacy') }}</a>
             </footer>
@@ -29,4 +29,6 @@
 const { t } = useI18n();
 const { siteLabel } = useSiteName();
 const { tagline } = useSiteTagline();
+const { showLinks: showTermsLinks, ensureLoaded: ensureTermsSummary } = useTermsSummary();
+void ensureTermsSummary();
 </script>

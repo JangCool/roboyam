@@ -4,7 +4,12 @@ import com.community.audit.dto.AuditActions;
 import com.community.audit.dto.AuditRow;
 import com.community.audit.dto.AuditSearchCriteria;
 import com.community.audit.entity.QAuditLogEntity;
+import com.community.comment.entity.QCommentEntity;
+import com.community.highlight.entity.QHighlightEntity;
 import com.community.operator.entity.QOperatorEntity;
+import com.community.post.entity.ContentFormat;
+import com.community.post.entity.QPostEntity;
+import com.community.report.entity.QReportCaseEntity;
 import com.community.role.entity.QRoleEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
@@ -102,6 +107,70 @@ public class AuditLogRepositoryQDSL extends RoboyamRepositoryQDSL {
             names.put(row.get(PROFILE.userId), row.get(PROFILE.nickname));
         }
         return names;
+    }
+
+    /** 글 제목(지금의 것) — 없는 글·제목 없는 글은 결과에 없다 */
+    public Map<Long, String> postTitles(Collection<Long> postIds) {
+        Map<Long, String> titles = new HashMap<>();
+        if (postIds.isEmpty()) {
+            return titles;
+        }
+        QPostEntity post = QPostEntity.postEntity;
+        for (Tuple row : query.select(post.id, post.title).from(post).where(post.id.in(postIds)).fetch()) {
+            if (row.get(post.title) != null) {
+                titles.put(row.get(post.id), row.get(post.title));
+            }
+        }
+        return titles;
+    }
+
+    /** 댓글 본문(지금의 것 — 서식과 함께). 없는 댓글·파기한 본문은 결과에 없다 */
+    public Map<Long, CommentText> commentTexts(Collection<Long> commentIds) {
+        Map<Long, CommentText> texts = new HashMap<>();
+        if (commentIds.isEmpty()) {
+            return texts;
+        }
+        QCommentEntity comment = QCommentEntity.commentEntity;
+        for (Tuple row : query.select(comment.id, comment.contentFormat, comment.content).from(comment).where(comment.id.in(commentIds)).fetch()) {
+            if (row.get(comment.content) != null) {
+                texts.put(row.get(comment.id), new CommentText(row.get(comment.contentFormat), row.get(comment.content)));
+            }
+        }
+        return texts;
+    }
+
+    /** 하이라이트 → 대상 글 ID·하이라이트 제목. 없는 하이라이트는 결과에 없다 */
+    public Map<Long, HighlightRef> highlights(Collection<Long> highlightIds) {
+        Map<Long, HighlightRef> refs = new HashMap<>();
+        if (highlightIds.isEmpty()) {
+            return refs;
+        }
+        QHighlightEntity highlight = QHighlightEntity.highlightEntity;
+        for (Tuple row : query.select(highlight.id, highlight.postId, highlight.title).from(highlight).where(highlight.id.in(highlightIds)).fetch()) {
+            refs.put(row.get(highlight.id), new HighlightRef(row.get(highlight.postId), row.get(highlight.title)));
+        }
+        return refs;
+    }
+
+    /** 신고 사건 ID → 사건 번호. 없는 사건은 결과에 없다 */
+    public Map<Long, Long> reportCaseNumbers(Collection<Long> caseIds) {
+        Map<Long, Long> numbers = new HashMap<>();
+        if (caseIds.isEmpty()) {
+            return numbers;
+        }
+        QReportCaseEntity reportCase = QReportCaseEntity.reportCaseEntity;
+        for (Tuple row : query.select(reportCase.id, reportCase.caseNo).from(reportCase).where(reportCase.id.in(caseIds)).fetch()) {
+            numbers.put(row.get(reportCase.id), row.get(reportCase.caseNo));
+        }
+        return numbers;
+    }
+
+    /** 댓글 본문과 서식 */
+    public record CommentText(ContentFormat format, String content) {
+    }
+
+    /** 하이라이트의 대상 글과 하이라이트 제목(지정 때 정한 표시 제목 — 없으면 null) */
+    public record HighlightRef(Long postId, String title) {
     }
 
     private static BooleanExpression[] conditions(AuditSearchCriteria c) {

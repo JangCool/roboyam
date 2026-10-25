@@ -103,6 +103,8 @@ export default class UtilAdminMenu {
             items: [
                 { key: 'members', to: '/members', icon: 'pi pi-user', labelKey: 'menu.members', permission: 'member.read' },
                 { key: 'grades', to: '/grades', icon: 'pi pi-trophy', labelKey: 'menu.grades', permission: 'grade.read' },
+                // 닉네임 이미지 심사 — 주소가 `/members` 아래지만 회원 관리와 다른 화면·권한이다(`isActive` 가 더 구체적인 항목에 주소를 준다)
+                { key: 'nicknameImages', to: '/members/nickname-images', icon: 'pi pi-image', labelKey: 'menu.nicknameImages', permission: 'nickname-image.read' },
             ],
         },
         // 메뉴 관리 묶음 — 공개 사이트 메뉴(메뉴 그룹별 트리)와 관리자 사이트 메뉴 구성. community 의 「메뉴 구성」에 대응한다. 부모 주소(`/menus`)로 들어오면 공개 사이트 메뉴로 보낸다
@@ -137,6 +139,27 @@ export default class UtilAdminMenu {
                         { key: 'boardDefaultsPrivacy', to: '/boards/defaults/privacy', labelKey: 'menu.boardDefaultsPrivacy', permission: 'board.read' },
                     ],
                 },
+            ],
+        },
+        // 커뮤니티 안전 묶음(콘텐츠 묶음 앞) — 신고 관리: 글·댓글 신고를 대상별 사건으로 보고 조치·무시(docs/features/report-admin-contract.md). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한
+        {
+            key: 'safety',
+            icon: 'pi pi-shield',
+            labelKey: 'menu.safety',
+            items: [{ key: 'reports', to: '/reports', icon: 'pi pi-flag', labelKey: 'menu.reports', permission: 'report.read' }],
+        },
+        // 콘텐츠 묶음 — 게시글 관리(맨 앞)·하이라이트(토론 의견 관리 포함)·인기글 관리(빼기·다시 넣기)·인기글 설정(점수식). 서버 `AdminScreenRegistry` 의 `menu.content` 와 같은 키·주소·권한·차례(docs/features/popular-highlight-contract.md).
+        // `/content/popular/settings` 는 `/content/popular` 아래지만 다른 화면이다(`isActive` 가 더 구체적인 항목에 주소를 준다)
+        {
+            key: 'content',
+            icon: 'pi pi-star',
+            labelKey: 'menu.content',
+            items: [
+                // 게시글 관리 — 모든 게시판의 글을 찾아 숨기기·삭제·복구·이동·공지·고정(docs/features/post-admin-contract.md). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한
+                { key: 'posts', to: '/posts', icon: 'pi pi-file-edit', labelKey: 'menu.posts', permission: 'post.read' },
+                { key: 'highlights', to: '/content/highlights', icon: 'pi pi-bookmark', labelKey: 'menu.highlights', permission: 'highlight.read' },
+                { key: 'popularPosts', to: '/content/popular', icon: 'pi pi-chart-line', labelKey: 'menu.popularPosts', permission: 'popular.read' },
+                { key: 'popularSettings', to: '/content/popular/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.popularSettings', permission: 'popular.read' },
             ],
         },
         // 포인트 묶음 — 전체 포인트 내역(수동 지급·차감 포함)과 지급 규칙(포인트 정책). community 의 「포인트 설정」, 그누보드7 의 포인트 관리에 대응한다
@@ -178,7 +201,16 @@ export default class UtilAdminMenu {
                 { key: 'loginSecurity', to: '/settings/login-security', icon: 'pi pi-shield', labelKey: 'menu.loginSecurity', superOnly: true },
                 // 조직 구성 — 운영자를 팀으로 묶는다(알림 이벤트의 「추가 수신 팀」으로 쓴다)
                 { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
+                { key: 'terms', to: '/settings/terms', icon: 'pi pi-file', labelKey: 'menu.terms', permission: 'terms.read' },
             ],
+        },
+        // 회원 설정 묶음 — 회원 기능의 사이트 규칙. 닉네임 이미지 신청 조건(조회 `nickname-image.read`, 저장은 화면 안에서 `nickname-image.manage`)
+        {
+            key: 'settingsMember',
+            mode: 'settings',
+            icon: 'pi pi-users',
+            labelKey: 'menu.memberSettings',
+            items: [{ key: 'nicknameImageSettings', to: '/settings/nickname-image', icon: 'pi pi-image', labelKey: 'menu.nicknameImageSettings', permission: 'nickname-image.read' }],
         },
         // 메일 묶음 — 메일 서버만(message-template-contract 「개정 3」 — 메일 종류·템플릿·레이아웃은 알림·이벤트 묶음으로 옮겼다 — 개정 4 의 「템플릿 › 메일」·「문구」)
         {
@@ -427,13 +459,35 @@ export default class UtilAdminMenu {
 
     /**
      * 지금 주소가 이 항목의 화면인가 — 홈(`/`)은 정확히 같을 때만, 나머지는 하위 주소(`/members/12`)까지 같은 항목으로 본다.
+     * 단 그 하위 주소를 **더 구체적인 다른 메뉴 항목**이 가지면(`/members` 아래의 `/members/nickname-images`, `/points` 아래의 `/points/policy`) 그 항목의 화면이다 —
+     * 활성 표시가 둘로 갈라지지 않고, 열기 권한(`canOpen`)·모드(`modeOfPath`)도 그 항목의 것으로 본다.
      * @param {AdminMenuItem} item - 메뉴 항목.
      * @param {string} path - 지금 주소의 경로(`route.path`).
      * @returns {boolean} 그 항목이 활성이면 true.
      */
     static isActive(item: AdminMenuItem, path: string): boolean {
         if (item.to === '/') return path === '/';
-        return path === item.to || path.startsWith(`${item.to}/`);
+        if (!UtilAdminMenu.under(path, item.to)) return false;
+        return !UtilAdminMenu.allItems().some((other) => other.to.length > item.to.length && UtilAdminMenu.under(other.to, item.to) && UtilAdminMenu.under(path, other.to));
+    }
+
+    /**
+     * 주소가 그 경로이거나 그 아래인가.
+     * @param {string} path - 볼 주소.
+     * @param {string} to - 메뉴 항목의 경로.
+     * @returns {boolean} 같거나 `to/` 로 시작하면 true.
+     */
+    static under(path: string, to: string): boolean {
+        return path === to || path.startsWith(`${to}/`);
+    }
+
+    /**
+     * 메뉴의 모든 화면 항목(부모·하위 포함) — 더 구체적인 항목을 찾는 데 쓴다.
+     * @returns {AdminMenuItem[]} 모든 항목.
+     */
+    static allItems(): AdminMenuItem[] {
+        const walk = (items: readonly AdminMenuItem[]): AdminMenuItem[] => items.flatMap((item) => [item, ...(item.children ? walk(item.children) : [])]);
+        return walk(UtilAdminMenu.ITEMS.flatMap((node) => (UtilAdminMenu.isGroup(node) ? node.items : [node])));
     }
 
     /**

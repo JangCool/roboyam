@@ -1,8 +1,9 @@
 <template>
     <!--
         회원 상세 — 개인 설정 구획(회원이 직접 정한 값을 운영자가 읽기만 한다).
-        표시 형식은 공유 레이어 `@roboyam/display-time` 의 표기(시간대·시간 형식·날짜 형식 이름과 견본)를 그대로 쓴다. 알림은 종류별 켜짐/꺼짐(계정 알림은 끌 수 없다)과 앱 푸시 구독,
-        그누보드7 의 게시글 완료·답변 알림은 roboyam 에 대응 기능이 없어 「준비 중」. 차단·메모·알림함은 건수만 보이고 내용은 보이지 않는다.
+        표시 형식은 공유 레이어 `@roboyam/display-time` 의 표기(시간대·시간 형식·날짜 형식 이름과 견본)를 그대로 쓴다. 보기 설정(야간 모드·글자 크기·댓글 정렬)은 회원이 정한 적이 없으면 「기본값」.
+        알림은 서버 회원 이벤트 카탈로그 차례로 서버가 준 이름 + 앱 알림·이메일 켜짐/꺼짐(회원이 끌 수 없는 것은 「끌 수 없음」)과 앱 푸시 구독. 차단·메모·알림함은 건수만 보이고 내용은 보이지 않는다.
+        서버가 null 로 준 칸은 `-`.
     -->
     <div v-if="detail.settings" class="flex flex-col gap-5">
         <section :aria-labelledby="displayId">
@@ -21,17 +22,37 @@
             </dl>
         </section>
 
+        <section :aria-labelledby="viewId">
+            <h3 :id="viewId" class="mb-1 flex flex-wrap items-center gap-2 text-[13px] font-semibold">
+                {{ t('member.detail.settings.viewTitle') }}
+                <MemberDetailTag v-if="view" :value="view.own ? t('member.detail.settings.viewOwn') : t('member.detail.settings.viewDefault')" :icon="view.own ? 'pi pi-user' : 'pi pi-globe'" severity="secondary" />
+            </h3>
+            <dl class="m-0 flex flex-col">
+                <MemberDetailItem :label="t('member.detail.settings.theme')" :empty="!view?.theme">{{ view?.theme ? t(`member.detail.settings.themeValue.${view.theme}`) : '' }}</MemberDetailItem>
+                <MemberDetailItem :label="t('member.detail.settings.textScale')" :empty="view?.textScale == null">
+                    <span class="tabular-nums">{{ t('member.detail.settings.textScaleValue', { scale: view?.textScale ?? '' }) }}</span>
+                </MemberDetailItem>
+                <MemberDetailItem :label="t('member.detail.settings.commentOrder')" :empty="!view?.commentOrder">{{ view?.commentOrder ? t(`member.detail.settings.commentOrderValue.${view.commentOrder}`) : '' }}</MemberDetailItem>
+            </dl>
+        </section>
+
         <section :aria-labelledby="notificationId">
             <h3 :id="notificationId" class="mb-1 text-[13px] font-semibold">{{ t('member.detail.settings.notificationTitle') }}</h3>
             <ul class="m-0 flex list-none flex-col p-0">
-                <li v-for="n in notifications" :key="n.kind" class="flex items-center justify-between gap-3 border-b border-(--line) py-2.5 text-[13px] last:border-b-0">
-                    <span class="min-w-0">{{ t(`member.detail.settings.notification.${n.kind}`) }}</span>
-                    <MemberDetailTag v-if="n.pending" :value="t('member.detail.pending')" icon="pi pi-clock" severity="secondary" />
-                    <MemberDetailTag v-else :value="n.enabled ? t('common.on') : t('common.off')" :icon="n.enabled ? 'pi pi-bell' : 'pi pi-bell-slash'" :severity="n.enabled ? 'success' : 'secondary'" />
+                <li v-if="!detail.settings.notifications.length" class="border-b border-(--line) py-2.5 text-[13px] text-muted-color">{{ t('member.detail.settings.notificationEmpty') }}</li>
+                <li v-for="n in detail.settings.notifications" :key="n.code" class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-(--line) py-2.5 text-[13px]">
+                    <span class="flex min-w-0 flex-wrap items-center gap-1.5">
+                        <span>{{ n.name }}</span>
+                        <MemberDetailTag v-if="n.locked" :value="t('member.detail.settings.notificationLocked')" icon="pi pi-lock" severity="secondary" />
+                    </span>
+                    <span class="flex shrink-0 flex-wrap items-center gap-1.5">
+                        <MemberDetailTag v-for="ch in channelsOf(n)" :key="ch.key" :value="ch.text" :icon="ch.icon" :severity="ch.severity" />
+                    </span>
                 </li>
                 <li class="flex items-center justify-between gap-3 py-2.5 text-[13px]">
                     <span class="min-w-0">{{ t('member.detail.settings.push') }}</span>
-                    <MemberDetailTag :value="detail.settings.pushSubscribed ? t('member.detail.settings.pushOn') : t('member.detail.settings.pushOff')" :icon="detail.settings.pushSubscribed ? 'pi pi-mobile' : 'pi pi-minus-circle'" :severity="detail.settings.pushSubscribed ? 'success' : 'secondary'" />
+                    <span v-if="detail.settings.pushSubscribed === null" class="text-muted-color">{{ t('member.detail.empty') }}</span>
+                    <MemberDetailTag v-else :value="detail.settings.pushSubscribed ? t('member.detail.settings.pushOn') : t('member.detail.settings.pushOff')" :icon="detail.settings.pushSubscribed ? 'pi pi-mobile' : 'pi pi-minus-circle'" :severity="detail.settings.pushSubscribed ? 'success' : 'secondary'" />
                 </li>
             </ul>
             <p class="mt-1 flex items-start gap-1.5 text-xs text-muted-color">
@@ -45,7 +66,7 @@
             <dl class="m-0 grid grid-cols-3 gap-2">
                 <div v-for="item in counts" :key="item.key" class="rounded-lg border border-(--line) px-3 py-2">
                     <dt class="text-xs text-muted-color">{{ item.label }}</dt>
-                    <dd class="m-0 mt-0.5 text-base font-semibold tabular-nums">{{ item.value.toLocaleString(locale) }}</dd>
+                    <dd class="m-0 mt-0.5 text-base font-semibold tabular-nums" :class="item.value === null ? 'text-muted-color' : ''">{{ item.value === null ? t('member.detail.empty') : item.value.toLocaleString(locale) }}</dd>
                 </div>
             </dl>
             <p class="mt-2 text-xs text-muted-color">{{ t('member.detail.settings.countsNote') }}</p>
@@ -55,8 +76,8 @@
 </template>
 
 <script setup lang="ts">
-import type { MemberDetail } from '~/composables/member/api/useMemberApi.types';
-import UtilMember from '~/utils/util-member';
+import type { MemberDetail, MemberNotificationSetting } from '~/composables/member/api/useMemberApi.types';
+import type { TagSeverity } from '~/utils/util-member';
 import UtilMemberMessages from '~/utils/util-member-messages';
 
 interface Props {
@@ -67,26 +88,33 @@ const props = defineProps<Props>();
 
 const { t, locale } = useI18n();
 const displayId = useId();
+const viewId = useId();
 const notificationId = useId();
 const countsId = useId();
 /** 시차·견본을 잴 순간 — 구획을 그릴 때 한 번 */
 const now = Date.now();
 
-/** 알림 종류 차례대로 — 대응 기능이 없는 종류는 `pending` */
-const notifications = computed(() =>
-    UtilMember.NOTIFICATION_KINDS.map((kind) => ({
-        kind,
-        enabled: props.detail.settings?.notifications.find((n) => n.kind === kind)?.enabled ?? null,
-        pending: UtilMember.notificationPending(kind),
-    })),
-);
+const view = computed(() => props.detail.settings?.view ?? null);
+
+/** 알림 한 줄의 받기 뱃지(앱 알림·이메일) — 값을 모르면(null) `-` */
+function channelsOf(n: MemberNotificationSetting): { key: string; text: string; icon: string | undefined; severity: TagSeverity }[] {
+    return [
+        { key: 'inApp', label: t('member.detail.settings.notificationInApp'), on: n.inApp },
+        { key: 'email', label: t('member.detail.settings.notificationEmail'), on: n.email },
+    ].map((ch) => ({
+        key: ch.key,
+        text: `${ch.label} · ${ch.on === null ? t('member.detail.empty') : ch.on ? t('common.on') : t('common.off')}`,
+        icon: ch.on === null ? undefined : ch.on ? 'pi pi-bell' : 'pi pi-bell-slash',
+        severity: ch.on ? 'success' : 'secondary',
+    }));
+}
 
 const counts = computed(() => {
     const s = props.detail.settings;
     return [
-        { key: 'blockedUser', label: t('member.detail.settings.blockedUsers'), value: s?.blockedUserCount ?? 0 },
-        { key: 'blockedWord', label: t('member.detail.settings.blockedWords'), value: s?.blockedWordCount ?? 0 },
-        { key: 'memo', label: t('member.detail.settings.memos'), value: s?.memoCount ?? 0 },
+        { key: 'blockedUser', label: t('member.detail.settings.blockedUsers'), value: s?.blockedUserCount ?? null },
+        { key: 'blockedWord', label: t('member.detail.settings.blockedWords'), value: s?.blockedWordCount ?? null },
+        { key: 'memo', label: t('member.detail.settings.memos'), value: s?.memoCount ?? null },
     ];
 });
 </script>

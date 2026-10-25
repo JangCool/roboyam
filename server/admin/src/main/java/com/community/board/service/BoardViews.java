@@ -3,11 +3,13 @@ package com.community.board.service;
 import com.community.board.dto.BoardDefaultsValues;
 import com.community.board.dto.BoardPolicyValues;
 import com.community.board.dto.response.BoardDetailView;
+import com.community.board.dto.response.BoardGadgetView;
 import com.community.board.dto.response.BoardListItemView;
 import com.community.board.dto.response.BoardPrefixView;
 import com.community.board.dto.response.BoardRefView;
 import com.community.board.entity.BoardDefaultsEntity;
 import com.community.board.entity.BoardEntity;
+import com.community.board.entity.BoardGadget;
 import com.community.board.entity.BoardPrefixEntity;
 import com.community.board.repository.master.BoardContentQueries;
 import com.community.board.repository.master.BoardDefaultsRepository;
@@ -17,7 +19,9 @@ import com.community.board.repository.master.BoardStaffQueries;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
+import com.community.zconfiguration.message.Messages;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -36,15 +40,17 @@ public class BoardViews {
     private final BoardStaffQueries staff;
     private final BoardContentQueries content;
     private final OperatorRepository operators;
+    private final Messages messages;
 
     public BoardViews(BoardRepository boards, BoardDefaultsRepository defaults, BoardPrefixRepository prefixes, BoardStaffQueries staff,
-                      BoardContentQueries content, OperatorRepository operators) {
+                      BoardContentQueries content, OperatorRepository operators, Messages messages) {
         this.boards = boards;
         this.defaults = defaults;
         this.prefixes = prefixes;
         this.staff = staff;
         this.content = content;
         this.operators = operators;
+        this.messages = messages;
     }
 
     /** 지금 기본 설정 행(마이그레이션이 만든다 — 없으면 설치가 깨진 것) */
@@ -81,8 +87,13 @@ public class BoardViews {
         BoardPolicyValues policy = board.policy();
         return new BoardDetailView(Long.toString(board.getId()), board.getSlug(), board.getName(), board.getNameEn(), board.getDescription(), board.getKind(),
                 board.getLayout(), board.isViewToggle(), board.getColor(), board.isAllowAdult(), board.isInvestmentNotice(), board.isActive(),
-                content.postCount(board.getId()), board.getWriteLock(), board.getIntroText(), board.getWriteGuideText(), policy, prefixViews, base,
-                diffCount(board));
+                content.postCount(board.getId()), board.getWriteLock(), board.getIntroText(), board.getWriteGuideText(),
+                board.getGadgetExclusions().stream().map(Enum::name).toList(), policy, prefixViews, base, diffCount(board), gadgets());
+    }
+
+    /** 「가젯 노출 금지」에 고를 수 있는 가젯(enum 순서, 이름은 요청 언어) */
+    public List<BoardGadgetView> gadgets() {
+        return Arrays.stream(BoardGadget.values()).map(g -> new BoardGadgetView(g.name(), messages.get("board.gadget." + g.name()))).toList();
     }
 
     /** 말머리 — 공통 4개(고정 순서) 다음 고유(표시 순서) */

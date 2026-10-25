@@ -1,5 +1,5 @@
 <template>
-    <!-- 글 줄의 제목 부분 — 말머리 · 19 · 제목 · 이미지 표시 · [댓글 수] · 새 글. 세 가지 목록 모양(LIST·CARD·GALLERY)이 같이 쓴다 -->
+    <!-- 글 줄의 제목 부분 — 말머리 · 19 · 제목 · 투표 칩 · 이미지 표시 · [댓글 수] · 새 글. 세 가지 목록 모양(LIST·CARD·GALLERY)·고정 공지·최신/인기 등 피드 줄이 같이 쓴다 -->
     <span>
         <i v-if="row.pinned && pinnedMark" class="pi pi-thumbtack mr-1 text-xs text-muted-color" aria-hidden="true" />
         <span v-if="row.pinned && pinnedMark" class="sr-only">{{ t('board.pinned') }}</span>
@@ -10,6 +10,16 @@
         </span>
         <span v-if="tokens.length" class="break-words"><template v-for="(part, i) in titleParts" :key="i"><mark v-if="part.match" class="rounded-sm bg-transparent font-bold text-primary">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
         <span v-else class="break-words">{{ row.title }}</span>
+        <!-- 투표가 붙은 글(post-poll-contract `hasPoll`) — 제목 옆 투표 칩 -->
+        <span
+            v-if="row.hasPoll"
+            class="ml-1 inline-flex items-baseline gap-0.5 rounded border border-surface px-1 pb-[3px] pt-px align-[1px] text-[0.625rem] font-semibold leading-none text-muted-color"
+            :title="t('poll.listMark')"
+            data-testid="post-row-poll"
+        >
+            <i class="pi pi-chart-bar text-[0.5625rem]" aria-hidden="true" />
+            <span>{{ t('poll.listChip') }}</span>
+        </span>
         <i v-if="row.hasImage" class="pi pi-image ml-1 text-xs text-muted-color" :title="t('board.hasImage')" aria-hidden="true" />
         <span v-if="row.hasImage" class="sr-only">{{ t('board.hasImage') }}</span>
         <span v-if="row.commentCount > 0" class="ml-1 text-xs font-semibold text-primary">

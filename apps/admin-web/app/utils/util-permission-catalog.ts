@@ -114,7 +114,7 @@ export default class UtilPermissionCatalog {
         { id: 'general', nameKey: 'permission.area.general' },
     ];
 
-    /** 권한 묶음(세부 유형) — 문서의 "역할 유형" 표 그대로(24개, 종합 관리 포함). 영역(`AREAS`) 아래에 있고 권한 코드가 이 묶음에 속한다 */
+    /** 권한 묶음(세부 유형) — 문서의 "역할 유형" 표에서 권한이 있는 것(23개, 종합 관리 포함 — 권한 없는 금칙어 유형은 뺐다). 영역(`AREAS`) 아래에 있고 권한 코드가 이 묶음에 속한다 */
     static readonly TYPES: readonly RoleTypeDef[] = [
         { id: 'notice', area: 'content', nameKey: 'permission.type.notice' },
         { id: 'post', area: 'content', nameKey: 'permission.type.post' },
@@ -122,7 +122,6 @@ export default class UtilPermissionCatalog {
         { id: 'siteLayout', area: 'content', nameKey: 'permission.type.siteLayout' },
         { id: 'report', area: 'safety', nameKey: 'permission.type.report' },
         { id: 'sanction', area: 'safety', nameKey: 'permission.type.sanction' },
-        { id: 'badword', area: 'safety', nameKey: 'permission.type.badword' },
         { id: 'staffAudit', area: 'safety', nameKey: 'permission.type.staffAudit' },
         { id: 'memberView', area: 'member', nameKey: 'permission.type.memberView' },
         { id: 'nicknameImage', area: 'member', nameKey: 'permission.type.nicknameImage' },
@@ -147,7 +146,12 @@ export default class UtilPermissionCatalog {
      *  · 운영자·역할 관리: 조회 `operator.read`·`role.read` / 처리 `operator.manage` / 설정 `role.manage` / 민감 `operator.lock`(운영자 잠금·해제)·`role.grant`(역할 변경 = 권한 상승). 조직 구성(팀)은 조회 `team.read` / 처리 `team.manage`(팀 만들기·고치기·지우기·옮기기·팀원 관리)
      *  · 감사·배치: 조회 `audit.read`·`batch.read` / 처리 `batch.manage` / 민감 `batch.run`(배치 즉시 실행). 이 유형의 설정 단위("배치 사용 여부")는 처리(`batch.manage`)에 포함했다.
      *  · 회원 조회: 조회 `member.read` / 민감 `member.pii`(전체 이메일 열람 — 없으면 이메일이 `ab***@gmail.com` 으로 가려진다).
+     *  · 닉네임 이미지 심사(`/members/nickname-images`): 조회 `nickname-image.read` / 처리 `nickname-image.manage`(승인·반려·해제).
      *  · 등급·포인트·휴면(등급 설정·포인트 내역·포인트 정책 화면): 조회 `grade.read` / 설정 `grade.manage`(등급 승급 조건 변경). 포인트는 조회 `point.read`(원장·정책 보기) / 설정 `point.settings`(지급 정책 저장) / 민감 `point.adjust`(수동 지급·차감).
+     *  · 게시글(게시글 관리 화면 `/posts`): 조회 `post.read`(글 검색·보기·조치 기록, 글의 찬반 토론 설정·의견 보기) / 처리 `post.manage`(숨김·해제·삭제·이동·공지·고정·일괄 숨김/해제, 토론 열기·설정·닫기, 의견 고정·숨김·고정 요청 처리)
+     *    / 민감 `post.restore`(지운 글 복구 — 회수한 포인트를 되돌림)·`post.bulk-delete`(일괄 삭제).
+     *  · 하이라이트·인기글(콘텐츠 메뉴): 하이라이트 조회 `highlight.read` / 처리 `highlight.manage`(만들기·고치기·순서·노출·지우기), 인기글 조회 `popular.read`(순위·뺀 글·설정 보기) / 처리 `popular.manage`(빼기·다시 넣기) / 설정 `popular.settings`(점수식 저장).
+     *  · 신고(신고 관리 화면 `/reports`): 조회 `report.read` / 처리 `report.manage`. 금지어는 따로 권한이 없다 — 게시판 기본 설정 › 보안(`board.settings`)이 다룬다(옛 `bannedword.*` 는 뺐다).
      *  · 게시판: 조회 `board.read` / 처리 `board.manage`·`board.staff.manage` / 설정 `board.settings`·`board.staff.limit` / 민감 `board.delete`(게시판 목록·설정·기본 설정·매니저/스텝).
      *  · 사이트 화면 구성: 조회 `layout.read` / 설정 `layout.settings`(공개 사이트 메뉴)·`admin-menu.manage`(관리자 사이트 메뉴 구성 저장).
      *  · 사이트·연동(설정 메뉴의 「일반」·「소셜 로그인」·「메일 서버」·「알림」 화면): 조회 `site.read`(일반·소셜 로그인·메일 서버·설정 이력 보기) / 설정 `site.manage`(사이트 이름·소개, 표시 기본값 변경) / 민감 `site.secret`(소셜 로그인 키 저장·삭제, 메일 서버 저장·시험 발송). 알림 이벤트 관리는 조회 `notification.read` / 설정 `notification.manage`(이벤트별 사용 여부·이메일 전달 변경 — 받는 사람은 코드에 고정이라 바꾸지 않는다).
@@ -157,9 +161,17 @@ export default class UtilPermissionCatalog {
         { code: 'notice.read', unit: 'READ', type: 'notice', nameKey: 'permission.item.noticeRead', descKey: 'permission.item.noticeReadDesc', featureReady: false },
         { code: 'notice.manage', unit: 'MANAGE', type: 'notice', nameKey: 'permission.item.noticeManage', descKey: 'permission.item.noticeManageDesc', featureReady: false },
         { code: 'notice.settings', unit: 'CONFIG', type: 'notice', nameKey: 'permission.item.noticeSettings', descKey: 'permission.item.noticeSettingsDesc', featureReady: false },
-        { code: 'post.read', unit: 'READ', type: 'post', nameKey: 'permission.item.postRead', descKey: 'permission.item.postReadDesc', featureReady: false },
-        { code: 'post.manage', unit: 'MANAGE', type: 'post', nameKey: 'permission.item.postManage', descKey: 'permission.item.postManageDesc', featureReady: false },
-        { code: 'post.bulk-delete', unit: 'SENSITIVE', type: 'post', nameKey: 'permission.item.postBulkDelete', descKey: 'permission.item.postBulkDeleteDesc', featureReady: false },
+        // 하이라이트·인기글(콘텐츠 > 하이라이트·인기글 관리·인기글 설정 화면) — docs/features/popular-highlight-contract.md
+        { code: 'highlight.read', unit: 'READ', type: 'notice', nameKey: 'permission.item.highlightRead', descKey: 'permission.item.highlightReadDesc', featureReady: true },
+        { code: 'highlight.manage', unit: 'MANAGE', type: 'notice', nameKey: 'permission.item.highlightManage', descKey: 'permission.item.highlightManageDesc', featureReady: true },
+        { code: 'popular.read', unit: 'READ', type: 'notice', nameKey: 'permission.item.popularRead', descKey: 'permission.item.popularReadDesc', featureReady: true },
+        { code: 'popular.manage', unit: 'MANAGE', type: 'notice', nameKey: 'permission.item.popularManage', descKey: 'permission.item.popularManageDesc', featureReady: true },
+        { code: 'popular.settings', unit: 'CONFIG', type: 'notice', nameKey: 'permission.item.popularSettings', descKey: 'permission.item.popularSettingsDesc', featureReady: true },
+        // 게시글 — 게시글 관리 화면(`/posts`, post-admin-contract)과 글의 찬반 토론(하이라이트 화면·게시글 관리 서랍의 토론 설정·의견 서랍, post-debate-contract). ⚠ 서버 `Permission` 의 목록·순서·featureReady 와 맞출 것
+        { code: 'post.read', unit: 'READ', type: 'post', nameKey: 'permission.item.postRead', descKey: 'permission.item.postReadDesc', featureReady: true },
+        { code: 'post.manage', unit: 'MANAGE', type: 'post', nameKey: 'permission.item.postManage', descKey: 'permission.item.postManageDesc', featureReady: true },
+        { code: 'post.restore', unit: 'SENSITIVE', type: 'post', nameKey: 'permission.item.postRestore', descKey: 'permission.item.postRestoreDesc', featureReady: true },
+        { code: 'post.bulk-delete', unit: 'SENSITIVE', type: 'post', nameKey: 'permission.item.postBulkDelete', descKey: 'permission.item.postBulkDeleteDesc', featureReady: true },
         { code: 'board.read', unit: 'READ', type: 'board', nameKey: 'permission.item.boardRead', descKey: 'permission.item.boardReadDesc', featureReady: true },
         { code: 'board.manage', unit: 'MANAGE', type: 'board', nameKey: 'permission.item.boardManage', descKey: 'permission.item.boardManageDesc', featureReady: true },
         { code: 'board.settings', unit: 'CONFIG', type: 'board', nameKey: 'permission.item.boardSettings', descKey: 'permission.item.boardSettingsDesc', featureReady: true },
@@ -170,20 +182,19 @@ export default class UtilPermissionCatalog {
         { code: 'layout.read', unit: 'READ', type: 'siteLayout', nameKey: 'permission.item.layoutRead', descKey: 'permission.item.layoutReadDesc', featureReady: true },
         { code: 'layout.settings', unit: 'CONFIG', type: 'siteLayout', nameKey: 'permission.item.layoutSettings', descKey: 'permission.item.layoutSettingsDesc', featureReady: true },
         { code: 'admin-menu.manage', unit: 'CONFIG', type: 'siteLayout', nameKey: 'permission.item.adminMenuManage', descKey: 'permission.item.adminMenuManageDesc', featureReady: true },
-        { code: 'report.read', unit: 'READ', type: 'report', nameKey: 'permission.item.reportRead', descKey: 'permission.item.reportReadDesc', featureReady: false },
-        { code: 'report.manage', unit: 'MANAGE', type: 'report', nameKey: 'permission.item.reportManage', descKey: 'permission.item.reportManageDesc', featureReady: false },
+        // 신고 — 신고 관리 화면(`/reports`, report-admin-contract). 조회 `report.read`(사건 목록·상세 — 신고자 정보 포함) / 처리 `report.manage`(숨기기·자동 숨김 확정·삭제·무시·일괄 무시·다시 열기)
+        { code: 'report.read', unit: 'READ', type: 'report', nameKey: 'permission.item.reportRead', descKey: 'permission.item.reportReadDesc', featureReady: true },
+        { code: 'report.manage', unit: 'MANAGE', type: 'report', nameKey: 'permission.item.reportManage', descKey: 'permission.item.reportManageDesc', featureReady: true },
         { code: 'sanction.read', unit: 'READ', type: 'sanction', nameKey: 'permission.item.sanctionRead', descKey: 'permission.item.sanctionReadDesc', featureReady: false },
         { code: 'sanction.manage', unit: 'MANAGE', type: 'sanction', nameKey: 'permission.item.sanctionManage', descKey: 'permission.item.sanctionManageDesc', featureReady: false },
         { code: 'appeal.manage', unit: 'MANAGE', type: 'sanction', nameKey: 'permission.item.appealManage', descKey: 'permission.item.appealManageDesc', featureReady: false },
         { code: 'sanction.ban', unit: 'SENSITIVE', type: 'sanction', nameKey: 'permission.item.sanctionBan', descKey: 'permission.item.sanctionBanDesc', featureReady: false },
-        { code: 'bannedword.read', unit: 'READ', type: 'badword', nameKey: 'permission.item.bannedwordRead', descKey: 'permission.item.bannedwordReadDesc', featureReady: false },
-        { code: 'bannedword.settings', unit: 'CONFIG', type: 'badword', nameKey: 'permission.item.bannedwordSettings', descKey: 'permission.item.bannedwordSettingsDesc', featureReady: false },
         { code: 'keeper-action.read', unit: 'READ', type: 'staffAudit', nameKey: 'permission.item.keeperActionRead', descKey: 'permission.item.keeperActionReadDesc', featureReady: false },
         { code: 'keeper-action.restore', unit: 'SENSITIVE', type: 'staffAudit', nameKey: 'permission.item.keeperActionRestore', descKey: 'permission.item.keeperActionRestoreDesc', featureReady: false },
         { code: 'member.read', unit: 'READ', type: 'memberView', nameKey: 'permission.memberRead', descKey: 'permission.memberReadDesc', featureReady: true },
         { code: 'member.pii', unit: 'SENSITIVE', type: 'memberView', nameKey: 'permission.memberPii', descKey: 'permission.memberPiiDesc', featureReady: true },
-        { code: 'nickname-image.read', unit: 'READ', type: 'nicknameImage', nameKey: 'permission.item.nicknameImageRead', descKey: 'permission.item.nicknameImageReadDesc', featureReady: false },
-        { code: 'nickname-image.manage', unit: 'MANAGE', type: 'nicknameImage', nameKey: 'permission.item.nicknameImageManage', descKey: 'permission.item.nicknameImageManageDesc', featureReady: false },
+        { code: 'nickname-image.read', unit: 'READ', type: 'nicknameImage', nameKey: 'permission.item.nicknameImageRead', descKey: 'permission.item.nicknameImageReadDesc', featureReady: true },
+        { code: 'nickname-image.manage', unit: 'MANAGE', type: 'nicknameImage', nameKey: 'permission.item.nicknameImageManage', descKey: 'permission.item.nicknameImageManageDesc', featureReady: true },
         { code: 'grade.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.gradeRead', descKey: 'permission.gradeReadDesc', featureReady: true },
         { code: 'grade.manage', unit: 'CONFIG', type: 'gradePoint', nameKey: 'permission.gradeManage', descKey: 'permission.gradeManageDesc', featureReady: true },
         { code: 'grade.override', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.gradeOverride', descKey: 'permission.item.gradeOverrideDesc', featureReady: false },
@@ -242,6 +253,9 @@ export default class UtilPermissionCatalog {
         //   서버 `Permission.TEMPLATE_READ`·`TEMPLATE_MANAGE`(SITE_INTEGRATION · READ / CONFIG · 준비됨)와 같은 값이다. 메뉴는 서버 `AdminScreenRegistry` 의 템플릿·문구 화면이 `template.read` 로 거른다.
         { code: 'template.read', unit: 'READ', type: 'siteIntegration', nameKey: 'permission.templateRead', descKey: 'permission.templateReadDesc', featureReady: true },
         { code: 'template.manage', unit: 'CONFIG', type: 'siteIntegration', nameKey: 'permission.templateManage', descKey: 'permission.templateManageDesc', featureReady: true },
+        // 약관(`/settings/terms`, docs/features/terms-contract.md) — 서버 `Permission.TERMS_READ`·`TERMS_MANAGE`(SITE_INTEGRATION · READ / CONFIG · 준비됨)와 같은 값
+        { code: 'terms.read', unit: 'READ', type: 'siteIntegration', nameKey: 'permission.termsRead', descKey: 'permission.termsReadDesc', featureReady: true },
+        { code: 'terms.manage', unit: 'CONFIG', type: 'siteIntegration', nameKey: 'permission.termsManage', descKey: 'permission.termsManageDesc', featureReady: true },
     ];
 
     // ── 회원 역할 ─ (구현 가정: 문서의 "회원 역할 (제안)" 대로 — 확정 전)
@@ -265,7 +279,6 @@ export default class UtilPermissionCatalog {
         { code: 'file.attach', group: 'USE', type: 'memberSite', nameKey: 'permission.memberFileAttach', descKey: 'permission.memberFileAttachDesc', featureReady: true },
         { code: 'post.react', group: 'USE', type: 'memberSite', nameKey: 'permission.memberPostReact', descKey: 'permission.memberPostReactDesc', featureReady: true },
         { code: 'report.create', group: 'USE', type: 'memberSite', nameKey: 'permission.memberReportCreate', descKey: 'permission.memberReportCreateDesc', featureReady: true },
-        { code: 'nickname-image.request', group: 'USE', type: 'memberSite', nameKey: 'permission.memberNicknameImage', descKey: 'permission.memberNicknameImageDesc', featureReady: true },
         { code: 'shop.use', group: 'USE', type: 'memberSite', nameKey: 'permission.memberShopUse', descKey: 'permission.memberShopUseDesc', featureReady: true },
         { code: 'group.create', group: 'USE', type: 'memberSite', nameKey: 'permission.memberGroupCreate', descKey: 'permission.memberGroupCreateDesc', featureReady: false },
         { code: 'hotdeal.write', group: 'USE', type: 'memberSite', nameKey: 'permission.memberHotdealWrite', descKey: 'permission.memberHotdealWriteDesc', featureReady: false },

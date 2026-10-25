@@ -79,7 +79,6 @@ import UtilValidation from '~/utils/util-validation';
  * 비밀번호 찾기 `/password/forgot` — 원본(community) `pages/password/forgot.vue` 를 옮겼다. 이메일 입력 → 발송 안내.
  * 서버는 가입 여부와 무관하게 항상 202 를 준다(형식 오류만 400) — 화면도 어떤 주소든 같은 안내를 보여 준다(계정이 있는지 알려 주지 않는다).
  * 같은 주소로 60초 안에 다시 요청하면 서버가 조용히 무시하므로 재발송 단추도 60초 쿨다운을 둔다.
- * ⚠ MOCK: `POST /api/auth/password/forgot` 은 서버에 없어 목업(`useAuthApi.forgotPassword`).
  */
 definePageMeta({ layout: 'auth', middleware: 'guest' });
 const { t } = useI18n();

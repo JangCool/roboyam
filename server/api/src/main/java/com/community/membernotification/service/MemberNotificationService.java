@@ -19,6 +19,7 @@ import com.community.membernotification.exception.MemberNotificationNotFoundExce
 import com.community.membernotification.repository.master.MemberNotificationRepositoryQDSL;
 import com.community.notificationtemplate.engine.RenderedInApp;
 import com.community.post.entity.PostEntity;
+import com.community.report.entity.ReportReasons;
 import com.community.post.repository.master.PostRepository;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserEntity;
@@ -49,7 +50,7 @@ import tools.jackson.databind.json.JsonMapper;
  * 회원 알림 — <b>로그인한 회원 본인 것만</b>(경로에 회원 ID 가 없고 모든 질의에 내 ID 가 들어간다). docs/features/member-notification-contract.md.
  *
  * <ul>
- *   <li><b>목록</b> {@code filter}({@code all} 기본 · {@code comment} · {@code system}) · {@code size}(기본 {@value #DEFAULT_SIZE}, 1~{@value #MAX_SIZE}) · {@code cursor}(앞 응답의 {@code nextCursor}).
+ *   <li><b>목록</b> {@code filter}({@code all} 기본 · {@code comment} · {@code system} · {@code dm}(쪽지)) · {@code size}(기본 {@value #DEFAULT_SIZE}, 1~{@value #MAX_SIZE}) · {@code cursor}(앞 응답의 {@code nextCursor}).
  *       최신이 위(ID 내림차순). 글·댓글·일으킨 사람은 <b>읽을 때의 현재 값</b>으로 채운다 — 지웠거나 숨긴 글은 제목을 내지 않고 {@code available=false}.</li>
  *   <li><b>문구</b>: 저장된 종류 + 칸(읽을 때의 현재 값)을 변수로 알림 문구 엔진이 읽는 사람의 요청 언어로 그린다({@code MemberNotificationMessages} — 그 회원 이벤트 앱 알림의
  *       쓸 문구·규칙, 없으면 기본 문구). 운영자가 문구를 바꾸면 이미 쌓인 알림도 새 문구로 보인다.</li>
@@ -72,7 +73,8 @@ public class MemberNotificationService {
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
     private static final Map<String, List<String>> FILTERS = Map.of(
             "comment", typesOf("comment"),
-            "system", typesOf("system"));
+            "system", typesOf("system"),
+            "dm", typesOf("dm"));
 
     private final MemberNotificationRepositoryQDSL notifications;
     private final PostRepository posts;
@@ -197,7 +199,8 @@ public class MemberNotificationService {
         }
 
         NotificationActorView actor = null;
-        if (type == MemberNotificationType.COMMENT || type == MemberNotificationType.REPLY) {
+        if (type == MemberNotificationType.COMMENT || type == MemberNotificationType.REPLY || type == MemberNotificationType.DM
+                || type == MemberNotificationType.OPINION_PIN_REQUESTED) {
             actor = actorOf(row, profileById, userById, locale);
         }
 
@@ -217,9 +220,48 @@ public class MemberNotificationService {
                 points = new NotificationPointsView(kind, amount, note);
                 facts = MemberNotificationMessages.Facts.points(kind, amount, note);
             }
+            case DM -> {
+                // 쪽지 내용은 싣지 않는다(보낸 회원의 닉네임만) — 누르면 그 대화방
+                facts = MemberNotificationMessages.Facts.dm(actorName(actor));
+                link = payload.get("threadId") instanceof String thread && !thread.isBlank() ? "/messages/" + thread : "/messages";
+            }
+            case OPINION_PIN_REQUESTED -> {
+                // 요청한 회원 · 글 · 의견 앞부분 — 누르면 그 글(확인할 대기 요청은 글 상세의 debate.pendingPinRequests · GET …/pin-requests)
+                facts = MemberNotificationMessages.Facts.pinRequested(actorName(actor), post == null ? null : post.title(), commentPreview);
+                link = postAvailable ? "/posts/" + row.getPostId() : null;
+            }
+            case OPINION_PIN_REVIEWED -> {
+                String result = payload.get("result") instanceof String r ? r : "APPROVED";
+                String reason = payload.get("reason") instanceof String why && !why.isBlank() ? why : null;
+                facts = MemberNotificationMessages.Facts.pinReviewed(result, reason, post == null ? null : post.title());
+                link = postAvailable ? "/posts/" + row.getPostId() : null;
+            }
+            case NICKNAME_IMAGE_REVIEWED -> {
+                String result = payload.get("result") instanceof String r ? r : "APPROVED";
+                String reason = payload.get("reason") instanceof String why && !why.isBlank() ? why : null;
+                facts = MemberNotificationMessages.Facts.nicknameReviewed(result, reason);
+                link = "/settings/nickname-image";
+            }
+            case POST_REMOVED, COMMENT_REMOVED -> {
+                // 운영자가 지운 글·댓글 — 지운 글은 열 수 없어 링크가 없고, 지운 댓글은 그 글로 간다(제목·앞부분은 지울 때 남긴 것, 본문 둘째 줄은 사유 — 신고 관리면 「사유 코드 이름: 글」)
+                String reason = payload.get("reason") instanceof String why && !why.isBlank() ? why : null;
+                facts = MemberNotificationMessages.Facts.removed(type, payload.get("snapshot") instanceof String s && !s.isBlank() ? s : null, reason, reasonCodeOf(payload));
+                link = type == MemberNotificationType.COMMENT_REMOVED && postAvailable ? "/posts/" + row.getPostId() : null;
+            }
+            case REPORT_RESULT -> {
+                // 내 신고의 처리 결과 — 조치됨 · 위반 아님(신고 당시 제목·앞부분). 글을 볼 수 있으면 그 글로
+                String result = payload.get("result") instanceof String r ? r : MemberNotificationMessages.REPORT_ACTIONED;
+                String targetType = payload.get("targetType") instanceof String t ? t : "POST";
+                facts = MemberNotificationMessages.Facts.reportResult(result, targetType, payload.get("snapshot") instanceof String s && !s.isBlank() ? s : null);
+                link = postAvailable ? "/posts/" + row.getPostId() : null;
+            }
             default -> { // POST_HIDDEN, COMMENT_HIDDEN
                 hiddenUntil = instantOf(payload.get("until"));
-                facts = MemberNotificationMessages.Facts.hidden(type, payload.get("snapshot") instanceof String s && !s.isBlank() ? s : null, hiddenUntil != null);
+                String hiddenSnapshot = payload.get("snapshot") instanceof String s && !s.isBlank() ? s : null;
+                facts = MemberNotificationMessages.BY_STAFF.equals(payload.get("by"))
+                        ? MemberNotificationMessages.Facts.hiddenByStaff(type, hiddenSnapshot, payload.get("reason") instanceof String why && !why.isBlank() ? why : null,
+                        reasonCodeOf(payload))
+                        : MemberNotificationMessages.Facts.hidden(type, hiddenSnapshot, hiddenUntil != null);
                 // 숨긴 글은 열 수 없다(작성자 포함) — 댓글 숨김이면 그 글로 간다
                 link = type == MemberNotificationType.COMMENT_HIDDEN && postAvailable ? "/posts/" + row.getPostId() : null;
             }
@@ -230,6 +272,11 @@ public class MemberNotificationService {
         String body = text.body() == null || text.body().isBlank() ? null : text.body();
         return new MemberNotificationItemView(Long.toString(row.getId()), type.name(), type.category(), row.isRead(), row.getCreatedAt(), title, body, link, actor,
                 post, row.getCommentId() == null ? null : Long.toString(row.getCommentId()), commentPreview, row.getGroupCount(), points, hiddenUntil);
+    }
+
+    /** 운영자 조치 사유 코드(관리자 신고 관리 — 신고 사유 체계) — 없거나 모르는 값이면 null */
+    private static String reasonCodeOf(Map<String, Object> payload) {
+        return payload.get("reasonCode") instanceof String code && ReportReasons.ALL.contains(code) ? code : null;
     }
 
     /** 일으킨 사람 — 회원은 지금 닉네임(탈퇴·없음은 「탈퇴한 회원」), 비회원은 그때 이름 */

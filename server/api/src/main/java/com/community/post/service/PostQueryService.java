@@ -1,5 +1,6 @@
 package com.community.post.service;
 
+import com.community.block.service.ViewerBlocks;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.BoardPrefixInfo;
 import com.community.board.dto.EffectiveBoard;
@@ -7,6 +8,9 @@ import com.community.board.service.AuthorViews;
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.ContentRules;
 import com.community.board.service.PublicBoardService;
+import com.community.debate.service.DebateReader;
+import com.community.poll.repository.master.PollQueries;
+import com.community.poll.service.PollReader;
 import com.community.post.dto.PostNeighborData;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.response.PostAuthorView;
@@ -23,7 +27,6 @@ import com.community.post.exception.PostNotFoundException;
 import com.community.post.repository.master.PostCounterQueries;
 import com.community.post.repository.master.PostRepository;
 import com.community.post.repository.master.PostRepositoryQDSL;
-import com.community.report.entity.ReportReasons;
 import com.community.user.entity.ProfileEntity;
 import com.community.zconfiguration.crypto.Digests;
 import java.time.Duration;
@@ -31,6 +34,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,7 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li>목록: 고정 공지는 첫 쪽이고 말머리·검색어가 없을 때만 위에 따로(최대 유효 {@code pinnedMax}), 그때 목록에서는 뺀다. 신고로 숨긴 글은 <b>자리만</b>(제목·작성자 이름 비움,
- *       {@code hiddenReason = REPORTED}) 남고 검색 결과에서는 빠진다. 정렬은 id(= 작성 시각) 순.</li>
+ *       {@code hiddenReason = REPORTED}, 운영자 숨김은 게시판 옵션 {@code staffHiddenNotice} 가 켜졌으면 {@code STAFF}) 남고 검색 결과에서는 빠진다. 정렬은 id(= 작성 시각) 순.</li>
  *   <li>글 하나: 숨긴 글 {@code 403 POST_HIDDEN}, 없거나 지운 글(예약 삭제 시각이 지난 글 포함) {@code 404 POST_NOT_FOUND}, 꺼진 게시판 {@code 403 BOARD_INACTIVE}.</li>
  *   <li>조회수: 같은 회원(비회원은 IP 의 해시)이 보안 설정 {@code viewCountDedupHours} 시간 안에 다시 보면 세지 않는다({@code post_views} 기록, 정리는 DB 배치 board-post-upkeep).</li>
  * </ul>
@@ -53,13 +57,22 @@ public class PostQueryService {
     private final PostRepositoryQDSL postQueries;
     private final PostCounterQueries counters;
     private final AuthorViews authors;
+    private final ViewerBlocks viewerBlocks;
+    private final DebateReader debate;
+    private final PollReader pollReader;
+    private final PollQueries pollQueries;
 
-    public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors) {
+    public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors,
+                            ViewerBlocks viewerBlocks, DebateReader debate, PollReader pollReader, PollQueries pollQueries) {
+        this.pollReader = pollReader;
+        this.pollQueries = pollQueries;
+        this.debate = debate;
         this.catalog = catalog;
         this.posts = posts;
         this.postQueries = postQueries;
         this.counters = counters;
         this.authors = authors;
+        this.viewerBlocks = viewerBlocks;
     }
 
     /**
@@ -70,6 +83,17 @@ public class PostQueryService {
      */
     @Transactional(readOnly = true)
     public PostListResponse list(String slug, String prefix, String sort, String q, int page) {
+        return list(slug, prefix, sort, q, page, null);
+    }
+
+    /**
+     * 보는 사람의 차단·메모를 싣는 글 목록 — 줄의 {@code blocked}(차단한 작성자 {@code USER} · 제목의 차단 단어 {@code WORD}, 내 글·숨긴 글은 null)와 작성자 {@code memo}.
+     * 목록 하나에 차단·단어·메모 질의를 한 번씩만 한다({@link ViewerBlocks}).
+     *
+     * @param viewerId 로그인한 회원(비로그인 null — 두 칸 모두 null)
+     */
+    @Transactional(readOnly = true)
+    public PostListResponse list(String slug, String prefix, String sort, String q, int page, Long viewerId) {
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = PublicBoardService.requireActive(s, slug);
         Instant now = Instant.now();
@@ -94,18 +118,23 @@ public class PostQueryService {
         PostRepositoryQDSL.Page result = impossible ? new PostRepositoryQDSL.Page(List.of(), 0)
                 : postQueries.page(b.id(), prefixId, search, oldest, plain, (long) (current - 1) * listSize, listSize, now);
 
-        Map<Long, ProfileEntity> members = authors.members(Stream.concat(pinned.stream(), result.items().stream()).map(PostRowData::authorId).toList());
+        List<Long> authorIds = Stream.concat(pinned.stream(), result.items().stream()).map(PostRowData::authorId).toList();
+        Map<Long, ProfileEntity> members = authors.members(authorIds);
+        ViewerBlocks.Lens lens = viewerBlocks.lens(viewerId, authorIds);
+        Set<Long> polls = pollQueries.postIdsWithPoll(Stream.concat(pinned.stream(), result.items().stream()).map(PostRowData::id).toList());
         int totalPages = (int) ((result.total() + listSize - 1) / listSize);
-        return new PostListResponse(pinned.stream().map(r -> row(r, b, s, members, now)).toList(),
-                result.items().stream().map(r -> row(r, b, s, members, now)).toList(), current, totalPages, result.total());
+        return new PostListResponse(pinned.stream().map(r -> row(r, b, s, members, now, lens, polls)).toList(),
+                result.items().stream().map(r -> row(r, b, s, members, now, lens, polls)).toList(), current, totalPages, result.total());
     }
 
-    private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, Map<Long, ProfileEntity> members, Instant now) {
+    private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, Map<Long, ProfileEntity> members, Instant now, ViewerBlocks.Lens lens,
+                            Set<Long> polls) {
         boolean hidden = r.hiddenAt(now);
-        PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s);
+        PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
         return new PostRowView(Long.toString(r.id()), hidden ? null : prefixRef(b, r.prefixId()), hidden ? "" : r.title(), hidden ? 0 : r.commentCount(),
                 !hidden && Boolean.TRUE.equals(r.hasImage()), null, hidden ? AuthorViews.blank(author) : author, r.createdAt(), r.viewCount(), r.likeCount(),
-                r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), hidden ? ReportReasons.HIDDEN_REPORTED : null);
+                r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),
+                hidden ? null : lens.blockedOf(r.authorId(), r.title()), !hidden && polls.contains(r.id()));
     }
 
     /**
@@ -128,25 +157,32 @@ public class PostQueryService {
         int viewCount = counters.recordView(post.getId(), viewer, now.minus(Duration.ofHours(dedupHours))) ? counters.incrementViews(post.getId())
                 : post.getViewCount();
         boolean liked = userId != null && counters.postLiked(post.getId(), userId);
-        return view(post, b, s, userId, viewCount, liked, now);
+        List<Long> authorIds = post.getAuthorId() == null ? List.of() : List.of(post.getAuthorId());
+        return view(post, b, s, userId, viewCount, liked, now, viewerBlocks.lens(userId, authorIds));
     }
 
-    /** 고친 뒤의 글(조회수는 그대로) — {@link PostWriteService#update} 가 같은 트랜잭션에서 부른다 */
+    /** 고친 뒤의 글(조회수는 그대로) — {@link PostWriteService#update} 가 같은 트랜잭션에서 부른다. 차단·메모는 싣지 않는다(응답 모양 그대로, 두 칸 null) */
     PostDetailView viewAfterEdit(PostEntity post, EffectiveBoard b, BoardCatalogSnapshot s, Long userId, Instant now) {
         boolean liked = userId != null && counters.postLiked(post.getId(), userId);
-        return view(post, b, s, userId, post.getViewCount(), liked, now);
+        return view(post, b, s, userId, post.getViewCount(), liked, now, ViewerBlocks.Lens.none());
     }
 
-    private PostDetailView view(PostEntity post, EffectiveBoard b, BoardCatalogSnapshot s, Long userId, int viewCount, boolean liked, Instant now) {
+    /** @param lens 보는 사람의 차단·메모 — 글 {@code blocked}(제목 단어 판정, 게시판 글 목록과 같음)와 작성자 {@code memo} */
+    private PostDetailView view(PostEntity post, EffectiveBoard b, BoardCatalogSnapshot s, Long userId, int viewCount, boolean liked, Instant now,
+                                ViewerBlocks.Lens lens) {
         Map<Long, ProfileEntity> members = authors.members(post.getAuthorId() == null ? List.of() : List.of(post.getAuthorId()));
         Optional<PostNeighborData> older = postQueries.older(b.id(), post.getId(), now);
         Optional<PostNeighborData> newer = postQueries.newer(b.id(), post.getId(), now);
-        return new PostDetailView(Long.toString(post.getId()), new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn()),
+        PostAuthorView author = authors.of(post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), members, s).withMemo(lens.memoOf(post.getAuthorId()));
+        DebateReader.Status highlight = debate.status(post.getId(), now);
+        return new PostDetailView(Long.toString(post.getId()), new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()),
                 prefixRef(b, post.getPrefixId()), post.getTitle(), post.getContentFormat().name(), post.getContent(),
-                authors.of(post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), members, s), post.getCreatedAt(), post.getEditedAt(), viewCount,
+                author, post.getCreatedAt(), post.getEditedAt(), viewCount,
                 post.getLikeCount(), liked, post.getCommentCount(), post.isAdult(), userId != null && userId.equals(post.getAuthorId()),
                 protection(b, post.getCommentCount()), post.getDeleteScheduledAt(), older.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null),
-                newer.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null), Boolean.TRUE.equals(s.security().externalLinkNofollow()));
+                newer.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null), Boolean.TRUE.equals(s.security().externalLinkNofollow()),
+                lens.blockedOf(post.getAuthorId(), post.getTitle()), highlight.highlighted(), debate.summary(highlight, post, b, userId, now),
+                pollReader.forPost(post, userId, now));
     }
 
     /** 댓글 많은 글 보호 — 보이는 댓글 수가 기준 이상이면 보호 중 */

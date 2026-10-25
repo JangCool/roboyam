@@ -2,6 +2,7 @@ package com.community.notification.entity;
 
 import static com.community.notification.entity.NotificationArea.BIZ_AD;
 import static com.community.notification.entity.NotificationArea.CLUB;
+import static com.community.notification.entity.NotificationArea.CONTENT;
 import static com.community.notification.entity.NotificationArea.GROUPBUY;
 import static com.community.notification.entity.NotificationArea.HOTDEAL;
 import static com.community.notification.entity.NotificationArea.MEMBER;
@@ -62,8 +63,11 @@ public enum AdminNotificationEvent {
     GRADE_SETTINGS_SAVED(spec(MEMBER, INFO).holders(Permission.GRADE_READ).excludeActor().link("/grades")),
     /** 등급 일수 승급 배치 종료(처리 건수 &gt; 0) — 알림 감시자가 발행한다 */
     GRADE_PROMOTION_RUN(spec(MEMBER, INFO).holders(Permission.GRADE_READ).link("/settings/batch-logs?jobName=grade-promotion")),
-    /** 공개 사이트 글·댓글 신고 접수 — 신고 정책 notifyOperatorScope 가 PER_CASE 면 대상마다 첫 신고에만, PER_REPORT 면 신고마다(api ReportService). 처리 화면이 아직 없어 링크가 없다 */
-    REPORT_RECEIVED(spec(SAFETY, INFO).holders(Permission.REPORT_MANAGE)),
+    /**
+     * 공개 사이트 글·댓글 신고 접수 — 신고 정책 notifyOperatorScope 가 PER_CASE 면 사건마다 첫 신고에만(닫힌 사건 뒤의 새 사건은 다시), PER_REPORT 면 신고마다(api ReportService).
+     * 링크는 관리자 신고 관리의 그 사건 서랍({@code caseId})
+     */
+    REPORT_RECEIVED(spec(SAFETY, INFO).holders(Permission.REPORT_MANAGE).link("/reports?report={caseId}")),
     /** 최고 관리자가 관리자 2차 인증을 켬 — 운영자 전원에게 OTP 등록 안내(켠 사람 제외). 문구에 인자가 없다 */
     MFA_ENABLED(spec(SECURITY, INFO).everyone().excludeActor().link("/me?tab=security")),
     /**
@@ -72,11 +76,17 @@ public enum AdminNotificationEvent {
      * 끌 수는 있다(필수 이벤트가 아니다 — 필수는 본인 계정 알림만, commerce.md 13-3 은 「운영자 알림」만 정한다).
      */
     MFA_DISABLED(spec(SECURITY, CRITICAL).everyone().alwaysEveryone().email().link("/me?tab=security")),
+    /**
+     * 토론 의견 고정 요청 — 회원이 요청할 때(api PinRequestService), 그 게시판 정책 {@code pinRequestReviewers} 에 OPERATOR 가 있을 때만. 같은 글의 5분 안 연속 요청은 한 건.
+     * 처리는 관리자 게시글 관리의 그 글 상세 서랍 의견 관리(고정 요청 탭 — {@code /posts?post={postId}&opinions=pins}, docs/features/popular-highlight-contract.md). 코드는 회원 이벤트 {@code OPINION_PIN_REQUESTED} 와 겹치면 안 된다(문구 대상 코드는 회원·운영자를 넘어 하나 — {@code MessageTargetCatalog})
+     */
+    OPINION_PIN_REQUEST_PENDING(spec(CONTENT, INFO).holders(Permission.POST_MANAGE).link("/posts?post={postId}&opinions=pins").collapse(300)),
 
     // ── 예약 이벤트 (featureReady = false) — 기능이 만들어질 때 reserved() 를 지우고 발행 한 줄만 더한다 ──
     SANCTION_APPEAL_FILED(spec(SAFETY, INFO).holders(Permission.APPEAL_MANAGE).reserved()),
     BOARD_SANCTION_REPEAT_REVIEW(spec(SAFETY, WARNING).holders(Permission.SANCTION_MANAGE).reserved()),
-    NICKNAME_IMAGE_PENDING(spec(MEMBER, INFO).holders(Permission.NICKNAME_IMAGE_MANAGE).reserved()),
+    /** 닉네임 그림 검토 대기 — 회원이 신청할 때(api NicknameImageService). 5분 안의 연속 신청은 한 건. 2026-10-24 예약을 풀었다 */
+    NICKNAME_IMAGE_PENDING(spec(MEMBER, INFO).holders(Permission.NICKNAME_IMAGE_MANAGE).link("/members/nickname-images").collapse(300)),
     CLUB_OPEN_REQUEST_PENDING(spec(CLUB, INFO).holders(Permission.GROUP_MANAGE).reserved()),
     HOTDEAL_SUSPECTED_PROMO(spec(HOTDEAL, WARNING).holders(Permission.HOTDEAL_MANAGE).reserved()),
     COMMERCE_ORDER_ANOMALY(spec(GROUPBUY, CRITICAL).holders(Permission.COMMERCE_ORDER_MANAGE).reserved()),

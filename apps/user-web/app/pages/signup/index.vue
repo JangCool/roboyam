@@ -167,8 +167,7 @@ import UtilValidation from '~/utils/util-validation';
  * 소셜 로그인이 하나도 켜져 있지 않으면 방식 선택을 건너뛰고 이메일 가입부터 시작한다(`GET /api/auth/providers` — 실제).
  * 서버 규칙은 community `docs/api-auth.md` 「입력 규칙」과 같고 화면이 미리 알려 준다(판정은 서버). 약관은 소셜 가입과 같은 `TermsAgreement`.
  * 가입이 끝나면 인증 메일 안내(`/verify-email`)로 간다 — 재발송 60초 제한을 이어서 센다(`useEmailResend().markSent`).
- *
- * ⚠ MOCK: 가입·이메일/닉네임 확인은 서버에 없어 목업(`useAuthApi` — `member-account-contract.md`). 목업 가입은 서버 세션을 만들지 못해 화면 상태만 로그인한 것처럼 된다.
+ * 가입 성공(`201`)은 실제 로그인 세션을 만든다 — 응답 me 로 로그인 상태를 담는다(`useAuth.signup`).
  * community 대비 뺀 것: 사업자 전용 계정 가입 링크(로보얌에 사업자 가입 화면이 없다), "본인인증도 없어요" 문구(본인인증은 다른 세션 범위), 닉네임 30일 주기 문구(정책 미확정).
  */
 definePageMeta({ layout: 'auth', middleware: 'guest' });
@@ -376,18 +375,15 @@ function showSubmitError(e: ApiError) {
         nicknameServerError.value = e.message;
         step.value = 'nickname';
     } else if (e.code === 'VALIDATION' && e.fields) {
+        // 서버는 위반을 한꺼번에 준다 — 모든 칸에 붙여 두고 가장 앞 단계로 돌아간다(뒤 단계 칸의 문구는 그 칸을 고칠 때까지 남는다)
         const f = e.fields;
-        if (f.email || f.password) {
-            emailServerError.value = f.email ?? '';
-            passwordError.value = f.password ?? '';
-            step.value = 'account';
-        } else if (f.nickname) {
-            nicknameServerError.value = f.nickname;
-            step.value = 'nickname';
-        } else {
-            termsErrors.value = { agreeTerms: f.agreeTerms, agreePrivacy: f.agreePrivacy, ageConfirmed: f.ageConfirmed };
-            error.value = e.message;
-        }
+        emailServerError.value = f.email ?? '';
+        passwordError.value = f.password ?? '';
+        nicknameServerError.value = f.nickname ?? '';
+        termsErrors.value = { agreeTerms: f.agreeTerms, agreePrivacy: f.agreePrivacy, ageConfirmed: f.ageConfirmed };
+        if (f.email || f.password) step.value = 'account';
+        else if (f.nickname) step.value = 'nickname';
+        else error.value = e.message;
     } else {
         error.value = e.message;
     }

@@ -138,6 +138,7 @@ export default {
         COMMENT: '댓글 작성',
         POPULAR: '인기글 보상',
         POST_REVOKE: '글 삭제로 회수',
+        POST_RESTORE: '글 복구로 되돌림',
         COMMENT_REVOKE: '댓글 삭제로 회수',
         TICKET_PURCHASE: '교환권·상점 구매',
         ADMIN_ADJUST: '운영 조정',

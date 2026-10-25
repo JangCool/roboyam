@@ -110,7 +110,7 @@ import UtilTime from '#layers/display-time/utils/util-time';
  * 주소에 `?token=` 이 있으면 메일 링크를 확인하고(로그인 없이 된다 — `auth-unless-token`), 없으면 로그인한 사람에게 "인증 메일을 보냈어요" 안내와 재발송(60초 쿨다운)을 보여 준다.
  * 같은 주소가 **이메일 변경 링크**(`/settings/account/email`)도 받는다 — 응답의 `changed` 가 true 면 "이메일을 바꿨어요", 변경 링크에서만 오는 `409 EMAIL_TAKEN` 은 "이메일을 바꾸지 못했어요".
  *
- * - 재발송은 **실제** `POST /api/auth/email/resend`(`useEmailResend` — 안내 배너와 같은 쿨다운). 링크 확인(`POST /api/auth/email/verify`)은 ⚠ MOCK(서버에 없다 — 토큰 `expired`·`invalid`·`changed`·`taken` 으로 갈래를 본다).
+ * - 재발송은 **실제** `POST /api/auth/email/resend`(`useEmailResend` — 안내 배너와 같은 쿨다운). 링크 확인도 실제 `POST /api/auth/email/verify`(로그인 없이).
  * - 인증이 끝나면 로그인 상태를 새로 받는다(같은 브라우저면 배너가 사라진다). 다른 탭에서 인증하고 돌아오면(`visibilitychange`) 다시 받는다.
  */
 definePageMeta({ layout: 'auth', middleware: 'auth-unless-token' });

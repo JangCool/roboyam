@@ -14,7 +14,7 @@ export default {
     displayHint: 'Language, time zone, time and date format',
     accountHint: 'Sign-in methods and linked social accounts',
     nicknameImage: 'Nickname image',
-    nicknameImageHint: 'An image in place of your nickname · from Loyal',
+    nicknameImageHint: 'An image in place of your nickname · apply once you qualify',
     adult: 'Age check',
     adultHint: 'Confirm your birth year to see adult posts',
     view: 'View',

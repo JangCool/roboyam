@@ -1,12 +1,3 @@
-import {
-    mockCheckResetToken,
-    mockEmailAvailable,
-    mockForgotPassword,
-    mockNicknameAvailable,
-    mockResetPassword,
-    mockSignup,
-    mockVerifyEmail,
-} from '~/composables/auth/api/mock/auth-mock';
 import type {
     EmailAvailability,
     EmailVerifyResult,
@@ -29,9 +20,7 @@ import UtilRedirect from '~/utils/util-redirect';
  * 규약: `docs/features/login-contract.md`(「소셜 로그인」 절 포함) · `docs/features/member-account-contract.md` · community `docs/api-auth.md`. 오류는 모두 `ApiError`(useApiClient)로 던져진다.
  * 소셜 로그인 시작만 요청이 아니라 **페이지 이동**이다(서버가 공급자로 302 하고, 끝나면 정해진 화면 경로로 되돌려 보낸다).
  *
- * 실제 서버: me · providers · login · logout · 인증 메일 다시 보내기 · 소셜 로그인(시작·가입 대기·가입 마무리).
- * ⚠ MOCK: 이메일 가입·이메일/닉네임 확인·메일 링크 확인·비밀번호 찾기·재설정은 서버에 API 가 없어 `./mock/auth-mock.ts` 를 부른다(모양은 community `docs/api-auth.md` 그대로).
- * 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
+ * 모두 실제 서버다: me · providers · login · logout · 인증 메일 다시 보내기 · 이메일 가입 · 이메일/닉네임 확인 · 메일 링크 확인 · 비밀번호 찾기·재설정 · 소셜 로그인(시작·가입 대기·가입 마무리).
  */
 const PATH = {
     me: '/api/auth/me',
@@ -73,52 +62,31 @@ export function useAuthApi() {
          * 이메일 가입 — `201` 로 `me` 와 같은 모양(가입 즉시 로그인, 인증 메일이 나간다).
          * `400 VALIDATION`(`fields` — 이메일·비밀번호·닉네임·동의 위반을 한 번에) · `409 EMAIL_TAKEN` · `409 NICKNAME_TAKEN`
          */
-        signup: (body: SignupRequest): Promise<MeResponse> =>
-            // MOCK:
-            mockSignup(body),
-        // REAL: client.post<MeResponse>(PATH.signup, body),
+        signup: (body: SignupRequest) => client.post<MeResponse>(PATH.signup, body),
 
         /** 이메일 중복 확인 — `{ available }`. 형식이 틀리면 `400 VALIDATION` */
-        emailAvailable: (email: string, signal?: AbortSignal): Promise<EmailAvailability> =>
-            // MOCK:
-            mockEmailAvailable(email, signal),
-        // REAL: client.get<EmailAvailability>(PATH.emailAvailable, { query: { email }, signal }),
+        emailAvailable: (email: string, signal?: AbortSignal) => client.get<EmailAvailability>(PATH.emailAvailable, { query: { email }, signal }),
 
         /** 닉네임 확인 — `{ available, reason: LENGTH|CHARS|DUPLICATE|RESERVED|null }` */
-        nicknameAvailable: (nickname: string, signal?: AbortSignal): Promise<NicknameAvailability> =>
-            // MOCK:
-            mockNicknameAvailable(nickname, signal),
-        // REAL: client.get<NicknameAvailability>(PATH.nicknameAvailable, { query: { nickname }, signal }),
+        nicknameAvailable: (nickname: string, signal?: AbortSignal) => client.get<NicknameAvailability>(PATH.nicknameAvailable, { query: { nickname }, signal }),
 
         /**
          * 메일 링크 확인(로그인 없이) — 인증 링크와 이메일 변경 링크가 같은 주소다. `{ verified, changed }`.
          * `400 TOKEN_INVALID` · `410 TOKEN_EXPIRED` · `409 EMAIL_TAKEN`(변경 링크에서만)
          */
-        verifyEmail: (token: string): Promise<EmailVerifyResult> =>
-            // MOCK:
-            mockVerifyEmail(token),
-        // REAL: client.post<EmailVerifyResult>(PATH.emailVerify, { token }),
+        verifyEmail: (token: string) => client.post<EmailVerifyResult>(PATH.emailVerify, { token }),
 
         /** 비밀번호 재설정 메일 요청 — 가입 여부와 관계없이 늘 `202`(계정이 있는지 알리지 않는다). 형식 오류만 `400 VALIDATION` */
-        forgotPassword: (email: string): Promise<void> =>
-            // MOCK:
-            mockForgotPassword(email),
-        // REAL: client.post<void>(PATH.passwordForgot, { email }),
+        forgotPassword: (email: string) => client.post<void>(PATH.passwordForgot, { email }),
 
         /** 재설정 링크가 아직 쓸 수 있는가 — `{ valid: true }` · `400 TOKEN_INVALID` · `410 TOKEN_EXPIRED` */
-        checkResetToken: (token: string): Promise<PasswordResetCheck> =>
-            // MOCK:
-            mockCheckResetToken(token),
-        // REAL: client.get<PasswordResetCheck>(PATH.passwordResetCheck, { query: { token } }),
+        checkResetToken: (token: string) => client.get<PasswordResetCheck>(PATH.passwordResetCheck, { query: { token } }),
 
         /**
          * 새 비밀번호 저장 — `204`. 성공하면 그 계정의 **모든 세션이 끝난다**.
          * `400 VALIDATION`(`fields.newPassword`) · `400 TOKEN_INVALID` · `410 TOKEN_EXPIRED` · `400 SAME_PASSWORD`
          */
-        resetPassword: (body: PasswordResetRequest): Promise<void> =>
-            // MOCK:
-            mockResetPassword(body),
-        // REAL: client.post<void>(PATH.passwordReset, body),
+        resetPassword: (body: PasswordResetRequest) => client.post<void>(PATH.passwordReset, body),
 
         /**
          * 소셜 로그인 화면으로 이동한다(서버가 결과에 따라 화면 주소로 되돌려 보낸다).

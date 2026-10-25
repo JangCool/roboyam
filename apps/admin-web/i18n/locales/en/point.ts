@@ -138,6 +138,7 @@ export default {
         COMMENT: 'Comment',
         POPULAR: 'Popular post reward',
         POST_REVOKE: 'Post deleted',
+        POST_RESTORE: 'Post restored',
         COMMENT_REVOKE: 'Comment deleted',
         TICKET_PURCHASE: 'Ticket & shop purchase',
         ADMIN_ADJUST: 'Operator adjustment',

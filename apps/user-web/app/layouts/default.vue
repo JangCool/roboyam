@@ -21,6 +21,8 @@
                 <RestrictionBanner />
                 <AppTopTabs v-if="!inner" class="md:hidden" />
                 <EmailVerifyBanner />
+                <!-- 약관 변경 안내 띠(약관 요약의 `notice`, 닫기는 이 브라우저에 기억) -->
+                <TermsChangeNotice />
             </template>
 
             <slot />
@@ -65,6 +67,4 @@ void useMenu().ensureLoaded();
 useNotificationBadge().start();
 // 안 읽은 쪽지 대화 수(데스크톱 헤더의 쪽지 아이콘·메뉴의 "쪽지함" 줄) — 알림과 같은 방식으로 한 번만 시작한다
 useDmBadge().start();
-// MOCK: 목업의 차단·단어·메모 한 벌을 이 기기의 표시(`useBlockOverrides`)에 깐다 — 서버가 붙으면 응답마다 `blocked`·`memo` 가 오므로 이 줄을 지운다
-useBlockOverridesLoader();
 </script>

@@ -64,6 +64,11 @@ public class SecurityConfig {
                         // IP 한도는 서비스가 센다. 로그인한 회원의 연결 관리(/api/me/social/**)는 아래 규칙대로 로그인이 필요하다
                         .requestMatchers(HttpMethod.GET, "/api/auth/social/*/start", "/api/auth/social/*/callback", "/api/auth/social/pending").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/social/complete").permitAll()
+                        // 회원 계정 흐름(docs/features/member-account-contract.md) — 이메일 가입·이메일/닉네임 확인·메일 링크 확인(인증·이메일 변경)·비밀번호 찾기/재설정.
+                        // 토큰·입력은 서비스가 검사한다(공개 사이트 서버(api)에만 있는 주소). 내 계정(/api/me/account·password·email-change)은 아래 규칙대로 로그인이 필요하다
+                        .requestMatchers(HttpMethod.GET, "/api/auth/email-available", "/api/auth/nickname-available", "/api/auth/password/reset/check").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/signup", "/api/auth/email/verify", "/api/auth/password/forgot", "/api/auth/password/reset")
+                        .permitAll()
                         // 공개 사이트 설정(이름·로고·아이콘·링크 미리보기 이미지·표시 기본값) — 로그인 전 화면도 읽는다(공개 사이트 서버(api)에만 있는 주소)
                         .requestMatchers(HttpMethod.GET, "/api/site/info", "/api/site/theme").permitAll()
                         // 표시 효과값(docs/features/display-contract.md) — 비로그인은 사이트 기본값, 로그인했으면 개인 값까지 합친 값. 개인 값 API(/api/me/display)는 아래 규칙대로 로그인 필요
@@ -76,6 +81,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/posts", "/api/posts/*/delete", "/api/posts/*/verify-password", "/api/posts/*/comments",
                                 "/api/comments/*/delete").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/posts/*", "/api/comments/*").permitAll()
+                        // 공개 약관(docs/features/terms-contract.md) — 요약·본문·지난 버전은 비회원도 읽는다(공개 사이트 서버(api)에만 있는 주소)
+                        .requestMatchers(HttpMethod.GET, "/api/terms/**").permitAll()
+                        // 공개 회원 프로필(docs/features/member-activity-contract.md 「공개 프로필」) — 비회원도 읽는다(공개 사이트 서버(api)에만 있는 주소)
+                        .requestMatchers(HttpMethod.GET, "/api/users/*/profile", "/api/users/*/posts", "/api/users/*/comments").permitAll()
+                        // 회원 활동·둘러보기(docs/features/member-activity-contract.md) — 최신글·인기글·통합 검색·등급 조건표는 비회원도 읽는다. 내 등급(/api/me/grade)은 아래 규칙대로 로그인 필요
+                        .requestMatchers(HttpMethod.GET, "/api/home/latest", "/api/home/popular", "/api/search", "/api/grade-rules").permitAll()
                         // 관리자 앱(admin)의 로그인 상태 조회·로그인·로그아웃 — 같은 규약이다(공개 사이트 서버에는 이 주소가 없다). 그 밖의 /api/admin/** 는 로그인이 필요하고,
                         // 어떤 권한이 필요한지는 컨트롤러가 선언하며 선언이 없으면 거절된다(admin 의 AdminAccessInterceptor — fail-closed)
                         .requestMatchers(HttpMethod.GET, "/api/admin/auth/me").permitAll()

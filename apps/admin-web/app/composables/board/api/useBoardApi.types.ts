@@ -42,6 +42,8 @@ export type BoardProtectDelete = 'BLOCK' | 'DELAY' | 'ALLOW';
 export type BoardWriteLock = 'POST' | 'POST_COMMENT';
 /** 공통 말머리 4개 — 질문 · 후기 · 잡담 · 공지(운영진 전용 고정) */
 export type BoardCommonPrefix = 'QUESTION' | 'REVIEW' | 'CHAT' | 'NOTICE';
+/** 의견 고정 요청을 확인하는 사람 — 글쓴이 · 그 게시판 매니저 · 운영자(`highlight.manage`). 서버 `BoardFields.PIN_REVIEWERS` 차례 */
+export type BoardPinReviewer = 'POST_AUTHOR' | 'BOARD_MANAGER' | 'OPERATOR';
 /** 게시판 담당 역할 — 매니저 · 스텝 */
 export type BoardStaffRole = 'MANAGER' | 'STAFF';
 /** 담당 지정 자격 미달 사유 — 새싹 등급 · 이메일 미인증 · 정지 · 사업자 · 이미 5개 게시판 담당 · 이미 이 게시판 담당 */
@@ -91,6 +93,23 @@ export interface BoardDefaults {
     commentProtectDelayMinutes: number;
     /** 비회원에게 댓글을 늦게 보이는 시간(분) 0·10·30·60·180 */
     commentGuestDelayMinutes: number;
+    /** 운영자가 숨긴 댓글임을 공개 화면에 밝힌다(켜면 「운영자가 숨긴 댓글이에요」, 끄면 신고 숨김과 같은 문구). 전체 기본값 `false` */
+    staffHiddenNotice: boolean;
+    /** 댓글 비추천도 보인다(끄면 추천만 — 쌓인 비추천 수는 지우지 않고 감춘다). 토론 의견도 그 글의 게시판 설정을 따른다. 전체 기본값 `false` */
+    commentDislikeEnabled: boolean;
+    /**
+     * 댓글 추천 단추 이름(1~10자, 앞뒤 공백을 떼고 비면 null). 기본 설정의 null = 화면 기본 이름 「추천」, 게시판 정책의 null = 기본 설정 따름
+     * (그래서 기본 설정에 이름이 있으면 게시판에서 「추천」으로 되돌릴 수 없다 — 같은 글자를 적는다). 기본 설정 PUT 에서도 비워 둘 수 있다
+     */
+    commentLikeLabel: string | null;
+    /** 댓글 비추천 단추 이름 — `commentLikeLabel` 과 같은 규칙(기본 이름 「비추천」) */
+    commentDislikeLabel: string | null;
+    /** 하이라이트 토론의 의견 고정 요청을 확인하는 사람(서버 차례 글쓴이 → 매니저 → 운영자, 겹치지 않게). 빈 배열 = 고정 요청 끔. 전체 기본값 `['OPERATOR']`, 기본 설정 PUT 에서는 필수 */
+    pinRequestReviewers: BoardPinReviewer[];
+    /** 글쓴이(회원)가 글쓰기·고치기에서 찬반 토론을 열 수 있다(post-debate-contract). 끄면 운영자·그 게시판 매니저만 연다 — 나중에 꺼도 이미 연 토론은 그대로. 전체 기본값 `false` */
+    debateEnabled: boolean;
+    /** 글쓴이(회원)가 글쓰기·고치기에서 글에 투표를 붙일 수 있다(post-poll-contract). 끄면 새로 붙일 수 없다 — 이미 붙은 투표는 그대로. 전체 기본값 `false` */
+    pollEnabled: boolean;
     /** 베스트 댓글 최소 추천 수 1~100 */
     bestCommentMinLikes: number;
     /** 게시판당 매니저 수 1~10 */
@@ -125,6 +144,13 @@ export const BOARD_POLICY_FIELDS = [
     'commentProtectDelete',
     'commentProtectDelayMinutes',
     'commentGuestDelayMinutes',
+    'staffHiddenNotice',
+    'commentDislikeEnabled',
+    'commentLikeLabel',
+    'commentDislikeLabel',
+    'pinRequestReviewers',
+    'debateEnabled',
+    'pollEnabled',
     'managerMax',
     'staffPostDailyLimit',
     'staffCommentDailyLimit',
@@ -237,12 +263,22 @@ export interface BoardDetail extends BoardRef {
     introText: string | null;
     /** 글쓰기 안내문 — 위와 같다 */
     writeGuideText: string | null;
+    /** 「가젯 노출 금지」로 고른 가젯 키(`gadgets[].key`, 목록 순서) — 게시판마다의 값(기본 설정에서 물려받지 않고 `diffCount` 에 세지 않는다) */
+    gadgetExclusions: string[];
     policy: BoardPolicy;
     /** 공통 4개 + 고유, 표시 순서대로 */
     prefixes: BoardPrefix[];
     /** 지금 기본 설정 — 「기본값 따름」 칸에 흐리게 보인다 */
     defaults: BoardDefaults;
     diffCount: number;
+    /** 「가젯 노출 금지」에 고를 수 있는 가젯 전부(목록 순서) — 홈 가젯이 생기면 늘어난다 */
+    gadgets: BoardGadgetOption[];
+}
+
+/** 고를 수 있는 가젯 하나 — `key` 는 서버 `BoardGadget` 이름(지금 `POPULAR` 인기글 · `LATEST` 최신글), `label` 은 서버가 요청 언어로 푼 이름 */
+export interface BoardGadgetOption {
+    key: string;
+    label: string;
 }
 
 /** 저장할 고유 말머리 — `id` 가 null 이면 새로 만든다. 목록 순서가 표시 순서이고, 빠진 기존 말머리는 지운다(쓰는 글이 있으면 409 `PREFIX_IN_USE`) */
@@ -262,7 +298,7 @@ export interface BoardCommonPrefixSaveItem {
 
 /**
  * `PUT /api/admin/boards/{id}` — 기본 정보 + 정책 + 말머리를 **한 트랜잭션**으로 저장한다. 응답은 `BoardDetail`.
- * 권한: 기본 정보·말머리 `board.manage`, 정책(잠금·안내문 포함) `board.settings`, 매니저·스텝 한도 칸 `board.staff.limit` — 바뀐 부분의 권한이 없으면 서버가 403.
+ * 권한: 기본 정보·말머리 `board.manage`, 정책(잠금·안내문·가젯 노출 금지 포함) `board.settings`, 매니저·스텝 한도 칸 `board.staff.limit` — 바뀐 부분의 권한이 없으면 서버가 403.
  */
 export interface BoardSaveRequest {
     name: string;
@@ -279,6 +315,8 @@ export interface BoardSaveRequest {
     policy: BoardPolicy;
     commonPrefixes: BoardCommonPrefixSaveItem[];
     prefixes: BoardPrefixSaveItem[];
+    /** 가젯 노출 금지 — `null` 이면 바꾸지 않는다(서버가 중복을 하나로, 목록 순서로 저장). 모르는 값은 400 `fields.gadgetExclusions`, 바꾸려면 `board.settings` */
+    gadgetExclusions: string[] | null;
 }
 
 /** 게시판 매니저·스텝 한 명 — `GET /api/admin/boards/{id}/staff` */

@@ -6,7 +6,9 @@ import UtilViewSettings from '~/utils/util-view-settings';
  * 보기 설정(야간 모드·글자 크기·댓글 정렬) — 화면 전체가 공유하는 상태와 바꾸는 방법(community `useSettings`). 서버와 말하는 것은 `useViewSettingsApi`.
  *
  *  - 이 브라우저(`localStorage roboyam:view-settings`)에 사본을 둔다 — 첫 그림 전에 야간 모드를 걸려면 서버를 기다릴 수 없다. 막혀 있어도 앱은 뜨고 이번 방문 동안 메모리에서 쓴다.
- *  - 로그인: **서버 값이 이긴다.** 앱 시작·로그인 직후(`plugins/view-settings.client.ts`)에 받아 상태와 사본을 갱신한다. 로그아웃해도 이 브라우저의 마지막 값은 남긴다.
+ *  - 비로그인: 서버를 부르지 않는다(`load`·`ensureLoaded`·`update` 모두 `user` 를 먼저 본다 — 서버는 401) — 이 브라우저 사본만 쓴다.
+ *  - 로그인: **서버 값이 이긴다.** 앱 시작·로그인 직후(`plugins/view-settings.client.ts`)에 받아 상태와 사본을 갱신한다. 서버에 저장한 적이 없으면 기본값(AUTO·100·OLDEST)이 와서
+ *    사본도 기본값으로 덮인다(계정의 값이 이 브라우저 사본보다 앞선다). 로그아웃해도 이 브라우저의 마지막 값은 남긴다.
  *  - **바꾸기(`update`)는 낙관적**이다 — 먼저 반영하고 저장하다 실패하면 바꾼 칸만 되돌리고 던진다. 저장은 한 줄로 세워 그 순간의 값 전체를 보낸다(`PUT` 은 통째 교체).
  * `phase` 의 `idle` 은 아직 안 물어봄, `ready` 는 서버 값을 받음.
  */

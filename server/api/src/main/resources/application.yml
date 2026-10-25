@@ -39,6 +39,10 @@ roboyam:
     verify-token-hours: 24        # 이메일 인증 링크의 유효 시간
     resend-cooldown-seconds: 60   # 인증 메일 재발송 간격(가장 최근에 보낸 링크 기준)
     session-timeout: 30d          # 로그인 세션: 마지막 활동 뒤 이 기간. spring.session.timeout 과 세션 쿠키 기한이 이 값을 따른다
+  # 회원 계정 흐름(docs/features/member-account-contract.md) — 재발송 60초·로그인 잠금은 위 auth 값을 함께 쓴다
+  account:
+    reset-token-minutes: 60       # 비밀번호 재설정 링크의 유효 시간(분)
+    email-change-token-hours: 24  # 이메일 변경 링크의 유효 시간
   # 소셜 로그인(카카오·네이버·구글, OAuth 2.0 인가 코드 흐름 — docs/features/login-contract.md 「소셜 로그인」). 공급자 주소는 코드에 고정이다(SocialEndpoints).
   # 공급자 콘솔에 등록할 콜백 주소: {사이트 공개 주소}/api/auth/social/{kakao|naver|google}/callback
   social:

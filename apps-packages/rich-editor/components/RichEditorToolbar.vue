@@ -3,15 +3,18 @@
         에디터 도구 모음(community `RichEditorToolbar`) — 수준(`level`)별로 단추를 켜고 끈다. 단추가 많으면 줄을 바꾼다.
           간단: 굵게·기울임·밑줄·취소선 | 글머리 목록·번호 목록·인용 | 링크
           고급: [제목·글자색·배경색] + 간단 + [코드(인라인·블록)] + [구분선] | [이미지(허용될 때)·유튜브]
+          문서: [제목] + 간단 + [구분선]
         이미지·유튜브·링크처럼 부모가 해야 하는 일은 이벤트로 올린다. 켜져 있는 서식은 에디터 상태에서 그때그때 읽는다(`@tiptap/vue-3` 가 트랜잭션마다 다시 그리게 한다).
     -->
     <div role="toolbar" :aria-label="t('richEditor.toolbar')" class="flex flex-wrap items-center gap-1 border-b border-surface p-1.5" :data-level="level" data-testid="rich-toolbar">
-        <template v-if="advanced">
+        <template v-if="structured">
             <RichEditorMenuButton :label="t('richEditor.heading')" icon="pi pi-heading" :items="headingItems()" :active="is('heading')" :disabled="off" data-testid="tool-heading" @select="onHeading" />
+        </template>
+        <template v-if="advanced">
             <RichEditorMenuButton :label="t('richEditor.textColor')" text="A" :tint="UtilRichFormats.colorToHex(attr('color'))" :items="textColorItems()" :active="Boolean(attr('color'))" :disabled="off" data-testid="tool-text-color" @select="onTextColor" />
             <RichEditorMenuButton :label="t('richEditor.backgroundColor')" icon="pi pi-palette" :fill="UtilRichFormats.colorToHex(attr('backgroundColor'))" :items="backgroundColorItems()" :active="Boolean(attr('backgroundColor'))" :disabled="off" data-testid="tool-background-color" @select="onBackgroundColor" />
-            <span class="mx-0.5 h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700" aria-hidden="true" />
         </template>
+        <span v-if="structured" class="mx-0.5 h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700" aria-hidden="true" />
 
         <RichEditorToolButton :label="t('richEditor.bold')" icon="pi pi-bold" toggle :active="is('bold')" :disabled="off" data-testid="tool-bold" @click="chain((c) => c.toggleBold())" />
         <RichEditorToolButton :label="t('richEditor.italic')" icon="pi pi-italic" toggle :active="is('italic')" :disabled="off" data-testid="tool-italic" @click="chain((c) => c.toggleItalic())" />
@@ -26,7 +29,7 @@
         <span class="mx-0.5 h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700" aria-hidden="true" />
 
         <RichEditorToolButton :label="t('richEditor.link')" icon="pi pi-link" toggle :active="is('link') || linkActive" :disabled="off" data-testid="tool-link" @click="emit('link')" />
-        <RichEditorToolButton v-if="advanced" :label="t('richEditor.horizontalRule')" icon="pi pi-minus" :disabled="off" data-testid="tool-hr" @click="chain((c) => c.setHorizontalRule())" />
+        <RichEditorToolButton v-if="structured" :label="t('richEditor.horizontalRule')" icon="pi pi-minus" :disabled="off" data-testid="tool-hr" @click="chain((c) => c.setHorizontalRule())" />
 
         <template v-if="advanced">
             <span class="mx-0.5 h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700" aria-hidden="true" />
@@ -66,6 +69,8 @@ const emit = defineEmits<{ link: []; image: []; youtube: [] }>();
 const { t } = useI18n();
 
 const advanced = computed(() => props.level === 'ADVANCED');
+/** 제목·구분선이 있는 수준 — 고급·문서 */
+const structured = computed(() => advanced.value || props.level === 'DOCUMENT');
 /** 에디터가 없거나 잠겼다 — 모든 도구가 꺼진다 */
 const off = computed(() => props.disabled || !props.editor);
 

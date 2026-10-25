@@ -61,6 +61,7 @@ const STATE_CHANGED = new Set([
     'EMAIL_NOT_VERIFIED',
     'BUSINESS_ACCOUNT_RESTRICTED',
     'PROFILE_NOT_FOUND',
+    'DM_NOT_PERMITTED',
 ]);
 
 export default class UtilDmMessages {
@@ -129,6 +130,8 @@ export default class UtilDmMessages {
                 return { tone: 'red', title: t('dm.restrictedTitle'), text: t('dm.restrictedText'), link: null, lock: t('dm.lockRestricted'), help: null };
             case 'BUSINESS_RESTRICTED':
                 return { tone: 'muted', title: t('dm.reasonBusiness'), text: t('dm.readStillText'), link: null, lock: t('dm.lockBusiness'), help: null };
+            case 'NOT_PERMITTED':
+                return { tone: 'muted', title: t('dm.reasonNotPermitted'), text: t('dm.readStillText'), link: null, lock: t('dm.lockNotPermitted'), help: null };
             case 'TOO_NEW': {
                 const from = UtilDmMessages.dayLabel(t, ctx.availableFrom, ctx.time, ctx.now);
                 return {
@@ -197,6 +200,8 @@ export default class UtilDmMessages {
                 return t('dm.lockRestricted');
             case 'BUSINESS_RESTRICTED':
                 return t('dm.lockBusiness');
+            case 'NOT_PERMITTED':
+                return t('dm.lockNotPermitted');
             case 'EMAIL_NOT_VERIFIED':
                 return t('dm.profileUnverified');
             case 'RECIPIENT_WITHDRAWN':
@@ -351,6 +356,7 @@ export default class UtilDmMessages {
             case 'DM_SELF':
             case 'PROFILE_NOT_FOUND':
             case 'BUSINESS_ACCOUNT_RESTRICTED':
+            case 'DM_NOT_PERMITTED':
                 return notice('muted');
             case 'VALIDATION':
                 return notice('red', '', null, e.field('body') ?? e.message);

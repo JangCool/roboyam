@@ -79,6 +79,16 @@ public class LoginAttemptService {
         users.findById(userId).ifPresent(user -> user.markLoggedIn(now));
     }
 
+    /**
+     * 실패 횟수·잠금만 지운다(마지막 로그인 시각은 그대로) — 비밀번호 재설정·변경·현재 비밀번호 확인에 성공했을 때. 부르는 쪽의 트랜잭션이 있으면 거기에 실린다.
+     *
+     * @param email 정규화한 이메일(비밀번호 변경처럼 회원을 이미 아는 흐름은 그 회원의 시도 키 문자열)
+     */
+    @Transactional
+    public void resetFailures(String email) {
+        attempts.findForUpdate(key(email)).ifPresent(attempt -> attempt.reset(Instant.now()));
+    }
+
     private static String key(String email) {
         return AuthTokens.sha256Hex(email);
     }

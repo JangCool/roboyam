@@ -8,7 +8,7 @@ import java.util.Optional;
  * 이름(화면에 보이는 「글 작성」 등)은 번들 키 {@code point.reason.<코드>} 로 요청 언어에 맞춰 서버가 준다.
  *
  * <p><b>지금 실제로 생기는 줄</b>: {@code POST}·{@code COMMENT}(작성) · {@code POST_REVOKE}·{@code COMMENT_REVOKE}(본인 삭제 회수) · {@code LIKE_BONUS}·{@code LIKE_BONUS_REVOKE}
- * (추천 받음 보너스·삭제 회수) · {@code ADMIN_ADJUST}(운영 조정). 출석·인기글·교환권·핫딜 종료 요청·가입은 기능이 없어 정책만 저장하고 줄이 생기지 않는다.
+ * (추천 받음 보너스·삭제 회수) · {@code ADMIN_ADJUST}(운영 조정) · {@code POST_RESTORE}(운영자 복구로 되돌려 줌). 출석·인기글·교환권·핫딜 종료 요청·가입은 기능이 없어 정책만 저장하고 줄이 생기지 않는다.
  */
 public enum PointReason {
 
@@ -23,7 +23,9 @@ public enum PointReason {
     DEAL_END_REQUEST,
     LIKE_BONUS,
     LIKE_BONUS_REVOKE,
-    SIGNUP;
+    SIGNUP,
+    /** 운영자가 지운 글을 복구 — 그 글로 회수했던 포인트(글 포인트·추천 보너스 회수의 합)를 한 줄로 되돌려 준다(V80) */
+    POST_RESTORE;
 
     /** 원장 종류 — 교환권 구매는 사용, 그 밖은 부호로 지급·회수 */
     public String kindOf(long delta) {

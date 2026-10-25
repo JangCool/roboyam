@@ -42,6 +42,7 @@ import UtilBlockMessages from '~/utils/util-block-messages';
  * 차단한 사용자·단어의 글·댓글을 한 줄로 접는다(community `FoldedRow`). 서버는 내용을 그대로 싣고 `blocked` 로 표시만 하므로 접는 것은 화면의 일이다.
  *  - `reason` 이 null 이면 접지 않는다 — 목록 줄·댓글을 늘 이 컴포넌트로 감싸고 `reason` 만 바꿔 넘긴다.
  *  - 접힘 상태는 **그 줄의 로컬 상태**다(목록을 다시 받으면 다시 접힌다). `table` 이면 `<tr><td colspan>` 이고 「다시 숨기기」는 슬롯 속성(`hide`)으로 슬롯 안에 둔다.
+ *  - 펼침을 바깥도 알아야 하면 `v-model:open` 으로 묶는다(글 상세: 펼치기 전엔 제목도 가린다). 묶지 않으면 위처럼 로컬 상태다.
  */
 defineOptions({ inheritAttrs: false });
 
@@ -62,7 +63,8 @@ const { t } = useI18n();
 const SHOW_CLASS = 'rounded px-1.5 py-1 text-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary';
 const HIDE_CLASS = 'rounded px-1 py-0.5 text-xs text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary';
 
-const open = ref(false);
+/** 펼쳤다 — `v-model:open` 으로 묶지 않으면 이 컴포넌트의 로컬 상태 */
+const open = defineModel<boolean>('open', { default: false });
 const showButton = ref<HTMLButtonElement | null>(null);
 const hideButton = ref<HTMLButtonElement | null>(null);
 

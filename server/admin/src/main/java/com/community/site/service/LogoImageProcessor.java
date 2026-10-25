@@ -40,15 +40,23 @@ public class LogoImageProcessor {
     }
 
     public Processed process(byte[] data) {
+        return process(data, "site.logo.type", "site.logo.size");
+    }
+
+    /**
+     * 같은 검사·다시 만들기를 다른 용도(하이라이트 대표 이미지 — {@code FileUploadService})가 쓸 때 — 형식·용량 거절 문구만 그 용도의 키로 바꾼다
+     * (로고 문구는 「SVG 소스로 설정」을 안내한다). 용량 문구의 인자는 한도 MB 하나다.
+     */
+    public Processed process(byte[] data, String typeKey, String sizeKey) {
         if (data == null || data.length == 0) {
             throw ImageProblems.empty();
         }
         ImageFormat format = ImageFormat.sniff(data);
         if (format == null) {
-            throw ImageProblems.file("site.logo.type");
+            throw ImageProblems.file(typeKey);
         }
         if (data.length > ImageProblems.MAX_BYTES) {
-            throw ImageProblems.file("site.logo.size", String.valueOf(ImageProblems.MAX_MB));
+            throw ImageProblems.file(sizeKey, String.valueOf(ImageProblems.MAX_MB));
         }
         Info info;
         try {

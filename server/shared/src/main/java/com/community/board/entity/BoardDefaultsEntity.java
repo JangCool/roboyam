@@ -1,6 +1,7 @@
 package com.community.board.entity;
 
 import com.community.board.dto.BoardDefaultsValues;
+import com.community.board.service.BoardFields;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -39,6 +40,16 @@ public class BoardDefaultsEntity {
     private String commentProtectDelete;
     private int commentProtectDelayMinutes;
     private int commentGuestDelayMinutes;
+    private boolean staffHiddenNotice;
+    private boolean commentDislikeEnabled;
+    private String commentLikeLabel;
+    private String commentDislikeLabel;
+    /** 고정 요청 확인자 — 쉼표로 이은 값(빈 글자 = 끔). API 는 목록 */
+    private String pinRequestReviewers;
+    /** 「글쓴이가 찬반 토론을 열 수 있음」(V79, 기본 끔) */
+    private boolean debateEnabled;
+    /** 「글쓴이가 투표를 붙일 수 있음」(V81, 기본 끔) */
+    private boolean pollEnabled;
     private int bestCommentMinLikes;
     private int managerMax;
     private int staffMax;
@@ -54,7 +65,8 @@ public class BoardDefaultsEntity {
     public BoardDefaultsValues values() {
         return new BoardDefaultsValues(dateDisplay, writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, postGapSeconds, postDailyLimit, commentGapSeconds,
                 commentDailyLimit, listSize, pinnedMax, indexable, searchable, inHome, attachmentPurgeEnabled, attachmentRetentionDays, pointMode,
-                commentProtectMin, commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, bestCommentMinLikes,
+                commentProtectMin, commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice,
+                commentDislikeEnabled, commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, pollEnabled, bestCommentMinLikes,
                 managerMax, staffMax, staffPostDailyLimit, staffCommentDailyLimit, staffSanctionDailyLimit);
     }
 
@@ -83,6 +95,13 @@ public class BoardDefaultsEntity {
         this.commentProtectDelete = v.commentProtectDelete();
         this.commentProtectDelayMinutes = v.commentProtectDelayMinutes();
         this.commentGuestDelayMinutes = v.commentGuestDelayMinutes();
+        this.staffHiddenNotice = v.staffHiddenNotice();
+        this.commentDislikeEnabled = v.commentDislikeEnabled();
+        this.commentLikeLabel = v.commentLikeLabel();
+        this.commentDislikeLabel = v.commentDislikeLabel();
+        this.pinRequestReviewers = BoardFields.joinReviewers(v.pinRequestReviewers());
+        this.debateEnabled = v.debateEnabled();
+        this.pollEnabled = v.pollEnabled();
         this.bestCommentMinLikes = v.bestCommentMinLikes();
         this.managerMax = v.managerMax();
         this.staffMax = v.staffMax();

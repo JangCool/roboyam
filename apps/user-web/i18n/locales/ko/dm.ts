@@ -179,4 +179,6 @@ export default {
     openInbox: '쪽지함 열기',
     settingsSaved: '쪽지 수신 설정을 저장했어요',
     settingsSaveFailed: '쪽지 수신 설정을 저장하지 못했어요. {reason} 방금 바꾼 항목은 원래대로 돌려 놓았어요.',
+    reasonNotPermitted: '지금 회원 등급·역할로는 쪽지를 보낼 수 없어요.',
+    lockNotPermitted: '쪽지를 보낼 수 있는 권한이 없어요',
 };

@@ -77,8 +77,20 @@ public enum BatchCatalog implements BatchDefinition {
      */
     BOARD_POST_UPKEEP("board-post-upkeep", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
+    /**
+     * 인기글 기간 탭(실시간·어제·이번 주) 순위 계산 — DB 배치, 기본 5분마다({@code R__batch_24_popular_rank.sql}). 순위 스냅샷({@code post_rank_snapshots})을 기간마다 통째로 바꿔 쓰고
+     * 공개 서버({@code GET /api/home/popular})가 읽는다. <b>업무 배치</b>(분류 MEMBER)라 pg_cron 이 없으면 순위가 계산되지 않는다({@link #isBusinessCritical} — 기동 WARN).
+     */
+    POPULAR_RANK("popular-rank", BatchCategory.MEMBER, BatchSource.POSTGRESQL, null, true),
+
     /** 올리기만 하고 어디에도 지정하지 않은 채 오래된 파일(files.status = PENDING) 삭제 — Java 배치(저장소 파일을 지우므로 DB 만으로 끝나지 않는다), 하루 한 번(새벽 03:45). 기준 시간은 {@code roboyam.media.orphan-retention-hours} */
-    FILE_ORPHAN_CLEANUP("file-orphan-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 45 3 * * *", true);
+    FILE_ORPHAN_CLEANUP("file-orphan-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 45 3 * * *", true),
+
+    /**
+     * 쪽지 1년 보관 정리 — DB 배치, 기본 매일 04:20 KST({@code R__batch_21_dm_retention.sql}, docs/features/member-social-contract.md 「쪽지」). 마지막 쪽지가 1년보다 오래된 대화는 통째로,
+     * 남는 대화는 1년 지난 쪽지만 지운다. 신고된 대화의 보관은 신고 대상에 쪽지가 생길 때 더한다.
+     */
+    DM_RETENTION("dm-retention", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true);
 
     private static final Pattern PROCEDURE_NAME = Pattern.compile("[a-z][a-z0-9_]{0,62}");
 

@@ -33,11 +33,25 @@ public class MemberNotificationWriter {
         return jdbc.queryForList("select group_window_minutes from board_notification_settings where id = 1", Integer.class).stream().findFirst();
     }
 
-    /** 회원 이벤트 설정 한 줄(V58 {@code member_event_settings}) — 사용 여부 · 앱 알림 · 이메일. 줄이 없으면 비어 있다(코드의 처음 값을 쓴다) */
+    /**
+     * 회원 이벤트 설정 한 줄(V58 {@code member_event_settings}) — 사용 여부 · 앱 알림 · 이메일 · 회원이 끌 수 있음. 줄이 없으면 비어 있다(코드의 처음 값을 쓴다).
+     * 코드가 잠근 이벤트인지는 부르는 쪽이 더 본다.
+     */
     public Optional<EventSwitch> eventSetting(String code) {
-        List<EventSwitch> rows = jdbc.query("select enabled, in_app, email from member_event_settings where code = ?",
-                (rs, i) -> new EventSwitch(rs.getBoolean(1), rs.getBoolean(2), rs.getBoolean(3)), code);
+        List<EventSwitch> rows = jdbc.query("select enabled, in_app, email, member_can_turn_off from member_event_settings where code = ?",
+                (rs, i) -> new EventSwitch(rs.getBoolean(1), rs.getBoolean(2), rs.getBoolean(3), rs.getBoolean(4)), code);
         return rows.stream().findFirst();
+    }
+
+    /** 회원 개인 알림 설정 한 줄(V67 {@code member_notification_preferences}) — 앱 알림 · 이메일 받기. 줄이 없으면 비어 있다(둘 다 켬) */
+    public Optional<MemberChoice> memberChoice(long userId, String code) {
+        List<MemberChoice> rows = jdbc.query("select in_app, email from member_notification_preferences where user_id = ? and event_code = ?",
+                (rs, i) -> new MemberChoice(rs.getBoolean(1), rs.getBoolean(2)), userId, code);
+        return rows.stream().findFirst();
+    }
+
+    /** 회원이 고른 받기 — 앱 알림 · 이메일 */
+    public record MemberChoice(boolean inApp, boolean email) {
     }
 
     /** 묶을 줄 — 같은 회원·같은 글의 안 읽은 COMMENT 중 {@code since} 뒤에 만든 가장 최근 줄(잠근다) */
@@ -52,13 +66,23 @@ public class MemberNotificationWriter {
                 actorUserId, actorName, commentId, id);
     }
 
+    /** 이 대화의 안 읽은 쪽지 알림(DM)이 있는가 — 덧붙임 {@code threadId} 로 찾는다(안 읽은 알림 부분 색인 {@code (user_id, id)} 안에서 거른다) */
+    public boolean unreadDmExists(long userId, long threadId) {
+        return !jdbc.queryForList("select 1 from member_notifications where user_id = ? and type = 'DM' and read_at is null and payload ->> 'threadId' = ? limit 1",
+                Integer.class, userId, Long.toString(threadId)).isEmpty();
+    }
+
     public void insert(long id, long userId, String type, Long actorUserId, String actorName, Long postId, Long commentId, String payloadJson, Instant createdAt) {
         jdbc.update("insert into member_notifications (id, user_id, type, actor_user_id, actor_name, post_id, comment_id, payload, created_at) "
                 + "values (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?)", id, userId, type, actorUserId, actorName, postId, commentId, payloadJson, Timestamp.from(createdAt));
     }
 
-    /** 회원 이벤트의 사용 여부·앱 알림·이메일 — 앱 알림·이메일은 사용 중일 때만 뜻이 있다 */
-    public record EventSwitch(boolean enabled, boolean inApp, boolean email) {
+    /**
+     * 회원 이벤트의 사용 여부·앱 알림·이메일 — 앱 알림·이메일은 사용 중일 때만 뜻이 있다.
+     *
+     * @param memberCanTurnOff 회원 개인 설정을 따르는가(운영자 설정 값 — 코드 잠금은 부르는 쪽이 더한다)
+     */
+    public record EventSwitch(boolean enabled, boolean inApp, boolean email, boolean memberCanTurnOff) {
 
         public EventSwitch {
             inApp = enabled && inApp;
@@ -68,6 +92,14 @@ public class MemberNotificationWriter {
         /** 나가는 것이 하나라도 있는가 */
         public boolean delivers() {
             return inApp || email;
+        }
+
+        /** 회원이 고른 받기를 더한 값 — 회원이 끌 수 없는 이벤트면 그대로 */
+        public EventSwitch withMemberChoice(MemberChoice choice) {
+            if (!memberCanTurnOff || choice == null) {
+                return this;
+            }
+            return new EventSwitch(enabled, inApp && choice.inApp(), email && choice.email(), true);
         }
     }
 }

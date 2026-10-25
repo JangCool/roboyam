@@ -75,7 +75,6 @@ import UtilValidation from '~/utils/util-validation';
 /**
  * 비밀번호 재설정 `/password/reset?token=` — 원본(community) `pages/password/reset.vue` 를 옮겼다. 메일 링크가 아직 유효한지 먼저 확인하고(`reset/check`), 새 비밀번호를 받는다.
  * 성공하면 그 계정의 **모든 세션이 끝난다**(다른 기기 로그아웃) — 이 브라우저의 로그인 상태도 새로 받는다. 만료·이미 쓴 링크는 같은 안내를 보여 준다. 토큰이 없으면 만료와 같다.
- * ⚠ MOCK: `GET /api/auth/password/reset/check`·`POST /api/auth/password/reset` 은 서버에 없어 목업(토큰 `expired`·`invalid` 로 갈래를 본다).
  */
 definePageMeta({ layout: 'auth' });
 const { t } = useI18n();

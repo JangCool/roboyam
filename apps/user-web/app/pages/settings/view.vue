@@ -152,7 +152,7 @@ import UtilViewSettings from '~/utils/util-view-settings';
  * **바꾸는 즉시 저장한다** — 화면에 먼저 반영하고(`useViewSettings().update`) 실패하면 바꾼 칸을 되돌리고 서버 문구를 토스트(8초). 성공은 토스트(3초).
  * 야간 모드·글자 크기를 `<html>` 에 거는 것은 `plugins/view-theme.client.ts` 다 — 여기서는 값만 바꾼다.
  * community 대비 뺀 것(themes.md — 사용자 개인 테마·보기 설정 금지, 사이트 테마 몫): 주 색상·배경 색상·본문 너비·목록 밀도·메뉴 위치·화면 꾸미기 되돌리기.
- * 적용할 곳이 아직 없어 뺀 것: 이미지 숨기기·답글 접기·한 번에 보는 댓글 수. ⚠ 목업 API(`useViewSettingsApi`).
+ * 적용할 곳이 아직 없어 뺀 것: 이미지 숨기기·답글 접기·한 번에 보는 댓글 수. 서버 `GET·PUT /api/me/settings`(`useViewSettingsApi`).
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();

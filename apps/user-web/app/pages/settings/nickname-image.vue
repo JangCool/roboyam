@@ -13,33 +13,56 @@
         <template v-else-if="state && layout">
             <p class="m-0 text-sm text-muted-color" data-testid="nickname-image-intro">{{ t('nicknameImage.intro') }}</p>
 
-            <!-- 신청을 막는 까닭 — 이메일 인증 전·정지 중. 조건이 바뀌면 할 수 있는 일이라 단추를 감추지 않고 막은 채 이유를 보인다 -->
+            <!-- 신청을 막는 까닭 — 이메일 인증 전(신청 조건에 이메일 인증이 있을 때만)·정지 중. 조건이 바뀌면 할 수 있는 일이라 단추를 감추지 않고 막은 채 이유를 보인다.
+                 자격 미달 체크리스트가 보일 때는 이메일 인증 막음을 거기(인증 안내 링크 포함)에서 보인다 -->
             <div v-if="blockedCopy" role="status" class="rounded-lg bg-amber-50 px-3 py-2.5 text-sm leading-relaxed text-amber-900 dark:bg-amber-950/40 dark:text-amber-200" data-testid="nickname-image-blocked">
                 <p class="m-0 font-semibold">{{ blockedCopy.title }}</p>
                 <p class="m-0 mt-0.5">{{ blockedCopy.text }}</p>
                 <NuxtLink v-if="blocked === 'EMAIL_NOT_VERIFIED'" to="/verify-email" class="mt-1 inline-block font-semibold underline">{{ t('nicknameImage.verifyLink') }}</NuxtLink>
             </div>
 
-            <!-- 자격 미달 — 단골 미만(현재·필요 등급 + 등급 안내) · 정지 중. 적용 중인 그림은 등급이 내려가도 유지된다 -->
+            <!-- 자격 미달 — 관리자가 정한 신청 조건 미달(조건 체크리스트 + 등급 조건이 있으면 등급 안내) · 정지 중. 적용 중인 이미지는 조건이 바뀌어도 유지된다 -->
             <section v-if="layout.ineligible" :aria-labelledby="`${uid}-ineligible`" data-testid="nickname-image-ineligible">
                 <div class="rounded-lg bg-surface-100 px-3 py-2.5 text-sm leading-relaxed dark:bg-surface-800/60" role="status">
                     <h2 :id="`${uid}-ineligible`" class="m-0 text-sm font-semibold">{{ ineligibleCopy.title }}</h2>
                     <p class="m-0 mt-0.5 text-muted-color">{{ ineligibleCopy.text }}</p>
                 </div>
-                <div v-if="state.ineligibleReason !== 'SUSPENDED'" class="mt-3 flex items-center gap-3 rounded-xl border border-surface bg-surface-0 p-4 text-sm dark:bg-surface-900" data-testid="nickname-image-grades">
-                    <p class="m-0 flex items-center gap-1.5"><span class="text-xs text-muted-color">{{ t('nicknameImage.myGrade') }}</span><GradeBadge :grade="state.grade.code as Grade" :label="state.grade.label" /></p>
-                    <i class="pi pi-arrow-right text-xs text-muted-color" aria-hidden="true" />
-                    <p class="m-0 flex items-center gap-1.5">
-                        <span class="text-xs text-muted-color">{{ t('nicknameImage.requiredGrade') }}</span><GradeBadge :grade="state.requiredGrade.code as Grade" :label="state.requiredGrade.label" />
-                    </p>
-                </div>
+                <ul
+                    v-if="state.ineligibleReason !== 'SUSPENDED' && requirementRows.length"
+                    class="m-0 mt-3 flex list-none flex-col divide-y divide-surface rounded-xl border border-surface bg-surface-0 p-0 text-sm dark:bg-surface-900"
+                    :aria-label="t('nicknameImage.requirementsLabel')"
+                    data-testid="nickname-image-requirements"
+                >
+                    <li v-for="row in requirementRows" :key="row.kind" class="flex items-start gap-2.5 px-4 py-3" :data-testid="`nickname-image-req-${row.kind}`">
+                        <i
+                            :class="row.met ? 'pi pi-check-circle text-green-600 dark:text-green-400' : 'pi pi-times-circle text-muted-color'"
+                            class="mt-0.5 text-sm"
+                            role="img"
+                            :aria-label="row.met ? t('nicknameImage.reqMet') : t('nicknameImage.reqUnmet')"
+                        />
+                        <div class="min-w-0 flex-1">
+                            <p class="m-0" :class="row.met ? 'text-muted-color' : 'font-medium'">{{ row.label }}</p>
+                            <p v-if="row.detail" class="m-0 mt-0.5 text-xs tabular-nums text-muted-color">{{ row.detail }}</p>
+                            <NuxtLink v-if="row.kind === 'EMAIL_VERIFIED' && !row.met" to="/verify-email" class="mt-1 inline-block text-xs font-semibold underline">{{ t('nicknameImage.verifyLink') }}</NuxtLink>
+                        </div>
+                    </li>
+                </ul>
                 <div class="mt-3 space-y-2">
                     <Button type="button" :label="t('nicknameImage.cannotApply')" fluid disabled data-testid="nickname-image-disabled" />
-                    <Button v-if="state.ineligibleReason !== 'SUSPENDED'" as="router-link" to="/me/grade" :label="t('nicknameImage.gradeLink')" severity="secondary" variant="outlined" fluid data-testid="nickname-image-grade-link" />
+                    <Button
+                        v-if="state.ineligibleReason !== 'SUSPENDED' && UtilNicknameImage.requires(state, 'GRADE')"
+                        as="router-link"
+                        to="/me/grade"
+                        :label="t('nicknameImage.gradeLink')"
+                        severity="secondary"
+                        variant="outlined"
+                        fluid
+                        data-testid="nickname-image-grade-link"
+                    />
                 </div>
             </section>
 
-            <!-- 승인 대기 — 신청한 그림 · 운영자 확인 후 적용 · 신청 취소 -->
+            <!-- 승인 대기 — 신청한 이미지 · 운영자 확인 후 적용 · 신청 취소 -->
             <section v-if="layout.request === 'PENDING' && state.request" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-labelledby="`${uid}-pending`" data-testid="nickname-image-pending">
                 <div class="flex items-center justify-between gap-2">
                     <h2 :id="`${uid}-pending`" class="m-0 text-sm font-semibold">
@@ -96,7 +119,7 @@
                 </div>
             </section>
 
-            <!-- 적용 중 — 미리보기 · 그림 바꾸기(승인 전까지 이전 그림 유지) · 해제 -->
+            <!-- 적용 중 — 미리보기 · 이미지 바꾸기(승인 전까지 이전 이미지 유지) · 해제 -->
             <section v-if="layout.current && state.current" :aria-labelledby="`${uid}-current`" data-testid="nickname-image-current">
                 <div class="rounded-lg bg-green-50 px-3 py-2.5 text-sm leading-relaxed text-green-900 dark:bg-green-950/40 dark:text-green-200" role="status">
                     <h2 :id="`${uid}-current`" class="m-0 text-sm font-semibold">{{ t('nicknameImage.currentBanner') }}</h2>
@@ -221,7 +244,6 @@
 </template>
 
 <script setup lang="ts">
-import type { Grade } from '~/composables/auth/api/useAuthApi.types';
 import type { MyNicknameImage } from '~/composables/profile/api/useNicknameImageApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilBoardMessages from '~/utils/util-board-messages';
@@ -230,15 +252,14 @@ import UtilNicknameImageMessages from '~/utils/util-nickname-image-messages';
 import type { NicknameImageBlockedReason } from '~/utils/util-nickname-image-messages';
 
 /**
- * 닉네임 그림 `/settings/nickname-image` — 로그인 필요(community `pages/settings/nickname-image.vue`, `docs/api-nickname-image.md`).
- * 글자 닉네임 자리에 그림을 보이게 하는 신청 화면 — **단골 이상**이 올리고 **운영자 검토 뒤** 적용된다(검토 대기는 운영자 알림 `NICKNAME_IMAGE_PENDING`, 관리자 검토 화면은 이번 범위 밖).
+ * 닉네임 이미지 `/settings/nickname-image` — 로그인 필요(community `pages/settings/nickname-image.vue`, `docs/api-nickname-image.md`).
+ * 글자 닉네임 자리에 이미지를 보이게 하는 신청 화면 — **관리자가 정한 신청 조건**(`requirements` — 등급 기준 / 사용자 정의)을 채운 회원이 올리고 **운영자 심사 뒤** 적용된다(심사 대기는 운영자 알림 `NICKNAME_IMAGE_PENDING`, 관리자 심사 화면은 이번 범위 밖).
  * 한 화면이 서버 상태 하나로 그려진다(`UtilNicknameImage.layout`): 자격 미달 · 신청(파일 고르기 → 형식·용량·4:1 화면 검사 → 미리보기 → 동의 → 신청하기) · 승인 대기(취소) ·
  * 반려(사유 · 재신청까지 남은 시간) · 적용 중(미리보기 · 바꾸기 · 해제). 올린 뒤에는 서버 응답을 받고 상태를 다시 읽는다(낙관적으로 바꾸지 않는다).
- * community 대비 뺀 것: 아이템샵 변경권(로보얌에 아이템샵이 없다)·닉네임 그림 신고, 작성자 표시의 그림(서버 응답에 칸이 없다 — 미리보기만).
- * ⚠ 목업 API(`useNicknameImageApi`).
+ * community 대비 뺀 것: 아이템샵 변경권(로보얌에 아이템샵이 없다)·닉네임 이미지 신고, 작성자 표시의 이미지(서버 응답에 칸이 없다 — 미리보기만).
  */
 definePageMeta({ middleware: 'auth' });
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const { siteLabel } = useSiteName();
 useSeoMeta({ title: () => t('settings.nicknameImage'), description: () => t('nicknameImage.seo', { site: siteLabel.value }), robots: 'noindex' });
 
@@ -270,8 +291,15 @@ let pickSeq = 0;
 let alive = true;
 let uploadController: AbortController | null = null;
 
-const blocked = computed<NicknameImageBlockedReason | null>(() => (user.value && !emailVerified.value ? 'EMAIL_NOT_VERIFIED' : serverBlocked.value));
-const blockedCopy = computed(() => (blocked.value ? UtilNicknameImageMessages.blocked(t, blocked.value) : null));
+/** 로그인 정보로 이메일 인증 전을 막는 것은 서버가 신청 조건으로 이메일 인증을 요구할 때만이다 */
+const requiresEmail = computed(() => (state.value ? UtilNicknameImage.requires(state.value, 'EMAIL_VERIFIED') : false));
+const blocked = computed<NicknameImageBlockedReason | null>(() => (user.value && requiresEmail.value && !emailVerified.value ? 'EMAIL_NOT_VERIFIED' : serverBlocked.value));
+const blockedCopy = computed(() => {
+    if (!blocked.value) return null;
+    // 자격 미달 체크리스트에 이메일 인증 줄이 이미 있다
+    if (blocked.value === 'EMAIL_NOT_VERIFIED' && layout.value?.ineligible && state.value?.ineligibleReason === 'REQUIREMENTS_NOT_MET') return null;
+    return UtilNicknameImageMessages.blocked(t, blocked.value);
+});
 const formLocked = computed(() => busy.value !== null || blocked.value !== null);
 
 /* ── 재신청까지 남은 시간 — 시각이 지나면 단추가 켜진다 ── */
@@ -284,7 +312,9 @@ const layout = computed(() => {
     return UtilNicknameImage.layout(state.value, opened.value, Date.now());
 });
 
-const ineligibleCopy = computed(() => (state.value ? UtilNicknameImageMessages.ineligible(t, state.value.ineligibleReason, state.value.grade, state.value.requiredGrade) : { title: '', text: '' }));
+const ineligibleCopy = computed(() => (state.value ? UtilNicknameImageMessages.ineligible(t, state.value.ineligibleReason) : { title: '', text: '' }));
+/** 신청 조건 체크리스트 — 서버가 준 차례 그대로(켜진 조건만) */
+const requirementRows = computed(() => (state.value?.requirements.items ?? []).map((item) => ({ kind: item.kind, met: item.met, ...UtilNicknameImageMessages.requirement(t, item, locale.value) })));
 const rules = computed(() => (state.value ? UtilNicknameImageMessages.rules(t, state.value.limits) : []));
 const reapplyHours = computed(() => UtilNicknameImage.reapplyHoursOf(state.value?.limits?.rejectedReapplyHours));
 const isGif = computed(() => (file.value ? UtilNicknameImage.isGif(file.value) : false));

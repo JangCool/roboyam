@@ -2,23 +2,17 @@
     <!--
         기간 입력 — 시작 ~ 끝 날짜 고르개(`AppDatePicker`) + 빠른 선택 칩(「오늘 · 1주일 · 1개월 · 3개월 · 6개월 · 1년」). 칩은 누르면 **오늘 기준으로 두 칸을 채우는 일반 버튼**이다(켜고 끄는 토글이 아니다) — 누른 뒤 결과 기간이 입력에 보인다.
         값은 달력 날짜 글자(`YYYY-MM-DD`)이고 비면 ''. 시간대 변환은 하지 않는다 — 서버로 보낼 순간 경계(시작 00:00 ~ 끝 23:59:59.999)는 부르는 쪽이 만든다(`UtilMember.toQuery`). "오늘"은 표시 시간대의 오늘이다.
-        `presets` 를 비우면 칩을 두지 않는다. 기본 슬롯은 칩 뒤에 붙는 것(예: 「로그인 이력 없음」 체크)이다. 안쪽 입력의 라벨은 화면에 보이지 않게(`sr-only`) 붙인다.
+        `presets` 를 비우면 칩을 두지 않는다. 기본 슬롯은 칩 뒤에 붙는 것(예: 「로그인 이력 없음」 체크)이다. 안쪽 입력의 라벨은 화면에 보이지 않게(`sr-only`) 붙인다. 칸 안 달력 아이콘은 `AppDatePicker` 가 기본으로 그린다.
     -->
     <div class="flex flex-wrap items-center gap-x-2 gap-y-2">
         <div class="w-42">
             <label class="sr-only" :for="fromId">{{ fromLabel }}</label>
-            <IconField class="date-icon-field">
-                <InputIcon class="pi pi-calendar date-icon" aria-hidden="true" />
-                <AppDatePicker v-model="from" :input-id="fromId" :max="to || undefined" :disabled="disabled" />
-            </IconField>
+            <AppDatePicker v-model="from" :input-id="fromId" :max="to || undefined" :disabled="disabled" />
         </div>
         <span class="text-muted-color" aria-hidden="true">~</span>
         <div class="w-42">
             <label class="sr-only" :for="toId">{{ toLabel }}</label>
-            <IconField class="date-icon-field">
-                <InputIcon class="pi pi-calendar date-icon" aria-hidden="true" />
-                <AppDatePicker v-model="to" :input-id="toId" :min="from || undefined" :disabled="disabled" />
-            </IconField>
+            <AppDatePicker v-model="to" :input-id="toId" :min="from || undefined" :disabled="disabled" />
         </div>
         <div v-if="presets.length" class="flex flex-wrap items-center gap-1" role="group" :aria-label="presetsLabel">
             <Button v-for="preset in presets" :key="preset.kind" type="button" :label="preset.label" size="small" severity="secondary" variant="outlined" :disabled="disabled" @click="fill(preset.kind)" />
@@ -68,19 +62,3 @@ function fill(kind: DateRangePresetKind): void {
 }
 </script>
 
-<style scoped>
-/*
- * 날짜 칸 안쪽 달력 아이콘 — PrimeVue `IconField` + `InputIcon` 레이아웃. 레이어 `AppDatePicker`(안쪽이 DatePicker 라 입력이 한 겹 더 들어 있다)는 수정하지 않고 CSS 로 맞춘다:
- *  · IconField 의 기본 규칙(`.p-inputtext:not(:first-child)` 에 왼쪽 패딩)은 DatePicker 안의 입력(자기 래퍼의 첫 자식)에 닿지 않아 입력 글자의 왼쪽 패딩을 직접 준다.
- *  · 아이콘은 입력 위에 겹쳐 그리되(`z-index`) 누름은 입력으로 통과시킨다(`pointer-events: none`) — 아이콘 자리를 눌러도 입력 칸이 눌려 달력이 열린다. 장식이라 `aria-hidden`.
- * 입력 크기는 전역 small 이라 왼쪽 여백도 small 토큰(`--p-form-field-sm-padding-x`)을 쓴다.
- */
-.date-icon {
-    z-index: 1;
-    pointer-events: none;
-    inset-inline-start: var(--p-form-field-sm-padding-x, 0.625rem);
-}
-.date-icon-field :deep(.p-datepicker-input) {
-    padding-inline-start: calc(var(--p-form-field-sm-padding-x, 0.625rem) * 2 + var(--p-icon-size, 1rem));
-}
-</style>

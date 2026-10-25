@@ -229,12 +229,13 @@ export default class UtilPost {
      * 댓글 문제 — 1~2,000자(평문은 앞뒤 공백 제외, 에디터 HTML 은 보이는 글자 수)
      * @param {string} content - 댓글.
      * @param {ContentFormat} format - 본문 형식.
+     * @param {number} max - 글자 수 한도 — 입장 배지가 붙는 댓글은 토론 한도(`debate.opinionMax`), 그 밖은 `COMMENT_MAX`.
      * @returns {LengthProblem | null} 문제가 없으면 null.
      */
-    static commentProblem(content: string, format: ContentFormat = 'TEXT'): LengthProblem | null {
+    static commentProblem(content: string, format: ContentFormat = 'TEXT', max: number = UtilPost.COMMENT_MAX): LengthProblem | null {
         const length = UtilPost.contentLength(content, format);
         if (length === 0) return 'REQUIRED';
-        return length > UtilPost.COMMENT_MAX ? 'LENGTH' : null;
+        return length > max ? 'LENGTH' : null;
     }
 
     /**

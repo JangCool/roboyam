@@ -30,10 +30,13 @@ public enum MenuBuiltin {
     MY_SCHEDULED("MYPAGE", "/scheduled", false, true, false),
     MESSAGES("MYPAGE", "/messages", true, true, false),
     NOTIFICATIONS("MYPAGE", "/notifications", false, true, false),
-    NOTIFICATION_SETTINGS("MYPAGE", "/notifications/settings", false, true, false),
+    NOTIFICATION_SETTINGS("MYPAGE", "/settings/notifications", false, true, false),
     SETTINGS_PROFILE("MYPAGE", "/settings/profile", false, true, false),
     SETTINGS_ACCOUNT("MYPAGE", "/settings/account", true, true, false),
     SETTINGS_VIEW("MYPAGE", "/settings/view", false, true, false),
+    SETTINGS_DISPLAY("MYPAGE", "/settings/display", false, true, false),
+    SETTINGS_MESSAGES("MYPAGE", "/settings/messages", false, true, false),
+    SETTINGS_NICKNAME_IMAGE("MYPAGE", "/settings/nickname-image", false, true, false),
     SETTINGS_BLOCKS("MYPAGE", "/settings/blocks", false, true, false),
     SETTINGS_MEMOS("MYPAGE", "/settings/memos", false, true, false);
 

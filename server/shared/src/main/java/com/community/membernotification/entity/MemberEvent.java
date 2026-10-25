@@ -42,7 +42,21 @@ public enum MemberEvent {
     POST_POPULAR(NotificationArea.CONTENT, null, null, "POST_POPULAR"),
     OPERATOR_ACTION(NotificationArea.SAFETY, null, MemberEventLockReason.ACTION, "OPERATOR_ACTION"),
     STAFF_ACTION(NotificationArea.SAFETY, null, MemberEventLockReason.ACTION, "STAFF_ACTION"),
-    REPORT_RESULT(NotificationArea.SAFETY, null, null, "REPORT_RESULT");
+    /** 내 신고의 처리 결과(관리자 신고 관리 — 조치됨 · 위반 아님) — 회원이 끌 수 있다. 게시판 신고 정책 notifyReporterOnResult 가 켜졌을 때만 발행된다(V82 부터 실제 이벤트) */
+    REPORT_RESULT(NotificationArea.SAFETY, MemberNotificationType.REPORT_RESULT, null, "REPORT_RESULT"),
+
+    /** 쪽지 받음 — 회원이 끌 수 있다(잠금 없음) */
+    DM(NotificationArea.MEMBER, MemberNotificationType.DM, null, null),
+    /** 닉네임 그림 검토 결과(승인·반려·해제) — 운영자 처리 알림이라 회원이 끌 수 없다 */
+    NICKNAME_IMAGE_REVIEWED(NotificationArea.MEMBER, MemberNotificationType.NICKNAME_IMAGE_REVIEWED, MemberEventLockReason.ACTION, null),
+    /** 의견 고정 요청이 옴(확인할 수 있는 글쓴이·게시판 매니저에게) — 회원이 끌 수 있다 */
+    OPINION_PIN_REQUESTED(NotificationArea.CONTENT, MemberNotificationType.OPINION_PIN_REQUESTED, null, null),
+    /** 내 의견 고정 요청의 결과(승인·거절) — 처리 알림이라 회원이 끌 수 없다 */
+    OPINION_PIN_REVIEWED(NotificationArea.CONTENT, MemberNotificationType.OPINION_PIN_REVIEWED, MemberEventLockReason.ACTION, null),
+    /** 운영자가 내 글을 지움(관리자 게시글 관리 — 사유와 함께) — 처리 알림이라 회원이 끌 수 없다 */
+    POST_REMOVED(NotificationArea.SAFETY, MemberNotificationType.POST_REMOVED, MemberEventLockReason.ACTION, null),
+    /** 운영자가 내 댓글을 지움(관리자 신고 관리 — 사유와 함께) — 처리 알림이라 회원이 끌 수 없다 */
+    COMMENT_REMOVED(NotificationArea.SAFETY, MemberNotificationType.COMMENT_REMOVED, MemberEventLockReason.ACTION, null);
 
     private static final Map<String, MemberEvent> BY_CODE = Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(MemberEvent::code, Function.identity()));
 

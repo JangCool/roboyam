@@ -43,6 +43,11 @@ public class PointLedgerWriter {
         return !jdbc.queryForList("select 1 from users where id = ? and status = 'ACTIVE' and deleted_at is null", Integer.class, userId).isEmpty();
     }
 
+    /** 되돌려 줄 수 있는 회원인가 — 탈퇴·삭제되지 않은 회원(정지 회원 포함) */
+    public boolean restorable(long userId) {
+        return !jdbc.queryForList("select 1 from users where id = ? and status <> 'WITHDRAWN' and deleted_at is null", Integer.class, userId).isEmpty();
+    }
+
     /** 같은 사유·대상 줄이 이미 있는가(멱등) */
     public boolean exists(String reason, String refType, long refId) {
         return !jdbc.queryForList("select 1 from point_ledger where reason = ? and ref_type = ? and ref_id = ? limit 1", Integer.class, reason, refType, refId)
