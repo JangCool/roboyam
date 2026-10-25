@@ -19,7 +19,7 @@
             v-model="content"
             :aria-label="ariaLabel || t('comment.inputLabel')"
             :placeholder="placeholder || t('comment.placeholder')"
-            :maxlength="UtilPost.COMMENT_MAX"
+            :maxlength="maxLength"
             rows="3"
             :invalid="Boolean(contentError)"
             :autofocus="autofocus"
@@ -44,7 +44,7 @@
         <Message v-if="formError" severity="error" variant="simple" size="small" role="alert">{{ formError }}</Message>
 
         <div class="flex items-center justify-between gap-2">
-            <span class="text-xs tabular-nums" :class="length > UtilPost.COMMENT_MAX ? 'text-red-600 dark:text-red-400' : 'text-muted-color'">{{ length.toLocaleString() }} / {{ UtilPost.COMMENT_MAX.toLocaleString() }}</span>
+            <span class="text-xs tabular-nums" :class="length > maxLength ? 'text-red-600 dark:text-red-400' : 'text-muted-color'">{{ length.toLocaleString() }} / {{ maxLength.toLocaleString() }}</span>
             <div class="flex gap-2">
                 <Button v-if="cancelable" type="button" :label="t('common.cancel')" severity="secondary" variant="text" size="small" @click="$emit('cancel')" />
                 <Button type="submit" :label="submitLabel || t('comment.submit')" size="small" :loading="submitting" />
@@ -80,6 +80,8 @@ interface Props {
     /** 서버 `fields` */
     fieldErrors?: Record<string, string>;
     formError?: string;
+    /** 글자 수 한도 — 입장 배지가 붙는 댓글(토론)은 `debate.opinionMax`, 그 밖은 일반 한도 */
+    maxLength?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -96,6 +98,7 @@ const props = withDefaults(defineProps<Props>(), {
     submitting: false,
     fieldErrors: () => ({}),
     formError: '',
+    maxLength: UtilPost.COMMENT_MAX,
 });
 
 const emit = defineEmits<{
@@ -120,13 +123,13 @@ const tried = ref(false);
 
 /** 보이는 글자 수(에디터는 태그를 뗀 글자 — 서버 기준) */
 const length = computed(() => UtilPost.contentLength(content.value, format));
-const contentProblem = computed(() => UtilPost.commentProblem(content.value, format));
+const contentProblem = computed(() => UtilPost.commentProblem(content.value, format, props.maxLength));
 const nameProblem = computed(() => (props.guestMode ? UtilPost.guestNameProblem(guestName.value, props.board.guestRules) : null));
 const passwordProblem = computed(() => (props.guestMode ? UtilPost.guestPasswordProblem(guestPassword.value, props.board.guestRules) : null));
 const captchaMissing = computed(() => props.guestMode && props.board.guestRules.captchaRequired && !captcha.value);
 
 const contentError = computed(
-    () => props.fieldErrors.content || (tried.value && contentProblem.value ? (contentProblem.value === 'REQUIRED' ? t('comment.required') : t('comment.tooLong', { max: UtilPost.COMMENT_MAX.toLocaleString() })) : ''),
+    () => props.fieldErrors.content || (tried.value && contentProblem.value ? (contentProblem.value === 'REQUIRED' ? t('comment.required') : t('comment.tooLong', { max: props.maxLength.toLocaleString() })) : ''),
 );
 const nameError = computed(() => props.fieldErrors['guest.name'] || (tried.value ? UtilPostMessages.guestName(t, nameProblem.value, props.board.guestRules) : ''));
 const passwordError = computed(() => props.fieldErrors['guest.password'] || (tried.value ? UtilPostMessages.guestPassword(t, passwordProblem.value, props.board.guestRules) : ''));

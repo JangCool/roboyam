@@ -74,6 +74,51 @@ public class UserEntity {
         return user;
     }
 
+    /**
+     * 이메일·비밀번호로 가입한 새 회원 — 이메일은 인증 전이다(인증 메일 흐름을 따른다). 가입하면서 바로 로그인하므로 마지막 로그인 시각도 지금이다.
+     *
+     * @param email        소문자로 정규화한 이메일
+     * @param passwordHash bcrypt 해시(원문을 넘기지 않는다)
+     * @param termsVersion 동의한 약관 버전. 이용약관·개인정보 처리방침·만 14세 이상 확인을 모두 {@code now} 에 받았다
+     */
+    public static UserEntity createWithPassword(long id, String email, String passwordHash, String termsVersion, Instant now) {
+        UserEntity user = new UserEntity();
+        user.id = id;
+        user.email = email;
+        user.passwordHash = passwordHash;
+        user.role = Role.USER;
+        user.status = UserStatus.ACTIVE;
+        user.emailVerifiedAt = null;
+        user.termsVersion = termsVersion;
+        user.termsAgreedAt = now;
+        user.ageConfirmedAt = now;
+        user.lastLoginAt = now;
+        user.createdAt = now;
+        user.updatedAt = now;
+        return user;
+    }
+
+    /** 이메일 인증을 마쳤다(이미 인증했으면 그대로 둔다) */
+    public void markEmailVerified(Instant now) {
+        if (this.emailVerifiedAt == null) {
+            this.emailVerifiedAt = now;
+            this.updatedAt = now;
+        }
+    }
+
+    /** 비밀번호를 바꿨다(변경·재설정) — {@code passwordHash} 는 bcrypt 해시다 */
+    public void changePassword(String passwordHash, Instant now) {
+        this.passwordHash = passwordHash;
+        this.updatedAt = now;
+    }
+
+    /** 이메일 변경 링크를 눌러 새 주소로 바꿨다 — 그 주소로 링크를 받았으므로 인증된 상태다 */
+    public void changeEmail(String email, Instant now) {
+        this.email = email;
+        this.emailVerifiedAt = now;
+        this.updatedAt = now;
+    }
+
     /** 로그인했다 — 마지막 로그인 시각만 고친다 */
     public void markLoggedIn(Instant now) {
         this.lastLoginAt = now;

@@ -20,7 +20,11 @@ import com.community.board.service.GuestPasswords;
 import com.community.board.service.PublicBoardService;
 import com.community.board.service.RichText;
 import com.community.captcha.CaptchaVerifier;
+import com.community.debate.entity.PostDebateEntity;
+import com.community.debate.service.PostDebateWriter;
 import com.community.permission.entity.MemberPermission;
+import com.community.poll.service.PollRules;
+import com.community.poll.service.PollWriter;
 import com.community.point.entity.PointReason;
 import com.community.point.service.PointService;
 import com.community.post.dto.WriteRateData;
@@ -66,7 +70,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  * → 칸(제목, 본문 형식 {@code contentFormat}, 본문 길이[HTML 은 보이는 글자], 말머리, 19금, 링크·이미지 수, 비회원 이름·비밀번호·자동입력 방지 토큰 — {@code 400 VALIDATION})
  * → (HTML) 본문 이미지가 쓸 수 있는 것인지({@code 400 fields.content}) → 이미지 금지 게시판의 새 이미지({@code 422 IMAGE_UPLOAD_NOT_ALLOWED}) → 금지어({@code 400 BLOCKED_WORD}, 가림 방식이면 가려 저장)
  * → 자동입력 방지 확인(비회원, 트랜잭션 밖 외부 요청 — 실패는 {@code fields.guest.captchaToken}) → 작성 간격({@code 429 POST_TOO_FAST}) → 하루 한도({@code 429 POST_DAILY_LIMIT})
- * → 같은 글 반복({@code 409 DUPLICATE_POST}). 속도 판정과 저장은 작성자 단위 어드바이저리 잠금 아래 한 트랜잭션이다(같은 사람의 동시 요청이 한도를 넘지 못하게).
+ * → 같은 글 반복({@code 409 DUPLICATE_POST}). 본문 {@code debate} 가 있으면 칸 검사에서 회원 + 게시판 {@code debateEnabled} 를 보고({@code fields.debate}) 저장과 같은 트랜잭션에서
+ * 글의 찬반 토론을 연다(글쓴이가 연 토론 — docs/features/post-debate-contract.md). 본문 {@code poll} 도 같은 자리에서 보고({@link PollWriter} — 회원 + 게시판
+ * {@code pollEnabled}, {@code fields.poll}·{@code fields."poll.*"}) 같은 트랜잭션에서 붙인다. 고치기의 {@code poll} 은 빠지면 그대로 · null 이면 빼기 · 값이면 만들기·고치기이고
+ * 첫 표가 든 투표를 바꾸면 409 POLL_LOCKED 로 글도 고치지 않는다(docs/features/post-poll-contract.md). 속도 판정과 저장은 작성자 단위 어드바이저리 잠금 아래 한 트랜잭션이다(같은 사람의 동시 요청이 한도를 넘지 못하게).
  * 작성자 열쇠는 회원 ID, 비회원은 작성 IP 다. 하루 = 최근 24시간(목업과 같음).
  *
  * <p>bcrypt(비회원 비밀번호 해시·확인)와 캡차 확인은 느리거나 외부 요청이라 트랜잭션 밖에서 하고, 저장은 {@link TransactionTemplate} 으로 짧게 연다.
@@ -91,12 +98,16 @@ public class PostWriteService {
     private final WriterPromotion promotion;
     private final PointService points;
     private final PostImages postImages;
+    private final PostDebateWriter debates;
+    private final PollWriter polls;
     private final TransactionTemplate tx;
 
     public PostWriteService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters,
                             PostQueryService queries, GuestPasswords passwords, CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion,
-                            PointService points, PostImages postImages, PlatformTransactionManager txManager) {
+                            PointService points, PostImages postImages, PostDebateWriter debates, PollWriter polls, PlatformTransactionManager txManager) {
         this.postImages = postImages;
+        this.debates = debates;
+        this.polls = polls;
         this.promotion = promotion;
         this.points = points;
         this.catalog = catalog;
@@ -132,6 +143,10 @@ public class PostWriteService {
             ContentRules.checkGuest(body.guest(), sec, fields);
             guestName = body.guest() == null ? null : ContentRules.normalize(body.guest().name());
         }
+        if (body.debate() != null && (actor.guest() || !b.debateEnabled())) {
+            fields.put("debate", new MessageRef("debate.open.notAllowed")); // 글과 함께 토론 열기 — 회원 + 게시판 debateEnabled 일 때만
+        }
+        PollRules.Valid poll = polls.checkForCreate(body.poll(), actor.guest(), b, Instant.now(), fields); // 회원 + 게시판 pollEnabled, 칸 오류는 poll.*
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
@@ -166,6 +181,12 @@ public class PostWriteService {
             String stored = content.isHtml() ? postImages.bind(content.content(), content.imageIds(), authorId, id, false, now) : content.content();
             posts.persist(PostEntity.create(id, b.id(), c.prefixId(), authorId, name, hash, ip, title, content.format(), stored, content.plain(), c.adult(),
                     c.hasImage(), now));
+            if (body.debate() != null) {
+                debates.apply(id, true, body.debate().neutralEnabled(), body.debate().stanceChangeAllowed(), PostDebateEntity.BY_MEMBER, authorId, now);
+            }
+            if (poll != null) {
+                polls.create(id, poll, now);
+            }
             if (authorId != null) {
                 points.earn(authorId, PointReason.POST, id); // 실패·상한이어도 글은 그대로 올라간다
             }
@@ -291,6 +312,7 @@ public class PostWriteService {
         BoardSecurityValues sec = s.security();
         Cleaned c = checkFields(b, actor.staffOf(b.id()), writer, post.getPrefixId(), body.prefixId(), body.title(), body.contentFormat(), body.content(),
                 body.adult(), sec, fields);
+        PollWriter.Change pollChange = polls.checkForUpdate(body.poll(), post, b, start, fields); // 칸 빠짐 = 그대로 · null = 빼기 · 값 = 만들기·고치기
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
@@ -317,6 +339,7 @@ public class PostWriteService {
             if (PostQueryService.protection(b, locked.getCommentCount()).editBlocked()) {
                 throw new PostProtectedException(false, b.commentProtectMin());
             }
+            polls.apply(locked.getId(), pollChange, now); // 첫 표가 든 투표를 바꾸거나 빼면 409 POLL_LOCKED — 글도 고치지 않는다(같은 트랜잭션)
             String stored;
             if (content.isHtml()) {
                 stored = postImages.bind(content.content(), content.imageIds(), locked.getAuthorId(), locked.getId(), true, now);

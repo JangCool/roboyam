@@ -32,7 +32,7 @@
 1. 회원의 `language` 를 화면 언어(i18n)로도 쓸지, 시각 단어에만 쓸지(지금은 값만 저장·전달).
 2. 서버 문구(메일·오류 문구)에 회원 개인 시간대를 덧붙이는 규칙(community 「서버 문구 규칙」)은 이번 범위 밖.
 3. 개인 시간대가 나중에 JDK 목록에서 빠지면 지금은 그대로 내려간다(화면이 모르는 시간대면 한국 시간으로 그린다).
-4. user-web 에 회원이 개인 표시 값을 고르는 화면(「시간 표시」)이 아직 없다 — `useDisplaySettings().loadMine/saveOwn/resetOwn` 은 준비돼 있고 부르는 화면만 없다.
+4. ~~user-web 에 회원이 개인 표시 값을 고르는 화면이 아직 없다~~ → 해결: `/settings/display`(표시 설정, 메뉴 레지스트리 `SETTINGS_DISPLAY`)가 `useDisplaySettings().loadMine/saveOwn/resetOwn` 을 부른다.
 
 ## 프론트 연결 결과 (2026-10-23)
 - user-web `useDisplayApi`·`useThemeApi` 를 `// REAL:` 로 바꾸고 `display/api/mock/`·`theme/api/mock/` 를 지웠다. `PUT`·`DELETE` 는 `useApiClient({ refreshCsrf: auth.me })`, `DELETE` 는 `client.del<MyDisplayResponse>`(200 본문). 화면은 `language` 까지 네 칸을 보낸다.

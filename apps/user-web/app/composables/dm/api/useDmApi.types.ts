@@ -1,15 +1,16 @@
 /**
- * 쪽지 API 가 주고받는 모양 — **서버에 아직 없다**(목업). 모양은 community `docs/api-dm.md` 그대로다(닉네임 이미지 칸은 로보얌 작성자 표시에 없어 뺐다).
+ * 쪽지 API 가 주고받는 모양 — 서버(api)도 이 모양으로 준다. 모양은 community `docs/api-dm.md` 그대로다(닉네임 이미지 칸은 로보얌 작성자 표시에 없어 뺐다).
  * 계약 후보: `docs/features/member-social-contract.md`. ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO, **하루는 한국 시간 0시에 시작**한다.
  */
 import type { Role } from '~/composables/auth/api/useAuthApi.types';
 
-/** 쪽지를 보낼 수 없는 이유(보낼 수 있으면 null) — 여러 이유가 겹치면 서버가 이 순서로 하나만 알린다: SELF → EMAIL_NOT_VERIFIED → ACCOUNT_RESTRICTED → BUSINESS_RESTRICTED → TOO_NEW → RECIPIENT_WITHDRAWN → UNAVAILABLE → RECIPIENT_REFUSES → DAILY_LIMIT → NEW_PARTNER_LIMIT */
+/** 쪽지를 보낼 수 없는 이유(보낼 수 있으면 null) — 여러 이유가 겹치면 서버가 이 순서로 하나만 알린다: SELF → EMAIL_NOT_VERIFIED → ACCOUNT_RESTRICTED → BUSINESS_RESTRICTED → NOT_PERMITTED → TOO_NEW → RECIPIENT_WITHDRAWN → UNAVAILABLE → RECIPIENT_REFUSES → DAILY_LIMIT → NEW_PARTNER_LIMIT */
 export type DmReason =
     | 'SELF'
     | 'EMAIL_NOT_VERIFIED'
     | 'ACCOUNT_RESTRICTED'
     | 'BUSINESS_RESTRICTED'
+    | 'NOT_PERMITTED'
     | 'TOO_NEW'
     | 'RECIPIENT_WITHDRAWN'
     | 'UNAVAILABLE'
@@ -51,7 +52,7 @@ export interface DmMessage {
 /** 받는 사람과 상관없이 **나 때문에** 못 보내는 이유 — `availableFrom` 은 `TOO_NEW` 일 때 보낼 수 있게 되는 시각(가입 + 7일) */
 export interface DmSenderState {
     canSend: boolean;
-    reason: Extract<DmReason, 'EMAIL_NOT_VERIFIED' | 'ACCOUNT_RESTRICTED' | 'BUSINESS_RESTRICTED' | 'TOO_NEW' | 'DAILY_LIMIT'> | null;
+    reason: Extract<DmReason, 'EMAIL_NOT_VERIFIED' | 'ACCOUNT_RESTRICTED' | 'BUSINESS_RESTRICTED' | 'NOT_PERMITTED' | 'TOO_NEW' | 'DAILY_LIMIT'> | null;
     availableFrom: string | null;
 }
 

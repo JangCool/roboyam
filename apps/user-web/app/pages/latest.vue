@@ -52,7 +52,7 @@ import UtilPopular from '~/utils/util-popular';
 /**
  * 최신글 전체 — `/latest`(community `pages/latest.vue`, `docs/api-home.md`「최신글 전체」). 켜진 모든 게시판의 최신글을 「더 보기」(커서)로 이어 붙인다.
  * 응답이 보는 사람마다 달라질 수 있어 캐시하지 않고 들어올 때·보는 사람이 바뀔 때 새로 받는다. 이미 있는 글은 건너뛴다. 늦게 온 옛 결과는 요청 번호로 버린다.
- * ⚠ 목업 API(`useHomeApi().latest` — 실제 게시판 글을 모아 흉내 낸다). 메뉴 BUILTIN `LATEST`(`/latest`)가 이곳이다. 제목은 서비스 이름 `LATEST`.
+ * API 는 `useHomeApi().latest`(`GET /api/home/latest`). 메뉴 BUILTIN `LATEST`(`/latest`)가 이곳이다. 제목은 서비스 이름 `LATEST`.
  */
 const { t } = useI18n();
 const api = useHomeApi();

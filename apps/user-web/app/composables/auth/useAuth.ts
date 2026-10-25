@@ -86,7 +86,8 @@ export function useAuth() {
 
     /**
      * 이메일 가입 — 가입과 동시에 로그인된다(`201`, me 와 같은 모양). 실패하면 `ApiError` 를 던진다(409 EMAIL_TAKEN·NICKNAME_TAKEN · 400 VALIDATION …).
-     * ⚠ MOCK: 서버에 가입 API 가 없어 목업 응답을 담는다 — 서버 세션이 없으므로 화면 상태만 로그인한 것처럼 된다(`member-account-contract.md` 「목업 가정」).
+     * 서버가 옛 세션을 없애고 새 세션 쿠키를 응답에 싣는다(로그인과 같은 `LoginSession.establish`) — 응답 me 를 그대로 담으면 화면 상태와 서버 세션이 맞는다.
+     * CSRF 는 세션과 따로인 쿠키 방식이라 세션이 바뀌어도 다시 받을 필요가 없다(`useApiClient` 가 요청마다 쿠키를 읽는다).
      */
     async function signup(body: SignupRequest): Promise<AuthUser | null> {
         return apply(await api.signup(body));

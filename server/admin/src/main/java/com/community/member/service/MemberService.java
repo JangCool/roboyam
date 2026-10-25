@@ -16,10 +16,14 @@ import com.community.member.dto.response.MemberConsentRecord;
 import com.community.member.dto.response.MemberConsents;
 import com.community.member.dto.response.MemberDetailView;
 import com.community.member.dto.response.MemberGradePoint;
+import com.community.member.dto.response.MemberNicknameChange;
+import com.community.member.dto.response.MemberNicknameChangeUsage;
+import com.community.member.dto.response.MemberNicknameImageView;
 import com.community.member.dto.response.MemberPage;
 import com.community.member.dto.response.MemberReportSummary;
 import com.community.member.dto.response.MemberRoleDetail;
 import com.community.member.dto.response.MemberRoleRef;
+import com.community.member.dto.response.MemberSettingsView;
 import com.community.member.dto.response.MemberSocialLink;
 import com.community.member.dto.response.MemberView;
 import com.community.member.exception.MemberNotFoundException;
@@ -36,6 +40,7 @@ import com.community.social.entity.SocialProvider;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.entity.UserEntity;
 import com.community.user.entity.UserStatus;
+import com.community.user.repository.master.ProfileNicknameHistoryRepository;
 import com.community.user.repository.master.ProfileRepository;
 import com.community.user.repository.master.UserRepository;
 import java.time.Duration;
@@ -60,8 +65,9 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>활동 요약({@code activity}: 글·댓글 수·최근 7일·받은 추천), 신고 요약({@code reports})과 등급·포인트 구획의 등급 변경 이력·승급 상태·다음 등급 달성도({@code gradePoint})는
  *       채운다 — {@link MemberActivityRepository}·{@link ReportRepositoryQDSL#countsOf}·{@link MemberGradePointAssembler}. 읽기 전용 조회라 새 감사 기록은 없다(열람은 {@code MEMBER_VIEW} 하나).</li>
  *   <li>포인트 잔액({@code point})은 목록·상세 모두 잔액 행({@code point_balances})의 값이고, 등급·포인트 구획의 최근 포인트 내역도 원장에서 채운다.</li>
- *   <li>서버에 아직 데이터가 없는 칸(휴면·제재·알림 설정·공동구매 등)은 null/빈 값으로 내려간다 — {@link MemberDetailView}.</li>
- *   <li>탈퇴한 회원은 축약해 보인다(역할·소셜·동의·소개·활동 요약·신고 요약·등급 구획 없음, 탈퇴 시각만).</li>
+ *   <li>개인 설정(표시·보기·알림 설정, 차단·메모 수, 알림함 건수)·쪽지 받기·닉네임 변경 횟수·닉네임 이미지·약관 동의 버전 나누기는 {@link MemberSettingsAssembler}.</li>
+ *   <li>서버에 아직 데이터가 없는 칸(휴면·제재·공동구매 등)은 null/빈 값으로 내려간다 — {@link MemberDetailView}.</li>
+ *   <li>탈퇴한 회원은 축약해 보인다(역할·소셜·동의·소개·활동 요약·신고 요약·등급 구획·개인 설정·닉네임 구획 없음, 탈퇴 시각만).</li>
  * </ul>
  */
 @Service
@@ -83,10 +89,15 @@ public class MemberService {
     private final MemberActivityRepository activities;
     private final ReportRepositoryQDSL reportQueries;
     private final MemberGradePointAssembler gradePoints;
+    private final ProfileNicknameHistoryRepository nicknameHistory;
+    private final MemberSettingsAssembler settingsAssembler;
 
     public MemberService(MemberRepositoryQDSL members, MemberSearchParser parser, MemberRoleResolver roleResolver, GradeRepositoryQDSL gradeQueries,
                          RoleRepositoryQDSL roleQueries, UserRepository users, ProfileRepository profiles, AuditLogService audit, MemberActivityRepository activities,
-                         ReportRepositoryQDSL reportQueries, MemberGradePointAssembler gradePoints) {
+                         ReportRepositoryQDSL reportQueries, MemberGradePointAssembler gradePoints,
+                         ProfileNicknameHistoryRepository nicknameHistory, MemberSettingsAssembler settingsAssembler) {
+        this.nicknameHistory = nicknameHistory;
+        this.settingsAssembler = settingsAssembler;
         this.activities = activities;
         this.reportQueries = reportQueries;
         this.gradePoints = gradePoints;
@@ -137,8 +148,8 @@ public class MemberService {
         List<SocialProvider> providers = members.providersOf(List.of(id)).getOrDefault(id, List.of());
 
         boolean emailMasked = record.email() != null && !canPii;
-        MemberConsents consents = withdrawn ? null : new MemberConsents(new MemberConsentRecord(user.getTermsAgreedAt(), user.getTermsVersion()), null,
-                user.getAgeConfirmedAt(), List.of(), List.of());
+        MemberConsentRecord[] agreed = withdrawn ? null : MemberSettingsAssembler.splitConsent(user.getTermsAgreedAt(), user.getTermsVersion());
+        MemberConsents consents = withdrawn ? null : new MemberConsents(agreed[0], agreed[1], user.getAgeConfirmedAt(), List.of(), List.of());
         List<MemberSocialLink> social = withdrawn ? List.of() : List.of(SocialProvider.KAKAO, SocialProvider.NAVER, SocialProvider.GOOGLE).stream()
                 .map(provider -> new MemberSocialLink(provider.name(), providers.contains(provider))).toList();
 
@@ -147,19 +158,30 @@ public class MemberService {
         MemberActivity activity = withdrawn ? null : activityOf(id, now);
         MemberReportSummary reports = withdrawn ? null : reportsOf(id);
         MemberGradePoint gradePoint = withdrawn ? null : gradePoints.assemble(user, profile, activity, now);
+        MemberSettingsAssembler.Result personal = withdrawn ? null : settingsAssembler.assemble(id);
+        MemberSettingsView settings = personal == null ? null : personal.settings();
+        Boolean acceptDm = personal == null ? null : personal.acceptDm();
+        MemberNicknameChangeUsage nicknameChange = withdrawn ? null : settingsAssembler.nicknameChange(profile);
+        MemberNicknameImageView nicknameImage = withdrawn ? null : settingsAssembler.nicknameImage(id);
 
         MemberDetailView view = new MemberDetailView(Long.toString(id), canPii ? record.email() : MemberMasking.email(record.email()), emailMasked, record.nickname(),
                 record.gradeKey(), memberRoles.memberType(), record.status().name(), authMethodOf(record, providers), record.emailVerifiedAt(), record.createdAt(),
                 record.lastLoginAt(), pointOf(record), memberRoles.roles(), null, statusChangedAt(record), memberRoles.boardRole(), 0,
                 null, activity, List.of(), null, reports,
-                withdrawn ? null : profile.getBio(), social, null, null, null, withdrawn ? record.deletedAt() : null,
-                withdrawn || canPii ? List.of() : null, !canPii,
-                gradePoint, null, null, null, consents, null);
+                withdrawn ? null : profile.getBio(), social, null, acceptDm, null, withdrawn ? record.deletedAt() : null,
+                withdrawn ? List.of() : canPii ? nicknameHistoryOf(id) : null, !canPii,
+                gradePoint, settings, null, null, consents, null, nicknameChange, nicknameImage);
 
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.MEMBER_VIEW, AuditResult.SUCCESS).target("MEMBER", Long.toString(id))
                 .with("emailRevealed", canPii && record.email() != null));
         log.info("회원 상세를 열었다 memberId={} operatorId={}", id, actor.operatorId());
         return view;
+    }
+
+    /** 닉네임 변경 이력 — 최신이 위, 최근 20줄({@code member.pii} 가 있을 때만 부른다 — 이전 닉네임은 공개하지 않는 값) */
+    private List<MemberNicknameChange> nicknameHistoryOf(long userId) {
+        return nicknameHistory.findTop20ByUserIdOrderByIdDesc(userId).stream()
+                .map(row -> new MemberNicknameChange(row.getOldNickname(), row.getNewNickname(), row.getChangedAt())).toList();
     }
 
     /**

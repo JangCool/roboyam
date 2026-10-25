@@ -56,7 +56,7 @@ public class BoardContentQueries {
      * (글 ID 를 이 게시판의 글에서 고른다 — {@code ix_posts_board_prefix} 의 {@code board_id} 앞부분을 탄다).
      * <ul>
      *   <li>{@code post_likes}·{@code post_views}: 글 ID 해시 조각 — {@code post_id} 가 PK 앞부분이라 조각마다 PK 색인으로 찾는다.</li>
-     *   <li>{@code comment_likes}: 댓글 ID 해시 조각이지만 {@code post_id} 칸과 {@code ix_comment_likes_post_user (post_id, user_id)} 가 있어 글 ID 로 찾는다.</li>
+     *   <li>{@code comment_likes}·{@code comment_dislikes}: 댓글 ID 해시 조각이지만 {@code post_id} 칸과 {@code (post_id, user_id)} 색인이 있어 글 ID 로 찾는다.</li>
      *   <li><b>신고({@code reports})는 지우지 않는다</b> — 신고자·당시 내용 스냅샷은 증거라 게시판이 지워져도 남기고, 개인정보 보유기간 배치(신고 기록 축 {@code R__batch_18})가
      *       기간이 지나면 지운다.</li>
      * </ul>
@@ -64,6 +64,7 @@ public class BoardContentQueries {
     public void deleteContent(long boardId) {
         jdbc.update("DELETE FROM post_likes WHERE post_id IN (SELECT id FROM posts WHERE board_id = ?)", boardId);
         jdbc.update("DELETE FROM comment_likes WHERE post_id IN (SELECT id FROM posts WHERE board_id = ?)", boardId);
+        jdbc.update("DELETE FROM comment_dislikes WHERE post_id IN (SELECT id FROM posts WHERE board_id = ?)", boardId);
         jdbc.update("DELETE FROM post_views WHERE post_id IN (SELECT id FROM posts WHERE board_id = ?)", boardId);
         jdbc.update("DELETE FROM comments WHERE board_id = ?", boardId);
         jdbc.update("DELETE FROM posts WHERE board_id = ?", boardId);

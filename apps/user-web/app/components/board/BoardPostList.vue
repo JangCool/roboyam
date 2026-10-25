@@ -4,7 +4,7 @@
         <ul class="-mx-4 m-0 list-none p-0 md:hidden">
             <li v-for="row in all" :key="`${row.pinned && pinnedIds.has(row.id) ? 'p' : ''}${row.id}`" class="border-b border-surface" :class="pinnedIds.has(row.id) ? 'bg-surface-100 dark:bg-surface-800/60' : ''">
                 <p v-if="row.hiddenReason" class="flex items-center gap-1.5 px-4 py-3 text-sm text-muted-color">
-                    <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t('board.hiddenPost') }}
+                    <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t(row.hiddenReason === 'STAFF' ? 'board.hiddenPostStaff' : 'board.hiddenPost') }}
                 </p>
                 <!-- 차단한 회원·단어의 글은 접힌 한 줄(「보기」로 그 자리에서 펼친다) -->
                 <FoldedRow v-else :reason="foldOf(row)" kind="post" class="px-4 py-2.5 text-sm" hide-class="px-4 pb-2">
@@ -51,7 +51,7 @@
                 >
                     <tr class="border-b border-surface" :class="pinnedIds.has(row.id) ? 'bg-surface-100 dark:bg-surface-800/60' : 'hover:bg-surface-50 dark:hover:bg-surface-900'">
                         <td v-if="row.hiddenReason" colspan="5" class="py-2.5 text-muted-color">
-                            <i class="pi pi-eye-slash mr-1.5 text-xs" aria-hidden="true" />{{ t('board.hiddenPost') }}
+                            <i class="pi pi-eye-slash mr-1.5 text-xs" aria-hidden="true" />{{ t(row.hiddenReason === 'STAFF' ? 'board.hiddenPostStaff' : 'board.hiddenPost') }}
                         </td>
                         <template v-else>
                             <td class="py-2.5 pr-3">
@@ -87,8 +87,8 @@ const overrides = useBlockOverrides();
 const pinnedIds = computed(() => new Set(props.pinned.map((p) => p.id)));
 const all = computed(() => [...props.pinned, ...props.rows]);
 
-/** 접는 까닭 — 서버의 `blocked`(서버 후보)에 이 기기에서 방금 바꾼 차단을 겹친다. 목업 단계에는 받아 둔 차단 단어로 제목을 본다 */
+/** 접는 까닭 — 서버의 `blocked`(`USER|WORD|null`)에 이 기기에서 방금 바꾼 차단을 겹친다 */
 function foldOf(row: PostRow) {
-    return overrides.blockedOf(row.author.memberId, row.blocked, row.title);
+    return overrides.blockedOf(row.author.memberId, row.blocked);
 }
 </script>

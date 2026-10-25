@@ -105,7 +105,7 @@ public class MemberNotificationEmailSender {
 
             MemberNotificationMessages.Facts facts = withActorName(event, recipient.language());
             String siteUrl = texts.siteUrl();
-            String link = event.postId() == null || siteUrl == null ? null : siteUrl + "/posts/" + event.postId();
+            String link = event.path() == null || siteUrl == null ? null : siteUrl + event.path();
             RenderedEmail content = texts.email(facts, recipient.language(), recipient.nickname(), link);
             if (mail.sendTagged(recipient.email(), content.subject(), content.untaggedSubject(), content.html())) {
                 log.info("회원 알림 메일을 보냈다 userId={} event={} 문구={}", event.userId(), memberEvent, content.messageId());
@@ -125,7 +125,7 @@ public class MemberNotificationEmailSender {
         String name = queries.nickname(event.actorUserId())
                 .orElseGet(() -> messages.get(new MessageRef("member.notification.actor.withdrawn"), texts.localeOf(language)));
         return new MemberNotificationMessages.Facts(facts.type(), name, facts.postTitle(), facts.excerpt(), facts.groupCount(), facts.amount(), facts.pointsKind(),
-                facts.note(), facts.temporary(), facts.snapshot());
+                facts.note(), facts.temporary(), facts.snapshot(), facts.result(), facts.reasonCode(), facts.targetType());
     }
 
     /** 지금이 조용한 시간 안인가 — 꺼져 있거나 값을 읽을 수 없거나 시작 = 끝이면 false. 끝 시각은 들지 않는다 */

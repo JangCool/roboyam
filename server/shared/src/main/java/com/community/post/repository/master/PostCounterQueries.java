@@ -52,6 +52,58 @@ public class PostCounterQueries {
         return n == null ? 0 : n;
     }
 
+    /** 댓글 추천을 푼다(비추천을 누르면 — 추천과 비추천은 둘 중 하나만) — 있었으면 true */
+    public boolean deleteCommentLike(long commentId, long userId) {
+        return jdbc.update("DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?", commentId, userId) == 1;
+    }
+
+    /** 댓글 추천 수 -1(0 아래로 내려가지 않는다) → 새 값 */
+    public int decrementCommentLikes(long postId, long commentId) {
+        Integer n = jdbc.queryForObject("UPDATE comments SET like_count = greatest(like_count - 1, 0) WHERE post_id = ? AND id = ? RETURNING like_count",
+                Integer.class, postId, commentId);
+        return n == null ? 0 : n;
+    }
+
+    /** 댓글 비추천을 넣는다(V78 {@code comment_dislikes}) — 처음이면 true */
+    public boolean insertCommentDislike(long commentId, long postId, long userId) {
+        return jdbc.update("INSERT INTO comment_dislikes (comment_id, user_id, post_id) VALUES (?, ?, ?) ON CONFLICT DO NOTHING", commentId, userId, postId) == 1;
+    }
+
+    /** 댓글 비추천을 푼다 — 있었으면 true */
+    public boolean deleteCommentDislike(long commentId, long userId) {
+        return jdbc.update("DELETE FROM comment_dislikes WHERE comment_id = ? AND user_id = ?", commentId, userId) == 1;
+    }
+
+    /** 댓글 비추천 수를 {@code delta} 만큼(0 아래로 내려가지 않는다) → 새 값 */
+    public int addCommentDislikes(long postId, long commentId, int delta) {
+        Integer n = jdbc.queryForObject("UPDATE comments SET dislike_count = greatest(dislike_count + ?, 0) WHERE post_id = ? AND id = ? RETURNING dislike_count",
+                Integer.class, delta, postId, commentId);
+        return n == null ? 0 : n;
+    }
+
+    /** 지금 댓글의 추천·비추천 수 — {@code [like, dislike]} */
+    public int[] commentReactionCounts(long postId, long commentId) {
+        return jdbc.queryForObject("SELECT like_count, dislike_count FROM comments WHERE post_id = ? AND id = ?",
+                (rs, i) -> new int[]{rs.getInt(1), rs.getInt(2)}, postId, commentId);
+    }
+
+    /** 이 회원이 이 댓글을 추천했는가 */
+    public boolean commentLiked(long commentId, long userId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM comment_likes WHERE comment_id = ? AND user_id = ?)", Boolean.class,
+                commentId, userId));
+    }
+
+    /** 이 회원이 이 댓글을 비추천했는가 */
+    public boolean commentDisliked(long commentId, long userId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM comment_dislikes WHERE comment_id = ? AND user_id = ?)", Boolean.class,
+                commentId, userId));
+    }
+
+    /** 이 글에서 이 회원이 비추천한 댓글 ID */
+    public Set<Long> dislikedComments(long postId, long userId) {
+        return new HashSet<>(jdbc.queryForList("SELECT comment_id FROM comment_dislikes WHERE post_id = ? AND user_id = ?", Long.class, postId, userId));
+    }
+
     /** 이 글에서 이 회원이 추천한 댓글 ID */
     public Set<Long> likedComments(long postId, long userId) {
         List<Long> ids = jdbc.queryForList("SELECT comment_id FROM comment_likes WHERE post_id = ? AND user_id = ?", Long.class, postId, userId);

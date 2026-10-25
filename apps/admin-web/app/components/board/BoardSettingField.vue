@@ -4,12 +4,13 @@
         모양: 라벨 줄(라벨 · [기본 설정] 이 칸을 따로 정한 게시판 수 단추 · [게시판 설정] 「기본값 따름」 체크) + 입력 + 안내/오류 한 줄.
           · 숫자 칸은 글자 입력(`InputText` + `inputmode=numeric`) — grades.vue 와 같은 이유(InputNumber 는 범위 밖 값을 말없이 바꾼다). 값은 글자로 주고받는다.
           · 켜고 끄기는 ToggleSwitch, 고르기는 3개 이하면 SelectButton·넘으면 Select, 글쓰기·댓글 최소 자격은 등급 목록(`grades`)에서 고르는 Select(등급은 `GradeBadge` 로 그린다).
+          · 짧은 이름(`label`)은 글자 입력(빈 칸 = null — 기본 설정이면 화면 기본 이름, 게시판이면 기본 설정 따름, 자리표시 글자로 그 이름을 보인다), 여러 개 고르기(`multi`)는 체크 목록(늘 칸 정의 차례로 보낸다, 빈 목록 허용).
           · 「기본값 따름」(값 `null`)이면 입력 대신 지금 기본값을 흐리게 보인다(「기본값: 20개」). 끄면 기본값을 시작 값으로 채운다.
         값을 바꿀 권한이 없으면(`editable=false`) 숫자 칸은 readonly, 나머지는 disabled — 서버 값이 그대로 보인다. 서버 호출은 없다(값만 주고받는다).
     -->
     <div class="flex flex-col gap-1.5" role="group" :aria-labelledby="labelId" :data-field="field">
         <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <component :is="following || isBool ? 'span' : 'label'" :id="labelId" :for="following || isBool ? undefined : inputId" class="text-sm font-medium">{{ t(`board.field.${field}`) }}</component>
+            <component :is="following || isBool || isMulti ? 'span' : 'label'" :id="labelId" :for="following || isBool || isMulti ? undefined : inputId" class="text-sm font-medium">{{ t(`board.field.${field}`) }}</component>
 
             <!-- 이 칸을 따로 정한 게시판 — 눌러서 이름 목록 -->
             <template v-if="overrides.length">
@@ -59,6 +60,30 @@
                 />
                 <span v-if="spec.unit" class="text-sm text-muted-color">{{ t(`board.suffix.${spec.unit}`) }}</span>
             </div>
+
+            <div v-else-if="spec.kind === 'label'" class="flex items-center gap-2">
+                <InputText
+                    :id="inputId"
+                    :model-value="typeof modelValue === 'string' ? modelValue : ''"
+                    autocomplete="off"
+                    size="small"
+                    :placeholder="labelPlaceholder"
+                    :readonly="!editable"
+                    :disabled="inactive"
+                    :invalid="Boolean(error)"
+                    :aria-describedby="messageId"
+                    class="w-40"
+                    @update:model-value="(value: string | undefined) => emit('update:modelValue', value ?? '')"
+                />
+                <span class="text-xs tabular-nums text-muted-color">{{ t('board.labelCounter', { n: labelLength, max: spec.max ?? 0 }) }}</span>
+            </div>
+
+            <ul v-else-if="isMulti" class="m-0 flex min-h-8 list-none flex-wrap items-center gap-x-5 gap-y-2 p-0" :aria-describedby="messageId">
+                <li v-for="option in choiceOptions" :key="option.value" class="flex items-center gap-1.5">
+                    <Checkbox :model-value="picked" :value="option.value" :input-id="`${inputId}-${option.value}`" :disabled="!editable || inactive" :invalid="Boolean(error)" @update:model-value="onPick" />
+                    <label :for="`${inputId}-${option.value}`" class="text-[13px]">{{ option.label }}</label>
+                </li>
+            </ul>
 
             <div v-else-if="isBool" class="flex min-h-8 items-center gap-2">
                 <ToggleSwitch :model-value="Boolean(modelValue)" :input-id="inputId" :aria-labelledby="labelId" :aria-describedby="messageId" :disabled="!editable || inactive" @update:model-value="(value: boolean) => emit('update:modelValue', value)" />
@@ -182,9 +207,11 @@ interface Props {
     allowGuest?: boolean;
     /** 최소 자격 칸에서 뺄 등급 키(핫딜 글쓰기의 첫 등급) — 지금 값이면 서버 값 그대로 보이도록 남긴다 */
     excludeGrades?: string[];
+    /** 칸 아래 안내를 바꾼다(비우면 `board.fieldHelp.<칸>`) — 게시판 설정의 이름 칸처럼 화면마다 뜻이 다를 때 */
+    help?: string;
 }
 
-const props = withDefaults(defineProps<Props>(), { inheritable: false, defaultValue: null, grades: () => [], editable: true, error: '', inactive: false, note: '', overrides: () => [], allowGuest: false, excludeGrades: () => [] });
+const props = withDefaults(defineProps<Props>(), { inheritable: false, defaultValue: null, grades: () => [], editable: true, error: '', inactive: false, note: '', overrides: () => [], allowGuest: false, excludeGrades: () => [], help: '' });
 const emit = defineEmits<{ 'update:modelValue': [value: BoardFieldValue] }>();
 
 const { t } = useI18n();
@@ -198,13 +225,25 @@ const open = ref(false);
 
 const spec = computed(() => UtilBoard.spec(props.field));
 const isBool = computed(() => spec.value.kind === 'bool');
+const isMulti = computed(() => spec.value.kind === 'multi');
 const following = computed(() => props.inheritable && props.modelValue === null);
 
 /** 칸 아래 안내 — 칸 설명 + (숫자 칸이면) 범위 */
 const helpText = computed(() => {
-    const help = t(`board.fieldHelp.${props.field}`);
+    const help = props.help || t(`board.fieldHelp.${props.field}`);
     return spec.value.kind === 'number' ? `${help} ${UtilBoardMessages.range(t, props.field)}` : help;
 });
+
+/** 이름 칸 — 비웠을 때 쓰일 이름(게시판 설정이면 기본 설정 값, 그것도 없거나 기본 설정 화면이면 화면 기본 이름) */
+const labelPlaceholder = computed(() => UtilBoard.labelValue(props.defaultValue) ?? t(`board.labelDefault.${props.field}`));
+/** 이름 칸 글자 수 — 앞뒤 공백을 뗀 유니코드 한 글자씩(서버와 같다) */
+const labelLength = computed(() => [...(UtilBoard.labelValue(props.modelValue) ?? '')].length);
+
+/** 여러 개 고르기 — 고른 값(칸 정의 차례) */
+const picked = computed(() => UtilBoard.multiValue(props.field, props.modelValue) ?? []);
+function onPick(value: unknown): void {
+    emit('update:modelValue', UtilBoard.multiValue(props.field, value) ?? []);
+}
 
 const choiceOptions = computed(() => (spec.value.choices ?? []).map((value) => ({ value, label: UtilBoardMessages.choice(t, props.field, value) })));
 
@@ -239,10 +278,13 @@ function textOf(value: BoardFieldValue): string {
     return UtilBoardMessages.valueText(t, props.field, value, gradeLabel);
 }
 
-/** 기본값 따름을 켜면 `null`, 끄면 지금 기본값으로 채운다(숫자 칸은 글자) */
+/** 기본값 따름을 켜면 `null`, 끄면 지금 기본값으로 채운다(숫자 칸은 글자, 이름 칸은 기본 이름이 없으면 빈 글자, 목록은 복사) */
 function setFollowing(on: boolean): void {
     if (on) emit('update:modelValue', null);
-    else emit('update:modelValue', UtilBoard.isNumber(props.field) ? String(props.defaultValue ?? '') : props.defaultValue);
+    else if (UtilBoard.isNumber(props.field)) emit('update:modelValue', String(props.defaultValue ?? ''));
+    else if (spec.value.kind === 'label') emit('update:modelValue', UtilBoard.labelValue(props.defaultValue) ?? '');
+    else if (isMulti.value) emit('update:modelValue', UtilBoard.multiValue(props.field, props.defaultValue) ?? []);
+    else emit('update:modelValue', props.defaultValue);
 }
 
 function toggleOverrides(event: Event): void {

@@ -53,7 +53,19 @@ public final class AuditRetention {
             AuditActions.POINT_SETTINGS_UPDATE, AuditActions.SOCIAL_PROVIDER_UPDATE, AuditActions.SOCIAL_PROVIDER_DELETE,
             AuditActions.MFA_ENROLL, AuditActions.MFA_REENROLL, AuditActions.MFA_RECOVERY_CODES_REGENERATE, AuditActions.MFA_FAILURE,
             AuditActions.MFA_RECOVERY_CODE_USED, AuditActions.MFA_TRUSTED_DEVICE_REVOKE, AuditActions.MFA_RESET, AuditActions.MFA_SETTINGS_UPDATE,
-            AuditActions.COMMERCE_REQUEST_LIMIT_UPDATE);
+            AuditActions.COMMERCE_REQUEST_LIMIT_UPDATE,
+            // develop(2026-10-26)의 새 행위 — 약관·닉네임 그림·인기글·하이라이트·토론·게시글·신고 관리. 글 삭제·복구가 포인트를 회수·되돌리지만 목적은 콘텐츠 관리이고
+            // 포인트 이동의 기록은 포인트 원장이 가진다 — 일반 운영(commerce-foundation-contract 「0-5」 세션 정리 결정)
+            AuditActions.TERMS_PUBLISH, AuditActions.TERMS_LINKS_UPDATE,
+            AuditActions.NICKNAME_IMAGE_APPROVE, AuditActions.NICKNAME_IMAGE_REJECT, AuditActions.NICKNAME_IMAGE_REVOKE, AuditActions.NICKNAME_IMAGE_SETTINGS_UPDATE,
+            AuditActions.POPULAR_SETTINGS_UPDATE, AuditActions.POPULAR_EXCLUDE, AuditActions.POPULAR_RESTORE,
+            AuditActions.HIGHLIGHT_CREATE, AuditActions.HIGHLIGHT_UPDATE, AuditActions.HIGHLIGHT_DELETE, AuditActions.HIGHLIGHT_ORDER, AuditActions.HIGHLIGHT_VISIBLE,
+            AuditActions.HIGHLIGHT_OPINION_PIN, AuditActions.HIGHLIGHT_OPINION_UNPIN, AuditActions.HIGHLIGHT_OPINION_HIDE, AuditActions.HIGHLIGHT_OPINION_UNHIDE,
+            AuditActions.HIGHLIGHT_PIN_REQUEST_APPROVE, AuditActions.HIGHLIGHT_PIN_REQUEST_REJECT,
+            AuditActions.DEBATE_OPEN, AuditActions.DEBATE_UPDATE, AuditActions.DEBATE_CLOSE,
+            AuditActions.POST_HIDE, AuditActions.POST_UNHIDE, AuditActions.POST_DELETE, AuditActions.POST_RESTORE, AuditActions.POST_MOVE, AuditActions.POST_NOTICE,
+            AuditActions.POST_PIN, AuditActions.POST_UNPIN, AuditActions.POST_BULK, AuditActions.POST_POLL_DELETE,
+            AuditActions.REPORT_RESOLVE, AuditActions.REPORT_DISMISS, AuditActions.REPORT_BULK_DISMISS, AuditActions.REPORT_REOPEN);
 
     private static final Map<String, AuditRetentionClass> TABLE = table();
 

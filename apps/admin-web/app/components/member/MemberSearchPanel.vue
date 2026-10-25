@@ -79,12 +79,17 @@
             </FilterRow>
 
             <FilterRow v-if="shown('point')" :label="t('member.filter.point')" :error="pointReversed ? '' : errorOf('pointMin', 'pointMax')">
-                <div class="flex flex-wrap items-center gap-2">
-                    <label class="sr-only" :for="ids.pointMin">{{ t('member.filter.pointMin') }}</label>
-                    <InputNumber v-model="filter.pointMin" :input-id="ids.pointMin" :min="0" :max-fraction-digits="0" :placeholder="t('member.filter.pointMin')" :invalid="pointReversed || Boolean(errorOf('pointMin', 'pointMax'))" class="w-36" />
+                <!-- 기간 칸(`DateRangeField`)과 같은 모양 — 칸마다 고정폭 상자에 `fluid` 로 채운다(`fluid` 가 없으면 InputNumber 안쪽 입력이 자기 기본 너비로 상자 밖까지 늘어 옆 칸과 겹친다) -->
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-2">
+                    <div class="w-42">
+                        <label class="sr-only" :for="ids.pointMin">{{ t('member.filter.pointMin') }}</label>
+                        <InputNumber v-model="filter.pointMin" :input-id="ids.pointMin" :min="0" :max-fraction-digits="0" :placeholder="t('member.filter.pointMin')" :invalid="pointReversed || Boolean(errorOf('pointMin', 'pointMax'))" fluid />
+                    </div>
                     <span class="text-muted-color" aria-hidden="true">~</span>
-                    <label class="sr-only" :for="ids.pointMax">{{ t('member.filter.pointMax') }}</label>
-                    <InputNumber v-model="filter.pointMax" :input-id="ids.pointMax" :min="0" :max-fraction-digits="0" :placeholder="t('member.filter.pointMax')" :invalid="pointReversed || Boolean(errorOf('pointMin', 'pointMax'))" class="w-36" />
+                    <div class="w-42">
+                        <label class="sr-only" :for="ids.pointMax">{{ t('member.filter.pointMax') }}</label>
+                        <InputNumber v-model="filter.pointMax" :input-id="ids.pointMax" :min="0" :max-fraction-digits="0" :placeholder="t('member.filter.pointMax')" :invalid="pointReversed || Boolean(errorOf('pointMin', 'pointMax'))" fluid />
+                    </div>
                     <span v-if="pointReversed" role="alert" class="text-xs text-red-600 dark:text-red-400">{{ t('member.filter.pointReversed') }}</span>
                 </div>
             </FilterRow>

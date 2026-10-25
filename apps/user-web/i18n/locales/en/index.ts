@@ -31,6 +31,7 @@ import notification from './notification';
 import onboarding from './onboarding';
 import password from './password';
 import point from './point';
+import poll from './poll';
 import post from './post';
 import profile from './profile';
 import prompt from './prompt';
@@ -45,6 +46,7 @@ import siteTerms from './siteTerms';
 import social from './social';
 import verify from './verify';
 import view from './view';
+import terms from './terms';
 
 export default {
     account,
@@ -70,6 +72,7 @@ export default {
     onboarding,
     password,
     point,
+    poll,
     post,
     profile,
     prompt,
@@ -84,4 +87,5 @@ export default {
     social,
     verify,
     view,
+    terms,
 };

@@ -104,6 +104,7 @@ const REASON_CODES: readonly PointReasonCode[] = [
     'COMMENT',
     'POPULAR',
     'POST_REVOKE',
+    'POST_RESTORE',
     'COMMENT_REVOKE',
     'TICKET_PURCHASE',
     'ADMIN_ADJUST',

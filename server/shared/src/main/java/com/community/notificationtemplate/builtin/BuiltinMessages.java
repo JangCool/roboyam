@@ -169,6 +169,34 @@ public class BuiltinMessages {
                             + p(text("mail.operatorReset.keep", locale))
                             + p(text("mail.operatorReset.ignore", locale))};
             case MAIL_TEST -> new String[] {text("mail.test.subject", locale), p(text("mail.test.body", locale))};
+            case MEMBER_PASSWORD_RESET -> new String[] {text("mail.passwordReset.subject", locale),
+                    strong(text("mail.passwordReset.title", locale))
+                            + p(text(new MessageRef("mail.passwordReset.greeting", "{{nickname}}", "{{siteName}}"), locale))
+                            + p(text("mail.passwordReset.guide", locale))
+                            + button("resetLink", text("mail.passwordReset.button", locale))
+                            + p(text(new MessageRef("mail.passwordReset.validity", "{{validMinutes}}"), locale))
+                            + "<p>{{resetLink}}</p>"
+                            + p(text("mail.passwordReset.ignore", locale))};
+            case MEMBER_PASSWORD_SOCIAL -> new String[] {text("mail.passwordSocial.subject", locale),
+                    strong(text("mail.passwordSocial.title", locale))
+                            + p(text(new MessageRef("mail.passwordSocial.greeting", "{{nickname}}", "{{siteName}}"), locale))
+                            + p(text(new MessageRef("mail.passwordSocial.guide", "{{providerName}}"), locale))
+                            + button("socialLink", text("mail.passwordSocial.button", locale))
+                            + "<p>{{socialLink}}</p>"
+                            + p(text("mail.passwordSocial.ignore", locale))};
+            case MEMBER_EMAIL_CHANGE -> new String[] {text("mail.emailChange.subject", locale),
+                    strong(text("mail.emailChange.title", locale))
+                            + p(text(new MessageRef("mail.emailChange.greeting", "{{nickname}}", "{{siteName}}"), locale))
+                            + p(text("mail.emailChange.guide", locale))
+                            + button("changeLink", text("mail.emailChange.button", locale))
+                            + p(text(new MessageRef("mail.emailChange.validity", "{{validHours}}"), locale))
+                            + "<p>{{changeLink}}</p>"
+                            + p(text("mail.emailChange.ignore", locale))};
+            case MEMBER_EMAIL_CHANGE_NOTICE -> new String[] {text("mail.emailChangeNotice.subject", locale),
+                    strong(text("mail.emailChangeNotice.title", locale))
+                            + p(text(new MessageRef("mail.emailChangeNotice.greeting", "{{nickname}}", "{{siteName}}", "{{newEmail}}"), locale))
+                            + p(text("mail.emailChangeNotice.guide", locale))
+                            + p(text("mail.emailChangeNotice.warn", locale))};
         };
     }
 

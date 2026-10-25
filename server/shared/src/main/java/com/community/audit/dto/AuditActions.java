@@ -131,6 +131,79 @@ public final class AuditActions {
     public static final String COMMERCE_REQUEST_LIMIT_UPDATE = "COMMERCE_REQUEST_LIMIT_UPDATE";
     /** 감사 보관 기간(분류별 일수) 저장 — 최고 관리자만, 대상 AUDIT_RETENTION/{@code audit-log-retention}, 바뀐 분류만 before/after. 보관 분류 MONEY(5년) */
     public static final String AUDIT_RETENTION_UPDATE = "AUDIT_RETENTION_UPDATE";
+    /** 약관 새 버전 게시 — 대상 TERMS(대상 ID = 종류 TERMS·PRIVACY), after {@code version}·{@code effectiveDate} (docs/features/terms-contract.md) */
+    public static final String TERMS_PUBLISH = "TERMS_PUBLISH";
+    /** 가입·로그인 화면 약관 「보기」 링크 표시 저장 — 대상 SITE, 바뀐 때만 before/after {@code showLinks} */
+    public static final String TERMS_LINKS_UPDATE = "TERMS_LINKS_UPDATE";
+    // ── 닉네임 그림 검토(docs/features/member-social-contract.md 「닉네임 그림」) — 대상 NICKNAME_IMAGE + 신청 ID, detail 에 회원 ID·사유 ──
+    /** 닉네임 그림 승인 — 회원의 지금 그림이 된다(앞 그림은 교체) */
+    public static final String NICKNAME_IMAGE_APPROVE = "NICKNAME_IMAGE_APPROVE";
+    /** 닉네임 그림 반려 — {@code reason} */
+    public static final String NICKNAME_IMAGE_REJECT = "NICKNAME_IMAGE_REJECT";
+    /** 적용 중인 닉네임 그림 해제 — {@code reason} */
+    public static final String NICKNAME_IMAGE_REVOKE = "NICKNAME_IMAGE_REVOKE";
+    /** 닉네임 그림 신청 조건(방식·최소 등급·일수·활동·포인트·이메일 인증) 저장 — 대상 NICKNAME_IMAGE_SETTINGS, 바뀐 칸만 before/after */
+    public static final String NICKNAME_IMAGE_SETTINGS_UPDATE = "NICKNAME_IMAGE_SETTINGS_UPDATE";
+    // ── 인기글·하이라이트·토론(docs/features/popular-highlight-contract.md) ──
+    /** 인기글 설정 저장 — 대상 POPULAR_SETTINGS + {@code popular}, 바뀐 칸만 before/after, 다시 계산 요청 여부 {@code recomputeRequested} */
+    public static final String POPULAR_SETTINGS_UPDATE = "POPULAR_SETTINGS_UPDATE";
+    /** 인기글에서 빼기 — 대상 POST + 글 ID, {@code reason}·{@code memo} */
+    public static final String POPULAR_EXCLUDE = "POPULAR_EXCLUDE";
+    /** 인기글에 다시 넣기 — 대상 POST + 글 ID, 뺐던 {@code reason} */
+    public static final String POPULAR_RESTORE = "POPULAR_RESTORE";
+    /** 하이라이트 만들기 — 대상 HIGHLIGHT + 하이라이트 ID, {@code postId}·칸 값 */
+    public static final String HIGHLIGHT_CREATE = "HIGHLIGHT_CREATE";
+    /** 하이라이트 고치기 — 바뀐 칸만 before/after */
+    public static final String HIGHLIGHT_UPDATE = "HIGHLIGHT_UPDATE";
+    /** 하이라이트 지우기 — {@code postId} */
+    public static final String HIGHLIGHT_DELETE = "HIGHLIGHT_DELETE";
+    /** 하이라이트 순서 바꾸기 — 대상 HIGHLIGHT + {@code order}, before/after ID 차례 */
+    public static final String HIGHLIGHT_ORDER = "HIGHLIGHT_ORDER";
+    /** 하이라이트 노출 켜기·끄기 — from/to */
+    public static final String HIGHLIGHT_VISIBLE = "HIGHLIGHT_VISIBLE";
+    /** 토론 의견 고정·고정 해제·숨김·숨김 해제(이름은 예전 하이라이트 의견 관리 그대로 — 기록 호환) — 대상 COMMENT + 댓글 ID, {@code postId}·{@code stance} */
+    public static final String HIGHLIGHT_OPINION_PIN = "HIGHLIGHT_OPINION_PIN";
+    public static final String HIGHLIGHT_OPINION_UNPIN = "HIGHLIGHT_OPINION_UNPIN";
+    public static final String HIGHLIGHT_OPINION_HIDE = "HIGHLIGHT_OPINION_HIDE";
+    public static final String HIGHLIGHT_OPINION_UNHIDE = "HIGHLIGHT_OPINION_UNHIDE";
+    /** 의견 고정 요청 승인·거절(운영자) — 대상 COMMENT + 댓글 ID, {@code postId}·{@code requestId}·{@code requesterId}·거절이면 {@code reason} */
+    public static final String HIGHLIGHT_PIN_REQUEST_APPROVE = "HIGHLIGHT_PIN_REQUEST_APPROVE";
+    public static final String HIGHLIGHT_PIN_REQUEST_REJECT = "HIGHLIGHT_PIN_REQUEST_REJECT";
+    // ── 글 찬반 토론(docs/features/post-debate-contract.md) ──
+    /** 글의 토론 열기(관리자 토론 PUT · 하이라이트 만들기·고치기) — 대상 POST + 글 ID, {@code after}(neutralEnabled·stanceChangeAllowed·openedBy), 하이라이트에서 했으면 {@code via HIGHLIGHT} */
+    public static final String DEBATE_OPEN = "DEBATE_OPEN";
+    /** 글의 토론 설정 바꾸기 — 바뀐 칸만 before/after */
+    public static final String DEBATE_UPDATE = "DEBATE_UPDATE";
+    /** 글의 토론 닫기(행 지움 — 입장·의견·고정은 그대로) — {@code before} */
+    public static final String DEBATE_CLOSE = "DEBATE_CLOSE";
+    // ── 게시글 관리(docs/features/post-admin-contract.md) — 대상 POST + 글 ID, {@code reason}(운영자가 적은 사유)과 조치별 덧붙임 ──
+    /** 숨기기 — {@code notifyAuthor} */
+    public static final String POST_HIDE = "POST_HIDE";
+    /** 숨김 해제 — 풀기 전 {@code hiddenReason} */
+    public static final String POST_UNHIDE = "POST_UNHIDE";
+    /** 삭제 — 회수한 포인트 {@code revokedPoints} */
+    public static final String POST_DELETE = "POST_DELETE";
+    /** 복구 — 되돌려 준 포인트 {@code restoredPoints} */
+    public static final String POST_RESTORE = "POST_RESTORE";
+    /** 이동 — {@code from}/{@code to}(boardId·prefixId) */
+    public static final String POST_MOVE = "POST_MOVE";
+    /** 공지 지정(공통 「공지」 말머리 + 고정) — {@code from}/{@code to}(prefixId) */
+    public static final String POST_NOTICE = "POST_NOTICE";
+    public static final String POST_PIN = "POST_PIN";
+    public static final String POST_UNPIN = "POST_UNPIN";
+    /** 일괄 숨김·해제·삭제 — 대상 POST + {@code bulk}, {@code action}·{@code done}·{@code failed}(글 ID 목록) */
+    public static final String POST_BULK = "POST_BULK";
+    /** 글의 투표 지우기(표가 있어도 — docs/features/post-poll-contract.md) — {@code reason}·{@code pollId}·{@code question}·{@code voterCount}(누가 골랐는지는 남기지 않는다) */
+    public static final String POST_POLL_DELETE = "POST_POLL_DELETE";
+    // ── 신고 관리(docs/features/report-admin-contract.md) — 대상 REPORT_CASE + 사건 ID ──
+    /** 사건 조치(숨김·삭제·자동 숨김 확정) — {@code caseNo}·{@code action}·{@code reasonCode}·{@code note}·{@code targetType}·{@code targetId}·{@code reportCount} */
+    public static final String REPORT_RESOLVE = "REPORT_RESOLVE";
+    /** 사건 무시 — {@code caseNo}·{@code falseReport}·{@code reasonCode}·{@code note}·자동 숨김을 풀었으면 {@code restored} */
+    public static final String REPORT_DISMISS = "REPORT_DISMISS";
+    /** 일괄 무시 — 대상 REPORT_CASE + {@code bulk}, {@code falseReport}·{@code note}·{@code done}·{@code failed}(사건 ID 목록) */
+    public static final String REPORT_BULK_DISMISS = "REPORT_BULK_DISMISS";
+    /** 무시한 사건 다시 열기 — {@code caseNo} */
+    public static final String REPORT_REOPEN = "REPORT_REOPEN";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

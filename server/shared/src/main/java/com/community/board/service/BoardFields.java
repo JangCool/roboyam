@@ -1,5 +1,6 @@
 package com.community.board.service;
 
+import com.community.board.entity.BoardGadget;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,7 +23,11 @@ public final class BoardFields {
         /** 댓글 최소 자격 — GUEST · 등급 키 · STAFF · OFF */
         COMMENT_MIN,
         /** 등급 키 */
-        GRADE
+        GRADE,
+        /** 짧은 이름(댓글 추천·비추천 단추 이름) — 1~{@code max}자, 제어 문자 없음. 기본 설정에서도 null(= 화면 기본 이름)을 받는다 */
+        LABEL,
+        /** 여러 개 고르기(값 목록 안, 겹치지 않게 — 빈 목록 허용) — 고정 요청 확인자 */
+        MULTI
     }
 
     /**
@@ -39,6 +44,9 @@ public final class BoardFields {
                 case NUMBER -> value instanceof Integer number && number >= min && number <= max;
                 case BOOL -> value instanceof Boolean;
                 case CHOICE -> value != null && choices.contains(value);
+                case MULTI -> value instanceof List<?> list && list.stream().allMatch(choices::contains) && list.stream().distinct().count() == list.size();
+                case LABEL -> value instanceof String text && text.codePointCount(0, text.length()) >= min && text.codePointCount(0, text.length()) <= max
+                        && text.chars().noneMatch(Character::isISOControl);
                 default -> value instanceof String;
             };
         }
@@ -88,7 +96,36 @@ public final class BoardFields {
     /** 게시판별로 덮어쓸 수 있는 칸(admin-web {@code BOARD_POLICY_FIELDS} 순서) */
     public static final List<String> POLICY_FIELDS = List.of("writeMin", "commentMin", "postEditor", "imageUploadAllowed", "commentEditor", "listSize", "pinnedMax", "indexable", "searchable",
             "inHome", "pointMode", "commentProtectMin", "commentProtectEdit", "commentProtectDelete", "commentProtectDelayMinutes", "commentGuestDelayMinutes",
-            "managerMax", "staffPostDailyLimit", "staffCommentDailyLimit", "staffSanctionDailyLimit");
+            "staffHiddenNotice", "commentDislikeEnabled", "commentLikeLabel", "commentDislikeLabel", "pinRequestReviewers", "debateEnabled", "pollEnabled", "managerMax", "staffPostDailyLimit", "staffCommentDailyLimit",
+            "staffSanctionDailyLimit");
+    /** 댓글 추천·비추천 단추 이름 최대 글자 수(V78 varchar(10)) */
+    public static final int REACTION_LABEL_MAX = 10;
+    /** 의견 고정 요청을 확인하는 사람 — 글쓴이 · 그 게시판 매니저 · 운영자({@code post.manage}). 화면·저장 차례 */
+    public static final String PIN_REVIEWER_POST_AUTHOR = "POST_AUTHOR";
+    public static final String PIN_REVIEWER_BOARD_MANAGER = "BOARD_MANAGER";
+    public static final String PIN_REVIEWER_OPERATOR = "OPERATOR";
+    public static final List<String> PIN_REVIEWERS = List.of(PIN_REVIEWER_POST_AUTHOR, PIN_REVIEWER_BOARD_MANAGER, PIN_REVIEWER_OPERATOR);
+
+    /** 고정 요청 확인자 목록 → 저장 값(쉼표로 이음, 빈 목록은 빈 글자). null 은 null */
+    public static String joinReviewers(List<String> reviewers) {
+        return reviewers == null ? null : String.join(",", reviewers);
+    }
+
+    /** 저장 값 → 목록(빈 글자는 빈 목록). null 은 null */
+    public static List<String> splitReviewers(String stored) {
+        if (stored == null) {
+            return null;
+        }
+        return stored.isBlank() ? List.of() : List.of(stored.split(","));
+    }
+
+    /** 확인자 목록을 정해진 차례로(값이 모두 목록 안이고 겹치지 않을 때만 — 아니면 그대로 두어 검사가 잡게) */
+    public static List<String> canonicalReviewers(List<String> reviewers) {
+        if (reviewers == null || !reviewers.stream().allMatch(PIN_REVIEWERS::contains) || reviewers.stream().distinct().count() != reviewers.size()) {
+            return reviewers;
+        }
+        return PIN_REVIEWERS.stream().filter(reviewers::contains).toList();
+    }
     /** 하위 화면(신고·보안·알림·개인정보)의 숫자·고르기 칸 — 모두 {@code board.settings} */
     public static final Map<String, Spec> TABS;
 
@@ -117,6 +154,13 @@ public final class BoardFields {
         choice(d, "commentProtectDelete", true, false, "BLOCK", "DELAY", "ALLOW");
         choice(d, "commentProtectDelayMinutes", true, false, 5, 10, 30);
         choice(d, "commentGuestDelayMinutes", true, false, 0, 10, 30, 60, 180);
+        bool(d, "staffHiddenNotice", true);
+        bool(d, "commentDislikeEnabled", true);
+        put(d, new Spec("commentLikeLabel", Kind.LABEL, 1, REACTION_LABEL_MAX, List.of(), true, false));
+        put(d, new Spec("commentDislikeLabel", Kind.LABEL, 1, REACTION_LABEL_MAX, List.of(), true, false));
+        put(d, new Spec("pinRequestReviewers", Kind.MULTI, 0, 0, List.of(PIN_REVIEWER_POST_AUTHOR, PIN_REVIEWER_BOARD_MANAGER, PIN_REVIEWER_OPERATOR), true, false));
+        bool(d, "debateEnabled", true);
+        bool(d, "pollEnabled", true);
         number(d, "bestCommentMinLikes", 1, 100, false, false);
         number(d, "managerMax", 1, 10, true, true);
         number(d, "staffMax", 1, 10, false, true);
@@ -180,6 +224,11 @@ public final class BoardFields {
     /** 이 종류의 게시판이 「비회원 포함 모두」(GUEST)를 받는가 — 핫딜·직접홍보는 받지 않는다 */
     public static boolean guestAllowed(String kind) {
         return KIND_GENERAL.equals(kind) || KIND_GROUP.equals(kind);
+    }
+
+    /** 새 게시판의 가젯 노출 금지 시작값 — 핫딜·직접홍보는 인기글에서 뺀다(사용자 결정 2026-10-24), 그 밖은 없음. 만든 뒤에는 게시판 설정에서 바꾼다 */
+    public static List<BoardGadget> defaultGadgetExclusions(String kind) {
+        return KIND_DEAL.equals(kind) || KIND_PROMO.equals(kind) ? List.of(BoardGadget.POPULAR) : List.of();
     }
 
     private static void put(Map<String, Spec> map, Spec spec) {

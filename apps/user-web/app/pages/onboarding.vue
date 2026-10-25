@@ -83,9 +83,9 @@
 
 <script setup lang="ts">
 /**
- * 온보딩 `/onboarding` — 가입 직후 첫 화면(이메일 인증 완료 화면의 「시작하기」가 온다). 원본(community) `pages/onboarding.vue` 의 내용을 그대로 옮겼다.
+ * 온보딩 `/onboarding` — 가입 직후 첫 화면(이메일 인증 완료 화면의 「시작하기」가 온다). 원본(community) `pages/onboarding.vue` 를 옮기고 원칙의 예시만 로보얌 주제(로봇·AI)로 바꿨다(문구는 i18n `onboarding.*`).
  * 환영 → 운영 원칙 3장 → 시작하기. 「건너뛰기」로 언제든 홈으로 나간다. 서버 호출은 없다(로그인 정보만 — `auth` 미들웨어).
- * 운영 원칙 문구는 원본 시안의 초안이며 전문 검토 대상이다(`member-account-contract.md` 미확정). 원본 주석의 「기본 로봇 프로필 이미지 고르기」 단계는 원본에도 없고 로보얌에도 없다.
+ * 운영 원칙 문구는 원본 시안의 초안 그대로이며 전문 검토는 오픈 전 할 일이다(`member-account-contract.md` 결정 2차). 원본 주석의 「기본 로봇 프로필 이미지 고르기」 단계는 원본에도 없고 로보얌에도 없다.
  */
 definePageMeta({ layout: 'auth', middleware: 'auth' });
 const { t } = useI18n();

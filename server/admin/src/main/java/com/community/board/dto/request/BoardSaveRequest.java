@@ -5,9 +5,12 @@ import java.util.List;
 
 /**
  * {@code PUT /api/admin/boards/{id}} — 기본 정보 + 정책 + 말머리를 한 트랜잭션으로 저장한다(admin-web {@code BoardSaveRequest}).
- * 바뀐 부분의 권한만 본다: 기본 정보·말머리 {@code board.manage}, 정책(잠금·안내문 포함) {@code board.settings}, 매니저·스텝 한도 칸 {@code board.staff.limit}.
+ * 바뀐 부분의 권한만 본다: 기본 정보·말머리 {@code board.manage}, 정책(잠금·안내문·가젯 노출 금지 포함) {@code board.settings}, 매니저·스텝 한도 칸 {@code board.staff.limit}.
+ *
+ * @param gadgetExclusions 「가젯 노출 금지」로 고를 가젯 이름({@code BoardGadget}) — null 이면 바꾸지 않는다, 중복은 하나로, 모르는 값은 400 {@code fields.gadgetExclusions}
  */
 public record BoardSaveRequest(String name, String nameEn, String description, String layout, Boolean viewToggle, String color, Boolean allowAdult,
                                Boolean investmentNotice, String writeLock, String introText, String writeGuideText, BoardPolicyValues policy,
-                               List<BoardCommonPrefixSaveRequest> commonPrefixes, List<BoardPrefixSaveRequest> prefixes) {
+                               List<BoardCommonPrefixSaveRequest> commonPrefixes, List<BoardPrefixSaveRequest> prefixes,
+                               List<String> gadgetExclusions) {
 }

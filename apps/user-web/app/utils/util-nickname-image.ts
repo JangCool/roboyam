@@ -1,7 +1,7 @@
-import type { MyNicknameImage, NicknameImageLimits } from '~/composables/profile/api/useNicknameImageApi.types';
+import type { MyNicknameImage, NicknameImageLimits, NicknameImageRequirement } from '~/composables/profile/api/useNicknameImageApi.types';
 
 /** 서버가 거절한 갈래 — 오류 **코드**로 가른다 */
-export type NicknameImageOutcome = 'GRADE_TOO_LOW' | 'REAPPLY_TOO_SOON' | 'RESTRICTED' | 'UNVERIFIED' | 'VALIDATION' | 'RATE_LIMITED' | 'TOO_LARGE' | 'NOT_FOUND' | 'NETWORK' | 'SERVER' | 'OTHER';
+export type NicknameImageOutcome = 'REQUIREMENTS_NOT_MET' | 'REAPPLY_TOO_SOON' | 'RESTRICTED' | 'UNVERIFIED' | 'VALIDATION' | 'RATE_LIMITED' | 'TOO_LARGE' | 'NOT_FOUND' | 'NETWORK' | 'SERVER' | 'OTHER';
 
 /** 화면 덩어리 — `layout` 의 결과 */
 export interface NicknameImageLayout {
@@ -26,7 +26,7 @@ function extensionOf(name: string): string {
 }
 
 /**
- * 닉네임 그림 계산 — 올리기 전 검사(형식·용량·4:1)·재신청까지 남은 시간·화면 덩어리·서버 오류 갈래(community `UtilNicknameImage`, 변경권 규칙은 뺐다).
+ * 닉네임 이미지 계산 — 올리기 전 검사(형식·용량·4:1)·재신청까지 남은 시간·화면 덩어리·서버 오류 갈래(community `UtilNicknameImage`, 변경권 규칙은 뺐다).
  * 규칙의 출처는 서버다(서버 후보 `NicknameImagePolicy`) — 화면은 거절당할 것을 보내기 전에 알려 줄 뿐이고, GIF 프레임 수·깨진 파일은 서버만 안다.
  */
 export default class UtilNicknameImage {
@@ -98,8 +98,18 @@ export default class UtilNicknameImage {
     }
 
     /**
+     * 신청 조건에 이 종류가 켜져 있나 — 이메일 인증 막음·등급 안내 링크를 서버가 요구할 때만 보인다.
+     * @param {MyNicknameImage} state - 서버 상태.
+     * @param {NicknameImageRequirement['kind']} kind - 조건 종류.
+     * @returns {boolean} 켜져 있으면 true.
+     */
+    static requires(state: MyNicknameImage, kind: NicknameImageRequirement['kind']): boolean {
+        return state.requirements.items.some((item) => item.kind === kind);
+    }
+
+    /**
      * 화면 덩어리 — 적용 중 · 대기/반려 · 신청 칸 · 열기 단추 · 재신청 대기.
-     *  - 대기 중이면 신청 칸이 없다. 자격이 없으면 신청 칸이 없다(적용 중인 그림은 그대로 보인다).
+     *  - 대기 중이면 신청 칸이 없다. 자격이 없으면 신청 칸이 없다(적용 중인 이미지는 그대로 보인다).
      *  - 신청한 적도 적용된 적도 없으면 칸이 바로 열려 있다. 적용 중·반려면 단추를 눌러야 열린다.
      * @param {MyNicknameImage} state - 서버 상태.
      * @param {boolean} opened - 신청 칸을 열었나.
@@ -125,7 +135,7 @@ export default class UtilNicknameImage {
         const e = (typeof error === 'object' && error !== null ? error : {}) as { status?: unknown; code?: unknown };
         const status = typeof e.status === 'number' ? e.status : 0;
         const code = typeof e.code === 'string' ? e.code : '';
-        if (code === 'NICKNAME_IMAGE_GRADE_TOO_LOW') return 'GRADE_TOO_LOW';
+        if (code === 'NICKNAME_IMAGE_REQUIREMENTS_NOT_MET') return 'REQUIREMENTS_NOT_MET';
         if (code === 'NICKNAME_IMAGE_REAPPLY_TOO_SOON') return 'REAPPLY_TOO_SOON';
         if (code === 'ACCOUNT_RESTRICTED') return 'RESTRICTED';
         if (code === 'EMAIL_NOT_VERIFIED') return 'UNVERIFIED';
@@ -140,7 +150,7 @@ export default class UtilNicknameImage {
 
     /** 서버 상태를 다시 받아야 하는 갈래 — 화면이 아는 것과 서버가 어긋났다 */
     static needsReload(outcome: NicknameImageOutcome): boolean {
-        return outcome === 'GRADE_TOO_LOW' || outcome === 'REAPPLY_TOO_SOON' || outcome === 'NOT_FOUND';
+        return outcome === 'REQUIREMENTS_NOT_MET' || outcome === 'REAPPLY_TOO_SOON' || outcome === 'NOT_FOUND';
     }
 
     /** 막힌 까닭을 굳혀 둘 갈래 — 정지 중·이메일 인증 전 */

@@ -13,6 +13,7 @@ import commerce from './commerce';
 import dashboard from './dashboard';
 import error from './error';
 import grade from './grade';
+import group from './group';
 import login from './login';
 import mail from './mail';
 import notificationMessage from './notificationMessage';
@@ -33,6 +34,14 @@ import shell from './shell';
 import site from './site';
 import social from './social';
 import team from './team';
+import terms from './terms';
+import nicknameImage from './nicknameImage';
+import content from './content';
+import debate from './debate';
+import highlight from './highlight';
+import popular from './popular';
+import post from './post';
+import report from './report';
 
 export default {
     account,
@@ -43,6 +52,7 @@ export default {
     dashboard,
     error,
     grade,
+    group,
     login,
     mail,
     notificationMessage,
@@ -63,4 +73,12 @@ export default {
     site,
     social,
     team,
+    terms,
+    nicknameImage,
+    content,
+    debate,
+    highlight,
+    popular,
+    post,
+    report,
 };

@@ -1,5 +1,5 @@
 /**
- * 이용자 메모 API 가 주고받는 모양 — **서버에 아직 없다**(목업). 모양은 community `docs/api-block-scrap.md` 「이용자 메모」 그대로다.
+ * 이용자 메모 API 가 주고받는 모양 — 서버(api)도 이 모양으로 준다. 모양은 community `docs/api-block-scrap.md` 「이용자 메모」 그대로다.
  * 메모는 나에게만 보인다 — 다른 응답에서는 작성자 표시의 `memo`·공개 프로필의 `memo` 로만 온다. 계약 후보: `docs/features/member-social-contract.md`.
  */
 import type { Role } from '~/composables/auth/api/useAuthApi.types';

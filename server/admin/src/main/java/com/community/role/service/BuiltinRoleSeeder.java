@@ -35,13 +35,12 @@ public class BuiltinRoleSeeder {
     }
 
     private static final List<MemberPermission> USE_REGULAR = List.of(MemberPermission.POST_WRITE, MemberPermission.COMMENT_WRITE, MemberPermission.POST_REACT,
-            MemberPermission.REPORT_CREATE, MemberPermission.MESSAGE_SEND, MemberPermission.FILE_ATTACH, MemberPermission.SHOP_USE,
-            MemberPermission.NICKNAME_IMAGE_REQUEST);
+            MemberPermission.REPORT_CREATE, MemberPermission.MESSAGE_SEND, MemberPermission.FILE_ATTACH, MemberPermission.SHOP_USE);
 
     private static final List<Seed> SEEDS = List.of(
             new Seed("ROLE_MEMBER_GENERAL", RoleTypes.KIND, "일반 회원", "가입하면 기본으로 갖는 회원 유형입니다.", RoleScope.SITE, RoleGrantMode.AUTO, USE_REGULAR),
             new Seed("ROLE_MEMBER_BUSINESS", RoleTypes.KIND, "사업자 회원", "사업자 승인을 받은 회원입니다. 읽기·프로필·허용 게시판 위주로 제한됩니다.", RoleScope.SITE,
-                    RoleGrantMode.AUTO, List.of(MemberPermission.REPORT_CREATE, MemberPermission.NICKNAME_IMAGE_REQUEST)),
+                    RoleGrantMode.AUTO, List.of(MemberPermission.REPORT_CREATE)),
             new Seed("ROLE_BOARD_MANAGER", RoleTypes.BOARD, "게시판 매니저", "게시판 하나를 맡아 운영합니다. 스텝 지정도 합니다.", RoleScope.BOARD, RoleGrantMode.APPOINTED,
                     List.of(MemberPermission.BOARD_POST_HIDE, MemberPermission.BOARD_POST_DELETE, MemberPermission.BOARD_COMMENT_DELETE,
                             MemberPermission.BOARD_SANCTION_ISSUE, MemberPermission.BOARD_NOTICE_PIN, MemberPermission.BOARD_STAFF_APPOINT,

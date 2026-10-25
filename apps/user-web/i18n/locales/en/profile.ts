@@ -7,9 +7,17 @@ export default {
     loading: 'Loading your profile',
     loadFailed: 'Couldn’t load your profile',
 
-    // Nickname change interval
-    nicknameInterval: 'After you change your nickname, you can’t change it again for {days} days.',
-    nicknameLocked: 'You can change your nickname again from {date}.',
+    // Nickname changes — only once after signing up (no waiting period); none after that
+    nicknameOnce: 'You can change your nickname only once after signing up.',
+    nicknameUsedUp: 'You’ve already changed your nickname and can’t change it again.',
+    nicknameConfirmTitle: 'Change your nickname?',
+    nicknameConfirmText: '“{from}” becomes “{to}”. After this change, you won’t be able to change your nickname again.',
+    nicknameConfirmButton: 'Change',
+
+    // Suspended — the profile is read-only
+    restrictedTitle: 'You can’t edit your profile while suspended',
+    restrictedText: 'While your account is suspended, you can’t change your nickname or bio, but you can still browse.',
+    restrictedLink: 'See suspension details',
 
     // Bio
     bioLabel: 'Bio',

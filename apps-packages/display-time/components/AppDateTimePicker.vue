@@ -6,29 +6,33 @@
         **보이는 모양**은 표시 값을 따른다: 날짜 형식(`2026.10.02` · `2026-10-02` · `02/10/2026` · `10/02/2026`)과 시간 형식(24시간 · 12시간 오전/오후).
         표시 값이 바뀌면 즉시 바뀐다(`useDisplay().setDisplay`). 어느 시간대로 고르는지 입력 아래에 이름표(`(UTC+09:00) Asia/Seoul`)를 적는다(`show-zone`).
         날짜만 고르는 쓰임(서비스 날짜 등 시간대와 무관한 날짜)은 `AppDatePicker` 를 쓴다.
+        입력 안 왼쪽에 달력 아이콘을 둔다(`calendarIcon`, 기본 켬 — PrimeVue `IconField` + `InputIcon`). 아이콘 자리·패딩 규칙은 `assets/date-field-icon.css`(AppDatePicker 와 같이 쓴다).
     -->
     <div class="flex flex-col gap-1">
-        <DatePicker
-            :key="formatKey"
-            :model-value="asDate"
-            :input-id="inputId"
-            show-time
-            :hour-format="hourFormat"
-            :date-format="dateFormat"
-            :show-button-bar="showButtonBar"
-            :step-minute="minuteStep"
-            :min-date="minDate"
-            :max-date="maxDate"
-            :size="size"
-            :disabled="disabled"
-            :readonly="readonly"
-            :invalid="invalid"
-            :placeholder="placeholder ?? defaultPlaceholder"
-            :input-class="inputClass"
-            :pt="inputPt"
-            fluid
-            @update:model-value="onUpdate"
-        />
+        <IconField class="app-date-field" :class="{ 'app-date-field--icon': calendarIcon }">
+            <InputIcon v-if="calendarIcon" class="pi pi-calendar app-date-icon" aria-hidden="true" />
+            <DatePicker
+                :key="formatKey"
+                :model-value="asDate"
+                :input-id="inputId"
+                show-time
+                :hour-format="hourFormat"
+                :date-format="dateFormat"
+                :show-button-bar="showButtonBar"
+                :step-minute="minuteStep"
+                :min-date="minDate"
+                :max-date="maxDate"
+                :size="size"
+                :disabled="disabled"
+                :readonly="readonly"
+                :invalid="invalid"
+                :placeholder="placeholder ?? defaultPlaceholder"
+                :input-class="inputClass"
+                :pt="inputPt"
+                fluid
+                @update:model-value="onUpdate"
+            />
+        </IconField>
         <small v-if="showZone" class="text-xs text-muted-color" data-testid="date-time-zone">{{ zoneText }}</small>
     </div>
 </template>
@@ -60,6 +64,8 @@ interface Props {
     showButtonBar?: boolean;
     /** 입력 아래에 시간대 이름표를 적는다 */
     showZone?: boolean;
+    /** 입력 안 왼쪽에 달력 아이콘(장식 — 눌러도 입력이 눌린다) */
+    calendarIcon?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -76,6 +82,7 @@ const props = withDefaults(defineProps<Props>(), {
     describedBy: undefined,
     showButtonBar: true,
     showZone: true,
+    calendarIcon: true,
 });
 
 /** 표시 값 — 날짜·시간 형식과 시간대를 따른다 */
@@ -110,3 +117,5 @@ function onUpdate(value: Date | Date[] | (Date | null)[] | null | undefined | st
     model.value = UtilDatePicker.fromPickerDate(value, values.value) ?? '';
 }
 </script>
+
+<style src="../assets/date-field-icon.css"></style>

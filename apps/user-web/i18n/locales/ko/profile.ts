@@ -8,9 +8,17 @@ export default {
     loading: '프로필을 불러오는 중',
     loadFailed: '프로필을 불러오지 못했어요',
 
-    // 닉네임 변경 주기
-    nicknameInterval: '닉네임을 바꾸면 {days}일 동안 다시 바꿀 수 없어요.',
-    nicknameLocked: '닉네임은 {date}부터 다시 바꿀 수 있어요.',
+    // 닉네임 변경 — 가입 뒤 1번만(날짜 대기 없음), 쓰고 나면 더 못 바꾼다
+    nicknameOnce: '닉네임은 가입 뒤 1번만 바꿀 수 있어요.',
+    nicknameUsedUp: '닉네임을 이미 바꿔서 더 바꿀 수 없어요.',
+    nicknameConfirmTitle: '닉네임을 바꿀까요?',
+    nicknameConfirmText: '「{from}」에서 「{to}」(으)로 바뀌어요. 이번에 바꾸면 앞으로는 닉네임을 바꿀 수 없어요.',
+    nicknameConfirmButton: '바꾸기',
+
+    // 정지 중 — 프로필은 읽기 전용
+    restrictedTitle: '정지 중이라 프로필을 바꿀 수 없어요',
+    restrictedText: '정지 중에는 닉네임과 한 줄 소개를 바꿀 수 없고, 보기는 계속 할 수 있어요.',
+    restrictedLink: '제재 안내 보기',
 
     // 한 줄 소개
     bioLabel: '한 줄 소개',

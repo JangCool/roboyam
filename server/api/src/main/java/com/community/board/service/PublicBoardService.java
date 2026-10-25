@@ -71,7 +71,8 @@ public class PublicBoardService {
                 new BoardGuestRulesView(sec.guestCaptchaRequired(), sec.guestNameMin(), sec.guestNameMax(), sec.guestPasswordMin(),
                         ContentRules.GUEST_PASSWORD_MAX, sec.guestLinkLimit(), sec.guestImageUploadAllowed()),
                 new BoardNewMemberRulesView(BoardAccessPolicy.newMemberRules(b, actor, s), sec.newMemberLinkLimit(), sec.newMemberImageLimit()),
-                new BoardViewerView(actor.guest(), actor.staffOf(b.id()), writeBlocked == null, writeBlocked, commentBlocked == null, commentBlocked));
+                new BoardViewerView(actor.guest(), actor.staffOf(b.id()), writeBlocked == null, writeBlocked, commentBlocked == null, commentBlocked),
+                v.debateEnabled(), v.pollEnabled());
     }
 
     /** 켜진 게시판 — 없으면 404, 꺼졌으면 403 */
@@ -98,6 +99,7 @@ public class PublicBoardService {
                 .toList();
         return new BoardView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.description(), b.investmentNotice(),
                 BoardFields.STAFF.equals(b.writeMin()), b.writeMin(), b.commentMin(), b.writeLock(), b.imageUploadAllowed(), b.postEditor(), b.commentEditor(), b.layout(),
-                BoardFields.KIND_DEAL.equals(b.kind()), BoardFields.KIND_PROMO.equals(b.kind()), b.viewToggle(), b.allowAdult(), prefixes, b.color());
+                BoardFields.KIND_DEAL.equals(b.kind()), BoardFields.KIND_PROMO.equals(b.kind()), b.viewToggle(), b.allowAdult(), prefixes, b.color(),
+                b.debateEnabled(), b.pollEnabled());
     }
 }

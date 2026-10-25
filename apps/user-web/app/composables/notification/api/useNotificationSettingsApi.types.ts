@@ -1,5 +1,5 @@
 /**
- * 내 알림 설정 API 가 주고받는 모양 — **서버에 아직 없다**(목업). 계약 후보: `docs/features/member-mypage-contract.md` 「알림 설정」.
+ * 내 알림 설정 API 가 주고받는 모양 — **서버 연결됨**(server/api `MyNotificationSettingsView`·`MyNotificationSettingView`·`MyNotificationSettingsRequest`). 계약: `docs/features/member-mypage-contract.md` 「알림 설정」.
  * 이벤트 목록·이름·잠금은 서버 회원 이벤트 카탈로그(shared `MemberEvent` — 관리자 「이벤트 › 회원」)가 원천이고, **준비 중이 아닌 이벤트만** 온다.
  */
 import type { MemberNotificationType } from '~/composables/notification/api/useNotificationApi.types';
@@ -25,8 +25,9 @@ export interface MyNotificationSetting {
     inAppOffered: boolean;
     /** 운영자가 이메일로 보내는 이벤트인가(`enabled && email`) — 아니면 이메일 스위치를 그리지 않는다 */
     emailOffered: boolean;
-    /** 회원이 끌 수 있는가 — false 면 잠금(`lockReason`), 받기가 늘 켜져 있다 */
+    /** 회원이 끌 수 있는가 — false 면 잠금, 받기가 늘 켜져 있다. 코드 잠금(`lockReason`)이거나 운영자가 「회원이 끌 수 있음」을 꺼 두었다 */
     memberCanTurnOff: boolean;
+    /** 코드 잠금의 까닭만 — 운영자가 끌 수 없게 한 이벤트는 `memberCanTurnOff=false` 인데 `lockReason=null` 이다 */
     lockReason: MemberEventLockReason | null;
     /** 내 선택 — 앱 알림 받기(잠긴 이벤트·운영자가 꺼 둔 채널은 서버가 늘 true 로 준다) */
     inApp: boolean;
@@ -43,7 +44,7 @@ export interface MyNotificationSettings {
     emailBlockedReason: NotificationEmailBlockedReason | null;
 }
 
-/** `PUT` 요청의 한 줄 — 회원이 끌 수 있는 이벤트만 보낸다 */
+/** `PUT` 요청의 한 줄 — 회원이 끌 수 있는 이벤트만 보낸다. 세 칸 모두 필요(빠지면 `400 VALIDATION fields.events[i].code|inApp|email`) */
 export interface MyNotificationSettingInput {
     code: MemberNotificationType;
     inApp: boolean;

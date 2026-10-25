@@ -99,7 +99,7 @@ import UtilAccountMessages from '~/utils/util-account-messages';
  *  - `401 CURRENT_PASSWORD_WRONG` → 현재 비밀번호 칸 아래(로그인 실패와 같은 횟수에 센다) · `400 SAME_PASSWORD`·`VALIDATION`(`fields.newPassword`) → 새 비밀번호 칸 아래
  *  - `429 LOGIN_LOCKED` → 잠금 안내 + 입력·단추 잠금(`useCountdown`, `retryAfterSeconds`) · `409 PASSWORD_NOT_SET` → 「소셜 로그인으로 가입한 계정이에요」 안내
  * 성공하면 결과 화면 + 토스트. **비밀번호는 입력칸 값(이 화면의 세 `ref`)에만 있다** — 상태·주소·콘솔·저장소에 남기지 않고, 성공·잠금 때 칸을 비운다.
- * ⚠ MOCK: `GET /api/me/account`·`PUT /api/me/password` 는 서버에 없어 목업(`useAccountApi`). 목업은 비밀번호를 실제로 바꾸지 않는다.
+ * 성공하면 서버가 이 세션의 ID 를 바꾼다(쿠키는 응답으로 바뀐다). `401 CURRENT_PASSWORD_WRONG` 은 로그인 만료(`UNAUTHENTICATED`)와 코드가 달라 공통 클라이언트가 로그인 화면으로 보내지 않는다.
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();

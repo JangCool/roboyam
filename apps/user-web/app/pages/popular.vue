@@ -84,7 +84,7 @@ import UtilPopular from '~/utils/util-popular';
  * 인기글 전체 — `/popular?period=&page=`(community `pages/popular.vue`, `docs/api-popular.md` 5절). 기간 탭(실시간·어제·이번 주)의 순위를 쪽 번호로 본다.
  * 주소의 `period`·`page` 가 화면의 상태다(잘못된 값은 실시간·1쪽, 기본값은 주소에서 뺀다). 기간·쪽·보는 사람이 바뀔 때마다 새로 받는다.
  * 어제·지난주 글로 채운 줄은 응답의 `fills` 로 제목 앞에 작은 표시. 이번 주 탭은 응답의 `from`·`to` 로 범위를 탭 옆에 보인다(주 시작 요일은 서버가 정한다).
- * ⚠ 목업 API(`useHomeApi().popular` — 실제 게시판 글을 모아 점수로 줄 세운다, `?mock=popular-anytime` 으로 기간을 무시). 메뉴 BUILTIN `POPULAR`(`/popular`)가 이곳이다.
+ * API 는 `useHomeApi().popular`(`GET /api/home/popular` — 순위는 서버 배치가 매긴다). 메뉴 BUILTIN `POPULAR`(`/popular`)가 이곳이다.
  * 원본과 달라진 점: 탭 컴포넌트(`PopularPeriodTabs`)는 이 화면에서만 쓰여 화면 안에 두었고, 홈 가젯 몫(머리 안 탭 배치)은 없다.
  */
 const { t } = useI18n();

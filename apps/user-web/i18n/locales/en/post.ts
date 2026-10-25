@@ -76,6 +76,7 @@ export default {
     back: 'Go back',
     backToBoard: 'Back to list',
     edited: '(edited)',
+    highlighted: 'Highlight',
     views: '{n} views',
     likes: '{n} likes',
     deleteScheduledNotice: 'This post will be deleted at {at}.',

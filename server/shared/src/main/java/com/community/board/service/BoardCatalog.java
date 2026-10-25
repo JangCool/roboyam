@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -149,7 +150,11 @@ public class BoardCatalog {
                 BoardFields.EDITOR_ADVANCED.equals(postEditor) && imageSetting, imageSetting, or(p.commentEditor(), d.commentEditor()),
                 or(p.listSize(), d.listSize()), or(p.pinnedMax(), d.pinnedMax()), or(p.commentProtectMin(), d.commentProtectMin()),
                 or(p.commentProtectEdit(), d.commentProtectEdit()), or(p.commentProtectDelete(), d.commentProtectDelete()),
-                or(p.commentProtectDelayMinutes(), d.commentProtectDelayMinutes()), or(p.commentGuestDelayMinutes(), d.commentGuestDelayMinutes()), prefixes);
+                or(p.commentProtectDelayMinutes(), d.commentProtectDelayMinutes()), or(p.commentGuestDelayMinutes(), d.commentGuestDelayMinutes()),
+                or(p.staffHiddenNotice(), d.staffHiddenNotice()), or(p.commentDislikeEnabled(), d.commentDislikeEnabled()),
+                or(p.commentLikeLabel(), d.commentLikeLabel()), or(p.commentDislikeLabel(), d.commentDislikeLabel()),
+                or(p.pinRequestReviewers(), d.pinRequestReviewers()), or(p.debateEnabled(), d.debateEnabled()), or(p.pollEnabled(), d.pollEnabled()), prefixes,
+                Set.copyOf(b.getGadgetExclusions()));
     }
 
     private static <T> T or(T value, T fallback) {

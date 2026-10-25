@@ -32,7 +32,9 @@ class AuditRetentionTest {
     @Test
     void 설정_변경_게시판_메뉴_관리_로그인은_일반_운영() {
         for (String action : List.of(AuditActions.POINT_SETTINGS_UPDATE, AuditActions.BOARD_UPDATE, AuditActions.MENU_TREE_UPDATE, AuditActions.LOGIN_SUCCESS,
-                AuditActions.COMMERCE_REQUEST_LIMIT_UPDATE, AuditActions.MFA_SETTINGS_UPDATE)) {
+                AuditActions.COMMERCE_REQUEST_LIMIT_UPDATE, AuditActions.MFA_SETTINGS_UPDATE,
+                // 세션 정리 결정(2026-10-26): 글 삭제·복구는 포인트를 회수·되돌려도 콘텐츠 관리 — 돈 관련이 아니다
+                AuditActions.POST_DELETE, AuditActions.POST_RESTORE, AuditActions.REPORT_RESOLVE, AuditActions.TERMS_PUBLISH)) {
             assertThat(AuditRetention.classify(action)).as(action).isEqualTo(AuditRetentionClass.GENERAL);
         }
         assertThat(AuditRetention.classify("OLD_UNKNOWN_ACTION")).as("표에 없는 옛 이름").isEqualTo(AuditRetentionClass.GENERAL);

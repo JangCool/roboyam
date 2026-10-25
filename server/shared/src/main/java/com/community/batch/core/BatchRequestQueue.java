@@ -79,6 +79,19 @@ public class BatchRequestQueue {
         }
     }
 
+    /**
+     * 끝나지 않은 요청이 없을 때만 「지금 실행」 요청 한 줄을 넣는다(파라미터·단계 없음) — <b>부르는 쪽 트랜잭션에 참여하고, 이미 있으면 실패 없이 빈 값</b>
+     * ({@code ON CONFLICT DO NOTHING} 이라 트랜잭션을 망가뜨리지 않는다). 업무 저장 뒤 「바로 다시 계산」처럼 요청이 하나만 있으면 되는 곳이 쓴다
+     * (이미 대기 중인 요청은 커밋된 새 값으로 계산한다. 이미 실행 중인 요청은 옛 값으로 돌았을 수 있어 다음 정기 실행이 따라온다).
+     */
+    public Optional<Long> enqueueIfIdle(String jobKey, Long operatorId) {
+        long id = ids.nextId();
+        int inserted = jdbc.update("INSERT INTO batch_run_requests (id, job_key, kind, status, params, steps, source_run_id, operator_id, requested_at) "
+                        + "VALUES (?, ?, ?, 'PENDING', NULL, NULL, NULL, ?, ?) ON CONFLICT DO NOTHING",
+                id, jobKey, BatchRequestKind.NOW.name(), operatorId, ts(BatchJdbc.now()));
+        return inserted > 0 ? Optional.of(id) : Optional.empty();
+    }
+
     /** 그 배치에 끝나지 않은 요청이 있나 */
     public boolean hasOpen(String jobKey) {
         return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM batch_run_requests WHERE job_key = ? AND status IN ('PENDING', 'RUNNING'))",

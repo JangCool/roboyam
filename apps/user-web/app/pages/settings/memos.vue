@@ -71,7 +71,6 @@ import UtilProfile from '~/utils/util-profile';
  * 이용자 메모 `/settings/memos` — 로그인 필요(community `pages/settings/memos.vue`, `docs/api-block-scrap.md`).
  * 내가 남긴 메모를 모아 **수정(셸의 메모 시트)·삭제(확인 대화상자)** 한다. 처음 남긴 것이 최근인 순서라 고쳐도 자리가 바뀌지 않는다.
  * 새로 남기는 것은 프로필·쪽지 대화방의 ⋯ 메뉴에서 한다. 고치거나 지우면 닉네임 옆 칩이 바로 바뀐다(`useBlockOverrides`).
- * ⚠ 목업 API(`useMemoApi`).
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();

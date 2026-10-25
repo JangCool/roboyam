@@ -179,4 +179,6 @@ export default {
     openInbox: 'Open messages',
     settingsSaved: 'Message settings saved',
     settingsSaveFailed: 'Couldn’t save message settings. {reason} We changed it back.',
+    reasonNotPermitted: 'Your current member grade or role can’t send messages.',
+    lockNotPermitted: 'You don’t have permission to send messages',
 };

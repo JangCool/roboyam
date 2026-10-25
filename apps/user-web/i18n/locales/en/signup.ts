@@ -32,7 +32,7 @@ export default {
     nicknameCheckFailed: 'Could not check the nickname. You can still continue — it is checked again at the end.',
     nicknameOverflow: 'Up to {max} characters.',
     previewLabel: 'How it looks',
-    nicknameNote: 'No real name or contact details needed. You can change your nickname later in settings.',
+    nicknameNote: 'No real name or contact details needed. After signing up, you can change your nickname only once.',
     noRealName: 'This site never asks for your real name or contact details.',
     submitEmail: 'Sign up and get the verification email',
 

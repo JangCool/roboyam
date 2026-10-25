@@ -110,7 +110,7 @@ import UtilSanction from '~/utils/util-sanction';
  * - 수치는 운영자 설정이라 서버가 준 값으로만 그린다. 진행도 막대는 필요 값을 넘지 않게 자른다.
  * - 자동 승급이 멈춰 있으면(`PAUSED_SANCTION`·`PAUSED_ADMIN`) 안내를 띄우고 진행도를 흐리게 한다. 정지 중이면 제재 안내로 가는 길.
  * - 조건표와 진행도는 따로 받는다 — 한쪽이 실패해도 다른 쪽은 그대로 보이고 그쪽만 다시 시도한다.
- * ⚠ 목업 API(`useGradeApi`). 원본과 달라진 점: 인기글 조건·닉네임 이미지 신청·공식 뱃지 안내는 로보얌에 없어 뺐다. 모바일 ‹ 머리(`InnerHeader`)가 없어 제목을 그대로 보인다.
+ * API 는 `useGradeApi`(`GET /api/grade-rules`·`GET /api/me/grade`). 원본과 달라진 점: 인기글 조건·닉네임 이미지 신청·공식 뱃지 안내는 로보얌에 없어 뺐다. 모바일 ‹ 머리(`InnerHeader`)가 없어 제목을 그대로 보인다.
  * 메뉴의 「등급 안내」(BUILTIN `MY_GRADE`)는 로그인 필요 항목이지만 화면은 비회원에게도 조건표를 보인다(community 와 같다).
  */
 const { t } = useI18n();

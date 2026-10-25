@@ -33,7 +33,7 @@ export default {
     nicknameCheckFailed: '닉네임을 확인하지 못했어요. 그래도 다음으로 갈 수 있고, 마지막에 한 번 더 확인해요.',
     nicknameOverflow: '{max}자까지 입력할 수 있어요.',
     previewLabel: '이렇게 보여요',
-    nicknameNote: '실명·연락처를 입력하지 않아도 돼요. 닉네임은 가입한 뒤에도 설정에서 바꿀 수 있어요.',
+    nicknameNote: '실명·연락처를 입력하지 않아도 돼요. 닉네임은 가입한 뒤에는 1번만 바꿀 수 있어요.',
     noRealName: '이 사이트는 실명·연락처를 요구하지 않아요.',
     submitEmail: '가입하고 인증 메일 받기',
 

@@ -5,11 +5,11 @@
         <ul class="m-0 mt-3 grid list-none grid-cols-2 gap-x-3 gap-y-4 p-0 md:grid-cols-4">
             <li v-for="row in rows" :key="row.id" class="min-w-0">
                 <div v-if="row.hiddenReason" class="grid aspect-square place-items-center rounded-lg bg-surface-100 px-2 text-center text-xs text-muted-color dark:bg-surface-800">
-                    <span><i class="pi pi-eye-slash mb-1 block text-sm" aria-hidden="true" />{{ t('board.hiddenPost') }}</span>
+                    <span><i class="pi pi-eye-slash mb-1 block text-sm" aria-hidden="true" />{{ t(row.hiddenReason === 'STAFF' ? 'board.hiddenPostStaff' : 'board.hiddenPost') }}</span>
                 </div>
                 <FoldedRow
                     v-else
-                    :reason="overrides.blockedOf(row.author.memberId, row.blocked, row.title)"
+                    :reason="overrides.blockedOf(row.author.memberId, row.blocked)"
                     kind="post"
                     class="aspect-square content-center justify-center rounded-lg bg-surface-100 px-2 text-center text-xs dark:bg-surface-800"
                     hide-class="pt-1 text-center"

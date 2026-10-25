@@ -5,7 +5,7 @@
         community 와 다른 점: 글쓰기·댓글 최소 자격은 **등급 목록**(`useGradeAppearance`)에서 고르고(`gradeKey` 또는 운영진만, 댓글은 끔도), 「지킴이」 한도는 **게시판 매니저·스텝** 한도(+ 인원 상한)다.
         베스트 댓글은 community 에서 자기 저장 줄이 따로 있었지만 여기서는 **화면 하나로 한 번 저장**(PUT 한 번)이라 다른 칸과 함께 하단 떠 있는 줄(`StickySaveBar`)로 저장한다. 댓글 공개 시간의 토론·소모임 예외는 roboyam 에 개념이 없어 뺐다.
         맨 위 안내: 기본값을 따르는 게시판 N개 · 따로 정한 게시판 M개(목록에서 보기 → `/boards?differing=1`). 칸마다 그 칸을 따로 정한 게시판이 있으면 「N개 게시판이 따로 정함」 단추(누르면 이름 목록·링크).
-        구획(우측 구역 내비): 표시 · 쓰기 권한 · 작성 속도 · 목록·노출 · 첨부파일 정리 · 포인트·글 보호 · 댓글 공개 시간 · 베스트 댓글 · 게시판 매니저·스텝 · 고정 규칙(읽기 전용).
+        구획(우측 구역 내비): 표시 · 쓰기 권한 · 작성 속도 · 목록·노출 · 첨부파일 정리 · 포인트·글 보호 · 댓글 공개 시간·숨김 표시(운영자 숨김 공개 표시 `staffHiddenNotice`) · 찬반 토론·댓글 추천(글쓴이 토론 `debateEnabled`·글쓴이 투표 `pollEnabled`·비추천 켬·추천/비추천 이름·고정 요청 확인자) · 베스트 댓글 · 게시판 매니저·스텝 · 고정 규칙(읽기 전용).
         숫자 칸은 글자 입력(grades.vue 와 같은 이유) — 저장 전 범위 검사(`UtilBoard`), 서버 `fields` 오류는 칸 아래. 칸 정의·범위는 `UtilBoard.SPECS` 한 곳.
         권한: 조회 `board.read`(메뉴) · 칸 대부분 `board.settings` · 매니저·스텝 구획 `board.staff.limit` — 없는 권한의 칸은 readonly(서버 값 그대로), 둘 다 없으면 저장 줄 대신 읽기 전용 안내. 감추는 것은 편의이고 막는 것은 서버다.
         저장하지 않은 변경이 있는 채 다른 화면으로 가면 확인을 묻는다. 서버 연결됨(`useBoardApi`). 바뀐 칸 없이 저장하면 서버는 마지막 저장 기록(`updatedAt/By`)을 바꾸지 않는다.
@@ -131,7 +131,7 @@ const canStaffLimit = computed(() => can('board.staff.limit'));
 
 const DATE_MODES = ['STANDARD', 'RELATIVE'] as const;
 /** 칸 구획(표시·고정 규칙은 따로 그린다) */
-const FIELD_SECTIONS = ['write', 'rate', 'list', 'attachment', 'protect', 'guest', 'best', 'staff'] as const;
+const FIELD_SECTIONS = ['write', 'rate', 'list', 'attachment', 'protect', 'guest', 'reaction', 'best', 'staff'] as const;
 /** 구획 아래 덧붙임 안내 문구 키 */
 const NOTES: Partial<Record<(typeof FIELD_SECTIONS)[number], readonly string[]>> = {
     write: ['board.note.writeVerified', 'board.note.writeGuest', 'board.note.writeOverride'],
@@ -139,10 +139,11 @@ const NOTES: Partial<Record<(typeof FIELD_SECTIONS)[number], readonly string[]>>
     attachment: ['board.note.attachmentOrphan', 'board.note.attachmentRestore'],
     protect: ['board.note.protectStaff', 'board.note.pointAmount'],
     guest: ['board.note.guestDelay'],
+    reaction: ['board.note.reactionDebate'],
     staff: ['board.note.staffEligible', 'board.note.staffAutoRelease', 'board.note.staffDaily', 'board.note.staffOrder', 'board.note.staffGuestContent'],
 };
 /** 고정 규칙(바꿀 수 없는 것) 문구 키 */
-const FIXED_RULES = ['board.fixed.noSecret', 'board.fixed.noDislike', 'board.fixed.noAutoHide', 'board.fixed.replyDepth', 'board.fixed.lengths', 'board.fixed.guestRead'] as const;
+const FIXED_RULES = ['board.fixed.noSecret', 'board.fixed.noAutoHide', 'board.fixed.replyDepth', 'board.fixed.lengths', 'board.fixed.guestRead'] as const;
 
 const saved = ref<BoardDefaultsResponse | null>(null);
 const form = ref<BoardDefaultsForm | null>(null);
@@ -205,9 +206,10 @@ function canEdit(field: BoardDefaultsField): boolean {
     return can(UtilBoard.SPECS[field].permission);
 }
 
-/** 다른 칸 때문에 지금은 쓰이지 않는 칸 — 보존 기간(정리 꺼짐) · 예약 삭제 시간(예약 삭제가 아님) · 이미지 올리기(글 에디터가 고급이 아님) */
+/** 다른 칸 때문에 지금은 쓰이지 않는 칸 — 보존 기간(정리 꺼짐) · 예약 삭제 시간(예약 삭제가 아님) · 이미지 올리기(글 에디터가 고급이 아님) · 비추천 이름(비추천 꺼짐) */
 function inactiveOf(field: BoardDefaultsField): boolean {
     if (!form.value) return false;
+    if (field === 'commentDislikeLabel') return !form.value.commentDislikeEnabled;
     if (field === 'attachmentRetentionDays') return !form.value.attachmentPurgeEnabled;
     if (field === 'commentProtectDelayMinutes') return form.value.commentProtectDelete !== 'DELAY';
     if (field === 'imageUploadAllowed') return UtilBoard.imageUploadIdle(form.value.postEditor);
@@ -219,6 +221,8 @@ function noteOf(field: BoardDefaultsField): string {
     if (field === 'attachmentRetentionDays' && inactiveOf(field)) return t('board.inactiveNote.retention');
     if (field === 'commentProtectDelayMinutes' && inactiveOf(field)) return t('board.inactiveNote.delay');
     if (field === 'imageUploadAllowed' && inactiveOf(field)) return t('board.inactiveNote.imageEditor');
+    if (field === 'commentDislikeLabel' && inactiveOf(field)) return t('board.inactiveNote.dislikeOff');
+    if (field === 'pinRequestReviewers' && form.value.pinRequestReviewers.length === 0) return t('board.inactiveNote.pinRequestOff');
     const protectOff = UtilBoard.parse(form.value.commentProtectMin) === 0;
     if (protectOff && (field === 'commentProtectEdit' || field === 'commentProtectDelete')) return t('board.inactiveNote.protectOff');
     return '';

@@ -164,7 +164,7 @@ public final class MessageTargetCatalog {
 
     private static List<MessageTarget> memberEvents() {
         MessageCondition grouped = MessageCondition.fixed(MessageCondition.GROUPED, MessageCondition.SINGLE, MessageCondition.GROUPED_VALUE);
-        MessageCondition hide = MessageCondition.fixed(MessageCondition.HIDE_REASON, MessageCondition.REPORTS, MessageCondition.RIGHTS);
+        MessageCondition postHide = MessageCondition.fixed(MessageCondition.HIDE_REASON, MessageCondition.REPORTS, MessageCondition.RIGHTS, MessageCondition.STAFF);
         List<MessageTarget> out = new ArrayList<>();
         out.add(member(MemberEvent.COMMENT, List.of(MessageVariable.of("actorName", "commentActor"), MessageVariable.of("postTitle", "postTitle"),
                         MessageVariable.of("excerpt", "commentExcerpt"), MessageVariable.of("otherCount", "otherCount")),
@@ -173,10 +173,28 @@ public final class MessageTargetCatalog {
                 new InAppText("member.notification.REPLY.title", null, "{{excerpt}}", List.of("actorName")), "/boards/free/123#c-456", List.of()));
         out.add(member(MemberEvent.POINTS_REVOKED, List.of(MessageVariable.of("amount", "revokedAmount"), MessageVariable.of("reason", "revokeReason")),
                 new InAppText("member.notification.POINTS_REVOKED.title", null, "{{reason}}", List.of("amount")), "/me/points", List.of()));
-        out.add(member(MemberEvent.POST_HIDDEN, List.of(MessageVariable.of("postTitle", "hiddenPostTitle")),
-                new InAppText("member.notification.POST_HIDDEN.title", null, "{{postTitle}}", List.of()), "/me/posts", List.of(hide)));
-        out.add(member(MemberEvent.COMMENT_HIDDEN, List.of(MessageVariable.of("excerpt", "hiddenCommentExcerpt")),
-                new InAppText("member.notification.COMMENT_HIDDEN.title", null, "{{excerpt}}", List.of()), "/me/comments", List.of(hide)));
+        out.add(member(MemberEvent.POST_HIDDEN, List.of(MessageVariable.of("postTitle", "hiddenPostTitle"), MessageVariable.of("reason", "staffHideReason")),
+                new InAppText("member.notification.POST_HIDDEN.title", null, "{{postTitle}}", List.of()), "/me/posts", List.of(postHide)));
+        out.add(member(MemberEvent.COMMENT_HIDDEN, List.of(MessageVariable.of("excerpt", "hiddenCommentExcerpt"), MessageVariable.of("reason", "staffHideReason")),
+                new InAppText("member.notification.COMMENT_HIDDEN.title", null, "{{excerpt}}", List.of()), "/me/comments", List.of(postHide)));
+        out.add(member(MemberEvent.DM, List.of(MessageVariable.of("actorName", "dmSender")),
+                new InAppText("member.notification.DM.title", null, null, List.of("actorName")), "/messages/123", List.of()));
+        out.add(member(MemberEvent.NICKNAME_IMAGE_REVIEWED, List.of(MessageVariable.of("result", "nicknameImageResult"), MessageVariable.of("reason", "nicknameImageReason")),
+                new InAppText("member.notification.NICKNAME_IMAGE_REVIEWED.title", null, "{{reason}}", List.of("result")), "/settings/nickname-image", List.of()));
+        out.add(member(MemberEvent.OPINION_PIN_REQUESTED, List.of(MessageVariable.of("actorName", "pinRequester"), MessageVariable.of("postTitle", "postTitle"),
+                        MessageVariable.of("excerpt", "opinionExcerpt")),
+                new InAppText("member.notification.OPINION_PIN_REQUESTED.title", null, "{{excerpt}}", List.of("actorName")), "/posts/123", List.of()));
+        out.add(member(MemberEvent.OPINION_PIN_REVIEWED, List.of(MessageVariable.of("result", "pinRequestResult"), MessageVariable.of("postTitle", "postTitle"),
+                        MessageVariable.of("reason", "pinRejectReason")),
+                new InAppText("member.notification.OPINION_PIN_REVIEWED.title", null, "{{reason}}", List.of("result")), "/posts/123", List.of()));
+        out.add(member(MemberEvent.POST_REMOVED, List.of(MessageVariable.of("postTitle", "removedPostTitle"), MessageVariable.of("reason", "removeReason")),
+                new InAppText("member.notification.POST_REMOVED.title", null, "{{reason}}", List.of("postTitle")), "/me/posts", List.of()));
+        // 관리자 신고 관리(docs/features/report-admin-contract.md) — 운영자가 내 댓글을 지움 · 내 신고의 처리 결과
+        out.add(member(MemberEvent.COMMENT_REMOVED, List.of(MessageVariable.of("excerpt", "removedCommentExcerpt"), MessageVariable.of("reason", "removeReason")),
+                new InAppText("member.notification.COMMENT_REMOVED.title", null, "{{reason}}", List.of("excerpt")), "/posts/123", List.of()));
+        out.add(member(MemberEvent.REPORT_RESULT, List.of(MessageVariable.of("result", "reportResult"), MessageVariable.of("target", "reportedContent")),
+                new InAppText("member.notification.REPORT_RESULT.title", null, "{{target}}", List.of("result")), "/posts/123",
+                List.of(MessageCondition.fixed(MessageCondition.REPORT_RESULT, MessageCondition.ACTIONED, MessageCondition.NO_VIOLATION))));
         return out;
     }
 
@@ -206,6 +224,14 @@ public final class MessageTargetCatalog {
         out.add(required(RequiredMail.OPERATOR_RESET_CODE, List.of(MessageVariable.required("code", "resetCode"), MessageVariable.of("validMinutes", "resetValidMinutes")),
                 List.of()));
         out.add(required(RequiredMail.MAIL_TEST, List.of(), List.of()));
+        out.add(required(RequiredMail.MEMBER_PASSWORD_RESET, List.of(MessageVariable.of("nickname", "nickname"), MessageVariable.requiredLink("resetLink", "memberResetLink"),
+                MessageVariable.of("validMinutes", "memberResetValidMinutes")), List.of()));
+        out.add(required(RequiredMail.MEMBER_PASSWORD_SOCIAL, List.of(MessageVariable.of("nickname", "nickname"), MessageVariable.of("providerName", "socialProviderName"),
+                MessageVariable.requiredLink("socialLink", "socialLoginLink")), List.of()));
+        out.add(required(RequiredMail.MEMBER_EMAIL_CHANGE, List.of(MessageVariable.of("nickname", "nickname"), MessageVariable.requiredLink("changeLink", "emailChangeLink"),
+                MessageVariable.of("validHours", "emailChangeValidHours")), List.of()));
+        out.add(required(RequiredMail.MEMBER_EMAIL_CHANGE_NOTICE, List.of(MessageVariable.of("nickname", "nickname"), MessageVariable.of("newEmail", "maskedNewEmail")),
+                List.of()));
         return out;
     }
 

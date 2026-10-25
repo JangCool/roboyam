@@ -8,7 +8,6 @@ import type {
     MemberConsentItem,
     MemberGradeChangeKind,
     MemberGradeRequirement,
-    MemberNotificationKind,
     MemberOptionalConsentKey,
     MemberOrderStatus,
     MemberSanction,
@@ -292,16 +291,8 @@ export default class UtilMember {
     /** 소셜 연동 표시 차례 */
     static readonly SOCIAL_PROVIDERS: readonly MemberSocialProvider[] = ['KAKAO', 'NAVER', 'GOOGLE'];
 
-    /** 알림 종류 표시 차례 — 끝의 둘(게시글 완료·답변)은 roboyam 에 대응 기능이 아직 없다(그누보드7 항목) */
-    static readonly NOTIFICATION_KINDS: readonly MemberNotificationKind[] = ['COMMENT', 'REPLY', 'POPULAR_REWARD', 'DM', 'POST_DONE', 'POST_ANSWER'];
-
     /** 선택 동의 표시 차례 — 광고성 이메일은 마케팅의 하위다 */
     static readonly OPTIONAL_CONSENTS: readonly MemberOptionalConsentKey[] = ['MARKETING', 'EMAIL_AD', 'THIRD_PARTY', 'PROFILE_PUBLIC'];
-
-    /** 대응 기능이 아직 없어 「준비 중」으로 보이는 알림 종류인가 */
-    static notificationPending(kind: MemberNotificationKind): boolean {
-        return kind === 'POST_DONE' || kind === 'POST_ANSWER';
-    }
 
     /** 활동 요약 칸의 표시 차례 */
     static readonly ACTIVITY_KEYS: readonly (keyof MemberActivity)[] = ['postCount', 'commentCount', 'likesReceived', 'popularCount', 'recentPostCount', 'recentCommentCount', 'recentLoginDays'];
