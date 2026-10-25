@@ -1,0 +1,96 @@
+/**
+ * 본인인증 문구 — 설정의 본인인증 화면(`/settings/identity`)·결제 직전 확인(`IdentityGateDialog`)·가짜 본인인증 대화상자(`IdentityFakeDialog`)·개발용 시연 화면(`/dev/identity`).
+ * 계산이 낀 문구(실패 코드별 안내·19세 생일)는 `utils/util-identity-messages.ts` 가 고른다. 키는 `identity.무엇` 두 마디. `en/identity.ts` 와 같은 키, 같은 차례.
+ */
+export default {
+    title: '본인인증',
+    seoDescription: '{site} 휴대폰 본인인증 상태를 확인해요.',
+    loading: '본인인증 상태를 불러오는 중',
+    loadFailed: '본인인증 상태를 불러오지 못했어요',
+
+    // 인증됨
+    stateTitle: '인증 상태',
+    stateLabel: '상태',
+    verified: '본인인증 완료',
+    verifiedAt: '인증 일시',
+    ageLabel: '나이 확인',
+    adult: '만 19세 이상',
+    minor: '만 19세 미만',
+    minorTitle: '만 19세 미만은 이용할 수 없어요',
+    minorBlocked: '만 19세 미만은 포인트 충전·공동구매 결제를 할 수 없어요.',
+    minorRelease: '만 19세 생일({date})이 지나면 다시 인증하지 않아도 이용할 수 있어요.',
+    minorReleaseNoDate: '만 19세 생일이 지나면 다시 인증하지 않아도 이용할 수 있어요.',
+    birthdayDate: '{year}년 {month}월 {day}일',
+    onceNote: '본인인증은 한 번이면 끝나요. 다시 인증하지 않아도 돼요.',
+
+    // 미인증
+    whyTitle: '왜 필요한가요',
+    whyText: '돈이 오가는 기능은 한 사람이 한 계정으로만 이용할 수 있어서 휴대폰 본인인증이 필요해요.',
+    useCharge: '포인트 충전',
+    useGroupBuy: '공동구매 참여',
+    useRefund: '충전 포인트 환불 신청',
+    useSignupPoint: '가입 포인트 받기',
+    whyAdult: '포인트 충전과 공동구매 결제는 만 19세 이상만 할 수 있어요.',
+    storedTitle: '무엇을 저장하나요',
+    storedYes: '생년월일과 인증한 시각만 저장해요.',
+    storedNo: '이름·휴대폰 번호·주민등록번호로 만든 값의 원문은 저장하지 않아요.',
+    storedShort: '생년월일과 인증 시각만 저장하고, 이름·휴대폰 번호는 저장하지 않아요.',
+    verifyButton: '휴대폰 본인인증 하기',
+    verifyHelp: '인증창에서 휴대폰 번호로 인증하면 이 화면으로 돌아와요.',
+    verifiedToast: '본인인증을 마쳤어요',
+
+    // 실패
+    failTitle: '본인인증을 마치지 못했어요.',
+    failLinkedTitle: '이미 다른 계정에서 인증한 정보예요.',
+    failLinked: '한 사람은 한 계정에서만 본인인증할 수 있어요. 도움이 필요하면 고객센터로 문의해 주세요.',
+    failBlockedTitle: '아직 본인인증할 수 없어요.',
+    failBlocked: '탈퇴한 뒤 30일 동안은 같은 정보로 인증할 수 없어요. {date}부터 인증할 수 있어요.',
+    failBlockedNoDate: '탈퇴한 뒤 30일 동안은 같은 정보로 인증할 수 없어요.',
+    failProviderTitle: '인증 업체에서 응답을 받지 못했어요.',
+    failProvider: '잠시 후 다시 시도해 주세요.',
+    failExpiredTitle: '인증 시간이 지났어요.',
+    failExpired: '처음부터 다시 시도해 주세요.',
+    portoneUnavailable: '포트원 인증창은 아직 연결되지 않았어요.',
+
+    // 결제 직전 확인
+    gateNeed_CHARGE: '포인트 충전하려면 본인인증이 필요해요',
+    gateNeed_GROUP_BUY: '공동구매에 참여하려면 본인인증이 필요해요',
+    gateNeedText: '한 사람이 한 계정으로만, 만 19세 이상만 결제할 수 있어요. 휴대폰 본인인증은 한 번만 하면 돼요.',
+
+    // 가짜 본인인증(개발용)
+    fakeTitle: '가짜 본인인증(개발용)',
+    fakeNotice: '개발·시험 전용 인증이에요. 실제 서비스에서는 포트원 인증창이 열려요.',
+    fakeBirthDate: '생년월일',
+    fakeBirthDateHelp: '만 19세 이상 여부를 이 날짜로 계산해요.',
+    fakeBirthDateRequired: '생년월일을 입력해 주세요.',
+    fakePersonKey: '사람 번호',
+    fakePersonKeyHelp: '같은 번호는 같은 사람으로 봐요(1인 1계정 시험용).',
+    fakePersonKeyRequired: '사람 번호를 입력해 주세요.',
+    fakeSubmit: '인증 완료',
+
+    // 개발용 시연 화면
+    devBadge: '개발 모드 전용',
+    devTitle: '본인인증·기능 제한 시연',
+    devIntro: '충전·공동구매 화면이 생기기 전에 결제 직전 본인인증 확인과 기능 제한 안내를 눌러 보는 화면이에요.',
+    devStateTitle: '내 본인인증 상태',
+    devStateIntro: '서버에서 받은 지금 상태예요. local 서버는 가짜 구현이라 인증창 대신 「가짜 본인인증(개발용)」 대화상자가 떠요.',
+    devCurrent: '지금 상태',
+    devReload: '다시 받기',
+    devStateNoReset: '인증은 되돌릴 수 없어요. 미인증부터 다시 보려면 다른 회원으로 로그인해 주세요.',
+    devPersonKeys: '미성년은 생년월일을 19년 안쪽으로, 「이미 다른 계정」 실패는 다른 계정에서 쓴 사람 번호를 그대로 넣어 볼 수 있어요.',
+    devGateTitle: '결제 직전 확인',
+    devGateIntro: '결제를 시작하기 전에 본인인증과 만 19세 이상을 확인해요. 이미 인증한 성인이면 대화상자 없이 넘어가요.',
+    devCharge: '충전 시작',
+    devGroupBuy: '공구 참여',
+    devGateOk: '「{purpose}」 결제를 시작할 수 있어요.',
+    devGateNo: '「{purpose}」 결제를 시작하지 않았어요.',
+    devRestrictionTitle: '기능 제한 안내',
+    devRestrictionIntro: '막힌 기능을 쓰려 할 때 서버가 403 MEMBER_RESTRICTED 를 주면 보이는 안내예요. 아직 이 오류를 주는 공개 사이트 API 가 없어서, 서버와 같은 오류 모양을 화면에서 만들어 미리 봐요.',
+    devRestrictionSampleReason: '(미리 보기) 관리자가 적은 공개 사유가 여기에 보여요.',
+    devRestrictionType: '제한 종류',
+    devRestrictionUntil: '끝나는 때',
+    devRestrictionTry: '막힌 기능 써 보기',
+    devUntilHours: '26시간 뒤',
+    devUntilNextYear: '내년',
+    devUntilForever: '무기한',
+};

@@ -45,6 +45,12 @@ public class CommonException extends RuntimeException {
     /** 잠기기 전까지 남은 시도 횟수(응답 본문의 {@code remainingAttempts} — 관리자 2차 인증 코드처럼 화면이 「N번 남았어요」를 보일 때). 없으면 null */
     private final Integer remainingAttempts;
 
+    /**
+     * 오류 본문 <b>최상위 칸</b>으로 더 싣는 값(이름 → 값 — 화면의 {@code ApiError.extras}). 예: {@code retryAfter}(날짜) · {@code adultFrom} · {@code restriction}(객체).
+     * 업무 예외가 생성자에서 {@link #extra} 로 채운다. 값은 화면에 보여도 되는 것만(비밀값·개인정보·운영 메모 금지). 없으면 빈 맵
+     */
+    private final Map<String, Object> extras = new LinkedHashMap<>();
+
     protected CommonException(HttpStatus status, String errorCode, MessageRef message) {
         this(status, errorCode, message, Map.of(), null);
     }
@@ -91,5 +97,21 @@ public class CommonException extends RuntimeException {
 
     public Long getRetryAfterSeconds() {
         return retryAfterSeconds;
+    }
+
+    /** 오류 본문 최상위 칸으로 더 싣는 값(읽기 전용, 넣은 차례) */
+    public Map<String, Object> getExtras() {
+        return Collections.unmodifiableMap(extras);
+    }
+
+    /**
+     * 오류 본문 최상위 칸 하나를 더한다(업무 예외의 생성자에서). 이미 있는 칸 이름({@code code}·{@code message}·{@code fields}·{@code retryAfterSeconds}·{@code remainingAttempts})은 쓰지 않는다.
+     */
+    protected final CommonException extra(String name, Object value) {
+        if (ErrorResponse.RESERVED.contains(name)) {
+            throw new IllegalArgumentException("오류 본문에 이미 있는 칸 이름이다: " + name);
+        }
+        extras.put(name, value);
+        return this;
     }
 }

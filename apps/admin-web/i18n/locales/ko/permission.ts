@@ -91,6 +91,8 @@ export default {
     memberReadDesc: '회원을 조건으로 찾아 목록과 상태를 봅니다. 이메일은 가려서 보입니다.',
     memberPii: '전체 이메일 열람',
     memberPiiDesc: '가려진 이메일을 원문으로 봅니다. 개인정보를 여는 조치라 따로 둡니다.',
+    memberWithdrawnContact: '탈퇴 회원 연락처 열람',
+    memberWithdrawnContactDesc: '결제 이력이 있어 분리 보관한 탈퇴 회원의 연락용 이메일을 사유를 남기고 엽니다. 열람 기록·감사에 남습니다.',
 
     // 등급 설정
     gradeRead: '등급 설정 조회',

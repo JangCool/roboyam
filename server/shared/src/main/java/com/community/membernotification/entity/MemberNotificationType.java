@@ -23,7 +23,9 @@ public enum MemberNotificationType {
     /** 신고가 쌓여(또는 불법촬영물·권리침해 신고로) 내 글이 자동으로 숨겨졌다 */
     POST_HIDDEN("system"),
     /** 신고로 내 댓글이 자동으로 숨겨졌다 */
-    COMMENT_HIDDEN("system");
+    COMMENT_HIDDEN("system"),
+    /** 내 계정에 기능 제한(포인트 동결·공구 참여 제한·충전 제한)이 걸렸다 — 종류·끝·공개 사유(운영 메모는 싣지 않는다, commerce.md 12-3) */
+    FEATURE_RESTRICTED("system");
 
     private final String category;
 

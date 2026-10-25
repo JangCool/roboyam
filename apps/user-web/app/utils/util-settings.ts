@@ -22,6 +22,7 @@ export default class UtilSettings {
         { to: '/settings/notifications', labelKey: 'settings.notifications', hintKey: 'settings.notificationsHint', icon: 'pi pi-bell', testid: 'settings-notifications' },
         { to: '/settings/display', labelKey: 'settings.display', hintKey: 'settings.displayHint', icon: 'pi pi-clock', testid: 'settings-display' },
         { to: '/settings/account', labelKey: 'account.title', hintKey: 'settings.accountHint', icon: 'pi pi-link', testid: 'settings-account' },
+        { to: '/settings/identity', labelKey: 'identity.title', hintKey: 'settings.identityHint', icon: 'pi pi-id-card', testid: 'settings-identity' },
     ];
 
     /**

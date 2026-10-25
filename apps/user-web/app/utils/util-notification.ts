@@ -67,13 +67,14 @@ export default class UtilNotification {
     }
 
     /**
-     * 알림 한 줄의 아이콘 — 댓글은 말풍선, 답글은 답장, 포인트 회수는 지갑, 신고로 숨김은 가린 눈.
+     * 알림 한 줄의 아이콘 — 댓글은 말풍선, 답글은 답장, 포인트 회수는 지갑, 신고로 숨김은 가린 눈, 기능 제한은 금지 표시. 모르는 종류는 말풍선.
      * @param {MemberNotificationType} type - 알림 종류.
      * @returns {string} PrimeIcons 클래스.
      */
     static icon(type: MemberNotificationType): string {
         if (type === 'POINTS_REVOKED') return 'pi pi-wallet';
         if (type === 'POST_HIDDEN' || type === 'COMMENT_HIDDEN') return 'pi pi-eye-slash';
+        if (type === 'FEATURE_RESTRICTED') return 'pi pi-ban';
         if (type === 'REPLY') return 'pi pi-reply';
         return 'pi pi-comment';
     }

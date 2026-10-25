@@ -7,6 +7,7 @@ import com.community.audit.service.AuditLogService;
 import com.community.grade.entity.GradeEntity;
 import com.community.grade.entity.GradeRoles;
 import com.community.grade.repository.master.GradeRepositoryQDSL;
+import com.community.identity.service.IdentityVerificationService;
 import com.community.member.dto.MemberRecord;
 import com.community.member.dto.MemberRoles;
 import com.community.member.dto.MemberSearchCriteria;
@@ -16,6 +17,7 @@ import com.community.member.dto.response.MemberConsentRecord;
 import com.community.member.dto.response.MemberConsents;
 import com.community.member.dto.response.MemberDetailView;
 import com.community.member.dto.response.MemberGradePoint;
+import com.community.member.dto.response.MemberIdentityView;
 import com.community.member.dto.response.MemberPage;
 import com.community.member.dto.response.MemberReportSummary;
 import com.community.member.dto.response.MemberRoleDetail;
@@ -61,7 +63,8 @@ import org.springframework.transaction.annotation.Transactional;
  *       채운다 — {@link MemberActivityRepository}·{@link ReportRepositoryQDSL#countsOf}·{@link MemberGradePointAssembler}. 읽기 전용 조회라 새 감사 기록은 없다(열람은 {@code MEMBER_VIEW} 하나).</li>
  *   <li>포인트 잔액({@code point})은 목록·상세 모두 잔액 행({@code point_balances})의 값이고, 등급·포인트 구획의 최근 포인트 내역도 원장에서 채운다.</li>
  *   <li>서버에 아직 데이터가 없는 칸(휴면·제재·알림 설정·공동구매 등)은 null/빈 값으로 내려간다 — {@link MemberDetailView}.</li>
- *   <li>탈퇴한 회원은 축약해 보인다(역할·소셜·동의·소개·활동 요약·신고 요약·등급 구획 없음, 탈퇴 시각만).</li>
+ *   <li>본인 인증 구획({@code identity})은 {@link IdentityVerificationService#summaryOf}(인증 여부·시각·만 19세 이상·수단 — 생년월일·해시 없음, 커머스 0-4).</li>
+ *   <li>탈퇴한 회원은 축약해 보인다(역할·소셜·동의·소개·활동 요약·신고 요약·등급·본인 인증 구획 없음, 탈퇴 시각만).</li>
  * </ul>
  */
 @Service
@@ -83,10 +86,12 @@ public class MemberService {
     private final MemberActivityRepository activities;
     private final ReportRepositoryQDSL reportQueries;
     private final MemberGradePointAssembler gradePoints;
+    private final IdentityVerificationService identities;
 
     public MemberService(MemberRepositoryQDSL members, MemberSearchParser parser, MemberRoleResolver roleResolver, GradeRepositoryQDSL gradeQueries,
                          RoleRepositoryQDSL roleQueries, UserRepository users, ProfileRepository profiles, AuditLogService audit, MemberActivityRepository activities,
-                         ReportRepositoryQDSL reportQueries, MemberGradePointAssembler gradePoints) {
+                         ReportRepositoryQDSL reportQueries, MemberGradePointAssembler gradePoints, IdentityVerificationService identities) {
+        this.identities = identities;
         this.activities = activities;
         this.reportQueries = reportQueries;
         this.gradePoints = gradePoints;
@@ -147,6 +152,8 @@ public class MemberService {
         MemberActivity activity = withdrawn ? null : activityOf(id, now);
         MemberReportSummary reports = withdrawn ? null : reportsOf(id);
         MemberGradePoint gradePoint = withdrawn ? null : gradePoints.assemble(user, profile, activity, now);
+        // 본인 인증(커머스 0-4) — 탈퇴 회원은 null, 미인증은 verified:false. 생년월일·해시는 싣지 않는다
+        MemberIdentityView identity = withdrawn ? null : identities.summaryOf(id).map(MemberIdentityView::of).orElseGet(MemberIdentityView::unverified);
 
         MemberDetailView view = new MemberDetailView(Long.toString(id), canPii ? record.email() : MemberMasking.email(record.email()), emailMasked, record.nickname(),
                 record.gradeKey(), memberRoles.memberType(), record.status().name(), authMethodOf(record, providers), record.emailVerifiedAt(), record.createdAt(),
@@ -154,7 +161,7 @@ public class MemberService {
                 null, activity, List.of(), null, reports,
                 withdrawn ? null : profile.getBio(), social, null, null, null, withdrawn ? record.deletedAt() : null,
                 withdrawn || canPii ? List.of() : null, !canPii,
-                gradePoint, null, null, null, consents, null);
+                gradePoint, null, null, null, consents, null, identity);
 
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.MEMBER_VIEW, AuditResult.SUCCESS).target("MEMBER", Long.toString(id))
                 .with("emailRevealed", canPii && record.email() != null));

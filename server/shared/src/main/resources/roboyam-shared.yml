@@ -106,3 +106,12 @@ roboyam:
     lock-seconds: 600             # 잠그는 시간(10분)
     global-per-minute: 30         # 서버 전체에서 분당 받는 토큰 확인 시도 상한
     refresh-millis: 15000         # 설치 전에 다른 앱 서버가 끝낸 설치를 따라오는 주기(설치가 끝나면 멈춘다)
+  # 본인인증(docs/features/commerce-foundation-contract.md 「0-4」). 구현은 배포 설정이다 — portone(포트원 통합 본인인증) | fake(local·시험 전용).
+  # dev · prod 프로필에서 fake 면 기동을 멈춘다(IdentityConfig). 포트원 상점 ID·API 비밀키·채널 키는 관리자 화면(설정 › 포트원)이 DB 에 암호화해 둔다. local 은 fake(roboyam-shared-local.yml)
+  identity:
+    provider: ${ROBOYAM_IDENTITY_PROVIDER:portone}
+    verification-ttl: 30m        # 서버가 발급한 인증 번호의 유효 시간 — 지나면 확정할 수 없다(410)
+  # 탈퇴 대비(commerce.md 17-2 · 17-3). 쓰는 탈퇴 기능은 아직 없다 — 기록 장치(IdentityWithdrawalRecorder · WithdrawnContactStore)만 있다
+  withdrawal:
+    rejoin-block-days: 30        # 같은 이메일·소셜 계정·본인인증 값이 탈퇴 뒤 다시 가입·인증할 수 없는 기간(탈퇴 때 박는다)
+    contact-retention-years: 5   # 탈퇴 회원 연락용 이메일을 마지막 거래일부터 보관하는 기간

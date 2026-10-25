@@ -1,0 +1,57 @@
+/**
+ * PortOne settings screen (`/settings/portone`, commerce 0-4). Same keys and order as `ko/portone.ts`.
+ */
+export default {
+    title: 'PortOne',
+    subtitle: 'Identity verification settings for PortOne V2. Saved values are never shown again.',
+    readOnly: 'View only. Changing or clearing values needs the secret settings permission.',
+    loadFailed: 'Couldn’t load PortOne settings',
+    cryptoMissingTitle: 'The server has no encryption key',
+    cryptoMissingText: 'Values can’t be saved without it (clearing still works). Check the server setting (ROBOYAM_CRYPTO_KEY) first.',
+
+    providerTitle: 'Identity verification in use',
+    providerNow: 'Current',
+    provider: {
+        PORTONE: 'PortOne',
+        FAKE: 'Fake (development)',
+    },
+    providerHelp: 'Set by the server deployment (roboyam.identity.provider). It can’t be changed here.',
+    providerFake: 'The fake implementation is for local and tests only. The server won’t start with it on dev or prod.',
+    notReadyTitle: 'Identity verification isn’t available',
+    notReadyText: 'Fill in all three: store ID, API secret and identity channel key.',
+
+    identityCard: 'Identity verification',
+    identityCardHelp: 'Enter the store ID, V2 API secret and the identity verification channel key (Danal or KCP) from the PortOne console.',
+    badgeReady: 'All set',
+    badgeIncomplete: 'Needs setup',
+    field: {
+        storeId: 'Store ID',
+        apiSecret: 'API secret (V2 API Secret)',
+        identityChannelKey: 'Identity channel key',
+    },
+    fieldHelp: {
+        storeId: 'PortOne console › Store info, starts with store-',
+        apiSecret: 'PortOne console › Integration › V2 API Secret',
+        identityChannelKey: 'PortOne console › Integration › Channels, identity verification channel key',
+    },
+    configured: 'Set',
+    notConfigured: 'Not set',
+    updatedAt: 'Changed {at}',
+    updatedBy: '{at} · {name}',
+    value: 'Value',
+    newValue: 'New value',
+    keepHint: 'Leave empty to keep the current value.',
+    noSpaces: 'Enter it without spaces.',
+    changes: '{count} field(s) changed',
+    noChanges: 'No changes',
+    saved: 'PortOne identity settings saved',
+    remove: 'Clear',
+    removeAria: 'Clear {name}',
+    removeTitle: 'Clear {name}?',
+    removeMessage: '{name} becomes not set, and PortOne identity verification stops working.',
+    removed: '{name} cleared',
+    leaveTitle: 'Leave without saving?',
+    leaveMessage: 'What you entered won’t be saved.',
+    leaveConfirm: 'Leave',
+    footnote: 'Payment settings (group buys, charges) are added as a “Payment” card in the payment stage. Values are encrypted on the server, and changes are audited.',
+};

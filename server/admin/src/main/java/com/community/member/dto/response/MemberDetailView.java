@@ -29,6 +29,7 @@ import java.util.List;
  * @param acceptDm       쪽지 수신 여부 — null
  * @param nicknameHistory 닉네임 변경 이력 — {@code member.pii} 가 없으면 null
  * @param piiMasked      휴대폰·전화·주소·배송지가 가려져 왔는가({@code member.pii} 없음) — 그 칸들이 아직 없어 이메일 가림과 같은 값이다
+ * @param identity       본인 인증(커머스 0-4) — 인증 여부·시각·만 19세 이상·수단만(생년월일·해시 없음). 미인증이면 {@code verified:false}, <b>탈퇴한 회원은 null</b>
  */
 public record MemberDetailView(
         String memberNo, String email, boolean emailMasked, String nickname, String grade, String memberType, String status, String authMethod,
@@ -37,5 +38,6 @@ public record MemberDetailView(
         String statusReason, MemberActivity activity, List<MemberSanction> sanctions, Object sanctionSummary, MemberReportSummary reports,
         String bio, List<MemberSocialLink> social, Boolean adultConfirmed, Boolean acceptDm, Object dormancy, Instant withdrawnAt,
         List<MemberNicknameChange> nicknameHistory, boolean piiMasked,
-        MemberGradePoint gradePoint, Object settings, Object contact, Object profile, MemberConsents consents, Object groupBuy) {
+        MemberGradePoint gradePoint, Object settings, Object contact, Object profile, MemberConsents consents, Object groupBuy,
+        MemberIdentityView identity) {
 }

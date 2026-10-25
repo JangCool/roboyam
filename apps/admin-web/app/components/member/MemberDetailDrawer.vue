@@ -2,7 +2,7 @@
     <!--
         회원 상세 서랍 — 목록 행을 누르면(또는 Enter·Space) 연다. 열리는 쪽은 설정의 "서랍 위치"를 따른다(`prefs.drawerPosition`). 폭 56rem(좁은 화면은 화면 폭 — 오른쪽 구역 내비 열을 두려고 32rem 에서 넓혔다), Esc·바깥 누름으로 닫힌다(PrimeVue Drawer 의 초점·Esc 처리).
         머리(닉네임 · 상태 딱지 · 회원번호)는 목록 행(`member`)으로 바로 그리고, 내용(`detail`)은 부모가 받아 내려 준다 — 받는 동안 뼈대, 못 받으면 서랍 안 오류 상태(다시 시도). 다른 행을 누르면 열린 채 내용만 바뀐다.
-        **읽기 전용**이다 — 상태 변경·제재 부여 같은 조치는 이번 범위 밖(후속). 탭은 없다 — 본문(`MemberDetailContent`)이 구획을 한 스크롤 영역에 모두 쌓고 오른쪽 구역 내비(`SectionNav`)로 이동한다. 그 구역 내비는 서랍 범위(`SECTION_NAV_SCOPE`)로 셸 것과 따로 쓴다.
+        **읽기 전용**이다 — 상태 변경·제재 부여 같은 조치는 이번 범위 밖(후속). 예외(커머스 0-4): 기능 제한 걸기·해제와 탈퇴 회원 연락처 열람 — 구획이 이벤트로 올리면 부모가 대화상자를 띄운다. 탭은 없다 — 본문(`MemberDetailContent`)이 구획을 한 스크롤 영역에 모두 쌓고 오른쪽 구역 내비(`SectionNav`)로 이동한다. 그 구역 내비는 서랍 범위(`SECTION_NAV_SCOPE`)로 셸 것과 따로 쓴다.
         서버 호출은 하지 않는다(`components.md`) — 부모가 `useMemberDetail` 로 받는다.
     -->
     <Drawer v-model:visible="open" class="member-detail-drawer" :modal="false" :position="prefs.drawerPosition" :aria-labelledby="titleId" :style="{ width: '56rem', maxWidth: '100vw' }" :pt="{ content: { class: 'p-0!' } }">
@@ -28,13 +28,26 @@
             <Skeleton v-for="n in 7" :key="n" height="1rem" />
         </div>
 
-        <MemberDetailContent v-else :detail="detail" />
+        <!-- 기능 제한·탈퇴 회원 연락처(커머스 0-4)는 부모가 받아 내려 주고, 걸기·해제·열람은 이벤트로 그대로 올린다 -->
+        <MemberDetailContent
+            v-else
+            :detail="detail"
+            :restrictions="restrictions"
+            :withdrawn-contact="withdrawnContact"
+            @restrict="emit('restrict')"
+            @lift="(r) => emit('lift', r)"
+            @retry-restrictions="emit('retry-restrictions')"
+            @reveal-contact="emit('reveal-contact')"
+            @mask-contact="emit('mask-contact')"
+            @retry-contact="emit('retry-contact')"
+        />
     </Drawer>
 </template>
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { MemberDetail, MemberRow } from '~/composables/member/api/useMemberApi.types';
+import type { MemberDetailEmits, MemberRestrictionsView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
 import UtilMember from '~/utils/util-member';
 
 /** 서랍이 열려 있는가 */
@@ -49,10 +62,14 @@ interface Props {
     error?: ApiError | null;
     /** 이 선택자에 맞는 곳의 누름은 바깥 누름으로 치지 않는다 — 서랍을 여는 행(`tbody tr`) */
     ignoreSelector?: string;
+    /** 「기능 제한」 구획의 목록(커머스 0-4) */
+    restrictions?: MemberRestrictionsView | null;
+    /** 탈퇴 회원의 연락용 이메일(커머스 0-4) */
+    withdrawnContact?: WithdrawnContactView | null;
 }
 
-const props = withDefaults(defineProps<Props>(), { loading: false, error: null, ignoreSelector: '' });
-const emit = defineEmits<{ retry: [] }>();
+const props = withDefaults(defineProps<Props>(), { loading: false, error: null, ignoreSelector: '', restrictions: null, withdrawnContact: null });
+const emit = defineEmits<{ retry: [] } & MemberDetailEmits>();
 
 const { t } = useI18n();
 const { prefs } = useLayoutPrefs();

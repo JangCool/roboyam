@@ -125,7 +125,7 @@ public class MemberNotificationEmailSender {
         String name = queries.nickname(event.actorUserId())
                 .orElseGet(() -> messages.get(new MessageRef("member.notification.actor.withdrawn"), texts.localeOf(language)));
         return new MemberNotificationMessages.Facts(facts.type(), name, facts.postTitle(), facts.excerpt(), facts.groupCount(), facts.amount(), facts.pointsKind(),
-                facts.note(), facts.temporary(), facts.snapshot());
+                facts.note(), facts.temporary(), facts.snapshot(), facts.restriction());
     }
 
     /** 지금이 조용한 시간 안인가 — 꺼져 있거나 값을 읽을 수 없거나 시작 = 끝이면 false. 끝 시각은 들지 않는다 */

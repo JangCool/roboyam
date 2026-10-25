@@ -4,10 +4,13 @@
  * `title`·`body` 는 서버가 요청 언어로 푼 문장이다(묶인 댓글 「mem3님 외 1개의 댓글…」·탈퇴한 회원·임시 숨김 문구 포함) — 화면은 그대로 보인다.
  */
 
-/** 알림 종류(서버 `MemberNotificationType`) */
-export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'POST_HIDDEN' | 'COMMENT_HIDDEN';
+/**
+ * 알림 종류(서버 `MemberNotificationType`). `FEATURE_RESTRICTED` = 내 계정에 기능 제한(포인트 동결·공구 참여 제한·충전 제한)이 걸림(커머스 0-4 — 영역 SAFETY, 회원이 끌 수 없음,
+ * 종류·끝·공개 사유를 서버가 `title`·`body` 로 풀어 준다. 운영 메모는 없다).
+ */
+export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'POST_HIDDEN' | 'COMMENT_HIDDEN' | 'FEATURE_RESTRICTED';
 
-/** 알림 묶음 — 댓글·답글 · 계정(포인트 회수·신고 숨김) */
+/** 알림 묶음 — 댓글·답글 · 계정(포인트 회수·신고 숨김·기능 제한) */
 export type MemberNotificationCategory = 'comment' | 'system';
 
 /** 목록 거르기(`filter`) */

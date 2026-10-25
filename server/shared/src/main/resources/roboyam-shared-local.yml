@@ -32,3 +32,6 @@ roboyam:
   # 개발 PC 전용이다 — dev · prod 에서는 환경 변수 ROBOYAM_INSTALL_TOKEN 에 따로 만든 값을 넣거나 비워 두어 서버가 무작위 토큰을 로그에 출력하게 한다.
   install:
     token: ${ROBOYAM_INSTALL_TOKEN:roboyam-demo-token}
+  # 본인인증 — local 은 가짜 구현(「가짜 본인인증(개발용)」 대화상자: 생년월일·사람 번호, 같은 번호 = 같은 사람). dev · prod 에서 fake 면 기동하지 않는다
+  identity:
+    provider: ${ROBOYAM_IDENTITY_PROVIDER:fake}

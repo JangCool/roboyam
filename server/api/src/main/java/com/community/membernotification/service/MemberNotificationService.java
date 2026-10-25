@@ -217,6 +217,9 @@ public class MemberNotificationService {
                 points = new NotificationPointsView(kind, amount, note);
                 facts = MemberNotificationMessages.Facts.points(kind, amount, note);
             }
+            case FEATURE_RESTRICTED -> facts = MemberNotificationMessages.Facts.restricted(payload.get("kind") instanceof String k ? k : "",
+                    instantOf(payload.get("until")), payload.get("reason") instanceof String r && !r.isBlank() ? r : null,
+                    payload.get("autoRule") instanceof String a && !a.isBlank() ? a : null);
             default -> { // POST_HIDDEN, COMMENT_HIDDEN
                 hiddenUntil = instantOf(payload.get("until"));
                 facts = MemberNotificationMessages.Facts.hidden(type, payload.get("snapshot") instanceof String s && !s.isBlank() ? s : null, hiddenUntil != null);

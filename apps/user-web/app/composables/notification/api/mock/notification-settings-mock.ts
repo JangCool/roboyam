@@ -6,9 +6,9 @@
 //   notify-settings-no-email   이메일 인증 전 계정 → 이메일 스위치 잠금 + 까닭
 //
 // ── 목업 규칙(가정 — 계약 「목업 가정」) ─
-//   · 이벤트 5종(준비 중 제외)은 서버 카탈로그 차례. 이름·설명은 서버가 요청 언어로 준다 — 목업은 한국어로만.
-//   · 운영자 설정 가정: 5종 모두 앱 알림 켬, 이메일은 「내 글에 댓글」·「포인트 회수」만 켬.
-//   · 잠긴 이벤트(포인트 회수·글/댓글 숨김)의 `inApp`·`email` 은 늘 true. 잠긴 이벤트를 끄려 하면 `409 NOTIFICATION_SETTING_LOCKED`.
+//   · 이벤트 6종(준비 중 제외)은 서버 카탈로그 차례. 이름·설명은 서버가 요청 언어로 준다 — 목업은 한국어로만.
+//   · 운영자 설정 가정: 6종 모두 앱 알림 켬, 이메일은 「내 글에 댓글」·「포인트 회수」만 켬.
+//   · 잠긴 이벤트(포인트 회수·글/댓글 숨김·기능 제한)의 `inApp`·`email` 은 늘 true. 잠긴 이벤트를 끄려 하면 `409 NOTIFICATION_SETTING_LOCKED`.
 //   · 요청에 모르는 코드가 있으면 `400 VALIDATION fields.events[i].code`.
 //   · 운영자가 보내지 않는 채널의 값은 저장하되 응답에서는 true(무의미)로 둔다.
 
@@ -70,6 +70,19 @@ const CATALOG: MyNotificationSetting[] = [
         area: 'safety',
         name: '내 댓글 숨김',
         description: '신고가 쌓여 내 댓글이 숨겨지면 알려요.',
+        inAppOffered: true,
+        emailOffered: false,
+        memberCanTurnOff: false,
+        lockReason: 'ACCOUNT',
+        inApp: true,
+        email: true,
+    },
+    {
+        // 커머스 0-4 — 서버 `MemberEvent.FEATURE_RESTRICTED`(SAFETY, 계정 알림이라 잠김)
+        code: 'FEATURE_RESTRICTED',
+        area: 'safety',
+        name: '기능 제한',
+        description: '포인트 동결·공동구매 참여 제한·충전 제한이 걸리면 어떤 기능이 언제까지 막히는지와 사유를 알려요. 계정 알림이라 회원이 끌 수 없어요.',
         inAppOffered: true,
         emailOffered: false,
         memberCanTurnOff: false,

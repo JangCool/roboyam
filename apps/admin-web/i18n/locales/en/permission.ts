@@ -91,6 +91,8 @@ export default {
     memberReadDesc: 'Find members by condition and see the list and states. Emails are masked.',
     memberPii: 'View full emails',
     memberPiiDesc: 'See masked emails in full. It opens personal data, so it is separate.',
+    memberWithdrawnContact: 'View withdrawn members’ contact',
+    memberWithdrawnContactDesc: 'Open the separately kept contact email of a withdrawn member with payment history, with a reason. Logged and audited.',
 
     // Grade settings
     gradeRead: 'View grade settings',

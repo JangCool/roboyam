@@ -182,6 +182,7 @@ export default class UtilPermissionCatalog {
         { code: 'keeper-action.restore', unit: 'SENSITIVE', type: 'staffAudit', nameKey: 'permission.item.keeperActionRestore', descKey: 'permission.item.keeperActionRestoreDesc', featureReady: false },
         { code: 'member.read', unit: 'READ', type: 'memberView', nameKey: 'permission.memberRead', descKey: 'permission.memberReadDesc', featureReady: true },
         { code: 'member.pii', unit: 'SENSITIVE', type: 'memberView', nameKey: 'permission.memberPii', descKey: 'permission.memberPiiDesc', featureReady: true },
+        { code: 'member.withdrawn.contact', unit: 'SENSITIVE', type: 'memberView', nameKey: 'permission.memberWithdrawnContact', descKey: 'permission.memberWithdrawnContactDesc', featureReady: true },
         { code: 'nickname-image.read', unit: 'READ', type: 'nicknameImage', nameKey: 'permission.item.nicknameImageRead', descKey: 'permission.item.nicknameImageReadDesc', featureReady: false },
         { code: 'nickname-image.manage', unit: 'MANAGE', type: 'nicknameImage', nameKey: 'permission.item.nicknameImageManage', descKey: 'permission.item.nicknameImageManageDesc', featureReady: false },
         { code: 'grade.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.gradeRead', descKey: 'permission.gradeReadDesc', featureReady: true },

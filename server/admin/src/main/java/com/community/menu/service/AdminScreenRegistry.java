@@ -57,6 +57,8 @@ public final class AdminScreenRegistry {
             section(SETTINGS, "menu.system", "pi pi-cog",
                     leaf(s("siteGeneral", "/settings/general", "menu.general", "pi pi-sliders-h", Permission.SITE_READ)),
                     leaf(s("socialLogin", "/settings/social-login", "menu.socialLogin", "pi pi-key", Permission.SITE_READ)),
+                    // 포트원 설정(본인인증 칸 — commerce-foundation-contract 「0-4」) — 조회 site.read, 저장·지우기는 화면 안에서 site.secret
+                    leaf(s("portone", "/settings/portone", "menu.portone", "pi pi-credit-card", Permission.SITE_READ)),
                     // 로그인 보안(관리자 2차 인증 — commerce-foundation-contract 「0-3」) — 루트 전용, 권한 코드 없음
                     leaf(superOnly("loginSecurity", "/settings/login-security", "menu.loginSecurity", "pi pi-shield")),
                     leaf(s("teams", "/settings/teams", "menu.teams", "pi pi-sitemap", Permission.TEAM_READ))),

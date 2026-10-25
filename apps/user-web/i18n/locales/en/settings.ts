@@ -13,6 +13,7 @@ export default {
     display: 'Time display',
     displayHint: 'Language, time zone, time and date format',
     accountHint: 'Sign-in methods and linked social accounts',
+    identityHint: 'Phone identity check and age 19+',
 
     // Leaving without saving
     leaveTitle: 'Leave without saving?',

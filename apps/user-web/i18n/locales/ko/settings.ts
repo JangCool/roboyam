@@ -14,6 +14,7 @@ export default {
     display: '시간 표시',
     displayHint: '언어·시간대·시간과 날짜 모양',
     accountHint: '로그인 수단·소셜 계정 연결',
+    identityHint: '휴대폰 본인인증·만 19세 확인',
 
     // 저장하지 않고 떠날 때
     leaveTitle: '저장하지 않고 나갈까요?',

@@ -8,7 +8,7 @@
 | 0-1 | 필드 암호화 키링(`DataCipher`)·중복 확인 해시(`BlindIndex`), 설치 스크립트·compose 의 새 키 | **구현됨**(아래) |
 | 0-2 | 배치 보강: 작업 core 를 shared `batch.core` 로, 실행 요청 표(「지금 실행」 비동기), 단계·건별 실패·체크포인트·재실행, 워커 기록 | **서버 구현·화면 연결됨**(아래) |
 | 0-3 | 관리자 2차 인증(TOTP) | **화면 확정·서버 구현·화면 연결됨**(아래 「0-3」, 규칙 테스트 통과) |
-| 0-4 | 본인인증·기능 제한·탈퇴 대비 표, 데이터 키 교체 배치 | 대기 — 0-1 필요, 화면 목업 먼저 |
+| 0-4 | 본인인증·기능 제한·탈퇴 대비 표, 데이터 키 교체 배치 | **화면 확정·서버 구현·화면 연결됨**(아래 「0-4」, 규칙 테스트 408 통과) — 포트원 브라우저 SDK 는 사용자 승인 대기 |
 | 0-5 | 멱등·속도 제한·요청 제한 설정, 커머스 메일 대기열, 권한 코드 11개, 감사 보관 분류(13-4) | 대기 — 0-2 의 워커 기록 필요 |
 순서: 0-1 → (0-2 ∥ 0-3) → (0-4 ∥ 0-5). 병행은 세션마다 worktree, 마이그레이션 번호는 develop 에 합치는 순서로 매긴다(`_backend-core.md`).
 
@@ -17,10 +17,11 @@
 |---|---|---|---|
 | V61 (V57 은 develop 의 알림 작업이 먼저 씀) | shared | `batch_runs` 칸(run_mode·params·건수·resumed_from_run_id·checkpoint·request_id), `batch_run_steps`, `batch_run_failures`, `batch_run_requests`, `worker_heartbeats` | 0-2 |
 | admin V3 | admin | `admin_security_settings`(1행·꺼짐), `operator_mfa`, `operator_mfa_recovery_codes`, `operator_trusted_devices` | 0-3 |
-| V58 | shared | `identity_verifications`, `identity_verification_attempts`, `member_restrictions`, `identity_withdrawals`, `withdrawn_member_contacts` | 0-4 |
-| V59 | shared | `idempotency_requests`, `request_rate_counters`(UNLOGGED), `request_rate_limits`(기본 4행) | 0-5 |
-| V60 | shared | `mail_outbox` | 0-5 |
+| 가번호 V62 | shared | `identity_verifications`, `identity_verification_attempts`, `member_restrictions`, `identity_withdrawals`, `withdrawn_member_contacts`, `portone_settings` | 0-4 |
+| 가번호 | shared | `idempotency_requests`, `request_rate_counters`(UNLOGGED), `request_rate_limits`(기본 4행) | 0-5 |
+| 가번호 | shared | `mail_outbox` | 0-5 |
 칸·제약·색인의 상세는 승인한 제안(세션 보고, 노트 `commerce-stage0-erd-package-proposal.md`)을 따르고 구현 세션이 이 표에 결과를 덧붙인다.
+- **번호(2026-10-23 정리)**: shared V57~V61 은 이미 쓰였다(V57~V60 알림 작업, V61 0-2). 0-4·0-5 는 가번호로 쓰고 **develop 에 먼저 합치는 쪽이 V62**, 나중 쪽은 합칠 때 다음 번호로 파일 이름을 바꾼다(이미 적용된 파일이 아니므로 고쳐도 된다).
 
 ## 세션 정리 결정 (제안 ⑥ — 모두 추천안으로 승인 2026-10-23)
 1. 본인인증 표 이름은 `identity_verifications`(문서의 `user_identity` 는 V2 `user_identities`(소셜 계정 연결)와 헷갈려 바꿨다).
@@ -40,6 +41,7 @@
 15. OTP 등록 QR 코드: admin-web 에 QR 라이브러리를 더한다(0-3 에서 라이브러리·버전을 정해 의존성 추가).
 16. 워커 멈춤 알람(19절)은 4단계 — 0단계는 `worker_heartbeats` 기록만.
 17. 메일 발송 워커는 배치를 켠 관리자 서버에서만 돈다 — 관리자 서버가 꺼지면 메일이 늦어질 뿐 사라지지 않는다(받아들임).
+18. **세션 정리 결정(0-4 ∥ 0-5, 2026-10-23)**: 새 권한 중 `member.withdrawn.contact` 는 **0-4** 가 서버 `Permission`·admin-web `util-permission-catalog.ts`·`operator-permissions.md` 유형 표에 더하고, 나머지 권한 10개와 감사 보관 분류(13-4, `AuditRetention`)는 **0-5** 가 맡는다. 0-4 의 새 감사 행위는 합칠 때 0-5 의 보관 분류표에 한 줄씩 넣는다(연락처 열람 = 개인정보 열람 분류). 겹치는 파일(`Permission`·`AuditActions`·`ErrorCode`·메시지 번들·`util-permission-catalog.ts`·`util-admin-menu.ts`)은 줄만 더한다.
 
 ## 0-1 구현 결과 (2026-10-23)
 - **`DataCipher`**(shared `zconfiguration.crypto`): AES-256-GCM, 암호문 `d<버전>:` + base64(IV 12 ‖ 암호문 ‖ 태그 16), 용도 이름(`DataPurpose`, 소문자로 시작하는 소문자·숫자·`.`·`-` 2~60자)을 AAD 로 묶는다 — 다른 칸에 옮긴 암호문·다른 용도로는 풀리지 않는다. `encrypt`·`decrypt`·`isCurrent`(지금 키인가 — 교체 배치가 고를 때, DB 에서는 `NOT LIKE 'd<버전>:%'`)·`reencrypt`·`activeVersion`.
@@ -174,6 +176,106 @@
 | 신뢰 기기 쿠키: https 면 Secure·HttpOnly·SameSite=Strict·path `/api/admin`·30일, 이 브라우저 기기/모두 끊으면 쿠키 지움, 다른 기기는 그대로 | `MfaTrustCookieHttpTest` |
 - 실행: `JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2 ./gradlew :server:admin:test --rerun --tests 'com.community.mfa.*' --tests 'com.community.permission.config.AdminMfaPendingDeclarationTest' --tests 'com.community.menu.service.AdminScreenRegistryLoginSecurityTest'` → **168 통과·0 실패**(develop b9df197 합친 뒤).
 - **테스트로 막지 못한 것**: 설치 스크립트의 실제 설치 폴더 동작(셸 — `bash -n` + 임시 postgres 에서 psql 부분만 손으로 확인), pg_cron 등록(시험 DB 에 없음 — 정의와 `CALL` 결과만), 운영 세션 쿠키 이름 `ADMIN_SESSION`(목 서블릿은 `SESSION`), 알림 메일·Slack 실제 발송(서랍 알림 행까지만), 운영 서버의 접근·프록시 로그.
+
+## 0-4 본인인증·기능 제한·탈퇴 대비 (화면 확정 2026-10-24)
+**의도**: 현금이 오가는 기능(충전·공구·유상 환불·가입 포인트) 앞에 본인인증(1인 1계정·만 19세)을 두고, 계정 정지와 따로 특정 기능만 막는 「기능 제한」과 탈퇴 대비 표(재가입 제한 해시·연락처 분리 보관)를 만든다. 정책 원천은 `commerce.md` 12-1·12-3·17-2·17-3·10-9, 여기는 화면·API·데이터 규칙만.
+
+### 화면
+- **user-web** `/settings/identity`(설정 › 본인인증): 미인증(용도·저장하는 것 안내, [휴대폰 본인인증 하기]) / 인증됨(인증 일시, 「만 19세 이상·미만」만 — 생년월일 전체는 안 보임, 다시 인증 없음) / 미성년(막는 안내 + `adultFrom`). 실패 안내: 이미 다른 계정·탈퇴 후 30일(`retryAfter`)·업체 오류·시간 지남, 창 닫기는 조용히.
+  - 결제 직전 확인 `useIdentityGate().ensure({ purpose: CHARGE|GROUP_BUY, requireAdult })`(대화상자는 `layouts/default.vue` 에 하나). 충전·공구 화면이 없어 시연은 `/dev/identity`(개발 모드만).
+  - 가짜 구현이면 「가짜 본인인증(개발용)」 대화상자(생년월일·사람 번호 — 같은 번호 = 같은 사람).
+  - 기능 제한 안내 부품 `FeatureRestrictionNotice`(403 `MEMBER_RESTRICTED` 의 `restriction`).
+- **admin-web 회원 상세 서랍**: 「본인 인증」 구획(인증 여부·시각·만 19세 이상·수단, 「준비 중」 뗌), 새 구획 「기능 제한」(「제재 이력」 앞, 진행 중 / 지난 제한, [제한 걸기]·[해제] = `sanction.manage`, 탈퇴 회원은 부여 단추 없음), 탈퇴 회원 기본 정보 아래 「연락용 이메일 · 분리 보관」(열람 = `member.withdrawn.contact` + 사유, 10분 뒤 다시 가림, 열람 기록).
+- **admin-web `/settings/portone`**(설정 › 시스템, 소셜 로그인 다음, 메뉴 `site.read`): 지금 구현(포트원/가짜, 배포 설정이라 읽기만), 「본인인증」 카드(상점 ID·API 비밀키·본인인증 채널 키 — **값은 안 보이고 설정 여부·시각·바꾼 사람만**), 저장·지우기 `site.secret`, 암호화 키 없음 경고.
+
+### 화면 확정 때 정한 것 (추천안 승인 2026-10-24)
+1. 같은 종류 기능 제한이 겹쳐도 막지 않는다(경고만) — 늦게 끝나는 쪽까지 막힌다.
+2. 해제 사유 필수(5~200자) — `member_restrictions.lift_reason` 칸을 더한다.
+3. 탈퇴 회원에게는 기능 제한을 걸 수 없다(화면은 단추 없음, 서버 409 `MEMBER_WITHDRAWN`).
+4. 탈퇴 연락처를 다시 가리는 시간은 10분 고정(배송지 열람 설정값은 2단계).
+5. 포트원 화면은 `/settings/portone` 따로(0-5 의 `/settings/commerce` 와 파일이 겹치지 않게). 메뉴를 0-5 의 「커머스」 묶음으로 옮길지는 develop 에 합칠 때 정한다.
+
+### API (공통 래퍼, 오류의 추가 값은 오류 본문 최상위 칸)
+| | 선언 | 요청 → 응답 |
+|---|---|---|
+| `GET /api/identity-verifications/me` | 회원 로그인 | `{ verified, verifiedAt, adult, adultFrom }`(미인증이면 `verified:false`, 나머지 null) |
+| `POST /api/identity-verifications` | 회원 로그인 | → `{ verificationId, provider: PORTONE\|FAKE, storeId?, channelKey? }` · 409 `IDENTITY_ALREADY_VERIFIED` · 503 `IDENTITY_NOT_CONFIGURED`(포트원인데 설정 칸이 빔) |
+| `POST /api/identity-verifications/{id}/confirm` | 회원 로그인 | 본문 `{ fake?: { birthDate, personKey } }`(가짜 구현에서만 읽음) → me 와 같은 모양 · 404 `IDENTITY_VERIFICATION_NOT_FOUND`(남의 번호 포함) · 410 `IDENTITY_VERIFICATION_EXPIRED`(발급 30분) · 409 `IDENTITY_ALREADY_LINKED` · 409 `IDENTITY_REVERIFY_BLOCKED`(+`retryAfter` YYYY-MM-DD, 서비스 시간대) · 409 `IDENTITY_ALREADY_VERIFIED` · 502 `IDENTITY_PROVIDER_FAILED` · 400 `VALIDATION` |
+| `GET /api/admin/members/{memberId}` | `member.read` | 응답에 `identity: { verified, verifiedAt, adult, provider } \| null`(탈퇴 회원 null) |
+| `GET /api/admin/members/{memberId}/restrictions` | `member.read` | `[{ id, type, status: ACTIVE\|EXPIRED\|LIFTED, source: AUTO\|OPERATOR, autoRule, reason, adminMemo, startsAt, until, createdBy{id,name}?, createdAt, liftedBy?, liftedAt, liftReason }]` 진행 중 먼저 |
+| `POST …/restrictions` | `sanction.manage` | `{ type, until\|null, reason(5~200), adminMemo(~1000) }` → 만든 한 건 · 409 `MEMBER_WITHDRAWN` · 400 `VALIDATION`(until 이 지금 이전 등) |
+| `POST …/restrictions/{id}/lift` | `sanction.manage` | `{ reason(5~200) }` → 한 건 · 404 `RESTRICTION_NOT_FOUND` · 409 `RESTRICTION_NOT_ACTIVE` |
+| `GET /api/admin/members/{memberId}/withdrawn-contact` | `member.read` | `{ stored, withdrawnAt, purgeAfter, reveals: [{ operatorName, revealedAt, reason }] }`(이메일 없음) |
+| `POST …/withdrawn-contact/reveal` | `member.withdrawn.contact` | `{ reason(5~200) }` → `{ email, maskAt }`(`no-store`) · 404 `WITHDRAWN_CONTACT_NOT_FOUND` |
+| `GET /api/admin/portone-settings` | `site.read` | `{ identityProvider, cryptoKeyConfigured, identityReady, fields: [{ key: storeId\|apiSecret\|identityChannelKey, configured, updatedAt, updatedBy }] }` — 값은 없다 |
+| `PUT /api/admin/portone-settings/identity` | `site.secret` | `{ storeId?, apiSecret?, identityChannelKey? }`(보낸 칸만) → GET 과 같은 모양 · 503 `CRYPTO_KEY_MISSING` · 400 `VALIDATION` |
+| `DELETE /api/admin/portone-settings/identity/{key}` | `site.secret` | 204 · 404 `PORTONE_FIELD_NOT_FOUND` |
+
+### 데이터·업무 규칙
+- **본인인증(12-1, 결정 1·2·3)**: 서버가 인증 번호를 먼저 발급(`identity_verification_attempts`, 회원·구현·상태·만든 시각)하고, 확정 때 그 번호로 업체 결과를 조회한다(포트원 `GET /identity-verifications/{id}`, 상태 VERIFIED 만). DI·CI 는 `BlindIndex`(용도 `identity.di`·`identity.ci`)로 해시만 저장하고 **각각 유일**, 원문·이름·휴대폰 번호는 저장하지 않는다. `provider_tx_id` 유일(같은 인증 결과 재사용 불가). 다른 회원에 묶인 DI 또는 CI 면 409 `IDENTITY_ALREADY_LINKED`(동시에 들어와도 유일 제약이 막는다).
+- **재인증 30일 제한(12-1·17-2)**: `identity_withdrawals` 에 같은 종류(`IDENTITY_DI`·`IDENTITY_CI`)·해시가 `expires_at > 지금` 으로 있으면 409 `IDENTITY_REVERIFY_BLOCKED` + `retryAfter`. 기간은 설정값(기본 30일, 탈퇴 때 `expires_at` 으로 박는다). 기록 API(`IdentityWithdrawalRecorder`)는 지금 만들고 부르는 곳은 탈퇴 기능 때(결정 14).
+- **만 19세(12-1)**: 서비스 시간대의 오늘 기준 만 나이. `adultFrom` = 19번째 생일(2월 29일생은 평년에 3월 1일 — 민법 기간 계산). `requireAdult(userId)` → 미인증 403 `IDENTITY_REQUIRED`, 미성년 403 `IDENTITY_UNDERAGE`(+`adultFrom`). 생일이 지나면 다시 인증하지 않아도 통과.
+- **구현 선택(결정 9)**: `roboyam.identity.provider` = `portone` | `fake`(공통 설정, local 기본 fake). **dev·prod 프로필에서 fake 면 기동을 멈춘다.** 포트원 설정은 `portone_settings`(키별 `SecretEncryptor` 암호문·바꾼 시각·바꾼 사람), 감사에 값 없이 칸 이름만.
+- **기능 제한(12-3)**: `member_restrictions`(+ `lift_reason`, `auto_rule`). 진행 중 = 해제 안 됨 ∧ 시작 ≤ 지금 ∧ (끝 없음 ∨ 끝 > 지금). 막는 것: `POINT_FREEZE` = 포인트 적립·사용·충전(충전 포인트 환불 신청은 허용), `GROUP_BUY_BAN` = 새 공구 참여, `CHARGE_BAN` = 새 충전. `MemberRestrictionService.assertAllowed(userId, 기능)` → 403 `MEMBER_RESTRICTED` + `restriction{type, until(같은 종류 중 가장 늦은 끝, 무기한이 있으면 null), reason}`(운영 메모 없음). 지금 있는 포인트 적립은 동결이면 **조용히 건너뛴다**(글쓰기는 성공). 자동 부여 `grantAuto(userId, GROUP_BUY_BAN, 24시간, GROUP_BUY_HOLD_EXPIRED)` — 같은 종류가 그보다 늦게까지 진행 중이면 만들지 않는다. 해제는 조건부 UPDATE(이미 해제·만료면 409). 부여·해제 모두 감사, 부여 때 회원 알림(종류·끝·공개 사유 — 운영 메모 없음). `hasActive(userId)` 는 탈퇴 전 검증(17-1)이 쓴다.
+- **탈퇴 연락처(17-2)**: `withdrawn_member_contacts`(회원 번호 PK, 이메일 `DataCipher` 암호문 — 용도 `member.withdrawn-contact.email`, 탈퇴 시각, `purge_after` = 마지막 거래일 + 5년). 일반 회원 조회 쿼리는 이 표를 읽지 않는다. 열람은 권한 + 사유 → **감사(`WITHDRAWN_CONTACT_REVEAL`, 사유 포함·이메일 없음)를 같은 트랜잭션에 남긴 뒤에만** 값을 준다. 열람 기록은 감사에서 읽는다.
+- **정리 DB 배치 `member-privacy-retention`**(shared `R__`, 매일): 만료된 재가입 제한 해시(`expires_at ≤ 지금`), 파기 예정일이 지난 연락처, 30일(설정값) 지난 인증 시도.
+- **데이터 키 교체 Java 배치 `data-key-rotation`**(shared `batch.core`, 수동 실행 위주): `DataCipher` 를 쓰는 칸 목록(지금은 연락처 이메일)마다 단계 하나, 지금 키가 아닌 암호문(`NOT LIKE 'd<버전>:%'`)을 키셋으로 덩어리 처리 → `reencrypt` → 조건부 UPDATE(읽은 값 그대로일 때만). 체크포인트로 이어 받기, 풀 수 없는 행은 건별 실패.
+- **권한**: `member.withdrawn.contact`(SENSITIVE, 유형 `MEMBER_VIEW`, featureReady true).
+- **감사 행위**: `MEMBER_RESTRICTION_GRANT`(운영자·`SYSTEM` 자동 — detail `source`·`type`·`until`·`autoRule`) · `MEMBER_RESTRICTION_LIFT` · `WITHDRAWN_CONTACT_REVEAL` · `PORTONE_SETTINGS_UPDATE`(바꾼 칸 이름) · `PORTONE_SETTINGS_DELETE`. 본인인증 성공·실패는 회원 행동이라 감사가 아니라 인증 시도 표에 남긴다.
+
+### 0-4 서버 구현 결과 (2026-10-26)
+- **코드**: shared `com.community.identity`(`IdentityVerifier` — `PortOneIdentityVerifier`·`FakeIdentityVerifier`, `IdentityConfig` 기동 검사, `IdentityVerificationService`, `AdultAge`, JDBC `IdentityStore`) · `restriction`(`MemberRestrictionService`·`MemberRestrictionStore`, `RestrictionType`·`RestrictedFeature`) · `withdrawal`(`IdentityWithdrawalRecorder`·`WithdrawnContactStore`) · `portone`(`PortOneSettingsService`·`PortOneSettingStore`) · `datakey.batch`(`DataKeyRotationJob`·`DataKeyColumns`) · `zconfiguration.time.ServiceTime`(서비스 날짜 KST). api `IdentityVerificationController`. admin `MemberRestrictionController`·`WithdrawnContactController`·`PortOneSettingsController`, 회원 상세 `identity`, `AdminScreenRegistry` `portone`, `AuditLabels` `PORTONE_SETTINGS`.
+- **마이그레이션**(가번호 — 합칠 때 다시 매김): shared `V…__member_identity_restrictions.sql`(표 6개 + `member_notifications.type` CHECK 에 `FEATURE_RESTRICTED`), `R__batch_…_member_privacy_retention.sql`(매일 04:20, 덩어리 5000·한 번 100000, `attempt_retention_days` 30). 새 표는 FK 없음, ID Snowflake(인증 번호 `iv-<snowflake>`).
+- **계약에 더한 것**
+  - 오류 추가 값: `CommonException.extra(이름, 값)` → `ErrorResponse` 가 최상위 칸으로 낸다(`@JsonAnyGetter`, 정해진 칸 이름은 못 씀).
+  - 본인인증: 서비스 날짜는 KST 고정(`ServiceTime`). `retryAfter` = 막힘이 끝나는 순간을 KST 날짜로 올림. 끝난 번호(실패 포함)·구현이 바뀐 뒤의 번호는 410. 입력 400·503 은 시도를 끝내지 않는다. 시도 실패 기록은 업무 트랜잭션과 따로 확정. 해시 키가 없으면 시작부터 503 `INDEX_KEY_MISSING`(저장 못 할 유료 인증을 열지 않게). 포트원 READY(미완료)도 502 로 끝. `provider_tx_id` = 포트원 인증 번호 / 가짜 `fake:<번호>`.
+  - 기능 제한: 걸기 201. 자동 부여는 `reason` NULL — 화면·알림에 번들 `restriction.autoRule.<규칙>.reason`. 두 종류가 같은 기능을 막으면(충전 = 동결·충전 제한) 늦게 끝나는 쪽을 싣는다. `grantAuto` 는 회원별 `pg_advisory_xact_lock`, 탈퇴·없는 회원은 건너뜀. 감사의 무기한은 `indefinite:true`. 회원 알림 `FEATURE_RESTRICTED`(SAFETY, 끌 수 없음).
+  - 회원 상세 `identity`: 미인증 `{verified:false, …null}`, null 은 탈퇴 회원뿐.
+  - 연락처: 탈퇴 안 한 회원 GET 은 `stored:false`, reveal 은 404(감사 없음). `purgeAfter` 는 서비스 날짜. 값을 푸는 길은 `reveal` 하나뿐(감사 먼저). 분리 보관 표를 읽는 main 코드는 허용 목록(`WithdrawnContactRows`·`DataKeyColumns`)뿐 — 소스 검사 테스트.
+  - 포트원: 칸 지우기는 값만 NULL(마지막 변경 표시 유지). 연락처·포트원 응답 `no-store`.
+  - 키 교체 배치 `data-key-rotation`: Java, **예약 기본 꺼짐**(cron `0 0 5 * * *` 자리만), 칸마다 단계(`withdrawn-contact-email`), 풀 수 없는 행 `DATA_KEY_UNREADABLE` 건별 실패(키 버전만), 읽은 뒤 바뀐 행은 건너뜀, 지금 키 없으면 실행 FAIL.
+  - 설정: `roboyam.identity.provider`(공통 portone, local fake)·`verification-ttl`(30m), `roboyam.withdrawal.rejoin-block-days`(30)·`contact-retention-years`(5).
+
+### 0-4 규칙 → 테스트
+| 규칙 | 테스트 |
+|---|---|
+| 서버가 인증 번호 먼저 발급, 이미 인증 409 | `IdentityVerificationFlowTest.시작`, `IdentityHttpTest` |
+| DI·CI 해시만 저장(원문·이름·번호 없음), me 상태 | `IdentityVerificationFlowTest.확정` |
+| 남의·없는 번호 404, 30분 만료 410(직전 통과), 끝난 번호 재사용 불가, 입력 400 은 시도 유지 | `IdentityVerificationFlowTest.확정`, `IdentityHttpTest`, `FakeIdentityVerifierTest` |
+| 1인 1계정(DI 만·CI 만 같아도), 동시 확정 하나만(서비스 + 유일 제약) | `IdentityVerificationFlowTest.일인_일계정`, `MemberIdentitySchemaTest` |
+| 재인증 30일 제한 + `retryAfter`, 30일 뒤 통과, DI·CI 어느 쪽이든 | `IdentityVerificationFlowTest.탈퇴_후_재인증_제한`, `IdentityHttpTest` |
+| 만 19세(KST 날짜 경계), 2월 29일생 = 3월 1일, 생일 뒤 재인증 없이 통과, 미인증 403 | `AdultAgeTest`, `ServiceTimeTest`, `IdentityVerificationFlowTest.만_19세` |
+| 포트원 조회 모양·VERIFIED 만·오류 502·로그에 비밀값/CI/DI 없음·설정 없음 503 | `PortOneIdentityVerifierTest`, `PortOneIdentitySettingsTest` |
+| dev·prod 에서 fake 면 기동 실패, 공통 기본 portone·local fake | `IdentityConfigTest` |
+| 해시 키 없으면 503 | `IdentityKeyMissingTest` |
+| 오류 추가 값 최상위 칸, 기존 모양 유지 | `ErrorResponseExtrasTest`, `IdentityHttpTest` |
+| 막는 것 표(충전 포인트 환불 신청은 허용), 403 + `restriction`(가장 늦은 끝·무기한 null·메모 없음), 끝 시각에 풀림, 겹침 허용 | `RestrictionTypeTest`, `MemberRestrictionTest.막는_것` |
+| 운영자 부여 검증·탈퇴 409·감사·알림(메모 없음), 알림 문구 | `MemberRestrictionTest.운영자_부여`·`회원_알림_문구`, `MemberRestrictionHttpTest.걸기` |
+| 자동 부여 24시간·SYSTEM 감사·더 늦은 진행 중이면 생략·동시 하나만·탈퇴 생략 | `MemberRestrictionTest.자동_부여` |
+| 해제 사유 5~200·조건부·409/404·동시 하나만·감사 | `MemberRestrictionTest.해제`, `MemberRestrictionHttpTest.해제` |
+| 목록 진행 중 먼저·상태 판정·`hasActive` | `MemberRestrictionTest.목록` |
+| 포인트 동결이면 적립을 조용히 건너뜀(글쓰기 성공) | `PointFreezeEarnTest` |
+| 재가입 해시(이메일 정규화·30일·소셜 구분·본인인증 해시 옮김) | `WithdrawalPreparationTest.재가입_제한_해시` |
+| 연락처 데이터 키 암호화·파기 예정일 = 마지막 거래 + 5년 | `WithdrawalPreparationTest.탈퇴_회원_연락처` |
+| 열람: 전용 권한(`member.pii` 로는 안 됨)·사유·감사 먼저(이메일 없음)·10분·`no-store`·열람 기록·404 | `WithdrawnContactHttpTest`, `WithdrawalPreparationTest`, `WithdrawnContactStoreTest` |
+| 일반 조회가 분리 보관 표를 읽지 않음 | `WithdrawnContactStoreTest` |
+| 표의 유일 제약·CHECK·FK 없음 | `MemberIdentitySchemaTest` |
+| 정리 배치(만료 해시·파기 연락처·30일 시도, 설정값) | `MemberPrivacyRetentionBatchTest` |
+| 회원 상세 identity(생년월일·해시 없음, 탈퇴 null) | `MemberDetailIdentityTest` |
+| 포트원 설정: 값이 응답·감사에 없음·암호문 저장·권한 `site.read`/`site.secret`·지우기·404·암호화 키 없음 503 | `PortOneSettingsHttpTest`, `PortOneCryptoKeyMissingHttpTest`, `PortOneSettingsServiceTest` |
+| 새 핸들러 권한 선언·권한별 403 | `Commerce04PermissionDeclarationTest`, `MemberRestrictionHttpTest.권한` |
+| 권한 `member.withdrawn.contact`(MEMBER_VIEW·SENSITIVE)·admin-web 사본 일치·메뉴 줄·감사 대상 | `Commerce04AdminCatalogTest`, `AdminScreenRegistryLoginSecurityTest` |
+| 오류 코드·감사·배치·알림 이벤트 문구 두 언어 | `Commerce04CatalogTest` |
+| 키 교체: 새 키로·지금 키는 안 건드림·조건부 UPDATE·건별 실패·체크포인트 이어 받기·0-1 절차 끝까지(예전 키 뺀 서버에서 읽힘) | `DataKeyRotationJobTest` |
+- **실행**(2026-10-26): `JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2 ./gradlew --continue :server:shared:test --rerun --tests 'com.community.{commerce,identity,restriction,withdrawal,portone,zconfiguration,batch.core,datakey,testsupport}.*' :server:api:test --rerun --tests 'com.community.{identity,restriction,point,withdrawal}.*' :server:admin:test --rerun --tests 'com.community.{commerce,permission.config,menu,batch,mfa}.*'`(패턴은 하나씩 `--tests`) → **shared 133 · api 67 · admin 208(0-3 의 mfa 168 포함) 통과, 0 실패**. admin-web·user-web 타입 검사 통과.
+- **테스트로 막지 못한 것**: 실제 포트원 호출(응답 모양·`storeId` 쿼리 필요 여부·다날/KCP 의 ci·di·인증 번호 길이 제한은 포트원 V2 문서 기준으로 만들고 실제 호출로 확인하지 못함 — 대역 HTTP 로만), pg_cron 등록(시험 DB 에 없음 — 정의와 `CALL` 만), 기능 제한 알림 메일 실제 발송(알림함 행·문구까지), 운영 키 교체의 재기동(시험은 `DataCipher` 를 키별로 새로 만들어 대신), 포트원 설정 동시 저장(마지막 저장이 이김 — 시험 안 함), 화면(타입 검사만 — 브라우저 확인은 개발자).
+
+### 0-4 화면 연결 (2026-10-26)
+- 목업 파일·`?mock=` 스위치를 지우고 실제 API 로 바꿨다. 오류 추가 값은 기존 `ApiError.extras` 가 최상위 칸을 그대로 읽는다.
+- **포트원 브라우저 SDK 는 넣지 않았다**(새 의존성 — 사용자 승인 필요). 서버가 PORTONE 이면 화면은 「포트원 인증창은 아직 연결되지 않았어요」로 끝난다(`useIdentity.ts` `TODO(포트원 SDK)`). local 은 FAKE 라 끝까지 된다.
+- `/dev/identity`: 인증을 되돌리는 API 가 없어 상태 바꾸기 대신 실제 상태 보기·다시 받기. 기능 제한 안내는 403 을 주는 공개 API(충전·공구)가 아직 없어 화면에서 만든 오류로 미리 보기.
+- 403 `IDENTITY_REQUIRED`·`IDENTITY_UNDERAGE`·`MEMBER_RESTRICTED` 를 받는 화면은 충전·공구 화면이 생길 때 `useIdentityGate`·`FeatureRestrictionNotice` 로 붙인다.
+- user-web 회원 알림 종류에 `FEATURE_RESTRICTED`(아이콘 `pi pi-ban`).
 
 ## 미확정
 - 이미 설치된 환경(설치 스크립트로 깐 곳)에는 새 키가 자동으로 들어가지 않는다 — 업그레이드 스크립트가 없어 운영자가 `.env` 에 직접 넣는다(넣지 않아도 앱은 뜨고 커머스 개인정보 요청만 503).

@@ -12,6 +12,7 @@ import board from './board';
 import dashboard from './dashboard';
 import error from './error';
 import grade from './grade';
+import identity from './identity';
 import login from './login';
 import mail from './mail';
 import notificationMessage from './notificationMessage';
@@ -24,7 +25,10 @@ import notification from './notification';
 import operator from './operator';
 import permission from './permission';
 import point from './point';
+import portone from './portone';
 import profile from './profile';
+import reason from './reason';
+import restriction from './restriction';
 import role from './role';
 import section from './section';
 import settingHistory from './settingHistory';
@@ -32,6 +36,7 @@ import shell from './shell';
 import site from './site';
 import social from './social';
 import team from './team';
+import withdrawnContact from './withdrawnContact';
 
 export default {
     account,
@@ -41,6 +46,7 @@ export default {
     dashboard,
     error,
     grade,
+    identity,
     login,
     mail,
     notificationMessage,
@@ -53,7 +59,10 @@ export default {
     operator,
     permission,
     point,
+    portone,
     profile,
+    reason,
+    restriction,
     role,
     section,
     settingHistory,
@@ -61,4 +70,5 @@ export default {
     site,
     social,
     team,
+    withdrawnContact,
 };

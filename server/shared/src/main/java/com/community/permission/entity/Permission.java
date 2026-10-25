@@ -48,6 +48,8 @@ public enum Permission {
     KEEPER_ACTION_RESTORE("keeper-action.restore", STAFF_AUDIT, SENSITIVE, false),
     MEMBER_READ("member.read", MEMBER_VIEW, READ, true),
     MEMBER_PII("member.pii", MEMBER_VIEW, SENSITIVE, true),
+    /** 탈퇴 회원 연락용 이메일(분리 보관) 열람 — 사유 + 감사(commerce.md 17-2, 커머스 0-4) */
+    MEMBER_WITHDRAWN_CONTACT("member.withdrawn.contact", MEMBER_VIEW, SENSITIVE, true),
     NICKNAME_IMAGE_READ("nickname-image.read", NICKNAME_IMAGE, READ, false),
     NICKNAME_IMAGE_MANAGE("nickname-image.manage", NICKNAME_IMAGE, MANAGE, false),
     GRADE_READ("grade.read", GRADE_POINT, READ, true),

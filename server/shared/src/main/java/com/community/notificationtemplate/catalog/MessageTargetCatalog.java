@@ -177,6 +177,9 @@ public final class MessageTargetCatalog {
                 new InAppText("member.notification.POST_HIDDEN.title", null, "{{postTitle}}", List.of()), "/me/posts", List.of(hide)));
         out.add(member(MemberEvent.COMMENT_HIDDEN, List.of(MessageVariable.of("excerpt", "hiddenCommentExcerpt")),
                 new InAppText("member.notification.COMMENT_HIDDEN.title", null, "{{excerpt}}", List.of()), "/me/comments", List.of(hide)));
+        out.add(member(MemberEvent.FEATURE_RESTRICTED, List.of(MessageVariable.of("restriction", "restrictionFeature"), MessageVariable.of("until", "restrictionUntil"),
+                MessageVariable.of("reason", "restrictionReason")),
+                new InAppText("member.notification.FEATURE_RESTRICTED.title", null, "{{reason}}", List.of("restriction", "until")), "/me/notifications", List.of()));
         return out;
     }
 

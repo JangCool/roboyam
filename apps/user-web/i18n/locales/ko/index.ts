@@ -16,6 +16,7 @@ import comment from './comment';
 import commerce from './commerce';
 import dev from './dev';
 import error from './error';
+import identity from './identity';
 import install from './install';
 import login from './login';
 import mail from './mail';
@@ -27,6 +28,7 @@ import post from './post';
 import profile from './profile';
 import prompt from './prompt';
 import provider from './provider';
+import restriction from './restriction';
 import sanction from './sanction';
 import settings from './settings';
 import shell from './shell';
@@ -44,6 +46,7 @@ export default {
     commerce,
     dev,
     error,
+    identity,
     install,
     login,
     mail,
@@ -55,6 +58,7 @@ export default {
     profile,
     prompt,
     provider,
+    restriction,
     sanction,
     settings,
     shell,

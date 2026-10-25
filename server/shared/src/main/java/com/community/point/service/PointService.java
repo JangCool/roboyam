@@ -3,6 +3,8 @@ package com.community.point.service;
 import com.community.point.dto.PointRules;
 import com.community.point.entity.PointReason;
 import com.community.point.repository.master.PointLedgerWriter;
+import com.community.restriction.entity.RestrictionType;
+import com.community.restriction.service.MemberRestrictionService;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.jpa.IsolatedSideWork;
 import java.time.Instant;
@@ -21,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>적립</b>({@link #earn}·{@link #likeBonus}): 글·댓글·추천 트랜잭션 안에서 부른다. <b>적립 실패가 글쓰기를 깨지 않는다</b> — {@link IsolatedSideWork}(세이브포인트) 안에서 하고
  *       실패하면 0 이다(로그만). community 는 같은 트랜잭션으로 묶어 실패하면 글도 되돌렸지만 roboyam 은 「적립 실패가 글쓰기를 깨지 않게」로 정했다(계약 가정).</li>
  *   <li><b>하루 상한</b>은 한국 시간 0시부터 그 사유로 <b>지급한 횟수</b>(원장 줄) — 지운 글·댓글도 센다. 상한에 닿으면 글은 그대로 올라가고 포인트만 없다. 잔액 행 잠금 아래에서 세므로 동시 요청도 넘지 않는다.</li>
- *   <li><b>받는 사람</b>: 정상(ACTIVE) 회원만. 같은 대상에 두 번 지급·회수하지 않는다(멱등 — 원장 유일 색인이 마지막 방어).</li>
+ *   <li><b>받는 사람</b>: 정상(ACTIVE) 회원만 — <b>포인트 동결</b>(기능 제한 POINT_FREEZE, commerce.md 12-3) 중이면 적립을 조용히 건너뛴다(글쓰기는 성공). 같은 대상에 두 번 지급·회수하지 않는다(멱등 — 원장 유일 색인이 마지막 방어).</li>
  *   <li><b>회수</b>({@link #revokeContent}): 지운 글·댓글의 <b>실제로 지급했던 양</b>만(글·댓글 포인트 + 그 대상이 받은 추천 보너스), <b>0P 까지만</b>(마이너스 없음), 반영 0 이면 줄을 만들지 않는다.
  *       본인 삭제라 알림은 없다. 숨김은 회수하지 않는다.</li>
  *   <li><b>조정</b>({@link #adjust}): 운영자의 명시적 조치 — 정지 회원에게도 한다. 차감은 0P 까지라 반영값이 요청보다 작을 수 있다. 이 일 자체가 업무라 격리하지 않는다(실패하면 요청이 실패한다).</li>
@@ -40,12 +42,14 @@ public class PointService {
     private final PointPolicy policy;
     private final IsolatedSideWork isolated;
     private final SnowflakeIdGenerator ids;
+    private final MemberRestrictionService restrictions;
 
-    public PointService(PointLedgerWriter ledger, PointPolicy policy, IsolatedSideWork isolated, SnowflakeIdGenerator ids) {
+    public PointService(PointLedgerWriter ledger, PointPolicy policy, IsolatedSideWork isolated, SnowflakeIdGenerator ids, MemberRestrictionService restrictions) {
         this.ledger = ledger;
         this.policy = policy;
         this.isolated = isolated;
         this.ids = ids;
+        this.restrictions = restrictions;
     }
 
     /** 조정 결과 — {@code applied} 는 실제 반영값(부호 포함, 0 이면 원장 줄 없음) */
@@ -141,10 +145,14 @@ public class PointService {
 
     // ── 안쪽 ────────────────────────────────────────────────────────────────
 
-    /** 잔액 행을 잠근 뒤: 받을 수 있는 회원인가 → 이미 지급했나 → 하루 상한 → 지급 */
+    /** 잔액 행을 잠근 뒤: 받을 수 있는 회원인가(정상 회원 · 포인트 동결 아님) → 이미 지급했나 → 하루 상한 → 지급 */
     private long grant(long userId, PointReason reason, String refType, long refId, int amount, int cap) {
         Instant now = Instant.now();
         if (!ledger.earnable(userId)) {
+            return 0L;
+        }
+        if (restrictions.hasActive(userId, RestrictionType.POINT_FREEZE)) {
+            log.debug("포인트 동결 중이라 지급하지 않는다 userId={} reason={}", userId, reason); // 글쓰기는 그대로 성공한다(commerce.md 12-3, 계약 「0-4」)
             return 0L;
         }
         long balance = ledger.lockBalance(userId, now);
