@@ -70,9 +70,9 @@ class MoneyRequestGuardTest {
     void 처음_요청은_업무를_하고_같은_키_같은_본문의_다시_보내기는_업무_없이_같은_data_와_재전송_머리글() {
         String key = UUID.randomUUID().toString();
         AtomicInteger calls = new AtomicInteger();
-        ResponseEntity<ApiResponse<Object>> first = guard.handle(userId, key, RequestAction.SHOP_PURCHASE, new Purchase(3, 1),
+        ResponseEntity<ApiResponse<Object>> first = guard.handle(userId, key, RequestAction.POINT_SHOP_PURCHASE, new Purchase(3, 1),
                 () -> new Result(1000 + calls.incrementAndGet(), "PAID"));
-        ResponseEntity<ApiResponse<Object>> again = guard.handle(userId, key, RequestAction.SHOP_PURCHASE, new Purchase(3, 1),
+        ResponseEntity<ApiResponse<Object>> again = guard.handle(userId, key, RequestAction.POINT_SHOP_PURCHASE, new Purchase(3, 1),
                 () -> new Result(1000 + calls.incrementAndGet(), "PAID"));
 
         assertThat(first.getStatusCode().value()).isEqualTo(200);
@@ -87,18 +87,18 @@ class MoneyRequestGuardTest {
     @Test
     void 같은_키에_다른_본문이면_409_P26() {
         String key = UUID.randomUUID().toString();
-        guard.handle(userId, key, RequestAction.SHOP_PURCHASE, new Purchase(3, 1), () -> new Result(1, "PAID"));
-        assertThatThrownBy(() -> guard.handle(userId, key, RequestAction.SHOP_PURCHASE, new Purchase(3, 2), () -> new Result(2, "PAID")))
+        guard.handle(userId, key, RequestAction.POINT_SHOP_PURCHASE, new Purchase(3, 1), () -> new Result(1, "PAID"));
+        assertThatThrownBy(() -> guard.handle(userId, key, RequestAction.POINT_SHOP_PURCHASE, new Purchase(3, 2), () -> new Result(2, "PAID")))
                 .isInstanceOf(IdempotencyKeyReusedException.class);
     }
 
     @Test
     void 헤더가_없으면_400_IDEMPOTENCY_KEY_REQUIRED_형식이_틀리면_400_IDEMPOTENCY_KEY_INVALID() {
-        assertThatThrownBy(() -> guard.handle(userId, null, RequestAction.SHOP_PURCHASE, Map.of(), () -> "x"))
+        assertThatThrownBy(() -> guard.handle(userId, null, RequestAction.POINT_SHOP_PURCHASE, Map.of(), () -> "x"))
                 .isInstanceOf(IdempotencyKeyRequiredException.class)
                 .satisfies(e -> assertThat(((IdempotencyKeyRequiredException) e).getStatus().value()).isEqualTo(400));
-        assertThatThrownBy(() -> guard.handle(userId, "  ", RequestAction.SHOP_PURCHASE, Map.of(), () -> "x")).isInstanceOf(IdempotencyKeyRequiredException.class);
-        assertThatThrownBy(() -> guard.handle(userId, "bad key!", RequestAction.SHOP_PURCHASE, Map.of(), () -> "x")).isInstanceOf(IdempotencyKeyInvalidException.class);
+        assertThatThrownBy(() -> guard.handle(userId, "  ", RequestAction.POINT_SHOP_PURCHASE, Map.of(), () -> "x")).isInstanceOf(IdempotencyKeyRequiredException.class);
+        assertThatThrownBy(() -> guard.handle(userId, "bad key!", RequestAction.POINT_SHOP_PURCHASE, Map.of(), () -> "x")).isInstanceOf(IdempotencyKeyInvalidException.class);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM request_rate_counters WHERE user_id = ?", Integer.class, userId))
                 .as("헤더가 없거나 비어 있으면 세기 전에 거절한다").isLessThanOrEqualTo(1);
     }

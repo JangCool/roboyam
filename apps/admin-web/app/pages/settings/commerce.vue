@@ -105,7 +105,7 @@ const baseId = useId();
 const idOf = (action: RequestLimitAction) => `${baseId}-${action}`;
 
 const saved = ref<RequestLimitsView | null>(null);
-const form = ref<RequestLimitForm>({ GROUPBUY_JOIN: '', POINT_CHARGE: '', SHOP_PURCHASE: '', REFUND_REQUEST: '' });
+const form = ref<RequestLimitForm>({ GROUPBUY_JOIN: '', POINT_CHARGE: '', POINT_SHOP_PURCHASE: '', REFUND_REQUEST: '' });
 const loading = ref(false);
 const loadError = ref<ApiError | null>(null);
 const saving = ref(false);

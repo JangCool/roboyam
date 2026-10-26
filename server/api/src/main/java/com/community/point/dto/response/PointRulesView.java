@@ -7,8 +7,8 @@ package com.community.point.dto.response;
  * @param post                글 포인트
  * @param comment             댓글 포인트
  * @param popularReward       인기글 보상 규칙(기능은 아직 없다)
- * @param nicknameTicketPrice 닉네임 변경권 가격(교환 기능은 아직 없다)
+ * @param nicknameTicketPrice 닉네임 변경권 한 장 값 — 포인트 상점 변경권 품목 가격(커머스 1-2 결정 2), 품목이 없으면 null
  * @param likeBonus           추천 받음 보너스 규칙 — {@code points}·{@code dailyCap} 이 0 이면 꺼짐
  */
-public record PointRulesView(int attendance, int post, int comment, PopularRewardRuleView popularReward, int nicknameTicketPrice, LikeBonusRuleView likeBonus) {
+public record PointRulesView(int attendance, int post, int comment, PopularRewardRuleView popularReward, Integer nicknameTicketPrice, LikeBonusRuleView likeBonus) {
 }

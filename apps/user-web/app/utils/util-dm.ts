@@ -358,6 +358,9 @@ export default class UtilDm {
             role: partner.role,
             ipMasked: null,
             memo: partner.memo,
+            // 닉네임 색(포인트 상점) — 탈퇴한 상대는 장식 없음
+            decoration: partner.withdrawn ? null : (partner.decoration ?? null),
+            avatarUrl: partner.withdrawn ? null : partner.avatarUrl,
         };
     }
 

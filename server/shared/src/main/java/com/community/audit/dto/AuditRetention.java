@@ -11,7 +11,7 @@ import java.util.Set;
  * (테스트 {@code AuditRetentionTest} 가 빠진 행위를 막는다). 표에 없는 행위(과거 기록의 옛 이름 등)는 일반 운영으로 남긴다.
  *
  * <ul>
- *   <li>돈 관련(5년): 돈이나 포인트가 움직이는 일 — 지금은 포인트 수동 조정. 감사 보관 기간을 바꾼 기록도 같이 오래 남긴다(기록을 지우는 범위를 정한 일이라).
+ *   <li>돈 관련(5년): 돈이나 포인트가 움직이는 일 — 지금은 포인트 수동 조정·포인트 상점 예외 환불. 감사 보관 기간을 바꾼 기록도 같이 오래 남긴다(기록을 지우는 범위를 정한 일이라).
  *       환불 실행·대사 불일치 처리·판매 켜기/끄기·충전 환불 승인·송금 완료는 그 기능(1~3단계)이 행위를 더할 때 여기에 넣는다.</li>
  *   <li>개인정보 열람·내려받기(2년): 개인정보가 보이는 화면을 연 일 — 지금은 회원 상세 열람({@code MEMBER_VIEW}, 이메일 전체 보기 포함).
  *       탈퇴 회원 연락처 열람({@code WITHDRAWN_CONTACT_REVEAL}, 0-4)도 여기다. 배송지 열람·배송 명단 내려받기는 그 기능이 더할 때 넣는다.</li>
@@ -24,7 +24,11 @@ public final class AuditRetention {
             AuditActions.POINT_ADJUST,
             AuditActions.AUDIT_RETENTION_UPDATE,
             // 포트원(결제·본인인증 PG) 설정 저장·삭제 — 결제를 받는 경로를 바꾸는 일이라 돈 관련(사용자 확정 2026-10-26, commerce-foundation-contract 「0-5」)
-            AuditActions.PORTONE_SETTINGS_UPDATE, AuditActions.PORTONE_SETTINGS_DELETE);
+            AuditActions.PORTONE_SETTINGS_UPDATE, AuditActions.PORTONE_SETTINGS_DELETE,
+            // 포인트 상점 구매 예외 환불 — 포인트가 움직이는 일(commerce-stage1-contract 「B」·「패키지」)
+            AuditActions.POINT_SHOP_REFUND,
+            // 정지 중 환불 신청 거절 — 돈을 돌려주지 않기로 한 결정이라 돈 관련(commerce-stage1-contract 「1-2 정지 중 환불 신청」)
+            AuditActions.POINT_SHOP_REFUND_REJECT);
 
     private static final Set<String> PERSONAL_DATA = Set.of(
             AuditActions.MEMBER_VIEW,
@@ -70,7 +74,10 @@ public final class AuditRetention {
             AuditActions.DEBATE_OPEN, AuditActions.DEBATE_UPDATE, AuditActions.DEBATE_CLOSE,
             AuditActions.POST_HIDE, AuditActions.POST_UNHIDE, AuditActions.POST_DELETE, AuditActions.POST_RESTORE, AuditActions.POST_MOVE, AuditActions.POST_NOTICE,
             AuditActions.POST_PIN, AuditActions.POST_UNPIN, AuditActions.POST_BULK, AuditActions.POST_POLL_DELETE,
-            AuditActions.REPORT_RESOLVE, AuditActions.REPORT_DISMISS, AuditActions.REPORT_BULK_DISMISS, AuditActions.REPORT_REOPEN);
+            AuditActions.REPORT_RESOLVE, AuditActions.REPORT_DISMISS, AuditActions.REPORT_BULK_DISMISS, AuditActions.REPORT_REOPEN,
+            // 1-2 포인트 상점 품목 만들기·고치기·아바타 묶음 변경·설정 — 일반 운영(가격을 바꿔도 이미 산 구매는 사본 그대로라 돈이 움직이지 않는다)
+            AuditActions.POINT_SHOP_ITEM_CREATE, AuditActions.POINT_SHOP_ITEM_UPDATE, AuditActions.POINT_SHOP_AVATAR_PRICE, AuditActions.POINT_SHOP_AVATAR_SALE,
+            AuditActions.POINT_SHOP_SETTINGS_UPDATE);
 
     private static final Map<String, AuditRetentionClass> TABLE = table();
 

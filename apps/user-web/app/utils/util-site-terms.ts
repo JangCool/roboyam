@@ -29,7 +29,7 @@ export default class UtilSiteTerms {
     static readonly KEYS: readonly SiteTermKey[] = [
         'GROUP_BUY',
         'GROUPS',
-        'ITEM_SHOP',
+        'POINT_SHOP',
         'POPULAR',
         'LATEST',
         'ADULT_LABEL',
@@ -41,7 +41,7 @@ export default class UtilSiteTerms {
     static readonly DEFAULT_KEYS: Readonly<Record<SiteTermKey, keyof typeof koSiteTerms>> = Object.freeze({
         GROUP_BUY: 'groupBuy',
         GROUPS: 'groups',
-        ITEM_SHOP: 'itemShop',
+        POINT_SHOP: 'pointShop',
         POPULAR: 'popular',
         LATEST: 'latest',
         ADULT_LABEL: 'adultLabel',
@@ -145,7 +145,7 @@ export default class UtilSiteTerms {
     }
 
     /**
-     * 목적격 조사를 붙인다 — "소모임을"·"아이템샵을". 한글이 아닌 낱말은 "을(를)" 로 둔다.
+     * 목적격 조사를 붙인다 — "소모임을"·"포인트 상점을". 한글이 아닌 낱말은 "을(를)" 로 둔다.
      * @param {string} word - 낱말.
      * @returns {string} 조사가 붙은 낱말.
      */
@@ -175,7 +175,7 @@ export default class UtilSiteTerms {
     }
 
     /**
-     * 방향 조사 "으로/로"를 붙인다 — "소모임으로"·"아이템샵으로"·"공구로". 받침이 ㄹ 이면 "로"다. 한글이 아닌 낱말은 "(으)로" 로 둔다.
+     * 방향 조사 "으로/로"를 붙인다 — "소모임으로"·"포인트 상점으로"·"공구로". 받침이 ㄹ 이면 "로"다. 한글이 아닌 낱말은 "(으)로" 로 둔다.
      * @param {string} word - 낱말.
      * @returns {string} 조사가 붙은 낱말.
      */
@@ -188,7 +188,7 @@ export default class UtilSiteTerms {
     }
 
     /**
-     * 서술 "이에요/예요"를 붙인다 — "소모임이에요"·"아이템샵이에요"·"공구예요". 한글이 아닌 낱말은 "이에요" 로 둔다.
+     * 서술 "이에요/예요"를 붙인다 — "소모임이에요"·"포인트 상점이에요"·"공구예요". 한글이 아닌 낱말은 "이에요" 로 둔다.
      * @param {string} word - 낱말.
      * @returns {string} 서술이 붙은 낱말.
      */

@@ -40,6 +40,10 @@ public enum MemberEvent {
     FEATURE_RESTRICTED(NotificationArea.SAFETY, MemberNotificationType.FEATURE_RESTRICTED, MemberEventLockReason.ACCOUNT, null),
     /** 포인트 소멸 예정(알림 배치 point-expiry-notice) — 내 포인트에 관한 계정 알림이라 회원이 끌 수 없다(포인트 회수와 같다). 운영자는 이벤트 설정에서 끌 수 있다 */
     POINTS_EXPIRING(NotificationArea.MEMBER, MemberNotificationType.POINTS_EXPIRING, MemberEventLockReason.ACCOUNT, null),
+    /** 포인트 상점 환불 신청 수락(정지 중 신청 — 운영자 처리) — 처리 알림이라 회원이 끌 수 없다 */
+    POINT_SHOP_REFUND_APPROVED(NotificationArea.MEMBER, MemberNotificationType.POINT_SHOP_REFUND_APPROVED, MemberEventLockReason.ACTION, null),
+    /** 포인트 상점 환불 신청 거절(사유와 함께) — 처리 알림이라 회원이 끌 수 없다 */
+    POINT_SHOP_REFUND_REJECTED(NotificationArea.MEMBER, MemberNotificationType.POINT_SHOP_REFUND_REJECTED, MemberEventLockReason.ACTION, null),
 
     // ── 준비 중(발행처 없음) — 기능이 생기면 MemberNotificationType 에 한 줄 + 여기서 그 종류를 넣는다 ──
     MENTION(NotificationArea.CONTENT, null, null, "MENTION"),

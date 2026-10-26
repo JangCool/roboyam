@@ -8,6 +8,7 @@ import type { BoardProtectDelete, PrefixView } from '~/composables/board/api/use
 import type { BlockedBy } from '~/composables/block/api/useBlockApi.types';
 import type { DebateSummary, PostDebateOpen } from '~/composables/board/api/useDebateApi.types';
 import type { PollInput, PollView } from '~/composables/board/api/usePollApi.types';
+import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopApi.types';
 
 /**
  * 본문 형식 — `TEXT` 평문(Textarea, 글자로 그린다) · `HTML` 에디터 HTML(서버가 정화한 것만 돌려준다 — 글 보기·댓글 보기만 `v-html` 로 그린다).
@@ -43,6 +44,16 @@ export interface PostAuthor {
      * 화면은 이 기기에서 방금 바꾼 것을 겹쳐 그린다(`useBlockOverrides().memoOf`).
      */
     memo?: string | null;
+    /**
+     * 작성자 장식(포인트 상점에서 산 닉네임 색·프로필 테두리를 장착한 것) — 서버가 준다(칸이 없는 옛 응답이면 장식 없음).
+     * 만료된 장착은 서버가 null 로 준다. 내 것은 이 기기에서 방금 바꾼 것을 겹쳐 그린다(`useMyDecoration().decorationOf`).
+     */
+    decoration?: AuthorDecoration | null;
+    /**
+     * 프로필 아바타 그림 주소 — 서버가 준다(회원은 늘 채운다 — 고르지 않았으면 `basic-default` · 비회원·숨긴 글·지운 댓글은 null → 이니셜).
+     * 화면은 `useMyDecoration().avatarOf` 로 채운다(내 것은 방금 고른 것).
+     */
+    avatarUrl?: string | null;
 }
 
 /** 말머리를 가리키는 짧은 모양 */

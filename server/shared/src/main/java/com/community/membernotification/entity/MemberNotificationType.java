@@ -47,7 +47,11 @@ public enum MemberNotificationType {
      * 내 무상 포인트가 곧 소멸된다(소멸 예정 알림 배치 {@code point-expiry-notice}, commerce.md 14) — 알림 기간({@code point_settings.expiry_notice_days}) 안 소멸 예정 합 · 가장 가까운
      * 소멸일(한국 날짜) · 일수. 같은 묶음으로 두 번 알리지 않는다({@code point_lots.expiry_noticed_at}). 누르면 내 포인트({@code /me/points})
      */
-    POINTS_EXPIRING("system");
+    POINTS_EXPIRING("system"),
+    /** 정지 중에 낸 포인트 상점 환불 신청을 운영자가 수락해 환불했다(V87) — 품목 이름 · 돌려준 포인트. 누르면 내 아이템({@code /me/items}) */
+    POINT_SHOP_REFUND_APPROVED("system"),
+    /** 정지 중에 낸 포인트 상점 환불 신청을 운영자가 거절했다(V87) — 품목 이름 · 사유. 누르면 내 아이템 */
+    POINT_SHOP_REFUND_REJECTED("system");
 
     private final String category;
 

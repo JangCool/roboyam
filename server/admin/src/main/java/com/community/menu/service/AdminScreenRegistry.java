@@ -65,6 +65,12 @@ public final class AdminScreenRegistry {
             section(NORMAL, "menu.point", "pi pi-wallet",
                     leaf(s("points", "/points", "menu.points", "pi pi-receipt", Permission.POINT_READ)),
                     leaf(s("pointPolicy", "/points/policy", "menu.pointPolicy", "pi pi-percentage", Permission.POINT_READ))),
+            // 포인트 상점 묶음(커머스 1-2 — commerce-stage1-contract 「1-2 화면 목업」) — 포인트 묶음 바로 다음, 공동구매와 따로. 세 화면 모두 조회 pointshop.read
+            // (화면 안에서 저장 pointshop.manage · 예외 환불 pointshop.refund). admin-web UtilAdminMenu 의 pointShop 묶음과 같은 키·주소·권한·아이콘·차례
+            section(NORMAL, "menu.pointShop", "pi pi-shopping-bag",
+                    leaf(s("pointShopItems", "/point-shop/items", "menu.pointShopItems", "pi pi-box", Permission.POINTSHOP_READ)),
+                    leaf(s("pointShopPurchases", "/point-shop/purchases", "menu.pointShopPurchases", "pi pi-receipt", Permission.POINTSHOP_READ)),
+                    leaf(s("pointShopSettings", "/point-shop/settings", "menu.pointShopSettings", "pi pi-sliders-h", Permission.POINTSHOP_READ))),
             section(SETTINGS, "menu.system", "pi pi-cog",
                     leaf(s("siteGeneral", "/settings/general", "menu.general", "pi pi-sliders-h", Permission.SITE_READ)),
                     leaf(s("socialLogin", "/settings/social-login", "menu.socialLogin", "pi pi-key", Permission.SITE_READ)),

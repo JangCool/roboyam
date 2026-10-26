@@ -100,6 +100,11 @@ export interface RequestOptions {
     query?: Record<string, QueryValue>;
     /** 화면이 떠나거나 새 요청이 앞 요청을 대신할 때 끊는다 */
     signal?: AbortSignal;
+    /**
+     * 이 요청에만 붙일 머리글(예 돈 요청의 `Idempotency-Key` — 포인트 상점 구매·환불). 언어·CSRF 머리글은 이 통로가 붙이며 여기 값이 덮어쓰지 못한다.
+     * 주지 않으면 지금까지와 같다(다른 호출에 영향 없음).
+     */
+    headers?: Record<string, string>;
 }
 
 /** 파일 올리기 — 진행률을 알려면 XHR 이 필요해 `$fetch` 대신 이것을 쓴다(같은 통로 안에서) */
@@ -364,7 +369,7 @@ export function useApiClient(options: ApiClientOptions = {}) {
             const response = await $fetch.raw<unknown>(target, {
                 method: method as 'GET',
                 body: body as Record<string, unknown> | undefined,
-                headers: { ...languageHeaders(), ...(mutating ? csrfHeaders() : {}) },
+                headers: { ...(request.headers ?? {}), ...languageHeaders(), ...(mutating ? csrfHeaders() : {}) },
                 signal: request.signal,
                 timeout: TIMEOUT_MS,
                 retry: 0,

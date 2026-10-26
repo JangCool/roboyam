@@ -257,6 +257,17 @@ public class MemberNotificationService {
                 facts = MemberNotificationMessages.Facts.expiring(number(payload.get("amount")), localDateOf(payload.get("date")), (int) number(payload.get("days")));
                 link = "/me/points";
             }
+            case POINT_SHOP_REFUND_APPROVED -> {
+                // 정지 중 환불 신청 수락 — 품목 이름 · 돌려준 포인트. 누르면 내 아이템
+                facts = MemberNotificationMessages.Facts.refundApproved(payload.get("itemName") instanceof String n ? n : null, number(payload.get("points")));
+                link = "/me/items";
+            }
+            case POINT_SHOP_REFUND_REJECTED -> {
+                // 정지 중 환불 신청 거절 — 품목 이름 · 사유. 누르면 내 아이템
+                facts = MemberNotificationMessages.Facts.refundRejected(payload.get("itemName") instanceof String n ? n : null,
+                        payload.get("reason") instanceof String why && !why.isBlank() ? why : null);
+                link = "/me/items";
+            }
             case REPORT_RESULT -> {
                 // 내 신고의 처리 결과 — 조치됨 · 위반 아님(신고 당시 제목·앞부분). 글을 볼 수 있으면 그 글로
                 String result = payload.get("result") instanceof String r ? r : MemberNotificationMessages.REPORT_ACTIONED;

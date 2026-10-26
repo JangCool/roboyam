@@ -23,15 +23,15 @@
                     >
                         {{ pointLine }}
                     </NuxtLink>
-                    <!-- 아이템샵 — 포인트로 닉네임 색상·프로필 테두리·교환권을 산다. 사업자 전용 계정은 포인트가 없어 줄이 없다 -->
+                    <!-- 포인트 상점 — 포인트로 닉네임 색·프로필 테두리·닉네임 변경권을 산다(공동구매 주문 내역과 따로). 사업자 전용 계정은 포인트가 없어 줄이 없다 -->
                     <NuxtLink
                         v-if="!businessAccount"
-                        :to="UtilShop.PATH"
+                        :to="UtilPointShop.PATH"
                         class="mt-1 flex items-center gap-1 rounded text-xs text-muted-color hover:underline focus-visible:outline-2 focus-visible:outline-primary"
-                        data-testid="drawer-shop"
+                        data-testid="drawer-point-shop"
                         @click="close"
                     >
-                        <i class="pi pi-shopping-bag text-xs" aria-hidden="true" />{{ term('ITEM_SHOP') }}
+                        <i class="pi pi-shopping-bag text-xs" aria-hidden="true" />{{ term('POINT_SHOP') }}
                     </NuxtLink>
                     <!-- 주문 내역(9단계, 공동구매) — 사업자 전용 계정은 살 수 없어 줄이 없다 -->
                     <NuxtLink
@@ -103,7 +103,7 @@ import UtilCommerce from '~/utils/util-commerce';
 import UtilPoint from '~/utils/util-point';
 import UtilPointMessages from '~/utils/util-point-messages';
 import UtilRedirect from '~/utils/util-redirect';
-import UtilShop from '~/utils/util-shop';
+import UtilPointShop from '~/utils/util-point-shop';
 
 const open = defineModel<boolean>('visible', { required: true });
 
@@ -112,7 +112,7 @@ const route = useRoute();
 const { user, loaded, emailVerified, restriction } = useAuth();
 /** 안 읽은 쪽지 대화 수 — 셸이 주기로 조회해 둔다(`layouts/default.vue`) */
 const dm = useDmBadge();
-/** 서비스 이름 — 아이템샵 줄의 이름(`ITEM_SHOP`) */
+/** 서비스 이름 — 포인트 상점 줄의 이름(`POINT_SHOP`) */
 const { term } = useSiteTerms();
 const { busy, run } = useLogoutFlow();
 const points = usePointSummary();

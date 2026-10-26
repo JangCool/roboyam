@@ -27,6 +27,7 @@ import notification from './notification';
 import operator from './operator';
 import permission from './permission';
 import point from './point';
+import pointShop from './pointShop';
 import portone from './portone';
 import profile from './profile';
 import reason from './reason';
@@ -71,6 +72,7 @@ export default {
     operator,
     permission,
     point,
+    pointShop,
     portone,
     profile,
     reason,

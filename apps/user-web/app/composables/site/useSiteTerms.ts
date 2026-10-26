@@ -9,7 +9,7 @@ import UtilSiteTerms from '~/utils/util-site-terms';
  * 언어를 바꾸면 같이 바뀐다(`useTranslate` 의 `t` 가 지금 언어를 읽으므로 `computed`·템플릿 안에서 부르면 다시 계산된다).
  *
  * ⚠ 단순 버전 — 원본(community)은 `GET /api/site/terms` 로 받은 이름을 상태와 localStorage 에 둔다(`useSiteTermsLoader`, `plugins/01.site-terms.client.ts`). roboyam 서버에는 이 API 가 아직 없어
- * 서버 값 없이 항상 기본 이름(공동구매·소모임·아이템샵·운영자 … / Group buys·Groups·Item shop·Admin …)이다. 용어 로더는 서버가 붙을 때 만든다.
+ * 서버 값 없이 항상 기본 이름(공동구매·소모임·포인트 상점·운영자 … / Group buys·Groups·Point shop·Admin …)이다. 용어 로더는 서버가 붙을 때 만든다.
  * 사이트 이름·로고·슬로건·아이콘은 용어가 아니라 사이트 정보(`GET /api/site/info`)다 → `useSiteInfo`·`useSiteName`·`useSiteTagline`.
  *
  * ⚠ 컴포저블은 setup 에서 부른다(`await` 뒤에는 Nuxt 문맥이 없다).
@@ -21,7 +21,7 @@ export function useSiteTerms() {
     /** 8개를 모두 채운 표 — 바꾼 이름은 그대로, 나머지는 지금 언어의 기본 이름 */
     const terms = computed(() => UtilSiteTerms.resolve(t, custom.value));
 
-    /** 이름 하나 — 템플릿에서 `term('ITEM_SHOP')` 처럼 쓴다(표나 언어가 바뀌면 따라 바뀐다) */
+    /** 이름 하나 — 템플릿에서 `term('POINT_SHOP')` 처럼 쓴다(표나 언어가 바뀌면 따라 바뀐다) */
     function term(key: SiteTermKey): string {
         return UtilSiteTerms.term(t, key, custom.value);
     }

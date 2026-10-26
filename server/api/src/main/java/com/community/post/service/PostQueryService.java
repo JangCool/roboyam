@@ -4,6 +4,7 @@ import com.community.block.service.ViewerBlocks;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.BoardPrefixInfo;
 import com.community.board.dto.EffectiveBoard;
+import com.community.board.service.AuthorMembers;
 import com.community.board.service.AuthorViews;
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.ContentRules;
@@ -27,12 +28,10 @@ import com.community.post.exception.PostNotFoundException;
 import com.community.post.repository.master.PostCounterQueries;
 import com.community.post.repository.master.PostRepository;
 import com.community.post.repository.master.PostRepositoryQDSL;
-import com.community.user.entity.ProfileEntity;
 import com.community.zconfiguration.crypto.Digests;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -119,7 +118,7 @@ public class PostQueryService {
                 : postQueries.page(b.id(), prefixId, search, oldest, plain, (long) (current - 1) * listSize, listSize, now);
 
         List<Long> authorIds = Stream.concat(pinned.stream(), result.items().stream()).map(PostRowData::authorId).toList();
-        Map<Long, ProfileEntity> members = authors.members(authorIds);
+        AuthorMembers members = authors.members(authorIds);
         ViewerBlocks.Lens lens = viewerBlocks.lens(viewerId, authorIds);
         Set<Long> polls = pollQueries.postIdsWithPoll(Stream.concat(pinned.stream(), result.items().stream()).map(PostRowData::id).toList());
         int totalPages = (int) ((result.total() + listSize - 1) / listSize);
@@ -127,7 +126,7 @@ public class PostQueryService {
                 result.items().stream().map(r -> row(r, b, s, members, now, lens, polls)).toList(), current, totalPages, result.total());
     }
 
-    private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, Map<Long, ProfileEntity> members, Instant now, ViewerBlocks.Lens lens,
+    private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
                             Set<Long> polls) {
         boolean hidden = r.hiddenAt(now);
         PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
@@ -170,7 +169,7 @@ public class PostQueryService {
     /** @param lens 보는 사람의 차단·메모 — 글 {@code blocked}(제목 단어 판정, 게시판 글 목록과 같음)와 작성자 {@code memo} */
     private PostDetailView view(PostEntity post, EffectiveBoard b, BoardCatalogSnapshot s, Long userId, int viewCount, boolean liked, Instant now,
                                 ViewerBlocks.Lens lens) {
-        Map<Long, ProfileEntity> members = authors.members(post.getAuthorId() == null ? List.of() : List.of(post.getAuthorId()));
+        AuthorMembers members = authors.members(post.getAuthorId() == null ? List.of() : List.of(post.getAuthorId()));
         Optional<PostNeighborData> older = postQueries.older(b.id(), post.getId(), now);
         Optional<PostNeighborData> newer = postQueries.newer(b.id(), post.getId(), now);
         PostAuthorView author = authors.of(post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), members, s).withMemo(lens.memoOf(post.getAuthorId()));

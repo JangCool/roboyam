@@ -8,10 +8,11 @@
             :to="profilePath"
             class="truncate hover:underline focus-visible:outline-2 focus-visible:outline-primary"
             :class="strong ? 'font-semibold text-color' : ''"
+            :style="nameStyle"
             data-testid="author-profile-link"
             >{{ author.name }}</NuxtLink
         >
-        <span v-else class="truncate" :class="strong ? 'font-semibold text-color' : ''">{{ author.name }}</span>
+        <span v-else class="truncate" :class="strong ? 'font-semibold text-color' : ''" :style="nameStyle">{{ author.name }}</span>
         <GradeBadge v-if="author.kind === 'MEMBER' && author.grade" :grade="author.grade as Grade" :label="author.gradeLabel ?? ''" class="shrink-0" />
         <!-- 이용자 메모 — 나에게만 보이는 노란 칩. 좁은 줄에서는 말줄임으로 줄어든다 -->
         <span
@@ -32,6 +33,7 @@
 <script setup lang="ts">
 import type { Grade } from '~/composables/auth/api/useAuthApi.types';
 import type { PostAuthor } from '~/composables/board/api/usePostApi.types';
+import UtilColor from '~/utils/util-color';
 import UtilProfile from '~/utils/util-profile';
 
 interface Props {
@@ -42,16 +44,30 @@ interface Props {
     strong?: boolean;
     /** 회원 이름을 공개 프로필 링크로(글 보기 머리·댓글·데스크톱 목록 표) */
     link?: boolean;
+    /** 포인트 상점 미리보기 — `author.decoration` 을 겹치기 없이 그대로 그린다(내 장착을 덮어쓰지 않는다) */
+    preview?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     showIp: false,
     strong: false,
     link: false,
+    preview: false,
 });
 
 const { t } = useI18n();
 const overrides = useBlockOverrides();
+const decorations = useMyDecoration();
+/**
+ * 닉네임 색 — 서버 `author.decoration`(후보)에 내가 방금 장착·해제한 것을 겹친다(`useMyDecoration`). 대비 보정은 홈 가젯 색과 같은 규칙(`UtilColor.cssPair` — 두 테마 값을 `light-dark()` 로).
+ * 뱃지·메모 칩 등 줄의 나머지는 그대로다. 테두리는 이 줄이 그리지 않는다(글 보기 머리·공개 프로필이 `ProfileBorderAvatar` 로).
+ */
+const nameStyle = computed(() => {
+    if (props.author.kind !== 'MEMBER') return undefined;
+    const decoration = props.preview ? (props.author.decoration ?? null) : decorations.decorationOf(props.author.memberId, props.author.decoration);
+    const color = UtilColor.cssPair(decoration?.nicknameColor);
+    return color ? { color } : undefined;
+});
 const guest = computed(() => props.author.kind === 'GUEST');
 /** 이용자 메모 — 서버가 준 `author.memo`(나에게만 오는 값, 서버 후보)에 이 기기에서 방금 남기거나 지운 것을 겹친다 */
 const memo = computed(() => (props.author.kind === 'MEMBER' ? overrides.memoOf(props.author.memberId, props.author.memo) : null));

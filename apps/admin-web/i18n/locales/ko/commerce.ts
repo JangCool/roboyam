@@ -15,13 +15,13 @@ export default {
     actionName: {
         GROUPBUY_JOIN: '공구 참여',
         POINT_CHARGE: '포인트 충전 요청',
-        SHOP_PURCHASE: '상점 구매',
+        POINT_SHOP_PURCHASE: '포인트 상점 구매',
         REFUND_REQUEST: '환불 신청',
     },
     actionDesc: {
         GROUPBUY_JOIN: '공구에 참여해 수량을 잡아 두는 요청',
         POINT_CHARGE: '포인트를 충전하려고 결제를 여는 요청',
-        SHOP_PURCHASE: '상점에서 아이템을 사는 요청',
+        POINT_SHOP_PURCHASE: '포인트 상점에서 아이템을 사는 요청',
         REFUND_REQUEST: '아이템·충전·반품 환불을 신청하는 요청',
     },
     perMinute: '번 / 1분',

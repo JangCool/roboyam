@@ -81,6 +81,11 @@ public enum AdminNotificationEvent {
      * 처리는 관리자 게시글 관리의 그 글 상세 서랍 의견 관리(고정 요청 탭 — {@code /posts?post={postId}&opinions=pins}, docs/features/popular-highlight-contract.md). 코드는 회원 이벤트 {@code OPINION_PIN_REQUESTED} 와 겹치면 안 된다(문구 대상 코드는 회원·운영자를 넘어 하나 — {@code MessageTargetCatalog})
      */
     OPINION_PIN_REQUEST_PENDING(spec(CONTENT, INFO).holders(Permission.POST_MANAGE).link("/posts?post={postId}&opinions=pins").collapse(300)),
+    /**
+     * 포인트 상점 환불 신청 대기 — 정지 중인 회원이 셀프 환불을 신청할 때(shared PointShopRefundService, V87). 5분 안의 연속 신청은 한 건.
+     * 처리는 관리자 구매 내역의 「환불 신청 대기」 거르기 — 수락·거절({@code pointshop.refund})
+     */
+    POINT_SHOP_REFUND_REQUESTED(spec(MEMBER, INFO).holders(Permission.POINTSHOP_REFUND).link("/point-shop/purchases?refundRequest=PENDING").collapse(300)),
 
     // ── 예약 이벤트 (featureReady = false) — 기능이 만들어질 때 reserved() 를 지우고 발행 한 줄만 더한다 ──
     SANCTION_APPEAL_FILED(spec(SAFETY, INFO).holders(Permission.APPEAL_MANAGE).reserved()),

@@ -2,7 +2,7 @@ import type { MyNicknameImage, NicknameImageUploadOptions } from '~/composables/
 
 /**
  * 닉네임 이미지 API — 서버 주소 문자열(`/api/me/nickname-image…`)이 있는 **유일한 곳**이다. 상태는 없다.
- * 계약 후보: `docs/features/member-social-contract.md`(모양은 community `docs/api-nickname-image.md` — 아이템샵 변경권 없음). 로그인 필요(401).
+ * 계약 후보: `docs/features/member-social-contract.md`(모양은 community `docs/api-nickname-image.md` — 닉네임 이미지 변경권 없음). 로그인 필요(401).
  *
  *  - `GET /api/me/nickname-image` → `MyNicknameImage`(이메일 인증 전·정지 중에도 본다)
  *  - `POST /api/me/nickname-image`(multipart `file`) → `201 MyNicknameImage` — 정지 아님 + 관리자가 정한 신청 조건(`requirements`)을 모두 채움.

@@ -1,6 +1,8 @@
 package com.community.board.service;
 
 import com.community.board.dto.BoardCatalogSnapshot;
+import com.community.pointshop.dto.AuthorLook;
+import com.community.pointshop.service.ShopDecorationResolver;
 import com.community.post.dto.response.PostAuthorView;
 import com.community.user.entity.ProfileEntity;
 import com.community.user.repository.master.ProfileRepository;
@@ -15,7 +17,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 글·댓글 작성자 표시({@link PostAuthorView}) — 회원은 닉네임·등급, 비회원은 입력한 이름 + 작성 IP 앞 두 자리.
- * 회원 정보는 목록마다 한 번에 읽는다({@link #members}). 작성 IP 원문은 응답에 싣지 않는다.
+ * 회원 정보·포인트 상점 장식·아바타는 목록마다 한 번에 읽는다({@link #members}). 작성 IP 원문은 응답에 싣지 않는다.
  */
 @Component
 public class AuthorViews {
@@ -26,39 +28,46 @@ public class AuthorViews {
     static final String ROLE_USER = "USER";
 
     private final ProfileRepository profiles;
+    private final ShopDecorationResolver decorations;
 
-    public AuthorViews(ProfileRepository profiles) {
+    public AuthorViews(ProfileRepository profiles, ShopDecorationResolver decorations) {
         this.profiles = profiles;
+        this.decorations = decorations;
     }
 
-    /** 회원 ID → 프로필(닉네임·등급) */
-    public Map<Long, ProfileEntity> members(Collection<Long> ids) {
-        Map<Long, ProfileEntity> out = new HashMap<>();
+    /**
+     * 회원 ID → 프로필(닉네임·등급) + 포인트 상점 표시(장식·아바타). 목록 하나에 프로필 한 번, 표시 한 번(장착 표 + 프로필 이미지) — 줄마다 읽지 않는다.
+     */
+    public AuthorMembers members(Collection<Long> ids) {
         List<Long> wanted = ids.stream().filter(Objects::nonNull).distinct().toList();
-        if (!wanted.isEmpty()) {
-            profiles.findAllById(wanted).forEach(p -> out.put(p.getUserId(), p));
+        if (wanted.isEmpty()) {
+            return AuthorMembers.EMPTY;
         }
-        return out;
+        Map<Long, ProfileEntity> out = new HashMap<>();
+        profiles.findAllById(wanted).forEach(p -> out.put(p.getUserId(), p));
+        Map<Long, AuthorLook> looks = decorations.resolve(wanted);
+        return new AuthorMembers(out, looks);
     }
 
     /**
      * @param authorId 회원 글이면 회원 ID, 비회원 글이면 null
-     * @param members  {@link #members} 로 읽어 둔 프로필
+     * @param members  {@link #members} 로 읽어 둔 프로필·표시
      */
-    public PostAuthorView of(Long authorId, String guestName, String authorIp, Map<Long, ProfileEntity> members, BoardCatalogSnapshot catalog) {
+    public PostAuthorView of(Long authorId, String guestName, String authorIp, AuthorMembers members, BoardCatalogSnapshot catalog) {
         if (authorId == null) {
-            return new PostAuthorView(GUEST, null, guestName == null ? "" : guestName, null, null, null, maskIp(authorIp));
+            return new PostAuthorView(GUEST, null, guestName == null ? "" : guestName, null, null, null, maskIp(authorIp), null, null, null);
         }
         ProfileEntity profile = members.get(authorId);
         String gradeKey = profile == null ? null : profile.getGradeKey();
         String label = gradeKey == null ? null : catalog.gradeLabel(gradeKey);
+        AuthorLook look = members.look(authorId);
         return new PostAuthorView(MEMBER, Long.toString(authorId), profile == null ? "" : profile.getNickname(), gradeKey, label == null ? gradeKey : label,
-                ROLE_USER, null);
+                ROLE_USER, null, null, look == null ? null : look.decoration(), look == null ? null : look.avatarUrl());
     }
 
-    /** 숨긴 글·지운 댓글의 작성자 — 이름·IP 를 비운다(종류·회원 ID 는 그대로) */
+    /** 숨긴 글·지운 댓글의 작성자 — 이름·IP·장식·아바타를 비운다(종류·회원 ID 는 그대로) */
     public static PostAuthorView blank(PostAuthorView author) {
-        return new PostAuthorView(author.kind(), author.memberId(), "", author.grade(), author.gradeLabel(), author.role(), null);
+        return new PostAuthorView(author.kind(), author.memberId(), "", author.grade(), author.gradeLabel(), author.role(), null, null, null, null);
     }
 
     /** IP 앞 두 자리 — IPv4 {@code 123.45.*.*}, IPv6 앞 두 묶음 {@code 2001:db8:*:*}. IP 가 없으면(보유기간이 지나 지움) null, 읽지 못하면 {@code *} */

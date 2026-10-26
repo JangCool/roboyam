@@ -35,14 +35,14 @@ class RequestRateLimitsTest {
     @Test
     void 사본은_15초_동안_다시_읽지_않고_비우면_바로_다시_읽는다() {
         RequestRateLimits limits = new RequestRateLimits(dataSource);
-        assertThat(limits.limitOf(RequestAction.SHOP_PURCHASE)).isEqualTo(10);
+        assertThat(limits.limitOf(RequestAction.POINT_SHOP_PURCHASE)).isEqualTo(10);
         assertThat(RequestRateLimits.TTL_SECONDS).isEqualTo(15);
 
-        jdbc.update("UPDATE request_rate_limits SET limit_per_minute = 42 WHERE action = 'SHOP_PURCHASE'");
-        assertThat(limits.limitOf(RequestAction.SHOP_PURCHASE)).as("다른 서버가 바꾼 값은 사본 주기 안에는 아직 옛 값").isEqualTo(10);
+        jdbc.update("UPDATE request_rate_limits SET limit_per_minute = 42 WHERE action = 'POINT_SHOP_PURCHASE'");
+        assertThat(limits.limitOf(RequestAction.POINT_SHOP_PURCHASE)).as("다른 서버가 바꾼 값은 사본 주기 안에는 아직 옛 값").isEqualTo(10);
 
         limits.invalidate();
-        assertThat(limits.limitOf(RequestAction.SHOP_PURCHASE)).as("저장한 서버는 커밋 뒤 비워 바로 새 값").isEqualTo(42);
+        assertThat(limits.limitOf(RequestAction.POINT_SHOP_PURCHASE)).as("저장한 서버는 커밋 뒤 비워 바로 새 값").isEqualTo(42);
     }
 
     @Test

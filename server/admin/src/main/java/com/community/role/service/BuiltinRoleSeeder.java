@@ -35,7 +35,7 @@ public class BuiltinRoleSeeder {
     }
 
     private static final List<MemberPermission> USE_REGULAR = List.of(MemberPermission.POST_WRITE, MemberPermission.COMMENT_WRITE, MemberPermission.POST_REACT,
-            MemberPermission.REPORT_CREATE, MemberPermission.MESSAGE_SEND, MemberPermission.FILE_ATTACH, MemberPermission.SHOP_USE);
+            MemberPermission.REPORT_CREATE, MemberPermission.MESSAGE_SEND, MemberPermission.FILE_ATTACH, MemberPermission.POINTSHOP_USE);
 
     private static final List<Seed> SEEDS = List.of(
             new Seed("ROLE_MEMBER_GENERAL", RoleTypes.KIND, "일반 회원", "가입하면 기본으로 갖는 회원 유형입니다.", RoleScope.SITE, RoleGrantMode.AUTO, USE_REGULAR),

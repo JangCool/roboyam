@@ -79,12 +79,12 @@ public enum Permission {
     POINT_REFUND_APPROVE("point.refund.approve", GRADE_POINT, SENSITIVE, false),
     /** 고액 충전 포인트 환불(1회 100,000원 이상) */
     POINT_REFUND_LARGE("point.refund.large", GRADE_POINT, SENSITIVE, false),
-    /** 상점 품목·충전 상품 조회 */
-    SHOP_READ("shop.read", GRADE_POINT, READ, false),
-    /** 상점 품목·충전 상품 관리 */
-    SHOP_MANAGE("shop.manage", GRADE_POINT, MANAGE, false),
-    /** 상점 구매 예외 환불 */
-    SHOP_REFUND("shop.refund", GRADE_POINT, SENSITIVE, false),
+    /** 포인트 상점 품목·구매 내역·설정 조회(충전 상품은 3단계) — 커머스 1-2 에서 기능이 생겼다(0-5 의 shop.read 를 V86 이 옮겼다) */
+    POINTSHOP_READ("pointshop.read", GRADE_POINT, READ, true),
+    /** 포인트 상점 품목 만들기·고치기·아바타 묶음 가격·판매·설정 저장 */
+    POINTSHOP_MANAGE("pointshop.manage", GRADE_POINT, MANAGE, true),
+    /** 포인트 상점 구매 예외 환불(셀프 환불 조건 밖 — 사유·감사 돈 관련 5년) */
+    POINTSHOP_REFUND("pointshop.refund", GRADE_POINT, SENSITIVE, true),
     DORMANCY_READ("dormancy.read", GRADE_POINT, READ, false),
     DORMANCY_SETTINGS("dormancy.settings", GRADE_POINT, CONFIG, false),
     GROUP_READ("group.read", CLUB, READ, false),

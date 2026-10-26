@@ -4,7 +4,7 @@
 export default {
     groupBuy: 'Group buys',
     groups: 'Groups',
-    itemShop: 'Item shop',
+    pointShop: 'Point shop',
     popular: 'Popular posts',
     latest: 'Latest posts',
     adultLabel: '19+',

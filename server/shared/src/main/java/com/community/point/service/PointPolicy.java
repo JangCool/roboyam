@@ -81,14 +81,14 @@ public class PointPolicy {
     private Cached load(long loadedAt) {
         List<Cached> rows = jdbc.query("select attendance_points, post_points, post_daily_cap, comment_points, comment_daily_cap, popular_reward_points, "
                 + "popular_reward_top_n, like_bonus_threshold, like_bonus_points, like_bonus_daily_limit, deal_end_request_points, deal_end_request_daily_limit, "
-                + "signup_points, nickname_ticket_price, free_valid_days, restored_lot_valid_days, expiry_notice_days, lot_tracking_started_at, adjust_large_threshold, "
+                + "signup_points, free_valid_days, restored_lot_valid_days, expiry_notice_days, lot_tracking_started_at, adjust_large_threshold, "
                 + "expiry_notice_interval_days "
                 + "from point_settings where id = ?", (rs, i) -> {
                     PointRules rules = new PointRules(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getInt(5), rs.getInt(6), rs.getInt(7), rs.getInt(8),
-                            rs.getInt(9), rs.getInt(10), rs.getInt(11), rs.getInt(12), rs.getInt(13), rs.getInt(14));
-                    Timestamp started = rs.getTimestamp(18);
-                    PointLotRules lots = new PointLotRules(rs.getInt(15), rs.getInt(16), rs.getInt(17), rs.getInt(20), started == null ? null : started.toInstant(),
-                            rs.getInt(19));
+                            rs.getInt(9), rs.getInt(10), rs.getInt(11), rs.getInt(12), rs.getInt(13));
+                    Timestamp started = rs.getTimestamp(17);
+                    PointLotRules lots = new PointLotRules(rs.getInt(14), rs.getInt(15), rs.getInt(16), rs.getInt(19), started == null ? null : started.toInstant(),
+                            rs.getInt(18));
                     return new Cached(rules, lots, loadedAt);
                 }, PointSettingEntity.ROW_ID);
         return rows.isEmpty() ? new Cached(PointRules.DEFAULTS, PointLotRules.DEFAULTS, loadedAt) : rows.get(0);

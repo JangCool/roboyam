@@ -26,7 +26,8 @@ public enum MenuBuiltin {
     MY_HOME("MYPAGE", "/me", false, true, false),
     MY_GRADE("MYPAGE", "/me/grade", false, true, false),
     MY_POINTS("MYPAGE", "/me/points", false, true, false),
-    MY_SHOP("MYPAGE", "/me/shop", false, true, false),
+    /** 포인트 상점(커머스 1-2 — 주소 /me/shop → /point-shop, 상세 /point-shop/{id} 도 이 메뉴로 본다) */
+    MY_SHOP("MYPAGE", "/point-shop", true, true, false),
     MY_SCHEDULED("MYPAGE", "/scheduled", false, true, false),
     MESSAGES("MYPAGE", "/messages", true, true, false),
     NOTIFICATIONS("MYPAGE", "/notifications", false, true, false),

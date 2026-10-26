@@ -8,7 +8,7 @@
 export type SiteTermKey =
     | 'GROUP_BUY'
     | 'GROUPS'
-    | 'ITEM_SHOP'
+    | 'POINT_SHOP'
     | 'POPULAR'
     | 'LATEST'
     /** 19금 표시의 이름(기본 "19금") — 글·목록·상세의 표시, 글쓰기의 체크, 성인 확인 안내가 쓴다 */

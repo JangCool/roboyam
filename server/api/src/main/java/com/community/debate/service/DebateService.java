@@ -4,6 +4,7 @@ import com.community.block.service.ViewerBlocks;
 import com.community.board.dto.BoardActor;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
+import com.community.board.service.AuthorMembers;
 import com.community.board.service.AuthorViews;
 import com.community.board.service.BoardAccessPolicy;
 import com.community.board.service.BoardActorResolver;
@@ -211,7 +212,7 @@ public class DebateService {
             return new CommenterListView(List.of());
         }
         List<Long> memberIds = new ArrayList<>(latest.keySet());
-        Map<Long, ProfileEntity> members = authors.members(memberIds);
+        AuthorMembers members = authors.members(memberIds);
         Set<Long> gone = new HashSet<>();
         users.findAllById(memberIds).stream().filter(UserEntity::isGone).forEach(u -> gone.add(u.getId()));
         ViewerBlocks.Lens lens = viewerBlocks.lens(userId, memberIds);

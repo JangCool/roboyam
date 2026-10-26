@@ -30,7 +30,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * 포인트 정책 — 조회 {@code point.read}, 저장 {@code point.settings}(컨트롤러가 선언).
  *
  * <ul>
- *   <li><b>저장</b>은 14칸을 모두 받는다. 칸마다 정수·범위({@link PointRules#LIMITS})를 검사해 틀린 칸을 모아 400 {@code VALIDATION} {@code fields.<칸>} — 하나라도 틀리면 아무것도 저장하지 않는다.</li>
+ *   <li><b>저장</b>은 13칸을 모두 받는다. 칸마다 정수·범위({@link PointRules#LIMITS})를 검사해 틀린 칸을 모아 400 {@code VALIDATION} {@code fields.<칸>} — 하나라도 틀리면 아무것도 저장하지 않는다.</li>
  *   <li>바뀐 칸이 없으면 쓰지 않는다(마지막 저장 시각도 그대로). 감사 {@code POINT_SETTINGS_UPDATE} 는 바뀐 값만 {@code before}/{@code after}.</li>
  *   <li><b>반영</b>: 이 서버의 정책 사본({@link PointPolicy})은 커밋 직후 비우고, 공개 서버(api)는 사본 주기로 <b>최대 15초</b> 안에 따라온다(BoardCatalog 와 같은 방식). 소급 없음 —
  *       이미 지급한 포인트는 그대로이고 상한을 낮춰도 오늘 이미 센 횟수는 그대로다.</li>
@@ -86,7 +86,7 @@ public class PointSettingsService {
 
     /** 칸마다 정수·범위 — 틀린 칸을 모아 400 */
     static PointRules check(PointSettingsRequest body) {
-        Map<String, Number> raw = body == null ? new PointSettingsRequest(null, null, null, null, null, null, null, null, null, null, null, null, null, null).toMap()
+        Map<String, Number> raw = body == null ? new PointSettingsRequest(null, null, null, null, null, null, null, null, null, null, null, null, null).toMap()
                 : body.toMap();
         Map<String, Integer> values = new LinkedHashMap<>();
         Map<String, MessageRef> fields = new LinkedHashMap<>();

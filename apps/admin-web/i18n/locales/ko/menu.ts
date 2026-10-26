@@ -57,6 +57,11 @@ export default {
     point: '포인트',
     points: '포인트 내역',
     pointPolicy: '포인트 정책',
+    // 포인트 상점 묶음(일반 모드, 포인트 묶음 다음 — 공동구매와 따로)
+    pointShop: '포인트 상점',
+    pointShopItems: '품목 관리',
+    pointShopPurchases: '구매 내역',
+    pointShopSettings: '포인트 상점 설정',
     // 커머스 묶음(설정 모드) — 판매·결제 공통 설정
     commerce: '커머스',
     commerceSettings: '커머스 설정',

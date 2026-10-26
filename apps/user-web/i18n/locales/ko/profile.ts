@@ -8,12 +8,19 @@ export default {
     loading: '프로필을 불러오는 중',
     loadFailed: '프로필을 불러오지 못했어요',
 
-    // 닉네임 변경 — 가입 뒤 1번만(날짜 대기 없음), 쓰고 나면 더 못 바꾼다
-    nicknameOnce: '닉네임은 가입 뒤 1번만 바꿀 수 있어요.',
-    nicknameUsedUp: '닉네임을 이미 바꿔서 더 바꿀 수 없어요.',
+    // 닉네임 변경 — 가입 뒤 1번 무료(날짜 대기 없음), 그다음부터는 포인트 상점의 닉네임 변경권 1장씩
+    nicknameOnce: '닉네임은 가입 뒤 1번 무료로 바꿀 수 있어요. 그다음부터는 닉네임 변경권이 필요해요.',
+    nicknameUsedUp: '무료 변경을 이미 썼어요. 바꾸려면 닉네임 변경권이 필요해요.',
     nicknameConfirmTitle: '닉네임을 바꿀까요?',
-    nicknameConfirmText: '「{from}」에서 「{to}」(으)로 바뀌어요. 이번에 바꾸면 앞으로는 닉네임을 바꿀 수 없어요.',
+    nicknameConfirmText: '「{from}」에서 「{to}」(으)로 바뀌어요. 무료 변경은 이번 한 번이에요 — 다음부터는 닉네임 변경권이 필요해요.',
     nicknameConfirmButton: '바꾸기',
+    // 무료를 썼고 변경권이 있다 — 칸이 열리고 바꾸면 1장을 쓴다
+    nicknameTicketHelp: '변경권 {count}장 · 바꾸면 1장 써요.',
+    nicknameTicketConfirmTitle: '변경권을 써서 바꿀까요?',
+    nicknameTicketConfirmText: '「{from}」에서 「{to}」(으)로 바뀌어요. 닉네임 변경권 1장을 써요(남은 변경권 {count}장 → {after}장). 쓴 변경권은 환불할 수 없어요.',
+    nicknameTicketConfirmButton: '변경권 쓰고 바꾸기',
+    // 무료를 썼고 변경권이 없다 — 칸 잠금 + 포인트 상점 링크
+    nicknameBuyTicket: '포인트 상점에서 변경권 사기({price})',
 
     // 정지 중 — 프로필은 읽기 전용
     restrictedTitle: '정지 중이라 프로필을 바꿀 수 없어요',

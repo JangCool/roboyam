@@ -57,6 +57,11 @@ export default {
     point: 'Points',
     points: 'Point history',
     pointPolicy: 'Point policy',
+    // Point shop section (normal mode, after Points — separate from group buys)
+    pointShop: 'Point shop',
+    pointShopItems: 'Items',
+    pointShopPurchases: 'Purchases',
+    pointShopSettings: 'Point shop settings',
     // Commerce section (settings mode) — settings shared by sales and payments
     commerce: 'Commerce',
     commerceSettings: 'Commerce settings',

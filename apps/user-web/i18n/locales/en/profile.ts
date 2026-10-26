@@ -7,12 +7,19 @@ export default {
     loading: 'Loading your profile',
     loadFailed: 'Couldn’t load your profile',
 
-    // Nickname changes — only once after signing up (no waiting period); none after that
-    nicknameOnce: 'You can change your nickname only once after signing up.',
-    nicknameUsedUp: 'You’ve already changed your nickname and can’t change it again.',
+    // Nickname changes — one free change after signing up (no waiting period), then one nickname change ticket from the point shop per change
+    nicknameOnce: 'You can change your nickname once for free after signing up. After that, you need a nickname change ticket.',
+    nicknameUsedUp: 'You’ve used your free change. You need a nickname change ticket to change it.',
     nicknameConfirmTitle: 'Change your nickname?',
-    nicknameConfirmText: '“{from}” becomes “{to}”. After this change, you won’t be able to change your nickname again.',
+    nicknameConfirmText: '“{from}” becomes “{to}”. This is your only free change — after this, you’ll need a nickname change ticket.',
     nicknameConfirmButton: 'Change',
+    // Free change used, has tickets — the field opens and a change uses one ticket
+    nicknameTicketHelp: '{count} ticket(s) · a change uses 1.',
+    nicknameTicketConfirmTitle: 'Use a ticket to change?',
+    nicknameTicketConfirmText: '“{from}” becomes “{to}”. This uses 1 nickname change ticket ({count} → {after} left). Used tickets can’t be refunded.',
+    nicknameTicketConfirmButton: 'Use ticket and change',
+    // Free change used, no tickets — field locked + point shop link
+    nicknameBuyTicket: 'Buy a ticket in the point shop ({price})',
 
     // Suspended — the profile is read-only
     restrictedTitle: 'You can’t edit your profile while suspended',

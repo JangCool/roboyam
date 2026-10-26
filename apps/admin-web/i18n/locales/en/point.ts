@@ -6,6 +6,8 @@ export default {
     policyLoadFailed: "Couldn't load the point policy.",
     lastUpdated: 'Last changed {at} · {by}',
     neverUpdated: 'Never changed (defaults).',
+    ticketPriceMoved: 'The nickname change ticket price is set in Point shop › Items.',
+    ticketPriceMovedLink: 'Items',
     offTag: 'Off',
     notReadyTag: 'Not applied yet',
     section: {
@@ -15,7 +17,6 @@ export default {
         likeBonus: 'Like bonus',
         dealEnd: 'Deal end report reward',
         signup: 'Sign-up points',
-        shop: 'Shop',
         rules: 'Ground rules',
     },
     lead: {
@@ -25,7 +26,6 @@ export default {
         likeBonus: 'When a post or comment reaches the like threshold, its author gets a one-time bonus.',
         dealEnd: 'Members who reported an ended hot deal get a reward once per post.',
         signup: 'Points given once when a member finishes signing up.',
-        shop: 'Prices of items members can buy with points.',
         rules: 'Rules that always apply alongside the policy values. They can’t be changed here.',
     },
     group: {
@@ -46,7 +46,6 @@ export default {
         dealEndRequestPoints: 'Reward points',
         dealEndRequestDailyLimit: 'Times per day',
         signupPoints: 'Sign-up points',
-        nicknameTicketPrice: 'Nickname change ticket price',
     },
     help: {
         attendancePoints: 'Paid once a day. At 0, only the attendance record is kept.',
@@ -62,7 +61,6 @@ export default {
         dealEndRequestPoints: 'Points per end report.',
         dealEndRequestDailyLimit: 'Maximum times per day.',
         signupPoints: 'Given once on sign-up. 0 means none.',
-        nicknameTicketPrice: 'Price of one nickname change ticket (1 or more). Not refundable.',
     },
     unit: {
         point: 'P',
@@ -79,7 +77,6 @@ export default {
         attendanceNotApplied: 'Check-in isn’t available yet. The value is saved and will be used once it is.',
         popularNotApplied: 'Popular post rewards aren’t available yet. The value is saved and will be used once they are.',
         signupNotApplied: 'Public sign-up isn’t available yet, so nothing is paid. The value is saved.',
-        shopNotApplied: 'Nickname ticket exchange isn’t available yet. The value is saved and will be used once it is.',
     },
     rule: {
         zeroOff: 'Setting a value to 0 turns that item off. There is no global switch for points.',

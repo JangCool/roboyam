@@ -8,7 +8,7 @@
 | 단위 | 내용 | 화면 | 상태 |
 |---|---|---|---|
 | 1-1 포인트 확장 | 아래 A + 배치·불변식 + 회원·관리자 포인트 API | 작음: 회원 포인트 화면(소멸 예정·미회수), 관리자 원장 무상/유상 칸·회원 상세 묶음 — 목업 먼저 | 완료(미커밋) 2026-10-26 — 화면 확정·서버·화면 연결·규칙 테스트 통과(shared 157·api 40·admin 84, 알림 간격 추가 뒤 shared 123·api·admin 다시 통과), 아래 「1-1 구현 결과」 |
-| 1-2 포인트 상점 | 아래 B + 닉네임 변경권 사용 + 장식 표시 + 0-5 이름 바꾸기 | 큼: 회원 포인트 상점·내 아이템·구매 확인, 관리자 품목·구매 내역·설정 — 목업 먼저 | 대기 |
+| 1-2 포인트 상점 | 아래 B + 닉네임 변경권 사용 + 장식 표시 + 0-5 이름 바꾸기 | 큼: 회원 포인트 상점·내 아이템·구매 확인, 관리자 품목·구매 내역·설정 — 목업 먼저 | 완료(미커밋) 2026-10-26 — 화면 확정(아바타 포함)·서버(V86)·화면 연결·규칙 테스트 통과(바꾼 범위 shared 195·api 55·admin 97, 두 앱 typecheck — 정지 중 장착 금지·환불 신청(V87) 포함). 1-1 커밋 1d52436 위 브랜치 `claude/determined-raman-5d64cb` — develop 은 1-1 다음에 합친다(「1-2 구현 결과」) |
 | 1-3 적립 규칙 보강(선택) | commerce.md 6-2 설정 칸 + 가입 포인트(본인인증 완료 때 평생 1회) | 포인트 정책 칸 | 대기 |
 순서: 1-1 서버 ∥ 1-2 화면 목업 → (1-1 을 develop 에 합친 뒤) 1-2 서버 → 1-3. 1-2 서버는 포인트 사용·사용 취소(1-1)에 기댄다.
 
@@ -92,10 +92,12 @@
 **아직 테스트로 막지 못한 규칙**: ① 큰 금액 조정 **승인 대기**(결정 11 — 4단계, 지금은 권한 검사만). ② 일일 어뷰징 리포트(결정 12 — 4단계, shortfall 표까지만). ③ 실제 pg_cron 등록·실제 시각 실행(시험 DB 에 pg_cron 없음 — 정의 행과 직접 CALL 만). ④ `@Transactional(MANDATORY)` 강제(서비스 시험이 스프링 프록시 없이 조립). ⑤ 댓글·추천 보너스 회수의 묶음·복구 규칙은 글과 같은 코드 길이라 글로만 시험. ⑥ 충전 환불(REFUND) 줄의 실제 모양(3단계). ⑦ 원장 보관 기간 파기·탈퇴 회원 원장 정리(17-3)가 생기면 불변식 검사를 함께 고쳐야 한다(`R__batch_29` 머리말).
 
 ## B. 포인트 상점 (commerce.md 7절)
-- **`point_shop_items`**: id, code(유일·불변), kind(`NICKNAME_CHANGE_TICKET`·`NICKNAME_COLOR`·`PROFILE_BORDER` — 결정 9), usage_type(`PERMANENT`|`CONSUMABLE`|`PERIOD` — 변경권은 CONSUMABLE 만, 색·테두리는 PERMANENT|PERIOD), name·name_en·description·description_en, color(`#RRGGBB`, 닉네임 색만)·border_style(팔레트 키, 테두리만) — CHECK, price_point(1~100,000), duration_days(PERIOD 만, 1~365), stock(null = 무제한, ≥ 0), sale_start_at·sale_end_at, active, sort_order, created_by·updated_by·created_at·updated_at.
+- **`point_shop_items`**: id, code(유일·불변), kind(`NICKNAME_CHANGE_TICKET`·`NICKNAME_COLOR`·`PROFILE_BORDER`·`PROFILE_AVATAR` — 결정 9·14), usage_type(`PERMANENT`|`CONSUMABLE`|`PERIOD` — 변경권은 CONSUMABLE 만, 색·테두리는 PERMANENT|PERIOD, 아바타는 PERMANENT 만), name·name_en·description·description_en, color(`#RRGGBB`, 닉네임 색만)·border_style(팔레트 키, 테두리만)·avatar_id(아바타 카탈로그 ID, 아바타만·유일) — CHECK, price_point(1~100,000), duration_days(PERIOD 만, 1~365), stock(null = 무제한, ≥ 0), sale_start_at·sale_end_at, active, sort_order, created_by·updated_by·created_at·updated_at.
+- **아바타 품목**(결정 14): 유료 306종을 V86 이 시드한다 — code `avatar-<id>`, name = 카탈로그 한글 이름, price 1,000, PERMANENT, 재고·기간·판매 기간 없음, sort_order = 카탈로그 순서. 카탈로그(ID·이름·카테고리·순서)는 배포되는 자산 `avatars/manifest.json`(community 와 같은 328종)이고 그림은 두 앱의 `public/avatars/roboyam/<id>.svg`. 무료 22종(카테고리 `basic`·`hobby`)은 품목 행이 없다. 아바타 품목은 관리자가 새로 만들거나 지울 수 없다(가격·이름·순서·판매 여부만, 묶음 변경 가능).
 - **`point_shop_purchases`**: id, user_id, item_id, 사본(code·name·kind·usage_type·price_point·duration_days), status(`COMPLETED`|`REFUNDED`), refund_notice_agreed_at(필수), use_ledger_id, refund_ledger_id, refunded_at, refunded_by_operator_id·refund_reason(예외 환불), created_at. 색인 `(user_id, id DESC)`·`(item_id)`.
 - **`user_items`**: id, user_id, item_id, purchase_id(유일), usage_type(사본), status(`OWNED`|`USED`|`REVOKED` — 만료는 저장하지 않고 expires_at 으로 계산, 결정 6), starts_at, expires_at(PERIOD 만), first_used_at(환불 판정, 지우지 않음), used_at, revoked_at, created_at. 유일 `(user_id, item_id) WHERE usage_type='PERMANENT' AND status <> 'REVOKED'`. 기간제를 기간 중에 또 사면 앞 줄 끝에서 시작.
 - **`user_equipped`**: PK `(user_id, slot)`, slot(`NICKNAME_COLOR`|`PROFILE_BORDER`), user_item_id(유일), item_id·expires_at(사본 — 결정 8), equipped_at. 장착하면 `first_used_at` 을 채운다. 기간이 지나면 읽을 때 해제로 본다.
+- **고른 아바타**: `profiles.profile_image`(V2 에 있는 칸, 지금 안 씀)에 `avatar:<id>`. null 이면 `basic-default` 로 그린다. 장착 칸(`user_equipped`)은 쓰지 않는다. 유료 아바타를 고르면 그 `user_items.first_used_at` 을 채운다(환불 판정 — commerce.md 7-3 「프로필로 설정한 적 없음」). 예외 환불로 보유가 없어진 아바타를 쓰고 있었으면 `basic-default` 로 돌아간다.
 - **`point_shop_settings`**(1행): refund_days(7, 1~30).
 - **구매**(한 트랜잭션, `MoneyRequestGuard` — 멱등 키 + 요청 제한 `POINT_SHOP_PURCHASE` 1분 10번): 자격(로그인·이메일 인증·정상 회원·회원 권한 `pointshop.use`·`RestrictedFeature.POINT_USE` 아님) → 판매 기간·active·영구 중복 → 재고 조건부 차감 → 포인트 사용(사유 `POINT_SHOP_PURCHASE`, 가격은 서버가 품목에서) → 구매·보유. **적립·충전 포인트 모두 쓸 수 있고 적립부터 차감**(결정 9).
 - **환불**(D6, 모든 품목 같은 규칙 — 닉네임 변경권 포함): 안 썼고(first_used_at 없음) 구매 후 refund_days 이내면 회원 셀프 환불(요청 제한 `REFUND_REQUEST`), 아이템 REVOKED → 사용 취소(`POINT_SHOP_REFUND`, 원래 묶음) → 재고 복원 → 구매 REFUNDED. 조건 밖은 `pointshop.refund` 예외 환불(감사 — 돈 관련 5년).
@@ -118,14 +120,116 @@
 6. **보유 아이템 만료 상태**: 저장하지 않고 expires_at 으로 계산(commerce.md 7-1 의 `EXPIRED` 를 뺀다).
 7. **글 복구 되돌림(`POST_RESTORE`)과 묶음**: 회수 때 빼 갔던 묶음으로 되돌리고(만료됐으면 30일 새 묶음), 그 글 때문에 생긴 미회수(debt·shortfall)도 함께 지운다.
 8. **장식 표시**: `user_equipped` 에 품목 번호·소멸일 사본을 두어 표시 때 표 하나만 붙인다.
-9. **품목 종류와 쓸 수 있는 포인트**: 1단계 품목은 닉네임 변경권·닉네임 색·프로필 테두리. **포인트 상점 품목은 전부(변경권 포함) 적립·충전 포인트 모두 쓸 수 있고 적립부터 차감**(commerce.md D2 를 「꾸미기 아이템」에서 「포인트 상점 품목 전부」로 넓혔다). 테두리를 어디에 보일지는 화면 목업에서 정한다.
+9. **품목 종류와 쓸 수 있는 포인트**: 1단계 품목은 닉네임 변경권·닉네임 색·프로필 테두리·프로필 아바타(결정 14). **포인트 상점 품목은 전부(변경권 포함) 적립·충전 포인트 모두 쓸 수 있고 적립부터 차감**(commerce.md D2 를 「꾸미기 아이템」에서 「포인트 상점 품목 전부」로 넓혔다). 테두리를 어디에 보일지는 화면 목업에서 정한다.
 10. **6-2 적립 규칙·가입 포인트**: 1-3 으로 따로(1-1 다음).
 11. **큰 금액 조정 승인 대기**(13-2): 1단계는 권한 검사만(문턱을 넘는데 권한이 없으면 거절). 승인 대기는 4단계 — 「아직 테스트로 막지 못한 규칙」으로 적는다.
 12. **일일 어뷰징 리포트**: 4단계. 1단계는 shortfall 표까지.
 13. **원장 줄 금액 `delta`**: 지금처럼 int(한 줄 금액은 그 범위), 합계 칸만 bigint.
+14. **프로필 아바타 추가**(2026-10-26 사용자 지시): community 의 아바타 328종(무료 22 · 유료 306 각 1,000P 영구)을 그대로 가져와 1-2 에 넣는다. 고르기 화면, 프로필·글 보기 머리의 아바타 표시(테두리는 아바타를 감싼다), 포인트 상점 「아바타」 탭, 관리자 묶음 가격·판매 변경. 아바타를 고르지 않은 회원도 이니셜 대신 `basic-default` 아바타로 보인다. 올린 이미지(사진 올리기)는 1단계에 없다.
 - **이름**: 「상점」이라고만 쓰지 않는다 — **포인트 상점**(포인트로 사는 디지털 아이템)과 **공동구매**(현금으로 사는 실물)로 부른다. **둘을 한 메뉴로 묶지 않는다**(사용자 2026-10-26). 표·패키지·권한·사유는 `point_shop`·`pointshop`·`POINT_SHOP_*`.
 
+## 1-2 화면 목업 (2026-10-26 — **사용자 확정**(「진행해」): 아래 제안·가정·아바타를 그대로 확정. 서버 없음)
+화면은 메모리 목업(`// MOCK:`·`// REAL:` 나란히)으로 만들었다. 아래는 목업이 기대는 가정이고, 확정되면 서버가 이 모양으로 만든다.
+
+**제안한 결정(미확정 3개에 대한 답)**
+- **닉네임 색 대비**: 운영자는 `#RRGGBB` 하나만 정한다. 그릴 때 user-web 의 기존 규칙 `UtilColor.cssPair`(홈 가젯 색과 같다 — 라이트 `#ffffff`·다크 `#202125` 바탕에서 4.5:1 이 안 되면 **명도만** 조정, 색상 유지)로 `light-dark()` 두 값을 만든다. 저장값은 원색 그대로. 관리자 미리보기는 라이트·다크 두 바탕을 나란히 보이고, 보정되면 「밝은/어두운 화면에서 조금 바꿔 보여요」 표시(저장은 막지 않는다).
+- **프로필 테두리 팔레트**(`border_style` 키, 코드 고정 — 서버 CHECK 와 같은 목록): `GOLD` 금빛 · `SILVER` 은빛 · `ROSE` 장미 · `OCEAN` 바다 · `FOREST` 숲 · `NIGHT` 밤하늘 · `RAINBOW` 무지개. 이니셜 동그라미 둘레의 그라데이션 고리(바탕색 틈 하나) — 두 테마에서 같은 모양.
+- **테두리를 보일 자리**: 공개 프로필 머리(`/users/{id}`의 큰 동그라미)와 **글 보기 머리의 작성자**(작은 이니셜 동그라미를 새로 둔다). 목록·댓글·쪽지는 줄이 좁아 **닉네임 색만**. 닉네임 색은 작성자 표시가 있는 모든 곳(`PostAuthorLabel`)과 프로필 닉네임.
+- **환불 기한 바꾸기**: 이미 산 구매도 구매 시점이 아니라 **지금 설정값**으로 판정한다.
+- **미리보기 없는 품목(변경권)**: 「무엇을 할 수 있나 · 언제 쓰나(가입 뒤 1번 무료 변경을 쓴 다음) · 쓰는 곳(프로필 설정) · 기간 없음 · 환불 조건」 다섯 줄을 상세에 늘 적는다.
+
+**회원 화면(user-web)** — 메뉴 이름 「포인트 상점」(서비스 용어 `POINT_SHOP`, 헤더 프로필 메뉴·햄버거). 공동구매 줄과 따로.
+- `/point-shop` 목록(종류 거르기: 전체·닉네임 색·프로필 테두리·변경권) · `/point-shop/{id}` 상세(미리보기·구매) · `/me/items` 내 아이템(장착·해제·남은 기간·환불). 모두 로그인 필요(`auth`).
+- 구매 확인 대화상자: 가격 · 「지금 N P → 산 뒤 M P」(충전을 열기 전이라 「포인트」 하나 — D13) · 「적립 포인트부터 빠져요」 한 줄 · 고지 체크(「사용(장착)하면 환불할 수 없어요 · {refundDays}일 안에 쓰지 않으면 환불할 수 있어요」, 안 고르면 [구매] 꺼짐) · 기간제는 「산 순간부터 N일」(보유 중이면 「지금 기간 끝(날짜)에 이어 붙어요」).
+- 프로필 설정: 무료 1번을 썼으면 변경권 보유 수 · 「변경권 1장을 써서 바꾸기」 확인 → `useTicket: true` · 0장이면 칸 잠금 + 「포인트 상점에서 변경권 사기(가격)」 링크.
+- 아바타(결정 14): 프로필 설정에 「프로필 아바타」 구획(지금 아바타 + [바꾸기] → 고르기 — 카테고리 칩 + 격자, 무료 + 내가 산 것만, 누르면 바로 저장. 환불 기한 안의 유료 아바타는 「고르면 환불할 수 없어요」 한 번 묻는다, 「더 많은 아바타는 포인트 상점에서」 링크) · 포인트 상점 거르기에 「아바타」 탭(유료 306, 카테고리 칩 + 격자, 보유·판매 중단 표시, 누르면 크게 미리보기(내 닉네임·장착 테두리와 함께) + 구매 확인 → 「바로 프로필로 쓰기」) · 내 아이템에 「아바타」 구획(산 것, 사용 중, 프로필로 쓰기, 환불) · 공개 프로필 머리·글 보기 머리의 동그라미가 아바타(테두리는 그 둘레).
+
+**API 후보(회원, api 서버)** — 응답은 공통 래퍼의 `data`.
+- `GET /api/point-shop/items?kind=` → `{ refundDays, balance, items: PointShopItemView[] }` · `GET /api/point-shop/items/{id}` → `PointShopItemView`.
+  `PointShopItemView` = id, code, kind, usageType, name, nameEn, description, descriptionEn, color, borderStyle, price, durationDays, stock(남은 수, null = 무제한), saleStartAt, saleEndAt, saleState(`ON_SALE`|`UPCOMING`|`ENDED`|`SOLD_OUT`), mine{ owned(영구 보유), count(안 쓴 소모형 장수), periodEndsAt(기간제 지금 끝 — 이어 붙일 자리) }.
+- `POST /api/point-shop/purchases` `{ itemId, agreeRefundNotice: true }` + `Idempotency-Key` → `{ purchaseId, userItemId, balance, item }`. 오류: `401` · `403 EMAIL_NOT_VERIFIED`·`ACCOUNT_RESTRICTED`·`MEMBER_RESTRICTED`(POINT_FREEZE)·`PERMISSION_DENIED`(`pointshop.use`) · `409 POINT_SHOP_NOT_ON_SALE`·`POINT_SHOP_SOLD_OUT`·`POINT_SHOP_ALREADY_OWNED`·`POINT_INSUFFICIENT` · `400 VALIDATION fields.agreeRefundNotice` · `429 RATE_LIMITED`(`Retry-After`).
+- `GET /api/me/items` → `{ refundDays, items: MyItemView[] }` — 한 줄 = `user_items` 한 줄: id, itemId, purchaseId, kind, usageType, name, nameEn, color, borderStyle, status(`OWNED`|`USED`|`REVOKED`), expired(서버 계산), equipped, startsAt, expiresAt, firstUsedAt, purchasedAt, pricePaid, refundable(서버 판정), refundUntil. 화면은 소모형을 품목별 한 카드(장수)로 묶는다.
+- `PUT /api/me/equipped/{slot}` `{ userItemId }` · `DELETE /api/me/equipped/{slot}` → `{ nicknameColor, profileBorder }`(각 `{ userItemId, itemId, color|borderStyle, expiresAt } | null`). 오류 `409 USER_ITEM_EXPIRED`·`USER_ITEM_NOT_EQUIPPABLE`.
+- `POST /api/me/items/{id}/refund` + `Idempotency-Key` → `{ refundedPoints, balance }`. 오류 `409 POINT_SHOP_REFUND_NOT_ALLOWED`(썼거나 기한 지남 — 화면은 이유를 다시 읽는다) · `429 RATE_LIMITED`(`REFUND_REQUEST`).
+- `PUT /api/me/profile` 에 `useTicket`(선택) · `MyProfile.nicknameChange` 에 `ticketCount`·`ticketPrice` · `409 NICKNAME_TICKET_REQUIRED`(최상위 `ticketCount`·`ticketPrice`) — `member-mypage-contract.md` 「후속 작업」 그대로. `GET /api/me/points` 의 `ticketCount` 실제 값.
+- 작성자 장식: `PostAuthor`(글·댓글·목록·쪽지 상대)와 공개 프로필에 `decoration: { nicknameColor: '#RRGGBB'|null, profileBorder: 키|null } | null` — 만료된 장착은 서버가 null 로.
+- **아바타**(결정 14 — 모양은 community `docs/api-avatar.md` 를 로보얌에 맞춤):
+  - `GET /api/avatars` → `{ balance, selectedId, refundDays, categories[{ id, free, count }], items[{ id, name, category, free, price, itemId, forSale, owned, selected, refundable, url }] }` — 328줄, 카탈로그 순서. 아바타 306줄은 품목 목록(`/api/point-shop/items`)에 섞지 않는다(응답이 커진다). 카테고리 이름은 화면 i18n 키(`avatar.category.<id>`), 아바타 이름은 카탈로그 한글 이름(영문 없음 — 영어 화면도 한글).
+  - 사기는 `POST /api/point-shop/purchases { itemId }` 그대로. 사도 프로필은 바뀌지 않는다(화면이 「바로 쓰기」로 이어 부른다).
+  - `PUT /api/me/profile/avatar { avatarId }` → `MyProfile`(`avatarUrl` 포함). 무료는 누구나(사업자 전용 계정 포함), 유료는 가진 것만. 오류 `400 VALIDATION fields.avatarId` · `404 AVATAR_NOT_FOUND` · `409 AVATAR_NOT_OWNED` · `403 EMAIL_NOT_VERIFIED`·`ACCOUNT_RESTRICTED`. 같은 것을 다시 골라도 200.
+  - 표시: `MyProfile`·공개 프로필·`PostAuthor`(회원)에 `avatarUrl` — 서버가 늘 채운다(고르지 않았거나 카탈로그에 없으면 `basic-default`), 비회원은 null(이니셜). 화면 대체 이미지도 `basic-default`. 그림은 `<img>` 로만 그린다(`v-html`·인라인 SVG 금지), 틀 안에서 `object-fit: contain`(284종이 가로로 조금 넓다).
+
+**관리자 화면(admin-web)** — 일반 메뉴 묶음 「포인트 상점」(포인트 묶음 다음, 공동구매와 따로): 품목 관리 `/point-shop/items` · 구매 내역 `/point-shop/purchases` · 포인트 상점 설정 `/point-shop/settings`. 세 화면 모두 조회 `pointshop.read`, 화면 안에서 저장 `pointshop.manage`, 예외 환불 `pointshop.refund`. 포인트 정책 화면의 「상점」 구획은 없애고 안내 한 줄 + 품목 관리 링크(값 `nicknameTicketPrice` 는 서버가 칸을 지울 때까지 그대로 실어 보낸다).
+- 품목 편집: 종류(만든 뒤 못 바꿈)·코드(만든 뒤 못 바꿈, 영소문자·숫자·하이픈 3~40)·사용 방식(변경권은 소모형만, 색·테두리는 영구·기간제)·이름·영문명·설명·영문 설명·색(닉네임 색)·테두리 키(테두리)·가격 1~100,000·기간 1~365(기간제)·재고(빈칸 = 무제한, 0 이상)·판매 시작·끝·순서·사용 여부, 오른쪽 미리보기(라이트·다크). 색·테두리를 고치면 「산 사람의 닉네임 색·테두리도 바로 바뀌어요(가격·이름은 산 때 그대로)」 경고.
+- 구매 내역: 기간·상태(완료·환불)·종류·회원 거르기, 한 줄 = 구매 시각·회원·품목(산 때 이름·가격)·사용 여부·셀프 환불 가능 여부·상태. [예외 환불](`pointshop.refund`) → 사유 필수(5~200자) 확인 → 감사(돈 관련 5년).
+- 아바타 탭(품목 관리 화면 안): 카테고리별 요약(전체·판매 중·중단·가격 범위, 무료 두 카테고리는 「무료」) · 묶음 가격(범위 `ALL`|`CATEGORIES`|`ITEMS`, 1~100,000) · 묶음 판매 켜기/끄기 · 격자에서 골라 묶기, 확인창에 「N개를 바꿔요 · 이미 산 사람의 가격은 그대로」. 아바타 품목은 [품목 추가]의 종류에 없고 지울 수 없다(한 줄 편집은 이름·가격·순서·판매 여부만). 묶음 변경은 감사(일반 운영). API 후보 `GET /api/admin/point-shop/avatars/summary` · `PUT /api/admin/point-shop/avatars/price { scope, categories?, itemIds?, price }` · `POST /api/admin/point-shop/avatars/sale { scope, …, active }` → `{ matched, changed }`, 목록은 `GET /api/admin/point-shop/items?kind=PROFILE_AVATAR`·`excludeKind=PROFILE_AVATAR`.
+- API 후보(admin 서버): `GET/POST /api/admin/point-shop/items` · `PUT /api/admin/point-shop/items/{id}` · `GET /api/admin/point-shop/purchases?from&to&status&kind&q&page&size` · `POST /api/admin/point-shop/purchases/{id}/refund { reason }` · `GET/PUT /api/admin/point-shop/settings { refundDays }`.
+
+**목업 가정**: 목업 잔액 12,000P(실제 포인트 요약과 따로 움직인다) · 품목 8개(변경권 1,000P · 영구 색 장미·바다·레몬 · 기간제 색 단풍(30일, 곧 판매 끝) · 영구 테두리 GOLD · 한정 재고 RAINBOW(남은 1개) · 판매 예정 NIGHT — 두 앱 목업이 같은 번호·값) · `?mock=` 스위치로 실패·품절·예정·잔액 부족을 본다(각 목업 파일 머리 주석) · 목업은 장착한 내 장식을 **내 글·댓글·프로필**에 겹쳐 그린다(서버 `decoration` 이 붙으면 「방금 바꾼 것 겹치기」로 남는다) · 변경권 사용 저장(`useTicket`)은 목업이 받는다(실제 서버는 아직 `409 NICKNAME_CHANGE_LIMIT`).
+
+**목업 결과 (2026-10-26 — 두 앱 `typecheck` 통과, 브라우저 확인은 개발자 몫)**
+- user-web: `pages/point-shop/{index,[id]}.vue`·`pages/me/items.vue`, `composables/pointshop/`(API 둘 + `mock/pointshop-mock.ts` + 내 장식 겹치기 `useMyDecoration`), `components/pointshop/`(`ProfileBorderAvatar` 등), `utils/util-point-shop*.ts`(옛 `util-shop.ts` 지움), 서비스 용어 `ITEM_SHOP` → `POINT_SHOP`. 고친 곳: `PostAuthorLabel`(닉네임 색)·글 보기 머리(작은 동그라미)·공개 프로필 머리·프로필 설정(변경권 `FREE`/`TICKET`/`NEED_TICKET`)·헤더·햄버거·`/me` 바로가기.
+- admin-web: `pages/point-shop/{items,purchases,settings}.vue`, `composables/pointshop/`(API + `mock/pointshop-admin-mock.ts`), `components/pointshop/`(편집 서랍·미리보기·예외 환불 대화상자), `utils/util-point-shop*.ts`·`utils/util-color.ts`(user-web 사본), 메뉴 묶음 `pointShop`, 포인트 정책의 「상점」 구획 없앰.
+- 계약 위에서 더 정한 것(서버 때 반영할 후보): `404 POINT_SHOP_ITEM_NOT_FOUND`·`USER_ITEM_NOT_FOUND`·`POINT_SHOP_PURCHASE_NOT_FOUND`, `409 POINT_SHOP_ALREADY_REFUNDED`(예외 환불), 관리자 구매 줄 `selfRefund{allowed, until, blockedBy}`·`refund{kind, refundedAt, operatorName, reason, refundedPoints}`·`firstUsedAt`, 설정 응답 `defaultRefundDays`·`updatedAt`·`updatedBy`, 품목 순서 0 이상·재고 상한 없음. 관리자 판매 상태는 화면 계산(회원 응답만 `saleState`). 회원 상품 상세는 잔액·`refundDays` 때문에 목록도 같이 부른다(서버가 상세에 실어 주면 하나로).
+- 서버 단계에 할 일로 남긴 것: `useApiClient` 에 요청 헤더 칸이 없어 `Idempotency-Key` 를 아직 못 보낸다(REAL 줄에 모양만) · 메뉴 내장 주소 `MY_SHOP("/me/shop")`(server `MenuBuiltin`·admin `util-menu.ts`)을 `/point-shop` 으로 · 권한 카탈로그 `shop.*` → `pointshop.*` 와 `AdminScreenRegistry` 세 줄(그 전까지 관리자 메뉴는 최고 관리자에게만 보인다) · 멱등 키 `crypto.randomUUID()` 는 보안 문맥(https·localhost)에서만 된다.
+- 아바타(결정 14): 그림 328개를 두 앱 `public/avatars/roboyam/` 에(community 에서 그대로 — 스크립트·외부 참조 없음 확인), 카탈로그 사본을 각 앱 목업 폴더 `avatar-manifest.json` 에 두었다(서버 단계에 `server/shared` 자원으로 옮기고 목업 사본은 지운다). user-web: `composables/avatar/`(API + 목업 — 포인트 상점 목업과 같은 메모리 상태), `components/avatar/`(카테고리 칩·격자), 공용 구매 대화상자 `PointShopPurchaseDialog`·`usePointShopPurchase`, 프로필 설정 「프로필 아바타」 구획(바로 저장 — 닉네임 저장 줄과 따로), 포인트 상점 「아바타」 탭(`?kind=PROFILE_AVATAR`), 내 아이템 아바타 구획, 동그라미가 아바타인 곳: 공개 프로필·글 보기 머리·`/me`. admin-web: 품목 관리 「아바타」 탭(`?tab=avatars` — 카테고리 요약·묶음 가격·묶음 판매·격자 고르기), 아바타 한 줄 편집(이름·영문명·가격·순서·사용 여부만), 구매 내역의 아바타 거르기·썸네일.
+- 아바타에서 더 정한 것: `MyItemView` 에 `inUse`·`avatarId`·`avatarUrl`, `PointShopItemView` 에 `avatarId`·`avatarUrl`, 관리자 목록 줄 `category`(이름은 화면 i18n — `categoryName`·`limits.price` 없음, 가격 범위는 화면 상수 1~100,000).
+- 목업 한계: 변경권으로 바꾼 닉네임·내 장식·고른 아바타는 목업 안에만 있고 새로고침하면 처음으로 돌아간다.
+
+## 1-2 정지 중 환불 신청 (2026-10-26 — 사용자 「정지 중인데 마음대로 환불되면 안 된다, 운영자 수락」 → 「환불 신청 → 운영자 수락」 선택)
+- **정지·영구 정지 중**에는 셀프 환불이 바로 처리되지 않는다. 같은 `POST /api/me/items/{id}/refund`(멱등 키·`REFUND_REQUEST` 제한 그대로)가 조건(안 씀 + 기한 안)을 **신청 순간**에 판정해 맞으면 **환불 신청**(`PENDING`)을 만들고 `202` `{ requestId, status: 'PENDING', requestedAt }` 을 준다(조건 밖이면 지금처럼 409). 판정은 신청 시각으로 고정 — 처리를 기다리는 동안 기한이 지나도 된다.
+- 신청이 `PENDING` 인 동안: 그 아이템은 장착·아바타 고르기·셀프 환불 불가 `409 POINT_SHOP_REFUND_PENDING`(써 버리면 조건이 깨진다). 같은 구매에 대기 신청은 하나(DB 유일).
+- 운영자(`pointshop.refund`) **수락**: 기존 환불과 같은 처리(아이템 REVOKED → 원래 묶음으로 사용 취소 → 재고 복원 → 구매 REFUNDED, 환불 종류 `REQUEST`, 처리자 기록) · **거절**: 사유 필수(5~200자), 아이템은 다시 쓸 수 있다. 거절된 구매는 정지 중 다시 신청할 수 없다(`409 POINT_SHOP_REFUND_REJECTED`). 정지가 풀리면 기한 안에서 보통 셀프 환불은 된다.
+- 결과는 회원 알림(수락·거절 — 거절은 사유 포함), 새 신청은 운영자 알림(닉네임 그림 심사 대기와 같은 방식). 감사: 수락 = `POINT_SHOP_REFUND`(돈 관련 5년), 거절 = 돈 관련.
+- **구현(2026-10-26)**: `V87__point_shop_refund_request.sql` — 표 `point_shop_refund_requests`(대기 하나 유일 색인 `ux_point_shop_refund_requests_pending`, 결정 칸 조합 CHECK·결정은 한 번 트리거), 구매에 `refund_kind`(`SELF|EXCEPTION|REQUEST` — 기존 환불 줄은 운영자 있으면 EXCEPTION), 회원 알림 종류 CHECK(V85 ∪ `POINT_SHOP_REFUND_APPROVED|REJECTED`). 운영자 이벤트 `POINT_SHOP_REFUND_REQUESTED`(받는 사람 `pointshop.refund` 운영자, 5분 안 연속 신청은 한 건, 링크 `/point-shop/purchases?refundRequest=PENDING`)는 코드가 원천. API: 회원 `POST /api/me/items/{id}/refund` 202 `{requestId, status, requestedAt}`(정지 중) · `GET /api/me/items` 에 `refundNeedsApproval`·줄 `refundRequest{id,status,requestedAt,decidedAt,rejectReason}` · 관리자 구매 내역 `refundRequest=PENDING|APPROVED|REJECTED` 거르기·줄 `refundRequest` · `POST /api/admin/point-shop/refund-requests/{id}/approve|reject` → `{requestId, purchaseId, status, refundedPoints, decidedAt}`. 오류 `409 POINT_SHOP_REFUND_PENDING|REJECTED|REQUEST_NOT_PENDING`·`404 POINT_SHOP_REFUND_REQUEST_NOT_FOUND`. 감사: 수락 `POINT_SHOP_REFUND`(kind REQUEST)·거절 `POINT_SHOP_REFUND_REJECT`(돈 관련). **구현하며 정한 것**: 대기 중인 구매는 예외 환불도 409(신청은 수락·거절로 끝낸다) · 대기 중인 변경권은 장수에서 빠지고 쓰이지 않는다 · 관리자 줄의 `selfRefund` 는 조건만, 대기 여부는 `refundRequest` 로 · 잠금 순서 구매 → 신청 → 보유 줄 → 프로필 → 재고 → 잔액 · 관리자 화면은 신청 결정을 한 번에 하나씩.
+- 마이그레이션은 새 번호 `V87`(가번호 — V86 이 로컬 DB 에 적용됐을 수 있어 고치지 않는다): 표 `point_shop_refund_requests`, 회원 알림 종류 CHECK 를 최신 목록과의 합집합으로 다시 만든다.
+- 화면: 내 아이템 — 정지 중이면 [환불] 대신 [환불 신청](확인창 「운영자가 확인한 뒤 환불돼요 · 기다리는 동안 이 아이템은 쓸 수 없어요」), 대기 줄 「환불 신청함 · 운영자 확인 기다리는 중」, 거절 줄 「환불 신청이 거절됐어요: 사유」. 관리자 구매 내역 — 거르기 「환불 신청 대기」, 줄에 신청 시각 · [수락]·[거절(사유)].
+
+## 1-2 서버 계획 (2026-10-26 — 1-1 커밋 1d52436 을 이 브랜치에 가져온 뒤 시작, develop 합치기는 사용자 몫)
+- 순서: ① shared — V86·엔티티·서비스·아바타 카탈로그·0-5 이름 바꾸기·규칙 시험 → ② api ∥ admin 컨트롤러·HTTP 시험 → ③ 두 앱 목업을 실제 호출로 → ④ 이 문서 「1-2 구현 결과」·「규칙 → 테스트」.
+- 잠금 순서(1-1 규칙): 업무 잠금(품목 재고 조건부 UPDATE · 보유 줄 `FOR UPDATE` · 프로필 행 `FOR UPDATE`) 먼저, `PointService.use`/`cancelUse` 가 마지막(잔액 행 잠금).
+- 멱등·요청 제한은 api 의 `MoneyRequestGuard`(구매 `POINT_SHOP_PURCHASE` 1분 10번, 환불 `REFUND_REQUEST` 3번). 같은 키 재요청은 처음 응답 그대로.
+- 아바타 카탈로그 원본 `server/shared/src/main/resources/avatars/manifest.json`(community 와 같은 파일). 시험이 지킨다: 유료 ID 집합 = 시드한 아바타 품목 · 두 앱 `public/avatars/roboyam/*.svg` = 카탈로그 328.
+- 꼭 넣을 시험(사용자 지시): 마지막 재고 둘이 동시에 사기 · 같은 멱등 키로 다시 사기 · 영구 중복 구매 막기 · 장착(아바타는 고르기) 뒤 환불 불가 · 기한 지나면 환불 불가 · 기간제 이어 붙이기 · 변경권 한 장이 두 번 쓰이지 않음. 모두 실제 DB(`CommerceTestDatabase`).
+
+### 1-2 구현 결과 (2026-10-26 — 미커밋, 브랜치 `claude/determined-raman-5d64cb` = 1-1 커밋 1d52436 위)
+- **마이그레이션** `V86__point_shop.sql`(가번호 — V85 다음): B절 표 5개 + CHECK(종류별 칸 조합·`#RRGGBB`·팔레트 키 7개·가격 1~100,000·기간 1~365 PERIOD 만·재고 ≥ 0·판매 끝 > 시작·refund_days 1~30·아바타 = PERMANENT·`avatar_id` 필수·유일·`code = 'avatar-'||avatar_id`) · 영구 보유 부분 유일 색인 · 트리거(품목 code·kind·avatar_id 불변·아바타 품목 삭제 불가 / 구매 사본 불변·REFUNDED 되돌림 불가 / 보유 줄 정체·기간 고정·`first_used_at` 지울 수 없음·상태는 앞으로만) · users 외래키 없음. 시드: 변경권 `nickname-change`(그때의 `nickname_ticket_price`) · 유료 아바타 306 · 설정 1행. 시드 ID 는 기존 V30·V53·V54 처럼 SQL 이 만드는 Snowflake(마이그레이션 노드 1023). `point_settings.nickname_ticket_price` 를 지우고 그 칸을 함께 묶던 `ck_point_settings_other` 를 남은 칸으로 다시 만들었다. **0-5 이름 바꾸기**: `request_rate_limits`·`idempotency_requests` 의 `SHOP_PURCHASE` → `POINT_SHOP_PURCHASE`(한도 그대로, 옛 카운터 줄 삭제) · 권한 `shop.*` → `pointshop.*`(역할에 준 것 옮김, featureReady 켬) · 회원 `shop.use` → `pointshop.use` · 메뉴 내장 `MY_SHOP` 주소 `/me/shop` → `/point-shop`(matchPrefix true — 주소는 코드에만 있다).
+- **shared** `com.community.pointshop`: 엔티티 5개(읽기 전용 매핑) + JDBC 저장소 4개(조건부 UPDATE·포인트와 같은 트랜잭션 — 1-1 `PointLedgerWriter` 와 같은 이유), 서비스 `PointShopCatalogService`·`PointShopPurchaseService`·`PointShopRefundService`·`UserItemService`·`NicknameTicketService`·`ProfileAvatarService`·`ShopDecorationResolver`·`AvatarCatalog`(원본 `resources/avatars/manifest.json`). 감사 행위: 일반 운영 `POINT_SHOP_ITEM_CREATE|UPDATE`(바뀐 칸만)·`POINT_SHOP_AVATAR_PRICE|SALE`·`POINT_SHOP_SETTINGS_UPDATE`, 돈 관련 5년 `POINT_SHOP_REFUND`. 보안 설정에 `GET /api/avatars` 비로그인 허용.
+- **api**: `PointShopController`·`MyItemController`·`AvatarController`·`MemberPointShopService`, 구매·환불은 `MoneyRequestGuard`(같은 키 재요청 = 처음 `data` + `Idempotent-Replayed: true`). 프로필 `useTicket`·`ticketCount`·`ticketPrice`·`avatarUrl`·`PUT /api/me/profile/avatar`(`NICKNAME_CHANGE_LIMIT` 은 없어지고 `NICKNAME_TICKET_REQUIRED`). 작성자 장식: `AuthorViews.members()` 가 프로필 + `ShopDecorationResolver.resolve` 를 목록마다 한 번(N+1 없음) — 글 목록·보기·댓글·토론·고정 요청·검색·홈·공개 프로필·쪽지 상대.
+- **admin**: `PointShopAdminController`·`PointShopAdminService`(모든 핸들러 `@RequirePermission pointshop.*`), `AdminScreenRegistry` 세 화면, 회원 상세 `nicknameTicketCount` 실제 값.
+- **화면 연결**: 두 앱의 포인트 상점·아바타 목업과 카탈로그 사본을 지우고 실제 호출. user-web `useApiClient` 에 요청 머리글 칸(`headers`) + `UtilIdempotency`(randomUUID 가 없는 문맥의 대체 생성), 「방금 바꾼 장식 겹치기」 `useMyDecoration` + 내 장착·아바타를 한 번 받는 `useMyDecorationSync`, 쪽지에서도 닉네임 색. admin-web 권한 카탈로그·커머스 설정 요청 종류·메뉴 내장 주소·포인트 정책 13칸(변경권 가격 칸 없음)·회원 상세 변경권 수.
+- **구현하며 정한 것**: ① 환불 잠금 순서 = 구매 → 보유 줄 → 프로필 → 품목(재고 복원) → 잔액(`cancelUse` 마지막). ② 셀프 환불에서 이미 환불이면 `409 POINT_SHOP_ALREADY_REFUNDED`, `REFUND_NOT_ALLOWED` 는 최상위 `blockedBy`(USED|EXPIRED). ③ 기간제 이어 산 줄은 앞 줄이 끝나도 장착을 저절로 넘겨받지 않는다(다시 장착 — 미리 장착하면 그때 사용). 앞 줄을 환불해도 뒤 줄 시작은 당기지 않는다. ④ **정지·영구 정지 중에는 장착·해제 모두 `403 ACCOUNT_RESTRICTED`**(사용자 2026-10-26 — 정지는 이용 제한. 프로필 수정·아바타 고르기와 같다). 목록은 읽고 지금 장착한 것은 그대로 보인다. 막힌 장착은 사용이 아니라 풀린 뒤 환불 판정에 영향이 없다. 화면(내 아이템)은 안내 + 단추를 끈다. ⑤ 비로그인 아바타 목록은 잔액 0·보유·고름·환불 가능 false. ⑥ 변경권 값 = 파는 변경권 품목 중 순서·ID 가 가장 앞인 것. ⑦ 관리자 품목 검사: 이름 1~40·설명 1~500(필수)·코드 영소문자·숫자·하이픈 3~40, `avatar-` 로 시작 불가. 모르는 `kind`·`usageType` 은 `400 fields.kind|usageType`. 아바타 묶음에 없는 품목이 섞이면 404, 아바타 아닌 품목은 400. ⑧ 형식이 틀린 ID 는 404. ⑨ 변경권으로 바꾼 것도 `nickname_change_count` 에 센다(`allowed` 는 무료 기준).
+
+### 1-2 규칙 → 테스트 (모두 실제 PostgreSQL — `CommerceTestDatabase`)
+| 규칙 | 테스트 |
+|---|---|
+| **마지막 재고를 둘이 동시에 사기**(하나만·재고 0·불변식) | shared `PointShopPurchaseTest.마지막_재고_하나를_둘이_동시에_…` |
+| **같은 멱등 키로 다시 사기**(처음 응답·포인트 한 번·구매 한 줄) · 키 없음·다른 몸·실패 뒤 재시도·429 | api `PointShopPurchaseHttpTest`(5개), 환불 재요청 `MyItemHttpTest.안_쓴_아이템은_환불되고_같은_키로_…` |
+| **영구 아이템 중복 구매 막기**(서비스·동시 두 번·부분 유일 색인)·환불하면 다시 살 수 있음 | `PointShopPurchaseTest`(3개), `PointShopSchemaTest.영구_아이템은_…` |
+| **장착 뒤 환불 불가**(풀어도) · 아바타 고른 뒤 환불 불가 · 쓴 변경권 | `PointShopRefundTest`(3개), api `MyItemHttpTest.장착하면_…`, `AvatarHttpTest.유료는_가진_것만_…` |
+| **기한(7일) 지나면 환불 불가** · 기한을 바꾸면 지금 값으로 판정(늘리기·줄이기) | `PointShopRefundTest`(2개), api `MyItemHttpTest.환불_기한이_지나면_…`, admin `PointShopPurchaseAdminHttpTest.설정_조회_저장은_…` |
+| **정지 중 장착·해제 불가**(영구 정지 포함·자리 그대로·막힌 장착은 사용 아님) | shared `UserItemEquipTest.정지_중이면_장착도_해제도_…`, api `MyItemHttpTest.정지_중이면_장착도_해제도_403_…` |
+| **정지 중 셀프 환불 = 신청**(202·포인트·아이템 그대로·같은 키 재요청) · 조건 밖이면 신청 없이 409 | shared `PointShopRefundRequestTest.정지_중_셀프_환불은_…`·`조건_밖이면_…`, api `RefundRequestHttpTest.정지_중_환불은_202_…` |
+| 신청 순간 판정 고정(기한 지난 뒤 수락해도 원래 묶음으로) | `PointShopRefundRequestTest.판정은_신청_순간으로_…` |
+| 대기 중: 재신청·셀프 환불·장착·유료 아바타·변경권·예외 환불 막힘(정지 풀려도) · 대기 하나(동시 두 신청 + 색인) | `PointShopRefundRequestTest`(3개), api `RefundRequestHttpTest.정지가_풀려도_…`, admin `PointShopRefundRequestAdminHttpTest.권한이_없으면_…` |
+| 수락 = 환불(재고·REFUNDED·종류 REQUEST·돈 관련 감사·회원 알림) · 신청 = 운영자 알림 | admin `PointShopRefundRequestAdminHttpTest.대기_거르기와_…`, api `RefundRequestHttpTest.정지가_풀려도_…` |
+| 거절 = 사유 5~200·아이템 다시 쓸 수 있음·정지 중 재신청 409·풀린 뒤 기한 안 셀프 환불·알림에 사유 | `PointShopRefundRequestTest.거절하면_…`·`거절된_아이템은_…`, admin `…거절은_사유_…`, api `RefundRequestHttpTest.거절하면_…` |
+| 이미 결정된 신청 409·없는 신청 404·권한 403 · 신청 표 CHECK·알림 종류·운영자 이벤트·두 언어 문구 | `PointShopRefundRequestTest`(3개), admin `…권한이_없으면_…` |
+| **기간제 이어 붙이기** · 기간 끝나면 해제로 보임 · 끝난 것 장착 거절 | `PointShopPurchaseTest.기간제는_…`, `UserItemEquipTest`, api `MyItemHttpTest.기간이_끝난_…`·`AuthorDecorationHttpTest.기간이_끝난_장착은_…` |
+| **변경권 한 장이 두 번 쓰이지 않음**(한 장·두 장 동시) · 실패하면 안 씀 · 무료 남으면 안 씀 | `NicknameTicketTest`(4개), api `NicknameTicketProfileHttpTest`(7개) |
+| 환불: 원래 묶음으로·재고 복원·REFUNDED·멱등 · 예외 환불(조건 무시·장착 해제·고른 아바타 기본으로·돈 관련 감사·사유) | `PointShopRefundTest`, admin `PointShopPurchaseAdminHttpTest.예외_환불은_…` |
+| 판매 기간 밖·사용 안 함·품절·동결·자격(정지·이메일·권한·고지 동의)·잔액 부족은 거절하고 아무것도 안 바뀜 · 자격이 고지보다 먼저 | `PointShopPurchaseTest`(4개), api `PointShopPurchaseHttpTest`(4개) |
+| 적립 포인트부터 차감(결정 9) · 같은 구매에 포인트 두 번 사용 불가 | `PointShopPurchaseTest`(2개) |
+| 가격·이름은 산 때 사본(품목·묶음 가격을 바꿔도) · 색을 고치면 산 사람의 장식도 바뀜 | `PointShopPurchaseTest.구매_줄은_…`, `PointShopCatalogTest.색을_고치면_…`, admin `PointShopAvatarAdminHttpTest.카테고리_묶음_가격은_…` |
+| 품목 CHECK·트리거(종류별 칸·코드 불변·재고 음수 불가·사본 불변·환불 한 번·first_used_at·상태 앞으로만·자리마다 하나) | `PointShopSchemaTest`(6개) |
+| 관리자 품목 검사·종류·코드 불변·감사(바뀐 칸만)·아바타 만들기·지우기 불가·고칠 수 있는 칸 제한 | `PointShopCatalogTest`, admin `PointShopItemAdminHttpTest`(6개) |
+| 아바타 묶음 가격·판매(범위·무료 카테고리·아바타 아닌 품목 400·없는 품목 404·matched/changed) | `PointShopCatalogTest.아바타_묶음_…`, admin `PointShopAvatarAdminHttpTest`(4개) |
+| 아바타: 무료 누구나(사업자 포함)·유료는 보유만·판매 멈춘 것도 보유자는 · 비로그인 목록 · 카탈로그 328 = 시드 306 = 두 앱 svg | `ProfileAvatarTest`(5개), `AvatarCatalogTest`(4개), api `AvatarHttpTest`(5개) |
+| 작성자 장식: 글·목록·댓글·공개 프로필(한 번에 풀기·없음 null·아바타 늘·비회원 null·만료 빠짐) | `PointShopCatalogTest.장식은_…`, api `AuthorDecorationHttpTest`(3개) |
+| 0-5 이름 바꾸기(요청 종류·권한·역할 옮김) · 변경권 가격 이관·정책 칸 삭제 · 시드 ID | `PointShopMigrationTest`(4개 — V85 까지 이관한 별도 DB 에 옛 행 → V86) |
+| 권한 선언(핸들러 11개) · 화면 레지스트리 세 줄 = admin-web 사본 · 권한 카탈로그 = admin-web 사본 · 회원 상세 변경권 수 | admin `PointShopPermissionDeclarationTest`, `PointShopAdminMenuTest`, `CommercePermissionsAndMenuTest`·`Commerce04AdminCatalogTest`, `PointShopPurchaseAdminHttpTest.회원_상세의_…` |
+
+**아직 테스트로 막지 못한 것**: ① 쪽지 상대 장식은 컴파일만(HTTP 시험 없음). ② CSRF·보안 필터 단의 401·CSRF 는 api 시험이 필터 없이 돌려 확인하지 않았다(비로그인 아바타 허용 포함). ③ 로그인한 화면에서의 실제 호출·시각 확인(개발자 몫). ④ 다른 탭·기기에서 바꾼 장착은 이 탭의 겹치기에 새로고침 전까지 반영되지 않는다(화면 한계).
+
 ## 미확정
-- 프로필 테두리를 보일 자리(작성자 표시·프로필 화면)와 팔레트 — 1-2 화면 목업에서.
-- 닉네임 색의 대비(어두운·밝은 테마에서 읽히는지) 검사 규칙 — 1-2 화면 목업에서.
-- 미리보기를 줄 수 없는 품목의 설명 문구 기준.
+- 두 앱이 같이 쓰는 장식 규칙(대비 보정 `UtilColor`·테두리 팔레트)을 지금은 앱마다 사본으로 둔다 — `apps-packages` 로 옮길지.

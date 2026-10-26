@@ -3,7 +3,7 @@
         회원 상세 — 등급·포인트 구획(읽기 전용). 현재 등급·자동 승급 상태(정상 / 운영자 변경으로 중지 / 제재로 중지)·다음 등급까지의 진행도·등급 변경 이력, 포인트 잔액·닉네임 변경권·최근 포인트 내역.
         마일리지(그누보드7)는 roboyam 의 포인트로 대응한다. 등급 이름·색은 등급 설정 목록(`useGradeAppearance`)에서 읽는다. 변경·조정 같은 조치는 이번 범위 밖이라 단추가 없다.
         서버가 채우는 것: 자동 승급 상태·다음 등급 달성도·등급 변경 이력(최대 50건 — 최근 5건만 보이고 펼친다), 포인트 잔액(상세의 `point`)·최근 포인트 내역(원장 최근 10줄, 사유는 요청 언어).
-        닉네임 변경권은 교환 기능이 없어 서버가 늘 0 이라 「준비 중」이다(0 은 "없음"으로 오해된다). 회원 전체의 원장·수동 지급/차감은 「포인트 내역」 화면(`/points`)이 맡는다.
+        닉네임 변경권은 서버의 `nicknameTicketCount`(포인트 상점에서 사서 아직 안 쓰고 환불되지 않은 장수 — 커머스 1-2)를 「N장」으로 보인다. 회원 전체의 원장·수동 지급/차감은 「포인트 내역」 화면(`/points`)이 맡는다.
         커머스 1-1: 잔액을 「합계 · 적립 · 충전」으로 나누고 소멸 예정 · 미회수(있으면 경고 + 최근 미회수 기록 5건) · 포인트 묶음 목록(남은 것만 / 전체, 10개씩 쪽 넘김)을 더했다.
         묶음은 부모(회원 관리 화면)가 `useMemberPointLots` 로 받아 `pointLots` 로 내려 주고, 거르기·쪽·다시 시도는 이벤트로 올린다(`point.read` 가 없거나 받지 않는 화면은 null — 합계만).
         활동 수 조건은 서버의 자동 승급 엔진이 아직 활동 수를 0 으로 보므로 달성도가 차도 승급되지 않을 수 있어 짧은 보조 안내를 붙인다. 탈퇴 회원은 서버가 구획을 비우지만 구획은 남기고 탈퇴 전용 문구를 보인다.
@@ -106,10 +106,10 @@
                         </dd>
                     </div>
                 </template>
-                <!-- 닉네임 변경권 — 교환 기능이 없어 서버가 늘 0 이다(0 은 "없음"으로 오해되므로 「준비 중」) -->
+                <!-- 닉네임 변경권 — 포인트 상점에서 사서 아직 안 쓰고 환불되지 않은 장수(서버 `nicknameTicketCount`) -->
                 <div class="rounded-lg border border-(--line) px-3 py-2">
                     <dt class="text-xs text-muted-color">{{ t('member.detail.point.tickets') }}</dt>
-                    <dd class="m-0 mt-0.5 text-[13px] text-muted-color">{{ t('member.detail.pending') }}</dd>
+                    <dd class="m-0 mt-0.5 text-[13px] tabular-nums" :class="detail.gradePoint.nicknameTicketCount ? '' : 'text-muted-color'">{{ t('member.detail.point.ticketCount', { count: detail.gradePoint.nicknameTicketCount.toLocaleString(locale) }) }}</dd>
                 </div>
             </dl>
 

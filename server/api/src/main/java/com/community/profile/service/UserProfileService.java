@@ -3,9 +3,12 @@ package com.community.profile.service;
 import com.community.block.service.ViewerBlocks;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
+import com.community.board.service.AuthorMembers;
 import com.community.board.service.AuthorViews;
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.RichText;
+import com.community.pointshop.dto.AuthorLook;
+import com.community.pointshop.service.ShopDecorationResolver;
 import com.community.poll.repository.master.PollQueries;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.response.PostAuthorView;
@@ -67,9 +70,11 @@ public class UserProfileService {
     private final AuthorViews authors;
     private final ViewerBlocks viewerBlocks;
     private final PollQueries polls;
+    private final ShopDecorationResolver decorations;
 
     public UserProfileService(UserRepository users, ProfileRepository profiles, UserActivityQueries activity, BoardCatalog catalog, AuthorViews authors,
-                              ViewerBlocks viewerBlocks, PollQueries polls) {
+                              ViewerBlocks viewerBlocks, PollQueries polls, ShopDecorationResolver decorations) {
+        this.decorations = decorations;
         this.polls = polls;
         this.users = users;
         this.profiles = profiles;
@@ -88,9 +93,10 @@ public class UserProfileService {
         String label = s.gradeLabel(gradeKey);
         String bio = m.profile().getBio();
         ViewerBlocks.Toward toward = viewerBlocks.toward(viewerId, m.id());
+        AuthorLook look = decorations.look(m.id());
         return new PublicProfileView(Long.toString(m.id()), m.profile().getNickname(), gradeKey, label == null ? gradeKey : label, ROLE_USER,
                 bio == null || bio.isBlank() ? null : bio, m.user().getCreatedAt(), viewerId != null && viewerId == m.id(),
-                new ProfileStatsView(stats.posts(), stats.comments(), stats.likesReceived()), toward.blocked(), toward.memo());
+                new ProfileStatsView(stats.posts(), stats.comments(), stats.likesReceived()), toward.blocked(), toward.memo(), look.decoration(), look.avatarUrl());
     }
 
     /** @param viewerId 보는 회원(비회원 null) */
@@ -103,7 +109,7 @@ public class UserProfileService {
         List<PostRowData> rows = activity.posts(m.id(), activeBoardIds(s), before, size, now);
         boolean more = rows.size() > size;
         List<PostRowData> page = more ? rows.subList(0, size) : rows;
-        Map<Long, ProfileEntity> members = authors.members(page.stream().map(PostRowData::authorId).toList());
+        AuthorMembers members = authors.members(page.stream().map(PostRowData::authorId).toList());
         ViewerBlocks.Lens lens = lensOf(viewerId, m.id(), page.isEmpty());
         Set<Long> withPoll = polls.postIdsWithPoll(page.stream().map(PostRowData::id).toList());
         List<PostFeedRowView> items = page.stream().map(r -> feedRow(r, s.board(r.boardId()).orElseThrow(), s, members, now, lens, withPoll)).toList();
@@ -135,7 +141,7 @@ public class UserProfileService {
     }
 
     /** 게시판 목록 한 줄({@code PostQueryService} 와 같은 규칙 — 숨긴 글은 여기 오지 않지만 같은 가림을 둔다) + 게시판 */
-    private PostFeedRowView feedRow(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, Map<Long, ProfileEntity> members, Instant now, ViewerBlocks.Lens lens,
+    private PostFeedRowView feedRow(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
                                     Set<Long> withPoll) {
         boolean hidden = r.hiddenAt(now);
         PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));

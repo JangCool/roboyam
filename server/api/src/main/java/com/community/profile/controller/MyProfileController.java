@@ -1,6 +1,7 @@
 package com.community.profile.controller;
 
 import com.community.auth.dto.AuthUser;
+import com.community.profile.dto.request.AvatarSelectRequest;
 import com.community.profile.dto.request.MyProfileRequest;
 import com.community.profile.dto.response.MyProfileView;
 import com.community.profile.service.MyProfileService;
@@ -36,10 +37,16 @@ public class MyProfileController {
         return noStore(service.get(userId(authentication)));
     }
 
-    /** 닉네임·한 줄 소개 저장(두 칸 모두) — 응답은 저장 뒤 {@code GET} 과 같은 모양 */
+    /** 닉네임·한 줄 소개 저장(두 칸 모두, 무료 변경을 다 썼으면 {@code useTicket}) — 응답은 저장 뒤 {@code GET} 과 같은 모양 */
     @PutMapping
     public ResponseEntity<ApiResponse<MyProfileView>> update(@RequestBody(required = false) MyProfileRequest body, Authentication authentication) {
         return noStore(service.update(userId(authentication), body));
+    }
+
+    /** 프로필 아바타 고르기 — 무료는 누구나, 유료는 가진 것만(같은 것을 다시 골라도 200). 응답은 저장 뒤 내 프로필(커머스 1-2 결정 14) */
+    @PutMapping("/avatar")
+    public ResponseEntity<ApiResponse<MyProfileView>> selectAvatar(@RequestBody(required = false) AvatarSelectRequest body, Authentication authentication) {
+        return noStore(service.selectAvatar(userId(authentication), body));
     }
 
     private static long userId(Authentication authentication) {

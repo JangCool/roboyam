@@ -32,7 +32,6 @@ public class PointSettingEntity {
     private int dealEndRequestPoints;
     private int dealEndRequestDailyLimit;
     private int signupPoints;
-    private int nicknameTicketPrice;
     // ── V85 묶음 정책 — 관리자 정책 화면 14칸 밖이라 이 매핑으로는 바꾸지 않는다(읽기만, 화면 칸은 1-3) ──
     @Column(insertable = false, updatable = false)
     private int freeValidDays;
@@ -54,7 +53,7 @@ public class PointSettingEntity {
 
     public PointRules values() {
         return new PointRules(attendancePoints, postPoints, postDailyCap, commentPoints, commentDailyCap, popularRewardPoints, popularRewardTopN, likeBonusThreshold,
-                likeBonusPoints, likeBonusDailyLimit, dealEndRequestPoints, dealEndRequestDailyLimit, signupPoints, nicknameTicketPrice);
+                likeBonusPoints, likeBonusDailyLimit, dealEndRequestPoints, dealEndRequestDailyLimit, signupPoints);
     }
 
     public void change(PointRules v, long operatorId, Instant now) {
@@ -71,7 +70,6 @@ public class PointSettingEntity {
         this.dealEndRequestPoints = v.dealEndRequestPoints();
         this.dealEndRequestDailyLimit = v.dealEndRequestDailyLimit();
         this.signupPoints = v.signupPoints();
-        this.nicknameTicketPrice = v.nicknameTicketPrice();
         this.updatedAt = now;
         this.updatedBy = operatorId;
     }

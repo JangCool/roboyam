@@ -6,7 +6,7 @@
 export default {
     groupBuy: '공동구매',
     groups: '소모임',
-    itemShop: '아이템샵',
+    pointShop: '포인트 상점',
     popular: '인기글',
     latest: '최신글',
     adultLabel: '19금',

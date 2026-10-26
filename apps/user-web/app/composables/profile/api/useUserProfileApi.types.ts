@@ -6,6 +6,7 @@
 import type { Role } from '~/composables/auth/api/useAuthApi.types';
 import type { BlockedBy } from '~/composables/block/api/useBlockApi.types';
 import type { PostFeedPage } from '~/composables/board/api/usePostApi.types';
+import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopApi.types';
 
 /** 활동 수치 — 보이는 글 수 · 지우지 않은 댓글 수 · 글·댓글이 받은 추천 합(서버가 최대 60초 늦을 수 있다) */
 export interface ProfileStats {
@@ -35,9 +36,13 @@ export interface PublicProfile {
     blockedByMe?: boolean;
     /** 내가 이 회원에게 남긴 이용자 메모(없으면 null) — 나에게만 온다. 소통 계약이 더하는 칸이라 서버는 아직 내려 주지 않는다 */
     memo?: string | null;
+    /** 장착한 장식(닉네임 색·프로필 테두리) — 서버가 준다(장착 없음·만료는 null). 머리의 닉네임 색·큰 동그라미 테두리. 내 것은 방금 바꾼 것을 `useMyDecoration` 이 겹친다 */
+    decoration?: AuthorDecoration | null;
+    /** 프로필 아바타 그림 주소 — 서버가 늘 채운다(고르지 않았으면 `basic-default`). 그리기는 `useMyDecoration().avatarOf`(내 것은 방금 고른 것) */
+    avatarUrl?: string | null;
 }
 
-/** 작성글 — `GET /api/users/{id}/posts?size&cursor`. 최신이 위, 삭제·숨김 글과 꺼진 게시판의 글은 빠진다 */
+/** 작성글 —`GET /api/users/{id}/posts?size&cursor`. 최신이 위, 삭제·숨김 글과 꺼진 게시판의 글은 빠진다 */
 export type UserPostPage = PostFeedPage;
 
 /** 작성 댓글 한 줄 — 누르면 그 글의 그 댓글로 간다 */

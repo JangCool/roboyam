@@ -84,13 +84,13 @@ class RequestRateLimiterTest {
         jdbc.query("SELECT action, limit_per_minute FROM request_rate_limits", rs -> {
             rows.put(rs.getString(1), rs.getInt(2));
         });
-        assertThat(rows).containsEntry("GROUPBUY_JOIN", 5).containsEntry("POINT_CHARGE", 3).containsEntry("SHOP_PURCHASE", 10).containsEntry("REFUND_REQUEST", 3);
+        assertThat(rows).containsEntry("GROUPBUY_JOIN", 5).containsEntry("POINT_CHARGE", 3).containsEntry("POINT_SHOP_PURCHASE", 10).containsEntry("REFUND_REQUEST", 3);
         for (RequestAction action : RequestAction.values()) {
             assertThat(rows.get(action.name())).as(action.name()).isEqualTo(action.defaultLimit());
         }
         assertThat(RequestAction.GROUPBUY_JOIN.defaultLimit()).isEqualTo(5);
         assertThat(RequestAction.POINT_CHARGE.defaultLimit()).isEqualTo(3);
-        assertThat(RequestAction.SHOP_PURCHASE.defaultLimit()).isEqualTo(10);
+        assertThat(RequestAction.POINT_SHOP_PURCHASE.defaultLimit()).isEqualTo(10);
         assertThat(RequestAction.REFUND_REQUEST.defaultLimit()).isEqualTo(3);
     }
 
@@ -130,11 +130,11 @@ class RequestRateLimiterTest {
 
     @Test
     void 한도_0_은_제한_없음이고_세지도_않는다() {
-        setLimit(RequestAction.SHOP_PURCHASE, 0);
+        setLimit(RequestAction.POINT_SHOP_PURCHASE, 0);
         for (int i = 0; i < 150; i++) {
-            assertThat(limiter.check(userId, RequestAction.SHOP_PURCHASE)).isZero();
+            assertThat(limiter.check(userId, RequestAction.POINT_SHOP_PURCHASE)).isZero();
         }
-        assertThat(counted(RequestAction.SHOP_PURCHASE)).isZero();
+        assertThat(counted(RequestAction.POINT_SHOP_PURCHASE)).isZero();
     }
 
     @Test

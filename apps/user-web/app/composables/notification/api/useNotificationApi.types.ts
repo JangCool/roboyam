@@ -17,7 +17,10 @@ export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'P
     /** 내 계정에 기능 제한이 걸림(커머스 0-4) */
     | 'FEATURE_RESTRICTED'
     /** 적립 포인트 소멸 예정(커머스 1-1) */
-    | 'POINTS_EXPIRING';
+    | 'POINTS_EXPIRING'
+    /** 정지 중 포인트 상점 환불 신청의 결과 — 수락(돌려준 포인트) · 거절(본문 = 사유). `link` `/me/items`(커머스 1-2 「정지 중 환불 신청」) */
+    | 'POINT_SHOP_REFUND_APPROVED'
+    | 'POINT_SHOP_REFUND_REJECTED';
 
 /** 알림 묶음 — 댓글·답글 · 계정(포인트 회수·소멸 예정·신고 숨김·닉네임 그림 검토·기능 제한) · 쪽지(`DM` — 거르기 없이 「전체」에만 보인다) */
 export type MemberNotificationCategory = 'comment' | 'system' | 'dm';

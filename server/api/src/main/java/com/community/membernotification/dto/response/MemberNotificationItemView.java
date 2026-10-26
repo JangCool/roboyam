@@ -10,7 +10,7 @@ import java.time.Instant;
  *                       {@code link} 는 그 글) · {@code OPINION_PIN_REVIEWED}(내 고정 요청 승인·거절 — {@code body} 는 거절 사유, {@code link} 는 그 글)
  *                       · {@code POST_REMOVED}(운영자가 내 글을 지움 — {@code title} 에 글 제목, {@code body} 는 사유, {@code link} 없음). 운영자가 숨긴 {@code POST_HIDDEN} 은 {@code body} 가 「글 제목 · 사유」
  *                       · {@code COMMENT_REMOVED}(운영자가 내 댓글을 지움 — {@code title} 에 댓글 앞부분, {@code body} 는 사유, {@code link} 는 그 글) · {@code REPORT_RESULT}(내 신고의 처리 결과 —
- *                       {@code title} 이 조치됨/위반 아님, {@code body} 는 신고 당시 제목·앞부분, {@code link} 는 볼 수 있는 그 글). 신고 관리의 운영자 숨김·삭제 사유는 「사유 코드 이름: 글」
+ *                       {@code title} 이 조치됨/위반 아님, {@code body} 는 신고 당시 제목·앞부분, {@code link} 는 볼 수 있는 그 글). {@code POINT_SHOP_REFUND_APPROVED}·{@code POINT_SHOP_REFUND_REJECTED}(정지 중 포인트 상점 환불 신청의 수락·거절 — 거절은 {@code body} 가 사유, {@code link} 는 /me/items). 신고 관리의 운영자 숨김·삭제 사유는 「사유 코드 이름: 글」
  * @param category       {@code comment}(댓글·답글) · {@code system} · {@code dm}(쪽지 — 거르기 {@code all} 에만 나온다)
  * @param title          한 줄 문장(예: 「고양이집사님이 내 글에 댓글을 달았어요」)
  * @param body           둘째 줄 — 댓글 앞부분 · 숨겨진 글의 제목 · 회수 사유. 없으면 null

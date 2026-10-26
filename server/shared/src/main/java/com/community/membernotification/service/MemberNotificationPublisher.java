@@ -470,6 +470,41 @@ public class MemberNotificationPublisher {
         }, 0);
     }
 
+    /**
+     * 정지 중에 낸 포인트 상점 환불 신청이 결정됐다(V87, commerce-stage1-contract 「1-2 정지 중 환불 신청」) — 수락 {@code POINT_SHOP_REFUND_APPROVED}(돌려준 포인트) ·
+     * 거절 {@code POINT_SHOP_REFUND_REJECTED}(사유). 끌 수 없는 처리 알림, 덧붙임 {@code requestId}·{@code purchaseId}·{@code itemName}·{@code points}|{@code reason}. 누르면 내 아이템.
+     * 결정 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 결정을 깨지 않는다).
+     */
+    public int pointShopRefundDecided(long userId, long requestId, long purchaseId, boolean approved, String itemName, long points, String reason) {
+        return isolated.run("member-notification:point-shop-refund", () -> {
+            MemberNotificationType type = approved ? MemberNotificationType.POINT_SHOP_REFUND_APPROVED : MemberNotificationType.POINT_SHOP_REFUND_REJECTED;
+            EventSwitch on = switchOf(type, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(itemName, SNAPSHOT_MAX);
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("requestId", Long.toString(requestId));
+                payload.put("purchaseId", Long.toString(purchaseId));
+                payload.put("itemName", name);
+                if (approved) {
+                    payload.put("points", points);
+                } else {
+                    payload.put("reason", reason);
+                }
+                writer.insert(ids.nextId(), userId, type.name(), null, null, null, null, MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, approved ? MemberNotificationMessages.Facts.refundApproved(name, points) : MemberNotificationMessages.Facts.refundRejected(name, reason),
+                        null, null, "/me/items");
+            }
+            return made;
+        }, 0);
+    }
+
     /** 회원 알림 메일 — 커밋 뒤 발송기가 보낸다. 세이브포인트 일의 <b>마지막</b>에 부른다(뒤에서 실패해 행이 되돌려졌는데 메일만 나가는 일이 없게) */
     private void requestEmail(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId) {
         events.publishEvent(new MemberEmailRequested(userId, facts, actorUserId, postId));
