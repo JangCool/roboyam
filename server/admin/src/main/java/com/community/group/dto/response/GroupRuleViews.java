@@ -22,13 +22,14 @@ public final class GroupRuleViews {
 
     // ── 개설 규칙 ──
 
-    public record CreationLimits(List<Option> creationModes, List<Option> grades, Range maxPerOwner) {
+    public record CreationLimits(List<Option> creationModes, List<Option> grades, Range maxPerOwner, Range dissolvePenaltyDays) {
     }
 
-    public record CreationValues(String creationMode, String minGrade, int maxPerOwner) {
+    /** @param dissolvePenaltyDays 해산 패널티 일수(0 = 끔 — 1년 이상 유지된 소모임은 면제, V96) */
+    public record CreationValues(String creationMode, String minGrade, int maxPerOwner, int dissolvePenaltyDays) {
 
         public static CreationValues of(GroupRuleValues.Creation v) {
-            return new CreationValues(v.creationMode().name(), v.minGrade(), v.maxPerOwner());
+            return new CreationValues(v.creationMode().name(), v.minGrade(), v.maxPerOwner(), v.dissolvePenaltyDays());
         }
     }
 

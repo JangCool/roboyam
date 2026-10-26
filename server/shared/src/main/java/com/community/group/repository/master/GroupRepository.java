@@ -22,6 +22,9 @@ public interface GroupRepository extends RoboyamRepository<GroupEntity, Long> {
 
     List<GroupEntity> findByLeaderIdAndStatusIn(Long leaderId, Collection<GroupStatus> statuses);
 
+    /** 이 회원이 모임장으로 해산한 소모임 중 패널티 끝 시각이 가장 늦은 것(끝 시각이 {@code after} 뒤인 것만 — V96 {@code ix_groups_dissolve_penalty}) */
+    Optional<GroupEntity> findFirstByLeaderIdAndDissolvePenaltyUntilAfterOrderByDissolvePenaltyUntilDesc(Long leaderId, Instant after);
+
     /** 같은 이름(이름 키)이 그 상태들에 있나 */
     boolean existsByNameKeyAndStatusIn(String nameKey, Collection<GroupStatus> statuses);
 

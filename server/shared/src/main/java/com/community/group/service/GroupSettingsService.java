@@ -19,6 +19,7 @@ public class GroupSettingsService {
 
     /** 각 칸의 범위 — DB CHECK(V90 ck_group_settings_*)·화면 limits 와 같다 */
     public static final int MAX_PER_OWNER_MIN = 1, MAX_PER_OWNER_MAX = 10;
+    public static final int DISSOLVE_PENALTY_MIN = 0, DISSOLVE_PENALTY_MAX = 365;
     public static final int MANAGER_LIMIT_MIN = 1, MANAGER_LIMIT_MAX = 10;
     public static final int COOLDOWN_MIN = 0, COOLDOWN_MAX = 365;
     public static final int RETRY_MIN = 0, RETRY_MAX = 720;
@@ -50,7 +51,7 @@ public class GroupSettingsService {
 
     public GroupRuleValues.Creation creationDefaults() {
         return new GroupRuleValues.Creation(props.creationMode() == null ? GroupCreationMode.APPROVAL : props.creationMode(), props.minGrade(),
-                clamp(props.maxPerOwner(), MAX_PER_OWNER_MIN, MAX_PER_OWNER_MAX));
+                clamp(props.maxPerOwner(), MAX_PER_OWNER_MIN, MAX_PER_OWNER_MAX), clamp(props.dissolvePenaltyDays(), DISSOLVE_PENALTY_MIN, DISSOLVE_PENALTY_MAX));
     }
 
     public GroupRuleValues.Manager managerDefaults() {
@@ -86,7 +87,8 @@ public class GroupSettingsService {
             return d;
         }
         return new GroupRuleValues.Creation(row.getCreationMode() == null ? d.creationMode() : row.getCreationMode(),
-                row.getMinGrade() == null ? d.minGrade() : row.getMinGrade(), or(row.getMaxPerOwner(), d.maxPerOwner()));
+                row.getMinGrade() == null ? d.minGrade() : row.getMinGrade(), or(row.getMaxPerOwner(), d.maxPerOwner()),
+                or(row.getDissolvePenaltyDays(), d.dissolvePenaltyDays()));
     }
 
     public GroupRuleValues.Manager manager() {

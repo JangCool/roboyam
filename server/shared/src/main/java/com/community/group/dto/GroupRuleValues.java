@@ -8,8 +8,8 @@ public final class GroupRuleValues {
     private GroupRuleValues() {
     }
 
-    /** 개설 규칙 */
-    public record Creation(GroupCreationMode creationMode, String minGrade, int maxPerOwner) {
+    /** 개설 규칙 — {@code dissolvePenaltyDays} 해산 패널티 일수(0 = 끔, V96) */
+    public record Creation(GroupCreationMode creationMode, String minGrade, int maxPerOwner, int dissolvePenaltyDays) {
     }
 
     /** 매니저(3단계가 읽는다) */

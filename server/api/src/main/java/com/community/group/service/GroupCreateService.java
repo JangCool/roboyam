@@ -13,6 +13,7 @@ import com.community.group.entity.GroupMemberEntity;
 import com.community.group.entity.GroupStatus;
 import com.community.group.entity.GroupVisibility;
 import com.community.group.exception.GroupCreateNotPermittedException;
+import com.community.group.exception.GroupDissolvePenaltyException;
 import com.community.group.exception.GroupGradeTooLowException;
 import com.community.group.exception.GroupLimitReachedException;
 import com.community.group.exception.GroupNameTakenException;
@@ -47,7 +48,8 @@ import org.springframework.transaction.annotation.Transactional;
  * 개설 신청 · 내 개설 신청 취소(community api-groups.md 4절).
  *
  * <p><b>차례</b>: 401 → 쓰기 자격(403 {@code EMAIL_NOT_VERIFIED} · {@code ACCOUNT_RESTRICTED}) → 회원 권한 {@code group.create}(403 {@code GROUP_CREATE_NOT_PERMITTED} — 로보얌) →
- * 입력 400 {@code fields.*} → 최소 등급 403 {@code GROUP_GRADE_TOO_LOW} → 1인 상한 409 {@code GROUP_LIMIT_REACHED}(+{@code max}) → 하루 한도 429 {@code RATE_LIMITED} →
+ * 입력 400 {@code fields.*} → 최소 등급 403 {@code GROUP_GRADE_TOO_LOW} → 1인 상한 409 {@code GROUP_LIMIT_REACHED}(+{@code max}) →
+ * 해산 패널티 403 {@code GROUP_DISSOLVE_PENALTY}(+{@code retryAfterSeconds}·{@code until} — V96) → 하루 한도 429 {@code RATE_LIMITED} →
  * 같은 이름 409 {@code GROUP_NAME_TAKEN}. 회원 행을 잠가 같은 회원의 동시 신청을 줄 세운다(상한·하루 한도가 넘치지 않게).
  * 승인제면 PENDING(202) + 운영자 알림 {@code CLUB_OPEN_REQUEST_PENDING}, 자유 개설이면 바로 ACTIVE(201 — 신청자가 모임장·첫 멤버). 로보얌에는 공개 사이트에 로그인하는
  * 최고 관리자가 없어(운영자는 관리자 앱) 「최고 관리자가 만들면 바로 열림·등급 면제」는 없다.
@@ -105,6 +107,10 @@ public class GroupCreateService {
             throw new GroupLimitReachedException(rules.maxPerOwner());
         }
         Instant now = Instant.now();
+        Instant penaltyUntil = penaltyUntil(groups, me, now);
+        if (penaltyUntil != null) {
+            throw new GroupDissolvePenaltyException(penaltyUntil, now);
+        }
         int daily = settings.properties().createDailyLimit();
         if (daily > 0) {
             Instant since = now.minus(Duration.ofDays(1));
@@ -139,6 +145,13 @@ public class GroupCreateService {
         }
         log.info("소모임 개설을 신청했다 groupId={} userId={} status={}", group.getId(), me, group.getStatus());
         return new GroupCreateResultView(Long.toString(group.getId()), group.getStatus().name());
+    }
+
+    /**
+     * 해산 패널티 끝 시각 — 그 회원이 모임장으로 해산한 소모임 중 끝 시각이 지금 뒤인 것의 가장 늦은 시각, 없으면 null(V96). 끝 시각은 해산 때 박혀 설정을 바꿔도 그대로다
+     */
+    static Instant penaltyUntil(GroupRepository groups, long userId, Instant now) {
+        return groups.findFirstByLeaderIdAndDissolvePenaltyUntilAfterOrderByDissolvePenaltyUntilDesc(userId, now).map(GroupEntity::getDissolvePenaltyUntil).orElse(null);
     }
 
     /** 내 신청 중인 개설 신청을 거둔다 — 내 것이 아니거나 이미 처리됐으면 404 */

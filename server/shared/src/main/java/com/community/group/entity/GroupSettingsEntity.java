@@ -26,6 +26,7 @@ public class GroupSettingsEntity {
     private GroupCreationMode creationMode;
     private String minGrade;
     private Short maxPerOwner;
+    private Short dissolvePenaltyDays;
     private Long creationUpdatedBy;
     private Instant creationUpdatedAt;
 
@@ -59,10 +60,11 @@ public class GroupSettingsEntity {
     protected GroupSettingsEntity() {
     }
 
-    public void saveCreation(GroupCreationMode mode, String minGrade, int maxPerOwner, long operatorId, Instant now) {
+    public void saveCreation(GroupCreationMode mode, String minGrade, int maxPerOwner, int dissolvePenaltyDays, long operatorId, Instant now) {
         this.creationMode = mode;
         this.minGrade = minGrade;
         this.maxPerOwner = (short) maxPerOwner;
+        this.dissolvePenaltyDays = (short) dissolvePenaltyDays;
         this.creationUpdatedBy = operatorId;
         this.creationUpdatedAt = now;
     }
@@ -110,6 +112,11 @@ public class GroupSettingsEntity {
 
     public Short getMaxPerOwner() {
         return maxPerOwner;
+    }
+
+    /** 해산 패널티 일수(V96 — 0 = 끔, null = 설정 파일 값) */
+    public Short getDissolvePenaltyDays() {
+        return dissolvePenaltyDays;
     }
 
     public Long getCreationUpdatedBy() {

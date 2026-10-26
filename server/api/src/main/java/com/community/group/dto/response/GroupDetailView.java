@@ -25,17 +25,18 @@ import java.util.List;
  * @param newPostCount           멤버에게만 — 내가 글 탭을 마지막으로 본 뒤(본 적이 없으면 가입 뒤) 올라온 남의 글 수, 비멤버·비회원 null(2단계)
  * @param pendingPublishRequestCount 공개 요청을 처리할 사람({@code permissions.canDecidePublishRequests})에게만 처리 대기 수(정지 중에도 값이 온다 — 지워졌거나 가려진 글의 요청은 빼고), 그 밖 null(5단계)
  * @param visibilityInfo         모임장에게만 공개 범위 변경 정보, 그 밖 null(5단계)
+ * @param dissolveInfo           모임장에게만 지금 해산하면 패널티가 걸리는지(V96), 그 밖 null
  */
 public record GroupDetailView(String id, String name, String description, GroupCategoryRefView category, String joinType, Integer capacity, Integer memberCount,
                               Boolean recruiting, String recruitState, Boolean offline, String visibility, Board board, String status, Instant openedAt,
                               DmPartnerView leader, Boolean stockNotice, String myState, String myRole, Join join, Chat chat, Boolean chatLocked,
                               Permissions permissions, ManagerInfo managerInfo, Newcomers newcomers, Long pendingApplicationCount, Limits limits,
-                              Long postCount, Long newPostCount, Long pendingPublishRequestCount, VisibilityInfo visibilityInfo) {
+                              Long postCount, Long newPostCount, Long pendingPublishRequestCount, VisibilityInfo visibilityInfo, DissolveInfo dissolveInfo) {
 
     /** 비활성 소모임 — 안내 화면에 쓸 칸만 */
     public static GroupDetailView inactive(String id, String name) {
         return new GroupDetailView(id, name, null, null, null, null, null, null, null, null, null, null, "INACTIVE", null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null);
     }
 
     /** 소모임 게시판 — 켜진 말머리만(순서대로) */
@@ -83,6 +84,16 @@ public record GroupDetailView(String id, String name, String description, GroupC
      * @param canChangeToPublicAt 비공개→공개 쿨다운이 끝나는 시각 — 지금 바꿀 수 있으면 null
      */
     public record VisibilityInfo(Instant changedAt, DmPartnerView changedBy, Instant canChangeToPublicAt) {
+    }
+
+    /**
+     * 모임장에게만 싣는 해산 패널티 정보(V96 — 해산 확인 창). 지금 해산하면 패널티가 걸리는가 = {@code penaltyDays > 0 && !exempt}.
+     *
+     * @param penaltyDays 설정의 해산 패널티 일수(0 = 끔)
+     * @param exempt      개설부터 1년(KST 달력) 이상 유지돼 지금 해산하면 패널티가 없다
+     * @param exemptAt    면제가 시작되는 시각(개설 시각 + 1년) — 이미 면제여도 값이 온다
+     */
+    public record DissolveInfo(int penaltyDays, boolean exempt, Instant exemptAt) {
     }
 
     /** @param limit 유효 상한 = min(소모임 상한, 최대 인원) */

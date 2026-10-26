@@ -194,13 +194,15 @@ public class GroupViews {
         GroupDetailView.VisibilityInfo visibilityInfo = !leader ? null : new GroupDetailView.VisibilityInfo(g.getVisibilityChangedAt(),
                 g.getVisibilityChangedBy() == null ? null : GroupUsers.of(persons.of(g.getVisibilityChangedBy())),
                 GroupVisibilityPolicy.canChangeToPublicAt(g, settings.visibility().cooldownDays(), now));
+        GroupDetailView.DissolveInfo dissolveInfo = !leader ? null : new GroupDetailView.DissolveInfo(settings.creation().dissolvePenaltyDays(),
+                GroupDissolvePenalty.exempt(g, now), GroupDissolvePenalty.exemptAt(g));
 
         return new GroupDetailView(Long.toString(g.getId()), g.getName(), g.getDescription(), category(g, ctx), g.getJoinType().name(), g.getCapacity(),
                 g.getMemberCount(), g.isRecruiting(), GroupRules.recruitState(g), g.isOffline(), visibility(g, ctx), boardView, g.getStatus().name(), g.getOpenedAt(),
                 GroupUsers.of(persons.of(g.getLeaderId())), board != null && board.investmentNotice(), myState(g, row, userId), myRole, join(g, row, userId, actor, now, policy),
                 chat, !member, permissions, managerInfo, newcomers, pending,
                 new GroupDetailView.Limits(policy.capacityMin(), policy.capacityMax(), policy.eventMaxDaysAhead(), policy.eventMaxLengthDays()), postCount, newPostCount,
-                pendingPublish, visibilityInfo);
+                pendingPublish, visibilityInfo, dissolveInfo);
     }
 
     private static GroupDetailView.Prefix prefix(BoardPrefixInfo p) {

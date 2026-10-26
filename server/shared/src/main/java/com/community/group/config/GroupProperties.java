@@ -11,6 +11,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param creationMode           개설 방식(승인제)
  * @param minGrade               개설 최소 등급 키(등급 설정에 없는 키면 누구나 — 첫 등급처럼 본다)
  * @param maxPerOwner            한 사람이 모임장일 수 있는 소모임 수(신청 중·열림·비활성 합, 1~10)
+ * @param dissolvePenaltyDays    해산한 모임장이 새 소모임을 개설 신청할 수 없는 일수(0~365, 0 = 끔 — 1년 이상 유지된 소모임은 면제, V96)
  * @param managersEnabled        매니저 기능(3단계 — 기본 꺼짐)
  * @param managerLimitDefault    새 소모임의 매니저 기본 인원(1~10)
  * @param managerLimitMax        모임장이 정할 수 있는 매니저 최대 인원(1~10)
@@ -34,7 +35,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  */
 @ConfigurationProperties(prefix = "roboyam.groups")
 public record GroupProperties(@DefaultValue("APPROVAL") GroupCreationMode creationMode, @DefaultValue("REGULAR") String minGrade,
-                              @DefaultValue("3") int maxPerOwner,
+                              @DefaultValue("3") int maxPerOwner, @DefaultValue("30") int dissolvePenaltyDays,
                               @DefaultValue("false") boolean managersEnabled, @DefaultValue("5") int managerLimitDefault, @DefaultValue("10") int managerLimitMax,
                               @DefaultValue("false") boolean visibilityEnabled, @DefaultValue("7") int visibilityCooldownDays,
                               @DefaultValue("24") int visibilityRetryHours, @DefaultValue("3") int visibilityRejectLimit, @DefaultValue("10") int visibilityDailyLimit,

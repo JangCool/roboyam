@@ -47,7 +47,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>모임장 고정</b>: 정보 수정 · 채팅 링크 · 모임장 넘기기 · 해산.</li>
  *   <li><b>체크형</b>(모임장 + 그 일을 맡은 매니저): 모집 마감·재개(RECRUITING) · 가입 신청 열람·승인·거절(APPLICATIONS) · 강퇴(KICK — 매니저는 일반 멤버만).</li>
  *   <li>정지 중이거나 이메일 인증 전인 모임장·매니저는 쓰기가 모두 멈춘다(열람은 열려 있다).</li>
- *   <li>해산: 소모임째 DELETED, 멤버 전원에게 알림. 공개로 전환된 글은 연결을 유지한 채 남고 비공개 글·나가서 가린 글은 지운다(2단계).</li>
+ *   <li>해산: 소모임째 DELETED, 멤버 전원에게 알림. 소모임 글은 공개 여부와 상관없이 모두 지운다. 포인트는 회수하지 않고, 1년 미만 유지된 소모임이면 모임장에게
+ *       해산 패널티(설정 {@code dissolvePenaltyDays} 동안 개설 신청 불가 — {@link GroupDissolvePenalty}, V96)를 남긴다.</li>
  * </ul>
  */
 @Service
@@ -180,7 +181,10 @@ public class GroupLeaderService {
         log.info("모임장을 넘겼다 groupId={} from={} to={}", group.getId(), me, target);
     }
 
-    /** 해산 — 이름을 그대로 입력해야 한다. 소모임째 DELETED, 멤버 전원(모임장 제외)에게 알림 */
+    /**
+     * 해산 — 이름을 그대로 입력해야 한다. 소모임째 DELETED, 글 모두 삭제, 멤버 전원(모임장 제외)에게 알림. 개설부터 1년(KST 달력)이 안 됐고 패널티 일수가 0 이 아니면
+     * 그 모임장의 패널티 끝 시각(지금 + 일수)을 소모임 행에 남긴다 — 개설 신청 403 {@code GROUP_DISSOLVE_PENALTY}
+     */
     @Transactional
     public void dissolve(String rawId, Long userId, GroupDissolveRequest request) {
         long me = GroupAccess.requireUser(userId);
@@ -193,11 +197,12 @@ public class GroupLeaderService {
         }
         List<GroupMemberEntity> active = members.findByGroupIdAndStatus(group.getId(), GroupMemberStatus.ACTIVE);
         Instant now = Instant.now();
-        group.delete(now);
+        Instant penaltyUntil = GroupDissolvePenalty.penaltyUntil(group, settings.creation().dissolvePenaltyDays(), now);
+        group.dissolve(now, penaltyUntil);
         groups.flush();
-        // 공개로 전환돼 보이는 글은 연결(group_id)을 유지한 채 남고(화면은 「해산한 소모임」), 비공개 글과 나가서 가린 글은 지운다(8절)
+        // 글은 공개 여부와 상관없이 모두 지운다(2026-10-26 사용자 결정 — community 의 「공개 글은 연결 유지」를 바꿨다)
         int deleted = groupPosts.deleteOnDissolve(group.getId(), now);
-        log.info("소모임 해산 — 비공개·가린 글 {}건을 지웠다 groupId={}", deleted, group.getId());
+        log.info("소모임 해산 — 글 {}건을 지웠다 groupId={} 패널티끝={}", deleted, group.getId(), penaltyUntil);
         for (GroupMemberEntity m : active) {
             if (!m.getUserId().equals(me)) {
                 notices.dissolved(group, m.getUserId(), me);

@@ -10,7 +10,7 @@ public final class GroupRuleSaveRequests {
     }
 
     /** {@code PUT …/creation-rules} */
-    public record Creation(Object creationMode, Object minGrade, Object maxPerOwner) {
+    public record Creation(Object creationMode, Object minGrade, Object maxPerOwner, Object dissolvePenaltyDays) {
     }
 
     /** {@code PUT …/manager-rules} */

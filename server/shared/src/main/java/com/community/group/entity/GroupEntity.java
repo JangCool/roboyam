@@ -58,6 +58,7 @@ public class GroupEntity {
     private Instant reactivatedAt;
     private Long reactivatedBy;
     private String reactivateMemo;
+    private Instant dissolvePenaltyUntil;
 
     protected GroupEntity() {
     }
@@ -117,6 +118,15 @@ public class GroupEntity {
     public void delete(Instant now) {
         this.status = GroupStatus.DELETED;
         this.deletedAt = now;
+    }
+
+    /**
+     * 모임장의 해산 — {@link #delete} + 해산 패널티 끝 시각(V96, 대상이 아니면 null). 해산한 사람은 이 행의 {@code leaderId}(해산 뒤 바뀌지 않는다)이고,
+     * 그 회원은 끝 시각까지 새 소모임을 개설 신청할 수 없다.
+     */
+    public void dissolve(Instant now, Instant penaltyUntil) {
+        delete(now);
+        this.dissolvePenaltyUntil = penaltyUntil;
     }
 
     /** 비활성 — 마지막 비활성 기록을 새로 쓰고 다시 열기 기록을 비운다 */
@@ -315,6 +325,10 @@ public class GroupEntity {
 
     public Instant getDeletedAt() {
         return deletedAt;
+    }
+
+    public Instant getDissolvePenaltyUntil() {
+        return dissolvePenaltyUntil;
     }
 
     public Instant getDeactivatedAt() {

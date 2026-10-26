@@ -207,9 +207,12 @@ public class GroupPostQueries extends RoboyamRepositoryQDSL {
         return n == null ? 0 : (int) Math.min(n, Integer.MAX_VALUE);
     }
 
-    /** 해산 — 비공개 글과 나가서 가린 글을 지운다(공개로 전환돼 보이는 글은 연결을 유지한 채 남는다). 지운 글 수 */
+    /**
+     * 해산 — 그 소모임의 지우지 않은 글을 공개 여부와 상관없이 모두 지운다(2026-10-26 사용자 결정, V96 — 글 주소 404, 최신글·검색·인기글·프로필에서 빠진다).
+     * 일반 글 삭제({@code PostEntity#delete})와 같은 뜻이라 원문·투표·공개 요청 행은 그대로 두고(읽는 쪽이 지운 글을 거른다), 포인트는 회수하지 않는다. 지운 글 수
+     */
     public int deleteOnDissolve(long groupId, Instant now) {
-        return jdbc.update("UPDATE posts SET deleted_at = ?, pinned_at = NULL, updated_at = ? WHERE group_id = ? AND deleted_at IS NULL "
-                + "AND (NOT is_public OR group_left_at IS NOT NULL)", Timestamp.from(now), Timestamp.from(now), groupId);
+        return jdbc.update("UPDATE posts SET deleted_at = ?, pinned_at = NULL, updated_at = ? WHERE group_id = ? AND deleted_at IS NULL",
+                Timestamp.from(now), Timestamp.from(now), groupId);
     }
 }

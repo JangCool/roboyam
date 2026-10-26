@@ -105,14 +105,15 @@ public class GroupSettingsAdminService {
                 new GroupRuleViews.Option(GroupCreationMode.OPEN.name(), messages.get(new MessageRef("group.setting.creationMode.OPEN"))));
         List<GroupRuleViews.Option> gradeOptions = grades.findAllOrdered().stream().map(g -> new GroupRuleViews.Option(g.getGradeKey(), g.getLabel())).toList();
         return new GroupRuleViews.Creation(GroupRuleViews.CreationValues.of(settings.creation(row)), GroupRuleViews.CreationValues.of(settings.creationDefaults()),
-                new GroupRuleViews.CreationLimits(modes, gradeOptions, range(GroupSettingsService.MAX_PER_OWNER_MIN, GroupSettingsService.MAX_PER_OWNER_MAX)),
+                new GroupRuleViews.CreationLimits(modes, gradeOptions, range(GroupSettingsService.MAX_PER_OWNER_MIN, GroupSettingsService.MAX_PER_OWNER_MAX),
+                        range(GroupSettingsService.DISSOLVE_PENALTY_MIN, GroupSettingsService.DISSOLVE_PENALTY_MAX)),
                 row == null || row.getCreationUpdatedAt() == null, row == null ? null : row.getCreationUpdatedAt(),
                 people.operatorName(row == null ? null : row.getCreationUpdatedBy()), groups.countByStatus(GroupStatus.PENDING));
     }
 
     @Transactional
     public GroupRuleViews.Creation saveCreation(AdminActor actor, GroupRuleSaveRequests.Creation body) {
-        GroupRuleSaveRequests.Creation r = body == null ? new GroupRuleSaveRequests.Creation(null, null, null) : body;
+        GroupRuleSaveRequests.Creation r = body == null ? new GroupRuleSaveRequests.Creation(null, null, null, null) : body;
         Map<String, MessageRef> invalid = new LinkedHashMap<>();
         GroupCreationMode mode = null;
         if (r.creationMode() instanceof String s) {
@@ -131,22 +132,26 @@ public class GroupSettingsAdminService {
             invalid.put("minGrade", new MessageRef("group.setting.minGrade.invalid"));
         }
         Integer maxPerOwner = intIn(r.maxPerOwner(), GroupSettingsService.MAX_PER_OWNER_MIN, GroupSettingsService.MAX_PER_OWNER_MAX, "maxPerOwner", invalid);
+        Integer penaltyDays = intIn(r.dissolvePenaltyDays(), GroupSettingsService.DISSOLVE_PENALTY_MIN, GroupSettingsService.DISSOLVE_PENALTY_MAX,
+                "dissolvePenaltyDays", invalid);
         if (!invalid.isEmpty()) {
             throw new ValidationException(invalid);
         }
         GroupSettingsEntity row = lockRow();
         boolean fromDefaults = row.getCreationUpdatedAt() == null;
         GroupRuleValues.Creation before = settings.creation(row);
-        GroupRuleValues.Creation after = new GroupRuleValues.Creation(mode, minGrade, maxPerOwner);
+        GroupRuleValues.Creation after = new GroupRuleValues.Creation(mode, minGrade, maxPerOwner, penaltyDays);
         List<String[]> changes = new ArrayList<>();
         diff(changes, "creationMode", before.creationMode().name(), after.creationMode().name());
         diff(changes, "minGrade", before.minGrade(), after.minGrade());
         diff(changes, "maxPerOwner", before.maxPerOwner(), after.maxPerOwner());
+        diff(changes, "dissolvePenaltyDays", before.dissolvePenaltyDays(), after.dissolvePenaltyDays());
         if (changes.isEmpty() && !fromDefaults) {
             return creation();
         }
         Instant now = now();
-        row.saveCreation(mode, minGrade, maxPerOwner, actor.operatorId(), now);
+        // 패널티 일수를 바꿔도 이미 해산된 소모임의 끝 시각(groups.dissolve_penalty_until)은 그대로다 — 새 해산부터 적용
+        row.saveCreation(mode, minGrade, maxPerOwner, penaltyDays, actor.operatorId(), now);
         settingsRows.flush();
         recordChange(actor, GroupSettingSection.CREATION, AuditActions.GROUP_CREATION_RULE_UPDATE, fromDefaults, changes, now);
         return creation();
@@ -419,6 +424,9 @@ public class GroupSettingsAdminService {
         }
         if (BOOLEAN_FIELDS.contains(field)) {
             return messages.get(new MessageRef("true".equals(value) ? "group.setting.on" : "group.setting.off"));
+        }
+        if ("dissolvePenaltyDays".equals(field) && "0".equals(value)) {
+            return messages.get(new MessageRef("group.setting.unit.dissolvePenaltyDays.off")); // 0 = 끔
         }
         return messages.get(new MessageRef("group.setting.unit." + field, value));
     }

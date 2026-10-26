@@ -304,16 +304,17 @@ public class GroupQueryService {
             BoardActor actor = actors.resolve(userId, ctx.boards());
             if (!actor.guest()) {
                 long led = groups.countByLeaderIdAndStatusIn(userId, GroupRepositoryQDSL.LIVE);
-                String reason = creationBlocked(actor, rules, led, ctx);
-                me = new GroupCreationRulesView.Me(reason == null, reason, actor.gradeKey(), led);
+                Instant penaltyUntil = GroupCreateService.penaltyUntil(groups, userId, Instant.now());
+                String reason = creationBlocked(actor, rules, led, penaltyUntil, ctx);
+                me = new GroupCreationRulesView.Me(reason == null, reason, actor.gradeKey(), led, penaltyUntil);
             }
         }
         return new GroupCreationRulesView(rules.creationMode().name(), rules.minGrade(), minLabel, rules.maxPerOwner(), me, policy.capacityMin(),
-                policy.capacityMax(), settings.visibility().visibilityEnabled());
+                policy.capacityMax(), settings.visibility().visibilityEnabled(), rules.dissolvePenaltyDays());
     }
 
-    /** 개설 규칙으로 못 내는 까닭(낼 수 있으면 null) — 회원 권한 → 최소 등급 → 1인 상한 */
-    static String creationBlocked(BoardActor actor, GroupRuleValues.Creation rules, long ledCount, GroupViews.Context ctx) {
+    /** 개설 규칙으로 못 내는 까닭(낼 수 있으면 null) — 회원 권한 → 최소 등급 → 1인 상한 → 해산 패널티(개설 신청의 차례와 같다) */
+    static String creationBlocked(BoardActor actor, GroupRuleValues.Creation rules, long ledCount, Instant penaltyUntil, GroupViews.Context ctx) {
         if (!actor.can(MemberPermission.GROUP_CREATE.code())) {
             return "NOT_PERMITTED";
         }
@@ -321,7 +322,10 @@ public class GroupQueryService {
         if (required != null && actor.gradeLevel() < required) {
             return "GRADE_TOO_LOW";
         }
-        return ledCount >= rules.maxPerOwner() ? "LIMIT_REACHED" : null;
+        if (ledCount >= rules.maxPerOwner()) {
+            return "LIMIT_REACHED";
+        }
+        return penaltyUntil != null ? "DISSOLVE_PENALTY" : null;
     }
 
     // ── 내 소모임 ────────────────────────────────────────────────────────────
