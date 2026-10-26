@@ -67,6 +67,7 @@ export default {
     paymentOrders: 'Payment orders',
     paymentWebhooks: 'Webhook log',
     paymentAnomalies: 'Payment issues',
+    paymentReconcileDays: 'Daily reconciliation',
     paymentReconciliation: 'Reconciliation',
     // Commerce section (settings mode) — settings shared by sales and payments
     commerce: 'Commerce',

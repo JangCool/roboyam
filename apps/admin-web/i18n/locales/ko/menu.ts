@@ -67,6 +67,7 @@ export default {
     paymentOrders: '결제 주문',
     paymentWebhooks: '웹훅 수신 내역',
     paymentAnomalies: '결제 이상',
+    paymentReconcileDays: '날짜별 대사',
     paymentReconciliation: '대사 불일치',
     // 커머스 묶음(설정 모드) — 판매·결제 공통 설정
     commerce: '커머스',
