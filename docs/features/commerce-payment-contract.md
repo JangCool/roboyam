@@ -8,7 +8,7 @@
 | 단위 | 내용 | 담당 | 상태 |
 |---|---|---|---|
 | 2a-1 화면 목업 | admin 결제 주문(목록·상세 서랍: 이력·취소·웹훅) · 웹훅 수신 내역 · 결제 이상 · 대사 불일치 · `/settings/portone` 「결제」 카드, user-web `/dev/payment`(시험 주문 + 가짜 결제창) | frontend | 시작 |
-| 2a-2 결제 핵심 서버 | V90, Fake·포트원 게이트웨이, 주문 만들기·확정·완료 API·시험 핸들러, 웹훅, 취소 대기열·워커, READY 정리, 규칙 테스트 | backend | 시작 |
+| 2a-2 결제 핵심 서버 | V90, Fake·포트원 게이트웨이, 주문 만들기·확정·완료 API·시험 핸들러, 웹훅, 취소 대기열·워커, READY 정리, 규칙 테스트 | backend | **구현·규칙 테스트 통과**(2026-10-26, 아래 「2a-2 구현 결과」) — develop 병합 전 |
 | 2a-3 대사 + 관리자 API + 연결 | 대사 배치, `R__batch_31`, 관리자 조회·처리 API, 포트원 결제 칸·API 정리, 알림·감사, 화면 연결 | backend → frontend | 2a-1 확정·2a-2 병합 뒤 |
 | 2a-4 테스트 채널 실제 확인 | dev 에 포트원 테스트 채널 키·웹훅 주소 등록, 사람이 결제창으로 결제·취소·콘솔 직접 취소 확인. 브라우저 SDK `@portone/browser-sdk` 추가(**승인 2026-10-26**, 버전은 설치 때 확인) | 사용자 + 세션 | 마지막 |
 순서: 2a-1 ∥ 2a-2 → 화면 확정 → 2a-3 → 2a-4. 2a-2 는 화면과 무관한 서버 핵심이라 화면 확정 전에 병행한다(사용자 승인 2026-10-26). 세션마다 자기 worktree.
@@ -84,6 +84,33 @@
 | `Transaction.Cancelled`·`PartialCancelled` | 조회해 포트원 취소 목록과 `payment_cancels` 를 `pg_cancel_id` 로 맞춤. 우리 것이 아닌 취소(콘솔 직접 취소) → 상태 불변 + `CANCEL_MISMATCH` 이슈(P18) | PROCESSED |
 - 서명: Standard Webhooks — 서명 대상 `{webhook-id}.{webhook-timestamp}.{본문}`, 비밀키는 `whsec_` 뒤 base64, HMAC-SHA256, `webhook-signature` 의 `v1,<서명>` 여러 개 중 하나라도 맞으면 통과, 상수 시간 비교.
 
+## 2a-2 구현 결과 (2026-10-26)
+- **포트원 문서로 확인한 것**(2026-10-26 — 포트원 V2 OpenAPI `developers.portone.io` 저장소의 `v2.openapi.json`, 웹훅 안내 문서, Standard Webhooks 규격): 웹훅 버전 `2024-04-25`, 본문 `{type, timestamp, data:{storeId, paymentId, transactionId, cancellationId?}}`, 이벤트 `Transaction.Paid`·`Transaction.Cancelled`·`Transaction.PartialCancelled`(그 밖에 Ready·VirtualAccountIssued·Failed·PayPending·CancelPending·DisputeCreated/Resolved — 모르는 이벤트는 무시하라고 안내), **`cancellationId` 는 Cancelled·PartialCancelled·CancelPending 에만 있다**. 포트원은 실패한 웹훅을 최대 5번(0·1·4·16·64·256분 + 흔들림) 다시 보낸다. 결제 단건 조회 `GET /payments/{paymentId}?storeId=`(404 `PAYMENT_NOT_FOUND`), 상태 `READY·PENDING·PAY_PENDING·VIRTUAL_ACCOUNT_ISSUED·PAID·FAILED·PARTIAL_CANCELLED·CANCELLED`, 금액 `amount.total`·`amount.cancelled`, `paidAt`·`pgTxId`·`receiptUrl`·`method.type`·`channel.pgProvider`·`cancellations[{status, id, totalAmount, reason, cancelledAt}]`. 취소 `POST /payments/{paymentId}/cancel` 본문 `{storeId, amount, currentCancellableAmount, reason(필수)}` → `{cancellation:{status: REQUESTED|SUCCEEDED|FAILED, id, …}}`, 거절 409 `CANCELLABLE_AMOUNT_CONSISTENCY_BROKEN`·`PAYMENT_ALREADY_CANCELLED`·`CANCEL_AMOUNT_EXCEEDS_CANCELLABLE_AMOUNT` 등, PG 오류 502. **다건 조회는 페이지 기반 `GET /payments` — 본문을 쿼리 `requestBody` 에 JSON 으로 싣는다**(`{page:{number,size}, filter:{storeId, timestampType: CREATED_AT|STATUS_CHANGED_AT(기본), from, until}}`, `(number+1)×size ≤ 60,000`), 대용량은 커서 기반 `GET /payments-by-cursor`(생성일시 기준, 「불안정」 표시). **`paymentId` 길이 제한은 문서에 없다**(「이미 결제 완료된 paymentId 는 재사용 불가」만) — 2a-4 실제 확인으로 넘긴다. 주문명은 PG 마다 40바이트(나이스·이니시스) 등 제한이 있다.
+- **코드**: shared `com.community.payment` — `dto`(`PaymentOrderType`·`PaymentStatus`·`PaymentAnomaly`·`ConfirmedVia`·`CancelKind`·`CancelStatus`·`PgCancelStatus`·`PaymentDecision`·`PaidPayment`·`CanceledPayment`·`PaymentOrderRequest`·`PaymentCheckout`·`PaymentCancelOrder`·`PaymentCancelRequested`, 요청 `PaymentCompleteRequest`, 응답 `PaymentCompletionView`) · `handler`(`PaymentOrderHandler`·`PaymentOrderHandlers`) · `gateway`(`PaymentGateway`·`PgPayment`·`PgCancellation`·`PgCancelResult`·`PgPaymentPage`·`PaymentCheckoutInfo`·`WebhookVerification`, `portone.PortOnePaymentGateway`·`StandardWebhookVerifier`·`PortOnePaymentParser`, `fake.FakePaymentGateway`·`FakePgStore`) · `config`(`PaymentConfig`·`PaymentProperties`) · `repository.master`(JDBC `PaymentOrderStore`·`PaymentCancelStore`·`PaymentEventStore`·`PaymentWebhookLogStore`·`ReconciliationIssueStore`) · `service`(`PaymentOrderService`·`PaymentConfirmService`·`PaymentCompletionService`·`PaymentWebhookService`·`PaymentCancelService`·`PaymentCancelExecutor`·`PaymentCancelWorker`·`PaymentCancelImmediateAttempt`·`PaymentAnomalyService`) · `batch.PaymentReadyCleanupJob` · `testorder`(`PaymentTestOrderHandler`·`PaymentTestOrderService`·`PaymentTestViews`) · `exception`(오류 6개). `portone`: `PortOneSettingKey` 묶음 COMMON·IDENTITY·PAYMENT(키 문자열 불변, `paymentChannelKey`·`webhookSecret` 더함), `PortOneSettingsService.paymentReady()`·`paymentCredentials()`, `PortOnePaymentCredentials`. `zconfiguration.security`: `SecurityConfig` 에 웹훅 permitAll + CSRF 제외(`PaymentWebhookPaths`). api `payment.controller`(`PaymentController`·`PaymentWebhookController`·`PaymentTestController`). admin `batch.service.PaymentCancelScheduler`.
+- **마이그레이션** shared `V90__payment_module.sql`(가번호 — 표 7개, FK 없음). develop(64123b5)의 shared 마지막은 V89 그대로지만 **`claude/group-full`(소모임 세션, 아직 develop 밖)이 `V90__group_posts`·`V91__group_managers` 를 쓰고 있다** — 그쪽이 먼저 합쳐지면 이 파일을 V92 로 바꿔 합친다(`_backend-core.md` 번호 규칙). 반복 마이그레이션은 없다(`R__batch_31` 은 2a-3).
+- **설정**: `roboyam.payment.gateway`(공통 `${ROBOYAM_PAYMENT_GATEWAY:portone}`, local fake) · `test-orders`(공통 `${ROBOYAM_PAYMENT_TEST_ORDERS:false}`, local true — dev 는 환경 변수로 켠다) · `cancel-batch-size` 20 · `cancel-gap` 200ms · `cancel-max-retries` 5 · `cancel-backoff` 1m,5m,30m,120m,720m · `cancel-stale` 10m · (admin) `cancel-poll-millis` 기본 60000. `batch_params` `payment-ready-cleanup.grace_minutes`(기본 10, 0~1440). 배치 카탈로그 `payment-ready-cleanup`(Java, MEMBER, `0 */10 * * * *`, 켬). 워커 기록 키 `payment-cancel`.
+- **API**(공통 래퍼, `no-store`, 쓰기는 CSRF — 웹훅 제외)
+  | | 선언 | 요청 → 응답 |
+  |---|---|---|
+  | `POST /api/payments/{paymentId}/complete` | 회원 로그인 | `{orderType, orderRefId}` → `{paymentId, orderType, orderRefId, status, accepted, anomaly, amount, paidAmount, paidAt}` · 404 `PAYMENT_ORDER_NOT_FOUND`(없음·남의 결제) · 409 `PAYMENT_ORDER_MISMATCH` · 409 `PAYMENT_NOT_PAID` · 503 `PAYMENT_GATEWAY_UNAVAILABLE`·`PAYMENT_NOT_CONFIGURED` · 400 `VALIDATION` |
+  | `POST /api/payments/webhooks/portone` | 공개(서명) | 원본 본문 ≤ 64KB + 머리글 셋 → 본문 없는 200·400·503(·500 뜻밖의 오류) |
+  | `POST /api/dev/payments/test-orders` | 회원 · `test-orders` 서버만 | `{amount(100~1,000,000), decision: ACCEPT\|REJECT\|ERROR}` → 201 `{orderRefId, paymentId, orderName, amount, currency, expiresAt, provider: FAKE\|PORTONE, storeId?, channelKey?}` · 400 `fields.amount` |
+  | `POST /api/dev/payments/{paymentId}/fake-pay` | 같음 · 가짜 게이트웨이만(아니면 404) | `{result: PAID\|FAILED, amount?}` → 204(가짜 PG 에 씀 — 이어서 완료 API) |
+  | `GET /api/dev/payments/{paymentId}` | 같음 | `{paymentId, orderRefId, status, anomaly, amount, paidAmount, canceledAmount, handlerCash, cancels[{id, kind, amount, status, pgStatus, attempts}]}` |
+- **구현 때 정한 것**(계약에 없던 세부 — 화면·2a-3 이 따른다)
+  1. **비교 금액 = 포트원 `amount.total`**(카드사 할인 등으로 `amount.paid` 가 작을 수 있어 청구 총액으로 맞춘다). `paid_amount` 에도 `amount.total` 을 둔다(취소 금액의 기준).
+  2. **우리 취소 표시**: 포트원에 보내는 `reason` = `roboyam <종류> rc:<취소 ID>`(내부 사유는 보내지 않는다). 시간 초과로 취소 내역 아이디를 못 받아도 재시도 전 조회·취소 웹훅이 이 표시로 우리 취소를 알아본다(그래서 우리 취소가 콘솔 취소로 잘못 이슈가 되지 않는다).
+  3. **재시도 횟수**: 즉시 시도 1 + 재시도 5 = 최대 6번, 재시도 간격 1·5·30·120·720분(D10 「즉시 시도 + 재시도 최대 5회」 — 다섯 간격을 모두 쓴다). REQUESTED(접수만)는 다시 보내지 않고 조회로 확인한다.
+  4. **잠그는 차례**: 취소 실행·웹훅 맞춤 모두 결제 주문 행 → 취소 줄 차례로 잠근다(교착 방지). 취소 실행은 계약대로 결제 주문 행을 잠근 채 포트원을 부른다(읽기 제한 10초).
+  5. **커밋 뒤 즉시 시도는 새 트랜잭션으로 집는다**(스프링 `AFTER_COMMIT` 단계에서는 끝난 트랜잭션의 연결이 묶여 있어, 새 트랜잭션이 아니면 집은 표시가 저장되지 않는다 — 시험이 잡았다).
+  6. **남은 취소 가능 금액** = 결제 − 취소됨 − 끝나지 않은 취소(PENDING·SENDING·GAVE_UP) — 넘치면 409 `PAYMENT_CANCEL_EXCEEDS`(새 오류 코드). 같은 요청 키는 처음 줄을 돌려준다.
+  7. **웹훅**: 비밀키가 없으면 머리글을 보기 전에 503 RETRY(설정한 뒤 재전송을 받는다). 서명 실패는 검증 안 된 머리글 값을 기록에 남기지 않는다(`webhook_id`·`payment_id` 없음, `error_code` 만). 처리한 웹훅만 `payment_events` 의 `WEBHOOK` 줄(webhook-id)로 남고, 503 이면 남기지 않아 재전송이 다시 처리된다. 처리기 예외 등 뜻밖의 오류는 500(재전송).
+  8. **콘솔 직접 취소(P18)**: 포트원 취소 내역 아이디마다 `EXTERNAL_CANCEL` 이력 한 줄 + 열린 `CANCEL_MISMATCH` 이슈 하나(다음 웹훅에 같은 취소가 실려 와도 늘지 않는다).
+  9. **처리기 없는 종류**: 「종류마다 하나」는 둘 이상이면 기동 실패로 막고, 없으면(충전·공구 — 아직 도메인 없음) 결제를 만들 수 없다(설정 오류). 시험 주문 처리기의 판정·현금은 그 서버 메모리다(표를 더하지 않았다 — 다시 띄우면 잊고, 관리자 앱의 READY 정리가 확정하면 기본 ACCEPT).
+  10. **운영자 알림** `COMMERCE_PAYMENT_ANOMALY`: CRITICAL·이메일 기본 켬·같은 결제 하루 한 건(묶음 키 = 결제 ID)·고정 문구(인자 없음)·링크 `/payments/anomalies`(가정 — 2a-3 화면 연결 때 맞춘다). 받는 권한 `commerce.reconcile.manage` 는 아직 `featureReady=false`(최고 관리자는 받는다 — 2a-3 이 준비됨으로 바꾼다).
+  11. **감사 행위**(쓰는 API 는 2a-3): `RECONCILE_ISSUE_RESOLVE`·`PAYMENT_CANCEL_RETRY`·`PAYMENT_CANCEL_MANUAL`·`PAYMENT_RECHECK` = 돈 관련, `PAYMENT_ORDER_VIEW` = 개인정보 열람 — `AuditActions`·`AuditRetention`·번들 두 언어. 감사 대상 종류(`AuditLabels.TARGET_TYPES`)는 2a-3.
+  12. `PaymentReadiness` 는 따로 두지 않았다 — `PaymentGateway.ready()`(포트원: `paymentCredentials` 가 있는가 = `paymentReady`)가 맡는다.
+
 ## 규칙 → 테스트 (구현 세션이 채운다 — 모두 실제 PostgreSQL)
 | 규칙 | 테스트 | 단위 |
 |---|---|---|
@@ -109,5 +136,31 @@
 | 권한 준비됨·선언·403, 메뉴, 감사 분류, 문구 두 언어, 웹훅 기록 90일 정리 | `Commerce2aPermissionDeclarationTest`·`Commerce2aCatalogTest`·`PaymentCleanupBatchTest` | 2a-3 |
 - 테스트로 막지 못할 것: 실제 포트원 호출·웹훅 전송(2a-4 에서 사람이), 상수 시간 비교의 실제 시간, pg_cron 등록, 브라우저 결제창, 워커의 실제 예약 주기.
 
-## 미확정 (포트원 문서로 구현 때 확인 — commerce.md 22절)
-- 웹훅 버전과 이벤트 이름(`Transaction.Paid`·`Cancelled`·`PartialCancelled`), 취소 웹훅의 `cancellationId` 유무, 다건 조회 요청 방식(페이지·커서), `paymentId` 길이 제한(우리 36자).
+### 2a-2 규칙 → 테스트 결과 (2026-10-26 — 모두 실제 PostgreSQL `CommerceTestDatabase`, 포트원은 가짜 PG·HTTP 흉내)
+| 테스트(위치) | 수 | 막은 규칙(위 표의 2a-2 줄 + 구현 때 정한 것) |
+|---|---|---|
+| shared `payment.PaymentSchemaTest` | 10 | 취소 ≤ 결제·결제 계열 칸·통화·상태·이상·확정 길 CHECK, payment_id 형식·유일, 받아들인 결제 하나(이상·끝난 결제·READY 는 셈 밖), 취소 대기열 request_key·pg_cancel_id 유일·상태 칸 맞물림, webhook-id 유일, 열린 이슈 유일(처리하면 다시 열 수 있음), FK 없음 |
+| `PaymentOrderServiceTest` | 7 | `pay_`+32자·겹치지 않음·서버 금액·유효 시각, MANDATORY, 도메인 롤백이면 없음, 재결제 새 번호·이전 READY → EXPIRED(다른 주문은 그대로), 범위 밖 입력, 처리기 없는 종류, 설정 없음 503 |
+| `PaymentConfirmServiceTest` | 8 | 8-2 표 전부(PAID 아님 그대로·ACCEPT 확정·REJECT → DOMAIN_REJECTED + 전액 자동 취소 + 커밋 뒤 즉시 취소·금액/통화 불일치 → onPaid 없이 전액 취소 + 운영자 알림·포트원 장애 503 무변경), 처리기 예외 → 전체 되돌림 뒤 다시 시도, 이미 확정이면 조회 없이 같은 결과 |
+| `PaymentConfirmConcurrencyTest` | 2 | 완료 API·웹훅·READY 정리가 동시에(연결 여럿, 9갈래 × 5회) → onPaid 한 번·PAID 이력 한 줄, 거절 결제의 자동 취소도 한 번 |
+| `LatePaymentTest` | 4 | 결정 4 — EXPIRED 면 무조건 늦음, READY 면 `paidAt > expires_at` 만(1µs 도 늦음·같으면 늦지 않음), 확인이 늦게 와도 받아들임, 재결제 뒤 옛 시도의 늦은 결제가 정상 결제와 부딪치지 않고 자동 취소 |
+| `PaymentCompletionTest` | 5 | P24 남의 결제 404·다른 주문 409(포트원 조회 0회), 결제 전 409 `PAYMENT_NOT_PAID` 뒤 다시 성공, 장애 503, 웹훅이 먼저면 같은 결과·이상 결제는 `accepted=false` |
+| `PaymentCancelWorkerTest` | 12 | 넣기 MANDATORY·남은 금액(진행 중 포함) 넘으면 409·같은 키 한 번·업무 롤백이면 없음·즉시 시도도 없음 / `currentCancellableAmount`·부분 → 전액 상태·onCanceled 한 번·조건부 누계(넘침 거절), **P17** 즉시 1 + 재시도 5 → GAVE_UP·운영자 알림·도메인 확정 없음·간격 정확히 1·5·30·120·720분·차례 전엔 안 집음·멈춘 줄은 다시 안 집음, 재시도 전 조회(응답 끊김 뒤 이중 취소 없음), 접수만(REQUESTED), 오래된 SENDING 10분 뒤 되살림, 한 바퀴 20건·건 사이 200ms, 즉시 시도와 워커는 한쪽만 |
+| `PaymentCancelConcurrencyTest` | 1 | 서버 번호가 다른 워커 넷이 동시에(`SKIP LOCKED`) → 취소 40건마다 포트원 요청 한 번·누계 한 번 |
+| `PaymentWebhookTest` | 9 | P23(서명 틀림·본문 바뀜·머리글 없음·시각 ±5분 초과 → 400 REJECTED·조회 0·상태 불변, 5분 안은 받음), 비밀키 없음 503, 조회 후 확정·본문 저장 안 함, 중복 webhook-id 한 번, 아직 결제 전·장애 503 RETRY 뒤 재전송 처리, 모르는 상점·결제·이벤트·읽을 수 없는 본문 200 IGNORED, **P18** 콘솔 취소 → 상태 불변 + 이슈 하나(다시 와도 하나), 우리 취소 웹훅 → 그 줄 SUCCEEDED(한 번만 반영) |
+| `StandardWebhookVerifierTest` | 6 | 규격 시험 값, 여러 서명 중 하나·v1 만, 본문·ID·시각·키가 다르면 틀림, `whsec_` 있든 없든, 시각 오차 경계, 머리글 없음·키 없음 |
+| `PaymentReadyCleanupJobTest` | 5 | 카탈로그(Java·10분), 여유 10분 경계, 결제 안 됨 EXPIRED·제때 결제 확정(READY_CLEANUP)·늦은 결제 자동 취소, 두 번 돌려도 같음, `grace_minutes` 설정·범위 밖은 기본, 장애는 건별 실패(`PAYMENT_ORDER`) 뒤 다음 실행이 처리, 덩어리 여럿·사흘 밀려도 전부 |
+| `PaymentInvariantTest` | 1 | 30건을 받아들임·거절·금액 불일치·늦은 결제·부분 환불·장애·접수만·응답 끊김으로 섞어 → 결제마다 취소 누계 = SUCCEEDED 합, 받아들인 결제는 결제 − 취소 = 처리기 현금, 이상 결제는 현금 0·전액 취소, 포트원 쪽 취소액 = 우리 누계 |
+| `PaymentConfigTest` | 6 | dev·prod 가짜 기동 실패, prod 시험 주문 기동 실패(dev·local 됨), 포트원은 어디서나·설정 없으면 준비 안 됨, 숫자 기본값·잘못된 재시도 설정 기동 실패, 시험 주문 처리기는 켠 서버에만, 공통/local 설정 값 |
+| `PortOnePaymentGatewayTest` | 8 | 조회 요청 모양(storeId·`PortOne` 머리글)·쓰는 칸만·취소 내역, 404 없음·그 밖 오류/연결 실패/모양 틀림/남의 결제 503, 취소 본문 칸·SUCCEEDED/REQUESTED/FAILED, 409 거절 type·5xx·연결 실패 503, 다건 조회 `requestBody` 쿼리·`STATUS_CHANGED_AT`, 설정 없음 503·요청 없음, 결제창 값·웹훅 검증 |
+| `PaymentLogSecrecyTest` | 3 | 포트원 오류 본문·API 비밀키·웹훅 비밀키·구매자 이메일이 로그에 없음, 거절 웹훅의 서명·본문이 로그·기록에 없음, 취소 실패 문구 가림·포트원에 내부 사유를 보내지 않음 |
+| shared `portone.service.PortOnePaymentSettingsTest` | 3 | 키 문자열 불변·묶음 셋, `paymentReady` = 4칸 + 암호화 키, 결제 값 풀기·`toString` 감춤, 본인인증 화면·판정은 예전 세 칸 그대로 |
+| api `payment.PaymentCompletionHttpTest` | 6 | 완료 API CSRF·로그인 필요, 시험 주문 → 가짜 결제 → 완료가 공통 래퍼·`no-store` 로 끝까지, 404·409·400, **속도 제한·멱등 키 없음**(15번 연속 200), 웹훅은 로그인·CSRF 없이(보안 필터를 거쳐) 틀린 서명 400·맞으면 200, 64KB 넘으면 400 |
+| admin `batch.service.PaymentCancelSchedulerTest` | 3 | 배치를 끈 서버는 안 돎·기록 없음, 켠 서버는 한 바퀴·`payment-cancel` 워커 기록(건수), 실패는 가린 한 줄 |
+- **실행**(2026-10-26, 이 worktree): `JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2 ./gradlew --continue :server:shared:test --rerun --tests 'com.community.payment.*' --tests 'com.community.portone.*' --tests 'com.community.identity.*' --tests 'com.community.commerce.*' --tests 'com.community.audit.*' --tests 'com.community.batch.core.*' --tests 'com.community.testsupport.*' --tests 'com.community.mail.outbox.*' --tests 'com.community.point.PointBatchCatalogTest' --tests 'com.community.pointshop.PointShopCatalogTest' :server:api:test --rerun --tests 'com.community.payment.*' --tests 'com.community.identity.*' --tests 'com.community.commerce.*' :server:admin:test --rerun --tests 'com.community.commerce.*' --tests 'com.community.batch.*' --tests 'com.community.permission.*' --tests 'com.community.menu.*' --tests 'com.community.mfa.MfaCatalogTest' --tests 'com.community.audit.*'` → **shared 239 · api 47 · admin 73 = 359 통과, 실패 0**. 그중 2a-2 새 시험 99개(shared 90 · api 6 · admin 3), 나머지 260개는 바꾼 곳 둘레의 기존 시험(포트원 설정·본인인증·감사 분류 `AuditRetentionTest`·커머스 카탈로그·배치 core/화면·권한·메뉴·메일 대기열 — 관리자·공개 사이트 앱 문맥이 결제 빈을 싣고 뜨는 것도 여기서 확인). 전체 테스트는 돌리지 않았다.
+- **테스트로 막지 못한 것**: 실제 포트원 호출(응답 모양은 OpenAPI 기준 흉내 — 2a-4), 실제 웹훅 전송·재전송, `paymentId` 길이 제한(문서에 없음), 상수 시간 비교의 실제 시간, 워커·READY 정리의 실제 예약 주기(`@Scheduled`·cron 자체), 운영자 알림의 실제 발행(발행기 대역으로 「무엇을 냈는가」만 — 문구·받는 사람은 알림 모듈 시험의 몫), 시험 주문 처리기 메모리가 서버마다 따로인 것(시연용으로 받아들임), dev 의 `ROBOYAM_PAYMENT_TEST_ORDERS` 를 compose 에 넣는 일(배포 파일은 이 단계에서 고치지 않았다).
+
+## 미확정
+- **포트원**(위 「2a-2 구현 결과」에서 확인한 것 빼고): `paymentId` 길이 제한(문서에 없다 — 우리 36자, 2a-4 실제 결제로 확인), 웹훅 비밀키의 실제 형식(Standard Webhooks 는 `whsec_` + base64 — `whsec_` 없이 주면 그대로 base64 로 푼다), 채널별 승인/매입 분리.
+- 운영자 알림 링크 `/payments/anomalies` 와 결제 화면 경로는 2a-1 화면이 정한다(2a-3 연결 때 맞춘다).
+- 마이그레이션 번호: develop 에 합칠 때 다시 본다(`claude/group-full` 의 V90·V91 과 겹침 — 위 「2a-2 구현 결과」).

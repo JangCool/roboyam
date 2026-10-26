@@ -28,11 +28,15 @@ public final class AuditRetention {
             // 포인트 상점 구매 예외 환불 — 포인트가 움직이는 일(commerce-stage1-contract 「B」·「패키지」)
             AuditActions.POINT_SHOP_REFUND,
             // 정지 중 환불 신청 거절 — 돈을 돌려주지 않기로 한 결정이라 돈 관련(commerce-stage1-contract 「1-2 정지 중 환불 신청」)
-            AuditActions.POINT_SHOP_REFUND_REJECT);
+            AuditActions.POINT_SHOP_REFUND_REJECT,
+            // 결제 이상·대사 처리 — 돈이 움직이거나 돈의 기록을 바로잡는 일(commerce-payment-contract 결정 12)
+            AuditActions.RECONCILE_ISSUE_RESOLVE, AuditActions.PAYMENT_CANCEL_RETRY, AuditActions.PAYMENT_CANCEL_MANUAL, AuditActions.PAYMENT_RECHECK);
 
     private static final Set<String> PERSONAL_DATA = Set.of(
             AuditActions.MEMBER_VIEW,
-            AuditActions.WITHDRAWN_CONTACT_REVEAL);
+            AuditActions.WITHDRAWN_CONTACT_REVEAL,
+            // 결제 주문 상세(회원 번호·닉네임 — commerce-payment-contract 결정 17)
+            AuditActions.PAYMENT_ORDER_VIEW);
 
     /** 일반 운영으로 <b>정한</b> 행위 — 빠뜨린 것과 구별하려고 나열한다 */
     private static final Set<String> GENERAL = Set.of(

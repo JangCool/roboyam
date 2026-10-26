@@ -46,7 +46,9 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                        .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
+                        .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
+                        // 포트원 웹훅(서버 대 서버 — 브라우저 쿠키가 없다). 대신 Standard Webhooks 서명을 원본 바이트로 검증한다(commerce-payment-contract 결정 5)
+                        .ignoringRequestMatchers(PaymentWebhookPaths.PORTONE))
                 .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
                 // 로그인 상태는 서버 세션(Spring Session JDBC)에 둔다 — 컨트롤러가 저장하고 필터가 요청마다 읽는다
                 .securityContext(context -> context.securityContextRepository(securityContextRepository))
@@ -89,6 +91,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/home/latest", "/api/home/popular", "/api/search", "/api/grade-rules").permitAll()
                         // 프로필 아바타 목록(docs/features/commerce-stage1-contract.md 「1-2 화면 목업」 아바타) — 비회원도 읽는다(보유·잔액 없이). 공개 사이트 서버(api)에만 있는 주소
                         .requestMatchers(HttpMethod.GET, "/api/avatars").permitAll()
+                        // 포트원 결제 웹훅(docs/features/commerce-payment-contract.md 결정 5) — 로그인·CSRF 없이 받고 서명은 서비스가 검증한다(틀리면 400). 공개 사이트 서버(api)에만 있는 주소
+                        .requestMatchers(HttpMethod.POST, PaymentWebhookPaths.PORTONE).permitAll()
                         // 관리자 앱(admin)의 로그인 상태 조회·로그인·로그아웃 — 같은 규약이다(공개 사이트 서버에는 이 주소가 없다). 그 밖의 /api/admin/** 는 로그인이 필요하고,
                         // 어떤 권한이 필요한지는 컨트롤러가 선언하며 선언이 없으면 거절된다(admin 의 AdminAccessInterceptor — fail-closed)
                         .requestMatchers(HttpMethod.GET, "/api/admin/auth/me").permitAll()

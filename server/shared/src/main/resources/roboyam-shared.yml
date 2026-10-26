@@ -111,6 +111,16 @@ roboyam:
   identity:
     provider: ${ROBOYAM_IDENTITY_PROVIDER:portone}
     verification-ttl: 30m        # 서버가 발급한 인증 번호의 유효 시간 — 지나면 확정할 수 없다(410)
+  # 결제 모듈(docs/features/commerce-payment-contract.md). 게이트웨이는 배포 설정이다 — portone(포트원 V2) | fake(local·시험 전용). dev · prod 프로필에서 fake 면 기동을 멈춘다(PaymentConfig).
+  # 포트원 상점 ID·API 비밀키·결제 채널 키·웹훅 비밀키는 관리자 화면(설정 › 포트원)이 DB 에 암호화해 둔다. 운영 값(READY 여유 시간·웹훅 기록 보관)은 batch_params 다
+  payment:
+    gateway: ${ROBOYAM_PAYMENT_GATEWAY:portone}
+    test-orders: ${ROBOYAM_PAYMENT_TEST_ORDERS:false}  # 결제 시험 주문(PAYMENT_TEST · /api/dev/payments) — local · dev 만. prod 에서 켜면 기동을 멈춘다
+    cancel-batch-size: 20        # 취소 워커가 한 바퀴(1분)에 집는 취소 수 — PG 호출 속도 제한
+    cancel-gap: 200ms            # 취소 사이 간격
+    cancel-max-retries: 5        # 즉시 시도 뒤 재시도 횟수 — 다 쓰면 GAVE_UP(결제 이상 목록·운영자 알림)
+    cancel-backoff: 1m,5m,30m,120m,720m  # n 번째 재시도까지의 간격
+    cancel-stale: 10m            # SENDING 으로 이만큼 머문 취소는 보내던 서버가 죽은 것으로 보고 되돌린다
   # 탈퇴 대비(commerce.md 17-2 · 17-3). 쓰는 탈퇴 기능은 아직 없다 — 기록 장치(IdentityWithdrawalRecorder · WithdrawnContactStore)만 있다
   withdrawal:
     rejoin-block-days: 30        # 같은 이메일·소셜 계정·본인인증 값이 탈퇴 뒤 다시 가입·인증할 수 없는 기간(탈퇴 때 박는다)

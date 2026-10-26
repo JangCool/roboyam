@@ -6,6 +6,7 @@ import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
 import com.community.identity.config.IdentityProperties;
 import com.community.portone.dto.PortOneIdentityCredentials;
+import com.community.portone.dto.PortOnePaymentCredentials;
 import com.community.portone.dto.PortOneSettingKey;
 import com.community.portone.dto.response.PortOneFieldStateView;
 import com.community.portone.dto.response.PortOneSettingsView;
@@ -38,7 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li>화면({@link #view})에는 값이 없다 — 설정 여부·마지막 변경 시각·바꾼 사람만. 감사({@code PORTONE_SETTINGS_UPDATE}·{@code PORTONE_SETTINGS_DELETE})에도 칸 이름만.</li>
- *   <li>값을 푸는 길은 {@link #identityCredentials()} 하나(본인인증 구현이 업체를 부를 때) — 결과를 응답·로그에 싣지 않는다.</li>
+ *   <li>값을 푸는 길은 {@link #identityCredentials()}(본인인증 구현이 업체를 부를 때)와 {@link #paymentCredentials()}(결제 게이트웨이, 2a) 둘 — 결과를 응답·로그에 싣지 않는다.</li>
  *   <li>관리자 앱의 화면 API(다음 단계)가 {@link #view} · {@link #saveIdentity} · {@link #deleteField} 를 부른다. 권한 검사는 컨트롤러 선언이 한다.</li>
  * </ul>
  */
@@ -70,7 +71,7 @@ public class PortOneSettingsService {
     public PortOneSettingsView view() {
         Map<String, PortOneSettingStore.Row> rows = rows();
         List<PortOneFieldStateView> fields = new ArrayList<>();
-        for (PortOneSettingKey key : PortOneSettingKey.of(PortOneSettingKey.Group.IDENTITY)) {
+        for (PortOneSettingKey key : PortOneSettingKey.identityKeys()) {
             PortOneSettingStore.Row row = rows.get(key.key());
             fields.add(row == null ? new PortOneFieldStateView(key.key(), false, null, null)
                     : new PortOneFieldStateView(key.key(), row.configured(), row.updatedAt(), row.updatedByName()));
@@ -94,7 +95,7 @@ public class PortOneSettingsService {
             return Optional.empty();
         }
         Map<PortOneSettingKey, String> values = new EnumMap<>(PortOneSettingKey.class);
-        for (PortOneSettingKey key : PortOneSettingKey.of(PortOneSettingKey.Group.IDENTITY)) {
+        for (PortOneSettingKey key : PortOneSettingKey.identityKeys()) {
             try {
                 values.put(key, encryptor.decrypt(rows.get(key.key()).valueCipher()));
             } catch (IllegalArgumentException e) {
@@ -162,8 +163,41 @@ public class PortOneSettingsService {
         if (!store.clear(field.key(), operatorId, clock.instant())) {
             throw new PortOneFieldNotFoundException();
         }
-        audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.PORTONE_SETTINGS_DELETE, AuditResult.SUCCESS).target(AUDIT_TARGET, "identity")
-                .with("field", field.key()));
+        audit.record(AuditEvent.byOperator(operatorId, ip, AuditActions.PORTONE_SETTINGS_DELETE, AuditResult.SUCCESS)
+                .target(AUDIT_TARGET, field.group() == PortOneSettingKey.Group.PAYMENT ? "payment" : "identity").with("field", field.key()));
+    }
+
+    /**
+     * 결제에 필요한 4칸(상점 ID·API 비밀키·결제 채널 키·웹훅 비밀키) + 암호화 키가 모두 있는가 — 값을 풀지 않는다(결정 14 {@code paymentReady}).
+     * 화면·관리자 API 에 싣는 것은 2a-3 이다.
+     */
+    public boolean paymentReady() {
+        return encryptor.isConfigured() && keysReady(rows(), PortOneSettingKey.paymentKeys());
+    }
+
+    /**
+     * 포트원 결제 값을 푼다 — 결제 게이트웨이만 부른다(결과를 응답·로그에 싣지 않는다). 칸이 하나라도 비었거나, 암호화 키가 없거나, 풀 수 없으면(키가 바뀜 — 로그만) 빈 값이다.
+     */
+    public Optional<PortOnePaymentCredentials> paymentCredentials() {
+        Map<String, PortOneSettingStore.Row> rows = rows();
+        if (!encryptor.isConfigured() || !keysReady(rows, PortOneSettingKey.paymentKeys())) {
+            return Optional.empty();
+        }
+        Map<PortOneSettingKey, String> values = new EnumMap<>(PortOneSettingKey.class);
+        for (PortOneSettingKey key : PortOneSettingKey.paymentKeys()) {
+            try {
+                values.put(key, encryptor.decrypt(rows.get(key.key()).valueCipher()));
+            } catch (IllegalArgumentException e) {
+                log.error("포트원 설정 칸을 풀지 못했다 — 암호화 키가 바뀌었는지 확인 key={}", key.key()); // 값·암호문은 싣지 않는다
+                return Optional.empty();
+            }
+        }
+        return Optional.of(new PortOnePaymentCredentials(values.get(PortOneSettingKey.STORE_ID), values.get(PortOneSettingKey.API_SECRET),
+                values.get(PortOneSettingKey.PAYMENT_CHANNEL_KEY), values.get(PortOneSettingKey.WEBHOOK_SECRET)));
+    }
+
+    private static boolean keysReady(Map<String, PortOneSettingStore.Row> rows, List<PortOneSettingKey> keys) {
+        return keys.stream().allMatch(key -> rows.containsKey(key.key()) && rows.get(key.key()).configured());
     }
 
     /** 감사 대상 종류 */
@@ -174,6 +208,6 @@ public class PortOneSettingsService {
     }
 
     private static boolean identityReady(Map<String, PortOneSettingStore.Row> rows) {
-        return PortOneSettingKey.of(PortOneSettingKey.Group.IDENTITY).stream().allMatch(key -> rows.containsKey(key.key()) && rows.get(key.key()).configured());
+        return PortOneSettingKey.identityKeys().stream().allMatch(key -> rows.containsKey(key.key()) && rows.get(key.key()).configured());
     }
 }

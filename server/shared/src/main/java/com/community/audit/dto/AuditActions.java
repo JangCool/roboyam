@@ -243,6 +243,18 @@ public final class AuditActions {
     /** 분류 지우기 — {@code deleted}(이름), 「분류 없음」이 된 게시판 {@code boards}(slug) */
     public static final String GROUP_CATEGORY_DELETE = "GROUP_CATEGORY_DELETE";
 
+    // ── 커머스 2a 결제 모듈(commerce-payment-contract 결정 12·17 — 쓰는 관리자 API 는 2a-3) — 대상 PAYMENT_ORDER·PAYMENT_CANCEL·RECONCILIATION_ISSUE ──
+    /** 대사 불일치 처리 — 대상 RECONCILIATION_ISSUE + 이슈 ID, {@code type}·{@code paymentId}·{@code note}(사유). 돈 관련(5년) */
+    public static final String RECONCILE_ISSUE_RESOLVE = "RECONCILE_ISSUE_RESOLVE";
+    /** 멈춘(GAVE_UP) 취소 다시 시도 — 대상 PAYMENT_CANCEL + 취소 ID, {@code paymentId}·{@code amount}·{@code note}. 돈 관련 */
+    public static final String PAYMENT_CANCEL_RETRY = "PAYMENT_CANCEL_RETRY";
+    /** 멈춘 취소를 수동 처리 완료로 닫기 — 대상 PAYMENT_CANCEL + 취소 ID, {@code paymentId}·{@code amount}·{@code note}. 돈 관련 */
+    public static final String PAYMENT_CANCEL_MANUAL = "PAYMENT_CANCEL_MANUAL";
+    /** 포트원에서 다시 확인(확정 코드를 관리자가 부름) — 대상 PAYMENT_ORDER + 결제 주문 ID, {@code paymentId}·{@code outcome}·{@code note}. 돈 관련 */
+    public static final String PAYMENT_RECHECK = "PAYMENT_RECHECK";
+    /** 결제 주문 상세 열기(회원 번호·닉네임이 보인다) — 대상 PAYMENT_ORDER + 결제 주문 ID. 개인정보 열람(2년) */
+    public static final String PAYMENT_ORDER_VIEW = "PAYMENT_ORDER_VIEW";
+
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();
 
