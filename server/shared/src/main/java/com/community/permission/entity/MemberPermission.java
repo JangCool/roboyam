@@ -21,7 +21,7 @@ public enum MemberPermission {
     REPORT_CREATE("report.create", MemberPermissionGroup.USE, true, false),
     /** 포인트 상점 이용(구매) — 0-5 의 shop.use 를 커머스 1-2 에서 이름만 바꿨다(V86 이 역할에 준 것도 옮긴다) */
     POINTSHOP_USE("pointshop.use", MemberPermissionGroup.USE, true, false),
-    /** 소모임 개설 신청(V89 — 글쓰기를 가진 역할에 같이 줬다) */
+    /** 소모임 개설 신청(V90 — 글쓰기를 가진 역할에 같이 줬다) */
     GROUP_CREATE("group.create", MemberPermissionGroup.USE, true, false),
     HOTDEAL_WRITE("hotdeal.write", MemberPermissionGroup.USE, false, false),
     COMMERCE_PURCHASE("commerce.purchase", MemberPermissionGroup.USE, false, false),

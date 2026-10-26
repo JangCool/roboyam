@@ -10,7 +10,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 /**
- * 소모임 설정 변경 이력 한 줄 — V89 {@code group_setting_history}. 값이 실제로 바뀐 저장마다 하나이고 고치거나 지우지 않는다.
+ * 소모임 설정 변경 이력 한 줄 — V90 {@code group_setting_history}. 값이 실제로 바뀐 저장마다 하나이고 고치거나 지우지 않는다.
  * {@code changes} 는 {@code [{field, before, after}]} JSON 글자(값은 코드 글자 — 조회가 요청 언어의 표시 글자로 바꾼다).
  */
 @Entity

@@ -65,13 +65,13 @@ public class PostEntity {
     private Instant createdAt;
     private Instant updatedAt;
 
-    /** 소모임 글이면 그 소모임(V90 — 쓸 때 정하고 바뀌지 않는다), 일반 글 null */
+    /** 소모임 글이면 그 소모임(V91 — 쓸 때 정하고 바뀌지 않는다), 일반 글 null */
     @Column(updatable = false)
     private Long groupId;
-    /** 소모임 글이 공개로 전환됐는가(V90 {@code is_public}) — 일반 글은 늘 false */
+    /** 소모임 글이 공개로 전환됐는가(V91 {@code is_public}) — 일반 글은 늘 false */
     @Column(name = "is_public")
     private boolean publicPost;
-    /** 작성자가 소모임을 스스로 나가 가려진 시각(V90) — 다시 가입하면 비운다. 일괄 UPDATE({@code GroupPostQueries})로만 바꾼다 */
+    /** 작성자가 소모임을 스스로 나가 가려진 시각(V91) — 다시 가입하면 비운다. 일괄 UPDATE({@code GroupPostQueries})로만 바꾼다 */
     @Column(updatable = false, insertable = false)
     private Instant groupLeftAt;
 

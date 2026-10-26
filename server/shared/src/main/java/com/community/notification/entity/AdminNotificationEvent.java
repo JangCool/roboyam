@@ -92,7 +92,7 @@ public enum AdminNotificationEvent {
     BOARD_SANCTION_REPEAT_REVIEW(spec(SAFETY, WARNING).holders(Permission.SANCTION_MANAGE).reserved()),
     /** 닉네임 그림 검토 대기 — 회원이 신청할 때(api NicknameImageService). 5분 안의 연속 신청은 한 건. 2026-10-24 예약을 풀었다 */
     NICKNAME_IMAGE_PENDING(spec(MEMBER, INFO).holders(Permission.NICKNAME_IMAGE_MANAGE).link("/members/nickname-images").collapse(300)),
-    /** 소모임 개설 신청 대기 — 승인제에서 회원이 개설을 신청할 때(api GroupCreateService, V89). 5분 안의 연속 신청은 한 건. 2026-10-26 예약을 풀었다 */
+    /** 소모임 개설 신청 대기 — 승인제에서 회원이 개설을 신청할 때(api GroupCreateService, V90). 5분 안의 연속 신청은 한 건. 2026-10-26 예약을 풀었다 */
     CLUB_OPEN_REQUEST_PENDING(spec(CLUB, INFO).holders(Permission.GROUP_MANAGE).link("/group-requests").collapse(300)),
     HOTDEAL_SUSPECTED_PROMO(spec(HOTDEAL, WARNING).holders(Permission.HOTDEAL_MANAGE).reserved()),
     COMMERCE_ORDER_ANOMALY(spec(GROUPBUY, CRITICAL).holders(Permission.COMMERCE_ORDER_MANAGE).reserved()),

@@ -150,14 +150,14 @@ public class MemberNotificationMessages {
         }
 
         /**
-         * 내 공개 소모임 글이 비공개로 되돌려졌다(V90) — 소모임 이름({@code snapshot})·글 제목({@code postTitle})·처리자 역할({@code result} — LEADER · MANAGER).
+         * 내 공개 소모임 글이 비공개로 되돌려졌다(V91) — 소모임 이름({@code snapshot})·글 제목({@code postTitle})·처리자 역할({@code result} — LEADER · MANAGER).
          */
         public static Facts groupPostUnpublished(String groupName, String postTitle, String actorRole) {
             return new Facts(MemberNotificationType.GROUP_POST_UNPUBLISHED, null, postTitle, null, 1, 0, null, null, false, groupName, actorRole);
         }
 
         /**
-         * 소모임 매니저 알림(V91 — {@code GROUP_MANAGER_*} · {@code GROUP_KICKED_BY_MANAGER}) — 소모임 이름({@code snapshot}) · 일으킨 매니저 닉네임({@code actorName} — 사퇴·매니저 강퇴,
+         * 소모임 매니저 알림(V92 — {@code GROUP_MANAGER_*} · {@code GROUP_KICKED_BY_MANAGER}) — 소모임 이름({@code snapshot}) · 일으킨 매니저 닉네임({@code actorName} — 사퇴·매니저 강퇴,
          * 메일은 보낼 때 지금 닉네임으로 채운다) · 맡은 일 키를 쉼표로 이은 것({@code note} — 임명·맡은 일 바뀜) · 내보낸 멤버 닉네임({@code excerpt} — 매니저 강퇴).
          */
         public static Facts groupManager(MemberNotificationType type, String groupName, String actorName, String permissionKeys, String targetName) {
@@ -165,7 +165,7 @@ public class MemberNotificationMessages {
         }
 
         /**
-         * 소모임 일정 알림(V92 — {@code GROUP_EVENT}) — 소모임 이름({@code snapshot}) · 일정 제목({@code postTitle}) · 한 일({@code result} — CREATED · UPDATED · CANCELED)
+         * 소모임 일정 알림(V93 — {@code GROUP_EVENT}) — 소모임 이름({@code snapshot}) · 일정 제목({@code postTitle}) · 한 일({@code result} — CREATED · UPDATED · CANCELED)
          * · 취소 사유({@code note} — 적었을 때만).
          */
         public static Facts groupEvent(String groupName, String eventTitle, String action, String reason) {

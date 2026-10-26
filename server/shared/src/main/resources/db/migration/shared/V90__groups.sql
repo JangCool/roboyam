@@ -3,7 +3,7 @@
 -- 개설 신청은 소모임 행 자체다(status PENDING → ACTIVE | REJECTED(반려 사유) | DELETED(신청 취소)). 운영 기록(비활성·다시 열기)은 소모임 행의 칸 + 감사 기록.
 -- 이후 단계가 붙을 자리: 매니저(3단계)는 group_members.role = 'MANAGER' + manager_perms + groups.manager_limit 이 이미 있다. 공개 범위(5단계)는 groups.visibility* 가 있다.
 -- 글(2단계 — posts.group_id)·일정(4단계 — group_events)·공개 요청(5단계)은 그 단계가 표를 더한다.
--- 번호 89 는 develop 의 마지막(V88) 다음이다 — 합칠 때 develop 의 마지막 번호를 다시 본다.
+-- 번호는 develop 병합(2026-10-26, 커머스 1-3 의 V89 다음) 때 V90~V93 으로 다시 매겼다.
 
 -- ── 소모임 ──────────────────────────────────────────────────────────────────
 -- id: Snowflake(앱 발급). name: 2~20자(앞뒤 공백을 다듬고 안쪽 공백을 하나로 — 앱). name_key: 공백을 모두 빼고 소문자(같은 이름 막기 — 앱이 만든다).

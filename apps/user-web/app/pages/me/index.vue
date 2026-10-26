@@ -105,6 +105,7 @@ import type { PointCount } from '~/composables/point/api/usePointApi.types';
 import type { MyProfile } from '~/composables/profile/api/useProfileApi.types';
 import UtilBusiness from '~/utils/util-business';
 import UtilPoint from '~/utils/util-point';
+import UtilPointMessages from '~/utils/util-point-messages';
 import UtilPointShop from '~/utils/util-point-shop';
 import UtilProfile from '~/utils/util-profile';
 import UtilSettings from '~/utils/util-settings';
@@ -121,7 +122,7 @@ useSeoMeta({ title: () => t('me.title'), description: () => t('me.seoDescription
 
 const uid = useId();
 const time = useDisplayTime();
-const { user, adminUrl } = useAuth();
+const { user, adminUrl, emailVerified, restriction } = useAuth();
 const { busy, run: logout } = useLogoutFlow();
 const profileApi = useProfileApi();
 const points = usePointSummary();
@@ -201,11 +202,13 @@ const entries = computed<Entry[]>(() => {
     if (user.value) list.push({ to: UtilProfile.path(user.value.id), icon: 'pi pi-id-card', label: t('me.entryProfile'), hint: '', badge: '', testid: 'me-entry-profile' });
     list.push({ to: '/me/grade', icon: 'pi pi-star', label: t('me.entryGrade'), hint: user.value?.role === 'USER' ? user.value.gradeLabel : '', badge: '', testid: 'me-entry-grade' });
     if (!businessAccount.value) {
+        // 포인트·출석체크(커머스 1-3) — 출석 기능이 있으면 「포인트·출석체크」, 오른쪽에 보유 포인트(+ 오늘 출석 전이면 「· 출석 +10P」)
+        const s = summary.value;
         list.push({
             to: '/me/points',
             icon: 'pi pi-wallet',
-            label: t('point.history'),
-            hint: summary.value ? UtilPoint.points(summary.value.balance) : '',
+            label: s?.attendanceAvailable ? t('point.entry') : t('point.history'),
+            hint: s ? UtilPointMessages.entryHint(t, s.balance, UtilPoint.attendable(s, { emailVerified: emailVerified.value, restriction: restriction.value }), s.rules.attendance) : '',
             badge: '',
             testid: 'me-entry-points',
         });

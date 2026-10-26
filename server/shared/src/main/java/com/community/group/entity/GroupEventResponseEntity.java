@@ -8,7 +8,7 @@ import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 import java.time.Instant;
 
-/** 일정 참석 응답 한 행 — V92 {@code group_event_responses}. (일정, 회원) 한 쌍에 하나. 바꾸면 응답과 시각을 갱신하고, 지우면 행을 지운다 */
+/** 일정 참석 응답 한 행 — V93 {@code group_event_responses}. (일정, 회원) 한 쌍에 하나. 바꾸면 응답과 시각을 갱신하고, 지우면 행을 지운다 */
 @Entity
 @Table(name = "group_event_responses")
 @IdClass(GroupEventResponseId.class)

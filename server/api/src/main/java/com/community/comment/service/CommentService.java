@@ -51,7 +51,6 @@ import com.community.group.repository.master.GroupMemberRepository;
 import com.community.group.service.GroupPostGate;
 import com.community.membernotification.dto.CommentNotice;
 import com.community.membernotification.service.MemberNotificationPublisher;
-import com.community.point.entity.PointReason;
 import com.community.point.service.PointService;
 import com.community.post.dto.WriteRateData;
 import com.community.post.dto.response.PostAuthorView;
@@ -539,7 +538,7 @@ public class CommentService {
             CommentView view = view(comment, self, byId, authors.members(memberIds), s, now);
             // 같은 트랜잭션의 마지막에: 댓글 포인트(회원만) · 회원 알림 — 둘 다 실패해도 댓글쓰기는 그대로다(세이브포인트로 격리)
             if (authorId != null) {
-                points.earn(authorId, PointReason.COMMENT, id);
+                points.earnComment(new PointService.CommentEarn(authorId, id, post.getId(), post.getAuthorId(), masked.plain(), b.pointsEnabled()));
             }
             Long replyTargetAuthor = null;
             if (parent != null) {
@@ -734,7 +733,7 @@ public class CommentService {
             if (counters.deleteCommentDislike(comment.getId(), userId)) {
                 counters.addCommentDislikes(comment.getPostId(), comment.getId(), -1); // 추천과 비추천은 둘 중 하나만
             }
-            points.likeBonus(comment.getAuthorId(), PointService.REF_COMMENT, comment.getId(), userId);
+            points.likeBonus(comment.getAuthorId(), PointService.REF_COMMENT, comment.getId(), userId, b.pointsEnabled());
             return reactionResult(comment, b, true, false);
         });
     }

@@ -116,7 +116,7 @@ public class GroupCategoryViews {
 
     /**
      * 게시판 ID → 그 게시판을 쓰는 소모임 수(삭제·반려 제외 — 열림·비활성·대기).
-     * 소모임 1단계(V89)부터 실제 수다 — 신청 중 · 열림 · 비활성.
+     * 소모임 1단계(V90)부터 실제 수다 — 신청 중 · 열림 · 비활성.
      */
     private Map<Long, Long> groupCountsByBoard() {
         return groups.countByBoard(GroupRepositoryQDSL.LIVE);

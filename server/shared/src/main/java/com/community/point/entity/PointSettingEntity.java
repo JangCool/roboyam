@@ -32,7 +32,16 @@ public class PointSettingEntity {
     private int dealEndRequestPoints;
     private int dealEndRequestDailyLimit;
     private int signupPoints;
-    // ── V85 묶음 정책 — 관리자 정책 화면 14칸 밖이라 이 매핑으로는 바꾸지 않는다(읽기만, 화면 칸은 1-3) ──
+    // ── V90 적립 조건(커머스 1-3 — commerce.md 6-2) ──
+    private int postMinLength;
+    private int commentMinLength;
+    private boolean commentOwnPostExcluded;
+    private boolean commentOncePerPost;
+    private int writeIntervalSeconds;
+    private int dailyTotalCap;
+    private int attendanceStreakDays;
+    private int attendanceStreakBonus;
+    // ── V85 묶음 정책 — 정책 화면 칸이 아니라 이 매핑으로는 바꾸지 않는다(읽기만). 큰 금액 조정 문턱만 1-3 부터 정책 화면에서 바꾼다(changeAdjustLargeThreshold) ──
     @Column(insertable = false, updatable = false)
     private int freeValidDays;
     @Column(insertable = false, updatable = false)
@@ -43,7 +52,7 @@ public class PointSettingEntity {
     private int expiryNoticeIntervalDays;
     @Column(insertable = false, updatable = false)
     private Instant lotTrackingStartedAt;
-    @Column(insertable = false, updatable = false)
+    @Column(insertable = false)
     private int adjustLargeThreshold;
     private Instant updatedAt;
     private Long updatedBy;
@@ -53,7 +62,8 @@ public class PointSettingEntity {
 
     public PointRules values() {
         return new PointRules(attendancePoints, postPoints, postDailyCap, commentPoints, commentDailyCap, popularRewardPoints, popularRewardTopN, likeBonusThreshold,
-                likeBonusPoints, likeBonusDailyLimit, dealEndRequestPoints, dealEndRequestDailyLimit, signupPoints);
+                likeBonusPoints, likeBonusDailyLimit, dealEndRequestPoints, dealEndRequestDailyLimit, signupPoints, postMinLength, commentMinLength,
+                commentOwnPostExcluded, commentOncePerPost, writeIntervalSeconds, dailyTotalCap, attendanceStreakDays, attendanceStreakBonus);
     }
 
     public void change(PointRules v, long operatorId, Instant now) {
@@ -70,6 +80,21 @@ public class PointSettingEntity {
         this.dealEndRequestPoints = v.dealEndRequestPoints();
         this.dealEndRequestDailyLimit = v.dealEndRequestDailyLimit();
         this.signupPoints = v.signupPoints();
+        this.postMinLength = v.postMinLength();
+        this.commentMinLength = v.commentMinLength();
+        this.commentOwnPostExcluded = v.commentOwnPostExcluded();
+        this.commentOncePerPost = v.commentOncePerPost();
+        this.writeIntervalSeconds = v.writeIntervalSeconds();
+        this.dailyTotalCap = v.dailyTotalCap();
+        this.attendanceStreakDays = v.attendanceStreakDays();
+        this.attendanceStreakBonus = v.attendanceStreakBonus();
+        this.updatedAt = now;
+        this.updatedBy = operatorId;
+    }
+
+    /** 큰 금액 조정 문턱(V85 칸 — 1-3 부터 정책 화면에서 저장, 0~100,000. 범위 검사는 부르는 쪽) */
+    public void changeAdjustLargeThreshold(int threshold, long operatorId, Instant now) {
+        this.adjustLargeThreshold = threshold;
         this.updatedAt = now;
         this.updatedBy = operatorId;
     }

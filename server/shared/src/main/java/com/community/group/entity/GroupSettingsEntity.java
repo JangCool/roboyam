@@ -9,7 +9,7 @@ import java.time.Instant;
 import org.hibernate.annotations.DynamicUpdate;
 
 /**
- * 소모임 설정 네 구획 — V89 {@code group_settings}(단일 행 id = 1, 마이그레이션이 넣어 둔다). 칸이 null 이면 그 칸은 서버 설정 파일 값이고,
+ * 소모임 설정 네 구획 — V90 {@code group_settings}(단일 행 id = 1, 마이그레이션이 넣어 둔다). 칸이 null 이면 그 칸은 서버 설정 파일 값이고,
  * 구획의 {@code *UpdatedAt} 이 null 이면 그 구획은 저장된 적이 없다(fromDefaults). 읽는 곳은 {@code GroupSettingsService} 한 곳 — 캐시하지 않는다.
  */
 @Entity

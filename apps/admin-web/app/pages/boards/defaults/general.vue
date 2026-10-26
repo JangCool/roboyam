@@ -206,13 +206,14 @@ function canEdit(field: BoardDefaultsField): boolean {
     return can(UtilBoard.SPECS[field].permission);
 }
 
-/** 다른 칸 때문에 지금은 쓰이지 않는 칸 — 보존 기간(정리 꺼짐) · 예약 삭제 시간(예약 삭제가 아님) · 이미지 올리기(글 에디터가 고급이 아님) · 비추천 이름(비추천 꺼짐) */
+/** 다른 칸 때문에 지금은 쓰이지 않는 칸 — 보존 기간(정리 꺼짐) · 예약 삭제 시간(예약 삭제가 아님) · 이미지 올리기(글 에디터가 고급이 아님) · 비추천 이름(비추천 꺼짐) · 적립 최소 글자 수 적용(포인트 지급 안 함) */
 function inactiveOf(field: BoardDefaultsField): boolean {
     if (!form.value) return false;
     if (field === 'commentDislikeLabel') return !form.value.commentDislikeEnabled;
     if (field === 'attachmentRetentionDays') return !form.value.attachmentPurgeEnabled;
     if (field === 'commentProtectDelayMinutes') return form.value.commentProtectDelete !== 'DELAY';
     if (field === 'imageUploadAllowed') return UtilBoard.imageUploadIdle(form.value.postEditor);
+    if (field === 'pointMinLengthApplied') return form.value.pointMode === 'OFF';
     return false;
 }
 
@@ -222,6 +223,7 @@ function noteOf(field: BoardDefaultsField): string {
     if (field === 'commentProtectDelayMinutes' && inactiveOf(field)) return t('board.inactiveNote.delay');
     if (field === 'imageUploadAllowed' && inactiveOf(field)) return t('board.inactiveNote.imageEditor');
     if (field === 'commentDislikeLabel' && inactiveOf(field)) return t('board.inactiveNote.dislikeOff');
+    if (field === 'pointMinLengthApplied' && inactiveOf(field)) return t('board.inactiveNote.pointOff');
     if (field === 'pinRequestReviewers' && form.value.pinRequestReviewers.length === 0) return t('board.inactiveNote.pinRequestOff');
     const protectOff = UtilBoard.parse(form.value.commentProtectMin) === 0;
     if (protectOff && (field === 'commentProtectEdit' || field === 'commentProtectDelete')) return t('board.inactiveNote.protectOff');

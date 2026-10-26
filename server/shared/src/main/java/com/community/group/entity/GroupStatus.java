@@ -1,6 +1,6 @@
 package com.community.group.entity;
 
-/** 소모임 상태 — V89 {@code groups.status} CHECK 와 같은 값. 목록·검색에는 {@link #ACTIVE} 만 나온다 */
+/** 소모임 상태 — V90 {@code groups.status} CHECK 와 같은 값. 목록·검색에는 {@link #ACTIVE} 만 나온다 */
 public enum GroupStatus {
     /** 개설 신청 중(신청자만 본다) */
     PENDING,

@@ -13,7 +13,7 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
                                   Integer postGapSeconds,
                                   Integer postDailyLimit, Integer commentGapSeconds, Integer commentDailyLimit, Integer listSize, Integer pinnedMax,
                                   Boolean indexable, Boolean searchable, Boolean inHome, Boolean attachmentPurgeEnabled, Integer attachmentRetentionDays,
-                                  String pointMode, Integer commentProtectMin, Boolean commentProtectEdit, String commentProtectDelete,
+                                  String pointMode, Boolean pointMinLengthApplied, Integer commentProtectMin, Boolean commentProtectEdit, String commentProtectDelete,
                                   Integer commentProtectDelayMinutes, Integer commentGuestDelayMinutes, Boolean staffHiddenNotice,
                                   Boolean commentDislikeEnabled, String commentLikeLabel, String commentDislikeLabel, List<String> pinRequestReviewers,
                                   Boolean debateEnabled, Boolean pollEnabled, Integer bestCommentMinLikes, Integer managerMax,
@@ -56,6 +56,7 @@ public record BoardDefaultsValues(String dateDisplay, String writeMin, String co
         map.put("attachmentPurgeEnabled", attachmentPurgeEnabled);
         map.put("attachmentRetentionDays", attachmentRetentionDays);
         map.put("pointMode", pointMode);
+        map.put("pointMinLengthApplied", pointMinLengthApplied);
         map.put("commentProtectMin", commentProtectMin);
         map.put("commentProtectEdit", commentProtectEdit);
         map.put("commentProtectDelete", commentProtectDelete);

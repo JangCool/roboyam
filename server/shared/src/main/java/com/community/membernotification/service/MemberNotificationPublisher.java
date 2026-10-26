@@ -507,7 +507,7 @@ public class MemberNotificationPublisher {
     }
 
     /**
-     * 소모임 알림(GROUP_* — V89, community api-groups.md 7절) — 덧붙임 {@code groupId}·{@code groupName}(+{@code reason} 반려·거절·비활성 사유,
+     * 소모임 알림(GROUP_* — V90, community api-groups.md 7절) — 덧붙임 {@code groupId}·{@code groupName}(+{@code reason} 반려·거절·비활성 사유,
      * {@code applicantId} 가입 신청). 끌 수 없는 알림(회원 이벤트 잠금). 일으킨 사람({@code actorUserId})은 가입 신청한 회원·처리한 모임장 — 그 사람 본인에게는 보내지 않는다.
      * 업무 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 업무를 깨지 않는다).
      *
@@ -548,7 +548,7 @@ public class MemberNotificationPublisher {
     }
 
     /**
-     * 내 공개 소모임 글이 비공개로 되돌려졌다(GROUP_POST_UNPUBLISHED — V90, community api-groups.md 8절) — 받는 사람은 글쓴이, 일으킨 사람은 처리자(모임장·되돌리기를 맡은 매니저).
+     * 내 공개 소모임 글이 비공개로 되돌려졌다(GROUP_POST_UNPUBLISHED — V91, community api-groups.md 8절) — 받는 사람은 글쓴이, 일으킨 사람은 처리자(모임장·되돌리기를 맡은 매니저).
      * 덧붙임 {@code groupId}·{@code groupName}·{@code title}·{@code actorRole}(LEADER · MANAGER). 끌 수 없는 처리 알림. 글쓴이 본인이 되돌리면 부르지 않는다(여기서도 막는다).
      * 공개 전환 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 되돌리기를 깨지 않는다).
      */
@@ -582,7 +582,7 @@ public class MemberNotificationPublisher {
     }
 
     /**
-     * 소모임 매니저 알림(V91 — community api-groups.md 7절 「매니저 알림 5종」) — 덧붙임 {@code groupId}·{@code groupName}(+{@code permissions} 맡은 일 키 배열 — 임명·맡은 일 바뀜,
+     * 소모임 매니저 알림(V92 — community api-groups.md 7절 「매니저 알림 5종」) — 덧붙임 {@code groupId}·{@code groupName}(+{@code permissions} 맡은 일 키 배열 — 임명·맡은 일 바뀜,
      * {@code actorId} 일으킨 매니저 — 사퇴·매니저 강퇴, {@code targetId} 내보낸 멤버 — 매니저 강퇴). 끌 수 없는 알림. 일으킨 사람({@code actorUserId} — 임명·해임은 모임장,
      * 사퇴·강퇴는 그 매니저)은 알림 행의 일으킨 사람 칸에 남고 그 사람 본인에게는 보내지 않는다. 업무 트랜잭션 안에서 부른다(세이브포인트).
      *
@@ -628,7 +628,7 @@ public class MemberNotificationPublisher {
     }
 
     /**
-     * 소모임 일정 알림(GROUP_EVENT — V92, community api-groups.md 9절) — 받는 사람은 그 소모임의 멤버 한 명(부르는 쪽이 멤버마다), 일으킨 사람은 일을 한 모임장·일정 관리 매니저
+     * 소모임 일정 알림(GROUP_EVENT — V93, community api-groups.md 9절) — 받는 사람은 그 소모임의 멤버 한 명(부르는 쪽이 멤버마다), 일으킨 사람은 일을 한 모임장·일정 관리 매니저
      * (그 사람 본인에게는 보내지 않는다). 덧붙임 {@code groupId}·{@code groupName}·{@code eventId}·{@code title}(일정 제목)·{@code eventAction}(CREATED · UPDATED · CANCELED)
      * ·{@code reason}(취소 사유 — 적었을 때만). <b>회원이 끌 수 있다</b>(개인 설정의 「소모임 일정」). 업무 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 일정 일을 깨지 않는다).
      */

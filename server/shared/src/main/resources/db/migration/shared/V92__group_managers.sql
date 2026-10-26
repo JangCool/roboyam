@@ -1,11 +1,11 @@
 -- 소모임 3단계(매니저) — docs/features/group-contract.md 「전체 개발 계획」 3단계(community docs/api-groups.md 5-1 을 로보얌에 맞춘 것).
--- 매니저의 표·칸(group_members.role = 'MANAGER' · manager_perms · groups.manager_limit · group_settings 매니저 구획)은 V89 가 이미 만들었다 — 이 파일은 알림 종류만 더한다.
--- 번호 91 은 V90(소모임 2단계) 다음이다 — 합칠 때 develop 의 마지막 번호를 다시 본다.
+-- 매니저의 표·칸(group_members.role = 'MANAGER' · manager_perms · groups.manager_limit · group_settings 매니저 구획)은 V90 가 이미 만들었다 — 이 파일은 알림 종류만 더한다.
+-- 번호는 develop 병합(2026-10-26, 커머스 1-3 의 V89 다음) 때 V90~V93 으로 다시 매겼다.
 
 -- ── 회원 알림 종류: 매니저 알림 5종(api-groups.md 7절 「매니저 알림 5종」) ──
 -- GROUP_MANAGER_APPOINTED(임명 → 임명된 사람) · GROUP_MANAGER_PERMISSIONS_CHANGED(맡은 일 바뀜 → 그 매니저) · GROUP_MANAGER_REMOVED(해임 → 해임된 사람)
--- · GROUP_MANAGER_RESIGNED(사퇴 → 모임장) · GROUP_KICKED_BY_MANAGER(매니저가 강퇴 → 모임장). 모두 끌 수 없다. 알림 설정 행은 넣지 않는다(V89 와 같다).
--- 종류 목록은 V90 의 목록 ∪ 위 5종.
+-- · GROUP_MANAGER_RESIGNED(사퇴 → 모임장) · GROUP_KICKED_BY_MANAGER(매니저가 강퇴 → 모임장). 모두 끌 수 없다. 알림 설정 행은 넣지 않는다(V90 와 같다).
+-- 종류 목록은 V91 의 목록 ∪ 위 5종.
 -- ⚠ 합칠 때 합집합 확인 — 다른 세션도 이 CHECK 를 다시 만들 수 있다(나중에 적용되는 쪽이 모든 종류를 담아야 한다).
 --
 -- type 칸을 varchar(30) → varchar(40) 로 넓힌다: GROUP_MANAGER_PERMISSIONS_CHANGED 가 33자다(community 의 notifications.type 도 varchar(40),

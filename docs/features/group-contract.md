@@ -51,7 +51,7 @@
 ## 전체 개발 계획 (2026-10-26 사용자 — 「전부」 옮기고 「멈춤 없이 끝까지」)
 - **원본**: community `docs/api-groups.md`(절 번호는 아래 단계에 적는다) + `frontend/app/{pages/groups,components/groups}` + `admin/app` 소모임 화면. 로보얌 관례(권한 코드 `group.*`·`403 PERMISSION_DENIED`, i18n 키, Snowflake ID, 회원 알림 `MemberNotificationType`, 기능 제한 `restriction`, 메뉴 `MenuBuiltin.GROUPS_ALL|MINE|NEW`)에 맞춘다. 원본과 다르게 한 것은 단계마다 아래에 「로보얌 차이」로 적는다.
 - **진행 방식(사용자 결정)**: 화면 목업 → 확인 → 서버의 규칙을 이 기능에서는 쓰지 않는다. 단계마다 화면·서버·연동을 한 번에 끝내고, 화면은 단계 끝에 개발자가 몰아서 본다. 관리자 목업 화면 3개(`/groups`·`/group-requests`·`/group-settings`)도 확정으로 본다.
-- **작업 자리**: 작업 트리 `.claude/worktrees/group-full`, 브랜치 `claude/group-full`(develop `4641db5` 에서). 단계가 끝날 때마다 커밋하고, develop 에 합치는 것은 사용자 지시로. 마이그레이션은 V89 부터(합칠 때 develop 의 마지막 번호를 다시 본다).
+- **작업 자리**: 작업 트리 `.claude/worktrees/group-full`, 브랜치 `claude/group-full`(develop `4641db5` 에서). 단계가 끝날 때마다 커밋하고, develop 에 합치는 것은 사용자 지시로. 마이그레이션은 V90~V93(2026-10-26 develop 병합 때 커머스 1-3 의 V89 다음으로 다시 매김 — 다음 단계는 V94 부터, 합칠 때 develop 의 마지막 번호를 다시 본다).
 - **단계** (앞 단계에 기댄다 — 차례대로):
   1. **기본** — api-groups 1·2(분류 제외)·3·4·5(5-1 제외)·6-1·6-2·7(개설 승인 알림): 소모임·멤버·가입 신청·개설 신청 표, 개설 규칙·운영 한도(관리자 설정 4구획 + 변경 이력), 목록·상세·가입·신청 취소·탈퇴·내 소모임, 모임장 관리(정보 수정·멤버·가입 신청 처리·모집 마감·채팅 링크·모임장 넘기기·해산), 관리자 목록·상세·승인·반려·비활성화·다시 열기, 분류 `groupCount` 채우기, `AdminScreenRegistry` 네 줄·`group.*` `featureReady`. user-web `/groups`·`/groups/me`·`/groups/new`·`/groups/[id]`(글·일정 탭은 다음 단계 자리)·`/groups/[id]/manage/*`.
   2. **소모임 글** — 8절: 소모임 게시판에 글쓰기(멤버), 글 탭, 공개 전환·되돌리기, seen, 나간 멤버의 글, 알림 `GROUP_POST_UNPUBLISHED`. 공개 api 의 소모임 게시판 404(`PublicBoardService.isPublic`)를 소모임 경로에서 연다.

@@ -10,7 +10,7 @@ import java.time.Instant;
 import org.hibernate.annotations.DynamicUpdate;
 
 /**
- * 소모임 × 회원 한 행 — V89 {@code group_members}. 멤버·가입 신청·거절·탈퇴·강퇴를 한 행의 상태로 둔다(다시 오면 같은 행을 고친다).
+ * 소모임 × 회원 한 행 — V90 {@code group_members}. 멤버·가입 신청·거절·탈퇴·강퇴를 한 행의 상태로 둔다(다시 오면 같은 행을 고친다).
  * <b>자격 소멸은 이 엔티티 한 곳</b>: 나가기·강퇴·다시 가입·신청이 역할을 MEMBER, 맡은 일을 0 으로 되돌린다(매니저 자격은 다시 가입해도 돌아오지 않는다).
  */
 @Entity

@@ -445,7 +445,7 @@ public class BoardService {
         if (content.hasLivePosts(board.getId())) {
             throw new BoardHasPostsException();
         }
-        // 소모임이 쓰는 게시판(상태 무관 — 해산·반려 기록도 이 게시판을 가리킨다)은 지울 수 없다 — 대신 끈다(V89 groups.board_id FK 의 앞 검사)
+        // 소모임이 쓰는 게시판(상태 무관 — 해산·반려 기록도 이 게시판을 가리킨다)은 지울 수 없다 — 대신 끈다(V90 groups.board_id FK 의 앞 검사)
         if (groups.existsByBoardId(board.getId())) {
             throw new BoardHasGroupsException();
         }

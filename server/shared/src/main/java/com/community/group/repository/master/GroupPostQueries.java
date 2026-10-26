@@ -21,7 +21,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 소모임 글(V90 — {@code posts.group_id}·{@code is_public}·{@code group_left_at}) 질의 — 글 탭 · 글 수 · 새 글 수 · 나가기·다시 가입·해산의 일괄 처리.
+ * 소모임 글(V91 — {@code posts.group_id}·{@code is_public}·{@code group_left_at}) 질의 — 글 탭 · 글 수 · 새 글 수 · 나가기·다시 가입·해산의 일괄 처리.
  * 색인은 {@code ix_posts_group (group_id, id DESC)} · {@code ix_posts_group_author (group_id, author_id)}.
  *
  * <p><b>보이는 소모임 글</b>({@link #visible}): 지우지 않음({@link PostRepositoryQDSL#alive}) · 운영자·신고 숨김 중이 아님({@link PostRepositoryQDSL#notHidden}) ·

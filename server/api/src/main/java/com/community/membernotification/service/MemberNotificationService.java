@@ -296,14 +296,14 @@ public class MemberNotificationService {
                 };
             }
             case GROUP_POST_UNPUBLISHED -> {
-                // 소모임 글 비공개 되돌림(V90) — 소모임 이름 · 글 제목(알릴 때) · 처리자 역할. 누르면 그 글(작성자는 지금도 열 수 있다 — 지웠거나 가려졌으면 링크 없음)
+                // 소모임 글 비공개 되돌림(V91) — 소모임 이름 · 글 제목(알릴 때) · 처리자 역할. 누르면 그 글(작성자는 지금도 열 수 있다 — 지웠거나 가려졌으면 링크 없음)
                 String title = payload.get("title") instanceof String t && !t.isBlank() ? t : post == null ? null : post.title();
                 facts = MemberNotificationMessages.Facts.groupPostUnpublished(payload.get("groupName") instanceof String n ? n : null, title,
                         payload.get("actorRole") instanceof String r ? r : null);
                 link = postAvailable ? "/posts/" + row.getPostId() : null;
             }
             case GROUP_MANAGER_APPOINTED, GROUP_MANAGER_PERMISSIONS_CHANGED, GROUP_MANAGER_REMOVED, GROUP_MANAGER_RESIGNED, GROUP_KICKED_BY_MANAGER -> {
-                // 소모임 매니저(V91) — 소모임 이름(알릴 때) · 맡은 일(임명·바뀜 — 본문) · 일으킨 매니저(사퇴·강퇴) · 내보낸 멤버(지금 닉네임). 가는 곳: 임명·바뀜 → 관리 메인,
+                // 소모임 매니저(V92) — 소모임 이름(알릴 때) · 맡은 일(임명·바뀜 — 본문) · 일으킨 매니저(사퇴·강퇴) · 내보낸 멤버(지금 닉네임). 가는 곳: 임명·바뀜 → 관리 메인,
                 // 해임 → 그 소모임, 사퇴·매니저 강퇴 → 멤버 관리(community api-groups.md 7절 「매니저 알림 5종」)
                 String groupId = payload.get("groupId") instanceof String g && !g.isBlank() ? g : null;
                 String keys = payload.get("permissions") instanceof List<?> list
@@ -324,7 +324,7 @@ public class MemberNotificationService {
                 };
             }
             case GROUP_EVENT -> {
-                // 소모임 일정(V92) — 소모임 이름 · 일정 제목(알릴 때) · 한 일(CREATED · UPDATED · CANCELED) · 취소 사유. 누르면 그 일정(community api-groups.md 9절)
+                // 소모임 일정(V93) — 소모임 이름 · 일정 제목(알릴 때) · 한 일(CREATED · UPDATED · CANCELED) · 취소 사유. 누르면 그 일정(community api-groups.md 9절)
                 String groupId = payload.get("groupId") instanceof String g && !g.isBlank() ? g : null;
                 String eventId = payload.get("eventId") instanceof String e && !e.isBlank() ? e : null;
                 facts = MemberNotificationMessages.Facts.groupEvent(payload.get("groupName") instanceof String n ? n : null,

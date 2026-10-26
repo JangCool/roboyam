@@ -151,6 +151,7 @@ const SPECS: Record<BoardDefaultsField, BoardFieldSpec> = {
     attachmentPurgeEnabled: { field: 'attachmentPurgeEnabled', kind: 'bool', overridable: false, permission: 'board.settings' },
     attachmentRetentionDays: { field: 'attachmentRetentionDays', kind: 'number', min: 1, max: 3650, unit: 'days', overridable: false, permission: 'board.settings' },
     pointMode: { field: 'pointMode', kind: 'choice', choices: ['ON', 'OFF'], overridable: true, permission: 'board.settings' },
+    pointMinLengthApplied: { field: 'pointMinLengthApplied', kind: 'bool', overridable: true, permission: 'board.settings' },
     commentProtectMin: { field: 'commentProtectMin', kind: 'number', min: 0, max: 100, unit: 'count', overridable: true, permission: 'board.settings' },
     commentProtectEdit: { field: 'commentProtectEdit', kind: 'bool', overridable: true, permission: 'board.settings' },
     commentProtectDelete: { field: 'commentProtectDelete', kind: 'choice', choices: ['BLOCK', 'DELAY', 'ALLOW'], overridable: true, permission: 'board.settings' },
@@ -243,7 +244,7 @@ const DEFAULT_SECTIONS = {
     // 「홈·인기·최신 포함」(inHome)은 게시판 설정의 「가젯 노출 금지」가 대신해 화면에서 다루지 않는다(서버 칸은 남아 있고 저장 요청은 받은 값을 그대로 돌려보낸다)
     'defaults-list': ['listSize', 'pinnedMax', 'indexable', 'searchable'],
     'defaults-attachment': ['attachmentPurgeEnabled', 'attachmentRetentionDays'],
-    'defaults-protect': ['pointMode', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes'],
+    'defaults-protect': ['pointMode', 'pointMinLengthApplied', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes'],
     'defaults-guest': ['commentGuestDelayMinutes', 'staffHiddenNotice'],
     'defaults-reaction': ['debateEnabled', 'pollEnabled', 'commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers'],
     'defaults-best': ['bestCommentMinLikes'],
@@ -660,7 +661,7 @@ export default class UtilBoard {
             guide: diff(form.introText, base.introText) + diff(form.writeGuideText, base.writeGuideText),
             // inHome 은 화면에서 다루지 않는다(가젯 노출 금지가 대신한다) — 가젯 선택은 순서 없이 묶음으로 1칸
             exposure: policyDiff(['listSize', 'pinnedMax', 'indexable', 'searchable']) + diff(UtilBoard.gadgetKey(form.gadgetExclusions), UtilBoard.gadgetKey(base.gadgetExclusions)),
-            protect: policyDiff(['pointMode', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes', 'staffHiddenNotice']),
+            protect: policyDiff(['pointMode', 'pointMinLengthApplied', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes', 'staffHiddenNotice']),
             reaction: policyDiff(['debateEnabled', 'pollEnabled', 'commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers']),
             staff: policyDiff(['managerMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit']),
         };

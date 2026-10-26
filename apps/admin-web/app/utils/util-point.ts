@@ -1,5 +1,5 @@
 import { ApiError } from '~/composables/common/useApiClient';
-import type { PointLedgerKind, PointReasonCode, PointSettingsField, PointSettingsValues } from '~/composables/point/api/usePointApi.types';
+import type { PointLedgerKind, PointReasonCode, PointSettingsField, PointSettingsNumberField, PointSettingsSwitchField, PointSettingsValues } from '~/composables/point/api/usePointApi.types';
 
 /**
  * 포인트 화면(정책·내역·조정)의 순수 계산 — 서버 규칙을 **미리 알려 주는 용도**이고 판정은 서버다(`forms.md`).
@@ -9,11 +9,14 @@ import type { PointLedgerKind, PointReasonCode, PointSettingsField, PointSetting
 /** 정책 칸 하나의 입력 문제 */
 export type PointSettingsProblem = 'REQUIRED' | 'NOT_INTEGER' | 'OUT_OF_RANGE';
 
-/** 정책 입력값 — 칸마다 입력 글자 */
-export type PointSettingsForm = Record<PointSettingsField, string>;
+/** 정책 입력값 — 정수 칸은 입력 글자, 켜기/끄기 칸은 불리언 */
+export type PointSettingsForm = Record<PointSettingsNumberField, string> & Record<PointSettingsSwitchField, boolean>;
 
-/** 정책 묶음(같은 「꺼짐」 판정을 받는 칸들) */
-export type PointSettingsGroup = 'attendance' | 'post' | 'comment' | 'popular' | 'likeBonus' | 'dealEnd' | 'signup';
+/** 정책 묶음(같은 딱지 판정을 받는 칸들) */
+export type PointSettingsGroup = 'attendance' | 'attendanceStreak' | 'post' | 'comment' | 'earnConditions' | 'dailyTotal' | 'popular' | 'likeBonus' | 'dealEnd' | 'signup' | 'adjust';
+
+/** 묶음·칸 딱지 — 꺼짐(0 = 그 규칙 끔) · 한도 없음(하루 총 한도 0) */
+export type PointSettingsTag = 'OFF' | 'NO_LIMIT';
 
 /** 조정 방향 — 지급 · 차감 */
 export type PointAdjustMode = 'GRANT' | 'DEDUCT';
@@ -31,13 +34,19 @@ export interface PointAdjustPreview {
     clipped: boolean;
 }
 
-/** 칸 순서 = 화면·요청 순서 */
-const FIELDS: readonly PointSettingsField[] = [
+/** 정수 칸 순서 = 화면·요청 순서. 뒤쪽 9칸 중 정수 7칸은 커머스 1-3(`commerce.md` 6-2) */
+const NUMBER_FIELDS: readonly PointSettingsNumberField[] = [
     'attendancePoints',
+    'attendanceStreakDays',
+    'attendanceStreakBonus',
     'postPoints',
     'postDailyCap',
     'commentPoints',
     'commentDailyCap',
+    'postMinLength',
+    'commentMinLength',
+    'writeIntervalSeconds',
+    'dailyTotalCap',
     'popularRewardPoints',
     'popularRewardTopN',
     'likeBonusThreshold',
@@ -46,10 +55,17 @@ const FIELDS: readonly PointSettingsField[] = [
     'dealEndRequestPoints',
     'dealEndRequestDailyLimit',
     'signupPoints',
+    'adjustLargeThreshold',
 ];
 
-/** 입력 범위 — community `limits` 그대로 + 가입 포인트(0~10000) */
-const LIMITS: Record<PointSettingsField, readonly [number, number]> = {
+/** 켜기/끄기 칸(커머스 1-3) */
+const SWITCH_FIELDS: readonly PointSettingsSwitchField[] = ['commentOwnPostExcluded', 'commentOncePerPost'];
+
+/** 모든 칸 */
+const FIELDS: readonly PointSettingsField[] = [...NUMBER_FIELDS, ...SWITCH_FIELDS];
+
+/** 입력 범위 — community `limits` 그대로 + 가입 포인트(0~10000) + 커머스 1-3 칸(서버 CHECK 가 될 값) */
+const LIMITS: Record<PointSettingsNumberField, readonly [number, number]> = {
     attendancePoints: [0, 10000],
     postPoints: [0, 10000],
     postDailyCap: [0, 1000],
@@ -63,9 +79,16 @@ const LIMITS: Record<PointSettingsField, readonly [number, number]> = {
     dealEndRequestPoints: [0, 10000],
     dealEndRequestDailyLimit: [0, 1000],
     signupPoints: [0, 10000],
+    postMinLength: [0, 10000],
+    commentMinLength: [0, 1000],
+    writeIntervalSeconds: [0, 3600],
+    dailyTotalCap: [0, 100000],
+    attendanceStreakDays: [0, 365],
+    attendanceStreakBonus: [0, 10000],
+    adjustLargeThreshold: [0, 100000],
 };
 
-/** 기본값 — community `defaults` 그대로 + 가입 포인트 0(지급 안 함) */
+/** 기본값(서버 값을 받기 전 폼의 자리) — community `defaults` 그대로 + 가입 포인트 0 + 커머스 1-3 칸(`commerce.md` 6-2) */
 const DEFAULTS: PointSettingsValues = {
     attendancePoints: 10,
     postPoints: 20,
@@ -80,18 +103,37 @@ const DEFAULTS: PointSettingsValues = {
     dealEndRequestPoints: 3,
     dealEndRequestDailyLimit: 5,
     signupPoints: 0,
+    postMinLength: 50,
+    commentMinLength: 10,
+    commentOwnPostExcluded: true,
+    commentOncePerPost: true,
+    writeIntervalSeconds: 30,
+    dailyTotalCap: 200,
+    attendanceStreakDays: 7,
+    attendanceStreakBonus: 20,
+    adjustLargeThreshold: 10000,
 };
 
-/** 묶음마다 칸과 「꺼짐」 규칙 — 칸 중 하나라도 0 이면 꺼진다(문턱은 1 이상이라 끄는 칸이 아니다) */
-const GROUPS: Record<PointSettingsGroup, { fields: readonly PointSettingsField[]; offWhenZero: readonly PointSettingsField[] }> = {
+/**
+ * 묶음마다 칸과 딱지 규칙 — `offWhenZero` 칸 중 하나라도 0 이면 묶음이 「꺼짐」(문턱은 1 이상이라 끄는 칸이 아니다), `noLimitWhenZero` 칸이 0 이면 「한도 없음」.
+ * 적립 조건 묶음은 칸마다 따로 꺼지므로(`FIELD_OFF_WHEN_ZERO`) 묶음 딱지가 없고, 조정 문턱은 끄는 개념이 없어 딱지가 없다. 켜기/끄기 칸은 딱지 대상이 아니다.
+ */
+const GROUPS: Record<PointSettingsGroup, { fields: readonly PointSettingsField[]; offWhenZero: readonly PointSettingsNumberField[]; noLimitWhenZero?: readonly PointSettingsNumberField[] }> = {
     attendance: { fields: ['attendancePoints'], offWhenZero: ['attendancePoints'] },
+    attendanceStreak: { fields: ['attendanceStreakDays', 'attendanceStreakBonus'], offWhenZero: ['attendanceStreakDays', 'attendanceStreakBonus'] },
     post: { fields: ['postPoints', 'postDailyCap'], offWhenZero: ['postPoints', 'postDailyCap'] },
     comment: { fields: ['commentPoints', 'commentDailyCap'], offWhenZero: ['commentPoints', 'commentDailyCap'] },
+    earnConditions: { fields: ['postMinLength', 'commentMinLength', 'writeIntervalSeconds', 'commentOwnPostExcluded', 'commentOncePerPost'], offWhenZero: [] },
+    dailyTotal: { fields: ['dailyTotalCap'], offWhenZero: [], noLimitWhenZero: ['dailyTotalCap'] },
     popular: { fields: ['popularRewardPoints', 'popularRewardTopN'], offWhenZero: ['popularRewardPoints', 'popularRewardTopN'] },
     likeBonus: { fields: ['likeBonusThreshold', 'likeBonusPoints', 'likeBonusDailyLimit'], offWhenZero: ['likeBonusPoints', 'likeBonusDailyLimit'] },
     dealEnd: { fields: ['dealEndRequestPoints', 'dealEndRequestDailyLimit'], offWhenZero: ['dealEndRequestPoints', 'dealEndRequestDailyLimit'] },
     signup: { fields: ['signupPoints'], offWhenZero: ['signupPoints'] },
+    adjust: { fields: ['adjustLargeThreshold'], offWhenZero: [] },
 };
+
+/** 칸 하나로 꺼지는 규칙 — 적립 조건의 정수 칸(0 = 그 조건 없음) */
+const FIELD_OFF_WHEN_ZERO: readonly PointSettingsNumberField[] = ['postMinLength', 'commentMinLength', 'writeIntervalSeconds'];
 
 /** 원장 사유 코드 — 고르개 차례 */
 const REASON_CODES: readonly PointReasonCode[] = [
@@ -119,6 +161,8 @@ const KINDS: readonly PointLedgerKind[] = ['EARN', 'USE', 'CANCEL_USE', 'REVOKE'
 
 export default class UtilPoint {
     static readonly FIELDS = FIELDS;
+    static readonly NUMBER_FIELDS = NUMBER_FIELDS;
+    static readonly SWITCH_FIELDS = SWITCH_FIELDS;
     static readonly DEFAULTS = DEFAULTS;
     static readonly REASON_CODES = REASON_CODES;
     static readonly KINDS = KINDS;
@@ -129,9 +173,14 @@ export default class UtilPoint {
     /** 조정 사유 최대 글자 수 */
     static readonly REASON_MAX = 100;
 
-    /** 칸의 입력 범위 [최소, 최대] */
-    static limitsOf(field: PointSettingsField): readonly [number, number] {
+    /** 정수 칸의 입력 범위 [최소, 최대] */
+    static limitsOf(field: PointSettingsNumberField): readonly [number, number] {
         return LIMITS[field];
+    }
+
+    /** 켜기/끄기 칸인가 */
+    static isSwitch(field: PointSettingsField): field is PointSettingsSwitchField {
+        return (SWITCH_FIELDS as readonly string[]).includes(field);
     }
 
     /** 묶음의 칸들 */
@@ -148,8 +197,8 @@ export default class UtilPoint {
         return /^\d{1,9}$/.test(cleaned) ? Number(cleaned) : null;
     }
 
-    /** 칸 하나의 문제 — 비었나 · 정수인가 · 범위 안인가 */
-    static settingsProblem(field: PointSettingsField, text: string): PointSettingsProblem | null {
+    /** 정수 칸 하나의 문제 — 비었나 · 정수인가 · 범위 안인가 */
+    static settingsProblem(field: PointSettingsNumberField, text: string): PointSettingsProblem | null {
         if (!text.trim()) return 'REQUIRED';
         const value = UtilPoint.parse(text);
         if (value === null) return 'NOT_INTEGER';
@@ -157,40 +206,54 @@ export default class UtilPoint {
         return value < min || value > max ? 'OUT_OF_RANGE' : null;
     }
 
-    /** 모든 칸의 문제 — 문제가 있는 칸만 담는다 */
+    /** 모든 칸의 문제 — 문제가 있는 칸만 담는다(켜기/끄기 칸은 늘 맞다) */
     static validateSettings(form: PointSettingsForm): Partial<Record<PointSettingsField, PointSettingsProblem>> {
         const out: Partial<Record<PointSettingsField, PointSettingsProblem>> = {};
-        for (const field of FIELDS) {
+        for (const field of NUMBER_FIELDS) {
             const problem = UtilPoint.settingsProblem(field, form[field]);
             if (problem) out[field] = problem;
         }
         return out;
     }
 
-    /** 서버 값 → 입력 글자 */
+    /** 서버 값 → 입력(정수 칸은 글자, 켜기/끄기 칸은 그대로) */
     static formOf(values: PointSettingsValues): PointSettingsForm {
-        return Object.fromEntries(FIELDS.map((field) => [field, String(values[field])])) as PointSettingsForm;
+        const numbers = Object.fromEntries(NUMBER_FIELDS.map((field) => [field, String(values[field])]));
+        const switches = Object.fromEntries(SWITCH_FIELDS.map((field) => [field, values[field] === true]));
+        return { ...numbers, ...switches } as PointSettingsForm;
     }
 
-    /** 입력 글자 → 요청(모든 칸). 하나라도 읽을 수 없으면 null */
+    /** 입력 → 요청(모든 칸). 정수 칸을 하나라도 읽을 수 없으면 null */
     static toRequest(form: PointSettingsForm): PointSettingsValues | null {
-        const out: Partial<PointSettingsValues> = {};
-        for (const field of FIELDS) {
+        const out: Record<string, number | boolean> = {};
+        for (const field of NUMBER_FIELDS) {
             const value = UtilPoint.parse(form[field]);
             if (value === null) return null;
             out[field] = value;
         }
-        return out as PointSettingsValues;
+        for (const field of SWITCH_FIELDS) out[field] = form[field];
+        return out as unknown as PointSettingsValues;
     }
 
-    /** 저장된 값과 다른 칸 — 숫자로 읽어 비교한다(「010」과 「10」은 같다), 읽을 수 없는 글자는 바뀐 것으로 본다 */
+    /** 저장된 값과 다른 칸 — 정수 칸은 숫자로 읽어 비교한다(「010」과 「10」은 같다, 읽을 수 없는 글자는 바뀐 것), 켜기/끄기 칸은 그대로 */
     static changedFields(form: PointSettingsForm, saved: PointSettingsValues): PointSettingsField[] {
-        return FIELDS.filter((field) => UtilPoint.parse(form[field]) !== saved[field]);
+        return FIELDS.filter((field) => (UtilPoint.isSwitch(field) ? form[field] !== saved[field] : UtilPoint.parse(form[field]) !== saved[field]));
     }
 
     /** 묶음이 꺼졌나 — 입력 중인 값 기준(읽을 수 없는 칸은 판정하지 않는다) */
     static groupOff(group: PointSettingsGroup, form: PointSettingsForm): boolean {
         return GROUPS[group].offWhenZero.some((field) => UtilPoint.parse(form[field]) === 0);
+    }
+
+    /** 묶음 딱지 — 꺼짐이 먼저, 다음은 한도 없음(하루 총 한도 0). 없으면 null */
+    static groupTag(group: PointSettingsGroup, form: PointSettingsForm): PointSettingsTag | null {
+        if (UtilPoint.groupOff(group, form)) return 'OFF';
+        return GROUPS[group].noLimitWhenZero?.some((field) => UtilPoint.parse(form[field]) === 0) ? 'NO_LIMIT' : null;
+    }
+
+    /** 칸 하나가 그 조건을 끄고 있나 — 적립 조건의 정수 칸만(최소 글자 수·작성 간격 0) */
+    static fieldOff(field: PointSettingsField, form: PointSettingsForm): boolean {
+        return (FIELD_OFF_WHEN_ZERO as readonly string[]).includes(field) && UtilPoint.parse(form[field as PointSettingsNumberField]) === 0;
     }
 
     /**

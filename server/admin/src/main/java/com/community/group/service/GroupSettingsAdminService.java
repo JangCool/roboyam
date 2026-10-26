@@ -356,7 +356,7 @@ public class GroupSettingsAdminService {
     // ── 안쪽 ────────────────────────────────────────────────────────────────
 
     private GroupSettingsEntity lockRow() {
-        return settingsRows.findWithLockById(GroupSettingsEntity.ROW_ID).orElseThrow(() -> new IllegalStateException("group_settings 행이 없다(V89)"));
+        return settingsRows.findWithLockById(GroupSettingsEntity.ROW_ID).orElseThrow(() -> new IllegalStateException("group_settings 행이 없다(V90)"));
     }
 
     /** 감사(바뀐 칸만 before/after) + 이력 한 줄 — 바뀐 칸이 없으면 둘 다 남기지 않는다 */

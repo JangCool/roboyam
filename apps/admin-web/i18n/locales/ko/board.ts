@@ -217,6 +217,7 @@ export default {
         attachmentPurgeEnabled: '삭제 첨부 영구 정리',
         attachmentRetentionDays: '삭제 첨부 보존 기간',
         pointMode: '포인트',
+        pointMinLengthApplied: '적립 최소 글자 수 적용',
         commentProtectMin: '댓글 많은 글 보호 기준',
         commentProtectEdit: '보호 중 수정도 막기',
         commentProtectDelete: '보호 중 삭제',
@@ -310,6 +311,7 @@ export default {
         attachmentPurgeEnabled: '켜면 삭제된 글의 첨부를 보존 기간 뒤 영구히 지워요.',
         attachmentRetentionDays: '삭제된 글의 첨부를 남겨 두는 기간이에요.',
         pointMode: '「지급 안 함」이면 이 게시판의 글·댓글·추천 받음에 포인트를 주지 않아요.',
+        pointMinLengthApplied: '끄면 이 게시판의 글은 포인트 정책의 최소 글자 수와 관계없이 적립돼요(사진 게시판처럼 그림 위주인 곳). 댓글 최소 글자 수와 다른 적립 조건은 그대로예요.',
         commentProtectMin: '보이는 댓글이 이 수 이상인 글을 「보호 중」으로 봐요. 0이면 끔.',
         commentProtectEdit: '켜면 보호 중인 글을 글쓴이가 고칠 수도 없어요.',
         commentProtectDelete: '보호 중인 글을 글쓴이가 지우려 할 때의 방식이에요.',
@@ -478,6 +480,7 @@ export default {
         imageEditor: '이미지는 고급 글 에디터에서만 올려요. 글 에디터가 평문·간단이라 지금은 쓰이지 않아요.',
         dislikeOff: '비추천을 보이지 않아 지금은 쓰이지 않아요.',
         pinRequestOff: '아무도 고르지 않아 고정 요청을 받지 않아요.',
+        pointOff: '포인트를 주지 않는 게시판이에요.',
     },
 
     // ── 구획 덧붙임 안내 ──

@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class GroupSettingsService {
 
-    /** 각 칸의 범위 — DB CHECK(V89 ck_group_settings_*)·화면 limits 와 같다 */
+    /** 각 칸의 범위 — DB CHECK(V90 ck_group_settings_*)·화면 limits 와 같다 */
     public static final int MAX_PER_OWNER_MIN = 1, MAX_PER_OWNER_MAX = 10;
     public static final int MANAGER_LIMIT_MIN = 1, MANAGER_LIMIT_MAX = 10;
     public static final int COOLDOWN_MIN = 0, COOLDOWN_MAX = 365;

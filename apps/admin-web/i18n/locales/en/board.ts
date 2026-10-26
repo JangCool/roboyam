@@ -216,6 +216,7 @@ export default {
         attachmentPurgeEnabled: 'Purge deleted attachments',
         attachmentRetentionDays: 'Deleted attachment retention',
         pointMode: 'Points',
+        pointMinLengthApplied: 'Apply minimum length for points',
         commentProtectMin: 'Protect posts with many comments',
         commentProtectEdit: 'Also block edits when protected',
         commentProtectDelete: 'Delete when protected',
@@ -309,6 +310,7 @@ export default {
         attachmentPurgeEnabled: 'When on, attachments of deleted posts are removed for good after the retention period.',
         attachmentRetentionDays: 'How long attachments of deleted posts are kept.',
         pointMode: '"No points" gives no points for posts, comments or likes received on this board.',
+        pointMinLengthApplied: 'When off, posts on this board earn points regardless of the point policy’s minimum length (for image-first boards such as photo boards). The minimum comment length and other earning conditions still apply.',
         commentProtectMin: 'Posts with at least this many visible comments are "protected". 0 means off.',
         commentProtectEdit: 'When on, authors cannot edit protected posts either.',
         commentProtectDelete: 'What happens when an author deletes a protected post.',
@@ -477,6 +479,7 @@ export default {
         imageEditor: 'Images are uploaded only in the Advanced post editor. Not used while the post editor is Plain text or Simple.',
         dislikeOff: 'Not used while dislikes are hidden.',
         pinRequestOff: 'Nobody is picked, so pin requests are not accepted.',
+        pointOff: 'This board gives no points.',
     },
 
     // ── Section notes ──

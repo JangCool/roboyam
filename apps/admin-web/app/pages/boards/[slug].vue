@@ -16,6 +16,7 @@
         없는 권한의 단추는 숨기고 칸은 readonly(서버 값 그대로). 없는 slug 는 404 오류 상태. 저장하지 않은 변경이 있는 채 나가면 확인을 묻는다.
         서버 연결됨(`useBoardApi`): 저장 오류는 400 `VALIDATION` 과 409(`BOARD_NAME_DUPLICATE` `fields.name` · `PREFIX_LIMIT` `fields.prefixes` · `PREFIX_IN_USE` · `BOARD_INVESTMENT_NOTICE_LOCKED`) 모두 `fields` 를 칸 아래에 붙이고, 409 는 서버 문구를 저장 줄에 그대로 보인다.
         핫딜 게시판은 글쓰기 최소 자격에 첫 등급을 고를 수 없다(선택지에서 빼고 화면 검사도 같다). 카드형은 서버가 보기 전환을 늘 끈다.
+        커머스 1-3: 「보호·공개 시간·포인트」의 포인트 지급(`pointMode`) 옆에 「적립 최소 글자 수 적용」(`pointMinLengthApplied`, 기본값 따름 가능 — 끄면 글 본문 최소 글자 수만 빠진다). 포인트 지급 안 함이면 비활성 + 안내.
     -->
     <div class="flex flex-col gap-4">
         <!-- 읽는 중 -->
@@ -453,7 +454,7 @@ const canDelete = computed(() => can('board.delete'));
 const WRITE_FIELDS = ['writeMin', 'commentMin', 'postEditor', 'imageUploadAllowed', 'commentEditor'] as const;
 /** 「홈·인기·최신 포함」(inHome)은 두지 않는다 — 가젯 노출 금지가 대신한다(서버 칸은 받은 값 그대로 저장 요청에 돌아간다) */
 const EXPOSURE_FIELDS = ['listSize', 'pinnedMax', 'indexable', 'searchable'] as const;
-const PROTECT_FIELDS = ['commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes', 'staffHiddenNotice', 'pointMode'] as const;
+const PROTECT_FIELDS = ['commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes', 'staffHiddenNotice', 'pointMode', 'pointMinLengthApplied'] as const;
 const REACTION_FIELDS = ['debateEnabled', 'pollEnabled', 'commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers'] as const;
 const STAFF_LIMIT_FIELDS = ['managerMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit'] as const;
 const GUIDE_FIELDS = ['introText', 'writeGuideText'] as const;
@@ -606,14 +607,17 @@ function writeNote(field: (typeof WRITE_FIELDS)[number]): string {
     return '';
 }
 
+/** 예약 삭제 시간은 예약 삭제일 때만 · 적립 최소 글자 수 적용은 포인트를 주는 게시판일 때만 쓰인다(유효값 기준 — 값은 그대로 저장된다) */
 function protectInactive(field: (typeof PROTECT_FIELDS)[number]): boolean {
-    if (!form.value || !saved.value || field !== 'commentProtectDelayMinutes') return false;
+    if (!form.value || !saved.value) return false;
+    if (field === 'pointMinLengthApplied') return UtilBoard.effective(form.value.policy, saved.value.defaults, 'pointMode') === 'OFF';
+    if (field !== 'commentProtectDelayMinutes') return false;
     return UtilBoard.effective(form.value.policy, saved.value.defaults, 'commentProtectDelete') !== 'DELAY';
 }
 
 function protectNote(field: (typeof PROTECT_FIELDS)[number]): string {
     if (!form.value || !saved.value) return '';
-    if (protectInactive(field)) return t('board.inactiveNote.delay');
+    if (protectInactive(field)) return t(field === 'pointMinLengthApplied' ? 'board.inactiveNote.pointOff' : 'board.inactiveNote.delay');
     const off = UtilBoard.effective(form.value.policy, saved.value.defaults, 'commentProtectMin') === 0;
     if (off && (field === 'commentProtectEdit' || field === 'commentProtectDelete')) return t('board.inactiveNote.protectOff');
     return '';

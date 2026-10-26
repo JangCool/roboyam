@@ -31,6 +31,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.BooleanSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -45,8 +47,10 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li><b>묶음</b>: 적립 하나 = 무상 묶음 하나({@code free_valid_days} 뒤 소멸). 원장 줄마다 어느 묶음에 얼마 반영됐는지({@code point_ledger_lots})와 무상·유상 몫을 남긴다.
  *       <b>소멸일이 지난 묶음은 쓰지 않는다</b> — 사용·회수·차감 조정·미회수 상계 전에 그 회원의 지난 묶음을 먼저 소멸(EXPIRE) 처리한다(배치가 늦어도). 차감 순서는 {@link PointDeductionPolicy}.</li>
- *   <li><b>적립</b>({@link #earn}·{@link #likeBonus}): 글·댓글·추천 트랜잭션 안에서 부른다. <b>적립 실패가 글쓰기를 깨지 않는다</b> — {@link IsolatedSideWork}(세이브포인트) 안에서 하고
- *       실패하면 0 이다(로그만). 하루 상한은 한국 시간 0시부터 그 사유로 <b>지급한 횟수</b>(원장 줄 — 지운 글·댓글도 센다). 정상(ACTIVE) 회원만, <b>포인트 동결</b> 중이면 조용히 건너뛴다.
+ *   <li><b>적립</b>({@link #earnPost}·{@link #earnComment}·{@link #likeBonus}·{@link #attendance}·{@link #signup}): 업무 트랜잭션 안에서 부른다. <b>적립 실패가 업무를 깨지 않는다</b> —
+ *       {@link IsolatedSideWork}(세이브포인트) 안에서 하고 실패하면 0 이다(로그만). 하루 상한은 한국 시간 0시부터 그 사유로 <b>지급한 횟수</b>(원장 줄 — 지운 글·댓글도 센다).
+ *       정상(ACTIVE) 회원만, <b>포인트 동결</b> 중이면 조용히 건너뛴다. 커머스 1-3(commerce.md 6-2): 게시판 {@code pointMode} OFF · 최소 글자 수 · 자기 글 댓글 · 같은 글 댓글 1회 ·
+ *       작성 간격 · <b>하루 총 한도</b>(활동 적립 합 — 걸치면 남은 만큼만)를 잔액 행 잠금 아래에서 본다.
  *       <b>미회수가 있으면</b> 같은 트랜잭션에서 적립 줄 다음에 {@code REVOKE_DEBT_OFFSET} 줄로 min(빚, 무상 잔액)을 방금 만든 묶음부터 뺀다(대상 = 적립 줄 {@code LEDGER}).</li>
  *   <li><b>회수</b>({@link #revokeContent}): 지운 글·댓글의 <b>실제로 지급했던 양</b>만(작성 포인트 + 추천 보너스, 줄 따로), <b>무상에서만</b> — 그 적립 줄이 만든 묶음 먼저 → 다른 무상(차감 순서).
  *       0P 바닥이고 모자라면 미회수(잔액 행 {@code revoke_debt} + {@code point_revoke_shortfalls}, 같은 대상은 한 번만). 반영 0 이면 원장 줄은 없다. 숨김은 회수하지 않는다.</li>
@@ -71,6 +75,18 @@ public class PointService {
     public static final String REF_LOT = "LOT";
     /** 포인트 상점 구매·환불의 대상(1-2) */
     public static final String REF_POINT_SHOP_PURCHASE = "POINT_SHOP_PURCHASE";
+    /** 출석 포인트·연속 보너스의 대상 — 그 출석 줄({@code point_attendances}, 1-3) */
+    public static final String REF_ATTENDANCE = "ATTENDANCE";
+    /** 가입 포인트의 대상 — 그 회원(멱등 {@code SIGNUP:USER:{user_id}}, 1-3) */
+    public static final String REF_USER = "USER";
+
+    /** 하루 총 한도에 드는 활동 적립(commerce.md 6-2 — 인기글 보상·운영 조정·충전 보너스·가입 포인트는 제외) */
+    public static final Set<PointReason> DAILY_TOTAL_REASONS = EnumSet.of(PointReason.ATTENDANCE, PointReason.ATTENDANCE_STREAK, PointReason.POST,
+            PointReason.COMMENT, PointReason.LIKE_BONUS);
+    private static final List<String> DAILY_TOTAL_NAMES = DAILY_TOTAL_REASONS.stream().map(PointReason::name).toList();
+    /** 작성 간격이 보는 적립(글·댓글 합쳐) */
+    private static final Set<PointReason> WRITE_REASONS = EnumSet.of(PointReason.POST, PointReason.COMMENT);
+    private static final List<String> WRITE_NAMES = WRITE_REASONS.stream().map(PointReason::name).toList();
 
     private static final EnumSet<PointLotKind> FREE_ONLY = EnumSet.of(PointLotKind.FREE);
     private static final EnumSet<PointLotKind> ALL_KINDS = EnumSet.allOf(PointLotKind.class);
@@ -99,36 +115,84 @@ public class PointService {
     // ── 적립 ────────────────────────────────────────────────────────────────
 
     /**
-     * 글·댓글 작성 적립 — {@link PointReason#POST}·{@link PointReason#COMMENT} 만. 비회원 글은 부르지 않는다.
+     * 글 적립 맥락 — 글을 저장한 트랜잭션에서 넘긴다(비회원 글은 부르지 않는다).
      *
-     * @return 지급한 포인트(없으면 0 — 꺼짐·상한·정지·동결·이미 지급·실패). 미회수 상계로 바로 빠진 양도 지급한 양에 든다
+     * @param plainText        본문의 보이는 글자({@code ContentBody.plain()} — 서식 태그는 이미 빠졌다). 공백은 여기서 뺀다
+     * @param boardPoints      게시판 유효 {@code pointMode} 가 ON 인가 — OFF 면 그 게시판 글·댓글·추천 보너스는 0(확정 2)
+     * @param minLengthApplied 게시판 유효 「적립 최소 글자 수 적용」 — false 면 글 본문 최소 글자 수만 빠진다(확정 1)
      */
-    public long earn(long userId, PointReason reason, long refId) {
-        if (reason != PointReason.POST && reason != PointReason.COMMENT) {
-            throw new IllegalArgumentException("작성 적립 사유가 아니다: " + reason);
-        }
+    public record PostEarn(long userId, long postId, String plainText, boolean boardPoints, boolean minLengthApplied) {
+    }
+
+    /**
+     * 댓글 적립 맥락 — 댓글을 저장한 트랜잭션에서 넘긴다(비회원 댓글은 부르지 않는다).
+     *
+     * @param postAuthorId 댓글이 달린 글의 작성자(비회원 글이면 null) — 「자기 글 댓글 제외」가 본다
+     * @param plainText    댓글의 보이는 글자
+     * @param boardPoints  게시판 유효 {@code pointMode} 가 ON 인가
+     */
+    public record CommentEarn(long userId, long commentId, long postId, Long postAuthorId, String plainText, boolean boardPoints) {
+    }
+
+    /** 출석 지급 결과 — 출석 포인트·연속 보너스로 실제 준 양(동결·한도·꺼짐이면 0) */
+    public record AttendanceEarned(long earned, long streakBonus) {
+    }
+
+    /**
+     * 글 작성 적립(commerce.md 6-2, 계약 「1-3」) — 게시판 포인트 끔 → 꺼짐·상한 0 → 본문 최소 글자 수(게시판 스위치가 켜졌을 때) 를 먼저 보고,
+     * 잔액 행 잠금 아래에서 이미 지급 → 하루 상한(횟수) → 작성 간격 → 하루 총 한도(남은 만큼만)를 본다. 조건에 걸려도 글은 그대로 올라간다(0 일 뿐).
+     *
+     * @return 지급한 포인트(없으면 0 — 꺼짐·조건 미달·상한·정지·동결·이미 지급·실패). 미회수 상계로 바로 빠진 양도 지급한 양에 든다
+     */
+    public long earnPost(PostEarn post) {
         // 정책 읽기도 세이브포인트 안에서 — 읽다 실패한 문장이 업무 트랜잭션을 망가뜨리지 않게
         return isolated.run("point:earn", () -> {
             PointRules rules = policy.current();
-            boolean post = reason == PointReason.POST;
-            int amount = post ? rules.postPoints() : rules.commentPoints();
-            int cap = post ? rules.postDailyCap() : rules.commentDailyCap();
-            if (amount <= 0 || cap <= 0) {
+            if (!post.boardPoints() || rules.postPoints() <= 0 || rules.postDailyCap() <= 0) {
                 return 0L;
             }
-            return grant(userId, reason, post ? REF_POST : REF_COMMENT, refId, amount, cap);
+            if (post.minLengthApplied() && visibleLength(post.plainText()) < rules.postMinLength()) {
+                return 0L;
+            }
+            return grant(post.userId(), PointReason.POST, REF_POST, post.postId(), rules.postPoints(), rules.postDailyCap(), rules, null);
+        }, 0L);
+    }
+
+    /**
+     * 댓글 작성 적립(commerce.md 6-2, 계약 「1-3」) — 게시판 포인트 끔 → 꺼짐·상한 0 → 댓글 최소 글자 수 → 자기 글 댓글(켜졌을 때) 을 먼저 보고, 잔액 행 잠금 아래에서
+     * 이미 지급 → 하루 상한 → 같은 글 댓글 적립 1회(켜졌을 때, 지운 댓글로 받은 것도 센다) → 작성 간격 → 하루 총 한도. 조건에 걸려도 댓글은 그대로 올라간다.
+     *
+     * @return 지급한 포인트(없으면 0)
+     */
+    public long earnComment(CommentEarn comment) {
+        return isolated.run("point:earn", () -> {
+            PointRules rules = policy.current();
+            if (!comment.boardPoints() || rules.commentPoints() <= 0 || rules.commentDailyCap() <= 0) {
+                return 0L;
+            }
+            if (visibleLength(comment.plainText()) < rules.commentMinLength()) {
+                return 0L;
+            }
+            if (rules.commentOwnPostExcluded() && comment.postAuthorId() != null && comment.postAuthorId() == comment.userId()) {
+                return 0L;
+            }
+            BooleanSupplier oncePerPost = rules.commentOncePerPost()
+                    ? () -> ledger.commentEarnedOnPost(comment.userId(), comment.postId(), comment.commentId()) : null;
+            return grant(comment.userId(), PointReason.COMMENT, REF_COMMENT, comment.commentId(), rules.commentPoints(), rules.commentDailyCap(), rules, oncePerPost);
         }, 0L);
     }
 
     /**
      * 추천 받음 보너스 — 추천을 저장하고 추천 수를 올린 <b>같은 트랜잭션</b>에서(글·댓글 행 갱신으로 같은 대상의 추천이 줄을 선 뒤) 부른다.
      * 방금 추천한 회원이 인정되는 회원이고, 그 대상의 인정된 추천이 <b>정확히 문턱 개</b>가 됐을 때만 작성자에게 한 번 준다(문턱 뒤의 추천·나중에 인정된 추천은 소급하지 않는다).
+     * 게시판 {@code pointMode} 가 OFF 면 0(확정 2). 하루 총 한도에 든다.
      *
-     * @param refType {@link #REF_POST} · {@link #REF_COMMENT}
+     * @param refType     {@link #REF_POST} · {@link #REF_COMMENT}
+     * @param boardPoints 그 글·댓글이 있는 게시판의 유효 {@code pointMode} 가 ON 인가
      * @return 지급한 포인트(없으면 0)
      */
-    public long likeBonus(Long authorId, String refType, long refId, long likerId) {
-        if (authorId == null || authorId == likerId) {
+    public long likeBonus(Long authorId, String refType, long refId, long likerId, boolean boardPoints) {
+        if (authorId == null || authorId == likerId || !boardPoints) {
             return 0;
         }
         return isolated.run("point:like-bonus", () -> {
@@ -143,13 +207,80 @@ public class PointService {
             if (ledger.recognizedLikes(refType, refId, authorId, threshold + 1) != threshold) {
                 return 0L;
             }
-            return grant(authorId, PointReason.LIKE_BONUS, refType, refId, rules.likeBonusPoints(), rules.likeBonusDailyLimit());
+            return grant(authorId, PointReason.LIKE_BONUS, refType, refId, rules.likeBonusPoints(), rules.likeBonusDailyLimit(), rules, null);
         }, 0L);
+    }
+
+    /**
+     * 출석 지급(계약 「1-3 출석체크」) — 출석 줄을 넣은 같은 트랜잭션에서 부른다. 출석 포인트({@code ATTENDANCE}) 다음 연속 보너스({@code ATTENDANCE_STREAK} — 연속 일수가
+     * {@code attendanceStreakDays} 의 배수인 날, 둘 중 0 이면 끔). 대상은 둘 다 그 출석 줄. 하루 총 한도·미회수 상계·동결·정상 회원 규칙은 다른 활동 적립과 같다.
+     * <b>적립 실패는 출석을 깨지 않는다</b> — 각각 세이브포인트(실패하면 그 몫만 0).
+     *
+     * @param streak 이 출석의 연속 일수(1 이상)
+     */
+    public AttendanceEarned attendance(long userId, long attendanceId, int streak) {
+        long earned = isolated.run("point:attendance", () -> {
+            PointRules rules = policy.current();
+            if (rules.attendancePoints() <= 0) {
+                return 0L;
+            }
+            return grant(userId, PointReason.ATTENDANCE, REF_ATTENDANCE, attendanceId, rules.attendancePoints(), null, rules, null);
+        }, 0L);
+        long bonus = isolated.run("point:attendance-streak", () -> {
+            PointRules rules = policy.current();
+            if (!rules.streakBonusEnabled() || streak <= 0 || streak % rules.attendanceStreakDays() != 0) {
+                return 0L;
+            }
+            return grant(userId, PointReason.ATTENDANCE_STREAK, REF_ATTENDANCE, attendanceId, rules.attendanceStreakBonus(), null, rules, null);
+        }, 0L);
+        return new AttendanceEarned(earned, bonus);
+    }
+
+    /**
+     * 가입 포인트(commerce.md 6-2, 계약 「1-3」 확정 3·4) — 본인인증을 확정한 트랜잭션에서 부른다. 계정마다 평생 한 번({@code SIGNUP} + 대상 {@code USER:{user_id}} — 원장 유일 색인).
+     * {@code signupPoints} 가 0 이면 없음. 그때 포인트 동결이거나 정상 회원이 아니면 주지 않고 나중에도 주지 않는다(다시 부를 길이 없다). 하루 총 한도에 들지 않는다. 미회수가 있으면 상계한다.
+     * <b>실패해도 본인인증은 성공한다</b>(세이브포인트).
+     *
+     * @return 지급한 포인트(없으면 0)
+     */
+    public long signup(long userId) {
+        return isolated.run("point:signup", () -> {
+            PointRules rules = policy.current();
+            if (rules.signupPoints() <= 0) {
+                return 0L;
+            }
+            return grant(userId, PointReason.SIGNUP, REF_USER, userId, rules.signupPoints(), null, rules, null);
+        }, 0L);
+    }
+
+    /** 가입 포인트를 받았나 */
+    public boolean signupReceived(long userId) {
+        return ledger.exists(PointReason.SIGNUP.name(), REF_USER, userId);
     }
 
     /** 오늘(한국 시간 0시부터) 그 사유로 지급한 횟수 */
     public int countToday(long userId, PointReason reason) {
         return ledger.countSince(userId, reason.name(), todayStartId());
+    }
+
+    /** 오늘(한국 시간 0시부터) 활동 적립({@link #DAILY_TOTAL_REASONS})으로 지급한 양의 합 — 하루 총 한도가 세는 값(상계 전 양, 지운 글로 받은 것도) */
+    public long earnedToday(long userId) {
+        return ledger.earnedSince(userId, DAILY_TOTAL_NAMES, todayStartId());
+    }
+
+    /**
+     * 적립 최소 글자 수가 세는 글자 수 — 보이는 글자(서식 태그는 이미 빠진 것)에서 <b>모든 공백</b>(유니코드 공백·줄바꿈·NBSP·폭 없는 공백 포함)을 빼고 코드 포인트로 센다.
+     */
+    public static int visibleLength(String text) {
+        if (text == null || text.isEmpty()) {
+            return 0;
+        }
+        return (int) text.codePoints().filter(cp -> !blank(cp)).count();
+    }
+
+    private static boolean blank(int cp) {
+        return Character.isWhitespace(cp) || Character.isSpaceChar(cp) || cp == 0x200B || cp == 0x200C || cp == 0x200D || cp == 0x2060 || cp == 0xFEFF
+                || cp == 0x180E;
     }
 
     // ── 회수·복구 ───────────────────────────────────────────────────────────
@@ -301,8 +432,12 @@ public class PointService {
 
     // ── 안쪽: 적립·회수·복구 ────────────────────────────────────────────────
 
-    /** 받을 수 있는 회원인가(정상 회원 · 포인트 동결 아님) → 잔액 행 잠금 → 이미 지급했나 → 하루 상한 → 지급(+ 미회수 상계) */
-    private long grant(long userId, PointReason reason, String refType, long refId, int amount, int cap) {
+    /**
+     * 받을 수 있는 회원인가(정상 회원 · 포인트 동결 아님) → <b>잔액 행 잠금</b> → 이미 지급했나 → 하루 상한(횟수, {@code cap} 이 null 이면 없음) → 잠금 아래 조건({@code blocked})
+     * → 작성 간격(글·댓글) → 하루 총 한도(활동 적립 — 남은 만큼만, 남은 0 이면 줄 없음) → 지급(+ 미회수 상계).
+     * 잠금 아래에서 판정하므로 같은 회원의 동시 적립이 간격·한도를 넘지 못한다.
+     */
+    private long grant(long userId, PointReason reason, String refType, long refId, int amount, Integer cap, PointRules rules, BooleanSupplier blocked) {
         if (!ledger.earnable(userId)) {
             return 0L;
         }
@@ -314,16 +449,35 @@ public class PointService {
         if (ledger.exists(reason.name(), refType, refId)) {
             return 0L;
         }
-        if (ledger.countSince(userId, reason.name(), todayStartId()) >= cap) {
+        if (cap != null && ledger.countSince(userId, reason.name(), todayStartId()) >= cap) {
             log.debug("하루 상한이라 지급하지 않는다 userId={} reason={}", userId, reason);
             return 0L;
+        }
+        if (blocked != null && blocked.getAsBoolean()) {
+            return 0L;
+        }
+        if (WRITE_REASONS.contains(reason) && rules.writeIntervalSeconds() > 0) {
+            Optional<Instant> last = ledger.lastEarnedAt(userId, WRITE_NAMES);
+            if (last.isPresent() && Duration.between(last.get(), a.now).compareTo(Duration.ofSeconds(rules.writeIntervalSeconds())) < 0) {
+                log.debug("작성 간격이 짧아 지급하지 않는다 userId={} reason={}", userId, reason);
+                return 0L;
+            }
+        }
+        long give = amount;
+        if (DAILY_TOTAL_REASONS.contains(reason) && rules.dailyTotalCap() > 0) {
+            long left = rules.dailyTotalCap() - ledger.earnedSince(userId, DAILY_TOTAL_NAMES, todayStartId());
+            if (left <= 0) {
+                log.debug("하루 총 한도라 지급하지 않는다 userId={} reason={}", userId, reason);
+                return 0L;
+            }
+            give = Math.min(give, left);
         }
         if (a.debt > 0) {
             expireDue(a); // 상계는 차감이다 — 지난 묶음을 먼저 소멸
         }
-        Credit credit = creditNewLot(a, reason, amount, null, refType, refId, null);
+        Credit credit = creditNewLot(a, reason, give, null, refType, refId, null);
         offsetDebt(a, credit);
-        return amount;
+        return give;
     }
 
     /** 지급했던 양만 무상에서 회수한다 — 그 적립 줄의 묶음 먼저, 0P 바닥, 모자라면 미회수. 같은 대상에 한 번 */

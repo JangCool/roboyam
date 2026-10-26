@@ -1,5 +1,5 @@
 -- 소모임 4단계(일정) — docs/features/group-contract.md 「전체 개발 계획」 4단계(community docs/api-groups.md 9절 · community V24__group_events.sql 을 로보얌에 맞춘 것).
--- 번호 92 는 V91(소모임 3단계) 다음이다 — 합칠 때 develop 의 마지막 번호를 다시 본다.
+-- 번호는 develop 병합(2026-10-26, 커머스 1-3 의 V89 다음) 때 V90~V93 으로 다시 매겼다.
 --
 -- group_events          : 소모임의 모임 일정. 멤버에게만 보이고 모임장 · 일정 관리(EVENTS)를 맡은 매니저가 만들고 고치고 취소한다. 지난 일정은 지우지 않고 보관한다
 --                         (취소는 status = 'CANCELED'). closes_at 은 「끝나는 시각」 — ends_at 이 있으면 그 값, 없으면 시작 + 2시간(앱이 저장할 때 계산한다).
@@ -45,7 +45,7 @@ CREATE INDEX ix_group_event_responses_going ON group_event_responses (event_id, 
 CREATE INDEX ix_group_event_responses_user ON group_event_responses (user_id, event_id);
 
 -- ── 회원 알림 종류: 소모임 일정(GROUP_EVENT — 만들기 · 수정 · 취소, 덧붙임 eventAction) ──
--- 회원이 끌 수 있는 유일한 소모임 알림(잠금 없음 — 개인 설정의 「소모임 일정」). 알림 설정 행은 넣지 않는다(V89 와 같다). 종류 목록은 V91 의 목록 ∪ GROUP_EVENT.
+-- 회원이 끌 수 있는 유일한 소모임 알림(잠금 없음 — 개인 설정의 「소모임 일정」). 알림 설정 행은 넣지 않는다(V90 와 같다). 종류 목록은 V92 의 목록 ∪ GROUP_EVENT.
 -- ⚠ 합칠 때 합집합 확인 — 다른 세션도 이 CHECK 를 다시 만들 수 있다(나중에 적용되는 쪽이 모든 종류를 담아야 한다).
 ALTER TABLE member_notifications DROP CONSTRAINT ck_member_notifications_type;
 ALTER TABLE member_notifications ADD CONSTRAINT ck_member_notifications_type

@@ -34,7 +34,7 @@ import java.util.Map;
 import org.springframework.stereotype.Repository;
 
 /**
- * 소모임 목록·검색·집계 — 정렬·페이징은 DB 에서 한다. 검색은 {@code lower(칸) LIKE '%단어%'}(V89 의 pg_trgm 색인과 같은 식).
+ * 소모임 목록·검색·집계 — 정렬·페이징은 DB 에서 한다. 검색은 {@code lower(칸) LIKE '%단어%'}(V90 의 pg_trgm 색인과 같은 식).
  */
 @Repository
 public class GroupRepositoryQDSL extends RoboyamRepositoryQDSL {

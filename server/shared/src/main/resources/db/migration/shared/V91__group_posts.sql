@@ -1,6 +1,6 @@
 -- 소모임 2단계(소모임 글) — docs/features/group-contract.md 「전체 개발 계획」 2단계(community docs/api-groups.md 8절을 로보얌에 맞춘 것).
 -- 소모임 글은 posts 표의 글이다(게시판별 표를 나누지 않는다). 글의 그릇은 소모임 게시판(groups.board_id, boards.kind = 'GROUP')이고 이 칸들이 소모임과 공개 여부를 말한다.
--- 번호 90 은 V89(소모임 1단계) 다음이다 — 합칠 때 develop 의 마지막 번호를 다시 본다.
+-- 번호는 develop 병합(2026-10-26, 커머스 1-3 의 V89 다음) 때 V90~V93 으로 다시 매겼다.
 --
 -- · group_id: 소모임 글이면 그 소모임(앱이 쓸 때 정한다 — 바뀌지 않는다). 해산해도 공개로 남는 글은 연결을 유지한다(화면이 「해산한 소모임」으로 표기 — community V80 과 같다).
 --   글 표는 id 월 범위 파티션이라 외래 키를 걸지 않는다(board_id 와 같다). 소모임 행은 지우지 않고 status 로만 닫는다.
@@ -23,7 +23,7 @@ CREATE INDEX ix_posts_group ON posts (group_id, id DESC) WHERE group_id IS NOT N
 CREATE INDEX ix_posts_group_author ON posts (group_id, author_id) WHERE group_id IS NOT NULL;
 
 -- ── 회원 알림 종류: 소모임 글 비공개 되돌림(모임장·되돌리기를 맡은 매니저가 내 공개 글을 비공개로 돌렸다) ──
--- 알림 설정 행은 넣지 않는다(V89 와 같다). 종류 목록은 V89 의 목록 ∪ GROUP_POST_UNPUBLISHED.
+-- 알림 설정 행은 넣지 않는다(V90 와 같다). 종류 목록은 V90 의 목록 ∪ GROUP_POST_UNPUBLISHED.
 -- ⚠ 합칠 때 합집합 확인 — 다른 세션도 이 CHECK 를 다시 만들 수 있다(나중에 적용되는 쪽이 모든 종류를 담아야 한다).
 ALTER TABLE member_notifications DROP CONSTRAINT ck_member_notifications_type;
 ALTER TABLE member_notifications ADD CONSTRAINT ck_member_notifications_type

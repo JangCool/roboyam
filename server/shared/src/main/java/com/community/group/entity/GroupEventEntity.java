@@ -10,7 +10,7 @@ import java.time.Instant;
 import org.hibernate.annotations.DynamicUpdate;
 
 /**
- * 소모임 일정 — V92 {@code group_events}(community api-groups.md 9절). 만들기·수정·취소는 소모임 행을 잠근 트랜잭션 안에서 하고, 읽을 때는 {@link #state} 가 지금 시각으로 상태를 정한다.
+ * 소모임 일정 — V93 {@code group_events}(community api-groups.md 9절). 만들기·수정·취소는 소모임 행을 잠근 트랜잭션 안에서 하고, 읽을 때는 {@link #state} 가 지금 시각으로 상태를 정한다.
  * 끝나는 시각({@code closesAt})은 {@code endsAt} 이 있으면 그 값, 없으면 시작 + {@link #DEFAULT_LENGTH} — 저장할 때 계산해 두어 질의가 한 조건으로 「끝났나」를 본다.
  */
 @Entity

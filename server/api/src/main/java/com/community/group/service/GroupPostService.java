@@ -51,7 +51,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * 소모임 글(community api-groups.md 8절 — 11절 공개 범위·공개 요청은 5단계) — 글 탭 · 글쓰기 · 공개 전환/되돌리기 · 「봤어요」 · 소모임 게시판 정보(로보얌 추가).
  *
- * <p>소모임 글은 {@code posts} 표의 글이다({@code group_id}·{@code is_public} — V90). <b>비공개로 시작해 그 소모임의 멤버에게만 보이고</b>, 작성자가 공개로 전환하면 누구에게나 보인다.
+ * <p>소모임 글은 {@code posts} 표의 글이다({@code group_id}·{@code is_public} — V91). <b>비공개로 시작해 그 소모임의 멤버에게만 보이고</b>, 작성자가 공개로 전환하면 누구에게나 보인다.
  * 글 상세·고치기·지우기·추천·댓글·투표는 기존 글 API({@code /api/posts/{id}…})를 그대로 쓰고 판정은 {@link GroupPostGate} 한 곳이다.
  * 쓰기·전환은 소모임 행을 잠그고 한다(탈퇴·강퇴·해산과 한 줄로 서도록).
  */
