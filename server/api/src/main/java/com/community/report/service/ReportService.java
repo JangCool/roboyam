@@ -14,6 +14,9 @@ import com.community.board.service.RichText;
 import com.community.comment.entity.CommentEntity;
 import com.community.comment.repository.master.CommentRepository;
 import com.community.comment.repository.master.CommentRepositoryQDSL;
+import com.community.group.entity.GroupEntity;
+import com.community.group.entity.GroupStatus;
+import com.community.group.repository.master.GroupRepository;
 import com.community.group.service.GroupPostGate;
 import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.notification.dto.NotificationContext;
@@ -70,6 +73,11 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>사건</b>(V82 {@code report_cases}): 대상 단위 잠금 아래 대상의 열린 사건(대기·검토 중)을 잠가 읽어 신고를 붙이고, 없으면 새 사건을 연다(닫힌 사건 뒤의 신고는 새 사건으로 0부터).
  * 사건의 신고 수·마지막 신고 시각을 고치고 기록 {@code REPORTED}(신고자 ID 는 남기지 않는다).
  *
+ * <p><b>소모임 신고</b>({@code targetType: GROUP}, V95 — community docs/api-report.md 1절): 대상 = 열린(ACTIVE) 소모임(그 밖·없음 404 REPORT_TARGET_NOT_FOUND),
+ * 사유 = PROMOTION · OFFLINE_RISK · STOCK_RECOMMENDATION · OTHER(글·댓글 사유를 보내면 {@code 400 fields.reason}), STOCK_RECOMMENDATION 은 투자 고지 게시판의 소모임만
+ * ({@code 400 fields.reason}), 모임장 본인 {@code 400 CANNOT_REPORT_OWN}. 한도·중복·사건·운영자 알림은 글·댓글과 같고 <b>자동 숨김은 없다</b>.
+ * 스냅샷: 제목 = 소모임 이름, 본문 = 소개(앞 2,000자), 작성자 = 모임장 닉네임. 사건의 글은 비고(null) 게시판은 그 소모임의 게시판, 대상 작성자 = 신고 당시 모임장.
+ *
  * <p><b>자동 숨김</b>(같은 트랜잭션, 대상 행 잠금): 불법촬영물 사유는 1건으로 즉시 숨김(ILLEGAL, 끌 수 없음) · 권리침해 사유는 임시조치 기간 동안 숨김(RIGHTS, 기간이 끝나면 다시 보인다 — 가정)
  * · 그 밖에는 자동 숨김 기준(<b>열린 사건의</b> 서로 다른 회원 수, 신고 당시 최소 등급 이상인 신고만 센다)에 닿으면 숨김(REPORTED). 기준 숨김은 대상 종류(POST·COMMENT·BOTH)를 따르고,
  * 「운영자 작성물·공지 제외」가 켜져 있으면 고정 공지와 그 게시판 매니저·스텝이 쓴 글·댓글은 기준 숨김에서 뺀다. 숨긴 댓글은 글의 댓글 수에서 뺀다.
@@ -107,12 +115,15 @@ public class ReportService {
     private final ReportCaseRepository cases;
     private final ReportCaseLog caseLog;
     private final GroupPostGate groupGate;
+    private final GroupRepository groups;
 
     public ReportService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                          CommentRepositoryQDSL commentQueries, PostCounterQueries counters, ReportRepository reports, ReportRepositoryQDSL reportQueries,
                          ProfileRepository profiles, BoardStaffRepository boardStaff, NotificationPublisher publisher, MemberNotificationPublisher memberNotices,
-                         SnowflakeIdGenerator ids, PostModerationLog moderation, ReportCaseRepository cases, ReportCaseLog caseLog, GroupPostGate groupGate) {
+                         SnowflakeIdGenerator ids, PostModerationLog moderation, ReportCaseRepository cases, ReportCaseLog caseLog, GroupPostGate groupGate,
+                         GroupRepository groups) {
         this.groupGate = groupGate;
+        this.groups = groups;
         this.cases = cases;
         this.caseLog = caseLog;
         this.memberNotices = memberNotices;
@@ -171,7 +182,7 @@ public class ReportService {
 
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         String type = body.targetType();
-        if (!ReportEntity.POST.equals(type) && !ReportEntity.COMMENT.equals(type)) {
+        if (!ReportEntity.POST.equals(type) && !ReportEntity.COMMENT.equals(type) && !ReportEntity.GROUP.equals(type)) {
             fields.put("targetType", new MessageRef("board.report.targetType"));
         }
         Long targetId = PostQueryService.parseId(body.targetId());
@@ -179,7 +190,7 @@ public class ReportService {
             fields.put("targetId", new MessageRef("board.report.target"));
         }
         String reason = body.reason();
-        if (reason == null || !ReportReasons.ALL.contains(reason)) {
+        if (reason == null || !ReportReasons.forTarget(type).contains(reason)) { // 소모임 사유와 글·댓글 사유는 섞지 않는다
             fields.put("reason", new MessageRef("board.report.reason"));
         }
         String detail = ContentRules.normalize(body.detail());
@@ -193,6 +204,10 @@ public class ReportService {
         }
 
         Instant now = Instant.now();
+        if (ReportEntity.GROUP.equals(type)) {
+            reportGroup(targetId, reason, detail, userId, actor, s, policy, now);
+            return;
+        }
         Target target = ReportEntity.POST.equals(type) ? postTarget(targetId, s, now) : commentTarget(targetId, s, now);
         requireGroupReadable(target, s, userId); // 소모임 비공개 글·그 댓글은 멤버만 신고한다(읽을 수 없는 대상은 없는 대상과 같다)
         if (userId.equals(target.authorId())) {
@@ -211,7 +226,7 @@ public class ReportService {
         String snapshotTitle = target.comment() == null ? target.post().getTitle() : null;
         String snapshotContent = truncate(target.comment() == null ? target.post().plainContent()
                 : RichText.plainOf(target.comment().getContentFormat(), target.comment().getContent())); // HTML 본문은 보이는 글자로 남긴다
-        ReportCaseEntity reportCase = openCase(target, now);
+        ReportCaseEntity reportCase = openCase(target.type(), target.id(), target.post().getId(), target.board().id(), target.authorId(), now);
         long reportId = ids.nextId();
         reports.persist(ReportEntity.create(reportId, reportCase.getId(), target.type(), target.id(), target.post().getId(), target.board().id(), userId,
                 target.authorId(), reason, detail.isEmpty() ? null : detail, snapshotTitle, snapshotContent, authorName, counted, now));
@@ -220,7 +235,44 @@ public class ReportService {
         reports.flush();
 
         autoHide(target, reportCase.getId(), reason, policy, now);
+        notifyOperators(policy, reportCase);
+    }
 
+    /**
+     * 소모임 신고(V95) — 열린 소모임만, 투자 고지 게시판이 아니면 STOCK_RECOMMENDATION 400, 모임장 본인 400. 자동 숨김은 없다.
+     * 잠금·한도·중복·사건은 글·댓글 신고와 같은 차례(신고자 잠금 → 대상 잠금 → 사건 행).
+     */
+    private void reportGroup(long groupId, String reason, String detail, long userId, BoardActor actor, BoardCatalogSnapshot s, BoardReportValues policy,
+                             Instant now) {
+        GroupEntity group = groups.findById(groupId).filter(g -> g.getStatus() == GroupStatus.ACTIVE).orElseThrow(ReportTargetNotFoundException::new);
+        if (ReportReasons.STOCK_RECOMMENDATION.equals(reason) && !s.board(group.getBoardId()).map(EffectiveBoard::investmentNotice).orElse(false)) {
+            throw ValidationException.of("reason", new MessageRef("board.report.reason.stockOnly"));
+        }
+        if (group.getLeaderId() == userId) {
+            throw CannotReportOwnException.group();
+        }
+
+        counters.lockWriter("report:" + userId);
+        checkLimits(policy, userId, now);
+        if (reports.existsByTargetTypeAndTargetIdAndReporterId(ReportEntity.GROUP, groupId, userId)) {
+            throw new AlreadyReportedException();
+        }
+
+        Integer minLevel = s.gradeLevel(policy.autoHideMinGrade());
+        boolean counted = minLevel == null || actor.gradeLevel() >= minLevel; // 자동 숨김은 없지만 칸의 뜻(신고 당시 최소 등급 이상)은 같게 남긴다
+        String leaderName = profiles.findById(group.getLeaderId()).map(ProfileEntity::getNickname).orElse(null);
+        ReportCaseEntity reportCase = openCase(ReportEntity.GROUP, groupId, null, group.getBoardId(), group.getLeaderId(), now);
+        long reportId = ids.nextId();
+        reports.persist(ReportEntity.create(reportId, reportCase.getId(), ReportEntity.GROUP, groupId, null, group.getBoardId(), userId, group.getLeaderId(), reason,
+                detail.isEmpty() ? null : detail, group.getName(), truncate(group.getDescription()), leaderName, counted, now));
+        reportCase.reportAdded(null, group.getBoardId(), now);
+        caseLog.reported(reportCase.getId(), reportId, reason, now);
+        reports.flush();
+        notifyOperators(policy, reportCase);
+    }
+
+    /** 운영자 알림 REPORT_RECEIVED — PER_CASE 면 사건의 첫 신고에만, PER_REPORT 면 신고마다 */
+    private void notifyOperators(BoardReportValues policy, ReportCaseEntity reportCase) {
         if (!"PER_CASE".equals(policy.notifyOperatorScope()) || reportCase.getReportCount() == 1) {
             publisher.publish(AdminNotificationEvent.REPORT_RECEIVED, NotificationContext.empty().link("caseId", Long.toString(reportCase.getId())));
         }
@@ -229,12 +281,13 @@ public class ReportService {
     /**
      * 대상의 열린 사건 — 대상 단위 잠금(관리자 「다시 열기」도 같은 잠금을 잡는다) 아래 열린 사건을 잠가 읽고, 없으면 새로 연다(신고 0건 — 부르는 쪽이 하나 더한다).
      * 운영자가 막 닫은 사건은 잠금이 풀린 뒤 조건을 다시 보므로 붙지 않는다.
+     *
+     * @param postId 대상 글(소모임 사건이면 null)
      */
-    private ReportCaseEntity openCase(Target target, Instant now) {
-        counters.lockWriter(ReportCaseEntity.lockKey(target.type(), target.id()));
-        return cases.findWithLockByTargetTypeAndTargetIdAndStatusIn(target.type(), target.id(), ReportCaseEntity.OPEN).orElseGet(() -> {
-            ReportCaseEntity opened = ReportCaseEntity.open(ids.nextId(), target.type(), target.id(), target.post().getId(), target.board().id(), target.authorId(),
-                    now);
+    private ReportCaseEntity openCase(String type, long targetId, Long postId, long boardId, Long authorId, Instant now) {
+        counters.lockWriter(ReportCaseEntity.lockKey(type, targetId));
+        return cases.findWithLockByTargetTypeAndTargetIdAndStatusIn(type, targetId, ReportCaseEntity.OPEN).orElseGet(() -> {
+            ReportCaseEntity opened = ReportCaseEntity.open(ids.nextId(), type, targetId, postId, boardId, authorId, now);
             cases.persist(opened);
             return opened;
         });

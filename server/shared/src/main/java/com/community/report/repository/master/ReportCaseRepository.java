@@ -22,4 +22,7 @@ public interface ReportCaseRepository extends RoboyamRepository<ReportCaseEntity
     Optional<ReportCaseEntity> findWithLockByTargetTypeAndTargetIdAndStatusIn(String targetType, Long targetId, Collection<String> statuses);
 
     boolean existsByTargetTypeAndTargetIdAndStatusIn(String targetType, Long targetId, Collection<String> statuses);
+
+    /** 대상의 사건 수(닫힌 것 포함) — 관리자 소모임 상세의 {@code reportCaseCount}. 색인 {@code ix_report_cases_target} */
+    long countByTargetTypeAndTargetId(String targetType, Long targetId);
 }

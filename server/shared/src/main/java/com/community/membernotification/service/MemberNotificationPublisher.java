@@ -228,12 +228,14 @@ public class MemberNotificationPublisher {
      * 내 신고가 처리됐다(관리자 신고 관리 — 사건을 조치·무시로 닫음) — 신고한 회원에게 {@code REPORT_RESULT}(덧붙임 {@code result}·{@code targetType}·{@code snapshot}).
      * 게시판 신고 정책 {@code notifyReporterOnResult} 가 켜졌을 때만 부른다. 처리 사유·작성자는 싣지 않는다.
      *
+     * @param postId     대상 글(댓글 신고면 그 댓글의 글) — 소모임 신고면 null
      * @param commentId  댓글 신고면 그 ID, 글 신고면 null
-     * @param targetType {@code POST} · {@code COMMENT}
-     * @param snapshot   신고 당시 글 제목·댓글 앞부분(잘라서 남긴다)
+     * @param groupId    소모임 신고면 그 소모임 ID(덧붙임 {@code groupId} — 누르면 그 소모임), 그 밖 null
+     * @param targetType {@code POST} · {@code COMMENT} · {@code GROUP}
+     * @param snapshot   신고 당시 글 제목·댓글 앞부분·소모임 이름(잘라서 남긴다)
      * @param result     {@link MemberNotificationMessages#REPORT_ACTIONED} · {@link MemberNotificationMessages#REPORT_NO_VIOLATION}
      */
-    public int reportResult(long reporterId, long postId, Long commentId, String targetType, String snapshot, String result) {
+    public int reportResult(long reporterId, Long postId, Long commentId, Long groupId, String targetType, String snapshot, String result) {
         return isolated.run("member-notification:report-result", () -> {
             EventSwitch on = switchOf(MemberNotificationType.REPORT_RESULT, reporterId);
             if (!on.delivers() || !writer.receivable(reporterId)) {
@@ -246,6 +248,9 @@ public class MemberNotificationPublisher {
                 payload.put("result", result);
                 payload.put("targetType", targetType);
                 payload.put("snapshot", cut);
+                if (groupId != null) {
+                    payload.put("groupId", Long.toString(groupId));
+                }
                 writer.insert(ids.nextId(), reporterId, MemberNotificationType.REPORT_RESULT.name(), null, null, postId, commentId,
                         MAPPER.writeValueAsString(payload), Instant.now());
                 made = 1;

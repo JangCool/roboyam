@@ -6,6 +6,13 @@ import com.community.board.service.BoardCatalog;
 import com.community.comment.entity.CommentEntity;
 import com.community.comment.entity.CommentId;
 import com.community.comment.repository.master.CommentRepository;
+import com.community.group.dto.response.GroupCategoryRefView;
+import com.community.group.entity.GroupCategoryEntity;
+import com.community.group.entity.GroupEntity;
+import com.community.group.entity.GroupStatus;
+import com.community.group.repository.master.GroupRepository;
+import com.community.group.service.GroupCategoryLookup;
+import com.community.group.service.GroupPeople;
 import com.community.operator.entity.OperatorEntity;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.permission.dto.AdminActor;
@@ -23,6 +30,7 @@ import com.community.report.dto.response.ReportClosedCasesView;
 import com.community.report.dto.response.ReportContentView;
 import com.community.report.dto.response.ReportEventActorView;
 import com.community.report.dto.response.ReportEventView;
+import com.community.report.dto.response.ReportGroupView;
 import com.community.report.dto.response.ReportLineView;
 import com.community.report.dto.response.ReportOperatorRefView;
 import com.community.report.dto.response.ReportReasonCountView;
@@ -72,9 +80,10 @@ import tools.jackson.databind.json.JsonMapper;
  * 신고 관리 읽기({@code report.read}) — 사건 목록 · 열린 사건 요약 · 사건 상세. docs/features/report-admin-contract.md.
  *
  * <ul>
- *   <li><b>목록 거르기</b>: {@code status} OPEN(기본 — 대기+검토 중) · PENDING · IN_REVIEW · RESOLVED · DISMISSED · ALL(모르는 값은 OPEN) · {@code targetType} POST · COMMENT(모르는 값은 무시)
+ *   <li><b>목록 거르기</b>: {@code status} OPEN(기본 — 대기+검토 중) · PENDING · IN_REVIEW · RESOLVED · DISMISSED · ALL(모르는 값은 OPEN) · {@code targetType} POST · COMMENT · GROUP(모르는 값은 무시)
+ *       · {@code groupId} 그 소모임을 대상으로 한 사건(V95, 깨진 ID 는 「아무것도 안 맞음」)
  *       · {@code reason} 신고 사유 코드(그 사유 신고가 하나라도 있는 사건, 모르는 값은 무시) · {@code board} 게시판 ID · {@code postId} 그 글과 그 글의 댓글 사건(깨진 ID 는 「아무것도 안 맞음」).</li>
- *   <li><b>검색</b>: {@code searchField} TITLE(기본 — 대상 글 제목, 댓글 사건은 그 댓글의 글) · AUTHOR(대상 작성자 닉네임 · 비회원 이름) — 앞뒤 공백을 뗀 2자 이상(한 글자는 무시, 50자에서 자른다)
+ *   <li><b>검색</b>: {@code searchField} TITLE(기본 — 대상 글 제목, 댓글 사건은 그 댓글의 글, 소모임 사건은 지금 소모임 이름) · AUTHOR(대상 작성자 닉네임 · 비회원 이름) — 앞뒤 공백을 뗀 2자 이상(한 글자는 무시, 50자에서 자른다)
  *       · CASE_NO(사건 번호 정확히, 앞의 {@code #} 허용, 숫자가 아니면 {@code 400 fields.q}). 모르는 {@code searchField} 는 {@code 400 fields.searchField}.</li>
  *   <li><b>기간</b>: {@code from}·{@code to} = 마지막 신고 시각 UTC ISO 순간(양 끝 포함 — 게시글 관리와 같은 규칙). 형식 오류는 그 칸 400, 시작 &gt; 끝은 {@code 400 fields.to}.</li>
  *   <li><b>정렬</b>: {@code newest}(마지막 신고 최신, 기본) · {@code oldest} · {@code most}(신고 많은 순). {@code page} 0부터, {@code size} 기본 20 · 최대 50.</li>
@@ -108,6 +117,7 @@ public class AdminReportQueryService {
     static final String PUBLIC = "PUBLIC";
     static final String HIDDEN = "HIDDEN";
     static final String DELETED = "DELETED";
+    static final String INACTIVE = "INACTIVE";
     static final String MEMBER = "MEMBER";
     static final String GUEST = "GUEST";
 
@@ -126,10 +136,17 @@ public class AdminReportQueryService {
     private final OperatorRepository operators;
     private final BoardCatalog catalog;
     private final SiteSettingsService site;
+    private final GroupRepository groups;
+    private final GroupCategoryLookup groupCategories;
+    private final GroupPeople groupPeople;
 
     public AdminReportQueryService(AdminReportRepositoryQDSL search, ReportCaseRepository cases, ReportRepositoryQDSL reports, ReportEventRepository events,
                                    ReportCaseLog caseLog, PostRepository posts, CommentRepository comments, ProfileRepository profiles, UserRepository users,
-                                   OperatorRepository operators, BoardCatalog catalog, SiteSettingsService site) {
+                                   OperatorRepository operators, BoardCatalog catalog, SiteSettingsService site, GroupRepository groups,
+                                   GroupCategoryLookup groupCategories, GroupPeople groupPeople) {
+        this.groups = groups;
+        this.groupCategories = groupCategories;
+        this.groupPeople = groupPeople;
         this.search = search;
         this.cases = cases;
         this.reports = reports;
@@ -147,10 +164,10 @@ public class AdminReportQueryService {
     // ── 목록 · 요약 ───────────────────────────────────────────────────────
 
     public ReportCaseListView list(String status, String targetType, String reason, String searchField, String q, String from, String to, String board,
-                                   String postId, String sort, String pageRaw, String sizeRaw) {
+                                   String postId, String groupId, String sort, String pageRaw, String sizeRaw) {
         int page = Math.max(0, intOr(pageRaw, 0));
         int size = Math.min(SIZE_MAX, Math.max(1, intOr(sizeRaw, SIZE_DEFAULT)));
-        AdminReportRepositoryQDSL.Search criteria = criteria(status, targetType, reason, searchField, q, from, to, board, postId, sort);
+        AdminReportRepositoryQDSL.Search criteria = criteria(status, targetType, reason, searchField, q, from, to, board, postId, groupId, sort);
         AdminReportRepositoryQDSL.ListPage result = search.search(criteria, (long) page * size, size);
         return new ReportCaseListView(result.total(), page, size, items(result.items(), Instant.now()));
     }
@@ -193,12 +210,15 @@ public class AdminReportQueryService {
         Targets targets = targets(List.of(c));
         ReportCaseItemView item = item(c, targets, catalog.snapshot(), names(List.of(c)), reports.reasonsByCase(List.of(c.getId())), now);
 
-        PostEntity post = targets.posts().get(c.getPostId());
+        PostEntity post = c.getPostId() == null ? null : targets.posts().get(c.getPostId());
         CommentEntity comment = c.isComment() ? targets.comments().get(c.getTargetId()) : null;
+        GroupEntity group = c.isGroup() ? targets.groups().get(c.getTargetId()) : null;
         ReportEntity first = reports.firstOfCase(c.getId());
         ReportSnapshotView snapshot = first == null ? null : new ReportSnapshotView(first.getSnapshotTitle(), first.getSnapshotContent(), first.getSnapshotAuthorName());
         ReportContentView content;
-        if (c.isComment()) {
+        if (c.isGroup()) {
+            content = new ReportContentView(ContentFormat.TEXT.name(), group == null ? null : group.getDescription(), snapshot); // 소모임 소개(일반 글자)
+        } else if (c.isComment()) {
             content = comment == null ? new ReportContentView(ContentFormat.TEXT.name(), null, snapshot)
                     : new ReportContentView(comment.getContentFormat().name(), comment.getPurgedAt() != null ? null : comment.getContent(), snapshot);
         } else {
@@ -206,23 +226,36 @@ public class AdminReportQueryService {
                     : new ReportContentView(post.getContentFormat().name(), post.isPurged() ? null : post.getContent(), snapshot);
         }
         return new ReportCaseDetailView(item, content, lines(reports.ofCase(c.getId())), authorCard(c, post, comment, first, now),
-                eventViews(events.findByCaseIdOrderByIdAsc(c.getId())), publicUrlOf(c.getPostId()));
+                eventViews(events.findByCaseIdOrderByIdAsc(c.getId())), publicUrlOf(c), group == null ? null : groupView(group));
+    }
+
+    /** 소모임 사건의 대상 소모임(지금 값) */
+    private ReportGroupView groupView(GroupEntity g) {
+        GroupCategoryEntity cat = groupCategories.snapshot().ofBoard(g.getBoardId());
+        return new ReportGroupView(Long.toString(g.getId()), g.getName(), g.getDescription(), g.getStatus().name(), g.getVisibility().name(), g.getJoinType().name(),
+                g.getMemberCount(), g.getCapacity(), g.isOffline(), g.isStockAgreed(),
+                cat == null ? null : new GroupCategoryRefView(Long.toString(cat.getId()), cat.getName()),
+                groupPeople.members(List.of(g.getLeaderId()), false).of(g.getLeaderId()), g.getOpenedAt(),
+                g.getStatus() == GroupStatus.INACTIVE ? g.getDeactivatedAt() : null);
     }
 
     // ── 한 줄 만들기 ──────────────────────────────────────────────────────
 
-    /** 사건의 대상 글·댓글(지운 것 포함) */
-    private record Targets(Map<Long, PostEntity> posts, Map<Long, CommentEntity> comments) {
+    /** 사건의 대상 글·댓글(지운 것 포함)·소모임(V95 — 해산한 것 포함) */
+    private record Targets(Map<Long, PostEntity> posts, Map<Long, CommentEntity> comments, Map<Long, GroupEntity> groups) {
     }
 
     private Targets targets(List<ReportCaseEntity> rows) {
-        List<Long> postIds = rows.stream().map(ReportCaseEntity::getPostId).distinct().toList();
+        List<Long> postIds = rows.stream().map(ReportCaseEntity::getPostId).filter(Objects::nonNull).distinct().toList(); // 소모임 사건은 글이 없다
         Map<Long, PostEntity> postById = postIds.isEmpty() ? Map.of()
                 : posts.findAllById(postIds).stream().collect(Collectors.toMap(PostEntity::getId, Function.identity(), (a, b) -> a));
         List<CommentId> commentIds = rows.stream().filter(ReportCaseEntity::isComment).map(r -> new CommentId(r.getPostId(), r.getTargetId())).distinct().toList();
         Map<Long, CommentEntity> commentById = commentIds.isEmpty() ? Map.of()
                 : comments.findAllById(commentIds).stream().collect(Collectors.toMap(CommentEntity::getId, Function.identity(), (a, b) -> a));
-        return new Targets(postById, commentById);
+        List<Long> groupIds = rows.stream().filter(ReportCaseEntity::isGroup).map(ReportCaseEntity::getTargetId).distinct().toList();
+        Map<Long, GroupEntity> groupById = groupIds.isEmpty() ? Map.of()
+                : groups.findAllById(groupIds).stream().collect(Collectors.toMap(GroupEntity::getId, Function.identity(), (a, b) -> a));
+        return new Targets(postById, commentById, groupById);
     }
 
     /** 작성자·검토자·처리자 이름 */
@@ -266,22 +299,27 @@ public class AdminReportQueryService {
     }
 
     private ReportCaseItemView item(ReportCaseEntity c, Targets targets, BoardCatalogSnapshot s, Names names, Map<Long, Map<String, Long>> reasons, Instant now) {
-        PostEntity post = targets.posts().get(c.getPostId());
+        PostEntity post = c.getPostId() == null ? null : targets.posts().get(c.getPostId());
         ReportTargetView target;
         String guestName;
-        if (c.isComment()) {
+        if (c.isGroup()) {
+            GroupEntity group = targets.groups().get(c.getTargetId());
+            guestName = null;
+            target = new ReportTargetView(null, null, group == null ? null : group.getName(), group == null ? null : excerpt(group.getDescription()), groupState(group),
+                    null, null, Long.toString(c.getTargetId()));
+        } else if (c.isComment()) {
             CommentEntity comment = targets.comments().get(c.getTargetId());
             guestName = comment == null ? null : comment.getGuestName();
             target = new ReportTargetView(Long.toString(c.getPostId()), Long.toString(c.getTargetId()), postTitle(post),
                     comment == null || comment.getPurgedAt() != null ? null : excerpt(plain(comment.getContentFormat(), comment.getContent())),
                     commentState(comment, now), comment == null ? null : comment.hiddenReasonAt(now),
-                    comment == null || !comment.isHiddenAt(now) ? null : comment.getHiddenUntil());
+                    comment == null || !comment.isHiddenAt(now) ? null : comment.getHiddenUntil(), null);
         } else {
             guestName = post == null ? null : post.getGuestName();
             boolean hidden = post != null && post.isHiddenAt(now);
             target = new ReportTargetView(Long.toString(c.getPostId()), null, postTitle(post),
                     post == null || post.isPurged() ? null : excerpt(plain(post.getContentFormat(), post.plainContent())), postState(post, now),
-                    hidden ? post.getHiddenReason() : null, hidden ? post.getHiddenUntil() : null);
+                    hidden ? post.getHiddenReason() : null, hidden ? post.getHiddenUntil() : null, null);
         }
         EffectiveBoard b = s.board(c.getBoardId()).orElse(null);
         ReportBoardRefView board = new ReportBoardRefView(Long.toString(c.getBoardId()), b == null ? null : b.name());
@@ -297,7 +335,7 @@ public class AdminReportQueryService {
         }
 
         Map<String, Long> byReason = reasons.getOrDefault(c.getId(), Map.of());
-        List<ReportReasonCountView> reasonViews = ReportReasons.ALL.stream().filter(byReason::containsKey)
+        List<ReportReasonCountView> reasonViews = ReportReasons.EVERY.stream().filter(byReason::containsKey)
                 .map(code -> new ReportReasonCountView(code, byReason.get(code))).toList();
         return new ReportCaseItemView(Long.toString(c.getId()), c.getCaseNo() == null ? 0 : c.getCaseNo(), c.getStatus(), c.getTargetType(), target, board, author,
                 c.getReportCount(), reasonViews, c.getFirstReportedAt(), c.getLastReportedAt(), operatorRef(c.getReviewerId(), names.operators()), c.getClosedAt(),
@@ -318,6 +356,18 @@ public class AdminReportQueryService {
             return DELETED;
         }
         return post.isHiddenAt(now) ? HIDDEN : PUBLIC;
+    }
+
+    /** 소모임 상태 — 열림 PUBLIC · 비활성 INACTIVE · 해산·없음(그 밖) DELETED */
+    private static String groupState(GroupEntity group) {
+        if (group == null) {
+            return DELETED;
+        }
+        return switch (group.getStatus()) {
+            case ACTIVE -> PUBLIC;
+            case INACTIVE -> INACTIVE;
+            default -> DELETED;
+        };
     }
 
     private static String commentState(CommentEntity comment, Instant now) {
@@ -376,9 +426,14 @@ public class AdminReportQueryService {
         return out;
     }
 
-    private String publicUrlOf(long postId) {
+    /** 공개 사이트의 대상 주소 — 글·댓글 사건은 그 글, 소모임 사건은 그 소모임 */
+    private String publicUrlOf(ReportCaseEntity c) {
+        String path = c.isGroup() ? "/groups/" + c.getTargetId() : c.getPostId() == null ? null : "/posts/" + c.getPostId();
+        if (path == null) {
+            return null;
+        }
         return site.current().map(SiteValues::publicUrl).filter(url -> url != null && !url.isBlank())
-                .map(url -> url.strip().replaceAll("/+$", "") + "/posts/" + postId).orElse(null);
+                .map(url -> url.strip().replaceAll("/+$", "") + path).orElse(null);
     }
 
     private static String operatorName(OperatorEntity operator) {
@@ -422,7 +477,7 @@ public class AdminReportQueryService {
     // ── 요청 값 풀기 ──────────────────────────────────────────────────────
 
     private AdminReportRepositoryQDSL.Search criteria(String status, String targetType, String reason, String searchField, String q, String fromRaw, String toRaw,
-                                                     String board, String postIdRaw, String sort) {
+                                                     String board, String postIdRaw, String groupIdRaw, String sort) {
         Map<String, MessageRef> invalid = new LinkedHashMap<>();
         String field = trim(searchField) == null ? FIELD_TITLE : trim(searchField).toUpperCase(Locale.ROOT);
         if (!FIELD_TITLE.equals(field) && !FIELD_AUTHOR.equals(field) && !FIELD_CASE_NO.equals(field)) {
@@ -466,11 +521,11 @@ public class AdminReportQueryService {
             default -> ReportCaseEntity.OPEN;
         };
         String type = trim(targetType) == null ? null : trim(targetType).toUpperCase(Locale.ROOT);
-        if (!ReportEntity.POST.equals(type) && !ReportEntity.COMMENT.equals(type)) {
+        if (!ReportEntity.POST.equals(type) && !ReportEntity.COMMENT.equals(type) && !ReportEntity.GROUP.equals(type)) {
             type = null;
         }
         String reasonCode = trim(reason) == null ? null : trim(reason).toUpperCase(Locale.ROOT);
-        if (reasonCode != null && !ReportReasons.ALL.contains(reasonCode)) {
+        if (reasonCode != null && !ReportReasons.EVERY.contains(reasonCode)) {
             reasonCode = null;
         }
         Long boardId = null;
@@ -483,11 +538,16 @@ public class AdminReportQueryService {
             postId = parseId(postIdRaw);
             none = none || postId == null;
         }
+        Long groupId = null;
+        if (trim(groupIdRaw) != null) {
+            groupId = parseId(groupIdRaw);
+            none = none || groupId == null;
+        }
         String order = trim(sort) == null ? AdminReportRepositoryQDSL.SORT_NEWEST : trim(sort).toLowerCase(Locale.ROOT);
         if (!AdminReportRepositoryQDSL.SORT_OLDEST.equals(order) && !AdminReportRepositoryQDSL.SORT_MOST.equals(order)) {
             order = AdminReportRepositoryQDSL.SORT_NEWEST;
         }
-        return new AdminReportRepositoryQDSL.Search(statuses, type, reasonCode, title, author, caseNo, from, to, boardId, postId, order, none);
+        return new AdminReportRepositoryQDSL.Search(statuses, type, reasonCode, title, author, caseNo, from, to, boardId, postId, groupId, order, none);
     }
 
     /** UTC ISO 순간(게시글 관리 {@code createdFrom}·{@code createdTo} 와 같은 규칙) — 비었으면 null, 형식이 틀리면 칸 오류 */

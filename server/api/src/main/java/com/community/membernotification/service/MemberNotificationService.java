@@ -358,11 +358,15 @@ public class MemberNotificationService {
                 link = groupId == null ? "/groups/me" : "/groups/" + groupId;
             }
             case REPORT_RESULT -> {
-                // 내 신고의 처리 결과 — 조치됨 · 위반 아님(신고 당시 제목·앞부분). 글을 볼 수 있으면 그 글로
+                // 내 신고의 처리 결과 — 조치됨 · 위반 아님(신고 당시 제목·앞부분·소모임 이름). 글을 볼 수 있으면 그 글로, 소모임 신고(V95)면 그 소모임으로
                 String result = payload.get("result") instanceof String r ? r : MemberNotificationMessages.REPORT_ACTIONED;
                 String targetType = payload.get("targetType") instanceof String t ? t : "POST";
                 facts = MemberNotificationMessages.Facts.reportResult(result, targetType, payload.get("snapshot") instanceof String s && !s.isBlank() ? s : null);
-                link = postAvailable ? "/posts/" + row.getPostId() : null;
+                if ("GROUP".equals(targetType)) {
+                    link = payload.get("groupId") instanceof String g && !g.isBlank() ? "/groups/" + g : null;
+                } else {
+                    link = postAvailable ? "/posts/" + row.getPostId() : null;
+                }
             }
             default -> { // POST_HIDDEN, COMMENT_HIDDEN
                 hiddenUntil = instantOf(payload.get("until"));

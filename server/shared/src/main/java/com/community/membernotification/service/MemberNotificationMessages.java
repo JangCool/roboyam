@@ -65,7 +65,7 @@ public class MemberNotificationMessages {
      * @param result     닉네임 그림 검토 결과({@code APPROVED}·{@code REJECTED}·{@code REVOKED}) · 의견 고정 요청 결과 · 운영자 숨김({@link #BY_STAFF} — 글·댓글 숨김 알림)
      *                   · 신고 처리 결과({@link #REPORT_ACTIONED}·{@link #REPORT_NO_VIOLATION}) — 그 밖 null. 반려·해제·거절·운영자 숨김·운영자 삭제 사유는 {@code note}
      * @param reasonCode 운영자 조치 사유 코드(신고 사유 체계 — 관리자 신고 관리의 숨김·삭제, 없으면 null). 있으면 사유 변수는 「코드 이름: note」
-     * @param targetType 신고 처리 결과의 대상 종류({@code POST}·{@code COMMENT}) — 그 밖 null
+     * @param targetType 신고 처리 결과의 대상 종류({@code POST}·{@code COMMENT}·{@code GROUP}) — 그 밖 null
      * @param restriction 걸린 기능 제한(기능 제한 알림만 — 운영 메모 없음)
      * @param expiring    소멸 예정(소멸 예정 알림만 — 양은 {@code amount})
      */
@@ -241,7 +241,7 @@ public class MemberNotificationMessages {
          * 내 신고의 처리 결과.
          *
          * @param result     {@link #REPORT_ACTIONED} · {@link #REPORT_NO_VIOLATION}
-         * @param targetType {@code POST} · {@code COMMENT}
+         * @param targetType {@code POST} · {@code COMMENT} · {@code GROUP}(소모임 — V95)
          * @param snapshot   신고 당시 글 제목·댓글 앞부분
          */
         public static Facts reportResult(String result, String targetType, String snapshot) {
@@ -425,7 +425,7 @@ public class MemberNotificationMessages {
             return messages.get(new MessageRef("member.notification." + facts.type().name() + ".staff"), locale);
         }
         if (facts.type() == MemberNotificationType.REPORT_RESULT) {
-            String target = "COMMENT".equals(facts.targetType()) ? "COMMENT" : "POST";
+            String target = "COMMENT".equals(facts.targetType()) || "GROUP".equals(facts.targetType()) ? facts.targetType() : "POST";
             return messages.get(new MessageRef("member.notification.REPORT_RESULT.title." + reportResult(facts.result()) + "." + target), locale);
         }
         if ((facts.type() == MemberNotificationType.POST_HIDDEN || facts.type() == MemberNotificationType.COMMENT_HIDDEN) && facts.temporary()) {

@@ -8,6 +8,7 @@ import com.community.board.dto.BoardReportValues;
 import com.community.board.service.BoardCatalog;
 import com.community.comment.entity.CommentEntity;
 import com.community.comment.repository.master.CommentRepository;
+import com.community.group.service.GroupAdminService;
 import com.community.membernotification.service.MemberNotificationMessages;
 import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.permission.dto.AdminActor;
@@ -62,7 +63,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       · {@code note}(1~500자, 400 {@code fields.note}) → 사건(없음 404 REPORT_CASE_NOT_FOUND, 닫힘 409 REPORT_CASE_CLOSED) → 대상 상태(맞지 않으면 409 REPORT_ACTION_INVALID).
  *       HIDE = 공개 대상만 운영자 숨김(STAFF, 댓글이면 글의 댓글 수 −1) · KEEP_HIDDEN = 자동 숨김(REPORTED · ILLEGAL · RIGHTS)인 대상을 확정(임시조치 기한을 지운다)
  *       · DELETE = 지우지 않은 대상 삭제(글은 게시글 관리 삭제와 같은 규칙 — 고정 해제·포인트 회수, 댓글은 보이던 것이면 댓글 수 −1 · 포인트 회수).
- *       글 조치는 {@code post_moderation_events} 에도(덧붙임 사건 ID·사유 코드, 사유 = 글 앞 200자). 사건의 신고들은 ACCEPTED.</li>
+ *       글 조치는 {@code post_moderation_events} 에도(덧붙임 사건 ID·사유 코드, 사유 = 글 앞 200자). 사건의 신고들은 ACCEPTED.
+ *       <b>소모임 사건</b>(V95)은 DEACTIVATE 만(그 밖 조치·글·댓글 사건의 DEACTIVATE 는 409 REPORT_ACTION_INVALID) — 열린 소모임을 관리자 소모임 관리와 같은 서비스로 비활성화한다
+ *       ({@code groups.deactivate_case_id} = 사건 ID, 감사 GROUP_DEACTIVATE, 모임장 알림 GROUP_DEACTIVATED — note 가 사유로 가므로 1~200자). 이미 비활성·해산이면 409 REPORT_ACTION_INVALID.
+ *       {@code reasonCode} 는 사건 대상의 사유 체계(소모임 사유 · 글·댓글 사유)여야 한다(400 {@code fields.reasonCode}).</li>
  *   <li><b>무시</b>({@link #dismiss}): {@code reasonCode} 고르면 신고 사유 코드 · {@code note} 500자까지 · {@code falseReport}. 대상이 자동 숨김 중이면 <b>복구</b>(글은 조치 기록 UNHIDDEN,
  *       댓글은 댓글 수 +1), 운영자 숨김(STAFF)은 그대로. 신고들은 허위 표시면 REJECTED(신고 남용 차단이 센다), 아니면 DISMISSED.</li>
  *   <li><b>일괄 무시</b>({@link #bulkDismiss}): 사건 ID 1~50개(같은 ID 는 한 번, 400 {@code fields.ids}) · 글(400 {@code fields.note}). 사건마다 따로 트랜잭션 — 없음 REPORT_CASE_NOT_FOUND ·
@@ -81,7 +85,8 @@ public class ReportCaseActionService {
 
     static final String TARGET = "REPORT_CASE";
     static final int BULK_MAX = 50;
-    static final List<String> ACTIONS = List.of(ReportCaseEntity.ACTION_HIDE, ReportCaseEntity.ACTION_DELETE, ReportCaseEntity.ACTION_KEEP_HIDDEN);
+    static final List<String> ACTIONS = List.of(ReportCaseEntity.ACTION_HIDE, ReportCaseEntity.ACTION_DELETE, ReportCaseEntity.ACTION_KEEP_HIDDEN,
+            ReportCaseEntity.ACTION_DEACTIVATE);
 
     private final ReportCaseRepository cases;
     private final AdminReportRepositoryQDSL caseQueries;
@@ -97,11 +102,13 @@ public class ReportCaseActionService {
     private final BoardCatalog catalog;
     private final AuditLogService audit;
     private final TransactionTemplate tx;
+    private final GroupAdminService groupAdmin;
 
     public ReportCaseActionService(ReportCaseRepository cases, AdminReportRepositoryQDSL caseQueries, ReportRepositoryQDSL reports, ReportCaseLog caseLog,
                                    PostRepository posts, CommentRepository comments, PostCounterQueries counters, AdminPostModerationService postModeration,
                                    PostModerationLog moderation, PointService points, MemberNotificationPublisher memberNotices, BoardCatalog catalog,
-                                   AuditLogService audit, PlatformTransactionManager txManager) {
+                                   AuditLogService audit, PlatformTransactionManager txManager, GroupAdminService groupAdmin) {
+        this.groupAdmin = groupAdmin;
         this.cases = cases;
         this.caseQueries = caseQueries;
         this.reports = reports;
@@ -132,7 +139,9 @@ public class ReportCaseActionService {
             invalid.put("reasonCode", new MessageRef("report.admin.reasonCode.invalid"));
         }
         String note = clean(body == null ? null : body.note());
-        MessageRef noteError = note == null ? new MessageRef("report.admin.note.required") : noteTooLong(note);
+        // 소모임 비활성화의 사유는 모임장에게 그대로 가고 소모임 행(200자)에 남는다
+        int noteMax = ReportCaseEntity.ACTION_DEACTIVATE.equals(action) ? GroupAdminService.REASON_MAX : ReportCaseEntity.NOTE_MAX;
+        MessageRef noteError = note == null ? new MessageRef("report.admin.note.required") : noteTooLong(note, noteMax);
         if (noteError != null) {
             invalid.put("note", noteError);
         }
@@ -143,6 +152,10 @@ public class ReportCaseActionService {
         if (!c.isOpen()) {
             throw new ReportCaseClosedException();
         }
+        requireReasonFor(c, reasonCode);
+        if (c.isGroup() != ReportCaseEntity.ACTION_DEACTIVATE.equals(action)) {
+            throw new ReportActionInvalidException(); // 소모임 사건은 비활성화만, 글·댓글 사건은 비활성화 없음
+        }
         Instant now = Instant.now();
         BoardReportValues policy = catalog.snapshot().report();
         boolean notifyAuthor = Boolean.TRUE.equals(policy.notifyAuthorOnAction());
@@ -150,8 +163,17 @@ public class ReportCaseActionService {
         Map<String, Object> link = new LinkedHashMap<>();
         link.put("reportCaseId", Long.toString(c.getId()));
         link.put("reasonCode", reasonCode);
-        long revoked = c.isComment() ? actOnComment(c, action, reasonCode, note, notifyAuthor, now)
-                : actOnPost(actor, c, action, reasonCode, note, link, notifyAuthor, now);
+        long revoked;
+        if (c.isGroup()) {
+            // 관리자 소모임 관리의 비활성화와 같은 서비스 — 비활성 기록(사건 ID)·감사 GROUP_DEACTIVATE·모임장 알림 GROUP_DEACTIVATED(정책과 무관하게 늘)
+            if (!groupAdmin.deactivateForReport(actor, c.getTargetId(), note, c.getId())) {
+                throw new ReportActionInvalidException(); // 이미 비활성·해산
+            }
+            revoked = 0;
+        } else {
+            revoked = c.isComment() ? actOnComment(c, action, reasonCode, note, notifyAuthor, now)
+                    : actOnPost(actor, c, action, reasonCode, note, link, notifyAuthor, now);
+        }
 
         c.resolve(action, reasonCode, note, actor.operatorId(), now);
         String snapshot = snapshotOf(c);
@@ -269,7 +291,7 @@ public class ReportCaseActionService {
             invalid.put("reasonCode", new MessageRef("report.admin.reasonCode.invalid"));
         }
         String note = clean(body == null ? null : body.note());
-        MessageRef noteError = note == null ? null : noteTooLong(note);
+        MessageRef noteError = note == null ? null : noteTooLong(note, ReportCaseEntity.NOTE_MAX);
         if (noteError != null) {
             invalid.put("note", noteError);
         }
@@ -280,6 +302,9 @@ public class ReportCaseActionService {
         ReportCaseEntity c = lock(idText);
         if (!c.isOpen()) {
             throw new ReportCaseClosedException();
+        }
+        if (reasonCode != null) {
+            requireReasonFor(c, reasonCode);
         }
         Map<String, Object> detail = dismissOne(actor, c, reasonCode, note, falseReport, false, Instant.now());
         Map<String, Object> auditDetail = new LinkedHashMap<>(detail);
@@ -302,7 +327,7 @@ public class ReportCaseActionService {
             invalid.put("ids", new MessageRef("report.admin.ids.size", String.valueOf(BULK_MAX)));
         }
         String note = clean(body == null ? null : body.note());
-        MessageRef noteError = note == null ? null : noteTooLong(note);
+        MessageRef noteError = note == null ? null : noteTooLong(note, ReportCaseEntity.NOTE_MAX);
         if (noteError != null) {
             invalid.put("note", noteError);
         }
@@ -368,6 +393,9 @@ public class ReportCaseActionService {
 
     /** 무시하면 신고 자동 숨김(REPORTED · ILLEGAL · RIGHTS)을 푼다 — 운영자 숨김(STAFF)·지운 대상은 그대로. 풀었으면 true */
     private boolean restoreAutoHidden(AdminActor actor, ReportCaseEntity c, String note, Instant now) {
+        if (c.isGroup()) {
+            return false; // 소모임 신고에는 자동 숨김이 없다(V95)
+        }
         if (c.isComment()) {
             CommentEntity comment = comments.findWithLockByPostIdAndId(c.getPostId(), c.getTargetId()).orElse(null);
             if (comment == null || comment.isDeleted() || !comment.unhideReported(now)) {
@@ -433,8 +461,9 @@ public class ReportCaseActionService {
             return;
         }
         Long commentId = c.isComment() ? c.getTargetId() : null;
+        Long groupId = c.isGroup() ? c.getTargetId() : null;
         for (Long reporterId : reports.reporterIds(c.getId())) {
-            memberNotices.reportResult(reporterId, c.getPostId(), commentId, c.getTargetType(), snapshot, result);
+            memberNotices.reportResult(reporterId, c.getPostId(), commentId, groupId, c.getTargetType(), snapshot, result);
         }
     }
 
@@ -467,7 +496,12 @@ public class ReportCaseActionService {
         }
         facts.put("targetType", c.getTargetType());
         facts.put("targetId", Long.toString(c.getTargetId()));
-        facts.put("postId", Long.toString(c.getPostId()));
+        if (c.getPostId() != null) {
+            facts.put("postId", Long.toString(c.getPostId()));
+        }
+        if (c.isGroup()) {
+            facts.put("groupId", Long.toString(c.getTargetId()));
+        }
         facts.put("reportCount", c.getReportCount());
         return facts;
     }
@@ -489,7 +523,14 @@ public class ReportCaseActionService {
             return null;
         }
         code = code.toUpperCase(Locale.ROOT);
-        return ReportReasons.ALL.contains(code) ? code : null;
+        return ReportReasons.EVERY.contains(code) ? code : null;
+    }
+
+    /** 사유 코드가 사건의 대상 종류 체계인가 — 소모임 사건은 소모임 사유, 글·댓글 사건은 글·댓글 사유(아니면 400 {@code fields.reasonCode}) */
+    private static void requireReasonFor(ReportCaseEntity c, String reasonCode) {
+        if (!ReportReasons.forTarget(c.getTargetType()).contains(reasonCode)) {
+            throw ValidationException.of("reasonCode", new MessageRef("report.admin.reasonCode.invalid"));
+        }
     }
 
     /** 앞뒤 공백·NUL 을 뗀 글 — 비었으면 null */
@@ -501,9 +542,8 @@ public class ReportCaseActionService {
         return s.isEmpty() ? null : s;
     }
 
-    private static MessageRef noteTooLong(String note) {
-        return note.codePointCount(0, note.length()) > ReportCaseEntity.NOTE_MAX
-                ? new MessageRef("report.admin.note.tooLong", String.valueOf(ReportCaseEntity.NOTE_MAX)) : null;
+    private static MessageRef noteTooLong(String note, int max) {
+        return note.codePointCount(0, note.length()) > max ? new MessageRef("report.admin.note.tooLong", String.valueOf(max)) : null;
     }
 
     private static String cut(String text, int max) {

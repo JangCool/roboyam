@@ -30,6 +30,8 @@ import com.community.group.repository.master.GroupPostQueries;
 import com.community.group.repository.master.GroupRepository;
 import com.community.group.repository.master.GroupRepositoryQDSL;
 import com.community.permission.dto.AdminActor;
+import com.community.report.entity.ReportEntity;
+import com.community.report.repository.master.ReportCaseRepository;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
 import java.time.Instant;
@@ -50,7 +52,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>권한은 컨트롤러가 선언한다(조회 {@code group.read}, 승인·반려·비활성화·다시 열기 {@code group.manage}).</li>
  *   <li>상태를 바꾸는 일은 소모임 행을 잠그고 상태를 다시 읽는다 — 두 운영자가 동시에 눌러도 한 번만 바뀐다(늦은 쪽은 404 · 409).</li>
  *   <li>감사 {@code GROUP_APPROVE|REJECT|DEACTIVATE|REACTIVATE}(대상 {@code GROUP} = 소모임 ID), 회원 알림 {@code GROUP_APPROVED|REJECTED|DEACTIVATED|REACTIVATED}.</li>
- *   <li>신고 처리의 「소모임 비활성화」는 로보얌 신고 대상에 소모임이 없어 아직 없다 — 생기면 {@link #deactivate} 와 같은 길(사건 ID)을 쓴다.</li>
+ *   <li>신고 처리의 「소모임 비활성화」(V95)는 {@link #deactivateForReport} — {@link #deactivate} 와 같은 몸통에 사건 ID 를 남긴다. 상세의 {@code reportCaseCount}·
+ *       {@code deactivation.reportCase} 는 신고 사건({@code report_cases})에서 읽는다.</li>
  * </ul>
  */
 @Service
@@ -59,7 +62,8 @@ public class GroupAdminService {
 
     private static final Logger log = LoggerFactory.getLogger(GroupAdminService.class);
     static final String TARGET = "GROUP";
-    static final int REASON_MAX = 200;
+    /** 비활성화·반려 사유 · 다시 열기 메모 최대 글자(V90 groups.deactivate_reason) — 신고 처리의 비활성화도 같다 */
+    public static final int REASON_MAX = 200;
     static final int DEFAULT_SIZE = 20;
     static final int MAX_SIZE = 100;
 
@@ -73,11 +77,13 @@ public class GroupAdminService {
     private final BoardCatalog catalog;
     private final AuditLogService audit;
     private final GroupPostQueries groupPosts;
+    private final ReportCaseRepository reportCases;
 
     public GroupAdminService(GroupRepository groups, GroupMemberRepository members, GroupRepositoryQDSL queries, GroupCategoryLookup categories,
                              GroupPeople people, GroupSettingsService settings, GroupNotices notices, BoardCatalog catalog, AuditLogService audit,
-                             GroupPostQueries groupPosts) {
+                             GroupPostQueries groupPosts, ReportCaseRepository reportCases) {
         this.groupPosts = groupPosts;
+        this.reportCases = reportCases;
         this.groups = groups;
         this.members = members;
         this.queries = queries;
@@ -215,9 +221,13 @@ public class GroupAdminService {
             }
         }
         long[] postCounts = groupPosts.adminCounts(g.getId(), java.time.Instant.now()); // 지우지 않은 글 수 · 그중 비멤버에게 보이는 글 수(2단계)
+        GroupAdminDetailView.ReportCase reportCase = g.getDeactivateCaseId() == null ? null
+                : reportCases.findById(g.getDeactivateCaseId()).map(c -> new GroupAdminDetailView.ReportCase(Long.toString(c.getId()),
+                        c.getCaseNo() == null ? 0 : c.getCaseNo())).orElse(null);
         GroupAdminDetailView.Deactivation deactivation = g.getDeactivatedAt() == null ? null
-                : new GroupAdminDetailView.Deactivation(g.getDeactivatedAt(), operators.get(g.getDeactivatedBy()), g.getDeactivateReason(), null,
+                : new GroupAdminDetailView.Deactivation(g.getDeactivatedAt(), operators.get(g.getDeactivatedBy()), g.getDeactivateReason(), reportCase,
                 g.getReactivatedAt(), operators.get(g.getReactivatedBy()), g.getReactivateMemo());
+        long reportCaseCount = reportCases.countByTargetTypeAndTargetId(ReportEntity.GROUP, g.getId()); // 이 소모임을 대상으로 한 사건(닫힌 것 포함)
         List<GroupAdminDetailView.Manager> managers = managerRows.stream()
                 .map(m -> new GroupAdminDetailView.Manager(persons.of(m.getUserId()), m.getRoleChangedAt(), GroupManagerPermission.keys(m.getManagerPerms())))
                 .toList();
@@ -225,7 +235,7 @@ public class GroupAdminService {
                 g.getStatus().name(), g.getJoinType().name(), g.isRecruiting(), GroupRules.recruitState(g), g.getCapacity(), g.getMemberCount(), g.isOffline(),
                 g.isStockAgreed(), new GroupAdminDetailView.Chat(g.getKakaoUrl() != null, g.getDiscordUrl() != null), persons.of(g.getLeaderId()),
                 persons.of(g.getCreatorId()), operators.get(g.getReviewedBy()), g.getRequestedAt(), g.getOpenedAt(), g.getLastActivityAt(),
-                new GroupAdminDetailView.LeaderLoad(total, active, inactive, settings.creation().maxPerOwner()), postCounts[0], postCounts[1], 0, deactivation, managers,
+                new GroupAdminDetailView.LeaderLoad(total, active, inactive, settings.creation().maxPerOwner()), postCounts[0], postCounts[1], reportCaseCount, deactivation, managers,
                 g.getManagerLimit(), settings.manager().limitMax(), g.getVisibility().name(), g.getVisibilityChangedAt(), persons.of(g.getVisibilityChangedBy()));
     }
 
@@ -240,10 +250,35 @@ public class GroupAdminService {
         if (group.getStatus() != GroupStatus.ACTIVE) {
             throw new GroupNotFoundException();
         }
-        group.deactivate(actor.operatorId(), reason, null, Instant.now());
-        audit.record(event(actor, AuditActions.GROUP_DEACTIVATE, group).with("name", group.getName()).with("reason", reason));
+        deactivateLocked(actor, group, reason, null);
+    }
+
+    /**
+     * 신고 처리의 「소모임 비활성화」(V95) — 관리자 비활성화와 같은 몸통(비활성 기록 · 감사 {@code GROUP_DEACTIVATE} · 모임장 알림 {@code GROUP_DEACTIVATED})에
+     * 사건 ID 를 {@code groups.deactivate_case_id} 로 남긴다. 부르는 신고 처리의 트랜잭션 안에서(잠그는 차례: 사건 행 → 소모임 행).
+     *
+     * @param reason 모임장에게 그대로 가는 사유(부르는 쪽이 1~{@value #REASON_MAX}자를 확인했다)
+     * @return 열린 소모임이라 비활성으로 바꿨으면 true — 이미 비활성·해산·없음이면 false(바꾸지 않는다)
+     */
+    @Transactional
+    public boolean deactivateForReport(AdminActor actor, long groupId, String reason, long caseId) {
+        GroupEntity group = groups.findWithLockById(groupId).orElse(null);
+        if (group == null || group.getStatus() != GroupStatus.ACTIVE) {
+            return false;
+        }
+        deactivateLocked(actor, group, reason, caseId);
+        return true;
+    }
+
+    private void deactivateLocked(AdminActor actor, GroupEntity group, String reason, Long caseId) {
+        group.deactivate(actor.operatorId(), reason, caseId, Instant.now());
+        AuditEvent event = event(actor, AuditActions.GROUP_DEACTIVATE, group).with("name", group.getName()).with("reason", reason);
+        if (caseId != null) {
+            event = event.with("reportCaseId", Long.toString(caseId));
+        }
+        audit.record(event);
         notices.deactivated(group, reason);
-        log.info("소모임을 비활성화했다 groupId={} by operatorId={}", group.getId(), actor.operatorId());
+        log.info("소모임을 비활성화했다 groupId={} reportCaseId={} by operatorId={}", group.getId(), caseId, actor.operatorId());
     }
 
     /** 다시 열기 — 메모 0~200자(운영자만). 이미 열림 409, 열림·비활성이 아니면 404(해산한 소모임은 되살리지 않는다) */
