@@ -92,6 +92,7 @@ export interface PostGroupPublishRequest {
  * 글 줄의 소모임 표시(community `GroupRef`) — 소모임 글이면 `{ id, name, visibility }`, 일반 글이면 null(옛 응답은 칸이 없다).
  * 홈·검색·프로필에 나오는 소모임 글은 모두 `PUBLIC`, 소모임 글 탭에서는 `PRIVATE` 도 나온다.
  * `dissolved`: 해산한 소모임의 공개 글(소모임 연결은 남는다) — 화면은 링크 없이 「해산한 소모임」으로 보인다.
+ *   2026-10-26 부터 해산하면 소모임 글을 모두 지우므로 거의 오지 않는다(옛 응답·지우는 사이의 경합 대비로 표시는 그대로 둔다).
  */
 export interface PostGroupRef {
     id: string;

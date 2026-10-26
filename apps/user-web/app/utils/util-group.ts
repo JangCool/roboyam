@@ -23,6 +23,7 @@ import type {
     GroupUser,
     GroupVisibility,
     GroupVisibilityInfo,
+    GroupDissolveInfo,
     GroupCategory,
     GroupJoinReason,
     GroupCreateRequest,
@@ -83,6 +84,8 @@ export interface ActiveGroup {
     visibility: GroupVisibility | null;
     /** 모임장에게만 마지막 변경·쿨다운(5단계) — 그 밖 null */
     visibilityInfo: GroupVisibilityInfo | null;
+    /** 모임장에게만 해산 패널티 안내 — 그 밖·이상한 값이면 null(시트는 패널티 문구를 그리지 않는다) */
+    dissolveInfo: GroupDissolveInfo | null;
     /** 공개 요청 처리자에게만 대기 수(5단계) — 그 밖 null */
     pendingPublishRequestCount: number | null;
 }
@@ -456,8 +459,22 @@ export default class UtilGroup {
             managerInfo: UtilGroupManager.infoOf(detail.managerInfo),
             visibility: UtilGroup.visibilityOf(detail.visibility),
             visibilityInfo: detail.visibilityInfo ?? null,
+            dissolveInfo: UtilGroup.dissolveInfoOf(detail.dissolveInfo),
             pendingPublishRequestCount: typeof detail.pendingPublishRequestCount === 'number' ? detail.pendingPublishRequestCount : null,
         };
+    }
+
+    /** 해산 안내 칸을 읽는다 — 모양이 틀리면 null */
+    static dissolveInfoOf(raw: unknown): GroupDissolveInfo | null {
+        if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+        const r = raw as Record<string, unknown>;
+        if (typeof r.penaltyDays !== 'number' || !Number.isFinite(r.penaltyDays)) return null;
+        return { penaltyDays: Math.max(0, Math.trunc(r.penaltyDays)), exempt: r.exempt === true };
+    }
+
+    /** 지금 해산하면 개설이 막히는 일수 — 안내가 없거나 꺼졌거나(0) 1년 이상 유지돼 면제면 0 */
+    static dissolvePenaltyDays(info: GroupDissolveInfo | null): number {
+        return info && !info.exempt ? info.penaltyDays : 0;
     }
 
     /** 응답 칸을 공개 범위로 읽는다 — 모르는 값·`null`·칸 없음은 null(「그리지 않는다」 — 기능이 꺼진 서버의 비공개 소모임) */
@@ -696,8 +713,14 @@ export default class UtilGroup {
         let me: GroupCreationRules['me'] = null;
         if (typeof r.me === 'object' && r.me !== null && !Array.isArray(r.me)) {
             const m = r.me as Record<string, unknown>;
-            const reason = m.reason === 'NOT_PERMITTED' || m.reason === 'GRADE_TOO_LOW' || m.reason === 'LIMIT_REACHED' ? m.reason : null;
-            me = { canCreate: m.canCreate !== false && reason === null, reason, grade: typeof m.grade === 'string' ? m.grade : '', ledCount: typeof m.ledCount === 'number' ? m.ledCount : 0 };
+            const reason = m.reason === 'NOT_PERMITTED' || m.reason === 'GRADE_TOO_LOW' || m.reason === 'LIMIT_REACHED' || m.reason === 'DISSOLVE_PENALTY' ? m.reason : null;
+            me = {
+                canCreate: m.canCreate !== false && reason === null,
+                reason,
+                grade: typeof m.grade === 'string' ? m.grade : '',
+                ledCount: typeof m.ledCount === 'number' ? m.ledCount : 0,
+                penaltyUntil: typeof m.penaltyUntil === 'string' && m.penaltyUntil ? m.penaltyUntil : null,
+            };
         }
         return {
             creationMode: mode,

@@ -3,7 +3,7 @@
         소모임 만들기 `/groups/new` (메뉴 `GROUPS_NEW`) — 개설 신청. 반려된 신청을 고쳐 다시 낼 때는 `?from=<신청 id>`(내 소모임의 그 신청으로 폼을 채운다 — 동의 칸은 다시 확인).
         승인제(기본)는 `202 PENDING` → 이 화면이 「신청을 보냈어요」로 바뀌고, 자유 개설·운영자는 `201 ACTIVE` → 상세로 간다. 개설 방식·최소 등급·1인 상한·정원 범위는 `GET /api/groups/creation-rules`.
         분류는 `GET /api/groups/categories` — 분류에 켜진 게시판이 둘 이상이면 게시판도 고른다. 고른 게시판이 투자 고지면 추가 동의, 오프라인이면 개인 책임 고지 동의.
-        비회원은 로그인 안내, 이메일 인증 전·등급 미달·상한 도달은 폼은 두고 단추만 끈다(정지 중은 서버가 `403 ACCOUNT_RESTRICTED` 로 막는다 — 안내 띠).
+        비회원은 로그인 안내, 이메일 인증 전·등급 미달·상한 도달·해산 패널티(`me.reason = DISSOLVE_PENALTY` + `penaltyUntil`, 신청은 `403 GROUP_DISSOLVE_PENALTY`)는 폼은 두고 단추만 끈다(정지 중은 서버가 `403 ACCOUNT_RESTRICTED` 로 막는다 — 안내 띠).
         공개 범위(5단계): 개설 규칙의 `visibilityChoice` 가 true 일 때만 「공개 범위」 라디오(비공개 소모임 기본 · 공개 소모임). 공개를 고르면 안내 띠(승인제 일반 회원이면 「운영팀이 공개 범위도 함께 확인해요」).
           고를 수 없는 서버에는 본문에 `visibility` 를 싣지 않는다. 승인 대기 화면에 신청한 공개 범위 한 줄.
     -->
@@ -69,7 +69,7 @@
                 <template v-if="rejectReason"><br /><b class="font-semibold">{{ t('group.rejectReasonLabel') }}</b> {{ rejectReason }}</template>
             </GroupNotice>
 
-            <!-- 만들 수 없는 사람(이메일 인증 전·등급 미달·상한) — 조건이 바뀌면 할 수 있으므로 폼은 두고 단추만 끈다 -->
+            <!-- 만들 수 없는 사람(이메일 인증 전·등급 미달·상한·해산 패널티 — 언제부터 다시 만들 수 있는지) — 조건이 바뀌면 할 수 있으므로 폼은 두고 단추만 끈다 -->
             <GroupNotice v-if="blocked" tone="warn" :title="blocked.title" data-testid="group-create-blocked">{{ blocked.text }}</GroupNotice>
 
             <!-- 칸에 붙일 수 없는 오류(등급·개수·요청 제한·네트워크). 입력은 그대로 남는다 -->
@@ -401,7 +401,7 @@ const immediate = computed(() => user.value?.role === 'ADMIN' || user.value?.rol
 const notice = computed(() => UtilGroupMessages.creationNotice(t, rules.value?.creationMode ?? null, immediate.value));
 const blocked = computed(() => {
     if (user.value && !user.value.emailVerified) return { title: t('group.unverifiedTitle'), text: t('group.unverifiedText') };
-    return UtilGroupMessages.ruleBlock(t, rules.value, () => user.value?.gradeLabel ?? '');
+    return UtilGroupMessages.ruleBlock(t, rules.value, () => user.value?.gradeLabel ?? '', time.value);
 });
 const submitLabel = computed(() => {
     if (submitting.value) return t('group.submitting');
@@ -484,7 +484,7 @@ async function onSubmit() {
         }
         failure.value = UtilGroupMessages.createFailure(t, e, time.value);
         // 규칙을 못 지켜 거절됐으면 서버의 지금 규칙으로 안내를 다시 그린다
-        if (failure.value.kind === 'permission' || failure.value.kind === 'grade' || failure.value.kind === 'limit') void reloadRules();
+        if (failure.value.kind === 'permission' || failure.value.kind === 'grade' || failure.value.kind === 'limit' || failure.value.kind === 'penalty') void reloadRules();
     } finally {
         submitting.value = false;
     }

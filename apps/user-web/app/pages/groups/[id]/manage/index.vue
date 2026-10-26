@@ -193,9 +193,13 @@
                 </div>
             </section>
 
-            <!-- 해산 확인 — 소모임 이름을 정확히 입력해야 「삭제하기」가 켜진다 -->
+            <!--
+                해산 확인 — 소모임 이름을 정확히 입력해야 「삭제하기」가 켜진다. 글은 공개한 글까지 모두 지워진다(설명).
+                패널티 한 줄은 상세 `dissolveInfo`(모임장에게만)가 걸린다고 할 때만 — 꺼짐(0)·1년 이상 유지(`exempt`)·안내 없음이면 그리지 않는다
+            -->
             <AppSheet v-model:visible="dissolveOpen" :title="t('group.dissolveTitle')" :description="UtilGroupMessages.dissolveDescription(t, Math.max(0, group.memberCount - 1))">
                 <form class="mt-3 px-5" novalidate @submit.prevent="dissolve">
+                    <GroupNotice v-if="dissolvePenalty" tone="warn" class="mb-3" data-testid="dissolve-penalty">{{ dissolvePenalty }}</GroupNotice>
                     <label :for="`${uid}-dissolve`" class="text-sm font-medium">{{ t('group.dissolveInput') }}</label>
                     <p class="mt-1 break-words text-xs text-muted-color [overflow-wrap:anywhere]">
                         {{ t('group.dissolveNameLabel') }} <b class="text-color">{{ group.name }}</b>
@@ -571,6 +575,7 @@ const dissolving = ref(false);
 const dissolveError = ref('');
 const dissolveTyped = ref('');
 const dissolveReady = computed(() => !dissolving.value && UtilGroup.dissolveReady(dissolveTyped.value, group.value?.name ?? ''));
+const dissolvePenalty = computed(() => UtilGroupMessages.dissolvePenalty(t, UtilGroup.dissolvePenaltyDays(group.value?.dissolveInfo ?? null)));
 
 watch(dissolveTyped, () => (dissolveError.value = ''));
 

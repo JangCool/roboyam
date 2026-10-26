@@ -57,8 +57,9 @@ import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
  * - 가입·신청 오류: `409 GROUP_ALREADY_MEMBER|GROUP_ALREADY_APPLIED|GROUP_CLOSED|GROUP_FULL` · `429 GROUP_REAPPLY_LATER(retryAfterSeconds)` · `403 GROUP_INACTIVE` · `404 GROUP_NOT_FOUND` ·
  *   `400 VALIDATION fields.message|offlineAck` · `429 RATE_LIMITED`. 탈퇴: 모임장은 `409 GROUP_LEADER_CANNOT_LEAVE`.
  * - 개설 신청 오류: `403 GROUP_CREATE_NOT_PERMITTED`(회원 역할에 `group.create` 없음 — 로보얌) · `403 GROUP_GRADE_TOO_LOW` · `409 GROUP_LIMIT_REACHED` · `409 GROUP_NAME_TAKEN` ·
- *   `429 RATE_LIMITED` · `400 VALIDATION fields.name|description|categoryId|boardSlug|joinType|capacity|agreeRules|agreeStock|agreeOffline`.
+ *   `403 GROUP_DISSOLVE_PENALTY`(스스로 해산한 뒤 패널티 기간 — `until` 또는 `retryAfterSeconds`) · `429 RATE_LIMITED` · `400 VALIDATION fields.name|description|categoryId|boardSlug|joinType|capacity|agreeRules|agreeStock|agreeOffline`.
  * - 신청 처리: `409 GROUP_FULL`(승인) · `404 GROUP_APPLICATION_NOT_FOUND`. 강퇴·넘기기: `404 GROUP_MEMBER_NOT_FOUND`. 해산: `400 VALIDATION fields.name`(이름이 다르다).
+ *   해산하면 소모임 글이 공개 여부와 상관없이 모두 지워지고, 모임장은 상세 `dissolveInfo`(모임장에게만 `{ penaltyDays, exempt }`)대로 개설 패널티를 받는다(2026-10-26 사용자 결정).
  * - 알림(7절)은 회원 알림(`useNotificationApi`)이 따로 받는다(서버 묶음 `system`) — 이 파일은 알림을 부르지 않는다.
  *
  * ## 2단계(소모임 글) — 서버(`GroupPostController`·`GroupPostService`)와 맞춘 모양: community `docs/api-groups.md` 8절과 같다(11절 공개 범위·공개 요청은 아래 5단계)

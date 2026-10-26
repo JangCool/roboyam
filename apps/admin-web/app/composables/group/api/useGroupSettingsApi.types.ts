@@ -40,6 +40,8 @@ export interface GroupCreationRuleValues {
     minGrade: string;
     /** 한 사람이 모임장일 수 있는 소모임 수(신청 중·열림·비활성 합) */
     maxPerOwner: number;
+    /** 해산 패널티(일) — 모임장이 스스로 해산하면 이 기간 동안 개설 신청을 못 한다. 0 = 끔, 개설부터 1년 이상 유지된 소모임은 면제(로보얌 V96) */
+    dissolvePenaltyDays: number;
 }
 
 export interface GroupCreationRuleResponse extends GroupRuleResponseBase<GroupCreationRuleValues> {
@@ -48,6 +50,8 @@ export interface GroupCreationRuleResponse extends GroupRuleResponseBase<GroupCr
         /** 등급(서열 순) — 등급 설정의 등급들 */
         grades: GroupRuleOption[];
         maxPerOwner: GroupRuleRange;
+        /** 0~365 — 칸이 없는 옛 서버면 화면이 칸을 그리지 않는다 */
+        dissolvePenaltyDays?: GroupRuleRange;
     };
     /** 승인 대기 신청 수 — 승인제 → 자유 개설 확인 창에 쓴다 */
     pendingRequestCount: number;

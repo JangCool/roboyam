@@ -210,6 +210,17 @@ export interface GroupVisibilityInfo {
     canChangeToPublicAt: string | null;
 }
 
+/**
+ * 모임장에게만 싣는 해산 안내(서버 `GroupDetailView.DissolveInfo`) — 해산 확인 시트가 패널티 문구를 그릴지 고른다.
+ * `penaltyDays`: 관리자 설정 「개설 규칙」의 해산 패널티 일수(0 = 끔). `exempt`: 개설부터 1년(달력, KST) 이상 유지돼 패널티가 없다.
+ */
+export interface GroupDissolveInfo {
+    penaltyDays: number;
+    exempt: boolean;
+    /** 이 시각부터 해산하면 면제(개설 + 1년) — 화면은 아직 쓰지 않는다 */
+    exemptAt?: string | null;
+}
+
 /** 상세 「모임 정보」의 신규 가입자 — 멤버에게만 */
 export interface GroupNewcomers {
     windowDays: number;
@@ -273,6 +284,8 @@ export interface GroupDetail {
     visibility?: GroupVisibility | null;
     /** 모임장에게만 — 마지막 변경·쿨다운, 그 밖 null */
     visibilityInfo?: GroupVisibilityInfo | null;
+    /** 모임장에게만 — 해산 패널티 안내, 그 밖 null */
+    dissolveInfo?: GroupDissolveInfo | null;
     openedAt?: string | null;
     leader?: GroupUser | null;
     stockNotice?: boolean | null;
@@ -416,7 +429,7 @@ export interface GroupCreateRequest {
 }
 
 /** 개설 규칙으로 못 내는 까닭 */
-export type GroupCreationBlockedReason = 'NOT_PERMITTED' | 'GRADE_TOO_LOW' | 'LIMIT_REACHED';
+export type GroupCreationBlockedReason = 'NOT_PERMITTED' | 'GRADE_TOO_LOW' | 'LIMIT_REACHED' | 'DISSOLVE_PENALTY';
 
 /** 개설 방식 — 승인제 · 자유 개설 */
 export type GroupCreationMode = 'APPROVAL' | 'OPEN';
@@ -434,12 +447,15 @@ export interface GroupCreationRules {
     /**
      * 로그인했을 때만 — 개설 규칙만 본다(이메일 인증·정지는 신청할 때 403).
      * `reason`: 서버 `creationBlocked` 차례로 `NOT_PERMITTED`(회원 역할에 `group.create` 권한 없음 — 로보얌 추가) → `GRADE_TOO_LOW` → `LIMIT_REACHED`
+     *   → `DISSOLVE_PENALTY`(스스로 해산한 소모임의 패널티 기간 — `penaltyUntil` 까지)
      */
     me: {
         canCreate: boolean;
         reason: GroupCreationBlockedReason | null;
         grade: string;
         ledCount: number;
+        /** 해산 패널티가 끝나는 시각(ISO) — 패널티 중이 아니면 null */
+        penaltyUntil: string | null;
     } | null;
 }
 

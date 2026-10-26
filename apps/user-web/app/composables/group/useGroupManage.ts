@@ -106,6 +106,7 @@ export function useGroupManage(groupId: string, need: GroupManageNeed = 'ANY') {
                     pendingApplicationCount: fresh.pendingApplicationCount,
                     visibility: fresh.visibility,
                     visibilityInfo: fresh.visibilityInfo,
+                    dissolveInfo: fresh.dissolveInfo,
                     pendingPublishRequestCount: fresh.pendingPublishRequestCount,
                 };
             } else {

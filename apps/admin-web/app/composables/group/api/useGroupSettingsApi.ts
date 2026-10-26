@@ -17,7 +17,7 @@ import type {
  *
  * 권한(로보얌 코드): 조회 `group.read`, 저장 `group.settings`(community 는 최고 관리자 전용 — 로보얌은 권한 코드로 위임한다). 없으면 `403 PERMISSION_DENIED`. 응답 `Cache-Control: no-store`.
  * 구획마다 `GET` · `PUT`(그 구획의 칸 모두, 응답은 GET 과 같다). 틀린 칸은 모아 `400 VALIDATION fields.<칸>`. 서버는 값을 캐시하지 않는다(다음 요청부터 모든 서버에 적용).
- *   - `…/creation-rules`   `{ creationMode, minGrade, maxPerOwner }`              운영 로그 `GROUP_CREATION_RULE_UPDATE`
+ *   - `…/creation-rules`   `{ creationMode, minGrade, maxPerOwner, dissolvePenaltyDays }`  해산 패널티 0~365(0 = 끔, V96). 운영 로그 `GROUP_CREATION_RULE_UPDATE`
  *   - `…/manager-rules`    `{ managersEnabled, limitDefault, limitMax }`          기본 > 최대는 `fields.limitDefault`. 운영 로그 `GROUP_MANAGER_RULE_UPDATE`
  *   - `…/visibility-rules` `{ visibilityEnabled, cooldownDays, retryHours, rejectLimit, dailyLimit, textMax }` — 켜짐으로 저장하면 같은 요청에서 매니저 안내 알림이 1회(`noticeSent`). 운영 로그 `GROUP_VISIBILITY_RULE_UPDATE`
  *   - `…/policy-rules`     여덟 칸(`reapplyDays` … `eventMaxLengthDays`)            최소 > 최대 정원은 `fields.capacityMax`. 운영 로그 `GROUP_POLICY_RULE_UPDATE`

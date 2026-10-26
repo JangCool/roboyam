@@ -37,7 +37,7 @@ export interface GroupCopy {
 }
 
 export interface GroupFailure extends GroupCopy {
-    kind: 'permission' | 'grade' | 'limit' | 'rate' | 'unverified' | 'restricted' | 'generic';
+    kind: 'permission' | 'grade' | 'limit' | 'penalty' | 'rate' | 'unverified' | 'restricted' | 'generic';
 }
 
 /** 신규 가입자 줄 */
@@ -242,8 +242,8 @@ export default class UtilGroupMessages {
         return !immediate && mode === 'APPROVAL' ? t('group.submitApproval') : t('group.submitOpen');
     }
 
-    /** 회원 권한 없음·등급 미달·모임장 상한 — 규칙 응답의 `me` 가 알려 준다(운영진·운영자는 면제) */
-    static ruleBlock(t: Translate, rules: GroupCreationRules | null, gradeName: (key: string) => string): GroupCopy | null {
+    /** 회원 권한 없음·등급 미달·모임장 상한·해산 패널티 — 규칙 응답의 `me` 가 알려 준다(운영진·운영자는 면제) */
+    static ruleBlock(t: Translate, rules: GroupCreationRules | null, gradeName: (key: string) => string, time: DisplayTime): GroupCopy | null {
         const me = rules?.me;
         if (!rules || !me || me.canCreate) return null;
         if (me.reason === 'NOT_PERMITTED') return { title: t('group.notPermittedTitle'), text: t('group.notPermittedText') };
@@ -251,7 +251,14 @@ export default class UtilGroupMessages {
             return { title: t('group.gradeTooLowTitle', { grade: rules.minGradeLabel }), text: me.grade ? t('group.gradeNow', { grade: gradeName(me.grade) }) : '' };
         }
         if (me.reason === 'LIMIT_REACHED') return { title: t('group.limitTitle', { n: me.ledCount }), text: t('group.limitText') };
+        if (me.reason === 'DISSOLVE_PENALTY') return { title: t('group.penaltyTitle'), text: UtilGroupMessages.penaltyText(t, me.penaltyUntil, time) };
         return null;
+    }
+
+    /** 해산 패널티 안내 — 끝나는 시각을 알면 「… 부터 다시 만들 수 있어요」, 모르면 까닭만 */
+    static penaltyText(t: Translate, until: string | null | undefined, time: DisplayTime): string {
+        const at = until ? time.full(until) : '';
+        return at ? t('group.penaltyUntil', { time: at }) : t('group.penaltyText');
     }
 
     /** 칸 문제 → 문구 */
@@ -292,6 +299,12 @@ export default class UtilGroupMessages {
                 return { kind: 'grade', title: e.message, text: '' };
             case 'GROUP_LIMIT_REACHED':
                 return { kind: 'limit', title: t('group.failLimitTitle'), text: e.message };
+            case 'GROUP_DISSOLVE_PENALTY': {
+                // 끝나는 시각은 오류 본문의 `until`(또는 `penaltyUntil`) — 없으면 `retryAfterSeconds` 로 남은 시간을, 그것도 없으면 서버 문구만
+                const until = e.extraText('until') ?? e.extraText('penaltyUntil');
+                if (until) return { kind: 'penalty', title: t('group.penaltyTitle'), text: UtilGroupMessages.penaltyText(t, until, time) };
+                return { kind: 'penalty', title: t('group.penaltyTitle'), text: `${e.message}${wait}` };
+            }
             case 'RATE_LIMITED':
                 return { kind: 'rate', title: t('group.failRateTitle'), text: `${e.message}${wait}` };
             case 'EMAIL_NOT_VERIFIED':
@@ -325,6 +338,11 @@ export default class UtilGroupMessages {
     static dissolveDescription(t: Translate, audience: number): string {
         const base = t('group.dissolveDescription');
         return audience > 0 ? `${base} ${t('group.dissolveAudience', { n: audience })}` : base;
+    }
+
+    /** 해산 확인 시트의 패널티 한 줄 — 걸리지 않으면(꺼짐·1년 이상 유지·안내 없음) null */
+    static dissolvePenalty(t: Translate, days: number): string | null {
+        return days > 0 ? t('group.dissolvePenalty', { n: days }) : null;
     }
 
     static applicationMeta(t: Translate, appliedAt: string | null | undefined, message: string | null | undefined, time: DisplayTime): string {
