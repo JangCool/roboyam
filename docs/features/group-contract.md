@@ -74,10 +74,10 @@
 - 쓰기 자격은 게시판과 같은 코드(`EMAIL_NOT_VERIFIED`·`ACCOUNT_RESTRICTED`·`BUSINESS_ACCOUNT_RESTRICTED`) — 사업자 회원은 소모임 쓰기가 막힌다(탈퇴·신청 취소·매니저 사퇴는 된다).
 - 같은 이름 막기 범위에 INACTIVE 포함. 소모임이 쓰는 게시판은 지울 수 없다(409 `BOARD_HAS_GROUPS`).
 - 나가서 가린 글은 `hidden_reason` 대신 따로 칸 `group_left_at`(운영자 숨김과 덮어쓰지 않게). 지운 글은 410 대신 로보얌대로 404.
-- 소모임 신고 없음(로보얌 신고 대상에 소모임 종류가 없다) — 상세 ⋯·일정의 「신고하기」를 뺐다.
+- 소모임 신고: 2026-10-26 사용자 「신고는 당연히 소모임에도 있어야지」 — 신고 대상에 소모임을 더한다(7단계 「소모임 신고」, V95).
 - 알림 문구는 서버가 만든다(로보얌 알림 응답에 원본의 `groupManager` 칸이 없다). 소모임 알림은 묶음 `system`. 푸시는 없고 메일 채널만.
 - 원본의 `group_visibility_rollout`·`group_visibility_settings` 표 대신 `group_settings` 한 행.
-- 용어 설정(`GROUPS` 이름 바꾸기) 없음 — 고정 「소모임」/"Club". 기존 하단 탭은 용어 기본값 "Groups" 라 영어 화면에서 섞인다.
+- 용어 설정(`GROUPS` 이름 바꾸기)은 소모임 화면에 걸지 않는다 — 고정 「소모임」. **영어 이름은 "Club(s)" 로 통일**(2026-10-26 사용자 「영어이름 통일해」 — 하단 탭·서비스 이름 기본값·서버 영어 문구까지).
 
 ### 미확정 (사용자 확인 전 — 지금 동작)
 1. 해산한 소모임에 공개로 남은 글에 댓글을 계속 받을지 — 받는다.
@@ -85,5 +85,5 @@
 3. 감사 보관 분류: 소모임·분류·설정 감사 행위는 모두 GENERAL.
 4. 실행 확인 없음: 공용 로컬 DB 때문에 서버를 띄우지 않았다(develop 에 없는 V90~ 를 적용하면 develop 에서 띄우는 다른 세션이 Flyway 검증에서 막힌다). develop 에 합친 뒤 첫 기동에서 마이그레이션·번들 키 검사·JSON 모양·화면을 확인한다.
 - **6단계 홈·프로필**: `GET /api/groups/trending`(가중 무작위, 관리자 운영 한도의 `trendingSize`·`trendingActiveDays`), 목록 `exclude` 최대 20, `GET /api/users/{id}/groups`(role LEADER·MANAGER·MEMBER — 원본은 LEADER·MEMBER), 최신글·인기글·통합 검색·프로필 작성글에 **비멤버에게 보이는 소모임 글**(`is_public`, 나가서 가린 글·비활성 소모임 제외 — 판정은 `PostRepositoryQDSL.feedVisible()` 한 곳)을 섞고 줄에 `group{id,name,visibility,dissolved}`. user-web `/groups` 지금 뜨는 소모임 슬라이드·프로필 소모임 탭.
-  - **만들지 않은 것(붙일 곳 없음)**: 홈 인기 소모임 가젯(로보얌 홈은 자리표시, 가젯 체계 없음 — 생기면 `GROUPS` 가젯이 `trending`·`?sort=popular&size=3` 을 쓴다), 탈퇴 때 모임장 차단·자격 정리(탈퇴 API·흐름 없음 — 생기면 사전 검사에 `GROUP_LEADER`, 트랜잭션에서 멤버 행 leave·신청 삭제·일정 응답 삭제·공개 요청 `AUTHOR_LEFT` 취소, 원본 `GroupCleanupService.eraseUser`).
+  - **만들지 않은 것(붙일 곳 없음)**: 홈 인기 소모임 가젯(2026-10-26 사용자: **화면 테마 템플릿 기능을 만들 때 같이** 구현한다 — 그때 `GROUPS` 가젯이 `trending`·`?sort=popular&size=3` 을 쓴다), 탈퇴 때 모임장 차단·자격 정리(2026-10-26 사용자: 탈퇴 기능은 **지금은 두기** — 탈퇴를 만들 때 사전 검사에 `GROUP_LEADER`, 트랜잭션에서 멤버 행 leave·신청 삭제·일정 응답 삭제·공개 요청 `AUTHOR_LEFT` 취소, 원본 `GroupCleanupService.eraseUser`).
   - 프로필 댓글 수·작성 댓글에는 소모임 글 댓글을 넣지 않았다(멤버 전용·나간 멤버로 가린 댓글이 드러나서 — 원본은 넣는다).
