@@ -33,7 +33,7 @@
 | ID | 질문 | 추천 | 다른 선택 |
 |---|---|---|---|
 | ~~D1~~ | 공구 방식 | **확정 2026-10-23**: 둘 다 지원(`min_qty = 0` = 선착순) + 발송 시점 축 분리(`fulfillment`) + 성사형 기간 상한 14일 — 10-1·10-2·10-3 | — |
-| ~~D2~~ | 로드맵 순서 | **확정 2026-10-23**: 포인트·상점 → 2a 결제 모듈 단독 검증 → 2b 공구 → 3 충전(법무 확인 후). 유상 포인트 사용처 = 상점 꾸미기 아이템 + 공구 결제 일부 — 2-3 | — |
+| ~~D2~~ | 로드맵 순서 | **확정 2026-10-23**: 포인트·포인트 상점 → 2a 결제 모듈 단독 검증 → 2b 공구 → 3 충전(법무 확인 후). 유상 포인트 사용처 = 포인트 상점 품목(2026-10-26: 꾸미기 아이템에서 품목 전부로 넓힘) + 공구 결제 일부 — 2-3 | — |
 | ~~D3~~ | 본인인증 범위 | **확정 2026-10-23**: 충전·공구 결제·유상 환불·가입 포인트만 필수, 탈퇴 후 같은 사람 재인증 30일 제한 — 12-1 | — |
 | ~~D4~~ | 기존 포인트를 무상 lot 으로 바꿀 때 유효기간 | **확정 2026-10-23**: 전환일부터 1년. 오픈 전(시험 데이터뿐)이라 약관 변경 고지는 필요 없고 약관에 처음부터 「무상 1년」을 넣는다 — 5-4 | — |
 | ~~D5~~ | 공구 포인트 결제에 쓸 수 있는 포인트 | **확정 2026-10-23**: 공구별로 `유상만`(기본) / `유상 + 무상`(프로모션) 선택, 무상은 참여 1건당 상한 — 11-2 | — |
@@ -59,7 +59,8 @@
 ### 2-2. 용어
 | 용어 | 코드 | 뜻 |
 |---|---|---|
-| 공구 | `GroupBuy` | 공동구매 모집 1건(기간, 최소/최대 수량, 상태). "캠페인"은 쓰지 않는다 |
+| 포인트 상점 [확정 2026-10-26] | `PointShop`(표 `point_shop_*`, 패키지 `com.community.pointshop`, 권한 `pointshop.*`) | 포인트(적립·충전)로 사는 **디지털 아이템**(닉네임 색·프로필 테두리·닉네임 변경권 등). 산 즉시 지급 → 보유·장착. **「상점」이라고만 쓰지 않는다** — 공동구매도 사는 곳이라 헷갈린다. 공동구매와 메뉴를 묶지 않는다(따로 둔다) |
+| 공구 | `GroupBuy` | 공동구매 모집 1건(기간, 최소/최대 수량, 상태). 현금(PG)으로 사는 **실물 상품** — 포인트 상점과 데이터·흐름·법이 달라 따로 둔다(같이 쓰는 것은 포인트 원장·결제 모듈뿐). "캠페인"은 쓰지 않는다 |
 | 포인트 표시 [확정 D13] | — | 안에서는 무상/유상을 늘 나눠 관리한다(환불·소멸·회수·회계·법이 다르다). 회원 화면은 **합계를 크게, 아래에 「충전 포인트 N · 적립 포인트 N(그중 N 은 M월 D일 소멸 예정)」**. 충전 기능(3단계)을 열기 전에는 유상이 없으므로 「포인트」 하나만 보인다. 내역 줄에도 어느 쪽에서 나갔는지 표시 |
 | 공구 참여 | `GroupBuyParticipation` | 회원이 공구에 넣은 주문 1건 |
 | 무상 포인트 | `FREE` | 활동 보상·이벤트·충전 보너스·운영 지급. **회원 화면 이름: 적립 포인트** |
@@ -78,7 +79,7 @@
 | 3 | 현금 충전 + 유상 포인트 환불 | 선불전자지급수단·포인트 청약철회·보유 한도·탈퇴 처리 등 법무 확인과 탈퇴 기능 설계가 끝난 뒤 |
 | 3+ | 공구 포인트 결제(구현, 플래그 꺼짐) | 매출 안정 후 |
 
-- **유상 포인트 사용처 [확정 D2]**: 상점 꾸미기 아이템 + 공구 결제 일부(11절, 켤 때). 그 밖의 유료 기능은 지금 범위가 아니다.
+- **유상 포인트 사용처 [확정 D2]**: **포인트 상점 품목 전부**(꾸미기 아이템·닉네임 변경권 — 2026-10-26 사용자 확정으로 「꾸미기 아이템」에서 넓힘, 차감은 적립 먼저 → 충전) + 공구 결제 일부(11절, 켤 때). 그 밖의 유료 기능은 지금 범위가 아니다.
 - 두 곳 모두 **운영자 자신이 파는 것**이라 충전 포인트는 선불전자지급수단(발행인 외 제3자에게서 사는 데 쓰이는 것)에 해당하지 않는다(20-1 L8). 제3자 상품(회원 주최 공구·입점 판매)에 쓰게 하면 다시 검토한다.
 
 ---
@@ -86,9 +87,9 @@
 ## 3. 아키텍처 원칙 (roboyam 에 맞춤)
 
 - **모듈러 모놀리스** [확정] — 다만 roboyam 의 실제 구조로 옮긴다 [개정]:
-  - 도메인 코드(엔티티·저장소·서비스·DTO)는 `server/shared` 의 패키지 `com.community.point`(있음) · `com.community.shop` · `com.community.payment` · `com.community.groupbuy`. 컨트롤러만 `server/api`(회원)와 `server/admin`(운영자)에 둔다. `admin` 은 모듈이 아니라 앱이다.
+  - 도메인 코드(엔티티·저장소·서비스·DTO)는 `server/shared` 의 패키지 `com.community.point`(있음) · `com.community.pointshop` · `com.community.payment` · `com.community.groupbuy`. 컨트롤러만 `server/api`(회원)와 `server/admin`(운영자)에 둔다. `admin` 은 모듈이 아니라 앱이다.
   - 마이그레이션은 api·admin 이 함께 쓰므로 **shared 스트림**(2026-10-23 기준 마지막 V56 — 작업 때 다시 확인, 번호 빈 구간과 병행 세션을 확인하고 정한다).
-- **의존은 단방향** [확정]: `shop → point`, `groupbuy → payment`, `groupbuy → point`, `point`(충전) `→ payment`. `payment` 는 다른 도메인을 모른다.
+- **의존은 단방향** [확정]: `pointshop → point`, `groupbuy → payment`, `groupbuy → point`, `point`(충전) `→ payment`. `payment` 는 다른 도메인을 모른다.
   - 결제 결과를 도메인에 넘기는 방법 [개정]: `payment` 가 정의한 인터페이스 `PaymentOrderHandler`(`supports(orderType)`, `onPaid(...) → ACCEPT | REJECT(사유)`, `onCanceled(...)`)를 각 도메인이 구현한다. **결제 확정과 같은 트랜잭션**에서 동기로 부른다. 알림·메일만 `AFTER_COMMIT` 이벤트로 보낸다.
   - 커뮤니티 활동 → 포인트 적립 [개정]: 지금처럼 **업무 트랜잭션 안의 직접 호출 + `IsolatedSideWork`(세이브포인트)** 를 유지한다. 이벤트로 바꾸더라도 동기·같은 트랜잭션이어야 한다(`AFTER_COMMIT` 비동기로 바꾸면 커밋 후 서버가 죽을 때 적립이 사라지고 재처리 장치가 따로 필요하다). 분리 계획이 생기면 outbox 로 바꾼다.
 - **다른 모듈 표에 FK 를 걸지 않는다** [확정] — 회원은 `user_id` 로만 참조. `payment_orders` 의 대상은 `order_type + order_ref_id`(다형 참조) — 무결성은 애플리케이션과 대사 배치가 지킨다.
@@ -100,7 +101,7 @@
   - **상태 전이는 한 문장 조건부 UPDATE**(`... WHERE id=? AND status=?`) — 이긴 쪽만 후속 처리 [추가]. 허용되지 않은 전이는 도메인 예외 [확정].
   - **멱등** [확정 2026-10-23]: 원안은 「상태를 바꾸는 모든 API 에 idempotency key」. 지금 공통 장치가 없으므로 두 겹으로 정한다.
     1. **자연 키 유일 제약**(기본): 원장 `(reason, ref_type, ref_id)`(있음), 공구의 활성 참여 `(group_buy_id, user_id)`, 결제 `payment_id`, 웹훅 `webhook-id`, 충전 적립 `CHARGE:{id}` 등.
-    2. **클라이언트 멱등 키**(돈이 움직이는 회원 API 에만 — 충전 요청·공구 참여·상점 구매·환불 신청): 헤더 `Idempotency-Key` → 표 `idempotency_requests(user_id, key, endpoint, request_hash, status, response_code, response_body, created_at)`, 유일 `(user_id, key)`, 같은 키·다른 본문은 `409`, 24시간 보관.
+    2. **클라이언트 멱등 키**(돈이 움직이는 회원 API 에만 — 충전 요청·공구 참여·포인트 상점 구매·환불 신청): 헤더 `Idempotency-Key` → 표 `idempotency_requests(user_id, key, endpoint, request_hash, status, response_code, response_body, created_at)`, 유일 `(user_id, key)`, 같은 키·다른 본문은 `409`, 24시간 보관.
 
 ---
 
@@ -143,7 +144,7 @@
 |---|---|
 | `point_balances` | `free_balance`·`paid_balance`(≥0) 추가, `balance` 는 **DB 가 자동 계산하는 합계 칸**(`GENERATED ALWAYS AS (free_balance + paid_balance) STORED`)으로 바꿔 두 값이 어긋날 수 없게 — 기존 화면·정렬·필터 호환. **`revoke_debt`(≥0, 미회수 포인트) 추가** |
 | `point_lots` (신규) | id, user_id, kind(FREE/PAID), original_amount, remaining_amount(CHECK 0 ≤ remaining ≤ original), expires_at(null = 소멸 없음), source_reason, source_ref_type, source_ref_id, restored_from_lot_id(복원 lot), created_at. 색인 `(user_id, kind, expires_at) WHERE remaining_amount > 0` |
-| `point_ledger` | `free_delta`·`paid_delta` 추가(합 = `delta`). `kind` 에 `CANCEL_USE`·`EXPIRE`·`REFUND` 추가. `ref_type` 에 `SHOP_PURCHASE`·`POINT_CHARGE`·`GB_PARTICIPATION`·`LOT` 추가 |
+| `point_ledger` | `free_delta`·`paid_delta` 추가(합 = `delta`). `kind` 에 `CANCEL_USE`·`EXPIRE`·`REFUND` 추가. `ref_type` 에 `POINT_SHOP_PURCHASE`·`POINT_CHARGE`·`GB_PARTICIPATION`·`LOT` 추가 |
 | `point_ledger_lots` (신규, 원안 `point_ledger_detail`) | ledger_id, lot_id, amount(±). 원장 1줄이 어느 lot 에 얼마 반영됐는지 |
 | `point_revoke_shortfalls` (신규) | user_id, ref_type, ref_id, requested, applied, created_at — 잔액 부족으로 덜 회수된 양(어뷰징 리포트용) |
 
@@ -153,8 +154,8 @@
 | kind | 부호 | reason(예) | 비고 |
 |---|---|---|---|
 | EARN | + | POST · COMMENT · LIKE_BONUS · ATTENDANCE · ATTENDANCE_STREAK · SIGNUP · POPULAR · CHARGE(유상) · CHARGE_BONUS(무상) · ADMIN_ADJUST(+) | 기존 사유 유지 |
-| USE | − | SHOP_PURCHASE · GB_POINT_USE | |
-| CANCEL_USE | + | SHOP_REFUND · GB_POINT_RESTORE | 원래 lot 으로 |
+| USE | − | POINT_SHOP_PURCHASE · GB_POINT_USE | |
+| CANCEL_USE | + | POINT_SHOP_REFUND · GB_POINT_RESTORE | 원래 lot 으로 |
 | REVOKE | − | POST_REVOKE · COMMENT_REVOKE · LIKE_BONUS_REVOKE · CHARGE_BONUS_REVOKE · ADMIN_ADJUST(−) · REVOKE_DEBT_OFFSET(미회수분 상계) | **무상만** |
 | EXPIRE | − | EXPIRE · WITHDRAW_FORFEIT | ref = lot |
 | REFUND | − | CHARGE_REFUND | 유상 환불 |
@@ -215,8 +216,8 @@
 ### 7-1. 표 [확정 2026-10-23]
 | 표 | 주요 열 |
 |---|---|
-| `shop_items` | id, kind(NICKNAME_COLOR·PROFILE_BORDER·TICKET… — community 품목 참고), **usage_type(PERMANENT 영구 기본 / CONSUMABLE 소모형 / PERIOD 기간제)**, code(유일·불변), name, description, price_point, duration_days(기간제만), stock(null=무제한), sale_start_at, sale_end_at, active, sort_order, 종류별 칸(CHECK) |
-| `shop_purchases` | id, user_id, item_id, **가격·이름 스냅샷**, status(COMPLETED/REFUNDED), refund_notice_agreed_at, ledger_id, created_at, refunded_at |
+| `point_shop_items` | id, kind(NICKNAME_COLOR·PROFILE_BORDER·TICKET… — community 품목 참고), **usage_type(PERMANENT 영구 기본 / CONSUMABLE 소모형 / PERIOD 기간제)**, code(유일·불변), name, description, price_point, duration_days(기간제만), stock(null=무제한), sale_start_at, sale_end_at, active, sort_order, 종류별 칸(CHECK) |
+| `point_shop_purchases` | id, user_id, item_id, **가격·이름 스냅샷**, status(COMPLETED/REFUNDED), refund_notice_agreed_at, ledger_id, created_at, refunded_at |
 | `user_items` (원안 `member_inventory`) | id, user_id, item_id, purchase_id, status(OWNED/USED/EXPIRED/REVOKED), starts_at, expires_at(기간제만), **first_used_at**(처음 적용·사용한 시각 — 환불 판정, 지우지 않는다) |
 | `user_equipped` | (user_id, slot) PK, user_item_id — 적용(장착)은 상태가 아니라 자리(슬롯) 표로 |
 
@@ -228,11 +229,11 @@
 - 순위·노출에 영향을 주는 아이템, 랜덤박스는 팔지 않는다 [추가 — community 원칙].
 
 ### 7-2. 구매 (한 트랜잭션) [확정 + 보강]
-1. 자격: 로그인 · 이메일 인증 · 정상 회원 · 회원 권한 `shop.use` · 포인트 동결 아님.
+1. 자격: 로그인 · 이메일 인증 · 정상 회원 · 회원 권한 `pointshop.use` · 포인트 동결 아님.
 2. 판매 기간·`active`·재고 확인, 영구 아이템 중복 확인.
-3. 재고 차감 `UPDATE shop_items SET stock = stock - 1 WHERE id=? AND stock > 0`(무제한 생략).
-4. 포인트 USE(ref `SHOP_PURCHASE`) — 가격은 서버가 품목에서 읽는다.
-5. `shop_purchases`·`user_items` 생성. 멱등 키(3절) 사용.
+3. 재고 차감 `UPDATE point_shop_items SET stock = stock - 1 WHERE id=? AND stock > 0`(무제한 생략).
+4. 포인트 USE(ref `POINT_SHOP_PURCHASE`) — 가격은 서버가 품목에서 읽는다.
+5. `point_shop_purchases`·`user_items` 생성. 멱등 키(3절) 사용.
 
 ### 7-3. 환불 [확정 D6 — 2026-10-23]
 - 조건: `first_used_at` 없음 + 구매 후 7일 이내 + 환불 고지 동의 기록(`refund_notice_agreed_at`). **무상·유상 어느 포인트로 샀든 같은 규칙**(유상 포인트가 생기면 미사용 디지털 콘텐츠는 청약철회 대상일 수 있다 [법무]).
@@ -247,7 +248,7 @@
 - **영구·기간제 모두 같은 규칙** [확정 2026-10-23]: 쓰지 않았고 7일 이내면 환불, 한 번이라도 적용·사용하거나 7일이 지나면 환불 불가. 기간제 아이템의 기간은 구매 순간부터 흐르지만, 7일 안에 쓰지 않고 환불하면 전액 돌려준다.
 - (참고) 「디지털 아이템은 지급 즉시 사용 개시로 보고 사전 고지로 철회를 막는다」는 해석(community 방식 — 환불 불가)도 있으나 법적으로 확실하지 않아, 지금은 위 규칙으로 두고 오픈 전 법무 결과에 따라 바꾼다 [법무].
 - 처리(한 트랜잭션): 아이템 REVOKED · 포인트 CANCEL_USE(원래 lot, 만료됐으면 30일 새 lot) · 재고 복원 · 구매 REFUNDED.
-- **회원 셀프 환불**: 내 아이템 화면에서 조건에 맞으면 「환불」 버튼, 누르면 서버가 다시 판정해 즉시 처리. 조건 밖은 운영자(권한 `shop.refund`)가 예외 처리.
+- **회원 셀프 환불**: 내 아이템 화면에서 조건에 맞으면 「환불」 버튼, 누르면 서버가 다시 판정해 즉시 처리. 조건 밖은 운영자(권한 `pointshop.refund`)가 예외 처리.
 - 구매 확인 대화상자에 「사용(장착)하면 환불할 수 없어요 · 7일 안에 쓰지 않으면 환불할 수 있어요」를 보이고 동의 시각을 남긴다.
 - **미리보기 필수** [확인 — 20-1 L6]: 사용 후 환불을 막으려면 철회 불가 사실 표시와 함께 시험 사용(미리보기 등)을 줘야 한다. 꾸미기 아이템은 상점에서 **내 닉네임·프로필에 적용한 모습을 미리 볼 수 있게**, 이모티콘 팩은 팩 안 이모티콘을 미리 보이게 한다. 미리보기를 줄 수 없는 품목은 내용 정보를 충분히 적는다.
 - 운영자가 품목 가격·이름을 바꿔도 산 구매는 스냅샷 그대로.
@@ -331,9 +332,9 @@
 | 1인 충전 포인트 보유 한도 | **30만P**(월 한도 3개월치) [확정 2026-10-23] | 지금 가진 충전(유상) 포인트 합. 적립 포인트는 넣지 않는다. 쓰는 곳 기준(꾸미기 아이템 500~2,000P, 공구 포인트 결제 30% — 100만원 공구여도 30만P)으로 충분하다. 갚을 잔액·사고 규모를 작게 유지하려는 **자체 정책**이다(법정 보유 한도는 전자금융업자 대상이라 우리에게 적용되지 않는다 — 20-1 L9) |
 | 월 충전 한도 | **10만원**(설정 범위도 최대 10만원) [확정 2026-10-23] | 이번 달(KST 1일~말일) 결제가 확정된 충전 금액 합. 환불해도 줄지 않는다. 커뮤니티 포인트에 큰 금액은 필요 없다 |
 - 근거: 커뮤니티 포인트에 필요한 만큼만 둔다 — 도용 카드 피해·대량 환불 규모 제한. 충전 포인트는 운영자 자신의 상품에만 쓰이므로 선불전자지급수단이 아니고 법정 보유 한도도 적용되지 않는다(20-1 L8·L9).
-- **제약(고정)**: 충전 포인트는 **운영자가 직접 파는 것(상점·운영자 직판 공구)에만** 쓴다. 회원 주최 공구·입점 판매 등 제3자 상품에 쓰게 하면 선불전자지급수단 등록 문제가 생긴다(L8).
+- **제약(고정)**: 충전 포인트는 **운영자가 직접 파는 것(포인트 상점·운영자 직판 공구)에만** 쓴다. 회원 주최 공구·입점 판매 등 제3자 상품에 쓰게 하면 선불전자지급수단 등록 문제가 생긴다(L8).
 - 넘는 충전 상품은 버튼을 비활성화하고 「이번 달 N원 더 충전할 수 있어요」. 충전 요청 때와 결제 확정(`onPaid`) 때 두 번 확인하고, 동시 충전으로 확정 때 넘으면 REJECT → 자동 취소.
-- 충전 상품은 운영자(`shop.manage`)가 관리. 예: 10,000원 → 충전 10,000P / 50,000원 → 충전 50,000P + 적립 보너스 2,500P(보너스는 적립 포인트, 1년).
+- 충전 상품은 운영자(`pointshop.manage`)가 관리. 예: 10,000원 → 충전 10,000P / 50,000원 → 충전 50,000P + 적립 보너스 2,500P(보너스는 적립 포인트, 1년).
 
 ### 9-2. 흐름 [확정]
 1. 자격 확인(본인인증·만 19세 이상·동결 아님·보유/월 한도) → `point_charges`(PENDING) + `payment_orders`(POINT_CHARGE, 30분).
@@ -596,7 +597,7 @@ DELIVERED → (반품 요청 승인·회수 확인) → REFUNDED(전액) 또는 
 |---|---|
 | 공구 참여(수량 선점) | 5번 |
 | 충전 요청 | 3번 |
-| 상점 구매 | 10번 |
+| 포인트 상점 구매 | 10번 |
 | 환불 신청(아이템·충전·반품) | 3번 |
 - **DB 로 센다**(서버가 여러 대여도 전체 합으로 정확히): 표 `request_rate_counters(user_id, action, window_start(분 단위), count)`, 요청마다 `INSERT … ON CONFLICT (user_id, action, window_start) DO UPDATE SET count = count + 1 RETURNING count` 한 문장. 한도를 넘으면 `429` + 몇 초 뒤 다시 할 수 있는지(`Retry-After`).
   - 세는 쓰기는 업무 트랜잭션과 **따로**(먼저, 별도 커밋) 한다 — 업무가 실패해 되돌아가도 시도 횟수는 남아야 반복 시도를 막는다.
@@ -639,8 +640,8 @@ DELIVERED → (반품 요청 승인·회수 확인) → REFUNDED(전액) 또는 
 | 매출·정산 조회 | ✓ `commerce.settlement.read` | SUPER·FINANCE |
 | 결제 주문 조회 | + `commerce.payment.read` | 전원 |
 | 대사 불일치 처리 | + `commerce.reconcile.manage` (SENSITIVE) | SUPER·FINANCE |
-| 상점 품목·충전 상품 관리 | + `shop.read`·`shop.manage` (등급·포인트 유형) | SUPER·OPERATOR |
-| 상점 구매 예외 환불 | + `shop.refund` (SENSITIVE) | SUPER·FINANCE |
+| 포인트 상점 품목·충전 상품 관리 | + `pointshop.read`·`pointshop.manage` (등급·포인트 유형) | SUPER·OPERATOR |
+| 포인트 상점 구매 예외 환불 | + `pointshop.refund` (SENSITIVE) | SUPER·FINANCE |
 | 회원 원장 조회 | ✓ `point.read` | 전원 |
 | 포인트 수동 지급·회수(무상만) | ✓ `point.adjust` | SUPER·FINANCE |
 | 1회 ±10,000P 초과 조정(최대 ±100,000P) | + `point.adjust.large` (SENSITIVE) | SUPER |
@@ -686,7 +687,7 @@ DELIVERED → (반품 요청 승인·회수 확인) → REFUNDED(전액) 또는 
 - 공구: 목록·등록·상태 전환·참여자(상태 필터)·발주·발송(일괄 부분 성공, 행 단위 결과)·수량 변동 내역·선점 현황
 - 요청·환불: 취소·반품 요청 대기열, 결제 이상 목록(자동 취소 실패·금액 불일치·늦은 결제), 재처리
 - 포인트: 회원 원장(무상/유상 구분), 수동 지급·회수, 충전 환불 승인, 어뷰징 리포트, 기능 제한
-- 상점: 품목·충전 상품·구매 내역·예외 환불
+- 포인트 상점: 품목·충전 상품·구매 내역·예외 환불
 - 결제: 결제 주문 조회, 웹훅 수신 내역, PG 설정 상태(값은 안 보이고 설정 여부만), 대사 불일치
 - 설정: 판매 스위치·사업자 정보·택배사·오픈 체크리스트
 
@@ -970,7 +971,7 @@ DELIVERED → (반품 요청 승인·회수 확인) → REFUNDED(전액) 또는 
 
 ### 21-1. 순서 [개정 — D2]
 0. 공통(구조·세션 정리 결정·진행 상태: `docs/features/commerce-foundation-contract.md` — 본인인증 표 이름은 `identity_verifications` 로 정했다): 본인인증(`user_identity`), 멱등 요청 표, 메일 outbox, 필드 암호화, 운영자 2FA, 기능 제한 표, 권한 코드 추가, **배치 보강**(15-2 구조 정리 — 작업 core 를 shared 로, 실행 요청 표, 15-3 단계·실패 건·체크포인트·재실행, 15-4 워커 기록)
-1. 포인트: lot·원장 확장·차감 정책·전환 마이그레이션·소멸·불변식 → 상점(품목·구매·인벤토리·장착·환불)
+1. 포인트: lot·원장 확장·차감 정책·전환 마이그레이션·소멸·불변식 → 포인트 상점(품목·구매·인벤토리·장착·환불)
 2a. 결제 모듈 단독: `payment_orders`·포트원 연동·확정 코드·웹훅·취소 워커·READY 정리·대사(Fake + 포트원 테스트 채널)
 2b. 공구: 공구·옵션·참여·선점·마감·배송·요청·배송지
 3. 충전: 충전 상품·적립·환불

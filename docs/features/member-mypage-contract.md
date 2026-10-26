@@ -86,6 +86,7 @@ interface MyNotificationSetting {
 - **공용 레이어(미확정 5)**: `StickySaveBar`·`AppSideNav` 는 지금 옮기지 않는다. 두 앱 모양이 어긋나기 시작하면 `apps-packages` 로 옮긴다.
 
 ## 후속 작업: 닉네임 변경권 (아이템샵을 만들 때 — 빠뜨리지 말 것)
+> **세션 정리 결정(2026-10-26, `commerce-stage1-contract.md` 결정 1·2·3·9)**: 아이템샵의 정식 이름은 **포인트 상점**(`pointshop`, 품목 `NICKNAME_CHANGE_TICKET`)이다. 변경권은 **다른 포인트 상점 품목과 같은 환불 규칙**(안 썼고 7일 안이면 셀프 환불 — commerce.md D6)을 따르고, 값은 **포인트 상점 품목 가격**이 정본이다(`nicknameTicketPrice` 는 옮긴 뒤 없앤다). 원장 사유는 `POINT_SHOP_PURCHASE`. 적립·충전 포인트 모두 쓸 수 있다(적립부터 차감). 아래 「환불 불가」·「값은 `nicknameTicketPrice`」·「원장 이유 `TICKET_PURCHASE`」는 이 결정으로 바뀌었다. 사용 규칙(`useTicket`·`409 NICKNAME_TICKET_REQUIRED`·동시 요청)은 그대로다.
 **확정(2026-10-24)**: 가입 뒤 1번의 변경을 쓴 다음부터는 바꿀 때마다 **아이템샵에서 포인트로 산 닉네임 변경권 1장**을 쓴다(날짜 대기 없음 — community 의 「30일 전에 앞당기기」는 로보얌에 없다). 그 전까지는 `409 NICKNAME_CHANGE_LIMIT`(더 못 바꿈)로 둔다. 규칙의 원본은 community `docs/api-profile.md` 「닉네임 변경 규칙」·`docs/api-point.md` 「교환」「닉네임 변경권」·`docs/api-shop.md`.
 
 **규칙 (community 와 같게, 로보얌에 맞춤)**
