@@ -2,7 +2,7 @@
     <!--
         소모임 설정의 구획 「운영 한도」(community `GroupPolicyRuleSection`) — 소제목 셋(가입·정원 · 지금 뜨는 소모임 · 일정) 아래 숫자 여덟 칸 + 미리보기 + 마지막 저장 줄 + 구획 저장 줄.
         최소 정원 > 최대 정원은 최대 칸의 문제(서버 `fields.capacityMax` 와 같다). 이미 만들어진 소모임·일정은 바뀌지 않는다(다음 요청부터).
-        서버 호출은 `useGroupSettingsApi`(목업 — `?mock=policy-fail`), 상태는 `useGroupRuleSection`.
+        서버 호출은 `useGroupSettingsApi`, 상태는 `useGroupRuleSection`.
     -->
     <AppGadget :title="t('group.policy.title')" anchor="group-policy-rule" :changes="s.changeCount.value" :invalid="s.errorCount.value">
         <template #title-extra>

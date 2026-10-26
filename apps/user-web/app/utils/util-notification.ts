@@ -96,6 +96,7 @@ export default class UtilNotification {
         if (type === 'REPORT_RESULT') return 'pi pi-flag';
         if (type === 'OPINION_PIN_REQUESTED' || type === 'OPINION_PIN_REVIEWED') return 'pi pi-thumbtack';
         if (type === 'REPLY') return 'pi pi-reply';
+        if (type.startsWith('GROUP_')) return 'pi pi-users';
         return 'pi pi-comment';
     }
 

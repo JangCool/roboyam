@@ -4,8 +4,8 @@
         - 목록은 오래된 신청이 위. 카드마다 이름·분류·가입 방식·정원·오프라인·공개 범위·게시판·소개(펼치기)·신청자·신청일. 투자 고지 게시판이면 「공부·산업 해설 목적 동의」 줄을 강조한다.
         - 승인은 확인 없이 바로 — 카드가 빠지고 토스트. 반려는 대화상자에서 사유(필수 1~200자, 신청자에게 그대로 전달). 서버가 사유를 거절하면(`fields.reason`) 칸 아래에.
         - 그 사이 다른 운영자가 처리했으면(`404 GROUP_NOT_FOUND`) 카드를 빼고 「이미 처리된 신청이에요」. 한 번에 한 건만 처리한다(다른 카드의 단추도 잠근다).
-        - 새 신청 알림: 운영자 알림 이벤트 `CLUB_OPEN_REQUEST_PENDING`(지금은 예약됨 — 「준비 중」)과 이어진다. 서버가 개설 신청을 받을 때 발행하고 `featureReady` 를 켜는 것은 서버 단계다. `notification.read` 가 있으면 그 이벤트 화면 링크를 둔다.
-        권한: 화면 `group.read` · 승인·반려 `group.manage`(없으면 단추를 막고 이유를 보인다). ⚠ 목업 API(`useGroupAdminApi` — `?mock=requests-fail` · `requests-empty` · `approve-gone`).
+        - 새 신청 알림: 운영자 알림 이벤트 `CLUB_OPEN_REQUEST_PENDING`(받는 권한 `group.manage`)과 이어진다 — 서버가 개설 신청(`PENDING`)을 받을 때 발행한다. `notification.read` 가 있으면 그 이벤트 화면 링크를 둔다.
+        권한: 화면 `group.read` · 승인·반려 `group.manage`(없으면 단추를 막고 이유를 보인다). 서버 호출은 `useGroupAdminApi`.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('group.requestsTitle')" :subtitle="t('group.requestsSubtitle')">

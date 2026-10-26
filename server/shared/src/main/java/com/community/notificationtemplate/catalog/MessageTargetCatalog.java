@@ -209,7 +209,28 @@ public final class MessageTargetCatalog {
                 "/me/items", List.of()));
         out.add(member(MemberEvent.POINT_SHOP_REFUND_REJECTED, List.of(MessageVariable.of("itemName", "refundItemName"), MessageVariable.of("reason", "refundRejectReason")),
                 new InAppText("member.notification.POINT_SHOP_REFUND_REJECTED.title", null, "{{reason}}", List.of("itemName")), "/me/items", List.of()));
+        // 소모임(V89 — group-contract 1단계) — 소모임 이름(+반려·거절·비활성 사유, 가입 신청한 회원)
+        out.add(groupEvent(MemberEvent.GROUP_APPROVED, null, "/groups/123"));
+        out.add(groupEvent(MemberEvent.GROUP_REJECTED, "groupRejectReason", "/groups/me"));
+        out.add(member(MemberEvent.GROUP_JOIN_REQUEST, List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("actorName", "groupApplicant")),
+                new InAppText("member.notification.GROUP_JOIN_REQUEST.title", null, null, List.of("groupName", "actorName")), "/groups/123/manage/applications",
+                List.of()));
+        out.add(groupEvent(MemberEvent.GROUP_JOIN_APPROVED, null, "/groups/123"));
+        out.add(groupEvent(MemberEvent.GROUP_JOIN_REJECTED, "groupJoinRejectReason", "/groups/me"));
+        out.add(groupEvent(MemberEvent.GROUP_KICKED, null, "/groups"));
+        out.add(groupEvent(MemberEvent.GROUP_DISSOLVED, null, "/groups"));
+        out.add(groupEvent(MemberEvent.GROUP_LEADER_TRANSFERRED, null, "/groups/123"));
+        out.add(groupEvent(MemberEvent.GROUP_DEACTIVATED, "groupDeactivateReason", "/groups/123"));
+        out.add(groupEvent(MemberEvent.GROUP_REACTIVATED, null, "/groups/123"));
         return out;
+    }
+
+    /** 소모임 회원 이벤트 — 제목은 소모임 이름, 사유가 있는 이벤트는 본문이 사유({@code reasonId} = 사유 변수의 설명·견본 키) */
+    private static MessageTarget groupEvent(MemberEvent event, String reasonId, String path) {
+        List<MessageVariable> params = reasonId == null ? List.of(MessageVariable.of("groupName", "groupName"))
+                : List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("reason", reasonId));
+        return member(event, params, new InAppText("member.notification." + event.code() + ".title", null, reasonId == null ? null : "{{reason}}",
+                List.of("groupName")), path, List.of());
     }
 
     private static MessageTarget member(MemberEvent event, List<MessageVariable> params, InAppText inApp, String path, List<MessageCondition> conditions) {

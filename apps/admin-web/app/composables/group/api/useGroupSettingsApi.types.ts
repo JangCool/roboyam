@@ -4,7 +4,7 @@ import type { SettingHistoryItem, SettingHistoryPage } from '~/composables/commo
  * 소모임 설정 API 가 주고받는 모양 — community `docs/api-groups.md` 「개설 규칙」·5-1 「매니저 규칙」·11-10 「관리자 설정」(공개 범위)·4절 「운영 한도」와 같은 이름이다.
  * 네 구획 모두 `{ values, defaults, limits, fromDefaults, updatedAt, updatedBy }` 꼴이고 `PUT` 은 그 구획의 **칸 모두**를 보낸다(응답은 `GET` 과 같다).
  * `values` = 지금 적용되는 값, `defaults` = 저장된 값이 없을 때 쓰는 서버 설정 파일 값(「기본값으로」 기준), `fromDefaults` = 저장된 값이 없어 기본값으로 도는 중.
- * 서버는 아직 없다(목업 — `./mock/group-mock.ts`). 변경 이력(`history`)은 로보얌에서 더한 후보다(community 는 운영 로그에만 남긴다).
+ * 서버(`server/admin`)가 이 모양 그대로 준다. 변경 이력(`history`)은 로보얌에서 더했다(community 는 운영 로그에만 남긴다).
  */
 
 /** 숫자 칸의 범위 */

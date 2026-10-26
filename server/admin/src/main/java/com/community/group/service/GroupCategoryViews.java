@@ -12,6 +12,7 @@ import com.community.group.entity.GroupCategoryEntity;
 import com.community.group.exception.GroupCategoryNotFoundException;
 import com.community.group.repository.master.GroupCategoryBoardRepository;
 import com.community.group.repository.master.GroupCategoryRepository;
+import com.community.group.repository.master.GroupRepositoryQDSL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -29,11 +30,13 @@ public class GroupCategoryViews {
     private final GroupCategoryRepository categories;
     private final GroupCategoryBoardRepository assignments;
     private final BoardRepository boards;
+    private final GroupRepositoryQDSL groups;
 
-    public GroupCategoryViews(GroupCategoryRepository categories, GroupCategoryBoardRepository assignments, BoardRepository boards) {
+    public GroupCategoryViews(GroupCategoryRepository categories, GroupCategoryBoardRepository assignments, BoardRepository boards, GroupRepositoryQDSL groups) {
         this.categories = categories;
         this.assignments = assignments;
         this.boards = boards;
+        this.groups = groups;
     }
 
     /** GET 본문 전체 */
@@ -113,9 +116,9 @@ public class GroupCategoryViews {
 
     /**
      * 게시판 ID → 그 게시판을 쓰는 소모임 수(삭제·반려 제외 — 열림·비활성·대기).
-     * 로보얌에는 아직 소모임 표가 없어 늘 비어 있다(모든 {@code groupCount} = 0) — <b>소모임 서버 단계에서 채운다</b>.
+     * 소모임 1단계(V89)부터 실제 수다 — 신청 중 · 열림 · 비활성.
      */
     private Map<Long, Long> groupCountsByBoard() {
-        return Map.of();
+        return groups.countByBoard(GroupRepositoryQDSL.LIVE);
     }
 }

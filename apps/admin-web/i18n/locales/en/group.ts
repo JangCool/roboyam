@@ -162,7 +162,7 @@ export default {
     requestsLoadFailed: 'Couldn’t load creation requests',
     requestsEmptyTitle: 'No requests waiting',
     requestsEmptyBody: 'New creation requests will show up here.',
-    eventHint: 'New requests will be announced by the operator notification “Club creation request pending” (coming soon).',
+    eventHint: 'New requests are announced by the operator notification “Club creation request pending”.',
     eventLink: 'View event',
     approve: 'Approve',
     reject: 'Reject',

@@ -51,7 +51,7 @@ export default class UtilGroup {
     static readonly CATEGORIES_PATH = '/group-categories';
     /** 소모임 설정 주소 */
     static readonly SETTINGS_PATH = '/group-settings';
-    /** 개설 신청 대기 알림 이벤트(운영자, 예약됨 — 서버 `AdminNotificationEvent.CLUB_OPEN_REQUEST_PENDING`) */
+    /** 개설 신청 대기 알림 이벤트(운영자 — 서버 `AdminNotificationEvent.CLUB_OPEN_REQUEST_PENDING`, 개설 신청을 받을 때 발행) */
     static readonly OPEN_REQUEST_EVENT_PATH = '/settings/notifications/operator/CLUB_OPEN_REQUEST_PENDING';
 
     /** 한 쪽의 줄 수 — 서버 기본값과 같다 */

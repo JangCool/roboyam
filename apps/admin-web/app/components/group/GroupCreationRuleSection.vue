@@ -3,7 +3,7 @@
         소모임 설정의 구획 「개설 규칙」(community `GroupCreationRuleSection`) — ① 개설 방식(승인제 / 자유 개설 — 이름·설명·「기본」 딱지가 있는 고르기 카드) + 승인 대기 줄 ② 개설할 수 있는 등급(고르기 단추)
         ③ 한 사람이 모임장일 수 있는 소모임 수(1~10) ④ 개설 화면에서 이렇게 보여요(저장 전 값을 바로 반영) ⑤ 마지막 저장 줄 ⑥ 구획 저장 줄. 저장은 이 구획의 것이다.
         승인제 → 자유 개설로 바꾸는 저장은 확인을 거친다(대기 중인 신청은 그대로 남는다). 값 이름(승인제·등급 이름)은 서버가 준 `limits` 를 그대로 쓰고 설명 글만 화면이 갖는다.
-        서버 호출은 `useGroupSettingsApi`(목업 — `?mock=creation-fail`), 상태는 `useGroupRuleSection`.
+        서버 호출은 `useGroupSettingsApi`, 상태는 `useGroupRuleSection`.
     -->
     <AppGadget :title="t('group.creation.title')" anchor="group-creation-rule" :changes="s.changeCount.value" :invalid="s.errorCount.value">
         <template #title-extra>

@@ -289,7 +289,7 @@ public class GroupCategoryService {
         }
         GroupCategoryLock.acquire(entityManager);
         GroupCategoryEntity cat = categories.findById(id).orElseThrow(GroupCategoryNotFoundException::new);
-        // 소모임(열림·비활성·대기)이 있는 분류는 못 지운다 — 소모임 서버 단계 전까지 늘 0 이라 지금은 걸리지 않는다
+        // 소모임(열림·비활성·대기)이 있는 분류는 못 지운다
         long groupCount = views.groupCount(id);
         if (groupCount > 0) {
             throw new GroupCategoryNotEmptyException(groupCount);

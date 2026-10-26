@@ -163,7 +163,7 @@ export default {
     requestsLoadFailed: '개설 신청을 불러오지 못했어요',
     requestsEmptyTitle: '승인 대기 중인 신청이 없어요',
     requestsEmptyBody: '새 개설 신청이 들어오면 여기에 나타나요.',
-    eventHint: '새 신청이 들어오면 운영자 알림 이벤트 「모임 개설 신청 대기」로 알려 줄 예정이에요(준비 중).',
+    eventHint: '새 신청이 들어오면 운영자 알림 이벤트 「모임 개설 신청 대기」로 알려 드려요.',
     eventLink: '이벤트 보기',
     approve: '승인',
     reject: '반려',

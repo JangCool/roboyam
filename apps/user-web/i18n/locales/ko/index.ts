@@ -23,6 +23,7 @@ import error from './error';
 import identity from './identity';
 import feed from './feed';
 import grade from './grade';
+import group from './group';
 import install from './install';
 import login from './login';
 import mail from './mail';
@@ -68,6 +69,7 @@ export default {
     identity,
     feed,
     grade,
+    group,
     install,
     login,
     mail,

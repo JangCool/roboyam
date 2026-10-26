@@ -111,6 +111,17 @@ roboyam:
   identity:
     provider: ${ROBOYAM_IDENTITY_PROVIDER:portone}
     verification-ttl: 30m        # 서버가 발급한 인증 번호의 유효 시간 — 지나면 확정할 수 없다(410)
+  # 소모임(docs/features/group-contract.md — GroupProperties). 아래는 관리자 앱 소모임 설정에 저장된 값이 없을 때의 기본값이다(저장된 값이 이긴다 — DB > yml).
+  # 화면에 없는 한도: 하루 개설 신청 수 · 하루 가입·신청 수 · 상세 「최근 N일 가입」. 그 밖의 칸(매니저·공개 범위·지금 뜨는·일정 한도)은 GroupProperties 의 기본값을 쓴다
+  groups:
+    creation-mode: APPROVAL      # 개설 방식 APPROVAL(승인제) | OPEN(자유 개설)
+    min-grade: REGULAR           # 개설 최소 등급 키(등급 설정에 없으면 누구나)
+    max-per-owner: 3             # 한 사람이 모임장일 수 있는 소모임 수(신청 중·열림·비활성 합)
+    reapply-days: 7              # 가입 거절 뒤 재신청 대기 일수
+    capacity-min: 5
+    capacity-max: 200
+    create-daily-limit: 1        # 24시간 개설 신청 수(0 = 제한 없음)
+    join-daily-limit: 50         # 24시간 가입·신청 수 합(0 = 제한 없음)
   # 탈퇴 대비(commerce.md 17-2 · 17-3). 쓰는 탈퇴 기능은 아직 없다 — 기록 장치(IdentityWithdrawalRecorder · WithdrawnContactStore)만 있다
   withdrawal:
     rejoin-block-days: 30        # 같은 이메일·소셜 계정·본인인증 값이 탈퇴 뒤 다시 가입·인증할 수 없는 기간(탈퇴 때 박는다)

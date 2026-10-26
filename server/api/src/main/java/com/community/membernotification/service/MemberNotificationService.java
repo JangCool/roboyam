@@ -201,7 +201,7 @@ public class MemberNotificationService {
 
         NotificationActorView actor = null;
         if (type == MemberNotificationType.COMMENT || type == MemberNotificationType.REPLY || type == MemberNotificationType.DM
-                || type == MemberNotificationType.OPINION_PIN_REQUESTED) {
+                || type == MemberNotificationType.OPINION_PIN_REQUESTED || type == MemberNotificationType.GROUP_JOIN_REQUEST) {
             actor = actorOf(row, profileById, userById, locale);
         }
 
@@ -267,6 +267,21 @@ public class MemberNotificationService {
                 facts = MemberNotificationMessages.Facts.refundRejected(payload.get("itemName") instanceof String n ? n : null,
                         payload.get("reason") instanceof String why && !why.isBlank() ? why : null);
                 link = "/me/items";
+            }
+            case GROUP_APPROVED, GROUP_REJECTED, GROUP_JOIN_REQUEST, GROUP_JOIN_APPROVED, GROUP_JOIN_REJECTED, GROUP_KICKED, GROUP_DISSOLVED, GROUP_LEADER_TRANSFERRED,
+                 GROUP_DEACTIVATED, GROUP_REACTIVATED -> {
+                // 소모임 — 소모임 이름(알릴 때 이름) · 사유. 가는 곳: 승인·가입 승인·모임장 넘김·비활성·다시 열림 → 그 소모임, 반려·거절 → 내 소모임,
+                // 가입 신청 → 가입 신청 관리, 강퇴·해산 → 소모임 목록(community api-groups.md 7절)
+                String groupId = payload.get("groupId") instanceof String g && !g.isBlank() ? g : null;
+                String reason = payload.get("reason") instanceof String why && !why.isBlank() ? why : null;
+                facts = MemberNotificationMessages.Facts.group(type, payload.get("groupName") instanceof String n ? n : null, reason,
+                        type == MemberNotificationType.GROUP_JOIN_REQUEST ? actorName(actor) : null);
+                link = switch (type) {
+                    case GROUP_REJECTED, GROUP_JOIN_REJECTED -> "/groups/me";
+                    case GROUP_KICKED, GROUP_DISSOLVED -> "/groups";
+                    case GROUP_JOIN_REQUEST -> groupId == null ? "/groups/me" : "/groups/" + groupId + "/manage/applications";
+                    default -> groupId == null ? "/groups/me" : "/groups/" + groupId;
+                };
             }
             case REPORT_RESULT -> {
                 // 내 신고의 처리 결과 — 조치됨 · 위반 아님(신고 당시 제목·앞부분). 글을 볼 수 있으면 그 글로

@@ -505,6 +505,47 @@ public class MemberNotificationPublisher {
         }, 0);
     }
 
+    /**
+     * 소모임 알림(GROUP_* — V89, community api-groups.md 7절) — 덧붙임 {@code groupId}·{@code groupName}(+{@code reason} 반려·거절·비활성 사유,
+     * {@code applicantId} 가입 신청). 끌 수 없는 알림(회원 이벤트 잠금). 일으킨 사람({@code actorUserId})은 가입 신청한 회원·처리한 모임장 — 그 사람 본인에게는 보내지 않는다.
+     * 업무 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 업무를 깨지 않는다).
+     *
+     * @param path 메일 버튼이 가리킬 사이트 안 경로(알림함의 링크와 같은 곳)
+     */
+    public int group(MemberNotificationType type, long userId, long groupId, String groupName, String reason, Long actorUserId, String path) {
+        if (actorUserId != null && actorUserId == userId) {
+            return 0;
+        }
+        return isolated.run("member-notification:group", () -> {
+            EventSwitch on = switchOf(type, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(groupName, SNAPSHOT_MAX);
+            String why = reason == null || reason.isBlank() ? null : reason;
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("groupId", Long.toString(groupId));
+                payload.put("groupName", name);
+                if (why != null) {
+                    payload.put("reason", why);
+                }
+                if (type == MemberNotificationType.GROUP_JOIN_REQUEST && actorUserId != null) {
+                    payload.put("applicantId", Long.toString(actorUserId));
+                }
+                writer.insert(ids.nextId(), userId, type.name(), type == MemberNotificationType.GROUP_JOIN_REQUEST ? actorUserId : null, null, null, null,
+                        MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.group(type, name, why, null), type == MemberNotificationType.GROUP_JOIN_REQUEST ? actorUserId : null,
+                        null, path);
+            }
+            return made;
+        }, 0);
+    }
+
     /** 회원 알림 메일 — 커밋 뒤 발송기가 보낸다. 세이브포인트 일의 <b>마지막</b>에 부른다(뒤에서 실패해 행이 되돌려졌는데 메일만 나가는 일이 없게) */
     private void requestEmail(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId) {
         events.publishEvent(new MemberEmailRequested(userId, facts, actorUserId, postId));

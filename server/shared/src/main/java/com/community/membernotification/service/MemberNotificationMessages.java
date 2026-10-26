@@ -139,6 +139,13 @@ public class MemberNotificationMessages {
             return new Facts(MemberNotificationType.POINT_SHOP_REFUND_REJECTED, null, null, null, 1, 0, null, reason, false, itemName, null);
         }
 
+        /**
+         * 소모임 알림(GROUP_*) — 소모임 이름({@code snapshot})·사유({@code note} — 반려·거절·비활성)·가입 신청한 회원 닉네임({@code actorName} — 가입 신청만).
+         */
+        public static Facts group(MemberNotificationType type, String groupName, String reason, String actorName) {
+            return new Facts(type, actorName, null, null, 1, 0, null, reason, false, groupName, null);
+        }
+
         /** 닉네임 그림 검토 결과 — 반려·해제면 사유 */
         public static Facts nicknameReviewed(String result, String reason) {
             return new Facts(MemberNotificationType.NICKNAME_IMAGE_REVIEWED, null, null, null, 1, 0, null, reason, false, null, result);
@@ -273,6 +280,10 @@ public class MemberNotificationMessages {
                     .variable("reason", restrictionReason(facts, locale));
             case POINT_SHOP_REFUND_APPROVED -> builder.variable("itemName", nz(facts.snapshot())).variable("amount", String.format("%,d", facts.amount()));
             case POINT_SHOP_REFUND_REJECTED -> builder.variable("itemName", nz(facts.snapshot())).variable("reason", nz(facts.note()));
+            case GROUP_APPROVED, GROUP_JOIN_APPROVED, GROUP_KICKED, GROUP_DISSOLVED, GROUP_LEADER_TRANSFERRED, GROUP_REACTIVATED ->
+                    builder.variable("groupName", nz(facts.snapshot()));
+            case GROUP_REJECTED, GROUP_JOIN_REJECTED, GROUP_DEACTIVATED -> builder.variable("groupName", nz(facts.snapshot())).variable("reason", nz(facts.note()));
+            case GROUP_JOIN_REQUEST -> builder.variable("groupName", nz(facts.snapshot())).variable("actorName", nz(facts.actorName()));
             case POINTS_EXPIRING -> builder.variable("amount", String.format("%,d", facts.amount()))
                     .variable("date", facts.expiring() == null || facts.expiring().date() == null ? "" : facts.expiring().date().toString())
                     .variable("days", facts.expiring() == null ? "" : String.valueOf(facts.expiring().days()));

@@ -71,6 +71,13 @@ public final class AdminScreenRegistry {
                     leaf(s("pointShopItems", "/point-shop/items", "menu.pointShopItems", "pi pi-box", Permission.POINTSHOP_READ)),
                     leaf(s("pointShopPurchases", "/point-shop/purchases", "menu.pointShopPurchases", "pi pi-receipt", Permission.POINTSHOP_READ)),
                     leaf(s("pointShopSettings", "/point-shop/settings", "menu.pointShopSettings", "pi pi-sliders-h", Permission.POINTSHOP_READ))),
+            // 소모임 묶음(docs/features/group-contract.md 「관리자 화면」) — 포인트 상점 묶음 다음. 네 화면 모두 조회 group.read(화면 안에서 처리 group.manage ·
+            // 설정 group.settings). admin-web UtilAdminMenu 의 group 묶음과 같은 키·주소·권한·아이콘·차례
+            section(NORMAL, "menu.group", "pi pi-comments",
+                    leaf(s("groups", "/groups", "menu.groups", "pi pi-users", Permission.GROUP_READ)),
+                    leaf(s("groupRequests", "/group-requests", "menu.groupRequests", "pi pi-inbox", Permission.GROUP_READ)),
+                    leaf(s("groupCategories", "/group-categories", "menu.groupCategories", "pi pi-tags", Permission.GROUP_READ)),
+                    leaf(s("groupSettings", "/group-settings", "menu.groupSettings", "pi pi-sliders-h", Permission.GROUP_READ))),
             section(SETTINGS, "menu.system", "pi pi-cog",
                     leaf(s("siteGeneral", "/settings/general", "menu.general", "pi pi-sliders-h", Permission.SITE_READ)),
                     leaf(s("socialLogin", "/settings/social-login", "menu.socialLogin", "pi pi-key", Permission.SITE_READ)),

@@ -64,7 +64,19 @@ public enum MemberEvent {
     /** 운영자가 내 글을 지움(관리자 게시글 관리 — 사유와 함께) — 처리 알림이라 회원이 끌 수 없다 */
     POST_REMOVED(NotificationArea.SAFETY, MemberNotificationType.POST_REMOVED, MemberEventLockReason.ACTION, null),
     /** 운영자가 내 댓글을 지움(관리자 신고 관리 — 사유와 함께) — 처리 알림이라 회원이 끌 수 없다 */
-    COMMENT_REMOVED(NotificationArea.SAFETY, MemberNotificationType.COMMENT_REMOVED, MemberEventLockReason.ACTION, null);
+    COMMENT_REMOVED(NotificationArea.SAFETY, MemberNotificationType.COMMENT_REMOVED, MemberEventLockReason.ACTION, null),
+
+    // ── 소모임(V89) — 내 상태·할 일이 바뀐 알림이라 회원이 끌 수 없다(community api-groups.md 7절). 처리 결과는 ACTION, 내 자리·할 일은 ACCOUNT ──
+    GROUP_APPROVED(NotificationArea.CLUB, MemberNotificationType.GROUP_APPROVED, MemberEventLockReason.ACTION, null),
+    GROUP_REJECTED(NotificationArea.CLUB, MemberNotificationType.GROUP_REJECTED, MemberEventLockReason.ACTION, null),
+    GROUP_JOIN_REQUEST(NotificationArea.CLUB, MemberNotificationType.GROUP_JOIN_REQUEST, MemberEventLockReason.ACCOUNT, null),
+    GROUP_JOIN_APPROVED(NotificationArea.CLUB, MemberNotificationType.GROUP_JOIN_APPROVED, MemberEventLockReason.ACTION, null),
+    GROUP_JOIN_REJECTED(NotificationArea.CLUB, MemberNotificationType.GROUP_JOIN_REJECTED, MemberEventLockReason.ACTION, null),
+    GROUP_KICKED(NotificationArea.CLUB, MemberNotificationType.GROUP_KICKED, MemberEventLockReason.ACTION, null),
+    GROUP_DISSOLVED(NotificationArea.CLUB, MemberNotificationType.GROUP_DISSOLVED, MemberEventLockReason.ACCOUNT, null),
+    GROUP_LEADER_TRANSFERRED(NotificationArea.CLUB, MemberNotificationType.GROUP_LEADER_TRANSFERRED, MemberEventLockReason.ACCOUNT, null),
+    GROUP_DEACTIVATED(NotificationArea.CLUB, MemberNotificationType.GROUP_DEACTIVATED, MemberEventLockReason.ACTION, null),
+    GROUP_REACTIVATED(NotificationArea.CLUB, MemberNotificationType.GROUP_REACTIVATED, MemberEventLockReason.ACTION, null);
 
     private static final Map<String, MemberEvent> BY_CODE = Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(MemberEvent::code, Function.identity()));
 

@@ -5,8 +5,8 @@
         구획의 상태·저장은 `Group*RuleSection` 이 각자 한다 — 이 화면은 틀·분류 안내·**변경 이력 서랍**(제목 옆 단추, `components.md` 2-5)·**이탈 가드**(구획들의 바뀐 칸 수의 합)만 맡는다.
         이력은 서랍을 처음 열 때 받고, 저장한 뒤에는 이미 받은 적이 있을 때만 첫 쪽부터 다시 받는다. 구획 거르기가 있다.
         권한: 화면 `group.read` · 저장 `group.settings`(community 는 최고 관리자 전용 — 로보얌은 권한 코드로 위임한다. 없으면 입력이 잠기고 저장 줄이 없다).
-        community 와 다른 점: 「소모임의 이름」 구획(용어 설정 `GROUPS` — 로보얌에 용어 설정이 없다)은 옮기지 않았다. 변경 이력(설정 이력 API)은 로보얌에서 더한 후보다.
-        ⚠ 목업 API(`useGroupSettingsApi` — `?mock=creation-fail` · `manager-fail` · `visibility-fail` · `policy-fail` · `settings-save-fail` · `history-fail`).
+        community 와 다른 점: 「소모임의 이름」 구획(용어 설정 `GROUPS` — 로보얌에 용어 설정이 없다)은 옮기지 않았다. 변경 이력(설정 이력 API)은 로보얌에서 더했다.
+        서버 호출은 `useGroupSettingsApi`(구획 넷 + 변경 이력).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('group.settingsTitle')" :subtitle="t('group.settingsSubtitle')">

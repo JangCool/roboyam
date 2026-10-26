@@ -51,7 +51,29 @@ public enum MemberNotificationType {
     /** 정지 중에 낸 포인트 상점 환불 신청을 운영자가 수락해 환불했다(V87) — 품목 이름 · 돌려준 포인트. 누르면 내 아이템({@code /me/items}) */
     POINT_SHOP_REFUND_APPROVED("system"),
     /** 정지 중에 낸 포인트 상점 환불 신청을 운영자가 거절했다(V87) — 품목 이름 · 사유. 누르면 내 아이템 */
-    POINT_SHOP_REFUND_REJECTED("system");
+    POINT_SHOP_REFUND_REJECTED("system"),
+
+    // ── 소모임(V89 — docs/features/group-contract.md 1단계, community api-groups.md 7절). 묶음 system(user-web 거르기에 소모임 묶음이 없어 계정·처리 알림과 같이). 덧붙임 groupId·groupName(+reason·applicantId) ──
+    /** 내 개설 신청이 승인돼 소모임이 열렸다 — 누르면 그 소모임 */
+    GROUP_APPROVED("system"),
+    /** 내 개설 신청이 반려됐다(사유와 함께) — 누르면 내 소모임 */
+    GROUP_REJECTED("system"),
+    /** 내가 처리할 가입 신청이 왔다(모임장 — 3단계부터 APPLICATIONS 매니저도) — 일으킨 사람 = 신청한 회원. 누르면 가입 신청 관리 */
+    GROUP_JOIN_REQUEST("system"),
+    /** 내 가입 신청이 승인됐다 — 누르면 그 소모임 */
+    GROUP_JOIN_APPROVED("system"),
+    /** 내 가입 신청이 거절됐다(처리자가 사유를 적었을 때만 사유) — 누르면 내 소모임 */
+    GROUP_JOIN_REJECTED("system"),
+    /** 소모임에서 내보내졌다 — 누르면 소모임 목록 */
+    GROUP_KICKED("system"),
+    /** 내가 멤버인 소모임이 해산됐다 — 누르면 소모임 목록 */
+    GROUP_DISSOLVED("system"),
+    /** 모임장 자리를 넘겨받았다 — 누르면 그 소모임 */
+    GROUP_LEADER_TRANSFERRED("system"),
+    /** 내가 모임장인 소모임이 운영 조치로 비활성이 됐다(사유와 함께) — 누르면 그 소모임 */
+    GROUP_DEACTIVATED("system"),
+    /** 내가 모임장인 소모임이 다시 열렸다(운영 메모는 싣지 않는다) — 누르면 그 소모임 */
+    GROUP_REACTIVATED("system");
 
     private final String category;
 
