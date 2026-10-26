@@ -59,3 +59,28 @@
   4. **일정** — 9절: 일정·참석·참석자·다음 일정·알림 `GROUP_EVENT`.
   5. **공개 범위·공개 요청** — 11절: 공개 범위 모델·변경·공개 요청 처리·알림 7종·관리자 읽기(ADM-012)·설정.
   6. **홈·프로필·지금 뜨는** — 2절 trending·10절: 홈 인기 소모임 가젯·최신글 소모임 배지·프로필 소모임 탭·탈퇴 때 모임장 확인.
+
+## 단계별 결과 (2026-10-26 — 브랜치 `claude/group-full`, 경로·칸의 정본은 user-web `composables/group/api/useGroupApi.ts` 머리말·admin-web `useGroup*Api.ts` 머리말과 서버 DTO)
+- **마이그레이션**: V90 `groups`(소모임·멤버·설정·이력) · V91 `group_posts`(posts.group_id·is_public·group_left_at) · V92 `group_managers`(알림 종류, member_notifications.type varchar(40)) · V93 `group_events` · V94 `group_visibility`. 회원 알림 종류 CHECK 는 단계마다 앞 목록과의 합집합으로 다시 만든다 — develop 에 합칠 때 develop 쪽 목록과 다시 맞춘다.
+- **1단계 기본**: 회원 `/api/groups…`·`/api/me/groups…`(목록·분류·개설 규칙·상세·멤버·가입·신청 취소·탈퇴·개설 신청·모임장 관리), 관리자 개설 승인·소모임 관리·설정 4구획·이력, 알림 GROUP_* 10종 + 운영자 `CLUB_OPEN_REQUEST_PENDING`. user-web `/groups`·`/groups/me`·`/groups/new`·`/groups/[id]`·`/groups/[id]/manage/{,edit,members,applications,chat}`, admin-web 목업 3화면 실제 연결.
+- **2단계 글**: `/api/groups/{id}/posts`(커서)·`board`(로보얌 추가 — 공개 `BoardDetail` 모양, 소모임 게시판은 공개 게시판 API 가 404 라서)·`seen`·`posts/{postId}/visibility`, 기존 글·댓글·투표·신고 경로는 `GroupPostGate` 한 곳에서 판정. user-web 글 탭(기본)·`/groups/[id]/write`·글 상세 소모임 표시. 관리자 글 관리는 비공개 소모임 글의 제목·본문을 가리고(내용은 신고 상세에서만) 옮기기 409.
+- **3단계 매니저**: `/api/groups/{id}/managers`(목록·임명/교체·해임·`me` 사퇴)·`manager-limit`, 알림 5종. 관리 화면은 체크형 권한으로 매니저에게도 열린다.
+- **4단계 일정**: `/api/groups/{id}/events`(목록·만들기·상세·수정·취소·응답·참석자), 내 소모임 `nextEvent`, 알림 `GROUP_EVENT`(소모임 알림 중 유일하게 회원이 끌 수 있다).
+- **5단계 공개 범위**: `visibility-preview`·`PUT visibility`(쿨다운)·공개 요청(`publish-request`·`publish-requests`·approve·reject)·글 단위 visibility 네 가지 일, 멤버 전용 댓글 가림(`hiddenBy MEMBERS_ONLY`), 알림 7종. `posts.is_public` 의 뜻은 「비멤버에게 보이는가(유효 노출)」로 넓혔고 쓰는 길은 `GroupPostVisibilityService` 하나.
+
+### 로보얌 차이 (원본 community 대비)
+- 사람 칸: 회원 API 는 `DmPartnerView`(user-web `GroupUser`), 관리자 API 는 `GroupPerson{grade{label,color,icon}}`.
+- 개설에 회원 권한 `group.create` 판정(로보얌 추가, `post.write` 가진 역할에 같이 줌) — 없으면 403 `GROUP_CREATE_NOT_PERMITTED`. 공개 사이트에 로그인하는 최고 관리자가 없어 「운영자 개설 201」·「운영진 등급 면제」 없음.
+- 쓰기 자격은 게시판과 같은 코드(`EMAIL_NOT_VERIFIED`·`ACCOUNT_RESTRICTED`·`BUSINESS_ACCOUNT_RESTRICTED`) — 사업자 회원은 소모임 쓰기가 막힌다(탈퇴·신청 취소·매니저 사퇴는 된다).
+- 같은 이름 막기 범위에 INACTIVE 포함. 소모임이 쓰는 게시판은 지울 수 없다(409 `BOARD_HAS_GROUPS`).
+- 나가서 가린 글은 `hidden_reason` 대신 따로 칸 `group_left_at`(운영자 숨김과 덮어쓰지 않게). 지운 글은 410 대신 로보얌대로 404.
+- 소모임 신고 없음(로보얌 신고 대상에 소모임 종류가 없다) — 상세 ⋯·일정의 「신고하기」를 뺐다.
+- 알림 문구는 서버가 만든다(로보얌 알림 응답에 원본의 `groupManager` 칸이 없다). 소모임 알림은 묶음 `system`. 푸시는 없고 메일 채널만.
+- 원본의 `group_visibility_rollout`·`group_visibility_settings` 표 대신 `group_settings` 한 행.
+- 용어 설정(`GROUPS` 이름 바꾸기) 없음 — 고정 「소모임」/"Club". 기존 하단 탭은 용어 기본값 "Groups" 라 영어 화면에서 섞인다.
+
+### 미확정 (사용자 확인 전 — 지금 동작)
+1. 해산한 소모임에 공개로 남은 글에 댓글을 계속 받을지 — 받는다.
+2. 비공개 소모임 글을 신고 상세에서 보는 것을 최고 관리자로 좁힐지 — 신고 처리 권한이면 본다.
+3. 감사 보관 분류: 소모임·분류·설정 감사 행위는 모두 GENERAL.
+4. 실행 확인 없음: 공용 로컬 DB 때문에 서버를 띄우지 않았다(develop 에 없는 V90~ 를 적용하면 develop 에서 띄우는 다른 세션이 Flyway 검증에서 막힌다). develop 에 합친 뒤 첫 기동에서 마이그레이션·번들 키 검사·JSON 모양·화면을 확인한다.
