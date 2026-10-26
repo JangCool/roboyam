@@ -183,7 +183,7 @@
             </ProfileFeed>
 
             <!-- 댓글 — 댓글 앞 100자 / 게시판 · 글 제목 · 추천 · 시각. 누르면 그 글의 그 댓글로 -->
-            <ProfileFeed v-else :key="`comments:${userId}`" :load="loadComments" :label="t('profile.tabComments')" :error-title="t('profile.commentsErrorTitle')" class="mt-1">
+            <ProfileFeed v-else-if="tab === 'comments'" :key="`comments:${userId}`" :load="loadComments" :label="t('profile.tabComments')" :error-title="t('profile.commentsErrorTitle')" class="mt-1">
                 <template #item="{ item }">
                     <li class="border-b border-surface last:border-b-0">
                         <!-- 차단한 회원·단어의 댓글은 접힌 한 줄(댓글 목록과 같은 `FoldedRow` — 「보기」로 그 자리에서 펼친다) -->
@@ -215,6 +215,39 @@
                 </template>
             </ProfileFeed>
 
+            <!-- 소모임(6단계) — 그 회원이 지금 멤버인 열린 소모임(가입이 최근인 순, 최대 50개 — 한 번에 다 와서 더보기가 없다). 줄은 내 소모임 줄과 같은 모양이고
+                 「모임장」 표시는 **프로필 주인**의 역할(`role`)이다(응답의 `myState` 는 보는 사람의 상태라 쓰지 않는다). 줄을 누르면 소모임 상세 -->
+            <div v-else class="mt-1" :aria-busy="groupsStatus === 'loading'" data-testid="groups-feed">
+                <div v-if="groupsStatus === 'loading'" class="-mx-4 md:mx-0" aria-hidden="true" data-testid="groups-loading">
+                    <div v-for="n in 4" :key="n" class="flex items-center gap-3 border-b border-surface px-4 py-3 md:px-2">
+                        <div class="size-9 shrink-0 animate-pulse rounded-full bg-surface-200 dark:bg-surface-800" />
+                        <div class="min-w-0 flex-1">
+                            <div class="h-3.5 animate-pulse rounded bg-surface-200 dark:bg-surface-800" :class="n % 2 ? 'w-3/5' : 'w-2/5'" />
+                            <div class="mt-2 h-3 w-1/3 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 오류 — 머리(프로필)는 그대로 두고 이 목록만 다시 시도한다 -->
+                <ErrorState v-else-if="groupsStatus === 'error'" :title="t('profile.groupsErrorTitle')" :description="groupsError" retry data-testid="groups-error" @retry="loadGroups" />
+
+                <template v-else>
+                    <!-- 빈 상태 — 본인에게는 다음 행동(소모임 둘러보기)을, 타인에게는 안내만 -->
+                    <EmptyState v-if="groups.length === 0" :title="t('profile.emptyGroupsTitle')" :description="profile.isMe ? t('profile.emptyGroupsMine') : ''" icon="pi pi-users" data-testid="groups-empty">
+                        <Button v-if="profile.isMe" as="router-link" :to="UtilGroup.LIST_PATH" :label="t('group.browse')" data-testid="groups-browse" />
+                    </EmptyState>
+                    <template v-else>
+                        <ul class="-mx-4 m-0 list-none p-0 md:mx-0" data-testid="groups-list">
+                            <GroupListRow v-for="row in groups" :key="row.id" :row="row" mine :role="row.role" />
+                        </ul>
+                        <p class="mt-4 text-center text-xs text-muted-color" data-testid="groups-note">{{ t('profile.groupsNote') }}</p>
+                    </template>
+                </template>
+
+                <!-- 스크린리더가 불러온 개수를 읽는다. 안내 영역은 처음부터 있어야 바뀐 내용을 읽어 준다 -->
+                <p role="status" aria-live="polite" class="sr-only">{{ groupsSummary }}</p>
+            </div>
+
             <p v-if="tab === 'posts'" class="mt-4 text-center text-xs text-muted-color">{{ t('profile.hiddenPostsNote') }}</p>
 
             <!-- 회원 ⋯ 시트 — 이 사용자 차단·차단 해제·메모(메모 작성은 셸의 메모 시트) -->
@@ -232,7 +265,7 @@
 
 <script setup lang="ts">
 import type { Grade } from '~/composables/auth/api/useAuthApi.types';
-import type { AuthorCommentRow, ProfileStats, PublicProfile } from '~/composables/profile/api/useUserProfileApi.types';
+import type { AuthorCommentRow, ProfileGroupRow, ProfileStats, PublicProfile } from '~/composables/profile/api/useUserProfileApi.types';
 import type { DmCanSend } from '~/composables/dm/api/useDmApi.types';
 import type { UserAction } from '~/composables/block/useUserActions';
 import { ApiError } from '~/composables/common/useApiClient';
@@ -243,17 +276,18 @@ import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilBusiness from '~/utils/util-business';
 import UtilColor from '~/utils/util-color';
 import UtilGradeMessages from '~/utils/util-grade-messages';
+import UtilGroup from '~/utils/util-group';
 import UtilPoint from '~/utils/util-point';
 import UtilProfile from '~/utils/util-profile';
 
 /**
  * 공개 회원 프로필 — `/users/{id}?tab=`(community `pages/users/[id]/index.vue`, `docs/api-profile.md`「공개 프로필」). **비회원도** 열린다.
  * 글 보기 머리·댓글·데스크톱 목록 표의 작성자 이름(`PostAuthorLabel link`)과 내 정보(`/me`)의 「내 프로필 보기」가 이곳으로 온다.
- * - 머리(프로필)와 탭의 목록은 따로 불러온다 — 목록이 실패해도 머리는 그대로, 그 목록만 다시 시도한다. 탭(작성글·댓글)은 주소의 쿼리가 상태다.
+ * - 머리(프로필)와 탭의 목록은 따로 불러온다 — 목록이 실패해도 머리는 그대로, 그 목록만 다시 시도한다. 탭(작성글·댓글·소모임)은 주소의 쿼리가 상태다.
  * - 내 프로필(`isMe`)이면 「프로필 편집」과 보유 포인트·다음 등급까지 카드(`usePointSummary` 실제 · `useMyGrade` 목업)가 더해진다. 남의 프로필에는 포인트·진행도를 보이지 않는다.
  * - 남의 프로필: ⋯ 시트(이 사용자 차단·차단 해제·메모 — `useUserActions`), 차단한 회원이면 맨 위 「차단한 회원이에요 · 차단 해제」 띠, 닉네임 옆 메모 칩, 「쪽지 보내기」(보낼 수 있나를 따로 읽는다).
  *   내 프로필: 「프로필 편집」 옆 「쪽지함」. 계약 `docs/features/member-social-contract.md`.
- * 프로필·작성글·댓글(`useUserProfileApi`)과 차단·메모·쪽지(`useBlockApi`·`useMemoApi`·`useDmApi`)는 모두 실제 API 다. 공개 프로필 응답의 `blockedByMe`·`memo` 는 서버가 채운다(로그인한 사람 기준). 머리의 닉네임 색·이니셜 테두리는 포인트 상점 장식(`decoration` 후보 + `useMyDecoration` 겹치기)이다. 원본과 달라진 점: 프로필 이미지·닉네임 이미지, 프로필 이미지·닉네임 이미지 신고, 소모임·스크랩 탭, 인기글 수치는 로보얌에 없어 뺐다.
+ * 프로필·작성글·댓글(`useUserProfileApi`)과 차단·메모·쪽지(`useBlockApi`·`useMemoApi`·`useDmApi`)는 모두 실제 API 다. 공개 프로필 응답의 `blockedByMe`·`memo` 는 서버가 채운다(로그인한 사람 기준). 머리의 닉네임 색·이니셜 테두리는 포인트 상점 장식(`decoration` 후보 + `useMyDecoration` 겹치기)이다. 원본과 달라진 점: 프로필 이미지·닉네임 이미지, 프로필 이미지·닉네임 이미지 신고, 스크랩 탭, 인기글 수치는 로보얌에 없어 뺐다. 소모임 탭(`useUserProfileApi.groups`)은 소모임 6단계에 더했다.
  * 모바일 ‹ 머리(`InnerHeader`)가 없어 셸의 머리 그대로다.
  */
 const { t } = useI18n();
@@ -279,6 +313,7 @@ const tab = computed<ProfileTab>(() => UtilProfile.parseTab(route.query));
 const tabs = computed<{ value: ProfileTab; label: string }[]>(() => [
     { value: 'posts', label: t('profile.tabPosts') },
     { value: 'comments', label: t('profile.tabComments') },
+    { value: 'groups', label: t('profile.tabGroups') },
 ]);
 const statCells = computed<{ key: keyof ProfileStats; label: string }[]>(() => [
     { key: 'posts', label: t('profile.statPosts') },
@@ -349,6 +384,65 @@ const blockOverrides = useBlockOverrides();
 function commentFold(item: AuthorCommentRow) {
     return blockOverrides.blockedOf(userId.value, item.blocked);
 }
+
+/* ── 소모임 탭(6단계) — 탭을 열 때 받는다. 회원이 바뀌면 앞 요청을 끊고 새로 받고, 늦게 온 옛 결과는 요청 번호로 버린다 ── */
+const groups = ref<ProfileGroupRow[]>([]);
+const groupsStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle');
+const groupsError = ref('');
+/** 받은 회원 ID — 같은 회원으로 탭만 오가면 다시 받지 않는다 */
+let groupsOf = '';
+let groupsController: AbortController | null = null;
+let groupsRequest = 0;
+
+async function loadGroups() {
+    const asked = ++groupsRequest;
+    const id = userId.value;
+    groupsController?.abort();
+    groupsController = new AbortController();
+    groupsStatus.value = 'loading';
+    groupsError.value = '';
+    try {
+        const res = await api.groups(id, groupsController.signal);
+        if (asked !== groupsRequest) return;
+        groups.value = res.items;
+        groupsOf = id;
+        groupsStatus.value = 'ready';
+    } catch (e) {
+        if (asked !== groupsRequest || UtilGroup.isAborted(e)) return;
+        groups.value = [];
+        groupsError.value = UtilBoardMessages.of(t, e);
+        groupsStatus.value = 'error';
+    }
+}
+
+watch(
+    [tab, userId],
+    ([nowTab, nowId], before) => {
+        // 회원이 바뀌면 받은 것을 버린다(이 탭이면 곧바로, 아니면 다음에 탭을 열 때 새로 받는다)
+        if (before && before[1] !== nowId) {
+            groupsRequest++;
+            groupsController?.abort();
+            groups.value = [];
+            groupsOf = '';
+            groupsStatus.value = 'idle';
+        }
+        if (nowTab !== 'groups') return;
+        if (groupsOf === nowId && groupsStatus.value === 'ready') return;
+        void loadGroups();
+    },
+    { immediate: true },
+);
+onBeforeUnmount(() => {
+    groupsRequest++;
+    groupsController?.abort();
+});
+
+const groupsSummary = computed(() => {
+    const label = t('profile.tabGroups');
+    if (groupsStatus.value === 'idle' || groupsStatus.value === 'loading') return t('profile.feedLoading', { label });
+    if (groupsStatus.value === 'error') return t('profile.feedFailed', { label });
+    return groups.value.length === 0 ? '' : t('profile.feedCount', { label, count: groups.value.length });
+});
 
 function goBack() {
     if (typeof window !== 'undefined' && window.history.state?.back) router.back();

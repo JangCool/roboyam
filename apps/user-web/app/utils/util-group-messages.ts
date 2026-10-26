@@ -88,15 +88,15 @@ export default class UtilGroupMessages {
         return out;
     }
 
-    /** 목록 줄 오른쪽 — 내 상태가 먼저, 그다음 모집 상태 */
-    static rowAction(t: Translate, row: Pick<GroupRow, 'recruitState' | 'joinType' | 'myState'>): GroupRowAction {
+    /** 목록 줄 오른쪽 — 내 상태가 먼저, 그다음 모집 상태. `long` 은 자리가 넉넉한 「지금 뜨는 소모임」 카드(「가입하기」) */
+    static rowAction(t: Translate, row: Pick<GroupRow, 'recruitState' | 'joinType' | 'myState'>, long = false): GroupRowAction {
         if (row.myState === 'LEADER') return { label: t('group.roleLeader'), tone: 'note' };
         if (row.myState === 'MEMBER') return { label: t('group.rowMember'), tone: 'note' };
         if (row.myState === 'APPLIED') return { label: t('group.rowApplied'), tone: 'note' };
         if (row.recruitState === 'FULL') return { label: t('group.recruitFull'), tone: 'off' };
         if (row.recruitState === 'CLOSED') return { label: t('group.rowClosed'), tone: 'off' };
         if (row.joinType === 'APPROVAL' || row.myState === 'KICKED') return { label: t('group.rowApply'), tone: 'go' };
-        return { label: t('group.rowJoin'), tone: 'go' };
+        return { label: t(long ? 'group.rowJoinLong' : 'group.rowJoin'), tone: 'go' };
     }
 
     /** 비었을 때의 안내 */

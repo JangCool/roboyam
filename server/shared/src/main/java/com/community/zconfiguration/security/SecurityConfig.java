@@ -84,7 +84,7 @@ public class SecurityConfig {
                         // 공개 약관(docs/features/terms-contract.md) — 요약·본문·지난 버전은 비회원도 읽는다(공개 사이트 서버(api)에만 있는 주소)
                         .requestMatchers(HttpMethod.GET, "/api/terms/**").permitAll()
                         // 공개 회원 프로필(docs/features/member-activity-contract.md 「공개 프로필」) — 비회원도 읽는다(공개 사이트 서버(api)에만 있는 주소)
-                        .requestMatchers(HttpMethod.GET, "/api/users/*/profile", "/api/users/*/posts", "/api/users/*/comments").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/users/*/profile", "/api/users/*/posts", "/api/users/*/comments", "/api/users/*/groups").permitAll()
                         // 회원 활동·둘러보기(docs/features/member-activity-contract.md) — 최신글·인기글·통합 검색·등급 조건표는 비회원도 읽는다. 내 등급(/api/me/grade)은 아래 규칙대로 로그인 필요
                         .requestMatchers(HttpMethod.GET, "/api/home/latest", "/api/home/popular", "/api/search", "/api/grade-rules").permitAll()
                         // 프로필 아바타 목록(docs/features/commerce-stage1-contract.md 「1-2 화면 목업」 아바타) — 비회원도 읽는다(보유·잔액 없이). 공개 사이트 서버(api)에만 있는 주소

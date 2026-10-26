@@ -120,6 +120,8 @@ export interface GroupListQuery {
     /** 1부터 */
     page?: number;
     size?: number;
+    /** 뺄 소모임 ID(쉼표로 이은 최대 5개) — 「지금 뜨는 소모임」과 겹치지 않게. 모든 쪽에 같은 값을 보낸다 */
+    exclude?: string;
 }
 
 export interface GroupListResponse {
@@ -128,6 +130,11 @@ export interface GroupListResponse {
     page: number;
     hasNext: boolean;
     total: number;
+}
+
+/** `GET /api/groups/trending` — 지금 뜨는 소모임(최대 관리자 설정 개수, 기본 5). 후보가 없으면 빈 배열 */
+export interface GroupTrendingResponse {
+    items: GroupRow[];
 }
 
 /** 가입·신청을 못 하는 이유 */

@@ -6,8 +6,9 @@ import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.AuthorMembers;
 import com.community.board.service.AuthorViews;
 import com.community.board.service.BoardCatalog;
-import com.community.board.service.PublicBoardService;
 import com.community.board.service.RichText;
+import com.community.group.dto.response.ProfileGroupsView;
+import com.community.group.service.GroupQueryService;
 import com.community.pointshop.dto.AuthorLook;
 import com.community.pointshop.service.ShopDecorationResolver;
 import com.community.poll.repository.master.PollQueries;
@@ -16,7 +17,9 @@ import com.community.post.dto.response.PostAuthorView;
 import com.community.post.dto.response.PostBoardRefView;
 import com.community.post.dto.response.PostFeedPageView;
 import com.community.post.dto.response.PostFeedRowView;
+import com.community.post.dto.response.PostGroupView;
 import com.community.post.dto.response.PostPrefixRefView;
+import com.community.post.service.PostFeedRows;
 import com.community.post.service.PostQueryService;
 import com.community.profile.dto.response.AuthorCommentPageView;
 import com.community.profile.dto.response.AuthorCommentRowView;
@@ -72,9 +75,14 @@ public class UserProfileService {
     private final ViewerBlocks viewerBlocks;
     private final PollQueries polls;
     private final ShopDecorationResolver decorations;
+    private final PostFeedRows feedRows;
+    private final GroupQueryService groups;
 
     public UserProfileService(UserRepository users, ProfileRepository profiles, UserActivityQueries activity, BoardCatalog catalog, AuthorViews authors,
-                              ViewerBlocks viewerBlocks, PollQueries polls, ShopDecorationResolver decorations) {
+                              ViewerBlocks viewerBlocks, PollQueries polls, ShopDecorationResolver decorations, PostFeedRows feedRows,
+                              GroupQueryService groups) {
+        this.feedRows = feedRows;
+        this.groups = groups;
         this.decorations = decorations;
         this.polls = polls;
         this.users = users;
@@ -100,6 +108,16 @@ public class UserProfileService {
                 new ProfileStatsView(stats.posts(), stats.comments(), stats.likesReceived()), toward.blocked(), toward.memo(), look.decoration(), look.avatarUrl());
     }
 
+    /**
+     * 소모임 탭({@code GET /api/users/{id}/groups} — community api-profile.md 6-4) — 그 회원이 지금 멤버인 열린 소모임. 없는·탈퇴한 회원은 404 {@code PROFILE_NOT_FOUND}.
+     *
+     * @param viewerId 보는 회원(비회원 null) — 줄의 {@code myState} 는 보는 사람의 상태
+     */
+    public ProfileGroupsView groups(String idText, Long viewerId) {
+        Member m = requireMember(idText);
+        return groups.profileGroups(m.id(), viewerId);
+    }
+
     /** @param viewerId 보는 회원(비회원 null) */
     public PostFeedPageView posts(String idText, String sizeText, String cursor, Long viewerId) {
         int size = sizeOf(sizeText);
@@ -113,7 +131,10 @@ public class UserProfileService {
         AuthorMembers members = authors.members(page.stream().map(PostRowData::authorId).toList());
         ViewerBlocks.Lens lens = lensOf(viewerId, m.id(), page.isEmpty());
         Set<Long> withPoll = polls.postIdsWithPoll(page.stream().map(PostRowData::id).toList());
-        List<PostFeedRowView> items = page.stream().map(r -> feedRow(r, s.board(r.boardId()).orElseThrow(), s, members, now, lens, withPoll)).toList();
+        Map<Long, PostGroupView> groupRefs = feedRows.groupRefs(page);
+        List<PostFeedRowView> items = page.stream()
+                .map(r -> feedRow(r, s.board(r.boardId()).orElseThrow(), s, members, now, lens, withPoll, r.groupId() == null ? null : groupRefs.get(r.groupId())))
+                .toList();
         return new PostFeedPageView(items, more, more ? items.get(items.size() - 1).id() : null);
     }
 
@@ -143,7 +164,7 @@ public class UserProfileService {
 
     /** 게시판 목록 한 줄({@code PostQueryService} 와 같은 규칙 — 숨긴 글은 여기 오지 않지만 같은 가림을 둔다) + 게시판 */
     private PostFeedRowView feedRow(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
-                                    Set<Long> withPoll) {
+                                    Set<Long> withPoll, PostGroupView group) {
         boolean hidden = r.hiddenAt(now);
         PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
         PostPrefixRefView prefix = hidden ? null : b.prefix(r.prefixId()).map(p -> new PostPrefixRefView(Long.toString(p.id()), p.name(), p.staffOnly(), p.color()))
@@ -152,7 +173,7 @@ public class UserProfileService {
                 null, hidden ? AuthorViews.blank(author) : author, r.createdAt(), r.viewCount(), r.likeCount(), r.pinnedAt() != null,
                 !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()), hidden ? null : lens.blockedOf(r.authorId(), r.title()),
                 !hidden && withPoll.contains(r.id()),
-                new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()));
+                new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()), group);
     }
 
     /** 공개 프로필의 주인 — 회원·프로필이 있고 탈퇴·삭제되지 않았다 */
@@ -167,8 +188,8 @@ public class UserProfileService {
     }
 
     private static Set<Long> activeBoardIds(BoardCatalogSnapshot s) {
-        // 소모임 게시판의 글은 프로필 작성글·통계에 넣지 않는다(소모임 2단계 — 공개 소모임 글의 프로필 탭은 6단계)
-        return s.boards().stream().filter(b -> b.active() && PublicBoardService.isPublic(b)).map(EffectiveBoard::id).collect(Collectors.toSet());
+        // 소모임 게시판도 넣는다 — 작성글·글 수는 비멤버에게 보이는 소모임 글만, 작성 댓글은 일반 글의 댓글만(UserActivityQueries, 소모임 6단계)
+        return s.boards().stream().filter(EffectiveBoard::active).map(EffectiveBoard::id).collect(Collectors.toSet());
     }
 
     /** 앞 100자 — 줄바꿈·연속 공백은 공백 한 칸, 넘으면 {@code …} */

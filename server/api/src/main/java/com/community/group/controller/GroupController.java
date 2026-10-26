@@ -18,6 +18,7 @@ import com.community.group.dto.response.GroupJoinResultView;
 import com.community.group.dto.response.GroupListPageView;
 import com.community.group.dto.response.GroupMemberCountView;
 import com.community.group.dto.response.GroupMemberPageView;
+import com.community.group.dto.response.GroupTrendingView;
 import com.community.group.service.GroupCreateService;
 import com.community.group.service.GroupLeaderService;
 import com.community.group.service.GroupMembershipService;
@@ -70,6 +71,12 @@ public class GroupController {
     @GetMapping("/categories")
     public ResponseEntity<ApiResponse<GroupCategoriesView>> categories() {
         return noStore(queries.categories());
+    }
+
+    /** 지금 뜨는 소모임 — 가중 무작위라 요청마다 다를 수 있다(화면은 한 번 받아 고정) */
+    @GetMapping("/trending")
+    public ResponseEntity<ApiResponse<GroupTrendingView>> trending(Authentication authentication) {
+        return noStore(queries.trending(userId(authentication)));
     }
 
     @GetMapping("/creation-rules")

@@ -3,6 +3,7 @@ package com.community.search.dto.response;
 import com.community.post.dto.response.PostAuthorView;
 import com.community.post.dto.response.PostBoardRefView;
 import com.community.post.dto.response.PostFeedRowView;
+import com.community.post.dto.response.PostGroupView;
 import com.community.post.dto.response.PostPrefixRefView;
 import java.time.Instant;
 
@@ -11,13 +12,14 @@ import java.time.Instant;
  *
  * @param blocked 보는 사람 기준 차단({@code USER}·{@code WORD}) — 결과에서 빼지 않고 표시만 한다(화면이 접는다)
  * @param snippet 본문이 걸린 자리(첫 단어 기준) 앞뒤 글자 약 100자(잘린 쪽에 「…」, 공백은 한 칸으로). 제목·작성자로만 걸렸거나 범위가 title·author 면 null
+ * @param group   소모임 글이면 {@code { id, name, visibility, dissolved }}(늘 PUBLIC), 일반 글이면 null — {@link PostFeedRowView#group} 과 같다(소모임 6단계)
  */
 public record SearchRowView(String id, PostPrefixRefView prefix, String title, int commentCount, boolean hasImage, String thumbnailUrl, PostAuthorView author,
                             Instant createdAt, int viewCount, int likeCount, boolean pinned, boolean adult, String hiddenReason, String blocked,
-                            PostBoardRefView board, String snippet) {
+                            PostBoardRefView board, String snippet, PostGroupView group) {
 
     public static SearchRowView of(PostFeedRowView row, String snippet) {
         return new SearchRowView(row.id(), row.prefix(), row.title(), row.commentCount(), row.hasImage(), row.thumbnailUrl(), row.author(), row.createdAt(),
-                row.viewCount(), row.likeCount(), row.pinned(), row.adult(), row.hiddenReason(), row.blocked(), row.board(), snippet);
+                row.viewCount(), row.likeCount(), row.pinned(), row.adult(), row.hiddenReason(), row.blocked(), row.board(), snippet, row.group());
     }
 }

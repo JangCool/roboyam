@@ -12,7 +12,9 @@ import com.community.group.dto.response.GroupDetailView;
 import com.community.group.dto.response.GroupListPageView;
 import com.community.group.dto.response.GroupMemberPageView;
 import com.community.group.dto.response.GroupRowView;
+import com.community.group.dto.response.GroupTrendingView;
 import com.community.group.dto.response.MyGroupsView;
+import com.community.group.dto.response.ProfileGroupsView;
 import com.community.group.entity.GroupCategoryEntity;
 import com.community.group.entity.GroupEntity;
 import com.community.group.entity.GroupEventEntity;
@@ -44,7 +46,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 소모임 읽기(공개 사이트) — community api-groups.md 2절(분류·목록·상세·멤버 탭) · 4절(개설 규칙 안내 · 내 소모임). 「지금 뜨는 소모임」은 6단계.
+ * 소모임 읽기(공개 사이트) — community api-groups.md 2절(분류·목록·상세·멤버 탭) · 4절(개설 규칙 안내 · 내 소모임). 「지금 뜨는 소모임」(2절 trending — 6단계) · 회원 프로필의 소모임 탭(10절).
  * 목록·검색에는 열린 소모임만 나온다. 상세의 비활성은 안내 칸만, 신청 중·반려·해산·없는 ID 는 404.
  */
 @Service
@@ -56,7 +58,12 @@ public class GroupQueryService {
     static final int MEMBER_DEFAULT_SIZE = 30;
     static final int MEMBER_MAX_SIZE = 50;
     static final int Q_MAX = 30;
-    static final int EXCLUDE_MAX = 5;
+    /** 목록 {@code exclude} 상한 — 「지금 뜨는 소모임」 개수 설정의 최대(trendingSize 1~20)와 같다(원본은 5 — 설정 최대가 20이라 로보얌은 20, 6단계) */
+    static final int EXCLUDE_MAX = 20;
+    /** 프로필 소모임 탭에 보이는 수 상한(원본 PROFILE_GROUPS_SHOWN) */
+    static final int PROFILE_GROUPS_SHOWN = 50;
+    /** 지금 뜨는 소모임 후보를 최근 활동 순으로 이만큼만 읽어 무작위로 고른다(원본 설정 trending-candidates 기본값 — 화면 설정 없음) */
+    static final int TRENDING_CANDIDATES = 200;
     static final Set<String> SORTS = Set.of("popular", "new", "recruiting", "mine");
 
     private final GroupRepository groups;
@@ -70,10 +77,12 @@ public class GroupQueryService {
     private final GroupAccess access;
     private final BoardActorResolver actors;
     private final BoardCatalog catalog;
+    private final GroupTrendingPicker trendingPicker;
 
     public GroupQueryService(GroupRepository groups, GroupMemberRepository members, GroupRepositoryQDSL queries, GroupViews views, GroupPeople people,
                              GroupSettingsService settings, GroupAccess access, BoardActorResolver actors,
-                             BoardCatalog catalog, GroupPostQueries groupPosts, GroupEventQueries groupEvents) {
+                             BoardCatalog catalog, GroupPostQueries groupPosts, GroupEventQueries groupEvents, GroupTrendingPicker trendingPicker) {
+        this.trendingPicker = trendingPicker;
         this.groupPosts = groupPosts;
         this.groupEvents = groupEvents;
         this.groups = groups;
@@ -180,6 +189,60 @@ public class GroupQueryService {
             members.findByUserIdAndGroupIdIn(userId, rows.stream().map(GroupEntity::getId).toList()).forEach(m -> mine.put(m.getGroupId(), m));
         }
         return rows.stream().map(g -> views.row(g, GroupViews.myState(g, mine.get(g.getId()), userId), ctx)).toList();
+    }
+
+    // ── 지금 뜨는 소모임 ─────────────────────────────────────────────────────
+
+    /**
+     * 지금 뜨는 소모임(community api-groups.md 2절) — 열려 있고 모집 중이며 정원이 남았고 최근 {@code trendingActiveDays}일 안에 활동이 있는 소모임을 최근 활동 순으로
+     * {@value #TRENDING_CANDIDATES}개까지 읽어 활동·규모로 가중한 무작위로 {@code trendingSize}개(관리자 설정 — 운영 한도, 요청마다 읽는다). 후보가 모자라면 있는 만큼, 없으면 빈 목록.
+     */
+    public GroupTrendingView trending(Long userId) {
+        GroupRuleValues.Policy policy = settings.policy();
+        Instant now = Instant.now();
+        List<GroupEntity> candidates = queries.trendingCandidates(now.minus(java.time.Duration.ofDays(policy.trendingActiveDays())), TRENDING_CANDIDATES);
+        List<GroupEntity> picked = trendingPicker.pick(candidates, policy.trendingSize(), policy.trendingActiveDays(), now);
+        return new GroupTrendingView(rows(picked, userId, views.context()));
+    }
+
+    // ── 회원 프로필의 소모임 탭 ──────────────────────────────────────────────
+
+    /**
+     * 한 회원이 지금 멤버인 열린(ACTIVE) 소모임 — 가입이 최근인 순으로 {@value #PROFILE_GROUPS_SHOWN}개까지(community api-profile.md 「소모임 (6-4)」). 신청 중·나감·강퇴·해산·비활성은
+     * 나오지 않는다. 소모임은 공개 범위와 상관없이 목록에 공개되는 모임이라 남이 보는 프로필과 내 프로필이 같은 목록이다(원본 규칙). 회원 확인은 부르는 쪽({@code UserProfileService}).
+     *
+     * @param viewerId 보는 회원(비회원 null) — 줄의 {@code myState}
+     */
+    public ProfileGroupsView profileGroups(long ownerId, Long viewerId) {
+        List<GroupMemberEntity> rows = new ArrayList<>(members.findByUserIdAndStatusIn(ownerId, List.of(GroupMemberStatus.ACTIVE)));
+        rows.sort((a, b) -> {
+            int byJoined = compareDesc(a.getJoinedAt(), b.getJoinedAt());
+            return byJoined != 0 ? byJoined : Long.compare(b.getGroupId(), a.getGroupId());
+        });
+        Map<Long, GroupEntity> byId = new HashMap<>();
+        groups.findAllById(rows.stream().map(GroupMemberEntity::getGroupId).toList()).forEach(g -> byId.put(g.getId(), g));
+        List<GroupMemberEntity> shown = new ArrayList<>();
+        List<GroupEntity> shownGroups = new ArrayList<>();
+        for (GroupMemberEntity m : rows) {
+            GroupEntity g = byId.get(m.getGroupId());
+            if (g == null || g.getStatus() != GroupStatus.ACTIVE) {
+                continue;
+            }
+            shown.add(m);
+            shownGroups.add(g);
+            if (shown.size() == PROFILE_GROUPS_SHOWN) {
+                break;
+            }
+        }
+        List<GroupRowView> groupRows = rows(shownGroups, viewerId, views.context());
+        List<ProfileGroupsView.Row> items = new ArrayList<>(shown.size());
+        for (int i = 0; i < shown.size(); i++) {
+            GroupMemberEntity m = shown.get(i);
+            GroupEntity g = shownGroups.get(i);
+            String role = g.getLeaderId().equals(ownerId) ? GroupRole.LEADER.name() : m.getRole() == GroupRole.MANAGER ? GroupRole.MANAGER.name() : GroupRole.MEMBER.name();
+            items.add(new ProfileGroupsView.Row(groupRows.get(i), role, m.getJoinedAt()));
+        }
+        return new ProfileGroupsView(List.copyOf(items));
     }
 
     // ── 상세 · 멤버 ──────────────────────────────────────────────────────────

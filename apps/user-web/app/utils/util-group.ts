@@ -280,6 +280,32 @@ export default class UtilGroup {
         return state.category || state.sort !== UtilGroup.DEFAULT_SORT ? 'filtered' : 'none';
     }
 
+    /* ── 지금 뜨는 소모임(6단계) ── */
+
+    /** 목록 요청의 `exclude` 최대 개수 — 서버 `GroupQueryService.EXCLUDE_MAX`(넘으면 `400 fields.exclude`) */
+    static readonly EXCLUDE_MAX = 20;
+
+    /** 「지금 뜨는 소모임」 슬라이드를 보이는 주소인가 — 검색 중에는 숨긴다(community `UtilGroupQuery.showsTrending`) */
+    static showsTrending(state: GroupListState): boolean {
+        return !state.q;
+    }
+
+    /**
+     * 목록 요청에 슬라이드의 소모임을 `exclude` 로 보내 겹치지 않게 하는가 — 슬라이드가 보일 때만, 그리고 「내 소모임」이 아닐 때만
+     * (내 소모임은 내가 가입한 모임을 그대로 모아 보는 자리라 슬라이드에 나온 모임도 빠지면 안 된다).
+     */
+    static excludesTrending(state: GroupListState): boolean {
+        return UtilGroup.showsTrending(state) && state.sort !== 'mine';
+    }
+
+    /** 슬라이드의 소모임 → `exclude` 값(쉼표로 이은 ID, 서버 한도까지만). 없으면 빈 글자 */
+    static excludeOf(rows: readonly { id: string }[]): string {
+        return rows
+            .slice(0, UtilGroup.EXCLUDE_MAX)
+            .map((row) => row.id)
+            .join(',');
+    }
+
     /* ── 분류 ── */
 
     static categoryById(items: readonly GroupCategoryItem[] | null, id: string): GroupCategoryItem | null {

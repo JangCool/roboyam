@@ -77,10 +77,19 @@ export default {
     emptyNoneTitle: 'No clubs yet',
     emptyNoneText: 'Start the first club on a topic you care about.',
     rowJoin: 'Join',
+    rowJoinLong: 'Join',
     rowApply: 'Apply',
     rowClosed: 'Closed',
     rowMember: 'Joined',
     rowApplied: 'Pending',
+
+    // ── Trending clubs (stage 6) ──────────────────────────
+    trendingTitle: 'Trending clubs',
+    trendingHint: 'Recruiting · recently active',
+    trendingError: 'Couldn’t load trending clubs',
+    trendingGoTo: 'Show club {n}',
+    onlyTrendingTitle: 'The clubs above are all that’s open right now',
+    onlyTrendingText: 'New clubs will gather here. You can also start one yourself.',
 
     // ── My clubs ──────────────────────────────────────────
     myTitle: 'My clubs',

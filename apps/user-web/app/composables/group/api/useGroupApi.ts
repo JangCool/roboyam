@@ -33,6 +33,7 @@ import type {
     GroupPublishRequestPage,
     GroupPublishRequestQuery,
     GroupPublishRequestResult,
+    GroupTrendingResponse,
     GroupUpdateRequest,
     GroupVisibility,
     GroupVisibilityChangeRequest,
@@ -127,10 +128,18 @@ import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
  *   작성자(일반 멤버)가 비공개 소모임에서 `PUBLIC` 이면 `409 GROUP_PUBLISH_REQUEST_REQUIRED`, 공개 소모임에서 `PRIVATE` 이면 `409 GROUP_POST_PUBLIC_BY_GROUP`.
  * - 알림 7종(`GROUP_PUBLISH_REQUESTED`·`…_APPROVED`·`…_REJECTED`·`GROUP_POST_PUBLISHED`·`GROUP_VISIBILITY_CHANGED`·`GROUP_POST_MEMBERS_ONLY`·`GROUP_POST_RELEASED`)은 회원 알림이 받는다
  *   (문장·`link` 는 서버가 준다 — 로보얌 회원 알림 관례).
+ *
+ * ## 6단계(홈·프로필·지금 뜨는 소모임) — community `docs/api-groups.md` 2절 trending·10절과 같은 경로·칸이라고 **가정**했다(서버 6단계 코드는 작성 중 — 생기면 대조한다)
+ * - `GET /api/groups/trending` → `{ items: GroupRow[] }`(로그인 불필요, 최대 `trendingSize`개 — 관리자 설정, 기본 5). 모집 중·정원 남음·최근 `trendingActiveDays`일 안에 활동이 있는 소모임에서
+ *   활동·규모로 가중한 무작위 — 요청마다 달라질 수 있어 화면은 한 번 받아 고정한다. 후보가 없으면 빈 배열(화면은 슬라이드 자리를 통째로 생략).
+ * - `GET /api/groups?…&exclude=1,2,3` — 쉼표로 이은 소모임 ID 최대 20개(관리자 trendingSize 최대와 같다)를 뺀 집합 위에서 쪽을 나눈다(서버 `GroupQueryService.list` 에 이미 있다 — 틀리면 `400 fields.exclude`).
+ *   화면은 「지금 뜨는 소모임」의 ID 를 **모든 쪽에 같은 값으로** 보낸다(첫 쪽에만 보내면 2쪽부터 겹치거나 건너뛴다).
+ * - 회원 프로필의 「소모임」 탭 `GET /api/users/{id}/groups` 는 경로의 주인이 회원 프로필이라 `useUserProfileApi` 에 있다.
  */
 const PATH = {
     groups: '/api/groups',
     categories: '/api/groups/categories',
+    trending: '/api/groups/trending',
     creationRules: '/api/groups/creation-rules',
     group: (id: string) => `/api/groups/${encodeURIComponent(id)}`,
     members: (id: string) => `${PATH.group(id)}/members`,
@@ -173,6 +182,9 @@ export function useGroupApi() {
 
         /** 소모임 분류 — 목록 칩과 만들기 화면의 분류 고르기가 같이 쓴다(로그인 불필요) */
         categories: (signal?: AbortSignal) => client.get<GroupCategoriesResponse>(PATH.categories, { signal }),
+
+        /** 지금 뜨는 소모임 — 가중 무작위라 요청마다 다를 수 있다(화면은 한 번 받아 고정). 로그인 불필요 */
+        trending: (signal?: AbortSignal) => client.get<GroupTrendingResponse>(PATH.trending, { signal }),
 
         /** 상세 — 보는 사람에 따라 `myState`·`join`·`chat`·`permissions` 가 달라진다 */
         detail: (id: string, signal?: AbortSignal) => client.get<GroupDetail>(PATH.group(id), { signal }),

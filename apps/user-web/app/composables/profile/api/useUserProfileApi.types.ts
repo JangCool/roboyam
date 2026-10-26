@@ -1,11 +1,12 @@
 /**
  * 공개 회원 프로필 API 가 주고받는 모양 — **서버 연결됨**(server/api `PublicProfileView`·`AuthorCommentPageView`, 작성글은 `PostFeedPageView`). 모양은 community `docs/api-profile.md`「공개 프로필」에서 로보얌에 있는 것만 남겼다
- * (프로필 이미지·닉네임 이미지·꾸미기·소모임·스크랩·인기글 수 없음). 계약: `docs/features/member-activity-contract.md` 「공개 프로필」.
+ * (프로필 이미지·닉네임 이미지·꾸미기·스크랩·인기글 수 없음 — 소모임 탭은 6단계에 더했다). 계약: `docs/features/member-activity-contract.md` 「공개 프로필」.
  * ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO.
  */
 import type { Role } from '~/composables/auth/api/useAuthApi.types';
 import type { BlockedBy } from '~/composables/block/api/useBlockApi.types';
 import type { PostFeedPage } from '~/composables/board/api/usePostApi.types';
+import type { GroupRow } from '~/composables/group/api/useGroupApi.types';
 import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopApi.types';
 
 /** 활동 수치 — 보이는 글 수 · 지우지 않은 댓글 수 · 글·댓글이 받은 추천 합(서버가 최대 60초 늦을 수 있다) */
@@ -74,4 +75,19 @@ export interface UserFeedQuery {
     cursor?: string;
     /** 1~50, 기본 20 — 범위 밖은 서버가 잘라 맞추지 않고 `400 VALIDATION fields.size` */
     size?: number;
+}
+
+/**
+ * 프로필 「소모임」 탭의 한 줄 — 소모임 목록 줄(`GroupRow`)에 **그 회원의** `role`·`joinedAt` 이 더 있다(6단계 — community `docs/api-profile.md` 「`GET /api/users/{id}/groups`」와 같다고 가정).
+ * ⚠ `myState` 는 **보는 사람의** 상태다 — 「모임장」 표시는 `role`(프로필 주인)로 한다.
+ */
+export interface ProfileGroupRow extends GroupRow {
+    /** 프로필 주인의 역할 — `LEADER`(모임장) · `MANAGER`(매니저) · `MEMBER`. 「모임장」 표시는 LEADER 일 때만 */
+    role: 'LEADER' | 'MANAGER' | 'MEMBER';
+    joinedAt: string;
+}
+
+/** `GET /api/users/{id}/groups` — 그 회원이 지금 멤버인 열린(ACTIVE) 소모임, 가입이 최근인 순 최대 50개(더보기 없음). 비회원도 읽는다. 없는·탈퇴한 회원 `404 PROFILE_NOT_FOUND` */
+export interface ProfileGroupsResponse {
+    items: ProfileGroupRow[];
 }

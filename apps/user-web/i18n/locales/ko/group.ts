@@ -77,10 +77,19 @@ export default {
     emptyNoneTitle: '아직 열린 소모임이 없어요',
     emptyNoneText: '관심 있는 주제로 첫 소모임을 만들어 보세요.',
     rowJoin: '가입',
+    rowJoinLong: '가입하기',
     rowApply: '가입 신청',
     rowClosed: '마감',
     rowMember: '가입함',
     rowApplied: '승인 대기',
+
+    // ── 지금 뜨는 소모임(6단계) ───────────────────────────
+    trendingTitle: '지금 뜨는 소모임',
+    trendingHint: '모집 중 · 최근 활동이 있는 모임',
+    trendingError: '지금 뜨는 소모임을 불러오지 못했어요',
+    trendingGoTo: '{n}번째 소모임 보기',
+    onlyTrendingTitle: '위의 소모임이 지금 열려 있는 전부예요',
+    onlyTrendingText: '새 소모임이 열리면 여기에 모여요. 직접 만들어 볼 수도 있어요.',
 
     // ── 내 소모임 ─────────────────────────────────────────
     myTitle: '내 소모임',

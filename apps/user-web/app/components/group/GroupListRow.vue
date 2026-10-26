@@ -1,6 +1,6 @@
 <template>
     <!-- 소모임 한 줄(컴팩트) — 이름·(모임장)·모집 상태·공개 범위 / 멤버 수·분류·신청제·오프라인·(주식이면 종목 추천 금지) / 한 줄 소개. 줄 전체가 상세로 가는 링크다.
-         목록(`/groups`)은 오른쪽에 가입 상태 표시(누르는 단추가 아니다 — 링크 안에 단추를 넣지 않는다), 내 소모임(`/groups/me`)은 `mine` 으로 모임장 표시와 새 글 수를 보인다 -->
+         목록(`/groups`)은 오른쪽에 가입 상태 표시(누르는 단추가 아니다 — 링크 안에 단추를 넣지 않는다), 내 소모임(`/groups/me`)·회원 프로필의 소모임 탭은 `mine` 으로 모임장 표시(`role` — 프로필은 그 회원의 역할)와 새 글 수를 보인다 -->
     <li class="border-b border-surface last:border-b-0" data-testid="group-row">
         <NuxtLink
             :to="UtilGroup.detailPath(row.id)"
@@ -40,7 +40,7 @@ import UtilGroupMessages from '~/utils/util-group-messages';
 
 interface Props {
     row: GroupRow;
-    /** 내 소모임 줄 — 오른쪽 가입 표시 대신 ›, 모임장이면 「모임장」 */
+    /** 내 소모임·프로필 소모임 탭 줄 — 오른쪽 가입 표시 대신 ›, `role` 이 모임장이면 「모임장」 */
     mine?: boolean;
     /** 내 소모임의 역할(모임장 표시) */
     role?: string | null;

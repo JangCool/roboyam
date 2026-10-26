@@ -3,7 +3,9 @@
         소모임 목록 `/groups?category=&sort=&q=` (메뉴 `GROUPS_ALL`) — 분류 칩 · 정렬 · 컴팩트 목록 · 더보기 · 검색 · 만들기. 데스크톱 오른쪽에 내 소모임 요약.
         주소의 쿼리가 화면 상태다(뒤로 가기·공유·새로고침이 같은 결과). 칩·정렬·검색어 지우기는 링크라 주소만 바뀌고, 이상한 값은 기본값으로 돌린다.
         분류 칩은 `GET /api/groups/categories`(관리자가 정한 이름·순서·소모임 수). 분류 목록에 없는 `?category=` 는 목록을 받지 않고 안내 + [전체 보기].
-        community 대비: 「지금 뜨는 소모임」 슬라이드는 6단계라 이 화면에 자리를 두지 않았다. 사이드의 광고 자리는 로보얌에 광고가 없어 뺐다.
+        맨 위 「지금 뜨는 소모임」 슬라이드(6단계, `GET /api/groups/trending`)는 한 번 받아 고정하고 검색 중에는 숨긴다. 아래 목록은 슬라이드를 기다렸다가 그 소모임들을 `exclude` 로 뺀다
+        (「내 소모임」 정렬은 빼지 않는다). 슬라이드가 실패해도 목록은 `exclude` 없이 그대로 받고, 두 오류는 따로 보인다.
+        community 대비: 사이드의 광고 자리는 로보얌에 광고가 없어 뺐다.
     -->
     <div>
         <header class="flex items-center gap-2">
@@ -46,6 +48,93 @@
 
         <div class="mt-3 lg:grid lg:grid-cols-[minmax(0,1fr)_18.75rem] lg:items-start lg:gap-6">
             <div class="min-w-0">
+                <!-- 지금 뜨는 소모임 — 가로로 밀어 넘기는 카드 줄(scroll-snap, 자동으로 넘어가지 않는다). 검색 중에는 숨기고, 후보가 없으면(빈 응답) 자리를 통째로 생략한다.
+                     카드 전체가 상세로 가는 링크이고 오른쪽 아래 「가입하기」는 모양만이다(링크 안에 단추를 넣지 않는다 — 상세에서 가입한다) -->
+                <section
+                    v-if="UtilGroup.showsTrending(state) && trendingStatus !== 'idle' && !(trendingStatus === 'ready' && trending.length === 0)"
+                    class="mb-1"
+                    :aria-labelledby="trendingTitleId"
+                    data-testid="group-trending"
+                >
+                    <h2 :id="trendingTitleId" class="flex items-baseline gap-2 text-sm font-semibold">
+                        {{ t('group.trendingTitle') }}
+                        <small class="truncate text-xs font-normal text-muted-color">{{ t('group.trendingHint') }}</small>
+                    </h2>
+
+                    <div v-if="trendingStatus === 'loading'" class="-mx-4 mt-2 flex gap-3 overflow-hidden px-4 md:mx-0 md:px-0" aria-hidden="true" data-testid="group-trending-loading">
+                        <div v-for="n in 3" :key="n" class="h-[8.5rem] w-[16.5rem] shrink-0 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
+                    </div>
+
+                    <div
+                        v-else-if="trendingStatus === 'error'"
+                        class="mt-2 flex items-center justify-between gap-3 rounded-xl border border-surface bg-surface-0 px-3 py-2.5 text-sm dark:bg-surface-900"
+                        role="alert"
+                        data-testid="group-trending-error"
+                    >
+                        <span class="min-w-0">
+                            <b class="block text-sm">{{ t('group.trendingError') }}</b>
+                            <span v-if="trendingErrorMessage" class="block text-xs text-muted-color">{{ trendingErrorMessage }}</span>
+                        </span>
+                        <Button type="button" :label="t('common.retry')" size="small" severity="secondary" variant="outlined" class="shrink-0" data-testid="group-trending-retry" @click="loadTrending" />
+                    </div>
+
+                    <template v-else>
+                        <ul
+                            ref="trendingScroller"
+                            class="-mx-4 m-0 mt-2 flex list-none snap-x snap-mandatory scroll-pl-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:scroll-pl-0 md:px-0"
+                            data-testid="group-trending-list"
+                            @scroll.passive="onTrendingScroll"
+                        >
+                            <li v-for="row in trending" :key="row.id" class="w-[16.5rem] shrink-0 snap-start">
+                                <NuxtLink
+                                    :to="UtilGroup.detailPath(row.id)"
+                                    class="flex h-full flex-col rounded-xl border border-surface bg-surface-0 p-3 hover:bg-surface-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:bg-surface-900 dark:hover:bg-surface-800"
+                                    data-testid="group-trending-card"
+                                >
+                                    <span class="flex items-center gap-2.5">
+                                        <GroupInitial :name="row.name" size="lg" />
+                                        <span class="min-w-0 flex-1">
+                                            <span class="flex items-center gap-1.5">
+                                                <b class="min-w-0 truncate text-sm" data-testid="group-trending-name">{{ row.name }}</b>
+                                                <GroupVisibilityChip :visibility="row.visibility" />
+                                            </span>
+                                            <span class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-color">
+                                                <span class="shrink-0">{{ UtilGroupMessages.members(t, row) }}</span>
+                                                <GroupTag v-if="row.category" tone="neutral">{{ row.category.name }}</GroupTag>
+                                            </span>
+                                        </span>
+                                    </span>
+                                    <span class="mt-2 line-clamp-2 flex-1 break-words text-xs text-surface-600 dark:text-surface-300">{{ row.summary }}</span>
+                                    <span class="mt-2 flex items-center justify-between gap-2">
+                                        <span v-if="row.stockNotice" class="min-w-0 truncate text-xs font-semibold text-amber-700 dark:text-amber-400">{{ t('group.stockRowNote') }}</span>
+                                        <span v-else class="min-w-0 truncate text-xs text-muted-color">{{ UtilGroupMessages.badges(t, row).join(' · ') }}</span>
+                                        <span
+                                            class="inline-flex min-h-7 shrink-0 items-center rounded-md px-2.5 text-xs font-semibold"
+                                            :class="ACTION_CLASS[UtilGroupMessages.rowAction(t, row, true).tone]"
+                                            data-testid="group-trending-action"
+                                            >{{ UtilGroupMessages.rowAction(t, row, true).label }}</span
+                                        >
+                                    </span>
+                                </NuxtLink>
+                            </li>
+                        </ul>
+                        <!-- 점 — 지금 보이는 카드를 알리고, 누르면 그 카드로 민다(마우스만 쓰는 데스크톱은 스크롤바가 없어 이 점이 길이다) -->
+                        <div v-if="trending.length > 1" class="mt-1 flex justify-center" data-testid="group-trending-dots">
+                            <button
+                                v-for="(row, i) in trending"
+                                :key="row.id"
+                                type="button"
+                                class="grid size-6 place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-primary"
+                                :aria-label="t('group.trendingGoTo', { n: i + 1 })"
+                                :aria-current="i === trendingActive ? 'true' : undefined"
+                                @click="trendingGoTo(i)"
+                            >
+                                <i class="block size-1.5 rounded-full" :class="i === trendingActive ? 'bg-primary' : 'bg-surface-300 dark:bg-surface-600'" />
+                            </button>
+                        </div>
+                    </template>
+                </section>
+
                 <!-- 분류 칩 — 「분류」 머리글 + 가로로 미는 칩(전체 + 분류들). 받는 중에는 칩 자리에 스켈레톤, 못 받았으면 「전체」만 -->
                 <div class="-mx-4 flex items-center px-4 py-2.5 md:mx-0 md:px-0" data-testid="group-category-bar">
                     <span class="shrink-0 pr-2 text-xs font-bold text-muted-color" aria-hidden="true">{{ t('group.categoryLabel') }}</span>
@@ -255,6 +344,93 @@ watch(
     { immediate: true, flush: 'post' },
 );
 
+/* ── 지금 뜨는 소모임 ── */
+type TrendingStatus = 'idle' | 'loading' | 'ready' | 'error';
+
+const trendingTitleId = useId();
+const trending = ref<GroupRow[]>([]);
+const trendingStatus = ref<TrendingStatus>('idle');
+const trendingErrorMessage = ref('');
+/** 슬라이드 요청이 끝나면(성공·실패 모두) 풀리는 약속 — 목록이 이것을 기다렸다가 `exclude` 를 정한다. 던지지 않는다 */
+let trendingDone: Promise<void> | null = null;
+let trendingSeq = 0;
+let trendingAbort: AbortController | null = null;
+
+/** 슬라이드를 (다시) 받는다 — 앞 요청이 있으면 끊는다. 가중 무작위라 한 번 받으면 분류·정렬을 바꿔도 다시 받지 않는다 */
+function loadTrending(): Promise<void> {
+    const mine = ++trendingSeq;
+    trendingAbort?.abort();
+    const controller = new AbortController();
+    trendingAbort = controller;
+    trendingStatus.value = 'loading';
+    trendingErrorMessage.value = '';
+    const done = api
+        .trending(controller.signal)
+        .then((res) => {
+            if (mine !== trendingSeq) return;
+            trending.value = res.items;
+            trendingStatus.value = 'ready';
+        })
+        .catch((e: unknown) => {
+            if (mine !== trendingSeq || UtilGroup.isAborted(e)) return;
+            trending.value = [];
+            trendingErrorMessage.value = UtilBoardMessages.of(t, e);
+            trendingStatus.value = 'error';
+        });
+    trendingDone = done;
+    return done;
+}
+
+/** 카드 오른쪽 아래 표시의 모양 — 가입할 수 있다(파랑 테두리) · 정원 참·마감(꺼진 회색) · 이미 내 상태(글자만). 목록 줄(`GroupListRow`)과 같다 */
+const ACTION_CLASS = {
+    go: 'border border-primary text-primary',
+    off: 'border border-surface bg-surface-100 text-muted-color dark:bg-surface-800',
+    note: 'text-muted-color',
+} as const;
+
+/** 카드 사이 간격(Tailwind `gap-3` = 0.75rem) */
+const TRENDING_GAP_PX = 12;
+const trendingScroller = ref<HTMLElement | null>(null);
+/** 지금 맨 앞에 보이는 카드 번호(0부터) */
+const trendingActive = ref(0);
+
+/** 카드 한 칸의 너비(카드 + 간격) — 아직 그려지기 전이면 0 */
+function trendingStep(): number {
+    const firstCard = trendingScroller.value?.querySelector<HTMLElement>('li');
+    return firstCard ? firstCard.offsetWidth + TRENDING_GAP_PX : 0;
+}
+
+function onTrendingScroll() {
+    const box = trendingScroller.value;
+    if (!box) return;
+    const last = trending.value.length - 1;
+    // 끝까지 밀었으면 마지막 카드(마지막 카드가 줄 폭보다 좁아 앞 번호로 나오는 것을 막는다)
+    if (box.scrollLeft + box.clientWidth >= box.scrollWidth - 2 && box.scrollWidth > box.clientWidth) {
+        trendingActive.value = last;
+        return;
+    }
+    const s = trendingStep();
+    trendingActive.value = s > 0 ? Math.min(last, Math.max(0, Math.round(box.scrollLeft / s))) : 0;
+}
+
+function trendingGoTo(i: number) {
+    const box = trendingScroller.value;
+    const s = trendingStep();
+    if (!box || s <= 0) return;
+    // ⚠ 줄(가로)만 민다 — scrollIntoView 는 페이지의 세로 스크롤까지 움직인다
+    box.scrollTo({ left: i * s, behavior: 'smooth' });
+    trendingActive.value = i;
+}
+
+// 슬라이드는 목록과 따로 먼저 시작한다(목록이 겹치지 않게 그 결과를 기다린다)
+if (UtilGroup.showsTrending(state.value)) void loadTrending();
+
+// 카드가 바뀌면(다시 받기) 처음으로
+watch(trending, () => {
+    trendingActive.value = 0;
+    if (trendingScroller.value) trendingScroller.value.scrollLeft = 0;
+});
+
 /* ── 목록 ── */
 type ListStatus = 'loading' | 'ready' | 'error' | 'category-invalid' | 'login-required';
 
@@ -268,9 +444,11 @@ const loadingMore = ref(false);
 const moreError = ref('');
 let seq = 0;
 let abort: AbortController | null = null;
+/** 이 목록을 받을 때 `exclude` 로 보낸 값 — 2쪽부터도 같은 값을 보낸다(서버가 뺀 집합 위에서 쪽을 나눠, 첫 쪽에만 보내면 겹치거나 건너뛴다) */
+let excluded = '';
 
 function query(s: GroupListState, pageNo: number) {
-    return { category: s.category || undefined, sort: s.sort, q: s.q || undefined, page: pageNo, size: UtilGroup.PAGE_SIZE };
+    return { category: s.category || undefined, sort: s.sort, q: s.q || undefined, page: pageNo, size: UtilGroup.PAGE_SIZE, exclude: excluded || undefined };
 }
 
 /** 처음부터 다시 받는다 — 앞 요청은 끊고, 늦게 온 옛 응답은 요청 번호로 버린다 */
@@ -286,10 +464,19 @@ async function load(): Promise<void> {
     moreError.value = '';
     loadingMore.value = false;
     status.value = 'loading';
+    // 슬라이드가 보이는 주소인데 아직 받기 전이면(처음 들어왔거나 검색을 막 끝냈다) 함께 시작한다
+    if (UtilGroup.showsTrending(s) && trendingStatus.value === 'idle') void loadTrending();
     // 비회원은 「내 소모임」을 부르지 않는다(서버도 401)
     if (s.sort === 'mine' && !user.value) {
         status.value = 'login-required';
         return;
+    }
+    // 슬라이드를 먼저 받아 그 소모임들을 목록에서 뺀다(겹치지 않게). 슬라이드가 실패하면 빼지 않고 받는다
+    excluded = '';
+    if (UtilGroup.excludesTrending(s) && trendingDone) {
+        await trendingDone;
+        if (mine !== seq) return;
+        if (trendingStatus.value === 'ready') excluded = UtilGroup.excludeOf(trending.value);
     }
     const controller = new AbortController();
     abort = controller;
@@ -355,17 +542,25 @@ watch(
 
 onBeforeUnmount(() => {
     seq++;
+    trendingSeq++;
     abort?.abort();
+    trendingAbort?.abort();
 });
 
 const emptyKind = computed(() => UtilGroup.emptyKind(state.value));
-const empty = computed(() => UtilGroupMessages.emptyCopy(t, state.value));
+/** 열린 소모임이 모두 위 슬라이드에 나와 아래 목록이 빈 경우(서비스 초기) — 비어 있다고 말하지 않고 위를 가리킨다 */
+const empty = computed(() =>
+    emptyKind.value === 'none' && UtilGroup.showsTrending(state.value) && trending.value.length > 0
+        ? { title: t('group.onlyTrendingTitle'), text: t('group.onlyTrendingText') }
+        : UtilGroupMessages.emptyCopy(t, state.value),
+);
 const EMPTY_ICON = { search: 'pi pi-search', mine: 'pi pi-users', filtered: 'pi pi-filter', none: 'pi pi-users' } as const;
 const summary = computed(() => UtilGroupMessages.summary(t, listStatus.value, items.value.length, hasNext.value));
 
 /** 고른 분류에 투자 고지 게시판이 있는가 — 분류 응답의 `investmentNotice`(이름으로 판정하지 않는다) */
 const stockFilter = computed(() => Boolean(UtilGroup.categoryById(categories.value, state.value.category)?.investmentNotice));
-const mixedStock = computed(() => !stockFilter.value && items.value.some((r) => r.stockNotice));
+/** 분류를 안 골랐는데 투자 고지 게시판의 소모임이 목록·슬라이드에 섞여 있다 */
+const mixedStock = computed(() => !stockFilter.value && (items.value.some((r) => r.stockNotice) || (UtilGroup.showsTrending(state.value) && trending.value.some((r) => r.stockNotice))));
 
 /* ── 검색 ── */
 const draft = ref(state.value.q);

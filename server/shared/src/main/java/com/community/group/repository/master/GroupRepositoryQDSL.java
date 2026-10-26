@@ -111,6 +111,16 @@ public class GroupRepositoryQDSL extends RoboyamRepositoryQDSL {
         return where;
     }
 
+    /**
+     * 「지금 뜨는 소모임」 후보(community api-groups.md 2절) — 열림 · 모집 켬 · 정원 남음 · 그 시각 뒤에 활동이 있음. 최근 활동 순으로 {@code limit} 개까지
+     * (무작위 고르기는 부르는 쪽).
+     */
+    public List<GroupEntity> trendingCandidates(Instant activeSince, int limit) {
+        return query.selectFrom(GROUP)
+                .where(GROUP.status.eq(GroupStatus.ACTIVE), GROUP.recruiting.isTrue(), GROUP.memberCount.lt(GROUP.capacity), GROUP.lastActivityAt.goe(activeSince))
+                .orderBy(GROUP.lastActivityAt.desc(), GROUP.id.desc()).limit(limit).fetch();
+    }
+
     /** 게시판 ID → 그 상태들의 소모임 수 */
     public Map<Long, Long> countByBoard(Collection<GroupStatus> statuses) {
         Map<Long, Long> out = new HashMap<>();

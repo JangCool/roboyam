@@ -14,7 +14,8 @@ import org.springframework.stereotype.Repository;
  * <ul>
  *   <li>{@code title} 제목 · {@code body} 본문 평문({@code coalesce(content_text, content)} — HTML 글은 태그를 뗀 평문 칸, 게시판 안 검색 {@code PostRepositoryQDSL#page} 와 같은 식)
  *       · {@code author} 회원 닉네임(profiles) 또는 비회원 이름 · {@code all} 셋 중 어디든.</li>
- *   <li>나오는 글: 주어진 게시판의 보이는 글(지움·임시저장·예약 삭제 시각 지남 제외)이고 신고로 숨기지 않은 글({@code PostRepositoryQDSL#alive}·{@code #notHidden} 과 같은 뜻).</li>
+ *   <li>나오는 글: 주어진 게시판의 보이는 글(지움·임시저장·예약 삭제 시각 지남 제외)이고 신고로 숨기지 않은 글({@code PostRepositoryQDSL#alive}·{@code #notHidden} 과 같은 뜻).
+ *       소모임 글은 비멤버에게 보이는 것만({@code PostRepositoryQDSL#feedVisible} 과 같은 뜻 — 소모임 6단계).</li>
  * </ul>
  *
  * <p><b>색인</b>: V68 의 pg_trgm GIN — {@code lower(title)} · {@code lower(coalesce(content_text, content))} · {@code lower(guest_name)}(비회원 글) ·
@@ -124,7 +125,10 @@ public class PostSearchQueries {
         StringBuilder sql = new StringBuilder("""
                 p.board_id IN (:boards) AND p.status = 'PUBLISHED' AND p.deleted_at IS NULL \
                 AND (p.delete_scheduled_at IS NULL OR p.delete_scheduled_at > :now) \
-                AND (p.hidden_at IS NULL OR (p.hidden_until IS NOT NULL AND p.hidden_until <= :now))""");
+                AND (p.hidden_at IS NULL OR (p.hidden_until IS NOT NULL AND p.hidden_until <= :now)) \
+                AND (p.group_id IS NULL OR (p.is_public AND p.group_left_at IS NULL \
+                AND NOT EXISTS (SELECT 1 FROM groups g WHERE g.id = p.group_id AND g.status = 'INACTIVE')))""");
+        // ↑ 소모임 글은 비멤버에게 보이는 것만(PostRepositoryQDSL#feedVisible 과 같은 판정 — 소모임 6단계)
         if (c.cursor() != null) {
             sql.append(c.oldest() ? " AND p.id > :cursor" : " AND p.id < :cursor");
         }
