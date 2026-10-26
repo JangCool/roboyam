@@ -3,7 +3,8 @@
         소모임 분류 화면의 오른쪽 패널 — 선택한 분류 하나(community `GroupCategoryPanel`).
         ① 이름 + 머리 오른쪽 [분류 삭제] ② 추가할 소모임 게시판 고르기(선택 상자 + [추가]; 소모임 게시판이 하나도 없으면 안내 + 게시판 관리 링크) ③ 추가한 게시판 목록(이름·주소·딱지·소모임 수·[빼기]/[되돌리기])
         ④ 안내(옮기기·빼기·꺼짐·투자 고지 섞임 — 막지 않고 알린다) ⑤ 저장 줄(선택한 분류 단위 — 이름 + 게시판 할당). 설정 권한이 없으면 입력이 잠기고 단추·저장 줄이 없다.
-        community 와 다른 점: [소모임 게시판 만들기] 대화상자 대신 게시판 관리(`/boards`) 링크 — 로보얌의 게시판 만들기는 종류(소모임)·분류를 받지 않는다(후보: 서버 단계에서 정한다).
+        [소모임 게시판 만들기](`board.manage`): 게시판 관리의 만들기 대화상자로 간다(`/boards?create=group&category=<이 분류>` — 종류 소모임 고정, 이 분류가 미리 골라진 채). community 는 이 화면에서 같은 대화상자를 바로 연다.
+        `board.manage` 가 없고 `board.read` 만 있으면 게시판 관리(`/boards`) 링크.
         서버를 부르지 않는다 — 값과 일은 부르는 쪽(페이지)이 들고 이벤트로 올린다.
     -->
     <AppGadget :title="category.name" :changes="changeCount" :invalid="nameError || boardsError ? 1 : 0">
@@ -24,7 +25,8 @@
                 <label :for="pickId" class="text-sm font-medium">{{ t('group.pickLabel') }}</label>
                 <div v-if="noBoards" class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-dashed border-(--line) px-3 py-3 text-[13px] text-muted-color">
                     <span class="min-w-0 flex-1">{{ t('group.pickNoBoards') }}</span>
-                    <NuxtLink v-if="canBoard" to="/boards" class="font-medium whitespace-nowrap text-primary hover:underline">{{ t('group.boardManageLink') }} ›</NuxtLink>
+                    <NuxtLink v-if="canCreateBoard" :to="createBoardTo" class="font-medium whitespace-nowrap text-primary hover:underline">{{ t('group.boardCreateLink') }} ›</NuxtLink>
+                    <NuxtLink v-else-if="canBoard" to="/boards" class="font-medium whitespace-nowrap text-primary hover:underline">{{ t('group.boardManageLink') }} ›</NuxtLink>
                 </div>
                 <div v-else class="flex flex-wrap items-center gap-2">
                     <Select
@@ -58,7 +60,10 @@
                 </div>
                 <p :id="`${pickId}-hint`" class="m-0 text-xs leading-relaxed text-muted-color">
                     {{ t('group.pickHint') }}
-                    <NuxtLink v-if="canBoard && !noBoards" to="/boards" class="ml-1 whitespace-nowrap text-primary hover:underline">{{ t('group.boardManageLink') }} ›</NuxtLink>
+                    <template v-if="!noBoards">
+                        <NuxtLink v-if="canCreateBoard" :to="createBoardTo" class="ml-1 whitespace-nowrap text-primary hover:underline">{{ t('group.boardCreateLink') }} ›</NuxtLink>
+                        <NuxtLink v-else-if="canBoard" to="/boards" class="ml-1 whitespace-nowrap text-primary hover:underline">{{ t('group.boardManageLink') }} ›</NuxtLink>
+                    </template>
                 </p>
             </div>
 
@@ -131,6 +136,8 @@ interface Props {
     canEdit?: boolean;
     /** 게시판 관리 링크(`board.read`) */
     canBoard?: boolean;
+    /** [소모임 게시판 만들기] 링크(`board.manage`) */
+    canCreateBoard?: boolean;
     saving?: boolean;
     busy?: boolean;
     boardsError?: string;
@@ -146,6 +153,7 @@ const props = withDefaults(defineProps<Props>(), {
     canSave: false,
     canEdit: false,
     canBoard: false,
+    canCreateBoard: false,
     saving: false,
     busy: false,
     boardsError: '',
@@ -167,6 +175,9 @@ const pickId = useId();
 const pick = ref<string | null>(null);
 /** 추가하고 나면 선택 상자를 새로 만든다 — 방금 고른 값이 남아 또 더하려는 것처럼 보이지 않게 */
 const pickKey = ref(0);
+
+/** 게시판 관리의 만들기 대화상자 — 종류 소모임 고정, 이 분류가 미리 골라진 채 */
+const createBoardTo = computed(() => ({ path: '/boards', query: { create: 'group', category: props.category.id } }));
 
 const moves = computed(() => props.rows.filter((row) => row.state === 'added' && row.from));
 const removals = computed(() => props.rows.filter((row) => row.state === 'removed'));

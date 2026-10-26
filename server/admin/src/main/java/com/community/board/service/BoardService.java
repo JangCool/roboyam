@@ -30,6 +30,8 @@ import com.community.board.repository.master.BoardPrefixRepository;
 import com.community.board.repository.master.BoardRepository;
 import com.community.grade.entity.GradeEntity;
 import com.community.grade.repository.master.GradeRepositoryQDSL;
+import com.community.group.entity.GroupCategoryEntity;
+import com.community.group.service.GroupCategoryService;
 import com.community.menu.service.MenuBoardLinker;
 import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
@@ -68,6 +70,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>쓰기 자격: GUEST · 등급 키(등급 표에 있는 것) · STAFF, 댓글은 OFF 도. 핫딜·직접홍보는 GUEST 불가, 핫딜 글쓰기는 첫 등급(새싹) 불가.</li>
  *   <li>가젯 노출 금지({@code gadgetExclusions}): null 이면 그대로, 중복은 하나로(목록 순서로 저장), 모르는 값은 400 {@code gadgetExclusions}.</li>
  *   <li>삭제는 삭제되지 않은 글(임시저장 포함)이 없을 때만(409 {@code BOARD_HAS_POSTS}) — 남은 삭제된 글·댓글도 함께 지운다.</li>
+ *   <li>만들기는 종류 {@code GENERAL}(기본)·{@code GROUP}(소모임 — 메뉴에 자동으로 넣지 않는다)만. 소모임 분류({@code groupCategoryId})는 소모임 게시판만 받고
+ *       {@code group.settings} 도 필요하며, 같은 트랜잭션으로 그 분류 끝에 할당한다(docs/features/group-contract.md).</li>
  *   <li>감사 기록은 바뀐 값만 before/after 로 남긴다.</li>
  * </ul>
  */
@@ -87,10 +91,11 @@ public class BoardService {
     private final AuditLogService audit;
     private final AccessDeniedRecorder denied;
     private final MenuBoardLinker menu;
+    private final GroupCategoryService groupCategories;
 
     public BoardService(BoardRepository boards, BoardPrefixRepository prefixes, BoardContentQueries content, BoardCreator creator, BoardViews views,
                         GradeRepositoryQDSL grades, SnowflakeIdGenerator ids, AuditLogService audit, AccessDeniedRecorder denied,
-                        MenuBoardLinker menu) {
+                        MenuBoardLinker menu, GroupCategoryService groupCategories) {
         this.boards = boards;
         this.prefixes = prefixes;
         this.content = content;
@@ -101,6 +106,7 @@ public class BoardService {
         this.audit = audit;
         this.denied = denied;
         this.menu = menu;
+        this.groupCategories = groupCategories;
     }
 
     @Transactional(readOnly = true)
@@ -131,6 +137,8 @@ public class BoardService {
         String slug = BoardRules.strip(request == null ? null : request.slug());
         String description = BoardRules.strip(request == null ? null : request.description());
         String layout = request == null ? null : request.layout();
+        String kind = request == null || request.kind() == null || request.kind().isBlank() ? BoardFields.KIND_GENERAL : request.kind().strip();
+        String rawCategoryId = BoardRules.stripToNull(request == null ? null : request.groupCategoryId());
 
         Map<String, MessageRef> invalid = new LinkedHashMap<>();
         nameProblem(name).ifPresent(problem -> invalid.put("name", problem));
@@ -147,9 +155,34 @@ public class BoardService {
         if (layout == null || !BoardFields.LAYOUTS.contains(layout)) {
             invalid.put("layout", new MessageRef("board.field.choice"));
         }
+        // 관리자 화면은 일반·소모임만 만든다(핫딜·직접홍보는 설치 프리셋만)
+        boolean group = BoardFields.KIND_GROUP.equals(kind);
+        if (!group && !BoardFields.KIND_GENERAL.equals(kind)) {
+            invalid.put("kind", new MessageRef("board.field.choice"));
+        }
+        Long categoryId = null;
+        if (rawCategoryId != null) {
+            if (!group) {
+                if (!invalid.containsKey("kind")) {
+                    invalid.put("groupCategoryId", new MessageRef("board.groupCategory.groupOnly"));
+                }
+            } else {
+                categoryId = BoardRules.parseId(rawCategoryId);
+                if (categoryId == null) {
+                    invalid.put("groupCategoryId", new MessageRef("board.groupCategory.missing"));
+                }
+            }
+        }
         if (!invalid.isEmpty()) {
             throw new ValidationException(invalid);
         }
+        // 분류를 고르면 group.settings 도 있어야 한다(입구는 board.manage)
+        if (categoryId != null && !actor.can(Permission.GROUP_SETTINGS)) {
+            denied.record(actor, "MISSING_PERMISSION", "GROUP_CATEGORY", Long.toString(categoryId), List.of(Permission.GROUP_SETTINGS.code()));
+            throw new PermissionDeniedException();
+        }
+        // 분류 잠금을 게시판 행보다 먼저 잡는다 — 없는 분류면 400 fields.groupCategoryId 이고 게시판은 만들어지지 않는다
+        GroupCategoryEntity category = categoryId == null ? null : groupCategories.lockForNewBoard(categoryId);
         if (boards.existsBySlug(slug)) {
             throw new BoardSlugDuplicateException();
         }
@@ -159,15 +192,25 @@ public class BoardService {
         }
         Instant now = Instant.now();
         int nextOrder = all.stream().mapToInt(BoardEntity::getSortOrder).max().orElse(0) + 1;
-        BoardEntity board = creator.create(new NewBoard(slug, name, null, description, BoardFields.KIND_GENERAL, layout, !"CARD".equals(layout), null, false,
+        // 소모임 게시판은 메뉴에 자동으로 넣지 않는다(BoardCreator 가 종류를 본다)
+        BoardEntity board = creator.create(new NewBoard(slug, name, null, description, kind, layout, !"CARD".equals(layout), null, false,
                 null, new HashSet<>(BoardFields.COMMON_PREFIXES), List.of()), nextOrder, actor.operatorId(), now);
         flushOrDuplicated();
+        if (category != null) {
+            // 같은 트랜잭션으로 분류 끝에 할당하고 그 분류의 updatedAt 을 올린다
+            groupCategories.appendNewBoard(category, board.getId(), actor.operatorId(), now);
+            boards.flush();
+        }
         Map<String, Object> after = new LinkedHashMap<>();
         after.put("slug", slug);
         after.put("name", name);
         after.put("layout", layout);
+        after.put("kind", kind);
+        if (category != null) {
+            after.put("groupCategoryId", Long.toString(category.getId()));
+        }
         audit.record(event(actor, AuditActions.BOARD_CREATE, board.getId()).with("before", Map.of()).with("after", after));
-        log.info("게시판을 만들었다 boardId={} by operatorId={}", board.getId(), actor.operatorId());
+        log.info("게시판을 만들었다 boardId={} kind={} by operatorId={}", board.getId(), kind, actor.operatorId());
         return views.itemOf(board.getId());
     }
 

@@ -32,10 +32,18 @@
 - 사람 칸(모임장·신청자·매니저)은 `GroupPerson { id|null, nickname, withdrawn, grade{label,color,icon}|null }` — community `AuthorView` 중 화면이 쓰는 칸만.
 
 ### community 대비 뺀 것
-- 소모임 설정의 「소모임의 이름」 구획(용어 설정 `GROUPS` 없음) · 분류 목록의 끌어 놓기·Alt+↑↓(▲▼ 만) · 분류 화면의 [소모임 게시판 만들기] 대화상자(게시판 관리 링크로 대신 — 로보얌 게시판 만들기는 종류·분류를 받지 않는다) · 상세 서랍의 「공개 화면 보기」·「회원 조회 ›」·「신고 보기 ›」 링크(관리자 앱이 공개 주소를 모르고, 회원 관리에 주소로 여는 서랍·신고 처리 화면이 없다) · 좁은 화면 카드 목록(가로 스크롤 표).
+- 소모임 설정의 「소모임의 이름」 구획(용어 설정 `GROUPS` 없음) · 분류 목록의 끌어 놓기·Alt+↑↓(▲▼ 만) · 상세 서랍의 「공개 화면 보기」·「회원 조회 ›」·「신고 보기 ›」 링크(관리자 앱이 공개 주소를 모르고, 회원 관리에 주소로 여는 서랍·신고 처리 화면이 없다) · 좁은 화면 카드 목록(가로 스크롤 표).
 
 ### 미확정
-1. 분류 화면에서 소모임 게시판을 바로 만들지(게시판 만들기에 종류 `GROUP`·`groupCategoryId` 를 받을지).
+1. ~~분류 화면에서 소모임 게시판을 바로 만들지~~ → 2026-10-26: 만든다. 분류 화면의 [소모임 게시판 만들기]가 `/boards?create=group&category=<ID>` 를 연다(`board-contract.md` 「소모임 게시판」).
 2. 등급 고르기(`limits.grades`) — 목업은 community 네 등급. 서버는 등급 설정의 등급 키를 줄 것으로 가정.
 3. 설정 변경 이력 API(로보얌 추가)의 모양·전후 값 표시 방식.
 4. 메뉴·권한의 서버 쪽(`AdminScreenRegistry` 네 줄, `Permission` 의 `group.*` `featureReady=true`)은 서버 단계.
+
+## 소모임 분류 서버 (2026-10-26 — 사용자 「분류 서버까지」, 분류 화면은 실제 API 연결)
+- **표**(shared `V88__group_categories.sql` — 2026-10-26 확정: 커머스 1-1 이 V85, 1-2 가 V86·V87 을 써서 다음 번호. Flyway 가 `outOfOrder` 를 끄고 있으니 **커머스 1-1·1-2 를 develop 에 먼저 합친 뒤** 합친다. 그 사이 다른 작업이 V88 을 먼저 쓰면 다시 매긴다): `group_categories(id Snowflake, name varchar(20), name_key varchar(40) UNIQUE, sort_order 10 단위, created_at, updated_by, updated_at)` · `group_category_boards(board_id PK → boards CASCADE, category_id NOT NULL → CASCADE, assigned_order)` — 게시판 하나는 분류 최대 하나.
+- **API** `/api/admin/group-categories` 는 admin-web `useGroupCategoryApi.ts` 머리말 그대로(GET `group.read`, 나머지 `group.settings`). `available` = 켜진 `kind=GROUP` 게시판. `PUT {id}` 검사 차례 404 → `fields.updatedAt` → STALE → 입력 → 이름 중복, `boardIds` 는 필수. `GROUP_CATEGORY_NAME_TAKEN` 은 `fields` 없이 최상위 코드만. `updatedAt` 은 이름·게시판 목록이 바뀔 때만 오르고(옮겨 나간 분류도), 분류 순서는 올리지 않는다.
+- **`groupCount` 는 늘 0** — 소모임 표가 없다. `GroupCategoryViews.groupCountsByBoard()` 와 삭제의 `GROUP_CATEGORY_NOT_EMPTY` 는 자리만 있고 소모임 서버 단계에서 채운다.
+- **감사** `GROUP_CATEGORY_CREATE|UPDATE|ORDER|DELETE`(대상 `GROUP_CATEGORY`), 보관 분류 **GENERAL**(게시판 구성과 같은 운영 일 — 구현 세션 판단, 사용자 확인 전).
+- **동시성**: 분류 바꾸기와 「분류를 고른 게시판 만들기」는 어드바이저리 잠금 `7_340_005` 하나로 줄을 선다.
+- 그대로 둔 것: `AdminScreenRegistry` 네 줄·`Permission` `group.*` `featureReady`(다른 소모임 화면이 아직 목업). 게시판을 지울 때 그 분류 `updatedAt` 은 오르지 않는다(열어 둔 화면이 지워진 ID 로 저장하면 `400 fields.boardIds`).

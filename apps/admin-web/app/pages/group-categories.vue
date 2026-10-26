@@ -5,8 +5,8 @@
         - 저장은 **선택한 분류 단위**(이름 + 게시판 전체 교체). 다른 분류를 누르거나 [분류 추가]를 누를 때 저장 전 변경이 있으면 묻고, 다른 화면으로 떠날 때도 묻는다.
         - 열어 둔 분류는 주소의 `?category=` — 새로고침해도 같은 분류가 선택된다. 분류에 안 든 소모임 게시판이 있으면 위에 노란 줄 + [할당하기](선택한 분류의 입력에 더한다 — 저장해야 반영).
         - 그 사이 다른 관리자가 먼저 고쳤으면(`409 GROUP_CATEGORY_STALE`) 최신 상태를 받고 쓰던 입력을 버린 채 알린다. 소모임이 있는 분류는 지울 수 없다(`409 GROUP_CATEGORY_NOT_EMPTY`).
-        권한: 화면 `group.read` · 만들기·저장·순서·삭제 `group.settings`(community 는 최고 관리자 전용 — 로보얌은 권한 코드로 위임한다. 없으면 읽기 전용). 게시판 관리 링크는 `board.read`.
-        ⚠ 목업 API(`useGroupCategoryApi` — `?mock=categories-fail` · `categories-empty` · `category-stale` · `order-fail`).
+        권한: 화면 `group.read` · 만들기·저장·순서·삭제 `group.settings`(community 는 최고 관리자 전용 — 로보얌은 권한 코드로 위임한다. 없으면 읽기 전용). [소모임 게시판 만들기](게시판 관리의 만들기 대화상자, 종류 소모임 고정·이 분류 선택 — `/boards?create=group&category=`)는 `board.manage`, 없으면 게시판 관리 링크(`board.read`).
+        서버 연결됨(`useGroupCategoryApi`) — 소모임 서버가 아직 없어 소모임 수(`groupCount`)는 늘 0 이다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('group.categoriesTitle')" :subtitle="t('group.categoriesSubtitle')">
@@ -68,6 +68,7 @@
                 :can-save="canSave"
                 :can-edit="canEdit"
                 :can-board="can('board.read')"
+                :can-create-board="can('board.manage')"
                 :saving="saving"
                 :busy="busy"
                 :boards-error="serverErrors.boardIds ?? ''"

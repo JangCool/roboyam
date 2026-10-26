@@ -41,7 +41,15 @@ public class PublicBoardService {
 
     public BoardListResponse boards() {
         BoardCatalogSnapshot s = catalog.snapshot();
-        return new BoardListResponse(s.boards().stream().filter(EffectiveBoard::active).map(PublicBoardService::view).toList());
+        return new BoardListResponse(s.boards().stream().filter(b -> b.active() && isPublic(b)).map(PublicBoardService::view).toList());
+    }
+
+    /**
+     * 공개 게시판 API 가 다루는 게시판인가 — 소모임 게시판(종류 {@code GROUP})은 소모임 화면의 그릇이라 게시판 목록·상세·글 목록·글쓰기에서
+     * <b>없는 게시판과 같다</b>(목록에서 빠지고 404 {@code BOARD_NOT_FOUND}, docs/features/group-contract.md). 소모임 서버 단계가 자기 경로로 연다.
+     */
+    public static boolean isPublic(EffectiveBoard b) {
+        return !BoardFields.KIND_GROUP.equals(b.kind());
     }
 
     /** 지금 사용자가 새 글을 쓸 수 있는 켜진 게시판(글쓰기 화면의 게시판 고르기) */
@@ -49,7 +57,7 @@ public class PublicBoardService {
         BoardCatalogSnapshot s = catalog.snapshot();
         BoardActor actor = actors.resolve(userId, s);
         return new BoardListResponse(s.boards().stream()
-                .filter(b -> b.active() && BoardAccessPolicy.writeBlocked(b, actor, s) == null)
+                .filter(b -> b.active() && isPublic(b) && BoardAccessPolicy.writeBlocked(b, actor, s) == null)
                 .map(PublicBoardService::view).toList());
     }
 
@@ -75,18 +83,18 @@ public class PublicBoardService {
                 v.debateEnabled(), v.pollEnabled());
     }
 
-    /** 켜진 게시판 — 없으면 404, 꺼졌으면 403 */
+    /** 켜진 게시판 — 없거나 소모임 게시판이면 404, 꺼졌으면 403 */
     public static EffectiveBoard requireActive(BoardCatalogSnapshot s, String slug) {
-        EffectiveBoard b = s.board(slug).orElseThrow(BoardNotFoundException::new);
+        EffectiveBoard b = s.board(slug).filter(PublicBoardService::isPublic).orElseThrow(BoardNotFoundException::new);
         if (!b.active()) {
             throw new BoardInactiveException();
         }
         return b;
     }
 
-    /** 이 게시판이 켜져 있는가(글·댓글 API) — 게시판 행이 없어졌으면 404, 꺼졌으면 403 */
+    /** 이 게시판이 켜져 있는가(글·댓글 API) — 게시판 행이 없어졌거나 소모임 게시판이면 404, 꺼졌으면 403 */
     public static EffectiveBoard requireActive(BoardCatalogSnapshot s, long boardId) {
-        EffectiveBoard b = s.board(boardId).orElseThrow(BoardNotFoundException::new);
+        EffectiveBoard b = s.board(boardId).filter(PublicBoardService::isPublic).orElseThrow(BoardNotFoundException::new);
         if (!b.active()) {
             throw new BoardInactiveException();
         }

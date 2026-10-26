@@ -77,7 +77,9 @@ public final class AuditRetention {
             AuditActions.REPORT_RESOLVE, AuditActions.REPORT_DISMISS, AuditActions.REPORT_BULK_DISMISS, AuditActions.REPORT_REOPEN,
             // 1-2 포인트 상점 품목 만들기·고치기·아바타 묶음 변경·설정 — 일반 운영(가격을 바꿔도 이미 산 구매는 사본 그대로라 돈이 움직이지 않는다)
             AuditActions.POINT_SHOP_ITEM_CREATE, AuditActions.POINT_SHOP_ITEM_UPDATE, AuditActions.POINT_SHOP_AVATAR_PRICE, AuditActions.POINT_SHOP_AVATAR_SALE,
-            AuditActions.POINT_SHOP_SETTINGS_UPDATE);
+            AuditActions.POINT_SHOP_SETTINGS_UPDATE,
+            // 소모임 분류(이름·게시판 할당·순서) — 게시판 구성과 같은 운영 일
+            AuditActions.GROUP_CATEGORY_CREATE, AuditActions.GROUP_CATEGORY_UPDATE, AuditActions.GROUP_CATEGORY_ORDER, AuditActions.GROUP_CATEGORY_DELETE);
 
     private static final Map<String, AuditRetentionClass> TABLE = table();
 

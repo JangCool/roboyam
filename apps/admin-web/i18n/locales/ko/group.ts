@@ -216,6 +216,7 @@ export default {
     },
     categoryDelete: '분류 삭제',
     boardManageLink: '게시판 관리',
+    boardCreateLink: '소모임 게시판 만들기',
     pickLabel: '추가할 소모임 게시판',
     pickPlaceholder: '추가할 소모임 게시판 고르기',
     pickFilter: '이름·주소로 찾기',

@@ -233,6 +233,16 @@ public final class AuditActions {
     /** 정지 중 환불 신청 거절(운영자 pointshop.refund — V87) — 대상 POINT_SHOP_PURCHASE + 구매 ID, {@code requestId}·{@code userId}·{@code itemId}·{@code itemCode}·{@code reason}. 돈 관련(5년). 수락은 {@link #POINT_SHOP_REFUND}({@code kind REQUEST}) */
     public static final String POINT_SHOP_REFUND_REJECT = "POINT_SHOP_REFUND_REJECT";
 
+    // ── 소모임 분류(docs/features/group-contract.md) — 대상 GROUP_CATEGORY + 분류 ID(순서는 order) ──
+    /** 분류 만들기 — {@code after.name} */
+    public static final String GROUP_CATEGORY_CREATE = "GROUP_CATEGORY_CREATE";
+    /** 분류 저장 — 바뀐 칸만 {@code before}/{@code after}({@code name}·{@code boards}(게시판 slug, 할당 순서)), 다른 분류에서 옮겨 온 게시판 {@code moved}(「slug (이전 분류)」) */
+    public static final String GROUP_CATEGORY_UPDATE = "GROUP_CATEGORY_UPDATE";
+    /** 분류 순서 — {@code before}/{@code after} 의 {@code order}(분류 이름) */
+    public static final String GROUP_CATEGORY_ORDER = "GROUP_CATEGORY_ORDER";
+    /** 분류 지우기 — {@code deleted}(이름), 「분류 없음」이 된 게시판 {@code boards}(slug) */
+    public static final String GROUP_CATEGORY_DELETE = "GROUP_CATEGORY_DELETE";
+
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();
 
