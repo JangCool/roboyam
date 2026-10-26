@@ -38,6 +38,46 @@
 
                     <h3 class="mt-4 text-xs font-semibold text-muted-color">{{ t('point.todayTitle') }}</h3>
                     <ul class="m-0 mt-2 flex list-none flex-col gap-3 p-0" data-testid="points-today">
+                        <!-- 오늘 총 적립(커머스 1-3) — 하루 총 한도가 있을 때만(cap 0 = 한도 없음이면 그리지 않는다). 단위는 횟수가 아니라 포인트 -->
+                        <li v-if="todayTotal && todayTotal.cap > 0" class="text-sm" data-testid="points-today-total">
+                            <div class="flex items-baseline justify-between gap-2">
+                                <span class="font-medium">{{ t('point.todayTotal') }}</span>
+                                <span class="tabular-nums text-muted-color">
+                                    <b class="text-color">{{ t('point.totalOfCap', { amount: UtilPoint.number(todayTotal.amount), cap: UtilPoint.points(todayTotal.cap) }) }}</b>
+                                    <template v-if="UtilPoint.remaining({ count: todayTotal.amount, cap: todayTotal.cap }) === 0"> · {{ t('point.totalCapReached') }}</template>
+                                </span>
+                            </div>
+                            <div
+                                class="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-800"
+                                role="progressbar"
+                                :aria-label="t('point.todayTotal')"
+                                :aria-valuenow="todayTotal.amount"
+                                aria-valuemin="0"
+                                :aria-valuemax="todayTotal.cap"
+                            >
+                                <div class="h-full rounded-full bg-primary" :style="{ width: `${UtilPoint.progress({ count: todayTotal.amount, cap: todayTotal.cap })}%` }" />
+                            </div>
+                        </li>
+                        <!-- 오늘 출석(커머스 1-3) — 출석 기능이 있을 때만. 출석 전이면 바로 출석하는 단추(달력 구획의 단추와 같은 동작) -->
+                        <li v-if="summary.attendanceAvailable" class="flex min-h-8 items-center justify-between gap-2 text-sm" data-testid="points-today-attendance">
+                            <span class="flex items-center gap-1.5">
+                                {{ t('point.todayAttendance') }}
+                                <span v-if="summary.today.attended" class="inline-flex shrink-0 items-center justify-center rounded bg-green-100 px-1.5 py-1 text-[0.6875rem] font-semibold leading-none text-green-800 dark:bg-green-950 dark:text-green-300">
+                                    <span class="relative top-[-0.09em]">{{ t('point.attendDone') }}</span>
+                                </span>
+                            </span>
+                            <span v-if="summary.today.attended" class="tabular-nums text-muted-color">{{ summary.rules.attendance > 0 ? `+${UtilPoint.points(summary.rules.attendance)}` : t('point.ruleOff') }}</span>
+                            <Button
+                                v-else
+                                type="button"
+                                size="small"
+                                :label="attendLabel"
+                                :loading="attending"
+                                :disabled="attendBlocked !== null"
+                                data-testid="points-today-attend"
+                                @click="attendance.attend"
+                            />
+                        </li>
                         <li v-for="row in todayRows" :key="row.key" class="text-sm">
                             <div class="flex items-baseline justify-between gap-2">
                                 <span>{{ t(row.labelKey) }}</span>
@@ -64,6 +104,108 @@
                 </template>
             </section>
 
+            <!-- 출석체크(커머스 1-3, community AttendancePanel) — 출석 기능이 있을 때만. 월간 달력(출석한 날·오늘) · 연속 N일 · 다음 연속 보너스까지 · [오늘 출석하기] -->
+            <section v-if="summary?.attendanceAvailable" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-labelledby="`${uid}-attendance`" data-testid="attendance-panel">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <h2 :id="`${uid}-attendance`" class="text-sm font-semibold">{{ t('point.attendanceTitle') }}</h2>
+                    <span v-if="attendanceStreak !== null && attendanceStreak > 0" class="inline-flex items-center gap-1 text-sm font-semibold text-primary" data-testid="attendance-streak">
+                        <i class="pi pi-bolt text-xs" aria-hidden="true" />{{ t('point.streak', { count: UtilPoint.number(attendanceStreak) }) }}
+                    </span>
+                </div>
+                <p v-if="streakNextLine" class="mt-1 text-xs text-muted-color" data-testid="attendance-streak-next">{{ streakNextLine }}</p>
+
+                <div class="mt-3 flex items-center justify-between">
+                    <button
+                        type="button"
+                        class="grid size-10 place-items-center rounded-full hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40 dark:hover:bg-surface-800"
+                        :aria-label="t('point.calPrev')"
+                        :disabled="!canPrev"
+                        data-testid="cal-prev"
+                        @click="attendance.go(-1)"
+                    >
+                        <i class="pi pi-chevron-left" aria-hidden="true" />
+                    </button>
+                    <p class="text-sm font-semibold" aria-live="polite" data-testid="cal-month">{{ UtilPointMessages.monthLabel(t, calMonth) }}</p>
+                    <button
+                        type="button"
+                        class="grid size-10 place-items-center rounded-full hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40 dark:hover:bg-surface-800"
+                        :aria-label="t('point.calNext')"
+                        :disabled="!canNext"
+                        data-testid="cal-next"
+                        @click="attendance.go(1)"
+                    >
+                        <i class="pi pi-chevron-right" aria-hidden="true" />
+                    </button>
+                </div>
+
+                <!-- 불러오는 중 -->
+                <div v-if="attendanceStatus === 'loading' || attendanceStatus === 'idle'" class="mt-2" role="status" :aria-label="t('point.calLoading')" data-testid="cal-loading">
+                    <div class="h-44 animate-pulse rounded-lg bg-surface-200 dark:bg-surface-800" />
+                </div>
+                <!-- 달력을 못 받았다 — 출석 단추는 달력과 상관없이 쓸 수 있다 -->
+                <ErrorState v-else-if="attendanceStatus === 'error'" :title="t('point.calLoadFailed')" :description="attendanceError" retry class="py-6!" data-testid="cal-error" @retry="attendance.load()" />
+                <template v-else>
+                    <div class="mt-2 grid grid-cols-7 text-center text-xs text-muted-color" aria-hidden="true">
+                        <span v-for="weekday in weekdays" :key="weekday" class="py-1">{{ weekday }}</span>
+                    </div>
+                    <ol class="m-0 grid list-none grid-cols-7 gap-y-1 p-0 text-center text-sm" :aria-label="t('point.calLabel')">
+                        <li
+                            v-for="(cell, index) in calCells"
+                            :key="index"
+                            class="mx-auto grid size-9 place-items-center rounded-full border-2"
+                            :class="[
+                                cell.attended ? 'bg-primary-100 font-semibold text-primary-700 dark:bg-primary-950 dark:text-primary-300' : '',
+                                cell.today ? 'border-primary font-bold' : 'border-transparent',
+                            ]"
+                            :aria-label="cell.day === null ? undefined : UtilPointMessages.cellLabel(t, calMonth, cell)"
+                            :aria-hidden="cell.day === null ? 'true' : undefined"
+                            :data-testid="cell.day === null ? undefined : `cal-day-${cell.day}`"
+                            :data-attended="cell.day === null ? undefined : String(cell.attended)"
+                            :data-today="cell.today ? 'true' : undefined"
+                        >
+                            {{ cell.day ?? '' }}
+                        </li>
+                    </ol>
+                    <p v-if="calEmpty" class="mt-2 text-center text-xs text-muted-color" data-testid="cal-empty">{{ t('point.calEmptyMonth') }}</p>
+                    <p v-else class="mt-2 flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-muted-color">
+                        <span>{{ t('point.calLegend') }}</span>
+                        <span v-if="attendanceData" class="tabular-nums" data-testid="cal-month-count">{{ t('point.monthCount', { count: attendanceData.monthCount }) }}</span>
+                    </p>
+                </template>
+
+                <!-- 오늘 출석 — 정지 중·이메일 인증 전에는 단추를 끄고 이유를 말한다(서버가 403 으로 막았으면 그 까닭이 먼저) -->
+                <div class="mt-3">
+                    <Button
+                        type="button"
+                        :label="attendedToday ? t('point.attended') : attending ? t('point.attending') : attendLabel"
+                        :icon="attendedToday ? 'pi pi-check' : undefined"
+                        :loading="attending"
+                        :disabled="attendedToday || attendBlocked !== null"
+                        fluid
+                        data-testid="attend-button"
+                        @click="attendance.attend"
+                    />
+                    <div
+                        v-if="attendBlocked && !attendedToday"
+                        class="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+                        role="status"
+                        data-testid="attend-blocked"
+                    >
+                        <b>{{ UtilPointMessages.blocked(t, attendBlocked).title }}</b>
+                        <span class="mt-0.5 block">{{ UtilPointMessages.blocked(t, attendBlocked).text }}</span>
+                        <NuxtLink v-if="attendBlocked === 'EMAIL_NOT_VERIFIED'" to="/verify-email" class="mt-1 inline-block font-semibold underline">{{ t('point.blockedEmailLink') }}</NuxtLink>
+                        <NuxtLink v-else to="/sanction" class="mt-1 inline-block font-semibold underline">{{ t('point.blockedSanctionLink') }}</NuxtLink>
+                    </div>
+                    <p v-else-if="attendedToday" class="mt-2 text-center text-xs text-muted-color" data-testid="attend-done-help">{{ t('point.attendedHelp') }}</p>
+                    <p v-else class="mt-2 text-center text-xs text-muted-color">{{ t('point.attendHelp') }}</p>
+
+                    <!-- 출석 요청이 실패했다 -->
+                    <Message v-if="attendNotice" severity="error" :closable="false" size="small" class="mt-2" data-testid="attend-notice">
+                        <b>{{ attendNotice.title }}</b> {{ attendNotice.text }}
+                    </Message>
+                </div>
+            </section>
+
             <!-- 적립 규칙 요약 — 운영자가 정한 값(최대 15초 뒤 반영). 지급 지점이 없는 규칙(출석·인기글·교환권)은 보이지 않는다 -->
             <section v-if="summary" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-labelledby="`${uid}-rules`" data-testid="points-rules">
                 <h2 :id="`${uid}-rules`" class="text-sm font-semibold">{{ t('point.rulesTitle') }}</h2>
@@ -72,7 +214,27 @@
                         <span>{{ rule.label }}</span>
                         <span class="shrink-0 text-right text-muted-color">{{ rule.value }}</span>
                     </li>
+                    <!-- 본인인증 보너스(가입 포인트, 커머스 1-3) — 0 이면 그리지 않는다. 받았으면 「받았어요」, 아니면 본인인증 화면으로 -->
+                    <li v-if="summary.rules.signup && summary.rules.signup.points > 0" class="flex items-baseline justify-between gap-3" data-testid="points-signup">
+                        <span>{{ t('point.ruleSignup', { amount: UtilPoint.number(summary.rules.signup.points) }) }}</span>
+                        <span v-if="summary.rules.signup.received" class="inline-flex shrink-0 items-center gap-1 text-right text-muted-color">
+                            <i class="pi pi-check text-xs" aria-hidden="true" />
+                            {{ t('point.signupReceived') }}
+                        </span>
+                        <NuxtLink v-else to="/settings/identity" class="shrink-0 text-right font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">{{ t('point.signupVerify') }} ›</NuxtLink>
+                    </li>
                 </ul>
+
+                <!-- 적립 조건(커머스 1-3) — 0·false 인 조건은 빼고, 남는 것이 없으면 그리지 않는다 -->
+                <template v-if="earnConditions.length">
+                    <h3 class="mt-4 text-xs font-semibold text-muted-color">{{ t('point.conditionsTitle') }}</h3>
+                    <ul class="m-0 mt-2 flex list-none flex-col gap-1.5 p-0 text-sm" data-testid="points-conditions">
+                        <li v-for="line in earnConditions" :key="line" class="flex items-start gap-2">
+                            <i class="pi pi-info-circle mt-1 text-xs text-muted-color" aria-hidden="true" />
+                            <span>{{ line }}</span>
+                        </li>
+                    </ul>
+                </template>
                 <p class="mt-3 text-xs leading-relaxed text-muted-color">{{ t('point.rulesRevokeNote') }}</p>
             </section>
 
@@ -144,12 +306,16 @@ import type { MyPointLedgerItem, MyPointLedgerKind, PointCount } from '~/composa
 import UtilAuthMessages from '~/utils/util-auth-messages';
 import UtilBusiness from '~/utils/util-business';
 import UtilPoint from '~/utils/util-point';
+import UtilPointMessages from '~/utils/util-point-messages';
 
 /**
  * 포인트 `/me/points` — 로그인 필요(`auth` 미들웨어). 헤더 프로필 메뉴의 「포인트」·햄버거의 포인트 줄·내 정보의 「포인트 내역」이 온다.
  * 보유 포인트·오늘 적립(횟수/상한)·적립 규칙은 `GET /api/me/points`, 내역 목록은 `GET /api/me/points/ledger`(커서 더 보기) — 둘 다 서버 연결됨.
- * 출석 기능이 없으면(`attendanceAvailable=false`, 지금은 늘) 출석 줄·출석 규칙을 그리지 않는다. 인기글 보상·닉네임 변경권도 지급 지점이 없어 그리지 않는다.
+ * 출석 기능이 없으면(`attendanceAvailable=false`) 출석 달력·출석 줄·출석 규칙을 그리지 않는다. 인기글 보상·닉네임 변경권도 지급 지점이 없어 그리지 않는다.
  * 커머스 1-1: 합계 아래에 적립/충전 나눔(충전 기능이 열렸을 때만)·가장 가까운 소멸 예정·소멸 안내·미회수 경고, 내역에 소멸·사용 취소 딱지와 30일 복원 안내.
+ * 커머스 1-3: 오늘 적립 맨 위에 「오늘 총 적립 N / 한도」(총 한도 0 이면 없음)와 출석 줄, 적립 규칙에 출석·연속 출석 보너스·본인인증 보너스 줄과 적립 조건 목록(0·false 인 조건은 뺀다).
+ *   출석체크 구획(community `AttendancePanel` 을 옮겼다 — `usePointAttendance`, `GET·POST /api/me/attendance`): 달 넘기기(이번 달까지·24달 전까지)·출석한 날·오늘·연속 N일·다음 연속 보너스까지·[오늘 출석하기].
+ *   409 `ATTENDANCE_ALREADY_DONE` 는 다시 읽어 출석 완료로, 403(정지·이메일 인증 전)은 단추를 끄고 까닭과 안내 링크를 보인다. 출석으로 포인트가 바뀌면 내역을 다시 받는다.
  */
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();
@@ -158,7 +324,7 @@ useSeoMeta({ title: () => t('point.title'), description: () => t('point.seoDescr
 
 const uid = useId();
 const time = useDisplayTime();
-const { user } = useAuth();
+const { user, emailVerified, restriction } = useAuth();
 const api = usePointApi();
 const toast = useAppToast();
 const points = usePointSummary();
@@ -166,7 +332,35 @@ const { summary, status: summaryStatus } = points;
 
 const businessAccount = computed(() => UtilBusiness.isBusinessAccount(user.value?.role));
 
-/** 오늘 적립 줄 — 출석은 기능이 있을 때만(지금은 없다) */
+// ── 출석체크(커머스 1-3) ─────────────────────────────
+const attendance = usePointAttendance({ onChanged: () => void loadLedger(true) });
+const {
+    month: calMonth,
+    data: attendanceData,
+    status: attendanceStatus,
+    errorMessage: attendanceError,
+    attending,
+    notice: attendNotice,
+    serverBlocked: attendServerBlocked,
+    streak: attendanceStreak,
+    attendedToday,
+    canPrev,
+    canNext,
+    cells: calCells,
+    emptyMonth: calEmpty,
+} = attendance;
+
+/** 정지 중·이메일 인증 전 — 화면이 미리 아는 까닭. 서버가 막았다고 하면(`403`) 그 까닭이 먼저 */
+const attendBlocked = computed(() => attendServerBlocked.value ?? UtilPoint.blockedReason({ emailVerified: emailVerified.value, restriction: restriction.value }));
+/** 「오늘 출석하기 +10P」 — 받는 포인트는 서버 설정값 */
+const attendLabel = computed(() => UtilPointMessages.attendLabel(t, summary.value?.rules.attendance));
+const weekdays = computed(() => UtilPointMessages.weekdays(t));
+/** 다음 연속 출석 보너스까지 — 보너스가 꺼졌거나 연속 일수를 아직 모르면 없다 */
+const streakNextLine = computed(() =>
+    attendanceStreak.value === null ? '' : UtilPointMessages.streakNext(t, attendanceStreak.value, summary.value?.rules.attendanceStreak, attendedToday.value),
+);
+
+/** 오늘 적립 줄 — 출석 줄은 템플릿이 따로 그린다(횟수 막대가 아니다) */
 const todayRows = computed(() => {
     const today = summary.value?.today;
     if (!today) return [];
@@ -193,9 +387,22 @@ const ruleLines = computed(() => {
             value: perDay(r.likeBonus.points, r.likeBonus.dailyCap),
         },
     ];
-    if (s.attendanceAvailable) lines.unshift({ key: 'attendance', label: t('point.ruleAttendance'), value: r.attendance > 0 ? `+${UtilPoint.points(r.attendance)}` : t('point.ruleOff') });
+    if (s.attendanceAvailable) {
+        const head = [{ key: 'attendance', label: t('point.ruleAttendance'), value: r.attendance > 0 ? `+${UtilPoint.points(r.attendance)}` : t('point.ruleOff') }];
+        // 연속 출석 보너스(커머스 1-3) — 꺼져 있으면(며칠·보너스 중 0) 줄이 없다
+        if (UtilPoint.streakBonusOn(r.attendanceStreak)) {
+            head.push({ key: 'attendanceStreak', label: t('point.ruleAttendanceStreak', { days: UtilPoint.number(r.attendanceStreak.days) }), value: `+${UtilPoint.points(r.attendanceStreak.bonus)}` });
+        }
+        lines.unshift(...head);
+    }
     return lines;
 });
+
+/** 오늘 활동 적립 합 / 하루 총 한도(커머스 1-3 — 서버가 아직 주지 않으면 없다) */
+const todayTotal = computed(() => summary.value?.today.total ?? null);
+
+/** 적립 조건 목록(커머스 1-3) — 0·false 인 조건은 뺀다 */
+const earnConditions = computed(() => (summary.value ? UtilPointMessages.earnConditions(t, summary.value.rules) : []));
 
 // ── 내역 ─────────────────────────────────────────────
 type KindFilter = 'ALL' | Exclude<MyPointLedgerKind, 'USE' | 'CANCEL_USE'>;
@@ -262,13 +469,23 @@ async function loadLedger(reset: boolean) {
 watch(kind, () => void loadLedger(true));
 onBeforeUnmount(() => ledgerSeq++);
 
-// 로그인한 사람이 정해지면 요약·내역을 받는다(요약은 받아 둔 값이 있으면 그대로 보이면서 바꾼다)
+// 로그인한 사람이 정해지면 요약·내역을 받는다(요약은 받아 둔 값이 있으면 그대로 보이면서 바꾼다). 사람이 바뀌면 출석 달력도 처음으로
 watch(
     () => user.value?.id ?? null,
     (id) => {
+        attendance.reset();
         if (!id || businessAccount.value) return;
         void points.load();
         void loadLedger(true);
+    },
+    { immediate: true },
+);
+
+// 출석 기능이 있다고 확인되면(요약의 `attendanceAvailable`) 달력을 한 번 받는다
+watch(
+    () => Boolean(summary.value?.attendanceAvailable) && !businessAccount.value,
+    (on) => {
+        if (on) attendance.ensureLoaded();
     },
     { immediate: true },
 );

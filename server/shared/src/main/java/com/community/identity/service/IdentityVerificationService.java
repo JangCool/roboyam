@@ -16,6 +16,7 @@ import com.community.identity.exception.IdentityVerificationExpiredException;
 import com.community.identity.exception.IdentityVerificationNotFoundException;
 import com.community.identity.provider.IdentityVerifier;
 import com.community.identity.repository.master.IdentityStore;
+import com.community.point.service.PointService;
 import com.community.withdrawal.entity.WithdrawalKind;
 import com.community.withdrawal.repository.master.IdentityWithdrawalStore;
 import com.community.zconfiguration.crypto.BlindIndex;
@@ -73,10 +74,13 @@ public class IdentityVerificationService {
     private final SnowflakeIdGenerator ids;
     private final TransactionTemplate writes;
     private final TransactionTemplate separate;
+    private final PointService points;
     private final Clock clock;
 
     public IdentityVerificationService(IdentityStore store, IdentityWithdrawalStore withdrawals, IdentityVerifier verifier, IdentityProperties properties,
-                                       BlindIndex index, SnowflakeIdGenerator ids, PlatformTransactionManager transactions, ObjectProvider<Clock> clocks) {
+                                       BlindIndex index, SnowflakeIdGenerator ids, PlatformTransactionManager transactions, PointService points,
+                                       ObjectProvider<Clock> clocks) {
+        this.points = points;
         this.store = store;
         this.withdrawals = withdrawals;
         this.verifier = verifier;
@@ -142,7 +146,7 @@ public class IdentityVerificationService {
         }
     }
 
-    /** 한 트랜잭션 — 재인증 제한 → 결과 넣기 → 시도 확정 */
+    /** 한 트랜잭션 — 재인증 제한 → 결과 넣기 → 시도 확정 → 가입 포인트(세이브포인트) */
     private IdentityStatusView settle(long userId, IdentityStore.Attempt attempt, VerifiedPerson person, String diHash, String ciHash) {
         Instant now = clock.instant();
         Optional<Instant> blocked = Stream.of(withdrawals.blockedUntil(WithdrawalKind.IDENTITY_DI, diHash, now),
@@ -159,7 +163,9 @@ public class IdentityVerificationService {
         if (!store.finishAttempt(attempt.id(), true, null, now)) {
             throw new IdentityAlreadyVerifiedException(); // 같은 번호의 다른 확정이 먼저 끝냈다 — 되돌린다
         }
-        log.info("본인인증 확정 userId={} provider={}", userId, verifier.kind());
+        // 가입 포인트(커머스 1-3) — 계정마다 평생 한 번, 세이브포인트라 실패해도 인증은 성공한다. 동결·정상 회원 아님이면 주지 않고 나중에도 주지 않는다
+        long signup = points.signup(userId);
+        log.info("본인인증 확정 userId={} provider={} signupPoints={}", userId, verifier.kind(), signup);
         return statusOf(store.findVerification(userId).orElseThrow());
     }
 

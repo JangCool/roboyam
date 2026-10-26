@@ -51,6 +51,7 @@ final class PointTestKit {
     final PointLedgerWriter writer;
     final PointPolicy policy;
     final PointService points;
+    final com.community.point.service.AttendanceService attendance;
     final long operator;
 
     PointTestKit() {
@@ -64,6 +65,7 @@ final class PointTestKit {
         ObjectProvider<Clock> clocks = new StaticListableBeanFactory(Map.of("clock", clock)).getBeanProvider(Clock.class);
         MemberRestrictionService restrictions = new MemberRestrictionService(new MemberRestrictionStore(dataSource), null, null, ids, null, clocks);
         points = new PointService(writer, policy, new IsolatedSideWork(dataSource, noFlush()), ids, restrictions, clocks);
+        attendance = new com.community.point.service.AttendanceService(new com.community.point.repository.master.PointAttendanceStore(dataSource), points, ids, clocks);
         operator = newOperator();
     }
 
@@ -105,9 +107,40 @@ final class PointTestKit {
         return tx.execute(status -> work.get());
     }
 
-    /** 글 적립(새 글) — 지급한 양 */
+    /** 적립 조건(최소 글자 수)을 넉넉히 넘는 본문 */
+    static final String LONG_BODY = "가".repeat(200);
+
+    /**
+     * 글 적립(새 글, 조건을 모두 채운 글 — 포인트 켠 게시판·긴 본문) — 지급한 양. 작성 간격(1-3)에 걸리지 않게 그 간격만큼 시계를 먼저 옮긴다
+     * (1-1 시험들은 간격과 상관없는 규칙을 본다 — 간격·글자 수 규칙은 {@code PointEarnRulesTest} 가 본다).
+     */
     long earnPost(long userId, long postId) {
-        return inTx(() -> points.earn(userId, PointReason.POST, postId));
+        clock.advance(java.time.Duration.ofSeconds(policy.current().writeIntervalSeconds() + 1L));
+        return inTx(() -> points.earnPost(new PointService.PostEarn(userId, postId, LONG_BODY, true, true)));
+    }
+
+    /** 조건을 직접 정한 글 적립(시계는 옮기지 않는다) */
+    long earnPost(PointService.PostEarn post) {
+        return inTx(() -> points.earnPost(post));
+    }
+
+    /** 댓글 적립(시계는 옮기지 않는다) */
+    long earnComment(PointService.CommentEarn comment) {
+        return inTx(() -> points.earnComment(comment));
+    }
+
+    /** 정책 칸 여럿을 잠시 바꾼다(칸 → 값 — 숫자·켬끔) */
+    void withSettings(Map<String, Object> values, Runnable work) {
+        Map<String, Object> before = new java.util.LinkedHashMap<>();
+        values.keySet().forEach(column -> before.put(column, jdbc.queryForObject("SELECT " + column + " FROM point_settings WHERE id = 1", Object.class)));
+        values.forEach((column, value) -> jdbc.update("UPDATE point_settings SET " + column + " = ? WHERE id = 1", value));
+        policy.invalidate();
+        try {
+            work.run();
+        } finally {
+            before.forEach((column, value) -> jdbc.update("UPDATE point_settings SET " + column + " = ? WHERE id = 1", value));
+            policy.invalidate();
+        }
     }
 
     long revokePost(long userId, long postId) {

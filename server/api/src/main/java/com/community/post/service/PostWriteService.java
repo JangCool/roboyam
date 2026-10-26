@@ -25,7 +25,6 @@ import com.community.debate.service.PostDebateWriter;
 import com.community.permission.entity.MemberPermission;
 import com.community.poll.service.PollRules;
 import com.community.poll.service.PollWriter;
-import com.community.point.entity.PointReason;
 import com.community.point.service.PointService;
 import com.community.post.dto.WriteRateData;
 import com.community.post.dto.request.PostUpdateRequest;
@@ -188,7 +187,8 @@ public class PostWriteService {
                 polls.create(id, poll, now);
             }
             if (authorId != null) {
-                points.earn(authorId, PointReason.POST, id); // 실패·상한이어도 글은 그대로 올라간다
+                // 실패·조건 미달·상한이어도 글은 그대로 올라간다(커머스 1-3 — 게시판 pointMode·최소 글자 수 스위치)
+                points.earnPost(new PointService.PostEarn(authorId, id, content.plain(), b.pointsEnabled(), b.pointMinLengthApplied()));
             }
         });
         promotion.afterWrite(authorId); // 커밋 뒤 — 회원 글이면 활동 수 조건 즉시 승급(실패해도 글쓰기는 성공)
@@ -404,7 +404,7 @@ public class PostWriteService {
         return tx.execute(status -> {
             Instant now = Instant.now();
             PostEntity post = queries.requireVisible(idText, now);
-            PublicBoardService.requireActive(s, post.getBoardId());
+            EffectiveBoard board = PublicBoardService.requireActive(s, post.getBoardId());
             if (post.isHiddenAt(now)) {
                 throw new PostHiddenException();
             }
@@ -415,7 +415,7 @@ public class PostWriteService {
                 throw new AlreadyLikedException(false);
             }
             int likes = counters.incrementPostLikes(post.getId()); // 글 행 갱신 — 같은 글의 추천이 여기서 줄을 선다
-            points.likeBonus(post.getAuthorId(), PointService.REF_POST, post.getId(), userId);
+            points.likeBonus(post.getAuthorId(), PointService.REF_POST, post.getId(), userId, board.pointsEnabled());
             return new PostLikeResult(likes, true);
         });
     }

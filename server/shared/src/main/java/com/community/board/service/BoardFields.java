@@ -95,7 +95,7 @@ public final class BoardFields {
     public static final Map<String, Spec> DEFAULTS;
     /** 게시판별로 덮어쓸 수 있는 칸(admin-web {@code BOARD_POLICY_FIELDS} 순서) */
     public static final List<String> POLICY_FIELDS = List.of("writeMin", "commentMin", "postEditor", "imageUploadAllowed", "commentEditor", "listSize", "pinnedMax", "indexable", "searchable",
-            "inHome", "pointMode", "commentProtectMin", "commentProtectEdit", "commentProtectDelete", "commentProtectDelayMinutes", "commentGuestDelayMinutes",
+            "inHome", "pointMode", "pointMinLengthApplied", "commentProtectMin", "commentProtectEdit", "commentProtectDelete", "commentProtectDelayMinutes", "commentGuestDelayMinutes",
             "staffHiddenNotice", "commentDislikeEnabled", "commentLikeLabel", "commentDislikeLabel", "pinRequestReviewers", "debateEnabled", "pollEnabled", "managerMax", "staffPostDailyLimit", "staffCommentDailyLimit",
             "staffSanctionDailyLimit");
     /** 댓글 추천·비추천 단추 이름 최대 글자 수(V78 varchar(10)) */
@@ -149,6 +149,7 @@ public final class BoardFields {
         bool(d, "attachmentPurgeEnabled", false);
         number(d, "attachmentRetentionDays", 1, 3650, false, false);
         choice(d, "pointMode", true, false, "ON", "OFF");
+        bool(d, "pointMinLengthApplied", true);
         number(d, "commentProtectMin", 0, 100, true, false);
         bool(d, "commentProtectEdit", true);
         choice(d, "commentProtectDelete", true, false, "BLOCK", "DELAY", "ALLOW");

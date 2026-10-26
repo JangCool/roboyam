@@ -189,7 +189,7 @@ class MyPointHttpTest extends CommerceApiTestBase {
     void 미회수는_잔액_행의_빚이다() throws Exception {
         long member = newMember();
         long post = ids.nextId();
-        Long earned = tx.execute(s -> points.earn(member, PointReason.POST, post));
+        Long earned = tx.execute(s -> points.earnPost(new PointService.PostEarn(member, post, "가".repeat(200), true, true)));
         assertThat(earned).as("글 적립(시험 DB 정책)").isPositive();
         tx.executeWithoutResult(s -> points.adjust(member, -earned.intValue(), "시험 차감", operator));
         Long revoked = tx.execute(s -> points.revokeContent(member, PointService.REF_POST, post));

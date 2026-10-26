@@ -86,6 +86,11 @@ export interface BoardDefaults {
     /** 삭제 첨부 보존 기간(일) 1~3650 */
     attachmentRetentionDays: number;
     pointMode: BoardPointMode;
+    /**
+     * 적립 최소 글자 수 적용(커머스 1-3) — 끄면 이 게시판의 글은 포인트 정책의 글 최소 글자 수(`postMinLength`)와 관계없이 적립된다(사진 게시판처럼 그림 위주인 곳).
+     * 댓글 최소 글자 수와 다른 적립 조건은 그대로. `pointMode` 가 `OFF` 면 쓰이지 않는다. 전체 기본값 `true`.
+     */
+    pointMinLengthApplied: boolean;
     /** 댓글 많은 글 보호 기준(보이는 댓글 수) 0~100, 0 = 끔 */
     commentProtectMin: number;
     /** 보호 중인 글의 수정도 막는다 */
@@ -141,6 +146,7 @@ export const BOARD_POLICY_FIELDS = [
     'searchable',
     'inHome',
     'pointMode',
+    'pointMinLengthApplied',
     'commentProtectMin',
     'commentProtectEdit',
     'commentProtectDelete',

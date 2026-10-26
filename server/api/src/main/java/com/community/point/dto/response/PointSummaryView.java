@@ -12,7 +12,7 @@ import com.community.point.dto.PointExpiring;
  * @param expiring            가장 가까운 소멸 예정(한국 시간 날짜와 그날 소멸할 양의 합) — 없으면 null
  * @param revokeDebt          미회수 포인트(0 이상) — 다음 적립에서 먼저 차감된다
  * @param ticketCount         안 쓴 닉네임 변경권 수(포인트 상점 — 커머스 1-2)
- * @param attendanceAvailable 출석 기능이 있는가 — 아직 없어 늘 false(화면은 「오늘 출석하기」 안내를 그리지 않는다)
+ * @param attendanceAvailable 출석 기능이 있는가 — 커머스 1-3 부터 늘 true
  */
 public record PointSummaryView(long balance, long freeBalance, long paidBalance, boolean chargeAvailable, PointExpiring expiring, long revokeDebt, int ticketCount,
                                boolean attendanceAvailable, PointTodayView today, PointRulesView rules) {
