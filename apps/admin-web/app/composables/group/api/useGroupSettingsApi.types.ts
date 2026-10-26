@@ -4,7 +4,7 @@ import type { SettingHistoryItem, SettingHistoryPage } from '~/composables/commo
  * 소모임 설정 API 가 주고받는 모양 — community `docs/api-groups.md` 「개설 규칙」·5-1 「매니저 규칙」·11-10 「관리자 설정」(공개 범위)·4절 「운영 한도」와 같은 이름이다.
  * 네 구획 모두 `{ values, defaults, limits, fromDefaults, updatedAt, updatedBy }` 꼴이고 `PUT` 은 그 구획의 **칸 모두**를 보낸다(응답은 `GET` 과 같다).
  * `values` = 지금 적용되는 값, `defaults` = 저장된 값이 없을 때 쓰는 서버 설정 파일 값(「기본값으로」 기준), `fromDefaults` = 저장된 값이 없어 기본값으로 도는 중.
- * 서버는 아직 없다(목업 — `./mock/group-mock.ts`). 변경 이력(`history`)은 로보얌에서 더한 후보다(community 는 운영 로그에만 남긴다).
+ * 서버(`server/admin`)가 이 모양 그대로 준다. 변경 이력(`history`)은 로보얌에서 더했다(community 는 운영 로그에만 남긴다).
  */
 
 /** 숫자 칸의 범위 */
@@ -40,6 +40,8 @@ export interface GroupCreationRuleValues {
     minGrade: string;
     /** 한 사람이 모임장일 수 있는 소모임 수(신청 중·열림·비활성 합) */
     maxPerOwner: number;
+    /** 해산 패널티(일) — 모임장이 스스로 해산하면 이 기간 동안 개설 신청을 못 한다. 0 = 끔, 개설부터 1년 이상 유지된 소모임은 면제(로보얌 V96) */
+    dissolvePenaltyDays: number;
 }
 
 export interface GroupCreationRuleResponse extends GroupRuleResponseBase<GroupCreationRuleValues> {
@@ -48,6 +50,8 @@ export interface GroupCreationRuleResponse extends GroupRuleResponseBase<GroupCr
         /** 등급(서열 순) — 등급 설정의 등급들 */
         grades: GroupRuleOption[];
         maxPerOwner: GroupRuleRange;
+        /** 0~365 — 칸이 없는 옛 서버면 화면이 칸을 그리지 않는다 */
+        dissolvePenaltyDays?: GroupRuleRange;
     };
     /** 승인 대기 신청 수 — 승인제 → 자유 개설 확인 창에 쓴다 */
     pendingRequestCount: number;

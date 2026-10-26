@@ -155,6 +155,7 @@ export default class UtilPermissionCatalog {
      *  · 게시판: 조회 `board.read` / 처리 `board.manage`·`board.staff.manage` / 설정 `board.settings`·`board.staff.limit` / 민감 `board.delete`(게시판 목록·설정·기본 설정·매니저/스텝).
      *  · 사이트 화면 구성: 조회 `layout.read` / 설정 `layout.settings`(공개 사이트 메뉴)·`admin-menu.manage`(관리자 사이트 메뉴 구성 저장).
      *  · 사이트·연동(설정 메뉴의 「일반」·「소셜 로그인」·「메일 서버」·「알림」 화면): 조회 `site.read`(일반·소셜 로그인·메일 서버·설정 이력 보기) / 설정 `site.manage`(사이트 이름·소개, 표시 기본값 변경) / 민감 `site.secret`(소셜 로그인 키 저장·삭제, 메일 서버 저장·시험 발송). 알림 이벤트 관리는 조회 `notification.read` / 설정 `notification.manage`(이벤트별 사용 여부·이메일 전달 변경 — 받는 사람은 코드에 고정이라 바꾸지 않는다).
+     *  · 소모임(소모임 묶음 `/groups`·`/group-requests`·`/group-categories`·`/group-settings`): 조회 `group.read` / 처리 `group.manage`(개설 승인·반려·비활성화·다시 열기) / 설정 `group.settings`(분류·소모임 설정 저장).
      * 나머지는 화면이 아직 없는 기능의 권한이다(`featureReady: false`). 목록·순서·`featureReady` 는 서버 `Permission.java` 가 원천이다 — 바꿀 때 두 곳을 같게 한다.
      */
     static readonly PERMISSIONS: readonly PermissionDef[] = [
@@ -210,9 +211,9 @@ export default class UtilPermissionCatalog {
         { code: 'pointshop.refund', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.pointshopRefund', descKey: 'permission.item.pointshopRefundDesc', featureReady: true },
         { code: 'dormancy.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.item.dormancyRead', descKey: 'permission.item.dormancyReadDesc', featureReady: false },
         { code: 'dormancy.settings', unit: 'CONFIG', type: 'gradePoint', nameKey: 'permission.item.dormancySettings', descKey: 'permission.item.dormancySettingsDesc', featureReady: false },
-        { code: 'group.read', unit: 'READ', type: 'club', nameKey: 'permission.item.groupRead', descKey: 'permission.item.groupReadDesc', featureReady: false },
-        { code: 'group.manage', unit: 'MANAGE', type: 'club', nameKey: 'permission.item.groupManage', descKey: 'permission.item.groupManageDesc', featureReady: false },
-        { code: 'group.settings', unit: 'CONFIG', type: 'club', nameKey: 'permission.item.groupSettings', descKey: 'permission.item.groupSettingsDesc', featureReady: false },
+        { code: 'group.read', unit: 'READ', type: 'club', nameKey: 'permission.item.groupRead', descKey: 'permission.item.groupReadDesc', featureReady: true },
+        { code: 'group.manage', unit: 'MANAGE', type: 'club', nameKey: 'permission.item.groupManage', descKey: 'permission.item.groupManageDesc', featureReady: true },
+        { code: 'group.settings', unit: 'CONFIG', type: 'club', nameKey: 'permission.item.groupSettings', descKey: 'permission.item.groupSettingsDesc', featureReady: true },
         { code: 'hotdeal.read', unit: 'READ', type: 'hotdeal', nameKey: 'permission.item.hotdealRead', descKey: 'permission.item.hotdealReadDesc', featureReady: false },
         { code: 'hotdeal.manage', unit: 'MANAGE', type: 'hotdeal', nameKey: 'permission.item.hotdealManage', descKey: 'permission.item.hotdealManageDesc', featureReady: false },
         { code: 'hotdeal.domain.manage', unit: 'CONFIG', type: 'hotdeal', nameKey: 'permission.item.hotdealDomainManage', descKey: 'permission.item.hotdealDomainManageDesc', featureReady: false },
@@ -291,7 +292,7 @@ export default class UtilPermissionCatalog {
         { code: 'post.react', group: 'USE', type: 'memberSite', nameKey: 'permission.memberPostReact', descKey: 'permission.memberPostReactDesc', featureReady: true },
         { code: 'report.create', group: 'USE', type: 'memberSite', nameKey: 'permission.memberReportCreate', descKey: 'permission.memberReportCreateDesc', featureReady: true },
         { code: 'pointshop.use', group: 'USE', type: 'memberSite', nameKey: 'permission.memberPointshopUse', descKey: 'permission.memberPointshopUseDesc', featureReady: true },
-        { code: 'group.create', group: 'USE', type: 'memberSite', nameKey: 'permission.memberGroupCreate', descKey: 'permission.memberGroupCreateDesc', featureReady: false },
+        { code: 'group.create', group: 'USE', type: 'memberSite', nameKey: 'permission.memberGroupCreate', descKey: 'permission.memberGroupCreateDesc', featureReady: true },
         { code: 'hotdeal.write', group: 'USE', type: 'memberSite', nameKey: 'permission.memberHotdealWrite', descKey: 'permission.memberHotdealWriteDesc', featureReady: false },
         { code: 'commerce.purchase', group: 'USE', type: 'memberSite', nameKey: 'permission.memberCommercePurchase', descKey: 'permission.memberCommercePurchaseDesc', featureReady: false },
         { code: 'ad.apply', group: 'USE', type: 'memberSite', nameKey: 'permission.memberAdApply', descKey: 'permission.memberAdApplyDesc', featureReady: false },

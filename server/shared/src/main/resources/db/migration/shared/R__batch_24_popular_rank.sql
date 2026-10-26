@@ -78,6 +78,11 @@ LANGUAGE sql STABLE AS $fn$
        AND (p.delete_scheduled_at IS NULL OR p.delete_scheduled_at > p_now)
        AND (p.hidden_at IS NULL OR (p.hidden_until IS NOT NULL AND p.hidden_until <= p_now))
        AND NOT p.adult
+       -- 소모임 글은 비멤버에게 보이는 것(is_public — 공개 소모임의 글·개별 공개된 글)만, 작성자가 나가서 가린 글·비활성 소모임의 글은 빼고(소모임 6단계,
+       -- PostRepositoryQDSL#feedVisible 과 같은 판정 — community api-popular.md 「비공개 소모임 글」 제외)
+       AND (p.group_id IS NULL
+            OR (p.is_public AND p.group_left_at IS NULL
+                AND NOT EXISTS (SELECT 1 FROM groups g WHERE g.id = p.group_id AND g.status = 'INACTIVE')))
        AND b.active
        AND NOT ('POPULAR' = ANY (b.gadget_exclusions))
        AND (NOT s.exclude_staff_boards OR coalesce(b.write_min, d.write_min) <> 'STAFF')

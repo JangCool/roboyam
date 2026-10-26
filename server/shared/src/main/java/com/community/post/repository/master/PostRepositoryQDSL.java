@@ -1,5 +1,7 @@
 package com.community.post.repository.master;
 
+import com.community.group.entity.GroupStatus;
+import com.community.group.entity.QGroupEntity;
 import com.community.post.dto.PostNeighborData;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.WriteRateData;
@@ -30,6 +32,7 @@ import org.springframework.stereotype.Repository;
 public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
 
     private static final QPostEntity POST = QPostEntity.postEntity;
+    private static final QGroupEntity INACTIVE_GROUP = new QGroupEntity("inactiveGroup");
     /** 검색어 최대 길이 — 넘으면 자른다 */
     public static final int QUERY_MAX = 50;
 
@@ -51,9 +54,20 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
         return p.hiddenAt.isNull().or(p.hiddenUntil.isNotNull().and(p.hiddenUntil.loe(now)));
     }
 
+    /**
+     * 게시판이 섞인 목록(최신글·통합 검색·회원 작성글·인기글)에 나올 수 있는 글 — 일반 글이거나, <b>비멤버에게 보이는 소모임 글</b>
+     * ({@code is_public} = 유효 노출 — 공개 소모임의 글·개별 공개된 글, community api-groups.md 8절·11-1)이고 작성자가 나가서 가리지 않았으며 소모임이 비활성이 아니다
+     * (비활성 소모임의 글은 글 상세가 403 {@code GROUP_INACTIVE} 라 줄을 보이지 않는다 — 해산한 소모임에 공개로 남은 글은 읽히므로 나온다).
+     * 인기글 배치(R__batch_24 {@code popular_rank_candidates})와 통합 검색의 원시 SQL({@code PostSearchQueries})이 같은 판정을 SQL 로 쓴다 — 한쪽을 고치면 같이 고친다.
+     */
+    public static BooleanExpression feedVisible(QPostEntity p) {
+        return p.groupId.isNull().or(p.publicPost.isTrue().and(p.groupLeftAt.isNull())
+                .and(p.groupId.notIn(JPAExpressions.select(INACTIVE_GROUP.id).from(INACTIVE_GROUP).where(INACTIVE_GROUP.status.eq(GroupStatus.INACTIVE)))));
+    }
+
     private static ConstructorExpression<PostRowData> row() {
         return Projections.constructor(PostRowData.class, POST.id, POST.boardId, POST.prefixId, POST.authorId, POST.guestName, POST.authorIp, POST.title,
-                POST.hasImage, POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.pinnedAt, POST.hiddenAt, POST.hiddenUntil, POST.hiddenReason, POST.createdAt);
+                POST.hasImage, POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.pinnedAt, POST.hiddenAt, POST.hiddenUntil, POST.hiddenReason, POST.createdAt, POST.groupId);
     }
 
     /** 고정 공지 — 고정한 차례 최신순, 최대 {@code max} 개 */

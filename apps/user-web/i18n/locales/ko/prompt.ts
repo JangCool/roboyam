@@ -37,6 +37,11 @@ export default {
     // 댓글 지연 노출 — 비회원에게는 시간 숫자(N분)를 알리지 않는다
     viewTitle: '로그인하면 바로 볼 수 있어요',
     viewDescription: '방금 쓴 댓글은 로그인하지 않은 방문자에게 조금 늦게 보여요. 로그인하면 지금 달린 댓글도 바로 읽을 수 있어요.',
+    // 소모임 — 가입·신청 · 만들기
+    groupJoinTitle: '로그인하면 소모임에 가입할 수 있어요',
+    groupJoinDescription: '소모임 목록과 소개는 로그인 없이 볼 수 있어요. 가입·신청은 로그인한 회원만 할 수 있어요.',
+    groupCreateTitle: '로그인하면 소모임을 만들 수 있어요',
+    groupCreateDescription: '소모임 만들기 신청은 로그인한 회원만 할 수 있어요. 둘러보는 것은 로그인 없이도 돼요.',
 
     // 가려진 댓글 본문 자리
     delayPlaceholder: '로그인하면 바로 볼 수 있어요',

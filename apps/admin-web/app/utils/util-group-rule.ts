@@ -3,7 +3,7 @@ import type { GroupRuleRange } from '~/composables/group/api/useGroupSettingsApi
 
 /**
  * 소모임 설정 네 구획(개설 규칙 · 매니저 · 공개 범위 · 운영 한도)이 같이 쓰는 입력 규칙 — 순수 함수만.
- * 서버(community `GroupCreationRuleService`·`GroupManagerRuleService`·`GroupVisibilityPolicy`·`GroupPolicyRuleService` — 로보얌 서버 단계에서 같은 이름)와 같은 규칙으로 미리 알려 주는 용도다. 판정은 서버다.
+ * 서버(community `GroupCreationRuleService`·`GroupManagerRuleService`·`GroupVisibilityPolicy`·`GroupPolicyRuleService` — 로보얌 서버 `server/admin` 의 같은 규칙)와 같은 규칙으로 미리 알려 주는 용도다. 판정은 서버다.
  *
  * 폼 값: 숫자 칸은 입력 그대로의 글자(`"7"`), 켜기는 불리언, 고르기는 값 글자. 숫자는 0 이상 정수만 받는다(소수·음수·빈칸은 범위 문제).
  */

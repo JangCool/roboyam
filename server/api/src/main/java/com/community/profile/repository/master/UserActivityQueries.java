@@ -22,7 +22,7 @@ import org.springframework.stereotype.Repository;
  * 공개 프로필의 활동 질의 — 수치·작성글·작성 댓글. docs/features/member-activity-contract.md 「공개 프로필」.
  *
  * <p><b>볼 수 있는 글</b>: 공개 목록에 보이는 글({@link PostRepositoryQDSL#alive}) · 지금 숨김이 아님({@link PostRepositoryQDSL#notHidden}) · 켜진 게시판({@code boardIds}).
- * 게시판 목록과 달리 숨긴 글은 자리도 남기지 않고 뺀다. <b>볼 수 있는 댓글</b>: 지우지 않음 · 지금 숨김 아님 · 볼 수 있는 글에 달림.
+ * 게시판 목록과 달리 숨긴 글은 자리도 남기지 않고 뺀다. 소모임 글은 비멤버에게 보이는 것만(소모임 6단계). <b>볼 수 있는 댓글</b>: 지우지 않음 · 지금 숨김 아님 · 볼 수 있는 <b>일반</b> 글에 달림.
  * 작성자 색인 {@code ix_posts_author_recent}·{@code ix_comments_author_recent}({@code (author_id, id DESC)}, V46)을 탄다.
  */
 @Repository
@@ -44,9 +44,17 @@ public class UserActivityQueries extends RoboyamRepositoryQDSL {
                              Instant createdAt) {
     }
 
-    /** 볼 수 있는 글 조건 */
+    /** 볼 수 있는 글 조건 — 소모임 글은 비멤버에게 보이는 것만({@link PostRepositoryQDSL#feedVisible}, 소모임 6단계) */
     private static BooleanExpression visiblePost(Collection<Long> boardIds, Instant now) {
-        return PostRepositoryQDSL.alive(POST, now).and(PostRepositoryQDSL.notHidden(POST, now)).and(POST.boardId.in(boardIds));
+        return PostRepositoryQDSL.alive(POST, now).and(PostRepositoryQDSL.notHidden(POST, now)).and(POST.boardId.in(boardIds)).and(PostRepositoryQDSL.feedVisible(POST));
+    }
+
+    /**
+     * 작성 댓글이 달린 글 조건 — 볼 수 있는 일반 글만. 소모임 글의 댓글은 넣지 않는다: 공개 글이어도 공개 전의 댓글은 비멤버에게 가려지고(MEMBERS_ONLY)
+     * 나간 멤버의 댓글은 「탈퇴한 회원」으로 가려지므로(GROUP_LEFT) 프로필에 모으면 가린 것이 드러난다(소모임 6단계 — 로보얌 판단).
+     */
+    private static BooleanExpression commentablePost(Collection<Long> boardIds, Instant now) {
+        return visiblePost(boardIds, now).and(POST.groupId.isNull());
     }
 
     /** 볼 수 있는 댓글 조건(글 조건은 따로) */
@@ -64,7 +72,7 @@ public class UserActivityQueries extends RoboyamRepositoryQDSL {
                 .fetchOne();
         Tuple c = query.select(COMMENT.id.count(), likeSum(COMMENT.likeCount)).from(COMMENT)
                 .join(POST).on(POST.id.eq(COMMENT.postId))
-                .where(COMMENT.authorId.eq(userId), visibleComment(now), visiblePost(boardIds, now))
+                .where(COMMENT.authorId.eq(userId), visibleComment(now), commentablePost(boardIds, now))
                 .fetchOne();
         long posts = num(p, 0);
         long comments = num(c, 0);
@@ -86,7 +94,7 @@ public class UserActivityQueries extends RoboyamRepositoryQDSL {
         }
         return query.select(Projections.constructor(PostRowData.class, POST.id, POST.boardId, POST.prefixId, POST.authorId, POST.guestName, POST.authorIp,
                         POST.title, POST.hasImage, POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.pinnedAt, POST.hiddenAt, POST.hiddenUntil,
-                        POST.hiddenReason, POST.createdAt))
+                        POST.hiddenReason, POST.createdAt, POST.groupId))
                 .from(POST).where(where)
                 .orderBy(POST.id.desc())
                 .limit(limit + 1L)
@@ -98,7 +106,7 @@ public class UserActivityQueries extends RoboyamRepositoryQDSL {
         if (boardIds.isEmpty()) {
             return List.of();
         }
-        BooleanExpression where = COMMENT.authorId.eq(userId).and(visibleComment(now)).and(visiblePost(boardIds, now));
+        BooleanExpression where = COMMENT.authorId.eq(userId).and(visibleComment(now)).and(commentablePost(boardIds, now));
         if (beforeId != null) {
             where = where.and(COMMENT.id.lt(beforeId));
         }

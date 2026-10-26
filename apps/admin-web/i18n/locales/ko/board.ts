@@ -623,6 +623,8 @@ export default {
     deleteTitle: '게시판 삭제',
     deleteHelp: '글이 없는 게시판만 지울 수 있어요. 지우면 되돌릴 수 없어요.',
     deleteBlocked: '글이 {n}개 있어 지울 수 없어요. 대신 게시판을 꺼 주세요.',
+    deleteHelpGroup: '글이 없고 이 게시판을 쓴 소모임이 하나도 없을 때만 지울 수 있어요(해산·반려된 신청 기록도 셉니다). 지우면 되돌릴 수 없어요.',
+    deleteHasGroups: '소모임이 쓰는(쓴 적 있는) 게시판은 지울 수 없어요. 대신 게시판을 꺼 주세요.',
     deleteConfirmMessage: '「{name}」 게시판을 지워요. 되돌릴 수 없어요. 확인하려면 게시판 이름을 그대로 입력해 주세요.',
     deleteTypeName: '게시판 이름',
     delete: '삭제',

@@ -20,9 +20,11 @@ import java.time.Instant;
  * @param openReports       이 글에 대한 처리 대기 신고 수(글 신고만)
  * @param opinionCount      의견 수 — 입장 있는 원댓글(지운 것 제외·숨긴 것 포함). 토론이 닫혀도 센다(닫힌 토론도 의견 관리를 열 수 있게)
  * @param pendingPinRequests 대기 중인 의견 고정 요청 수
+ * @param group             소모임 글이면 소모임 표시, 일반 글 null(소모임 2단계)
+ * @param restricted        비공개 소모임 글 — {@code title} 이 null 이고 상세 본문도 싣지 않는다(내용은 신고 처리의 신고 당시 내용으로만 본다). 이동은 409 POST_STATE_INVALID
  */
 public record AdminPostItemView(String id, AdminPostBoardRefView board, AdminPostPrefixRefView prefix, String title, AdminPostAuthorView author, String state,
                                 String hiddenReason, Instant hiddenAt, Instant hiddenUntil, Instant deletedAt, Instant deleteScheduledAt, boolean purged,
                                 boolean pinned, boolean notice, boolean adult, boolean debate, boolean poll, int likeCount, int commentCount, int viewCount,
-                                int openReports, Instant createdAt, int opinionCount, int pendingPinRequests) {
+                                int openReports, Instant createdAt, int opinionCount, int pendingPinRequests, AdminPostGroupView group, boolean restricted) {
 }

@@ -9,7 +9,7 @@ import java.util.List;
 import org.hibernate.annotations.DynamicUpdate;
 
 /**
- * 신고 사건 — V82 {@code report_cases}. 같은 대상(글·댓글)의 신고를 한 줄로 묶는다. 대상마다 열린 사건({@link #PENDING}·{@link #IN_REVIEW})은 하나다(부분 유일 색인).
+ * 신고 사건 — V82 {@code report_cases}. 같은 대상(글·댓글·소모임 — V95)의 신고를 한 줄로 묶는다. 대상마다 열린 사건({@link #PENDING}·{@link #IN_REVIEW})은 하나다(부분 유일 색인).
  * 닫힌 사건 뒤의 새 신고는 새 사건으로 0부터 센다. docs/features/report-admin-contract.md.
  *
  * <p>상태 전이는 이 엔티티의 메서드만 한다: 대기 → 검토 중({@link #startReview}) → 조치({@link #resolve}) 또는 무시({@link #dismiss}).
@@ -33,6 +33,8 @@ public class ReportCaseEntity {
     public static final String ACTION_DELETE = "DELETE";
     /** 조치: 자동 숨김 확정(권리침해 임시조치면 기한을 지워 계속 숨김) */
     public static final String ACTION_KEEP_HIDDEN = "KEEP_HIDDEN";
+    /** 조치: 소모임 비활성화(소모임 사건만 — V95) */
+    public static final String ACTION_DEACTIVATE = "DEACTIVATE";
     /** 무시 */
     public static final String ACTION_DISMISS = "DISMISS";
 
@@ -48,6 +50,7 @@ public class ReportCaseEntity {
 
     private String targetType;
     private Long targetId;
+    /** 대상 글(댓글 사건이면 그 댓글의 글) — 소모임 사건이면 null(V95) */
     private Long postId;
     private Long boardId;
     private Long targetAuthorId;
@@ -70,7 +73,7 @@ public class ReportCaseEntity {
     }
 
     /** 새 사건(신고 0건 — 이어서 {@link #reportAdded}) */
-    public static ReportCaseEntity open(long id, String targetType, long targetId, long postId, long boardId, Long targetAuthorId, Instant now) {
+    public static ReportCaseEntity open(long id, String targetType, long targetId, Long postId, long boardId, Long targetAuthorId, Instant now) {
         ReportCaseEntity c = new ReportCaseEntity();
         c.id = id;
         c.targetType = targetType;
@@ -86,8 +89,8 @@ public class ReportCaseEntity {
         return c;
     }
 
-    /** 신고가 하나 더 붙었다 — 글의 게시판이 옮겨졌을 수 있어 글·게시판도 지금 값으로 */
-    public void reportAdded(long postId, long boardId, Instant now) {
+    /** 신고가 하나 더 붙었다 — 글의 게시판이 옮겨졌을 수 있어 글·게시판도 지금 값으로(소모임 사건은 글 null) */
+    public void reportAdded(Long postId, long boardId, Instant now) {
         this.reportCount++;
         this.lastReportedAt = now;
         this.postId = postId;
@@ -107,7 +110,7 @@ public class ReportCaseEntity {
         return true;
     }
 
-    /** 조치로 닫는다 — {@code action} 은 HIDE · DELETE · KEEP_HIDDEN */
+    /** 조치로 닫는다 — {@code action} 은 HIDE · DELETE · KEEP_HIDDEN · DEACTIVATE(소모임) */
     public void resolve(String action, String reasonCode, String note, long operatorId, Instant now) {
         close(RESOLVED, action, reasonCode, note, false, operatorId, now);
     }
@@ -156,6 +159,11 @@ public class ReportCaseEntity {
 
     public boolean isComment() {
         return ReportEntity.COMMENT.equals(targetType);
+    }
+
+    /** 소모임 사건(V95) — 글이 없다 */
+    public boolean isGroup() {
+        return ReportEntity.GROUP.equals(targetType);
     }
 
     public Long getId() {

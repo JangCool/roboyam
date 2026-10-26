@@ -18,6 +18,17 @@ export default class UtilBoardMessages {
         return e instanceof ApiError ? e.message : UtilAdminAuthMessages.fallback(t, 0, 'NETWORK');
     }
 
+    /**
+     * 게시판 삭제 실패 → 한 줄. 소모임이 쓰는 게시판(`409 BOARD_HAS_GROUPS` — 열림·비활성·대기 소모임이 쓴다)은 화면 문구로 안내하고, 그 밖은 서버 문구 그대로.
+     * @param {Translate} t - 번역 함수.
+     * @param {unknown} e - 잡은 오류.
+     * @returns {string} 한 줄.
+     */
+    static deleteFailure(t: Translate, e: unknown): string {
+        if (e instanceof ApiError && e.code === 'BOARD_HAS_GROUPS') return t('board.deleteHasGroups');
+        return UtilBoardMessages.of(t, e);
+    }
+
     /** 칸 문제(숫자 칸 · 이름 칸) → 문구(범위를 넣는다) */
     static numProblem(t: Translate, field: string, problem: BoardFieldProblem): string {
         const spec = UtilBoard.spec(field);

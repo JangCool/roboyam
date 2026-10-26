@@ -2,7 +2,7 @@ import type { GroupCategoriesResponse, GroupCategoryCreateRequest, GroupCategory
 
 /**
  * 소모임 분류 API — 서버 주소 문자열(`/api/admin/group-categories…`)이 있는 **유일한 곳**이다. 상태는 없다.
- * 계약: community `docs/api-groups.md` 6-3 → 로보얌 `docs/features/group-contract.md` 「관리자 화면」. 서버 연결됨(`server/admin`) — 소모임 서버가 아직 없어 `groupCount` 는 늘 0 이다.
+ * 계약: community `docs/api-groups.md` 6-3 → 로보얌 `docs/features/group-contract.md` 「관리자 화면」. 서버 연결됨(`server/admin`).
  *
  * 권한(로보얌 코드): 조회 `group.read`, 만들기·저장·순서·삭제 `group.settings`(community 는 최고 관리자 전용 `403 ADMIN_ONLY` — 로보얌은 권한 코드로 위임한다). 없으면 `403 PERMISSION_DENIED`.
  *   - `GET    /api/admin/group-categories` → `GroupCategoriesResponse`(분류 sortOrder 순 + 할당할 수 있는 켜진 소모임 게시판)

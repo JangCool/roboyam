@@ -51,7 +51,70 @@ public enum MemberNotificationType {
     /** 정지 중에 낸 포인트 상점 환불 신청을 운영자가 수락해 환불했다(V87) — 품목 이름 · 돌려준 포인트. 누르면 내 아이템({@code /me/items}) */
     POINT_SHOP_REFUND_APPROVED("system"),
     /** 정지 중에 낸 포인트 상점 환불 신청을 운영자가 거절했다(V87) — 품목 이름 · 사유. 누르면 내 아이템 */
-    POINT_SHOP_REFUND_REJECTED("system");
+    POINT_SHOP_REFUND_REJECTED("system"),
+
+    // ── 소모임(V90 — docs/features/group-contract.md 1단계, community api-groups.md 7절). 묶음 system(user-web 거르기에 소모임 묶음이 없어 계정·처리 알림과 같이). 덧붙임 groupId·groupName(+reason·applicantId) ──
+    /** 내 개설 신청이 승인돼 소모임이 열렸다 — 누르면 그 소모임 */
+    GROUP_APPROVED("system"),
+    /** 내 개설 신청이 반려됐다(사유와 함께) — 누르면 내 소모임 */
+    GROUP_REJECTED("system"),
+    /** 내가 처리할 가입 신청이 왔다(모임장 — 3단계부터 APPLICATIONS 매니저도) — 일으킨 사람 = 신청한 회원. 누르면 가입 신청 관리 */
+    GROUP_JOIN_REQUEST("system"),
+    /** 내 가입 신청이 승인됐다 — 누르면 그 소모임 */
+    GROUP_JOIN_APPROVED("system"),
+    /** 내 가입 신청이 거절됐다(처리자가 사유를 적었을 때만 사유) — 누르면 내 소모임 */
+    GROUP_JOIN_REJECTED("system"),
+    /** 소모임에서 내보내졌다 — 누르면 소모임 목록 */
+    GROUP_KICKED("system"),
+    /** 내가 멤버인 소모임이 해산됐다 — 누르면 소모임 목록 */
+    GROUP_DISSOLVED("system"),
+    /** 모임장 자리를 넘겨받았다 — 누르면 그 소모임 */
+    GROUP_LEADER_TRANSFERRED("system"),
+    /** 내가 모임장인 소모임이 운영 조치로 비활성이 됐다(사유와 함께) — 누르면 그 소모임 */
+    GROUP_DEACTIVATED("system"),
+    /** 내가 모임장인 소모임이 다시 열렸다(운영 메모는 싣지 않는다) — 누르면 그 소모임 */
+    GROUP_REACTIVATED("system"),
+    /**
+     * 모임장(또는 되돌리기를 맡은 매니저 — 3단계)이 내 공개 소모임 글을 비공개로 되돌렸다(V91, community api-groups.md 8절) — 덧붙임 groupId·groupName·title·actorRole(LEADER · MANAGER).
+     * 글·일으킨 사람 칸은 그 글·처리자. 누르면 그 글. 작성자 본인이 되돌리면 알림 없음
+     */
+    GROUP_POST_UNPUBLISHED("system"),
+
+    // ── 소모임 매니저(V92 — group-contract 3단계, community api-groups.md 5-1·7절 「매니저 알림 5종」). 모두 끌 수 없다(내 자리·할 일이 바뀐 알림) ──
+    /** 매니저로 임명됐다 — 덧붙임 groupId·groupName·permissions(맡은 일 키, 고정 순서). 일으킨 사람 = 모임장. 누르면 관리 메인 */
+    GROUP_MANAGER_APPOINTED("system"),
+    /** 내 맡은 일이 바뀌었다(바뀐 것이 없으면 안 간다) — 덧붙임 permissions = 바뀐 뒤 지금 맡은 일 전체. 누르면 관리 메인 */
+    GROUP_MANAGER_PERMISSIONS_CHANGED("system"),
+    /** 매니저에서 해임됐다 — 누르면 그 소모임 */
+    GROUP_MANAGER_REMOVED("system"),
+    /** 매니저가 스스로 물러났다(모임장에게) — 일으킨 사람 = 물러난 매니저(덧붙임 actorId). 누르면 멤버 관리 */
+    GROUP_MANAGER_RESIGNED("system"),
+    /** 매니저가 멤버를 강퇴했다(모임장에게) — 일으킨 사람 = 강퇴한 매니저, 덧붙임 targetId(내보낸 멤버). 누르면 멤버 관리 */
+    GROUP_KICKED_BY_MANAGER("system"),
+
+    // ── 소모임 일정(V93 — group-contract 4단계, community api-groups.md 9절 「알림 GROUP_EVENT」). 소모임 알림 중 유일하게 회원이 끌 수 있다 ──
+    /**
+     * 내가 멤버인 소모임의 일정이 등록·수정·취소됐다 — 덧붙임 groupId·groupName·eventId·title(일정 제목)·eventAction(CREATED · UPDATED · CANCELED)·reason(취소 사유, 적었을 때만).
+     * 일으킨 사람 = 한 사람(모임장 · 일정 관리를 맡은 매니저). 누르면 그 일정({@code /groups/{groupId}/events/{eventId}})
+     */
+    GROUP_EVENT("system"),
+
+    // ── 소모임 공개 범위·공개 요청(V94 — group-contract 5단계, community api-groups.md 11-8 「알림 7종」). 모두 끌 수 없다 ──
+    // 덧붙임 공통 groupId·groupName, 글 알림은 title(글 제목 — 알릴 때)·actorRole(LEADER · MANAGER — 요청 알림 제외)·reason(거절 사유 — 적었을 때만). 글·일으킨 사람 칸은 그 글·한 사람
+    /** 처리할 공개 요청이 왔다(모임장 + 「글 공개 처리·되돌리기」 매니저) — 일으킨 사람 = 요청한 작성자. 누르면 공개 요청 처리({@code /groups/{id}/manage/publish-requests}) */
+    GROUP_PUBLISH_REQUESTED("system"),
+    /** 내 공개 요청이 승인됐다(직접 공개가 대기 요청을 닫은 경우 포함) — 누르면 그 글 */
+    GROUP_PUBLISH_APPROVED("system"),
+    /** 내 공개 요청이 거절됐다(사유가 있으면 reason) — 누르면 그 글 */
+    GROUP_PUBLISH_REJECTED("system"),
+    /** 모임장·매니저가 요청 없이 내 글을 모두에게 공개했다 — 누르면 그 글 */
+    GROUP_POST_PUBLISHED("system"),
+    /** 내가 멤버인 소모임의 공개 범위가 바뀌었다(바꾼 모임장 제외) — 덧붙임 visibility(바뀐 값 PUBLIC · PRIVATE). 누르면 그 소모임 */
+    GROUP_VISIBILITY_CHANGED("system"),
+    /** 공개 소모임에서 모임장·매니저가 내 글을 멤버 전용으로 돌렸다 — 누르면 그 글 */
+    GROUP_POST_MEMBERS_ONLY("system"),
+    /** 공개 소모임에서 멤버 전용으로 돌려 둔 내 글을 모임장·매니저가 다시 공개했다 — 누르면 그 글 */
+    GROUP_POST_RELEASED("system");
 
     private final String category;
 

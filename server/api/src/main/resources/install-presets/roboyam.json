@@ -73,7 +73,7 @@
       ]
     },
     {
-      "slug": "ai-groups", "name": "AI·테크 소모임", "nameEn": "AI & Tech groups", "description": null, "layout": "LIST", "viewToggle": false,
+      "slug": "ai-groups", "name": "AI·테크 소모임", "nameEn": "AI & Tech clubs", "description": null, "layout": "LIST", "viewToggle": false,
       "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 1010, "color": "BLUE",
       "kind": "GROUP", "groupCategoryName": "AI·테크",
       "prefixes": [
@@ -88,7 +88,7 @@
       ]
     },
     {
-      "slug": "robot-groups", "name": "로봇 소모임", "nameEn": "Robot groups", "description": null, "layout": "LIST", "viewToggle": false,
+      "slug": "robot-groups", "name": "로봇 소모임", "nameEn": "Robot clubs", "description": null, "layout": "LIST", "viewToggle": false,
       "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 1020, "color": "PURPLE",
       "kind": "GROUP", "groupCategoryName": "로봇",
       "prefixes": [
@@ -103,7 +103,7 @@
       ]
     },
     {
-      "slug": "stock-groups", "name": "산업·주식 소모임", "nameEn": "Industry & Stocks groups", "description": null, "layout": "LIST", "viewToggle": false,
+      "slug": "stock-groups", "name": "산업·주식 소모임", "nameEn": "Industry & Stocks clubs", "description": null, "layout": "LIST", "viewToggle": false,
       "investmentNotice": true, "staffOnlyWrite": false, "sortOrder": 1030, "color": "GREEN",
       "kind": "GROUP", "groupCategoryName": "산업·주식",
       "prefixes": [
@@ -116,7 +116,7 @@
       ]
     },
     {
-      "slug": "game-groups", "name": "게임 소모임", "nameEn": "Game groups", "description": null, "layout": "LIST", "viewToggle": false,
+      "slug": "game-groups", "name": "게임 소모임", "nameEn": "Game clubs", "description": null, "layout": "LIST", "viewToggle": false,
       "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 1040, "color": "AMBER",
       "kind": "GROUP", "groupCategoryName": "게임",
       "prefixes": [
@@ -129,7 +129,7 @@
       ]
     },
     {
-      "slug": "sports-groups", "name": "스포츠 소모임", "nameEn": "Sports groups", "description": null, "layout": "LIST", "viewToggle": false,
+      "slug": "sports-groups", "name": "스포츠 소모임", "nameEn": "Sports clubs", "description": null, "layout": "LIST", "viewToggle": false,
       "investmentNotice": false, "staffOnlyWrite": false, "sortOrder": 1050, "color": "TEAL",
       "kind": "GROUP", "groupCategoryName": "스포츠",
       "prefixes": [

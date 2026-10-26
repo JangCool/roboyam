@@ -19,8 +19,11 @@
                             <span v-if="fillTag" class="mr-1 inline-flex items-center justify-center rounded border border-surface px-1.5 py-1 align-[1px] text-[0.6875rem] font-medium leading-none text-muted-color" :title="fillTag.aria">
                                 <span class="relative top-[-0.09em]" aria-hidden="true">{{ fillTag.label }}</span><span class="sr-only">{{ fillTag.aria }}</span>
                             </span>
+                            <!-- 공개로 전환된 소모임 글 — 게시판 이름 대신 「소모임」 표시(소모임 게시판은 공개 게시판 목록에 없다) -->
+                            <GroupTag v-if="row.group" tone="blue" class="mr-1 align-[1px]" data-testid="post-group-badge">{{ t('group.postBadge') }}</GroupTag>
                             <!-- 게시판 이름 — 운영자가 고른 표시색이 있으면 그 색, 없으면 중립색 -->
                             <span
+                                v-else
                                 class="mr-1 inline-flex items-center justify-center rounded px-1.5 py-1 align-[1px] text-[0.6875rem] font-semibold leading-none"
                                 :class="boardStyle ? '' : UtilBoard.tagClass('neutral')"
                                 :style="boardStyle"

@@ -23,6 +23,10 @@ import error from './error';
 import identity from './identity';
 import feed from './feed';
 import grade from './grade';
+import group from './group';
+import groupEvent from './groupEvent';
+import groupManager from './groupManager';
+import groupVisibility from './groupVisibility';
 import install from './install';
 import login from './login';
 import mail from './mail';
@@ -68,6 +72,10 @@ export default {
     identity,
     feed,
     grade,
+    group,
+    groupEvent,
+    groupManager,
+    groupVisibility,
     install,
     login,
     mail,

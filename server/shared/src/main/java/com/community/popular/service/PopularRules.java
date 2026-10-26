@@ -42,7 +42,9 @@ public final class PopularRules {
 
     /**
      * 인기글에 오를 수 있는 게시판인가 — 켜져 있고 「가젯 노출 금지」에 인기글(POPULAR)이 없으며, 설정 「운영진 전용 게시판 제외」가 켜져 있으면 운영진 전용
-     * (유효 글쓰기 자격 STAFF)이 아니다. DB 배치의 후보 조건(R__batch_24 {@code popular_rank_candidates})과 같은 판정 — 한쪽을 고치면 다른 쪽도 고친다.
+     * (유효 글쓰기 자격 STAFF)이 아니다. 소모임 게시판(종류 GROUP)도 오를 수 있다 — 글 단위로 비멤버에게 보이는 소모임 글만 후보다
+     * (소모임 6단계 — community api-popular.md 「비공개 소모임 글」만 제외, 글 거름은 배치의 후보 조건과 {@code PostRepositoryQDSL#feedVisible}).
+     * DB 배치의 후보 조건(R__batch_24 {@code popular_rank_candidates})과 같은 판정 — 한쪽을 고치면 다른 쪽도 고친다.
      *
      * @param board 게시판 사본(없는 게시판이면 null → false)
      */

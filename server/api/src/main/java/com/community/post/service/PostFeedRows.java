@@ -5,15 +5,23 @@ import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.AuthorMembers;
 import com.community.board.service.AuthorViews;
+import com.community.group.entity.GroupEntity;
+import com.community.group.entity.GroupStatus;
+import com.community.group.repository.master.GroupRepository;
 import com.community.poll.repository.master.PollQueries;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.response.PostAuthorView;
 import com.community.post.dto.response.PostBoardRefView;
 import com.community.post.dto.response.PostFeedRowView;
+import com.community.post.dto.response.PostGroupView;
 import com.community.post.dto.response.PostRowView;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 
@@ -21,7 +29,7 @@ import org.springframework.stereotype.Component;
  * 게시판이 섞인 목록의 줄({@link PostFeedRowView}) 만들기 — 줄 모양은 게시판 글 목록({@code PostQueryService#row})과 같고 그 글의 게시판을 더한다.
  * 작성자 프로필은 목록마다 한 번에 읽는다. 게시판이 사본에 없거나 꺼진 글은 뺀다(사본은 15초 — 게시판을 막 끈 경우).
  * 보는 사람의 차단·메모({@code blocked}·작성자 {@code memo})도 게시판 목록과 같게 싣는다 — 쪽마다 {@link ViewerBlocks} 질의 세 번(줄 수와 무관). 차단된 줄도 빼지 않는다(화면이 접는다).
- * 투표가 붙은 글({@code hasPoll})도 쪽마다 한 번에 읽는다.
+ * 투표가 붙은 글({@code hasPoll})도 쪽마다 한 번에 읽는다. 소모임 글(비멤버에게 보이는 것만 이 목록들에 온다)의 소모임 표시({@code group})는 쪽마다 소모임 질의 한 번(소모임 6단계).
  */
 @Component
 public class PostFeedRows {
@@ -29,8 +37,10 @@ public class PostFeedRows {
     private final AuthorViews authors;
     private final ViewerBlocks viewerBlocks;
     private final PollQueries polls;
+    private final GroupRepository groups;
 
-    public PostFeedRows(AuthorViews authors, ViewerBlocks viewerBlocks, PollQueries polls) {
+    public PostFeedRows(AuthorViews authors, ViewerBlocks viewerBlocks, PollQueries polls, GroupRepository groups) {
+        this.groups = groups;
         this.authors = authors;
         this.viewerBlocks = viewerBlocks;
         this.polls = polls;
@@ -46,6 +56,7 @@ public class PostFeedRows {
         AuthorMembers members = authors.members(authorIds);
         ViewerBlocks.Lens lens = rows.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(viewerId, authorIds);
         Set<Long> withPoll = polls.postIdsWithPoll(rows.stream().map(PostRowData::id).toList());
+        Map<Long, PostGroupView> groupRefs = groupRefs(rows);
         List<PostFeedRowView> out = new ArrayList<>(rows.size());
         for (PostRowData r : rows) {
             EffectiveBoard b = s.board(r.boardId()).filter(EffectiveBoard::active).orElse(null);
@@ -53,9 +64,38 @@ public class PostFeedRows {
                 continue;
             }
             out.add(PostFeedRowView.of(row(r, b, s, members, now, lens, withPoll),
-                    new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color())));
+                    new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()), r.groupId() == null ? null : groupRefs.get(r.groupId())));
         }
         return out;
+    }
+
+    /**
+     * 줄들의 소모임 표시 — 소모임 ID → {@code { id, name, visibility, dissolved }}(질의 한 번, 소모임 글이 없으면 읽지 않는다). 섞인 목록에는 비멤버에게 보이는 글만 오므로
+     * {@code visibility} 는 PUBLIC 이다(읽는 질의가 {@code PostRepositoryQDSL#feedVisible} 로 거른다). 해산한 소모임은 {@code dissolved = true}.
+     */
+    public Map<Long, PostGroupView> groupRefs(Collection<PostRowData> rows) {
+        List<Long> ids = rows.stream().map(PostRowData::groupId).filter(Objects::nonNull).distinct().toList();
+        Map<Long, PostGroupView> out = new HashMap<>();
+        if (ids.isEmpty()) {
+            return out;
+        }
+        for (GroupEntity g : groups.findAllById(ids)) {
+            out.put(g.getId(), PostGroupView.ref(Long.toString(g.getId()), g.getName(), true, g.getStatus() == GroupStatus.DELETED));
+        }
+        return out;
+    }
+
+    /**
+     * 한 게시판의 줄(게시판 칸 없이 — 소모임 글 탭). 주어진 순서대로. 작성자·차단·투표 칩은 {@link #of} 와 같은 방식으로 한 번에 읽는다.
+     *
+     * @param viewerId 로그인한 회원(비로그인 null)
+     */
+    public List<PostRowView> boardRows(List<PostRowData> rows, EffectiveBoard b, BoardCatalogSnapshot s, Instant now, Long viewerId) {
+        List<Long> authorIds = rows.stream().map(PostRowData::authorId).toList();
+        AuthorMembers members = authors.members(authorIds);
+        ViewerBlocks.Lens lens = rows.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(viewerId, authorIds);
+        Set<Long> withPoll = polls.postIdsWithPoll(rows.stream().map(PostRowData::id).toList());
+        return rows.stream().map(r -> row(r, b, s, members, now, lens, withPoll)).toList();
     }
 
     /** {@code PostQueryService#row} 와 같은 규칙 — 신고로 숨긴 글은 자리만(이 목록들은 숨긴 글을 미리 거르므로 보통 오지 않는다) */

@@ -107,6 +107,30 @@ export default class UtilPostMessages {
         return lines;
     }
 
+    /**
+     * 제목 자리 글자 — 비공개 소모임 글은 서버가 제목을 싣지 않아(`title: null`) 「소모임 비공개 글」로 보인다.
+     * @returns {string} 보일 제목.
+     */
+    static title(t: Translate, item: Pick<AdminPostItem, 'title'>): string {
+        return item.title ?? t('post.restrictedTitle');
+    }
+
+    /**
+     * 소모임 글 칩 — 「소모임 · 이름」 + 공개 상태(멤버만·공개 전환) + (해산한 소모임) + (나간 멤버의 글). 일반 글이면 빈 목록.
+     * @returns {{ key: string; label: string; severity: 'secondary' | 'info' | 'warn' | 'contrast' }[]} 칩 목록(차례대로).
+     */
+    static groupChips(t: Translate, item: Pick<AdminPostItem, 'group'>): { key: string; label: string; severity: 'secondary' | 'info' | 'warn' | 'contrast' }[] {
+        const g = item.group;
+        if (!g) return [];
+        const chips: { key: string; label: string; severity: 'secondary' | 'info' | 'warn' | 'contrast' }[] = [
+            { key: 'group', label: g.name ? t('post.chip.group', { name: g.name }) : t('post.chip.groupUnknown'), severity: 'contrast' },
+            { key: 'visibility', label: g.visibility === 'PUBLIC' ? t('post.chip.groupPublic') : t('post.chip.groupPrivate'), severity: g.visibility === 'PUBLIC' ? 'info' : 'secondary' },
+        ];
+        if (g.dissolved) chips.push({ key: 'dissolved', label: t('post.chip.groupDissolved'), severity: 'secondary' });
+        if (g.left) chips.push({ key: 'left', label: t('post.chip.groupLeft'), severity: 'warn' });
+        return chips;
+    }
+
     /** 작성자 이름 — 비회원·탈퇴 표시 */
     static author(t: Translate, item: Pick<AdminPostItem, 'author'>): string {
         const a = item.author;

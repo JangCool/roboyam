@@ -3,15 +3,15 @@ import type { LocationQuery } from 'vue-router';
 /**
  * 공개 회원 프로필 화면의 작은 규칙 — 주소, 탭 쿼리(`?tab=comments`) 읽고 만들기, 수치 글자. 상태도 요청도 없다.
  * 탭이 화면의 상태다(새로고침·뒤로 가기가 같은 탭으로 돌아온다). 이상한 값은 기본 탭(작성글)으로, 기본 탭은 주소에서 뺀다.
- * 원본(community) `UtilProfile`·`UtilProfileQuery` 에서 소모임·스크랩 탭과 작성자 표시 변환을 뺐다(로보얌에 없다).
+ * 원본(community) `UtilProfile`·`UtilProfileQuery` 에서 스크랩 탭과 작성자 표시 변환을 뺐다(로보얌에 없다). 소모임 탭은 6단계에 더했다(작성글 · 댓글 · 소모임 차례).
  */
 
-/** 프로필의 탭 — 작성글 · 댓글 */
-export type ProfileTab = 'posts' | 'comments';
+/** 프로필의 탭 — 작성글 · 댓글 · 소모임 */
+export type ProfileTab = 'posts' | 'comments' | 'groups';
 
 export default class UtilProfile {
     /** 탭 차례 */
-    static readonly TABS: readonly ProfileTab[] = ['posts', 'comments'];
+    static readonly TABS: readonly ProfileTab[] = ['posts', 'comments', 'groups'];
 
     /**
      * 공개 프로필 주소 — ID 는 문자열 그대로(Snowflake, 숫자로 바꾸지 않는다)
@@ -25,11 +25,11 @@ export default class UtilProfile {
     /**
      * 주소의 쿼리 → 탭
      * @param {LocationQuery} query - 라우트의 쿼리.
-     * @returns {ProfileTab} `comments` 면 댓글, 그 밖은 작성글.
+     * @returns {ProfileTab} `comments` 면 댓글, `groups` 면 소모임, 그 밖은 작성글.
      */
     static parseTab(query: LocationQuery): ProfileTab {
         const raw = Array.isArray(query.tab) ? query.tab[0] : query.tab;
-        return raw === 'comments' ? 'comments' : 'posts';
+        return raw === 'comments' || raw === 'groups' ? raw : 'posts';
     }
 
     /**

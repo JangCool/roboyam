@@ -65,6 +65,25 @@ public class PostEntity {
     private Instant createdAt;
     private Instant updatedAt;
 
+    /** 소모임 글이면 그 소모임(V91 — 쓸 때 정하고 바뀌지 않는다), 일반 글 null */
+    @Column(updatable = false)
+    private Long groupId;
+    /**
+     * 소모임 글이 비멤버에게 보이는가(유효 노출 — V91 {@code is_public}, V94 에서 뜻이 넓어졌다) — 일반 글은 늘 false.
+     * 저장 규칙: {@code (소모임 PUBLIC AND members_only_at IS NULL) OR public_granted_at IS NOT NULL}(쓰는 길은 {@code GroupPostVisibilityService} 하나)
+     */
+    @Column(name = "is_public")
+    private boolean publicPost;
+    /** 비공개 소모임에서 승인·직접 공개된 시각·처리자(V94) — null 이면 개별 공개가 아니다 */
+    private Instant publicGrantedAt;
+    private Long publicGrantedBy;
+    /** 공개 소모임에서 모임장·매니저가 멤버 전용으로 돌린 시각·처리자(V94) — 비공개 소모임에서는 잠자는 값 */
+    private Instant membersOnlyAt;
+    private Long membersOnlyBy;
+    /** 작성자가 소모임을 스스로 나가 가려진 시각(V91) — 다시 가입하면 비운다. 일괄 UPDATE({@code GroupPostQueries})로만 바꾼다 */
+    @Column(updatable = false, insertable = false)
+    private Instant groupLeftAt;
+
     protected PostEntity() {
     }
 
@@ -93,6 +112,70 @@ public class PostEntity {
         post.createdAt = now;
         post.updatedAt = now;
         return post;
+    }
+
+    /**
+     * 소모임 글 — 그 소모임의 게시판에 쓴다. 비공개 소모임이면 멤버만 보고, 공개 소모임이면 쓰는 순간 비멤버에게도 보인다(V94 — api-groups.md 11-1).
+     * 소모임 글은 19금이 될 수 없고 비회원이 쓰지 않는다. 부르는 쪽이 소모임 행을 잠근 뒤 부른다(범위 변경과 줄을 선다).
+     */
+    public static PostEntity createInGroup(long id, long groupId, long boardId, Long prefixId, long authorId, String authorIp, String title, ContentFormat format,
+                                           String content, String contentText, boolean hasImage, boolean publicGroup, Instant now) {
+        PostEntity post = create(id, boardId, prefixId, authorId, null, null, authorIp, title, format, content, contentText, false, hasImage, now);
+        post.groupId = groupId;
+        post.publicPost = publicGroup;
+        return post;
+    }
+
+    /** 비공개 소모임 글을 개별 공개한다(승인·직접 공개) — 바뀌었으면 true. 멤버 전용 기록은 지운다(서로 배타) */
+    public boolean grantPublic(Instant now, long byUserId) {
+        if (groupId == null || (publicPost && publicGrantedAt != null)) {
+            return false;
+        }
+        this.publicPost = true;
+        this.publicGrantedAt = now;
+        this.publicGrantedBy = byUserId;
+        this.membersOnlyAt = null;
+        this.membersOnlyBy = null;
+        this.updatedAt = now;
+        return true;
+    }
+
+    /** 비공개 소모임의 개별 공개를 거둔다(되돌리기) — 바뀌었으면 true */
+    public boolean revokePublic(Instant now) {
+        if (groupId == null || (!publicPost && publicGrantedAt == null)) {
+            return false;
+        }
+        this.publicPost = false;
+        this.publicGrantedAt = null;
+        this.publicGrantedBy = null;
+        this.updatedAt = now;
+        return true;
+    }
+
+    /** 공개 소모임의 글을 멤버 전용으로 돌린다 — 바뀌었으면 true. 개별 공개 기록은 지운다(서로 배타) */
+    public boolean markMembersOnly(Instant now, long byUserId) {
+        if (groupId == null || (!publicPost && membersOnlyAt != null)) {
+            return false;
+        }
+        this.publicPost = false;
+        this.membersOnlyAt = now;
+        this.membersOnlyBy = byUserId;
+        this.publicGrantedAt = null;
+        this.publicGrantedBy = null;
+        this.updatedAt = now;
+        return true;
+    }
+
+    /** 공개 소모임에서 멤버 전용으로 돌린 글을 다시 공개한다 — 바뀌었으면 true */
+    public boolean releaseMembersOnly(Instant now) {
+        if (groupId == null || (publicPost && membersOnlyAt == null)) {
+            return false;
+        }
+        this.publicPost = true;
+        this.membersOnlyAt = null;
+        this.membersOnlyBy = null;
+        this.updatedAt = now;
+        return true;
     }
 
     /** 작성자가 고친다 */
@@ -327,5 +410,44 @@ public class PostEntity {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Long getGroupId() {
+        return groupId;
+    }
+
+    /** 소모임 글인가 */
+    public boolean isGroupPost() {
+        return groupId != null;
+    }
+
+    /** 비멤버에게 보이는 소모임 글인가(유효 노출 — 공개 소모임의 글 · 개별 공개된 글) */
+    public boolean isPublicPost() {
+        return publicPost;
+    }
+
+    public Instant getPublicGrantedAt() {
+        return publicGrantedAt;
+    }
+
+    public Long getPublicGrantedBy() {
+        return publicGrantedBy;
+    }
+
+    public Instant getMembersOnlyAt() {
+        return membersOnlyAt;
+    }
+
+    public Long getMembersOnlyBy() {
+        return membersOnlyBy;
+    }
+
+    public Instant getGroupLeftAt() {
+        return groupLeftAt;
+    }
+
+    /** 작성자가 소모임을 나가 가려졌나 */
+    public boolean isGroupLeft() {
+        return groupLeftAt != null;
     }
 }

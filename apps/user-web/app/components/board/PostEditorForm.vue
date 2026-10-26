@@ -28,8 +28,8 @@
                 </template>
             </LabeledField>
             <div v-else class="flex flex-col gap-1.5">
-                <span class="text-sm font-medium">{{ t('post.boardLabel') }}</span>
-                <span class="text-sm">{{ localizedName(board.name, board.nameEn) }}</span>
+                <span class="text-sm font-medium">{{ fixedTarget ? fixedTarget.label : t('post.boardLabel') }}</span>
+                <span class="text-sm">{{ fixedTarget ? fixedTarget.value : localizedName(board.name, board.nameEn) }}</span>
             </div>
             <LabeledField :label="t('post.prefixLabel')" :error="fieldErrors.prefixId ?? ''">
                 <template #default="{ id, describedBy, invalid }">
@@ -148,7 +148,7 @@
 <script setup lang="ts">
 import type { RichEditorMediaState, RichImageUploader } from '#layers/rich-editor/components/RichEditor.types';
 import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
-import type { PostBoardOption, PostFormValues } from '~/components/board/PostEditorForm.types';
+import type { PostBoardOption, PostFixedTarget, PostFormValues } from '~/components/board/PostEditorForm.types';
 import UtilBoard from '~/utils/util-board';
 import UtilPost from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
@@ -160,6 +160,8 @@ interface Props {
     /** 게시판 고르기(글쓰기만) — 비면 게시판 이름만 보인다 */
     boardOptions?: PostBoardOption[];
     boardSlug?: string;
+    /** 게시판 고르기가 없을 때 게시판 이름 대신 보일 자리(소모임 글쓰기 — 「소모임: 이름」) */
+    fixedTarget?: PostFixedTarget | null;
     /** 비회원 이름·비밀번호·자동입력 방지 칸을 보인다(비회원 글쓰기) */
     guestMode?: boolean;
     /** 비회원 규칙(링크 0개·이미지 불가)을 적용한다 — 비회원 글쓰기와 비회원 글 고치기 */
@@ -176,6 +178,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
     boardOptions: () => [],
     boardSlug: '',
+    fixedTarget: null,
     guestMode: false,
     guestRules: false,
     fieldErrors: () => ({}),

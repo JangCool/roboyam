@@ -33,6 +33,11 @@ export default {
     dealEndDescription: 'Only logged-in members at the regular grade or above can report sold-out or price changes. You can read without logging in.',
     viewTitle: 'Log in to see it right away',
     viewDescription: 'A new comment appears a little later to visitors who are not logged in. Log in to read comments as soon as they are posted.',
+    // Clubs — join · create
+    groupJoinTitle: 'Log in to join a club',
+    groupJoinDescription: 'You can browse clubs without logging in. Only logged-in members can join or apply.',
+    groupCreateTitle: 'Log in to create a club',
+    groupCreateDescription: 'Only logged-in members can request a new club. You can browse without logging in.',
 
     // Placeholder for a hidden comment body
     delayPlaceholder: 'Log in to see it right away',

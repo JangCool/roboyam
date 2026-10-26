@@ -3,7 +3,7 @@
  */
 export default {
     groupBuy: 'Group buys',
-    groups: 'Groups',
+    groups: 'Clubs',
     pointShop: 'Point shop',
     popular: 'Popular posts',
     latest: 'Latest posts',

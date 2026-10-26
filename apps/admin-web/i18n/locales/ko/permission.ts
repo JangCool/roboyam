@@ -146,7 +146,7 @@ export default {
     memberPointshopUse: '포인트 상점 이용',
     memberPointshopUseDesc: '포인트로 포인트 상점 품목을 삽니다.',
     memberGroupCreate: '소모임 개설',
-    memberGroupCreateDesc: '소모임을 열어 달라고 신청합니다. (사이트 기능 준비 중)',
+    memberGroupCreateDesc: '소모임을 열어 달라고 신청합니다(자유 개설이면 바로 열립니다).',
     memberHotdealWrite: '핫딜 등록',
     memberHotdealWriteDesc: '핫딜 글을 올립니다. (사이트 기능 준비 중)',
     memberCommercePurchase: '공동구매 구매',

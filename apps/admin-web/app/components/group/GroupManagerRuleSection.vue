@@ -2,7 +2,7 @@
     <!--
         소모임 설정의 구획 「매니저」(community `GroupManagerRuleSection`) — ① 매니저 기능 켜기 스위치 + 상태 글 + 사용 현황 ② 새 소모임의 기본 인원 ③ 모임장이 정할 수 있는 최대 인원 + 영향 줄
         ④ 모임장 화면 미리보기(입력이 틀리면 마지막으로 맞았던 값으로 흐리게) ⑤ 마지막 저장 줄 ⑥ 구획 저장 줄. 기본 > 최대는 기본 칸의 문제(자동으로 맞추지 않는다).
-        끄기·켜기·최대 줄이기(그보다 많이 정해 둔 소모임이 있을 때)는 확인을 거친다. 서버 호출은 `useGroupSettingsApi`(목업 — `?mock=manager-fail`), 상태는 `useGroupRuleSection`.
+        끄기·켜기·최대 줄이기(그보다 많이 정해 둔 소모임이 있을 때)는 확인을 거친다. 서버 호출은 `useGroupSettingsApi`, 상태는 `useGroupRuleSection`.
     -->
     <AppGadget :title="t('group.manager.title')" anchor="group-manager-rule" :changes="s.changeCount.value" :invalid="s.errorCount.value">
         <template #title-extra>

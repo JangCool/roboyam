@@ -6,6 +6,7 @@
         본문(위에서 아래): 대상(종류·게시판·작성자·대상 상태·첫/마지막 신고 · [게시글 관리에서 보기] `/posts?post=` · [공개 사이트에서 보기] `publicUrl`) ·
           지금 원문 + 신고 당시 스냅샷(다르면 「신고 뒤 수정됨」) · 신고 목록(신고자·사유·메모·시각) · 작성자 카드(제재 자리 「준비 중」) · 처리 결과(닫힌 사건) · 처리 기록(최근 것부터).
         바닥: 열린 사건 + `report.manage` 면 처리 단추(`actions` — 숨기기 공개 대상만 · 자동 숨김 확정 자동 숨김 대상만 · 삭제 · 무시), 무시한 사건이면 [다시 열기], 그 밖은 까닭 한 줄.
+        소모임 대상: 게시판 줄은 소모임 게시판이 있을 때만, 작성자 줄은 「모임장」, 링크는 [소모임 관리에서 보기] `/groups?group=`(`group.read`), 원문은 소개(글자), 처리 단추는 [소모임 비활성화](열린 소모임만)·[무시].
         서버 호출은 하지 않는다(`components.md`) — 사건은 `useReportDetail` 로 부른 화면이 받는다. 대기 사건은 열람과 함께 서버가 검토 중으로 바꾼다.
     -->
     <Drawer
@@ -30,7 +31,7 @@
                     </div>
                 </div>
                 <div v-if="item" class="flex flex-wrap items-center gap-2">
-                    <Tag :value="t(`report.targetType.${item.targetType}`)" :severity="item.targetType === 'POST' ? 'info' : 'secondary'" class="text-[11px]!" />
+                    <Tag :value="t(`report.targetType.${item.targetType}`)" :severity="UtilReport.targetTypeSeverity(item.targetType)" class="text-[11px]!" />
                     <Tag :value="t(`report.status.${item.status}`)" :severity="UtilReport.statusSeverity(item.status)" class="text-[11px]!" />
                     <span v-if="item.reviewer && UtilReport.isOpen(item.status)" class="text-xs text-muted-color">{{ t('report.reviewerLine', { name: item.reviewer.name }) }}</span>
                     <span class="text-xs tabular-nums text-muted-color">{{ UtilReportMessages.caseNo(t, item) }}</span>
@@ -53,11 +54,18 @@
                     <h3 :id="`${titleId}-target`" class="text-sm font-semibold">{{ t('report.targetTitle') }}</h3>
                     <div class="flex flex-wrap items-center gap-1">
                         <NuxtLink
-                            v-if="canViewPost"
+                            v-if="canViewPost && c.target.postId"
                             :to="{ path: '/posts', query: { post: c.target.postId } }"
                             class="inline-flex items-center gap-1 rounded px-1 text-xs text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
                         >
                             <i class="pi pi-file-edit text-[10px]" aria-hidden="true" />{{ t('report.openPostAdmin') }}
+                        </NuxtLink>
+                        <NuxtLink
+                            v-if="canViewGroup && c.targetType === 'GROUP' && c.target.groupId"
+                            :to="{ path: '/groups', query: { group: c.target.groupId } }"
+                            class="inline-flex items-center gap-1 rounded px-1 text-xs text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+                        >
+                            <i class="pi pi-users text-[10px]" aria-hidden="true" />{{ t('report.openGroupAdmin') }}
                         </NuxtLink>
                         <a
                             v-if="detail.publicUrl"
@@ -71,9 +79,11 @@
                     </div>
                 </div>
                 <dl class="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-[13px]">
-                    <dt class="text-muted-color">{{ t('report.col.board') }}</dt>
-                    <dd class="m-0">{{ localizedName(c.board.name, c.board.nameEn ?? null) }}</dd>
-                    <dt class="text-muted-color">{{ t('report.col.author') }}</dt>
+                    <template v-if="c.board">
+                        <dt class="text-muted-color">{{ t('report.col.board') }}</dt>
+                        <dd class="m-0">{{ localizedName(c.board.name, c.board.nameEn ?? null) }}</dd>
+                    </template>
+                    <dt class="text-muted-color">{{ c.targetType === 'GROUP' ? t('report.groupLeader') : t('report.col.author') }}</dt>
                     <dd class="m-0">{{ UtilReportMessages.author(t, c.author) }}</dd>
                     <dt class="text-muted-color">{{ t('report.targetStateLabel') }}</dt>
                     <dd class="m-0"><ReportTargetStateTag :target="c.target" lines /></dd>
@@ -81,7 +91,20 @@
                     <dd class="m-0 tabular-nums">{{ time.full(c.firstReportedAt) }}</dd>
                     <dt class="text-muted-color">{{ t('report.col.lastReportedAt') }}</dt>
                     <dd class="m-0 tabular-nums">{{ time.full(c.lastReportedAt) }}</dd>
+                    <!-- 소모임 사건 — 지금 소모임 값(신고 당시 모임장은 위의 「모임장」) -->
+                    <template v-if="c.targetType === 'GROUP' && detail.group">
+                        <dt class="text-muted-color">{{ t('report.groupLeaderNow') }}</dt>
+                        <dd class="m-0">{{ detail.group.leader?.nickname ?? '—' }}</dd>
+                        <dt class="text-muted-color">{{ t('report.groupMembers') }}</dt>
+                        <dd class="m-0 tabular-nums">{{ t('report.groupMembersValue', { members: detail.group.memberCount, capacity: detail.group.capacity }) }}</dd>
+                        <dt class="text-muted-color">{{ t('report.groupCategory') }}</dt>
+                        <dd class="m-0">{{ detail.group.category?.name ?? '—' }}</dd>
+                    </template>
                 </dl>
+                <template v-if="c.targetType === 'GROUP' && detail.group">
+                    <Message v-if="detail.group.offline" severity="warn" size="small" :closable="false">{{ t('report.groupOffline') }}</Message>
+                    <Message v-if="detail.group.stockNotice" severity="warn" size="small" :closable="false">{{ t('report.groupStock') }}</Message>
+                </template>
             </section>
 
             <!-- 지금 원문 + 신고 당시 -->
@@ -104,7 +127,7 @@
                         <i class="pi pi-history text-[11px]" aria-hidden="true" />{{ t('report.snapshotTitle') }}
                         <span v-if="snapshot.authorName" class="font-normal text-muted-color">· {{ snapshot.authorName }}</span>
                     </p>
-                    <p v-if="c.targetType === 'POST' && snapshot.title" class="m-0 text-[13px] font-medium break-words">{{ snapshot.title }}</p>
+                    <p v-if="c.targetType !== 'COMMENT' && snapshot.title" class="m-0 text-[13px] font-medium break-words">{{ snapshot.title }}</p>
                     <!-- eslint-disable-next-line vue/no-v-html -->
                     <div v-if="snapshot.body && detail.content.format === 'HTML'" class="rich-text max-h-[16rem] overflow-y-auto text-sm" v-html="snapshot.body" />
                     <div v-else-if="snapshot.body" class="max-h-[16rem] overflow-y-auto text-sm leading-relaxed break-words whitespace-pre-line">{{ snapshot.body }}</div>
@@ -133,7 +156,7 @@
 
             <!-- 작성자 -->
             <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-author`">
-                <h3 :id="`${titleId}-author`" class="text-sm font-semibold">{{ t('report.authorTitle') }}</h3>
+                <h3 :id="`${titleId}-author`" class="text-sm font-semibold">{{ c.targetType === 'GROUP' ? t('report.groupLeader') : t('report.authorTitle') }}</h3>
                 <div class="flex flex-col gap-2 rounded-lg border border-(--line) px-3 py-2">
                     <p class="m-0 flex flex-wrap items-center gap-1.5 text-[13px]">
                         <span class="font-medium" :class="c.author.withdrawn ? 'text-muted-color' : ''">{{ UtilReportMessages.author(t, c.author) }}</span>
@@ -248,6 +271,8 @@ interface Props {
     canManage?: boolean;
     /** `post.read` — [게시글 관리에서 보기] */
     canViewPost?: boolean;
+    /** `group.read` — 소모임 대상의 [소모임 관리에서 보기] */
+    canViewGroup?: boolean;
     /** 작성자 등급 뱃지 값(`useGradeAppearance().badgeOf`) — 회원이 아니면 null */
     authorGrade?: { label: string; color: string; icon: string | null } | null;
 }
@@ -262,6 +287,7 @@ const props = withDefaults(defineProps<Props>(), {
     hasNext: false,
     canManage: false,
     canViewPost: false,
+    canViewGroup: false,
     authorGrade: null,
 });
 const emit = defineEmits<{

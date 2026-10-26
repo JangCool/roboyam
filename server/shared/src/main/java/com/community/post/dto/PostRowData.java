@@ -9,10 +9,11 @@ import java.time.Instant;
  * 작성 IP 는 비회원 글의 앞 두 자리 표시에만 쓰고 응답에 원문을 싣지 않는다.
  *
  * @param hiddenReason 숨김 까닭(REPORTED · ILLEGAL · RIGHTS · STAFF) — 공개 응답에는 {@link #publicHiddenReason} 으로만 낸다
+ * @param groupId      소모임 글이면 그 소모임(일반 글 null) — 섞인 목록이 줄에 소모임 표시({@code group})를 단다(소모임 6단계)
  */
 public record PostRowData(Long id, Long boardId, Long prefixId, Long authorId, String guestName, String authorIp, String title, Boolean hasImage,
                           Boolean adult, Integer viewCount, Integer likeCount, Integer commentCount, Instant pinnedAt, Instant hiddenAt, Instant hiddenUntil,
-                          String hiddenReason, Instant createdAt) {
+                          String hiddenReason, Instant createdAt, Long groupId) {
 
     public boolean hiddenAt(Instant now) {
         return hiddenAt != null && (hiddenUntil == null || hiddenUntil.isAfter(now));

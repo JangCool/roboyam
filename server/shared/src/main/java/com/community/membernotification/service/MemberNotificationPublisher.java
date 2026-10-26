@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.slf4j.Logger;
@@ -227,12 +228,14 @@ public class MemberNotificationPublisher {
      * 내 신고가 처리됐다(관리자 신고 관리 — 사건을 조치·무시로 닫음) — 신고한 회원에게 {@code REPORT_RESULT}(덧붙임 {@code result}·{@code targetType}·{@code snapshot}).
      * 게시판 신고 정책 {@code notifyReporterOnResult} 가 켜졌을 때만 부른다. 처리 사유·작성자는 싣지 않는다.
      *
+     * @param postId     대상 글(댓글 신고면 그 댓글의 글) — 소모임 신고면 null
      * @param commentId  댓글 신고면 그 ID, 글 신고면 null
-     * @param targetType {@code POST} · {@code COMMENT}
-     * @param snapshot   신고 당시 글 제목·댓글 앞부분(잘라서 남긴다)
+     * @param groupId    소모임 신고면 그 소모임 ID(덧붙임 {@code groupId} — 누르면 그 소모임), 그 밖 null
+     * @param targetType {@code POST} · {@code COMMENT} · {@code GROUP}
+     * @param snapshot   신고 당시 글 제목·댓글 앞부분·소모임 이름(잘라서 남긴다)
      * @param result     {@link MemberNotificationMessages#REPORT_ACTIONED} · {@link MemberNotificationMessages#REPORT_NO_VIOLATION}
      */
-    public int reportResult(long reporterId, long postId, Long commentId, String targetType, String snapshot, String result) {
+    public int reportResult(long reporterId, Long postId, Long commentId, Long groupId, String targetType, String snapshot, String result) {
         return isolated.run("member-notification:report-result", () -> {
             EventSwitch on = switchOf(MemberNotificationType.REPORT_RESULT, reporterId);
             if (!on.delivers() || !writer.receivable(reporterId)) {
@@ -245,6 +248,9 @@ public class MemberNotificationPublisher {
                 payload.put("result", result);
                 payload.put("targetType", targetType);
                 payload.put("snapshot", cut);
+                if (groupId != null) {
+                    payload.put("groupId", Long.toString(groupId));
+                }
                 writer.insert(ids.nextId(), reporterId, MemberNotificationType.REPORT_RESULT.name(), null, null, postId, commentId,
                         MAPPER.writeValueAsString(payload), Instant.now());
                 made = 1;
@@ -500,6 +506,248 @@ public class MemberNotificationPublisher {
             if (on.email()) {
                 requestEmail(userId, approved ? MemberNotificationMessages.Facts.refundApproved(name, points) : MemberNotificationMessages.Facts.refundRejected(name, reason),
                         null, null, "/me/items");
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
+     * 소모임 알림(GROUP_* — V90, community api-groups.md 7절) — 덧붙임 {@code groupId}·{@code groupName}(+{@code reason} 반려·거절·비활성 사유,
+     * {@code applicantId} 가입 신청). 끌 수 없는 알림(회원 이벤트 잠금). 일으킨 사람({@code actorUserId})은 가입 신청한 회원·처리한 모임장 — 그 사람 본인에게는 보내지 않는다.
+     * 업무 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 업무를 깨지 않는다).
+     *
+     * @param path 메일 버튼이 가리킬 사이트 안 경로(알림함의 링크와 같은 곳)
+     */
+    public int group(MemberNotificationType type, long userId, long groupId, String groupName, String reason, Long actorUserId, String path) {
+        if (actorUserId != null && actorUserId == userId) {
+            return 0;
+        }
+        return isolated.run("member-notification:group", () -> {
+            EventSwitch on = switchOf(type, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(groupName, SNAPSHOT_MAX);
+            String why = reason == null || reason.isBlank() ? null : reason;
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("groupId", Long.toString(groupId));
+                payload.put("groupName", name);
+                if (why != null) {
+                    payload.put("reason", why);
+                }
+                if (type == MemberNotificationType.GROUP_JOIN_REQUEST && actorUserId != null) {
+                    payload.put("applicantId", Long.toString(actorUserId));
+                }
+                writer.insert(ids.nextId(), userId, type.name(), type == MemberNotificationType.GROUP_JOIN_REQUEST ? actorUserId : null, null, null, null,
+                        MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.group(type, name, why, null), type == MemberNotificationType.GROUP_JOIN_REQUEST ? actorUserId : null,
+                        null, path);
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
+     * 내 공개 소모임 글이 비공개로 되돌려졌다(GROUP_POST_UNPUBLISHED — V91, community api-groups.md 8절) — 받는 사람은 글쓴이, 일으킨 사람은 처리자(모임장·되돌리기를 맡은 매니저).
+     * 덧붙임 {@code groupId}·{@code groupName}·{@code title}·{@code actorRole}(LEADER · MANAGER). 끌 수 없는 처리 알림. 글쓴이 본인이 되돌리면 부르지 않는다(여기서도 막는다).
+     * 공개 전환 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 되돌리기를 깨지 않는다).
+     */
+    public int groupPostUnpublished(long authorId, long groupId, String groupName, long postId, String title, long actorUserId, String actorRole) {
+        if (actorUserId == authorId) {
+            return 0;
+        }
+        return isolated.run("member-notification:group-post-unpublished", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.GROUP_POST_UNPUBLISHED, authorId);
+            if (!on.delivers() || !writer.receivable(authorId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(groupName, SNAPSHOT_MAX);
+            String postTitle = cut(title, SNAPSHOT_MAX);
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("groupId", Long.toString(groupId));
+                payload.put("groupName", name);
+                payload.put("title", postTitle);
+                payload.put("actorRole", actorRole);
+                writer.insert(ids.nextId(), authorId, MemberNotificationType.GROUP_POST_UNPUBLISHED.name(), actorUserId, null, postId, null,
+                        MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(authorId, MemberNotificationMessages.Facts.groupPostUnpublished(name, postTitle, actorRole), null, postId);
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
+     * 소모임 매니저 알림(V92 — community api-groups.md 7절 「매니저 알림 5종」) — 덧붙임 {@code groupId}·{@code groupName}(+{@code permissions} 맡은 일 키 배열 — 임명·맡은 일 바뀜,
+     * {@code actorId} 일으킨 매니저 — 사퇴·매니저 강퇴, {@code targetId} 내보낸 멤버 — 매니저 강퇴). 끌 수 없는 알림. 일으킨 사람({@code actorUserId} — 임명·해임은 모임장,
+     * 사퇴·강퇴는 그 매니저)은 알림 행의 일으킨 사람 칸에 남고 그 사람 본인에게는 보내지 않는다. 업무 트랜잭션 안에서 부른다(세이브포인트).
+     *
+     * @param permissions 맡은 일 키(고정 순서) — 임명·맡은 일 바뀜만, 그 밖 null
+     * @param targetId    내보낸 멤버 — 매니저 강퇴만
+     * @param targetName  내보낸 멤버의 지금 닉네임(메일 문구 — 알림함은 읽을 때 다시 읽는다)
+     * @param path        메일 버튼이 가리킬 사이트 안 경로(알림함의 링크와 같은 곳)
+     */
+    public int groupManager(MemberNotificationType type, long userId, long groupId, String groupName, long actorUserId, List<String> permissions, Long targetId,
+                            String targetName, String path) {
+        if (actorUserId == userId) {
+            return 0;
+        }
+        return isolated.run("member-notification:group-manager", () -> {
+            EventSwitch on = switchOf(type, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(groupName, SNAPSHOT_MAX);
+            String keys = permissions == null ? null : String.join(",", permissions);
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("groupId", Long.toString(groupId));
+                payload.put("groupName", name);
+                if (permissions != null) {
+                    payload.put("permissions", List.copyOf(permissions));
+                }
+                if (type == MemberNotificationType.GROUP_MANAGER_RESIGNED || type == MemberNotificationType.GROUP_KICKED_BY_MANAGER) {
+                    payload.put("actorId", Long.toString(actorUserId));
+                }
+                if (targetId != null) {
+                    payload.put("targetId", Long.toString(targetId));
+                }
+                writer.insert(ids.nextId(), userId, type.name(), actorUserId, null, null, null, MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.groupManager(type, name, null, keys, targetName), actorUserId, null, path);
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
+     * 소모임 일정 알림(GROUP_EVENT — V93, community api-groups.md 9절) — 받는 사람은 그 소모임의 멤버 한 명(부르는 쪽이 멤버마다), 일으킨 사람은 일을 한 모임장·일정 관리 매니저
+     * (그 사람 본인에게는 보내지 않는다). 덧붙임 {@code groupId}·{@code groupName}·{@code eventId}·{@code title}(일정 제목)·{@code eventAction}(CREATED · UPDATED · CANCELED)
+     * ·{@code reason}(취소 사유 — 적었을 때만). <b>회원이 끌 수 있다</b>(개인 설정의 「소모임 일정」). 업무 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 일정 일을 깨지 않는다).
+     */
+    public int groupEvent(long userId, long groupId, String groupName, long eventId, String eventTitle, String action, String reason, long actorUserId) {
+        if (actorUserId == userId) {
+            return 0;
+        }
+        return isolated.run("member-notification:group-event", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.GROUP_EVENT, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(groupName, SNAPSHOT_MAX);
+            String title = cut(eventTitle, SNAPSHOT_MAX);
+            String why = reason == null || reason.isBlank() ? null : reason;
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("groupId", Long.toString(groupId));
+                payload.put("groupName", name);
+                payload.put("eventId", Long.toString(eventId));
+                payload.put("title", title);
+                payload.put("eventAction", action);
+                if (why != null) {
+                    payload.put("reason", why);
+                }
+                writer.insert(ids.nextId(), userId, MemberNotificationType.GROUP_EVENT.name(), actorUserId, null, null, null, MAPPER.writeValueAsString(payload),
+                        Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.groupEvent(name, title, action, why), actorUserId, null,
+                        "/groups/" + groupId + "/events/" + eventId);
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
+     * 소모임 글 공개 알림(V94 — community api-groups.md 11-8) — {@code GROUP_PUBLISH_REQUESTED}(받는 사람 = 모임장·「글 공개 처리·되돌리기」 매니저, 일으킨 사람 = 요청한 작성자)
+     * · {@code GROUP_PUBLISH_APPROVED} · {@code GROUP_PUBLISH_REJECTED} · {@code GROUP_POST_PUBLISHED} · {@code GROUP_POST_MEMBERS_ONLY} · {@code GROUP_POST_RELEASED}
+     * (받는 사람 = 글쓴이, 일으킨 사람 = 처리자). 덧붙임 {@code groupId}·{@code groupName}·{@code title}·{@code actorId}(+{@code actorRole} LEADER · MANAGER — 요청 알림 제외,
+     * {@code reason} 거절 사유 — 적었을 때만). 끌 수 없는 알림. 일으킨 사람 본인에게는 보내지 않는다. 업무 트랜잭션 안에서 부른다(세이브포인트).
+     *
+     * @param path 메일 버튼이 가리킬 사이트 안 경로 — null 이면 그 글
+     */
+    public int groupPublish(MemberNotificationType type, long userId, long groupId, String groupName, long postId, String title, long actorUserId, String actorRole,
+                            String reason, String path) {
+        if (actorUserId == userId) {
+            return 0;
+        }
+        return isolated.run("member-notification:group-publish", () -> {
+            EventSwitch on = switchOf(type, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(groupName, SNAPSHOT_MAX);
+            String postTitle = cut(title, SNAPSHOT_MAX);
+            String why = reason == null || reason.isBlank() ? null : reason;
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("groupId", Long.toString(groupId));
+                payload.put("groupName", name);
+                payload.put("title", postTitle);
+                payload.put("actorId", Long.toString(actorUserId));
+                if (actorRole != null) {
+                    payload.put("actorRole", actorRole);
+                }
+                if (why != null) {
+                    payload.put("reason", why);
+                }
+                writer.insert(ids.nextId(), userId, type.name(), actorUserId, null, postId, null, MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                MemberNotificationMessages.Facts facts = MemberNotificationMessages.Facts.groupPublish(type, name, postTitle, actorRole, why, null);
+                if (path == null) {
+                    requestEmail(userId, facts, actorUserId, postId);
+                } else {
+                    requestEmail(userId, facts, actorUserId, null, path);
+                }
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
+     * 소모임 공개 범위가 바뀌었다(GROUP_VISIBILITY_CHANGED — V94, community api-groups.md 11-8) — 받는 사람은 멤버 한 명(부르는 쪽이 멤버마다, 바꾼 모임장 제외),
+     * 덧붙임 {@code groupId}·{@code groupName}·{@code actorId}·{@code visibility}(바뀐 값 PUBLIC · PRIVATE). 끌 수 없는 알림. 업무 트랜잭션 안에서 부른다(세이브포인트).
+     */
+    public int groupVisibilityChanged(long userId, long groupId, String groupName, long actorUserId, String visibility) {
+        if (actorUserId == userId) {
+            return 0;
+        }
+        return isolated.run("member-notification:group-visibility", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.GROUP_VISIBILITY_CHANGED, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(groupName, SNAPSHOT_MAX);
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("groupId", Long.toString(groupId));
+                payload.put("groupName", name);
+                payload.put("actorId", Long.toString(actorUserId));
+                payload.put("visibility", visibility);
+                writer.insert(ids.nextId(), userId, MemberNotificationType.GROUP_VISIBILITY_CHANGED.name(), actorUserId, null, null, null,
+                        MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.groupVisibilityChanged(name, visibility), actorUserId, null, "/groups/" + groupId);
             }
             return made;
         }, 0);

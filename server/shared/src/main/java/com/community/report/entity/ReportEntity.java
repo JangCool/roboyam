@@ -17,6 +17,8 @@ public class ReportEntity {
 
     public static final String POST = "POST";
     public static final String COMMENT = "COMMENT";
+    /** 소모임(V95) — {@code postId} 는 비고 {@code boardId} 는 그 소모임의 게시판, {@code targetAuthorId} 는 신고 당시 모임장 */
+    public static final String GROUP = "GROUP";
     public static final String PENDING = "PENDING";
     /** 허위 신고로 표시한 무시 — 신고 남용 차단(반려 제한)이 센다 */
     public static final String REJECTED = "REJECTED";
@@ -32,6 +34,7 @@ public class ReportEntity {
     private Long caseId;
     private String targetType;
     private Long targetId;
+    /** 대상 글(댓글 신고면 그 댓글의 글) — 소모임 신고면 null(V95) */
     private Long postId;
     private Long boardId;
     private Long reporterId;
@@ -50,7 +53,7 @@ public class ReportEntity {
     protected ReportEntity() {
     }
 
-    public static ReportEntity create(long id, long caseId, String targetType, long targetId, long postId, long boardId, long reporterId, Long targetAuthorId,
+    public static ReportEntity create(long id, long caseId, String targetType, long targetId, Long postId, long boardId, long reporterId, Long targetAuthorId,
                                       String reason, String detail, String snapshotTitle, String snapshotContent, String snapshotAuthorName, boolean counted,
                                       Instant now) {
         ReportEntity report = new ReportEntity();

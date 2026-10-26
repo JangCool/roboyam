@@ -54,7 +54,7 @@ public class BoardEntity {
     private Boolean searchable;
     private Boolean inHome;
     private String pointMode;
-    /** 「적립 최소 글자 수 적용」(V89, NULL = 기본값 따름) — 끄면 글 본문 최소 글자 수만 빠진다(커머스 1-3 확정 1) */
+    /** 「적립 최소 글자 수 적용」(V90, NULL = 기본값 따름) — 끄면 글 본문 최소 글자 수만 빠진다(커머스 1-3 확정 1) */
     private Boolean pointMinLengthApplied;
     private Integer commentProtectMin;
     private Boolean commentProtectEdit;

@@ -3,6 +3,7 @@ package com.community.search.service;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.BoardCatalog;
+import com.community.board.service.PublicBoardService;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.response.PostFeedRowView;
 import com.community.post.repository.master.PostFeedRepositoryQDSL;
@@ -90,7 +91,7 @@ public class SearchService {
         }
         EffectiveBoard board = null;
         if (!blank(boardRaw)) {
-            board = s.board(boardRaw.strip()).filter(EffectiveBoard::active).orElse(null);
+            board = s.board(boardRaw.strip()).filter(b -> b.active() && PublicBoardService.isPublic(b)).orElse(null); // 게시판 고르기에 소모임 게시판은 없다(공개 게시판 API 가 모르는 게시판 — 소모임 글은 전체 검색에만 섞인다, 6단계)
             if (board == null) {
                 fields.put("board", new MessageRef("search.board.invalid"));
             }
@@ -115,7 +116,7 @@ public class SearchService {
         String query = SearchQueryPolicy.normalize(qRaw);
         List<String> tokens = SearchQueryPolicy.distinctWords(qRaw);
         List<Long> boardIds = board != null ? List.of(board.id())
-                : s.boards().stream().filter(EffectiveBoard::active).map(EffectiveBoard::id).toList();
+                : s.boards().stream().filter(EffectiveBoard::active).map(EffectiveBoard::id).toList(); // 소모임 게시판도 — 비멤버에게 보이는 소모임 글만 걸린다(6단계, PostSearchQueries)
         PostSearchQueries.Criteria criteria = new PostSearchQueries.Criteria(boardIds, tokens, scope, OLDEST.equals(order), cursor, Instant.now());
         String boardSlug = board == null ? null : board.slug();
         int currentPage = page;

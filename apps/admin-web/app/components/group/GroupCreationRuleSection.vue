@@ -1,9 +1,9 @@
 <template>
     <!--
         소모임 설정의 구획 「개설 규칙」(community `GroupCreationRuleSection`) — ① 개설 방식(승인제 / 자유 개설 — 이름·설명·「기본」 딱지가 있는 고르기 카드) + 승인 대기 줄 ② 개설할 수 있는 등급(고르기 단추)
-        ③ 한 사람이 모임장일 수 있는 소모임 수(1~10) ④ 개설 화면에서 이렇게 보여요(저장 전 값을 바로 반영) ⑤ 마지막 저장 줄 ⑥ 구획 저장 줄. 저장은 이 구획의 것이다.
+        ③ 한 사람이 모임장일 수 있는 소모임 수(1~10) ③-2 해산 패널티 일수(0~365, 0 = 끔 — 로보얌 V96) ④ 개설 화면에서 이렇게 보여요(저장 전 값을 바로 반영) ⑤ 마지막 저장 줄 ⑥ 구획 저장 줄. 저장은 이 구획의 것이다.
         승인제 → 자유 개설로 바꾸는 저장은 확인을 거친다(대기 중인 신청은 그대로 남는다). 값 이름(승인제·등급 이름)은 서버가 준 `limits` 를 그대로 쓰고 설명 글만 화면이 갖는다.
-        서버 호출은 `useGroupSettingsApi`(목업 — `?mock=creation-fail`), 상태는 `useGroupRuleSection`.
+        서버 호출은 `useGroupSettingsApi`, 상태는 `useGroupRuleSection`.
     -->
     <AppGadget :title="t('group.creation.title')" anchor="group-creation-rule" :changes="s.changeCount.value" :invalid="s.errorCount.value">
         <template #title-extra>
@@ -86,6 +86,24 @@
                 </template>
             </GroupRuleField>
 
+            <!-- ③-2 해산 패널티(V96) — 모임장이 스스로 해산하면 이 일수 동안 개설 신청을 못 한다. 0 = 끔, 1년 이상 유지한 소모임은 면제. 서버가 범위를 안 주면(옛 서버) 칸을 그리지 않는다 -->
+            <GroupRuleField
+                v-if="saved.limits.dissolvePenaltyDays"
+                :label="t('group.creation.penaltyLabel')"
+                :hint="UtilGroupMessages.range(t, saved.limits.dissolvePenaltyDays.min, saved.limits.dissolvePenaltyDays.max, 'day', saved.defaults.dissolvePenaltyDays)"
+                :help="t('group.creation.penaltyNote')"
+                :error="penaltyError"
+                :changed="s.changedFields.value.includes('dissolvePenaltyDays')"
+                :differs="s.differs('dissolvePenaltyDays')"
+                :editable="editable"
+                @reset="s.resetField('dissolvePenaltyDays')"
+            >
+                <template #default="{ id, describedBy, invalid }">
+                    <InputText :id="id" :model-value="String(form.dissolvePenaltyDays ?? '')" inputmode="numeric" autocomplete="off" class="w-20 text-right tabular-nums" :readonly="!editable" :invalid="invalid" :aria-describedby="describedBy" @update:model-value="(v: string | undefined) => s.set('dissolvePenaltyDays', v ?? '')" />
+                    <span class="text-sm text-muted-color">{{ t('group.creation.penaltyUnit') }}</span>
+                </template>
+            </GroupRuleField>
+
             <!-- ④ 미리보기 — 저장 전 값을 바로 반영한다 -->
             <div class="flex flex-col gap-2">
                 <div class="flex flex-wrap items-center gap-2">
@@ -132,7 +150,7 @@ const uid = useId();
 const s = useGroupRuleSection<GroupCreationRuleValues, GroupCreationRuleResponse>({
     load: api.creationRules,
     save: api.saveCreationRules,
-    ranges: (res) => ({ maxPerOwner: res.limits.maxPerOwner }),
+    ranges: (res) => ({ maxPerOwner: res.limits.maxPerOwner, ...(res.limits.dissolvePenaltyDays ? { dissolvePenaltyDays: res.limits.dissolvePenaltyDays } : {}) }),
 });
 const saved = s.saved;
 const form = s.form;
@@ -155,6 +173,12 @@ function errorOf(key: string): string {
     return problem ? UtilGroupMessages.problem(t, problem, 'items', '') : s.serverError(key);
 }
 
+/** 해산 패널티 칸의 문제(일 단위) — 범위 밖이면 화면 문구, 아니면 서버 `fields.dissolvePenaltyDays` */
+const penaltyError = computed(() => {
+    const problem = s.problems.value.dissolvePenaltyDays;
+    return problem ? UtilGroupMessages.problem(t, problem, 'day', '') : s.serverError('dissolvePenaltyDays');
+});
+
 /** 미리보기 — 입력 중인 값으로. 등급이 가장 낮은 등급이면 「모든 등급」, 아니면 바로 아래 등급이 받을 안내를 보인다 */
 const preview = computed(() => {
     const res = saved.value;
@@ -169,6 +193,9 @@ const preview = computed(() => {
         lowest ? { key: 'grade', title: t('group.creation.gradeLabel'), text: t('group.creation.previewNoGradeLimit') } : { key: 'grade', title: t('group.creation.previewBelowTitle', { grade: grades[index - 1]?.label ?? '' }), text: t('group.creation.previewGradeTooLow', { grade: label }) },
         { key: 'limit', title: t('group.creation.previewLimitTitle', { n: max }), text: t('group.creation.previewLimit', { n: max }) },
     ];
+    // 해산 패널티 — 0(끔)이거나 서버가 칸을 주지 않으면 줄이 없다
+    const penalty = res.limits.dissolvePenaltyDays ? (UtilGroupRule.numberOf(form.value.dissolvePenaltyDays) ?? res.values.dissolvePenaltyDays ?? 0) : 0;
+    if (penalty > 0) rows.push({ key: 'penalty', title: t('group.creation.previewPenaltyTitle'), text: t('group.creation.previewPenalty', { n: penalty }) });
     return rows;
 });
 

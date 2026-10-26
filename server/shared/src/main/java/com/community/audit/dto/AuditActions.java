@@ -243,6 +243,24 @@ public final class AuditActions {
     /** 분류 지우기 — {@code deleted}(이름), 「분류 없음」이 된 게시판 {@code boards}(slug) */
     public static final String GROUP_CATEGORY_DELETE = "GROUP_CATEGORY_DELETE";
 
+    // ── 소모임(docs/features/group-contract.md 1단계) — 대상 GROUP + 소모임 ID, 설정은 GROUP_SETTINGS + 구획 ──
+    /** 개설 승인 — {@code name}·{@code requesterId} */
+    public static final String GROUP_APPROVE = "GROUP_APPROVE";
+    /** 개설 반려 — {@code name}·{@code reason}(신청자에게 간 사유) */
+    public static final String GROUP_REJECT = "GROUP_REJECT";
+    /** 비활성화 — {@code name}·{@code reason}(모임장에게 간 사유) */
+    public static final String GROUP_DEACTIVATE = "GROUP_DEACTIVATE";
+    /** 다시 열기 — {@code name}·{@code memo}(운영자만 보는 메모, 없으면 빈 글자) */
+    public static final String GROUP_REACTIVATE = "GROUP_REACTIVATE";
+    /** 개설 규칙 저장 — 바뀐 칸만 {@code before}/{@code after}(creationMode·minGrade·maxPerOwner) */
+    public static final String GROUP_CREATION_RULE_UPDATE = "GROUP_CREATION_RULE_UPDATE";
+    /** 매니저 규칙 저장 — 바뀐 칸만 {@code before}/{@code after}(managersEnabled·limitDefault·limitMax) */
+    public static final String GROUP_MANAGER_RULE_UPDATE = "GROUP_MANAGER_RULE_UPDATE";
+    /** 공개 범위 설정 저장 — 바뀐 칸만 {@code before}/{@code after}(visibilityEnabled·cooldownDays·retryHours·rejectLimit·dailyLimit·textMax) */
+    public static final String GROUP_VISIBILITY_RULE_UPDATE = "GROUP_VISIBILITY_RULE_UPDATE";
+    /** 운영 한도 저장 — 바뀐 칸만 {@code before}/{@code after}(여덟 칸) */
+    public static final String GROUP_POLICY_RULE_UPDATE = "GROUP_POLICY_RULE_UPDATE";
+
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();
 

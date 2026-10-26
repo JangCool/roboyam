@@ -45,7 +45,7 @@ public class AdminReportController {
 
     /**
      * 사건 목록 — {@code status}(OPEN·PENDING·IN_REVIEW·RESOLVED·DISMISSED·ALL)·{@code targetType}·{@code reason}·{@code searchField}(TITLE·AUTHOR·CASE_NO)·{@code q}·
-     * {@code from}·{@code to}(마지막 신고 UTC ISO)·{@code board}·{@code postId}·{@code sort}(newest·oldest·most)·{@code page}(0부터)·{@code size}(기본 20, 최대 50)
+     * {@code from}·{@code to}(마지막 신고 UTC ISO)·{@code board}·{@code postId}·{@code groupId}(소모임 사건 — V95)·{@code sort}(newest·oldest·most)·{@code page}(0부터)·{@code size}(기본 20, 최대 50)
      */
     @RequirePermission(Permission.REPORT_READ)
     @GetMapping
@@ -53,9 +53,10 @@ public class AdminReportController {
                                                                 @RequestParam(required = false) String reason, @RequestParam(required = false) String searchField,
                                                                 @RequestParam(required = false) String q, @RequestParam(required = false) String from,
                                                                 @RequestParam(required = false) String to, @RequestParam(required = false) String board,
-                                                                @RequestParam(required = false) String postId, @RequestParam(required = false) String sort,
+                                                                @RequestParam(required = false) String postId, @RequestParam(required = false) String groupId,
+                                                                @RequestParam(required = false) String sort,
                                                                 @RequestParam(required = false) String page, @RequestParam(required = false) String size) {
-        return noStore(queries.list(status, targetType, reason, searchField, q, from, to, board, postId, sort, page, size));
+        return noStore(queries.list(status, targetType, reason, searchField, q, from, to, board, postId, groupId, sort, page, size));
     }
 
     /** 열린 사건 수 — {@code { pending, inReview }} */
@@ -79,7 +80,7 @@ public class AdminReportController {
         return noStore(queries.open(actor, id));
     }
 
-    /** 조치 — {@code { action: HIDE|DELETE|KEEP_HIDDEN, reasonCode, note }} */
+    /** 조치 — {@code { action: HIDE|DELETE|KEEP_HIDDEN|DEACTIVATE(소모임 사건만), reasonCode, note }} */
     @RequirePermission(Permission.REPORT_MANAGE)
     @PostMapping("/{id}/resolve")
     public ResponseEntity<ApiResponse<ReportCaseDetailView>> resolve(@PathVariable String id, @RequestBody(required = false) ReportResolveRequest body,

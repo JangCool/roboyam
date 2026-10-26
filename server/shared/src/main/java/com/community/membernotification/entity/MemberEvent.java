@@ -64,7 +64,40 @@ public enum MemberEvent {
     /** 운영자가 내 글을 지움(관리자 게시글 관리 — 사유와 함께) — 처리 알림이라 회원이 끌 수 없다 */
     POST_REMOVED(NotificationArea.SAFETY, MemberNotificationType.POST_REMOVED, MemberEventLockReason.ACTION, null),
     /** 운영자가 내 댓글을 지움(관리자 신고 관리 — 사유와 함께) — 처리 알림이라 회원이 끌 수 없다 */
-    COMMENT_REMOVED(NotificationArea.SAFETY, MemberNotificationType.COMMENT_REMOVED, MemberEventLockReason.ACTION, null);
+    COMMENT_REMOVED(NotificationArea.SAFETY, MemberNotificationType.COMMENT_REMOVED, MemberEventLockReason.ACTION, null),
+
+    // ── 소모임(V90) — 내 상태·할 일이 바뀐 알림이라 회원이 끌 수 없다(community api-groups.md 7절). 처리 결과는 ACTION, 내 자리·할 일은 ACCOUNT ──
+    GROUP_APPROVED(NotificationArea.CLUB, MemberNotificationType.GROUP_APPROVED, MemberEventLockReason.ACTION, null),
+    GROUP_REJECTED(NotificationArea.CLUB, MemberNotificationType.GROUP_REJECTED, MemberEventLockReason.ACTION, null),
+    GROUP_JOIN_REQUEST(NotificationArea.CLUB, MemberNotificationType.GROUP_JOIN_REQUEST, MemberEventLockReason.ACCOUNT, null),
+    GROUP_JOIN_APPROVED(NotificationArea.CLUB, MemberNotificationType.GROUP_JOIN_APPROVED, MemberEventLockReason.ACTION, null),
+    GROUP_JOIN_REJECTED(NotificationArea.CLUB, MemberNotificationType.GROUP_JOIN_REJECTED, MemberEventLockReason.ACTION, null),
+    GROUP_KICKED(NotificationArea.CLUB, MemberNotificationType.GROUP_KICKED, MemberEventLockReason.ACTION, null),
+    GROUP_DISSOLVED(NotificationArea.CLUB, MemberNotificationType.GROUP_DISSOLVED, MemberEventLockReason.ACCOUNT, null),
+    GROUP_LEADER_TRANSFERRED(NotificationArea.CLUB, MemberNotificationType.GROUP_LEADER_TRANSFERRED, MemberEventLockReason.ACCOUNT, null),
+    GROUP_DEACTIVATED(NotificationArea.CLUB, MemberNotificationType.GROUP_DEACTIVATED, MemberEventLockReason.ACTION, null),
+    GROUP_REACTIVATED(NotificationArea.CLUB, MemberNotificationType.GROUP_REACTIVATED, MemberEventLockReason.ACTION, null),
+    /** 모임장·되돌리기를 맡은 매니저가 내 공개 소모임 글을 비공개로 되돌렸다(V91 — 소모임 2단계) — 처리 알림 */
+    GROUP_POST_UNPUBLISHED(NotificationArea.CLUB, MemberNotificationType.GROUP_POST_UNPUBLISHED, MemberEventLockReason.ACTION, null),
+
+    // ── 소모임 매니저(V92 — 소모임 3단계) — 내 자리·할 일이 바뀐 알림이라 회원이 끌 수 없다. 매니저의 강퇴를 모임장에게 알리는 것만 처리 알림 ──
+    GROUP_MANAGER_APPOINTED(NotificationArea.CLUB, MemberNotificationType.GROUP_MANAGER_APPOINTED, MemberEventLockReason.ACCOUNT, null),
+    GROUP_MANAGER_PERMISSIONS_CHANGED(NotificationArea.CLUB, MemberNotificationType.GROUP_MANAGER_PERMISSIONS_CHANGED, MemberEventLockReason.ACCOUNT, null),
+    GROUP_MANAGER_REMOVED(NotificationArea.CLUB, MemberNotificationType.GROUP_MANAGER_REMOVED, MemberEventLockReason.ACCOUNT, null),
+    GROUP_MANAGER_RESIGNED(NotificationArea.CLUB, MemberNotificationType.GROUP_MANAGER_RESIGNED, MemberEventLockReason.ACCOUNT, null),
+    GROUP_KICKED_BY_MANAGER(NotificationArea.CLUB, MemberNotificationType.GROUP_KICKED_BY_MANAGER, MemberEventLockReason.ACTION, null),
+
+    // ── 소모임 일정(V93 — 소모임 4단계) — 소모임 알림 중 유일하게 회원이 끌 수 있다(잠금 없음 — 개인 설정의 「소모임 일정」, community api-groups.md 9절) ──
+    GROUP_EVENT(NotificationArea.CLUB, MemberNotificationType.GROUP_EVENT, null, null),
+
+    // ── 소모임 공개 범위·공개 요청(V94 — 소모임 5단계, community api-groups.md 11-8) — 모두 끌 수 없다. 처리할 요청·소모임 범위는 ACCOUNT, 처리 결과는 ACTION ──
+    GROUP_PUBLISH_REQUESTED(NotificationArea.CLUB, MemberNotificationType.GROUP_PUBLISH_REQUESTED, MemberEventLockReason.ACCOUNT, null),
+    GROUP_PUBLISH_APPROVED(NotificationArea.CLUB, MemberNotificationType.GROUP_PUBLISH_APPROVED, MemberEventLockReason.ACTION, null),
+    GROUP_PUBLISH_REJECTED(NotificationArea.CLUB, MemberNotificationType.GROUP_PUBLISH_REJECTED, MemberEventLockReason.ACTION, null),
+    GROUP_POST_PUBLISHED(NotificationArea.CLUB, MemberNotificationType.GROUP_POST_PUBLISHED, MemberEventLockReason.ACTION, null),
+    GROUP_VISIBILITY_CHANGED(NotificationArea.CLUB, MemberNotificationType.GROUP_VISIBILITY_CHANGED, MemberEventLockReason.ACCOUNT, null),
+    GROUP_POST_MEMBERS_ONLY(NotificationArea.CLUB, MemberNotificationType.GROUP_POST_MEMBERS_ONLY, MemberEventLockReason.ACTION, null),
+    GROUP_POST_RELEASED(NotificationArea.CLUB, MemberNotificationType.GROUP_POST_RELEASED, MemberEventLockReason.ACTION, null);
 
     private static final Map<String, MemberEvent> BY_CODE = Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(MemberEvent::code, Function.identity()));
 

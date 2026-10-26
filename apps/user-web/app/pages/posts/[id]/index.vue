@@ -17,12 +17,18 @@
           응답(새 토론 요약)을 글에 넣고 두 댓글 목록을 다시 받는다. `403 DEBATE_MANAGE_DENIED` 는 토스트 + 목록 다시 받기, `409 DEBATE_HAS_VOTES` 는 대화창 안 서버 문구 + 목록 다시 받기.
         투표(post-poll-contract): 글에 `poll` 이 있으면 본문 바로 다음·찬반 토론 위에 투표 카드(`PostPollCard`). 투표·다시 읽기·지우기는 `usePollApi` 로 이 화면이 하고(카드는 `actions` 만 받는다),
           카드가 올린 새 투표(지우면 null)를 글의 `poll` 에 넣는다. 차단으로 본문이 접히거나 19금 확인 전이면 함께 가린다.
+        소모임 글(2단계, community `docs/api-groups.md` 8절 · 「화면 (SPA) — 6-2」): 글의 `group` 이 있으면 머리의 게시판 이름 대신 「소모임 › 이름」(→ 소모임, 해산했으면 링크 없이 「해산한 소모임」)과
+          공개 라벨(「멤버에게만 보여요」/「전체 공개」). 게시판 정보(댓글 설정 등)는 공개 게시판 API 가 아니라 `GET /api/groups/{id}/board`(로보얌 추가 후보)로 받는다.
+          글 아래 공개 범위 패널(`GroupPostPanel` — 5단계, 11-6 네 가지 일): 공개 범위 기능이 꺼진 서버(`group.groupVisibility` 없음)는 옛 패널(작성자의 [전체 공개로 전환]·[비공개로 되돌리기]),
+          켜져 있으면 공개 요청·요청 취소·승인·거절·직접 공개·되돌리기·멤버 전용으로 돌리기·다시 공개. 쓰기는 이 화면이 `useGroupApi` 로 만든 `actions` 가 하고 패널이 올린 바뀐 칸을 `group` 에 덮어쓴다.
+          비멤버가 보는 비공개 소모임의 개별 공개 글이면 본문 위에 「이 글은 {이름} 멤버가 모두에게 공개한 글이에요」, 댓글 위에 「멤버에게만 보이는 댓글 N개」(`membersOnlyCount`) 안내.
+          이전·다음 글 대신 [소모임 글 목록으로]. 비멤버가 비공개 글을 열면(`403 GROUP_POST_PRIVATE`) 「멤버에게만 보이는 글이에요」(로그인 전이면 로그인, 아니면 소모임 둘러보기 — 오류에 소모임 ID 가 없다).
     -->
     <div>
         <!-- 모바일 안쪽 화면 머리 — 셸의 위·아래 막대가 숨겨진다(`shell: 'inner'`) -->
         <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface px-2 py-1.5 md:hidden">
             <Button type="button" icon="pi pi-chevron-left" variant="text" severity="secondary" :aria-label="t('post.backToBoard')" @click="goBoard" />
-            <span class="truncate text-sm font-semibold">{{ boardName }}</span>
+            <span class="truncate text-sm font-semibold">{{ post?.group ? UtilGroupMessages.postLocation(t, post.group) : boardName }}</span>
         </div>
 
         <div v-if="pageState === 'loading'" role="status" :aria-label="t('post.loading')">
@@ -37,13 +43,26 @@
         <ErrorState v-else-if="pageState === 'hidden'" :title="t('post.hiddenTitle')" :description="pageError">
             <Button type="button" :label="t('post.back')" severity="secondary" variant="outlined" @click="router.back()" />
         </ErrorState>
+        <!-- 멤버에게만 보이는 소모임 글을 멤버가 아닌 사람이 열었다(403 GROUP_POST_PRIVATE) — 오류에 소모임 ID 가 없어 소모임 목록으로 보낸다 -->
+        <ErrorState v-else-if="pageState === 'groupPrivate'" :title="t('group.privatePostTitle')" :description="user ? t('group.privatePostText') : t('group.privatePostLoginText')" data-testid="post-group-private">
+            <Button v-if="!user" type="button" :label="t('common.login')" @click="prompt('view')" />
+            <Button v-else as="router-link" :to="UtilGroup.LIST_PATH" :label="t('group.browse')" />
+        </ErrorState>
         <ErrorState v-else-if="pageState === 'error' || !post || !board" :title="t('post.loadFailed')" :description="pageError" retry @retry="load" />
 
         <article v-else :aria-labelledby="titleId">
             <!-- 머리 -->
             <header class="border-b border-surface pb-3">
-                <div class="flex items-center gap-2">
-                    <NuxtLink :to="`/boards/${board.slug}`" class="text-xs font-semibold text-primary hover:underline max-md:hidden">{{ boardName }}</NuxtLink>
+                <div class="flex flex-wrap items-center gap-2">
+                    <!-- 소모임 글 — 「소모임 › 이름」(해산했으면 링크 없이) + 공개 라벨(글자가 늘 있다) -->
+                    <template v-if="post.group">
+                        <span v-if="post.group.dissolved" class="text-xs font-semibold text-muted-color" data-testid="post-group-dissolved">{{ UtilGroupMessages.postLocation(t, post.group) }}</span>
+                        <NuxtLink v-else :to="UtilGroup.detailPath(post.group.id)" class="min-w-0 truncate text-xs font-semibold text-primary hover:underline" data-testid="post-group-link">
+                            {{ UtilGroupMessages.postLocation(t, post.group) }}
+                        </NuxtLink>
+                        <GroupTag :tone="post.group.visibility === 'PUBLIC' ? 'blue' : 'gray'" data-testid="post-group-visibility">{{ UtilGroupMessages.postVisibility(t, post.group.visibility) }}</GroupTag>
+                    </template>
+                    <NuxtLink v-else :to="`/boards/${board.slug}`" class="text-xs font-semibold text-primary hover:underline max-md:hidden">{{ boardName }}</NuxtLink>
                     <!-- 지금 하이라이트로 노출 중인 글 -->
                     <span v-if="post.highlighted" class="inline-flex items-center justify-center gap-1 rounded bg-amber-100 px-1.5 py-1 text-[0.6875rem] font-semibold leading-none text-amber-800 dark:bg-amber-900/50 dark:text-amber-200" data-testid="post-highlighted">
                         <span class="relative top-[-0.09em]">{{ t('post.highlighted') }}</span>
@@ -67,6 +86,16 @@
                     <span>{{ t('post.likes', { n: post.likeCount.toLocaleString() }) }}</span>
                 </div>
             </header>
+
+            <!-- 비멤버가 보는 비공개 소모임의 개별 공개 글(5단계) — 어느 소모임 멤버가 공개한 글인지 -->
+            <p v-if="individualGroup" class="m-0 mt-3 flex items-start gap-2 rounded-lg bg-surface-100 px-3 py-2.5 text-sm dark:bg-surface-800" data-testid="post-group-individual-notice">
+                <i class="pi pi-globe mt-0.5 shrink-0 text-xs text-muted-color" aria-hidden="true" />
+                <i18n-t keypath="groupVisibility.individualNotice" scope="global" tag="span" class="min-w-0">
+                    <template #name>
+                        <NuxtLink :to="UtilGroup.detailPath(individualGroup.id)" class="font-semibold text-primary hover:underline">{{ individualGroup.name }}</NuxtLink>
+                    </template>
+                </i18n-t>
+            </p>
 
             <!-- 예약 삭제된 글 · 댓글 많은 글 보호(수정·삭제할 수 있는 사람에게만) -->
             <Message v-if="post.deleteScheduledAt" severity="warn" :closable="false" size="small" class="mt-3" data-testid="post-delete-scheduled">
@@ -170,10 +199,21 @@
                 </template>
             </div>
 
+            <!-- 소모임 글의 공개 범위 — 안내는 모두에게, 단추는 서버가 준 권한(`group.can*`)이 있는 사람에게만 -->
+            <GroupPostPanel
+                v-if="post.group"
+                :group="post.group"
+                :mine="post.mine"
+                :author-name="post.author.memberId ? post.author.name : null"
+                :actions="groupPanelActions"
+                @change="onGroupChange"
+                @session="prompt('view')"
+            />
+
             <BoardInvestmentNotice v-if="board.investmentNotice" variant="post" class="mt-3" />
 
-            <!-- 이전·다음 글 · 게시판으로 -->
-            <nav class="mt-4 divide-y divide-surface border-y border-surface text-sm" :aria-label="t('post.neighborNav')">
+            <!-- 이전·다음 글 · 게시판으로(소모임 글에는 이전·다음 글이 없다) -->
+            <nav v-if="!post.group" class="mt-4 divide-y divide-surface border-y border-surface text-sm" :aria-label="t('post.neighborNav')">
                 <NuxtLink v-if="post.next" :to="`/posts/${post.next.id}`" class="flex gap-3 px-1 py-2.5 hover:bg-surface-100 dark:hover:bg-surface-800/60">
                     <span class="w-14 shrink-0 text-xs text-muted-color"><i class="pi pi-angle-up mr-1 text-[0.625rem]" aria-hidden="true" />{{ t('post.next') }}</span>
                     <span class="truncate">{{ post.next.title }}</span>
@@ -184,8 +224,18 @@
                 </NuxtLink>
             </nav>
             <div class="mt-3 flex justify-center">
-                <Button type="button" icon="pi pi-list" :label="t('post.backToBoard')" severity="secondary" variant="outlined" size="small" @click="goBoard" />
+                <Button type="button" icon="pi pi-list" :label="post.group ? t('group.postListBack') : t('post.backToBoard')" severity="secondary" variant="outlined" size="small" @click="goBoard" />
             </div>
+
+            <!-- 멤버 전용 댓글 안내(5단계) — 비공개 소모임의 개별 공개 글을 비멤버·비회원이 볼 때, 공개 전에 달려 가려진 댓글 수(목록의 댓글 수는 전체 그대로) -->
+            <p
+                v-if="membersOnlyCommentCount > 0"
+                class="m-0 mt-4 flex items-center gap-1.5 rounded-lg bg-surface-100 px-3 py-2 text-xs text-muted-color dark:bg-surface-800/50"
+                data-testid="comment-members-only-banner"
+            >
+                <i class="pi pi-lock text-[0.6875rem]" aria-hidden="true" />
+                <span>{{ t('groupVisibility.membersOnlyBanner', { n: membersOnlyCommentCount }) }}</span>
+            </p>
 
             <!-- 일반 댓글 — 맨 아래 원래 댓글 자리(입장 없는 원댓글 + 답글) -->
             <CommentSection
@@ -226,6 +276,7 @@ import type { ReportReason, ReportTargetType } from '~/composables/report/api/us
 import type { CommentActions, DebateActions } from '~/components/board/CommentSection.types';
 import type { DebateSettingsValues } from '~/components/board/DebateSettingsFields.types';
 import type { PollCardActions } from '~/components/board/PostPollCard.types';
+import type { GroupPostPanelActions } from '~/components/group/GroupPostPanel.types';
 import UtilRichBody from '#layers/rich-editor/utils/util-rich-body';
 import UtilBlockMessages from '~/utils/util-block-messages';
 import UtilBoardMessages from '~/utils/util-board-messages';
@@ -233,6 +284,9 @@ import UtilDebate from '~/utils/util-debate';
 import UtilPost from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
 import UtilPointShop from '~/utils/util-point-shop';
+import UtilGroup from '~/utils/util-group';
+import UtilGroupMessages from '~/utils/util-group-messages';
+import UtilPostGroupPanel, { type PostGroupPatch } from '~/utils/util-post-group-panel';
 
 definePageMeta({ shell: 'inner' });
 
@@ -244,6 +298,8 @@ const boardApi = useBoardApi();
 const reportApi = useReportApi();
 const debateApi = useDebateApi();
 const pollApi = usePollApi();
+const groupApi = useGroupApi();
+const { user } = useAuth();
 const toast = useAppToast();
 const { confirm } = useConfirmDialog();
 const { prompt } = useLoginPrompt();
@@ -258,7 +314,7 @@ const id = computed(() => String(route.params.id ?? ''));
 const siteOrigin = typeof window === 'undefined' ? '' : window.location.origin;
 
 /* ── 불러오기 ── */
-type PageState = 'loading' | 'ready' | 'notfound' | 'hidden' | 'error';
+type PageState = 'loading' | 'ready' | 'notfound' | 'hidden' | 'groupPrivate' | 'error';
 const post = ref<PostDetail | null>(null);
 const board = ref<BoardDetail | null>(null);
 const pageState = ref<PageState>('loading');
@@ -281,11 +337,17 @@ async function load(): Promise<void> {
     try {
         const loaded = await postApi.post(id.value);
         if (mine !== request) return;
-        const loadedBoard = board.value?.slug === loaded.board.slug ? board.value : await boardApi.board(loaded.board.slug);
+        // 소모임 글의 게시판은 공개 게시판 API 에 없다 — 소모임 게시판 정보(`GET /api/groups/{id}/board`)로 받는다
+        const loadedBoard =
+            board.value?.slug === loaded.board.slug && (post.value?.group?.id ?? null) === (loaded.group?.id ?? null)
+                ? board.value
+                : loaded.group
+                  ? await groupApi.board(loaded.group.id)
+                  : await boardApi.board(loaded.board.slug);
         if (mine !== request) return;
         post.value = loaded;
         board.value = loadedBoard;
-        current.set(loaded.board.slug);
+        if (!loaded.group) current.set(loaded.board.slug);
         pageState.value = 'ready';
         opinionsStarted = false;
         void comments.load();
@@ -294,7 +356,14 @@ async function load(): Promise<void> {
         if (mine !== request) return;
         pageError.value = UtilBoardMessages.of(t, e);
         const code = e instanceof ApiError ? e.code : '';
-        pageState.value = code === 'POST_NOT_FOUND' || code === 'BOARD_NOT_FOUND' ? 'notfound' : code === 'POST_HIDDEN' ? 'hidden' : 'error';
+        pageState.value =
+            code === 'GROUP_POST_PRIVATE'
+                ? 'groupPrivate'
+                : code === 'POST_NOT_FOUND' || code === 'BOARD_NOT_FOUND' || code === 'GROUP_NOT_FOUND'
+                  ? 'notfound'
+                  : code === 'POST_HIDDEN'
+                    ? 'hidden'
+                    : 'error';
     }
 }
 
@@ -418,7 +487,7 @@ watch(
 
 watch(id, () => void load(), { immediate: true });
 onBeforeUnmount(() => {
-    if (post.value) current.clear(post.value.board.slug);
+    if (post.value && !post.value.group) current.clear(post.value.board.slug);
 });
 
 const boardName = computed(() => (board.value ? localizedName(board.value.name, board.value.nameEn) : post.value ? localizedName(post.value.board.name, post.value.board.nameEn) : ''));
@@ -442,9 +511,65 @@ const manageable = computed(() => Boolean(post.value && (post.value.mine || post
 const protectionNotice = computed(() => (post.value ? UtilPostMessages.protection(t, post.value.protection) : null));
 
 function goBoard(): void {
+    // 소모임 글은 소모임 글 탭으로(해산한 소모임은 소모임 목록으로)
+    const group = post.value?.group;
+    if (group) {
+        void navigateTo(group.dissolved ? UtilGroup.LIST_PATH : UtilGroup.tabPath(group.id, 'posts'));
+        return;
+    }
     const slug = post.value?.board.slug ?? board.value?.slug;
     void navigateTo(slug ? `/boards/${slug}` : '/');
 }
+
+/* ── 소모임 글 공개 범위(5단계 — 패널이 부르는 동작, 바뀐 칸은 패널이 `change` 로 올린다) ── */
+/** 지금 보는 글의 소모임 — 동작을 부르는 순간의 값을 쓴다 */
+function groupIds(): { groupId: string; postId: string } {
+    const p = post.value;
+    if (!p?.group) throw new Error('not a group post');
+    return { groupId: p.group.id, postId: p.id };
+}
+
+const groupPanelActions: GroupPostPanelActions = {
+    request: (note) => {
+        const { groupId, postId } = groupIds();
+        return groupApi.requestPublish(groupId, postId, { ...(note ? { note } : {}), acknowledged: true });
+    },
+    cancel: () => {
+        const { groupId, postId } = groupIds();
+        return groupApi.cancelPublishRequest(groupId, postId);
+    },
+    approve: () => {
+        const { groupId, postId } = groupIds();
+        return groupApi.approvePublishRequest(groupId, postId);
+    },
+    reject: (reason) => {
+        const { groupId, postId } = groupIds();
+        return groupApi.rejectPublishRequest(groupId, postId, reason || undefined);
+    },
+    setVisibility: (visibility, acknowledged) => {
+        const { groupId, postId } = groupIds();
+        return groupApi.setPostVisibility(groupId, postId, acknowledged ? { visibility, acknowledged: true } : { visibility });
+    },
+};
+
+/** 패널이 올린 바뀐 칸을 글 상세의 `group` 에 덮어쓴다(글을 다시 받지 않는다 — 조회수·읽던 자리·댓글이 그대로) */
+function onGroupChange(patch: PostGroupPatch): void {
+    const p = post.value;
+    if (p?.group) p.group = { ...p.group, ...patch };
+}
+
+/** 비멤버가 보는 비공개 소모임의 개별 공개 글이면 그 소모임 — 본문 위 안내 줄이 쓴다(멤버는 `membersOnlyCommentCount` 가 null 이라 없다) */
+const individualGroup = computed(() => {
+    const g = post.value?.group;
+    return g && !g.dissolved && UtilPostGroupPanel.isIndividualForVisitor(g) ? g : null;
+});
+/** 멤버 전용으로 가려진 댓글 수 — 댓글 목록 응답(`membersOnlyCount`)이 먼저, 받기 전에는 글 상세의 수 */
+const membersOnlyCommentCount = computed(() => {
+    const fromList = comments.data.value?.membersOnlyCount;
+    if (typeof fromList === 'number') return fromList;
+    const fromPost = post.value?.group?.membersOnlyCommentCount;
+    return typeof fromPost === 'number' ? fromPost : 0;
+});
 
 /* ── 추천·링크 복사 ── */
 const liking = ref(false);

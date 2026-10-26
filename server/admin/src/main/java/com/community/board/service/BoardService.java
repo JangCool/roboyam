@@ -18,6 +18,7 @@ import com.community.board.dto.response.BoardListResponse;
 import com.community.board.entity.BoardEntity;
 import com.community.board.entity.BoardGadget;
 import com.community.board.entity.BoardPrefixEntity;
+import com.community.board.exception.BoardHasGroupsException;
 import com.community.board.exception.BoardHasPostsException;
 import com.community.board.exception.BoardInvestmentNoticeLockedException;
 import com.community.board.exception.BoardNameDuplicateException;
@@ -31,6 +32,7 @@ import com.community.board.repository.master.BoardRepository;
 import com.community.grade.entity.GradeEntity;
 import com.community.grade.repository.master.GradeRepositoryQDSL;
 import com.community.group.entity.GroupCategoryEntity;
+import com.community.group.repository.master.GroupRepository;
 import com.community.group.service.GroupCategoryService;
 import com.community.menu.service.MenuBoardLinker;
 import com.community.permission.dto.AdminActor;
@@ -92,10 +94,11 @@ public class BoardService {
     private final AccessDeniedRecorder denied;
     private final MenuBoardLinker menu;
     private final GroupCategoryService groupCategories;
+    private final GroupRepository groups;
 
     public BoardService(BoardRepository boards, BoardPrefixRepository prefixes, BoardContentQueries content, BoardCreator creator, BoardViews views,
                         GradeRepositoryQDSL grades, SnowflakeIdGenerator ids, AuditLogService audit, AccessDeniedRecorder denied,
-                        MenuBoardLinker menu, GroupCategoryService groupCategories) {
+                        MenuBoardLinker menu, GroupCategoryService groupCategories, GroupRepository groups) {
         this.boards = boards;
         this.prefixes = prefixes;
         this.content = content;
@@ -107,6 +110,7 @@ public class BoardService {
         this.denied = denied;
         this.menu = menu;
         this.groupCategories = groupCategories;
+        this.groups = groups;
     }
 
     @Transactional(readOnly = true)
@@ -440,6 +444,10 @@ public class BoardService {
         BoardEntity board = lock(boardId);
         if (content.hasLivePosts(board.getId())) {
             throw new BoardHasPostsException();
+        }
+        // 소모임이 쓰는 게시판(상태 무관 — 해산·반려 기록도 이 게시판을 가리킨다)은 지울 수 없다 — 대신 끈다(V90 groups.board_id FK 의 앞 검사)
+        if (groups.existsByBoardId(board.getId())) {
+            throw new BoardHasGroupsException();
         }
         content.deleteContent(board.getId());
         // 공개 메뉴에서 이 게시판 항목을 모든 그룹에서 지운다(같은 트랜잭션 — 바뀐 그룹은 버전이 오른다)

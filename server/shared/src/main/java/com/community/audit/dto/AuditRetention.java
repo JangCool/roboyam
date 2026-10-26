@@ -79,7 +79,11 @@ public final class AuditRetention {
             AuditActions.POINT_SHOP_ITEM_CREATE, AuditActions.POINT_SHOP_ITEM_UPDATE, AuditActions.POINT_SHOP_AVATAR_PRICE, AuditActions.POINT_SHOP_AVATAR_SALE,
             AuditActions.POINT_SHOP_SETTINGS_UPDATE,
             // 소모임 분류(이름·게시판 할당·순서) — 게시판 구성과 같은 운영 일
-            AuditActions.GROUP_CATEGORY_CREATE, AuditActions.GROUP_CATEGORY_UPDATE, AuditActions.GROUP_CATEGORY_ORDER, AuditActions.GROUP_CATEGORY_DELETE);
+            AuditActions.GROUP_CATEGORY_CREATE, AuditActions.GROUP_CATEGORY_UPDATE, AuditActions.GROUP_CATEGORY_ORDER, AuditActions.GROUP_CATEGORY_DELETE,
+            // 소모임 개설 승인·반려·비활성화·다시 열기 · 소모임 설정 네 구획 — 콘텐츠·커뮤니티 운영 일(분류와 같다, 돈·개인정보가 움직이지 않는다)
+            AuditActions.GROUP_APPROVE, AuditActions.GROUP_REJECT, AuditActions.GROUP_DEACTIVATE, AuditActions.GROUP_REACTIVATE,
+            AuditActions.GROUP_CREATION_RULE_UPDATE, AuditActions.GROUP_MANAGER_RULE_UPDATE, AuditActions.GROUP_VISIBILITY_RULE_UPDATE,
+            AuditActions.GROUP_POLICY_RULE_UPDATE);
 
     private static final Map<String, AuditRetentionClass> TABLE = table();
 

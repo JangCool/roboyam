@@ -12,6 +12,7 @@
           첫 표 전인데 게시판 `pollEnabled` 가 꺼졌으면 「빼기만」 — 끄기 토글 + 읽기 전용 요약 + 「이 게시판은 이제 투표를 받지 않아요…」.
           글 수정 본문(`PUT /api/posts/{id}`)의 `poll`: 칸을 바꿨을 때만 보낸다(켬 → 만들기·고치기, 끔 → null 로 빼기). 바꾸지 않았거나 잠긴 투표면 칸을 아예 빼서 그대로 둔다.
           `409 POLL_LOCKED`(그새 첫 표가 들어옴)는 투표 칸 안 서버 문구 + 투표를 다시 읽어 잠근다.
+        소모임 글(2단계): 글의 `group` 이 있으면 게시판 정보를 `GET /api/groups/{id}/board`(로보얌 추가 후보)로 받는다. 공개 범위는 여기서 바꾸지 않는다(글 상세에서만).
     -->
     <div class="mx-auto max-w-3xl">
         <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface px-2 py-1.5 md:hidden">
@@ -97,6 +98,7 @@ const route = useRoute();
 const router = useRouter();
 const postApi = usePostApi();
 const boardApi = useBoardApi();
+const groupApi = useGroupApi();
 const debateApi = useDebateApi();
 const pollApi = usePollApi();
 const toast = useAppToast();
@@ -121,9 +123,11 @@ async function load(): Promise<void> {
     pageState.value = 'loading';
     try {
         const loaded = await postApi.post(id.value);
-        board.value = await boardApi.board(loaded.board.slug);
+        // 소모임 글의 게시판은 공개 게시판 API 에 없다 — 소모임 게시판 정보(`GET /api/groups/{id}/board`)로 받는다(공개 범위는 글 상세에서만 바꾼다)
+        // 소모임 글은 19금이 될 수 없다(서버 `400 fields.adult`) — 게시판이 19금을 받아도 칸을 보이지 않는다
+        board.value = loaded.group ? { ...(await groupApi.board(loaded.group.id)), allowAdult: false } : await boardApi.board(loaded.board.slug);
         post.value = loaded;
-        current.set(loaded.board.slug);
+        if (!loaded.group) current.set(loaded.board.slug);
         // 지금 게시판 에디터 설정의 형식으로 연다 — 글의 형식과 다르면 바꾼다
         const format = UtilBoard.postFormat(board.value);
         const content = UtilPost.convertContent(loaded.content, loaded.contentFormat ?? 'TEXT', format);
@@ -137,12 +141,13 @@ async function load(): Promise<void> {
         pageState.value = 'ready';
     } catch (e) {
         pageError.value = UtilBoardMessages.of(t, e);
-        pageState.value = e instanceof ApiError && (e.code === 'POST_NOT_FOUND' || e.code === 'POST_HIDDEN') ? 'notfound' : 'error';
+        // 멤버에게만 보이는 소모임 글을 멤버가 아닌 사람이 열었다(`403 GROUP_POST_PRIVATE`)도 열 수 없는 글로 본다
+        pageState.value = e instanceof ApiError && (e.code === 'POST_NOT_FOUND' || e.code === 'POST_HIDDEN' || e.code === 'GROUP_POST_PRIVATE' || e.code === 'GROUP_NOT_FOUND') ? 'notfound' : 'error';
     }
 }
 void load();
 onBeforeUnmount(() => {
-    if (post.value) current.clear(post.value.board.slug);
+    if (post.value && !post.value.group) current.clear(post.value.board.slug);
 });
 
 /* ── 찬반 토론 칸 ── */

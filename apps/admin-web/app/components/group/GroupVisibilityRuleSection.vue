@@ -2,7 +2,7 @@
     <!--
         소모임 설정의 구획 「공개 범위」(community `GroupVisibilityRuleSection`) — ① 공개 범위 기능 켜기 스위치 + 상태 글 + 사용 현황 + 매니저 안내 알림 줄 ② 공개 요청 규칙 숫자 다섯(쿨다운·재요청 대기·거절 한도·하루 요청 수·글자 수)
         ③ 모임장·회원 화면 미리보기 ④ 마지막 저장 줄 ⑤ 구획 저장 줄. 켜기·끄기 저장은 확인을 거친다 — 켜짐으로 저장하면 같은 요청에서 기존 매니저 안내 알림이 한 번 나간다(이미 보냈으면 다시 보내지 않는다).
-        서버 호출은 `useGroupSettingsApi`(목업 — `?mock=visibility-fail`), 상태는 `useGroupRuleSection`.
+        서버 호출은 `useGroupSettingsApi`, 상태는 `useGroupRuleSection`.
     -->
     <AppGadget :title="t('group.visibilityRule.title')" anchor="group-visibility-rule" :changes="s.changeCount.value" :invalid="s.errorCount.value">
         <template #title-extra>

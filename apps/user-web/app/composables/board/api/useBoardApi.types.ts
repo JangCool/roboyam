@@ -85,7 +85,9 @@ export type BoardLayout = 'LIST' | 'CARD' | 'GALLERY';
  * 글쓰기를 막는 까닭 (게시판 정보 응답의 `writeBlockedReason`). `BUSINESS_ACCOUNT_RESTRICTED` 는 사업자 전용 계정(H-2) — 일반 게시판 글쓰기는 서버가 `403` 으로 막는다.
  * `BUSINESS_NOT_APPROVED`(H-4)는 사업자 전용 계정이 핫딜 게시판에 쓰는데 승인된 사업자가 아니다(승인 대기·반려·정지) — 사업자 센터로 안내한다.
  * `PROMO_*` 는 직접홍보 게시판(`docs/api-promo.md` 4절)의 글쓰기 자격 — `PROMO_BUSINESS_ONLY` 승인된 사업자만 쓴다 · `PROMO_PERIOD_REQUIRED` 진행 중인 승인된 홍보가 없다 · `PROMO_DAILY_LIMIT` 오늘 쓸 수 있는 글을 다 썼다.
- * 서버가 게시판 응답에 어떤 값으로 주는지는 계약에 없어(`write-status` 의 `reason` 이 더 자세하다) 화면이 `UtilPromo.normalizeBlocked` 로 이 셋으로 모은다
+ * 서버가 게시판 응답에 어떤 값으로 주는지는 계약에 없어(`write-status` 의 `reason` 이 더 자세하다) 화면이 `UtilPromo.normalizeBlocked` 로 이 셋으로 모은다.
+ * `GROUP_*` 는 소모임 게시판 정보(`GET /api/groups/{id}/board` — 서버 `GroupPostService.board`)의 `writeBlockedReason` 에만 온다 — `GROUP_NOT_MEMBER` 멤버가 아니다 ·
+ * `GROUP_DISSOLVED` 해산한 소모임(새 글만 막는다 — 공개로 남은 글의 댓글은 열려 있어 `commentBlockedReason` 에는 오지 않는다)
  */
 export type WriteBlockedReason =
     | 'LOGIN_REQUIRED'
@@ -100,7 +102,9 @@ export type WriteBlockedReason =
     | 'BUSINESS_NOT_APPROVED'
     | 'PROMO_BUSINESS_ONLY'
     | 'PROMO_PERIOD_REQUIRED'
-    | 'PROMO_DAILY_LIMIT';
+    | 'PROMO_DAILY_LIMIT'
+    | 'GROUP_NOT_MEMBER'
+    | 'GROUP_DISSOLVED';
 
 /** 최소 자격의 「비회원 포함 모두」 값 — 게시판별로만 고른다(관리자 `BOARD_MIN_GUEST` 와 같은 값) */
 export const BOARD_MIN_GUEST = 'GUEST';

@@ -1,9 +1,11 @@
 package com.community.report.repository.master;
 
+import com.community.group.entity.QGroupEntity;
 import com.community.post.entity.QPostEntity;
 import com.community.report.entity.QReportCaseEntity;
 import com.community.report.entity.QReportEntity;
 import com.community.report.entity.ReportCaseEntity;
+import com.community.report.entity.ReportEntity;
 import com.community.user.entity.QProfileEntity;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.core.BooleanBuilder;
@@ -38,16 +40,17 @@ public class AdminReportRepositoryQDSL extends RoboyamRepositoryQDSL {
      *
      * @param statuses   사건 상태들(null = 전체)
      * @param reason     그 사유의 신고가 하나라도 있는 사건
-     * @param title      대상 글 제목(댓글 사건이면 그 댓글의 글) 부분 일치
+     * @param title      대상 글 제목(댓글 사건이면 그 댓글의 글)·소모임 사건이면 지금 소모임 이름 부분 일치
      * @param author     대상 작성자 닉네임·비회원 이름(신고 당시 이름) 부분 일치
      * @param caseNo     사건 번호 정확히
      * @param from       마지막 신고 시각 이후(포함)
      * @param to         마지막 신고 시각 이전(포함)
      * @param postId     그 글과 그 글의 댓글 사건
+     * @param groupId    그 소모임을 대상으로 한 사건(V95 — 관리자 소모임 상세의 신고 사건 수에서 넘어옴)
      * @param none       아무 사건도 맞지 않는 조건(깨진 ID 등)
      */
     public record Search(List<String> statuses, String targetType, String reason, String title, String author, Long caseNo, Instant from, Instant to,
-                         Long boardId, Long postId, String sort, boolean none) {
+                         Long boardId, Long postId, Long groupId, String sort, boolean none) {
     }
 
     public record ListPage(List<ReportCaseEntity> items, long total) {
@@ -66,7 +69,10 @@ public class AdminReportRepositoryQDSL extends RoboyamRepositoryQDSL {
         }
         if (c.title() != null) {
             QPostEntity post = QPostEntity.postEntity;
-            where.and(CASE.postId.in(JPAExpressions.select(post.id).from(post).where(post.title.containsIgnoreCase(c.title()))));
+            QGroupEntity group = QGroupEntity.groupEntity;
+            where.and(CASE.postId.in(JPAExpressions.select(post.id).from(post).where(post.title.containsIgnoreCase(c.title())))
+                    .or(CASE.targetType.eq(ReportEntity.GROUP).and(CASE.targetId.in(JPAExpressions.select(group.id).from(group)
+                            .where(group.name.containsIgnoreCase(c.title()))))));
         }
         if (c.author() != null) {
             QProfileEntity profile = QProfileEntity.profileEntity;
@@ -88,6 +94,9 @@ public class AdminReportRepositoryQDSL extends RoboyamRepositoryQDSL {
         }
         if (c.postId() != null) {
             where.and(CASE.postId.eq(c.postId()));
+        }
+        if (c.groupId() != null) {
+            where.and(CASE.targetType.eq(ReportEntity.GROUP).and(CASE.targetId.eq(c.groupId())));
         }
         return where;
     }

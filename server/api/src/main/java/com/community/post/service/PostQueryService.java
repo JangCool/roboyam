@@ -6,10 +6,13 @@ import com.community.board.dto.BoardPrefixInfo;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.AuthorMembers;
 import com.community.board.service.AuthorViews;
+import com.community.board.service.BoardActorResolver;
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.ContentRules;
 import com.community.board.service.PublicBoardService;
 import com.community.debate.service.DebateReader;
+import com.community.group.service.GroupPostGate;
+import com.community.post.dto.response.PostGroupView;
 import com.community.poll.repository.master.PollQueries;
 import com.community.poll.service.PollReader;
 import com.community.post.dto.PostNeighborData;
@@ -60,9 +63,14 @@ public class PostQueryService {
     private final DebateReader debate;
     private final PollReader pollReader;
     private final PollQueries pollQueries;
+    private final GroupPostGate groupGate;
+    private final BoardActorResolver actors;
 
     public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors,
-                            ViewerBlocks viewerBlocks, DebateReader debate, PollReader pollReader, PollQueries pollQueries) {
+                            ViewerBlocks viewerBlocks, DebateReader debate, PollReader pollReader, PollQueries pollQueries, GroupPostGate groupGate,
+                            BoardActorResolver actors) {
+        this.groupGate = groupGate;
+        this.actors = actors;
         this.pollReader = pollReader;
         this.pollQueries = pollQueries;
         this.debate = debate;
@@ -147,7 +155,8 @@ public class PostQueryService {
         Instant now = Instant.now();
         PostEntity post = requireVisible(idText, now);
         BoardCatalogSnapshot s = catalog.snapshot();
-        EffectiveBoard b = PublicBoardService.requireActive(s, post.getBoardId());
+        GroupPostGate.Resolved gate = groupGate.resolve(s, post, userId); // 소모임 글: 나가서 가림 404 · 비활성 403 · 비공개는 멤버만(403 GROUP_POST_PRIVATE)
+        EffectiveBoard b = gate.board();
         if (post.isHiddenAt(now)) {
             throw new PostHiddenException();
         }
@@ -157,31 +166,50 @@ public class PostQueryService {
                 : post.getViewCount();
         boolean liked = userId != null && counters.postLiked(post.getId(), userId);
         List<Long> authorIds = post.getAuthorId() == null ? List.of() : List.of(post.getAuthorId());
-        return view(post, b, s, userId, viewCount, liked, now, viewerBlocks.lens(userId, authorIds));
+        return view(post, b, s, userId, viewCount, liked, now, viewerBlocks.lens(userId, authorIds), groupInfo(gate, post, userId, s));
     }
 
     /** 고친 뒤의 글(조회수는 그대로) — {@link PostWriteService#update} 가 같은 트랜잭션에서 부른다. 차단·메모는 싣지 않는다(응답 모양 그대로, 두 칸 null) */
-    PostDetailView viewAfterEdit(PostEntity post, EffectiveBoard b, BoardCatalogSnapshot s, Long userId, Instant now) {
+    PostDetailView viewAfterEdit(PostEntity post, GroupPostGate.Resolved gate, BoardCatalogSnapshot s, Long userId, Instant now) {
         boolean liked = userId != null && counters.postLiked(post.getId(), userId);
-        return view(post, b, s, userId, post.getViewCount(), liked, now, ViewerBlocks.Lens.none());
+        return view(post, gate.board(), s, userId, post.getViewCount(), liked, now, ViewerBlocks.Lens.none(), groupInfo(gate, post, userId, s));
     }
 
-    /** @param lens 보는 사람의 차단·메모 — 글 {@code blocked}(제목 단어 판정, 게시판 글 목록과 같음)와 작성자 {@code memo} */
+    /** 소모임 글의 {@code group} 칸(일반 글 null) — 공개 전환 권한은 보는 사람의 쓰기 자격까지 본다 */
+    private PostGroupView groupInfo(GroupPostGate.Resolved gate, PostEntity post, Long userId, BoardCatalogSnapshot s) {
+        if (!gate.groupPost()) {
+            return null;
+        }
+        return groupGate.info(gate, post, userId == null ? null : actors.resolve(userId, s));
+    }
+
+    /**
+     * @param lens  보는 사람의 차단·메모 — 글 {@code blocked}(제목 단어 판정, 게시판 글 목록과 같음)와 작성자 {@code memo}
+     * @param group 소모임 글이면 소모임 칸 — 소모임 글에는 이전·다음 글이 없고(null) 댓글 많은 글 보호가 걸리지 않는다(원본과 같다)
+     */
     private PostDetailView view(PostEntity post, EffectiveBoard b, BoardCatalogSnapshot s, Long userId, int viewCount, boolean liked, Instant now,
-                                ViewerBlocks.Lens lens) {
+                                ViewerBlocks.Lens lens, PostGroupView group) {
         AuthorMembers members = authors.members(post.getAuthorId() == null ? List.of() : List.of(post.getAuthorId()));
-        Optional<PostNeighborData> older = postQueries.older(b.id(), post.getId(), now);
-        Optional<PostNeighborData> newer = postQueries.newer(b.id(), post.getId(), now);
+        Optional<PostNeighborData> older = post.isGroupPost() ? Optional.empty() : postQueries.older(b.id(), post.getId(), now);
+        Optional<PostNeighborData> newer = post.isGroupPost() ? Optional.empty() : postQueries.newer(b.id(), post.getId(), now);
         PostAuthorView author = authors.of(post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), members, s).withMemo(lens.memoOf(post.getAuthorId()));
         DebateReader.Status highlight = debate.status(post.getId(), now);
         return new PostDetailView(Long.toString(post.getId()), new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()),
                 prefixRef(b, post.getPrefixId()), post.getTitle(), post.getContentFormat().name(), post.getContent(),
                 author, post.getCreatedAt(), post.getEditedAt(), viewCount,
                 post.getLikeCount(), liked, post.getCommentCount(), post.isAdult(), userId != null && userId.equals(post.getAuthorId()),
-                protection(b, post.getCommentCount()), post.getDeleteScheduledAt(), older.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null),
+                protection(b, post), post.getDeleteScheduledAt(), older.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null),
                 newer.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null), Boolean.TRUE.equals(s.security().externalLinkNofollow()),
                 lens.blockedOf(post.getAuthorId(), post.getTitle()), highlight.highlighted(), debate.summary(highlight, post, b, userId, now),
-                pollReader.forPost(post, userId, now));
+                pollReader.forPost(post, userId, now), group);
+    }
+
+    /** 글의 댓글 많은 글 보호 — 소모임 글은 걸리지 않는다(게시판 정책을 받지 않는다 — 원본 「운영진·운영자·소모임 글은 해당 없다」) */
+    static PostProtectionView protection(EffectiveBoard b, PostEntity post) {
+        if (post.isGroupPost()) {
+            return new PostProtectionView(false, false, b.commentProtectDelete(), b.commentProtectDelayMinutes(), b.commentProtectMin());
+        }
+        return protection(b, post.getCommentCount());
     }
 
     /** 댓글 많은 글 보호 — 보이는 댓글 수가 기준 이상이면 보호 중 */

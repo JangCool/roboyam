@@ -32,7 +32,7 @@ public class PointSettingEntity {
     private int dealEndRequestPoints;
     private int dealEndRequestDailyLimit;
     private int signupPoints;
-    // ── V89 적립 조건(커머스 1-3 — commerce.md 6-2) ──
+    // ── V90 적립 조건(커머스 1-3 — commerce.md 6-2) ──
     private int postMinLength;
     private int commentMinLength;
     private boolean commentOwnPostExcluded;

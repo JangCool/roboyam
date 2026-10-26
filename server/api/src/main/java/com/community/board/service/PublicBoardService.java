@@ -65,8 +65,14 @@ public class PublicBoardService {
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = requireActive(s, slug);
         BoardActor actor = actors.resolve(userId, s);
-        String writeBlocked = BoardAccessPolicy.writeBlocked(b, actor, s);
-        String commentBlocked = BoardAccessPolicy.commentBlocked(b, actor, s);
+        return detail(s, b, actor, BoardAccessPolicy.writeBlocked(b, actor, s), BoardAccessPolicy.commentBlocked(b, actor, s));
+    }
+
+    /**
+     * 게시판 하나 + 유효 정책 + 보는 사람 판정 — 쓰기·댓글 판정은 부르는 쪽이 정한다(공개 게시판은 {@link BoardAccessPolicy}, 소모임 게시판은 소모임 판정 —
+     * {@code GET /api/groups/{id}/board}, 소모임 2단계).
+     */
+    public static BoardDetailView detail(BoardCatalogSnapshot s, EffectiveBoard b, BoardActor actor, String writeBlocked, String commentBlocked) {
         BoardSecurityValues sec = s.security();
         BoardView v = view(b);
         return new BoardDetailView(v.id(), v.slug(), v.name(), v.nameEn(), v.description(), v.investmentNotice(), v.staffOnlyWrite(), v.writeMin(),

@@ -4,6 +4,9 @@ import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.BoardPrefixInfo;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.BoardCatalog;
+import com.community.group.entity.GroupEntity;
+import com.community.group.entity.GroupStatus;
+import com.community.group.repository.master.GroupRepository;
 import com.community.operator.entity.OperatorEntity;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.poll.dto.PollData;
@@ -18,6 +21,7 @@ import com.community.post.dto.response.AdminPostContentView;
 import com.community.post.dto.response.AdminPostDetailView;
 import com.community.post.dto.response.AdminPostEventActorView;
 import com.community.post.dto.response.AdminPostEventView;
+import com.community.post.dto.response.AdminPostGroupView;
 import com.community.post.dto.response.AdminPostItemView;
 import com.community.post.dto.response.AdminPostListView;
 import com.community.post.dto.response.AdminPostPrefixOptionView;
@@ -94,6 +98,8 @@ public class AdminPostQueryService {
     static final String MEMBER = "MEMBER";
     static final String GUEST = "GUEST";
     static final String NOTICE_KEY = "NOTICE";
+    /** 상세 {@code contentBlocked} — 비공개 소모임 글(본문·투표를 싣지 않는다) */
+    static final String BLOCKED_GROUP_PRIVATE = "GROUP_PRIVATE";
 
     private final AdminPostRepositoryQDSL posts;
     private final PostRepository postEntities;
@@ -104,9 +110,12 @@ public class AdminPostQueryService {
     private final BoardCatalog catalog;
     private final SiteSettingsService site;
     private final PollQueries polls;
+    private final GroupRepository groupRepository;
 
     public AdminPostQueryService(AdminPostRepositoryQDSL posts, PostRepository postEntities, PostModerationEventRepository events, ProfileRepository profiles,
-                                 UserRepository users, OperatorRepository operators, BoardCatalog catalog, SiteSettingsService site, PollQueries polls) {
+                                 UserRepository users, OperatorRepository operators, BoardCatalog catalog, SiteSettingsService site, PollQueries polls,
+                                 GroupRepository groupRepository) {
+        this.groupRepository = groupRepository;
         this.polls = polls;
         this.site = site;
         this.posts = posts;
@@ -150,8 +159,12 @@ public class AdminPostQueryService {
         }
         Instant now = Instant.now();
         AdminPostItemView item = items(List.of(row), now).get(0);
-        AdminPostContentView content = new AdminPostContentView(post.getContentFormat().name(), post.isPurged() ? null : post.getContent(), post.getEditedAt());
-        return new AdminPostDetailView(item, content, eventViews(events.findByPostIdOrderByIdDesc(id)), publicUrlOf(id), pollOf(id, now));
+        // 비공개 소모임 글은 본문을 싣지 않는다(contentBlocked GROUP_PRIVATE — 내용은 신고 처리의 신고 당시 내용으로만, 소모임 2단계)
+        boolean blocked = row.restricted();
+        AdminPostContentView content = new AdminPostContentView(post.getContentFormat().name(), post.isPurged() || blocked ? null : post.getContent(),
+                post.getEditedAt());
+        return new AdminPostDetailView(item, content, eventViews(events.findByPostIdOrderByIdDesc(id)), publicUrlOf(id), blocked ? null : pollOf(id, now),
+                blocked ? BLOCKED_GROUP_PRIVATE : null);
     }
 
     /** 글 한 줄(조치 서비스가 결과를 돌려줄 때도 쓴다) */
@@ -173,16 +186,21 @@ public class AdminPostQueryService {
         Set<Long> withPoll = polls.postIdsWithPoll(ids);
         Map<Long, Integer> opinions = posts.opinionCounts(ids);
         Map<Long, Integer> pinRequests = posts.pendingPinRequests(ids);
+        Map<Long, GroupEntity> groupById = new HashMap<>();
+        List<Long> groupIds = rows.stream().map(AdminPostListRow::groupId).filter(Objects::nonNull).distinct().toList();
+        if (!groupIds.isEmpty()) {
+            groupRepository.findAllById(groupIds).forEach(g -> groupById.put(g.getId(), g));
+        }
         List<AdminPostItemView> out = new ArrayList<>(rows.size());
         for (AdminPostListRow r : rows) {
-            out.add(item(r, s, profileById, userById, reports, debates, withPoll, opinions, pinRequests, now));
+            out.add(item(r, s, profileById, userById, reports, debates, withPoll, opinions, pinRequests, groupById, now));
         }
         return out;
     }
 
     private static AdminPostItemView item(AdminPostListRow r, BoardCatalogSnapshot s, Map<Long, ProfileEntity> profileById, Map<Long, UserEntity> userById,
                                           Map<Long, Integer> reports, Set<Long> debates, Set<Long> withPoll, Map<Long, Integer> opinions,
-                                          Map<Long, Integer> pinRequests, Instant now) {
+                                          Map<Long, Integer> pinRequests, Map<Long, GroupEntity> groupById, Instant now) {
         EffectiveBoard b = r.boardId() == null ? null : s.board(r.boardId()).orElse(null);
         AdminPostBoardRefView board = new AdminPostBoardRefView(r.boardId() == null ? null : Long.toString(r.boardId()), b == null ? null : b.name(),
                 b == null ? null : b.nameEn(), b == null ? null : b.slug());
@@ -203,11 +221,17 @@ public class AdminPostQueryService {
         boolean hidden = r.hiddenAt(now);
         Instant deletedAt = r.deletedAt() != null ? r.deletedAt()
                 : AdminPostListRow.DELETED.equals(state) && r.deleteScheduledAt() != null ? r.deleteScheduledAt() : null;
-        return new AdminPostItemView(Long.toString(r.id()), board, prefix, r.title(), author, state, hidden ? r.hiddenReason() : null,
+        AdminPostGroupView group = null;
+        if (r.groupId() != null) {
+            GroupEntity g = groupById.get(r.groupId());
+            group = new AdminPostGroupView(Long.toString(r.groupId()), g == null ? null : g.getName(), r.restricted() ? "PRIVATE" : "PUBLIC",
+                    g != null && g.getStatus() == GroupStatus.DELETED, r.groupLeftAt() != null);
+        }
+        return new AdminPostItemView(Long.toString(r.id()), board, prefix, r.restricted() ? null : r.title(), author, state, hidden ? r.hiddenReason() : null,
                 hidden ? r.hiddenAt() : null, hidden ? r.hiddenUntil() : null, deletedAt, r.deleteScheduledAt(), r.purgedAt() != null, r.pinnedAt() != null,
                 p != null && NOTICE_KEY.equals(p.commonKey()), Boolean.TRUE.equals(r.adult()), debates.contains(r.id()), withPoll.contains(r.id()), n(r.likeCount()),
                 n(r.commentCount()), n(r.viewCount()), reports.getOrDefault(r.id(), 0), r.createdAt(), opinions.getOrDefault(r.id(), 0),
-                pinRequests.getOrDefault(r.id(), 0));
+                pinRequests.getOrDefault(r.id(), 0), group, r.restricted());
     }
 
     private List<AdminPostEventView> eventViews(List<PostModerationEventEntity> rows) {

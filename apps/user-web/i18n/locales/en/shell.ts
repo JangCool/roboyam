@@ -27,7 +27,7 @@ export default {
     bottomTabs: 'Bottom tabs',
     tabHome: 'Home',
     tabBoards: 'Boards',
-    tabGroups: 'Groups',
+    tabGroups: 'Clubs',
     tabNotifications: 'Notifications',
 
     // Write button

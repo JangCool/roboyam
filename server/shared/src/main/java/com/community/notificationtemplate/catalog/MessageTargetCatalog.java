@@ -209,7 +209,68 @@ public final class MessageTargetCatalog {
                 "/me/items", List.of()));
         out.add(member(MemberEvent.POINT_SHOP_REFUND_REJECTED, List.of(MessageVariable.of("itemName", "refundItemName"), MessageVariable.of("reason", "refundRejectReason")),
                 new InAppText("member.notification.POINT_SHOP_REFUND_REJECTED.title", null, "{{reason}}", List.of("itemName")), "/me/items", List.of()));
+        // 소모임(V90 — group-contract 1단계) — 소모임 이름(+반려·거절·비활성 사유, 가입 신청한 회원)
+        out.add(groupEvent(MemberEvent.GROUP_APPROVED, null, "/groups/123"));
+        out.add(groupEvent(MemberEvent.GROUP_REJECTED, "groupRejectReason", "/groups/me"));
+        out.add(member(MemberEvent.GROUP_JOIN_REQUEST, List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("actorName", "groupApplicant")),
+                new InAppText("member.notification.GROUP_JOIN_REQUEST.title", null, null, List.of("groupName", "actorName")), "/groups/123/manage/applications",
+                List.of()));
+        out.add(groupEvent(MemberEvent.GROUP_JOIN_APPROVED, null, "/groups/123"));
+        out.add(groupEvent(MemberEvent.GROUP_JOIN_REJECTED, "groupJoinRejectReason", "/groups/me"));
+        out.add(groupEvent(MemberEvent.GROUP_KICKED, null, "/groups"));
+        out.add(groupEvent(MemberEvent.GROUP_DISSOLVED, null, "/groups"));
+        out.add(groupEvent(MemberEvent.GROUP_LEADER_TRANSFERRED, null, "/groups/123"));
+        out.add(groupEvent(MemberEvent.GROUP_DEACTIVATED, "groupDeactivateReason", "/groups/123"));
+        out.add(groupEvent(MemberEvent.GROUP_REACTIVATED, null, "/groups/123"));
+        // 소모임 글 비공개 되돌림(V91 — group-contract 2단계) — 소모임 이름 · 처리자(「모임장이」·「매니저가」) · 글 제목. 누르면 그 글
+        out.add(member(MemberEvent.GROUP_POST_UNPUBLISHED, List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("actorRole", "groupActorRole"),
+                        MessageVariable.of("postTitle", "groupPostTitle")),
+                new InAppText("member.notification.GROUP_POST_UNPUBLISHED.title", null, "{{postTitle}}", List.of("groupName", "actorRole")), "/posts/123",
+                List.of()));
+        // 소모임 매니저(V92 — group-contract 3단계) — 임명·맡은 일 바뀜은 본문이 맡은 일, 사퇴·매니저 강퇴는 일으킨 매니저(+내보낸 멤버)
+        for (MemberEvent event : List.of(MemberEvent.GROUP_MANAGER_APPOINTED, MemberEvent.GROUP_MANAGER_PERMISSIONS_CHANGED)) {
+            out.add(member(event, List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("permissions", "groupManagerTasks")),
+                    new InAppText("member.notification." + event.code() + ".title", null, "{{permissions}}", List.of("groupName")), "/groups/123/manage", List.of()));
+        }
+        out.add(groupEvent(MemberEvent.GROUP_MANAGER_REMOVED, null, "/groups/123"));
+        out.add(member(MemberEvent.GROUP_MANAGER_RESIGNED, List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("actorName", "groupManagerName")),
+                new InAppText("member.notification.GROUP_MANAGER_RESIGNED.title", null, null, List.of("groupName", "actorName")), "/groups/123/manage/members",
+                List.of()));
+        out.add(member(MemberEvent.GROUP_KICKED_BY_MANAGER, List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("actorName", "groupManagerName"),
+                        MessageVariable.of("targetName", "groupKickedMember")),
+                new InAppText("member.notification.GROUP_KICKED_BY_MANAGER.title", null, null, List.of("groupName", "actorName", "targetName")),
+                "/groups/123/manage/members", List.of()));
+        // 소모임 일정(V93 — group-contract 4단계) — 제목은 소모임 이름 + 한 일(「새 일정이 등록됐어요」·「일정이 수정됐어요」·「일정이 취소됐어요」), 본문은 일정 제목(+취소 사유)
+        out.add(member(MemberEvent.GROUP_EVENT, List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("eventAction", "groupEventAction"),
+                        MessageVariable.of("eventTitle", "groupEventTitle"), MessageVariable.of("reason", "groupEventCancelReason")),
+                new InAppText("member.notification.GROUP_EVENT.title", null, "{{eventTitle}}", List.of("groupName", "eventAction")), "/groups/123/events/456",
+                List.of()));
+        // 소모임 공개 범위·공개 요청(V94 — group-contract 5단계) — 제목은 소모임 이름 + 한 사람(요청한 작성자 · 「모임장이」·「매니저가」), 본문은 글 제목(+거절 사유)
+        out.add(member(MemberEvent.GROUP_PUBLISH_REQUESTED, List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("actorName", "groupPublishRequester"),
+                        MessageVariable.of("postTitle", "groupPublishPostTitle")),
+                new InAppText("member.notification.GROUP_PUBLISH_REQUESTED.title", null, "{{postTitle}}", List.of("groupName", "actorName")),
+                "/groups/123/manage/publish-requests", List.of()));
+        for (MemberEvent event : List.of(MemberEvent.GROUP_PUBLISH_APPROVED, MemberEvent.GROUP_PUBLISH_REJECTED, MemberEvent.GROUP_POST_PUBLISHED,
+                MemberEvent.GROUP_POST_MEMBERS_ONLY, MemberEvent.GROUP_POST_RELEASED)) {
+            List<MessageVariable> params = event == MemberEvent.GROUP_PUBLISH_REJECTED
+                    ? List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("actorRole", "groupPublishActorRole"),
+                    MessageVariable.of("postTitle", "groupPublishPostTitle"), MessageVariable.of("reason", "groupPublishRejectReason"))
+                    : List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("actorRole", "groupPublishActorRole"),
+                    MessageVariable.of("postTitle", "groupPublishPostTitle"));
+            out.add(member(event, params, new InAppText("member.notification." + event.code() + ".title", null, "{{postTitle}}", List.of("groupName", "actorRole")),
+                    "/posts/123", List.of()));
+        }
+        out.add(member(MemberEvent.GROUP_VISIBILITY_CHANGED, List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("visibility", "groupVisibilityTo")),
+                new InAppText("member.notification.GROUP_VISIBILITY_CHANGED.title", null, null, List.of("groupName", "visibility")), "/groups/123", List.of()));
         return out;
+    }
+
+    /** 소모임 회원 이벤트 — 제목은 소모임 이름, 사유가 있는 이벤트는 본문이 사유({@code reasonId} = 사유 변수의 설명·견본 키) */
+    private static MessageTarget groupEvent(MemberEvent event, String reasonId, String path) {
+        List<MessageVariable> params = reasonId == null ? List.of(MessageVariable.of("groupName", "groupName"))
+                : List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("reason", reasonId));
+        return member(event, params, new InAppText("member.notification." + event.code() + ".title", null, reasonId == null ? null : "{{reason}}",
+                List.of("groupName")), path, List.of());
     }
 
     private static MessageTarget member(MemberEvent event, List<MessageVariable> params, InAppText inApp, String path, List<MessageCondition> conditions) {

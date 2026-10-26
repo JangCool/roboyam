@@ -299,7 +299,7 @@ export default class UtilMenu {
      * 메뉴의 "내 소모임" 이름 — 소모임 이름(`GROUPS`) 앞에 "내"
      * @param {Translate} t - 번역 함수.
      * @param {Partial<SiteTerms> | null} [terms] - 운영자가 바꾼 서비스 이름 표. 없으면 기본 이름.
-     * @returns {string} 예: "내 소모임"(영어는 "My Groups").
+     * @returns {string} 예: "내 소모임"(영어는 "My Clubs").
      */
     static myGroupsLabel(t: Translate, terms: Partial<SiteTerms> | null = null): string {
         return t('menu.myGroups', { groups: UtilSiteTerms.term(t, 'GROUPS', terms) });
@@ -309,7 +309,7 @@ export default class UtilMenu {
      * 메뉴의 "전체 소모임" 이름 — 소모임 이름(`GROUPS`) 앞에 "전체"
      * @param {Translate} t - 번역 함수.
      * @param {Partial<SiteTerms> | null} [terms] - 운영자가 바꾼 서비스 이름 표. 없으면 기본 이름.
-     * @returns {string} 예: "전체 소모임"(영어는 "All Groups").
+     * @returns {string} 예: "전체 소모임"(영어는 "All Clubs").
      */
     static allGroupsLabel(t: Translate, terms: Partial<SiteTerms> | null = null): string {
         return t('menu.allGroups', { groups: UtilSiteTerms.term(t, 'GROUPS', terms) });

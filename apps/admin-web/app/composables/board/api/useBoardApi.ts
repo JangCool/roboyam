@@ -35,7 +35,7 @@ import type {
  *              409 `BOARD_NAME_DUPLICATE` · `BOARD_INVESTMENT_NOTICE_LOCKED` · `PREFIX_IN_USE`(글이 있는 말머리를 지움) · `PREFIX_LIMIT`. 바뀐 부분에 따라 `board.manage`·`board.settings`·`board.staff.limit`)
  *   - `PATCH  /api/admin/boards/{id}/active` `BoardActiveRequest` → 200 `BoardListItem` (`board.manage`)
  *   - `PUT    /api/admin/boards/order` `BoardOrderRequest` → 200 `BoardListResponse` (모든 게시판 ID 의 새 순서. `board.manage`)
- *   - `DELETE /api/admin/boards/{id}` → 204 (글이 있으면 409 `BOARD_HAS_POSTS`. `board.delete`)
+ *   - `DELETE /api/admin/boards/{id}` → 204 (글이 있으면 409 `BOARD_HAS_POSTS`, 소모임이 쓴 적 있는 게시판은 409 `BOARD_HAS_GROUPS`. `board.delete`)
  *   - `GET    /api/admin/boards/{id}/staff` → 200 `BoardStaffMember[]` (`board.read`)
  *   - `POST   /api/admin/boards/{id}/staff` `BoardStaffAppointRequest` → 200 `BoardStaffMember[]` (409 `BOARD_STAFF_LIMIT` · `BOARD_STAFF_INELIGIBLE` · `BOARD_STAFF_KIND`. `board.staff.manage`)
  *   - `DELETE /api/admin/boards/{id}/staff/{memberId}` → 200 `BoardStaffMember[]` (`board.staff.manage`)

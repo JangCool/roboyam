@@ -17,7 +17,7 @@ export default {
         CASE_NO: '사건 번호',
     },
     searchPlaceholder: {
-        TITLE: '대상 글 제목을 입력하세요',
+        TITLE: '대상 글 제목·소모임 이름을 입력하세요',
         AUTHOR: '대상 작성자를 입력하세요',
         CASE_NO: '사건 번호를 입력하세요',
     },
@@ -50,12 +50,14 @@ export default {
     total: '전체 {count}건',
     postFilter: '글 #{id} 의 신고만',
     postFilterClear: '글 거르기 풀기',
+    groupFilter: '소모임 #{id} 의 신고만',
+    groupFilterClear: '소모임 거르기 풀기',
 
     // ── 목록 ──
     loadFailed: '신고 목록을 불러오지 못했어요',
     refreshFailed: '목록을 새로 받지 못했어요. {reason}',
     empty: '처리할 신고가 없어요',
-    emptyHint: '회원이 글이나 댓글을 신고하면 여기에 사건으로 모여요.',
+    emptyHint: '회원이 글·댓글·소모임을 신고하면 여기에 사건으로 모여요.',
     col: {
         caseNo: '사건 번호',
         target: '대상',
@@ -73,11 +75,13 @@ export default {
     targetType: {
         POST: '글',
         COMMENT: '댓글',
+        GROUP: '소모임',
     },
     targetState: {
         PUBLIC: '공개',
         HIDDEN: '숨김',
         DELETED: '삭제',
+        INACTIVE: '비활성',
     },
     hiddenReason: {
         REPORTED: '신고 자동 숨김',
@@ -92,6 +96,11 @@ export default {
     caseNoValue: '#{no}',
     reportCountValue: '{n}건',
     reasonChip: '{name} {n}',
+    groupReason: {
+        PROMOTION: '홍보·영업 목적',
+        OFFLINE_RISK: '오프라인 모임 위험',
+        STOCK_RECOMMENDATION: '종목 추천·유료 모집',
+    },
     status: {
         PENDING: '대기',
         IN_REVIEW: '검토 중',
@@ -105,12 +114,14 @@ export default {
         HIDE: '숨기기',
         KEEP_HIDDEN: '자동 숨김 확정',
         DELETE: '삭제',
+        DEACTIVATE: '소모임 비활성화',
         DISMISS: '무시',
     },
     actionName: {
         HIDE: '숨김',
         KEEP_HIDDEN: '자동 숨김 확정',
         DELETE: '삭제',
+        DEACTIVATE: '소모임 비활성화',
         DISMISS: '무시',
     },
     dialog: {
@@ -125,6 +136,10 @@ export default {
         DELETE: {
             title: '대상을 삭제할까요?',
             text: '글은 게시글 관리 삭제와 같아요(받은 포인트 회수). 댓글은 지우고 댓글 수와 포인트를 되돌려요. 게시판 정책이 켜져 있으면 작성자에게 알림이 가요. 사건은 처리됨으로 닫혀요.',
+        },
+        DEACTIVATE: {
+            title: '소모임을 비활성화할까요?',
+            text: '소모임 관리의 비활성화와 같아요 — 공개 사이트에서는 안내 화면만 보이고, 모임장에게 처리 글(200자까지)이 사유로 알림으로 가요. 비활성 기록에 이 사건 번호가 남아요. 소모임 관리에서 다시 열 수 있어요. 사건은 처리됨으로 닫혀요.',
         },
         DISMISS: {
             title: '이 신고를 무시할까요?',
@@ -151,6 +166,7 @@ export default {
         HIDE: '대상을 숨기고 사건을 닫았어요.',
         KEEP_HIDDEN: '자동 숨김을 확정하고 사건을 닫았어요.',
         DELETE: '대상을 삭제하고 사건을 닫았어요.',
+        DEACTIVATE: '소모임을 비활성화하고 사건을 닫았어요.',
         DISMISS: '신고를 무시했어요.',
         REOPEN: '사건을 다시 열었어요.',
     },
@@ -192,6 +208,14 @@ export default {
     detailLoadFailed: '사건을 불러오지 못했어요',
     targetTitle: '대상',
     openPostAdmin: '게시글 관리에서 보기',
+    openGroupAdmin: '소모임 관리에서 보기',
+    groupLeader: '모임장',
+    groupLeaderNow: '지금 모임장',
+    groupMembers: '멤버',
+    groupMembersValue: '{members} / {capacity}명',
+    groupCategory: '분류',
+    groupOffline: '오프라인 모임이에요. 모임 안내와 일정에 위험한 점이 없는지 확인해 주세요.',
+    groupStock: '투자 고지 소모임이에요. 종목 추천·유료 모집이 없는지 확인해 주세요.',
     openPublic: '공개 사이트에서 보기',
     targetStateLabel: '대상 상태',
     firstReported: '첫 신고',

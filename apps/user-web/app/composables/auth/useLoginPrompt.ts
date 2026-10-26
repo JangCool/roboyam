@@ -17,9 +17,11 @@
  * prompt('report');                           // 신고(글·댓글·소모임·프로필 이미지·쪽지의 ⋯ 메뉴, 7-1)
  * prompt('dealEnd');                          // 핫딜 종료 알리기(딜 카드의 "품절·가격이 달라졌어요", H-5)
  * prompt('view', '/posts/9#comment-5');       // 비회원에게 가려진 댓글 본문(댓글 지연 노출, COM-003) — 로그인하면 그 글의 그 댓글로 돌아온다
+ * prompt('groupJoin');                       // 소모임 가입·신청(상세의 가입 단추)
+ * prompt('groupCreate', '/groups/new');      // 소모임 만들기(목록의 + 만들기)
  * ```
  */
-export type LoginPromptAction = 'write' | 'comment' | 'reply' | 'opinion' | 'like' | 'vote' | 'scrap' | 'block' | 'memo' | 'dm' | 'report' | 'dealEnd' | 'view';
+export type LoginPromptAction = 'write' | 'comment' | 'reply' | 'opinion' | 'like' | 'vote' | 'scrap' | 'block' | 'memo' | 'dm' | 'report' | 'dealEnd' | 'view' | 'groupJoin' | 'groupCreate';
 
 export interface LoginPromptState {
     open: boolean;

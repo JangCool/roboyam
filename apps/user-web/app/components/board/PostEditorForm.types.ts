@@ -16,6 +16,12 @@ export interface PostFormValues {
     captcha: boolean;
 }
 
+/** 게시판 칸 대신 고정으로 보일 자리 — 소모임 글쓰기의 「소모임: 이름」(게시판은 소모임이 정한다) */
+export interface PostFixedTarget {
+    label: string;
+    value: string;
+}
+
 /** 게시판 고르기 목록의 한 항목 */
 export interface PostBoardOption {
     slug: string;

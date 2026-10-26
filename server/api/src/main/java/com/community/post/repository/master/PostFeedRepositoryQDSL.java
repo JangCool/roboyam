@@ -31,7 +31,7 @@ public class PostFeedRepositoryQDSL extends RoboyamRepositoryQDSL {
 
     private static ConstructorExpression<PostRowData> row() {
         return Projections.constructor(PostRowData.class, POST.id, POST.boardId, POST.prefixId, POST.authorId, POST.guestName, POST.authorIp, POST.title,
-                POST.hasImage, POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.pinnedAt, POST.hiddenAt, POST.hiddenUntil, POST.hiddenReason, POST.createdAt);
+                POST.hasImage, POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.pinnedAt, POST.hiddenAt, POST.hiddenUntil, POST.hiddenReason, POST.createdAt, POST.groupId);
     }
 
     /**
@@ -45,20 +45,25 @@ public class PostFeedRepositoryQDSL extends RoboyamRepositoryQDSL {
         if (boardIds.isEmpty()) {
             return List.of();
         }
-        BooleanExpression where = POST.boardId.in(boardIds).and(PostRepositoryQDSL.alive(POST, now)).and(PostRepositoryQDSL.notHidden(POST, now));
+        BooleanExpression where = POST.boardId.in(boardIds).and(PostRepositoryQDSL.alive(POST, now)).and(PostRepositoryQDSL.notHidden(POST, now))
+                .and(PostRepositoryQDSL.feedVisible(POST));
         if (beforeId != null) {
             where = where.and(POST.id.lt(beforeId));
         }
         return query.select(row()).from(POST).where(where).orderBy(POST.id.desc()).limit(limit).fetch();
     }
 
-    /** 글 ID 로 줄 읽기 — 지금 보이고 숨기지 않은 글만(게시판 판정은 부르는 쪽). 순서는 정하지 않는다 */
+    /**
+     * 글 ID 로 줄 읽기 — 지금 보이고 숨기지 않은 글만(게시판 판정은 부르는 쪽). 순서는 정하지 않는다. 소모임 글은 지금 비멤버에게 보이는 것만
+     * ({@link PostRepositoryQDSL#feedVisible} — 인기글 스냅샷 뒤에 멤버 전용으로 돌린 글은 빠진다)
+     */
     public List<PostRowData> visibleRows(Collection<Long> ids, Instant now) {
         if (ids.isEmpty()) {
             return List.of();
         }
         return query.select(row()).from(POST)
-                .where(POST.id.in(ids), PostRepositoryQDSL.alive(POST, now), PostRepositoryQDSL.notHidden(POST, now))
+                .where(POST.id.in(ids), PostRepositoryQDSL.alive(POST, now), PostRepositoryQDSL.notHidden(POST, now),
+                        PostRepositoryQDSL.feedVisible(POST))
                 .fetch();
     }
 }

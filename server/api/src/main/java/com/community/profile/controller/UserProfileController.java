@@ -1,6 +1,7 @@
 package com.community.profile.controller;
 
 import com.community.auth.dto.AuthUser;
+import com.community.group.dto.response.ProfileGroupsView;
 import com.community.post.dto.response.PostFeedPageView;
 import com.community.profile.dto.response.AuthorCommentPageView;
 import com.community.profile.dto.response.PublicProfileView;
@@ -44,6 +45,12 @@ public class UserProfileController {
     public ApiResponse<AuthorCommentPageView> comments(@PathVariable String id, @RequestParam(required = false) String size,
                                                        @RequestParam(required = false) String cursor, Authentication authentication) {
         return ApiResponse.success(service.comments(id, size, cursor, viewerId(authentication)));
+    }
+
+    /** 소모임 탭 — 그 회원이 지금 멤버인 열린 소모임(가입이 최근인 순 최대 50개, 더보기 없음). 줄의 myState 는 보는 사람의 상태(소모임 6단계) */
+    @GetMapping("/groups")
+    public ApiResponse<ProfileGroupsView> groups(@PathVariable String id, Authentication authentication) {
+        return ApiResponse.success(service.groups(id, viewerId(authentication)));
     }
 
     /** 로그인한 회원(비회원 null) */
