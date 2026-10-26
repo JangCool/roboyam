@@ -94,6 +94,9 @@ public final class AdminScreenRegistry {
                     folder("menu.events", "pi pi-bolt",
                             s("operatorEvents", "/settings/notifications/operator", "menu.eventsOperator", null, Permission.NOTIFICATION_READ),
                             s("memberEvents", "/settings/notifications/member", "menu.eventsMember", null, Permission.NOTIFICATION_READ))),
+            // 커머스 묶음(커머스 0-5) — 커머스 설정(지금은 「요청 제한」 구획). admin-web UtilAdminMenu 의 settingsCommerce 와 같은 키·주소·권한·차례
+            section(SETTINGS, "menu.commerce", "pi pi-shopping-cart",
+                    leaf(s("commerceSettings", "/settings/commerce", "menu.commerceSettings", "pi pi-sliders-h", Permission.COMMERCE_SETTINGS))),
             section(SETTINGS, "menu.operatorsAndPermissions", "pi pi-users",
                     leaf(s("operators", "/settings/operators", "menu.operators", "pi pi-user-edit", Permission.OPERATOR_READ)),
                     folder("menu.roles", "pi pi-id-card",

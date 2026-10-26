@@ -276,6 +276,15 @@ export default class UtilAdminMenu {
                 },
             ],
         },
+        // 커머스 묶음 — 판매·결제 공통 설정(commerce.md 12-4 · 13-5). 지금은 「커머스 설정」(요청 제한) 하나이고 판매 스위치·사업자 정보 등은 그 화면의 구획으로 더한다.
+        // ⚠ 화면은 아직 목업(`useCommerceSettingsApi`)이다. 서버 `AdminScreenRegistry` 에도 같은 한 줄이 필요하다(서버 단계)
+        {
+            key: 'settingsCommerce',
+            mode: 'settings',
+            icon: 'pi pi-shopping-cart',
+            labelKey: 'menu.commerce',
+            items: [{ key: 'commerceSettings', to: '/settings/commerce', icon: 'pi pi-sliders-h', labelKey: 'menu.commerceSettings', permission: 'commerce.settings' }],
+        },
         {
             key: 'operatorsAndPermissions',
             mode: 'settings',

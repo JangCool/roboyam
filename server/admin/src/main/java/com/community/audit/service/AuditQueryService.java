@@ -211,6 +211,8 @@ public class AuditQueryService {
             case "SITE" -> labels.text("audit.targetName.SITE");
             case "GRADE" -> labels.text("audit.targetName.GRADE");
             case "LOGIN_SECURITY" -> labels.text("audit.targetName.LOGIN_SECURITY");
+            case "COMMERCE_SETTINGS" -> labels.text("audit.targetName.COMMERCE_SETTINGS");
+            case "AUDIT_RETENTION" -> labels.text("audit.targetName.AUDIT_RETENTION");
             // 약관 — 대상 ID 는 종류(TERMS·PRIVACY). 모르는 종류는 키가 없어 비어 있다
             case "TERMS" -> labels.text("audit.targetName.TERMS." + row.targetId());
             default -> null;

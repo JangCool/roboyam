@@ -56,6 +56,9 @@ export default {
     point: 'Points',
     points: 'Point history',
     pointPolicy: 'Point policy',
+    // Commerce section (settings mode) — settings shared by sales and payments
+    commerce: 'Commerce',
+    commerceSettings: 'Commerce settings',
     group: 'Clubs',
     groups: 'Club list',
     groupRequests: 'Creation requests',
