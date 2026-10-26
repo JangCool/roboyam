@@ -7,7 +7,7 @@
 ## 작업 단위와 순서
 | 단위 | 내용 | 담당 | 상태 |
 |---|---|---|---|
-| 2a-1 화면 목업 | admin 결제 주문(목록·상세 서랍: 이력·취소·웹훅) · 웹훅 수신 내역 · 결제 이상 · 대사 불일치 · `/settings/portone` 「결제」 카드, user-web `/dev/payment`(시험 주문 + 가짜 결제창) | frontend | 시작 |
+| 2a-1 화면 목업 | admin 결제 주문(목록·상세 서랍: 이력·취소·웹훅) · 웹훅 수신 내역 · 결제 이상 · 날짜별 대사 · 대사 불일치 · `/settings/portone` 카드 셋, user-web `/dev/payment`(시험 주문 + 가짜 결제창) | frontend | **화면 확정 2026-10-26**(아래 「2a-1 화면 목업」, 브랜치 `claude/commerce-2a-1-payment-screens-4ae2d1`) |
 | 2a-2 결제 핵심 서버 | V90, Fake·포트원 게이트웨이, 주문 만들기·확정·완료 API·시험 핸들러, 웹훅, 취소 대기열·워커, READY 정리, 규칙 테스트 | backend | 시작 |
 | 2a-3 대사 + 관리자 API + 연결 | 대사 배치, `R__batch_31`, 관리자 조회·처리 API, 포트원 결제 칸·API 정리, 알림·감사, 화면 연결 | backend → frontend | 2a-1 확정·2a-2 병합 뒤 |
 | 2a-4 테스트 채널 실제 확인 | dev 에 포트원 테스트 채널 키·웹훅 주소 등록, 사람이 결제창으로 결제·취소·콘솔 직접 취소 확인. 브라우저 SDK `@portone/browser-sdk` 추가(**승인 2026-10-26**, 버전은 설치 때 확인) | 사용자 + 세션 | 마지막 |
@@ -108,6 +108,43 @@
 | 포트원 결제 칸: 값 숨김·`paymentReady`·감사 칸 이름만·`site.secret` | `PortOneSettingsHttpTest`(보강) | 2a-3 |
 | 권한 준비됨·선언·403, 메뉴, 감사 분류, 문구 두 언어, 웹훅 기록 90일 정리 | `Commerce2aPermissionDeclarationTest`·`Commerce2aCatalogTest`·`PaymentCleanupBatchTest` | 2a-3 |
 - 테스트로 막지 못할 것: 실제 포트원 호출·웹훅 전송(2a-4 에서 사람이), 상수 시간 비교의 실제 시간, pg_cron 등록, 브라우저 결제창, 워커의 실제 예약 주기.
+
+## 2a-1 화면 목업 (2026-10-26 — **사용자 확정**(「화면 이대로 확정해」). 서버 없음)
+화면은 메모리 목업(`// MOCK:`·`// REAL:` 나란히, 목업은 각 `api/mock/`, `?mock=` 스위치는 목업 파일 머리)으로 만들었다. 아래 모양대로 2a-2(회원 쪽)·2a-3(관리자 쪽)이 서버를 만들고, 2a-3 이 MOCK 줄을 지운다. 문구는 i18n `payment.*`(두 앱)·`portone.*`·`menu.payment*`.
+
+**관리자(admin-web)** — 보통 모드 묶음 「결제」(`menu.payment`, 포인트 상점 다음, 아이콘 `pi pi-credit-card`). 다섯 화면 모두 조회 `commerce.payment.read`, 처리 단추는 `commerce.reconcile.manage`(없으면 잠그고 이유 표시). 처리는 모두 사유 5~200자 확인창(`PaymentReasonDialog`, 감사 돈 관련 안내).
+| 메뉴 키 | 주소 | 화면 |
+|---|---|---|
+| `paymentOrders` | `/payments/orders` | 결제 주문 목록 — 거르기 기간(기본 1주일)·상태·이상(전체·이상 있음·종류)·주문 종류·번호(결제 번호 일부 또는 회원 번호). 한 줄: 만든 시각 · 결제 번호 · 회원(닉네임·번호) · 주문(이름·종류) · 금액(주문 / 다르면 결제액 · 취소액) · 상태(+ 이상 · 취소 진행 중) · 결제 시각(READY 면 유효 시각). 줄 누르면 상세 서랍, `?payment=ID` 로도 연다 |
+| `paymentWebhooks` | `/payments/webhooks` | 웹훅 수신 내역 — 거르기 기간·결과(PROCESSED·IGNORED·REJECTED·RETRY, 각 뜻을 위에 풀이)·번호(결제 번호·webhook-id). 한 줄: 받은 시각 · 이벤트 · 결제 번호(우리 주문이면 서랍) · 결과 · HTTP · 사유 코드 · webhook-id |
+| `paymentAnomalies` | `/payments/anomalies` | 결제 이상 — 이상 결제(금액 불일치·주문 거절·늦은 결제, 자동 취소 줄 포함)와 GAVE_UP 취소를 한 목록. 기본 처리 안 된 것만(「처리된 것도 보기」), 제목 옆 「처리 안 됨 N건」. 한 줄: 발견 시각 · 종류 · 결제 · 금액 · 취소(금액·종류·상태·시도 횟수·마지막 오류·처리 기록). GAVE_UP 줄만 [다시 시도]·[수동 처리 완료] |
+| `paymentReconcileDays` | `/payments/reconcile-days` | 날짜별 대사 — 요약(마지막 대사한 날 · 다음 자동 대사 · 열린 이슈 수 → 대사 불일치) + 최근 14일 표(날짜 · 상태 PENDING·RUNNING·DONE·MISMATCH·FAILED · 확인한 건수 · 불일치 열림/전체 · 끝난 시각 · [이슈 보기] · [이 날 다시 대사](확인창, 비동기 — 4초 뒤 한 번 다시 읽음)). **사용자 요청으로 대사 불일치에서 따로 뺐다** |
+| `paymentReconciliation` | `/payments/reconciliation` | 대사 불일치 — 이슈 5종 목록. 거르기 종류·상태(기본 열림)·날짜(`?day=YYYY-MM-DD`, 칩으로 뗌). 한 줄: 발견한 날 · 종류(+ 풀이) · 결제 번호(우리 주문 있으면 서랍, 없으면 「우리 주문 없음」) · 내용 · 상태/처리 기록 · [처리] |
+- **결제 상세 서랍**(`PaymentOrderDrawer` + `usePaymentOrderDrawer`, 다섯 화면 중 넷이 같이 연다): 머리(주문 이름·상태·이상·결제 번호 + 「열면 열람 기록이 남아요」), 이상 띠, 열린 대사 이슈 띠(→ 대사 불일치) / ① 금액 네 칸(주문 금액 · 결제액 · 취소액 · 남은 금액) + 회원 · 주문 종류·대상 번호 · 결제 수단·PG · PG 거래 번호·영수증 · 확정한 길 · 결제창 연 시각 · 유효 시각 · 결제 시각 / ② 이력 타임라인(오래된 것 위, 웹훅에서 온 줄은 webhook-id) / ③ 취소 대기열(금액·종류·상태·사유·진행·마지막 오류·처리 기록, GAVE_UP 이면 결제 이상으로 가는 안내) / ④ 이 결제의 웹훅 / ⑤ [포트원에서 다시 확인](사유).
+- **`/settings/portone`**: ① 지금 쓰는 구현 — 본인인증·결제 각각 포트원/가짜(배포 설정, 읽기 전용), 가짜면 local 전용 안내, 포트원인데 준비 안 됐으면 「본인인증(결제)을 쓸 수 없어요」 ② 「공통」(상점 ID·API 비밀키) ③ 「본인인증」(본인인증 채널 키, 알약 「본인인증 준비됨」 = `identityReady`) ④ 「결제」(결제 채널 키·웹훅 비밀키 `whsec_`, 알약 「결제 준비됨」 = `paymentReady`, 콘솔 웹훅 주소 `…/api/payments/webhooks/portone` 안내). 카드마다 저장, 한 카드 저장 중엔 다른 카드 잠금. **공통·본인인증은 실제 서버(지금 `PUT/DELETE …/identity`)를 그대로 부르고 결제 칸·`paymentGateway`·`paymentReady` 만 목업**(`portone/api/mock/`).
+
+**회원(user-web)** — `/dev/payment`(개발 모드만 — 운영 빌드 404, 로그인 필요): ① 시험 주문 만들기(금액 100~1,000,000원 · 유효 1~60분) ② 결제창 — 가짜면 `PaymentFakeCheckoutDialog`(정상 결제 · 결제 실패 · 금액 바꿔 결제(금액 칸, 기본 절반) · 늦게 결제(결제 시각 = 유효 시각 + 1분)), 포트원이면 「2a-4 에서 연결」 안내로 멈춤. 결제했으면 완료 API, 실패·창 닫기는 완료 요청을 보내지 않는다 ③ 결과 — 상태 · 받아들였나/이상 풀이 · 금액·결제액·결제 시각 · 자동 취소 진행 · [결과 다시 받기]. 가짜 결제창 부품은 충전·공구 화면이 가짜 게이트웨이에서 그대로 쓴다.
+
+**확정한 목업 가정(서버 규칙)**
+1. 「다시 시도」 = GAVE_UP → PENDING, 시도 횟수 0, 다음 시도 지금(그 뒤 5회 실패하면 다시 GAVE_UP). 「수동 처리 완료」 = GAVE_UP → MANUAL 표시만 — **결제 주문의 취소 누계는 바꾸지 않는다**(실제 취소 여부는 「포트원에서 다시 확인」·대사가 맞춘다). 둘 다 처리자·사유를 취소 줄(`resolved_by`·`resolve_note`)과 이력(`CANCEL_REQUESTED`·`CANCEL_MANUAL`)에 남긴다.
+2. 「포트원에서 다시 확인」 결과 셋: `CONFIRMED`(이번에 확정 — `confirmedVia: ADMIN_RECHECK`, EXPIRED 였으면 늦은 결제 + 자동 취소) · `UNCHANGED` · `PG_NOT_PAID`. 이력 종류에 `RECHECKED` 를 더한다.
+3. 사유가 필요한 처리: 다시 시도 · 수동 처리 완료 · 다시 확인 · 이슈 처리. **「이 날 다시 대사」는 사유 없이 확인창만**(돈을 움직이지 않는다 — 감사는 남긴다).
+4. 결제 이상 목록의 한 줄 = 이상 결제 주문 하나(`ORDER:{id}`) 또는 이상이 아닌 결제의 GAVE_UP 취소 하나(`CANCEL:{id}`). 처리됨 = 그 취소가 SUCCEEDED·MANUAL.
+5. 회원 화면 결과의 「완료」 판단은 `accepted`(PAID 계열 ∧ 이상 없음) 하나로 한다.
+6. 이력 `detail`·대사 이슈 `detail`·취소 `last_error` 는 서버가 요청 언어로 푼 한 줄(개인정보·비밀값 없음)이다.
+
+**API (2a-1 이 정한 모양 — 응답은 공통 래퍼의 `data`)**
+- 회원(api, 2a-2): `POST /api/payments/{paymentId}/complete` `{ orderType, orderRefId }` → `PaymentResult { paymentId, status, anomaly, accepted, amount, paidAmount, canceledAmount, paidAt, cancel: { amount, status } | null }` · `409 PAYMENT_NOT_PAID`·`PAYMENT_ORDER_MISMATCH` · `404 PAYMENT_ORDER_NOT_FOUND` · `503 PAYMENT_GATEWAY_UNAVAILABLE`.
+- 시험 주문(api, `test-orders` 일 때만, 2a-2): `POST /api/dev/payments` `{ amount, validMinutes }` → `{ orderType: 'PAYMENT_TEST', orderRefId, expiresAt, checkout: { gateway: FAKE|PORTONE, paymentId, orderName, amount, currency, storeId, channelKey } }`(`checkout` 은 도메인 결제 시작 API 가 같이 줄 공용 모양) · `400 fields.amount|validMinutes` · `503 PAYMENT_NOT_CONFIGURED`. `POST /api/dev/payments/{paymentId}/fake-checkout` `{ outcome: PAID|FAILED, amount, late }` → 204(가짜 PG 표에 남김, 가짜가 아니면 `409 PAYMENT_GATEWAY_NOT_FAKE`, 이미 끝냈으면 `409 FAKE_PG_ALREADY_DONE`). `GET /api/dev/payments/{paymentId}` → `PaymentResult`.
+- 관리자(admin, 2a-3) — 모양 원문은 `apps/admin-web/app/composables/payment/api/usePaymentAdminApi.ts`·`.types.ts`:
+  - `GET /api/admin/payments?status=&anomaly=(종류|ANY)&orderType=&from=&to=&q=&page=&size=` → `{ items: PaymentOrderRow[], total }` · `GET /api/admin/payments/{id}` → 상세(+ `events`·`cancels`·`webhooks`·`openIssueCount`, 열람 감사) · `POST …/{id}/recheck` `{ reason }` → `{ outcome, detail }`
+  - `GET /api/admin/payment-webhooks?result=&from=&to=&q=&page=&size=`
+  - `GET /api/admin/payment-anomalies?kind=&includeResolved=&from=&to=&page=&size=` → `{ items, total, openCount }` · `POST /api/admin/payment-cancels/{id}/retry|manual` `{ reason }` → 취소 줄 · `409 PAYMENT_CANCEL_NOT_GAVE_UP`
+  - `GET /api/admin/payment-reconciliation` → `{ lastCheckedDay, nextRunAt, days[14], openIssueCount }` · `GET …/issues?type=&status=&day=&page=&size=`(열린 것 먼저) · `POST …/issues/{id}/resolve` `{ reason }` · `409 RECONCILE_ISSUE_NOT_OPEN` · `POST …/days/{day}/rerun` → 그 날 줄(RUNNING) · `409 RECONCILE_ALREADY_RUNNING` · `400 fields.day`(오늘·미래)
+  - 포트원 설정 GET 에 `paymentGateway`·`paymentReady`·결제 두 칸, 결정 14 의 `PUT …/{common|identity|payment}`·`DELETE …/{group}/{key}`, 웹훅 비밀키 `whsec_` 형식 검증(`400 fields.webhookSecret`).
+- 새 감사 행위·오류 코드 후보(2a-3 이 확정): 위 결정 목록 + `PAYMENT_CANCEL_NOT_FOUND`·`RECONCILE_ISSUE_NOT_FOUND`·`RECONCILE_ALREADY_RUNNING`·`PAYMENT_GATEWAY_NOT_FAKE`·`FAKE_PG_ALREADY_DONE`. 「다시 대사」 감사 행위 이름은 2a-3 이 정한다.
+
+**2a-3 이 맞출 것**: 서버 `AdminScreenRegistry` 에 결제 다섯 줄(키·주소·권한·아이콘·차례 위 표대로), 두 권한 `featureReady=true`(화면 `util-permission-catalog.ts` 도), 포트원 칸을 공통·본인인증·결제로 나눔(그때 `usePortoneSettingsApi` 의 공통 카드를 `…/common` 으로).
 
 ## 미확정 (포트원 문서로 구현 때 확인 — commerce.md 22절)
 - 웹훅 버전과 이벤트 이름(`Transaction.Paid`·`Cancelled`·`PartialCancelled`), 취소 웹훅의 `cancellationId` 유무, 다건 조회 요청 방식(페이지·커서), `paymentId` 길이 제한(우리 36자).
