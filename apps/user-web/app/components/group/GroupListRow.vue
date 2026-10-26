@@ -18,6 +18,8 @@
                     <GroupTag v-if="row.category" tone="neutral">{{ row.category.name }}</GroupTag>
                     <span v-for="b in badges" :key="b" data-testid="group-row-badge">{{ b }}</span>
                     <span v-if="row.stockNotice" class="font-semibold text-amber-700 dark:text-amber-400" data-testid="group-row-stock">{{ t('group.stockRowNote') }}</span>
+                    <!-- 다음 일정(4단계 — 내 소모임만) — 「일정 내일 20:00」, 제목은 마우스를 올리면 -->
+                    <GroupTag v-if="nextEventLabel" tone="blue" :title="nextEvent?.title" data-testid="group-row-next-event">{{ nextEventLabel }}</GroupTag>
                 </span>
                 <span v-if="row.summary" class="mt-1 block truncate text-xs text-surface-600 dark:text-surface-300" data-testid="group-row-summary">{{ row.summary }}</span>
             </span>
@@ -29,8 +31,9 @@
 </template>
 
 <script setup lang="ts">
-import type { GroupRow } from '~/composables/group/api/useGroupApi.types';
+import type { GroupRow, MyGroupNextEvent } from '~/composables/group/api/useGroupApi.types';
 import UtilGroup from '~/utils/util-group';
+import UtilGroupEventMessages from '~/utils/util-group-event-messages';
 import UtilGroupMessages from '~/utils/util-group-messages';
 
 interface Props {
@@ -41,15 +44,20 @@ interface Props {
     role?: string | null;
     /** 새 글 수(2단계부터 서버가 채운다 — 0 이면 그리지 않는다) */
     newPosts?: number;
+    /** 내 소모임의 다음 일정(4단계) — 없으면 그리지 않는다 */
+    nextEvent?: MyGroupNextEvent | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     mine: false,
     role: null,
     newPosts: 0,
+    nextEvent: null,
 });
 
 const { t } = useI18n();
+const time = useDisplayTime();
+const nextEventLabel = computed(() => (props.nextEvent ? UtilGroupEventMessages.nextLabel(t, props.nextEvent.startsAt, time.value) : ''));
 
 /** 오른쪽 표시의 모양 — 가입할 수 있다(파랑 테두리) · 정원 참·마감(꺼진 회색) · 이미 내 상태(글자만) */
 const ACTION_CLASS = {

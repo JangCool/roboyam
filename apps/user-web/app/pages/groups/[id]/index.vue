@@ -2,7 +2,9 @@
     <!--
         소모임 상세 `/groups/{id}?tab=posts|members|chat` — 머리(이름·멤버 수·개설·분류·모집·가입 방식·오프라인·내 상태·모임장) · 소개 · 오프라인/투자 고지 · 가입 영역 · 탭 · 데스크톱 오른쪽 「모임 정보」.
         가입 단추는 서버가 준 `join`(allowed·method·reason)으로 정한다 — 바로 가입(오프라인이면 확인 시트), 신청제·강퇴됐던 회원은 신청 시트(한마디). 비회원은 로그인 안내.
-        탭은 글(기본 — 1단계 미확정 5번을 2단계에서 글로 정함)·멤버·채팅. 일정 탭(4단계)은 그 단계에서 더한다(「준비 중」 자리를 두지 않는다).
+        탭은 글(기본 — 1단계 미확정 5번을 2단계에서 글로 정함)·일정(4단계)·멤버·채팅.
+        일정 탭(4단계, community `GroupEventsTab`): 멤버만 「다가오는 일정 N」(가까운 순, 쪽 번호 「더보기」)과 「지난 일정 보기」, 모임장·`EVENTS` 매니저(`permissions.canManageEvents`)는
+          「일정 만들기」와 줄마다 「수정」. 비멤버·비회원은 요청 없이 잠금 + 가입 단추. 목록이 소모임 없음·비활성·멤버 아님을 답하면 상세를 다시 받는다.
         글 탭(2단계, community `GroupPostsTab`): 멤버는 비공개 글까지(줄마다 「비공개」/「공개 전환됨」) + [글쓰기](`/groups/{id}/write`, 정지 중이면 꺼 두고 까닭), 비멤버·비회원은 공개로 전환된 글과
           잠금 줄(「멤버에게만 보이는 글 N개 · 가입하면 볼 수 있어요」 + 가입 단추). 커서 「더보기」. 멤버가 목록을 받으면 소모임마다 한 번 `seen`(내 소모임의 새 글 수를 지운다).
         멤버 탭·채팅 링크는 멤버에게만 열린다(비멤버는 잠금 + 가입 단추). 채팅 링크는 확인 대화상자를 거쳐 새 탭으로 연다(허용 주소만 — `UtilGroup.safeChatUrl`).
@@ -221,6 +223,57 @@
                         <p role="status" aria-live="polite" class="sr-only">{{ UtilGroupMessages.postsSummary(t, posts.status, posts.items.length, posts.hasNext) }}</p>
                     </div>
 
+                    <!-- 일정 탭 — 멤버만 요청한다 -->
+                    <div v-else-if="tab === 'events'" :aria-busy="events.status === 'loading'" data-testid="group-events">
+                        <EmptyState v-if="!isMember || events.status === 'locked'" :title="t('groupEvent.lockedTitle')" :description="t('groupEvent.lockedText')" icon="pi pi-lock" data-testid="group-events-locked">
+                            <Button v-if="lockedJoinLabel" type="button" :label="lockedJoinLabel" @click="onJoin" />
+                        </EmptyState>
+                        <div v-else-if="events.status === 'loading' || events.status === 'idle'" class="mt-3" aria-hidden="true">
+                            <div v-for="n in 3" :key="n" class="flex items-center gap-3 border-b border-surface py-3">
+                                <div class="h-16 w-12 shrink-0 animate-pulse rounded-lg bg-surface-200 dark:bg-surface-800" />
+                                <div class="min-w-0 flex-1">
+                                    <div class="h-3.5 animate-pulse rounded bg-surface-200 dark:bg-surface-800" :class="n % 2 ? 'w-4/5' : 'w-3/5'" />
+                                    <div class="mt-2 h-3 w-2/5 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
+                                </div>
+                            </div>
+                        </div>
+                        <ErrorState v-else-if="events.status === 'error'" :title="t('groupEvent.loadError')" :description="UtilGroupEventMessages.loadErrorText(t, events.errorMessage)" retry @retry="events.load" />
+                        <template v-else>
+                            <div v-if="group.permissions.canManageEvents && events.items.length > 0" class="mt-3 flex justify-end">
+                                <Button as="router-link" :to="UtilGroupEvent.newPath(group.id)" :label="t('groupEvent.create')" icon="pi pi-plus" size="small" data-testid="group-events-create" />
+                            </div>
+                            <EmptyState
+                                v-if="events.items.length === 0"
+                                :title="group.permissions.canManageEvents ? t('groupEvent.emptyManagerTitle') : t('groupEvent.emptyMemberTitle')"
+                                :description="group.permissions.canManageEvents ? t('groupEvent.emptyManagerText') : t('groupEvent.emptyMemberText')"
+                                icon="pi pi-calendar"
+                                data-testid="group-events-empty"
+                            >
+                                <Button v-if="group.permissions.canManageEvents" as="router-link" :to="UtilGroupEvent.newPath(group.id)" :label="t('groupEvent.firstCreate')" />
+                            </EmptyState>
+                            <template v-else>
+                                <h2 class="mt-3 text-sm font-semibold" data-testid="group-events-heading">{{ t('groupEvent.upcomingHeading', { n: events.total }) }}</h2>
+                                <ul class="-mx-4 m-0 mt-1 list-none p-0 md:mx-0" data-testid="group-events-list">
+                                    <GroupEventRow v-for="row in events.items" :key="row.id" :group-id="group.id" :row="row" :can-edit="group.permissions.canManageEvents" />
+                                </ul>
+                            </template>
+                            <div v-if="events.hasNext" class="py-4 text-center">
+                                <Button type="button" :label="t('common.more')" severity="secondary" variant="outlined" :loading="events.loadingMore" data-testid="group-events-more" @click="events.loadMore" />
+                                <p v-if="events.moreError" class="mt-2 text-xs text-red-600 dark:text-red-400" role="alert">{{ events.moreError }}</p>
+                            </div>
+                            <!-- 지난 일정 — 다가오는 일정이 없어도 지난 일정은 있을 수 있어 늘 둔다 -->
+                            <NuxtLink
+                                :to="UtilGroupEvent.pastPath(group.id)"
+                                class="-mx-4 mt-2 flex min-h-11 items-center justify-between border-y border-surface px-4 text-sm hover:bg-surface-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:mx-0 md:px-2 dark:hover:bg-surface-800"
+                                data-testid="group-events-past"
+                            >
+                                <span>{{ t('groupEvent.pastLink') }}</span>
+                                <i class="pi pi-angle-right text-muted-color" aria-hidden="true" />
+                            </NuxtLink>
+                        </template>
+                        <p role="status" aria-live="polite" class="sr-only">{{ UtilGroupEventMessages.summary(t, events.status, events.items.length, events.hasNext) }}</p>
+                    </div>
+
                     <!-- 멤버 탭 -->
                     <div v-else-if="tab === 'members'" :aria-busy="members.status === 'loading'" data-testid="group-members">
                         <EmptyState v-if="!isMember || members.status === 'locked'" :title="t('group.membersLockedTitle')" :description="t('group.membersLockedText')" icon="pi pi-lock" data-testid="group-members-locked">
@@ -412,6 +465,8 @@ import type { GroupChatLink, GroupDetail, GroupMember, GroupJoinRequest } from '
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilGroup, { type GroupTab } from '~/utils/util-group';
 import UtilGroupMessages from '~/utils/util-group-messages';
+import UtilGroupEvent from '~/utils/util-group-event';
+import UtilGroupEventMessages from '~/utils/util-group-event-messages';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -427,7 +482,7 @@ const overrides = useBlockOverrides();
 const { display, ensureLoaded: ensureBoardDisplay } = useBoardDisplay();
 void ensureBoardDisplay();
 
-const TAB_LABEL: Record<GroupTab, string> = { posts: 'group.tabPosts', members: 'group.tabMembers', chat: 'group.tabChat' };
+const TAB_LABEL: Record<GroupTab, string> = { posts: 'group.tabPosts', events: 'groupEvent.tab', members: 'group.tabMembers', chat: 'group.tabChat' };
 
 const id = computed(() => String(route.params.id ?? ''));
 
@@ -619,6 +674,27 @@ watch(
     () => [tab.value, group.value?.id, isMember.value, user.value?.id ?? null] as const,
     ([current, groupId]) => {
         if (current === 'posts' && groupId) void posts.load();
+    },
+    { immediate: true },
+);
+
+/* ── 일정 탭 — 멤버만 요청한다(4단계) ── */
+const events = reactive(
+    useGroupEvents({
+        groupId: id,
+        scope: 'upcoming',
+        onGone: () => void refresh(),
+    }),
+);
+
+// 일정 탭을 보고 있고 소모임·멤버 여부·로그인한 사람이 바뀌면(가입·탈퇴 포함) 다시 받는다. 멤버가 아니면 요청 없이 잠근다.
+// 탭을 다시 열 때마다 새로 받는다(일정을 만들거나 고치고 돌아와도 맞는다)
+watch(
+    () => [tab.value, group.value?.id, isMember.value, user.value?.id ?? null] as const,
+    ([current, groupId, member]) => {
+        if (current !== 'events' || !groupId) return;
+        if (member) void events.load();
+        else events.lock();
     },
     { immediate: true },
 );

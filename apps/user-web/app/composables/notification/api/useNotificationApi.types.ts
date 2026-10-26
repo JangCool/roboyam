@@ -30,7 +30,12 @@ export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'P
      * 소모임 매니저(api-groups 5-1·7절 — 3단계, 묶음 `system`, 끌 수 없다): 임명됨 · 맡은 일이 바뀜(`link` `/groups/{id}/manage`) · 해임됨(`/groups/{id}`) ·
      * 매니저가 물러남(모임장에게) · 매니저가 멤버를 강퇴함(모임장에게 — 둘 다 `/groups/{id}/manage/members`). 문구·맡은 일은 서버가 `title`·`body` 로 푼다
      */
-    | 'GROUP_MANAGER_APPOINTED' | 'GROUP_MANAGER_PERMISSIONS_CHANGED' | 'GROUP_MANAGER_REMOVED' | 'GROUP_MANAGER_RESIGNED' | 'GROUP_KICKED_BY_MANAGER';
+    | 'GROUP_MANAGER_APPOINTED' | 'GROUP_MANAGER_PERMISSIONS_CHANGED' | 'GROUP_MANAGER_REMOVED' | 'GROUP_MANAGER_RESIGNED' | 'GROUP_KICKED_BY_MANAGER'
+    /**
+     * 소모임 일정(api-groups 9절 — 4단계, 묶음 `system`): 내가 멤버인 소모임의 일정이 등록·수정·취소됨(덧붙임 `eventAction` CREATED · UPDATED · CANCELED — 문구는 서버 `title`·`body`).
+     * 소모임 알림 중 유일하게 회원이 끌 수 있다(설정 「소모임 일정」 — 서버 `MemberEvent.GROUP_EVENT`, 잠금 없음). `link` `/groups/{groupId}/events/{eventId}`
+     */
+    | 'GROUP_EVENT';
 
 /**
  * 알림 묶음 — 댓글·답글 · 계정(포인트 회수·소멸 예정·신고 숨김·닉네임 그림 검토·기능 제한 · 소모임 `GROUP_*` 전부 — 서버 `MemberNotificationType` 이 `system` 으로 묶는다) ·

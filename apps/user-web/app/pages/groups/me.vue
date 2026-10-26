@@ -1,6 +1,6 @@
 <template>
     <!--
-        내 소모임 `/groups/me` (메뉴 `GROUPS_MINE`) — 가입한 모임 · 승인 대기(가입 신청) · 내 개설 신청(검토 중 · 반려). 비회원은 로그인 안내(목록은 로그인 없이 볼 수 있다).
+        내 소모임 `/groups/me` (메뉴 `GROUPS_MINE`) — 가입한 모임(새 글 수 · 다음 일정 「일정 내일 20:00」 — 4단계) · 승인 대기(가입 신청) · 내 개설 신청(검토 중 · 반려). 비회원은 로그인 안내(목록은 로그인 없이 볼 수 있다).
         개설 신청은 아직 열린 소모임이 아니라 상세가 없다 — 검토 중은 [신청 취소], 반려는 사유 + [수정해서 다시 신청](`/groups/new?from=<신청 id>`).
     -->
     <div class="mx-auto max-w-2xl">
@@ -35,7 +35,7 @@
                     <section v-if="data.joined.length" class="mt-3" :aria-labelledby="`${uid}-joined`" data-testid="group-my-joined">
                         <h2 :id="`${uid}-joined`" class="text-sm font-semibold">{{ t('group.sectionJoined', { n: data.joined.length }) }}</h2>
                         <ul class="-mx-4 m-0 mt-1 list-none border-t border-surface p-0 md:mx-0">
-                            <GroupListRow v-for="row in data.joined" :key="row.id" :row="row" mine :role="row.role" :new-posts="row.newPostCount" />
+                            <GroupListRow v-for="row in data.joined" :key="row.id" :row="row" mine :role="row.role" :new-posts="row.newPostCount" :next-event="row.nextEvent" />
                         </ul>
                     </section>
 

@@ -6,6 +6,8 @@ import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopA
  * 소모임 API 가 주고받는 모양 — 1단계(1·2·3·4·5(5-1 제외)·7절)는 서버 `server/api/.../group/dto/response/*` 와 칸 단위로 맞췄다(2026-10-26).
  * 2단계(8절 소모임 글)는 서버 `GroupPost*View`·`PostGroupView`·`GroupDetailView`(`postCount`·`newPostCount`)와 칸 단위로 맞췄다(2026-10-26).
  * 3단계(5-1 매니저)는 서버 `GroupManagerListView`·`GroupDetailView.ManagerInfo`·`Permissions` 와 맞췄다(community 5-1 과 같은 경로·칸 — `useGroupApi.ts` 머리말).
+ * 4단계(9절 일정)는 서버 `GroupEventRowView`·`GroupEventDetailView`·`GroupEventPageView`·`GroupEventAttendeePageView`·`GroupEventResponseResultView`·`GroupEventRequest`·
+ * `MyGroupsView.NextEvent` 와 칸 단위로 맞췄다(2026-10-26).
  * 로보얌 관례: 응답은 `ApiResponse` 래퍼(`useApiClient` 가 벗겨 `data` 만 돌려준다), ID 는 모두 문자열, 시각은 ISO-8601 UTC 문자열(보이는 것은 `useDisplayTime`).
  * 원본과 다르게 둔 것은 `useGroupApi.ts` 머리말에 적는다.
  */
@@ -321,13 +323,21 @@ export interface GroupMemberListResponse {
 
 /**
  * 내 소모임 — 가입한 모임(서버 `MyGroupsView.Joined` — `GroupRow` 칸을 펼친 것 + 칸, 가입이 최근인 순).
- * `newPostCount`: 내가 글 탭을 마지막으로 본 뒤(`POST /api/groups/{id}/seen`) 올라온 남의 글 수(2단계, 지운·숨긴 글 제외). `nextEvent` 는 4단계(지금 늘 null).
+ * `newPostCount`: 내가 글 탭을 마지막으로 본 뒤(`POST /api/groups/{id}/seen`) 올라온 남의 글 수(2단계, 지운·숨긴 글 제외).
+ * `nextEvent`: 그 소모임의 가장 가까운 시작 전(UPCOMING) 일정(4단계, 서버 `MyGroupsView.NextEvent`), 없으면 null.
  */
 export interface MyGroupRow extends GroupRow {
     role: GroupRole;
     joinedAt: string;
     newPostCount: number;
-    nextEvent: unknown | null;
+    nextEvent: MyGroupNextEvent | null;
+}
+
+/** 내 소모임 줄의 다음 일정 — 취소·시작한 일정은 빠진다 */
+export interface MyGroupNextEvent {
+    id: string;
+    title: string;
+    startsAt: string;
 }
 
 /** 내 소모임 — 승인 대기 중인 가입 신청 */
@@ -499,4 +509,106 @@ export interface GroupPostVisibilityRequest {
 
 export interface GroupPostVisibilityResult {
     visibility: PostGroupVisibility;
+}
+
+// ── 일정(4단계 — community `docs/api-groups.md` 9절, 서버 `GroupEvent*View`) ──
+
+/** 진행 방식 — 온라인(모임 링크는 채팅 탭) · 오프라인(장소 필수, 개인 책임 고지) */
+export type GroupEventMode = 'ONLINE' | 'OFFLINE';
+
+/** 일정 상태 — 서버가 지금 시각으로 정한다. 시작 전(응답 가능) · 진행 중(응답 닫힘) · 끝남(끝 시각이 없으면 시작 2시간 뒤) · 취소 */
+export type GroupEventState = 'UPCOMING' | 'ONGOING' | 'ENDED' | 'CANCELED';
+
+/** 참석 응답 — 참석 · 불참 · 미정 */
+export type GroupEventResponse = 'GOING' | 'NOT_GOING' | 'MAYBE';
+
+/** 일정 범위 — 다가오는(시작 전·진행 중, 가까운 순) · 지난(끝남·취소, 최근 순) */
+export type GroupEventScope = 'upcoming' | 'past';
+
+/** 응답별 인원(서버 `GroupEventCountsView`) — 지금 멤버의 응답만 센다 */
+export interface GroupEventCounts {
+    going: number;
+    notGoing: number;
+    maybe: number;
+}
+
+/** 일정 목록 한 줄(서버 `GroupEventRowView`) — 상세의 머리와 같다. 시각은 ISO-8601 UTC */
+export interface GroupEventRow {
+    id: string;
+    title: string;
+    startsAt: string;
+    endsAt: string | null;
+    mode: GroupEventMode;
+    /** 장소(온라인이면 null) */
+    place: string | null;
+    state: GroupEventState;
+    /** 지금 멤버의 참석 응답 수 */
+    goingCount: number;
+    myResponse: GroupEventResponse | null;
+}
+
+/** 일정 상세(서버 `GroupEventDetailView`) = 목록 한 줄 + 칸 */
+export interface GroupEventDetail extends GroupEventRow {
+    description: string | null;
+    counts: GroupEventCounts;
+    /** 오프라인 일정이거나 오프라인 모임이면 true — 개인 책임 고지를 늘 보인다 */
+    offlineNotice: boolean;
+    /** 만든 사람(탈퇴했으면 `id: null`·`withdrawn: true`) */
+    creator: GroupUser | null;
+    /** 멤버이고 시작 전 */
+    canRespond: boolean;
+    /** 모임장 또는 `EVENTS` 매니저이고 시작 전·진행 중 — 수정·취소(정지·미인증은 소모임 상세의 `permissions.manageBlockedReason`) */
+    canManage: boolean;
+    cancelReason: string | null;
+    canceledAt: string | null;
+}
+
+/** `GET /api/groups/{id}/events?scope=&page=&size=` 의 조건 — `page` 1부터, `size` 1~50(기본 20) */
+export interface GroupEventListQuery {
+    scope?: GroupEventScope;
+    page?: number;
+    size?: number;
+}
+
+/** 일정 목록 한 쪽(서버 `GroupEventPageView`) — `total` 은 그 범위의 전체 수 */
+export interface GroupEventPage {
+    items: GroupEventRow[];
+    page: number;
+    hasNext: boolean;
+    total: number;
+}
+
+/**
+ * 일정 만들기·수정 본문(서버 `GroupEventRequest`) — 수정도 모든 칸을 보낸다(비운 끝 시각·설명은 지워진다).
+ * 제목 1~60자 · 설명 1000자 이하 · 장소 100자 이하(오프라인 필수, 온라인이면 무시). `offlineAck` 는 오프라인을 새로 만들 때(수정은 온라인 → 오프라인일 때만) true 필수.
+ */
+export interface GroupEventRequest {
+    title: string;
+    startsAt: string;
+    endsAt: string | null;
+    mode: GroupEventMode;
+    place: string | null;
+    description: string | null;
+    offlineAck: boolean;
+}
+
+/** 참석 응답 바꾸기·지우기의 결과(서버 `GroupEventResponseResultView`) — 내 응답(지웠으면 null)과 바뀐 뒤 응답별 인원 */
+export interface GroupEventResponseResult {
+    myResponse: GroupEventResponse | null;
+    counts: GroupEventCounts;
+}
+
+/** 참석자 한 줄 — 참석(GOING)으로 응답한 지금 멤버(닉네임·등급만 — 장식·아바타는 싣지 않는다) */
+export interface GroupEventAttendee {
+    user: GroupUser;
+    respondedAt: string;
+    leader: boolean;
+}
+
+/** `GET /api/groups/{id}/events/{eventId}/attendees`(서버 `GroupEventAttendeePageView`) — 응답이 최근인 순, `total` 은 참석 인원 */
+export interface GroupEventAttendeePage {
+    items: GroupEventAttendee[];
+    page: number;
+    hasNext: boolean;
+    total: number;
 }

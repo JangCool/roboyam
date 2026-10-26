@@ -10,14 +10,14 @@ export default {
         KICK: '멤버 강퇴',
         RECRUITING: '모집 마감·다시 열기',
         EVENTS: '일정 관리',
-        UNPUBLISH: '공개 글 되돌리기',
+        UNPUBLISH: '글 공개 처리·되돌리기',
     },
     permHint: {
         APPLICATIONS: '신청 목록을 보고 승인·거절해요',
         KICK: '일반 멤버를 내보내요',
         RECRUITING: '모집을 닫고 다시 열어요',
         EVENTS: '소모임의 일정을 만들고 고치고 취소해요',
-        UNPUBLISH: '멤버가 공개한 글을 비공개로 되돌려요',
+        UNPUBLISH: '멤버 글의 공개를 처리하고 비공개로 되돌려요',
     },
     permNote: {
         APPLICATIONS: '가입을 신청한 사람이 남긴 한마디와 예전에 강퇴된 적이 있는지를 볼 수 있어요. 믿을 수 있는 멤버에게 맡겨 주세요.',

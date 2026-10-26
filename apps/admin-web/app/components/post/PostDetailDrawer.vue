@@ -4,7 +4,7 @@
         열린 채 다른 줄을 누르면 그 글로 바뀐다. 서랍·표 줄·떠 있는 창(대화창·고르개·메뉴·의견 서랍) 밖을 누르면 닫는다. Esc 는 PrimeVue Drawer 가 맡는다.
         머리: 제목 · 상태 알약(숨김 까닭·시각 …) · 글 번호(복사) · 이전/다음 글(지금 쪽의 줄 순서).
         본문(위에서 아래): 글 요약(게시판·말머리·작성자·작성/수정일·추천/댓글/조회·신고 대기·칩) · 상태 띠(지운 글 / 원문 파기 / 숨긴 글) · 본문(HTML 은 서버 정화본을 `rich-text` 로, 평문은 줄바꿈 그대로) ·
-          **찬반 토론 구획**(상태 요약 + [토론 설정](`DebateSettingsDialog`) + [의견 관리](`DebateOpinionsDrawer`) — 두 부품은 부른 화면이 연다) ·
+          **찬반 토론 구획**(상태 요약 + [토론 설정](`DebateSettingsDialog`) + [의견 관리](`DebateOpinionsDrawer`) — 두 부품은 부른 화면이 연다. 소모임 글이면 구획이 없다) ·
           **투표 구획**(글에 투표가 있을 때만 — 질문 · 마감/진행 · 복수/단일 · 다시 투표 허용 · 마감 시각 · 선택지별 득표 막대·퍼센트 · 참여 수. 누가 골랐는지는 없다. `post.manage` 면 [투표 지우기] → 부른 화면이 사유 대화창을 연다) ·
           조치 기록(최근 것부터, 처리자·사유·덧붙임).
         바닥: 상태가 허락하는 조치 단추만(`actions`) — 없으면 까닭 한 줄(읽기 전용 · 복구 권한 없음 · 원문 파기).
@@ -134,8 +134,8 @@
                 <div v-else class="max-h-[28rem] overflow-y-auto rounded-lg border border-(--line) px-4 py-3 text-sm leading-relaxed break-words whitespace-pre-line" :class="post.state === 'DELETED' ? 'opacity-80' : ''">{{ detail.content.body }}</div>
             </section>
 
-            <!-- 찬반 토론 -->
-            <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-debate`">
+            <!-- 찬반 토론 — 소모임 글(`group` 있음)은 숨긴다(서버가 소모임 글의 토론을 받지 않는다 — 소모임 글쓰기 본문에 `debate` 가 없다) -->
+            <section v-if="!post.group" class="flex flex-col gap-2" :aria-labelledby="`${titleId}-debate`">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <h3 :id="`${titleId}-debate`" class="text-sm font-semibold">{{ t('post.debateTitle') }}</h3>
                     <div class="flex flex-wrap gap-1">

@@ -81,8 +81,8 @@ export interface ActiveGroup {
 
 export type GroupDetailKind = 'active' | 'inactive' | 'unknown';
 
-/** 상세 탭 — 글(기본, 2단계) · 멤버 · 채팅(일정은 4단계에서 더한다) */
-export type GroupTab = 'posts' | 'members' | 'chat';
+/** 상세 탭 — 글(기본, 2단계) · 일정(4단계, 멤버만) · 멤버 · 채팅 */
+export type GroupTab = 'posts' | 'events' | 'members' | 'chat';
 
 /** 가입 영역의 모양 — 단추를 보일지·글자 종류·꺼짐·위 띠 */
 export interface GroupJoinAction {
@@ -142,7 +142,7 @@ export type GroupChatProblems = Partial<Record<GroupChatField, GroupChatProblem>
 /** 분류 값의 모양 — 분류 id 는 숫자 문자열. 옛 주소의 게시판 slug 모양도 통과시켜 서버·화면이 「없는 분류」로 답하게 한다 */
 const CATEGORY_VALUE = /^[A-Za-z0-9_-]{1,40}$/;
 const SORTS: readonly GroupSort[] = ['popular', 'new', 'recruiting', 'mine'];
-const TABS: readonly GroupTab[] = ['posts', 'members', 'chat'];
+const TABS: readonly GroupTab[] = ['posts', 'events', 'members', 'chat'];
 
 /** 카카오 오픈채팅 주소 — 서버 `GroupChatLinkRules` 와 같다고 가정(community `UtilGroupManage`) */
 const KAKAO_URL = /^https:\/\/open\.kakao\.com(\/[^\s?#]*)$/;

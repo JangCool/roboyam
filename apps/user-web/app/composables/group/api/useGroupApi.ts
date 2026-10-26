@@ -6,6 +6,13 @@ import type {
     GroupCreateResult,
     GroupCreationRules,
     GroupDetail,
+    GroupEventAttendeePage,
+    GroupEventDetail,
+    GroupEventListQuery,
+    GroupEventPage,
+    GroupEventRequest,
+    GroupEventResponse,
+    GroupEventResponseResult,
     GroupJoinRequest,
     GroupJoinResult,
     GroupListQuery,
@@ -71,6 +78,24 @@ import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
  * - `GET /api/groups/{id}/managers` → `{ items: [{ user, appointedAt, permissions|null }], count, limit, limitMax }`(멤버만 — 비멤버 `403 GROUP_NOT_MEMBER`). 임명이 이른 순.
  * - 체크형 일에 그 체크가 없는 매니저는 `403 GROUP_MANAGER_PERMISSION_DENIED`, 모임장·매니저가 아니면 `403 GROUP_LEADER_ONLY`. `KICK` 매니저가 모임장·매니저·자신을 강퇴하면 `403 GROUP_MANAGER_PROTECTED`.
  * - 알림 5종(`GROUP_MANAGER_APPOINTED`·`…_PERMISSIONS_CHANGED`·`…_REMOVED`·`…_RESIGNED`·`GROUP_KICKED_BY_MANAGER`)은 회원 알림(`useNotificationApi`)이 받는다.
+ *
+ * ## 4단계(일정) — 서버(`GroupEventController`·`GroupEventService`·`GroupEventRules`)와 맞춘 모양: community `docs/api-groups.md` 9절과 같은 경로·칸
+ * - 모두 로그인 필요(비회원 `401`)·**멤버만**(비멤버 `403 GROUP_NOT_MEMBER`). 열려 있지 않은 소모임 `404 GROUP_NOT_FOUND`·`403 GROUP_INACTIVE`. 응답 `Cache-Control: no-store`.
+ * - `GET /api/groups/{id}/events?scope=upcoming|past&page=&size=` → `GroupEventPage { items: GroupEventRow[], page(1부터), hasNext, total }`. `upcoming`(기본) 시작 전·진행 중을 가까운 순,
+ *   `past` 끝남·취소를 최근 순. `size` 1~50(기본 20). 잘못된 범위 `400 fields.scope`.
+ * - `POST /api/groups/{id}/events` 본문 `GroupEventRequest` → `201 GroupEventDetail`. 모임장·`EVENTS` 매니저(일반 멤버 `403 GROUP_LEADER_ONLY`, 체크가 없는 매니저 `403 GROUP_MANAGER_PERMISSION_DENIED`),
+ *   쓰기 자격 `403 EMAIL_NOT_VERIFIED|ACCOUNT_RESTRICTED|BUSINESS_ACCOUNT_RESTRICTED`. 칸 오류는 모아서 `400 VALIDATION fields.title|startsAt|endsAt|mode|place|description|offlineAck`
+ *   (`startsAt` 은 지금 뒤 · 지금부터 `limits.eventMaxDaysAhead` 일 안, `endsAt` 은 `startsAt` 뒤 · `limits.eventMaxLengthDays` 일 안). 열린 일정 한도 `409 GROUP_EVENT_LIMIT_REACHED`(최상위 `limit` → `ApiError.extras.limit`).
+ *   멤버 전원(만든 사람 제외)에게 알림 `GROUP_EVENT`(`CREATED`).
+ * - `GET /api/groups/{id}/events/{eventId}` → `GroupEventDetail`(없는·다른 소모임의 일정 `404 GROUP_EVENT_NOT_FOUND`).
+ * - `PUT /api/groups/{id}/events/{eventId}` 만들기와 같은 본문(모든 칸) → `200 GroupEventDetail`. 끝난·취소된 일정 `409 GROUP_EVENT_ENDED|GROUP_EVENT_CANCELED`,
+ *   진행 중 일정의 시작 시각 변경 `400 fields.startsAt`, 진행 중 일정의 끝 시각을 지금 이전으로 `400 fields.endsAt`. `offlineAck` 는 온라인 → 오프라인일 때만. 바뀐 것이 있을 때만 알림(`UPDATED`).
+ * - `POST /api/groups/{id}/events/{eventId}/cancel` 본문 `{ reason? }`(100자 이하 — `400 fields.reason`) → `204`. 이미 취소됐으면 멱등 `204`, 끝났으면 `409 GROUP_EVENT_ENDED`. 알림(`CANCELED`, 사유는 적었을 때만).
+ * - `PUT /api/groups/{id}/events/{eventId}/response` 본문 `{ response }` → `{ myResponse, counts }`, `DELETE …/response` → `{ myResponse: null, counts }`(멱등).
+ *   시작했거나 끝남 `409 GROUP_EVENT_CLOSED`, 취소됨 `409 GROUP_EVENT_CANCELED`.
+ * - `GET /api/groups/{id}/events/{eventId}/attendees?page=&size=` → `{ items: [{ user, respondedAt, leader }], page, hasNext, total }` — 참석(GOING)한 지금 멤버, 응답이 최근인 순.
+ * - 내 소모임(`GET /api/me/groups`)의 `joined[].nextEvent = { id, title, startsAt } | null`. 소모임 상세에는 다음 일정 칸이 없다.
+ * - 알림 `GROUP_EVENT`(회원이 끌 수 있는 유일한 소모임 알림, 덧붙임 `eventAction` CREATED|UPDATED|CANCELED, `link` `/groups/{groupId}/events/{eventId}`)는 회원 알림이 받는다.
  */
 const PATH = {
     groups: '/api/groups',
@@ -95,6 +120,8 @@ const PATH = {
     manager: (id: string, userId: string) => `${PATH.group(id)}/managers/${encodeURIComponent(userId)}`,
     managerMe: (id: string) => `${PATH.group(id)}/managers/me`,
     managerLimit: (id: string) => `${PATH.group(id)}/manager-limit`,
+    events: (id: string) => `${PATH.group(id)}/events`,
+    event: (id: string, eventId: string) => `${PATH.group(id)}/events/${encodeURIComponent(eventId)}`,
     mine: '/api/me/groups',
     myRequest: (id: string) => `/api/me/groups/requests/${encodeURIComponent(id)}`,
 };
@@ -206,5 +233,32 @@ export function useGroupApi() {
 
         /** 매니저 인원 설정(204) — 모임장만 */
         setManagerLimit: (id: string, limit: number) => client.put<void>(PATH.managerLimit(id), { limit }),
+
+        // ── 일정(4단계) ──
+
+        /** 일정 목록 — 멤버만. `upcoming`(기본) 가까운 순 · `past` 최근 순, 쪽 번호 1부터 */
+        events: (id: string, query: GroupEventListQuery = {}, signal?: AbortSignal) => client.get<GroupEventPage>(PATH.events(id), { query: { ...query }, signal }),
+
+        /** 일정 상세 — 멤버만 */
+        event: (id: string, eventId: string, signal?: AbortSignal) => client.get<GroupEventDetail>(PATH.event(id, eventId), { signal }),
+
+        /** 일정 만들기(201) — 모임장·`EVENTS` 매니저 */
+        createEvent: (id: string, body: GroupEventRequest) => client.post<GroupEventDetail>(PATH.events(id), body),
+
+        /** 일정 수정 — 모든 칸을 보낸다. 끝나지 않은 일정만 */
+        updateEvent: (id: string, eventId: string, body: GroupEventRequest) => client.put<GroupEventDetail>(PATH.event(id, eventId), body),
+
+        /** 일정 취소(204, 멱등) — 사유는 선택(100자) */
+        cancelEvent: (id: string, eventId: string, reason?: string) => client.post<void>(`${PATH.event(id, eventId)}/cancel`, reason ? { reason } : {}),
+
+        /** 참석 응답 — 시작 전까지만 */
+        respondEvent: (id: string, eventId: string, response: GroupEventResponse) => client.put<GroupEventResponseResult>(`${PATH.event(id, eventId)}/response`, { response }),
+
+        /** 참석 응답 지우기(멱등) */
+        clearEventResponse: (id: string, eventId: string) => client.del<GroupEventResponseResult>(`${PATH.event(id, eventId)}/response`),
+
+        /** 참석자 — 참석으로 응답한 지금 멤버, 최근 순 */
+        eventAttendees: (id: string, eventId: string, query: { page?: number; size?: number } = {}, signal?: AbortSignal) =>
+            client.get<GroupEventAttendeePage>(`${PATH.event(id, eventId)}/attendees`, { query: { ...query }, signal }),
     };
 }

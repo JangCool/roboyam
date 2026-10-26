@@ -99,6 +99,8 @@ export default class UtilNotification {
         // 소모임 매니저(3단계) — 임명·맡은 일 바뀜은 방패, 해임·사퇴는 사람 빼기, 매니저가 강퇴함은 사람 빼기
         if (type === 'GROUP_MANAGER_APPOINTED' || type === 'GROUP_MANAGER_PERMISSIONS_CHANGED') return 'pi pi-shield';
         if (type === 'GROUP_MANAGER_REMOVED' || type === 'GROUP_MANAGER_RESIGNED' || type === 'GROUP_KICKED_BY_MANAGER') return 'pi pi-user-minus';
+        // 소모임 일정(4단계) — 등록·수정·취소 모두 달력
+        if (type === 'GROUP_EVENT') return 'pi pi-calendar';
         if (type.startsWith('GROUP_')) return 'pi pi-users';
         return 'pi pi-comment';
     }

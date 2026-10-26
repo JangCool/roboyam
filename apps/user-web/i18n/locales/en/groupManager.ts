@@ -8,14 +8,14 @@ export default {
         KICK: 'Remove members',
         RECRUITING: 'Close / reopen recruiting',
         EVENTS: 'Manage events',
-        UNPUBLISH: 'Revert public posts',
+        UNPUBLISH: 'Publish/unpublish posts',
     },
     permHint: {
         APPLICATIONS: 'Review and approve or decline requests',
         KICK: 'Remove regular members',
         RECRUITING: 'Close and reopen recruiting',
         EVENTS: 'Create, edit and cancel club events',
-        UNPUBLISH: 'Make members’ public posts private again',
+        UNPUBLISH: 'Handle publishing members’ posts and make them private again',
     },
     permNote: {
         APPLICATIONS: 'They can see applicants’ notes and whether someone was removed before. Give this to members you trust.',

@@ -24,6 +24,7 @@ import identity from './identity';
 import feed from './feed';
 import grade from './grade';
 import group from './group';
+import groupEvent from './groupEvent';
 import groupManager from './groupManager';
 import install from './install';
 import login from './login';
@@ -71,6 +72,7 @@ export default {
     feed,
     grade,
     group,
+    groupEvent,
     groupManager,
     install,
     login,
