@@ -84,3 +84,6 @@
 2. 비공개 소모임 글을 신고 상세에서 보는 것을 최고 관리자로 좁힐지 — 신고 처리 권한이면 본다.
 3. 감사 보관 분류: 소모임·분류·설정 감사 행위는 모두 GENERAL.
 4. 실행 확인 없음: 공용 로컬 DB 때문에 서버를 띄우지 않았다(develop 에 없는 V90~ 를 적용하면 develop 에서 띄우는 다른 세션이 Flyway 검증에서 막힌다). develop 에 합친 뒤 첫 기동에서 마이그레이션·번들 키 검사·JSON 모양·화면을 확인한다.
+- **6단계 홈·프로필**: `GET /api/groups/trending`(가중 무작위, 관리자 운영 한도의 `trendingSize`·`trendingActiveDays`), 목록 `exclude` 최대 20, `GET /api/users/{id}/groups`(role LEADER·MANAGER·MEMBER — 원본은 LEADER·MEMBER), 최신글·인기글·통합 검색·프로필 작성글에 **비멤버에게 보이는 소모임 글**(`is_public`, 나가서 가린 글·비활성 소모임 제외 — 판정은 `PostRepositoryQDSL.feedVisible()` 한 곳)을 섞고 줄에 `group{id,name,visibility,dissolved}`. user-web `/groups` 지금 뜨는 소모임 슬라이드·프로필 소모임 탭.
+  - **만들지 않은 것(붙일 곳 없음)**: 홈 인기 소모임 가젯(로보얌 홈은 자리표시, 가젯 체계 없음 — 생기면 `GROUPS` 가젯이 `trending`·`?sort=popular&size=3` 을 쓴다), 탈퇴 때 모임장 차단·자격 정리(탈퇴 API·흐름 없음 — 생기면 사전 검사에 `GROUP_LEADER`, 트랜잭션에서 멤버 행 leave·신청 삭제·일정 응답 삭제·공개 요청 `AUTHOR_LEFT` 취소, 원본 `GroupCleanupService.eraseUser`).
+  - 프로필 댓글 수·작성 댓글에는 소모임 글 댓글을 넣지 않았다(멤버 전용·나간 멤버로 가린 댓글이 드러나서 — 원본은 넣는다).
