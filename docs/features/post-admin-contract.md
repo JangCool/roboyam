@@ -22,14 +22,14 @@
 - `GET ?searchField=&q=&createdFrom=&createdTo=&board=&prefix=&state=&sort=&page=&size=` (`post.read`) → `{ total, page, size, items: [AdminPostItem] }`
   - `searchField`: `TITLE`(기본)·`AUTHOR`·`ID`(대소문자 무시, 그 밖 `400 fields.searchField`) — `q` 는 그 칸만 찾는다. TITLE = 제목 일부, AUTHOR = 작성자 닉네임(회원)·비회원 이름 일부(둘 다 2자 이상·대소문자 무시·50자에서 자름, 한 글자는 무시), ID = 글 번호 정확히 일치(앞의 `#` 허용, 숫자가 아니면 `400 fields.q`). **본문 검색 없음**(성능), 「숫자면 글 번호」 자동 판별 없음. `createdFrom`·`createdTo`: 작성 시각 UTC ISO 순간(양 끝 포함, 회원 관리 `joinedFrom/joinedTo` 와 같은 규칙 — 화면이 사이트 시간대 하루 시작·끝을 바꿔 보낸다), 형식 오류 `400 fields.createdFrom|createdTo`, 시작 > 끝 `400 fields.createdTo`. `board` = 게시판 ID, `prefix` = 말머리 ID(게시판을 고른 뒤). `state`: `ALL`(기본)·`PUBLIC`·`HIDDEN`·`DELETED`. `sort`: `newest`(기본)·`oldest`. `size` 기본 20, 최대 50. 상태별 건수는 세지 않는다(2026-10-24 사용자 — 상태는 라디오로 고르고 숫자를 보이지 않는다).
   - `AdminPostItem { id, board: {id, name, nameEn, slug}, prefix: {id, name}|null, title, author: {kind: MEMBER|GUEST, id|null, name, withdrawn}, state: PUBLIC|HIDDEN|DELETED, hiddenReason|null(REPORTED|ILLEGAL|RIGHTS|STAFF), hiddenAt|null, hiddenUntil|null, deletedAt|null, deleteScheduledAt|null, purged, pinned, notice(말머리가 공통 NOTICE), adult, debate(토론 열림), likeCount, commentCount, viewCount, openReports, createdAt }`
-- `GET /board-options` (`post.read`) → `{ boards: [{id, slug, name, nameEn, pinnedMax, prefixes: [{id, name, staffOnly, common}]}] }`(켜진 게시판·말머리)
+- `GET /board-options` (`post.read`) → `{ boards: [{id, slug, name, nameEn, kind, pinnedMax, prefixes: [{id, name, staffOnly, common}]}] }`(켜진 게시판·말머리 — `kind` 는 게시판 종류, 글 옮기기 창은 `GROUP` 을 뺀다)
 - `GET /{id}` (`post.read`) → `{ post: AdminPostItem, content: {format: TEXT|HTML, body|null(파기됨이면 null), editedAt|null}, events: [{id, type, actor: {kind, id|null, name|null}, reason|null, detail|null, at}] }` — 지운 글 본문도 보인다(파기 전까지). 없는 글 `404 POST_NOT_FOUND`.
 - 조치 (`post.manage`, 사유 `reason` 1~200자 필수 → `400 VALIDATION fields.reason`, 상태가 맞지 않으면 `409 POST_STATE_INVALID`, 성공 204, 감사 `POST_HIDE|UNHIDE|DELETE|RESTORE|MOVE|NOTICE|PIN|UNPIN`, 조치 기록 한 줄):
   - `POST /{id}/hide` `{reason, notifyAuthor}` — 공개 글만. `hidden_reason STAFF`. `notifyAuthor` 면 기존 `POST_HIDDEN` 알림(사유 포함). 고정 해제.
   - `POST /{id}/unhide` `{reason}` — 숨긴 글(까닭 무엇이든 — 신고 숨김도 운영자가 풀 수 있다).
   - `POST /{id}/delete` `{reason}` — 지우지 않은 글. 알림 `POST_REMOVED` + 포인트 회수. 고정 해제. 작성자 본인이 운영자여도 그대로(운영자 계정과 회원 계정은 다르다).
   - `POST /{id}/restore` `{reason}` (`post.restore`) — 지운 글, 파기 전(`409 POST_PURGED`). 숨김 상태는 그대로 둔다. 회수한 포인트를 되돌린다.
-  - `POST /{id}/move` `{boardId, prefixId|null, reason}` — 같은 자리 `400 fields.prefixId`, 그 게시판의 켜진 말머리가 아니면 `400 fields.prefixId`, 꺼진 게시판 `400 fields.boardId`. 고정 해제.
+  - `POST /{id}/move` `{boardId, prefixId|null, reason}` — 같은 자리 `400 fields.prefixId`, 그 게시판의 켜진 말머리가 아니면 `400 fields.prefixId`, 꺼진 게시판·소모임 게시판(`kind=GROUP`, 2026-10-26) `400 fields.boardId`. 고정 해제.
   - `POST /{id}/notice` `{reason}` — 공개 글을 그 게시판의 공통 「공지」 말머리로 바꾸고 고정. 한도 넘으면 `409 PIN_LIMIT`.
   - `POST /{id}/pin` · `/unpin` `{reason}` — 공개 글 고정·해제(한도 `PIN_LIMIT`).
 - `POST /bulk` `{action: HIDE|UNHIDE|DELETE, ids(1~50), reason, notifyAuthor}` (`post.manage`, DELETE 는 `post.bulk-delete` 도) → 200 `{ done: [id], failed: [{id, code}] }` — 글마다 따로(한 글 실패가 다른 글을 막지 않음). 감사 `POST_BULK` 한 줄 + 글마다 조치 기록.

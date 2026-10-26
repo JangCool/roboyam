@@ -3,6 +3,8 @@
  * ID 는 모두 문자열, 시각은 UTC ISO 글자. 인기글·하이라이트가 쓰는 짧은 글 모양(`AdminPostRef`, `usePopularApi.types`)과는 다른 모양이다(이 화면은 게시판·말머리·작성자를 객체로 받는다).
  */
 
+import type { BoardKind } from '~/composables/board/api/useBoardApi.types';
+
 /** 글의 지금 상태 — 지움이 숨김을 이긴다(지운 글이 숨김 까닭을 가질 수 있다) */
 export type PostState = 'PUBLIC' | 'HIDDEN' | 'DELETED';
 
@@ -122,6 +124,8 @@ export interface AdminPostBoardOption {
     slug: string;
     name: string;
     nameEn: string | null;
+    /** 게시판 종류 — 글 옮기기 후보는 소모임(`GROUP`)을 뺀다(서버도 400 `fields.boardId`) */
+    kind: BoardKind;
     /** 고정 한도 — 0 이면 고정 불가 */
     pinnedMax: number;
     prefixes: AdminPostPrefixOption[];

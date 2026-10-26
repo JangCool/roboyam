@@ -89,7 +89,8 @@ const reason = ref('');
 const tried = ref(false);
 
 const board = computed(() => props.boards.find((b) => b.id === boardId.value) ?? null);
-const boardOptions = computed(() => props.boards.map((b) => ({ value: b.id, label: localizedName(b.name, b.nameEn) })));
+// 소모임 게시판의 글은 소모임에 속해야 보이므로 옮길 곳에서 뺀다(서버도 400 `fields.boardId`)
+const boardOptions = computed(() => props.boards.filter((b) => b.kind !== 'GROUP').map((b) => ({ value: b.id, label: localizedName(b.name, b.nameEn) })));
 const prefixOptions = computed(() => [
     { value: NO_PREFIX, label: t('post.movePrefixNone') },
     ...(board.value?.prefixes ?? []).map((p) => ({ value: p.id, label: p.staffOnly ? t('post.prefixStaffOnly', { name: p.name }) : p.name })),

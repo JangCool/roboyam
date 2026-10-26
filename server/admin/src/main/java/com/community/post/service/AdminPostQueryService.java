@@ -134,7 +134,7 @@ public class AdminPostQueryService {
     public AdminPostBoardOptionsView boardOptions() {
         BoardCatalogSnapshot s = catalog.snapshot();
         List<AdminPostBoardOptionView> boards = s.boards().stream().filter(EffectiveBoard::active)
-                .map(b -> new AdminPostBoardOptionView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.pinnedMax(),
+                .map(b -> new AdminPostBoardOptionView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.kind(), b.pinnedMax(),
                         b.activePrefixes().stream().map(p -> new AdminPostPrefixOptionView(Long.toString(p.id()), p.name(), p.staffOnly(), p.common())).toList()))
                 .toList();
         return new AdminPostBoardOptionsView(boards);

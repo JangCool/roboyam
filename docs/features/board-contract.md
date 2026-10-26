@@ -80,4 +80,5 @@
 - **목록·상세 응답** 끝에 `groupCategoryId`·`groupCategoryName`(없으면 null).
 - **화면** `/boards`: 만들기 맨 위 종류 카드(일반·소모임), 소모임이면 목록 모양 칸 없이(`layout: LIST`) 분류 고르기(기본 「분류 없음」, `group.read` 없으면 숨김, `group.settings` 없으면 고정) + 안내 줄. `/boards?create=group&category=<ID>` = 종류 소모임 고정·분류 미리 선택(분류 화면의 [소모임 게시판 만들기]). 목록은 「소모임 게시판 N」 칩(`?filter=group` 은 처음만 읽음), 소모임 게시판은 맨 아래 묶음 + 분류 알약(→ `/group-categories?category=`) 또는 「분류 없음 · '전체'에서만 보여요」, ▲▼ 는 일반 게시판끼리(순서 PUT 은 일반 새 순서 뒤에 소모임을 붙여 전체 ID).
 - 뺀 것(소모임 서버 없음): 줄의 「소모임 N개」·끌 때 소모임 경고·소모임 게시판 설정 화면에서 안 먹는 구획 숨기기(community ADM-008).
-- 미확정: 관리자 글 이동(`POST_MOVE`)으로 소모임 게시판에 글을 옮기는 것을 막을지 · 분류 화면에서 만든 뒤 갈 곳(지금 게시판 설정 화면).
+- 글 옮기기(2026-10-26 사용자): 소모임 게시판으로는 옮길 수 없다 — `board-options` 에 `kind` 를 싣고 옮기기 창이 GROUP 을 빼며, 서버 `move` 도 `400 fields.boardId`(`post.admin.boardId.group`). 필터·이름 풀기는 소모임 게시판도 그대로 쓴다.
+- 미확정: 분류 화면에서 만든 뒤 갈 곳(지금 게시판 설정 화면).

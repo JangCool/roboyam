@@ -7,6 +7,7 @@ import com.community.audit.service.AuditLogService;
 import com.community.board.dto.BoardPrefixInfo;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.BoardCatalog;
+import com.community.board.service.BoardFields;
 import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
@@ -168,6 +169,10 @@ public class AdminPostModerationService {
         EffectiveBoard board = boardId == null ? null : catalog.snapshot().board(boardId).filter(EffectiveBoard::active).orElse(null);
         if (board == null) {
             throw ValidationException.of("boardId", new MessageRef("post.admin.boardId.invalid"));
+        }
+        if (BoardFields.KIND_GROUP.equals(board.kind())) {
+            // 소모임 게시판의 글은 소모임에 속해야 보인다 — 일반 글을 옮기면 공개 게시판(404)·소모임 어디에도 나오지 않는다
+            throw ValidationException.of("boardId", new MessageRef("post.admin.boardId.group"));
         }
         String prefixRaw = trim(body.prefixId());
         Long prefixId = null;
