@@ -4,7 +4,9 @@
         구획 넷: ① 기본 정보 ② 사람(모임장·매니저(읽기 전용)·멤버·모임장이 가진 소모임) ③ 활동 ④ 운영 조치. 앞의 셋은 읽기 전용이고 ④ 만 조치(비활성화·다시 열기 — 부르는 쪽이 대화상자를 연다)를 한다.
         머리(이름·상태)는 목록 줄(`summary`)로 먼저 그리고, 상세(`detail`)는 부르는 쪽이 받아 내려 준다 — 받는 동안 뼈대, 못 받으면 서랍 안 오류(없는 소모임 404 는 다시 시도 없이 안내).
         코드 값(ACTIVE·OPEN·APPROVAL …)은 화면에 나오지 않는다 — 이름으로 푼다. 시각은 `useDisplayTime()` 으로만 그린다. 서버를 부르지 않는다(`components.md`).
-        community 와 다른 점: 「공개 화면 보기」(관리자 앱이 공개 사이트 주소를 모른다)·「회원 조회 ›」(회원 관리에 주소로 여는 서랍이 없다)·「신고 보기 ›」(신고 처리 화면이 아직 없다) 링크를 뺐다 — 신고 사건은 번호만 보인다.
+        신고(`report.read` 일 때만 링크): 활동의 신고 수 옆 「신고 보기 ›」 → 신고 관리 `/reports?groupId={소모임 ID}&status=ALL`(그 소모임 사건 — 서버 `groupId` 거르기),
+          비활성 기록의 사건 번호 → `/reports?report={사건 ID}&status=ALL`(그 사건 서랍이 열린다). 권한이 없으면 번호만 보인다.
+        community 와 다른 점: 「공개 화면 보기」(관리자 앱이 공개 사이트 주소를 모른다)·「회원 조회 ›」(회원 관리에 주소로 여는 서랍이 없다) 링크를 뺐다.
     -->
     <Drawer v-model:visible="open" :position="prefs.drawerPosition" :aria-labelledby="titleId" :style="{ width: '46rem', maxWidth: '100vw' }">
         <template #header>
@@ -135,7 +137,10 @@
                     </div>
                     <div :class="ROW">
                         <dt :class="DT">{{ t('group.field.reports') }}</dt>
-                        <dd :class="DD">{{ t('group.reportsLine', { n: detail.reportCaseCount }) }}</dd>
+                        <dd :class="DD">
+                            {{ t('group.reportsLine', { n: detail.reportCaseCount }) }}
+                            <NuxtLink v-if="canReport" :to="reportsLink" class="ml-1 whitespace-nowrap text-primary hover:underline">{{ t('group.reportsLink') }} ›</NuxtLink>
+                        </dd>
                     </div>
                 </dl>
             </section>
@@ -168,7 +173,16 @@
                         </div>
                         <div v-if="detail.deactivation.reportCase" :class="ROW">
                             <dt :class="DT">{{ t('group.record.case') }}</dt>
-                            <dd :class="DD">{{ t('group.caseNo', { no: detail.deactivation.reportCase.no }) }}</dd>
+                            <dd :class="DD">
+                                <NuxtLink
+                                    v-if="canReport"
+                                    :to="{ path: '/reports', query: { report: detail.deactivation.reportCase.id, status: 'ALL' } }"
+                                    class="text-primary hover:underline"
+                                >
+                                    {{ t('group.caseNo', { no: detail.deactivation.reportCase.no }) }} {{ t('group.reportCaseLink') }} ›
+                                </NuxtLink>
+                                <template v-else>{{ t('group.caseNo', { no: detail.deactivation.reportCase.no }) }}</template>
+                            </dd>
                         </div>
                         <template v-if="detail.deactivation.reactivatedAt">
                             <div :class="ROW">
@@ -222,9 +236,11 @@ interface Props {
     canWrite?: boolean;
     /** 게시판 설정 링크를 보일까(`board.read`) */
     canBoard?: boolean;
+    /** 신고 관리 링크를 보일까(`report.read`) */
+    canReport?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { loading: false, error: null, busy: false, canWrite: false, canBoard: false });
+const props = withDefaults(defineProps<Props>(), { loading: false, error: null, busy: false, canWrite: false, canBoard: false, canReport: false });
 const emit = defineEmits<{ deactivate: []; reactivate: []; retry: [] }>();
 
 const { t } = useI18n();
@@ -253,6 +269,9 @@ const visibilityChangedText = computed(() => {
     const at = d.visibilityChangedAt;
     return UtilGroupMessages.visibilityChangedLine(t, at ? time.value.date(at) : '', at ? (d.visibilityChangedBy?.nickname ?? null) : null);
 });
+
+/** 「신고 보기 ›」 — 이 소모임을 대상으로 한 신고 사건(모든 상태, 서버 `groupId` 거르기) */
+const reportsLink = computed(() => ({ path: '/reports', query: { groupId: props.detail?.id ?? '', status: 'ALL' } }));
 
 const bandText = computed(() => {
     const record = props.detail?.deactivation;

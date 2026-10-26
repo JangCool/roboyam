@@ -109,6 +109,8 @@ export default {
     leaderLoadNote: '비활성 소모임도 모임장의 개설 상한에 들어가요. 비활성으로 둔 채 두면 그 모임장은 새 소모임을 만들 수 없어요.',
     postsLine: '{posts}개 · 비멤버에게 보이는 글 {public}개',
     reportsLine: '접수 {n}건',
+    reportsLink: '신고 보기',
+    reportCaseLink: '신고 사건 보기',
     band: '{date} 비활성이 됐어요',
     bandCase: '신고 #{no} 처리로 {date} 비활성이 됐어요',
     actionNotify: '모임장에게 알림이 가요',

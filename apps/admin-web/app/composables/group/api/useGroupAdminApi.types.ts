@@ -150,7 +150,7 @@ export interface GroupDeactivation {
     by: GroupPerson | null;
     /** 모임장에게 전달한 사유 */
     reason: string | null;
-    /** 신고 처리로 비활성이 됐을 때 그 사건(로보얌에는 신고 처리 화면이 아직 없다 — 번호만 보인다) */
+    /** 신고 처리로 비활성이 됐을 때 그 사건(서랍이 `/reports?report={id}` 로 잇는다 — `report.read` 가 없으면 번호만) */
     reportCase: { id: string; no: number } | null;
     reactivatedAt: string | null;
     reactivatedBy: GroupPerson | null;

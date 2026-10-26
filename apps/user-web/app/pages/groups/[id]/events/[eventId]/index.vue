@@ -4,7 +4,8 @@
         머리(진행 방식·상태·제목) → 일시 → 진행(온라인: 채팅 탭 링크에서 만나요)/장소(오프라인) → 만든 사람 → 설명 → (취소 사유) → (오프라인 개인 책임 고지 `offlineNotice`) →
         내 참석 여부 세 단추(누르면 바로 저장, 「불참으로 표시했어요 · 실행 취소」) → 집계 → 참석자(최신순, 더보기).
         관리(`canManage` — 모임장·`EVENTS` 매니저, 시작 전·진행 중)는 ⋯ 메뉴에서 수정(→ 수정 화면)과 취소(사유 선택, 확인 시트).
-        community 대비: 오프라인 고지 아래 「신고하기」(소모임 신고)는 로보얌 신고 대상에 소모임이 없어 뺐다(소모임 상세의 ⋯ 메뉴와 같은 결정).
+        신고: 오프라인 고지 아래 「신고하기」가 소모임 신고 시트(`BoardReportDialog` target `GROUP` · `useGroupReport`)를 연다(모임장 제외).
+          일정 응답에는 소모임 이름·모임장 여부가 없어, 고지가 보일 때만 소모임 상세를 한 번 받아 쓴다(community 와 같다). 못 받으면 이름 없이 신고한다(모임장이면 서버가 거절).
         상태: 로딩 · 비회원(로그인 안내, 요청 없음) · 멤버 아님(잠금) · 일정 없음(404) · 소모임 없음/비활성 · 오류(다시 시도) · 열림.
     -->
     <div class="mx-auto max-w-2xl" data-testid="event-page">
@@ -87,7 +88,13 @@
             <GroupNotice v-if="detail.state === 'CANCELED' && detail.cancelReason" class="mt-3" tone="warn" :title="t('groupEvent.cancelReasonTitle')" data-testid="event-cancel-note">{{ detail.cancelReason }}</GroupNotice>
 
             <!-- 오프라인 개인 책임 고지 — 오프라인 일정이거나 오프라인 모임이면 늘 보인다 -->
-            <GroupNotice v-if="detail.offlineNotice" class="mt-4" tone="warn" :title="t('groupEvent.offlineNoticeTitle')" data-testid="event-offline-notice">{{ t('groupEvent.offlineNoticeText') }}</GroupNotice>
+            <template v-if="detail.offlineNotice">
+                <GroupNotice class="mt-4" tone="warn" :title="t('groupEvent.offlineNoticeTitle')" data-testid="event-offline-notice">{{ t('groupEvent.offlineNoticeText') }}</GroupNotice>
+                <p v-if="reportable" class="m-0 mt-1.5 text-xs text-muted-color" data-testid="event-report-line">
+                    {{ t('groupEvent.reportLead') }}
+                    <button type="button" class="ml-1 rounded text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary" data-testid="event-report" @click="report.open">{{ t('groupEvent.reportLink') }}</button>
+                </p>
+            </template>
 
             <!-- 내 참석 여부 — 하나만 눌린다(`aria-pressed`, 눌린 단추에는 체크 — 색만으로 가르지 않는다). 닫힌 일정은 단추를 끄고 까닭을 적는다 -->
             <section class="mt-5" data-testid="event-response">
@@ -149,6 +156,19 @@
                 </template>
             </section>
         </article>
+
+        <!-- 소모임 신고 시트 -->
+        <BoardReportDialog
+            v-if="detail && reportable"
+            v-model:visible="report.visible.value"
+            target="GROUP"
+            :summary="reportInfo?.name ? t('group.reportTarget', { name: reportInfo.name }) : ''"
+            :stock="reportInfo?.stock ?? false"
+            :loading="report.loading.value"
+            :error="report.error.value"
+            :field-error="report.fieldError.value"
+            @submit="report.submit"
+        />
 
         <!-- 관리: ⋯ 메뉴(수정 · 취소) -->
         <AppSheet v-if="detail && canManage" v-model:visible="menuOpen" :title="t('groupEvent.menuTitle')">
@@ -271,6 +291,32 @@ async function onCancel(): Promise<void> {
     cancelDismissed.value = false;
     if ((await cancel(cancelReason.value)) !== 'failed') cancelOpen.value = false;
 }
+
+/* ── 소모임 신고(오프라인 고지 아래 「신고하기」) ── */
+const groupApi = useGroupApi();
+/** 신고 시트에 쓰는 소모임 정보 — 이름·투자 고지 소모임인가(사유 목록)·내가 모임장인가. 고지가 보일 때만 소모임 상세에서 받는다. 못 받아도 신고는 된다(이름 없이) */
+const reportInfo = ref<{ name: string; stock: boolean; leader: boolean } | null>(null);
+const wantsReportInfo = computed(() => view.value === 'ready' && detail.value?.offlineNotice === true);
+let infoSeq = 0;
+watch(
+    [wantsReportInfo, id],
+    async ([wants, groupId]) => {
+        const mine = ++infoSeq;
+        reportInfo.value = null;
+        if (!wants || !groupId) return;
+        try {
+            const group = await groupApi.detail(groupId);
+            if (mine === infoSeq) reportInfo.value = { name: group.name, stock: group.stockNotice === true, leader: group.myState === 'LEADER' || group.myRole === 'LEADER' };
+        } catch {
+            if (mine === infoSeq) reportInfo.value = { name: '', stock: false, leader: false };
+        }
+    },
+    { immediate: true },
+);
+onBeforeUnmount(() => infoSeq++);
+/** 「신고하기」를 보일까 — 소모임 정보를 받았고 모임장이 아니다(매니저는 신고할 수 있다) */
+const reportable = computed(() => reportInfo.value !== null && !reportInfo.value.leader);
+const report = useGroupReport({ groupId: id, onGone: () => void load() });
 
 function goBack(): void {
     if (typeof window !== 'undefined' && window.history.state?.back) router.back();

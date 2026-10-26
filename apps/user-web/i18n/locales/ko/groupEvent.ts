@@ -79,6 +79,8 @@ export default {
     meTag: '나',
     offlineNoticeTitle: '오프라인 모임 개인 책임 안내',
     offlineNoticeText: '오프라인 모임은 참석자 개인의 책임으로 진행돼요. 처음 만나는 사람과는 사람이 많은 공개된 장소를 고르고, 연락처·주소 같은 개인정보는 함부로 알려 주지 마세요. 금전 거래·투자 권유는 응하지 마세요.',
+    reportLead: '이 소모임에 문제가 있나요?',
+    reportLink: '신고하기',
 
     // ── 관리 메뉴 · 취소 ──
     menuLabel: '일정 관리 메뉴 열기',

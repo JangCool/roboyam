@@ -12,12 +12,12 @@ import type {
 
 /**
  * 신고 관리 API — 서버 주소(`/api/admin/reports…`)가 있는 **유일한 곳**이다. 상태는 없다. 계약: `docs/features/report-admin-contract.md` 「API」.
- *   - `GET  /api/admin/reports?status=&targetType=&reason=&searchField=&q=&from=&to=&board=&postId=&sort=&page=&size=` (`report.read`) → `ReportCaseListView`
+ *   - `GET  /api/admin/reports?status=&targetType=&reason=&searchField=&q=&from=&to=&board=&postId=&groupId=&sort=&page=&size=` (`report.read`) → `ReportCaseListView`
  *       · 조건이 틀리면 400 `fields.q`·`fields.searchField`·`fields.from`·`fields.to`(가정 — 게시글 관리와 같은 규칙)
  *   - `GET  /summary` (`report.read`) → `{ pending, inReview }`
  *   - `GET  /board-options` (`report.read`) → `{ boards: [...] }` — 게시판 고르개. 모양은 게시글 관리 `GET /api/admin/posts/board-options` 와 같다(`AdminPostBoardOptionsView`)
  *   - `GET  /{id}` (`report.read`) → 상세 — PENDING 이면 열람과 함께 IN_REVIEW · 404 `REPORT_CASE_NOT_FOUND`
- *   - `POST /{id}/resolve { action, reasonCode, note }` (`report.manage`) → 200 상세 · 409 `REPORT_CASE_CLOSED`·`REPORT_ACTION_INVALID` · 400 `fields.action|reasonCode|note`
+ *   - `POST /{id}/resolve { action(HIDE·DELETE·KEEP_HIDDEN · 소모임 사건은 DEACTIVATE 만), reasonCode, note }` (`report.manage`) → 200 상세 · 409 `REPORT_CASE_CLOSED`·`REPORT_ACTION_INVALID` · 400 `fields.action|reasonCode|note`
  *   - `POST /{id}/dismiss { reasonCode?, note?, falseReport }` (`report.manage`) → 200 상세 · 409 `REPORT_CASE_CLOSED`
  *   - `POST /dismiss { ids(1~50), falseReport, note? }` (`report.manage`) → `{ done, failed: [{id, code}] }` — 사건마다 따로
  *   - `POST /{id}/reopen` (`report.manage`) → 200 상세 · 409 `REPORT_CASE_CLOSED`(조치한 사건)·`REPORT_CASE_OPEN_EXISTS`
@@ -52,6 +52,7 @@ export function useReportApi() {
                     to: query.to || undefined,
                     board: query.board || undefined,
                     postId: query.postId || undefined,
+                    groupId: query.groupId || undefined,
                     sort: query.sort,
                     page: query.page,
                     size: query.size,

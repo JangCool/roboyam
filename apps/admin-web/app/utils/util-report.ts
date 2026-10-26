@@ -43,6 +43,8 @@ export interface ReportFilters {
     status: ReportStatusFilter;
     /** 그 글과 그 글 댓글의 사건만(게시글 관리 「신고」 칸에서 넘어옴) — 없으면 빈 글자 */
     postId: string;
+    /** 그 소모임 사건만(관리자 소모임 상세 서랍의 「신고 보기」에서 넘어옴) — 없으면 빈 글자 */
+    groupId: string;
     sort: ReportSort;
     page: number;
     /** 한 쪽의 건수(`PAGE_SIZES` 중 하나) */
@@ -82,9 +84,13 @@ const NUMERIC_ID = /^\d{1,19}$/;
 const SEARCH_FIELDS: readonly ReportSearchField[] = ['TITLE', 'AUTHOR', 'CASE_NO'];
 /** 상태 라디오 차례 — 열린 사건(대기 + 검토 중, 기본) · 대기 · 검토 중 · 처리됨 · 무시 · 전체 */
 const STATUS_FILTERS: readonly ReportStatusFilter[] = ['OPEN', 'PENDING', 'IN_REVIEW', 'RESOLVED', 'DISMISSED', 'ALL'];
-const TARGET_TYPES: readonly ReportTargetType[] = ['POST', 'COMMENT'];
-/** 신고 사유 차례 — 게시판 신고 정책 화면의 사유 표와 같다 */
-const REASONS: readonly ReportReasonCode[] = ['SPAM_AD', 'ABUSE', 'OBSCENE', 'ILLEGAL_FILMING', 'RIGHTS', 'OTHER'];
+const TARGET_TYPES: readonly ReportTargetType[] = ['POST', 'COMMENT', 'GROUP'];
+/** 글·댓글 신고 사유 차례 — 게시판 신고 정책 화면의 사유 표와 같다 */
+const POST_REASONS: readonly ReportReasonCode[] = ['SPAM_AD', 'ABUSE', 'OBSCENE', 'ILLEGAL_FILMING', 'RIGHTS', 'OTHER'];
+/** 소모임 신고 사유 차례(서버 `ReportReasons.GROUP_ALL`) */
+const GROUP_REASONS: readonly ReportReasonCode[] = ['PROMOTION', 'OFFLINE_RISK', 'STOCK_RECOMMENDATION', 'OTHER'];
+/** 모든 사유 — 사유 거르기·칩 차례(서버 `ReportReasons.EVERY`) */
+const REASONS: readonly ReportReasonCode[] = ['SPAM_AD', 'ABUSE', 'OBSCENE', 'ILLEGAL_FILMING', 'RIGHTS', 'PROMOTION', 'OFFLINE_RISK', 'STOCK_RECOMMENDATION', 'OTHER'];
 const SORTS: readonly ReportSort[] = ['newest', 'oldest', 'most'];
 /** 자동 숨김(신고 누적·불법 즉시·권리침해 임시조치) — 무시하면 서버가 복구하고, 「자동 숨김 확정」을 할 수 있다. 운영자 숨김(STAFF)은 아니다 */
 const AUTO_HIDDEN = new Set(['REPORTED', 'ILLEGAL', 'RIGHTS']);
@@ -137,6 +143,8 @@ export default class UtilReport {
     static readonly SEARCH_MAX = 100;
     /** 조치 글 1~500자(무시는 0~500자) */
     static readonly NOTE_MAX = 500;
+    /** 소모임 비활성화 글 1~200자 */
+    static readonly GROUP_NOTE_MAX = 200;
     /** 일괄 무시가 한 번에 받는 최대 사건 수 */
     static readonly BULK_MAX = 50;
     static readonly STATUS_FILTERS = STATUS_FILTERS;
@@ -144,12 +152,12 @@ export default class UtilReport {
     static readonly REASONS = REASONS;
     static readonly SORTS = SORTS;
     /** 처리 단추의 차례 */
-    static readonly ACT_ORDER: readonly ReportActKind[] = ['HIDE', 'KEEP_HIDDEN', 'DELETE', 'DISMISS'];
+    static readonly ACT_ORDER: readonly ReportActKind[] = ['HIDE', 'KEEP_HIDDEN', 'DELETE', 'DEACTIVATE', 'DISMISS'];
 
     /* ── 주소 ↔ 필터 ── */
 
     static emptyFilters(): ReportFilters {
-        return { field: 'TITLE', q: '', type: '', reason: '', board: '', from: '', to: '', status: 'OPEN', postId: '', sort: 'newest', page: 1, size: UtilReport.PAGE_SIZE };
+        return { field: 'TITLE', q: '', type: '', reason: '', board: '', from: '', to: '', status: 'OPEN', postId: '', groupId: '', sort: 'newest', page: 1, size: UtilReport.PAGE_SIZE };
     }
 
     /**
@@ -166,6 +174,7 @@ export default class UtilReport {
         const page = Number.parseInt(first(query.page), 10);
         const size = Number.parseInt(first(query.size), 10);
         const postId = first(query.postId).trim();
+        const groupId = first(query.groupId).trim();
         return {
             field: SEARCH_FIELDS.includes(field) ? field : 'TITLE',
             q: Array.from(first(query.q).trim()).slice(0, UtilReport.SEARCH_MAX).join(''),
@@ -176,6 +185,7 @@ export default class UtilReport {
             to: ymd(first(query.to).trim()),
             status: STATUS_FILTERS.includes(status) ? status : 'OPEN',
             postId: NUMERIC_ID.test(postId) ? postId : '',
+            groupId: NUMERIC_ID.test(groupId) ? groupId : '',
             sort: SORTS.includes(sort) ? sort : 'newest',
             page: Number.isFinite(page) && page >= 1 ? page : 1,
             size: UtilReport.PAGE_SIZES.includes(size) ? size : UtilReport.PAGE_SIZE,
@@ -194,6 +204,7 @@ export default class UtilReport {
         if (f.to) query.to = f.to;
         if (f.status !== 'OPEN') query.status = f.status;
         if (f.postId) query.postId = f.postId;
+        if (f.groupId) query.groupId = f.groupId;
         if (f.sort !== 'newest') query.sort = f.sort;
         if (f.page > 1) query.page = String(f.page);
         if (f.size !== UtilReport.PAGE_SIZE) query.size = String(f.size);
@@ -217,6 +228,7 @@ export default class UtilReport {
             to: f.to ? UtilMember.dayEnd(f.to, zoneId) : undefined,
             board: f.board,
             postId: f.postId,
+            groupId: f.groupId,
             sort: f.sort,
             page: f.page - 1,
             size: f.size,
@@ -236,7 +248,7 @@ export default class UtilReport {
 
     /** 조건(검색·대상·사유·게시판·기간·상태·글)이 걸려 있다 — 정렬·쪽·쪽 크기는 조건이 아니다. 상태는 기본(`OPEN`)이 아니면 조건이다 */
     static hasConditions(f: ReportFilters): boolean {
-        return f.q !== '' || f.type !== '' || f.reason !== '' || f.board !== '' || f.from !== '' || f.to !== '' || f.status !== 'OPEN' || f.postId !== '';
+        return f.q !== '' || f.type !== '' || f.reason !== '' || f.board !== '' || f.from !== '' || f.to !== '' || f.status !== 'OPEN' || f.postId !== '' || f.groupId !== '';
     }
 
     /** 조건만 지운다(정렬·쪽 크기는 그대로) */
@@ -293,12 +305,27 @@ export default class UtilReport {
         return lengthOf(text.trim());
     }
 
-    /** 조치 글의 문제 — 조치는 필수 1~500자, 무시는 선택 0~500자(서버 `fields.note` 와 같은 규칙) */
-    static noteProblem(text: string, required: boolean): ReportNoteProblem | null {
+    /** 처리 종류의 글 최대 — 소모임 비활성화는 모임장에게 사유로 가고 소모임 행에 남아 200자(서버 `GroupAdminService.REASON_MAX`), 그 밖 500자 */
+    static noteMax(kind: ReportActKind | null | undefined): number {
+        return kind === 'DEACTIVATE' ? UtilReport.GROUP_NOTE_MAX : UtilReport.NOTE_MAX;
+    }
+
+    /** 조치 글의 문제 — 조치는 필수 1~500자(소모임 비활성화 1~200자), 무시는 선택 0~500자(서버 `fields.note` 와 같은 규칙) */
+    static noteProblem(text: string, required: boolean, max: number = UtilReport.NOTE_MAX): ReportNoteProblem | null {
         const n = UtilReport.noteLength(text);
         if (n === 0) return required ? 'REQUIRED' : null;
-        if (n > UtilReport.NOTE_MAX) return 'TOO_LONG';
+        if (n > max) return 'TOO_LONG';
         return null;
+    }
+
+    /** 사건 대상의 사유 체계 — 소모임은 소모임 사유 4종, 글·댓글은 6종(조치 사유 코드도 이 안에서만 — 서버 `fields.reasonCode`) */
+    static reasonsFor(type: ReportTargetType): readonly ReportReasonCode[] {
+        return type === 'GROUP' ? GROUP_REASONS : POST_REASONS;
+    }
+
+    /** 소모임 사유인가(문구 키가 다르다) */
+    static isGroupReason(code: string): boolean {
+        return code !== 'OTHER' && (GROUP_REASONS as readonly string[]).includes(code);
     }
 
     /* ── 가능한 처리 ── */
@@ -314,20 +341,25 @@ export default class UtilReport {
     }
 
     static noActions(): ReportActions {
-        return { HIDE: false, KEEP_HIDDEN: false, DELETE: false, DISMISS: false };
+        return { HIDE: false, KEEP_HIDDEN: false, DELETE: false, DEACTIVATE: false, DISMISS: false };
     }
 
     /**
      * 사건 하나에 누를 수 있는 처리 — 열린 사건 + `report.manage` 일 때만(서버도 `409 REPORT_CASE_CLOSED`·`REPORT_ACTION_INVALID` 로 막는다).
-     * 숨기기 = 공개 대상만 · 자동 숨김 확정 = 자동 숨김된 대상만 · 삭제 = 지우지 않은 대상 · 무시 = 늘.
+     * 글·댓글: 숨기기 = 공개 대상만 · 자동 숨김 확정 = 자동 숨김된 대상만 · 삭제 = 지우지 않은 대상 · 무시 = 늘.
+     * 소모임: 비활성화 = 열린(`PUBLIC`) 소모임만 · 무시 = 늘(숨기기·삭제는 없다 — community 와 같다).
      */
-    static actionsOf(item: Pick<ReportCaseItem, 'status' | 'target'>, canManage: boolean): ReportActions {
+    static actionsOf(item: Pick<ReportCaseItem, 'status' | 'target' | 'targetType'>, canManage: boolean): ReportActions {
         const actions = UtilReport.noActions();
         if (!canManage || !UtilReport.isOpen(item.status)) return actions;
+        actions.DISMISS = true;
+        if (item.targetType === 'GROUP') {
+            actions.DEACTIVATE = item.target.state === 'PUBLIC';
+            return actions;
+        }
         actions.HIDE = item.target.state === 'PUBLIC';
         actions.KEEP_HIDDEN = UtilReport.isAutoHidden(item.target);
         actions.DELETE = item.target.state !== 'DELETED';
-        actions.DISMISS = true;
         return actions;
     }
 
@@ -341,12 +373,17 @@ export default class UtilReport {
 
     /** 위험한 처리 — 빨강 단추 */
     static isDanger(kind: ReportActKind): boolean {
-        return kind === 'HIDE' || kind === 'DELETE';
+        return kind === 'HIDE' || kind === 'DELETE' || kind === 'DEACTIVATE';
     }
 
     static actIcon(kind: ReportActKind): string {
-        const icons: Record<ReportActKind, string> = { HIDE: 'pi pi-eye-slash', KEEP_HIDDEN: 'pi pi-lock', DELETE: 'pi pi-trash', DISMISS: 'pi pi-times-circle' };
+        const icons: Record<ReportActKind, string> = { HIDE: 'pi pi-eye-slash', KEEP_HIDDEN: 'pi pi-lock', DELETE: 'pi pi-trash', DEACTIVATE: 'pi pi-ban', DISMISS: 'pi pi-times-circle' };
         return icons[kind];
+    }
+
+    /** 대상 종류 칩의 색 — 글 파랑 · 댓글 회색 · 소모임 주황 */
+    static targetTypeSeverity(type: ReportTargetType): Severity {
+        return type === 'POST' ? 'info' : type === 'GROUP' ? 'warn' : 'secondary';
     }
 
     /**
@@ -388,7 +425,7 @@ export default class UtilReport {
     static snapshotChanged(detail: Pick<ReportCaseDetail, 'content' | 'case'>): boolean {
         const snap = detail.content.snapshot ?? null;
         if (!snap || detail.content.body === null) return false;
-        if (detail.case.targetType === 'POST' && snap.title !== null && plain(snap.title) !== plain(detail.case.target.title)) return true;
+        if ((detail.case.targetType === 'POST' || detail.case.targetType === 'GROUP') && snap.title !== null && plain(snap.title) !== plain(detail.case.target.title)) return true;
         return snap.body !== null && plain(snap.body) !== plain(detail.content.body);
     }
 
@@ -429,7 +466,7 @@ export default class UtilReport {
     }
 
     static targetStateIcon(state: ReportTargetState): string {
-        return state === 'PUBLIC' ? 'pi pi-globe' : state === 'HIDDEN' ? 'pi pi-eye-slash' : 'pi pi-trash';
+        return state === 'PUBLIC' ? 'pi pi-globe' : state === 'HIDDEN' ? 'pi pi-eye-slash' : state === 'INACTIVE' ? 'pi pi-ban' : 'pi pi-trash';
     }
 
     static eventSeverity(type: string): Severity {

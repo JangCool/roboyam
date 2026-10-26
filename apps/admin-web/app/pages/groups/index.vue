@@ -8,7 +8,7 @@
         - 비활성화는 사유 필수(1~200자, 모임장에게 그대로 전달), 다시 열기는 메모 선택(운영 기록에만). 그 사이 다른 운영자가 처리했으면(409) 알리고 새로 받는다.
         권한: 화면 `group.read`(메뉴가 거른다) · 조치 `group.manage`(없으면 단추를 막고 이유를 보인다) · 게시판 설정 링크 `board.read`. 감추는 것은 편의이고 막는 것은 서버다.
         서버 호출은 `useGroupAdminApi`.
-        community 와 다른 점: 좁은 화면의 카드 목록 대신 가로 스크롤 표(게시판 관리와 같은 방식) · 상세 서랍의 외부 링크(공개 화면·회원 조회·신고 보기) 없음.
+        community 와 다른 점: 좁은 화면의 카드 목록 대신 가로 스크롤 표(게시판 관리와 같은 방식) · 상세 서랍의 외부 링크(공개 화면·회원 조회) 없음 — 「신고 보기 ›」·사건 번호는 신고 관리로 잇는다(`report.read`).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('group.listTitle')" :subtitle="t('group.listSubtitle')">
@@ -149,6 +149,7 @@
             :busy="acting"
             :can-write="canWrite"
             :can-board="can('board.read')"
+            :can-report="can('report.read')"
             @retry="loadDetail"
             @deactivate="openReason('deactivate')"
             @reactivate="openReason('reactivate')"

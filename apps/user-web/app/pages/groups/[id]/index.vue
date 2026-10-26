@@ -10,7 +10,8 @@
         멤버 탭·채팅 링크는 멤버에게만 열린다(비멤버는 잠금 + 가입 단추). 채팅 링크는 확인 대화상자를 거쳐 새 탭으로 연다(허용 주소만 — `UtilGroup.safeChatUrl`).
         공개 범위(5단계): 머리 알약 줄 맨 앞에 「공개」/「비공개」 칩(누르면 한 줄 설명 시트, 기능이 꺼진 서버의 비공개 소모임은 없음). 공개 소모임이면 비멤버도 모든 글을 보고(서버가 `locked:false`)
           글 줄의 「공개 전환됨」을 붙이지 않는다(멤버 전용으로 돌린 글만 「비공개」).
-        ⋯ 메뉴: 링크 복사 · (멤버) 탈퇴. 모임장은 바로 탈퇴할 수 없다(넘기기·해산 안내 → 관리). community 대비: 소모임 신고(⋯ 메뉴)는 로보얌 신고 대상에 소모임이 없어 뺐다.
+        ⋯ 메뉴: 링크 복사 · 신고(모임장 본인 제외 — 매니저·멤버·비멤버·비회원, 비회원은 로그인 안내) · (멤버) 탈퇴. 모임장은 바로 탈퇴할 수 없다(넘기기·해산 안내 → 관리).
+          신고는 글·댓글과 같은 신고 시트(`BoardReportDialog` target `GROUP`, 소모임 사유 — 투자 고지 소모임이면 「종목 추천·유료 모집」이 더해진다)와 `useGroupReport` — 닫힌·없는 소모임이라는 답이면 상세를 다시 받는다.
     -->
     <div class="mx-auto max-w-2xl lg:max-w-none">
         <div v-if="status === 'loading'" role="status" :aria-label="t('common.loading')" data-testid="group-loading">
@@ -428,6 +429,9 @@
                 <li>
                     <button type="button" :class="SHEET_ITEM" data-testid="group-more-copy" @click="copyLink">{{ t('group.copyLink') }}</button>
                 </li>
+                <li v-if="reportable">
+                    <button type="button" :class="SHEET_ITEM" data-testid="group-more-report" @click="onReport">{{ t('group.report') }}</button>
+                </li>
                 <li v-if="isMember">
                     <button type="button" :class="[SHEET_ITEM, 'text-red-600 dark:text-red-400']" data-testid="group-more-leave" @click="onLeave">{{ t('group.leave') }}</button>
                 </li>
@@ -436,6 +440,19 @@
                 <Button type="button" :label="t('common.close')" severity="secondary" variant="outlined" fluid @click="moreOpen = false" />
             </div>
         </AppSheet>
+
+        <!-- 소모임 신고 시트 -->
+        <BoardReportDialog
+            v-if="group"
+            v-model:visible="report.visible.value"
+            target="GROUP"
+            :summary="t('group.reportTarget', { name: group.name })"
+            :stock="group.stockNotice"
+            :loading="report.loading.value"
+            :error="report.error.value"
+            :field-error="report.fieldError.value"
+            @submit="report.submit"
+        />
 
         <!-- 공개 범위 한 줄 설명(5단계) -->
         <AppSheet v-if="group?.visibility" v-model:visible="visibilityInfoOpen" :title="visibilitySheet.title" :description="visibilitySheet.text">
@@ -828,6 +845,15 @@ async function copyLink() {
     const ok = await copy(`${window.location.origin}${UtilGroup.detailPath(id.value)}`);
     if (ok) toast.success(t('group.linkCopied'));
     else toast.error(t('group.linkCopyFailed'), 5000);
+}
+
+/** 신고 항목 — 모임장 본인에게는 없다(서버도 `400 CANNOT_REPORT_OWN`). 매니저는 신고할 수 있다 */
+const reportable = computed(() => Boolean(group.value) && group.value?.myState !== 'LEADER' && group.value?.myRole !== 'LEADER');
+const report = useGroupReport({ groupId: id, onGone: () => void refresh() });
+
+function onReport() {
+    moreOpen.value = false;
+    if (reportable.value) report.open();
 }
 
 async function showLeaderNotice() {

@@ -99,7 +99,7 @@ export default {
         GENERAL: 'General',
         DEAL: 'Hot deal',
         PROMO: 'Promotion',
-        GROUP: 'Group',
+        GROUP: 'Club',
     },
     layout: {
         LIST: 'List',
@@ -580,7 +580,7 @@ export default {
 
     // ── Managers & staff ──
     staffLead: 'Board managers and staff are regular members. Assigning and releasing take effect immediately (separate from the save bar).',
-    staffKindBlocked: 'Managers and staff cannot be assigned to hot deal, promotion or group boards.',
+    staffKindBlocked: 'Managers and staff cannot be assigned to hot deal, promotion or club boards.',
     staffLoadFailed: "Couldn't load managers and staff",
     role: {
         MANAGER: 'Managers',

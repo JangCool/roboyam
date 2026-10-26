@@ -108,6 +108,8 @@ export default {
     leaderLoadNote: 'Inactive clubs count toward the leader’s limit. While they stay inactive, the leader can’t create new clubs.',
     postsLine: '{posts} · {public} visible to non-members',
     reportsLine: '{n} reports',
+    reportsLink: 'View reports',
+    reportCaseLink: 'View report case',
     band: 'Deactivated on {date}',
     bandCase: 'Deactivated on {date} by report #{no}',
     actionNotify: 'The leader is notified',

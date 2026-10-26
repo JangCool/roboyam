@@ -9,16 +9,17 @@ import UtilReport from '~/utils/util-report';
  * 신고 사유 이름은 게시판 신고 정책 화면의 사유 이름(`board.reason.*`)을 그대로 쓴다(같은 코드 체계).
  */
 export default class UtilReportMessages {
-    /** 신고 사유 이름 — 게시판 신고 정책의 사유 표와 같은 문구. 모르는 코드는 코드 그대로 */
+    /** 신고 사유 이름 — 글·댓글 사유는 게시판 신고 정책의 사유 표와 같은 문구, 소모임 사유는 `report.groupReason.*`. 모르는 코드는 코드 그대로 */
     static reasonName(t: Translate, code: ReportReasonCode | string | null | undefined): string {
         if (!code) return '';
+        if (UtilReport.isGroupReason(code)) return t(`report.groupReason.${code}`);
         return (UtilReport.REASONS as readonly string[]).includes(code) ? t(`board.reason.${code}`) : code;
     }
 
     /** 조치 글 칸 문제 */
-    static noteProblem(t: Translate, problem: ReportNoteProblem | null): string {
+    static noteProblem(t: Translate, problem: ReportNoteProblem | null, max: number = UtilReport.NOTE_MAX): string {
         if (problem === 'REQUIRED') return t('report.noteRequired');
-        if (problem === 'TOO_LONG') return t('report.noteTooLong', { max: UtilReport.NOTE_MAX });
+        if (problem === 'TOO_LONG') return t('report.noteTooLong', { max });
         return '';
     }
 
@@ -85,7 +86,7 @@ export default class UtilReportMessages {
     static eventLines(t: Translate, ev: ReportEvent): string[] {
         const d = ev.detail ?? {};
         const lines: string[] = [];
-        if (typeof d.action === 'string' && ['HIDE', 'DELETE', 'KEEP_HIDDEN'].includes(d.action)) lines.push(t(`report.actionName.${d.action}`));
+        if (typeof d.action === 'string' && ['HIDE', 'DELETE', 'KEEP_HIDDEN', 'DEACTIVATE'].includes(d.action)) lines.push(t(`report.actionName.${d.action}`));
         if (typeof d.reasonCode === 'string') lines.push(t('report.eventReason', { reason: UtilReportMessages.reasonName(t, d.reasonCode) }));
         if (typeof d.reason === 'string') lines.push(UtilReportMessages.reasonName(t, d.reason));
         if (d.falseReport === true) lines.push(t('report.falseReportMarked'));

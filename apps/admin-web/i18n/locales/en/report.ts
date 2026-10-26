@@ -17,7 +17,7 @@ export default {
         CASE_NO: 'Case no.',
     },
     searchPlaceholder: {
-        TITLE: 'Enter the post title',
+        TITLE: 'Enter the post title or club name',
         AUTHOR: 'Enter the author',
         CASE_NO: 'Enter a case number',
     },
@@ -50,12 +50,14 @@ export default {
     total: '{count} total',
     postFilter: 'Only reports on post #{id}',
     postFilterClear: 'Remove post filter',
+    groupFilter: 'Only reports on club #{id}',
+    groupFilterClear: 'Remove club filter',
 
     // ── List ──
     loadFailed: "Couldn't load reports",
     refreshFailed: "Couldn't refresh the list. {reason}",
     empty: 'No reports to handle',
-    emptyHint: 'When members report posts or comments, they gather here as cases.',
+    emptyHint: 'When members report posts, comments or clubs, they gather here as cases.',
     col: {
         caseNo: 'Case',
         target: 'Target',
@@ -73,11 +75,13 @@ export default {
     targetType: {
         POST: 'Post',
         COMMENT: 'Comment',
+        GROUP: 'Club',
     },
     targetState: {
         PUBLIC: 'Public',
         HIDDEN: 'Hidden',
         DELETED: 'Deleted',
+        INACTIVE: 'Inactive',
     },
     hiddenReason: {
         REPORTED: 'Auto-hidden by reports',
@@ -92,6 +96,11 @@ export default {
     caseNoValue: '#{no}',
     reportCountValue: '{n}',
     reasonChip: '{name} {n}',
+    groupReason: {
+        PROMOTION: 'Promotion or sales',
+        OFFLINE_RISK: 'Risky offline meetup',
+        STOCK_RECOMMENDATION: 'Stock tips or paid recruiting',
+    },
     status: {
         PENDING: 'New',
         IN_REVIEW: 'In review',
@@ -105,12 +114,14 @@ export default {
         HIDE: 'Hide',
         KEEP_HIDDEN: 'Keep hidden',
         DELETE: 'Delete',
+        DEACTIVATE: 'Deactivate club',
         DISMISS: 'Dismiss',
     },
     actionName: {
         HIDE: 'Hidden',
         KEEP_HIDDEN: 'Kept hidden',
         DELETE: 'Deleted',
+        DEACTIVATE: 'Club deactivated',
         DISMISS: 'Dismissed',
     },
     dialog: {
@@ -125,6 +136,10 @@ export default {
         DELETE: {
             title: 'Delete the target?',
             text: 'Posts are deleted as in Posts (earned points are taken back). Comments are removed and the comment count and points are reverted. If the board policy allows, the author is notified. The case closes as resolved.',
+        },
+        DEACTIVATE: {
+            title: 'Deactivate the club?',
+            text: 'Same as deactivating in Clubs: the public site shows only a notice, and the leader is notified with your note (up to 200 characters) as the reason. The deactivation record keeps this case number. You can reopen the club in Clubs. The case closes as resolved.',
         },
         DISMISS: {
             title: 'Dismiss these reports?',
@@ -151,6 +166,7 @@ export default {
         HIDE: 'Hid the target and closed the case.',
         KEEP_HIDDEN: 'Kept it hidden and closed the case.',
         DELETE: 'Deleted the target and closed the case.',
+        DEACTIVATE: 'Deactivated the club and closed the case.',
         DISMISS: 'Dismissed the reports.',
         REOPEN: 'Reopened the case.',
     },
@@ -192,6 +208,14 @@ export default {
     detailLoadFailed: "Couldn't load the case",
     targetTitle: 'Target',
     openPostAdmin: 'View in Posts',
+    openGroupAdmin: 'View in Clubs',
+    groupLeader: 'Leader',
+    groupLeaderNow: 'Current leader',
+    groupMembers: 'Members',
+    groupMembersValue: '{members} / {capacity}',
+    groupCategory: 'Category',
+    groupOffline: 'This is an offline club. Check its details and events for anything risky.',
+    groupStock: 'This club has the investment notice. Check for stock tips or paid recruiting.',
     openPublic: 'View on public site',
     targetStateLabel: 'Target status',
     firstReported: 'First reported',

@@ -77,6 +77,8 @@ export default {
     meTag: 'Me',
     offlineNoticeTitle: 'In-person meetup: your own responsibility',
     offlineNoticeText: 'In-person meetups are at each attendee’s own responsibility. Meet new people in busy public places, don’t share contact details or addresses carelessly, and turn down money deals or investment pitches.',
+    reportLead: 'Something wrong with this club?',
+    reportLink: 'Report',
 
     // ── Menu & cancel ──
     menuLabel: 'Open event menu',

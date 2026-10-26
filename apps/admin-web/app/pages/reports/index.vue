@@ -1,11 +1,14 @@
 <template>
     <!--
-        신고 관리 — 글·댓글 신고를 대상별 사건으로 모아 보고, 검토해서 조치(숨기기·자동 숨김 확정·삭제)하거나 무시한다.
+        신고 관리 — 글·댓글·소모임 신고를 대상별 사건으로 모아 보고, 검토해서 조치(글·댓글: 숨기기·자동 숨김 확정·삭제 / 소모임: 비활성화)하거나 무시한다.
+        소모임 대상(community `docs/api-report.md` 의 `GROUP`): 대상 칸은 소모임 칩 + 이름·소개 앞부분, 게시판 칸은 소모임 게시판(없으면 —), 작성자 칸은 모임장. 줄 메뉴의 「소모임 관리에서 보기」는 `/groups?group=`(`group.read`).
+          관리자 소모임 상세 서랍의 비활성 사건 번호가 `/reports?report={caseId}&status=ALL` 로, 「신고 보기 ›」가 `?groupId={소모임 ID}&status=ALL` 로 넘어온다(툴바에 풀기 칩).
+          사유 거르기는 글·댓글 6종 + 소모임 4종, 처리 대화창의 사유 코드는 사건 대상의 체계만.
         계약 `docs/features/report-admin-contract.md`(community `admin/app/pages/reports` 의 동작을 로보얌 신고 모델·자동 숨김·게시판 신고 정책에 맞춤). 모양·구조는 게시글 관리(`pages/posts/index.vue`)와 같다.
         - 조회 폼: 검색 대상(제목·작성자·사건 번호) + 검색 칸 · 대상(전체/글/댓글 라디오) · 사유(Select) · 게시판(Select) · 마지막 신고일 기간(빠른 선택) · 상태 라디오(처리 대기·검토 중·처리됨·무시·전체 — 건수 없음) · 가운데 검색·초기화.
           검색 대상·검색어·기간은 「검색」(또는 Enter)을 눌러야 주소로 가고, 대상·사유·게시판·상태는 고르는 즉시 주소로 간다.
           목록: 정렬은 표의 「마지막 신고」(내림 = 최신 · 오름 = 오래된)·「신고 수」(많은 순) 머리 · 표 위 툴바에 건수·정렬 안내 · 쪽 크기(10/20/50).
-          **모두 주소 쿼리**(`?field=&q=&type=&reason=&board=&from=&to=&status=&postId=&sort=&page=&size=&report=`). 게시글 관리 「신고」 칸이 `?postId=` 로 넘어온다(툴바에 풀기 칩).
+          **모두 주소 쿼리**(`?field=&q=&type=&reason=&board=&from=&to=&status=&postId=&groupId=&sort=&page=&size=&report=`). 게시글 관리 「신고」 칸이 `?postId=` 로 넘어온다(툴바에 풀기 칩).
         - 표: 체크(열린 사건, `report.manage`) · 사건 번호 · 대상(글/댓글 칩 + 제목·발췌, 대상 상태 알약 — 숨김 까닭·임시조치 기한) · 게시판 · 작성자 · 신고 수 · 사유 분포 칩 · 마지막 신고 · 상태 알약(검토자) · ⋯ 메뉴.
           줄을 누르면 사건 서랍(`ReportDetailDrawer`, 주소 `?report=` — replace, 목록을 다시 받지 않는다). 이전/다음은 지금 쪽의 줄 순서. 운영자 알림 링크 `/reports?report={caseId}` 도 같은 서랍을 연다.
           대기 사건은 열람과 함께 서버가 검토 중으로 바꾼다 — 받은 상세의 사건으로 목록 줄을 바꿔 끼운다(목록을 다시 받지 않는다).
@@ -82,6 +85,10 @@
                     <i class="pi pi-filter text-[10px]" aria-hidden="true" />{{ t('report.postFilter', { id: filters.postId }) }}
                     <Button type="button" icon="pi pi-times" size="small" severity="secondary" variant="text" rounded class="h-6! w-6!" :aria-label="t('report.postFilterClear')" @click="clearPostFilter" />
                 </span>
+                <span v-if="filters.groupId" class="inline-flex items-center gap-1 rounded-full border border-(--line) py-0.5 pr-0.5 pl-2.5 text-xs">
+                    <i class="pi pi-filter text-[10px]" aria-hidden="true" />{{ t('report.groupFilter', { id: filters.groupId }) }}
+                    <Button type="button" icon="pi pi-times" size="small" severity="secondary" variant="text" rounded class="h-6! w-6!" :aria-label="t('report.groupFilterClear')" @click="clearGroupFilter" />
+                </span>
                 <p v-if="!canManage" class="flex items-center gap-1.5 text-xs text-muted-color">
                     <i class="pi pi-lock" aria-hidden="true" />{{ t('report.readOnly') }}
                 </p>
@@ -147,7 +154,7 @@
                         <template #body="{ data }">
                             <div class="flex min-w-0 flex-col gap-1">
                                 <div class="flex min-w-0 flex-wrap items-center gap-1.5">
-                                    <Tag :value="t(`report.targetType.${data.targetType}`)" :severity="data.targetType === 'POST' ? 'info' : 'secondary'" class="shrink-0 text-[11px]!" />
+                                    <Tag :value="t(`report.targetType.${data.targetType}`)" :severity="UtilReport.targetTypeSeverity(data.targetType)" class="shrink-0 text-[11px]!" />
                                     <button
                                         type="button"
                                         class="min-w-0 text-left text-[13px] font-medium break-words [overflow-wrap:anywhere] hover:underline focus-visible:outline-2 focus-visible:outline-primary"
@@ -157,7 +164,7 @@
                                         {{ data.target.title ?? t('report.targetPurged') }}
                                     </button>
                                 </div>
-                                <p v-if="data.targetType === 'COMMENT' && data.target.excerpt" class="m-0 line-clamp-2 text-xs text-muted-color">{{ data.target.excerpt }}</p>
+                                <p v-if="data.targetType !== 'POST' && data.target.excerpt" class="m-0 line-clamp-2 text-xs text-muted-color">{{ data.target.excerpt }}</p>
                                 <ReportTargetStateTag :target="data.target" lines />
                             </div>
                         </template>
@@ -165,7 +172,8 @@
 
                     <Column :header="t('report.col.board')" style="min-width: 7rem">
                         <template #body="{ data }">
-                            <span class="block truncate text-[13px]">{{ localizedName(data.board.name, data.board.nameEn ?? null) }}</span>
+                            <span v-if="data.board" class="block truncate text-[13px]">{{ localizedName(data.board.name, data.board.nameEn ?? null) }}</span>
+                            <span v-else class="text-[13px] text-muted-color">—</span>
                         </template>
                     </Column>
 
@@ -265,6 +273,7 @@
             :has-next="neighbors.next !== null"
             :can-manage="canManage"
             :can-view-post="canViewPost"
+            :can-view-group="canViewGroup"
             :author-grade="authorGrade"
             @retry="detail.reload(false)"
             @act="onDrawerAct"
@@ -305,6 +314,7 @@ const uid = useId();
 /** 권한(정의: util-permission-catalog.ts) — 감추는 것은 편의이고 막는 것은 서버다 */
 const canManage = computed(() => can('report.manage'));
 const canViewPost = computed(() => can('post.read'));
+const canViewGroup = computed(() => can('group.read'));
 
 /* ── 주소 ↔ 필터 ── */
 
@@ -338,6 +348,9 @@ function setBoard(value: string): void {
 }
 function clearPostFilter(): void {
     apply(UtilReport.change(filters.value, { postId: '' }));
+}
+function clearGroupFilter(): void {
+    apply(UtilReport.change(filters.value, { groupId: '' }));
 }
 function onPage(e: { page: number; rows: number }): void {
     if (e.rows !== filters.value.size) apply(UtilReport.change(filters.value, { size: e.rows }));
@@ -678,7 +691,10 @@ function rowMenuFor(item: ReportCaseItem): MenuItem[] {
         class: UtilReport.isDanger(kind) ? 'report-menu-danger' : undefined,
         command: () => openAct(item, kind),
     }));
-    if (canViewPost.value) menu.push({ label: t('report.openPostAdmin'), icon: 'pi pi-file-edit', command: () => void navigateTo({ path: '/posts', query: { post: item.target.postId } }) });
+    const postId = item.target.postId;
+    const groupId = item.target.groupId;
+    if (canViewPost.value && postId) menu.push({ label: t('report.openPostAdmin'), icon: 'pi pi-file-edit', command: () => void navigateTo({ path: '/posts', query: { post: postId } }) });
+    if (canViewGroup.value && item.targetType === 'GROUP' && groupId) menu.push({ label: t('report.openGroupAdmin'), icon: 'pi pi-users', command: () => void navigateTo({ path: '/groups', query: { group: groupId } }) });
     return menu;
 }
 const rowMenuItems = computed<MenuItem[]>(() => (rowMenuTarget.value ? rowMenuFor(rowMenuTarget.value) : []));
