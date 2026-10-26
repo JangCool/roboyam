@@ -4,7 +4,8 @@ import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopA
 
 /**
  * 소모임 API 가 주고받는 모양 — 1단계(1·2·3·4·5(5-1 제외)·7절)는 서버 `server/api/.../group/dto/response/*` 와 칸 단위로 맞췄다(2026-10-26).
- * 2단계(8절 소모임 글)는 community `docs/api-groups.md` 8절과 같은 이름이라고 가정한다(서버 에이전트도 같은 원본을 따른다).
+ * 2단계(8절 소모임 글)는 서버 `GroupPost*View`·`PostGroupView`·`GroupDetailView`(`postCount`·`newPostCount`)와 칸 단위로 맞췄다(2026-10-26).
+ * 3단계(5-1 매니저)는 서버 `GroupManagerListView`·`GroupDetailView.ManagerInfo`·`Permissions` 와 맞췄다(community 5-1 과 같은 경로·칸 — `useGroupApi.ts` 머리말).
  * 로보얌 관례: 응답은 `ApiResponse` 래퍼(`useApiClient` 가 벗겨 `data` 만 돌려준다), ID 는 모두 문자열, 시각은 ISO-8601 UTC 문자열(보이는 것은 `useDisplayTime`).
  * 원본과 다르게 둔 것은 `useGroupApi.ts` 머리말에 적는다.
  */
@@ -152,7 +153,7 @@ export interface GroupChatLink {
     label: string | null;
 }
 
-/** 소모임 안의 역할 — 매니저(`MANAGER`)는 3단계에서 화면을 연다 */
+/** 소모임 안의 역할 — 모임장 · 매니저(모임장이 맡긴 일만 한다 — 3단계) · 멤버 */
 export type GroupRole = 'LEADER' | 'MANAGER' | 'MEMBER';
 
 /**
@@ -162,8 +163,10 @@ export type GroupRole = 'LEADER' | 'MANAGER' | 'MEMBER';
 export type GroupManageBlockedReason = 'EMAIL_NOT_VERIFIED' | 'ACCOUNT_RESTRICTED' | 'BUSINESS_ACCOUNT_RESTRICTED';
 
 /**
- * 보는 사람의 권한 — 역할만 반영한다. `canManage` 는 모임장(3단계부터 매니저 포함), `canEditGroup` 은 모임장 고정 일(정보·채팅·넘기기·해산).
- * 체크형 칸(`canHandleApplications` 등)이 없는 응답은 `canManage` 로 채운다(`UtilGroup.permissionsOf`).
+ * 보는 사람의 권한(서버 `GroupDetailView.Permissions`) — 역할·맡은 일만 반영한다(정지·미인증은 `manageBlockedReason`).
+ * `canManage` 는 모임장 **또는 매니저**(관리 화면에 들어온다), `canEditGroup` 은 모임장 고정 일(정보·채팅·넘기기·해산·매니저 임명 계열),
+ * `canAppointManager` 는 모임장이고 매니저 기능이 켜짐, 체크형 다섯(`canHandleApplications`·`canKickMembers`·`canSetRecruiting`·`canManageEvents`·`canUnpublishPosts`)은
+ * 모임장이거나 그 일을 맡은 매니저. 칸이 없는 옛 응답은 `canManage`(그때는 모임장)로 채운다(`UtilGroup.permissionsOf`).
  */
 export interface GroupPermissions {
     canManage: boolean;
@@ -215,7 +218,7 @@ export interface GroupDetailBoard extends GroupBoard {
     prefixes?: GroupBoardPrefix[];
 }
 
-/** 멤버에게만 — 매니저 수와 상한(3단계 화면 — 지금은 읽지 않는다) */
+/** 멤버에게만 — 매니저 수와 상한(관리 메인의 매니저 줄·멤버 관리의 매니저 거르기·인원 설정·임명 시트의 인원 줄) */
 export interface GroupManagerInfo {
     count: number;
     /** 유효 상한 = min(소모임 상한, 최대 인원) */
@@ -251,12 +254,16 @@ export interface GroupDetail {
     chatLocked?: boolean;
     permissions?: GroupPermissions | null;
     myRole?: GroupRole | null;
-    /** 멤버에게만(3단계 화면 — 읽지 않는다) */
+    /** 멤버에게만 매니저 수·상한, 그 밖 null */
     managerInfo?: GroupManagerInfo | null;
     newcomers?: GroupNewcomers | null;
-    /** 모임장(3단계부터 `APPLICATIONS` 매니저)에게만 승인 대기 수 — 그 밖은 null(0 은 「없음」, null 은 「볼 수 없음」) */
+    /** 모임장·`APPLICATIONS` 매니저에게만 승인 대기 수 — 그 밖은 null(0 은 「없음」, null 은 「볼 수 없음」) */
     pendingApplicationCount?: number | null;
     limits?: GroupLimits | null;
+    /** 보는 사람에게 보이는 소모임 글 수 — 멤버는 보이는 글 전부, 비멤버·비회원은 공개로 전환된 글(지운·숨긴·나가서 가린 글 제외, 2단계). 비활성이면 null */
+    postCount?: number | null;
+    /** 멤버에게만 — 내가 글 탭을 마지막으로 본 뒤(본 적이 없으면 가입 뒤) 올라온 남의 글 수, 비멤버·비회원 null(2단계) */
+    newPostCount?: number | null;
 }
 
 /** 멤버 탭 한 줄 — 모임장 → (매니저) → 멤버, 같은 역할 안에서는 가입이 이른 순 */
@@ -264,8 +271,39 @@ export interface GroupMember {
     user: GroupUser;
     role: GroupRole;
     joinedAt: string;
-    /** 매니저 줄이고 보는 사람이 모임장·그 매니저 본인일 때만 맡은 일(3단계 — 읽지 않는다), 그 밖 null */
+    /** 매니저 줄이고 보는 사람이 모임장·그 매니저 본인일 때만 맡은 일 키(고정 순서 — 모르는 키는 화면이 버린다), 그 밖 null */
     managerPermissions?: string[] | null;
+}
+
+// ── 매니저(3단계 — community `docs/api-groups.md` 5-1) ──
+
+/** 매니저가 맡을 수 있는 일 — 이 5개가 전부이고 서버 배열은 늘 이 순서다(서버 `GroupManagerPermission`) */
+export type GroupManagerPermission = 'APPLICATIONS' | 'KICK' | 'RECRUITING' | 'EVENTS' | 'UNPUBLISH';
+
+/** `GET /api/groups/{id}/managers` 의 한 줄 — 임명이 이른 순 */
+export interface GroupManagerItem {
+    user: GroupUser;
+    appointedAt: string;
+    /** 보는 사람이 모임장이거나 그 매니저 본인일 때만 키 배열, 그 밖 null */
+    permissions: string[] | null;
+}
+
+/** `GET /api/groups/{id}/managers` — 멤버만(비멤버 `403 GROUP_NOT_MEMBER`). `limit` 은 유효 상한 = min(소모임 상한, 최대 인원) */
+export interface GroupManagerListResponse {
+    items: GroupManagerItem[];
+    count: number;
+    limit: number;
+    limitMax: number;
+}
+
+/** `PUT /api/groups/{id}/managers/{userId}` 본문 — 임명·맡은 일 바꾸기(같은 API, 1~5개·중복 없음) */
+export interface GroupManagerSetRequest {
+    permissions: GroupManagerPermission[];
+}
+
+/** `PUT /api/groups/{id}/manager-limit` 본문 — 1 이상 `limitMax` 이하, 지금 매니저 수 이상 */
+export interface GroupManagerLimitRequest {
+    limit: number;
 }
 
 export interface GroupMemberListQuery {
@@ -443,9 +481,15 @@ export interface GroupPostPage {
 
 /**
  * `POST /api/groups/{id}/posts` 본문 — 로보얌 글쓰기 본문(`PostWriteRequest`)에서 게시판(`boardSlug` — 소모임 게시판으로 정해진다)·비회원(`guest` — 회원만)·찬반 토론(`debate`)을 뺀 것.
- * 말머리는 소모임 게시판의 말머리. 임시저장·예약 발행은 없다. 글은 **비공개**로 만들어진다.
+ * 말머리는 소모임 게시판의 말머리. 임시저장·예약 발행은 없다. 글은 **비공개**로 만들어진다. `adult` 는 늘 false(`true` 면 서버 `400 fields.adult` — 소모임 글은 19금이 될 수 없다).
  */
 export type GroupPostWriteRequest = Omit<PostWriteRequest, 'boardSlug' | 'guest' | 'debate'>;
+
+/** `POST /api/groups/{id}/posts` 응답(201, 서버 `GroupPostWriteResultView`) — `pointsEarned` 는 이 글로 받은 포인트(지급이 없으면 0, 늘 숫자) */
+export interface GroupPostWriteResult {
+    id: string;
+    pointsEarned: number;
+}
 
 /** `PUT /api/groups/{id}/posts/{postId}/visibility` 본문 — 공개로 전환할 때는 `acknowledged: true`(개인정보 확인 동의)가 있어야 한다 */
 export interface GroupPostVisibilityRequest {

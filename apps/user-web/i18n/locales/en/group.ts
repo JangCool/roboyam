@@ -27,6 +27,7 @@ export default {
     offline: 'Offline',
     offlineGroup: 'Offline meetups',
     roleLeader: 'Leader',
+    roleManager: 'Manager',
     me: 'Me',
     withdrawn: 'Former member',
     optional: 'Optional',
@@ -350,10 +351,10 @@ export default {
 
     // ── Leader tools ──────────────────────────────────────
     manageTitle: 'Manage club',
-    deniedTitle: 'Leaders only',
-    deniedText: 'Only this club’s leader can manage it.',
+    deniedTitle: 'Leaders and managers only',
+    deniedText: 'Only this club’s leader or managers can manage it.',
     leaderOnlyTitle: 'Leaders only',
-    leaderOnlyText: 'Only the leader can change the info and chat links.',
+    leaderOnlyText: 'Only the leader can change the club info, chat links and managers.',
     blockedEmail: 'Verify your email to use club tools. For now you can only view lists.',
     blockedRestricted: 'Club tools are unavailable while your account is restricted. You can still view lists.',
     blockedBusiness: 'Business accounts can’t use club tools. You can still view lists.',

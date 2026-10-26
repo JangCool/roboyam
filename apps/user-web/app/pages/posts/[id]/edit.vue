@@ -124,7 +124,8 @@ async function load(): Promise<void> {
     try {
         const loaded = await postApi.post(id.value);
         // 소모임 글의 게시판은 공개 게시판 API 에 없다 — 소모임 게시판 정보(`GET /api/groups/{id}/board`)로 받는다(공개 범위는 글 상세에서만 바꾼다)
-        board.value = loaded.group ? await groupApi.board(loaded.group.id) : await boardApi.board(loaded.board.slug);
+        // 소모임 글은 19금이 될 수 없다(서버 `400 fields.adult`) — 게시판이 19금을 받아도 칸을 보이지 않는다
+        board.value = loaded.group ? { ...(await groupApi.board(loaded.group.id)), allowAdult: false } : await boardApi.board(loaded.board.slug);
         post.value = loaded;
         if (!loaded.group) current.set(loaded.board.slug);
         // 지금 게시판 에디터 설정의 형식으로 연다 — 글의 형식과 다르면 바꾼다

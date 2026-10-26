@@ -14,6 +14,8 @@
           토론이 닫혀도 의견·대기 고정 요청이 남았으면(`opinionCount`·`pendingPinRequests`) 요약과 [의견 관리]가 남는다. 목록 줄에는 대기 고정 요청 수 칩. 주소 `?post={id}&opinions=pins` 는 의견 서랍을 「고정 요청」 탭으로 연다.
         - 글의 투표(post-poll-contract): 목록 줄 「투표」 칩(`poll`) · 서랍의 투표 구획(결과 표) + [투표 지우기](`post.manage`, 표가 있어도) → 사유 대화창(`PostReasonDialog` kind `POLL_DELETE`) → `DELETE /api/admin/posts/{id}/poll { reason }`.
           `404 POLL_NOT_FOUND`(그새 없어짐)는 다른 조치처럼 토스트 + 새로 받기. 조치 기록에 `POLL_DELETED` 가 남는다.
+        - 소모임 글(소모임 2단계 — 줄의 `group`·`restricted`): 제목 앞에 「소모임 · 이름」·공개 상태(멤버만·공개 전환)·해산·나간 멤버 칩. **비공개 소모임 글은 서버가 제목을 싣지 않아(`title: null`)**
+          제목 자리에 「소모임 비공개 글」(자물쇠·기울임), 서랍은 본문·투표 대신 「신고 상세에서만」 안내(`contentBlocked: GROUP_PRIVATE`). 소모임 글은 이동이 없다(서버도 `409 POST_STATE_INVALID`).
         - 권한: 보기 `post.read`(메뉴) — 조치 기록·토론 보기는 된다. `post.manage` 가 없으면 읽기 전용 안내 + 체크·조치 없음. 감추는 것은 편의이고 막는 것은 서버다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -138,7 +140,7 @@
                                     binary
                                     :model-value="selection.includes(data.id)"
                                     :disabled="acting"
-                                    :aria-label="t('post.selectRow', { title: data.title })"
+                                    :aria-label="t('post.selectRow', { title: UtilPostMessages.title(t, data) })"
                                     @update:model-value="toggle(data.id)"
                                 />
                             </span>
@@ -182,13 +184,15 @@
                                     class="text-[11px]!"
                                 />
                                 <Tag v-if="data.poll" :value="t('post.chip.poll')" icon="pi pi-chart-bar" severity="secondary" class="text-[11px]!" />
+                                <!-- 소모임 글 — 소모임 이름·공개 상태(·해산·나간 멤버). 비공개 소모임 글은 제목이 오지 않아(title null) 「소모임 비공개 글」로 보인다 -->
+                                <Tag v-for="chip in UtilPostMessages.groupChips(t, data)" :key="chip.key" :value="chip.label" :icon="chip.key === 'group' ? 'pi pi-users' : undefined" :severity="chip.severity" class="text-[11px]!" />
                                 <button
                                     type="button"
                                     class="min-w-0 text-left text-[13px] font-medium break-words [overflow-wrap:anywhere] hover:underline focus-visible:outline-2 focus-visible:outline-primary"
-                                    :class="data.state === 'DELETED' ? 'text-muted-color line-through' : ''"
+                                    :class="[data.state === 'DELETED' ? 'text-muted-color line-through' : '', data.title === null ? 'italic text-muted-color' : '']"
                                     @click.stop="openPost(data)"
                                 >
-                                    {{ data.title }}
+                                    <i v-if="data.title === null" class="pi pi-lock mr-1 text-[10px]" aria-hidden="true" />{{ UtilPostMessages.title(t, data) }}
                                 </button>
                             </div>
                         </template>
@@ -251,7 +255,7 @@
                                 variant="text"
                                 rounded
                                 :disabled="acting"
-                                :aria-label="t('post.actionsMenu', { title: data.title })"
+                                :aria-label="t('post.actionsMenu', { title: UtilPostMessages.title(t, data) })"
                                 aria-haspopup="menu"
                                 @click.stop="openRowMenu($event, data)"
                             />
@@ -342,7 +346,7 @@
             @closed="onDrawerClosed"
         />
 
-        <DebateSettingsDialog v-model:visible="debateSettingsOpen" :post-id="detail.openId.value" :title="drawerItem?.title ?? ''" :actions="debateSettingsActions" :can-manage="canManage" @changed="onDebateChanged" />
+        <DebateSettingsDialog v-model:visible="debateSettingsOpen" :post-id="detail.openId.value" :title="drawerItem ? UtilPostMessages.title(t, drawerItem) : ''" :actions="debateSettingsActions" :can-manage="canManage" @changed="onDebateChanged" />
         <DebateOpinionsDrawer v-model:visible="opinionsOpen" :target="opinionsTarget" :actions="opinionActions" :can-read="true" :can-manage="canManage" :initial-tab="opinionsInitialTab" @changed="onOpinionsChanged" />
     </div>
 </template>
@@ -642,7 +646,7 @@ async function submitBulk(payload: { reason: string; notify: boolean }): Promise
     bulkFieldError.value = '';
     try {
         const result = await api.bulk({ action, ids: targets.map((item) => item.id), reason: payload.reason, notifyAuthor: action === 'HIDE' && payload.notify });
-        bulkTitles.value = Object.fromEntries(targets.map((item) => [item.id, item.title]));
+        bulkTitles.value = Object.fromEntries(targets.map((item) => [item.id, UtilPostMessages.title(t, item)]));
         bulkResult.value = { done: result.done ?? [], failed: result.failed ?? [] };
         selection.value = [];
         toast.show(UtilPostMessages.bulkSummary(t, bulkResult.value), { tone: bulkResult.value.failed.length === 0 ? 'success' : 'default', life: 6000 });
@@ -966,7 +970,7 @@ function onDebateChanged(item: DebateItem | null): void {
 const opinionsTarget = computed<DebateDrawerTarget | null>(() => {
     const id = detail.openId.value;
     if (!id) return null;
-    return { postId: id, title: drawerItem.value?.title ?? `#${id}`, neutralEnabled: debate.value?.neutralEnabled ?? false, counts: null };
+    return { postId: id, title: drawerItem.value ? UtilPostMessages.title(t, drawerItem.value) : `#${id}`, neutralEnabled: debate.value?.neutralEnabled ?? false, counts: null };
 });
 
 /** 의견 서랍을 열 때 처음 탭 */

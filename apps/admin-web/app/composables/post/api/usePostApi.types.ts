@@ -40,12 +40,32 @@ export interface AdminPostAuthor {
     withdrawn: boolean;
 }
 
-/** 목록·상세의 글 한 줄 */
+/** 소모임 글의 공개 상태 — 비공개(그 소모임 멤버만) · 공개로 전환됨 */
+export type AdminPostGroupVisibility = 'PRIVATE' | 'PUBLIC';
+
+/**
+ * 소모임 글의 소모임 표시(서버 `AdminPostGroupView` — 소모임 2단계). 일반 글이면 줄의 `group` 이 null.
+ * `name` 은 소모임 행이 없으면 null, `dissolved` 해산한 소모임의 글, `left` 작성자가 소모임을 나가 가려진 글(다시 가입하면 되살아난다).
+ */
+export interface AdminPostGroupRef {
+    id: string;
+    name: string | null;
+    visibility: AdminPostGroupVisibility;
+    dissolved: boolean;
+    left: boolean;
+}
+
+/**
+ * 목록·상세의 글 한 줄.
+ * **비공개 소모임 글(`restricted`)은 `title` 이 null 이다** — 제목·본문을 싣지 않는다(내용은 신고 처리의 신고 당시 내용으로만 본다). 이동은 `409 POST_STATE_INVALID`.
+ * 화면은 제목 자리에 `UtilPostMessages.title` 의 「소모임 비공개 글」을 그린다.
+ */
 export interface AdminPostItem {
     id: string;
     board: AdminPostBoardRef;
     prefix: AdminPostPrefixRef | null;
-    title: string;
+    /** 비공개 소모임 글이면 null */
+    title: string | null;
     author: AdminPostAuthor;
     state: PostState;
     hiddenReason: PostHiddenReason | null;
@@ -75,6 +95,10 @@ export interface AdminPostItem {
     /** 처리 대기 중인 신고 수 */
     openReports: number;
     createdAt: string;
+    /** 소모임 글이면 그 소모임, 일반 글 null(옛 응답에는 없을 수 있다) */
+    group?: AdminPostGroupRef | null;
+    /** 비공개 소모임 글 — `title` 이 null 이고 상세 본문·투표도 없다(옛 응답에는 없을 수 있다 — 없으면 false) */
+    restricted?: boolean;
 }
 
 /** `GET /api/admin/posts` */
@@ -173,8 +197,10 @@ export interface AdminPostDetail {
     events: PostModerationEvent[];
     /** 공개 사이트의 그 글 절대 주소 — 사이트 공개 주소를 정하지 않았으면 null */
     publicUrl: string | null;
-    /** 글에 붙은 투표(post-poll-contract) — 없으면 null. 옛 응답에는 없을 수 있다 */
+    /** 글에 붙은 투표(post-poll-contract) — 없으면 null. 비공개 소모임 글이면 null. 옛 응답에는 없을 수 있다 */
     poll?: AdminPollView | null;
+    /** 본문을 싣지 않은 까닭 — `GROUP_PRIVATE`(비공개 소모임 글 — `content.body`·`poll` 이 null), 그 밖 null(소모임 2단계) */
+    contentBlocked?: 'GROUP_PRIVATE' | null;
 }
 
 /** 투표 선택지 하나와 그 득표 수 — 누가 골랐는지는 없다(익명) */

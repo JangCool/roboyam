@@ -96,6 +96,9 @@ export default class UtilNotification {
         if (type === 'REPORT_RESULT') return 'pi pi-flag';
         if (type === 'OPINION_PIN_REQUESTED' || type === 'OPINION_PIN_REVIEWED') return 'pi pi-thumbtack';
         if (type === 'REPLY') return 'pi pi-reply';
+        // 소모임 매니저(3단계) — 임명·맡은 일 바뀜은 방패, 해임·사퇴는 사람 빼기, 매니저가 강퇴함은 사람 빼기
+        if (type === 'GROUP_MANAGER_APPOINTED' || type === 'GROUP_MANAGER_PERMISSIONS_CHANGED') return 'pi pi-shield';
+        if (type === 'GROUP_MANAGER_REMOVED' || type === 'GROUP_MANAGER_RESIGNED' || type === 'GROUP_KICKED_BY_MANAGER') return 'pi pi-user-minus';
         if (type.startsWith('GROUP_')) return 'pi pi-users';
         return 'pi pi-comment';
     }

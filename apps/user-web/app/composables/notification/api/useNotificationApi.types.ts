@@ -25,7 +25,12 @@ export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'P
     | 'GROUP_APPROVED' | 'GROUP_REJECTED' | 'GROUP_JOIN_REQUEST' | 'GROUP_JOIN_APPROVED' | 'GROUP_JOIN_REJECTED'
     | 'GROUP_KICKED' | 'GROUP_DISSOLVED' | 'GROUP_LEADER_TRANSFERRED' | 'GROUP_DEACTIVATED' | 'GROUP_REACTIVATED'
     /** 소모임 글(api-groups 8절): 모임장·`UNPUBLISH` 매니저가 내 공개 글을 비공개로 되돌림 — 끌 수 없다, `link` 는 글 상세, `post` 에 글 */
-    | 'GROUP_POST_UNPUBLISHED';
+    | 'GROUP_POST_UNPUBLISHED'
+    /**
+     * 소모임 매니저(api-groups 5-1·7절 — 3단계, 묶음 `system`, 끌 수 없다): 임명됨 · 맡은 일이 바뀜(`link` `/groups/{id}/manage`) · 해임됨(`/groups/{id}`) ·
+     * 매니저가 물러남(모임장에게) · 매니저가 멤버를 강퇴함(모임장에게 — 둘 다 `/groups/{id}/manage/members`). 문구·맡은 일은 서버가 `title`·`body` 로 푼다
+     */
+    | 'GROUP_MANAGER_APPOINTED' | 'GROUP_MANAGER_PERMISSIONS_CHANGED' | 'GROUP_MANAGER_REMOVED' | 'GROUP_MANAGER_RESIGNED' | 'GROUP_KICKED_BY_MANAGER';
 
 /**
  * 알림 묶음 — 댓글·답글 · 계정(포인트 회수·소멸 예정·신고 숨김·닉네임 그림 검토·기능 제한 · 소모임 `GROUP_*` 전부 — 서버 `MemberNotificationType` 이 `system` 으로 묶는다) ·

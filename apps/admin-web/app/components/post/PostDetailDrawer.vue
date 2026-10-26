@@ -10,6 +10,8 @@
         바닥: 상태가 허락하는 조치 단추만(`actions`) — 없으면 까닭 한 줄(읽기 전용 · 복구 권한 없음 · 원문 파기).
         서버 호출은 하지 않는다(`components.md`) — 글은 `usePostDetail`, 토론 요약은 `useDebateSettingsActions().get` 으로 부른 화면이 받는다.
         [공개 사이트에서 보기](새 탭)는 서버가 준 `publicUrl` 이 있을 때만 머리에 보인다(사이트 공개 주소를 정하지 않았으면 null). 글 번호 복사는 늘 있다.
+        소모임 글: 요약에 「소모임」 줄(이름·공개 상태·해산·나간 멤버 칩)과 「옮길 수 없어요」 띠. 비공개 소모임 글(`contentBlocked: GROUP_PRIVATE`)은 제목 자리 「소모임 비공개 글」, 본문 대신
+        「신고 상세(신고 당시 내용)에서만 볼 수 있어요」 띠·안내(서버가 `content.body`·`poll` 을 null 로 준다).
     -->
     <Drawer
         :visible="open"
@@ -26,7 +28,9 @@
         <template #header>
             <div class="flex min-w-0 flex-1 flex-col gap-1.5">
                 <div class="flex min-w-0 items-start gap-2">
-                    <h2 :id="titleId" class="min-w-0 flex-1 text-base font-semibold break-words [overflow-wrap:anywhere]">{{ item?.title ?? t('post.drawerTitle') }}</h2>
+                    <h2 :id="titleId" class="min-w-0 flex-1 text-base font-semibold break-words [overflow-wrap:anywhere]" :class="item && item.title === null ? 'italic text-muted-color' : ''">
+                        {{ item ? UtilPostMessages.title(t, item) : t('post.drawerTitle') }}
+                    </h2>
                     <div class="flex shrink-0 items-center gap-0.5">
                         <Button v-tooltip.bottom="t('post.prevPost')" type="button" icon="pi pi-chevron-up" size="small" severity="secondary" variant="text" rounded :aria-label="t('post.prevPost')" :disabled="!hasPrev" @click="emit('prev')" />
                         <Button v-tooltip.bottom="t('post.nextPost')" type="button" icon="pi pi-chevron-down" size="small" severity="secondary" variant="text" rounded :aria-label="t('post.nextPost')" :disabled="!hasNext" @click="emit('next')" />
@@ -77,6 +81,12 @@
                     <Tag v-if="post.debate" :value="t('post.chip.debate')" icon="pi pi-comments" severity="secondary" class="text-[11px]!" />
                     <Tag v-if="post.poll" :value="t('post.chip.poll')" icon="pi pi-chart-bar" severity="secondary" class="text-[11px]!" />
                 </dd>
+                <template v-if="post.group">
+                    <dt class="text-muted-color">{{ t('post.groupLabel') }}</dt>
+                    <dd class="m-0 flex flex-wrap items-center gap-1.5">
+                        <Tag v-for="chip in UtilPostMessages.groupChips(t, post)" :key="chip.key" :value="chip.label" :icon="chip.key === 'group' ? 'pi pi-users' : undefined" :severity="chip.severity" class="text-[11px]!" />
+                    </dd>
+                </template>
                 <dt class="text-muted-color">{{ t('post.col.author') }}</dt>
                 <dd class="m-0">{{ UtilPostMessages.author(t, post) }}</dd>
                 <dt class="text-muted-color">{{ t('post.col.createdAt') }}</dt>
@@ -101,6 +111,9 @@
                 {{ post.deletedAt ? t('post.deletedBand', { at: time.full(post.deletedAt) }) : t('post.deletedBandNoTime') }}
             </Message>
             <Message v-if="post.purged" severity="secondary" size="small" :closable="false" icon="pi pi-ban">{{ t('post.purgedBand') }}</Message>
+            <!-- 비공개 소모임 글 — 제목·본문·투표를 싣지 않는다(내용은 신고 상세의 신고 당시 내용으로만) -->
+            <Message v-if="blocked" severity="info" size="small" :closable="false" icon="pi pi-lock">{{ t('post.restrictedBand') }}</Message>
+            <Message v-else-if="post.group" severity="secondary" size="small" :closable="false" icon="pi pi-users">{{ t('post.groupMoveLocked') }}</Message>
             <Message v-if="post.state === 'HIDDEN'" severity="warn" size="small" :closable="false" icon="pi pi-eye-slash">
                 <span class="flex flex-col gap-0.5">
                     <span v-for="(line, i) in stateLines" :key="i">{{ line }}</span>
@@ -110,7 +123,8 @@
             <!-- 본문 -->
             <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-body`">
                 <h3 :id="`${titleId}-body`" class="text-sm font-semibold">{{ t('post.bodyTitle') }}</h3>
-                <p v-if="post.purged || detail.content.body === null" class="m-0 rounded-lg border border-dashed border-(--line) px-3 py-4 text-center text-[13px] text-muted-color">{{ t('post.purged') }}</p>
+                <p v-if="blocked && !post.purged" class="m-0 rounded-lg border border-dashed border-(--line) px-3 py-4 text-center text-[13px] text-muted-color">{{ t('post.restrictedBody') }}</p>
+                <p v-else-if="post.purged || detail.content.body === null" class="m-0 rounded-lg border border-dashed border-(--line) px-3 py-4 text-center text-[13px] text-muted-color">{{ t('post.purged') }}</p>
                 <p v-else-if="bodyEmpty" class="m-0 text-[13px] text-muted-color">{{ t('post.bodyEmpty') }}</p>
                 <!--
                     에디터 글(HTML)은 서버가 저장할 때 정화한 HTML 만 온다 — 공개 글 화면과 같은 `rich-text` 모양으로 그린다. 다른 경로의 글자(제목·이름 등)는 절대 넣지 않는다.
@@ -329,6 +343,8 @@ const titleId = useId();
 /** 본문 영역이 그리는 글 — 받은 상세가 있을 때만 쓴다(템플릿은 `detail` 이 있을 때만 이 값을 읽는다) */
 const post = computed(() => props.detail?.post as AdminPostItem);
 const stateLines = computed(() => (props.detail ? UtilPostMessages.stateLines(t, time.value, props.detail.post) : []));
+/** 비공개 소모임 글이라 본문·투표를 싣지 않았다(`contentBlocked: GROUP_PRIVATE` 또는 줄의 `restricted`) */
+const blocked = computed(() => props.detail?.contentBlocked === 'GROUP_PRIVATE' || props.detail?.post.restricted === true);
 const bodyEmpty = computed(() => {
     const body = props.detail?.content.body;
     if (body === null || body === undefined) return false;

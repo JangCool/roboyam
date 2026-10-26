@@ -2,10 +2,10 @@
     <!--
         소모임 글쓰기 `/groups/{id}/write`(community `pages/groups/[id]/write.vue`, `docs/api-groups.md` 8절·「화면 (SPA) — 6-2」).
         게시판 고르기가 없다 — 「소모임: 이름」이 고정으로 보이고 말머리는 소모임 게시판의 것만 고른다. 폼·에디터·이미지 올리기는 일반 글쓰기(`/write`)와 같은 `PostEditorForm` 을 쓴다.
-        에디터 수준·이미지·19금·투표·말머리·글쓰기 안내문은 소모임 게시판 정보(`GET /api/groups/{id}/board` — `BoardDetail` 모양, 로보얌 추가 후보)를 따른다.
+        에디터 수준·이미지·투표·말머리·글쓰기 안내문은 소모임 게시판 정보(`GET /api/groups/{id}/board` — `BoardDetail` 모양, 로보얌 추가)를 따른다. 19금 칸은 없다(소모임 글은 19금이 될 수 없다 — 서버 `400 fields.adult`).
         글은 **비공개**로 만들어진다(멤버에게만 보인다) — 전체 공개는 글을 쓴 뒤 글 상세에서 고른다. 임시저장·자동 저장·예약 발행·찬반 토론·비회원 글쓰기는 없다. 투표는 게시판이 받으면 붙일 수 있다.
-        입구가 막힌 사람(비회원·멤버 아님·이메일 인증 전·정지 등 `canWritePost` false)에게는 폼 대신 까닭을 보인다 — 서버가 최종 판단한다(`403 GROUP_NOT_MEMBER` 등).
-        등록하면 토스트를 띄우고 글 상세(`/posts/{id}`)로 간다(`replace` — 뒤로 가기가 글쓰기로 돌아오지 않게). 저장하지 않고 나가면 확인을 묻는다.
+        입구가 막힌 사람(비회원·멤버 아님·이메일 인증 전·정지 등 `canWritePost` false, 또는 게시판 정보의 `viewer.writeBlockedReason`)에게는 폼 대신 까닭을 보인다 — 서버가 최종 판단한다(`403 GROUP_NOT_MEMBER` 등).
+        등록하면(`201 { id, pointsEarned }` — 일반 글쓰기처럼 포인트 토스트는 띄우지 않는다) 토스트를 띄우고 글 상세(`/posts/{id}`)로 간다(`replace` — 뒤로 가기가 글쓰기로 돌아오지 않게). 저장하지 않고 나가면 확인을 묻는다.
     -->
     <div class="mx-auto max-w-3xl">
         <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface px-2 py-1.5 md:hidden">
@@ -141,12 +141,13 @@ async function loadBoard(): Promise<void> {
     try {
         const loadedBoard = await api.board(id.value);
         if (mine !== boardSeq) return;
-        board.value = loadedBoard;
+        // 소모임 글은 19금이 될 수 없다(서버 `400 fields.adult`) — 게시판이 19금을 받아도 칸을 보이지 않는다
+        board.value = { ...loadedBoard, allowAdult: false };
         boardState.value = 'ready';
         // 본문 형식은 소모임 게시판의 글 에디터 설정을 따른다
         const format = UtilBoard.postFormat(loadedBoard);
         if (form.value.contentFormat !== format) form.value = { ...form.value, content: UtilPost.convertContent(form.value.content, form.value.contentFormat, format), contentFormat: format };
-        if (!loadedBoard.allowAdult && form.value.adult) form.value = { ...form.value, adult: false };
+        if (form.value.adult) form.value = { ...form.value, adult: false };
     } catch (e) {
         if (mine !== boardSeq) return;
         boardError.value = UtilBoardMessages.of(t, e);
@@ -154,8 +155,12 @@ async function loadBoard(): Promise<void> {
     }
 }
 
-/** 지금 무엇을 보일지 — 소모임 없음/비활성/오류 → 비회원 → 멤버 아님 → 이메일 인증 전 → 쓸 수 없음 → 게시판 → 폼 */
-type WriteView = 'loading' | 'notfound' | 'inactive' | 'error' | 'login' | 'not-member' | 'unverified' | 'blocked' | 'board-error' | 'form';
+/**
+ * 지금 무엇을 보일지 — 소모임 없음/비활성/오류 → 비회원 → 멤버 아님 → 이메일 인증 전 → 쓸 수 없음 → 게시판 → (게시판 판정이 막음) → 폼.
+ * 게시판 정보의 `viewer.writeBlockedReason`(서버 차례: `LOGIN_REQUIRED` → `GROUP_DISSOLVED` → `GROUP_NOT_MEMBER` → 쓰기 자격 `EMAIL_NOT_VERIFIED`·`ACCOUNT_RESTRICTED`·
+ * `BUSINESS_ACCOUNT_RESTRICTED`·`BOARD_RESTRICTED`)이 있으면 상세가 보지 못한 까닭(사업자 계정·회원 역할 등)까지 폼 대신 보인다.
+ */
+type WriteView = 'loading' | 'notfound' | 'inactive' | 'error' | 'login' | 'not-member' | 'unverified' | 'blocked' | 'board-error' | 'board-blocked' | 'form';
 const view = computed<WriteView>(() => {
     if (detailState.value === 'notfound') return 'notfound';
     if (detailState.value === 'error') return 'error';
@@ -168,11 +173,16 @@ const view = computed<WriteView>(() => {
     if (!user.value.emailVerified) return 'unverified';
     if (!g.permissions.canWritePost) return 'blocked';
     if (boardState.value === 'error') return 'board-error';
-    return boardState.value === 'ready' && board.value ? 'form' : 'loading';
+    if (boardState.value !== 'ready' || !board.value) return 'loading';
+    return board.value.viewer.writeBlockedReason ? 'board-blocked' : 'form';
 });
 
 const gate = computed(() => {
     const v = view.value;
+    if (v === 'board-blocked' && board.value) {
+        const reason = board.value.viewer.writeBlockedReason;
+        return { icon: 'pi pi-lock', copy: { title: t('group.writeBlockedTitle'), text: UtilBoardMessages.writeBlocked(t, reason, board.value.writeMinGradeLabel) } };
+    }
     if (v !== 'login' && v !== 'not-member' && v !== 'unverified' && v !== 'blocked') return null;
     const icon = v === 'login' ? 'pi pi-sign-in' : v === 'unverified' ? 'pi pi-envelope' : 'pi pi-lock';
     return { icon, copy: UtilGroupMessages.writeGate(t, v, group.value?.myState ?? null) };
@@ -228,7 +238,8 @@ async function submit(): Promise<void> {
             // 에디터 HTML 은 그대로 보낸다(서버가 정화한다), 평문은 앞뒤 공백을 뗀다
             content: form.value.contentFormat === 'HTML' ? form.value.content : form.value.content.trim(),
             contentFormat: form.value.contentFormat,
-            adult: b.allowAdult && form.value.adult,
+            // 소모임 글은 19금이 될 수 없다(서버 `400 fields.adult`)
+            adult: false,
             poll: pollShown.value ? UtilPoll.inputOf(poll.value) : null,
         });
         saved = true;

@@ -74,6 +74,8 @@ export default {
     writeEmail: 'Verify your email to post and comment.',
     writeRestricted: 'Your account is restricted from posting and commenting.',
     writeBlocked: 'You can’t post right now.',
+    writeGroupNotMember: 'Only club members can post here.',
+    writeGroupDissolved: 'This club was dissolved, so new posts aren’t allowed.',
 
     commentOff: 'This board doesn’t take comments.',
     commentLogin: 'Log in to comment.',

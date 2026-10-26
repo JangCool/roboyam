@@ -41,6 +41,10 @@ export default class UtilBoardMessages {
                 return t('board.writeEmail');
             case 'ACCOUNT_RESTRICTED':
                 return t('board.writeRestricted');
+            case 'GROUP_NOT_MEMBER':
+                return t('board.writeGroupNotMember');
+            case 'GROUP_DISSOLVED':
+                return t('board.writeGroupDissolved');
             default:
                 return t('board.writeBlocked');
         }

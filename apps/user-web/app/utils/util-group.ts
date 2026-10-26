@@ -11,6 +11,7 @@ import type {
     GroupJoinType,
     GroupLimits,
     GroupManageBlockedReason,
+    GroupManagerInfo,
     GroupMyState,
     GroupNewcomers,
     GroupPermissions,
@@ -27,6 +28,7 @@ import type {
     MyGroupRequest,
 } from '~/composables/group/api/useGroupApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
+import UtilGroupManager from '~/utils/util-group-manager';
 
 /**
  * 소모임 화면이 같이 쓰는 순수 함수 — 목록 주소(쿼리)·상세 → 화면 값·가입 단추 상태·정원 범위·채팅 주소 검사·개설/정보 수정/채팅 링크 입력 검사.
@@ -73,6 +75,8 @@ export interface ActiveGroup {
     newcomers: GroupNewcomers | null;
     pendingApplicationCount: number | null;
     limits: GroupLimits | null;
+    /** 멤버에게만 매니저 수·상한(3단계) — 그 밖·이상한 값이면 null */
+    managerInfo: GroupManagerInfo | null;
 }
 
 export type GroupDetailKind = 'active' | 'inactive' | 'unknown';
@@ -399,6 +403,7 @@ export default class UtilGroup {
             newcomers: detail.newcomers ?? null,
             pendingApplicationCount: typeof detail.pendingApplicationCount === 'number' ? detail.pendingApplicationCount : null,
             limits: detail.limits ?? null,
+            managerInfo: UtilGroupManager.infoOf(detail.managerInfo),
         };
     }
 

@@ -1,8 +1,13 @@
 <template>
     <!--
-        모임장 관리 `/groups/{id}/manage` — 머리(이름·모임장·멤버 수) · 멤버(가입 신청 대기 수 · 멤버 관리) · 소모임(정보 수정 · 채팅 링크 · 모집 켜기/끄기) · 위험 구역(삭제·해산 — 이름을 그대로 입력).
-        모임장만 들어온다(서버도 `403 GROUP_LEADER_ONLY`). 정지·이메일 인증 전이면 띠 + 쓰기 단추가 꺼진다(목록은 열린다).
-        community 대비: 매니저 줄(인원·맡은 일·잠금 줄·물러나기)은 3단계, 「글 › 공개 요청」·「공개 범위」 줄은 5단계라 뺐다.
+        소모임 관리 `/groups/{id}/manage` — **모임장과 매니저**(상세의 `permissions.canManage`, 아니면 틀이 「모임장 또는 매니저만」 — 서버도 `403 GROUP_LEADER_ONLY`).
+        - 모임장: 머리(이름·모임장·멤버 수) · 멤버(가입 신청 대기 수 · 멤버 관리 · 매니저 n/limit명 → 멤버 관리 `?filter=managers`) · 소모임(정보 수정 · 채팅 링크 · 모집 켜기/끄기) ·
+          위험 구역(삭제·해산 — 이름을 그대로 입력).
+        - 매니저: 머리에 「나는 매니저예요 · 맡은 일: …」. 맡겨진 체크형 일(가입 신청·멤버 관리·모집)만 열린 줄이고 **맡겨지지 않은 줄은 잠금 줄**(누르면 「모임장이 맡기지 않은 일이에요」 시트).
+          모임장 고정 줄(정보 수정·채팅 링크·매니저·해산) 자리에 점선 안내, 맨 아래 「내 역할 › 매니저에서 물러나기」(확인 시트 → `DELETE …/managers/me`, 성공하면 소모임 상세로 — 기록 교체).
+        - 정지·이메일 인증 전이면 띠 + 쓰기 단추가 꺼진다(목록은 열린다). 물러나기는 사업자 계정이어도 된다(서버 `GroupManagerService.resign` 이 막지 않는다 — 탈퇴와 같은 규칙).
+        - 열어 둔 채 맡은 일이 빠지면(`403 GROUP_MANAGER_PERMISSION_DENIED`) 토스트 + 권한을 다시 받아 줄이 잠금으로 바뀐다. 해임당했으면(`GROUP_LEADER_ONLY`) 「모임장 또는 매니저만」 상태가 된다.
+        community 대비: 「글 › 공개 요청」·「공개 범위」 줄은 5단계라 뺐다.
     -->
     <GroupManageShell :title="t('group.manageTitle')" :state="state" :error-message="errorMessage" :group-id="id" :back-to="UtilGroup.detailPath(id)" :back-label="t('group.backToGroup')" :blocked-reason="group?.blockedReason ?? null" @retry="load()">
         <template v-if="group">
@@ -20,6 +25,14 @@
                             <span>{{ UtilGroupMessages.members(t, group) }}</span>
                         </p>
                     </div>
+                </div>
+                <!-- 매니저에게는 「나는 매니저예요」 · 맡은 일 두 줄 -->
+                <div v-if="!isLeader" class="mt-3 border-t border-surface pt-3" data-testid="group-manage-my-role">
+                    <p class="m-0 flex items-center gap-1.5 text-sm">
+                        <GroupTag tone="sky">{{ t('group.roleManager') }}</GroupTag>
+                        <span>{{ t('groupManager.headRole') }}</span>
+                    </p>
+                    <p class="m-0 mt-1 text-xs text-muted-color" data-testid="group-manage-my-granted">{{ UtilGroupManagerMessages.headGranted(t, granted) }}</p>
                 </div>
             </section>
 
@@ -40,9 +53,34 @@
                         <span v-else-if="applicationCount === 0" class="shrink-0 text-xs text-muted-color">0</span>
                         <i class="pi pi-angle-right shrink-0 text-muted-color" aria-hidden="true" />
                     </NuxtLink>
+                    <button v-else type="button" :class="[ROW, 'text-muted-color']" data-testid="group-manage-applications-locked" @click="openLocked('APPLICATIONS')">
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-medium">{{ t('group.rowApplications') }}</span>
+                            <small class="block text-xs">{{ t('groupManager.lockedHint') }}</small>
+                        </span>
+                        <i class="pi pi-lock shrink-0" aria-hidden="true" />
+                    </button>
+
                     <NuxtLink v-if="group.permissions.canKickMembers" :to="UtilGroup.managePath(id, 'members')" :class="ROW" data-testid="group-manage-members">
                         <span class="min-w-0 flex-1 text-sm font-medium">{{ t('group.rowMembers') }}</span>
                         <span class="shrink-0 text-xs text-muted-color">{{ t('group.peopleCount', { n: group.memberCount }) }}</span>
+                        <i class="pi pi-angle-right shrink-0 text-muted-color" aria-hidden="true" />
+                    </NuxtLink>
+                    <button v-else type="button" :class="[ROW, 'text-muted-color']" data-testid="group-manage-members-locked" @click="openLocked('KICK')">
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-medium">{{ t('group.rowMembers') }}</span>
+                            <small class="block text-xs">{{ t('groupManager.lockedHint') }}</small>
+                        </span>
+                        <i class="pi pi-lock shrink-0" aria-hidden="true" />
+                    </button>
+
+                    <!-- 매니저 줄 — 모임장만. 누르면 멤버 관리가 매니저 거르기로 열린다 -->
+                    <NuxtLink v-if="isLeader && group.managerInfo" :to="managersPath" :class="ROW" data-testid="group-manage-managers">
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-medium">{{ t('groupManager.rowManagers') }}</span>
+                            <small class="block text-xs text-muted-color">{{ t('groupManager.rowManagersHint') }}</small>
+                        </span>
+                        <span class="shrink-0 text-xs text-muted-color" data-testid="group-manage-managers-count">{{ t('groupManager.rowValue', { count: group.managerInfo.count, limit: group.managerInfo.limit }) }}</span>
                         <i class="pi pi-angle-right shrink-0 text-muted-color" aria-hidden="true" />
                     </NuxtLink>
                 </div>
@@ -77,6 +115,31 @@
                             @update:model-value="onRecruiting(Boolean($event))"
                         />
                     </div>
+                    <button v-else type="button" :class="[ROW, 'text-muted-color']" data-testid="group-manage-recruiting-locked" @click="openLocked('RECRUITING')">
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-medium">{{ t('group.rowRecruiting') }}</span>
+                            <small class="block text-xs">{{ t('groupManager.lockedHint') }}</small>
+                        </span>
+                        <i class="pi pi-lock shrink-0" aria-hidden="true" />
+                    </button>
+                </div>
+                <!-- 모임장만 하는 일이 숨은 자리 — 점선 안내 -->
+                <p v-if="!group.permissions.canEditGroup" class="m-0 mt-2 rounded-lg border border-dashed border-surface px-3 py-2.5 text-xs leading-relaxed text-muted-color" data-testid="group-manage-leader-only-box">
+                    {{ t('groupManager.leaderOnlyBox') }}
+                </p>
+            </section>
+
+            <!-- 내 역할 — 매니저에서 물러나기(매니저에게만) -->
+            <section v-if="!isLeader" class="mt-4" :aria-labelledby="`${uid}-role`">
+                <h2 :id="`${uid}-role`" class="px-1 pb-1.5 text-xs font-semibold text-muted-color">{{ t('groupManager.roleSection') }}</h2>
+                <div class="overflow-hidden rounded-xl border border-surface bg-surface-0 dark:bg-surface-900">
+                    <button type="button" :class="[ROW, resignBlocked ? 'cursor-not-allowed opacity-60' : '']" :disabled="resignBlocked" data-testid="group-manage-resign" @click="openResign">
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-medium">{{ t('groupManager.resignRow') }}</span>
+                            <small class="block text-xs text-muted-color">{{ t('groupManager.resignHint') }}</small>
+                        </span>
+                        <i class="pi pi-angle-right shrink-0 text-muted-color" aria-hidden="true" />
+                    </button>
                 </div>
             </section>
 
@@ -116,13 +179,44 @@
                     </div>
                 </form>
             </AppSheet>
+
+            <!-- 맡겨지지 않은 일을 눌렀을 때의 안내 -->
+            <AppSheet v-model:visible="lockedOpen" :title="lockedCopy.title" :description="lockedCopy.text">
+                <div class="mt-3 px-5" data-testid="group-manage-locked-sheet">
+                    <Button type="button" :label="t('groupManager.lockedOk')" fluid @click="lockedOpen = false" />
+                </div>
+            </AppSheet>
+
+            <!-- 매니저에서 물러나기 확인 — 일반 멤버가 되고 모임장에게 알림이 간다 -->
+            <AppSheet v-if="!isLeader" v-model:visible="resignOpen" :title="t('groupManager.resignTitle')" :description="t('groupManager.resignDescription')">
+                <div class="mt-3 px-5" data-testid="resign-sheet">
+                    <p v-if="resignError" role="alert" class="m-0 mb-3 text-xs text-red-600 dark:text-red-400">{{ resignError }}</p>
+                    <div class="flex gap-2">
+                        <Button type="button" :label="t('common.cancel')" severity="secondary" variant="outlined" class="flex-1" :disabled="resigning" @click="resignOpen = false" />
+                        <Button
+                            type="button"
+                            :label="t('groupManager.resignConfirm')"
+                            severity="danger"
+                            class="flex-1"
+                            :loading="resigning"
+                            :disabled="resigning || resignBlocked"
+                            :title="resignBlocked && group.blockedReason ? UtilGroupManagerMessages.blockedShort(t, group.blockedReason) : undefined"
+                            data-testid="resign-confirm"
+                            @click="resign"
+                        />
+                    </div>
+                </div>
+            </AppSheet>
         </template>
     </GroupManageShell>
 </template>
 
 <script setup lang="ts">
+import type { GroupManagerPermission } from '~/composables/group/api/useGroupApi.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilGroup from '~/utils/util-group';
+import UtilGroupManager from '~/utils/util-group-manager';
+import UtilGroupManagerMessages from '~/utils/util-group-manager-messages';
 import UtilGroupMessages from '~/utils/util-group-messages';
 
 definePageMeta({ middleware: 'auth' });
@@ -134,10 +228,20 @@ const id = String(route.params.id);
 const uid = useId();
 const api = useGroupApi();
 const toast = useAppToast();
-const { state, errorMessage, group, load, patch, block } = useGroupManage(id);
+const { state, errorMessage, group, load, patch, block, recheck } = useGroupManage(id);
 
 const ROW =
     'flex min-h-14 w-full items-center gap-3 border-b border-surface px-4 py-2.5 text-left last:border-b-0 hover:bg-surface-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary dark:hover:bg-surface-800';
+
+/** 모임장인가 — 서버의 `myRole`, 옛 응답은 모임장 고정 권한으로 읽는다 */
+const isLeader = computed(() => {
+    const g = group.value;
+    if (!g) return false;
+    return g.myRole === 'LEADER' || (g.myRole !== 'MANAGER' && g.permissions.canEditGroup);
+});
+/** 내가 맡은 일(고정 순서) — 모임장이면 다섯 모두 */
+const granted = computed(() => (group.value ? UtilGroupManager.grantedOf(group.value.permissions) : []));
+const managersPath = computed(() => `${UtilGroup.managePath(id, 'members')}?filter=managers`);
 
 /* ── 가입 신청 대기 수 — 상세의 `pendingApplicationCount`, 없으면 신청 목록을 받아 센다 ── */
 const fetchedCount = ref<number | null>(null);
@@ -155,7 +259,7 @@ watch(
     { immediate: true },
 );
 
-/** 쓰기 실패의 공통 갈래 — 쓰기 잠금(정지·인증 전) · 권한이 사라졌다(넘겼거나 강퇴) */
+/** 쓰기 실패의 공통 갈래 — 쓰기 잠금(정지·인증 전) · 맡은 일이 빠졌다 · 모임장도 매니저도 아니게 됐다(넘겼거나 해임·강퇴) */
 async function onGuardFailure(e: unknown): Promise<boolean> {
     const blocked = UtilGroup.blockedReasonOf(e);
     if (blocked) {
@@ -163,9 +267,14 @@ async function onGuardFailure(e: unknown): Promise<boolean> {
         toast.error(UtilBoardMessages.of(t, e), 8000);
         return true;
     }
-    if (UtilGroup.isCode(e, 'GROUP_LEADER_ONLY')) {
-        toast.error(UtilBoardMessages.of(t, e), 8000);
-        await load();
+    if (UtilGroupManager.isPermissionDenied(e)) {
+        toast.error(t('groupManager.revoked'), 8000);
+        await recheck();
+        return true;
+    }
+    if (UtilGroupManager.isLeaderOnly(e)) {
+        toast.error(t('groupManager.demoted'), 8000);
+        await recheck();
         return true;
     }
     return false;
@@ -187,6 +296,49 @@ async function onRecruiting(next: boolean) {
         toast.error(UtilGroupMessages.failed(t, 'group.recruitingFailed', e), 8000);
     } finally {
         savingRecruiting.value = false;
+    }
+}
+
+/* ── 잠금 줄 안내 ── */
+const lockedOpen = ref(false);
+const lockedKey = ref<GroupManagerPermission>('APPLICATIONS');
+const lockedCopy = computed(() => UtilGroupManagerMessages.lockedSheet(t, lockedKey.value));
+function openLocked(key: GroupManagerPermission) {
+    lockedKey.value = key;
+    lockedOpen.value = true;
+}
+
+/* ── 매니저에서 물러나기 — 정지·이메일 미인증은 막히고 사업자 계정은 된다(서버 `GroupManagerService.resign`) ── */
+const resignOpen = ref(false);
+const resigning = ref(false);
+const resignError = ref('');
+const resignBlocked = computed(() => {
+    const reason = group.value?.blockedReason;
+    return reason === 'EMAIL_NOT_VERIFIED' || reason === 'ACCOUNT_RESTRICTED';
+});
+
+function openResign() {
+    if (resignBlocked.value) return;
+    resignError.value = '';
+    resignOpen.value = true;
+}
+
+async function resign() {
+    if (resigning.value || resignBlocked.value) return;
+    resigning.value = true;
+    resignError.value = '';
+    try {
+        await api.resignManager(id);
+        resignOpen.value = false;
+        toast.success(t('groupManager.resignedToast'), 5000);
+        await navigateTo(UtilGroup.detailPath(id), { replace: true });
+    } catch (e) {
+        if (UtilGroup.isSessionLost(e)) return;
+        const blocked = UtilGroup.blockedReasonOf(e);
+        if (blocked) block(blocked);
+        resignError.value = UtilBoardMessages.of(t, e);
+    } finally {
+        resigning.value = false;
     }
 }
 

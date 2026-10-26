@@ -7,7 +7,7 @@
     <Dialog v-model:visible="open" modal :draggable="false" :header="kind ? t(`post.dialog.${kind}.title`) : ''" :style="{ width: 'min(32rem, calc(100vw - 2rem))' }">
         <form v-if="kind" :id="formId" class="flex flex-col gap-4" novalidate @submit.prevent="submit">
             <div v-if="item" class="rounded-lg border border-(--line) px-3 py-2">
-                <p class="m-0 text-sm font-medium break-words">{{ item.title }}</p>
+                <p class="m-0 text-sm font-medium break-words" :class="item.title === null ? 'italic text-muted-color' : ''">{{ UtilPostMessages.title(t, item) }}</p>
                 <p class="m-0 mt-0.5 text-xs text-muted-color">{{ localizedName(item.board.name, item.board.nameEn) }} · #{{ item.id }}</p>
             </div>
             <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t(`post.dialog.${kind}.text`) }}</p>

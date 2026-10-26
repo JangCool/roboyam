@@ -64,7 +64,10 @@
                         <GroupTag :tone="group.recruitState === 'OPEN' ? 'green' : 'gray'">{{ UtilGroupMessages.recruitLabel(t, group.recruitState) }}</GroupTag>
                         <GroupTag>{{ UtilGroupMessages.joinTypeLabel(t, group.joinType) }}</GroupTag>
                         <GroupTag v-if="group.offline" tone="amber">{{ t('group.offlineGroup') }}</GroupTag>
-                        <GroupTag v-if="isMember" tone="blue" data-testid="group-my-state">{{ group.myState === 'LEADER' ? t('group.roleLeader') : t('group.rowMember') }}</GroupTag>
+                        <!-- 내 역할 — 모임장 · 매니저(`myRole` — 매니저도 `myState` 는 MEMBER) · 가입함 -->
+                        <GroupTag v-if="isMember" :tone="group.myRole === 'MANAGER' ? 'sky' : 'blue'" data-testid="group-my-state">
+                            {{ group.myState === 'LEADER' ? t('group.roleLeader') : group.myRole === 'MANAGER' ? t('group.roleManager') : t('group.rowMember') }}
+                        </GroupTag>
                     </div>
 
                     <!-- 신규 가입자 — 모바일은 여기, 데스크톱은 오른쪽 「모임 정보」 -->
@@ -241,6 +244,7 @@
                                         <div class="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
                                             <PostAuthorLabel :author="UtilGroup.authorOf(member.user, t('group.withdrawn'))" link />
                                             <GroupTag v-if="member.role === 'LEADER'" tone="amber">{{ t('group.roleLeader') }}</GroupTag>
+                                            <GroupTag v-if="member.role === 'MANAGER'" tone="sky">{{ t('group.roleManager') }}</GroupTag>
                                             <GroupTag v-if="isMe(member.user.id)" tone="gray">{{ t('group.me') }}</GroupTag>
                                         </div>
                                         <small class="mt-0.5 block text-xs text-muted-color">{{ UtilGroupMessages.joinedMonth(t, member.joinedAt, time) }}</small>

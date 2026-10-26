@@ -27,6 +27,7 @@ export default {
     offline: '오프라인',
     offlineGroup: '오프라인 모임',
     roleLeader: '모임장',
+    roleManager: '매니저',
     me: '나',
     withdrawn: '탈퇴한 회원',
     optional: '선택',
@@ -350,10 +351,10 @@ export default {
 
     // ── 모임장 관리 ───────────────────────────────────────
     manageTitle: '소모임 관리',
-    deniedTitle: '모임장만 쓸 수 있어요',
-    deniedText: '소모임 관리는 이 소모임의 모임장만 쓸 수 있어요.',
+    deniedTitle: '모임장 또는 매니저만 쓸 수 있어요',
+    deniedText: '소모임 관리는 이 소모임의 모임장 또는 매니저만 쓸 수 있어요.',
     leaderOnlyTitle: '모임장만 쓸 수 있어요',
-    leaderOnlyText: '정보 수정과 채팅 링크는 모임장만 바꿀 수 있어요.',
+    leaderOnlyText: '소모임 정보·채팅 링크·매니저 관리는 모임장만 쓸 수 있어요.',
     blockedEmail: '이메일 인증을 마치면 소모임 관리 기능을 쓸 수 있어요. 지금은 목록만 볼 수 있어요.',
     blockedRestricted: '이용이 제한된 동안에는 소모임 관리 기능을 쓸 수 없어요. 목록은 볼 수 있어요.',
     blockedBusiness: '사업자 계정은 소모임 관리 기능을 쓸 수 없어요. 목록은 볼 수 있어요.',

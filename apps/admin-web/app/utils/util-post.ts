@@ -299,27 +299,29 @@ export default class UtilPost {
     /**
      * 한 글에 누를 수 있는 조치 — 상태와 권한이 정한다(서버도 `409 POST_STATE_INVALID` 로 막는다).
      * 공개: 숨기기·이동·공지 지정(이미 고정된 공지가 아니면)·고정 또는 고정 해제·삭제. 숨김: 숨김 해제·이동·삭제. 삭제: 복구(`post.restore`, 파기 전).
+     * 소모임 글(`group` 이 있음)은 이동이 없다 — 소모임 게시판에 남아야 소모임 안에서 보인다(서버도 `409 POST_STATE_INVALID`).
      * @param {AdminPostItem} item - 글.
      * @param {PostActionPermissions} can - 권한.
      * @returns {PostActions} 누를 수 있는 조치.
      */
-    static actionsOf(item: Pick<AdminPostItem, 'state' | 'notice' | 'pinned' | 'purged'>, can: PostActionPermissions): PostActions {
+    static actionsOf(item: Pick<AdminPostItem, 'state' | 'notice' | 'pinned' | 'purged' | 'group'>, can: PostActionPermissions): PostActions {
         const actions = UtilPost.noActions();
         if (item.state === 'DELETED') {
             actions.RESTORE = can.restore && !item.purged;
             return actions;
         }
         if (!can.manage) return actions;
+        const movable = !item.group;
         if (item.state === 'PUBLIC') {
             actions.HIDE = true;
-            actions.MOVE = true;
+            actions.MOVE = movable;
             actions.NOTICE = !(item.notice && item.pinned);
             actions.PIN = !item.pinned;
             actions.UNPIN = item.pinned;
             actions.DELETE = true;
         } else {
             actions.UNHIDE = true;
-            actions.MOVE = true;
+            actions.MOVE = movable;
             actions.DELETE = true;
         }
         return actions;
