@@ -7,16 +7,17 @@
 ## 작업 단위와 순서
 | 단위 | 내용 | 화면 | 상태 |
 |---|---|---|---|
-| 1-1 포인트 확장 | 아래 A + 배치·불변식 + 회원·관리자 포인트 API | 작음: 회원 포인트 화면(소멸 예정·미회수), 관리자 원장 무상/유상 칸·회원 상세 묶음 — 목업 먼저 | 완료(미커밋) 2026-10-26 — 화면 확정·서버·화면 연결·규칙 테스트 통과(shared 157·api 40·admin 84, 알림 간격 추가 뒤 shared 123·api·admin 다시 통과), 아래 「1-1 구현 결과」 |
-| 1-2 포인트 상점 | 아래 B + 닉네임 변경권 사용 + 장식 표시 + 0-5 이름 바꾸기 | 큼: 회원 포인트 상점·내 아이템·구매 확인, 관리자 품목·구매 내역·설정 — 목업 먼저 | 완료(미커밋) 2026-10-26 — 화면 확정(아바타 포함)·서버(V86)·화면 연결·규칙 테스트 통과(바꾼 범위 shared 195·api 55·admin 97, 두 앱 typecheck — 정지 중 장착 금지·환불 신청(V87) 포함). 1-1 커밋 1d52436 위 브랜치 `claude/determined-raman-5d64cb` — develop 은 1-1 다음에 합친다(「1-2 구현 결과」) |
+| 1-1 포인트 확장 | 아래 A + 배치·불변식 + 회원·관리자 포인트 API | 작음: 회원 포인트 화면(소멸 예정·미회수), 관리자 원장 무상/유상 칸·회원 상세 묶음 — 목업 먼저 | **완료 — develop 병합 fe41910**(2026-10-26, 커밋 1d52436) — 화면 확정·서버·화면 연결·규칙 테스트 통과(shared 157·api 40·admin 84, 알림 간격 추가 뒤 shared 123·api·admin 다시 통과), 아래 「1-1 구현 결과」 |
+| 1-2 포인트 상점 | 아래 B + 닉네임 변경권 사용 + 장식 표시 + 0-5 이름 바꾸기 | 큼: 회원 포인트 상점·내 아이템·구매 확인, 관리자 품목·구매 내역·설정 — 목업 먼저 | **완료 — develop 병합 b51cd9b**(2026-10-26, 커밋 1421b3a) — 화면 확정(아바타 포함)·서버(V86)·화면 연결·규칙 테스트 통과(바꾼 범위 shared 195·api 55·admin 97, 두 앱 typecheck — 정지 중 장착 금지·환불 신청(V87) 포함). 합친 뒤 develop 에서도 같은 범위 통과(「1-2 구현 결과」) |
 | 1-3 적립 규칙 보강(선택) | commerce.md 6-2 설정 칸 + 가입 포인트(본인인증 완료 때 평생 1회) | 포인트 정책 칸 | 대기 |
 순서: 1-1 서버 ∥ 1-2 화면 목업 → (1-1 을 develop 에 합친 뒤) 1-2 서버 → 1-3. 1-2 서버는 포인트 사용·사용 취소(1-1)에 기댄다.
 
-## 마이그레이션 계획 (가번호 — develop 에 합칠 때 마지막 번호를 다시 보고 확정)
+## 마이그레이션 계획 (develop 병합 때 확정 — V85·V86·V87, R__batch_29. 그 뒤 소모임 분류가 V88)
 | 가번호 | 스트림 | 내용 | 단위 |
 |---|---|---|---|
 | V85 `point_extension` | shared | A 전부 | 1-1 |
-| V86 `point_shop` | shared | B 전부 + 닉네임 변경권 품목 하나(가격 = 지금 `point_settings.nickname_ticket_price`) | 1-2 |
+| V86 `point_shop` | shared | B 전부 + 닉네임 변경권 품목 하나(가격 = 지금 `point_settings.nickname_ticket_price`) + 유료 아바타 306 | 1-2 |
+| V87 `point_shop_refund_request` | shared | 정지 중 환불 신청 · 환불 종류 · 회원 알림 종류 | 1-2 |
 | `R__batch_29_point_invariant_check` | shared | pg_cron 매일, 읽기만 — 어긋나면 FAIL(기존 배치 실패 알림) | 1-1 |
 - Java 배치(카탈로그 등록, 마이그레이션 없음): `point-expire`(매일 00:10 KST, 덩어리·체크포인트·resumable), `point-expiry-notice`(매일).
 - 회원 알림 종류 CHECK 에 `POINTS_EXPIRING` — 다시 만들 때 **최신 목록(V84)과의 합집합**.
@@ -53,7 +54,7 @@
 - 조정 문턱은 설정값 `point_settings.adjust_large_threshold`(0~100,000, 기본 10,000) — 화면에는 아직 칸이 없다(관리자 정책 화면 칸은 1-3 에서).
 - 동결(`POINT_FREEZE`): 적립 건너뜀(지금처럼), 사용 거절(`POINT_FROZEN`), 회수·사용 취소·소멸·조정은 한다.
 
-### 1-1 구현 결과 (2026-10-26 — 미커밋, 브랜치 `claude/objective-bardeen-1fa60a`)
+### 1-1 구현 결과 (2026-10-26 — 커밋 1d52436, develop 병합 fe41910)
 - **마이그레이션** `V85__point_extension.sql`(가번호): 계약 A 전부 + 구현하며 더한 것 — 원장 사유-종류 짝 CHECK, 몫 CHECK(합 = delta, 부호 일치, REVOKE 는 유상 0), `point_lots` 정체(누구·종류·양·소멸일·출처) 고정 트리거, `point_revoke_shortfalls.reason` + 유일 `(reason, ref_type, ref_id)`, `point_settings.adjust_large_threshold`, 끝에 회원 알림 종류 CHECK(V84 13종 ∪ `POINTS_EXPIRING`). 전환 묶음 ID 는 sequence `point_lot_migration_id_seq`.
 - **배치**: Java `point-expire`(매일 00:10, 분류 MEMBER, (소멸일, ID) 키셋·체크포인트·resumable, 파라미터 `userId`) · `point-expiry-notice`(매일 11:00, MEMBER, 회원당 알림 하나 + `expiry_noticed_at`) · DB `point-invariant-check`(`R__batch_29`, 매일 05:30, SYSTEM, 읽기만 — 어긋나면 FAIL 사유에 회원·줄 ID 앞 5개 → 기존 배치 실패 알림).
 - **회원 알림** `POINTS_EXPIRING`(system, 회원이 끌 수 없음·운영자는 이벤트 설정에서 끌 수 있음, 링크 `/me/points`): 「{양}P가 {날짜}부터 소멸돼요」 — 양 = 알림 기간 안 무상 묶음의 남은 양 합, 날짜 = 가장 가까운 소멸일(KST). **회원당 최소 간격**(사용자 확정 2026-10-26): `point_settings.expiry_notice_interval_days`(기본 7, 0~30, 0 = 없음) 안에 이미 받은 회원은 건너뛰고 그동안 들어온 묶음은 다음 알림에 담는다. 간격은 한국 날짜로 세고(1일에 받으면 8일에 다시), 알림 기간보다 길면 min(간격, 알림 일수 − 1)을 쓴다. 마지막 알림 시각은 `point_balances.expiry_notice_sent_at`(조건부로 적어 겹친 실행도 한 번만).
@@ -185,14 +186,14 @@
 - 마이그레이션은 새 번호 `V87`(가번호 — V86 이 로컬 DB 에 적용됐을 수 있어 고치지 않는다): 표 `point_shop_refund_requests`, 회원 알림 종류 CHECK 를 최신 목록과의 합집합으로 다시 만든다.
 - 화면: 내 아이템 — 정지 중이면 [환불] 대신 [환불 신청](확인창 「운영자가 확인한 뒤 환불돼요 · 기다리는 동안 이 아이템은 쓸 수 없어요」), 대기 줄 「환불 신청함 · 운영자 확인 기다리는 중」, 거절 줄 「환불 신청이 거절됐어요: 사유」. 관리자 구매 내역 — 거르기 「환불 신청 대기」, 줄에 신청 시각 · [수락]·[거절(사유)].
 
-## 1-2 서버 계획 (2026-10-26 — 1-1 커밋 1d52436 을 이 브랜치에 가져온 뒤 시작, develop 합치기는 사용자 몫)
+## 1-2 서버 계획 (2026-10-26 — 1-1 커밋 1d52436 위에서 만들고 1-1 다음에 develop 병합)
 - 순서: ① shared — V86·엔티티·서비스·아바타 카탈로그·0-5 이름 바꾸기·규칙 시험 → ② api ∥ admin 컨트롤러·HTTP 시험 → ③ 두 앱 목업을 실제 호출로 → ④ 이 문서 「1-2 구현 결과」·「규칙 → 테스트」.
 - 잠금 순서(1-1 규칙): 업무 잠금(품목 재고 조건부 UPDATE · 보유 줄 `FOR UPDATE` · 프로필 행 `FOR UPDATE`) 먼저, `PointService.use`/`cancelUse` 가 마지막(잔액 행 잠금).
 - 멱등·요청 제한은 api 의 `MoneyRequestGuard`(구매 `POINT_SHOP_PURCHASE` 1분 10번, 환불 `REFUND_REQUEST` 3번). 같은 키 재요청은 처음 응답 그대로.
 - 아바타 카탈로그 원본 `server/shared/src/main/resources/avatars/manifest.json`(community 와 같은 파일). 시험이 지킨다: 유료 ID 집합 = 시드한 아바타 품목 · 두 앱 `public/avatars/roboyam/*.svg` = 카탈로그 328.
 - 꼭 넣을 시험(사용자 지시): 마지막 재고 둘이 동시에 사기 · 같은 멱등 키로 다시 사기 · 영구 중복 구매 막기 · 장착(아바타는 고르기) 뒤 환불 불가 · 기한 지나면 환불 불가 · 기간제 이어 붙이기 · 변경권 한 장이 두 번 쓰이지 않음. 모두 실제 DB(`CommerceTestDatabase`).
 
-### 1-2 구현 결과 (2026-10-26 — 미커밋, 브랜치 `claude/determined-raman-5d64cb` = 1-1 커밋 1d52436 위)
+### 1-2 구현 결과 (2026-10-26 — 커밋 1421b3a, develop 병합 b51cd9b)
 - **마이그레이션** `V86__point_shop.sql`(가번호 — V85 다음): B절 표 5개 + CHECK(종류별 칸 조합·`#RRGGBB`·팔레트 키 7개·가격 1~100,000·기간 1~365 PERIOD 만·재고 ≥ 0·판매 끝 > 시작·refund_days 1~30·아바타 = PERMANENT·`avatar_id` 필수·유일·`code = 'avatar-'||avatar_id`) · 영구 보유 부분 유일 색인 · 트리거(품목 code·kind·avatar_id 불변·아바타 품목 삭제 불가 / 구매 사본 불변·REFUNDED 되돌림 불가 / 보유 줄 정체·기간 고정·`first_used_at` 지울 수 없음·상태는 앞으로만) · users 외래키 없음. 시드: 변경권 `nickname-change`(그때의 `nickname_ticket_price`) · 유료 아바타 306 · 설정 1행. 시드 ID 는 기존 V30·V53·V54 처럼 SQL 이 만드는 Snowflake(마이그레이션 노드 1023). `point_settings.nickname_ticket_price` 를 지우고 그 칸을 함께 묶던 `ck_point_settings_other` 를 남은 칸으로 다시 만들었다. **0-5 이름 바꾸기**: `request_rate_limits`·`idempotency_requests` 의 `SHOP_PURCHASE` → `POINT_SHOP_PURCHASE`(한도 그대로, 옛 카운터 줄 삭제) · 권한 `shop.*` → `pointshop.*`(역할에 준 것 옮김, featureReady 켬) · 회원 `shop.use` → `pointshop.use` · 메뉴 내장 `MY_SHOP` 주소 `/me/shop` → `/point-shop`(matchPrefix true — 주소는 코드에만 있다).
 - **shared** `com.community.pointshop`: 엔티티 5개(읽기 전용 매핑) + JDBC 저장소 4개(조건부 UPDATE·포인트와 같은 트랜잭션 — 1-1 `PointLedgerWriter` 와 같은 이유), 서비스 `PointShopCatalogService`·`PointShopPurchaseService`·`PointShopRefundService`·`UserItemService`·`NicknameTicketService`·`ProfileAvatarService`·`ShopDecorationResolver`·`AvatarCatalog`(원본 `resources/avatars/manifest.json`). 감사 행위: 일반 운영 `POINT_SHOP_ITEM_CREATE|UPDATE`(바뀐 칸만)·`POINT_SHOP_AVATAR_PRICE|SALE`·`POINT_SHOP_SETTINGS_UPDATE`, 돈 관련 5년 `POINT_SHOP_REFUND`. 보안 설정에 `GET /api/avatars` 비로그인 허용.
 - **api**: `PointShopController`·`MyItemController`·`AvatarController`·`MemberPointShopService`, 구매·환불은 `MoneyRequestGuard`(같은 키 재요청 = 처음 `data` + `Idempotent-Replayed: true`). 프로필 `useTicket`·`ticketCount`·`ticketPrice`·`avatarUrl`·`PUT /api/me/profile/avatar`(`NICKNAME_CHANGE_LIMIT` 은 없어지고 `NICKNAME_TICKET_REQUIRED`). 작성자 장식: `AuthorViews.members()` 가 프로필 + `ShopDecorationResolver.resolve` 를 목록마다 한 번(N+1 없음) — 글 목록·보기·댓글·토론·고정 요청·검색·홈·공개 프로필·쪽지 상대.
