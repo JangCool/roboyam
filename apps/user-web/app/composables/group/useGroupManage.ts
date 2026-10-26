@@ -7,7 +7,7 @@ import UtilGroup, { type ActiveGroup } from '~/utils/util-group';
  * 서버 판정이 기준이다(상세의 `permissions`):
  *  - `canManage` 거짓(모임장도 매니저도 아님) → `denied`(서버도 쓰기에 `403 GROUP_LEADER_ONLY`).
  *  - 모임장 고정 화면(`LEADER` — 정보 수정·채팅 링크)에 `canEditGroup` 없음 → `leader-only`.
- *  - 체크형 화면(`APPLICATIONS` 가입 신청 · `KICK` 멤버 관리)에 그 체크가 없는 매니저 → `forbidden`(「모임장이 맡기지 않은 일이에요」 + 관리로 돌아가기).
+ *  - 체크형 화면(`APPLICATIONS` 가입 신청 · `KICK` 멤버 관리 · `UNPUBLISH` 공개 요청 — 5단계)에 그 체크가 없는 매니저 → `forbidden`(「모임장이 맡기지 않은 일이에요」 + 관리로 돌아가기).
  * 정지·이메일 미인증(`manageBlockedReason`, 또는 쓰기의 `403 ACCOUNT_RESTRICTED`·`EMAIL_NOT_VERIFIED`)이면 화면은 열리고 쓰기 단추만 꺼진다(`block`).
  * `recheck()` 는 열어 둔 채 권한이 바뀌었을 때(`403 GROUP_MANAGER_PERMISSION_DENIED`·`GROUP_LEADER_ONLY`) 쓴다 — 상세를 다시 받아 **화면은 그대로 둔 채** 권한·매니저 수만 새 값으로 바꾸고,
  * 매니저도 아니게 됐으면 `denied`, 비활성이면 `inactive` 로 바꾼다(목록은 마지막으로 본 상태로 남는다 — community `useGroupManage`).
@@ -16,8 +16,8 @@ import UtilGroup, { type ActiveGroup } from '~/utils/util-group';
  */
 export type GroupManageState = 'loading' | 'ready' | 'denied' | 'forbidden' | 'leader-only' | 'notfound' | 'inactive' | 'error';
 
-/** 무엇이 있어야 들어오는가 — 관리 권한 누구나 · 모임장 고정 · 가입 신청 처리 · 멤버 강퇴 */
-export type GroupManageNeed = 'ANY' | 'LEADER' | 'APPLICATIONS' | 'KICK';
+/** 무엇이 있어야 들어오는가 — 관리 권한 누구나 · 모임장 고정 · 가입 신청 처리 · 멤버 강퇴 · 글 공개 처리(5단계 공개 요청 화면) */
+export type GroupManageNeed = 'ANY' | 'LEADER' | 'APPLICATIONS' | 'KICK' | 'UNPUBLISH';
 
 /** 관리 화면이 쓰는 값 — 열린 소모임 + 지금 쓰기가 막힌 까닭 */
 export interface ManagedGroup extends ActiveGroup {
@@ -33,6 +33,7 @@ function stateOf(detail: GroupDetail, need: GroupManageNeed): GroupManageState {
     if (need === 'LEADER' && !p.canEditGroup) return 'leader-only';
     if (need === 'APPLICATIONS' && !p.canHandleApplications) return 'forbidden';
     if (need === 'KICK' && !p.canKickMembers) return 'forbidden';
+    if (need === 'UNPUBLISH' && !p.canUnpublishPosts) return 'forbidden';
     return 'ready';
 }
 
@@ -103,6 +104,9 @@ export function useGroupManage(groupId: string, need: GroupManageNeed = 'ANY') {
                     recruiting: fresh.recruiting,
                     recruitState: fresh.recruitState,
                     pendingApplicationCount: fresh.pendingApplicationCount,
+                    visibility: fresh.visibility,
+                    visibilityInfo: fresh.visibilityInfo,
+                    pendingPublishRequestCount: fresh.pendingPublishRequestCount,
                 };
             } else {
                 apply(detail);

@@ -101,6 +101,12 @@ export default class UtilNotification {
         if (type === 'GROUP_MANAGER_REMOVED' || type === 'GROUP_MANAGER_RESIGNED' || type === 'GROUP_KICKED_BY_MANAGER') return 'pi pi-user-minus';
         // 소모임 일정(4단계) — 등록·수정·취소 모두 달력
         if (type === 'GROUP_EVENT') return 'pi pi-calendar';
+        // 소모임 공개 범위(5단계) — 공개 요청 받음은 보내기, 승인·직접 공개·다시 공개는 지구, 거절은 X 동그라미, 비공개로 되돌림·멤버 전용은 자물쇠, 공개 범위 바뀜은 눈
+        if (type === 'GROUP_PUBLISH_REQUESTED') return 'pi pi-send';
+        if (type === 'GROUP_PUBLISH_APPROVED' || type === 'GROUP_POST_PUBLISHED' || type === 'GROUP_POST_RELEASED') return 'pi pi-globe';
+        if (type === 'GROUP_PUBLISH_REJECTED') return 'pi pi-times-circle';
+        if (type === 'GROUP_POST_MEMBERS_ONLY' || type === 'GROUP_POST_UNPUBLISHED') return 'pi pi-lock';
+        if (type === 'GROUP_VISIBILITY_CHANGED') return 'pi pi-eye';
         if (type.startsWith('GROUP_')) return 'pi pi-users';
         return 'pi pi-comment';
     }

@@ -45,7 +45,7 @@
         </StatusPanel>
 
         <template v-else-if="view === 'form' && board && group">
-            <Message severity="info" :closable="false" size="small" class="mb-4" data-testid="group-write-notice">{{ t('group.writeNotice') }}</Message>
+            <Message severity="info" :closable="false" size="small" class="mb-4" data-testid="group-write-notice">{{ t(group?.visibility === 'PUBLIC' ? 'group.writeNoticePublic' : group?.visibility === 'PRIVATE' ? 'group.writeNoticePrivate' : 'group.writeNotice') }}</Message>
             <PostEditorForm
                 v-model="form"
                 :board="board"

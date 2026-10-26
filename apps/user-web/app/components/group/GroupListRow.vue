@@ -1,5 +1,5 @@
 <template>
-    <!-- 소모임 한 줄(컴팩트) — 이름·(모임장)·모집 상태 / 멤버 수·분류·신청제·오프라인·(주식이면 종목 추천 금지) / 한 줄 소개. 줄 전체가 상세로 가는 링크다.
+    <!-- 소모임 한 줄(컴팩트) — 이름·(모임장)·모집 상태·공개 범위 / 멤버 수·분류·신청제·오프라인·(주식이면 종목 추천 금지) / 한 줄 소개. 줄 전체가 상세로 가는 링크다.
          목록(`/groups`)은 오른쪽에 가입 상태 표시(누르는 단추가 아니다 — 링크 안에 단추를 넣지 않는다), 내 소모임(`/groups/me`)은 `mine` 으로 모임장 표시와 새 글 수를 보인다 -->
     <li class="border-b border-surface last:border-b-0" data-testid="group-row">
         <NuxtLink
@@ -12,6 +12,8 @@
                     <b class="min-w-0 truncate text-sm" data-testid="group-row-name">{{ row.name }}</b>
                     <GroupTag v-if="leader" tone="blue" data-testid="group-row-leader">{{ t('group.roleLeader') }}</GroupTag>
                     <GroupTag :tone="row.recruitState === 'OPEN' ? 'green' : 'gray'">{{ UtilGroupMessages.recruitLabel(t, row.recruitState) }}</GroupTag>
+                    <!-- 공개 범위(5단계) — 기능이 꺼진 서버의 비공개 소모임은 그리지 않는다 -->
+                    <GroupVisibilityChip :visibility="row.visibility" />
                 </span>
                 <span class="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-color">
                     <span>{{ UtilGroupMessages.members(t, row) }}</span>

@@ -29,6 +29,7 @@ export default {
     hidden: 'Hidden after reports',
     hiddenByStaff: 'Hidden by staff',
     hiddenGroupLeft: 'Comment from a member who left the club',
+    hiddenMembersOnly: 'Comment visible to members only',
     alreadyLiked: 'You already liked this comment.',
 
     editTitle: 'Edit comment',

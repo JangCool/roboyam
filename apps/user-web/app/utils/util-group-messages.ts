@@ -368,12 +368,6 @@ export default class UtilGroupMessages {
         return { title: t('group.unpublishTitle'), message: t(byAuthor ? 'group.unpublishMessageAuthor' : 'group.unpublishMessageOther'), confirmLabel: t('group.unpublishConfirm') };
     }
 
-    /** 공개 범위 바꾸기 실패 — 개인정보 확인 누락은 칸 문구가 가장 정확하다. 그 밖은 서버 문구 */
-    static visibilityFailure(t: Translate, e: unknown): string {
-        if (e instanceof ApiError) return e.field('acknowledged') ?? e.message;
-        return UtilBoardMessages.of(t, e);
-    }
-
     /** 소모임 글쓰기 입구가 막힌 까닭 — 비회원 · 멤버 아님 · 이메일 인증 전 · 쓸 수 없는 상태(정지 등) */
     static writeGate(t: Translate, gate: 'login' | 'not-member' | 'unverified' | 'blocked', myState: GroupMyState | null): GroupCopy {
         switch (gate) {

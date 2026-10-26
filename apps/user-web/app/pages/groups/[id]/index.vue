@@ -8,6 +8,8 @@
         글 탭(2단계, community `GroupPostsTab`): 멤버는 비공개 글까지(줄마다 「비공개」/「공개 전환됨」) + [글쓰기](`/groups/{id}/write`, 정지 중이면 꺼 두고 까닭), 비멤버·비회원은 공개로 전환된 글과
           잠금 줄(「멤버에게만 보이는 글 N개 · 가입하면 볼 수 있어요」 + 가입 단추). 커서 「더보기」. 멤버가 목록을 받으면 소모임마다 한 번 `seen`(내 소모임의 새 글 수를 지운다).
         멤버 탭·채팅 링크는 멤버에게만 열린다(비멤버는 잠금 + 가입 단추). 채팅 링크는 확인 대화상자를 거쳐 새 탭으로 연다(허용 주소만 — `UtilGroup.safeChatUrl`).
+        공개 범위(5단계): 머리 알약 줄 맨 앞에 「공개」/「비공개」 칩(누르면 한 줄 설명 시트, 기능이 꺼진 서버의 비공개 소모임은 없음). 공개 소모임이면 비멤버도 모든 글을 보고(서버가 `locked:false`)
+          글 줄의 「공개 전환됨」을 붙이지 않는다(멤버 전용으로 돌린 글만 「비공개」).
         ⋯ 메뉴: 링크 복사 · (멤버) 탈퇴. 모임장은 바로 탈퇴할 수 없다(넘기기·해산 안내 → 관리). community 대비: 소모임 신고(⋯ 메뉴)는 로보얌 신고 대상에 소모임이 없어 뺐다.
     -->
     <div class="mx-auto max-w-2xl lg:max-w-none">
@@ -62,6 +64,18 @@
                     </div>
 
                     <div class="mt-2.5 flex flex-wrap items-center gap-1" data-testid="group-badges">
+                        <!-- 공개 범위(5단계) — 누르면 한 줄 설명 시트. 기능이 꺼진 서버의 비공개 소모임은 그리지 않는다 -->
+                        <button
+                            v-if="group.visibility"
+                            type="button"
+                            class="inline-flex rounded focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+                            :aria-label="t('groupVisibility.chipMore', { name: UtilGroupVisibilityMessages.nameOf(t, group.visibility) })"
+                            aria-haspopup="dialog"
+                            data-testid="group-visibility"
+                            @click="visibilityInfoOpen = true"
+                        >
+                            <GroupVisibilityChip :visibility="group.visibility" />
+                        </button>
                         <GroupTag v-if="group.category" tone="neutral">{{ group.category.name }}</GroupTag>
                         <GroupTag :tone="group.recruitState === 'OPEN' ? 'green' : 'gray'">{{ UtilGroupMessages.recruitLabel(t, group.recruitState) }}</GroupTag>
                         <GroupTag>{{ UtilGroupMessages.joinTypeLabel(t, group.joinType) }}</GroupTag>
@@ -172,7 +186,7 @@
                             <EmptyState
                                 v-if="posts.items.length === 0"
                                 :title="isMember ? t('group.postsEmptyMemberTitle') : t('group.postsEmptyPublicTitle')"
-                                :description="isMember ? t('group.postsEmptyMemberText') : t('group.postsEmptyPublicText')"
+                                :description="isMember ? (publicGroup ? t('group.postsEmptyMemberPublicText') : t('group.postsEmptyMemberText')) : t('group.postsEmptyPublicText')"
                                 icon="pi pi-file"
                                 data-testid="group-posts-empty"
                             >
@@ -192,8 +206,13 @@
                                         >
                                             <div class="min-w-0 flex-1">
                                                 <p class="m-0 line-clamp-2 break-words text-sm leading-snug">
-                                                    <!-- 공개 라벨 — 글자가 늘 있다(색만으로 가르지 않는다) -->
-                                                    <GroupTag v-if="row.group" :tone="row.group.visibility === 'PUBLIC' ? 'blue' : 'gray'" class="mr-1 align-[1px]" data-testid="group-post-visibility">
+                                                    <!-- 공개 라벨 — 글자가 늘 있다(색만으로 가르지 않는다). 공개 소모임은 글이 처음부터 모두에게 보여 「공개 전환됨」을 붙이지 않는다(멤버 전용으로 돌린 글만 「비공개」) -->
+                                                    <GroupTag
+                                                        v-if="row.group && !(publicGroup && row.group.visibility === 'PUBLIC')"
+                                                        :tone="row.group.visibility === 'PUBLIC' ? 'blue' : 'gray'"
+                                                        class="mr-1 align-[1px]"
+                                                        data-testid="group-post-visibility"
+                                                    >
                                                         {{ UtilGroupMessages.postRowVisibility(t, row.group.visibility) }}
                                                     </GroupTag>
                                                     <PostRowTitle :row="row" :new-post-hours="display.newPostHours" :pinned-mark="false" />
@@ -418,6 +437,13 @@
             </div>
         </AppSheet>
 
+        <!-- 공개 범위 한 줄 설명(5단계) -->
+        <AppSheet v-if="group?.visibility" v-model:visible="visibilityInfoOpen" :title="visibilitySheet.title" :description="visibilitySheet.text">
+            <div class="px-5 pt-3" data-testid="group-visibility-sheet">
+                <Button type="button" :label="t('common.close')" severity="secondary" variant="outlined" fluid @click="visibilityInfoOpen = false" />
+            </div>
+        </AppSheet>
+
         <!-- 가입 신청 시트(신청제) · 오프라인 모임 가입 확인 시트 -->
         <AppSheet
             v-if="group"
@@ -467,6 +493,7 @@ import UtilGroup, { type GroupTab } from '~/utils/util-group';
 import UtilGroupMessages from '~/utils/util-group-messages';
 import UtilGroupEvent from '~/utils/util-group-event';
 import UtilGroupEventMessages from '~/utils/util-group-event-messages';
+import UtilGroupVisibilityMessages from '~/utils/util-group-visibility-messages';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -545,6 +572,10 @@ const newcomers = computed(() =>
     group.value ? UtilGroupMessages.newcomerLines(t, group.value, UtilGroup.managePath(group.value.id, 'applications'), UtilGroup.tabPath(group.value.id, 'members')) : null,
 );
 const chats = computed(() => UtilGroup.openableChats(group.value?.chatLinks ?? []));
+/** 공개 소모임(5단계) — 글 탭 줄의 「공개 전환됨」을 붙이지 않고 빈 상태 문구가 달라진다 */
+const publicGroup = computed(() => group.value?.visibility === 'PUBLIC');
+const visibilityInfoOpen = ref(false);
+const visibilitySheet = computed(() => UtilGroupVisibilityMessages.chipSheet(t, group.value?.visibility ?? 'PRIVATE'));
 
 useSeoMeta({ title: () => detail.value?.name ?? t('group.title'), robots: 'noindex' });
 

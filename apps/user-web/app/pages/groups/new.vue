@@ -4,7 +4,8 @@
         승인제(기본)는 `202 PENDING` → 이 화면이 「신청을 보냈어요」로 바뀌고, 자유 개설·운영자는 `201 ACTIVE` → 상세로 간다. 개설 방식·최소 등급·1인 상한·정원 범위는 `GET /api/groups/creation-rules`.
         분류는 `GET /api/groups/categories` — 분류에 켜진 게시판이 둘 이상이면 게시판도 고른다. 고른 게시판이 투자 고지면 추가 동의, 오프라인이면 개인 책임 고지 동의.
         비회원은 로그인 안내, 이메일 인증 전·등급 미달·상한 도달은 폼은 두고 단추만 끈다(정지 중은 서버가 `403 ACCOUNT_RESTRICTED` 로 막는다 — 안내 띠).
-        community 대비: 공개 범위 고르기(5단계)는 뺐다.
+        공개 범위(5단계): 개설 규칙의 `visibilityChoice` 가 true 일 때만 「공개 범위」 라디오(비공개 소모임 기본 · 공개 소모임). 공개를 고르면 안내 띠(승인제 일반 회원이면 「운영팀이 공개 범위도 함께 확인해요」).
+          고를 수 없는 서버에는 본문에 `visibility` 를 싣지 않는다. 승인 대기 화면에 신청한 공개 범위 한 줄.
     -->
     <div class="mx-auto max-w-xl">
         <NuxtLink :to="UtilGroup.LIST_PATH" class="inline-flex items-center gap-1 rounded text-xs text-muted-color hover:underline focus-visible:outline-2 focus-visible:outline-primary">
@@ -42,6 +43,7 @@
                     <div class="min-w-0 flex-1">
                         <h2 class="m-0 break-words text-base font-bold leading-tight">{{ sent.name }}</h2>
                         <p class="m-0 mt-0.5 text-xs text-muted-color">{{ sent.summary }}</p>
+                        <p v-if="sent.visibility" class="m-0 mt-0.5 text-xs text-muted-color" data-testid="group-create-pending-visibility">{{ UtilGroupVisibilityMessages.requestedLine(t, sent.visibility) }}</p>
                     </div>
                 </div>
                 <p class="m-0 mt-3 whitespace-pre-line break-words text-sm leading-relaxed">{{ sent.description }}</p>
@@ -157,6 +159,22 @@
 
             <GroupOptionCards v-model="form.joinType" :legend="t('group.fieldJoinType')" :options="joinTypeOptions" :disabled="submitting" :error="errors.joinType" testid="group-create-join" />
 
+            <!-- 공개 범위(5단계) — 서버가 고르게 할 때만(`creation-rules.visibilityChoice`). 기본 비공개, 공개를 고르면 안내 띠. 개설 방식(승인제·자유)과 따로다 -->
+            <div v-if="visibilityChoice" class="space-y-3" data-field="visibility" data-testid="group-create-visibility">
+                <GroupOptionCards
+                    :model-value="form.visibility"
+                    :legend="t('groupVisibility.createLegend')"
+                    :options="visibilityOptions"
+                    :disabled="submitting"
+                    :error="errors.visibility"
+                    testid="group-create-visibility"
+                    @update:model-value="(value: string) => (form.visibility = value === 'PUBLIC' ? 'PUBLIC' : 'PRIVATE')"
+                />
+                <GroupNotice v-if="form.visibility === 'PUBLIC'" tone="warn" data-testid="group-create-visibility-notice">
+                    {{ UtilGroupVisibilityMessages.createPublicNotice(t, !immediate && rules?.creationMode === 'APPROVAL') }}
+                </GroupNotice>
+            </div>
+
             <LabeledField :label="t('group.fieldCapacity')" :help="t('group.capacityHelp', { min: range.min, max: range.max })" :error="errors.capacity">
                 <template #default="{ id, describedBy, invalid }">
                     <div class="flex items-center gap-2">
@@ -224,10 +242,11 @@
 </template>
 
 <script setup lang="ts">
-import type { GroupCreationRules } from '~/composables/group/api/useGroupApi.types';
+import type { GroupCreationRules, GroupVisibility } from '~/composables/group/api/useGroupApi.types';
 import type { GroupOption } from '~/components/group/GroupOptionCards.types';
 import UtilGroup, { type GroupCreateField, type GroupCreateForm } from '~/utils/util-group';
 import UtilGroupMessages, { type GroupFailure } from '~/utils/util-group-messages';
+import UtilGroupVisibilityMessages from '~/utils/util-group-visibility-messages';
 import UtilRedirect from '~/utils/util-redirect';
 
 const { t } = useI18n();
@@ -273,6 +292,7 @@ const touched = reactive<Record<GroupCreateField, boolean>>({
     categoryId: false,
     boardSlug: false,
     joinType: false,
+    visibility: false,
     capacity: false,
     offline: false,
     agreeRules: false,
@@ -350,6 +370,10 @@ const joinTypeOptions = computed<GroupOption[]>(() => [
     { value: 'OPEN', label: t('group.joinOpen'), hint: t('group.joinOpenHint') },
     { value: 'APPROVAL', label: t('group.joinApproval'), hint: t('group.joinApprovalHint') },
 ]);
+/** 공개 범위를 고를 수 있나(서버 공개 범위 기능) — 규칙을 못 받았으면 라디오가 없다(비공개로 열린다) */
+const visibilityChoice = computed(() => rules.value?.visibilityChoice === true);
+const visibilityOptions = computed<GroupOption[]>(() => UtilGroupVisibilityMessages.createOptions(t));
+
 /** 정원 칸 — 숫자만 3자리까지 */
 function setCapacity(value: string | undefined): void {
     form.capacity = UtilGroup.digits(value ?? '');
@@ -412,7 +436,7 @@ watch(
 /* ── 제출 ── */
 const formRoot = ref<HTMLFormElement | null>(null);
 const pendingHeading = ref<HTMLElement | null>(null);
-const sent = reactive({ name: '', description: '', summary: '' });
+const sent = reactive<{ name: string; description: string; summary: string; visibility: GroupVisibility | null }>({ name: '', description: '', summary: '', visibility: null });
 
 async function focusField(field: GroupCreateField | null) {
     if (!field) return;
@@ -432,7 +456,7 @@ async function onSubmit() {
     failure.value = null;
     serverErrors.value = {};
     try {
-        const created = await api.create(UtilGroup.toCreateRequest(form, isStock.value));
+        const created = await api.create(UtilGroup.toCreateRequest(form, isStock.value, visibilityChoice.value));
         if (created.status === 'ACTIVE') {
             toast.success(t('group.openedToast'));
             await navigateTo(UtilGroup.detailPath(created.id), { replace: true });
@@ -441,6 +465,7 @@ async function onSubmit() {
         sent.name = UtilGroup.normalizeName(form.name);
         sent.description = form.description.trim();
         sent.summary = UtilGroupMessages.pendingSummaryLine(t, selectedCategory.value?.name ?? '', form.joinType, UtilGroup.parseCapacity(form.capacity) ?? 0);
+        sent.visibility = visibilityChoice.value ? form.visibility : null;
         pending.value = true;
         if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
         await nextTick();

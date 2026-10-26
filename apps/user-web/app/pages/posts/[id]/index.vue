@@ -19,9 +19,10 @@
           카드가 올린 새 투표(지우면 null)를 글의 `poll` 에 넣는다. 차단으로 본문이 접히거나 19금 확인 전이면 함께 가린다.
         소모임 글(2단계, community `docs/api-groups.md` 8절 · 「화면 (SPA) — 6-2」): 글의 `group` 이 있으면 머리의 게시판 이름 대신 「소모임 › 이름」(→ 소모임, 해산했으면 링크 없이 「해산한 소모임」)과
           공개 라벨(「멤버에게만 보여요」/「전체 공개」). 게시판 정보(댓글 설정 등)는 공개 게시판 API 가 아니라 `GET /api/groups/{id}/board`(로보얌 추가 후보)로 받는다.
-          글 아래 공개 범위 구획: 안내 + `group.canPublish` 면 [전체 공개로 전환](개인정보 확인 체크가 있는 시트), `group.canUnpublish` 면 [비공개로 되돌리기](확인).
+          글 아래 공개 범위 패널(`GroupPostPanel` — 5단계, 11-6 네 가지 일): 공개 범위 기능이 꺼진 서버(`group.groupVisibility` 없음)는 옛 패널(작성자의 [전체 공개로 전환]·[비공개로 되돌리기]),
+          켜져 있으면 공개 요청·요청 취소·승인·거절·직접 공개·되돌리기·멤버 전용으로 돌리기·다시 공개. 쓰기는 이 화면이 `useGroupApi` 로 만든 `actions` 가 하고 패널이 올린 바뀐 칸을 `group` 에 덮어쓴다.
+          비멤버가 보는 비공개 소모임의 개별 공개 글이면 본문 위에 「이 글은 {이름} 멤버가 모두에게 공개한 글이에요」, 댓글 위에 「멤버에게만 보이는 댓글 N개」(`membersOnlyCount`) 안내.
           이전·다음 글 대신 [소모임 글 목록으로]. 비멤버가 비공개 글을 열면(`403 GROUP_POST_PRIVATE`) 「멤버에게만 보이는 글이에요」(로그인 전이면 로그인, 아니면 소모임 둘러보기 — 오류에 소모임 ID 가 없다).
-          공개 범위·공개 요청(11절)은 5단계라 없다.
     -->
     <div>
         <!-- 모바일 안쪽 화면 머리 — 셸의 위·아래 막대가 숨겨진다(`shell: 'inner'`) -->
@@ -85,6 +86,16 @@
                     <span>{{ t('post.likes', { n: post.likeCount.toLocaleString() }) }}</span>
                 </div>
             </header>
+
+            <!-- 비멤버가 보는 비공개 소모임의 개별 공개 글(5단계) — 어느 소모임 멤버가 공개한 글인지 -->
+            <p v-if="individualGroup" class="m-0 mt-3 flex items-start gap-2 rounded-lg bg-surface-100 px-3 py-2.5 text-sm dark:bg-surface-800" data-testid="post-group-individual-notice">
+                <i class="pi pi-globe mt-0.5 shrink-0 text-xs text-muted-color" aria-hidden="true" />
+                <i18n-t keypath="groupVisibility.individualNotice" scope="global" tag="span" class="min-w-0">
+                    <template #name>
+                        <NuxtLink :to="UtilGroup.detailPath(individualGroup.id)" class="font-semibold text-primary hover:underline">{{ individualGroup.name }}</NuxtLink>
+                    </template>
+                </i18n-t>
+            </p>
 
             <!-- 예약 삭제된 글 · 댓글 많은 글 보호(수정·삭제할 수 있는 사람에게만) -->
             <Message v-if="post.deleteScheduledAt" severity="warn" :closable="false" size="small" class="mt-3" data-testid="post-delete-scheduled">
@@ -188,32 +199,16 @@
                 </template>
             </div>
 
-            <!-- 소모임 글의 공개 범위 — 안내는 모두에게, 단추는 서버가 준 권한이 있는 사람에게만 -->
-            <section v-if="post.group" class="mt-4 rounded-lg border border-surface px-4 py-3" :aria-label="t('group.postScopeLabel')" data-testid="post-group-panel">
-                <p class="m-0 flex items-start gap-2 text-sm leading-relaxed">
-                    <i :class="[post.group.visibility === 'PUBLIC' ? 'pi pi-globe' : 'pi pi-lock', 'mt-1 shrink-0 text-muted-color']" aria-hidden="true" />
-                    <span class="min-w-0">
-                        <b>{{ post.group.visibility === 'PUBLIC' ? t('group.postNoticePublicTitle') : t('group.postNoticePrivateTitle') }}</b>
-                        {{ post.group.visibility === 'PUBLIC' ? t('group.postNoticePublicText') : t('group.postNoticePrivateText') }}
-                    </span>
-                </p>
-                <div v-if="post.group.canPublish || post.group.canUnpublish" class="mt-3">
-                    <Button v-if="post.group.canPublish" type="button" :label="t('group.publishLabel')" fluid :disabled="visibilityBusy" data-testid="group-publish" @click="openPublish" />
-                    <Button
-                        v-else
-                        type="button"
-                        :label="t('group.unpublishLabel')"
-                        severity="secondary"
-                        variant="outlined"
-                        fluid
-                        :loading="visibilityBusy"
-                        :disabled="visibilityBusy"
-                        data-testid="group-unpublish"
-                        @click="unpublish"
-                    />
-                    <p class="m-0 mt-2 text-center text-xs text-muted-color">{{ post.group.canPublish ? t('group.publishHint') : t('group.unpublishHint') }}</p>
-                </div>
-            </section>
+            <!-- 소모임 글의 공개 범위 — 안내는 모두에게, 단추는 서버가 준 권한(`group.can*`)이 있는 사람에게만 -->
+            <GroupPostPanel
+                v-if="post.group"
+                :group="post.group"
+                :mine="post.mine"
+                :author-name="post.author.memberId ? post.author.name : null"
+                :actions="groupPanelActions"
+                @change="onGroupChange"
+                @session="prompt('view')"
+            />
 
             <BoardInvestmentNotice v-if="board.investmentNotice" variant="post" class="mt-3" />
 
@@ -231,6 +226,16 @@
             <div class="mt-3 flex justify-center">
                 <Button type="button" icon="pi pi-list" :label="post.group ? t('group.postListBack') : t('post.backToBoard')" severity="secondary" variant="outlined" size="small" @click="goBoard" />
             </div>
+
+            <!-- 멤버 전용 댓글 안내(5단계) — 비공개 소모임의 개별 공개 글을 비멤버·비회원이 볼 때, 공개 전에 달려 가려진 댓글 수(목록의 댓글 수는 전체 그대로) -->
+            <p
+                v-if="membersOnlyCommentCount > 0"
+                class="m-0 mt-4 flex items-center gap-1.5 rounded-lg bg-surface-100 px-3 py-2 text-xs text-muted-color dark:bg-surface-800/50"
+                data-testid="comment-members-only-banner"
+            >
+                <i class="pi pi-lock text-[0.6875rem]" aria-hidden="true" />
+                <span>{{ t('groupVisibility.membersOnlyBanner', { n: membersOnlyCommentCount }) }}</span>
+            </p>
 
             <!-- 일반 댓글 — 맨 아래 원래 댓글 자리(입장 없는 원댓글 + 답글) -->
             <CommentSection
@@ -260,24 +265,6 @@
         />
         <DebateSettingsDialog v-model:visible="debateDialogOpen" :initial="debateInitial" :close-locked="debateCloseLocked" :loading="debateSaving" :error="debateError" @save="saveDebate" />
         <BoardReportDialog v-model:visible="reportOpen" :target="reportTarget?.type ?? 'POST'" :loading="reporting" :error="reportError" :field-error="reportFieldError" @submit="submitReport" />
-
-        <!-- 소모임 글 전체 공개로 전환 — 닉네임·프로필이 함께 공개되므로 「다른 멤버의 개인정보가 없는지 확인했어요」에 체크해야 전환 단추가 켜진다 -->
-        <AppSheet v-model:visible="publishOpen" :title="t('group.publishTitle')" :description="t('group.publishText')">
-            <div class="px-5 pt-4">
-                <div class="flex items-start gap-2.5">
-                    <Checkbox v-model="publishAck" binary :input-id="publishAckId" :disabled="visibilityBusy" data-testid="publish-ack" />
-                    <label :for="publishAckId" class="cursor-pointer text-sm leading-snug">
-                        {{ t('group.publishAck') }}
-                        <small class="mt-0.5 block text-xs text-muted-color">{{ t('group.publishAckHelp') }}</small>
-                    </label>
-                </div>
-                <p v-if="publishError" role="alert" class="mt-3 text-sm text-red-600 dark:text-red-400" data-testid="publish-error">{{ publishError }}</p>
-                <div class="mt-5 flex gap-2">
-                    <Button type="button" :label="t('common.cancel')" severity="secondary" variant="outlined" class="flex-1" :disabled="visibilityBusy" @click="publishOpen = false" />
-                    <Button type="button" :label="t('group.publishConfirm')" class="flex-1" :loading="visibilityBusy" :disabled="!publishAck || visibilityBusy" data-testid="publish-confirm" @click="publish" />
-                </div>
-            </div>
-        </AppSheet>
     </div>
 </template>
 
@@ -289,6 +276,7 @@ import type { ReportReason, ReportTargetType } from '~/composables/report/api/us
 import type { CommentActions, DebateActions } from '~/components/board/CommentSection.types';
 import type { DebateSettingsValues } from '~/components/board/DebateSettingsFields.types';
 import type { PollCardActions } from '~/components/board/PostPollCard.types';
+import type { GroupPostPanelActions } from '~/components/group/GroupPostPanel.types';
 import UtilRichBody from '#layers/rich-editor/utils/util-rich-body';
 import UtilBlockMessages from '~/utils/util-block-messages';
 import UtilBoardMessages from '~/utils/util-board-messages';
@@ -298,6 +286,7 @@ import UtilPostMessages from '~/utils/util-post-messages';
 import UtilPointShop from '~/utils/util-point-shop';
 import UtilGroup from '~/utils/util-group';
 import UtilGroupMessages from '~/utils/util-group-messages';
+import UtilPostGroupPanel, { type PostGroupPatch } from '~/utils/util-post-group-panel';
 
 definePageMeta({ shell: 'inner' });
 
@@ -532,73 +521,55 @@ function goBoard(): void {
     void navigateTo(slug ? `/boards/${slug}` : '/');
 }
 
-/* ── 소모임 글 공개 전환·되돌리기 ── */
-const publishOpen = ref(false);
-const publishAck = ref(false);
-const publishError = ref('');
-const publishAckId = useId();
-const visibilityBusy = ref(false);
-
-function openPublish(): void {
-    // 시트를 열 때마다 체크는 해제로 시작한다 — 이전 동의를 다음 전환에 끌고 가지 않는다
-    publishAck.value = false;
-    publishError.value = '';
-    publishOpen.value = true;
-}
-
-/** 공개 범위를 바꾼 뒤 권한(`canPublish`·`canUnpublish`)을 서버 값으로 맞춘다 — 글을 다시 받아 `group` 만 바꾼다(실패하면 받은 공개 범위만 넣는다) */
-async function syncGroup(visibility: 'PUBLIC' | 'PRIVATE'): Promise<void> {
+/* ── 소모임 글 공개 범위(5단계 — 패널이 부르는 동작, 바뀐 칸은 패널이 `change` 로 올린다) ── */
+/** 지금 보는 글의 소모임 — 동작을 부르는 순간의 값을 쓴다 */
+function groupIds(): { groupId: string; postId: string } {
     const p = post.value;
-    if (!p?.group) return;
-    p.group = { ...p.group, visibility };
-    try {
-        const fresh = await postApi.post(p.id);
-        if (post.value?.id === fresh.id && fresh.group) post.value.group = fresh.group;
-    } catch {
-        // 권한 단추는 다음에 열 때 맞춰진다
-    }
+    if (!p?.group) throw new Error('not a group post');
+    return { groupId: p.group.id, postId: p.id };
 }
 
-async function publish(): Promise<void> {
+const groupPanelActions: GroupPostPanelActions = {
+    request: (note) => {
+        const { groupId, postId } = groupIds();
+        return groupApi.requestPublish(groupId, postId, { ...(note ? { note } : {}), acknowledged: true });
+    },
+    cancel: () => {
+        const { groupId, postId } = groupIds();
+        return groupApi.cancelPublishRequest(groupId, postId);
+    },
+    approve: () => {
+        const { groupId, postId } = groupIds();
+        return groupApi.approvePublishRequest(groupId, postId);
+    },
+    reject: (reason) => {
+        const { groupId, postId } = groupIds();
+        return groupApi.rejectPublishRequest(groupId, postId, reason || undefined);
+    },
+    setVisibility: (visibility, acknowledged) => {
+        const { groupId, postId } = groupIds();
+        return groupApi.setPostVisibility(groupId, postId, acknowledged ? { visibility, acknowledged: true } : { visibility });
+    },
+};
+
+/** 패널이 올린 바뀐 칸을 글 상세의 `group` 에 덮어쓴다(글을 다시 받지 않는다 — 조회수·읽던 자리·댓글이 그대로) */
+function onGroupChange(patch: PostGroupPatch): void {
     const p = post.value;
-    if (!p?.group || !publishAck.value || visibilityBusy.value) return;
-    visibilityBusy.value = true;
-    publishError.value = '';
-    try {
-        const result = await groupApi.setPostVisibility(p.group.id, p.id, { visibility: 'PUBLIC', acknowledged: true });
-        publishOpen.value = false;
-        toast.success(t('group.publishedToast'));
-        await syncGroup(result.visibility);
-    } catch (e) {
-        if (UtilGroup.isSessionLost(e)) {
-            publishOpen.value = false;
-            prompt('view');
-            return;
-        }
-        publishError.value = UtilGroupMessages.visibilityFailure(t, e);
-    } finally {
-        visibilityBusy.value = false;
-    }
+    if (p?.group) p.group = { ...p.group, ...patch };
 }
 
-async function unpublish(): Promise<void> {
-    const p = post.value;
-    if (!p?.group || visibilityBusy.value) return;
-    if (!(await confirm({ ...UtilGroupMessages.unpublishConfirm(t, p.mine), tone: 'danger' }))) return;
-    visibilityBusy.value = true;
-    try {
-        const result = await groupApi.setPostVisibility(p.group.id, p.id, { visibility: 'PRIVATE' });
-        toast.success(t('group.unpublishedToast'));
-        await syncGroup(result.visibility);
-    } catch (e) {
-        if (UtilGroup.isSessionLost(e)) return prompt('view');
-        toast.error(UtilGroupMessages.visibilityFailure(t, e), 8000);
-        // 그새 권한을 잃었거나 글이 바뀌었다 — 지금 상태로 맞춘다
-        await syncGroup(p.group.visibility);
-    } finally {
-        visibilityBusy.value = false;
-    }
-}
+/** 비멤버가 보는 비공개 소모임의 개별 공개 글이면 그 소모임 — 본문 위 안내 줄이 쓴다(멤버는 `membersOnlyCommentCount` 가 null 이라 없다) */
+const individualGroup = computed(() => {
+    const g = post.value?.group;
+    return g && !g.dissolved && UtilPostGroupPanel.isIndividualForVisitor(g) ? g : null;
+});
+/** 멤버 전용으로 가려진 댓글 수 — 댓글 목록 응답(`membersOnlyCount`)이 먼저, 받기 전에는 글 상세의 수 */
+const membersOnlyCommentCount = computed(() => {
+    const fromList = comments.data.value?.membersOnlyCount;
+    if (typeof fromList === 'number') return fromList;
+    const fromPost = post.value?.group?.membersOnlyCommentCount;
+    return typeof fromPost === 'number' ? fromPost : 0;
+});
 
 /* ── 추천·링크 복사 ── */
 const liking = ref(false);

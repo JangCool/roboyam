@@ -7,7 +7,9 @@
           모임장 고정 줄(정보 수정·채팅 링크·매니저·해산) 자리에 점선 안내, 맨 아래 「내 역할 › 매니저에서 물러나기」(확인 시트 → `DELETE …/managers/me`, 성공하면 소모임 상세로 — 기록 교체).
         - 정지·이메일 인증 전이면 띠 + 쓰기 단추가 꺼진다(목록은 열린다). 물러나기는 사업자 계정이어도 된다(서버 `GroupManagerService.resign` 이 막지 않는다 — 탈퇴와 같은 규칙).
         - 열어 둔 채 맡은 일이 빠지면(`403 GROUP_MANAGER_PERMISSION_DENIED`) 토스트 + 권한을 다시 받아 줄이 잠금으로 바뀐다. 해임당했으면(`GROUP_LEADER_ONLY`) 「모임장 또는 매니저만」 상태가 된다.
-        community 대비: 「글 › 공개 요청」·「공개 범위」 줄은 5단계라 뺐다.
+        - 공개 범위(5단계): 「글」 구획의 「공개 요청」 줄 — `canDecidePublishRequests` 면 열린 줄(대기 수 `pendingPublishRequestCount`), 「글 공개 처리·되돌리기」를 맡지 않은 매니저는
+          잠금 줄(공개 범위가 보이는 소모임에서만), 기능이 꺼진 서버면 구획이 없다. 「공개 범위」 줄은 `canChangeVisibility`(모임장)일 때만 「소모임」 구획에 있고, 누르면 변경 시트
+          (지금 값·설명 → 바꾸기 → 미리보기 숫자 `GET …/visibility-preview` → 확인(비공개→공개는 체크·쿨다운) → `PUT …/visibility`).
     -->
     <GroupManageShell :title="t('group.manageTitle')" :state="state" :error-message="errorMessage" :group-id="id" :back-to="UtilGroup.detailPath(id)" :back-label="t('group.backToGroup')" :blocked-reason="group?.blockedReason ?? null" @retry="load()">
         <template v-if="group">
@@ -86,9 +88,47 @@
                 </div>
             </section>
 
+            <!-- 글(5단계) — 공개 요청. 기능이 꺼진 서버면 구획이 없다 -->
+            <section v-if="showPostsSection" class="mt-4" :aria-labelledby="`${uid}-posts`" data-testid="group-manage-posts">
+                <h2 :id="`${uid}-posts`" class="px-1 pb-1.5 text-xs font-semibold text-muted-color">{{ t('groupVisibility.sectionPosts') }}</h2>
+                <div class="overflow-hidden rounded-xl border border-surface bg-surface-0 dark:bg-surface-900">
+                    <NuxtLink v-if="group.permissions.canDecidePublishRequests" :to="UtilGroup.managePath(id, 'publish-requests')" :class="ROW" data-testid="group-manage-publish-requests">
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-medium">{{ t('groupVisibility.rowRequests') }}</span>
+                            <small class="block text-xs text-muted-color">{{ t('groupVisibility.rowRequestsHint') }}</small>
+                        </span>
+                        <span
+                            v-if="publishRequestCount !== null && publishRequestCount > 0"
+                            class="inline-flex shrink-0 items-center rounded-full bg-red-100 px-2 py-1 text-xs font-semibold leading-none text-red-700 dark:bg-red-900/40 dark:text-red-300"
+                            :aria-label="t('groupVisibility.requestsCountAria', { n: publishRequestCount })"
+                            data-testid="group-manage-publish-requests-count"
+                            >{{ publishRequestCount }}</span
+                        >
+                        <span v-else-if="publishRequestCount === 0" class="shrink-0 text-xs text-muted-color">0</span>
+                        <i class="pi pi-angle-right shrink-0 text-muted-color" aria-hidden="true" />
+                    </NuxtLink>
+                    <button v-else type="button" :class="[ROW, 'text-muted-color']" data-testid="group-manage-publish-requests-locked" @click="openLocked('UNPUBLISH')">
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-medium">{{ t('groupVisibility.rowRequests') }}</span>
+                            <small class="block text-xs">{{ t('groupManager.lockedHint') }}</small>
+                        </span>
+                        <i class="pi pi-lock shrink-0" aria-hidden="true" />
+                    </button>
+                </div>
+            </section>
+
             <section class="mt-4" :aria-labelledby="`${uid}-group`">
                 <h2 :id="`${uid}-group`" class="px-1 pb-1.5 text-xs font-semibold text-muted-color">{{ t('group.title') }}</h2>
                 <div class="overflow-hidden rounded-xl border border-surface bg-surface-0 dark:bg-surface-900">
+                    <!-- 공개 범위(5단계, 모임장) — 누르면 변경 시트 -->
+                    <button v-if="group.permissions.canChangeVisibility && group.visibility" type="button" :class="ROW" aria-haspopup="dialog" data-testid="group-manage-visibility" @click="openVisibility">
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-medium">{{ t('groupVisibility.rowVisibility') }}</span>
+                            <small class="block text-xs text-muted-color">{{ UtilGroupVisibilityMessages.nameOf(t, group.visibility) }}</small>
+                        </span>
+                        <GroupVisibilityChip :visibility="group.visibility" />
+                        <i class="pi pi-angle-right shrink-0 text-muted-color" aria-hidden="true" />
+                    </button>
                     <template v-if="group.permissions.canEditGroup">
                         <NuxtLink :to="UtilGroup.managePath(id, 'edit')" :class="ROW" data-testid="group-manage-edit">
                             <span class="min-w-0 flex-1 text-sm font-medium">{{ t('group.editTitle') }}</span>
@@ -180,6 +220,71 @@
                 </form>
             </AppSheet>
 
+            <!--
+                공개 범위 변경 시트(5단계, 모임장) — 첫 화면은 지금 값 + 한 줄 설명 + 반대 값으로 바꾸는 단추 하나, 누르면 같은 시트 안에서 확인 화면(글·댓글 수를 서버에서 받는다).
+                비공개→공개는 체크 필수·쿨다운 안이면 단추가 꺼지고 날짜를 말한다, 공개→비공개는 체크 없이 바로. 열 때마다 첫 화면으로 돌아온다
+            -->
+            <AppSheet
+                v-if="group.visibility"
+                v-model:visible="visibilityOpen"
+                :title="visibilityStep === 'head' || !visibilityCopy ? visibilityHead.title : visibilityCopy.title"
+                :description="visibilityStep === 'head' ? visibilityHead.text : ''"
+            >
+                <div class="px-5 pt-3" data-testid="visibility-sheet" :data-step="visibilityStep">
+                    <template v-if="visibilityStep === 'head'">
+                        <Button
+                            type="button"
+                            :label="UtilGroupVisibilityMessages.changeButton(t, visibilityTarget)"
+                            fluid
+                            :disabled="Boolean(group.blockedReason) || visibilityCooldown"
+                            data-testid="visibility-change"
+                            @click="openVisibilityConfirm"
+                        />
+                        <p v-if="visibilityCooldown && cooldownText" class="m-0 mt-2 text-center text-xs text-muted-color" data-testid="visibility-cooldown">{{ cooldownText }}</p>
+                        <p v-if="group.blockedReason" class="m-0 mt-2 text-center text-xs text-muted-color" role="status" data-testid="visibility-blocked">{{ UtilGroupMessages.blockedBand(t, group.blockedReason) }}</p>
+                        <Button type="button" :label="t('common.close')" severity="secondary" variant="outlined" fluid class="mt-3" data-testid="visibility-close" @click="visibilityOpen = false" />
+                    </template>
+
+                    <template v-else>
+                        <div v-if="previewStatus === 'loading'" class="space-y-2" role="status" :aria-label="t('groupVisibility.changeLoading')" data-testid="visibility-loading">
+                            <div class="h-3.5 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
+                            <div class="h-3.5 w-10/12 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
+                            <div class="h-3.5 w-2/3 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
+                        </div>
+
+                        <template v-else-if="previewStatus === 'error'">
+                            <p role="alert" class="m-0 text-sm text-red-600 dark:text-red-400" data-testid="visibility-preview-error">{{ previewError || t('groupVisibility.changePreviewFailed') }}</p>
+                            <div class="mt-4 flex gap-2">
+                                <Button type="button" :label="t('common.back')" severity="secondary" variant="outlined" class="flex-1" @click="visibilityStep = 'head'" />
+                                <Button type="button" :label="t('common.retry')" class="flex-1" data-testid="visibility-preview-retry" @click="loadPreview" />
+                            </div>
+                        </template>
+
+                        <template v-else-if="visibilityCopy">
+                            <p class="m-0 text-sm leading-relaxed" data-testid="visibility-confirm-text">{{ visibilityCopy.text }}</p>
+                            <div v-if="visibilityCopy.ackLabel" class="mt-3 flex items-start gap-2.5">
+                                <Checkbox v-model="visibilityAck" binary :input-id="`${uid}-visibility-ack`" :disabled="visibilitySubmitting" data-testid="visibility-ack" />
+                                <label :for="`${uid}-visibility-ack`" class="cursor-pointer text-sm leading-snug">{{ visibilityCopy.ackLabel }}</label>
+                            </div>
+                            <p v-if="visibilityError" role="alert" class="m-0 mt-3 text-sm text-red-600 dark:text-red-400" data-testid="visibility-error">{{ visibilityError }}</p>
+                            <div class="mt-4 flex gap-2">
+                                <Button type="button" :label="t('common.cancel')" severity="secondary" variant="outlined" class="flex-1" :disabled="visibilitySubmitting" @click="visibilityOpen = false" />
+                                <Button
+                                    type="button"
+                                    :label="visibilityCopy.confirmLabel"
+                                    :severity="visibilityTarget === 'PRIVATE' ? 'danger' : undefined"
+                                    class="flex-1"
+                                    :loading="visibilitySubmitting"
+                                    :disabled="!canConfirmVisibility"
+                                    data-testid="visibility-confirm"
+                                    @click="confirmVisibility"
+                                />
+                            </div>
+                        </template>
+                    </template>
+                </div>
+            </AppSheet>
+
             <!-- 맡겨지지 않은 일을 눌렀을 때의 안내 -->
             <AppSheet v-model:visible="lockedOpen" :title="lockedCopy.title" :description="lockedCopy.text">
                 <div class="mt-3 px-5" data-testid="group-manage-locked-sheet">
@@ -212,12 +317,14 @@
 </template>
 
 <script setup lang="ts">
-import type { GroupManagerPermission } from '~/composables/group/api/useGroupApi.types';
+import type { GroupManagerPermission, GroupVisibility, GroupVisibilityPreview } from '~/composables/group/api/useGroupApi.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilGroup from '~/utils/util-group';
 import UtilGroupManager from '~/utils/util-group-manager';
 import UtilGroupManagerMessages from '~/utils/util-group-manager-messages';
 import UtilGroupMessages from '~/utils/util-group-messages';
+import UtilGroupVisibility from '~/utils/util-group-visibility';
+import UtilGroupVisibilityMessages from '~/utils/util-group-visibility-messages';
 
 definePageMeta({ middleware: 'auth' });
 const { t } = useI18n();
@@ -258,6 +365,122 @@ watch(
     },
     { immediate: true },
 );
+
+/* ── 공개 요청(5단계) — 「글」 구획 ── */
+/** 구획을 보일까 — 처리할 수 있거나, 공개 범위가 보이는 소모임에서 「글 공개 처리·되돌리기」를 맡지 않은 매니저(잠금 줄). 기능이 꺼진 서버의 모임장은 없다 */
+const showPostsSection = computed(() => {
+    const g = group.value;
+    if (!g) return false;
+    return g.permissions.canDecidePublishRequests || (g.visibility !== null && !g.permissions.canUnpublishPosts);
+});
+const publishRequestCount = computed(() => UtilGroupVisibility.pendingCountOf(group.value?.pendingPublishRequestCount));
+
+/* ── 공개 범위 변경 시트(5단계, 모임장) ── */
+type VisibilityStep = 'head' | 'confirm';
+type PreviewStatus = 'idle' | 'loading' | 'ready' | 'error';
+const visibilityOpen = ref(false);
+const visibilityStep = ref<VisibilityStep>('head');
+const previewStatus = ref<PreviewStatus>('idle');
+const preview = ref<GroupVisibilityPreview | null>(null);
+const previewError = ref('');
+const visibilityAck = ref(false);
+const visibilitySubmitting = ref(false);
+const visibilityError = ref('');
+const visibilityNow = ref(Date.now());
+const time = useDisplayTime();
+
+const visibilityCurrent = computed<GroupVisibility>(() => group.value?.visibility ?? 'PRIVATE');
+/** 바꿀 값 — 지금의 반대 */
+const visibilityTarget = computed(() => UtilGroupVisibility.opposite(visibilityCurrent.value));
+const visibilityHead = computed(() => UtilGroupVisibilityMessages.chipSheet(t, visibilityCurrent.value));
+/** 비공개→공개이고 쿨다운이 남았다 — 단추가 꺼진다 */
+const visibilityCooldown = computed(() => visibilityTarget.value === 'PUBLIC' && UtilGroupVisibility.inCooldown(group.value?.visibilityInfo, visibilityNow.value));
+const cooldownText = computed(() => {
+    const at = group.value?.visibilityInfo?.canChangeToPublicAt;
+    return at ? t('groupVisibility.cooldown', { date: time.value.date(at) }) : '';
+});
+const visibilityCopy = computed(() => {
+    const p = preview.value;
+    if (!p) return null;
+    return visibilityTarget.value === 'PUBLIC' ? UtilGroupVisibilityMessages.toPublicSheet(t, p) : UtilGroupVisibilityMessages.toPrivateSheet(t, p);
+});
+const canConfirmVisibility = computed(() => {
+    if (visibilitySubmitting.value || previewStatus.value !== 'ready' || !preview.value || group.value?.blockedReason) return false;
+    // 비공개→공개는 체크 필수, 미리보기가 말하는 쿨다운도 막는다
+    if (visibilityTarget.value === 'PUBLIC') return visibilityAck.value && !UtilGroupVisibility.previewInCooldown(preview.value, visibilityNow.value);
+    return true;
+});
+
+function openVisibility(): void {
+    visibilityStep.value = 'head';
+    previewStatus.value = 'idle';
+    preview.value = null;
+    visibilityAck.value = false;
+    visibilityError.value = '';
+    visibilityNow.value = Date.now();
+    visibilityOpen.value = true;
+}
+
+function openVisibilityConfirm(): void {
+    visibilityStep.value = 'confirm';
+    visibilityAck.value = false;
+    visibilityError.value = '';
+    void loadPreview();
+}
+
+let previewSeq = 0;
+async function loadPreview(): Promise<void> {
+    const mine = ++previewSeq;
+    previewStatus.value = 'loading';
+    previewError.value = '';
+    try {
+        const res = await api.visibilityPreview(id, visibilityTarget.value);
+        if (mine !== previewSeq) return;
+        preview.value = res;
+        previewStatus.value = 'ready';
+    } catch (e) {
+        if (mine !== previewSeq || UtilGroup.isSessionLost(e)) return;
+        // 모임장이 바뀌었다 — 시트를 닫고 권한을 다시 맞춘다
+        if (UtilGroupVisibility.isStalePermission(UtilGroupVisibility.failureKind(e))) {
+            visibilityOpen.value = false;
+            toast.error(t('groupVisibility.leaderOnly'), 8000);
+            await recheck();
+            return;
+        }
+        previewError.value = UtilBoardMessages.of(t, e);
+        previewStatus.value = 'error';
+    }
+}
+
+async function confirmVisibility(): Promise<void> {
+    if (!canConfirmVisibility.value) return;
+    const target = visibilityTarget.value;
+    visibilitySubmitting.value = true;
+    visibilityError.value = '';
+    try {
+        const res = await api.setVisibility(id, { visibility: target, acknowledged: target === 'PUBLIC' ? visibilityAck.value : false });
+        visibilityOpen.value = false;
+        patch({ visibility: UtilGroupVisibility.of(res.visibility) ?? target });
+        toast.success(UtilGroupVisibilityMessages.changed(t, UtilGroupVisibility.of(res.visibility) ?? target), 5000);
+        // 마지막 변경·쿨다운·대기 수는 서버 값으로 맞춘다
+        await recheck();
+    } catch (e) {
+        if (UtilGroup.isSessionLost(e)) return;
+        const blocked = UtilGroup.blockedReasonOf(e);
+        if (blocked) block(blocked);
+        const kind = UtilGroupVisibility.failureKind(e);
+        if (UtilGroupVisibility.isStalePermission(kind)) {
+            visibilityError.value = t('groupVisibility.leaderOnly');
+            await recheck();
+            return;
+        }
+        // 쿨다운(`409 GROUP_VISIBILITY_COOLDOWN`)·기능 꺼짐 등은 서버 문구 그대로
+        visibilityError.value = UtilGroupVisibility.fieldOf(e, 'acknowledged') ?? UtilBoardMessages.of(t, e);
+        if (kind === 'cooldown' || kind === 'disabled') await recheck();
+    } finally {
+        visibilitySubmitting.value = false;
+    }
+}
 
 /** 쓰기 실패의 공통 갈래 — 쓰기 잠금(정지·인증 전) · 맡은 일이 빠졌다 · 모임장도 매니저도 아니게 됐다(넘겼거나 해임·강퇴) */
 async function onGuardFailure(e: unknown): Promise<boolean> {

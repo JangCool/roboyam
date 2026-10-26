@@ -1,5 +1,5 @@
 import type { Role } from '~/composables/auth/api/useAuthApi.types';
-import type { PostGroupVisibility, PostRow, PostWriteRequest } from '~/composables/board/api/usePostApi.types';
+import type { PostGroupPublicBy, PostGroupVisibility, PostRow, PostWriteRequest } from '~/composables/board/api/usePostApi.types';
 import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopApi.types';
 
 /**
@@ -8,6 +8,7 @@ import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopA
  * 3단계(5-1 매니저)는 서버 `GroupManagerListView`·`GroupDetailView.ManagerInfo`·`Permissions` 와 맞췄다(community 5-1 과 같은 경로·칸 — `useGroupApi.ts` 머리말).
  * 4단계(9절 일정)는 서버 `GroupEventRowView`·`GroupEventDetailView`·`GroupEventPageView`·`GroupEventAttendeePageView`·`GroupEventResponseResultView`·`GroupEventRequest`·
  * `MyGroupsView.NextEvent` 와 칸 단위로 맞췄다(2026-10-26).
+ * 5단계(11절 공개 범위·공개 요청)는 community `docs/api-groups.md` 11절과 같은 이름·칸이고, 서버 `GroupVisibilityViews`·`GroupDetailView`(`VisibilityInfo`·`Permissions`)와 대조했다(`useGroupApi.ts` 머리말).
  * 로보얌 관례: 응답은 `ApiResponse` 래퍼(`useApiClient` 가 벗겨 `data` 만 돌려준다), ID 는 모두 문자열, 시각은 ISO-8601 UTC 문자열(보이는 것은 `useDisplayTime`).
  * 원본과 다르게 둔 것은 `useGroupApi.ts` 머리말에 적는다.
  */
@@ -72,7 +73,10 @@ export interface GroupCategoriesResponse {
 /** 가입 방식 — 자유 가입 · 신청제 */
 export type GroupJoinType = 'OPEN' | 'APPROVAL';
 
-/** 공개 범위 — 공개 범위 기능(5단계)이 꺼져 있으면 비공개 소모임은 null 로 온다(화면은 아직 그리지 않는다) */
+/**
+ * 공개 범위 — 공개 소모임(글이 쓰는 순간 모두에게 보인다) · 비공개 소모임(기본 — 공개 요청·직접 공개한 글만 모두에게 보인다).
+ * 공개 범위 기능이 꺼져 있으면 비공개 소모임은 응답 칸이 `null` 로 온다 — 화면은 칩·라디오·구획을 그리지 않는다(`UtilGroupVisibility.of`). 이미 공개인 소모임은 늘 `PUBLIC`.
+ */
 export type GroupVisibility = 'PUBLIC' | 'PRIVATE';
 
 /** 모집 상태 — 모집 중 · 정원 참 · 모임장이 마감 */
@@ -102,7 +106,7 @@ export interface GroupRow {
     offline: boolean;
     /** 이 소모임의 게시판이 투자 고지 대상 — 「종목 추천 금지」를 붙인다 */
     stockNotice: boolean;
-    /** 공개 범위(5단계 — 읽지 않는다) */
+    /** 공개 범위 — `null`(기능 꺼짐·비공개)이면 칩을 그리지 않는다 */
     visibility?: GroupVisibility | null;
     myState: GroupMyState | null;
 }
@@ -169,6 +173,8 @@ export type GroupManageBlockedReason = 'EMAIL_NOT_VERIFIED' | 'ACCOUNT_RESTRICTE
  * `canManage` 는 모임장 **또는 매니저**(관리 화면에 들어온다), `canEditGroup` 은 모임장 고정 일(정보·채팅·넘기기·해산·매니저 임명 계열),
  * `canAppointManager` 는 모임장이고 매니저 기능이 켜짐, 체크형 다섯(`canHandleApplications`·`canKickMembers`·`canSetRecruiting`·`canManageEvents`·`canUnpublishPosts`)은
  * 모임장이거나 그 일을 맡은 매니저. 칸이 없는 옛 응답은 `canManage`(그때는 모임장)로 채운다(`UtilGroup.permissionsOf`).
+ * 5단계: `canChangeVisibility`(모임장 — 기능이 꺼져 있으면 공개 소모임의 모임장에게만 true, 공개→비공개) · `canDecidePublishRequests`(기능이 켜져 있고 모임장 또는 `UNPUBLISH` 매니저).
+ * 두 칸은 칸이 없으면 false 다(`canManage` 로 채우지 않는다 — 기능이 꺼진 서버일 수 있다).
  */
 export interface GroupPermissions {
     canManage: boolean;
@@ -180,11 +186,22 @@ export interface GroupPermissions {
     canSetRecruiting?: boolean;
     canManageEvents?: boolean;
     canUnpublishPosts?: boolean;
+    canChangeVisibility?: boolean;
+    canDecidePublishRequests?: boolean;
     manageBlockedReason?: GroupManageBlockedReason | null;
 }
 
 /** 칸을 모두 채운 권한(화면이 쓰는 모양) */
 export type GroupResolvedPermissions = Required<Omit<GroupPermissions, 'manageBlockedReason'>> & { manageBlockedReason: GroupManageBlockedReason | null };
+
+/** 모임장에게만 오는 공개 범위 변경 정보 — `canChangeToPublicAt`: 비공개→공개 쿨다운이 끝나는 시각(쿨다운 밖이면 null) */
+export interface GroupVisibilityInfo {
+    /** 마지막으로 바꾼 시각 — 개설 때 정한 값 그대로면 null */
+    changedAt: string | null;
+    /** 마지막으로 바꾼 모임장(서버 `DmPartnerView` = `GroupUser`) — 없으면 null */
+    changedBy: GroupUser | null;
+    canChangeToPublicAt: string | null;
+}
 
 /** 상세 「모임 정보」의 신규 가입자 — 멤버에게만 */
 export interface GroupNewcomers {
@@ -245,8 +262,10 @@ export interface GroupDetail {
     recruiting?: boolean | null;
     recruitState?: GroupRecruitState | null;
     offline?: boolean | null;
-    /** 공개 범위(5단계 — 읽지 않는다) */
+    /** 공개 범위 — `null`(기능 꺼짐·비공개)이면 칩·구획을 그리지 않는다 */
     visibility?: GroupVisibility | null;
+    /** 모임장에게만 — 마지막 변경·쿨다운, 그 밖 null */
+    visibilityInfo?: GroupVisibilityInfo | null;
     openedAt?: string | null;
     leader?: GroupUser | null;
     stockNotice?: boolean | null;
@@ -261,6 +280,8 @@ export interface GroupDetail {
     newcomers?: GroupNewcomers | null;
     /** 모임장·`APPLICATIONS` 매니저에게만 승인 대기 수 — 그 밖은 null(0 은 「없음」, null 은 「볼 수 없음」) */
     pendingApplicationCount?: number | null;
+    /** `canDecidePublishRequests` 인 사람에게만 대기 중인 공개 요청 수(정지 중에도 온다) — 그 밖 null(0 은 「없음」, null 은 「볼 수 없음」) */
+    pendingPublishRequestCount?: number | null;
     limits?: GroupLimits | null;
     /** 보는 사람에게 보이는 소모임 글 수 — 멤버는 보이는 글 전부, 비멤버·비회원은 공개로 전환된 글(지운·숨긴·나가서 가린 글 제외, 2단계). 비활성이면 null */
     postCount?: number | null;
@@ -356,7 +377,7 @@ export interface MyGroupRequest {
     capacity: number;
     description: string;
     offline: boolean;
-    /** 신청한 공개 범위(5단계 — 읽지 않는다) */
+    /** 신청한 공개 범위 — `null`(기능 꺼짐·비공개)이면 그리지 않는다 */
     visibility?: GroupVisibility | null;
     status: 'PENDING' | 'REJECTED';
     rejectReason: string | null;
@@ -383,6 +404,8 @@ export interface GroupCreateRequest {
     agreeRules: boolean;
     agreeStock: boolean;
     agreeOffline: boolean;
+    /** 공개 범위 — 개설 규칙의 `visibilityChoice` 가 true 일 때만 보낸다(생략 = 비공개, 기능이 꺼진 서버는 무시) */
+    visibility?: GroupVisibility;
 }
 
 /** 개설 규칙으로 못 내는 까닭 */
@@ -399,7 +422,7 @@ export interface GroupCreationRules {
     maxPerOwner: number;
     capacityMin?: number;
     capacityMax?: number;
-    /** 공개 범위를 고를 수 있나(5단계 — 읽지 않는다) */
+    /** 공개 범위를 고를 수 있나(공개 범위 기능) — true 일 때만 만들기 화면에 라디오가 있다 */
     visibilityChoice?: boolean;
     /**
      * 로그인했을 때만 — 개설 규칙만 본다(이메일 인증·정지는 신청할 때 403).
@@ -467,7 +490,7 @@ export interface GroupApplicationListResponse {
     memberCount: number;
 }
 
-// ── 소모임 글(2단계 — community `docs/api-groups.md` 8절. 11절 공개 범위·공개 요청은 5단계) ──
+// ── 소모임 글(2단계 — community `docs/api-groups.md` 8절. 11절 공개 범위·공개 요청은 아래 5단계 절) ──
 
 /** `GET /api/groups/{id}/posts?cursor=&size=` 의 조건 — `size` 1~50(기본 20) */
 export interface GroupPostListQuery {
@@ -501,14 +524,106 @@ export interface GroupPostWriteResult {
     pointsEarned: number;
 }
 
-/** `PUT /api/groups/{id}/posts/{postId}/visibility` 본문 — 공개로 전환할 때는 `acknowledged: true`(개인정보 확인 동의)가 있어야 한다 */
+/**
+ * `PUT /api/groups/{id}/posts/{postId}/visibility` 본문 — 한 경로, 네 가지 일(11-6): 비공개 소모임 `PUBLIC` 직접 공개 · `PRIVATE` 되돌리기 /
+ * 공개 소모임 `PRIVATE` 멤버 전용으로 돌리기 · `PUBLIC` 다시 공개. 공개하는 쪽은 `acknowledged: true`(개인정보 확인 동의)가 있어야 한다.
+ */
 export interface GroupPostVisibilityRequest {
     visibility: PostGroupVisibility;
     acknowledged?: boolean;
 }
 
+/** 글 공개 범위 바꾸기의 응답 — `publicBy`·`membersOnly` 는 5단계 칸(옛 서버는 없다) */
 export interface GroupPostVisibilityResult {
     visibility: PostGroupVisibility;
+    publicBy?: PostGroupPublicBy | null;
+    membersOnly?: boolean;
+}
+
+// ── 공개 범위·공개 요청(5단계 — community `docs/api-groups.md` 11절) ──
+
+/** `GET /api/groups/{id}/visibility-preview?to=` — 바꾸면 영향을 받는 글·댓글 수(모임장만, 지금 값과 같으면 모두 0) */
+export interface GroupVisibilityPreview {
+    to: GroupVisibility;
+    /** `PUBLIC`: 비멤버에게 보이게 될 글(멤버 전용으로 돌린 글 제외) · `PRIVATE`: 지금 비멤버에게 보이는(닫히는) 글 */
+    postCount: number;
+    commentCount: number;
+    /** 그중 지금 개별 공개(승인·직접 공개)된 글 수 */
+    individuallyPublicCount: number;
+    /** 멤버 전용으로 돌려 둔 채 남는 글 수(`postCount` 에 들어 있지 않다) */
+    membersOnlyCount: number;
+    /** 이 변경으로 닫히는 대기 요청 수(`PUBLIC` 일 때) */
+    pendingRequestCount: number;
+    /** 쿨다운이 끝나는 시각 — 없으면 null(`PRIVATE` 는 늘 null) */
+    canChangeAt: string | null;
+}
+
+/** `PUT /api/groups/{id}/visibility` 본문 — 비공개→공개는 `acknowledged: true` 필수 */
+export interface GroupVisibilityChangeRequest {
+    visibility: GroupVisibility;
+    acknowledged: boolean;
+}
+
+/** `PUT /api/groups/{id}/visibility` 응답 — `affected`: 바뀐 글·댓글·멤버 전용으로 남은 글 수 */
+export interface GroupVisibilityChangeResult {
+    visibility: GroupVisibility;
+    changedAt: string | null;
+    affected: { posts: number; comments: number; membersOnly: number };
+}
+
+/** `POST …/posts/{postId}/publish-request` 본문 — 한마디는 선택(한도 `publishTextMax`, 기본 100자) */
+export interface GroupPublishRequestBody {
+    note?: string;
+    acknowledged: true;
+}
+
+/** 공개 요청 결과(201) */
+export interface GroupPublishRequestResult {
+    status: 'PENDING';
+    requestedAt: string;
+}
+
+/** 승인 결과 — 늘 `{ visibility: PUBLIC, publicBy: APPROVED, membersOnly: false }` */
+export interface GroupPublishDecideResult {
+    visibility: PostGroupVisibility;
+    publicBy: PostGroupPublicBy | null;
+    membersOnly: boolean;
+}
+
+/** 거절 결과 — 같은 글의 거절 누적 수 */
+export interface GroupPublishRejectResult {
+    status: 'REJECTED';
+    rejectCount: number;
+}
+
+/**
+ * 공개 요청 한 줄(`GET …/publish-requests`, 서버 `GroupVisibilityViews.RequestRow`) — 오래된 요청이 위. `author` 는 소모임의 다른 사람 칸과 같은 `GroupUser`(서버 `DmPartnerView`, community 는 `AuthorView`).
+ * `editedAfterRequest`: 요청한 뒤 글을 고쳤다 · `authorStillMember`: 강퇴된 작성자면 false(승인은 막지 않는다) · `rejectCount`: 이전 거절 수.
+ */
+export interface GroupPublishRequestRow {
+    post: { id: string; title: string; createdAt: string; editedAt: string | null };
+    author: GroupUser;
+    note: string | null;
+    requestedAt: string;
+    editedAfterRequest: boolean;
+    authorStillMember: boolean;
+    rejectCount: number;
+}
+
+/** `GET /api/groups/{id}/publish-requests?status=PENDING&cursor=&size=` — `nextCursor` 는 불투명 문자열(그대로 다음 `cursor` 로 보낸다) */
+export interface GroupPublishRequestPage {
+    items: GroupPublishRequestRow[];
+    hasNext: boolean;
+    nextCursor: string | null;
+    total: number;
+    /** 지금 적용되는 거절 사유 글자 수 한도(관리자 설정 10~100) — 칸이 없으면 100 */
+    publishTextMax?: number;
+}
+
+/** 공개 요청 목록의 조건 — `status` 는 늘 `PENDING`(API 컴포저블이 붙인다), `size` 1~50 */
+export interface GroupPublishRequestQuery {
+    cursor?: string;
+    size?: number;
 }
 
 // ── 일정(4단계 — community `docs/api-groups.md` 9절, 서버 `GroupEvent*View`) ──

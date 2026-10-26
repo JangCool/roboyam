@@ -66,10 +66,27 @@ export type PostPrefixRef = Pick<PrefixView, 'id' | 'name' | 'staffOnly' | 'colo
 export type PostHiddenReason = 'REPORTED' | 'STAFF';
 
 /**
- * 소모임 글의 공개 상태 — 비공개(기본, 쓰자마자 — 그 소모임 멤버만 읽는다) · 공개로 전환됨(누구나).
- * community `docs/api-groups.md` 8절. 소모임 공개 범위(공개 소모임 — 11절)는 5단계라 아직 다루지 않는다.
+ * 소모임 글의 공개 상태(비멤버에게 보이는가) — 비공개(그 소모임 멤버만 읽는다) · 공개(누구나).
+ * community `docs/api-groups.md` 8절·11절 — 공개 소모임의 글은 쓰자마자 `PUBLIC`, 비공개 소모임의 글은 승인·직접 공개해야 `PUBLIC` 이다.
  */
 export type PostGroupVisibility = 'PRIVATE' | 'PUBLIC';
+
+/** 글이 모두에게 보이는 까닭(11-6·11-7) — 공개 소모임이라서 · 공개 요청 승인 · 모임장·매니저가 직접 공개. 비멤버에게 안 보이면 null */
+export type PostGroupPublicBy = 'GROUP' | 'APPROVED' | 'DIRECT';
+
+/**
+ * 글 상세의 공개 요청 상태(11-7 `publishRequest`) — 작성자와 처리자(모임장·`UNPUBLISH` 매니저)에게만 온다.
+ * 거절이면 `rejectReason`(있을 때)·`decidedAt`·`canRetryAt`(다시 요청할 수 있는 시각, 거절 한도에 닿았으면 null) 이 있다.
+ */
+export interface PostGroupPublishRequest {
+    status: 'PENDING' | 'REJECTED';
+    requestedAt: string;
+    note?: string | null;
+    rejectReason?: string | null;
+    decidedAt?: string | null;
+    canRetryAt?: string | null;
+    rejectCount: number;
+}
 
 /**
  * 글 줄의 소모임 표시(community `GroupRef`) — 소모임 글이면 `{ id, name, visibility }`, 일반 글이면 null(옛 응답은 칸이 없다).
@@ -84,13 +101,34 @@ export interface PostGroupRef {
 }
 
 /**
- * 글 상세의 소모임 칸(community `GroupPostInfo` 8절 — 11절의 공개 범위 칸은 5단계).
- * `canPublish`: 내가 작성자·지금도 멤버·쓸 수 있는 상태이고 아직 비공개. `canUnpublish`: 공개 글이고 내가 작성자·모임장·`UNPUBLISH` 매니저.
+ * 글 상세의 소모임 칸(community `GroupPostInfo` 8절 + 11-7 의 5단계 칸).
+ * **공개 범위 기능이 꺼져 있고 비공개 소모임이면 `groupVisibility` 가 null** 이다 — 그때는 옛 의미 그대로다:
+ *   `canPublish` 내가 작성자·지금도 멤버·쓸 수 있고 아직 비공개 / `canUnpublish` 공개 글이고 내가 작성자·모임장·`UNPUBLISH` 매니저.
+ * **기능이 켜져 있으면**(`groupVisibility` 가 있다) `canPublish` = 모임장·권한 매니저의 직접 공개(비공개 소모임·비공개 글), `canUnpublish` = 비공개 소모임의 개별 공개 글 되돌리기
+ *   (공개 소모임의 글은 false — 그쪽은 `canMakeMembersOnly`). 패널 모습은 `UtilPostGroupPanel.stateOf` 가 이 칸들로만 정한다.
  * 소모임 글에는 이전·다음 글이 없다(서버가 `prev`·`next` 를 null 로 준다).
  */
 export interface PostGroupInfo extends PostGroupRef {
     canPublish: boolean;
     canUnpublish: boolean;
+    /** 소모임의 공개 범위 — 기능이 꺼져 있고 비공개 소모임이면 null(옛 패널) */
+    groupVisibility?: 'PUBLIC' | 'PRIVATE' | null;
+    publicBy?: PostGroupPublicBy | null;
+    /** 공개 소모임에서 모임장·매니저가 멤버 전용으로 돌린 글 */
+    membersOnly?: boolean;
+    publishRequest?: PostGroupPublishRequest | null;
+    /** 작성자·비공개 소모임·아직 비공개·쓸 수 있음·요청 조건 통과 */
+    canRequestPublish?: boolean;
+    /** 처리자이고 요청이 `PENDING` */
+    canDecidePublishRequest?: boolean;
+    /** 처리자·공개 소모임·지금 비멤버에게 보이는 글 */
+    canMakeMembersOnly?: boolean;
+    /** 처리자·멤버 전용으로 돌려 둔 글 */
+    canReleaseMembersOnly?: boolean;
+    /** 비멤버·비회원에게만 숫자(공개 전에 달려 가려진 댓글 수), 멤버는 null */
+    membersOnlyCommentCount?: number | null;
+    /** 공개 요청 한마디·거절 사유의 글자 수 한도(관리자 설정 10~100) — 칸이 없으면 100 */
+    publishTextMax?: number;
 }
 
 /** 목록 한 줄 */

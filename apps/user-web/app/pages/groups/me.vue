@@ -53,6 +53,7 @@
                                         <span class="flex items-center gap-1.5">
                                             <b class="min-w-0 truncate text-sm">{{ row.name }}</b>
                                             <GroupTag tone="amber">{{ t('group.rowApplied') }}</GroupTag>
+                                            <GroupVisibilityChip :visibility="row.visibility" />
                                         </span>
                                         <span class="mt-0.5 block text-xs text-muted-color">{{ UtilGroupMessages.appliedNote(t, row.appliedAt, time) }}</span>
                                     </span>
@@ -81,6 +82,10 @@
                                             <span>{{ UtilGroupMessages.joinTypeLabel(t, req.joinType) }}</span>
                                             <span>{{ t('group.capacityValue', { n: req.capacity }) }}</span>
                                             <span v-if="time.date(req.requestedAt)">· {{ t('group.requestedOn', { date: time.date(req.requestedAt) }) }}</span>
+                                        </p>
+                                        <!-- 신청한 공개 범위(5단계) — 기능이 꺼진 서버의 비공개 신청은 그리지 않는다 -->
+                                        <p v-if="UtilGroup.visibilityOf(req.visibility)" class="mt-0.5 text-xs text-muted-color" data-testid="group-request-visibility">
+                                            {{ UtilGroupVisibilityMessages.requestedLine(t, UtilGroup.visibilityOf(req.visibility) ?? 'PRIVATE') }}
                                         </p>
                                         <p v-if="req.status !== 'REJECTED'" class="mt-1 text-xs text-muted-color">{{ t('group.myPending') }}</p>
                                         <GroupNotice v-else-if="req.rejectReason" tone="danger" :title="t('group.rejectReasonLabel')" class="mt-2 text-xs" data-testid="group-request-reason">
@@ -124,6 +129,7 @@
 import type { MyGroupRequest } from '~/composables/group/api/useGroupApi.types';
 import UtilGroup from '~/utils/util-group';
 import UtilGroupMessages from '~/utils/util-group-messages';
+import UtilGroupVisibilityMessages from '~/utils/util-group-visibility-messages';
 import UtilRedirect from '~/utils/util-redirect';
 
 const { t } = useI18n();

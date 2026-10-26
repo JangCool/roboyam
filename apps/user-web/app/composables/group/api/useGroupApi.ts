@@ -27,7 +27,17 @@ import type {
     GroupPostVisibilityResult,
     GroupPostWriteRequest,
     GroupPostWriteResult,
+    GroupPublishDecideResult,
+    GroupPublishRejectResult,
+    GroupPublishRequestBody,
+    GroupPublishRequestPage,
+    GroupPublishRequestQuery,
+    GroupPublishRequestResult,
     GroupUpdateRequest,
+    GroupVisibility,
+    GroupVisibilityChangeRequest,
+    GroupVisibilityChangeResult,
+    GroupVisibilityPreview,
     MyGroupsResponse,
 } from '~/composables/group/api/useGroupApi.types';
 import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
@@ -41,7 +51,7 @@ import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
  *   `{ id|null, nickname, grade, gradeLabel, role: "USER", withdrawn, memo: null, decoration, avatarUrl }`(`GroupUser`) — 화면은 이것을 글쓴이 표시(`PostAuthorLabel`)로 바꿔 그린다.
  * - 목록·멤버의 `page` 는 1부터. 게시판 칸은 `{ slug, name, nameEn }`. 상세의 `board` 는 `{ slug, name, nameEn, color, investmentNotice, prefixes[] }`, `limits` 는 정원·일정 한도 넷.
  * - `GET /api/groups/{id}`: `permissions.manageBlockedReason`(`EMAIL_NOT_VERIFIED`·`ACCOUNT_RESTRICTED`·`BUSINESS_ACCOUNT_RESTRICTED`)이 오면 관리 화면 쓰기 단추를 끈다.
- *   `INACTIVE` 는 `{ id, name, status }` 만, `PENDING`·`REJECTED`·`DELETED`·없는 ID 는 `404 GROUP_NOT_FOUND`. 공개 범위 칸(`visibility`)은 5단계라 읽지 않는다(`managerInfo` 는 3단계부터 읽는다).
+ *   `INACTIVE` 는 `{ id, name, status }` 만, `PENDING`·`REJECTED`·`DELETED`·없는 ID 는 `404 GROUP_NOT_FOUND`. 공개 범위 칸(`visibility`)은 5단계부터, `managerInfo` 는 3단계부터 읽는다.
  * - 모임장 동작의 권한 오류: `403 GROUP_LEADER_ONLY`·`GROUP_MANAGER_PERMISSION_DENIED`. 쓰기 자격은 공통 `403 EMAIL_NOT_VERIFIED` → `ACCOUNT_RESTRICTED` → `BUSINESS_ACCOUNT_RESTRICTED`.
  * - 가입·신청 오류: `409 GROUP_ALREADY_MEMBER|GROUP_ALREADY_APPLIED|GROUP_CLOSED|GROUP_FULL` · `429 GROUP_REAPPLY_LATER(retryAfterSeconds)` · `403 GROUP_INACTIVE` · `404 GROUP_NOT_FOUND` ·
  *   `400 VALIDATION fields.message|offlineAck` · `429 RATE_LIMITED`. 탈퇴: 모임장은 `409 GROUP_LEADER_CANNOT_LEAVE`.
@@ -50,7 +60,7 @@ import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
  * - 신청 처리: `409 GROUP_FULL`(승인) · `404 GROUP_APPLICATION_NOT_FOUND`. 강퇴·넘기기: `404 GROUP_MEMBER_NOT_FOUND`. 해산: `400 VALIDATION fields.name`(이름이 다르다).
  * - 알림(7절)은 회원 알림(`useNotificationApi`)이 따로 받는다(서버 묶음 `system`) — 이 파일은 알림을 부르지 않는다.
  *
- * ## 2단계(소모임 글) — 서버(`GroupPostController`·`GroupPostService`)와 맞춘 모양: community `docs/api-groups.md` 8절과 같다(11절 공개 범위·공개 요청은 5단계라 뺐다)
+ * ## 2단계(소모임 글) — 서버(`GroupPostController`·`GroupPostService`)와 맞춘 모양: community `docs/api-groups.md` 8절과 같다(11절 공개 범위·공개 요청은 아래 5단계)
  * - `GET /api/groups/{id}/posts?cursor=&size=` → `GroupPostPage { items: PostRow(+group)[], hasNext, nextCursor, locked, privateCount }`. 멤버는 비공개 글까지, 비멤버·비회원은 공개 글만.
  *   열려 있지 않으면 `404 GROUP_NOT_FOUND`·`403 GROUP_INACTIVE`, 잘못된 커서 `400 VALIDATION fields.cursor`.
  * - `POST /api/groups/{id}/posts` 본문 `GroupPostWriteRequest { prefixId, title, content, contentFormat, adult, poll? }`(로보얌 글쓰기 본문에서 `boardSlug`·`guest`·`debate` 를 뺀 것) →
@@ -96,6 +106,27 @@ import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
  * - `GET /api/groups/{id}/events/{eventId}/attendees?page=&size=` → `{ items: [{ user, respondedAt, leader }], page, hasNext, total }` — 참석(GOING)한 지금 멤버, 응답이 최근인 순.
  * - 내 소모임(`GET /api/me/groups`)의 `joined[].nextEvent = { id, title, startsAt } | null`. 소모임 상세에는 다음 일정 칸이 없다.
  * - 알림 `GROUP_EVENT`(회원이 끌 수 있는 유일한 소모임 알림, 덧붙임 `eventAction` CREATED|UPDATED|CANCELED, `link` `/groups/{groupId}/events/{eventId}`)는 회원 알림이 받는다.
+ *
+ * ## 5단계(공개 범위·공개 요청) — community `docs/api-groups.md` 11절과 같은 경로·칸. 서버 5단계 코드(`GroupVisibilityController`·`GroupVisibilityViews`·`GroupVisibilityRequests`·
+ *   `GroupPostVisibilityView`·`GroupDetailView`·`PostGroupView`·`CommentListResponse`·`CommentService` 의 `hiddenBy MEMBERS_ONLY`, 2026-10-26 작성 중이던 미커밋 코드)와 경로·칸 이름을 대조했다
+ * - 읽기 칸: 목록·상세·내 소모임·개설 신청의 `visibility`(`PUBLIC`·`PRIVATE`·**기능이 꺼져 있고 비공개면 `null`** — 화면은 칩·구획을 그리지 않는다),
+ *   상세 `permissions.canChangeVisibility`·`canDecidePublishRequests`, `pendingPublishRequestCount`(처리자만, 아니면 null), `visibilityInfo`(모임장만),
+ *   개설 규칙 `visibilityChoice`, 글 상세 `group`(`PostGroupInfo` 11-7 칸 — `usePostApi.types.ts`), 댓글 목록 `membersOnlyCount`·가린 댓글 `hiddenBy: MEMBERS_ONLY`(로보얌 자리 — `useCommentApi.types.ts`).
+ * - `POST /api/groups` 본문 `visibility?`(생략 = 비공개, 기능이 꺼진 서버는 무시, 두 값이 아니면 `400 fields.visibility`).
+ * - `GET /api/groups/{id}/visibility-preview?to=PUBLIC|PRIVATE` → `GroupVisibilityPreview`(모임장만 — `403 GROUP_LEADER_ONLY`).
+ * - `PUT /api/groups/{id}/visibility` 본문 `{ visibility, acknowledged }` → `GroupVisibilityChangeResult`. 비공개→공개는 `acknowledged: true` 필수(`400 fields.acknowledged`)·
+ *   마지막 변경 7일 뒤부터(`409 GROUP_VISIBILITY_COOLDOWN` + `retryAfterSeconds`)·기능이 꺼져 있으면 `403 GROUP_VISIBILITY_DISABLED`. 공개→비공개는 언제든. 멤버 전원에게 알림 `GROUP_VISIBILITY_CHANGED`.
+ * - `POST …/posts/{postId}/publish-request` 본문 `{ note?, acknowledged: true }` → `201 { status: PENDING, requestedAt }`(작성자). `DELETE …/publish-request` → `204`(멱등).
+ *   오류: `409 GROUP_PUBLISH_REQUEST_NOT_NEEDED`(작성자가 처리자 — 직접 공개) · `GROUP_POST_ALREADY_PUBLIC` · `GROUP_POST_MEMBERS_ONLY` · `GROUP_PUBLISH_REQUEST_EXISTS` · `GROUP_PUBLISH_REQUEST_LIMIT` ·
+ *   `429 GROUP_PUBLISH_REQUEST_RETRY_LATER`(`retryAfterSeconds`) · `429 RATE_LIMITED` · `400 fields.note|acknowledged` · `403 GROUP_NOT_MEMBER|FORBIDDEN` · `403 GROUP_VISIBILITY_DISABLED`.
+ * - `GET /api/groups/{id}/publish-requests?status=PENDING&cursor=&size=` → `GroupPublishRequestPage`(모임장·`UNPUBLISH` 매니저 — 정지·미인증 중에도 열람. 오래된 요청이 위, 불투명 커서).
+ * - `POST …/posts/{postId}/publish-request/approve` 본문 `{ acknowledged: true }` → `{ visibility: PUBLIC, publicBy: APPROVED, membersOnly: false }` ·
+ *   `POST …/reject` 본문 `{ reason? }`(한도 `publishTextMax`) → `{ status: REJECTED, rejectCount }`. 오류: `404 GROUP_PUBLISH_REQUEST_NOT_FOUND`(취소됨) · `409 GROUP_PUBLISH_REQUEST_DECIDED` ·
+ *   `404 POST_NOT_FOUND` · `403 GROUP_MANAGER_PERMISSION_DENIED|GROUP_LEADER_ONLY` · 쓰기 자격 `403 EMAIL_NOT_VERIFIED|ACCOUNT_RESTRICTED|BUSINESS_ACCOUNT_RESTRICTED`.
+ * - `PUT …/posts/{postId}/visibility` 은 한 경로 네 가지 일(11-6 — 직접 공개·되돌리기·멤버 전용으로 돌리기·다시 공개) → `{ visibility, publicBy, membersOnly }`.
+ *   작성자(일반 멤버)가 비공개 소모임에서 `PUBLIC` 이면 `409 GROUP_PUBLISH_REQUEST_REQUIRED`, 공개 소모임에서 `PRIVATE` 이면 `409 GROUP_POST_PUBLIC_BY_GROUP`.
+ * - 알림 7종(`GROUP_PUBLISH_REQUESTED`·`…_APPROVED`·`…_REJECTED`·`GROUP_POST_PUBLISHED`·`GROUP_VISIBILITY_CHANGED`·`GROUP_POST_MEMBERS_ONLY`·`GROUP_POST_RELEASED`)은 회원 알림이 받는다
+ *   (문장·`link` 는 서버가 준다 — 로보얌 회원 알림 관례).
  */
 const PATH = {
     groups: '/api/groups',
@@ -120,6 +151,10 @@ const PATH = {
     manager: (id: string, userId: string) => `${PATH.group(id)}/managers/${encodeURIComponent(userId)}`,
     managerMe: (id: string) => `${PATH.group(id)}/managers/me`,
     managerLimit: (id: string) => `${PATH.group(id)}/manager-limit`,
+    visibility: (id: string) => `${PATH.group(id)}/visibility`,
+    visibilityPreview: (id: string) => `${PATH.group(id)}/visibility-preview`,
+    publishRequests: (id: string) => `${PATH.group(id)}/publish-requests`,
+    publishRequest: (id: string, postId: string) => `${PATH.group(id)}/posts/${encodeURIComponent(postId)}/publish-request`,
     events: (id: string) => `${PATH.group(id)}/events`,
     event: (id: string, eventId: string) => `${PATH.group(id)}/events/${encodeURIComponent(eventId)}`,
     mine: '/api/me/groups',
@@ -208,8 +243,8 @@ export function useGroupApi() {
         /** 소모임 글쓰기 — 멤버만, 비공개 글로 만들어진다 */
         writePost: (id: string, body: GroupPostWriteRequest) => client.post<GroupPostWriteResult>(PATH.posts(id), body),
 
-        /** 공개 전환(작성자, `acknowledged` 필수) · 비공개로 되돌리기(작성자·모임장·`UNPUBLISH` 매니저) */
-        setPostVisibility: (id: string, postId: string, body: GroupPostVisibilityRequest) => client.put<GroupPostVisibilityResult>(PATH.postVisibility(id, postId), body),
+        /** 글 공개 범위 — 한 경로 네 가지 일(직접 공개·되돌리기·멤버 전용으로 돌리기·다시 공개, 기능이 꺼진 서버는 옛 작성자 전환). 공개하는 쪽은 `acknowledged` 필수 */
+        setPostVisibility:(id: string, postId: string, body: GroupPostVisibilityRequest) => client.put<GroupPostVisibilityResult>(PATH.postVisibility(id, postId), body),
 
         /** 글 탭을 봤다(204) — 내 소모임의 새 글 수가 이 시각 뒤의 남의 글을 센다 */
         markSeen: (id: string) => client.post<void>(PATH.seen(id)),
@@ -233,6 +268,32 @@ export function useGroupApi() {
 
         /** 매니저 인원 설정(204) — 모임장만 */
         setManagerLimit: (id: string, limit: number) => client.put<void>(PATH.managerLimit(id), { limit }),
+
+        // ── 공개 범위·공개 요청(5단계) ──
+
+        /** 공개 범위를 바꾸면 영향을 받는 글·댓글 수 — 모임장만 */
+        visibilityPreview: (id: string, to: GroupVisibility, signal?: AbortSignal) =>
+            client.get<GroupVisibilityPreview>(PATH.visibilityPreview(id), { query: { to }, signal }),
+
+        /** 공개 범위 바꾸기 — 모임장만, 비공개→공개는 `acknowledged` 필수·쿨다운 */
+        setVisibility: (id: string, body: GroupVisibilityChangeRequest) => client.put<GroupVisibilityChangeResult>(PATH.visibility(id), body),
+
+        /** 공개 요청(201) — 작성자, 개인정보 확인 동의 필수 */
+        requestPublish: (id: string, postId: string, body: GroupPublishRequestBody) => client.post<GroupPublishRequestResult>(PATH.publishRequest(id, postId), body),
+
+        /** 공개 요청 취소(204, 멱등) — 작성자 */
+        cancelPublishRequest: (id: string, postId: string) => client.del<void>(PATH.publishRequest(id, postId)),
+
+        /** 처리 대기 공개 요청 — 모임장·`UNPUBLISH` 매니저, 오래된 요청이 위, 불투명 커서 */
+        publishRequests: (id: string, query: GroupPublishRequestQuery = {}, signal?: AbortSignal) =>
+            client.get<GroupPublishRequestPage>(PATH.publishRequests(id), { query: { status: 'PENDING', ...query }, signal }),
+
+        /** 공개 요청 승인 — 개인정보 확인 동의 필수 */
+        approvePublishRequest: (id: string, postId: string) => client.post<GroupPublishDecideResult>(`${PATH.publishRequest(id, postId)}/approve`, { acknowledged: true }),
+
+        /** 공개 요청 거절 — 사유는 선택(적었을 때만 작성자에게 전달된다) */
+        rejectPublishRequest: (id: string, postId: string, reason?: string) =>
+            client.post<GroupPublishRejectResult>(`${PATH.publishRequest(id, postId)}/reject`, reason ? { reason } : {}),
 
         // ── 일정(4단계) ──
 

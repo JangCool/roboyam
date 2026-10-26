@@ -1,7 +1,7 @@
 <template>
     <!--
         댓글 하나 — (고정 표시)·(토론 입장 배지)·작성자·시각·본문·[추천][비추천][답글][고치기·지우기·신고]·(내 의견의 고정 요청).
-        지운 댓글·숨긴 댓글은 자리만(운영자가 숨겼고 게시판이 밝히기로 했으면 `hiddenBy` STAFF — 「운영자가 숨긴 댓글이에요」, 소모임을 나간 멤버의 댓글은 `GROUP_LEFT`), 비회원에게 늦게 보이는 댓글은 로그인 안내 단추.
+        지운 댓글·숨긴 댓글은 자리만(운영자가 숨겼고 게시판이 밝히기로 했으면 `hiddenBy` STAFF — 「운영자가 숨긴 댓글이에요」, 소모임을 나간 멤버의 댓글은 `GROUP_LEFT`, 비공개 소모임의 개별 공개 글에서 공개 전에 달린 댓글은 `MEMBERS_ONLY` — 자물쇠), 비회원에게 늦게 보이는 댓글은 로그인 안내 단추.
         추천·비추천은 게시판 설정(`reactions` — 비추천 켬·두 이름, 비면 기본 「추천」·「비추천」)을 따른다. 하나를 누르면 다른 하나가 풀린다(서버 응답 그대로). 고른 쪽은 찬성·반대 색의 옅은 칩.
         고정 요청(토론 구획의 내 의견 원댓글만): [고정 요청] → 「고정 요청 보냄 · 확인 기다리는 중 [취소]」 / 거절됐으면 사유 + [다시 요청]
     -->
@@ -10,7 +10,7 @@
             <i v-if="reply" class="pi pi-reply mr-1 rotate-180 text-xs" aria-hidden="true" />{{ t('comment.deleted') }}
         </p>
         <p v-else-if="comment.state === 'HIDDEN'" class="flex items-center gap-1.5 text-sm text-muted-color">
-            <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t(comment.hiddenBy === 'STAFF' ? 'comment.hiddenByStaff' : comment.hiddenBy === 'GROUP_LEFT' ? 'comment.hiddenGroupLeft' : 'comment.hidden') }}
+            <i :class="[comment.hiddenBy === 'MEMBERS_ONLY' ? 'pi pi-lock' : 'pi pi-eye-slash', 'text-xs']" aria-hidden="true" />{{ t(HIDDEN_KEY[comment.hiddenBy ?? 'NONE']) }}
         </p>
         <!-- 차단한 회원·단어의 댓글은 접힌 한 줄(「보기」로 그 자리에서 펼친다) -->
         <FoldedRow v-else :reason="foldReason" kind="comment" class="text-sm" hide-class="mt-1.5">
@@ -157,6 +157,14 @@ defineEmits<{ like: []; dislike: []; reply: []; edit: []; delete: []; report: []
 
 const { t } = useI18n();
 const time = useDisplayTime();
+
+/** 숨긴 자리의 문구 — 운영자 숨김 · 소모임을 나간 멤버의 댓글 · 멤버 전용 댓글(소모임 5단계 — 비공개 소모임의 개별 공개 글에서 공개 전에 달린 댓글) · 신고 숨김 */
+const HIDDEN_KEY: Record<NonNullable<CommentView['hiddenBy']> | 'NONE', string> = {
+    STAFF: 'comment.hiddenByStaff',
+    GROUP_LEFT: 'comment.hiddenGroupLeft',
+    MEMBERS_ONLY: 'comment.hiddenMembersOnly',
+    NONE: 'comment.hidden',
+};
 
 /** 내 댓글이거나 비회원 댓글(비밀번호로 확인) — 고치기·지우기 */
 const manageable = computed(() => !props.best && (props.comment.mine || props.comment.author.kind === 'GUEST'));

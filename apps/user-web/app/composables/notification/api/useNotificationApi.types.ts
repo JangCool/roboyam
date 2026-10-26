@@ -35,7 +35,19 @@ export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'P
      * 소모임 일정(api-groups 9절 — 4단계, 묶음 `system`): 내가 멤버인 소모임의 일정이 등록·수정·취소됨(덧붙임 `eventAction` CREATED · UPDATED · CANCELED — 문구는 서버 `title`·`body`).
      * 소모임 알림 중 유일하게 회원이 끌 수 있다(설정 「소모임 일정」 — 서버 `MemberEvent.GROUP_EVENT`, 잠금 없음). `link` `/groups/{groupId}/events/{eventId}`
      */
-    | 'GROUP_EVENT';
+    | 'GROUP_EVENT'
+    /**
+     * 소모임 공개 범위·공개 요청(api-groups 11-8 — 5단계, 묶음 `system`, 모두 끌 수 없다. 문구·`link` 는 서버 `title`·`body`·`link` — 화면은 아이콘만 고른다):
+     * 공개 요청 받음(모임장·`UNPUBLISH` 매니저, `link` `/groups/{id}/manage/publish-requests`) · 내 요청 승인 · 내 요청 거절(사유는 `body`) · 남이 내 글을 직접 공개 ·
+     * 소모임 공개 범위가 바뀜(멤버 전원, `link` `/groups/{id}`) · 내 글이 멤버 전용으로 돌려짐 · 내 글이 다시 공개됨(글을 가리키는 것은 `link` 가 글 상세)
+     */
+    | 'GROUP_PUBLISH_REQUESTED'
+    | 'GROUP_PUBLISH_APPROVED'
+    | 'GROUP_PUBLISH_REJECTED'
+    | 'GROUP_POST_PUBLISHED'
+    | 'GROUP_VISIBILITY_CHANGED'
+    | 'GROUP_POST_MEMBERS_ONLY'
+    | 'GROUP_POST_RELEASED';
 
 /**
  * 알림 묶음 — 댓글·답글 · 계정(포인트 회수·소멸 예정·신고 숨김·닉네임 그림 검토·기능 제한 · 소모임 `GROUP_*` 전부 — 서버 `MemberNotificationType` 이 `system` 으로 묶는다) ·

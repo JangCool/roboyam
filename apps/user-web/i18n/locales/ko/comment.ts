@@ -30,6 +30,7 @@ export default {
     hidden: '신고로 숨겨진 댓글이에요',
     hiddenByStaff: '운영자가 숨긴 댓글이에요',
     hiddenGroupLeft: '소모임을 나간 멤버의 댓글이에요',
+    hiddenMembersOnly: '멤버에게만 보이는 댓글이에요',
     alreadyLiked: '이미 추천한 댓글이에요.',
 
     editTitle: '댓글 고치기',

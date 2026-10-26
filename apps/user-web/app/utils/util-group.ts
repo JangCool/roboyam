@@ -21,6 +21,8 @@ import type {
     GroupSort,
     GroupUpdateRequest,
     GroupUser,
+    GroupVisibility,
+    GroupVisibilityInfo,
     GroupCategory,
     GroupJoinReason,
     GroupCreateRequest,
@@ -77,6 +79,12 @@ export interface ActiveGroup {
     limits: GroupLimits | null;
     /** 멤버에게만 매니저 수·상한(3단계) — 그 밖·이상한 값이면 null */
     managerInfo: GroupManagerInfo | null;
+    /** 공개 범위(5단계) — 기능이 꺼져 있고 비공개면 null(칩·구획을 그리지 않는다) */
+    visibility: GroupVisibility | null;
+    /** 모임장에게만 마지막 변경·쿨다운(5단계) — 그 밖 null */
+    visibilityInfo: GroupVisibilityInfo | null;
+    /** 공개 요청 처리자에게만 대기 수(5단계) — 그 밖 null */
+    pendingPublishRequestCount: number | null;
 }
 
 export type GroupDetailKind = 'active' | 'inactive' | 'unknown';
@@ -105,9 +113,22 @@ export interface GroupCreateForm {
     agreeRules: boolean;
     agreeStock: boolean;
     agreeOffline: boolean;
+    /** 공개 범위(5단계) — 기본 비공개. 개설 규칙의 `visibilityChoice` 가 true 일 때만 보낸다 */
+    visibility: GroupVisibility;
 }
 
-export type GroupCreateField = 'name' | 'description' | 'categoryId' | 'boardSlug' | 'joinType' | 'capacity' | 'offline' | 'agreeRules' | 'agreeStock' | 'agreeOffline';
+export type GroupCreateField =
+    | 'name'
+    | 'description'
+    | 'categoryId'
+    | 'boardSlug'
+    | 'joinType'
+    | 'visibility'
+    | 'capacity'
+    | 'offline'
+    | 'agreeRules'
+    | 'agreeStock'
+    | 'agreeOffline';
 
 /** 입력 문제의 종류 — 문구는 `UtilGroupMessages.problem` */
 export type GroupProblem = 'REQUIRED' | 'LENGTH' | 'FORMAT' | 'RANGE' | 'BELOW_MEMBERS' | 'AGREE';
@@ -360,6 +381,9 @@ export default class UtilGroup {
             canSetRecruiting: pick(raw?.canSetRecruiting),
             canManageEvents: pick(raw?.canManageEvents),
             canUnpublishPosts: pick(raw?.canUnpublishPosts),
+            // 공개 범위(5단계) — 칸이 없으면 false(기능이 꺼진 서버·옛 서버). `canManage` 로 채우지 않는다
+            canChangeVisibility: raw?.canChangeVisibility === true,
+            canDecidePublishRequests: raw?.canDecidePublishRequests === true,
             manageBlockedReason: UtilGroup.manageBlockedOf(raw?.manageBlockedReason),
         };
     }
@@ -404,7 +428,15 @@ export default class UtilGroup {
             pendingApplicationCount: typeof detail.pendingApplicationCount === 'number' ? detail.pendingApplicationCount : null,
             limits: detail.limits ?? null,
             managerInfo: UtilGroupManager.infoOf(detail.managerInfo),
+            visibility: UtilGroup.visibilityOf(detail.visibility),
+            visibilityInfo: detail.visibilityInfo ?? null,
+            pendingPublishRequestCount: typeof detail.pendingPublishRequestCount === 'number' ? detail.pendingPublishRequestCount : null,
         };
+    }
+
+    /** 응답 칸을 공개 범위로 읽는다 — 모르는 값·`null`·칸 없음은 null(「그리지 않는다」 — 기능이 꺼진 서버의 비공개 소모임) */
+    static visibilityOf(raw: unknown): GroupVisibility | null {
+        return raw === 'PUBLIC' || raw === 'PRIVATE' ? raw : null;
     }
 
     static isMember(state: GroupMyState | null | undefined): boolean {
@@ -563,10 +595,11 @@ export default class UtilGroup {
             agreeRules: false,
             agreeStock: false,
             agreeOffline: false,
+            visibility: 'PRIVATE',
         };
     }
 
-    /** 반려된 신청으로 폼을 채운다 — 동의 칸은 다시 확인해야 하니 비운다 */
+    /** 반려된 신청으로 폼을 채운다 — 동의 칸은 다시 확인해야 하니 비운다. 공개 범위는 신청한 값(없으면 비공개) */
     static createFormOf(request: MyGroupRequest): GroupCreateForm {
         return {
             ...UtilGroup.emptyCreateForm(),
@@ -577,6 +610,7 @@ export default class UtilGroup {
             joinType: request.joinType,
             capacity: String(request.capacity),
             offline: request.offline,
+            visibility: UtilGroup.visibilityOf(request.visibility) ?? 'PRIVATE',
         };
     }
 
@@ -608,10 +642,12 @@ export default class UtilGroup {
         return order.find((f) => Boolean(problems[f])) ?? null;
     }
 
-    static readonly CREATE_ORDER: readonly GroupCreateField[] = ['name', 'description', 'categoryId', 'boardSlug', 'agreeStock', 'joinType', 'capacity', 'offline', 'agreeOffline', 'agreeRules'];
+    static readonly CREATE_ORDER: readonly GroupCreateField[] = ['name', 'description', 'categoryId', 'boardSlug', 'agreeStock', 'joinType', 'visibility', 'capacity', 'offline', 'agreeOffline', 'agreeRules'];
 
-    static toCreateRequest(form: GroupCreateForm, isStock: boolean): GroupCreateRequest {
+    /** 신청 본문 — 공개 범위는 고를 수 있을 때(`visibilityChoice`)만 싣는다(기능이 꺼진 서버는 어차피 무시한다) */
+    static toCreateRequest(form: GroupCreateForm, isStock: boolean, visibilityChoice = false): GroupCreateRequest {
         return {
+            ...(visibilityChoice ? { visibility: form.visibility } : {}),
             name: UtilGroup.normalizeName(form.name),
             description: form.description.trim(),
             categoryId: form.categoryId,
@@ -644,6 +680,7 @@ export default class UtilGroup {
             maxPerOwner: r.maxPerOwner,
             ...(typeof r.capacityMin === 'number' ? { capacityMin: r.capacityMin } : {}),
             ...(typeof r.capacityMax === 'number' ? { capacityMax: r.capacityMax } : {}),
+            visibilityChoice: r.visibilityChoice === true,
             me,
         };
     }
