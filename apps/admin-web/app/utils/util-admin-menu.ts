@@ -186,7 +186,7 @@ export default class UtilAdminMenu {
             ],
         },
         // 소모임 묶음 — 소모임 목록(열림·비활성, 상세 서랍에서 비활성화·다시 열기) · 개설 승인 · 분류(소모임 게시판 할당) · 설정(개설 규칙·매니저·공개 범위·운영 한도). community 관리자 앱의 「소모임」 묶음에 대응한다.
-        // ⚠ 목업 단계(`useGroupAdminApi`·`useGroupCategoryApi`·`useGroupSettingsApi`) — 서버 `AdminScreenRegistry` 의 같은 네 줄과 권한 `group.*` 의 `featureReady` 는 서버 단계에서 더한다(group-contract 「관리자 화면」).
+        // ⚠ 목업 단계(`useGroupAdminApi`·`useGroupSettingsApi` — 분류 `useGroupCategoryApi` 는 서버 연결) — 서버 `AdminScreenRegistry` 의 같은 네 줄과 권한 `group.*` 의 `featureReady` 는 서버 단계에서 더한다(group-contract 「관리자 화면」).
         // 네 화면 모두 조회 `group.read` 로 열리고, 화면 안에서 처리 `group.manage`(승인·반려·비활성화·다시 열기) · 설정 `group.settings`(분류·설정 저장)를 따로 본다.
         // 주소는 서로 앞부분이 겹치지 않게 둔다(`/groups` 와 `/group-…`) — 겹치면 목록 항목이 하위 화면에서도 같이 켜진다.
         {

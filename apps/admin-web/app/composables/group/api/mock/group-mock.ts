@@ -1,5 +1,5 @@
-// MOCK: 소모임 관리자 API(`/api/admin/groups/**` · `/api/admin/group-categories/**` · `/api/admin/group-settings/**`)의 메모리 목업 —
-// `useGroupAdminApi`·`useGroupCategoryApi`·`useGroupSettingsApi` 의 `// MOCK:` 줄이 부른다. 서버가 붙으면 이 폴더(`group/api/mock/`)째 지운다.
+// MOCK: 소모임 관리자 API(`/api/admin/groups/**` · `/api/admin/group-settings/**`)의 메모리 목업 —
+// `useGroupAdminApi`·`useGroupSettingsApi` 의 `// MOCK:` 줄이 부른다. 서버가 붙으면 이 폴더(`group/api/mock/`)째 지운다.
 // 모양·오류 코드는 community `docs/api-groups.md` 관리자 절(6-1 · 6-2 · 6-3 · 개설 규칙 · 5-1 매니저 규칙 · 11-10 공개 범위 · 운영 한도)을 따른다.
 // 권한 오류는 로보얌 코드(`403 PERMISSION_DENIED`)다 — community 의 `MENU_FORBIDDEN`·`MENU_READ_ONLY`·`ADMIN_ONLY` 는 로보얌 권한 코드(`group.read`·`group.manage`·`group.settings`)로 바뀐다.
 // 메모리 상태는 새로고침하면 처음으로 돌아간다(화면 전환 사이에는 남는다).
@@ -9,16 +9,13 @@
 //   detail-fail        소모임 상세 실패(500)            deactivate-conflict  비활성화가 409 GROUP_ALREADY_INACTIVE(다른 운영자가 먼저)
 //   requests-fail      개설 신청 목록 실패(500)         requests-empty    승인 대기 신청 없음
 //   approve-gone       승인·반려가 404 GROUP_NOT_FOUND(다른 운영자가 먼저 처리)
-//   categories-fail    분류 목록 실패(500)              categories-empty  분류가 하나도 없다
-//   category-stale     분류 저장이 409 GROUP_CATEGORY_STALE(다른 관리자가 먼저 고침)
-//   order-fail         분류 순서 저장 실패(500)
 //   creation-fail · manager-fail · visibility-fail · policy-fail   그 구획 불러오기 실패(500)
 //   settings-save-fail 설정 저장 실패(500)              history-fail      변경 이력 실패(500)
 //   forbidden          모든 요청이 403 PERMISSION_DENIED(권한을 거둔 경우)
 //
 // ── 목업 가정 ─
 //   · 문구(사유 거절·이름 규칙 등)는 서버 몫이라 한국어로만 준다. 등급(`limits.grades`)은 community 의 네 등급을 흉내 낸다 — 실제 서버는 등급 설정의 등급을 준다.
-//   · 소모임 분류는 소모임 게시판(게시판 종류 `GROUP`)을 할당한다 — 목업의 게시판 목록은 실제 게시판 관리와 이어져 있지 않다.
+//   · 소모임 분류 API 는 서버에 붙었다(`useGroupCategoryApi`). 아래 분류·게시판 표는 소모임 목록·상세의 `category` 칸을 채우는 데만 쓴다 — 실제 분류·게시판 관리와 이어져 있지 않다.
 //   · 변경 이력(설정)은 로보얌 후보 — 바뀐 칸의 전·후 값을 서버가 요청 언어의 표시 글자로 준다고 가정한다.
 
 import { ApiError } from '~/composables/common/useApiClient';
@@ -37,7 +34,6 @@ import type {
     GroupStatus,
     GroupVisibility,
 } from '~/composables/group/api/useGroupAdminApi.types';
-import type { GroupCategoriesResponse, GroupCategoryCreateRequest, GroupCategoryItem, GroupCategoryOrderRequest, GroupCategorySaveRequest } from '~/composables/group/api/useGroupCategoryApi.types';
 import type {
     GroupCreationRuleResponse,
     GroupCreationRuleValues,
@@ -114,7 +110,6 @@ interface MockCategory {
     id: string;
     name: string;
     boardIds: string[];
-    updatedAt: string;
 }
 
 interface MockGroup extends GroupDetail {
@@ -128,7 +123,6 @@ interface Store {
     categories: MockCategory[];
     groups: MockGroup[];
     nextGroupId: number;
-    nextCategoryId: number;
     creation: { values: GroupCreationRuleValues | null; updatedAt: string | null; updatedBy: string | null };
     manager: { values: GroupManagerRuleValues | null; updatedAt: string | null; updatedBy: string | null };
     visibility: { values: GroupVisibilityRuleValues | null; updatedAt: string | null; updatedBy: string | null; noticeSentAt: string | null };
@@ -212,11 +206,11 @@ function boardRef(boardId: string): GroupBoardRef {
 
 function build(): Store {
     const categories: MockCategory[] = [
-        { id: '11', name: 'AI·테크', boardIds: ['301', '307'], updatedAt: ago(20) },
-        { id: '12', name: '로봇', boardIds: ['302'], updatedAt: ago(20) },
-        { id: '13', name: '재테크', boardIds: ['303'], updatedAt: ago(18) },
-        { id: '14', name: '취미·야외', boardIds: ['304', '305'], updatedAt: ago(10) },
-        { id: '15', name: '새 분류', boardIds: [], updatedAt: ago(1) },
+        { id: '11', name: 'AI·테크', boardIds: ['301', '307'] },
+        { id: '12', name: '로봇', boardIds: ['302'] },
+        { id: '13', name: '재테크', boardIds: ['303'] },
+        { id: '14', name: '취미·야외', boardIds: ['304', '305'] },
+        { id: '15', name: '새 분류', boardIds: [] },
     ];
     const groups: MockGroup[] = SEEDS.map((seed, i) => {
         const [name, boardId, leaderIndex, memberCount, capacity, status, recruitState, joinType, offline, visibility, openedDays, activeDays] = seed;
@@ -312,7 +306,6 @@ function build(): Store {
         categories,
         groups,
         nextGroupId: 7001,
-        nextCategoryId: 16,
         creation: { values: null, updatedAt: null, updatedBy: null },
         manager: { values: { managersEnabled: true, limitDefault: 5, limitMax: 10 }, updatedAt: ago(12), updatedBy: '최고 관리자' },
         visibility: { values: null, updatedAt: null, updatedBy: null, noticeSentAt: null },
@@ -511,118 +504,6 @@ export async function mockGroupReactivate(id: string, memo: string): Promise<voi
     g.status = 'ACTIVE';
     const record = g.deactivation ?? { at: null, by: null, reason: null, reportCase: null, reactivatedAt: null, reactivatedBy: null, memo: null };
     g.deactivation = { ...record, reactivatedAt: new Date().toISOString(), reactivatedBy: OPERATOR, memo: memo.trim() || null };
-}
-
-// ══ 소모임 분류(6-3) ══
-
-function categoriesBody(s: Store, empty = false): GroupCategoriesResponse {
-    const groupCountOf = (boardId: string) => {
-        const slug = s.boards.find((b) => b.boardId === boardId)?.slug;
-        return s.groups.filter((g) => g.board.slug === slug).length;
-    };
-    const list = empty ? [] : s.categories;
-    const categories: GroupCategoryItem[] = list.map((c, i) => {
-        const boards = c.boardIds.map((boardId) => {
-            const b = s.boards.find((x) => x.boardId === boardId)!;
-            return { boardId, slug: b.slug, name: b.name, active: b.active, investmentNotice: b.investmentNotice, groupCount: groupCountOf(boardId) };
-        });
-        return {
-            id: c.id,
-            name: c.name,
-            sortOrder: (i + 1) * 10,
-            boardCount: boards.length,
-            groupCount: boards.reduce((sum, b) => sum + b.groupCount, 0),
-            investmentNotice: boards.some((b) => b.investmentNotice),
-            boards,
-            updatedAt: c.updatedAt,
-        };
-    });
-    const available = s.boards
-        .filter((b) => b.active)
-        .map((b) => {
-            const owner = empty ? undefined : s.categories.find((c) => c.boardIds.includes(b.boardId));
-            return { boardId: b.boardId, slug: b.slug, name: b.name, categoryId: owner?.id ?? null, categoryName: owner?.name ?? null, investmentNotice: b.investmentNotice, groupCount: groupCountOf(b.boardId) };
-        });
-    return mockClone({ categories, available });
-}
-
-/** 이름 규칙 — 앞뒤·안쪽 공백을 다듬고 1~20자, `<`·`>`·줄바꿈·제어 문자 금지, 같은 이름 불가(공백·대소문자 무시) */
-function normalizeName(raw: unknown): string {
-    return typeof raw === 'string' ? raw.trim().replace(/\s+/g, ' ') : '';
-}
-function nameKey(name: string): string {
-    return name.replace(/\s+/g, '').toLowerCase();
-}
-function checkName(s: Store, name: string, selfId: string | null): void {
-    // eslint-disable-next-line no-control-regex
-    if (name === '' || len(name) > 20 || /[<>\u0000-\u001f\u007f]/.test(name)) throw MOCK_ERRORS.validation({ name: '분류 이름은 1~20자로, < > 와 줄바꿈 없이 적어 주세요.' });
-    if (s.categories.some((c) => c.id !== selfId && nameKey(c.name) === nameKey(name))) throw new ApiError({ status: 409, code: 'GROUP_CATEGORY_NAME_TAKEN', message: '같은 이름의 분류가 이미 있어요.' });
-}
-
-export async function mockGroupCategories(): Promise<GroupCategoriesResponse> {
-    const on = await gate('categories-fail');
-    return categoriesBody(db(), on.has('categories-empty'));
-}
-
-export async function mockGroupCategoryCreate(body: GroupCategoryCreateRequest): Promise<GroupCategoryItem> {
-    await gate();
-    const s = db();
-    const name = normalizeName(body.name);
-    checkName(s, name, null);
-    const created: MockCategory = { id: String(s.nextCategoryId++), name, boardIds: [], updatedAt: new Date().toISOString() };
-    s.categories.push(created);
-    return categoriesBody(s).categories.find((c) => c.id === created.id)!;
-}
-
-export async function mockGroupCategorySave(id: string, body: GroupCategorySaveRequest): Promise<GroupCategoriesResponse> {
-    const on = await gate();
-    const s = db();
-    const category = s.categories.find((c) => c.id === id);
-    if (!category) throw new ApiError({ status: 404, code: 'GROUP_CATEGORY_NOT_FOUND', message: '분류를 찾을 수 없어요.' });
-    if (on.has('category-stale') || (body.updatedAt && body.updatedAt < category.updatedAt)) {
-        category.updatedAt = new Date().toISOString();
-        throw new ApiError({ status: 409, code: 'GROUP_CATEGORY_STALE', message: '다른 관리자가 먼저 고쳤어요.' });
-    }
-    const name = normalizeName(body.name);
-    if (name !== category.name) checkName(s, name, id);
-    const ids = Array.isArray(body.boardIds) ? body.boardIds : [];
-    const unique = new Set(ids);
-    const bad = ids.some((boardId) => {
-        const board = s.boards.find((b) => b.boardId === boardId);
-        if (!board) return true;
-        return !board.active && !category.boardIds.includes(boardId); // 새로 넣는 꺼진 게시판은 거절, 이미 있던 것은 그대로 받는다
-    });
-    if (bad || unique.size !== ids.length) throw MOCK_ERRORS.validation({ boardIds: '넣을 수 없는 게시판이 있어요. 켜진 소모임 게시판만 넣을 수 있어요.' });
-    const now = new Date().toISOString();
-    for (const other of s.categories) {
-        if (other.id === id) continue;
-        const before = other.boardIds.length;
-        other.boardIds = other.boardIds.filter((boardId) => !unique.has(boardId)); // 옮겨진다
-        if (other.boardIds.length !== before) other.updatedAt = now;
-    }
-    category.name = name;
-    category.boardIds = [...ids];
-    category.updatedAt = now;
-    return categoriesBody(s);
-}
-
-export async function mockGroupCategoryOrder(body: GroupCategoryOrderRequest): Promise<GroupCategoriesResponse> {
-    await gate('order-fail');
-    const s = db();
-    const ids = body.ids ?? [];
-    const known = new Set(s.categories.map((c) => c.id));
-    if (ids.length !== known.size || new Set(ids).size !== ids.length || ids.some((x) => !known.has(x))) throw MOCK_ERRORS.validation({ ids: '모든 분류를 한 번씩 보내 주세요.' });
-    s.categories = ids.map((x) => s.categories.find((c) => c.id === x)!);
-    return categoriesBody(s);
-}
-
-export async function mockGroupCategoryDelete(id: string): Promise<void> {
-    await gate();
-    const s = db();
-    const body = categoriesBody(s).categories.find((c) => c.id === id);
-    if (!body) throw new ApiError({ status: 404, code: 'GROUP_CATEGORY_NOT_FOUND', message: '분류를 찾을 수 없어요.' });
-    if (body.groupCount > 0) throw new ApiError({ status: 409, code: 'GROUP_CATEGORY_NOT_EMPTY', message: '소모임이 있는 분류는 지울 수 없어요.', extras: { groupCount: body.groupCount } });
-    s.categories = s.categories.filter((c) => c.id !== id);
 }
 
 // ══ 소모임 설정 ══

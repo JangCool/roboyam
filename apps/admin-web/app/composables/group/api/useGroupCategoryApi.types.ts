@@ -1,7 +1,7 @@
 /**
  * 소모임 분류 API 가 주고받는 모양 — community `docs/api-groups.md` 6-3(`AdminCategory`)과 같은 이름이다.
  * 분류(이름·순서) 1 : 소모임 게시판(게시판 종류 `GROUP`) N : 소모임. 소모임의 분류는 그 게시판이 할당된 분류로 정해지는 파생값이다.
- * 서버는 아직 없다(목업 — `./mock/group-mock.ts`).
+ * 서버 연결됨(`server/admin`) — 소모임 서버가 아직 없어 `groupCount` 는 늘 0 이다.
  */
 
 /** 분류에 할당한 게시판 한 줄 — 꺼진 게시판도 `active: false` 로 실린다 */

@@ -215,6 +215,7 @@ export default {
     },
     categoryDelete: 'Delete category',
     boardManageLink: 'Boards',
+    boardCreateLink: 'Create a club board',
     pickLabel: 'Club board to add',
     pickPlaceholder: 'Choose a club board to add',
     pickFilter: 'Search by name or address',

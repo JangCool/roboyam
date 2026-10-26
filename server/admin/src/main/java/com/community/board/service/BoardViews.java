@@ -16,6 +16,8 @@ import com.community.board.repository.master.BoardDefaultsRepository;
 import com.community.board.repository.master.BoardPrefixRepository;
 import com.community.board.repository.master.BoardRepository;
 import com.community.board.repository.master.BoardStaffQueries;
+import com.community.group.entity.GroupCategoryEntity;
+import com.community.group.service.GroupCategoryViews;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
@@ -41,9 +43,10 @@ public class BoardViews {
     private final BoardContentQueries content;
     private final OperatorRepository operators;
     private final Messages messages;
+    private final GroupCategoryViews groupCategories;
 
     public BoardViews(BoardRepository boards, BoardDefaultsRepository defaults, BoardPrefixRepository prefixes, BoardStaffQueries staff,
-                      BoardContentQueries content, OperatorRepository operators, Messages messages) {
+                      BoardContentQueries content, OperatorRepository operators, Messages messages, GroupCategoryViews groupCategories) {
         this.boards = boards;
         this.defaults = defaults;
         this.prefixes = prefixes;
@@ -51,6 +54,7 @@ public class BoardViews {
         this.content = content;
         this.operators = operators;
         this.messages = messages;
+        this.groupCategories = groupCategories;
     }
 
     /** 지금 기본 설정 행(마이그레이션이 만든다 — 없으면 설치가 깨진 것) */
@@ -63,10 +67,12 @@ public class BoardViews {
         BoardDefaultsValues base = defaultsRow().values();
         Map<Long, Long> posts = content.postCounts();
         Map<Long, int[]> counts = staff.countsByBoard();
+        Map<Long, GroupCategoryEntity> categories = groupCategories.categoryByBoard();
         List<BoardListItemView> out = new ArrayList<>();
         int order = 1;
         for (BoardEntity board : boards.findAllByOrderBySortOrderAscIdAsc()) {
-            out.add(item(board, order++, posts.getOrDefault(board.getId(), 0L), counts.getOrDefault(board.getId(), new int[2]), base));
+            out.add(item(board, order++, posts.getOrDefault(board.getId(), 0L), counts.getOrDefault(board.getId(), new int[2]), base,
+                    categories.get(board.getId())));
         }
         return out;
     }
@@ -85,10 +91,12 @@ public class BoardViews {
                         usage.getOrDefault(p.getId(), 0L)))
                 .toList();
         BoardPolicyValues policy = board.policy();
+        GroupCategoryEntity category = groupCategories.categoryByBoard().get(board.getId());
         return new BoardDetailView(Long.toString(board.getId()), board.getSlug(), board.getName(), board.getNameEn(), board.getDescription(), board.getKind(),
                 board.getLayout(), board.isViewToggle(), board.getColor(), board.isAllowAdult(), board.isInvestmentNotice(), board.isActive(),
                 content.postCount(board.getId()), board.getWriteLock(), board.getIntroText(), board.getWriteGuideText(),
-                board.getGadgetExclusions().stream().map(Enum::name).toList(), policy, prefixViews, base, diffCount(board), gadgets());
+                board.getGadgetExclusions().stream().map(Enum::name).toList(), policy, prefixViews, base, diffCount(board), gadgets(),
+                category == null ? null : Long.toString(category.getId()), category == null ? null : category.getName());
     }
 
     /** 「가젯 노출 금지」에 고를 수 있는 가젯(enum 순서, 이름은 요청 언어) */
@@ -118,9 +126,10 @@ public class BoardViews {
         return operatorId == null ? null : operators.findById(operatorId).map(o -> o.getOperatorName()).orElse(null);
     }
 
-    private static BoardListItemView item(BoardEntity board, int order, long postCount, int[] counts, BoardDefaultsValues base) {
+    private static BoardListItemView item(BoardEntity board, int order, long postCount, int[] counts, BoardDefaultsValues base, GroupCategoryEntity category) {
         return new BoardListItemView(Long.toString(board.getId()), board.getSlug(), board.getName(), board.getNameEn(), board.getDescription(),
                 board.getKind(), board.getLayout(), board.getColor(), board.isActive(), order, postCount, counts[0], counts[1], diffCount(board),
-                board.getWriteMin() != null ? board.getWriteMin() : base.writeMin(), board.getCommentMin() != null ? board.getCommentMin() : base.commentMin());
+                board.getWriteMin() != null ? board.getWriteMin() : base.writeMin(), board.getCommentMin() != null ? board.getCommentMin() : base.commentMin(),
+                category == null ? null : Long.toString(category.getId()), category == null ? null : category.getName());
     }
 }

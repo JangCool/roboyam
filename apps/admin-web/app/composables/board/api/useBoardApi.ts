@@ -29,7 +29,7 @@ import type {
  *   - `GET    /api/admin/boards/defaults` → 200 `BoardDefaultsResponse` (`board.read`)
  *   - `PUT    /api/admin/boards/defaults` `BoardDefaultsSaveRequest` → 200 `BoardDefaultsResponse` (칸 전부를 한 번에. 바뀐 칸에 따라 `board.settings`·`board.staff.limit`. 400 `VALIDATION` `fields.<칸>`)
  *   - `GET    /api/admin/boards` → 200 `BoardListResponse` (순서대로, 꺼진 것 포함. `board.read`)
- *   - `POST   /api/admin/boards` `BoardCreateRequest` → 201 `BoardListItem` (400 `VALIDATION` `fields.name|slug|description|layout` · 409 `BOARD_SLUG_DUPLICATE` · `BOARD_NAME_DUPLICATE`. `board.manage`)
+ *   - `POST   /api/admin/boards` `BoardCreateRequest` → 201 `BoardListItem` (400 `VALIDATION` `fields.name|slug|description|layout|kind|groupCategoryId` · 409 `BOARD_SLUG_DUPLICATE` · `BOARD_NAME_DUPLICATE`. `board.manage`, `groupCategoryId` 를 실으면 + `group.settings`)
  *   - `GET    /api/admin/boards/by-slug/{slug}` → 200 `BoardDetail` (**화면 주소가 slug 라 더한 후보** — `GET /api/admin/boards/{id}` 와 같은 응답. `board.read`)
  *   - `PUT    /api/admin/boards/{id}` `BoardSaveRequest` → 200 `BoardDetail` (기본 정보 + 정책 + 말머리 한 트랜잭션. 400 `VALIDATION` `fields.name|policy.<칸>|prefixes[i].name…` ·
  *              409 `BOARD_NAME_DUPLICATE` · `BOARD_INVESTMENT_NOTICE_LOCKED` · `PREFIX_IN_USE`(글이 있는 말머리를 지움) · `PREFIX_LIMIT`. 바뀐 부분에 따라 `board.manage`·`board.settings`·`board.staff.limit`)

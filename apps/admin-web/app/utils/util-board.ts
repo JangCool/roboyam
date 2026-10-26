@@ -786,26 +786,37 @@ export default class UtilBoard {
 
     // ── 목록 ─
 
+    /** 소모임 게시판(종류 `GROUP`) — 메뉴·게시판 페이지가 없고, 목록에서는 맨 아래 따로 묶이며 순서를 옮기지 않는다 */
+    static isGroup(board: { kind: BoardKind }): boolean {
+        return board.kind === 'GROUP';
+    }
+
     /**
-     * 목록을 거른다 — 이름·영문명·slug(대소문자 무시), 사용 여부, 기본값과 다른 것만.
-     * @returns {BoardListItem[]} 걸러낸 게시판(원래 순서).
+     * 목록을 거른다 — 이름·영문명·slug(대소문자 무시), 사용 여부, 기본값과 다른 것만, 소모임 게시판만.
+     * @returns {BoardListItem[]} 걸러낸 게시판 — 일반 게시판(원래 순서) 뒤에 소모임 게시판(원래 순서).
      */
-    static filterBoards(boards: readonly BoardListItem[], keyword: string, active: BoardActiveFilter, differingOnly: boolean): BoardListItem[] {
+    static filterBoards(boards: readonly BoardListItem[], keyword: string, active: BoardActiveFilter, differingOnly: boolean, groupOnly = false): BoardListItem[] {
         const needle = keyword.trim().toLowerCase();
-        return boards.filter((b) => {
+        const matched = boards.filter((b) => {
+            if (groupOnly && !UtilBoard.isGroup(b)) return false;
             if (needle && !b.name.toLowerCase().includes(needle) && !(b.nameEn ?? '').toLowerCase().includes(needle) && !b.slug.includes(needle)) return false;
             if (active === 'ACTIVE' && !b.active) return false;
             if (active === 'INACTIVE' && b.active) return false;
             return !differingOnly || b.diffCount > 0;
         });
+        return [...matched.filter((b) => !UtilBoard.isGroup(b)), ...matched.filter((b) => UtilBoard.isGroup(b))];
     }
 
-    /** 한 게시판을 한 칸 옮긴 뒤의 전체 ID 순서 — 옮길 수 없으면 null(끝 판정은 걸러진 목록이 아니라 전체 목록 기준) */
+    /**
+     * 일반 게시판 하나를 일반 게시판끼리 한 칸 옮긴 뒤의 전체 ID 순서 — 옮길 수 없으면 null(끝 판정은 걸러진 목록이 아니라 전체 일반 게시판 기준).
+     * `PUT …/order` 는 모든 ID 를 받으므로 일반 게시판의 새 순서 뒤에 소모임 게시판을 지금 순서대로 붙인다. 소모임 게시판은 옮기지 않는다(null).
+     */
     static orderAfterMove(boards: readonly BoardListItem[], id: string, step: -1 | 1): string[] | null {
-        const at = boards.findIndex((b) => b.id === id);
+        const general = boards.filter((b) => !UtilBoard.isGroup(b));
+        const at = general.findIndex((b) => b.id === id);
         const to = at + step;
-        if (at < 0 || to < 0 || to >= boards.length) return null;
-        return UtilBoard.moved(boards, at, step).map((b) => b.id);
+        if (at < 0 || to < 0 || to >= general.length) return null;
+        return [...UtilBoard.moved(general, at, step).map((b) => b.id), ...boards.filter((b) => UtilBoard.isGroup(b)).map((b) => b.id)];
     }
 
     // ── 표시 ─

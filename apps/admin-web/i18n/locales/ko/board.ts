@@ -27,6 +27,16 @@ export default {
     orderFailed: '순서를 바꾸지 못했어요',
     orderNote: '여기 순서는 게시판 목록·글쓰기의 게시판 고르기에 쓰여요. 공개 사이트 메뉴의 순서는 메뉴 관리에서 바꿔요. 위·아래 단추를 누르면 바로 저장돼요.',
     orderMenuLink: '공개 사이트 메뉴로 가기',
+    filterGroup: '소모임 게시판 {n}',
+    sectionGeneral: '일반 게시판',
+    sectionGeneralNote: '메뉴와 게시판 페이지가 있어요',
+    sectionGroup: '소모임 게시판',
+    sectionGroupNote: '메뉴·게시판 페이지가 없어요',
+    categoryNone: '분류 없음',
+    categoryNoneNote: '「전체」에서만 보여요',
+    categoryLinkLabel: '소모임 분류 「{name}」 보기',
+    groupEmptyTitle: '소모임 게시판이 없어요',
+    groupEmptyBody: '[게시판 만들기]에서 종류를 소모임으로 골라요.',
     col: {
         order: '순서',
         name: '게시판',
@@ -60,6 +70,30 @@ export default {
     slugHint: '영소문자·숫자·-',
     slugHelp: '공개 주소가 돼요. 만든 뒤에는 바꿀 수 없어요.',
     descHint: '{max}자까지',
+    createKindLabel: '종류',
+    createKind: {
+        GENERAL: '일반 게시판',
+        GROUP: '소모임 게시판',
+    },
+    createKindNote: {
+        GENERAL: '메뉴와 게시판 페이지가 있어요',
+        GROUP: '소모임 글을 담아요 · 메뉴와 게시판 페이지가 없어요',
+    },
+    createKindHelp: {
+        GENERAL: '주소처럼 만든 뒤에는 바꿀 수 없어요',
+        GROUP: '메뉴와 게시판 페이지가 없어요 · 글은 소모임 목록과 각 소모임에서 보여요 · 만든 뒤 종류를 바꿀 수 없어요',
+    },
+    createKindFixed: '소모임 분류 화면에서는 소모임 게시판만 만들 수 있어요',
+    createCategoryLabel: '소모임 분류',
+    createCategoryRange: '선택',
+    createCategoryNone: '분류 없음',
+    createCategoryHelp: '고르면 그 분류의 소모임 만들기 목록에 나와요. 고르지 않으면 「분류 없음」이 되어 소모임 목록 「전체」에서만 보여요. 나중에 소모임 분류 화면에서 바꿀 수 있어요.',
+    createCategoryLoading: '소모임 분류를 불러오는 중',
+    createCategoryFailed: '분류를 불러오지 못했어요. 이대로 만들면 「분류 없음」으로 만들어져요.',
+    createCategoryRetry: '다시 불러오기',
+    createCategoryEmpty: '소모임 분류가 아직 없어요. 분류 없이도 만들 수 있어요.',
+    createCategoryEmptyLink: '소모임 분류 화면에서 분류를 먼저 만들어요',
+    createCategoryNoPermission: '소모임 분류를 고를 권한이 없어 「분류 없음」으로 만들어져요. 분류는 소모임 분류 화면에서 정해요.',
 
     // ── 게시판 종류·모양·색 ──
     kind: {

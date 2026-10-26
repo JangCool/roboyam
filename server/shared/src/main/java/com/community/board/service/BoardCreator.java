@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 게시판 하나를 만든다 — 게시판 행 + 공통 말머리 4개(질문·후기·잡담·공지[운영진 전용]) + 고유 말머리. 관리자 「만들기」(admin)와 설치 프리셋 적용(api)이 같이 쓴다.
  * 입력 검사·중복 검사·순서 정하기는 부르는 쪽이 끝낸다. 부르는 쪽의 트랜잭션 안에서만 돈다.
  * 가젯 노출 금지는 종류로 시작값을 정한다({@link BoardFields#defaultGadgetExclusions} — 핫딜·직접홍보는 인기글 제외).
- * 같은 트랜잭션에서 공개 메뉴 {@code main} 그룹의 자동 추가 폴더 끝에 이 게시판 항목을 넣는다({@link MenuBoardLinker} — 폴더가 없거나 노드 한도면 건너뛴다).
+ * 같은 트랜잭션에서 공개 메뉴 {@code main} 그룹의 자동 추가 폴더 끝에 이 게시판 항목을 넣는다({@link MenuBoardLinker} — 폴더가 없거나 노드 한도면 건너뛴다). 소모임 게시판은 넣지 않는다.
  */
 @Component
 public class BoardCreator {
@@ -53,7 +53,10 @@ public class BoardCreator {
         for (NewBoard.Prefix prefix : input.prefixes()) {
             prefixes.persist(BoardPrefixEntity.own(ids.nextId(), board.getId(), prefix.name(), prefix.staffOnly(), prefix.color(), true, own++, now));
         }
-        menu.boardCreated(board.getId(), now);
+        // 소모임 게시판은 공개 메뉴에 두지 않는 그릇이라 자동 추가 폴더에 넣지 않는다(docs/features/group-contract.md)
+        if (!BoardFields.KIND_GROUP.equals(input.kind())) {
+            menu.boardCreated(board.getId(), now);
+        }
         return board;
     }
 }

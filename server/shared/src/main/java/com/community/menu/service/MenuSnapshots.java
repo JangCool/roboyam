@@ -2,6 +2,7 @@ package com.community.menu.service;
 
 import com.community.board.entity.BoardEntity;
 import com.community.board.repository.master.BoardRepository;
+import com.community.board.service.BoardFields;
 import com.community.grade.entity.GradeEntity;
 import com.community.grade.repository.master.GradeRepositoryQDSL;
 import com.community.menu.dto.MenuBoardRef;
@@ -22,10 +23,16 @@ public class MenuSnapshots {
         this.grades = grades;
     }
 
-    /** 게시판 ID → 요약(게시판 순서) */
+    /**
+     * 게시판 ID → 요약(게시판 순서). <b>소모임 게시판(종류 {@code GROUP})은 뺀다</b> — 메뉴에 두지 않는 그릇이라(docs/features/group-contract.md)
+     * 관리자 메뉴 편집의 고르기 목록에 없고, 항목으로 보내면 없는 대상과 같은 400({@code menu.target.missing})이며, 공개 메뉴에도 나오지 않는다.
+     */
     public Map<Long, MenuBoardRef> boards() {
         Map<Long, MenuBoardRef> out = new LinkedHashMap<>();
         for (BoardEntity board : boards.findAllByOrderBySortOrderAscIdAsc()) {
+            if (BoardFields.KIND_GROUP.equals(board.getKind())) {
+                continue;
+            }
             out.put(board.getId(), new MenuBoardRef(board.getId(), board.getSlug(), board.getName(), board.getNameEn(), board.getColor(),
                     board.isInvestmentNotice(), board.isActive()));
         }

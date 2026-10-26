@@ -24,8 +24,10 @@ export type BoardCommentMin = typeof BOARD_MIN_GUEST | GradeKey | typeof BOARD_M
 
 /** 목록 모양 — 목록형 · 카드형 · 갤러리형 */
 export type BoardLayout = 'LIST' | 'CARD' | 'GALLERY';
-/** 게시판 종류(읽기 전용) — 일반 · 핫딜 · 직접홍보 · 소모임. 만든 뒤 바꿀 수 없고 이 화면에서는 만들지 않는다(일반만 만든다) */
+/** 게시판 종류(읽기 전용) — 일반 · 핫딜 · 직접홍보 · 소모임. 만든 뒤 바꿀 수 없다. 게시판 만들기는 일반·소모임만 고른다(`BoardCreateKind`) */
 export type BoardKind = 'GENERAL' | 'DEAL' | 'PROMO' | 'GROUP';
+/** 게시판 만들기에서 고르는 종류 — 일반(메뉴·게시판 페이지가 있다) · 소모임(메뉴·게시판 페이지가 없고 소모임 글을 담는다) */
+export type BoardCreateKind = Extract<BoardKind, 'GENERAL' | 'GROUP'>;
 /** 표시색 프리셋 12색 — `null` 은 색 없음(자동). 이름 → 색 값은 `UtilBoard.colorVar` 한 곳 */
 export type BoardColor = 'BLUE' | 'TEAL' | 'AMBER' | 'PURPLE' | 'GREEN' | 'ORANGE' | 'SLATE' | 'RED' | 'PINK' | 'INDIGO' | 'SKY' | 'BROWN';
 /** 글 에디터 수준 — 평문(Textarea) · 간단(굵게·기울임·밑줄·취소선·링크·목록·인용) · 고급(+ 제목·구분선·코드·글자색/배경색·이미지·유튜브). 공개 게시판 계약 「에디터 화면」 */
@@ -205,18 +207,26 @@ export interface BoardListItem extends BoardRef {
     /** 유효 글쓰기·댓글 최소 자격 — 목록이 「비회원 글쓰기·댓글」 딱지를 그린다 */
     writeMin: BoardWriteMin;
     commentMin: BoardCommentMin;
+    /** 소모임 분류(소모임 게시판만) — 분류에 안 들었거나 일반 게시판이면 null */
+    groupCategoryId: string | null;
+    groupCategoryName: string | null;
 }
 
 export interface BoardListResponse {
     boards: BoardListItem[];
 }
 
-/** `POST /api/admin/boards` — 일반 게시판만 만든다. 공통 말머리 4개는 서버가 함께 만든다. 응답 `BoardListItem`(201) */
+/**
+ * `POST /api/admin/boards` — 공통 말머리 4개는 서버가 함께 만든다. 응답 `BoardListItem`(201).
+ * 종류(`kind`)는 빼면 일반. 소모임 분류(`groupCategoryId`)는 소모임일 때만 싣고(아니면 빼거나 null), 보내려면 `board.manage` + `group.settings`. 오류 `400 fields.kind` · `fields.groupCategoryId`.
+ */
 export interface BoardCreateRequest {
     name: string;
     slug: string;
     description: string;
     layout: BoardLayout;
+    kind?: BoardCreateKind;
+    groupCategoryId?: string | null;
 }
 
 /** `PATCH /api/admin/boards/{id}/active` */
@@ -273,6 +283,9 @@ export interface BoardDetail extends BoardRef {
     diffCount: number;
     /** 「가젯 노출 금지」에 고를 수 있는 가젯 전부(목록 순서) — 홈 가젯이 생기면 늘어난다 */
     gadgets: BoardGadgetOption[];
+    /** 소모임 분류(소모임 게시판만) — 분류에 안 들었거나 일반 게시판이면 null */
+    groupCategoryId: string | null;
+    groupCategoryName: string | null;
 }
 
 /** 고를 수 있는 가젯 하나 — `key` 는 서버 `BoardGadget` 이름(지금 `POPULAR` 인기글 · `LATEST` 최신글), `label` 은 서버가 요청 언어로 푼 이름 */

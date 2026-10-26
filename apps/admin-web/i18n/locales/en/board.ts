@@ -26,6 +26,16 @@ export default {
     orderFailed: "Couldn't change the order",
     orderNote: 'This order is used for board lists and the board picker when writing. The public site menu order is set in Menus. The up/down buttons save immediately.',
     orderMenuLink: 'Go to Public site menu',
+    filterGroup: 'Club boards {n}',
+    sectionGeneral: 'General boards',
+    sectionGeneralNote: 'Have a menu entry and a board page',
+    sectionGroup: 'Club boards',
+    sectionGroupNote: 'No menu entry or board page',
+    categoryNone: 'No category',
+    categoryNoneNote: 'Shown only under “All”',
+    categoryLinkLabel: 'View club category “{name}”',
+    groupEmptyTitle: 'No club boards',
+    groupEmptyBody: 'Choose the club type in [New board].',
     col: {
         order: 'Order',
         name: 'Board',
@@ -59,6 +69,30 @@ export default {
     slugHint: 'a–z, 0–9, -',
     slugHelp: 'Becomes the public address. It cannot be changed later.',
     descHint: 'Up to {max} chars',
+    createKindLabel: 'Type',
+    createKind: {
+        GENERAL: 'General board',
+        GROUP: 'Club board',
+    },
+    createKindNote: {
+        GENERAL: 'Has a menu entry and a board page',
+        GROUP: 'Holds club posts · no menu entry or board page',
+    },
+    createKindHelp: {
+        GENERAL: 'Like the address, this cannot be changed later',
+        GROUP: 'No menu entry or board page · posts show in the club list and in each club · the type cannot be changed later',
+    },
+    createKindFixed: 'Only club boards can be created from Club categories',
+    createCategoryLabel: 'Club category',
+    createCategoryRange: 'Optional',
+    createCategoryNone: 'No category',
+    createCategoryHelp: 'If chosen, the board appears in that category when creating a club. Without one it is “No category” and shows only under “All” in the club list. You can change it later in Club categories.',
+    createCategoryLoading: 'Loading club categories',
+    createCategoryFailed: "Couldn't load the categories. If you create it now, it will have no category.",
+    createCategoryRetry: 'Reload',
+    createCategoryEmpty: 'There are no club categories yet. You can create the board without one.',
+    createCategoryEmptyLink: 'Create a category in Club categories first',
+    createCategoryNoPermission: "You can't choose a club category, so the board is created with no category. Categories are set in Club categories.",
 
     // ── Type · layout · color ──
     kind: {
