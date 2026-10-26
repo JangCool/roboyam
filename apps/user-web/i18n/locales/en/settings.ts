@@ -13,6 +13,7 @@ export default {
     display: 'Time display',
     displayHint: 'Language, time zone, time and date format',
     accountHint: 'Sign-in methods and linked social accounts',
+    identityHint: 'Phone identity check and age 19+',
     nicknameImage: 'Nickname image',
     nicknameImageHint: 'An image in place of your nickname · apply once you qualify',
     adult: 'Age check',

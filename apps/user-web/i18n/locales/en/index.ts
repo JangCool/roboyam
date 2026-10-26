@@ -19,6 +19,7 @@ import commerce from './commerce';
 import dev from './dev';
 import dm from './dm';
 import error from './error';
+import identity from './identity';
 import feed from './feed';
 import grade from './grade';
 import install from './install';
@@ -36,6 +37,7 @@ import post from './post';
 import profile from './profile';
 import prompt from './prompt';
 import provider from './provider';
+import restriction from './restriction';
 import sanction from './sanction';
 import search from './search';
 import settings from './settings';
@@ -60,6 +62,7 @@ export default {
     dev,
     dm,
     error,
+    identity,
     feed,
     grade,
     install,
@@ -77,6 +80,7 @@ export default {
     profile,
     prompt,
     provider,
+    restriction,
     sanction,
     search,
     settings,

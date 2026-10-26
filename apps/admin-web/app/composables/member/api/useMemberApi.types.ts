@@ -499,4 +499,19 @@ export interface MemberDetail extends Omit<MemberRow, 'roles'> {
     profile: MemberProfile | null;
     consents: MemberConsents | null;
     groupBuy: MemberGroupBuy | null;
+    /** 본인 인증(커머스 0-4) — 미인증도 `verified:false` 로 온다. null 은 탈퇴 회원뿐 */
+    identity: MemberIdentity | null;
+}
+
+/**
+ * 본인 인증(커머스 0-4 — 서버 `MemberIdentityView`, commerce.md 12-1). 인증 여부·인증 일시·만 19세 이상 여부·인증 수단만 — 생년월일·CI·DI 는 오지 않는다.
+ * 상세 응답의 `identity` 칸. 미인증이면 `{ verified:false, verifiedAt:null, adult:null, provider:null }`.
+ */
+export interface MemberIdentity {
+    verified: boolean;
+    verifiedAt: string | null;
+    /** 지금 만 19세 이상인가(서버가 생년월일로 계산). 미인증이면 null */
+    adult: boolean | null;
+    /** 인증 수단 — 포트원(휴대폰) · 가짜(개발용). 미인증이면 null */
+    provider: 'PORTONE' | 'FAKE' | null;
 }

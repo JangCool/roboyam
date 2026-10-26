@@ -4,6 +4,7 @@
         위쪽 조회 조건 카드는 그누보드 회원 관리의 필터 구조를 따른다(`MemberSearchPanel`). 조건은 「검색」(또는 Enter)을 눌렀을 때만 서버로 가고, 쪽·정렬은 마지막으로 검색한 조건으로 다시 묻는다.
         표는 서버가 한 쪽씩 준다(`lazy`). 서버가 조건을 거절하면(400 + `fields`) 해당 칸 아래에 서버 문구가 붙는다(`searchErrors`). 이메일은 서버가 가려서 준다(`member.pii` 가 있을 때만 원문) — 화면은 받은 대로 그린다.
         행을 누르면(또는 Enter·Space) 회원 상세 서랍이 열린다(`MemberDetailDrawer`, 읽기 전용 — 조치는 후속). 행 액션은 없다. 본문 여백은 셸(`.app-content`)이 준다.
+        커머스 0-4: 서랍의 「기능 제한」 구획(목록·걸기·해제)과 탈퇴 회원의 분리 보관 연락처(열람)는 이 화면이 상태(`useMemberRestrictions`·`useWithdrawnContact`)와 대화상자를 가진다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('member.title')" :subtitle="t('member.subtitle')" />
@@ -134,13 +135,68 @@
             </div>
         </div>
 
-        <MemberDetailDrawer v-model:visible="drawerOpen" ignore-selector="tbody tr" :member="selectedRow" :detail="detail" :loading="detailLoading" :error="detailError" @retry="retryDetail" />
+        <MemberDetailDrawer
+            v-model:visible="drawerOpen"
+            ignore-selector="tbody tr"
+            :member="selectedRow"
+            :detail="detail"
+            :loading="detailLoading"
+            :error="detailError"
+            :restrictions="restrictionsView"
+            :withdrawn-contact="contactView"
+            @retry="retryDetail"
+            @retry-restrictions="restrictions.retry"
+            @restrict="restrictOpen = true"
+            @lift="openLift"
+            @retry-contact="contact.retry"
+            @reveal-contact="revealOpen = true"
+            @mask-contact="contact.mask"
+        />
+
+        <!-- 기능 제한 걸기·해제, 탈퇴 회원 연락처 열람(커머스 0-4) — 서랍 위에 뜬다(서랍의 바깥 누름 판정은 대화상자를 무시한다) -->
+        <MemberRestrictionDialog
+            v-model:visible="restrictOpen"
+            :member-name="selectedRow?.nickname ?? ''"
+            :items="restrictions.items.value ?? []"
+            :busy="restrictBusy"
+            :error="restrictError"
+            :field-errors="restrictFieldErrors"
+            @submit="submitRestriction"
+        />
+        <MemberReasonDialog
+            v-model:visible="liftOpen"
+            :title="t('restriction.liftTitle')"
+            :label="t('restriction.liftReasonLabel')"
+            :submit-label="t('restriction.lift')"
+            submit-icon="pi pi-unlock"
+            :notice="t('restriction.liftNotice')"
+            :busy="liftBusy"
+            :error="liftError"
+            :field-error="liftFieldError"
+            @submit="submitLift"
+        >
+            <p v-if="liftTarget" class="m-0 text-sm">{{ t('restriction.liftTarget', { type: t(`restriction.type.${liftTarget.type}`), reason: liftTarget.reason }) }}</p>
+        </MemberReasonDialog>
+        <MemberReasonDialog
+            v-model:visible="revealOpen"
+            :title="t('withdrawnContact.revealTitle')"
+            :label="t('withdrawnContact.revealReasonLabel')"
+            :submit-label="t('withdrawnContact.reveal')"
+            submit-icon="pi pi-eye"
+            :notice="t('withdrawnContact.revealNotice')"
+            :busy="revealBusy"
+            :error="revealError"
+            :field-error="revealFieldError"
+            @submit="submitReveal"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { MemberQuery, MemberRoleOption, MemberRoleRef, MemberRow } from '~/composables/member/api/useMemberApi.types';
+import type { MemberRestriction, MemberRestrictionCreateRequest } from '~/composables/member/api/useMemberRestrictionApi.types';
+import type { MemberRestrictionsView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
 import UtilMember, { type MemberColumnKey, type MemberDetailRow, type MemberFilter } from '~/utils/util-member';
 import UtilMemberMessages from '~/utils/util-member-messages';
 
@@ -212,10 +268,124 @@ function onRowClick(e: { originalEvent: Event; data: MemberRow }) {
     selectedRow.value = e.data;
     drawerOpen.value = true;
     void openDetail(e.data.memberNo);
+    // 커머스 0-4 — 기능 제한 목록은 늘, 분리 보관 연락처는 탈퇴 회원만 받는다
+    void restrictions.open(e.data.memberNo);
+    if (e.data.status === 'WITHDRAWN') void contact.open(e.data.memberNo);
+    else contact.clear();
+}
+
+// ── 기능 제한·탈퇴 회원 연락처(커머스 0-4) — 서랍 구획이 보는 상태와 대화상자. 서버 호출은 상태 컴포저블 한 겹이다
+const restrictions = useMemberRestrictions();
+const contact = useWithdrawnContact();
+const toast = useAppToast();
+
+const restrictionsView = computed<MemberRestrictionsView>(() => ({ items: restrictions.items.value, loading: restrictions.loading.value, error: restrictions.error.value }));
+const contactView = computed<WithdrawnContactView>(() => ({
+    contact: contact.contact.value,
+    loading: contact.loading.value,
+    error: contact.error.value,
+    revealed: contact.revealed.value,
+    remaining: contact.remaining.value,
+}));
+
+/** 서버 오류를 칸 문구와 폼 한 줄로 나눈다(`400 VALIDATION` 의 `fields` 는 칸 아래) */
+function splitError(error: ApiError, keys: readonly string[]): { fields: Record<string, string>; form: string } {
+    const fields: Record<string, string> = {};
+    for (const key of keys) {
+        const text = error.field(key);
+        if (text) fields[key] = text;
+    }
+    return { fields, form: Object.keys(fields).length ? '' : error.message };
+}
+
+const restrictOpen = ref(false);
+const restrictBusy = ref(false);
+const restrictError = ref('');
+const restrictFieldErrors = ref<Record<string, string>>({});
+watch(restrictOpen, (open) => {
+    if (!open) return;
+    restrictError.value = '';
+    restrictFieldErrors.value = {};
+});
+
+async function submitRestriction(body: MemberRestrictionCreateRequest): Promise<void> {
+    if (restrictBusy.value) return;
+    restrictBusy.value = true;
+    restrictError.value = '';
+    const failure = await restrictions.create(body);
+    restrictBusy.value = false;
+    if (!failure) {
+        restrictOpen.value = false;
+        toast.success(t('restriction.created', { type: t(`restriction.type.${body.type}`) }));
+        return;
+    }
+    const split = splitError(failure, ['type', 'until', 'reason', 'adminMemo']);
+    restrictFieldErrors.value = split.fields;
+    restrictError.value = split.form;
+}
+
+const liftOpen = ref(false);
+const liftBusy = ref(false);
+const liftTarget = ref<MemberRestriction | null>(null);
+const liftError = ref('');
+const liftFieldError = ref('');
+
+function openLift(target: MemberRestriction): void {
+    liftTarget.value = target;
+    liftError.value = '';
+    liftFieldError.value = '';
+    liftOpen.value = true;
+}
+
+async function submitLift(reason: string): Promise<void> {
+    const target = liftTarget.value;
+    if (!target || liftBusy.value) return;
+    liftBusy.value = true;
+    liftError.value = '';
+    liftFieldError.value = '';
+    const failure = await restrictions.lift(target.id, reason);
+    liftBusy.value = false;
+    if (!failure) {
+        liftOpen.value = false;
+        toast.success(t('restriction.lifted', { type: t(`restriction.type.${target.type}`) }));
+        return;
+    }
+    const split = splitError(failure, ['reason']);
+    liftFieldError.value = split.fields.reason ?? '';
+    liftError.value = split.form;
+}
+
+const revealOpen = ref(false);
+const revealBusy = ref(false);
+const revealError = ref('');
+const revealFieldError = ref('');
+watch(revealOpen, (open) => {
+    if (!open) return;
+    revealError.value = '';
+    revealFieldError.value = '';
+});
+
+/** 연락처 열람 — 이메일은 상태 메모리에만 두고 토스트에 싣지 않는다 */
+async function submitReveal(reason: string): Promise<void> {
+    if (revealBusy.value) return;
+    revealBusy.value = true;
+    revealError.value = '';
+    revealFieldError.value = '';
+    const failure = await contact.reveal(reason);
+    revealBusy.value = false;
+    if (!failure) {
+        revealOpen.value = false;
+        return;
+    }
+    const split = splitError(failure, ['reason']);
+    revealFieldError.value = split.fields.reason ?? '';
+    revealError.value = split.form;
 }
 
 watch(drawerOpen, (isOpen) => {
     if (isOpen) return;
+    // 열람한 탈퇴 회원 연락처는 서랍을 닫으면 바로 가린다(값을 메모리에 남기지 않는다)
+    contact.mask();
     // 서랍이 닫히며 초점이 사라지기 전에 눌렀던 행으로 — 그 사이 표가 다시 그려져 행이 없어졌으면 그대로 둔다
     void nextTick(() => {
         if (triggerRow?.isConnected) triggerRow.focus();

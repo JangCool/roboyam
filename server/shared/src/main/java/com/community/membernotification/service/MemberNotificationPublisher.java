@@ -403,6 +403,38 @@ public class MemberNotificationPublisher {
         }, 0);
     }
 
+    /**
+     * 기능 제한이 걸렸다(commerce.md 12-3) — 어떤 기능·언제까지·공개 사유. <b>운영 메모는 받지도 싣지도 않는다.</b>
+     *
+     * @param kind     {@code POINT_FREEZE} · {@code GROUP_BUY_BAN} · {@code CHARGE_BAN}
+     * @param until    끝나는 순간(무기한이면 null)
+     * @param reason   회원에게 공개하는 사유(자동 부여면 null — 읽을 때 규칙 문구)
+     * @param autoRule 자동 부여 규칙(운영자 부여면 null)
+     */
+    public int featureRestricted(long userId, String kind, Instant until, String reason, String autoRule) {
+        return isolated.run("member-notification:restricted", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.FEATURE_RESTRICTED, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("kind", kind);
+                payload.put("until", until == null ? null : until.toString());
+                payload.put("reason", reason);
+                payload.put("autoRule", autoRule);
+                writer.insert(ids.nextId(), userId, MemberNotificationType.FEATURE_RESTRICTED.name(), null, null, null, null, MAPPER.writeValueAsString(payload),
+                        Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.restricted(kind, until, reason, autoRule), null, null);
+            }
+            return made;
+        }, 0);
+    }
+
     /** 회원 알림 메일 — 커밋 뒤 발송기가 보낸다. 세이브포인트 일의 <b>마지막</b>에 부른다(뒤에서 실패해 행이 되돌려졌는데 메일만 나가는 일이 없게) */
     private void requestEmail(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId) {
         events.publishEvent(new MemberEmailRequested(userId, facts, actorUserId, postId));

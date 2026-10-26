@@ -8,6 +8,7 @@ export default {
     system: '시스템',
     general: '일반',
     socialLogin: '소셜 로그인',
+    portone: '포트원',
     loginSecurity: '로그인 보안',
     mail: '메일',
     mailSettings: '메일 서버',

@@ -36,6 +36,8 @@ public enum MemberEvent {
     POST_HIDDEN(NotificationArea.SAFETY, MemberNotificationType.POST_HIDDEN, MemberEventLockReason.ACCOUNT, null),
     /** 내 댓글 숨김(신고) — 계정 알림 */
     COMMENT_HIDDEN(NotificationArea.SAFETY, MemberNotificationType.COMMENT_HIDDEN, MemberEventLockReason.ACCOUNT, null),
+    /** 기능 제한이 걸림 — 계정 알림 */
+    FEATURE_RESTRICTED(NotificationArea.SAFETY, MemberNotificationType.FEATURE_RESTRICTED, MemberEventLockReason.ACCOUNT, null),
 
     // ── 준비 중(발행처 없음) — 기능이 생기면 MemberNotificationType 에 한 줄 + 여기서 그 종류를 넣는다 ──
     MENTION(NotificationArea.CONTENT, null, null, "MENTION"),

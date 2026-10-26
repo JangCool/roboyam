@@ -1,0 +1,88 @@
+/**
+ * 회원 기능 제한 문구(커머스 0-4, commerce.md 12-3) — 회원 상세 「기능 제한」 구획(`MemberDetailRestrictionSection`)·제한 걸기 대화상자(`MemberRestrictionDialog`)·해제(회원 관리 화면).
+ * `en/restriction.ts` 와 같은 키, 같은 차례.
+ */
+export default {
+    sectionTitle: '기능 제한',
+    intro: '계정 전체가 아니라 기능 하나만 막아요. 계정 정지와 따로 걸 수 있어요.',
+    create: '제한 걸기',
+    loadFailed: '기능 제한을 불러오지 못했어요',
+    empty: '기능 제한 이력이 없어요.',
+    groupActive: '진행 중',
+    groupPast: '지난 제한',
+    type: {
+        POINT_FREEZE: '포인트 동결',
+        GROUP_BUY_BAN: '공동구매 참여 제한',
+        CHARGE_BAN: '충전 제한',
+    },
+    status: {
+        ACTIVE: '진행 중',
+        EXPIRED: '기간 끝',
+        LIFTED: '해제됨',
+    },
+    sourceAuto: '자동 · {rule}',
+    sourceOperator: '운영자 · {name}',
+    autoRule: {
+        GROUP_BUY_HOLD_EXPIRED: '24시간 안 선점 3번 만료',
+    },
+    lift: '해제',
+    period: '기간',
+    periodRange: '{from} ~ {to}',
+    periodForever: '{from} ~ 무기한',
+    reason: '공개 사유',
+    reasonPublic: '회원에게 보임',
+    memo: '운영 메모',
+    memoPrivate: '운영자만',
+    liftedTitle: '해제',
+    liftedBy: '{name} · {at}',
+    liftReason: '해제 사유: {reason}',
+
+    // 걸기 대화상자
+    createTitle: '기능 제한 걸기',
+    createTarget: '{name} 회원에게 걸어요.',
+    typeLabel: '종류',
+    blocks: '막는 것: {what}',
+    allows: '그래도 되는 것: {what}',
+    blocksWhat: {
+        POINT_FREEZE: '포인트 적립·사용·충전',
+        GROUP_BUY_BAN: '새 공동구매 참여',
+        CHARGE_BAN: '새 포인트 충전',
+    },
+    allowsWhat: {
+        POINT_FREEZE: '충전 포인트 환불 신청',
+        GROUP_BUY_BAN: '이미 결제한 주문의 배송·취소·반품·조회',
+        CHARGE_BAN: '가진 포인트 사용·환불',
+    },
+    sameActive: '이미 진행 중인 같은 제한이 있어요({until}까지). 걸면 늦게 끝나는 쪽까지 막혀요.',
+    sameActiveForever: '이미 진행 중인 같은 제한이 있어요(무기한). 걸어도 해제할 때까지 막혀요.',
+    durationLabel: '기간',
+    duration: {
+        D1: '1일',
+        D3: '3일',
+        D7: '7일',
+        D30: '30일',
+        CUSTOM: '끝 시각 직접',
+        FOREVER: '무기한',
+    },
+    customUntil: '끝나는 시각',
+    customRequired: '끝나는 시각을 골라 주세요.',
+    customPast: '끝나는 시각은 지금보다 뒤여야 해요.',
+    preview: '지금부터 {until}까지',
+    previewForever: '지금부터 해제할 때까지',
+    reasonLabel: '공개 사유',
+    reasonHelp: '회원에게 알림과 안내로 보여요.',
+    memoLabel: '운영 메모',
+    memoHint: '선택 · {max}자까지',
+    memoHelp: '운영자만 봐요. 회원에게 보내지 않아요.',
+    memoTooLong: '운영 메모는 {max}자까지 쓸 수 있어요.',
+    notifyNotice: '회원에게 알림이 가요 — 종류·기간·공개 사유(운영 메모는 보내지 않아요).',
+    createSubmit: '제한 걸기',
+    created: '{type}을(를) 걸었어요',
+
+    // 해제
+    liftTitle: '기능 제한 해제',
+    liftTarget: '{type} — {reason}',
+    liftReasonLabel: '해제 사유',
+    liftNotice: '해제하면 바로 그 기능을 다시 쓸 수 있어요. 감사 기록에 남아요.',
+    lifted: '{type}을(를) 해제했어요',
+};

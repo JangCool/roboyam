@@ -195,6 +195,9 @@ public final class MessageTargetCatalog {
         out.add(member(MemberEvent.REPORT_RESULT, List.of(MessageVariable.of("result", "reportResult"), MessageVariable.of("target", "reportedContent")),
                 new InAppText("member.notification.REPORT_RESULT.title", null, "{{target}}", List.of("result")), "/posts/123",
                 List.of(MessageCondition.fixed(MessageCondition.REPORT_RESULT, MessageCondition.ACTIONED, MessageCondition.NO_VIOLATION))));
+        out.add(member(MemberEvent.FEATURE_RESTRICTED, List.of(MessageVariable.of("restriction", "restrictionFeature"), MessageVariable.of("until", "restrictionUntil"),
+                MessageVariable.of("reason", "restrictionReason")),
+                new InAppText("member.notification.FEATURE_RESTRICTED.title", null, "{{reason}}", List.of("restriction", "until")), "/me/notifications", List.of()));
         return out;
     }
 

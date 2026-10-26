@@ -91,11 +91,23 @@ public enum BatchCatalog implements BatchDefinition {
      */
     POPULAR_RANK("popular-rank", BatchCategory.MEMBER, BatchSource.POSTGRESQL, null, true),
 
+    /**
+     * 탈퇴 대비·본인인증 개인정보 정리(기간이 끝난 재가입 제한 해시 · 파기 예정일이 지난 탈퇴 회원 연락처 · 30일 지난 본인인증 시도) — DB 배치, 기본 매일 04:25 KST
+     * ({@code R__batch_28_member_privacy_retention.sql}, docs/features/commerce-foundation-contract.md 「0-4」).
+     */
+    MEMBER_PRIVACY_RETENTION("member-privacy-retention", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
+     * 데이터 키 교체 — 예전 데이터 키로 잠긴 개인정보 칸을 지금 키로 다시 암호화한다(Java 배치 {@code DataKeyRotationJob}, 칸마다 한 단계, docs/features/commerce-foundation-contract.md 「0-1」·「0-4」).
+     * 키를 바꾼 뒤 수동으로 「지금 실행」하는 배치라 <b>예약은 기본 꺼짐</b>(켜면 매일 05:00).
+     */
+    DATA_KEY_ROTATION("data-key-rotation", BatchCategory.SYSTEM, BatchSource.JAVA, "0 0 5 * * *", false),
+
     /** 올리기만 하고 어디에도 지정하지 않은 채 오래된 파일(files.status = PENDING) 삭제 — Java 배치(저장소 파일을 지우므로 DB 만으로 끝나지 않는다), 하루 한 번(새벽 03:45). 기준 시간은 {@code roboyam.media.orphan-retention-hours} */
     FILE_ORPHAN_CLEANUP("file-orphan-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 45 3 * * *", true),
 
     /**
-     * 쪽지 1년 보관 정리 — DB 배치, 기본 매일 04:20 KST({@code R__batch_21_dm_retention.sql}, docs/features/member-social-contract.md 「쪽지」). 마지막 쪽지가 1년보다 오래된 대화는 통째로,
+     * 쪽지 1년 보관 정리 — DB 배치, 기본 매일 04:25 KST({@code R__batch_21_dm_retention.sql}, docs/features/member-social-contract.md 「쪽지」). 마지막 쪽지가 1년보다 오래된 대화는 통째로,
      * 남는 대화는 1년 지난 쪽지만 지운다. 신고된 대화의 보관은 신고 대상에 쪽지가 생길 때 더한다.
      */
     DM_RETENTION("dm-retention", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true);

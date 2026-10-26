@@ -1,0 +1,96 @@
+/**
+ * Identity verification — the settings screen (`/settings/identity`), the pre-payment check (`IdentityGateDialog`), the fake verification dialog (`IdentityFakeDialog`) and the dev demo (`/dev/identity`).
+ * Same keys and order as `ko/identity.ts`.
+ */
+export default {
+    title: 'Identity verification',
+    seoDescription: 'Check your phone identity verification on {site}.',
+    loading: 'Loading identity verification',
+    loadFailed: 'Couldn’t load identity verification',
+
+    // Verified
+    stateTitle: 'Status',
+    stateLabel: 'Status',
+    verified: 'Verified',
+    verifiedAt: 'Verified at',
+    ageLabel: 'Age check',
+    adult: '19 or older',
+    minor: 'Under 19',
+    minorTitle: 'Not available under 19',
+    minorBlocked: 'Members under 19 can’t charge points or pay for group buys.',
+    minorRelease: 'After your 19th birthday ({date}) you can use them without verifying again.',
+    minorReleaseNoDate: 'After your 19th birthday you can use them without verifying again.',
+    birthdayDate: '{month}/{day}/{year}',
+    onceNote: 'You only need to verify once.',
+
+    // Not verified
+    whyTitle: 'Why it’s needed',
+    whyText: 'Features that involve money are limited to one account per person, so a phone identity check is required.',
+    useCharge: 'Charging points',
+    useGroupBuy: 'Joining group buys',
+    useRefund: 'Refunds of charged points',
+    useSignupPoint: 'Sign-up points',
+    whyAdult: 'Only members aged 19 or older can charge points or pay for group buys.',
+    storedTitle: 'What we keep',
+    storedYes: 'Only your date of birth and when you verified.',
+    storedNo: 'We don’t keep your name, phone number or anything made from your resident number in readable form.',
+    storedShort: 'We keep only your date of birth and when you verified — not your name or phone number.',
+    verifyButton: 'Verify with phone',
+    verifyHelp: 'After you verify in the window, you’ll come back here.',
+    verifiedToast: 'Identity verified',
+
+    // Failures
+    failTitle: 'Verification didn’t finish.',
+    failLinkedTitle: 'This identity is already used by another account.',
+    failLinked: 'One person can verify only one account. Contact customer support if you need help.',
+    failBlockedTitle: 'You can’t verify yet.',
+    failBlocked: 'The same identity can’t be verified for 30 days after leaving. You can verify from {date}.',
+    failBlockedNoDate: 'The same identity can’t be verified for 30 days after leaving.',
+    failProviderTitle: 'No response from the verification provider.',
+    failProvider: 'Please try again in a moment.',
+    failExpiredTitle: 'Verification timed out.',
+    failExpired: 'Please start again.',
+    portoneUnavailable: 'The PortOne verification window isn’t connected yet.',
+
+    // Pre-payment check
+    gateNeed_CHARGE: 'Verify your identity to charge points',
+    gateNeed_GROUP_BUY: 'Verify your identity to join group buys',
+    gateNeedText: 'Payments are limited to one account per person, aged 19 or older. You only need to verify once.',
+
+    // Fake verification (development)
+    fakeTitle: 'Fake verification (development)',
+    fakeNotice: 'For development and testing only. The live service opens the PortOne window.',
+    fakeBirthDate: 'Date of birth',
+    fakeBirthDateHelp: 'Used to work out whether you’re 19 or older.',
+    fakeBirthDateRequired: 'Enter a date of birth.',
+    fakePersonKey: 'Person key',
+    fakePersonKeyHelp: 'The same key counts as the same person (for testing one account per person).',
+    fakePersonKeyRequired: 'Enter a person key.',
+    fakeSubmit: 'Complete',
+
+    // Dev demo
+    devBadge: 'Development only',
+    devTitle: 'Identity and restriction demo',
+    devIntro: 'Try the pre-payment identity check and feature restriction notice before the charge and group-buy screens exist.',
+    devStateTitle: 'My verification',
+    devStateIntro: 'The current state from the server. The local server uses the fake provider, so the “Fake verification (development)” dialog opens instead of a verification window.',
+    devCurrent: 'Current',
+    devReload: 'Reload',
+    devStateNoReset: 'Verification can’t be undone. To start again from unverified, sign in as another member.',
+    devPersonKeys: 'For a minor, use a date of birth within the last 19 years. For “already linked”, reuse a person key from another account.',
+    devGateTitle: 'Pre-payment check',
+    devGateIntro: 'Checks identity and age 19+ before a payment starts. Verified adults go straight through.',
+    devCharge: 'Start charge',
+    devGroupBuy: 'Join group buy',
+    devGateOk: '“{purpose}” can start.',
+    devGateNo: '“{purpose}” didn’t start.',
+    devRestrictionTitle: 'Feature restriction notice',
+    devRestrictionIntro: 'Shown when the server answers 403 MEMBER_RESTRICTED for a blocked feature. No public API returns this error yet, so the page builds the same error shape as the server to preview it.',
+    devRestrictionSampleReason: '(Preview) The public reason written by an admin appears here.',
+    devRestrictionType: 'Restriction',
+    devRestrictionUntil: 'Ends',
+    devRestrictionTry: 'Try the blocked feature',
+    devUntilHours: 'In 26 hours',
+    devUntilNextYear: 'Next year',
+    devUntilForever: 'Indefinite',
+};

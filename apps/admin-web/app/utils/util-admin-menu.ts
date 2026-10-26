@@ -197,6 +197,8 @@ export default class UtilAdminMenu {
                 { key: 'siteGeneral', to: '/settings/general', icon: 'pi pi-sliders-h', labelKey: 'menu.general', permission: 'site.read' },
                 // 소셜 로그인 설정(카카오·네이버·구글 키) — 조회는 `site.read`, 저장·삭제는 화면 안에서 `site.secret`
                 { key: 'socialLogin', to: '/settings/social-login', icon: 'pi pi-key', labelKey: 'menu.socialLogin', permission: 'site.read' },
+                // 포트원 설정(본인인증 — 상점 ID·API 비밀키·채널 키, 2a 에 결제 칸) — 조회는 `site.read`, 저장·지우기는 화면 안에서 `site.secret`(커머스 0-4). 서버 `AdminScreenRegistry` 에도 같은 한 줄이 필요하다(서버 단계)
+                { key: 'portone', to: '/settings/portone', icon: 'pi pi-credit-card', labelKey: 'menu.portone', permission: 'site.read' },
                 // 로그인 보안(관리자 2차 인증 켜기·끄기와 값) — 최고 관리자만(commerce.md 13-3, 권한 코드로 위임하지 않는다). 서버 `AdminScreenRegistry` 에도 같은 한 줄이 필요하다(서버 단계)
                 { key: 'loginSecurity', to: '/settings/login-security', icon: 'pi pi-shield', labelKey: 'menu.loginSecurity', superOnly: true },
                 // 조직 구성 — 운영자를 팀으로 묶는다(알림 이벤트의 「추가 수신 팀」으로 쓴다)

@@ -20,7 +20,7 @@ import type { MemberDetail, MemberPage, MemberQuery, MemberRoleOption } from '~/
  *     비는 칸: `statusReason`·`sanctionSummary`·`adultConfirmed`·`dormancy`·`dormantAt`·`contact`·`profile`·`groupBuy`(null),
  *     `sanctions`·`consents.optional`·`consents.history`·`roles[].boardNames`(빈 배열), `nicknameHistory`(빈 배열, `member.pii` 없으면 null), `statusChangedAt`(탈퇴 시각만), `sanctionCount`(늘 0). `point` 는 포인트 잔액(탈퇴 0)이고 목록의 `pointMin`·`pointMax`·`sort=point` 도 잔액으로 거르고 줄 세운다.
  *     화면은 비는 구획을 안내(EmptyState)로 보이고 데이터가 오면 그린다. 탈퇴 회원은 역할·소셜·동의·소개가 비고 `withdrawnAt` 만 채워진다.
- *     · 본인 인증(방법·여부·성인인증·이력)은 아직 도입하지 않아 계약에 칸이 없다(「본인 인증」 구획은 준비 중 표시).
+ *     · `identity`(커머스 0-4 — `{ verified, verifiedAt, adult, provider }`): 미인증도 `{ verified:false, verifiedAt:null, adult:null, provider:null }` 로 오고, null 은 탈퇴 회원뿐이다.
  *   - `GET /api/admin/members/role-options` → 200 `[{ roleId, roleName }]` (역할 고르개 — 등급 역할이 서열 순서로 먼저, 그다음 회원 유형·게시판 단위·사용자 정의)
  *
  * `authMethod`: 비밀번호가 있으면 `EMAIL`, 아니면 가장 먼저 연결한 소셜이다.

@@ -248,6 +248,9 @@ public class MemberNotificationService {
                 facts = MemberNotificationMessages.Facts.removed(type, payload.get("snapshot") instanceof String s && !s.isBlank() ? s : null, reason, reasonCodeOf(payload));
                 link = type == MemberNotificationType.COMMENT_REMOVED && postAvailable ? "/posts/" + row.getPostId() : null;
             }
+            case FEATURE_RESTRICTED -> facts = MemberNotificationMessages.Facts.restricted(payload.get("kind") instanceof String k ? k : "",
+                    instantOf(payload.get("until")), payload.get("reason") instanceof String r && !r.isBlank() ? r : null,
+                    payload.get("autoRule") instanceof String a && !a.isBlank() ? a : null);
             case REPORT_RESULT -> {
                 // 내 신고의 처리 결과 — 조치됨 · 위반 아님(신고 당시 제목·앞부분). 글을 볼 수 있으면 그 글로
                 String result = payload.get("result") instanceof String r ? r : MemberNotificationMessages.REPORT_ACTIONED;

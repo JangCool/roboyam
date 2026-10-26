@@ -8,6 +8,7 @@ export default {
     system: 'System',
     general: 'General',
     socialLogin: 'Social login',
+    portone: 'PortOne',
     loginSecurity: 'Sign-in security',
     mail: 'Mail',
     mailSettings: 'Mail server',

@@ -36,6 +36,9 @@
         <!-- 이용자 메모 시트 — 프로필 ⋯ 메뉴·쪽지 대화방·설정 > 이용자 메모가 `useMemoSheet().open` 으로 연다 -->
         <MemoSheet />
         <!-- 원본(community)에는 여기에 신고 시트(`ReportSheet`, 7-1)가 있다 — 신고를 여는 화면(글·댓글·프로필 …)이 아직 없어 가져오지 않았다 -->
+        <!-- 결제 직전 본인인증 확인(`useIdentityGate`)과 가짜 본인인증(개발용 — 서버가 FAKE 일 때) 대화상자 -->
+        <IdentityGateDialog />
+        <IdentityFakeDialog />
         <AppConfirm />
         <AppToaster :with-tabs="!inner" />
     </div>

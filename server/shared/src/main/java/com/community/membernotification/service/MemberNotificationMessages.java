@@ -13,6 +13,9 @@ import com.community.notificationtemplate.engine.RenderedEmail;
 import com.community.notificationtemplate.engine.RenderedInApp;
 import com.community.zconfiguration.message.MessageRef;
 import com.community.zconfiguration.message.Messages;
+import com.community.zconfiguration.time.ServiceTime;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import org.springframework.stereotype.Component;
 
@@ -59,9 +62,32 @@ public class MemberNotificationMessages {
      *                   · 신고 처리 결과({@link #REPORT_ACTIONED}·{@link #REPORT_NO_VIOLATION}) — 그 밖 null. 반려·해제·거절·운영자 숨김·운영자 삭제 사유는 {@code note}
      * @param reasonCode 운영자 조치 사유 코드(신고 사유 체계 — 관리자 신고 관리의 숨김·삭제, 없으면 null). 있으면 사유 변수는 「코드 이름: note」
      * @param targetType 신고 처리 결과의 대상 종류({@code POST}·{@code COMMENT}) — 그 밖 null
+     * @param restriction 걸린 기능 제한(기능 제한 알림만 — 운영 메모 없음)
      */
     public record Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
-                        boolean temporary, String snapshot, String result, String reasonCode, String targetType) {
+                        boolean temporary, String snapshot, String result, String reasonCode, String targetType, Restriction restriction) {
+
+        /** 기능 제한 알림 밖의 사실 — 제한은 null */
+        public Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
+                     boolean temporary, String snapshot, String result, String reasonCode, String targetType) {
+            this(type, actorName, postTitle, excerpt, groupCount, amount, pointsKind, note, temporary, snapshot, result, reasonCode, targetType, null);
+        }
+
+        /**
+         * 기능 제한 알림의 사실(commerce.md 12-3 — 종류·끝·공개 사유).
+         *
+         * @param kind     {@code POINT_FREEZE} · {@code GROUP_BUY_BAN} · {@code CHARGE_BAN}
+         * @param until    끝나는 순간(무기한이면 null)
+         * @param reason   회원에게 공개하는 사유(자동 부여면 null — {@code autoRule} 의 번들 문구를 쓴다)
+         * @param autoRule 자동 부여 규칙(운영자 부여면 null)
+         */
+        public record Restriction(String kind, Instant until, String reason, String autoRule) {
+        }
+
+        public static Facts restricted(String kind, Instant until, String reason, String autoRule) {
+            return new Facts(MemberNotificationType.FEATURE_RESTRICTED, null, null, null, 1, 0, null, null, false, null, null, null, null,
+                    new Restriction(kind, until, reason, autoRule));
+        }
 
         /** 검토 결과 칸이 없는 예전 모양 — 결과는 null */
         public Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
@@ -210,9 +236,37 @@ public class MemberNotificationMessages {
                     .variable("excerpt", facts.excerpt());
             case OPINION_PIN_REVIEWED -> builder.variable("result", messages.get(new MessageRef(pinResultKey(facts.result())), locale))
                     .variable("postTitle", facts.postTitle()).variable("reason", facts.note() == null ? "" : facts.note());
+            case FEATURE_RESTRICTED -> builder.variable("restriction", restrictionName(facts, locale)).variable("until", restrictionUntil(facts, locale))
+                    .variable("reason", restrictionReason(facts, locale));
         }
         return builder;
     }
+
+    /** 걸린 기능 이름(번들 — 「공동구매 참여」) */
+    private String restrictionName(Facts facts, Locale locale) {
+        return facts.restriction() == null ? "" : messages.get(new MessageRef("restriction.feature." + facts.restriction().kind()), locale);
+    }
+
+    /** 끝 — 한국 시간 「YYYY-MM-DD HH:mm까지」, 무기한이면 「해제될 때까지」 */
+    private String restrictionUntil(Facts facts, Locale locale) {
+        Instant until = facts.restriction() == null ? null : facts.restriction().until();
+        return until == null ? messages.get(new MessageRef("restriction.until.none"), locale)
+                : messages.get(new MessageRef("restriction.until.at", UNTIL_FORMAT.format(until.atZone(ServiceTime.ZONE))), locale);
+    }
+
+    /** 공개 사유 — 자동 부여면 규칙의 번들 문구. 운영 메모는 이 사실에 없다 */
+    private String restrictionReason(Facts facts, Locale locale) {
+        Facts.Restriction restriction = facts.restriction();
+        if (restriction == null) {
+            return "";
+        }
+        if (restriction.reason() != null && !restriction.reason().isBlank()) {
+            return restriction.reason();
+        }
+        return restriction.autoRule() == null ? "" : messages.get(new MessageRef("restriction.autoRule." + restriction.autoRule() + ".reason"), locale);
+    }
+
+    private static final DateTimeFormatter UNTIL_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     /**
      * 운영자 조치 사유 한 줄 — 사유 코드가 있으면 「코드 이름: 글」(글이 없으면 코드 이름만, 관리자 신고 관리), 없으면 운영자가 적은 글 그대로(관리자 게시글 관리). 둘 다 없으면 빈 글자

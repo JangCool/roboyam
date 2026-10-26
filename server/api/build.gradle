@@ -25,7 +25,7 @@ dependencies {
     // 글·댓글 HTML 본문 정화(허용 목록) — RichText. 에디터가 만든 HTML 이라도 서버가 반드시 거친다
     implementation "com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer:${owaspHtmlSanitizerVersion}"
 
-    // 커머스 테스트 전용 실제 PostgreSQL 시험 DB(shared 의 testFixtures — CommerceTestDatabase, docs/domain/commerce.md 18절: Testcontainers 는 커머스 테스트에만).
-    // 0-5 돈 요청 입구 도우미(MoneyRequestGuard — 멱등 키·속도 제한)의 시험이 쓴다. 시험 PC 에 Docker 가 있어야 한다
+    // 커머스 테스트 전용 실제 PostgreSQL 시험 DB(shared 의 testFixtures — CommerceTestDatabase, docs/domain/commerce.md 18절: Testcontainers 는 커머스 테스트에만, 버전은 Spring Boot BOM).
+    // 0-4 본인인증·기능 제한·탈퇴 대비의 규칙 시험과 0-5 돈 요청 입구 도우미(MoneyRequestGuard — 멱등 키·속도 제한)의 시험이 쓴다. 시험 PC 에 Docker 가 있어야 한다
     testImplementation testFixtures(project(':server:shared'))
 }

@@ -2,9 +2,12 @@ package com.community.zconfiguration.exception;
 
 import com.community.zconfiguration.message.MessageRef;
 import com.community.zconfiguration.message.Messages;
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 오류 응답 본문. 필드 오류가 없으면 {@code fields} 는 <b>나가지 않고</b>(빈 객체도 내지 않는다 — 화면은 {@code fields} 가 없는 것으로 읽는다), {@code retryAfterSeconds} 는 해당될 때만 나간다.
@@ -15,10 +18,31 @@ import java.util.Map;
  * <p>{@code message}·{@code fields} 의 문구는 <b>요청 언어로 푼 문구</b>다({@link Messages}). {@code code}·{@code fields} 의 칸 경로 키는 언어와 무관하다.
  * {@code fields} 에 여러 필드를 담는 것은 화면이 필드마다 메시지를 아래에 붙여야 하기 때문이다.
  * 키 이름 {@code code} 는 화면의 {@code useApiClient} 가 읽는 이름이다.
+ *
+ * <p>{@code extras}(업무 예외가 {@code CommonException#extra} 로 더한 값 — 예: {@code retryAfter} · {@code adultFrom} · {@code restriction})는 이 본문의 <b>최상위 칸</b>으로
+ * 나간다(화면은 모르는 최상위 칸을 {@code ApiError.extras} 로 읽는다). 없으면 아무것도 더해지지 않는다.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ErrorResponse(String code, String message, @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, String> fields, Long retryAfterSeconds,
-                            Integer remainingAttempts) {
+                            Integer remainingAttempts, @JsonIgnore Map<String, Object> extras) {
+
+    /** 정해진 칸 이름 — 더하는 값({@code extras})이 쓸 수 없다 */
+    static final Set<String> RESERVED = Set.of("code", "message", "fields", "retryAfterSeconds", "remainingAttempts");
+
+    public ErrorResponse {
+        extras = extras == null ? Map.of() : extras;
+    }
+
+    /** 더하는 값이 없는 오류 */
+    public ErrorResponse(String code, String message, Map<String, String> fields, Long retryAfterSeconds, Integer remainingAttempts) {
+        this(code, message, fields, retryAfterSeconds, remainingAttempts, Map.of());
+    }
+
+    /** 더하는 값 — 본문 최상위 칸으로 나간다 */
+    @JsonAnyGetter
+    public Map<String, Object> extraFields() {
+        return extras;
+    }
 
     /** 남은 시도 횟수가 없는 오류 */
     public ErrorResponse(String code, String message, Map<String, String> fields, Long retryAfterSeconds) {
@@ -35,6 +59,6 @@ public record ErrorResponse(String code, String message, @JsonInclude(JsonInclud
 
     public static ErrorResponse of(CommonException e, Messages messages, Locale locale) {
         return new ErrorResponse(e.getErrorCode(), messages.get(e.getMessageRef(), locale), messages.get(e.getFields(), locale),
-                e.getRetryAfterSeconds(), e.getRemainingAttempts());
+                e.getRetryAfterSeconds(), e.getRemainingAttempts(), e.getExtras());
     }
 }

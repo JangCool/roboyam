@@ -36,6 +36,7 @@ import java.util.List;
  * @param settings       개인 설정·알림함 구획 — 탈퇴한 회원은 null
  * @param nicknameChange 닉네임 변경 횟수·무료 한도 — 탈퇴한 회원은 null
  * @param nicknameImage  닉네임 이미지(적용 중·최근 대기/반려 신청) — 탈퇴한 회원은 null
+ * @param identity       본인 인증(커머스 0-4) — 인증 여부·시각·만 19세 이상·수단만(생년월일·해시 없음). 미인증이면 {@code verified:false}, <b>탈퇴한 회원은 null</b>
  */
 public record MemberDetailView(
         String memberNo, String email, boolean emailMasked, String nickname, String grade, String memberType, String status, String authMethod,
@@ -45,5 +46,5 @@ public record MemberDetailView(
         String bio, List<MemberSocialLink> social, Boolean adultConfirmed, Boolean acceptDm, Object dormancy, Instant withdrawnAt,
         List<MemberNicknameChange> nicknameHistory, boolean piiMasked,
         MemberGradePoint gradePoint, MemberSettingsView settings, Object contact, Object profile, MemberConsents consents, Object groupBuy,
-        MemberNicknameChangeUsage nicknameChange, MemberNicknameImageView nicknameImage) {
+        MemberNicknameChangeUsage nicknameChange, MemberNicknameImageView nicknameImage, MemberIdentityView identity) {
 }

@@ -205,6 +205,18 @@ public final class AuditActions {
     /** 무시한 사건 다시 열기 — {@code caseNo} */
     public static final String REPORT_REOPEN = "REPORT_REOPEN";
 
+    // ── 커머스 0-4 (본인인증·기능 제한·탈퇴 대비) ──
+    /** 기능 제한 부여 — 대상 MEMBER, {@code restrictionId}·{@code source}(OPERATOR · AUTO — 자동은 행위자 SYSTEM)·{@code type}·{@code until}(무기한이면 {@code indefinite})·{@code autoRule} */
+    public static final String MEMBER_RESTRICTION_GRANT = "MEMBER_RESTRICTION_GRANT";
+    /** 기능 제한 해제 — 대상 MEMBER, {@code restrictionId}·{@code type}·해제 사유 {@code reason} */
+    public static final String MEMBER_RESTRICTION_LIFT = "MEMBER_RESTRICTION_LIFT";
+    /** 탈퇴 회원 연락처 열람 — 대상 MEMBER, 사유 {@code reason}(이메일은 싣지 않는다). 감사 보관 분류는 개인정보 열람(0-5 와 합칠 때) */
+    public static final String WITHDRAWN_CONTACT_REVEAL = "WITHDRAWN_CONTACT_REVEAL";
+    /** 포트원 설정 저장 — 대상 PORTONE_SETTINGS, 바꾼 칸 이름 {@code fields}(값 없음) */
+    public static final String PORTONE_SETTINGS_UPDATE = "PORTONE_SETTINGS_UPDATE";
+    /** 포트원 설정 칸 지우기 — 대상 PORTONE_SETTINGS, 칸 이름 {@code field} */
+    public static final String PORTONE_SETTINGS_DELETE = "PORTONE_SETTINGS_DELETE";
+
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();
 

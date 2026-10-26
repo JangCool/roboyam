@@ -14,7 +14,7 @@ import java.util.Set;
  *   <li>돈 관련(5년): 돈이나 포인트가 움직이는 일 — 지금은 포인트 수동 조정. 감사 보관 기간을 바꾼 기록도 같이 오래 남긴다(기록을 지우는 범위를 정한 일이라).
  *       환불 실행·대사 불일치 처리·판매 켜기/끄기·충전 환불 승인·송금 완료는 그 기능(1~3단계)이 행위를 더할 때 여기에 넣는다.</li>
  *   <li>개인정보 열람·내려받기(2년): 개인정보가 보이는 화면을 연 일 — 지금은 회원 상세 열람({@code MEMBER_VIEW}, 이메일 전체 보기 포함).
- *       배송지 열람·배송 명단 내려받기·탈퇴 회원 연락처 열람은 그 기능이 더할 때 여기에 넣는다.</li>
+ *       탈퇴 회원 연락처 열람({@code WITHDRAWN_CONTACT_REVEAL}, 0-4)도 여기다. 배송지 열람·배송 명단 내려받기는 그 기능이 더할 때 넣는다.</li>
  *   <li>나머지는 일반 운영(1년).</li>
  * </ul>
  */
@@ -22,10 +22,13 @@ public final class AuditRetention {
 
     private static final Set<String> MONEY = Set.of(
             AuditActions.POINT_ADJUST,
-            AuditActions.AUDIT_RETENTION_UPDATE);
+            AuditActions.AUDIT_RETENTION_UPDATE,
+            // 포트원(결제·본인인증 PG) 설정 저장·삭제 — 결제를 받는 경로를 바꾸는 일이라 돈 관련(사용자 확정 2026-10-26, commerce-foundation-contract 「0-5」)
+            AuditActions.PORTONE_SETTINGS_UPDATE, AuditActions.PORTONE_SETTINGS_DELETE);
 
     private static final Set<String> PERSONAL_DATA = Set.of(
-            AuditActions.MEMBER_VIEW);
+            AuditActions.MEMBER_VIEW,
+            AuditActions.WITHDRAWN_CONTACT_REVEAL);
 
     /** 일반 운영으로 <b>정한</b> 행위 — 빠뜨린 것과 구별하려고 나열한다 */
     private static final Set<String> GENERAL = Set.of(
@@ -54,6 +57,8 @@ public final class AuditRetention {
             AuditActions.MFA_ENROLL, AuditActions.MFA_REENROLL, AuditActions.MFA_RECOVERY_CODES_REGENERATE, AuditActions.MFA_FAILURE,
             AuditActions.MFA_RECOVERY_CODE_USED, AuditActions.MFA_TRUSTED_DEVICE_REVOKE, AuditActions.MFA_RESET, AuditActions.MFA_SETTINGS_UPDATE,
             AuditActions.COMMERCE_REQUEST_LIMIT_UPDATE,
+            // 0-4 회원 기능 제한·해제 — 제재와 같은 운영 일(사용자 확정 2026-10-26)
+            AuditActions.MEMBER_RESTRICTION_GRANT, AuditActions.MEMBER_RESTRICTION_LIFT,
             // develop(2026-10-26)의 새 행위 — 약관·닉네임 그림·인기글·하이라이트·토론·게시글·신고 관리. 글 삭제·복구가 포인트를 회수·되돌리지만 목적은 콘텐츠 관리이고
             // 포인트 이동의 기록은 포인트 원장이 가진다 — 일반 운영(commerce-foundation-contract 「0-5」 세션 정리 결정)
             AuditActions.TERMS_PUBLISH, AuditActions.TERMS_LINKS_UPDATE,

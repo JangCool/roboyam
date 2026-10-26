@@ -48,6 +48,7 @@ export default class UtilSettings {
                 { to: '/settings/account/password', labelKey: 'account.passwordChange', testid: 'settings-account-password' },
             ],
         },
+        { to: '/settings/identity', labelKey: 'identity.title', hintKey: 'settings.identityHint', icon: 'pi pi-id-card', testid: 'settings-identity' },
     ];
 
     /**
