@@ -183,8 +183,8 @@ const SECTIONS: PolicySection[] = [
     },
 ];
 
-/** 운영 원칙(읽기 전용) — 0이면 꺼짐 · 하루 한도 · 0P 바닥 · 정지·탈퇴 · 삭제 회수 · 게시판별 켜고 끄기 · 15초 반영·소급 없음 · 등급과 무관 · 유효기간 없음 · 비회원 글·댓글 없음 */
-const RULES = ['point.rule.zeroOff', 'point.rule.dailyCount', 'point.rule.floorZero', 'point.rule.restricted', 'point.rule.revoke', 'point.rule.boardToggle', 'point.rule.apply', 'point.rule.noGrade', 'point.rule.noExpiry', 'point.rule.noGuest'] as const;
+/** 운영 원칙(읽기 전용) — 0이면 꺼짐 · 하루 한도 · 0P 바닥 · 정지·탈퇴 · 삭제 회수 · 게시판별 켜고 끄기 · 15초 반영·소급 없음 · 등급과 무관 · 소멸(적립 1년 · 충전 없음, 커머스 1-1) · 비회원 글·댓글 없음 */
+const RULES = ['point.rule.zeroOff', 'point.rule.dailyCount', 'point.rule.floorZero', 'point.rule.restricted', 'point.rule.revoke', 'point.rule.boardToggle', 'point.rule.apply', 'point.rule.noGrade', 'point.rule.expiry', 'point.rule.noGuest'] as const;
 
 const { t, locale } = useI18n();
 useSeoMeta({ title: () => t('point.policyTitle') });

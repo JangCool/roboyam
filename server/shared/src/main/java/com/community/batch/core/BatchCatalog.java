@@ -110,7 +110,25 @@ public enum BatchCatalog implements BatchDefinition {
      * 쪽지 1년 보관 정리 — DB 배치, 기본 매일 04:25 KST({@code R__batch_21_dm_retention.sql}, docs/features/member-social-contract.md 「쪽지」). 마지막 쪽지가 1년보다 오래된 대화는 통째로,
      * 남는 대화는 1년 지난 쪽지만 지운다. 신고된 대화의 보관은 신고 대상에 쪽지가 생길 때 더한다.
      */
-    DM_RETENTION("dm-retention", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true);
+    DM_RETENTION("dm-retention", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
+     * 포인트 소멸 — 소멸일이 지난 무상 묶음 전부를 {@code PointService#expireLot} 로 소멸(Java 배치 {@code PointExpireJob}, 덩어리·체크포인트·「실패 지점부터 다시」, commerce.md 15-5).
+     * 기본 매일 00:10 KST. 회원 포인트가 바뀌는 업무라 분류는 회원(MEMBER).
+     */
+    POINT_EXPIRE("point-expire", BatchCategory.MEMBER, BatchSource.JAVA, "0 10 0 * * *", true),
+
+    /**
+     * 포인트 소멸 예정 알림 — 소멸일이 {@code point_settings.expiry_notice_days}(기본 30일) 안인 무상 묶음이 있는 회원에게 회원 알림 {@code POINTS_EXPIRING} 한 건(Java 배치
+     * {@code PointExpiryNoticeJob}, commerce.md 14). 낮에 받게 기본 매일 11:00 KST. 분류는 회원(MEMBER).
+     */
+    POINT_EXPIRY_NOTICE("point-expiry-notice", BatchCategory.MEMBER, BatchSource.JAVA, "0 0 11 * * *", true),
+
+    /**
+     * 포인트 불변식 검사(읽기만) — 회원별·종류별 원장 합 = 잔액 = 남은 묶음 합, 묶음 추적 뒤 원장 줄의 묶음 반영 합 = delta(commerce.md 5-5). 어긋나면 FAIL 로 끝나 기존 배치 실패 알림이
+     * 알린다. DB 배치, 기본 매일 05:30 KST({@code R__batch_29_point_invariant_check.sql}). 고치지 않고 알리기만 하므로 정리(SYSTEM) 분류.
+     */
+    POINT_INVARIANT_CHECK("point-invariant-check", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true);
 
     private static final Pattern PROCEDURE_NAME = Pattern.compile("[a-z][a-z0-9_]{0,62}");
 

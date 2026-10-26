@@ -147,7 +147,7 @@ export default class UtilPermissionCatalog {
      *  · 감사·배치: 조회 `audit.read`·`batch.read` / 처리 `batch.manage` / 민감 `batch.run`(배치 즉시 실행). 이 유형의 설정 단위("배치 사용 여부")는 처리(`batch.manage`)에 포함했다.
      *  · 회원 조회: 조회 `member.read` / 민감 `member.pii`(전체 이메일 열람 — 없으면 이메일이 `ab***@gmail.com` 으로 가려진다).
      *  · 닉네임 이미지 심사(`/members/nickname-images`): 조회 `nickname-image.read` / 처리 `nickname-image.manage`(승인·반려·해제).
-     *  · 등급·포인트·휴면(등급 설정·포인트 내역·포인트 정책 화면): 조회 `grade.read` / 설정 `grade.manage`(등급 승급 조건 변경). 포인트는 조회 `point.read`(원장·정책 보기) / 설정 `point.settings`(지급 정책 저장) / 민감 `point.adjust`(수동 지급·차감).
+     *  · 등급·포인트·휴면(등급 설정·포인트 내역·포인트 정책 화면): 조회 `grade.read` / 설정 `grade.manage`(등급 승급 조건 변경). 포인트는 조회 `point.read`(원장·정책 보기) / 설정 `point.settings`(지급 정책 저장) / 민감 `point.adjust`(수동 지급·차감)·`point.adjust.large`(정책 문턱(기본 ±10,000P)을 넘는 조정, 커머스 1-1).
      *  · 게시글(게시글 관리 화면 `/posts`): 조회 `post.read`(글 검색·보기·조치 기록, 글의 찬반 토론 설정·의견 보기) / 처리 `post.manage`(숨김·해제·삭제·이동·공지·고정·일괄 숨김/해제, 토론 열기·설정·닫기, 의견 고정·숨김·고정 요청 처리)
      *    / 민감 `post.restore`(지운 글 복구 — 회수한 포인트를 되돌림)·`post.bulk-delete`(일괄 삭제).
      *  · 하이라이트·인기글(콘텐츠 메뉴): 하이라이트 조회 `highlight.read` / 처리 `highlight.manage`(만들기·고치기·순서·노출·지우기), 인기글 조회 `popular.read`(순위·뺀 글·설정 보기) / 처리 `popular.manage`(빼기·다시 넣기) / 설정 `popular.settings`(점수식 저장).
@@ -202,7 +202,7 @@ export default class UtilPermissionCatalog {
         { code: 'point.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.item.pointRead', descKey: 'permission.item.pointReadDesc', featureReady: true },
         { code: 'point.settings', unit: 'CONFIG', type: 'gradePoint', nameKey: 'permission.item.pointSettings', descKey: 'permission.item.pointSettingsDesc', featureReady: true },
         { code: 'point.adjust', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.pointAdjust', descKey: 'permission.item.pointAdjustDesc', featureReady: true },
-        { code: 'point.adjust.large', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.pointAdjustLarge', descKey: 'permission.item.pointAdjustLargeDesc', featureReady: false },
+        { code: 'point.adjust.large', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.pointAdjustLarge', descKey: 'permission.item.pointAdjustLargeDesc', featureReady: true },
         { code: 'point.refund.approve', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.pointRefundApprove', descKey: 'permission.item.pointRefundApproveDesc', featureReady: false },
         { code: 'point.refund.large', unit: 'SENSITIVE', type: 'gradePoint', nameKey: 'permission.item.pointRefundLarge', descKey: 'permission.item.pointRefundLargeDesc', featureReady: false },
         { code: 'shop.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.item.shopRead', descKey: 'permission.item.shopReadDesc', featureReady: false },

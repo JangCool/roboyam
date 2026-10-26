@@ -26,7 +26,7 @@ public class MyPointController {
         this.service = service;
     }
 
-    /** 잔액·오늘 현황·규칙 */
+    /** 잔액(합계·무상·유상)·소멸 예정·미회수·오늘 현황·규칙 */
     @GetMapping
     public ResponseEntity<ApiResponse<PointSummaryView>> summary(Authentication authentication) {
         if (!(authentication != null && authentication.getPrincipal() instanceof AuthUser principal)) {
@@ -35,7 +35,7 @@ public class MyPointController {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(service.summary(principal.id())));
     }
 
-    /** 내 포인트 내역 — {@code kind}(EARN·USE·REVOKE, 없으면 전체) · {@code size}(1~50, 기본 20) · {@code cursor}. 최신이 위 */
+    /** 내 포인트 내역 — {@code kind}(EARN·USE·REVOKE·CANCEL_USE·EXPIRE, 없으면 전체) · {@code size}(1~50, 기본 20) · {@code cursor}. 최신이 위 */
     @GetMapping("/ledger")
     public ResponseEntity<ApiResponse<MyPointLedgerPageView>> ledger(@RequestParam(required = false) String kind, @RequestParam(required = false) String size,
                                                                      @RequestParam(required = false) String cursor, Authentication authentication) {

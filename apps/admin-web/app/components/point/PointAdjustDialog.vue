@@ -1,10 +1,13 @@
 <template>
     <!--
         포인트 수동 조정 대화상자(`point.adjust`) — community `MemberPointAdjustSheet` 를 옮기고 **회원 고르기**를 더했다(community 는 회원 상세에서만 열려 대상이 정해져 있었다).
-        위에서 아래로: 회원 찾기(닉네임·이메일·회원번호) + 후보 목록(지금 잔액) · 방향(지급/차감) · 포인트(1~10,000) · 사유(1~100자, 회원 내역에 공개) · 처리 후 예상 잔액.
+        위에서 아래로: 회원 찾기(닉네임·이메일·회원번호) + 후보 목록(지금 잔액) · 방향(지급/차감) · 포인트(1~100,000) · 사유(1~100자, 회원 내역에 공개) · 처리 후 예상 잔액.
         차감이 잔액보다 크면 "0P 까지만 차감돼요(실제 −N P)" 경고가 예상 칸에 선다(서버가 0P 바닥으로 자른다). 차감이면 회원에게 알림이 간다는 안내 한 줄.
         서버 호출은 하지 않는다(`components.md`) — 후보 찾기는 `search` 로 올리고(부모가 `usePointApi.memberCandidates`), 값은 `submit` 으로 올린다. 확인 대화상자·저장·토스트는 부모 몫이다.
         서버 오류는 해당 칸 아래(`fieldErrors.delta|reason`) 또는 폼 아래(`error`)에 서버 문구 그대로 보인다. 칸을 고치면 그 칸의 서버 문구는 숨긴다.
+        커머스 1-1: 조정은 **적립(무상) 포인트만** — 금액 1~100,000, 문턱(`largeThreshold` — 부모가 정책에서 읽어 준다, 0 = 모든 조정) 초과는 `point.adjust.large`(`canLarge`)가 있으면 주의 안내(감사 기록 돈 관련 5년), 없으면 칸 오류로 막는다.
+        문턱을 모르면(`null`) 미리 판정하지 않는다 — 서버 403 `POINT_ADJUST_LARGE_REQUIRED` 문구가 금액 칸 아래(`fieldErrors.delta`)에 선다.
+        차감 예상은 적립 잔액(`freeBalance`) 기준 0P 바닥이고, 충전 포인트가 있는 회원은 잔액을 「적립 N · 충전 N」 으로 보인다.
     -->
     <Dialog :visible="visible" modal :draggable="false" :header="t('point.adjust')" :style="{ width: 'min(34rem, calc(100vw - 2rem))' }" @update:visible="(v: boolean) => emit('update:visible', v)">
         <form :id="formId" class="flex flex-col gap-4" novalidate @submit.prevent="submit">
@@ -36,7 +39,7 @@
                                 <template v-if="c.email"> · {{ c.email }}</template>
                             </span>
                         </span>
-                        <span class="shrink-0 text-xs tabular-nums text-muted-color">{{ t('point.adjustBalance', { balance: c.balance.toLocaleString(locale) }) }}</span>
+                        <span class="shrink-0 text-xs tabular-nums text-muted-color">{{ UtilPointMessages.candidateBalance(t, c, locale) }}</span>
                     </label>
                     </template>
                 </div>
@@ -45,7 +48,7 @@
                 <p v-if="selected" class="flex flex-wrap items-center gap-x-2 text-xs">
                     <span class="text-muted-color">{{ t('point.adjustSelected') }}</span>
                     <span class="font-medium">{{ selected.nickname }}</span>
-                    <span class="tabular-nums text-muted-color">{{ t('point.adjustBalance', { balance: selected.balance.toLocaleString(locale) }) }}</span>
+                    <span class="tabular-nums text-muted-color">{{ UtilPointMessages.candidateBalance(t, selected, locale) }}</span>
                 </p>
             </div>
 
@@ -74,6 +77,11 @@
                     </div>
                 </template>
             </LabeledField>
+            <!-- 문턱 초과 — 권한이 있으면 주의 안내(권한이 없으면 위 칸 오류로 막힌다) -->
+            <p v-if="largeNotice" class="-mt-2 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400" role="status">
+                <i class="pi pi-exclamation-triangle mt-0.5 text-xs" aria-hidden="true" />
+                {{ t('point.adjustLargeNotice') }}
+            </p>
 
             <!-- 사유 — 회원에게 공개된다 -->
             <LabeledField :label="t('point.adjustReason')" :hint="t('point.adjustReasonHint')" :error="reasonError" :help="t('point.adjustPublic')">
@@ -90,12 +98,19 @@
             <!-- 처리 후 예상 — 회원과 금액이 정해졌을 때만 -->
             <div v-if="preview && selected" class="rounded-lg border border-(--line) px-3 py-2" role="status">
                 <p class="text-xs text-muted-color">{{ t('point.previewTitle') }}</p>
-                <p class="mt-0.5 text-sm font-semibold tabular-nums">{{ t('point.previewLine', { before: selected.balance.toLocaleString(locale), after: preview.after.toLocaleString(locale) }) }}</p>
+                <p class="mt-0.5 text-sm font-semibold tabular-nums">{{ t('point.previewLine', { before: selected.balance.toLocaleString(locale), after: (selected.balance + preview.applied).toLocaleString(locale) }) }}</p>
+                <!-- 충전 포인트가 있으면 적립 쪽 변화도 — 조정은 적립 포인트만 바꾼다 -->
+                <p v-if="selected.paidBalance !== 0" class="mt-0.5 text-xs tabular-nums text-muted-color">{{ t('point.previewFreeLine', { before: selected.freeBalance.toLocaleString(locale), after: preview.after.toLocaleString(locale) }) }}</p>
                 <p v-if="preview.clipped" class="mt-1 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
                     <i class="pi pi-exclamation-triangle mt-0.5 text-xs" aria-hidden="true" />
                     {{ t('point.previewClipped', { applied: Math.abs(preview.applied).toLocaleString(locale) }) }}
                 </p>
             </div>
+
+            <p class="flex items-start gap-1.5 text-xs text-muted-color">
+                <i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" />
+                {{ t('point.adjustFreeOnly') }}
+            </p>
 
             <p v-if="mode === 'DEDUCT'" class="flex items-start gap-1.5 text-xs text-muted-color">
                 <i class="pi pi-bell mt-0.5 text-xs" aria-hidden="true" />
@@ -130,9 +145,13 @@ interface Props {
     error?: string;
     /** 서버가 칸마다 준 오류(`fields.delta`·`fields.reason`) */
     fieldErrors?: Record<string, string>;
+    /** 고액 조정 권한(`point.adjust.large`) — 없으면 문턱을 넘는 금액을 칸 오류로 막는다 */
+    canLarge?: boolean;
+    /** 고액 조정 문턱(정책 `adjustLargeThreshold`, 0 = 모든 조정) — 모르면 null(미리 판정하지 않고 서버에 맡긴다) */
+    largeThreshold?: number | null;
 }
 
-const props = withDefaults(defineProps<Props>(), { candidates: () => [], searching: false, busy: false, error: '', fieldErrors: () => ({}) });
+const props = withDefaults(defineProps<Props>(), { candidates: () => [], searching: false, busy: false, error: '', fieldErrors: () => ({}), canLarge: false, largeThreshold: null });
 const emit = defineEmits<{ 'update:visible': [visible: boolean]; search: [query: string]; submit: [payload: PointAdjustSubmit] }>();
 
 const { t, locale } = useI18n();
@@ -209,8 +228,14 @@ const amountError = computed(() => {
     // 비어 있는 칸은 [조정하기]를 누르기 전에는 탓하지 않는다
     const problem = UtilPoint.amountProblem(amountText.value);
     if (problem && (submitted.value || problem !== 'REQUIRED')) return UtilPointMessages.amountProblem(t, problem, locale.value);
+    // 고액 조정 권한이 없으면 문턱을 넘는 금액은 보내지 않는다(서버도 403 `POINT_ADJUST_LARGE_REQUIRED`)
+    if (!problem && largeBlocked.value && props.largeThreshold !== null) return UtilPointMessages.largeRequired(t, props.largeThreshold, locale.value);
     return dismissed.delta ? '' : (props.fieldErrors.delta ?? '');
 });
+/** 문턱 초과 — 권한이 없으면 막고, 있으면 주의 안내만(문턱을 모르면 둘 다 아니다) */
+const isLarge = computed(() => UtilPoint.isLarge(amountText.value, props.largeThreshold));
+const largeBlocked = computed(() => isLarge.value && !props.canLarge);
+const largeNotice = computed(() => isLarge.value && props.canLarge && !UtilPoint.amountProblem(amountText.value));
 const reasonError = computed(() => {
     const problem = UtilPoint.reasonProblem(reason.value);
     if (problem && (submitted.value || problem !== 'REQUIRED')) return UtilPointMessages.reasonProblem(t, problem);
@@ -218,11 +243,12 @@ const reasonError = computed(() => {
 });
 
 const delta = computed(() => UtilPoint.toDelta(mode.value, amountText.value));
-const preview = computed(() => (selected.value && delta.value !== null ? UtilPoint.preview(selected.value.balance, delta.value) : null));
+/** 처리 후 예상 — 조정은 적립 포인트만 바꾸므로 적립 잔액 기준(`after` 는 적립 잔액, 합계는 `balance + applied`) */
+const preview = computed(() => (selected.value && delta.value !== null ? UtilPoint.preview(selected.value.freeBalance, delta.value) : null));
 
 function submit(): void {
     submitted.value = true;
-    if (!selected.value || delta.value === null || UtilPoint.reasonProblem(reason.value)) return;
+    if (!selected.value || delta.value === null || largeBlocked.value || UtilPoint.reasonProblem(reason.value)) return;
     emit('submit', { member: selected.value, mode: mode.value, amount: Math.abs(delta.value), delta: delta.value, reason: UtilPoint.reasonText(reason.value) });
 }
 </script>

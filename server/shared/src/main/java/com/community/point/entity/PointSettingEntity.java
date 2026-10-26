@@ -1,5 +1,6 @@
 package com.community.point.entity;
 
+import com.community.point.dto.PointLotRules;
 import com.community.point.dto.PointRules;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -32,6 +33,19 @@ public class PointSettingEntity {
     private int dealEndRequestDailyLimit;
     private int signupPoints;
     private int nicknameTicketPrice;
+    // ── V85 묶음 정책 — 관리자 정책 화면 14칸 밖이라 이 매핑으로는 바꾸지 않는다(읽기만, 화면 칸은 1-3) ──
+    @Column(insertable = false, updatable = false)
+    private int freeValidDays;
+    @Column(insertable = false, updatable = false)
+    private int restoredLotValidDays;
+    @Column(insertable = false, updatable = false)
+    private int expiryNoticeDays;
+    @Column(insertable = false, updatable = false)
+    private int expiryNoticeIntervalDays;
+    @Column(insertable = false, updatable = false)
+    private Instant lotTrackingStartedAt;
+    @Column(insertable = false, updatable = false)
+    private int adjustLargeThreshold;
     private Instant updatedAt;
     private Long updatedBy;
 
@@ -60,6 +74,11 @@ public class PointSettingEntity {
         this.nicknameTicketPrice = v.nicknameTicketPrice();
         this.updatedAt = now;
         this.updatedBy = operatorId;
+    }
+
+    /** 묶음 정책(V85) */
+    public PointLotRules lotRules() {
+        return new PointLotRules(freeValidDays, restoredLotValidDays, expiryNoticeDays, expiryNoticeIntervalDays, lotTrackingStartedAt, adjustLargeThreshold);
     }
 
     public Instant getUpdatedAt() {

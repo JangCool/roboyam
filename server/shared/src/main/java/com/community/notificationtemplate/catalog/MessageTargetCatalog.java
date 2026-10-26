@@ -198,6 +198,11 @@ public final class MessageTargetCatalog {
         out.add(member(MemberEvent.FEATURE_RESTRICTED, List.of(MessageVariable.of("restriction", "restrictionFeature"), MessageVariable.of("until", "restrictionUntil"),
                 MessageVariable.of("reason", "restrictionReason")),
                 new InAppText("member.notification.FEATURE_RESTRICTED.title", null, "{{reason}}", List.of("restriction", "until")), "/me/notifications", List.of()));
+        // 포인트 소멸 예정(소멸 예정 알림 배치 — commerce.md 14) — 알림 기간 안 소멸 예정 합 · 가장 가까운 소멸일 · 일수
+        out.add(member(MemberEvent.POINTS_EXPIRING, List.of(MessageVariable.of("amount", "expiringAmount"), MessageVariable.of("date", "expiringDate"),
+                        MessageVariable.of("days", "expiringDays")),
+                new InAppText("member.notification.POINTS_EXPIRING.title", "member.notification.POINTS_EXPIRING.body", null, List.of("amount", "date", "days")),
+                "/me/points", List.of()));
         return out;
     }
 

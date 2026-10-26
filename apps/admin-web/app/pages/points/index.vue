@@ -9,6 +9,9 @@
         조건이 틀리면 서버가 칸을 모아 400 `fields.from|to|kind|reasons|page|size` 로 거절한다 — 조건 칸은 그 줄 아래, 쪽 번호·크기는 조건 아래 한 줄에 서버 문구 그대로. 쪽 크기는 서버 상한(1~100) 안의 20·50·100.
         [포인트 조정](`point.adjust` 가 있을 때만) → `PointAdjustDialog` → 확인 대화상자(차감이 잔액보다 크면 실제 차감량도 말한다) → 저장 → 응답의 실제 반영값(`applied`)으로 토스트 → 목록·합계 새로 읽기.
         서버가 남기는 것: 감사 기록 `POINT_ADJUST`(반영된 값 · 사유), 차감이 반영되면 회원에게 알림 `POINTS_REVOKED`. 본문 여백은 셸(`.app-content`)이 준다.
+        커머스 1-1: 증감 옆에 그중 「적립(무상)」·「충전(유상)」 칸, 종류에 사용 취소·소멸·환불(소멸 증감은 회색).
+        조정은 적립 포인트만이고 크기 1~100,000 — 문턱(정책의 읽기 전용 `adjustLargeThreshold`, 대화상자를 열 때 읽는다) 초과는 `point.adjust.large` 가 있어야 하며(없으면 대화상자가 칸 오류로 막는다),
+        정책을 못 읽으면 미리 판정하지 않고 서버 403 `POINT_ADJUST_LARGE_REQUIRED` 문구를 금액 칸 아래에 보인다. 차감 예상은 적립 잔액 기준이다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('point.ledgerTitle')" :subtitle="t('point.ledgerSubtitle')">
@@ -156,7 +159,20 @@
 
                 <Column field="delta" :header="t('point.col.delta')" style="min-width: 6.5rem" :pt="{ columnHeaderContent: { class: 'justify-end' } }">
                     <template #body="{ data }">
-                        <span class="block text-right text-[13px] font-medium tabular-nums" :class="data.delta > 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'">{{ UtilPoint.signed(data.delta, locale) }}</span>
+                        <span class="block text-right text-[13px] font-medium tabular-nums" :class="UtilPoint.deltaClass(data.kind, data.delta)">{{ UtilPoint.signed(data.delta, locale) }}</span>
+                    </template>
+                </Column>
+
+                <!-- 그중 적립(무상)·충전(유상) — 0 은 흐리게(충전 기능 전에는 충전 칸이 늘 0) -->
+                <Column field="freeDelta" :header="t('point.col.freeDelta')" style="min-width: 6.5rem" :pt="{ columnHeaderContent: { class: 'justify-end' } }">
+                    <template #body="{ data }">
+                        <span class="block text-right text-[13px] tabular-nums" :class="data.freeDelta === 0 ? 'text-muted-color opacity-60' : ''">{{ UtilPoint.signed(data.freeDelta, locale) }}</span>
+                    </template>
+                </Column>
+
+                <Column field="paidDelta" :header="t('point.col.paidDelta')" style="min-width: 6.5rem" :pt="{ columnHeaderContent: { class: 'justify-end' } }">
+                    <template #body="{ data }">
+                        <span class="block text-right text-[13px] tabular-nums" :class="data.paidDelta === 0 ? 'text-muted-color opacity-60' : ''">{{ UtilPoint.signed(data.paidDelta, locale) }}</span>
                     </template>
                 </Column>
 
@@ -175,7 +191,7 @@
             </DataTable>
         </div>
 
-        <PointAdjustDialog v-if="canAdjust" v-model:visible="adjustOpen" :candidates="candidates" :searching="candidatesLoading" :busy="adjustBusy" :error="adjustError" :field-errors="adjustFieldErrors" @search="searchCandidates" @submit="onAdjust" />
+        <PointAdjustDialog v-if="canAdjust" v-model:visible="adjustOpen" :can-large="canAdjustLarge" :large-threshold="adjustThreshold" :candidates="candidates" :searching="candidatesLoading" :busy="adjustBusy" :error="adjustError" :field-errors="adjustFieldErrors" @search="searchCandidates" @submit="onAdjust" />
     </div>
 </template>
 
@@ -213,6 +229,8 @@ const { prefs } = useLayoutPrefs();
 
 /** 수동 지급·차감 권한 — 없으면 단추가 없다(숨기는 것은 편의이고 막는 것은 서버다) */
 const canAdjust = computed(() => can('point.adjust'));
+/** 문턱(정책 `adjustLargeThreshold`)을 넘는 조정 권한(커머스 1-1) — 없으면 대화상자가 그 금액을 칸 오류로 막는다(서버도 403 `POINT_ADJUST_LARGE_REQUIRED`) */
+const canAdjustLarge = computed(() => can('point.adjust.large'));
 
 const ids = { reasons: useId(), q: useId() };
 /** 쪽 안내(「전체 N건」) — `{totalRecords}` 는 PrimeVue 가 채우는 자리 */
@@ -336,6 +354,8 @@ const candidatesLoading = ref(false);
 const adjustBusy = ref(false);
 const adjustError = ref('');
 const adjustFieldErrors = ref<Record<string, string>>({});
+/** 고액 조정 문턱(정책의 읽기 전용 `adjustLargeThreshold`) — 대화상자를 열 때마다 읽는다. 못 읽었거나 읽는 중이면 null(대화상자는 미리 판정하지 않고 서버 403 에 맡긴다) */
+const adjustThreshold = ref<number | null>(null);
 /** 늦게 도착한 앞 찾기의 응답은 버린다(번호표) */
 let candidateTicket = 0;
 
@@ -343,6 +363,17 @@ function openAdjust() {
     adjustError.value = '';
     adjustFieldErrors.value = {};
     adjustOpen.value = true;
+    void loadAdjustThreshold();
+}
+
+/** 정책을 읽어 문턱만 쓴다 — 실패는 조용히 넘긴다(조정 자체는 서버가 판정한다) */
+async function loadAdjustThreshold() {
+    adjustThreshold.value = null;
+    try {
+        adjustThreshold.value = (await api.loadSettings()).adjustLargeThreshold;
+    } catch {
+        adjustThreshold.value = null;
+    }
 }
 
 async function searchCandidates(q: string) {
@@ -363,7 +394,8 @@ async function searchCandidates(q: string) {
 
 async function onAdjust(payload: PointAdjustSubmit) {
     if (adjustBusy.value) return;
-    const expected = UtilPoint.preview(payload.member.balance, payload.delta);
+    // 조정은 적립 포인트만 — 차감 예상은 적립 잔액 기준(0P 바닥)
+    const expected = UtilPoint.preview(payload.member.freeBalance, payload.delta);
     const ok = await confirm({
         title: t('point.confirmTitle'),
         message: UtilPointMessages.adjustConfirm(t, payload.member.nickname, payload.mode, payload.amount, expected.applied, locale.value),
@@ -383,7 +415,8 @@ async function onAdjust(payload: PointAdjustSubmit) {
         void reload();
     } catch (e) {
         const error = toApiError(e);
-        const fields = error.status === 400 && error.fields ? error.fields : {};
+        // 고액 조정 권한 없음(403) — 금액 칸 아래에 서버 문구 그대로
+        const fields = error.code === 'POINT_ADJUST_LARGE_REQUIRED' ? { delta: error.message } : error.status === 400 && error.fields ? error.fields : {};
         adjustFieldErrors.value = fields;
         const rest = Object.entries(fields)
             .filter(([key]) => key !== 'delta' && key !== 'reason')

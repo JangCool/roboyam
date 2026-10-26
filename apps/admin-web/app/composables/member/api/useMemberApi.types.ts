@@ -281,8 +281,11 @@ export interface MemberGradeChange {
     changedAt: string;
 }
 
-/** 포인트 내역 종류 — 받음 · 사용 · 회수 */
-export type MemberPointKind = 'EARN' | 'USE' | 'REVOKE';
+/**
+ * 포인트 내역 종류 — 받음 · 사용 · 회수 · 사용 취소 · 소멸 · 환불(충전 환불 — 3단계). 포인트 원장(`PointLedgerKind`)과 같은 이름이다.
+ * 커머스 1-1 이 `CANCEL_USE`·`EXPIRE`·`REFUND` 를 더했다(commerce.md 5-3).
+ */
+export type MemberPointKind = 'EARN' | 'USE' | 'REVOKE' | 'CANCEL_USE' | 'EXPIRE' | 'REFUND';
 
 export interface MemberPointEntry {
     entryId: string;

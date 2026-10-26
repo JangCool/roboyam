@@ -15,6 +15,7 @@ import com.community.zconfiguration.message.MessageRef;
 import com.community.zconfiguration.message.Messages;
 import com.community.zconfiguration.time.ServiceTime;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import org.springframework.stereotype.Component;
@@ -63,9 +64,31 @@ public class MemberNotificationMessages {
      * @param reasonCode 운영자 조치 사유 코드(신고 사유 체계 — 관리자 신고 관리의 숨김·삭제, 없으면 null). 있으면 사유 변수는 「코드 이름: note」
      * @param targetType 신고 처리 결과의 대상 종류({@code POST}·{@code COMMENT}) — 그 밖 null
      * @param restriction 걸린 기능 제한(기능 제한 알림만 — 운영 메모 없음)
+     * @param expiring    소멸 예정(소멸 예정 알림만 — 양은 {@code amount})
      */
     public record Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
-                        boolean temporary, String snapshot, String result, String reasonCode, String targetType, Restriction restriction) {
+                        boolean temporary, String snapshot, String result, String reasonCode, String targetType, Restriction restriction, Expiring expiring) {
+
+        /** 소멸 예정 알림 밖의 사실 — 소멸 예정은 null */
+        public Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
+                     boolean temporary, String snapshot, String result, String reasonCode, String targetType, Restriction restriction) {
+            this(type, actorName, postTitle, excerpt, groupCount, amount, pointsKind, note, temporary, snapshot, result, reasonCode, targetType, restriction, null);
+        }
+
+        /**
+         * 포인트 소멸 예정(commerce.md 14 — 소멸 예정 알림 배치).
+         *
+         * @param date 가장 가까운 소멸일(한국 날짜)
+         * @param days 알림 기간(일 — {@code point_settings.expiry_notice_days})
+         */
+        public record Expiring(LocalDate date, int days) {
+        }
+
+        /** 소멸 예정 알림의 사실 — {@code amount} 는 알림 기간 안 소멸 예정 합 */
+        public static Facts expiring(long amount, LocalDate date, int days) {
+            return new Facts(MemberNotificationType.POINTS_EXPIRING, null, null, null, 1, amount, null, null, false, null, null, null, null, null,
+                    new Expiring(date, days));
+        }
 
         /** 기능 제한 알림 밖의 사실 — 제한은 null */
         public Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
@@ -238,6 +261,9 @@ public class MemberNotificationMessages {
                     .variable("postTitle", facts.postTitle()).variable("reason", facts.note() == null ? "" : facts.note());
             case FEATURE_RESTRICTED -> builder.variable("restriction", restrictionName(facts, locale)).variable("until", restrictionUntil(facts, locale))
                     .variable("reason", restrictionReason(facts, locale));
+            case POINTS_EXPIRING -> builder.variable("amount", String.format("%,d", facts.amount()))
+                    .variable("date", facts.expiring() == null || facts.expiring().date() == null ? "" : facts.expiring().date().toString())
+                    .variable("days", facts.expiring() == null ? "" : String.valueOf(facts.expiring().days()));
         }
         return builder;
     }

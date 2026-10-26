@@ -42,7 +42,12 @@ public enum MemberNotificationType {
     /** 내가 한 신고가 처리됐다(관리자 신고 관리 — 조치됨 · 위반 아님, V82). 게시판 신고 정책 notifyReporterOnResult 가 켜졌을 때만 */
     REPORT_RESULT("system"),
     /** 내 계정에 기능 제한(포인트 동결·공구 참여 제한·충전 제한)이 걸렸다 — 종류·끝·공개 사유(운영 메모는 싣지 않는다, commerce.md 12-3) */
-    FEATURE_RESTRICTED("system");
+    FEATURE_RESTRICTED("system"),
+    /**
+     * 내 무상 포인트가 곧 소멸된다(소멸 예정 알림 배치 {@code point-expiry-notice}, commerce.md 14) — 알림 기간({@code point_settings.expiry_notice_days}) 안 소멸 예정 합 · 가장 가까운
+     * 소멸일(한국 날짜) · 일수. 같은 묶음으로 두 번 알리지 않는다({@code point_lots.expiry_noticed_at}). 누르면 내 포인트({@code /me/points})
+     */
+    POINTS_EXPIRING("system");
 
     private final String category;
 

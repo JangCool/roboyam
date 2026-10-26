@@ -29,6 +29,18 @@ export default class UtilPointMessages {
         return t('point.amountRange', { min: UtilPoint.AMOUNT_MIN.toLocaleString(locale), max: UtilPoint.AMOUNT_MAX.toLocaleString(locale) });
     }
 
+    /** 고액 조정 권한이 없는데 문턱(정책 `adjustLargeThreshold`)을 넘었다 — 금액 칸 오류. 문턱 0 은 모든 조정이 고액이다 */
+    static largeRequired(t: Translate, threshold: number, locale: string): string {
+        if (threshold === 0) return t('point.amountLargeRequiredAll');
+        return t('point.amountLargeRequired', { threshold: threshold.toLocaleString(locale) });
+    }
+
+    /** 조정 대상의 잔액 — 충전 포인트가 있으면 「적립 N · 충전 N」, 없으면 「잔액 N」 */
+    static candidateBalance(t: Translate, candidate: { balance: number; freeBalance: number; paidBalance: number }, locale: string): string {
+        if (candidate.paidBalance !== 0) return t('point.adjustBalanceSplit', { free: candidate.freeBalance.toLocaleString(locale), paid: candidate.paidBalance.toLocaleString(locale) });
+        return t('point.adjustBalance', { balance: candidate.balance.toLocaleString(locale) });
+    }
+
     /** 조정 사유 문제 */
     static reasonProblem(t: Translate, problem: PointReasonProblem): string {
         return problem === 'REQUIRED' ? t('point.reasonRequired') : t('point.reasonTooLong', { max: UtilPoint.REASON_MAX });

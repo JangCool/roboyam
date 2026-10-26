@@ -27,7 +27,13 @@
                     <MemberDetailContactSection v-else-if="section.key === 'contact'" :detail="detail" />
                     <MemberDetailProfileSection v-else-if="section.key === 'profile'" :detail="detail" />
                     <MemberDetailRolesSection v-else-if="section.key === 'roles'" :detail="detail" />
-                    <MemberDetailGradePointSection v-else-if="section.key === 'gradePoint'" :detail="detail" />
+                    <MemberDetailGradePointSection
+                        v-else-if="section.key === 'gradePoint'"
+                        :detail="detail"
+                        :point-lots="pointLots"
+                        @lots-query="(q) => emit('point-lots-query', q)"
+                        @retry-lots="emit('retry-point-lots')"
+                    />
                     <MemberDetailSettingsSection v-else-if="section.key === 'settings'" :detail="detail" />
                     <MemberDetailConsentSection v-else-if="section.key === 'consent'" :detail="detail" />
                     <MemberDetailIdentitySection v-else-if="section.key === 'identity'" :detail="detail" />
@@ -54,7 +60,7 @@
 <script setup lang="ts">
 import type { MemberDetail } from '~/composables/member/api/useMemberApi.types';
 
-import type { MemberDetailEmits, MemberRestrictionsView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
+import type { MemberDetailEmits, MemberPointLotsView, MemberRestrictionsView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
 
 interface Props {
     detail: MemberDetail;
@@ -62,9 +68,11 @@ interface Props {
     restrictions?: MemberRestrictionsView | null;
     /** 탈퇴 회원의 연락용 이메일 블록 — 탈퇴 회원일 때만 쓴다 */
     withdrawnContact?: WithdrawnContactView | null;
+    /** 「등급·포인트」 구획의 포인트 묶음(커머스 1-1) — 없으면(권한 없음·받지 않는 화면) 묶음 부분을 그리지 않는다 */
+    pointLots?: MemberPointLotsView | null;
 }
 
-const props = withDefaults(defineProps<Props>(), { restrictions: null, withdrawnContact: null });
+const props = withDefaults(defineProps<Props>(), { restrictions: null, withdrawnContact: null, pointLots: null });
 const emit = defineEmits<MemberDetailEmits>();
 
 const { t } = useI18n();

@@ -9,6 +9,7 @@ import com.community.point.dto.response.PointLedgerItemView;
 import com.community.point.dto.response.PointLedgerPageView;
 import com.community.point.dto.response.PointLedgerSummaryView;
 import com.community.point.dto.response.PointMemberCandidateView;
+import com.community.point.entity.PointKind;
 import com.community.point.entity.PointReason;
 import com.community.point.repository.master.PointLedgerRepositoryQDSL;
 import com.community.zconfiguration.exception.ValidationException;
@@ -17,12 +18,14 @@ import com.community.zconfiguration.message.Messages;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,7 +35,9 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li><b>원장</b>: 최신이 위, 쪽 번호({@code page} 0부터 · {@code size} 1~{@value #MAX_SIZE}). {@code summary} 는 같은 조건의 <b>전체</b> 줄 기준. 틀린 조건은 칸을 모아
  *       400 {@code VALIDATION} {@code fields.<조건>}(시각 형식 · 시작이 끝보다 늦음 {@code fields.from} · 모르는 종류·사유 · 쪽).</li>
- *   <li><b>후보</b>: 탈퇴하지 않은 회원(정상·정지) 최대 {@value #CANDIDATE_LIMIT} 명, 지금 잔액 포함. 검색어가 비면 최근 가입 순.</li>
+ *   <li>줄마다 무상·유상 몫({@code freeDelta}·{@code paidDelta}, 커머스 1-1). 종류 거르기는 원장 종류 전부, 사유 거르기는 {@link PointReason} 전부. {@code summary} 의 earned 는 + 줄의 합,
+ *       spent 는 − 줄 크기의 합(종류와 무관).</li>
+ *   <li><b>후보</b>: 탈퇴하지 않은 회원(정상·정지) 최대 {@value #CANDIDATE_LIMIT} 명, 지금 잔액(합계·무상·유상) 포함. 검색어가 비면 최근 가입 순.</li>
  *   <li>이메일은 {@code member.pii} 가 없으면 가리고, 이메일 검색은 그때 전체 주소가 같을 때만 맞는다(회원 목록과 같은 규칙).</li>
  * </ul>
  */
@@ -43,7 +48,8 @@ public class PointLedgerQueryService {
     static final int MAX_SIZE = 100;
     static final int DEFAULT_SIZE = 20;
     static final int CANDIDATE_LIMIT = 20;
-    private static final Set<String> KINDS = Set.of("EARN", "USE", "REVOKE");
+    /** 종류 거르기 — 원장 종류 전부(EARN·USE·REVOKE·CANCEL_USE·EXPIRE·REFUND, V85 {@code ck_point_ledger_kind}) */
+    private static final Set<String> KINDS = Arrays.stream(PointKind.values()).map(PointKind::name).collect(Collectors.toUnmodifiableSet());
 
     private final PointLedgerRepositoryQDSL ledger;
     private final Messages messages;
@@ -96,13 +102,18 @@ public class PointLedgerQueryService {
         boolean canPii = actor.can(Permission.MEMBER_PII);
         return ledger.candidates(q, canPii, CANDIDATE_LIMIT).stream()
                 .map(row -> new PointMemberCandidateView(Long.toString(row.id()), row.nickname(), canPii ? row.email() : MemberMasking.email(row.email()),
-                        row.balance() == null ? 0 : row.balance()))
+                        nz(row.balance()), nz(row.freeBalance()), nz(row.paidBalance())))
                 .toList();
     }
 
     private PointLedgerItemView item(PointLedgerRow row, Locale locale) {
         return new PointLedgerItemView(Long.toString(row.id()), Long.toString(row.userId()), row.memberNickname(), row.kind(), row.reason(),
-                reasonLabel(messages, row.reason(), locale), row.note(), row.delta(), row.balanceAfter(), row.actorName(), row.createdAt());
+                reasonLabel(messages, row.reason(), locale), row.note(), row.delta(), nz(row.freeDelta()), nz(row.paidDelta()), row.balanceAfter(), row.actorName(),
+                row.createdAt());
+    }
+
+    private static long nz(Long value) {
+        return value == null ? 0 : value;
     }
 
     /** 사유 코드 → 요청 언어의 이름(모르는 코드면 코드 그대로) */

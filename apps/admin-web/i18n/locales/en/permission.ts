@@ -241,7 +241,7 @@ export default {
         pointAdjust: 'Adjust points',
         pointAdjustDesc: 'Add or subtract a member points directly.',
         pointAdjustLarge: 'Large point adjustments',
-        pointAdjustLargeDesc: 'Add or subtract more than ±10,000P at once (up to ±100,000P).',
+        pointAdjustLargeDesc: 'Add or subtract more than the adjustment threshold (point policy, default ±10,000P) at once (up to ±100,000P).',
         pointRefundApprove: 'Approve charged point refunds',
         pointRefundApproveDesc: 'Approve refund requests for paid (charged) points.',
         pointRefundLarge: 'Large charged point refunds',
