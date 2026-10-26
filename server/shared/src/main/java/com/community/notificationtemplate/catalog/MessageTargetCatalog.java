@@ -245,6 +245,23 @@ public final class MessageTargetCatalog {
                         MessageVariable.of("eventTitle", "groupEventTitle"), MessageVariable.of("reason", "groupEventCancelReason")),
                 new InAppText("member.notification.GROUP_EVENT.title", null, "{{eventTitle}}", List.of("groupName", "eventAction")), "/groups/123/events/456",
                 List.of()));
+        // 소모임 공개 범위·공개 요청(V94 — group-contract 5단계) — 제목은 소모임 이름 + 한 사람(요청한 작성자 · 「모임장이」·「매니저가」), 본문은 글 제목(+거절 사유)
+        out.add(member(MemberEvent.GROUP_PUBLISH_REQUESTED, List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("actorName", "groupPublishRequester"),
+                        MessageVariable.of("postTitle", "groupPublishPostTitle")),
+                new InAppText("member.notification.GROUP_PUBLISH_REQUESTED.title", null, "{{postTitle}}", List.of("groupName", "actorName")),
+                "/groups/123/manage/publish-requests", List.of()));
+        for (MemberEvent event : List.of(MemberEvent.GROUP_PUBLISH_APPROVED, MemberEvent.GROUP_PUBLISH_REJECTED, MemberEvent.GROUP_POST_PUBLISHED,
+                MemberEvent.GROUP_POST_MEMBERS_ONLY, MemberEvent.GROUP_POST_RELEASED)) {
+            List<MessageVariable> params = event == MemberEvent.GROUP_PUBLISH_REJECTED
+                    ? List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("actorRole", "groupPublishActorRole"),
+                    MessageVariable.of("postTitle", "groupPublishPostTitle"), MessageVariable.of("reason", "groupPublishRejectReason"))
+                    : List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("actorRole", "groupPublishActorRole"),
+                    MessageVariable.of("postTitle", "groupPublishPostTitle"));
+            out.add(member(event, params, new InAppText("member.notification." + event.code() + ".title", null, "{{postTitle}}", List.of("groupName", "actorRole")),
+                    "/posts/123", List.of()));
+        }
+        out.add(member(MemberEvent.GROUP_VISIBILITY_CHANGED, List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("visibility", "groupVisibilityTo")),
+                new InAppText("member.notification.GROUP_VISIBILITY_CHANGED.title", null, null, List.of("groupName", "visibility")), "/groups/123", List.of()));
         return out;
     }
 

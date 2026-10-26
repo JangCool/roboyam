@@ -667,6 +667,87 @@ public class MemberNotificationPublisher {
         }, 0);
     }
 
+    /**
+     * 소모임 글 공개 알림(V94 — community api-groups.md 11-8) — {@code GROUP_PUBLISH_REQUESTED}(받는 사람 = 모임장·「글 공개 처리·되돌리기」 매니저, 일으킨 사람 = 요청한 작성자)
+     * · {@code GROUP_PUBLISH_APPROVED} · {@code GROUP_PUBLISH_REJECTED} · {@code GROUP_POST_PUBLISHED} · {@code GROUP_POST_MEMBERS_ONLY} · {@code GROUP_POST_RELEASED}
+     * (받는 사람 = 글쓴이, 일으킨 사람 = 처리자). 덧붙임 {@code groupId}·{@code groupName}·{@code title}·{@code actorId}(+{@code actorRole} LEADER · MANAGER — 요청 알림 제외,
+     * {@code reason} 거절 사유 — 적었을 때만). 끌 수 없는 알림. 일으킨 사람 본인에게는 보내지 않는다. 업무 트랜잭션 안에서 부른다(세이브포인트).
+     *
+     * @param path 메일 버튼이 가리킬 사이트 안 경로 — null 이면 그 글
+     */
+    public int groupPublish(MemberNotificationType type, long userId, long groupId, String groupName, long postId, String title, long actorUserId, String actorRole,
+                            String reason, String path) {
+        if (actorUserId == userId) {
+            return 0;
+        }
+        return isolated.run("member-notification:group-publish", () -> {
+            EventSwitch on = switchOf(type, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(groupName, SNAPSHOT_MAX);
+            String postTitle = cut(title, SNAPSHOT_MAX);
+            String why = reason == null || reason.isBlank() ? null : reason;
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("groupId", Long.toString(groupId));
+                payload.put("groupName", name);
+                payload.put("title", postTitle);
+                payload.put("actorId", Long.toString(actorUserId));
+                if (actorRole != null) {
+                    payload.put("actorRole", actorRole);
+                }
+                if (why != null) {
+                    payload.put("reason", why);
+                }
+                writer.insert(ids.nextId(), userId, type.name(), actorUserId, null, postId, null, MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                MemberNotificationMessages.Facts facts = MemberNotificationMessages.Facts.groupPublish(type, name, postTitle, actorRole, why, null);
+                if (path == null) {
+                    requestEmail(userId, facts, actorUserId, postId);
+                } else {
+                    requestEmail(userId, facts, actorUserId, null, path);
+                }
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
+     * 소모임 공개 범위가 바뀌었다(GROUP_VISIBILITY_CHANGED — V94, community api-groups.md 11-8) — 받는 사람은 멤버 한 명(부르는 쪽이 멤버마다, 바꾼 모임장 제외),
+     * 덧붙임 {@code groupId}·{@code groupName}·{@code actorId}·{@code visibility}(바뀐 값 PUBLIC · PRIVATE). 끌 수 없는 알림. 업무 트랜잭션 안에서 부른다(세이브포인트).
+     */
+    public int groupVisibilityChanged(long userId, long groupId, String groupName, long actorUserId, String visibility) {
+        if (actorUserId == userId) {
+            return 0;
+        }
+        return isolated.run("member-notification:group-visibility", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.GROUP_VISIBILITY_CHANGED, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(groupName, SNAPSHOT_MAX);
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("groupId", Long.toString(groupId));
+                payload.put("groupName", name);
+                payload.put("actorId", Long.toString(actorUserId));
+                payload.put("visibility", visibility);
+                writer.insert(ids.nextId(), userId, MemberNotificationType.GROUP_VISIBILITY_CHANGED.name(), actorUserId, null, null, null,
+                        MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.groupVisibilityChanged(name, visibility), actorUserId, null, "/groups/" + groupId);
+            }
+            return made;
+        }, 0);
+    }
+
     /** 회원 알림 메일 — 커밋 뒤 발송기가 보낸다. 세이브포인트 일의 <b>마지막</b>에 부른다(뒤에서 실패해 행이 되돌려졌는데 메일만 나가는 일이 없게) */
     private void requestEmail(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId) {
         events.publishEvent(new MemberEmailRequested(userId, facts, actorUserId, postId));

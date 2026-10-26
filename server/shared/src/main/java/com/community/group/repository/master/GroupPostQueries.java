@@ -135,6 +135,78 @@ public class GroupPostQueries extends RoboyamRepositoryQDSL {
                 Timestamp.from(now), groupId, authorId);
     }
 
+    // ── 공개 범위(5단계 — api-groups.md 11-1·11-4) ─────────────────────────────
+
+    /**
+     * 비공개→공개 일괄 열기 — 멤버 전용 기록이 없는 모든 글(지운·숨긴·나가서 가린 글 포함 — 되살아나는 글이 저장 규칙과 어긋나지 않게)을 유효 공개로. 개별 공개 기록은 그대로 둔다.
+     * 바뀐 행 수
+     */
+    public int openAllExceptMembersOnly(long groupId, Instant now) {
+        return jdbc.update("UPDATE posts SET is_public = true, updated_at = ? WHERE group_id = ? AND NOT is_public AND members_only_at IS NULL",
+                Timestamp.from(now), groupId);
+    }
+
+    /** 공개→비공개 일괄 닫기 — 모든 글을 유효 비공개로 하고 개별 공개 기록을 지운다(멤버 전용 기록은 잠재워 둔다). 바뀐 행 수 */
+    public int closeAll(long groupId, Instant now) {
+        return jdbc.update("UPDATE posts SET is_public = false, public_granted_at = NULL, public_granted_by = NULL, updated_at = ? "
+                + "WHERE group_id = ? AND (is_public OR public_granted_at IS NOT NULL)", Timestamp.from(now), groupId);
+    }
+
+    /** 보이는 글 중 멤버 전용 기록이 없는 글 수 — 비공개→공개 뒤 비멤버에게 보이게 될 글(이미 개별 공개된 글도 공개 시각 이전 댓글이 열리므로 센다) */
+    public int countOpenable(long groupId, Instant now) {
+        return count(visible(POST, groupId, now).and(POST.membersOnlyAt.isNull()));
+    }
+
+    /** 위 글들의 지우지 않은 댓글 수 */
+    public int countCommentsOfOpenable(long groupId, Instant now) {
+        return comments(visible(POST, groupId, now).and(POST.membersOnlyAt.isNull()));
+    }
+
+    /** 보이는 글 중 지금 비멤버에게 보이는 글 수 — 공개→비공개로 닫힐 글 */
+    public int countVisibleToAll(long groupId, Instant now) {
+        return count(visible(POST, groupId, now).and(POST.publicPost.isTrue()));
+    }
+
+    /** 위 글들의 지우지 않은 댓글 수 */
+    public int countCommentsOfVisibleToAll(long groupId, Instant now) {
+        return comments(visible(POST, groupId, now).and(POST.publicPost.isTrue()));
+    }
+
+    /** 보이는 글 중 개별 공개돼 있는 글 수 */
+    public int countIndividuallyPublic(long groupId, Instant now) {
+        return count(visible(POST, groupId, now).and(POST.publicGrantedAt.isNotNull()));
+    }
+
+    /** 보이는 글 중 멤버 전용으로 돌려 둔 기록이 있는 글 수 */
+    public int countMembersOnly(long groupId, Instant now) {
+        return count(visible(POST, groupId, now).and(POST.membersOnlyAt.isNotNull()));
+    }
+
+    /**
+     * 비공개 소모임의 개별 공개 글에서 공개 시각({@code before}) 이전에 달린, 지우지 않고 숨기지 않은 댓글 수 — 글 상세 {@code membersOnlyCommentCount}·댓글 목록
+     * {@code membersOnlyCount}(api-groups.md 11-7)
+     */
+    public int countCommentsBefore(long postId, Instant before, Instant now) {
+        com.community.comment.entity.QCommentEntity c = com.community.comment.entity.QCommentEntity.commentEntity;
+        Long n = query.select(c.id.count()).from(c)
+                .where(c.postId.eq(postId), c.createdAt.lt(before), c.deletedAt.isNull(), c.hiddenAt.isNull().or(c.hiddenUntil.isNotNull().and(c.hiddenUntil.loe(now))))
+                .fetchOne();
+        return n == null ? 0 : (int) Math.min(n, Integer.MAX_VALUE);
+    }
+
+    private int count(BooleanExpression where) {
+        Long n = query.select(POST.id.count()).from(POST).where(where).fetchOne();
+        return n == null ? 0 : (int) Math.min(n, Integer.MAX_VALUE);
+    }
+
+    /** 그 글들의 지우지 않은 댓글 수(글 ID 로 시작해 글의 파티션만 읽는다) */
+    private int comments(BooleanExpression postWhere) {
+        com.community.comment.entity.QCommentEntity c = com.community.comment.entity.QCommentEntity.commentEntity;
+        Long n = query.select(c.id.count()).from(c)
+                .where(c.deletedAt.isNull(), c.postId.in(com.querydsl.jpa.JPAExpressions.select(POST.id).from(POST).where(postWhere))).fetchOne();
+        return n == null ? 0 : (int) Math.min(n, Integer.MAX_VALUE);
+    }
+
     /** 해산 — 비공개 글과 나가서 가린 글을 지운다(공개로 전환돼 보이는 글은 연결을 유지한 채 남는다). 지운 글 수 */
     public int deleteOnDissolve(long groupId, Instant now) {
         return jdbc.update("UPDATE posts SET deleted_at = ?, pinned_at = NULL, updated_at = ? WHERE group_id = ? AND deleted_at IS NULL "

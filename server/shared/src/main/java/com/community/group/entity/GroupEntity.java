@@ -182,11 +182,23 @@ public class GroupEntity {
         this.lastActivityAt = now;
     }
 
+    /** 모임장의 공개 범위 변경(5단계 — 행을 잠근 뒤, 글 일괄 갱신은 부르는 쪽). 마지막 변경 시각·모임장을 남긴다(쿨다운의 기준) */
+    public void changeVisibility(GroupVisibility to, long byUserId, Instant now) {
+        this.visibility = to;
+        this.visibilityChangedAt = now;
+        this.visibilityChangedBy = byUserId;
+    }
+
     // ── 읽기 ──────────────────────────────────────────────────────────────
 
     /** 정원이 찼나 */
     public boolean full() {
         return memberCount >= capacity;
+    }
+
+    /** 공개 소모임인가(글이 쓰는 순간 비멤버에게 보인다) */
+    public boolean isPublicGroup() {
+        return visibility == GroupVisibility.PUBLIC;
     }
 
     public Long getId() {

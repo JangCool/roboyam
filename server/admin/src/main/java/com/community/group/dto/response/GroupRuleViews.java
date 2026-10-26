@@ -59,15 +59,15 @@ public final class GroupRuleViews {
     }
 
     /**
-     * @param pendingRequestCount       대기 공개 요청 수(공개 요청은 5단계 — 지금 늘 0)
-     * @param managerNoticeSentAt       매니저 안내 알림을 보낸 시각(5단계 — 지금 늘 null)
+     * @param pendingRequestCount       열린 소모임의 처리 대기 공개 요청 수(글이 지워졌거나 가려진 요청은 뺀다)
+     * @param managerNoticeSentAt       「글 공개 처리·되돌리기」 매니저 안내 알림을 보낸 시각(아직 보내지 않았으면 null — 한 번만 보낸다)
      * @param managerNoticeTargetCount  지금 「글 공개 처리·되돌리기」를 맡은 매니저 수
      */
     public record VisibilityUsage(long publicGroupCount, long privateGroupCount, long pendingRequestCount, Instant managerNoticeSentAt,
                                   long managerNoticeTargetCount) {
     }
 
-    /** @param noticeSent 이 요청이 보낸 안내 알림 수(안내 알림은 5단계 — 지금 늘 0) */
+    /** @param noticeSent 이 요청이 보낸 안내 알림 수(켜짐을 저장해 선점했을 때만 — GET·변경 없음·이미 보냄은 0) */
     public record Visibility(GroupRuleValues.Visibility values, GroupRuleValues.Visibility defaults, VisibilityLimits limits, boolean fromDefaults,
                              Instant updatedAt, String updatedBy, VisibilityUsage usage, int noticeSent) {
     }

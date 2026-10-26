@@ -14,6 +14,7 @@ import com.community.group.entity.GroupSettingSection;
 import com.community.group.entity.GroupSettingsEntity;
 import com.community.group.entity.GroupStatus;
 import com.community.group.entity.GroupVisibility;
+import com.community.group.repository.master.GroupPublishRequestQueries;
 import com.community.group.repository.master.GroupRepository;
 import com.community.group.repository.master.GroupRepositoryQDSL;
 import com.community.group.repository.master.GroupSettingHistoryRepository;
@@ -48,7 +49,7 @@ import tools.jackson.databind.json.JsonMapper;
  *       설정 행을 잠그고 쓴다(마지막 저장이 이긴다). 서버는 캐시하지 않는다.</li>
  *   <li>값이 실제로 바뀌었을 때만 감사({@code GROUP_*_RULE_UPDATE}, 대상 GROUP_SETTINGS + 구획 — 바뀐 칸만 before/after)와 이력(구획·코드 값) 한 줄을 남긴다.
  *       바뀐 것이 없으면 저장된 구획은 그대로 두고(시각도 오르지 않는다), 기본값으로 돌던 구획은 지금 값으로 저장만 한다.</li>
- *   <li>매니저·공개 범위 구획은 값 저장·검증·이력만이다 — 그 값을 쓰는 기능은 3단계(매니저)·5단계(공개 범위·안내 알림)에서 붙는다.</li>
+ *   <li>공개 범위 구획을 켜짐으로 저장하면 「글 공개 처리·되돌리기」 매니저에게 안내 알림을 한 번 보낸다({@link GroupVisibilityRolloutNotifier} — 5단계, api-groups.md 11-8).</li>
  * </ul>
  */
 @Service
@@ -74,10 +75,15 @@ public class GroupSettingsAdminService {
     private final SnowflakeIdGenerator ids;
     private final AuditLogService audit;
     private final Messages messages;
+    private final GroupPublishRequestQueries publishRequests;
+    private final GroupVisibilityRolloutNotifier rollout;
 
     public GroupSettingsAdminService(GroupSettingsRepository settingsRows, GroupSettingsService settings, GroupSettingHistoryRepository history,
                                      GroupRepository groups, GroupRepositoryQDSL queries, GradeRepositoryQDSL grades,
-                                     GroupPeople people, SnowflakeIdGenerator ids, AuditLogService audit, Messages messages) {
+                                     GroupPeople people, SnowflakeIdGenerator ids, AuditLogService audit, Messages messages,
+                                     GroupPublishRequestQueries publishRequests, GroupVisibilityRolloutNotifier rollout) {
+        this.publishRequests = publishRequests;
+        this.rollout = rollout;
         this.settingsRows = settingsRows;
         this.settings = settings;
         this.history = history;
@@ -197,10 +203,11 @@ public class GroupSettingsAdminService {
     // ── 공개 범위 ────────────────────────────────────────────────────────────
 
     public GroupRuleViews.Visibility visibility() {
-        return visibility(0);
+        return visibility(0, null);
     }
 
-    private GroupRuleViews.Visibility visibility(int noticeSent) {
+    /** @param claimedAt 이 요청이 안내 알림을 선점한 시각(설정 행 사본이 그 칸을 아직 모른다) — 아니면 null */
+    private GroupRuleViews.Visibility visibility(int noticeSent, Instant claimedAt) {
         GroupSettingsEntity row = settings.row().orElse(null);
         Map<GroupVisibility, Long> counts = queries.visibilityCounts();
         long noticeTargets = queries.unpublishManagerCount();
@@ -211,8 +218,9 @@ public class GroupSettingsAdminService {
                 range(GroupSettingsService.TEXT_MAX_MIN, GroupSettingsService.TEXT_MAX_MAX)),
                 row == null || row.getVisibilityUpdatedAt() == null, row == null ? null : row.getVisibilityUpdatedAt(),
                 people.operatorName(row == null ? null : row.getVisibilityUpdatedBy()),
-                new GroupRuleViews.VisibilityUsage(counts.getOrDefault(GroupVisibility.PUBLIC, 0L), counts.getOrDefault(GroupVisibility.PRIVATE, 0L), 0,
-                        row == null ? null : row.getVisibilityNoticeSentAt(), noticeTargets), noticeSent);
+                new GroupRuleViews.VisibilityUsage(counts.getOrDefault(GroupVisibility.PUBLIC, 0L), counts.getOrDefault(GroupVisibility.PRIVATE, 0L),
+                        publishRequests.pendingCountOfActiveGroups(Instant.now()),
+                        claimedAt != null ? claimedAt : row == null ? null : row.getVisibilityNoticeSentAt(), noticeTargets), noticeSent);
     }
 
     @Transactional
@@ -239,14 +247,19 @@ public class GroupSettingsAdminService {
         diff(changes, "dailyLimit", before.dailyLimit(), daily);
         diff(changes, "textMax", before.textMax(), text);
         if (changes.isEmpty() && !fromDefaults) {
-            return visibility(0);
+            return visibility(0, null);
         }
         Instant now = now();
         row.saveVisibility(enabled, cooldown, retry, reject, daily, text, actor.operatorId(), now);
         settingsRows.flush();
         recordChange(actor, GroupSettingSection.VISIBILITY, AuditActions.GROUP_VISIBILITY_RULE_UPDATE, fromDefaults, changes, now);
-        // 켜기 저장 때의 매니저 안내 알림은 공개 범위 기능(5단계)과 함께 붙는다 — 지금은 보내지 않는다(noticeSent 0)
-        return visibility(0);
+        // 켜짐을 저장하면 같은 트랜잭션에서 「글 공개 처리·되돌리기」 매니저 안내를 선점해 보낸다(한 번만 — 이미 보냈으면 0, 껐다 켜도 다시 보내지 않는다. 숫자만 바꾼 저장도
+        // 선점이 이미 끝났으면 0 이다). 끄기는 아무것도 지우지 않는다(정한 공개 범위·개별 공개 글·대기 요청 행은 그대로 — api-groups.md 11-10)
+        GroupVisibilityRolloutNotifier.Result notice = enabled ? rollout.notifyManagers(now) : new GroupVisibilityRolloutNotifier.Result(false, 0);
+        if (notice.claimed()) {
+            log.info("소모임 공개 범위 기능 켜기 — 매니저 안내 알림 {}명 operatorId={}", notice.sent(), actor.operatorId());
+        }
+        return visibility(notice.sent(), notice.claimed() ? now : null);
     }
 
     // ── 운영 한도 ────────────────────────────────────────────────────────────

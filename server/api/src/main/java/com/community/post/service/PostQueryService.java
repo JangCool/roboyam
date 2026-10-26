@@ -180,7 +180,7 @@ public class PostQueryService {
         if (!gate.groupPost()) {
             return null;
         }
-        return GroupPostGate.info(gate, post, userId == null ? null : actors.resolve(userId, s));
+        return groupGate.info(gate, post, userId == null ? null : actors.resolve(userId, s));
     }
 
     /**

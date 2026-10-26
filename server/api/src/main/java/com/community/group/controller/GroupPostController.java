@@ -1,9 +1,7 @@
 package com.community.group.controller;
 
 import com.community.board.dto.response.BoardDetailView;
-import com.community.group.dto.request.GroupPostVisibilityRequest;
 import com.community.group.dto.response.GroupPostPageView;
-import com.community.group.dto.response.GroupPostVisibilityView;
 import com.community.group.dto.response.GroupPostWriteResultView;
 import com.community.group.service.GroupPostService;
 import com.community.post.dto.request.PostWriteRequest;
@@ -17,7 +15,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -51,13 +48,6 @@ public class GroupPostController {
                                                                        Authentication authentication, HttpServletRequest request) {
         GroupPostWriteResultView result = posts.create(id, GroupController.userId(authentication), body, ipResolver.resolve(request));
         return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore()).body(ApiResponse.success(result));
-    }
-
-    @PutMapping("/{id}/posts/{postId}/visibility")
-    public ResponseEntity<ApiResponse<GroupPostVisibilityView>> visibility(@PathVariable String id, @PathVariable String postId,
-                                                                          @RequestBody(required = false) GroupPostVisibilityRequest body,
-                                                                          Authentication authentication) {
-        return noStore(posts.visibility(id, postId, GroupController.userId(authentication), body));
     }
 
     @PostMapping("/{id}/seen")

@@ -295,7 +295,7 @@ public class GroupQueryService {
         List<MyGroupsView.Request> requests = groups.findByCreatorIdAndStatusInOrderByRequestedAtDesc(me, List.of(GroupStatus.PENDING, GroupStatus.REJECTED))
                 .stream().map(g -> new MyGroupsView.Request(Long.toString(g.getId()), g.getName(), GroupViews.category(g, ctx),
                         GroupViews.boardRef(ctx.boards().board(g.getBoardId()).orElse(null)), g.getJoinType().name(), g.getCapacity(), g.getDescription(),
-                        g.isOffline(), g.getVisibility().name(), g.getStatus().name(), g.getRejectReason(), g.getRequestedAt(), g.getReviewedAt())).toList();
+                        g.isOffline(), GroupViews.visibility(g, ctx), g.getStatus().name(), g.getRejectReason(), g.getRequestedAt(), g.getReviewedAt())).toList();
         return new MyGroupsView(List.copyOf(joined), List.copyOf(applications), requests);
     }
 

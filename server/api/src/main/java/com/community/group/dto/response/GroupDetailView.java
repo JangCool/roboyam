@@ -23,17 +23,19 @@ import java.util.List;
  * @param limits                 지금 적용되는 운영 한도(정원 범위·일정 한도)
  * @param postCount              보는 사람에게 보이는 소모임 글 수 — 멤버는 모든 보이는 글, 비멤버·비회원은 공개로 전환된 글(지운·숨긴·나가서 가린 글 제외, 2단계)
  * @param newPostCount           멤버에게만 — 내가 글 탭을 마지막으로 본 뒤(본 적이 없으면 가입 뒤) 올라온 남의 글 수, 비멤버·비회원 null(2단계)
+ * @param pendingPublishRequestCount 공개 요청을 처리할 사람({@code permissions.canDecidePublishRequests})에게만 처리 대기 수(정지 중에도 값이 온다 — 지워졌거나 가려진 글의 요청은 빼고), 그 밖 null(5단계)
+ * @param visibilityInfo         모임장에게만 공개 범위 변경 정보, 그 밖 null(5단계)
  */
 public record GroupDetailView(String id, String name, String description, GroupCategoryRefView category, String joinType, Integer capacity, Integer memberCount,
                               Boolean recruiting, String recruitState, Boolean offline, String visibility, Board board, String status, Instant openedAt,
                               DmPartnerView leader, Boolean stockNotice, String myState, String myRole, Join join, Chat chat, Boolean chatLocked,
                               Permissions permissions, ManagerInfo managerInfo, Newcomers newcomers, Long pendingApplicationCount, Limits limits,
-                              Long postCount, Long newPostCount) {
+                              Long postCount, Long newPostCount, Long pendingPublishRequestCount, VisibilityInfo visibilityInfo) {
 
     /** 비활성 소모임 — 안내 화면에 쓸 칸만 */
     public static GroupDetailView inactive(String id, String name) {
         return new GroupDetailView(id, name, null, null, null, null, null, null, null, null, null, null, "INACTIVE", null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null);
     }
 
     /** 소모임 게시판 — 켜진 말머리만(순서대로) */
@@ -65,9 +67,22 @@ public record GroupDetailView(String id, String name, String description, GroupC
      * @param canEditGroup          모임장 — 정보 수정·채팅 링크·모임장 넘기기·해산
      * @param canAppointManager     모임장이고 매니저 기능이 켜짐(3단계)
      * @param manageBlockedReason   모임장·매니저가 이메일 인증 전이면 EMAIL_NOT_VERIFIED, 정지면 ACCOUNT_RESTRICTED(쓰기 단추를 끈다), 그 밖 null
+     * @param canChangeVisibility   모임장(역할만 — 정지·미인증은 {@code manageBlockedReason}). 공개 범위 기능이 꺼져 있으면 공개 소모임의 모임장에게만 true(공개→비공개)(5단계)
+     * @param canDecidePublishRequests 공개 범위 기능이 켜져 있고 모임장 또는 「글 공개 처리·되돌리기」 매니저(5단계)
      */
     public record Permissions(boolean canManage, boolean canWritePost, boolean canEditGroup, boolean canAppointManager, boolean canHandleApplications,
-                              boolean canKickMembers, boolean canSetRecruiting, boolean canManageEvents, boolean canUnpublishPosts, String manageBlockedReason) {
+                              boolean canKickMembers, boolean canSetRecruiting, boolean canManageEvents, boolean canUnpublishPosts, String manageBlockedReason,
+                              boolean canChangeVisibility, boolean canDecidePublishRequests) {
+    }
+
+    /**
+     * 모임장에게만 싣는 공개 범위 정보(community {@code VisibilityInfo}).
+     *
+     * @param changedAt           마지막 변경 시각(개설 때 정한 값이면 null)
+     * @param changedBy           변경한 모임장(없으면 null)
+     * @param canChangeToPublicAt 비공개→공개 쿨다운이 끝나는 시각 — 지금 바꿀 수 있으면 null
+     */
+    public record VisibilityInfo(Instant changedAt, DmPartnerView changedBy, Instant canChangeToPublicAt) {
     }
 
     /** @param limit 유효 상한 = min(소모임 상한, 최대 인원) */

@@ -6,6 +6,7 @@ import com.community.group.dto.response.GroupJoinResultView;
 import com.community.group.entity.GroupEntity;
 import com.community.group.entity.GroupManagerPermission;
 import com.community.group.entity.GroupMemberEntity;
+import com.community.group.entity.GroupPublishRequestEntity;
 import com.community.group.entity.GroupMemberStatus;
 import com.community.group.entity.GroupRole;
 import com.community.group.exception.GroupAlreadyAppliedException;
@@ -17,6 +18,7 @@ import com.community.group.exception.GroupRateLimitedException;
 import com.community.group.exception.GroupReapplyLaterException;
 import com.community.group.repository.master.GroupMemberRepository;
 import com.community.group.repository.master.GroupPostQueries;
+import com.community.group.repository.master.GroupPublishRequestQueries;
 import com.community.group.repository.master.GroupRepositoryQDSL;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
@@ -49,10 +51,12 @@ public class GroupMembershipService {
     private final GroupSettingsService settings;
     private final GroupNotices notices;
     private final GroupPostQueries groupPosts;
+    private final GroupPublishRequestQueries publishRequests;
 
     public GroupMembershipService(GroupAccess access, GroupMemberRepository members, GroupRepositoryQDSL queries, GroupSettingsService settings,
-                                  GroupNotices notices, GroupPostQueries groupPosts) {
+                                  GroupNotices notices, GroupPostQueries groupPosts, GroupPublishRequestQueries publishRequests) {
         this.groupPosts = groupPosts;
+        this.publishRequests = publishRequests;
         this.access = access;
         this.members = members;
         this.queries = queries;
@@ -161,6 +165,8 @@ public class GroupMembershipService {
         Instant now = Instant.now();
         row.leave(now);
         int hidden = groupPosts.hideForLeaver(group.getId(), me, now); // 스스로 나가면 그 소모임 안의 내 글은 모두 가려진다(다시 가입하면 되살린다 — 8절)
+        // 그 사람의 처리 대기 공개 요청은 닫는다(다시 가입해도 되살리지 않는다 — 새로 요청, api-groups.md 11-5)
+        publishRequests.cancelPendingOfRequester(group.getId(), me, GroupPublishRequestEntity.CANCEL_AUTHOR_LEFT);
         group.addMembers(-1, now);
         log.info("소모임에서 나갔다 groupId={} userId={} memberCount={} 가린 글={}", group.getId(), me, group.getMemberCount(), hidden);
     }

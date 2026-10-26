@@ -88,7 +88,16 @@ public enum MemberEvent {
     GROUP_KICKED_BY_MANAGER(NotificationArea.CLUB, MemberNotificationType.GROUP_KICKED_BY_MANAGER, MemberEventLockReason.ACTION, null),
 
     // ── 소모임 일정(V93 — 소모임 4단계) — 소모임 알림 중 유일하게 회원이 끌 수 있다(잠금 없음 — 개인 설정의 「소모임 일정」, community api-groups.md 9절) ──
-    GROUP_EVENT(NotificationArea.CLUB, MemberNotificationType.GROUP_EVENT, null, null);
+    GROUP_EVENT(NotificationArea.CLUB, MemberNotificationType.GROUP_EVENT, null, null),
+
+    // ── 소모임 공개 범위·공개 요청(V94 — 소모임 5단계, community api-groups.md 11-8) — 모두 끌 수 없다. 처리할 요청·소모임 범위는 ACCOUNT, 처리 결과는 ACTION ──
+    GROUP_PUBLISH_REQUESTED(NotificationArea.CLUB, MemberNotificationType.GROUP_PUBLISH_REQUESTED, MemberEventLockReason.ACCOUNT, null),
+    GROUP_PUBLISH_APPROVED(NotificationArea.CLUB, MemberNotificationType.GROUP_PUBLISH_APPROVED, MemberEventLockReason.ACTION, null),
+    GROUP_PUBLISH_REJECTED(NotificationArea.CLUB, MemberNotificationType.GROUP_PUBLISH_REJECTED, MemberEventLockReason.ACTION, null),
+    GROUP_POST_PUBLISHED(NotificationArea.CLUB, MemberNotificationType.GROUP_POST_PUBLISHED, MemberEventLockReason.ACTION, null),
+    GROUP_VISIBILITY_CHANGED(NotificationArea.CLUB, MemberNotificationType.GROUP_VISIBILITY_CHANGED, MemberEventLockReason.ACCOUNT, null),
+    GROUP_POST_MEMBERS_ONLY(NotificationArea.CLUB, MemberNotificationType.GROUP_POST_MEMBERS_ONLY, MemberEventLockReason.ACTION, null),
+    GROUP_POST_RELEASED(NotificationArea.CLUB, MemberNotificationType.GROUP_POST_RELEASED, MemberEventLockReason.ACTION, null);
 
     private static final Map<String, MemberEvent> BY_CODE = Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(MemberEvent::code, Function.identity()));
 

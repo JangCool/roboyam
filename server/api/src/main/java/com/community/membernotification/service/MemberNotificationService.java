@@ -213,7 +213,11 @@ public class MemberNotificationService {
         if (type == MemberNotificationType.COMMENT || type == MemberNotificationType.REPLY || type == MemberNotificationType.DM
                 || type == MemberNotificationType.OPINION_PIN_REQUESTED || type == MemberNotificationType.GROUP_JOIN_REQUEST
                 || type == MemberNotificationType.GROUP_POST_UNPUBLISHED || type == MemberNotificationType.GROUP_MANAGER_RESIGNED
-                || type == MemberNotificationType.GROUP_KICKED_BY_MANAGER || type == MemberNotificationType.GROUP_EVENT) {
+                || type == MemberNotificationType.GROUP_KICKED_BY_MANAGER || type == MemberNotificationType.GROUP_EVENT
+                || type == MemberNotificationType.GROUP_PUBLISH_REQUESTED || type == MemberNotificationType.GROUP_PUBLISH_APPROVED
+                || type == MemberNotificationType.GROUP_PUBLISH_REJECTED || type == MemberNotificationType.GROUP_POST_PUBLISHED
+                || type == MemberNotificationType.GROUP_VISIBILITY_CHANGED || type == MemberNotificationType.GROUP_POST_MEMBERS_ONLY
+                || type == MemberNotificationType.GROUP_POST_RELEASED) {
             actor = actorOf(row, profileById, userById, locale);
         }
 
@@ -331,6 +335,27 @@ public class MemberNotificationService {
                         payload.get("title") instanceof String t ? t : null, payload.get("eventAction") instanceof String a ? a : null,
                         payload.get("reason") instanceof String why && !why.isBlank() ? why : null);
                 link = groupId == null ? "/groups/me" : eventId == null ? "/groups/" + groupId : "/groups/" + groupId + "/events/" + eventId;
+            }
+            case GROUP_PUBLISH_REQUESTED -> {
+                // 공개 요청(V94) — 소모임 이름 · 요청한 작성자 · 글 제목(알릴 때). 누르면 공개 요청 처리(이미 처리됐으면 화면이 빈 목록으로 안내한다 — 알림은 회수하지 않는다)
+                String groupId = payload.get("groupId") instanceof String g && !g.isBlank() ? g : null;
+                String title = payload.get("title") instanceof String t && !t.isBlank() ? t : post == null ? null : post.title();
+                facts = MemberNotificationMessages.Facts.groupPublish(type, payload.get("groupName") instanceof String n ? n : null, title, null, null, actorName(actor));
+                link = groupId == null ? "/groups/me" : "/groups/" + groupId + "/manage/publish-requests";
+            }
+            case GROUP_PUBLISH_APPROVED, GROUP_PUBLISH_REJECTED, GROUP_POST_PUBLISHED, GROUP_POST_MEMBERS_ONLY, GROUP_POST_RELEASED -> {
+                // 글 공개 처리 결과(V94) — 소모임 이름 · 글 제목(알릴 때) · 처리자 역할 · 거절 사유. 누르면 그 글(지웠거나 가려졌으면 링크 없음)
+                String title = payload.get("title") instanceof String t && !t.isBlank() ? t : post == null ? null : post.title();
+                facts = MemberNotificationMessages.Facts.groupPublish(type, payload.get("groupName") instanceof String n ? n : null, title,
+                        payload.get("actorRole") instanceof String r ? r : null, payload.get("reason") instanceof String why && !why.isBlank() ? why : null, null);
+                link = postAvailable ? "/posts/" + row.getPostId() : null;
+            }
+            case GROUP_VISIBILITY_CHANGED -> {
+                // 공개 범위 변경(V94) — 소모임 이름 · 바뀐 값. 누르면 그 소모임
+                String groupId = payload.get("groupId") instanceof String g && !g.isBlank() ? g : null;
+                facts = MemberNotificationMessages.Facts.groupVisibilityChanged(payload.get("groupName") instanceof String n ? n : null,
+                        payload.get("visibility") instanceof String v ? v : null);
+                link = groupId == null ? "/groups/me" : "/groups/" + groupId;
             }
             case REPORT_RESULT -> {
                 // 내 신고의 처리 결과 — 조치됨 · 위반 아님(신고 당시 제목·앞부분). 글을 볼 수 있으면 그 글로

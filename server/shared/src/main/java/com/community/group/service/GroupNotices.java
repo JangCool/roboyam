@@ -111,6 +111,40 @@ public class GroupNotices {
         publisher.groupEvent(userId, g.getId(), g.getName(), eventId, eventTitle, action, reason, actorId);
     }
 
+    // ── 공개 범위·공개 요청(5단계 — api-groups.md 11-8 「알림 7종」) ──────────────
+
+    /** 공개 요청 → 처리할 사람 한 명(모임장 · 「글 공개 처리·되돌리기」 매니저 — 부르는 쪽이 사람마다, 요청한 사람 본인 제외) */
+    public void publishRequested(GroupEntity g, long recipientId, long postId, String title, long requesterId) {
+        publisher.groupPublish(MemberNotificationType.GROUP_PUBLISH_REQUESTED, recipientId, g.getId(), g.getName(), postId, title, requesterId, null, null,
+                "/groups/" + g.getId() + "/manage/publish-requests");
+    }
+
+    /**
+     * 글 공개 처리 결과 → 글쓴이(처리자가 글쓴이 본인이면 안 간다).
+     *
+     * @param type      GROUP_PUBLISH_APPROVED · GROUP_PUBLISH_REJECTED · GROUP_POST_PUBLISHED · GROUP_POST_MEMBERS_ONLY · GROUP_POST_RELEASED · GROUP_POST_UNPUBLISHED
+     * @param actorRole 처리자 역할 LEADER · MANAGER
+     * @param reason    거절 사유(거절만, 적었을 때만)
+     */
+    public void postDecision(MemberNotificationType type, GroupEntity g, long authorId, long postId, String title, long actorId, String actorRole, String reason) {
+        if (type == MemberNotificationType.GROUP_POST_UNPUBLISHED) {
+            publisher.groupPostUnpublished(authorId, g.getId(), g.getName(), postId, title, actorId, actorRole);
+            return;
+        }
+        publisher.groupPublish(type, authorId, g.getId(), g.getName(), postId, title, actorId, actorRole, reason, null);
+    }
+
+    /** 공개 범위 변경 → 멤버 한 명(바꾼 모임장 제외 — 부르는 쪽이 멤버마다) */
+    public void visibilityChanged(GroupEntity g, long userId, long leaderId) {
+        publisher.groupVisibilityChanged(userId, g.getId(), g.getName(), leaderId, g.getVisibility().name());
+    }
+
+    /** 공개 범위 기능을 켤 때의 안내 → 「글 공개 처리·되돌리기」를 맡은 지금 매니저(맡은 일 전체를 싣는다, 일으킨 사람 = 그 소모임 모임장) */
+    public void rolloutManagerNotice(long managerId, long groupId, String groupName, long leaderId, List<String> permissions) {
+        publisher.groupManager(MemberNotificationType.GROUP_MANAGER_PERMISSIONS_CHANGED, managerId, groupId, groupName, leaderId, permissions, null, null,
+                "/groups/" + groupId + "/manage");
+    }
+
     private static String managePath(GroupEntity g) {
         return "/groups/" + g.getId() + "/manage";
     }

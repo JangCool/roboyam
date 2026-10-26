@@ -172,6 +172,20 @@ public class MemberNotificationMessages {
             return new Facts(MemberNotificationType.GROUP_EVENT, null, eventTitle, null, 1, 0, null, reason, false, groupName, action);
         }
 
+        /**
+         * 소모임 글 공개 알림(V94 — {@code GROUP_PUBLISH_*} · {@code GROUP_POST_PUBLISHED} · {@code GROUP_POST_MEMBERS_ONLY} · {@code GROUP_POST_RELEASED}) — 소모임 이름({@code snapshot})
+         * · 글 제목({@code postTitle}) · 처리자 역할({@code result} — LEADER · MANAGER, 요청 알림은 null) · 거절 사유({@code note}) · 요청한 작성자 닉네임({@code actorName} — 요청 알림만,
+         * 메일은 보낼 때 지금 닉네임으로 채운다).
+         */
+        public static Facts groupPublish(MemberNotificationType type, String groupName, String postTitle, String actorRole, String reason, String actorName) {
+            return new Facts(type, actorName, postTitle, null, 1, 0, null, reason, false, groupName, actorRole);
+        }
+
+        /** 소모임 공개 범위가 바뀌었다(V94 — {@code GROUP_VISIBILITY_CHANGED}) — 소모임 이름({@code snapshot}) · 바뀐 값({@code result} — PUBLIC · PRIVATE) */
+        public static Facts groupVisibilityChanged(String groupName, String visibility) {
+            return new Facts(MemberNotificationType.GROUP_VISIBILITY_CHANGED, null, null, null, 1, 0, null, null, false, groupName, visibility);
+        }
+
         /** 닉네임 그림 검토 결과 — 반려·해제면 사유 */
         public static Facts nicknameReviewed(String result, String reason) {
             return new Facts(MemberNotificationType.NICKNAME_IMAGE_REVIEWED, null, null, null, 1, 0, null, reason, false, null, result);
@@ -322,6 +336,14 @@ public class MemberNotificationMessages {
             case GROUP_EVENT -> builder.variable("groupName", nz(facts.snapshot()))
                     .variable("eventAction", messages.get(new MessageRef("member.notification.GROUP_EVENT.action." + eventAction(facts.result())), locale))
                     .variable("eventTitle", nz(facts.postTitle())).variable("reason", nz(facts.note()));
+            case GROUP_PUBLISH_REQUESTED -> builder.variable("groupName", nz(facts.snapshot())).variable("actorName", nz(facts.actorName()))
+                    .variable("postTitle", nz(facts.postTitle()));
+            case GROUP_PUBLISH_APPROVED, GROUP_PUBLISH_REJECTED, GROUP_POST_PUBLISHED, GROUP_POST_MEMBERS_ONLY, GROUP_POST_RELEASED ->
+                    builder.variable("groupName", nz(facts.snapshot())).variable("postTitle", nz(facts.postTitle()))
+                            .variable("actorRole", groupActorRole(facts.result(), locale)).variable("reason", nz(facts.note()));
+            case GROUP_VISIBILITY_CHANGED -> builder.variable("groupName", nz(facts.snapshot()))
+                    .variable("visibility", messages.get(new MessageRef("member.notification.GROUP_VISIBILITY_CHANGED.to."
+                            + ("PUBLIC".equals(facts.result()) ? "PUBLIC" : "PRIVATE")), locale));
             case POINTS_EXPIRING -> builder.variable("amount", String.format("%,d", facts.amount()))
                     .variable("date", facts.expiring() == null || facts.expiring().date() == null ? "" : facts.expiring().date().toString())
                     .variable("days", facts.expiring() == null ? "" : String.valueOf(facts.expiring().days()));
@@ -432,7 +454,17 @@ public class MemberNotificationMessages {
             Locale locale = MessageLocales.locale(picked.locale());
             return messages.get(new MessageRef("member.notification.GROUP_EVENT.reasonBody", nz(facts.postTitle()), facts.note()), locale);
         }
+        if (facts.type() == MemberNotificationType.GROUP_PUBLISH_REJECTED && facts.note() != null && !facts.note().isBlank()) {
+            // 사유를 적은 공개 요청 거절 — 본문 「글 제목 · 사유」(일정 취소와 같은 꼴)
+            Locale locale = MessageLocales.locale(picked.locale());
+            return messages.get(new MessageRef("member.notification.GROUP_EVENT.reasonBody", nz(facts.postTitle()), facts.note()), locale);
+        }
         return null;
+    }
+
+    /** 소모임 처리자 역할(「모임장이」·「매니저가」 — 글 되돌림 알림과 같은 번들) — 모르는 값은 모임장으로 본다 */
+    private String groupActorRole(String role, Locale locale) {
+        return messages.get(new MessageRef("member.notification.GROUP_POST_UNPUBLISHED.actor." + ("MANAGER".equals(role) ? "MANAGER" : "LEADER")), locale);
     }
 
     /** 일정 알림의 한 일 — 모르는 값은 등록으로 본다 */

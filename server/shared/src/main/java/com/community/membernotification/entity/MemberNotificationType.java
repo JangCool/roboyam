@@ -97,7 +97,24 @@ public enum MemberNotificationType {
      * 내가 멤버인 소모임의 일정이 등록·수정·취소됐다 — 덧붙임 groupId·groupName·eventId·title(일정 제목)·eventAction(CREATED · UPDATED · CANCELED)·reason(취소 사유, 적었을 때만).
      * 일으킨 사람 = 한 사람(모임장 · 일정 관리를 맡은 매니저). 누르면 그 일정({@code /groups/{groupId}/events/{eventId}})
      */
-    GROUP_EVENT("system");
+    GROUP_EVENT("system"),
+
+    // ── 소모임 공개 범위·공개 요청(V94 — group-contract 5단계, community api-groups.md 11-8 「알림 7종」). 모두 끌 수 없다 ──
+    // 덧붙임 공통 groupId·groupName, 글 알림은 title(글 제목 — 알릴 때)·actorRole(LEADER · MANAGER — 요청 알림 제외)·reason(거절 사유 — 적었을 때만). 글·일으킨 사람 칸은 그 글·한 사람
+    /** 처리할 공개 요청이 왔다(모임장 + 「글 공개 처리·되돌리기」 매니저) — 일으킨 사람 = 요청한 작성자. 누르면 공개 요청 처리({@code /groups/{id}/manage/publish-requests}) */
+    GROUP_PUBLISH_REQUESTED("system"),
+    /** 내 공개 요청이 승인됐다(직접 공개가 대기 요청을 닫은 경우 포함) — 누르면 그 글 */
+    GROUP_PUBLISH_APPROVED("system"),
+    /** 내 공개 요청이 거절됐다(사유가 있으면 reason) — 누르면 그 글 */
+    GROUP_PUBLISH_REJECTED("system"),
+    /** 모임장·매니저가 요청 없이 내 글을 모두에게 공개했다 — 누르면 그 글 */
+    GROUP_POST_PUBLISHED("system"),
+    /** 내가 멤버인 소모임의 공개 범위가 바뀌었다(바꾼 모임장 제외) — 덧붙임 visibility(바뀐 값 PUBLIC · PRIVATE). 누르면 그 소모임 */
+    GROUP_VISIBILITY_CHANGED("system"),
+    /** 공개 소모임에서 모임장·매니저가 내 글을 멤버 전용으로 돌렸다 — 누르면 그 글 */
+    GROUP_POST_MEMBERS_ONLY("system"),
+    /** 공개 소모임에서 멤버 전용으로 돌려 둔 내 글을 모임장·매니저가 다시 공개했다 — 누르면 그 글 */
+    GROUP_POST_RELEASED("system");
 
     private final String category;
 

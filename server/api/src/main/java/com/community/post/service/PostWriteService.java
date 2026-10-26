@@ -210,11 +210,13 @@ public class PostWriteService {
     /**
      * 소모임 글 — 부르는 쪽({@code GroupPostService})이 트랜잭션을 열고 소모임 행을 잠근 뒤 멤버·쓰기 자격을 보고 부른다(이 메서드는 그 트랜잭션 안에서 돈다).
      * 글 칸·이미지·금지어·작성 간격·하루 한도·같은 글 반복은 일반 글과 같고, 게시판 쓰기 정책(등급·잠금·운영진만)은 받지 않는다. 19금·찬반 토론은 받지 않는다
-     * ({@code fields.adult}·{@code fields.debate}), 투표는 게시판 {@code pollEnabled} 일 때. 비공개 글로 만든다. 커밋 뒤 승급 판정은 부르는 쪽이 {@link #afterGroupWrite} 로.
+     * ({@code fields.adult}·{@code fields.debate}), 투표는 게시판 {@code pollEnabled} 일 때. 비공개 소모임이면 비공개 글, 공개 소모임이면 비멤버에게도 보이는 글로 만든다(V94).
+     * 커밋 뒤 승급 판정은 부르는 쪽이 {@link #afterGroupWrite} 로.
      *
-     * @param b 소모임 게시판(꺼져 있어도 쓴다 — 소모임은 멈추지 않는다)
+     * @param b           소모임 게시판(꺼져 있어도 쓴다 — 소모임은 멈추지 않는다)
+     * @param publicGroup 공개 소모임인가(잠근 소모임 행의 값)
      */
-    public GroupWrite createInGroup(long groupId, EffectiveBoard b, BoardActor actor, PostWriteRequest body, String ip, BoardCatalogSnapshot s) {
+    public GroupWrite createInGroup(long groupId, boolean publicGroup, EffectiveBoard b, BoardActor actor, PostWriteRequest body, String ip, BoardCatalogSnapshot s) {
         BoardSecurityValues sec = s.security();
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         ContentRules.Writer writer = BoardAccessPolicy.newMemberRules(b, actor, s) ? ContentRules.Writer.NEW_MEMBER : ContentRules.Writer.MEMBER;
@@ -246,7 +248,8 @@ public class PostWriteService {
         Instant now = Instant.now();
         checkRate(s, authorId, ip, title, content.plain(), now);
         String stored = content.isHtml() ? postImages.bind(content.content(), content.imageIds(), authorId, id, false, now) : content.content();
-        posts.persist(PostEntity.createInGroup(id, groupId, b.id(), c.prefixId(), authorId, ip, title, content.format(), stored, content.plain(), c.hasImage(), now));
+        posts.persist(PostEntity.createInGroup(id, groupId, b.id(), c.prefixId(), authorId, ip, title, content.format(), stored, content.plain(), c.hasImage(),
+                publicGroup, now));
         if (poll != null) {
             polls.create(id, poll, now);
         }

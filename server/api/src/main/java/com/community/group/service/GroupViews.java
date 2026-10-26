@@ -22,6 +22,7 @@ import com.community.group.entity.GroupStatus;
 import com.community.group.entity.GroupVisibility;
 import com.community.group.repository.master.GroupMemberRepository;
 import com.community.group.repository.master.GroupPostQueries;
+import com.community.group.repository.master.GroupPublishRequestQueries;
 import com.community.group.repository.master.GroupRepositoryQDSL;
 import java.time.Duration;
 import java.time.Instant;
@@ -54,10 +55,12 @@ public class GroupViews {
     private final GroupRepositoryQDSL queries;
     private final GroupMemberRepository members;
     private final GroupPostQueries groupPosts;
+    private final GroupPublishRequestQueries publishRequests;
 
     public GroupViews(BoardCatalog catalog, GroupCategoryLookup categories, GroupSettingsService settings, GroupPeople people, GroupRepositoryQDSL queries,
-                      GroupMemberRepository members, GroupPostQueries groupPosts) {
+                      GroupMemberRepository members, GroupPostQueries groupPosts, GroupPublishRequestQueries publishRequests) {
         this.groupPosts = groupPosts;
+        this.publishRequests = publishRequests;
         this.catalog = catalog;
         this.categories = categories;
         this.settings = settings;
@@ -142,12 +145,17 @@ public class GroupViews {
         GroupDetailView.Board boardView = board == null ? null : new GroupDetailView.Board(board.slug(), board.name(), board.nameEn(), board.color(),
                 board.investmentNotice(), board.activePrefixes().stream().map(GroupViews::prefix).toList());
 
-        GroupPeople.Members persons = people.members(List.of(g.getLeaderId()), true);
+        List<Long> personIds = leader && g.getVisibilityChangedBy() != null ? List.of(g.getLeaderId(), g.getVisibilityChangedBy()) : List.of(g.getLeaderId());
+        GroupPeople.Members persons = people.members(personIds, true);
         String blocked = (leader || manager) ? GroupAccess.writeBlocked(actor) : null;
+        boolean canUnpublish = GroupAccess.can(g, row, userId, GroupManagerPermission.UNPUBLISH);
+        // 공개 범위(5단계 — api-groups.md 11-2): 범위 변경은 모임장(기능이 꺼져 있으면 공개 소모임의 공개→비공개만), 공개 요청 처리는 기능이 켜져 있을 때 모임장·맡은 매니저
+        boolean canChangeVisibility = leader && (ctx.visibilityEnabled() || g.isPublicGroup());
+        boolean canDecidePublish = ctx.visibilityEnabled() && canUnpublish;
         GroupDetailView.Permissions permissions = new GroupDetailView.Permissions(leader || manager, member && (actor == null || !actor.restricted()), leader,
                 leader && managerRules.managersEnabled(), GroupAccess.can(g, row, userId, GroupManagerPermission.APPLICATIONS),
                 GroupAccess.can(g, row, userId, GroupManagerPermission.KICK), GroupAccess.can(g, row, userId, GroupManagerPermission.RECRUITING),
-                GroupAccess.can(g, row, userId, GroupManagerPermission.EVENTS), GroupAccess.can(g, row, userId, GroupManagerPermission.UNPUBLISH), blocked);
+                GroupAccess.can(g, row, userId, GroupManagerPermission.EVENTS), canUnpublish, blocked, canChangeVisibility, canDecidePublish);
 
         GroupDetailView.Chat chat = null;
         if (member) {
@@ -182,12 +190,17 @@ public class GroupViews {
         // 글 수(2단계) — 멤버는 모든 보이는 글 · 그 밖은 공개로 전환된 글, 새 글 수는 멤버에게만(남의 글, 마지막으로 본 뒤)
         long postCount = groupPosts.count(g.getId(), !member, now);
         Long newPostCount = member ? groupPosts.newPostCounts(userId, List.of(g.getId()), now).getOrDefault(g.getId(), 0L) : null;
+        Long pendingPublish = canDecidePublish ? publishRequests.pendingCount(g.getId(), now) : null;
+        GroupDetailView.VisibilityInfo visibilityInfo = !leader ? null : new GroupDetailView.VisibilityInfo(g.getVisibilityChangedAt(),
+                g.getVisibilityChangedBy() == null ? null : GroupUsers.of(persons.of(g.getVisibilityChangedBy())),
+                GroupVisibilityPolicy.canChangeToPublicAt(g, settings.visibility().cooldownDays(), now));
 
         return new GroupDetailView(Long.toString(g.getId()), g.getName(), g.getDescription(), category(g, ctx), g.getJoinType().name(), g.getCapacity(),
                 g.getMemberCount(), g.isRecruiting(), GroupRules.recruitState(g), g.isOffline(), visibility(g, ctx), boardView, g.getStatus().name(), g.getOpenedAt(),
                 GroupUsers.of(persons.of(g.getLeaderId())), board != null && board.investmentNotice(), myState(g, row, userId), myRole, join(g, row, userId, actor, now, policy),
                 chat, !member, permissions, managerInfo, newcomers, pending,
-                new GroupDetailView.Limits(policy.capacityMin(), policy.capacityMax(), policy.eventMaxDaysAhead(), policy.eventMaxLengthDays()), postCount, newPostCount);
+                new GroupDetailView.Limits(policy.capacityMin(), policy.capacityMax(), policy.eventMaxDaysAhead(), policy.eventMaxLengthDays()), postCount, newPostCount,
+                pendingPublish, visibilityInfo);
     }
 
     private static GroupDetailView.Prefix prefix(BoardPrefixInfo p) {

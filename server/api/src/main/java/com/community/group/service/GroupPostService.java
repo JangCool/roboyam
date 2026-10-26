@@ -4,21 +4,15 @@ import com.community.board.dto.BoardActor;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.dto.response.BoardDetailView;
-import com.community.board.exception.NotAuthorException;
 import com.community.board.service.BoardAccessPolicy;
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.PublicBoardService;
-import com.community.group.dto.request.GroupPostVisibilityRequest;
 import com.community.group.dto.response.GroupPostPageView;
 import com.community.group.dto.response.GroupPostRowView;
-import com.community.group.dto.response.GroupPostVisibilityView;
 import com.community.group.dto.response.GroupPostWriteResultView;
 import com.community.group.entity.GroupEntity;
-import com.community.group.entity.GroupManagerPermission;
 import com.community.group.entity.GroupMemberEntity;
-import com.community.group.entity.GroupRole;
 import com.community.group.entity.GroupStatus;
-import com.community.group.exception.GroupManagerPermissionDeniedException;
 import com.community.group.exception.GroupNotFoundException;
 import com.community.group.exception.GroupNotMemberException;
 import com.community.group.repository.master.GroupMemberRepository;
@@ -28,8 +22,6 @@ import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.post.dto.request.PostWriteRequest;
 import com.community.post.dto.response.PostGroupView;
 import com.community.post.dto.response.PostRowView;
-import com.community.post.entity.PostEntity;
-import com.community.post.exception.PostNotFoundException;
 import com.community.post.repository.master.PostRepository;
 import com.community.post.service.PostFeedRows;
 import com.community.post.service.PostQueryService;
@@ -49,9 +41,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * 소모임 글(community api-groups.md 8절 — 11절 공개 범위·공개 요청은 5단계) — 글 탭 · 글쓰기 · 공개 전환/되돌리기 · 「봤어요」 · 소모임 게시판 정보(로보얌 추가).
+ * 소모임 글(community api-groups.md 8절) — 글 탭 · 글쓰기 · 「봤어요」 · 소모임 게시판 정보(로보얌 추가). 글 공개 전환·공개 요청·공개 범위(11절)는 {@link GroupPostVisibilityService}.
  *
- * <p>소모임 글은 {@code posts} 표의 글이다({@code group_id}·{@code is_public} — V91). <b>비공개로 시작해 그 소모임의 멤버에게만 보이고</b>, 작성자가 공개로 전환하면 누구에게나 보인다.
+ * <p>소모임 글은 {@code posts} 표의 글이다({@code group_id}·{@code is_public} — V91·V94). 비공개 소모임의 글은 <b>비공개로 시작해 멤버에게만 보이고</b> 개별 공개되면 누구에게나 보인다.
+ * 공개 소모임의 글은 쓰는 순간 비멤버에게도 보인다(모임장·매니저가 멤버 전용으로 돌릴 수 있다).
  * 글 상세·고치기·지우기·추천·댓글·투표는 기존 글 API({@code /api/posts/{id}…})를 그대로 쓰고 판정은 {@link GroupPostGate} 한 곳이다.
  * 쓰기·전환은 소모임 행을 잠그고 한다(탈퇴·강퇴·해산과 한 줄로 서도록).
  */
@@ -62,8 +55,6 @@ public class GroupPostService {
 
     static final int DEFAULT_SIZE = 20;
     static final int MAX_SIZE = 50;
-    static final String ROLE_LEADER = "LEADER";
-    static final String ROLE_MANAGER = "MANAGER";
 
     private final GroupAccess access;
     private final GroupPostQueries postQueries;
@@ -129,7 +120,8 @@ public class GroupPostService {
             items.add(new GroupPostRowView(views.get(i), PostGroupView.ref(groupId, group.getName(), page.get(i).publicPost(), false)));
         }
         String next = hasNext && !page.isEmpty() ? Long.toString(page.getLast().data().id()) : null;
-        boolean locked = !member;
+        // 공개 소모임이면 잠금 줄·숨은 수를 만들지 않는다(비멤버에게는 비멤버에게 보이는 글만 — 멤버 전용으로 돌린 글은 세지 않는다, api-groups.md 11-2)
+        boolean locked = !member && !group.isPublicGroup();
         return new GroupPostPageView(items, hasNext, next, locked, locked ? postQueries.privateCount(group.getId(), now) : 0);
     }
 
@@ -166,86 +158,13 @@ public class GroupPostService {
             BoardCatalogSnapshot s = catalog.snapshot();
             // 꺼진 게시판도 쓴다 — 관리자가 소모임 게시판을 꺼도 기존 소모임의 글쓰기는 막히지 않는다(소모임은 멈추지 않는다)
             EffectiveBoard b = s.board(group.getBoardId()).orElseThrow(GroupNotFoundException::new);
-            PostWriteService.GroupWrite result = writes.createInGroup(group.getId(), b, actor, request, ip, s);
+            PostWriteService.GroupWrite result = writes.createInGroup(group.getId(), group.isPublicGroup(), b, actor, request, ip, s);
             group.touchActivity(Instant.now());
             return result;
         });
         writes.afterGroupWrite(me); // 커밋 뒤 — 활동 수 조건 즉시 승급(실패해도 글쓰기는 성공)
         log.info("소모임 글을 썼다 groupId={} postId={} userId={}", groupId, written.id(), me);
         return new GroupPostWriteResultView(Long.toString(written.id()), written.pointsEarned());
-    }
-
-    // ── 공개 전환 · 되돌리기 ───────────────────────────────────────────────────
-
-    /**
-     * 공개 전환·되돌리기(8절). 판정 차례: 401 → 소모임 404 · 403 {@code GROUP_INACTIVE} → 글(이 소모임의 글이 아니거나 없거나 지웠거나 숨겼거나 나가서 가렸으면 404
-     * {@code POST_NOT_FOUND}) → {@code visibility}(400 {@code fields.visibility}) → 역할 → 쓰기 자격 → {@code acknowledged}(공개 전환만, 400) → 바꾸기(이미 그 값이면 그대로 200).
-     * <ul>
-     *   <li>PUBLIC — 작성자만(아니면 403 {@code FORBIDDEN}), 지금도 멤버(403 {@code GROUP_NOT_MEMBER} — 강퇴된 작성자 포함), 쓰기 자격.</li>
-     *   <li>PRIVATE — 작성자(강퇴됐어도 자기 글, 자격 검사 없음) · 모임장 · 되돌리기({@code UNPUBLISH})를 맡은 매니저(그 일이 없는 매니저 403 {@code GROUP_MANAGER_PERMISSION_DENIED},
-     *       그 밖 403 {@code FORBIDDEN}). 모임장·매니저는 쓰기 자격을 본다(정지 403 {@code ACCOUNT_RESTRICTED} 등). 모임장·매니저가 되돌리면 작성자에게 알림 {@code GROUP_POST_UNPUBLISHED}.</li>
-     * </ul>
-     */
-    @Transactional
-    public GroupPostVisibilityView visibility(String rawId, String rawPostId, Long userId, GroupPostVisibilityRequest request) {
-        long me = GroupAccess.requireUser(userId);
-        GroupEntity group = access.lockActive(GroupAccess.parseId(rawId));
-        Instant now = Instant.now();
-        Long postId = PostQueryService.parseId(rawPostId);
-        PostEntity post = postId == null ? null : posts.findWithLockById(postId).orElse(null);
-        if (post == null || !group.getId().equals(post.getGroupId()) || post.isGoneAt(now) || post.isHiddenAt(now) || post.isGroupLeft()) {
-            throw new PostNotFoundException();
-        }
-        String raw = request == null || request.visibility() == null ? "" : request.visibility().strip();
-        boolean toPublic;
-        if (PostGroupView.PUBLIC.equals(raw)) {
-            toPublic = true;
-        } else if (PostGroupView.PRIVATE.equals(raw)) {
-            toPublic = false;
-        } else {
-            throw ValidationException.of("visibility", new MessageRef("group.post.visibility.invalid"));
-        }
-        boolean author = post.getAuthorId() != null && post.getAuthorId() == me;
-        String actorRole = null;
-        if (toPublic) {
-            if (!author) {
-                throw new NotAuthorException();
-            }
-            if (!isMember(group, me)) {
-                throw new GroupNotMemberException();
-            }
-            access.requireWriter(me);
-            if (!Boolean.TRUE.equals(request.acknowledged())) {
-                throw ValidationException.of("acknowledged", new MessageRef("group.post.acknowledged.required"));
-            }
-        } else if (!author) {
-            actorRole = unpublisherRole(group, me);
-            access.requireWriter(me);
-        }
-        boolean changed = post.changePublic(toPublic, now);
-        if (changed && actorRole != null) {
-            notices.groupPostUnpublished(post.getAuthorId(), group.getId(), group.getName(), post.getId(), post.getTitle(), me, actorRole);
-        }
-        if (changed) {
-            log.info("소모임 글 공개 상태를 바꿨다 groupId={} postId={} visibility={} by userId={}({})", group.getId(), post.getId(), raw, me,
-                    actorRole == null ? "AUTHOR" : actorRole);
-        }
-        return new GroupPostVisibilityView(post.isPublicPost() ? PostGroupView.PUBLIC : PostGroupView.PRIVATE);
-    }
-
-    /** 남의 글을 되돌릴 수 있는 역할 — 모임장 LEADER, 되돌리기를 맡은 매니저 MANAGER. 그 일이 없는 매니저 403 GROUP_MANAGER_PERMISSION_DENIED, 그 밖 403 FORBIDDEN */
-    private String unpublisherRole(GroupEntity group, long me) {
-        if (group.getLeaderId().equals(me)) {
-            return ROLE_LEADER;
-        }
-        GroupMemberEntity row = access.membership(group.getId(), me).orElse(null);
-        if (row == null || row.getRole() != GroupRole.MANAGER) {
-            throw new NotAuthorException();
-        }
-        if ((row.getManagerPerms() & GroupManagerPermission.UNPUBLISH.bit()) == 0) {
-            throw new GroupManagerPermissionDeniedException();
-        }
-        return ROLE_MANAGER;
     }
 
     // ── 소모임 게시판(로보얌 추가) ─────────────────────────────────────────────
