@@ -62,6 +62,12 @@ export default {
     pointShopItems: 'Items',
     pointShopPurchases: 'Purchases',
     pointShopSettings: 'Point shop settings',
+    // Payments section (normal mode, after Point shop) — cash payment module
+    payment: 'Payments',
+    paymentOrders: 'Payment orders',
+    paymentWebhooks: 'Webhook log',
+    paymentAnomalies: 'Payment issues',
+    paymentReconciliation: 'Reconciliation',
     // Commerce section (settings mode) — settings shared by sales and payments
     commerce: 'Commerce',
     commerceSettings: 'Commerce settings',

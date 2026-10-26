@@ -32,6 +32,7 @@ import nicknameImage from './nicknameImage';
 import notification from './notification';
 import onboarding from './onboarding';
 import password from './password';
+import payment from './payment';
 import point from './point';
 import pointShop from './pointShop';
 import poll from './poll';
@@ -77,6 +78,7 @@ export default {
     notification,
     onboarding,
     password,
+    payment,
     point,
     pointShop,
     poll,

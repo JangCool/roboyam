@@ -62,6 +62,12 @@ export default {
     pointShopItems: '품목 관리',
     pointShopPurchases: '구매 내역',
     pointShopSettings: '포인트 상점 설정',
+    // 결제 묶음(일반 모드, 포인트 상점 다음) — 현금 결제 모듈
+    payment: '결제',
+    paymentOrders: '결제 주문',
+    paymentWebhooks: '웹훅 수신 내역',
+    paymentAnomalies: '결제 이상',
+    paymentReconciliation: '대사 불일치',
     // 커머스 묶음(설정 모드) — 판매·결제 공통 설정
     commerce: '커머스',
     commerceSettings: '커머스 설정',
