@@ -35,6 +35,8 @@ public class BoardDefaultsEntity {
     private boolean attachmentPurgeEnabled;
     private int attachmentRetentionDays;
     private String pointMode;
+    /** 「적립 최소 글자 수 적용」(V89, 기본 켬) */
+    private boolean pointMinLengthApplied;
     private int commentProtectMin;
     private boolean commentProtectEdit;
     private String commentProtectDelete;
@@ -64,7 +66,7 @@ public class BoardDefaultsEntity {
 
     public BoardDefaultsValues values() {
         return new BoardDefaultsValues(dateDisplay, writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, postGapSeconds, postDailyLimit, commentGapSeconds,
-                commentDailyLimit, listSize, pinnedMax, indexable, searchable, inHome, attachmentPurgeEnabled, attachmentRetentionDays, pointMode,
+                commentDailyLimit, listSize, pinnedMax, indexable, searchable, inHome, attachmentPurgeEnabled, attachmentRetentionDays, pointMode, pointMinLengthApplied,
                 commentProtectMin, commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice,
                 commentDislikeEnabled, commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, pollEnabled, bestCommentMinLikes,
                 managerMax, staffMax, staffPostDailyLimit, staffCommentDailyLimit, staffSanctionDailyLimit);
@@ -90,6 +92,7 @@ public class BoardDefaultsEntity {
         this.attachmentPurgeEnabled = v.attachmentPurgeEnabled();
         this.attachmentRetentionDays = v.attachmentRetentionDays();
         this.pointMode = v.pointMode();
+        this.pointMinLengthApplied = v.pointMinLengthApplied();
         this.commentProtectMin = v.commentProtectMin();
         this.commentProtectEdit = v.commentProtectEdit();
         this.commentProtectDelete = v.commentProtectDelete();

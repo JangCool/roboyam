@@ -38,7 +38,7 @@ public class PointPolicy {
         this.jdbc = new JdbcTemplate(dataSource);
     }
 
-    /** 관리자 정책 화면 14칸 */
+    /** 관리자 정책 화면의 지급·조건 칸(1-3 적립 조건 포함) */
     public PointRules current() {
         return snapshot().rules;
     }
@@ -82,10 +82,12 @@ public class PointPolicy {
         List<Cached> rows = jdbc.query("select attendance_points, post_points, post_daily_cap, comment_points, comment_daily_cap, popular_reward_points, "
                 + "popular_reward_top_n, like_bonus_threshold, like_bonus_points, like_bonus_daily_limit, deal_end_request_points, deal_end_request_daily_limit, "
                 + "signup_points, free_valid_days, restored_lot_valid_days, expiry_notice_days, lot_tracking_started_at, adjust_large_threshold, "
-                + "expiry_notice_interval_days "
+                + "expiry_notice_interval_days, post_min_length, comment_min_length, comment_own_post_excluded, comment_once_per_post, write_interval_seconds, "
+                + "daily_total_cap, attendance_streak_days, attendance_streak_bonus "
                 + "from point_settings where id = ?", (rs, i) -> {
                     PointRules rules = new PointRules(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getInt(5), rs.getInt(6), rs.getInt(7), rs.getInt(8),
-                            rs.getInt(9), rs.getInt(10), rs.getInt(11), rs.getInt(12), rs.getInt(13));
+                            rs.getInt(9), rs.getInt(10), rs.getInt(11), rs.getInt(12), rs.getInt(13), rs.getInt(20), rs.getInt(21), rs.getBoolean(22),
+                            rs.getBoolean(23), rs.getInt(24), rs.getInt(25), rs.getInt(26), rs.getInt(27));
                     Timestamp started = rs.getTimestamp(17);
                     PointLotRules lots = new PointLotRules(rs.getInt(14), rs.getInt(15), rs.getInt(16), rs.getInt(19), started == null ? null : started.toInstant(),
                             rs.getInt(18));

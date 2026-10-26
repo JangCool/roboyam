@@ -10,7 +10,7 @@ import java.util.Map;
  * (admin-web {@code BoardPolicy}). 칸 이름·범위의 원천은 {@link com.community.board.service.BoardFields}.
  */
 public record BoardPolicyValues(String writeMin, String commentMin, String postEditor, Boolean imageUploadAllowed, String commentEditor, Integer listSize, Integer pinnedMax, Boolean indexable,
-                                Boolean searchable, Boolean inHome, String pointMode, Integer commentProtectMin, Boolean commentProtectEdit,
+                                Boolean searchable, Boolean inHome, String pointMode, Boolean pointMinLengthApplied, Integer commentProtectMin, Boolean commentProtectEdit,
                                 String commentProtectDelete, Integer commentProtectDelayMinutes, Integer commentGuestDelayMinutes, Boolean staffHiddenNotice,
                                 Boolean commentDislikeEnabled, String commentLikeLabel, String commentDislikeLabel, List<String> pinRequestReviewers,
                                 Boolean debateEnabled, Boolean pollEnabled, Integer managerMax,
@@ -25,7 +25,7 @@ public record BoardPolicyValues(String writeMin, String commentMin, String postE
 
     /** 모두 기본값을 따르는 정책 */
     public static BoardPolicyValues empty() {
-        return new BoardPolicyValues(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+        return new BoardPolicyValues(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null);
     }
 
@@ -43,6 +43,7 @@ public record BoardPolicyValues(String writeMin, String commentMin, String postE
         map.put("searchable", searchable);
         map.put("inHome", inHome);
         map.put("pointMode", pointMode);
+        map.put("pointMinLengthApplied", pointMinLengthApplied);
         map.put("commentProtectMin", commentProtectMin);
         map.put("commentProtectEdit", commentProtectEdit);
         map.put("commentProtectDelete", commentProtectDelete);

@@ -31,7 +31,8 @@ class PointFreezeEarnTest extends CommerceApiTestBase {
     private long writePostAndEarn(long member) {
         Long earned = tx.execute(status -> {
             jdbc.update("UPDATE users SET updated_at = now() WHERE id = ?", member);
-            return points.earn(member, PointReason.POST, ids.nextId());
+            clock.advance(java.time.Duration.ofMinutes(5)); // 작성 간격(1-3)에 걸리지 않게
+            return points.earnPost(new PointService.PostEarn(member, ids.nextId(), "가".repeat(200), true, true));
         });
         return earned == null ? 0 : earned;
     }

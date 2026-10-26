@@ -182,8 +182,8 @@ export interface PointMemberLots {
 }
 
 /**
- * 포인트 정책 값 — community `point_settings` 13칸 + `signupPoints`(roboyam 추가). `PUT` 은 모두 보낸다.
- * 0 이면 그 항목은 꺼진다(교환권 가격·추천 보너스 문턱은 1 이상).
+ * 포인트 정책 값 — community `point_settings` 12칸 + `signupPoints`(roboyam 추가) + 커머스 1-3 「적립 규칙 보강」(`docs/domain/commerce.md` 6-2) 칸. `PUT` 은 모두 보낸다.
+ * 숫자는 0 이면 그 항목·규칙이 꺼진다(추천 보너스 문턱은 1 이상 · `dailyTotalCap` 0 = 총 한도 없음 · `adjustLargeThreshold` 0 = 모든 조정이 고액).
  */
 export interface PointSettingsValues {
     attendancePoints: number;
@@ -199,18 +199,39 @@ export interface PointSettingsValues {
     dealEndRequestPoints: number;
     dealEndRequestDailyLimit: number;
     signupPoints: number;
+    // ── 커머스 1-3 적립 규칙 보강
+    /** 글 본문의 실제 글자(서식 태그·공백·그림 뺌)가 이 값 미만이면 적립 없음. 0~10000, 기본 50. 게시판마다 끌 수 있다(게시판 정책 `pointMinLengthApplied`) */
+    postMinLength: number;
+    /** 댓글의 실제 글자가 이 값 미만이면 적립 없음. 0~1000, 기본 10 */
+    commentMinLength: number;
+    /** 내 글에 단 댓글(답글 포함)은 적립 없음. 기본 true */
+    commentOwnPostExcluded: boolean;
+    /** 한 글에는 댓글 적립 1번(지운 댓글로 받은 것도 센다). 기본 true */
+    commentOncePerPost: boolean;
+    /** 직전에 포인트를 받은 글·댓글(둘 합쳐)과의 간격(초)이 이 값 미만이면 적립 없음. 0~3600, 기본 30 */
+    writeIntervalSeconds: number;
+    /** 활동 적립(글·댓글·추천 보너스·출석) 하루 총 한도(P, 한국 시간 하루). 0~100000, 기본 200, **0 = 한도 없음**. 걸치는 적립은 남은 만큼만 */
+    dailyTotalCap: number;
+    /** 연속 출석 보너스 — 며칠 연속마다. 0~365, 기본 7 */
+    attendanceStreakDays: number;
+    /** 연속 출석 보너스 양(P). 0~10000, 기본 20 */
+    attendanceStreakBonus: number;
+    /**
+     * 수동 조정의 고액 문턱(`point_settings.adjust_large_threshold`, 0~100000, 기본 10000) — |delta| 가 이 값을 넘으면 `point.adjust.large` 가 필요하다(0 = 모든 조정이 고액).
+     * 커머스 1-1 은 응답에 읽기 전용으로만 있었고 1-3 부터 저장한다.
+     */
+    adjustLargeThreshold: number;
 }
 
 /** 정책 값의 칸 이름 */
 export type PointSettingsField = keyof PointSettingsValues;
+/** 켜기/끄기 칸 — 나머지는 모두 정수 칸이다 */
+export type PointSettingsSwitchField = 'commentOwnPostExcluded' | 'commentOncePerPost';
+/** 정수 칸 */
+export type PointSettingsNumberField = Exclude<PointSettingsField, PointSettingsSwitchField>;
 
-/** `GET·PUT /api/admin/settings/points` 의 응답 — 값 + 읽기 전용 조정 문턱 + 마지막 변경(처음 상태면 null) */
+/** `GET·PUT /api/admin/settings/points` 의 응답 — 값 + 마지막 변경(처음 상태면 null) */
 export interface PointSettingsResponse extends PointSettingsValues {
-    /**
-     * 수동 조정의 고액 문턱(`point_settings.adjust_large_threshold`, 0~100000, 기본 10000) — |delta| 가 이 값을 넘으면 `point.adjust.large` 가 필요하다(0 = 모든 조정이 고액).
-     * 읽기 전용: `PUT` 에는 보내지 않는다(`PointSettingsValues` 에 없다 — 정책 화면 칸은 커머스 1-3).
-     */
-    adjustLargeThreshold: number;
     updatedAt: string | null;
     updatedBy: string | null;
 }

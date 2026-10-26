@@ -1,4 +1,4 @@
-import type { PointSummary } from '~/composables/point/api/usePointApi.types';
+import type { AttendResult, PointSummary } from '~/composables/point/api/usePointApi.types';
 
 /**
  * 내 포인트 요약(보유 포인트·오늘 적립 현황·지급 규칙) — 헤더 프로필 메뉴·햄버거 메뉴·내 정보(`/me`)·포인트 화면(`/me/points`)이 같이 읽는 공유 상태(`useState`).
@@ -7,7 +7,8 @@ import type { PointSummary } from '~/composables/point/api/usePointApi.types';
  * - 열 때마다 최신으로 보이고 싶은 곳(메뉴가 열릴 때·화면에 들어올 때)은 `load` 를 부른다 — 받아 둔 값이 있으면 **그 값을 그대로 보이면서** 뒤에서 다시 받는다(깜빡임 없음).
  * - 실패해도 던지지 않는다 — 메뉴는 포인트 줄만 빠지고, 화면은 `status === 'error'` 로 오류 상태를 그린다(받아 둔 값이 있으면 그 값을 계속 보인다).
  *
- * 원본(community)의 출석(`applyAttendance`)·교환(`applyExchange`)은 로보얌에 기능이 없어 없다.
+ * - 출석이 끝나면 응답의 새 잔액을 바로 반영한다(`applyAttendance`). 다른 기기에서 이미 출석했다는 것을 알게 되면 `markAttended`(잔액은 다시 받아 맞춘다).
+ * 원본(community)의 교환(`applyExchange`)은 로보얌에 기능이 없어 없다(포인트 상점은 구매 뒤 `load` 로 다시 받는다).
  * 서버와 말하는 것은 `usePointApi` 다. 같은 요청이 겹치면 늦게 온 옛 응답은 요청 번호로 버린다.
  */
 
@@ -60,5 +61,17 @@ export function usePointSummary() {
         },
     );
 
-    return { summary, status, load, reset };
+    /** 출석 성공 — 새 잔액을 바로 보이고 오늘은 출석한 것으로 */
+    function applyAttendance(result: AttendResult): void {
+        if (!summary.value) return;
+        summary.value = { ...summary.value, balance: result.balance, today: { ...summary.value.today, attended: true } };
+    }
+
+    /** 이미 출석했다는 것을 알게 됐다(다른 기기에서 했거나 두 번 눌렀다) — 오늘을 출석한 것으로만 바꾼다(잔액은 다시 받아 맞춘다) */
+    function markAttended(): void {
+        if (!summary.value) return;
+        summary.value = { ...summary.value, today: { ...summary.value.today, attended: true } };
+    }
+
+    return { summary, status, load, reset, applyAttendance, markAttended };
 }

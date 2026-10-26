@@ -9,7 +9,7 @@
 |---|---|---|---|
 | 1-1 포인트 확장 | 아래 A + 배치·불변식 + 회원·관리자 포인트 API | 작음: 회원 포인트 화면(소멸 예정·미회수), 관리자 원장 무상/유상 칸·회원 상세 묶음 — 목업 먼저 | **완료 — develop 병합 fe41910**(2026-10-26, 커밋 1d52436) — 화면 확정·서버·화면 연결·규칙 테스트 통과(shared 157·api 40·admin 84, 알림 간격 추가 뒤 shared 123·api·admin 다시 통과), 아래 「1-1 구현 결과」 |
 | 1-2 포인트 상점 | 아래 B + 닉네임 변경권 사용 + 장식 표시 + 0-5 이름 바꾸기 | 큼: 회원 포인트 상점·내 아이템·구매 확인, 관리자 품목·구매 내역·설정 — 목업 먼저 | **완료 — develop 병합 b51cd9b**(2026-10-26, 커밋 1421b3a) — 화면 확정(아바타 포함)·서버(V86)·화면 연결·규칙 테스트 통과(바꾼 범위 shared 195·api 55·admin 97, 두 앱 typecheck — 정지 중 장착 금지·환불 신청(V87) 포함). 합친 뒤 develop 에서도 같은 범위 통과(「1-2 구현 결과」) |
-| 1-3 적립 규칙 보강(선택) | commerce.md 6-2 설정 칸 + 가입 포인트(본인인증 완료 때 평생 1회) | 포인트 정책 칸 | 대기 |
+| 1-3 적립 규칙 보강(선택) | commerce.md 6-2 설정 칸 + 가입 포인트(본인인증 완료 때 평생 1회) + 출석체크(community 이식) | 포인트 정책 칸 · 출석 달력 | **완료(미커밋, 2026-10-26)** — 화면 확정·서버(V89)·화면 연결·규칙 테스트 통과(바꾼 범위 shared 194·api 94·admin 51, 0 실패, 두 앱 typecheck), 아래 「1-3 구현 결과」 |
 순서: 1-1 서버 ∥ 1-2 화면 목업 → (1-1 을 develop 에 합친 뒤) 1-2 서버 → 1-3. 1-2 서버는 포인트 사용·사용 취소(1-1)에 기댄다.
 
 ## 마이그레이션 계획 (develop 병합 때 확정 — V85·V86·V87, R__batch_29. 그 뒤 소모임 분류가 V88)
@@ -231,6 +231,75 @@
 | 권한 선언(핸들러 11개) · 화면 레지스트리 세 줄 = admin-web 사본 · 권한 카탈로그 = admin-web 사본 · 회원 상세 변경권 수 | admin `PointShopPermissionDeclarationTest`, `PointShopAdminMenuTest`, `CommercePermissionsAndMenuTest`·`Commerce04AdminCatalogTest`, `PointShopPurchaseAdminHttpTest.회원_상세의_…` |
 
 **아직 테스트로 막지 못한 것**: ① 쪽지 상대 장식은 컴파일만(HTTP 시험 없음). ② CSRF·보안 필터 단의 401·CSRF 는 api 시험이 필터 없이 돌려 확인하지 않았다(비로그인 아바타 허용 포함). ③ 로그인한 화면에서의 실제 호출·시각 확인(개발자 몫). ④ 다른 탭·기기에서 바꾼 장착은 이 탭의 겹치기에 새로고침 전까지 반영되지 않는다(화면 한계).
+
+## 1-3 화면 목업 (2026-10-26 — **사용자 확정**(「추천대로 하고 출석체크는 커뮤니티 공개사이트 것 그대로, 로보얌 구성에 맞게」): 아래 화면·확정 6가지 그대로)
+새 칸만 메모리 목업이 실제 응답에 덧붙인다(`// MOCK:`·`// REAL:` 나란히, 목업 파일 `composables/{point,board}/api/mock/*`). 마이그레이션 가번호 **V89**(develop 마지막 shared = V88).
+
+**화면**
+- admin `/points/policy`: 「글·댓글」에 묶음 「적립 조건」(`postMinLength` 50 · `commentMinLength` 10 · `writeIntervalSeconds` 30 + 스위치 `commentOwnPostExcluded`·`commentOncePerPost`), 새 구획 「하루 총 한도」(`dailyTotalCap` 200 — 0 = 「한도 없음」 딱지), 「출석」에 묶음 「연속 출석 보너스」(`attendanceStreakDays` 7·`attendanceStreakBonus` 20 — 「아직 적용되지 않아요」 유지), 「가입 포인트」 딱지 뗌·본인인증 기준 안내, 새 구획 「운영 조정」(`adjustLargeThreshold` — 이제 저장 가능, 1-1 이 미룬 칸). 운영 원칙 문구 고침.
+- admin `/boards/[slug]`(보호·공개 시간·포인트)·`/boards/defaults/general`: `pointMode` 옆에 「적립 최소 글자 수 적용」 `pointMinLengthApplied`(게시판 null = 기본값 따름, 기본값 켬). 유효 `pointMode` = OFF 면 비활성.
+- user `/me/points`: 「오늘 총 적립 N / 200P」 막대(한도 0 이면 없음), 「적립 규칙」에 본인인증 보너스 줄(받음 / `/settings/identity` 링크)·「적립 조건」 목록(꺼진 조건 빼고).
+
+**API 후보**
+- `GET·PUT /api/admin/settings/points` + 숫자 7칸·불리언 2칸(범위 `postMinLength` 0~10,000 · `commentMinLength` 0~1,000 · `writeIntervalSeconds` 0~3,600 · `dailyTotalCap` 0~100,000 · `attendanceStreakDays` 0~365 · `attendanceStreakBonus` 0~10,000 · `adjustLargeThreshold` 0~100,000), 감사 `POINT_SETTINGS_UPDATE` 바뀐 칸 before/after.
+- 게시판 정책·기본값에 `pointMinLengthApplied`(`BoardPolicyValues` nullable · `BoardDefaultsValues` boolean true, `pointMode` 다음).
+- `GET /api/me/points` + `today.total{amount, cap}` · `rules.{postMinLength, commentMinLength, commentOwnPostExcluded, commentOncePerPost, writeIntervalSeconds, dailyTotalCap, signup{points, received}}`.
+
+**확정(사용자 「추천대로」 2026-10-26)**
+1. 게시판 스위치를 끄면 **글 본문 최소 글자 수만** 빠진다(댓글 최소 글자 수·다른 조건은 그대로).
+2. 게시판 `pointMode`(지급 안 함)는 화면·저장에는 있지만 **서버 적립이 보지 않는다**(지금 무시됨) — 같은 적립 길을 고치는 1-3 에서 함께 적용(글·댓글·추천 보너스 0).
+3. 가입 포인트 「평생 1회」 = **계정(user_id)마다**(멱등 `SIGNUP` + `USER:{user_id}`, commerce.md 6-2 그대로). 탈퇴 후 30일 재인증 제한이 반복을 늦춘다. 사람마다로 막으려면 인증 해시를 오래 보관해야 해 하지 않는다.
+4. 본인인증 때 포인트 동결 중이거나 정상 회원이 아니면 가입 포인트를 **주지 않고 나중에도 주지 않는다**(지금 동결 적립 건너뜀과 같다).
+5. `signupPoints` 지금 저장값(기본 0)은 마이그레이션이 바꾸지 않는다 — 운영자가 정한다.
+6. 하루 총 한도는 지급한 양(상계 전) 합, 지운 글로 받은 것도 센다. 남은 양이 0 이면 줄이 없어 개별 횟수에 들지 않는다.
+
+## 1-3 출석체크 (2026-10-26 — 사용자 「커뮤니티 공개사이트 것 그대로 적용, 로보얌 구성에 맞게」)
+community `docs/api-point.md` 「출석」·`AttendanceService`·user `components/point/AttendancePanel.vue`(+ `usePointAttendance`, 헤더 「포인트·출석체크 · +10P」, `/me` 줄 안내)를 옮긴다. 로보얌에 맞춘 것:
+- **표** `point_attendances`(V89): id(Snowflake), user_id, day(KST 날짜), streak(≥ 1 — 어제 줄의 streak + 1, 없으면 1), created_at, 유일 `(user_id, day)`. users 외래키 없음(1단계 새 표 규칙). 넣기는 `insert … on conflict do nothing` 한 문장 — 동시에 눌러도 하나.
+- **지급**: `PointService` 한 길. `ATTENDANCE`(+`attendancePoints`)·`ATTENDANCE_STREAK`(streak 이 `attendanceStreakDays` 의 배수일 때 +`attendanceStreakBonus`, 둘 중 0 이면 끔) 모두 대상 `ATTENDANCE` + 출석 줄 ID(원장 ref_type CHECK 에 `ATTENDANCE` 를 더한다 — 기존 목록과의 합집합). 하루 총 한도·미회수 상계·동결(출석은 남고 포인트만 0)·정상 회원 규칙은 다른 활동 적립과 같다. 연속 보너스도 「출석」 활동이라 하루 총 한도에 든다. 적립 실패는 출석을 깨지 않는다(세이브포인트).
+- **API**(api 서버, 공통 래퍼·no-store): `GET /api/me/attendance?month=YYYY-MM` → `{ month, days[], monthCount, streak, today{date, attended} }`(month 형식 틀리면 400 `fields.month`, 미래 달은 `days: []`, `streak` = 오늘 또는 어제까지 이어진 연속 일수, 끊겼으면 0) · `POST /api/me/attendance` → `{ date, earned, streakBonus, streak, balance }` · 409 `ATTENDANCE_ALREADY_DONE` · 403 `EMAIL_NOT_VERIFIED`·`ACCOUNT_RESTRICTED`(정지) · 사업자 전용 계정은 포인트 상점·포인트와 같은 규칙. `GET /api/me/points` 는 `attendanceAvailable: true`, `today.attended` 실제 값, `rules.attendanceStreak{days, bonus}`.
+- **화면**: user `/me/points` 에 출석 달력 구획(community AttendancePanel — 달 넘기기·출석한 날 표시·[오늘 출석하기]·연속 N일·다음 보너스까지), 헤더 프로필 메뉴·`/me` 줄 「포인트·출석체크」(오늘 출석 전이면 「· +N P」). admin 정책 「출석」 구획의 「아직 적용되지 않아요」 딱지를 뗀다.
+
+### 1-3 구현 결과 (2026-10-26 — 미커밋)
+- **마이그레이션** `V89__point_earn_rules.sql`(가번호 — develop 마지막 shared V88): `point_settings` 8칸 + `ck_point_settings_earn_rules` · `board_defaults.point_min_length_applied`(not null, 기본 true)·`boards.point_min_length_applied`(null = 기본값 따름) · 표 `point_attendances`(유일 `(user_id, day)`, streak ≥ 1, users FK 없음) · `ck_point_ledger_ref`·`ck_point_lots_source_ref` 다시 만듦(V85 목록 ∪ `ATTENDANCE` — 출석 지급이 만드는 묶음의 출처 대상도 `ATTENDANCE` 라 묶음 CHECK 도 넓혔다).
+- **shared**: `PointService` — `earn` 을 `earnPost(PostEarn)`·`earnComment(CommentEarn)` 로 나눔, `likeBonus(…, boardPoints)`, 새 `attendance`·`signup`·`signupReceived`·`earnedToday`. 판정 순서: 잠금 전(게시판 포인트 끔 → 정책 0 → 최소 글자 수 → 자기 글 댓글) → 잔액 행 잠금 아래(이미 지급 → 개별 하루 상한(횟수) → 같은 글 댓글 1회 → 작성 간격 → 하루 총 한도 남은 만큼). `AttendanceService`·`PointAttendanceStore`. 게시판 `EffectiveBoard` 에 `pointsEnabled`(유효 `pointMode` ON)·`pointMinLengthApplied`. 본인인증 `IdentityVerificationService.settle` 이 시도 확정 뒤 `PointService.signup`(세이브포인트).
+- **api**: `MyAttendanceController`(`GET/POST /api/me/attendance`, no-store), `/api/me/points` 새 칸, 글·댓글·추천의 적립 호출에 게시판 유효값·본문 글자·글 작성자 전달.
+- **admin**: 정책 `GET·PUT` 22칸 모두 필수(불리언 비면 400 `fields.<칸>` 「켬 또는 끔을 골라 주세요.」), 감사 바뀐 칸 before/after(문턱 포함). 게시판 정책·기본값 `pointMinLengthApplied`(기본값 null 저장은 400, `overrides` 에 실림).
+- **화면 연결**: 세 목업 지움·실제 호출. user `/me/points` 출석 구획(달력·연속·다음 보너스·[오늘 출석하기])·오늘 적립·규칙의 출석 줄, `/me` 줄 「포인트·출석체크」(헤더 메뉴는 기존 분기 그대로). admin 정책 「출석」 딱지 뗌.
+- **구현하며 정한 것**: ① 글자 수 = `plain()` 에서 유니코드 공백·NBSP·U+3000·폭 없는 공백(U+200B~200D·2060·FEFF·180E)을 뺀 코드 포인트. ② 작성 간격 기준 = 직전 `POST`·`COMMENT` 적립 줄의 `created_at`(포인트를 못 받은 글은 줄이 없어 기준이 아님, 정확히 30초면 지급). ③ 같은 글 댓글 1회 = 같은 `post_id` 의 댓글 + 원장 `COMMENT` 줄(지운 댓글 행도 남아 센다). ④ 하루 총 한도 대상 = `ATTENDANCE`·`ATTENDANCE_STREAK`·`POST`·`COMMENT`·`LIKE_BONUS` EARN 금액 합(상계 전), 「오늘」 경계는 개별 상한과 같은 Snowflake ID(실제 시계). ⑤ 출석 날짜는 앱 시계의 한국 날짜(community 는 DB 시각), 출석 포인트·연속 보너스는 따로 세이브포인트, 대상 둘 다 `ATTENDANCE:{출석 ID}`, `earned` = 출석분만·`streakBonus` 따로, 동결·한도로 0 이어도 200. ⑥ 사업자 전용 계정은 출석을 따로 막지 않는다(기존 포인트 적립과 같다). ⑦ 출석 403 은 `ACCOUNT_RESTRICTED`·`EMAIL_NOT_VERIFIED` 만.
+
+### 1-3 규칙 → 테스트 (모두 실제 PostgreSQL — `CommerceTestDatabase`)
+| 규칙 | 테스트 |
+|---|---|
+| 글자 수(공백·NBSP·폭 없는 공백 제외, 코드 포인트) | shared `PointEarnRulesTest.글자_수는_…` |
+| 글 최소 글자 수(49자 0 · 50자 지급) | `PointEarnRulesTest.본문_실제_글자가_…`, api `PointEarnWiringTest.게시판_칸이_비면_…` |
+| 게시판 스위치 끔 → 글만 빠지고 댓글은 그대로 · 기본값 끔 | `PointEarnRulesTest.게시판_스위치를_끄면_…`, api `PointEarnWiringTest.스위치를_끈_…`·`기본값의_스위치를_끄면_…` |
+| 정책 0 = 조건 없음(최소 글자·간격·총 한도) | `PointEarnRulesTest`(3개) |
+| 게시판 `pointMode` OFF → 글·댓글·추천 보너스 0, 글은 올라감 | `PointEarnRulesTest.게시판_pointMode_OFF면_…`, api `PointEarnWiringTest.게시판_pointMode_OFF면_…` |
+| 자기 글 댓글 0(끄면 지급) | `PointEarnRulesTest.자기_글에_단_댓글은_…` |
+| 같은 글 두 번째 댓글 0(첫 댓글을 지우고 회수해도) · 끄면 지급 | `PointEarnRulesTest.같은_글의_두_번째_댓글은_…`·`같은_글_댓글_1회를_끄면_…` |
+| 작성 간격(글·댓글 합침, 30초 경계) · 못 받은 글은 기준 아님 | `PointEarnRulesTest.포인트를_받은_…`·`포인트를_못_받은_…` |
+| 하루 총 한도 걸침(190P 에서 글 20P → 10P) · 남은 0 이면 줄·개별 횟수 없음 | `PointEarnRulesTest.하루_총_한도에_걸치면_…` |
+| 총 한도는 상계 전 양·지운 글로 받은 것도 셈 | `PointEarnRulesTest.하루_총_한도는_상계_전_…` |
+| 한도 제외 사유(운영 조정·가입 포인트) | `PointEarnRulesTest.운영_조정과_가입_포인트는_…`, `PointSignupTest.미회수가_있으면_…` |
+| 동시 적립이 총 한도·간격을 넘지 않음(12·8 스레드) | `PointEarnRulesTest.동시에_적립해도_…` |
+| 가입 포인트 한 번만(대상 USER·유일 색인·재인증) · 동시 요청 | shared `PointSignupTest`(3개), api `SignupPointIdentityTest.본인인증을_확정하면_…`·`같은_회원이_동시에_…` |
+| 동결 중 가입 포인트 없음(풀려도 안 줌)·정지 회원 없음·정책 0 이면 없음(인증은 성공) | api `SignupPointIdentityTest`(3개), `PointSignupTest.동결_중이거나_…`·`정책이_0이면_…` |
+| 가입 포인트 미회수 상계 | `PointSignupTest.미회수가_있으면_…` |
+| 출석 하루 한 번(409) · 동시 4번 → 하나 | shared `PointAttendanceTest.하루에_한_번이고_…`·`동시에_두_번_…`, api `AttendanceHttpTest.출석하면_200_…` |
+| 연속 보너스(배수 날만·끊기면 1부터·0 이면 끔) | `PointAttendanceTest.연속_보너스는_…`·`연속_보너스_일수나_…` |
+| 출석 동결이면 기록만 · 출석 포인트 0 이면 기록만 | `PointAttendanceTest.동결_중이면_…`·`출석_포인트가_0이면_…`, api `AttendanceHttpTest.동결_중이어도_…` |
+| 출석·연속 보너스도 하루 총 한도에 듦 | `PointAttendanceTest.출석과_연속_보너스는_…` |
+| 출석 자격(정지·영구 정지·이메일 인증 전·탈퇴) | `PointAttendanceTest.정지_회원은_403_…`, api `AttendanceHttpTest.이메일_인증_전은_…` |
+| 출석 달력(출석일·연속·끊기면 0·미래 달·today·월 형식 400) | `PointAttendanceTest.달력은_…`·`달_형식이_틀리면_…`, api `AttendanceHttpTest.달력은_…` |
+| 출석 표 유일·streak CHECK | `PointAttendanceTest.출석_줄은_…` |
+| 관리자 정책 새 칸 조회·저장·감사 before/after(같은 값이면 없음)·범위·빠진 칸 400·경계값·권한 | admin `PointSettingsHttpTest`(5개) |
+| 저장한 조정 문턱으로 고액 판정 | admin `PointSettingsHttpTest.저장한_문턱으로_…` |
+| 게시판 칸 저장·null(따름)·감사·기본값 boolean·null 400·overrides·유효값 | admin `BoardPointMinLengthHttpTest`(3개) |
+| 회원 포인트 응답 새 칸(출석 가능·오늘 출석·총 적립·규칙) | api `AttendanceHttpTest.내_포인트에_…` |
+| 불변식(5-5) — 시험마다 | `PointTestKit.assertInvariants`, `PointInvariants` |
+
+**아직 테스트로 막지 못한 것**: ① 추천 보너스의 api 연결(`like` 가 `board.pointsEnabled()` 를 넘기는지)은 컴파일로만 — 인정된 추천 문턱을 채울 등급 데이터가 커서 shared 에서 인자 효과만 시험. ② 자정을 걸치는 한도 초기화(「오늘」 경계가 실제 시계라 시험이 옮길 수 없음). ③ 보관 기간 파기로 댓글 행 자체가 지워지면 「같은 글 댓글 1회」가 그 댓글을 세지 못한다(지금 파기는 표시뿐 — 실제 삭제 경로가 생기면 다시 본다). ④ 본인인증 쪽 세이브포인트와 JPA 트랜잭션 관리자의 조합은 api 시험(실제 앱 문맥)으로만. ⑤ 화면(타입 검사만 — 브라우저 확인은 개발자).
 
 ## 미확정
 - 두 앱이 같이 쓰는 장식 규칙(대비 보정 `UtilColor`·테두리 팔레트)을 지금은 앱마다 사본으로 둔다 — `apps-packages` 로 옮길지.

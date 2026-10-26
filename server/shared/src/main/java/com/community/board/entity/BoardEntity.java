@@ -54,6 +54,8 @@ public class BoardEntity {
     private Boolean searchable;
     private Boolean inHome;
     private String pointMode;
+    /** 「적립 최소 글자 수 적용」(V89, NULL = 기본값 따름) — 끄면 글 본문 최소 글자 수만 빠진다(커머스 1-3 확정 1) */
+    private Boolean pointMinLengthApplied;
     private Integer commentProtectMin;
     private Boolean commentProtectEdit;
     private String commentProtectDelete;
@@ -143,6 +145,7 @@ public class BoardEntity {
         this.searchable = policy.searchable();
         this.inHome = policy.inHome();
         this.pointMode = policy.pointMode();
+        this.pointMinLengthApplied = policy.pointMinLengthApplied();
         this.commentProtectMin = policy.commentProtectMin();
         this.commentProtectEdit = policy.commentProtectEdit();
         this.commentProtectDelete = policy.commentProtectDelete();
@@ -176,7 +179,7 @@ public class BoardEntity {
     }
 
     public BoardPolicyValues policy() {
-        return new BoardPolicyValues(writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, listSize, pinnedMax, indexable, searchable, inHome, pointMode, commentProtectMin,
+        return new BoardPolicyValues(writeMin, commentMin, postEditor, imageUploadAllowed, commentEditor, listSize, pinnedMax, indexable, searchable, inHome, pointMode, pointMinLengthApplied, commentProtectMin,
                 commentProtectEdit, commentProtectDelete, commentProtectDelayMinutes, commentGuestDelayMinutes, staffHiddenNotice, commentDislikeEnabled,
                 commentLikeLabel, commentDislikeLabel, BoardFields.splitReviewers(pinRequestReviewers), debateEnabled, pollEnabled, managerMax, staffPostDailyLimit,
                 staffCommentDailyLimit, staffSanctionDailyLimit);

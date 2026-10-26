@@ -12,6 +12,9 @@ import com.community.point.dto.response.PointCountView;
 import com.community.point.dto.response.PointRulesView;
 import com.community.point.dto.response.PointSummaryView;
 import com.community.point.dto.response.PointTodayView;
+import com.community.point.dto.response.PointTotalView;
+import com.community.point.dto.response.AttendanceStreakRuleView;
+import com.community.point.dto.response.SignupPointRuleView;
 import com.community.point.dto.response.PopularRewardRuleView;
 import com.community.point.dto.PointExpiring;
 import com.community.point.entity.PointBalanceEntity;
@@ -45,8 +48,8 @@ import org.springframework.transaction.annotation.Transactional;
  * 내 포인트 — 로그인한 회원 본인 것만(이메일 인증 전·정지 중이어도 읽는다).
  *
  * <ul>
- *   <li><b>요약</b>: 하루의 기준은 한국 시간 0시. 규칙은 정책 사본({@link PointPolicy}, 15초)에서 읽는다. 출석 기능이 아직 없어 {@code attended=false}·
- *       {@code attendanceAvailable=false} 다. 커머스 1-2: {@code ticketCount} = 안 쓴 닉네임 변경권 수, 변경권 가격 = 포인트 상점 변경권 품목 가격({@link NicknameTicketService}). 커머스 1-1: 무상·유상·미회수는 잔액 행, 소멸 예정은 남은 무상 묶음({@link PointLotQueries#expiring}), 충전 기능이 없어
+ *   <li><b>요약</b>: 하루의 기준은 한국 시간 0시. 규칙은 정책 사본({@link PointPolicy}, 15초)에서 읽는다. 커머스 1-3: {@code attended} = 오늘 출석 줄, {@code attendanceAvailable=true},
+ *       {@code today.total} = 오늘 활동 적립 합·하루 총 한도, {@code rules} 에 적립 조건·연속 출석 보너스·가입 포인트(받았나). 커머스 1-2: {@code ticketCount} = 안 쓴 닉네임 변경권 수, 변경권 가격 = 포인트 상점 변경권 품목 가격({@link NicknameTicketService}). 커머스 1-1: 무상·유상·미회수는 잔액 행, 소멸 예정은 남은 무상 묶음({@link PointLotQueries#expiring}), 충전 기능이 없어
  *       {@code chargeAvailable=false}.</li>
  *   <li><b>내역</b>({@code GET /api/me/points/ledger}): 원장의 본인 줄만, 최신이 위(id 내림차순 커서). {@code kind}(EARN·USE·REVOKE·CANCEL_USE·EXPIRE, 없으면 전체) ·
  *       {@code restoredUntil}(만료된 묶음 대신 새 묶음으로 돌려준 줄의 소멸 시각) · {@code size} 1~{@value #LEDGER_MAX_SIZE}
@@ -66,6 +69,8 @@ public class MyPointService {
             PointKind.EXPIRE.name());
     /** 충전 기능이 열렸나 — 충전(유상 포인트 구매)은 3단계 기능이라 아직 없다. 설정 칸도 없으므로 상수다(충전 기능을 만들 때 그 설정에서 읽는다) */
     static final boolean CHARGE_AVAILABLE = false;
+    /** 출석 기능이 있나 — 커머스 1-3 출석체크({@link AttendanceService}) */
+    static final boolean ATTENDANCE_AVAILABLE = true;
     private static final Pattern DIGITS = Pattern.compile("^[0-9]{1,19}$");
 
     private final PointBalanceRepository balances;
@@ -76,10 +81,12 @@ public class MyPointService {
     private final BoardCatalog catalog;
     private final Messages messages;
     private final NicknameTicketService tickets;
+    private final AttendanceService attendance;
     private final Clock clock;
 
     public MyPointService(PointBalanceRepository balances, PointService points, PointPolicy policy, MyPointLedgerQueries ledger, PointLotQueries lots,
-                          BoardCatalog catalog, Messages messages, NicknameTicketService tickets, ObjectProvider<Clock> clocks) {
+                          BoardCatalog catalog, Messages messages, NicknameTicketService tickets, AttendanceService attendance, ObjectProvider<Clock> clocks) {
+        this.attendance = attendance;
         this.balances = balances;
         this.points = points;
         this.policy = policy;
@@ -100,14 +107,18 @@ public class MyPointService {
         long paid = row.map(PointBalanceEntity::getPaidBalance).orElse(0L);
         long debt = row.map(PointBalanceEntity::getRevokeDebt).orElse(0L);
         PointExpiring expiring = lots.expiring(userId, clock.instant()).orElse(null);
-        PointTodayView today = new PointTodayView(LocalDate.now(KST).toString(), false,
+        PointTodayView today = new PointTodayView(LocalDate.ofInstant(clock.instant(), KST).toString(), attendance.attendedToday(userId),
                 new PointCountView(points.countToday(userId, PointReason.POST), rules.postDailyCap()),
                 new PointCountView(points.countToday(userId, PointReason.COMMENT), rules.commentDailyCap()),
-                new PointCountView(points.countToday(userId, PointReason.LIKE_BONUS), rules.likeBonusDailyLimit()));
+                new PointCountView(points.countToday(userId, PointReason.LIKE_BONUS), rules.likeBonusDailyLimit()),
+                new PointTotalView(points.earnedToday(userId), rules.dailyTotalCap()));
         PointRulesView view = new PointRulesView(rules.attendancePoints(), rules.postPoints(), rules.commentPoints(),
                 new PopularRewardRuleView(rules.popularRewardTopN(), rules.popularRewardPoints()), tickets.price(),
-                new LikeBonusRuleView(rules.likeBonusThreshold(), rules.likeBonusPoints(), rules.likeBonusDailyLimit()));
-        return new PointSummaryView(balance, free, paid, CHARGE_AVAILABLE, expiring, debt, tickets.count(userId), false, today, view);
+                new LikeBonusRuleView(rules.likeBonusThreshold(), rules.likeBonusPoints(), rules.likeBonusDailyLimit()), rules.postMinLength(),
+                rules.commentMinLength(), rules.commentOwnPostExcluded(), rules.commentOncePerPost(), rules.writeIntervalSeconds(), rules.dailyTotalCap(),
+                new AttendanceStreakRuleView(rules.attendanceStreakDays(), rules.attendanceStreakBonus()),
+                new SignupPointRuleView(rules.signupPoints(), points.signupReceived(userId)));
+        return new PointSummaryView(balance, free, paid, CHARGE_AVAILABLE, expiring, debt, tickets.count(userId), ATTENDANCE_AVAILABLE, today, view);
     }
 
     /** 내 포인트 내역 한 쪽 */

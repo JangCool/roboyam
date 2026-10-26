@@ -1,5 +1,5 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
-import type { PointSettingsField } from '~/composables/point/api/usePointApi.types';
+import type { PointSettingsNumberField } from '~/composables/point/api/usePointApi.types';
 import type { PointAdjustMode, PointAmountProblem, PointReasonProblem, PointSettingsProblem } from '~/utils/util-point';
 import UtilPoint from '~/utils/util-point';
 
@@ -9,13 +9,13 @@ import UtilPoint from '~/utils/util-point';
  */
 export default class UtilPointMessages {
     /** 칸의 입력 범위 글자 — `0 ~ 10,000` */
-    static range(t: Translate, field: PointSettingsField, locale: string): string {
+    static range(t: Translate, field: PointSettingsNumberField, locale: string): string {
         const [min, max] = UtilPoint.limitsOf(field);
         return t('point.range', { min: min.toLocaleString(locale), max: max.toLocaleString(locale) });
     }
 
     /** 정책 칸 문제를 입력칸 아래 한 줄로 */
-    static settingsProblem(t: Translate, problem: PointSettingsProblem, field: PointSettingsField, locale: string): string {
+    static settingsProblem(t: Translate, problem: PointSettingsProblem, field: PointSettingsNumberField, locale: string): string {
         if (problem === 'REQUIRED') return t('point.problemRequired');
         if (problem === 'NOT_INTEGER') return t('point.problemNotInteger');
         const [min, max] = UtilPoint.limitsOf(field);

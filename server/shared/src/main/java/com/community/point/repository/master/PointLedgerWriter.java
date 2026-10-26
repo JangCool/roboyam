@@ -120,6 +120,45 @@ public class PointLedgerWriter {
         return count == null ? 0 : count;
     }
 
+    /**
+     * 회원이 {@code sinceId} 뒤에(오늘) 그 사유들로 <b>지급한 양</b>의 합 — 적립(EARN) 줄의 금액(미회수 상계 전 양, 지운 글·댓글로 받은 것도 센다). 하루 총 한도(커머스 1-3)가 본다.
+     */
+    public long earnedSince(long userId, Collection<String> reasons, long sinceId) {
+        String in = reasons.stream().map(reason -> "?").collect(Collectors.joining(", "));
+        Object[] args = new Object[reasons.size() + 2];
+        args[0] = userId;
+        int i = 1;
+        for (String reason : reasons) {
+            args[i++] = reason;
+        }
+        args[i] = sinceId;
+        Long sum = jdbc.queryForObject("select coalesce(sum(delta), 0) from point_ledger where user_id = ? and kind = 'EARN' and reason in (" + in + ") and id >= ?",
+                Long.class, args);
+        return sum == null ? 0 : sum;
+    }
+
+    /** 회원이 그 사유들로 마지막으로 포인트를 받은 줄의 시각(없으면 빈 값) — 작성 간격(커머스 1-3)이 본다. 줄은 포인트를 받았을 때만 생긴다 */
+    public Optional<Instant> lastEarnedAt(long userId, Collection<String> reasons) {
+        String in = reasons.stream().map(reason -> "?").collect(Collectors.joining(", "));
+        Object[] args = new Object[reasons.size() + 1];
+        args[0] = userId;
+        int i = 1;
+        for (String reason : reasons) {
+            args[i++] = reason;
+        }
+        return jdbc.query("select created_at from point_ledger where user_id = ? and kind = 'EARN' and reason in (" + in + ") order by id desc limit 1",
+                (rs, n) -> rs.getTimestamp(1).toInstant(), args).stream().findFirst();
+    }
+
+    /**
+     * 회원이 그 글의 (다른) 댓글로 댓글 적립(COMMENT)을 받은 적이 있나 — 지운 댓글로 받은 것도 센다(댓글 행은 지워도 남는다). 같은 글 댓글 적립 1회(커머스 1-3)가 본다.
+     * 댓글 표는 글 번호로 나뉘어 있어 그 글의 칸만 읽는다.
+     */
+    public boolean commentEarnedOnPost(long userId, long postId, long exceptCommentId) {
+        return !jdbc.queryForList("select 1 from comments c join point_ledger l on l.reason = 'COMMENT' and l.ref_type = 'COMMENT' and l.ref_id = c.id "
+                + "where c.post_id = ? and c.id <> ? and l.user_id = ? limit 1", Integer.class, postId, exceptCommentId, userId).isEmpty();
+    }
+
     // ── 묶음 ────────────────────────────────────────────────────────────────
 
     public void insertLot(NewLot lot) {

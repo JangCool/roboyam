@@ -48,6 +48,7 @@ import type {
  *   공통 오류: 404 `BOARD_NOT_FOUND` · 403 `PERMISSION_DENIED`. 감사 기록 후보: `BOARD_DEFAULTS_UPDATE` · `BOARD_CREATE` · `BOARD_UPDATE` · `BOARD_ACTIVE` · `BOARD_ORDER` · `BOARD_DELETE` · `BOARD_STAFF_APPOINT` · `BOARD_STAFF_REMOVE`.
  *
  * 서버 연결됨(2026-10-22) — `server/admin` 의 `BoardController`·`BoardDefaultsController`. 목업과 달라진 점은 `docs/features/board-contract.md` 「서버 구현 결과」.
+ * 커머스 1-3: 정책·기본 설정에 `pointMinLengthApplied`(적립 최소 글자 수 적용, `pointMode` 다음 칸)가 더해졌다.
  */
 const PATH = {
     boards: '/api/admin/boards',
