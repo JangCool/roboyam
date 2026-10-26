@@ -241,7 +241,7 @@ export default {
         pointAdjust: '포인트 조정',
         pointAdjustDesc: '회원의 포인트를 직접 더하거나 뺍니다.',
         pointAdjustLarge: '고액 포인트 조정',
-        pointAdjustLargeDesc: '1회 ±10,000P 를 넘는 포인트를 더하거나 뺍니다(최대 ±100,000P).',
+        pointAdjustLargeDesc: '1회 조정 문턱(포인트 정책, 기본 ±10,000P)을 넘는 포인트를 더하거나 뺍니다(최대 ±100,000P).',
         pointRefundApprove: '충전 포인트 환불 승인',
         pointRefundApproveDesc: '유상(충전) 포인트 환불 신청을 승인합니다.',
         pointRefundLarge: '고액 충전 포인트 환불',

@@ -12,14 +12,18 @@ import com.community.point.dto.response.PointRulesView;
 import com.community.point.dto.response.PointSummaryView;
 import com.community.point.dto.response.PointTodayView;
 import com.community.point.dto.response.PopularRewardRuleView;
+import com.community.point.dto.PointExpiring;
 import com.community.point.entity.PointBalanceEntity;
+import com.community.point.entity.PointKind;
 import com.community.point.entity.PointLedgerEntity;
 import com.community.point.entity.PointReason;
 import com.community.point.repository.master.MyPointLedgerQueries;
 import com.community.point.repository.master.PointBalanceRepository;
+import com.community.point.repository.master.PointLotQueries;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
 import com.community.zconfiguration.message.Messages;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -28,9 +32,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,10 +45,12 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li><b>요약</b>: 하루의 기준은 한국 시간 0시. 규칙은 정책 사본({@link PointPolicy}, 15초)에서 읽는다. 출석·교환 기능이 아직 없어 {@code attended=false}·{@code ticketCount=0}·
- *       {@code attendanceAvailable=false} 다.</li>
- *   <li><b>내역</b>({@code GET /api/me/points/ledger}): 원장의 본인 줄만, 최신이 위(id 내림차순 커서). {@code kind}(EARN·USE·REVOKE, 없으면 전체) · {@code size} 1~{@value #LEDGER_MAX_SIZE}
+ *       {@code attendanceAvailable=false} 다. 커머스 1-1: 무상·유상·미회수는 잔액 행, 소멸 예정은 남은 무상 묶음({@link PointLotQueries#expiring}), 충전 기능이 없어
+ *       {@code chargeAvailable=false}.</li>
+ *   <li><b>내역</b>({@code GET /api/me/points/ledger}): 원장의 본인 줄만, 최신이 위(id 내림차순 커서). {@code kind}(EARN·USE·REVOKE·CANCEL_USE·EXPIRE, 없으면 전체) ·
+ *       {@code restoredUntil}(만료된 묶음 대신 새 묶음으로 돌려준 줄의 소멸 시각) · {@code size} 1~{@value #LEDGER_MAX_SIZE}
  *       (기본 {@value #LEDGER_DEFAULT_SIZE}) · {@code cursor}(앞 응답의 {@code nextCursor}) — 틀린 칸은 모아 {@code 400 VALIDATION fields.kind|size|cursor}.
- *       사유 이름은 관리자 원장과 같은 번들({@code point.reason.<코드>})을 요청 언어로. 글·댓글 사유({@code ref_type})만 {@code target}(댓글이면 그 댓글이 달린 글) — 지움·숨김·꺼진
+ *       사유 이름은 관리자 원장과 같은 번들({@code point.reason.<코드>})을 요청 언어로. 글·댓글 대상({@code ref_type} POST·COMMENT)만 {@code target}(댓글이면 그 댓글이 달린 글) — 지움·숨김·꺼진
  *       게시판이면 {@code available=false}·{@code title=null}. 운영자 이름·회원 정보는 싣지 않는다.</li>
  * </ul>
  */
@@ -52,30 +60,43 @@ public class MyPointService {
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     static final int LEDGER_DEFAULT_SIZE = 20;
     static final int LEDGER_MAX_SIZE = 50;
-    private static final Set<String> KINDS = Set.of("EARN", "USE", "REVOKE");
+    /** 회원 내역의 종류 거르기 — 충전 환불({@code REFUND})은 충전 기능(3단계)과 함께 더한다(user-web {@code MyPointLedgerKind}) */
+    private static final Set<String> KINDS = Set.of(PointKind.EARN.name(), PointKind.USE.name(), PointKind.REVOKE.name(), PointKind.CANCEL_USE.name(),
+            PointKind.EXPIRE.name());
+    /** 충전 기능이 열렸나 — 충전(유상 포인트 구매)은 3단계 기능이라 아직 없다. 설정 칸도 없으므로 상수다(충전 기능을 만들 때 그 설정에서 읽는다) */
+    static final boolean CHARGE_AVAILABLE = false;
     private static final Pattern DIGITS = Pattern.compile("^[0-9]{1,19}$");
 
     private final PointBalanceRepository balances;
     private final PointService points;
     private final PointPolicy policy;
     private final MyPointLedgerQueries ledger;
+    private final PointLotQueries lots;
     private final BoardCatalog catalog;
     private final Messages messages;
+    private final Clock clock;
 
-    public MyPointService(PointBalanceRepository balances, PointService points, PointPolicy policy, MyPointLedgerQueries ledger, BoardCatalog catalog,
-                          Messages messages) {
+    public MyPointService(PointBalanceRepository balances, PointService points, PointPolicy policy, MyPointLedgerQueries ledger, PointLotQueries lots,
+                          BoardCatalog catalog, Messages messages, ObjectProvider<Clock> clocks) {
         this.balances = balances;
         this.points = points;
         this.policy = policy;
         this.ledger = ledger;
+        this.lots = lots;
         this.catalog = catalog;
         this.messages = messages;
+        this.clock = clocks.getIfUnique(Clock::systemUTC);
     }
 
     @Transactional(readOnly = true)
     public PointSummaryView summary(long userId) {
         PointRules rules = policy.current();
-        long balance = balances.findById(userId).map(PointBalanceEntity::getBalance).orElse(0L);
+        Optional<PointBalanceEntity> row = balances.findById(userId);
+        long balance = row.map(PointBalanceEntity::getBalance).orElse(0L);
+        long free = row.map(PointBalanceEntity::getFreeBalance).orElse(0L);
+        long paid = row.map(PointBalanceEntity::getPaidBalance).orElse(0L);
+        long debt = row.map(PointBalanceEntity::getRevokeDebt).orElse(0L);
+        PointExpiring expiring = lots.expiring(userId, clock.instant()).orElse(null);
         PointTodayView today = new PointTodayView(LocalDate.now(KST).toString(), false,
                 new PointCountView(points.countToday(userId, PointReason.POST), rules.postDailyCap()),
                 new PointCountView(points.countToday(userId, PointReason.COMMENT), rules.commentDailyCap()),
@@ -83,7 +104,7 @@ public class MyPointService {
         PointRulesView view = new PointRulesView(rules.attendancePoints(), rules.postPoints(), rules.commentPoints(),
                 new PopularRewardRuleView(rules.popularRewardTopN(), rules.popularRewardPoints()), rules.nicknameTicketPrice(),
                 new LikeBonusRuleView(rules.likeBonusThreshold(), rules.likeBonusPoints(), rules.likeBonusDailyLimit()));
-        return new PointSummaryView(balance, 0, false, today, view);
+        return new PointSummaryView(balance, free, paid, CHARGE_AVAILABLE, expiring, debt, 0, false, today, view);
     }
 
     /** 내 포인트 내역 한 쪽 */
@@ -124,20 +145,26 @@ public class MyPointService {
         Set<Long> postIds = page.stream().map(r -> postIdOf(r, commentPosts)).filter(Objects::nonNull).collect(Collectors.toSet());
         Set<Long> activeBoards = catalog.snapshot().boards().stream().filter(EffectiveBoard::active).map(EffectiveBoard::id).collect(Collectors.toSet());
         Map<Long, String> titles = ledger.visibleTitles(postIds, activeBoards, Instant.now());
+        Map<Long, Instant> restored = ledger.restoredUntil(page.stream().filter(r -> PointKind.valueOf(r.getKind()).credit()).map(PointLedgerEntity::getId).toList());
 
         Locale locale = messages.locale();
         List<MyPointLedgerItemView> items = page.stream().map(r -> {
             MyPointLedgerTargetView target = null;
-            if (r.getRefType() != null) {
+            if (contentRef(r)) {
                 Long postId = postIdOf(r, commentPosts);
                 String title = postId == null ? null : titles.get(postId);
                 target = new MyPointLedgerTargetView(postId == null ? null : Long.toString(postId), title, title != null);
             }
             String reason = PointReason.of(r.getReason()).map(code -> messages.get(new MessageRef(code.labelKey()), locale)).orElse(r.getReason());
             return new MyPointLedgerItemView(Long.toString(r.getId()), r.getKind(), r.getReason(), reason, r.getNote(), r.getDelta(), r.getBalanceAfter(), target,
-                    r.getCreatedAt());
+                    restored.get(r.getId()), r.getCreatedAt());
         }).toList();
         return new MyPointLedgerPageView(items, more, more ? items.get(items.size() - 1).entryId() : null);
+    }
+
+    /** 글·댓글을 가리키는 줄인가 — 소멸(묶음)·미회수 상계(원장 줄)·포인트 상점 구매 같은 다른 대상은 {@code target} 이 없다 */
+    private static boolean contentRef(PointLedgerEntity row) {
+        return PointService.REF_POST.equals(row.getRefType()) || PointService.REF_COMMENT.equals(row.getRefType());
     }
 
     private static Long postIdOf(PointLedgerEntity row, Map<Long, Long> commentPosts) {

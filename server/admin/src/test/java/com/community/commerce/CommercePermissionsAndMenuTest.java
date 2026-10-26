@@ -20,29 +20,30 @@ import org.junit.jupiter.api.Test;
  */
 class CommercePermissionsAndMenuTest extends CommerceAdminTestBase {
 
-    record Expected(String code, PermissionType type, PermissionUnit unit, String frontType) {
+    /** @param ready 기능이 생겼나(featureReady) — point.adjust.large 는 커머스 1-1 에서 생겼다 */
+    record Expected(String code, PermissionType type, PermissionUnit unit, String frontType, boolean ready) {
     }
 
     private static final List<Expected> NEW = List.of(
-            new Expected("commerce.groupbuy.cancel", PermissionType.GB_ORDER, PermissionUnit.SENSITIVE, "gbOrder"),
-            new Expected("commerce.refund.large", PermissionType.GB_ORDER, PermissionUnit.SENSITIVE, "gbOrder"),
-            new Expected("commerce.payment.read", PermissionType.GB_SETTLE, PermissionUnit.READ, "gbSettle"),
-            new Expected("commerce.reconcile.manage", PermissionType.GB_SETTLE, PermissionUnit.SENSITIVE, "gbSettle"),
-            new Expected("shop.read", PermissionType.GRADE_POINT, PermissionUnit.READ, "gradePoint"),
-            new Expected("shop.manage", PermissionType.GRADE_POINT, PermissionUnit.MANAGE, "gradePoint"),
-            new Expected("shop.refund", PermissionType.GRADE_POINT, PermissionUnit.SENSITIVE, "gradePoint"),
-            new Expected("point.adjust.large", PermissionType.GRADE_POINT, PermissionUnit.SENSITIVE, "gradePoint"),
-            new Expected("point.refund.large", PermissionType.GRADE_POINT, PermissionUnit.SENSITIVE, "gradePoint"),
-            new Expected("point.refund.approve", PermissionType.GRADE_POINT, PermissionUnit.SENSITIVE, "gradePoint"));
+            new Expected("commerce.groupbuy.cancel", PermissionType.GB_ORDER, PermissionUnit.SENSITIVE, "gbOrder", false),
+            new Expected("commerce.refund.large", PermissionType.GB_ORDER, PermissionUnit.SENSITIVE, "gbOrder", false),
+            new Expected("commerce.payment.read", PermissionType.GB_SETTLE, PermissionUnit.READ, "gbSettle", false),
+            new Expected("commerce.reconcile.manage", PermissionType.GB_SETTLE, PermissionUnit.SENSITIVE, "gbSettle", false),
+            new Expected("shop.read", PermissionType.GRADE_POINT, PermissionUnit.READ, "gradePoint", false),
+            new Expected("shop.manage", PermissionType.GRADE_POINT, PermissionUnit.MANAGE, "gradePoint", false),
+            new Expected("shop.refund", PermissionType.GRADE_POINT, PermissionUnit.SENSITIVE, "gradePoint", false),
+            new Expected("point.adjust.large", PermissionType.GRADE_POINT, PermissionUnit.SENSITIVE, "gradePoint", true),
+            new Expected("point.refund.large", PermissionType.GRADE_POINT, PermissionUnit.SENSITIVE, "gradePoint", false),
+            new Expected("point.refund.approve", PermissionType.GRADE_POINT, PermissionUnit.SENSITIVE, "gradePoint", false));
 
     @Test
-    void 권한_10개는_결정_12_의_유형과_단위이고_모두_기능_준비_중이다() {
+    void 권한_10개는_결정_12_의_유형과_단위이고_고액_포인트_조정만_기능이_생겼다() {
         assertThat(NEW).hasSize(10);
         for (Expected expected : NEW) {
             Permission permission = Permission.ofCode(expected.code()).orElseThrow(() -> new AssertionError("Permission 에 없다: " + expected.code()));
             assertThat(permission.type()).as(expected.code()).isEqualTo(expected.type());
             assertThat(permission.unit()).as(expected.code()).isEqualTo(expected.unit());
-            assertThat(permission.featureReady()).as(expected.code()).isFalse();
+            assertThat(permission.featureReady()).as(expected.code()).isEqualTo(expected.ready());
         }
         assertThat(Permission.ofCode("member.withdrawn.contact")).as("0-4 몫 — 0-5 가 더하지 않는다(0-4 가 합치면 있다)").satisfiesAnyOf(
                 found -> assertThat(found).isEmpty(), found -> assertThat(found.get().type()).isEqualTo(PermissionType.MEMBER_VIEW));
@@ -55,7 +56,7 @@ class CommercePermissionsAndMenuTest extends CommerceAdminTestBase {
             assertThat(row.get("axis")).isEqualTo("OPERATOR");
             assertThat(row.get("type_id")).as(expected.code()).isEqualTo(expected.frontType());
             assertThat(row.get("category")).as(expected.code()).isEqualTo(expected.unit().name());
-            assertThat(row.get("feature_ready")).as(expected.code()).isEqualTo(false);
+            assertThat(row.get("feature_ready")).as(expected.code()).isEqualTo(expected.ready());
         }
     }
 
@@ -71,7 +72,7 @@ class CommercePermissionsAndMenuTest extends CommerceAdminTestBase {
                 continue;
             }
             assertThat(line).as(expected.code()).contains("unit: '" + expected.unit().name() + "'").contains("type: '" + expected.frontType() + "'")
-                    .contains("featureReady: false");
+                    .contains("featureReady: " + expected.ready());
         }
         assertThat(missing).isEmpty();
     }

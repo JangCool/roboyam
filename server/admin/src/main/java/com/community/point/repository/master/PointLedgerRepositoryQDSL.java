@@ -46,7 +46,7 @@ public class PointLedgerRepositoryQDSL extends RoboyamRepositoryQDSL {
     /** 조건에 맞는 원장 한 쪽 — 최신이 위 */
     public List<PointLedgerRow> page(PointLedgerFilter filter, boolean canPii, int page, int size) {
         return base().select(Projections.constructor(PointLedgerRow.class, LEDGER.id, LEDGER.userId, PROFILE.nickname, LEDGER.kind, LEDGER.reason, LEDGER.note,
-                        LEDGER.delta, LEDGER.balanceAfter, OPERATOR.operatorName, LEDGER.createdAt))
+                        LEDGER.delta, LEDGER.freeDelta, LEDGER.paidDelta, LEDGER.balanceAfter, OPERATOR.operatorName, LEDGER.createdAt))
                 .leftJoin(OPERATOR).on(OPERATOR.id.eq(LEDGER.actorOperatorId))
                 .where(where(filter, canPii))
                 .orderBy(LEDGER.createdAt.desc(), LEDGER.id.desc())
@@ -69,17 +69,19 @@ public class PointLedgerRepositoryQDSL extends RoboyamRepositoryQDSL {
     /** 한 회원의 최근 원장 {@code limit} 줄(회원 상세) — 최신이 위 */
     public List<PointLedgerRow> recentOf(long userId, int limit) {
         return query.select(Projections.constructor(PointLedgerRow.class, LEDGER.id, LEDGER.userId, Expressions.nullExpression(String.class), LEDGER.kind,
-                        LEDGER.reason, LEDGER.note, LEDGER.delta, LEDGER.balanceAfter, Expressions.nullExpression(String.class), LEDGER.createdAt))
+                        LEDGER.reason, LEDGER.note, LEDGER.delta, LEDGER.freeDelta, LEDGER.paidDelta, LEDGER.balanceAfter, Expressions.nullExpression(String.class),
+                        LEDGER.createdAt))
                 .from(LEDGER).where(LEDGER.userId.eq(userId)).orderBy(LEDGER.id.desc()).limit(limit).fetch();
     }
 
-    /** 조정 대상 후보 — 탈퇴하지 않은 회원(정상·정지), 최근 가입이 위, 최대 {@code limit} 명. 잔액 행이 없으면 0P */
+    /** 조정 대상 후보 — 탈퇴하지 않은 회원(정상·정지), 최근 가입이 위, 최대 {@code limit} 명. 잔액(합계·무상·유상) — 잔액 행이 없으면 0P */
     public List<PointMemberRow> candidates(String q, boolean canPii, int limit) {
         BooleanBuilder where = new BooleanBuilder(USER.status.ne(UserStatus.WITHDRAWN)).and(USER.deletedAt.isNull());
         if (q != null && !q.isBlank()) {
             where.and(keyword(q.strip().toLowerCase(), canPii));
         }
-        return query.select(Projections.constructor(PointMemberRow.class, USER.id, PROFILE.nickname, USER.email, BALANCE.balance.coalesce(0L)))
+        return query.select(Projections.constructor(PointMemberRow.class, USER.id, PROFILE.nickname, USER.email, BALANCE.balance.coalesce(0L),
+                        BALANCE.freeBalance.coalesce(0L), BALANCE.paidBalance.coalesce(0L)))
                 .from(USER).join(PROFILE).on(PROFILE.userId.eq(USER.id)).leftJoin(BALANCE).on(BALANCE.userId.eq(USER.id))
                 .where(where).orderBy(USER.id.desc()).limit(limit).fetch();
     }

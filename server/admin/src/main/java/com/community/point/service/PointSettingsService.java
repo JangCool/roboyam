@@ -6,6 +6,7 @@ import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.permission.dto.AdminActor;
+import com.community.point.dto.PointLotRules;
 import com.community.point.dto.PointRules;
 import com.community.point.dto.request.PointSettingsRequest;
 import com.community.point.dto.response.PointSettingsResponse;
@@ -54,7 +55,7 @@ public class PointSettingsService {
 
     @Transactional(readOnly = true)
     public PointSettingsResponse load() {
-        return settings.findById(PointSettingEntity.ROW_ID).map(this::response).orElseGet(() -> PointSettingsResponse.of(PointRules.DEFAULTS, null, null));
+        return settings.findById(PointSettingEntity.ROW_ID).map(this::response).orElseGet(() -> PointSettingsResponse.of(PointRules.DEFAULTS, PointLotRules.DEFAULTS, null, null));
     }
 
     @Transactional
@@ -122,7 +123,7 @@ public class PointSettingsService {
 
     private PointSettingsResponse response(PointSettingEntity row) {
         String by = row.getUpdatedBy() == null ? null : operators.findById(row.getUpdatedBy()).map(o -> o.getOperatorName()).orElse(null);
-        return PointSettingsResponse.of(row.values(), row.getUpdatedAt(), by);
+        return PointSettingsResponse.of(row.values(), row.lotRules(), row.getUpdatedAt(), by);
     }
 
     /** 커밋된 뒤에만 사본을 버린다(롤백되면 그대로) */

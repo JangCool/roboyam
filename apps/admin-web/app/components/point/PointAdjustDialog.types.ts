@@ -5,7 +5,7 @@ import type { PointAdjustMode } from '~/utils/util-point';
 export interface PointAdjustSubmit {
     member: PointMemberCandidate;
     mode: PointAdjustMode;
-    /** 금액(1~10000, 부호 없음) */
+    /** 금액(1~100000, 부호 없음) */
     amount: number;
     /** 보낼 delta(차감은 음수) */
     delta: number;

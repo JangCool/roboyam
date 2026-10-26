@@ -7,7 +7,7 @@
 ## 작업 단위와 순서
 | 단위 | 내용 | 화면 | 상태 |
 |---|---|---|---|
-| 1-1 포인트 확장 | 아래 A + 배치·불변식 + 회원·관리자 포인트 API | 작음: 회원 포인트 화면(소멸 예정·미회수), 관리자 원장 무상/유상 칸·회원 상세 묶음 — 목업 먼저 | 대기 |
+| 1-1 포인트 확장 | 아래 A + 배치·불변식 + 회원·관리자 포인트 API | 작음: 회원 포인트 화면(소멸 예정·미회수), 관리자 원장 무상/유상 칸·회원 상세 묶음 — 목업 먼저 | 완료(미커밋) 2026-10-26 — 화면 확정·서버·화면 연결·규칙 테스트 통과(shared 157·api 40·admin 84, 알림 간격 추가 뒤 shared 123·api·admin 다시 통과), 아래 「1-1 구현 결과」 |
 | 1-2 포인트 상점 | 아래 B + 닉네임 변경권 사용 + 장식 표시 + 0-5 이름 바꾸기 | 큼: 회원 포인트 상점·내 아이템·구매 확인, 관리자 품목·구매 내역·설정 — 목업 먼저 | 대기 |
 | 1-3 적립 규칙 보강(선택) | commerce.md 6-2 설정 칸 + 가입 포인트(본인인증 완료 때 평생 1회) | 포인트 정책 칸 | 대기 |
 순서: 1-1 서버 ∥ 1-2 화면 목업 → (1-1 을 develop 에 합친 뒤) 1-2 서버 → 1-3. 1-2 서버는 포인트 사용·사용 취소(1-1)에 기댄다.
@@ -33,6 +33,63 @@
 - **`PointService` 한 길**(부르는 쪽 메서드 모양 유지): `grant`(FREE 묶음, 미회수가 있으면 같은 트랜잭션에서 EARN 다음 `REVOKE_DEBT_OFFSET` — 충전 보너스는 상계 안 함) · `revoke`(무상만, 적립한 그 묶음 먼저 → 다른 무상(소멸 임박순), 0 바닥, 모자라면 debt + shortfall) · `use`(MANDATORY, `PointDeductionPolicy` — 무상 소멸 임박순 → 만든 순, 그다음 유상 만든 순) · `cancelUse`(원래 묶음으로, 만료됐으면 같은 종류 30일 새 묶음) · `expireLot` · `adjust`(무상만 — +는 1년 묶음, −는 무상에서만, 문턱 ±10,000P 초과는 `point.adjust.large` 필요, 최대 ±100,000P) · `restoreContent`(결정 7). 잠금은 지금처럼 잔액 행 `FOR UPDATE`, 묶음은 그 잠금 아래서만 고친다, 업무의 다른 잠금(재고 등) 뒤에 마지막으로.
 - **불변식(5-5)**: 회원별·종류별로 원장 합 = 잔액 = 남은 묶음 합, 원장 줄의 묶음 반영 합 = delta(`lot_tracking_started_at` 이후 줄).
 - **회원·관리자 API**: `/api/me/points` 에 무상·유상·합계·소멸 예정(가장 가까운 날·양)·미회수, `ticketCount` 실제 값(1-2). 화면은 D13 — 충전을 열기 전에는 「포인트」 하나 + 소멸 예정 + 「미회수 N P — 다음 적립에서 차감돼요」. 관리자 원장에 무상/유상 칸, 회원 상세에 묶음 목록·소멸 예정·미회수.
+
+## 1-1 화면 확정과 서버 세부 (화면 확정 2026-10-26 — 사용자 「추천대로 확정해」)
+**화면**(목업 → 확정): user-web `/me/points` — 충전 전에는 「포인트」 하나, 「{날짜} 소멸 예정 N P」(날짜는 사이트 날짜 형식), 미회수 경고 상자 「미회수 N P — 다음 적립에서 차감돼요」, 내역 줄의 「소멸」(회색)·「사용 취소」(+ 만료 묶음이면 「{날짜}까지 쓸 수 있게 돌려드렸어요」), 거르기 전체·적립·차감·소멸. admin `/points` — 원장 「적립(무상)」·「충전(유상)」 칸, 종류 + 사용 취소·소멸·환불, 조정 대화상자(적립만, 1~100,000, 문턱 초과는 `point.adjust.large` — 없으면 칸 오류, 있으면 주의 안내). admin 회원 상세 「등급·포인트」 — 합계·적립·충전, 소멸 예정, 미회수(+ 최근 기록 5건), 포인트 묶음 목록(남은 것만/전체, 10개씩). 정책 화면의 「포인트에는 유효기간이 없어요」 문구는 1-1 에서 고친다.
+
+**API**(목업 모양 그대로):
+- `GET /api/me/points` + `freeBalance`·`paidBalance`·`chargeAvailable`(충전 기능 — 3단계 전에는 늘 false)·`expiring {date(YYYY-MM-DD, KST), amount} | null`(소멸일이 지나지 않은 무상 묶음 중 가장 가까운 소멸일과 그날 소멸될 양의 합)·`revokeDebt`.
+- `GET /api/me/points/ledger?kind=EARN|USE|REVOKE|CANCEL_USE|EXPIRE` — 줄에 `restoredUntil`(사용 취소·글 복구로 돌려준 양 중 30일 새 묶음이 있으면 그 소멸 시각, 없으면 null).
+- 관리자 원장 줄에 `freeDelta`·`paidDelta`, `kind` 거르기 + `CANCEL_USE|EXPIRE|REFUND`, 사유 + 5-3 값. `member-candidates` 에 `freeBalance`·`paidBalance`.
+- `POST /api/admin/members/{id}/points` — delta 0 아닌 정수 ±100,000, |delta| > 문턱(`point_settings.adjust_large_threshold`, 기본 10,000, 0 = 모든 조정이 고액)이면 `point.adjust.large` 가 없을 때 403 `POINT_ADJUST_LARGE_REQUIRED`. 무상만, 차감은 무상 잔액까지(0 바닥, 관리자 차감은 미회수를 만들지 않는다). 응답 `balance` = 합계. 감사는 지금 `POINT_ADJUST`(이미 돈 관련 5년)에 `large: true` 를 더한다 — 큰 금액 조정을 따로 찾을 수 있게(행위를 나누지 않는다).
+- `GET /api/admin/members/{id}/point-lots?active=true|false&page=0&size=10`(`point.read`, size 1~50) → `{ freeBalance, paidBalance, revokeDebt, expiring, lots: { items, total }, shortfalls(최근 5) }`. 묶음 줄 `lotId, kind, originalAmount, remainingAmount, expiresAt|null, sourceReasonCode, sourceReason(요청 언어), restored, createdAt, expired`. 정렬: 남은 것만 = 차감 순서, 전체 = 최근 받은 순. 미회수 기록 `id, refType, refId, requested, applied, createdAt`. 없는 회원·탈퇴 404 `MEMBER_NOT_FOUND`.
+
+**서버 세부 결정(설계 — 계약 A 를 구현하며 정한 것)**:
+- 적립 하나 = 무상 묶음 하나(`free_valid_days` 뒤 소멸), `point_ledger_lots` 에 (적립 줄, 묶음, +양).
+- **소멸일이 지난 묶음은 쓰지 않는다**: 사용·회수·차감 조정은 잔액 행을 잠근 뒤 먼저 그 회원의 지난 묶음을 소멸(EXPIRE) 처리하고 남은 묶음에서만 뺀다(배치가 늦어도 지난 포인트가 쓰이지 않는다). 소멸 배치는 남은 것을 메꾼다.
+- **미회수 상계**(`REVOKE_DEBT_OFFSET`): 적립 직후 같은 트랜잭션에서 min(빚, 무상 잔액)을 방금 만든 묶음부터(그다음 차감 순서) 뺀다. ref = `LEDGER` + 적립 줄 ID. 충전 보너스(3단계)는 상계하지 않는다.
+- **회수 멱등**: 반영 0 이라 원장 줄이 없어도 같은 대상을 두 번 빚으로 올리지 않게 `point_revoke_shortfalls` 에 `reason`(회수 사유) 칸을 더하고 유일 `(reason, ref_type, ref_id)`.
+- **글 복구 되돌림(결정 7)**: 그 글의 회수 줄이 뺀 묶음으로 되돌리고(만료면 `restored_lot_valid_days` 새 묶음), 그 글의 미회수 기록을 지우며 빚을 min(빚, 그 기록의 모자란 양 합)만큼 줄인다. 그 기록의 모자란 양 중 이미 상계로 갚은 부분(모자란 양 합 − 줄인 빚)도 되돌림 줄에 더해 새 무상 묶음(`free_valid_days`)으로 준다. 되돌림 줄 하나(`POST_RESTORE`, 합이 0 이면 줄 없음).
+- 조정 문턱은 설정값 `point_settings.adjust_large_threshold`(0~100,000, 기본 10,000) — 화면에는 아직 칸이 없다(관리자 정책 화면 칸은 1-3 에서).
+- 동결(`POINT_FREEZE`): 적립 건너뜀(지금처럼), 사용 거절(`POINT_FROZEN`), 회수·사용 취소·소멸·조정은 한다.
+
+### 1-1 구현 결과 (2026-10-26 — 미커밋, 브랜치 `claude/objective-bardeen-1fa60a`)
+- **마이그레이션** `V85__point_extension.sql`(가번호): 계약 A 전부 + 구현하며 더한 것 — 원장 사유-종류 짝 CHECK, 몫 CHECK(합 = delta, 부호 일치, REVOKE 는 유상 0), `point_lots` 정체(누구·종류·양·소멸일·출처) 고정 트리거, `point_revoke_shortfalls.reason` + 유일 `(reason, ref_type, ref_id)`, `point_settings.adjust_large_threshold`, 끝에 회원 알림 종류 CHECK(V84 13종 ∪ `POINTS_EXPIRING`). 전환 묶음 ID 는 sequence `point_lot_migration_id_seq`.
+- **배치**: Java `point-expire`(매일 00:10, 분류 MEMBER, (소멸일, ID) 키셋·체크포인트·resumable, 파라미터 `userId`) · `point-expiry-notice`(매일 11:00, MEMBER, 회원당 알림 하나 + `expiry_noticed_at`) · DB `point-invariant-check`(`R__batch_29`, 매일 05:30, SYSTEM, 읽기만 — 어긋나면 FAIL 사유에 회원·줄 ID 앞 5개 → 기존 배치 실패 알림).
+- **회원 알림** `POINTS_EXPIRING`(system, 회원이 끌 수 없음·운영자는 이벤트 설정에서 끌 수 있음, 링크 `/me/points`): 「{양}P가 {날짜}부터 소멸돼요」 — 양 = 알림 기간 안 무상 묶음의 남은 양 합, 날짜 = 가장 가까운 소멸일(KST). **회원당 최소 간격**(사용자 확정 2026-10-26): `point_settings.expiry_notice_interval_days`(기본 7, 0~30, 0 = 없음) 안에 이미 받은 회원은 건너뛰고 그동안 들어온 묶음은 다음 알림에 담는다. 간격은 한국 날짜로 세고(1일에 받으면 8일에 다시), 알림 기간보다 길면 min(간격, 알림 일수 − 1)을 쓴다. 마지막 알림 시각은 `point_balances.expiry_notice_sent_at`(조건부로 적어 겹친 실행도 한 번만).
+- **API**: 위 「API」 그대로(목업과 다른 점 없음). 관리자 정책 조회에 읽기 전용 `adjustLargeThreshold`(조정 대화상자의 미리 안내 — 저장은 1-3). 오류 코드 `POINT_FROZEN` 403 · `POINT_INSUFFICIENT` 409 · `POINT_ADJUST_LARGE_REQUIRED` 403(문구에 문턱 값). 조정 검사 순서 400 → 404 → 403(고액 거절은 `PERMISSION_DENIED` 감사).
+- **화면 연결**: 두 앱의 포인트 목업 제거·실제 호출, `point.adjust.large` featureReady=true(서버·화면 카탈로그), 정책 화면 운영 원칙의 유효기간·0P 바닥 문구 고침, user-web 알림 종류 `POINTS_EXPIRING`(모래시계 아이콘).
+- **구현 가정**: ① 운영 지급(+조정)도 미회수를 상계한다(5-4 「운영 지급」), 사용 취소·글 복구 되돌림은 상계하지 않는다. ② V85 이전 회수 줄은 묶음을 몰라 글 복구 때 새 무상 묶음(1년)으로 준다. ③ 복구한 글을 다시 지워도 회수하지 않는다(되돌림 줄이 0 이라 없었던 경우만 다시 회수). ④ 소멸 예정 알림은 꺼진 회원·탈퇴 회원의 묶음도 「알림」으로 표시한다(다음 날 다시 고르지 않게). 정지·동결 회원도 받는다. ⑤ 소멸일이 지났지만 아직 소멸 처리 전인 묶음은 잔액에는 남고 소멸 예정·「남은 것만」 묶음 목록에서는 빠진다.
+
+### 1-1 규칙 → 테스트 (모두 실제 PostgreSQL — `CommerceTestDatabase`)
+| 규칙 | 테스트 |
+|---|---|
+| 차감 순서(무상 소멸 임박 → 만든 순 → 유상 만든 순) | shared `PointDeductionOrderTest` |
+| 소멸일 지난 묶음은 쓰지 않고 먼저 소멸 | `PointDeductionOrderTest.소멸일이_지난_묶음은_…` |
+| 적립 하나 = 무상 묶음 하나(1년) | `PointEarnRevokeTest.적립_하나는_…` |
+| 무상만 회수·유상 불변·0 바닥·미회수 + 기록(P21), 적립 묶음 먼저 | `PointEarnRevokeTest`(회수 4개) |
+| 같은 대상 두 번 회수해도 빚 한 번 | `PointEarnRevokeTest.같은_대상을_두_번_…`, `PointSchemaGuardTest.같은_대상은_미회수_기록도_…` |
+| 미회수 상계(P21b — EARN +20·OFFSET −20·debt 0·하루 한도 1회) | `PointEarnRevokeTest.미회수가_있으면_…_P21b` 외 2 |
+| 동결: 적립 건너뜀·사용 거절 | `PointEarnRevokeTest.동결_중이면_…`, `PointAdjustUseCancelTest.동결_중이면_…`, api `PointFreezeEarnTest` |
+| 운영 조정 무상만(P20) — 서비스·API | `PointAdjustUseCancelTest`(조정 3개), admin `PointAdjustHttpTest.유상을_지급할_길이_없다_…`·`차감은_무상_잔액까지만_…` |
+| 조정 ±100,000 · 문턱 초과는 `point.adjust.large`(없으면 403, 아무것도 안 바뀜) · 문턱 0 · 감사 large·돈 관련 · 정책 조회의 문턱 | admin `PointAdjustHttpTest` |
+| 사용·잔액 부족 거절 | `PointAdjustUseCancelTest` |
+| 사용 취소: 원래 묶음 / 만료 묶음은 30일 새 묶음 / 멱등 | `PointAdjustUseCancelTest` |
+| 소멸(expireLot) 조건부·멱등 | `PointAdjustUseCancelTest.묶음_소멸은_…` |
+| 글 복구 되돌림(결정 7) | `PointRestoreTest`(6개) |
+| 원장·묶음 반영 수정 금지, 묶음 정체 고정, 몫·부호·사유 CHECK, 합계 계산 칸 | `PointSchemaGuardTest`, `CommerceTestDatabaseTest` |
+| 잔액·원장이 있는 회원 행은 지울 수 없음(결정 5) | `PointSchemaGuardTest.잔액이나_원장이_…`, `PointMigrationConversionTest` |
+| 동시 적립·사용에서 음수 불가·불변식·하루 상한 | `PointConcurrencyTest`(16·24 스레드) |
+| 전환 뒤 불변식(P22) | `PointMigrationConversionTest`(V85 직전까지 이관한 DB 에 옛 데이터 → V85) |
+| 불변식(5-5) — 시험마다 | `PointTestKit.assertInvariants`, testFixtures `PointInvariants` |
+| 소멸 배치: 지난 무상만·멱등·밀린 것 전부·동결 회원도·덩어리 실패 격리·실패 지점부터/실패 건만 다시 | `PointExpireJobTest` |
+| 소멸 예정 알림: 기간 안만·회원당 하나·다시 안 알림·0 이면 끔·이벤트 끄기·탈퇴 제외·알림 종류 CHECK·회원당 최소 간격(7일·한국 날짜·0 이면 없음·알림 기간보다 길면 줄임·겹친 실행 한 번) | `PointExpiryNoticeJobTest`, api `PointsExpiringNotificationTest` |
+| 불변식 검사 배치: 정상 OK·어긋나면 FAIL + ID·등록 | `PointInvariantCheckBatchTest` |
+| 카탈로그·번들·cron | `PointBatchCatalogTest` |
+| 회원 API: 무상·유상·소멸 예정(KST 날짜 합)·미회수·내역 거르기·restoredUntil | api `MyPointHttpTest` |
+| 관리자 API: 원장 free/paid·새 종류·후보·회원 상세 종류·묶음 목록(정렬·쪽·미회수 기록·404/400/403) | admin `PointLedgerAdminHttpTest`, `PointMemberLotsHttpTest`, `PointPermissionDeclarationTest` |
+
+**아직 테스트로 막지 못한 규칙**: ① 큰 금액 조정 **승인 대기**(결정 11 — 4단계, 지금은 권한 검사만). ② 일일 어뷰징 리포트(결정 12 — 4단계, shortfall 표까지만). ③ 실제 pg_cron 등록·실제 시각 실행(시험 DB 에 pg_cron 없음 — 정의 행과 직접 CALL 만). ④ `@Transactional(MANDATORY)` 강제(서비스 시험이 스프링 프록시 없이 조립). ⑤ 댓글·추천 보너스 회수의 묶음·복구 규칙은 글과 같은 코드 길이라 글로만 시험. ⑥ 충전 환불(REFUND) 줄의 실제 모양(3단계). ⑦ 원장 보관 기간 파기·탈퇴 회원 원장 정리(17-3)가 생기면 불변식 검사를 함께 고쳐야 한다(`R__batch_29` 머리말).
 
 ## B. 포인트 상점 (commerce.md 7절)
 - **`point_shop_items`**: id, code(유일·불변), kind(`NICKNAME_CHANGE_TICKET`·`NICKNAME_COLOR`·`PROFILE_BORDER` — 결정 9), usage_type(`PERMANENT`|`CONSUMABLE`|`PERIOD` — 변경권은 CONSUMABLE 만, 색·테두리는 PERMANENT|PERIOD), name·name_en·description·description_en, color(`#RRGGBB`, 닉네임 색만)·border_style(팔레트 키, 테두리만) — CHECK, price_point(1~100,000), duration_days(PERIOD 만, 1~365), stock(null = 무제한, ≥ 0), sale_start_at·sale_end_at, active, sort_order, created_by·updated_by·created_at·updated_at.

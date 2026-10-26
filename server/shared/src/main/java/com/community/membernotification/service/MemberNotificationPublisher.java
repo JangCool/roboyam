@@ -10,6 +10,7 @@ import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.jpa.IsolatedSideWork;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -430,6 +431,40 @@ public class MemberNotificationPublisher {
             }
             if (on.email()) {
                 requestEmail(userId, MemberNotificationMessages.Facts.restricted(kind, until, reason, autoRule), null, null);
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
+     * 무상 포인트가 곧 소멸된다(소멸 예정 알림 배치 {@code point-expiry-notice}, commerce.md 14) — {@code POINTS_EXPIRING}(덧붙임 {@code amount}·{@code date}·{@code days}).
+     * 배치 덩어리 트랜잭션 안에서 부른다(같은 트랜잭션에서 묶음에 알린 시각을 적는다). 누르면 내 포인트.
+     *
+     * @param amount 알림 기간 안 소멸 예정 합(양수)
+     * @param date   가장 가까운 소멸일(한국 날짜)
+     * @param days   알림 기간(일)
+     */
+    public int pointsExpiring(long userId, long amount, LocalDate date, int days) {
+        if (amount <= 0) {
+            return 0;
+        }
+        return isolated.run("member-notification:points-expiring", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.POINTS_EXPIRING, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("amount", amount);
+                payload.put("date", date.toString());
+                payload.put("days", days);
+                writer.insert(ids.nextId(), userId, MemberNotificationType.POINTS_EXPIRING.name(), null, null, null, null, MAPPER.writeValueAsString(payload),
+                        Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.expiring(amount, date, days), null, null, "/me/points");
             }
             return made;
         }, 0);

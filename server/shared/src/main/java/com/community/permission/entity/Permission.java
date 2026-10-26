@@ -73,8 +73,8 @@ public enum Permission {
     POINT_READ("point.read", GRADE_POINT, READ, true),
     POINT_SETTINGS("point.settings", GRADE_POINT, CONFIG, true),
     POINT_ADJUST("point.adjust", GRADE_POINT, SENSITIVE, true),
-    /** 1회 ±10,000P 를 넘는 수동 조정(최대 ±100,000P) — commerce.md 13-2, 기능 준비 중 */
-    POINT_ADJUST_LARGE("point.adjust.large", GRADE_POINT, SENSITIVE, false),
+    /** 문턱({@code point_settings.adjust_large_threshold}, 기본 ±10,000P)을 넘는 수동 조정(최대 ±100,000P) — commerce.md 13-2, 커머스 1-1 에서 기능이 생겼다 */
+    POINT_ADJUST_LARGE("point.adjust.large", GRADE_POINT, SENSITIVE, true),
     /** 유상(충전) 포인트 환불 승인 */
     POINT_REFUND_APPROVE("point.refund.approve", GRADE_POINT, SENSITIVE, false),
     /** 고액 충전 포인트 환불(1회 100,000원 이상) */

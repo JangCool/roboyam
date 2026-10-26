@@ -37,8 +37,11 @@ class CommerceTestDatabaseTest {
 
     private static long ledger(long userId, String reason, Long refId) {
         long id = IDS.incrementAndGet();
-        jdbc.update("INSERT INTO point_ledger (id, user_id, kind, reason, delta, balance_after, ref_type, ref_id, created_at) VALUES (?, ?, 'EARN', ?, 10, 10, ?, ?, now())",
-                id, userId, reason, refId == null ? null : "POST", refId);
+        boolean revoke = reason.endsWith("_REVOKE"); // 회수 사유는 REVOKE 종류·음수만(V85 사유-종류 짝)
+        int delta = revoke ? -10 : 10;
+        jdbc.update("INSERT INTO point_ledger (id, user_id, kind, reason, delta, free_delta, paid_delta, balance_after, ref_type, ref_id, created_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, 0, 10, ?, ?, now())",
+                id, userId, revoke ? "REVOKE" : "EARN", reason, delta, delta, refId == null ? null : "POST", refId);
         return id;
     }
 
@@ -65,9 +68,9 @@ class CommerceTestDatabaseTest {
     @Test
     void 잔액은_음수가_될_수_없다() {
         long user = newUser();
-        jdbc.update("INSERT INTO point_balances (user_id, balance, updated_at) VALUES (?, 5, now())", user);
+        jdbc.update("INSERT INTO point_balances (user_id, free_balance, updated_at) VALUES (?, 5, now())", user);
 
-        assertThatThrownBy(() -> jdbc.update("UPDATE point_balances SET balance = balance - 6 WHERE user_id = ?", user)).isInstanceOf(DataAccessException.class);
+        assertThatThrownBy(() -> jdbc.update("UPDATE point_balances SET free_balance = free_balance - 6 WHERE user_id = ?", user)).isInstanceOf(DataAccessException.class);
         assertThat(jdbc.queryForObject("SELECT balance FROM point_balances WHERE user_id = ?", Long.class, user)).isEqualTo(5L);
     }
 

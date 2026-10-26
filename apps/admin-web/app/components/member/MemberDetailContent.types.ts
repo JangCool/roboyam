@@ -1,6 +1,7 @@
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { MemberRestriction } from '~/composables/member/api/useMemberRestrictionApi.types';
 import type { WithdrawnContact, WithdrawnContactRevealResult } from '~/composables/member/api/useWithdrawnContactApi.types';
+import type { PointMemberLots } from '~/composables/point/api/usePointApi.types';
 
 /**
  * 회원 상세 서랍이 부모(회원 관리 화면)에게서 받아 구획까지 내려보내는 값 — 서랍(`MemberDetailDrawer`) → 본문(`MemberDetailContent`) → 구획.
@@ -13,6 +14,19 @@ export interface MemberRestrictionsView {
     items: MemberRestriction[] | null;
     loading: boolean;
     error: ApiError | null;
+}
+
+/** 「등급·포인트」 구획의 포인트 묶음(커머스 1-1) — `useMemberPointLots` 의 값 */
+export interface MemberPointLotsView {
+    /** 아직 받지 못했거나 실패했으면 null */
+    data: PointMemberLots | null;
+    loading: boolean;
+    error: ApiError | null;
+    /** 남은 묶음만 보는가 */
+    active: boolean;
+    /** 묶음 쪽(0부터) */
+    page: number;
+    size: number;
 }
 
 /** 탈퇴 회원 연락처 블록 — `useWithdrawnContact` 의 값 */
@@ -40,4 +54,8 @@ export interface MemberDetailEmits {
     'reveal-contact': [];
     /** 열린 연락처를 지금 가리기 */
     'mask-contact': [];
+    /** 포인트 묶음 거르기·쪽 바꾸기(커머스 1-1) */
+    'point-lots-query': [query: { active: boolean; page: number }];
+    /** 포인트 묶음 다시 받기 */
+    'retry-point-lots': [];
 }

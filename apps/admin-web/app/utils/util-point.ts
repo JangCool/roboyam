@@ -3,7 +3,7 @@ import type { PointLedgerKind, PointReasonCode, PointSettingsField, PointSetting
 
 /**
  * 포인트 화면(정책·내역·조정)의 순수 계산 — 서버 규칙을 **미리 알려 주는 용도**이고 판정은 서버다(`forms.md`).
- * 서버 규칙 이름(community 기준): 정책 범위는 `PointSettingsService`(`point_settings` CHECK 와 `limits`), 조정은 `PointAdminService.adjust`(delta 0 아닌 정수 −10000~10000 · reason 1~100자, 연속 공백은 한 칸).
+ * 서버 규칙 이름(community 기준): 정책 범위는 `PointSettingsService`(`point_settings` CHECK 와 `limits`), 조정은 `PointAdminService.adjust`(delta 0 아닌 정수 −100000~100000, 크기가 정책 문턱 `adjustLargeThreshold` 초과면 `point.adjust.large` — 커머스 1-1 · reason 1~100자, 연속 공백은 한 칸).
  */
 
 /** 정책 칸 하나의 입력 문제 */
@@ -112,9 +112,14 @@ const REASON_CODES: readonly PointReasonCode[] = [
     'LIKE_BONUS',
     'LIKE_BONUS_REVOKE',
     'SIGNUP',
+    // 커머스 1-1·1-2 — 3단계·공구 사유(`CHARGE` 등)는 기능이 생길 때 더한다
+    'POINT_SHOP_PURCHASE',
+    'POINT_SHOP_REFUND',
+    'REVOKE_DEBT_OFFSET',
+    'EXPIRE',
 ];
 
-const KINDS: readonly PointLedgerKind[] = ['EARN', 'USE', 'REVOKE'];
+const KINDS: readonly PointLedgerKind[] = ['EARN', 'USE', 'CANCEL_USE', 'REVOKE', 'EXPIRE', 'REFUND'];
 
 export default class UtilPoint {
     static readonly FIELDS = FIELDS;
@@ -122,9 +127,9 @@ export default class UtilPoint {
     static readonly REASON_CODES = REASON_CODES;
     static readonly KINDS = KINDS;
     static readonly ADJUST_MODES: readonly PointAdjustMode[] = ['GRANT', 'DEDUCT'];
-    /** 조정 한 번의 금액 범위 — 서버는 delta −10000~10000(0 불가) */
+    /** 조정 한 번의 금액 범위 — 서버 `PointService.adjust` 는 delta −100000~100000(0 불가, 커머스 1-1) */
     static readonly AMOUNT_MIN = 1;
-    static readonly AMOUNT_MAX = 10000;
+    static readonly AMOUNT_MAX = 100000;
     /** 조정 사유 최대 글자 수 */
     static readonly REASON_MAX = 100;
 
@@ -209,11 +214,19 @@ export default class UtilPoint {
 
     // ── 원장 ─
 
-    /** 종류 딱지 색 — 지급 초록 · 사용 회색 · 회수 빨강 */
-    static kindSeverity(kind: PointLedgerKind): 'success' | 'secondary' | 'danger' {
+    /** 종류 딱지 색 — 지급 초록 · 사용 취소 파랑 · 회수 빨강 · 환불 주황 · 사용·소멸 회색 */
+    static kindSeverity(kind: PointLedgerKind): 'success' | 'info' | 'warn' | 'secondary' | 'danger' {
         if (kind === 'EARN') return 'success';
+        if (kind === 'CANCEL_USE') return 'info';
         if (kind === 'REVOKE') return 'danger';
+        if (kind === 'REFUND') return 'warn';
         return 'secondary';
+    }
+
+    /** 증감 글자 색 — 소멸은 회색(빨강 회수와 구분), 그 밖에는 +초록 · −빨강 · 0 회색 */
+    static deltaClass(kind: PointLedgerKind, delta: number): string {
+        if (kind === 'EXPIRE' || delta === 0) return 'text-muted-color';
+        return delta > 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400';
     }
 
     /** 증감을 부호와 함께 — `+20` · `−500`(빼기 기호), 0 은 `0` */
@@ -255,7 +268,20 @@ export default class UtilPoint {
         return mode === 'GRANT' ? amount : -amount;
     }
 
-    /** 처리 후 예상 — 잔액은 0 아래로 내려가지 않는다(서버 `PointService` 의 0P 바닥) */
+    /**
+     * 금액이 고액 조정 문턱(정책 `adjustLargeThreshold` — 0 이면 모든 조정)을 넘나. 읽을 수 없는 글자는 넘지 않은 것으로 본다.
+     * 문턱을 모르면(`null` — 정책을 아직 못 읽었다) 미리 판정하지 않는다(false — 서버 403 `POINT_ADJUST_LARGE_REQUIRED` 에 맡긴다).
+     */
+    static isLarge(amountText: string, threshold: number | null): boolean {
+        if (threshold === null) return false;
+        const value = UtilPoint.parse(amountText);
+        return value !== null && value > threshold;
+    }
+
+    /**
+     * 처리 후 예상 — 조정은 **적립(무상) 포인트만** 바꾸므로 `balance` 에는 적립 잔액(`freeBalance`)을 넣는다.
+     * 차감은 적립 0P 아래로 내려가지 않는다(서버 `PointService.adjust` 의 0P 바닥 — 충전 포인트는 건드리지 않는다).
+     */
     static preview(balance: number, delta: number): PointAdjustPreview {
         if (delta >= 0) return { applied: delta, after: balance + delta, clipped: false };
         const applied = -Math.min(-delta, balance);

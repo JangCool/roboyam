@@ -40,7 +40,10 @@
             :detail="detail"
             :restrictions="restrictions"
             :withdrawn-contact="withdrawnContact"
+            :point-lots="pointLots"
             @restrict="emit('restrict')"
+            @point-lots-query="(q) => emit('point-lots-query', q)"
+            @retry-point-lots="emit('retry-point-lots')"
             @lift="(r) => emit('lift', r)"
             @retry-restrictions="emit('retry-restrictions')"
             @reveal-contact="emit('reveal-contact')"
@@ -53,7 +56,7 @@
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { MemberDetail, MemberRow } from '~/composables/member/api/useMemberApi.types';
-import type { MemberDetailEmits, MemberRestrictionsView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
+import type { MemberDetailEmits, MemberPointLotsView, MemberRestrictionsView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
 import UtilMember from '~/utils/util-member';
 
 /** 서랍이 열려 있는가 */
@@ -72,9 +75,11 @@ interface Props {
     restrictions?: MemberRestrictionsView | null;
     /** 탈퇴 회원의 연락용 이메일(커머스 0-4) */
     withdrawnContact?: WithdrawnContactView | null;
+    /** 「등급·포인트」 구획의 포인트 묶음(커머스 1-1) — 없으면 묶음 부분을 그리지 않는다 */
+    pointLots?: MemberPointLotsView | null;
 }
 
-const props = withDefaults(defineProps<Props>(), { loading: false, error: null, ignoreSelector: '', restrictions: null, withdrawnContact: null });
+const props = withDefaults(defineProps<Props>(), { loading: false, error: null, ignoreSelector: '', restrictions: null, withdrawnContact: null, pointLots: null });
 const emit = defineEmits<{ retry: [] } & MemberDetailEmits>();
 
 const { t } = useI18n();

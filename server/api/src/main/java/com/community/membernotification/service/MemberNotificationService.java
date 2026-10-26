@@ -29,6 +29,7 @@ import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
 import com.community.zconfiguration.message.Messages;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -251,6 +252,11 @@ public class MemberNotificationService {
             case FEATURE_RESTRICTED -> facts = MemberNotificationMessages.Facts.restricted(payload.get("kind") instanceof String k ? k : "",
                     instantOf(payload.get("until")), payload.get("reason") instanceof String r && !r.isBlank() ? r : null,
                     payload.get("autoRule") instanceof String a && !a.isBlank() ? a : null);
+            case POINTS_EXPIRING -> {
+                // 소멸 예정 포인트(알림 배치) — 기간 안 소멸 예정 합 · 가장 가까운 소멸일(한국 날짜) · 일수. 누르면 내 포인트
+                facts = MemberNotificationMessages.Facts.expiring(number(payload.get("amount")), localDateOf(payload.get("date")), (int) number(payload.get("days")));
+                link = "/me/points";
+            }
             case REPORT_RESULT -> {
                 // 내 신고의 처리 결과 — 조치됨 · 위반 아님(신고 당시 제목·앞부분). 글을 볼 수 있으면 그 글로
                 String result = payload.get("result") instanceof String r ? r : MemberNotificationMessages.REPORT_ACTIONED;
@@ -335,6 +341,18 @@ public class MemberNotificationService {
         }
         try {
             return Instant.parse(text);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    /** 덧붙임의 날짜({@code YYYY-MM-DD}) — 없거나 모양이 다르면 null(문구는 빈 날짜로) */
+    private static LocalDate localDateOf(Object value) {
+        if (!(value instanceof String text) || text.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(text);
         } catch (DateTimeParseException e) {
             return null;
         }

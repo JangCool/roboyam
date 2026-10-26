@@ -5,6 +5,7 @@
         표는 서버가 한 쪽씩 준다(`lazy`). 서버가 조건을 거절하면(400 + `fields`) 해당 칸 아래에 서버 문구가 붙는다(`searchErrors`). 이메일은 서버가 가려서 준다(`member.pii` 가 있을 때만 원문) — 화면은 받은 대로 그린다.
         행을 누르면(또는 Enter·Space) 회원 상세 서랍이 열린다(`MemberDetailDrawer`, 읽기 전용 — 조치는 후속). 행 액션은 없다. 본문 여백은 셸(`.app-content`)이 준다.
         커머스 0-4: 서랍의 「기능 제한」 구획(목록·걸기·해제)과 탈퇴 회원의 분리 보관 연락처(열람)는 이 화면이 상태(`useMemberRestrictions`·`useWithdrawnContact`)와 대화상자를 가진다.
+        커머스 1-1: 「등급·포인트」 구획의 포인트 묶음(적립/충전·소멸 예정·미회수·묶음 목록)도 이 화면이 상태(`useMemberPointLots`, `point.read` 있을 때만)를 가진다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('member.title')" :subtitle="t('member.subtitle')" />
@@ -144,6 +145,7 @@
             :error="detailError"
             :restrictions="restrictionsView"
             :withdrawn-contact="contactView"
+            :point-lots="canReadPoints ? pointLotsView : null"
             @retry="retryDetail"
             @retry-restrictions="restrictions.retry"
             @restrict="restrictOpen = true"
@@ -151,6 +153,8 @@
             @retry-contact="contact.retry"
             @reveal-contact="revealOpen = true"
             @mask-contact="contact.mask"
+            @point-lots-query="pointLots.query"
+            @retry-point-lots="pointLots.retry"
         />
 
         <!-- 기능 제한 걸기·해제, 탈퇴 회원 연락처 열람(커머스 0-4) — 서랍 위에 뜬다(서랍의 바깥 누름 판정은 대화상자를 무시한다) -->
@@ -196,7 +200,7 @@
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { MemberQuery, MemberRoleOption, MemberRoleRef, MemberRow } from '~/composables/member/api/useMemberApi.types';
 import type { MemberRestriction, MemberRestrictionCreateRequest } from '~/composables/member/api/useMemberRestrictionApi.types';
-import type { MemberRestrictionsView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
+import type { MemberPointLotsView, MemberRestrictionsView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
 import UtilMember, { type MemberColumnKey, type MemberDetailRow, type MemberFilter } from '~/utils/util-member';
 import UtilMemberMessages from '~/utils/util-member-messages';
 
@@ -272,7 +276,22 @@ function onRowClick(e: { originalEvent: Event; data: MemberRow }) {
     void restrictions.open(e.data.memberNo);
     if (e.data.status === 'WITHDRAWN') void contact.open(e.data.memberNo);
     else contact.clear();
+    // 커머스 1-1 — 포인트 묶음(적립/충전·소멸 예정·미회수)은 `point.read` 가 있을 때만(탈퇴 회원은 등급·포인트 구획이 비어 받지 않는다)
+    if (canReadPoints.value && e.data.status !== 'WITHDRAWN') pointLots.open(e.data.memberNo);
+    else pointLots.clear();
 }
+
+// ── 포인트 묶음(커머스 1-1) — 「등급·포인트」 구획이 보는 상태. 서버 호출은 상태 컴포저블 한 겹이다
+const canReadPoints = computed(() => can('point.read'));
+const pointLots = useMemberPointLots();
+const pointLotsView = computed<MemberPointLotsView>(() => ({
+    data: pointLots.data.value,
+    loading: pointLots.loading.value,
+    error: pointLots.error.value,
+    active: pointLots.active.value,
+    page: pointLots.page.value,
+    size: pointLots.size,
+}));
 
 // ── 기능 제한·탈퇴 회원 연락처(커머스 0-4) — 서랍 구획이 보는 상태와 대화상자. 서버 호출은 상태 컴포저블 한 겹이다
 const restrictions = useMemberRestrictions();
