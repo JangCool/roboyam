@@ -35,6 +35,9 @@ public interface GroupMemberRepository extends RoboyamRepository<GroupMemberEnti
     /** 매니저(3단계) — 임명이 이른 순 */
     List<GroupMemberEntity> findByGroupIdAndRoleAndStatusOrderByRoleChangedAtAscUserIdAsc(Long groupId, GroupRole role, GroupMemberStatus status);
 
+    /** 매니저 수(3단계 — 인원 상한 판정·상세 managerInfo) */
+    long countByGroupIdAndRoleAndStatus(Long groupId, GroupRole role, GroupMemberStatus status);
+
     /** 하루 가입·신청 한도 — 그 시각 뒤에 바로 가입한 수 · 신청한 수 */
     long countByUserIdAndJoinedAtAfterAndDecidedByIsNull(Long userId, Instant after);
 

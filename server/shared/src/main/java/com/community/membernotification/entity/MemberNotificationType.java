@@ -78,7 +78,19 @@ public enum MemberNotificationType {
      * 모임장(또는 되돌리기를 맡은 매니저 — 3단계)이 내 공개 소모임 글을 비공개로 되돌렸다(V90, community api-groups.md 8절) — 덧붙임 groupId·groupName·title·actorRole(LEADER · MANAGER).
      * 글·일으킨 사람 칸은 그 글·처리자. 누르면 그 글. 작성자 본인이 되돌리면 알림 없음
      */
-    GROUP_POST_UNPUBLISHED("system");
+    GROUP_POST_UNPUBLISHED("system"),
+
+    // ── 소모임 매니저(V91 — group-contract 3단계, community api-groups.md 5-1·7절 「매니저 알림 5종」). 모두 끌 수 없다(내 자리·할 일이 바뀐 알림) ──
+    /** 매니저로 임명됐다 — 덧붙임 groupId·groupName·permissions(맡은 일 키, 고정 순서). 일으킨 사람 = 모임장. 누르면 관리 메인 */
+    GROUP_MANAGER_APPOINTED("system"),
+    /** 내 맡은 일이 바뀌었다(바뀐 것이 없으면 안 간다) — 덧붙임 permissions = 바뀐 뒤 지금 맡은 일 전체. 누르면 관리 메인 */
+    GROUP_MANAGER_PERMISSIONS_CHANGED("system"),
+    /** 매니저에서 해임됐다 — 누르면 그 소모임 */
+    GROUP_MANAGER_REMOVED("system"),
+    /** 매니저가 스스로 물러났다(모임장에게) — 일으킨 사람 = 물러난 매니저(덧붙임 actorId). 누르면 멤버 관리 */
+    GROUP_MANAGER_RESIGNED("system"),
+    /** 매니저가 멤버를 강퇴했다(모임장에게) — 일으킨 사람 = 강퇴한 매니저, 덧붙임 targetId(내보낸 멤버). 누르면 멤버 관리 */
+    GROUP_KICKED_BY_MANAGER("system");
 
     private final String category;
 

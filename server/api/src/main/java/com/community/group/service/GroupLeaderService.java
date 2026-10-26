@@ -41,7 +41,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 모임장·매니저 관리(community api-groups.md 5절 — 매니저 임명 계열 5-1 은 3단계). 판정은 {@link GroupAccess}: 401 → 404·403 {@code GROUP_INACTIVE} → 역할 → 쓰기 자격 → 입력 → 대상.
+ * 모임장·매니저 관리(community api-groups.md 5절 — 매니저 임명 계열 5-1 은 {@link GroupManagerService}). 판정은 {@link GroupAccess}: 401 → 404·403 {@code GROUP_INACTIVE} → 역할 → 쓰기 자격 → 입력 → 대상.
  *
  * <ul>
  *   <li><b>모임장 고정</b>: 정보 수정 · 채팅 링크 · 모임장 넘기기 · 해산.</li>
@@ -296,6 +296,9 @@ public class GroupLeaderService {
         row.kick(now);
         group.addMembers(-1, now);
         notices.kicked(group, target, me);
+        if (role == GroupRole.MANAGER) { // 매니저가 내보냈으면 모임장도 안다(3단계 GROUP_KICKED_BY_MANAGER — 일으킨 사람 = 그 매니저, 내보낸 멤버)
+            notices.kickedByManager(group, me, target, people.members(List.of(target), false).nickname(target));
+        }
         log.info("소모임에서 강퇴했다 groupId={} userId={} by userId={}({})", group.getId(), target, me, role);
     }
 

@@ -11,6 +11,7 @@ import com.community.group.entity.GroupStatus;
 import com.community.group.exception.GroupInactiveException;
 import com.community.group.exception.GroupLeaderOnlyException;
 import com.community.group.exception.GroupManagerPermissionDeniedException;
+import com.community.group.exception.GroupManagersDisabledException;
 import com.community.group.exception.GroupNotFoundException;
 import com.community.group.exception.GroupWriteBlockedException;
 import com.community.group.repository.master.GroupMemberRepository;
@@ -34,12 +35,24 @@ public class GroupAccess {
     private final GroupMemberRepository members;
     private final BoardActorResolver actors;
     private final BoardCatalog catalog;
+    private final GroupSettingsService settings;
 
-    public GroupAccess(GroupRepository groups, GroupMemberRepository members, BoardActorResolver actors, BoardCatalog catalog) {
+    public GroupAccess(GroupRepository groups, GroupMemberRepository members, BoardActorResolver actors, BoardCatalog catalog, GroupSettingsService settings) {
         this.groups = groups;
         this.members = members;
         this.actors = actors;
         this.catalog = catalog;
+        this.settings = settings;
+    }
+
+    /**
+     * 새 임명·맡은 일 바꾸기 — 매니저 규칙의 「매니저 기능」(저장된 값 ?? 설정 파일)이 꺼져 있으면 403 {@code GROUP_MANAGERS_DISABLED}. 역할 판정(모임장 고정) 다음에 본다.
+     * 해임·사퇴·인원 설정·이미 임명된 매니저의 판정은 이 값과 무관하다(community api-groups.md 5-1 「설정 · 롤아웃」).
+     */
+    public void requireManagersEnabled() {
+        if (!settings.manager().managersEnabled()) {
+            throw new GroupManagersDisabledException();
+        }
     }
 
     /** 로그인한 회원 ID — 없으면 401 */

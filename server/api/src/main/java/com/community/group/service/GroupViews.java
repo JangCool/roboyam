@@ -164,8 +164,8 @@ public class GroupViews {
         GroupDetailView.ManagerInfo managerInfo = null;
         GroupDetailView.Newcomers newcomers = null;
         if (member) {
-            int managerCount = members.findByGroupIdAndRoleAndStatusOrderByRoleChangedAtAscUserIdAsc(g.getId(), GroupRole.MANAGER, GroupMemberStatus.ACTIVE).size();
-            managerInfo = new GroupDetailView.ManagerInfo(managerCount, Math.min(g.getManagerLimit(), managerRules.limitMax()), managerRules.limitMax());
+            long managerCount = members.countByGroupIdAndRoleAndStatus(g.getId(), GroupRole.MANAGER, GroupMemberStatus.ACTIVE);
+            managerInfo = new GroupDetailView.ManagerInfo((int) managerCount, managerRules.effectiveLimit(g.getManagerLimit()), managerRules.limitMax());
             int days = Math.max(1, settings.properties().newcomerDays());
             Instant since = now.minus(Duration.ofDays(days));
             long count = queries.newcomerCount(g.getId(), since);

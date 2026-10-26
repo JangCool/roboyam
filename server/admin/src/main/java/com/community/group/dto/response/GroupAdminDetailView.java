@@ -14,8 +14,8 @@ import java.util.List;
  * @param publicPostCount 비멤버에게 보이는 글 수(공개로 전환됐고 숨김·가림이 아닌 글)
  * @param reportCaseCount 이 소모임을 대상으로 접수된 신고 사건 수(로보얌 신고 대상에 소모임이 아직 없다 — 늘 0)
  * @param deactivation    마지막으로 비활성이 된 때의 기록(한 번도 없으면 null)
- * @param managers        매니저(3단계 — 지금은 빈 배열)
- * @param managerLimit    이 소모임에 정해 둔 매니저 인원 상한(저장된 값)
+ * @param managers        지금 매니저 — 임명이 이른 순(같으면 회원 ID), 없으면 빈 배열(읽기 전용). 공개 사이트의 매니저 수와 같은 줄들이다 — 탈퇴한 회원은 {@code user.withdrawn: true}(회원 탈퇴의 자격 소멸은 6단계)
+ * @param managerLimit    이 소모임에 정해 둔 매니저 인원 상한(저장된 값 — 유효 상한은 min(이 값, managerLimitMax))
  * @param managerLimitMax 매니저 규칙의 최대 인원
  */
 public record GroupAdminDetailView(String id, String name, String description, GroupCategoryRefView category, GroupBoardRefView board, String status,

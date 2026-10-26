@@ -218,7 +218,7 @@ public class GroupAdminService {
         GroupAdminDetailView.Deactivation deactivation = g.getDeactivatedAt() == null ? null
                 : new GroupAdminDetailView.Deactivation(g.getDeactivatedAt(), operators.get(g.getDeactivatedBy()), g.getDeactivateReason(), null,
                 g.getReactivatedAt(), operators.get(g.getReactivatedBy()), g.getReactivateMemo());
-        List<GroupAdminDetailView.Manager> managers = managerRows.stream().filter(m -> !persons.of(m.getUserId()).withdrawn())
+        List<GroupAdminDetailView.Manager> managers = managerRows.stream()
                 .map(m -> new GroupAdminDetailView.Manager(persons.of(m.getUserId()), m.getRoleChangedAt(), GroupManagerPermission.keys(m.getManagerPerms())))
                 .toList();
         return new GroupAdminDetailView(Long.toString(g.getId()), g.getName(), g.getDescription(), category(g, categories.snapshot()), board(g, catalog.snapshot()),

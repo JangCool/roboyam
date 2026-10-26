@@ -158,7 +158,17 @@ public class MemberNotificationService {
         Instant now = Instant.now();
         Set<Long> postIds = rows.stream().map(MemberNotificationEntity::getPostId).filter(Objects::nonNull).collect(Collectors.toSet());
         Set<Long> commentIds = rows.stream().map(MemberNotificationEntity::getCommentId).filter(Objects::nonNull).collect(Collectors.toSet());
-        Set<Long> actorIds = rows.stream().map(MemberNotificationEntity::getActorUserId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> actorIds = rows.stream().map(MemberNotificationEntity::getActorUserId).filter(Objects::nonNull)
+                .collect(Collectors.toCollection(java.util.HashSet::new));
+        // 매니저가 내보낸 멤버(GROUP_KICKED_BY_MANAGER 의 덧붙임 targetId) — 일으킨 사람과 같이 지금 닉네임을 읽는다
+        for (MemberNotificationEntity row : rows) {
+            if (MemberNotificationType.GROUP_KICKED_BY_MANAGER.name().equals(row.getType())) {
+                Long targetId = idOf(payloadOf(row.getPayload()).get("targetId"));
+                if (targetId != null) {
+                    actorIds.add(targetId);
+                }
+            }
+        }
 
         Map<Long, PostEntity> postById = new HashMap<>();
         posts.findAllById(postIds).forEach(p -> postById.put(p.getId(), p));
@@ -202,7 +212,8 @@ public class MemberNotificationService {
         NotificationActorView actor = null;
         if (type == MemberNotificationType.COMMENT || type == MemberNotificationType.REPLY || type == MemberNotificationType.DM
                 || type == MemberNotificationType.OPINION_PIN_REQUESTED || type == MemberNotificationType.GROUP_JOIN_REQUEST
-                || type == MemberNotificationType.GROUP_POST_UNPUBLISHED) {
+                || type == MemberNotificationType.GROUP_POST_UNPUBLISHED || type == MemberNotificationType.GROUP_MANAGER_RESIGNED
+                || type == MemberNotificationType.GROUP_KICKED_BY_MANAGER) {
             actor = actorOf(row, profileById, userById, locale);
         }
 
@@ -291,6 +302,27 @@ public class MemberNotificationService {
                         payload.get("actorRole") instanceof String r ? r : null);
                 link = postAvailable ? "/posts/" + row.getPostId() : null;
             }
+            case GROUP_MANAGER_APPOINTED, GROUP_MANAGER_PERMISSIONS_CHANGED, GROUP_MANAGER_REMOVED, GROUP_MANAGER_RESIGNED, GROUP_KICKED_BY_MANAGER -> {
+                // 소모임 매니저(V91) — 소모임 이름(알릴 때) · 맡은 일(임명·바뀜 — 본문) · 일으킨 매니저(사퇴·강퇴) · 내보낸 멤버(지금 닉네임). 가는 곳: 임명·바뀜 → 관리 메인,
+                // 해임 → 그 소모임, 사퇴·매니저 강퇴 → 멤버 관리(community api-groups.md 7절 「매니저 알림 5종」)
+                String groupId = payload.get("groupId") instanceof String g && !g.isBlank() ? g : null;
+                String keys = payload.get("permissions") instanceof List<?> list
+                        ? list.stream().filter(String.class::isInstance).map(String.class::cast).collect(Collectors.joining(",")) : null;
+                String targetName = null;
+                if (type == MemberNotificationType.GROUP_KICKED_BY_MANAGER) {
+                    Long targetId = idOf(payload.get("targetId"));
+                    UserEntity targetUser = targetId == null ? null : userById.get(targetId);
+                    ProfileEntity targetProfile = targetId == null ? null : profileById.get(targetId);
+                    targetName = targetUser == null || targetUser.isGone() || targetProfile == null
+                            ? messages.get(new MessageRef("member.notification.actor.withdrawn"), locale) : targetProfile.getNickname();
+                }
+                facts = MemberNotificationMessages.Facts.groupManager(type, payload.get("groupName") instanceof String n ? n : null, actorName(actor), keys, targetName);
+                link = groupId == null ? "/groups/me" : switch (type) {
+                    case GROUP_MANAGER_APPOINTED, GROUP_MANAGER_PERMISSIONS_CHANGED -> "/groups/" + groupId + "/manage";
+                    case GROUP_MANAGER_REMOVED -> "/groups/" + groupId;
+                    default -> "/groups/" + groupId + "/manage/members";
+                };
+            }
             case REPORT_RESULT -> {
                 // 내 신고의 처리 결과 — 조치됨 · 위반 아님(신고 당시 제목·앞부분). 글을 볼 수 있으면 그 글로
                 String result = payload.get("result") instanceof String r ? r : MemberNotificationMessages.REPORT_ACTIONED;
@@ -367,6 +399,18 @@ public class MemberNotificationService {
 
     private static long number(Object value) {
         return value instanceof Number n ? n.longValue() : 0;
+    }
+
+    /** 덧붙임의 회원 ID(문자열 숫자) — 없거나 숫자가 아니면 null */
+    private static Long idOf(Object value) {
+        if (!(value instanceof String text) || text.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(text.strip());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private static Instant instantOf(Object value) {

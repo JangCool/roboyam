@@ -38,7 +38,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 소모임(공개 사이트) — community docs/api-groups.md 1~5절의 경로 그대로(5-1 매니저는 3단계). 읽기(목록·분류·개설 규칙·상세)는 로그인 없이, 나머지는 회원만
+ * 소모임(공개 사이트) — community docs/api-groups.md 1~5절의 경로 그대로(5-1 매니저는 {@link GroupManagerController}). 읽기(목록·분류·개설 규칙·상세)는 로그인 없이, 나머지는 회원만
  * ({@code SecurityConfig} — 없으면 401). 응답은 {@code Cache-Control: no-store}(보는 사람·실시간 수에 따라 달라진다).
  */
 @RestController

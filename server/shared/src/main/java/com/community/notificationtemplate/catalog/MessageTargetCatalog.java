@@ -227,6 +227,19 @@ public final class MessageTargetCatalog {
                         MessageVariable.of("postTitle", "groupPostTitle")),
                 new InAppText("member.notification.GROUP_POST_UNPUBLISHED.title", null, "{{postTitle}}", List.of("groupName", "actorRole")), "/posts/123",
                 List.of()));
+        // 소모임 매니저(V91 — group-contract 3단계) — 임명·맡은 일 바뀜은 본문이 맡은 일, 사퇴·매니저 강퇴는 일으킨 매니저(+내보낸 멤버)
+        for (MemberEvent event : List.of(MemberEvent.GROUP_MANAGER_APPOINTED, MemberEvent.GROUP_MANAGER_PERMISSIONS_CHANGED)) {
+            out.add(member(event, List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("permissions", "groupManagerTasks")),
+                    new InAppText("member.notification." + event.code() + ".title", null, "{{permissions}}", List.of("groupName")), "/groups/123/manage", List.of()));
+        }
+        out.add(groupEvent(MemberEvent.GROUP_MANAGER_REMOVED, null, "/groups/123"));
+        out.add(member(MemberEvent.GROUP_MANAGER_RESIGNED, List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("actorName", "groupManagerName")),
+                new InAppText("member.notification.GROUP_MANAGER_RESIGNED.title", null, null, List.of("groupName", "actorName")), "/groups/123/manage/members",
+                List.of()));
+        out.add(member(MemberEvent.GROUP_KICKED_BY_MANAGER, List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("actorName", "groupManagerName"),
+                        MessageVariable.of("targetName", "groupKickedMember")),
+                new InAppText("member.notification.GROUP_KICKED_BY_MANAGER.title", null, null, List.of("groupName", "actorName", "targetName")),
+                "/groups/123/manage/members", List.of()));
         return out;
     }
 

@@ -160,6 +160,11 @@ public class GroupEntity {
         this.discordLabel = discordLabel;
     }
 
+    /** 모임장이 정한 매니저 인원 상한(3단계 — 1 이상 매니저 규칙의 최대 인원 이하는 부르는 쪽이 본다) */
+    public void changeManagerLimit(int limit) {
+        this.managerLimit = limit;
+    }
+
     public void changeLeader(long userId) {
         this.leaderId = userId;
     }

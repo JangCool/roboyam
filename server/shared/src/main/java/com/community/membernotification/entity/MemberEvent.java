@@ -78,7 +78,14 @@ public enum MemberEvent {
     GROUP_DEACTIVATED(NotificationArea.CLUB, MemberNotificationType.GROUP_DEACTIVATED, MemberEventLockReason.ACTION, null),
     GROUP_REACTIVATED(NotificationArea.CLUB, MemberNotificationType.GROUP_REACTIVATED, MemberEventLockReason.ACTION, null),
     /** 모임장·되돌리기를 맡은 매니저가 내 공개 소모임 글을 비공개로 되돌렸다(V90 — 소모임 2단계) — 처리 알림 */
-    GROUP_POST_UNPUBLISHED(NotificationArea.CLUB, MemberNotificationType.GROUP_POST_UNPUBLISHED, MemberEventLockReason.ACTION, null);
+    GROUP_POST_UNPUBLISHED(NotificationArea.CLUB, MemberNotificationType.GROUP_POST_UNPUBLISHED, MemberEventLockReason.ACTION, null),
+
+    // ── 소모임 매니저(V91 — 소모임 3단계) — 내 자리·할 일이 바뀐 알림이라 회원이 끌 수 없다. 매니저의 강퇴를 모임장에게 알리는 것만 처리 알림 ──
+    GROUP_MANAGER_APPOINTED(NotificationArea.CLUB, MemberNotificationType.GROUP_MANAGER_APPOINTED, MemberEventLockReason.ACCOUNT, null),
+    GROUP_MANAGER_PERMISSIONS_CHANGED(NotificationArea.CLUB, MemberNotificationType.GROUP_MANAGER_PERMISSIONS_CHANGED, MemberEventLockReason.ACCOUNT, null),
+    GROUP_MANAGER_REMOVED(NotificationArea.CLUB, MemberNotificationType.GROUP_MANAGER_REMOVED, MemberEventLockReason.ACCOUNT, null),
+    GROUP_MANAGER_RESIGNED(NotificationArea.CLUB, MemberNotificationType.GROUP_MANAGER_RESIGNED, MemberEventLockReason.ACCOUNT, null),
+    GROUP_KICKED_BY_MANAGER(NotificationArea.CLUB, MemberNotificationType.GROUP_KICKED_BY_MANAGER, MemberEventLockReason.ACTION, null);
 
     private static final Map<String, MemberEvent> BY_CODE = Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(MemberEvent::code, Function.identity()));
 

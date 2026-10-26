@@ -150,7 +150,20 @@ public class GroupMemberEntity {
         this.roleChangedBy = by;
     }
 
-    /** 일반 멤버로 — 이전 모임장 · 해임 · 자격 소멸 */
+    /** 매니저로 임명(3단계) — 지금 멤버인 일반 멤버만(부르는 쪽이 본다). 맡은 일은 1개 이상 */
+    public void appoint(int perms, long by, Instant now) {
+        this.role = GroupRole.MANAGER;
+        this.managerPerms = perms;
+        this.roleChangedAt = now;
+        this.roleChangedBy = by;
+    }
+
+    /** 매니저의 맡은 일을 바꾼다(3단계) — 임명 시각({@code roleChangedAt})은 그대로 둔다(매니저 목록의 「임명이 이른 순」이 맡은 일 바꾸기로 흔들리지 않게) */
+    public void changePermissions(int perms) {
+        this.managerPerms = perms;
+    }
+
+    /** 일반 멤버로 — 이전 모임장 · 해임 · 사퇴 · 자격 소멸 */
     public void demote(Long by) {
         if (this.role != GroupRole.MEMBER || this.managerPerms != 0) {
             this.role = GroupRole.MEMBER;
@@ -163,7 +176,6 @@ public class GroupMemberEntity {
     public boolean active() {
         return status == GroupMemberStatus.ACTIVE;
     }
-
     public Long getGroupId() {
         return groupId;
     }

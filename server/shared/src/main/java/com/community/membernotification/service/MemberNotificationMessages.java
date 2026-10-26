@@ -1,5 +1,6 @@
 package com.community.membernotification.service;
 
+import com.community.group.entity.GroupManagerPermission;
 import com.community.membernotification.entity.MemberEvent;
 import com.community.membernotification.entity.MemberNotificationType;
 import com.community.notificationtemplate.catalog.MessageChannel;
@@ -17,6 +18,8 @@ import com.community.zconfiguration.time.ServiceTime;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import org.springframework.stereotype.Component;
 
@@ -151,6 +154,14 @@ public class MemberNotificationMessages {
          */
         public static Facts groupPostUnpublished(String groupName, String postTitle, String actorRole) {
             return new Facts(MemberNotificationType.GROUP_POST_UNPUBLISHED, null, postTitle, null, 1, 0, null, null, false, groupName, actorRole);
+        }
+
+        /**
+         * 소모임 매니저 알림(V91 — {@code GROUP_MANAGER_*} · {@code GROUP_KICKED_BY_MANAGER}) — 소모임 이름({@code snapshot}) · 일으킨 매니저 닉네임({@code actorName} — 사퇴·매니저 강퇴,
+         * 메일은 보낼 때 지금 닉네임으로 채운다) · 맡은 일 키를 쉼표로 이은 것({@code note} — 임명·맡은 일 바뀜) · 내보낸 멤버 닉네임({@code excerpt} — 매니저 강퇴).
+         */
+        public static Facts groupManager(MemberNotificationType type, String groupName, String actorName, String permissionKeys, String targetName) {
+            return new Facts(type, actorName, null, targetName, 1, 0, null, permissionKeys, false, groupName, null);
         }
 
         /** 닉네임 그림 검토 결과 — 반려·해제면 사유 */
@@ -294,11 +305,32 @@ public class MemberNotificationMessages {
             case GROUP_POST_UNPUBLISHED -> builder.variable("groupName", nz(facts.snapshot())).variable("postTitle", nz(facts.postTitle()))
                     .variable("actorRole", messages.get(new MessageRef("member.notification.GROUP_POST_UNPUBLISHED.actor."
                             + ("MANAGER".equals(facts.result()) ? "MANAGER" : "LEADER")), locale));
+            case GROUP_MANAGER_APPOINTED, GROUP_MANAGER_PERMISSIONS_CHANGED -> builder.variable("groupName", nz(facts.snapshot()))
+                    .variable("permissions", managerTasks(facts.note(), locale));
+            case GROUP_MANAGER_REMOVED -> builder.variable("groupName", nz(facts.snapshot()));
+            case GROUP_MANAGER_RESIGNED -> builder.variable("groupName", nz(facts.snapshot())).variable("actorName", nz(facts.actorName()));
+            case GROUP_KICKED_BY_MANAGER -> builder.variable("groupName", nz(facts.snapshot())).variable("actorName", nz(facts.actorName()))
+                    .variable("targetName", nz(facts.excerpt()));
             case POINTS_EXPIRING -> builder.variable("amount", String.format("%,d", facts.amount()))
                     .variable("date", facts.expiring() == null || facts.expiring().date() == null ? "" : facts.expiring().date().toString())
                     .variable("days", facts.expiring() == null ? "" : String.valueOf(facts.expiring().days()));
         }
         return builder;
+    }
+
+    /** 맡은 일 키(쉼표로 이은 것, 고정 순서) → 읽는 사람 언어의 이름을 「 · 」로 이은 한 줄(번들 group.managerPermission.<키>, 모르는 키는 건너뛴다) */
+    private String managerTasks(String keys, Locale locale) {
+        if (keys == null || keys.isBlank()) {
+            return "";
+        }
+        List<String> names = new ArrayList<>();
+        for (String key : keys.split(",")) {
+            String k = key.strip();
+            if (GroupManagerPermission.of(k).isPresent()) {
+                names.add(messages.get(new MessageRef("group.managerPermission." + k), locale));
+            }
+        }
+        return String.join(" · ", names);
     }
 
     /** 걸린 기능 이름(번들 — 「공동구매 참여」) */

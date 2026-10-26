@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.slf4j.Logger;
@@ -575,6 +576,52 @@ public class MemberNotificationPublisher {
             }
             if (on.email()) {
                 requestEmail(authorId, MemberNotificationMessages.Facts.groupPostUnpublished(name, postTitle, actorRole), null, postId);
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
+     * 소모임 매니저 알림(V91 — community api-groups.md 7절 「매니저 알림 5종」) — 덧붙임 {@code groupId}·{@code groupName}(+{@code permissions} 맡은 일 키 배열 — 임명·맡은 일 바뀜,
+     * {@code actorId} 일으킨 매니저 — 사퇴·매니저 강퇴, {@code targetId} 내보낸 멤버 — 매니저 강퇴). 끌 수 없는 알림. 일으킨 사람({@code actorUserId} — 임명·해임은 모임장,
+     * 사퇴·강퇴는 그 매니저)은 알림 행의 일으킨 사람 칸에 남고 그 사람 본인에게는 보내지 않는다. 업무 트랜잭션 안에서 부른다(세이브포인트).
+     *
+     * @param permissions 맡은 일 키(고정 순서) — 임명·맡은 일 바뀜만, 그 밖 null
+     * @param targetId    내보낸 멤버 — 매니저 강퇴만
+     * @param targetName  내보낸 멤버의 지금 닉네임(메일 문구 — 알림함은 읽을 때 다시 읽는다)
+     * @param path        메일 버튼이 가리킬 사이트 안 경로(알림함의 링크와 같은 곳)
+     */
+    public int groupManager(MemberNotificationType type, long userId, long groupId, String groupName, long actorUserId, List<String> permissions, Long targetId,
+                            String targetName, String path) {
+        if (actorUserId == userId) {
+            return 0;
+        }
+        return isolated.run("member-notification:group-manager", () -> {
+            EventSwitch on = switchOf(type, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(groupName, SNAPSHOT_MAX);
+            String keys = permissions == null ? null : String.join(",", permissions);
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("groupId", Long.toString(groupId));
+                payload.put("groupName", name);
+                if (permissions != null) {
+                    payload.put("permissions", List.copyOf(permissions));
+                }
+                if (type == MemberNotificationType.GROUP_MANAGER_RESIGNED || type == MemberNotificationType.GROUP_KICKED_BY_MANAGER) {
+                    payload.put("actorId", Long.toString(actorUserId));
+                }
+                if (targetId != null) {
+                    payload.put("targetId", Long.toString(targetId));
+                }
+                writer.insert(ids.nextId(), userId, type.name(), actorUserId, null, null, null, MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.groupManager(type, name, null, keys, targetName), actorUserId, null, path);
             }
             return made;
         }, 0);

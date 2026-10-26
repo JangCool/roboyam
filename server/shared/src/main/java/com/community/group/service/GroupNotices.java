@@ -3,6 +3,7 @@ package com.community.group.service;
 import com.community.group.entity.GroupEntity;
 import com.community.membernotification.entity.MemberNotificationType;
 import com.community.membernotification.service.MemberNotificationPublisher;
+import java.util.List;
 import org.springframework.stereotype.Component;
 
 /**
@@ -67,6 +68,43 @@ public class GroupNotices {
     /** 다시 열기 → 모임장(운영 메모는 싣지 않는다) */
     public void reactivated(GroupEntity g) {
         publisher.group(MemberNotificationType.GROUP_REACTIVATED, g.getLeaderId(), g.getId(), g.getName(), null, null, groupPath(g));
+    }
+
+    // ── 매니저(3단계 — api-groups.md 7절 「매니저 알림 5종」) ──────────────────
+
+    /** 매니저 임명 → 임명된 사람(맡은 일) */
+    public void managerAppointed(GroupEntity g, long userId, long leaderId, List<String> permissions) {
+        publisher.groupManager(MemberNotificationType.GROUP_MANAGER_APPOINTED, userId, g.getId(), g.getName(), leaderId, permissions, null, null, managePath(g));
+    }
+
+    /** 맡은 일 바뀜 → 그 매니저(바뀐 뒤 지금 맡은 일 전체) */
+    public void managerPermissionsChanged(GroupEntity g, long userId, long leaderId, List<String> permissions) {
+        publisher.groupManager(MemberNotificationType.GROUP_MANAGER_PERMISSIONS_CHANGED, userId, g.getId(), g.getName(), leaderId, permissions, null, null,
+                managePath(g));
+    }
+
+    /** 해임 → 해임된 사람 */
+    public void managerRemoved(GroupEntity g, long userId, long leaderId) {
+        publisher.groupManager(MemberNotificationType.GROUP_MANAGER_REMOVED, userId, g.getId(), g.getName(), leaderId, null, null, null, groupPath(g));
+    }
+
+    /** 사퇴 → 모임장(일으킨 사람 = 물러난 매니저) */
+    public void managerResigned(GroupEntity g, long managerId) {
+        publisher.groupManager(MemberNotificationType.GROUP_MANAGER_RESIGNED, g.getLeaderId(), g.getId(), g.getName(), managerId, null, null, null, membersPath(g));
+    }
+
+    /** 매니저가 강퇴 → 모임장(일으킨 사람 = 강퇴한 매니저, 내보낸 멤버) */
+    public void kickedByManager(GroupEntity g, long managerId, long targetId, String targetName) {
+        publisher.groupManager(MemberNotificationType.GROUP_KICKED_BY_MANAGER, g.getLeaderId(), g.getId(), g.getName(), managerId, null, targetId, targetName,
+                membersPath(g));
+    }
+
+    private static String managePath(GroupEntity g) {
+        return "/groups/" + g.getId() + "/manage";
+    }
+
+    private static String membersPath(GroupEntity g) {
+        return "/groups/" + g.getId() + "/manage/members";
     }
 
     private static String groupPath(GroupEntity g) {

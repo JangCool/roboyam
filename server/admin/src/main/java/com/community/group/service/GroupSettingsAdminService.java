@@ -159,6 +159,11 @@ public class GroupSettingsAdminService {
                 people.operatorName(row == null ? null : row.getManagerUpdatedBy()), new GroupRuleViews.ManagerUsage(usage[0], usage[1], limitCounts));
     }
 
+    /**
+     * 매니저 구획 저장(community api-groups.md 5-1 「매니저 규칙」). <b>저장이 바꾸지 않는 것</b>: 이미 임명된 매니저 · 소모임에 정해 둔 상한({@code groups.manager_limit}) ·
+     * 이미 열린 소모임 — 기본 인원은 새로 열리는 소모임에만 복사된다. 최대 인원을 줄이면 유효 상한(min(소모임 상한, 최대 인원))이 바로 줄고(새 임명 409), 다시 늘리면
+     * 소모임 값이 살아난다. 매니저 기능을 끄면 새 임명·맡은 일 바꾸기만 403 {@code GROUP_MANAGERS_DISABLED} 이고 있는 매니저의 판정·해임·사퇴·인원 설정은 그대로다.
+     */
     @Transactional
     public GroupRuleViews.Manager saveManager(AdminActor actor, GroupRuleSaveRequests.Manager body) {
         GroupRuleSaveRequests.Manager r = body == null ? new GroupRuleSaveRequests.Manager(null, null, null) : body;
