@@ -11,6 +11,7 @@
 import account from './account';
 import adult from './adult';
 import auth from './auth';
+import avatar from './avatar';
 import block from './block';
 import board from './board';
 import business from './business';
@@ -32,6 +33,7 @@ import notification from './notification';
 import onboarding from './onboarding';
 import password from './password';
 import point from './point';
+import pointShop from './pointShop';
 import poll from './poll';
 import post from './post';
 import profile from './profile';
@@ -54,6 +56,7 @@ export default {
     account,
     adult,
     auth,
+    avatar,
     block,
     board,
     business,
@@ -75,6 +78,7 @@ export default {
     onboarding,
     password,
     point,
+    pointShop,
     poll,
     post,
     profile,

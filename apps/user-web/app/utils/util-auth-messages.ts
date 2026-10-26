@@ -17,7 +17,6 @@ const CODES: ReadonlySet<string> = new Set([
     'LOGIN_LOCKED',
     'EMAIL_TAKEN',
     'NICKNAME_TAKEN',
-    'NICKNAME_CHANGE_LIMIT',
     'NICKNAME_TICKET_REQUIRED',
     'UNAUTHENTICATED',
     'TOKEN_INVALID',

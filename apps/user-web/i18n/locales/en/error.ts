@@ -8,7 +8,6 @@ export default {
     LOGIN_LOCKED: 'Log-in is temporarily locked. Please try again in a moment.',
     EMAIL_TAKEN: 'This email is already registered.',
     NICKNAME_TAKEN: 'This nickname is already taken. Please enter another one.',
-    NICKNAME_CHANGE_LIMIT: 'You’ve already changed your nickname and can’t change it again. A nickname can be changed only once after signing up.',
     NICKNAME_TICKET_REQUIRED: 'You have used all free changes. You can change it with a nickname change ticket.',
     UNAUTHENTICATED: 'Please log in.',
     TOKEN_INVALID: 'This link is invalid or has already been used.',

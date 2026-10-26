@@ -203,6 +203,12 @@ public final class MessageTargetCatalog {
                         MessageVariable.of("days", "expiringDays")),
                 new InAppText("member.notification.POINTS_EXPIRING.title", "member.notification.POINTS_EXPIRING.body", null, List.of("amount", "date", "days")),
                 "/me/points", List.of()));
+        // 포인트 상점 환불 신청 결과(정지 중 신청 — V87) — 수락: 품목 이름 · 돌려준 포인트 / 거절: 품목 이름 · 사유
+        out.add(member(MemberEvent.POINT_SHOP_REFUND_APPROVED, List.of(MessageVariable.of("itemName", "refundItemName"), MessageVariable.of("amount", "refundAmount")),
+                new InAppText("member.notification.POINT_SHOP_REFUND_APPROVED.title", "member.notification.POINT_SHOP_REFUND_APPROVED.body", null, List.of("itemName", "amount")),
+                "/me/items", List.of()));
+        out.add(member(MemberEvent.POINT_SHOP_REFUND_REJECTED, List.of(MessageVariable.of("itemName", "refundItemName"), MessageVariable.of("reason", "refundRejectReason")),
+                new InAppText("member.notification.POINT_SHOP_REFUND_REJECTED.title", null, "{{reason}}", List.of("itemName")), "/me/items", List.of()));
         return out;
     }
 

@@ -1,11 +1,12 @@
 <template>
     <!--
         포인트 정책 — 어떤 활동에 몇 포인트를, 하루 몇 번까지 줄지 정한다. community 관리자 앱 `settings/points.vue`(`point_settings` 13칸)를 **빠짐없이** 옮기고 가입 포인트(`signupPoints`, 그누보드의 회원가입 포인트)를 더했다.
-        community 와 다른 점: 최고 관리자 전용 → roboyam 권한(조회 `point.read`, 변경 `point.settings`). 지급 규칙 표 한 장 대신 업무별 구획(출석 · 글·댓글 · 인기글 보상 · 추천 보너스 · 핫딜 종료 요청 보상 · 가입 포인트 · 상점 · 운영 원칙)으로 나눠 우측 구역 내비(`SectionNav`)로 이동한다.
-        community 의 「새로고침」 단추·`defaults`(기본값으로 되돌리기)는 두지 않았다. 서버가 값을 저장만 하고 아직 지급하는 지점이 없는 구획(출석 · 인기글 보상 · 핫딜 종료 요청 · 가입 포인트 · 상점의 교환권 가격 — `point-contract.md` 「적용 지점 없음」)에는
+        community 와 다른 점: 최고 관리자 전용 → roboyam 권한(조회 `point.read`, 변경 `point.settings`). 지급 규칙 표 한 장 대신 업무별 구획(출석 · 글·댓글 · 인기글 보상 · 추천 보너스 · 핫딜 종료 요청 보상 · 가입 포인트 · 운영 원칙)으로 나눠 우측 구역 내비(`SectionNav`)로 이동한다.
+        「상점」 구획(닉네임 변경권 가격)은 없앴다 — 변경권 값의 출처는 포인트 상점 품목 가격 하나다(commerce-stage1 결정 2). 그 자리(폼 맨 위)에 「포인트 상점 › 품목 관리에서 정해요」 안내 한 줄 + 링크.
+        community 의 「새로고침」 단추·`defaults`(기본값으로 되돌리기)는 두지 않았다. 서버가 값을 저장만 하고 아직 지급하는 지점이 없는 구획(출석 · 인기글 보상 · 핫딜 종료 요청 · 가입 포인트 — `point-contract.md` 「적용 지점 없음」)에는
         「아직 적용되지 않아요」 딱지와 한 줄 안내를 단다(값은 저장된다). 실제로 지급되는 것은 글·댓글·추천 보너스(+ 본인 삭제 회수)다. 인기글 보상이 등급 조건이 될 수 있다는 안내는 문구만이다(등급 조건에 인기글 칸이 아직 없다).
         값이 0이면 그 항목이 꺼진다(전역 스위치 없음) — 꺼진 묶음에는 「꺼짐」 딱지가 붙는다(입력 중인 값 기준). 운영 원칙 구획은 community 확정 규칙의 읽기 전용 안내다.
-        **저장은 한 번에**(14칸 모두, PUT 한 번) — [저장]·[되돌리기]·상태 글·저장 실패 문구는 `<form>` 맨 끝의 떠 있는 줄(`StickySaveBar`)에 둔다(`forms.md` 2-4). 칸은 `InputText` + `inputmode=numeric`(등급 설정과 같은 이유 — `InputNumber` 는 범위 밖 값을 말없이 고친다).
+        **저장은 한 번에**(13칸 모두, PUT 한 번 — 변경권 가격 칸은 V86 이 지웠다) — [저장]·[되돌리기]·상태 글·저장 실패 문구는 `<form>` 맨 끝의 떠 있는 줄(`StickySaveBar`)에 둔다(`forms.md` 2-4). 칸은 `InputText` + `inputmode=numeric`(등급 설정과 같은 이유 — `InputNumber` 는 범위 밖 값을 말없이 고친다).
         범위 검사는 `UtilPoint`(서버와 같은 범위) — 하나라도 틀리면 저장 단추가 꺼진다. 서버가 거절한 칸(`400 VALIDATION` `fields.<칸>`)은 그 칸 아래에 서버 문구 그대로, 칸에 붙지 않는 것은 저장 줄 안에 보인다.
         권한 `point.settings` 가 없으면 저장 줄 대신 읽기 전용 안내가 보이고 칸은 `readonly`(서버 값이 그대로 보인다). 저장하지 않은 변경이 있는 채 떠나면 확인을 묻는다(`onBeforeRouteLeave`).
     -->
@@ -28,6 +29,12 @@
             <p class="text-xs text-muted-color">
                 {{ saved.updatedAt ? t('point.lastUpdated', { at: time.full(saved.updatedAt), by: saved.updatedBy ?? '—' }) : t('point.neverUpdated') }}
             </p>
+
+            <!-- 옛 「상점」 구획 자리 — 닉네임 변경권 가격은 포인트 상점 품목에서 정한다(링크는 그 화면을 열 수 있을 때만) -->
+            <Message severity="info" :closable="false" size="small">
+                <span>{{ t('point.ticketPriceMoved') }}</span>
+                <NuxtLink v-if="canOpenPointShop" to="/point-shop/items" class="ml-1.5 whitespace-nowrap font-medium text-primary hover:underline">{{ t('point.ticketPriceMovedLink') }} ›</NuxtLink>
+            </Message>
 
             <AppGadget v-for="section in SECTIONS" :key="section.anchor" :title="t(section.titleKey)" :anchor="section.anchor" :changes="sectionChanges(section)" :invalid="sectionInvalid(section)">
                 <template #title-extra>
@@ -173,14 +180,7 @@ const SECTIONS: PolicySection[] = [
         notes: ['point.note.signup', 'point.note.signupNotApplied'],
         notReady: true,
     },
-    {
-        anchor: 'point-shop',
-        titleKey: 'point.section.shop',
-        leadKey: 'point.lead.shop',
-        groups: [{ group: 'shop', fields: [{ field: 'nicknameTicketPrice', unit: 'point' }] }],
-        notes: ['point.note.shopNotApplied'],
-        notReady: true,
-    },
+    // 「상점」 구획은 없앴다 — 변경권 값은 포인트 상점 품목 가격(commerce-stage1 결정 2, V86 이 정책 칸을 지웠다)
 ];
 
 /** 운영 원칙(읽기 전용) — 0이면 꺼짐 · 하루 한도 · 0P 바닥 · 정지·탈퇴 · 삭제 회수 · 게시판별 켜고 끄기 · 15초 반영·소급 없음 · 등급과 무관 · 소멸(적립 1년 · 충전 없음, 커머스 1-1) · 비회원 글·댓글 없음 */
@@ -198,6 +198,8 @@ const { can } = useAdminPermission();
 
 /** 정책을 바꿀 수 있나(정의: util-permission-catalog.ts) — 숨기는 것은 편의이고 막는 것은 서버다 */
 const canEdit = computed(() => can('point.settings'));
+/** 포인트 상점 품목 관리를 열 수 있나 — 바뀔 이름(`pointshop.read`)으로 묻는다(카탈로그는 서버 단계) */
+const canOpenPointShop = computed(() => can('pointshop.read'));
 
 /** 서버가 준 값(저장된 값). `null` = 아직 못 받았다 */
 const saved = ref<PointSettingsResponse | null>(null);

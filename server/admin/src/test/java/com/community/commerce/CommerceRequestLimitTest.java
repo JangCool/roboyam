@@ -46,7 +46,7 @@ class CommerceRequestLimitTest extends CommerceAdminTestBase {
         Map<String, Object> limits = new LinkedHashMap<>();
         limits.put("GROUPBUY_JOIN", groupbuy);
         limits.put("POINT_CHARGE", charge);
-        limits.put("SHOP_PURCHASE", shop);
+        limits.put("POINT_SHOP_PURCHASE", shop);
         limits.put("REFUND_REQUEST", refund);
         return new RequestLimitsSaveRequest(limits);
     }
@@ -54,7 +54,7 @@ class CommerceRequestLimitTest extends CommerceAdminTestBase {
     @Test
     void 조회는_네_종류를_정해진_차례로_기본값과_함께_준다() {
         RequestLimitsView view = service.load();
-        assertThat(view.items()).extracting(RequestLimitsView.Item::action).containsExactly("GROUPBUY_JOIN", "POINT_CHARGE", "SHOP_PURCHASE", "REFUND_REQUEST");
+        assertThat(view.items()).extracting(RequestLimitsView.Item::action).containsExactly("GROUPBUY_JOIN", "POINT_CHARGE", "POINT_SHOP_PURCHASE", "REFUND_REQUEST");
         assertThat(view.items()).extracting(RequestLimitsView.Item::limitPerMinute).containsExactly(5, 3, 10, 3);
         assertThat(view.items()).extracting(RequestLimitsView.Item::defaultLimit).containsExactly(5, 3, 10, 3);
         assertThat(view.updatedAt()).isNull();
@@ -64,7 +64,7 @@ class CommerceRequestLimitTest extends CommerceAdminTestBase {
     @Test
     void 저장하면_바뀐_종류만_쓰고_감사에_전후를_남기고_이_서버의_사본은_바로_새_값() {
         long operator = newOperator();
-        assertThat(copy.limitOf(RequestAction.SHOP_PURCHASE)).isEqualTo(10);
+        assertThat(copy.limitOf(RequestAction.POINT_SHOP_PURCHASE)).isEqualTo(10);
 
         RequestLimitsView saved = service.save(actor(operator), body(5, 0, 20, 3));
 
@@ -76,11 +76,11 @@ class CommerceRequestLimitTest extends CommerceAdminTestBase {
         Map<String, Object> audit = lastAudit(operator, AuditActions.COMMERCE_REQUEST_LIMIT_UPDATE);
         assertThat(audit.get("target_type")).isEqualTo("COMMERCE_SETTINGS");
         assertThat(audit.get("target_id")).isEqualTo("request-limits");
-        assertThat((String) audit.get("detail")).contains("\"before\":{\"POINT_CHARGE\":3,\"SHOP_PURCHASE\":10}")
-                .contains("\"after\":{\"POINT_CHARGE\":0,\"SHOP_PURCHASE\":20}").doesNotContain("GROUPBUY_JOIN");
+        assertThat((String) audit.get("detail")).contains("\"before\":{\"POINT_CHARGE\":3,\"POINT_SHOP_PURCHASE\":10}")
+                .contains("\"after\":{\"POINT_CHARGE\":0,\"POINT_SHOP_PURCHASE\":20}").doesNotContain("GROUPBUY_JOIN");
         assertThat(audit.get("retention_class")).isEqualTo("GENERAL");
 
-        assertThat(copy.limitOf(RequestAction.SHOP_PURCHASE)).as("커밋 뒤 사본을 비웠다").isEqualTo(20);
+        assertThat(copy.limitOf(RequestAction.POINT_SHOP_PURCHASE)).as("커밋 뒤 사본을 비웠다").isEqualTo(20);
         assertThat(copy.limitOf(RequestAction.POINT_CHARGE)).isZero();
     }
 
@@ -98,7 +98,7 @@ class CommerceRequestLimitTest extends CommerceAdminTestBase {
         assertThatThrownBy(() -> service.save(actor(operator), body(101, -1, 1.5, "abc")))
                 .isInstanceOf(ValidationException.class)
                 .satisfies(e -> assertThat(((ValidationException) e).getFields()).containsOnlyKeys("limits.GROUPBUY_JOIN", "limits.POINT_CHARGE",
-                        "limits.SHOP_PURCHASE", "limits.REFUND_REQUEST"));
+                        "limits.POINT_SHOP_PURCHASE", "limits.REFUND_REQUEST"));
         assertThatThrownBy(() -> service.save(actor(operator), body(0, 100, 10, null)))
                 .isInstanceOf(ValidationException.class)
                 .satisfies(e -> assertThat(((ValidationException) e).getFields()).containsOnlyKeys("limits.REFUND_REQUEST"));

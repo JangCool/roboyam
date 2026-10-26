@@ -4,10 +4,10 @@
  */
 
 /** 제한하는 요청 종류 — 화면·서버 모두 이 차례로 보인다 */
-export type RequestLimitAction = 'GROUPBUY_JOIN' | 'POINT_CHARGE' | 'SHOP_PURCHASE' | 'REFUND_REQUEST';
+export type RequestLimitAction = 'GROUPBUY_JOIN' | 'POINT_CHARGE' | 'POINT_SHOP_PURCHASE' | 'REFUND_REQUEST';
 
 /** 고정 차례(공구 참여 · 충전 요청 · 상점 구매 · 환불 신청) — 타입에 딸린 상수 */
-export const REQUEST_LIMIT_ACTIONS: readonly RequestLimitAction[] = ['GROUPBUY_JOIN', 'POINT_CHARGE', 'SHOP_PURCHASE', 'REFUND_REQUEST'];
+export const REQUEST_LIMIT_ACTIONS: readonly RequestLimitAction[] = ['GROUPBUY_JOIN', 'POINT_CHARGE', 'POINT_SHOP_PURCHASE', 'REFUND_REQUEST'];
 
 export interface RequestLimitItem {
     action: RequestLimitAction;

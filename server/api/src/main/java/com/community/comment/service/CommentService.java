@@ -10,6 +10,7 @@ import com.community.board.exception.AlreadyLikedException;
 import com.community.board.exception.BlockedWordException;
 import com.community.board.exception.CannotLikeOwnException;
 import com.community.board.exception.NotAuthorException;
+import com.community.board.service.AuthorMembers;
 import com.community.board.service.AuthorViews;
 import com.community.board.service.BoardAccessPolicy;
 import com.community.board.service.BoardActorResolver;
@@ -59,7 +60,6 @@ import com.community.post.repository.master.PostRepository;
 import com.community.post.service.PostQueryService;
 import com.community.post.service.PostWriteService;
 import com.community.post.service.WriterPromotion;
-import com.community.user.entity.ProfileEntity;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
 import com.community.zconfiguration.exception.ValidationException;
@@ -214,7 +214,7 @@ public class CommentService {
                     b.staffHiddenNotice(), b.commentDislikeEnabled(),
                     userId == null || all.isEmpty() || !b.commentDislikeEnabled() ? Set.of() : counters.dislikedComments(post.getId(), userId),
                     new HashSet<>(pinOrder), userId == null || all.isEmpty() ? Map.of() : myPinRequests(post.getId(), userId));
-            Map<Long, ProfileEntity> members = authors.members(all.stream().map(CommentEntity::getAuthorId).toList());
+            AuthorMembers members = authors.members(all.stream().map(CommentEntity::getAuthorId).toList());
             Map<Long, CommentEntity> byId = new HashMap<>();
             all.forEach(c -> byId.put(c.getId(), c));
 
@@ -338,7 +338,7 @@ public class CommentService {
         return new DebateCountsView(visibleAll, general, generalTotal, pro + con + neutral, opinionsTotal, pro, con, neutral);
     }
 
-    private CommentView view(CommentEntity c, Viewer viewer, Map<Long, CommentEntity> byId, Map<Long, ProfileEntity> members, BoardCatalogSnapshot s,
+    private CommentView view(CommentEntity c, Viewer viewer, Map<Long, CommentEntity> byId, AuthorMembers members, BoardCatalogSnapshot s,
                              Instant now) {
         String state;
         if (c.isDeleted()) {

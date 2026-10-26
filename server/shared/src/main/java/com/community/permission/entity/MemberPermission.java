@@ -19,7 +19,8 @@ public enum MemberPermission {
     FILE_ATTACH("file.attach", MemberPermissionGroup.USE, true, false),
     POST_REACT("post.react", MemberPermissionGroup.USE, true, false),
     REPORT_CREATE("report.create", MemberPermissionGroup.USE, true, false),
-    SHOP_USE("shop.use", MemberPermissionGroup.USE, true, false),
+    /** 포인트 상점 이용(구매) — 0-5 의 shop.use 를 커머스 1-2 에서 이름만 바꿨다(V86 이 역할에 준 것도 옮긴다) */
+    POINTSHOP_USE("pointshop.use", MemberPermissionGroup.USE, true, false),
     GROUP_CREATE("group.create", MemberPermissionGroup.USE, false, false),
     HOTDEAL_WRITE("hotdeal.write", MemberPermissionGroup.USE, false, false),
     COMMERCE_PURCHASE("commerce.purchase", MemberPermissionGroup.USE, false, false),

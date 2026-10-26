@@ -1,6 +1,6 @@
 /**
  * 닉네임 이미지(닉네임 이미지) API 가 주고받는 모양 — 서버 `server/api`(`/api/me/nickname-image`). 처음 모양은 community `docs/api-nickname-image.md` 2절에서
- * 로보얌에 없는 아이템샵 변경권 칸(`ticketCount`·`ticketRequired`)을 뺀 것이다. 계약 후보: `docs/features/member-social-contract.md`.
+ * 닉네임 이미지 변경권 칸(포인트 상점 1단계 품목이 아니다)(`ticketCount`·`ticketRequired`)을 뺀 것이다. 계약 후보: `docs/features/member-social-contract.md`.
  * 신청은 관리자 심사 뒤 적용된다 — 심사 대기가 생기면 운영자 알림 `NICKNAME_IMAGE_PENDING`(이미 예약된 이벤트)이 나간다(서버 몫).
  */
 

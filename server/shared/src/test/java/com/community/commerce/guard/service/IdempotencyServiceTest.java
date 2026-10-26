@@ -63,7 +63,7 @@ class IdempotencyServiceTest {
     }
 
     private static String hash(Object body) {
-        return RequestHashes.of(RequestAction.SHOP_PURCHASE, body);
+        return RequestHashes.of(RequestAction.POINT_SHOP_PURCHASE, body);
     }
 
     /** 업무: 시험 표에 한 줄을 쓰고 그 번호를 응답으로 */
@@ -92,8 +92,8 @@ class IdempotencyServiceTest {
         void 같은_본문으로_다시_오면_업무를_다시_하지_않고_처음_응답을_준다() {
             String key = key();
             AtomicInteger calls = new AtomicInteger();
-            StoredResponse first = service.execute(userId, key, RequestAction.SHOP_PURCHASE, hash(Map.of("itemId", 3)), () -> work(calls));
-            StoredResponse again = service.execute(userId, key, RequestAction.SHOP_PURCHASE, hash(Map.of("itemId", 3)), () -> work(calls));
+            StoredResponse first = service.execute(userId, key, RequestAction.POINT_SHOP_PURCHASE, hash(Map.of("itemId", 3)), () -> work(calls));
+            StoredResponse again = service.execute(userId, key, RequestAction.POINT_SHOP_PURCHASE, hash(Map.of("itemId", 3)), () -> work(calls));
 
             assertThat(first.replayed()).isFalse();
             assertThat(again.replayed()).isTrue();
@@ -108,9 +108,9 @@ class IdempotencyServiceTest {
         void 다른_본문이면_409_P26() {
             String key = key();
             AtomicInteger calls = new AtomicInteger();
-            service.execute(userId, key, RequestAction.SHOP_PURCHASE, hash(Map.of("itemId", 3)), () -> work(calls));
+            service.execute(userId, key, RequestAction.POINT_SHOP_PURCHASE, hash(Map.of("itemId", 3)), () -> work(calls));
 
-            assertThatThrownBy(() -> service.execute(userId, key, RequestAction.SHOP_PURCHASE, hash(Map.of("itemId", 4)), () -> work(calls)))
+            assertThatThrownBy(() -> service.execute(userId, key, RequestAction.POINT_SHOP_PURCHASE, hash(Map.of("itemId", 4)), () -> work(calls)))
                     .isInstanceOf(IdempotencyKeyReusedException.class)
                     .satisfies(e -> assertThat(((IdempotencyKeyReusedException) e).getStatus().value()).isEqualTo(409));
             assertThat(calls).hasValue(1);
@@ -120,7 +120,7 @@ class IdempotencyServiceTest {
         void 다른_요청_종류에_같은_키를_쓰면_409() {
             String key = key();
             AtomicInteger calls = new AtomicInteger();
-            service.execute(userId, key, RequestAction.SHOP_PURCHASE, RequestHashes.of(RequestAction.SHOP_PURCHASE, Map.of("x", 1)), () -> work(calls));
+            service.execute(userId, key, RequestAction.POINT_SHOP_PURCHASE, RequestHashes.of(RequestAction.POINT_SHOP_PURCHASE, Map.of("x", 1)), () -> work(calls));
 
             assertThatThrownBy(() -> service.execute(userId, key, RequestAction.REFUND_REQUEST, RequestHashes.of(RequestAction.REFUND_REQUEST, Map.of("x", 1)),
                     () -> work(calls))).isInstanceOf(IdempotencyKeyReusedException.class);
@@ -133,7 +133,7 @@ class IdempotencyServiceTest {
             CountDownLatch release = new CountDownLatch(1);
             ExecutorService pool = Executors.newSingleThreadExecutor();
             try {
-                Future<StoredResponse> slow = pool.submit(() -> service.execute(userId, key, RequestAction.SHOP_PURCHASE, hash(Map.of("a", 1)), () -> {
+                Future<StoredResponse> slow = pool.submit(() -> service.execute(userId, key, RequestAction.POINT_SHOP_PURCHASE, hash(Map.of("a", 1)), () -> {
                     started.countDown();
                     try {
                         release.await(10, TimeUnit.SECONDS);
@@ -145,13 +145,13 @@ class IdempotencyServiceTest {
                 assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
                 assertThat(row(key)).as("처리 중 행은 업무와 따로 먼저 커밋돼 다른 연결에서 보인다").containsEntry("status", "IN_PROGRESS");
 
-                assertThatThrownBy(() -> service.execute(userId, key, RequestAction.SHOP_PURCHASE, hash(Map.of("a", 1)), () -> StoredResponse.fresh(200, "{}")))
+                assertThatThrownBy(() -> service.execute(userId, key, RequestAction.POINT_SHOP_PURCHASE, hash(Map.of("a", 1)), () -> StoredResponse.fresh(200, "{}")))
                         .isInstanceOf(IdempotencyInProgressException.class)
                         .satisfies(e -> assertThat(((IdempotencyInProgressException) e).getStatus().value()).isEqualTo(409));
 
                 release.countDown();
                 assertThat(slow.get(10, TimeUnit.SECONDS).body()).isEqualTo("{\"done\":true}");
-                assertThat(service.execute(userId, key, RequestAction.SHOP_PURCHASE, hash(Map.of("a", 1)), () -> StoredResponse.fresh(500, "{}")).replayed()).isTrue();
+                assertThat(service.execute(userId, key, RequestAction.POINT_SHOP_PURCHASE, hash(Map.of("a", 1)), () -> StoredResponse.fresh(500, "{}")).replayed()).isTrue();
             } finally {
                 release.countDown();
                 pool.shutdownNow();
@@ -162,9 +162,9 @@ class IdempotencyServiceTest {
         void 다른_회원의_같은_키는_따로다() {
             String key = key();
             AtomicInteger calls = new AtomicInteger();
-            service.execute(userId, key, RequestAction.SHOP_PURCHASE, hash(Map.of("a", 1)), () -> work(calls));
+            service.execute(userId, key, RequestAction.POINT_SHOP_PURCHASE, hash(Map.of("a", 1)), () -> work(calls));
             long other = USERS.incrementAndGet();
-            StoredResponse response = service.execute(other, key, RequestAction.SHOP_PURCHASE, hash(Map.of("a", 2)), () -> StoredResponse.fresh(200, "{\"other\":1}"));
+            StoredResponse response = service.execute(other, key, RequestAction.POINT_SHOP_PURCHASE, hash(Map.of("a", 2)), () -> StoredResponse.fresh(200, "{\"other\":1}"));
             assertThat(response.replayed()).isFalse();
         }
     }
@@ -194,7 +194,7 @@ class IdempotencyServiceTest {
             String key = key();
             AtomicInteger calls = new AtomicInteger();
             String tooBig = "\"" + "가".repeat(6000) + "\""; // UTF-8 18KB
-            assertThatThrownBy(() -> service.execute(userId, key, RequestAction.SHOP_PURCHASE, hash(Map.of("a", 1)), () -> {
+            assertThatThrownBy(() -> service.execute(userId, key, RequestAction.POINT_SHOP_PURCHASE, hash(Map.of("a", 1)), () -> {
                 work(calls);
                 return StoredResponse.fresh(200, tooBig);
             })).isInstanceOf(IllegalStateException.class).hasMessageContaining("16384");
@@ -207,8 +207,8 @@ class IdempotencyServiceTest {
         void 응답은_16KB_까지_저장한다() {
             String key = key();
             String body = "\"" + "a".repeat(StoredResponse.MAX_BODY_BYTES - 2) + "\"";
-            service.execute(userId, key, RequestAction.SHOP_PURCHASE, hash(Map.of()), () -> StoredResponse.fresh(201, body));
-            StoredResponse replay = service.execute(userId, key, RequestAction.SHOP_PURCHASE, hash(Map.of()), () -> StoredResponse.fresh(500, "{}"));
+            service.execute(userId, key, RequestAction.POINT_SHOP_PURCHASE, hash(Map.of()), () -> StoredResponse.fresh(201, body));
+            StoredResponse replay = service.execute(userId, key, RequestAction.POINT_SHOP_PURCHASE, hash(Map.of()), () -> StoredResponse.fresh(500, "{}"));
             assertThat(replay.status()).isEqualTo(201);
             assertThat(replay.body()).hasSize(StoredResponse.MAX_BODY_BYTES);
         }
@@ -221,13 +221,13 @@ class IdempotencyServiceTest {
         void 키는_24시간_동안만_기억한다() {
             String key = key();
             AtomicInteger calls = new AtomicInteger();
-            service.execute(userId, key, RequestAction.SHOP_PURCHASE, hash(Map.of("a", 1)), () -> work(calls));
+            service.execute(userId, key, RequestAction.POINT_SHOP_PURCHASE, hash(Map.of("a", 1)), () -> work(calls));
 
             clock.advance(Duration.ofHours(23).plusMinutes(59));
-            assertThat(service.execute(userId, key, RequestAction.SHOP_PURCHASE, hash(Map.of("a", 1)), () -> work(calls)).replayed()).isTrue();
+            assertThat(service.execute(userId, key, RequestAction.POINT_SHOP_PURCHASE, hash(Map.of("a", 1)), () -> work(calls)).replayed()).isTrue();
 
             clock.advance(Duration.ofMinutes(2));
-            StoredResponse after = service.execute(userId, key, RequestAction.SHOP_PURCHASE, hash(Map.of("b", 2)), () -> work(calls));
+            StoredResponse after = service.execute(userId, key, RequestAction.POINT_SHOP_PURCHASE, hash(Map.of("b", 2)), () -> work(calls));
             assertThat(after.replayed()).as("24시간이 지나면 없는 키로 본다 — 다른 본문도 새 요청").isFalse();
             assertThat(calls).hasValue(2);
         }
@@ -235,11 +235,11 @@ class IdempotencyServiceTest {
         @Test
         void 키_형식이_틀리면_400() {
             for (String bad : new String[] {null, "", "short", "a".repeat(65), "공백 있는 키-1234", "semi;colon-key"}) {
-                assertThatThrownBy(() -> service.execute(userId, bad, RequestAction.SHOP_PURCHASE, hash(Map.of()), () -> StoredResponse.fresh(200, "{}")))
+                assertThatThrownBy(() -> service.execute(userId, bad, RequestAction.POINT_SHOP_PURCHASE, hash(Map.of()), () -> StoredResponse.fresh(200, "{}")))
                         .as("키 %s", bad).isInstanceOf(IdempotencyKeyInvalidException.class)
                         .satisfies(e -> assertThat(((IdempotencyKeyInvalidException) e).getStatus().value()).isEqualTo(400));
             }
-            assertThat(service.execute(userId, "Abc_123-xyz", RequestAction.SHOP_PURCHASE, hash(Map.of()), () -> StoredResponse.fresh(200, "{}")).replayed()).isFalse();
+            assertThat(service.execute(userId, "Abc_123-xyz", RequestAction.POINT_SHOP_PURCHASE, hash(Map.of()), () -> StoredResponse.fresh(200, "{}")).replayed()).isFalse();
         }
 
         @Test

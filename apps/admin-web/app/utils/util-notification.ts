@@ -37,6 +37,8 @@ export default class UtilNotification {
         SITE_SETTINGS_CHANGED: 'pi pi-sliders-h',
         GRADE_SETTINGS_SAVED: 'pi pi-trophy',
         GRADE_PROMOTION_RUN: 'pi pi-trophy',
+        // 포인트 상점 — 정지 중 회원의 환불 신청(링크 `/point-shop/purchases?refundRequest=PENDING`)
+        POINT_SHOP_REFUND_REQUESTED: 'pi pi-replay',
     };
 
     /**

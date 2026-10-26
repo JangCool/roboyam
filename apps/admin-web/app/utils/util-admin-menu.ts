@@ -90,7 +90,7 @@ export default class UtilAdminMenu {
      * 지금 있는 화면의 메뉴. 새 화면이 생길 때 한 줄씩 더한다(서버 `AdminScreenRegistry` 에도 같은 한 줄 — 파일 머리말).
      * 운영자와 권한 묶음 — hamonica3 의 `사용자와 권한`(회원 관리 · 역할 관리)에 대응한다. 이 제품에서 회원은 공개 사이트 이용자이고 관리자 앱 계정은 운영자다.
      * 배치와 로그 묶음 — hamonica3 의 시스템 설정 메뉴(`배치와 로그`: 배치 관리 · 배치 로그 · 감사 로그)와 같은 이름·차례·아이콘·주소다.
-     * 모드: 대시보드·회원(회원 관리·등급 설정)·메뉴 관리·게시판·포인트·소모임은 일반 메뉴, 「일반」·알림·운영자와 권한·배치와 로그는 설정 메뉴(`mode: 'settings'`)다. 등급 설정은 회원 운영 업무라 일반 메뉴에 남긴다(주소가 `/settings/…` 여도 모드는 메뉴 정의가 정한다).
+     * 모드: 대시보드·회원(회원 관리·등급 설정)·메뉴 관리·게시판·포인트·포인트 상점·소모임은 일반 메뉴, 「일반」·알림·운영자와 권한·배치와 로그는 설정 메뉴(`mode: 'settings'`)다. 등급 설정은 회원 운영 업무라 일반 메뉴에 남긴다(주소가 `/settings/…` 여도 모드는 메뉴 정의가 정한다).
      * 포인트 묶음(포인트 내역·포인트 정책)은 실제 서버(`usePointApi`)를 부른다 — 권한(`point.read`)이 있는 운영자에게 보인다.
      */
     static readonly ITEMS: readonly AdminMenuNode[] = [
@@ -170,6 +170,19 @@ export default class UtilAdminMenu {
             items: [
                 { key: 'points', to: '/points', icon: 'pi pi-receipt', labelKey: 'menu.points', permission: 'point.read' },
                 { key: 'pointPolicy', to: '/points/policy', icon: 'pi pi-percentage', labelKey: 'menu.pointPolicy', permission: 'point.read' },
+            ],
+        },
+        // 포인트 상점 묶음(포인트 묶음 바로 다음) — 포인트로 사는 디지털 아이템의 품목 관리 · 구매 내역(예외 환불) · 포인트 상점 설정(환불 기한). commerce.md 7절, 계약 commerce-stage1 「1-2 화면 목업」.
+        // 「상점」이라고만 부르지 않고(포인트 상점), 공동구매(현금으로 사는 실물)와 같은 묶음에 넣지 않는다(사용자 2026-10-26).
+        // 서버 `AdminScreenRegistry` 에도 같은 세 줄이 있다. 세 화면 모두 조회 `pointshop.read`, 화면 안에서 저장 `pointshop.manage` · 예외 환불 `pointshop.refund`(0-5 의 `shop.*` 를 1-2 에서 바꿨다).
+        {
+            key: 'pointShop',
+            icon: 'pi pi-shopping-bag',
+            labelKey: 'menu.pointShop',
+            items: [
+                { key: 'pointShopItems', to: '/point-shop/items', icon: 'pi pi-box', labelKey: 'menu.pointShopItems', permission: 'pointshop.read' },
+                { key: 'pointShopPurchases', to: '/point-shop/purchases', icon: 'pi pi-receipt', labelKey: 'menu.pointShopPurchases', permission: 'pointshop.read' },
+                { key: 'pointShopSettings', to: '/point-shop/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.pointShopSettings', permission: 'pointshop.read' },
             ],
         },
         // 소모임 묶음 — 소모임 목록(열림·비활성, 상세 서랍에서 비활성화·다시 열기) · 개설 승인 · 분류(소모임 게시판 할당) · 설정(개설 규칙·매니저·공개 범위·운영 한도). community 관리자 앱의 「소모임」 묶음에 대응한다.

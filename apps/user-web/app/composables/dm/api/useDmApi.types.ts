@@ -2,6 +2,7 @@
  * 쪽지 API 가 주고받는 모양 — 서버(api)도 이 모양으로 준다. 모양은 community `docs/api-dm.md` 그대로다(닉네임 이미지 칸은 로보얌 작성자 표시에 없어 뺐다).
  * 계약 후보: `docs/features/member-social-contract.md`. ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO, **하루는 한국 시간 0시에 시작**한다.
  */
+import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopApi.types';
 import type { Role } from '~/composables/auth/api/useAuthApi.types';
 
 /** 쪽지를 보낼 수 없는 이유(보낼 수 있으면 null) — 여러 이유가 겹치면 서버가 이 순서로 하나만 알린다: SELF → EMAIL_NOT_VERIFIED → ACCOUNT_RESTRICTED → BUSINESS_RESTRICTED → NOT_PERMITTED → TOO_NEW → RECIPIENT_WITHDRAWN → UNAVAILABLE → RECIPIENT_REFUSES → DAILY_LIMIT → NEW_PARTNER_LIMIT */
@@ -28,6 +29,10 @@ export interface DmPartner {
     role: Role;
     withdrawn: boolean;
     memo: string | null;
+    /** 상대가 장착한 장식(닉네임 색·테두리) — 쪽지에서는 닉네임 색만 그린다. 탈퇴·장착 없음은 null, 옛 응답에는 없을 수 있다 */
+    decoration?: AuthorDecoration | null;
+    /** 상대의 프로필 아바타 그림 주소 — 쪽지에는 지금 그리지 않는다(작성자 모양을 맞추려고 넘긴다) */
+    avatarUrl?: string | null;
 }
 
 /** 오늘(한국 시간)의 한도 — `resetsInSeconds` 는 다음 한국 시간 0시까지 남은 초. 전송이 실패하면 한도에 들어가지 않는다 */

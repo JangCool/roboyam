@@ -19,6 +19,7 @@ import { definePreset } from '@primeuix/themes';
  * `// MOCK:` 인 곳(서버에 API 가 없다 — `docs/features/member-mypage-contract.md`): 내 프로필(`useProfileApi`) · 포인트 내역(`usePointApi().ledger`) · 내 알림 설정(`useNotificationSettingsApi`).
  * 계정 흐름(`docs/features/member-account-contract.md`): 이메일 가입·이메일/닉네임 확인·메일 링크 확인·비밀번호 찾기·재설정(`useAuthApi` 의 해당 메서드) · 내 계정·비밀번호 변경·이메일 변경(`useAccountApi`).
  * 회원 활동·둘러보기(`docs/features/member-activity-contract.md`): 최신·인기(`useHomeApi`)·통합 검색(`useSearchApi`, 게시판 하나·한 단어 검색만 실제)·공개 프로필(`useUserProfileApi`)·등급(`useGradeApi`)·제재(`useSanctionApi`)도 목업이다.
+ * 포인트 상점(`docs/features/commerce-stage1-contract.md`): 품목·구매(`usePointShopApi`)·내 아이템·장착·환불(`useMyItemsApi`)·프로필 아바타(`useAvatarApi`)·프로필의 닉네임 변경권(`useProfileApi`)도 실제 서버다 — 구매·환불은 머리글 `Idempotency-Key` 를 보낸다.
  * 소셜 로그인 시작·콜백도 `/api/auth/social/**` 라 같은 프록시를 탄다 — 공급자에 등록하는 콜백 주소는 사이트 공개 주소(`site_settings.public_url`) 기준이므로 로컬에서 시험하려면 공개 주소를 이 개발 서버 주소로 맞춘다.
  * 소통·개인 설정(`docs/features/member-social-contract.md`): 쪽지(`useDmApi` — 헤더 쪽지 아이콘·메뉴·햄버거·`/me` 의 「쪽지함」)·차단(`useBlockApi`)·이용자 메모(`useMemoApi`)·닉네임 그림(`useNicknameImageApi`)은 실제 서버, 성인 확인(`useAdultApi`)·보기 설정(`useViewSettingsApi`)은 목업이다.
  *

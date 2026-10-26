@@ -6,6 +6,8 @@ export default {
     policyLoadFailed: '포인트 정책을 불러오지 못했어요.',
     lastUpdated: '마지막 변경 {at} · {by}',
     neverUpdated: '아직 바꾼 적이 없어요(기본값).',
+    ticketPriceMoved: '닉네임 변경권 가격은 포인트 상점 › 품목 관리에서 정해요.',
+    ticketPriceMovedLink: '품목 관리',
     offTag: '꺼짐',
     notReadyTag: '아직 적용되지 않아요',
     section: {
@@ -15,7 +17,6 @@ export default {
         likeBonus: '추천 보너스',
         dealEnd: '핫딜 종료 요청 보상',
         signup: '가입 포인트',
-        shop: '상점',
         rules: '운영 원칙',
     },
     lead: {
@@ -25,7 +26,6 @@ export default {
         likeBonus: '글·댓글이 인정된 추천을 문턱 개수만큼 받으면 글쓴이에게 한 번 보너스를 줘요.',
         dealEnd: '종료된 핫딜에 종료 요청을 했던 회원에게 글마다 한 번 보상해요.',
         signup: '회원가입을 마치면 한 번 주는 포인트예요.',
-        shop: '포인트로 살 수 있는 상품의 가격이에요.',
         rules: '정책 값과 함께 지켜지는 규칙이에요. 이 화면에서 바꿀 수 없어요.',
     },
     group: {
@@ -46,7 +46,6 @@ export default {
         dealEndRequestPoints: '보상 포인트',
         dealEndRequestDailyLimit: '하루 지급 횟수',
         signupPoints: '가입 포인트',
-        nicknameTicketPrice: '닉네임 변경권 가격',
     },
     help: {
         attendancePoints: '하루에 한 번 지급해요. 0이면 출석 기록만 남아요.',
@@ -62,7 +61,6 @@ export default {
         dealEndRequestPoints: '종료 요청 한 건에 주는 포인트예요.',
         dealEndRequestDailyLimit: '하루에 받는 최대 횟수예요.',
         signupPoints: '가입을 마칠 때 한 번 줘요. 0이면 지급하지 않아요.',
-        nicknameTicketPrice: '닉네임 변경권 한 장의 가격이에요(1 이상). 환불할 수 없어요.',
     },
     unit: {
         point: 'P',
@@ -79,7 +77,6 @@ export default {
         attendanceNotApplied: '출석체크 기능은 아직 없어요. 값은 저장되고 기능이 생기면 이 값으로 지급해요.',
         popularNotApplied: '인기글 보상 기능은 아직 없어요. 값은 저장되고 기능이 생기면 이 값으로 지급해요.',
         signupNotApplied: '공개 사이트 회원가입 기능이 아직 없어 지급하지 않아요. 값은 저장돼요.',
-        shopNotApplied: '닉네임 변경권 교환 기능은 아직 없어요. 값은 저장되고 기능이 생기면 이 가격을 써요.',
     },
     rule: {
         zeroOff: '값을 0으로 두면 그 항목이 꺼져요. 포인트 전체를 끄는 스위치는 따로 없어요.',

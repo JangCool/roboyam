@@ -13,7 +13,7 @@ export type PointSettingsProblem = 'REQUIRED' | 'NOT_INTEGER' | 'OUT_OF_RANGE';
 export type PointSettingsForm = Record<PointSettingsField, string>;
 
 /** 정책 묶음(같은 「꺼짐」 판정을 받는 칸들) */
-export type PointSettingsGroup = 'attendance' | 'post' | 'comment' | 'popular' | 'likeBonus' | 'dealEnd' | 'signup' | 'shop';
+export type PointSettingsGroup = 'attendance' | 'post' | 'comment' | 'popular' | 'likeBonus' | 'dealEnd' | 'signup';
 
 /** 조정 방향 — 지급 · 차감 */
 export type PointAdjustMode = 'GRANT' | 'DEDUCT';
@@ -46,7 +46,6 @@ const FIELDS: readonly PointSettingsField[] = [
     'dealEndRequestPoints',
     'dealEndRequestDailyLimit',
     'signupPoints',
-    'nicknameTicketPrice',
 ];
 
 /** 입력 범위 — community `limits` 그대로 + 가입 포인트(0~10000) */
@@ -64,7 +63,6 @@ const LIMITS: Record<PointSettingsField, readonly [number, number]> = {
     dealEndRequestPoints: [0, 10000],
     dealEndRequestDailyLimit: [0, 1000],
     signupPoints: [0, 10000],
-    nicknameTicketPrice: [1, 100000],
 };
 
 /** 기본값 — community `defaults` 그대로 + 가입 포인트 0(지급 안 함) */
@@ -82,10 +80,9 @@ const DEFAULTS: PointSettingsValues = {
     dealEndRequestPoints: 3,
     dealEndRequestDailyLimit: 5,
     signupPoints: 0,
-    nicknameTicketPrice: 1000,
 };
 
-/** 묶음마다 칸과 「꺼짐」 규칙 — 칸 중 하나라도 0 이면 꺼진다(문턱은 1 이상이라 끄는 칸이 아니다). 상점은 끌 수 없다 */
+/** 묶음마다 칸과 「꺼짐」 규칙 — 칸 중 하나라도 0 이면 꺼진다(문턱은 1 이상이라 끄는 칸이 아니다) */
 const GROUPS: Record<PointSettingsGroup, { fields: readonly PointSettingsField[]; offWhenZero: readonly PointSettingsField[] }> = {
     attendance: { fields: ['attendancePoints'], offWhenZero: ['attendancePoints'] },
     post: { fields: ['postPoints', 'postDailyCap'], offWhenZero: ['postPoints', 'postDailyCap'] },
@@ -94,7 +91,6 @@ const GROUPS: Record<PointSettingsGroup, { fields: readonly PointSettingsField[]
     likeBonus: { fields: ['likeBonusThreshold', 'likeBonusPoints', 'likeBonusDailyLimit'], offWhenZero: ['likeBonusPoints', 'likeBonusDailyLimit'] },
     dealEnd: { fields: ['dealEndRequestPoints', 'dealEndRequestDailyLimit'], offWhenZero: ['dealEndRequestPoints', 'dealEndRequestDailyLimit'] },
     signup: { fields: ['signupPoints'], offWhenZero: ['signupPoints'] },
-    shop: { fields: ['nicknameTicketPrice'], offWhenZero: [] },
 };
 
 /** 원장 사유 코드 — 고르개 차례 */

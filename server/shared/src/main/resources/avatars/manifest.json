@@ -1,0 +1,1717 @@
+{
+ "total": 328,
+ "categories": [
+  {
+   "id": "basic",
+   "name": "기본형",
+   "count": 6
+  },
+  {
+   "id": "hobby",
+   "name": "취미·캐릭터 (성별 구분 없음)",
+   "count": 16
+  },
+  {
+   "id": "job",
+   "name": "직업 (남/여)",
+   "count": 38
+  },
+  {
+   "id": "sports",
+   "name": "운동 (남/여)",
+   "count": 12
+  },
+  {
+   "id": "military",
+   "name": "군·경 특수직 (남/여)",
+   "count": 26
+  },
+  {
+   "id": "transport",
+   "name": "항공·해양 (남/여)",
+   "count": 12
+  },
+  {
+   "id": "animal",
+   "name": "동물 (수컷/암컷)",
+   "count": 18
+  },
+  {
+   "id": "office",
+   "name": "사무직 (남/여)",
+   "count": 48
+  },
+  {
+   "id": "factory",
+   "name": "공장·현장직 (남/여)",
+   "count": 48
+  },
+  {
+   "id": "care",
+   "name": "의료·공공 (남/여)",
+   "count": 24
+  },
+  {
+   "id": "service",
+   "name": "교육·서비스 (남/여)",
+   "count": 24
+  },
+  {
+   "id": "arts-driver",
+   "name": "예술·운전 (남/여)",
+   "count": 24
+  },
+  {
+   "id": "sports2",
+   "name": "운동 2 (남/여)",
+   "count": 24
+  },
+  {
+   "id": "traditional",
+   "name": "전통 (남/여)",
+   "count": 8
+  }
+ ],
+ "items": [
+  {
+   "id": "basic-default",
+   "name": "기본",
+   "category": "basic"
+  },
+  {
+   "id": "basic-adult-m",
+   "name": "성인 남성",
+   "category": "basic"
+  },
+  {
+   "id": "basic-adult-f",
+   "name": "성인 여성",
+   "category": "basic"
+  },
+  {
+   "id": "basic-business",
+   "name": "사업자",
+   "category": "basic"
+  },
+  {
+   "id": "basic-boy",
+   "name": "소년",
+   "category": "basic"
+  },
+  {
+   "id": "basic-girl",
+   "name": "소녀",
+   "category": "basic"
+  },
+  {
+   "id": "hobby-researcher",
+   "name": "연구원",
+   "category": "hobby"
+  },
+  {
+   "id": "hobby-gamer",
+   "name": "게이머",
+   "category": "hobby"
+  },
+  {
+   "id": "hobby-artist",
+   "name": "예술가",
+   "category": "hobby"
+  },
+  {
+   "id": "hobby-athlete",
+   "name": "운동선수",
+   "category": "hobby"
+  },
+  {
+   "id": "hobby-baby",
+   "name": "유아",
+   "category": "hobby"
+  },
+  {
+   "id": "hobby-traveler",
+   "name": "여행자",
+   "category": "hobby"
+  },
+  {
+   "id": "hobby-musician",
+   "name": "음악가",
+   "category": "hobby"
+  },
+  {
+   "id": "hobby-investor",
+   "name": "투자자",
+   "category": "hobby"
+  },
+  {
+   "id": "hobby-astronaut",
+   "name": "우주비행사",
+   "category": "hobby"
+  },
+  {
+   "id": "hobby-wizard",
+   "name": "마법사",
+   "category": "hobby"
+  },
+  {
+   "id": "hobby-detective",
+   "name": "탐정",
+   "category": "hobby"
+  },
+  {
+   "id": "hobby-pilot",
+   "name": "파일럿",
+   "category": "hobby"
+  },
+  {
+   "id": "hobby-creator",
+   "name": "크리에이터",
+   "category": "hobby"
+  },
+  {
+   "id": "hobby-cafe",
+   "name": "카페",
+   "category": "hobby"
+  },
+  {
+   "id": "hobby-winter",
+   "name": "겨울",
+   "category": "hobby"
+  },
+  {
+   "id": "hobby-crown",
+   "name": "왕관",
+   "category": "hobby"
+  },
+  {
+   "id": "job-doctor-m",
+   "name": "의사 남",
+   "category": "job"
+  },
+  {
+   "id": "job-doctor-f",
+   "name": "의사 여",
+   "category": "job"
+  },
+  {
+   "id": "job-nurse-m",
+   "name": "간호사 남",
+   "category": "job"
+  },
+  {
+   "id": "job-nurse-f",
+   "name": "간호사 여",
+   "category": "job"
+  },
+  {
+   "id": "job-firefighter-m",
+   "name": "소방관 남",
+   "category": "job"
+  },
+  {
+   "id": "job-firefighter-f",
+   "name": "소방관 여",
+   "category": "job"
+  },
+  {
+   "id": "job-police-m",
+   "name": "경찰 남",
+   "category": "job"
+  },
+  {
+   "id": "job-police-f",
+   "name": "경찰 여",
+   "category": "job"
+  },
+  {
+   "id": "job-construction-m",
+   "name": "건설 남",
+   "category": "job"
+  },
+  {
+   "id": "job-construction-f",
+   "name": "건설 여",
+   "category": "job"
+  },
+  {
+   "id": "job-excavator-m",
+   "name": "포크레인 남",
+   "category": "job"
+  },
+  {
+   "id": "job-excavator-f",
+   "name": "포크레인 여",
+   "category": "job"
+  },
+  {
+   "id": "job-mixer-m",
+   "name": "레미콘 남",
+   "category": "job"
+  },
+  {
+   "id": "job-mixer-f",
+   "name": "레미콘 여",
+   "category": "job"
+  },
+  {
+   "id": "job-student-m",
+   "name": "학생 남",
+   "category": "job"
+  },
+  {
+   "id": "job-student-f",
+   "name": "학생 여",
+   "category": "job"
+  },
+  {
+   "id": "job-teacher-m",
+   "name": "선생님 남",
+   "category": "job"
+  },
+  {
+   "id": "job-teacher-f",
+   "name": "선생님 여",
+   "category": "job"
+  },
+  {
+   "id": "job-kindergarten-m",
+   "name": "유치원 교사 남",
+   "category": "job"
+  },
+  {
+   "id": "job-kindergarten-f",
+   "name": "유치원 교사 여",
+   "category": "job"
+  },
+  {
+   "id": "job-chef-m",
+   "name": "요리사 남",
+   "category": "job"
+  },
+  {
+   "id": "job-chef-f",
+   "name": "요리사 여",
+   "category": "job"
+  },
+  {
+   "id": "job-developer-m",
+   "name": "개발자 남",
+   "category": "job"
+  },
+  {
+   "id": "job-developer-f",
+   "name": "개발자 여",
+   "category": "job"
+  },
+  {
+   "id": "job-farmer-m",
+   "name": "농부 남",
+   "category": "job"
+  },
+  {
+   "id": "job-farmer-f",
+   "name": "농부 여",
+   "category": "job"
+  },
+  {
+   "id": "job-judge-m",
+   "name": "판사 남",
+   "category": "job"
+  },
+  {
+   "id": "job-judge-f",
+   "name": "판사 여",
+   "category": "job"
+  },
+  {
+   "id": "job-delivery-m",
+   "name": "배달 남",
+   "category": "job"
+  },
+  {
+   "id": "job-delivery-f",
+   "name": "배달 여",
+   "category": "job"
+  },
+  {
+   "id": "job-hairdresser-m",
+   "name": "미용사 남",
+   "category": "job"
+  },
+  {
+   "id": "job-hairdresser-f",
+   "name": "미용사 여",
+   "category": "job"
+  },
+  {
+   "id": "job-banker-m",
+   "name": "은행원 남",
+   "category": "job"
+  },
+  {
+   "id": "job-banker-f",
+   "name": "은행원 여",
+   "category": "job"
+  },
+  {
+   "id": "job-middle-aged-m",
+   "name": "중년 남",
+   "category": "job"
+  },
+  {
+   "id": "job-middle-aged-f",
+   "name": "중년 여",
+   "category": "job"
+  },
+  {
+   "id": "job-grandpa",
+   "name": "할아버지",
+   "category": "job"
+  },
+  {
+   "id": "job-grandma",
+   "name": "할머니",
+   "category": "job"
+  },
+  {
+   "id": "sports-basketball-m",
+   "name": "농구 남",
+   "category": "sports"
+  },
+  {
+   "id": "sports-basketball-f",
+   "name": "농구 여",
+   "category": "sports"
+  },
+  {
+   "id": "sports-soccer-m",
+   "name": "축구 남",
+   "category": "sports"
+  },
+  {
+   "id": "sports-soccer-f",
+   "name": "축구 여",
+   "category": "sports"
+  },
+  {
+   "id": "sports-baseball-m",
+   "name": "야구 남",
+   "category": "sports"
+  },
+  {
+   "id": "sports-baseball-f",
+   "name": "야구 여",
+   "category": "sports"
+  },
+  {
+   "id": "sports-judo-m",
+   "name": "유도 남",
+   "category": "sports"
+  },
+  {
+   "id": "sports-judo-f",
+   "name": "유도 여",
+   "category": "sports"
+  },
+  {
+   "id": "sports-taekwondo-m",
+   "name": "태권도 남",
+   "category": "sports"
+  },
+  {
+   "id": "sports-taekwondo-f",
+   "name": "태권도 여",
+   "category": "sports"
+  },
+  {
+   "id": "sports-swimming-m",
+   "name": "수영 남",
+   "category": "sports"
+  },
+  {
+   "id": "sports-swimming-f",
+   "name": "수영 여",
+   "category": "sports"
+  },
+  {
+   "id": "military-army-m",
+   "name": "육군 남",
+   "category": "military"
+  },
+  {
+   "id": "military-army-f",
+   "name": "육군 여",
+   "category": "military"
+  },
+  {
+   "id": "military-navy-m",
+   "name": "해군 남",
+   "category": "military"
+  },
+  {
+   "id": "military-navy-f",
+   "name": "해군 여",
+   "category": "military"
+  },
+  {
+   "id": "military-airforce-m",
+   "name": "공군 남",
+   "category": "military"
+  },
+  {
+   "id": "military-airforce-f",
+   "name": "공군 여",
+   "category": "military"
+  },
+  {
+   "id": "military-marine-m",
+   "name": "해병대 남",
+   "category": "military"
+  },
+  {
+   "id": "military-marine-f",
+   "name": "해병대 여",
+   "category": "military"
+  },
+  {
+   "id": "military-sf-m",
+   "name": "특전사 남",
+   "category": "military"
+  },
+  {
+   "id": "military-sf-f",
+   "name": "특전사 여",
+   "category": "military"
+  },
+  {
+   "id": "military-commando-m",
+   "name": "특공대 남",
+   "category": "military"
+  },
+  {
+   "id": "military-commando-f",
+   "name": "특공대 여",
+   "category": "military"
+  },
+  {
+   "id": "military-soldier-m",
+   "name": "군인 남",
+   "category": "military"
+  },
+  {
+   "id": "military-soldier-f",
+   "name": "군인 여",
+   "category": "military"
+  },
+  {
+   "id": "military-medic-officer-m",
+   "name": "군의관 남",
+   "category": "military"
+  },
+  {
+   "id": "military-medic-officer-f",
+   "name": "군의관 여",
+   "category": "military"
+  },
+  {
+   "id": "military-medic-m",
+   "name": "위생병 남",
+   "category": "military"
+  },
+  {
+   "id": "military-medic-f",
+   "name": "위생병 여",
+   "category": "military"
+  },
+  {
+   "id": "military-cook-m",
+   "name": "취사병 남",
+   "category": "military"
+  },
+  {
+   "id": "military-cook-f",
+   "name": "취사병 여",
+   "category": "military"
+  },
+  {
+   "id": "military-engineer-m",
+   "name": "공병 남",
+   "category": "military"
+  },
+  {
+   "id": "military-engineer-f",
+   "name": "공병 여",
+   "category": "military"
+  },
+  {
+   "id": "military-police-swat-m",
+   "name": "경찰특공대 남",
+   "category": "military"
+  },
+  {
+   "id": "military-police-swat-f",
+   "name": "경찰특공대 여",
+   "category": "military"
+  },
+  {
+   "id": "military-musa-m",
+   "name": "무사 남",
+   "category": "military"
+  },
+  {
+   "id": "military-musa-f",
+   "name": "무사 여",
+   "category": "military"
+  },
+  {
+   "id": "transport-heli-pilot-m",
+   "name": "헬기조종사 남",
+   "category": "transport"
+  },
+  {
+   "id": "transport-heli-pilot-f",
+   "name": "헬기조종사 여",
+   "category": "transport"
+  },
+  {
+   "id": "transport-captain-m",
+   "name": "기장 남",
+   "category": "transport"
+  },
+  {
+   "id": "transport-captain-f",
+   "name": "기장 여",
+   "category": "transport"
+  },
+  {
+   "id": "transport-flight-attendant-m",
+   "name": "스튜어디스 남",
+   "category": "transport"
+  },
+  {
+   "id": "transport-flight-attendant-f",
+   "name": "스튜어디스 여",
+   "category": "transport"
+  },
+  {
+   "id": "transport-ship-captain-m",
+   "name": "선장 남",
+   "category": "transport"
+  },
+  {
+   "id": "transport-ship-captain-f",
+   "name": "선장 여",
+   "category": "transport"
+  },
+  {
+   "id": "transport-mate-m",
+   "name": "항해사 남",
+   "category": "transport"
+  },
+  {
+   "id": "transport-mate-f",
+   "name": "항해사 여",
+   "category": "transport"
+  },
+  {
+   "id": "transport-sailor-m",
+   "name": "선원 남",
+   "category": "transport"
+  },
+  {
+   "id": "transport-sailor-f",
+   "name": "선원 여",
+   "category": "transport"
+  },
+  {
+   "id": "animal-cat-m",
+   "name": "고양이 수컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-cat-f",
+   "name": "고양이 암컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-dog-m",
+   "name": "강아지 수컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-dog-f",
+   "name": "강아지 암컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-rabbit-m",
+   "name": "토끼 수컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-rabbit-f",
+   "name": "토끼 암컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-bear-m",
+   "name": "곰 수컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-bear-f",
+   "name": "곰 암컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-lion-m",
+   "name": "사자 수컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-lion-f",
+   "name": "사자 암컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-tiger-m",
+   "name": "호랑이 수컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-tiger-f",
+   "name": "호랑이 암컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-otter-m",
+   "name": "수달 수컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-otter-f",
+   "name": "수달 암컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-seal-m",
+   "name": "물개 수컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-seal-f",
+   "name": "물개 암컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-chicken-m",
+   "name": "닭 수컷",
+   "category": "animal"
+  },
+  {
+   "id": "animal-chicken-f",
+   "name": "닭 암컷",
+   "category": "animal"
+  },
+  {
+   "id": "office-employee-m",
+   "name": "회사원 남",
+   "category": "office"
+  },
+  {
+   "id": "office-employee-f",
+   "name": "회사원 여",
+   "category": "office"
+  },
+  {
+   "id": "office-team-lead-m",
+   "name": "팀장 남",
+   "category": "office"
+  },
+  {
+   "id": "office-team-lead-f",
+   "name": "팀장 여",
+   "category": "office"
+  },
+  {
+   "id": "office-executive-m",
+   "name": "임원 남",
+   "category": "office"
+  },
+  {
+   "id": "office-executive-f",
+   "name": "임원 여",
+   "category": "office"
+  },
+  {
+   "id": "office-secretary-m",
+   "name": "비서 남",
+   "category": "office"
+  },
+  {
+   "id": "office-secretary-f",
+   "name": "비서 여",
+   "category": "office"
+  },
+  {
+   "id": "office-hr-m",
+   "name": "인사담당 남",
+   "category": "office"
+  },
+  {
+   "id": "office-hr-f",
+   "name": "인사담당 여",
+   "category": "office"
+  },
+  {
+   "id": "office-accountant-m",
+   "name": "회계사 남",
+   "category": "office"
+  },
+  {
+   "id": "office-accountant-f",
+   "name": "회계사 여",
+   "category": "office"
+  },
+  {
+   "id": "office-tax-accountant-m",
+   "name": "세무사 남",
+   "category": "office"
+  },
+  {
+   "id": "office-tax-accountant-f",
+   "name": "세무사 여",
+   "category": "office"
+  },
+  {
+   "id": "office-lawyer-m",
+   "name": "변호사 남",
+   "category": "office"
+  },
+  {
+   "id": "office-lawyer-f",
+   "name": "변호사 여",
+   "category": "office"
+  },
+  {
+   "id": "office-civil-servant-m",
+   "name": "공무원 남",
+   "category": "office"
+  },
+  {
+   "id": "office-civil-servant-f",
+   "name": "공무원 여",
+   "category": "office"
+  },
+  {
+   "id": "office-insurance-m",
+   "name": "보험설계사 남",
+   "category": "office"
+  },
+  {
+   "id": "office-insurance-f",
+   "name": "보험설계사 여",
+   "category": "office"
+  },
+  {
+   "id": "office-realtor-m",
+   "name": "부동산중개인 남",
+   "category": "office"
+  },
+  {
+   "id": "office-realtor-f",
+   "name": "부동산중개인 여",
+   "category": "office"
+  },
+  {
+   "id": "office-trader-m",
+   "name": "증권트레이더 남",
+   "category": "office"
+  },
+  {
+   "id": "office-trader-f",
+   "name": "증권트레이더 여",
+   "category": "office"
+  },
+  {
+   "id": "office-sales-m",
+   "name": "영업사원 남",
+   "category": "office"
+  },
+  {
+   "id": "office-sales-f",
+   "name": "영업사원 여",
+   "category": "office"
+  },
+  {
+   "id": "office-marketer-m",
+   "name": "마케터 남",
+   "category": "office"
+  },
+  {
+   "id": "office-marketer-f",
+   "name": "마케터 여",
+   "category": "office"
+  },
+  {
+   "id": "office-planner-m",
+   "name": "기획자 남",
+   "category": "office"
+  },
+  {
+   "id": "office-planner-f",
+   "name": "기획자 여",
+   "category": "office"
+  },
+  {
+   "id": "office-consultant-m",
+   "name": "컨설턴트 남",
+   "category": "office"
+  },
+  {
+   "id": "office-consultant-f",
+   "name": "컨설턴트 여",
+   "category": "office"
+  },
+  {
+   "id": "office-designer-m",
+   "name": "디자이너 남",
+   "category": "office"
+  },
+  {
+   "id": "office-designer-f",
+   "name": "디자이너 여",
+   "category": "office"
+  },
+  {
+   "id": "office-data-analyst-m",
+   "name": "데이터분석가 남",
+   "category": "office"
+  },
+  {
+   "id": "office-data-analyst-f",
+   "name": "데이터분석가 여",
+   "category": "office"
+  },
+  {
+   "id": "office-security-expert-m",
+   "name": "보안전문가 남",
+   "category": "office"
+  },
+  {
+   "id": "office-security-expert-f",
+   "name": "보안전문가 여",
+   "category": "office"
+  },
+  {
+   "id": "office-server-engineer-m",
+   "name": "서버엔지니어 남",
+   "category": "office"
+  },
+  {
+   "id": "office-server-engineer-f",
+   "name": "서버엔지니어 여",
+   "category": "office"
+  },
+  {
+   "id": "office-call-center-m",
+   "name": "콜센터상담원 남",
+   "category": "office"
+  },
+  {
+   "id": "office-call-center-f",
+   "name": "콜센터상담원 여",
+   "category": "office"
+  },
+  {
+   "id": "office-reception-m",
+   "name": "안내데스크 남",
+   "category": "office"
+  },
+  {
+   "id": "office-reception-f",
+   "name": "안내데스크 여",
+   "category": "office"
+  },
+  {
+   "id": "office-reporter-m",
+   "name": "기자 남",
+   "category": "office"
+  },
+  {
+   "id": "office-reporter-f",
+   "name": "기자 여",
+   "category": "office"
+  },
+  {
+   "id": "office-intern-m",
+   "name": "인턴 남",
+   "category": "office"
+  },
+  {
+   "id": "office-intern-f",
+   "name": "인턴 여",
+   "category": "office"
+  },
+  {
+   "id": "factory-production-m",
+   "name": "생산직 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-production-f",
+   "name": "생산직 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-assembler-m",
+   "name": "조립공 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-assembler-f",
+   "name": "조립공 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-qc-m",
+   "name": "품질검사원 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-qc-f",
+   "name": "품질검사원 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-packer-m",
+   "name": "포장작업자 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-packer-f",
+   "name": "포장작업자 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-foreman-m",
+   "name": "현장반장 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-foreman-f",
+   "name": "현장반장 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-welder-m",
+   "name": "용접공 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-welder-f",
+   "name": "용접공 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-cnc-m",
+   "name": "CNC기술자 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-cnc-f",
+   "name": "CNC기술자 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-painter-m",
+   "name": "도장공 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-painter-f",
+   "name": "도장공 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-electrician-m",
+   "name": "전기기사 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-electrician-f",
+   "name": "전기기사 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-plumber-m",
+   "name": "배관공 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-plumber-f",
+   "name": "배관공 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-maintenance-m",
+   "name": "설비보전 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-maintenance-f",
+   "name": "설비보전 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-forklift-m",
+   "name": "지게차기사 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-forklift-f",
+   "name": "지게차기사 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-crane-m",
+   "name": "크레인기사 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-crane-f",
+   "name": "크레인기사 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-logistics-m",
+   "name": "물류센터 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-logistics-f",
+   "name": "물류센터 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-truck-driver-m",
+   "name": "화물트럭기사 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-truck-driver-f",
+   "name": "화물트럭기사 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-cleanroom-m",
+   "name": "반도체클린룸 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-cleanroom-f",
+   "name": "반도체클린룸 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-food-factory-m",
+   "name": "식품공장 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-food-factory-f",
+   "name": "식품공장 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-chemical-m",
+   "name": "화학공정 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-chemical-f",
+   "name": "화학공정 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-auto-mechanic-m",
+   "name": "자동차정비사 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-auto-mechanic-f",
+   "name": "자동차정비사 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-robot-engineer-m",
+   "name": "로봇엔지니어 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-robot-engineer-f",
+   "name": "로봇엔지니어 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-safety-manager-m",
+   "name": "안전관리자 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-safety-manager-f",
+   "name": "안전관리자 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-rebar-m",
+   "name": "철근공 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-rebar-f",
+   "name": "철근공 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-miner-m",
+   "name": "광부 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-miner-f",
+   "name": "광부 여",
+   "category": "factory"
+  },
+  {
+   "id": "factory-loader-m",
+   "name": "상하차작업자 남",
+   "category": "factory"
+  },
+  {
+   "id": "factory-loader-f",
+   "name": "상하차작업자 여",
+   "category": "factory"
+  },
+  {
+   "id": "care-pharmacist-m",
+   "name": "약사 남",
+   "category": "care"
+  },
+  {
+   "id": "care-pharmacist-f",
+   "name": "약사 여",
+   "category": "care"
+  },
+  {
+   "id": "care-dentist-m",
+   "name": "치과의사 남",
+   "category": "care"
+  },
+  {
+   "id": "care-dentist-f",
+   "name": "치과의사 여",
+   "category": "care"
+  },
+  {
+   "id": "care-vet-m",
+   "name": "수의사 남",
+   "category": "care"
+  },
+  {
+   "id": "care-vet-f",
+   "name": "수의사 여",
+   "category": "care"
+  },
+  {
+   "id": "care-paramedic-m",
+   "name": "응급구조사 남",
+   "category": "care"
+  },
+  {
+   "id": "care-paramedic-f",
+   "name": "응급구조사 여",
+   "category": "care"
+  },
+  {
+   "id": "care-social-worker-m",
+   "name": "사회복지사 남",
+   "category": "care"
+  },
+  {
+   "id": "care-social-worker-f",
+   "name": "사회복지사 여",
+   "category": "care"
+  },
+  {
+   "id": "care-physio-m",
+   "name": "물리치료사 남",
+   "category": "care"
+  },
+  {
+   "id": "care-physio-f",
+   "name": "물리치료사 여",
+   "category": "care"
+  },
+  {
+   "id": "care-kor-doctor-m",
+   "name": "한의사 남",
+   "category": "care"
+  },
+  {
+   "id": "care-kor-doctor-f",
+   "name": "한의사 여",
+   "category": "care"
+  },
+  {
+   "id": "care-prison-guard-m",
+   "name": "교도관 남",
+   "category": "care"
+  },
+  {
+   "id": "care-prison-guard-f",
+   "name": "교도관 여",
+   "category": "care"
+  },
+  {
+   "id": "care-bodyguard-m",
+   "name": "경호원 남",
+   "category": "care"
+  },
+  {
+   "id": "care-bodyguard-f",
+   "name": "경호원 여",
+   "category": "care"
+  },
+  {
+   "id": "care-postman-m",
+   "name": "집배원 남",
+   "category": "care"
+  },
+  {
+   "id": "care-postman-f",
+   "name": "집배원 여",
+   "category": "care"
+  },
+  {
+   "id": "care-sanitation-m",
+   "name": "환경미화원 남",
+   "category": "care"
+  },
+  {
+   "id": "care-sanitation-f",
+   "name": "환경미화원 여",
+   "category": "care"
+  },
+  {
+   "id": "care-coast-guard-m",
+   "name": "해양경찰 남",
+   "category": "care"
+  },
+  {
+   "id": "care-coast-guard-f",
+   "name": "해양경찰 여",
+   "category": "care"
+  },
+  {
+   "id": "service-professor-m",
+   "name": "교수 남",
+   "category": "service"
+  },
+  {
+   "id": "service-professor-f",
+   "name": "교수 여",
+   "category": "service"
+  },
+  {
+   "id": "service-scientist-m",
+   "name": "과학자 남",
+   "category": "service"
+  },
+  {
+   "id": "service-scientist-f",
+   "name": "과학자 여",
+   "category": "service"
+  },
+  {
+   "id": "service-librarian-m",
+   "name": "사서 남",
+   "category": "service"
+  },
+  {
+   "id": "service-librarian-f",
+   "name": "사서 여",
+   "category": "service"
+  },
+  {
+   "id": "service-tutor-m",
+   "name": "학원강사 남",
+   "category": "service"
+  },
+  {
+   "id": "service-tutor-f",
+   "name": "학원강사 여",
+   "category": "service"
+  },
+  {
+   "id": "service-barista-m",
+   "name": "바리스타 남",
+   "category": "service"
+  },
+  {
+   "id": "service-barista-f",
+   "name": "바리스타 여",
+   "category": "service"
+  },
+  {
+   "id": "service-waiter-m",
+   "name": "웨이터 남",
+   "category": "service"
+  },
+  {
+   "id": "service-waiter-f",
+   "name": "웨이터 여",
+   "category": "service"
+  },
+  {
+   "id": "service-hotelier-m",
+   "name": "호텔리어 남",
+   "category": "service"
+  },
+  {
+   "id": "service-hotelier-f",
+   "name": "호텔리어 여",
+   "category": "service"
+  },
+  {
+   "id": "service-convenience-m",
+   "name": "편의점직원 남",
+   "category": "service"
+  },
+  {
+   "id": "service-convenience-f",
+   "name": "편의점직원 여",
+   "category": "service"
+  },
+  {
+   "id": "service-butcher-m",
+   "name": "정육점주인 남",
+   "category": "service"
+  },
+  {
+   "id": "service-butcher-f",
+   "name": "정육점주인 여",
+   "category": "service"
+  },
+  {
+   "id": "service-fisher-m",
+   "name": "어부 남",
+   "category": "service"
+  },
+  {
+   "id": "service-fisher-f",
+   "name": "어부 여",
+   "category": "service"
+  },
+  {
+   "id": "service-baker-m",
+   "name": "제빵사 남",
+   "category": "service"
+  },
+  {
+   "id": "service-baker-f",
+   "name": "제빵사 여",
+   "category": "service"
+  },
+  {
+   "id": "service-cashier-m",
+   "name": "마트캐셔 남",
+   "category": "service"
+  },
+  {
+   "id": "service-cashier-f",
+   "name": "마트캐셔 여",
+   "category": "service"
+  },
+  {
+   "id": "arts-driver-photographer-m",
+   "name": "사진작가 남",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-photographer-f",
+   "name": "사진작가 여",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-announcer-m",
+   "name": "아나운서 남",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-announcer-f",
+   "name": "아나운서 여",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-actor-m",
+   "name": "배우 남",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-actor-f",
+   "name": "배우 여",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-singer-m",
+   "name": "가수 남",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-singer-f",
+   "name": "가수 여",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-cartoonist-m",
+   "name": "만화가 남",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-cartoonist-f",
+   "name": "만화가 여",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-writer-m",
+   "name": "작가 남",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-writer-f",
+   "name": "작가 여",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-film-director-m",
+   "name": "영화감독 남",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-film-director-f",
+   "name": "영화감독 여",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-model-m",
+   "name": "모델 남",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-model-f",
+   "name": "모델 여",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-taxi-m",
+   "name": "택시기사 남",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-taxi-f",
+   "name": "택시기사 여",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-bus-m",
+   "name": "버스기사 남",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-bus-f",
+   "name": "버스기사 여",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-train-driver-m",
+   "name": "기관사 남",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-train-driver-f",
+   "name": "기관사 여",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-courier-m",
+   "name": "택배기사 남",
+   "category": "arts-driver"
+  },
+  {
+   "id": "arts-driver-courier-f",
+   "name": "택배기사 여",
+   "category": "arts-driver"
+  },
+  {
+   "id": "sports2-golf-m",
+   "name": "골프 남",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-golf-f",
+   "name": "골프 여",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-badminton-m",
+   "name": "배드민턴 남",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-badminton-f",
+   "name": "배드민턴 여",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-table-tennis-m",
+   "name": "탁구 남",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-table-tennis-f",
+   "name": "탁구 여",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-boxing-m",
+   "name": "복싱 남",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-boxing-f",
+   "name": "복싱 여",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-wrestling-m",
+   "name": "레슬링 남",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-wrestling-f",
+   "name": "레슬링 여",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-archery-m",
+   "name": "양궁 남",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-archery-f",
+   "name": "양궁 여",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-ski-m",
+   "name": "스키 남",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-ski-f",
+   "name": "스키 여",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-tennis-m",
+   "name": "테니스 남",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-tennis-f",
+   "name": "테니스 여",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-trainer-m",
+   "name": "헬스트레이너 남",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-trainer-f",
+   "name": "헬스트레이너 여",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-yoga-m",
+   "name": "요가 남",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-yoga-f",
+   "name": "요가 여",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-marathon-m",
+   "name": "마라톤 남",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-marathon-f",
+   "name": "마라톤 여",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-equestrian-m",
+   "name": "승마 남",
+   "category": "sports2"
+  },
+  {
+   "id": "sports2-equestrian-f",
+   "name": "승마 여",
+   "category": "sports2"
+  },
+  {
+   "id": "traditional-seonbi-m",
+   "name": "선비 남",
+   "category": "traditional"
+  },
+  {
+   "id": "traditional-seonbi-f",
+   "name": "선비 여",
+   "category": "traditional"
+  },
+  {
+   "id": "traditional-haenyeo-m",
+   "name": "해녀 남",
+   "category": "traditional"
+  },
+  {
+   "id": "traditional-haenyeo-f",
+   "name": "해녀 여",
+   "category": "traditional"
+  },
+  {
+   "id": "traditional-monk-m",
+   "name": "스님 남",
+   "category": "traditional"
+  },
+  {
+   "id": "traditional-monk-f",
+   "name": "스님 여",
+   "category": "traditional"
+  },
+  {
+   "id": "traditional-potter-m",
+   "name": "도공 남",
+   "category": "traditional"
+  },
+  {
+   "id": "traditional-potter-f",
+   "name": "도공 여",
+   "category": "traditional"
+  }
+ ]
+}

@@ -14,8 +14,8 @@ public enum RequestAction {
     GROUPBUY_JOIN(5),
     /** 포인트 충전 요청 — 3번 */
     POINT_CHARGE(3),
-    /** 상점 구매 — 10번 */
-    SHOP_PURCHASE(10),
+    /** 포인트 상점 구매 — 10번(0-5 의 SHOP_PURCHASE 를 커머스 1-2 에서 이름만 바꿨다 — V86 이 행을 옮긴다) */
+    POINT_SHOP_PURCHASE(10),
     /** 환불 신청(아이템·충전·반품) — 3번 */
     REFUND_REQUEST(3);
 

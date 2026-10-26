@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
  */
 class CommercePermissionsAndMenuTest extends CommerceAdminTestBase {
 
-    /** @param ready 기능이 생겼나(featureReady) — point.adjust.large 는 커머스 1-1 에서 생겼다 */
+    /** @param ready 기능이 생겼나(featureReady) — point.adjust.large 는 커머스 1-1, pointshop.*(0-5 의 shop.* 를 이름만 바꿈)은 1-2 에서 생겼다 */
     record Expected(String code, PermissionType type, PermissionUnit unit, String frontType, boolean ready) {
     }
 
@@ -29,15 +29,15 @@ class CommercePermissionsAndMenuTest extends CommerceAdminTestBase {
             new Expected("commerce.refund.large", PermissionType.GB_ORDER, PermissionUnit.SENSITIVE, "gbOrder", false),
             new Expected("commerce.payment.read", PermissionType.GB_SETTLE, PermissionUnit.READ, "gbSettle", false),
             new Expected("commerce.reconcile.manage", PermissionType.GB_SETTLE, PermissionUnit.SENSITIVE, "gbSettle", false),
-            new Expected("shop.read", PermissionType.GRADE_POINT, PermissionUnit.READ, "gradePoint", false),
-            new Expected("shop.manage", PermissionType.GRADE_POINT, PermissionUnit.MANAGE, "gradePoint", false),
-            new Expected("shop.refund", PermissionType.GRADE_POINT, PermissionUnit.SENSITIVE, "gradePoint", false),
+            new Expected("pointshop.read", PermissionType.GRADE_POINT, PermissionUnit.READ, "gradePoint", true),
+            new Expected("pointshop.manage", PermissionType.GRADE_POINT, PermissionUnit.MANAGE, "gradePoint", true),
+            new Expected("pointshop.refund", PermissionType.GRADE_POINT, PermissionUnit.SENSITIVE, "gradePoint", true),
             new Expected("point.adjust.large", PermissionType.GRADE_POINT, PermissionUnit.SENSITIVE, "gradePoint", true),
             new Expected("point.refund.large", PermissionType.GRADE_POINT, PermissionUnit.SENSITIVE, "gradePoint", false),
             new Expected("point.refund.approve", PermissionType.GRADE_POINT, PermissionUnit.SENSITIVE, "gradePoint", false));
 
     @Test
-    void 권한_10개는_결정_12_의_유형과_단위이고_고액_포인트_조정만_기능이_생겼다() {
+    void 권한_10개는_결정_12_의_유형과_단위이고_고액_포인트_조정과_포인트_상점은_기능이_생겼다() {
         assertThat(NEW).hasSize(10);
         for (Expected expected : NEW) {
             Permission permission = Permission.ofCode(expected.code()).orElseThrow(() -> new AssertionError("Permission 에 없다: " + expected.code()));

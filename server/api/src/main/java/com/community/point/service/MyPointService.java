@@ -3,6 +3,7 @@ package com.community.point.service;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.BoardCatalog;
 import com.community.point.dto.PointRules;
+import com.community.pointshop.service.NicknameTicketService;
 import com.community.point.dto.response.LikeBonusRuleView;
 import com.community.point.dto.response.MyPointLedgerItemView;
 import com.community.point.dto.response.MyPointLedgerPageView;
@@ -44,8 +45,8 @@ import org.springframework.transaction.annotation.Transactional;
  * 내 포인트 — 로그인한 회원 본인 것만(이메일 인증 전·정지 중이어도 읽는다).
  *
  * <ul>
- *   <li><b>요약</b>: 하루의 기준은 한국 시간 0시. 규칙은 정책 사본({@link PointPolicy}, 15초)에서 읽는다. 출석·교환 기능이 아직 없어 {@code attended=false}·{@code ticketCount=0}·
- *       {@code attendanceAvailable=false} 다. 커머스 1-1: 무상·유상·미회수는 잔액 행, 소멸 예정은 남은 무상 묶음({@link PointLotQueries#expiring}), 충전 기능이 없어
+ *   <li><b>요약</b>: 하루의 기준은 한국 시간 0시. 규칙은 정책 사본({@link PointPolicy}, 15초)에서 읽는다. 출석 기능이 아직 없어 {@code attended=false}·
+ *       {@code attendanceAvailable=false} 다. 커머스 1-2: {@code ticketCount} = 안 쓴 닉네임 변경권 수, 변경권 가격 = 포인트 상점 변경권 품목 가격({@link NicknameTicketService}). 커머스 1-1: 무상·유상·미회수는 잔액 행, 소멸 예정은 남은 무상 묶음({@link PointLotQueries#expiring}), 충전 기능이 없어
  *       {@code chargeAvailable=false}.</li>
  *   <li><b>내역</b>({@code GET /api/me/points/ledger}): 원장의 본인 줄만, 최신이 위(id 내림차순 커서). {@code kind}(EARN·USE·REVOKE·CANCEL_USE·EXPIRE, 없으면 전체) ·
  *       {@code restoredUntil}(만료된 묶음 대신 새 묶음으로 돌려준 줄의 소멸 시각) · {@code size} 1~{@value #LEDGER_MAX_SIZE}
@@ -74,10 +75,11 @@ public class MyPointService {
     private final PointLotQueries lots;
     private final BoardCatalog catalog;
     private final Messages messages;
+    private final NicknameTicketService tickets;
     private final Clock clock;
 
     public MyPointService(PointBalanceRepository balances, PointService points, PointPolicy policy, MyPointLedgerQueries ledger, PointLotQueries lots,
-                          BoardCatalog catalog, Messages messages, ObjectProvider<Clock> clocks) {
+                          BoardCatalog catalog, Messages messages, NicknameTicketService tickets, ObjectProvider<Clock> clocks) {
         this.balances = balances;
         this.points = points;
         this.policy = policy;
@@ -85,6 +87,7 @@ public class MyPointService {
         this.lots = lots;
         this.catalog = catalog;
         this.messages = messages;
+        this.tickets = tickets;
         this.clock = clocks.getIfUnique(Clock::systemUTC);
     }
 
@@ -102,9 +105,9 @@ public class MyPointService {
                 new PointCountView(points.countToday(userId, PointReason.COMMENT), rules.commentDailyCap()),
                 new PointCountView(points.countToday(userId, PointReason.LIKE_BONUS), rules.likeBonusDailyLimit()));
         PointRulesView view = new PointRulesView(rules.attendancePoints(), rules.postPoints(), rules.commentPoints(),
-                new PopularRewardRuleView(rules.popularRewardTopN(), rules.popularRewardPoints()), rules.nicknameTicketPrice(),
+                new PopularRewardRuleView(rules.popularRewardTopN(), rules.popularRewardPoints()), tickets.price(),
                 new LikeBonusRuleView(rules.likeBonusThreshold(), rules.likeBonusPoints(), rules.likeBonusDailyLimit()));
-        return new PointSummaryView(balance, free, paid, CHARGE_AVAILABLE, expiring, debt, 0, false, today, view);
+        return new PointSummaryView(balance, free, paid, CHARGE_AVAILABLE, expiring, debt, tickets.count(userId), false, today, view);
     }
 
     /** 내 포인트 내역 한 쪽 */

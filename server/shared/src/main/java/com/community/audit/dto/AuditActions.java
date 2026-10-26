@@ -217,6 +217,22 @@ public final class AuditActions {
     /** 포트원 설정 칸 지우기 — 대상 PORTONE_SETTINGS, 칸 이름 {@code field} */
     public static final String PORTONE_SETTINGS_DELETE = "PORTONE_SETTINGS_DELETE";
 
+    // ── 커머스 1-2 포인트 상점(commerce-stage1-contract 「B」) — 대상 POINT_SHOP_ITEM·POINT_SHOP_AVATARS·POINT_SHOP_SETTINGS·POINT_SHOP_PURCHASE ──
+    /** 품목 만들기 — 대상 POINT_SHOP_ITEM + 품목 ID, {@code code}·{@code kind}·{@code after}(칸 값) */
+    public static final String POINT_SHOP_ITEM_CREATE = "POINT_SHOP_ITEM_CREATE";
+    /** 품목 고치기 — 바뀐 칸만 {@code before}/{@code after} */
+    public static final String POINT_SHOP_ITEM_UPDATE = "POINT_SHOP_ITEM_UPDATE";
+    /** 아바타 묶음 가격 — 대상 POINT_SHOP_AVATARS + 범위, {@code scope}·{@code categories}|{@code itemCount}·{@code matched}·{@code changed}·{@code price} */
+    public static final String POINT_SHOP_AVATAR_PRICE = "POINT_SHOP_AVATAR_PRICE";
+    /** 아바타 묶음 판매 켜기·끄기 — {@code scope}·{@code matched}·{@code changed}·{@code active} */
+    public static final String POINT_SHOP_AVATAR_SALE = "POINT_SHOP_AVATAR_SALE";
+    /** 포인트 상점 설정(셀프 환불 기한) — {@code before}/{@code after} */
+    public static final String POINT_SHOP_SETTINGS_UPDATE = "POINT_SHOP_SETTINGS_UPDATE";
+    /** 구매 예외 환불(운영자 pointshop.refund) — 대상 POINT_SHOP_PURCHASE + 구매 ID, {@code userId}·{@code itemId}·{@code itemCode}·{@code refundedPoints}·{@code reason}·{@code selfRefundable}. 돈 관련(5년) */
+    public static final String POINT_SHOP_REFUND = "POINT_SHOP_REFUND";
+    /** 정지 중 환불 신청 거절(운영자 pointshop.refund — V87) — 대상 POINT_SHOP_PURCHASE + 구매 ID, {@code requestId}·{@code userId}·{@code itemId}·{@code itemCode}·{@code reason}. 돈 관련(5년). 수락은 {@link #POINT_SHOP_REFUND}({@code kind REQUEST}) */
+    public static final String POINT_SHOP_REFUND_REJECT = "POINT_SHOP_REFUND_REJECT";
+
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();
 

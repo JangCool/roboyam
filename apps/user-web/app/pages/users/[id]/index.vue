@@ -41,10 +41,11 @@
 
             <!-- 머리: 이니셜 · 뱃지+닉네임(+메모 칩) · 한 줄 소개 · 가입일 · (내 프로필이면) 프로필 편집·쪽지함 · (아니면) ⋯ -->
             <header class="flex flex-wrap items-start gap-x-3 gap-y-3">
-                <span class="grid size-[4.5rem] shrink-0 place-items-center rounded-full bg-surface-100 text-2xl font-bold text-muted-color dark:bg-surface-800" aria-hidden="true">{{ initial }}</span>
+                <!-- 프로필 아바타(고르지 않았으면 basic-default) — 장착한 프로필 테두리가 있으면 그 둘레에 고리(포인트 상점) -->
+                <ProfileBorderAvatar :initial="initial" :src="avatarUrl" size="lg" :border-style="decoration?.profileBorder ?? null" />
                 <div class="min-w-0 flex-1">
                     <h1 class="m-0 flex min-w-0 flex-wrap items-center gap-1.5 text-lg font-bold leading-tight">
-                        <span class="min-w-0 break-all" data-testid="profile-nickname">{{ profile.nickname }}</span>
+                        <span class="min-w-0 break-all" :style="nicknameStyle" data-testid="profile-nickname">{{ profile.nickname }}</span>
                         <StaffBadge v-if="profile.role !== 'USER'" :role="profile.role" class="shrink-0" />
                         <GradeBadge v-else :grade="profile.grade as Grade" :label="profile.gradeLabel" class="shrink-0" />
                         <!-- 이용자 메모 — 나에게만 보이는 노란 칩 -->
@@ -240,6 +241,7 @@ import UtilDmMessages from '~/utils/util-dm-messages';
 import type { ProfileTab } from '~/utils/util-profile';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilBusiness from '~/utils/util-business';
+import UtilColor from '~/utils/util-color';
 import UtilGradeMessages from '~/utils/util-grade-messages';
 import UtilPoint from '~/utils/util-point';
 import UtilProfile from '~/utils/util-profile';
@@ -251,7 +253,7 @@ import UtilProfile from '~/utils/util-profile';
  * - 내 프로필(`isMe`)이면 「프로필 편집」과 보유 포인트·다음 등급까지 카드(`usePointSummary` 실제 · `useMyGrade` 목업)가 더해진다. 남의 프로필에는 포인트·진행도를 보이지 않는다.
  * - 남의 프로필: ⋯ 시트(이 사용자 차단·차단 해제·메모 — `useUserActions`), 차단한 회원이면 맨 위 「차단한 회원이에요 · 차단 해제」 띠, 닉네임 옆 메모 칩, 「쪽지 보내기」(보낼 수 있나를 따로 읽는다).
  *   내 프로필: 「프로필 편집」 옆 「쪽지함」. 계약 `docs/features/member-social-contract.md`.
- * 프로필·작성글·댓글(`useUserProfileApi`)과 차단·메모·쪽지(`useBlockApi`·`useMemoApi`·`useDmApi`)는 모두 실제 API 다. 공개 프로필 응답의 `blockedByMe`·`memo` 는 서버가 채운다(로그인한 사람 기준). 원본과 달라진 점: 프로필 이미지·닉네임 이미지·꾸미기 테두리, 프로필 이미지·닉네임 이미지 신고, 소모임·스크랩 탭, 인기글 수치는 로보얌에 없어 뺐다.
+ * 프로필·작성글·댓글(`useUserProfileApi`)과 차단·메모·쪽지(`useBlockApi`·`useMemoApi`·`useDmApi`)는 모두 실제 API 다. 공개 프로필 응답의 `blockedByMe`·`memo` 는 서버가 채운다(로그인한 사람 기준). 머리의 닉네임 색·이니셜 테두리는 포인트 상점 장식(`decoration` 후보 + `useMyDecoration` 겹치기)이다. 원본과 달라진 점: 프로필 이미지·닉네임 이미지, 프로필 이미지·닉네임 이미지 신고, 소모임·스크랩 탭, 인기글 수치는 로보얌에 없어 뺐다.
  * 모바일 ‹ 머리(`InnerHeader`)가 없어 셸의 머리 그대로다.
  */
 const { t } = useI18n();
@@ -285,6 +287,14 @@ const statCells = computed<{ key: keyof ProfileStats; label: string }[]>(() => [
 ]);
 /** 프로필 자리표시 — 닉네임 첫 글자(프로필 그림 기능이 없다) */
 const initial = computed(() => Array.from(profile.value?.nickname ?? '')[0] ?? '');
+/** 장착한 장식(닉네임 색·테두리) — 서버 `decoration`(후보)에 내가 방금 장착·해제한 것을 겹친다(`useMyDecoration`) */
+const decorations = useMyDecoration();
+const decoration = computed(() => (profile.value ? decorations.decorationOf(profile.value.id, profile.value.decoration) : null));
+const avatarUrl = computed(() => (profile.value ? decorations.avatarOf(profile.value.id, profile.value.avatarUrl) : null));
+const nicknameStyle = computed(() => {
+    const color = UtilColor.cssPair(decoration.value?.nicknameColor);
+    return color ? { color } : undefined;
+});
 
 /* ── 내 프로필의 포인트·등급 카드 ── */
 const businessAccount = computed(() => UtilBusiness.isBusinessAccount(user.value?.role));

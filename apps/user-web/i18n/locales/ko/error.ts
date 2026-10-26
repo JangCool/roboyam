@@ -10,7 +10,6 @@ export default {
     LOGIN_LOCKED: '로그인이 잠시 제한됐어요. 잠시 후 다시 시도해 주세요.',
     EMAIL_TAKEN: '이미 가입된 이메일이에요.',
     NICKNAME_TAKEN: '이미 쓰고 있는 닉네임이에요. 다른 닉네임을 입력해 주세요.',
-    NICKNAME_CHANGE_LIMIT: '닉네임을 이미 바꿔서 더 바꿀 수 없어요. 닉네임은 가입 뒤 1번만 바꿀 수 있어요.',
     NICKNAME_TICKET_REQUIRED: '무료 변경 횟수를 모두 사용했어요. 닉네임 변경권으로 바꿀 수 있어요.',
     UNAUTHENTICATED: '로그인이 필요해요.',
     TOKEN_INVALID: '링크가 올바르지 않거나 이미 사용됐어요.',

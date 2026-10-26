@@ -3,6 +3,7 @@ package com.community.post.service;
 import com.community.block.service.ViewerBlocks;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
+import com.community.board.service.AuthorMembers;
 import com.community.board.service.AuthorViews;
 import com.community.poll.repository.master.PollQueries;
 import com.community.post.dto.PostRowData;
@@ -10,11 +11,9 @@ import com.community.post.dto.response.PostAuthorView;
 import com.community.post.dto.response.PostBoardRefView;
 import com.community.post.dto.response.PostFeedRowView;
 import com.community.post.dto.response.PostRowView;
-import com.community.user.entity.ProfileEntity;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 
@@ -44,7 +43,7 @@ public class PostFeedRows {
      */
     public List<PostFeedRowView> of(List<PostRowData> rows, BoardCatalogSnapshot s, Instant now, Long viewerId) {
         List<Long> authorIds = rows.stream().map(PostRowData::authorId).toList();
-        Map<Long, ProfileEntity> members = authors.members(authorIds);
+        AuthorMembers members = authors.members(authorIds);
         ViewerBlocks.Lens lens = rows.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(viewerId, authorIds);
         Set<Long> withPoll = polls.postIdsWithPoll(rows.stream().map(PostRowData::id).toList());
         List<PostFeedRowView> out = new ArrayList<>(rows.size());
@@ -60,7 +59,7 @@ public class PostFeedRows {
     }
 
     /** {@code PostQueryService#row} 와 같은 규칙 — 신고로 숨긴 글은 자리만(이 목록들은 숨긴 글을 미리 거르므로 보통 오지 않는다) */
-    private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, Map<Long, ProfileEntity> members, Instant now, ViewerBlocks.Lens lens,
+    private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
                             Set<Long> withPoll) {
         boolean hidden = r.hiddenAt(now);
         PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));

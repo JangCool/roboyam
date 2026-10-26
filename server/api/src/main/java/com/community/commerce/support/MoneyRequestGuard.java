@@ -22,7 +22,7 @@ import tools.jackson.databind.json.JsonMapper;
  * public ResponseEntity<ApiResponse<Object>> purchase(@RequestHeader(value = MoneyRequestGuard.HEADER, required = false) String key,
  *                                                     @RequestBody PurchaseRequest body, Authentication auth) {
  *     long userId = ...;
- *     return guard.handle(userId, key, RequestAction.SHOP_PURCHASE, body, () -> purchases.purchase(userId, body));
+ *     return guard.handle(userId, key, RequestAction.POINT_SHOP_PURCHASE, body, () -> purchases.purchase(userId, body));
  * }
  * }</pre>
  *
@@ -55,13 +55,29 @@ public class MoneyRequestGuard {
      * @param work 업무 — 업무 트랜잭션 안에서 불린다. 돌려준 값이 응답의 {@code data} 다(200)
      */
     public ResponseEntity<ApiResponse<Object>> handle(long userId, String idempotencyKey, RequestAction action, Object body, Supplier<?> work) {
+        return handleWithStatus(userId, idempotencyKey, action, body, () -> new Result(200, work.get()));
+    }
+
+    /** 업무가 응답 상태도 정하는 결과(예: 환불 = 200, 정지 중 환불 신청 = 202) — 같은 키 다시 보내기는 처음 상태·본문 그대로 */
+    public record Result(int status, Object data) {
+    }
+
+    /**
+     * {@link #handle} 과 같고 업무가 상태를 정한다(저장한 응답에 상태도 남아 다시 보내기도 같은 상태).
+     *
+     * @param work 업무 — 업무 트랜잭션 안에서 불린다
+     */
+    public ResponseEntity<ApiResponse<Object>> handleWithStatus(long userId, String idempotencyKey, RequestAction action, Object body, Supplier<Result> work) {
         if (idempotencyKey == null || idempotencyKey.isBlank()) {
             throw new IdempotencyKeyRequiredException();
         }
         String key = idempotencyKey.strip();
         limiter.check(userId, action);
         StoredResponse response = idempotency.execute(userId, key, action, RequestHashes.of(action, body),
-                () -> StoredResponse.fresh(200, MAPPER.writeValueAsString(work.get())));
+                () -> {
+                    Result result = work.get();
+                    return StoredResponse.fresh(result.status(), MAPPER.writeValueAsString(result.data()));
+                });
         JsonNode data = response.body() == null ? null : MAPPER.readTree(response.body());
         ResponseEntity.BodyBuilder builder = ResponseEntity.status(response.status()).cacheControl(CacheControl.noStore());
         if (response.replayed()) {

@@ -225,7 +225,7 @@ export default class UtilMenu {
         { key: 'MY_HOME', category: 'MYPAGE', labelKey: 'menuConfig.builtin.MY_HOME', path: '/me', matchPrefix: false, loginRequired: true, salesGated: false },
         { key: 'MY_GRADE', category: 'MYPAGE', labelKey: 'menuConfig.builtin.MY_GRADE', path: '/me/grade', matchPrefix: false, loginRequired: true, salesGated: false },
         { key: 'MY_POINTS', category: 'MYPAGE', labelKey: 'menuConfig.builtin.MY_POINTS', path: '/me/points', matchPrefix: false, loginRequired: true, salesGated: false },
-        { key: 'MY_SHOP', category: 'MYPAGE', labelKey: 'menuConfig.builtin.MY_SHOP', path: '/me/shop', matchPrefix: false, loginRequired: true, salesGated: false },
+        { key: 'MY_SHOP', category: 'MYPAGE', labelKey: 'menuConfig.builtin.MY_SHOP', path: '/point-shop', matchPrefix: true, loginRequired: true, salesGated: false },
         { key: 'MY_SCHEDULED', category: 'MYPAGE', labelKey: 'menuConfig.builtin.MY_SCHEDULED', path: '/scheduled', matchPrefix: false, loginRequired: true, salesGated: false },
         { key: 'MESSAGES', category: 'MYPAGE', labelKey: 'menuConfig.builtin.MESSAGES', path: '/messages', matchPrefix: true, loginRequired: true, salesGated: false },
         { key: 'NOTIFICATIONS', category: 'MYPAGE', labelKey: 'menuConfig.builtin.NOTIFICATIONS', path: '/notifications', matchPrefix: false, loginRequired: true, salesGated: false },

@@ -199,7 +199,6 @@ export interface PointSettingsValues {
     dealEndRequestPoints: number;
     dealEndRequestDailyLimit: number;
     signupPoints: number;
-    nicknameTicketPrice: number;
 }
 
 /** 정책 값의 칸 이름 */

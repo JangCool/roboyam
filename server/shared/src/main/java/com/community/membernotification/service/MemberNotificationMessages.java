@@ -129,6 +129,16 @@ public class MemberNotificationMessages {
             return new Facts(MemberNotificationType.DM, actorName, null, null, 1, 0, null, null, false, null, null);
         }
 
+        /** 포인트 상점 환불 신청 수락 — 품목 이름({@code snapshot})·돌려준 포인트({@code amount}) */
+        public static Facts refundApproved(String itemName, long points) {
+            return new Facts(MemberNotificationType.POINT_SHOP_REFUND_APPROVED, null, null, null, 1, points, null, null, false, itemName, null);
+        }
+
+        /** 포인트 상점 환불 신청 거절 — 품목 이름({@code snapshot})·사유({@code note}) */
+        public static Facts refundRejected(String itemName, String reason) {
+            return new Facts(MemberNotificationType.POINT_SHOP_REFUND_REJECTED, null, null, null, 1, 0, null, reason, false, itemName, null);
+        }
+
         /** 닉네임 그림 검토 결과 — 반려·해제면 사유 */
         public static Facts nicknameReviewed(String result, String reason) {
             return new Facts(MemberNotificationType.NICKNAME_IMAGE_REVIEWED, null, null, null, 1, 0, null, reason, false, null, result);
@@ -261,6 +271,8 @@ public class MemberNotificationMessages {
                     .variable("postTitle", facts.postTitle()).variable("reason", facts.note() == null ? "" : facts.note());
             case FEATURE_RESTRICTED -> builder.variable("restriction", restrictionName(facts, locale)).variable("until", restrictionUntil(facts, locale))
                     .variable("reason", restrictionReason(facts, locale));
+            case POINT_SHOP_REFUND_APPROVED -> builder.variable("itemName", nz(facts.snapshot())).variable("amount", String.format("%,d", facts.amount()));
+            case POINT_SHOP_REFUND_REJECTED -> builder.variable("itemName", nz(facts.snapshot())).variable("reason", nz(facts.note()));
             case POINTS_EXPIRING -> builder.variable("amount", String.format("%,d", facts.amount()))
                     .variable("date", facts.expiring() == null || facts.expiring().date() == null ? "" : facts.expiring().date().toString())
                     .variable("days", facts.expiring() == null ? "" : String.valueOf(facts.expiring().days()));

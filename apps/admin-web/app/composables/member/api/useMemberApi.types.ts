@@ -303,6 +303,7 @@ export interface MemberGradePoint {
     next: MemberGradeNext | null;
     /** 최근 것이 먼저 */
     gradeHistory: MemberGradeChange[];
+    /** 닉네임 변경권 보유 장수 — 포인트 상점에서 사서 아직 안 쓰고 환불되지 않은 것(커머스 1-2) */
     nicknameTicketCount: number;
     /** 원장 최근 10줄, 최근 것이 먼저(사유는 요청 언어) */
     pointEntries: MemberPointEntry[];

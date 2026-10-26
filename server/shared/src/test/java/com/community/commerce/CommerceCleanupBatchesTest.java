@@ -101,9 +101,9 @@ class CommerceCleanupBatchesTest {
     @Test
     void 멱등_키는_만든_지_24시간이_지나면_지운다() {
         long user = USERS.incrementAndGet();
-        jdbc.update("INSERT INTO idempotency_requests (user_id, idem_key, action, request_hash, status, created_at) VALUES (?, 'old-key-0001', 'SHOP_PURCHASE', ?, 'IN_PROGRESS', now() - interval '25 hours')",
+        jdbc.update("INSERT INTO idempotency_requests (user_id, idem_key, action, request_hash, status, created_at) VALUES (?, 'old-key-0001', 'POINT_SHOP_PURCHASE', ?, 'IN_PROGRESS', now() - interval '25 hours')",
                 user, "0".repeat(64));
-        jdbc.update("INSERT INTO idempotency_requests (user_id, idem_key, action, request_hash, status, created_at) VALUES (?, 'new-key-0001', 'SHOP_PURCHASE', ?, 'IN_PROGRESS', now() - interval '23 hours')",
+        jdbc.update("INSERT INTO idempotency_requests (user_id, idem_key, action, request_hash, status, created_at) VALUES (?, 'new-key-0001', 'POINT_SHOP_PURCHASE', ?, 'IN_PROGRESS', now() - interval '23 hours')",
                 user, "0".repeat(64));
 
         jdbc.execute("CALL batch_idempotency_request_cleanup('MANUAL', NULL, NULL)");

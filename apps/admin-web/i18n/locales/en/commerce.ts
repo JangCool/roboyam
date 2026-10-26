@@ -15,13 +15,13 @@ export default {
     actionName: {
         GROUPBUY_JOIN: 'Join a group buy',
         POINT_CHARGE: 'Point top-up request',
-        SHOP_PURCHASE: 'Shop purchase',
+        POINT_SHOP_PURCHASE: 'Point shop purchase',
         REFUND_REQUEST: 'Refund request',
     },
     actionDesc: {
         GROUPBUY_JOIN: 'Joining a group buy and holding a quantity',
         POINT_CHARGE: 'Opening a payment to top up points',
-        SHOP_PURCHASE: 'Buying an item in the shop',
+        POINT_SHOP_PURCHASE: 'Buying an item in the point shop',
         REFUND_REQUEST: 'Asking for a refund of an item, a top-up or a return',
     },
     perMinute: 'per minute',

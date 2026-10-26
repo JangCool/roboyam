@@ -78,14 +78,14 @@ import UtilBusinessMessages from '~/utils/util-business-messages';
 import UtilDm from '~/utils/util-dm';
 import UtilPoint from '~/utils/util-point';
 import UtilRedirect from '~/utils/util-redirect';
-import UtilShop from '~/utils/util-shop';
+import UtilPointShop from '~/utils/util-point-shop';
 
 defineEmits<{ 'open-menu': [] }>();
 
 const { t } = useI18n();
 const route = useRoute();
 const { user, loaded, adminUrl, emailVerified, restriction } = useAuth();
-/** 서비스 이름 — 프로필 드롭다운의 아이템샵 줄(`ITEM_SHOP`) */
+/** 서비스 이름 — 프로필 드롭다운의 포인트 상점 줄(`POINT_SHOP`) */
 const { term } = useSiteTerms();
 const { siteLabel } = useSiteName();
 const { run: logout } = useLogoutFlow();
@@ -109,7 +109,7 @@ const menuOpen = ref(false);
 const loginTarget = computed(() => UtilRedirect.toLogin(route.fullPath));
 
 /**
- * 프로필 드롭다운 — 맨 위에 보유 포인트, "내 정보" 다음에 "계정·로그인 연결"(`/settings/account`), "포인트·출석체크"(오늘 출석 전이면 "· +10P", 출석 기능이 없으면(`attendanceAvailable=false`) 그냥 "포인트")(8단계), "아이템샵",
+ * 프로필 드롭다운 — 맨 위에 보유 포인트, "내 정보" 다음에 "계정·로그인 연결"(`/settings/account`), "포인트·출석체크"(오늘 출석 전이면 "· +10P", 출석 기능이 없으면(`attendanceAvailable=false`) 그냥 "포인트")(8단계), "포인트 상점"(공동구매와 따로),
  * "사업자 센터"(신청했거나 사업자 전용 계정)·"사업자 신청"(일반 회원, 신청 전)(H-2). 사업자 전용 계정에는 포인트 줄·포인트 요약이 없다.
  * 운영자·운영진(`adminUrl` 이 있을 때)에게만 "관리자 앱"이 더해진다 — 별도 사이트라 `url`·`target` 으로 새 탭에서 연다.
  * 스크린리더 이름(`label`)에 새 탭이라는 말을 담고 보이는 글자(`text`)는 "관리자 앱"이다.
@@ -131,8 +131,8 @@ const menuItems = computed(() => [
                   icon: 'pi pi-wallet',
                   command: () => void navigateTo('/me/points'),
               },
-              // 아이템샵 — 포인트로 닉네임 색상·프로필 테두리·교환권을 산다
-              { label: term('ITEM_SHOP'), icon: 'pi pi-shopping-bag', command: () => void navigateTo(UtilShop.PATH) },
+              // 포인트 상점 — 포인트로 닉네임 색·프로필 테두리·닉네임 변경권을 산다(공동구매 주문 내역과 따로)
+              { label: term('POINT_SHOP'), icon: 'pi pi-shopping-bag', command: () => void navigateTo(UtilPointShop.PATH) },
           ]),
     // 쪽지함 — 안 읽은 대화가 있으면 수가 붙는다("쪽지함 · 안 읽음 3", design 01-shell 6)
     { label: dmText.value ? t('shell.messageBoxUnread', { count: dmText.value }) : t('shell.messageBox'), icon: 'pi pi-envelope', command: () => void navigateTo(UtilDm.INBOX_PATH) },

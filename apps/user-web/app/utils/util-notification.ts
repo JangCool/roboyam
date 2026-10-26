@@ -79,7 +79,7 @@ export default class UtilNotification {
     }
 
     /**
-     * 알림 한 줄의 아이콘 — 댓글은 말풍선, 답글은 답장, 포인트 회수는 지갑, 포인트 소멸 예정은 모래시계, 신고로 숨김은 가린 눈, 글·댓글 삭제는 휴지통, 신고 처리 결과는 깃발, 쪽지는 봉투, 닉네임 이미지 심사는 이미지, 기능 제한은 금지 표시. 모르는 종류는 말풍선.
+     * 알림 한 줄의 아이콘 — 댓글은 말풍선, 답글은 답장, 포인트 회수는 지갑, 포인트 소멸 예정은 모래시계, 포인트 상점 환불 신청 수락은 되돌림·거절은 X 동그라미, 신고로 숨김은 가린 눈, 글·댓글 삭제는 휴지통, 신고 처리 결과는 깃발, 쪽지는 봉투, 닉네임 이미지 심사는 이미지, 기능 제한은 금지 표시. 모르는 종류는 말풍선.
      * @param {MemberNotificationType} type - 알림 종류.
      * @returns {string} PrimeIcons 클래스.
      */
@@ -88,6 +88,8 @@ export default class UtilNotification {
         if (type === 'NICKNAME_IMAGE_REVIEWED') return 'pi pi-image';
         if (type === 'POINTS_REVOKED') return 'pi pi-wallet';
         if (type === 'POINTS_EXPIRING') return 'pi pi-hourglass';
+        if (type === 'POINT_SHOP_REFUND_APPROVED') return 'pi pi-replay';
+        if (type === 'POINT_SHOP_REFUND_REJECTED') return 'pi pi-times-circle';
         if (type === 'POST_HIDDEN' || type === 'COMMENT_HIDDEN') return 'pi pi-eye-slash';
         if (type === 'FEATURE_RESTRICTED') return 'pi pi-ban';
         if (type === 'POST_REMOVED' || type === 'COMMENT_REMOVED') return 'pi pi-trash';

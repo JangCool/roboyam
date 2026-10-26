@@ -41,7 +41,7 @@ export interface PointRules {
     post: number;
     comment: number;
     popularReward: PopularRewardRule;
-    /** 닉네임 변경권 가격(교환 기능은 아직 없다) */
+    /** 옛 닉네임 변경권 가격 칸 — 값의 정본은 포인트 상점 품목 가격으로 옮긴다(`commerce-stage1-contract.md` 결정 2 — 서버가 칸을 지울 때까지 실려 온다). 화면은 쓰지 않는다 */
     nicknameTicketPrice: number;
     likeBonus: LikeBonusRule;
 }
@@ -69,7 +69,7 @@ export interface PointSummary {
     expiring: PointExpiring | null;
     /** 미회수 포인트(0 이상) — 지운 글·댓글로 받은 포인트를 돌려받을 때 모자라 덜 가져간 양. 다음 적립에서 먼저 차감된다 */
     revokeDebt: number;
-    /** 닉네임 변경권 보유 수 — 교환 기능이 없어 늘 0 */
+    /** 닉네임 변경권 보유 수 — 서버는 아직 늘 0(포인트 상점 1-2 서버가 실제 값을 채운다). 프로필 설정은 `MyProfile.nicknameChange.ticketCount` 를 본다 */
     ticketCount: number;
     /** 출석 기능이 있는가 — 없으면(지금은 늘 false) 화면은 「오늘 출석하기」 안내를 그리지 않는다 */
     attendanceAvailable: boolean;
@@ -85,7 +85,7 @@ export type MyPointLedgerKind = 'EARN' | 'USE' | 'REVOKE' | 'CANCEL_USE' | 'EXPI
 
 /**
  * 내 포인트 내역 한 줄의 사유 코드 — 관리자 원장(`PointReasonCode`, admin-web)과 같은 이름 중 **지금 실제로 생기는 것**만 적었다(`point-contract.md` 「적립·회수」).
- * 출석·인기글·교환·핫딜·가입 사유는 기능이 생기면 더한다. 모르는 코드가 와도 화면은 서버 `reason` 글자를 그대로 보인다.
+ * 출석·인기글·포인트 상점(`POINT_SHOP_PURCHASE`·`POINT_SHOP_REFUND`)·핫딜·가입 사유는 기능이 생기면 더한다. 모르는 코드가 와도 화면은 서버 `reason` 글자를 그대로 보인다.
  */
 export type MyPointReasonCode =
     | 'POST'

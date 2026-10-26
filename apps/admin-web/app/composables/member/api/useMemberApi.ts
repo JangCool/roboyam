@@ -13,7 +13,7 @@ import type { MemberDetail, MemberPage, MemberQuery, MemberRoleOption } from '~/
  *     · 이메일은 `member.pii` 가 없으면 서버가 `ab***@gmail.com` 으로 가려서 준다(`emailMasked: true`) — 화면은 가공하지 않고 그대로 그린다. 그 경우 이메일 검색은 전체 주소가 같을 때만 맞는다.
  *   - `GET /api/admin/members/{memberId}` → 200 `MemberDetail` · 404 `MEMBER_NOT_FOUND`(번호 형식이 틀려도 같다) · 403 `PERMISSION_DENIED`. 이메일 마스킹 규칙은 목록과 같다. 상세를 열면 서버가 감사 기록 `MEMBER_VIEW` 를 남긴다.
  *     **서버가 가진 데이터만 채우고 나머지는 null/빈 배열이다** — 목록 한 줄의 칸 전부, `roles`(유형·부여 방식), `bio`, `social`, `withdrawnAt`, `consents.terms`/`ageConfirmedAt`, `piiMasked` 가 실제 값이다.
- *     `activity`(글·댓글·최근 7일 수와 `likesReceived`(보이는 글·댓글이 받은 추천 합)는 실제 집계, `popularCount`·`recentLoginDays` 는 아직 집계하지 않아 늘 0)와 `gradePoint`(`autoPromotion`·`next`·`gradeHistory`·`pointEntries`(원장 최근 10줄) 는 실제 값, `nicknameTicketCount` 는 교환 기능이 없어 0)도 실제 값이다 — 탈퇴 회원은 둘 다 null.
+ *     `activity`(글·댓글·최근 7일 수와 `likesReceived`(보이는 글·댓글이 받은 추천 합)는 실제 집계, `popularCount`·`recentLoginDays` 는 아직 집계하지 않아 늘 0)와 `gradePoint`(`autoPromotion`·`next`·`gradeHistory`·`pointEntries`(원장 최근 10줄) 는 실제 값, `nicknameTicketCount`(포인트 상점에서 사서 안 쓰고 환불되지 않은 닉네임 변경권 장수 — 커머스 1-2) 는 실제 값)도 실제 값이다 — 탈퇴 회원은 둘 다 null.
  *     `reports`(`{receivedCount, actionedCount, filedCount}`)도 실제 값이다 — 탈퇴 회원은 null.
  *     `settings`(표시 형식·보기 설정·알림 설정 `[{code, name, inApp, email, locked}]`·푸시·차단/메모 건수·알림함 건수 — 칸이 null 이면 화면은 「—」), `acceptDm`(boolean), `nicknameChange`(`{changeCount, freeLimit}`),
  *     `nicknameImage`(`{current, request}`), `consents.privacy`(개인정보처리방침 시각·버전 — 이용약관과 따로)도 실제 값이다 — 탈퇴 회원은 null.

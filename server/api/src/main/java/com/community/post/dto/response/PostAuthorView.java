@@ -1,5 +1,7 @@
 package com.community.post.dto.response;
 
+import com.community.pointshop.dto.response.AuthorDecorationView;
+
 /**
  * 글·댓글의 작성자(user-web {@code PostAuthor}).
  *
@@ -12,16 +14,14 @@ package com.community.post.dto.response;
  * @param ipMasked   비회원의 작성 IP 앞 두 자리(123.45.*.*, IPv6 는 앞 두 묶음) — 회원·IP 를 지운 글은 null
  * @param memo       보는 사람이 이 작성 회원에게 남긴 이용자 메모(나에게만 오는 값) — 없으면·비회원 작성자·비로그인이면 null. 지금은 게시판 글 목록·댓글만 채운다
  *                   (docs/features/member-social-contract.md 「이미 있는 응답에 더할 칸」)
+ * @param decoration 장착한 포인트 상점 장식(닉네임 색·프로필 테두리 — 만료된 장착은 빠진다, 둘 다 없으면 null). 비회원·숨긴 글·지운 댓글은 null(커머스 1-2)
+ * @param avatarUrl  프로필 아바타 그림 주소 — 회원은 늘 채운다(고르지 않았으면 {@code basic-default}), 비회원·숨긴 글·지운 댓글은 null(커머스 1-2 결정 14)
  */
-public record PostAuthorView(String kind, String memberId, String name, String grade, String gradeLabel, String role, String ipMasked, String memo) {
-
-    /** 메모 칸 없이(null) — 메모를 싣지 않는 응답 */
-    public PostAuthorView(String kind, String memberId, String name, String grade, String gradeLabel, String role, String ipMasked) {
-        this(kind, memberId, name, grade, gradeLabel, role, ipMasked, null);
-    }
+public record PostAuthorView(String kind, String memberId, String name, String grade, String gradeLabel, String role, String ipMasked, String memo,
+                             AuthorDecorationView decoration, String avatarUrl) {
 
     /** 같은 작성자에 메모만 바꾼 것 */
     public PostAuthorView withMemo(String value) {
-        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, value);
+        return new PostAuthorView(kind, memberId, name, grade, gradeLabel, role, ipMasked, value, decoration, avatarUrl);
     }
 }

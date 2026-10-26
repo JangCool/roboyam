@@ -32,6 +32,8 @@ import com.community.dm.repository.master.DmQueries;
 import com.community.grade.entity.GradeEntity;
 import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.permission.entity.MemberPermission;
+import com.community.pointshop.dto.AuthorLook;
+import com.community.pointshop.service.ShopDecorationResolver;
 import com.community.user.entity.UserEntity;
 import com.community.user.repository.master.UserRepository;
 import com.community.zconfiguration.exception.CommonException;
@@ -84,10 +86,12 @@ public class DmService {
     private final BoardCatalog catalog;
     private final MemberNotificationPublisher notices;
     private final Messages messages;
+    private final ShopDecorationResolver decorations;
     private final SnowflakeIdGenerator ids;
 
     public DmService(DmQueries queries, BlockRepositoryQDSL blocks, SocialMembers members, UserRepository users, BoardActorResolver actors, BoardCatalog catalog,
-                     MemberNotificationPublisher notices, Messages messages, SnowflakeIdGenerator ids) {
+                     MemberNotificationPublisher notices, Messages messages, SnowflakeIdGenerator ids, ShopDecorationResolver decorations) {
+        this.decorations = decorations;
         this.queries = queries;
         this.blocks = blocks;
         this.members = members;
@@ -152,6 +156,7 @@ public class DmService {
         List<Long> partnerIds = page.stream().map(r -> r.box().partnerId()).distinct().toList();
         Map<Long, DmQueries.Person> people = queries.people(partnerIds);
         Map<Long, String> memos = blocks.memosAmong(userId, partnerIds);
+        Map<Long, AuthorLook> looks = decorations.resolve(partnerIds);
         Map<Long, Integer> unread = queries.unreadCounts(userId, page.stream().map(r -> r.box().threadId()).toList());
         BoardCatalogSnapshot s = catalog.snapshot();
         Locale locale = messages.locale();
@@ -160,7 +165,7 @@ public class DmService {
             DmQueries.Box box = row.box();
             DmLastMessageView last = new DmLastMessageView(Long.toString(box.lastMessageId()), row.lastSenderId() == userId, DmRules.preview(row.lastBody()),
                     row.lastAt());
-            items.add(new DmThreadItemView(Long.toString(box.threadId()), partner(people.get(box.partnerId()), memos, s, locale), last,
+            items.add(new DmThreadItemView(Long.toString(box.threadId()), partner(people.get(box.partnerId()), memos, looks, s, locale), last,
                     unread.getOrDefault(box.threadId(), 0)));
         }
         String next = more ? Long.toString(page.get(page.size() - 1).box().lastMessageId()) : null;
@@ -182,7 +187,8 @@ public class DmService {
         SenderCheck check = senderCheck(userId, now);
         String reason = reasonFor(userId, box.partnerId(), person == null || person.gone(), Optional.of(box), state, check, now);
         Map<Long, String> memos = blocks.memosAmong(userId, List.of(box.partnerId()));
-        DmThreadHeaderView header = new DmThreadHeaderView(Long.toString(box.threadId()), partner(person, memos, catalog.snapshot(), messages.locale()),
+        Map<Long, AuthorLook> looks = decorations.resolve(List.of(box.partnerId()));
+        DmThreadHeaderView header = new DmThreadHeaderView(Long.toString(box.threadId()), partner(person, memos, looks, catalog.snapshot(), messages.locale()),
                 reason == null, reason, "TOO_NEW".equals(reason) ? check.availableFrom() : null, box.partnerSent());
         List<DmMessageView> items = page.stream().map(m -> message(m, userId)).toList();
         String next = more ? Long.toString(page.get(page.size() - 1).id()) : null;
@@ -221,11 +227,13 @@ public class DmService {
             throw ValidationException.of("q", new MessageRef("dm.search.length", String.valueOf(DmRules.SEARCH_MIN), String.valueOf(DmRules.SEARCH_MAX)));
         }
         List<DmQueries.RecipientRow> rows = queries.recipients(userId, q.toLowerCase(Locale.ROOT), DmRules.RECIPIENT_LIMIT);
-        Map<Long, String> memos = blocks.memosAmong(userId, rows.stream().map(DmQueries.RecipientRow::id).toList());
+        List<Long> recipientIds = rows.stream().map(DmQueries.RecipientRow::id).toList();
+        Map<Long, String> memos = blocks.memosAmong(userId, recipientIds);
+        Map<Long, AuthorLook> looks = decorations.resolve(recipientIds);
         BoardCatalogSnapshot s = catalog.snapshot();
         Locale locale = messages.locale();
         List<DmRecipientView> items = rows.stream()
-                .map(r -> new DmRecipientView(partner(new DmQueries.Person(r.id(), r.nickname(), r.gradeKey(), false), memos, s, locale),
+                .map(r -> new DmRecipientView(partner(new DmQueries.Person(r.id(), r.nickname(), r.gradeKey(), false), memos, looks, s, locale),
                         r.threadId() == null ? null : Long.toString(r.threadId())))
                 .toList();
         return new DmRecipientListView(items);
@@ -413,14 +421,15 @@ public class DmService {
         return new DmMessageView(Long.toString(m.id()), m.senderId() == userId, m.body(), m.createdAt());
     }
 
-    /** 상대 표시 — 탈퇴·없음은 「탈퇴한 회원」(id 없음, 첫 등급), 메모는 내가 남긴 것 */
-    private DmPartnerView partner(DmQueries.Person person, Map<Long, String> memos, BoardCatalogSnapshot s, Locale locale) {
+    /** 상대 표시 — 탈퇴·없음은 「탈퇴한 회원」(id 없음, 첫 등급, 장식·아바타 없음), 메모는 내가 남긴 것, 장식·아바타는 포인트 상점 표시(커머스 1-2) */
+    private DmPartnerView partner(DmQueries.Person person, Map<Long, String> memos, Map<Long, AuthorLook> looks, BoardCatalogSnapshot s, Locale locale) {
         if (person == null || person.gone()) {
             String base = GradeEntity.BASE_KEY;
             return new DmPartnerView(null, messages.get(new MessageRef("member.notification.actor.withdrawn"), locale), base, BlockService.label(s, base), ROLE_USER,
-                    true, null);
+                    true, null, null, null);
         }
+        AuthorLook look = looks.get(person.id());
         return new DmPartnerView(Long.toString(person.id()), person.nickname(), person.gradeKey(), BlockService.label(s, person.gradeKey()), ROLE_USER, false,
-                memos.get(person.id()));
+                memos.get(person.id()), look == null ? null : look.decoration(), look == null ? null : look.avatarUrl());
     }
 }

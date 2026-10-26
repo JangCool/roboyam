@@ -55,6 +55,8 @@
                     <PostPrefixTag v-if="post.prefix" :prefix="post.prefix" class="mr-1.5 align-[3px]" />{{ post.title }}
                 </h1>
                 <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-color">
+                    <!-- 회원 작성자 앞 작은 이니셜 동그라미 — 장착한 프로필 테두리가 여기 보인다(목록·댓글·쪽지는 줄이 좁아 닉네임 색만) -->
+                    <ProfileBorderAvatar v-if="post.author.kind === 'MEMBER'" :initial="UtilPointShop.initial(post.author.name)" :src="authorAvatar" size="xs" :border-style="authorDecoration?.profileBorder ?? null" />
                     <PostAuthorLabel :author="post.author" show-ip strong link class="text-sm" />
                     <span aria-hidden="true">·</span>
                     <time :datetime="post.createdAt" :title="time.full(post.createdAt)">{{ time.detail(post.createdAt) }}</time>
@@ -230,6 +232,7 @@ import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilDebate from '~/utils/util-debate';
 import UtilPost from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
+import UtilPointShop from '~/utils/util-point-shop';
 
 definePageMeta({ shell: 'inner' });
 
@@ -248,6 +251,7 @@ const { localizedName } = useLocalizedName();
 const current = useCurrentBoard();
 const time = useDisplayTime();
 const overrides = useBlockOverrides();
+const decorations = useMyDecoration();
 const titleId = useId();
 
 const id = computed(() => String(route.params.id ?? ''));
@@ -258,6 +262,10 @@ type PageState = 'loading' | 'ready' | 'notfound' | 'hidden' | 'error';
 const post = ref<PostDetail | null>(null);
 const board = ref<BoardDetail | null>(null);
 const pageState = ref<PageState>('loading');
+/** 글쓴이 장식(테두리) — 서버 `author.decoration`(후보)에 내가 방금 장착·해제한 것을 겹친다 */
+const authorDecoration = computed(() => (post.value ? decorations.decorationOf(post.value.author.memberId, post.value.author.decoration) : null));
+/** 글쓴이 아바타 — 서버 `author.avatarUrl`(후보)에 내가 방금 고른 것을 겹친다(비회원은 null → 이니셜) */
+const authorAvatar = computed(() => (post.value ? decorations.avatarOf(post.value.author.memberId, post.value.author.avatarUrl) : null));
 const pageError = ref('');
 /** 19금 확인 — 이 글을 보는 동안만(가정) */
 const adultConfirmed = ref(false);

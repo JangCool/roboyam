@@ -7,7 +7,7 @@ import type { MyPointLedgerPage, MyPointLedgerQuery, PointSummary } from '~/comp
  *  - `GET /api/me/points` → `PointSummary`(로그인 필요 401, 본인 것만, `Cache-Control: no-store`) — 커머스 1-1 의 적립/충전·`chargeAvailable`·`expiring`(`date` 는 KST `YYYY-MM-DD`)·`revokeDebt` 포함.
  *  - `GET /api/me/points/ledger?kind=EARN|USE|REVOKE|CANCEL_USE|EXPIRE&size=1~50&cursor=` → `MyPointLedgerPage`(최신이 위, 로그인 필요 401, `no-store`).
  *    줄의 `restoredUntil`(30일 새 묶음으로 돌려준 경우의 소멸 시각, UTC ISO)·`target`(글·댓글 사유만 — 소멸·사용·상계 줄은 null). 오류: `400 VALIDATION` `fields.kind|size|cursor`.
- * 출석·교환은 서버에 기능이 없어 메서드가 없다.
+ * 출석은 서버에 기능이 없어 메서드가 없다. 포인트 상점 구매·환불은 `usePointShopApi`·`useMyItemsApi` 다.
  */
 const PATH = {
     points: '/api/me/points',

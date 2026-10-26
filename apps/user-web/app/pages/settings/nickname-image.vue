@@ -256,7 +256,7 @@ import type { NicknameImageBlockedReason } from '~/utils/util-nickname-image-mes
  * 글자 닉네임 자리에 이미지를 보이게 하는 신청 화면 — **관리자가 정한 신청 조건**(`requirements` — 등급 기준 / 사용자 정의)을 채운 회원이 올리고 **운영자 심사 뒤** 적용된다(심사 대기는 운영자 알림 `NICKNAME_IMAGE_PENDING`, 관리자 심사 화면은 이번 범위 밖).
  * 한 화면이 서버 상태 하나로 그려진다(`UtilNicknameImage.layout`): 자격 미달 · 신청(파일 고르기 → 형식·용량·4:1 화면 검사 → 미리보기 → 동의 → 신청하기) · 승인 대기(취소) ·
  * 반려(사유 · 재신청까지 남은 시간) · 적용 중(미리보기 · 바꾸기 · 해제). 올린 뒤에는 서버 응답을 받고 상태를 다시 읽는다(낙관적으로 바꾸지 않는다).
- * community 대비 뺀 것: 아이템샵 변경권(로보얌에 아이템샵이 없다)·닉네임 이미지 신고, 작성자 표시의 이미지(서버 응답에 칸이 없다 — 미리보기만).
+ * community 대비 뺀 것: 닉네임 이미지 변경권(포인트 상점 1단계 품목이 아니다)·닉네임 이미지 신고, 작성자 표시의 이미지(서버 응답에 칸이 없다 — 미리보기만).
  */
 definePageMeta({ middleware: 'auth' });
 const { t, locale } = useI18n();
