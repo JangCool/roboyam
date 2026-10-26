@@ -114,10 +114,17 @@ public class GroupMemberEntity {
         this.rejectReason = reason;
     }
 
-    /** 신청 취소 — 행을 지우는 대신 탈퇴로 둔다(거절 기록·강퇴 기록이 남게) */
+    /**
+     * 신청 취소 — 행을 지우는 대신 탈퇴로 둔다(거절 기록·강퇴 기록이 남게). 나간 시각({@code leftAt})은 건드리지 않는다 — 그 칸은 「멤버였다가 스스로 나간 때」라
+     * 나간 멤버의 댓글 가림(2단계)이 읽는다(신청만 했다 취소한 사람은 멤버였던 적이 없어 가려지지 않는다).
+     */
     public void withdrawApplication(Instant now) {
         this.status = GroupMemberStatus.LEFT;
-        this.leftAt = now;
+    }
+
+    /** 글 탭을 봤다(새 글 수의 기준 시각) */
+    public void seen(Instant now) {
+        this.lastSeenAt = now;
     }
 
     /** 탈퇴 */

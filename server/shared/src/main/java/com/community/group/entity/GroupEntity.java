@@ -172,6 +172,11 @@ public class GroupEntity {
         }
     }
 
+    /** 최근 활동 — 소모임 글을 썼다(행을 잠근 뒤, 지금 뜨는 소모임) */
+    public void touchActivity(Instant now) {
+        this.lastActivityAt = now;
+    }
+
     // ── 읽기 ──────────────────────────────────────────────────────────────
 
     /** 정원이 찼나 */

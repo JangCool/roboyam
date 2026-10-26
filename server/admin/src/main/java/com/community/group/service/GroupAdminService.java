@@ -26,6 +26,7 @@ import com.community.group.exception.GroupAlreadyInactiveException;
 import com.community.group.exception.GroupNotFoundException;
 import com.community.group.exception.GroupNotInactiveException;
 import com.community.group.repository.master.GroupMemberRepository;
+import com.community.group.repository.master.GroupPostQueries;
 import com.community.group.repository.master.GroupRepository;
 import com.community.group.repository.master.GroupRepositoryQDSL;
 import com.community.permission.dto.AdminActor;
@@ -71,9 +72,12 @@ public class GroupAdminService {
     private final GroupNotices notices;
     private final BoardCatalog catalog;
     private final AuditLogService audit;
+    private final GroupPostQueries groupPosts;
 
     public GroupAdminService(GroupRepository groups, GroupMemberRepository members, GroupRepositoryQDSL queries, GroupCategoryLookup categories,
-                             GroupPeople people, GroupSettingsService settings, GroupNotices notices, BoardCatalog catalog, AuditLogService audit) {
+                             GroupPeople people, GroupSettingsService settings, GroupNotices notices, BoardCatalog catalog, AuditLogService audit,
+                             GroupPostQueries groupPosts) {
+        this.groupPosts = groupPosts;
         this.groups = groups;
         this.members = members;
         this.queries = queries;
@@ -210,6 +214,7 @@ public class GroupAdminService {
                 inactive++;
             }
         }
+        long[] postCounts = groupPosts.adminCounts(g.getId(), java.time.Instant.now()); // 지우지 않은 글 수 · 그중 비멤버에게 보이는 글 수(2단계)
         GroupAdminDetailView.Deactivation deactivation = g.getDeactivatedAt() == null ? null
                 : new GroupAdminDetailView.Deactivation(g.getDeactivatedAt(), operators.get(g.getDeactivatedBy()), g.getDeactivateReason(), null,
                 g.getReactivatedAt(), operators.get(g.getReactivatedBy()), g.getReactivateMemo());
@@ -220,7 +225,7 @@ public class GroupAdminService {
                 g.getStatus().name(), g.getJoinType().name(), g.isRecruiting(), GroupRules.recruitState(g), g.getCapacity(), g.getMemberCount(), g.isOffline(),
                 g.isStockAgreed(), new GroupAdminDetailView.Chat(g.getKakaoUrl() != null, g.getDiscordUrl() != null), persons.of(g.getLeaderId()),
                 persons.of(g.getCreatorId()), operators.get(g.getReviewedBy()), g.getRequestedAt(), g.getOpenedAt(), g.getLastActivityAt(),
-                new GroupAdminDetailView.LeaderLoad(total, active, inactive, settings.creation().maxPerOwner()), 0, 0, 0, deactivation, managers,
+                new GroupAdminDetailView.LeaderLoad(total, active, inactive, settings.creation().maxPerOwner()), postCounts[0], postCounts[1], 0, deactivation, managers,
                 g.getManagerLimit(), settings.manager().limitMax(), g.getVisibility().name(), g.getVisibilityChangedAt(), persons.of(g.getVisibilityChangedBy()));
     }
 

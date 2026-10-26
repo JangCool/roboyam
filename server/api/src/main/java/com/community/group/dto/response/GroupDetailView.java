@@ -21,16 +21,19 @@ import java.util.List;
  * @param newcomers              멤버에게만 최근 가입자
  * @param pendingApplicationCount 모임장·가입 신청을 맡은 매니저에게만 승인 대기 수, 그 밖 null
  * @param limits                 지금 적용되는 운영 한도(정원 범위·일정 한도)
+ * @param postCount              보는 사람에게 보이는 소모임 글 수 — 멤버는 모든 보이는 글, 비멤버·비회원은 공개로 전환된 글(지운·숨긴·나가서 가린 글 제외, 2단계)
+ * @param newPostCount           멤버에게만 — 내가 글 탭을 마지막으로 본 뒤(본 적이 없으면 가입 뒤) 올라온 남의 글 수, 비멤버·비회원 null(2단계)
  */
 public record GroupDetailView(String id, String name, String description, GroupCategoryRefView category, String joinType, Integer capacity, Integer memberCount,
                               Boolean recruiting, String recruitState, Boolean offline, String visibility, Board board, String status, Instant openedAt,
                               DmPartnerView leader, Boolean stockNotice, String myState, String myRole, Join join, Chat chat, Boolean chatLocked,
-                              Permissions permissions, ManagerInfo managerInfo, Newcomers newcomers, Long pendingApplicationCount, Limits limits) {
+                              Permissions permissions, ManagerInfo managerInfo, Newcomers newcomers, Long pendingApplicationCount, Limits limits,
+                              Long postCount, Long newPostCount) {
 
     /** 비활성 소모임 — 안내 화면에 쓸 칸만 */
     public static GroupDetailView inactive(String id, String name) {
         return new GroupDetailView(id, name, null, null, null, null, null, null, null, null, null, null, "INACTIVE", null, null, null, null, null, null, null,
-                null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null);
     }
 
     /** 소모임 게시판 — 켜진 말머리만(순서대로) */
@@ -58,7 +61,7 @@ public record GroupDetailView(String id, String name, String description, GroupC
 
     /**
      * @param canManage             모임장 또는 매니저(관리 화면)
-     * @param canWritePost          멤버이고 정지 중이 아님(글쓰기는 2단계)
+     * @param canWritePost          멤버이고 정지 중이 아님(소모임 글쓰기 — 서버는 쓸 때 이메일 인증·사업자 회원·post.write 까지 다시 본다)
      * @param canEditGroup          모임장 — 정보 수정·채팅 링크·모임장 넘기기·해산
      * @param canAppointManager     모임장이고 매니저 기능이 켜짐(3단계)
      * @param manageBlockedReason   모임장·매니저가 이메일 인증 전이면 EMAIL_NOT_VERIFIED, 정지면 ACCOUNT_RESTRICTED(쓰기 단추를 끈다), 그 밖 null

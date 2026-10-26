@@ -12,33 +12,47 @@ import type {
     GroupListResponse,
     GroupMemberListQuery,
     GroupMemberListResponse,
+    GroupPostListQuery,
+    GroupPostPage,
+    GroupPostVisibilityRequest,
+    GroupPostVisibilityResult,
+    GroupPostWriteRequest,
     GroupUpdateRequest,
     MyGroupsResponse,
 } from '~/composables/group/api/useGroupApi.types';
+import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
+import type { PostWriteResult } from '~/composables/board/api/usePostApi.types';
 
 /**
- * 소모임 API — 서버 주소 문자열(`/api/groups…`·`/api/me/groups…`)이 있는 **유일한 곳**이다. 상태는 없다.
- * 모두 처음부터 실제 호출이다(목업 없음 — `// MOCK:` 줄이 없다) — 경로·칸 이름·오류 코드는 community `docs/api-groups.md`(1·2·3·4·5(5-1 매니저 제외)·7절)와 같다고 가정한다.
- * 서버와 어긋나는 곳은 연동 단계에서 맞춘다.
+ * 소모임 API — 서버 주소 문자열(`/api/groups…`·`/api/me/groups…`)이 있는 **유일한 곳**이다. 상태는 없다. 모두 실제 호출이다(목업 없음 — `// MOCK:` 줄이 없다).
  *
- * ## 가정한 모양 (원본과 같지 않은 곳 위주)
+ * ## 1단계 — 서버(`server/api/.../group/controller/GroupController`·`MyGroupController`)와 맞춘 모양
  * - 응답: 로보얌 `ApiResponse` 래퍼(`{success, data, meta}`) — `useApiClient` 가 벗겨 `data` 만 준다. `204` 는 `undefined`. 오류는 `ApiError`(`code`·`message`·`fields`·`retryAfterSeconds`·`extras`).
- * - 사람 칸(`leader`·`members[].user`·`applications[].user`·`newcomers.items`): community `AuthorView` 대신 로보얌 쪽지 상대와 같은 모양
- *   `{ id|null, nickname, grade, gradeLabel, role?, withdrawn, memo?, decoration?, avatarUrl? }`(`GroupUser`) — 화면은 이것을 글쓴이 표시(`PostAuthorLabel`)로 바꿔 그린다.
- * - `GET /api/groups/categories`: 로보얌 서버에 공개 분류 API 가 없으면 서버 에이전트가 이번에 만든다고 가정 — `{ total, items[{ id, name, groupCount, investmentNotice, boards[{ slug, name, investmentNotice }] }] }`.
- * - `GET /api/groups`: 「지금 뜨는 소모임」(6단계)이 없으니 `exclude` 를 보내지 않는다. `?category=` 는 분류 id, 없는 분류는 `400 fields.category`.
- * - `GET /api/groups/{id}`: 매니저 칸(`managerInfo`·체크형 `permissions.*`)·공개 범위(`visibility*`)·글쓰기용 `board.prefixes` 는 없어도 된다(3·5·2단계). 체크형 권한 칸이 없으면 화면은 `canManage` 로 채운다.
- *   `permissions.manageBlockedReason`(`EMAIL_NOT_VERIFIED`·`ACCOUNT_RESTRICTED`)이 오면 관리 화면 쓰기 단추를 끈다. `limits` 가 없으면 정원 5~200 으로 본다.
- *   `INACTIVE` 는 `{ id, name, status }` 만, `PENDING`·`REJECTED`·`DELETED`·없는 ID 는 `404 GROUP_NOT_FOUND`.
- * - `GET /api/groups/{id}/members`: `managerPermissions` 칸은 읽지 않는다(3단계). 비멤버 `403 GROUP_NOT_MEMBER`, 비회원 `401`.
- * - 모임장 동작(정보 수정·모집·채팅 링크·신청 처리·강퇴·넘기기·해산)의 권한 오류: 모임장이 아니면 `403 GROUP_LEADER_ONLY`(로보얌 관리자 쪽의 `PERMISSION_DENIED` 가 아니라 원본 코드로 가정).
- *   정지·이메일 미인증은 공통 `403 ACCOUNT_RESTRICTED`·`403 EMAIL_NOT_VERIFIED`, 사업자 계정은 `403 BUSINESS_ACCOUNT_RESTRICTED`.
+ * - 사람 칸(`leader`·`members[].user`·`applications[].user`·`newcomers.items`): 서버 `DmPartnerView`
+ *   `{ id|null, nickname, grade, gradeLabel, role: "USER", withdrawn, memo: null, decoration, avatarUrl }`(`GroupUser`) — 화면은 이것을 글쓴이 표시(`PostAuthorLabel`)로 바꿔 그린다.
+ * - 목록·멤버의 `page` 는 1부터. 게시판 칸은 `{ slug, name, nameEn }`. 상세의 `board` 는 `{ slug, name, nameEn, color, investmentNotice, prefixes[] }`, `limits` 는 정원·일정 한도 넷.
+ * - `GET /api/groups/{id}`: `permissions.manageBlockedReason`(`EMAIL_NOT_VERIFIED`·`ACCOUNT_RESTRICTED`·`BUSINESS_ACCOUNT_RESTRICTED`)이 오면 관리 화면 쓰기 단추를 끈다.
+ *   `INACTIVE` 는 `{ id, name, status }` 만, `PENDING`·`REJECTED`·`DELETED`·없는 ID 는 `404 GROUP_NOT_FOUND`. 매니저·공개 범위 칸(`managerInfo`·`visibility`)은 3·5단계라 읽지 않는다.
+ * - 모임장 동작의 권한 오류: `403 GROUP_LEADER_ONLY`·`GROUP_MANAGER_PERMISSION_DENIED`. 쓰기 자격은 공통 `403 EMAIL_NOT_VERIFIED` → `ACCOUNT_RESTRICTED` → `BUSINESS_ACCOUNT_RESTRICTED`.
  * - 가입·신청 오류: `409 GROUP_ALREADY_MEMBER|GROUP_ALREADY_APPLIED|GROUP_CLOSED|GROUP_FULL` · `429 GROUP_REAPPLY_LATER(retryAfterSeconds)` · `403 GROUP_INACTIVE` · `404 GROUP_NOT_FOUND` ·
  *   `400 VALIDATION fields.message|offlineAck` · `429 RATE_LIMITED`. 탈퇴: 모임장은 `409 GROUP_LEADER_CANNOT_LEAVE`.
- * - 개설 신청 오류: `403 GROUP_GRADE_TOO_LOW` · `409 GROUP_LIMIT_REACHED`(+최상위 `max`) · `409 GROUP_NAME_TAKEN` · `429 RATE_LIMITED`(하루 1번) ·
- *   `400 VALIDATION fields.name|description|categoryId|boardSlug|joinType|capacity|agreeRules|agreeStock|agreeOffline`.
+ * - 개설 신청 오류: `403 GROUP_CREATE_NOT_PERMITTED`(회원 역할에 `group.create` 없음 — 로보얌) · `403 GROUP_GRADE_TOO_LOW` · `409 GROUP_LIMIT_REACHED` · `409 GROUP_NAME_TAKEN` ·
+ *   `429 RATE_LIMITED` · `400 VALIDATION fields.name|description|categoryId|boardSlug|joinType|capacity|agreeRules|agreeStock|agreeOffline`.
  * - 신청 처리: `409 GROUP_FULL`(승인) · `404 GROUP_APPLICATION_NOT_FOUND`. 강퇴·넘기기: `404 GROUP_MEMBER_NOT_FOUND`. 해산: `400 VALIDATION fields.name`(이름이 다르다).
- * - 알림(7절)은 회원 알림(`useNotificationApi`)이 따로 받는다 — 이 파일은 알림을 부르지 않는다.
+ * - 알림(7절)은 회원 알림(`useNotificationApi`)이 따로 받는다(서버 묶음 `system`) — 이 파일은 알림을 부르지 않는다.
+ *
+ * ## 2단계(소모임 글) — 가정한 모양: community `docs/api-groups.md` 8절과 같다(11절 공개 범위·공개 요청은 5단계라 뺐다)
+ * - `GET /api/groups/{id}/posts?cursor=&size=` → `GroupPostPage { items: PostRow(+group)[], hasNext, nextCursor, locked, privateCount }`. 멤버는 비공개 글까지, 비멤버·비회원은 공개 글만.
+ *   열려 있지 않으면 `404 GROUP_NOT_FOUND`·`403 GROUP_INACTIVE`, 잘못된 커서 `400 VALIDATION fields.cursor`.
+ * - `POST /api/groups/{id}/posts` 본문 `GroupPostWriteRequest { prefixId, title, content, contentFormat, adult, poll? }`(로보얌 글쓰기 본문에서 `boardSlug`·`guest`·`debate` 를 뺀 것) →
+ *   `201 { id }`(비공개 글). 오류: `403 GROUP_NOT_MEMBER` · `404 GROUP_NOT_FOUND` · `403 GROUP_INACTIVE` · 칸별 `400 VALIDATION` · 일반 글과 같은 작성 간격·하루 한도(`429`)·금지어.
+ * - `PUT /api/groups/{id}/posts/{postId}/visibility` 본문 `{ visibility: PUBLIC|PRIVATE, acknowledged? }` → `200 { visibility }`.
+ *   `PUBLIC`: 작성자만(`403 FORBIDDEN`)·지금도 멤버(`403 GROUP_NOT_MEMBER`)·`acknowledged: true` 필수(`400 VALIDATION fields.acknowledged`).
+ *   `PRIVATE`: 작성자·모임장·`UNPUBLISH` 매니저(`403 GROUP_MANAGER_PERMISSION_DENIED`·`FORBIDDEN`), 남이 되돌리면 작성자에게 알림 `GROUP_POST_UNPUBLISHED`. 없는 글 `404 POST_NOT_FOUND`.
+ * - `POST /api/groups/{id}/seen` → `204` — 내 마지막으로 본 시각을 지금으로(멤버가 아니면 아무 일도 없다, 비회원 `401`). 내 소모임의 `newPostCount` 가 이 시각 뒤의 남의 글 수다.
+ * - 글 상세(`GET /api/posts/{id}`)의 `group`(`PostGroupInfo`)·글 줄의 `group`(`PostGroupRef`)은 `usePostApi.types.ts`. 비멤버가 비공개 글을 열면 `403 GROUP_POST_PRIVATE`.
+ * - **로보얌 추가 후보 `GET /api/groups/{id}/board` → `BoardDetail`**(`GET /api/boards/{slug}` 와 같은 모양, 보는 사람 판정은 소모임 기준) — 소모임 게시판은 공개 게시판 API 에서
+ *   없는 게시판(`404 BOARD_NOT_FOUND`)이라, 소모임 글쓰기·글 상세(댓글)·글 고치기가 에디터·이미지·투표·댓글 설정을 여기서 받는다. 원본(community)에는 없는 경로라 서버와 맞춰야 한다.
  */
 const PATH = {
     groups: '/api/groups',
@@ -55,6 +69,10 @@ const PATH = {
     application: (id: string, userId: string) => `${PATH.group(id)}/applications/${encodeURIComponent(userId)}`,
     leader: (id: string) => `${PATH.group(id)}/leader`,
     dissolve: (id: string) => `${PATH.group(id)}/dissolve`,
+    posts: (id: string) => `${PATH.group(id)}/posts`,
+    postVisibility: (id: string, postId: string) => `${PATH.group(id)}/posts/${encodeURIComponent(postId)}/visibility`,
+    seen: (id: string) => `${PATH.group(id)}/seen`,
+    board: (id: string) => `${PATH.group(id)}/board`,
     mine: '/api/me/groups',
     myRequest: (id: string) => `/api/me/groups/requests/${encodeURIComponent(id)}`,
 };
@@ -132,5 +150,22 @@ export function useGroupApi() {
 
         /** 해산(204) — 소모임 이름을 그대로 입력해야 한다(`fields.name`) */
         dissolve: (id: string, name: string) => client.post<void>(PATH.dissolve(id), { name }),
+
+        // ── 소모임 글(2단계) ──
+
+        /** 글 탭 — 최신이 위, 커서로 더보기. 비멤버는 공개 글만 + 잠긴 글 수 */
+        posts: (id: string, query: GroupPostListQuery = {}, signal?: AbortSignal) => client.get<GroupPostPage>(PATH.posts(id), { query: { ...query }, signal }),
+
+        /** 소모임 글쓰기 — 멤버만, 비공개 글로 만들어진다 */
+        writePost: (id: string, body: GroupPostWriteRequest) => client.post<PostWriteResult>(PATH.posts(id), body),
+
+        /** 공개 전환(작성자, `acknowledged` 필수) · 비공개로 되돌리기(작성자·모임장·`UNPUBLISH` 매니저) */
+        setPostVisibility: (id: string, postId: string, body: GroupPostVisibilityRequest) => client.put<GroupPostVisibilityResult>(PATH.postVisibility(id, postId), body),
+
+        /** 글 탭을 봤다(204) — 내 소모임의 새 글 수가 이 시각 뒤의 남의 글을 센다 */
+        markSeen: (id: string) => client.post<void>(PATH.seen(id)),
+
+        /** 소모임 게시판 정보(`BoardDetail` 모양, 로보얌 추가 후보) — 소모임 글쓰기·글 상세·글 고치기의 에디터·말머리·댓글 설정 */
+        board: (id: string, signal?: AbortSignal) => client.get<BoardDetail>(PATH.board(id), { signal }),
     };
 }

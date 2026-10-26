@@ -77,8 +77,8 @@ export interface ActiveGroup {
 
 export type GroupDetailKind = 'active' | 'inactive' | 'unknown';
 
-/** 상세 탭 — 1단계는 멤버·채팅만(글은 2단계, 일정은 4단계에서 더한다) */
-export type GroupTab = 'members' | 'chat';
+/** 상세 탭 — 글(기본, 2단계) · 멤버 · 채팅(일정은 4단계에서 더한다) */
+export type GroupTab = 'posts' | 'members' | 'chat';
 
 /** 가입 영역의 모양 — 단추를 보일지·글자 종류·꺼짐·위 띠 */
 export interface GroupJoinAction {
@@ -138,7 +138,7 @@ export type GroupChatProblems = Partial<Record<GroupChatField, GroupChatProblem>
 /** 분류 값의 모양 — 분류 id 는 숫자 문자열. 옛 주소의 게시판 slug 모양도 통과시켜 서버·화면이 「없는 분류」로 답하게 한다 */
 const CATEGORY_VALUE = /^[A-Za-z0-9_-]{1,40}$/;
 const SORTS: readonly GroupSort[] = ['popular', 'new', 'recruiting', 'mine'];
-const TABS: readonly GroupTab[] = ['members', 'chat'];
+const TABS: readonly GroupTab[] = ['posts', 'members', 'chat'];
 
 /** 카카오 오픈채팅 주소 — 서버 `GroupChatLinkRules` 와 같다고 가정(community `UtilGroupManage`) */
 const KAKAO_URL = /^https:\/\/open\.kakao\.com(\/[^\s?#]*)$/;
@@ -176,8 +176,11 @@ export default class UtilGroup {
     static readonly Q_MAX = 30;
     static readonly PAGE_SIZE = 20;
     static readonly MEMBER_PAGE_SIZE = 30;
+    /** 글 탭 한 쪽 — 서버 `size` 1~50(기본 20) */
+    static readonly POST_PAGE_SIZE = 20;
     static readonly SORTS = SORTS;
     static readonly TABS = TABS;
+    static readonly DEFAULT_TAB: GroupTab = 'posts';
     static readonly DEFAULT_SORT: GroupSort = 'popular';
     static readonly LIST_PATH = '/groups';
     static readonly MY_PATH = '/groups/me';
@@ -187,6 +190,16 @@ export default class UtilGroup {
 
     static detailPath(id: string): string {
         return `${UtilGroup.LIST_PATH}/${encodeURIComponent(id)}`;
+    }
+
+    /** 상세의 한 탭 — 기본 탭(글)은 쿼리를 붙이지 않는다 */
+    static tabPath(id: string, tab: GroupTab): string {
+        return tab === UtilGroup.DEFAULT_TAB ? UtilGroup.detailPath(id) : `${UtilGroup.detailPath(id)}?tab=${tab}`;
+    }
+
+    /** 소모임 글쓰기 */
+    static writePath(id: string): string {
+        return `${UtilGroup.detailPath(id)}/write`;
     }
 
     static managePath(id: string, sub = ''): string {
@@ -343,8 +356,13 @@ export default class UtilGroup {
             canSetRecruiting: pick(raw?.canSetRecruiting),
             canManageEvents: pick(raw?.canManageEvents),
             canUnpublishPosts: pick(raw?.canUnpublishPosts),
-            manageBlockedReason: raw?.manageBlockedReason === 'EMAIL_NOT_VERIFIED' || raw?.manageBlockedReason === 'ACCOUNT_RESTRICTED' ? raw.manageBlockedReason : null,
+            manageBlockedReason: UtilGroup.manageBlockedOf(raw?.manageBlockedReason),
         };
+    }
+
+    /** 모임장·매니저의 쓰기를 막는 까닭으로 읽는다 — 모르는 값은 null(막지 않는다 — 판정은 서버) */
+    static manageBlockedOf(value: unknown): GroupManageBlockedReason | null {
+        return value === 'EMAIL_NOT_VERIFIED' || value === 'ACCOUNT_RESTRICTED' || value === 'BUSINESS_ACCOUNT_RESTRICTED' ? value : null;
     }
 
     static kindOf(detail: GroupDetail): GroupDetailKind {
@@ -390,11 +408,11 @@ export default class UtilGroup {
 
     static parseTab(value: unknown): GroupTab {
         const raw = Array.isArray(value) ? value[0] : value;
-        return TABS.find((t) => t === raw) ?? 'members';
+        return TABS.find((t) => t === raw) ?? UtilGroup.DEFAULT_TAB;
     }
 
     static tabQuery(tab: GroupTab): Record<string, string> {
-        return tab === 'members' ? {} : { tab };
+        return tab === UtilGroup.DEFAULT_TAB ? {} : { tab };
     }
 
     /** 가입 영역 — 멤버는 없다. 서버가 준 `join` 으로 단추 상태를 정한다(요청해 보기 전에). 비회원은 눌러서 로그인 안내 */
@@ -611,7 +629,7 @@ export default class UtilGroup {
         let me: GroupCreationRules['me'] = null;
         if (typeof r.me === 'object' && r.me !== null && !Array.isArray(r.me)) {
             const m = r.me as Record<string, unknown>;
-            const reason = m.reason === 'GRADE_TOO_LOW' || m.reason === 'LIMIT_REACHED' ? m.reason : null;
+            const reason = m.reason === 'NOT_PERMITTED' || m.reason === 'GRADE_TOO_LOW' || m.reason === 'LIMIT_REACHED' ? m.reason : null;
             me = { canCreate: m.canCreate !== false && reason === null, reason, grade: typeof m.grade === 'string' ? m.grade : '', ledCount: typeof m.ledCount === 'number' ? m.ledCount : 0 };
         }
         return {
@@ -680,10 +698,10 @@ export default class UtilGroup {
         return out;
     }
 
-    /** 모임장·매니저의 쓰기가 막힌 까닭(공통 403) — 아니면 null */
+    /** 모임장·매니저의 쓰기가 막힌 까닭(공통 403 — 이메일 미인증·정지·사업자 계정) — 아니면 null */
     static blockedReasonOf(e: unknown): GroupManageBlockedReason | null {
         if (!(e instanceof ApiError) || e.status !== 403) return null;
-        return e.code === 'EMAIL_NOT_VERIFIED' || e.code === 'ACCOUNT_RESTRICTED' ? e.code : null;
+        return UtilGroup.manageBlockedOf(e.code);
     }
 
     static isCode(e: unknown, code: string): boolean {

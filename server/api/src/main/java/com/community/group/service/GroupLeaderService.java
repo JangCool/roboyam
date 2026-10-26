@@ -23,6 +23,7 @@ import com.community.group.exception.GroupManagerProtectedException;
 import com.community.group.exception.GroupMemberNotFoundException;
 import com.community.group.exception.GroupNameTakenException;
 import com.community.group.repository.master.GroupMemberRepository;
+import com.community.group.repository.master.GroupPostQueries;
 import com.community.group.repository.master.GroupRepository;
 import com.community.group.repository.master.GroupRepositoryQDSL;
 import com.community.board.service.BoardActorResolver;
@@ -46,7 +47,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>모임장 고정</b>: 정보 수정 · 채팅 링크 · 모임장 넘기기 · 해산.</li>
  *   <li><b>체크형</b>(모임장 + 그 일을 맡은 매니저): 모집 마감·재개(RECRUITING) · 가입 신청 열람·승인·거절(APPLICATIONS) · 강퇴(KICK — 매니저는 일반 멤버만).</li>
  *   <li>정지 중이거나 이메일 인증 전인 모임장·매니저는 쓰기가 모두 멈춘다(열람은 열려 있다).</li>
- *   <li>해산: 소모임째 DELETED, 멤버 전원에게 알림. 소모임 글 처리(공개 글은 남고 비공개 글은 사라진다)는 글이 생기는 2단계에서 더한다.</li>
+ *   <li>해산: 소모임째 DELETED, 멤버 전원에게 알림. 공개로 전환된 글은 연결을 유지한 채 남고 비공개 글·나가서 가린 글은 지운다(2단계).</li>
  * </ul>
  */
 @Service
@@ -61,11 +62,13 @@ public class GroupLeaderService {
     private final GroupViews views;
     private final GroupPeople people;
     private final GroupNotices notices;
+    private final GroupPostQueries groupPosts;
     private final BoardActorResolver actors;
     private final BoardCatalog catalog;
 
     public GroupLeaderService(GroupAccess access, GroupRepository groups, GroupMemberRepository members, GroupSettingsService settings, GroupViews views,
-                              GroupPeople people, GroupNotices notices, BoardActorResolver actors, BoardCatalog catalog) {
+                              GroupPeople people, GroupNotices notices, BoardActorResolver actors, BoardCatalog catalog, GroupPostQueries groupPosts) {
+        this.groupPosts = groupPosts;
         this.access = access;
         this.groups = groups;
         this.members = members;
@@ -189,8 +192,12 @@ public class GroupLeaderService {
             throw ValidationException.of("name", new MessageRef("group.dissolve.name.mismatch"));
         }
         List<GroupMemberEntity> active = members.findByGroupIdAndStatus(group.getId(), GroupMemberStatus.ACTIVE);
-        group.delete(Instant.now());
+        Instant now = Instant.now();
+        group.delete(now);
         groups.flush();
+        // 공개로 전환돼 보이는 글은 연결(group_id)을 유지한 채 남고(화면은 「해산한 소모임」), 비공개 글과 나가서 가린 글은 지운다(8절)
+        int deleted = groupPosts.deleteOnDissolve(group.getId(), now);
+        log.info("소모임 해산 — 비공개·가린 글 {}건을 지웠다 groupId={}", deleted, group.getId());
         for (GroupMemberEntity m : active) {
             if (!m.getUserId().equals(me)) {
                 notices.dissolved(group, m.getUserId(), me);
@@ -241,6 +248,7 @@ public class GroupLeaderService {
         Instant now = Instant.now();
         row.approve(me, now);
         group.addMembers(1, now);
+        groupPosts.restoreForMember(group.getId(), row.getUserId(), now); // 나갔다 다시 들어온 사람 — 나가서 가린 글만 되살린다(승인 대기 동안은 가려진 채)
         notices.joinApproved(group, row.getUserId(), me);
         log.info("소모임 가입 신청을 승인했다 groupId={} userId={} by userId={} memberCount={}", group.getId(), row.getUserId(), me, group.getMemberCount());
         return new GroupMemberCountView(group.getMemberCount());

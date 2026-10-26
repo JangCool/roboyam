@@ -23,6 +23,7 @@ import com.community.group.entity.GroupStatus;
 import com.community.group.exception.GroupNotFoundException;
 import com.community.group.exception.GroupNotMemberException;
 import com.community.group.repository.master.GroupMemberRepository;
+import com.community.group.repository.master.GroupPostQueries;
 import com.community.group.repository.master.GroupRepository;
 import com.community.group.repository.master.GroupRepositoryQDSL;
 import com.community.permission.entity.MemberPermission;
@@ -59,6 +60,7 @@ public class GroupQueryService {
     private final GroupRepository groups;
     private final GroupMemberRepository members;
     private final GroupRepositoryQDSL queries;
+    private final GroupPostQueries groupPosts;
     private final GroupViews views;
     private final GroupPeople people;
     private final GroupSettingsService settings;
@@ -68,7 +70,8 @@ public class GroupQueryService {
 
     public GroupQueryService(GroupRepository groups, GroupMemberRepository members, GroupRepositoryQDSL queries, GroupViews views, GroupPeople people,
                              GroupSettingsService settings, GroupAccess access, BoardActorResolver actors,
-                             BoardCatalog catalog) {
+                             BoardCatalog catalog, GroupPostQueries groupPosts) {
+        this.groupPosts = groupPosts;
         this.groups = groups;
         this.members = members;
         this.queries = queries;
@@ -262,6 +265,9 @@ public class GroupQueryService {
         List<GroupMemberEntity> rows = members.findByUserIdAndStatusIn(me, List.of(GroupMemberStatus.ACTIVE, GroupMemberStatus.APPLIED));
         Map<Long, GroupEntity> byId = new HashMap<>();
         groups.findAllById(rows.stream().map(GroupMemberEntity::getGroupId).toList()).forEach(g -> byId.put(g.getId(), g));
+        // 새 글 수(2단계) — 가입한 소모임 모두를 질의 한 번으로(마지막으로 본 뒤 올라온 남의 글)
+        Map<Long, Long> newPosts = groupPosts.newPostCounts(me, rows.stream().filter(GroupMemberEntity::active).map(GroupMemberEntity::getGroupId).toList(),
+                Instant.now());
         List<MyGroupsView.Joined> joined = new ArrayList<>();
         List<MyGroupsView.Application> applications = new ArrayList<>();
         rows.stream().sorted((a, b) -> compareDesc(a.getStatus() == GroupMemberStatus.ACTIVE ? a.getJoinedAt() : a.getAppliedAt(),
@@ -272,7 +278,7 @@ public class GroupQueryService {
             }
             GroupRowView row = views.row(g, GroupViews.myState(g, m, me), ctx);
             if (m.getStatus() == GroupMemberStatus.ACTIVE) {
-                joined.add(new MyGroupsView.Joined(row, m.getRole().name(), m.getJoinedAt(), 0, null));
+                joined.add(new MyGroupsView.Joined(row, m.getRole().name(), m.getJoinedAt(), newPosts.getOrDefault(g.getId(), 0L).intValue(), null));
             } else {
                 applications.add(new MyGroupsView.Application(row, m.getAppliedAt()));
             }

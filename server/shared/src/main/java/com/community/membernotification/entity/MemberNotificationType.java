@@ -73,7 +73,12 @@ public enum MemberNotificationType {
     /** 내가 모임장인 소모임이 운영 조치로 비활성이 됐다(사유와 함께) — 누르면 그 소모임 */
     GROUP_DEACTIVATED("system"),
     /** 내가 모임장인 소모임이 다시 열렸다(운영 메모는 싣지 않는다) — 누르면 그 소모임 */
-    GROUP_REACTIVATED("system");
+    GROUP_REACTIVATED("system"),
+    /**
+     * 모임장(또는 되돌리기를 맡은 매니저 — 3단계)이 내 공개 소모임 글을 비공개로 되돌렸다(V90, community api-groups.md 8절) — 덧붙임 groupId·groupName·title·actorRole(LEADER · MANAGER).
+     * 글·일으킨 사람 칸은 그 글·처리자. 누르면 그 글. 작성자 본인이 되돌리면 알림 없음
+     */
+    GROUP_POST_UNPUBLISHED("system");
 
     private final String category;
 

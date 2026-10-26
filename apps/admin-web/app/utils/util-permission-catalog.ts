@@ -292,7 +292,7 @@ export default class UtilPermissionCatalog {
         { code: 'post.react', group: 'USE', type: 'memberSite', nameKey: 'permission.memberPostReact', descKey: 'permission.memberPostReactDesc', featureReady: true },
         { code: 'report.create', group: 'USE', type: 'memberSite', nameKey: 'permission.memberReportCreate', descKey: 'permission.memberReportCreateDesc', featureReady: true },
         { code: 'pointshop.use', group: 'USE', type: 'memberSite', nameKey: 'permission.memberPointshopUse', descKey: 'permission.memberPointshopUseDesc', featureReady: true },
-        { code: 'group.create', group: 'USE', type: 'memberSite', nameKey: 'permission.memberGroupCreate', descKey: 'permission.memberGroupCreateDesc', featureReady: false },
+        { code: 'group.create', group: 'USE', type: 'memberSite', nameKey: 'permission.memberGroupCreate', descKey: 'permission.memberGroupCreateDesc', featureReady: true },
         { code: 'hotdeal.write', group: 'USE', type: 'memberSite', nameKey: 'permission.memberHotdealWrite', descKey: 'permission.memberHotdealWriteDesc', featureReady: false },
         { code: 'commerce.purchase', group: 'USE', type: 'memberSite', nameKey: 'permission.memberCommercePurchase', descKey: 'permission.memberCommercePurchaseDesc', featureReady: false },
         { code: 'ad.apply', group: 'USE', type: 'memberSite', nameKey: 'permission.memberAdApply', descKey: 'permission.memberAdApplyDesc', featureReady: false },

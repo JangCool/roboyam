@@ -37,8 +37,9 @@ export interface CommentView {
     /**
      * 숨긴 까닭을 밝힐 때만 `STAFF`(운영자가 숨김) — `state` 가 HIDDEN 이고 그 게시판의 정책 `staffHiddenNotice` 가 켜졌을 때만 온다.
      * 그 밖(옵션이 꺼진 게시판·신고 숨김·숨기지 않은 댓글)은 null — 화면은 지금처럼 「신고로 숨겨진 댓글이에요」를 보인다.
+     * `GROUP_LEFT`(소모임 2단계): 소모임을 스스로 나간 멤버가 나가기 전에 쓴 소모임 글의 댓글 — 「소모임을 나간 멤버의 댓글이에요」(작성자·본문은 가려져 온다, 다시 가입하면 풀린다).
      */
-    hiddenBy?: 'STAFF' | null;
+    hiddenBy?: 'STAFF' | 'GROUP_LEFT' | null;
     /** 운영자가 고정했거나 고정 요청이 승인된, 지금 보이는 의견 — 토론 구분(`OPINION`·한 입장)에서는 맨 위에 온다 */
     pinned?: boolean;
     /** 비추천 수 · 내가 비추천했는가 — 게시판 비추천이 꺼져 있으면 null(목록의 `reactions.dislikeEnabled`). 추천(`liked`)과 동시에 참이 아니다 */

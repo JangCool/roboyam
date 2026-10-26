@@ -1,18 +1,26 @@
 /**
  * 소모임 개설 승인·소모임 관리 API 가 주고받는 모양 — community `docs/api-groups.md` 6절(6-1 개설 승인 · 6-2 소모임 관리 · 11-9 공개 범위 읽기 칸)과 같은 이름이다.
  * ⚠ ID 는 모두 문자열. 시각은 UTC ISO 문자열 — 그리는 것은 `useDisplayTime()` 이다.
- * 서버(`server/admin`)가 이 모양 그대로 준다 — 서버 DTO 이름도 이 이름을 따른다.
+ * 서버(`server/admin`)가 이 모양 그대로 준다 — 서버 DTO 이름도 이 이름을 따른다(`server/admin/.../group/dto/response/*` 와 칸 단위 대조 2026-10-26).
+ * `postCount`·`publicPostCount` 는 소모임 글(2단계)이 들어오면 서버가 채운다.
  */
 
-/** 사람 한 명(모임장·신청자·처리자·매니저) — community `AuthorView` 중 이 화면이 쓰는 칸만. 닉네임·등급 뱃지 외 개인정보는 싣지 않는다 */
+/**
+ * 사람 한 명(모임장·신청자·처리자·매니저) — 서버 `GroupPersonView`. 닉네임·등급 뱃지 외 개인정보는 싣지 않는다.
+ * 서버는 공개 사이트와 같은 모양이라 `decoration`·`avatarUrl` 칸도 있지만 관리자 응답에서는 늘 null 이다(화면은 쓰지 않는다).
+ */
 export interface GroupPerson {
-    /** 회원 ID. 탈퇴했으면 null */
+    /** 회원 ID(운영자면 운영자 ID). 탈퇴했으면 null */
     id: string | null;
     nickname: string;
-    /** 탈퇴한 회원 — 서버가 대체 이름을 `nickname` 에 넣는다 */
+    /** 탈퇴한 회원(또는 지워진 운영자) — 서버가 대체 이름을 `nickname` 에 넣는다 */
     withdrawn: boolean;
-    /** 등급 뱃지(등급 설정의 이름·색·아이콘). 운영자·모르는 등급이면 null */
-    grade: { label: string; color: string; icon: string | null } | null;
+    /** 등급 뱃지(등급 설정의 키·이름·색·아이콘). 운영자·모르는 등급·탈퇴면 null */
+    grade: { key?: string; label: string; color: string; icon: string | null } | null;
+    /** 관리자 응답에서는 늘 null(공개 사이트용 칸) */
+    decoration?: unknown;
+    /** 관리자 응답에서는 늘 null(공개 사이트용 칸) */
+    avatarUrl?: string | null;
 }
 
 /** 소모임 분류 — 분류 ID 와 이름(코드에 분류 목록을 박지 않는다) */
@@ -25,6 +33,8 @@ export interface GroupCategoryRef {
 export interface GroupBoardRef {
     slug: string;
     name: string;
+    /** 영어 이름(없으면 null) — 화면은 지금 쓰지 않는다 */
+    nameEn?: string | null;
 }
 
 /** 가입 방식 — 자유 가입 · 신청제(모임장 승인) */

@@ -91,6 +91,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/avatars").permitAll()
                         // 소모임(docs/features/group-contract.md 1단계) — 목록·분류·개설 규칙 안내·상세는 비회원도 읽는다(보는 사람에 따라 칸이 달라진다). 멤버 탭·쓰기는 로그인 필요
                         .requestMatchers(HttpMethod.GET, "/api/groups", "/api/groups/categories", "/api/groups/creation-rules", "/api/groups/*").permitAll()
+                        // 소모임 글(2단계) — 글 탭(비회원은 공개로 전환된 글만)·소모임 게시판 정보는 비회원도 읽는다. 글쓰기·공개 전환·봤어요는 로그인 필요
+                        .requestMatchers(HttpMethod.GET, "/api/groups/*/posts", "/api/groups/*/board").permitAll()
                         // 관리자 앱(admin)의 로그인 상태 조회·로그인·로그아웃 — 같은 규약이다(공개 사이트 서버에는 이 주소가 없다). 그 밖의 /api/admin/** 는 로그인이 필요하고,
                         // 어떤 권한이 필요한지는 컨트롤러가 선언하며 선언이 없으면 거절된다(admin 의 AdminAccessInterceptor — fail-closed)
                         .requestMatchers(HttpMethod.GET, "/api/admin/auth/me").permitAll()

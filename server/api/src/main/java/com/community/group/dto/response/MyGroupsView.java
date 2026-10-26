@@ -17,7 +17,7 @@ public record MyGroupsView(List<Joined> joined, List<Application> applications, 
 
     /**
      * @param role         LEADER · MANAGER · MEMBER
-     * @param newPostCount 새 글 수(2단계에서 채운다 — 지금 늘 0)
+     * @param newPostCount 내가 글 탭을 마지막으로 본 뒤(본 적이 없으면 가입 뒤) 올라온 남의 보이는 글 수(2단계)
      * @param nextEvent    다음 일정(4단계 — 지금 늘 null)
      */
     public record Joined(@JsonUnwrapped GroupRowView group, String role, Instant joinedAt, int newPostCount, Object nextEvent) {

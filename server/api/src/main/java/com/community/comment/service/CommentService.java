@@ -46,6 +46,9 @@ import com.community.debate.entity.DebateStance;
 import com.community.debate.repository.master.DebatePinRequestRepository;
 import com.community.debate.repository.master.DebateQueries;
 import com.community.debate.service.DebateReader;
+import com.community.group.entity.GroupMemberEntity;
+import com.community.group.repository.master.GroupMemberRepository;
+import com.community.group.service.GroupPostGate;
 import com.community.membernotification.dto.CommentNotice;
 import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.point.entity.PointReason;
@@ -112,6 +115,8 @@ public class CommentService {
     static final String DELAYED = "DELAYED";
     /** 공개 응답 {@code hiddenBy} — 운영자 숨김을 밝히는 게시판에서만 */
     static final String HIDDEN_BY_STAFF = "STAFF";
+    /** 공개 응답 {@code hiddenBy} — 소모임을 스스로 나간 멤버가 나가기 전에 쓴 댓글(소모임 글만, {@code state} HIDDEN) */
+    static final String HIDDEN_BY_GROUP_LEFT = "GROUP_LEFT";
     /** 베스트 댓글 최대 수(가정) */
     static final int BEST_MAX = 3;
     /** 목록 구분 — 원댓글의 입장으로 가른다. ALL 두 구획 모두(기본) · GENERAL 일반 댓글(댓글 구획) · OPINION 입장 의견 전체(토론 구획) · PRO · CON · NEUTRAL 그 입장의 의견만 */
@@ -138,6 +143,8 @@ public class CommentService {
     private final DebateReader debate;
     private final DebateQueries debateQueries;
     private final DebatePinRequestRepository pinRequests;
+    private final GroupPostGate groupGate;
+    private final GroupMemberRepository groupMembers;
     private final TransactionTemplate tx;
     private final TransactionTemplate readTx;
 
@@ -145,7 +152,9 @@ public class CommentService {
                           CommentRepositoryQDSL commentQueries, PostCounterQueries counters, AuthorViews authors, GuestPasswords passwords,
                           CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion, PointService points, MemberNotificationPublisher notices,
                           ViewerBlocks viewerBlocks, DebateReader debate, DebateQueries debateQueries, DebatePinRequestRepository pinRequests,
-                          PlatformTransactionManager txManager) {
+                          GroupPostGate groupGate, GroupMemberRepository groupMembers, PlatformTransactionManager txManager) {
+        this.groupGate = groupGate;
+        this.groupMembers = groupMembers;
         this.viewerBlocks = viewerBlocks;
         this.debate = debate;
         this.debateQueries = debateQueries;
@@ -181,11 +190,21 @@ public class CommentService {
      * @param myPinRequests     내 의견의 고정 요청 상태(댓글 ID → 상태, 대기·거절만)
      */
     private record Viewer(Long userId, String ip, boolean guest, int delayMinutes, Set<Long> liked, ViewerBlocks.Lens lens, boolean staffHiddenNotice,
-                          boolean dislikeEnabled, Set<Long> disliked, Set<Long> pinned, Map<Long, PinRequestStateView> myPinRequests) {
+                          boolean dislikeEnabled, Set<Long> disliked, Set<Long> pinned, Map<Long, PinRequestStateView> myPinRequests, Map<Long, Instant> leftAt) {
 
         /** 쓰기·고치기 응답용 — 목록 칸(추천·비추천·고정·내 요청)은 부르는 쪽이 정한다 */
         static Viewer self(Long userId, String ip, Set<Long> liked, EffectiveBoard b, Set<Long> disliked, Set<Long> pinned) {
-            return new Viewer(userId, ip, false, 0, liked, ViewerBlocks.Lens.none(), b.staffHiddenNotice(), b.commentDislikeEnabled(), disliked, pinned, Map.of());
+            return new Viewer(userId, ip, false, 0, liked, ViewerBlocks.Lens.none(), b.staffHiddenNotice(), b.commentDislikeEnabled(), disliked, pinned, Map.of(),
+                    Map.of());
+        }
+
+        /**
+         * 소모임을 스스로 나간 멤버가 <b>나가기 전에</b> 쓴 댓글인가(소모임 글만 — community api-groups.md 8절 「나간 멤버의 글·댓글」). 다시 가입하면 풀린다(나간 시각이 비워진다).
+         * 나간 뒤 공개 글에 쓴 댓글은 가리지 않는다.
+         */
+        boolean groupLeft(CommentEntity c) {
+            Instant left = c.getAuthorId() == null ? null : leftAt.get(c.getAuthorId());
+            return left != null && !c.getCreatedAt().isAfter(left);
         }
     }
 
@@ -202,7 +221,7 @@ public class CommentService {
             Instant now = Instant.now();
             PostEntity post = postQueries.requireVisible(postIdText, now);
             BoardCatalogSnapshot s = catalog.snapshot();
-            EffectiveBoard b = PublicBoardService.requireActive(s, post.getBoardId());
+            EffectiveBoard b = groupGate.resolve(s, post, userId).board(); // 소모임 비공개 글의 댓글은 멤버만(403 GROUP_POST_PRIVATE)
             if (post.isHiddenAt(now)) {
                 throw new PostHiddenException();
             }
@@ -213,7 +232,7 @@ public class CommentService {
                     all.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(userId, all.stream().map(CommentEntity::getAuthorId).toList()),
                     b.staffHiddenNotice(), b.commentDislikeEnabled(),
                     userId == null || all.isEmpty() || !b.commentDislikeEnabled() ? Set.of() : counters.dislikedComments(post.getId(), userId),
-                    new HashSet<>(pinOrder), userId == null || all.isEmpty() ? Map.of() : myPinRequests(post.getId(), userId));
+                    new HashSet<>(pinOrder), userId == null || all.isEmpty() ? Map.of() : myPinRequests(post.getId(), userId), leftAt(post, all));
             AuthorMembers members = authors.members(all.stream().map(CommentEntity::getAuthorId).toList());
             Map<Long, CommentEntity> byId = new HashMap<>();
             all.forEach(c -> byId.put(c.getId(), c));
@@ -252,6 +271,27 @@ public class CommentService {
             return new CommentListResponse(threads, best, post.getCommentCount(), kind, debateView,
                     new CommentReactionsView(b.commentDislikeEnabled(), b.commentLikeLabel(), b.commentDislikeLabel()));
         });
+    }
+
+    /**
+     * 소모임 글이면 댓글 쓴 사람 중 그 소모임을 스스로 나가 아직 돌아오지 않은 사람 → 나간 시각(일반 글·댓글 없음은 빈 값). 다시 가입하면 나간 시각이 비워져 빠진다
+     * (신청만 했다 취소한 사람은 멤버였던 적이 없어 나간 시각이 없다). 질의 한 번.
+     */
+    private Map<Long, Instant> leftAt(PostEntity post, List<CommentEntity> all) {
+        if (!post.isGroupPost() || all.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> authorIds = all.stream().map(CommentEntity::getAuthorId).filter(java.util.Objects::nonNull).distinct().toList();
+        if (authorIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Instant> out = new HashMap<>();
+        for (GroupMemberEntity m : groupMembers.findByGroupIdAndUserIdIn(post.getGroupId(), authorIds)) {
+            if (!m.active() && m.getLeftAt() != null) {
+                out.put(m.getUserId(), m.getLeftAt());
+            }
+        }
+        return out;
     }
 
     /** 고정한 보이는(지우거나 숨기지 않은) 의견을 고정한 시각 순으로 앞에, 나머지는 받은 차례 그대로 */
@@ -341,24 +381,26 @@ public class CommentService {
     private CommentView view(CommentEntity c, Viewer viewer, Map<Long, CommentEntity> byId, AuthorMembers members, BoardCatalogSnapshot s,
                              Instant now) {
         String state;
+        boolean groupLeft = false;
         if (c.isDeleted()) {
             state = DELETED;
         } else if (c.isHiddenAt(now)) {
             state = HIDDEN;
+        } else if (viewer.groupLeft(c)) {
+            state = HIDDEN; // 소모임을 나간 멤버가 나가기 전에 쓴 댓글 — 자리·답글 흐름만 남기고 작성자·본문을 가린다(hiddenBy GROUP_LEFT)
+            groupLeft = true;
         } else if (delayed(c, viewer, now)) {
             state = DELAYED;
         } else {
             state = VISIBLE;
         }
-        PostAuthorView author = authors.of(c.getAuthorId(), c.getGuestName(), c.getAuthorIp(), members, s).withMemo(viewer.lens().memoOf(c.getAuthorId()));
-        ReplyToView replyTo = null;
-        if (c.getReplyToId() != null) {
-            CommentEntity target = byId.get(c.getReplyToId());
-            if (target != null) {
-                String name = target.isDeleted() ? "" : authors.of(target.getAuthorId(), target.getGuestName(), null, members, s).name();
-                replyTo = new ReplyToView(Long.toString(target.getId()), name);
-            }
+        if (groupLeft) {
+            return new CommentView(Long.toString(c.getId()), Long.toString(c.getPostId()), c.getParentId() == null ? null : Long.toString(c.getParentId()),
+                    replyTo(c, viewer, byId, members, s), groupLeftAuthor(), null, c.getContentFormat().name(), state, c.getCreatedAt(), c.getEditedAt(), 0, false,
+                    false, null, c.getStance(), HIDDEN_BY_GROUP_LEFT, false, viewer.dislikeEnabled() ? 0 : null, viewer.dislikeEnabled() ? false : null, null);
         }
+        PostAuthorView author = authors.of(c.getAuthorId(), c.getGuestName(), c.getAuthorIp(), members, s).withMemo(viewer.lens().memoOf(c.getAuthorId()));
+        ReplyToView replyTo = replyTo(c, viewer, byId, members, s);
         return new CommentView(Long.toString(c.getId()), Long.toString(c.getPostId()), c.getParentId() == null ? null : Long.toString(c.getParentId()), replyTo,
                 DELETED.equals(state) ? AuthorViews.blank(author) : author, VISIBLE.equals(state) ? c.getContent() : null, c.getContentFormat().name(), state,
                 c.getCreatedAt(),
@@ -368,6 +410,24 @@ public class CommentService {
                 !DELETED.equals(state) && !HIDDEN.equals(state) && viewer.pinned().contains(c.getId()),
                 viewer.dislikeEnabled() ? c.getDislikeCount() : null, viewer.dislikeEnabled() ? viewer.disliked().contains(c.getId()) : null,
                 viewer.userId() != null && viewer.userId().equals(c.getAuthorId()) ? viewer.myPinRequests().get(c.getId()) : null);
+    }
+
+    /** 답한 댓글 — 지운 댓글·나간 멤버의 가린 댓글이면 이름을 비운다 */
+    private ReplyToView replyTo(CommentEntity c, Viewer viewer, Map<Long, CommentEntity> byId, AuthorMembers members, BoardCatalogSnapshot s) {
+        if (c.getReplyToId() == null) {
+            return null;
+        }
+        CommentEntity target = byId.get(c.getReplyToId());
+        if (target == null) {
+            return null;
+        }
+        String name = target.isDeleted() || viewer.groupLeft(target) ? "" : authors.of(target.getAuthorId(), target.getGuestName(), null, members, s).name();
+        return new ReplyToView(Long.toString(target.getId()), name);
+    }
+
+    /** 나간 멤버의 가린 댓글의 작성자 — 회원이라는 것만(회원 ID·이름·등급·장식 없음). 화면은 「소모임을 나간 멤버의 댓글이에요」 */
+    private static PostAuthorView groupLeftAuthor() {
+        return new PostAuthorView("MEMBER", null, "", null, null, null, null, null, null, null);
     }
 
     /** 비회원에게 아직 보이지 않는 댓글인가 — 같은 IP 가 쓴 비회원 댓글은 본인 것으로 본다 */
@@ -387,12 +447,13 @@ public class CommentService {
         Instant start = Instant.now();
         PostEntity post = postQueries.requireVisible(postIdText, start);
         BoardCatalogSnapshot s = catalog.snapshot();
-        EffectiveBoard b = PublicBoardService.requireActive(s, post.getBoardId());
+        EffectiveBoard b = groupGate.resolve(s, post, userId).board(); // 소모임 비공개 글은 멤버만, 공개로 전환된 글은 로그인한 누구나
         if (post.isHiddenAt(start)) {
             throw new PostHiddenException();
         }
         BoardActor actor = actors.resolve(userId, s);
-        PostWriteService.requireWritable(BoardAccessPolicy.commentBlocked(b, actor, s));
+        // 소모임 글의 댓글은 게시판 댓글 정책(최소 등급·잠금·끔)을 받지 않는다 — 계정 자격만(비회원 401)
+        PostWriteService.requireWritable(post.isGroupPost() ? GroupPostGate.commentBlocked(actor) : BoardAccessPolicy.commentBlocked(b, actor, s));
         BoardSecurityValues sec = s.security();
 
         Map<String, MessageRef> fields = new LinkedHashMap<>();
@@ -546,8 +607,12 @@ public class CommentService {
 
     // ── 고치기·지우기·추천 ─────────────────────────────────────────────────
 
+    /** 댓글과 그 글 */
+    private record Target(CommentEntity comment, PostEntity post) {
+    }
+
     /** 댓글 — 형식이 틀리거나 없거나 지웠거나 글이 사라졌으면 404 */
-    private CommentEntity requireComment(String idText, Instant now) {
+    private Target requireComment(String idText, Instant now) {
         Long id = PostQueryService.parseId(idText);
         Long postId = id == null ? null : commentQueries.postIdOf(id).orElse(null);
         CommentEntity comment = postId == null ? null : comments.findByPostIdAndId(postId, id).orElse(null);
@@ -558,7 +623,12 @@ public class CommentService {
         if (post == null || post.isGoneAt(now)) {
             throw new CommentNotFoundException();
         }
-        return comment;
+        return new Target(comment, post);
+    }
+
+    /** 댓글이 놓인 게시판 — 일반 글은 공개 게시판 판정, 소모임 글은 소모임 판정(비공개 글은 멤버만) */
+    private EffectiveBoard boardOf(BoardCatalogSnapshot s, Target t, Long userId) {
+        return groupGate.resolve(s, t.post(), userId).board();
     }
 
     private void requireOwner(CommentEntity c, String password, Long userId, String ip) {
@@ -573,9 +643,10 @@ public class CommentService {
 
     public CommentView update(String idText, CommentUpdateRequest body, Long userId, String ip) {
         Instant start = Instant.now();
-        CommentEntity comment = requireComment(idText, start);
+        Target target = requireComment(idText, start);
+        CommentEntity comment = target.comment();
         BoardCatalogSnapshot s = catalog.snapshot();
-        EffectiveBoard b = PublicBoardService.requireActive(s, comment.getBoardId());
+        EffectiveBoard b = boardOf(s, target, userId);
         if (comment.isHiddenAt(start)) {
             throw new CommentHiddenException();
         }
@@ -619,8 +690,9 @@ public class CommentService {
     /** 지우기 — 답글이 있는 원댓글은 목록에 자리만 남는다. 보이던 댓글이면 글의 댓글 수를 하나 줄인다 */
     public void delete(String idText, String password, Long userId, String ip) {
         Instant start = Instant.now();
-        CommentEntity comment = requireComment(idText, start);
-        PublicBoardService.requireActive(catalog.snapshot(), comment.getBoardId());
+        Target target = requireComment(idText, start);
+        CommentEntity comment = target.comment();
+        boardOf(catalog.snapshot(), target, userId);
         requireOwner(comment, password, userId, ip);
         tx.executeWithoutResult(status -> {
             Instant now = Instant.now();
@@ -646,8 +718,9 @@ public class CommentService {
         PostWriteService.requireReactable(actors.resolve(userId, s));
         return tx.execute(status -> {
             Instant now = Instant.now();
-            CommentEntity comment = requireComment(idText, now);
-            EffectiveBoard b = PublicBoardService.requireActive(s, comment.getBoardId());
+            Target target = requireComment(idText, now);
+            CommentEntity comment = target.comment();
+            EffectiveBoard b = boardOf(s, target, userId);
             if (comment.isHiddenAt(now)) {
                 throw new CommentHiddenException();
             }
@@ -679,8 +752,9 @@ public class CommentService {
         PostWriteService.requireReactable(actors.resolve(userId, s));
         return tx.execute(status -> {
             Instant now = Instant.now();
-            CommentEntity comment = requireComment(idText, now);
-            EffectiveBoard b = PublicBoardService.requireActive(s, comment.getBoardId());
+            Target target = requireComment(idText, now);
+            CommentEntity comment = target.comment();
+            EffectiveBoard b = boardOf(s, target, userId);
             if (!b.commentDislikeEnabled()) {
                 throw new CommentDislikeDisabledException();
             }

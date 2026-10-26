@@ -22,6 +22,7 @@ import com.community.board.service.RichText;
 import com.community.captcha.CaptchaVerifier;
 import com.community.debate.entity.PostDebateEntity;
 import com.community.debate.service.PostDebateWriter;
+import com.community.group.service.GroupPostGate;
 import com.community.permission.entity.MemberPermission;
 import com.community.poll.service.PollRules;
 import com.community.poll.service.PollWriter;
@@ -100,11 +101,14 @@ public class PostWriteService {
     private final PostImages postImages;
     private final PostDebateWriter debates;
     private final PollWriter polls;
+    private final GroupPostGate groupGate;
     private final TransactionTemplate tx;
 
     public PostWriteService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters,
                             PostQueryService queries, GuestPasswords passwords, CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion,
-                            PointService points, PostImages postImages, PostDebateWriter debates, PollWriter polls, PlatformTransactionManager txManager) {
+                            PointService points, PostImages postImages, PostDebateWriter debates, PollWriter polls, GroupPostGate groupGate,
+                            PlatformTransactionManager txManager) {
+        this.groupGate = groupGate;
         this.postImages = postImages;
         this.debates = debates;
         this.polls = polls;
@@ -193,6 +197,66 @@ public class PostWriteService {
         });
         promotion.afterWrite(authorId); // 커밋 뒤 — 회원 글이면 활동 수 조건 즉시 승급(실패해도 글쓰기는 성공)
         return new PostWriteResult(Long.toString(id));
+    }
+
+    /**
+     * 소모임 글 쓰기의 결과.
+     *
+     * @param pointsEarned 이 글로 받은 포인트(지급이 없으면 0 — 일반 글과 하루 상한을 함께 쓴다)
+     */
+    public record GroupWrite(long id, long pointsEarned) {
+    }
+
+    /**
+     * 소모임 글 — 부르는 쪽({@code GroupPostService})이 트랜잭션을 열고 소모임 행을 잠근 뒤 멤버·쓰기 자격을 보고 부른다(이 메서드는 그 트랜잭션 안에서 돈다).
+     * 글 칸·이미지·금지어·작성 간격·하루 한도·같은 글 반복은 일반 글과 같고, 게시판 쓰기 정책(등급·잠금·운영진만)은 받지 않는다. 19금·찬반 토론은 받지 않는다
+     * ({@code fields.adult}·{@code fields.debate}), 투표는 게시판 {@code pollEnabled} 일 때. 비공개 글로 만든다. 커밋 뒤 승급 판정은 부르는 쪽이 {@link #afterGroupWrite} 로.
+     *
+     * @param b 소모임 게시판(꺼져 있어도 쓴다 — 소모임은 멈추지 않는다)
+     */
+    public GroupWrite createInGroup(long groupId, EffectiveBoard b, BoardActor actor, PostWriteRequest body, String ip, BoardCatalogSnapshot s) {
+        BoardSecurityValues sec = s.security();
+        Map<String, MessageRef> fields = new LinkedHashMap<>();
+        ContentRules.Writer writer = BoardAccessPolicy.newMemberRules(b, actor, s) ? ContentRules.Writer.NEW_MEMBER : ContentRules.Writer.MEMBER;
+        Cleaned c = checkFields(b, actor.staffOf(b.id()), writer, null, body.prefixId(), body.title(), body.contentFormat(), body.content(), null, sec, fields);
+        if (Boolean.TRUE.equals(body.adult())) {
+            fields.put("adult", new MessageRef("group.post.adult.notAllowed"));
+        }
+        if (body.debate() != null) {
+            fields.put("debate", new MessageRef("group.post.debate.notAllowed"));
+        }
+        PollRules.Valid poll = polls.checkForCreate(body.poll(), false, b, Instant.now(), fields);
+        if (!fields.isEmpty()) {
+            throw new ValidationException(fields);
+        }
+        long authorId = actor.userId();
+        if (!c.body().imageIds().isEmpty()) {
+            postImages.check(c.body().imageIds(), authorId, null);
+            if (!b.imageUploadAllowed()) {
+                throw new ImageUploadNotAllowedException();
+            }
+        }
+        Optional<String> word = ContentRules.blockedWord(sec, c.title(), c.body().wordsHaystack());
+        if (word.isPresent()) {
+            throw new BlockedWordException(word.get());
+        }
+        String title = ContentRules.mask(sec, c.title());
+        ContentBody content = c.body().masked(sec);
+        long id = ids.nextId();
+        Instant now = Instant.now();
+        checkRate(s, authorId, ip, title, content.plain(), now);
+        String stored = content.isHtml() ? postImages.bind(content.content(), content.imageIds(), authorId, id, false, now) : content.content();
+        posts.persist(PostEntity.createInGroup(id, groupId, b.id(), c.prefixId(), authorId, ip, title, content.format(), stored, content.plain(), c.hasImage(), now));
+        if (poll != null) {
+            polls.create(id, poll, now);
+        }
+        long earned = points.earn(authorId, PointReason.POST, id); // 실패·상한이어도 글은 그대로 올라간다
+        return new GroupWrite(id, earned);
+    }
+
+    /** 소모임 글 커밋 뒤 — 활동 수 조건 즉시 승급(실패해도 글쓰기는 성공) */
+    public void afterGroupWrite(long authorId) {
+        promotion.afterWrite(authorId);
     }
 
     /** 작성 간격 → 하루 한도 → 같은 글 반복(작성자 단위 잠금 아래 — 같은 글은 제목 + 보이는 글자로 본다) */
@@ -296,12 +360,13 @@ public class PostWriteService {
         Instant start = Instant.now();
         PostEntity post = queries.requireVisible(idText, start);
         BoardCatalogSnapshot s = catalog.snapshot();
-        EffectiveBoard b = PublicBoardService.requireActive(s, post.getBoardId());
+        GroupPostGate.Resolved gate = groupGate.resolve(s, post, userId); // 소모임 글: 비공개 글은 지금 멤버인 작성자만 열 수 있다
+        EffectiveBoard b = gate.board();
         if (post.isHiddenAt(start)) {
             throw new PostHiddenException();
         }
         requireOwner(post, body.password(), userId, ip);
-        PostProtectionView protection = PostQueryService.protection(b, post.getCommentCount());
+        PostProtectionView protection = PostQueryService.protection(b, post);
         if (protection.editBlocked()) {
             throw new PostProtectedException(false, protection.threshold());
         }
@@ -313,6 +378,9 @@ public class PostWriteService {
         Cleaned c = checkFields(b, actor.staffOf(b.id()), writer, post.getPrefixId(), body.prefixId(), body.title(), body.contentFormat(), body.content(),
                 body.adult(), sec, fields);
         PollWriter.Change pollChange = polls.checkForUpdate(body.poll(), post, b, start, fields); // 칸 빠짐 = 그대로 · null = 빼기 · 값 = 만들기·고치기
+        if (post.isGroupPost() && c.adult()) {
+            fields.put("adult", new MessageRef("group.post.adult.notAllowed")); // 소모임 글은 19금이 될 수 없다
+        }
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
@@ -336,7 +404,7 @@ public class PostWriteService {
             if (locked.isHiddenAt(now)) {
                 throw new PostHiddenException();
             }
-            if (PostQueryService.protection(b, locked.getCommentCount()).editBlocked()) {
+            if (PostQueryService.protection(b, locked).editBlocked()) {
                 throw new PostProtectedException(false, b.commentProtectMin());
             }
             polls.apply(locked.getId(), pollChange, now); // 첫 표가 든 투표를 바꾸거나 빼면 409 POLL_LOCKED — 글도 고치지 않는다(같은 트랜잭션)
@@ -349,7 +417,7 @@ public class PostWriteService {
             }
             locked.edit(c.prefixId(), title, content.format(), stored, content.plain(), c.adult(), c.hasImage(), now);
             posts.flush();
-            return queries.viewAfterEdit(locked, b, s, userId, now);
+            return queries.viewAfterEdit(locked, gate, s, userId, now);
         });
     }
 
@@ -360,12 +428,12 @@ public class PostWriteService {
         Instant start = Instant.now();
         PostEntity post = queries.requireVisible(idText, start);
         BoardCatalogSnapshot s = catalog.snapshot();
-        EffectiveBoard b = PublicBoardService.requireActive(s, post.getBoardId());
+        EffectiveBoard b = groupGate.resolve(s, post, userId).board();
         requireOwner(post, password, userId, ip);
         return tx.execute(status -> {
             Instant now = Instant.now();
             PostEntity locked = posts.findWithLockById(post.getId()).filter(p -> !p.isGoneAt(now)).orElseThrow(PostNotFoundException::new);
-            PostProtectionView protection = PostQueryService.protection(b, locked.getCommentCount());
+            PostProtectionView protection = PostQueryService.protection(b, locked);
             if (protection.active() && "BLOCK".equals(protection.deleteMode())) {
                 throw new PostProtectedException(true, protection.threshold());
             }
@@ -404,7 +472,7 @@ public class PostWriteService {
         return tx.execute(status -> {
             Instant now = Instant.now();
             PostEntity post = queries.requireVisible(idText, now);
-            PublicBoardService.requireActive(s, post.getBoardId());
+            groupGate.resolve(s, post, userId); // 소모임 비공개 글은 멤버만 추천한다
             if (post.isHiddenAt(now)) {
                 throw new PostHiddenException();
             }

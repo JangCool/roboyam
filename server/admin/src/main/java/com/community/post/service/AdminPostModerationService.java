@@ -185,7 +185,8 @@ public class AdminPostModerationService {
         }
         PostEntity post = lock(idText);
         Instant now = Instant.now();
-        if (post.isGoneAt(now)) {
+        if (post.isGoneAt(now) || post.isGroupPost()) {
+            // 소모임 글은 소모임 게시판에 남아야 소모임 안에서 보인다(group_id 와 게시판이 짝) — 옮길 수 없다(소모임 2단계)
             throw new PostStateInvalidException();
         }
         if (post.getBoardId() != null && post.getBoardId() == board.id() && Objects.equals(post.getPrefixId(), prefixId)) {

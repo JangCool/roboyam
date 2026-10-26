@@ -14,6 +14,7 @@ import com.community.board.service.RichText;
 import com.community.comment.entity.CommentEntity;
 import com.community.comment.repository.master.CommentRepository;
 import com.community.comment.repository.master.CommentRepositoryQDSL;
+import com.community.group.service.GroupPostGate;
 import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.notification.dto.NotificationContext;
 import com.community.notification.entity.AdminNotificationEvent;
@@ -105,11 +106,13 @@ public class ReportService {
     private final PostModerationLog moderation;
     private final ReportCaseRepository cases;
     private final ReportCaseLog caseLog;
+    private final GroupPostGate groupGate;
 
     public ReportService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                          CommentRepositoryQDSL commentQueries, PostCounterQueries counters, ReportRepository reports, ReportRepositoryQDSL reportQueries,
                          ProfileRepository profiles, BoardStaffRepository boardStaff, NotificationPublisher publisher, MemberNotificationPublisher memberNotices,
-                         SnowflakeIdGenerator ids, PostModerationLog moderation, ReportCaseRepository cases, ReportCaseLog caseLog) {
+                         SnowflakeIdGenerator ids, PostModerationLog moderation, ReportCaseRepository cases, ReportCaseLog caseLog, GroupPostGate groupGate) {
+        this.groupGate = groupGate;
         this.cases = cases;
         this.caseLog = caseLog;
         this.memberNotices = memberNotices;
@@ -191,6 +194,7 @@ public class ReportService {
 
         Instant now = Instant.now();
         Target target = ReportEntity.POST.equals(type) ? postTarget(targetId, s, now) : commentTarget(targetId, s, now);
+        requireGroupReadable(target, s, userId); // 소모임 비공개 글·그 댓글은 멤버만 신고한다(읽을 수 없는 대상은 없는 대상과 같다)
         if (userId.equals(target.authorId())) {
             throw new CannotReportOwnException();
         }
@@ -280,6 +284,18 @@ public class ReportService {
                 .orElseThrow(ReportTargetNotFoundException::new);
         PostEntity post = posts.findById(postId).filter(p -> !p.isGoneAt(now) && !p.isHiddenAt(now)).orElseThrow(ReportTargetNotFoundException::new);
         return new Target(post, comment, activeBoard(s, post.getBoardId()));
+    }
+
+    /** 소모임 글이면 신고자가 그 글을 읽을 수 있어야 한다(나가서 가림·비활성·비공개 글의 비멤버) — 아니면 404 REPORT_TARGET_NOT_FOUND */
+    private void requireGroupReadable(Target target, BoardCatalogSnapshot s, long userId) {
+        if (!target.post().isGroupPost()) {
+            return;
+        }
+        try {
+            groupGate.resolve(s, target.post(), userId);
+        } catch (CommonException e) {
+            throw new ReportTargetNotFoundException();
+        }
     }
 
     private static EffectiveBoard activeBoard(BoardCatalogSnapshot s, long boardId) {

@@ -1,15 +1,18 @@
 import type { Role } from '~/composables/auth/api/useAuthApi.types';
+import type { PostGroupVisibility, PostRow, PostWriteRequest } from '~/composables/board/api/usePostApi.types';
 import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopApi.types';
 
 /**
- * 소모임 API 가 주고받는 모양 — community `docs/api-groups.md`(1·2·3·4·5(5-1 제외)·7절)와 같은 이름이다(서버 에이전트도 같은 원본을 따른다고 가정).
+ * 소모임 API 가 주고받는 모양 — 1단계(1·2·3·4·5(5-1 제외)·7절)는 서버 `server/api/.../group/dto/response/*` 와 칸 단위로 맞췄다(2026-10-26).
+ * 2단계(8절 소모임 글)는 community `docs/api-groups.md` 8절과 같은 이름이라고 가정한다(서버 에이전트도 같은 원본을 따른다).
  * 로보얌 관례: 응답은 `ApiResponse` 래퍼(`useApiClient` 가 벗겨 `data` 만 돌려준다), ID 는 모두 문자열, 시각은 ISO-8601 UTC 문자열(보이는 것은 `useDisplayTime`).
  * 원본과 다르게 둔 것은 `useGroupApi.ts` 머리말에 적는다.
  */
 
 /**
- * 소모임 화면의 사람(모임장·멤버·신청자·신규 가입자) — community `AuthorView` 중 화면이 쓰는 칸. 로보얌 쪽지 상대(`DmPartner`)와 같은 모양으로 가정했다.
- * **탈퇴한 회원은 `id: null`·`withdrawn: true`**(서버가 대체 이름을 `nickname` 에 넣을 수도 있다 — 화면은 `withdrawn` 이면 「탈퇴한 회원」으로 보인다).
+ * 소모임 화면의 사람(모임장·멤버·신청자·신규 가입자) — 서버 `DmPartnerView`(쪽지 상대와 같은 모양)
+ * `{ id|null, nickname, grade, gradeLabel, role: "USER", withdrawn, memo: null, decoration, avatarUrl }`.
+ * **탈퇴한 회원은 `id: null`·`withdrawn: true`**(서버가 대체 이름을 `nickname` 에 넣는다 — 화면은 `withdrawn` 이면 「탈퇴한 회원」으로 보인다). 소모임 응답의 `memo` 는 늘 null 이다.
  */
 export interface GroupUser {
     id: string | null;
@@ -31,16 +34,18 @@ export interface GroupCategory {
     name: string;
 }
 
-/** 소모임이 글을 담는 소모임 게시판(목록 줄) */
+/** 소모임이 글을 담는 소모임 게시판(목록 줄 — 서버 `GroupBoardRefView`). `nameEn` 은 영어 이름(없으면 null) */
 export interface GroupBoard {
     slug: string;
     name: string;
+    nameEn?: string | null;
 }
 
 /** 분류 칩·만들기 화면의 분류 한 개 속 게시판 — 켜진 게시판만 */
 export interface GroupCategoryBoard {
     slug: string;
     name: string;
+    nameEn?: string | null;
     /** 투자 고지 게시판 — 만들기 화면의 추가 동의가 이 값을 쓴다 */
     investmentNotice: boolean;
 }
@@ -63,6 +68,9 @@ export interface GroupCategoriesResponse {
 
 /** 가입 방식 — 자유 가입 · 신청제 */
 export type GroupJoinType = 'OPEN' | 'APPROVAL';
+
+/** 공개 범위 — 공개 범위 기능(5단계)이 꺼져 있으면 비공개 소모임은 null 로 온다(화면은 아직 그리지 않는다) */
+export type GroupVisibility = 'PUBLIC' | 'PRIVATE';
 
 /** 모집 상태 — 모집 중 · 정원 참 · 모임장이 마감 */
 export type GroupRecruitState = 'OPEN' | 'FULL' | 'CLOSED';
@@ -91,6 +99,8 @@ export interface GroupRow {
     offline: boolean;
     /** 이 소모임의 게시판이 투자 고지 대상 — 「종목 추천 금지」를 붙인다 */
     stockNotice: boolean;
+    /** 공개 범위(5단계 — 읽지 않는다) */
+    visibility?: GroupVisibility | null;
     myState: GroupMyState | null;
 }
 
@@ -100,12 +110,14 @@ export interface GroupListQuery {
     sort?: GroupSort;
     /** 이름·소개 검색어(1~30자) */
     q?: string;
+    /** 1부터 */
     page?: number;
     size?: number;
 }
 
 export interface GroupListResponse {
     items: GroupRow[];
+    /** 1부터 */
     page: number;
     hasNext: boolean;
     total: number;
@@ -143,8 +155,11 @@ export interface GroupChatLink {
 /** 소모임 안의 역할 — 매니저(`MANAGER`)는 3단계에서 화면을 연다 */
 export type GroupRole = 'LEADER' | 'MANAGER' | 'MEMBER';
 
-/** 모임장·매니저의 쓰기가 멈춘 까닭 — 이메일 미인증(먼저) · 이용 제한 중. 멈춘 동안에도 `can*` 는 그대로 true 다 */
-export type GroupManageBlockedReason = 'EMAIL_NOT_VERIFIED' | 'ACCOUNT_RESTRICTED';
+/**
+ * 모임장·매니저의 쓰기가 멈춘 까닭 — 이메일 미인증(먼저) · 이용 제한 중 · 사업자 계정(서버 `GroupAccess.writeBlocked` 차례). 멈춘 동안에도 `can*` 는 그대로 true 다.
+ * 사업자 계정(`BUSINESS_ACCOUNT_RESTRICTED`)도 쓰기만 막히고 나가기·신청 취소는 된다.
+ */
+export type GroupManageBlockedReason = 'EMAIL_NOT_VERIFIED' | 'ACCOUNT_RESTRICTED' | 'BUSINESS_ACCOUNT_RESTRICTED';
 
 /**
  * 보는 사람의 권한 — 역할만 반영한다. `canManage` 는 모임장(3단계부터 매니저 포함), `canEditGroup` 은 모임장 고정 일(정보·채팅·넘기기·해산).
@@ -177,8 +192,35 @@ export interface GroupNewcomers {
 export interface GroupLimits {
     capacityMin: number;
     capacityMax: number;
+    /** 일정 한도(4단계) */
     eventMaxDaysAhead?: number;
     eventMaxLengthDays?: number;
+}
+
+/** 소모임 게시판의 켜진 말머리(순서대로) — 서버 `GroupDetailView.Prefix` */
+export interface GroupBoardPrefix {
+    id: string;
+    name: string;
+    /** 운영진 전용 말머리 */
+    staffOnly: boolean;
+    /** 공통 말머리 */
+    common: boolean;
+    color: string | null;
+}
+
+/** 상세의 소모임 게시판 — 서버 `GroupDetailView.Board`(색·투자 고지·켜진 말머리) */
+export interface GroupDetailBoard extends GroupBoard {
+    color?: string | null;
+    investmentNotice?: boolean;
+    prefixes?: GroupBoardPrefix[];
+}
+
+/** 멤버에게만 — 매니저 수와 상한(3단계 화면 — 지금은 읽지 않는다) */
+export interface GroupManagerInfo {
+    count: number;
+    /** 유효 상한 = min(소모임 상한, 최대 인원) */
+    limit: number;
+    limitMax: number;
 }
 
 /**
@@ -191,13 +233,15 @@ export interface GroupDetail {
     status: GroupStatus;
     description?: string | null;
     category?: GroupCategory | null;
-    board?: (GroupBoard & { investmentNotice?: boolean }) | null;
+    board?: GroupDetailBoard | null;
     joinType?: GroupJoinType | null;
     capacity?: number | null;
     memberCount?: number | null;
     recruiting?: boolean | null;
     recruitState?: GroupRecruitState | null;
     offline?: boolean | null;
+    /** 공개 범위(5단계 — 읽지 않는다) */
+    visibility?: GroupVisibility | null;
     openedAt?: string | null;
     leader?: GroupUser | null;
     stockNotice?: boolean | null;
@@ -207,6 +251,8 @@ export interface GroupDetail {
     chatLocked?: boolean;
     permissions?: GroupPermissions | null;
     myRole?: GroupRole | null;
+    /** 멤버에게만(3단계 화면 — 읽지 않는다) */
+    managerInfo?: GroupManagerInfo | null;
     newcomers?: GroupNewcomers | null;
     /** 모임장(3단계부터 `APPLICATIONS` 매니저)에게만 승인 대기 수 — 그 밖은 null(0 은 「없음」, null 은 「볼 수 없음」) */
     pendingApplicationCount?: number | null;
@@ -218,6 +264,8 @@ export interface GroupMember {
     user: GroupUser;
     role: GroupRole;
     joinedAt: string;
+    /** 매니저 줄이고 보는 사람이 모임장·그 매니저 본인일 때만 맡은 일(3단계 — 읽지 않는다), 그 밖 null */
+    managerPermissions?: string[] | null;
 }
 
 export interface GroupMemberListQuery {
@@ -227,12 +275,16 @@ export interface GroupMemberListQuery {
 
 export interface GroupMemberListResponse {
     items: GroupMember[];
+    /** 1부터 */
     page: number;
     hasNext: boolean;
     total: number;
 }
 
-/** 내 소모임 — 가입한 모임(`newPostCount` 는 2단계, `nextEvent` 는 4단계에서 채운다 — 1단계는 늘 0·null) */
+/**
+ * 내 소모임 — 가입한 모임(서버 `MyGroupsView.Joined` — `GroupRow` 칸을 펼친 것 + 칸, 가입이 최근인 순).
+ * `newPostCount`: 내가 글 탭을 마지막으로 본 뒤(`POST /api/groups/{id}/seen`) 올라온 남의 글 수(2단계, 지운·숨긴 글 제외). `nextEvent` 는 4단계(지금 늘 null).
+ */
 export interface MyGroupRow extends GroupRow {
     role: GroupRole;
     joinedAt: string;
@@ -256,6 +308,8 @@ export interface MyGroupRequest {
     capacity: number;
     description: string;
     offline: boolean;
+    /** 신청한 공개 범위(5단계 — 읽지 않는다) */
+    visibility?: GroupVisibility | null;
     status: 'PENDING' | 'REJECTED';
     rejectReason: string | null;
     requestedAt: string;
@@ -283,6 +337,9 @@ export interface GroupCreateRequest {
     agreeOffline: boolean;
 }
 
+/** 개설 규칙으로 못 내는 까닭 */
+export type GroupCreationBlockedReason = 'NOT_PERMITTED' | 'GRADE_TOO_LOW' | 'LIMIT_REACHED';
+
 /** 개설 방식 — 승인제 · 자유 개설 */
 export type GroupCreationMode = 'APPROVAL' | 'OPEN';
 
@@ -294,9 +351,15 @@ export interface GroupCreationRules {
     maxPerOwner: number;
     capacityMin?: number;
     capacityMax?: number;
+    /** 공개 범위를 고를 수 있나(5단계 — 읽지 않는다) */
+    visibilityChoice?: boolean;
+    /**
+     * 로그인했을 때만 — 개설 규칙만 본다(이메일 인증·정지는 신청할 때 403).
+     * `reason`: 서버 `creationBlocked` 차례로 `NOT_PERMITTED`(회원 역할에 `group.create` 권한 없음 — 로보얌 추가) → `GRADE_TOO_LOW` → `LIMIT_REACHED`
+     */
     me: {
         canCreate: boolean;
-        reason: 'GRADE_TOO_LOW' | 'LIMIT_REACHED' | null;
+        reason: GroupCreationBlockedReason | null;
         grade: string;
         ledCount: number;
     } | null;
@@ -354,4 +417,42 @@ export interface GroupApplicationListResponse {
     items: GroupApplication[];
     capacity: number;
     memberCount: number;
+}
+
+// ── 소모임 글(2단계 — community `docs/api-groups.md` 8절. 11절 공개 범위·공개 요청은 5단계) ──
+
+/** `GET /api/groups/{id}/posts?cursor=&size=` 의 조건 — `size` 1~50(기본 20) */
+export interface GroupPostListQuery {
+    cursor?: string;
+    size?: number;
+}
+
+/**
+ * 글 탭 한 쪽 — 최신이 위, 커서로 더보기. 멤버는 비공개 글까지, 비멤버·비회원은 공개로 전환된 글만. 지운 글·숨긴 글(나간 멤버의 글 포함)은 없다.
+ * 줄은 게시판 글 줄(`PostRow`)에 `group`(`PostGroupRef`)이 붙은 모양이다.
+ */
+export interface GroupPostPage {
+    items: PostRow[];
+    hasNext: boolean;
+    nextCursor: string | null;
+    /** 내가 멤버가 아니라 비공개 글이 잠겨 있다 */
+    locked: boolean;
+    /** 잠긴 글 수(멤버는 0) — 「멤버에게만 보이는 글 N개」 줄 */
+    privateCount: number;
+}
+
+/**
+ * `POST /api/groups/{id}/posts` 본문 — 로보얌 글쓰기 본문(`PostWriteRequest`)에서 게시판(`boardSlug` — 소모임 게시판으로 정해진다)·비회원(`guest` — 회원만)·찬반 토론(`debate`)을 뺀 것.
+ * 말머리는 소모임 게시판의 말머리. 임시저장·예약 발행은 없다. 글은 **비공개**로 만들어진다.
+ */
+export type GroupPostWriteRequest = Omit<PostWriteRequest, 'boardSlug' | 'guest' | 'debate'>;
+
+/** `PUT /api/groups/{id}/posts/{postId}/visibility` 본문 — 공개로 전환할 때는 `acknowledged: true`(개인정보 확인 동의)가 있어야 한다 */
+export interface GroupPostVisibilityRequest {
+    visibility: PostGroupVisibility;
+    acknowledged?: boolean;
+}
+
+export interface GroupPostVisibilityResult {
+    visibility: PostGroupVisibility;
 }

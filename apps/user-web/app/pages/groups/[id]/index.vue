@@ -1,8 +1,10 @@
 <template>
     <!--
-        소모임 상세 `/groups/{id}?tab=members|chat` — 머리(이름·멤버 수·개설·분류·모집·가입 방식·오프라인·내 상태·모임장) · 소개 · 오프라인/투자 고지 · 가입 영역 · 탭 · 데스크톱 오른쪽 「모임 정보」.
+        소모임 상세 `/groups/{id}?tab=posts|members|chat` — 머리(이름·멤버 수·개설·분류·모집·가입 방식·오프라인·내 상태·모임장) · 소개 · 오프라인/투자 고지 · 가입 영역 · 탭 · 데스크톱 오른쪽 「모임 정보」.
         가입 단추는 서버가 준 `join`(allowed·method·reason)으로 정한다 — 바로 가입(오프라인이면 확인 시트), 신청제·강퇴됐던 회원은 신청 시트(한마디). 비회원은 로그인 안내.
-        탭은 멤버·채팅만 있다 — community 의 글 탭(2단계)·일정 탭(4단계)은 그 단계에서 더하고 지금은 그리지 않는다(「준비 중」 자리를 두지 않는다).
+        탭은 글(기본 — 1단계 미확정 5번을 2단계에서 글로 정함)·멤버·채팅. 일정 탭(4단계)은 그 단계에서 더한다(「준비 중」 자리를 두지 않는다).
+        글 탭(2단계, community `GroupPostsTab`): 멤버는 비공개 글까지(줄마다 「비공개」/「공개 전환됨」) + [글쓰기](`/groups/{id}/write`, 정지 중이면 꺼 두고 까닭), 비멤버·비회원은 공개로 전환된 글과
+          잠금 줄(「멤버에게만 보이는 글 N개 · 가입하면 볼 수 있어요」 + 가입 단추). 커서 「더보기」. 멤버가 목록을 받으면 소모임마다 한 번 `seen`(내 소모임의 새 글 수를 지운다).
         멤버 탭·채팅 링크는 멤버에게만 열린다(비멤버는 잠금 + 가입 단추). 채팅 링크는 확인 대화상자를 거쳐 새 탭으로 연다(허용 주소만 — `UtilGroup.safeChatUrl`).
         ⋯ 메뉴: 링크 복사 · (멤버) 탈퇴. 모임장은 바로 탈퇴할 수 없다(넘기기·해산 안내 → 관리). community 대비: 소모임 신고(⋯ 메뉴)는 로보얌 신고 대상에 소모임이 없어 뺐다.
     -->
@@ -110,7 +112,7 @@
                     </p>
                 </section>
 
-                <!-- 탭 — 링크라서 주소(`?tab=`)만 바뀐다. 멤버가 기본 -->
+                <!-- 탭 — 링크라서 주소(`?tab=`)만 바뀐다. 글이 기본 -->
                 <nav :aria-label="t('group.tabsLabel')" class="mt-4 flex border-b border-surface">
                     <NuxtLink
                         v-for="option in UtilGroup.TABS"
@@ -122,13 +124,102 @@
                         :aria-current="tab === option ? 'page' : undefined"
                         :data-testid="`group-tab-${option}`"
                     >
-                        {{ option === 'members' ? t('group.tabMembers') : t('group.tabChat') }}
+                        {{ t(TAB_LABEL[option]) }}
                     </NuxtLink>
                 </nav>
 
                 <div class="mt-1">
+                    <!-- 글 탭 -->
+                    <div v-if="tab === 'posts'" :aria-busy="posts.status === 'loading'" data-testid="group-posts">
+                        <!-- 멤버: 글쓰기. 정지 중이면 단추는 꺼 두고 까닭을 적는다(조건이 바뀌면 되는 일이라 감추지 않는다) -->
+                        <div v-if="isMember" class="mt-3 flex items-center justify-between gap-3" data-testid="group-posts-toolbar">
+                            <p v-if="!group.permissions.canWritePost" class="m-0 min-w-0 flex-1 text-xs text-muted-color" data-testid="group-posts-suspended">{{ t('group.postsSuspended') }}</p>
+                            <Button
+                                v-if="group.permissions.canWritePost"
+                                as="router-link"
+                                :to="UtilGroup.writePath(group.id)"
+                                :label="t('group.postsWrite')"
+                                icon="pi pi-pencil"
+                                size="small"
+                                class="ml-auto shrink-0"
+                                data-testid="group-posts-write"
+                            />
+                            <Button v-else type="button" :label="t('group.postsWrite')" icon="pi pi-pencil" size="small" disabled class="shrink-0" />
+                        </div>
+
+                        <div v-if="posts.status === 'loading' || posts.status === 'idle'" class="mt-3" aria-hidden="true">
+                            <div v-for="n in 6" :key="n" class="border-b border-surface py-3.5">
+                                <div class="h-3.5 animate-pulse rounded bg-surface-200 dark:bg-surface-800" :class="n % 2 ? 'w-11/12' : 'w-2/3'" />
+                                <div class="mt-2 h-3 w-2/5 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
+                            </div>
+                        </div>
+                        <ErrorState v-else-if="posts.status === 'error'" :title="t('group.postsError')" :description="posts.errorMessage" retry @retry="posts.load" />
+                        <template v-else>
+                            <!-- 잠금 줄 — 멤버가 아니라 못 보는 비공개 글이 있다(제목·내용은 응답에 없다) -->
+                            <div v-if="posts.locked && posts.privateCount > 0" class="mt-3 flex items-start gap-2 rounded-lg bg-surface-100 px-3 py-2.5 text-sm dark:bg-surface-800" data-testid="group-posts-locked">
+                                <i class="pi pi-lock mt-0.5 shrink-0 text-xs text-muted-color" aria-hidden="true" />
+                                <p class="m-0 min-w-0 flex-1">
+                                    <b class="font-semibold">{{ t('group.postsLockedTitle', { n: posts.privateCount }) }}</b> · {{ t('group.postsLockedText') }}
+                                </p>
+                                <Button v-if="lockedJoinLabel" type="button" :label="lockedJoinLabel" size="small" class="shrink-0" @click="onJoin" />
+                            </div>
+
+                            <EmptyState
+                                v-if="posts.items.length === 0"
+                                :title="isMember ? t('group.postsEmptyMemberTitle') : t('group.postsEmptyPublicTitle')"
+                                :description="isMember ? t('group.postsEmptyMemberText') : t('group.postsEmptyPublicText')"
+                                icon="pi pi-file"
+                                data-testid="group-posts-empty"
+                            >
+                                <Button v-if="isMember && group.permissions.canWritePost" as="router-link" :to="UtilGroup.writePath(group.id)" :label="t('group.postsFirstWrite')" />
+                            </EmptyState>
+
+                            <ul v-else class="-mx-4 m-0 mt-1 list-none p-0 md:mx-0" data-testid="group-posts-list">
+                                <li v-for="row in posts.items" :key="row.id" class="border-b border-surface last:border-b-0" data-testid="group-post-row">
+                                    <p v-if="row.hiddenReason" class="m-0 flex items-center gap-1.5 px-4 py-3 text-sm text-muted-color md:px-2">
+                                        <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t(row.hiddenReason === 'STAFF' ? 'board.hiddenPostStaff' : 'board.hiddenPost') }}
+                                    </p>
+                                    <!-- 차단한 회원·단어의 글은 접힌 한 줄(「보기」로 그 자리에서 펼친다) -->
+                                    <FoldedRow v-else :reason="overrides.blockedOf(row.author.memberId, row.blocked)" kind="post" class="px-4 py-2.5 text-sm md:px-2" hide-class="px-4 pb-2 md:px-2">
+                                        <NuxtLink
+                                            :to="`/posts/${row.id}`"
+                                            class="flex items-start gap-3 px-4 py-2.5 hover:bg-surface-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary md:px-2 dark:hover:bg-surface-800/60"
+                                        >
+                                            <div class="min-w-0 flex-1">
+                                                <p class="m-0 line-clamp-2 break-words text-sm leading-snug">
+                                                    <!-- 공개 라벨 — 글자가 늘 있다(색만으로 가르지 않는다) -->
+                                                    <GroupTag v-if="row.group" :tone="row.group.visibility === 'PUBLIC' ? 'blue' : 'gray'" class="mr-1 align-[1px]" data-testid="group-post-visibility">
+                                                        {{ UtilGroupMessages.postRowVisibility(t, row.group.visibility) }}
+                                                    </GroupTag>
+                                                    <PostRowTitle :row="row" :new-post-hours="display.newPostHours" :pinned-mark="false" />
+                                                </p>
+                                                <p class="m-0 mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
+                                                    <PostAuthorLabel :author="row.author" />
+                                                    <span aria-hidden="true">·</span>
+                                                    <span>{{ t('board.likesShort', { n: row.likeCount }) }}</span>
+                                                    <span aria-hidden="true">·</span>
+                                                    <PostListDate :iso="row.createdAt" :mode="display.dateDisplay" />
+                                                </p>
+                                            </div>
+                                            <img v-if="row.thumbnailUrl" :src="row.thumbnailUrl" alt="" class="size-12 shrink-0 rounded-md object-cover" loading="lazy" />
+                                        </NuxtLink>
+                                    </FoldedRow>
+                                </li>
+                            </ul>
+
+                            <div v-if="posts.hasNext" class="py-4 text-center">
+                                <Button type="button" :label="t('common.more')" severity="secondary" variant="outlined" :loading="posts.loadingMore" data-testid="group-posts-more" @click="posts.loadMore" />
+                                <p v-if="posts.moreError" class="mt-2 text-xs text-red-600 dark:text-red-400" role="alert">{{ posts.moreError }}</p>
+                            </div>
+                            <!-- 비멤버 — 공개된 글은 여기까지 -->
+                            <p v-else-if="posts.locked && posts.items.length > 0" class="py-4 text-center text-xs text-muted-color" data-testid="group-posts-end">{{ t('group.postsEnd') }}</p>
+                        </template>
+                        <!-- 스크린리더가 불러온 개수를 읽는다 -->
+                        <p role="status" aria-live="polite" class="sr-only">{{ UtilGroupMessages.postsSummary(t, posts.status, posts.items.length, posts.hasNext) }}</p>
+                    </div>
+
                     <!-- 멤버 탭 -->
-                    <div v-if="tab === 'members'" :aria-busy="members.status === 'loading'" data-testid="group-members">
+                    <div v-else-if="tab === 'members'" :aria-busy="members.status === 'loading'" data-testid="group-members">
                         <EmptyState v-if="!isMember || members.status === 'locked'" :title="t('group.membersLockedTitle')" :description="t('group.membersLockedText')" icon="pi pi-lock" data-testid="group-members-locked">
                             <Button v-if="lockedJoinLabel" type="button" :label="lockedJoinLabel" @click="onJoin" />
                         </EmptyState>
@@ -315,7 +406,7 @@
 <script setup lang="ts">
 import type { GroupChatLink, GroupDetail, GroupMember, GroupJoinRequest } from '~/composables/group/api/useGroupApi.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
-import UtilGroup from '~/utils/util-group';
+import UtilGroup, { type GroupTab } from '~/utils/util-group';
 import UtilGroupMessages from '~/utils/util-group-messages';
 
 const { t } = useI18n();
@@ -328,6 +419,11 @@ const { user } = useAuth();
 const { prompt } = useLoginPrompt();
 const { confirm } = useConfirmDialog();
 const { copy } = useCopyText();
+const overrides = useBlockOverrides();
+const { display, ensureLoaded: ensureBoardDisplay } = useBoardDisplay();
+void ensureBoardDisplay();
+
+const TAB_LABEL: Record<GroupTab, string> = { posts: 'group.tabPosts', members: 'group.tabMembers', chat: 'group.tabChat' };
 
 const id = computed(() => String(route.params.id ?? ''));
 
@@ -387,7 +483,7 @@ const group = computed(() => (status.value === 'ready' && detail.value && kind.v
 const isMember = computed(() => UtilGroup.isMember(group.value?.myState));
 const tab = computed(() => UtilGroup.parseTab(route.query.tab));
 const newcomers = computed(() =>
-    group.value ? UtilGroupMessages.newcomerLines(t, group.value, UtilGroup.managePath(group.value.id, 'applications'), `${UtilGroup.detailPath(group.value.id)}?tab=members`) : null,
+    group.value ? UtilGroupMessages.newcomerLines(t, group.value, UtilGroup.managePath(group.value.id, 'applications'), UtilGroup.tabPath(group.value.id, 'members')) : null,
 );
 const chats = computed(() => UtilGroup.openableChats(group.value?.chatLinks ?? []));
 
@@ -501,6 +597,24 @@ watch(
         } catch {
             // 날짜 없이 안내한다
         }
+    },
+    { immediate: true },
+);
+
+/* ── 글 탭 — 비멤버도 공개 글을 받는다 ── */
+const posts = reactive(
+    useGroupPosts({
+        groupId: id,
+        member: isMember,
+        onGone: () => void refresh(),
+    }),
+);
+
+// 글 탭을 보고 있고 소모임·멤버 여부·로그인한 사람이 바뀌면(가입·탈퇴 포함) 다시 받는다 — 비공개 글이 나타나거나 사라진다
+watch(
+    () => [tab.value, group.value?.id, isMember.value, user.value?.id ?? null] as const,
+    ([current, groupId]) => {
+        if (current === 'posts' && groupId) void posts.load();
     },
     { immediate: true },
 );

@@ -357,7 +357,7 @@
                             <div class="min-w-0 flex-1 basis-64">
                                 <p class="m-0 text-sm font-medium">{{ t('board.deleteTitle') }}</p>
                                 <p class="m-0 text-xs leading-relaxed" :class="saved.postCount > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-muted-color'">
-                                    {{ saved.postCount > 0 ? t('board.deleteBlocked', { n: saved.postCount.toLocaleString(locale) }) : t('board.deleteHelp') }}
+                                    {{ saved.postCount > 0 ? t('board.deleteBlocked', { n: saved.postCount.toLocaleString(locale) }) : t(saved.kind === 'GROUP' ? 'board.deleteHelpGroup' : 'board.deleteHelp') }}
                                 </p>
                             </div>
                             <Button type="button" :label="t('board.delete')" icon="pi pi-trash" size="small" severity="danger" :disabled="saved.postCount > 0" @click="openDelete" />
@@ -887,7 +887,7 @@ async function remove() {
         toast.success(t('board.deleted', { name }));
         await router.push('/boards');
     } catch (e) {
-        deleteError.value = UtilBoardMessages.of(t, e);
+        deleteError.value = UtilBoardMessages.deleteFailure(t, e);
     } finally {
         deleting.value = false;
     }

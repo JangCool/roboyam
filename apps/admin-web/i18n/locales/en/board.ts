@@ -619,6 +619,8 @@ export default {
     deleteTitle: 'Delete board',
     deleteHelp: 'Only boards without posts can be deleted. This cannot be undone.',
     deleteBlocked: 'This board has {n} posts and cannot be deleted. Turn it off instead.',
+    deleteHelpGroup: 'Only boards with no posts and never used by any club (dissolved clubs and rejected requests count too) can be deleted. This cannot be undone.',
+    deleteHasGroups: 'A board used by clubs (now or before) cannot be deleted. Turn it off instead.',
     deleteConfirmMessage: 'Deletes "{name}". This cannot be undone. Type the board name to confirm.',
     deleteTypeName: 'Board name',
     delete: 'Delete',

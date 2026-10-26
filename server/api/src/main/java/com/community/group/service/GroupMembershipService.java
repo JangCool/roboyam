@@ -16,6 +16,7 @@ import com.community.group.exception.GroupLeaderCannotLeaveException;
 import com.community.group.exception.GroupRateLimitedException;
 import com.community.group.exception.GroupReapplyLaterException;
 import com.community.group.repository.master.GroupMemberRepository;
+import com.community.group.repository.master.GroupPostQueries;
 import com.community.group.repository.master.GroupRepositoryQDSL;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
@@ -47,9 +48,11 @@ public class GroupMembershipService {
     private final GroupRepositoryQDSL queries;
     private final GroupSettingsService settings;
     private final GroupNotices notices;
+    private final GroupPostQueries groupPosts;
 
     public GroupMembershipService(GroupAccess access, GroupMemberRepository members, GroupRepositoryQDSL queries, GroupSettingsService settings,
-                                  GroupNotices notices) {
+                                  GroupNotices notices, GroupPostQueries groupPosts) {
+        this.groupPosts = groupPosts;
         this.access = access;
         this.members = members;
         this.queries = queries;
@@ -122,6 +125,7 @@ public class GroupMembershipService {
             members.persist(GroupMemberEntity.joined(group.getId(), me, message, now));
         } else {
             row.join(message, now);
+            groupPosts.restoreForMember(group.getId(), me, now); // 다시 가입 — 나가서 가린 글만 되살린다(운영자가 숨긴 글은 그대로)
         }
         group.addMembers(1, now);
         members.flush();
@@ -156,8 +160,9 @@ public class GroupMembershipService {
         }
         Instant now = Instant.now();
         row.leave(now);
+        int hidden = groupPosts.hideForLeaver(group.getId(), me, now); // 스스로 나가면 그 소모임 안의 내 글은 모두 가려진다(다시 가입하면 되살린다 — 8절)
         group.addMembers(-1, now);
-        log.info("소모임에서 나갔다 groupId={} userId={} memberCount={}", group.getId(), me, group.getMemberCount());
+        log.info("소모임에서 나갔다 groupId={} userId={} memberCount={} 가린 글={}", group.getId(), me, group.getMemberCount(), hidden);
     }
 
     /** 하루(24시간) 가입·신청 한도 — 넘으면 429 RATE_LIMITED(가장 오래된 시도가 24시간을 넘길 때까지) */

@@ -3,6 +3,7 @@ package com.community.search.service;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.BoardCatalog;
+import com.community.board.service.PublicBoardService;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.response.PostFeedRowView;
 import com.community.post.repository.master.PostFeedRepositoryQDSL;
@@ -90,7 +91,7 @@ public class SearchService {
         }
         EffectiveBoard board = null;
         if (!blank(boardRaw)) {
-            board = s.board(boardRaw.strip()).filter(EffectiveBoard::active).orElse(null);
+            board = s.board(boardRaw.strip()).filter(b -> b.active() && PublicBoardService.isPublic(b)).orElse(null); // 소모임 게시판은 검색 대상이 아니다(2단계)
             if (board == null) {
                 fields.put("board", new MessageRef("search.board.invalid"));
             }
@@ -115,7 +116,7 @@ public class SearchService {
         String query = SearchQueryPolicy.normalize(qRaw);
         List<String> tokens = SearchQueryPolicy.distinctWords(qRaw);
         List<Long> boardIds = board != null ? List.of(board.id())
-                : s.boards().stream().filter(EffectiveBoard::active).map(EffectiveBoard::id).toList();
+                : s.boards().stream().filter(b -> b.active() && PublicBoardService.isPublic(b)).map(EffectiveBoard::id).toList();
         PostSearchQueries.Criteria criteria = new PostSearchQueries.Criteria(boardIds, tokens, scope, OLDEST.equals(order), cursor, Instant.now());
         String boardSlug = board == null ? null : board.slug();
         int currentPage = page;

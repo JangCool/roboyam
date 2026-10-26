@@ -6,6 +6,7 @@ import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.AuthorMembers;
 import com.community.board.service.AuthorViews;
 import com.community.board.service.BoardCatalog;
+import com.community.board.service.PublicBoardService;
 import com.community.board.service.RichText;
 import com.community.pointshop.dto.AuthorLook;
 import com.community.pointshop.service.ShopDecorationResolver;
@@ -166,7 +167,8 @@ public class UserProfileService {
     }
 
     private static Set<Long> activeBoardIds(BoardCatalogSnapshot s) {
-        return s.boards().stream().filter(EffectiveBoard::active).map(EffectiveBoard::id).collect(Collectors.toSet());
+        // 소모임 게시판의 글은 프로필 작성글·통계에 넣지 않는다(소모임 2단계 — 공개 소모임 글의 프로필 탭은 6단계)
+        return s.boards().stream().filter(b -> b.active() && PublicBoardService.isPublic(b)).map(EffectiveBoard::id).collect(Collectors.toSet());
     }
 
     /** 앞 100자 — 줄바꿈·연속 공백은 공백 한 칸, 넘으면 {@code …} */

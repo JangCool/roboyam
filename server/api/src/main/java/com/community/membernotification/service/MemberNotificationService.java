@@ -201,7 +201,8 @@ public class MemberNotificationService {
 
         NotificationActorView actor = null;
         if (type == MemberNotificationType.COMMENT || type == MemberNotificationType.REPLY || type == MemberNotificationType.DM
-                || type == MemberNotificationType.OPINION_PIN_REQUESTED || type == MemberNotificationType.GROUP_JOIN_REQUEST) {
+                || type == MemberNotificationType.OPINION_PIN_REQUESTED || type == MemberNotificationType.GROUP_JOIN_REQUEST
+                || type == MemberNotificationType.GROUP_POST_UNPUBLISHED) {
             actor = actorOf(row, profileById, userById, locale);
         }
 
@@ -282,6 +283,13 @@ public class MemberNotificationService {
                     case GROUP_JOIN_REQUEST -> groupId == null ? "/groups/me" : "/groups/" + groupId + "/manage/applications";
                     default -> groupId == null ? "/groups/me" : "/groups/" + groupId;
                 };
+            }
+            case GROUP_POST_UNPUBLISHED -> {
+                // 소모임 글 비공개 되돌림(V90) — 소모임 이름 · 글 제목(알릴 때) · 처리자 역할. 누르면 그 글(작성자는 지금도 열 수 있다 — 지웠거나 가려졌으면 링크 없음)
+                String title = payload.get("title") instanceof String t && !t.isBlank() ? t : post == null ? null : post.title();
+                facts = MemberNotificationMessages.Facts.groupPostUnpublished(payload.get("groupName") instanceof String n ? n : null, title,
+                        payload.get("actorRole") instanceof String r ? r : null);
+                link = postAvailable ? "/posts/" + row.getPostId() : null;
             }
             case REPORT_RESULT -> {
                 // 내 신고의 처리 결과 — 조치됨 · 위반 아님(신고 당시 제목·앞부분). 글을 볼 수 있으면 그 글로

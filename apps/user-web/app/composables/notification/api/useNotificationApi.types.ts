@@ -23,9 +23,14 @@ export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'P
     | 'POINT_SHOP_REFUND_REJECTED'
     /** 소모임(community api-groups 7절 — 서버가 `title`·`body`·`link` 를 준다): 개설 승인·반려 · 가입 신청 받음(모임장) · 가입 승인·거절 · 강퇴 · 해산 · 모임장 넘겨받음 · 운영 비활성화·다시 열림 */
     | 'GROUP_APPROVED' | 'GROUP_REJECTED' | 'GROUP_JOIN_REQUEST' | 'GROUP_JOIN_APPROVED' | 'GROUP_JOIN_REJECTED'
-    | 'GROUP_KICKED' | 'GROUP_DISSOLVED' | 'GROUP_LEADER_TRANSFERRED' | 'GROUP_DEACTIVATED' | 'GROUP_REACTIVATED';
+    | 'GROUP_KICKED' | 'GROUP_DISSOLVED' | 'GROUP_LEADER_TRANSFERRED' | 'GROUP_DEACTIVATED' | 'GROUP_REACTIVATED'
+    /** 소모임 글(api-groups 8절): 모임장·`UNPUBLISH` 매니저가 내 공개 글을 비공개로 되돌림 — 끌 수 없다, `link` 는 글 상세, `post` 에 글 */
+    | 'GROUP_POST_UNPUBLISHED';
 
-/** 알림 묶음 — 댓글·답글 · 계정(포인트 회수·소멸 예정·신고 숨김·닉네임 그림 검토·기능 제한) · 쪽지(`DM` — 거르기 없이 「전체」에만 보인다) */
+/**
+ * 알림 묶음 — 댓글·답글 · 계정(포인트 회수·소멸 예정·신고 숨김·닉네임 그림 검토·기능 제한 · 소모임 `GROUP_*` 전부 — 서버 `MemberNotificationType` 이 `system` 으로 묶는다) ·
+ * 쪽지(`DM` — 거르기 없이 「전체」에만 보인다)
+ */
 export type MemberNotificationCategory = 'comment' | 'system' | 'dm';
 
 /** 목록 거르기(`filter`) — 쪽지 묶음(`dm`)은 거르기에 없다 */

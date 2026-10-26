@@ -65,6 +65,34 @@ export type PostPrefixRef = Pick<PrefixView, 'id' | 'name' | 'staffOnly' | 'colo
  */
 export type PostHiddenReason = 'REPORTED' | 'STAFF';
 
+/**
+ * 소모임 글의 공개 상태 — 비공개(기본, 쓰자마자 — 그 소모임 멤버만 읽는다) · 공개로 전환됨(누구나).
+ * community `docs/api-groups.md` 8절. 소모임 공개 범위(공개 소모임 — 11절)는 5단계라 아직 다루지 않는다.
+ */
+export type PostGroupVisibility = 'PRIVATE' | 'PUBLIC';
+
+/**
+ * 글 줄의 소모임 표시(community `GroupRef`) — 소모임 글이면 `{ id, name, visibility }`, 일반 글이면 null(옛 응답은 칸이 없다).
+ * 홈·검색·프로필에 나오는 소모임 글은 모두 `PUBLIC`, 소모임 글 탭에서는 `PRIVATE` 도 나온다.
+ * `dissolved`: 해산한 소모임의 공개 글(소모임 연결은 남는다) — 화면은 링크 없이 「해산한 소모임」으로 보인다.
+ */
+export interface PostGroupRef {
+    id: string;
+    name: string;
+    visibility: PostGroupVisibility;
+    dissolved?: boolean;
+}
+
+/**
+ * 글 상세의 소모임 칸(community `GroupPostInfo` 8절 — 11절의 공개 범위 칸은 5단계).
+ * `canPublish`: 내가 작성자·지금도 멤버·쓸 수 있는 상태이고 아직 비공개. `canUnpublish`: 공개 글이고 내가 작성자·모임장·`UNPUBLISH` 매니저.
+ * 소모임 글에는 이전·다음 글이 없다(서버가 `prev`·`next` 를 null 로 준다).
+ */
+export interface PostGroupInfo extends PostGroupRef {
+    canPublish: boolean;
+    canUnpublish: boolean;
+}
+
 /** 목록 한 줄 */
 export interface PostRow {
     id: string;
@@ -93,6 +121,8 @@ export interface PostRow {
      * 접는 것은 화면의 일이다(`FoldedRow`, `useBlockOverrides().blockedOf`).
      */
     blocked?: BlockedBy | null;
+    /** 소모임 글이면 그 소모임(2단계) — 일반 글·옛 응답은 null·없음 */
+    group?: PostGroupRef | null;
 }
 
 /** 목록 정렬 — 최신순 · 오래된순 */
@@ -203,6 +233,11 @@ export interface PostDetail {
     debate?: DebateSummary;
     /** 글에 붙은 투표(post-poll-contract) — 없으면 null. 옛 응답에는 없을 수 있다 */
     poll?: PollView | null;
+    /**
+     * 소모임 글이면 그 소모임과 공개 전환 권한(2단계) — 일반 글·옛 응답은 null·없음.
+     * 소모임 글의 게시판은 공개 게시판 API(`GET /api/boards/{slug}`)에 없으므로 화면은 `GET /api/groups/{id}/board` 로 게시판 정보를 받는다(`useGroupApi.board`).
+     */
+    group?: PostGroupInfo | null;
 }
 
 /** 비회원 작성 정보 — 이름·비밀번호(수정·삭제용, 서버는 해시로만 저장)·자동입력 방지 토큰 */

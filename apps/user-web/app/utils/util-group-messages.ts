@@ -8,11 +8,13 @@ import type {
     GroupJoinReason,
     GroupJoinType,
     GroupManageBlockedReason,
+    GroupMyState,
     GroupNewcomers,
     GroupRecruitState,
     GroupRow,
     GroupSort,
 } from '~/composables/group/api/useGroupApi.types';
+import type { PostGroupRef, PostGroupVisibility } from '~/composables/board/api/usePostApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilGroup, { type GroupCapacityRange, type GroupJoinAction, type GroupListState, type GroupProblem } from '~/utils/util-group';
 import UtilBoardMessages from '~/utils/util-board-messages';
@@ -35,7 +37,7 @@ export interface GroupCopy {
 }
 
 export interface GroupFailure extends GroupCopy {
-    kind: 'grade' | 'limit' | 'rate' | 'unverified' | 'restricted' | 'generic';
+    kind: 'permission' | 'grade' | 'limit' | 'rate' | 'unverified' | 'restricted' | 'generic';
 }
 
 /** 신규 가입자 줄 */
@@ -240,10 +242,11 @@ export default class UtilGroupMessages {
         return !immediate && mode === 'APPROVAL' ? t('group.submitApproval') : t('group.submitOpen');
     }
 
-    /** 등급 미달·모임장 상한 — 규칙 응답의 `me` 가 알려 준다(운영진·운영자는 면제) */
+    /** 회원 권한 없음·등급 미달·모임장 상한 — 규칙 응답의 `me` 가 알려 준다(운영진·운영자는 면제) */
     static ruleBlock(t: Translate, rules: GroupCreationRules | null, gradeName: (key: string) => string): GroupCopy | null {
         const me = rules?.me;
         if (!rules || !me || me.canCreate) return null;
+        if (me.reason === 'NOT_PERMITTED') return { title: t('group.notPermittedTitle'), text: t('group.notPermittedText') };
         if (me.reason === 'GRADE_TOO_LOW') {
             return { title: t('group.gradeTooLowTitle', { grade: rules.minGradeLabel }), text: me.grade ? t('group.gradeNow', { grade: gradeName(me.grade) }) : '' };
         }
@@ -283,6 +286,8 @@ export default class UtilGroupMessages {
         if (!(e instanceof ApiError)) return { kind: 'generic', title: t('group.failGenericTitle'), text: t('group.failKeep', { reason: UtilBoardMessages.of(t, e) }) };
         const wait = e.retryAfterSeconds && e.retryAfterSeconds > 0 ? ` ${t('group.failRetryAfter', { time: time.duration(e.retryAfterSeconds) })}` : '';
         switch (e.code) {
+            case 'GROUP_CREATE_NOT_PERMITTED':
+                return { kind: 'permission', title: t('group.notPermittedTitle'), text: e.message };
             case 'GROUP_GRADE_TOO_LOW':
                 return { kind: 'grade', title: e.message, text: '' };
             case 'GROUP_LIMIT_REACHED':
@@ -306,7 +311,8 @@ export default class UtilGroupMessages {
     /* ── 관리 ── */
 
     static blockedBand(t: Translate, reason: GroupManageBlockedReason): string {
-        return t(reason === 'EMAIL_NOT_VERIFIED' ? 'group.blockedEmail' : 'group.blockedRestricted');
+        if (reason === 'EMAIL_NOT_VERIFIED') return t('group.blockedEmail');
+        return t(reason === 'BUSINESS_ACCOUNT_RESTRICTED' ? 'group.blockedBusiness' : 'group.blockedRestricted');
     }
 
     static chatSummary(t: Translate, links: readonly GroupChatLink[]): string {
@@ -330,6 +336,56 @@ export default class UtilGroupMessages {
     /** 서버가 받아들이지 않은 칸 이름들 */
     static serverFieldsSummary(t: Translate, labels: readonly string[]): string {
         return t('group.serverFields', { fields: labels.join(', ') });
+    }
+
+    /* ── 소모임 글(2단계) ── */
+
+    /** 글 탭 줄의 공개 라벨 — 「비공개」 · 「공개 전환됨」 */
+    static postRowVisibility(t: Translate, visibility: PostGroupVisibility): string {
+        return t(visibility === 'PUBLIC' ? 'group.postPublicRow' : 'group.postPrivateRow');
+    }
+
+    /** 글 상세의 공개 라벨 — 「멤버에게만 보여요」 · 「전체 공개」 */
+    static postVisibility(t: Translate, visibility: PostGroupVisibility): string {
+        return t(visibility === 'PUBLIC' ? 'group.postPublic' : 'group.postPrivate');
+    }
+
+    /** 글 상세 머리의 위치 — 「소모임 › 이름」, 해산한 소모임은 「해산한 소모임」 */
+    static postLocation(t: Translate, group: PostGroupRef): string {
+        return group.dissolved ? t('group.postDissolved') : t('group.postLocation', { name: group.name });
+    }
+
+    /** 스크린리더가 읽는 글 탭 요약 */
+    static postsSummary(t: Translate, status: string, count: number, hasNext: boolean): string {
+        if (status === 'loading') return t('group.postsLoading');
+        if (status === 'error') return t('group.postsError');
+        if (status !== 'ready') return '';
+        return hasNext ? t('group.postsCountMore', { count }) : t('group.postsCount', { count });
+    }
+
+    /** 비공개로 되돌리기 확인 — 남(모임장·매니저)이 되돌리면 글쓴이에게 알림이 간다 */
+    static unpublishConfirm(t: Translate, byAuthor: boolean): { title: string; message: string; confirmLabel: string } {
+        return { title: t('group.unpublishTitle'), message: t(byAuthor ? 'group.unpublishMessageAuthor' : 'group.unpublishMessageOther'), confirmLabel: t('group.unpublishConfirm') };
+    }
+
+    /** 공개 범위 바꾸기 실패 — 개인정보 확인 누락은 칸 문구가 가장 정확하다. 그 밖은 서버 문구 */
+    static visibilityFailure(t: Translate, e: unknown): string {
+        if (e instanceof ApiError) return e.field('acknowledged') ?? e.message;
+        return UtilBoardMessages.of(t, e);
+    }
+
+    /** 소모임 글쓰기 입구가 막힌 까닭 — 비회원 · 멤버 아님 · 이메일 인증 전 · 쓸 수 없는 상태(정지 등) */
+    static writeGate(t: Translate, gate: 'login' | 'not-member' | 'unverified' | 'blocked', myState: GroupMyState | null): GroupCopy {
+        switch (gate) {
+            case 'login':
+                return { title: t('group.writeLoginTitle'), text: t('group.writeLoginText') };
+            case 'unverified':
+                return { title: t('group.unverifiedTitle'), text: t('group.writeUnverifiedText') };
+            case 'blocked':
+                return { title: t('group.writeBlockedTitle'), text: t('group.postsSuspended') };
+            default:
+                return { title: t('group.writeNotMemberTitle'), text: t(myState === 'APPLIED' ? 'group.writeAppliedText' : 'group.writeNotMemberText') };
+        }
     }
 
     static chatProblem(t: Translate, field: 'kakao' | 'discord', problem: 'FORMAT' | 'LABEL_LENGTH'): string {

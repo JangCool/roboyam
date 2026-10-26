@@ -4,6 +4,7 @@ import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.entity.BoardGadget;
 import com.community.board.service.BoardCatalog;
+import com.community.board.service.PublicBoardService;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.response.PostFeedPageView;
 import com.community.post.dto.response.PostFeedRowView;
@@ -53,7 +54,9 @@ public class LatestFeedService {
         }
         BoardCatalogSnapshot s = catalog.snapshot();
         Instant now = Instant.now();
-        List<Long> boardIds = s.boards().stream().filter(b -> b.active() && !b.excludedFrom(BoardGadget.LATEST)).map(EffectiveBoard::id).toList();
+        // 소모임 게시판의 글은 섞지 않는다(소모임 2단계 — 공개로 전환된 소모임 글을 배지와 함께 섞는 일은 6단계)
+        List<Long> boardIds = s.boards().stream().filter(b -> b.active() && PublicBoardService.isPublic(b) && !b.excludedFrom(BoardGadget.LATEST)).map(EffectiveBoard::id)
+                .toList();
         List<PostRowData> found = feeds.latest(boardIds, cursor, size + 1, now);
         boolean hasNext = found.size() > size;
         List<PostRowData> page = hasNext ? found.subList(0, size) : found;

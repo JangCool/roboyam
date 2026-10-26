@@ -58,6 +58,19 @@ public class PostFeedRows {
         return out;
     }
 
+    /**
+     * 한 게시판의 줄(게시판 칸 없이 — 소모임 글 탭). 주어진 순서대로. 작성자·차단·투표 칩은 {@link #of} 와 같은 방식으로 한 번에 읽는다.
+     *
+     * @param viewerId 로그인한 회원(비로그인 null)
+     */
+    public List<PostRowView> boardRows(List<PostRowData> rows, EffectiveBoard b, BoardCatalogSnapshot s, Instant now, Long viewerId) {
+        List<Long> authorIds = rows.stream().map(PostRowData::authorId).toList();
+        AuthorMembers members = authors.members(authorIds);
+        ViewerBlocks.Lens lens = rows.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(viewerId, authorIds);
+        Set<Long> withPoll = polls.postIdsWithPoll(rows.stream().map(PostRowData::id).toList());
+        return rows.stream().map(r -> row(r, b, s, members, now, lens, withPoll)).toList();
+    }
+
     /** {@code PostQueryService#row} 와 같은 규칙 — 신고로 숨긴 글은 자리만(이 목록들은 숨긴 글을 미리 거르므로 보통 오지 않는다) */
     private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
                             Set<Long> withPoll) {

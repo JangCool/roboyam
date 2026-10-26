@@ -65,6 +65,16 @@ public class PostEntity {
     private Instant createdAt;
     private Instant updatedAt;
 
+    /** 소모임 글이면 그 소모임(V90 — 쓸 때 정하고 바뀌지 않는다), 일반 글 null */
+    @Column(updatable = false)
+    private Long groupId;
+    /** 소모임 글이 공개로 전환됐는가(V90 {@code is_public}) — 일반 글은 늘 false */
+    @Column(name = "is_public")
+    private boolean publicPost;
+    /** 작성자가 소모임을 스스로 나가 가려진 시각(V90) — 다시 가입하면 비운다. 일괄 UPDATE({@code GroupPostQueries})로만 바꾼다 */
+    @Column(updatable = false, insertable = false)
+    private Instant groupLeftAt;
+
     protected PostEntity() {
     }
 
@@ -93,6 +103,27 @@ public class PostEntity {
         post.createdAt = now;
         post.updatedAt = now;
         return post;
+    }
+
+    /**
+     * 소모임 글 — 그 소모임의 게시판에 비공개로 쓴다(멤버만 본다). 소모임 글은 19금이 될 수 없고 비회원이 쓰지 않는다.
+     */
+    public static PostEntity createInGroup(long id, long groupId, long boardId, Long prefixId, long authorId, String authorIp, String title, ContentFormat format,
+                                           String content, String contentText, boolean hasImage, Instant now) {
+        PostEntity post = create(id, boardId, prefixId, authorId, null, null, authorIp, title, format, content, contentText, false, hasImage, now);
+        post.groupId = groupId;
+        post.publicPost = false;
+        return post;
+    }
+
+    /** 소모임 글을 공개로 전환하거나 비공개로 되돌린다 — 바뀌었으면 true(같은 값이면 그대로, 일반 글은 늘 false) */
+    public boolean changePublic(boolean value, Instant now) {
+        if (groupId == null || publicPost == value) {
+            return false;
+        }
+        this.publicPost = value;
+        this.updatedAt = now;
+        return true;
     }
 
     /** 작성자가 고친다 */
@@ -327,5 +358,28 @@ public class PostEntity {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Long getGroupId() {
+        return groupId;
+    }
+
+    /** 소모임 글인가 */
+    public boolean isGroupPost() {
+        return groupId != null;
+    }
+
+    /** 공개로 전환된 소모임 글인가 */
+    public boolean isPublicPost() {
+        return publicPost;
+    }
+
+    public Instant getGroupLeftAt() {
+        return groupLeftAt;
+    }
+
+    /** 작성자가 소모임을 나가 가려졌나 */
+    public boolean isGroupLeft() {
+        return groupLeftAt != null;
     }
 }

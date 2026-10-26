@@ -8,7 +8,13 @@ import java.time.Instant;
  */
 public record AdminPostListRow(Long id, Long boardId, Long prefixId, Long authorId, String guestName, String title, String status, Boolean adult,
                                Integer viewCount, Integer likeCount, Integer commentCount, Instant pinnedAt, Instant hiddenAt, String hiddenReason,
-                               Instant hiddenUntil, Instant deleteScheduledAt, Instant deletedAt, Instant purgedAt, Instant createdAt) {
+                               Instant hiddenUntil, Instant deleteScheduledAt, Instant deletedAt, Instant purgedAt, Instant createdAt, Long groupId,
+                               Boolean publicPost, Instant groupLeftAt) {
+
+    /** 비공개 소모임 글인가(제목·본문을 관리자 목록·상세에 싣지 않는다 — 신고 처리의 스냅샷으로만 본다, 소모임 2단계) */
+    public boolean restricted() {
+        return groupId != null && !Boolean.TRUE.equals(publicPost);
+    }
 
     public static final String PUBLIC = "PUBLIC";
     public static final String HIDDEN = "HIDDEN";

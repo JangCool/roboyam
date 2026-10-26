@@ -459,7 +459,7 @@ async function onSubmit() {
         }
         failure.value = UtilGroupMessages.createFailure(t, e, time.value);
         // 규칙을 못 지켜 거절됐으면 서버의 지금 규칙으로 안내를 다시 그린다
-        if (failure.value.kind === 'grade' || failure.value.kind === 'limit') void reloadRules();
+        if (failure.value.kind === 'permission' || failure.value.kind === 'grade' || failure.value.kind === 'limit') void reloadRules();
     } finally {
         submitting.value = false;
     }

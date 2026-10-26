@@ -76,7 +76,9 @@ public enum MemberEvent {
     GROUP_DISSOLVED(NotificationArea.CLUB, MemberNotificationType.GROUP_DISSOLVED, MemberEventLockReason.ACCOUNT, null),
     GROUP_LEADER_TRANSFERRED(NotificationArea.CLUB, MemberNotificationType.GROUP_LEADER_TRANSFERRED, MemberEventLockReason.ACCOUNT, null),
     GROUP_DEACTIVATED(NotificationArea.CLUB, MemberNotificationType.GROUP_DEACTIVATED, MemberEventLockReason.ACTION, null),
-    GROUP_REACTIVATED(NotificationArea.CLUB, MemberNotificationType.GROUP_REACTIVATED, MemberEventLockReason.ACTION, null);
+    GROUP_REACTIVATED(NotificationArea.CLUB, MemberNotificationType.GROUP_REACTIVATED, MemberEventLockReason.ACTION, null),
+    /** 모임장·되돌리기를 맡은 매니저가 내 공개 소모임 글을 비공개로 되돌렸다(V90 — 소모임 2단계) — 처리 알림 */
+    GROUP_POST_UNPUBLISHED(NotificationArea.CLUB, MemberNotificationType.GROUP_POST_UNPUBLISHED, MemberEventLockReason.ACTION, null);
 
     private static final Map<String, MemberEvent> BY_CODE = Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(MemberEvent::code, Function.identity()));
 

@@ -78,6 +78,7 @@ LANGUAGE sql STABLE AS $fn$
        AND (p.delete_scheduled_at IS NULL OR p.delete_scheduled_at > p_now)
        AND (p.hidden_at IS NULL OR (p.hidden_until IS NOT NULL AND p.hidden_until <= p_now))
        AND NOT p.adult
+       AND p.group_id IS NULL  -- 소모임 글은 인기글 후보가 아니다(V90 — 소모임 2단계, PopularRules.rankableBoard 와 같은 판정)
        AND b.active
        AND NOT ('POPULAR' = ANY (b.gadget_exclusions))
        AND (NOT s.exclude_staff_boards OR coalesce(b.write_min, d.write_min) <> 'STAFF')

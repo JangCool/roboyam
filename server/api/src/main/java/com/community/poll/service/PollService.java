@@ -6,6 +6,7 @@ import com.community.board.exception.NotAuthorException;
 import com.community.board.service.BoardActorResolver;
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.PublicBoardService;
+import com.community.group.service.GroupPostGate;
 import com.community.poll.dto.PollData;
 import com.community.poll.dto.PollOptionData;
 import com.community.poll.dto.request.PollVoteRequest;
@@ -57,8 +58,10 @@ public class PollService {
     private final PostQueryService posts;
     private final BoardCatalog catalog;
     private final BoardActorResolver actors;
+    private final GroupPostGate groupGate;
 
-    public PollService(PollQueries queries, PollReader reader, PostQueryService posts, BoardCatalog catalog, BoardActorResolver actors) {
+    public PollService(PollQueries queries, PollReader reader, PostQueryService posts, BoardCatalog catalog, BoardActorResolver actors, GroupPostGate groupGate) {
+        this.groupGate = groupGate;
         this.queries = queries;
         this.reader = reader;
         this.posts = posts;
@@ -69,7 +72,7 @@ public class PollService {
     @Transactional(readOnly = true)
     public PollView read(String postIdText, Long userId) {
         Instant now = Instant.now();
-        PostEntity post = readable(postIdText, catalog.snapshot(), now);
+        PostEntity post = readable(postIdText, catalog.snapshot(), now, userId);
         PollData poll = queries.find(post.getId()).orElseThrow(PollNotFoundException::new);
         return reader.view(poll, post, userId, null, now);
     }
@@ -81,7 +84,7 @@ public class PollService {
         }
         Instant now = Instant.now();
         BoardCatalogSnapshot s = catalog.snapshot();
-        PostEntity post = readable(postIdText, s, now);
+        PostEntity post = readable(postIdText, s, now, userId);
         BoardActor actor = actors.resolve(userId, s);
         PostWriteService.requireWritable(PollReader.memberBlocked(actor)); // 탈퇴 등 비회원으로 보이면 401, 나머지 403 까닭 코드
 
@@ -109,7 +112,7 @@ public class PollService {
             throw new CommonException(ErrorCode.UNAUTHENTICATED);
         }
         Instant now = Instant.now();
-        PostEntity post = readable(postIdText, catalog.snapshot(), now);
+        PostEntity post = readable(postIdText, catalog.snapshot(), now, userId);
         PollData poll = queries.findForUpdate(post.getId()).orElseThrow(PollNotFoundException::new);
         if (!userId.equals(post.getAuthorId())) {
             throw new NotAuthorException();
@@ -121,10 +124,10 @@ public class PollService {
         log.info("글 투표 지우기(글쓴이) postId={} pollId={} by userId={}", post.getId(), poll.id(), userId);
     }
 
-    /** 글 읽기 규칙 — 없거나 지운 글 404, 꺼진 게시판 403 BOARD_INACTIVE, 숨긴 글 403 POST_HIDDEN */
-    private PostEntity readable(String postIdText, BoardCatalogSnapshot s, Instant now) {
+    /** 글 읽기 규칙 — 없거나 지운 글 404, 꺼진 게시판 403 BOARD_INACTIVE(소모임 글은 소모임 판정), 숨긴 글 403 POST_HIDDEN */
+    private PostEntity readable(String postIdText, BoardCatalogSnapshot s, Instant now, Long userId) {
         PostEntity post = posts.requireVisible(postIdText, now);
-        PublicBoardService.requireActive(s, post.getBoardId());
+        groupGate.resolve(s, post, userId); // 소모임 비공개 글의 투표는 멤버만(403 GROUP_POST_PRIVATE)
         if (post.isHiddenAt(now)) {
             throw new PostHiddenException();
         }

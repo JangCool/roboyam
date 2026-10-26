@@ -21,6 +21,7 @@ import com.community.group.entity.GroupRole;
 import com.community.group.entity.GroupStatus;
 import com.community.group.entity.GroupVisibility;
 import com.community.group.repository.master.GroupMemberRepository;
+import com.community.group.repository.master.GroupPostQueries;
 import com.community.group.repository.master.GroupRepositoryQDSL;
 import java.time.Duration;
 import java.time.Instant;
@@ -52,9 +53,11 @@ public class GroupViews {
     private final GroupPeople people;
     private final GroupRepositoryQDSL queries;
     private final GroupMemberRepository members;
+    private final GroupPostQueries groupPosts;
 
     public GroupViews(BoardCatalog catalog, GroupCategoryLookup categories, GroupSettingsService settings, GroupPeople people, GroupRepositoryQDSL queries,
-                      GroupMemberRepository members) {
+                      GroupMemberRepository members, GroupPostQueries groupPosts) {
+        this.groupPosts = groupPosts;
         this.catalog = catalog;
         this.categories = categories;
         this.settings = settings;
@@ -176,12 +179,15 @@ public class GroupViews {
         }
         Long pending = GroupAccess.can(g, row, userId, GroupManagerPermission.APPLICATIONS)
                 ? members.countByGroupIdAndStatus(g.getId(), GroupMemberStatus.APPLIED) : null;
+        // 글 수(2단계) — 멤버는 모든 보이는 글 · 그 밖은 공개로 전환된 글, 새 글 수는 멤버에게만(남의 글, 마지막으로 본 뒤)
+        long postCount = groupPosts.count(g.getId(), !member, now);
+        Long newPostCount = member ? groupPosts.newPostCounts(userId, List.of(g.getId()), now).getOrDefault(g.getId(), 0L) : null;
 
         return new GroupDetailView(Long.toString(g.getId()), g.getName(), g.getDescription(), category(g, ctx), g.getJoinType().name(), g.getCapacity(),
                 g.getMemberCount(), g.isRecruiting(), GroupRules.recruitState(g), g.isOffline(), visibility(g, ctx), boardView, g.getStatus().name(), g.getOpenedAt(),
                 GroupUsers.of(persons.of(g.getLeaderId())), board != null && board.investmentNotice(), myState(g, row, userId), myRole, join(g, row, userId, actor, now, policy),
                 chat, !member, permissions, managerInfo, newcomers, pending,
-                new GroupDetailView.Limits(policy.capacityMin(), policy.capacityMax(), policy.eventMaxDaysAhead(), policy.eventMaxLengthDays()));
+                new GroupDetailView.Limits(policy.capacityMin(), policy.capacityMax(), policy.eventMaxDaysAhead(), policy.eventMaxLengthDays()), postCount, newPostCount);
     }
 
     private static GroupDetailView.Prefix prefix(BoardPrefixInfo p) {

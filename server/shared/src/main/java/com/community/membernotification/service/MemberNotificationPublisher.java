@@ -546,6 +546,40 @@ public class MemberNotificationPublisher {
         }, 0);
     }
 
+    /**
+     * 내 공개 소모임 글이 비공개로 되돌려졌다(GROUP_POST_UNPUBLISHED — V90, community api-groups.md 8절) — 받는 사람은 글쓴이, 일으킨 사람은 처리자(모임장·되돌리기를 맡은 매니저).
+     * 덧붙임 {@code groupId}·{@code groupName}·{@code title}·{@code actorRole}(LEADER · MANAGER). 끌 수 없는 처리 알림. 글쓴이 본인이 되돌리면 부르지 않는다(여기서도 막는다).
+     * 공개 전환 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 되돌리기를 깨지 않는다).
+     */
+    public int groupPostUnpublished(long authorId, long groupId, String groupName, long postId, String title, long actorUserId, String actorRole) {
+        if (actorUserId == authorId) {
+            return 0;
+        }
+        return isolated.run("member-notification:group-post-unpublished", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.GROUP_POST_UNPUBLISHED, authorId);
+            if (!on.delivers() || !writer.receivable(authorId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(groupName, SNAPSHOT_MAX);
+            String postTitle = cut(title, SNAPSHOT_MAX);
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("groupId", Long.toString(groupId));
+                payload.put("groupName", name);
+                payload.put("title", postTitle);
+                payload.put("actorRole", actorRole);
+                writer.insert(ids.nextId(), authorId, MemberNotificationType.GROUP_POST_UNPUBLISHED.name(), actorUserId, null, postId, null,
+                        MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(authorId, MemberNotificationMessages.Facts.groupPostUnpublished(name, postTitle, actorRole), null, postId);
+            }
+            return made;
+        }, 0);
+    }
+
     /** 회원 알림 메일 — 커밋 뒤 발송기가 보낸다. 세이브포인트 일의 <b>마지막</b>에 부른다(뒤에서 실패해 행이 되돌려졌는데 메일만 나가는 일이 없게) */
     private void requestEmail(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId) {
         events.publishEvent(new MemberEmailRequested(userId, facts, actorUserId, postId));

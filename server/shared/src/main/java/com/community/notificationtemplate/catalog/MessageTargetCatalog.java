@@ -222,6 +222,11 @@ public final class MessageTargetCatalog {
         out.add(groupEvent(MemberEvent.GROUP_LEADER_TRANSFERRED, null, "/groups/123"));
         out.add(groupEvent(MemberEvent.GROUP_DEACTIVATED, "groupDeactivateReason", "/groups/123"));
         out.add(groupEvent(MemberEvent.GROUP_REACTIVATED, null, "/groups/123"));
+        // 소모임 글 비공개 되돌림(V90 — group-contract 2단계) — 소모임 이름 · 처리자(「모임장이」·「매니저가」) · 글 제목. 누르면 그 글
+        out.add(member(MemberEvent.GROUP_POST_UNPUBLISHED, List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("actorRole", "groupActorRole"),
+                        MessageVariable.of("postTitle", "groupPostTitle")),
+                new InAppText("member.notification.GROUP_POST_UNPUBLISHED.title", null, "{{postTitle}}", List.of("groupName", "actorRole")), "/posts/123",
+                List.of()));
         return out;
     }
 

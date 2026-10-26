@@ -146,7 +146,7 @@ export default {
     memberPointshopUse: 'Use the point shop',
     memberPointshopUseDesc: 'Buy point shop items with points.',
     memberGroupCreate: 'Open a club',
-    memberGroupCreateDesc: 'Apply to open a club. (Site feature coming soon)',
+    memberGroupCreateDesc: 'Apply to open a club (opens right away under open creation).',
     memberHotdealWrite: 'Post a hot deal',
     memberHotdealWriteDesc: 'Post a hot deal. (Site feature coming soon)',
     memberCommercePurchase: 'Buy in group buying',

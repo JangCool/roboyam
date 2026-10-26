@@ -146,6 +146,13 @@ public class MemberNotificationMessages {
             return new Facts(type, actorName, null, null, 1, 0, null, reason, false, groupName, null);
         }
 
+        /**
+         * 내 공개 소모임 글이 비공개로 되돌려졌다(V90) — 소모임 이름({@code snapshot})·글 제목({@code postTitle})·처리자 역할({@code result} — LEADER · MANAGER).
+         */
+        public static Facts groupPostUnpublished(String groupName, String postTitle, String actorRole) {
+            return new Facts(MemberNotificationType.GROUP_POST_UNPUBLISHED, null, postTitle, null, 1, 0, null, null, false, groupName, actorRole);
+        }
+
         /** 닉네임 그림 검토 결과 — 반려·해제면 사유 */
         public static Facts nicknameReviewed(String result, String reason) {
             return new Facts(MemberNotificationType.NICKNAME_IMAGE_REVIEWED, null, null, null, 1, 0, null, reason, false, null, result);
@@ -284,6 +291,9 @@ public class MemberNotificationMessages {
                     builder.variable("groupName", nz(facts.snapshot()));
             case GROUP_REJECTED, GROUP_JOIN_REJECTED, GROUP_DEACTIVATED -> builder.variable("groupName", nz(facts.snapshot())).variable("reason", nz(facts.note()));
             case GROUP_JOIN_REQUEST -> builder.variable("groupName", nz(facts.snapshot())).variable("actorName", nz(facts.actorName()));
+            case GROUP_POST_UNPUBLISHED -> builder.variable("groupName", nz(facts.snapshot())).variable("postTitle", nz(facts.postTitle()))
+                    .variable("actorRole", messages.get(new MessageRef("member.notification.GROUP_POST_UNPUBLISHED.actor."
+                            + ("MANAGER".equals(facts.result()) ? "MANAGER" : "LEADER")), locale));
             case POINTS_EXPIRING -> builder.variable("amount", String.format("%,d", facts.amount()))
                     .variable("date", facts.expiring() == null || facts.expiring().date() == null ? "" : facts.expiring().date().toString())
                     .variable("days", facts.expiring() == null ? "" : String.valueOf(facts.expiring().days()));

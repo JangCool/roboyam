@@ -115,7 +115,7 @@ public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
     private static ConstructorExpression<AdminPostListRow> listRow() {
         return Projections.constructor(AdminPostListRow.class, POST.id, POST.boardId, POST.prefixId, POST.authorId, POST.guestName, POST.title, POST.status,
                 POST.adult, POST.viewCount, POST.likeCount, POST.commentCount, POST.pinnedAt, POST.hiddenAt, POST.hiddenReason, POST.hiddenUntil,
-                POST.deleteScheduledAt, POST.deletedAt, POST.purgedAt, POST.createdAt);
+                POST.deleteScheduledAt, POST.deletedAt, POST.purgedAt, POST.createdAt, POST.groupId, POST.publicPost, POST.groupLeftAt);
     }
 
     /** 지운 글 — 지움 · 공개 아님(임시저장) · 예약 삭제 시각 지남 */
@@ -150,7 +150,8 @@ public class AdminPostRepositoryQDSL extends RoboyamRepositoryQDSL {
             where = where.and(POST.id.eq(c.postId()));
         }
         if (c.title() != null) {
-            where = where.and(POST.title.containsIgnoreCase(c.title()));
+            // 비공개 소모임 글의 제목은 관리자에게도 보이지 않으므로 제목 검색에서 뺀다(소모임 2단계)
+            where = where.and(POST.title.containsIgnoreCase(c.title())).and(POST.groupId.isNull().or(POST.publicPost.isTrue()));
         }
         if (c.author() != null) {
             QProfileEntity profile = QProfileEntity.profileEntity;

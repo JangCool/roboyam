@@ -10,8 +10,8 @@ import java.util.List;
  * @param creator         개설을 신청한 회원
  * @param reviewer        개설을 승인한 운영자(자유 개설이면 null)
  * @param leaderLoad      모임장이 가진 소모임 수(신청 중·열림·비활성 합)와 지금 1인 상한
- * @param postCount       삭제하지 않은 소모임 글 수(글은 2단계 — 지금 늘 0)
- * @param publicPostCount 비멤버에게 보이는 글 수(2단계 — 지금 늘 0)
+ * @param postCount       삭제하지 않은 소모임 글 수(숨김·나가서 가린 글 포함)
+ * @param publicPostCount 비멤버에게 보이는 글 수(공개로 전환됐고 숨김·가림이 아닌 글)
  * @param reportCaseCount 이 소모임을 대상으로 접수된 신고 사건 수(로보얌 신고 대상에 소모임이 아직 없다 — 늘 0)
  * @param deactivation    마지막으로 비활성이 된 때의 기록(한 번도 없으면 null)
  * @param managers        매니저(3단계 — 지금은 빈 배열)
