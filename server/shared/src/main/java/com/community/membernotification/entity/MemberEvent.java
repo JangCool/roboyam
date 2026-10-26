@@ -85,7 +85,10 @@ public enum MemberEvent {
     GROUP_MANAGER_PERMISSIONS_CHANGED(NotificationArea.CLUB, MemberNotificationType.GROUP_MANAGER_PERMISSIONS_CHANGED, MemberEventLockReason.ACCOUNT, null),
     GROUP_MANAGER_REMOVED(NotificationArea.CLUB, MemberNotificationType.GROUP_MANAGER_REMOVED, MemberEventLockReason.ACCOUNT, null),
     GROUP_MANAGER_RESIGNED(NotificationArea.CLUB, MemberNotificationType.GROUP_MANAGER_RESIGNED, MemberEventLockReason.ACCOUNT, null),
-    GROUP_KICKED_BY_MANAGER(NotificationArea.CLUB, MemberNotificationType.GROUP_KICKED_BY_MANAGER, MemberEventLockReason.ACTION, null);
+    GROUP_KICKED_BY_MANAGER(NotificationArea.CLUB, MemberNotificationType.GROUP_KICKED_BY_MANAGER, MemberEventLockReason.ACTION, null),
+
+    // ── 소모임 일정(V92 — 소모임 4단계) — 소모임 알림 중 유일하게 회원이 끌 수 있다(잠금 없음 — 개인 설정의 「소모임 일정」, community api-groups.md 9절) ──
+    GROUP_EVENT(NotificationArea.CLUB, MemberNotificationType.GROUP_EVENT, null, null);
 
     private static final Map<String, MemberEvent> BY_CODE = Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(MemberEvent::code, Function.identity()));
 

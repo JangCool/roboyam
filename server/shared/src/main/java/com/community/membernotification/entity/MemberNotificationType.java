@@ -90,7 +90,14 @@ public enum MemberNotificationType {
     /** 매니저가 스스로 물러났다(모임장에게) — 일으킨 사람 = 물러난 매니저(덧붙임 actorId). 누르면 멤버 관리 */
     GROUP_MANAGER_RESIGNED("system"),
     /** 매니저가 멤버를 강퇴했다(모임장에게) — 일으킨 사람 = 강퇴한 매니저, 덧붙임 targetId(내보낸 멤버). 누르면 멤버 관리 */
-    GROUP_KICKED_BY_MANAGER("system");
+    GROUP_KICKED_BY_MANAGER("system"),
+
+    // ── 소모임 일정(V92 — group-contract 4단계, community api-groups.md 9절 「알림 GROUP_EVENT」). 소모임 알림 중 유일하게 회원이 끌 수 있다 ──
+    /**
+     * 내가 멤버인 소모임의 일정이 등록·수정·취소됐다 — 덧붙임 groupId·groupName·eventId·title(일정 제목)·eventAction(CREATED · UPDATED · CANCELED)·reason(취소 사유, 적었을 때만).
+     * 일으킨 사람 = 한 사람(모임장 · 일정 관리를 맡은 매니저). 누르면 그 일정({@code /groups/{groupId}/events/{eventId}})
+     */
+    GROUP_EVENT("system");
 
     private final String category;
 

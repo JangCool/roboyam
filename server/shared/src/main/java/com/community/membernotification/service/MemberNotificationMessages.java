@@ -164,6 +164,14 @@ public class MemberNotificationMessages {
             return new Facts(type, actorName, null, targetName, 1, 0, null, permissionKeys, false, groupName, null);
         }
 
+        /**
+         * 소모임 일정 알림(V92 — {@code GROUP_EVENT}) — 소모임 이름({@code snapshot}) · 일정 제목({@code postTitle}) · 한 일({@code result} — CREATED · UPDATED · CANCELED)
+         * · 취소 사유({@code note} — 적었을 때만).
+         */
+        public static Facts groupEvent(String groupName, String eventTitle, String action, String reason) {
+            return new Facts(MemberNotificationType.GROUP_EVENT, null, eventTitle, null, 1, 0, null, reason, false, groupName, action);
+        }
+
         /** 닉네임 그림 검토 결과 — 반려·해제면 사유 */
         public static Facts nicknameReviewed(String result, String reason) {
             return new Facts(MemberNotificationType.NICKNAME_IMAGE_REVIEWED, null, null, null, 1, 0, null, reason, false, null, result);
@@ -311,6 +319,9 @@ public class MemberNotificationMessages {
             case GROUP_MANAGER_RESIGNED -> builder.variable("groupName", nz(facts.snapshot())).variable("actorName", nz(facts.actorName()));
             case GROUP_KICKED_BY_MANAGER -> builder.variable("groupName", nz(facts.snapshot())).variable("actorName", nz(facts.actorName()))
                     .variable("targetName", nz(facts.excerpt()));
+            case GROUP_EVENT -> builder.variable("groupName", nz(facts.snapshot()))
+                    .variable("eventAction", messages.get(new MessageRef("member.notification.GROUP_EVENT.action." + eventAction(facts.result())), locale))
+                    .variable("eventTitle", nz(facts.postTitle())).variable("reason", nz(facts.note()));
             case POINTS_EXPIRING -> builder.variable("amount", String.format("%,d", facts.amount()))
                     .variable("date", facts.expiring() == null || facts.expiring().date() == null ? "" : facts.expiring().date().toString())
                     .variable("days", facts.expiring() == null ? "" : String.valueOf(facts.expiring().days()));
@@ -416,7 +427,17 @@ public class MemberNotificationMessages {
             Locale locale = MessageLocales.locale(picked.locale());
             return messages.get(new MessageRef("member.notification." + facts.type().name() + ".staff.body", nz(facts.snapshot()), actionReason(facts, locale)), locale);
         }
+        if (facts.type() == MemberNotificationType.GROUP_EVENT && facts.note() != null && !facts.note().isBlank()) {
+            // 사유를 적은 일정 취소 — 본문 「일정 제목 · 사유」
+            Locale locale = MessageLocales.locale(picked.locale());
+            return messages.get(new MessageRef("member.notification.GROUP_EVENT.reasonBody", nz(facts.postTitle()), facts.note()), locale);
+        }
         return null;
+    }
+
+    /** 일정 알림의 한 일 — 모르는 값은 등록으로 본다 */
+    private static String eventAction(String action) {
+        return "UPDATED".equals(action) || "CANCELED".equals(action) ? action : "CREATED";
     }
 
     /** 신고 처리 결과 — 모르는 값은 조치됨으로 본다 */

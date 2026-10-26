@@ -99,6 +99,18 @@ public class GroupNotices {
                 membersPath(g));
     }
 
+    // ── 일정(4단계 — api-groups.md 9절 「알림 GROUP_EVENT」) ──────────────────
+
+    /**
+     * 일정 등록·수정·취소 → 멤버 한 명(일을 한 사람 제외 — 부르는 쪽이 멤버마다). 회원이 끌 수 있는 알림이다.
+     *
+     * @param action CREATED · UPDATED · CANCELED
+     * @param reason 취소 사유(적었을 때만, 그 밖 null)
+     */
+    public void event(GroupEntity g, long userId, long actorId, long eventId, String eventTitle, String action, String reason) {
+        publisher.groupEvent(userId, g.getId(), g.getName(), eventId, eventTitle, action, reason, actorId);
+    }
+
     private static String managePath(GroupEntity g) {
         return "/groups/" + g.getId() + "/manage";
     }

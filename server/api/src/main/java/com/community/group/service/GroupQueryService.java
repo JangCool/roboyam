@@ -15,6 +15,7 @@ import com.community.group.dto.response.GroupRowView;
 import com.community.group.dto.response.MyGroupsView;
 import com.community.group.entity.GroupCategoryEntity;
 import com.community.group.entity.GroupEntity;
+import com.community.group.entity.GroupEventEntity;
 import com.community.group.entity.GroupManagerPermission;
 import com.community.group.entity.GroupMemberEntity;
 import com.community.group.entity.GroupMemberStatus;
@@ -22,6 +23,7 @@ import com.community.group.entity.GroupRole;
 import com.community.group.entity.GroupStatus;
 import com.community.group.exception.GroupNotFoundException;
 import com.community.group.exception.GroupNotMemberException;
+import com.community.group.repository.master.GroupEventQueries;
 import com.community.group.repository.master.GroupMemberRepository;
 import com.community.group.repository.master.GroupPostQueries;
 import com.community.group.repository.master.GroupRepository;
@@ -61,6 +63,7 @@ public class GroupQueryService {
     private final GroupMemberRepository members;
     private final GroupRepositoryQDSL queries;
     private final GroupPostQueries groupPosts;
+    private final GroupEventQueries groupEvents;
     private final GroupViews views;
     private final GroupPeople people;
     private final GroupSettingsService settings;
@@ -70,8 +73,9 @@ public class GroupQueryService {
 
     public GroupQueryService(GroupRepository groups, GroupMemberRepository members, GroupRepositoryQDSL queries, GroupViews views, GroupPeople people,
                              GroupSettingsService settings, GroupAccess access, BoardActorResolver actors,
-                             BoardCatalog catalog, GroupPostQueries groupPosts) {
+                             BoardCatalog catalog, GroupPostQueries groupPosts, GroupEventQueries groupEvents) {
         this.groupPosts = groupPosts;
+        this.groupEvents = groupEvents;
         this.groups = groups;
         this.members = members;
         this.queries = queries;
@@ -266,8 +270,11 @@ public class GroupQueryService {
         Map<Long, GroupEntity> byId = new HashMap<>();
         groups.findAllById(rows.stream().map(GroupMemberEntity::getGroupId).toList()).forEach(g -> byId.put(g.getId(), g));
         // 새 글 수(2단계) — 가입한 소모임 모두를 질의 한 번으로(마지막으로 본 뒤 올라온 남의 글)
-        Map<Long, Long> newPosts = groupPosts.newPostCounts(me, rows.stream().filter(GroupMemberEntity::active).map(GroupMemberEntity::getGroupId).toList(),
-                Instant.now());
+        List<Long> joinedIds = rows.stream().filter(GroupMemberEntity::active).map(GroupMemberEntity::getGroupId).toList();
+        Instant now = Instant.now();
+        Map<Long, Long> newPosts = groupPosts.newPostCounts(me, joinedIds, now);
+        // 다음 일정(4단계) — 가입한 소모임 모두의 가장 가까운 시작 전 일정을 질의 한 번으로
+        Map<Long, GroupEventEntity> nextEvents = groupEvents.nextEvents(joinedIds, now);
         List<MyGroupsView.Joined> joined = new ArrayList<>();
         List<MyGroupsView.Application> applications = new ArrayList<>();
         rows.stream().sorted((a, b) -> compareDesc(a.getStatus() == GroupMemberStatus.ACTIVE ? a.getJoinedAt() : a.getAppliedAt(),
@@ -278,7 +285,9 @@ public class GroupQueryService {
             }
             GroupRowView row = views.row(g, GroupViews.myState(g, m, me), ctx);
             if (m.getStatus() == GroupMemberStatus.ACTIVE) {
-                joined.add(new MyGroupsView.Joined(row, m.getRole().name(), m.getJoinedAt(), newPosts.getOrDefault(g.getId(), 0L).intValue(), null));
+                GroupEventEntity next = nextEvents.get(g.getId());
+                joined.add(new MyGroupsView.Joined(row, m.getRole().name(), m.getJoinedAt(), newPosts.getOrDefault(g.getId(), 0L).intValue(),
+                        next == null ? null : new MyGroupsView.NextEvent(Long.toString(next.getId()), next.getTitle(), next.getStartsAt())));
             } else {
                 applications.add(new MyGroupsView.Application(row, m.getAppliedAt()));
             }

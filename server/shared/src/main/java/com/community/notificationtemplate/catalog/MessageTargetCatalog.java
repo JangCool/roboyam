@@ -240,6 +240,11 @@ public final class MessageTargetCatalog {
                         MessageVariable.of("targetName", "groupKickedMember")),
                 new InAppText("member.notification.GROUP_KICKED_BY_MANAGER.title", null, null, List.of("groupName", "actorName", "targetName")),
                 "/groups/123/manage/members", List.of()));
+        // 소모임 일정(V92 — group-contract 4단계) — 제목은 소모임 이름 + 한 일(「새 일정이 등록됐어요」·「일정이 수정됐어요」·「일정이 취소됐어요」), 본문은 일정 제목(+취소 사유)
+        out.add(member(MemberEvent.GROUP_EVENT, List.of(MessageVariable.of("groupName", "groupName"), MessageVariable.of("eventAction", "groupEventAction"),
+                        MessageVariable.of("eventTitle", "groupEventTitle"), MessageVariable.of("reason", "groupEventCancelReason")),
+                new InAppText("member.notification.GROUP_EVENT.title", null, "{{eventTitle}}", List.of("groupName", "eventAction")), "/groups/123/events/456",
+                List.of()));
         return out;
     }
 

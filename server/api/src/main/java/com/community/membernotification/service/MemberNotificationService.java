@@ -213,7 +213,7 @@ public class MemberNotificationService {
         if (type == MemberNotificationType.COMMENT || type == MemberNotificationType.REPLY || type == MemberNotificationType.DM
                 || type == MemberNotificationType.OPINION_PIN_REQUESTED || type == MemberNotificationType.GROUP_JOIN_REQUEST
                 || type == MemberNotificationType.GROUP_POST_UNPUBLISHED || type == MemberNotificationType.GROUP_MANAGER_RESIGNED
-                || type == MemberNotificationType.GROUP_KICKED_BY_MANAGER) {
+                || type == MemberNotificationType.GROUP_KICKED_BY_MANAGER || type == MemberNotificationType.GROUP_EVENT) {
             actor = actorOf(row, profileById, userById, locale);
         }
 
@@ -322,6 +322,15 @@ public class MemberNotificationService {
                     case GROUP_MANAGER_REMOVED -> "/groups/" + groupId;
                     default -> "/groups/" + groupId + "/manage/members";
                 };
+            }
+            case GROUP_EVENT -> {
+                // 소모임 일정(V92) — 소모임 이름 · 일정 제목(알릴 때) · 한 일(CREATED · UPDATED · CANCELED) · 취소 사유. 누르면 그 일정(community api-groups.md 9절)
+                String groupId = payload.get("groupId") instanceof String g && !g.isBlank() ? g : null;
+                String eventId = payload.get("eventId") instanceof String e && !e.isBlank() ? e : null;
+                facts = MemberNotificationMessages.Facts.groupEvent(payload.get("groupName") instanceof String n ? n : null,
+                        payload.get("title") instanceof String t ? t : null, payload.get("eventAction") instanceof String a ? a : null,
+                        payload.get("reason") instanceof String why && !why.isBlank() ? why : null);
+                link = groupId == null ? "/groups/me" : eventId == null ? "/groups/" + groupId : "/groups/" + groupId + "/events/" + eventId;
             }
             case REPORT_RESULT -> {
                 // 내 신고의 처리 결과 — 조치됨 · 위반 아님(신고 당시 제목·앞부분). 글을 볼 수 있으면 그 글로

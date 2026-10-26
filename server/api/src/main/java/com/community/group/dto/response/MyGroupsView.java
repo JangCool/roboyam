@@ -18,9 +18,13 @@ public record MyGroupsView(List<Joined> joined, List<Application> applications, 
     /**
      * @param role         LEADER · MANAGER · MEMBER
      * @param newPostCount 내가 글 탭을 마지막으로 본 뒤(본 적이 없으면 가입 뒤) 올라온 남의 보이는 글 수(2단계)
-     * @param nextEvent    다음 일정(4단계 — 지금 늘 null)
+     * @param nextEvent    그 소모임의 가장 가까운 시작 전(UPCOMING) 일정(4단계), 없으면 null
      */
-    public record Joined(@JsonUnwrapped GroupRowView group, String role, Instant joinedAt, int newPostCount, Object nextEvent) {
+    public record Joined(@JsonUnwrapped GroupRowView group, String role, Instant joinedAt, int newPostCount, NextEvent nextEvent) {
+    }
+
+    /** 내 소모임 한 줄의 다음 일정(community {@code NextEvent}) — 취소·시작한 일정은 빠진다 */
+    public record NextEvent(String id, String title, Instant startsAt) {
     }
 
     public record Application(@JsonUnwrapped GroupRowView group, Instant appliedAt) {
