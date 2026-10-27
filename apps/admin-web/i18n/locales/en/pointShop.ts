@@ -300,9 +300,7 @@ export default {
         col: {
             pick: 'Select',
             category: 'Category',
-            total: 'Total',
-            forSale: 'On sale',
-            stopped: 'Stopped',
+            saleOfTotal: 'On sale / total',
             price: 'Price',
         },
         free: 'Free',
@@ -310,8 +308,10 @@ export default {
         pickCategory: 'Select category {name}',
         noteFree: 'Free categories (Basic, Hobbies & characters) aren’t items — anyone can pick them. Their price and sale can’t be changed.',
         noteOwned: 'Members who already bought an avatar can keep using it even when sales stop. Price changes don’t affect past purchases.',
-        noteFixed: 'Avatars are catalog items — they can’t be created or deleted. Click one in the grid below to change its name, price, order or status.',
+        noteFixed: 'Avatars are catalog items — they can’t be created or deleted. Click one in the grid to change its name, price, order or status.',
         bulkTitle: 'Bulk change',
+        openBulk: 'Bulk change · {count}',
+        stoppedCount: '{count} stopped',
         scopeLabel: 'Scope',
         scope: {
             ALL: 'All paid ({count})',

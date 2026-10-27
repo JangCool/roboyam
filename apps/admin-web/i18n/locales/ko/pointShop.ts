@@ -300,9 +300,7 @@ export default {
         col: {
             pick: '고르기',
             category: '카테고리',
-            total: '전체',
-            forSale: '판매 중',
-            stopped: '중단',
+            saleOfTotal: '판매 중 / 전체',
             price: '가격',
         },
         free: '무료',
@@ -310,8 +308,10 @@ export default {
         pickCategory: '{name} 카테고리 고르기',
         noteFree: '무료 카테고리(기본형·취미·캐릭터)는 품목이 아니라 누구나 고를 수 있어요. 가격·판매를 바꿀 수 없어요.',
         noteOwned: '판매를 꺼도 이미 산 회원은 계속 고를 수 있어요. 가격을 바꿔도 이미 산 구매의 가격은 그대로예요.',
-        noteFixed: '아바타는 카탈로그 품목이라 새로 만들거나 지울 수 없어요. 아래 격자에서 하나를 누르면 이름·가격·순서·판매 여부를 고쳐요.',
+        noteFixed: '아바타는 카탈로그 품목이라 새로 만들거나 지울 수 없어요. 격자에서 하나를 누르면 이름·가격·순서·판매 여부를 고쳐요.',
         bulkTitle: '묶음 변경',
+        openBulk: '묶음 변경 · {count}개',
+        stoppedCount: '판매 중단 {count}개',
         scopeLabel: '범위',
         scope: {
             ALL: '유료 전체 {count}개',

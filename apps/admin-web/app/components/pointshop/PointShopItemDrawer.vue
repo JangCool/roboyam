@@ -23,7 +23,7 @@
             </div>
         </template>
 
-        <form :id="formId" class="grid min-w-0 gap-6 pb-4 lg:grid-cols-[minmax(0,1fr)_22rem]" novalidate @submit.prevent="submit">
+        <form :id="formId" class="grid min-w-0 gap-6 pb-4 lg:grid-cols-[minmax(0,1fr)_auto_22rem]" novalidate @submit.prevent="submit">
             <div class="flex min-w-0 flex-col gap-6">
                 <!-- ① 종류 -->
                 <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-kind`">
@@ -230,6 +230,10 @@
 
                 <Message v-if="otherError" severity="error" size="small" variant="simple" :closable="false" role="alert">{{ otherError }}</Message>
             </div>
+
+            <!-- 입력과 미리보기를 나누는 선 — 넓은 화면은 세로, 좁은 화면(미리보기가 입력 아래)은 가로 -->
+            <Divider layout="vertical" class="m-0! hidden lg:flex" />
+            <Divider class="m-0! lg:hidden" />
 
             <!-- 미리보기 — 넓은 화면은 오른쪽에 붙어 있고, 좁은 화면은 입력 아래 -->
             <aside class="min-w-0 lg:sticky lg:top-0 lg:self-start">
