@@ -61,7 +61,9 @@ class PointMigrationConversionTest {
     private static Flyway flyway(MigrationVersion target) {
         var configuration = SchemaMigration.STANDARD.configure(Flyway.configure().dataSource(legacy), SchemaMigration.SHARED);
         if (target != null) {
-            configuration.target(target);
+            // 옛 판까지 올릴 때는 반복 마이그레이션(R__)을 빼고 올린다 — R__ 는 늘 지금 판 표를 가정해(예: R__batch_24 가 소모임 V90 의 group_id) 옛 판에서 실패한다.
+            // 반복 마이그레이션은 마지막 전체 migrate 가 모두 적용한다.
+            configuration.target(target).repeatableSqlMigrationPrefix("NOT_A_REPEATABLE__");
         }
         return configuration.load();
     }
