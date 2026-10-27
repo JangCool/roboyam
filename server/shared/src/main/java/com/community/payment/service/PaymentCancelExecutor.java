@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -38,10 +39,13 @@ import org.springframework.transaction.support.TransactionTemplate;
  * 취소 한 건 실행(계약 「확정 흐름」 5, commerce.md 8-3) — 커밋 뒤 즉시 시도({@link #attemptNow})와 1분 워커({@code PaymentCancelWorker})가 같은 길을 쓴다.
  *
  * <ol>
- *   <li><b>집기</b>: {@code PENDING → SENDING}(+{@code locked_by}) 조건부 UPDATE 로 한쪽만 집는다(즉시 시도와 워커가 부딪쳐도 한 번).</li>
+ *   <li><b>집기</b>: {@code PENDING → SENDING}(+{@code locked_by}) 조건부 UPDATE 로 한쪽만 집는다(즉시 시도와 워커가 부딪쳐도 한 번). 한 결제에 SENDING 은 하나(V100 부분 유일 색인)라
+ *       같은 결제의 취소는 줄을 서서 하나씩 나간다.</li>
  *   <li><b>재시도 전 조회</b>(두 번째 시도부터): 포트원 결제를 조회해 우리 취소(취소 내역 아이디 또는 사유의 {@code rc:<취소 ID>} 표시)가 이미 SUCCEEDED 면 보내지 않고 성공으로 맞춘다,
  *       REQUESTED(접수만)면 보내지 않고 기다린다 — 시간 초과·「접수만」 뒤의 이중 취소를 막는다.</li>
- *   <li><b>보내기</b>: 새 트랜잭션에서 결제 주문 행을 잠그고 포트원 취소에 {@code amount}·{@code currentCancellableAmount}(결제 − 취소됨)·{@code reason} 을 보낸다.</li>
+ *   <li><b>보내기</b>: <b>DB 트랜잭션 밖에서</b> 포트원 취소에 {@code amount}·{@code currentCancellableAmount}(결제 − 취소됨, 보내기 직전에 읽은 값)·{@code reason} 을 보낸다.
+ *       포트원 응답을 기다리는 동안 결제 주문 행을 잠그지 않는다 — 같은 결제의 확정·웹훅·관리자 처리가 PG 응답 시간만큼 막히지 않게(community 의 「접수 커밋 → 트랜잭션 밖 PG → 조건부 마무리」와 같다).
+ *       결과는 새 트랜잭션에서 결제 주문 행을 잠그고 남긴다. 응답을 받은 뒤 기록 전에 서버가 죽어도 줄은 SENDING 으로 남아 「오래 머문 줄 되돌리기 → 재시도 전 조회」가 맞춘다.</li>
  *   <li><b>성공</b>: 취소 줄을 SUCCEEDED 로(이긴 쪽만) → 결제 주문의 취소 누계를 조건부로 늘리고({@code canceled_amount + 금액 ≤ paid_amount}) 상태를 부분/전액 취소로 → 처리기 {@code onCanceled}(한 번).</li>
  *   <li><b>실패·접수만·연결 실패</b>: 시도 한도(즉시 1 + 재시도 5)까지 간격 1·5·30·120·720분으로 다시, 다 쓰면 GAVE_UP + 결제 이상 운영자 알림(P17 — 도메인 확정은 없다).</li>
  * </ol>
@@ -93,7 +97,13 @@ public class PaymentCancelExecutor {
      */
     public boolean attemptNow(long cancelId) {
         // 커밋 뒤 단계에서는 끝난 트랜잭션의 연결이 아직 묶여 있다 — 새 트랜잭션으로 집어 확정해야 다른 연결(보내기)이 SENDING 을 본다
-        Optional<CancelRow> claimed = separate.execute(status -> cancels.claimOne(cancelId, nodeId, now()));
+        Optional<CancelRow> claimed;
+        try {
+            claimed = separate.execute(status -> cancels.claimOne(cancelId, nodeId, now()));
+        } catch (DuplicateKeyException e) {
+            // 같은 결제의 다른 취소를 다른 서버가 막 집었다(한 결제에 보내는 중은 하나 — V100) — 이 줄은 PENDING 그대로, 워커가 다음 바퀴에 집는다
+            return false;
+        }
         claimed.ifPresent(this::execute);
         return claimed.isPresent();
     }
@@ -114,7 +124,7 @@ public class PaymentCancelExecutor {
                     return;
                 }
             }
-            separate.executeWithoutResult(status -> send(claimed));
+            send(claimed);
         } catch (PaymentGatewayUnavailableException | PaymentNotConfiguredException e) {
             log.warn("포트원 취소를 보내지 못했다 cancelId={} attempts={} 원인={}", claimed.id(), claimed.attempts(), e.getErrorCode());
             failSeparately(claimed, e.getErrorCode());
@@ -134,17 +144,21 @@ public class PaymentCancelExecutor {
         return Boolean.TRUE.equals(done);
     }
 
-    /** 결제 주문 행을 잠그고 보낸다 → 성공이면 끝내고, 아니면 재시도·GAVE_UP(같은 트랜잭션) */
+    /**
+     * 트랜잭션 밖에서 보낸다 → 결과는 새 트랜잭션에서 결제 주문 행을 잠그고 남긴다(성공이면 끝내고, 아니면 재시도·GAVE_UP).
+     * 잔액({@code currentCancellableAmount})은 보내기 직전에 읽는다 — 이 결제에 보내는 중인 취소는 이 줄뿐이라(V100) 같은 결제의 다른 취소와 같은 잔액으로 겹쳐 나가지 않는다.
+     * 그래도 잔액이 어긋나면(늦게 맞춰진 이전 취소·콘솔 직접 취소) 포트원이 거절하고, 재시도가 새 잔액으로 보낸다(이중 취소 없음).
+     */
     private void send(CancelRow claimed) {
-        OrderRow locked = orders.lockById(claimed.paymentOrderId()).orElseThrow();
-        PgCancelResult result = gateway.cancel(locked.paymentId(), claimed.amount(), locked.cancellable(), providerReason(claimed));
+        OrderRow order = orders.findById(claimed.paymentOrderId()).orElseThrow();
+        PgCancelResult result = gateway.cancel(order.paymentId(), claimed.amount(), order.cancellable(), providerReason(claimed));
         if (result.succeeded()) {
-            finish(claimed, nodeId, result.cancellationId());
+            separate.executeWithoutResult(status -> finish(claimed, nodeId, result.cancellationId()));
             return;
         }
         String error = result.errorType() == null ? "PG_" + result.status().name() : result.errorType();
         log.warn("포트원 취소가 끝나지 않았다 cancelId={} attempts={} pgStatus={} type={}", claimed.id(), claimed.attempts(), result.status(), error);
-        retryOrGiveUp(claimed, locked, result.status(), result.cancellationId(), error);
+        separate.executeWithoutResult(status -> retryOrGiveUp(claimed, orders.lockById(claimed.paymentOrderId()).orElseThrow(), result.status(), result.cancellationId(), error));
     }
 
     /**

@@ -50,6 +50,8 @@ final class TestGateway implements PaymentGateway {
     volatile boolean listDown;
     /** 조회만 실패하는 결제 ID(건별 장애) */
     final java.util.Set<String> downFor = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /** 취소 요청이 「포트원에 가 있는 동안」 할 일(결제 ID) — 그동안 DB 가 어떤 상태인지 보려고 */
+    volatile java.util.function.Consumer<String> whileCancelling;
 
     TestGateway(FakePaymentGateway fake) {
         this.fake = fake;
@@ -65,6 +67,7 @@ final class TestGateway implements PaymentGateway {
         notConfigured = false;
         listDown = false;
         downFor.clear();
+        whileCancelling = null;
     }
 
     synchronized void script(CancelScript... next) {
@@ -112,6 +115,10 @@ final class TestGateway implements PaymentGateway {
         cancelCalls.incrementAndGet();
         cancelCurrentCancellable.add(currentCancellableAmount);
         cancelReasons.add(reason);
+        java.util.function.Consumer<String> during = whileCancelling;
+        if (during != null) {
+            during.accept(paymentId);
+        }
         CancelScript script = nextScript();
         if (script == null) {
             return fake.cancel(paymentId, amount, currentCancellableAmount, reason);

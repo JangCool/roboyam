@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
 /**
@@ -20,7 +21,8 @@ import org.springframework.stereotype.Component;
  *
  * <ol>
  *   <li>SENDING 으로 {@code roboyam.payment.cancel-stale}(10분) 넘게 머문 줄(보내던 서버가 죽었다)을 PENDING 으로 되돌린다 — 다음 시도의 「재시도 전 조회」가 이중 취소를 막는다.</li>
- *   <li>차례가 된 줄을 {@code FOR UPDATE SKIP LOCKED} 로 {@code cancel-batch-size}(20)줄까지 집는다 — 서버 여럿이 돌아도 같은 취소를 두 번 집지 않는다.</li>
+ *   <li>차례가 된 줄을 {@code FOR UPDATE SKIP LOCKED} 로 {@code cancel-batch-size}(20)줄까지 집는다 — 서버 여럿이 돌아도 같은 취소를 두 번 집지 않고,
+ *       한 결제에서는 보내는 중인 취소가 하나뿐이다(V100).</li>
  *   <li>줄마다 {@link PaymentCancelExecutor#execute} — 줄 사이에 {@code cancel-gap}(200ms)을 둔다(PG 호출 속도 제한, commerce.md 8-3).</li>
  * </ol>
  */
@@ -68,7 +70,14 @@ public class PaymentCancelWorker {
         if (recovered > 0) {
             log.warn("보내던 중 멈춘 취소 대기열 줄을 되돌렸다 count={}", recovered);
         }
-        List<CancelRow> claimed = cancels.claimDue(properties.cancelBatchSize(), executor.nodeId(), now);
+        List<CancelRow> claimed;
+        try {
+            claimed = cancels.claimDue(properties.cancelBatchSize(), executor.nodeId(), now);
+        } catch (DuplicateKeyException e) {
+            // 다른 서버가 같은 결제의 취소를 막 집었다(한 결제에 보내는 중은 하나 — V100) — 이번 바퀴는 건너뛰고 다음 바퀴에 집는다
+            log.info("같은 결제의 취소를 다른 서버가 먼저 집어 이번 바퀴를 건너뛴다");
+            return 0;
+        }
         for (int i = 0; i < claimed.size(); i++) {
             if (i > 0 && !properties.cancelGap().isZero()) {
                 try {

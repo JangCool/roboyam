@@ -70,18 +70,31 @@ public class PaymentCancelStore {
         return sum == null ? 0 : sum;
     }
 
-    /** 그 한 줄을 집는다(즉시 시도) — PENDING 이고 차례가 됐을 때만 SENDING·시도 +1 */
+    /** 같은 결제 주문에 보내는 중(SENDING)인 취소가 없다 — 한 결제의 취소는 하나씩 나간다(V100 의 부분 유일 색인이 마지막 방어선) */
+    private static final String NO_SENDING_SIBLING = "NOT EXISTS (SELECT 1 FROM payment_cancels s WHERE s.payment_order_id = c.payment_order_id AND s.status = 'SENDING')";
+
+    /**
+     * 그 한 줄을 집는다(즉시 시도) — PENDING 이고 차례가 됐고 같은 결제에 보내는 중인 취소가 없을 때만 SENDING·시도 +1.
+     * 다른 서버와 같은 결제의 줄을 동시에 집으면 늦게 커밋하는 쪽이 {@link org.springframework.dao.DuplicateKeyException} 을 받는다 — 부르는 쪽이 「못 집음」으로 다룬다.
+     */
     public Optional<CancelRow> claimOne(long id, int nodeId, Instant now) {
-        return jdbc.query("UPDATE payment_cancels SET status = 'SENDING', locked_by = ?, locked_at = ?, attempts = attempts + 1 "
-                + "WHERE id = ? AND status = 'PENDING' AND next_attempt_at <= ? RETURNING " + COLUMNS, PaymentCancelStore::row, nodeId, ts(now), id, ts(now))
-                .stream().findFirst();
+        return jdbc.query("UPDATE payment_cancels c SET status = 'SENDING', locked_by = ?, locked_at = ?, attempts = attempts + 1 "
+                + "WHERE c.id = ? AND c.status = 'PENDING' AND c.next_attempt_at <= ? AND " + NO_SENDING_SIBLING + " RETURNING " + COLUMNS, PaymentCancelStore::row,
+                nodeId, ts(now), id, ts(now)).stream().findFirst();
     }
 
-    /** 차례가 된 줄을 집는다 — {@code FOR UPDATE SKIP LOCKED} 로 다른 워커가 집는 중인 줄은 건너뛰고 SENDING·시도 +1 */
+    /**
+     * 차례가 된 줄을 집는다 — {@code FOR UPDATE SKIP LOCKED} 로 다른 워커가 집는 중인 줄은 건너뛰고 SENDING·시도 +1.
+     * 한 결제에서는 보내는 중인 취소가 없을 때 차례가 가장 이른 한 줄만 집는다(나머지는 앞의 것이 끝난 다음 바퀴).
+     * 서버끼리 같은 결제의 줄을 동시에 집으면 {@link org.springframework.dao.DuplicateKeyException} — 부르는 쪽이 이번 바퀴를 건너뛴다.
+     */
     public List<CancelRow> claimDue(int limit, int nodeId, Instant now) {
         return jdbc.query("UPDATE payment_cancels SET status = 'SENDING', locked_by = ?, locked_at = ?, attempts = attempts + 1 "
-                + "WHERE id IN (SELECT id FROM payment_cancels WHERE status = 'PENDING' AND next_attempt_at <= ? ORDER BY next_attempt_at, id LIMIT ? FOR UPDATE SKIP LOCKED) "
-                + "RETURNING " + COLUMNS, PaymentCancelStore::row, nodeId, ts(now), ts(now), limit).stream()
+                + "WHERE id IN (SELECT c.id FROM payment_cancels c WHERE c.status = 'PENDING' AND c.next_attempt_at <= ? AND " + NO_SENDING_SIBLING + " "
+                + "AND NOT EXISTS (SELECT 1 FROM payment_cancels e WHERE e.payment_order_id = c.payment_order_id AND e.status = 'PENDING' AND e.next_attempt_at <= ? "
+                + "AND (e.next_attempt_at, e.id) < (c.next_attempt_at, c.id)) "
+                + "ORDER BY c.next_attempt_at, c.id LIMIT ? FOR UPDATE OF c SKIP LOCKED) "
+                + "RETURNING " + COLUMNS, PaymentCancelStore::row, nodeId, ts(now), ts(now), ts(now), limit).stream()
                 .sorted(java.util.Comparator.comparing(CancelRow::nextAttemptAt).thenComparingLong(CancelRow::id)).toList();
     }
 

@@ -51,7 +51,7 @@
 2. 한 트랜잭션: `READY|EXPIRED → PAID` 조건부 UPDATE(이긴 쪽만) → 늦은 결제 판정(결정 4) → 금액·통화 → `onPaid` → REJECT 면 anomaly + `AUTO_REJECT` 취소 넣기. 늦은 결제·금액 불일치는 `onPaid` 를 부르지 않는다.
 3. 핸들러 예외 = 전체 되돌림(READY 그대로, 취소 없음) → 다음 웹훅·READY 정리가 다시 시도.
 4. 커밋 뒤 이벤트로 그 자리에서 취소를 한 번 시도, 실패하면 1분 워커가 이어 받는다(D10 「즉시 시도」). 워커와 즉시 시도는 `PENDING → SENDING`(+`locked_by`) 조건부 UPDATE 로 한쪽만 집는다.
-5. 취소 실행: 결제 주문 행 잠금 → 포트원 `POST /payments/{id}/cancel`(`amount`·`currentCancellableAmount`·`reason`) → 성공이면 `canceled_amount` 조건부 증가(`WHERE canceled_amount + :amt <= paid_amount`)·상태 갱신·`onCanceled`. **재시도 전에는 먼저 결제를 조회해 이미 취소됐으면 SUCCEEDED 로 맞춘다**(시간 초과·「접수만」 대비). 간격 1·5·30·120·720분, 5회 실패 → `GAVE_UP` + 결제 이상 목록 + 운영자 알림.
+5. 취소 실행(**2026-10-28 고침 — 포트원 호출은 잠금 밖, 아래 「2a 보강 — 취소 호출을 잠금 밖으로」**): ~~결제 주문 행 잠금 →~~ 포트원 `POST /payments/{id}/cancel`(`amount`·`currentCancellableAmount`·`reason`) → 성공이면 `canceled_amount` 조건부 증가(`WHERE canceled_amount + :amt <= paid_amount`)·상태 갱신·`onCanceled`. **재시도 전에는 먼저 결제를 조회해 이미 취소됐으면 SUCCEEDED 로 맞춘다**(시간 초과·「접수만」 대비). 간격 1·5·30·120·720분, 5회 실패 → `GAVE_UP` + 결제 이상 목록 + 운영자 알림.
 
 ## 세션 정리 결정 (제안 ⑥ — 모두 추천안으로 승인 2026-10-26)
 1. **PG 설정 위치**: DB(`portone_settings`). commerce.md 8-5 의 「환경 변수」를 고쳤다. 포트원/가짜 선택만 배포 설정 `roboyam.payment.gateway`(공통 portone, local fake).
@@ -285,3 +285,9 @@
   - 결제창 닫기(이니시스, `pay_C9GFdguw…`): SDK 응답이 `Cancelled` 가 아니어서 실패로 보였다. 포트원 서버 기록은 `FAILED` + 사유 「사용자가 결제를 취소하였습니다」(코드 없음). `/dev/payment` 가 포트원 실패 안내 옆에 `code`·`pgCode` 를 보이게 고치고, 포트원 실패 안내를 「같은 결제 번호로 다시 열 수 있어요」(`PG_FAILED`)로 나눴다 — 실제 코드를 본 뒤 `UtilPortone.isUserCancel` 규칙을 정한다.
   - 창 닫기 실제 코드(이니시스 V2 테스트, 2026-10-27): SDK 응답 `code: FAILURE_TYPE_PG`, `pgCode` 없음, `message` 「사용자가 결제를 취소하였습니다」. 코드가 카드 거절 같은 PG 실패와 같아 **문구로 가른다**: `UtilPortone.isUserCancel(code, message)` = `Cancelled` 또는 (`FAILURE_TYPE_PG` ∧ 문구 「사용자 … 취소」). 결제창·본인인증이 같이 쓴다. 다른 PG 를 붙이면 그 PG 의 창 닫기 문구를 다시 확인한다.
   - 본인인증 창(2026-10-28, 로컬 포트원 모드 · e2el1): 「휴대폰 본인인증 하기」 → 서버가 `iv-…` 발급(PORTONE · PENDING) → SDK 가 이름 `PortOne` 팝업을 연다(iframe 아님 — 열린 창은 포트원 쪽 주소). 창을 닫으면 단추가 원래대로 돌아오고 오류 안내 없이 끝난다(`CANCELLED`). 완료 요청을 보내지 않으므로 시도 기록은 PENDING 으로 남고, 만료는 30분 뒤 완료 요청이 오면 서버가 410 `IDENTITY_VERIFICATION_EXPIRED` 로 판정한다. 실제 인증(휴대폰 번호 입력)은 개인정보가 필요해 하지 않았다. 창 닫기의 SDK 응답 코드 자체는 화면에 보이지 않아 따로 적지 않았다.
+
+## 2a 보강 — 취소 호출을 잠금 밖으로 (2026-10-28, V100)
+- **왜**: 「확정 흐름」 5 는 결제 주문 행을 잠근 채 포트원 취소를 불렀다. 포트원 응답(최대 시간 초과까지)을 기다리는 동안 같은 결제의 확정·웹훅·관리자 처리가 막히고, 공구 불발처럼 취소가 몰리면 DB 연결과 잠금이 PG 응답 시간에 묶인다. 문제가 생기기 전에 막는다(사용자 지시 2026-10-28). community 도 「접수 커밋 → 트랜잭션 밖 PG 호출 → 조건부 마무리」로 바꿨다(community `decisions.md` 「구현에서 정한 것 — BE-C」).
+- **바뀐 흐름**(「확정 흐름」 5 를 대신한다): ① 집기 = `PENDING → SENDING` 커밋(전과 같다) ② 재시도 전 조회(전과 같다) ③ **잠금 없이** 보내기 직전의 잔액(`paid − canceled`)을 읽어 포트원 취소 ④ 결과는 새 트랜잭션에서 결제 주문 행을 잠그고 끝내기·재시도·GAVE_UP. 응답 뒤 기록 전에 서버가 죽으면 줄은 SENDING 으로 남고, 10분 뒤 되돌리기 → 재시도 전 조회가 맞춘다(전과 같다).
+- **줄 세우기는 DB 제약으로**: 전에는 행 잠금이 같은 결제의 취소를 줄 세웠다. 이제 `V100__payment_cancel_one_sending` 의 부분 유일 색인 `(payment_order_id) WHERE status = 'SENDING'` — **한 결제에 보내는 중인 취소는 하나**. 집기 쿼리는 보내는 중인 취소가 있는 결제를 건너뛰고, 한 결제에서는 차례가 가장 이른 한 줄만 집는다. 서버끼리 부딪치면 색인이 둘째를 거절한다(즉시 시도는 「못 집음」, 워커는 그 바퀴를 건너뜀 — 줄은 PENDING 그대로). 그래서 같은 결제의 부분 취소 둘이 같은 잔액으로 겹쳐 나가 포트원에서 거절되고 시도 횟수를 쓰는 일이 없다.
+- **테스트**: shared `payment.PaymentCancelOutsideLockTest` — 커밋 뒤 즉시 시도·워커·포트원 거절 세 경우 모두 포트원 호출 중 다른 연결이 결제 행을 `FOR UPDATE NOWAIT` 로 바로 잠근다 · 한 결제에서 한 줄만 집힘(워커·즉시 시도·색인) · 다른 결제는 줄을 서지 않음 · 즉시 시도가 부딪치면 못 집은 것으로 끝남 · 서버 둘이 같은 결제의 부분 취소 30건을 동시에 처리해도 포트원 요청은 30번·전부 첫 시도에 성공.
