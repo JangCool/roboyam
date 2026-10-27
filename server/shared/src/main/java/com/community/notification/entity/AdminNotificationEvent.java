@@ -96,6 +96,11 @@ public enum AdminNotificationEvent {
     CLUB_OPEN_REQUEST_PENDING(spec(CLUB, INFO).holders(Permission.GROUP_MANAGE).link("/group-requests").collapse(300)),
     HOTDEAL_SUSPECTED_PROMO(spec(HOTDEAL, WARNING).holders(Permission.HOTDEAL_MANAGE).reserved()),
     COMMERCE_ORDER_ANOMALY(spec(GROUPBUY, CRITICAL).holders(Permission.COMMERCE_ORDER_MANAGE).reserved()),
+    /**
+     * 결제 이상 — 금액 불일치(확정 때) · 자동/환불 취소의 최종 실패(GAVE_UP) (docs/features/commerce-payment-contract.md 결정 10). 같은 결제는 하루에 한 건(묶음 키 = 결제 ID).
+     * 링크는 2a-1 화면의 「결제 이상」 자리(가정 — 2a-3 화면 연결 때 맞춘다).
+     */
+    COMMERCE_PAYMENT_ANOMALY(spec(GROUPBUY, CRITICAL).holders(Permission.COMMERCE_RECONCILE_MANAGE).email().link("/payments/anomalies").collapse(86400)),
     COMMERCE_REFUND_REQUESTED(spec(GROUPBUY, WARNING).holders(Permission.COMMERCE_REFUND_APPROVE).reserved()),
     BUSINESS_APPLICATION_PENDING(spec(BIZ_AD, INFO).holders(Permission.BUSINESS_MANAGE).reserved()),
     AD_REVIEW_PENDING(spec(BIZ_AD, INFO).holders(Permission.AD_MANAGE).reserved()),

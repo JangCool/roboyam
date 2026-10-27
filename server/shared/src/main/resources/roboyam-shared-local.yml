@@ -35,3 +35,7 @@ roboyam:
   # 본인인증 — local 은 가짜 구현(「가짜 본인인증(개발용)」 대화상자: 생년월일·사람 번호, 같은 번호 = 같은 사람). dev · prod 에서 fake 면 기동하지 않는다
   identity:
     provider: ${ROBOYAM_IDENTITY_PROVIDER:fake}
+  # 결제 — local 은 가짜 게이트웨이(가짜 결제창 /dev/payment)와 결제 시험 주문을 켠다. dev · prod 에서 fake 면 기동하지 않는다
+  payment:
+    gateway: ${ROBOYAM_PAYMENT_GATEWAY:fake}
+    test-orders: ${ROBOYAM_PAYMENT_TEST_ORDERS:true}

@@ -994,7 +994,7 @@ DELIVERED → (반품 요청 승인·회수 확인) → REFUNDED(전액) 또는 
   - 취소: `currentCancellableAmount` 는 「취소 가능 잔액이 일치할 때만 취소」(이중 취소 방지 — 8-3 과 같다). **취소 가능 기간: 카드 통상 1년(카드사별 상이), 카카오페이 카드 1년·머니 5년, 네이버페이 1095일, 가상계좌 제한 없음** → 기간이 지난 충전 환불은 계좌 송금(9-3)이 필요하다는 판단이 맞다.
   - 본인인증 `verifiedCustomer` 에 `ci`·`di`·`birthDate`(YYYY-MM-DD). **DI 는 다날·KCP 는 항상 제공, KG이니시스는 미제공. CI 는 다날은 계약 시 신청, KCP 는 가맹점 설정** → DI 를 중복 확인 키로 쓰려면(12-1) **본인인증 PG 를 다날 또는 KCP 로** 고른다.
   - `paymentId`: 「이미 결제 완료된 paymentId 는 재사용 불가」만 확인 → 재결제마다 새 ID(8-1).
-- 포트원 V2 — 아직 확인 못 함: 채널별 승인/매입 분리 지원, 현금영수증 요청 인자, 에스크로를 쓰는 결제 수단 범위(채널 설정). 2a 구현 때 확인: 웹훅 버전과 이벤트 이름(`Transaction.Paid`·`Cancelled`·`PartialCancelled`), 취소 웹훅의 `cancellationId` 유무, 다건 조회 요청 방식(페이지·커서), `paymentId` 길이 제한(우리 36자).
+- 포트원 V2 — 아직 확인 못 함: 채널별 승인/매입 분리 지원, 현금영수증 요청 인자, 에스크로를 쓰는 결제 수단 범위(채널 설정). 2a-2 에서 확인(2026-10-26, 포트원 V2 OpenAPI·웹훅 문서 — 상세는 `docs/features/commerce-payment-contract.md` 「2a-2 구현 결과」): 웹훅 버전 `2024-04-25`, 이벤트 `Transaction.Paid`·`Transaction.Cancelled`·`Transaction.PartialCancelled`, `cancellationId` 는 취소 이벤트에만 있음, 다건 조회는 페이지 기반 `GET /payments`(쿼리 `requestBody` 에 JSON)·대용량은 커서 기반 `GET /payments-by-cursor`. **`paymentId` 길이 제한은 문서에 없다**(우리 36자 — 2a-4 실제 결제로 확인).
 - 법령 문구로 확정하지 못한 법무 항목은 20-2 에 모았다(선불전자지급수단·보존 기간·청약철회 기한은 20-1 에서 원문으로 확인함).
 - PG·카드사별 결제 취소(부분 취소) 가능 기간 — 이 기간이 지난 충전 환불은 계좌 송금(9-3). PG 계약 때 확인.
 - 지표 수집용 모니터링 툴(에이전트) 종류 — 운영 인프라를 정할 때.

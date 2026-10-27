@@ -128,7 +128,13 @@ public enum BatchCatalog implements BatchDefinition {
      * 포인트 불변식 검사(읽기만) — 회원별·종류별 원장 합 = 잔액 = 남은 묶음 합, 묶음 추적 뒤 원장 줄의 묶음 반영 합 = delta(commerce.md 5-5). 어긋나면 FAIL 로 끝나 기존 배치 실패 알림이
      * 알린다. DB 배치, 기본 매일 05:30 KST({@code R__batch_29_point_invariant_check.sql}). 고치지 않고 알리기만 하므로 정리(SYSTEM) 분류.
      */
-    POINT_INVARIANT_CHECK("point-invariant-check", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true);
+    POINT_INVARIANT_CHECK("point-invariant-check", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
+     * 미확정(READY) 결제 정리 — 유효 시각 + 여유 시간({@code batch_params} {@code grace_minutes}, 기본 10분)이 지난 READY 를 포트원에 조회해 결제됐으면 확정 코드로, 아니면 EXPIRED
+     * (Java 배치 {@code PaymentReadyCleanupJob}, commerce.md 8-2 의 7·15-5, docs/features/commerce-payment-contract.md). 기본 10분마다. 결제가 확정되는 업무라 분류는 회원(MEMBER).
+     */
+    PAYMENT_READY_CLEANUP("payment-ready-cleanup", BatchCategory.MEMBER, BatchSource.JAVA, "0 */10 * * * *", true);
 
     private static final Pattern PROCEDURE_NAME = Pattern.compile("[a-z][a-z0-9_]{0,62}");
 
