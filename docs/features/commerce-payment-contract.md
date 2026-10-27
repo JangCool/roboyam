@@ -9,7 +9,7 @@
 |---|---|---|---|
 | 2a-1 화면 목업 | admin 결제 주문(목록·상세 서랍: 이력·취소·웹훅) · 웹훅 수신 내역 · 결제 이상 · 날짜별 대사 · 대사 불일치 · `/settings/portone` 카드 셋, user-web `/dev/payment`(시험 주문 + 가짜 결제창) | frontend | **화면 확정 2026-10-26**(아래 「2a-1 화면 목업」, 브랜치 `claude/commerce-2a-1-payment-screens-4ae2d1`) |
 | 2a-2 결제 핵심 서버 | V97(가번호 V90), Fake·포트원 게이트웨이, 주문 만들기·확정·완료 API·시험 핸들러, 웹훅, 취소 대기열·워커, READY 정리, 규칙 테스트 | backend | **구현·규칙 테스트 통과**(2026-10-26, 아래 「2a-2 구현 결과」) — **develop 병합 2026-10-27**(아래 「develop 병합」) |
-| 2a-3 대사 + 관리자 API + 연결 | 대사 배치, `R__batch_31`, 관리자 조회·처리 API, 포트원 결제 칸·API 정리, 알림·감사, 화면 연결 | backend → frontend | **구현·규칙 테스트 통과·화면 연결**(2026-10-27, 아래 「2a-3 구현 결과」, 브랜치 `claude/commerce-2a-3-reconcile-admin-0ef5e7`) — develop 병합 전 |
+| 2a-3 대사 + 관리자 API + 연결 | 대사 배치, `R__batch_31`, 관리자 조회·처리 API, 포트원 결제 칸·API 정리, 알림·감사, 화면 연결 | backend → frontend | **구현·규칙 테스트 통과·화면 연결**(2026-10-27, 아래 「2a-3 구현 결과」, 브랜치 `claude/commerce-2a-3-reconcile-admin-0ef5e7`) — **develop 병합 2026-10-27**(아래 「develop 병합」) |
 | 2a-4 테스트 채널 실제 확인 | dev 에 포트원 테스트 채널 키·웹훅 주소 등록, 사람이 결제창으로 결제·취소·콘솔 직접 취소 확인. 브라우저 SDK `@portone/browser-sdk` 추가(**승인 2026-10-26**, 버전은 설치 때 확인) | 사용자 + 세션 | 마지막 |
 순서: 2a-1 ∥ 2a-2 → 화면 확정 → 2a-3 → 2a-4. 2a-2 는 화면과 무관한 서버 핵심이라 화면 확정 전에 병행한다(사용자 승인 2026-10-26). 세션마다 자기 worktree.
 
@@ -18,7 +18,7 @@
 |---|---|---|---|
 | V97 `payment_module`(가번호 V90 — develop 병합 때 확정) | shared | 아래 표 7개 | 2a-2 (대사 두 표도 여기 — 2a-3 이 쓴다) |
 | `R__batch_31_payment_webhook_log_cleanup` | shared | pg_cron 매일 04:45 KST, 90일 지난 웹훅 기록 삭제(`batch_params` `retention_days`) | 2a-3 (**번호 확정** — develop 81f286b 의 마지막 반복 shared `R__batch_29`·admin `R__batch_30`, 다른 브랜치에도 31 없음) |
-| `V98__payment_reconcile_admin` | shared | 이력 종류 `RECHECKED`, 대사한 날 상태 RUNNING·DONE·MISMATCH·FAILED(V97 의 OK·FAIL 대신), 색인 셋 | 2a-3 (develop 81f286b 의 V97 다음 — 합칠 때 다시 확인) |
+| `V98__payment_reconcile_admin` | shared | 이력 종류 `RECHECKED`, 대사한 날 상태 RUNNING·DONE·MISMATCH·FAILED(V97 의 OK·FAIL 대신), 색인 셋 | 2a-3 (**번호 확정** — develop 병합 때 확인, V97 다음) |
 - develop 64123b5 기준 shared 마지막 V89 · 반복 `R__batch_29`(admin 스트림이 `R__batch_30`).
 - Java 배치(카탈로그만): `payment-ready-cleanup`(10분, 2a-2) · `payment-reconciliation`(매일 04:50 KST, 날짜 파라미터·이어 받기, 2a-3). 워커 `payment-cancel`(1분, `worker_heartbeats`, 2a-2).
 - `portone_settings` 는 키 CHECK 가 없어 표를 바꾸지 않는다(코드 `PortOneSettingKey` 만).
@@ -257,3 +257,5 @@
 - 2a 제안(`3a2060c`)·2a-1(`claude/commerce-2a-1-payment-screens-4ae2d1`)·2a-2(`claude/commerce-2a-2-payment-core-b7f905`)를 develop(`b294806` — 소모임 V90~V96 이 먼저 들어가 있음)에 합쳤다.
 - **결제 마이그레이션 번호 확정: `V90__payment_module` → `V97__payment_module`**(shared, 소모임 V90~V96 뒤). 반복 마이그레이션은 아직 없다(`R__batch_31` 은 2a-3 — 그때 develop 의 마지막 반복 번호를 다시 본다).
 - 충돌 6곳은 모두 양쪽 추가분을 함께 남겼다: `SecurityConfig`(소모임 공개 GET + 결제 웹훅 POST), `roboyam-shared.yml`(`groups` + `payment`), `AuditActions`(소모임 행위 + 결제 행위), 메시지 두 언어(소모임 문구 + 결제 문구), 이 계약 문서.
+- **2a-3**(`0cd9279`)을 develop(`6831e68` — 그사이 AWS 배포 문서·스크립트만 들어옴)에 합쳤다(`4017a3d`). 충돌·겹치는 파일 없음. 번호 그대로 확정: shared `V98__payment_reconcile_admin`(V97 다음), `R__batch_31`(shared 마지막 반복 29·admin 30 다음, 중복 없음).
+- 합친 뒤 커머스 테스트를 골라 돌림(2026-10-27): shared 457 · api 139 · admin 307, 실패·건너뜀 0.
