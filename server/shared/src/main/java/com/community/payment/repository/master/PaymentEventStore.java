@@ -18,9 +18,9 @@ import tools.jackson.databind.json.JsonMapper;
 @Repository
 public class PaymentEventStore {
 
-    /** 이력 종류(DB CHECK 와 같은 목록) */
+    /** 이력 종류(DB CHECK 와 같은 목록 — RECHECKED 는 V98, 운영자의 「포트원에서 다시 확인」) */
     public enum Kind {
-        CREATED, PAID, ANOMALY, EXPIRED, CANCEL_REQUESTED, CANCEL_SUCCEEDED, CANCEL_RETRY, CANCEL_GAVE_UP, CANCEL_MANUAL, EXTERNAL_CANCEL, WEBHOOK
+        CREATED, PAID, ANOMALY, EXPIRED, CANCEL_REQUESTED, CANCEL_SUCCEEDED, CANCEL_RETRY, CANCEL_GAVE_UP, CANCEL_MANUAL, EXTERNAL_CANCEL, WEBHOOK, RECHECKED
     }
 
     private static final JsonMapper JSON = JsonMapper.builder().build();

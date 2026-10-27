@@ -2,7 +2,7 @@
  * 포트원 설정 API 의 요청·응답 모양(계약 「0-4」 — 서버 `PortOneSettingsView`·`PortOneFieldStateView`·`PortOneIdentitySaveRequest`, 2a 결정 14 로 묶음이 셋이 된다).
  * 값(상점 ID·API 비밀키·채널 키·웹훅 비밀키)은 **절대 내려오지 않는다** — 설정됐는지와 마지막 변경 시각·변경한 사람만. 서버는 `SecretEncryptor` 로 암호화해 DB 에 둔다(소셜 로그인 설정과 같다).
  * 칸 묶음: 공통(상점 ID·API 비밀키) · 본인인증(본인인증 채널 키) · 결제(결제 채널 키·웹훅 비밀키 — 2a). 키 문자열은 서버 `PortOneSettingKey` 와 같다.
- * ⚠ 결제 칸(`paymentGateway`·`paymentReady`·결제 두 칸의 상태)은 2a-1 목업이 덧붙인다 — 서버는 2a-3 에서 같은 모양으로 준다.
+ * 결제 칸(`paymentGateway`·`paymentReady`·결제 두 칸의 상태)은 2a-3 서버가 2a-1 화면이 정한 모양 그대로 준다.
  */
 
 /** 지금 쓰는 본인인증 구현 — 서버 배포 설정(`roboyam.identity.provider`)이 정하고 화면에서 바꿀 수 없다. `FAKE` 는 local·시험 전용(dev·prod 에서는 서버가 뜨지 않는다) */

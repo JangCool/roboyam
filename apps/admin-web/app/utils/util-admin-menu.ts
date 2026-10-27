@@ -186,7 +186,7 @@ export default class UtilAdminMenu {
             ],
         },
         // 결제 묶음(포인트 상점 묶음 다음) — 현금 결제 모듈(포트원 V2)의 결제 주문 · 웹훅 수신 내역 · 결제 이상 · 날짜별 대사 · 대사 불일치. commerce.md 13-5, 계약 commerce-payment 결정 13.
-        // ⚠ 목업 단계(2a-1 — `usePaymentAdminApi`). 서버 `AdminScreenRegistry` 의 같은 다섯 줄과 권한 `commerce.payment.read`·`commerce.reconcile.manage` 의 `featureReady` 는 2a-3 이 맞춘다.
+        // 서버 API 에 연결됨(2a-3 — `usePaymentAdminApi`). 서버 `AdminScreenRegistry` 의 같은 다섯 줄·권한 `commerce.payment.read`·`commerce.reconcile.manage`(`featureReady` 켬)와 맞춘다 — 바꿀 때 두 곳을 같게 한다.
         // 다섯 화면 모두 조회 `commerce.payment.read`, 화면 안의 처리(다시 시도 · 수동 처리 완료 · 포트원에서 다시 확인 · 대사 처리)는 `commerce.reconcile.manage`. PG 설정은 설정 › 포트원(`/settings/portone`) 그대로.
         {
             key: 'payment',

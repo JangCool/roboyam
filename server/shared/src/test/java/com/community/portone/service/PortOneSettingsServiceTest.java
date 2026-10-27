@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.community.identity.config.IdentityProperties;
 import com.community.identity.dto.IdentityProviderKind;
+import com.community.portone.dto.PortOneSettingKey;
 import com.community.portone.repository.master.PortOneSettingStore;
 import com.community.zconfiguration.crypto.SecretEncryptor;
 import com.community.zconfiguration.exception.CommonException;
@@ -51,14 +52,15 @@ class PortOneSettingsServiceTest {
     private final MemoryStore store = new MemoryStore();
 
     private PortOneSettingsService service(SecretEncryptor encryptor) {
-        return new PortOneSettingsService(store, encryptor, new IdentityProperties(IdentityProviderKind.PORTONE, Duration.ofMinutes(30)), null,
+        return new PortOneSettingsService(store, encryptor, new IdentityProperties(IdentityProviderKind.PORTONE, Duration.ofMinutes(30)), com.community.payment.config.PaymentProperties.DEFAULTS, null,
                 new StaticListableBeanFactory().getBeanProvider(Clock.class));
     }
 
     @Test
     void 암호화_키가_없으면_저장은_503_CRYPTO_KEY_MISSING_이고_화면은_그것을_알린다() {
         PortOneSettingsService service = service(new SecretEncryptor(""));
-        assertThatThrownBy(() -> service.saveIdentity("store", "secret", "channel", 1L, "127.0.0.1")).isInstanceOf(CommonException.class)
+        assertThatThrownBy(() -> service.save(PortOneSettingKey.Group.COMMON, java.util.Map.of(PortOneSettingKey.STORE_ID, "store", PortOneSettingKey.API_SECRET, "secret"), 1L,
+                "127.0.0.1")).isInstanceOf(CommonException.class)
                 .extracting(e -> ((CommonException) e).getErrorCode()).isEqualTo("CRYPTO_KEY_MISSING");
         assertThat(store.writes).isZero();
         assertThat(service.view().cryptoKeyConfigured()).isFalse();

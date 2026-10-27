@@ -87,7 +87,9 @@ public final class AuditRetention {
             // 소모임 개설 승인·반려·비활성화·다시 열기 · 소모임 설정 네 구획 — 콘텐츠·커뮤니티 운영 일(분류와 같다, 돈·개인정보가 움직이지 않는다)
             AuditActions.GROUP_APPROVE, AuditActions.GROUP_REJECT, AuditActions.GROUP_DEACTIVATE, AuditActions.GROUP_REACTIVATE,
             AuditActions.GROUP_CREATION_RULE_UPDATE, AuditActions.GROUP_MANAGER_RULE_UPDATE, AuditActions.GROUP_VISIBILITY_RULE_UPDATE,
-            AuditActions.GROUP_POLICY_RULE_UPDATE);
+            AuditActions.GROUP_POLICY_RULE_UPDATE,
+            // 이 날 다시 대사 — 대사 배치를 다시 돌릴 뿐 돈·기록을 바꾸지 않는다(commerce-payment-contract 확정한 목업 가정 3 — 사유 없이 확인창만)
+            AuditActions.PAYMENT_RECONCILE_RERUN);
 
     private static final Map<String, AuditRetentionClass> TABLE = table();
 

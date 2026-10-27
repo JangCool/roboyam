@@ -1,7 +1,7 @@
 <template>
     <!--
         결제 › 날짜별 대사(`/payments/reconcile-days`) — 매일 04:50(KST) 어제 하루의 포트원 결제·취소를 우리 기록과 맞춰 본 결과를 날짜마다 한 줄로(`payment_reconcile_days`, commerce.md 16-1, 계약 결정 16).
-        ⚠ 목업 단계(`usePaymentAdminApi` — 서버는 2a-3). 다른 점(이슈)을 보고 닫는 일은 「대사 불일치」(`/payments/reconciliation`) 화면이 한다.
+        서버 API: `usePaymentAdminApi`(2a-3). 다른 점(이슈)을 보고 닫는 일은 「대사 불일치」(`/payments/reconciliation`) 화면이 한다.
         ① 요약: 마지막으로 대사한 날 · 다음 자동 실행 · 열린 이슈 수(누르면 대사 불일치).
         ② 날짜 표(최근 14일): 날짜 · 상태 · 확인한 건수 · 불일치(열림/전체) · 끝난 시각 · [이슈 보기](대사 불일치 `?day=`) · [이 날 다시 대사](`commerce.reconcile.manage`, 확인창 — 비동기로 돌고 몇 초 뒤 다시 읽는다).
     -->

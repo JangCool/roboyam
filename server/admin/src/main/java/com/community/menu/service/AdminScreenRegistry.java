@@ -71,6 +71,14 @@ public final class AdminScreenRegistry {
                     leaf(s("pointShopItems", "/point-shop/items", "menu.pointShopItems", "pi pi-box", Permission.POINTSHOP_READ)),
                     leaf(s("pointShopPurchases", "/point-shop/purchases", "menu.pointShopPurchases", "pi pi-receipt", Permission.POINTSHOP_READ)),
                     leaf(s("pointShopSettings", "/point-shop/settings", "menu.pointShopSettings", "pi pi-sliders-h", Permission.POINTSHOP_READ))),
+            // 결제 묶음(커머스 2a — commerce-payment-contract 결정 13·「2a-1 화면 목업」) — 포인트 상점 묶음 다음. 다섯 화면 모두 조회 commerce.payment.read
+            // (화면 안의 처리 commerce.reconcile.manage). admin-web UtilAdminMenu 의 payment 묶음과 같은 키·주소·권한·아이콘·차례. PG 설정은 설정 › 포트원 그대로
+            section(NORMAL, "menu.payment", "pi pi-credit-card",
+                    leaf(s("paymentOrders", "/payments/orders", "menu.paymentOrders", "pi pi-list", Permission.COMMERCE_PAYMENT_READ)),
+                    leaf(s("paymentWebhooks", "/payments/webhooks", "menu.paymentWebhooks", "pi pi-inbox", Permission.COMMERCE_PAYMENT_READ)),
+                    leaf(s("paymentAnomalies", "/payments/anomalies", "menu.paymentAnomalies", "pi pi-exclamation-triangle", Permission.COMMERCE_PAYMENT_READ)),
+                    leaf(s("paymentReconcileDays", "/payments/reconcile-days", "menu.paymentReconcileDays", "pi pi-calendar", Permission.COMMERCE_PAYMENT_READ)),
+                    leaf(s("paymentReconciliation", "/payments/reconciliation", "menu.paymentReconciliation", "pi pi-check-square", Permission.COMMERCE_PAYMENT_READ))),
             // 소모임 묶음(docs/features/group-contract.md 「관리자 화면」) — 포인트 상점 묶음 다음. 네 화면 모두 조회 group.read(화면 안에서 처리 group.manage ·
             // 설정 group.settings). admin-web UtilAdminMenu 의 group 묶음과 같은 키·주소·권한·아이콘·차례
             section(NORMAL, "menu.group", "pi pi-comments",

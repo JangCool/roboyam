@@ -119,6 +119,31 @@ public class PaymentCancelStore {
                 pgStatus == null ? null : pgStatus.name(), pgCancelId, error, ts(now), id, nodeId) == 1;
     }
 
+    /**
+     * 멈춘(GAVE_UP) 취소를 대기열로 되돌린다(운영자 「다시 시도」 — 확정한 목업 가정 1): 시도 횟수 0, 다음 시도 지금, 처리자·사유를 남긴다. GAVE_UP 일 때만.
+     *
+     * @return 되돌렸으면 true
+     */
+    public boolean reopenGaveUp(long id, long operatorId, String note, Instant now) {
+        return jdbc.update("UPDATE payment_cancels SET status = 'PENDING', attempts = 0, next_attempt_at = ?, completed_at = NULL, resolved_by = ?, resolve_note = ? "
+                + "WHERE id = ? AND status = 'GAVE_UP'", ts(now), operatorId, note, id) == 1;
+    }
+
+    /**
+     * 멈춘(GAVE_UP) 취소를 「수동 처리 완료」로 닫는다 — 표시만 바꾸고 결제 주문의 취소 누계는 건드리지 않는다(확정한 목업 가정 1). GAVE_UP 일 때만.
+     *
+     * @return 닫았으면 true
+     */
+    public boolean markManual(long id, long operatorId, String note, Instant now) {
+        return jdbc.update("UPDATE payment_cancels SET status = 'MANUAL', completed_at = ?, resolved_by = ?, resolve_note = ? WHERE id = ? AND status = 'GAVE_UP'",
+                ts(now), operatorId, note, id) == 1;
+    }
+
+    /** 잠근다(운영자 처리 — 결제 주문 행 다음 차례, 구현 때 정한 것 4) */
+    public Optional<CancelRow> lockById(long id) {
+        return jdbc.query("SELECT " + COLUMNS + " FROM payment_cancels WHERE id = ? FOR UPDATE", PaymentCancelStore::row, id).stream().findFirst();
+    }
+
     /** 그 결제 주문의 성공한 취소 금액 합(불변식 — 취소 누계 = SUCCEEDED 합) */
     public long succeededAmount(long paymentOrderId) {
         Long sum = jdbc.queryForObject("SELECT coalesce(sum(amount), 0) FROM payment_cancels WHERE payment_order_id = ? AND status = 'SUCCEEDED'", Long.class,
@@ -126,7 +151,7 @@ public class PaymentCancelStore {
         return sum == null ? 0 : sum;
     }
 
-    private static CancelRow row(ResultSet rs, int i) throws SQLException {
+    static CancelRow row(ResultSet rs, int i) throws SQLException {
         return new CancelRow(rs.getLong("id"), rs.getLong("payment_order_id"), rs.getLong("amount"), rs.getString("reason"), CancelKind.valueOf(rs.getString("kind")),
                 rs.getString("request_key"), CancelStatus.valueOf(rs.getString("status")),
                 rs.getString("pg_status") == null ? null : PgCancelStatus.valueOf(rs.getString("pg_status")), rs.getString("pg_cancel_id"), rs.getInt("attempts"),

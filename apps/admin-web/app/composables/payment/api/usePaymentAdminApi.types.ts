@@ -1,5 +1,5 @@
 /**
- * 결제 관리자 API 의 요청·응답 모양(계약 `docs/features/commerce-payment-contract.md` — 2a-1 화면 목업이 제안하는 모양, 2a-3 이 서버를 이 모양으로 만든다).
+ * 결제 관리자 API 의 요청·응답 모양(계약 `docs/features/commerce-payment-contract.md` — 2a-1 화면 목업이 정한 모양 그대로 2a-3 서버가 준다).
  * 금액은 원(KRW) 정수, 시각은 ISO 순간, 날짜(`day`)는 KST 달력 날짜 `YYYY-MM-DD`, ID 는 Snowflake 글자.
  * 회원은 번호·닉네임만 내려온다(이메일 없음 — 세션 정리 결정 17).
  */
@@ -14,7 +14,7 @@ export type PaymentConfirmedVia = 'COMPLETE_API' | 'WEBHOOK' | 'READY_CLEANUP' |
 export type PaymentCancelKind = 'USER_CANCEL' | 'REFUND' | 'AUTO_REJECT' | 'ADMIN' | 'CHARGE_REFUND';
 export type PaymentCancelStatus = 'PENDING' | 'SENDING' | 'SUCCEEDED' | 'GAVE_UP' | 'MANUAL';
 export type PaymentPgCancelStatus = 'REQUESTED' | 'SUCCEEDED' | 'FAILED';
-export type PaymentEventKind = 'CREATED' | 'PAID' | 'ANOMALY' | 'EXPIRED' | 'CANCEL_REQUESTED' | 'CANCEL_SUCCEEDED' | 'CANCEL_GAVE_UP' | 'CANCEL_MANUAL' | 'EXTERNAL_CANCEL' | 'RECHECKED';
+export type PaymentEventKind = 'CREATED' | 'PAID' | 'ANOMALY' | 'EXPIRED' | 'CANCEL_REQUESTED' | 'CANCEL_SUCCEEDED' | 'CANCEL_GAVE_UP' | 'CANCEL_MANUAL' | 'EXTERNAL_CANCEL' | 'RECHECKED' | 'CANCEL_RETRY' | 'WEBHOOK';
 export type PaymentWebhookResult = 'PROCESSED' | 'IGNORED' | 'REJECTED' | 'RETRY';
 export type ReconcileIssueType = 'PG_PAID_LOCAL_UNPAID' | 'LOCAL_PAID_PG_MISSING' | 'AMOUNT_MISMATCH' | 'CANCEL_MISMATCH' | 'PG_ONLY';
 export type ReconcileIssueStatus = 'OPEN' | 'RESOLVED';

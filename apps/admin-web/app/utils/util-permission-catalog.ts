@@ -156,6 +156,7 @@ export default class UtilPermissionCatalog {
      *  · 사이트 화면 구성: 조회 `layout.read` / 설정 `layout.settings`(공개 사이트 메뉴)·`admin-menu.manage`(관리자 사이트 메뉴 구성 저장).
      *  · 사이트·연동(설정 메뉴의 「일반」·「소셜 로그인」·「메일 서버」·「알림」 화면): 조회 `site.read`(일반·소셜 로그인·메일 서버·설정 이력 보기) / 설정 `site.manage`(사이트 이름·소개, 표시 기본값 변경) / 민감 `site.secret`(소셜 로그인 키 저장·삭제, 메일 서버 저장·시험 발송). 알림 이벤트 관리는 조회 `notification.read` / 설정 `notification.manage`(이벤트별 사용 여부·이메일 전달 변경 — 받는 사람은 코드에 고정이라 바꾸지 않는다).
      *  · 소모임(소모임 묶음 `/groups`·`/group-requests`·`/group-categories`·`/group-settings`): 조회 `group.read` / 처리 `group.manage`(개설 승인·반려·비활성화·다시 열기) / 설정 `group.settings`(분류·소모임 설정 저장).
+     *  · 결제(결제 묶음 `/payments/*`, 커머스 2a): 조회 `commerce.payment.read`(결제 주문·웹훅 수신 내역·결제 이상·날짜별 대사·대사 불일치) / 민감 `commerce.reconcile.manage`(취소 다시 시도·수동 처리 완료·포트원에서 다시 확인·대사 이슈 처리·다시 대사).
      * 나머지는 화면이 아직 없는 기능의 권한이다(`featureReady: false`). 목록·순서·`featureReady` 는 서버 `Permission.java` 가 원천이다 — 바꿀 때 두 곳을 같게 한다.
      */
     static readonly PERMISSIONS: readonly PermissionDef[] = [
@@ -230,8 +231,8 @@ export default class UtilPermissionCatalog {
         { code: 'commerce.refund.large', unit: 'SENSITIVE', type: 'gbOrder', nameKey: 'permission.item.commerceRefundLarge', descKey: 'permission.item.commerceRefundLargeDesc', featureReady: false },
         { code: 'commerce.settlement.read', unit: 'READ', type: 'gbSettle', nameKey: 'permission.item.commerceSettlementRead', descKey: 'permission.item.commerceSettlementReadDesc', featureReady: false },
         { code: 'commerce.export', unit: 'SENSITIVE', type: 'gbSettle', nameKey: 'permission.item.commerceExport', descKey: 'permission.item.commerceExportDesc', featureReady: false },
-        { code: 'commerce.payment.read', unit: 'READ', type: 'gbSettle', nameKey: 'permission.item.commercePaymentRead', descKey: 'permission.item.commercePaymentReadDesc', featureReady: false },
-        { code: 'commerce.reconcile.manage', unit: 'SENSITIVE', type: 'gbSettle', nameKey: 'permission.item.commerceReconcileManage', descKey: 'permission.item.commerceReconcileManageDesc', featureReady: false },
+        { code: 'commerce.payment.read', unit: 'READ', type: 'gbSettle', nameKey: 'permission.item.commercePaymentRead', descKey: 'permission.item.commercePaymentReadDesc', featureReady: true },
+        { code: 'commerce.reconcile.manage', unit: 'SENSITIVE', type: 'gbSettle', nameKey: 'permission.item.commerceReconcileManage', descKey: 'permission.item.commerceReconcileManageDesc', featureReady: true },
         { code: 'commerce.settings', unit: 'CONFIG', type: 'gbConfig', nameKey: 'permission.item.commerceSettings', descKey: 'permission.item.commerceSettingsDesc', featureReady: false },
         { code: 'business.read', unit: 'READ', type: 'bizReview', nameKey: 'permission.item.businessRead', descKey: 'permission.item.businessReadDesc', featureReady: false },
         { code: 'business.manage', unit: 'MANAGE', type: 'bizReview', nameKey: 'permission.item.businessManage', descKey: 'permission.item.businessManageDesc', featureReady: false },

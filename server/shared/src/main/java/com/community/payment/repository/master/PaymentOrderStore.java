@@ -145,7 +145,7 @@ public class PaymentOrderStore {
         return new DueReady(rs.getLong(1), rs.getString(2), rs.getTimestamp(3).toInstant());
     }
 
-    private static OrderRow row(ResultSet rs, int i) throws SQLException {
+    static OrderRow row(ResultSet rs, int i) throws SQLException {
         return new OrderRow(rs.getLong("id"), rs.getString("payment_id"), rs.getLong("user_id"), PaymentOrderType.valueOf(rs.getString("order_type")),
                 rs.getLong("order_ref_id"), rs.getString("order_name"), rs.getLong("amount"), rs.getString("currency"), PaymentStatus.valueOf(rs.getString("status")),
                 rs.getObject("paid_amount") == null ? null : rs.getLong("paid_amount"), rs.getLong("canceled_amount"),

@@ -1,7 +1,7 @@
 <template>
     <!--
         결제 › 웹훅 수신 내역(`/payments/webhooks`) — 포트원이 보낸 웹훅을 받은 대로 한 줄씩(`payment_webhook_logs`, 90일 보관, **본문은 저장하지 않는다**). 계약 「웹훅 처리 표」.
-        ⚠ 목업 단계(`usePaymentAdminApi` — 서버는 2a-3). 받은 시각 내림차순, 서버 쪽 나누기.
+        서버 API: `usePaymentAdminApi`(2a-3). 받은 시각 내림차순, 서버 쪽 나누기.
         결과: 처리함(PROCESSED — 같은 webhook-id 다시 받음 포함) · 무시함(IGNORED — 우리 결제가 아님·모르는 이벤트) · 거절함(REJECTED — 서명·시각·머리글 문제, 400) · 다시 받기(RETRY — 포트원 장애·아직 결제 전, 503 이라 포트원이 다시 보낸다).
         권한: 조회 `commerce.payment.read`. 우리 결제 주문이 있는 줄은 결제 번호를 눌러 상세 서랍을 연다.
     -->

@@ -152,6 +152,8 @@ export default {
         CANCEL_MANUAL: '수동 처리 완료',
         EXTERNAL_CANCEL: '외부 취소(포트원 콘솔)',
         RECHECKED: '포트원에서 다시 확인',
+        CANCEL_RETRY: '취소 재시도 예약',
+        WEBHOOK: '웹훅 처리',
     },
     webhookResult: {
         PROCESSED: '처리함',

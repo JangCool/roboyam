@@ -20,15 +20,15 @@ import org.junit.jupiter.api.Test;
  */
 class CommercePermissionsAndMenuTest extends CommerceAdminTestBase {
 
-    /** @param ready 기능이 생겼나(featureReady) — point.adjust.large 는 커머스 1-1, pointshop.*(0-5 의 shop.* 를 이름만 바꿈)은 1-2 에서 생겼다 */
+    /** @param ready 기능이 생겼나(featureReady) — point.adjust.large 는 커머스 1-1, pointshop.*(0-5 의 shop.* 를 이름만 바꿈)은 1-2, commerce.payment.read·commerce.reconcile.manage 는 2a-3 에서 생겼다 */
     record Expected(String code, PermissionType type, PermissionUnit unit, String frontType, boolean ready) {
     }
 
     private static final List<Expected> NEW = List.of(
             new Expected("commerce.groupbuy.cancel", PermissionType.GB_ORDER, PermissionUnit.SENSITIVE, "gbOrder", false),
             new Expected("commerce.refund.large", PermissionType.GB_ORDER, PermissionUnit.SENSITIVE, "gbOrder", false),
-            new Expected("commerce.payment.read", PermissionType.GB_SETTLE, PermissionUnit.READ, "gbSettle", false),
-            new Expected("commerce.reconcile.manage", PermissionType.GB_SETTLE, PermissionUnit.SENSITIVE, "gbSettle", false),
+            new Expected("commerce.payment.read", PermissionType.GB_SETTLE, PermissionUnit.READ, "gbSettle", true),
+            new Expected("commerce.reconcile.manage", PermissionType.GB_SETTLE, PermissionUnit.SENSITIVE, "gbSettle", true),
             new Expected("pointshop.read", PermissionType.GRADE_POINT, PermissionUnit.READ, "gradePoint", true),
             new Expected("pointshop.manage", PermissionType.GRADE_POINT, PermissionUnit.MANAGE, "gradePoint", true),
             new Expected("pointshop.refund", PermissionType.GRADE_POINT, PermissionUnit.SENSITIVE, "gradePoint", true),
