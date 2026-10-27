@@ -1,0 +1,45 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EcrLogin",
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcrPullRoboyamImages",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchCheckLayerAvailability"
+      ],
+      "Resource": [
+        "arn:aws:ecr:ap-northeast-2:ACCOUNT_ID:repository/roboyam-api",
+        "arn:aws:ecr:ap-northeast-2:ACCOUNT_ID:repository/roboyam-admin"
+      ]
+    },
+    {
+      "Sid": "BackupBucketList",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::BACKUP_BUCKET"
+    },
+    {
+      "Sid": "BackupBucketObjects",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject"],
+      "Resource": "arn:aws:s3:::BACKUP_BUCKET/*"
+    },
+    {
+      "Sid": "KeyBackupInParameterStore",
+      "Effect": "Allow",
+      "Action": ["ssm:PutParameter", "ssm:GetParameter", "ssm:GetParametersByPath"],
+      "Resource": [
+        "arn:aws:ssm:ap-northeast-2:ACCOUNT_ID:parameter/roboyam/dev",
+        "arn:aws:ssm:ap-northeast-2:ACCOUNT_ID:parameter/roboyam/dev/*"
+      ]
+    }
+  ]
+}

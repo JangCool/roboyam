@@ -5,6 +5,7 @@
 # 서버에서:
 #   cp .env.example .env      # 값을 채운다 (.env 는 저장소에 넣지 않는다)
 #   docker compose up -d
+# AWS 에 처음 구축하는 절차 · 배포 · 백업 · 복원은 README.md(같은 폴더)와 scripts/ 를 본다.
 #
 # 앱 이미지는 로컬 · dev · prod 가 한 벌이다. 환경은 실행 때 환경 변수로 갈린다.
 # 이미지를 만드는 법은 server/api/Dockerfile · server/admin/Dockerfile 머리말을 본다.
