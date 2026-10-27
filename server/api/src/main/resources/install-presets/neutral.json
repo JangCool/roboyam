@@ -29,5 +29,17 @@
         { "name": "점검", "nameEn": "Maintenance", "common": false, "staffOnly": true, "sortOrder": 30 }
       ]
     }
+  ],
+  "menu": [
+    { "type": "BUILTIN", "key": "HOME", "mobileTab": true },
+    { "type": "BUILTIN", "key": "POPULAR", "mobileTab": true },
+    { "type": "BUILTIN", "key": "LATEST" },
+    {
+      "type": "FOLDER", "label": "게시판", "nameEn": "Boards", "autoAdd": true,
+      "children": [
+        { "type": "BOARD", "slug": "free" },
+        { "type": "BOARD", "slug": "notice" }
+      ]
+    }
   ]
 }

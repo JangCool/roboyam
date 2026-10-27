@@ -48,6 +48,8 @@
 - **동시성**: 분류 바꾸기와 「분류를 고른 게시판 만들기」는 어드바이저리 잠금 `7_340_005` 하나로 줄을 선다.
 - 그대로 둔 것: `AdminScreenRegistry` 네 줄·`Permission` `group.*` `featureReady`(다른 소모임 화면이 아직 목업). 게시판을 지울 때 그 분류 `updatedAt` 은 오르지 않는다(열어 둔 화면이 지워진 ID 로 저장하면 `400 fields.boardIds`).
 
+- **설치 프리셋**(2026-10-27 확정, 구현 전): 설치 때 프리셋의 소모임 게시판과 분류(ROBOYAM 5개)를 만들어 잇는다. 소모임 게시판 말머리 = 가입인사·질문·후기·잡담·자료 + 주제별 하나, 「공지」 없음(매니저가 쓸 수 없어서) — `install-contract.md` 「프리셋 구조」.
+
 ## 전체 개발 계획 (2026-10-26 사용자 — 「전부」 옮기고 「멈춤 없이 끝까지」)
 - **원본**: community `docs/api-groups.md`(절 번호는 아래 단계에 적는다) + `frontend/app/{pages/groups,components/groups}` + `admin/app` 소모임 화면. 로보얌 관례(권한 코드 `group.*`·`403 PERMISSION_DENIED`, i18n 키, Snowflake ID, 회원 알림 `MemberNotificationType`, 기능 제한 `restriction`, 메뉴 `MenuBuiltin.GROUPS_ALL|MINE|NEW`)에 맞춘다. 원본과 다르게 한 것은 단계마다 아래에 「로보얌 차이」로 적는다.
 - **진행 방식(사용자 결정)**: 화면 목업 → 확인 → 서버의 규칙을 이 기능에서는 쓰지 않는다. 단계마다 화면·서버·연동을 한 번에 끝내고, 화면은 단계 끝에 개발자가 몰아서 본다. 관리자 목업 화면 3개(`/groups`·`/group-requests`·`/group-settings`)도 확정으로 본다.

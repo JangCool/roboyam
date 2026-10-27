@@ -1,11 +1,16 @@
 package com.community.installation.service;
 
 import com.community.board.service.BoardFields;
+import com.community.group.service.GroupCategoryNames;
 import com.community.installation.dto.BoardPreset;
 import com.community.installation.dto.response.BoardPresetBoardItem;
 import com.community.installation.dto.response.BoardPresetItem;
 import com.community.installation.dto.response.BoardPresetsResponse;
+import com.community.menu.service.MenuLimits;
+import com.community.menu.service.MenuRules;
+import com.community.menu.target.MenuBuiltin;
 import com.community.site.service.SitePolicy;
+import com.community.zconfiguration.message.MessageRef;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -31,7 +36,10 @@ import tools.jackson.databind.json.JsonMapper;
  * 게시판을 실제로 만드는 적용은 {@link BoardPresetApplier} 가 한다(설치 트랜잭션 안, 그리고 이미 설치된 곳은 서버가 뜰 때 한 번).
  *
  * <p>검사하는 것: 아이디 형식·유일, 기본값 정확히 하나, 이름·설명, 게시판 주소 형식·유일, 게시판 이름 유일, 말머리 이름 유일,
- * 사이트 슬로건({@code siteTagline})은 사이트 설정의 슬로건 규칙을 지킴, 영문 이름·설명({@code nameEn}·{@code descriptionEn})이 있음.
+ * 사이트 슬로건({@code siteTagline})은 사이트 설정의 슬로건 규칙을 지킴, 영문 이름·설명({@code nameEn}·{@code descriptionEn})이 있음,
+ * 소모임 게시판은 소모임 분류 이름({@code groupCategoryName} — {@link GroupCategoryNames} 규칙)이 있고 일반 게시판은 없음,
+ * 메뉴({@code menu})는 메뉴 계약의 한도·규칙(노드 유형·폴더 깊이 ≤ 3·항목 깊이 ≤ 4·노드 ≤ 80·모바일 탭 ≤ 10·자동 추가 폴더 하나·앱 화면 키와 로그인 필요 화면의 보이는 대상·
+ * 게시판은 이 프리셋의 일반 게시판·같은 대상 한 번·이름 길이)을 지킴. 설치 때 메뉴 검사기({@code MenuTreeValidator})가 한 번 더 본다.
  */
 @Component
 public class BoardPresetCatalog {
@@ -151,6 +159,126 @@ public class BoardPresetCatalog {
             }
         }
         validateSiteTagline(id, preset.siteTagline());
+        if (preset.menu() != null) {
+            validateMenu(preset);
+        }
+    }
+
+    // ── 메뉴 ──
+
+    /** 메뉴 트리 — 설치 트랜잭션의 메뉴 검사기({@code MenuTreeValidator})에 걸리지 않게 같은 한도·규칙을 미리 본다 */
+    private static void validateMenu(BoardPreset preset) {
+        String where = preset.id() + "/menu";
+        Set<String> generalSlugs = new HashSet<>();
+        preset.boards().stream().filter(board -> !board.isGroupBoard()).forEach(board -> generalSlugs.add(board.slug()));
+        MenuWalk walk = new MenuWalk(where, generalSlugs);
+        walk.nodes(preset.menu(), 1);
+        if (walk.nodes > MenuLimits.NODES) {
+            throw invalid(where, "노드가 " + MenuLimits.NODES + "개를 넘는다");
+        }
+        if (walk.tabs > MenuLimits.MOBILE_TABS) {
+            throw invalid(where, "모바일 탭이 " + MenuLimits.MOBILE_TABS + "개를 넘는다");
+        }
+        if (walk.autoAdd > 1) {
+            throw invalid(where, "자동 추가 폴더(autoAdd)는 하나까지다");
+        }
+    }
+
+    private static final class MenuWalk {
+
+        final String where;
+        final Set<String> generalSlugs;
+        final Set<String> linked = new HashSet<>();
+        int nodes;
+        int tabs;
+        int autoAdd;
+
+        MenuWalk(String where, Set<String> generalSlugs) {
+            this.where = where;
+            this.generalSlugs = generalSlugs;
+        }
+
+        void nodes(List<BoardPreset.MenuEntry> list, int depth) {
+            for (BoardPreset.MenuEntry entry : list) {
+                if (entry == null) {
+                    throw invalid(where, "빈 노드가 있다");
+                }
+                nodes++;
+                String audience = entry.audienceOrAll();
+                if (!MenuLimits.AUDIENCES.contains(audience) || "GRADE_MIN".equals(audience)) {
+                    throw invalid(where, "audience 는 ALL·GUEST·MEMBER·STAFF 중 하나다: " + audience);
+                }
+                check("nameEn", MenuRules.nameEnProblem(entry.nameEn()), entry.nameEn());
+                if (entry.nameEn() != null && !entry.nameEn().equals(entry.nameEn().strip())) {
+                    throw invalid(where, "nameEn 은 앞뒤 공백이 없어야 한다: " + entry.nameEn());
+                }
+                if (entry.label() != null && !entry.label().equals(entry.label().strip())) {
+                    throw invalid(where, "label 은 앞뒤 공백이 없어야 한다: " + entry.label());
+                }
+                if (entry.isFolder()) {
+                    folder(entry, depth);
+                } else {
+                    item(entry, depth);
+                }
+            }
+        }
+
+        private void folder(BoardPreset.MenuEntry entry, int depth) {
+            check("label", MenuRules.labelProblem(entry.label(), true, MenuLimits.LABEL_MAX), entry.label());
+            if (depth > MenuLimits.FOLDER_DEPTH) {
+                throw invalid(where, "폴더 깊이는 " + MenuLimits.FOLDER_DEPTH + " 이하다: " + entry.label());
+            }
+            if (entry.tabOn() || entry.key() != null || entry.slug() != null) {
+                throw invalid(where, "폴더는 mobileTab·key·slug 를 쓰지 않는다: " + entry.label());
+            }
+            if (entry.autoAddOn()) {
+                autoAdd++;
+            }
+            nodes(entry.children(), depth + 1);
+        }
+
+        private void item(BoardPreset.MenuEntry entry, int depth) {
+            check("label", MenuRules.labelProblem(entry.label(), false, MenuLimits.LABEL_MAX), entry.label());
+            if (depth > MenuLimits.ITEM_DEPTH) {
+                throw invalid(where, "항목 깊이는 " + MenuLimits.ITEM_DEPTH + " 이하다");
+            }
+            if (!entry.children().isEmpty() || entry.autoAddOn() || entry.collapsibleOn() || entry.collapsedOn()) {
+                throw invalid(where, "항목은 children·autoAdd·collapsible·collapsed 를 쓰지 않는다");
+            }
+            if (entry.tabOn()) {
+                tabs++;
+            }
+            if (BoardPreset.MenuEntry.BUILTIN.equals(entry.type())) {
+                MenuBuiltin builtin = MenuBuiltin.of(entry.key()).orElseThrow(() -> invalid(where, "모르는 앱 화면 키다: " + entry.key()));
+                if (entry.slug() != null) {
+                    throw invalid(where, "앱 화면 항목은 slug 를 쓰지 않는다: " + entry.key());
+                }
+                if (builtin.loginRequired() && !MenuLimits.isLoginAudience(entry.audienceOrAll())) {
+                    throw invalid(where, "로그인 필요 화면은 audience 가 MEMBER·STAFF 여야 한다: " + entry.key());
+                }
+                if (!linked.add("BUILTIN:" + entry.key())) {
+                    throw invalid(where, "같은 앱 화면이 두 번 있다: " + entry.key());
+                }
+            } else if (BoardPreset.MenuEntry.BOARD.equals(entry.type())) {
+                if (entry.key() != null) {
+                    throw invalid(where, "게시판 항목은 key 를 쓰지 않는다: " + entry.slug());
+                }
+                if (entry.slug() == null || !generalSlugs.contains(entry.slug())) {
+                    throw invalid(where, "이 프리셋의 일반 게시판 주소가 아니다(소모임 게시판은 메뉴에 둘 수 없다): " + entry.slug());
+                }
+                if (!linked.add("BOARD:" + entry.slug())) {
+                    throw invalid(where, "같은 게시판이 두 번 있다: " + entry.slug());
+                }
+            } else {
+                throw invalid(where, "type 은 FOLDER·BUILTIN·BOARD 중 하나다: " + entry.type());
+            }
+        }
+
+        private void check(String field, MessageRef problem, String value) {
+            if (problem != null) {
+                throw invalid(where, field + " 이(가) 메뉴 규칙(" + problem.key() + ")에 맞지 않다: " + value);
+            }
+        }
     }
 
     /** 사이트 슬로건 — 없거나(null), 사이트 설정의 슬로건 규칙({@link SitePolicy#taglineViolation})을 지키는 앞뒤 공백 없는 값이어야 한다(설치 트랜잭션의 DB CHECK 에 걸리지 않게) */
@@ -188,6 +316,15 @@ public class BoardPresetCatalog {
         }
         if (BoardFields.SLUG_RESERVED.contains(board.slug())) {
             throw invalid(where, "쓸 수 없는 게시판 주소다");
+        }
+        // 소모임 게시판은 설치 때 이 이름의 분류에 잇는다(분류 표의 이름 규칙 — DB CHECK·유일 키에 걸리지 않게)
+        String category = board.groupCategoryName();
+        if (board.isGroupBoard()) {
+            if (GroupCategoryNames.problem(category).isPresent() || !category.equals(GroupCategoryNames.normalize(category))) {
+                throw invalid(where, "소모임 게시판은 groupCategoryName 이 앞뒤·겹친 공백 없는 1~" + GroupCategoryNames.NAME_MAX + "자여야 한다");
+            }
+        } else if (category != null) {
+            throw invalid(where, "groupCategoryName 은 소모임 게시판(kind GROUP)만 쓴다");
         }
         if (board.prefixes() == null || board.prefixes().isEmpty()) {
             throw invalid(where, "말머리가 하나도 없다(게시판은 말머리가 하나 이상 있어야 켤 수 있다)");

@@ -8,10 +8,12 @@ import java.util.regex.Pattern;
 /**
  * 소모임 분류 이름 규칙 — 앞뒤 공백을 다듬고 안쪽 공백을 하나로 줄인 뒤 1~{@value #NAME_MAX}자, {@code <}·{@code >}·줄바꿈·제어 문자 금지.
  * 같은 이름 막기는 {@link #key}(공백을 모두 빼고 소문자) — DB {@code ux_group_categories_name_key}.
+ *
+ * <p>관리자 분류 관리(admin {@code GroupCategoryService})와 설치 프리셋의 분류 만들기(api {@code BoardPresetApplier})가 같은 규칙을 쓰도록 shared 에 둔다.
  */
 public final class GroupCategoryNames {
 
-    static final int NAME_MAX = 20;
+    public static final int NAME_MAX = 20;
 
     private static final Pattern SPACES = Pattern.compile("\\s+", Pattern.UNICODE_CHARACTER_CLASS);
 
@@ -19,17 +21,17 @@ public final class GroupCategoryNames {
     }
 
     /** 다듬은 이름(없으면 빈 글자) */
-    static String normalize(String raw) {
+    public static String normalize(String raw) {
         return raw == null ? "" : SPACES.matcher(raw.strip()).replaceAll(" ");
     }
 
     /** 같은 이름 비교 키 */
-    static String key(String name) {
+    public static String key(String name) {
         return SPACES.matcher(name).replaceAll("").toLowerCase(Locale.ROOT);
     }
 
     /** 이름 문제 — 줄바꿈·제어 문자는 공백으로 줄이기 전의 값에서 본다 */
-    static Optional<MessageRef> problem(String raw) {
+    public static Optional<MessageRef> problem(String raw) {
         String stripped = raw == null ? "" : raw.strip();
         if (stripped.isEmpty()) {
             return Optional.of(new MessageRef("group.category.name.required"));
