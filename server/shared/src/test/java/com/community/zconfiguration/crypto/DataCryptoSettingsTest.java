@@ -44,6 +44,7 @@ class DataCryptoSettingsTest {
 
         assertThat(new DataCipher(shared.resolvePlaceholders("${roboyam.data-crypto.key:}"), shared.resolvePlaceholders("${roboyam.data-crypto.previous-keys:}")).isConfigured()).isFalse();
         assertThat(new BlindIndex(shared.resolvePlaceholders("${roboyam.data-crypto.index-key:}")).isConfigured()).isFalse();
+        assertThat(shared.resolvePlaceholders("${roboyam.crypto.key:}")).isEmpty(); // 설정 비밀값 키도 dev·prod 는 환경 변수로만 받는다
     }
 
     @Test
@@ -51,8 +52,9 @@ class DataCryptoSettingsTest {
         StandardEnvironment local = load("roboyam-shared.yml", "roboyam-shared-local.yml");
         String dataKey = local.resolvePlaceholders("${roboyam.data-crypto.key:}");
         String indexKey = local.resolvePlaceholders("${roboyam.data-crypto.index-key:}");
+        String secretKey = local.resolvePlaceholders("${roboyam.crypto.key:}"); // 설정 비밀값 키(ROBOYAM_CRYPTO_KEY) — local 은 개발용 값이 따로 있다
 
         assertThat(dataKey.substring(dataKey.indexOf(':') + 1)).isNotEqualTo(indexKey);
-        assertThat(local.containsProperty("roboyam.crypto.key")).isFalse(); // 설정 비밀값 키는 이 자리를 쓰지 않는다(ROBOYAM_CRYPTO_KEY 는 따로)
+        assertThat(secretKey).isNotBlank().isNotEqualTo(dataKey.substring(dataKey.indexOf(':') + 1)).isNotEqualTo(indexKey);
     }
 }

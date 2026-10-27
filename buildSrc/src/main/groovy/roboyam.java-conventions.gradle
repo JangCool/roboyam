@@ -37,4 +37,6 @@ tasks.withType(Test).configureEach {
     useJUnitPlatform()
     // 시험 JVM 도 앱과 같이 UTC 로 돈다 — 호스트(개발 PC)의 시간대에 기대지 않는다
     systemProperty 'user.timezone', 'UTC'
+    // local 포트원 시드(roboyam-shared-local.yml)는 시험에서 끈다 — 앱 시험이 local 프로필로 떠서 시험 DB 의 포트원 설정을 채우지 않게(PortOneLocalSeeder)
+    systemProperty 'roboyam.portone.seed.enabled', 'false'
 }

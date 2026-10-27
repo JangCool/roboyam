@@ -9,7 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 포트원 설정 표({@code portone_settings}, shared V84) 읽기·쓰기 — {@code PortOneSettingsService} 만 부른다.
+ * 포트원 설정 표({@code portone_settings}, shared V84) 읽기·쓰기 — {@code PortOneSettingsService} 와 local 시드({@code PortOneLocalSeeder})가 부른다.
  *
  * <p>JDBC(native SQL)인 이유: 칸마다 한 줄인 키-값 표라 {@code INSERT … ON CONFLICT DO UPDATE} 한 문장으로 저장하고, 바꾼 사람 이름을 운영자 표와 이어 한 번에 읽는다.
  * 값은 암호문({@code v1:})으로만 오간다. 트랜잭션은 부르는 서비스의 것을 따른다.
@@ -52,6 +52,16 @@ public class PortOneSettingStore {
         jdbc.update("INSERT INTO portone_settings (key, value_cipher, updated_at, updated_by) VALUES (?, ?, ?, ?) "
                 + "ON CONFLICT (key) DO UPDATE SET value_cipher = EXCLUDED.value_cipher, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by",
                 key, valueCipher, ts(now), updatedBy);
+    }
+
+    /**
+     * local 시드 — 그 칸의 줄이 없을 때만 넣는다(바꾼 사람 없음). api·admin 이 같이 떠도 한 번만 들어간다.
+     *
+     * @return 넣었으면 true
+     */
+    public boolean seedIfAbsent(String key, String valueCipher, Instant now) {
+        return jdbc.update("INSERT INTO portone_settings (key, value_cipher, updated_at, updated_by) VALUES (?, ?, ?, NULL) ON CONFLICT (key) DO NOTHING",
+                key, valueCipher, ts(now)) == 1;
     }
 
     /**

@@ -23,6 +23,19 @@ roboyam:
   # 이미지 저장 폴더 — 개발 PC 의 사용자 폴더(api·admin 을 어느 폴더에서 띄워도 같은 곳을 본다). ROBOYAM_STORAGE_PATH 로 바꿀 수 있다
   storage:
     local-path: ${ROBOYAM_STORAGE_PATH:${user.home}/.roboyam/media}
+  # 설정 비밀값 키(SecretEncryptor — 포트원·메일·소셜·알림 비밀값, 관리자 OTP) — local 만 개발용 고정값을 내장한다(없으면 그 설정 저장이 503 CRYPTO_KEY_MISSING).
+  # 저장소에 공개된 값이라 개발 PC 전용이다 — 진짜 비밀값을 로컬 DB 에 둘 때는 환경 변수 ROBOYAM_CRYPTO_KEY 로 따로 만든 키를 준다. dev · prod 는 환경 변수가 필수다
+  crypto:
+    key: ${ROBOYAM_CRYPTO_KEY:DirTCFp7G1I46TWbLQy+LMAysro2YktdQZfOftTlx+o=}
+  # 포트원 설정 시드 — local 만. 포트원 설정 표가 비어 있을 때(재설치 등) 서버가 뜨면서 암호화해 넣는다(PortOneLocalSeeder). 화면에서 한 번이라도 저장·지운 뒤에는 쓰지 않는다.
+  # 공개 저장소에 평문으로 둔다(사용자 결정 2026-10-27 — 로보얌 전용 상점의 테스트 키). dev · prod 는 관리자 화면에서 저장한다
+  portone:
+    seed:
+      store-id: ${ROBOYAM_PORTONE_STORE_ID:store-1ee339cc-0ccd-4789-a760-79481b511c67}
+      api-secret: ${ROBOYAM_PORTONE_API_SECRET:zFrdqkwnTvNZZAJbYsGzP9UxLIeHzuSrWcKZUtGmfHe6S9Ue6NeqAh4euaKNSUz0dyxphrS7qha2kerI}
+      identity-channel-key: ${ROBOYAM_PORTONE_IDENTITY_CHANNEL_KEY:channel-key-f5261d6e-8bc7-4458-ad56-fb4d9704d14c}
+      payment-channel-key: ${ROBOYAM_PORTONE_PAYMENT_CHANNEL_KEY:channel-key-1e946786-368e-4a24-9583-ae6410ffd935}
+      webhook-secret: ${ROBOYAM_PORTONE_WEBHOOK_SECRET:whsec_Dcdkv3y/ZBeJvJ2r/ZqckHO6u78dndScoUteVds4nmg=}
   # 개인정보 칸 암호화·해시 키 — local 만 개발용 고정값을 내장한다(개발 DB 의 시험 데이터를 다시 띄워도 읽을 수 있게).
   # 저장소에 공개된 값이라 개발 PC 전용이다 — dev · prod 는 설치 스크립트나 운영자가 따로 만든 키를 환경 변수로 준다
   data-crypto:
