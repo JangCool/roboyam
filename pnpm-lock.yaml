@@ -135,6 +135,9 @@ importers:
 
   apps/user-web:
     dependencies:
+      '@portone/browser-sdk':
+        specifier: 0.1.13
+        version: 0.1.13
       '@primeuix/themes':
         specifier: 3.0.1
         version: 3.0.1
@@ -1237,6 +1240,9 @@ packages:
 
   '@poppinss/exception@1.2.3':
     resolution: {integrity: sha512-dCED+QRChTVatE9ibtoaxc+WkdzOSjYTKi/+uacHWIsfodVfpsueo3+DKpgU5Px8qXjgmXkSvhXvSCz3fnP9lw==}
+
+  '@portone/browser-sdk@0.1.13':
+    resolution: {integrity: sha512-zC94/gmMeh5O44iRx/SiIyt8p+1YXxEVRQu+Fhi7WKMlzbERBViwCxY6B6MVO2QprGJS5iQG2bf6e7KoXln5Kg==}
 
   '@primeicons/core@8.0.2':
     resolution: {integrity: sha512-VySryvfIQH2xzNVXISIQg357gAt4oFYX2vKy27tWMB7UvEHu/gjRpeilBty3LBln7oVuAdFLPYOWr/FtTH8eJw==}
@@ -5937,6 +5943,8 @@ snapshots:
       supports-color: 10.2.2
 
   '@poppinss/exception@1.2.3': {}
+
+  '@portone/browser-sdk@0.1.13': {}
 
   '@primeicons/core@8.0.2':
     dependencies:

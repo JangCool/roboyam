@@ -3,11 +3,14 @@ package com.community.payment;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.community.payment.dto.CancelKind;
+import com.community.payment.dto.CancelStatus;
 import com.community.payment.dto.ConfirmedVia;
+import com.community.payment.dto.PaymentCancelOrder;
 import com.community.payment.dto.PaymentAnomaly;
 import com.community.payment.dto.PaymentOrderType;
 import com.community.payment.dto.PaymentStatus;
-import com.community.payment.dto.response.PaymentCompletionView;
+import com.community.payment.dto.response.PaymentResult;
 import com.community.payment.exception.PaymentGatewayUnavailableException;
 import com.community.payment.exception.PaymentNotPaidException;
 import com.community.payment.exception.PaymentOrderMismatchException;
@@ -79,7 +82,7 @@ class PaymentCompletionTest {
         assertThat(kit.order(created.paymentId()).status()).isEqualTo(PaymentStatus.READY);
 
         kit.pgPaid(created.paymentId(), 7_000);
-        PaymentCompletionView view = kit.completion.complete(created.userId(), created.paymentId(), PaymentOrderType.PAYMENT_TEST, created.orderRefId());
+        PaymentResult view = kit.completion.complete(created.userId(), created.paymentId(), PaymentOrderType.PAYMENT_TEST, created.orderRefId());
         assertThat(view.status()).isEqualTo(PaymentStatus.PAID);
         assertThat(view.accepted()).isTrue();
         assertThat(view.paidAmount()).isEqualTo(7_000);
@@ -101,14 +104,67 @@ class PaymentCompletionTest {
         PaymentTestKit.Created created = kit.create(kit.newMember(), 7_000, Decision.ACCEPT);
         kit.pgPaid(created.paymentId(), 7_000);
         kit.confirm.confirm(created.paymentId(), ConfirmedVia.WEBHOOK);
-        PaymentCompletionView view = kit.completion.complete(created.userId(), created.paymentId(), PaymentOrderType.PAYMENT_TEST, created.orderRefId());
+        PaymentResult view = kit.completion.complete(created.userId(), created.paymentId(), PaymentOrderType.PAYMENT_TEST, created.orderRefId());
         assertThat(view.accepted()).isTrue();
         assertThat(kit.handler.cashOf(created.orderRefId())).isEqualTo(7_000);
 
         PaymentTestKit.Created rejected = kit.create(kit.newMember(), 7_000, Decision.REJECT);
         kit.pgPaid(rejected.paymentId(), 7_000);
-        PaymentCompletionView rejectedView = kit.completion.complete(rejected.userId(), rejected.paymentId(), PaymentOrderType.PAYMENT_TEST, rejected.orderRefId());
+        PaymentResult rejectedView = kit.completion.complete(rejected.userId(), rejected.paymentId(), PaymentOrderType.PAYMENT_TEST, rejected.orderRefId());
         assertThat(rejectedView.accepted()).isFalse();
         assertThat(rejectedView.anomaly()).isEqualTo(PaymentAnomaly.DOMAIN_REJECTED);
+    }
+
+    @Test
+    void 응답은_화면_계약의_PaymentResult_이고_자동_취소의_금액과_상태_취소_누계를_싣는다() {
+        PaymentTestKit.Created accepted = kit.create(kit.newMember(), 7_000, Decision.ACCEPT);
+        kit.pgPaid(accepted.paymentId(), 7_000);
+        PaymentResult ok = kit.completion.complete(accepted.userId(), accepted.paymentId(), PaymentOrderType.PAYMENT_TEST, accepted.orderRefId());
+        assertThat(ok).isEqualTo(new PaymentResult(accepted.paymentId(), "PAYMENT_TEST", Long.toString(accepted.orderRefId()), PaymentStatus.PAID, null, true, 7_000,
+                7_000L, 0, kit.now(), null));
+
+        // 도메인 거절 — 커밋 뒤 즉시 취소가 끝났다
+        PaymentTestKit.Created rejected = kit.create(kit.newMember(), 7_000, Decision.REJECT);
+        kit.pgPaid(rejected.paymentId(), 7_000);
+        PaymentResult done = kit.completion.complete(rejected.userId(), rejected.paymentId(), PaymentOrderType.PAYMENT_TEST, rejected.orderRefId());
+        assertThat(done.accepted()).isFalse();
+        assertThat(done.status()).isEqualTo(PaymentStatus.CANCELED);
+        assertThat(done.canceledAmount()).isEqualTo(7_000);
+        assertThat(done.cancel()).isEqualTo(new PaymentResult.Cancel(7_000, CancelStatus.SUCCEEDED));
+
+        // 즉시 취소가 실패 — 자동 취소는 PENDING, 누계는 아직 0
+        PaymentTestKit.Created pending = kit.create(kit.newMember(), 5_000, Decision.ACCEPT);
+        kit.pgPaid(pending.paymentId(), 4_000);
+        kit.gateway.script(TestGateway.CancelScript.DOWN);
+        PaymentResult open = kit.completion.complete(pending.userId(), pending.paymentId(), PaymentOrderType.PAYMENT_TEST, pending.orderRefId());
+        assertThat(open.anomaly()).isEqualTo(PaymentAnomaly.AMOUNT_MISMATCH);
+        assertThat(open.accepted()).isFalse();
+        assertThat(open.status()).isEqualTo(PaymentStatus.PAID);
+        assertThat(open.paidAmount()).isEqualTo(4_000);
+        assertThat(open.canceledAmount()).isZero();
+        assertThat(open.cancel()).isEqualTo(new PaymentResult.Cancel(4_000, CancelStatus.PENDING));
+
+        // 워커가 마치면 다시 불러도(확정은 그대로) 취소가 보인다
+        kit.clock.advance(java.time.Duration.ofMinutes(2));
+        kit.worker.runOnce();
+        PaymentResult later = kit.completion.complete(pending.userId(), pending.paymentId(), PaymentOrderType.PAYMENT_TEST, pending.orderRefId());
+        assertThat(later.status()).isEqualTo(PaymentStatus.CANCELED);
+        assertThat(later.canceledAmount()).isEqualTo(4_000);
+        assertThat(later.cancel()).isEqualTo(new PaymentResult.Cancel(4_000, CancelStatus.SUCCEEDED));
+    }
+
+    @Test
+    void 회원_취소_같은_다른_종류의_취소는_cancel_에_싣지_않고_누계에만_보인다() {
+        PaymentTestKit.Created created = kit.create(kit.newMember(), 10_000, Decision.ACCEPT);
+        kit.pgPaid(created.paymentId(), 10_000);
+        kit.completion.complete(created.userId(), created.paymentId(), PaymentOrderType.PAYMENT_TEST, created.orderRefId());
+        kit.tx.executeWithoutResult(status -> kit.cancels.request(new PaymentCancelOrder(created.orderId(), 3_000, CancelKind.USER_CANCEL, "회원 취소",
+                "USER_CANCEL:" + kit.ids.nextId(), null)));
+
+        PaymentResult result = kit.completion.complete(created.userId(), created.paymentId(), PaymentOrderType.PAYMENT_TEST, created.orderRefId());
+        assertThat(result.accepted()).isTrue();
+        assertThat(result.status()).isEqualTo(PaymentStatus.PARTIAL_CANCELED);
+        assertThat(result.canceledAmount()).isEqualTo(3_000);
+        assertThat(result.cancel()).isNull();
     }
 }

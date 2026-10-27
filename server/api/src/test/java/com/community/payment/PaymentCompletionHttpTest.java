@@ -35,12 +35,17 @@ import tools.jackson.databind.json.JsonMapper;
  * <ul>
  *   <li>완료 API: 로그인 필요(401), 공통 래퍼·{@code no-store}, 409 {@code PAYMENT_NOT_PAID}·404·409 {@code PAYMENT_ORDER_MISMATCH}·400, <b>속도 제한·멱등 키 없음</b>(P24·12-4)</li>
  *   <li>웹훅: 로그인·CSRF 없이 받는다(보안 필터를 거쳐도 401·403 이 아니다), 서명이 틀리면 400, 맞으면 200, 본문 64KB 넘으면 400</li>
- *   <li>시험 주문 {@code /api/dev/payments}: 만들기 201·가짜 결제 204·상태</li>
+ *   <li>시험 주문 {@code /api/dev/payments}(2a-1 화면 계약 모양): 만들기 201({@code checkout} 공용 모양·유효 시간)·400 두 칸, 가짜 결제창 204·늦은 결제·이미 끝냄 409·남의 결제 404,
+ *       완료·다시 읽기 응답 {@code PaymentResult}({@code canceledAmount}·{@code cancel}·{@code accepted})</li>
  * </ul>
  */
 class PaymentCompletionHttpTest extends CommerceApiTestBase {
 
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
+    /** 가짜 결제창 「정상 결제」(금액 없음 = 주문 금액) */
+    private static final String PAID = "{\"outcome\":\"PAID\",\"late\":false}";
+    /** 가짜 결제창 「늦게 결제」 */
+    private static final String LATE = "{\"outcome\":\"PAID\",\"amount\":6000,\"late\":true}";
 
     @Autowired
     private WebApplicationContext context;
@@ -67,12 +72,13 @@ class PaymentCompletionHttpTest extends CommerceApiTestBase {
 
     /** 시험 주문을 만든다 — data */
     private JsonNode createTestOrder(long member, long amount) throws Exception {
-        String body = mvc.perform(as(member, post("/api/dev/payments/test-orders")).content("{\"amount\":" + amount + ",\"decision\":\"ACCEPT\"}"))
+        String body = mvc.perform(as(member, post("/api/dev/payments")).content("{\"amount\":" + amount + ",\"validMinutes\":10}"))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.provider").value("FAKE"))
-                .andExpect(jsonPath("$.data.amount").value(amount))
+                .andExpect(jsonPath("$.data.orderType").value("PAYMENT_TEST"))
+                .andExpect(jsonPath("$.data.checkout.gateway").value("FAKE"))
+                .andExpect(jsonPath("$.data.checkout.amount").value(amount))
                 .andReturn().getResponse().getContentAsString();
         return MAPPER.readTree(body).path("data");
     }
@@ -97,14 +103,14 @@ class PaymentCompletionHttpTest extends CommerceApiTestBase {
     void 시험_주문_가짜_결제_완료가_공통_래퍼와_no_store_로_끝까지_된다() throws Exception {
         long member = newMember();
         JsonNode order = createTestOrder(member, 12_000);
-        String paymentId = order.path("paymentId").asString();
+        String paymentId = order.path("checkout").path("paymentId").asString();
         assertThat(paymentId).matches("pay_[A-Za-z0-9]{32}");
 
         mvc.perform(as(member, post("/api/payments/" + paymentId + "/complete")).content(completeBody(order)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.code").value("PAYMENT_NOT_PAID"));
 
-        mvc.perform(as(member, post("/api/dev/payments/" + paymentId + "/fake-pay")).content("{\"result\":\"PAID\"}")).andExpect(status().isNoContent());
+        mvc.perform(as(member, post("/api/dev/payments/" + paymentId + "/fake-checkout")).content(PAID)).andExpect(status().isNoContent());
 
         mvc.perform(as(member, post("/api/payments/" + paymentId + "/complete")).content(completeBody(order)))
                 .andExpect(status().isOk())
@@ -125,23 +131,98 @@ class PaymentCompletionHttpTest extends CommerceApiTestBase {
     void 남의_결제는_404_다른_주문은_409_본문이_틀리면_400() throws Exception {
         long member = newMember();
         JsonNode order = createTestOrder(member, 5_000);
-        String paymentId = order.path("paymentId").asString();
+        String paymentId = order.path("checkout").path("paymentId").asString();
         mvc.perform(as(newMember(), post("/api/payments/" + paymentId + "/complete")).content(completeBody(order)))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("PAYMENT_ORDER_NOT_FOUND"));
         mvc.perform(as(member, post("/api/payments/" + paymentId + "/complete")).content("{\"orderType\":\"PAYMENT_TEST\",\"orderRefId\":\"123\"}"))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("PAYMENT_ORDER_MISMATCH"));
         mvc.perform(as(member, post("/api/payments/" + paymentId + "/complete")).content("{\"orderType\":\"PAYMENT_TEST\",\"orderRefId\":\"12a\"}"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.code").value("VALIDATION"));
-        mvc.perform(as(member, post("/api/dev/payments/test-orders")).content("{\"amount\":50}"))
-                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields.amount").exists());
+        mvc.perform(as(member, post("/api/dev/payments")).content("{\"amount\":50}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.code").value("VALIDATION"))
+                .andExpect(jsonPath("$.error.fields.amount").exists())
+                .andExpect(jsonPath("$.error.fields.validMinutes").exists());
+        mvc.perform(as(member, post("/api/dev/payments")).content("{\"amount\":5000,\"validMinutes\":61}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.fields.amount").doesNotExist())
+                .andExpect(jsonPath("$.error.fields.validMinutes").exists());
+    }
+
+    @Test
+    void 화면_계약_모양_만들기_유효_시간_늦은_결제_이미_끝냄_409_결과_다시_읽기() throws Exception {
+        long member = newMember();
+        String created = mvc.perform(as(member, post("/api/dev/payments")).content("{\"amount\":6000,\"validMinutes\":3}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.orderType").value("PAYMENT_TEST"))
+                .andExpect(jsonPath("$.data.orderRefId").isString())
+                .andExpect(jsonPath("$.data.expiresAt").isString())
+                .andExpect(jsonPath("$.data.checkout.gateway").value("FAKE"))
+                .andExpect(jsonPath("$.data.checkout.orderName").isString())
+                .andExpect(jsonPath("$.data.checkout.amount").value(6000))
+                .andExpect(jsonPath("$.data.checkout.currency").value("KRW"))
+                .andExpect(jsonPath("$.data.paymentId").doesNotExist())
+                .andExpect(jsonPath("$.data.checkout.paymentOrderId").doesNotExist())
+                .andReturn().getResponse().getContentAsString();
+        JsonNode order = MAPPER.readTree(created).path("data");
+        String paymentId = order.path("checkout").path("paymentId").asString();
+        assertThat(jdbc.queryForObject("SELECT extract(epoch FROM expires_at - created_at)::bigint FROM payment_orders WHERE payment_id = ?", Long.class, paymentId))
+                .as("유효 시각 = 만든 시각 + 3분").isEqualTo(180L);
+
+        // 가짜 결제창 — 남의 결제 404, 늦게 결제 204, 두 번째는 409
+        mvc.perform(as(newMember(), post("/api/dev/payments/" + paymentId + "/fake-checkout")).content(LATE))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("PAYMENT_ORDER_NOT_FOUND"));
+        mvc.perform(as(member, post("/api/dev/payments/" + paymentId + "/fake-checkout")).content("{\"amount\":6000,\"late\":true}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields.outcome").exists());
+        mvc.perform(as(member, post("/api/dev/payments/" + paymentId + "/fake-checkout")).content(LATE)).andExpect(status().isNoContent());
+        mvc.perform(as(member, post("/api/dev/payments/" + paymentId + "/fake-checkout")).content(PAID))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("FAKE_PG_ALREADY_DONE"))
+                .andExpect(jsonPath("$.error.message").isString());
+
+        mvc.perform(as(member, post("/api/payments/" + paymentId + "/complete")).content(completeBody(order)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.paymentId").value(paymentId))
+                .andExpect(jsonPath("$.data.anomaly").value("LATE_PAYMENT"))
+                .andExpect(jsonPath("$.data.accepted").value(false))
+                .andExpect(jsonPath("$.data.amount").value(6000))
+                .andExpect(jsonPath("$.data.paidAmount").value(6000))
+                .andExpect(jsonPath("$.data.paidAt").isString())
+                .andExpect(jsonPath("$.data.canceledAmount").value(6000))
+                .andExpect(jsonPath("$.data.status").value("CANCELED"))
+                .andExpect(jsonPath("$.data.cancel.amount").value(6000))
+                .andExpect(jsonPath("$.data.cancel.status").value("SUCCEEDED"));
+
+        mvc.perform(as(member, get("/api/dev/payments/" + paymentId)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.data.paymentId").value(paymentId))
+                .andExpect(jsonPath("$.data.anomaly").value("LATE_PAYMENT"))
+                .andExpect(jsonPath("$.data.accepted").value(false))
+                .andExpect(jsonPath("$.data.canceledAmount").value(6000))
+                .andExpect(jsonPath("$.data.cancel.status").value("SUCCEEDED"))
+                .andExpect(jsonPath("$.data.result").doesNotExist())
+                .andExpect(jsonPath("$.data.handlerCash").value(0))
+                .andExpect(jsonPath("$.data.cancels[0].kind").value("AUTO_REJECT"));
+
+        // 받아들인 결제의 결과는 cancel 이 null
+        JsonNode ok = createTestOrder(member, 2_000);
+        String okId = ok.path("checkout").path("paymentId").asString();
+        mvc.perform(as(member, post("/api/dev/payments/" + okId + "/fake-checkout")).content(PAID)).andExpect(status().isNoContent());
+        String okBody = mvc.perform(as(member, post("/api/payments/" + okId + "/complete")).content(completeBody(ok)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.accepted").value(true))
+                .andExpect(jsonPath("$.data.canceledAmount").value(0))
+                .andReturn().getResponse().getContentAsString();
+        JsonNode okData = MAPPER.readTree(okBody).path("data");
+        assertThat(okData.has("cancel") && okData.get("cancel").isNull()).as("cancel 칸은 있고 값은 null").isTrue();
+        assertThat(okData.has("anomaly") && okData.get("anomaly").isNull()).as("anomaly 칸은 있고 값은 null").isTrue();
     }
 
     @Test
     void 완료_API_에는_속도_제한도_멱등_키도_없다() throws Exception {
         long member = newMember();
         JsonNode order = createTestOrder(member, 3_000);
-        String paymentId = order.path("paymentId").asString();
-        mvc.perform(as(member, post("/api/dev/payments/" + paymentId + "/fake-pay")).content("{\"result\":\"PAID\"}")).andExpect(status().isNoContent());
+        String paymentId = order.path("checkout").path("paymentId").asString();
+        mvc.perform(as(member, post("/api/dev/payments/" + paymentId + "/fake-checkout")).content(PAID)).andExpect(status().isNoContent());
         for (int i = 0; i < 15; i++) {
             mvc.perform(as(member, post("/api/payments/" + paymentId + "/complete")).content(completeBody(order))) // Idempotency-Key 없이
                     .andExpect(status().isOk())
@@ -162,8 +243,8 @@ class PaymentCompletionHttpTest extends CommerceApiTestBase {
     void 웹훅은_로그인_CSRF_없이_받고_서명이_틀리면_400_맞으면_200() throws Exception {
         long member = newMember();
         JsonNode order = createTestOrder(member, 4_000);
-        String paymentId = order.path("paymentId").asString();
-        mvc.perform(as(member, post("/api/dev/payments/" + paymentId + "/fake-pay")).content("{\"result\":\"PAID\"}")).andExpect(status().isNoContent());
+        String paymentId = order.path("checkout").path("paymentId").asString();
+        mvc.perform(as(member, post("/api/dev/payments/" + paymentId + "/fake-checkout")).content(PAID)).andExpect(status().isNoContent());
         String body = "{\"type\":\"Transaction.Paid\",\"timestamp\":\"2026-10-26T00:00:00Z\",\"data\":{\"storeId\":\"" + FakePaymentGateway.STORE_ID
                 + "\",\"paymentId\":\"" + paymentId + "\",\"transactionId\":\"tx\"}}";
 

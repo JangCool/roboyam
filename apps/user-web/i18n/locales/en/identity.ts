@@ -50,7 +50,6 @@ export default {
     failProvider: 'Please try again in a moment.',
     failExpiredTitle: 'Verification timed out.',
     failExpired: 'Please start again.',
-    portoneUnavailable: 'The PortOne verification window isn’t connected yet.',
 
     // Pre-payment check
     gateNeed_CHARGE: 'Verify your identity to charge points',

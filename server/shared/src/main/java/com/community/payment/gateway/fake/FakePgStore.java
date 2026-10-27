@@ -50,6 +50,20 @@ public class FakePgStore {
                 + "ON CONFLICT (payment_id) DO UPDATE SET status = EXCLUDED.status, updated_at = EXCLUDED.updated_at", paymentId, status.name(), amount, Timestamp.from(now));
     }
 
+    /**
+     * 가짜 결제창의 결과를 <b>처음 한 번만</b> 남긴다(화면의 가짜 결제창 — {@code /api/dev/payments/{paymentId}/fake-checkout}). 그 결제 ID 의 줄이 이미 있으면(결제함·실패·취소)
+     * 아무것도 바꾸지 않는다 — 한 문장({@code ON CONFLICT DO NOTHING})이라 동시에 두 번 눌러도 한쪽만 남는다.
+     *
+     * @param paidAt 결제 시각(PAID 일 때만 — 늦은 결제 흉내면 유효 시각 뒤)
+     * @return 이번에 남겼으면 true, 이미 있었으면 false
+     */
+    public boolean finishCheckoutOnce(String paymentId, PgPaymentStatus status, long amount, String currency, Instant paidAt, Instant now) {
+        boolean paid = status == PgPaymentStatus.PAID;
+        return jdbc.update("INSERT INTO fake_pg_payments (payment_id, status, amount, currency, paid_at, cancelled_amount, cancellations, updated_at) "
+                + "VALUES (?, ?, ?, ?, ?, 0, '[]'::jsonb, ?) ON CONFLICT (payment_id) DO NOTHING", paymentId, status.name(), amount, currency,
+                paid ? Timestamp.from(paidAt) : null, Timestamp.from(now)) == 1;
+    }
+
     public Optional<PgPayment> find(String paymentId, String storeId) {
         return jdbc.query("SELECT payment_id, status, amount, currency, paid_at, cancelled_amount, cancellations::text, updated_at FROM fake_pg_payments WHERE payment_id = ?",
                 (rs, i) -> payment(rs, storeId), paymentId).stream().findFirst();

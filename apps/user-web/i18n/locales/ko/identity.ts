@@ -50,7 +50,6 @@ export default {
     failProvider: '잠시 후 다시 시도해 주세요.',
     failExpiredTitle: '인증 시간이 지났어요.',
     failExpired: '처음부터 다시 시도해 주세요.',
-    portoneUnavailable: '포트원 인증창은 아직 연결되지 않았어요.',
 
     // 결제 직전 확인
     gateNeed_CHARGE: '포인트 충전하려면 본인인증이 필요해요',

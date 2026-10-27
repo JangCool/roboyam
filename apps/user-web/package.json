@@ -10,6 +10,7 @@
         "typecheck": "nuxt typecheck"
     },
     "dependencies": {
+        "@portone/browser-sdk": "0.1.13",
         "@primeuix/themes": "3.0.1",
         "@primevue/nuxt-module": "5.0.2",
         "@roboyam/display-time": "workspace:*",

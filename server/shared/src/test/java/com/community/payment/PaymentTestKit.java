@@ -246,8 +246,8 @@ final class PaymentTestKit {
         }
 
         @Bean
-        PaymentCompletionService paymentCompletionService(PaymentOrderStore orders, PaymentConfirmService confirm) {
-            return new PaymentCompletionService(orders, confirm);
+        PaymentCompletionService paymentCompletionService(PaymentOrderStore orders, PaymentCancelStore cancels, PaymentConfirmService confirm) {
+            return new PaymentCompletionService(orders, cancels, confirm);
         }
 
         @Bean

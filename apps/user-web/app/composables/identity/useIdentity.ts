@@ -2,6 +2,7 @@ import { ApiError } from '~/composables/common/useApiClient';
 import type { IdentityFakeInput, IdentityStatus } from '~/composables/identity/api/useIdentityVerificationApi.types';
 import type { IdentityFakePrompt, IdentityLoadStatus, IdentityVerifyOutcome } from '~/composables/identity/useIdentity.types';
 import UtilAuthMessages from '~/utils/util-auth-messages';
+import UtilPortone from '~/utils/util-portone';
 
 /**
  * 내 본인인증 — 상태(공유 `useState`)와 인증 흐름 한 번(`verify`).
@@ -9,8 +10,8 @@ import UtilAuthMessages from '~/utils/util-auth-messages';
  *
  * 인증 흐름(계약 「0-4」 — `useIdentityVerificationApi`):
  *  ① `start()` — 서버가 인증 번호를 발급하고 지금 쓰는 구현(`PORTONE` | `FAKE`)을 알려 준다.
- *  ② `PORTONE` 이면 포트원 브라우저 SDK `requestIdentityVerification` 을 부를 자리다 — SDK 는 새 의존성이라 아직 넣지 않았다(사용자 승인 전, 아래 자리 주석).
- *     지금은 「포트원 인증창은 아직 연결되지 않았어요」 실패로 끝난다(발급된 인증 번호는 서버에서 30분 뒤 만료).
+ *  ② `PORTONE` 이면 포트원 브라우저 SDK(`@portone/browser-sdk/v2`, 클라이언트에서 동적 import) `requestIdentityVerification` 으로 인증창을 연다.
+ *     창을 닫으면 `CANCELLED`, SDK 오류는 `IDENTITY_PROVIDER_FAILED`(발급된 인증 번호는 서버에서 30분 뒤 만료). 모바일 리디렉션은 아직 다루지 않는다.
  *     `FAKE` 면 「가짜 본인인증(개발용)」 대화상자(`IdentityFakeDialog`)를 띄워 생년월일·사람 번호를 받는다.
  *  ③ `confirm()` — 성공하면 상태를 바꾸고 `VERIFIED`. 가짜 입력이 틀리면(400 VALIDATION) 대화상자를 연 채 칸 아래에 서버 문구를 보인다.
  *
@@ -157,13 +158,31 @@ export function useIdentity() {
         }
         if (started.provider === 'FAKE') return askFake(started.verificationId);
 
-        // TODO(포트원 SDK): 브라우저 SDK(`@portone/browser-sdk/v2`)로 인증창을 연다 — 새 의존성이라 사용자 승인 뒤에 더한다. 자리:
-        //   const response = await PortOne.requestIdentityVerification({ storeId: started.storeId, identityVerificationId: started.verificationId, channelKey: started.channelKey });
-        //   if (response?.code === 'IDENTITY_VERIFICATION_CANCELLED' 등 사용자가 닫음) return { kind: 'CANCELLED' };
-        //   if (response?.code) return { kind: 'FAILED', code: 'IDENTITY_PROVIDER_FAILED', message: response.message, retryAfter: null };
-        //   try { return { kind: 'VERIFIED', status: await confirmWith(started.verificationId, undefined) }; } catch (e) { return failed(e); }
-        // SDK 가 아직 없다 — 화면 전용 코드로 끝낸다(실패 안내는 기본 제목 + 이 문구 — `UtilIdentityMessages.failure` 의 그 밖의 코드)
-        return { kind: 'FAILED', code: 'PORTONE_SDK_MISSING', message: t('identity.portoneUnavailable'), retryAfter: null };
+        return portone(started.verificationId, started.storeId, started.channelKey);
+    }
+
+    /**
+     * 포트원 인증창(브라우저 SDK — 데스크톱 팝업). 결과는 서버가 포트원에 다시 물어 정한다(`confirm` 본문 없음) — SDK 응답 값을 믿지 않는다.
+     * 모바일 리디렉션(`redirectUrl`)은 아직 주지 않는다 — 돌아온 주소를 받아 `confirm` 을 이어 갈 자리가 없다(계약 미확정).
+     */
+    async function portone(verificationId: string, storeId: string | undefined, channelKey: string | undefined): Promise<IdentityVerifyOutcome> {
+        const providerFailed = (message?: string): IdentityVerifyOutcome => ({ kind: 'FAILED', code: 'IDENTITY_PROVIDER_FAILED', message: message || t('identity.failProvider'), retryAfter: null });
+        if (!import.meta.client || !storeId || !channelKey) return providerFailed();
+        let response;
+        try {
+            const { default: PortOne } = await import('@portone/browser-sdk/v2');
+            response = await PortOne.requestIdentityVerification({ storeId, identityVerificationId: verificationId, channelKey });
+        } catch (e) {
+            return providerFailed(e instanceof Error ? e.message : undefined);
+        }
+        // 리디렉션된 경우(창 대신 주소 이동) — 이 화면은 곧 떠난다
+        if (response === undefined) return { kind: 'CANCELLED' };
+        if (response.code !== undefined) return UtilPortone.isUserCancel(response.code, response.message) ? { kind: 'CANCELLED' } : providerFailed(response.message);
+        try {
+            return { kind: 'VERIFIED', status: await confirmWith(verificationId, undefined) };
+        } catch (e) {
+            return (await alreadyVerified(e)) ?? failed(e);
+        }
     }
 
     /** 본인인증 한 번 — 결과를 돌려준다(던지지 않는다). 이미 진행 중이면 그 결과를 같이 기다린다 */

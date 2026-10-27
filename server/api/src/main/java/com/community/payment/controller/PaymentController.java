@@ -2,7 +2,7 @@ package com.community.payment.controller;
 
 import com.community.auth.dto.AuthUser;
 import com.community.payment.dto.request.PaymentCompleteRequest;
-import com.community.payment.dto.response.PaymentCompletionView;
+import com.community.payment.dto.response.PaymentResult;
 import com.community.payment.service.PaymentCompletionService;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 결제 시작 API 는 도메인마다 따로 있다(공구 참여·충전 — 시험은 {@code /api/dev/payments}).
  *
  * <ul>
- *   <li>{@code POST /api/payments/{paymentId}/complete} {@code {orderType, orderRefId}} → {@code {paymentId, orderType, orderRefId, status, accepted, anomaly, amount, paidAmount, paidAt}}
+ *   <li>{@code POST /api/payments/{paymentId}/complete} {@code {orderType, orderRefId}} → {@code PaymentResult {paymentId, orderType, orderRefId, status, anomaly, accepted, amount, paidAmount, canceledAmount, paidAt, cancel: {amount, status} | null}}
  *       · 404 {@code PAYMENT_ORDER_NOT_FOUND}(없음·남의 결제) · 409 {@code PAYMENT_ORDER_MISMATCH}(다른 주문) · 409 {@code PAYMENT_NOT_PAID}(아직 결제 전 — 다시 시도)
  *       · 503 {@code PAYMENT_GATEWAY_UNAVAILABLE} · 503 {@code PAYMENT_NOT_CONFIGURED} · 400 {@code VALIDATION}</li>
  * </ul>
@@ -39,9 +39,9 @@ public class PaymentController {
     }
 
     @PostMapping("/{paymentId}/complete")
-    public ResponseEntity<ApiResponse<PaymentCompletionView>> complete(Authentication authentication, @PathVariable String paymentId,
+    public ResponseEntity<ApiResponse<PaymentResult>> complete(Authentication authentication, @PathVariable String paymentId,
                                                                        @Valid @RequestBody PaymentCompleteRequest body) {
-        PaymentCompletionView view = completion.complete(member(authentication), paymentId, body.orderType(), Long.parseLong(body.orderRefId()));
+        PaymentResult view = completion.complete(member(authentication), paymentId, body.orderType(), Long.parseLong(body.orderRefId()));
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(view));
     }
 

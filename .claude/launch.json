@@ -36,6 +36,30 @@
                 "set JAVA_HOME=%USERPROFILE%/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2&& .\\gradlew.bat :server:admin:bootRun --console=plain"
             ],
             "port": 8920
+        },
+        {
+            "name": "api-portone",
+            "runtimeExecutable": "pnpm",
+            "runtimeArgs": [
+                "-w",
+                "exec",
+                "cmd",
+                "/c",
+                "set JAVA_HOME=%USERPROFILE%/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2&& set ROBOYAM_PAYMENT_GATEWAY=portone&& set ROBOYAM_IDENTITY_PROVIDER=portone&& .\\gradlew.bat :server:api:bootRun --console=plain"
+            ],
+            "port": 8910
+        },
+        {
+            "name": "admin-portone",
+            "runtimeExecutable": "pnpm",
+            "runtimeArgs": [
+                "-w",
+                "exec",
+                "cmd",
+                "/c",
+                "set JAVA_HOME=%USERPROFILE%/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2&& set ROBOYAM_PAYMENT_GATEWAY=portone&& set ROBOYAM_IDENTITY_PROVIDER=portone&& .\\gradlew.bat :server:admin:bootRun --console=plain"
+            ],
+            "port": 8920
         }
     ]
 }
