@@ -208,7 +208,7 @@ const amountBoxes = computed(() => {
 function eventDot(kind: PaymentEventKind): string {
     if (kind === 'PAID' || kind === 'CANCEL_SUCCEEDED') return 'border-green-600 bg-green-100 dark:bg-green-950';
     if (kind === 'ANOMALY' || kind === 'CANCEL_GAVE_UP' || kind === 'EXTERNAL_CANCEL') return 'border-red-600 bg-red-100 dark:bg-red-950';
-    if (kind === 'CANCEL_REQUESTED' || kind === 'CANCEL_MANUAL') return 'border-orange-500 bg-orange-100 dark:bg-orange-950';
+    if (kind === 'CANCEL_REQUESTED' || kind === 'CANCEL_RETRY' || kind === 'CANCEL_MANUAL') return 'border-orange-500 bg-orange-100 dark:bg-orange-950';
     return 'border-surface-400 bg-(--p-content-background)';
 }
 

@@ -11,7 +11,7 @@ import org.springframework.stereotype.Repository;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * 대사 이슈({@code reconciliation_issues}) 쓰기 — 2a-2 는 콘솔 직접 취소 웹훅(P18)의 {@code CANCEL_MISMATCH} 만 남긴다(대사 배치·처리 API 는 2a-3).
+ * 대사 이슈({@code reconciliation_issues}) 쓰기 — 콘솔 직접 취소 웹훅(P18, 2a-2)·대사 배치({@code ReconciliationService}, 2a-3)가 열고 운영자가 처리로 닫는다(2a-3).
  * 열린 이슈는 (종류, 결제) 하나 — 같은 것이 다시 와도 새 줄을 만들지 않는다. 자동 보정하지 않는다(commerce.md 16-1).
  */
 @Repository
@@ -39,5 +39,15 @@ public class ReconciliationIssueStore {
         return jdbc.update("INSERT INTO reconciliation_issues (id, type, payment_id, payment_order_id, detected_day, detail, status, created_at) "
                         + "VALUES (?, ?, ?, ?, ?, CAST(? AS jsonb), 'OPEN', ?) ON CONFLICT (type, payment_id) WHERE status = 'OPEN' DO NOTHING", id, type.name(), paymentId,
                 paymentOrderId, java.sql.Date.valueOf(detectedDay), detail == null || detail.isEmpty() ? null : JSON.writeValueAsString(detail), ts(now)) == 1;
+    }
+
+    /**
+     * 열린 이슈를 처리로 닫는다(운영자 — 처리자·사유). 열려 있을 때만.
+     *
+     * @return 닫았으면 true
+     */
+    public boolean resolve(long id, long operatorId, String note, Instant now) {
+        return jdbc.update("UPDATE reconciliation_issues SET status = 'RESOLVED', resolve_note = ?, resolved_by = ?, resolved_at = ? WHERE id = ? AND status = 'OPEN'",
+                note, operatorId, ts(now), id) == 1;
     }
 }

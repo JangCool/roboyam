@@ -46,6 +46,8 @@ final class TestGateway implements PaymentGateway {
     private final Deque<CancelScript> cancelScript = new ArrayDeque<>();
     volatile boolean getDown;
     volatile boolean notConfigured;
+    /** 다건 조회만 실패(대사 장애) */
+    volatile boolean listDown;
     /** 조회만 실패하는 결제 ID(건별 장애) */
     final java.util.Set<String> downFor = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
@@ -61,6 +63,7 @@ final class TestGateway implements PaymentGateway {
         cancelScript.clear();
         getDown = false;
         notConfigured = false;
+        listDown = false;
         downFor.clear();
     }
 
@@ -127,6 +130,9 @@ final class TestGateway implements PaymentGateway {
 
     @Override
     public PgPaymentPage listPayments(Instant from, Instant until, int pageNumber, int pageSize) {
+        if (listDown || getDown) {
+            throw new PaymentGatewayUnavailableException();
+        }
         return fake.listPayments(from, until, pageNumber, pageSize);
     }
 

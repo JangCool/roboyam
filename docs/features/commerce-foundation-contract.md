@@ -210,9 +210,9 @@
 | `POST …/restrictions/{id}/lift` | `sanction.manage` | `{ reason(5~200) }` → 한 건 · 404 `RESTRICTION_NOT_FOUND` · 409 `RESTRICTION_NOT_ACTIVE` |
 | `GET /api/admin/members/{memberId}/withdrawn-contact` | `member.read` | `{ stored, withdrawnAt, purgeAfter, reveals: [{ operatorName, revealedAt, reason }] }`(이메일 없음) |
 | `POST …/withdrawn-contact/reveal` | `member.withdrawn.contact` | `{ reason(5~200) }` → `{ email, maskAt }`(`no-store`) · 404 `WITHDRAWN_CONTACT_NOT_FOUND` |
-| `GET /api/admin/portone-settings` | `site.read` | `{ identityProvider, cryptoKeyConfigured, identityReady, fields: [{ key: storeId\|apiSecret\|identityChannelKey, configured, updatedAt, updatedBy }] }` — 값은 없다 |
-| `PUT /api/admin/portone-settings/identity` | `site.secret` | `{ storeId?, apiSecret?, identityChannelKey? }`(보낸 칸만) → GET 과 같은 모양 · 503 `CRYPTO_KEY_MISSING` · 400 `VALIDATION` |
-| `DELETE /api/admin/portone-settings/identity/{key}` | `site.secret` | 204 · 404 `PORTONE_FIELD_NOT_FOUND` |
+| `GET /api/admin/portone-settings` | `site.read` | `{ identityProvider, paymentGateway, cryptoKeyConfigured, identityReady, paymentReady, fields: [{ key: storeId\|apiSecret\|identityChannelKey\|paymentChannelKey\|webhookSecret, configured, updatedAt, updatedBy }] }` — 값은 없다 (**2a-3 에서 결제 칸·`paymentGateway`·`paymentReady` 를 더함**, commerce-payment-contract 결정 14) |
+| `PUT /api/admin/portone-settings/{common\|identity\|payment}` | `site.secret` | 카드마다 보낸 칸만 — 공통 `{ storeId?, apiSecret? }` · 본인인증 `{ identityChannelKey? }` · 결제 `{ paymentChannelKey?, webhookSecret? }` → GET 과 같은 모양 · 503 `CRYPTO_KEY_MISSING` · 400 `VALIDATION`(웹훅 비밀키는 `whsec_` + base64). 감사 대상 ID = 카드 이름. **2a-3 이 `…/identity` 하나를 셋으로 나눔**(본인인증 카드는 이제 공통 칸을 받지 않는다) |
+| `DELETE /api/admin/portone-settings/{group}/{key}` | `site.secret` | 204 · 404 `PORTONE_FIELD_NOT_FOUND`(모르는 카드·그 카드의 칸이 아님·설정 안 된 칸) |
 
 ### 데이터·업무 규칙
 - **본인인증(12-1, 결정 1·2·3)**: 서버가 인증 번호를 먼저 발급(`identity_verification_attempts`, 회원·구현·상태·만든 시각)하고, 확정 때 그 번호로 업체 결과를 조회한다(포트원 `GET /identity-verifications/{id}`, 상태 VERIFIED 만). DI·CI 는 `BlindIndex`(용도 `identity.di`·`identity.ci`)로 해시만 저장하고 **각각 유일**, 원문·이름·휴대폰 번호는 저장하지 않는다. `provider_tx_id` 유일(같은 인증 결과 재사용 불가). 다른 회원에 묶인 DI 또는 CI 면 409 `IDENTITY_ALREADY_LINKED`(동시에 들어와도 유일 제약이 막는다).

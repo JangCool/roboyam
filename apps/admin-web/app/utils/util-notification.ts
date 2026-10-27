@@ -39,6 +39,9 @@ export default class UtilNotification {
         GRADE_PROMOTION_RUN: 'pi pi-trophy',
         // 포인트 상점 — 정지 중 회원의 환불 신청(링크 `/point-shop/purchases?refundRequest=PENDING`)
         POINT_SHOP_REFUND_REQUESTED: 'pi pi-replay',
+        // 결제 — 결제 이상(링크 `/payments/anomalies`) · 대사 불일치(링크 `/payments/reconciliation`)
+        COMMERCE_PAYMENT_ANOMALY: 'pi pi-credit-card',
+        COMMERCE_RECONCILE_MISMATCH: 'pi pi-check-square',
     };
 
     /**

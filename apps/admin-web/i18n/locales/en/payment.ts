@@ -151,6 +151,8 @@ export default {
         CANCEL_MANUAL: 'Handled manually',
         EXTERNAL_CANCEL: 'External cancel (PortOne console)',
         RECHECKED: 'Rechecked with PortOne',
+        CANCEL_RETRY: 'Cancel retry scheduled',
+        WEBHOOK: 'Webhook processed',
     },
     webhookResult: {
         PROCESSED: 'Processed',

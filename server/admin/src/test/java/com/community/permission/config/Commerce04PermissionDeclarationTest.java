@@ -54,9 +54,10 @@ class Commerce04PermissionDeclarationTest {
     }
 
     @Test
-    void 포트원_설정은_조회_site_read_저장과_지우기_site_secret() {
+    void 포트원_설정은_조회_site_read_세_카드_저장과_지우기_site_secret() {
         assertThat(declared(PortOneSettingsController.class, new PortOneSettingsController(null))).containsExactlyInAnyOrderEntriesOf(Map.of(
-                "view", List.of(Permission.SITE_READ), "saveIdentity", List.of(Permission.SITE_SECRET), "deleteField", List.of(Permission.SITE_SECRET)));
+                "view", List.of(Permission.SITE_READ), "saveCommon", List.of(Permission.SITE_SECRET), "saveIdentity", List.of(Permission.SITE_SECRET),
+                "savePayment", List.of(Permission.SITE_SECRET), "deleteField", List.of(Permission.SITE_SECRET)));
     }
 
     static class Undeclared {

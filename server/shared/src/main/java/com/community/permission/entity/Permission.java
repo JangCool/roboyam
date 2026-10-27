@@ -108,10 +108,10 @@ public enum Permission {
     COMMERCE_REFUND_LARGE("commerce.refund.large", GB_ORDER, SENSITIVE, false),
     COMMERCE_SETTLEMENT_READ("commerce.settlement.read", GB_SETTLE, READ, false),
     COMMERCE_EXPORT("commerce.export", GB_SETTLE, SENSITIVE, false),
-    /** 결제 주문 조회 — commerce.md 13-2, 기능 준비 중 */
-    COMMERCE_PAYMENT_READ("commerce.payment.read", GB_SETTLE, READ, false),
-    /** 대사 불일치 처리 */
-    COMMERCE_RECONCILE_MANAGE("commerce.reconcile.manage", GB_SETTLE, SENSITIVE, false),
+    /** 결제 주문 조회(결제 다섯 화면) — commerce.md 13-2, 2a-3 에서 준비됨 */
+    COMMERCE_PAYMENT_READ("commerce.payment.read", GB_SETTLE, READ, true),
+    /** 결제 이상·대사 처리(다시 시도·수동 처리 완료·포트원에서 다시 확인·이슈 처리·다시 대사) — 2a-3 에서 준비됨 */
+    COMMERCE_RECONCILE_MANAGE("commerce.reconcile.manage", GB_SETTLE, SENSITIVE, true),
     COMMERCE_SETTINGS("commerce.settings", GB_CONFIG, CONFIG, false),
     BUSINESS_READ("business.read", BIZ_REVIEW, READ, false),
     BUSINESS_MANAGE("business.manage", BIZ_REVIEW, MANAGE, false),

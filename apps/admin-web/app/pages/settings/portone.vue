@@ -8,7 +8,7 @@
         - 포트원인데 필요한 칸이 다 차지 않았으면 「본인인증을 쓸 수 없어요」(`identityReady=false`) · 「결제를 쓸 수 없어요」(`paymentReady=false`) 경고. 가짜면 「local·시험 전용」 안내.
         - 권한: 화면 `site.read`(메뉴가 거른다) · 저장·지우기 `site.secret` — 없으면 읽기 전용 안내와 상태만.
         - 저장하지 않은 변경이 있는데 다른 화면으로 가면 묻는다. 지우기는 확인을 묻는다.
-        서버 API: `usePortoneSettingsApi`(서버 `PortOneSettingsController`). ⚠ 결제 카드·결제 구현 표시는 2a-1 목업 — 공통·본인인증 칸은 실제 서버.
+        서버 API: `usePortoneSettingsApi`(서버 `PortOneSettingsController` — 카드마다 `…/common`·`…/identity`·`…/payment`).
     -->
     <div class="flex flex-col gap-4">
         <PageTitle :title="t('portone.title')" :subtitle="t('portone.subtitle')" />

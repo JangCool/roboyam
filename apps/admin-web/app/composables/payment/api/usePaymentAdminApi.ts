@@ -1,16 +1,3 @@
-import {
-    mockPaymentAnomalies,
-    mockPaymentCancelManual,
-    mockPaymentCancelRetry,
-    mockPaymentOrderDetail,
-    mockPaymentOrders,
-    mockPaymentRecheck,
-    mockPaymentWebhooks,
-    mockReconcileIssues,
-    mockReconcileOverview,
-    mockReconcileRerun,
-    mockReconcileResolve,
-} from '~/composables/payment/api/mock/payment-mock';
 import type {
     PaymentAnomalyPage,
     PaymentAnomalyQuery,
@@ -30,7 +17,7 @@ import type {
 
 /**
  * 결제 관리자 API — 서버 주소 문자열(`/api/admin/payment…`)이 있는 **유일한 곳**이다. 상태는 없다.
- * 계약: `docs/features/commerce-payment-contract.md`(2a-1 화면 목업이 제안한 모양 — 서버는 2a-3). 응답 `Cache-Control: no-store`.
+ * 계약: `docs/features/commerce-payment-contract.md`(2a-1 화면 목업이 정한 모양 그대로 2a-3 서버가 준다). 응답 `Cache-Control: no-store`.
  *
  * 권한: 조회 `commerce.payment.read`, 처리(「다시 시도」·「수동 처리 완료」·「포트원에서 다시 확인」·대사 처리·다시 대사) `commerce.reconcile.manage`. 없으면 `403 PERMISSION_DENIED`.
  * 처리는 모두 사유 5~200자(`400 VALIDATION fields.reason`, 다시 대사는 사유 없음)이고 서버가 감사(돈 관련)를 남긴다. 상세를 열면 `PAYMENT_ORDER_VIEW`(개인정보 열람) 감사.
@@ -46,7 +33,8 @@ import type {
  *   - `POST /api/admin/payment-reconciliation/issues/{id}/resolve` `{ reason }` → `ReconcileIssueRow` · `409 RECONCILE_ISSUE_NOT_OPEN`
  *   - `POST /api/admin/payment-reconciliation/days/{day}/rerun` → `ReconcileDayRow`(RUNNING) · `409 RECONCILE_ALREADY_RUNNING` · `400 fields.day`(오늘·미래)
  *
- * ⚠ MOCK: 모든 메서드가 `./mock/payment-mock.ts` 를 부른다. 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
+ * 질의: `page` 는 0부터. `from`·`to` 는 ISO 순간이고 `[from, to)`(화면이 고른 날의 시작 ~ 마지막 날 다음 날 시작). 거르기 칸이 비면 보내지 않는다
+ * (화면이 빈 칸을 넣지 않고, `useApiClient` 가 undefined·null 을 뺀다). `includeResolved` 는 켰을 때만 `true` 로 간다.
  */
 const PATH = {
     orders: '/api/admin/payments',
@@ -63,75 +51,41 @@ const PATH = {
 };
 
 export function usePaymentAdminApi() {
-    // REAL: const auth = useAdminAuthApi();
-    // REAL: const client = useApiClient({ refreshCsrf: () => auth.me() });
-    void PATH; // MOCK: 모든 메서드가 아직 목업이라 주소를 쓰는 곳이 없다 — 서버가 붙으면 이 줄을 지운다
+    const auth = useAdminAuthApi();
+    const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
         /** 결제 주문 목록 */
-        orders: (query: PaymentOrderQuery): Promise<PaymentPage<PaymentOrderRow>> =>
-            // MOCK:
-            mockPaymentOrders(query),
-        // REAL: client.get<PaymentPage<PaymentOrderRow>>(PATH.orders, { query: { ...query } }),
+        orders: (query: PaymentOrderQuery): Promise<PaymentPage<PaymentOrderRow>> => client.get<PaymentPage<PaymentOrderRow>>(PATH.orders, { query: { ...query } }),
 
         /** 결제 상세 — 서버가 열람 감사를 남긴다 */
-        order: (id: string): Promise<PaymentOrderDetail> =>
-            // MOCK:
-            mockPaymentOrderDetail(id),
-        // REAL: client.get<PaymentOrderDetail>(PATH.order(id)),
+        order: (id: string): Promise<PaymentOrderDetail> => client.get<PaymentOrderDetail>(PATH.order(id)),
 
         /** 포트원에서 다시 확인 — 확정 코드를 한 번 더 태운다 */
-        recheck: (id: string, reason: string): Promise<PaymentRecheckResult> =>
-            // MOCK:
-            mockPaymentRecheck(id, reason),
-        // REAL: client.post<PaymentRecheckResult>(PATH.recheck(id), { reason }),
+        recheck: (id: string, reason: string): Promise<PaymentRecheckResult> => client.post<PaymentRecheckResult>(PATH.recheck(id), { reason }),
 
         /** 웹훅 수신 내역 */
-        webhooks: (query: PaymentWebhookQuery): Promise<PaymentPage<PaymentWebhookRow>> =>
-            // MOCK:
-            mockPaymentWebhooks(query),
-        // REAL: client.get<PaymentPage<PaymentWebhookRow>>(PATH.webhooks, { query: { ...query } }),
+        webhooks: (query: PaymentWebhookQuery): Promise<PaymentPage<PaymentWebhookRow>> => client.get<PaymentPage<PaymentWebhookRow>>(PATH.webhooks, { query: { ...query } }),
 
         /** 결제 이상(이상 결제 + 최종 실패한 취소) */
-        anomalies: (query: PaymentAnomalyQuery): Promise<PaymentAnomalyPage> =>
-            // MOCK:
-            mockPaymentAnomalies(query),
-        // REAL: client.get<PaymentAnomalyPage>(PATH.anomalies, { query: { ...query } }),
+        anomalies: (query: PaymentAnomalyQuery): Promise<PaymentAnomalyPage> => client.get<PaymentAnomalyPage>(PATH.anomalies, { query: { ...query } }),
 
         /** 최종 실패한 취소를 다시 시도(대기열로 되돌림) */
-        retryCancel: (cancelId: string, reason: string): Promise<PaymentCancelView> =>
-            // MOCK:
-            mockPaymentCancelRetry(cancelId, reason),
-        // REAL: client.post<PaymentCancelView>(PATH.cancelRetry(cancelId), { reason }),
+        retryCancel: (cancelId: string, reason: string): Promise<PaymentCancelView> => client.post<PaymentCancelView>(PATH.cancelRetry(cancelId), { reason }),
 
         /** 최종 실패한 취소를 운영자가 직접 끝냈다고 표시 */
-        manualCancel: (cancelId: string, reason: string): Promise<PaymentCancelView> =>
-            // MOCK:
-            mockPaymentCancelManual(cancelId, reason),
-        // REAL: client.post<PaymentCancelView>(PATH.cancelManual(cancelId), { reason }),
+        manualCancel: (cancelId: string, reason: string): Promise<PaymentCancelView> => client.post<PaymentCancelView>(PATH.cancelManual(cancelId), { reason }),
 
         /** 날짜별 대사 상태 */
-        reconcile: (): Promise<ReconcileOverview> =>
-            // MOCK:
-            mockReconcileOverview(),
-        // REAL: client.get<ReconcileOverview>(PATH.reconcile),
+        reconcile: (): Promise<ReconcileOverview> => client.get<ReconcileOverview>(PATH.reconcile),
 
         /** 대사 불일치 이슈 */
-        issues: (query: ReconcileIssueQuery): Promise<PaymentPage<ReconcileIssueRow>> =>
-            // MOCK:
-            mockReconcileIssues(query),
-        // REAL: client.get<PaymentPage<ReconcileIssueRow>>(PATH.issues, { query: { ...query } }),
+        issues: (query: ReconcileIssueQuery): Promise<PaymentPage<ReconcileIssueRow>> => client.get<PaymentPage<ReconcileIssueRow>>(PATH.issues, { query: { ...query } }),
 
         /** 대사 이슈 처리(자동 보정 없음 — 운영자가 맞춘 뒤 닫는다) */
-        resolveIssue: (issueId: string, reason: string): Promise<ReconcileIssueRow> =>
-            // MOCK:
-            mockReconcileResolve(issueId, reason),
-        // REAL: client.post<ReconcileIssueRow>(PATH.resolve(issueId), { reason }),
+        resolveIssue: (issueId: string, reason: string): Promise<ReconcileIssueRow> => client.post<ReconcileIssueRow>(PATH.resolve(issueId), { reason }),
 
         /** 그 날 다시 대사 — 배치가 비동기로 돈다 */
-        rerunDay: (day: string): Promise<ReconcileDayRow> =>
-            // MOCK:
-            mockReconcileRerun(day),
-        // REAL: client.post<ReconcileDayRow>(PATH.rerun(day)),
+        rerunDay: (day: string): Promise<ReconcileDayRow> => client.post<ReconcileDayRow>(PATH.rerun(day)),
     };
 }

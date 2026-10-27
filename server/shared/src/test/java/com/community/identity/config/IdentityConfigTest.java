@@ -31,7 +31,7 @@ class IdentityConfigTest {
     /** 만들기만 하고 부르지 않는 포트원 설정(DB 에 붙지 않는다) */
     private static PortOneSettingsService unusedPortOneSettings() {
         return new PortOneSettingsService(new com.community.portone.repository.master.PortOneSettingStore(new org.springframework.jdbc.datasource.DriverManagerDataSource()),
-                new com.community.zconfiguration.crypto.SecretEncryptor(""), new IdentityProperties(IdentityProviderKind.PORTONE, Duration.ofMinutes(30)), null,
+                new com.community.zconfiguration.crypto.SecretEncryptor(""), new IdentityProperties(IdentityProviderKind.PORTONE, Duration.ofMinutes(30)), com.community.payment.config.PaymentProperties.DEFAULTS, null,
                 new StaticListableBeanFactory().getBeanProvider(Clock.class));
     }
 

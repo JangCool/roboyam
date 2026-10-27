@@ -134,7 +134,17 @@ public enum BatchCatalog implements BatchDefinition {
      * 미확정(READY) 결제 정리 — 유효 시각 + 여유 시간({@code batch_params} {@code grace_minutes}, 기본 10분)이 지난 READY 를 포트원에 조회해 결제됐으면 확정 코드로, 아니면 EXPIRED
      * (Java 배치 {@code PaymentReadyCleanupJob}, commerce.md 8-2 의 7·15-5, docs/features/commerce-payment-contract.md). 기본 10분마다. 결제가 확정되는 업무라 분류는 회원(MEMBER).
      */
-    PAYMENT_READY_CLEANUP("payment-ready-cleanup", BatchCategory.MEMBER, BatchSource.JAVA, "0 */10 * * * *", true);
+    PAYMENT_READY_CLEANUP("payment-ready-cleanup", BatchCategory.MEMBER, BatchSource.JAVA, "0 */10 * * * *", true),
+
+    /**
+     * PG 대사 — 아직 끝나지 않은 날(처음 결제가 생긴 날 ~ 어제, KST)마다 포트원 다건 조회와 우리 결제 주문을 맞춰 불일치 5종을 이슈로 남긴다(자동 보정 없음 — Java 배치
+     * {@code PaymentReconciliationJob}, 파라미터 {@code day} 로 그 날만 다시, commerce.md 16-1·15-5, docs/features/commerce-payment-contract.md 결정 16). 기본 매일 04:50 KST.
+     * 돈을 움직이지 않고 알리기만 하므로 정리(SYSTEM) 분류(포인트 불변식 검사와 같다).
+     */
+    PAYMENT_RECONCILIATION("payment-reconciliation", BatchCategory.SYSTEM, BatchSource.JAVA, "0 50 4 * * *", true),
+
+    /** 받은 지 보관 기간(기본 90일)이 지난 결제 웹훅 수신 기록 삭제 — DB 배치, 기본 매일 04:45 KST({@code R__batch_31_payment_webhook_log_cleanup.sql}, commerce.md 8-1·15-5) */
+    PAYMENT_WEBHOOK_LOG_CLEANUP("payment-webhook-log-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true);
 
     private static final Pattern PROCEDURE_NAME = Pattern.compile("[a-z][a-z0-9_]{0,62}");
 

@@ -157,9 +157,9 @@ public class PaymentWebhookService {
 
     /**
      * 포트원 취소 목록을 취소 대기열과 맞춘다 — 성공한 포트원 취소마다: 우리 줄(취소 내역 아이디 또는 사유의 우리 표시)이 있으면 끝나지 않았을 때 성공으로 맞추고,
-     * 없으면 우리 것이 아닌 취소(콘솔 직접 취소)라 상태를 바꾸지 않고 이력 + 대사 이슈를 남긴다(P18 — 자동 보정 없음).
+     * 없으면 우리 것이 아닌 취소(콘솔 직접 취소)라 상태를 바꾸지 않고 이력 + 대사 이슈를 남긴다(P18 — 자동 보정 없음). 취소 웹훅과 관리자 「포트원에서 다시 확인」(이미 확정된 결제)이 부른다.
      */
-    void syncCancellations(OrderRow order, Instant now) {
+    public void syncCancellations(OrderRow order, Instant now) {
         PgPayment pg = gateway.getPayment(order.paymentId());
         for (PgCancellation cancellation : pg.cancellations()) {
             if (cancellation.status() != PgCancelStatus.SUCCEEDED) {

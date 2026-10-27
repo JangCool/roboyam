@@ -9,7 +9,7 @@
 |---|---|---|---|
 | 2a-1 화면 목업 | admin 결제 주문(목록·상세 서랍: 이력·취소·웹훅) · 웹훅 수신 내역 · 결제 이상 · 날짜별 대사 · 대사 불일치 · `/settings/portone` 카드 셋, user-web `/dev/payment`(시험 주문 + 가짜 결제창) | frontend | **화면 확정 2026-10-26**(아래 「2a-1 화면 목업」, 브랜치 `claude/commerce-2a-1-payment-screens-4ae2d1`) |
 | 2a-2 결제 핵심 서버 | V97(가번호 V90), Fake·포트원 게이트웨이, 주문 만들기·확정·완료 API·시험 핸들러, 웹훅, 취소 대기열·워커, READY 정리, 규칙 테스트 | backend | **구현·규칙 테스트 통과**(2026-10-26, 아래 「2a-2 구현 결과」) — **develop 병합 2026-10-27**(아래 「develop 병합」) |
-| 2a-3 대사 + 관리자 API + 연결 | 대사 배치, `R__batch_31`, 관리자 조회·처리 API, 포트원 결제 칸·API 정리, 알림·감사, 화면 연결 | backend → frontend | 2a-1 확정·2a-2 병합 뒤 |
+| 2a-3 대사 + 관리자 API + 연결 | 대사 배치, `R__batch_31`, 관리자 조회·처리 API, 포트원 결제 칸·API 정리, 알림·감사, 화면 연결 | backend → frontend | **구현·규칙 테스트 통과·화면 연결**(2026-10-27, 아래 「2a-3 구현 결과」, 브랜치 `claude/commerce-2a-3-reconcile-admin-0ef5e7`) — develop 병합 전 |
 | 2a-4 테스트 채널 실제 확인 | dev 에 포트원 테스트 채널 키·웹훅 주소 등록, 사람이 결제창으로 결제·취소·콘솔 직접 취소 확인. 브라우저 SDK `@portone/browser-sdk` 추가(**승인 2026-10-26**, 버전은 설치 때 확인) | 사용자 + 세션 | 마지막 |
 순서: 2a-1 ∥ 2a-2 → 화면 확정 → 2a-3 → 2a-4. 2a-2 는 화면과 무관한 서버 핵심이라 화면 확정 전에 병행한다(사용자 승인 2026-10-26). 세션마다 자기 worktree.
 
@@ -17,7 +17,8 @@
 | 가번호 | 스트림 | 내용 | 단위 |
 |---|---|---|---|
 | V97 `payment_module`(가번호 V90 — develop 병합 때 확정) | shared | 아래 표 7개 | 2a-2 (대사 두 표도 여기 — 2a-3 이 쓴다) |
-| `R__batch_31_payment_webhook_log_cleanup` | shared | pg_cron 매일, 90일 지난 웹훅 기록 삭제(`batch_params` `retention_days`) | 2a-3 |
+| `R__batch_31_payment_webhook_log_cleanup` | shared | pg_cron 매일 04:45 KST, 90일 지난 웹훅 기록 삭제(`batch_params` `retention_days`) | 2a-3 (**번호 확정** — develop 81f286b 의 마지막 반복 shared `R__batch_29`·admin `R__batch_30`, 다른 브랜치에도 31 없음) |
+| `V98__payment_reconcile_admin` | shared | 이력 종류 `RECHECKED`, 대사한 날 상태 RUNNING·DONE·MISMATCH·FAILED(V97 의 OK·FAIL 대신), 색인 셋 | 2a-3 (develop 81f286b 의 V97 다음 — 합칠 때 다시 확인) |
 - develop 64123b5 기준 shared 마지막 V89 · 반복 `R__batch_29`(admin 스트림이 `R__batch_30`).
 - Java 배치(카탈로그만): `payment-ready-cleanup`(10분, 2a-2) · `payment-reconciliation`(매일 04:50 KST, 날짜 파라미터·이어 받기, 2a-3). 워커 `payment-cancel`(1분, `worker_heartbeats`, 2a-2).
 - `portone_settings` 는 키 CHECK 가 없어 표를 바꾸지 않는다(코드 `PortOneSettingKey` 만).
@@ -134,6 +135,7 @@
 | 대사 5종·자동 보정 없음·중복 없음·놓친 날 메꿈·날짜 지정·처리 권한/사유/감사 | `PaymentReconciliationJobTest`, `ReconciliationAdminTest` | 2a-3 |
 | 포트원 결제 칸: 값 숨김·`paymentReady`·감사 칸 이름만·`site.secret` | `PortOneSettingsHttpTest`(보강) | 2a-3 |
 | 권한 준비됨·선언·403, 메뉴, 감사 분류, 문구 두 언어, 웹훅 기록 90일 정리 | `Commerce2aPermissionDeclarationTest`·`Commerce2aCatalogTest`·`PaymentCleanupBatchTest` | 2a-3 |
+| 관리자 결제 API: 목록·상세(회원 번호·닉네임만, 열람 감사)·웹훅·결제 이상, 다시 시도·수동 처리(누계 불변)·다시 확인(결과 셋, 이미 확정이면 취소 맞춤) — 권한·사유·감사 | `PaymentAdminHttpTest` | 2a-3 |
 - 테스트로 막지 못할 것: 실제 포트원 호출·웹훅 전송(2a-4 에서 사람이), 상수 시간 비교의 실제 시간, pg_cron 등록, 브라우저 결제창, 워커의 실제 예약 주기.
 
 ## 2a-1 화면 목업 (2026-10-26 — **사용자 확정**(「화면 이대로 확정해」). 서버 없음)
@@ -197,9 +199,58 @@
 - **실행**(2026-10-26, 이 worktree): `JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2 ./gradlew --continue :server:shared:test --rerun --tests 'com.community.payment.*' --tests 'com.community.portone.*' --tests 'com.community.identity.*' --tests 'com.community.commerce.*' --tests 'com.community.audit.*' --tests 'com.community.batch.core.*' --tests 'com.community.testsupport.*' --tests 'com.community.mail.outbox.*' --tests 'com.community.point.PointBatchCatalogTest' --tests 'com.community.pointshop.PointShopCatalogTest' :server:api:test --rerun --tests 'com.community.payment.*' --tests 'com.community.identity.*' --tests 'com.community.commerce.*' :server:admin:test --rerun --tests 'com.community.commerce.*' --tests 'com.community.batch.*' --tests 'com.community.permission.*' --tests 'com.community.menu.*' --tests 'com.community.mfa.MfaCatalogTest' --tests 'com.community.audit.*'` → **shared 239 · api 47 · admin 73 = 359 통과, 실패 0**. 그중 2a-2 새 시험 99개(shared 90 · api 6 · admin 3), 나머지 260개는 바꾼 곳 둘레의 기존 시험(포트원 설정·본인인증·감사 분류 `AuditRetentionTest`·커머스 카탈로그·배치 core/화면·권한·메뉴·메일 대기열 — 관리자·공개 사이트 앱 문맥이 결제 빈을 싣고 뜨는 것도 여기서 확인). 전체 테스트는 돌리지 않았다.
 - **테스트로 막지 못한 것**: 실제 포트원 호출(응답 모양은 OpenAPI 기준 흉내 — 2a-4), 실제 웹훅 전송·재전송, `paymentId` 길이 제한(문서에 없음), 상수 시간 비교의 실제 시간, 워커·READY 정리의 실제 예약 주기(`@Scheduled`·cron 자체), 운영자 알림의 실제 발행(발행기 대역으로 「무엇을 냈는가」만 — 문구·받는 사람은 알림 모듈 시험의 몫), 시험 주문 처리기 메모리가 서버마다 따로인 것(시연용으로 받아들임), dev 의 `ROBOYAM_PAYMENT_TEST_ORDERS` 를 compose 에 넣는 일(배포 파일은 이 단계에서 고치지 않았다).
 
+## 2a-3 구현 결과 (2026-10-27 — develop 81f286b 에서 시작)
+- **코드**
+  - shared `com.community.payment`: `batch.PaymentReconciliationJob`(Java 배치 `payment-reconciliation`) · `service.ReconciliationService`(하루 대사·5종 비교·알림) · `service.PaymentAdminReadService`(목록·상세·결제 이상·대사 요약, 상세 열람 감사) · `service.PaymentAdminActionService`(다시 시도·수동 처리 완료·다시 확인·이슈 처리·다시 대사) · `service.PaymentDetailText`(이력·이슈 `detail` → 요청 언어 한 줄, 결제 수단 이름) · `repository.master`(`PaymentAdminQueries` 읽기 · `PaymentReconcileQueries` · `PaymentReconcileDayStore`, 취소 대기열 `reopenGaveUp`·`markManual`·`lockById`, 이슈 `resolve`) · `dto.response`(관리자 화면 모양 13개) · `exception`(오류 5개). `PaymentWebhookService.syncCancellations` 를 공개(다시 확인이 같이 쓴다).
+  - shared 그 밖: `BatchCatalog` 두 줄(`PAYMENT_RECONCILIATION` Java SYSTEM `0 50 4 * * *` · `PAYMENT_WEBHOOK_LOG_CLEANUP` DB SYSTEM), `Permission` 두 권한 `featureReady=true`, `AdminNotificationEvent.COMMERCE_RECONCILE_MISMATCH`, `AuditActions.PAYMENT_RECONCILE_RERUN`·`AuditRetention`(일반), `PortOneSettingsService`(카드 단위 `save(group, …)`·`deleteField(group, key)`·`violation`·`webhookSecretShape`, 화면에 `paymentGateway`·`paymentReady`·다섯 칸), `PortOneSettingsView` 두 칸 더함, 메시지 두 언어.
+  - admin: `payment.controller.PaymentAdminController`(11개 — 경로·응답은 2a-1 의 `usePaymentAdminApi.ts` 그대로) · `payment.service.PaymentAdminService`(질의 읽기) · `payment.dto.request.PaymentReasonRequest`, `PortOneSettingsController`(`PUT …/{common|identity|payment}` · `DELETE …/{group}/{key}`) + 요청 셋, `AdminScreenRegistry` 결제 묶음 다섯 줄(포인트 상점 다음), `AuditLabels.TARGET_TYPES` 넷(`PAYMENT_ORDER`·`PAYMENT_CANCEL`·`RECONCILIATION_ISSUE`·`PAYMENT_RECONCILE_DAY`).
+  - admin-web: `usePaymentAdminApi`·`usePortoneSettingsApi` 의 `// MOCK:` 을 지우고 실제 API(목업 파일 둘 삭제), 이력 종류 `CANCEL_RETRY`·`WEBHOOK` 타입·문구, `util-permission-catalog.ts` 두 권한 준비됨, `util-notification.ts` 결제 알림 아이콘 둘, 화면 머리 주석의 「목업 단계」 정리(화면 동작·모양은 그대로).
+- **마이그레이션**: shared `V98__payment_reconcile_admin.sql`, `R__batch_31_payment_webhook_log_cleanup.sql`(04:45, `retention_days` 90 · 30~3650).
+- **API**(공통 래퍼, `no-store`, 쓰기는 CSRF). 쪽 번호 0부터·크기 1~100(기본 20), 기간은 ISO 순간 [from, to), 빈 거르기는 생략. 처리 사유 5~200자(`400 fields.reason`), 못 읽는 질의는 `400 fields.<이름>`, 못 읽는 경로 ID 는 404.
+  | | 권한 | 요청 → 응답 · 오류 |
+  |---|---|---|
+  | `GET /api/admin/payments` | `commerce.payment.read` | `status·anomaly(종류\|ANY)·orderType·from·to·q(결제 번호 일부\|회원 번호)` → `{items, total}`(만든 시각 내림차순) |
+  | `GET /api/admin/payments/{id}` | 같음 | 상세(+ events·cancels·webhooks 최근 50·openIssueCount) · 감사 `PAYMENT_ORDER_VIEW` · 404 `PAYMENT_ORDER_NOT_FOUND` |
+  | `POST /api/admin/payments/{id}/recheck` | `commerce.reconcile.manage` | `{reason}` → `{outcome: CONFIRMED\|UNCHANGED\|PG_NOT_PAID, detail}` · 503 `PAYMENT_GATEWAY_UNAVAILABLE`(감사 없음) |
+  | `GET /api/admin/payment-webhooks` | `commerce.payment.read` | `result·from·to·q(결제 번호·webhook-id 일부)` → `{items, total}` |
+  | `GET /api/admin/payment-anomalies` | 같음 | `kind(이상 종류\|CANCEL_GAVE_UP)·includeResolved·from·to`(발견 시각) → `{items, total, openCount}`(처리 안 된 것 먼저) |
+  | `POST /api/admin/payment-cancels/{id}/retry`·`/manual` | `commerce.reconcile.manage` | `{reason}` → 취소 한 줄 · 409 `PAYMENT_CANCEL_NOT_GAVE_UP` · 404 `PAYMENT_CANCEL_NOT_FOUND` |
+  | `GET /api/admin/payment-reconciliation` | `commerce.payment.read` | `{lastCheckedDay, nextRunAt, days[14](어제부터), openIssueCount}` |
+  | `GET /api/admin/payment-reconciliation/issues` | 같음 | `type·status·day` → `{items, total}`(열린 것 먼저) |
+  | `POST …/issues/{id}/resolve` | `commerce.reconcile.manage` | `{reason}` → 이슈 한 줄 · 409 `RECONCILE_ISSUE_NOT_OPEN` · 404 `RECONCILE_ISSUE_NOT_FOUND` |
+  | `POST …/days/{day}/rerun` | 같음 | 본문 없음 → 그 날 줄(RUNNING) · 409 `RECONCILE_ALREADY_RUNNING` · 400 `fields.day`(오늘·미래·못 읽음) |
+  | 포트원 설정 | `site.read`/`site.secret` | `commerce-foundation-contract.md` 「0-4」 API 표를 고쳤다(카드 셋·`paymentGateway`·`paymentReady`·`whsec_` 검증) |
+- **구현 때 정한 것**(계약에 없던 세부)
+  1. **대사 비교**(16-1): 포트원 「결제 계열」= PAID·PARTIAL_CANCELLED·CANCELLED. 우리 주문 없음 + 포트원 결제 계열 → `PG_ONLY` · 우리 READY/EXPIRED + 포트원 결제 계열 → `PG_PAID_LOCAL_UNPAID` · 우리 결제 계열 + 포트원 없음/결제 아님 → `LOCAL_PAID_PG_MISSING` · 결제액(`paid_amount` ↔ `amount.total`) 다름 → `AMOUNT_MISMATCH` · 취소 누계 다름 → `CANCEL_MISMATCH`(한 결제에 둘 다 날 수 있다). 하루 = KST 날짜의 포트원 다건 조회(`STATUS_CHANGED_AT`, 100건씩, 60,000건 한도) + **그 날 결제되거나 성공한 취소가 끝난 우리 결제 중 목록에 없던 것은 단건 조회**(포트원 쪽 상태 변경일이 다른 날로 넘어간 결제를 놓치지 않게). 이슈 `detail` 은 포트원 값 ↔ 우리 값(개인정보 없음).
+  2. **「아직 안 한 날 전부」** = 처음 결제 주문이 생긴 날(KST)부터 어제까지 중 DONE·MISMATCH 가 아닌 날(줄 없음·RUNNING·FAILED). 날 하나 = 배치 한 건(체크포인트 = 날짜 → 「실패 지점부터 다시」), 포트원 장애는 그 날만 FAILED + 실패 건 `PAYMENT_RECONCILE_DAY`. 날짜 상태·이슈는 각각 새 트랜잭션으로 확정(덩어리 실패 뒤 한 건씩 다시 돌아도 남는다). `issue_count` = 그 날 마지막 대사의 불일치 수(이미 열려 있던 것 포함), 화면의 「열림」은 그 날 발견해 아직 열린 이슈 수.
+  3. **날짜 상태 저장**: V98 이 `payment_reconcile_days.status` 를 화면 이름(RUNNING·DONE·MISMATCH·FAILED)으로 바꿨다. PENDING 은 줄이 없는 날. 「이 날 다시 대사」는 줄을 바꾸지 않고 배치 요청 표(`batch_run_requests` NOW + `{day}`)에 넣는다 — 화면의 RUNNING 은 끝나지 않은 요청의 날짜로 보인다(배치를 켠 서버가 없어 요청이 남아도 줄이 RUNNING 으로 굳지 않는다). 대사 배치에 끝나지 않은 요청이 있으면 409.
+  4. **운영자 알림** `COMMERCE_RECONCILE_MISMATCH`: WARNING · 이메일 없음 · 링크 `/payments/reconciliation` · 묶음 키 `reconcile:<KST 날짜>` + 묶기 24시간 — 배치 한 실행이 새 이슈를 하나라도 열었을 때만(다시 돌려 새 이슈가 없으면 알리지 않는다).
+  5. **다시 확인**: 확정 코드(`ADMIN_RECHECK`) — READY·EXPIRED 면 결과대로 CONFIRMED(EXPIRED 는 늦은 결제 + 자동 취소)·PG_NOT_PAID. **이미 확정된 결제면 UNCHANGED 이고 포트원 취소 목록을 취소 대기열과 맞춘다**(취소 웹훅과 같은 코드 — 멈춘 취소를 포트원이 실제로 취소했으면 그 줄 SUCCEEDED·누계 반영, 우리 것이 아닌 취소는 상태 불변 + `CANCEL_MISMATCH` 이슈). 이력 `RECHECKED`(`detail.outcome`), 감사 `PAYMENT_RECHECK`. 포트원 장애는 503·감사 없음.
+  6. **다시 시도**: GAVE_UP → PENDING(시도 0·다음 시도 지금·`completed_at` 비움, 1분 워커가 집는다 — 즉시 시도는 하지 않는다), 이력 `CANCEL_REQUESTED`(`detail.by = ADMIN_RETRY`). **수동 처리 완료**: GAVE_UP → MANUAL(누계 불변), 이력 `CANCEL_MANUAL`. 둘 다 처리자·사유를 취소 줄에, 감사(돈 관련)에 `paymentId`·`amount`·`note`. 잠금은 결제 주문 행 → 취소 줄.
+  7. **결제 이상 목록**: 이상 결제(발견 = 첫 `ANOMALY` 이력 시각, 취소 = `AUTO_REJECT:<주문 ID>` 줄) + 이상이 아닌 결제의 **한 번이라도 GAVE_UP 이 됐던** 취소(발견 = 첫 `CANCEL_GAVE_UP` 이력 — 다시 시도해 PENDING 이면 처리 안 됨, SUCCEEDED·MANUAL 이면 처리됨). 정렬 = 처리 안 된 것 → 발견 시각 내림차순.
+  8. **이력 종류**: 화면에 `CANCEL_RETRY`(재시도 예약)·`WEBHOOK`(webhook-id)도 그대로 내린다(admin-web 타입·문구 추가). `detail` 은 「이름: 값 · …」(금액 「12,000원」, 시각 KST, 코드 값은 번들 `payment.value.*`) — 번들에 없는 칸·값은 그대로.
+  9. **감사 행위 이름** 「이 날 다시 대사」 = `PAYMENT_RECONCILE_RERUN`(대상 `PAYMENT_RECONCILE_DAY` + 날짜, **일반** — 확정한 목업 가정 3). 대상 종류 넷을 `AuditLabels` 에 더했다.
+  10. **포트원 설정**: 저장·지우기는 카드 단위이고 다른 카드의 칸은 받지 않는다(`PUT …/identity` 에 `storeId` 를 보내면 「보낸 칸 없음」 400). 감사 대상 ID = 카드 이름(common·identity·payment). 웹훅 비밀키 = `whsec_` + 비어 있지 않은 base64(아니면 `400 fields.webhookSecret`) — 한 칸이라도 틀리면 그 카드는 저장하지 않는다.
+- **세션 정리 결정**(2a-3): 계약 「패키지」의 「관리자 조회는 읽기 전용 JPA + QueryDSL」 대신 **JDBC 읽기 저장소(`PaymentAdminQueries`)** 로 했다 — 결제 모듈 저장소가 모두 JDBC 이고, 결제 이상 목록이 두 출처의 `UNION ALL`·이력/이슈가 `jsonb` 라 엔티티를 새로 두는 것보다 단순하다(포인트 상점 관리자 목록 `PointShopPurchaseStore` 와 같은 방식, 정렬·쪽 나누기는 DB).
+
+### 2a-3 규칙 → 테스트 결과 (2026-10-27 — 모두 실제 PostgreSQL `CommerceTestDatabase`, 포트원은 가짜 PG)
+| 테스트(위치) | 수 | 막은 규칙 |
+|---|---|---|
+| shared `payment.PaymentReconciliationJobTest` | 6 | 카탈로그(Java·04:50·`day` DATE·이어 받기), **5종**(PG_PAID_LOCAL_UNPAID·LOCAL_PAID_PG_MISSING·AMOUNT_MISMATCH·CANCEL_MISMATCH·PG_ONLY, 맞는 결제는 없음)·**자동 보정 없음**(결제 주문·취소 대기열·포트원 취소 호출 그대로)·날짜 줄(MISMATCH·건수·실행 번호)·알림 하나, **중복 없음**(다시 돌려도 하나·새 이슈 없으면 알림 없음·처리한 이슈는 어긋남이 남으면 다시 열림), **놓친 날 메꿈**(줄 없음·FAILED 날까지, 끝낸 날은 그대로, 두 번째 실행 SKIP), **날짜 지정**(그 날만·오늘/미래 거절), 포트원 장애 → 그 날 FAILED + 실패 건 → 다음 실행이 처리 |
+| shared `payment.PaymentCleanupBatchTest` | 3 | `R__batch_31` 정의(04:45·DAILY·90일), 90일 지난 웹훅 기록만 삭제·결제 이력(WEBHOOK) 보존, `retention_days` 바꿈·하한 30 미만은 기본값 |
+| shared `portone.service.PortOnePaymentSettingsTest`(보강) | 5(+2) | 화면 다섯 칸·`paymentGateway`·`paymentReady`(암호화 키 없으면 거짓)·값 감춤, `whsec_` + base64 형식·빈 값·500자, 카드 밖 칸 거절·카드 이름 |
+| admin `payment.PaymentAdminHttpTest` | 11 | 권한(조회 `commerce.payment.read`·처리 `commerce.reconcile.manage` 403), 목록 거르기·쪽·회원 번호·닉네임만(탈퇴 번호 없음·이메일 없음)·결제 수단 이름, 상세(이력 요청 언어·웹훅·열린 이슈·`PAYMENT_ORDER_VIEW` 개인정보 열람 감사·404), 웹훅 목록(결과·번호 거르기·우리 주문 번호), 결제 이상(두 출처·처리 안 된 것만·`includeResolved`·`openCount`·종류), 다시 시도(사유 5~200·PENDING·시도 0·이력·감사 MONEY·두 번째 409·404), 수동 처리(누계 불변·감사), 다시 확인(사유 먼저·CONFIRMED·PG_NOT_PAID·늦은 결제 자동 취소·UNCHANGED + 콘솔 취소 이슈·멈춘 취소를 포트원 취소로 SUCCEEDED) |
+| admin `payment.ReconciliationAdminTest` | 5 | 권한 403, 요약(14일·PENDING·다음 04:50·마지막 대사한 날), 이슈 목록(열린 것 먼저·거르기·요청 언어·우리 주문 없음), 처리(사유·RESOLVED·처리자·감사 MONEY·결제 불변·409·404), 다시 대사(어제까지·못 읽음 400·배치 요청 `{day}`·RUNNING·감사 GENERAL·409) |
+| admin `commerce.PortOneSettingsHttpTest`(다시 씀) | 5 | 카드 셋 권한 `site.read`/`site.secret`, 다섯 칸·두 구현·`paymentReady`, 값이 응답·감사·암호문에 없음·감사 대상 = 카드·칸 이름만·MONEY, 빈 값·500자·`whsec_` 형식 400(아무것도 저장 안 함), 카드별 지우기·다른 카드 칸·모르는 카드 404 |
+| admin `permission.config.Commerce2aPermissionDeclarationTest` | 2 | 결제 API 11개 선언 = 계약, 두 권한 준비됨·처리는 SENSITIVE |
+| admin `commerce.Commerce2aCatalogTest` | 6 | 메뉴 다섯 줄(포인트 상점 다음·키·주소·아이콘·권한)·admin-web 사본 같음, 감사 분류(돈 넷·개인정보 하나·다시 대사 일반)·대상 넷, 알림 둘(링크·수준·받는 권한·하루 한 번), 배치 두 줄, 새 문구 두 언어 |
+| 바꾼 기존 시험 | — | `CommercePermissionsAndMenuTest`(두 권한 준비됨 — admin-web 사본까지), `Commerce04PermissionDeclarationTest`(포트원 핸들러 다섯), api `PortOneIdentitySettingsTest`(카드 단위 저장·지우기), shared `PortOneSettingsServiceTest`·`IdentityConfigTest`·`PaymentConfigTest`(생성자) |
+- **실행**(2026-10-27, 이 worktree): `JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2 ./gradlew --continue :server:shared:test --rerun --tests 'com.community.payment.*' --tests 'com.community.portone.*' --tests 'com.community.identity.*' --tests 'com.community.batch.core.*' --tests 'com.community.commerce.*' --tests 'com.community.audit.*' --tests 'com.community.notification.*'` → **212 통과**, `:server:shared:test --rerun --tests 'com.community.testsupport.*' --tests 'com.community.mail.outbox.*' --tests 'com.community.point.PointBatchCatalogTest' --tests 'com.community.point.PointInvariantCheckBatchTest' --tests 'com.community.point.PointMigrationConversionTest' --tests 'com.community.pointshop.PointShopCatalogTest' --tests 'com.community.pointshop.PointShopMigrationTest' --tests 'com.community.datakey.*' --tests 'com.community.batch.*'` → **88 통과**, `:server:admin:test --rerun --tests 'com.community.payment.*' --tests 'com.community.commerce.*' --tests 'com.community.permission.*' --tests 'com.community.menu.*' --tests 'com.community.audit.*' --tests 'com.community.batch.*' --tests 'com.community.mfa.MfaCatalogTest' --tests 'com.community.notification.*'` → **97 통과**, `:server:api:test --rerun --tests 'com.community.payment.*' --tests 'com.community.identity.*' --tests 'com.community.commerce.*'` → **47 통과**. 모두 실패 0(shared 두 묶음은 겹치는 시험이 있어 합이 아니다). 그중 2a-3 새 시험 35개(shared 9 + 포트원 보강 2 · admin 24), 다시 쓴 시험 `PortOneSettingsHttpTest` 5개. admin-web·user-web `pnpm typecheck` 통과. 전체 테스트는 돌리지 않았다.
+- **테스트로 막지 못한 것**: 실제 포트원 다건 조회(요청 모양은 2a-2 `PortOnePaymentGatewayTest` 의 흉내까지 — 페이지·`STATUS_CHANGED_AT` 필터의 실제 응답·60,000건 한도는 2a-4), 대사 배치의 실제 예약(04:50 cron)·배치를 켠 서버가 「다시 대사」 요청을 집어 도는 길(요청 표에 들어가는 것까지 — 실행기는 배치 core 시험의 몫), pg_cron 등록(시험 DB 에 없음 — 정의·`CALL` 만), 운영자 알림의 실제 발행(발행기 대역 — 무엇을 냈는가까지), 「다음 자동 대사」를 운영자가 cron 을 바꾼 경우(기본 cron 만 시험), 화면(타입 검사만 — 브라우저 확인은 사용자).
+
 ## 미확정
 - **포트원**(위 「2a-2 구현 결과」에서 확인한 것 빼고): `paymentId` 길이 제한(문서에 없다 — 우리 36자, 2a-4 실제 결제로 확인), 웹훅 비밀키의 실제 형식(Standard Webhooks 는 `whsec_` + base64 — `whsec_` 없이 주면 그대로 base64 로 푼다), 채널별 승인/매입 분리.
-- 운영자 알림 링크는 2a-1 화면이 정한 `/payments/anomalies` 로 2a-3 연결 때 맞춘다.
+- ~~운영자 알림 링크는 2a-1 화면이 정한 `/payments/anomalies` 로 2a-3 연결 때 맞춘다.~~ → 2a-3 에서 확정(결제 이상 `/payments/anomalies`, 대사 불일치 `/payments/reconciliation`).
 - (2a-1 계약 때의 미확정 — 웹훅 버전·이벤트 이름·`cancellationId` 유무·다건 조회 방식은 위 「2a-2 구현 결과」에서 포트원 문서로 확인했다.)
 
 ## develop 병합 (2026-10-27)

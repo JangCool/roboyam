@@ -12,6 +12,7 @@ import com.community.notification.dto.NotificationContext;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.service.NotificationPublisher;
 import com.community.payment.batch.PaymentReadyCleanupJob;
+import com.community.payment.batch.PaymentReconciliationJob;
 import com.community.payment.config.PaymentProperties;
 import com.community.payment.dto.PaymentCheckout;
 import com.community.payment.dto.PaymentOrderRequest;
@@ -22,11 +23,13 @@ import com.community.payment.gateway.fake.FakePaymentGateway;
 import com.community.payment.gateway.fake.FakePgStore;
 import com.community.payment.handler.PaymentOrderHandler;
 import com.community.payment.handler.PaymentOrderHandlers;
-import com.community.payment.repository.master.PaymentCancelStore;
 import com.community.payment.repository.master.PaymentCancelStore.CancelRow;
+import com.community.payment.repository.master.PaymentCancelStore;
 import com.community.payment.repository.master.PaymentEventStore;
-import com.community.payment.repository.master.PaymentOrderStore;
 import com.community.payment.repository.master.PaymentOrderStore.OrderRow;
+import com.community.payment.repository.master.PaymentOrderStore;
+import com.community.payment.repository.master.PaymentReconcileDayStore;
+import com.community.payment.repository.master.PaymentReconcileQueries;
 import com.community.payment.repository.master.PaymentWebhookLogStore;
 import com.community.payment.repository.master.ReconciliationIssueStore;
 import com.community.payment.service.PaymentAnomalyService;
@@ -38,6 +41,7 @@ import com.community.payment.service.PaymentCompletionService;
 import com.community.payment.service.PaymentConfirmService;
 import com.community.payment.service.PaymentOrderService;
 import com.community.payment.service.PaymentWebhookService;
+import com.community.payment.service.ReconciliationService;
 import com.community.payment.testorder.PaymentTestOrderHandler;
 import com.community.testsupport.CommerceTestDatabase;
 import com.community.testsupport.MutableTestClock;
@@ -102,6 +106,10 @@ final class PaymentTestKit {
     final PaymentCompletionService completion;
     final PaymentWebhookService webhooks;
     final PaymentReadyCleanupJob readyCleanup;
+    final ReconciliationService reconciliation;
+    final PaymentReconciliationJob reconcileJob;
+    final PaymentReconcileDayStore reconcileDays;
+    final ReconciliationIssueStore issueStore;
 
     private static PaymentTestKit current;
 
@@ -250,6 +258,28 @@ final class PaymentTestKit {
         }
 
         @Bean
+        PaymentReconcileQueries paymentReconcileQueries(DataSource dataSource) {
+            return new PaymentReconcileQueries(dataSource);
+        }
+
+        @Bean
+        PaymentReconcileDayStore paymentReconcileDayStore(DataSource dataSource) {
+            return new PaymentReconcileDayStore(dataSource);
+        }
+
+        @Bean
+        ReconciliationService reconciliationService(PaymentGateway gateway, PaymentOrderStore orders, PaymentReconcileQueries queries, PaymentReconcileDayStore days,
+                                                    ReconciliationIssueStore issues, NotificationPublisher publisher, SnowflakeIdGenerator ids,
+                                                    PlatformTransactionManager transactions, ObjectProvider<Clock> clocks) {
+            return new ReconciliationService(gateway, orders, queries, days, issues, publisher, ids, transactions, clocks);
+        }
+
+        @Bean
+        PaymentReconciliationJob paymentReconciliationJob(ReconciliationService reconciliation, PaymentReconcileDayStore days) {
+            return new PaymentReconciliationJob(reconciliation, days);
+        }
+
+        @Bean
         PaymentReadyCleanupJob paymentReadyCleanupJob(PaymentOrderStore orders, PaymentConfirmService confirm, DataSource dataSource, ObjectProvider<Clock> clocks) {
             return new PaymentReadyCleanupJob(orders, confirm, dataSource, clocks);
         }
@@ -284,6 +314,10 @@ final class PaymentTestKit {
         completion = spring.getBean(PaymentCompletionService.class);
         webhooks = spring.getBean(PaymentWebhookService.class);
         readyCleanup = spring.getBean(PaymentReadyCleanupJob.class);
+        reconciliation = spring.getBean(ReconciliationService.class);
+        reconcileJob = spring.getBean(PaymentReconciliationJob.class);
+        reconcileDays = spring.getBean(PaymentReconcileDayStore.class);
+        issueStore = spring.getBean(ReconciliationIssueStore.class);
     }
 
     /** 시험 하나의 시작 — 시계를 앞 시험보다 30일 이른 과거로, 게이트웨이·알림·쉼 기록을 비운다 */
@@ -348,11 +382,19 @@ final class PaymentTestKit {
 
     /** 배치 실행기(배치 core) — 결제 READY 정리를 「지금 실행」으로 돌린다 */
     BatchRunner.RunReport runReadyCleanup() {
+        return runJob(readyCleanup, Map.of());
+    }
+
+    /** 배치 실행기(배치 core) — 결제 대사를 「지금 실행」으로 돌린다({@code day} 가 있으면 그 날만) */
+    BatchRunner.RunReport runReconciliation(java.time.LocalDate day) {
+        return runJob(reconcileJob, day == null ? Map.of() : Map.of(PaymentReconciliationJob.PARAM_DAY, day.toString()));
+    }
+
+    BatchRunner.RunReport runJob(BatchJob job, Map<String, String> params) {
         DataSourceTransactionManager transactions = new DataSourceTransactionManager(dataSource);
-        BatchJob job = readyCleanup;
         BatchRunner runner = new BatchRunner(new BatchLockService(dataSource), new BatchRunRecorder(dataSource, transactions, ids, NODE_ID),
                 new BatchFailureRecorder(dataSource, transactions, ids), BatchRegistry.forJobs(List.of(job)), transactions);
-        return runner.runRequested(new BatchRunner.RunRequest(job.definition(), BatchRequestKind.NOW, null, BatchParameters.of(Map.of()), null, null, null));
+        return runner.runRequested(new BatchRunner.RunRequest(job.definition(), BatchRequestKind.NOW, null, BatchParameters.of(params), null, null, null));
     }
 
     /** 만든 결제 */

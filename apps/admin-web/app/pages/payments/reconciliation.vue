@@ -1,7 +1,7 @@
 <template>
     <!--
         결제 › 대사 불일치(`/payments/reconciliation`) — 매일 대사가 찾은 다른 점(`reconciliation_issues`, 5종)을 보고 닫는다(commerce.md 16-1, 계약 결정 16). **자동 보정하지 않는다** — 운영자가 맞춘 뒤 「처리」로 닫는다.
-        ⚠ 목업 단계(`usePaymentAdminApi` — 서버는 2a-3). 날짜마다 대사가 돌았는지·다시 돌리기는 「날짜별 대사」(`/payments/reconcile-days`) 화면이 한다.
+        서버 API: `usePaymentAdminApi`(2a-3). 날짜마다 대사가 돌았는지·다시 돌리기는 「날짜별 대사」(`/payments/reconcile-days`) 화면이 한다.
         거르기: 종류 · 상태(기본 열림) · 날짜(`?day=YYYY-MM-DD` — 날짜별 대사의 [이슈 보기]로 들어오면 그 날, 칩으로 뗀다).
         한 줄: 발견한 날 · 종류(+ 풀이) · 결제 번호(우리 주문이 있으면 상세 서랍) · 내용 · 상태/처리 기록 · [처리](사유 5~200자, 감사 `RECONCILE_ISSUE_RESOLVE`, `commerce.reconcile.manage`).
         `409 RECONCILE_ISSUE_NOT_OPEN`(다른 운영자가 먼저)은 닫고 알린 뒤 다시 읽는다.
