@@ -371,7 +371,7 @@
 | `group_buy_options` | id, group_buy_id, name, extra_price, max_qty(null), **current_qty, reserved_qty** [추가 — 옵션 한도를 지키려면 옵션 단위 수량도 필요] |
 | `group_buy_participations` | id, group_buy_id, option_id, user_id, qty, **unit_price·item_amount·shipping_fee**(스냅샷 — 반품 배송비·무료배송 기준·편도/왕복은 공구가 모집 시작 때 고정한 사본을 쓴다), **group_buy_revision**(결제 때의 상세 버전, 10-2) [추가], amount(= 상품 + 배송비), point_amount, cash_amount, status, payment_order_id, reserved_until, **배송지 암호문**(recipient_enc·phone_enc·address1_enc·address2_enc·memo_enc, postcode 평문), address_masked_at, cash_receipt_type·cash_receipt_no_enc, ordered_at·shipped_at·delivered_at, refunded_amount, created_at. 부분 유일 `(group_buy_id, user_id) WHERE status IN (활성 상태)` |
 | `group_buy_requests` [추가] | 취소·반품 요청: id, participation_id, type(CANCEL/RETURN), reason_code(CHANGE_OF_MIND/DEFECT/WRONG_ITEM/OTHER), reason_text, photos, status(REQUESTED/APPROVED/COMPLETED/REJECTED/WITHDRAWN), **return_qty**(부분 반품 수량), **collection_method(COMPANY_PICKUP 업체회수 / CUSTOMER_SEND 고객발송)**, **pickup_carrier·pickup_tracking_no**(업체회수 송장), **customer_shipping_compensation**(고객발송 + 업체 부담 때 보상액) [확정 2026-10-23], refund_amount, return_shipping_fee, admin_note, handled_by, handled_at, created_at. 참여당 열린 요청 1개 |
-| `group_buy_qty_movements` [추가] | group_buy_id, option_id, participation_id, kind(RESERVE/RELEASE/CONFIRM/CANCEL/ADJUST), qty, current_after, reserved_after, actor, created_at — **수량을 바꾸는 모든 길이 한 줄**(community `commerce_stock_movements`) |
+| `group_buy_qty_movements` [추가] | group_buy_id, option_id, participation_id, kind(RESERVE/RELEASE/CONFIRM/CANCEL/RETURN/RESTOCK/ADD/REDUCE — 2026-10-28 `ADJUST` 를 나눔), qty, current_after, reserved_after, actor, created_at — **수량을 바꾸는 모든 길이 한 줄**(community `commerce_stock_movements`) |
 | `group_buy_shipments` | participation_id, carrier_code, tracking_no, status, shipped_at, delivered_at |
 | `commerce_carriers` [추가] | code, name, tracking_url_template, active, sort_order |
 | `group_buy_watches` | group_buy_id, user_id, **kind(CLOSING_SOON 마감 임박 / RESTOCK 수량 풀림)** [확정 2026-10-23], last_notified_at, created_at. 유일 `(group_buy_id, user_id, kind)` |
@@ -396,7 +396,8 @@ RECRUITING / CLOSING / CLOSED_SUCCESS / ORDERED → CANCELED (운영 중단·발
 - **수량 풀림 알림** [확정 2026-10-23]: 수량이 없을 때(품절 표시) 공구 상세에 「수량이 풀리면 알림 받기」 버튼(`group_buy_watches.kind = RESTOCK`). 선점 만료로 수량이 생기면 신청자에게 앱 알림을 보낸다 — 같은 회원에게 공구당 10분에 한 번까지(`last_notified_at`), 받는 순서는 정하지 않는다(먼저 사는 사람이 산다). 구매하면 신청은 끝난다.
 - `CLOSING`: `end_at`(연장됐으면 `extended_until`) 도달 또는 `current_qty = max_qty`(조기 마감). 새 선점 금지, 남은 `PENDING_PAYMENT` 의 결제는 받는다. **남은 선점이 0 이 되거나 「CLOSING 에 들어간 시각(마감 시각, 연장됐으면 `extended_until`, 조기 마감이면 그 시각) + 선점 시간 + 여유(2분)」이 지나면** 판정(기본값이면 늦어도 마감 7분 뒤). 예: 10시 마감, 9:58 선점 → 10:02 결제 완료는 수락되어 수량에 들어간다. 회원 화면은 그동안 「마감됐어요 · 결과 집계 중」. 판정 이후에 도착한 결제는 자동 취소(P3b).
 - 판정: `current_qty ≥ min_qty` 면 성사(JOINED → CONFIRMED 일괄), 아니면 불발. `min_qty = 0` 이면 늘 성사.
-- 모집 시작 뒤에는 가격·수량·기간·옵션·배송비를 바꿀 수 없다. 설명·이미지만 수정 [확정]. 오탈자 수준이 아닌 변경은 CANCELED 후 재등록.
+- 모집 시작 뒤에는 가격·기간·옵션·배송비를 바꿀 수 없다. 설명·이미지만 수정 [확정]. 오탈자 수준이 아닌 변경은 CANCELED 후 재등록.
+- **수량은 예외** [개정 2026-10-28 — 사용자 결정, `commerce-groupbuy-contract.md` 결정 17]: 모집 중(`RECRUITING`)이고 다 팔리기 전이면 최대 수량을 **늘릴(추가 입고)** 수 있고(상세에 「추가 입고 N개」, 수정 이력·감사, 수량 풀림 알림), 품절·불량·입고 부족이면 `확정 + 선점` 아래가 아닌 만큼 **줄일** 수 있다. **다 팔려 조기 마감된 공구는 다시 열지 않고 「추가 차수 공구」**(설명·이미지·옵션·방식을 복사한 새 공구, 「N차」 표시, 이전 차수 알림 신청자에게 알림)로 판다.
 - **공구 상세(표시·광고) 수정 이력을 6개월 보관**한다 — 설명·이미지를 고칠 때마다 이전 내용을 `group_buy_revisions`(공구, 버전, 제목·설명·이미지 목록 사본, 고친 운영자, 시각)에 남긴다(전자상거래법 시행령 제6조: 표시·광고 기록 6개월 — 20-1 L14). 참여는 결제 때의 버전 번호를 기록한다.
 - 공구 기간 상한: 설정(기본 **성사형 14일 [확정 D1]**·선착순 30일) — 성사형은 결제금을 오래 묶고 불발 시 대량 환불이 생긴다.
 - **배송비 정책과 예약 변경** [확정 2026-10-23]:
@@ -511,6 +512,7 @@ DELIVERED → (반품 요청 승인·회수 확인) → REFUNDED(전액) 또는 
   - **회수 방식 정하기**: 회원이 반품 요청할 때 고른다(기본 업체회수). 업체회수면 운영자가 승인 때 택배 회수를 접수한다(택배사 회수 API 연동은 범위 밖 — 운영자가 택배사에 접수하고 회수 송장을 입력). 고객발송이면 회원에게 반품 주소·「택배비는 직접 내고, 하자·오배송이면 보상해 드려요」 안내.
   - 공구 상세·주문서·반품 요청 화면에 반품 비용을 **금액까지** 미리 적는다(시행령 제20조 1호, 20-1 L3). 예: 편도 「단순 변심 반품 배송비 3,000원(무료배송 주문도 같음) · 이미 낸 배송비는 돌려드리지 않아요 · 일부만 반품해 무료배송 기준(50,000원) 아래가 되면 배송비 3,000원을 환불액에서 빼요 · 직접 보내시면 반품 배송비는 빼지 않아요」 / 왕복 「무료배송 주문을 단순 변심으로 모두 반품하면 왕복 배송비 6,000원(처음 3,000원 + 반품 3,000원)을 빼요」.
   - **쿠폰 사용 주문(후속 메모)**: 쿠폰 기능은 지금 범위 밖이다(7-4·2-1). 무료배송 쿠폰을 만들게 되면 실제 운영 표를 따른다 — 쿠폰으로 면제된 배송비는 반품 때 다시 계산하지 않고, 업체회수·고객 부담이면 반품 배송비만 빼며, **업체 부담 전체 반품이면 반품 완료 때 쿠폰을 돌려준다**(고객발송이면 고객이 낸 택배비 보상은 위와 같다).
+- **반품 상품의 처리** [추가 2026-10-28 — 사용자 결정]: 반품 완료 때 운영자가 처리 방법을 고른다 — **다시 판매**(그 공구가 모집 중일 때만, 남은 수량이 늘고 수량 풀림 알림) 또는 **폐기·공급처 반송·보관**(공구 수량은 그대로, 기록만). 하자품이 자동으로 다시 팔리지 않게 자동 재입고는 하지 않는다.
 - 반품 배송비: 공구가 고른 배송비 정책의 `return_fee`(기본 3,000원)를 모집 시작 때 고정한다(10-2). 단순 변심은 회원 부담, 하자·오배송은 운영자 부담 — 공구 상세에 금액 표시 [확정].
 - **처리 기한 3영업일** [확인 — 20-1 L4]: 발송 전 취소는 취소 요청한 날, 반품은 상품을 돌려받은 날부터 3영업일 안에 환불(PG 취소 요청)까지 마친다. 늦으면 연 15% 지연배상금이 붙는다. 그래서 취소·반품 요청이 **2영업일 동안 처리되지 않으면 운영자 알림**(경고), 3영업일째는 심각(19절에 더함). PG 취소가 재시도 중이어도 「취소 요청을 PG 에 보낸 시점」을 기록해 기한 준수를 보인다.
 
@@ -686,7 +688,7 @@ DELIVERED → (반품 요청 승인·회수 확인) → REFUNDED(전액) 또는 
   - 기간은 관리자 화면에서 바꾸되 **하한보다 짧게는 못 줄인다**. 바꾸면 감사(전→후).
 
 ### 13-5. 관리자 화면 [확정 + 보강]
-- 공구: 목록·등록·상태 전환·참여자(상태 필터)·발주·발송(일괄 부분 성공, 행 단위 결과)·수량 변동 내역·선점 현황
+- 공구: 목록·등록·상태 전환·참여자(상태 필터)·발주·발송(일괄 부분 성공, 행 단위 결과)·수량 변동 내역·선점 현황·추가 입고·추가 차수·**Q&A 답변**(2026-10-28 — 공구 상세의 회원 질문·운영자 답변, 비밀글, 3년 보관)
 - 요청·환불: 취소·반품 요청 대기열, 결제 이상 목록(자동 취소 실패·금액 불일치·늦은 결제), 재처리
 - 포인트: 회원 원장(무상/유상 구분), 수동 지급·회수, 충전 환불 승인, 어뷰징 리포트, 기능 제한
 - 포인트 상점: 품목·충전 상품·구매 내역·예외 환불
@@ -708,6 +710,8 @@ DELIVERED → (반품 요청 승인·회수 확인) → REFUNDED(전액) 또는 
 | 발송(택배사·송장) / 배송완료(청약철회 7일 안내) | 참여자 | 앱 + 메일 | [확정 + 추가] |
 | 선점 만료 | 참여자 | 앱 | [추가] |
 | 요청 승인·거절 | 회원 | 앱 | [추가] |
+| 추가 입고 · N차 공구 열림 | 수량 풀림·마감 임박 신청자(이전 차수 포함) | 앱 | [추가 2026-10-28] |
+| 공구 Q&A 답변 | 질문한 회원 | 앱 | [추가 2026-10-28] |
 | 충전 완료(결제 확인) | 회원 | 앱 + **메일** | [개정] |
 | 포인트 소멸 예정(30일 전) | 회원 | 앱 | [확정] |
 | 운영자: 결제 이상·환불 최종 실패·불변식 불일치·대사 불일치 | 운영자 | 관리자 알림(+ Slack·Mattermost 채널) | [개정] |
