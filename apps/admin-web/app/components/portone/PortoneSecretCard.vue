@@ -1,16 +1,17 @@
 <template>
     <!--
-        포트원 설정의 카드 하나(`/settings/portone`) — 비밀값 칸 묶음 하나를 한 번에 저장한다(지금은 「본인인증」, 2a 단계에 「결제」 카드가 같은 부품으로 더해진다).
+        포트원 설정의 카드 하나(`/settings/portone`) — 비밀값 칸 묶음 하나를 한 번에 저장한다(「공통」·「본인인증」·「결제」 카드가 같은 부품을 쓴다).
         구획 하나가 `<form>` 하나다 — **카드마다 따로 저장**(저장 줄은 카드 맨 아래, `forms.md` 2-4). 서버는 부르지 않고 이벤트로 알린다(`save`·`remove`).
         - 값은 **절대 보이지 않는다** — 칸마다 「설정됨 · 마지막 변경 시각 · 변경한 사람」 / 「설정 안 됨」만. 바꾸려면 새 값을 입력(비밀번호형)하고 저장, 비워 둔 칸은 보내지 않는다(그대로).
         - [지우기]는 설정된 칸만 — 부모가 확인을 묻는다. 서버 암호화 키가 없으면 입력·저장을 잠근다(지우기는 된다).
         - 읽기 전용(`editable` false — `site.secret` 없음): 입력·단추를 그리지 않고 상태만 보인다.
+        - 머리의 알약: 기본은 「모두 설정됨 / 설정 필요」(이 카드의 칸이 다 찼나). 다른 카드의 칸까지 봐야 하는 준비 여부(본인인증·결제 — 공통 칸 포함)는 부모가 `readyOverride`·`readyLabel` 로 준다.
         - 입력값은 이 카드의 메모리에만 있고(`forms.md` 2-1) 저장에 성공하면(`fields` 가 새 배열로 바뀌면) 비운다. 실패하면 남겨 다시 시도할 수 있다.
     -->
     <form novalidate @submit.prevent="submit">
         <AppGadget :title="title" :anchor="anchor" :changes="changes" :invalid="invalidCount">
             <template #actions>
-                <Tag class="portone-badge shrink-0" :value="ready ? t('portone.badgeReady') : t('portone.badgeIncomplete')" :severity="ready ? 'success' : 'warn'" />
+                <Tag class="portone-badge shrink-0" :value="ready ? readyLabel || t('portone.badgeReady') : t('portone.badgeIncomplete')" :severity="ready ? 'success' : 'warn'" />
             </template>
 
             <div class="flex flex-col gap-5">
@@ -91,6 +92,10 @@ interface Props {
     /** 서버가 거절한 칸 문구 — 새 객체가 올 때마다 칸 아래에 보인다 */
     serverErrors?: Record<string, string>;
     formError?: string;
+    /** 머리 알약의 준비 여부 — 없으면(null) 이 카드의 칸이 다 찼는지로 본다 */
+    readyOverride?: boolean | null;
+    /** 준비됐을 때 알약 글자 — 없으면 「모두 설정됨」 */
+    readyLabel?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -103,6 +108,8 @@ const props = withDefaults(defineProps<Props>(), {
     locked: false,
     serverErrors: undefined,
     formError: '',
+    readyOverride: null,
+    readyLabel: '',
 });
 
 const emit = defineEmits<{ save: [body: Record<string, string>]; remove: [key: string]; changes: [count: number] }>();
@@ -113,7 +120,7 @@ const time = useDisplayTime();
 const form = reactive<Record<string, string>>({});
 const errors = reactive<Record<string, string | undefined>>({});
 
-const ready = computed(() => props.fields.every((f) => f.configured));
+const ready = computed(() => props.readyOverride ?? props.fields.every((f) => f.configured));
 const changes = computed(() => props.fields.filter((f) => (form[f.key] ?? '').trim().length > 0).length);
 const invalidCount = computed(() => Object.values(errors).filter(Boolean).length);
 const busy = computed(() => props.saving || props.removingKey !== null || props.locked);
@@ -129,8 +136,9 @@ function reset(): void {
 }
 reset();
 
-// 상태가 새로 오면(저장 응답·지운 뒤 새로 받음) 입력을 비운다 — 실패하면 그대로라 입력한 값이 남는다
-watch(() => props.fields, reset);
+// 이 카드의 칸 상태가 바뀌면(저장 응답·지운 뒤 새로 받음) 입력을 비운다 — 실패하면 그대로라 입력한 값이 남는다.
+// 내용으로 비교한다: 다른 카드를 저장해 화면 전체 상태가 새로 와도 이 카드의 칸이 그대로면 적던 값을 지우지 않는다
+watch(() => JSON.stringify(props.fields), reset);
 
 watch(
     () => ({ ...form }),

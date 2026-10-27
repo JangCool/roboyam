@@ -185,6 +185,21 @@ export default class UtilAdminMenu {
                 { key: 'pointShopSettings', to: '/point-shop/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.pointShopSettings', permission: 'pointshop.read' },
             ],
         },
+        // 결제 묶음(포인트 상점 묶음 다음) — 현금 결제 모듈(포트원 V2)의 결제 주문 · 웹훅 수신 내역 · 결제 이상 · 날짜별 대사 · 대사 불일치. commerce.md 13-5, 계약 commerce-payment 결정 13.
+        // ⚠ 목업 단계(2a-1 — `usePaymentAdminApi`). 서버 `AdminScreenRegistry` 의 같은 다섯 줄과 권한 `commerce.payment.read`·`commerce.reconcile.manage` 의 `featureReady` 는 2a-3 이 맞춘다.
+        // 다섯 화면 모두 조회 `commerce.payment.read`, 화면 안의 처리(다시 시도 · 수동 처리 완료 · 포트원에서 다시 확인 · 대사 처리)는 `commerce.reconcile.manage`. PG 설정은 설정 › 포트원(`/settings/portone`) 그대로.
+        {
+            key: 'payment',
+            icon: 'pi pi-credit-card',
+            labelKey: 'menu.payment',
+            items: [
+                { key: 'paymentOrders', to: '/payments/orders', icon: 'pi pi-list', labelKey: 'menu.paymentOrders', permission: 'commerce.payment.read' },
+                { key: 'paymentWebhooks', to: '/payments/webhooks', icon: 'pi pi-inbox', labelKey: 'menu.paymentWebhooks', permission: 'commerce.payment.read' },
+                { key: 'paymentAnomalies', to: '/payments/anomalies', icon: 'pi pi-exclamation-triangle', labelKey: 'menu.paymentAnomalies', permission: 'commerce.payment.read' },
+                { key: 'paymentReconcileDays', to: '/payments/reconcile-days', icon: 'pi pi-calendar', labelKey: 'menu.paymentReconcileDays', permission: 'commerce.payment.read' },
+                { key: 'paymentReconciliation', to: '/payments/reconciliation', icon: 'pi pi-check-square', labelKey: 'menu.paymentReconciliation', permission: 'commerce.payment.read' },
+            ],
+        },
         // 소모임 묶음 — 소모임 목록(열림·비활성, 상세 서랍에서 비활성화·다시 열기) · 개설 승인 · 분류(소모임 게시판 할당) · 설정(개설 규칙·매니저·공개 범위·운영 한도). community 관리자 앱의 「소모임」 묶음에 대응한다.
         // 네 화면 모두 서버에 연결됐다(`useGroupAdminApi`·`useGroupCategoryApi`·`useGroupSettingsApi`). 서버 `AdminScreenRegistry` 에도 같은 네 줄이 있고, 권한 `group.*` 는 `featureReady` 가 켜져 있다(group-contract 「관리자 화면」).
         // 네 화면 모두 조회 `group.read` 로 열리고, 화면 안에서 처리 `group.manage`(승인·반려·비활성화·다시 열기) · 설정 `group.settings`(분류·설정 저장)를 따로 본다.
