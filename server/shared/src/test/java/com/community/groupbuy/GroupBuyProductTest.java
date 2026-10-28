@@ -10,6 +10,7 @@ import com.community.groupbuy.dto.ProductDraft;
 import com.community.groupbuy.dto.Quote;
 import com.community.groupbuy.entity.GroupBuyStatus;
 import com.community.groupbuy.exception.GroupBuyException;
+import com.community.groupbuy.service.GroupBuyProductService;
 import com.community.zconfiguration.exception.ValidationException;
 import java.lang.reflect.RecordComponent;
 import java.util.Arrays;
@@ -78,34 +79,34 @@ class GroupBuyProductTest {
         ProductDraft p = spec.productDraft();
         List<ProductDraft.SkuDraft> withRed = new java.util.ArrayList<>(p.skus());
         withRed.add(new ProductDraft.SkuDraft(null, "레드", List.of("레드"), 10_000L, true));
-        ProductDraft moreValues = withSkus(p, p.optionNames(), withRed);
+        ProductDraft moreValues = withSkus(p, p.optionTypeCodes(), withRed);
         assertThatThrownBy(() -> kit.products.update(product, version(product), moreValues, kit.operator, "ip"))
                 .isInstanceOfSatisfying(GroupBuyException.class, e -> {
                     assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.LOCKED_FIELD);
                     assertThat(e.getExtras()).containsEntry("field", "options");
                 });
-        ProductDraft renamed = new ProductDraft(p.categoryId(), "새 이름", p.summary(), p.spec(), p.description(), null, null, null, null, p.optionNames(), p.skus(),
+        ProductDraft renamed = new ProductDraft(p.categoryId(), "새 이름", p.summary(), p.spec(), p.description(), null, null, null, null, p.optionTypeCodes(), p.skus(),
                 p.images());
         assertThatThrownBy(() -> kit.products.update(product, version(product), renamed, kit.operator, "ip"))
                 .isInstanceOfSatisfying(GroupBuyException.class, e -> assertThat(e.getExtras()).containsEntry("field", "name"));
         long cableSku = kit.products.skus(addonProduct).getFirst().id();
-        ProductDraft addon = new ProductDraft(kit.category, "케이블", null, null, null, null, null, null, null, List.of("길이"),
+        ProductDraft addon = new ProductDraft(kit.category, "케이블", null, null, null, null, null, null, null, List.of(kit.optionType("길이")),
                 List.of(new ProductDraft.SkuDraft(cableSku, "1m", List.of("1m"), 2_500L, true), new ProductDraft.SkuDraft(null, "2m", List.of("2m"), 3_000L, true)), List.of());
         assertThatThrownBy(() -> kit.products.update(addonProduct, version(addonProduct), addon, kit.operator, "ip"))
                 .as("추가 구성상품으로 쓰여도 잠긴다").isInstanceOfSatisfying(GroupBuyException.class, e -> assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.LOCKED_FIELD));
 
-        ProductDraft described = new ProductDraft(p.categoryId(), p.name(), p.summary(), p.spec(), "<p>정정</p>", null, null, null, null, p.optionNames(), p.skus(),
+        ProductDraft described = new ProductDraft(p.categoryId(), p.name(), p.summary(), p.spec(), "<p>정정</p>", null, null, null, null, p.optionTypeCodes(), p.skus(),
                 p.images());
         kit.products.update(product, version(product), described, kit.operator, "ip");
         assertThat(kit.group(gb).description()).isEqualTo("<p>정정</p>");
 
         // 모집이 끝나면(중단) 구성을 바꿀 수 있다 — 새 단품은 다음 공구부터, 공구가 가리키는 단품은 지울 수 없다
         kit.admin.cancel(gb, "시험 중단", kit.operator, "ip");
-        kit.products.update(product, version(product), withSkus(described, described.optionNames(), withRed), kit.operator, "ip");
+        kit.products.update(product, version(product), withSkus(described, described.optionTypeCodes(), withRed), kit.operator, "ip");
         assertThat(kit.products.skus(product)).extracting(s -> s.name()).containsExactly("블랙", "화이트", "레드");
         assertThat(kit.skus(gb)).filteredOn(s -> s.main()).hasSize(2);
         long red = kit.products.skus(product).getLast().id();
-        assertThatThrownBy(() -> kit.products.update(product, version(product), withSkus(described, described.optionNames(),
+        assertThatThrownBy(() -> kit.products.update(product, version(product), withSkus(described, described.optionTypeCodes(),
                 List.of(new ProductDraft.SkuDraft(red, "레드", List.of("레드"), 10_000L, true))), kit.operator, "ip"))
                 .isInstanceOfSatisfying(GroupBuyException.class, e -> assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.PRODUCT_SKU_IN_USE));
     }
@@ -172,18 +173,57 @@ class GroupBuyProductTest {
                 kit.operator, "ip")).isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("categoryId"));
     }
 
+    @Test
+    void 상품_옵션은_옵션_종류_코드로_고르고_이름을_바꾸면_따라가며_숨긴_종류는_새로_못_고르고_쓰는_종류는_못_지운다() {
+        String code = "MAT" + Long.toString(kit.ids.nextId(), 36).toUpperCase();
+        kit.products.saveOptionType(new GroupBuyProductService.OptionTypeDraft(code, "소재 " + code, 5, false), kit.operator, "ip");
+        long product = kit.products.create(new ProductDraft(kit.category, "가방", null, null, null, null, null, null, null, List.of(code),
+                List.of(new ProductDraft.SkuDraft(null, "가죽", List.of("가죽"), null, true), new ProductDraft.SkuDraft(null, "캔버스", List.of("캔버스"), null, true)), List.of()),
+                kit.operator, "ip");
+        assertThat(kit.products.optionTypes()).filteredOn(t -> t.code().equals(code)).singleElement().satisfies(t -> {
+            assertThat(t.productCount()).isEqualTo(1);
+            assertThat(t.usedValues()).containsExactlyInAnyOrder("가죽", "캔버스");
+        });
+
+        kit.products.saveOptionType(new GroupBuyProductService.OptionTypeDraft(code, "재질 " + code, 5, true), kit.operator, "ip"); // 이름 바꾸고 숨김
+        assertThat(kit.products.axes(product).getFirst().name()).as("이름은 종류를 따라간다").isEqualTo("재질 " + code);
+        assertThat(kit.products.axes(product).getFirst().code()).isEqualTo(code);
+        assertThatThrownBy(() -> kit.products.create(new ProductDraft(kit.category, "새 가방", null, null, null, null, null, null, null, List.of(code),
+                List.of(new ProductDraft.SkuDraft(null, "가죽", List.of("가죽"), null, true)), List.of()), kit.operator, "ip"))
+                .as("숨긴 종류는 새로 못 고른다").isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("optionTypeCodes"));
+        var skus = kit.products.skus(product);
+        kit.products.update(product, version(product), new ProductDraft(kit.category, "가방", null, null, null, null, null, null, null, List.of(code),
+                List.of(new ProductDraft.SkuDraft(skus.get(0).id(), "가죽", List.of("가죽"), 1_000L, true), new ProductDraft.SkuDraft(skus.get(1).id(), "캔버스",
+                        List.of("캔버스"), null, true)), List.of()), kit.operator, "ip"); // 이미 쓰는 숨긴 종류는 그대로 둘 수 있다
+        assertThatThrownBy(() -> kit.products.create(new ProductDraft(kit.category, "x", null, null, null, null, null, null, null, List.of("NOPE_" + code.substring(3)),
+                List.of(new ProductDraft.SkuDraft(null, "a", List.of("a"), null, true)), List.of()), kit.operator, "ip"))
+                .as("없는 코드").isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("optionTypeCodes"));
+        assertThatThrownBy(() -> kit.products.saveOptionType(new GroupBuyProductService.OptionTypeDraft("ab", "소문자", 0, false), kit.operator, "ip"))
+                .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("optionTypes"));
+
+        // 목록 통째 저장(PUT)에서 쓰는 종류를 빼면 409 — 아무것도 지우지 않는다
+        List<GroupBuyProductService.OptionTypeDraft> withoutMine = kit.products.optionTypes().stream().filter(t -> !t.code().equals(code))
+                .map(t -> new GroupBuyProductService.OptionTypeDraft(t.code(), t.name(), t.sortOrder(), t.hidden())).toList();
+        assertThatThrownBy(() -> kit.products.saveOptionTypes(withoutMine, kit.operator, "ip"))
+                .isInstanceOfSatisfying(GroupBuyException.class, e -> {
+                    assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.OPTION_TYPE_IN_USE);
+                    assertThat(e.getExtras()).containsEntry("codes", List.of(code));
+                });
+        assertThat(kit.products.optionTypes()).anySatisfy(t -> assertThat(t.code()).isEqualTo(code));
+    }
+
     private static int version(long productId) {
         return kit.products.product(productId).version();
     }
 
-    private static ProductDraft withSkus(ProductDraft p, List<String> optionNames, List<ProductDraft.SkuDraft> skus) {
+    private static ProductDraft withSkus(ProductDraft p, List<String> optionTypeCodes, List<ProductDraft.SkuDraft> skus) {
         return new ProductDraft(p.categoryId(), p.name(), p.summary(), p.spec(), p.description(), p.normalPrice(), p.normalPriceBasis(), p.normalPriceSource(),
-                p.withdrawalRestriction(), optionNames, skus, p.images());
+                p.withdrawalRestriction(), optionTypeCodes, skus, p.images());
     }
 
     @Test
     void 상품_단품_목록이_정본이고_서버가_값으로_옵션_축을_만든다() {
-        long product = kit.products.create(new ProductDraft(kit.category, "티셔츠", null, null, null, null, null, null, null, List.of("색상", "사이즈"),
+        long product = kit.products.create(new ProductDraft(kit.category, "티셔츠", null, null, null, null, null, null, null, List.of(kit.optionType("색상"), kit.optionType("사이즈")),
                 List.of(new ProductDraft.SkuDraft(null, "블랙 M", List.of("블랙", "M"), 5_000L, true), new ProductDraft.SkuDraft(null, "화이트 L", List.of("화이트", "L"), null,
                         true), new ProductDraft.SkuDraft(null, "블랙 L", List.of("블랙", "L"), 5_000L, false)), List.of()), kit.operator, "ip");
         var axes = kit.products.axes(product);
@@ -197,7 +237,7 @@ class GroupBuyProductTest {
         // 이름 바꾸기·값 바꾸기는 같은 단품 ID 로, 맞바꿔도 된다
         long blackM = skus.get(0).id();
         long whiteL = skus.get(1).id();
-        kit.products.update(product, version(product), new ProductDraft(kit.category, "티셔츠", null, null, null, null, null, null, null, List.of("색상", "사이즈"),
+        kit.products.update(product, version(product), new ProductDraft(kit.category, "티셔츠", null, null, null, null, null, null, null, List.of(kit.optionType("색상"), kit.optionType("사이즈")),
                 List.of(new ProductDraft.SkuDraft(blackM, "화이트 L", List.of("화이트", "L"), 5_000L, true), new ProductDraft.SkuDraft(whiteL, "블랙 M", List.of("블랙", "M"),
                         null, true)), List.of()), kit.operator, "ip");
         assertThat(kit.products.skus(product)).extracting(s -> s.id() + "=" + s.name()).containsExactly(blackM + "=화이트 L", whiteL + "=블랙 M");
@@ -214,16 +254,16 @@ class GroupBuyProductTest {
                 new ProductDraft(kit.category, "x", null, null, null, null, null, null, null, List.of(), List.of(), List.of()),
                 new ProductDraft(kit.category, "x", null, null, null, null, null, null, null, List.of(), List.of(new ProductDraft.SkuDraft(null, "a", List.of(), null, true),
                         new ProductDraft.SkuDraft(null, "a", List.of(), null, true)), List.of()),
-                new ProductDraft(kit.category, "x", null, null, null, null, null, null, null, List.of("색상"), List.of(new ProductDraft.SkuDraft(null, "a", List.of(), null, true)),
+                new ProductDraft(kit.category, "x", null, null, null, null, null, null, null, List.of(kit.optionType("색상")), List.of(new ProductDraft.SkuDraft(null, "a", List.of(), null, true)),
                         List.of()),
-                new ProductDraft(kit.category, "x", null, null, null, null, null, null, null, List.of("색상"), List.of(new ProductDraft.SkuDraft(null, "a", List.of("블랙"), null,
+                new ProductDraft(kit.category, "x", null, null, null, null, null, null, null, List.of(kit.optionType("색상")), List.of(new ProductDraft.SkuDraft(null, "a", List.of("블랙"), null,
                         true), new ProductDraft.SkuDraft(null, "b", List.of("블랙"), null, true)), List.of()))) {
             assertThatThrownBy(() -> kit.products.create(bad, kit.operator, "ip"))
                     .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("skus"));
         }
-        assertThatThrownBy(() -> kit.products.create(new ProductDraft(kit.category, "x", null, null, null, null, null, null, null, List.of("a", "b", "c", "d"),
+        assertThatThrownBy(() -> kit.products.create(new ProductDraft(kit.category, "x", null, null, null, null, null, null, null, List.of(kit.optionType("a"), kit.optionType("b"), kit.optionType("c"), kit.optionType("d")),
                 List.of(new ProductDraft.SkuDraft(null, "a", List.of("1", "1", "1", "1"), null, true)), List.of()), kit.operator, "ip"))
-                .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("optionNames"));
+                .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("optionTypeCodes"));
         assertThatThrownBy(() -> kit.products.update(plain, version(plain), new ProductDraft(kit.category, "쌀", null, null, null, null, null, null, null, List.of(),
                 List.of(new ProductDraft.SkuDraft(blackM, "남의 단품", List.of(), null, true)), List.of()), kit.operator, "ip"))
                 .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("skus"));

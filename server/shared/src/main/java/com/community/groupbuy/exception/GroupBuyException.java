@@ -35,6 +35,7 @@ public class GroupBuyException extends CommonException {
     public static final String NEGATIVE_MARGIN = "GROUP_BUY_NEGATIVE_MARGIN";
     public static final String PRODUCT_NOT_FOUND = "GROUP_BUY_PRODUCT_NOT_FOUND";
     public static final String PRODUCT_SKU_IN_USE = "GROUP_BUY_PRODUCT_SKU_IN_USE";
+    public static final String OPTION_TYPE_IN_USE = "GROUP_BUY_OPTION_TYPE_IN_USE";
     public static final String SHIPPING_POLICY_NOT_FOUND = "SHIPPING_POLICY_NOT_FOUND";
     public static final String SHIPPING_POLICY_CONFLICT = "SHIPPING_POLICY_CONFLICT";
 
@@ -168,6 +169,11 @@ public class GroupBuyException extends CommonException {
     /** 공구 단품이 가리키는 상품 단품은 지울 수 없다(상품 옵션 구성 바꾸기 — 결정 89) */
     public static GroupBuyException productSkuInUse(java.util.List<String> names) {
         return new GroupBuyException(HttpStatus.CONFLICT, PRODUCT_SKU_IN_USE).with("skuNames", names);
+    }
+
+    /** 쓰는 상품이 있는 옵션 종류는 지울 수 없다(숨기기만) */
+    public static GroupBuyException optionTypeInUse(java.util.List<String> codes) {
+        return new GroupBuyException(HttpStatus.CONFLICT, OPTION_TYPE_IN_USE).with("codes", codes);
     }
 
     public static GroupBuyException shippingPolicyNotFound() {

@@ -615,7 +615,7 @@ final class GroupBuyTestKit {
                 String name = combination.isEmpty() ? productName : String.join(" / ", combination);
                 skus.add(new ProductDraft.SkuDraft(existing.get(name), name, combination, supply, true));
             }
-            return new ProductDraft(categoryId, productName, "요약", "사양", "<p>설명</p>", null, null, null, null, axes.stream().map(GroupBuyDraft.AxisDraft::name).toList(),
+            return new ProductDraft(categoryId, productName, "요약", "사양", "<p>설명</p>", null, null, null, null, axes.stream().map(x -> optionType(x.name())).toList(),
                     skus, List.of(new GroupBuyDraft.ImageRef("img/a.jpg", "img/a-t.jpg")));
         }
 
@@ -701,6 +701,17 @@ final class GroupBuyTestKit {
         for (long productId : productsOf(groupBuyId)) {
             notices.save(productId, List.of(fullNotice("OTHER_GOODS", "본체", List.of())), operator, "127.0.0.1");
         }
+    }
+
+    private final java.util.Map<String, String> optionTypes = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** 그 이름의 옵션 종류 코드(없으면 만든다 — 2b-1 사용자 결정: 상품 옵션은 옵션 종류 코드로 고른다) */
+    String optionType(String name) {
+        return optionTypes.computeIfAbsent(name, n -> products.optionTypes().stream().filter(t -> t.name().equals(n)).map(t -> t.code()).findFirst().orElseGet(() -> {
+            String code = "K" + Long.toString(ids.nextId(), 36).toUpperCase();
+            products.saveOptionType(new GroupBuyProductService.OptionTypeDraft(code, n, 0, false), operator, "127.0.0.1");
+            return code;
+        }));
     }
 
     /** 공구 상품 */

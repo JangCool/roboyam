@@ -72,8 +72,8 @@ public class GroupBuyStore {
         }
     }
 
-    /** 옵션 축(차례대로)과 값 */
-    public record AxisRow(long id, String name, int sortOrder, List<ValueRow> values) {
+    /** 옵션 축(차례대로)과 값 — {@code code} 옵션 종류, {@code name} 그 종류의 지금 이름 */
+    public record AxisRow(long id, String code, String name, int sortOrder, List<ValueRow> values) {
     }
 
     /** 축 값 */
@@ -260,8 +260,9 @@ public class GroupBuyStore {
 
     /** 공구 상품의 옵션 축과 값(차례대로) */
     public List<AxisRow> axes(long groupBuyId) {
-        List<AxisRow> axes = jdbc.query("SELECT a.id, a.name, a.sort_order FROM group_buy_option_axes a JOIN group_buys g ON g.product_id = a.product_id WHERE g.id = ? "
-                + "ORDER BY a.sort_order, a.id", (rs, i) -> new AxisRow(rs.getLong(1), rs.getString(2), rs.getInt(3), new ArrayList<>()), groupBuyId);
+        List<AxisRow> axes = jdbc.query("SELECT a.id, a.option_type_code, t.name, a.sort_order FROM group_buy_option_axes a JOIN group_buy_option_types t ON t.code = a.option_type_code "
+                + "JOIN group_buys g ON g.product_id = a.product_id WHERE g.id = ? "
+                + "ORDER BY a.sort_order, a.id", (rs, i) -> new AxisRow(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getInt(4), new ArrayList<>()), groupBuyId);
         for (AxisRow axis : axes) {
             axis.values().addAll(jdbc.query("SELECT id, axis_id, value, sort_order FROM group_buy_option_values WHERE axis_id = ? ORDER BY sort_order, id",
                     (rs, i) -> new ValueRow(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getInt(4)), axis.id()));
@@ -297,7 +298,7 @@ public class GroupBuyStore {
                         + "option_axes, skus, notices, change_kind, edited_by, created_at) SELECT ?, g.id, ?, g.title, p.name, p.summary, p.spec, p.description, "
                         + "coalesce((SELECT jsonb_agg(jsonb_build_object('imageKey', i.image_key, 'thumbKey', i.thumb_key) ORDER BY i.sort_order) FROM group_buy_product_images i "
                         + "WHERE i.product_id = p.id), '[]'::jsonb), g.max_qty, g.added_qty, "
-                        + "coalesce((SELECT jsonb_agg(jsonb_build_object('name', a.name, 'values', (SELECT coalesce(jsonb_agg(v.value ORDER BY v.sort_order, v.id), '[]'::jsonb) "
+                        + "coalesce((SELECT jsonb_agg(jsonb_build_object('code', a.option_type_code, 'name', (SELECT t.name FROM group_buy_option_types t WHERE t.code = a.option_type_code), 'values', (SELECT coalesce(jsonb_agg(v.value ORDER BY v.sort_order, v.id), '[]'::jsonb) "
                         + "FROM group_buy_option_values v WHERE v.axis_id = a.id)) ORDER BY a.sort_order, a.id) FROM group_buy_option_axes a WHERE a.product_id = p.id), '[]'::jsonb), "
                         + "coalesce((SELECT jsonb_agg(jsonb_build_object('skuId', s.id::text, 'productSkuId', s.product_sku_id::text, 'kind', s.kind, 'name', s.name, "
                         + "'extraPrice', s.extra_price, 'addonPrice', s.addon_price, 'maxQty', s.max_qty, 'onSale', s.on_sale) ORDER BY s.kind DESC, s.sort_order, s.id) "

@@ -19,7 +19,7 @@ import java.util.function.Function;
 /**
  * 옵션 축·값·단품 계획(결정 88·89).
  * <ul>
- *   <li><b>상품</b>({@link #product} — 2b-1 사용자 결정: <b>단품 목록이 정본</b>): 운영자가 단품을 한 줄씩(1~{@value #SKUS_MAX}개, 이름 유일), 옵션 이름 0~{@value #AXES_MAX}개를 두면
+ *   <li><b>상품</b>({@link #product} — 2b-1 사용자 결정: <b>단품 목록이 정본</b>): 운영자가 단품을 한 줄씩(1~{@value #SKUS_MAX}개, 이름 유일), 옵션 종류 0~{@value #AXES_MAX}개를 고르면
  *       단품마다 값 모두 필수·같은 값 묶음 두 줄 금지. 옵션 축의 값은 단품들의 값에서 처음 나온 차례대로 만든다(축마다 최대 {@value #VALUES_MAX}개).</li>
  *   <li><b>공구</b>({@link #group}): 공구 상품의 상품 단품마다 MAIN 공구 단품(설정을 적지 않으면 추가금 0·한도 없음·판매 여부와 공급가는 상품 단품의 기본값),
  *       추가 구성상품은 다른 상품의 단품(최대 {@value #ADDONS_MAX}개). 공구 단품 이름은 공구 안에서 유일.</li>
@@ -38,7 +38,8 @@ final class GroupBuySkuPlan {
     }
 
     /** 계획한 축 */
-    record PlannedAxis(String name, List<String> values) {
+    /** 계획한 축 — 옵션 종류 코드와 값(처음 나온 차례) */
+    record PlannedAxis(String code, List<String> values) {
     }
 
     /** 계획한 상품 단품 — {@code skuId} 기존 단품(새 단품이면 null), {@code valueNames} 옵션 이름 차례대로 값 */
@@ -66,18 +67,18 @@ final class GroupBuySkuPlan {
     // ── 상품 ────────────────────────────────────────────────────────────────
 
     /** 상품 등록 값에서 — 문제가 있으면 {@code f} 에 칸 오류를 넣고 null */
-    static ProductPlan product(ProductDraft d, Map<String, MessageRef> f) {
+    static ProductPlan product(ProductDraft d, Set<String> allowedTypes, Map<String, MessageRef> f) {
         List<String> optionNames = new ArrayList<>();
         Set<String> seenNames = new HashSet<>();
-        for (String n : d.optionNames() == null ? List.<String>of() : d.optionNames()) {
-            if (blankOrLonger(n, NAME_MAX) || !seenNames.add(n.strip())) {
-                f.put("optionNames", new MessageRef("groupbuy.admin.optionNames.invalid"));
+        for (String n : d.optionTypeCodes() == null ? List.<String>of() : d.optionTypeCodes()) {
+            if (n == null || !allowedTypes.contains(n) || !seenNames.add(n)) {
+                f.put("optionTypeCodes", new MessageRef("groupbuy.admin.optionTypeCodes.invalid")); // 없는·숨긴·겹친 옵션 종류
                 return null;
             }
-            optionNames.add(n.strip());
+            optionNames.add(n);
         }
         if (optionNames.size() > AXES_MAX) {
-            f.put("optionNames", new MessageRef("groupbuy.admin.optionNames.invalid"));
+            f.put("optionTypeCodes", new MessageRef("groupbuy.admin.optionTypeCodes.invalid"));
             return null;
         }
         List<ProductDraft.SkuDraft> drafts = d.skus() == null ? List.of() : d.skus();

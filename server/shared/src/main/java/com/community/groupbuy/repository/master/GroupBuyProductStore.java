@@ -74,6 +74,41 @@ public class GroupBuyProductStore {
         return jdbc.update("UPDATE group_buy_categories SET name = ?, sort_order = ?, hidden = ?, updated_at = ? WHERE id = ?", name, sortOrder, hidden, ts(now), id) == 1;
     }
 
+    // ── 옵션 종류 ───────────────────────────────────────────────────────────
+
+    /** 옵션 종류 한 줄 — 쓰는 상품 수·그 종류로 쓴 값(자동완성용, 가나다 차례) */
+    public record OptionTypeRow(String code, String name, int sortOrder, boolean hidden, int productCount, List<String> usedValues) {
+    }
+
+    /** 모든 옵션 종류(차례대로) */
+    public List<OptionTypeRow> optionTypes() {
+        return jdbc.query("SELECT t.code, t.name, t.sort_order, t.hidden, (SELECT count(DISTINCT a.product_id) FROM group_buy_option_axes a WHERE a.option_type_code = t.code), "
+                + "coalesce((SELECT array_agg(DISTINCT v.value ORDER BY v.value) FROM group_buy_option_values v JOIN group_buy_option_axes a ON a.id = v.axis_id "
+                + "WHERE a.option_type_code = t.code), '{}') FROM group_buy_option_types t ORDER BY t.sort_order, t.code", (rs, i) -> {
+                    List<String> values = new ArrayList<>();
+                    for (Object v : (Object[]) rs.getArray(6).getArray()) {
+                        values.add((String) v);
+                    }
+                    return new OptionTypeRow(rs.getString(1), rs.getString(2), rs.getInt(3), rs.getBoolean(4), rs.getInt(5), List.copyOf(values));
+                });
+    }
+
+    /** 옵션 종류 하나를 넣거나 이름·차례·숨김을 고친다(코드는 불변) */
+    public void upsertOptionType(String code, String name, int sortOrder, boolean hidden, Instant now) {
+        jdbc.update("INSERT INTO group_buy_option_types (code, name, sort_order, hidden, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (code) DO UPDATE "
+                + "SET name = excluded.name, sort_order = excluded.sort_order, hidden = excluded.hidden, updated_at = excluded.updated_at", code, name, sortOrder, hidden,
+                ts(now), ts(now));
+    }
+
+    /** 이름 유일을 잠시 비켜 둔다(두 종류의 이름을 맞바꿔도 되게) */
+    public void parkOptionTypeName(String code) {
+        jdbc.update("UPDATE group_buy_option_types SET name = '#' || code WHERE code = ?", code);
+    }
+
+    public void deleteOptionType(String code) {
+        jdbc.update("DELETE FROM group_buy_option_types WHERE code = ?", code);
+    }
+
     // ── 상품 ────────────────────────────────────────────────────────────────
 
     private static final String PRODUCT_COLUMNS = "id, category_id, name, summary, spec, description, normal_price, normal_price_basis, normal_price_source, "
@@ -144,10 +179,11 @@ public class GroupBuyProductStore {
 
     // ── 옵션 축·값·상품 단품 ────────────────────────────────────────────────
 
-    /** 옵션 축과 값(차례대로) */
+    /** 옵션 축(옵션 종류 — 이름은 종류의 지금 이름)과 값(차례대로) */
     public List<AxisRow> axes(long productId) {
-        List<AxisRow> axes = jdbc.query("SELECT id, name, sort_order FROM group_buy_option_axes WHERE product_id = ? ORDER BY sort_order, id",
-                (rs, i) -> new AxisRow(rs.getLong(1), rs.getString(2), rs.getInt(3), new ArrayList<>()), productId);
+        List<AxisRow> axes = jdbc.query("SELECT a.id, a.option_type_code, t.name, a.sort_order FROM group_buy_option_axes a JOIN group_buy_option_types t "
+                + "ON t.code = a.option_type_code WHERE a.product_id = ? ORDER BY a.sort_order, a.id",
+                (rs, i) -> new AxisRow(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getInt(4), new ArrayList<>()), productId);
         for (AxisRow axis : axes) {
             axis.values().addAll(jdbc.query("SELECT id, axis_id, value, sort_order FROM group_buy_option_values WHERE axis_id = ? ORDER BY sort_order, id",
                     (rs, i) -> new ValueRow(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getInt(4)), axis.id()));
@@ -155,8 +191,8 @@ public class GroupBuyProductStore {
         return axes;
     }
 
-    public void insertAxis(long id, long productId, int sortOrder, String name) {
-        jdbc.update("INSERT INTO group_buy_option_axes (id, product_id, sort_order, name) VALUES (?, ?, ?, ?)", id, productId, sortOrder, name);
+    public void insertAxis(long id, long productId, int sortOrder, String optionTypeCode) {
+        jdbc.update("INSERT INTO group_buy_option_axes (id, product_id, sort_order, option_type_code) VALUES (?, ?, ?, ?)", id, productId, sortOrder, optionTypeCode);
     }
 
     public void deleteAxes(long productId) {

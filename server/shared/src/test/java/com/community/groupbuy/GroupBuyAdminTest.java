@@ -124,7 +124,7 @@ class GroupBuyAdminTest {
         long product = kit.productOf(gb);
         ProductDraft p = spec.productDraft();
         kit.products.update(product, kit.products.product(product).version(), new ProductDraft(p.categoryId(), p.name(), "새 요약", p.spec(), "<p>새 설명</p>",
-                p.normalPrice(), p.normalPriceBasis(), p.normalPriceSource(), p.withdrawalRestriction(), p.optionNames(), p.skus(),
+                p.normalPrice(), p.normalPriceBasis(), p.normalPriceSource(), p.withdrawalRestriction(), p.optionTypeCodes(), p.skus(),
                 List.of(new GroupBuyDraft.ImageRef("img/b.jpg", null))), kit.operator, "ip");
         var g = kit.group(gb);
         assertThat(g.description()).isEqualTo("<p>새 설명</p>");

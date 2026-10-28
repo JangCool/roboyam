@@ -95,7 +95,7 @@ public final class AuditRetention {
             AuditActions.PAYMENT_RECONCILE_RERUN,
             // 공구 등록·수정·모집 시작·조기 마감·발송 지연 공지 — 일반 운영(commerce-groupbuy-contract 「감사·오류 코드 후보」 — 돈은 중단·환불이 움직인다)
             AuditActions.GROUPBUY_CREATE, AuditActions.GROUPBUY_UPDATE, AuditActions.GROUPBUY_START, AuditActions.GROUPBUY_CLOSE_EARLY, AuditActions.GROUPBUY_DELAY_NOTICE,
-            AuditActions.GROUPBUY_PRODUCT_SAVE, AuditActions.GROUPBUY_CATEGORY_SAVE);
+            AuditActions.GROUPBUY_PRODUCT_SAVE, AuditActions.GROUPBUY_CATEGORY_SAVE, AuditActions.GROUPBUY_OPTION_TYPE_SAVE);
 
     private static final Map<String, AuditRetentionClass> TABLE = table();
 

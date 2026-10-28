@@ -142,15 +142,30 @@ CREATE TABLE group_buy_product_images (
 );
 CREATE UNIQUE INDEX ux_group_buy_product_images_order ON group_buy_product_images (product_id, sort_order);
 
--- 옵션 축(0~3개 — 상품의 옵션 이름, 예 색상·사이즈)·값(단품들의 값에서 서버가 만든다, 예 블랙·화이트) — 상품에 붙는다(결정 88·89). 고칠 때 옵션 이름이 같으면 같은 값은 ID 를 유지한다.
-CREATE TABLE group_buy_option_axes (
-    id          bigint       PRIMARY KEY,
-    product_id  bigint       NOT NULL REFERENCES group_buy_products (id) ON DELETE CASCADE,
-    sort_order  integer      NOT NULL,
+-- 옵션 종류(2b-1 사용자 결정 2026-10-28 — 관리자 「옵션 종류」 목록): 코드(영문 대문자 2~20, 만든 뒤 불변)·이름(유일 — 바꾸면 쓰는 상품의 옵션 이름도 따라간다)·차례·숨김.
+-- 상품은 옵션을 이 코드로 고른다(숨긴 종류는 새로 고를 수 없다). 쓰는 상품이 있으면 지울 수 없다(FK).
+CREATE TABLE group_buy_option_types (
+    code        varchar(20)  PRIMARY KEY,
     name        varchar(30)  NOT NULL,
-    CONSTRAINT ck_group_buy_option_axes_name CHECK (length(btrim(name)) BETWEEN 1 AND 30)
+    sort_order  integer      NOT NULL DEFAULT 0,
+    hidden      boolean      NOT NULL DEFAULT false,
+    created_at  timestamptz  NOT NULL,
+    updated_at  timestamptz  NOT NULL,
+    CONSTRAINT ck_group_buy_option_types_code CHECK (code ~ '^[A-Z][A-Z0-9_]{1,19}$'),
+    CONSTRAINT ck_group_buy_option_types_name CHECK (length(btrim(name)) BETWEEN 1 AND 30),
+    CONSTRAINT ux_group_buy_option_types_name UNIQUE (name)
 );
-CREATE UNIQUE INDEX ux_group_buy_option_axes_name ON group_buy_option_axes (product_id, name);
+
+-- 옵션 축(0~3개 — 상품이 고른 옵션 종류, 예 색상·사이즈 — 이름은 종류 것)·값(단품들의 값에서 서버가 만든다, 예 블랙·화이트) — 상품에 붙는다(결정 88·89).
+-- 고칠 때 옵션 종류(차례)가 같으면 같은 값은 ID 를 유지한다.
+CREATE TABLE group_buy_option_axes (
+    id               bigint       PRIMARY KEY,
+    product_id       bigint       NOT NULL REFERENCES group_buy_products (id) ON DELETE CASCADE,
+    sort_order       integer      NOT NULL,
+    option_type_code varchar(20)  NOT NULL REFERENCES group_buy_option_types (code)
+);
+CREATE UNIQUE INDEX ux_group_buy_option_axes_type ON group_buy_option_axes (product_id, option_type_code);
+CREATE INDEX ix_group_buy_option_axes_type ON group_buy_option_axes (option_type_code);
 
 CREATE TABLE group_buy_option_values (
     id          bigint       PRIMARY KEY,
@@ -162,7 +177,7 @@ CREATE TABLE group_buy_option_values (
 );
 CREATE UNIQUE INDEX ux_group_buy_option_values_value ON group_buy_option_values (axis_id, value);
 
--- 상품 단품(2b-1 사용자 결정 — 단품 목록이 정본): 운영자가 한 줄씩 등록한 파는 단위(이름 — 상품 안에서 유일). value_ids: 옵션 이름(축)마다 값(축 차례, 옵션이 없으면 빈 배열 — 서버가 값으로 축·값을 만든다).
+-- 상품 단품(2b-1 사용자 결정 — 단품 목록이 정본): 운영자가 한 줄씩 등록한 파는 단위(이름 — 상품 안에서 유일, ID 는 서버 채번 — 운영자 입력 코드 없음). value_ids: 옵션 종류(축)마다 값(축 차례, 옵션이 없으면 빈 배열 — 서버가 값으로 축·값을 만든다).
 -- default_supply_price: 기본 공급가(선택 — 공구 단품으로 복사해 고친다).
 -- on_sale: 새 공구의 기본 판매 여부. 공구 단품이 가리키는 상품 단품은 지울 수 없다(FK).
 CREATE TABLE group_buy_product_skus (

@@ -249,7 +249,7 @@ class GroupBuySkuTest {
     void G44_축_조합_추가상품_등록_검사() {
         String policy = policy();
         assertThatThrownBy(() -> kit.spec(policy).axis("a", "1").axis("b", "1").axis("c", "1").axis("d", "1").create())
-                .as("옵션 이름은 3개까지").isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("optionNames"));
+                .as("옵션 이름은 3개까지").isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("optionTypeCodes"));
         String[] many = new String[15];
         for (int i = 0; i < many.length; i++) {
             many[i] = "v" + i;

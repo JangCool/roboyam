@@ -117,6 +117,77 @@ public class GroupBuyProductService {
         return name.strip();
     }
 
+    // ── 옵션 종류(2b-1 사용자 결정 2026-10-28) ─────────────────────────────
+
+    /** 옵션 종류 한 줄 — 코드(영문 대문자 2~20, 만든 뒤 불변)·이름(1~30, 유일)·차례·숨김 */
+    public record OptionTypeDraft(String code, String name, int sortOrder, boolean hidden) {
+    }
+
+    /** 옵션 종류 목록(쓰는 상품 수·쓴 값 — 자동완성용) */
+    public List<GroupBuyProductStore.OptionTypeRow> optionTypes() {
+        return store.optionTypes();
+    }
+
+    /**
+     * 옵션 종류 목록을 통째로 저장한다({@code PUT}) — 없던 코드는 만들고, 있던 코드는 이름·차례·숨김을 고치고(이름을 바꾸면 쓰는 상품의 옵션 이름도 따라간다), 목록에 없는 코드는 지운다.
+     *
+     * @throws ValidationException {@code optionTypes} — 코드 모양·이름 길이·코드나 이름 겹침
+     * @throws GroupBuyException   {@code OPTION_TYPE_IN_USE}(쓰는 상품이 있는 종류를 지우려 했다 — {@code codes})
+     */
+    public void saveOptionTypes(List<OptionTypeDraft> drafts, Long operatorId, String ip) {
+        List<OptionTypeDraft> list = validateOptionTypes(drafts);
+        tx.executeWithoutResult(status -> {
+            Instant now = now();
+            Set<String> keep = new java.util.HashSet<>();
+            list.forEach(d -> keep.add(d.code()));
+            List<GroupBuyProductStore.OptionTypeRow> current = store.optionTypes();
+            List<String> inUse = current.stream().filter(t -> !keep.contains(t.code()) && t.productCount() > 0).map(GroupBuyProductStore.OptionTypeRow::code).toList();
+            if (!inUse.isEmpty()) {
+                throw GroupBuyException.optionTypeInUse(inUse);
+            }
+            current.stream().filter(t -> !keep.contains(t.code())).forEach(t -> store.deleteOptionType(t.code()));
+            current.stream().filter(t -> keep.contains(t.code())).forEach(t -> store.parkOptionTypeName(t.code()));
+            list.forEach(d -> store.upsertOptionType(d.code(), d.name(), d.sortOrder(), d.hidden(), now));
+            audit.record(new AuditEvent(operatorId == null ? AuditActorType.SYSTEM : AuditActorType.OPERATOR, operatorId, AuditActions.GROUPBUY_OPTION_TYPE_SAVE,
+                    AuditResult.SUCCESS, "GROUP_BUY_OPTION_TYPE", "ALL", ip, Map.of("codes", list.stream().map(OptionTypeDraft::code).toList())));
+        });
+    }
+
+    /** 옵션 종류 하나를 만들거나 고친다(다른 종류는 그대로) */
+    public void saveOptionType(OptionTypeDraft draft, Long operatorId, String ip) {
+        OptionTypeDraft d = validateOptionTypes(List.of(draft)).getFirst();
+        tx.executeWithoutResult(status -> {
+            store.parkOptionTypeName(d.code());
+            store.upsertOptionType(d.code(), d.name(), d.sortOrder(), d.hidden(), now());
+            audit.record(new AuditEvent(operatorId == null ? AuditActorType.SYSTEM : AuditActorType.OPERATOR, operatorId, AuditActions.GROUPBUY_OPTION_TYPE_SAVE,
+                    AuditResult.SUCCESS, "GROUP_BUY_OPTION_TYPE", d.code(), ip, Map.of("name", d.name(), "hidden", d.hidden())));
+        });
+    }
+
+    private static List<OptionTypeDraft> validateOptionTypes(List<OptionTypeDraft> drafts) {
+        Set<String> codes = new java.util.HashSet<>();
+        Set<String> names = new java.util.HashSet<>();
+        List<OptionTypeDraft> out = new ArrayList<>();
+        for (OptionTypeDraft d : drafts == null ? List.<OptionTypeDraft>of() : drafts) {
+            if (d == null || d.code() == null || !d.code().matches("[A-Z][A-Z0-9_]{1,19}") || !codes.add(d.code()) || d.name() == null || d.name().isBlank()
+                    || d.name().strip().length() > CATEGORY_NAME_MAX || !names.add(d.name().strip())) {
+                throw ValidationException.of("optionTypes", new MessageRef("groupbuy.admin.optionTypes.invalid"));
+            }
+            out.add(new OptionTypeDraft(d.code(), d.name().strip(), d.sortOrder(), d.hidden()));
+        }
+        return out;
+    }
+
+    /** 상품이 고를 수 있는 옵션 종류 — 숨기지 않은 종류 + 이 상품이 이미 쓰는 종류 */
+    private Set<String> allowedOptionTypes(Long productId) {
+        Set<String> out = new java.util.HashSet<>();
+        store.optionTypes().stream().filter(t -> !t.hidden()).forEach(t -> out.add(t.code()));
+        if (productId != null) {
+            store.axes(productId).forEach(a -> out.add(a.code()));
+        }
+        return out;
+    }
+
     // ── 상품 ────────────────────────────────────────────────────────────────
 
     public ProductRow product(long id) {
@@ -135,7 +206,7 @@ public class GroupBuyProductService {
     public long create(ProductDraft draft, Long operatorId, String ip) {
         Map<String, MessageRef> f = new LinkedHashMap<>();
         NewProduct p = validate(draft, f);
-        GroupBuySkuPlan.ProductPlan plan = p == null ? null : GroupBuySkuPlan.product(draft, f);
+        GroupBuySkuPlan.ProductPlan plan = p == null ? null : GroupBuySkuPlan.product(draft, allowedOptionTypes(null), f);
         if (!f.isEmpty()) {
             throw new ValidationException(f);
         }
@@ -159,7 +230,7 @@ public class GroupBuyProductService {
     public void update(long id, int version, ProductDraft draft, Long operatorId, String ip) {
         Map<String, MessageRef> f = new LinkedHashMap<>();
         NewProduct p = validate(draft, f);
-        GroupBuySkuPlan.ProductPlan plan = p == null ? null : GroupBuySkuPlan.product(draft, f);
+        GroupBuySkuPlan.ProductPlan plan = p == null ? null : GroupBuySkuPlan.product(draft, allowedOptionTypes(id), f);
         if (!f.isEmpty()) {
             throw new ValidationException(f);
         }
@@ -227,9 +298,9 @@ public class GroupBuyProductService {
                 d.normalPrice() == null ? null : d.normalPriceBasis(), trimToNull(d.normalPriceSource()), trimToNull(d.withdrawalRestriction()));
     }
 
-    /** 옵션 이름(차례)·단품(같은 ID 묶음)·단품 이름·값이 같은가(기본 공급가·판매 여부는 구성이 아니다) */
+    /** 옵션 종류(차례)·단품(같은 ID 묶음)·단품 이름·값이 같은가(기본 공급가·판매 여부는 구성이 아니다) */
     private static boolean sameStructure(GroupBuySkuPlan.ProductPlan plan, List<AxisRow> axes, List<ProductSkuRow> skus) {
-        if (!axes.stream().map(AxisRow::name).toList().equals(plan.axes().stream().map(GroupBuySkuPlan.PlannedAxis::name).toList())
+        if (!axes.stream().map(AxisRow::code).toList().equals(plan.axes().stream().map(GroupBuySkuPlan.PlannedAxis::code).toList())
                 || skus.size() != plan.skus().size()) {
             return false;
         }
@@ -254,7 +325,7 @@ public class GroupBuyProductService {
 
     /**
      * 계획대로 옵션 축·값·상품 단품을 맞춘다(2b-1 사용자 결정 — 단품 목록이 정본). 단품은 {@code skuId} 로 가리킨 것은 고치고, 새 줄은 넣고, 목록에 없는 기존 단품은 지운다
-     * (공개된 공구가 가리키면 409). 옵션 이름(차례)이 같으면 같은 값은 ID 를 유지하고, 다르면 축·값을 다시 만든다. 단품의 값이 바뀌면 공구 단품의 조합 사본도 고친다.
+     * (공개된 공구가 가리키면 409). 옵션 종류(차례)가 같으면 같은 값은 ID 를 유지하고, 다르면 축·값을 다시 만든다. 단품의 값이 바뀌면 공구 단품의 조합 사본도 고친다.
      */
     private void sync(long productId, GroupBuySkuPlan.ProductPlan plan) {
         List<AxisRow> axes = store.axes(productId);
@@ -288,7 +359,7 @@ public class GroupBuyProductService {
             }
         }
         // 축·값
-        boolean sameAxes = axes.stream().map(AxisRow::name).toList().equals(plan.axes().stream().map(GroupBuySkuPlan.PlannedAxis::name).toList());
+        boolean sameAxes = axes.stream().map(AxisRow::code).toList().equals(plan.axes().stream().map(GroupBuySkuPlan.PlannedAxis::code).toList());
         List<Map<String, Long>> valueIds = new ArrayList<>();
         if (!sameAxes) {
             store.deleteAxes(productId);
@@ -309,7 +380,7 @@ public class GroupBuyProductService {
                 }
             } else {
                 axisId = ids.nextId();
-                store.insertAxis(axisId, productId, i, planned.name());
+                store.insertAxis(axisId, productId, i, planned.code());
             }
             for (int j = 0; j < planned.values().size(); j++) {
                 Long existing = byValue.get(planned.values().get(j));

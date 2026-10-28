@@ -298,6 +298,8 @@ public final class AuditActions {
     public static final String GROUPBUY_PRODUCT_SAVE = "GROUPBUY_PRODUCT_SAVE";
     /** 공구 카테고리 등록·수정(결정 89) — 대상 GROUP_BUY_CATEGORY + ID, {@code name}·{@code hidden}. 일반 */
     public static final String GROUPBUY_CATEGORY_SAVE = "GROUPBUY_CATEGORY_SAVE";
+    /** 공구 옵션 종류 저장(2b-1 사용자 결정) — 대상 GROUP_BUY_OPTION_TYPE + 코드(목록 통째면 ALL), {@code codes} 또는 {@code name}·{@code hidden}. 일반 */
+    public static final String GROUPBUY_OPTION_TYPE_SAVE = "GROUPBUY_OPTION_TYPE_SAVE";
     /** 배송비 정책 줄 추가(예약) — 대상 SHIPPING_POLICY + 줄 ID, {@code code}·{@code effectiveFrom}·{@code before}/{@code after}. 돈 관련 */
     public static final String COMMERCE_SHIPPING_POLICY_CREATE = "COMMERCE_SHIPPING_POLICY_CREATE";
 
