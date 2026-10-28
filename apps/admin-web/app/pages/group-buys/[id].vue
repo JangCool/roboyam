@@ -350,7 +350,7 @@
                     </LabeledField>
                 </AppGadget>
 
-                <StickySaveBar v-if="canManage" submit revertable :dirty="dirty" :saving="saving" :disabled="!!fulfillProblem" :error-count="Object.keys(serverErrors).length" :error="formError" @revert="revert" />
+                <StickySaveBar v-if="canManage && (draft || canPrice)" submit revertable :dirty="dirty" :saving="saving" :disabled="!!fulfillProblem" :error-count="Object.keys(serverErrors).length" :error="formError" @revert="revert" />
             </form>
         </template>
 
@@ -551,7 +551,7 @@ function emptyForm(): EditForm {
 
 /** 축 없는 단품 하나(공구 전체) */
 function singleMain(): GroupBuyMainSkuRow {
-    return { key: 'main:', id: null, valueKeys: [], extraPrice: '0', maxQty: '', onSale: true, supplyPrice: '', currentQty: 0, reservedQty: 0 };
+    return { key: 'main:', id: null, productSkuId: null, valueKeys: [], extraPrice: '0', maxQty: '', onSale: true, supplyPrice: '', currentQty: 0, reservedQty: 0 };
 }
 
 /** 응답 단품 → 편집 줄. 불러온 축·값·단품의 줄 키는 서버 ID(조합 줄 키 = `main:` + 값 ID 들 — 편집기와 같은 규칙) */
@@ -559,7 +559,7 @@ function skuRowsOf(d: GroupBuyDetail): Pick<EditForm, 'axes' | 'mains' | 'addons
     const axes = d.axes.map((a) => ({ key: a.id, id: a.id, name: a.name, values: a.values.map((v) => ({ key: v.id, id: v.id, name: v.name })) }));
     const mains = d.skus
         .filter((s) => s.kind === 'MAIN')
-        .map((s) => ({ key: mainKeyOf(s), id: s.skuId, valueKeys: [...s.valueIds], extraPrice: String(s.extraPrice), maxQty: s.maxQty === null ? '' : String(s.maxQty), onSale: s.onSale, supplyPrice: s.supplyPrice === null ? '' : String(s.supplyPrice), currentQty: s.currentQty, reservedQty: s.reservedQty }));
+        .map((s) => ({ key: mainKeyOf(s), id: s.skuId, productSkuId: s.productSkuId, valueKeys: [...s.valueIds], extraPrice: String(s.extraPrice), maxQty: s.maxQty === null ? '' : String(s.maxQty), onSale: s.onSale, supplyPrice: s.supplyPrice === null ? '' : String(s.supplyPrice), currentQty: s.currentQty, reservedQty: s.reservedQty }));
     const addons = d.skus
         .filter((s) => s.kind === 'ADDON')
         .map((s) => ({
@@ -784,7 +784,7 @@ async function loadProducts(): Promise<void> {
 /** 상품의 설명·이미지·고시·옵션 축·단품을 공구 칸에 채운다(단품별 공구 설정은 새로 — 공급가는 기본 공급가 복사) */
 function fillFromProduct(p: GroupBuyProductDetail): void {
     const axes = p.axes.map((a) => ({ key: a.id, id: null, name: a.name, values: a.values.map((v) => ({ key: v.id, id: null, name: v.name })) }));
-    const mains: GroupBuyMainSkuRow[] = p.skus.map((s) => ({ key: `main:${s.valueIds.join('|')}`, id: null, valueKeys: [...s.valueIds], extraPrice: '0', maxQty: '', onSale: s.onSale, supplyPrice: s.baseSupplyPrice === null ? '' : String(s.baseSupplyPrice), currentQty: 0, reservedQty: 0 }));
+    const mains: GroupBuyMainSkuRow[] = p.skus.map((s) => ({ key: `main:${s.valueIds.join('|')}`, id: null, productSkuId: s.skuId, valueKeys: [...s.valueIds], extraPrice: '0', maxQty: '', onSale: s.onSale, supplyPrice: s.defaultSupplyPrice === null ? '' : String(s.defaultSupplyPrice), currentQty: 0, reservedQty: 0 }));
     const keyOfName = new Map(p.skus.map((s, i) => [s.name, mains[i]!.key]));
     form.value = {
         ...form.value,
@@ -795,6 +795,7 @@ function fillFromProduct(p: GroupBuyProductDetail): void {
         spec: p.spec,
         description: p.description,
         images: p.images.map((i) => ({ ...i })),
+        normalPrice: String(p.normalPrice),
         normalPriceBasis: p.normalPriceBasis,
         normalPriceSource: p.normalPriceSource,
         withdrawalRestriction: p.withdrawalRestriction,
@@ -850,25 +851,24 @@ watch(
 );
 
 // ── 공급가(결정 89) ──
-/** 판매가 < 공급가인 단품 이름(역마진) */
-function formMarginLoss(): string[] {
-    const base = UtilGroupBuy.int(form.value.groupPrice) ?? 0;
+/** 서버가 준 단품 ID(공구 단품 또는 상품 단품) → 이름 */
+function skuNamesOf(ids: readonly string[]): string[] {
+    const d = detail.value;
     const nameOf = new Map(skuRefs.value.map((s) => [s.key, s.name]));
-    const loss = (price: number | null, supply: string) => price !== null && UtilGroupBuy.int(supply) !== null && price < UtilGroupBuy.int(supply)!;
-    return [
-        ...form.value.mains.filter((m) => m.onSale && loss(base + (UtilGroupBuy.int(m.extraPrice) ?? 0), m.supplyPrice)).map((m) => nameOf.get(m.key) || form.value.productName),
-        ...form.value.addons.filter((a) => loss(UtilGroupBuy.int(a.price), a.supplyPrice)).map((a) => a.name),
-    ];
+    return ids.map(
+        (id) =>
+            d?.skus.find((s) => s.skuId === id || s.productSkuId === id)?.name ||
+            nameOf.get(form.value.mains.find((m) => m.productSkuId === id)?.key ?? '') ||
+            form.value.addons.find((a) => a.productSkuId === id)?.name ||
+            form.value.productName,
+    );
 }
 
-function detailMarginLoss(d: GroupBuyDetail): string[] {
-    return d.skus.filter((s) => s.onSale && s.supplyPrice !== null && s.unitPrice < s.supplyPrice).map((s) => s.name || d.productName);
-}
-
-/** 역마진이면 확인을 받는다(결정 89 — 경고 후 확인해야 진행). 공급가를 못 보는 운영자는 묻지 않는다(서버가 판단) */
-async function confirmMargin(names: string[]): Promise<boolean> {
-    if (!canSeeSupply.value || !names.length) return true;
-    return confirm({ title: t('groupBuy.marginTitle'), message: t('groupBuy.marginBody', { names: names.join(', ') }), confirmLabel: t('groupBuy.marginConfirm'), tone: 'danger' });
+/** 409 `GROUP_BUY_NEGATIVE_MARGIN {skuIds}`(판매가 < 공급가 — 결정 89)이면 확인을 받는다. true = 확인했으니 `marginConfirmed` 로 다시 보낸다 */
+async function confirmNegativeMargin(failure: ApiError): Promise<boolean> {
+    if (failure.code !== 'GROUP_BUY_NEGATIVE_MARGIN') return false;
+    const ids = Array.isArray(failure.extras?.skuIds) ? (failure.extras.skuIds as string[]) : [];
+    return confirm({ title: t('groupBuy.marginTitle'), message: t('groupBuy.marginBody', { names: skuNamesOf(ids).join(', ') }), confirmLabel: t('groupBuy.marginConfirm'), tone: 'danger' });
 }
 
 /** 모집 뒤 공급가 정정 — 단품 ID 와 지금 칸 값 */
@@ -882,7 +882,7 @@ function supplyPricesOut(f: EditForm, d: GroupBuyDetail): { skuId: string; suppl
 function onStartFailure(failure: ApiError): void {
     showNoticeIncomplete(failure);
     if (failure.code === 'GROUP_BUY_SUPPLY_PRICE_MISSING') {
-        const names = Array.isArray(failure.extras?.skuNames) ? (failure.extras.skuNames as string[]) : [];
+        const names = skuNamesOf(Array.isArray(failure.extras?.skuIds) ? (failure.extras.skuIds as string[]) : []);
         if (names.length) queueMicrotask(() => (actionError.value = `${failure.message} (${names.join(', ')})`));
     }
 }
@@ -948,77 +948,58 @@ const richUpload: RichImageUploader = async (file, opts) => {
 };
 
 // ── 저장 ──
-/**
- * 옵션 구성 → 서버 `GroupBuyDraft` 의 `axes`·`skus`·`addons`. 값이 빈 축은 아직 조합에 들지 않아 보내지 않는다(서버 `axes` 오류 대신 화면이 줄에서 알린다).
- * 조합은 전부 보낸다(판매 끈 것 포함). 축이 없으면 `skus` 는 빈다(공구 전체 단품 하나 — 서버 기본값).
- */
-function skusOut(f: EditForm): Pick<GroupBuySaveRequest, 'axes' | 'skus' | 'addons'> {
-    const num = (s: string) => UtilGroupBuy.int(s) ?? 0;
-    const opt = (s: string) => (s.trim() === '' ? null : UtilGroupBuy.int(s));
-    const active = f.axes.filter((a) => a.values.length > 0);
-    const valueName = new Map(active.flatMap((a) => a.values.map((v) => [v.key, v.name.trim()] as const)));
-    return {
-        axes: active.map((a) => ({ name: a.name.trim(), values: a.values.map((v) => v.name.trim()) })),
-        // 축이 없으면 단품 하나의 공급가를 값 없는 줄 하나로 보낸다(결정 89 — 2b-2 확정 전 가정)
-        skus: f.mains.map((m): GroupBuySkuInput => ({ values: m.valueKeys.map((k) => valueName.get(k) ?? ''), extraPrice: num(m.extraPrice), maxQty: opt(m.maxQty), onSale: m.onSale, supplyPrice: opt(m.supplyPrice) })),
-        addons: f.addons.map((a) => ({ name: a.name.trim(), price: num(a.price), maxQty: opt(a.maxQty), imageKey: null, productSkuId: a.productSkuId, supplyPrice: opt(a.supplyPrice) })),
-    };
-}
-
-function toRequest(f: EditForm): GroupBuySaveRequest {
+/** 서버 `GroupBuyDraft`(결정 89 · 2b-2) — 상품 + 판매 조건 + 상품 단품마다 이 공구 설정 + 다른 상품 단품의 추가 구성상품 */
+function toRequest(f: EditForm, marginConfirmed: boolean): GroupBuySaveRequest {
     const num = (s: string) => UtilGroupBuy.int(s) ?? 0;
     const opt = (s: string) => (s.trim() === '' ? null : UtilGroupBuy.int(s));
     return {
-        title: f.title.trim(),
         productId: f.productId,
-        productName: f.productName.trim(),
-        summary: f.summary,
-        spec: f.spec,
-        description: f.description,
-        imageIds: f.images.map((i) => i.mediaId),
-        normalPrice: num(f.normalPrice),
+        title: f.title.trim(),
         groupPrice: num(f.groupPrice),
-        normalPriceBasis: f.normalPriceBasis,
-        normalPriceSource: f.normalPriceSource.trim(),
-        ...skusOut(f),
+        shippingPolicyCode: f.shippingPolicyCode,
         minQty: num(f.minQty),
-        fulfillment: f.fulfillment,
         maxQty: num(f.maxQty),
         maxQtyPerUser: opt(f.maxQtyPerUser),
-        roundLimitShared: f.roundLimitShared,
         startAt: f.startAt || null,
         endAt: f.endAt || null,
         extensionMode: f.extensionMode,
-        shippingPolicyCode: f.shippingPolicyCode,
+        fulfillment: f.fulfillment,
         shipPlannedAt: f.fulfillment === 'AFTER_CLOSE' ? f.shipPlannedAt || null : null,
         shipWithinBusinessDays: f.fulfillment === 'IMMEDIATE' ? opt(f.shipWithinBusinessDays) : null,
-        withdrawalRestriction: f.withdrawalRestriction.trim(),
-        notices: noticesOut(f),
+        returnPolicy: '',
+        roundLimitShared: f.roundLimitShared,
+        skus: f.mains.flatMap((m): GroupBuySkuInput[] => (m.productSkuId ? [{ productSkuId: m.productSkuId, extraPrice: num(m.extraPrice), maxQty: opt(m.maxQty), onSale: m.onSale, supplyPrice: opt(m.supplyPrice) }] : [])),
+        addons: f.addons.flatMap((a) => (a.productSkuId ? [{ productSkuId: a.productSkuId, price: num(a.price), maxQty: opt(a.maxQty), supplyPrice: opt(a.supplyPrice) }] : [])),
+        marginConfirmed,
         version: detail.value?.version ?? null,
     };
 }
 
-async function save(): Promise<void> {
-    if (saving.value || !dirty.value || fulfillProblem.value) return;
-    if (!(await confirmMargin(formMarginLoss()))) return;
+async function saveOnce(marginConfirmed: boolean): Promise<void> {
     saving.value = true;
     formError.value = '';
     serverErrors.value = {};
     noticeIncomplete.value = null;
     try {
         if (isNew.value) {
-            const created = await api.create(toRequest(form.value));
+            const created = await api.create(toRequest(form.value, marginConfirmed));
             initial.value = snapshot(form.value); // 떠나기 확인을 건너뛴다
             toast.success(t('groupBuy.created'));
             await router.replace(`/group-buys/${encodeURIComponent(created.id)}`);
             return;
         }
         const d = detail.value!;
-        const saved = draft.value ? await api.update(d.id, toRequest(form.value)) : await api.updateContent(d.id, { summary: form.value.summary, spec: form.value.spec, description: form.value.description, imageIds: form.value.images.map((i) => i.mediaId), notices: noticesOut(form.value), supplyPrices: canPrice.value ? supplyPricesOut(form.value, d) : undefined, version: d.version });
+        // 모집 뒤는 공급가만(결정 89 · 2b-2)
+        const saved = draft.value ? await api.update(d.id, toRequest(form.value, marginConfirmed)) : await api.updateContent(d.id, { supplyPrices: supplyPricesOut(form.value, d), marginConfirmed, version: d.version });
         applyDetail(saved);
         toast.success(t('groupBuy.saved'));
     } catch (e) {
         const failure = toApiError(e);
+        if (!marginConfirmed && failure.code === 'GROUP_BUY_NEGATIVE_MARGIN') {
+            saving.value = false;
+            if (await confirmNegativeMargin(failure)) await saveOnce(true);
+            return;
+        }
         if (failure.code === 'VALIDATION' && failure.fields && Object.keys(failure.fields).length) {
             serverErrors.value = failure.fields;
             formError.value = t('groupBuy.saveFieldsRejected');
@@ -1029,6 +1010,11 @@ async function save(): Promise<void> {
     } finally {
         saving.value = false;
     }
+}
+
+async function save(): Promise<void> {
+    if (saving.value || !dirty.value || fulfillProblem.value) return;
+    await saveOnce(false);
 }
 
 function revert(): void {
@@ -1089,10 +1075,16 @@ async function run(act: Act, work: () => Promise<GroupBuyDetail | null>, done: s
 async function doStart(): Promise<void> {
     const d = detail.value;
     if (!d) return;
-    if (!(await confirmMargin(detailMarginLoss(d)))) return;
     const ok = await confirm({ title: t('groupBuy.startTitle'), message: t('groupBuy.startBody'), confirmLabel: t('groupBuy.actStart') });
     noticeIncomplete.value = null;
-    if (ok) await run('start', () => api.start(d.id), t('groupBuy.started'), false, onStartFailure);
+    if (!ok) return;
+    let margin: ApiError | null = null;
+    const done = await run('start', () => api.start(d.id), t('groupBuy.started'), false, (failure) => {
+        if (failure.code === 'GROUP_BUY_NEGATIVE_MARGIN') margin = failure;
+        onStartFailure(failure);
+    });
+    // 역마진(409) — 확인하면 `marginConfirmed` 로 다시
+    if (!done && margin && (await confirmNegativeMargin(margin))) await run('start', () => api.start(d.id, true), t('groupBuy.started'), false, onStartFailure);
 }
 
 async function doCloseEarly(reason: string): Promise<void> {

@@ -268,7 +268,7 @@ function regenerate(nextAxes: GroupBuyAxisRow[]): GroupBuyMainSkuRow[] {
         const same = before.get(key);
         if (same) return same;
         const parent = mains.value.find((m) => m.valueKeys.length > 0 && m.valueKeys.every((k) => valueKeys.includes(k)));
-        return { key, id: null, valueKeys, extraPrice: parent?.extraPrice ?? '0', maxQty: '', onSale: parent?.onSale ?? true, supplyPrice: parent?.supplyPrice ?? '', currentQty: 0, reservedQty: 0 };
+        return { key, id: null, productSkuId: null, valueKeys, extraPrice: parent?.extraPrice ?? '0', maxQty: '', onSale: parent?.onSale ?? true, supplyPrice: parent?.supplyPrice ?? '', currentQty: 0, reservedQty: 0 };
     });
 }
 

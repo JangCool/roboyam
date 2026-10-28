@@ -297,12 +297,13 @@ export interface GroupBuyAxisInput {
  * 판매하는 조합이 하나 이상이어야 한다. 축이 없으면 빈 배열(공구 전체 단품 하나). 오류 칸은 `skus`.
  */
 export interface GroupBuySkuInput {
-    values: string[];
+    /** 상품 단품(결정 89 — 서버 2b-2 `GroupBuyDraft.skus`) */
+    productSkuId: string;
     extraPrice: number;
     /** null = 한도 없음(공구 최대만) */
     maxQty: number | null;
     onSale: boolean;
-    /** 공급가(결정 89 — 빈 값 null 은 DRAFT 저장은 되고 모집 시작 때 `409 GROUP_BUY_SUPPLY_PRICE_MISSING`, 0 은 명시 입력) — 2b-2 확정 전 가정 */
+    /** 공급가 — null 은 DRAFT 저장은 되고 모집 시작 때 `409 GROUP_BUY_SUPPLY_PRICE_MISSING {skuIds}`(0 은 명시 입력) */
     supplyPrice: number | null;
 }
 
@@ -311,65 +312,49 @@ export interface GroupBuySkuInput {
  * 판매 여부 칸은 없다(빼려면 줄을 지운다).
  */
 export interface GroupBuyAddonInput {
-    name: string;
+    /** 다른 상품의 단품(같은 상품 단품이면 `400 addons`) — 이름·이미지·고시는 그 상품 것 */
+    productSkuId: string;
     price: number;
-    /** 비우면 null = 한도 없음(서버 2b-2 확정 — 추가 구성상품은 자기 한도만 센다) */
+    /** null = 한도 없음 */
     maxQty: number | null;
-    /** 이미지 올리기 결과 `mediaId`(없으면 null) */
-    imageKey: string | null;
-    /** 다른 상품의 단품(결정 89 — 이름·이미지·고시는 그 상품 것) — 2b-2 확정 전 가정 */
-    productSkuId: string | null;
     supplyPrice: number | null;
 }
 
 /** `POST /api/admin/group-buys`(새로) · `PUT /api/admin/group-buys/{id}`(DRAFT 만) — 모든 칸 */
 export interface GroupBuySaveRequest {
-    title: string;
-    /** 상품(결정 89) — 필수. 설명·이미지·고시 칸은 상품 값을 그대로 보낸다(서버는 상품 값을 쓴다 — 목업 편의) */
+    /** 상품(필수 — 없으면 `404 GROUP_BUY_PRODUCT_NOT_FOUND`). 설명·이미지·고시·정상가·옵션 축은 상품 것(결정 89 — 서버 2b-2 `GroupBuyDraft`) */
     productId: string | null;
-    productName: string;
-    summary: string;
-    spec: string;
-    description: string;
-    imageIds: string[];
-    normalPrice: number;
+    title: string;
     groupPrice: number;
-    normalPriceBasis: NormalPriceBasis | null;
-    normalPriceSource: string;
-    /** 옵션 구성(결정 88) — 모집 뒤 바꾸면 `409 GROUP_BUY_LOCKED_FIELD`(field `options`) */
-    axes: GroupBuyAxisInput[];
-    skus: GroupBuySkuInput[];
-    addons: GroupBuyAddonInput[];
+    shippingPolicyCode: string;
     minQty: number;
-    fulfillment: GroupBuyFulfillment;
     maxQty: number;
     maxQtyPerUser: number | null;
-    roundLimitShared: boolean;
     startAt: string | null;
     endAt: string | null;
     extensionMode: GroupBuyExtensionMode;
-    shippingPolicyCode: string;
+    fulfillment: GroupBuyFulfillment;
     shipPlannedAt: string | null;
     shipWithinBusinessDays: number | null;
-    withdrawalRestriction: string;
-    /** 고시 양식 전부(결정 87) — DRAFT 는 비거나 덜 채워도 저장된다(모집 시작 때 검사) */
-    notices: GroupBuyNoticeInput[];
+    /** 반품 배송비 규칙 문구(선택 — 화면 칸 없음, 빈 글자) */
+    returnPolicy: string;
+    roundLimitShared: boolean;
+    /** 상품 단품마다 이 공구의 설정 — 모집 뒤 바꾸면 `409 GROUP_BUY_LOCKED_FIELD`(field `options`) */
+    skus: GroupBuySkuInput[];
+    addons: GroupBuyAddonInput[];
+    /** 판매가 < 공급가를 확인했는가 — false 면 `409 GROUP_BUY_NEGATIVE_MARGIN {skuIds}` 뒤 true 로 다시 */
+    marginConfirmed: boolean;
     /** 새로 만들 때는 null */
     version: number | null;
 }
 
 /**
- * `PATCH /api/admin/group-buys/{id}/content`(모집 시작 뒤 — 설명·이미지 + 고시 양식, 결정 2·87). 한 판의 수정 이력으로 남는다
- * (고시 양식만 바뀌면 종류 `NOTICE`, 설명·이미지도 바뀌면 `CONTENT` + 바뀐 칸 `notices`). 모집 뒤라 덜 채운 양식은 `409 GROUP_BUY_NOTICE_INCOMPLETE`.
+ * `PATCH /api/admin/group-buys/{id}/content`(모집 시작 뒤) — 결정 89 서버 2b-2: 모집 뒤 공구 수정은 **공급가만**(감사 돈 관련). 설명·이미지·고시는 상품 화면에서 고친다.
+ * 판매가 < 공급가면 `409 GROUP_BUY_NEGATIVE_MARGIN {skuIds}` → `marginConfirmed: true` 로 다시.
  */
 export interface GroupBuyContentRequest {
-    summary: string;
-    spec: string;
-    description: string;
-    imageIds: string[];
-    notices: GroupBuyNoticeInput[];
-    /** 모집 뒤 공급가 정정(결정 89 — 감사 돈 관련) — 가격 권한이 없으면 보내지 않는다 */
-    supplyPrices?: { skuId: string; supplyPrice: number | null }[];
+    supplyPrices: { skuId: string; supplyPrice: number | null }[];
+    marginConfirmed: boolean;
     version: number;
 }
 

@@ -70,7 +70,7 @@ function productOf(g: GroupBuyDetail, categories: GroupBuyCategory[]): GroupBuyP
     const mains = g.skus.filter((s) => s.kind === 'MAIN');
     const mainNames = new Set(mains.map((s) => s.name));
     const id = productIdOf(g.id);
-    const skus: GroupBuyProductSku[] = mains.map((s) => ({ skuId: `p${s.skuId}`, valueIds: [...s.valueIds], name: s.name || g.productName, baseSupplyPrice: g.id === 'gb-105' ? null : supplyGuess(s.unitPrice), onSale: s.onSale }));
+    const skus: GroupBuyProductSku[] = mains.map((s) => ({ skuId: `p${s.skuId}`, valueIds: [...s.valueIds], name: s.name || g.productName, defaultSupplyPrice: g.id === 'gb-105' ? null : supplyGuess(s.unitPrice), onSale: s.onSale }));
     const categoryId = PRODUCT_CATEGORY_OF[g.id] ?? 'ct-robot';
     return {
         id,
@@ -81,6 +81,7 @@ function productOf(g: GroupBuyDetail, categories: GroupBuyCategory[]): GroupBuyP
         spec: g.spec,
         description: g.description,
         images: g.images.map((i) => ({ ...i })),
+        normalPrice: g.normalPrice,
         normalPriceBasis: g.normalPriceBasis,
         normalPriceSource: g.normalPriceSource,
         withdrawalRestriction: g.withdrawalRestriction,
@@ -110,11 +111,12 @@ function addonProductsOf(g: GroupBuyDetail, categories: GroupBuyCategory[]): Gro
                 spec: '',
                 description: `<p>${s.name} — ${g.productName} 와 함께 쓰는 별매 상품이에요.</p>`,
                 images: s.imageUrl ? [{ mediaId: s.imageKey ?? `md-${id}`, url: s.imageUrl, thumbUrl: s.imageUrl }] : [],
+                normalPrice: s.unitPrice,
                 normalPriceBasis: null,
                 normalPriceSource: '',
                 withdrawalRestriction: '',
                 axes: [],
-                skus: [{ skuId: `p${s.skuId}`, valueIds: [], name: s.name, baseSupplyPrice: supplyGuess(s.unitPrice), onSale: true }],
+                skus: [{ skuId: `p${s.skuId}`, valueIds: [], name: s.name, defaultSupplyPrice: supplyGuess(s.unitPrice), onSale: true }],
                 notices: notice ? [{ ...mockClone(notice), skuIds: [], skuNames: [] } as GroupBuyNotice] : [],
                 structureLocked: false,
                 groupBuys: [],
@@ -223,7 +225,7 @@ function validate(body: GroupBuyProductSaveRequest): void {
     if (!c) fields.categoryId = '카테고리를 골라 주세요.';
     else if (db().categories.some((x) => x.parentId === c.id)) fields.categoryId = '아래 단 카테고리를 골라 주세요.';
     if (body.axes.length > UtilGroupBuy.SKU.axisMax) fields.axes = `옵션 축은 ${UtilGroupBuy.SKU.axisMax}개까지예요.`;
-    if (body.skus.some((s) => s.baseSupplyPrice !== null && s.baseSupplyPrice < 0)) fields.skus = '공급가는 0 이상이에요.';
+    if (body.skus.some((s) => s.defaultSupplyPrice !== null && s.defaultSupplyPrice < 0)) fields.skus = '공급가는 0 이상이에요.';
     if (Object.keys(fields).length) throw MOCK_ERRORS.validation(fields);
 }
 
@@ -236,15 +238,16 @@ function apply(p: GroupBuyProductDetail, body: GroupBuyProductSaveRequest): void
         ? UtilGroupBuy.skuCombinations(axes.map((a) => a.values)).map((values) => {
               const name = UtilGroupBuy.skuMainName(values.map((v) => v.name));
               const input = body.skus.find((s) => UtilGroupBuy.skuMainName(s.values) === name);
-              return { skuId: p.skus.find((s) => s.name === name)?.skuId ?? nextId('psku'), valueIds: values.map((v) => v.id), name, baseSupplyPrice: input?.baseSupplyPrice ?? null, onSale: input?.onSale ?? true };
+              return { skuId: p.skus.find((s) => s.name === name)?.skuId ?? nextId('psku'), valueIds: values.map((v) => v.id), name, defaultSupplyPrice: input?.defaultSupplyPrice ?? null, onSale: input?.onSale ?? true };
           })
-        : [{ skuId: p.skus.find((s) => s.valueIds.length === 0)?.skuId ?? nextId('psku'), valueIds: [], name: body.name.trim(), baseSupplyPrice: body.skus[0]?.baseSupplyPrice ?? null, onSale: true }];
+        : [{ skuId: p.skus.find((s) => s.valueIds.length === 0)?.skuId ?? nextId('psku'), valueIds: [], name: body.name.trim(), defaultSupplyPrice: body.skus[0]?.defaultSupplyPrice ?? null, onSale: true }];
     p.name = body.name.trim();
     p.categoryId = body.categoryId!;
     p.summary = body.summary;
     p.spec = body.spec;
     p.description = body.description;
-    p.images = body.imageIds.map((mediaId) => p.images.find((i) => i.mediaId === mediaId) ?? { mediaId, url: '', thumbUrl: '' });
+    p.images = body.images.map((mediaId) => p.images.find((i) => i.mediaId === mediaId) ?? { mediaId, url: '', thumbUrl: '' });
+    p.normalPrice = body.normalPrice;
     p.normalPriceBasis = body.normalPriceBasis;
     p.normalPriceSource = body.normalPriceSource;
     p.withdrawalRestriction = body.withdrawalRestriction;
@@ -265,7 +268,7 @@ function apply(p: GroupBuyProductDetail, body: GroupBuyProductSaveRequest): void
 export async function mockProductCreate(body: GroupBuyProductSaveRequest): Promise<GroupBuyProductDetail> {
     await guardWrite();
     validate(body);
-    const p: GroupBuyProductDetail = { id: nextId('pd'), name: '', categoryId: '', categoryPath: '', summary: '', spec: '', description: '', images: [], normalPriceBasis: null, normalPriceSource: '', withdrawalRestriction: '', axes: [], skus: [], notices: [], structureLocked: false, groupBuys: [], version: -1, updatedAt: '' };
+    const p: GroupBuyProductDetail = { id: nextId('pd'), name: '', categoryId: '', categoryPath: '', summary: '', spec: '', description: '', images: [], normalPrice: 0, normalPriceBasis: null, normalPriceSource: '', withdrawalRestriction: '', axes: [], skus: [], notices: [], structureLocked: false, groupBuys: [], version: -1, updatedAt: '' };
     apply(p, body);
     db().products.unshift(p);
     return present(p);
@@ -277,11 +280,15 @@ export async function mockProductUpdate(id: string, body: GroupBuyProductSaveReq
     if (!p) throw MOCK_ERRORS.notFound('GROUP_BUY_PRODUCT_NOT_FOUND', '상품을 찾을 수 없어요.');
     if (body.version !== p.version) throw MOCK_ERRORS.conflict('GROUP_BUY_VERSION_CONFLICT', '다른 운영자가 먼저 고쳤어요. 새로 불러온 뒤 다시 고쳐 주세요.');
     validate(body);
+    // 모집 중 공구가 쓰면 이름·정상가·청약철회 제한·옵션 구성 잠금(서버 2b-2 — 설명·이미지·카테고리·고시는 언제든)
     const shape = (axes: { name: string; values: string[] }[]) => JSON.stringify(axes);
-    const structureChanged = shape(body.axes) !== shape(p.axes.map((a) => ({ name: a.name, values: a.values.map((v) => v.name) })));
-    if (flags.has('product-locked') || (structureChanged && present(p).structureLocked)) {
-        throw MOCK_ERRORS.conflict('GROUP_BUY_PRODUCT_STRUCTURE_LOCKED', '이 상품을 쓰는 공구가 모집 중이라 옵션 축·단품 구성은 바꿀 수 없어요. 새 단품은 다음 공구부터 넣어 주세요.');
+    const locked = present(p).structureLocked;
+    const lockedField =
+        body.name.trim() !== p.name ? 'name' : body.normalPrice !== p.normalPrice ? 'normalPrice' : body.withdrawalRestriction.trim() !== p.withdrawalRestriction ? 'withdrawalRestriction' : shape(body.axes) !== shape(p.axes.map((a) => ({ name: a.name, values: a.values.map((v) => v.name) }))) ? 'options' : null;
+    if (flags.has('product-locked') || (locked && lockedField)) {
+        throw MOCK_ERRORS.conflict('GROUP_BUY_LOCKED_FIELD', '이 상품을 쓰는 공구가 모집 중이라 이름·정상가·청약철회 제한·옵션 구성은 바꿀 수 없어요.', { field: lockedField ?? 'options' });
     }
+    if (flags.has('product-sku-in-use')) throw MOCK_ERRORS.conflict('GROUP_BUY_PRODUCT_SKU_IN_USE', '공구가 쓰는 단품은 뺄 수 없어요.', { skuNames: p.skus.slice(0, 1).map((x) => x.name) });
     apply(p, body);
     return present(p);
 }
@@ -292,6 +299,21 @@ export async function mockAddonSources(exceptProductId: string | null): Promise<
     return mockClone(
         db()
             .products.filter((p) => p.id !== exceptProductId)
-            .flatMap((p) => p.skus.filter((s) => s.onSale).map((s): GroupBuyAddonSource => ({ productSkuId: s.skuId, productId: p.id, productName: p.name, name: p.axes.length ? `${p.name} · ${s.name}` : p.name, imageUrl: p.images[0]?.thumbUrl ?? null, baseSupplyPrice: s.baseSupplyPrice }))),
+            .flatMap((p) => p.skus.filter((s) => s.onSale).map((s): GroupBuyAddonSource => ({ productSkuId: s.skuId, productId: p.id, productName: p.name, name: p.axes.length ? `${p.name} · ${s.name}` : p.name, imageUrl: p.images[0]?.thumbUrl ?? null, defaultSupplyPrice: s.defaultSupplyPrice }))),
     );
+}
+
+/** 공구 목업이 저장 때 읽는 상품(사본) — 없으면 null */
+export function mockProductSnapshot(id: string): GroupBuyProductDetail | null {
+    const p = db().products.find((x) => x.id === id);
+    return p ? present(p) : null;
+}
+
+/** 상품 단품 ID → 그 상품·단품(추가 구성상품 이름·이미지·고시) */
+export function mockProductOfSku(productSkuId: string): { product: GroupBuyProductDetail; sku: GroupBuyProductSku } | null {
+    for (const product of db().products) {
+        const sku = product.skus.find((x) => x.skuId === productSkuId);
+        if (sku) return { product: mockClone(product), sku: mockClone(sku) };
+    }
+    return null;
 }

@@ -57,7 +57,8 @@ import type {
  *     (적지 않은 조합 = 추가금 0·한도 없음·판매, 판매 조합 1개 이상) · `addons[{name, price, maxQty, imageKey}]`(≤ 20, 조합 이름과도 겹치면 안 됨). `400 VALIDATION fields.axes|skus|addons`.
  *     모집 뒤 구성 변경은 `409 GROUP_BUY_LOCKED_FIELD`(field `options`) — 한도는 수량 화면(추가 입고·줄이기, `skuId`)에서 단품 단위로.
  *     회원 주문 쪽 단품 오류(관리자 화면은 쓰지 않는다): `GROUP_BUY_SKU_NOT_ON_SALE` · `GROUP_BUY_ADDON_ONLY {skuIds}` · `GROUP_BUY_SKU_SOLD_OUT {skuId, temporary}`
- *   - `PATCH  /api/admin/group-buys/{id}/content`(모집 뒤 설명·이미지 + 고시 양식 `notices`) → `GroupBuyDetail` · 수정 이력 한 판(고시만 바뀌면 `NOTICE`)
+ *   - `PATCH  /api/admin/group-buys/{id}/content`(모집 뒤 — 공급가만 `supplyPrices`, 결정 89·2b-2) → `GroupBuyDetail` · 역마진 `409 GROUP_BUY_NEGATIVE_MARGIN {skuIds}` → `marginConfirmed`
+ *   - 결정 89(2b-2 1d5b48ab): 저장 `GroupBuyDraft` = 상품 `productId` + 판매 조건 + `skus[{productSkuId, extraPrice, maxQty, onSale, supplyPrice}]` · `addons[{productSkuId, price, maxQty, supplyPrice}]` · `marginConfirmed`. 설명·이미지·고시·정상가·옵션 축은 상품 API
  *   - `GET    /api/admin/group-buys/notice-catalog` → `NoticeCatalog`(상품정보제공고시 품목 40개·항목 — 서버 데이터 파일이 정본, 결정 87)
  *   - 고시 양식: 저장 `400 VALIDATION fields.notices[i].title|categoryCode|skuNames(추가 구성상품을 섞음 포함)|values[j].unavailableReason|values[j].value|values[j].label`(label = 판매자 추가 항목, 2b-2 확정 전 가정) · 모집 시작·모집 뒤 저장 `409 GROUP_BUY_NOTICE_INCOMPLETE`(extras = `GroupBuyNoticeIncomplete`)
  *   - `POST   /api/admin/group-buys/images`(multipart `file`) → `GroupBuyImageUpload`
@@ -138,10 +139,11 @@ export function useGroupBuyAdminApi() {
         // REAL: client.get<GroupBuyPage<GroupBuyRevision>>(PATH.sub(id, 'revisions'), { query: { page, size } }),
 
         /** 모집 시작(공개) — 배송비 정책 사본 고정 */
-        start: (id: string): Promise<GroupBuyDetail> =>
+        /** 모집 시작 — 역마진이면 `409 GROUP_BUY_NEGATIVE_MARGIN` 뒤 `marginConfirmed` 로 다시(목업 가정: 시작에도 같은 확인), 공급가 빈 값 `409 GROUP_BUY_SUPPLY_PRICE_MISSING {skuIds}` */
+        start: (id: string, marginConfirmed = false): Promise<GroupBuyDetail> =>
             // MOCK:
-            mockGroupBuyStart(id),
-        // REAL: client.post<GroupBuyDetail>(PATH.sub(id, 'start')),
+            mockGroupBuyStart(id, marginConfirmed),
+        // REAL: client.post<GroupBuyDetail>(PATH.sub(id, 'start'), { marginConfirmed }),
 
         /** 조기 마감 */
         closeEarly: (id: string, reason: string): Promise<GroupBuyDetail> =>

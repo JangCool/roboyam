@@ -23,6 +23,8 @@ export interface GroupBuyAxisRow {
 export interface GroupBuyMainSkuRow {
     key: string;
     id: string | null;
+    /** 상품 단품(결정 89 — 공구는 상품 단품마다 한 줄, 상품 화면에서 새로 만든 조합은 null) */
+    productSkuId: string | null;
     /** 축 차례의 값 키 */
     valueKeys: string[];
     extraPrice: string;

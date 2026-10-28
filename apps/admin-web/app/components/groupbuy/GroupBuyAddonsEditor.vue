@@ -112,7 +112,7 @@ function pickSource(index: number, productSkuId: string): void {
         productSkuId,
         name: src.name,
         image: src.imageUrl ? { mediaId: `src-${productSkuId}`, url: src.imageUrl, thumbUrl: src.imageUrl } : null,
-        supplyPrice: row.supplyPrice.trim() === '' && src.baseSupplyPrice !== null ? String(src.baseSupplyPrice) : row.supplyPrice,
+        supplyPrice: row.supplyPrice.trim() === '' && src.defaultSupplyPrice !== null ? String(src.defaultSupplyPrice) : row.supplyPrice,
     });
 }
 

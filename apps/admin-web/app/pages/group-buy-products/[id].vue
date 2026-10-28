@@ -41,9 +41,9 @@
             <!-- 기본 정보 -->
             <AppGadget :title="t('groupBuy.productSecBasic')" anchor="pd-basic">
                 <div class="grid gap-4 md:grid-cols-2">
-                    <LabeledField :label="t('groupBuy.productName')" :error="fe('name')">
+                    <LabeledField :label="t('groupBuy.productName')" :hint="detail?.structureLocked ? t('groupBuy.locked') : ''" :error="fe('name')">
                         <template #default="{ id, describedBy, invalid }">
-                            <InputText :id="id" v-model="form.name" maxlength="100" :readonly="ro" :invalid="invalid" :aria-describedby="describedBy" fluid />
+                            <InputText :id="id" v-model="form.name" maxlength="100" :readonly="lockedRo" :invalid="invalid" :aria-describedby="describedBy" fluid />
                         </template>
                     </LabeledField>
                     <LabeledField :label="t('groupBuy.productCategory')" :help="t('groupBuy.productCategoryHelp')" :error="fe('categoryId') || categoryError">
@@ -81,6 +81,14 @@
             <!-- 정상가 근거 · 청약철회 제한 -->
             <AppGadget :title="t('groupBuy.productSecPolicy')" anchor="pd-policy">
                 <div class="grid gap-4 md:grid-cols-2">
+                    <LabeledField :label="t('groupBuy.fieldNormalPrice')" :hint="detail?.structureLocked ? t('groupBuy.locked') : ''" :error="fe('normalPrice')">
+                        <template #default="{ id, describedBy, invalid }">
+                            <InputGroup>
+                                <InputText :id="id" v-model="form.normalPrice" inputmode="numeric" :readonly="lockedRo || !canPrice" :invalid="invalid" :aria-describedby="describedBy" class="text-right tabular-nums" />
+                                <InputGroupAddon>{{ t('groupBuy.wonUnit') }}</InputGroupAddon>
+                            </InputGroup>
+                        </template>
+                    </LabeledField>
                     <LabeledField :label="t('groupBuy.fieldBasis')" :error="fe('normalPriceBasis')">
                         <template #default="{ id, describedBy, invalid }">
                             <Select :input-id="id" v-model="form.normalPriceBasis" :options="basisOptions" option-label="label" option-value="value" show-clear :placeholder="t('groupBuy.basisPlaceholder')" :disabled="ro" :invalid="invalid" :aria-describedby="describedBy" fluid />
@@ -93,7 +101,7 @@
                     </LabeledField>
                     <LabeledField :label="t('groupBuy.fieldWithdrawal')" :help="t('groupBuy.withdrawalHelp')" :error="fe('withdrawalRestriction')" class="md:col-span-2">
                         <template #default="{ id, describedBy, invalid }">
-                            <Textarea :id="id" v-model="form.withdrawalRestriction" rows="3" auto-resize maxlength="1000" :readonly="ro" :invalid="invalid" :aria-describedby="describedBy" fluid />
+                            <Textarea :id="id" v-model="form.withdrawalRestriction" rows="3" auto-resize maxlength="1000" :readonly="lockedRo" :invalid="invalid" :aria-describedby="describedBy" fluid />
                         </template>
                     </LabeledField>
                 </div>
@@ -134,6 +142,7 @@ interface ProductForm {
     spec: string;
     description: string;
     images: GroupBuyImage[];
+    normalPrice: string;
     normalPriceBasis: NormalPriceBasis | null;
     normalPriceSource: string;
     withdrawalRestriction: string;
@@ -175,20 +184,22 @@ const pageTitle = computed(() => (isNew.value ? t('groupBuy.productNewTitle') : 
 useSeoMeta({ title: () => pageTitle.value });
 
 const ro = computed(() => !canManage.value || saving.value);
+/** 모집 중 공구가 쓰는 상품 — 이름·정상가·청약철회 제한·옵션 구성 잠금(설명·이미지·카테고리·고시는 고친다) */
+const lockedRo = computed(() => ro.value || !!detail.value?.structureLocked);
 const categoryChoices = computed(() => UtilGroupBuy.categoryChoices(categories.value, false, t('groupBuy.categoryHiddenMark')));
 const basisOptions = computed(() => NORMAL_PRICE_BASES.map((b) => ({ value: b, label: t(`groupBuy.basis.${b}`) })));
 
 function singleMain(): GroupBuyMainSkuRow {
-    return { key: 'main:', id: null, valueKeys: [], extraPrice: '0', maxQty: '', onSale: true, supplyPrice: '', currentQty: 0, reservedQty: 0 };
+    return { key: 'main:', id: null, productSkuId: null, valueKeys: [], extraPrice: '0', maxQty: '', onSale: true, supplyPrice: '', currentQty: 0, reservedQty: 0 };
 }
 
 function emptyForm(): ProductForm {
-    return { name: '', categoryId: null, summary: '', spec: '', description: '', images: [], normalPriceBasis: null, normalPriceSource: '', withdrawalRestriction: '', axes: [], mains: [singleMain()], notices: [] };
+    return { name: '', categoryId: null, summary: '', spec: '', description: '', images: [], normalPrice: '', normalPriceBasis: null, normalPriceSource: '', withdrawalRestriction: '', axes: [], mains: [singleMain()], notices: [] };
 }
 
 function formOf(p: GroupBuyProductDetail): ProductForm {
     const axes = p.axes.map((a) => ({ key: a.id, id: a.id, name: a.name, values: a.values.map((v) => ({ key: v.id, id: v.id, name: v.name })) }));
-    const mains = p.skus.map((s): GroupBuyMainSkuRow => ({ key: `main:${s.valueIds.join('|')}`, id: s.skuId, valueKeys: [...s.valueIds], extraPrice: '0', maxQty: '', onSale: s.onSale, supplyPrice: s.baseSupplyPrice === null ? '' : String(s.baseSupplyPrice), currentQty: 0, reservedQty: 0 }));
+    const mains = p.skus.map((s): GroupBuyMainSkuRow => ({ key: `main:${s.valueIds.join('|')}`, id: s.skuId, productSkuId: s.skuId, valueKeys: [...s.valueIds], extraPrice: '0', maxQty: '', onSale: s.onSale, supplyPrice: s.defaultSupplyPrice === null ? '' : String(s.defaultSupplyPrice), currentQty: 0, reservedQty: 0 }));
     const keyOfName = new Map(p.skus.map((s, i) => [s.name, mains[i]!.key]));
     return {
         name: p.name,
@@ -197,6 +208,7 @@ function formOf(p: GroupBuyProductDetail): ProductForm {
         spec: p.spec,
         description: p.description,
         images: p.images.map((i) => ({ ...i })),
+        normalPrice: String(p.normalPrice),
         normalPriceBasis: p.normalPriceBasis,
         normalPriceSource: p.normalPriceSource,
         withdrawalRestriction: p.withdrawalRestriction,
@@ -299,12 +311,13 @@ function toRequest(f: ProductForm): GroupBuyProductSaveRequest {
         summary: f.summary,
         spec: f.spec,
         description: f.description,
-        imageIds: f.images.map((i) => i.mediaId),
+        images: f.images.map((i) => i.mediaId),
+        normalPrice: UtilGroupBuy.int(f.normalPrice) ?? 0,
         normalPriceBasis: f.normalPriceBasis,
         normalPriceSource: f.normalPriceSource.trim(),
         withdrawalRestriction: f.withdrawalRestriction.trim(),
         axes: active.map((a) => ({ name: a.name.trim(), values: a.values.map((v) => v.name.trim()) })),
-        skus: f.mains.map((m) => ({ values: m.valueKeys.map((k) => valueName.get(k) ?? ''), baseSupplyPrice: canPrice.value ? opt(m.supplyPrice) : null, onSale: m.onSale })),
+        skus: f.mains.map((m) => ({ values: m.valueKeys.map((k) => valueName.get(k) ?? ''), defaultSupplyPrice: canPrice.value ? opt(m.supplyPrice) : null, onSale: m.onSale })),
         notices,
         version: detail.value?.version ?? null,
     };

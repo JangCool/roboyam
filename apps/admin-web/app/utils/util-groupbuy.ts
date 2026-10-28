@@ -32,7 +32,7 @@ export default class UtilGroupBuy {
 
     /** 모집 시작 뒤에도 고칠 수 있는 칸(설명·이미지 — 결정 2, 고시 양식 — 결정 87). 나머지는 잠긴다 */
     /** 상품에서 오는 칸(결정 89) — 공구 화면에서는 고치지 않는다(상품 화면에서 고친다) */
-    static readonly PRODUCT_FIELDS: readonly string[] = ['productName', 'summary', 'spec', 'description', 'images', 'normalPriceBasis', 'normalPriceSource', 'withdrawalRestriction'];
+    static readonly PRODUCT_FIELDS: readonly string[] = ['productName', 'normalPrice', 'summary', 'spec', 'description', 'images', 'normalPriceBasis', 'normalPriceSource', 'withdrawalRestriction'];
     /**
      * 카테고리 고르기 목록(결정 89 — 2단). 상품은 아래 단을 고른다(아래 단이 없는 위 카테고리는 그대로). `withParents` 면 위 단도 넣는다(목록 거르기 — 아래 단 포함).
      * @param {GroupBuyCategory[]} categories - 서버 목록(차례 `sortOrder`).
