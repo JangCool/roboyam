@@ -262,7 +262,9 @@ public class GroupBuyStore {
                         + "'options', (SELECT coalesce(jsonb_agg(o.name ORDER BY o.sort_order, o.id), '[]'::jsonb) FROM group_buy_notice_options x "
                         + "JOIN group_buy_options o ON o.id = x.option_id WHERE x.notice_id = n.id), "
                         + "'values', (SELECT coalesce(jsonb_object_agg(v.item_key, jsonb_build_object('value', v.value, 'unavailable', v.unavailable, "
-                        + "'reason', v.unavailable_reason)), '{}'::jsonb) FROM group_buy_notice_values v WHERE v.notice_id = n.id)) ORDER BY n.sort_order) "
+                        + "'reason', v.unavailable_reason)), '{}'::jsonb) FROM group_buy_notice_values v WHERE v.notice_id = n.id AND NOT v.custom), "
+                        + "'customItems', (SELECT coalesce(jsonb_agg(jsonb_build_object('name', v.custom_name, 'value', v.value) ORDER BY v.sort_order), '[]'::jsonb) "
+                        + "FROM group_buy_notice_values v WHERE v.notice_id = n.id AND v.custom)) ORDER BY n.sort_order) "
                         + "FROM group_buy_notices n WHERE n.group_buy_id = g.id), '[]'::jsonb), ?, ?, ? FROM group_buys g WHERE g.id = ?", id, revisionNo, changeKind,
                 editedBy, ts(now), groupBuyId);
     }

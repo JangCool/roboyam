@@ -246,6 +246,73 @@ class GroupBuyNoticeTest {
         assertThat(kit.notices.notices(gb).get(1).optionIds()).containsExactly(after);
     }
 
+    // ── 판매자 추가 항목(사용자 지시 2026-10-28) ─────────────────────────────
+
+    private NoticeDraft withCustoms(String categoryCode, List<NoticeDraft.Value> customs) {
+        NoticeDraft full = kit.fullNotice(categoryCode, "본체", List.of());
+        List<NoticeDraft.Value> values = new ArrayList<>(full.values());
+        values.addAll(customs);
+        return new NoticeDraft(categoryCode, "본체", List.of(), values);
+    }
+
+    @Test
+    void G43_판매자_추가_항목은_차례대로_저장되고_빈_줄은_빼며_완성_검사_대상이_아니다() {
+        long gb = kit.spec(policy()).create();
+        kit.notices.save(gb, List.of(withCustoms("AGRI_LIVESTOCK_FISHERY", List.of(NoticeDraft.Value.custom("수확 시기", "매년 9월 말", 2),
+                NoticeDraft.Value.custom("  ", " ", 0), NoticeDraft.Value.custom("원산지 세부", "경기도 이천시", 1)))), kit.operator, "ip");
+        var saved = kit.notices.notices(gb).get(0);
+        assertThat(saved.customItems()).extracting(c -> c.name() + "=" + c.value() + "@" + c.sortOrder())
+                .containsExactly("원산지 세부=경기도 이천시@0", "수확 시기=매년 9월 말@1");
+        assertThat(saved.values()).doesNotContainKeys("수확 시기", "원산지 세부");
+        publish(gb); // 추가 항목은 선택 — 고시 항목만 차면 된다
+
+        // 모집 뒤 수정 이력에 추가 항목도 사본으로
+        kit.notices.save(gb, List.of(withCustoms("AGRI_LIVESTOCK_FISHERY", List.of(NoticeDraft.Value.custom("수확 시기", "매년 10월 초", null)))), kit.operator, "ip");
+        assertThat(kit.count("SELECT count(*) FROM group_buy_revisions WHERE group_buy_id = ? AND change_kind = 'NOTICE' "
+                + "AND notices -> 0 -> 'customItems' -> 0 ->> 'value' = '매년 10월 초' AND jsonb_array_length(notices -> 0 -> 'customItems') = 1", gb)).isEqualTo(1);
+    }
+
+    @Test
+    void G43_추가_항목_이름이_고시_항목과_같으면_거절_20개_초과_거절_이름_겹침_반쪽_줄_거절() {
+        long gb = kit.spec(policy()).create();
+        // 고시 항목 이름 그대로(공백 무시) · 쉼표로 나뉜 이름(「크기, 무게」의 크기 · 「제조자, 수입품의 경우 …」의 제조자)
+        for (String reserved : List.of("제조국", "품명및모델명", "크기", "제조자")) {
+            String category = reserved.equals("품명및모델명") || reserved.equals("제조자") ? "OTHER_GOODS" : "SMALL_ELECTRONICS";
+            assertThatThrownBy(() -> kit.notices.save(gb, List.of(withCustoms(category, List.of(NoticeDraft.Value.custom(reserved, "값", null)))), kit.operator, "ip"))
+                    .as(reserved).isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("notices[0].customItems[0].name"));
+        }
+        List<NoticeDraft.Value> many = new ArrayList<>();
+        for (int i = 0; i < 21; i++) {
+            many.add(NoticeDraft.Value.custom("추가 " + i, "내용", i));
+        }
+        assertThatThrownBy(() -> kit.notices.save(gb, List.of(withCustoms("OTHER_GOODS", many)), kit.operator, "ip"))
+                .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("notices[0].customItems"));
+        kit.notices.save(gb, List.of(withCustoms("OTHER_GOODS", many.subList(0, 20))), kit.operator, "ip"); // 20개까지는 된다
+        assertThatThrownBy(() -> kit.notices.save(gb, List.of(withCustoms("OTHER_GOODS", List.of(NoticeDraft.Value.custom("보관 방법", "서늘한 곳", 0),
+                NoticeDraft.Value.custom("보관방법", "냉장", 1)))), kit.operator, "ip")).isInstanceOf(ValidationException.class);
+        assertThatThrownBy(() -> kit.notices.save(gb, List.of(withCustoms("OTHER_GOODS", List.of(NoticeDraft.Value.custom("사이즈 표", " ", 0)))), kit.operator, "ip"))
+                .isInstanceOf(ValidationException.class);
+        assertThatThrownBy(() -> kit.notices.save(gb, List.of(withCustoms("OTHER_GOODS", List.of(NoticeDraft.Value.custom("x".repeat(41), "내용", 0)))), kit.operator,
+                "ip")).isInstanceOf(ValidationException.class);
+        // DB: 추가 항목 줄은 키가 없고 이름·내용이 있어야 한다
+        long noticeId = kit.notices.notices(gb).get(0).id();
+        assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO group_buy_notice_values (id, notice_id, custom, item_key, custom_name, value, sort_order) "
+                + "VALUES (?, ?, true, 'contact', '연락처', '1588', 99)", kit.ids.nextId(), noticeId)).hasMessageContaining("ck_gbnv_kind");
+        assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO group_buy_notice_values (id, notice_id, custom, item_key, value) VALUES (?, ?, false, NULL, 'x')",
+                kit.ids.nextId(), noticeId)).hasMessageContaining("ck_gbnv_kind");
+    }
+
+    @Test
+    void G43_추가_차수에_판매자_추가_항목도_복사된다() {
+        long root = kit.spec(policy()).qty(0, 1).create();
+        kit.notices.save(root, List.of(withCustoms("OTHER_GOODS", List.of(NoticeDraft.Value.custom("호환 기종", "ROBO-1, ROBO-2", 0)))), kit.operator, "ip");
+        publish(root);
+        kit.paidOrder(kit.newMember(), root, 1);
+        var round = kit.admin.createRound(root, kit.now().minus(Duration.ofMinutes(1)), kit.now().plus(Duration.ofDays(1)), null, kit.operator, "ip");
+        assertThat(kit.notices.notices(round.groupBuyId()).get(0).customItems()).extracting(c -> c.name() + "=" + c.value())
+                .containsExactly("호환 기종=ROBO-1, ROBO-2");
+    }
+
     @Test
     void 상세페이지_참조만_적은_항목은_막지_않고_경고한다() {
         long gb = kit.spec(policy()).create();

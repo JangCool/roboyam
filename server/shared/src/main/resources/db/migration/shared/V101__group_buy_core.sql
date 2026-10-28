@@ -237,6 +237,7 @@ CREATE INDEX ix_group_buy_revisions_created ON group_buy_revisions (created_at);
 -- 양식(group_buy_notices): 공구마다 여러 장 — 차례·품목 코드(카탈로그 groupbuy/notice-catalog-<버전>.json 의 code)·제목(예 「본체」·「충전기」)·카탈로그 버전(만든 때 버전 고정).
 -- 적용 옵션(group_buy_notice_options): 비면 그 양식은 공구 전체 = 기본 상품(목록에 없는 옵션도 덮는다). 한 옵션은 양식 하나에만(유일 option_id).
 -- 값(group_buy_notice_values): 항목마다 「값」 또는 「제공 불가 + 사유」(일반원칙 ③ — 빈 항목 금지는 모집 시작 때 검사, 제공 불가에 사유가 없는 줄은 DB 가 막는다).
+--   custom = true 는 판매자 추가 항목(사용자 지시 2026-10-28): 항목 키 없이 이름(1~40자)·내용(1~1,000자 평문)·차례, 양식당 20개까지(앱), 모집 시작 완성 검사 대상 아님.
 CREATE TABLE group_buy_notices (
     id              bigint       PRIMARY KEY,
     group_buy_id    bigint       NOT NULL REFERENCES group_buys (id) ON DELETE CASCADE,
@@ -264,17 +265,27 @@ CREATE TABLE group_buy_notice_options (
 CREATE UNIQUE INDEX ux_gbno_option ON group_buy_notice_options (option_id);
 
 CREATE TABLE group_buy_notice_values (
+    id                 bigint         PRIMARY KEY,
     notice_id          bigint         NOT NULL REFERENCES group_buy_notices (id) ON DELETE CASCADE,
-    item_key           varchar(60)    NOT NULL,
+    custom             boolean        NOT NULL DEFAULT false,
+    item_key           varchar(60),
+    custom_name        varchar(40),
+    sort_order         integer        NOT NULL DEFAULT 0,
     value              varchar(2000),
     unavailable        boolean        NOT NULL DEFAULT false,
     unavailable_reason varchar(1000),
-    PRIMARY KEY (notice_id, item_key),
-    CONSTRAINT ck_gbnv_key CHECK (item_key ~ '^[a-z][a-z0-9_]{0,59}$'),
+    CONSTRAINT ck_gbnv_key CHECK (item_key IS NULL OR item_key ~ '^[a-z][a-z0-9_]{0,59}$'),
+    -- 고시 항목은 키가, 판매자 추가 항목은 키 없이 이름·내용이 있다(추가 항목은 「제공 불가」가 없다)
+    CONSTRAINT ck_gbnv_kind CHECK ((NOT custom AND item_key IS NOT NULL AND custom_name IS NULL)
+        OR (custom AND item_key IS NULL AND length(btrim(custom_name)) BETWEEN 1 AND 40 AND value IS NOT NULL AND length(btrim(value)) BETWEEN 1 AND 1000
+            AND NOT unavailable)),
     -- 제공 불가면 구체적 사유가 있어야 하고 값은 두지 않는다(일반원칙 ③)
     CONSTRAINT ck_gbnv_unavailable CHECK ((NOT unavailable AND unavailable_reason IS NULL)
         OR (unavailable AND value IS NULL AND unavailable_reason IS NOT NULL AND length(btrim(unavailable_reason)) > 0))
 );
+CREATE UNIQUE INDEX ux_gbnv_item ON group_buy_notice_values (notice_id, item_key) WHERE NOT custom;
+CREATE UNIQUE INDEX ux_gbnv_custom_name ON group_buy_notice_values (notice_id, custom_name) WHERE custom;
+CREATE UNIQUE INDEX ux_gbnv_custom_order ON group_buy_notice_values (notice_id, sort_order) WHERE custom;
 
 CREATE TABLE group_buy_status_history (
     id           bigint       PRIMARY KEY,

@@ -54,6 +54,10 @@ public class GroupBuyNoticeService {
     public static final int VALUE_MAX = 2000;
     public static final int REASON_MAX = 1000;
     public static final int TITLE_MAX = 60;
+    /** 판매자 추가 항목 — 양식당 개수·이름·내용 길이 */
+    public static final int CUSTOM_MAX = 20;
+    public static final int CUSTOM_NAME_MAX = 40;
+    public static final int CUSTOM_VALUE_MAX = 1000;
     /** 「상세페이지 참조」 경고를 띄우는 문구(공백 무시) */
     static final List<String> DETAIL_PAGE_PHRASES = List.of("상세페이지참조", "상세페이지참고", "상세설명참조", "상세정보참조", "상품상세참조");
 
@@ -130,8 +134,7 @@ public class GroupBuyNoticeService {
     /** 지금 저장된 양식의 완성 검사 */
     public Completeness completeness(long groupBuyId) {
         List<OptionRow> options = groups.options(groupBuyId);
-        List<Prepared> rows = store.notices(groupBuyId).stream().map(n -> new Prepared(n.categoryCode(), n.title(), n.catalogVersion(), n.optionNames(),
-                n.values())).toList();
+        List<Prepared> rows = store.notices(groupBuyId).stream().map(GroupBuyNoticeService::prepared).toList();
         return completeness(rows, options);
     }
 
@@ -143,12 +146,14 @@ public class GroupBuyNoticeService {
         }
     }
 
-    /** 추가 차수 복사 — 양식·값·카탈로그 버전 그대로, 적용 옵션은 옵션 이름으로 새 공구의 옵션에 잇는다. 부르는 쪽 트랜잭션 안에서 */
+    /** 추가 차수 복사 — 양식·값·판매자 추가 항목·카탈로그 버전 그대로, 적용 옵션은 옵션 이름으로 새 공구의 옵션에 잇는다. 부르는 쪽 트랜잭션 안에서 */
     @Transactional(propagation = Propagation.MANDATORY)
     public void copy(long sourceId, long targetId, Instant now) {
-        List<Prepared> rows = store.notices(sourceId).stream().map(n -> new Prepared(n.categoryCode(), n.title(), n.catalogVersion(), n.optionNames(),
-                n.values())).toList();
-        insert(targetId, rows, now);
+        insert(targetId, store.notices(sourceId).stream().map(GroupBuyNoticeService::prepared).toList(), now);
+    }
+
+    private static Prepared prepared(NoticeRow n) {
+        return new Prepared(n.categoryCode(), n.title(), n.catalogVersion(), n.optionNames(), n.values(), n.customItems());
     }
 
     /** DRAFT 의 옵션을 다시 넣은 뒤 — 양식의 적용 옵션을 옵션 이름으로 다시 잇는다(이름이 사라진 옵션은 빠진다) */
@@ -161,7 +166,8 @@ public class GroupBuyNoticeService {
     }
 
     /** 저장 직전의 양식 한 장(검사를 마친 값) */
-    record Prepared(String categoryCode, String title, String catalogVersion, List<String> optionNames, Map<String, GroupBuyNoticeStore.ValueRow> values) {
+    record Prepared(String categoryCode, String title, String catalogVersion, List<String> optionNames, Map<String, GroupBuyNoticeStore.ValueRow> values,
+                    List<GroupBuyNoticeStore.CustomRow> customItems) {
     }
 
     private List<Prepared> prepare(List<NoticeDraft> drafts, List<NoticeRow> existing, List<OptionRow> options) {
@@ -204,7 +210,12 @@ public class GroupBuyNoticeService {
                 }
             }
             Map<String, GroupBuyNoticeStore.ValueRow> values = new LinkedHashMap<>();
+            List<NoticeDraft.Value> customDrafts = new ArrayList<>();
             for (NoticeDraft.Value v : d.values() == null ? List.<NoticeDraft.Value>of() : d.values()) {
+                if (v != null && v.custom()) {
+                    customDrafts.add(v);
+                    continue;
+                }
                 if (v == null || v.itemKey() == null || category.get().item(v.itemKey()).isEmpty() || values.containsKey(v.itemKey())) {
                     f.put(field + ".values", new MessageRef("groupbuy.notice.item.unknown"));
                     break;
@@ -222,7 +233,8 @@ public class GroupBuyNoticeService {
                 values.put(v.itemKey(), v.unavailable() ? new GroupBuyNoticeStore.ValueRow(v.itemKey(), null, true, reason)
                         : new GroupBuyNoticeStore.ValueRow(v.itemKey(), value, false, null));
             }
-            out.add(new Prepared(d.categoryCode(), d.title().strip(), version, names, values));
+            List<GroupBuyNoticeStore.CustomRow> customs = f.isEmpty() ? customItems(customDrafts, category.get(), field, f) : List.of();
+            out.add(new Prepared(d.categoryCode(), d.title().strip(), version, names, values, customs));
         }
         if (f.isEmpty() && baseNotices > 1 && !options.isEmpty()) {
             f.put("notices", new MessageRef("groupbuy.notice.base.duplicate")); // 공구 전체(기본 상품) 양식은 하나
@@ -231,6 +243,61 @@ public class GroupBuyNoticeService {
             throw new ValidationException(f);
         }
         return out;
+    }
+
+    /**
+     * 판매자 추가 항목(사용자 지시 2026-10-28) — 이름·내용이 모두 빈 줄은 뺀다. 이름 1~40자·내용 1~1,000자(평문 — 화면이 글자 그대로 보인다), 양식당 20개,
+     * 같은 양식 안에서 이름이 겹치지 않고, <b>고시 항목과 같은 이름은 안 된다</b>(공백을 빼고 비교 — 고시 항목을 대신하지 못하게). 차례는 {@code sortOrder}(비면 넣은 차례)로 0부터 다시 매긴다.
+     */
+    private static List<GroupBuyNoticeStore.CustomRow> customItems(List<NoticeDraft.Value> drafts, GroupBuyNoticeCatalog.Category category, String field,
+                                                                 Map<String, MessageRef> f) {
+        Set<String> reserved = new HashSet<>();
+        for (GroupBuyNoticeCatalog.Item item : category.items()) {
+            reserved.add(squash(item.name()));
+            for (String part : item.name().split(",")) { // 「크기, 무게」·「제조자, 수입품의 경우 …」 — 쉼표로 나뉜 각 이름도
+                reserved.add(squash(part));
+            }
+        }
+        List<NoticeDraft.Value> kept = drafts.stream().filter(v -> !(blank(v.name()) && blank(v.value()))).toList();
+        if (kept.size() > CUSTOM_MAX) {
+            f.put(field + ".customItems", new MessageRef("groupbuy.notice.custom.tooMany"));
+            return List.of();
+        }
+        Set<String> names = new HashSet<>();
+        List<int[]> order = new ArrayList<>();
+        for (int i = 0; i < kept.size(); i++) {
+            NoticeDraft.Value v = kept.get(i);
+            String name = blank(v.name()) ? "" : v.name().strip();
+            String value = blank(v.value()) ? "" : v.value().strip();
+            if (name.isEmpty() || name.length() > CUSTOM_NAME_MAX || value.isEmpty() || value.length() > CUSTOM_VALUE_MAX || v.unavailable() || v.itemKey() != null) {
+                f.put(field + ".customItems[" + i + "]", new MessageRef("groupbuy.notice.custom.invalid"));
+                return List.of();
+            }
+            if (reserved.contains(squash(name))) {
+                f.put(field + ".customItems[" + i + "].name", new MessageRef("groupbuy.notice.custom.reservedName"));
+                return List.of();
+            }
+            if (!names.add(squash(name))) {
+                f.put(field + ".customItems[" + i + "].name", new MessageRef("groupbuy.notice.custom.duplicate"));
+                return List.of();
+            }
+            order.add(new int[] {v.sortOrder() == null ? Integer.MAX_VALUE : v.sortOrder(), i});
+        }
+        order.sort(java.util.Comparator.<int[]>comparingInt(o -> o[0]).thenComparingInt(o -> o[1]));
+        List<GroupBuyNoticeStore.CustomRow> out = new ArrayList<>();
+        for (int[] o : order) {
+            NoticeDraft.Value v = kept.get(o[1]);
+            out.add(new GroupBuyNoticeStore.CustomRow(v.name().strip(), v.value().strip(), out.size()));
+        }
+        return out;
+    }
+
+    private static boolean blank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private static String squash(String value) {
+        return value.replaceAll("\\s", "");
     }
 
     private Completeness completeness(List<Prepared> notices, List<OptionRow> options) {
@@ -274,7 +341,10 @@ public class GroupBuyNoticeService {
                 }
             }
             for (GroupBuyNoticeStore.ValueRow v : n.values().values()) {
-                store.insertValue(id, v.itemKey(), v.value(), v.unavailable(), v.unavailableReason());
+                store.insertValue(ids.nextId(), id, v.itemKey(), v.value(), v.unavailable(), v.unavailableReason());
+            }
+            for (GroupBuyNoticeStore.CustomRow c : n.customItems()) {
+                store.insertCustom(ids.nextId(), id, c.name(), c.value(), c.sortOrder());
             }
         }
     }
