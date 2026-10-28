@@ -7,12 +7,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.community.audit.dto.AuditActions;
 import com.community.groupbuy.dto.GroupBuyEvents;
 import com.community.groupbuy.dto.JoinResult;
+import com.community.groupbuy.entity.ExpireCause;
 import com.community.groupbuy.entity.ParticipationStatus;
 import com.community.groupbuy.entity.SupplyChoice;
 import com.community.groupbuy.exception.GroupBuyException;
+import com.community.groupbuy.handler.GroupBuyPaymentHandler;
 import com.community.groupbuy.service.FulfillmentService;
 import com.community.groupbuy.service.GroupBuyBusinessDays;
 import com.community.groupbuy.service.GroupBuySupplyService;
+import com.community.payment.dto.PaymentAnomaly;
+import com.community.payment.dto.PaymentStatus;
+import com.community.payment.service.PaymentConfirmService;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -78,6 +83,35 @@ class GroupBuySupplyTest {
         assertThat(kit.count("SELECT count(*) FROM group_buy_supply_choices WHERE participation_id = ? AND choice = 'KEEP_REST' AND defaulted", o2.participationId()))
                 .isEqualTo(1);
         kit.ship(o2.participationId());
+        kit.assertInvariants(gb);
+    }
+
+    @Test
+    void G38_공급_불가_뒤_그_단품을_품은_결제_중_주문이_결제되면_거절_자동_취소_다른_단품만_산_주문은_받는다() {
+        long gb = kit.spec(kit.policy(3_000, 50_000L, 3_000, "ONE_WAY")).price(25_000).option("A", 0, 10).option("B", 0, 10).open();
+        long a = kit.skuId(gb, "A");
+        long b = kit.skuId(gb, "B");
+        long withA = kit.newMember();
+        long onlyB = kit.newMember();
+        JoinResult pendingA = kit.order(withA, gb, lines(a, 1, b, 1)); // 결제 중
+        JoinResult pendingB = kit.order(onlyB, gb, lines(b, 1));
+
+        GroupBuySupplyService.Result result = kit.supply.markFailure(gb, a, "공급처 단종 통보", kit.operator, "ip");
+        assertThat(result.refundedOrders() + result.askedOrders()).as("결제 중 주문은 건드리지 않는다(결제 행 먼저 — 결제 확정이 판정)").isZero();
+
+        var late = kit.pay(pendingA);
+        assertThat(late.outcome()).isEqualTo(PaymentConfirmService.Outcome.REJECTED);
+        var payment = kit.payment(pendingA.checkout().paymentId());
+        assertThat(payment.anomaly()).isEqualTo(PaymentAnomaly.DOMAIN_REJECTED);
+        assertThat(payment.status()).as("커밋 뒤 즉시 취소").isEqualTo(PaymentStatus.CANCELED);
+        var p = kit.participation(pendingA.participationId());
+        assertThat(p.status()).isEqualTo(ParticipationStatus.EXPIRED);
+        assertThat(p.expireCause()).isEqualTo(ExpireCause.REJECTED_CLOSED);
+        assertThat(kit.sku(gb, a).currentQty()).as("확정하지 않았다").isZero();
+        assertThat(kit.sku(gb, a).reservedQty()).as("선점 해제").isZero();
+        assertThat(kit.eventsOf(GroupBuyEvents.OrderRejected.class)).anySatisfy(e -> assertThat(e.reason()).isEqualTo(GroupBuyPaymentHandler.REJECT_SUPPLY_FAILED));
+
+        assertThat(kit.pay(pendingB).outcome()).as("공급 불가가 아닌 단품만 — 받는다").isEqualTo(PaymentConfirmService.Outcome.ACCEPTED);
         kit.assertInvariants(gb);
     }
 

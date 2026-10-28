@@ -250,6 +250,20 @@ public class GroupBuyStore {
         jdbc.update("UPDATE group_buy_skus SET on_sale = false WHERE id = ? AND group_buy_id = ?", skuId, groupBuyId);
     }
 
+    /** 이 단품들 가운데 공급 불가로 표시된 것이 있나(결정 53 — 결제 확정이 단품 행 UPDATE 뒤에 묻는다. 공급 불가 기록은 같은 단품 행을 잠그는 트랜잭션에서 쓴다) */
+    public boolean anySupplyFailed(long groupBuyId, java.util.Collection<Long> skuIds) {
+        if (skuIds.isEmpty()) {
+            return false;
+        }
+        Long[] arr = skuIds.toArray(Long[]::new);
+        return Boolean.TRUE.equals(jdbc.query(con -> {
+            var ps = con.prepareStatement("SELECT EXISTS (SELECT 1 FROM group_buy_supply_failures WHERE group_buy_id = ? AND sku_id = ANY (?))");
+            ps.setLong(1, groupBuyId);
+            ps.setArray(2, con.createArrayOf("bigint", arr));
+            return ps;
+        }, rs -> rs.next() && rs.getBoolean(1)));
+    }
+
     /** 발주(마감 후 발주 공구 — CLOSED_SUCCESS → ORDERED, 공구 단위 10-3) */
     public boolean markOrdered(long id, Instant now) {
         return jdbc.update("UPDATE group_buys SET status = 'ORDERED', updated_at = ? WHERE id = ? AND status = 'CLOSED_SUCCESS' AND fulfillment = 'AFTER_CLOSE'", ts(now),

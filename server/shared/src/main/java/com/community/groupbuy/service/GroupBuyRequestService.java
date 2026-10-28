@@ -60,7 +60,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <ul>
  *   <li><b>발송 전 취소 요청</b>(CANCEL): CONFIRMED·PREPARING 주문. 운영자가 승인하면 그 줄·수량을 취소하고 돌려준다(일부면 배송비 재계산 — 결정 42). 거절은 「이미 발송함」 + 송장 입력만(10-3).</li>
  *   <li><b>반품</b>(RETURN): 배송완료 주문, 줄마다 사유·수량(결정 44), 회수 방식, 하자·오배송·훼손이면 「교환」도(결정 54), 사진 최대 3장.
- *       기한: 단순 변심·기타 줄은 배송완료 7일, 업체 부담 줄은 3개월(「안 날부터 30일」은 운영자가 판단 — 시스템은 3개월만 막는다).
+ *       기한: 단순 변심·기타 줄은 배송완료 7일, 업체 부담 줄은 3개월. 3개월이 지나도 업체 부담 줄만이면 회원이 적은 「하자를 안 날」(배송완료 날 ~ 오늘, 한국 날짜)부터
+ *       30일 안이면 받는다(제17조 ③ — 사용자 지시 보강 2026-10-28). 운영자는 그 날짜를 보고 거절 사유 코드로 거절할 수 있다(감사에 날짜).
  *       미리 보기는 회수 방식마다 결과를 보이고(음수 가능 — 결정 68), 음수인 방식을 고르면 부족분을 추가 결제({@code GROUP_BUY_RETURN_FEE}, 30분)해야 접수(그 전엔 AWAITING_FEE, 하루 뒤 닫힘).</li>
  *   <li>본 상품을 모두 빼며 추가 구성상품만 남기면 409 {@code GROUP_BUY_ADDON_ONLY}(결정 88). 주문당 열린 요청 하나(409 {@code GROUP_BUY_REQUEST_OPEN}).</li>
  *   <li><b>철회</b>: 회수 확인 전까지. 낸 부족분은 돌려준다.</li>
@@ -82,6 +83,8 @@ public class GroupBuyRequestService {
     static final int CHANGE_OF_MIND_DAYS = 7;
     /** 업체 부담 반품 기한(배송완료부터 3개월 — L2) */
     static final int SELLER_FAULT_MONTHS = 3;
+    /** 업체 부담 반품 — 그 사실을 안 날부터(제17조 ③) */
+    static final int SELLER_FAULT_KNOWN_DAYS = 30;
     /** 반품비 부족분 결제 유효 시간·요청이 닫히는 때(결정 68) */
     static final Duration FEE_PAYMENT_VALID = Duration.ofMinutes(30);
     static final Duration FEE_REQUEST_LIFETIME = Duration.ofDays(1);
@@ -91,9 +94,14 @@ public class GroupBuyRequestService {
     public record LineInput(long skuId, int qty, RequestReason reason) {
     }
 
-    /** 요청 입력 */
+    /** 요청 입력 — {@code defectKnownOn} 은 업체 부담 반품의 「하자를 안 날」(배송완료 + 3개월이 지났을 때 필요, 그 전엔 적지 않아도 된다) */
     public record RequestInput(RequestType type, CollectionMethod method, Resolution resolution, List<LineInput> lines, String memo, List<Long> photoIds,
-                               Long expectedAmount) {
+                               Long expectedAmount, LocalDate defectKnownOn) {
+
+        public RequestInput(RequestType type, CollectionMethod method, Resolution resolution, List<LineInput> lines, String memo, List<Long> photoIds,
+                            Long expectedAmount) {
+            this(type, method, resolution, lines, memo, photoIds, expectedAmount, null);
+        }
     }
 
     /** 미리 보기 — 발송 전 취소는 {@code cancel}, 반품은 회수 방식마다 */
@@ -198,6 +206,7 @@ public class GroupBuyRequestService {
                 boolean sellerFault = calc.stream().anyMatch(l -> l.reason() != null && l.reason().sellerFault());
                 Resolution resolution = in.resolution() == null ? Resolution.REFUND : in.resolution();
                 long amount;
+                LocalDate knownOn = null;
                 if (in.type() == RequestType.CANCEL) {
                     if (!EnumSet.of(ParticipationStatus.CONFIRMED, ParticipationStatus.PREPARING).contains(p.status())) {
                         throw GroupBuyException.orderState();
@@ -210,7 +219,7 @@ public class GroupBuyRequestService {
                     if (p.status() != ParticipationStatus.DELIVERED) {
                         throw GroupBuyException.orderState();
                     }
-                    checkReturnWindow(p, calc, now);
+                    knownOn = checkReturnWindow(p, calc, in.defectKnownOn(), now);
                     if (resolution == Resolution.EXCHANGE && (!sellerFault || calc.stream().anyMatch(l -> !l.reason().sellerFault()))) {
                         throw GroupBuyException.exchangeNotAllowed(); // 교환은 하자·오배송·훼손 줄만(결정 54)
                     }
@@ -224,7 +233,7 @@ public class GroupBuyRequestService {
                 RequestStatus initial = fee > 0 ? RequestStatus.AWAITING_FEE : RequestStatus.REQUESTED;
                 long requestId = ids.nextId();
                 requests.insert(new GroupBuyRequestStore.NewRequest(requestId, p.id(), g.id(), userId, in.type(), initial, in.method(), resolution, sellerFault,
-                        in.memo() == null || in.memo().isBlank() ? null : in.memo().strip(), amount, fee, fee > 0 ? now.plus(FEE_REQUEST_LIFETIME) : null, now));
+                        in.memo() == null || in.memo().isBlank() ? null : in.memo().strip(), amount, fee, fee > 0 ? now.plus(FEE_REQUEST_LIFETIME) : null, knownOn, now));
                 for (GroupBuyRefundCalculator.Line l : calc) {
                     ItemRow item = items.stream().filter(i -> i.id() == l.itemId()).findFirst().orElseThrow();
                     requests.insertItem(ids.nextId(), requestId, item.id(), item.skuId(), l.qty(), l.reason() == null ? RequestReason.OTHER : l.reason());
@@ -600,7 +609,11 @@ public class GroupBuyRequestService {
                 requests.reject(r.id(), RequestStatus.OPEN, reason.name(), memo, operatorId, now);
             }
             refundFeeHeld(p, r, operatorId, "REJECTED", now);
-            audit.record(operatorId, AuditActions.GROUPBUY_REQUEST_REJECT, GroupBuyAudit.TARGET_REQUEST, r.id(), ip, Map.of("reasonCode", reason.name(), "photos", photos.size()));
+            Map<String, Object> detail = new LinkedHashMap<>(Map.of("reasonCode", reason.name(), "photos", photos.size()));
+            if (r.defectKnownOn() != null) {
+                detail.put("defectKnownOn", r.defectKnownOn().toString()); // 회원이 적은 「하자를 안 날」을 보고 거절했다(제17조 ③)
+            }
+            audit.record(operatorId, AuditActions.GROUPBUY_REQUEST_REJECT, GroupBuyAudit.TARGET_REQUEST, r.id(), ip, detail);
             events.publishEvent(new GroupBuyEvents.RequestChanged(r.id(), p.id(), r.userId(), RequestStatus.REJECTED.name(), reason.name()));
             return shipped;
         });
@@ -716,15 +729,27 @@ public class GroupBuyRequestService {
         }
     }
 
-    /** 반품 기한(단순 변심·기타 배송완료 7일 · 업체 부담 3개월, 한국 날짜) */
-    private void checkReturnWindow(ParticipationRow p, List<GroupBuyRefundCalculator.Line> lines, Instant now) {
+    /**
+     * 반품 기한(한국 날짜) — 단순 변심·기타 줄이 있으면 배송완료 7일, 업체 부담 줄만이면 3개월, 3개월이 지나면 「하자를 안 날」부터 30일(제17조 ③).
+     * 안 날은 배송완료 날 ~ 오늘이어야 한다(미래·배송 전은 400). 남길 안 날(업체 부담 줄만일 때)을 돌려준다.
+     */
+    private LocalDate checkReturnWindow(ParticipationRow p, List<GroupBuyRefundCalculator.Line> lines, LocalDate knownOn, Instant now) {
         LocalDate delivered = ServiceTime.dateOf(p.deliveredAt());
         LocalDate today = ServiceTime.dateOf(now);
+        if (knownOn != null && (knownOn.isBefore(delivered) || knownOn.isAfter(today))) {
+            throw ValidationException.of("defectKnownOn", new MessageRef("groupbuy.request.defectKnownOn.invalid"));
+        }
         boolean customerLine = lines.stream().anyMatch(l -> !l.reason().sellerFault());
-        LocalDate until = customerLine ? delivered.plusDays(CHANGE_OF_MIND_DAYS) : delivered.plusMonths(SELLER_FAULT_MONTHS);
-        if (today.isAfter(until)) {
+        if (customerLine) {
+            if (today.isAfter(delivered.plusDays(CHANGE_OF_MIND_DAYS))) {
+                throw GroupBuyException.returnWindowClosed();
+            }
+            return null;
+        }
+        if (today.isAfter(delivered.plusMonths(SELLER_FAULT_MONTHS)) && (knownOn == null || today.isAfter(knownOn.plusDays(SELLER_FAULT_KNOWN_DAYS)))) {
             throw GroupBuyException.returnWindowClosed();
         }
+        return knownOn;
     }
 
     /** 요청 줄 입력 → 주문 줄(단품 하나에 줄 하나 — 유일 (주문, 단품)). 반품은 사유 필수, 수량은 가진 수량 안 */

@@ -36,7 +36,7 @@ import org.springframework.stereotype.Component;
  *
  * <ul>
  *   <li><b>{@code onPaid} 는 도메인 사정으로 예외를 던지지 않는다</b>(결정 62 — 예외면 결제 확정이 영원히 재시도된다): 주문 없음·결제 중 아님·다른 결제·선점 시간 뒤(포트원 {@code paidAt} 과 비교)·
- *       금액 불일치·공구가 결제를 받지 않는 상태(판정·중단 뒤 — P3b)·수량 불변식 깨짐(결정 82)·DB 제약 충돌은 모두 REJECT(자동 취소). 예외는 DB 장애 같은 인프라 오류뿐.</li>
+ *       금액 불일치·공구가 결제를 받지 않는 상태(판정·중단 뒤 — P3b)·결제 중에 공급 불가로 표시된 단품(결정 53)·수량 불변식 깨짐(결정 82)·DB 제약 충돌은 모두 REJECT(자동 취소). 예외는 DB 장애 같은 인프라 오류뿐.</li>
  *   <li>공구·단품 행을 {@code FOR UPDATE} 하지 않고 조건부 UPDATE 만 쓴다(결정 37). 주문 행은 결제 행 다음에 잠근다(결제 확정이 결제 행 → 주문 차례).</li>
  *   <li>받아들이면: 수량 확정(CONFIRM) → 주문 JOINED(즉시 발송 공구는 CONFIRMED 까지 한 번에 — 10-3) → 다 팔리면 같은 트랜잭션에서 CLOSING(결정 27·78).
  *       이 일들은 세이브포인트 안이라 중간에 지면 되돌리고 REJECT 로 간다.</li>
@@ -59,6 +59,8 @@ public class GroupBuyPaymentHandler implements PaymentOrderHandler {
     public static final String REJECT_CLOSED = "GROUP_BUY_CLOSED";
     public static final String REJECT_QTY_ANOMALY = "GROUP_BUY_QTY_ANOMALY";
     public static final String REJECT_CONFLICT = "GROUP_BUY_CONFLICT";
+    /** 결제 중에 그 단품이 공급 불가로 표시됐다(결정 53 — 받으면 곧바로 취소할 줄을 받지 않는다) */
+    public static final String REJECT_SUPPLY_FAILED = "GROUP_BUY_SUPPLY_FAILED";
 
     private final ParticipationStore participations;
     private final GroupBuyStore groups;
@@ -123,7 +125,7 @@ public class GroupBuyPaymentHandler implements PaymentOrderHandler {
             events.publishEvent(new GroupBuyEvents.OrderPaid(p.id(), p.groupBuyId(), p.userId()));
             return PaymentDecision.accept();
         }
-        return reject(p, failure, REJECT_CLOSED.equals(failure) ? ExpireCause.REJECTED_CLOSED : ExpireCause.REJECTED_ANOMALY, now);
+        return reject(p, failure, REJECT_CLOSED.equals(failure) || REJECT_SUPPLY_FAILED.equals(failure) ? ExpireCause.REJECTED_CLOSED : ExpireCause.REJECTED_ANOMALY, now);
     }
 
     /** 받아들이기(세이브포인트 안) — 실패 사유를 돌려주면 부르는 쪽이 되돌린다. 성공이면 null */
@@ -136,6 +138,11 @@ public class GroupBuyPaymentHandler implements PaymentOrderHandler {
                 log.error("결제 확정할 선점이 모자란다 — 불변식이 깨졌다 groupBuyId={} participationId={}", group.id(), p.id());
             }
             throw new Rejected(reason);
+        }
+        // 단품 행 UPDATE(확정) 뒤에 묻는다 — 공급 불가 기록 트랜잭션도 같은 단품 행을 잠그므로(판매 중지) 그쪽이 먼저 커밋했으면 여기서 보이고,
+        // 이쪽이 먼저면 그쪽은 이 커밋을 기다린 뒤 결제 완료 주문으로 이 주문을 처리한다(빠지는 틈 없음)
+        if (groups.anySupplyFailed(group.id(), items.stream().map(ItemRow::skuId).toList())) {
+            throw new Rejected(REJECT_SUPPLY_FAILED);
         }
         ParticipationStatus to = group.immediate() ? ParticipationStatus.CONFIRMED : ParticipationStatus.JOINED;
         if (!participations.markPaid(p.id(), to, payment.paymentOrderId(), payment.paidAt() == null ? now : payment.paidAt(), group.revisionNo(), now)) {
