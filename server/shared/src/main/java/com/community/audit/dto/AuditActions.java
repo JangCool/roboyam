@@ -273,6 +273,35 @@ public final class AuditActions {
     public static final String PAYMENT_ORDER_VIEW = "PAYMENT_ORDER_VIEW";
     /** 이 날 다시 대사(대사 배치 요청 — 사유 없음) — 대상 PAYMENT_RECONCILE_DAY + KST 날짜. 일반(돈을 움직이지 않는다) */
     public static final String PAYMENT_RECONCILE_RERUN = "PAYMENT_RECONCILE_RERUN";
+    // ── 커머스 2b 공구(commerce-groupbuy-contract 「감사·오류 코드 후보」) — 대상 GROUP_BUY·SHIPPING_POLICY ──
+    /** 공구 등록(DRAFT) — 대상 GROUP_BUY + 공구 ID, {@code title}·{@code roundNo}. 일반 */
+    public static final String GROUPBUY_CREATE = "GROUPBUY_CREATE";
+    /** 공구 수정 — DRAFT 는 모든 칸, 모집 뒤는 설명·이미지만, {@code revisionNo}. 일반 */
+    public static final String GROUPBUY_UPDATE = "GROUPBUY_UPDATE";
+    /** 모집 시작(공개 — 시작 시각에 모집) — {@code startAt}·{@code endAt}. 일반 */
+    public static final String GROUPBUY_START = "GROUPBUY_START";
+    /** 조기 마감 — {@code reason}. 일반 */
+    public static final String GROUPBUY_CLOSE_EARLY = "GROUPBUY_CLOSE_EARLY";
+    /** 공구 중단 — {@code reason}·환불 대상 건수·금액·이미 발송 건수. 돈 관련 */
+    public static final String GROUPBUY_CANCEL = "GROUPBUY_CANCEL";
+    /** 추가 입고 — {@code skuId}·{@code qty}·{@code reason}·{@code before}/{@code after}(최대). 돈 관련 */
+    public static final String GROUPBUY_STOCK_ADD = "GROUPBUY_STOCK_ADD";
+    /** 수량 줄이기 — {@code skuId}·{@code qty}·{@code reason}·{@code before}/{@code after}. 돈 관련 */
+    public static final String GROUPBUY_STOCK_REDUCE = "GROUPBUY_STOCK_REDUCE";
+    /** 추가 차수 만들기 — 대상 새 공구, {@code sourceId}·{@code roundNo}. 돈 관련 */
+    public static final String GROUPBUY_ROUND_CREATE = "GROUPBUY_ROUND_CREATE";
+    /** 발송 지연 공지 — {@code from}/{@code to}(예정일)·{@code reason}. 일반 */
+    public static final String GROUPBUY_DELAY_NOTICE = "GROUPBUY_DELAY_NOTICE";
+    /** 공구 공급가 고침(모집 뒤 — 결정 89) — {@code skuId}·{@code before}/{@code after}·{@code marginConfirmed}. 돈 관련 */
+    public static final String GROUPBUY_SUPPLY_PRICE = "GROUPBUY_SUPPLY_PRICE";
+    /** 상품 등록·수정(결정 89) — 대상 GROUP_BUY_PRODUCT + 상품 ID, {@code stage}·{@code name}. 일반 */
+    public static final String GROUPBUY_PRODUCT_SAVE = "GROUPBUY_PRODUCT_SAVE";
+    /** 공구 카테고리 등록·수정(결정 89) — 대상 GROUP_BUY_CATEGORY + ID, {@code name}·{@code hidden}. 일반 */
+    public static final String GROUPBUY_CATEGORY_SAVE = "GROUPBUY_CATEGORY_SAVE";
+    /** 공구 옵션 종류 저장(2b-1 사용자 결정) — 대상 GROUP_BUY_OPTION_TYPE + 코드(목록 통째면 ALL), {@code codes} 또는 {@code name}·{@code hidden}. 일반 */
+    public static final String GROUPBUY_OPTION_TYPE_SAVE = "GROUPBUY_OPTION_TYPE_SAVE";
+    /** 배송비 정책 줄 추가(예약) — 대상 SHIPPING_POLICY + 줄 ID, {@code code}·{@code effectiveFrom}·{@code before}/{@code after}. 돈 관련 */
+    public static final String COMMERCE_SHIPPING_POLICY_CREATE = "COMMERCE_SHIPPING_POLICY_CREATE";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

@@ -1,0 +1,15 @@
+{
+  "version": "2022-01-01",
+  "title": "시험 전용 옛 카탈로그 — 실제 고시가 아니다(카탈로그 버전 고정 시험용, GroupBuyNoticeTest)",
+  "noticeNo": "TEST-ONLY",
+  "effectiveDate": "2022-01-01",
+  "transcribedAt": "2026-10-28",
+  "source": "test",
+  "principles": {},
+  "categories": [
+    {"no": 40, "code": "OTHER_GOODS", "name": "기타 재화(시험 옛 버전)", "items": [
+      {"no": "1", "key": "product_model_name", "name": "품명 및 모델명", "description": null, "kind": "TEXT", "required": true},
+      {"no": "2", "key": "contact", "name": "소비자 상담 관련 전화번호", "description": null, "kind": "TEXT", "required": true}
+    ]}
+  ]
+}

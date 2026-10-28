@@ -10,8 +10,8 @@
 ## 작업 단위와 순서 (제안)
 | 단위 | 내용 | 담당 | 상태 |
 |---|---|---|---|
-| 2b-1 화면 목업 | 아래 「화면 목록」(Q&A 제외) | frontend | **진행 중**(2026-10-28, 자기 worktree) |
-| 2b-2 공구 핵심 서버 | V101, 공구·옵션·배송비 정책·수정 이력, 주문·주문 줄(자격·멱등·선점)·`GroupBuyPaymentHandler`·선점 만료·이탈 제한, 상태 워커(모집 시작·마감·연장·판정·불발 환불), 본인 취소, 추가 입고·줄이기·추가 차수, 불변식, 규칙 테스트 | backend | **진행 중**(2026-10-28, 자기 worktree — 화면 확정 전 병행 승인) |
+| 2b-1 화면 목업 | 아래 「화면 목록」(Q&A 제외) | frontend | **화면 확정 2026-10-28**(결정 87~89·옵션 종류 코드 반영 뒤 사용자 확정, 브랜치 `claude/commerce-2b-1-groupbuy-screens-677185` 4cf01bf8) — develop 병합 대기: 메인 체크아웃의 다른 대화 미커밋 작업(테마·메뉴·홈 레이아웃)과 8개 파일이 겹쳐 그 작업이 커밋된 뒤 합친다(2b-4 연결 전까지) |
+| 2b-2 공구 핵심 서버 | V101, 공구·옵션·배송비 정책·수정 이력, 주문·주문 줄(자격·멱등·선점)·`GroupBuyPaymentHandler`·선점 만료·이탈 제한, 상태 워커(모집 시작·마감·연장·판정·불발 환불), 본인 취소, 추가 입고·줄이기·추가 차수, 불변식, 규칙 테스트 | backend | **구현 완료**(2026-10-28, 브랜치 `claude/commerce-2b-2-groupbuy-core-d751c0` — 아래 「2b-2 구현 결과」) — **develop 병합 2026-10-28**(11420d86 까지, V101). 병합 뒤 확인(메인 작업 트리를 임시 폴더에 복사해 실행 — 띄운 서버의 jar 를 덮지 않게): shared `com.community.groupbuy.*`·`com.community.payment.*` **224 통과**, admin `GroupBuyStateSchedulerTest`·`AuditRetentionAdminTest`·`com.community.payment.*` **25 통과**, api `IdentityHttpTest`·`com.community.payment.*` **13 통과**, 실패 0 |
 | 2b-3 발송·요청·환불 서버 | V102, 발주·준비중·발송·배송완료(일괄 부분 성공)·에스크로 송장 등록, 택배사, 배송지 열람·수정·명단 내보내기, 취소·반품 요청(줄·수량 단위)·처리 방법·`GroupBuyRefundCalculator`·보상액·운영 환불, 규칙 테스트 | backend | 제안 |
 | 2b-4 설정·알림 + 관리자 API + 연결 | V103, 판매 스위치·체크리스트·사업자 정보·공구 설정, 회원 알림·메일(계약 통지 포함)·관심·수량 풀림·연장·차수 알림, 운영자 알림·기한 경고, 개인정보 파기 pg_cron, 관리자·회원 API 정리, 화면 연결 | backend → frontend | 제안 |
 | 2b-5 실제 확인 | 포트원 테스트 채널로 공구 결제·불발 환불·발송 후 반품 환불 사람 확인(공개 주소가 필요한 웹훅·에스크로는 dev 서버) | 사용자 + 세션 | 제안 |
@@ -37,7 +37,7 @@
 | 가번호 | 스트림 | 내용 | 단위 |
 |---|---|---|---|
 | V101 `group_buy_core` | shared | `shipping_policies`(기간 배제 제약 + 적용 시작 줄 불변 트리거) · `group_buys` · `group_buy_images` · `group_buy_options` · `group_buy_revisions` · `group_buy_participations`(주문) · **`group_buy_participation_items`(주문 줄)** · `group_buy_qty_movements` · `group_buy_status_history` · `participation_status_history` · `group_buy_watches` · `group_buy_settings`(한 줄 — `point_shop_settings` 모양) | 2b-2 |
-| V102 `group_buy_fulfillment` | shared | `commerce_carriers`(6개 시드) · `group_buy_shipments` · `group_buy_requests`(+ `received_at` 반환받은 날 — 3영업일 기한 시작) · **`group_buy_request_items`**(요청 줄 — 주문 줄·수량·**사유**·`refund_amount`) · **`group_buy_refunds`**(결정 36) · **`group_buy_return_dispositions`**(요청 줄·처리 방법·수량) · `group_buy_request_photos` · `commerce_address_views` · `commerce_bank_transfers`(결정 6) | 2b-3 |
+| V102 `group_buy_fulfillment` | shared | `commerce_carriers`(6개 시드) · `group_buy_shipments` · `group_buy_requests`(+ `received_at` 반환받은 날 — 3영업일 기한 시작) · **`group_buy_request_items`**(요청 줄 — 주문 줄·수량·**사유**·`refund_amount`) · ~~`group_buy_refunds`~~(결정 36 — 2b-2 가 V101 로 당겼다, 「2b-2 구현 결과」) · **`group_buy_return_dispositions`**(요청 줄·처리 방법·수량) · `group_buy_request_photos` · `commerce_address_views` · `commerce_bank_transfers`(결정 6) | 2b-3 |
 | V103 `commerce_sales_switch` | shared | 판매 스위치·체크리스트·사업자 정보(`commerce_sales_settings` 등), `R__batch_32_groupbuy_privacy_cleanup`(배송지 마스킹·수정 이력 6개월·요청 3년·만료 주문 배송지 — 결정 34) | 2b-4 |
 | V104 `group_buy_qna` | shared | `group_buy_questions` · `group_buy_answers` · `group_buy_answer_revisions`, 신고 대상 `GROUP_BUY_QUESTION`(기존 `reports` 의 대상 종류 CHECK), 파기 배치에 3년 더하기 | 2b-6 |
 - Java 워커(카탈로그 없음, `worker_heartbeats`): `groupbuy-state`(1분 — 선점 만료·모집 시작·마감·연장·판정, 다 팔림 마감의 안전망), 운영자 기한 점검은 19절 점검 워커가 생길 때까지 2b-4 가 1시간 워커로.
@@ -295,6 +295,149 @@
 
 ## 2a 보강(고침, 2026-10-28)
 포트원 취소 호출을 결제 주문 행 잠금 밖으로 옮기고, 한 결제에 보내는 중인 취소는 하나(V100)로 줄을 세웠다 — 공구 불발로 취소가 몰려도 확정·웹훅이 PG 응답을 기다리지 않는다. 상세는 `commerce-payment-contract.md` 「2a 보강 — 취소 호출을 잠금 밖으로」.
+
+## 2b-2 구현 결과 (2026-10-28 — 브랜치 `claude/commerce-2b-2-groupbuy-core-d751c0`, develop 병합 전)
+- **마이그레이션** shared `V101__group_buy_core.sql`(develop shared 마지막 V100 다음 — 합칠 때 다시 확인). 표: `group_buy_settings`(1행) · `shipping_policies`(배제 제약 `btree_gist` + 적용 시작 줄 불변 트리거) · `group_buys` · `group_buy_images` · `group_buy_options` · `group_buy_revisions` · `group_buy_status_history` · `group_buy_participations` · `group_buy_participation_items` · `participation_status_history` · `group_buy_qty_movements` · **`group_buy_refunds`** · `group_buy_watches` · `group_buy_delay_notices` · `group_buy_order_counters`. 결정 66 의 부분 유일(진행 중 주문)·`NULLS NOT DISTINCT`·복합 FK, 결정 38·76 의 금액 CHECK, 결정 51 의 발송 시기 CHECK.
+- **코드**: shared `com.community.groupbuy` — `entity`(상태·종류 열거) · `dto`(주문·견적·남은 수량·등록 값·이벤트 `GroupBuyEvents`) · `exception`(`GroupBuyException` 한 클래스 + `GroupBuyBlockedException`) · `repository.master`(JDBC: `GroupBuyStore`·`GroupBuyQtyStore`·`ParticipationStore`·`GroupBuyRefundStore`·`ShippingPolicyStore`·`GroupBuyMemberStore`) · `service`(`GroupBuyAdminService`·`ShippingPolicyService`·`GroupBuyQuoteService`·`GroupBuyJoinService`·`GroupBuyQtyService`·`HoldExpiryService`·`ParticipationCancelService`·`GroupBuyRefundService`·`GroupBuyStateWorker`·`GroupBuyRefundWorker`·`GroupBuyInvariantCheck`·`GroupBuyEligibility`·`GroupBuyPricing`·`GroupBuySavepoint`·`GroupBuySalesSwitch`) · `handler.GroupBuyPaymentHandler`. admin `batch.service.GroupBuyStateScheduler`(워커 둘, `roboyam.groupbuy.state-poll-millis`·`refund-poll-millis` 기본 1분, `roboyam.batch.enabled` 서버만). 결제 모듈 소폭: `PaymentOrderService.expireOpen`(READY 닫기 — 결제 행 먼저)·`openCheckout`(유효한 READY 다시 돌려주기), `PaymentOrderStore.findOpenReady`. 감사 행위 10개(`GROUPBUY_*`·`COMMERCE_SHIPPING_POLICY_CREATE` — 돈 관련 5·일반 5) + 대상 `GROUP_BUY`·`SHIPPING_POLICY`, 번들 ko·en.
+- **정한 세부**(계약에 없던 것 — 추천안으로 정함):
+  1. **환불 기록 표 `group_buy_refunds` 를 V102 에서 V101 로 당겼다** — 2b-2 의 불발·중단 환불·본인 취소가 쓴다. `request_id` 는 FK 없이(요청 표는 V102). 2b-3 은 열만 쓴다.
+  2. **「모집 시작」 = 공개(`published_at`)**: 운영자가 누르면 공개되고(시작 전이면 「예정」), 시작 시각에 상태 워커가 DRAFT → RECRUITING(그 시각의 배송비 정책 사본·처음 수량·수정 이력 1). 시작 시각이 이미 지났으면 누른 자리에서. **공개 뒤에는 설명·이미지·요약·사양만** 고칠 수 있다(가격을 미리 공개하므로 공개 시점부터 잠근다).
+  3. **결제 다시 열기**: 결정 63 대로 유효한 READY 가 있으면 같은 결제를 돌려주되, 화면이 「결제창 실패 뒤」(`afterFailure`)라고 알리면 새 결제 번호를 만든다(commerce.md 8-1 — 포트원은 실패한 결제 ID 재사용을 보장하지 않는다). 둘 다 선점 끝은 그대로.
+  4. **`onPaid` 거절 사유 코드**: `GROUP_BUY_ORDER_NOT_FOUND`·`_ORDER_NOT_PENDING`·`_PAYMENT_MISMATCH`·`_HOLD_EXPIRED`·`_AMOUNT_MISMATCH`·`_CLOSED`(판정·중단 뒤)·`_QTY_ANOMALY`(선점 부족 — 이벤트 `anomaly=true`)·`_CONFLICT`(DB 제약 충돌). 받아들이는 일은 JDBC 세이브포인트 안이라 지면 되돌리고 만료 + RELEASE(조건부, 이긴 쪽만).
+  5. **만료 원인** `ExpireCause`: `HOLD_TIMEOUT`(이탈로 셈) · `GROUP_BUY_CANCELED` · `PAYMENT_FAILED_CLOSED`(불발 공구의 결제 중 주문) · `REJECTED_CLOSED` · `LATE_PAYMENT` · `REJECTED_ANOMALY`.
+  6. **조기 마감**은 종료 사유 `EARLY_CLOSED`(closing_at = 누른 시각, 상태 이력 사유 `EARLY_CLOSE`) — 2b-1 화면 세션이 알린 사용자 결정(2026-10-28, 결정 79 고침: 종료 사유 `SOLD_OUT`·`TIME_UP`·`EARLY_CLOSED`·`CANCELED` 넷, 2b-1 커밋 f883ae80)을 따랐다. `close_reason` 은 varchar(15). 연장은 상태 이력 `RECRUITING → RECRUITING`(사유 `EXTENDED`).
+  7. **발송 지연 공지 뒤 즉시 취소**(결정 52)는 공지 전에 결제한 발송 전 주문의 **주문 전체**(줄을 골라도 전체), 원인 `DELAY`, 재부과 없음, 상태 CANCELED.
+  8. 불발·중단 환불의 주문 상태는 REFUNDED, 본인 취소·지연 취소는 CANCELED(결정 46). 금액 나눔: 전액 = 남은 결제액 → 상품(가진 수량) + 나머지(앞서 재부과한 배송비는 `reshipping_refund`, 그 밖은 `shipping_refund`).
+  9. 배송지 암호 용도 `groupbuy.address.{recipient,phone,line1,line2,memo}`(DataCipher), 우편번호만 평문.
+  10. 판매 스위치는 인터페이스 `GroupBuySalesSwitch` + 기본 구현 `DefaultGroupBuySalesSwitch`(늘 열림) — **2b-4 가 V103 설정을 읽는 구현으로 바꾼다**(회원 주문 API 도 2b-4 라 지금 주문이 들어올 길은 없다).
+  11. 회원·운영자 알림·메일은 `GroupBuyEvents`(주문 확정·거절·선점 만료·수량 풀림·차수 시작(받는 사람 중복 없이)·환불 완료·자동 취소 완료·상태 변경)를 업무 트랜잭션 안에서 발행만 한다 — 받는 곳은 2b-4. `COMMERCE_ORDER_ANOMALY` 운영자 알림은 아직 `reserved()` 그대로(이벤트 `OrderRejected.anomaly`).
+  12. 관리자 목록 조회용 JPA 엔티티·QueryDSL 은 만들지 않았다(쓰는 화면 API 가 2b-4) — 이번에는 모두 JDBC 행 레코드.
+- **규칙 → 테스트**(shared `com.community.groupbuy.*` 80개 + admin `GroupBuyStateSchedulerTest` 3개, 실제 PostgreSQL `CommerceTestDatabase`):
+
+  | 규칙 | 테스트 |
+  |---|---|
+  | 10-4·결정 23 선점(공구 행 → 옵션 ID 오름차순), 줄 하나 모자라면 주문 전체 실패, 한도 없는 옵션도 수량 열 갱신(77) — G5 | `GroupBuyJoinTest.G5_여러_줄_중_…` · `GroupBuyStockTest.G5_여러_줄_동시_선점과_…` |
+  | 결정 41 선점 끝 = 결제 유효 시각, 배송지 암호문, 주문 번호(13) | `GroupBuyJoinTest.주문하면_…` · `GroupBuySchemaTest.주문_번호는_…` |
+  | 결정 59·72 동의 3종·줄 필수, 화면 금액 다르면 409 — G42 | `GroupBuyJoinTest.G42_…`(둘) |
+  | 10-5 자격(권한·본인인증·19세·정지·참여 제한·판매 스위치) | `GroupBuyJoinTest.자격_권한_…` |
+  | 진행 중 주문 1건(어드바이저리 잠금 + 부분 유일 66), 동시 두 번 → 하나 · 전부 취소 뒤 새 주문 — G19 | `GroupBuyJoinTest.진행_중_주문은_…_G19` · `같은_회원이_동시에_…` · `GroupBuySchemaTest.진행_중_주문은_…` |
+  | 1인 한도(결정 28 — 취소·반품 뺌, 금액만 환불은 셈)·차수 합산(24·86) — G20·G8 | `GroupBuyJoinTest.한_사람_한도는_…` · `반품은_처리_방법과_…_G20` · `차수_사이_한도는_…_G8_G20` |
+  | 잠시 품절 / 다 팔림 구분(17·84), 마지막 하나 동시 → 하나만 | `GroupBuyJoinTest.마지막_하나를_…` · `다_팔리면_temporary_false_…` |
+  | 조회 때 정리는 본인 주문만(85) | `GroupBuyJoinTest.본인의_지난_선점은_…` |
+  | 결제 확정 → JOINED / 즉시 발송 CONFIRMED(10-3) | `GroupBuyPaymentTest.성사형은_결제되면_…` |
+  | 다 팔림 즉시 CLOSING(27)·옵션 전부 다 팔림(48·78)·한도 없는 옵션 — G16 | `GroupBuyPaymentTest.결정27_…` · `G16_…` · `한도_없는_옵션이_…` |
+  | P3 결제 중 마감 → 받고 판정 포함 | `GroupBuyPaymentTest.P3_…` |
+  | P3b 판정 뒤 결제 → REJECT·자동 취소·만료·RELEASE 한 번·이탈 안 셈, 자동 취소 `onCanceled` 는 금액 불변 — G18 일부 | `GroupBuyPaymentTest.P3b_…` |
+  | P15 선점 만료 직후 결제 → 살리지 않음(결제 행 먼저 닫음 — 37) | `GroupBuyPaymentTest.P15_…` |
+  | P16 결제창 실패 뒤 재결제 — 같은 주문, 선점 안 늘어남 | `GroupBuyPaymentTest.P16_…` |
+  | 결정 63 다시 열기 1분 미만 거절·유효한 READY 그대로 — G26 | `GroupBuyPaymentTest.G26_…` |
+  | 결정 62 `onPaid` 도메인 사정(상태 불일치·불변식 깨짐·DB 제약 충돌) 예외 없이 REJECT — G25 | `GroupBuyPaymentTest.G25_…` |
+  | 선점 반복 이탈 24시간 3번 → 공구 참여 제한, HOLD_TIMEOUT 만 셈(10-5·12-3·28) | `GroupBuyPaymentTest.선점_반복_이탈_…` |
+  | 웹훅 확정 ∥ 선점 만료 · ∥ 다시 열기 — 교착 없음·하나만 이김·RELEASE 한 번 — G22 | `GroupBuyPaymentTest.G22_…`(둘) |
+  | 결제창 열린 동안 중단 → 만료·해제·늦은 결제 자동 취소·이탈 안 셈 — G9 | `GroupBuyPaymentTest.G9_…` |
+  | 결제 확정 ∥ 중단 — 교착 없음, 확정이 이기면 환불 워커가 환불 — G17(2b-2 몫) | `GroupBuyPaymentTest.G17_…` |
+  | 추가 입고·다시 판매는 다 팔림 뒤 거절(이미 CLOSING) — G2 | `GroupBuyStockTest.G2_…` |
+  | 잠시 품절에서 추가 입고 → 선점 만료 → 모두 판매 — G3 | `GroupBuyStockTest.G3_…` |
+  | 줄이기 하한(확정 + 선점·성사형 최소)·줄여서 다 팔리면 즉시 CLOSING — G4 | `GroupBuyStockTest.G4_…` · `성사형_최소_수량_…` |
+  | 옵션 추가 입고·줄이기가 공구 최대도 움직임, 한도 없는 옵션 거절, `max = 처음 + ΣADD − ΣREDUCE`, 「추가 입고 N개」, 수정 이력·감사 — G5·G29 | `GroupBuyStockTest.G5_G29_…` · `사유가_없거나_…` |
+  | P16b·P16c·P16d 연장, 결제 중 선점이 남으면 연장, 추가 입고·본인 취소 풀림도 연장(25·81) — G12·G28 | `GroupBuyStateWorkerTest.P16b_…` · `P16c_…` · `P16d_…` · `DEMAND_마감_시각에_…` · `G12_…` · `G28_…` |
+  | 예정 공구는 시작 시각에 워커가 모집 시작·그때 배송비 복사 | `GroupBuyStateWorkerTest.예정_공구는_…` |
+  | 판정(성사 → CONFIRMED 일괄, 불발 → 환불 워커가 전액·CANCEL·환불 기록 완료) | `GroupBuyStateWorkerTest.판정_성사면_…` |
+  | P25 성사 뒤 최소 아래로 내려가도 성사 유지 | `GroupBuyStateWorkerTest.P25_…` |
+  | 결정 45 집계 중 본인 즉시 취소 → 불발 가능 — G20 일부 | `GroupBuyStateWorkerTest.결정45_G20_…` |
+  | 판정 ∥ 마지막 확정 → 성사(판정 ① 공구 행 잠금 — 37) — G23 | `GroupBuyStateWorkerTest.G23_…` |
+  | 두 옵션 마지막 하나 동시 확정 → 워커가 CLOSING(78) — G27 | `GroupBuyStateWorkerTest.G27_…` |
+  | COMPLETED sweep(결정 9) | `GroupBuyStateWorkerTest.즉시_발송_성사_공구는_…` |
+  | 불발 300건 — 상태 워커는 환불하지 않음, 환불 워커 바퀴당 50·이어 받기·중복 없음(61) — G24 | `GroupBuyStateWorkerTest.G24_…` |
+  | 발송 전 2/3 취소 47,000 · 재부과 3,000 · 나머지 취소는 남은 결제액 전부(42·46·69) — G13·G19 | `ParticipationCancelTest.G13_…` |
+  | 배송비 낸 주문은 재부과 없음 · 한 줄 취소 · 남의 주문 404 · 가진 수량 초과 400 | `ParticipationCancelTest` 나머지 |
+  | 성사형은 모집 중 즉시 취소·성사 뒤 요청으로 · 즉시 발송은 준비중 전까지(10-3 표) | `ParticipationCancelTest.성사형_JOINED_…` · `즉시_발송은_…` |
+  | 지연 공지 뒤 준비중 주문 즉시 전액·재부과 없음(52) — G37 일부 | `ParticipationCancelTest.G37_…` |
+  | 발송 예정일 필수·즉시 발송은 선착순만·정상가 근거(51·58·D1) — G37 일부 | `GroupBuyAdminTest.G37_…` · `즉시_발송의_발송_영업일은_…` |
+  | 모집 시작 = 배송비 사본·처음 수량·이력 1·감사, 기간 상한·정책 없음 거절 | `GroupBuyAdminTest.모집_시작은_…` · `기간이_설정_상한을_…` |
+  | 모집 뒤 설명·이미지만(LOCKED_FIELD)·수정 이력·낙관 잠금, DRAFT 는 모두 | `GroupBuyAdminTest.모집_뒤에는_…` · `공개_전_DRAFT_는_…` |
+  | 추가 차수: 끝난 공구만·복사 범위·동시 두 번 하나·DRAFT 차수 있으면 거절·중단 공구 거절·시작 때 이전 신청자 한 번 — G8 | `GroupBuyAdminTest.G8_…` · `중단된_공구에서는_…` |
+  | 중단 ① 공구만 → ② 환불 워커(발송 전만 환불·결제 중 닫음·발송된 주문 그대로·다시 돌려도 한 번) — 29 | `GroupBuyAdminTest.결정29_…` · `조기_마감은_…` |
+  | 종료 사유 넷(`SOLD_OUT`·`TIME_UP`·`EARLY_CLOSED`·`CANCELED`) — 조기 마감은 `EARLY_CLOSED`(결정 79 고침) | `GroupBuyAdminTest.조기_마감은_…_EARLY_CLOSED` · `GroupBuySchemaTest.종료_사유는_…` |
+  | P16e 배송비 예약 인상 · 지난·앞선 예약 거절 · 적용 시작 줄 불변·기간 겹침 금지(DB) | `GroupBuyAdminTest.P16e_…` · `지난_시각이나_…` · `적용이_시작된_…_DB` |
+  | V101 제약(부분 유일·NULLS NOT DISTINCT·복합 FK·금액·수량·방식 CHECK) | `GroupBuySchemaTest` |
+  | 불변식 한 SQL — 판매 수량 식(다시 판매·폐기 반품)·이동 줄 마지막 값·결제 금액(39)·옵션 합(77)·최대 식(80) — G6(2b-2 몫) | `GroupBuySchemaTest.G6_…` + 각 시험 끝의 `assertInvariants` |
+  | 워커 「언제 돌릴지」 — 배치를 켠 서버만, 둘 따로, 워커 기록·가린 오류 | admin `GroupBuyStateSchedulerTest` |
+- **실행**(이 PC 셸에 `JAVA_HOME` 이 없어 지정): `JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2 ./gradlew :server:shared:test --tests 'com.community.groupbuy.*'` → **80개 통과**(조기 마감 종료 사유를 고친 뒤 다시 돌려 통과, G24 약 70초) · `./gradlew :server:admin:test --tests 'com.community.batch.service.GroupBuyStateSchedulerTest'` → **3개 통과**. 바꾼 곳 회귀 확인: shared `AuditRetentionTest`(6)·`PaymentOrderServiceTest`(7)·`PaymentCompletionTest`(7), admin `Commerce2aCatalogTest`(6)·`Commerce04AdminCatalogTest`(5)·`AuditRetentionAdminTest`(6 — admin 앱 문맥이 공구 빈과 함께 뜸), api `IdentityHttpTest`(6 — api 앱 문맥) 모두 통과. 실패 0. 전체 테스트는 돌리지 않았다.
+- **아직 테스트로 막지 못한 규칙과 이유**
+  - P26(같은 멱등 키·다른 본문 409)·속도 제한 `GROUPBUY_JOIN` — 장치는 0-5 시험이 막고 있고, 공구 주문 API 에 `MoneyRequestGuard` 를 붙이는 것은 컨트롤러와 함께 2b-4.
+  - 권한 코드(`commerce.groupbuy.cancel`·`commerce.stock.adjust`·`commerce.product.manage`)와 설명 HTML 정화 — 관리자 컨트롤러(2b-4). 권한 `featureReady` 도 그때.
+  - 수량 풀림 알림(공구·옵션 둘 다 남을 때만·10분에 한 번)·차수 시작 알림 발송·환불 완료 메일·`COMMERCE_ORDER_ANOMALY` 운영자 알림 — 이벤트만 시험했다(발송은 2b-4).
+  - G6·G17·G20 중 반품·요청 승인 몫, G10·G21 — 2b-3.
+  - 예정일·발송 기한 지난 주문 경고(51·P35) — 2b-4 점검 워커.
+
+### 2b-2 추가 — 상품정보제공고시 서버 (2026-10-28, 결정 87 — develop 계약의 「### 상품정보제공고시」 절이 정본, 이 브랜치에서는 참조만)
+- **카탈로그 데이터** `server/shared/src/main/resources/groupbuy/notice-catalog-2023-01-01.json` — 공정거래위원회고시 제2022-15호(2023-01-01 시행) Ⅲ-1 품목별 정보 **40개 품목 · 379개 항목**. 국가법령정보센터 본문 iframe 의 항목 표 이미지 40장을 Claude in Chrome 으로 확대해 2026-10-28 에 옮겼다(파일 머리에 고시 번호·시행일·옮긴 날짜·출처 URL·일반원칙 2~7 원문). **읽기 어려운 글자는 없어 `unverified` 항목은 없다.** 항목마다 `no`(원문 번호, 하위는 `7-1` 등 + `group` 에 묶음 줄)·`key`(영문 — 같은 뜻은 품목이 달라도 같은 키)·`name`·`description`(이름 + 괄호 설명 = 원문 한 줄)·`kind`(`TEXT`·`DATE_LIKE` 원칙 ④·`KC_CERT` 원칙 ⑥·`QUALITY_WARRANTY` 원칙 ⑤)·`required`(모두 true — 원칙 ③)·`conditional`(원문에 「…에 한함」 등 — 해당 없으면 「제공 불가 + 사유」). 품목 `scope`(37·38 의 적용 범위 문구)·`warrantyDisadvantageDisclosure`(원칙 ⑤ 후단 — 10 노트북·11~14). 가운데점은 `·` 로 통일.
+- **V101 에 더함**: `group_buy_notices`(공구·차례·품목 코드·제목·카탈로그 버전) · `group_buy_notice_skus`(적용 단품 — **단품 유일**: 한 단품은 양식 하나에만, 복합 FK 로 같은 공구 단품만. 결정 88 로 `group_buy_notice_options` 를 바꿨다 — 아래 「구조 변경」) · `group_buy_notice_values`(항목 키·값 / 제공 불가 + 사유 — CHECK: 제공 불가면 값 없이 사유 필수) · `group_buy_revisions.notices`(jsonb 사본) + 이력 종류 `NOTICE`.
+- **코드**: `GroupBuyNoticeCatalog`(`classpath*:groupbuy/notice-catalog-*.json` 을 모두 읽고 가장 늦은 시행일이 지금 버전) · `GroupBuyNoticeService`(저장·완성 검사·복사·옵션 다시 잇기) · `GroupBuyNoticeStore` · `NoticeDraft` · 오류 409 `GROUP_BUY_NOTICE_INCOMPLETE`(추가 값 `noNotice`·`notices[{index,title,categoryCode,missingKeys}]`·`unassignedOptions`) · 번들 ko·en.
+- **정한 세부**
+  1. 양식의 적용 옵션은 **옵션 이름**으로 받는다(DRAFT 수정은 옵션을 지우고 다시 넣어 ID 가 바뀐다 — 다시 넣은 뒤 이름으로 다시 잇는다).
+  2. 적용 옵션이 빈 양식 = 공구 전체(기본 상품) — 다른 양식에 없는 옵션을 덮는다(부수 상품 옵션은 여기, 원칙 ⑦). 옵션이 있는 공구에서 기본 양식은 하나까지. 기본 양식이 없으면 모든 옵션이 어느 양식에 이름으로 들어 있어야 한다.
+  3. 저장은 통째로. 같은 자리·같은 품목의 양식은 카탈로그 버전을 유지하고, 새 양식·품목을 바꾼 양식은 지금 버전. 추가 차수는 버전 그대로 복사.
+  4. 완성 검사는 모집 시작(공개) 때 + **공개 뒤 저장 때도**(공개된 고시를 비울 수 없다). 공개 전 DRAFT 는 빈 채 저장할 수 있다. 「값」은 공백만이면 빈 것으로 본다.
+  5. 공개 뒤 저장은 모집 중 이후면 수정 이력 번호를 올리고 사본(`NOTICE`), 모집 시작 이력에도 고시 사본이 들어간다.
+  6. 「상세페이지 참조」만 적은 값은 저장은 하고 경고 목록을 돌려준다(`DetailPageWarning`).
+  7. 판매 화면용 조회(회원 상세 표)·관리자 API 는 2b-4.
+- **테스트 G43**(`GroupBuyNoticeTest` 9개): 카탈로그 40개 품목·키 겹침 없음·원칙 ④⑤⑥ 표시 / 양식 없음·빈 항목·공백 값이면 모집 시작 거절(빈 양식·항목 목록), 「제공 불가 + 사유」는 채운 것 / 제공 불가 사유 없으면 저장 거절 + DB CHECK / 어느 양식에도 없는 옵션이면 거절, 기본 양식이 나머지를 덮음 / 한 옵션은 양식 하나에만(저장 검사 + DB 유일)·기본 양식 하나·없는 옵션·품목·항목 거절 / 모집 뒤 수정은 이력 사본, 비우는 수정은 거절 / 추가 차수 복사·카탈로그 버전 고정(시험 전용 옛 버전 `src/test/resources/groupbuy-test/notice-catalog-2022-01-01.json` — 실제 고시가 아니다)·옛 버전 항목으로 검사 / DRAFT 옵션 다시 넣기 뒤 이름으로 다시 잇기 / 「상세페이지 참조」 경고.
+- **실행**: `./gradlew :server:shared:test --tests 'com.community.groupbuy.*'` → **89개 통과**(기존 80 + G43 9 — 시험 키트의 `open()` 이 모집 시작 전에 기본 양식을 채우게 바꿈) · admin `AuditRetentionAdminTest`(6)·`GroupBuyStateSchedulerTest`(3), api `IdentityHttpTest`(6) 통과(두 앱 문맥이 카탈로그를 jar 안에서 읽어 뜬다). 실패 0.
+- **확인 필요**: 과태료 근거 조문·금액(전자상거래법 제13조 ② 위반 — 계약 결정 87 의 [원문 확인])은 이번에 확인하지 않았다.
+- **판매자 추가 항목**(사용자 지시 2026-10-28 — develop 계약 결정 87 「판매자 추가 항목」 줄):
+  - V101 `group_buy_notice_values` 를 고쳤다 — `id` PK, `custom`(추가 항목이면 true), `item_key`(고시 항목만), `custom_name`(추가 항목만, 1~40자), `sort_order`. CHECK `ck_gbnv_kind`: 고시 항목은 키 필수·이름 없음, 추가 항목은 키 없음·이름·내용(1~1,000자) 필수·「제공 불가」 없음. 부분 유일: 고시 항목 (양식, 키) · 추가 항목 (양식, 이름) · (양식, 차례).
+  - 저장(`NoticeDraft.values[]` 에 `custom=true, name, value, sortOrder` 줄 — `NoticeDraft.Value.custom(...)`): 이름·내용이 모두 빈 줄은 저장하지 않는다, 반쪽 줄·길이 초과는 400, **양식당 20개**, 같은 양식 안 이름 겹침 거절, **고시 항목과 같은 이름은 거절**(공백을 빼고 비교, 「크기, 무게」처럼 쉼표로 나뉜 각 이름도 — 정한 세부), 차례는 `sortOrder`(비면 넣은 차례)로 0부터 다시 매긴다. 평문으로 저장하고 화면이 글자 그대로 보인다.
+  - 완성 검사 대상이 아니다(선택). 수정 이력 사본(`notices[].customItems`)·추가 차수 복사 대상.
+  - 테스트(G43 보강 3개): 차례대로 저장·빈 줄 제외·완성 검사 밖·이력 사본 / 고시 항목과 같은 이름·21개·이름 겹침·반쪽 줄·41자 거절 + DB CHECK / 차수 복사. `--tests 'com.community.groupbuy.*'` → **92개 통과**, 실패 0.
+- **local 시드의 예시 품목 넓히기**(결정 87 「예시(목업·local 시드) 품목을 넓힌다」 — 쌀·과일·생선(20)·김치·소스(21)·티셔츠(1)·운동화(2) + 로봇 키트, 각 공구의 고시 양식을 그 품목으로): **2b-2 범위가 아니라 하지 않았다** — local 시드(결정 11)는 판매 스위치·사업자 정보(V103)와 함께 2b-4 가 만든다. 그때 이 품목들로 공구와 고시 양식을 채운다(신선식품은 `DATE_LIKE` 항목에 일반원칙 ④ 대체 표기 예시).
+
+### 2b-2 구조 변경 — 옵션 축·단품(SKU)·추가 구성상품 (2026-10-28, 결정 88 — develop 계약 「### 옵션 축·단품·추가 구성상품」이 정본)
+위 절들에서 「옵션」이라 쓴 수량·가격 단위는 이제 **단품**이다(주문 줄·수량 이동·추가 입고/줄이기·품절·관심 신청·고시 적용 대상).
+- **V101 고침**(아직 병합 전이라 같은 파일을 고쳤다): `group_buy_options` → `group_buy_option_axes`(공구·차례·이름, 유일 (공구, 차례)·(공구, 이름)) · `group_buy_option_values`(축·차례·값, 유일 (축, 차례)·(축, 값)) · `group_buy_skus`(공구·`kind` MAIN/ADDON·`value_ids bigint[]`(축 차례)·이름·`extra_price`(MAIN)·`addon_price`(ADDON ≥ 1)·`max_qty`/`initial_max_qty`/`current_qty`/`reserved_qty`·`on_sale`·`image_key`·차례 — CHECK 종류별 가격·수량, 유일 (공구, 이름)·MAIN 의 (공구, 조합)). 주문 줄 `sku_id NOT NULL`·유일 (주문, 단품)·복합 FK(같은 공구 단품만). 수량 이동 `sku_id` + `sku_*_after`, 공구 쪽 `*_after` 는 **추가상품만 움직인 줄이면 NULL**(CHECK 로 둘 중 하나는 있다). 관심 신청 `sku_id`(NULLS NOT DISTINCT 유일). 고시 `group_buy_notice_skus`. 수정 이력 `option_axes`·`skus` jsonb(예전 `option_max` 대신).
+- **API 모양**(2b-4 컨트롤러가 그대로 싣는다):
+  - 상세 `Availability`: `remaining`·`soldOut`·`temporarilyUnavailable`·`addedQty` + `axes[{axisId, name, values[{valueId, value}]}]` + `skus[{skuId, kind(MAIN|ADDON), name, valueIds[](축 차례), unitPrice, remaining(null = 제한 없음 — ADDON 한도 없음), soldOut, temporarilyUnavailable, onSale}]`. MAIN 남은 = min(단품 남은, 공구 남은), ADDON 은 자기 한도만.
+  - 견적·주문 요청: `items[{skuId, qty}]`(예전 `lines[{optionId, qty}]`) — 줄마다 그 공구 단품, 같은 단품 두 줄·수량 0 은 400, **MAIN 줄이 하나 이상**(아니면 400 `items` — `groupbuy.order.main.required`), 판매 안 함은 409 `GROUP_BUY_SKU_NOT_ON_SALE`, 품절은 409 `GROUP_BUY_SKU_SOLD_OUT`(`skuId`·`temporary`). 견적 `items[{skuId, kind, name, qty, unitPrice, itemAmount}]`.
+  - 관리자 등록 값 `GroupBuyDraft`: `axes[{name, values[]}]`(0~3개, 값 1~30개, 조합 ≤ 200) · `skus[{values[](축 차례 값 이름), extraPrice, maxQty, onSale}]`(적지 않은 조합은 추가금 0·한도 없음·판매, 축이 없으면 `values` 가 빈 줄 하나로 MAIN 한도) · `addons[{name, price, maxQty, imageKey}]`(≤ 20, 이름은 조합 이름과도 겹치면 안 된다). 오류 칸 `axes`·`skus`·`addons`. 판매하는 조합이 하나는 있어야 한다.
+  - 추가 입고·줄이기 `skuId`(null = 공구 최대만). 결과 `StockChange.skuMaxQty`. 한도 없는 단품은 409 `GROUP_BUY_SKU_UNLIMITED`.
+  - 고시 양식 `NoticeDraft.skuNames[]`(예전 `optionNames`), 응답 `skuIds`·`skuNames`, 미완성 오류 `unassignedSkus`(예전 `unassignedOptions`).
+  - 본인 취소 `lines[{skuId, qty}]`, 본 상품을 모두 취소하면서 추가상품을 남기면 409 `GROUP_BUY_ADDON_ONLY`(`skuIds` — 함께 취소하라고 묻는 화면).
+- **정한 세부**
+  1. MAIN 단품 이름 = 축 값을 「 / 」로 이은 것(축이 없으면 상품 이름). 단품 이름은 공구 안에서 유일 — 고시 양식·DRAFT 수정 뒤 다시 잇기·추가 차수 복사가 이름으로 가리킨다.
+  2. **공구 행의 `current/reserved/max` = MAIN 단품만**(최대·성사 판정·다 팔림·1인 한도 — 결정 88). 추가상품은 자기 행만 움직이고, 추가상품 입고·줄이기는 공구 최대·`added_qty` 를 바꾸지 않는다. 다 팔림 = 공구 확정 = 최대 또는 판매 중인 MAIN 단품이 모두 한도까지 팔림(추가상품 품절은 공구를 닫지 않는다).
+  3. 잠금 차례: 어드바이저리 → 공구 행(MAIN 수량 합, 한 문장) → 단품 행 ID 오름차순. 추가상품만 있는 수량 변경은 없으므로(MAIN 필수) 공구 행이 늘 먼저다.
+  4. 무료배송 기준 금액 = 추가상품을 포함한 상품 금액 합.
+  5. 본인 취소에서 MAIN 이 0 이 되는데 추가상품이 남으면 거절(409 `GROUP_BUY_ADDON_ONLY`) — 화면이 「추가 구성상품도 함께 취소할까요?」로 묻고 함께 보내게(결정 88 「함께 취소 대상으로 묻는다」). 불발·중단·지연 취소는 늘 주문 전체라 해당 없음. 반품(2b-3)도 같은 규칙을 쓴다.
+  6. 고시: 기본 양식(적용 단품 없음)은 **MAIN 만** 덮는다. 추가상품은 **자기 양식이 따로 있어야** 완성이고(`unassignedSkus`), 추가상품을 가리키는 양식은 그 단품 하나만(MAIN·다른 추가상품과 섞으면 400 `skuNames`).
+  7. 모집 뒤 잠금 `options`: 축 이름·값·차례, 조합의 추가금·한도(처음 한도나 지금 한도 중 하나와 같으면 같다고 본다 — 추가 입고로 바뀐 한도를 화면이 그대로 보내도 통과)·판매 여부, 추가상품 이름·가격·한도·종류가 같아야 한다.
+  8. 불변식 검사: 공구 = Σ MAIN 줄 판매 수량, 단품마다 = 그 단품 줄, Σ MAIN 단품 = 공구, 공구 마지막 이동은 공구 값을 적은 줄, 최대 식은 공구 값을 적은 ADD·REDUCE 만.
+  9. 관리자 「조합 표」의 이미지(MAIN 단품 이미지)는 이번에 받지 않았다 — 열 `image_key` 만 두고 추가상품만 쓴다.
+- **테스트 G44**(`GroupBuySkuTest` 10개): 축 2개 → 6조합·이름·추가금·한도·판매 끔과 상세의 축·값·`valueIds` / 판매 끈 조합 견적·주문 409 / 단품 한도: 결제 중이면 잠시 구매 불가·다 팔리면 그 단품만 품절, 공구는 모집 중 / 추가상품만 담으면 견적·주문 400 / 공구 최대·1인 한도는 MAIN 만·무료배송 기준엔 추가상품 포함 / 성사 판정은 MAIN 만(추가상품 10개 있어도 불발) / 본 상품 모두 취소하며 추가상품 남기면 409 `ADDON_ONLY`·함께 보내면 주문 전체 취소 / 고시: 기본 양식은 추가상품을 덮지 않음·추가상품 양식에 둘 이상·MAIN 과 섞기 400 / 모집 뒤 추가상품 가격·조합 판매·축 값 바꾸면 `LOCKED_FIELD options`, 추가상품 입고·줄이기는 공구 최대 그대로 / 등록 검사(축 4개·조합 225·값 중복·없는 조합·판매 조합 없음·추가상품 이름 겹침·가격 0, 축 없으면 MAIN 하나). 기존 시험 92개는 단품 구조로 고쳤다(시험 키트: `option(name, extra, max)` = 축 하나 「옵션」의 값, `axis`·`combo`·`addon`·`mainSku`, `fillNotice` 는 추가상품마다 양식을 더 채운다).
+- **실행**: `./gradlew :server:shared:test --tests 'com.community.groupbuy.*'` → **102개 통과**(기존 92 + G44 10) · admin `GroupBuyStateSchedulerTest`(3)·`AuditRetentionAdminTest`(6)·api `IdentityHttpTest`(6) 통과(문맥 로드 확인).
+- **아직**: 관리자 등록·상세 API·화면 연결(2b-4), 반품의 추가상품 규칙(2b-3), local 시드 예시 품목(2b-4 — 위 절).
+- **세션 정리 결정 — 2b-1 목업 질문(2026-10-28)**: ① 상세 단품 알림 상태 `skuWatches{watchable, watching}`·신청 `{kind, skuId}` 는 목업 모양 그대로(표 `group_buy_watches.sku_id` 가 받친다, API 는 2b-4). ② 주문 줄 칸 `skuId`·`skuName`·`kind` 그대로. ③ 취소·반품 요청·미리 보기 줄은 **`skuId`**(주문 안에서 단품 줄은 하나 — 유일 (주문, 단품). 본인 취소가 이미 `skuId`). ④ 반품도 같은 규칙 — 본 상품을 모두 반품하며 추가상품을 남기면 409 `GROUP_BUY_ADDON_ONLY`(2b-3 이 같은 검사를 쓴다). ⑤ 추가상품 판매 여부 스위치 없음(늘 판매, 모집 뒤 구성 잠금), `addons.maxQty` null = 한도 없음 허용(화면도 비우면 무제한). ⑥ 축 없는 공구의 MAIN 이름 = 상품 이름, 모집 뒤 판매 끈 조합 다시 켜기 불가(`LOCKED_FIELD options`). ⑦ 글자 상한 정본 = 서버: 축 이름 30·값 30·추가상품 이름 100(MAIN 이름은 값 셋 + 「 / 」 ≤ 96).
+
+### 2b-2 구조 변경 — 상품 마스터·카테고리·공급가 (2026-10-28, 결정 89 — develop 계약 「### 상품 마스터 · 카테고리 · 공급가」가 정본)
+위 절들의 「공구의 설명·이미지·옵션 축·고시」는 이제 **상품** 것이다(공구 = 상품 하나 + 판매 조건).
+- **V101 고침**: `group_buy_categories`(2단 — 2단 제한은 앱, 이름 유일 (부모, 이름), 차례·숨김) · `group_buy_products`(카테고리 필수·이름·요약·사양·설명·정상가·근거·청약철회 제한·version) · `group_buy_product_images` · 옵션 축/값은 `product_id` · `group_buy_product_skus`(조합·이름·`default_supply_price`·`on_sale`). `group_buys` 는 `product_id` + 판매 조건만(이름·설명·정상가·청약철회 제한 열 삭제, 조회는 상품을 이어 읽어 `GroupBuyRow` 모양 그대로). 공구 단품 `group_buy_skus` 에 `product_sku_id`(유일 (공구, 상품 단품))·`supply_price`(≥ 0, null = 아직), `image_key` 삭제. 고시 `group_buy_notices.product_id`·`group_buy_notice_skus(notice_id, product_id, product_sku_id)`. 수정 이력에 `product_name`, 고시 사본은 공구 상품 + 추가 구성상품의 상품.
+- **코드**: `GroupBuyProductService`(카테고리 등록·수정·회원 목록 필터 `publicList`, 상품 등록·수정) · `GroupBuyProductStore` · `ProductDraft`. `GroupBuyNoticeService` 는 상품 단위(`save(productId, …)`·`assertComplete(productId)`). 감사 `GROUPBUY_PRODUCT_SAVE`·`GROUPBUY_CATEGORY_SAVE`(일반)·`GROUPBUY_SUPPLY_PRICE`(돈 관련). 오류 `GROUP_BUY_SUPPLY_PRICE_MISSING`·`GROUP_BUY_NEGATIVE_MARGIN`(둘 다 `skuIds`)·`GROUP_BUY_PRODUCT_NOT_FOUND`·`GROUP_BUY_PRODUCT_SKU_IN_USE`(`skuNames`), 고시 미완성 오류에 `productId`.
+- **API 모양**(2b-4 가 싣는다):
+  - 상품 등록 값 `ProductDraft{categoryId, name, summary, spec, description, normalPrice, normalPriceBasis, normalPriceSource, withdrawalRestriction, optionTypeCodes[], skus[{skuId|null, name, values[](optionTypeCodes 차례), defaultSupplyPrice, onSale}], images[]}` — **단품 목록이 정본**·**옵션은 옵션 종류 코드로**(아래 「세션 정리 결정」). 관리자 상세(2b-4)는 `optionTypeCodes` + `optionNames`(서버가 붙인 지금 이름) + `skus[{skuId, name, values, valueIds, defaultSupplyPrice, onSale}]` + 서버가 만든 `axes`(읽기 전용). 옵션 종류 `GET·PUT /api/admin/group-buys/option-types` → `[{code, name, sortOrder, hidden, productCount, usedValues[]}]`(2b-4).
+  - 공구 등록 값 `GroupBuyDraft{productId, title, groupPrice, shippingPolicyCode, minQty, maxQty, maxQtyPerUser, startAt, endAt, extensionMode, fulfillment, shipPlannedAt, shipWithinBusinessDays, returnPolicy, roundLimitShared, skus[{productSkuId, extraPrice, maxQty, onSale, supplyPrice}], addons[{productSkuId, price, maxQty, supplyPrice}], marginConfirmed}`(결정 88 의 `axes`·`skus[{values…}]`·`addons[{name…}]` 를 대신). 모집 시작 `marginConfirmed`(역마진 확인).
+  - 회원 응답(상세·견적)은 바뀌지 않았다 — 공급가는 싣지 않는다.
+- **정한 세부**
+  1. 공구 단품 설정을 적지 않은 상품 단품은 추가금 0·한도 없음·판매 여부와 공급가는 상품 단품 기본값. 추가 구성상품 = **다른 상품**의 단품(같은 상품 단품은 400 `addons`), 이름 = 축 없는 상품이면 상품 이름, 아니면 「상품 이름 (조합)」.
+  2. 상품 수정: 설명·이미지·카테고리·기본 공급가·기본 판매 여부는 언제든 — 진행 중 공구(모집 중~발송 중)마다 수정 이력 사본(`CONTENT`), 고시 저장은 `NOTICE` 사본. 이름·정상가·청약철회 제한·옵션 구성은 그 상품을 쓰는(공구 상품 또는 추가 구성상품) 공구가 「모집 중」(공개된 예정·모집 중·집계 중)이면 409 `LOCKED_FIELD`. 모집 시작은 관련 상품 행을 잠가 구성 바꾸기와 하나만 이긴다.
+  3. 구성 바꾸기는 같은 이름의 축 값·같은 조합의 상품 단품 ID 를 유지(공구 단품·고시 연결이 그대로). 축 이름이 바뀌면 모두 다시 만든다. 공개된 공구가 가리키는 상품 단품을 없애면 409 `PRODUCT_SKU_IN_USE`. **공개 전 DRAFT 공구는 상품 구성을 따라간다**(없앤 단품은 빠지고 더한 단품은 기본값으로).
+  4. 공급가: DRAFT 는 비워도 저장, 모집 시작 때 모든 공구 단품(MAIN·ADDON, 판매 끈 조합 포함)에 있어야 한다(0 명시 허용). 판매가 < 공급가면 `marginConfirmed` 없이 409 `NEGATIVE_MARGIN`(모집 시작 감사에 `negativeMarginSkus`). 모집 뒤 공구 수정은 공급가만 — 비우기 거절, 판매가보다 크게 올리면 확인, 단품마다 `GROUPBUY_SUPPLY_PRICE` 감사. 수정 이력 사본에는 공급가를 넣지 않는다.
+  5. 추가 차수 = 같은 상품으로 새 DRAFT(판매 조건·공급가 복사, 고시 복사 없음 — 같은 상품의 양식을 그대로 쓴다). 상품에 새로 더한 단품은 기본값으로 들어간다.
+  6. 회원 목록 `publicList(categoryId)`: 공개된 공구(중단 제외), 최상위를 고르면 그 아래 단도, 숨긴 카테고리(또는 숨긴 부모 아래)는 뺀다. 목록 응답 모양은 2b-4.
+- **세션 정리 결정 — 상품 단품 목록이 정본(2b-1 사용자 결정 2026-10-28, 2b-1 계약 「추가분 — 상품 단품 목록이 정본」)**: 「축·값 → 조합 자동 생성」 대신 운영자가 단품을 한 줄씩(1~200개, 이름 유일 — 단품 하나 = 옵션 없는 상품, 옵션이 없어도 이름으로 가리는 단품 여럿 가능) 등록하고, 옵션 이름(0~3개)을 두면 단품마다 값 모두 필수·같은 값 묶음 두 줄 금지(400 `skus`/`optionNames`). 서버가 단품의 값으로 축·값(처음 나온 차례)을 만들어 `valueIds` 를 채운다 — 회원 상세 `availability`·공구 등록 값·추가 구성상품은 그대로. 고칠 때 기존 단품은 `skuId` 로 가리키고(이름·값을 바꿔도 같은 ID — 공구 단품·고시 연결 유지, 두 단품 이름 맞바꾸기 가능), 목록에 없는 기존 단품은 지운다(공개된 공구가 가리키면 409 `PRODUCT_SKU_IN_USE`). 단품의 값이 바뀌면 공구 MAIN 단품의 조합 사본도 고친다(이름 사본은 공개 전 DRAFT 공구만). 추가 구성상품 이름은 단품이 하나뿐인 상품이면 상품 이름, 아니면 「상품 이름 (단품 이름)」. DB: `ux_gbps_combination` 은 값이 있는 단품만.
+- **세션 정리 결정 — 옵션 종류 코드(2b-1 사용자 결정 2026-10-28)**: 표 `group_buy_option_types`(코드 PK — 영문 대문자로 시작 2~20자, 만든 뒤 불변 · 이름 1~30 유일 · 차례 · 숨김). 상품 축은 `option_type_code`(FK — 이름 열 없음, 이름은 종류 것이라 바꾸면 쓰는 상품·회원 상세·수정 이력 사본이 따라간다). 상품 저장은 `optionTypeCodes`(0~3, 없는·숨긴·겹친 코드 400 `optionTypeCodes` — 이 상품이 이미 쓰는 숨긴 종류는 그대로 둘 수 있다). 옵션 종류 저장은 목록 통째(`saveOptionTypes` — PUT, 없던 코드 만들기·이름/차례/숨김 고치기·빠진 코드 지우기, 쓰는 상품이 있는 종류를 빼면 409 `GROUP_BUY_OPTION_TYPE_IN_USE {codes}`)와 한 줄(`saveOptionType`). 감사 `GROUPBUY_OPTION_TYPE_SAVE`(일반). 목록 조회는 쓰는 상품 수·그 종류로 쓴 값(가나다 — 자동완성용). 상품·단품 ID 는 서버 채번(`product_id`·`id` 두 열), 운영자 입력 코드는 두지 않는다.
+- **테스트 G45**(`GroupBuyProductTest` 8개 — 단품 목록 정본·옵션 종류 시험 2개 더함): 상품 하나로 공구 둘(단품 수량·한도·가격은 공구마다) / 모집 시작 사본(상품 이름·설명·이미지·축·단품·고시, 공급가 없음) / 모집 중 상품 이름·구성 잠금(추가 구성상품으로 쓰여도), 설명 정정은 바로 보임, 중단 뒤 값 더하기 가능·가리키는 단품 지우기 409 / 공급가 빈 값 409·0 허용·역마진 확인 / 공급가는 회원 응답 레코드에 없음 / 카테고리 2단·필터·숨김·카테고리 필수. 기존 시험은 상품 구조로 고쳤다(시험 키트 `Spec` 이 상품을 만들고 `option`·`axis`·`addon` 은 상품 칸, 고시는 `kit.productOf(gb)`, G43 추가 차수 시험은 「같은 상품의 양식을 그대로 쓴다」로, DRAFT 다시 잇기 시험은 「상품 단품 ID 유지」로 바꿈, G44 고시 시험은 「추가 구성상품의 상품에도 양식」으로).
+- **실행**: `./gradlew :server:shared:test --tests 'com.community.groupbuy.*'` → **110개 통과**(102 + G45 8) · admin `GroupBuyStateSchedulerTest`(3)·`AuditRetentionAdminTest`(6)·api `IdentityHttpTest`(6) 통과.
+- **아직**: 상품·카테고리·공급가 관리자 API 와 권한(`commerce.product.manage`·`commerce.product.read`·`commerce.product.price`/`commerce.settlement.read` 로 공급가 보기)·회원 목록 응답(2b-4), 상품 목록 화면 조회(JPA·QueryDSL — 2b-4).
 
 ## 승인 (2026-10-28)
 사용자: 「지금까지 확정된 상태로 다음 단계 진행해」 — 결정 1~86·Q&A 규칙·작업 단위·화면 목록·마이그레이션 계획을 추천안 그대로 승인, 2b-2 는 화면 확정 전 병행. 결정 43 은 지금 규칙 유지(나눠 모두 반품해도 한 번에 반품한 것과 같게 — 판매자 손해가 더 커지지 않는다, 처음 배송비까지 받으려면 그 공구의 배송비 정책을 왕복으로).
