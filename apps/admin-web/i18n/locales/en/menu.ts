@@ -9,6 +9,7 @@ export default {
     general: 'General',
     socialLogin: 'Social login',
     portone: 'PortOne',
+    addressSearch: 'Address search',
     loginSecurity: 'Sign-in security',
     mail: 'Mail',
     mailSettings: 'Mail server',

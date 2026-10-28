@@ -6,6 +6,7 @@
  * Do not reuse top-level keys the layers already own (`common`, `display`) — one would overwrite the other when merged.
  */
 import account from './account';
+import address from './address';
 import audit from './audit';
 import batch from './batch';
 import board from './board';
@@ -52,6 +53,7 @@ import report from './report';
 
 export default {
     account,
+    address,
     audit,
     batch,
     board,
