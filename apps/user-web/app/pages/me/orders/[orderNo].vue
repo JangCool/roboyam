@@ -540,7 +540,7 @@ async function payAgain(): Promise<void> {
     }
 }
 
-async function payReturnFee(requestId: number): Promise<void> {
+async function payReturnFee(requestId: string): Promise<void> {
     const current = order.value;
     if (!current || actionBusy.value || pay.busy.value) return;
     actionBusy.value = `fee-${requestId}`;
@@ -600,7 +600,7 @@ async function supplyChoice(choice: GroupBuySupplyChoiceValue): Promise<void> {
     await run(choice, () => api.supplyChoice(current.orderNo, { choice }), t(`groupBuy.supplyChosen.${choice}`));
 }
 
-async function withdraw(requestId: number): Promise<void> {
+async function withdraw(requestId: string): Promise<void> {
     const current = order.value;
     if (!current) return;
     const ok = await confirm({ title: t('groupBuy.withdrawConfirm'), message: t('groupBuy.withdrawConfirmText'), confirmLabel: t('groupBuy.withdraw') });
@@ -842,7 +842,7 @@ function removePhoto(id: string): void {
 }
 
 /** 본인 즉시 취소 줄(서버 2b-2 — 단품 단위 `lines[{ skuId, qty }]`) */
-function cancelLines(): { skuId: number; qty: number }[] {
+function cancelLines(): { skuId: string; qty: number }[] {
     return picked.value.map((p) => ({ skuId: p.item.skuId, qty: p.qty! }));
 }
 
@@ -872,7 +872,7 @@ async function cancelNow(current: MyGroupBuyOrderDetail): Promise<void> {
         if (!(e instanceof ApiError && e.code === 'GROUP_BUY_ADDON_ONLY')) throw e;
         dialogKey = UtilIdempotency.newKey();
         const raw = e.extras?.skuIds;
-        const skuIds = Array.isArray(raw) ? raw.map(Number) : current.items.filter((i) => i.kind === 'ADDON').map((i) => i.skuId);
+        const skuIds = Array.isArray(raw) ? raw.map(String) : current.items.filter((i) => i.kind === 'ADDON').map((i) => i.skuId);
         const names = current.items.filter((i) => skuIds.includes(i.skuId)).map((i) => i.skuName).join(', ');
         const ok = await confirm({ title: t('groupBuy.addonOnlyTitle'), message: t('groupBuy.addonOnlyText', { names }), confirmLabel: t('groupBuy.addonOnlyConfirm'), tone: 'danger' });
         if (!ok) return;

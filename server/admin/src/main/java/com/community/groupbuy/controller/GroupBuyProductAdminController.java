@@ -38,7 +38,7 @@ public class GroupBuyProductAdminController {
     @GetMapping
     public ResponseEntity<ApiResponse<GroupBuyAdminView.Page<GroupBuyAdminView.ProductRow>>> list(@RequestParam(required = false) String q,
                                                                                                  @RequestParam(required = false) String categoryId,
-                                                                                                 @RequestParam(defaultValue = "1") int page,
+                                                                                                 @RequestParam(defaultValue = "0") int page,
                                                                                                  @RequestParam(defaultValue = "20") int size) {
         return ok(facade.list(q, categoryId, page, size));
     }

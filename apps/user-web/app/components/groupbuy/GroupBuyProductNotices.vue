@@ -114,7 +114,7 @@ interface Props {
     /** 공구의 판매하는 단품(칩·적용 범위 글자) */
     skus?: NoticeSku[];
     /** 주문서에서 고른 단품 ID — 그 단품들의 양식을 먼저 놓고 펼친다 */
-    prioritySkuIds?: number[];
+    prioritySkuIds?: string[];
     /** 양식 제목 태그 — 바깥 제목이 h2 면 h3, 시트(제목 h3) 안이면 h4 */
     headingTag?: 'h3' | 'h4';
 }
@@ -135,7 +135,7 @@ const entries = computed(() => props.notices.map((notice, index) => ({ notice, i
 
 /** 단품 ID → 그 단품이 속한 양식 차례(서버 `skuIds` — 한 단품은 양식 하나에만, 결정 87·88) */
 const formOfSku = computed(() => {
-    const map = new Map<number, number>();
+    const map = new Map<string, number>();
     props.notices.forEach((notice, index) => notice.skuIds.forEach((skuId) => map.has(skuId) || map.set(skuId, index)));
     return map;
 });
@@ -146,7 +146,7 @@ const baseIndex = computed(() => {
 });
 
 /** 단품이 속한 양식 — 따로 둔 양식에 없으면 기본 양식(본 상품만) */
-function formFor(skuId: number): number | null {
+function formFor(skuId: string): number | null {
     const own = formOfSku.value.get(skuId);
     if (own !== undefined) return own;
     return props.skus.find((s) => s.skuId === skuId)?.kind === 'ADDON' ? null : baseIndex.value;
@@ -173,7 +173,7 @@ const collapsible = computed(() => props.notices.length > 1);
 const showChips = computed(() => props.skus.length > 1 && props.notices.some((n) => n.skuIds.length > 0));
 
 const openIds = ref(new Set<number>());
-const selectedSkuId = ref<number | null>(null);
+const selectedSkuId = ref<string | null>(null);
 
 /** 처음 펼칠 양식 — 고른 단품의 양식, 없으면 기본 양식(없으면 첫 장) */
 function resetOpen(): void {
@@ -199,7 +199,7 @@ function toggle(index: number): void {
     openIds.value = next;
 }
 
-function pickSku(skuId: number): void {
+function pickSku(skuId: string): void {
     selectedSkuId.value = skuId;
     const form = formFor(skuId);
     if (form === null) return;

@@ -95,7 +95,7 @@ public class GroupBuyAdminFacade {
 
     public GroupBuyAdminView.ListResponse list(String status, String q, int page, int size) {
         int s = Math.min(100, Math.max(1, size));
-        int p = Math.max(1, page);
+        int p = Math.max(0, page);
         StringBuilder where = new StringBuilder(" FROM group_buys g JOIN group_buy_products p ON p.id = g.product_id WHERE 1 = 1");
         List<Object> args = new ArrayList<>();
         if (q != null && !q.isBlank()) {
@@ -119,7 +119,7 @@ public class GroupBuyAdminFacade {
         Long total = jdbc.queryForObject("SELECT count(*)" + where, Long.class, args.toArray());
         List<Object> pageArgs = new ArrayList<>(args);
         pageArgs.add(s);
-        pageArgs.add((p - 1) * s);
+        pageArgs.add(p * s);
         List<Long> ids = jdbc.queryForList("SELECT g.id" + where + " ORDER BY g.updated_at DESC, g.id DESC LIMIT ? OFFSET ?", Long.class, pageArgs.toArray());
         List<GroupBuyAdminView.Row> rows = new ArrayList<>();
         for (long id : ids) {
@@ -240,14 +240,14 @@ public class GroupBuyAdminFacade {
     public GroupBuyAdminView.Page<GroupBuyAdminView.Revision> revisions(String idText, int page, int size) {
         long id = AdminIds.parse(idText, GroupBuyException::notFound);
         int s = Math.min(50, Math.max(1, size));
-        int p = Math.max(1, page);
+        int p = Math.max(0, page);
         Long total = jdbc.queryForObject("SELECT count(*) FROM group_buy_revisions WHERE group_buy_id = ?", Long.class, id);
         List<GroupBuyAdminView.Revision> items = jdbc.query("SELECT r.revision_no, r.change_kind, r.title, r.summary, r.description, r.images::text, r.max_qty, r.added_qty, "
                 + "r.skus::text, r.notices::text, o.operator_name, r.created_at, (SELECT g.ship_planned_at FROM group_buys g WHERE g.id = r.group_buy_id) "
                 + "FROM group_buy_revisions r LEFT JOIN operators o ON o.id = r.edited_by WHERE r.group_buy_id = ? ORDER BY r.revision_no DESC, r.created_at DESC "
                 + "LIMIT ? OFFSET ?", (rs, i) -> revision(rs.getInt(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6), rs.getInt(7),
                 rs.getInt(8), rs.getString(9), rs.getString(10), rs.getString(11), rs.getTimestamp(12).toInstant(),
-                rs.getDate(13) == null ? null : rs.getDate(13).toLocalDate()), id, s, (p - 1) * s);
+                rs.getDate(13) == null ? null : rs.getDate(13).toLocalDate()), id, s, p * s);
         return new GroupBuyAdminView.Page<>(items, total == null ? 0 : total);
     }
 
@@ -376,7 +376,7 @@ public class GroupBuyAdminFacade {
     public GroupBuyAdminView.Page<GroupBuyAdminView.Movement> movements(String idText, String kind, int page, int size) {
         long id = AdminIds.parse(idText, GroupBuyException::notFound);
         int s = Math.min(100, Math.max(1, size));
-        int p = Math.max(1, page);
+        int p = Math.max(0, page);
         StringBuilder where = new StringBuilder(" FROM group_buy_qty_movements m LEFT JOIN group_buy_skus s ON s.id = m.sku_id LEFT JOIN group_buy_participations pa "
                 + "ON pa.id = m.participation_id LEFT JOIN operators o ON o.id = m.actor_id WHERE m.group_buy_id = ?");
         List<Object> args = new ArrayList<>(List.of(id));
@@ -386,7 +386,7 @@ public class GroupBuyAdminFacade {
         }
         Long total = jdbc.queryForObject("SELECT count(*)" + where, Long.class, args.toArray());
         args.add(s);
-        args.add((p - 1) * s);
+        args.add(p * s);
         GroupBuyRow g = groups.find(id).orElseThrow(GroupBuyException::notFound);
         List<GroupBuyAdminView.Movement> items = jdbc.query("SELECT m.id, m.kind, s.name, s.kind, m.qty, m.current_after, m.reserved_after, m.max_after, m.sku_current_after, "
                 + "m.sku_reserved_after, m.sku_max_after, pa.order_no, o.operator_name, m.reason, m.created_at, m.actor_id" + where

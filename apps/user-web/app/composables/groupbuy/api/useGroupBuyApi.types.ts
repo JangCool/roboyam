@@ -16,7 +16,7 @@ export type GroupBuyFulfillment = 'IMMEDIATE' | 'AFTER_CLOSE';
 export type GroupBuyExtensionMode = 'DEMAND' | 'ALWAYS';
 export type GroupBuyReturnFeeMode = 'ONE_WAY' | 'ROUND_TRIP';
 /** 결정 58 — 공식 판매처가 · 직전 차수 공구가 · 시가 · 종전 판매가 */
-export type GroupBuyNormalPriceBasis = 'OFFICIAL_STORE' | 'PREV_ROUND' | 'MARKET' | 'PREV_SALE';
+export type GroupBuyNormalPriceBasis = 'OFFICIAL_STORE' | 'PREVIOUS_ROUND' | 'MARKET' | 'PREVIOUS_SALE';
 /** 결정 17·84 — 살 수 있음 · 잠시 구매 불가(다른 분이 결제 중 — 확정 + 선점 = 최대) · 다 팔림(확정 = 최대) */
 export type GroupBuyStockState = 'AVAILABLE' | 'TEMP_SOLD_OUT' | 'SOLD_OUT';
 /** 알림 신청 종류 — 수량 풀림 · 마감 임박 · 다음 차수 */
@@ -61,7 +61,7 @@ export interface GroupBuyDelayNotice {
 
 /** `GET /api/group-buys?phase=&page=` 의 한 줄 */
 export interface GroupBuyListItem {
-    id: number;
+    id: string;
     title: string;
     thumbnailUrl: string | null;
     status: GroupBuyStatus;
@@ -115,13 +115,13 @@ export interface GroupBuyImage {
 
 /** 옵션 축의 값 하나(예 「블랙」·「M」) */
 export interface GroupBuyAxisValue {
-    valueId: number;
+    valueId: string;
     value: string;
 }
 
 /** 옵션 축 하나(예 「색상」) — 공구마다 0~3개, 배열 차례가 고르는 차례 */
 export interface GroupBuyAxis {
-    axisId: number;
+    axisId: string;
     name: string;
     values: GroupBuyAxisValue[];
 }
@@ -133,12 +133,12 @@ export type GroupBuySkuKind = 'MAIN' | 'ADDON';
  * 단품(SKU) — 실제로 파는 단위. 수량·품절·수량 풀림 알림·주문 줄·반품은 모두 단품 단위(결정 88). 값은 모두 서버 판정이다.
  */
 export interface GroupBuySku {
-    skuId: number;
+    skuId: string;
     kind: GroupBuySkuKind;
     /** MAIN 이름 = 값을 「 / 」로 이은 것(「블랙 / M」), 축이 없으면 상품 이름. ADDON 은 상품 이름 */
     name: string;
     /** MAIN 의 축 값 조합(축 차례대로 값 ID) — ADDON 은 빈 배열 */
-    valueIds: number[];
+    valueIds: string[];
     /** 한 개 값 — MAIN = 공구가 + 추가금, ADDON = 자기 가격 */
     unitPrice: number;
     /** 남은 수량 — MAIN = min(단품 남은, 공구 남은), ADDON 은 자기 한도만. null = 제한 없음(한도 없는 ADDON) */
@@ -153,7 +153,7 @@ export interface GroupBuySku {
 
 /** 상세의 남은 수량 묶음(서버 `Availability`) — 공구 남은 수량·품절과 축·단품 */
 export interface GroupBuyAvailability {
-    groupBuyId: number;
+    groupBuyId: string;
     /** 공구 남은 수량(MAIN 만 센다) */
     remaining: number;
     soldOut: boolean;
@@ -168,9 +168,9 @@ export interface GroupBuyAvailability {
 /** 단품 단위 수량 풀림 알림(결정 84·88) — 목업 가정: 서버 2b-2 가 아직 칸 이름을 정하지 않았다 */
 export interface GroupBuySkuWatches {
     /** 알림을 신청할 수 있는 단품(품절·잠시 구매 불가 중 서버가 허락한 것) */
-    watchable: number[];
+    watchable: string[];
     /** 알림을 신청한 단품 */
-    watching: number[];
+    watching: string[];
 }
 
 /* ── 상품정보제공고시(결정 87 — 공정위고시 제2022-15호) ── */
@@ -214,7 +214,7 @@ export interface GroupBuyNoticeView {
     /** 운영자가 붙인 제목(예 「본체」·「확장 센서 팩」) */
     title: string;
     /** 적용 단품(결정 88 — 한 단품은 양식 하나에만 속한다, 예전 `optionNames`) — 비면 기본 양식 */
-    skuIds: number[];
+    skuIds: string[];
     /** 적용 단품 이름(`skuIds` 차례) */
     skuNames: string[];
     rows: NoticeRowView[];
@@ -283,7 +283,7 @@ export interface GroupBuyDetail extends GroupBuyListItem {
  * 판매 안 함 409 `GROUP_BUY_SKU_NOT_ON_SALE {skuId}` · 품절 409 `GROUP_BUY_SKU_SOLD_OUT {skuId, temporary}`. 1인 한도·공구 최대·성사는 MAIN 만 센다.
  */
 export interface GroupBuyOrderLine {
-    skuId: number;
+    skuId: string;
     qty: number;
 }
 
@@ -294,7 +294,7 @@ export interface GroupBuyQuoteRequest {
 
 /** 견적 줄(서버 2b-2) */
 export interface GroupBuyQuoteItem {
-    skuId: number;
+    skuId: string;
     kind: GroupBuySkuKind;
     name: string;
     qty: number;
@@ -358,5 +358,5 @@ export interface GroupBuyOrderCreated {
 export interface GroupBuyWatchRequest {
     kind: GroupBuyWatchKind;
     /** 단품 단위 수량 풀림 알림(결정 84·88 — `group_buy_watches.sku_id`) — 공구 단위면 null */
-    skuId: number | null;
+    skuId: string | null;
 }

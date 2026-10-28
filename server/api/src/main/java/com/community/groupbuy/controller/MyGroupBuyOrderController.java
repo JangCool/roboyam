@@ -40,7 +40,7 @@ public class MyGroupBuyOrderController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<MyGroupBuyOrderView.Page>> list(@RequestParam(defaultValue = "1") int page, Authentication authentication) {
+    public ResponseEntity<ApiResponse<MyGroupBuyOrderView.Page>> list(@RequestParam(defaultValue = "0") int page, Authentication authentication) {
         return noStore(service.list(user(authentication), page));
     }
 

@@ -200,7 +200,7 @@ const toast = useAppToast();
 const { confirm } = useConfirmDialog();
 const uid = useId();
 
-const id = computed(() => Number(route.params.id));
+const id = computed(() => String(route.params.id));
 const gb = ref<GroupBuyDetail | null>(null);
 const status = ref<'loading' | 'ready' | 'notfound' | 'error'>('loading');
 const loadError = ref('');

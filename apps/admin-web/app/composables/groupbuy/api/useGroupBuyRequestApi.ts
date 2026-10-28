@@ -1,15 +1,3 @@
-import {
-    mockRequestApprove,
-    mockRequestComplete,
-    mockRequestConvertToRefund,
-    mockRequestDetail,
-    mockRequestExchangeShip,
-    mockRequestList,
-    mockRequestPhotoUpload,
-    mockRequestPickup,
-    mockRequestReceive,
-    mockRequestReject,
-} from '~/composables/groupbuy/api/mock/groupbuy-mock';
 import type {
     GroupBuyApproveRequest,
     GroupBuyCompleteRequest,
@@ -35,7 +23,6 @@ import type {
  *   - `POST /api/admin/group-buy-requests/photos`(multipart `file`) → `GroupBuyEvidencePhoto`(거절 근거 — 5년 보관)
  *   - 오류: `409 GROUP_BUY_REQUEST_NOT_OPEN`·`GROUP_BUY_REFUND_AMOUNT_CHANGED(extras.previewAmount·recalculatedAmount)`·`GROUP_BUY_NOT_RESELLABLE`·`GROUP_BUY_REJECT_REASON_NOT_ALLOWED`·`GROUP_BUY_PAYMENT_UNRECONCILED`
  *
- * ⚠ MOCK: 서버에 API 가 없어 `./mock/groupbuy-mock.ts` 를 부른다. 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
  */
 const PATH = {
     root: '/api/admin/group-buy-requests',
@@ -45,59 +32,38 @@ const PATH = {
 };
 
 export function useGroupBuyRequestApi() {
-    // REAL: const auth = useAdminAuthApi();
-    // REAL: const client = useApiClient({ refreshCsrf: () => auth.me() });
-    void PATH;
+    const auth = useAdminAuthApi();
+    const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
         list: (query: GroupBuyRequestQuery): Promise<GroupBuyRequestListResponse> =>
-            // MOCK:
-            mockRequestList(query),
-        // REAL: client.get<GroupBuyRequestListResponse>(PATH.root, { query: { ...query } }),
+            client.get<GroupBuyRequestListResponse>(PATH.root, { query: { ...query } }),
 
         detail: (id: string): Promise<GroupBuyRequestDetail> =>
-            // MOCK:
-            mockRequestDetail(id),
-        // REAL: client.get<GroupBuyRequestDetail>(PATH.one(id)),
+            client.get<GroupBuyRequestDetail>(PATH.one(id)),
 
         approve: (id: string, body: GroupBuyApproveRequest): Promise<GroupBuyRequestDetail> =>
-            // MOCK:
-            mockRequestApprove(id, body),
-        // REAL: client.post<GroupBuyRequestDetail>(PATH.sub(id, 'approve'), body),
+            client.post<GroupBuyRequestDetail>(PATH.sub(id, 'approve'), body),
 
         reject: (id: string, body: GroupBuyRejectRequest): Promise<GroupBuyRequestDetail> =>
-            // MOCK:
-            mockRequestReject(id, body),
-        // REAL: client.post<GroupBuyRequestDetail>(PATH.sub(id, 'reject'), body),
+            client.post<GroupBuyRequestDetail>(PATH.sub(id, 'reject'), body),
 
         uploadPhoto: (file: File): Promise<GroupBuyEvidencePhoto> =>
-            // MOCK:
-            mockRequestPhotoUpload(file),
-        // REAL: client.post<GroupBuyEvidencePhoto>(PATH.photos(), (() => { const form = new FormData(); form.append('file', file); return form; })()),
+            client.post<GroupBuyEvidencePhoto>(PATH.photos(), (() => { const form = new FormData(); form.append('file', file); return form; })()),
 
         setPickup: (id: string, body: GroupBuyPickupRequest): Promise<GroupBuyRequestDetail> =>
-            // MOCK:
-            mockRequestPickup(id, body),
-        // REAL: client.post<GroupBuyRequestDetail>(PATH.sub(id, 'pickup'), body),
+            client.post<GroupBuyRequestDetail>(PATH.sub(id, 'pickup'), body),
 
         receive: (id: string, body: GroupBuyReceiveRequest): Promise<GroupBuyRequestDetail> =>
-            // MOCK:
-            mockRequestReceive(id, body),
-        // REAL: client.post<GroupBuyRequestDetail>(PATH.sub(id, 'receive'), body),
+            client.post<GroupBuyRequestDetail>(PATH.sub(id, 'receive'), body),
 
         complete: (id: string, body: GroupBuyCompleteRequest): Promise<GroupBuyRequestDetail> =>
-            // MOCK:
-            mockRequestComplete(id, body),
-        // REAL: client.post<GroupBuyRequestDetail>(PATH.sub(id, 'complete'), body),
+            client.post<GroupBuyRequestDetail>(PATH.sub(id, 'complete'), body),
 
         exchangeShip: (id: string, body: GroupBuyExchangeShipRequest): Promise<GroupBuyRequestDetail> =>
-            // MOCK:
-            mockRequestExchangeShip(id, body),
-        // REAL: client.post<GroupBuyRequestDetail>(PATH.sub(id, 'exchange-ship'), body),
+            client.post<GroupBuyRequestDetail>(PATH.sub(id, 'exchange-ship'), body),
 
         convertToRefund: (id: string, reason: string): Promise<GroupBuyRequestDetail> =>
-            // MOCK:
-            mockRequestConvertToRefund(id, reason),
-        // REAL: client.post<GroupBuyRequestDetail>(PATH.sub(id, 'convert-to-refund'), { reason }),
+            client.post<GroupBuyRequestDetail>(PATH.sub(id, 'convert-to-refund'), { reason }),
     };
 }

@@ -2,7 +2,7 @@ import type { GroupBuySkuKind } from '~/composables/groupbuy/api/useGroupBuyApi.
 
 /** 「선택한 상품」 한 줄(결정 88) — 공구 상세(수량 조절·빼기)와 주문서(확인만)가 같이 쓴다. 값은 부르는 쪽이 서버 값으로 채운다 */
 export interface GroupBuyPickedLine {
-    skuId: number;
+    skuId: string;
     /** 표시 이름(서버 단품 이름 — 「블랙 / M」, 축이 없으면 상품 이름) */
     name: string;
     kind: GroupBuySkuKind;

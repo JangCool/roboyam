@@ -86,7 +86,7 @@ public class GroupBuyOrderAdminFacade {
     /** 주문 번호·닉네임·회원 번호로 찾기, 날짜는 한국 날짜 양 끝 포함(결정 22) */
     public GroupBuyOrderAdminView.ListResponse list(String status, String groupBuyId, String alert, String q, LocalDate from, LocalDate to, int page, int size) {
         int s = Math.min(200, Math.max(1, size));
-        int p = Math.max(1, page);
+        int p = Math.max(0, page);
         StringBuilder where = new StringBuilder(" FROM group_buy_participations pa LEFT JOIN profiles pr ON pr.user_id = pa.user_id WHERE pa.status <> 'EXPIRED'");
         List<Object> args = new ArrayList<>();
         if (groupBuyId != null && !groupBuyId.isBlank()) {
@@ -130,7 +130,7 @@ public class GroupBuyOrderAdminFacade {
         }
         Long total = jdbc.queryForObject("SELECT count(*)" + where, Long.class, args.toArray());
         args.add(s);
-        args.add((p - 1) * s);
+        args.add(p * s);
         List<Long> ids = jdbc.queryForList("SELECT pa.id" + where + " ORDER BY pa.created_at DESC, pa.id DESC LIMIT ? OFFSET ?", Long.class, args.toArray());
         List<GroupBuyOrderAdminView.Row> rows = new ArrayList<>();
         for (long id : ids) {
@@ -283,6 +283,26 @@ public class GroupBuyOrderAdminFacade {
         GroupBuyAdminRefundService.Result r = adminRefunds.refund(id, lines(id, body), body == null ? null : body.amount(),
                 body != null && Boolean.TRUE.equals(body.businessFault()), body == null ? null : body.reason(), large(actor), actor.operatorId(), actor.ip());
         return new GroupBuyOrderAdminView.RefundResult(r.state(), detail(actor, participations.find(id).orElseThrow()));
+    }
+
+    /** 승인 대기 승인({@code approve})·거절({@code reject}) — 대기 줄이 이 주문 것이어야 한다 */
+    public GroupBuyOrderAdminView.RefundResult decidePending(AdminActor actor, String idText, String pendingText, String decision) {
+        long id = AdminIds.parse(idText, GroupBuyException::orderNotFound);
+        long pendingId = AdminIds.parse(pendingText.startsWith("pending-") ? pendingText.substring(8) : pendingText, GroupBuyException::requestNotFound);
+        Long owner = jdbc.query("SELECT participation_id FROM group_buy_admin_refunds WHERE id = ?", (rs, i) -> rs.getLong(1), pendingId).stream().findFirst().orElse(null);
+        if (owner == null || owner != id) {
+            throw GroupBuyException.requestNotFound();
+        }
+        String state;
+        if ("approve".equals(decision)) {
+            state = adminRefunds.approvePending(pendingId, actor.operatorId(), actor.ip()).state();
+        } else if ("reject".equals(decision)) {
+            adminRefunds.rejectPending(pendingId, actor.operatorId());
+            state = "REJECTED";
+        } else {
+            throw new CommonException(ErrorCode.NOT_FOUND);
+        }
+        return new GroupBuyOrderAdminView.RefundResult(state, detail(actor, participations.find(id).orElseThrow()));
     }
 
     // ── 배송 명단 ───────────────────────────────────────────────────────────

@@ -1,4 +1,3 @@
-import { mockCommerceDashboard } from '~/composables/commerce/api/mock/commerce-mock';
 import type { CommerceDashboardView } from '~/composables/commerce/api/useCommerceDashboardApi.types';
 
 /**
@@ -6,21 +5,17 @@ import type { CommerceDashboardView } from '~/composables/commerce/api/useCommer
  * 숫자는 서버가 운영자의 권한 안에서 센다(볼 권한이 없는 칸은 null). commerce.md 19절.
  *  - `GET /api/admin/commerce/dashboard` → `CommerceDashboardView`
  *
- * ⚠ MOCK: 서버에 API 가 없어 `./mock/commerce-mock.ts` 를 부른다. 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
  */
 const PATH = {
     dashboard: '/api/admin/commerce/dashboard',
 };
 
 export function useCommerceDashboardApi() {
-    // REAL: const auth = useAdminAuthApi();
-    // REAL: const client = useApiClient({ refreshCsrf: () => auth.me() });
-    void PATH;
+    const auth = useAdminAuthApi();
+    const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
         summary: (): Promise<CommerceDashboardView> =>
-            // MOCK:
-            mockCommerceDashboard(),
-        // REAL: client.get<CommerceDashboardView>(PATH.dashboard),
+            client.get<CommerceDashboardView>(PATH.dashboard),
     };
 }

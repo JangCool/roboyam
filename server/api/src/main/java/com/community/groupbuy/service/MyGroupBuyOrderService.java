@@ -95,10 +95,10 @@ public class MyGroupBuyOrderService {
     // ── 목록·상세 ───────────────────────────────────────────────────────────
 
     public MyGroupBuyOrderView.Page list(long userId, int page) {
-        int p = Math.max(1, page);
+        int p = Math.max(0, page);
         Long total = jdbc.queryForObject("SELECT count(*) FROM group_buy_participations WHERE user_id = ?", Long.class, userId);
         List<Long> ids = jdbc.queryForList("SELECT id FROM group_buy_participations WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?", Long.class,
-                userId, PAGE_SIZE, (p - 1) * PAGE_SIZE);
+                userId, PAGE_SIZE, p * PAGE_SIZE);
         Instant now = now();
         List<MyGroupBuyOrderView.Summary> items = new ArrayList<>();
         for (long id : ids) {

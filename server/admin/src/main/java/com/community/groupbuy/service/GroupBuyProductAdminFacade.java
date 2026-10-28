@@ -141,7 +141,7 @@ public class GroupBuyProductAdminFacade {
 
     public GroupBuyAdminView.Page<GroupBuyAdminView.ProductRow> list(String q, String categoryId, int page, int size) {
         int s = Math.min(100, Math.max(1, size));
-        int p = Math.max(1, page);
+        int p = Math.max(0, page);
         StringBuilder where = new StringBuilder(" FROM group_buy_products p WHERE 1 = 1");
         List<Object> args = new ArrayList<>();
         if (q != null && !q.isBlank()) {
@@ -156,7 +156,7 @@ public class GroupBuyProductAdminFacade {
         }
         Long total = jdbc.queryForObject("SELECT count(*)" + where, Long.class, args.toArray());
         args.add(s);
-        args.add((p - 1) * s);
+        args.add(p * s);
         List<GroupBuyAdminView.ProductRow> rows = jdbc.query("SELECT p.id, p.name, p.category_id, p.updated_at, (SELECT count(*) FROM group_buy_product_skus k "
                 + "WHERE k.product_id = p.id), (SELECT count(*) FROM group_buys g WHERE g.product_id = p.id), (SELECT count(*) FROM group_buys g WHERE g.product_id = p.id "
                 + "AND g.status IN ('RECRUITING', 'CLOSING')), (SELECT COALESCE(i.thumb_key, i.image_key) FROM group_buy_product_images i WHERE i.product_id = p.id "

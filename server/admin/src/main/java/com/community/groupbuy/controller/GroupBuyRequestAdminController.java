@@ -37,7 +37,7 @@ public class GroupBuyRequestAdminController {
     @GetMapping
     public ResponseEntity<ApiResponse<GroupBuyOrderAdminView.RequestList>> list(@RequestParam(required = false) String status, @RequestParam(required = false) String type,
                                                                                 @RequestParam(required = false) String level, @RequestParam(required = false) String q,
-                                                                                @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int size) {
+                                                                                @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         return ok(facade.list(status, type, level, q, page, size));
     }
 

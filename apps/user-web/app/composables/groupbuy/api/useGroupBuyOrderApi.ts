@@ -1,19 +1,3 @@
-import {
-    mockCancelNow,
-    mockCancelPreview,
-    mockCreateRequest,
-    mockDelayCancel,
-    mockMyOrder,
-    mockMyOrders,
-    mockReopenPayment,
-    mockRequestFeePayment,
-    mockReturnPreview,
-    mockRevealAddress,
-    mockSupplyChoice,
-    mockUpdateAddress,
-    mockUploadPhoto,
-    mockWithdrawRequest,
-} from '~/composables/groupbuy/api/mock/groupbuy-order-mock';
 import type { GroupBuyPaymentStart } from '~/composables/groupbuy/api/useGroupBuyApi.types';
 import type {
     GroupBuyAddressUpdate,
@@ -47,7 +31,6 @@ import UtilIdempotency from '~/utils/util-idempotency';
  *  - `POST /api/me/orders/{orderNo}/supply-choice` `{ choice }` → 상세 — 공급 불가 「나머지만 받기 / 전체 취소」(결정 53)
  *  - `POST /api/me/orders/{orderNo}/photos`(multipart `file`) → `GroupBuyRequestPhoto` — 하자·오배송 사진(요청 전에 올리고 붙인다, 붙지 않으면 24시간 뒤 정리)
  *
- * ⚠ MOCK: 서버에 API 가 없어(2b-2·2b-3) `./mock/groupbuy-order-mock.ts` 를 부른다. 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
  */
 const PATH = {
     list: '/api/me/orders',
@@ -58,87 +41,58 @@ const PATH = {
     cancel: (orderNo: string) => `/api/me/orders/${encodeURIComponent(orderNo)}/cancel`,
     requestPreview: (orderNo: string) => `/api/me/orders/${encodeURIComponent(orderNo)}/requests/preview`,
     requests: (orderNo: string) => `/api/me/orders/${encodeURIComponent(orderNo)}/requests`,
-    requestPayment: (orderNo: string, id: number) => `/api/me/orders/${encodeURIComponent(orderNo)}/requests/${id}/payment`,
-    withdraw: (orderNo: string, id: number) => `/api/me/orders/${encodeURIComponent(orderNo)}/requests/${id}/withdraw`,
+    requestPayment: (orderNo: string, id: string) => `/api/me/orders/${encodeURIComponent(orderNo)}/requests/${id}/payment`,
+    withdraw: (orderNo: string, id: string) => `/api/me/orders/${encodeURIComponent(orderNo)}/requests/${id}/withdraw`,
     delayCancel: (orderNo: string) => `/api/me/orders/${encodeURIComponent(orderNo)}/delay-cancel`,
     supplyChoice: (orderNo: string) => `/api/me/orders/${encodeURIComponent(orderNo)}/supply-choice`,
     photos: (orderNo: string) => `/api/me/orders/${encodeURIComponent(orderNo)}/photos`,
 };
 
 export function useGroupBuyOrderApi() {
-    // REAL: const auth = useAuthApi();
-    // REAL: const client = useApiClient({ refreshCsrf: () => auth.me() });
-    void PATH;
+    const auth = useAuthApi();
+    const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
         list: (page = 0): Promise<MyGroupBuyOrderPage> =>
-            // MOCK:
-            mockMyOrders(page),
-        // REAL: client.get<MyGroupBuyOrderPage>(PATH.list, { query: { page } }),
+            client.get<MyGroupBuyOrderPage>(PATH.list, { query: { page } }),
 
         get: (orderNo: string): Promise<MyGroupBuyOrderDetail> =>
-            // MOCK:
-            mockMyOrder(orderNo),
-        // REAL: client.get<MyGroupBuyOrderDetail>(PATH.detail(orderNo)),
+            client.get<MyGroupBuyOrderDetail>(PATH.detail(orderNo)),
 
         reopenPayment: (orderNo: string): Promise<GroupBuyPaymentStart> =>
-            // MOCK:
-            mockReopenPayment(orderNo),
-        // REAL: client.post<GroupBuyPaymentStart>(PATH.payment(orderNo), {}),
+            client.post<GroupBuyPaymentStart>(PATH.payment(orderNo), {}),
 
         revealAddress: (orderNo: string): Promise<MyGroupBuyAddress> =>
-            // MOCK:
-            mockRevealAddress(orderNo),
-        // REAL: client.get<MyGroupBuyAddress>(PATH.address(orderNo)),
+            client.get<MyGroupBuyAddress>(PATH.address(orderNo)),
 
         updateAddress: (orderNo: string, body: GroupBuyAddressUpdate): Promise<MyGroupBuyOrderDetail> =>
-            // MOCK:
-            mockUpdateAddress(orderNo, body),
-        // REAL: client.put<MyGroupBuyOrderDetail>(PATH.address(orderNo), body),
+            client.put<MyGroupBuyOrderDetail>(PATH.address(orderNo), body),
 
         cancelPreview: (orderNo: string, body: GroupBuyCancelRequest): Promise<GroupBuyCancelPreview> =>
-            // MOCK:
-            mockCancelPreview(orderNo, body),
-        // REAL: client.post<GroupBuyCancelPreview>(PATH.cancelPreview(orderNo), body),
+            client.post<GroupBuyCancelPreview>(PATH.cancelPreview(orderNo), body),
 
         cancelNow: (orderNo: string, body: GroupBuyCancelRequest, idempotencyKey: string = UtilIdempotency.newKey()): Promise<MyGroupBuyOrderDetail> =>
-            // MOCK:
-            (void idempotencyKey, mockCancelNow(orderNo, body)),
-        // REAL: client.post<MyGroupBuyOrderDetail>(PATH.cancel(orderNo), body, { headers: { 'Idempotency-Key': idempotencyKey } }),
+            client.post<MyGroupBuyOrderDetail>(PATH.cancel(orderNo), body, { headers: { 'Idempotency-Key': idempotencyKey } }),
 
         returnPreview: (orderNo: string, body: GroupBuyReturnPreviewRequest): Promise<GroupBuyReturnPreview> =>
-            // MOCK:
-            mockReturnPreview(orderNo, body),
-        // REAL: client.post<GroupBuyReturnPreview>(PATH.requestPreview(orderNo), body),
+            client.post<GroupBuyReturnPreview>(PATH.requestPreview(orderNo), body),
 
         createRequest: (orderNo: string, body: GroupBuyRequestCreate, idempotencyKey: string = UtilIdempotency.newKey()): Promise<GroupBuyRequestCreated> =>
-            // MOCK:
-            (void idempotencyKey, mockCreateRequest(orderNo, body)),
-        // REAL: client.post<GroupBuyRequestCreated>(PATH.requests(orderNo), body, { headers: { 'Idempotency-Key': idempotencyKey } }),
+            client.post<GroupBuyRequestCreated>(PATH.requests(orderNo), body, { headers: { 'Idempotency-Key': idempotencyKey } }),
 
-        requestFeePayment: (orderNo: string, requestId: number): Promise<GroupBuyPaymentStart> =>
-            // MOCK:
-            mockRequestFeePayment(orderNo, requestId),
-        // REAL: client.post<GroupBuyPaymentStart>(PATH.requestPayment(orderNo, requestId), {}),
+        requestFeePayment: (orderNo: string, requestId: string): Promise<GroupBuyPaymentStart> =>
+            client.post<GroupBuyPaymentStart>(PATH.requestPayment(orderNo, requestId), {}),
 
-        withdrawRequest: (orderNo: string, requestId: number): Promise<MyGroupBuyOrderDetail> =>
-            // MOCK:
-            mockWithdrawRequest(orderNo, requestId),
-        // REAL: client.post<MyGroupBuyOrderDetail>(PATH.withdraw(orderNo, requestId), {}),
+        withdrawRequest: (orderNo: string, requestId: string): Promise<MyGroupBuyOrderDetail> =>
+            client.post<MyGroupBuyOrderDetail>(PATH.withdraw(orderNo, requestId), {}),
 
         delayCancel: (orderNo: string, idempotencyKey: string = UtilIdempotency.newKey()): Promise<MyGroupBuyOrderDetail> =>
-            // MOCK:
-            (void idempotencyKey, mockDelayCancel(orderNo)),
-        // REAL: client.post<MyGroupBuyOrderDetail>(PATH.delayCancel(orderNo), {}, { headers: { 'Idempotency-Key': idempotencyKey } }),
+            client.post<MyGroupBuyOrderDetail>(PATH.delayCancel(orderNo), {}, { headers: { 'Idempotency-Key': idempotencyKey } }),
 
         supplyChoice: (orderNo: string, body: GroupBuySupplyChoiceRequest): Promise<MyGroupBuyOrderDetail> =>
-            // MOCK:
-            mockSupplyChoice(orderNo, body),
-        // REAL: client.post<MyGroupBuyOrderDetail>(PATH.supplyChoice(orderNo), body),
+            client.post<MyGroupBuyOrderDetail>(PATH.supplyChoice(orderNo), body),
 
         uploadPhoto: (orderNo: string, file: File): Promise<GroupBuyRequestPhoto> =>
-            // MOCK:
-            mockUploadPhoto(orderNo, file),
-        // REAL: client.upload<GroupBuyRequestPhoto>(PATH.photos(orderNo), (() => { const form = new FormData(); form.append('file', file); return form; })()),
+            client.upload<GroupBuyRequestPhoto>(PATH.photos(orderNo), (() => { const form = new FormData(); form.append('file', file); return form; })()),
     };
 }

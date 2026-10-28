@@ -43,7 +43,7 @@ public class GroupBuyController {
     /** 탭 {@code phase} UPCOMING·ONGOING(기본)·ENDED, 카테고리(위 단이면 아래 단 포함), 쪽 1부터 */
     @GetMapping
     public ResponseEntity<ApiResponse<GroupBuyMemberView.ListPage>> list(@RequestParam(required = false) String phase, @RequestParam(required = false) String category,
-                                                                         @RequestParam(defaultValue = "1") int page) {
+                                                                         @RequestParam(defaultValue = "0") int page) {
         return noStore(service.list(phase, category, page));
     }
 

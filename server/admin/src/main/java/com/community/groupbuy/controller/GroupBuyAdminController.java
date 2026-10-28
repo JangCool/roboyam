@@ -44,7 +44,7 @@ public class GroupBuyAdminController {
     @RequirePermission(Permission.COMMERCE_PRODUCT_READ)
     @GetMapping
     public ResponseEntity<ApiResponse<GroupBuyAdminView.ListResponse>> list(@RequestParam(required = false) String status, @RequestParam(required = false) String q,
-                                                                            @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int size) {
+                                                                            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         return ok(facade.list(status, q, page, size));
     }
 
@@ -123,7 +123,7 @@ public class GroupBuyAdminController {
 
     @RequirePermission(Permission.COMMERCE_PRODUCT_READ)
     @GetMapping("/{id}/revisions")
-    public ResponseEntity<ApiResponse<GroupBuyAdminView.Page<GroupBuyAdminView.Revision>>> revisions(@PathVariable String id, @RequestParam(defaultValue = "1") int page,
+    public ResponseEntity<ApiResponse<GroupBuyAdminView.Page<GroupBuyAdminView.Revision>>> revisions(@PathVariable String id, @RequestParam(defaultValue = "0") int page,
                                                                                                      @RequestParam(defaultValue = "20") int size) {
         return ok(facade.revisions(id, page, size));
     }
@@ -196,7 +196,7 @@ public class GroupBuyAdminController {
     @RequirePermission(Permission.COMMERCE_PRODUCT_READ)
     @GetMapping("/{id}/stock/movements")
     public ResponseEntity<ApiResponse<GroupBuyAdminView.Page<GroupBuyAdminView.Movement>>> movements(@PathVariable String id, @RequestParam(required = false) String kind,
-                                                                                                     @RequestParam(defaultValue = "1") int page,
+                                                                                                     @RequestParam(defaultValue = "0") int page,
                                                                                                      @RequestParam(defaultValue = "50") int size) {
         return ok(facade.movements(id, kind, page, size));
     }

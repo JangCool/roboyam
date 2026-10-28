@@ -23,11 +23,11 @@ export default class UtilGroupBuy {
     /** 「남은 수량 적음」 — 최대의 이 비율 이하 */
     static readonly LOW_STOCK_RATIO = 0.1;
 
-    static detailPath(id: number): string {
+    static detailPath(id: string): string {
         return `${UtilGroupBuy.LIST_PATH}/${id}`;
     }
 
-    static orderPath(id: number): string {
+    static orderPath(id: string): string {
         return `${UtilGroupBuy.LIST_PATH}/${id}/order`;
     }
 
@@ -107,7 +107,7 @@ export default class UtilGroupBuy {
         for (const part of parts) {
             const m = /^(\d{1,12}):(\d{1,4})$/.exec(part.trim());
             if (!m) return null;
-            const skuId = Number(m[1]);
+            const skuId = m[1]!;
             const qty = Number(m[2]);
             if (qty < 1 || out.some((l) => l.skuId === skuId)) return null;
             out.push({ skuId, qty });
@@ -141,12 +141,12 @@ export default class UtilGroupBuy {
      * 축 값 하나의 상태 — 앞 축에서 고른 값(`chosen`, 고르지 않은 칸은 null)과 이 값으로 갈 수 있는 MAIN 단품을 모아 본다.
      * 판매하는 단품 중 하나라도 살 수 있으면 AVAILABLE, 모두 품절이면 잠시 구매 불가가 하나라도 있을 때 TEMP_SOLD_OUT 아니면 SOLD_OUT, 판매하는 단품이 없으면 OFF.
      * @param {GroupBuySku[]} skus - 공구의 단품(ADDON 은 무시한다).
-     * @param {(number | null)[]} chosen - 축마다 고른 값 ID(이 축보다 앞만 본다).
+     * @param {(string | null)[]} chosen - 축마다 고른 값 ID(이 축보다 앞만 본다).
      * @param {number} axisIndex - 이 값이 속한 축 차례.
-     * @param {number} valueId - 값 ID.
+     * @param {string} valueId - 값 ID.
      * @returns {GroupBuyValueState} 상태.
      */
-    static valueState(skus: GroupBuySku[], chosen: (number | null)[], axisIndex: number, valueId: number): GroupBuyValueState {
+    static valueState(skus: GroupBuySku[], chosen: (string | null)[], axisIndex: number, valueId: string): GroupBuyValueState {
         const reach = skus.filter(
             (s) => s.kind === 'MAIN' && s.onSale && s.valueIds[axisIndex] === valueId && chosen.slice(0, axisIndex).every((c, i) => c === null || s.valueIds[i] === c),
         );
@@ -158,10 +158,10 @@ export default class UtilGroupBuy {
     /**
      * 축 값 조합의 MAIN 단품(축 차례대로 값 ID)
      * @param {GroupBuySku[]} skus - 공구의 단품.
-     * @param {number[]} valueIds - 값 ID 조합.
+     * @param {string[]} valueIds - 값 ID 조합.
      * @returns {GroupBuySku | null} 단품(조합이 없으면 null).
      */
-    static comboSku(skus: GroupBuySku[], valueIds: number[]): GroupBuySku | null {
+    static comboSku(skus: GroupBuySku[], valueIds: string[]): GroupBuySku | null {
         return skus.find((s) => s.kind === 'MAIN' && s.valueIds.length === valueIds.length && s.valueIds.every((v, i) => v === valueIds[i])) ?? null;
     }
 

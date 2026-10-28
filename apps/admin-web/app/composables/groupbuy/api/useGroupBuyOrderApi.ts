@@ -1,17 +1,3 @@
-import {
-    mockOrderCarriers,
-    mockOrderDeliver,
-    mockOrderDetail,
-    mockOrderExport,
-    mockOrderFixTracking,
-    mockOrderList,
-    mockOrderMemo,
-    mockOrderPrepare,
-    mockOrderRefund,
-    mockOrderRefundPreview,
-    mockOrderReveal,
-    mockOrderShip,
-} from '~/composables/groupbuy/api/mock/groupbuy-mock';
 import type {
     GroupBuyAdminRefundRequest,
     GroupBuyAdminRefundResult,
@@ -44,7 +30,6 @@ import type {
  *   - `GET  /api/admin/group-buy-orders/carriers` → `GroupBuyCarrierChoice[]`(켜진 택배사)
  *   - `POST /api/admin/group-buy-orders/export {groupBuyId, reason}` → `GroupBuyExportResult`(한 번 쓰는 내려받기 주소) · `409 GROUP_BUY_EXPORT_NOT_READY`
  *
- * ⚠ MOCK: 서버에 API 가 없어 `./mock/groupbuy-mock.ts` 를 부른다. 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
  */
 const PATH = {
     root: '/api/admin/group-buy-orders',
@@ -54,81 +39,56 @@ const PATH = {
 };
 
 export function useGroupBuyOrderApi() {
-    // REAL: const auth = useAdminAuthApi();
-    // REAL: const client = useApiClient({ refreshCsrf: () => auth.me() });
-    void PATH;
+    const auth = useAdminAuthApi();
+    const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
         /** 주문 목록 */
         list: (query: GroupBuyOrderQuery): Promise<GroupBuyOrderListResponse> =>
-            // MOCK:
-            mockOrderList(query),
-        // REAL: client.get<GroupBuyOrderListResponse>(PATH.root, { query: { ...query } }),
+            client.get<GroupBuyOrderListResponse>(PATH.root, { query: { ...query } }),
 
         /** 주문 상세 */
         detail: (id: string): Promise<GroupBuyOrderDetail> =>
-            // MOCK:
-            mockOrderDetail(id),
-        // REAL: client.get<GroupBuyOrderDetail>(PATH.one(id)),
+            client.get<GroupBuyOrderDetail>(PATH.one(id)),
 
         /** 배송지 열람(사유 필수) */
         revealAddress: (id: string, reason: string): Promise<GroupBuyRevealedAddress> =>
-            // MOCK:
-            mockOrderReveal(id, reason),
-        // REAL: client.post<GroupBuyRevealedAddress>(PATH.sub(id, 'address-reveal'), { reason }),
+            client.post<GroupBuyRevealedAddress>(PATH.sub(id, 'address-reveal'), { reason }),
 
         /** 운영 메모 저장 */
         saveMemo: (id: string, memo: string): Promise<GroupBuyOrderDetail> =>
-            // MOCK:
-            mockOrderMemo(id, memo),
-        // REAL: client.put<GroupBuyOrderDetail>(PATH.sub(id, 'memo'), { memo }),
+            client.put<GroupBuyOrderDetail>(PATH.sub(id, 'memo'), { memo }),
 
         /** 발송에 고를 택배사(켜진 것) */
         carriers: (): Promise<GroupBuyCarrierChoice[]> =>
-            // MOCK:
-            mockOrderCarriers(),
-        // REAL: client.get<GroupBuyCarrierChoice[]>(PATH.bulk('carriers')),
+            client.get<GroupBuyCarrierChoice[]>(PATH.bulk('carriers')),
 
         /** 준비중(일괄) */
         prepare: (orderIds: string[]): Promise<GroupBuyBulkResult> =>
-            // MOCK:
-            mockOrderPrepare(orderIds),
-        // REAL: client.post<GroupBuyBulkResult>(PATH.bulk('prepare'), { orderIds }),
+            client.post<GroupBuyBulkResult>(PATH.bulk('prepare'), { orderIds }),
 
         /** 발송(일괄 — 택배사·송장) */
         ship: (rows: GroupBuyShipRow[]): Promise<GroupBuyBulkResult> =>
-            // MOCK:
-            mockOrderShip(rows),
-        // REAL: client.post<GroupBuyBulkResult>(PATH.bulk('ship'), { rows }),
+            client.post<GroupBuyBulkResult>(PATH.bulk('ship'), { rows }),
 
         /** 배송완료(일괄) */
         deliver: (orderIds: string[]): Promise<GroupBuyBulkResult> =>
-            // MOCK:
-            mockOrderDeliver(orderIds),
-        // REAL: client.post<GroupBuyBulkResult>(PATH.bulk('deliver'), { orderIds }),
+            client.post<GroupBuyBulkResult>(PATH.bulk('deliver'), { orderIds }),
 
         /** 송장 정정 */
         fixTracking: (id: string, body: GroupBuyTrackingFixRequest): Promise<GroupBuyOrderDetail> =>
-            // MOCK:
-            mockOrderFixTracking(id, body),
-        // REAL: client.post<GroupBuyOrderDetail>(PATH.sub(id, 'tracking'), body),
+            client.post<GroupBuyOrderDetail>(PATH.sub(id, 'tracking'), body),
 
         /** 운영 환불 미리 보기 */
         refundPreview: (id: string, body: GroupBuyAdminRefundRequest): Promise<GroupBuyRefundPreview> =>
-            // MOCK:
-            mockOrderRefundPreview(id, body),
-        // REAL: client.post<GroupBuyRefundPreview>(PATH.sub(id, 'refund-preview'), body),
+            client.post<GroupBuyRefundPreview>(PATH.sub(id, 'refund-preview'), body),
 
         /** 운영 환불 */
         refund: (id: string, body: GroupBuyAdminRefundRequest): Promise<GroupBuyAdminRefundResult> =>
-            // MOCK:
-            mockOrderRefund(id, body),
-        // REAL: client.post<GroupBuyAdminRefundResult>(PATH.sub(id, 'refunds'), body),
+            client.post<GroupBuyAdminRefundResult>(PATH.sub(id, 'refunds'), body),
 
         /** 배송 명단 내보내기 */
         exportShipping: (body: GroupBuyExportRequest): Promise<GroupBuyExportResult> =>
-            // MOCK:
-            mockOrderExport(body),
-        // REAL: client.post<GroupBuyExportResult>(PATH.bulk('export'), body),
+            client.post<GroupBuyExportResult>(PATH.bulk('export'), body),
     };
 }

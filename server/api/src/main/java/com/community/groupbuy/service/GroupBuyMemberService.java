@@ -127,11 +127,11 @@ public class GroupBuyMemberService {
             args.add(categoryId);
             args.add(categoryId);
         }
-        int p = Math.max(1, page);
+        int p = Math.max(0, page);
         Long total = jdbc.queryForObject("SELECT count(*)" + sql, Long.class, args.toArray());
         List<Object> pageArgs = new ArrayList<>(args);
         pageArgs.add(PAGE_SIZE);
-        pageArgs.add((p - 1) * PAGE_SIZE);
+        pageArgs.add(p * PAGE_SIZE);
         List<Long> ids = jdbc.queryForList("SELECT g.id" + sql + " ORDER BY " + order + " LIMIT ? OFFSET ?", Long.class, pageArgs.toArray());
         Instant now = now();
         List<GroupBuyMemberView.ListItem> items = new ArrayList<>();

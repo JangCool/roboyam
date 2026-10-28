@@ -1,26 +1,3 @@
-import {
-    mockGroupBuyCancel,
-    mockGroupBuyCancelPreview,
-    mockGroupBuyCloseEarly,
-    mockGroupBuyContent,
-    mockGroupBuyCreate,
-    mockGroupBuyCreateRound,
-    mockGroupBuyDelayNotice,
-    mockGroupBuyDetail,
-    mockGroupBuyFormOptions,
-    mockGroupBuyImageUpload,
-    mockGroupBuyList,
-    mockGroupBuyMarkOrdered,
-    mockGroupBuyMovements,
-    mockGroupBuyNoticeCatalog,
-    mockGroupBuyRevisions,
-    mockGroupBuyStart,
-    mockGroupBuyStock,
-    mockGroupBuyStockAdjust,
-    mockGroupBuySupplyFailure,
-    mockGroupBuySupplyPreview,
-    mockGroupBuyUpdate,
-} from '~/composables/groupbuy/api/mock/groupbuy-mock';
 import type {
     GroupBuyCancelPreview,
     GroupBuyContentRequest,
@@ -67,7 +44,6 @@ import type {
  *   - `POST   /api/admin/group-buys/{id}/delay-notices {newPlannedAt, reason}` · `GET …/supply-failure-preview?skuId=` · `POST …/supply-failures {skuId, reason}`
  *   - `GET    /api/admin/group-buys/{id}/stock` · `…/stock/movements?kind=&page=&size=` · `POST …/stock/adjust` · `409 GROUP_BUY_QTY_BELOW_FLOOR(extras.floor)`·`GROUP_BUY_NOT_RECRUITING`·`GROUP_BUY_SKU_UNLIMITED`·`GROUP_BUY_SKU_NOT_ON_SALE`
  *
- * ⚠ MOCK: 서버에 API 가 없어 `./mock/groupbuy-mock.ts` 를 부른다. 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
  */
 const PATH = {
     root: '/api/admin/group-buys',
@@ -79,136 +55,93 @@ const PATH = {
 };
 
 export function useGroupBuyAdminApi() {
-    // REAL: const auth = useAdminAuthApi();
-    // REAL: const client = useApiClient({ refreshCsrf: () => auth.me() });
-    void PATH;
+    const auth = useAdminAuthApi();
+    const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
         /** 공구 목록 */
         list: (query: GroupBuyQuery): Promise<GroupBuyListResponse> =>
-            // MOCK:
-            mockGroupBuyList(query),
-        // REAL: client.get<GroupBuyListResponse>(PATH.root, { query: { ...query } }),
+            client.get<GroupBuyListResponse>(PATH.root, { query: { ...query } }),
 
         /** 등록 화면의 고를 값 */
         formOptions: (): Promise<GroupBuyFormOptions> =>
-            // MOCK:
-            mockGroupBuyFormOptions(),
-        // REAL: client.get<GroupBuyFormOptions>(PATH.formOptions()),
+            client.get<GroupBuyFormOptions>(PATH.formOptions()),
 
         /** 상품정보제공고시 카탈로그(품목·항목) */
         noticeCatalog: (): Promise<NoticeCatalog> =>
-            // MOCK:
-            mockGroupBuyNoticeCatalog(),
-        // REAL: client.get<NoticeCatalog>(PATH.noticeCatalog()),
+            client.get<NoticeCatalog>(PATH.noticeCatalog()),
 
         /** 공구 상세 */
         detail: (id: string): Promise<GroupBuyDetail> =>
-            // MOCK:
-            mockGroupBuyDetail(id),
-        // REAL: client.get<GroupBuyDetail>(PATH.one(id)),
+            client.get<GroupBuyDetail>(PATH.one(id)),
 
         /** 새 공구(DRAFT) */
         create: (body: GroupBuySaveRequest): Promise<GroupBuyDetail> =>
-            // MOCK:
-            mockGroupBuyCreate(body),
-        // REAL: client.post<GroupBuyDetail>(PATH.root, body),
+            client.post<GroupBuyDetail>(PATH.root, body),
 
         /** DRAFT 전부 고치기 */
         update: (id: string, body: GroupBuySaveRequest): Promise<GroupBuyDetail> =>
-            // MOCK:
-            mockGroupBuyUpdate(id, body),
-        // REAL: client.put<GroupBuyDetail>(PATH.one(id), body),
+            client.put<GroupBuyDetail>(PATH.one(id), body),
 
         /** 모집 뒤 설명·이미지·고시 양식만 고치기 */
         updateContent: (id: string, body: GroupBuyContentRequest): Promise<GroupBuyDetail> =>
-            // MOCK:
-            mockGroupBuyContent(id, body),
-        // REAL: client.patch<GroupBuyDetail>(PATH.sub(id, 'content'), body),
+            client.patch<GroupBuyDetail>(PATH.sub(id, 'content'), body),
 
         /** 이미지 한 장 올리기(대표 이미지·설명 본문 공용) */
         uploadImage: (file: File): Promise<GroupBuyImageUpload> =>
-            // MOCK:
-            mockGroupBuyImageUpload(file),
-        // REAL: client.post<GroupBuyImageUpload>(PATH.images(), (() => { const form = new FormData(); form.append('file', file); return form; })()),
+            client.post<GroupBuyImageUpload>(PATH.images(), (() => { const form = new FormData(); form.append('file', file); return form; })()),
 
         /** 수정 이력 */
         revisions: (id: string, page: number, size: number): Promise<GroupBuyPage<GroupBuyRevision>> =>
-            // MOCK:
-            mockGroupBuyRevisions(id, page, size),
-        // REAL: client.get<GroupBuyPage<GroupBuyRevision>>(PATH.sub(id, 'revisions'), { query: { page, size } }),
+            client.get<GroupBuyPage<GroupBuyRevision>>(PATH.sub(id, 'revisions'), { query: { page, size } }),
 
         /** 모집 시작(공개) — 배송비 정책 사본 고정 */
         /** 모집 시작 — 역마진이면 `409 GROUP_BUY_NEGATIVE_MARGIN` 뒤 `marginConfirmed` 로 다시(목업 가정: 시작에도 같은 확인), 공급가 빈 값 `409 GROUP_BUY_SUPPLY_PRICE_MISSING {skuIds}` */
         start: (id: string, marginConfirmed = false): Promise<GroupBuyDetail> =>
-            // MOCK:
-            mockGroupBuyStart(id, marginConfirmed),
-        // REAL: client.post<GroupBuyDetail>(PATH.sub(id, 'start'), { marginConfirmed }),
+            client.post<GroupBuyDetail>(PATH.sub(id, 'start'), { marginConfirmed }),
 
         /** 조기 마감 */
         closeEarly: (id: string, reason: string): Promise<GroupBuyDetail> =>
-            // MOCK:
-            mockGroupBuyCloseEarly(id, reason),
-        // REAL: client.post<GroupBuyDetail>(PATH.sub(id, 'close-early'), { reason }),
+            client.post<GroupBuyDetail>(PATH.sub(id, 'close-early'), { reason }),
 
         /** 중단 확인 창 숫자 */
         cancelPreview: (id: string): Promise<GroupBuyCancelPreview> =>
-            // MOCK:
-            mockGroupBuyCancelPreview(id),
-        // REAL: client.get<GroupBuyCancelPreview>(PATH.sub(id, 'cancel-preview')),
+            client.get<GroupBuyCancelPreview>(PATH.sub(id, 'cancel-preview')),
 
         /** 중단 — 발송 전 주문 전액 환불 */
         cancel: (id: string, reason: string): Promise<GroupBuyDetail> =>
-            // MOCK:
-            mockGroupBuyCancel(id, reason),
-        // REAL: client.post<GroupBuyDetail>(PATH.sub(id, 'cancel'), { reason }),
+            client.post<GroupBuyDetail>(PATH.sub(id, 'cancel'), { reason }),
 
         /** 공구 단위 발주 처리(CLOSED_SUCCESS → ORDERED) */
         markOrdered: (id: string): Promise<GroupBuyDetail> =>
-            // MOCK:
-            mockGroupBuyMarkOrdered(id),
-        // REAL: client.post<GroupBuyDetail>(PATH.sub(id, 'ordered')),
+            client.post<GroupBuyDetail>(PATH.sub(id, 'ordered')),
 
         /** 추가 차수로 열기 — 새 DRAFT */
         createRound: (id: string): Promise<GroupBuyRoundCreated> =>
-            // MOCK:
-            mockGroupBuyCreateRound(id),
-        // REAL: client.post<GroupBuyRoundCreated>(PATH.sub(id, 'rounds')),
+            client.post<GroupBuyRoundCreated>(PATH.sub(id, 'rounds')),
 
         /** 발송 지연 공지 */
         delayNotice: (id: string, body: GroupBuyDelayNoticeRequest): Promise<GroupBuyDetail> =>
-            // MOCK:
-            mockGroupBuyDelayNotice(id, body),
-        // REAL: client.post<GroupBuyDetail>(PATH.sub(id, 'delay-notices'), body),
+            client.post<GroupBuyDetail>(PATH.sub(id, 'delay-notices'), body),
 
         /** 단품 공급 불가 결과 미리 보기 */
         supplyFailurePreview: (id: string, skuId: string): Promise<GroupBuySupplyFailurePreview> =>
-            // MOCK:
-            mockGroupBuySupplyPreview(id, skuId),
-        // REAL: client.get<GroupBuySupplyFailurePreview>(PATH.sub(id, 'supply-failure-preview'), { query: { skuId } }),
+            client.get<GroupBuySupplyFailurePreview>(PATH.sub(id, 'supply-failure-preview'), { query: { skuId } }),
 
         /** 단품 공급 불가 처리 */
         supplyFailure: (id: string, body: GroupBuySupplyFailureRequest): Promise<GroupBuyDetail> =>
-            // MOCK:
-            mockGroupBuySupplyFailure(id, body),
-        // REAL: client.post<GroupBuyDetail>(PATH.sub(id, 'supply-failures'), body),
+            client.post<GroupBuyDetail>(PATH.sub(id, 'supply-failures'), body),
 
         /** 수량 화면 */
         stock: (id: string): Promise<GroupBuyStockView> =>
-            // MOCK:
-            mockGroupBuyStock(id),
-        // REAL: client.get<GroupBuyStockView>(PATH.sub(id, 'stock')),
+            client.get<GroupBuyStockView>(PATH.sub(id, 'stock')),
 
         /** 수량 변동 내역 */
         movements: (id: string, query: GroupBuyMovementQuery): Promise<GroupBuyPage<GroupBuyMovement>> =>
-            // MOCK:
-            mockGroupBuyMovements(id, query),
-        // REAL: client.get<GroupBuyPage<GroupBuyMovement>>(PATH.sub(id, 'stock/movements'), { query: { ...query } }),
+            client.get<GroupBuyPage<GroupBuyMovement>>(PATH.sub(id, 'stock/movements'), { query: { ...query } }),
 
         /** 추가 입고·줄이기 */
         adjustStock: (id: string, body: GroupBuyStockAdjustRequest): Promise<GroupBuyStockView> =>
-            // MOCK:
-            mockGroupBuyStockAdjust(id, body),
-        // REAL: client.post<GroupBuyStockView>(PATH.sub(id, 'stock/adjust'), body),
+            client.post<GroupBuyStockView>(PATH.sub(id, 'stock/adjust'), body),
     };
 }

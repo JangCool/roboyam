@@ -1,13 +1,3 @@
-import {
-    mockGroupBuyCompletePayment,
-    mockGroupBuyDetail,
-    mockGroupBuyFakeCheckout,
-    mockGroupBuyCategories,
-    mockGroupBuyList,
-    mockGroupBuyOrder,
-    mockGroupBuyQuote,
-    mockGroupBuyWatch,
-} from '~/composables/groupbuy/api/mock/groupbuy-mock';
 import type {
     GroupBuyDetail,
     GroupBuyListPage,
@@ -33,71 +23,51 @@ import UtilIdempotency from '~/utils/util-idempotency';
  *  - `PUT  /api/group-buys/{id}/watches` `{ kind, skuId }` → 204 · `DELETE /api/group-buys/{id}/watches?kind=&skuId=` → 204 (로그인)
  *  - 결제창: 가짜 결과는 `usePaymentTestApi().fakeCheckout`(가짜 게이트웨이 전용), 완료는 공용 `usePaymentApi().complete` — 주소는 각 파일에 있다.
  *
- * ⚠ MOCK: 서버에 API 가 없어(2b-2) `./mock/groupbuy-mock.ts` 를 부른다. 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
  */
 const PATH = {
     list: '/api/group-buys',
-    detail: (id: number) => `/api/group-buys/${id}`,
-    quote: (id: number) => `/api/group-buys/${id}/quote`,
-    orders: (id: number) => `/api/group-buys/${id}/orders`,
-    watches: (id: number) => `/api/group-buys/${id}/watches`,
+    detail: (id: string) => `/api/group-buys/${id}`,
+    quote: (id: string) => `/api/group-buys/${id}/quote`,
+    orders: (id: string) => `/api/group-buys/${id}/orders`,
+    watches: (id: string) => `/api/group-buys/${id}/watches`,
 };
 
 export function useGroupBuyApi() {
-    // REAL: const auth = useAuthApi();
-    // REAL: const client = useApiClient({ refreshCsrf: () => auth.me() });
-    // REAL: const paymentApi = usePaymentApi();
-    // REAL: const testApi = usePaymentTestApi();
-    void PATH;
+    const auth = useAuthApi();
+    const client = useApiClient({ refreshCsrf: () => auth.me() });
+    const paymentApi = usePaymentApi();
+    const testApi = usePaymentTestApi();
 
     return {
         list: (phase: GroupBuyPhase, page = 0, category: string | null = null): Promise<GroupBuyListPage> =>
-            // MOCK:
-            mockGroupBuyList(phase, page, category),
-        // REAL: client.get<GroupBuyListPage>(PATH.list, { query: { phase, page, category: category ?? undefined } }),
+            client.get<GroupBuyListPage>(PATH.list, { query: { phase, page, category: category ?? undefined } }),
 
         /** 목록 필터 카테고리(2단) */
         categories: (): Promise<GroupBuyCategoryNode[]> =>
-            // MOCK:
-            mockGroupBuyCategories(),
-        // REAL: client.get<GroupBuyCategoryNode[]>(`${PATH.list}/categories`),
+            client.get<GroupBuyCategoryNode[]>(`${PATH.list}/categories`),
 
-        get: (id: number): Promise<GroupBuyDetail> =>
-            // MOCK:
-            mockGroupBuyDetail(id),
-        // REAL: client.get<GroupBuyDetail>(PATH.detail(id)),
+        get: (id: string): Promise<GroupBuyDetail> =>
+            client.get<GroupBuyDetail>(PATH.detail(id)),
 
-        quote: (id: number, body: GroupBuyQuoteRequest): Promise<GroupBuyQuote> =>
-            // MOCK:
-            mockGroupBuyQuote(id, body),
-        // REAL: client.post<GroupBuyQuote>(PATH.quote(id), body),
+        quote: (id: string, body: GroupBuyQuoteRequest): Promise<GroupBuyQuote> =>
+            client.post<GroupBuyQuote>(PATH.quote(id), body),
 
         /** 주문 — 결제하기 한 번의 뜻마다 멱등 키 하나(네트워크 실패는 같은 키로 다시, 서버가 4xx 로 거절하면 새 키) */
-        order: (id: number, body: GroupBuyOrderRequest, idempotencyKey: string = UtilIdempotency.newKey()): Promise<GroupBuyOrderCreated> =>
-            // MOCK:
-            (void idempotencyKey, mockGroupBuyOrder(id, body)),
-        // REAL: client.post<GroupBuyOrderCreated>(PATH.orders(id), body, { headers: { 'Idempotency-Key': idempotencyKey } }),
+        order: (id: string, body: GroupBuyOrderRequest, idempotencyKey: string = UtilIdempotency.newKey()): Promise<GroupBuyOrderCreated> =>
+            client.post<GroupBuyOrderCreated>(PATH.orders(id), body, { headers: { 'Idempotency-Key': idempotencyKey } }),
 
-        watch: (id: number, body: GroupBuyWatchRequest): Promise<void> =>
-            // MOCK:
-            mockGroupBuyWatch(id, body, true),
-        // REAL: client.put<void>(PATH.watches(id), body),
+        watch: (id: string, body: GroupBuyWatchRequest): Promise<void> =>
+            client.put<void>(PATH.watches(id), body),
 
-        unwatch: (id: number, body: GroupBuyWatchRequest): Promise<void> =>
-            // MOCK:
-            mockGroupBuyWatch(id, body, false),
-        // REAL: client.delete<void>(PATH.watches(id), { query: { kind: body.kind, skuId: body.skuId ?? undefined } }),
+        unwatch: (id: string, body: GroupBuyWatchRequest): Promise<void> =>
+            client.del<void>(PATH.watches(id), { query: { kind: body.kind, skuId: body.skuId ?? undefined } }),
 
         /** (결제창 공용 흐름) 가짜 결제창 결과 — 실제는 가짜 게이트웨이의 `fake-checkout` */
         fakeCheckout: (paymentId: string, body: PaymentFakeCheckoutRequest): Promise<void> =>
-            // MOCK:
-            mockGroupBuyFakeCheckout(paymentId, body),
-        // REAL: testApi.fakeCheckout(paymentId, body),
+            testApi.fakeCheckout(paymentId, body),
 
         /** (결제창 공용 흐름) 완료 요청 — 실제는 공용 결제 완료 API */
         completePayment: (paymentId: string, body: PaymentCompleteRequest): Promise<PaymentResult> =>
-            // MOCK:
-            mockGroupBuyCompletePayment(paymentId, body),
-        // REAL: paymentApi.complete(paymentId, body),
+            paymentApi.complete(paymentId, body),
     };
 }

@@ -76,7 +76,7 @@ public class GroupBuyRequestAdminFacade {
 
     public GroupBuyOrderAdminView.RequestList list(String status, String type, String level, String q, int page, int size) {
         int s = Math.min(100, Math.max(1, size));
-        int p = Math.max(1, page);
+        int p = Math.max(0, page);
         StringBuilder where = new StringBuilder(" FROM group_buy_requests r JOIN group_buy_participations pa ON pa.id = r.participation_id "
                 + "LEFT JOIN profiles pr ON pr.user_id = r.user_id WHERE r.status <> 'AWAITING_FEE'");
         List<Object> args = new ArrayList<>();
@@ -114,7 +114,7 @@ public class GroupBuyRequestAdminFacade {
             rows = rows.stream().filter(r -> !"OK".equals(r.deadlineLevel())).toList();
         }
         long total = rows.size();
-        List<GroupBuyOrderAdminView.RequestRow> pageRows = rows.stream().skip((long) (p - 1) * s).limit(s).toList();
+        List<GroupBuyOrderAdminView.RequestRow> pageRows = rows.stream().skip((long) p * s).limit(s).toList();
         return new GroupBuyOrderAdminView.RequestList(pageRows, total, counts);
     }
 

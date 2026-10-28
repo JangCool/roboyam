@@ -63,7 +63,7 @@ export interface ShippingPolicyList {
     items: ShippingPolicyLine[];
 }
 
-/** `POST /api/admin/commerce/shipping-policies` — 새 줄 더하기. 겹치면 `409 COMMERCE_SHIPPING_POLICY_OVERLAP` */
+/** `POST /api/admin/commerce/shipping-policies` — 새 줄 더하기. 겹치면 `409 SHIPPING_POLICY_CONFLICT` */
 export interface ShippingPolicyCreateRequest {
     code: string;
     name: string;

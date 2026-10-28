@@ -309,7 +309,7 @@ const desktop = useIsDesktop();
 /** 모바일 — 상품정보제공고시 시트 */
 const noticesOpen = ref(false);
 
-const id = computed(() => Number(route.params.id));
+const id = computed(() => String(route.params.id));
 const gb = ref<GroupBuyDetail | null>(null);
 const status = ref<'loading' | 'ready' | 'notfound' | 'error'>('loading');
 const loadError = ref('');
@@ -391,17 +391,17 @@ const canPick = computed(() => {
 });
 
 /** 앞 축에서 고른 값(축 차례, 고르지 않으면 null) — 마지막 축은 고르지 않고 단품 줄을 눌러 담는다 */
-const chosen = ref<(number | null)[]>([]);
+const chosen = ref<(string | null)[]>([]);
 
 function axisOpen(axisIndex: number): boolean {
     return axisIndex === 0 || chosen.value[axisIndex - 1] !== null;
 }
 
-function chipState(axisIndex: number, valueId: number): GroupBuyValueState {
+function chipState(axisIndex: number, valueId: string): GroupBuyValueState {
     return UtilGroupBuy.valueState(skus.value, chosen.value, axisIndex, valueId);
 }
 
-function chipLabel(axisIndex: number, valueId: number, value: string): string {
+function chipLabel(axisIndex: number, valueId: string, value: string): string {
     const state = chipState(axisIndex, valueId);
     if (state === 'OFF') return `${value} · ${t('groupBuy.pickValueOff')}`;
     if (state !== 'AVAILABLE') return `${value} · ${t(`groupBuy.stock.${state}`)}`;
@@ -409,7 +409,7 @@ function chipLabel(axisIndex: number, valueId: number, value: string): string {
 }
 
 /** 앞 축 값을 고른다 — 뒤 축 고른 값은 지운다(다시 누르면 풀린다) */
-function choose(axisIndex: number, valueId: number): void {
+function choose(axisIndex: number, valueId: string): void {
     const next = chosen.value.slice();
     next[axisIndex] = next[axisIndex] === valueId ? null : valueId;
     for (let i = axisIndex + 1; i < next.length; i++) next[i] = null;
@@ -453,7 +453,7 @@ const skuSections = computed<SkuSection[]>(() => {
         if (waiting >= 0) out.push({ key: 'axis', title: last.name, help: t('groupBuy.pickPrevFirst', { name: axes.value[waiting]!.name }), rows: [] });
         else {
             const rows = last.values.map((v): SkuRow => {
-                const sku = UtilGroupBuy.comboSku(skus.value, [...(prefix as number[]), v.valueId]);
+                const sku = UtilGroupBuy.comboSku(skus.value, [...(prefix as string[]), v.valueId]);
                 return sku ? rowOf(sku, v.value) : { key: `value-${v.valueId}`, sku: null, label: v.value, state: 'OFF', addable: false };
             });
             out.push({ key: 'axis', title: last.name, help: '', rows });
@@ -473,11 +473,11 @@ const lines = ref<GroupBuyOrderLine[]>([]);
 const capNote = ref('');
 const hasMain = computed(() => UtilGroupBuy.hasMain(lines.value, skus.value));
 
-function skuOf(skuId: number): GroupBuySku | undefined {
+function skuOf(skuId: string): GroupBuySku | undefined {
     return skus.value.find((s) => s.skuId === skuId);
 }
 
-function qtyOf(skuId: number): number {
+function qtyOf(skuId: string): number {
     return lines.value.find((l) => l.skuId === skuId)?.qty ?? 0;
 }
 
@@ -531,7 +531,7 @@ function addLine(sku: GroupBuySku): void {
     else lines.value = [...lines.value, { skuId: sku.skuId, qty: 1 }];
 }
 
-function setQty(skuId: number, qty: number): void {
+function setQty(skuId: string, qty: number): void {
     const sku = skuOf(skuId);
     if (!sku) return;
     const cap = Math.max(1, capOf(sku));
@@ -540,7 +540,7 @@ function setQty(skuId: number, qty: number): void {
 }
 
 /** 빼기 — 마지막 본 상품 줄을 빼면 추가 구성상품도 함께 뺄지 묻는다(아니면 그대로 둔다) */
-async function removeLine(skuId: number): Promise<void> {
+async function removeLine(skuId: string): Promise<void> {
     const sku = skuOf(skuId);
     const otherMain = lines.value.some((l) => l.skuId !== skuId && skuOf(l.skuId)?.kind === 'MAIN');
     const addons = lines.value.filter((l) => skuOf(l.skuId)?.kind === 'ADDON');
@@ -656,11 +656,11 @@ async function verifyThenOrder(): Promise<void> {
 const watchBusy = ref<string | null>(null);
 const watchError = ref('');
 
-function watchingSku(skuId: number): boolean {
+function watchingSku(skuId: string): boolean {
     return gb.value?.skuWatches.watching.includes(skuId) ?? false;
 }
 
-async function toggleWatch(kind: GroupBuyWatchKind, skuId: number | null, on: boolean): Promise<void> {
+async function toggleWatch(kind: GroupBuyWatchKind, skuId: string | null, on: boolean): Promise<void> {
     const g = gb.value;
     if (!g || watchBusy.value) return;
     if (!user.value) {

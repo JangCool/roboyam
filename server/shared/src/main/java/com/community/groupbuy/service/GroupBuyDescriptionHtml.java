@@ -17,12 +17,13 @@ public final class GroupBuyDescriptionHtml {
 
     private static final Pattern MEDIA_OR_HTTPS = Pattern.compile("^(https://[^\\s\"'<>]+|/media/[A-Za-z0-9/_.\\-]+)$");
     private static final Pattern NUMBER = Pattern.compile("^[0-9]{1,4}$");
+    private static final Pattern REL = Pattern.compile(" rel=\"(?:(?:nofollow|noopener|noreferrer) ?){3}\"");
 
     private static final PolicyFactory POLICY = new HtmlPolicyBuilder()
-            .allowElements("p", "br", "strong", "em", "u", "s", "blockquote", "ul", "ol", "li", "h2", "h3", "hr", "a", "img")
+            .allowElements("p", "br", "strong", "em", "u", "s", "blockquote", "ul", "ol", "li", "h2", "h3", "hr", "img")
+            .allowElements(newTab(), "a")
             .allowUrlProtocols("http", "https", "mailto")
             .allowAttributes("href").onElements("a")
-            .allowAttributes("target").matching(Pattern.compile("^_blank$")).onElements("a")
             .requireRelsOnLinks("nofollow", "noopener", "noreferrer")
             .allowAttributes("src").matching(MEDIA_OR_HTTPS).onElements("img")
             .allowAttributes("alt").onElements("img")
@@ -36,8 +37,23 @@ public final class GroupBuyDescriptionHtml {
     /** 정화한 HTML(null 이면 빈 글자) */
     public static String sanitize(String raw) {
         String safe = POLICY.sanitize(raw == null ? "" : raw);
-        safe = safe.replace(" rel=\"noreferrer noopener nofollow\"", " rel=\"nofollow noopener noreferrer\"");
+        // 정화기가 쓰는 rel 차례를 계약의 차례로 맞춘다(뜻은 같다 — TermsHtml 과 같다)
+        safe = REL.matcher(safe).replaceAll(" rel=\"nofollow noopener noreferrer\"");
         return safe.length() > MAX ? safe.substring(0, MAX) : safe;
+    }
+
+    /** 링크는 늘 새 탭으로(주소가 남은 링크만) — rel 은 정화기가 붙인다 */
+    private static org.owasp.html.ElementPolicy newTab() {
+        return (elementName, attributes) -> {
+            for (int i = 0; i + 1 < attributes.size(); i += 2) {
+                if ("href".equals(attributes.get(i))) {
+                    attributes.add("target");
+                    attributes.add("_blank");
+                    break;
+                }
+            }
+            return elementName;
+        };
     }
 
     /** 설명만 정화한 상품 저장 값 */

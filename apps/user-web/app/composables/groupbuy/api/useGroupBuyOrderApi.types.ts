@@ -19,8 +19,8 @@ export type GroupBuyRequestType = 'CANCEL' | 'RETURN';
 /**
  * 요청 상태 — 계약의 다섯 + `SUPERSEDED`(결정 69 — 지연 취소·공급 불가 등으로 자동 종료) + `AWAITING_PAYMENT`(결정 68 — 반품비 부족분을 결제해야 접수, 이름은 목업 가정).
  */
-export type GroupBuyRequestStatus = 'AWAITING_PAYMENT' | 'REQUESTED' | 'APPROVED' | 'COMPLETED' | 'REJECTED' | 'WITHDRAWN' | 'SUPERSEDED';
-export type GroupBuyRequestReason = 'CHANGE_OF_MIND' | 'DEFECT' | 'WRONG_ITEM' | 'OTHER';
+export type GroupBuyRequestStatus = 'AWAITING_PAYMENT' | 'REQUESTED' | 'APPROVED' | 'RECEIVED' | 'COMPLETED' | 'REJECTED' | 'WITHDRAWN' | 'SUPERSEDED' | 'EXPIRED';
+export type GroupBuyRequestReason = 'CHANGE_OF_MIND' | 'DEFECT' | 'WRONG_ITEM' | 'DAMAGED' | 'OTHER';
 export type GroupBuyCollectionMethod = 'COMPANY_PICKUP' | 'CUSTOMER_SEND';
 /** 결정 54 — 하자·오배송만 교환 */
 export type GroupBuyResolution = 'REFUND' | 'EXCHANGE';
@@ -36,7 +36,7 @@ export type GroupBuySupplyChoiceValue = 'KEEP_REST' | 'CANCEL_ALL';
 /** `GET /api/me/orders?page=` 의 한 줄 */
 export interface MyGroupBuyOrderSummary {
     orderNo: string;
-    groupBuyId: number;
+    groupBuyId: string;
     title: string;
     thumbnailUrl: string | null;
     status: GroupBuyOrderStatus;
@@ -59,8 +59,8 @@ export interface MyGroupBuyOrderPage {
 
 /** 주문 줄 — 단품 하나에 한 줄(결정 88). 내 주문 응답 칸 이름은 목업 가정(2b-2 가 아직 알려 주지 않음) */
 export interface MyGroupBuyOrderItem {
-    id: number;
-    skuId: number;
+    id: string;
+    skuId: string;
     /** 단품 이름(주문 때 사본 — 「블랙 / M」, 축 없으면 상품 이름) */
     skuName: string;
     /** 추가 구성상품이면 ADDON(「추가 구성」 딱지 — 본 상품 줄을 모두 취소·반품하면 함께 묻는다) */
@@ -99,7 +99,7 @@ export interface MyGroupBuyShipment {
 }
 
 export interface MyGroupBuyRequestItem {
-    skuId: number;
+    skuId: string;
     /** 주문 줄의 단품 이름 */
     skuName: string;
     kind: GroupBuySkuKind;
@@ -108,7 +108,7 @@ export interface MyGroupBuyRequestItem {
 }
 
 export interface MyGroupBuyRequest {
-    id: number;
+    id: string;
     type: GroupBuyRequestType;
     status: GroupBuyRequestStatus;
     items: MyGroupBuyRequestItem[];
@@ -130,7 +130,7 @@ export interface MyGroupBuyRequest {
 }
 
 export interface MyGroupBuyRefund {
-    id: number;
+    id: string;
     cause: GroupBuyRefundCause;
     amount: number;
     progress: GroupBuyRefundProgress;
@@ -176,7 +176,7 @@ export interface MyGroupBuyOrderDetail {
     orderNo: string;
     status: GroupBuyOrderStatus;
     groupBuy: {
-        id: number;
+        id: string;
         title: string;
         thumbnailUrl: string | null;
         status: GroupBuyStatus;
@@ -217,7 +217,7 @@ export interface MyGroupBuyOrderDetail {
 
 /** 줄·수량 고르기 */
 export interface GroupBuyItemQty {
-    skuId: number;
+    skuId: string;
     qty: number;
 }
 
@@ -226,7 +226,7 @@ export interface GroupBuyItemQty {
  * 본 상품을 모두 취소하면서 추가 구성상품을 남기면 409 `GROUP_BUY_ADDON_ONLY {skuIds}` — 화면이 「추가 구성상품도 함께 취소할까요?」로 묻고 함께 다시 보낸다.
  */
 export interface GroupBuyCancelRequest {
-    lines: { skuId: number; qty: number }[];
+    lines: { skuId: string; qty: number }[];
 }
 
 /** 취소 환불 미리 보기(결정 42 — 일부 줄 취소로 무료배송 기준 아래면 배송비 재계산) */

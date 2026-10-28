@@ -61,14 +61,14 @@ withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-    (e: 'qty', skuId: number, qty: number): void;
-    (e: 'remove', skuId: number): void;
+    (e: 'qty', skuId: string, qty: number): void;
+    (e: 'remove', skuId: string): void;
 }>();
 
 const { t } = useI18n();
 
 /** 칸을 비우면(null) 무시한다 — 줄을 빼려면 「빼기」 */
-function onQty(skuId: number, value: number | null): void {
+function onQty(skuId: string, value: number | null): void {
     if (value !== null && value >= 1) emit('qty', skuId, value);
 }
 </script>

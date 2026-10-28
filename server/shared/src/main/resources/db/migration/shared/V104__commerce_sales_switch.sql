@@ -81,3 +81,9 @@ SELECT ((greatest(0, (extract(epoch FROM clock_timestamp()) * 1000)::bigint - 17
   FROM role_permissions rp
  WHERE rp.permission_code = 'pointshop.use'
    AND NOT EXISTS (SELECT 1 FROM role_permissions x WHERE x.role_id = rp.role_id AND x.permission_code = 'commerce.purchase');
+
+-- ── 2b-2 보강: 옵션 이름 없이 이름으로 가리는 단품 여럿(쌀 10kg·20kg — 「상품 단품 목록이 정본」 2b-2 반영 ①)을 공구에 담을 수 있게 ──
+-- 상품 단품의 조합 유일(ux_gbps_combination)은 값이 있는 단품만인데 공구 단품은 MAIN 전부였다 — 값이 빈 MAIN 이 둘이면 공구를 만들지 못했다(local 시드 시험이 잡음).
+-- 공구 단품은 상품 단품당 하나(ux (공구, 상품 단품))라 값이 빈 MAIN 이 여럿이어도 겹치지 않는다.
+DROP INDEX ux_group_buy_skus_combination;
+CREATE UNIQUE INDEX ux_group_buy_skus_combination ON group_buy_skus (group_buy_id, value_ids) WHERE kind = 'MAIN' AND cardinality(value_ids) > 0;

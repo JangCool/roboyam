@@ -44,7 +44,7 @@ public class GroupBuyOrderAdminController {
                                                                                  @RequestParam(required = false) String alert, @RequestParam(required = false) String q,
                                                                                  @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                                                                                  @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-                                                                                 @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int size) {
+                                                                                 @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         return ok(facade.list(status, groupBuyId, alert, q, from, to, page, size));
     }
 
@@ -111,6 +111,14 @@ public class GroupBuyOrderAdminController {
     public ResponseEntity<ApiResponse<GroupBuyOrderAdminView.RefundPreview>> refundPreview(@PathVariable String id,
                                                                                           @RequestBody(required = false) GroupBuyAdminRequest.Refund body, AdminActor actor) {
         return ok(facade.refundPreview(actor, id, body));
+    }
+
+    /** 고액 운영 환불 승인 대기 승인·거절(결정 70 — 고액 권한자, 승인 때 다시 계산해 금액이 다르면 409 {@code GROUP_BUY_REFUND_AMOUNT_CHANGED}) */
+    @RequirePermission(Permission.COMMERCE_REFUND_LARGE)
+    @PostMapping("/{id}/refunds/pending/{pendingId}/{decision}")
+    public ResponseEntity<ApiResponse<GroupBuyOrderAdminView.RefundResult>> decidePending(@PathVariable String id, @PathVariable String pendingId,
+                                                                                         @PathVariable String decision, AdminActor actor) {
+        return ok(facade.decidePending(actor, id, pendingId, decision));
     }
 
     @RequirePermission(Permission.COMMERCE_REFUND_APPROVE)
