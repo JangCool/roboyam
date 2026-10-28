@@ -378,6 +378,8 @@ const phaseNotice = computed<{ text: string; severity: 'info' | 'warn' | 'second
 const axes = computed(() => gb.value?.availability.axes ?? []);
 const skus = computed(() => gb.value?.availability.skus ?? []);
 const addonSkus = computed(() => skus.value.filter((s) => s.kind === 'ADDON'));
+/** 옵션(축) 없이 이름으로 가리는 본 상품 단품이 여럿인가(예 쌀 10kg·20kg — 2b-2 6125b751) */
+const plainMains = computed(() => (axes.value.length === 0 ? skus.value.filter((s) => s.kind === 'MAIN') : []));
 /** 고시 칩·적용 범위 — 판매하는 단품만 */
 const saleSkus = computed(() => skus.value.filter((s) => s.onSale));
 const lastAxis = computed(() => axes.value.length - 1);
@@ -423,7 +425,7 @@ interface SkuRow {
     addable: boolean;
 }
 interface SkuSection {
-    key: 'axis' | 'addons' | 'list';
+    key: 'axis' | 'main' | 'addons' | 'list';
     title: string;
     help: string;
     rows: SkuRow[];
@@ -441,7 +443,7 @@ const skuSections = computed<SkuSection[]>(() => {
     if (!g) return [];
     const out: SkuSection[] = [];
     if (!canPick.value) {
-        if (axes.value.length > 0 || addonSkus.value.length > 0) out.push({ key: 'list', title: t('groupBuy.skusTitle'), help: '', rows: saleSkus.value.map((s) => rowOf(s)) });
+        if (axes.value.length > 0 || addonSkus.value.length > 0 || plainMains.value.length > 1) out.push({ key: 'list', title: t('groupBuy.skusTitle'), help: '', rows: saleSkus.value.map((s) => rowOf(s)) });
         return out;
     }
     if (axes.value.length > 0) {
@@ -457,6 +459,8 @@ const skuSections = computed<SkuSection[]>(() => {
             out.push({ key: 'axis', title: last.name, help: '', rows });
         }
     }
+    // 옵션 없는 단품 여럿 — 한 목록에서 고른다
+    if (plainMains.value.length > 1) out.push({ key: 'main', title: t('groupBuy.pickTitle'), help: '', rows: plainMains.value.filter((s) => s.onSale).map((s) => rowOf(s)) });
     if (addonSkus.value.length > 0) {
         out.push({ key: 'addons', title: t('groupBuy.addonsTitle'), help: hasMain.value ? t('groupBuy.addonsHelp') : `${t('groupBuy.addonsHelp')} ${t('groupBuy.addonsNeedMain')}`, rows: addonSkus.value.filter((s) => s.onSale).map((s) => rowOf(s)) });
     }

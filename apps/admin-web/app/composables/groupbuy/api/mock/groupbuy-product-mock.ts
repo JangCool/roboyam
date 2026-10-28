@@ -313,7 +313,7 @@ export async function mockAddonSources(exceptProductId: string | null): Promise<
     return mockClone(
         db()
             .products.filter((p) => p.id !== exceptProductId)
-            .flatMap((p) => p.skus.filter((s) => s.onSale).map((s): GroupBuyAddonSource => ({ productSkuId: s.skuId, productId: p.id, productName: p.name, name: p.axes.length ? `${p.name} · ${s.name}` : p.name, imageUrl: p.images[0]?.thumbUrl ?? null, defaultSupplyPrice: s.defaultSupplyPrice }))),
+            .flatMap((p) => p.skus.filter((s) => s.onSale).map((s): GroupBuyAddonSource => ({ productSkuId: s.skuId, productId: p.id, productName: p.name, name: p.skus.length > 1 ? `${p.name} (${s.name})` : p.name, imageUrl: p.images[0]?.thumbUrl ?? null, defaultSupplyPrice: s.defaultSupplyPrice }))),
     );
 }
 

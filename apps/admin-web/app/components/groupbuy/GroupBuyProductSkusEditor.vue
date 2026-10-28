@@ -4,7 +4,8 @@
         · 단품 = 실제로 파는 아이템 한 줄(이름 · 판매 여부 · 기본 공급가). 파는 것만 등록한다(조합을 만들고 끄지 않는다). 단품이 하나면 옵션 없는 상품.
         · 옵션 이름(선택, 최대 3 — 예 색상·사이즈)을 두면 단품마다 그 값을 적는다 → 회원 상세는 옵션 이름 차례로 고른다(앞 옵션을 고르면 없는 조합은 회색). 비우면 단품 목록 하나에서 고른다.
         · 이름은 옵션 값이 있으면 「블랙 / M」으로 채우고(고칠 수 있다), 없으면 직접 적는다. 같은 이름 · 같은 옵션 값 묶음 두 줄은 막는다.
-        · 모집 중 공구가 쓰면(`locked`) 옵션 이름·단품 구성이 잠긴다 — 판매 여부·기본 공급가도 잠금(새 단품은 다음 공구부터, 서버 2b-2 LOCKED_FIELD `options`).
+        · 모집 중 공구가 쓰면(`locked`) 옵션 이름·단품 추가/삭제·단품 이름·값이 잠긴다(새 단품은 다음 공구부터, 서버 2b-2 LOCKED_FIELD `options`). 판매 여부·기본 공급가는 언제든 고친다.
+        · 옵션 이름이 없어도 이름으로 가리는 단품을 여럿 둘 수 있다(예 쌀 10kg·20kg — 회원은 한 목록에서 고른다).
         기본 공급가 칸은 가격 권한(`show-supply`)이 있을 때만. 서버 오류는 `errors.optionNames`·`errors.skus`.
     -->
     <div class="flex flex-col gap-3">
@@ -48,10 +49,10 @@
                             <span v-if="rowError(k)" class="mt-0.5 block text-[11px] text-red-600 dark:text-red-400">{{ rowError(k) }}</span>
                         </td>
                         <td v-if="showSupply" class="py-1.5 pr-2">
-                            <InputText :model-value="row.supplyPrice" :aria-label="t('groupBuy.comboSupplyFor', { name: displayName(row) || k + 1 })" inputmode="numeric" :placeholder="t('groupBuy.supplyOptional')" :readonly="ro || !supplyEditable" :invalid="!!row.supplyPrice.trim() && UtilGroupBuy.int(row.supplyPrice) === null" size="small" class="w-full text-right tabular-nums" @update:model-value="(v: string | undefined) => patch(k, { supplyPrice: v ?? '' })" />
+                            <InputText :model-value="row.supplyPrice" :aria-label="t('groupBuy.comboSupplyFor', { name: displayName(row) || k + 1 })" inputmode="numeric" :placeholder="t('groupBuy.supplyOptional')" :readonly="disabled || !supplyEditable" :invalid="!!row.supplyPrice.trim() && UtilGroupBuy.int(row.supplyPrice) === null" size="small" class="w-full text-right tabular-nums" @update:model-value="(v: string | undefined) => patch(k, { supplyPrice: v ?? '' })" />
                         </td>
                         <td class="py-1.5 pr-2">
-                            <ToggleSwitch :model-value="row.onSale" :disabled="ro" :aria-label="t('groupBuy.comboSaleFor', { name: displayName(row) || k + 1 })" @update:model-value="(v: boolean) => patch(k, { onSale: v })" />
+                            <ToggleSwitch :model-value="row.onSale" :disabled="disabled" :aria-label="t('groupBuy.comboSaleFor', { name: displayName(row) || k + 1 })" @update:model-value="(v: boolean) => patch(k, { onSale: v })" />
                         </td>
                         <td v-if="!ro" class="py-1.5">
                             <div class="flex items-center">

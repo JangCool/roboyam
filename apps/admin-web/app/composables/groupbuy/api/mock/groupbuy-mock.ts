@@ -518,7 +518,7 @@ function applySave(g: GroupBuyDetail, body: GroupBuySaveRequest): void {
     const addons: GroupBuySku[] = body.addons.map((a) => {
         const src = mockProductOfSku(a.productSkuId);
         const prev = before.find((x) => x.productSkuId === a.productSkuId);
-        const name = src ? (src.product.axes.length ? `${src.product.name} · ${src.sku.name}` : src.product.name) : '';
+        const name = src ? (src.product.skus.length > 1 ? `${src.product.name} (${src.sku.name})` : src.product.name) : '';
         const image = src?.product.images[0] ?? null;
         return { skuId: prev?.skuId ?? nextId('sku'), kind: 'ADDON', valueIds: [], name, extraPrice: 0, unitPrice: a.price, maxQty: a.maxQty, initialMaxQty: null, currentQty: prev?.currentQty ?? 0, reservedQty: prev?.reservedQty ?? 0, onSale: true, imageKey: image?.mediaId ?? null, imageUrl: image?.thumbUrl ?? null, sortOrder: 0, productSkuId: a.productSkuId, supplyPrice: a.supplyPrice };
     });
