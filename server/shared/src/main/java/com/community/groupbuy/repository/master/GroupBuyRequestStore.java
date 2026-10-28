@@ -13,6 +13,7 @@ import com.community.groupbuy.entity.SupplyChoice;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -29,7 +30,8 @@ public class GroupBuyRequestStore {
 
     public record RequestRow(long id, long participationId, long groupBuyId, long userId, RequestType type, RequestStatus status, CollectionMethod method,
                              Resolution resolution, boolean sellerFault, String memo, long previewAmount, Long feePaymentOrderId, long feeAmount, long feePaidAmount,
-                             long feeRefundedAmount, Instant closesAt, Instant receivedAt, long compensationAmount, String rejectReasonCode, Instant createdAt) {
+                             long feeRefundedAmount, Instant closesAt, Instant receivedAt, long compensationAmount, String rejectReasonCode, Instant createdAt,
+                             LocalDate defectKnownOn) {
 
         /** 낸 반품비 중 아직 돌려주지 않은 몫 */
         public long feeHeld() {
@@ -41,7 +43,8 @@ public class GroupBuyRequestStore {
     }
 
     public record NewRequest(long id, long participationId, long groupBuyId, long userId, RequestType type, RequestStatus status, CollectionMethod method,
-                             Resolution resolution, boolean sellerFault, String memo, long previewAmount, long feeAmount, Instant closesAt, Instant now) {
+                             Resolution resolution, boolean sellerFault, String memo, long previewAmount, long feeAmount, Instant closesAt, LocalDate defectKnownOn,
+                             Instant now) {
     }
 
     public record SupplyFailureRow(long id, long groupBuyId, long skuId, String reason, Instant choiceUntil) {
@@ -51,7 +54,8 @@ public class GroupBuyRequestStore {
     }
 
     private static final String COLUMNS = "id, participation_id, group_buy_id, user_id, type, status, collection_method, resolution, seller_fault, memo, preview_amount, "
-            + "fee_payment_order_id, fee_amount, fee_paid_amount, fee_refunded_amount, closes_at, received_at, compensation_amount, reject_reason_code, created_at";
+            + "fee_payment_order_id, fee_amount, fee_paid_amount, fee_refunded_amount, closes_at, received_at, compensation_amount, reject_reason_code, created_at, "
+            + "defect_known_on";
 
     private final JdbcTemplate jdbc;
 
@@ -63,9 +67,9 @@ public class GroupBuyRequestStore {
 
     public void insert(NewRequest r) {
         jdbc.update("INSERT INTO group_buy_requests (id, participation_id, group_buy_id, user_id, type, status, collection_method, resolution, seller_fault, memo, "
-                        + "preview_amount, fee_amount, closes_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", r.id(), r.participationId(),
+                        + "preview_amount, fee_amount, closes_at, defect_known_on, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", r.id(), r.participationId(),
                 r.groupBuyId(), r.userId(), r.type().name(), r.status().name(), r.method() == null ? null : r.method().name(), r.resolution().name(), r.sellerFault(), r.memo(),
-                r.previewAmount(), r.feeAmount(), ts(r.closesAt()), ts(r.now()), ts(r.now()));
+                r.previewAmount(), r.feeAmount(), ts(r.closesAt()), r.defectKnownOn() == null ? null : java.sql.Date.valueOf(r.defectKnownOn()), ts(r.now()), ts(r.now()));
     }
 
     public void insertItem(long id, long requestId, long participationItemId, long skuId, int qty, RequestReason reason) {
@@ -243,7 +247,8 @@ public class GroupBuyRequestStore {
                 RequestStatus.valueOf(rs.getString("status")), method == null ? null : CollectionMethod.valueOf(method), Resolution.valueOf(rs.getString("resolution")),
                 rs.getBoolean("seller_fault"), rs.getString("memo"), rs.getLong("preview_amount"), nLong(rs, "fee_payment_order_id"), rs.getLong("fee_amount"),
                 rs.getLong("fee_paid_amount"), rs.getLong("fee_refunded_amount"), instant(rs.getTimestamp("closes_at")), instant(rs.getTimestamp("received_at")),
-                rs.getLong("compensation_amount"), rs.getString("reject_reason_code"), instant(rs.getTimestamp("created_at")));
+                rs.getLong("compensation_amount"), rs.getString("reject_reason_code"), instant(rs.getTimestamp("created_at")),
+                rs.getDate("defect_known_on") == null ? null : rs.getDate("defect_known_on").toLocalDate());
     }
 
     static SupplyChoiceRow choice(ResultSet rs, int i) throws SQLException {

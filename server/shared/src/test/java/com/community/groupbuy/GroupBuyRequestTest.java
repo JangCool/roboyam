@@ -10,6 +10,7 @@ import static com.community.groupbuy.entity.ReturnDisposition.RESELL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.community.audit.dto.AuditActions;
 import com.community.groupbuy.dto.GroupBuyEvents;
 import com.community.groupbuy.dto.JoinResult;
 import com.community.groupbuy.entity.CollectionMethod;
@@ -30,7 +31,9 @@ import com.community.groupbuy.service.GroupBuyRequestService.RequestInput;
 import com.community.payment.dto.PaymentStatus;
 import com.community.payment.service.PaymentConfirmService;
 import com.community.zconfiguration.exception.ValidationException;
+import com.community.zconfiguration.time.ServiceTime;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -88,6 +91,53 @@ class GroupBuyRequestTest {
         Created created = kit.requests.create(member, order.participationId(), ret(COMPANY_PICKUP, kit.mainSku(gb), 1, DEFECT));
         assertThat(created.status()).isEqualTo(RequestStatus.REQUESTED);
         assertThat(created.previewAmount()).as("하자 — 반품비 없이 전액").isEqualTo(25_000);
+    }
+
+    /** 업체 부담 반품 + 「하자를 안 날」 */
+    private static RequestInput defectKnown(long skuId, RequestReason reason, LocalDate knownOn) {
+        return new RequestInput(RequestType.RETURN, COMPANY_PICKUP, null, List.of(new LineInput(skuId, 1, reason)), null, null, null, knownOn);
+    }
+
+    @Test
+    void P33_보강_3개월이_지난_하자는_안_날부터_30일_미래와_배송_전_날짜는_400_변심은_7일_운영자는_그_날짜를_보고_거절() {
+        long gb = kit.spec(kit.policy(3_000, 50_000L, 3_000, "ONE_WAY")).open();
+        long sku = kit.mainSku(gb);
+        long member = kit.newMember();
+        long other = kit.newMember();
+        JoinResult order = kit.delivered(member, gb, lines(sku, 1));
+        JoinResult o2 = kit.delivered(other, gb, lines(sku, 1));
+        LocalDate deliveredOn = ServiceTime.dateOf(kit.now());
+        kit.advance(Duration.ofDays(100)); // 배송완료 + 3개월이 지났다
+        LocalDate today = ServiceTime.dateOf(kit.now());
+        long oid = order.participationId();
+
+        assertThatThrownBy(() -> kit.requests.create(member, oid, defectKnown(sku, DEFECT, null))).as("안 날을 적지 않으면 3개월로 끝")
+                .satisfies(e -> assertThat(code(e)).isEqualTo(GroupBuyException.RETURN_WINDOW_CLOSED));
+        assertThatThrownBy(() -> kit.requests.create(member, oid, defectKnown(sku, DEFECT, today.minusDays(31)))).as("안 날부터 31일")
+                .satisfies(e -> assertThat(code(e)).isEqualTo(GroupBuyException.RETURN_WINDOW_CLOSED));
+        assertThatThrownBy(() -> kit.requests.create(member, oid, defectKnown(sku, DEFECT, today.plusDays(1)))).as("미래 날짜").isInstanceOf(ValidationException.class);
+        assertThatThrownBy(() -> kit.requests.create(member, oid, defectKnown(sku, DEFECT, deliveredOn.minusDays(1)))).as("배송완료 전 날짜")
+                .isInstanceOf(ValidationException.class);
+        assertThatThrownBy(() -> kit.requests.create(member, oid, defectKnown(sku, CHANGE_OF_MIND, today.minusDays(1)))).as("단순 변심은 안 날과 관계없이 7일")
+                .satisfies(e -> assertThat(code(e)).isEqualTo(GroupBuyException.RETURN_WINDOW_CLOSED));
+
+        Created ok = kit.requests.create(member, oid, defectKnown(sku, DEFECT, today.minusDays(30)));
+        assertThat(ok.status()).isEqualTo(RequestStatus.REQUESTED);
+        assertThat(ok.previewAmount()).as("하자 전체 반품 — 처음 배송비까지 전액").isEqualTo(28_000);
+        assertThat(request(ok.requestId()).defectKnownOn()).as("운영자가 보는 날짜").isEqualTo(today.minusDays(30));
+
+        Created disputed = kit.requests.create(other, o2.participationId(), defectKnown(sku, RequestReason.WRONG_ITEM, today));
+        long photo = kit.requests.registerOperatorPhoto(kit.operator, "e/known.jpg");
+        kit.requests.reject(disputed.requestId(), RejectReason.OUT_OF_WINDOW, "배송 당일 하자 문의 기록이 있어 안 날이 맞지 않아요", List.of(photo), null, null,
+                kit.operator, "ip");
+        assertThat(request(disputed.requestId()).status()).isEqualTo(RequestStatus.REJECTED);
+        assertThat(request(disputed.requestId()).rejectReasonCode()).isEqualTo("OUT_OF_WINDOW");
+        assertThat(kit.audits).anySatisfy(e -> {
+            assertThat(e.action()).isEqualTo(AuditActions.GROUPBUY_REQUEST_REJECT);
+            assertThat(e.targetId()).isEqualTo(Long.toString(disputed.requestId()));
+            assertThat(e.detail()).containsEntry("defectKnownOn", today.toString()).containsEntry("reasonCode", "OUT_OF_WINDOW");
+        });
+        assertThat(kit.participation(o2.participationId()).status()).isEqualTo(ParticipationStatus.DELIVERED);
     }
 
     @Test
