@@ -10,7 +10,7 @@
 ## 작업 단위와 순서 (제안)
 | 단위 | 내용 | 담당 | 상태 |
 |---|---|---|---|
-| 2b-1 화면 목업 | 아래 「화면 목록」(Q&A 제외) | frontend | **진행 중**(2026-10-28, 자기 worktree) |
+| 2b-1 화면 목업 | 아래 「화면 목록」(Q&A 제외) | frontend | **목업 완료 — 화면 확인 대기**(2026-10-28, 아래 「2b-1 화면 목업」) |
 | 2b-2 공구 핵심 서버 | V101, 공구·옵션·배송비 정책·수정 이력, 주문·주문 줄(자격·멱등·선점)·`GroupBuyPaymentHandler`·선점 만료·이탈 제한, 상태 워커(모집 시작·마감·연장·판정·불발 환불), 본인 취소, 추가 입고·줄이기·추가 차수, 불변식, 규칙 테스트 | backend | **진행 중**(2026-10-28, 자기 worktree — 화면 확정 전 병행 승인) |
 | 2b-3 발송·요청·환불 서버 | V102, 발주·준비중·발송·배송완료(일괄 부분 성공)·에스크로 송장 등록, 택배사, 배송지 열람·수정·명단 내보내기, 취소·반품 요청(줄·수량 단위)·처리 방법·`GroupBuyRefundCalculator`·보상액·운영 환불, 규칙 테스트 | backend | 제안 |
 | 2b-4 설정·알림 + 관리자 API + 연결 | V103, 판매 스위치·체크리스트·사업자 정보·공구 설정, 회원 알림·메일(계약 통지 포함)·관심·수량 풀림·연장·차수 알림, 운영자 알림·기한 경고, 개인정보 파기 pg_cron, 관리자·회원 API 정리, 화면 연결 | backend → frontend | 제안 |
@@ -32,6 +32,52 @@
   - 공구 Q&A 대기열(2b-6): 답변 안 한 질문, 답변·수정(이력), 숨김, 신고 처리.
   - 대시보드 커머스 칸(19절): 준비 대기·열린 요청·결제 이상·곧 만료될 선점·남은 수량 적은 공구·**발송 뒤 N일 지난 SHIPPED**(배송완료 처리 누락 — 청약철회 기한이 시작되지 않는다)·답변 안 한 Q&A. (A 211)
   - `/settings/commerce` 구획: 배송비 정책(기간별 줄·왕복 경고) · 택배사 · 사업자 정보 · 판매 스위치·체크리스트 · 공구 설정.
+
+## 2b-1 화면 목업 (2026-10-28 — 목업 데이터, 화면 확인 대기)
+모든 서버 호출은 `composables/groupbuy/api/use…Api.ts`·`composables/commerce/api/use…Api.ts` 한 겹에 `// MOCK:`/`// REAL:` 로 나란히 있다. 금액·남은 수량·환불 미리 보기는 서버가 계산한 값(목업)을 보여 주기만 한다. 오류·빈 목록·금액 바뀜 같은 경우는 `?mock=` 스위치로 연다(목록은 각 목업 파일 머리). 요청·응답 전체 모양은 각 `*.types.ts` 에 서버 DTO 후보로 적었다.
+
+### 화면 경로
+- **user-web**: `/group-buys`(탭 `?phase=`) · `/group-buys/{id}` · `/group-buys/{id}/order` · `/me/orders` · `/me/orders/{orderNo}` · 사이트 푸터(`AppFooter.vue` — 판매 스위치 켜짐 + 사업자 정보가 다 찼을 때만 `CommerceBusinessInfo`, 공구 상세 하단도 같은 컴포넌트).
+- **admin-web**: 보통 모드 새 묶음 「공구」(결제 묶음 앞, 아이콘 `pi pi-truck`) — `/group-buys`(목록)·`/group-buys/new`·`/group-buys/{id}`(등록·수정·운영 동작) · `/group-buy-stock?id=`(수량) · `/group-buy-orders`(주문) · `/group-buy-requests`(취소·반품 요청) · 대시보드 `/` 커머스 일곱 칸 · `/settings/commerce` 에 구획 다섯(판매 스위치·체크리스트 / 사업자 정보 / 배송비 정책 / 택배사 / 공구 설정). Q&A(2b-6)는 만들지 않았다.
+
+### 구현한 동작 (요점)
+- **결제창 공용 컴포저블** `apps/user-web/app/composables/payment/usePaymentCheckout.ts`: `/dev/payment` 의 가짜 결제창·포트원 SDK·창 닫기 판정(`UtilPortone`)·리디렉션 복원·완료 요청을 옮겼다(`/dev/payment` 는 script 만 바꿈, 동작·testid 그대로). 공구용 감싸기 `useGroupBuyCheckout` — 주문 결제·결제 다시 열기·반품비 부족분 결제가 같이 쓰고 리디렉션은 `/me/orders/{orderNo}`(결정 13).
+- **주문서**(결정 59): 옵션 여러 줄 × 수량(같은 옵션 두 줄 불가), 옵션·수량·동의 기본 선택 없음, 판매조건·배송비·반품비·발송 예정일·청약철회 제한·정상가 기준을 처음부터, 선불카드 안내, 에스크로 고지(체크 칸 없음 — 결정 4), 우편번호 찾기 실패 → 직접 입력, 견적은 서버 값만(줄을 바꾸면 다시 물음) → 본인인증 게이트 → 주문(`expectedAmount` + 멱등 키) → 409 `GROUP_BUY_AMOUNT_CHANGED` 면 결제창 대신 확인 창 → 결제창, 선점 남은 시간·결제 다시 열기(`GROUP_BUY_HOLD_EXPIRED`).
+- **상세**: 다 팔림 ↔ 잠시 구매 불가 구분(공구·옵션), 알림 신청 `RESTOCK`(옵션 단위)·`CLOSING_SOON`·`NEXT_ROUND`, 연장 안내·연장 중, 추가 입고 N개·N차, 발송 지연 공지, 단추는 서버 `actions`·`purchase.reason` 만 본다.
+- **내 주문 상세**: 가린 배송지 → 전체 보기 → 수정(서버 `actions`), 본인 즉시 취소·취소 요청·반품 요청(줄·수량, 줄마다 사유, 하자·오배송 사진 3장 + 환불/교환 — 고른 줄이 모두 하자·오배송일 때만 교환), **회수 방식별 환불 미리 보기 나란히**, 마이너스면 「직접 발송으로 바꾸기」/「부족분 결제하고 접수」(결정 68), 요청 철회·요청 상태·거절 사유 문구, 환불 진행 표시(결정 16), 발송 지연 「바로 전액 취소」(52), 공급 불가 「나머지만 받기 / 전체 취소」 + 기한(53).
+- **관리자 공구**: DRAFT 는 전체 저장(`PUT`), 모집 뒤엔 요약·사양·설명·이미지만(`PATCH`, 나머지 잠김 표시), 정상가 기준·「최저가」·「한정」·「개봉하면 반품 불가」·「재판매」 문구 경고, 모집 시작·조기 마감·발주·추가 차수(복사 범위·경고·막힘 이유)·발송 지연 공지·옵션 공급 불가(서버 미리 보기)·중단(서버 미리 보기 「환불 N명·총 N원 / 이미 발송 M명」)·수정 이력 서랍.
+- **수량**: 공구·옵션별 최대·처음·추가 입고·확정·선점·남음·반품·다시 판매·하한, 선점 목록(남은 초), 이동 내역(아홉 종류), 추가 입고·줄이기(옵션·사유, `GROUP_BUY_QTY_BELOW_FLOOR`).
+- **주문**: 번호·닉네임·회원 번호 찾기(배송지 검색 불가 안내), 상태 탭 건수, 준비중·발송(표 안 택배사·송장, 200건)·배송완료 일괄 + 줄 단위 결과, 발주·배송 명단 내보내기(사유), 상세 서랍(배송지 열람 사유 → 남은 시간 뒤 가림, 열람 기록, 환불 기록, 메모, 이력, 송장 정정, 운영 환불 — 발송 전 줄·수량 / 배송완료 금액만 / SHIPPED 막힘, 사업자 귀책, 고액 문턱 안내·승인 대기).
+- **요청 대기열**: 경과 영업일 경고(2)·심각(3), 줄마다 사유·수량·사진, `preview_amount` ↔ 다시 계산한 값 비교(72), 승인·거절(사유 코드 + 근거 사진, 제한 문구 없는 공구의 `USED_VALUE_LOSS` 경고)·회수 송장·회수 확인(반환받은 날)·완료(줄마다 처리 방법별 수량, `RESELL` 은 RECRUITING + 단순 변심 줄만)·보상액·교환 재발송·환불로 바꾸기·반품비 추가 결제 상태.
+- **설정**: 판매 스위치(켜기 최고 관리자 + 체크리스트, 사유) · 사업자 정보(결정 18 칸, 등록번호 체크섬) · 배송비 정책(시작된 줄 잠금·새 줄·왕복 경고) · 택배사(시드 6, 템플릿 검사, 이력 있는 코드 삭제 불가) · 공구 설정(결정 10 값 + 휴일 + 즉시 발송 기본 3영업일 + 공급 불가 선택 기한). 기존 「요청 제한」 구획은 내용 그대로, 저장 줄만 구획 안 `SaveBar` 로(구획마다 저장).
+
+### 목업 가정 (서버 단계에서 확정)
+- 예정 공구는 상태 이름이 계약에 없어 user-web 목업은 `status` + 서버가 주는 `phase`(`UPCOMING`·`ONGOING`·`ENDED`)로 탭을 가른다. 관리자 「모집 시작」은 DRAFT → RECRUITING 이고 `start_at` 이 미래면 회원 화면은 「예정」.
+- **운영자 조기 마감의 `close_reason`** 이 결정 79(`SOLD_OUT`·`TIME_UP`·`CANCELED`)에 없다 — 관리자 목업은 `TIME_UP`, user-web 은 중단을 `CANCELED`(「운영 종료」)로 그린다. 조기 마감 값 하나를 정해야 한다.
+- 반품비 부족분 결제 전 요청 상태를 `AWAITING_PAYMENT` 로 두었다(결정 68 「접수 전」 — 이름 미정).
+- 「마감 임박」은 서버 `closingSoon`(목업 24시간), 「남은 수량 적음」(≤ 5개 또는 ≤ 10%)만 화면 판정. 선점 「5분」은 문구에 박혀 있다 — 상세 응답에 `holdMinutes` 를 받는 것을 권한다.
+- 결제창은 목업에서 늘 가짜 게이트웨이이고 공구 목업이 가짜 결제·완료 요청을 흉내 낸다(REAL 줄은 `usePaymentApi().complete`). 결제 시작 응답에 **구매자 정보 `customer{fullName,phoneNumber,email}`** 를 새로 제안(KG이니시스가 요구 — 서버가 배송지·회원 정보로 채움).
+- 모집 뒤 고칠 수 있는 칸은 요약·사양·설명·이미지(제목·청약철회 제한 문구는 잠금). 공구 설정의 최소~최대는 선점 시간 외에 목업이 정했다(서버가 `ranges` 로 준다).
+- 배송 명단은 한 번 쓰는 내려받기 주소(`downloadUrl`)로 받는다(`useApiClient` 가 파일 응답을 받지 않음).
+- 관리자 메뉴 권한은 조회 `commerce.product.read`(공구·수량)·`commerce.order.read`(주문·요청)로 잡았다(결정 35 에 조회 코드 없음 — 판단). 권한 코드는 프론트 카탈로그에 모두 있고 `featureReady=false` 다 — 서버 `Permission` 에서 켜고 카탈로그를 맞춘다. 서버 `AdminScreenRegistry` 에 네 줄(`groupBuys`·`groupBuyStock`·`groupBuyOrders`·`groupBuyRequests`, 같은 주소·권한·아이콘·차례)을 더해야 한다.
+- 우편번호 찾기 서비스 미정(목업은 늘 실패 → 직접 입력). 사이트 푸터는 데스크톱만 보인다(`DefaultShell` 의 `max-md:hidden`) — 결정 56 「사이트 전체」를 채우려면 모바일 자리를 정해야 한다(테마·셸 작업과 맞춰). 공정위 사업자정보공개 링크는 [확인 필요] 그대로 넣지 않았다.
+
+### 백엔드에 필요한 API 후보 (JSON 카멜 표기, 상태 이름은 계약 그대로)
+| 쪽 | 주소 | 요청 → 응답·오류 |
+|---|---|---|
+| 회원 | `GET /api/group-buys?phase&page` · `GET /api/group-buys/{id}` | 목록 줄(`stockState` AVAILABLE·TEMP_SOLD_OUT·SOLD_OUT, `remainingQty`, `closingSoon`, `roundNo`, `closeReason`) / 상세(+ `images`·`descriptionHtml`·`normalPriceBasis`·`shipPlannedAt`·`shipWithinBusinessDays`·`shipping{fee,freeShippingOver,returnFee,returnFeeMode}`·`withdrawalRestriction`·`addedQty`·`options[]`(옵션별 `remainingQty`·`stockState`)·`delayNotice`·`purchase{reason}`·`actions`·`watches`·`myOrderNo`) · 404 `GROUP_BUY_NOT_FOUND` |
+| 회원 | `POST /api/group-buys/{id}/quote` · `POST /api/group-buys/{id}/orders`(멱등 키) | `{items[{optionId,qty}]}` → 줄별 금액·`itemsAmount`·`shippingFee`·`totalAmount` / `{items, address, agreements, expectedAmount}` → `{orderNo, amount, reservedUntil, payment{orderType,orderRefId,expiresAt,checkout,customer}}` · 409 `GROUP_BUY_AMOUNT_CHANGED`(현재 금액 포함)·`NOT_RECRUITING`·`SOLD_OUT`·`OPTION_SOLD_OUT`·`LIMIT_EXCEEDED`·`ALREADY_JOINED` · 403 `SALES_CLOSED` |
+| 회원 | `PUT`·`DELETE /api/group-buys/{id}/watches` · `GET /api/commerce/info` | `{kind, optionId}` → 204 / `{salesOpen, ready, business{…결정 18 칸}}` |
+| 회원 | `GET /api/me/orders` · `GET /api/me/orders/{orderNo}` | 목록(`attention` PAY·SUPPLY_CHOICE·DELAY·RETURN_FEE) / 상세(줄 `canceledQty`·`returnedQty`·`selectableQty`, 가린 배송지, `shipment`, `delayNotice`, `supplyChoice`, `requests[]`, `refunds[]`(progress IN_PROGRESS·COMPLETED·DELAYED·MANUAL, method), `returnUntil`·`defectReturnUntil`, `actions`) |
+| 회원 | `POST /api/me/orders/{orderNo}/payment` · `GET`·`PUT …/address` | 결제 다시 열기(409 `GROUP_BUY_HOLD_EXPIRED`) / 전체 배송지·수정(409 `GROUP_BUY_ADDRESS_LOCKED` — 새 코드) |
+| 회원 | `POST …/cancel/preview` · `…/cancel` · `…/requests/preview` · `…/requests` · `…/requests/{id}/payment` · `…/requests/{id}/withdraw` · `…/delay-cancel` · `…/supply-choice` · `…/photos` | 줄·수량 → 환불 나눔 / 요청 미리 보기는 `byMethod{COMPANY_PICKUP, CUSTOMER_SEND}` 각각 `refundAmount`(음수 가능)·나눔 + `feeBearer`·`returnAddress` / 요청 → `{request, returnFeePayment}`(마이너스면 결제 시작) · 409 `GROUP_BUY_REQUEST_OPEN`·`RETURN_WINDOW_CLOSED`·`AMOUNT_CHANGED` |
+| 관리자 | `GET /api/admin/group-buys`(+`counts`) · `form-options` · `POST`·`PUT /{id}`(DRAFT) · `PATCH /{id}/content` · `POST images` · `GET /{id}/revisions` | 409 `GROUP_BUY_LOCKED_FIELD`·`VERSION_CONFLICT` · product.manage(+price) |
+| 관리자 | `POST /{id}/start` · `/close-early` · `/ordered` · `/rounds` · `GET /{id}/cancel-preview` + `POST /{id}/cancel` · `POST /{id}/delay-notices` · `GET /{id}/supply-failure-preview` + `POST /{id}/supply-failures` | 409 `ROUND_EXISTS`·`ROUND_SOURCE_INVALID`·`SHIPPING_POLICY_MISSING` · 중단 미리 보기 `refundOrders·refundAmount·expireOrders·shippedOrders` · groupbuy.cancel / order.manage + refund.approve |
+| 관리자 | `GET /{id}/stock` · `/stock/movements` · `POST /{id}/stock/adjust` | `{optionId?, direction ADD·REDUCE, qty, reason}` · 409 `QTY_BELOW_FLOOR`(floor)·`OPTION_UNLIMITED` · stock.adjust |
+| 관리자 | `GET /api/admin/group-buy-orders`(`alert` SHIP_OVERDUE·DELIVERY_STALE) · `/{id}` · `/carriers` · `POST prepare`·`ship`(≤ 200 줄)·`deliver` · `/{id}/address-reveal` · `/memo` · `/tracking` · `/refund-preview` + `/refunds` · `POST export` | 일괄은 `{succeeded, failed, results[{orderId, ok, code, message}]}` · 운영 환불 `{state QUEUED·AWAITING_APPROVAL}`, 409 `REFUND_SHIPPED`·`PAYMENT_UNRECONCILED` · 내보내기 `{fileName,rowCount,downloadUrl}`(export + address.reveal) |
+| 관리자 | `GET /api/admin/group-buy-requests`(`elapsedBusinessDays`·`deadlineLevel`) · `/{id}` · `POST approve`·`reject`·`pickup`·`receive`·`complete`(`dispositions[]`·`compensationAmount`·`expectedAmount`)·`exchange-ship`·`convert-to-refund` · `photos` | 409 `REFUND_AMOUNT_CHANGED`·`NOT_RESELLABLE`·`REJECT_REASON_NOT_ALLOWED`·`REQUEST_NOT_OPEN` · order.manage(+refund.approve) |
+| 관리자 | `GET /api/admin/commerce/dashboard` · `shipping-policies` · `carriers` · `business-info` · `sales`(+ `checklist/{key}`) · `group-buy-settings` | 대시보드 일곱 칸(권한 없는 칸 null) · 409 `COMMERCE_SHIPPING_POLICY_OVERLAP`·`_STARTED`·`COMMERCE_CARRIER_IN_USE`·`COMMERCE_SALES_NOT_READY` · settings(판매 켜기는 최고 관리자) |
+- 목업이 새로 정한 오류 코드(위 「감사·오류 코드 후보」에 없던 것): `GROUP_BUY_VERSION_CONFLICT`·`SHIPPING_POLICY_MISSING`·`NOT_DRAFT`·`NOT_CANCELABLE`·`NOT_ORDERABLE`·`OPTION_UNLIMITED`·`ORDER_NOT_PREPARABLE`·`ORDER_NOT_SHIPPABLE`·`TRACKING_INVALID`·`REFUND_SHIPPED`·`EXPORT_NOT_READY`·`REFUND_AMOUNT_CHANGED`·`REJECT_REASON_NOT_ALLOWED`·`REQUEST_NOT_OPEN`·`ADDRESS_ERASED`·`ADDRESS_LOCKED`·`ORDER_STATE`(모두 `GROUP_BUY_` 접두) · `COMMERCE_SHIPPING_POLICY_OVERLAP`·`_STARTED`·`COMMERCE_CARRIER_IN_USE`·`COMMERCE_SALES_NOT_READY`. 2b-2·2b-3 이 서버 코드를 정할 때 이 목록과 맞춘다.
 
 ## 마이그레이션 계획 (가번호 — develop 에 합칠 때 다시 확인, 지금 shared 마지막 V100 — 2a 보강 `payment_cancel_one_sending`)
 | 가번호 | 스트림 | 내용 | 단위 |

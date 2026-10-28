@@ -1,9 +1,10 @@
 <template>
     <!--
-        커머스 설정(`/settings/commerce`) — 판매·결제에 공통으로 쓰는 설정. 지금은 「요청 제한」 구획 하나이고, 판매 스위치·사업자 정보·택배사 등은 나중에 이 화면에 구획으로 더한다(`docs/domain/commerce.md` 13-5).
+        커머스 설정(`/settings/commerce`) — 판매·결제에 공통으로 쓰는 설정(`docs/domain/commerce.md` 13-5). 구획: ① 요청 제한 ② 판매 스위치·오픈 체크리스트 ③ 사업자 정보 ④ 배송비 정책 ⑤ 택배사 ⑥ 공구 설정
+        (② ~ ⑥ 은 커머스 2b — `components/commerce/Commerce*Section.vue`, 지금 목업). **구획마다 따로 저장한다**(구획마다 자기 API — 구획 맨 아래 저장 줄 `SaveBar`, `forms.md` 2-4).
         요청 제한(12-4): 회원 한 명이 1분 동안 보낼 수 있는 돈 관련 요청 수(공구 참여 · 충전 요청 · 상점 구매 · 환불 신청, 차례 고정). 0~100 정수, 0 = 제한 없음. 넘으면 서버가 429 + 몇 초 뒤 가능한지 알린다.
-        권한 `commerce.settings`(메뉴 권한이 없으면 셸이 이 화면을 그리지 않는다). 막는 것은 서버(403)다.
-        저장은 한 번에(PUT, 네 종류 모두) — 떠 있는 저장 줄(`StickySaveBar`). 칸은 `InputText` + `inputmode=numeric`(`InputNumber` 는 범위 밖 값을 말없이 고친다).
+        권한 `commerce.settings`(메뉴 권한이 없으면 셸이 이 화면을 그리지 않는다) — 판매 **켜기**만 최고 관리자. 막는 것은 서버(403)다.
+        요청 제한 저장은 한 번에(PUT, 네 종류 모두) — 그 구획 맨 아래 저장 줄. 칸은 `InputText` + `inputmode=numeric`(`InputNumber` 는 범위 밖 값을 말없이 고친다).
         범위 검사는 `UtilCommerce`(서버와 같은 범위) — 하나라도 틀리면 저장 단추가 꺼진다. 서버가 거절한 칸(400 `VALIDATION` `fields.limits.<코드>`)은 그 칸 아래에 서버 문구 그대로, 칸에 붙지 않는 것은 저장 줄 안에 보인다.
         바꾼 값은 서버가 감사(전→후)에 남기고, 서버들은 설정 사본을 15초 안에 따라온다.
     -->
@@ -77,11 +78,19 @@
                     <p class="m-0 text-xs text-muted-color">
                         {{ saved.updatedAt ? t('commerce.lastSaved', { at: time.full(saved.updatedAt), by: saved.updatedBy ?? '—' }) : t('commerce.neverSaved') }}
                     </p>
+
+                    <!-- 구획마다 따로 저장하는 화면이 됐으므로(2b) 이 구획도 구획 맨 아래 저장 줄 — 동작은 그대로(PUT 한 번, 네 종류 모두) -->
+                    <SaveBar :dirty="dirty" :saving="saving" :disabled="!canSave" :count="changed.length" :error-count="errorCount" :error="formError" @save="save" @revert="revert" />
                 </div>
             </AppGadget>
-
-            <StickySaveBar submit revertable :dirty="dirty" :saving="saving" :disabled="!canSave" :count="changed.length" :error-count="errorCount" :error="formError" @revert="revert" />
         </form>
+
+        <!-- ② ~ ⑥ 커머스 2b(공구) 구획 — 구획마다 따로 저장한다 -->
+        <CommerceSalesSwitchSection ref="salesSection" can-edit />
+        <CommerceBusinessInfoSection can-edit @dirty="(d: boolean) => setDirty('business', d)" @saved="salesSection?.reload()" />
+        <CommerceShippingPolicySection can-edit @dirty="(d: boolean) => setDirty('policy', d)" />
+        <CommerceCarrierSection can-edit @dirty="(d: boolean) => setDirty('carrier', d)" @saved="salesSection?.reload()" />
+        <CommerceGroupBuySettingsSection can-edit @dirty="(d: boolean) => setDirty('groupBuy', d)" />
     </div>
 </template>
 
@@ -220,8 +229,15 @@ async function save(): Promise<void> {
 }
 
 // 저장하지 않은 변경이 있는 채 다른 화면으로 가려 하면 묻는다
+// 2b 구획들 — 판매 스위치는 다른 구획 저장 뒤 자동 조건을 다시 읽는다. 바뀐 값이 남은 구획은 떠날 때 묻는다
+const salesSection = ref<{ reload: () => Promise<void> } | null>(null);
+const sectionDirty = ref<Record<string, boolean>>({});
+function setDirty(key: string, value: boolean): void {
+    sectionDirty.value = { ...sectionDirty.value, [key]: value };
+}
+
 onBeforeRouteLeave(async () => {
-    if (!dirty.value) return true;
+    if (!dirty.value && !Object.values(sectionDirty.value).some(Boolean)) return true;
     return confirm({ title: t('commerce.leaveTitle'), message: t('commerce.leaveMessage'), confirmLabel: t('commerce.leaveConfirm'), cancelLabel: t('commerce.leaveCancel'), tone: 'danger' });
 });
 </script>

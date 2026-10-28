@@ -13,6 +13,7 @@ import commerce from './commerce';
 import dashboard from './dashboard';
 import error from './error';
 import grade from './grade';
+import groupBuy from './groupBuy';
 import identity from './identity';
 import group from './group';
 import login from './login';
@@ -59,6 +60,7 @@ export default {
     dashboard,
     error,
     grade,
+    groupBuy,
     identity,
     group,
     login,
