@@ -68,12 +68,12 @@ export interface GroupBuyListItem {
     phase: GroupBuyPhase;
     closeReason: GroupBuyCloseReason | null;
     fulfillment: GroupBuyFulfillment;
-    /** 공구가(옵션이 있으면 가장 싼 옵션 기준 — `priceFrom`) */
+    /** 공구가(본 상품 단품 값이 다르면 가장 싼 것 — `priceFrom`) */
     groupPrice: number;
-    /** true 면 「N원부터」(옵션마다 값이 다르다) */
+    /** true 면 「N원부터」(본 상품 단품마다 값이 다르다) */
     priceFrom: boolean;
     normalPrice: number | null;
-    /** 0 = 선착순 */
+    /** 0 = 선착순. 공구 최대·확정·남은 수량·성사 판정은 본 상품(MAIN) 수량만 센다(결정 88) */
     minQty: number;
     maxQty: number;
     /** 확정 수량(판매 수량) */
@@ -102,22 +102,66 @@ export interface GroupBuyImage {
     alt: string;
 }
 
-/** 옵션 한 줄(결정 84 — 남은 수량·품절 판정은 서버 값) */
-export interface GroupBuyOption {
-    id: number;
+/* ── 옵션 축 · 단품(결정 88) — 서버 2b-2(커밋 9c23966a)가 정한 남은 수량(Availability) 모양 ── */
+
+/** 옵션 축의 값 하나(예 「블랙」·「M」) */
+export interface GroupBuyAxisValue {
+    valueId: number;
+    value: string;
+}
+
+/** 옵션 축 하나(예 「색상」) — 공구마다 0~3개, 배열 차례가 고르는 차례 */
+export interface GroupBuyAxis {
+    axisId: number;
     name: string;
-    extraPrice: number;
-    /** 공구가 + 추가금 */
+    values: GroupBuyAxisValue[];
+}
+
+/** 단품 종류 — 본 상품(축 값 조합) · 추가 구성상품(단독 구매 불가) */
+export type GroupBuySkuKind = 'MAIN' | 'ADDON';
+
+/**
+ * 단품(SKU) — 실제로 파는 단위. 수량·품절·수량 풀림 알림·주문 줄·반품은 모두 단품 단위(결정 88). 값은 모두 서버 판정이다.
+ */
+export interface GroupBuySku {
+    skuId: number;
+    kind: GroupBuySkuKind;
+    /** MAIN 이름 = 값을 「 / 」로 이은 것(「블랙 / M」), 축이 없으면 상품 이름. ADDON 은 상품 이름 */
+    name: string;
+    /** MAIN 의 축 값 조합(축 차례대로 값 ID) — ADDON 은 빈 배열 */
+    valueIds: number[];
+    /** 한 개 값 — MAIN = 공구가 + 추가금, ADDON = 자기 가격 */
     unitPrice: number;
-    /** 이 옵션으로 살 수 있는 남은 수량 = min(옵션 남음, 공구 남음) */
-    remainingQty: number;
-    /** 옵션 최대 — null 이면 옵션 한도 없음(공구 값을 따른다) */
-    maxQty: number | null;
-    stockState: GroupBuyStockState;
-    /** 이 옵션의 수량 풀림 알림을 신청했나 */
-    watchingRestock: boolean;
-    /** 이 옵션에 수량 풀림 알림을 신청할 수 있나(서버) */
-    canWatchRestock: boolean;
+    /** 남은 수량 — MAIN = min(단품 남은, 공구 남은), ADDON 은 자기 한도만. null = 제한 없음(한도 없는 ADDON) */
+    remaining: number | null;
+    /** 다 팔림(확정 = 최대) */
+    soldOut: boolean;
+    /** 잠시 구매 불가(다른 분이 결제 중 — 확정 + 선점 = 최대) */
+    temporarilyUnavailable: boolean;
+    /** false 면 판매 끈 조합(회색 — 고를 수 없음) */
+    onSale: boolean;
+}
+
+/** 상세의 남은 수량 묶음(서버 `Availability`) — 공구 남은 수량·품절과 축·단품 */
+export interface GroupBuyAvailability {
+    groupBuyId: number;
+    /** 공구 남은 수량(MAIN 만 센다) */
+    remaining: number;
+    soldOut: boolean;
+    temporarilyUnavailable: boolean;
+    addedQty: number;
+    /** 0~3, 차례대로 */
+    axes: GroupBuyAxis[];
+    /** MAIN 은 축 값 조합마다 하나(축이 없으면 하나), ADDON 은 추가 구성상품. 배열 차례가 표시 차례 */
+    skus: GroupBuySku[];
+}
+
+/** 단품 단위 수량 풀림 알림(결정 84·88) — 목업 가정: 서버 2b-2 가 아직 칸 이름을 정하지 않았다 */
+export interface GroupBuySkuWatches {
+    /** 알림을 신청할 수 있는 단품(품절·잠시 구매 불가 중 서버가 허락한 것) */
+    watchable: number[];
+    /** 알림을 신청한 단품 */
+    watching: number[];
 }
 
 /* ── 상품정보제공고시(결정 87 — 공정위고시 제2022-15호) ── */
@@ -150,7 +194,7 @@ export interface NoticeCustomItemView {
     sortOrder: number;
 }
 
-/** 고시 양식 한 장(품목 하나) — 배열 차례가 표시 차례. `optionNames` 가 비면 기본 상품(공구 전체), 아니면 별개 상품 옵션용(원칙 7) */
+/** 고시 양식 한 장(품목 하나) — 배열 차례가 표시 차례. 적용 단품이 비면 기본 양식(MAIN 만 덮는다), 아니면 그 단품들 전용(원칙 7 — 추가 구성상품은 단품마다 자기 양식) */
 export interface GroupBuyNoticeView {
     /** 품목 코드(예 `SMALL_ELECTRONICS`) */
     categoryCode: string;
@@ -160,8 +204,10 @@ export interface GroupBuyNoticeView {
     categoryName: string;
     /** 운영자가 붙인 제목(예 「본체」·「확장 센서 팩」) */
     title: string;
-    /** 적용 옵션 이름 — 한 옵션은 양식 하나에만 속한다 */
-    optionNames: string[];
+    /** 적용 단품(결정 88 — 한 단품은 양식 하나에만 속한다, 예전 `optionNames`) — 비면 기본 양식 */
+    skuIds: number[];
+    /** 적용 단품 이름(`skuIds` 차례) */
+    skuNames: string[];
     rows: NoticeRowView[];
     customItems: NoticeCustomItemView[];
     /** 카탈로그 버전(예 `2023-01-01`) */
@@ -201,18 +247,20 @@ export interface GroupBuyDetail extends GroupBuyListItem {
     extensionMaxMinutes: number;
     /** 「추가 입고 N개」(결정 80 — max(0, 최대 − 처음 최대)) */
     addedQty: number;
-    /** 1인 한도 — null 이면 없음 */
+    /** 1인 한도(본 상품 MAIN 수량만 센다 — 결정 88) — null 이면 없음 */
     maxQtyPerUser: number | null;
     /** 차수 사이 1인 한도 합산(결정 24) */
     roundLimitShared: boolean;
-    /** 옵션 없는 공구는 빈 배열 */
-    options: GroupBuyOption[];
+    /** 남은 수량 · 옵션 축 · 단품(서버 `Availability`, 예전 `options` 를 대신한다 — 결정 88) */
+    availability: GroupBuyAvailability;
+    /** 단품 단위 수량 풀림 알림(목업 가정 — 서버 칸 이름 미정) */
+    skuWatches: GroupBuySkuWatches;
     /** 상품정보제공고시 양식(결정 87 — 배열 차례. 공개된 공구는 양식이 다 찬 상태다) */
     notices: GroupBuyNoticeView[];
     delayNotice: GroupBuyDelayNotice | null;
     purchase: { reason: GroupBuyPurchaseReason | null };
     actions: GroupBuyActions;
-    /** 공구 단위 알림 신청 여부(옵션 단위 RESTOCK 은 옵션 줄에) */
+    /** 공구 단위 알림 신청 여부(단품 단위 RESTOCK 은 단품에) */
     watches: Record<GroupBuyWatchKind, boolean>;
     /** 진행 중인 내 주문(ALREADY_JOINED 일 때 그 주문으로 가는 길) */
     myOrderNo: string | null;
@@ -220,9 +268,13 @@ export interface GroupBuyDetail extends GroupBuyListItem {
 
 /* ── 견적·주문 ── */
 
-/** 주문 줄 — 같은 옵션 두 줄 금지(결정 23), 옵션 없는 공구는 `optionId: null` 한 줄 */
+/**
+ * 주문 줄(서버 2b-2) — 단품 하나에 한 줄, 축 없는 공구도 MAIN 단품 ID 로 보낸다.
+ * MAIN 줄이 하나 이상 있어야 한다 — 추가 구성상품만·같은 단품 두 줄·수량 0 은 400 `fields.items`(서버 문구).
+ * 판매 안 함 409 `GROUP_BUY_SKU_NOT_ON_SALE {skuId}` · 품절 409 `GROUP_BUY_SKU_SOLD_OUT {skuId, temporary}`. 1인 한도·공구 최대·성사는 MAIN 만 센다.
+ */
 export interface GroupBuyOrderLine {
-    optionId: number | null;
+    skuId: number;
     qty: number;
 }
 
@@ -231,9 +283,19 @@ export interface GroupBuyQuoteRequest {
     items: GroupBuyOrderLine[];
 }
 
-/** 견적 — 화면은 계산하지 않는다(주문 때 서버가 다시 계산) */
+/** 견적 줄(서버 2b-2) */
+export interface GroupBuyQuoteItem {
+    skuId: number;
+    kind: GroupBuySkuKind;
+    name: string;
+    qty: number;
+    unitPrice: number;
+    itemAmount: number;
+}
+
+/** 견적 — 화면은 계산하지 않는다(주문 때 서버가 다시 계산). 무료배송 기준은 추가 구성상품까지 더한 상품 합(결정 88) */
 export interface GroupBuyQuote {
-    lines: { optionId: number | null; qty: number; unitPrice: number; amount: number }[];
+    items: GroupBuyQuoteItem[];
     itemsAmount: number;
     shippingFee: number;
     totalAmount: number;
@@ -283,9 +345,9 @@ export interface GroupBuyOrderCreated {
     payment: GroupBuyPaymentStart;
 }
 
-/** `PUT /api/group-buys/{id}/watches` · `DELETE …/watches?kind=&optionId=` */
+/** `PUT /api/group-buys/{id}/watches` · `DELETE …/watches?kind=&skuId=` */
 export interface GroupBuyWatchRequest {
     kind: GroupBuyWatchKind;
-    /** 옵션 단위 수량 풀림 알림(결정 84) — 공구 단위면 null */
-    optionId: number | null;
+    /** 단품 단위 수량 풀림 알림(결정 84·88 — `group_buy_watches.sku_id`) — 공구 단위면 null */
+    skuId: number | null;
 }

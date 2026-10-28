@@ -37,8 +37,8 @@ import UtilIdempotency from '~/utils/util-idempotency';
  *  - `GET  /api/me/orders/{orderNo}` → `MyGroupBuyOrderDetail`(배송지는 가린 값) · `404 GROUP_BUY_ORDER_NOT_FOUND`
  *  - `POST /api/me/orders/{orderNo}/payment` → `GroupBuyPaymentStart` — 결제 다시 열기(선점을 늘리지 않는다, 남은 선점 1분 미만이면 `409 GROUP_BUY_HOLD_EXPIRED`, 유효한 READY 가 있으면 그것 — 결정 41·63)
  *  - `GET  /api/me/orders/{orderNo}/address` → `MyGroupBuyAddress`(전체 값 — 화면 메모리에만) · `PUT …/address` `GroupBuyAddressUpdate` → 상세 · `409 GROUP_BUY_ADDRESS_LOCKED`(기한 — 결정 30)
- *  - `POST /api/me/orders/{orderNo}/cancel/preview` `{ items[] }` → `GroupBuyCancelPreview`
- *  - `POST /api/me/orders/{orderNo}/cancel` + `Idempotency-Key` `{ items[] }` → 상세 — 본인 즉시 취소(줄·수량 단위, 결정 42·45) · `409 GROUP_BUY_ORDER_STATE`
+ *  - `POST /api/me/orders/{orderNo}/cancel/preview` `{ lines[{ skuId, qty }] }` → `GroupBuyCancelPreview`
+ *  - `POST /api/me/orders/{orderNo}/cancel` + `Idempotency-Key` `{ lines[{ skuId, qty }] }` → 상세 — 본인 즉시 취소(단품·수량 단위, 결정 42·45·88) · `409 GROUP_BUY_ORDER_STATE` · `409 GROUP_BUY_ADDON_ONLY {skuIds}`(본 상품을 모두 취소하며 추가 구성상품을 남김 — 함께 다시 보낸다)
  *  - `POST /api/me/orders/{orderNo}/requests/preview` `{ items[{orderItemId, qty, reason}] }` → `GroupBuyReturnPreview`(회수 방식별 결과 — 결정 68)
  *  - `POST /api/me/orders/{orderNo}/requests` + `Idempotency-Key` `GroupBuyRequestCreate` → `GroupBuyRequestCreated`(부족분이면 결제창 대상) · `409 GROUP_BUY_REQUEST_OPEN|AMOUNT_CHANGED|RETURN_WINDOW_CLOSED`
  *  - `POST /api/me/orders/{orderNo}/requests/{id}/payment` → `GroupBuyPaymentStart` — 반품비 부족분 결제(다시 열기)

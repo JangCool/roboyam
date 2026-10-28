@@ -1,24 +1,25 @@
 <template>
     <!--
         상품정보제공고시 양식들(결정 87). 공구 상세(넓은 폭은 그 자리에, 모바일은 시트)와 주문서(시트)가 같이 쓴다.
-        양식마다 제목 · 품목 · 적용 옵션 · 항목 표(묶음 줄이 있는 항목은 묶음 이름을 앞에) · 「판매자 추가 정보」. 「제공 불가」는 사유를 그대로, KC 인증 항목은 딱지.
-        옵션은 이름으로 양식을 찾는다(서버 `optionNames`). 옵션 칩을 누르면 그 옵션이 속한 양식(없으면 기본 양식)을 펼친다. 바깥 구획·제목은 부르는 쪽이 둔다.
+        양식마다 제목 · 품목 · 적용 단품 · 항목 표(묶음 줄이 있는 항목은 묶음 이름을 앞에) · 「판매자 추가 정보」. 「제공 불가」는 사유를 그대로, KC 인증 항목은 딱지.
+        적용 대상은 단품(결정 88) — 단품 ID 로 양식을 찾는다(서버 `skuIds`·`skuNames`). 추가 구성상품은 단품마다 자기 양식, 적용 단품이 빈 기본 양식은 MAIN 만 덮는다.
+        단품 칩을 누르면 그 단품이 속한 양식(없으면 기본 양식)을 펼친다. 바깥 구획·제목은 부르는 쪽이 둔다.
     -->
     <div class="flex flex-col gap-3" data-testid="group-buy-product-notices">
         <div v-if="showChips" class="flex flex-col gap-1.5">
-            <span :id="chipsLabelId" class="text-xs font-medium text-muted-color">{{ t('groupBuy.productInfoByOption') }}</span>
+            <span :id="chipsLabelId" class="text-xs font-medium text-muted-color">{{ t('groupBuy.productInfoBySku') }}</span>
             <div class="flex flex-wrap gap-1.5" role="group" :aria-labelledby="chipsLabelId">
                 <Button
-                    v-for="option in options"
-                    :key="option.id"
+                    v-for="sku in skus"
+                    :key="sku.skuId"
                     type="button"
                     size="small"
-                    :label="option.name"
-                    :severity="selectedOptionId === option.id ? undefined : 'secondary'"
-                    :variant="selectedOptionId === option.id ? undefined : 'outlined'"
-                    :aria-pressed="selectedOptionId === option.id"
-                    :data-testid="`group-buy-notice-chip-${option.id}`"
-                    @click="pickOption(option.id)"
+                    :label="sku.name"
+                    :severity="selectedSkuId === sku.skuId ? undefined : 'secondary'"
+                    :variant="selectedSkuId === sku.skuId ? undefined : 'outlined'"
+                    :aria-pressed="selectedSkuId === sku.skuId"
+                    :data-testid="`group-buy-notice-chip-${sku.skuId}`"
+                    @click="pickSku(sku.skuId)"
                 />
             </div>
         </div>
@@ -104,21 +105,23 @@
 </template>
 
 <script setup lang="ts">
-import type { GroupBuyNoticeView, GroupBuyOption } from '~/composables/groupbuy/api/useGroupBuyApi.types';
+import type { GroupBuyNoticeView, GroupBuySku } from '~/composables/groupbuy/api/useGroupBuyApi.types';
+
+type NoticeSku = Pick<GroupBuySku, 'skuId' | 'name' | 'kind'>;
 
 interface Props {
     notices: GroupBuyNoticeView[];
-    /** 공구의 옵션(이름으로 양식을 찾는다) — 옵션 없는 공구는 빈 배열 */
-    options?: Pick<GroupBuyOption, 'id' | 'name'>[];
-    /** 주문서에서 고른 옵션 ID — 그 옵션들의 양식을 먼저 놓고 펼친다 */
-    priorityOptionIds?: number[];
+    /** 공구의 판매하는 단품(칩·적용 범위 글자) */
+    skus?: NoticeSku[];
+    /** 주문서에서 고른 단품 ID — 그 단품들의 양식을 먼저 놓고 펼친다 */
+    prioritySkuIds?: number[];
     /** 양식 제목 태그 — 바깥 제목이 h2 면 h3, 시트(제목 h3) 안이면 h4 */
     headingTag?: 'h3' | 'h4';
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    options: () => [],
-    priorityOptionIds: () => [],
+    skus: () => [],
+    prioritySkuIds: () => [],
     headingTag: 'h3',
 });
 
@@ -130,37 +133,35 @@ const regionId = (index: number) => `${uid}-notice-${index}`;
 /** 양식 차례(배열 index)를 식별자로 쓴다(응답에 ID 가 없다) */
 const entries = computed(() => props.notices.map((notice, index) => ({ notice, index })));
 
-/** 옵션 이름 → 그 옵션이 속한 양식 차례(한 옵션은 양식 하나에만 — 결정 87) */
-const formOfName = computed(() => {
-    const map = new Map<string, number>();
-    props.notices.forEach((notice, index) => notice.optionNames.forEach((name) => map.has(name) || map.set(name, index)));
+/** 단품 ID → 그 단품이 속한 양식 차례(서버 `skuIds` — 한 단품은 양식 하나에만, 결정 87·88) */
+const formOfSku = computed(() => {
+    const map = new Map<number, number>();
+    props.notices.forEach((notice, index) => notice.skuIds.forEach((skuId) => map.has(skuId) || map.set(skuId, index)));
     return map;
 });
+/** 기본 양식(적용 단품이 빈 것 — MAIN 만 덮는다) */
 const baseIndex = computed(() => {
-    const i = props.notices.findIndex((n) => n.optionNames.length === 0);
+    const i = props.notices.findIndex((n) => n.skuIds.length === 0);
     return i < 0 ? null : i;
 });
 
-function nameOf(optionId: number): string | undefined {
-    return props.options.find((o) => o.id === optionId)?.name;
-}
-
-/** 옵션이 속한 양식 — 별개 상품 양식에 없으면 기본 양식 */
-function formFor(optionId: number): number | null {
-    const name = nameOf(optionId);
-    return (name !== undefined ? formOfName.value.get(name) : undefined) ?? baseIndex.value;
+/** 단품이 속한 양식 — 따로 둔 양식에 없으면 기본 양식(본 상품만) */
+function formFor(skuId: number): number | null {
+    const own = formOfSku.value.get(skuId);
+    if (own !== undefined) return own;
+    return props.skus.find((s) => s.skuId === skuId)?.kind === 'ADDON' ? null : baseIndex.value;
 }
 
 const priorityForms = computed(() => {
     const out = new Set<number>();
-    for (const optionId of props.priorityOptionIds) {
-        const form = formFor(optionId);
+    for (const skuId of props.prioritySkuIds) {
+        const form = formFor(skuId);
         if (form !== null) out.add(form);
     }
     return out;
 });
 
-/** 배열 차례, 고른 옵션의 양식이 있으면 그것을 먼저(고른 차례대로) */
+/** 배열 차례, 고른 단품의 양식이 있으면 그것을 먼저(고른 차례대로) */
 const sorted = computed(() => {
     if (priorityForms.value.size === 0) return entries.value;
     const first = [...priorityForms.value].map((i) => entries.value[i]!).filter(Boolean);
@@ -168,26 +169,26 @@ const sorted = computed(() => {
 });
 
 const collapsible = computed(() => props.notices.length > 1);
-/** 별개 상품 양식이 있을 때만 옵션 칩(기본 양식 하나뿐이면 고를 까닭이 없다) */
-const showChips = computed(() => props.options.length > 0 && props.notices.some((n) => n.optionNames.length > 0));
+/** 따로 둔 양식(추가 구성상품·종류별)이 있을 때만 단품 칩(기본 양식 하나뿐이면 고를 까닭이 없다) */
+const showChips = computed(() => props.skus.length > 1 && props.notices.some((n) => n.skuIds.length > 0));
 
 const openIds = ref(new Set<number>());
-const selectedOptionId = ref<number | null>(null);
+const selectedSkuId = ref<number | null>(null);
 
-/** 처음 펼칠 양식 — 고른 옵션의 양식, 없으면 기본 양식(없으면 첫 장) */
+/** 처음 펼칠 양식 — 고른 단품의 양식, 없으면 기본 양식(없으면 첫 장) */
 function resetOpen(): void {
-    selectedOptionId.value = null;
+    selectedSkuId.value = null;
     if (priorityForms.value.size > 0) openIds.value = new Set(priorityForms.value);
     else {
         const first = baseIndex.value ?? (props.notices.length ? 0 : null);
         openIds.value = new Set(first === null ? [] : [first]);
     }
 }
-watch([() => props.notices, () => props.priorityOptionIds.join(',')], resetOpen, { immediate: true });
+watch([() => props.notices, () => props.prioritySkuIds.join(',')], resetOpen, { immediate: true });
 
 const highlighted = computed(() => {
-    if (selectedOptionId.value === null) return priorityForms.value;
-    const form = formFor(selectedOptionId.value);
+    if (selectedSkuId.value === null) return priorityForms.value;
+    const form = formFor(selectedSkuId.value);
     return new Set(form === null ? [] : [form]);
 });
 
@@ -198,19 +199,25 @@ function toggle(index: number): void {
     openIds.value = next;
 }
 
-function pickOption(optionId: number): void {
-    selectedOptionId.value = optionId;
-    const form = formFor(optionId);
+function pickSku(skuId: number): void {
+    selectedSkuId.value = skuId;
+    const form = formFor(skuId);
     if (form === null) return;
     openIds.value = new Set([form]);
     void nextTick(() => document.getElementById(regionId(form))?.parentElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
 }
 
-/** 적용 범위 — 별개 상품 양식은 그 옵션들, 기본 양식은 다른 양식에 속하지 않은 옵션(옵션 없는 공구면 공구 전체) */
+/**
+ * 적용 범위 — 따로 둔 양식은 그 단품 이름들. 기본 양식(MAIN 만 덮는다)은 다른 양식에 속하지 않은 본 상품:
+ * 추가 구성상품도 따로 양식도 없으면 「공구 전체」, 본 상품 전부면 「본 상품」, 그 밖이면 단품 이름들.
+ */
 function appliesText(notice: GroupBuyNoticeView): string {
-    if (notice.optionNames.length > 0) return t('groupBuy.productInfoAppliesOptions', { names: notice.optionNames.join(', ') });
-    const rest = props.options.filter((o) => !formOfName.value.has(o.name)).map((o) => o.name);
-    return rest.length > 0 && rest.length < props.options.length ? t('groupBuy.productInfoAppliesOptions', { names: rest.join(', ') }) : t('groupBuy.productInfoAppliesAll');
+    if (notice.skuIds.length > 0) return t('groupBuy.productInfoAppliesSkus', { names: notice.skuNames.join(', ') });
+    const mains = props.skus.filter((s) => s.kind === 'MAIN');
+    const rest = mains.filter((s) => !formOfSku.value.has(s.skuId));
+    if (rest.length === props.skus.length) return t('groupBuy.productInfoAppliesAll');
+    if (rest.length === mains.length) return t('groupBuy.productInfoAppliesMain');
+    return t('groupBuy.productInfoAppliesSkus', { names: rest.map((s) => s.name).join(', ') });
 }
 
 function customItemsOf(notice: GroupBuyNoticeView) {

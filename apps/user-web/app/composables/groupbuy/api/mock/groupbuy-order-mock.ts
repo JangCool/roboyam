@@ -13,6 +13,8 @@
 //   · 하자·오배송 줄이 하나라도 있으면(업체 부담 — 결정 44) 반품비·재부과 없이 상품 금액, 전체 반품이면 낸 배송비도 돌려준다. 직접 발송이면 택배비 보상 대상(금액은 운영자가 정한다).
 //   · 결과가 마이너스이면 요청은 `AWAITING_PAYMENT`(부족분 결제해야 접수 — 결정 68), 결제창 대상(`GROUP_BUY_RETURN_FEE`, 유효 30분)을 같이 준다.
 //   · 본인 취소·지연 취소·공급 불가 전체 취소의 환불은 「진행 중」으로 더한다(카드사 반영 3~7영업일).
+//   · 줄은 단품 단위(결정 88). 본인 즉시 취소는 `lines[{ skuId, qty }]` — 본 상품을 모두 취소하면서 추가 구성상품을 남기면 409 GROUP_BUY_ADDON_ONLY {skuIds}(서버 2b-2).
+//     취소 요청·반품 요청은 아직 주문 줄 ID(`orderItemId`)로 받고 그 409 를 내지 않는다(서버 2b-3 미정 — 화면이 먼저 「함께 고를까요?」를 묻는다).
 
 import { ApiError } from '~/composables/common/useApiClient';
 import { MOCK_ERRORS, mockClone, mockDelay, mockFlags } from '~/composables/common/mock/mock-util';
@@ -33,6 +35,7 @@ import type {
     GroupBuySupplyChoiceRequest,
     MyGroupBuyAddress,
     MyGroupBuyOrderDetail,
+    MyGroupBuyOrderItem,
     MyGroupBuyOrderPage,
     MyGroupBuyRequest,
 } from '~/composables/groupbuy/api/useGroupBuyOrderApi.types';
@@ -79,7 +82,8 @@ function summaryOf(order: MyGroupBuyOrderDetail): MyGroupBuyOrderPage['items'][n
         title: order.groupBuy.title,
         thumbnailUrl: order.groupBuy.thumbnailUrl,
         status: order.status,
-        firstItemName: order.items[0]?.optionName ?? null,
+        // 줄 하나뿐이고 이름이 공구 이름 앞부분과 같으면(축 없는 본 상품) 줄 이름을 따로 보이지 않는다
+        firstItemName: order.items.length === 1 && order.groupBuy.title.startsWith(order.items[0]!.skuName) ? null : (order.items[0]?.skuName ?? null),
         itemCount: order.items.length,
         amount: order.amount,
         refundedAmount: order.refundedAmount,
@@ -238,12 +242,25 @@ function applyCancel(order: MyGroupBuyOrderDetail, lines: GroupBuyItemQty[], amo
     refreshActions(order);
 }
 
+/** 단품 줄(`lines[{ skuId, qty }]` — 서버 2b-2) → 주문 줄 */
+function toItemLines(order: MyGroupBuyOrderDetail, body: GroupBuyCancelRequest): GroupBuyItemQty[] {
+    return body.lines.map((l) => ({ orderItemId: order.items.find((i) => i.skuId === l.skuId)?.id ?? -1, qty: l.qty }));
+}
+
+/** 본 상품을 모두 취소하면서 추가 구성상품을 남기면 409 `GROUP_BUY_ADDON_ONLY {skuIds}`(서버 2b-2) — 남는 추가 구성상품 단품 ID */
+function addonLeftAlone(order: MyGroupBuyOrderDetail, lines: GroupBuyItemQty[]): number[] {
+    const left = (i: MyGroupBuyOrderItem) => i.qty - i.canceledQty - i.returnedQty - lines.filter((l) => l.orderItemId === i.id).reduce((n, l) => n + l.qty, 0);
+    if (order.items.some((i) => i.kind === 'MAIN' && left(i) > 0)) return [];
+    return order.items.filter((i) => i.kind === 'ADDON' && left(i) > 0).map((i) => i.skuId);
+}
+
 export async function mockCancelPreview(orderNo: string, body: GroupBuyCancelRequest): Promise<GroupBuyCancelPreview> {
     await mockDelay();
     if (mockFlags().has('order-preview-fail')) throw MOCK_ERRORS.internal();
     const order = find(orderNo);
-    checkSelection(order, body.items);
-    return cancelCalc(order, body.items);
+    const lines = toItemLines(order, body);
+    checkSelection(order, lines);
+    return cancelCalc(order, lines);
 }
 
 export async function mockCancelNow(orderNo: string, body: GroupBuyCancelRequest): Promise<MyGroupBuyOrderDetail> {
@@ -251,8 +268,11 @@ export async function mockCancelNow(orderNo: string, body: GroupBuyCancelRequest
     if (mockFlags().has('order-cancel-fail')) throw new ApiError({ status: 409, code: 'GROUP_BUY_ORDER_STATE', message: '그 사이 상품 준비가 시작돼 바로 취소할 수 없어요. 취소 요청으로 해 주세요.' });
     const order = find(orderNo);
     if (!order.actions.cancelNow) throw new ApiError({ status: 409, code: 'GROUP_BUY_ORDER_STATE', message: '지금은 바로 취소할 수 없어요.' });
-    checkSelection(order, body.items);
-    applyCancel(order, body.items, cancelCalc(order, body.items).refundAmount, 'USER_CANCEL');
+    const lines = toItemLines(order, body);
+    checkSelection(order, lines);
+    const alone = addonLeftAlone(order, lines);
+    if (alone.length > 0) throw new ApiError({ status: 409, code: 'GROUP_BUY_ADDON_ONLY', message: '추가 구성상품은 본 상품 없이 받을 수 없어요. 함께 취소해 주세요.', extras: { skuIds: alone } });
+    applyCancel(order, lines, cancelCalc(order, lines).refundAmount, 'USER_CANCEL');
     return mockClone(order);
 }
 
@@ -298,7 +318,10 @@ export async function mockCreateRequest(orderNo: string, body: GroupBuyRequestCr
         id: Date.now() % 1_000_000,
         type: body.type,
         status: due ? 'AWAITING_PAYMENT' : 'REQUESTED',
-        items: lines.map((l) => ({ orderItemId: l.orderItemId, optionName: order.items.find((i) => i.id === l.orderItemId)?.optionName ?? null, qty: l.qty, reason: l.reason })),
+        items: lines.map((l) => {
+            const item = order.items.find((i) => i.id === l.orderItemId)!;
+            return { orderItemId: l.orderItemId, skuName: item.skuName, kind: item.kind, qty: l.qty, reason: l.reason };
+        }),
         collectionMethod: body.collectionMethod,
         resolution: body.resolution,
         previewAmount: amount,

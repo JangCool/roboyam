@@ -1,23 +1,26 @@
 // MOCK: 공구 목업의 메모리 데이터 — `groupbuy-mock.ts`(목록·상세·견적·주문·결제)와 `groupbuy-order-mock.ts`(내 주문)가 같이 쓴다. 서버가 붙으면 목업 폴더째 지운다.
 // 새로고침하면 처음 상태로 돌아간다. 시각은 「지금」 기준으로 만든다(마감 임박·선점 남은 시간이 늘 보이게).
 //
-// ── 시드(계약 결정 11 의 local 시드 넷 + 예정 하나 + 종료 몇 개) ─
-//   101 성사형 모집 중(마감 후 발주, min 30 · 18/100, 발송 예정일)
-//   102 선착순 즉시 발송 · 옵션 셋(본체 세트 47,000 · 예비 배터리 5,000 · 확장 센서 팩 20,000 — 잠시 구매 불가) · 추가 입고 20개
-//   103 마감 임박 · 남은 수량 적음 · 2차 공구(1차 = 104) · 마감 무렵 연장 안내
+// ── 시드(계약 결정 11 의 local 시드 넷 + 예정 하나 + 종료 몇 개) ─ 옵션 축·단품·추가 구성상품은 결정 88
+//   101 성사형 모집 중(마감 후 발주, min 30 · 18/100, 발송 예정일) · 축 없음
+//   102 선착순 즉시 발송 · 축 없음 + 추가 구성상품 「여분 배터리」 5,000(한도 없음) · 「충전 독」 15,000(잠시 구매 불가 — 단품 알림) · 추가 입고 20개 · 고시 양식 셋
+//   103 마감 임박 · 남은 수량 적음 · 2차 공구(1차 = 104) · 색상 축(실버 · 블랙 +5,000)
 //   104 다 팔려 끝난 1차(SOLD_OUT) — 「다음 차수 알림 받기」
 //   105 모집 예정(가격 미리 공개)
 //   106 기간 끝 · 불발(CLOSED_FAILED · TIME_UP)
-//   107 조기 마감(EARLY_CLOSED) · 성사 · 발주(ORDERED) · 발송 지연 공지 · 옵션 하나 공급 불가
+//   107 조기 마감(EARLY_CLOSED) · 성사 · 발주(ORDERED) · 발송 지연 공지 · 색상 축(민트 단품 공급 불가)
 //   108 운영 종료(CANCELED)
 //   ── 로봇 밖 예시 품목(결정 87) ─
-//   109 햅쌀 10kg 성사형 모집 중 · 110 사과·감귤 선착순(옵션마다 고시 양식) · 111 고등어·전복 모집 예정 · 112 김치 다 팔림 · 113 티셔츠 선착순(옵션 넷 · 하나 잠시 품절) · 114 러닝화 성사형 마감 임박
+//   109 햅쌀 성사형 · 중량 축(10kg · 20kg) · 110 과일 선착순 · 종류 × 중량 축(종류마다 고시 양식) · 111 수산물 모집 예정 · 종류 축(종류마다 고시 양식)
+//   112 김치 다 팔림 · 중량 축 · 113 티셔츠 선착순 · 색상 2 × 사이즈 3(화이트 / S 판매 끔 · 블랙 / M 잠시 품절 · L +1,000) · 114 러닝화 성사형 마감 임박 · 사이즈 축 하나(280 다 팔림)
+//
+// ── 단품 ID(목업 규칙) ─ 본 상품 = 공구 ID × 100 + 조합 차례(1부터), 추가 구성상품 = 공구 ID × 100 + 50 + 차례. 축 ID = 공구 ID × 10 + 차례, 값 ID = 공구 ID × 1000 + 축 차례 × 100 + 값 차례.
 //
 // ── 배송비 정책(모집 시작 때 고정한 사본) ─
 //   STANDARD: 3,000 · 무료 50,000 · 반품 3,000 · 편도   ROUND: 3,000 · 무료 50,000 · 반품 3,000 · 왕복(103만)
 
-import type { GroupBuyDetail, GroupBuyShipping } from '~/composables/groupbuy/api/useGroupBuyApi.types';
-import type { MyGroupBuyOrderDetail } from '~/composables/groupbuy/api/useGroupBuyOrderApi.types';
+import type { GroupBuyAxis, GroupBuyDetail, GroupBuyShipping, GroupBuySku } from '~/composables/groupbuy/api/useGroupBuyApi.types';
+import type { MyGroupBuyOrderDetail, MyGroupBuyOrderItem } from '~/composables/groupbuy/api/useGroupBuyOrderApi.types';
 import { mockNotices } from '~/composables/groupbuy/api/mock/groupbuy-notice-mock-data';
 
 const MIN = 60_000;
@@ -44,8 +47,61 @@ const DESC = (name: string) =>
 /** 로봇 밖 상품 설명(정화된 HTML 이라고 가정) */
 const GOODS_DESC = (what: string, note: string) => `<p><strong>${what}</strong>을(를) 공동구매가로 모아요.</p><p>${note}</p><p>실제 색상·크기는 화면과 조금 다를 수 있어요.</p>`;
 
-function base(over: Partial<GroupBuyDetail> & Pick<GroupBuyDetail, 'id' | 'title'>): GroupBuyDetail {
-    return {
+/* ── 단품 만들기(서버 2b-2 `Availability` 모양 흉내 — MAIN 이름은 값을 「 / 」로 잇고, 축이 없으면 상품 이름) ── */
+
+interface SkuSpec {
+    /** MAIN 추가금 */
+    extra?: number;
+    /** 남은 수량 — null = 제한 없음(한도 없는 ADDON) */
+    remaining: number | null;
+    /** 잠시 구매 불가(다른 분이 결제 중) */
+    temp?: boolean;
+    /** 운영자가 판매를 끈 조합 */
+    off?: boolean;
+}
+
+function sku(skuId: number, kind: GroupBuySku['kind'], valueIds: number[], name: string, unitPrice: number, spec: SkuSpec): GroupBuySku {
+    const onSale = !spec.off;
+    const remaining = onSale ? spec.remaining : 0;
+    const temp = onSale && !!spec.temp;
+    return { skuId, kind, name, valueIds, unitPrice, remaining, soldOut: onSale && !temp && remaining === 0, temporarilyUnavailable: temp, onSale };
+}
+
+/** 축 없는 공구의 MAIN 단품 하나(이름 = 상품 이름) */
+function single(gbId: number, name: string, price: number, spec: SkuSpec): GroupBuySku {
+    return sku(gbId * 100 + 1, 'MAIN', [], name, price, spec);
+}
+
+/**
+ * 축과 조합 단품 — `specs` 키는 단품 이름(「블랙 / M」). 키가 없는 조합은 판매 끔.
+ * @returns 축 · MAIN 단품(조합 차례 — 앞 축이 바깥 고리)
+ */
+function withAxes(gbId: number, groupPrice: number, axisDefs: [string, string[]][], specs: Record<string, SkuSpec>): { axes: GroupBuyAxis[]; skus: GroupBuySku[] } {
+    const axes: GroupBuyAxis[] = axisDefs.map(([name, values], a) => ({
+        axisId: gbId * 10 + a + 1,
+        name,
+        values: values.map((value, v) => ({ valueId: gbId * 1000 + a * 100 + v + 1, value })),
+    }));
+    let combos: { ids: number[]; names: string[] }[] = [{ ids: [], names: [] }];
+    for (const axis of axes) combos = combos.flatMap((c) => axis.values.map((v) => ({ ids: [...c.ids, v.valueId], names: [...c.names, v.value] })));
+    const skus = combos.map((c, i) => {
+        const name = c.names.join(' / ');
+        const spec = specs[name] ?? { remaining: 0, off: true };
+        return sku(gbId * 100 + i + 1, 'MAIN', c.ids, name, groupPrice + (spec.extra ?? 0), spec);
+    });
+    return { axes, skus };
+}
+
+/** 추가 구성상품 — 단독 구매 불가, 공구 수량·1인 한도에 세지 않는다(결정 88) */
+function addon(gbId: number, n: number, name: string, price: number, spec: SkuSpec): GroupBuySku {
+    return sku(gbId * 100 + 50 + n, 'ADDON', [], name, price, spec);
+}
+
+type Seed = Partial<GroupBuyDetail> & Pick<GroupBuyDetail, 'id' | 'title'> & { axes?: GroupBuyAxis[]; skus?: GroupBuySku[]; productName?: string };
+
+function base(seed: Seed): GroupBuyDetail {
+    const { axes = [], skus = [], productName, ...over } = seed;
+    const out: GroupBuyDetail = {
         thumbnailUrl: picture(over.title.slice(0, 8), (over.id * 47) % 360),
         status: 'RECRUITING',
         phase: 'ONGOING',
@@ -81,9 +137,9 @@ function base(over: Partial<GroupBuyDetail> & Pick<GroupBuyDetail, 'id' | 'title
         addedQty: 0,
         maxQtyPerUser: null,
         roundLimitShared: false,
-        options: [],
-        // 상품정보제공고시(결정 87) — 품목별 양식은 `groupbuy-notice-mock-data.ts`
-        notices: mockNotices(over.id, over.title),
+        availability: { groupBuyId: over.id, remaining: 0, soldOut: false, temporarilyUnavailable: false, addedQty: 0, axes: [], skus: [] },
+        skuWatches: { watchable: [], watching: [] },
+        notices: [],
         delayNotice: null,
         purchase: { reason: null },
         actions: { order: true, watchRestock: false, watchClosingSoon: true, watchNextRound: false },
@@ -91,6 +147,20 @@ function base(over: Partial<GroupBuyDetail> & Pick<GroupBuyDetail, 'id' | 'title
         myOrderNo: null,
         ...over,
     };
+    // 단품을 따로 주지 않은 공구 = 축 없는 MAIN 하나(공구 수량을 그대로)
+    const allSkus = skus.length > 0 ? skus : [single(out.id, productName ?? out.title, out.groupPrice, { remaining: out.remainingQty, temp: out.stockState === 'TEMP_SOLD_OUT' })];
+    out.availability = {
+        groupBuyId: out.id,
+        remaining: out.remainingQty,
+        soldOut: out.stockState === 'SOLD_OUT',
+        temporarilyUnavailable: out.stockState === 'TEMP_SOLD_OUT',
+        addedQty: out.addedQty,
+        axes,
+        skus: allSkus,
+    };
+    // 상품정보제공고시(결정 87) — 품목별 양식은 `groupbuy-notice-mock-data.ts`(적용 단품 이름 → 단품 ID 로 바꿔 넣는다)
+    out.notices = mockNotices(out.id, out.title, allSkus);
+    return out;
 }
 
 export function seedGroupBuys(): GroupBuyDetail[] {
@@ -98,6 +168,7 @@ export function seedGroupBuys(): GroupBuyDetail[] {
         base({
             id: 101,
             title: '로봇 청소기 X1 공동구매',
+            productName: '로봇 청소기 X1',
             fulfillment: 'AFTER_CLOSE',
             groupPrice: 289000,
             normalPrice: 349000,
@@ -117,25 +188,25 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             id: 102,
             title: '코딩 로봇 키트 R1 선착순',
             fulfillment: 'IMMEDIATE',
-            groupPrice: 5000,
-            priceFrom: true,
+            groupPrice: 47000,
             normalPrice: 59000,
             normalPriceBasis: 'PREV_SALE',
             minQty: 0,
-            maxQty: 220,
-            currentQty: 141,
-            remainingQty: 59,
+            maxQty: 150,
+            currentQty: 119,
+            remainingQty: 31,
             endAt: at(10 * DAY),
             shipWithinBusinessDays: 3,
             addedQty: 20,
             maxQtyPerUser: 5,
-            summary: '재고를 가진 선착순 공구예요. 결제가 확정되면 3영업일 안에 보내 드려요.',
-            spec: '본체 세트: 메인보드 · 모터 2개 · 바퀴 · 배터리 1개\n예비 배터리: 1,200mAh 리튬폴리머\n확장 센서 팩: 거리 · 색상 · 소리 센서',
-            options: [
-                { id: 1021, name: '본체 세트', extraPrice: 42000, unitPrice: 47000, remainingQty: 31, maxQty: 120, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
-                { id: 1022, name: '예비 배터리', extraPrice: 0, unitPrice: 5000, remainingQty: 59, maxQty: null, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
-                { id: 1023, name: '확장 센서 팩', extraPrice: 15000, unitPrice: 20000, remainingQty: 0, maxQty: 40, stockState: 'TEMP_SOLD_OUT', watchingRestock: false, canWatchRestock: true },
+            summary: '재고를 가진 선착순 공구예요. 결제가 확정되면 3영업일 안에 보내 드려요. 여분 배터리·충전 독은 본체와 함께 담을 수 있어요.',
+            spec: '본체: 메인보드 · 모터 2개 · 바퀴 · 배터리 1개\n여분 배터리(추가 구성): 1,200mAh 리튬폴리머\n충전 독(추가 구성): USB-C 거치형 충전기',
+            skus: [
+                single(102, '코딩 로봇 키트 R1', 47000, { remaining: 31 }),
+                addon(102, 1, '여분 배터리', 5000, { remaining: null }),
+                addon(102, 2, '충전 독', 15000, { remaining: 0, temp: true }),
             ],
+            skuWatches: { watchable: [10252], watching: [] },
             actions: { order: true, watchRestock: false, watchClosingSoon: true, watchNextRound: false },
         }),
         base({
@@ -143,11 +214,12 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             title: '데스크 로봇 팔 미니 2차',
             fulfillment: 'IMMEDIATE',
             groupPrice: 129000,
+            priceFrom: true,
             normalPrice: 139000,
             normalPriceBasis: 'PREV_ROUND',
             minQty: 0,
             maxQty: 50,
-            currentQty: 44,
+            currentQty: 46,
             remainingQty: 4,
             endAt: at(3 * HOUR),
             closingSoon: true,
@@ -158,6 +230,10 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             roundLimitShared: true,
             summary: '1차가 다 팔려 2차로 다시 열었어요. 1차에서 산 수량도 1인 한도에 함께 세요.',
             spec: '관절 4축 · 최대 하중 200g · USB-C 전원 · 앱 연동',
+            ...withAxes(103, 129000, [['색상', ['실버', '블랙']]], {
+                실버: { remaining: 3 },
+                블랙: { extra: 5000, remaining: 1 },
+            }),
             actions: { order: true, watchRestock: false, watchClosingSoon: true, watchNextRound: false },
         }),
         base({
@@ -230,10 +306,10 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             startAt: at(-15 * DAY),
             endAt: at(-5 * DAY),
             shipPlannedAt: ymd(9),
-            options: [
-                { id: 1071, name: '화이트', extraPrice: 0, unitPrice: 39000, remainingQty: 0, maxQty: null, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
-                { id: 1072, name: '민트(공급 불가)', extraPrice: 3000, unitPrice: 42000, remainingQty: 0, maxQty: 12, stockState: 'SOLD_OUT', watchingRestock: false, canWatchRestock: false },
-            ],
+            ...withAxes(107, 39000, [['색상', ['화이트', '민트']]], {
+                화이트: { remaining: 13 },
+                민트: { extra: 3000, remaining: 0 },
+            }),
             delayNotice: { previousPlannedAt: ymd(2), newPlannedAt: ymd(9), reason: '공급처 통관이 늦어져 입고가 일주일 미뤄졌어요.', noticedAt: at(-1 * DAY) },
             purchase: { reason: 'NOT_RECRUITING' },
             actions: { order: false, watchRestock: false, watchClosingSoon: false, watchNextRound: false },
@@ -258,9 +334,10 @@ export function seedGroupBuys(): GroupBuyDetail[] {
         // ── 로봇 밖 예시 품목(결정 87 — 쌀·과일·생선·김치·옷·신발) ──
         base({
             id: 109,
-            title: '이천 햅쌀 10kg 산지 공동구매',
+            title: '이천 햅쌀 산지 공동구매',
             fulfillment: 'AFTER_CLOSE',
             groupPrice: 42900,
+            priceFrom: true,
             normalPrice: 52000,
             normalPriceBasis: 'MARKET',
             minQty: 50,
@@ -271,14 +348,18 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             shipPlannedAt: ymd(10),
             maxQtyPerUser: 4,
             descriptionHtml: GOODS_DESC('올가을 수확한 햅쌀', '50포가 모이면 성사되고, 마감 뒤 도정해 보내 드려요.'),
-            summary: '50포가 모이면 성사돼요. 마감 뒤 도정해 발송 예정일에 보내 드려요.',
-            spec: '품종 추청(아키바레)\n중량 10kg\n도정 발송 3일 전',
+            summary: '50포가 모이면 성사돼요(10kg·20kg 함께 세요). 마감 뒤 도정해 발송 예정일에 보내 드려요.',
+            spec: '품종 추청(아키바레)\n중량 10kg · 20kg\n도정 발송 3일 전',
+            ...withAxes(109, 42900, [['중량', ['10kg', '20kg']]], {
+                '10kg': { remaining: 120 },
+                '20kg': { extra: 39000, remaining: 43 },
+            }),
         }),
         base({
             id: 110,
             title: '제철 사과·감귤 선착순',
             fulfillment: 'IMMEDIATE',
-            groupPrice: 23900,
+            groupPrice: 15900,
             priceFrom: true,
             normalPrice: 39000,
             normalPriceBasis: 'PREV_SALE',
@@ -291,12 +372,22 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             maxQtyPerUser: 3,
             descriptionHtml: GOODS_DESC('제철 과일', '사과와 감귤은 다른 농가 상품이라 상품정보를 따로 적었어요.'),
             summary: '산지 창고 재고예요. 결제 다음 날 수확·선별해 보내 드려요.',
-            spec: '사과 5kg(14~16과) · 감귤 5kg(S~M)',
+            spec: '사과 3kg(8~10과) · 5kg(14~16과)\n감귤 3kg · 5kg(S~M)',
             withdrawalRestriction: '신선식품이라 받은 뒤 시간이 지나 가치가 크게 떨어지면 단순 변심 반품이 제한될 수 있어요(상한 것·오배송은 제외).',
-            options: [
-                { id: 1101, name: '사과 5kg (부사)', extraPrice: 6000, unitPrice: 29900, remainingQty: 28, maxQty: 80, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
-                { id: 1102, name: '감귤 5kg (노지)', extraPrice: 0, unitPrice: 23900, remainingQty: 49, maxQty: 80, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
-            ],
+            ...withAxes(
+                110,
+                15900,
+                [
+                    ['종류', ['사과', '감귤']],
+                    ['중량', ['3kg', '5kg']],
+                ],
+                {
+                    '사과 / 3kg': { extra: 4000, remaining: 20 },
+                    '사과 / 5kg': { extra: 14000, remaining: 8 },
+                    '감귤 / 3kg': { remaining: 25 },
+                    '감귤 / 5kg': { extra: 8000, remaining: 24 },
+                },
+            ),
         }),
         base({
             id: 111,
@@ -317,10 +408,10 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             shipPlannedAt: ymd(14),
             descriptionHtml: GOODS_DESC('산지 수산물', '고등어는 냉동, 전복은 냉장으로 따로 보내요.'),
             summary: '30세트가 모이면 성사돼요. 마감 뒤 출하해 보내 드려요.',
-            options: [
-                { id: 1111, name: '손질 고등어 1kg (냉동)', extraPrice: 0, unitPrice: 24900, remainingQty: 60, maxQty: 60, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
-                { id: 1112, name: '활전복 1kg (냉장)', extraPrice: 12000, unitPrice: 36900, remainingQty: 40, maxQty: 40, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
-            ],
+            ...withAxes(111, 24900, [['종류', ['손질 고등어 1kg (냉동)', '활전복 1kg (냉장)']]], {
+                '손질 고등어 1kg (냉동)': { remaining: 60 },
+                '활전복 1kg (냉장)': { extra: 12000, remaining: 40 },
+            }),
             purchase: { reason: 'NOT_STARTED' },
             actions: { order: false, watchRestock: false, watchClosingSoon: false, watchNextRound: false },
         }),
@@ -342,10 +433,10 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             endAt: at(-3 * DAY),
             shipWithinBusinessDays: 2,
             descriptionHtml: GOODS_DESC('전라도식 포기김치', '준비한 수량이 다 팔렸어요.'),
-            options: [
-                { id: 1121, name: '포기김치 3kg', extraPrice: 0, unitPrice: 25900, remainingQty: 0, maxQty: 60, stockState: 'SOLD_OUT', watchingRestock: false, canWatchRestock: false },
-                { id: 1122, name: '포기김치 5kg', extraPrice: 14000, unitPrice: 39900, remainingQty: 0, maxQty: 40, stockState: 'SOLD_OUT', watchingRestock: false, canWatchRestock: false },
-            ],
+            ...withAxes(112, 25900, [['중량', ['3kg', '5kg']]], {
+                '3kg': { remaining: 0 },
+                '5kg': { extra: 14000, remaining: 0 },
+            }),
             purchase: { reason: 'NOT_RECRUITING' },
             actions: { order: false, watchRestock: false, watchClosingSoon: false, watchNextRound: true },
         }),
@@ -354,6 +445,7 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             title: '오버핏 코튼 티셔츠 선착순',
             fulfillment: 'IMMEDIATE',
             groupPrice: 15900,
+            priceFrom: true,
             normalPrice: 25000,
             normalPriceBasis: 'PREV_SALE',
             minQty: 0,
@@ -363,14 +455,25 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             endAt: at(7 * DAY),
             shipWithinBusinessDays: 3,
             maxQtyPerUser: 5,
-            descriptionHtml: GOODS_DESC('기본 반팔 티셔츠', '색상·사이즈만 다른 같은 상품이라 상품정보는 하나예요.'),
+            descriptionHtml: GOODS_DESC('기본 반팔 티셔츠', '색상·사이즈만 다른 같은 상품이라 상품정보는 하나예요. 화이트 S 는 이번 공구에서 팔지 않아요.'),
             spec: '면 100% · 20수 싱글 저지',
-            options: [
-                { id: 1131, name: '화이트 M', extraPrice: 0, unitPrice: 15900, remainingQty: 9, maxQty: 50, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
-                { id: 1132, name: '화이트 L', extraPrice: 0, unitPrice: 15900, remainingQty: 22, maxQty: 50, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
-                { id: 1133, name: '블랙 M', extraPrice: 0, unitPrice: 15900, remainingQty: 0, maxQty: 50, stockState: 'TEMP_SOLD_OUT', watchingRestock: false, canWatchRestock: true },
-                { id: 1134, name: '블랙 L', extraPrice: 0, unitPrice: 15900, remainingQty: 33, maxQty: 50, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
-            ],
+            ...withAxes(
+                113,
+                15900,
+                [
+                    ['색상', ['화이트', '블랙']],
+                    ['사이즈', ['S', 'M', 'L']],
+                ],
+                {
+                    // 「화이트 / S」 는 키가 없어 판매 끔
+                    '화이트 / M': { remaining: 3 },
+                    '화이트 / L': { extra: 1000, remaining: 20 },
+                    '블랙 / S': { remaining: 12 },
+                    '블랙 / M': { remaining: 0, temp: true },
+                    '블랙 / L': { extra: 1000, remaining: 29 },
+                },
+            ),
+            skuWatches: { watchable: [11305], watching: [] },
         }),
         base({
             id: 114,
@@ -379,22 +482,23 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             groupPrice: 64000,
             normalPrice: 89000,
             normalPriceBasis: 'OFFICIAL_STORE',
-            minQty: 40,
+            minQty: 60,
             maxQty: 100,
-            currentQty: 34,
-            remainingQty: 66,
+            currentQty: 56,
+            remainingQty: 44,
             endAt: at(5 * HOUR),
             closingSoon: true,
             shipPlannedAt: ymd(12),
             maxQtyPerUser: 2,
-            descriptionHtml: GOODS_DESC('쿠션 러닝화', '40켤레가 모이면 성사돼요. 사이즈만 다른 같은 상품이라 상품정보는 하나예요.'),
-            options: [
-                { id: 1141, name: '240', extraPrice: 0, unitPrice: 64000, remainingQty: 14, maxQty: 20, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
-                { id: 1142, name: '250', extraPrice: 0, unitPrice: 64000, remainingQty: 12, maxQty: 20, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
-                { id: 1143, name: '260', extraPrice: 0, unitPrice: 64000, remainingQty: 9, maxQty: 20, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
-                { id: 1144, name: '270', extraPrice: 0, unitPrice: 64000, remainingQty: 15, maxQty: 20, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
-                { id: 1145, name: '280', extraPrice: 0, unitPrice: 64000, remainingQty: 16, maxQty: 20, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
-            ],
+            descriptionHtml: GOODS_DESC('쿠션 러닝화', '60켤레가 모이면 성사돼요. 사이즈만 다른 같은 상품이라 상품정보는 하나예요.'),
+            ...withAxes(114, 64000, [['사이즈', ['240', '250', '260', '270', '280']]], {
+                '240': { remaining: 14 },
+                '250': { remaining: 12 },
+                '260': { remaining: 3 },
+                '270': { remaining: 15 },
+                '280': { remaining: 0 },
+            }),
+            skuWatches: { watchable: [11405], watching: [] },
         }),
     ];
 }
@@ -408,6 +512,12 @@ const NO_ACTIONS = { payAgain: false, revealAddress: true, editAddress: false, c
 
 function gbRef(gb: GroupBuyDetail): MyGroupBuyOrderDetail['groupBuy'] {
     return { id: gb.id, title: gb.title, thumbnailUrl: gb.thumbnailUrl, status: gb.status, fulfillment: gb.fulfillment, closeReason: gb.closeReason, roundNo: gb.roundNo };
+}
+
+/** 주문 줄 — 단품 사본(이름·종류·단가)을 공구 단품에서 옮긴다 */
+function line(gb: GroupBuyDetail, id: number, skuId: number, qty: number, over: Partial<MyGroupBuyOrderItem> = {}): MyGroupBuyOrderItem {
+    const s = gb.availability.skus.find((k) => k.skuId === skuId)!;
+    return { id, skuId, skuName: s.name, kind: s.kind, qty, unitPrice: s.unitPrice, itemAmount: s.unitPrice * qty, canceledQty: 0, returnedQty: 0, selectableQty: 0, ...over };
 }
 
 function order(over: Partial<MyGroupBuyOrderDetail> & Pick<MyGroupBuyOrderDetail, 'orderNo' | 'status' | 'groupBuy' | 'items'>): MyGroupBuyOrderDetail {
@@ -445,17 +555,15 @@ export function seedOrders(gbs: GroupBuyDetail[]): MyGroupBuyOrderDetail[] {
     const g103 = gb(103);
     const g107 = gb(107);
     return [
-        // 배송완료 — 결정 68 예시(47,000 + 5,000 무료배송 → B 5,000 변심 반품: 업체회수 −1,000 / 직접 발송 +2,000)
+        // 배송완료 — 결정 68 예시(본체 47,000 + 추가 구성 여분 배터리 5,000 무료배송 → 배터리 변심 반품: 업체회수 −1,000 / 직접 발송 +2,000)
+        // 본체만 반품을 고르면 「추가 구성상품도 함께 반품할까요?」(결정 88)
         order({
             orderNo: 'G2026102800012',
             status: 'DELIVERED',
             groupBuy: gbRef(g102),
             createdAt: at(-4 * DAY),
             paidAt: at(-4 * DAY + 2 * MIN),
-            items: [
-                { id: 1, optionName: '본체 세트', qty: 1, unitPrice: 47000, itemAmount: 47000, canceledQty: 0, returnedQty: 0, selectableQty: 1 },
-                { id: 2, optionName: '예비 배터리', qty: 1, unitPrice: 5000, itemAmount: 5000, canceledQty: 0, returnedQty: 0, selectableQty: 1 },
-            ],
+            items: [line(g102, 1, 10201, 1, { selectableQty: 1 }), line(g102, 2, 10251, 1, { selectableQty: 1 })],
             shipWithinBusinessDays: 3,
             shipment: { carrierName: 'CJ대한통운', trackingNo: '123456789012', trackingUrl: 'https://trace.cjlogistics.com/next/tracking.html?wblNo=123456789012', kind: 'ORIGINAL', shippedAt: at(-3 * DAY), deliveredAt: at(-1 * DAY) },
             returnUntil: at(6 * DAY),
@@ -469,7 +577,7 @@ export function seedOrders(gbs: GroupBuyDetail[]): MyGroupBuyOrderDetail[] {
             groupBuy: gbRef(g101),
             createdAt: at(-1 * DAY),
             paidAt: at(-1 * DAY + MIN),
-            items: [{ id: 3, optionName: null, qty: 2, unitPrice: 289000, itemAmount: 578000, canceledQty: 0, returnedQty: 0, selectableQty: 2 }],
+            items: [line(g101, 3, 10101, 2, { selectableQty: 2 })],
             shipPlannedAt: g101.shipPlannedAt,
             addressEditableUntilText: '공구가 발주되기 전까지',
             actions: { ...NO_ACTIONS, editAddress: true, cancelNow: true },
@@ -482,7 +590,7 @@ export function seedOrders(gbs: GroupBuyDetail[]): MyGroupBuyOrderDetail[] {
             createdAt: at(-1 * MIN),
             paidAt: null,
             reservedUntil: at(4 * MIN),
-            items: [{ id: 4, optionName: null, qty: 1, unitPrice: 129000, itemAmount: 129000, canceledQty: 0, returnedQty: 0, selectableQty: 0 }],
+            items: [line(g103, 4, 10301, 1)],
             shipWithinBusinessDays: 2,
             actions: { ...NO_ACTIONS, payAgain: true, revealAddress: false },
         }),
@@ -493,7 +601,7 @@ export function seedOrders(gbs: GroupBuyDetail[]): MyGroupBuyOrderDetail[] {
             groupBuy: gbRef(g102),
             createdAt: at(-12 * DAY),
             paidAt: at(-12 * DAY + MIN),
-            items: [{ id: 5, optionName: '본체 세트', qty: 1, unitPrice: 47000, itemAmount: 47000, canceledQty: 0, returnedQty: 1, selectableQty: 0 }],
+            items: [line(g102, 5, 10201, 1, { returnedQty: 1 })],
             shippingFee: 3000,
             amount: 50000,
             refundedAmount: 50000,
@@ -503,7 +611,7 @@ export function seedOrders(gbs: GroupBuyDetail[]): MyGroupBuyOrderDetail[] {
                     id: 9003,
                     type: 'RETURN',
                     status: 'COMPLETED',
-                    items: [{ orderItemId: 5, optionName: '본체 세트', qty: 1, reason: 'DEFECT' }],
+                    items: [{ orderItemId: 5, skuName: '코딩 로봇 키트 R1', kind: 'MAIN', qty: 1, reason: 'DEFECT' }],
                     collectionMethod: 'COMPANY_PICKUP',
                     resolution: 'REFUND',
                     previewAmount: 50000,
@@ -519,7 +627,7 @@ export function seedOrders(gbs: GroupBuyDetail[]): MyGroupBuyOrderDetail[] {
                     id: 9002,
                     type: 'RETURN',
                     status: 'REJECTED',
-                    items: [{ orderItemId: 5, optionName: '본체 세트', qty: 1, reason: 'CHANGE_OF_MIND' }],
+                    items: [{ orderItemId: 5, skuName: '코딩 로봇 키트 R1', kind: 'MAIN', qty: 1, reason: 'CHANGE_OF_MIND' }],
                     collectionMethod: 'COMPANY_PICKUP',
                     resolution: 'REFUND',
                     previewAmount: 41000,
@@ -535,7 +643,7 @@ export function seedOrders(gbs: GroupBuyDetail[]): MyGroupBuyOrderDetail[] {
                     id: 9001,
                     type: 'RETURN',
                     status: 'WITHDRAWN',
-                    items: [{ orderItemId: 5, optionName: '본체 세트', qty: 1, reason: 'CHANGE_OF_MIND' }],
+                    items: [{ orderItemId: 5, skuName: '코딩 로봇 키트 R1', kind: 'MAIN', qty: 1, reason: 'CHANGE_OF_MIND' }],
                     collectionMethod: 'CUSTOMER_SEND',
                     resolution: 'REFUND',
                     previewAmount: 44000,
@@ -552,20 +660,17 @@ export function seedOrders(gbs: GroupBuyDetail[]): MyGroupBuyOrderDetail[] {
             returnUntil: at(-2 * DAY),
             defectReturnUntil: at(80 * DAY),
         }),
-        // 공급 불가 선택 대기 — 민트 줄 취소·환불 + 「나머지만 받기 / 전체 취소」(기한 3영업일)
+        // 단품 공급 불가 선택 대기 — 민트 줄 취소·환불 + 「나머지만 받기 / 전체 취소」(기한 3영업일)
         order({
             orderNo: 'G2026102300007',
             status: 'CONFIRMED',
             groupBuy: gbRef(g107),
             createdAt: at(-10 * DAY),
             paidAt: at(-10 * DAY + MIN),
-            items: [
-                { id: 6, optionName: '화이트', qty: 1, unitPrice: 39000, itemAmount: 39000, canceledQty: 0, returnedQty: 0, selectableQty: 1 },
-                { id: 7, optionName: '민트(공급 불가)', qty: 1, unitPrice: 42000, itemAmount: 42000, canceledQty: 1, returnedQty: 0, selectableQty: 0 },
-            ],
+            items: [line(g107, 6, 10701, 1, { selectableQty: 1 }), line(g107, 7, 10702, 1, { canceledQty: 1 })],
             refundedAmount: 42000,
             shipPlannedAt: g107.delayNotice?.newPlannedAt ?? null,
-            supplyChoice: { optionName: '민트(공급 불가)', reason: '공급처에서 민트 색상 생산이 중단됐어요.', deadline: at(2 * DAY), choice: null, defaulted: false, cancelAllRefund: 39000 },
+            supplyChoice: { skuName: '민트', reason: '공급처에서 민트 색상 생산이 중단됐어요.', deadline: at(2 * DAY), choice: null, defaulted: false, cancelAllRefund: 39000 },
             refunds: [{ id: 7002, cause: 'SUPPLY_FAILURE', amount: 42000, progress: 'COMPLETED', method: 'PG_CANCEL', requestedAt: at(-1 * DAY), completedAt: at(-1 * DAY + 3 * HOUR) }],
             actions: { ...NO_ACTIONS, supplyChoice: true, requestCancel: true },
         }),
@@ -576,23 +681,21 @@ export function seedOrders(gbs: GroupBuyDetail[]): MyGroupBuyOrderDetail[] {
             groupBuy: gbRef(g107),
             createdAt: at(-11 * DAY),
             paidAt: at(-11 * DAY + MIN),
-            items: [{ id: 8, optionName: '화이트', qty: 1, unitPrice: 39000, itemAmount: 39000, canceledQty: 0, returnedQty: 0, selectableQty: 1 }],
+            items: [line(g107, 8, 10701, 1, { selectableQty: 1 })],
             shippingFee: 3000,
             amount: 42000,
             shipPlannedAt: g107.delayNotice?.newPlannedAt ?? null,
             delayNotice: g107.delayNotice ? { ...g107.delayNotice, refundAmount: 42000 } : null,
             actions: { ...NO_ACTIONS, delayCancel: true, requestCancel: true },
         }),
-        // 발송 중(SHIPPED) — 송장 조회
+        // 발송 중(SHIPPED) — 송장 조회 · 본체 + 추가 구성(무료배송)
         order({
             orderNo: 'G2026102600009',
             status: 'SHIPPED',
             groupBuy: gbRef(g102),
             createdAt: at(-2 * DAY),
             paidAt: at(-2 * DAY + MIN),
-            items: [{ id: 9, optionName: '예비 배터리', qty: 2, unitPrice: 5000, itemAmount: 10000, canceledQty: 0, returnedQty: 0, selectableQty: 0 }],
-            shippingFee: 3000,
-            amount: 13000,
+            items: [line(g102, 9, 10201, 1), line(g102, 12, 10251, 1)],
             shipWithinBusinessDays: 3,
             shipment: { carrierName: '우체국택배', trackingNo: '6000123456789', trackingUrl: 'https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?sid1=6000123456789', kind: 'ORIGINAL', shippedAt: at(-6 * HOUR), deliveredAt: null },
         }),
@@ -603,7 +706,7 @@ export function seedOrders(gbs: GroupBuyDetail[]): MyGroupBuyOrderDetail[] {
             groupBuy: gbRef(g103),
             createdAt: at(-7 * DAY),
             paidAt: null,
-            items: [{ id: 10, optionName: null, qty: 1, unitPrice: 129000, itemAmount: 129000, canceledQty: 0, returnedQty: 0, selectableQty: 0 }],
+            items: [line(g103, 10, 10301, 1)],
             address: { ...MASKED },
             actions: { ...NO_ACTIONS, revealAddress: false },
         }),
@@ -614,7 +717,7 @@ export function seedOrders(gbs: GroupBuyDetail[]): MyGroupBuyOrderDetail[] {
             groupBuy: gbRef(g101),
             createdAt: at(-8 * DAY),
             paidAt: at(-8 * DAY + MIN),
-            items: [{ id: 11, optionName: null, qty: 1, unitPrice: 289000, itemAmount: 289000, canceledQty: 1, returnedQty: 0, selectableQty: 0 }],
+            items: [line(g101, 11, 10101, 1, { canceledQty: 1 })],
             refundedAmount: 289000,
             refunds: [{ id: 7003, cause: 'USER_CANCEL', amount: 289000, progress: 'MANUAL', method: 'PG_CANCEL', requestedAt: at(-8 * DAY + HOUR), completedAt: at(-6 * DAY) }],
         }),

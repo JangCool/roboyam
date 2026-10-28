@@ -3,13 +3,15 @@
         공구 › 공구 등록·수정(`/group-buys/new` · `/group-buys/{id}`) — 계약 commerce-groupbuy 「화면 목록 (2b-1)」·결정 2·17·29·31·51~53·55·58.
         · DRAFT(새 공구 포함)는 모든 칸, 모집 시작 뒤에는 **설명·이미지(요약·사양·설명·대표 이미지)만** 고친다 — 나머지 칸은 읽기 전용 + 「잠김」 표시(서버 `409 GROUP_BUY_LOCKED_FIELD`).
           가격·배송비 칸은 `commerce.product.price` 가 없으면 읽기 전용이다. 저장은 화면 하나로(DRAFT `PUT` 한 번 · 모집 뒤 `PATCH …/content` 한 번) — 떠 있는 저장 줄.
-        · 칸: 제목·상품명·요약·사양·설명(`@roboyam/rich-editor` 고급 수준 + 본문 이미지)·대표 이미지(8장·순서)·정상가·공구가·정상가 기준(+ 출처 메모, 「최저가」 금지 안내)·옵션·성사 수량(0 = 선착순)·발송 시점
+        · 칸: 제목·상품명·요약·사양·설명(`@roboyam/rich-editor` 고급 수준 + 본문 이미지)·대표 이미지(8장·순서)·정상가·공구가·정상가 기준(+ 출처 메모, 「최저가」 금지 안내)·성사 수량(0 = 선착순)·발송 시점
           (즉시 발송은 선착순만)·최대 수량·1인 한도·차수 사이 한도 합산·기간·연장 방식·배송비 정책·발송 예정일(마감 후 발주) 또는 결제 후 N영업일(즉시 발송)·청약철회 제한 안내.
-        · 고시 양식(결정 87, `GroupBuyNoticeEditor`): 기본 양식(적용 옵션 빔 = 공구 전체) + 별개 상품 옵션용 양식, 품목별 항목·「제공 불가」 + 사유·판매자 추가 항목. **모집 뒤에도 고친다**(`PATCH …/content` 에 같이 — 이력 `NOTICE`).
-          적용 옵션은 화면에서 옵션 줄 키로 들고, 저장 때 옵션 이름(`optionNames`)으로 바꾼다. 양식 없음·빈 항목·어느 양식에도 안 든 옵션이 있으면 모집 시작이 `409 GROUP_BUY_NOTICE_INCOMPLETE` — 화면이 그 항목으로 옮겨 표시한다. 카탈로그는 `GET …/notice-catalog`(서버 정본).
+        · 옵션(결정 88, `GroupBuyAxesEditor`): 축 0~3개 → 조합마다 MAIN 단품(추가금·한도·판매 여부). 추가 구성상품(`GroupBuyAddonsEditor`): ADDON 단품(이름·가격·한도·이미지 한 장·판매 여부·차례).
+          저장 때 `axes` + `skus`(MAIN 조합 차례 다음 ADDON)로 보낸다. 모집 뒤에는 둘 다 잠긴다(한도는 수량 화면).
+        · 고시 양식(결정 87·88, `GroupBuyNoticeEditor`): 기본 양식(적용 단품 빔 = MAIN 단품들) + 추가 구성상품마다 양식(필수), 품목별 항목·「제공 불가」 + 사유·판매자 추가 항목. **모집 뒤에도 고친다**(`PATCH …/content` 에 같이 — 이력 `NOTICE`).
+          적용 단품은 화면에서 단품 줄 키로 들고, 저장 때 단품 이름(`skuNames`)으로 바꾼다. 양식 없음·빈 항목·어느 양식에도 안 든 단품이 있으면 모집 시작이 `409 GROUP_BUY_NOTICE_INCOMPLETE` — 화면이 그 항목으로 옮겨 표시한다. 카탈로그는 `GET …/notice-catalog`(서버 정본).
         · 문구 경고(결정 55·58): 「개봉하면 반품 불가」·「재판매 금지·리셀」·「최저가」·「한정」이 보이면 위에 경고(막지는 않는다).
         · 운영 동작(서버가 정한 `actions`): 모집 시작 · 조기 마감(사유) · 중단(확인 창 「환불 N명 · 총 N원 / 이미 발송 M명은 그대로」 + 사유) · 발주 처리 · 추가 차수로 열기 ·
-          발송 지연 공지(새 예정일 + 사유) · 옵션 공급 불가 처리(옵션 + 사유, 결과 미리 보기) · 수정 이력(오른쪽 서랍) · 수량 화면·주문 링크.
+          발송 지연 공지(새 예정일 + 사유) · 단품 공급 불가 처리(단품 + 사유, 결과 미리 보기) · 수정 이력(오른쪽 서랍) · 수량 화면·주문 링크.
         권한: 화면 `commerce.product.read` · 저장·모집 시작·조기 마감·추가 차수·지연 공지 `commerce.product.manage` · 중단 `commerce.groupbuy.cancel` · 발주 `commerce.order.manage`
         · 공급 불가 `commerce.order.manage` + `commerce.refund.approve`. 권한이 없는 단추는 숨긴다(막는 것은 서버).
         서버 호출은 `useGroupBuyAdminApi`(지금 목업 — 스위치는 `groupbuy-mock.ts` 머리).
@@ -62,7 +64,7 @@
                     </div>
                     <p v-if="dirty && detail.actions.canStart" class="m-0 text-xs text-amber-700 dark:text-amber-400">{{ t('groupBuy.saveBeforeStart') }}</p>
                     <p v-else-if="detail.actions.canStart && canManage && noticeSummary && !noticeSummary.complete" class="m-0 text-xs text-amber-700 dark:text-amber-400">
-                        {{ noticeSummary.noNotice ? t('groupBuy.noticeStartBlockedNone') : t('groupBuy.noticeStartBlocked', { blank: noticeSummary.blank, unassigned: noticeSummary.unassigned }) }}
+                        {{ noticeSummary.noNotice ? t('groupBuy.noticeStartBlockedNone') : t('groupBuy.noticeStartBlocked', { blank: noticeSummary.blank, unassigned: noticeSummary.unassigned + noticeSummary.addonMissing }) }}
                         <a href="#gb-notice" class="ml-1 text-primary hover:underline" @click.prevent="goNotice">{{ t('groupBuy.noticeGo') }}</a>
                     </p>
                     <p v-if="canManage && detail.status !== 'DRAFT' && !detail.actions.canCreateRound && detail.actions.roundBlockedReason" class="m-0 text-xs text-muted-color">{{ t(`groupBuy.roundBlocked.${detail.actions.roundBlockedReason}`) }}</p>
@@ -88,7 +90,7 @@
                         <span class="text-xs font-medium">{{ t('groupBuy.supplyHistory') }}</span>
                         <ul class="m-0 flex list-none flex-col gap-1 p-0 text-xs">
                             <li v-for="f in detail.supplyFailures" :key="f.id" class="rounded border border-(--line) px-2 py-1">
-                                {{ t('groupBuy.supplyLine', { option: f.optionName, lines: f.refundedLines, amount: UtilGroupBuy.won(f.refundAmount, locale), choice: f.choiceOrders, pending: f.choicePending, deadline: time.full(f.choiceDeadline) }) }}
+                                {{ t('groupBuy.supplyLine', { sku: skuText(f.skuName, f.skuKind), lines: f.refundedLines, amount: UtilGroupBuy.won(f.refundAmount, locale), choice: f.choiceOrders, pending: f.choicePending, deadline: time.full(f.choiceDeadline) }) }}
                                 <span class="text-muted-color"> · {{ f.reason }} · {{ f.operator }}</span>
                             </li>
                         </ul>
@@ -177,9 +179,16 @@
                     </div>
                 </AppGadget>
 
-                <!-- ④ 옵션 -->
-                <AppGadget :title="t('groupBuy.secOptions')" anchor="gb-options">
-                    <GroupBuyOptionsEditor v-model="form.options" :locked="!draft" :disabled="!canManage || saving" :errors="serverErrors" />
+                <!-- ④ 옵션(축·조합 = MAIN 단품) — 결정 88 -->
+                <AppGadget :title="t('groupBuy.secOptions')" anchor="gb-options" :invalid="fe('axes') || fe('skus') || fe('options') ? 1 : 0">
+                    <template v-if="!draft" #title-extra><Tag :value="t('groupBuy.locked')" severity="secondary" /></template>
+                    <GroupBuyAxesEditor v-model:axes="form.axes" v-model:mains="form.mains" :group-price="form.groupPrice" :locked="!draft" :disabled="!canManage || saving" :errors="serverErrors" />
+                </AppGadget>
+
+                <!-- ④-2 추가 구성상품(ADDON 단품) — 결정 88 -->
+                <AppGadget :title="t('groupBuy.secAddons')" anchor="gb-addons" :invalid="fe('addons') ? 1 : 0">
+                    <template v-if="!draft" #title-extra><Tag :value="t('groupBuy.locked')" severity="secondary" /></template>
+                    <GroupBuyAddonsEditor v-model="form.addons" :upload="uploadImage" :main-names="mainNames" :locked="!draft" :disabled="!canManage || saving" :errors="serverErrors" />
                 </AppGadget>
 
                 <!-- ⑤ 수량·방식 -->
@@ -289,11 +298,12 @@
                         <template v-if="noticeSummary">
                             <Tag v-if="noticeSummary.noNotice" :value="t('groupBuy.noticeHeaderNone')" severity="danger" />
                             <Tag v-if="noticeSummary.blank" :value="t('groupBuy.noticeHeaderBlank', { n: noticeSummary.blank })" severity="warn" />
+                            <Tag v-if="noticeSummary.addonMissing" :value="t('groupBuy.noticeHeaderAddon', { n: noticeSummary.addonMissing })" severity="danger" />
                             <Tag v-if="noticeSummary.unassigned" :value="t('groupBuy.noticeHeaderUnassigned', { n: noticeSummary.unassigned })" severity="danger" />
                             <Tag v-if="noticeSummary.complete" :value="t('groupBuy.noticeHeaderOk', { n: form.notices.length })" severity="success" />
                         </template>
                     </template>
-                    <GroupBuyNoticeEditor v-if="catalog" ref="noticeEditor" v-model="form.notices" :catalog="catalog" :options="noticeOptionRefs" :disabled="!canManage || saving" :errors="serverErrors" :incomplete="noticeIncomplete" />
+                    <GroupBuyNoticeEditor v-if="catalog" ref="noticeEditor" v-model="form.notices" :catalog="catalog" :skus="skuRefs" :disabled="!canManage || saving" :errors="serverErrors" :incomplete="noticeIncomplete" />
                     <ErrorState v-else-if="catalogError" :title="t('groupBuy.noticeCatalogFailed')" :description="catalogError.message" retry :retrying="catalogLoading" @retry="loadCatalog" />
                     <Skeleton v-else height="8rem" />
                 </AppGadget>
@@ -345,27 +355,28 @@
             </LabeledField>
         </PaymentReasonDialog>
 
-        <!-- 옵션 공급 불가(결정 53) -->
+        <!-- 단품 공급 불가(결정 53 · 88) -->
         <PaymentReasonDialog v-model:visible="supplyOpen" :title="t('groupBuy.supplyTitle')" :description="t('groupBuy.supplyBody')" :confirm-label="t('groupBuy.supplySubmit')" tone="danger" :busy="acting === 'supply'" :error="dialogError" :field-error="dialogFieldError" @submit="doSupply">
-            <LabeledField :label="t('groupBuy.supplyOption')" :error="supplyOptionError">
+            <LabeledField :label="t('groupBuy.supplySku')" :error="supplySkuError">
                 <template #default="{ id, describedBy, invalid }">
-                    <Select :input-id="id" v-model="supplyOptionId" :options="detail?.options ?? []" option-label="name" option-value="id" :placeholder="t('groupBuy.supplyOptionPlaceholder')" :invalid="invalid" :aria-describedby="describedBy" fluid />
+                    <Select :input-id="id" v-model="supplySkuId" :options="supplyChoices" option-label="label" option-value="value" :placeholder="t('groupBuy.supplySkuPlaceholder')" :invalid="invalid" :aria-describedby="describedBy" fluid />
                 </template>
             </LabeledField>
+            <p class="m-0 text-xs text-muted-color">{{ t('groupBuy.supplyAddonNote') }}</p>
             <div v-if="supplyPreview" class="flex flex-col gap-1 rounded-lg border border-(--line) px-3 py-2 text-[13px]">
                 <span>{{ t('groupBuy.supplyPreviewRefund', { lines: supplyPreview.cancelLines, amount: UtilGroupBuy.won(supplyPreview.refundAmount, locale) }) }}</span>
                 <span>{{ t('groupBuy.supplyPreviewFull', { n: supplyPreview.fullRefundOrders }) }}</span>
                 <span>{{ t('groupBuy.supplyPreviewChoice', { n: supplyPreview.choiceOrders, deadline: time.full(supplyPreview.choiceDeadline) }) }}</span>
             </div>
-            <Skeleton v-else-if="supplyOptionId && supplyLoading" height="3.5rem" />
+            <Skeleton v-else-if="supplySkuId && supplyLoading" height="3.5rem" />
         </PaymentReasonDialog>
     </div>
 </template>
 
 <script setup lang="ts">
 import type { RichImageUploader } from '#layers/rich-editor/components/RichEditor.types';
-import type { GroupBuyNoticeOptionRef, GroupBuyNoticeRow } from '~/components/groupbuy/GroupBuyNoticeEditor.types';
-import type { GroupBuyOptionRow } from '~/components/groupbuy/GroupBuyOptionsEditor.types';
+import type { GroupBuyNoticeRow } from '~/components/groupbuy/GroupBuyNoticeEditor.types';
+import type { GroupBuyAddonRow, GroupBuyAxisRow, GroupBuyMainSkuRow, GroupBuySkuRef } from '~/components/groupbuy/GroupBuySkuEditor.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type {
     GroupBuyCancelPreview,
@@ -379,6 +390,9 @@ import type {
     GroupBuyNoticeInput,
     GroupBuyRevision,
     GroupBuySaveRequest,
+    GroupBuySku,
+    GroupBuySkuInput,
+    GroupBuySkuKind,
     GroupBuySupplyFailurePreview,
     NormalPriceBasis,
     NoticeCatalog,
@@ -399,7 +413,10 @@ interface EditForm {
     groupPrice: string;
     normalPriceBasis: NormalPriceBasis | null;
     normalPriceSource: string;
-    options: GroupBuyOptionRow[];
+    /** 옵션 축 · 조합(MAIN 단품, 축이 없으면 한 줄) · 추가 구성상품(결정 88) */
+    axes: GroupBuyAxisRow[];
+    mains: GroupBuyMainSkuRow[];
+    addons: GroupBuyAddonRow[];
     minQty: string;
     fulfillment: GroupBuyFulfillment;
     maxQty: string;
@@ -473,7 +490,9 @@ function emptyForm(): EditForm {
         groupPrice: '',
         normalPriceBasis: null,
         normalPriceSource: '',
-        options: [],
+        axes: [],
+        mains: [singleMain()],
+        addons: [],
         minQty: '0',
         fulfillment: 'IMMEDIATE',
         maxQty: '',
@@ -490,7 +509,49 @@ function emptyForm(): EditForm {
     };
 }
 
+/** 축 없는 단품 하나(공구 전체) */
+function singleMain(): GroupBuyMainSkuRow {
+    return { key: 'main:', id: null, valueKeys: [], extraPrice: '0', maxQty: '', onSale: true, currentQty: 0, reservedQty: 0 };
+}
+
+/** 응답 단품 → 편집 줄. 불러온 축·값·단품의 줄 키는 서버 ID(조합 줄 키 = `main:` + 값 ID 들 — 편집기와 같은 규칙) */
+function skuRowsOf(d: GroupBuyDetail): Pick<EditForm, 'axes' | 'mains' | 'addons'> {
+    const axes = d.axes.map((a) => ({ key: a.id, id: a.id, name: a.name, values: a.values.map((v) => ({ key: v.id, id: v.id, name: v.name })) }));
+    const mains = d.skus
+        .filter((s) => s.kind === 'MAIN')
+        .map((s) => ({ key: mainKeyOf(s), id: s.skuId, valueKeys: [...s.valueIds], extraPrice: String(s.extraPrice), maxQty: s.maxQty === null ? '' : String(s.maxQty), onSale: s.onSale, currentQty: s.currentQty, reservedQty: s.reservedQty }));
+    const addons = d.skus
+        .filter((s) => s.kind === 'ADDON')
+        .map((s) => ({
+            key: s.skuId,
+            id: s.skuId,
+            name: s.name,
+            price: String(s.unitPrice),
+            maxQty: s.maxQty === null ? '' : String(s.maxQty),
+            image: s.imageKey && s.imageUrl ? { mediaId: s.imageKey, url: s.imageUrl, thumbUrl: s.imageUrl } : null,
+            currentQty: s.currentQty,
+            reservedQty: s.reservedQty,
+        }));
+    return { axes, mains: mains.length ? mains : [singleMain()], addons };
+}
+
+/** 응답 단품의 편집 줄 키 — MAIN 은 `main:` + 값 ID 들(편집기의 조합 키와 같은 규칙), ADDON 은 단품 ID */
+function mainKeyOf(s: GroupBuySku): string {
+    return s.kind === 'MAIN' ? `main:${s.valueIds.join('|')}` : s.skuId;
+}
+
+/** 편집 중 단품 목록(고시 적용 대상 · 저장 이름) — MAIN 이름은 지금 축 값으로 만든다. 추가 구성상품은 늘 판매(저장 칸 없음) */
+function skuRefsOf(f: Pick<EditForm, 'axes' | 'mains' | 'addons'>): GroupBuySkuRef[] {
+    const valueName = new Map(f.axes.flatMap((a) => a.values.map((v) => [v.key, v.name] as const)));
+    return [
+        ...f.mains.map((m): GroupBuySkuRef => ({ key: m.key, kind: 'MAIN', name: UtilGroupBuy.skuMainName(m.valueKeys.map((k) => valueName.get(k) ?? '')), onSale: m.onSale })),
+        ...f.addons.map((a): GroupBuySkuRef => ({ key: a.key, kind: 'ADDON', name: a.name.trim(), onSale: true })),
+    ];
+}
+
 function formOf(d: GroupBuyDetail): EditForm {
+    const skuRows = skuRowsOf(d);
+    const keyOfSku = new Map(d.skus.map((s) => [s.skuId, mainKeyOf(s)]));
     return {
         title: d.title,
         productName: d.productName,
@@ -502,7 +563,7 @@ function formOf(d: GroupBuyDetail): EditForm {
         groupPrice: String(d.groupPrice),
         normalPriceBasis: d.normalPriceBasis,
         normalPriceSource: d.normalPriceSource,
-        options: d.options.map((o) => ({ key: o.id, id: o.id, name: o.name, extraPrice: String(o.extraPrice), maxQty: o.maxQty === null ? '' : String(o.maxQty), currentQty: o.currentQty, reservedQty: o.reservedQty })),
+        ...skuRows,
         minQty: String(d.minQty),
         fulfillment: d.fulfillment,
         maxQty: String(d.maxQty),
@@ -515,15 +576,22 @@ function formOf(d: GroupBuyDetail): EditForm {
         shipPlannedAt: d.shipPlannedAt ?? '',
         shipWithinBusinessDays: d.shipWithinBusinessDays === null ? '' : String(d.shipWithinBusinessDays),
         withdrawalRestriction: d.withdrawalRestriction,
-        notices: d.notices.map((n, i) => noticeRowOf(n, i, d.options)),
+        notices: d.notices.map((n, i) => noticeRowOf(n, i, keyOfSku)),
     };
 }
 
 const form = ref<EditForm>(emptyForm());
 const initial = ref('');
-/** 비교용 — 줄 키·표시용 수량은 뺀다 */
+/** 비교용 — 줄 키·표시용 수량은 뺀다(조합 줄 키는 값 키라서 조합 비교에 쓴다) */
 function snapshot(f: EditForm): string {
-    return JSON.stringify({ ...f, images: f.images.map((i) => i.mediaId), options: f.options.map((o) => [o.id, o.name, o.extraPrice, o.maxQty]), notices: noticesView(f) });
+    return JSON.stringify({
+        ...f,
+        images: f.images.map((i) => i.mediaId),
+        axes: f.axes.map((a) => [a.id, a.name, a.values.map((v) => [v.id, v.name])]),
+        mains: f.mains.map((m) => [m.key, m.extraPrice, m.maxQty, m.onSale]),
+        addons: f.addons.map((a) => [a.id, a.name, a.price, a.maxQty, a.image?.mediaId ?? null]),
+        notices: noticesView(f),
+    });
 }
 const dirty = computed(() => initial.value !== '' && snapshot(form.value) !== initial.value);
 
@@ -574,20 +642,20 @@ function policyText(fee: number, free: number | null, returnFee: number, mode: R
     return t('groupBuy.policyText', { fee: won(fee), free: free === null ? t('groupBuy.policyNoFree') : t('groupBuy.policyFree', { amount: won(free) }), ret: won(returnFee), mode: t(`groupBuy.returnMode.${mode}`) });
 }
 
-// ── 상품정보제공고시(결정 87) ──
-/** 응답 양식 → 편집 줄. 적용 옵션 이름을 옵션 줄 키(불러온 옵션은 ID)로 바꾼다 — 지금 옵션에 없는 이름은 버린다 */
-function noticeRowOf(n: GroupBuyNotice, index: number, opts: readonly { id: string; name: string }[]): GroupBuyNoticeRow {
-    const optionKeys = n.optionNames.flatMap((name) => opts.filter((o) => o.name === name).map((o) => o.id));
-    return { key: `notice-${index}`, categoryCode: n.categoryCode, title: n.title, optionKeys, values: n.values.map((v) => ({ ...v })), customItems: n.customItems.map((c) => ({ ...c })) };
+// ── 상품정보제공고시(결정 87·88) ──
+/** 응답 양식 → 편집 줄. 적용 단품 ID(`skuIds`)를 단품 줄 키로 바꾼다 — 지금 단품에 없는 ID 는 버린다 */
+function noticeRowOf(n: GroupBuyNotice, index: number, keyOfSku: ReadonlyMap<string, string>): GroupBuyNoticeRow {
+    const skuKeys = n.skuIds.flatMap((id) => (keyOfSku.has(id) ? [keyOfSku.get(id)!] : []));
+    return { key: `notice-${index}`, categoryCode: n.categoryCode, title: n.title, skuKeys, values: n.values.map((v) => ({ ...v })), customItems: n.customItems.map((c) => ({ ...c })) };
 }
 
-/** 응답 모양 양식 — 화면 키를 떼고 적용 옵션을 지금 옵션 이름으로(이름 없는·지운 옵션은 뺀다). 미리 세기·비교용 */
-function noticesView(f: EditForm): GroupBuyNotice[] {
-    const nameOf = new Map(f.options.map((o) => [o.key, o.name.trim()]));
+/** 응답 모양 양식(ID 없이) — 화면 키를 떼고 적용 단품을 지금 단품 이름으로(이름 없는·지운 단품은 뺀다). 미리 세기·비교·저장용 */
+function noticesView(f: EditForm): Omit<GroupBuyNotice, 'skuIds'>[] {
+    const nameOf = new Map(skuRefsOf(f).map((s) => [s.key, s.name]));
     return f.notices.map((n) => ({
         categoryCode: n.categoryCode,
         title: n.title,
-        optionNames: n.optionKeys.flatMap((key) => (nameOf.get(key) ? [nameOf.get(key)!] : [])),
+        skuNames: n.skuKeys.flatMap((key) => (nameOf.get(key) ? [nameOf.get(key)!] : [])),
         values: n.values.map((v) => ({ ...v })),
         customItems: n.customItems.map((c, i) => ({ ...c, sortOrder: i })),
     }));
@@ -601,15 +669,19 @@ function noticesOut(f: EditForm): GroupBuyNoticeInput[] {
     }));
 }
 
-const noticeOptionRefs = computed<GroupBuyNoticeOptionRef[]>(() => form.value.options.map((o) => ({ key: o.key, name: o.name })));
+const skuRefs = computed<GroupBuySkuRef[]>(() => skuRefsOf(form.value));
+/** 조합 이름(추가 구성상품 이름 겹침 검사용) */
+const mainNames = computed(() => skuRefs.value.filter((s) => s.kind === 'MAIN' && s.name).map((s) => s.name));
 
-/** 구획 머리 배지·모집 시작 안내 — 서버와 같은 규칙으로 센다(판정은 서버) */
+/** 구획 머리 배지·모집 시작 안내 — 서버와 같은 규칙으로 센다(판정은 서버). 고시 대상 = 판매하는 이름 있는 단품 */
 const noticeSummary = computed(() => {
     if (!catalog.value) return null;
-    const optionNames = form.value.options.map((o) => o.name.trim()).filter(Boolean);
-    const problems = UtilGroupBuy.noticeProblems(noticesView(form.value), catalog.value, optionNames);
+    const targets = skuRefs.value.filter((s) => s.onSale && s.name);
+    const problems = UtilGroupBuy.noticeProblems(noticesView(form.value), catalog.value, targets);
+    const addonNames = new Set(targets.filter((s) => s.kind === 'ADDON').map((s) => s.name));
     const blank = problems.notices.reduce((sum, p) => sum + p.missingKeys.length, 0);
-    return { noNotice: problems.noNotice, blank, unassigned: problems.unassignedOptions.length, complete: UtilGroupBuy.noticeComplete(problems) };
+    const addonMissing = problems.unassignedSkus.filter((name) => addonNames.has(name)).length;
+    return { noNotice: problems.noNotice, blank, addonMissing, unassigned: problems.unassignedSkus.length - addonMissing, complete: UtilGroupBuy.noticeComplete(problems) };
 });
 const noticeErrorCount = computed(() => Object.keys(serverErrors.value).filter((k) => k.startsWith('notices[')).length);
 
@@ -633,11 +705,13 @@ function goNotice(): void {
 function showNoticeIncomplete(failure: ApiError): void {
     if (failure.code !== 'GROUP_BUY_NOTICE_INCOMPLETE' || !failure.extras) return;
     const extras = failure.extras as Partial<GroupBuyNoticeIncomplete>;
-    noticeIncomplete.value = { noNotice: !!extras.noNotice, notices: Array.isArray(extras.notices) ? extras.notices : [], unassignedOptions: Array.isArray(extras.unassignedOptions) ? extras.unassignedOptions : [] };
+    noticeIncomplete.value = { noNotice: !!extras.noNotice, notices: Array.isArray(extras.notices) ? extras.notices : [], unassignedSkus: Array.isArray(extras.unassignedSkus) ? extras.unassignedSkus : [] };
     void noticeEditor.value?.focusProblem();
 }
 
-const warnings = computed(() => UtilGroupBuy.phraseWarnings(form.value.title, form.value.summary, form.value.spec, form.value.description, form.value.withdrawalRestriction, ...form.value.options.map((o) => o.name)));
+const warnings = computed(() =>
+    UtilGroupBuy.phraseWarnings(form.value.title, form.value.summary, form.value.spec, form.value.description, form.value.withdrawalRestriction, ...form.value.axes.flatMap((a) => [a.name, ...a.values.map((v) => v.name)]), ...form.value.addons.map((a) => a.name)),
+);
 
 // ── 읽기 ──
 async function loadOptions(): Promise<void> {
@@ -692,6 +766,22 @@ const richUpload: RichImageUploader = async (file, opts) => {
 };
 
 // ── 저장 ──
+/**
+ * 옵션 구성 → 서버 `GroupBuyDraft` 의 `axes`·`skus`·`addons`. 값이 빈 축은 아직 조합에 들지 않아 보내지 않는다(서버 `axes` 오류 대신 화면이 줄에서 알린다).
+ * 조합은 전부 보낸다(판매 끈 것 포함). 축이 없으면 `skus` 는 빈다(공구 전체 단품 하나 — 서버 기본값).
+ */
+function skusOut(f: EditForm): Pick<GroupBuySaveRequest, 'axes' | 'skus' | 'addons'> {
+    const num = (s: string) => UtilGroupBuy.int(s) ?? 0;
+    const opt = (s: string) => (s.trim() === '' ? null : UtilGroupBuy.int(s));
+    const active = f.axes.filter((a) => a.values.length > 0);
+    const valueName = new Map(active.flatMap((a) => a.values.map((v) => [v.key, v.name.trim()] as const)));
+    return {
+        axes: active.map((a) => ({ name: a.name.trim(), values: a.values.map((v) => v.name.trim()) })),
+        skus: active.length ? f.mains.map((m): GroupBuySkuInput => ({ values: m.valueKeys.map((k) => valueName.get(k) ?? ''), extraPrice: num(m.extraPrice), maxQty: opt(m.maxQty), onSale: m.onSale })) : [],
+        addons: f.addons.map((a) => ({ name: a.name.trim(), price: num(a.price), maxQty: opt(a.maxQty), imageKey: a.image?.mediaId ?? null })),
+    };
+}
+
 function toRequest(f: EditForm): GroupBuySaveRequest {
     const num = (s: string) => UtilGroupBuy.int(s) ?? 0;
     const opt = (s: string) => (s.trim() === '' ? null : UtilGroupBuy.int(s));
@@ -706,7 +796,7 @@ function toRequest(f: EditForm): GroupBuySaveRequest {
         groupPrice: num(f.groupPrice),
         normalPriceBasis: f.normalPriceBasis,
         normalPriceSource: f.normalPriceSource.trim(),
-        options: f.options.map((o) => ({ id: o.id, name: o.name.trim(), extraPrice: num(o.extraPrice), maxQty: opt(o.maxQty) })),
+        ...skusOut(f),
         minQty: num(f.minQty),
         fulfillment: f.fulfillment,
         maxQty: num(f.maxQty),
@@ -906,31 +996,38 @@ async function doDelay(reason: string): Promise<void> {
     }
 }
 
-// 옵션 공급 불가
+/** 단품 이름 글자(축 없는 단품 하나는 「단품 하나」, 추가 구성상품은 딱지 글자를 붙인다) */
+function skuText(name: string, kind: GroupBuySkuKind): string {
+    const base = name || t('groupBuy.skuSingle');
+    return kind === 'ADDON' ? `${base} (${t('groupBuy.skuAddonTag')})` : base;
+}
+
+// 단품 공급 불가(결정 53 · 88) — 판매하는 단품에서 고른다
 const supplyOpen = ref(false);
-const supplyOptionId = ref<string | null>(null);
-const supplyOptionError = ref('');
+const supplySkuId = ref<string | null>(null);
+const supplySkuError = ref('');
 const supplyPreview = ref<GroupBuySupplyFailurePreview | null>(null);
 const supplyLoading = ref(false);
+const supplyChoices = computed(() => (detail.value?.skus ?? []).filter((s) => s.onSale).map((s) => ({ value: s.skuId, label: skuText(s.name, s.kind) })));
 function openSupply(): void {
-    supplyOptionId.value = null;
+    supplySkuId.value = null;
     supplyPreview.value = null;
-    supplyOptionError.value = '';
+    supplySkuError.value = '';
     dialogError.value = '';
     dialogFieldError.value = '';
     supplyOpen.value = true;
 }
-watch(supplyOptionId, async (optionId) => {
+watch(supplySkuId, async (skuId) => {
     supplyPreview.value = null;
-    supplyOptionError.value = '';
+    supplySkuError.value = '';
     const d = detail.value;
-    if (!optionId || !d) return;
+    if (!skuId || !d) return;
     supplyLoading.value = true;
     try {
-        const preview = await api.supplyFailurePreview(d.id, optionId);
-        if (supplyOptionId.value === optionId) supplyPreview.value = preview;
+        const preview = await api.supplyFailurePreview(d.id, skuId);
+        if (supplySkuId.value === skuId) supplyPreview.value = preview;
     } catch (e) {
-        supplyOptionError.value = toApiError(e).message;
+        supplySkuError.value = toApiError(e).message;
     } finally {
         supplyLoading.value = false;
     }
@@ -938,12 +1035,12 @@ watch(supplyOptionId, async (optionId) => {
 async function doSupply(reason: string): Promise<void> {
     const d = detail.value;
     if (!d) return;
-    if (!supplyOptionId.value) {
-        supplyOptionError.value = t('groupBuy.supplyOptionRequired');
+    if (!supplySkuId.value) {
+        supplySkuError.value = t('groupBuy.supplySkuRequired');
         return;
     }
-    const optionId = supplyOptionId.value;
-    if (await run('supply', () => api.supplyFailure(d.id, { optionId, reason }), t('groupBuy.supplyDone'), true)) supplyOpen.value = false;
+    const skuId = supplySkuId.value;
+    if (await run('supply', () => api.supplyFailure(d.id, { skuId, reason }), t('groupBuy.supplyDone'), true)) supplyOpen.value = false;
 }
 
 // ── 수정 이력(서랍을 처음 열 때 받는다) ──

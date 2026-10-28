@@ -1,6 +1,6 @@
 <template>
     <div class="mx-auto flex max-w-2xl flex-col gap-4" data-testid="group-buy-order-page">
-        <NuxtLink :to="UtilGroupBuy.detailPath(id)" class="inline-flex w-fit items-center gap-1 text-sm text-muted-color hover:underline">
+        <NuxtLink :to="detailLink" class="inline-flex w-fit items-center gap-1 text-sm text-muted-color hover:underline">
             <i class="pi pi-angle-left text-xs" aria-hidden="true" /> {{ gb?.title ?? term('GROUP_BUY') }}
         </NuxtLink>
         <h1 class="m-0 text-lg font-bold">{{ t('groupBuy.orderTitle') }}</h1>
@@ -17,6 +17,17 @@
         <EmptyState v-else-if="!gb.actions.order && !started" :title="t('groupBuy.orderBlocked')" :description="gb.purchase.reason ? t(`groupBuy.reason.${gb.purchase.reason}`) : ''" icon="pi pi-ban" data-testid="group-buy-order-blocked">
             <Button v-if="gb.purchase.reason === 'ALREADY_JOINED' && gb.myOrderNo" as="router-link" :to="UtilGroupBuy.myOrderPath(gb.myOrderNo)" :label="t('groupBuy.seeMyOrder')" />
             <Button as="router-link" :to="UtilGroupBuy.detailPath(gb.id)" :label="t('groupBuy.backToDetail')" severity="secondary" variant="outlined" />
+        </EmptyState>
+
+        <!-- 고른 목록이 없거나 깨졌다(결정 88 — 고르는 곳은 상세) -->
+        <EmptyState
+            v-else-if="itemsState !== 'ok' && !started"
+            :title="itemsState === 'broken' ? t('groupBuy.orderBrokenItems') : t('groupBuy.orderNoItems')"
+            :description="itemsState === 'broken' ? t('groupBuy.orderBrokenItemsText') : t('groupBuy.orderNoItemsText')"
+            icon="pi pi-shopping-cart"
+            data-testid="group-buy-order-no-items"
+        >
+            <Button as="router-link" :to="UtilGroupBuy.detailPath(gb.id)" :label="t('groupBuy.repick')" />
         </EmptyState>
 
         <form v-else class="flex flex-col gap-4" novalidate @submit.prevent="submit">
@@ -39,83 +50,24 @@
             </div>
             <GroupBuyShippingNotice :shipping="gb.shipping" :withdrawal-restriction="gb.withdrawalRestriction" />
 
-            <!-- 1. 옵션 × 수량 — 기본 선택 없음 -->
+            <!-- 1. 주문 상품 — 상세에서 고른 목록을 확인만(바꾸려면 상세로 — 결정 88) -->
             <section :aria-labelledby="`${uid}-items`" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" data-testid="group-buy-order-lines">
-                <h2 :id="`${uid}-items`" class="m-0 mb-1 text-base font-semibold">{{ gb.options.length > 0 ? t('groupBuy.linesTitle') : t('groupBuy.qtyTitle') }}</h2>
-                <p class="m-0 mb-3 text-xs text-muted-color">
-                    {{ gb.options.length > 0 ? t('groupBuy.linesHelp') : t('groupBuy.qtyHelp') }}
+                <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
+                    <h2 :id="`${uid}-items`" class="m-0 text-base font-semibold">{{ t('groupBuy.itemsTitle') }}</h2>
+                    <Button v-if="!started" as="router-link" :to="detailLink" :label="t('groupBuy.repick')" icon="pi pi-pencil" size="small" severity="secondary" variant="text" data-testid="group-buy-repick" />
+                </div>
+                <p class="m-0 text-xs text-muted-color">
+                    {{ t('groupBuy.orderItemsHelp') }}
                     <template v-if="gb.maxQtyPerUser !== null"> · {{ t('groupBuy.termsLimitValue', { count: gb.maxQtyPerUser }) }}</template>
                 </p>
-                <ul class="m-0 flex list-none flex-col gap-3 p-0">
-                    <li v-for="(line, index) in lines" :key="line.key" class="flex flex-wrap items-start gap-2 rounded-lg border border-surface p-3">
-                        <LabeledField v-if="gb.options.length > 0" class="min-w-0 flex-1 basis-56" :label="t('groupBuy.lineOption', { n: index + 1 })" :error="fieldError(`items[${index}].optionId`)">
-                            <template #default="{ id: fieldId, describedBy, invalid }">
-                                <Select
-                                    v-model="line.optionId"
-                                    :label-id="fieldId"
-                                    :options="optionChoices(index)"
-                                    option-label="label"
-                                    option-value="value"
-                                    option-disabled="disabled"
-                                    :placeholder="t('groupBuy.optionPlaceholder')"
-                                    :invalid="invalid"
-                                    :aria-describedby="describedBy"
-                                    :disabled="locked"
-                                    fluid
-                                    :data-testid="`group-buy-line-option-${index}`"
-                                />
-                            </template>
-                        </LabeledField>
-                        <LabeledField class="w-36" :label="t('groupBuy.lineQty')" :hint="remainingHint(line.optionId)" :error="fieldError(`items[${index}].qty`)">
-                            <template #default="{ id: fieldId, describedBy, invalid }">
-                                <InputNumber
-                                    v-model="line.qty"
-                                    :input-id="fieldId"
-                                    :min="1"
-                                    :max="999"
-                                    show-buttons
-                                    button-layout="horizontal"
-                                    :placeholder="t('groupBuy.qtyPlaceholder')"
-                                    :invalid="invalid"
-                                    :aria-describedby="describedBy"
-                                    :disabled="locked"
-                                    fluid
-                                    :data-testid="`group-buy-line-qty-${index}`"
-                                />
-                            </template>
-                        </LabeledField>
-                        <Button
-                            v-if="lines.length > 1"
-                            type="button"
-                            icon="pi pi-times"
-                            severity="secondary"
-                            variant="text"
-                            class="mt-6"
-                            :aria-label="t('groupBuy.lineRemove', { n: index + 1 })"
-                            :disabled="locked"
-                            @click="removeLine(index)"
-                        />
-                    </li>
-                </ul>
-                <Button v-if="canAddLine" type="button" class="mt-3" :label="t('groupBuy.lineAdd')" icon="pi pi-plus" size="small" severity="secondary" variant="outlined" :disabled="locked" data-testid="group-buy-line-add" @click="addLine" />
-                <p v-if="fieldError('items')" class="m-0 mt-2 text-xs text-red-600 dark:text-red-400" role="alert">{{ fieldError('items') }}</p>
+                <GroupBuyPickedLines :lines="pickedLines" />
             </section>
 
             <!-- 2. 금액(서버 견적) -->
-            <section :aria-labelledby="`${uid}-amount`" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" aria-live="polite" data-testid="group-buy-quote">
+            <section :aria-labelledby="`${uid}-amount`" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900">
                 <h2 :id="`${uid}-amount`" class="m-0 mb-2 text-base font-semibold">{{ t('groupBuy.amountTitle') }}</h2>
-                <p v-if="!linesComplete" class="m-0 text-sm text-muted-color">{{ t('groupBuy.quotePending') }}</p>
-                <p v-else-if="quoteBusy && !quote" class="m-0 text-sm text-muted-color" role="status">{{ t('groupBuy.quoting') }}</p>
-                <Message v-else-if="quoteError" severity="error" size="small" variant="simple" :closable="false" role="alert">{{ quoteError }}</Message>
-                <dl v-else-if="quote" class="m-0 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 text-sm" :class="quoteBusy ? 'opacity-60' : ''">
-                    <dt class="text-muted-color">{{ t('groupBuy.itemsAmount') }}</dt>
-                    <dd class="m-0 text-right tabular-nums">{{ UtilGroupBuyMessages.won(t, quote.itemsAmount) }}</dd>
-                    <dt class="text-muted-color">{{ t('groupBuy.shippingFee') }}</dt>
-                    <dd class="m-0 text-right tabular-nums">{{ quote.shippingFee === 0 ? t('groupBuy.freeShipping') : UtilGroupBuyMessages.won(t, quote.shippingFee) }}</dd>
-                    <dt class="border-t border-surface pt-1 font-semibold">{{ t('groupBuy.totalAmount') }}</dt>
-                    <dd class="m-0 border-t border-surface pt-1 text-right text-lg font-bold tabular-nums text-primary" data-testid="group-buy-total">{{ UtilGroupBuyMessages.won(t, quote.totalAmount) }}</dd>
-                </dl>
-                <p v-if="quote && quote.freeShippingRemaining !== null && !quoteError" class="m-0 mt-2 text-xs text-muted-color">{{ t('groupBuy.freeShippingRemaining', { amount: UtilGroupBuyMessages.won(t, quote.freeShippingRemaining) }) }}</p>
+                <GroupBuyQuoteSummary :quote="quote" :ready="lines.length > 0" :busy="quoteBusy" :error="quoteError" />
+                <Button v-if="quoteError && !started" as="router-link" :to="detailLink" :label="t('groupBuy.repick')" icon="pi pi-pencil" size="small" severity="secondary" variant="outlined" class="mt-2" />
             </section>
 
             <!-- 3. 배송지 -->
@@ -182,10 +134,11 @@
             <!-- 제출 -->
             <div v-if="!started" class="flex flex-col gap-2">
                 <Message v-if="formError" severity="error" size="small" variant="simple" :closable="false" role="alert" data-testid="group-buy-order-error">{{ formError }}</Message>
+                <Button v-if="repickHint" as="router-link" :to="detailLink" :label="t('groupBuy.repick')" icon="pi pi-pencil" size="small" severity="secondary" variant="outlined" class="w-fit" />
                 <Button
                     type="submit"
                     size="large"
-                    :label="quote && linesComplete ? t('groupBuy.payButton', { amount: UtilGroupBuyMessages.won(t, quote.totalAmount) }) : t('groupBuy.payButtonPlain')"
+                    :label="quote ? t('groupBuy.payButton', { amount: UtilGroupBuyMessages.won(t, quote.totalAmount) }) : t('groupBuy.payButtonPlain')"
                     icon="pi pi-lock"
                     :loading="submitBusy"
                     :disabled="quoteBusy"
@@ -194,9 +147,9 @@
             </div>
         </form>
 
-        <AppSheet v-if="gb && gb.notices.length > 0" v-model:visible="noticesOpen" :title="t('groupBuy.productInfoTitle')" :description="pickedOptionIds.length > 0 ? t('groupBuy.productInfoSheetHelp') : ''" wide>
+        <AppSheet v-if="gb && gb.notices.length > 0" v-model:visible="noticesOpen" :title="t('groupBuy.productInfoTitle')" :description="lines.length > 0 ? t('groupBuy.productInfoSheetHelp') : ''" wide>
             <div class="px-5 pt-3">
-                <GroupBuyProductNotices :notices="gb.notices" :options="gb.options" :priority-option-ids="pickedOptionIds" heading-tag="h4" />
+                <GroupBuyProductNotices :notices="gb.notices" :skus="gb.availability.skus.filter((s) => s.onSale)" :priority-sku-ids="lines.map((l) => l.skuId)" heading-tag="h4" />
             </div>
         </AppSheet>
 
@@ -214,6 +167,7 @@
 
 <script setup lang="ts">
 import type { GroupBuyAddressInput, GroupBuyDetail, GroupBuyOrderCreated, GroupBuyOrderLine, GroupBuyQuote } from '~/composables/groupbuy/api/useGroupBuyApi.types';
+import type { GroupBuyPickedLine } from '~/components/groupbuy/GroupBuyPickedLines.types';
 import type { PaymentResult } from '~/composables/payment/api/usePaymentApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilGroupBuy from '~/utils/util-group-buy';
@@ -223,8 +177,10 @@ import UtilTime from '#layers/display-time/utils/util-time';
 
 /**
  * 공동구매 주문서 `/group-buys/{id}/order` — 로그인 필요. 계약 commerce-groupbuy 화면 목록 · 결정 23·41·57·59·63·72.
- * - **옵션 여러 줄 × 수량**(같은 옵션 두 줄 금지 — 고른 옵션은 다른 줄 목록에서 빠진다, 옵션 없는 공구는 수량만). 옵션·수량·동의 모두 기본 선택 없음(다크패턴 금지).
- * - 판매조건 옆 「상품정보제공고시 보기」 → 시트(결정 87 — 고른 옵션 줄이 있으면 그 옵션들의 양식을 먼저 펼친다).
+ * - **고른 상품은 확인만**(결정 88 — 고르는 곳은 상세): 상세가 주소 `?items=skuId:qty,…` 로 넘긴 목록(새로고침해도 남는다)의 줄 이름·수량·금액.
+ *   바꾸려면 「상품 다시 고르기」 → 상세(고른 것을 들고 간다). 목록이 없거나 깨졌으면(모양 · 이 공구에 없는 단품) 상세로 돌려보내는 안내.
+ *   판매 안 함 · 품절 · 추가 구성상품만 같은 규칙은 서버 견적·주문이 알려 주고(409 `GROUP_BUY_SKU_*` · 400 `fields.items`), 그 옆에 「상품 다시 고르기」. 동의는 기본 체크 없음(다크패턴 금지).
+ * - 판매조건 옆 「상품정보제공고시 보기」 → 시트(결정 87·88 — 고른 단품의 양식을 먼저 펼친다).
  * - 판매조건·배송비·반품비·발송 예정·청약철회 제한·정상가 기준을 처음부터 보인다. 금액은 서버 견적(`quote`)만 — 화면은 더하지 않는다.
  * - 「결제하기」 → 화면 검사(미리 알림) → 본인인증 게이트(`GROUP_BUY`) → 주문 API(`expectedAmount` + 멱등 키) → 결제창(`useGroupBuyCheckout`).
  *   `409 GROUP_BUY_AMOUNT_CHANGED` 면 결제창 대신 「금액이 바뀌었어요」 확인 → 새 견적으로 다시 보낸다.
@@ -250,78 +206,61 @@ const status = ref<'loading' | 'ready' | 'notfound' | 'error'>('loading');
 const loadError = ref('');
 useSeoMeta({ title: () => t('groupBuy.orderTitle'), robots: 'noindex' });
 
-/** @param keepLines 다시 주문할 때 — 고른 줄을 둔다 */
-async function load(keepLines = false): Promise<void> {
+async function load(): Promise<void> {
     status.value = 'loading';
     loadError.value = '';
     try {
         gb.value = await api.get(id.value);
-        if (!keepLines || lines.value.length === 0) resetLines();
+        readLines();
         status.value = 'ready';
+        void requote();
     } catch (e) {
         loadError.value = UtilGroupBuyMessages.error(t, e);
         status.value = e instanceof ApiError && e.status === 404 ? 'notfound' : 'error';
     }
 }
 
-/* ── 옵션 × 수량 ── */
+/* ── 고른 상품 — 상세가 주소 `?items=skuId:qty,…` 로 넘긴 목록(결정 88, 확인만) ── */
 
-interface Line {
-    key: number;
-    optionId: number | null;
-    qty: number | null;
-}
-let lineKey = 0;
-const lines = ref<Line[]>([]);
+const lines = ref<GroupBuyOrderLine[]>([]);
+/** ok · 없음(상세에서 고르지 않고 들어옴) · 깨짐(모양이 틀림 · 이 공구에 없는 단품) */
+const itemsState = ref<'ok' | 'empty' | 'broken'>('ok');
 
-function resetLines(): void {
-    lines.value = [{ key: ++lineKey, optionId: null, qty: null }];
-}
-
-const canAddLine = computed(() => !!gb.value && gb.value.options.length > lines.value.length);
-
-function addLine(): void {
-    if (canAddLine.value) lines.value.push({ key: ++lineKey, optionId: null, qty: null });
-}
-
-function removeLine(index: number): void {
-    lines.value.splice(index, 1);
-}
-
-/** 그 줄에서 고를 수 있는 옵션 — 다른 줄이 고른 옵션은 뺀다(같은 옵션 두 줄 금지), 품절은 이유와 함께 꺼 둔다 */
-function optionChoices(index: number) {
+/** 주소의 목록을 읽는다 — 모양·단품 존재만 본다(판매 여부·품절·추가 구성상품만 같은 규칙은 서버 견적이 알려 준다) */
+function readLines(): void {
     const g = gb.value;
-    if (!g) return [];
-    const taken = new Set(lines.value.filter((_, i) => i !== index).map((l) => l.optionId));
-    return g.options
-        .filter((o) => !taken.has(o.id))
-        .map((o) => ({
-            value: o.id,
-            label: o.stockState === 'AVAILABLE' ? `${o.name} · ${UtilGroupBuyMessages.won(t, o.unitPrice)}` : `${o.name} · ${t(`groupBuy.stock.${o.stockState}`)}`,
-            disabled: o.stockState !== 'AVAILABLE',
-        }));
+    const parsed = UtilGroupBuy.parseItems(route.query[UtilGroupBuy.ITEMS_QUERY]);
+    if (!g || parsed === null || parsed.some((l) => !g.availability.skus.some((s) => s.skuId === l.skuId))) {
+        lines.value = [];
+        itemsState.value = 'broken';
+        return;
+    }
+    lines.value = parsed;
+    itemsState.value = parsed.length > 0 ? 'ok' : 'empty';
 }
 
-function remainingHint(optionId: number | null): string {
-    const g = gb.value;
-    if (!g) return '';
-    if (g.options.length === 0) return t('groupBuy.optionRemaining', { count: g.remainingQty });
-    const option = g.options.find((o) => o.id === optionId);
-    return option ? t('groupBuy.optionRemaining', { count: option.remainingQty }) : '';
-}
-
-const linesComplete = computed(() => {
-    const g = gb.value;
-    if (!g || lines.value.length === 0) return false;
-    return lines.value.every((l) => (g.options.length === 0 || l.optionId !== null) && l.qty !== null && l.qty >= 1);
+/** 상세로 돌아가는 길 — 고른 목록을 그대로 들고 간다(개발용 `?mock=` 도) */
+const detailLink = computed(() => {
+    const query: Record<string, string> = {};
+    const mock = route.query.mock;
+    if (typeof mock === 'string' && mock) query.mock = mock;
+    if (lines.value.length > 0) query[UtilGroupBuy.ITEMS_QUERY] = UtilGroupBuy.formatItems(lines.value);
+    return { path: UtilGroupBuy.detailPath(id.value), query };
 });
 
-/* ── 상품정보제공고시 시트(결정 87) — 고른 옵션의 양식을 먼저 ── */
+/** 줄 표시 — 이름·종류·단가는 공구 단품(서버), 줄 금액은 견적(서버) */
+const pickedLines = computed<GroupBuyPickedLine[]>(() =>
+    lines.value.flatMap((l) => {
+        const sku = gb.value?.availability.skus.find((s) => s.skuId === l.skuId);
+        if (!sku) return [];
+        const amount = quote.value?.items.find((q) => q.skuId === l.skuId)?.itemAmount ?? null;
+        return [{ skuId: sku.skuId, name: sku.name, kind: sku.kind, unitPrice: sku.unitPrice, qty: l.qty, max: l.qty, amount, removable: false }];
+    }),
+);
+
+/* ── 상품정보제공고시 시트(결정 87·88) — 고른 단품의 양식을 먼저 ── */
 
 const noticesOpen = ref(false);
-const pickedOptionIds = computed(() => lines.value.map((l) => l.optionId).filter((optionId): optionId is number => optionId !== null));
-
-const orderLines = computed<GroupBuyOrderLine[]>(() => lines.value.map((l) => ({ optionId: gb.value?.options.length ? l.optionId : null, qty: l.qty ?? 0 })));
 
 /* ── 견적(서버) ── */
 
@@ -329,11 +268,10 @@ const quote = ref<GroupBuyQuote | null>(null);
 const quoteBusy = ref(false);
 const quoteError = ref('');
 let quoteSeq = 0;
-let quoteTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function requote(): Promise<GroupBuyQuote | null> {
     const g = gb.value;
-    if (!g || !linesComplete.value) {
+    if (!g || lines.value.length === 0) {
         quote.value = null;
         return null;
     }
@@ -341,38 +279,20 @@ async function requote(): Promise<GroupBuyQuote | null> {
     quoteBusy.value = true;
     quoteError.value = '';
     try {
-        const res = await api.quote(g.id, { items: orderLines.value });
+        const res = await api.quote(g.id, { items: lines.value.map((l) => ({ ...l })) });
         if (mine !== quoteSeq) return null;
         quote.value = res;
-        clearItemErrors();
         return res;
     } catch (e) {
         if (mine !== quoteSeq) return null;
         quote.value = null;
-        if (e instanceof ApiError && e.status === 400 && e.fields) fieldErrors.value = { ...fieldErrors.value, ...e.fields };
-        quoteError.value = UtilGroupBuyMessages.error(t, e);
+        quoteError.value = e instanceof ApiError && e.status === 400 && e.fields ? (e.fields.items ?? Object.values(e.fields)[0] ?? e.message) : UtilGroupBuyMessages.error(t, e);
         return null;
     } finally {
         if (mine === quoteSeq) quoteBusy.value = false;
     }
 }
-
-watch(
-    () => JSON.stringify(orderLines.value),
-    () => {
-        if (quoteTimer) clearTimeout(quoteTimer);
-        if (!linesComplete.value) {
-            quote.value = null;
-            quoteError.value = '';
-            return;
-        }
-        quoteTimer = setTimeout(() => void requote(), 300);
-    },
-);
-onBeforeUnmount(() => {
-    if (quoteTimer) clearTimeout(quoteTimer);
-    quoteSeq++;
-});
+onBeforeUnmount(() => quoteSeq++);
 
 /* ── 배송지 · 동의 ── */
 
@@ -387,13 +307,11 @@ const agreementItems = computed(() =>
 
 const fieldErrors = ref<Record<string, string>>({});
 const formError = ref('');
+/** 줄 문제(단품 품절 · 판매 안 함 · 줄 오류)로 거절됐다 — 오류 옆에 「상품 다시 고르기」 */
+const repickHint = ref(false);
 
 function fieldError(key: string): string {
     return fieldErrors.value[key] ?? '';
-}
-
-function clearItemErrors(): void {
-    fieldErrors.value = Object.fromEntries(Object.entries(fieldErrors.value).filter(([k]) => !k.startsWith('items')));
 }
 
 const addressErrors = computed(() => {
@@ -404,12 +322,7 @@ const addressErrors = computed(() => {
 
 /** 화면 미리 검사(편의 — 판정은 서버) */
 function precheck(): Record<string, string> {
-    const g = gb.value!;
     const out: Record<string, string> = {};
-    lines.value.forEach((l, index) => {
-        if (g.options.length > 0 && l.optionId === null) out[`items[${index}].optionId`] = t('groupBuy.errOption');
-        if (l.qty === null || l.qty < 1) out[`items[${index}].qty`] = t('groupBuy.errQty');
-    });
     const a = address.value;
     if (!a.recipient.trim()) out['address.recipient'] = t('groupBuy.errRecipient');
     if (!a.phone.trim()) out['address.phone'] = t('groupBuy.errPhone');
@@ -448,6 +361,7 @@ async function submit(): Promise<void> {
     const g = gb.value;
     if (!g || submitBusy.value || started.value) return;
     formError.value = '';
+    repickHint.value = false;
     const local = precheck();
     fieldErrors.value = local;
     if (Object.keys(local).length > 0) {
@@ -467,7 +381,7 @@ async function submit(): Promise<void> {
 
 async function place(g: GroupBuyDetail, expectedAmount: number): Promise<void> {
     try {
-        const created = await api.order(g.id, { items: orderLines.value, address: { ...address.value }, agreements: { ...agreements }, expectedAmount }, idempotencyKey);
+        const created = await api.order(g.id, { items: lines.value.map((l) => ({ ...l })), address: { ...address.value }, agreements: { ...agreements }, expectedAmount }, idempotencyKey);
         idempotencyKey = UtilIdempotency.newKey();
         started.value = created;
         holdEndsAt.value = Date.parse(created.reservedUntil);
@@ -479,10 +393,14 @@ async function place(g: GroupBuyDetail, expectedAmount: number): Promise<void> {
         if (e instanceof ApiError && e.code === 'GROUP_BUY_AMOUNT_CHANGED') return amountChanged(g, e);
         if (e instanceof ApiError && e.status === 400 && e.fields && Object.keys(e.fields).length) {
             fieldErrors.value = e.fields;
-            formError.value = t('groupBuy.errCheck');
+            // 줄 오류(`items…`)는 이 화면에서 고칠 칸이 없다 — 문구를 그대로 보이고 「상품 다시 고르기」로
+            const itemsError = Object.entries(e.fields).find(([k]) => k.startsWith('items'))?.[1];
+            formError.value = itemsError ?? t('groupBuy.errCheck');
+            repickHint.value = !!itemsError;
             return;
         }
         formError.value = UtilGroupBuyMessages.error(t, e);
+        repickHint.value = e instanceof ApiError && (e.code === 'GROUP_BUY_SKU_SOLD_OUT' || e.code === 'GROUP_BUY_SKU_NOT_ON_SALE');
     }
 }
 
@@ -538,7 +456,7 @@ function restart(): void {
     agreements.purchaseTerms = false;
     agreements.refundPolicy = false;
     agreements.privacy = false;
-    void load(true).then(() => void requote());
+    void load();
 }
 
 void load();

@@ -1,11 +1,12 @@
 // MOCK: 공구 관리자 목업의 처음 데이터 — `groupbuy-mock.ts` 가 메모리에 올려 고친다(새로고침하면 처음으로). 서버가 붙으면 이 폴더째 지운다.
-// 공구는 계약 결정 11 의 local 시드 넷(성사형 모집 중 · 선착순 즉시 발송(옵션 셋) · 마감 임박 · 다 팔려 끝난 1차) + DRAFT 하나 + 불발 하나(로봇 101~106)
-// + 로봇 밖 예시 품목(결정 87 — 107 햅쌀 성사형 모집 중 · 108 사과·감귤 선착순(옵션마다 양식) · 109 고등어·전복 DRAFT(양식 다 채움) · 110 김치 다 팔림 · 111 티셔츠 선착순(옵션 넷, 양식 하나) · 112 러닝화 중단).
+// 공구는 계약 결정 11 의 local 시드 넷(성사형 모집 중 · 선착순 즉시 발송(102 — 축 없음 + 추가 구성상품 여분 배터리·충전 독) · 마감 임박 · 다 팔려 끝난 1차) + DRAFT 하나 + 불발 하나(로봇 101~106)
+// + 로봇 밖 예시 품목(결정 87 — 107 햅쌀 성사형 모집 중 · 108 사과·감귤 선착순(축 과일 × 중량, 과일마다 양식) · 109 고등어·전복 DRAFT(축 종류, 양식 다 채움) · 110 김치 다 팔림(축 중량) · 111 티셔츠 선착순(축 색상 2 × 사이즈 3, 블랙 / XL 판매 끔, 양식 하나) · 112 러닝화 중단(축 사이즈)).
+// 옵션 축·단품(결정 88): 단품 ID 는 `sku-<공구 번호>`(축 없음) · `sku-<공구 번호>-<값 차례…>`(조합) · `sku-102-bat|dock`(추가 구성상품).
 // 고시 양식 값은 서버 카탈로그(`notice-catalog-2023-01-01.json`)의 진짜 항목 키로 채웠다.
 // 금액·수량은 서버가 계산했다고 치는 값이다(계산 규칙을 흉내 내지 않는다 — 화면은 보여 주기만).
 
 import { mockNoticeCatalog } from '~/composables/groupbuy/api/mock/groupbuy-notice-catalog-mock';
-import type { GroupBuyDetail, GroupBuyMember, GroupBuyMovement, GroupBuyNotice, GroupBuyRevision, NoticeItemValue } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
+import type { GroupBuyDetail, GroupBuyMember, GroupBuyMovement, GroupBuyNotice, GroupBuyOptionAxis, GroupBuyRevision, GroupBuySku, NoticeItemValue } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
 import type { GroupBuyOrderDetail, GroupBuyOrderItem } from '~/composables/groupbuy/api/useGroupBuyOrderApi.types';
 import type { GroupBuyRequestDetail } from '~/composables/groupbuy/api/useGroupBuyRequestApi.types';
 import UtilGroupBuy from '~/utils/util-groupbuy';
@@ -46,21 +47,93 @@ const CATALOG = mockNoticeCatalog();
 const AS = '로보얌 고객센터 02-000-0000(평일 10~17시)';
 const WARRANTY = '소비자분쟁해결기준(공정거래위원회 고시)에 따라 구입일로부터 1년 무상 수리 — 기준은 공정거래위원회 누리집에서 볼 수 있어요.';
 
-/** 고시 양식 한 장 — 카탈로그 항목에 맞춘 빈 줄에 `filled` 를 채운다(글이면 값, 객체면 그 칸들). `customs` = 판매자 추가 항목 [이름, 내용] */
-function notice(categoryCode: string, title: string, optionNames: string[], filled: Record<string, string | Partial<NoticeItemValue>>, customs: [string, string][] = []): GroupBuyNotice {
+/**
+ * 고시 양식 한 장 — 카탈로그 항목에 맞춘 빈 줄에 `filled` 를 채운다(글이면 값, 객체면 그 칸들). `customs` = 판매자 추가 항목 [이름, 내용].
+ * `skuIds` = 적용 단품 ID(비면 기본 양식) — 이름(`skuNames`)은 `withNoticeNames` 가 공구 단품에서 채운다.
+ */
+function notice(categoryCode: string, title: string, skuIds: string[], filled: Record<string, string | Partial<NoticeItemValue>>, customs: [string, string][] = []): GroupBuyNotice {
     const items = CATALOG.categories.find((c) => c.code === categoryCode)?.items ?? [];
     const values = UtilGroupBuy.noticeValuesFor(items).map((v) => {
         const f = filled[v.itemKey];
         return f === undefined ? v : typeof f === 'string' ? { ...v, value: f } : { ...v, ...f };
     });
-    return { categoryCode, title, optionNames, values, customItems: customs.map(([name, value], sortOrder) => ({ name, value, sortOrder })) };
+    return { categoryCode, title, skuIds, skuNames: [], values, customItems: customs.map(([name, value], sortOrder) => ({ name, value, sortOrder })) };
+}
+
+/** 고시 양식의 적용 단품 이름을 그 공구 단품 이름으로 채운다 */
+function withNoticeNames(list: GroupBuyDetail[]): GroupBuyDetail[] {
+    for (const g of list) g.notices = g.notices.map((n) => ({ ...n, skuNames: n.skuIds.map((id) => g.skus.find((s) => s.skuId === id)?.name ?? '') }));
+    return list;
+}
+
+// ── 옵션 축·단품(결정 88) 만들기 ──
+
+/** 옵션 축 — 값 ID 는 `<축 ID>-1` 부터 */
+function ax(id: string, name: string, values: string[], sortOrder = 0): GroupBuyOptionAxis {
+    return { id, name, sortOrder, values: values.map((v, i) => ({ id: `${id}-${i + 1}`, name: v, sortOrder: i })) };
+}
+
+interface SkuQty {
+    extra?: number;
+    max?: number | null;
+    /** 생략하면 `max` 와 같다(모집 시작 때 고정). DRAFT 는 null */
+    initial?: number | null;
+    cur?: number;
+    res?: number;
+    onSale?: boolean;
+}
+
+function sku(skuId: string, kind: GroupBuySku['kind'], valueIds: string[], name: string, extraPrice: number, unitPrice: number, q: SkuQty, imageUrl: string | null = null, imageKey: string | null = null): GroupBuySku {
+    return {
+        skuId,
+        kind,
+        valueIds,
+        name,
+        extraPrice,
+        unitPrice,
+        maxQty: q.max ?? null,
+        initialMaxQty: q.initial === undefined ? (q.max ?? null) : q.initial,
+        currentQty: q.cur ?? 0,
+        reservedQty: q.res ?? 0,
+        onSale: q.onSale ?? true,
+        imageKey,
+        imageUrl,
+        sortOrder: 0,
+    };
+}
+
+/** 축 없는 단품 하나(공구 전체 — 이름 빔, 한도 없음) */
+function single(skuId: string, groupPrice: number, cur = 0, res = 0): GroupBuySku {
+    return sku(skuId, 'MAIN', [], '', 0, groupPrice, { cur, res });
+}
+
+/** 축 조합 전부의 MAIN 단품 — ID 는 `<prefix>-<값 차례…>`, 조합마다 `spec` 이 추가금·한도·수량·판매 여부를 정한다 */
+function grid(prefix: string, axes: GroupBuyOptionAxis[], groupPrice: number, spec: (name: string) => SkuQty): GroupBuySku[] {
+    return UtilGroupBuy.skuCombinations(axes.map((a) => a.values.map((_, i) => i))).map((picks) => {
+        const values = picks.map((p, i) => axes[i]!.values[p]!);
+        const name = UtilGroupBuy.skuMainName(values.map((v) => v.name));
+        const q = spec(name);
+        return sku(`${prefix}-${picks.map((p) => p + 1).join('')}`, 'MAIN', values.map((v) => v.id), name, q.extra ?? 0, groupPrice + (q.extra ?? 0), q);
+    });
+}
+
+/** 추가 구성상품 — 자기 가격·한도(이미지는 목업 그림) */
+function addon(skuId: string, name: string, price: number, q: SkuQty, image?: { key: string; label: string; hue: number }): GroupBuySku {
+    return sku(skuId, 'ADDON', [], name, 0, price, q, image ? mockImage(image.label, image.hue) : null, image?.key ?? null);
+}
+
+/** 단품 차례(MAIN 다음 ADDON)를 `sortOrder` 로 */
+function ordered(skus: GroupBuySku[]): GroupBuySku[] {
+    return [...skus.filter((s) => s.kind === 'MAIN'), ...skus.filter((s) => s.kind === 'ADDON')].map((s, i) => ({ ...s, sortOrder: i }));
 }
 
 const STANDARD_SNAPSHOT = { shippingFee: 3000, freeShippingOver: 50000, returnShippingFee: 3000, returnFeeMode: 'ONE_WAY' } as const;
 
-/** 예시 공구 한 건 — 자주 같은 칸은 기본값, 필요한 칸만 덮어쓴다 */
+/** 예시 공구 한 건 — 자주 같은 칸은 기본값, 필요한 칸만 덮어쓴다. 단품을 안 주면 축 없는 단품 하나(공구 수량과 같다) */
 function seed(over: Partial<GroupBuyDetail> & Pick<GroupBuyDetail, 'id' | 'status' | 'title' | 'productName'>): GroupBuyDetail {
     return {
+        axes: [],
+        skus: [single(`sku-${over.id.slice(3)}`, over.groupPrice ?? 0, over.currentQty ?? 0, over.reservedQty ?? 0)],
         closeReason: null,
         roundNo: 1,
         roundRootId: over.id,
@@ -73,7 +146,6 @@ function seed(over: Partial<GroupBuyDetail> & Pick<GroupBuyDetail, 'id' | 'statu
         groupPrice: 0,
         normalPriceBasis: null,
         normalPriceSource: '',
-        options: [],
         minQty: 0,
         fulfillment: 'IMMEDIATE',
         maxQty: 100,
@@ -113,7 +185,14 @@ function img(id: string, label: string, hue: number) {
 }
 
 export function seedGroupBuys(): GroupBuyDetail[] {
-    return [
+    // 옵션 축(결정 88) — 공구마다 축 0~3개
+    const axes104 = [ax('ax-104', '색상', ['그레이', '핑크'])];
+    const axes108 = [ax('ax-108a', '과일', ['사과(부사)', '감귤(노지)']), ax('ax-108b', '중량', ['5kg', '10kg'], 1)];
+    const axes109 = [ax('ax-109', '종류', ['손질 고등어 1kg (냉동)', '활전복 1kg (냉장)'])];
+    const axes110 = [ax('ax-110', '중량', ['3kg', '5kg'])];
+    const axes111 = [ax('ax-111a', '색상', ['화이트', '블랙']), ax('ax-111b', '사이즈', ['M', 'L', 'XL'], 1)];
+    const axes112 = [ax('ax-112', '사이즈', ['240', '250', '260', '270', '280'])];
+    return withNoticeNames([
         {
             id: 'gb-101',
             status: 'RECRUITING',
@@ -131,7 +210,8 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             groupPrice: 389000,
             normalPriceBasis: 'OFFICIAL_STORE',
             normalPriceSource: '제조사 공식몰 2026-10-20 판매가 캡처(사내 드라이브)',
-            options: [],
+            axes: [],
+            skus: [single('sku-101', 389000, 18, 2)],
             minQty: 30,
             fulfillment: 'AFTER_CLOSE',
             maxQty: 100,
@@ -184,21 +264,22 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             roundRootId: 'gb-102',
             rounds: [],
             title: '교육용 코딩 로봇 키트 선착순',
-            productName: '코딩봇 미니 v2 (3색)',
-            summary: '재고 보유 · 결제 후 3영업일 안에 보내요. 색상 셋 중 골라 담으세요.',
+            productName: '코딩봇 미니 v2',
+            summary: '재고 보유 · 결제 후 3영업일 안에 보내요. 여분 배터리·충전 독은 본체와 함께 담을 수 있어요.',
             spec: '대상 8세 이상\n블록 코딩 앱 지원\n충전식 배터리',
             description: '<p>재고를 확보해 둔 선착순 공구예요. 결제하시면 바로 준비해 보내 드려요.</p><p>한정 수량으로 준비했어요.</p>',
-            images: [img('md-1021', 'Codingbot', 140), img('md-1022', 'Black', 0), img('md-1023', 'White', 60)],
+            images: [img('md-1021', 'Codingbot', 140), img('md-1022', 'Battery', 0), img('md-1023', 'Dock', 60)],
             normalPrice: 89000,
             groupPrice: 25000,
             normalPriceBasis: 'PREVIOUS_SALE',
             normalPriceSource: '자사몰 2026-08 정가 판매 기록',
-            options: [
-                { id: 'op-1', name: '블랙', extraPrice: 0, maxQty: 40, initialMaxQty: 40, currentQty: 33, reservedQty: 2 },
-                { id: 'op-2', name: '화이트', extraPrice: 0, maxQty: 40, initialMaxQty: 30, currentQty: 40, reservedQty: 0 },
-                { id: 'op-3', name: '레드(한정)', extraPrice: 2000, maxQty: 40, initialMaxQty: 40, currentQty: 38, reservedQty: 2 },
-                { id: 'op-4', name: '전용 충전 도크(별매)', extraPrice: 19000, maxQty: 20, initialMaxQty: 20, currentQty: 0, reservedQty: 0 },
-            ],
+            // 축 없음 + 추가 구성상품 둘(결정 88) — 추가 구성상품마다 고시 양식
+            axes: [],
+            skus: ordered([
+                single('sku-102', 25000, 111, 4),
+                addon('sku-102-bat', '여분 배터리', 9000, { max: 60, initial: 50, cur: 22, res: 1 }, { key: 'md-1024', label: 'Battery', hue: 0 }),
+                addon('sku-102-dock', '충전 독', 19000, { max: 20, cur: 6 }, { key: 'md-1025', label: 'Dock', hue: 60 }),
+            ]),
             minQty: 0,
             fulfillment: 'IMMEDIATE',
             maxQty: 120,
@@ -234,7 +315,19 @@ export function seedGroupBuys(): GroupBuyDetail[] {
                     quality_warranty: WARRANTY,
                     after_service_contact: AS,
                 }, [['호환 기종', '블록 코딩 앱 — 안드로이드 9 · iPadOS 15 이상 · 크롬북']]),
-                notice('SMALL_ELECTRONICS', '전용 충전 도크', ['전용 충전 도크(별매)'], {
+                notice('SMALL_ELECTRONICS', '여분 배터리', ['sku-102-bat'], {
+                    product_model_name: '코딩봇 미니 전용 배터리 / CBB-12',
+                    kc_certification: '안전확인 YU07123-26011(리튬이차전지)',
+                    rated_voltage_power: 'DC 3.7V 리튬이온 1,200mAh',
+                    model_release_month: '2026년 5월',
+                    manufacturer_importer: '코딩봇(주) / 수입자 로보얌상사',
+                    country_of_manufacture: '중국',
+                    dimensions_weight: '52×34×10mm · 28g',
+                    main_spec: '코딩봇 미니 v2 전용 · 충전 약 500회',
+                    quality_warranty: WARRANTY,
+                    after_service_contact: AS,
+                }),
+                notice('SMALL_ELECTRONICS', '충전 독', ['sku-102-dock'], {
                     product_model_name: '코딩봇 충전 도크 / CBD-10',
                     kc_certification: '안전확인 YU07123-26002',
                     rated_voltage_power: 'AC 100~240V 50/60Hz · 출력 5V 2A',
@@ -271,7 +364,8 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             groupPrice: 99000,
             normalPriceBasis: 'MARKET',
             normalPriceSource: '오픈마켓 3곳 평균(2026-10-25)',
-            options: [],
+            axes: [],
+            skus: [single('sku-103', 99000, 47, 1)],
             minQty: 10,
             fulfillment: 'AFTER_CLOSE',
             maxQty: 50,
@@ -335,10 +429,8 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             groupPrice: 149000,
             normalPriceBasis: 'OFFICIAL_STORE',
             normalPriceSource: '수입사 공식 판매가',
-            options: [
-                { id: 'op-41', name: '그레이', extraPrice: 0, maxQty: 30, initialMaxQty: 30, currentQty: 30, reservedQty: 0 },
-                { id: 'op-42', name: '핑크', extraPrice: 5000, maxQty: 30, initialMaxQty: 30, currentQty: 30, reservedQty: 0 },
-            ],
+            axes: axes104,
+            skus: ordered(grid('sku-104', axes104, 149000, (name) => (name === '핑크' ? { extra: 5000, max: 30, cur: 30 } : { max: 30, cur: 30 }))),
             minQty: 20,
             fulfillment: 'AFTER_CLOSE',
             maxQty: 60,
@@ -399,7 +491,8 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             groupPrice: 119000,
             normalPriceBasis: null,
             normalPriceSource: '',
-            options: [],
+            axes: [],
+            skus: [single('sku-105', 119000)],
             minQty: 15,
             fulfillment: 'AFTER_CLOSE',
             maxQty: 80,
@@ -458,7 +551,8 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             groupPrice: 790000,
             normalPriceBasis: 'OFFICIAL_STORE',
             normalPriceSource: '공식몰',
-            options: [],
+            axes: [],
+            skus: [single('sku-106', 790000, 12)],
             minQty: 50,
             fulfillment: 'AFTER_CLOSE',
             maxQty: 100,
@@ -557,10 +651,19 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             groupPrice: 23900,
             normalPriceBasis: 'PREVIOUS_SALE',
             normalPriceSource: '자사몰 2025-11 판매 기록',
-            options: [
-                { id: 'op-81', name: '사과 5kg (부사)', extraPrice: 6000, maxQty: 80, initialMaxQty: 80, currentQty: 52, reservedQty: 2 },
-                { id: 'op-82', name: '감귤 5kg (노지)', extraPrice: 0, maxQty: 80, initialMaxQty: 80, currentQty: 31, reservedQty: 0 },
-            ],
+            // 축 둘(과일 × 중량) — 과일마다 별개 상품이라 기본 양식 없이 과일별 양식(모든 조합이 어느 양식에 든다)
+            axes: axes108,
+            skus: ordered(
+                grid('sku-108', axes108, 23900, (name) => {
+                    const q: Record<string, SkuQty> = {
+                        '사과(부사) / 5kg': { extra: 6000, max: 60, cur: 44, res: 2 },
+                        '사과(부사) / 10kg': { extra: 22000, max: 20, cur: 8 },
+                        '감귤(노지) / 5kg': { max: 60, cur: 27 },
+                        '감귤(노지) / 10kg': { extra: 13000, max: 20, cur: 4 },
+                    };
+                    return q[name] ?? {};
+                }),
+            ),
             minQty: 0,
             fulfillment: 'IMMEDIATE',
             maxQty: 160,
@@ -570,11 +673,10 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             maxQtyPerUser: 3,
             shipWithinBusinessDays: 2,
             withdrawalRestriction: '신선식품이라 받은 뒤 시간이 지나 가치가 크게 떨어지면 단순 변심 반품이 제한될 수 있어요(상한 것·오배송은 제외).',
-            // 별개 상품 둘 — 기본 양식 없이 옵션마다 양식(모든 옵션이 어느 양식에 든다)
             notices: [
-                notice('AGRI_LIVESTOCK_FISHERY', '사과', ['사과 5kg (부사)'], {
+                notice('AGRI_LIVESTOCK_FISHERY', '사과', ['sku-108-11', 'sku-108-12'], {
                     item_name: '사과(부사)',
-                    package_contents: '5kg(14~16과) 1상자',
+                    package_contents: '5kg(14~16과) 또는 10kg(28~32과) 1상자',
                     producer_importer: '청송골과수농원(경북 청송)',
                     origin: '국내산(경상북도 청송군)',
                     manufactured_date_expiry: '수확 후 3일 이내 발송 · 받은 날부터 냉장 2주 안에 드시기를 권해요',
@@ -586,9 +688,9 @@ export function seedGroupBuys(): GroupBuyDetail[] {
                     safety_cautions: '껍질째 드실 때는 흐르는 물에 씻어 주세요.',
                     consumer_contact: AS,
                 }, [['당도(Brix)', '13Brix 이상 비파괴 선별']]),
-                notice('AGRI_LIVESTOCK_FISHERY', '감귤', ['감귤 5kg (노지)'], {
+                notice('AGRI_LIVESTOCK_FISHERY', '감귤', ['sku-108-21', 'sku-108-22'], {
                     item_name: '감귤(노지 온주밀감)',
-                    package_contents: '5kg(S~M 크기, 약 50~60과) 1상자',
+                    package_contents: '5kg(S~M 크기, 약 50~60과) 또는 10kg 1상자',
                     producer_importer: '한라바람농장(제주 서귀포)',
                     origin: '국내산(제주특별자치도 서귀포시)',
                     manufactured_date_expiry: '수확 후 3일 이내 발송 · 받은 날부터 서늘한 곳 7일',
@@ -615,10 +717,9 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             groupPrice: 24900,
             normalPriceBasis: 'MARKET',
             normalPriceSource: '수산물 산지 시세 2026-10',
-            options: [
-                { id: 'op-91', name: '손질 고등어 1kg (냉동)', extraPrice: 0, maxQty: 60, initialMaxQty: null, currentQty: 0, reservedQty: 0 },
-                { id: 'op-92', name: '활전복 1kg (냉장)', extraPrice: 12000, maxQty: 40, initialMaxQty: null, currentQty: 0, reservedQty: 0 },
-            ],
+            // 축 하나(종류) — 별개 상품 둘이라 기본 양식 없이 단품마다 양식
+            axes: axes109,
+            skus: ordered(grid('sku-109', axes109, 24900, (name) => (name.startsWith('활전복') ? { extra: 12000, max: 40, initial: null } : { max: 60, initial: null }))),
             minQty: 30,
             fulfillment: 'AFTER_CLOSE',
             maxQty: 100,
@@ -630,7 +731,7 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             shipWithinBusinessDays: null,
             revisionNo: 0,
             notices: [
-                notice('AGRI_LIVESTOCK_FISHERY', '손질 고등어', ['손질 고등어 1kg (냉동)'], {
+                notice('AGRI_LIVESTOCK_FISHERY', '손질 고등어', ['sku-109-1'], {
                     item_name: '고등어(순살 손질 · 냉동)',
                     package_contents: '1kg(6~8팩, 팩당 130~170g)',
                     producer_importer: '바다마루수산(부산) / 수입자 동일',
@@ -644,7 +745,7 @@ export function seedGroupBuys(): GroupBuyDetail[] {
                     safety_cautions: '가시가 남아 있을 수 있어요. 고등어 알레르기가 있으면 드시지 마세요.',
                     consumer_contact: AS,
                 }, [['손질 방법', '머리·내장·가운데 뼈 제거, 소금 간 없음']]),
-                notice('AGRI_LIVESTOCK_FISHERY', '활전복', ['활전복 1kg (냉장)'], {
+                notice('AGRI_LIVESTOCK_FISHERY', '활전복', ['sku-109-2'], {
                     item_name: '전복(활 · 양식)',
                     package_contents: '1kg(10~12미)',
                     producer_importer: '완도청해전복(전남 완도)',
@@ -674,11 +775,9 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             groupPrice: 25900,
             normalPriceBasis: 'OFFICIAL_STORE',
             normalPriceSource: '제조사 공식몰 판매가',
-            // 같은 상품의 무게만 다른 옵션 — 기본 양식 하나로 충분하다
-            options: [
-                { id: 'op-101', name: '포기김치 3kg', extraPrice: 0, maxQty: 60, initialMaxQty: 60, currentQty: 60, reservedQty: 0 },
-                { id: 'op-102', name: '포기김치 5kg', extraPrice: 14000, maxQty: 40, initialMaxQty: 40, currentQty: 40, reservedQty: 0 },
-            ],
+            // 같은 상품의 무게만 다른 축 — 기본 양식 하나로 충분하다
+            axes: axes110,
+            skus: ordered(grid('sku-110', axes110, 25900, (name) => (name === '5kg' ? { extra: 14000, max: 40, cur: 40 } : { max: 60, cur: 60 }))),
             minQty: 0,
             fulfillment: 'IMMEDIATE',
             maxQty: 100,
@@ -710,7 +809,7 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             status: 'RECRUITING',
             title: '오버핏 코튼 티셔츠 선착순',
             productName: '20수 코튼 오버핏 티셔츠',
-            summary: '색상 2 · 사이즈 2 — 결제 후 3영업일 안에 보내요.',
+            summary: '색상 2 · 사이즈 3 — 결제 후 3영업일 안에 보내요(블랙 XL 은 이번에 팔지 않아요).',
             spec: '면 100% · 20수 싱글 저지',
             description: '<p>기본 반팔 티셔츠예요. 색상·사이즈만 다른 같은 상품이라 고시 양식은 하나예요.</p>',
             images: [img('md-1111', 'T-shirt', 220), img('md-1112', 'Black', 0)],
@@ -718,24 +817,33 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             groupPrice: 15900,
             normalPriceBasis: 'PREVIOUS_SALE',
             normalPriceSource: '자사몰 2026-06 정가 판매 기록',
-            options: [
-                { id: 'op-111', name: '화이트 M', extraPrice: 0, maxQty: 50, initialMaxQty: 50, currentQty: 41, reservedQty: 1 },
-                { id: 'op-112', name: '화이트 L', extraPrice: 0, maxQty: 50, initialMaxQty: 50, currentQty: 28, reservedQty: 0 },
-                { id: 'op-113', name: '블랙 M', extraPrice: 0, maxQty: 50, initialMaxQty: 50, currentQty: 50, reservedQty: 0 },
-                { id: 'op-114', name: '블랙 L', extraPrice: 0, maxQty: 50, initialMaxQty: 50, currentQty: 17, reservedQty: 0 },
-            ],
+            // 축 둘(색상 2 × 사이즈 3) — 블랙 / XL 조합은 판매 끔, XL 은 추가금 1,000원
+            axes: axes111,
+            skus: ordered(
+                grid('sku-111', axes111, 15900, (name) => {
+                    const q: Record<string, SkuQty> = {
+                        '화이트 / M': { max: 50, cur: 41, res: 1 },
+                        '화이트 / L': { max: 50, cur: 28 },
+                        '화이트 / XL': { extra: 1000, max: 30, cur: 12 },
+                        '블랙 / M': { max: 50, cur: 50 },
+                        '블랙 / L': { max: 50, cur: 17 },
+                        '블랙 / XL': { extra: 1000, onSale: false },
+                    };
+                    return q[name] ?? {};
+                }),
+            ),
             minQty: 0,
             fulfillment: 'IMMEDIATE',
             maxQty: 200,
             initialMaxQty: 200,
-            currentQty: 136,
+            currentQty: 148,
             reservedQty: 1,
             maxQtyPerUser: 5,
             notices: [
                 notice('CLOTHING', '오버핏 티셔츠', [], {
                     material: '면 100%',
                     color: '화이트 · 블랙(옵션)',
-                    size: 'M(가슴단면 56cm · 총장 72cm) · L(가슴단면 59cm · 총장 75cm)',
+                    size: 'M(가슴단면 56cm · 총장 72cm) · L(가슴단면 59cm · 총장 75cm) · XL(가슴단면 62cm · 총장 78cm)',
                     manufacturer_importer: '로보얌어패럴(주)',
                     country_of_manufacture: '대한민국',
                     washing_handling_cautions: '30℃ 이하 손세탁 또는 세탁망 사용 · 표백제 금지 · 그늘에 뉘어 말려 주세요.',
@@ -759,13 +867,9 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             groupPrice: 64000,
             normalPriceBasis: 'OFFICIAL_STORE',
             normalPriceSource: '제조사 공식몰',
-            options: [
-                { id: 'op-121', name: '240', extraPrice: 0, maxQty: 20, initialMaxQty: 20, currentQty: 4, reservedQty: 0 },
-                { id: 'op-122', name: '250', extraPrice: 0, maxQty: 20, initialMaxQty: 20, currentQty: 6, reservedQty: 0 },
-                { id: 'op-123', name: '260', extraPrice: 0, maxQty: 20, initialMaxQty: 20, currentQty: 9, reservedQty: 0 },
-                { id: 'op-124', name: '270', extraPrice: 0, maxQty: 20, initialMaxQty: 20, currentQty: 5, reservedQty: 0 },
-                { id: 'op-125', name: '280', extraPrice: 0, maxQty: 20, initialMaxQty: 20, currentQty: 2, reservedQty: 0 },
-            ],
+            // 축 하나(사이즈)
+            axes: axes112,
+            skus: ordered(grid('sku-112', axes112, 64000, (name) => ({ max: 20, cur: ({ '240': 4, '250': 6, '260': 9, '270': 5, '280': 2 } as Record<string, number>)[name] ?? 0 }))),
             minQty: 40,
             fulfillment: 'AFTER_CLOSE',
             maxQty: 100,
@@ -790,11 +894,12 @@ export function seedGroupBuys(): GroupBuyDetail[] {
                 }, [['사이즈 가이드', '정사이즈 · 발볼이 넓으면 10mm 크게 고르세요.']]),
             ],
         }),
-    ];
+    ]);
 }
 
-function line(id: string, optionName: string | null, qty: number, unitPrice: number, extra: Partial<GroupBuyOrderItem> = {}): GroupBuyOrderItem {
-    return { id, optionName, qty, unitPrice, itemAmount: unitPrice * qty, canceledQty: 0, returnedQty: 0, restockedQty: 0, ...extra };
+/** 주문 줄 — 단품 ID 만 적고 이름·종류는 `seedOrders` 가 공구 단품에서 채운다 */
+function line(id: string, skuId: string, qty: number, unitPrice: number, extra: Partial<GroupBuyOrderItem> = {}): GroupBuyOrderItem {
+    return { id, skuId, skuName: '', kind: 'MAIN', qty, unitPrice, itemAmount: unitPrice * qty, canceledQty: 0, returnedQty: 0, restockedQty: 0, ...extra };
 }
 
 interface OrderSeed {
@@ -815,22 +920,26 @@ interface OrderSeed {
 }
 
 const ORDER_SEEDS: OrderSeed[] = [
-    { id: 'od-1', no: 21, gb: 'gb-102', member: MEMBERS.m1!, status: 'CONFIRMED', items: [line('it-1', '블랙', 2, 25000), line('it-2', '레드(한정)', 1, 27000)], shippingFee: 0, createdMin: -300 },
-    { id: 'od-2', no: 22, gb: 'gb-102', member: MEMBERS.m2!, status: 'CONFIRMED', items: [line('it-3', '화이트', 1, 25000)], shippingFee: 3000, createdMin: -240 },
-    { id: 'od-3', no: 18, gb: 'gb-102', member: MEMBERS.m3!, status: 'PREPARING', items: [line('it-4', '블랙', 1, 25000), line('it-5', '화이트', 1, 25000)], shippingFee: 0, createdMin: -1500, memo: '선물 포장 문의 — 포장 없이 보내기로 통화함' },
-    { id: 'od-4', no: 12, gb: 'gb-102', member: MEMBERS.m5!, status: 'SHIPPED', items: [line('it-6', '레드(한정)', 2, 27000)], shippingFee: 0, createdMin: -5 * 1440, carrier: 'CJ', tracking: '684512345678', shippedMin: -4 * 1440 },
-    { id: 'od-5', no: 7, gb: 'gb-102', member: MEMBERS.m6!, status: 'DELIVERED', items: [line('it-7', '블랙', 3, 25000)], shippingFee: 0, createdMin: -7 * 1440, carrier: 'HANJIN', tracking: '512300998877', shippedMin: -6 * 1440, deliveredMin: -4 * 1440 },
-    { id: 'od-6', no: 5, gb: 'gb-102', member: MEMBERS.m2!, status: 'DELIVERED', items: [line('it-8', '화이트', 2, 25000, { returnedQty: 0 })], shippingFee: 0, createdMin: -8 * 1440, carrier: 'CJ', tracking: '684500011122', shippedMin: -7 * 1440, deliveredMin: -5 * 1440 },
-    { id: 'od-7', no: 3, gb: 'gb-102', member: MEMBERS.m4!, status: 'REFUNDED', items: [line('it-9', '블랙', 1, 25000, { returnedQty: 1 })], shippingFee: 3000, createdMin: -9 * 1440, refunded: 25000, carrier: 'LOTTE', tracking: '230011112222', shippedMin: -8 * 1440, deliveredMin: -7 * 1440 },
-    { id: 'od-8', no: 9, gb: 'gb-102', member: MEMBERS.m3!, status: 'SHIPPED', items: [line('it-10', '화이트', 1, 25000)], shippingFee: 3000, createdMin: -12 * 1440, carrier: 'EPOST', tracking: '6070123456789', shippedMin: -10 * 1440 },
-    { id: 'od-9', no: 31, gb: 'gb-101', member: MEMBERS.m1!, status: 'JOINED', items: [line('it-11', null, 1, 389000)], shippingFee: 0, createdMin: -2 * 1440 },
-    { id: 'od-10', no: 44, gb: 'gb-101', member: MEMBERS.m6!, status: 'PENDING_PAYMENT', items: [line('it-12', null, 2, 389000)], shippingFee: 0, createdMin: -3 },
-    { id: 'od-11', no: 41, gb: 'gb-104', member: MEMBERS.m5!, status: 'CONFIRMED', items: [line('it-13', '그레이', 2, 149000)], shippingFee: 0, createdMin: -6 * 1440 },
-    { id: 'od-12', no: 42, gb: 'gb-104', member: MEMBERS.m2!, status: 'CONFIRMED', items: [line('it-14', '핑크', 1, 154000), line('it-15', '그레이', 1, 149000)], shippingFee: 0, createdMin: -5 * 1440 },
-    { id: 'od-13', no: 43, gb: 'gb-104', member: MEMBERS.m3!, status: 'CONFIRMED', items: [line('it-16', '핑크', 2, 154000)], shippingFee: 0, createdMin: -5 * 1440 },
-    { id: 'od-14', no: 15, gb: 'gb-106', member: MEMBERS.m1!, status: 'REFUNDED', items: [line('it-17', null, 1, 790000, { canceledQty: 1 })], shippingFee: 0, createdMin: -15 * 1440, refunded: 790000 },
-    { id: 'od-15', no: 38, gb: 'gb-103', member: MEMBERS.m2!, status: 'JOINED', items: [line('it-18', null, 1, 99000)], shippingFee: 3000, createdMin: -3 * 1440 },
-    { id: 'od-16', no: 2, gb: 'gb-102', member: MEMBERS.m1!, status: 'CANCELED', items: [line('it-19', '블랙', 1, 25000, { canceledQty: 1 })], shippingFee: 3000, createdMin: -10 * 1440, refunded: 28000 },
+    // gb-102 — 본체(단품 하나) + 추가 구성상품(여분 배터리 9,000 · 충전 독 19,000). 주문마다 본체 줄이 하나 이상(단독 구매 불가)
+    { id: 'od-1', no: 21, gb: 'gb-102', member: MEMBERS.m1!, status: 'CONFIRMED', items: [line('it-1', 'sku-102', 2, 25000), line('it-2', 'sku-102-bat', 1, 9000)], shippingFee: 0, createdMin: -300 },
+    { id: 'od-2', no: 22, gb: 'gb-102', member: MEMBERS.m2!, status: 'CONFIRMED', items: [line('it-3', 'sku-102', 1, 25000)], shippingFee: 3000, createdMin: -240 },
+    { id: 'od-3', no: 18, gb: 'gb-102', member: MEMBERS.m3!, status: 'PREPARING', items: [line('it-4', 'sku-102', 1, 25000), line('it-5', 'sku-102-dock', 1, 19000)], shippingFee: 3000, createdMin: -1500, memo: '선물 포장 문의 — 포장 없이 보내기로 통화함' },
+    { id: 'od-4', no: 12, gb: 'gb-102', member: MEMBERS.m5!, status: 'SHIPPED', items: [line('it-6', 'sku-102', 2, 25000)], shippingFee: 0, createdMin: -5 * 1440, carrier: 'CJ', tracking: '684512345678', shippedMin: -4 * 1440 },
+    { id: 'od-5', no: 7, gb: 'gb-102', member: MEMBERS.m6!, status: 'DELIVERED', items: [line('it-7', 'sku-102', 3, 25000)], shippingFee: 0, createdMin: -7 * 1440, carrier: 'HANJIN', tracking: '512300998877', shippedMin: -6 * 1440, deliveredMin: -4 * 1440 },
+    { id: 'od-6', no: 5, gb: 'gb-102', member: MEMBERS.m2!, status: 'DELIVERED', items: [line('it-8', 'sku-102', 2, 25000, { returnedQty: 0 })], shippingFee: 0, createdMin: -8 * 1440, carrier: 'CJ', tracking: '684500011122', shippedMin: -7 * 1440, deliveredMin: -5 * 1440 },
+    { id: 'od-7', no: 3, gb: 'gb-102', member: MEMBERS.m4!, status: 'REFUNDED', items: [line('it-9', 'sku-102', 1, 25000, { returnedQty: 1 })], shippingFee: 3000, createdMin: -9 * 1440, refunded: 25000, carrier: 'LOTTE', tracking: '230011112222', shippedMin: -8 * 1440, deliveredMin: -7 * 1440 },
+    { id: 'od-8', no: 9, gb: 'gb-102', member: MEMBERS.m3!, status: 'SHIPPED', items: [line('it-10', 'sku-102-dock', 1, 19000), line('it-20', 'sku-102', 1, 25000)], shippingFee: 3000, createdMin: -12 * 1440, carrier: 'EPOST', tracking: '6070123456789', shippedMin: -10 * 1440 },
+    { id: 'od-9', no: 31, gb: 'gb-101', member: MEMBERS.m1!, status: 'JOINED', items: [line('it-11', 'sku-101', 1, 389000)], shippingFee: 0, createdMin: -2 * 1440 },
+    { id: 'od-10', no: 44, gb: 'gb-101', member: MEMBERS.m6!, status: 'PENDING_PAYMENT', items: [line('it-12', 'sku-101', 2, 389000)], shippingFee: 0, createdMin: -3 },
+    { id: 'od-11', no: 41, gb: 'gb-104', member: MEMBERS.m5!, status: 'CONFIRMED', items: [line('it-13', 'sku-104-1', 2, 149000)], shippingFee: 0, createdMin: -6 * 1440 },
+    { id: 'od-12', no: 42, gb: 'gb-104', member: MEMBERS.m2!, status: 'CONFIRMED', items: [line('it-14', 'sku-104-2', 1, 154000), line('it-15', 'sku-104-1', 1, 149000)], shippingFee: 0, createdMin: -5 * 1440 },
+    { id: 'od-13', no: 43, gb: 'gb-104', member: MEMBERS.m3!, status: 'CONFIRMED', items: [line('it-16', 'sku-104-2', 2, 154000)], shippingFee: 0, createdMin: -5 * 1440 },
+    { id: 'od-14', no: 15, gb: 'gb-106', member: MEMBERS.m1!, status: 'REFUNDED', items: [line('it-17', 'sku-106', 1, 790000, { canceledQty: 1 })], shippingFee: 0, createdMin: -15 * 1440, refunded: 790000 },
+    { id: 'od-15', no: 38, gb: 'gb-103', member: MEMBERS.m2!, status: 'JOINED', items: [line('it-18', 'sku-103', 1, 99000)], shippingFee: 3000, createdMin: -3 * 1440 },
+    { id: 'od-16', no: 2, gb: 'gb-102', member: MEMBERS.m1!, status: 'CANCELED', items: [line('it-19', 'sku-102', 1, 25000, { canceledQty: 1 })], shippingFee: 3000, createdMin: -10 * 1440, refunded: 28000 },
+    // gb-111 티셔츠(색상 × 사이즈) · gb-108 과일(과일 × 중량)
+    { id: 'od-17', no: 51, gb: 'gb-111', member: MEMBERS.m6!, status: 'CONFIRMED', items: [line('it-21', 'sku-111-12', 2, 15900), line('it-22', 'sku-111-13', 1, 16900)], shippingFee: 0, createdMin: -600 },
+    { id: 'od-18', no: 52, gb: 'gb-108', member: MEMBERS.m5!, status: 'CONFIRMED', items: [line('it-23', 'sku-108-11', 1, 29900), line('it-24', 'sku-108-22', 1, 36900)], shippingFee: 0, createdMin: -420 },
 ];
 
 const CARRIER_NAMES: Record<string, string> = { CJ: 'CJ대한통운', HANJIN: '한진택배', LOTTE: '롯데택배', EPOST: '우체국택배', LOGEN: '로젠택배', KDEXP: '경동택배' };
@@ -847,6 +956,11 @@ export function orderNoOf(createdIso: string, serial: number): string {
 export function seedOrders(groupBuys: GroupBuyDetail[]): GroupBuyOrderDetail[] {
     return ORDER_SEEDS.map((s) => {
         const gb = groupBuys.find((g) => g.id === s.gb)!;
+        // 단품 이름·종류 사본(주문 때 이름 — 결정 88)
+        s.items = s.items.map((i) => {
+            const found = gb.skus.find((k) => k.skuId === i.skuId);
+            return { ...i, skuName: found?.name ?? '', kind: found?.kind ?? 'MAIN' };
+        });
         const itemsAmount = s.items.reduce((sum, i) => sum + i.itemAmount, 0);
         const amount = itemsAmount + s.shippingFee;
         const createdAt = mockAt(s.createdMin);
@@ -854,7 +968,8 @@ export function seedOrders(groupBuys: GroupBuyDetail[]): GroupBuyOrderDetail[] {
         const refunded = s.refunded ?? 0;
         const totalQty = s.items.reduce((sum, i) => sum + i.qty - i.canceledQty - i.returnedQty, 0);
         const first = s.items[0]!;
-        const itemSummary = s.items.length > 1 ? `${first.optionName ?? gb.productName} × ${first.qty} 외 ${s.items.length - 1}줄` : `${first.optionName ?? gb.productName} × ${first.qty}`;
+        const firstName = first.skuName || gb.productName;
+        const itemSummary = s.items.length > 1 ? `${firstName} × ${first.qty} 외 ${s.items.length - 1}줄` : `${firstName} × ${first.qty}`;
         const order: GroupBuyOrderDetail = {
             id: s.id,
             orderNo: orderNoOf(createdAt, s.no),
@@ -949,7 +1064,7 @@ export function seedRequests(orders: GroupBuyOrderDetail[]): GroupBuyRequestDeta
             createdAt: mockAt(-1 * 1440),
             elapsedBusinessDays: 1,
             deadlineLevel: 'OK',
-            items: [{ id: 'ri-1', orderItemId: 'it-14', optionName: '핑크', qty: 1, reasonCode: 'CHANGE_OF_MIND', reasonText: '다른 색으로 사고 싶어요', refundAmount: 154000, dispositions: [] }],
+            items: [{ id: 'ri-1', orderItemId: 'it-14', skuName: '핑크', kind: 'MAIN', qty: 1, reasonCode: 'CHANGE_OF_MIND', reasonText: '다른 색으로 사고 싶어요', refundAmount: 154000, dispositions: [] }],
             breakdown: { ...zero, itemRefund: 154000, total: 154000 },
             history: [{ status: 'REQUESTED', actor: '코딩맘', note: null, at: mockAt(-1 * 1440) }],
         },
@@ -967,7 +1082,7 @@ export function seedRequests(orders: GroupBuyOrderDetail[]): GroupBuyRequestDeta
             createdAt: mockAt(-3 * 1440 - 120),
             elapsedBusinessDays: 3,
             deadlineLevel: 'CRITICAL',
-            items: [{ id: 'ri-2', orderItemId: 'it-7', optionName: '블랙', qty: 1, reasonCode: 'CHANGE_OF_MIND', reasonText: '생각보다 작아요', refundAmount: 22000, dispositions: [] }],
+            items: [{ id: 'ri-2', orderItemId: 'it-7', skuName: '', kind: 'MAIN', qty: 1, reasonCode: 'CHANGE_OF_MIND', reasonText: '생각보다 작아요', refundAmount: 22000, dispositions: [] }],
             breakdown: { ...zero, itemRefund: 25000, returnFee: 3000, total: 22000 },
             history: [{ status: 'REQUESTED', actor: '테크러버', note: null, at: mockAt(-3 * 1440 - 120) }],
         },
@@ -989,8 +1104,8 @@ export function seedRequests(orders: GroupBuyOrderDetail[]): GroupBuyRequestDeta
             photos: [{ id: 'ph-1', url: mockImage('defect', 0) }],
             compensationAmount: 4000,
             items: [
-                { id: 'ri-3', orderItemId: 'it-8', optionName: '화이트', qty: 1, reasonCode: 'DEFECT', reasonText: '전원이 켜지지 않아요', refundAmount: 25000, dispositions: [] },
-                { id: 'ri-4', orderItemId: 'it-8', optionName: '화이트', qty: 1, reasonCode: 'CHANGE_OF_MIND', reasonText: '하나만 쓰려고요', refundAmount: 25000, dispositions: [] },
+                { id: 'ri-3', orderItemId: 'it-8', skuName: '', kind: 'MAIN', qty: 1, reasonCode: 'DEFECT', reasonText: '전원이 켜지지 않아요', refundAmount: 25000, dispositions: [] },
+                { id: 'ri-4', orderItemId: 'it-8', skuName: '', kind: 'MAIN', qty: 1, reasonCode: 'CHANGE_OF_MIND', reasonText: '하나만 쓰려고요', refundAmount: 25000, dispositions: [] },
             ],
             breakdown: { ...zero, itemRefund: 50000, total: 50000, operatorPaysReturnFee: true },
             handledBy: '운영자 박',
@@ -1015,7 +1130,7 @@ export function seedRequests(orders: GroupBuyOrderDetail[]): GroupBuyRequestDeta
             elapsedBusinessDays: 0,
             deadlineLevel: 'OK',
             photos: [{ id: 'ph-2', url: mockImage('wrong', 30) }],
-            items: [{ id: 'ri-5', orderItemId: 'it-6', optionName: '레드(한정)', qty: 1, reasonCode: 'WRONG_ITEM', reasonText: '레드를 시켰는데 블랙이 왔어요', refundAmount: 0, dispositions: [] }],
+            items: [{ id: 'ri-5', orderItemId: 'it-6', skuName: '', kind: 'MAIN', qty: 1, reasonCode: 'WRONG_ITEM', reasonText: 'v2 를 시켰는데 구형 v1 이 왔어요', refundAmount: 0, dispositions: [] }],
             breakdown: { ...zero, operatorPaysReturnFee: true },
             history: [{ status: 'REQUESTED', actor: '공구왕', note: null, at: mockAt(-200) }],
         },
@@ -1033,7 +1148,7 @@ export function seedRequests(orders: GroupBuyOrderDetail[]): GroupBuyRequestDeta
             createdAt: mockAt(-2 * 1440),
             elapsedBusinessDays: 2,
             deadlineLevel: 'WARN',
-            items: [{ id: 'ri-6', orderItemId: 'it-10', optionName: '화이트', qty: 1, reasonCode: 'CHANGE_OF_MIND', reasonText: '선물하려 했는데 필요 없어졌어요', refundAmount: 19000, dispositions: [] }],
+            items: [{ id: 'ri-6', orderItemId: 'it-10', skuName: '충전 독', kind: 'ADDON', qty: 1, reasonCode: 'CHANGE_OF_MIND', reasonText: '선물하려 했는데 필요 없어졌어요', refundAmount: 19000, dispositions: [] }],
             breakdown: { ...zero, itemRefund: 25000, returnFee: 3000, reshippingFee: 3000, total: 19000 },
             extraPayment: { status: 'PAID', amount: 1000, paymentId: 'GBRF-RQ5-1', paidAt: mockAt(-2 * 1440 + 5), refundedAmount: 0 },
             history: [{ status: 'REQUESTED', actor: '메이커준', note: '반품비 부족분 1,000원 추가 결제 뒤 접수', at: mockAt(-2 * 1440) }],
@@ -1053,7 +1168,7 @@ export function seedRequests(orders: GroupBuyOrderDetail[]): GroupBuyRequestDeta
             receivedAt: mockAt(-7 * 1440),
             elapsedBusinessDays: 0,
             deadlineLevel: 'OK',
-            items: [{ id: 'ri-7', orderItemId: 'it-9', optionName: '블랙', qty: 1, reasonCode: 'DEFECT', reasonText: '바퀴가 돌지 않아요', refundAmount: 25000, dispositions: [{ disposition: 'RETURN_TO_SUPPLIER', qty: 1 }] }],
+            items: [{ id: 'ri-7', orderItemId: 'it-9', skuName: '', kind: 'MAIN', qty: 1, reasonCode: 'DEFECT', reasonText: '바퀴가 돌지 않아요', refundAmount: 25000, dispositions: [{ disposition: 'RETURN_TO_SUPPLIER', qty: 1 }] }],
             breakdown: { ...zero, itemRefund: 25000, total: 25000, operatorPaysReturnFee: true },
             pickup: { carrierCode: 'LOTTE', trackingNo: '230099990000' },
             handledBy: '운영자 박',
@@ -1080,9 +1195,9 @@ export function seedRevisions(gb: GroupBuyDetail): GroupBuyRevision[] {
             imageCount: Math.max(0, gb.images.length - (gb.revisionNo - n)),
             maxQty: gb.maxQty - (n === gb.revisionNo ? 0 : gb.addedQty),
             addedQty: n === gb.revisionNo ? gb.addedQty : 0,
-            optionMax: gb.options.map((o) => ({ name: o.name, maxQty: o.maxQty })),
+            skuMax: gb.skus.filter((s) => s.onSale && (s.kind === 'ADDON' || s.valueIds.length > 0)).map((s) => ({ name: s.name, kind: s.kind, maxQty: s.maxQty })),
             shipPlannedAt: gb.shipPlannedAt,
-            notices: gb.notices.map((x) => ({ ...x, optionNames: [...x.optionNames], values: x.values.map((v) => ({ ...v })), customItems: x.customItems.map((c) => ({ ...c })) })),
+            notices: gb.notices.map((x) => ({ ...x, skuIds: [...x.skuIds], skuNames: [...x.skuNames], values: x.values.map((v) => ({ ...v })), customItems: x.customItems.map((c) => ({ ...c })) })),
             operator: n === 1 ? gb.createdBy : '운영자 박',
             createdAt: mockAt(-(gb.revisionNo - n + 1) * 1440),
         });
@@ -1107,18 +1222,22 @@ export function seedMovements(gb: GroupBuyDetail): GroupBuyMovement[] {
         }
         if (kind === 'CANCEL' || kind === 'RESTOCK') cur = Math.max(0, cur - qty);
         if (kind === 'ADD') max += qty;
-        const option = gb.options[i % Math.max(1, gb.options.length)] ?? null;
+        // 단품 이동 — 축이 있거나 추가 구성상품이 있으면 단품을 돌아가며, 축 없는 단품 하나뿐이면 공구 전체(이름 없음)
+        const named = gb.skus.filter((s) => s.onSale && (s.kind === 'ADDON' || s.valueIds.length > 0));
+        const option = named.length ? named[i % named.length]! : null;
+        const addonMove = option?.kind === 'ADDON';
         out.push({
             id: `mv-${gb.id}-${i}`,
             kind,
-            optionName: option?.name ?? null,
+            skuName: option?.name ?? null,
+            skuKind: option?.kind ?? null,
             qty,
             currentAfter: cur,
             reservedAfter: res,
             maxAfter: max,
-            optionCurrentAfter: option ? Math.min(cur, option.currentQty) : null,
-            optionReservedAfter: option ? Math.min(res, option.reservedQty) : null,
-            optionMaxAfter: option ? option.maxQty : null,
+            skuCurrentAfter: option ? Math.min(addonMove ? i : cur, option.currentQty) : null,
+            skuReservedAfter: option ? Math.min(res, option.reservedQty) : null,
+            skuMaxAfter: option ? option.maxQty : null,
             orderNo: kind === 'ADD' ? null : `G20261027000${10 + i}`,
             actor: kind === 'ADD' ? '운영자 박' : kind === 'RELEASE' ? 'SYSTEM' : kind === 'RETURN' || kind === 'RESTOCK' ? '운영자 박' : MEMBERS.m1!.nickname,
             reason: kind === 'ADD' ? '추가 입고 — 공급처 10개 추가 확보' : kind === 'RELEASE' ? '선점 시간 초과' : null,

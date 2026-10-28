@@ -42,7 +42,7 @@
                     <table class="w-full min-w-[30rem] border-collapse text-[13px]">
                         <thead>
                             <tr class="border-b border-(--line) text-left text-xs text-muted-color">
-                                <th class="py-1.5 pr-2 font-normal">{{ t('groupBuy.itemOption') }}</th>
+                                <th class="py-1.5 pr-2 font-normal">{{ t('groupBuy.itemSku') }}</th>
                                 <th class="py-1.5 pr-2 text-right font-normal">{{ t('groupBuy.itemQty') }}</th>
                                 <th class="py-1.5 pr-2 text-right font-normal">{{ t('groupBuy.itemUnit') }}</th>
                                 <th class="py-1.5 pr-2 text-right font-normal">{{ t('groupBuy.itemAmount') }}</th>
@@ -51,7 +51,7 @@
                         </thead>
                         <tbody>
                             <tr v-for="item in detail.items" :key="item.id" class="border-b border-(--line) last:border-b-0">
-                                <td class="py-1.5 pr-2">{{ item.optionName ?? t('groupBuy.noOption') }}</td>
+                                <td class="py-1.5 pr-2"><GroupBuySkuLabel :name="item.skuName" :kind="item.kind" /></td>
                                 <td class="py-1.5 pr-2 text-right tabular-nums">{{ item.qty }}</td>
                                 <td class="py-1.5 pr-2 text-right tabular-nums">{{ won(item.unitPrice) }}</td>
                                 <td class="py-1.5 pr-2 text-right tabular-nums">{{ won(item.itemAmount) }}</td>

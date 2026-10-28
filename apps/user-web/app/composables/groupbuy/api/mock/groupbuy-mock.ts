@@ -9,13 +9,16 @@
 //   수량     gb-temp-soldout(공구 전체 잠시 구매 불가) · gb-soldout(공구 다 팔림 — 마감 직전) · gb-extended(103 이 마감 연장 중)
 //   견적     gb-quote-fail(500)
 //   주문     gb-amount-changed(첫 주문은 409 GROUP_BUY_AMOUNT_CHANGED — 배송비가 1,000원 올랐다고 가정, 다음 견적부터 새 금액)
-//            gb-order-soldout(409 GROUP_BUY_OPTION_SOLD_OUT) · gb-order-fail(500) · gb-hold-short(선점을 50초만 — 「결제 다시 열기」가 409 GROUP_BUY_HOLD_EXPIRED)
+//            gb-order-soldout(409 GROUP_BUY_SKU_SOLD_OUT) · gb-order-fail(500) · gb-hold-short(선점을 50초만 — 「결제 다시 열기」가 409 GROUP_BUY_HOLD_EXPIRED)
+//   단품     스위치 없이 주소로 — 주문서 `?items=` 에 판매 끈 조합(113 화이트 / S = 11301)을 넣으면 409 GROUP_BUY_SKU_NOT_ON_SALE,
+//            잠시 품절 단품(113 블랙 / M = 11305)이면 409 GROUP_BUY_SKU_SOLD_OUT(temporary), 추가 구성상품만(102 = 10251)이면 400 fields.items(견적·주문 둘 다 — 서버 2b-2)
 //   결제     gb-pay-reject(완료 요청이 받지 않음 — anomaly DOMAIN_REJECTED, 자동 취소 진행) · gb-pay-complete-fail(완료 요청 503)
 //   알림     gb-watch-fail(500)
 //
 // ── 목업 가정(서버 몫을 흉내 낸 것 — 실제 규칙의 정본은 서버) ─
 //   · 결제창은 늘 가짜 게이트웨이(`FAKE`). 가짜 결제 결과는 이 목업이 기억한다(실제는 `POST /api/dev/payments/{id}/fake-checkout` — 시험 주문 전용 주소라 공구 목업은 흉내만).
-//   · 견적: 상품 합 = Σ 단가 × 수량, 무료배송 기준 이상이면 배송비 0. 공구 가격·남은 수량은 시드 값 그대로(선점해도 줄이지 않는다).
+//   · 견적: 상품 합 = Σ 단품 값 × 수량(추가 구성상품 포함 — 무료배송 기준에 더한다), 무료배송 기준 이상이면 배송비 0. 공구 가격·남은 수량은 시드 값 그대로(선점해도 줄이지 않는다).
+//   · 줄 검사(결정 88): 단품 하나에 한 줄 · 판매 끈 조합 거절 · MAIN 줄 없으면 거절 · 단품 남은 수량 · 1인 한도는 MAIN 수량 합만.
 //   · 주문 번호 `G` + 오늘(yyyyMMdd) + 일련 5자리(30000부터). 선점 5분.
 
 import { ApiError } from '~/composables/common/useApiClient';
@@ -31,6 +34,7 @@ import type {
     GroupBuyPhase,
     GroupBuyPurchaseReason,
     GroupBuyQuote,
+    GroupBuyQuoteItem,
     GroupBuyQuoteRequest,
     GroupBuyWatchRequest,
 } from '~/composables/groupbuy/api/useGroupBuyApi.types';
@@ -85,12 +89,14 @@ function view(gb: GroupBuyDetail): GroupBuyDetail {
     if (recruiting && flags.has('gb-temp-soldout')) {
         out.stockState = 'TEMP_SOLD_OUT';
         out.remainingQty = 0;
+        out.availability = { ...out.availability, remaining: 0, temporarilyUnavailable: true, skus: out.availability.skus.map((k) => (k.kind === 'MAIN' && k.onSale ? { ...k, remaining: 0, temporarilyUnavailable: true } : k)) };
         out.purchase.reason = 'TEMP_SOLD_OUT';
         out.actions = { ...out.actions, order: false, watchRestock: true };
     }
     if (recruiting && flags.has('gb-soldout')) {
         out.stockState = 'SOLD_OUT';
         out.remainingQty = 0;
+        out.availability = { ...out.availability, remaining: 0, soldOut: true, skus: out.availability.skus.map((k) => (k.kind === 'MAIN' && k.onSale ? { ...k, remaining: 0, soldOut: true, temporarilyUnavailable: false } : k)) };
         out.currentQty = out.maxQty;
         out.purchase.reason = 'SOLD_OUT';
         out.actions = { ...out.actions, order: false, watchRestock: false };
@@ -151,19 +157,18 @@ export async function mockGroupBuyDetail(id: number): Promise<GroupBuyDetail> {
     return view(gb);
 }
 
-/** 견적 계산(서버 몫 흉내) — 주문도 같은 계산 */
+/** 견적 계산(서버 몫 흉내) — 주문도 같은 계산. 줄 검사를 먼저 거친 요청만 온다 */
 function quoteOf(gb: GroupBuyDetail, body: GroupBuyQuoteRequest): GroupBuyQuote {
     const s = mockGroupBuyStore();
-    const lines = body.items.map((line) => {
-        const option = gb.options.find((o) => o.id === line.optionId);
-        const unitPrice = option ? option.unitPrice : gb.groupPrice;
-        return { optionId: line.optionId, qty: line.qty, unitPrice, amount: unitPrice * line.qty };
+    const items = body.items.map((line): GroupBuyQuoteItem => {
+        const sku = gb.availability.skus.find((k) => k.skuId === line.skuId)!;
+        return { skuId: sku.skuId, kind: sku.kind, name: sku.name, qty: line.qty, unitPrice: sku.unitPrice, itemAmount: sku.unitPrice * line.qty };
     });
-    const itemsAmount = lines.reduce((sum, line) => sum + line.amount, 0);
+    const itemsAmount = items.reduce((sum, line) => sum + line.itemAmount, 0);
     const free = gb.shipping.freeShippingOver !== null && itemsAmount >= gb.shipping.freeShippingOver;
     const shippingFee = (free ? 0 : gb.shipping.fee) + s.amountBump;
     return {
-        lines,
+        items,
         itemsAmount,
         shippingFee,
         totalAmount: itemsAmount + shippingFee,
@@ -171,18 +176,38 @@ function quoteOf(gb: GroupBuyDetail, body: GroupBuyQuoteRequest): GroupBuyQuote 
     };
 }
 
-function checkLines(gb: GroupBuyDetail, body: GroupBuyQuoteRequest): Record<string, string> {
+/** 줄 칸 오류(400, 서버 2b-2) — 없는 단품 · 같은 단품 두 줄 · 수량 0 · 추가 구성상품만 · 단품 남은 수량 · 1인 한도(MAIN 합만) */
+function lineFields(gb: GroupBuyDetail, body: GroupBuyQuoteRequest): Record<string, string> {
     const fields: Record<string, string> = {};
-    if (body.items.length === 0) fields.items = '옵션과 수량을 골라 주세요.';
-    const seen = new Set<number | null>();
+    const skus = gb.availability.skus;
+    if (body.items.length === 0) fields.items = '상품과 수량을 골라 주세요.';
+    const seen = new Set<number>();
+    let mainQty = 0;
     body.items.forEach((line, index) => {
-        if (gb.options.length > 0 && !gb.options.some((o) => o.id === line.optionId)) fields[`items[${index}].optionId`] = '옵션을 골라 주세요.';
-        if (seen.has(line.optionId)) fields[`items[${index}].optionId`] = '같은 옵션은 한 줄에만 담을 수 있어요.';
-        seen.add(line.optionId);
-        if (!Number.isInteger(line.qty) || line.qty < 1) fields[`items[${index}].qty`] = '수량을 1개 이상 넣어 주세요.';
-        else if (gb.maxQtyPerUser !== null && line.qty > gb.maxQtyPerUser) fields[`items[${index}].qty`] = `1인 한도는 ${gb.maxQtyPerUser}개예요.`;
+        const sku = skus.find((k) => k.skuId === line.skuId);
+        if (!sku) fields[`items[${index}].skuId`] = '이 공동구매에 없는 상품이에요.';
+        if (seen.has(line.skuId)) fields.items = '같은 상품은 한 줄에만 담을 수 있어요.';
+        seen.add(line.skuId);
+        if (!Number.isInteger(line.qty) || line.qty < 1) fields.items = '수량을 1개 이상 넣어 주세요.';
+        else if (sku && sku.onSale && sku.remaining !== null && line.qty > sku.remaining && sku.remaining > 0) fields[`items[${index}].qty`] = `「${sku.name}」 남은 수량은 ${sku.remaining}개예요.`;
+        if (sku?.kind === 'MAIN' && Number.isInteger(line.qty)) mainQty += line.qty;
     });
+    if (body.items.length > 0 && !fields.items && !body.items.some((line) => skus.find((k) => k.skuId === line.skuId)?.kind === 'MAIN')) fields.items = '추가 구성상품은 본 상품과 함께만 살 수 있어요. 본 상품을 먼저 골라 주세요.';
+    if (!fields.items && gb.maxQtyPerUser !== null && mainQty > gb.maxQtyPerUser) fields.items = `1인 한도는 본 상품 ${gb.maxQtyPerUser}개예요(추가 구성상품은 세지 않아요).`;
     return fields;
+}
+
+/** 줄 충돌(409, 서버 2b-2) — 판매 안 함 `GROUP_BUY_SKU_NOT_ON_SALE {skuId}` · 품절 `GROUP_BUY_SKU_SOLD_OUT {skuId, temporary}` */
+function lineConflict(gb: GroupBuyDetail, body: GroupBuyQuoteRequest): ApiError | null {
+    const skus = body.items.map((line) => gb.availability.skus.find((k) => k.skuId === line.skuId)!);
+    const off = skus.find((k) => !k.onSale);
+    if (off) return new ApiError({ status: 409, code: 'GROUP_BUY_SKU_NOT_ON_SALE', message: `「${off.name}」은(는) 판매하지 않는 조합이에요. 다른 옵션을 골라 주세요.`, extras: { skuId: off.skuId } });
+    const out = skus.find((k) => k.soldOut || k.temporarilyUnavailable || k.remaining === 0);
+    if (out) {
+        const temporary = out.temporarilyUnavailable;
+        return new ApiError({ status: 409, code: 'GROUP_BUY_SKU_SOLD_OUT', message: temporary ? `「${out.name}」은(는) 다른 분이 결제 중이라 잠시 살 수 없어요.` : `「${out.name}」은(는) 다 팔렸어요. 빼거나 다른 옵션을 골라 주세요.`, extras: { skuId: out.skuId, temporary } });
+    }
+    return null;
 }
 
 export async function mockGroupBuyQuote(id: number, body: GroupBuyQuoteRequest): Promise<GroupBuyQuote> {
@@ -190,8 +215,10 @@ export async function mockGroupBuyQuote(id: number, body: GroupBuyQuoteRequest):
     if (mockFlags().has('gb-quote-fail')) throw MOCK_ERRORS.internal();
     const gb = mockGroupBuyStore().groupBuys.find((g) => g.id === id);
     if (!gb) throw notFound();
-    const fields = checkLines(gb, body);
+    const fields = lineFields(gb, body);
     if (Object.keys(fields).length > 0) throw MOCK_ERRORS.validation(fields);
+    const conflict = lineConflict(gb, body);
+    if (conflict) throw conflict;
     return quoteOf(gb, body);
 }
 
@@ -216,7 +243,7 @@ export async function mockGroupBuyOrder(id: number, body: GroupBuyOrderRequest):
     const gb = s.groupBuys.find((g) => g.id === id);
     if (!gb) throw notFound();
     if (gb.status !== 'RECRUITING') throw new ApiError({ status: 409, code: 'GROUP_BUY_NOT_RECRUITING', message: '지금은 모집 중인 공동구매가 아니에요.' });
-    const fields = checkLines(gb, body);
+    const fields = lineFields(gb, body);
     const a = body.address;
     if (!a.recipient.trim()) fields['address.recipient'] = '받는 분을 넣어 주세요.';
     if (!/^0\d{8,10}$/.test(a.phone.replace(/-/g, ''))) fields['address.phone'] = '전화번호를 다시 확인해 주세요.';
@@ -226,7 +253,9 @@ export async function mockGroupBuyOrder(id: number, body: GroupBuyOrderRequest):
     if (!body.agreements.refundPolicy) fields['agreements.refundPolicy'] = '환불 안내에 동의해 주세요.';
     if (!body.agreements.privacy) fields['agreements.privacy'] = '개인정보 수집·이용에 동의해 주세요.';
     if (Object.keys(fields).length > 0) throw MOCK_ERRORS.validation(fields);
-    if (flags.has('gb-order-soldout')) throw new ApiError({ status: 409, code: 'GROUP_BUY_OPTION_SOLD_OUT', message: '고른 옵션 중 남은 수량이 모자란 것이 있어요. 수량을 줄이거나 다른 옵션을 골라 주세요.' });
+    const conflict = lineConflict(gb, body);
+    if (conflict) throw conflict;
+    if (flags.has('gb-order-soldout')) throw new ApiError({ status: 409, code: 'GROUP_BUY_SKU_SOLD_OUT', message: '고른 상품 중 남은 수량이 모자란 것이 있어요. 수량을 줄이거나 다른 옵션을 골라 주세요.' });
     if (flags.has('gb-amount-changed') && !s.amountBumped) {
         s.amountBumped = true;
         s.amountBump = 1000;
@@ -243,11 +272,18 @@ export async function mockGroupBuyOrder(id: number, body: GroupBuyOrderRequest):
         orderNo,
         status: 'PENDING_PAYMENT',
         groupBuy: { id: gb.id, title: gb.title, thumbnailUrl: gb.thumbnailUrl, status: gb.status, fulfillment: gb.fulfillment, closeReason: gb.closeReason, roundNo: gb.roundNo },
-        items: body.items.map((line, index) => {
-            const option = gb.options.find((o) => o.id === line.optionId);
-            const unitPrice = option ? option.unitPrice : gb.groupPrice;
-            return { id: s.seq * 10 + index, optionName: option?.name ?? null, qty: line.qty, unitPrice, itemAmount: unitPrice * line.qty, canceledQty: 0, returnedQty: 0, selectableQty: 0 };
-        }),
+        items: quote.items.map((line, index) => ({
+            id: s.seq * 10 + index,
+            skuId: line.skuId,
+            skuName: line.name,
+            kind: line.kind,
+            qty: line.qty,
+            unitPrice: line.unitPrice,
+            itemAmount: line.itemAmount,
+            canceledQty: 0,
+            returnedQty: 0,
+            selectableQty: 0,
+        })),
         itemsAmount: quote.itemsAmount,
         shippingFee: quote.shippingFee,
         amount: quote.totalAmount,
@@ -278,9 +314,9 @@ export async function mockGroupBuyWatch(id: number, body: GroupBuyWatchRequest, 
     if (mockFlags().has('gb-watch-fail')) throw MOCK_ERRORS.internal();
     const gb = mockGroupBuyStore().groupBuys.find((g) => g.id === id);
     if (!gb) throw notFound();
-    if (body.optionId !== null) {
-        const option = gb.options.find((o) => o.id === body.optionId);
-        if (option) option.watchingRestock = on;
+    if (body.skuId !== null) {
+        const w = gb.skuWatches;
+        w.watching = on ? [...new Set([...w.watching, body.skuId])] : w.watching.filter((skuId) => skuId !== body.skuId);
         return;
     }
     gb.watches[body.kind] = on;

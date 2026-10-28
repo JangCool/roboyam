@@ -39,7 +39,7 @@
                 <ul class="m-0 flex list-none flex-col gap-1 p-0">
                     <li v-for="item in detail.items" :key="item.id" class="flex flex-col gap-0.5 rounded-lg border border-(--line) px-3 py-2 text-[13px]">
                         <div class="flex flex-wrap items-center gap-2">
-                            <span class="font-medium">{{ item.optionName ?? t('groupBuy.noOption') }}</span>
+                            <GroupBuySkuLabel :name="item.skuName" :kind="item.kind" class="font-medium" />
                             <span class="tabular-nums">{{ t('groupBuy.qtyN', { n: item.qty }) }}</span>
                             <Tag :value="t(`groupBuy.reasonCode.${item.reasonCode}`)" :severity="item.reasonCode === 'CHANGE_OF_MIND' || item.reasonCode === 'OTHER' ? 'secondary' : 'warn'" />
                             <span class="ml-auto tabular-nums">{{ t('groupBuy.won', { amount: won(item.refundAmount) }) }}</span>

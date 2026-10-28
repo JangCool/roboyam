@@ -1,7 +1,7 @@
 <template>
     <!--
-        고시 양식 한 장(결정 87) — 제목 · 품목(40개 중 찾아 고르기) · 적용 옵션 · 품목 항목 칸 · 판매자 추가 항목. `GroupBuyNoticeEditor` 가 줄마다 놓는다.
-        적용 옵션이 비면 기본 양식(공구 전체). 품목을 바꾸면 같은 키의 값은 살리고 항목 칸을 다시 만든다(추가 항목은 그대로).
+        고시 양식 한 장(결정 87·88) — 제목 · 품목(40개 중 찾아 고르기) · 적용 단품 · 품목 항목 칸 · 판매자 추가 항목. `GroupBuyNoticeEditor` 가 줄마다 놓는다.
+        적용 단품이 비면 기본 양식(MAIN 단품들). 추가 구성상품이 든 양식은 「추가 구성상품 양식」 딱지. 품목을 바꾸면 같은 키의 값은 살리고 항목 칸을 다시 만든다(추가 항목은 그대로).
         항목은 카탈로그 차례대로, 하위 번호 항목은 묶음 줄(`group`)을 소제목으로, 원문 괄호 설명(`description`)은 칸 아래 도움말로.
         항목마다 값 또는 「제공 불가」 + 사유. 판매자 추가 항목(`customItems`)은 선택 — 이름 1~40자·내용 1~1,000자, 20개까지, 고시 항목·다른 줄과 같은 이름은 안 된다.
         날짜 항목의 대체 표기·KC 항목의 인증번호/면제는 **저장하지 않는 입력 도우미**(자리표시 예시만 바꾼다).
@@ -15,6 +15,7 @@
                 <span v-if="model.title.trim()" class="font-normal text-muted-color">· {{ model.title.trim() }}</span>
             </h3>
             <Tag v-if="isBase" :value="t('groupBuy.noticeBaseScope')" severity="secondary" />
+            <Tag v-else-if="addonName" :value="t('groupBuy.noticeAddonScope', { name: addonName })" severity="info" />
             <Tag v-if="emptyKeys.length" :value="t('groupBuy.noticeBlankCount', { n: emptyKeys.length })" severity="warn" />
             <Tag v-else-if="items.length" :value="t('groupBuy.noticeAllFilled')" severity="success" />
             <Tag v-if="duplicateBase" :value="t('groupBuy.noticeBaseDuplicate')" severity="danger" />
@@ -56,7 +57,7 @@
                 <p v-if="!hasOptions" class="m-0 text-xs text-muted-color">{{ t('groupBuy.noticeOptionsNone') }}</p>
                 <template v-else>
                     <AppMultiSelect
-                        :model-value="model.optionKeys"
+                        :model-value="model.skuKeys"
                         :options="optionChoices"
                         option-label="label"
                         option-value="value"
@@ -64,9 +65,9 @@
                         :placeholder="t('groupBuy.noticeOptionsPlaceholder')"
                         :selected-items-label="t('groupBuy.noticeOptionsSelected', { count: '{0}' })"
                         :disabled="disabled"
-                        :invalid="!!err('optionNames') || duplicateBase"
+                        :invalid="!!err('skuNames') || duplicateBase"
                         :aria-label="t('groupBuy.noticeOptions')"
-                        @update:model-value="(v: unknown[]) => patch({ optionKeys: v as string[] })"
+                        @update:model-value="(v: unknown[]) => patch({ skuKeys: v as string[] })"
                     >
                         <template #option="{ option }">
                             <span class="flex w-full items-center gap-2">
@@ -75,9 +76,9 @@
                             </span>
                         </template>
                     </AppMultiSelect>
-                    <p v-if="err('optionNames')" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ err('optionNames') }}</p>
+                    <p v-if="err('skuNames')" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ err('skuNames') }}</p>
                     <p v-else-if="duplicateBase" class="m-0 text-xs text-red-600 dark:text-red-400">{{ t('groupBuy.noticeBaseDuplicateHelp') }}</p>
-                    <p v-else-if="isBase" class="m-0 text-xs text-muted-color">{{ baseCovers.length ? t('groupBuy.noticeBaseCovers', { names: baseCovers.join(' · ') }) : t('groupBuy.noticeBaseCoversNone') }}</p>
+                    <p v-else-if="isBase" class="m-0 text-xs text-muted-color">{{ baseCovers.length ? t('groupBuy.noticeBaseCovers', { names: baseCovers.join(' · ') }) : hasMainChoices ? t('groupBuy.noticeBaseCoversNone') : t('groupBuy.noticeBaseMain') }}</p>
                 </template>
             </div>
         </div>
@@ -244,11 +245,15 @@ interface Props {
     count: number;
     catalog: NoticeCatalog;
     optionChoices?: GroupBuyNoticeOptionChoice[];
-    /** 공구에 (이름 있는) 옵션이 있나 */
+    /** 고를 단품(이름 있는 MAIN 조합·추가 구성상품)이 있나 */
     hasOptions?: boolean;
-    /** 기본 양식을 따르는 옵션 이름(첫 기본 양식에만) */
+    /** 고를 MAIN 조합이 있나(축이 있는 공구) */
+    hasMainChoices?: boolean;
+    /** 이 양식에 든 추가 구성상품 이름(없으면 빈 글자) */
+    addonName?: string;
+    /** 기본 양식을 따르는 MAIN 단품 이름(첫 기본 양식에만) */
     baseCovers?: string[];
-    /** 옵션이 있는 공구에 적용 옵션이 빈 양식이 둘 이상 — 이 양식이 뒤의 것 */
+    /** 축이 있는 공구에 적용 단품이 빈 양식이 둘 이상 — 이 양식이 뒤의 것 */
     duplicateBase?: boolean;
     disabled?: boolean;
     /** 서버 칸 오류 전부(`notices[i].…`) — 이 양식 몫만 본다 */
@@ -260,6 +265,8 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
     optionChoices: () => [],
     hasOptions: false,
+    hasMainChoices: false,
+    addonName: '',
     baseCovers: () => [],
     duplicateBase: false,
     disabled: false,
@@ -275,7 +282,7 @@ const { t } = useI18n();
 const headId = useId();
 const baseId = useId();
 
-const isBase = computed(() => model.value.optionKeys.length === 0);
+const isBase = computed(() => model.value.skuKeys.length === 0);
 const category = computed(() => props.catalog.categories.find((c) => c.code === model.value.categoryCode) ?? null);
 const items = computed<NoticeItemDef[]>(() => category.value?.items ?? []);
 const emptyKeys = computed(() => UtilGroupBuy.noticeEmptyKeys(model.value.values, items.value));

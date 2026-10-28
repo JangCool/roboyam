@@ -31,7 +31,7 @@
                         <div class="max-h-60 overflow-auto rounded border border-(--line) p-2 text-[13px]" v-html="rev.description" />
                         <div class="text-xs text-muted-color">
                             {{ t('groupBuy.revisionSnapshot', { images: rev.imageCount, max: rev.maxQty, added: rev.addedQty }) }}
-                            <template v-if="rev.optionMax.length"> · {{ rev.optionMax.map((o) => `${o.name} ${o.maxQty ?? '∞'}`).join(', ') }}</template>
+                            <template v-if="rev.skuMax.length"> · {{ rev.skuMax.map((s) => `${s.name}${s.kind === 'ADDON' ? ` (${t('groupBuy.skuAddonTag')})` : ''} ${s.maxQty ?? '∞'}`).join(', ') }}</template>
                             <template v-if="rev.shipPlannedAt"> · {{ t('groupBuy.revisionShipDate', { date: rev.shipPlannedAt }) }}</template>
                         </div>
                         <div v-if="rev.notices.length" class="text-xs text-muted-color">{{ t('groupBuy.revisionNotices', { n: rev.notices.length, titles: rev.notices.map((n) => n.title).join(' · ') }) }}</div>

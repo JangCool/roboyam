@@ -1,10 +1,11 @@
 <template>
     <!--
         공구 › 수량(`/group-buy-stock?id=`) — 공구 하나의 수량을 본다(계약 결정 15·17·27·28·48·80·84, community A 6절).
-        ① 공구 고르기(DRAFT 제외) ② 수량 표: 공구 전체 + 옵션별 총량(지금 최대 · 처음 최대 · 「추가 입고 N개」)·확정·선점·남음·반품·다시 판매·품절 표시(다 팔림 / 잠시 품절)·줄이기 하한
-        ③ 선점 목록(결제 중 주문 — 남은 시간이 초 단위로 줄어든다) ④ 수량 변동 내역(이동 종류 거르기, 공구·옵션 양쪽의 이후 값).
-        추가 입고·줄이기: 공구가 모집 중(서버 `canAdjust`)이고 `commerce.stock.adjust` 일 때만. 옵션 지정(한도 없는 옵션은 공구 전체로), 수량 + 사유 필수.
-        줄이기 하한 = max(확정 + 선점, 성사형 min_qty)(옵션은 확정 + 선점)을 미리 보이고, 서버가 `409 GROUP_BUY_QTY_BELOW_FLOOR` 를 주면 수량 칸 아래에 서버 문구.
+        ① 공구 고르기(DRAFT 제외) ② 수량 표: 공구 전체(MAIN 단품 합 — 결정 88) + 조합(MAIN 단품)별 + 추가 구성상품(따로 구분 줄, 공구 합계에 들지 않음) 총량(지금 최대 · 처음 최대 · 「추가 입고 N개」)
+           ·확정·선점·남음·반품·다시 판매·품절 표시(다 팔림 / 잠시 품절 / 판매 안 함)·줄이기 하한
+        ③ 선점 목록(결제 중 주문 — 남은 시간이 초 단위로 줄어든다) ④ 수량 변동 내역(이동 종류 거르기, 공구·단품 양쪽의 이후 값).
+        추가 입고·줄이기: 공구가 모집 중(서버 `canAdjust`)이고 `commerce.stock.adjust` 일 때만. 단품 지정(`skuId` — 한도 없는 단품은 공구 전체로, 판매 끈 조합은 없음), 수량 + 사유 필수.
+        MAIN 단품을 움직이면 공구 최대도 같이, 추가 구성상품은 자기 한도만. 줄이기 하한 = max(확정 + 선점, 성사형 min_qty)(단품은 확정 + 선점)을 미리 보이고, 서버가 `409 GROUP_BUY_QTY_BELOW_FLOOR` 를 주면 수량 칸 아래에 서버 문구.
         숫자는 모두 서버 값이다. 서버 호출은 `useGroupBuyAdminApi`(지금 목업 — `?mock=stock-fail`·`stock-floor`·`movements-empty`).
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -47,8 +48,16 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="line in lines" :key="line.optionId ?? 'total'" class="border-b border-(--line) last:border-b-0" :class="line.optionId === null ? 'bg-surface-50 font-medium dark:bg-surface-900' : ''">
-                                    <td class="py-2 pr-3">{{ line.optionId === null ? t('groupBuy.stockTotalRow') : line.name }}</td>
+                                <template v-for="line in lines" :key="line.skuId ?? 'total'">
+                                <!-- 추가 구성상품 앞 구분 줄 — 공구 합계에 들지 않는다 -->
+                                <tr v-if="line.skuId === firstAddonId" class="border-b border-(--line)">
+                                    <td :colspan="adjustable ? 9 : 8" class="pt-3 pb-1 text-xs font-semibold">{{ t('groupBuy.stockAddonHeading') }} <span class="font-normal text-muted-color">{{ t('groupBuy.stockAddonHeadingHelp') }}</span></td>
+                                </tr>
+                                <tr class="border-b border-(--line) last:border-b-0" :class="[line.skuId === null ? 'bg-surface-50 font-medium dark:bg-surface-900' : '', line.onSale ? '' : 'text-muted-color']">
+                                    <td class="py-2 pr-3">
+                                        <template v-if="line.skuId === null">{{ t('groupBuy.stockTotalRow') }}<span v-if="hasSkuLines" class="block text-[11px] font-normal text-muted-color">{{ t('groupBuy.stockTotalMainOnly') }}</span></template>
+                                        <GroupBuySkuLabel v-else :name="line.name" :kind="line.kind" />
+                                    </td>
                                     <td class="py-2 pr-3 text-right tabular-nums">
                                         <div>{{ line.maxQty ?? t('groupBuy.optionUnlimited') }}</div>
                                         <div v-if="line.initialMaxQty !== null && line.maxQty !== null" class="text-[11px] font-normal text-muted-color">{{ t('groupBuy.stockInitial', { n: line.initialMaxQty }) }}<template v-if="line.addedQty > 0"> · {{ t('groupBuy.stockAdded', { n: line.addedQty }) }}</template></div>
@@ -59,19 +68,22 @@
                                     <td class="py-2 pr-3 text-right tabular-nums">{{ line.returnedQty }}</td>
                                     <td class="py-2 pr-3 text-right tabular-nums">{{ line.restockedQty }}</td>
                                     <td class="py-2 pr-3">
-                                        <Tag v-if="line.soldOut" :value="t('groupBuy.soldOut')" severity="contrast" />
+                                        <Tag v-if="!line.onSale" :value="t('groupBuy.skuOffSale')" severity="secondary" />
+                                        <Tag v-else-if="line.soldOut" :value="t('groupBuy.soldOut')" severity="contrast" />
                                         <Tag v-else-if="line.tempSoldOut" :value="t('groupBuy.tempSoldOut')" severity="warn" />
                                         <span v-else class="text-xs text-muted-color">—</span>
-                                        <div class="text-[11px] font-normal text-muted-color">{{ t('groupBuy.stockFloor', { n: line.reduceFloor }) }}</div>
+                                        <div v-if="line.onSale" class="text-[11px] font-normal text-muted-color">{{ t('groupBuy.stockFloor', { n: line.reduceFloor }) }}</div>
                                     </td>
                                     <td v-if="adjustable" class="py-2 text-right whitespace-nowrap">
-                                        <template v-if="line.maxQty !== null">
-                                            <Button type="button" :label="t('groupBuy.stockAdd')" size="small" severity="secondary" variant="outlined" :disabled="line.soldOut && line.optionId === null" @click="openAdjust(line, 'ADD')" />
+                                        <span v-if="!line.onSale" class="text-[11px] text-muted-color">—</span>
+                                        <template v-else-if="line.maxQty !== null">
+                                            <Button type="button" :label="t('groupBuy.stockAdd')" size="small" severity="secondary" variant="outlined" :disabled="line.soldOut && line.skuId === null" @click="openAdjust(line, 'ADD')" />
                                             <Button type="button" :label="t('groupBuy.stockReduce')" size="small" severity="secondary" variant="text" class="ml-1" @click="openAdjust(line, 'REDUCE')" />
                                         </template>
-                                        <span v-else class="text-[11px] text-muted-color">{{ t('groupBuy.stockUnlimitedOption') }}</span>
+                                        <span v-else class="text-[11px] text-muted-color">{{ t('groupBuy.stockUnlimitedSku') }}</span>
                                     </td>
                                 </tr>
+                                </template>
                             </tbody>
                         </table>
                     </div>
@@ -110,12 +122,12 @@
                     </template>
                     <Column :header="t('groupBuy.mvColAt')" style="min-width: 9rem"><template #body="{ data }"><span class="text-[12px] tabular-nums">{{ time.full(data.createdAt) }}</span></template></Column>
                     <Column :header="t('groupBuy.mvColKind')" style="min-width: 7rem"><template #body="{ data }"><Tag :value="t(`groupBuy.movement.${data.kind}`)" :severity="mvSeverity(data.kind)" /></template></Column>
-                    <Column :header="t('groupBuy.mvColOption')" style="min-width: 6rem"><template #body="{ data }"><span class="text-[13px]">{{ data.optionName ?? '—' }}</span></template></Column>
+                    <Column :header="t('groupBuy.mvColSku')" style="min-width: 7rem"><template #body="{ data }"><GroupBuySkuLabel v-if="data.skuName !== null" :name="data.skuName" :kind="data.skuKind" class="text-[13px]" /><span v-else class="text-[13px]">—</span></template></Column>
                     <Column :header="t('groupBuy.mvColQty')" style="min-width: 4rem"><template #body="{ data }"><span class="tabular-nums">{{ data.qty }}</span></template></Column>
                     <Column :header="t('groupBuy.mvColAfter')" style="min-width: 12rem">
                         <template #body="{ data }">
                             <div class="text-[12px] tabular-nums">{{ t('groupBuy.mvAfterLine', { current: data.currentAfter, reserved: data.reservedAfter, max: data.maxAfter }) }}</div>
-                            <div v-if="data.optionCurrentAfter !== null" class="text-[11px] tabular-nums text-muted-color">{{ t('groupBuy.mvOptionAfterLine', { current: data.optionCurrentAfter, reserved: data.optionReservedAfter ?? 0, max: data.optionMaxAfter ?? '∞' }) }}</div>
+                            <div v-if="data.skuCurrentAfter !== null" class="text-[11px] tabular-nums text-muted-color">{{ t('groupBuy.mvSkuAfterLine', { current: data.skuCurrentAfter, reserved: data.skuReservedAfter ?? 0, max: data.skuMaxAfter ?? '∞' }) }}</div>
                         </template>
                     </Column>
                     <Column :header="t('groupBuy.mvColWho')" style="min-width: 10rem">
@@ -131,10 +143,10 @@
         <PaymentReasonDialog v-model:visible="adjustOpen" :title="adjustDir === 'ADD' ? t('groupBuy.stockAddTitle') : t('groupBuy.stockReduceTitle')" :description="adjustDir === 'ADD' ? t('groupBuy.stockAddBody') : t('groupBuy.stockReduceBody')" :confirm-label="adjustDir === 'ADD' ? t('groupBuy.stockAdd') : t('groupBuy.stockReduce')" :tone="adjustDir === 'REDUCE' ? 'danger' : 'primary'" :busy="adjusting" :error="adjustError" :field-error="adjustReasonError" @submit="submitAdjust">
             <div v-if="adjustLine" class="flex flex-col gap-3">
                 <p class="m-0 text-sm">
-                    <span class="font-medium">{{ adjustLine.optionId === null ? t('groupBuy.stockTotalRow') : adjustLine.name }}</span>
+                    <span class="font-medium">{{ adjustLine.skuId === null ? t('groupBuy.stockTotalRow') : adjustLine.name }}<template v-if="adjustLine.kind === 'ADDON'"> ({{ t('groupBuy.skuAddonTag') }})</template></span>
                     <span class="text-muted-color"> · {{ t('groupBuy.stockAdjustNow', { max: adjustLine.maxQty ?? '∞', current: adjustLine.currentQty, reserved: adjustLine.reservedQty }) }}</span>
                 </p>
-                <LabeledField :label="t('groupBuy.stockAdjustQty')" :help="adjustDir === 'REDUCE' ? t('groupBuy.stockReduceFloorHelp', { floor: adjustLine.reduceFloor, room: Math.max(0, (adjustLine.maxQty ?? 0) - adjustLine.reduceFloor) }) : adjustLine.optionId ? t('groupBuy.stockAddOptionHelp') : ''" :error="adjustQtyError">
+                <LabeledField :label="t('groupBuy.stockAdjustQty')" :help="adjustDir === 'REDUCE' ? t('groupBuy.stockReduceFloorHelp', { floor: adjustLine.reduceFloor, room: Math.max(0, (adjustLine.maxQty ?? 0) - adjustLine.reduceFloor) }) : adjustLine.kind === 'ADDON' ? t('groupBuy.stockAddAddonHelp') : adjustLine.skuId ? t('groupBuy.stockAddSkuHelp') : ''" :error="adjustQtyError">
                     <template #default="{ id, describedBy, invalid }">
                         <InputText :id="id" v-model="adjustQty" inputmode="numeric" :invalid="invalid" :aria-describedby="describedBy" class="w-32 text-right tabular-nums" />
                     </template>
@@ -187,7 +199,10 @@ async function loadChoices(): Promise<void> {
 const view = ref<GroupBuyStockView | null>(null);
 const loading = ref(false);
 const loadError = ref<ApiError | null>(null);
-const lines = computed<GroupBuyStockLine[]>(() => (view.value ? [view.value.total, ...view.value.options] : []));
+/** 공구 전체(MAIN 합) · MAIN 조합 · 추가 구성상품 차례 */
+const lines = computed<GroupBuyStockLine[]>(() => (view.value ? [view.value.total, ...view.value.skus.filter((s) => s.kind === 'MAIN'), ...view.value.skus.filter((s) => s.kind === 'ADDON')] : []));
+const firstAddonId = computed(() => view.value?.skus.find((s) => s.kind === 'ADDON')?.skuId ?? '');
+const hasSkuLines = computed(() => (view.value?.skus.length ?? 0) > 0);
 const adjustable = computed(() => !!view.value?.canAdjust && can('commerce.stock.adjust'));
 
 async function loadStock(): Promise<void> {
@@ -303,7 +318,7 @@ async function submitAdjust(reason: string): Promise<void> {
     adjustError.value = '';
     adjustReasonError.value = '';
     try {
-        view.value = await api.adjustStock(selectedId.value, { optionId: line.optionId, direction: adjustDir.value, qty, reason });
+        view.value = await api.adjustStock(selectedId.value, { skuId: line.skuId, direction: adjustDir.value, qty, reason });
         toast.success(adjustDir.value === 'ADD' ? t('groupBuy.stockAdded2', { n: qty }) : t('groupBuy.stockReduced', { n: qty }));
         adjustOpen.value = false;
         void reloadMovements(true);

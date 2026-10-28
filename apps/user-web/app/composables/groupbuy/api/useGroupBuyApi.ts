@@ -24,11 +24,12 @@ import UtilIdempotency from '~/utils/util-idempotency';
  * 공구(회원) API — 서버 주소 문자열(`/api/group-buys…`)이 있는 **유일한 곳**이다. 상태는 없다. 계약 `docs/features/commerce-groupbuy-contract.md`.
  *  - `GET  /api/group-buys?phase=UPCOMING|ONGOING|ENDED&page=` → `GroupBuyListPage` (로그인 없이)
  *  - `GET  /api/group-buys/{id}` → `GroupBuyDetail` · `404 GROUP_BUY_NOT_FOUND` (로그인 없이 — 로그인했으면 `purchase`·`watches`·`myOrderNo` 가 그 회원 기준)
- *  - `POST /api/group-buys/{id}/quote` `{ items[] }` → `GroupBuyQuote` · `400 VALIDATION fields.items[i].qty|optionId` (선점하지 않는다)
- *  - `POST /api/group-buys/{id}/orders` + 머리글 `Idempotency-Key` `{ items[], address, agreements, expectedAmount }` → `GroupBuyOrderCreated`(주문 PENDING_PAYMENT + 선점 + 결제창 정보)
+ *  - `POST /api/group-buys/{id}/quote` `{ items[{ skuId, qty }] }` → `GroupBuyQuote` · `400 VALIDATION fields.items|items[i].qty|items[i].skuId`
+ *      · `409 GROUP_BUY_SKU_NOT_ON_SALE|ADDON_ONLY|SKU_SOLD_OUT` (선점하지 않는다 — 결정 88, 2b-2 확정 전 가정)
+ *  - `POST /api/group-buys/{id}/orders` + 머리글 `Idempotency-Key` `{ items[{ skuId, qty }], address, agreements, expectedAmount }` → `GroupBuyOrderCreated`(주문 PENDING_PAYMENT + 선점 + 결제창 정보)
  *      · `400 VALIDATION fields.items…|address.*|agreements.*` · `409 GROUP_BUY_AMOUNT_CHANGED`(extras `expectedAmount`·`currentAmount` — 결정 72)
- *      · `409 GROUP_BUY_NOT_RECRUITING|SOLD_OUT|OPTION_SOLD_OUT|LIMIT_EXCEEDED|ALREADY_JOINED` · `403 GROUP_BUY_SALES_CLOSED|MEMBER_RESTRICTED(GROUP_BUY_BAN)|IDENTITY_REQUIRED` · `429` · `503 DATA_KEY_MISSING`
- *  - `PUT  /api/group-buys/{id}/watches` `{ kind, optionId }` → 204 · `DELETE /api/group-buys/{id}/watches?kind=&optionId=` → 204 (로그인)
+ *      · `409 GROUP_BUY_NOT_RECRUITING|SOLD_OUT|SKU_SOLD_OUT|SKU_NOT_ON_SALE|ADDON_ONLY|LIMIT_EXCEEDED|ALREADY_JOINED` · `403 GROUP_BUY_SALES_CLOSED|MEMBER_RESTRICTED(GROUP_BUY_BAN)|IDENTITY_REQUIRED` · `429` · `503 DATA_KEY_MISSING`
+ *  - `PUT  /api/group-buys/{id}/watches` `{ kind, skuId }` → 204 · `DELETE /api/group-buys/{id}/watches?kind=&skuId=` → 204 (로그인)
  *  - 결제창: 가짜 결과는 `usePaymentTestApi().fakeCheckout`(가짜 게이트웨이 전용), 완료는 공용 `usePaymentApi().complete` — 주소는 각 파일에 있다.
  *
  * ⚠ MOCK: 서버에 API 가 없어(2b-2) `./mock/groupbuy-mock.ts` 를 부른다. 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
@@ -78,7 +79,7 @@ export function useGroupBuyApi() {
         unwatch: (id: number, body: GroupBuyWatchRequest): Promise<void> =>
             // MOCK:
             mockGroupBuyWatch(id, body, false),
-        // REAL: client.delete<void>(PATH.watches(id), { query: { kind: body.kind, optionId: body.optionId ?? undefined } }),
+        // REAL: client.delete<void>(PATH.watches(id), { query: { kind: body.kind, skuId: body.skuId ?? undefined } }),
 
         /** (결제창 공용 흐름) 가짜 결제창 결과 — 실제는 가짜 게이트웨이의 `fake-checkout` */
         fakeCheckout: (paymentId: string, body: PaymentFakeCheckoutRequest): Promise<void> =>

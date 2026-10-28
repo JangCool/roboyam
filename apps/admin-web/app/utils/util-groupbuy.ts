@@ -1,4 +1,4 @@
-import type { GroupBuyCloseReason, GroupBuyNotice, GroupBuyNoticeIncomplete, GroupBuyStatus, NoticeCatalog, NoticeCustomItem, NoticeItemDef, NoticeItemValue } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
+import type { GroupBuyCloseReason, GroupBuyNotice, GroupBuyNoticeIncomplete, GroupBuySkuKind, GroupBuyStatus, NoticeCatalog, NoticeCustomItem, NoticeItemDef, NoticeItemValue } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
 import type { GroupBuyOrderStatus, GroupBuyRefundState } from '~/composables/groupbuy/api/useGroupBuyOrderApi.types';
 import type { GroupBuyDeadlineLevel, GroupBuyDisposition, GroupBuyReasonCode, GroupBuyRequestStatus } from '~/composables/groupbuy/api/useGroupBuyRequestApi.types';
 
@@ -38,6 +38,11 @@ export default class UtilGroupBuy {
     /** 판매자 추가 항목 — 이름 길이 · 양식당 줄 수(2b-2 서버 규칙) */
     static readonly NOTICE_CUSTOM_LABEL_MAX = 40;
     static readonly NOTICE_CUSTOM_MAX = 20;
+
+    /** 옵션 축·단품(결정 88 — 축 3 · 값 30 · 조합 200 · 추가 구성상품 20 은 서버 2b-2, 글자 길이는 화면 가정) */
+    static readonly SKU = { axisMax: 3, valueMax: 30, comboMax: 200, addonMax: 20, axisNameMax: 20, valueNameMax: 30, addonNameMax: 50 } as const;
+    /** MAIN 단품 이름의 축 값 사이(서버가 같은 규칙으로 만든다 — 「블랙 / M」) */
+    static readonly SKU_NAME_SEPARATOR = ' / ';
 
     static statusSeverity(status: GroupBuyStatus): GroupBuyTagSeverity {
         if (status === 'RECRUITING') return 'success';
@@ -190,25 +195,56 @@ export default class UtilGroupBuy {
         return items.filter((def) => UtilGroupBuy.noticeValueEmpty(def, UtilGroupBuy.noticeItemValue(values, def.key))).map((def) => def.key);
     }
 
+    // ── 옵션 축·단품(결정 88) ──
+
+    /** MAIN 단품 이름 — 축 값 이름을 축 차례로 잇는다(축이 없으면 빈 글자) */
+    static skuMainName(valueNames: readonly string[]): string {
+        return valueNames.map((v) => v.trim()).join(UtilGroupBuy.SKU_NAME_SEPARATOR);
+    }
+
+    /** 축마다 값 목록 → 모든 조합(축 차례, 앞 축이 바깥). 축이 없으면 빈 조합 하나 */
+    static skuCombinations<T>(axes: readonly (readonly T[])[]): T[][] {
+        return axes.reduce<T[][]>((acc, values) => acc.flatMap((combo) => values.map((v) => [...combo, v])), [[]]);
+    }
+
+    /** 조합 수(축이 없으면 1) */
+    static skuComboCount(valueCounts: readonly number[]): number {
+        return valueCounts.reduce((n, c) => n * c, 1);
+    }
+
+    /** 이름 겹침 찾기 — 앞 줄과 같은 이름(공백 무시)이면 그 차례들 */
+    static repeatedNames(names: readonly string[]): number[] {
+        const seen = new Set<string>();
+        const out: number[] = [];
+        names.forEach((name, i) => {
+            const key = UtilGroupBuy.noticeNameKey(name);
+            if (!key) return;
+            if (seen.has(key)) out.push(i);
+            seen.add(key);
+        });
+        return out;
+    }
+
     /**
-     * 모집 시작 때 막힐 것 — 서버 `extras` 와 같은 모양. 양식 없음 · 빈 항목 · (기본 양식이 없을 때) 어느 양식에도 들지 않은 옵션.
-     * `optionNames` 는 공구 옵션 이름 전부.
+     * 모집 시작 때 막힐 것 — 서버 `extras` 와 같은 모양. 양식 없음 · 빈 항목 · 어느 양식에도 들지 않은 단품
+     * (추가 구성상품은 늘 자기 양식이 있어야 하고, MAIN 단품은 기본 양식이 없을 때만).
+     * `skus` 는 고시 대상 단품 — 판매하는 단품 중 이름이 있는 것(축 없는 단품 하나는 늘 기본 양식이라 빼도 된다).
      */
-    static noticeProblems(notices: readonly Pick<GroupBuyNotice, 'categoryCode' | 'title' | 'optionNames' | 'values'>[], catalog: NoticeCatalog, optionNames: readonly string[]): GroupBuyNoticeIncomplete {
+    static noticeProblems(notices: readonly Pick<GroupBuyNotice, 'categoryCode' | 'title' | 'skuNames' | 'values'>[], catalog: NoticeCatalog, skus: readonly { name: string; kind: GroupBuySkuKind }[]): GroupBuyNoticeIncomplete {
         const problems = notices
             .map((n, index) => {
                 const items = catalog.categories.find((c) => c.code === n.categoryCode)?.items ?? [];
                 return { index, title: n.title, categoryCode: n.categoryCode, missingKeys: UtilGroupBuy.noticeEmptyKeys(n.values, items) };
             })
             .filter((p) => p.missingKeys.length > 0);
-        const hasBase = notices.some((n) => n.optionNames.length === 0);
-        const assigned = new Set(notices.flatMap((n) => n.optionNames));
-        const unassignedOptions = notices.length === 0 || hasBase ? [] : optionNames.filter((name) => !assigned.has(name));
-        return { noNotice: notices.length === 0, notices: problems, unassignedOptions };
+        const hasBase = notices.some((n) => n.skuNames.length === 0);
+        const assigned = new Set(notices.flatMap((n) => n.skuNames));
+        const unassignedSkus = skus.filter((s) => !assigned.has(s.name) && (s.kind === 'ADDON' || (notices.length > 0 && !hasBase))).map((s) => s.name);
+        return { noNotice: notices.length === 0, notices: problems, unassignedSkus };
     }
 
     static noticeComplete(problems: GroupBuyNoticeIncomplete): boolean {
-        return !problems.noNotice && problems.notices.length === 0 && problems.unassignedOptions.length === 0;
+        return !problems.noNotice && problems.notices.length === 0 && problems.unassignedSkus.length === 0;
     }
 
     /** 「상세페이지 참조」뿐인 값 — 막지 않고 경고(원칙 3 취지: 항목마다 직접 적기). 참조 문구를 떼면 거의 남는 글이 없을 때 */

@@ -11,7 +11,7 @@
 
             <div v-for="item in request.items" :key="item.id" class="flex flex-col gap-2 rounded-lg border border-(--line) px-3 py-2">
                 <div class="flex flex-wrap items-center gap-2 text-[13px]">
-                    <span class="font-medium">{{ item.optionName ?? t('groupBuy.noOption') }}</span>
+                    <GroupBuySkuLabel :name="item.skuName" :kind="item.kind" class="font-medium" />
                     <span class="tabular-nums">{{ t('groupBuy.qtyN', { n: item.qty }) }}</span>
                     <Tag :value="t(`groupBuy.reasonCode.${item.reasonCode}`)" :severity="item.reasonCode === 'CHANGE_OF_MIND' || item.reasonCode === 'OTHER' ? 'secondary' : 'warn'" />
                     <span class="ml-auto text-xs tabular-nums" :class="sumOf(item.id) === item.qty ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'">{{ t('groupBuy.completeSum', { sum: sumOf(item.id), qty: item.qty }) }}</span>

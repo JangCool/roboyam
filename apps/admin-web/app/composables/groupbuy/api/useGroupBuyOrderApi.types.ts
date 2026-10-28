@@ -3,7 +3,7 @@
  * 주문 = `group_buy_participations`, 주문 줄 = `group_buy_participation_items`. 금액은 모두 서버 계산 값이다.
  */
 
-import type { GroupBuyFulfillment, GroupBuyMember, GroupBuyPage, GroupBuyStatus } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
+import type { GroupBuyFulfillment, GroupBuyMember, GroupBuyPage, GroupBuySkuKind, GroupBuyStatus } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
 
 /** 주문 상태(commerce.md 10-3) */
 export type GroupBuyOrderStatus = 'PENDING_PAYMENT' | 'JOINED' | 'CONFIRMED' | 'PREPARING' | 'SHIPPED' | 'DELIVERED' | 'CANCELED' | 'REFUNDED' | 'EXPIRED';
@@ -56,10 +56,15 @@ export interface GroupBuyOrderListResponse extends GroupBuyPage<GroupBuyOrderRow
     counts: Record<GroupBuyOrderStatus, number>;
 }
 
-/** 주문 줄 */
+/**
+ * 주문 줄 — 단품 하나(결정 88, 2b-2 확정 전 가정). 주문에는 MAIN 줄이 하나 이상 있다(추가 구성상품 단독 구매 불가 `GROUP_BUY_ADDON_ONLY`).
+ * `skuName` 은 주문 때 단품 이름 사본(축 없는 단품 하나는 빈 글자 — 화면은 「단품 하나」).
+ */
 export interface GroupBuyOrderItem {
     id: string;
-    optionName: string | null;
+    skuId: string;
+    skuName: string;
+    kind: GroupBuySkuKind;
     qty: number;
     unitPrice: number;
     itemAmount: number;

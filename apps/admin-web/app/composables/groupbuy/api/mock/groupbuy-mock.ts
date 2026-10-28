@@ -24,11 +24,14 @@
 //   · 「모집 시작」= DRAFT → RECRUITING(공개). 시작 시각이 미래면 회원 화면은 그때까지 「예정」 탭.
 //   · 운영자 조기 마감의 `close_reason` 은 `EARLY_CLOSED`(사용자 결정 2026-10-28 — 결정 79 에 더함).
 //   · 취소 요청 거절은 `ALREADY_SHIPPED` 하나뿐이고 사진이 필요 없다. 반품 거절은 그 밖의 코드 + 사진 1~3장.
-//   · 고시 양식(결정 87 — 2b-2 서버 모양): 저장 `notices[{categoryCode, title, optionNames, values[고시 항목 {itemKey, value, unavailable, unavailableReason} + 추가 항목 {custom: true, itemKey: null, name, value, sortOrder}]}]`,
-//     응답 `notices[{categoryCode, title, optionNames, values, customItems[{name, value, sortOrder}]}]`. 적용 옵션이 빈 양식 = 기본 양식(공구 전체).
-//     옵션이 있으면 기본 양식은 하나까지, 기본 양식이 없으면 모든 옵션이 어느 양식에 들어야 한다(`unassignedOptions` = 그때 빠진 옵션 이름 — 화면 해석).
-//     저장(모든 상태) 400 — 양식 제목 빔 · 「제공 불가」인데 사유 빔 · 한 옵션이 두 양식에 · 기본 양식 둘 · 없는 품목·옵션 · 추가 항목(반쪽 줄·40자·20개·이름 겹침·고시 항목 이름).
-//     모집 시작과 모집 뒤 저장 409 — 양식 없음 · 빈 항목 · 빠진 옵션(추가 항목은 대상 아님). 모집 뒤 수정은 `PATCH …/content` 에 같이, 고시만 바뀌면 이력 `NOTICE`. 추가 차수는 양식을 그대로 복사.
+//   · 고시 양식(결정 87 — 2b-2 서버 모양): 저장 `notices[{categoryCode, title, skuNames, values[고시 항목 {itemKey, value, unavailable, unavailableReason} + 추가 항목 {custom: true, itemKey: null, name, value, sortOrder}]}]`,
+//     응답 `notices[{categoryCode, title, skuIds, skuNames, values, customItems[{name, value, sortOrder}]}]`. 적용 단품이 빈 양식 = 기본 양식(MAIN 단품들만).
+//     축이 있으면 기본 양식은 하나까지, 기본 양식이 없으면 판매하는 MAIN 조합이 모두 어느 양식에 들어야 하고, 추가 구성상품은 늘 자기 양식(그 상품 하나만)이 있어야 한다(`unassignedSkus`).
+//     저장(모든 상태) 400 — 양식 제목 빔 · 「제공 불가」인데 사유 빔 · 한 단품이 두 양식에 · 기본 양식 둘 · 추가 구성상품을 섞음(`skuNames`) · 없는 품목·단품 · 추가 항목(반쪽 줄·40자·20개·이름 겹침·고시 항목 이름).
+//     모집 시작과 모집 뒤 저장 409 — 양식 없음 · 빈 항목 · 빠진 단품(추가 항목은 대상 아님). 모집 뒤 수정은 `PATCH …/content` 에 같이, 고시만 바뀌면 이력 `NOTICE`. 추가 차수는 양식을 복사(적용 단품은 새 ID).
+//   · 옵션 축·단품(결정 88 — 저장은 서버 2b-2 `GroupBuyDraft` 모양): 400 `fields.axes|skus|addons`(칸마다 메시지 하나). 모집 뒤 구성 변경은 409 `GROUP_BUY_LOCKED_FIELD`.
+//     판매 끈 조합은 고시 대상·공급 불가·수량 조정 대상이 아니다. 추가 입고·줄이기는 `skuId` — MAIN 은 공구 최대도 같이, ADDON 은 자기 한도만.
+//     단품 공급 불가: 다른 MAIN 줄이 남은 주문만 회원 선택을 묻는다(본 상품이 안 남으면 추가 구성상품도 함께 취소 — 2b-3 확정 전 가정).
 
 import { MOCK_ERRORS, mockClone, mockDelay, mockFlags } from '~/composables/common/mock/mock-util';
 import type { ApiError } from '~/composables/common/useApiClient';
@@ -48,7 +51,7 @@ import type {
     GroupBuyMovementQuery,
     GroupBuyNotice,
     GroupBuyNoticeInput,
-    GroupBuyOption,
+    GroupBuySku,
     GroupBuyPage,
     GroupBuyQuery,
     GroupBuyRevision,
@@ -197,7 +200,7 @@ function actionsOf(g: GroupBuyDetail): GroupBuyActions {
         canCreateRound: roundBlockedReason === null,
         roundBlockedReason: g.status === 'DRAFT' || g.status === 'RECRUITING' || g.status === 'CANCELED' ? 'SOURCE_INVALID' : roundBlockedReason,
         canDelayNotice: live && g.preShipOrderCount > 0,
-        canSupplyFailure: live && g.options.length > 0 && g.preShipOrderCount > 0,
+        canSupplyFailure: live && g.skus.filter((s) => s.onSale).length > 1 && g.preShipOrderCount > 0,
         canAdjustStock: g.status === 'RECRUITING',
     };
 }
@@ -247,7 +250,7 @@ function addRevision(g: GroupBuyDetail, kind: GroupBuyRevision['kind'], changedF
         imageCount: g.images.length,
         maxQty: g.maxQty,
         addedQty: g.addedQty,
-        optionMax: g.options.map((o) => ({ name: o.name, maxQty: o.maxQty })),
+        skuMax: namedSkus(g).map((s) => ({ name: s.name, kind: s.kind, maxQty: s.maxQty })),
         shipPlannedAt: g.shipPlannedAt,
         notices: mockClone(g.notices),
         operator: OPERATOR,
@@ -256,20 +259,27 @@ function addRevision(g: GroupBuyDetail, kind: GroupBuyRevision['kind'], changedF
     db().revisions.set(g.id, list);
 }
 
-function addMovement(g: GroupBuyDetail, kind: GroupBuyMovement['kind'], qty: number, optionId: string | null, reason: string | null): void {
+/** 판매하는 단품 중 이름이 있는 것(조합·추가 구성상품) — 축 없는 단품 하나는 공구 전체로 다룬다 */
+function namedSkus(g: GroupBuyDetail): GroupBuySku[] {
+    return g.skus.filter((s) => s.onSale && (s.kind === 'ADDON' || s.valueIds.length > 0));
+}
+
+function addMovement(g: GroupBuyDetail, kind: GroupBuyMovement['kind'], qty: number, skuId: string | null, reason: string | null): void {
     const list = db().movements.get(g.id) ?? seedMovements(g);
-    const option = optionId ? (g.options.find((o) => o.id === optionId) ?? null) : null;
+    const target = skuId ? (g.skus.find((s) => s.skuId === skuId) ?? null) : null;
+    const named = target && (target.kind === 'ADDON' || target.valueIds.length > 0) ? target : null;
     list.unshift({
         id: nextId('mv'),
         kind,
-        optionName: option?.name ?? null,
+        skuName: named?.name ?? null,
+        skuKind: named?.kind ?? null,
         qty,
         currentAfter: g.currentQty,
         reservedAfter: g.reservedQty,
         maxAfter: g.maxQty,
-        optionCurrentAfter: option?.currentQty ?? null,
-        optionReservedAfter: option?.reservedQty ?? null,
-        optionMaxAfter: option?.maxQty ?? null,
+        skuCurrentAfter: named?.currentQty ?? null,
+        skuReservedAfter: named?.reservedQty ?? null,
+        skuMaxAfter: named?.maxQty ?? null,
         orderNo: null,
         actor: OPERATOR,
         reason,
@@ -331,26 +341,34 @@ function splitValues(n: GroupBuyNoticeInput): { items: NoticeItemValue[]; custom
     return { items, customs };
 }
 
+/** 고시 대상 단품(판매하는 이름 있는 단품 — 축 없는 단품 하나는 늘 기본 양식) */
+type SkuTarget = Pick<GroupBuySku, 'name' | 'kind'>;
+
 /**
- * 양식 저장 검사(모든 상태 — 400 `fields.notices[i].…`). 빈 항목·어느 양식에도 안 든 옵션은 여기서 막지 않는다(모집 시작 때 409).
- * `optionNames` 는 이 저장이 끝난 뒤의 옵션 이름 전부(DRAFT 는 요청의 옵션, 모집 뒤는 지금 옵션).
+ * 양식 저장 검사(모든 상태 — 400 `fields.notices[i].…`). 빈 항목·어느 양식에도 안 든 단품은 여기서 막지 않는다(모집 시작 때 409).
+ * `targets` 는 이 저장이 끝난 뒤의 고시 대상 단품(DRAFT 는 요청의 구성, 모집 뒤는 지금 구성).
+ * 추가 구성상품 양식에는 그 상품 하나만(MAIN 단품·다른 추가 구성상품과 섞으면 `skuNames` — 서버 2b-2).
  * 판매자 추가 항목 오류 키 `notices[i].customItems[k].name|value` 의 k 는 요청의 추가 항목 차례(빈 줄 포함)라고 가정한다.
  */
-function noticeFields(notices: readonly GroupBuyNoticeInput[], optionNames: readonly string[], fields: Record<string, string>): void {
+function noticeFields(notices: readonly GroupBuyNoticeInput[], targets: readonly SkuTarget[], fields: Record<string, string>): void {
     const owner = new Map<string, number>();
+    const kindOf = new Map(targets.map((s) => [s.name, s.kind]));
+    const hasMainTargets = targets.some((s) => s.kind === 'MAIN');
     let baseSeen = false;
     notices.forEach((n, i) => {
         const category = CATALOG.categories.find((c) => c.code === n.categoryCode);
         if (!category) fields[`notices[${i}].categoryCode`] = '고시 품목을 골라 주세요.';
         if (!n.title.trim()) fields[`notices[${i}].title`] = '양식 제목을 입력해 주세요.';
         else if (Array.from(n.title.trim()).length > UtilGroupBuy.NOTICE_TITLE_MAX) fields[`notices[${i}].title`] = `양식 제목은 ${UtilGroupBuy.NOTICE_TITLE_MAX}자까지예요.`;
-        if (n.optionNames.length === 0) {
-            if (baseSeen && optionNames.length > 0) fields[`notices[${i}].optionNames`] = '옵션이 있는 공구는 기본 양식(적용 옵션 비움)을 하나만 둘 수 있어요. 적용할 옵션을 골라 주세요.';
+        if (n.skuNames.length === 0) {
+            if (baseSeen && hasMainTargets) fields[`notices[${i}].skuNames`] = '옵션 조합이 있는 공구는 기본 양식(적용 단품 비움)을 하나만 둘 수 있어요. 적용할 단품을 골라 주세요.';
             baseSeen = true;
         }
-        for (const name of n.optionNames) {
-            if (!optionNames.includes(name)) fields[`notices[${i}].optionNames`] = `「${name}」 옵션이 없어요. 화면을 새로 불러와 주세요.`;
-            else if (owner.has(name)) fields[`notices[${i}].optionNames`] = `「${name}」 옵션은 이미 「${notices[owner.get(name)!]!.title}」 양식에 들어 있어요. 한 옵션은 양식 하나에만 넣어요.`;
+        const addons = n.skuNames.filter((name) => kindOf.get(name) === 'ADDON');
+        if (addons.length && n.skuNames.length > 1) fields[`notices[${i}].skuNames`] = `추가 구성상품 「${addons[0]}」 양식에는 그 상품 하나만 넣어요.`;
+        for (const name of n.skuNames) {
+            if (!kindOf.has(name)) fields[`notices[${i}].skuNames`] = `「${name}」 단품이 없어요. 화면을 새로 불러와 주세요.`;
+            else if (owner.has(name)) fields[`notices[${i}].skuNames`] = `「${name}」 단품은 이미 「${notices[owner.get(name)!]!.title}」 양식에 들어 있어요. 한 단품은 양식 하나에만 넣어요.`;
             else owner.set(name, i);
         }
         n.values.forEach((v, j) => {
@@ -378,14 +396,17 @@ function noticeFields(notices: readonly GroupBuyNoticeInput[], optionNames: read
     });
 }
 
-/** 저장할 양식(응답 모양) — 지금 옵션에 없는 이름을 빼고, 빈 추가 줄을 버리고 `sortOrder` 를 0부터 다시 매긴다. 글은 그대로(평문 글자 그대로) */
-function noticesOf(notices: readonly GroupBuyNoticeInput[], optionNames: readonly string[]): GroupBuyNotice[] {
+/** 저장할 양식(응답 모양) — 적용 단품 이름을 지금 단품의 ID·이름으로(없는 이름은 뺀다), 빈 추가 줄을 버리고 `sortOrder` 를 0부터 다시 매긴다 */
+function noticesOf(notices: readonly GroupBuyNoticeInput[], skus: readonly GroupBuySku[]): GroupBuyNotice[] {
+    const targets = skus.filter((s) => s.onSale && (s.kind === 'ADDON' || s.valueIds.length > 0));
     return notices.map((n) => {
         const { items, customs } = splitValues(n);
+        const picked = n.skuNames.flatMap((name) => targets.filter((s) => s.name === name));
         return {
             categoryCode: n.categoryCode,
             title: n.title.trim(),
-            optionNames: n.optionNames.filter((o) => optionNames.includes(o)),
+            skuIds: picked.map((s) => s.skuId),
+            skuNames: picked.map((s) => s.name),
             values: items.map((v) => ({ itemKey: v.itemKey, value: v.value, unavailable: v.unavailable, unavailableReason: v.unavailable ? v.unavailableReason : '' })),
             customItems: customs.filter((c) => c.name.trim() || c.value.trim()).map((c, k) => ({ name: c.name, value: c.value, sortOrder: k })),
         };
@@ -394,11 +415,11 @@ function noticesOf(notices: readonly GroupBuyNoticeInput[], optionNames: readonl
 
 /** 비교용 양식 내용 */
 function noticeShape(notices: readonly GroupBuyNotice[]): string {
-    return JSON.stringify(notices.map((n) => ({ ...n, optionNames: [...n.optionNames].sort() })));
+    return JSON.stringify(notices.map((n) => ({ ...n, skuIds: [...n.skuIds].sort(), skuNames: [...n.skuNames].sort() })));
 }
 
-function noticeIncompleteError(notices: readonly GroupBuyNotice[], optionNames: readonly string[], force: boolean): ApiError | null {
-    const problems = UtilGroupBuy.noticeProblems(notices, CATALOG, optionNames);
+function noticeIncompleteError(notices: readonly GroupBuyNotice[], targets: readonly SkuTarget[], force: boolean): ApiError | null {
+    const problems = UtilGroupBuy.noticeProblems(notices, CATALOG, targets);
     if (force && UtilGroupBuy.noticeComplete(problems)) {
         const first = notices[0];
         const key = first ? CATALOG.categories.find((c) => c.code === first.categoryCode)?.items[0]?.key : undefined;
@@ -406,13 +427,52 @@ function noticeIncompleteError(notices: readonly GroupBuyNotice[], optionNames: 
         else problems.noNotice = true;
     }
     if (UtilGroupBuy.noticeComplete(problems)) return null;
-    return MOCK_ERRORS.conflict('GROUP_BUY_NOTICE_INCOMPLETE', '상품정보제공고시 양식을 다 채우지 않았어요. 빈 항목은 값을 적거나 「제공 불가」와 사유를 적고, 모든 옵션이 어느 양식에 들게 해 주세요.', { ...problems });
+    return MOCK_ERRORS.conflict('GROUP_BUY_NOTICE_INCOMPLETE', '상품정보제공고시 양식을 다 채우지 않았어요. 빈 항목은 값을 적거나 「제공 불가」와 사유를 적고, 추가 구성상품마다 양식을 두고 모든 단품이 어느 양식에 들게 해 주세요.', { ...problems });
+}
+
+/** 저장 요청의 고시 대상 단품(조합 이름 — 판매하는 것만 · 추가 구성상품) */
+function draftTargets(body: GroupBuySaveRequest): SkuTarget[] {
+    const off = new Set(body.skus.filter((s) => !s.onSale).map((s) => UtilGroupBuy.skuMainName(s.values)));
+    const combos = body.axes.length ? UtilGroupBuy.skuCombinations(body.axes.map((a) => a.values)).map((v) => UtilGroupBuy.skuMainName(v)) : [];
+    return [...combos.filter((name) => !off.has(name)).map((name): SkuTarget => ({ name, kind: 'MAIN' })), ...body.addons.map((a): SkuTarget => ({ name: a.name.trim(), kind: 'ADDON' }))];
+}
+
+/**
+ * 옵션 구성 검사(서버 2b-2 `GroupBuyDraft` 규칙 — 오류 칸은 `axes`·`skus`·`addons` 하나씩):
+ * 축 0~3 · 축 이름 빔/겹침 · 축마다 값 1~30 · 값 빔/겹침 · 조합 ≤ 200 · 조합이 축 값과 안 맞음 · 판매 조합 1개 이상 · 추가 구성상품 ≤ 20 · 이름 빔/겹침/조합 이름과 겹침 · 가격.
+ */
+function skuFields(body: GroupBuySaveRequest, fields: Record<string, string>): void {
+    const S = UtilGroupBuy.SKU;
+    const axes = body.axes;
+    if (axes.length > S.axisMax) fields.axes = `옵션 축은 ${S.axisMax}개까지예요.`;
+    else if (axes.some((a) => !a.name.trim())) fields.axes = '옵션 이름을 입력해 주세요.';
+    else if (UtilGroupBuy.repeatedNames(axes.map((a) => a.name)).length) fields.axes = '같은 이름의 옵션이 있어요.';
+    else if (axes.some((a) => a.values.length < 1 || a.values.length > S.valueMax)) fields.axes = `옵션마다 값을 1~${S.valueMax}개 적어 주세요.`;
+    else if (axes.some((a) => a.values.some((v) => !v.trim()))) fields.axes = '빈 옵션 값이 있어요.';
+    else if (axes.some((a) => UtilGroupBuy.repeatedNames(a.values).length)) fields.axes = '한 옵션 안에 같은 값이 있어요.';
+    const comboCount = UtilGroupBuy.skuComboCount(axes.map((a) => a.values.length));
+    if (!fields.axes && axes.length && comboCount > S.comboMax) fields.axes = `옵션 조합은 ${S.comboMax}개까지예요(지금 ${comboCount}개).`;
+    if (!fields.axes) {
+        const valid = (values: string[]) => values.length === axes.length && values.every((v, i) => axes[i]!.values.includes(v));
+        if (body.skus.some((s) => !valid(s.values))) fields.skus = '옵션 값에 없는 조합이 있어요. 화면을 새로 불러와 주세요.';
+        else if (body.skus.some((s) => s.extraPrice < 0 || (s.maxQty !== null && s.maxQty < 1))) fields.skus = '추가금은 0 이상, 한도는 1 이상(비우면 한도 없음)으로 적어 주세요.';
+        else if (axes.length && body.skus.filter((s) => !s.onSale).length >= comboCount) fields.skus = '판매하는 조합이 하나 이상 있어야 해요.';
+    }
+    const comboNames = new Set(axes.length ? UtilGroupBuy.skuCombinations(axes.map((a) => a.values)).map((v) => UtilGroupBuy.noticeNameKey(UtilGroupBuy.skuMainName(v))) : []);
+    const addons = body.addons;
+    if (addons.length > S.addonMax) fields.addons = `추가 구성상품은 ${S.addonMax}개까지예요.`;
+    else if (addons.some((a) => !a.name.trim())) fields.addons = '추가 구성상품 이름을 입력해 주세요.';
+    else if (UtilGroupBuy.repeatedNames(addons.map((a) => a.name)).length) fields.addons = '같은 이름의 추가 구성상품이 있어요.';
+    else if (addons.some((a) => comboNames.has(UtilGroupBuy.noticeNameKey(a.name)))) fields.addons = '추가 구성상품 이름이 옵션 조합 이름과 같아요.';
+    else if (addons.some((a) => !(a.price > 0))) fields.addons = '추가 구성상품 가격을 입력해 주세요.';
+    else if (addons.some((a) => a.maxQty === null || a.maxQty < 1)) fields.addons = '추가 구성상품 한도 수량을 1 이상으로 적어 주세요.';
 }
 
 /** 저장 칸 검사 — 서버 `GroupBuyAdminService` 의 규칙 후보(필드 키 = 요청 칸 이름) */
 function validateSave(body: GroupBuySaveRequest): void {
     const fields: Record<string, string> = {};
-    noticeFields(body.notices, body.options.map((o) => o.name.trim()).filter(Boolean), fields);
+    noticeFields(body.notices, draftTargets(body), fields);
+    skuFields(body, fields);
     if (!body.title.trim()) fields.title = '제목을 입력해 주세요.';
     if (!body.productName.trim()) fields.productName = '상품명을 입력해 주세요.';
     if (!(body.groupPrice > 0)) fields.groupPrice = '공구가를 입력해 주세요.';
@@ -427,13 +487,45 @@ function validateSave(body: GroupBuySaveRequest): void {
         const cap = body.minQty > 0 ? 14 : 30;
         if (days > cap) fields.endAt = `${body.minQty > 0 ? '성사형' : '선착순'} 공구는 기간이 ${cap}일을 넘을 수 없어요.`;
     }
-    const names = new Set<string>();
-    body.options.forEach((o, i) => {
-        if (!o.name.trim()) fields[`options[${i}].name`] = '옵션 이름을 입력해 주세요.';
-        else if (names.has(o.name.trim())) fields[`options[${i}].name`] = '같은 이름의 옵션이 있어요.';
-        names.add(o.name.trim());
-    });
     if (Object.keys(fields).length) throw MOCK_ERRORS.validation(fields);
+}
+
+/**
+ * 저장 요청 → 축·단품(응답 모양). DRAFT 를 다시 저장해도 고시 양식의 `skuIds` 가 이어지게 같은 이름(축·값)·같은 조합·같은 이름(추가 구성상품)은 ID 를 살린다.
+ * 적지 않은 조합은 추가금 0 · 한도 없음 · 판매(서버 2b-2). 축이 없으면 단품 하나.
+ */
+function buildSkus(g: GroupBuyDetail, body: GroupBuySaveRequest): Pick<GroupBuyDetail, 'axes' | 'skus'> {
+    const axes = body.axes.map((a, i) => {
+        const before = g.axes.find((x) => x.name === a.name.trim());
+        const axisId = before?.id ?? nextId('ax');
+        return { id: axisId, name: a.name.trim(), sortOrder: i, values: a.values.map((v, j) => ({ id: before?.values.find((x) => x.name === v.trim())?.id ?? nextId('av'), name: v.trim(), sortOrder: j })) };
+    });
+    const mainsBefore = g.skus.filter((s) => s.kind === 'MAIN');
+    const mains: GroupBuySku[] = axes.length
+        ? UtilGroupBuy.skuCombinations(axes.map((a) => a.values)).map((values) => {
+              const name = UtilGroupBuy.skuMainName(values.map((v) => v.name));
+              const input = body.skus.find((s) => UtilGroupBuy.skuMainName(s.values) === name);
+              const extra = input?.extraPrice ?? 0;
+              return { skuId: mainsBefore.find((s) => s.name === name)?.skuId ?? nextId('sku'), kind: 'MAIN', valueIds: values.map((v) => v.id), name, extraPrice: extra, unitPrice: body.groupPrice + extra, maxQty: input?.maxQty ?? null, initialMaxQty: null, currentQty: 0, reservedQty: 0, onSale: input?.onSale ?? true, imageKey: null, imageUrl: null, sortOrder: 0 };
+          })
+        : [{ skuId: mainsBefore.find((s) => s.valueIds.length === 0)?.skuId ?? nextId('sku'), kind: 'MAIN', valueIds: [], name: '', extraPrice: 0, unitPrice: body.groupPrice, maxQty: null, initialMaxQty: null, currentQty: 0, reservedQty: 0, onSale: true, imageKey: null, imageUrl: null, sortOrder: 0 }];
+    const addons: GroupBuySku[] = body.addons.map((a) => ({
+        skuId: g.skus.find((s) => s.kind === 'ADDON' && s.name === a.name.trim())?.skuId ?? nextId('sku'),
+        kind: 'ADDON',
+        valueIds: [],
+        name: a.name.trim(),
+        extraPrice: 0,
+        unitPrice: a.price,
+        maxQty: a.maxQty,
+        initialMaxQty: null,
+        currentQty: 0,
+        reservedQty: 0,
+        onSale: true,
+        imageKey: a.imageKey,
+        imageUrl: a.imageKey ? imageOf(a.imageKey).thumbUrl : null,
+        sortOrder: 0,
+    }));
+    return { axes, skus: [...mains, ...addons].map((s, i) => ({ ...s, sortOrder: i })) };
 }
 
 function applySave(g: GroupBuyDetail, body: GroupBuySaveRequest): void {
@@ -462,8 +554,8 @@ function applySave(g: GroupBuyDetail, body: GroupBuySaveRequest): void {
         updatedAt: new Date().toISOString(),
     });
     g.images = body.imageIds.map((mediaId) => imageOf(mediaId));
-    g.options = body.options.map((o) => ({ id: o.id ?? nextId('op'), name: o.name.trim(), extraPrice: o.extraPrice, maxQty: o.maxQty, initialMaxQty: null, currentQty: 0, reservedQty: 0 }));
-    g.notices = noticesOf(body.notices, g.options.map((o) => o.name));
+    Object.assign(g, buildSkus(g, body));
+    g.notices = noticesOf(body.notices, g.skus);
     g.version += 1;
 }
 
@@ -518,14 +610,14 @@ export async function mockGroupBuyContent(id: string, body: GroupBuyContentReque
     if (flags.has('gb-version') || body.version !== g.version) throw MOCK_ERRORS.conflict('GROUP_BUY_VERSION_CONFLICT', '다른 운영자가 먼저 고쳤어요. 새로 불러온 뒤 다시 고쳐 주세요.');
     const fields: Record<string, string> = {};
     if (body.imageIds.length > 8) fields.imageIds = '대표 이미지는 8장까지예요.';
-    const optionNames = g.options.map((o) => o.name);
-    noticeFields(body.notices, optionNames, fields);
+    const targets = namedSkus(g);
+    noticeFields(body.notices, targets, fields);
     if (Object.keys(fields).length) throw MOCK_ERRORS.validation(fields);
-    const nextNotices = noticesOf(body.notices, optionNames);
+    const nextNotices = noticesOf(body.notices, g.skus);
     const noticesChanged = noticeShape(nextNotices) !== noticeShape(g.notices);
     // 모집 뒤라 공개된 양식이 덜 찬 채로 남으면 안 된다
     if (noticesChanged) {
-        const incomplete = noticeIncompleteError(nextNotices, optionNames, false);
+        const incomplete = noticeIncompleteError(nextNotices, targets, false);
         if (incomplete) throw incomplete;
     }
     const changed: string[] = [];
@@ -569,12 +661,12 @@ export async function mockGroupBuyStart(id: string): Promise<GroupBuyDetail> {
     if (g.status !== 'DRAFT') throw MOCK_ERRORS.conflict('GROUP_BUY_NOT_DRAFT', '이미 모집을 시작한 공구예요.');
     if (flags.has('gb-no-policy') || g.shippingPolicyCode === 'FREE') throw MOCK_ERRORS.conflict('GROUP_BUY_SHIPPING_POLICY_MISSING', '고른 배송비 정책에 지금 유효한 줄이 없어요. 설정 › 커머스 설정에서 확인해 주세요.');
     if (g.fulfillment === 'AFTER_CLOSE' && !g.shipPlannedAt) throw MOCK_ERRORS.validation({ shipPlannedAt: '마감 후 발주 공구는 발송 예정일이 필요해요.' });
-    const incomplete = noticeIncompleteError(g.notices, g.options.map((o) => o.name), flags.has('notice-incomplete'));
+    const incomplete = noticeIncompleteError(g.notices, namedSkus(g), flags.has('notice-incomplete'));
     if (incomplete) throw incomplete;
     g.status = 'RECRUITING';
     g.shippingSnapshot = g.shippingPolicyCode === 'BULKY' ? { shippingFee: 15000, freeShippingOver: null, returnShippingFee: 15000, returnFeeMode: 'ROUND_TRIP' } : { shippingFee: 3000, freeShippingOver: 50000, returnShippingFee: 3000, returnFeeMode: 'ONE_WAY' };
     g.initialMaxQty = g.maxQty;
-    g.options = g.options.map((o) => ({ ...o, initialMaxQty: o.maxQty }));
+    g.skus = g.skus.map((s) => ({ ...s, initialMaxQty: s.maxQty }));
     if (!g.startAt || g.startAt < new Date().toISOString()) g.startAt = new Date().toISOString();
     g.updatedAt = new Date().toISOString();
     addRevision(g, 'START', []);
@@ -646,9 +738,10 @@ export async function mockGroupBuyCreateRound(id: string): Promise<GroupBuyRound
     const roundNo = Math.max(...db().groupBuys.filter((g) => g.roundRootId === source.roundRootId).map((g) => g.roundNo)) + 1;
     const newId = nextId('gb');
     const now = new Date().toISOString();
-    // 옵션은 새 ID 로, 고시 양식(판매자 추가 항목 포함)은 그대로 복사한다(적용 옵션은 이름이라 그대로 — 결정 87)
-    const options: GroupBuyOption[] = source.options.map((o) => ({ ...o, id: nextId('op'), initialMaxQty: null, currentQty: 0, reservedQty: 0 }));
-    const notices: GroupBuyNotice[] = mockClone(source.notices);
+    // 축·단품은 새 ID 로(구성·추가금·한도·판매 여부는 그대로), 고시 양식(판매자 추가 항목 포함)은 적용 단품을 새 ID 로 바꿔 복사한다(결정 87·88)
+    const idMap = new Map(source.skus.map((s) => [s.skuId, nextId('sku')]));
+    const skus: GroupBuySku[] = source.skus.map((s) => ({ ...s, skuId: idMap.get(s.skuId)!, initialMaxQty: null, currentQty: 0, reservedQty: 0 }));
+    const notices: GroupBuyNotice[] = mockClone(source.notices).map((n) => ({ ...n, skuIds: n.skuIds.map((x) => idMap.get(x) ?? x) }));
     const copy: GroupBuyDetail = {
         ...mockClone(source),
         id: newId,
@@ -658,7 +751,7 @@ export async function mockGroupBuyCreateRound(id: string): Promise<GroupBuyRound
         title: source.title.replace(/\s*\d+차$/, '') + ` ${roundNo}차`,
         normalPriceBasis: 'PREVIOUS_ROUND',
         normalPriceSource: `${source.roundNo}차 공구가 ${source.groupPrice.toLocaleString('ko-KR')}원`,
-        options,
+        skus,
         notices,
         initialMaxQty: null,
         addedQty: 0,
@@ -699,44 +792,48 @@ export async function mockGroupBuyDelayNotice(id: string, body: GroupBuyDelayNot
     return present(g);
 }
 
-export async function mockGroupBuySupplyPreview(id: string, optionId: string): Promise<GroupBuySupplyFailurePreview> {
+export async function mockGroupBuySupplyPreview(id: string, skuId: string): Promise<GroupBuySupplyFailurePreview> {
     await guardRead();
     const g = findGroupBuy(id);
-    const option = g.options.find((o) => o.id === optionId);
-    if (!option) throw MOCK_ERRORS.validation({ optionId: '옵션을 골라 주세요.' });
-    const lines = Math.max(1, Math.round(option.currentQty / 3));
-    return { optionId, optionName: option.name, cancelLines: lines, refundAmount: lines * (g.groupPrice + option.extraPrice), fullRefundOrders: Math.ceil(lines / 2), choiceOrders: Math.floor(lines / 2), choiceDeadline: mockAt(3 * 1440) };
+    const target = g.skus.find((s) => s.skuId === skuId && s.onSale);
+    if (!target) throw MOCK_ERRORS.validation({ skuId: '단품을 골라 주세요.' });
+    const lines = Math.max(1, Math.round(target.currentQty / 3));
+    return { skuId, skuName: target.name, skuKind: target.kind, cancelLines: lines, refundAmount: lines * target.unitPrice, fullRefundOrders: Math.ceil(lines / 2), choiceOrders: Math.floor(lines / 2), choiceDeadline: mockAt(3 * 1440) };
 }
 
 export async function mockGroupBuySupplyFailure(id: string, body: GroupBuySupplyFailureRequest): Promise<GroupBuyDetail> {
     await guardWrite();
     const g = findGroupBuy(id);
     const fields: Record<string, string> = {};
-    const option = g.options.find((o) => o.id === body.optionId);
-    if (!option) fields.optionId = '옵션을 골라 주세요.';
+    const target = g.skus.find((s) => s.skuId === body.skuId && s.onSale);
+    if (!target) fields.skuId = '단품을 골라 주세요.';
     const problem = reasonProblem(body.reason);
     if (problem) fields.reason = problem;
-    if (Object.keys(fields).length || !option) throw MOCK_ERRORS.validation(fields);
-    const preview = await mockGroupBuySupplyPreview(id, body.optionId);
-    g.supplyFailures.unshift({ id: nextId('sf'), optionId: option.id, optionName: option.name, reason: body.reason.trim(), refundedLines: preview.cancelLines, refundAmount: preview.refundAmount, choiceOrders: preview.choiceOrders, choicePending: preview.choiceOrders, choiceDeadline: preview.choiceDeadline, operator: OPERATOR, createdAt: new Date().toISOString() });
-    option.maxQty = option.currentQty;
-    addMovement(g, 'REDUCE', 0, option.id, `공급 불가 — ${body.reason.trim()}`);
+    if (Object.keys(fields).length || !target) throw MOCK_ERRORS.validation(fields);
+    const preview = await mockGroupBuySupplyPreview(id, body.skuId);
+    g.supplyFailures.unshift({ id: nextId('sf'), skuId: target.skuId, skuName: target.name, skuKind: target.kind, reason: body.reason.trim(), refundedLines: preview.cancelLines, refundAmount: preview.refundAmount, choiceOrders: preview.choiceOrders, choicePending: preview.choiceOrders, choiceDeadline: preview.choiceDeadline, operator: OPERATOR, createdAt: new Date().toISOString() });
+    target.maxQty = target.currentQty;
+    addMovement(g, 'REDUCE', 0, target.skuId, `공급 불가 — ${body.reason.trim()}`);
     for (const o of ordersOf(id)) {
-        if (!PRE_SHIP.includes(o.status) || !o.items.some((i) => i.optionName === option.name)) continue;
-        if (o.items.length > 1) o.supplyChoicePending = true;
+        if (!PRE_SHIP.includes(o.status) || !o.items.some((i) => i.skuId === target.skuId)) continue;
+        // 다른 줄이 남으면 회원 선택(본 상품이 하나도 안 남으면 추가 구성상품도 함께 취소 — 2b-3 확정 전 가정)
+        const rest = o.items.filter((i) => i.skuId !== target.skuId);
+        if (rest.some((i) => i.kind === 'MAIN')) o.supplyChoicePending = true;
     }
     return present(g);
 }
 
-// ── 수량 ─────────────────────────────────────────
+// ── 수량(결정 88 — 공구 합계는 MAIN 단품만, 추가 구성상품은 자기 한도) ─────────────
 
-function stockLine(g: GroupBuyDetail, option: GroupBuyDetail['options'][number] | null): GroupBuyStockLine {
+function stockLine(g: GroupBuyDetail, target: GroupBuySku | null): GroupBuyStockLine {
     const gbRemaining = Math.max(0, g.maxQty - g.currentQty - g.reservedQty);
-    const returned = g.id === 'gb-102' ? (option ? (option.name === '블랙' ? 1 : 0) : 1) : 0;
-    if (!option) {
+    const returned = g.id === 'gb-102' ? 1 : 0;
+    if (!target) {
         return {
-            optionId: null,
+            skuId: null,
+            kind: null,
             name: g.title,
+            onSale: true,
             maxQty: g.maxQty,
             initialMaxQty: g.initialMaxQty,
             addedQty: g.initialMaxQty === null ? 0 : Math.max(0, g.maxQty - g.initialMaxQty),
@@ -750,35 +847,44 @@ function stockLine(g: GroupBuyDetail, option: GroupBuyDetail['options'][number] 
             reduceFloor: Math.max(g.currentQty + g.reservedQty, g.minQty),
         };
     }
-    const optRemaining = option.maxQty === null ? gbRemaining : Math.min(Math.max(0, option.maxQty - option.currentQty - option.reservedQty), gbRemaining);
+    const own = target.maxQty === null ? null : Math.max(0, target.maxQty - target.currentQty - target.reservedQty);
+    // MAIN 은 공구 남은 수량도 본다 — ADDON 은 자기 한도만
+    const remaining = !target.onSale ? 0 : target.kind === 'ADDON' ? (own ?? 0) : own === null ? gbRemaining : Math.min(own, gbRemaining);
+    const soldOut = target.onSale && target.maxQty !== null && target.currentQty >= target.maxQty;
     return {
-        optionId: option.id,
-        name: option.name,
-        maxQty: option.maxQty,
-        initialMaxQty: option.initialMaxQty,
-        addedQty: option.initialMaxQty === null || option.maxQty === null ? 0 : Math.max(0, option.maxQty - option.initialMaxQty),
-        currentQty: option.currentQty,
-        reservedQty: option.reservedQty,
-        remainingQty: optRemaining,
-        returnedQty: returned,
+        skuId: target.skuId,
+        kind: target.kind,
+        name: target.name,
+        onSale: target.onSale,
+        maxQty: target.maxQty,
+        initialMaxQty: target.initialMaxQty,
+        addedQty: target.initialMaxQty === null || target.maxQty === null ? 0 : Math.max(0, target.maxQty - target.initialMaxQty),
+        currentQty: target.currentQty,
+        reservedQty: target.reservedQty,
+        remainingQty: remaining,
+        returnedQty: 0,
         restockedQty: 0,
-        soldOut: option.maxQty !== null && option.currentQty >= option.maxQty,
-        tempSoldOut: optRemaining === 0 && !(option.maxQty !== null && option.currentQty >= option.maxQty),
-        reduceFloor: option.currentQty + option.reservedQty,
+        soldOut,
+        tempSoldOut: target.onSale && remaining === 0 && !soldOut,
+        reduceFloor: target.currentQty + target.reservedQty,
     };
 }
 
 function stockView(g: GroupBuyDetail): GroupBuyStockView {
+    const named = namedSkus(g);
+    const holdName = (i: number) => (named[i] ? named[i]!.name : g.productName);
     const holds = g.reservedQty > 0
         ? [
-              { orderNo: 'G2026102800044', member: { id: '10311', nickname: '테크러버', withdrawn: false }, lines: g.options[0] ? `${g.options[0].name} × 1` : `${g.productName} × ${Math.min(2, g.reservedQty)}`, qty: Math.min(2, g.reservedQty), reservedUntil: mockAt(3) },
-              ...(g.reservedQty > 2 ? [{ orderNo: 'G2026102800047', member: { id: '10102', nickname: '메이커준', withdrawn: false }, lines: g.options[2] ? `${g.options[2].name} × 2` : `${g.productName} × ${g.reservedQty - 2}`, qty: g.reservedQty - 2, reservedUntil: mockAt(1) }] : []),
+              { orderNo: 'G2026102800044', member: { id: '10311', nickname: '테크러버', withdrawn: false }, lines: `${holdName(0)} × ${Math.min(2, g.reservedQty)}`, qty: Math.min(2, g.reservedQty), reservedUntil: mockAt(3) },
+              ...(g.reservedQty > 2 ? [{ orderNo: 'G2026102800047', member: { id: '10102', nickname: '메이커준', withdrawn: false }, lines: `${holdName(1)} × ${g.reservedQty - 2}`, qty: g.reservedQty - 2, reservedUntil: mockAt(1) }] : []),
           ]
         : [];
+    // 축이 있는 MAIN 조합(판매 끈 것 포함) 다음 추가 구성상품 — 축 없는 단품 하나는 공구 전체 줄로 본다
+    const lines = g.skus.filter((s) => s.kind === 'ADDON' || s.valueIds.length > 0);
     return mockClone({
         groupBuy: { id: g.id, title: g.title, roundNo: g.roundNo, status: g.status, minQty: g.minQty, fulfillment: g.fulfillment },
         total: stockLine(g, null),
-        options: g.options.map((o) => stockLine(g, o)),
+        skus: lines.map((s) => stockLine(g, s)),
         holds,
         canAdjust: g.status === 'RECRUITING',
     });
@@ -798,6 +904,10 @@ export async function mockGroupBuyMovements(id: string, query: GroupBuyMovementQ
     return mockClone({ items: filtered.slice(query.page * query.size, query.page * query.size + query.size), total: filtered.length });
 }
 
+/**
+ * 추가 입고·줄이기 — `skuId` 단위(서버 2b-2). MAIN 단품을 움직이면 공구 최대도 같은 수만큼(결정 80), ADDON 은 자기 한도만.
+ * 한도 없는 단품은 `409 GROUP_BUY_SKU_UNLIMITED`, 판매 끈 조합은 `409 GROUP_BUY_SKU_NOT_ON_SALE`(구성은 모집 뒤 잠금 — 화면 가정).
+ */
 export async function mockGroupBuyStockAdjust(id: string, body: GroupBuyStockAdjustRequest): Promise<GroupBuyStockView> {
     const flags = await guardWrite();
     const g = findGroupBuy(id);
@@ -807,20 +917,24 @@ export async function mockGroupBuyStockAdjust(id: string, body: GroupBuyStockAdj
     if (problem) fields.reason = problem;
     if (Object.keys(fields).length) throw MOCK_ERRORS.validation(fields);
     if (g.status !== 'RECRUITING') throw MOCK_ERRORS.conflict('GROUP_BUY_NOT_RECRUITING', '모집 중인 공구만 수량을 바꿀 수 있어요.');
-    const option = body.optionId ? g.options.find((o) => o.id === body.optionId) : null;
-    if (body.optionId && !option) throw MOCK_ERRORS.validation({ optionId: '옵션을 골라 주세요.' });
-    if (option && option.maxQty === null) throw MOCK_ERRORS.conflict('GROUP_BUY_OPTION_UNLIMITED', '한도가 없는 옵션은 공구 전체 수량으로 조정해 주세요.');
+    const target = body.skuId ? g.skus.find((s) => s.skuId === body.skuId) : null;
+    if (body.skuId && !target) throw MOCK_ERRORS.validation({ skuId: '단품을 골라 주세요.' });
+    if (target && !target.onSale) throw MOCK_ERRORS.conflict('GROUP_BUY_SKU_NOT_ON_SALE', '판매하지 않는 조합이에요.');
+    if (target && target.maxQty === null) throw MOCK_ERRORS.conflict('GROUP_BUY_SKU_UNLIMITED', '한도가 없는 단품은 공구 전체 수량으로 조정해 주세요.');
+    const addon = target?.kind === 'ADDON';
     if (body.direction === 'ADD') {
-        if (g.currentQty >= g.maxQty) throw MOCK_ERRORS.conflict('GROUP_BUY_SOLD_OUT', '이미 다 팔려 마감 중이에요. 추가 차수로 열어 주세요.');
-        if (option && option.maxQty !== null) option.maxQty += body.qty;
-        g.maxQty += body.qty;
-        g.addedQty += body.qty;
+        if (!addon && g.currentQty >= g.maxQty) throw MOCK_ERRORS.conflict('GROUP_BUY_SOLD_OUT', '이미 다 팔려 마감 중이에요. 추가 차수로 열어 주세요.');
+        if (target && target.maxQty !== null) target.maxQty += body.qty;
+        if (!addon) {
+            g.maxQty += body.qty;
+            g.addedQty += body.qty;
+        }
     } else {
-        const line = stockLine(g, option ?? null);
-        const target = (option ? option.maxQty! : g.maxQty) - body.qty;
-        if (flags.has('stock-floor') || target < line.reduceFloor) throw MOCK_ERRORS.conflict('GROUP_BUY_QTY_BELOW_FLOOR', `줄일 수 있는 하한(${line.reduceFloor}개) 아래로는 줄일 수 없어요.`, { floor: line.reduceFloor });
-        if (option && option.maxQty !== null) option.maxQty -= body.qty;
-        g.maxQty -= body.qty;
+        const line = stockLine(g, target ?? null);
+        const target2 = (target ? target.maxQty! : g.maxQty) - body.qty;
+        if (flags.has('stock-floor') || target2 < line.reduceFloor) throw MOCK_ERRORS.conflict('GROUP_BUY_QTY_BELOW_FLOOR', `줄일 수 있는 하한(${line.reduceFloor}개) 아래로는 줄일 수 없어요.`, { floor: line.reduceFloor });
+        if (target && target.maxQty !== null) target.maxQty -= body.qty;
+        if (!addon) g.maxQty -= body.qty;
         if (g.currentQty >= g.maxQty) {
             g.status = 'CLOSING';
             g.closeReason = 'SOLD_OUT';
@@ -828,8 +942,8 @@ export async function mockGroupBuyStockAdjust(id: string, body: GroupBuyStockAdj
         }
     }
     g.updatedAt = new Date().toISOString();
-    addMovement(g, body.direction, body.qty, option?.id ?? null, body.reason.trim());
-    addRevision(g, 'STOCK', ['maxQty']);
+    addMovement(g, body.direction, body.qty, target?.skuId ?? null, body.reason.trim());
+    addRevision(g, 'STOCK', [addon ? 'skus' : 'maxQty']);
     return stockView(g);
 }
 

@@ -4,7 +4,7 @@
  * 환불액·미리 보기는 `GroupBuyRefundCalculator`(서버 한 곳)의 값이다.
  */
 
-import type { GroupBuyFulfillment, GroupBuyMember, GroupBuyPage, GroupBuyStatus } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
+import type { GroupBuyFulfillment, GroupBuyMember, GroupBuyPage, GroupBuySkuKind, GroupBuyStatus } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
 
 export type GroupBuyRequestType = 'CANCEL' | 'RETURN';
 export type GroupBuyRequestStatus = 'REQUESTED' | 'APPROVED' | 'COMPLETED' | 'REJECTED' | 'WITHDRAWN' | 'SUPERSEDED';
@@ -81,7 +81,9 @@ export interface GroupBuyRequestItem {
     id: string;
     /** 주문 줄 */
     orderItemId: string;
-    optionName: string | null;
+    /** 주문 줄의 단품 이름 사본(축 없는 단품 하나는 빈 글자) · 종류 */
+    skuName: string;
+    kind: GroupBuySkuKind;
     qty: number;
     reasonCode: GroupBuyReasonCode;
     reasonText: string;

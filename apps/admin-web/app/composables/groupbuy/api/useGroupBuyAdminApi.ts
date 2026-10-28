@@ -49,18 +49,22 @@ import type {
  *
  * 권한(서버 `@RequirePermission` 후보): 조회 `commerce.product.read`(없으면 `commerce.product.manage`) · 등록·수정·모집 시작·조기 마감·추가 차수·발송 지연 공지 `commerce.product.manage`
  * · 가격·배송비 칸(DRAFT) `commerce.product.price` · 중단 `commerce.groupbuy.cancel` · 추가 입고·줄이기 `commerce.stock.adjust` · 발주 처리 `commerce.order.manage`
- * · 옵션 공급 불가 `commerce.order.manage` + `commerce.refund.approve`(환불이 나간다). 없으면 `403 PERMISSION_DENIED`.
+ * · 단품 공급 불가 `commerce.order.manage` + `commerce.refund.approve`(환불이 나간다). 없으면 `403 PERMISSION_DENIED`.
  *   - `GET    /api/admin/group-buys?status=&q=&page=&size=` → `GroupBuyListResponse`(탭 건수 `counts`)
  *   - `GET    /api/admin/group-buys/form-options` → `GroupBuyFormOptions`(배송비 정책 고르기 · 기본값)
  *   - `POST   /api/admin/group-buys` · `PUT /api/admin/group-buys/{id}`(DRAFT 만) → `GroupBuyDetail` · `400 VALIDATION fields.*` · `409 GROUP_BUY_LOCKED_FIELD`·`GROUP_BUY_VERSION_CONFLICT`
+ *   - 옵션 축·단품(결정 88 — 서버 2b-2 `GroupBuyDraft` 모양): 저장 `axes[{name, values: string[]}]`(0~3, 값 1~30, 조합 ≤ 200) · `skus[{values, extraPrice, maxQty, onSale}]`
+ *     (적지 않은 조합 = 추가금 0·한도 없음·판매, 판매 조합 1개 이상) · `addons[{name, price, maxQty, imageKey}]`(≤ 20, 조합 이름과도 겹치면 안 됨). `400 VALIDATION fields.axes|skus|addons`.
+ *     모집 뒤 구성 변경은 `409 GROUP_BUY_LOCKED_FIELD`(field `options`) — 한도는 수량 화면(추가 입고·줄이기, `skuId`)에서 단품 단위로.
+ *     회원 주문 쪽 단품 오류(관리자 화면은 쓰지 않는다): `GROUP_BUY_SKU_NOT_ON_SALE` · `GROUP_BUY_ADDON_ONLY {skuIds}` · `GROUP_BUY_SKU_SOLD_OUT {skuId, temporary}`
  *   - `PATCH  /api/admin/group-buys/{id}/content`(모집 뒤 설명·이미지 + 고시 양식 `notices`) → `GroupBuyDetail` · 수정 이력 한 판(고시만 바뀌면 `NOTICE`)
  *   - `GET    /api/admin/group-buys/notice-catalog` → `NoticeCatalog`(상품정보제공고시 품목 40개·항목 — 서버 데이터 파일이 정본, 결정 87)
- *   - 고시 양식: 저장 `400 VALIDATION fields.notices[i].title|categoryCode|optionNames|values[j].unavailableReason|values[j].value|values[j].label`(label = 판매자 추가 항목, 2b-2 확정 전 가정) · 모집 시작·모집 뒤 저장 `409 GROUP_BUY_NOTICE_INCOMPLETE`(extras = `GroupBuyNoticeIncomplete`)
+ *   - 고시 양식: 저장 `400 VALIDATION fields.notices[i].title|categoryCode|skuNames(추가 구성상품을 섞음 포함)|values[j].unavailableReason|values[j].value|values[j].label`(label = 판매자 추가 항목, 2b-2 확정 전 가정) · 모집 시작·모집 뒤 저장 `409 GROUP_BUY_NOTICE_INCOMPLETE`(extras = `GroupBuyNoticeIncomplete`)
  *   - `POST   /api/admin/group-buys/images`(multipart `file`) → `GroupBuyImageUpload`
  *   - `GET    /api/admin/group-buys/{id}` · `…/revisions?page=&size=`
  *   - `POST   /api/admin/group-buys/{id}/start` · `…/close-early {reason}` · `…/cancel {reason}`(+ `GET …/cancel-preview`) · `…/ordered` · `…/rounds`
- *   - `POST   /api/admin/group-buys/{id}/delay-notices {newPlannedAt, reason}` · `GET …/supply-failure-preview?optionId=` · `POST …/supply-failures {optionId, reason}`
- *   - `GET    /api/admin/group-buys/{id}/stock` · `…/stock/movements?kind=&page=&size=` · `POST …/stock/adjust` · `409 GROUP_BUY_QTY_BELOW_FLOOR(extras.floor)`·`GROUP_BUY_NOT_RECRUITING`
+ *   - `POST   /api/admin/group-buys/{id}/delay-notices {newPlannedAt, reason}` · `GET …/supply-failure-preview?skuId=` · `POST …/supply-failures {skuId, reason}`
+ *   - `GET    /api/admin/group-buys/{id}/stock` · `…/stock/movements?kind=&page=&size=` · `POST …/stock/adjust` · `409 GROUP_BUY_QTY_BELOW_FLOOR(extras.floor)`·`GROUP_BUY_NOT_RECRUITING`·`GROUP_BUY_SKU_UNLIMITED`·`GROUP_BUY_SKU_NOT_ON_SALE`
  *
  * ⚠ MOCK: 서버에 API 가 없어 `./mock/groupbuy-mock.ts` 를 부른다. 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
  */
@@ -175,13 +179,13 @@ export function useGroupBuyAdminApi() {
             mockGroupBuyDelayNotice(id, body),
         // REAL: client.post<GroupBuyDetail>(PATH.sub(id, 'delay-notices'), body),
 
-        /** 옵션 공급 불가 결과 미리 보기 */
-        supplyFailurePreview: (id: string, optionId: string): Promise<GroupBuySupplyFailurePreview> =>
+        /** 단품 공급 불가 결과 미리 보기 */
+        supplyFailurePreview: (id: string, skuId: string): Promise<GroupBuySupplyFailurePreview> =>
             // MOCK:
-            mockGroupBuySupplyPreview(id, optionId),
-        // REAL: client.get<GroupBuySupplyFailurePreview>(PATH.sub(id, 'supply-failure-preview'), { query: { optionId } }),
+            mockGroupBuySupplyPreview(id, skuId),
+        // REAL: client.get<GroupBuySupplyFailurePreview>(PATH.sub(id, 'supply-failure-preview'), { query: { skuId } }),
 
-        /** 옵션 공급 불가 처리 */
+        /** 단품 공급 불가 처리 */
         supplyFailure: (id: string, body: GroupBuySupplyFailureRequest): Promise<GroupBuyDetail> =>
             // MOCK:
             mockGroupBuySupplyFailure(id, body),

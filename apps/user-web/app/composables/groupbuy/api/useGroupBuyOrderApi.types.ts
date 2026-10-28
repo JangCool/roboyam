@@ -4,6 +4,7 @@ import type {
     GroupBuyDelayNotice,
     GroupBuyFulfillment,
     GroupBuyPaymentStart,
+    GroupBuySkuKind,
     GroupBuyStatus,
 } from '~/composables/groupbuy/api/useGroupBuyApi.types';
 
@@ -39,7 +40,7 @@ export interface MyGroupBuyOrderSummary {
     title: string;
     thumbnailUrl: string | null;
     status: GroupBuyOrderStatus;
-    /** 「본체 세트 외 1건」의 첫 줄 이름(옵션 없으면 null) */
+    /** 「블랙 / M 외 1건」의 첫 줄 단품 이름(줄이 하나뿐이고 축 없는 본 상품이면 null — 상품 이름과 같아서) */
     firstItemName: string | null;
     itemCount: number;
     amount: number;
@@ -56,10 +57,14 @@ export interface MyGroupBuyOrderPage {
     total: number;
 }
 
-/** 주문 줄 */
+/** 주문 줄 — 단품 하나에 한 줄(결정 88). 내 주문 응답 칸 이름은 목업 가정(2b-2 가 아직 알려 주지 않음) */
 export interface MyGroupBuyOrderItem {
     id: number;
-    optionName: string | null;
+    skuId: number;
+    /** 단품 이름(주문 때 사본 — 「블랙 / M」, 축 없으면 상품 이름) */
+    skuName: string;
+    /** 추가 구성상품이면 ADDON(「추가 구성」 딱지 — 본 상품 줄을 모두 취소·반품하면 함께 묻는다) */
+    kind: GroupBuySkuKind;
     qty: number;
     unitPrice: number;
     itemAmount: number;
@@ -95,7 +100,9 @@ export interface MyGroupBuyShipment {
 
 export interface MyGroupBuyRequestItem {
     orderItemId: number;
-    optionName: string | null;
+    /** 주문 줄의 단품 이름 */
+    skuName: string;
+    kind: GroupBuySkuKind;
     qty: number;
     reason: GroupBuyRequestReason | null;
 }
@@ -133,10 +140,10 @@ export interface MyGroupBuyRefund {
     completedAt: string | null;
 }
 
-/** 공급 불가 선택(결정 53) */
+/** 단품 공급 불가 선택(결정 53 → 88) */
 export interface MyGroupBuySupplyChoice {
-    /** 공급할 수 없게 된 옵션 이름 */
-    optionName: string;
+    /** 공급할 수 없게 된 단품 이름 */
+    skuName: string;
     reason: string;
     /** 답 기한 — 지나면 나머지만 받기 */
     deadline: string;
@@ -214,9 +221,12 @@ export interface GroupBuyItemQty {
     qty: number;
 }
 
-/** `POST /api/me/orders/{orderNo}/cancel/preview` 와 `…/cancel`(본인 즉시 취소)·`…/requests`(CANCEL) 의 줄 */
+/**
+ * `POST /api/me/orders/{orderNo}/cancel/preview` 와 `…/cancel`(본인 즉시 취소)의 본문(서버 2b-2 — 단품 단위 `lines`).
+ * 본 상품을 모두 취소하면서 추가 구성상품을 남기면 409 `GROUP_BUY_ADDON_ONLY {skuIds}` — 화면이 「추가 구성상품도 함께 취소할까요?」로 묻고 함께 다시 보낸다.
+ */
 export interface GroupBuyCancelRequest {
-    items: GroupBuyItemQty[];
+    lines: { skuId: number; qty: number }[];
 }
 
 /** 취소 환불 미리 보기(결정 42 — 일부 줄 취소로 무료배송 기준 아래면 배송비 재계산) */

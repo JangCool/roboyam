@@ -13,8 +13,8 @@
                 <span class="text-sm font-medium">{{ t('groupBuy.refundLines') }}</span>
                 <ul class="m-0 flex list-none flex-col rounded-lg border border-(--line) p-0">
                     <li v-for="item in order.items" :key="item.id" class="flex items-center gap-3 border-b border-(--line) px-3 py-2 text-[13px] last:border-b-0">
-                        <span class="min-w-0 flex-1">{{ item.optionName ?? t('groupBuy.noOption') }} <span class="text-xs text-muted-color">{{ t('groupBuy.refundLeft', { n: left(item.id) }) }}</span></span>
-                        <InputText :model-value="qty[item.id] ?? ''" inputmode="numeric" :aria-label="t('groupBuy.refundQtyFor', { name: item.optionName ?? t('groupBuy.noOption') })" :disabled="busy || left(item.id) === 0" class="w-20 text-right tabular-nums" @update:model-value="(v: string | undefined) => setQty(item.id, v ?? '')" />
+                        <span class="min-w-0 flex-1"><GroupBuySkuLabel :name="item.skuName" :kind="item.kind" /> <span class="text-xs text-muted-color">{{ t('groupBuy.refundLeft', { n: left(item.id) }) }}</span></span>
+                        <InputText :model-value="qty[item.id] ?? ''" inputmode="numeric" :aria-label="t('groupBuy.refundQtyFor', { name: item.skuName || t('groupBuy.skuSingle') })" :disabled="busy || left(item.id) === 0" class="w-20 text-right tabular-nums" @update:model-value="(v: string | undefined) => setQty(item.id, v ?? '')" />
                     </li>
                 </ul>
                 <p v-if="fieldErrors.lines || linesProblem" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ fieldErrors.lines || linesProblem }}</p>

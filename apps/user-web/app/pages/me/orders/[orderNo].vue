@@ -57,7 +57,7 @@
 
             <!-- 옵션 공급 불가 — 나머지만 받기 / 전체 취소(결정 53) -->
             <section v-if="order.supplyChoice" class="flex flex-col gap-2 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100" data-testid="my-order-supply">
-                <p class="m-0 text-sm font-semibold">{{ t('groupBuy.supplyTitle', { name: order.supplyChoice.optionName }) }}</p>
+                <p class="m-0 text-sm font-semibold">{{ t('groupBuy.supplyTitle', { name: order.supplyChoice.skuName }) }}</p>
                 <p class="m-0 text-sm">{{ order.supplyChoice.reason }}</p>
                 <template v-if="order.actions.supplyChoice">
                     <p class="m-0 text-sm">{{ t('groupBuy.supplyAsk') }}</p>
@@ -89,7 +89,8 @@
                 <ul class="m-0 flex list-none flex-col divide-y divide-surface p-0" data-testid="my-order-items">
                     <li v-for="item in order.items" :key="item.id" class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-2 text-sm">
                         <span class="min-w-0">
-                            <span class="font-medium">{{ item.optionName ?? order.groupBuy.title }}</span>
+                            <PointShopTag v-if="item.kind === 'ADDON'" tone="neutral" class="mr-1.5 align-middle">{{ t('groupBuy.addonTag') }}</PointShopTag>
+                            <span class="font-medium">{{ item.skuName }}</span>
                             <span class="ml-1.5 tabular-nums text-muted-color">{{ t('groupBuy.unitTimesQty', { price: UtilGroupBuyMessages.won(t, item.unitPrice), qty: item.qty }) }}</span>
                             <span v-if="item.canceledQty > 0" class="ml-1.5 text-xs text-muted-color">{{ t('groupBuy.canceledQty', { count: item.canceledQty }) }}</span>
                             <span v-if="item.returnedQty > 0" class="ml-1.5 text-xs text-muted-color">{{ t('groupBuy.returnedQty', { count: item.returnedQty }) }}</span>
@@ -155,7 +156,7 @@
                         </div>
                         <p class="m-0 text-xs text-muted-color">
                             <span v-for="(item, index) in request.items" :key="item.orderItemId">
-                                <span v-if="index > 0"> · </span>{{ item.optionName ?? order.groupBuy.title }} {{ t('groupBuy.qtyCount', { count: item.qty }) }}<template v-if="item.reason"> ({{ t(`groupBuy.requestReason.${item.reason}`) }})</template>
+                                <span v-if="index > 0"> · </span><template v-if="item.kind === 'ADDON'">[{{ t('groupBuy.addonTag') }}] </template>{{ item.skuName }} {{ t('groupBuy.qtyCount', { count: item.qty }) }}<template v-if="item.reason"> ({{ t(`groupBuy.requestReason.${item.reason}`) }})</template>
                             </span>
                             <template v-if="request.collectionMethod"> · {{ t(`groupBuy.collection.${request.collectionMethod}`) }}</template>
                         </p>
@@ -259,7 +260,10 @@
                     <div v-for="pick in picks" :key="pick.item.id" class="flex flex-col gap-2 rounded-lg border border-surface p-3">
                         <label class="flex cursor-pointer items-center gap-2 text-sm">
                             <Checkbox v-model="pick.on" binary :input-id="`${dialogFormId}-pick-${pick.item.id}`" :disabled="dialogBusy" />
-                            <span class="min-w-0 flex-1 font-medium">{{ pick.item.optionName ?? order.groupBuy.title }}</span>
+                            <span class="inline-flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                                <PointShopTag v-if="pick.item.kind === 'ADDON'" tone="neutral">{{ t('groupBuy.addonTag') }}</PointShopTag>
+                                <span class="font-medium">{{ pick.item.skuName }}</span>
+                            </span>
                             <span class="text-xs tabular-nums text-muted-color">{{ t('groupBuy.selectable', { count: pick.item.selectableQty }) }}</span>
                         </label>
                         <div v-if="pick.on" class="flex flex-wrap items-start gap-2 pl-7">
@@ -276,6 +280,12 @@
                         </div>
                     </div>
                 </fieldset>
+
+                <!-- 본 상품 줄을 모두 골랐는데 추가 구성상품이 남는다 — 함께 고를지 묻는다(결정 88) -->
+                <div v-if="addonsLeft" class="flex flex-col gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950/40 dark:text-amber-100" data-testid="my-order-addons-ask">
+                    <p class="m-0">{{ t(`groupBuy.pickAddonsAsk.${dialogMode}`) }}</p>
+                    <Button type="button" size="small" severity="secondary" variant="outlined" class="w-fit" :label="t('groupBuy.pickAddonsButton')" :disabled="dialogBusy" @click="pickAddons" />
+                </div>
 
                 <!-- 하자·오배송 — 사진(최대 3) · 환불/교환(결정 54) -->
                 <template v-if="dialogMode === 'RETURN' && hasCompanyFault">
@@ -427,12 +437,13 @@ import UtilTime from '#layers/display-time/utils/util-time';
 
 /**
  * 내 주문 상세 `/me/orders/{orderNo}` — 로그인 필요(본인 주문만). 계약 commerce-groupbuy 화면 목록 · 결정 16·30·42·44·52·53·54·63·68.
- * - 주문 줄(옵션·수량·단가·취소·반품 수량)·결제·배송(택배사·송장·조회 링크)·환불 진행(진행 중 · 카드사 반영 3~7영업일 / 완료 / 지연 / 운영자 처리).
+ * - 주문 줄(단품 이름 · 추가 구성상품은 「추가 구성」 딱지 · 수량·단가·취소·반품 수량 — 결정 88)·결제·배송(택배사·송장·조회 링크)·환불 진행(진행 중 · 카드사 반영 3~7영업일 / 완료 / 지연 / 운영자 처리).
  * - 결제 대기면 선점 남은 시간 + 「결제 다시 열기」. 포트원 모바일 리디렉션은 쿼리 없이 이 화면으로 돌아오고 `resumeRedirect` 가 이어 간다(결정 13).
  * - 배송지: 가린 값 + 「전체 보기」(화면 메모리에만) + 수정(기한 안 — 서버 `actions.editAddress`).
  * - 본인 즉시 취소·취소 요청·반품 요청: 줄·수량을 고르고(반품은 줄마다 사유), 환불 예정 금액은 서버 미리 보기만. 하자·오배송은 사진 3장 + 환불/교환.
  *   반품은 회수 방식별 결과를 나란히 보이고, 마이너스이면 「직접 발송으로 바꾸기」 또는 「부족분 결제하고 접수」(같은 결제창 흐름 — 결제해야 접수).
- * - 요청 철회 · 요청 상태(거절 사유 코드 문구 포함) · 발송 지연 공지의 「바로 전액 취소」 · 옵션 공급 불가 「나머지만 받기 / 전체 취소」.
+ *   본 상품 줄을 모두 고르고 추가 구성상품이 남으면 「함께 고를까요?」를 대화상자 안에서 묻는다. 본인 즉시 취소가 409 `GROUP_BUY_ADDON_ONLY` 면 확인 뒤 함께 다시 보낸다.
+ * - 요청 철회 · 요청 상태(거절 사유 코드 문구 포함) · 발송 지연 공지의 「바로 전액 취소」 · 단품 공급 불가 「나머지만 받기 / 전체 취소」.
  * 단추는 모두 서버 `actions` 로만 보인다(감추는 것은 편의, 막는 것은 서버).
  */
 definePageMeta({ middleware: 'auth' });
@@ -783,7 +794,7 @@ async function preview(): Promise<void> {
             const res = await api.returnPreview(current.orderNo, { items: picked.value.map((p) => ({ orderItemId: p.item.id, qty: p.qty!, reason: p.reason! })) });
             if (mine === previewSeq) returnPreview.value = res;
         } else {
-            const res = await api.cancelPreview(current.orderNo, { items: picked.value.map((p) => ({ orderItemId: p.item.id, qty: p.qty! })) });
+            const res = await api.cancelPreview(current.orderNo, { lines: cancelLines() });
             if (mine === previewSeq) cancelPreview.value = res;
         }
     } catch (e) {
@@ -830,6 +841,49 @@ function removePhoto(id: string): void {
     photos.value = photos.value.filter((p) => p.id !== id);
 }
 
+/** 본인 즉시 취소 줄(서버 2b-2 — 단품 단위 `lines[{ skuId, qty }]`) */
+function cancelLines(): { skuId: number; qty: number }[] {
+    return picked.value.map((p) => ({ skuId: p.item.skuId, qty: p.qty! }));
+}
+
+/** 본 상품(MAIN) 줄을 남김없이 골랐는데, 고르지 않은 추가 구성상품이 남는가 — 함께 고를지 묻는다(결정 88) */
+const addonsLeft = computed(() => {
+    const current = order.value;
+    if (!current) return false;
+    const live = (i: MyGroupBuyOrderItem) => i.qty - i.canceledQty - i.returnedQty;
+    const mainLive = current.items.filter((i) => i.kind === 'MAIN').reduce((n, i) => n + live(i), 0);
+    const mainPicked = picked.value.filter((p) => p.item.kind === 'MAIN').reduce((n, p) => n + (p.qty ?? 0), 0);
+    if (mainLive === 0 || mainPicked < mainLive) return false;
+    return picks.value.some((p) => p.item.kind === 'ADDON' && (!p.on || (p.qty ?? 0) < p.item.selectableQty));
+});
+
+/** 남은 추가 구성상품 줄도 고른다(고를 수 있는 수량 전부 — 반품 사유는 본 상품 줄과 같으면 그대로 따른다) */
+function pickAddons(): void {
+    const reasons = [...new Set(picked.value.filter((p) => p.item.kind === 'MAIN').map((p) => p.reason))];
+    const reason = reasons.length === 1 ? reasons[0]! : null;
+    picks.value = picks.value.map((p) => (p.item.kind === 'ADDON' ? { ...p, on: true, qty: p.item.selectableQty, reason: p.reason ?? reason } : p));
+}
+
+/** 본인 즉시 취소 — 409 `GROUP_BUY_ADDON_ONLY {skuIds}`(본 상품을 모두 취소하며 추가 구성상품을 남김)이면 함께 취소할지 묻고 함께 다시 보낸다 */
+async function cancelNow(current: MyGroupBuyOrderDetail): Promise<void> {
+    try {
+        apply(await api.cancelNow(current.orderNo, { lines: cancelLines() }, dialogKey));
+    } catch (e) {
+        if (!(e instanceof ApiError && e.code === 'GROUP_BUY_ADDON_ONLY')) throw e;
+        dialogKey = UtilIdempotency.newKey();
+        const raw = e.extras?.skuIds;
+        const skuIds = Array.isArray(raw) ? raw.map(Number) : current.items.filter((i) => i.kind === 'ADDON').map((i) => i.skuId);
+        const names = current.items.filter((i) => skuIds.includes(i.skuId)).map((i) => i.skuName).join(', ');
+        const ok = await confirm({ title: t('groupBuy.addonOnlyTitle'), message: t('groupBuy.addonOnlyText', { names }), confirmLabel: t('groupBuy.addonOnlyConfirm'), tone: 'danger' });
+        if (!ok) return;
+        const lines = cancelLines();
+        for (const item of current.items) if (skuIds.includes(item.skuId) && item.selectableQty > 0 && !lines.some((l) => l.skuId === item.skuId)) lines.push({ skuId: item.skuId, qty: item.selectableQty });
+        apply(await api.cancelNow(current.orderNo, { lines }, dialogKey));
+    }
+    dialogOpen.value = false;
+    toast.success(t('groupBuy.canceledToast'));
+}
+
 async function submitDialog(): Promise<void> {
     const current = order.value;
     const mode = dialogMode.value;
@@ -838,9 +892,7 @@ async function submitDialog(): Promise<void> {
     dialogError.value = '';
     try {
         if (mode === 'CANCEL_NOW') {
-            apply(await api.cancelNow(current.orderNo, { items: picked.value.map((p) => ({ orderItemId: p.item.id, qty: p.qty! })) }, dialogKey));
-            dialogOpen.value = false;
-            toast.success(t('groupBuy.canceledToast'));
+            await cancelNow(current);
             return;
         }
         const created = await api.createRequest(
