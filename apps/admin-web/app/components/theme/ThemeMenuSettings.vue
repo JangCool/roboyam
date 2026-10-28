@@ -7,7 +7,7 @@
           ② 메뉴 모양(`menu-style`) 7칸: 상단 메뉴 그룹 표시 · 사이드 그룹 · 상단 메뉴 크기 · 모바일 상단 메뉴 · 메뉴 설명 줄 · 메뉴 붙이기 · 모바일 상단 바 모양(값 목록 `SITE_MENU_STYLE_VALUES`).
         「테마 기본(…)」의 괄호는 `theme`(편집하는 테마)의 기본값이다. 지금 배치에서 쓰이지 않는 칸은 안내 한 줄.
         한 구획을 저장할 때 다른 구획 칸은 저장된 값 그대로 실어 보내고, 다른 구획에 입력 중이던 값은 그대로 둔다. `theme` 이 바뀌면 그 테마의 값을 다시 읽는다(저장하지 않은 변경 확인은 화면이 `dirty` 이벤트를 받아 먼저 한다).
-        ⚠ MOCK: 서버에 메뉴 칸이 없어 목업에만 저장한다(`useSiteSettingsApi().saveThemeMenu`) — 새로고침하면 테마 기본으로 돌아가고 공개 사이트에는 전해지지 않는다.
+        저장은 테마마다 `PUT /api/admin/site/themes/{id}/menu`(`useSiteSettingsApi().saveThemeMenu`) — 공개 사이트는 지금 테마의 값을 서버 사본(20초) + 브라우저 캐시(60초) 뒤에 받는다.
         권한: 변경 `site.manage` — 없으면 저장 줄이 사라지고 고르기는 막힌다. 감추는 것은 편의이고 막는 것은 서버다.
     -->
     <div class="flex flex-col gap-4">
@@ -179,7 +179,7 @@ import type {
     SiteTopItemsSetting,
 } from '~/composables/site/api/useSiteSettingsApi.types';
 import { SITE_MENU_STYLE_VALUES } from '~/composables/site/api/useSiteSettingsApi.types';
-import type { SiteThemeMenuFields } from '~/composables/site/api/mock/site-theme-mock';
+import type { SiteThemeMenuFields } from '~/composables/site/api/useSiteSettingsApi.types';
 
 interface Props {
     /** 메뉴 설정을 편집할 테마 id */

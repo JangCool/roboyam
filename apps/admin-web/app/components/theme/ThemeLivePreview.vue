@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import type { SiteThemeMenuFields } from '~/composables/site/api/mock/site-theme-mock';
+import type { SiteThemeMenuFields } from '~/composables/site/api/useSiteSettingsApi.types';
 import type { HomeLayoutBody } from '~/composables/home/api/useHomeLayoutApi.types';
 import type { HomeLayoutOp } from '~/components/theme/HomeLayoutEditor.vue';
 

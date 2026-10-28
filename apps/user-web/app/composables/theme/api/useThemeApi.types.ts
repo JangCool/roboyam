@@ -1,6 +1,6 @@
 /**
  * `GET /api/site/theme` 응답 — 운영자가 사이트 설정에서 고른 테마 id. 모르는 id 는 화면이 기본 테마로 그린다.
- * 아래 선택 칸은 **서버 후보 칸**이라 지금 응답에는 없다(없거나 모르는 값이면 기본값, `UtilMenuPosition.read*`):
+ * 아래 칸은 **지금 테마의** 운영자 메뉴 설정이다(서버 `site_theme_menus`, 2026-10-29 — 칸마다 `THEME` 또는 값. 없거나 모르는 값이면 기본값, `UtilMenuPosition.read*`):
  *  - `menuPosition` 데스크톱 메뉴 위치(`THEME`·`TOP`·`LEFT`·`RIGHT`·`TOP_LEFT`·`TOP_RIGHT`, 기본 `THEME`)
  *  - `topItems` 최상위 항목 위치(`THEME`·`LOGO`·`MENU`, 기본 `THEME`)
  *  - `barGroupIds` 섞인 배치에서 상단 띠에 둘 최상위 그룹 ID(기본 빈 목록 = 첫 그룹)

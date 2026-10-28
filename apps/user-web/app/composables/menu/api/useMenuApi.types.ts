@@ -19,7 +19,7 @@ export interface MenuBoardRef {
 
 /**
  * 상단 가로 메뉴(첫 줄)에서 이 노드 옆에 긋는 세로 구분선 — `BEFORE` 왼쪽 · `AFTER` 오른쪽 · `NONE`(또는 없음) 없음. 운영자가 메뉴 구성에서 최상위 노드에 정한다(사용자 결정 2026-10-28).
- * 세로 메뉴·햄버거에서는 쓰지 않는다. ⚠ 서버가 아직 주지 않는다 — 개발 모드는 `?divider=<이름>:before|after,…` 로 미리 본다(`useMenu`).
+ * 세로 메뉴·햄버거에서는 쓰지 않는다. 서버가 그룹·항목마다 준다(2026-10-29) — 개발 모드는 `?divider=<이름>:before|after,…` 로 덮어 미리 볼 수 있다(`useMenu`).
  */
 export type MenuDivider = 'NONE' | 'BEFORE' | 'AFTER';
 
@@ -47,7 +47,7 @@ export interface MenuItemNode {
     extra?: Record<string, unknown> | null;
     /** 상단 가로 메뉴에서 옆에 긋는 구분선(`MenuDivider`) — 없으면 없음 */
     divider?: MenuDivider | null;
-    /** 운영자가 적은 한 줄 설명 — 최상위 항목(인기글·최신글·공지 …)에 들어가면 메뉴 둘째 줄에 보인다(`useMenuDescription`). 없으면 화면 기본 설명. ⚠ 서버가 아직 주지 않는다 */
+    /** 운영자가 적은 한 줄 설명 — 최상위 항목(인기글·최신글·공지 …)에 들어가면 메뉴 둘째 줄에 보인다(`useMenuDescription`). 없으면(null) 화면 기본 설명 */
     description?: string | null;
 }
 

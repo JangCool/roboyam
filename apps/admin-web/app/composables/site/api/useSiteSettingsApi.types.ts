@@ -92,7 +92,8 @@ export interface SiteDisplayDefaultsRequest {
 }
 
 /**
- * 공개 사이트 테마 — 지금 값과 고를 수 있는 id 목록(보일 순서). 서버 `SiteThemeResponse`(원천 `SiteThemes.IDS`, user-web `util-theme.ts` 의 `THEMES` 와 같은 id).
+ * 공개 사이트 테마 — 지금 값과 고를 수 있는 id 목록(보일 순서) + 한 테마(`menuTheme`)의 메뉴 설정 + 테마별 기본값. 서버 `SiteThemeResponse`
+ * (원천 `SiteThemes.IDS`·`SiteThemeMenus`, user-web `util-theme.ts` 의 `THEMES` 와 같은 id·기본값). 메뉴 설정은 테마마다 따로 저장된다.
  * 이름·설명(화면 문구)은 화면이 id 로 i18n 키(`site.themeName_<id>`·`site.themeDesc_<id>`)를 찾는다 — 키가 없는 id 는 id 그대로 보인다.
  */
 export interface SiteThemeResponse {
@@ -100,33 +101,38 @@ export interface SiteThemeResponse {
     theme: string;
     /** 고를 수 있는 테마 id(보일 순서) */
     themes: string[];
-    /** 공개 사이트의 데스크톱 메뉴 위치(운영자 값) — **서버 후보 칸**, 지금은 목업(`mock/site-theme-mock.ts`) */
+    /** 아래 메뉴 설정 칸이 어느 테마의 것인가(조회 `forTheme`, 없으면 지금 테마) */
+    menuTheme: string;
+    /** 공개 사이트의 데스크톱 메뉴 위치(운영자 값) */
     menuPosition: SiteMenuPositionSetting;
-    /** 테마 id → 그 테마의 기본 메뉴 위치(「테마 기본(상단)」 안내용) — **서버 후보 칸**, 지금은 목업 */
+    /** 테마 id → 그 테마의 기본 메뉴 위치(「테마 기본(상단)」 안내용) */
     themeMenuDefaults: Record<string, SiteThemeMenuPosition>;
-    /** 최상위 항목(그룹 밖 항목 — 홈·인기글 …) 위치(운영자 값) — **서버 후보 칸**, 지금은 목업 */
+    /** 최상위 항목(그룹 밖 항목 — 홈·인기글 …) 위치(운영자 값) */
     topItems: SiteTopItemsSetting;
-    /** 테마 id → 그 테마의 최상위 항목 위치 기본값 — **서버 후보 칸**, 지금은 목업 */
+    /** 테마 id → 그 테마의 최상위 항목 위치 기본값 */
     themeTopItemsDefaults: Record<string, SiteTopItemsPosition>;
-    /** 섞인 배치(`TOP_LEFT`·`TOP_RIGHT`)에서 상단 띠에 둘 최상위 그룹 ID(공개 메뉴 `main` 의 폴더 ID). 비면 첫 그룹 — **서버 후보 칸**, 지금은 목업 */
+    /** 섞인 배치(`TOP_LEFT`·`TOP_RIGHT`)에서 상단 띠에 둘 최상위 그룹 ID(공개 메뉴 `main` 의 폴더 ID). 비면 첫 그룹 */
     barGroupIds: string[];
-    /** 상단 메뉴 폭(운영자 값) — 상단 메뉴가 있는 배치에서만 쓰인다 — **서버 후보 칸**, 지금은 목업 */
+    /** 상단 메뉴 폭(운영자 값) — 상단 메뉴가 있는 배치에서만 쓰인다 */
     menuWidth: SiteMenuWidthSetting;
-    /** 테마 id → 그 테마의 상단 메뉴 폭 기본값(「테마 기본(본문 폭)」 안내용) — **서버 후보 칸**, 지금은 목업 */
+    /** 테마 id → 그 테마의 상단 메뉴 폭 기본값(「테마 기본(본문 폭)」 안내용) */
     themeMenuWidthDefaults: Record<string, SiteMenuWidth>;
-    /** 가로 메뉴 줄이 넘칠 때의 표시(운영자 값) — **서버 후보 칸**, 지금은 목업 */
+    /** 가로 메뉴 줄이 넘칠 때의 표시(운영자 값) */
     menuOverflow: SiteMenuOverflowSetting;
-    /** 테마 id → 그 테마의 넘침 표시 기본값(「테마 기본(얇은 스크롤)」 안내용) — **서버 후보 칸**, 지금은 목업 */
+    /** 테마 id → 그 테마의 넘침 표시 기본값(「테마 기본(얇은 스크롤)」 안내용) */
     themeMenuOverflowDefaults: Record<string, SiteMenuOverflow>;
-    /** 메뉴 모양 7칸(운영자 값, 칸마다 `THEME` = 테마 기본 따름, 사용자 결정 2026-10-28) — **서버 후보 칸**, 지금은 목업 */
+    /** 메뉴 모양 7칸(운영자 값, 칸마다 `THEME` = 테마 기본 따름, 사용자 결정 2026-10-28) */
     menuStyle: SiteMenuStyleSetting;
-    /** 테마 id → 그 테마의 메뉴 모양 기본값(「테마 기본(…)」 안내용) — **서버 후보 칸**, 지금은 목업 */
+    /** 테마 id → 그 테마의 메뉴 모양 기본값(「테마 기본(…)」 안내용) */
     themeMenuStyleDefaults: Record<string, SiteMenuStyle>;
 }
 
 export interface SiteThemeRequest {
     theme: string;
 }
+
+/** 테마 하나의 메뉴 설정(운영자 값) — `PUT /api/admin/site/themes/{id}/menu` 본문(칸 전부). 테마마다 따로 둔다(사용자 결정 2026-10-28) */
+export type SiteThemeMenuFields = Pick<SiteThemeResponse, 'menuPosition' | 'topItems' | 'barGroupIds' | 'menuWidth' | 'menuOverflow' | 'menuStyle'>;
 
 /**
  * 메뉴 모양 칸 → 고를 수 있는 값(user-web `UtilMenuPosition` 의 `MENU_STYLE_VALUES` 와 같은 값, 사용자 결정 2026-10-28 — 예전에는 테마 선언에 고정).
