@@ -33,6 +33,12 @@ public final class MenuLimits {
     public static final List<String> PLACEMENTS = List.of(SIDE, "MYPAGE", "GROUP_BUY", "CUSTOM");
     public static final List<String> AUDIENCES = List.of("ALL", "GUEST", "MEMBER", "GRADE_MIN", "STAFF");
 
+    /** 상단 가로 메뉴 첫 줄의 구분선 — 없음 · 앞 · 뒤 */
+    public static final List<String> DIVIDERS = List.of("NONE", "BEFORE", "AFTER");
+
+    /** 항목 설명(메뉴 설명 줄) 글자 수 */
+    public static final int DESCRIPTION_MAX = 80;
+
     /** 게시판이 만들어질 때 자동 추가 폴더를 찾는 그룹 */
     public static final String MAIN_SET = "main";
 

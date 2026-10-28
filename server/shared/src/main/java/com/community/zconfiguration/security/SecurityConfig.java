@@ -89,6 +89,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/users/*/profile", "/api/users/*/posts", "/api/users/*/comments", "/api/users/*/groups").permitAll()
                         // 회원 활동·둘러보기(docs/features/member-activity-contract.md) — 최신글·인기글·통합 검색·등급 조건표는 비회원도 읽는다. 내 등급(/api/me/grade)은 아래 규칙대로 로그인 필요
                         .requestMatchers(HttpMethod.GET, "/api/home/latest", "/api/home/popular", "/api/search", "/api/grade-rules").permitAll()
+                        // 공개 홈 가젯(site-theme-layout-contract) — 비회원도 읽는다
+                        .requestMatchers(HttpMethod.GET, "/api/home/gadgets").permitAll()
                         // 프로필 아바타 목록(docs/features/commerce-stage1-contract.md 「1-2 화면 목업」 아바타) — 비회원도 읽는다(보유·잔액 없이). 공개 사이트 서버(api)에만 있는 주소
                         .requestMatchers(HttpMethod.GET, "/api/avatars").permitAll()
                         // 소모임(docs/features/group-contract.md 1단계) — 목록·분류·개설 규칙 안내·상세는 비회원도 읽는다(보는 사람에 따라 칸이 달라진다). 멤버 탭·쓰기는 로그인 필요

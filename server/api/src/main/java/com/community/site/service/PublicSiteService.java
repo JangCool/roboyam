@@ -3,14 +3,18 @@ package com.community.site.service;
 import com.community.board.entity.BoardDefaultsEntity;
 import com.community.board.repository.master.BoardDefaultsRepository;
 import com.community.site.dto.PublicSiteSnapshot;
+import com.community.site.dto.SiteThemeMenu;
 import com.community.site.dto.response.BoardDisplayView;
 import com.community.site.dto.response.SiteDisplayDefaultsView;
 import com.community.site.dto.response.SiteIconResponse;
 import com.community.site.dto.response.SiteInfoResponse;
+import com.community.site.dto.response.SiteThemeResponse;
 import com.community.site.dto.response.WebManifestIcon;
 import com.community.site.dto.response.WebManifestResponse;
 import com.community.site.entity.SiteSettingEntity;
+import com.community.site.entity.SiteThemeMenuEntity;
 import com.community.site.repository.master.SiteSettingRepository;
+import com.community.site.repository.master.SiteThemeMenuRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -46,12 +50,14 @@ public class PublicSiteService {
     private final SiteSettingRepository settings;
     private final SiteAssets assets;
     private final BoardDefaultsRepository boardDefaults;
+    private final SiteThemeMenuRepository themeMenus;
     private volatile Cached cached;
 
-    public PublicSiteService(SiteSettingRepository settings, SiteAssets assets, BoardDefaultsRepository boardDefaults) {
+    public PublicSiteService(SiteSettingRepository settings, SiteAssets assets, BoardDefaultsRepository boardDefaults, SiteThemeMenuRepository themeMenus) {
         this.boardDefaults = boardDefaults;
         this.settings = settings;
         this.assets = assets;
+        this.themeMenus = themeMenus;
     }
 
     /** 지금 쓸 수 있는 사본 — 메모리에 있고 {@value #TTL_SECONDS}초 안이면 그것, 아니면 다시 읽는다 */
@@ -100,9 +106,17 @@ public class PublicSiteService {
         BoardDisplayView boardDisplay = new BoardDisplayView(dateDisplay, BoardDisplayView.NEW_POST_HOURS);
         String theme = SiteThemes.normalize(found.map(SiteSettingEntity::getTheme).orElse(null));
         SiteInfoResponse info = new SiteInfoResponse(siteName, tagline, logoUrl, icon.orElse(null), ogImageUrl, display, boardDisplay, theme);
+        SiteThemeResponse themeView = themeView(theme, themeMenus.findById(theme).map(SiteThemeMenuEntity::toMenu).orElse(SiteThemeMenus.INITIAL));
         WebManifestResponse manifest = manifest(siteName, tagline, display.language(), icon.orElse(null));
         boolean ogCustom = customOg.isPresent();
-        return new PublicSiteSnapshot(info, manifest, ogCustom, fingerprint(info, manifest, ogCustom));
+        return new PublicSiteSnapshot(info, themeView, manifest, ogCustom, fingerprint(info + "|" + themeView, manifest, ogCustom));
+    }
+
+    /** 지금 테마 + 그 테마의 메뉴 설정(운영자 값 — 칸마다 THEME 또는 값, 저장한 적 없으면 모두 THEME) */
+    private static SiteThemeResponse themeView(String theme, SiteThemeMenu m) {
+        SiteThemeMenu.Style s = m.style();
+        return new SiteThemeResponse(theme, m.menuPosition(), m.topItems(), m.barGroupIds(), m.menuWidth(), m.menuOverflow(), s.menuGroupStyle(),
+                s.sideGroupStyle(), s.menuSize(), s.mobileMenu(), s.menuDescription(), s.stickyMenu(), s.mobileHeader());
     }
 
     /** 이름은 사이트 이름, 아이콘은 올린 192·512 PNG 또는 기본 SVG 아이콘 — 같은 서버가 서빙하는 주소라 상대 주소 그대로 둔다 */
@@ -116,7 +130,7 @@ public class PublicSiteService {
     }
 
     /** 사본 내용의 지문 — 레코드의 {@code toString} 은 칸 값을 모두 싣는다 */
-    private static String fingerprint(SiteInfoResponse info, WebManifestResponse manifest, boolean ogCustom) {
+    private static String fingerprint(String info, WebManifestResponse manifest, boolean ogCustom) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest((info + "|" + manifest + "|" + ogCustom).getBytes(StandardCharsets.UTF_8));

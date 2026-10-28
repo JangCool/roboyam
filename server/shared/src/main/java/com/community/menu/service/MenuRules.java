@@ -28,6 +28,21 @@ public final class MenuRules {
         return stripped.isEmpty() ? null : stripped;
     }
 
+    /** 항목 설명 — 비어도 된다, {@code <}·{@code >}·줄바꿈·제어 문자 금지, 글자 수(코드 포인트) ≤ {@link MenuLimits#DESCRIPTION_MAX} */
+    public static MessageRef descriptionProblem(String value) {
+        String text = value == null ? "" : value.strip();
+        if (text.isEmpty()) {
+            return null;
+        }
+        if (hasForbiddenChars(value)) {
+            return new MessageRef("menu.description.chars");
+        }
+        if (text.codePointCount(0, text.length()) > MenuLimits.DESCRIPTION_MAX) {
+            return new MessageRef("menu.description.length", String.valueOf(MenuLimits.DESCRIPTION_MAX));
+        }
+        return null;
+    }
+
     /** 이름 — 비면 {@code required} 일 때만 문제, {@code <}·{@code >}·줄바꿈·제어 문자 금지, 글자 수(코드 포인트) ≤ {@code max} */
     public static MessageRef labelProblem(String value, boolean required, int max) {
         String text = value == null ? "" : value.strip();
