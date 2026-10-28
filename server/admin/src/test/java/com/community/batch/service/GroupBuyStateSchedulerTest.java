@@ -63,6 +63,19 @@ class GroupBuyStateSchedulerTest {
         };
     }
 
+    private static final AtomicInteger DEADLINE_CALLS = new AtomicInteger();
+
+    /** 기한 점검(2b-4 — 1시간) — 한 바퀴의 일은 shared GroupBuyNotificationsTest 가 본다 */
+    private static com.community.groupbuy.service.GroupBuyDeadlineWatch deadline() {
+        return new com.community.groupbuy.service.GroupBuyDeadlineWatch(dataSource, null, null, null, null, null, null) {
+            @Override
+            public Result runOnce() {
+                DEADLINE_CALLS.incrementAndGet();
+                return new Result(2, 5, 1);
+            }
+        };
+    }
+
     private static GroupBuyRefundWorker refund(AtomicInteger calls, int handled) {
         return new GroupBuyRefundWorker(null, null, null, null) {
             @Override
@@ -77,7 +90,7 @@ class GroupBuyStateSchedulerTest {
     void 배치를_끈_서버는_두_워커_모두_돌지_않는다() {
         jdbc.update("DELETE FROM worker_heartbeats WHERE worker_key IN ('groupbuy-state', 'groupbuy-refund')");
         AtomicInteger calls = new AtomicInteger();
-        GroupBuyStateScheduler scheduler = new GroupBuyStateScheduler(properties(false), state(calls, 1), refund(calls, 1), fulfillment(),
+        GroupBuyStateScheduler scheduler = new GroupBuyStateScheduler(properties(false), state(calls, 1), refund(calls, 1), fulfillment(), deadline(),
                 new WorkerHeartbeats(dataSource, 921, Duration.ZERO, Clock.systemUTC()));
         assertThat(scheduler.stateTick()).isEqualTo(-1);
         assertThat(scheduler.refundTick()).isEqualTo(-1);
@@ -90,7 +103,7 @@ class GroupBuyStateSchedulerTest {
     void 배치를_켠_서버는_따로_돌고_각자_워커_기록을_남긴다() {
         AtomicInteger stateCalls = new AtomicInteger();
         AtomicInteger refundCalls = new AtomicInteger();
-        GroupBuyStateScheduler scheduler = new GroupBuyStateScheduler(properties(true), state(stateCalls, 4), refund(refundCalls, 7), fulfillment(),
+        GroupBuyStateScheduler scheduler = new GroupBuyStateScheduler(properties(true), state(stateCalls, 4), refund(refundCalls, 7), fulfillment(), deadline(),
                 new WorkerHeartbeats(dataSource, 922, Duration.ZERO, Clock.systemUTC()));
         assertThat(scheduler.stateTick()).isEqualTo(4);
         assertThat(scheduler.refundTick()).isEqualTo(7);
@@ -104,11 +117,26 @@ class GroupBuyStateSchedulerTest {
     @Test
     void 상태_워커가_실패하면_가린_오류를_남기고_환불_워커는_그대로_돈다() {
         AtomicInteger calls = new AtomicInteger();
-        GroupBuyStateScheduler scheduler = new GroupBuyStateScheduler(properties(true), state(calls, -1), refund(calls, 2), fulfillment(),
+        GroupBuyStateScheduler scheduler = new GroupBuyStateScheduler(properties(true), state(calls, -1), refund(calls, 2), fulfillment(), deadline(),
                 new WorkerHeartbeats(dataSource, 923, Duration.ZERO, Clock.systemUTC()));
         assertThat(scheduler.stateTick()).isZero();
         assertThat(scheduler.refundTick()).isEqualTo(2);
         String error = jdbc.queryForObject("SELECT last_error FROM worker_heartbeats WHERE worker_key = 'groupbuy-state'", String.class);
         assertThat(error).contains("IllegalStateException").doesNotContain("kim@example.com");
+    }
+
+    @Test
+    void 기한_점검은_배치를_켠_서버만_돌고_한_바퀴의_알린_수를_워커_기록에_남긴다() {
+        jdbc.update("DELETE FROM worker_heartbeats WHERE worker_key = ?", com.community.groupbuy.service.GroupBuyDeadlineWatch.WORKER_KEY);
+        int before = DEADLINE_CALLS.get();
+        GroupBuyStateScheduler off = new GroupBuyStateScheduler(properties(false), state(new AtomicInteger(), 1), refund(new AtomicInteger(), 1), fulfillment(), deadline(),
+                new WorkerHeartbeats(dataSource, 924, Duration.ZERO, Clock.systemUTC()));
+        assertThat(off.deadlineTick()).isEqualTo(-1);
+        assertThat(DEADLINE_CALLS.get()).isEqualTo(before);
+        GroupBuyStateScheduler on = new GroupBuyStateScheduler(properties(true), state(new AtomicInteger(), 1), refund(new AtomicInteger(), 1), fulfillment(), deadline(),
+                new WorkerHeartbeats(dataSource, 925, Duration.ZERO, Clock.systemUTC()));
+        assertThat(on.deadlineTick()).as("요청 경고 2 + 발송 기한 1건 + 마감 임박 1").isEqualTo(4);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM worker_heartbeats WHERE worker_key = ?", Integer.class,
+                com.community.groupbuy.service.GroupBuyDeadlineWatch.WORKER_KEY)).isEqualTo(1);
     }
 }

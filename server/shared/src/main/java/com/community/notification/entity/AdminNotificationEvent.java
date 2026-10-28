@@ -95,7 +95,20 @@ public enum AdminNotificationEvent {
     /** 소모임 개설 신청 대기 — 승인제에서 회원이 개설을 신청할 때(api GroupCreateService, V90). 5분 안의 연속 신청은 한 건. 2026-10-26 예약을 풀었다 */
     CLUB_OPEN_REQUEST_PENDING(spec(CLUB, INFO).holders(Permission.GROUP_MANAGE).link("/group-requests").collapse(300)),
     HOTDEAL_SUSPECTED_PROMO(spec(HOTDEAL, WARNING).holders(Permission.HOTDEAL_MANAGE).reserved()),
-    COMMERCE_ORDER_ANOMALY(spec(GROUPBUY, CRITICAL).holders(Permission.COMMERCE_ORDER_MANAGE).reserved()),
+    /**
+     * 공구 주문 이상 — 결제를 받았는데 공구가 거절했다(선점 부족 등 불변식이 깨진 REJECT)·에스크로 호출을 끝내 그만뒀다(2b-4, 계약 결정 12·64). 같은 주문은 하루에 한 건(묶음 키 = 주문 ID).
+     * 링크는 주문 목록(주문 번호로 찾기)
+     */
+    COMMERCE_ORDER_ANOMALY(spec(GROUPBUY, CRITICAL).holders(Permission.COMMERCE_ORDER_MANAGE).email().link("/group-buy-orders?q={orderNo}").collapse(86400)),
+    /**
+     * 공구 발송 기한 경고 — 발송 예정일(성사형·마감 후 발주)·결제 후 N영업일(즉시 발송)을 넘긴 발송 전 주문(결정 51 — 1시간 점검 워커 {@code GroupBuyDeadlineWatch}).
+     * 하루 한 건(묶음 키 = KST 날짜). 처리는 주문 목록의 「발송 기한 지남」
+     */
+    COMMERCE_SHIP_OVERDUE(spec(GROUPBUY, WARNING).holders(Permission.COMMERCE_ORDER_MANAGE).link("/group-buy-orders?alert=SHIP_OVERDUE").collapse(86400)),
+    /** 공구 중단(결정 12) — 발송 전 주문 환불이 시작됐다. 중단한 운영자는 받지 않는다 */
+    COMMERCE_GROUPBUY_CANCELED(spec(GROUPBUY, INFO).holders(Permission.COMMERCE_ORDER_MANAGE, Permission.COMMERCE_REFUND_APPROVE).excludeActor().link("/group-buys/{groupBuyId}")),
+    /** 판매 스위치 켜기·끄기(commerce.md 20절) — 바꾼 운영자는 받지 않는다 */
+    COMMERCE_SALES_TOGGLE(spec(GROUPBUY, WARNING).holders(Permission.COMMERCE_SETTINGS).excludeActor().link("/settings/commerce")),
     /**
      * 결제 이상 — 금액 불일치(확정 때) · 자동/환불 취소의 최종 실패(GAVE_UP) (docs/features/commerce-payment-contract.md 결정 10). 같은 결제는 하루에 한 건(묶음 키 = 결제 ID).
      * 링크는 「결제 이상」 화면(2a-3 화면 연결로 확정).
@@ -106,7 +119,11 @@ public enum AdminNotificationEvent {
      * ({@code commerce.reconcile.manage})
      */
     COMMERCE_RECONCILE_MISMATCH(spec(GROUPBUY, WARNING).holders(Permission.COMMERCE_RECONCILE_MANAGE).link("/payments/reconciliation").collapse(86400)),
-    COMMERCE_REFUND_REQUESTED(spec(GROUPBUY, WARNING).holders(Permission.COMMERCE_REFUND_APPROVE).reserved()),
+    /**
+     * 공구 취소·반품 요청 — 접수 때(WARNING, 5분 안 연속은 한 건) · 처리 기한 2영업일 지남(WARNING) · 3영업일 지남(CRITICAL — 발행 때 심각도를 올린다, P35). 기한 경고는 1시간 점검 워커가
+     * 요청·단계마다 한 번(묶음 키 = 요청 ID + 단계). 처리는 요청 대기열
+     */
+    COMMERCE_REFUND_REQUESTED(spec(GROUPBUY, WARNING).holders(Permission.COMMERCE_REFUND_APPROVE, Permission.COMMERCE_ORDER_MANAGE).link("/group-buy-requests").collapse(300)),
     BUSINESS_APPLICATION_PENDING(spec(BIZ_AD, INFO).holders(Permission.BUSINESS_MANAGE).reserved()),
     AD_REVIEW_PENDING(spec(BIZ_AD, INFO).holders(Permission.AD_MANAGE).reserved()),
     /** 운영자 신청 기능이 구현된 뒤 */

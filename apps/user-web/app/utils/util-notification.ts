@@ -107,6 +107,8 @@ export default class UtilNotification {
         if (type === 'GROUP_PUBLISH_REJECTED') return 'pi pi-times-circle';
         if (type === 'GROUP_POST_MEMBERS_ONLY' || type === 'GROUP_POST_UNPUBLISHED') return 'pi pi-lock';
         if (type === 'GROUP_VISIBILITY_CHANGED') return 'pi pi-eye';
+        // 공동구매(커머스 2b-4) — 주문·관심 알림은 장바구니
+        if (type === 'GROUP_BUY') return 'pi pi-shopping-cart';
         if (type.startsWith('GROUP_')) return 'pi pi-users';
         return 'pi pi-comment';
     }

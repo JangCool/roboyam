@@ -23,6 +23,7 @@ import error from './error';
 import identity from './identity';
 import feed from './feed';
 import grade from './grade';
+import groupBuy from './groupBuy';
 import group from './group';
 import groupEvent from './groupEvent';
 import groupManager from './groupManager';
@@ -74,6 +75,7 @@ export default {
     identity,
     feed,
     grade,
+    groupBuy,
     group,
     groupEvent,
     groupManager,

@@ -3,6 +3,7 @@ package com.community.batch.service;
 import com.community.batch.config.BatchProperties;
 import com.community.batch.core.WorkerHeartbeats;
 import com.community.groupbuy.service.GroupBuyRefundWorker;
+import com.community.groupbuy.service.GroupBuyDeadlineWatch;
 import com.community.groupbuy.service.GroupBuyFulfillmentWorker;
 import com.community.groupbuy.service.GroupBuyStateWorker;
 import org.slf4j.Logger;
@@ -29,14 +30,16 @@ public class GroupBuyStateScheduler {
     private final GroupBuyStateWorker stateWorker;
     private final GroupBuyRefundWorker refundWorker;
     private final GroupBuyFulfillmentWorker fulfillmentWorker;
+    private final GroupBuyDeadlineWatch deadlineWatch;
     private final WorkerHeartbeats heartbeats;
 
     public GroupBuyStateScheduler(BatchProperties properties, GroupBuyStateWorker stateWorker, GroupBuyRefundWorker refundWorker, GroupBuyFulfillmentWorker fulfillmentWorker,
-                                  WorkerHeartbeats heartbeats) {
+                                  GroupBuyDeadlineWatch deadlineWatch, WorkerHeartbeats heartbeats) {
         this.properties = properties;
         this.stateWorker = stateWorker;
         this.refundWorker = refundWorker;
         this.fulfillmentWorker = fulfillmentWorker;
+        this.deadlineWatch = deadlineWatch;
         this.heartbeats = heartbeats;
     }
 
@@ -87,6 +90,23 @@ public class GroupBuyStateScheduler {
         } catch (RuntimeException e) {
             log.error("공구 발송·요청 워커 한 바퀴가 실패했다 원인={}", e.getClass().getSimpleName());
             heartbeats.failure(GroupBuyFulfillmentWorker.WORKER_KEY, e);
+            return 0;
+        }
+    }
+
+    /** 기한 점검(1시간 — P35 요청 처리 기한 · 결정 51 발송 기한 · 마감 임박 알림, 2b-4) */
+    @Scheduled(initialDelayString = "${roboyam.groupbuy.deadline-poll-millis:3600000}", fixedDelayString = "${roboyam.groupbuy.deadline-poll-millis:3600000}")
+    public int deadlineTick() {
+        if (!properties.enabled()) {
+            return -1;
+        }
+        try {
+            int handled = deadlineWatch.runOnce().total();
+            heartbeats.success(GroupBuyDeadlineWatch.WORKER_KEY, handled);
+            return handled;
+        } catch (RuntimeException e) {
+            log.error("공구 기한 점검 한 바퀴가 실패했다 원인={}", e.getClass().getSimpleName());
+            heartbeats.failure(GroupBuyDeadlineWatch.WORKER_KEY, e);
             return 0;
         }
     }

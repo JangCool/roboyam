@@ -50,7 +50,8 @@ class Commerce2aCatalogTest {
         assertThat(AdminScreenRegistry.isGroupLabelKey("menu.payment")).isTrue();
         List<AdminMenuNode> normal = AdminScreenRegistry.defaults().get(AdminScreenRegistry.NORMAL);
         List<String> groups = normal.stream().map(AdminMenuNode::labelKey).toList();
-        assertThat(groups.indexOf("menu.payment")).isEqualTo(groups.indexOf("menu.pointShop") + 1);
+        assertThat(groups.indexOf("menu.groupBuy")).as("2b-4 — 공구 묶음이 포인트 상점과 결제 사이").isEqualTo(groups.indexOf("menu.pointShop") + 1);
+        assertThat(groups.indexOf("menu.payment")).isEqualTo(groups.indexOf("menu.groupBuy") + 1);
         AdminMenuNode payment = normal.stream().filter(node -> "menu.payment".equals(node.labelKey())).findFirst().orElseThrow();
         assertThat(payment.icon()).isEqualTo("pi pi-credit-card");
         assertThat(payment.children()).extracting(AdminMenuNode::targetKey).containsExactlyElementsOf(PAYMENT_SCREENS);

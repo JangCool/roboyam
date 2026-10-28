@@ -203,7 +203,8 @@ public class GroupBuyProductService {
     }
 
     /** 상품 등록 — 새 상품 ID */
-    public long create(ProductDraft draft, Long operatorId, String ip) {
+    public long create(ProductDraft raw, Long operatorId, String ip) {
+        ProductDraft draft = GroupBuyDescriptionHtml.sanitized(raw); // 설명은 서버에서 반드시 정화한다(결정 2 — 2b-4)
         Map<String, MessageRef> f = new LinkedHashMap<>();
         NewProduct p = validate(draft, f);
         GroupBuySkuPlan.ProductPlan plan = p == null ? null : GroupBuySkuPlan.product(draft, allowedOptionTypes(null), f);
@@ -227,7 +228,8 @@ public class GroupBuyProductService {
      *
      * @throws GroupBuyException {@code VERSION_CONFLICT} · {@code LOCKED_FIELD} · {@code PRODUCT_SKU_IN_USE}
      */
-    public void update(long id, int version, ProductDraft draft, Long operatorId, String ip) {
+    public void update(long id, int version, ProductDraft raw, Long operatorId, String ip) {
+        ProductDraft draft = GroupBuyDescriptionHtml.sanitized(raw); // 설명은 서버에서 반드시 정화한다(결정 2 — 2b-4)
         Map<String, MessageRef> f = new LinkedHashMap<>();
         NewProduct p = validate(draft, f);
         GroupBuySkuPlan.ProductPlan plan = p == null ? null : GroupBuySkuPlan.product(draft, allowedOptionTypes(id), f);

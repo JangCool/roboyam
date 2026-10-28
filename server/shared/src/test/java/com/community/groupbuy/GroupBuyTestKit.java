@@ -131,6 +131,8 @@ final class GroupBuyTestKit {
     final List<Object> events = new CopyOnWriteArrayList<>();
     final List<AuditEvent> audits = new CopyOnWriteArrayList<>();
     final List<AdminNotificationEvent> operatorNotices = new CopyOnWriteArrayList<>();
+    /** 운영자 알림의 맥락(2b-4 — 심각도·묶음 키), {@link #operatorNotices} 와 같은 차례 */
+    final List<NotificationContext> operatorContexts = new CopyOnWriteArrayList<>();
     volatile boolean salesOpen = true;
     /** 가짜 PG 취소를 거절하게(PG 취소 기간 지남 — 결정 67) */
     volatile boolean pgCancelDown = false;
@@ -167,6 +169,12 @@ final class GroupBuyTestKit {
     final com.community.groupbuy.service.GroupBuyEscrowWorker escrowWorker;
     final com.community.groupbuy.service.GroupBuyFulfillmentWorker fulfillmentWorker;
     final com.community.payment.service.PaymentCancelManualService manualCancels;
+    // 2b-4
+    final com.community.groupbuy.service.GroupBuyNotifications notifications;
+    final com.community.groupbuy.service.GroupBuyDeadlineWatch deadlineWatch;
+    final com.community.groupbuy.service.GroupBuyShipDeadlines shipDeadlines;
+    final com.community.groupbuy.service.GroupBuyWatchService watches;
+    final com.community.groupbuy.service.GroupBuySettingsService settingsService;
     final FakePaymentGateway fakeGateway;
     final long operator;
 
@@ -257,6 +265,31 @@ final class GroupBuyTestKit {
             return new MemberRestrictionService(new MemberRestrictionStore(dataSource), audit, notices, ids, messages, clocks);
         }
 
+        /** 2b-4 공구 알림 — 회원 알림 발행기·커머스 메일 대기열·사업자 정보·문구(실제 번들) */
+        @Bean
+        MemberNotificationPublisher memberNotificationPublisher(DataSource dataSource, SnowflakeIdGenerator ids, ApplicationEventPublisher events) {
+            return new MemberNotificationPublisher(new MemberNotificationWriter(dataSource), new IsolatedSideWork(dataSource, noFlush()), ids, events);
+        }
+
+        @Bean
+        com.community.mail.outbox.service.MailOutbox mailOutbox(DataSource dataSource, SnowflakeIdGenerator ids, Clock clock) {
+            return new com.community.mail.outbox.service.MailOutbox(new com.community.mail.outbox.repository.master.MailOutboxStore(dataSource), ids, clock);
+        }
+
+        @Bean
+        com.community.commerce.sales.CommerceSalesStore commerceSalesStore(DataSource dataSource) {
+            return new com.community.commerce.sales.CommerceSalesStore(dataSource);
+        }
+
+        @Bean
+        Messages messages() {
+            org.springframework.context.support.ResourceBundleMessageSource source = new org.springframework.context.support.ResourceBundleMessageSource();
+            source.setBasename("messages/messages");
+            source.setDefaultEncoding("UTF-8");
+            source.setFallbackToSystemLocale(false);
+            return new Messages(source, new StandardEnvironment(), "messages/messages");
+        }
+
         @Bean
         PaymentProperties paymentProperties() {
             return PaymentProperties.DEFAULTS;
@@ -309,10 +342,12 @@ final class GroupBuyTestKit {
         @Bean
         NotificationPublisher notificationPublisher(DataSource dataSource, SnowflakeIdGenerator ids) {
             List<AdminNotificationEvent> sink = current.operatorNotices;
+            List<NotificationContext> contexts = current.operatorContexts;
             return new NotificationPublisher(null, null, null, null, ids, null, null, dataSource) {
                 @Override
                 public int publish(AdminNotificationEvent event, NotificationContext context) {
                     sink.add(event);
+                    contexts.add(context);
                     return 1;
                 }
             };
@@ -429,6 +464,11 @@ final class GroupBuyTestKit {
         escrowWorker = spring.getBean(com.community.groupbuy.service.GroupBuyEscrowWorker.class);
         fulfillmentWorker = spring.getBean(com.community.groupbuy.service.GroupBuyFulfillmentWorker.class);
         manualCancels = spring.getBean(com.community.payment.service.PaymentCancelManualService.class);
+        notifications = spring.getBean(com.community.groupbuy.service.GroupBuyNotifications.class);
+        deadlineWatch = spring.getBean(com.community.groupbuy.service.GroupBuyDeadlineWatch.class);
+        shipDeadlines = spring.getBean(com.community.groupbuy.service.GroupBuyShipDeadlines.class);
+        watches = spring.getBean(com.community.groupbuy.service.GroupBuyWatchService.class);
+        settingsService = spring.getBean(com.community.groupbuy.service.GroupBuySettingsService.class);
         fakeGateway = (FakePaymentGateway) spring.getBean(PaymentGateway.class);
         operator = newOperator();
         category = products.createCategory("시험 " + ids.nextId(), null, 0, operator, "127.0.0.1");
@@ -452,6 +492,7 @@ final class GroupBuyTestKit {
         events.clear();
         audits.clear();
         operatorNotices.clear();
+        operatorContexts.clear();
         clock.advance(Duration.ofMinutes(1));
     }
 

@@ -63,6 +63,30 @@ public class ShippingPolicyService {
         return store.history(code);
     }
 
+    /** 모든 정책 줄(설정 화면 — 정책 이름 · 시작 차례) */
+    public List<PolicyRow> all() {
+        return store.all();
+    }
+
+    /**
+     * 아직 시작하지 않은 예약 줄 지우기(2b-4) — 앞 줄의 끝을 다시 연다. 시작한 줄은 409 {@code COMMERCE_SHIPPING_POLICY_STARTED}(지난 공구의 사본이 바뀌지 않게). 감사 돈 관련.
+     */
+    @Transactional
+    public void deleteScheduled(long id, Long operatorId, String ip) {
+        Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
+        PolicyRow row = store.find(id).orElseThrow(GroupBuyException::shippingPolicyNotFound);
+        store.lockCode(row.code());
+        if (!store.deleteNotStarted(id, now)) {
+            throw GroupBuyException.shippingPolicyStarted();
+        }
+        store.reopen(row.code(), row.effectiveFrom());
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("code", row.code());
+        detail.put("effectiveFrom", row.effectiveFrom().toString());
+        audit.record(new AuditEvent(operatorId == null ? AuditActorType.SYSTEM : AuditActorType.OPERATOR, operatorId, AuditActions.COMMERCE_SHIPPING_POLICY_DELETE,
+                AuditResult.SUCCESS, "SHIPPING_POLICY", Long.toString(id), ip, detail));
+    }
+
     /**
      * 새 줄을 넣는다. 시작 시각은 지금보다 앞일 수 없다(지난 공구의 사본이 바뀌지 않게).
      *

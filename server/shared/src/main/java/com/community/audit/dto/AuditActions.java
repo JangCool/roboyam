@@ -327,6 +327,21 @@ public final class AuditActions {
     public static final String COMMERCE_CARRIER_SAVE = "COMMERCE_CARRIER_SAVE";
     /** 배송비 정책 줄 추가(예약) — 대상 SHIPPING_POLICY + 줄 ID, {@code code}·{@code effectiveFrom}·{@code before}/{@code after}. 돈 관련 */
     public static final String COMMERCE_SHIPPING_POLICY_CREATE = "COMMERCE_SHIPPING_POLICY_CREATE";
+    // ── 2b-4 판매 스위치·사업자 정보·공구 설정·주문 조회 — 대상 COMMERCE_SETTINGS(sales·business-info·group-buy-settings)·SHIPPING_POLICY·GROUP_BUY_ORDER ──
+    /** 판매 스위치 켜기·끄기(commerce.md 20절) — {@code before}·{@code after}·{@code reason}. 돈 관련 */
+    public static final String COMMERCE_SALES_TOGGLE = "COMMERCE_SALES_TOGGLE";
+    /** 운영 체크 항목 체크·해제 — {@code key}·{@code checked}. 일반 */
+    public static final String COMMERCE_SALES_CHECKLIST = "COMMERCE_SALES_CHECKLIST";
+    /** 사업자 정보 저장(결정 18) — 바뀐 칸 이름 {@code fields}. 일반 */
+    public static final String COMMERCE_BUSINESS_INFO_UPDATE = "COMMERCE_BUSINESS_INFO_UPDATE";
+    /** 공구 설정 저장(결정 10) — 바뀐 칸만 {@code before}/{@code after}. 돈 관련(문턱·보상 상한·선점 시간) */
+    public static final String GROUPBUY_SETTINGS_UPDATE = "GROUPBUY_SETTINGS_UPDATE";
+    /** 아직 시작하지 않은 배송비 정책 줄 지우기 — 대상 SHIPPING_POLICY + 줄 ID, {@code code}·{@code effectiveFrom}. 돈 관련 */
+    public static final String COMMERCE_SHIPPING_POLICY_DELETE = "COMMERCE_SHIPPING_POLICY_DELETE";
+    /** 공구 주문 운영 메모 저장 — 글자 수만. 일반 */
+    public static final String GROUPBUY_ORDER_MEMO = "GROUPBUY_ORDER_MEMO";
+    /** 관리자 공구 주문 상세 열람(회원 번호·닉네임 — 결제 주문 상세와 같다). 개인정보 열람 */
+    public static final String GROUPBUY_ORDER_VIEW = "GROUPBUY_ORDER_VIEW";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

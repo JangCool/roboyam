@@ -52,6 +52,12 @@ public enum MemberNotificationType {
     POINT_SHOP_REFUND_APPROVED("system"),
     /** 정지 중에 낸 포인트 상점 환불 신청을 운영자가 거절했다(V87) — 품목 이름 · 사유. 누르면 내 아이템 */
     POINT_SHOP_REFUND_REJECTED("system"),
+    /**
+     * 공동구매(커머스 2b-4) — 덧붙임 {@code kind}(주문 확인·관심 알림·수량 풀림·연장·차수 시작·환불 완료·자동 취소·발송 지연·공급 불가 선택·요청 처리 등 —
+     * {@code GroupBuyNotifications.Kind}) · {@code groupBuyId} · {@code title}(알릴 때 공구 제목) · {@code amount} · {@code note}(주문 번호·날짜) · {@code path}(누르면 갈 곳).
+     * 끌 수 없는 거래 알림(관심 알림은 회원이 신청한 것). 꼭 가야 하는 메일(계약 통지·환불 완료·지연 통지)은 커머스 메일 대기열이 따로 보낸다.
+     */
+    GROUP_BUY("system"),
 
     // ── 소모임(V90 — docs/features/group-contract.md 1단계, community api-groups.md 7절). 묶음 system(user-web 거르기에 소모임 묶음이 없어 계정·처리 알림과 같이). 덧붙임 groupId·groupName(+reason·applicantId) ──
     /** 내 개설 신청이 승인돼 소모임이 열렸다 — 누르면 그 소모임 */

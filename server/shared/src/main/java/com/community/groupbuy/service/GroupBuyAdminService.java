@@ -428,7 +428,7 @@ public class GroupBuyAdminService {
 
     /**
      * 발송 지연 공지(결정 52) — 새 예정일·사유를 남기고 수정 이력을 하나 올린다. 그때부터 그 전에 결제한 발송 전 주문은 승인 없이 전액 취소할 수 있다
-     * ({@link ParticipationCancelService}). 회원 앱·메일 통지는 2b-4.
+     * ({@link ParticipationCancelService}). 회원 앱·메일 통지는 이벤트 {@code DelayAnnounced} 를 받는 2b-4 {@code GroupBuyNotifications}.
      */
     public void announceDelay(long id, LocalDate newPlannedAt, String reason, Long operatorId, String ip) {
         String why = requireReason(reason);
@@ -448,6 +448,7 @@ public class GroupBuyAdminService {
             }
             groups.snapshotRevision(ids.nextId(), id, groups.nextRevision(id, now), "SHIP_DELAY", operatorId, now);
             record(operatorId, AuditActions.GROUPBUY_DELAY_NOTICE, id, ip, Map.of("from", String.valueOf(row.shipPlannedAt()), "to", newPlannedAt.toString(), "reason", why));
+            events.publishEvent(new GroupBuyEvents.DelayAnnounced(id, newPlannedAt, why));
         });
     }
 

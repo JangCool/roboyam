@@ -36,7 +36,9 @@ public final class AuditRetention {
             AuditActions.COMMERCE_SHIPPING_POLICY_CREATE,
             // 공구 환불·요청 승인·거절·반품 처리·공급 불가·계좌 송금 — 돈이 움직이거나 청약철회 기록(commerce-groupbuy-contract 결정 55·70)
             AuditActions.GROUPBUY_REFUND, AuditActions.GROUPBUY_REQUEST_APPROVE, AuditActions.GROUPBUY_REQUEST_REJECT, AuditActions.GROUPBUY_RETURN_DISPOSE,
-            AuditActions.GROUPBUY_SUPPLY_FAILURE, AuditActions.GROUPBUY_BANK_TRANSFER);
+            AuditActions.GROUPBUY_SUPPLY_FAILURE, AuditActions.GROUPBUY_BANK_TRANSFER,
+            // 판매 스위치·공구 설정(문턱·보상 상한)·배송비 정책 줄 지우기 — 판매를 열고 닫거나 돈의 기준을 바꾸는 일(2b-4)
+            AuditActions.COMMERCE_SALES_TOGGLE, AuditActions.GROUPBUY_SETTINGS_UPDATE, AuditActions.COMMERCE_SHIPPING_POLICY_DELETE);
 
     private static final Set<String> PERSONAL_DATA = Set.of(
             AuditActions.MEMBER_VIEW,
@@ -44,7 +46,9 @@ public final class AuditRetention {
             // 결제 주문 상세(회원 번호·닉네임 — commerce-payment-contract 결정 17)
             AuditActions.PAYMENT_ORDER_VIEW,
             // 공구 배송지 열람·배송 명단 내보내기(commerce.md 10-9)
-            AuditActions.GROUPBUY_ADDRESS_REVEAL, AuditActions.GROUPBUY_SHIPPING_EXPORT);
+            AuditActions.GROUPBUY_ADDRESS_REVEAL, AuditActions.GROUPBUY_SHIPPING_EXPORT,
+            // 관리자 공구 주문 상세(회원 번호·닉네임 — 2b-4)
+            AuditActions.GROUPBUY_ORDER_VIEW);
 
     /** 일반 운영으로 <b>정한</b> 행위 — 빠뜨린 것과 구별하려고 나열한다 */
     private static final Set<String> GENERAL = Set.of(
@@ -103,7 +107,9 @@ public final class AuditRetention {
             AuditActions.GROUPBUY_CREATE, AuditActions.GROUPBUY_UPDATE, AuditActions.GROUPBUY_START, AuditActions.GROUPBUY_CLOSE_EARLY, AuditActions.GROUPBUY_DELAY_NOTICE,
             AuditActions.GROUPBUY_PRODUCT_SAVE, AuditActions.GROUPBUY_CATEGORY_SAVE, AuditActions.GROUPBUY_OPTION_TYPE_SAVE,
             // 발주·발송·배송완료·택배사 — 일반 운영(돈은 환불이 움직인다)
-            AuditActions.GROUPBUY_FULFILLMENT, AuditActions.COMMERCE_CARRIER_SAVE);
+            AuditActions.GROUPBUY_FULFILLMENT, AuditActions.COMMERCE_CARRIER_SAVE,
+            // 운영 체크 항목·사업자 정보·주문 메모 — 일반 운영(판매를 켜는 일은 스위치가 돈 관련으로 남긴다)
+            AuditActions.COMMERCE_SALES_CHECKLIST, AuditActions.COMMERCE_BUSINESS_INFO_UPDATE, AuditActions.GROUPBUY_ORDER_MEMO);
 
     private static final Map<String, AuditRetentionClass> TABLE = table();
 

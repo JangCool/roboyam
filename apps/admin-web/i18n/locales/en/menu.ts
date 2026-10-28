@@ -64,6 +64,15 @@ export default {
     pointShopItems: 'Items',
     pointShopPurchases: 'Purchases',
     pointShopSettings: 'Point shop settings',
+    // Group buy section (normal mode, before Payments) — physical group buys sold by the operator
+    groupBuy: 'Group buys',
+    groupBuyProducts: 'Products',
+    groupBuyOptionTypes: 'Option types',
+    groupBuyCategories: 'Categories',
+    groupBuys: 'Group buys',
+    groupBuyStock: 'Quantities',
+    groupBuyOrders: 'Orders',
+    groupBuyRequests: 'Cancel & return requests',
     // Payments section (normal mode, after Point shop) — cash payment module
     payment: 'Payments',
     paymentOrders: 'Payment orders',

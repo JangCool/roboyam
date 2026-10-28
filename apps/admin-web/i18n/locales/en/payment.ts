@@ -265,6 +265,15 @@ export default {
         manualPlaceholder: 'e.g. Refunded in the PortOne console (bank transfer — got account details)',
         retried: 'The cancel is back in the queue',
         manualDone: 'Marked as handled manually',
+        manualMethodLabel: 'How it was handled',
+        manualMethod: { NONE: 'Mark only', CONSOLE_CANCEL: 'Canceled in console', BANK_TRANSFER: 'Refunded to bank account' },
+        manualMethodHint: {
+            NONE: 'When you do not know how — the canceled total stays and daily reconciliation may show it again.',
+            CONSOLE_CANCEL: 'Canceled directly in the PortOne console — attaches the cancellation ID and updates the canceled total (the reconciliation issue will not reopen).',
+            BANK_TRANSFER: 'Refunded (or will refund) to the customer bank account — the canceled total stays and the group buy refund becomes a bank transfer.',
+        },
+        pgCancelIdLabel: 'PortOne cancellation ID',
+        pgCancelIdRequired: 'Enter the PortOne console cancellation ID.',
     },
     reconcile: {
         lastChecked: 'Last reconciled day',

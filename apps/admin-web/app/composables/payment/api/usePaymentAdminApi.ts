@@ -73,8 +73,12 @@ export function usePaymentAdminApi() {
         /** 최종 실패한 취소를 다시 시도(대기열로 되돌림) */
         retryCancel: (cancelId: string, reason: string): Promise<PaymentCancelView> => client.post<PaymentCancelView>(PATH.cancelRetry(cancelId), { reason }),
 
-        /** 최종 실패한 취소를 운영자가 직접 끝냈다고 표시 */
-        manualCancel: (cancelId: string, reason: string): Promise<PaymentCancelView> => client.post<PaymentCancelView>(PATH.cancelManual(cancelId), { reason }),
+        /**
+         * 최종 실패한 취소를 운영자가 직접 끝냈다고 표시 — 처리 방법(공구 계약 결정 74): `CONSOLE_CANCEL` 이면 포트원 취소 ID 와 함께(취소 누계까지 반영),
+         * `BANK_TRANSFER` 면 계좌로 돌려줌(누계 그대로), `null` 이면 표시만. `400 fields.method|pgCancelId`
+         */
+        manualCancel: (cancelId: string, reason: string, method: 'CONSOLE_CANCEL' | 'BANK_TRANSFER' | null = null, pgCancelId: string | null = null): Promise<PaymentCancelView> =>
+            client.post<PaymentCancelView>(PATH.cancelManual(cancelId), { reason, method, pgCancelId }),
 
         /** 날짜별 대사 상태 */
         reconcile: (): Promise<ReconcileOverview> => client.get<ReconcileOverview>(PATH.reconcile),

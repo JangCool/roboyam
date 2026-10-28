@@ -71,6 +71,16 @@ public final class AdminScreenRegistry {
                     leaf(s("pointShopItems", "/point-shop/items", "menu.pointShopItems", "pi pi-box", Permission.POINTSHOP_READ)),
                     leaf(s("pointShopPurchases", "/point-shop/purchases", "menu.pointShopPurchases", "pi pi-receipt", Permission.POINTSHOP_READ)),
                     leaf(s("pointShopSettings", "/point-shop/settings", "menu.pointShopSettings", "pi pi-sliders-h", Permission.POINTSHOP_READ))),
+            // 공구 묶음(커머스 2b — commerce-groupbuy-contract 「화면 목록」·결정 89) — 결제 묶음 앞. 상품·옵션 종류·카테고리·공구·수량은 조회 commerce.product.read,
+            // 주문·요청은 commerce.order.read(화면 안의 처리는 각 권한). admin-web util-admin-menu 의 groupBuy 묶음과 같은 키·주소·권한·아이콘·차례
+            section(NORMAL, "menu.groupBuy", "pi pi-truck",
+                    leaf(s("groupBuyProducts", "/group-buy-products", "menu.groupBuyProducts", "pi pi-tag", Permission.COMMERCE_PRODUCT_READ)),
+                    leaf(s("groupBuyOptionTypes", "/group-buy-option-types", "menu.groupBuyOptionTypes", "pi pi-list-check", Permission.COMMERCE_PRODUCT_READ)),
+                    leaf(s("groupBuyCategories", "/group-buy-categories", "menu.groupBuyCategories", "pi pi-sitemap", Permission.COMMERCE_PRODUCT_READ)),
+                    leaf(s("groupBuys", "/group-buys", "menu.groupBuys", "pi pi-shopping-bag", Permission.COMMERCE_PRODUCT_READ)),
+                    leaf(s("groupBuyStock", "/group-buy-stock", "menu.groupBuyStock", "pi pi-box", Permission.COMMERCE_PRODUCT_READ)),
+                    leaf(s("groupBuyOrders", "/group-buy-orders", "menu.groupBuyOrders", "pi pi-list", Permission.COMMERCE_ORDER_READ)),
+                    leaf(s("groupBuyRequests", "/group-buy-requests", "menu.groupBuyRequests", "pi pi-replay", Permission.COMMERCE_ORDER_READ))),
             // 결제 묶음(커머스 2a — commerce-payment-contract 결정 13·「2a-1 화면 목업」) — 포인트 상점 묶음 다음. 다섯 화면 모두 조회 commerce.payment.read
             // (화면 안의 처리 commerce.reconcile.manage). admin-web UtilAdminMenu 의 payment 묶음과 같은 키·주소·권한·아이콘·차례. PG 설정은 설정 › 포트원 그대로
             section(NORMAL, "menu.payment", "pi pi-credit-card",

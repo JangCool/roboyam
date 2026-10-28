@@ -18,6 +18,7 @@ export default {
     wonSuffix: ' KRW',
     minuteSuffix: ' min',
     autoCancel: 'Automatic cancel',
+    portoneMissing: 'We could not open the checkout. Try again later or contact support.',
     status: {
         READY: 'Awaiting payment',
         PAID: 'Paid',

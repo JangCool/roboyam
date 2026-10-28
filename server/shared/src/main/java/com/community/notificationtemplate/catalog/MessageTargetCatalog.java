@@ -209,6 +209,10 @@ public final class MessageTargetCatalog {
                 "/me/items", List.of()));
         out.add(member(MemberEvent.POINT_SHOP_REFUND_REJECTED, List.of(MessageVariable.of("itemName", "refundItemName"), MessageVariable.of("reason", "refundRejectReason")),
                 new InAppText("member.notification.POINT_SHOP_REFUND_REJECTED.title", null, "{{reason}}", List.of("itemName")), "/me/items", List.of()));
+        // 공동구매(커머스 2b-4) — 공구 제목 · 종류별 한 줄(주문 확인·관심 알림·환불 완료 등 — 번들 member.notification.GROUP_BUY.kind.*)
+        out.add(member(MemberEvent.GROUP_BUY, List.of(MessageVariable.of("groupBuyTitle", "groupBuyTitle"), MessageVariable.of("detail", "groupBuyDetail")),
+                new InAppText("member.notification.GROUP_BUY.title", "member.notification.GROUP_BUY.body", null, List.of("groupBuyTitle", "detail")), "/me/orders",
+                List.of()));
         // 소모임(V90 — group-contract 1단계) — 소모임 이름(+반려·거절·비활성 사유, 가입 신청한 회원)
         out.add(groupEvent(MemberEvent.GROUP_APPROVED, null, "/groups/123"));
         out.add(groupEvent(MemberEvent.GROUP_REJECTED, "groupRejectReason", "/groups/me"));
@@ -307,6 +311,18 @@ public final class MessageTargetCatalog {
                 MessageVariable.of("validHours", "emailChangeValidHours")), List.of()));
         out.add(required(RequiredMail.MEMBER_EMAIL_CHANGE_NOTICE, List.of(MessageVariable.of("nickname", "nickname"), MessageVariable.of("newEmail", "maskedNewEmail")),
                 List.of()));
+        // 공동구매(커머스 2b-4) — 주문 확인은 계약 내용 통지(결정 57: 판매 조건·발송 예정일·청약철회 제한·사업자 정보 — 고정 안내는 기본 문구에)
+        out.add(required(RequiredMail.GROUP_BUY_ORDER_CONFIRMED, List.of(MessageVariable.of("orderNo", "groupBuyOrderNo"),
+                MessageVariable.of("groupBuyTitle", "groupBuyTitle"), MessageVariable.of("items", "groupBuyOrderItems"), MessageVariable.of("amount", "groupBuyOrderAmount"),
+                MessageVariable.of("shippingFee", "groupBuyShippingFee"), MessageVariable.of("saleTerms", "groupBuySaleTerms"), MessageVariable.of("shipPlan", "groupBuyShipPlan"),
+                MessageVariable.of("withdrawal", "groupBuyWithdrawal"), MessageVariable.of("seller", "groupBuySeller"),
+                MessageVariable.requiredLink("orderLink", "groupBuyOrderLink")), List.of()));
+        out.add(required(RequiredMail.GROUP_BUY_REFUND_COMPLETED, List.of(MessageVariable.of("orderNo", "groupBuyOrderNo"),
+                MessageVariable.of("groupBuyTitle", "groupBuyTitle"), MessageVariable.of("amount", "groupBuyRefundAmount"), MessageVariable.of("refundMethod", "groupBuyRefundMethod"),
+                MessageVariable.requiredLink("orderLink", "groupBuyOrderLink")), List.of()));
+        out.add(required(RequiredMail.GROUP_BUY_ORDER_NOTICE, List.of(MessageVariable.of("orderNo", "groupBuyOrderNo"),
+                MessageVariable.of("groupBuyTitle", "groupBuyTitle"), MessageVariable.of("detail", "groupBuyDetail"),
+                MessageVariable.requiredLink("orderLink", "groupBuyOrderLink")), List.of()));
         return out;
     }
 

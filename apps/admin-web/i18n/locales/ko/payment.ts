@@ -266,6 +266,15 @@ export default {
         manualPlaceholder: '예) 포트원 콘솔에서 직접 환불함(가상계좌 — 계좌 정보 받아 처리)',
         retried: '취소를 대기열로 되돌렸어요',
         manualDone: '수동 처리 완료로 표시했어요',
+        manualMethodLabel: '실제 처리 방법',
+        manualMethod: { NONE: '표시만', CONSOLE_CANCEL: '콘솔에서 취소함', BANK_TRANSFER: '계좌로 돌려줌' },
+        manualMethodHint: {
+            NONE: '처리 방법을 모를 때 — 취소 누계는 그대로이고 매일 대사에서 다시 볼 수 있어요.',
+            CONSOLE_CANCEL: '포트원 콘솔에서 직접 취소했어요 — 취소 번호를 붙이고 취소 누계까지 반영해요(대사 이슈가 다시 열리지 않아요).',
+            BANK_TRANSFER: '고객 계좌로 돌려줬거나 돌려줄 거예요 — 취소 누계는 그대로이고 공구 환불은 계좌 송금으로 바뀌어요.',
+        },
+        pgCancelIdLabel: '포트원 취소 번호',
+        pgCancelIdRequired: '포트원 콘솔의 취소 번호를 넣어 주세요.',
     },
     reconcile: {
         lastChecked: '마지막으로 대사한 날',

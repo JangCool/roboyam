@@ -14,6 +14,7 @@ import dashboard from './dashboard';
 import error from './error';
 import grade from './grade';
 import homeLayout from './homeLayout';
+import groupBuy from './groupBuy';
 import identity from './identity';
 import group from './group';
 import login from './login';
@@ -61,6 +62,7 @@ export default {
     error,
     grade,
     homeLayout,
+    groupBuy,
     identity,
     group,
     login,

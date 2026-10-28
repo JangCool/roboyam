@@ -140,6 +140,16 @@
                     <dd class="m-0 text-xs [overflow-wrap:anywhere]">{{ actionTarget.cancel.lastError }}</dd>
                 </template>
             </dl>
+            <div v-if="actionKind === 'manual'" class="mt-3 flex flex-col gap-2" data-testid="payment-manual-method">
+                <span :id="manualMethodLabelId" class="text-sm font-medium">{{ t('payment.action.manualMethodLabel') }}</span>
+                <SelectButton v-model="manualMethod" :options="manualMethodOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-labelledby="manualMethodLabelId" :disabled="actionBusy" />
+                <p class="m-0 text-xs text-muted-color">{{ t(`payment.action.manualMethodHint.${manualMethod}`) }}</p>
+                <div v-if="manualMethod === 'CONSOLE_CANCEL'" class="flex flex-col gap-1">
+                    <label :for="pgCancelInputId" class="text-sm">{{ t('payment.action.pgCancelIdLabel') }}</label>
+                    <InputText :id="pgCancelInputId" v-model="pgCancelId" size="small" maxlength="100" :disabled="actionBusy" :invalid="!!pgCancelError" data-testid="payment-manual-pg-cancel-id" />
+                    <small v-if="pgCancelError" class="text-red-600 dark:text-red-400">{{ pgCancelError }}</small>
+                </div>
+            </div>
         </PaymentReasonDialog>
 
         <PaymentOrderDrawer v-model:visible="drawerOpen" :summary="drawerSummary" :detail="drawerDetail" :loading="drawerLoading" :error="drawerError" :busy="recheckBusy" :can-manage="canManage" @retry="drawerReload" @recheck="startRecheck" />
@@ -255,8 +265,20 @@ const actionBusy = ref(false);
 const actionError = ref('');
 const actionFieldError = ref('');
 
+// 수동 처리 방법(공구 계약 결정 74) — 표시만 · 콘솔에서 취소함(취소 ID) · 계좌로 돌려줌
+type ManualMethod = 'NONE' | 'CONSOLE_CANCEL' | 'BANK_TRANSFER';
+const manualMethod = ref<ManualMethod>('NONE');
+const pgCancelId = ref('');
+const pgCancelError = ref('');
+const manualMethodLabelId = useId();
+const pgCancelInputId = useId();
+const manualMethodOptions = computed(() => (['NONE', 'CONSOLE_CANCEL', 'BANK_TRANSFER'] as const).map((value) => ({ value, label: t(`payment.action.manualMethod.${value}`) })));
+
 function openAction(kind: 'retry' | 'manual', row: PaymentAnomalyRow): void {
     if (!canManage.value || !row.cancel) return;
+    manualMethod.value = 'NONE';
+    pgCancelId.value = '';
+    pgCancelError.value = '';
     actionKind.value = kind;
     actionTarget.value = row;
     actionError.value = '';
@@ -276,7 +298,11 @@ async function submitAction(reason: string): Promise<void> {
             await api.retryCancel(cancel.id, reason);
             toast.success(t('payment.action.retried'));
         } else {
-            await api.manualCancel(cancel.id, reason);
+            if (manualMethod.value === 'CONSOLE_CANCEL' && !pgCancelId.value.trim()) {
+                pgCancelError.value = t('payment.action.pgCancelIdRequired');
+                return;
+            }
+            await api.manualCancel(cancel.id, reason, manualMethod.value === 'NONE' ? null : manualMethod.value, manualMethod.value === 'CONSOLE_CANCEL' ? pgCancelId.value.trim() : null);
             toast.success(t('payment.action.manualDone'));
         }
         actionOpen.value = false;
@@ -289,6 +315,7 @@ async function submitAction(reason: string): Promise<void> {
             void reload();
             return;
         }
+        if (error.status === 400 && error.field('pgCancelId')) pgCancelError.value = error.field('pgCancelId') ?? '';
         const field = error.status === 400 ? error.field('reason') : '';
         if (field) actionFieldError.value = field;
         else actionError.value = error.message;

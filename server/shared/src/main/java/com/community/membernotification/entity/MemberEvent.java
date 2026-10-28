@@ -97,7 +97,9 @@ public enum MemberEvent {
     GROUP_POST_PUBLISHED(NotificationArea.CLUB, MemberNotificationType.GROUP_POST_PUBLISHED, MemberEventLockReason.ACTION, null),
     GROUP_VISIBILITY_CHANGED(NotificationArea.CLUB, MemberNotificationType.GROUP_VISIBILITY_CHANGED, MemberEventLockReason.ACCOUNT, null),
     GROUP_POST_MEMBERS_ONLY(NotificationArea.CLUB, MemberNotificationType.GROUP_POST_MEMBERS_ONLY, MemberEventLockReason.ACTION, null),
-    GROUP_POST_RELEASED(NotificationArea.CLUB, MemberNotificationType.GROUP_POST_RELEASED, MemberEventLockReason.ACTION, null);
+    GROUP_POST_RELEASED(NotificationArea.CLUB, MemberNotificationType.GROUP_POST_RELEASED, MemberEventLockReason.ACTION, null),
+    /** 공동구매 주문·관심 알림(커머스 2b-4) — 거래 알림이라 회원이 끌 수 없다 */
+    GROUP_BUY(NotificationArea.GROUPBUY, MemberNotificationType.GROUP_BUY, MemberEventLockReason.ACTION, null);
 
     private static final Map<String, MemberEvent> BY_CODE = Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(MemberEvent::code, Function.identity()));
 

@@ -3,6 +3,8 @@ package com.community.payment.service;
 import com.community.payment.dto.PaymentAnomaly;
 import com.community.payment.dto.PaymentOrderType;
 import com.community.payment.dto.PaymentStatus;
+import com.community.payment.dto.ManualCancelMethod;
+import com.community.payment.dto.request.PaymentManualCancelRequest;
 import com.community.payment.dto.request.PaymentReasonRequest;
 import com.community.payment.dto.response.PaymentAnomalyPageView;
 import com.community.payment.dto.response.PaymentCancelView;
@@ -114,8 +116,24 @@ public class PaymentAdminService {
         return actions.retryCancel(idOr(id, PaymentCancelNotFoundException::new), reason(body), actor.operatorId(), actor.ip());
     }
 
-    public PaymentCancelView manualCancel(AdminActor actor, String id, PaymentReasonRequest body) {
-        return actions.manualCancel(idOr(id, PaymentCancelNotFoundException::new), reason(body), actor.operatorId(), actor.ip());
+    public PaymentCancelView manualCancel(AdminActor actor, String id, PaymentManualCancelRequest body) {
+        long cancelId = idOr(id, PaymentCancelNotFoundException::new);
+        String reason = body == null ? null : body.reason();
+        String method = body == null ? null : blankToNull(body.method());
+        if (method == null) {
+            return actions.manualCancel(cancelId, reason, actor.operatorId(), actor.ip());
+        }
+        ManualCancelMethod m;
+        try {
+            m = ManualCancelMethod.valueOf(method);
+        } catch (IllegalArgumentException e) {
+            throw ValidationException.of("method", new MessageRef("payment.manual.method.invalid"));
+        }
+        String pgCancelId = blankToNull(body.pgCancelId());
+        if (m == ManualCancelMethod.CONSOLE_CANCEL && (pgCancelId == null || pgCancelId.length() > 100)) {
+            throw ValidationException.of("pgCancelId", new MessageRef("payment.manual.pgCancelId.required"));
+        }
+        return actions.manualCancel(cancelId, reason, m, m == ManualCancelMethod.CONSOLE_CANCEL ? pgCancelId : null, actor.operatorId(), actor.ip());
     }
 
     // ── 대사 ────────────────────────────────────────────────────────────────
