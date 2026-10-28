@@ -39,7 +39,7 @@ public class MemberViewSettingsService {
         return settings.findById(userId).map(MemberViewSettingsService::view).orElseGet(MemberViewSettingsService::defaults);
     }
 
-    /** 세 칸을 통째로 저장한다 → 저장된 값 */
+    /** 통째로 저장한다(메뉴 위치는 빠지면 그대로) → 저장된 값 */
     @Transactional
     public ViewSettingsResponse save(long userId, ViewSettingsRequest request) {
         ViewSettingsPolicy.Checked checked = ViewSettingsPolicy.check(request);
@@ -48,19 +48,22 @@ public class MemberViewSettingsService {
         Instant now = Instant.now();
         MemberViewSettingEntity setting = settings.findById(userId).orElse(null);
         if (setting == null) {
-            setting = MemberViewSettingEntity.create(userId, checked.theme(), checked.textScale(), checked.commentOrder(), now);
+            String menuPosition = checked.menuPosition() == null ? ViewSettingsPolicy.DEFAULT_MENU_POSITION : checked.menuPosition();
+            setting = MemberViewSettingEntity.create(userId, checked.theme(), checked.textScale(), checked.commentOrder(), menuPosition, now);
             settings.persist(setting);
         } else {
-            setting.change(checked.theme(), checked.textScale(), checked.commentOrder(), now);
+            String menuPosition = checked.menuPosition() == null ? setting.getMenuPosition() : checked.menuPosition();
+            setting.change(checked.theme(), checked.textScale(), checked.commentOrder(), menuPosition, now);
         }
         return view(setting);
     }
 
     private static ViewSettingsResponse defaults() {
-        return new ViewSettingsResponse(ViewSettingsPolicy.DEFAULT_THEME, ViewSettingsPolicy.DEFAULT_TEXT_SCALE, ViewSettingsPolicy.DEFAULT_COMMENT_ORDER);
+        return new ViewSettingsResponse(ViewSettingsPolicy.DEFAULT_THEME, ViewSettingsPolicy.DEFAULT_TEXT_SCALE, ViewSettingsPolicy.DEFAULT_COMMENT_ORDER,
+                ViewSettingsPolicy.DEFAULT_MENU_POSITION);
     }
 
     private static ViewSettingsResponse view(MemberViewSettingEntity s) {
-        return new ViewSettingsResponse(s.getTheme(), s.getTextScale(), s.getCommentOrder());
+        return new ViewSettingsResponse(s.getTheme(), s.getTextScale(), s.getCommentOrder(), s.getMenuPosition());
     }
 }

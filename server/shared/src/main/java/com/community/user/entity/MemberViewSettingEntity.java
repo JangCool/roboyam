@@ -22,6 +22,8 @@ public class MemberViewSettingEntity {
     public static final String DEFAULT_THEME = "AUTO";
     public static final int DEFAULT_TEXT_SCALE = 100;
     public static final String DEFAULT_COMMENT_ORDER = "OLDEST";
+    /** 데스크톱 메뉴 위치 — 자동(운영자 설정 > 테마 기본을 따른다), V105 */
+    public static final String DEFAULT_MENU_POSITION = "AUTO";
 
     @Id
     private Long userId;
@@ -29,33 +31,40 @@ public class MemberViewSettingEntity {
     private String theme;
     private short textScale;
     private String commentOrder;
+    private String menuPosition;
     private Instant createdAt;
     private Instant updatedAt;
 
     protected MemberViewSettingEntity() {
     }
 
-    /** 처음 저장할 때 — 세 칸은 검사를 마친 값이다 */
-    public static MemberViewSettingEntity create(long userId, String theme, int textScale, String commentOrder, Instant now) {
+    /** 처음 저장할 때 — 네 칸은 검사를 마친 값이다 */
+    public static MemberViewSettingEntity create(long userId, String theme, int textScale, String commentOrder, String menuPosition, Instant now) {
         MemberViewSettingEntity setting = new MemberViewSettingEntity();
         setting.userId = userId;
         setting.theme = theme;
         setting.textScale = (short) textScale;
         setting.commentOrder = commentOrder;
+        setting.menuPosition = menuPosition;
         setting.createdAt = now;
         setting.updatedAt = now;
         return setting;
     }
 
-    /** 값을 바꾼다 — 세 칸은 검사를 마친 값이다. 같은 값이면 아무것도 바꾸지 않는다 */
-    public void change(String theme, int textScale, String commentOrder, Instant now) {
-        if (theme.equals(this.theme) && textScale == this.textScale && commentOrder.equals(this.commentOrder)) {
+    /** 값을 바꾼다 — 네 칸은 검사를 마친 값이다. 같은 값이면 아무것도 바꾸지 않는다 */
+    public void change(String theme, int textScale, String commentOrder, String menuPosition, Instant now) {
+        if (theme.equals(this.theme) && textScale == this.textScale && commentOrder.equals(this.commentOrder) && menuPosition.equals(this.menuPosition)) {
             return;
         }
         this.theme = theme;
         this.textScale = (short) textScale;
         this.commentOrder = commentOrder;
+        this.menuPosition = menuPosition;
         this.updatedAt = now;
+    }
+
+    public String getMenuPosition() {
+        return menuPosition;
     }
 
     public Long getUserId() {

@@ -119,17 +119,22 @@ public class MenuTreeValidator {
                 fieldErrors.add("nameEn", MenuRules.nameEnProblem(node.nameEn()));
                 String label = MenuRules.stripToNull(node.label());
                 String nameEn = MenuRules.stripToNull(node.nameEn());
+                String divider = node.divider() == null ? MenuNode.DIVIDER_NONE : node.divider();
+                if (!MenuLimits.DIVIDERS.contains(divider)) {
+                    fieldErrors.add("divider", new MessageRef("menu.divider.choice"));
+                }
                 if (node.isFolder()) {
-                    out.add(folder(node, path, depth, fieldErrors, label, nameEn, audience, minGrade));
+                    out.add(folder(node, path, depth, fieldErrors, label, nameEn, audience, minGrade, divider));
                 } else {
-                    out.add(item(node, depth, fieldErrors, label, nameEn, audience, minGrade));
+                    fieldErrors.add("description", MenuRules.descriptionProblem(node.description()));
+                    out.add(item(node, depth, fieldErrors, label, nameEn, audience, minGrade).withExtras(divider, MenuRules.stripToNull(node.description())));
                 }
             }
             return out;
         }
 
         private MenuNode folder(MenuNode node, String path, int depth, MenuFieldErrors fieldErrors, String label, String nameEn, String audience,
-                                String minGrade) {
+                                String minGrade, String divider) {
             fieldErrors.add("label", MenuRules.labelProblem(node.label(), true, MenuLimits.LABEL_MAX));
             if (depth > MenuLimits.FOLDER_DEPTH) {
                 fieldErrors.add("kind", new MessageRef("menu.node.folderDepth", String.valueOf(MenuLimits.FOLDER_DEPTH)));
@@ -139,7 +144,7 @@ public class MenuTreeValidator {
             }
             List<MenuNode> children = nodes(node.children(), path + ".children", depth + 1);
             MenuNode folder = new MenuNode(node.id(), MenuNode.FOLDER, label, nameEn, node.visible(), audience, minGrade, node.collapsible(),
-                    node.collapsible() && node.collapsed(), side && node.autoAdd(), null, null, null, null, false, children);
+                    node.collapsible() && node.collapsed(), side && node.autoAdd(), null, null, null, null, false, children, divider, null);
             if (folder.autoAdd()) {
                 autoAddFolders.add(folder);
             }

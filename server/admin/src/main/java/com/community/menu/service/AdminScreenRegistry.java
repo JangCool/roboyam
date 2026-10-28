@@ -96,6 +96,10 @@ public final class AdminScreenRegistry {
                     leaf(s("teams", "/settings/teams", "menu.teams", "pi pi-sitemap", Permission.TEAM_READ)),
                     // 약관(docs/features/terms-contract.md) — 이용약관·개인정보처리방침 게시·「보기」 링크 옵션
                     leaf(s("terms", "/settings/terms", "menu.terms", "pi pi-file", Permission.TERMS_READ))),
+            // 테마 묶음(site-theme-layout-contract) — 테마 고르기 · 그 테마의 홈 구성 · 메뉴 설정을 한 화면에서. 조회 site.read, 저장은 화면 안에서 site.manage.
+            // admin-web UtilAdminMenu 의 settingsTheme 와 같은 키·주소·권한·아이콘·차례
+            section(SETTINGS, "menu.theme", "pi pi-palette",
+                    leaf(s("themeLayout", "/settings/theme", "menu.themeLayout", "pi pi-objects-column", Permission.SITE_READ))),
             // 회원 설정 묶음 — 닉네임 이미지 신청 조건(member-social-contract 「닉네임 그림」). admin-web UtilAdminMenu 와 같은 키·주소·권한
             section(SETTINGS, "menu.memberSettings", "pi pi-users",
                     leaf(s("nicknameImageSettings", "/settings/nickname-image", "menu.nicknameImageSettings", "pi pi-image", Permission.NICKNAME_IMAGE_READ))),

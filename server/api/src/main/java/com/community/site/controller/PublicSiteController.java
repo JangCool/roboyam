@@ -35,13 +35,13 @@ public class PublicSiteController {
                 .body(ApiResponse.success(snapshot.info()));
     }
 
-    /** 테마만 — {@code /info} 와 같은 사본·같은 캐시 규칙(값은 {@code info.theme}) */
+    /** 테마 + 그 테마의 메뉴 설정 — {@code /info} 와 같은 사본·같은 캐시 규칙({@code theme} 은 {@code info.theme} 과 같은 값) */
     @GetMapping("/theme")
     public ResponseEntity<ApiResponse<SiteThemeResponse>> theme() {
         PublicSiteSnapshot snapshot = siteService.snapshot();
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(Duration.ofSeconds(60)).cachePublic())
                 .eTag(snapshot.etag())
-                .body(ApiResponse.success(new SiteThemeResponse(snapshot.info().theme())));
+                .body(ApiResponse.success(snapshot.theme()));
     }
 }

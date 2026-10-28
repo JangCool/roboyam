@@ -1,7 +1,9 @@
 package com.community.home.controller;
 
 import com.community.auth.dto.AuthUser;
+import com.community.home.dto.response.HomeGadgetsResponse;
 import com.community.home.dto.response.PopularListResponse;
+import com.community.home.service.HomeGadgetService;
 import com.community.home.service.LatestFeedService;
 import com.community.home.service.PopularService;
 import com.community.post.dto.response.PostFeedPageView;
@@ -15,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 최신글 전체·인기글 전체(공개 사이트) — 모양은 user-web {@code useHomeApi.types.ts}. 로그인 없이 읽는다({@code SecurityConfig}).
+ * 최신글 전체·인기글 전체·홈 가젯(공개 사이트) — 모양은 user-web {@code useHomeApi.types.ts}·{@code useHomeGadgetApi.types.ts}. 로그인 없이 읽는다({@code SecurityConfig}).
  * 쿼리 값은 글자로 받아 서비스가 칸별로 모아 검사한다(숫자가 아닌 값도 {@code 400 VALIDATION fields.*}).
  */
 @RestController
@@ -24,10 +26,18 @@ public class HomeController {
 
     private final LatestFeedService latest;
     private final PopularService popular;
+    private final HomeGadgetService gadgets;
 
-    public HomeController(LatestFeedService latest, PopularService popular) {
+    public HomeController(LatestFeedService latest, PopularService popular, HomeGadgetService gadgets) {
         this.latest = latest;
         this.popular = popular;
+        this.gadgets = gadgets;
+    }
+
+    /** 지금 사이트 테마의 홈 구성 + 가젯마다 데이터 — 템플릿·테마는 요청에 싣지 않는다 */
+    @GetMapping("/gadgets")
+    public ResponseEntity<ApiResponse<HomeGadgetsResponse>> gadgets(Authentication authentication) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(gadgets.gadgets(viewerId(authentication))));
     }
 
     /** 최신글 — {@code size}(1~50, 기본 20) · {@code cursor}(이전 응답의 nextCursor) */

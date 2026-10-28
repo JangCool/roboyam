@@ -9,8 +9,10 @@ import tools.jackson.databind.JsonNode;
  * @param id       지금 그룹에 있는 노드 ID(문자열). 새 노드는 null — 그룹에 없는 ID 도 새 노드로 본다
  * @param kind     {@code FOLDER} · {@code ITEM}
  * @param settings 유형별 설정(모르는 유형은 받은 그대로 보존하려고 JSON 그대로 받는다)
+ * @param divider  {@code NONE}(빠지면 이것) · {@code BEFORE} · {@code AFTER}
+ * @param description 항목의 한 줄 설명(80자까지, 비우면 없음). 폴더는 무시한다
  */
 public record MenuNodeRequest(String id, String kind, String label, String nameEn, Boolean visible, String audience, String minGrade, Boolean collapsible,
                               Boolean collapsed, Boolean autoAdd, List<MenuNodeRequest> children, String targetType, String targetId, String targetKey,
-                              JsonNode settings, Boolean mobileTab) {
+                              JsonNode settings, Boolean mobileTab, String divider, String description) {
 }

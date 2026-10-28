@@ -41,6 +41,12 @@ public class MenuNodeEntity {
 
     private boolean mobileTab;
 
+    /** 상단 메뉴 첫 줄 구분선 NONE · BEFORE · AFTER(V105) */
+    private String divider;
+
+    /** 항목 설명(메뉴 설명 줄) — 폴더·없음은 null(V105) */
+    private String description;
+
     protected MenuNodeEntity() {
     }
 
@@ -65,13 +71,15 @@ public class MenuNodeEntity {
         entity.targetKey = node.targetKey();
         entity.settings = MenuSettingsJson.write(node.settings());
         entity.mobileTab = node.mobileTab();
+        entity.divider = node.divider();
+        entity.description = node.isItem() ? node.description() : null;
         return entity;
     }
 
     /** 저장 형태 → 노드(하위 없음) */
     public MenuNode toNode() {
         return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey,
-                MenuSettingsJson.read(settings), mobileTab, java.util.List.of());
+                MenuSettingsJson.read(settings), mobileTab, java.util.List.of(), divider, description);
     }
 
     public Long getId() {

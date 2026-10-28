@@ -103,14 +103,14 @@ PNG 서명 기준 판별·다시 인코딩, 아이콘 크기별 PNG 생성, OG 1
 **API**
 | | 권한 | 요청 → 응답 |
 |---|---|---|
-| `GET /api/site/theme` (api, 비로그인) | — | → `{ theme }` · `Cache-Control: public, max-age=60` + `ETag`(사본 지문, 304) |
+| `GET /api/site/theme` (api, 비로그인) | — | → `{ theme, …지금 테마의 메뉴 설정 평평한 칸 }`(2026-10-29 — 칸은 `site-theme-layout-contract.md`) · `Cache-Control: public, max-age=60` + `ETag`(사본 지문, 304) |
 | `GET /api/site/info` (api) | — | 기존 응답 끝에 `theme` 칸 추가 |
-| `GET /api/admin/site/theme` (admin) | `site.read` | → `{ theme, themes: string[] }` |
-| `PUT /api/admin/site/theme` (admin, CSRF) | `site.manage` | `{ theme }` → `{ theme, themes }` · 목록 밖·빈 값 `400 VALIDATION` `fields.theme`("알 수 없는 테마예요. 목록에서 골라 주세요.") · 설정 행 없음 `fields.site` |
+| `GET /api/admin/site/theme?forTheme=` (admin) | `site.read` | → `{ theme, themes: string[], …forTheme 의 메뉴 설정·테마별 기본값 }`(2026-10-29) |
+| `PUT /api/admin/site/theme` (admin, CSRF) | `site.manage` | `{ theme }` → 같은 모양 · 목록 밖·빈 값 `400 VALIDATION` `fields.theme`("알 수 없는 테마예요. 목록에서 골라 주세요.") · 설정 행 없음 `fields.site` |
 - 권한 없음 `403 PERMISSION_DENIED`. 표시 기본값 저장 API(`/site/display-defaults`)와 따로 둔 별도 PUT 이다(구획별 저장 — 일반 설정 화면의 한 구획 또는 표시 기본값 구획 안의 한 줄로 붙이면 된다).
 - `themes` 는 고를 수 있는 id(보일 순서). 이름(화면 문구)은 화면이 id 로 i18n 키를 찾는다.
 
-**규칙**: 허용 id 의 원천은 서버 코드 `SiteThemes.IDS`(shared `com.community.site.service`) — user-web `utils/util-theme.ts` 의 `THEMES` 와 같은 id 를 같은 순서로 둔다(지금은 `default` 하나). 새 테마는 두 곳에 한 줄씩. DB 칸 `site_settings.theme varchar(32) NOT NULL DEFAULT 'default'`(V52, CHECK 없음 — 테마가 늘 때마다 마이그레이션이 필요 없게). 저장된 값이 목록에서 빠졌으면 읽을 때(관리자·공개 모두) `default` 로 본다. 바뀐 때만 감사 `SITE_THEME_UPDATE`(대상 `SITE`/`1`, `before/after.theme` → 「바뀐 내용」 `theme`)와 관리자 알림(사이트 설정 변경, 변형 `notification.variant.siteTheme`). 같은 값 저장은 아무것도 남기지 않는다.
+**규칙**: 허용 id 의 원천은 서버 코드 `SiteThemes.IDS`(shared `com.community.site.service`) — user-web `utils/util-theme.ts` 의 `THEMES` 와 같은 id 를 둔다(2026-10-29 — `default`·`daum`·`naver`·`roboyam`). 새 테마는 두 곳에 한 줄씩 + 서버 `SiteThemeMenus`(메뉴 설정 기본값)·`HomeLayoutDefaults`(홈 기본 배치)에 그 테마 값. 테마 선택 화면은 `/settings/theme`(`site-theme-layout-contract.md`)로 옮겼다. DB 칸 `site_settings.theme varchar(32) NOT NULL DEFAULT 'default'`(V52, CHECK 없음 — 테마가 늘 때마다 마이그레이션이 필요 없게). 저장된 값이 목록에서 빠졌으면 읽을 때(관리자·공개 모두) `default` 로 본다. 바뀐 때만 감사 `SITE_THEME_UPDATE`(대상 `SITE`/`1`, `before/after.theme` → 「바뀐 내용」 `theme`)와 관리자 알림(사이트 설정 변경, 변형 `notification.variant.siteTheme`). 같은 값 저장은 아무것도 남기지 않는다.
 
 **화면**: `general.vue` ③ 구획 — 라디오 카드(이름·설명은 `site.themeName_<id>`·`site.themeDesc_<id>`, 모르는 id 는 id 그대로), 구획 안 [되돌리기]·[저장], `fields.theme` 는 고르기 아래·`fields.site` 와 그 밖은 구획 안 한 줄. 선택지가 하나면 「지금은 기본 테마 하나만 있어요」. `site.manage` 없으면 라디오 비활성·저장 줄 없음.
 

@@ -37,13 +37,14 @@ public class MenuViews {
             String id = node.id() == null ? null : Long.toString(node.id());
             if (node.isFolder()) {
                 out.add(new MenuFolderView(id, MenuNode.FOLDER, node.label(), node.nameEn(), node.visible(), node.audience(), node.minGrade(),
-                        node.collapsible(), node.collapsed(), node.autoAdd(), nodes(node.children(), context)));
+                        node.collapsible(), node.collapsed(), node.autoAdd(), node.divider(), nodes(node.children(), context)));
                 continue;
             }
             MenuTargetResolver resolver = registry.find(node.targetType()).orElse(null);
             MenuTargetStatus status = resolver == null ? MenuTargetStatus.UNKNOWN_TYPE : resolver.status(node, context);
             out.add(new MenuItemView(id, MenuNode.ITEM, node.label(), node.nameEn(), node.visible(), node.audience(), node.minGrade(), node.targetType(),
-                    node.targetId(), node.targetKey(), node.settings(), node.mobileTab(), new MenuItemView.Resolved(status.name())));
+                    node.targetId(), node.targetKey(), node.settings(), node.mobileTab(), node.divider(), node.description(),
+                    new MenuItemView.Resolved(status.name())));
         }
         return out;
     }
@@ -63,7 +64,7 @@ public class MenuViews {
             out.add(new MenuNode(MenuResolveContext.parseId(node.id()), node.kind(), node.label(), node.nameEn(), !Boolean.FALSE.equals(node.visible()),
                     node.audience(), node.minGrade(), Boolean.TRUE.equals(node.collapsible()), Boolean.TRUE.equals(node.collapsed()),
                     Boolean.TRUE.equals(node.autoAdd()), node.targetType(), node.targetId(), node.targetKey(), node.settings(),
-                    Boolean.TRUE.equals(node.mobileTab()), fromRequest(node.children())));
+                    Boolean.TRUE.equals(node.mobileTab()), fromRequest(node.children()), node.divider(), node.description()));
         }
         return out;
     }

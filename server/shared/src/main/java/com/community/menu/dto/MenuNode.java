@@ -16,16 +16,35 @@ import tools.jackson.databind.JsonNode;
  * @param targetKey  {@code BUILTIN} 의 앱 화면 키. 모르는 유형의 값도 그대로
  * @param settings   유형별 설정 — {@code PATH} {@code {path,newTab}} · {@code URL} {@code {href,newTab}} · 모르는 유형은 받은 그대로 · 그 밖에는 null
  * @param children   하위 노드(폴더만, 항목은 빈 목록)
+ * @param divider    상단 가로 메뉴 첫 줄에서 이 노드 옆의 세로 구분선 {@code NONE} · {@code BEFORE} · {@code AFTER}(null 은 {@code NONE})
+ * @param description 항목의 한 줄 설명(메뉴 설명 줄, {@value MenuLimits#DESCRIPTION_MAX}자까지). 폴더·없음은 null
  */
 public record MenuNode(Long id, String kind, String label, String nameEn, boolean visible, String audience, String minGrade, boolean collapsible,
                        boolean collapsed, boolean autoAdd, String targetType, String targetId, String targetKey, JsonNode settings, boolean mobileTab,
-                       List<MenuNode> children) {
+                       List<MenuNode> children, String divider, String description) {
 
     public static final String FOLDER = "FOLDER";
     public static final String ITEM = "ITEM";
 
+    /** 구분선 없음 */
+    public static final String DIVIDER_NONE = "NONE";
+
     public MenuNode {
         children = children == null ? List.of() : List.copyOf(children);
+        divider = divider == null ? DIVIDER_NONE : divider;
+    }
+
+    /** 구분선·설명이 없는 노드(설치 프리셋·게시판 자동 추가·대상 정리) — 검사({@code MenuTreeValidator})가 요청의 두 칸을 다시 붙인다 */
+    public MenuNode(Long id, String kind, String label, String nameEn, boolean visible, String audience, String minGrade, boolean collapsible,
+                    boolean collapsed, boolean autoAdd, String targetType, String targetId, String targetKey, JsonNode settings, boolean mobileTab,
+                    List<MenuNode> children) {
+        this(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey, settings, mobileTab,
+                children, DIVIDER_NONE, null);
+    }
+
+    public MenuNode withExtras(String newDivider, String newDescription) {
+        return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey, settings,
+                mobileTab, children, newDivider, newDescription);
     }
 
     public boolean isFolder() {
@@ -38,17 +57,17 @@ public record MenuNode(Long id, String kind, String label, String nameEn, boolea
 
     public MenuNode withChildren(List<MenuNode> newChildren) {
         return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey, settings,
-                mobileTab, newChildren);
+                mobileTab, newChildren, divider, description);
     }
 
     public MenuNode withAutoAdd(boolean value) {
         return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, value, targetType, targetId, targetKey, settings,
-                mobileTab, children);
+                mobileTab, children, divider, description);
     }
 
     public MenuNode withId(Long newId) {
         return new MenuNode(newId, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey, settings,
-                mobileTab, children);
+                mobileTab, children, divider, description);
     }
 
     /** 트리의 노드 수(하위 포함) */
