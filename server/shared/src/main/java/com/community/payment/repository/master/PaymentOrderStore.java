@@ -76,6 +76,12 @@ public class PaymentOrderStore {
         return jdbc.query("SELECT " + COLUMNS + " FROM payment_orders WHERE id = ? FOR UPDATE", PaymentOrderStore::row, id).stream().findFirst();
     }
 
+    /** 같은 주문의 열린 READY(가장 최근 하나 — 재결제마다 앞 READY 를 닫으므로 보통 하나뿐이다) */
+    public Optional<OrderRow> findOpenReady(PaymentOrderType orderType, long orderRefId) {
+        return jdbc.query("SELECT " + COLUMNS + " FROM payment_orders WHERE order_type = ? AND order_ref_id = ? AND status = 'READY' ORDER BY created_at DESC, id DESC LIMIT 1",
+                PaymentOrderStore::row, orderType.name(), orderRefId).stream().findFirst();
+    }
+
     /** 같은 주문의 열린 READY 를 모두 EXPIRED 로 닫는다(재결제마다 새 번호 — commerce.md 8-1). 닫은 결제 주문 ID */
     public List<Long> expireOpenReady(PaymentOrderType orderType, long orderRefId, Instant now) {
         return jdbc.queryForList("UPDATE payment_orders SET status = 'EXPIRED', updated_at = ? WHERE order_type = ? AND order_ref_id = ? AND status = 'READY' RETURNING id",

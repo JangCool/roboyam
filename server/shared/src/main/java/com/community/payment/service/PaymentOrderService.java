@@ -13,8 +13,10 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import com.community.payment.dto.PaymentOrderType;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -81,6 +83,39 @@ public class PaymentOrderService {
         events.insert(ids.nextId(), id, PaymentEventStore.Kind.CREATED, Map.of("amount", request.amount(), "expiresAt", expiresAt.toString()), now);
         return new PaymentCheckout(id, paymentId, request.orderName().strip(), request.amount(), "KRW", expiresAt, checkout.provider(), checkout.storeId(),
                 checkout.channelKey());
+    }
+
+    /**
+     * 그 도메인 주문의 열린 READY 를 모두 EXPIRED 로 닫는다 — 도메인이 결제 중 주문을 닫을 때(선점 만료·중단·거절) <b>결제 행을 먼저</b> 잠그는 길이다
+     * (공구 계약 결정 37 — 결제 확정이 결제 행 → 도메인 주문 차례라 같은 차례가 된다). 닫은 뒤 결제가 오면 늦은 결제로 자동 취소된다. 닫은 결제 주문 ID(없으면 빈 목록 — 0 행이어도 부르는 쪽은 계속한다).
+     *
+     * @param reason 이력에 남길 까닭(대문자·밑줄)
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public List<Long> expireOpen(PaymentOrderType orderType, long orderRefId, String reason) {
+        Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
+        List<Long> closed = orders.expireOpenReady(orderType, orderRefId, now);
+        for (long id : closed) {
+            events.insert(ids.nextId(), id, PaymentEventStore.Kind.EXPIRED, Map.of("reason", reason), now);
+        }
+        return closed;
+    }
+
+    /**
+     * 그 도메인 주문의 아직 유효한 READY 결제창 정보(없으면 빈 값) — 「결제 다시 열기」를 두 번 눌러도 앞 결제를 늦은 결제로 만들지 않게 같은 결제를 돌려준다(공구 계약 결정 63).
+     *
+     * @param minRemaining 남은 유효 시간이 이보다 짧으면 없는 것으로 본다
+     */
+    public Optional<PaymentCheckout> openCheckout(PaymentOrderType orderType, long orderRefId, Duration minRemaining) {
+        Instant now = clock.instant();
+        Optional<PaymentOrderStore.OrderRow> open = orders.findOpenReady(orderType, orderRefId);
+        if (open.isEmpty() || open.get().expiresAt().isBefore(now.plus(minRemaining))) {
+            return Optional.empty();
+        }
+        PaymentOrderStore.OrderRow row = open.get();
+        PaymentCheckoutInfo checkout = gateway.checkoutInfo();
+        return Optional.of(new PaymentCheckout(row.id(), row.paymentId(), row.orderName(), row.amount(), row.currency(), row.expiresAt(), checkout.provider(),
+                checkout.storeId(), checkout.channelKey()));
     }
 
     /** 결제 ID — {@code pay_} + 무작위 영숫자 32자(36자) */
