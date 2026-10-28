@@ -2,9 +2,11 @@
 // 공구는 계약 결정 11 의 local 시드 넷(성사형 모집 중 · 선착순 즉시 발송(옵션 셋) · 마감 임박 · 다 팔려 끝난 1차) + DRAFT 하나 + 불발 하나.
 // 금액·수량은 서버가 계산했다고 치는 값이다(계산 규칙을 흉내 내지 않는다 — 화면은 보여 주기만).
 
-import type { GroupBuyDetail, GroupBuyMember, GroupBuyMovement, GroupBuyRevision } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
+import { mockNoticeCatalog } from '~/composables/groupbuy/api/mock/groupbuy-notice-catalog-mock';
+import type { GroupBuyDetail, GroupBuyMember, GroupBuyMovement, GroupBuyNotice, GroupBuyRevision, NoticeValue } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
 import type { GroupBuyOrderDetail, GroupBuyOrderItem } from '~/composables/groupbuy/api/useGroupBuyOrderApi.types';
 import type { GroupBuyRequestDetail } from '~/composables/groupbuy/api/useGroupBuyRequestApi.types';
+import UtilGroupBuy from '~/utils/util-groupbuy';
 
 const NOW = Date.now();
 const MIN = 60_000;
@@ -37,6 +39,20 @@ export const MEMBERS: Record<string, GroupBuyMember> = {
 };
 
 const NO_ACTIONS = { canStart: false, canCloseEarly: false, canCancel: false, canMarkOrdered: false, canCreateRound: false, roundBlockedReason: null, canDelayNotice: false, canSupplyFailure: false, canAdjustStock: false };
+
+const CATALOG = mockNoticeCatalog();
+const AS = '로보얌 고객센터 02-000-0000(평일 10~17시)';
+const WARRANTY = '소비자분쟁해결기준(공정거래위원회 고시)에 따라 구입일로부터 1년 무상 수리 — 기준은 공정거래위원회 누리집에서 볼 수 있어요.';
+
+/** 고시 양식 한 장 — 카탈로그 항목에 맞춘 빈 줄에 `filled` 를 채운다(글이면 값, 객체면 그 칸들) */
+function notice(id: string, order: number, categoryNo: number, title: string, optionIds: string[], filled: Record<string, string | Partial<NoticeValue>>): GroupBuyNotice {
+    const items = CATALOG.categories.find((c) => c.no === categoryNo)?.items ?? [];
+    const values = UtilGroupBuy.noticeValuesFor(items).map((v) => {
+        const f = filled[v.key];
+        return f === undefined ? v : typeof f === 'string' ? { ...v, value: f } : { ...v, ...f };
+    });
+    return { id, order, categoryNo, title, optionIds, catalogVersion: CATALOG.version, values };
+}
 
 function img(id: string, label: string, hue: number) {
     const url = mockImage(label, hue);
@@ -85,6 +101,20 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             preShipOrderCount: 18,
             version: 3,
             revisionNo: 2,
+            notices: [
+                notice('nt-1011', 1, 8, '로봇 청소기', [], {
+                    modelName: '로보클린 R7 / RC-R7W',
+                    kcCert: { kcMode: 'CERT', value: '안전인증 HU071234-25001 · 전파 R-R-RBC-R7W' },
+                    ratedPower: 'DC 14.4V · 55W(도크 AC 220V 60Hz · 30W)',
+                    energyGrade: { unavailable: true, reason: '에너지소비효율등급 표시 대상 품목이 아니에요(효율관리기자재 아님).' },
+                    releaseDate: { dateMode: 'EXACT', value: '2026-03' },
+                    manufacturer: '로보클린(주)',
+                    origin: '대한민국',
+                    size: '본체 350×350×97mm · 도크 420×450×520mm',
+                    warranty: WARRANTY,
+                    asContact: AS,
+                }),
+            ],
             actions: NO_ACTIONS,
             delayNotices: [],
             supplyFailures: [],
@@ -113,6 +143,7 @@ export function seedGroupBuys(): GroupBuyDetail[] {
                 { id: 'op-1', name: '블랙', extraPrice: 0, maxQty: 40, initialMaxQty: 40, currentQty: 33, reservedQty: 2 },
                 { id: 'op-2', name: '화이트', extraPrice: 0, maxQty: 40, initialMaxQty: 30, currentQty: 40, reservedQty: 0 },
                 { id: 'op-3', name: '레드(한정)', extraPrice: 2000, maxQty: 40, initialMaxQty: 40, currentQty: 38, reservedQty: 2 },
+                { id: 'op-4', name: '전용 충전 도크(별매)', extraPrice: 19000, maxQty: 20, initialMaxQty: 20, currentQty: 0, reservedQty: 0 },
             ],
             minQty: 0,
             fulfillment: 'IMMEDIATE',
@@ -136,6 +167,32 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             preShipOrderCount: 6,
             version: 7,
             revisionNo: 4,
+            notices: [
+                notice('nt-1021', 1, 12, '본체', [], {
+                    modelName: '코딩봇 미니 v2 / CBM-200',
+                    kcCert: { kcMode: 'CERT', value: '어린이제품 안전확인 CB061R123-2501 · 전파 R-C-CBT-CBM200' },
+                    ratedPower: 'DC 3.7V 리튬이온 1,200mAh · 충전 5V 1A',
+                    releaseDate: { dateMode: 'EARLIEST', value: '2026-05' },
+                    manufacturer: '코딩봇(주)(수입 로보얌상사)',
+                    origin: '중국',
+                    sizeWeight: '120×95×80mm · 310g',
+                    mainSpec: '상세페이지 참조',
+                    warranty: WARRANTY,
+                    asContact: AS,
+                }),
+                notice('nt-1022', 2, 12, '전용 충전 도크', ['op-4'], {
+                    modelName: '코딩봇 충전 도크 / CBD-10',
+                    kcCert: { kcMode: 'CERT', value: '안전확인 YU07123-26002' },
+                    ratedPower: 'AC 100~240V 50/60Hz · 출력 5V 2A',
+                    releaseDate: { dateMode: 'RANGE', value: '2026-04 ~ 2026-07' },
+                    manufacturer: '코딩봇(주)(수입 로보얌상사)',
+                    origin: '중국',
+                    sizeWeight: '150×110×40mm · 180g',
+                    mainSpec: '본체 2대 동시 충전 · 충전 표시등',
+                    warranty: WARRANTY,
+                    asContact: AS,
+                }),
+            ],
             actions: NO_ACTIONS,
             delayNotices: [],
             supplyFailures: [],
@@ -183,6 +240,22 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             preShipOrderCount: 21,
             version: 2,
             revisionNo: 1,
+            notices: [
+                notice('nt-1031', 1, 23, '로봇 팔 키트', [], {
+                    modelName: '6축 로봇 팔 교육 키트 / ARM-6E',
+                    kcCert: { kcMode: 'CERT', value: '어린이제품 공급자적합성확인 CB113A045-2601' },
+                    sizeWeight: '조립 때 높이 380mm · 1.2kg',
+                    color: '화이트·블루',
+                    material: 'ABS 수지 · 알루미늄',
+                    ageRange: '14세 이상(14세 미만은 보호자와 함께)',
+                    releaseDate: { dateMode: 'ORDER_BASED', value: '발송일 기준 6개월 이내 제조' },
+                    manufacturer: '메이커랩(주)',
+                    origin: '대한민국',
+                    caution: '작은 부품을 삼키지 않게 하세요. 서보모터가 움직일 때 손가락을 넣지 마세요.',
+                    warranty: WARRANTY,
+                    asContact: AS,
+                }),
+            ],
             actions: NO_ACTIONS,
             delayNotices: [],
             supplyFailures: [],
@@ -233,6 +306,20 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             preShipOrderCount: 34,
             version: 4,
             revisionNo: 2,
+            notices: [
+                notice('nt-1041', 1, 12, '펫봇 미니', [], {
+                    modelName: '펫봇 미니 / PB-M1',
+                    kcCert: { kcMode: 'CERT', value: '전파 R-R-PBT-PBM1 · 안전확인 YU07999-25010' },
+                    ratedPower: 'DC 3.7V · 충전 5V 2A(USB-C)',
+                    releaseDate: { dateMode: 'EXACT', value: '2025-11' },
+                    manufacturer: '펫봇 테크(수입 로보얌상사)',
+                    origin: '대만',
+                    sizeWeight: '110×90×105mm · 420g',
+                    mainSpec: '음성 인식 · 2.4인치 표정 디스플레이 · 배터리 6시간',
+                    warranty: WARRANTY,
+                    asContact: AS,
+                }),
+            ],
             actions: NO_ACTIONS,
             delayNotices: [],
             supplyFailures: [],
@@ -280,6 +367,19 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             preShipOrderCount: 0,
             version: 1,
             revisionNo: 0,
+            // 일부 항목이 비어 모집 시작이 409 GROUP_BUY_NOTICE_INCOMPLETE 로 막힌다(「제공 불가」인데 사유가 빈 칸 하나 포함)
+            notices: [
+                notice('nt-1051', 1, 23, '오토RC 스타터', [], {
+                    modelName: '오토RC 스타터 / ARC-S1',
+                    sizeWeight: '260×180×120mm · 900g',
+                    color: '옐로',
+                    ageRange: '10세 이상',
+                    releaseDate: { dateMode: 'EARLIEST', value: '' },
+                    manufacturer: '오토RC(주)',
+                    origin: { unavailable: true, reason: '' },
+                    warranty: '상세페이지 참고',
+                }),
+            ],
             actions: NO_ACTIONS,
             delayNotices: [],
             supplyFailures: [],
@@ -327,6 +427,20 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             preShipOrderCount: 0,
             version: 2,
             revisionNo: 1,
+            notices: [
+                notice('nt-1061', 1, 12, '독봇 프로', [], {
+                    modelName: '독봇 프로 / DB-P3',
+                    kcCert: { kcMode: 'CERT', value: '전파 R-R-DBT-DBP3' },
+                    ratedPower: 'DC 25.2V · 충전 AC 220V',
+                    releaseDate: { dateMode: 'EXACT', value: '2026-06' },
+                    manufacturer: '독봇 로보틱스(수입 로보얌상사)',
+                    origin: '중국',
+                    sizeWeight: '700×310×400mm · 15kg',
+                    mainSpec: '12자유도 보행 · 라이다',
+                    warranty: WARRANTY,
+                    asContact: AS,
+                }),
+            ],
             actions: NO_ACTIONS,
             delayNotices: [],
             supplyFailures: [],
@@ -626,6 +740,7 @@ export function seedRevisions(gb: GroupBuyDetail): GroupBuyRevision[] {
             addedQty: n === gb.revisionNo ? gb.addedQty : 0,
             optionMax: gb.options.map((o) => ({ name: o.name, maxQty: o.maxQty })),
             shipPlannedAt: gb.shipPlannedAt,
+            notices: gb.notices.map((x) => ({ ...x, values: x.values.map((v) => ({ ...v })) })),
             operator: n === 1 ? gb.createdBy : '운영자 박',
             createdAt: mockAt(-(gb.revisionNo - n + 1) * 1440),
         });

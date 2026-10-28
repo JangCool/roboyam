@@ -180,6 +180,31 @@
                 </template>
             </section>
 
+            <!-- 상품정보제공고시(결정 87) — 넓은 폭은 그 자리에 펼치고, 모바일은 단추로 시트를 연다 -->
+            <section v-if="gb.notices.length > 0" :aria-labelledby="noticesId" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" data-testid="group-buy-product-info">
+                <h2 :id="noticesId" class="m-0 mb-2 text-sm font-semibold">{{ t('groupBuy.productInfoTitle') }}</h2>
+                <GroupBuyProductNotices v-if="desktop" :notices="gb.notices" :options="gb.options" />
+                <template v-else>
+                    <p class="m-0 mb-3 text-sm text-muted-color">{{ t('groupBuy.productInfoHelp') }}</p>
+                    <Button
+                        type="button"
+                        :label="t('groupBuy.productInfoOpen')"
+                        icon="pi pi-list"
+                        severity="secondary"
+                        variant="outlined"
+                        size="small"
+                        aria-haspopup="dialog"
+                        data-testid="group-buy-product-info-open"
+                        @click="noticesOpen = true"
+                    />
+                    <AppSheet v-model:visible="noticesOpen" :title="t('groupBuy.productInfoTitle')" wide>
+                        <div class="px-5 pt-3">
+                            <GroupBuyProductNotices :notices="gb.notices" :options="gb.options" heading-tag="h4" />
+                        </div>
+                    </AppSheet>
+                </template>
+            </section>
+
             <CommerceBusinessInfo v-if="shownBusiness" :business="shownBusiness" variant="panel" />
         </template>
     </div>
@@ -199,6 +224,7 @@ import UtilRedirect from '~/utils/util-redirect';
  * - 주문 단추는 서버의 `actions.order`·`purchase.reason` 으로만: 주문하기 · 로그인하고 · 본인인증하고(`useIdentityGate` — 용도 GROUP_BUY) · 막는 안내(+ 이미 주문했으면 그 주문으로).
  * - 알림 신청: 수량 풀림(RESTOCK) · 마감 임박(CLOSING_SOON) · 다 팔려 끝난 공구의 다음 차수(NEXT_ROUND — 결정 17). 로그인하지 않았으면 로그인으로 보낸다.
  * - 판매조건 요약(결정 57)·배송비·반품비 금액 고지(10-8)·청약철회 제한(결정 55)·상세 설명(정화된 HTML)·사양·사업자 정보(판매 스위치 켜짐일 때 — 결정 18·56). Q&A 는 2b-6.
+ * - 상품정보제공고시(결정 87): 양식마다 품목·적용 옵션·항목 표(`GroupBuyProductNotices`), 옵션 칩으로 그 옵션의 양식을 펼친다. 모바일은 「상품정보제공고시 보기」 → 시트.
  */
 const { t } = useI18n();
 const { term } = useSiteTerms();
@@ -213,6 +239,10 @@ const commerce = useCommerceInfo();
 const { shownBusiness } = commerce;
 const titleId = useId();
 const descId = useId();
+const noticesId = useId();
+const desktop = useIsDesktop();
+/** 모바일 — 상품정보제공고시 시트 */
+const noticesOpen = ref(false);
 
 const id = computed(() => Number(route.params.id));
 const gb = ref<GroupBuyDetail | null>(null);

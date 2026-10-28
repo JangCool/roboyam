@@ -224,6 +224,8 @@ export interface GroupBuyDetail {
     version: number;
     /** 마지막 수정 이력 번호 */
     revisionNo: number;
+    /** 상품정보제공고시 양식들(결정 87) — `order` 순. 기본 양식(`optionIds` 빔 = 공구 전체) 하나 + 별개 상품 옵션용 양식. 모집 뒤에도 고친다 */
+    notices: GroupBuyNotice[];
     actions: GroupBuyActions;
     delayNotices: GroupBuyDelayNotice[];
     supplyFailures: GroupBuySupplyFailure[];
@@ -265,17 +267,111 @@ export interface GroupBuySaveRequest {
     shipPlannedAt: string | null;
     shipWithinBusinessDays: number | null;
     withdrawalRestriction: string;
+    /** 고시 양식 전부(결정 87) — DRAFT 는 비거나 덜 채워도 저장된다(모집 시작 때 검사) */
+    notices: GroupBuyNotice[];
     /** 새로 만들 때는 null */
     version: number | null;
 }
 
-/** `PATCH /api/admin/group-buys/{id}/content`(모집 시작 뒤 — 설명·이미지만, 결정 2) */
+/**
+ * `PATCH /api/admin/group-buys/{id}/content`(모집 시작 뒤 — 설명·이미지 + 고시 양식, 결정 2·87). 한 판의 수정 이력으로 남는다
+ * (고시 양식만 바뀌면 종류 `NOTICE`, 설명·이미지도 바뀌면 `CONTENT` + 바뀐 칸 `notices`). 모집 뒤라 덜 채운 양식은 `409 GROUP_BUY_NOTICE_INCOMPLETE`.
+ */
 export interface GroupBuyContentRequest {
     summary: string;
     spec: string;
     description: string;
     imageIds: string[];
+    notices: GroupBuyNotice[];
     version: number;
+}
+
+// ── 상품정보제공고시(결정 87) ───────────────────────────
+// 카탈로그는 서버가 정본(`server/shared/.../groupbuy/notice-catalog-<시행일>.json` → `GroupBuyNoticeCatalog`). user-web 도 같은 모양을 쓴다.
+
+/** 항목 종류 — 글 · 날짜(대체 표기, 원칙 ④) · KC 인증(인증번호/면제 사실, 원칙 ⑥) · 품질보증기준(원칙 ⑤) */
+export type NoticeItemKind = 'TEXT' | 'DATE' | 'KC' | 'WARRANTY';
+/** 날짜 항목의 표기 — 정확한 날짜 · 가장 빠른 날짜 · 범위 · 주문일/발송일 기준 기간 */
+export type NoticeDateMode = 'EXACT' | 'EARLIEST' | 'RANGE' | 'ORDER_BASED';
+export const NOTICE_DATE_MODES: readonly NoticeDateMode[] = ['EXACT', 'EARLIEST', 'RANGE', 'ORDER_BASED'];
+/** KC 항목의 표기 — 인증번호(식별부호) · 면제 사실 */
+export type NoticeKcMode = 'CERT' | 'EXEMPT';
+export const NOTICE_KC_MODES: readonly NoticeKcMode[] = ['CERT', 'EXEMPT'];
+
+/** `GET /api/admin/group-buys/notice-catalog` — 고시 품목 40개와 품목별 항목 */
+export interface NoticeCatalog {
+    /** 시행일(예 `2023-01-01`) — 양식이 만든 때 버전을 기억한다 */
+    version: string;
+    /** 예 `공정거래위원회고시 제2022-15호` */
+    source: string;
+    categories: NoticeCategory[];
+}
+
+export interface NoticeCategory {
+    /** 고시 품목 번호 1~40 */
+    no: number;
+    /** 예 `HOME_APPLIANCE` */
+    code: string;
+    name: string;
+    /** 이름·항목을 원문에서 아직 옮기지 못한 임시 값(목업 단계) */
+    provisional?: boolean;
+    items: NoticeItemDef[];
+}
+
+export interface NoticeItemDef {
+    key: string;
+    name: string;
+    required: boolean;
+    kind: NoticeItemKind;
+    /** 항목 아래 안내 문구 */
+    guide?: string;
+}
+
+/** 공구 응답·저장 요청의 고시 양식 한 장(`group_buy_notices` + `group_buy_notice_values`) */
+export interface GroupBuyNotice {
+    /** 새 양식은 null */
+    id: string | null;
+    /** 1부터 — 기본 양식이 1 */
+    order: number;
+    categoryNo: number;
+    /** 예 「본체」·「충전기」 */
+    title: string;
+    /** 적용 옵션(`GroupBuyOption.id`). 비면 기본 양식(공구 전체). 한 옵션은 양식 하나에만 */
+    optionIds: string[];
+    catalogVersion: string;
+    values: NoticeValue[];
+}
+
+/** 항목 한 칸 — 값, 또는 「제공 불가」 + 사유(원칙 ③) */
+export interface NoticeValue {
+    key: string;
+    value: string;
+    unavailable: boolean;
+    reason: string;
+    /** 날짜 항목만 */
+    dateMode?: NoticeDateMode;
+    /** KC 항목만 */
+    kcMode?: NoticeKcMode;
+}
+
+/**
+ * 모집 시작(또는 모집 뒤 저장) 거절 `409 GROUP_BUY_NOTICE_INCOMPLETE` 의 `extras`.
+ * 옵션은 다른 양식에 들지 않으면 기본 양식을 따른다 — 「옵션 미배정」은 **추가 양식인데 적용 옵션이 없는 것**이다.
+ */
+export interface GroupBuyNoticeIncomplete {
+    /** 기본 양식(적용 옵션 없음)이 없다 */
+    baseMissing: boolean;
+    notices: GroupBuyNoticeProblem[];
+}
+
+export interface GroupBuyNoticeProblem {
+    /** 양식 `order` */
+    order: number;
+    title: string;
+    /** 필수 항목인데 값이 비었거나, 「제공 불가」인데 사유가 빈 항목 키 */
+    emptyKeys: string[];
+    /** 추가 양식인데 적용 옵션이 없다 */
+    optionsMissing: boolean;
 }
 
 /** 등록 화면의 고를 값 — `GET /api/admin/group-buys/form-options` */
@@ -306,8 +402,8 @@ export interface GroupBuyPolicyLine {
 
 // ── 수정 이력 ───────────────────────────────────────
 
-/** 이력 종류 — 처음 모집 시작(첫 판) · 설명·이미지 수정 · 수량(추가 입고·줄이기) · 발송 예정일 변경(지연 공지) */
-export type GroupBuyRevisionKind = 'START' | 'CONTENT' | 'STOCK' | 'SHIP_DATE';
+/** 이력 종류 — 처음 모집 시작(첫 판) · 설명·이미지 수정 · 수량(추가 입고·줄이기) · 발송 예정일 변경(지연 공지) · 고시 양식만 정정(결정 87) */
+export type GroupBuyRevisionKind = 'START' | 'CONTENT' | 'STOCK' | 'SHIP_DATE' | 'NOTICE';
 
 /** `GET /api/admin/group-buys/{id}/revisions?page=&size=` 한 줄(6개월 보관) */
 export interface GroupBuyRevision {
@@ -324,6 +420,8 @@ export interface GroupBuyRevision {
     addedQty: number;
     optionMax: { name: string; maxQty: number | null }[];
     shipPlannedAt: string | null;
+    /** 그 판의 고시 양식 사본 */
+    notices: GroupBuyNotice[];
     operator: string;
     createdAt: string;
 }

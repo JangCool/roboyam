@@ -16,6 +16,7 @@
 
 import type { GroupBuyDetail, GroupBuyShipping } from '~/composables/groupbuy/api/useGroupBuyApi.types';
 import type { MyGroupBuyOrderDetail } from '~/composables/groupbuy/api/useGroupBuyOrderApi.types';
+import { mockNotices } from '~/composables/groupbuy/api/mock/groupbuy-notice-mock-data';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -76,6 +77,8 @@ function base(over: Partial<GroupBuyDetail> & Pick<GroupBuyDetail, 'id' | 'title
         maxQtyPerUser: null,
         roundLimitShared: false,
         options: [],
+        // 상품정보제공고시(결정 87) — 품목별 양식은 `groupbuy-notice-mock-data.ts`
+        notices: mockNotices(over.id, over.title),
         delayNotice: null,
         purchase: { reason: null },
         actions: { order: true, watchRestock: false, watchClosingSoon: true, watchNextRound: false },

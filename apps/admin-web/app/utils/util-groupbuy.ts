@@ -1,4 +1,4 @@
-import type { GroupBuyCloseReason, GroupBuyStatus } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
+import type { GroupBuyCloseReason, GroupBuyNotice, GroupBuyNoticeIncomplete, GroupBuyStatus, NoticeCatalog, NoticeItemDef, NoticeValue } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
 import type { GroupBuyOrderStatus, GroupBuyRefundState } from '~/composables/groupbuy/api/useGroupBuyOrderApi.types';
 import type { GroupBuyDeadlineLevel, GroupBuyDisposition, GroupBuyReasonCode, GroupBuyRequestStatus } from '~/composables/groupbuy/api/useGroupBuyRequestApi.types';
 
@@ -29,8 +29,12 @@ export default class UtilGroupBuy {
     /** 운영 메모 최대 글자 */
     static readonly MEMO_MAX = 1000;
 
-    /** 모집 시작 뒤에도 고칠 수 있는 칸(설명·이미지 — 결정 2). 나머지는 잠긴다 */
-    static readonly CONTENT_FIELDS: readonly string[] = ['summary', 'spec', 'description', 'images'];
+    /** 모집 시작 뒤에도 고칠 수 있는 칸(설명·이미지 — 결정 2, 고시 양식 — 결정 87). 나머지는 잠긴다 */
+    static readonly CONTENT_FIELDS: readonly string[] = ['summary', 'spec', 'description', 'images', 'notices'];
+    /** 고시 항목 값·사유 최대 글자 */
+    static readonly NOTICE_TEXT_MAX = 1000;
+    /** 고시 양식 제목 최대 글자 */
+    static readonly NOTICE_TITLE_MAX = 50;
 
     static statusSeverity(status: GroupBuyStatus): GroupBuyTagSeverity {
         if (status === 'RECRUITING') return 'success';
@@ -164,5 +168,57 @@ export default class UtilGroupBuy {
     /** 오늘(브라우저 시간과 무관하게 한국 날짜) `YYYY-MM-DD` */
     static kstToday(now: number = Date.now()): string {
         return new Date(now + 9 * 3_600_000).toISOString().slice(0, 10);
+    }
+
+    // ── 상품정보제공고시(결정 87) — 판정은 서버(모집 시작 `409 GROUP_BUY_NOTICE_INCOMPLETE`), 화면은 같은 규칙으로 미리 센다 ──
+
+    /** 고시 항목 한 칸이 비었나 — 「제공 불가」면 사유가, 아니면 값이 있어야 한다(원칙 ③). 선택 항목은 값이 비어도 되지만 「제공 불가」면 사유가 필요하다 */
+    static noticeValueEmpty(def: NoticeItemDef, value: NoticeValue | undefined): boolean {
+        if (value?.unavailable) return !value.reason.trim();
+        return def.required && !(value?.value ?? '').trim();
+    }
+
+    /** 양식 한 장의 빈 항목 키(카탈로그 항목 순서) */
+    static noticeEmptyKeys(notice: GroupBuyNotice, items: readonly NoticeItemDef[]): string[] {
+        return items.filter((def) => UtilGroupBuy.noticeValueEmpty(def, notice.values.find((v) => v.key === def.key))).map((def) => def.key);
+    }
+
+    /**
+     * 모집 시작 때 막힐 것 — 기본 양식(적용 옵션 없음)이 없음 · 빈 항목 · 추가 양식인데 적용 옵션 없음.
+     * 서버 `extras` 와 같은 모양이다. 옵션은 다른 양식에 들지 않으면 기본 양식을 따르고, 적용 옵션이 빈 양식은 맨 앞 하나만 기본이다.
+     */
+    static noticeProblems(notices: readonly GroupBuyNotice[], catalog: NoticeCatalog): GroupBuyNoticeIncomplete {
+        const baseIndex = notices.findIndex((n) => n.optionIds.length === 0);
+        const problems = notices
+            .map((n, index) => {
+                const items = catalog.categories.find((c) => c.no === n.categoryNo)?.items ?? [];
+                return { order: n.order, title: n.title, emptyKeys: UtilGroupBuy.noticeEmptyKeys(n, items), optionsMissing: index !== baseIndex && n.optionIds.length === 0 };
+            })
+            .filter((p) => p.emptyKeys.length > 0 || p.optionsMissing);
+        return { baseMissing: baseIndex < 0, notices: problems };
+    }
+
+    static noticeComplete(problems: GroupBuyNoticeIncomplete): boolean {
+        return !problems.baseMissing && problems.notices.length === 0;
+    }
+
+    /** 「상세페이지 참조」뿐인 값 — 막지 않고 경고(원칙 ③ 취지: 항목마다 직접 적기). 참조 문구를 떼면 거의 남는 글이 없을 때 */
+    static noticeRefersDetail(text: string): boolean {
+        const pattern = /상세\s*(페이지|설명|정보|이미지)?\s*(참조|참고)/g;
+        if (!pattern.test(text)) return false;
+        return text.replace(pattern, '').replace(/[\s.,()·~-]/g, '').length < 6;
+    }
+
+    /** 품목 항목에 맞춘 값 줄 — 같은 키의 이전 값은 살린다(품목을 바꿀 때). 날짜·KC 항목은 표기 기본값을 둔다 */
+    static noticeValuesFor(items: readonly NoticeItemDef[], previous: readonly NoticeValue[] = []): NoticeValue[] {
+        return items.map((def) => {
+            const before = previous.find((v) => v.key === def.key);
+            const next: NoticeValue = before ? { ...before } : { key: def.key, value: '', unavailable: false, reason: '' };
+            if (def.kind === 'DATE') next.dateMode = next.dateMode ?? 'EXACT';
+            else delete next.dateMode;
+            if (def.kind === 'KC') next.kcMode = next.kcMode ?? 'CERT';
+            else delete next.kcMode;
+            return next;
+        });
     }
 }

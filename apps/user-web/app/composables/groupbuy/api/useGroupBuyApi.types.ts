@@ -120,6 +120,49 @@ export interface GroupBuyOption {
     canWatchRestock: boolean;
 }
 
+/* ── 상품정보제공고시(결정 87 — 공정위고시 제2022-15호) ── */
+
+/** 항목 종류 — 글 · 날짜(대체 표기 원칙 ④) · KC 인증(원칙 ⑥) · 품질보증기준(원칙 ⑤) */
+export type NoticeRowKind = 'TEXT' | 'DATE' | 'KC' | 'WARRANTY';
+/** 날짜 항목 표기 — 정확한 날짜 · 가장 빠른 날짜 · 범위 · 주문일/발송일 기준 기간 */
+export type NoticeDateMode = 'EXACT' | 'EARLIEST' | 'RANGE' | 'ORDER_BASED';
+/** KC 항목 — 인증번호(식별부호) · 면제 사실 */
+export type NoticeKcMode = 'CERT' | 'EXEMPT';
+
+/** 고시 양식의 항목 한 줄 — 이름은 서버 카탈로그가 붙여 준다 */
+export interface NoticeRowView {
+    /** 카탈로그 항목 키 */
+    key: string;
+    name: string;
+    kind: NoticeRowKind;
+    /** 「제공 불가」면 빈 문자열일 수 있다 */
+    value: string;
+    /** 「제공 불가」(원칙 ③ — 사유를 그대로 보인다) */
+    unavailable: boolean;
+    reason: string;
+    dateMode?: NoticeDateMode;
+    kcMode?: NoticeKcMode;
+}
+
+/** 고시 양식 한 장(품목 하나) — `optionIds` 가 비면 기본 상품(공구 전체), 아니면 별개 상품 옵션용(원칙 ⑦) */
+export interface GroupBuyNoticeView {
+    id: string;
+    order: number;
+    /** 품목 번호 1~40 */
+    categoryNo: number;
+    /** 품목 이름(서버 카탈로그) */
+    categoryName: string;
+    /** 운영자가 붙인 제목(예 「본체」·「확장 센서 팩」) */
+    title: string;
+    /** 적용 옵션 ID — 한 옵션은 양식 하나에만 속한다 */
+    optionIds: number[];
+    /** 카탈로그 버전(예 `2023-01-01`) */
+    catalogVersion: string;
+    /** 카탈로그 출처(예 「공정거래위원회고시 제2022-15호」) */
+    catalogSource: string;
+    rows: NoticeRowView[];
+}
+
 /** 서버가 정한 단추 상태 */
 export interface GroupBuyActions {
     /** 주문서로 갈 수 있나 */
@@ -157,6 +200,8 @@ export interface GroupBuyDetail extends GroupBuyListItem {
     roundLimitShared: boolean;
     /** 옵션 없는 공구는 빈 배열 */
     options: GroupBuyOption[];
+    /** 상품정보제공고시 양식(결정 87 — `order` 차례, 기본 양식 하나는 늘 있다) */
+    notices: GroupBuyNoticeView[];
     delayNotice: GroupBuyDelayNotice | null;
     purchase: { reason: GroupBuyPurchaseReason | null };
     actions: GroupBuyActions;

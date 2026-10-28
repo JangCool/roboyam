@@ -1,7 +1,7 @@
 <template>
     <!--
-        공구 수정 이력 서랍(오른쪽, `components.md` 2-5) — 표시·광고 기록 6개월 보관(commerce.md 10-2). 판마다 종류(모집 시작 첫 판 · 설명·이미지 · 수량 · 발송 예정일) · 바뀐 칸 · 운영자 · 시각,
-        펼치면 그 판의 제목·요약·설명(서버가 정화한 HTML 사본)·이미지 수·수량 사본. 서버 호출은 부르는 쪽 몫이다 — 더 보기는 `more` 로 올린다.
+        공구 수정 이력 서랍(오른쪽, `components.md` 2-5) — 표시·광고 기록 6개월 보관(commerce.md 10-2). 판마다 종류(모집 시작 첫 판 · 설명·이미지 · 수량 · 발송 예정일 · 고시 양식) · 바뀐 칸 · 운영자 · 시각,
+        펼치면 그 판의 제목·요약·설명(서버가 정화한 HTML 사본)·이미지 수·수량 사본·고시 양식 장수. 서버 호출은 부르는 쪽 몫이다 — 더 보기는 `more` 로 올린다.
     -->
     <Drawer v-model:visible="open" position="right" :header="t('groupBuy.revisionsTitle')" :style="{ width: '36rem', maxWidth: '100vw' }">
         <ErrorState v-if="error && !items.length" :title="t('groupBuy.revisionsLoadFailed')" :description="error.message" retry :retrying="loading" @retry="emit('retry')" />
@@ -34,6 +34,7 @@
                             <template v-if="rev.optionMax.length"> · {{ rev.optionMax.map((o) => `${o.name} ${o.maxQty ?? '∞'}`).join(', ') }}</template>
                             <template v-if="rev.shipPlannedAt"> · {{ t('groupBuy.revisionShipDate', { date: rev.shipPlannedAt }) }}</template>
                         </div>
+                        <div v-if="rev.notices.length" class="text-xs text-muted-color">{{ t('groupBuy.revisionNotices', { n: rev.notices.length, titles: rev.notices.map((n) => n.title).join(' · ') }) }}</div>
                     </div>
                 </li>
             </ol>

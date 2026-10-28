@@ -21,7 +21,22 @@
 
         <form v-else class="flex flex-col gap-4" novalidate @submit.prevent="submit">
             <!-- 처음부터 보이는 판매조건·배송비·반품비·청약철회 제한(결정 57·59) -->
-            <GroupBuySalesTerms :gb="gb" />
+            <div class="flex flex-col gap-1">
+                <GroupBuySalesTerms :gb="gb" />
+                <!-- 상품정보제공고시(결정 87) — 주문서를 떠나지 않게 시트로 -->
+                <Button
+                    v-if="gb.notices.length > 0"
+                    type="button"
+                    variant="link"
+                    size="small"
+                    icon="pi pi-list"
+                    class="w-fit px-0!"
+                    :label="t('groupBuy.productInfoOpen')"
+                    aria-haspopup="dialog"
+                    data-testid="group-buy-order-product-info"
+                    @click="noticesOpen = true"
+                />
+            </div>
             <GroupBuyShippingNotice :shipping="gb.shipping" :withdrawal-restriction="gb.withdrawalRestriction" />
 
             <!-- 1. 옵션 × 수량 — 기본 선택 없음 -->
@@ -179,6 +194,12 @@
             </div>
         </form>
 
+        <AppSheet v-if="gb && gb.notices.length > 0" v-model:visible="noticesOpen" :title="t('groupBuy.productInfoTitle')" :description="pickedOptionIds.length > 0 ? t('groupBuy.productInfoSheetHelp') : ''" wide>
+            <div class="px-5 pt-3">
+                <GroupBuyProductNotices :notices="gb.notices" :options="gb.options" :priority-option-ids="pickedOptionIds" heading-tag="h4" />
+            </div>
+        </AppSheet>
+
         <PaymentFakeCheckoutDialog
             :visible="pay.fakeOpen.value"
             :checkout="pay.target.value?.checkout ?? null"
@@ -203,6 +224,7 @@ import UtilTime from '#layers/display-time/utils/util-time';
 /**
  * 공동구매 주문서 `/group-buys/{id}/order` — 로그인 필요. 계약 commerce-groupbuy 화면 목록 · 결정 23·41·57·59·63·72.
  * - **옵션 여러 줄 × 수량**(같은 옵션 두 줄 금지 — 고른 옵션은 다른 줄 목록에서 빠진다, 옵션 없는 공구는 수량만). 옵션·수량·동의 모두 기본 선택 없음(다크패턴 금지).
+ * - 판매조건 옆 「상품정보제공고시 보기」 → 시트(결정 87 — 고른 옵션 줄이 있으면 그 옵션들의 양식을 먼저 펼친다).
  * - 판매조건·배송비·반품비·발송 예정·청약철회 제한·정상가 기준을 처음부터 보인다. 금액은 서버 견적(`quote`)만 — 화면은 더하지 않는다.
  * - 「결제하기」 → 화면 검사(미리 알림) → 본인인증 게이트(`GROUP_BUY`) → 주문 API(`expectedAmount` + 멱등 키) → 결제창(`useGroupBuyCheckout`).
  *   `409 GROUP_BUY_AMOUNT_CHANGED` 면 결제창 대신 「금액이 바뀌었어요」 확인 → 새 견적으로 다시 보낸다.
@@ -293,6 +315,11 @@ const linesComplete = computed(() => {
     if (!g || lines.value.length === 0) return false;
     return lines.value.every((l) => (g.options.length === 0 || l.optionId !== null) && l.qty !== null && l.qty >= 1);
 });
+
+/* ── 상품정보제공고시 시트(결정 87) — 고른 옵션의 양식을 먼저 ── */
+
+const noticesOpen = ref(false);
+const pickedOptionIds = computed(() => lines.value.map((l) => l.optionId).filter((optionId): optionId is number => optionId !== null));
 
 const orderLines = computed<GroupBuyOrderLine[]>(() => lines.value.map((l) => ({ optionId: gb.value?.options.length ? l.optionId : null, qty: l.qty ?? 0 })));
 

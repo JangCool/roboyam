@@ -134,6 +134,31 @@ export default {
     descriptionTitle: '상품 설명',
     specTitle: '사양',
 
+    // ── 상품정보제공고시(결정 87) ──
+    productInfoTitle: '상품정보제공고시',
+    productInfoOpen: '상품정보제공고시 보기',
+    productInfoHelp: '품목별 필수 정보(제조자 · 인증 · 품질보증 · A/S 등)를 확인할 수 있어요.',
+    productInfoSheetHelp: '주문하는 옵션의 정보를 먼저 보여 드려요.',
+    productInfoByOption: '옵션별로 보기',
+    productInfoOrdering: '주문하는 상품',
+    productInfoCategory: '품목 ({no}) {name}',
+    productInfoAppliesAll: '적용: 공구 전체',
+    productInfoAppliesOptions: '적용 옵션: {names}',
+    productInfoCaption: '{title} 상품정보제공고시',
+    productInfoItem: '항목',
+    productInfoValue: '내용',
+    productInfoUnavailable: '제공 불가 — {reason}',
+    productInfoDateMode: {
+        EARLIEST: '가장 빠른 날짜로 적었어요',
+        RANGE: '범위로 적었어요',
+        ORDER_BASED: '주문일 · 발송일 기준 기간으로 적었어요',
+    },
+    productInfoKc: {
+        CERT: 'KC 인증',
+        EXEMPT: 'KC 인증 면제',
+    },
+    productInfoSource: '{source} 기준',
+
     // ── 판매조건 · 배송비 고지 ──
     termsTitle: '판매 조건',
     termsPeriod: '모집 기간',

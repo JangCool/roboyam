@@ -12,6 +12,7 @@ import {
     mockGroupBuyList,
     mockGroupBuyMarkOrdered,
     mockGroupBuyMovements,
+    mockGroupBuyNoticeCatalog,
     mockGroupBuyRevisions,
     mockGroupBuyStart,
     mockGroupBuyStock,
@@ -39,6 +40,7 @@ import type {
     GroupBuyStockView,
     GroupBuySupplyFailurePreview,
     GroupBuySupplyFailureRequest,
+    NoticeCatalog,
 } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
 
 /**
@@ -51,7 +53,9 @@ import type {
  *   - `GET    /api/admin/group-buys?status=&q=&page=&size=` → `GroupBuyListResponse`(탭 건수 `counts`)
  *   - `GET    /api/admin/group-buys/form-options` → `GroupBuyFormOptions`(배송비 정책 고르기 · 기본값)
  *   - `POST   /api/admin/group-buys` · `PUT /api/admin/group-buys/{id}`(DRAFT 만) → `GroupBuyDetail` · `400 VALIDATION fields.*` · `409 GROUP_BUY_LOCKED_FIELD`·`GROUP_BUY_VERSION_CONFLICT`
- *   - `PATCH  /api/admin/group-buys/{id}/content`(모집 뒤 설명·이미지) → `GroupBuyDetail` · 수정 이력 한 판
+ *   - `PATCH  /api/admin/group-buys/{id}/content`(모집 뒤 설명·이미지 + 고시 양식 `notices`) → `GroupBuyDetail` · 수정 이력 한 판(고시만 바뀌면 `NOTICE`)
+ *   - `GET    /api/admin/group-buys/notice-catalog` → `NoticeCatalog`(상품정보제공고시 품목 40개·항목 — 서버 데이터 파일이 정본, 결정 87)
+ *   - 고시 양식: 저장 `400 VALIDATION fields.notices[i].title|optionIds|categoryNo|values[j].reason` · 모집 시작·모집 뒤 저장 `409 GROUP_BUY_NOTICE_INCOMPLETE`(extras = `GroupBuyNoticeIncomplete`)
  *   - `POST   /api/admin/group-buys/images`(multipart `file`) → `GroupBuyImageUpload`
  *   - `GET    /api/admin/group-buys/{id}` · `…/revisions?page=&size=`
  *   - `POST   /api/admin/group-buys/{id}/start` · `…/close-early {reason}` · `…/cancel {reason}`(+ `GET …/cancel-preview`) · `…/ordered` · `…/rounds`
@@ -63,6 +67,7 @@ import type {
 const PATH = {
     root: '/api/admin/group-buys',
     formOptions: () => `${PATH.root}/form-options`,
+    noticeCatalog: () => `${PATH.root}/notice-catalog`,
     images: () => `${PATH.root}/images`,
     one: (id: string) => `${PATH.root}/${encodeURIComponent(id)}`,
     sub: (id: string, tail: string) => `${PATH.one(id)}/${tail}`,
@@ -86,6 +91,12 @@ export function useGroupBuyAdminApi() {
             mockGroupBuyFormOptions(),
         // REAL: client.get<GroupBuyFormOptions>(PATH.formOptions()),
 
+        /** 상품정보제공고시 카탈로그(품목·항목) */
+        noticeCatalog: (): Promise<NoticeCatalog> =>
+            // MOCK:
+            mockGroupBuyNoticeCatalog(),
+        // REAL: client.get<NoticeCatalog>(PATH.noticeCatalog()),
+
         /** 공구 상세 */
         detail: (id: string): Promise<GroupBuyDetail> =>
             // MOCK:
@@ -104,7 +115,7 @@ export function useGroupBuyAdminApi() {
             mockGroupBuyUpdate(id, body),
         // REAL: client.put<GroupBuyDetail>(PATH.one(id), body),
 
-        /** 모집 뒤 설명·이미지만 고치기 */
+        /** 모집 뒤 설명·이미지·고시 양식만 고치기 */
         updateContent: (id: string, body: GroupBuyContentRequest): Promise<GroupBuyDetail> =>
             // MOCK:
             mockGroupBuyContent(id, body),

@@ -132,6 +132,31 @@ export default {
     descriptionTitle: 'Description',
     specTitle: 'Specifications',
 
+    // ── Product information disclosure (decision 87) ──
+    productInfoTitle: 'Product information',
+    productInfoOpen: 'View product information',
+    productInfoHelp: 'Required details by product category (maker, certification, warranty, after-sales service and more).',
+    productInfoSheetHelp: 'Details for the options you are ordering come first.',
+    productInfoByOption: 'View by option',
+    productInfoOrdering: 'In your order',
+    productInfoCategory: 'Category ({no}) {name}',
+    productInfoAppliesAll: 'Applies to: whole group buy',
+    productInfoAppliesOptions: 'Applies to options: {names}',
+    productInfoCaption: 'Product information for {title}',
+    productInfoItem: 'Item',
+    productInfoValue: 'Details',
+    productInfoUnavailable: 'Not available — {reason}',
+    productInfoDateMode: {
+        EARLIEST: 'Shown as the earliest date',
+        RANGE: 'Shown as a range',
+        ORDER_BASED: 'Shown as a period from the order or shipping date',
+    },
+    productInfoKc: {
+        CERT: 'KC certified',
+        EXEMPT: 'KC exempt',
+    },
+    productInfoSource: 'Based on {source}',
+
     // ── Sales terms · shipping notice ──
     termsTitle: 'Sales terms',
     termsPeriod: 'Ordering period',

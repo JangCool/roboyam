@@ -5,6 +5,8 @@
           가격·배송비 칸은 `commerce.product.price` 가 없으면 읽기 전용이다. 저장은 화면 하나로(DRAFT `PUT` 한 번 · 모집 뒤 `PATCH …/content` 한 번) — 떠 있는 저장 줄.
         · 칸: 제목·상품명·요약·사양·설명(`@roboyam/rich-editor` 고급 수준 + 본문 이미지)·대표 이미지(8장·순서)·정상가·공구가·정상가 기준(+ 출처 메모, 「최저가」 금지 안내)·옵션·성사 수량(0 = 선착순)·발송 시점
           (즉시 발송은 선착순만)·최대 수량·1인 한도·차수 사이 한도 합산·기간·연장 방식·배송비 정책·발송 예정일(마감 후 발주) 또는 결제 후 N영업일(즉시 발송)·청약철회 제한 안내.
+        · 고시 양식(결정 87, `GroupBuyNoticeEditor`): 기본 양식 1장(공구 전체) + 별개 상품 옵션용 양식, 품목별 항목·「제공 불가」 + 사유. **모집 뒤에도 고친다**(`PATCH …/content` 에 같이 — 이력 `NOTICE`).
+          빈 항목·옵션 미배정이 있으면 모집 시작이 `409 GROUP_BUY_NOTICE_INCOMPLETE` — 화면이 그 항목으로 옮겨 표시한다. 카탈로그는 `GET …/notice-catalog`(서버 정본).
         · 문구 경고(결정 55·58): 「개봉하면 반품 불가」·「재판매 금지·리셀」·「최저가」·「한정」이 보이면 위에 경고(막지는 않는다).
         · 운영 동작(서버가 정한 `actions`): 모집 시작 · 조기 마감(사유) · 중단(확인 창 「환불 N명 · 총 N원 / 이미 발송 M명은 그대로」 + 사유) · 발주 처리 · 추가 차수로 열기 ·
           발송 지연 공지(새 예정일 + 사유) · 옵션 공급 불가 처리(옵션 + 사유, 결과 미리 보기) · 수정 이력(오른쪽 서랍) · 수량 화면·주문 링크.
@@ -59,6 +61,10 @@
                         <Button v-if="detail.status !== 'DRAFT' && can('commerce.order.read')" as="router-link" :to="`/group-buy-orders?groupBuyId=${encodeURIComponent(detail.id)}`" :label="t('groupBuy.linkOrders')" icon="pi pi-list" size="small" severity="secondary" variant="text" />
                     </div>
                     <p v-if="dirty && detail.actions.canStart" class="m-0 text-xs text-amber-700 dark:text-amber-400">{{ t('groupBuy.saveBeforeStart') }}</p>
+                    <p v-else-if="detail.actions.canStart && canManage && noticeSummary && !noticeSummary.complete" class="m-0 text-xs text-amber-700 dark:text-amber-400">
+                        {{ noticeSummary.baseMissing ? t('groupBuy.noticeStartBlockedBase') : t('groupBuy.noticeStartBlocked', { blank: noticeSummary.blank, unassigned: noticeSummary.unassigned }) }}
+                        <a href="#gb-notice" class="ml-1 text-primary hover:underline" @click.prevent="goNotice">{{ t('groupBuy.noticeGo') }}</a>
+                    </p>
                     <p v-if="canManage && detail.status !== 'DRAFT' && !detail.actions.canCreateRound && detail.actions.roundBlockedReason" class="m-0 text-xs text-muted-color">{{ t(`groupBuy.roundBlocked.${detail.actions.roundBlockedReason}`) }}</p>
                     <Message v-if="actionError" severity="error" variant="simple" size="small" :closable="false" role="alert">{{ actionError }}</Message>
 
@@ -277,7 +283,22 @@
                     </div>
                 </AppGadget>
 
-                <!-- ⑧ 청약철회 제한 안내 -->
+                <!-- ⑧ 상품정보제공고시 — 모집 뒤에도 고친다(결정 87) -->
+                <AppGadget :title="t('groupBuy.secNotice')" anchor="gb-notice" :invalid="noticeErrorCount">
+                    <template #title-extra>
+                        <template v-if="noticeSummary">
+                            <Tag v-if="noticeSummary.baseMissing" :value="t('groupBuy.noticeHeaderNone')" severity="danger" />
+                            <Tag v-if="noticeSummary.blank" :value="t('groupBuy.noticeHeaderBlank', { n: noticeSummary.blank })" severity="warn" />
+                            <Tag v-if="noticeSummary.unassigned" :value="t('groupBuy.noticeHeaderUnassigned', { n: noticeSummary.unassigned })" severity="danger" />
+                            <Tag v-if="noticeSummary.complete" :value="t('groupBuy.noticeHeaderOk', { n: form.notices.length })" severity="success" />
+                        </template>
+                    </template>
+                    <GroupBuyNoticeEditor v-if="catalog" ref="noticeEditor" v-model="form.notices" :catalog="catalog" :options="noticeOptionRefs" :disabled="!canManage || saving" :errors="serverErrors" :incomplete="noticeIncomplete" />
+                    <ErrorState v-else-if="catalogError" :title="t('groupBuy.noticeCatalogFailed')" :description="catalogError.message" retry :retrying="catalogLoading" @retry="loadCatalog" />
+                    <Skeleton v-else height="8rem" />
+                </AppGadget>
+
+                <!-- ⑨ 청약철회 제한 안내 -->
                 <AppGadget :title="t('groupBuy.secWithdrawal')" anchor="gb-withdrawal">
                     <LabeledField :label="t('groupBuy.fieldWithdrawal')" :hint="lockHint('withdrawalRestriction')" :help="t('groupBuy.withdrawalHelp')" :error="fe('withdrawalRestriction')">
                         <template #default="{ id, describedBy, invalid }">
@@ -343,6 +364,7 @@
 
 <script setup lang="ts">
 import type { RichImageUploader } from '#layers/rich-editor/components/RichEditor.types';
+import type { GroupBuyNoticeOptionRef, GroupBuyNoticeRow } from '~/components/groupbuy/GroupBuyNoticeEditor.types';
 import type { GroupBuyOptionRow } from '~/components/groupbuy/GroupBuyOptionsEditor.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type {
@@ -352,10 +374,13 @@ import type {
     GroupBuyFormOptions,
     GroupBuyFulfillment,
     GroupBuyImage,
+    GroupBuyNotice,
+    GroupBuyNoticeIncomplete,
     GroupBuyRevision,
     GroupBuySaveRequest,
     GroupBuySupplyFailurePreview,
     NormalPriceBasis,
+    NoticeCatalog,
     ReturnFeeMode,
 } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
 import { NORMAL_PRICE_BASES } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
@@ -385,6 +410,7 @@ interface EditForm {
     shipPlannedAt: string;
     shipWithinBusinessDays: string;
     withdrawalRestriction: string;
+    notices: GroupBuyNoticeRow[];
 }
 
 const { t, locale } = useI18n();
@@ -419,6 +445,14 @@ const formError = ref('');
 const serverErrors = ref<Record<string, string>>({});
 const formKey = ref(0);
 
+// 상품정보제공고시 카탈로그·409 표시(아래 「상품정보제공고시」 절에서 쓴다)
+const catalog = ref<NoticeCatalog | null>(null);
+const catalogError = ref<ApiError | null>(null);
+const catalogLoading = ref(false);
+/** 서버 409 `GROUP_BUY_NOTICE_INCOMPLETE` 가 돌려준 빈 양식·항목 */
+const noticeIncomplete = ref<GroupBuyNoticeIncomplete | null>(null);
+const noticeEditor = ref<{ focusProblem: () => Promise<void> } | null>(null);
+
 const pageTitle = computed(() => (isNew.value ? t('groupBuy.newTitle') : (detail.value?.title ?? t('groupBuy.editTitle'))));
 useSeoMeta({ title: () => pageTitle.value });
 
@@ -450,6 +484,7 @@ function emptyForm(): EditForm {
         shipPlannedAt: '',
         shipWithinBusinessDays: String(options.value?.defaultShipWithinBusinessDays ?? 3),
         withdrawalRestriction: '',
+        notices: [],
     };
 }
 
@@ -478,6 +513,7 @@ function formOf(d: GroupBuyDetail): EditForm {
         shipPlannedAt: d.shipPlannedAt ?? '',
         shipWithinBusinessDays: d.shipWithinBusinessDays === null ? '' : String(d.shipWithinBusinessDays),
         withdrawalRestriction: d.withdrawalRestriction,
+        notices: d.notices.map((n) => ({ ...n, key: n.id ?? `notice-${n.order}`, optionIds: [...n.optionIds], values: n.values.map((v) => ({ ...v })) })),
     };
 }
 
@@ -485,7 +521,7 @@ const form = ref<EditForm>(emptyForm());
 const initial = ref('');
 /** 비교용 — 줄 키·표시용 수량은 뺀다 */
 function snapshot(f: EditForm): string {
-    return JSON.stringify({ ...f, images: f.images.map((i) => i.mediaId), options: f.options.map((o) => [o.id, o.name, o.extraPrice, o.maxQty]) });
+    return JSON.stringify({ ...f, images: f.images.map((i) => i.mediaId), options: f.options.map((o) => [o.id, o.name, o.extraPrice, o.maxQty]), notices: noticesOut(f) });
 }
 const dirty = computed(() => initial.value !== '' && snapshot(form.value) !== initial.value);
 
@@ -495,6 +531,7 @@ function applyDetail(d: GroupBuyDetail): void {
     initial.value = snapshot(form.value);
     serverErrors.value = {};
     formError.value = '';
+    noticeIncomplete.value = null;
     formKey.value += 1;
 }
 
@@ -535,6 +572,49 @@ function policyText(fee: number, free: number | null, returnFee: number, mode: R
     return t('groupBuy.policyText', { fee: won(fee), free: free === null ? t('groupBuy.policyNoFree') : t('groupBuy.policyFree', { amount: won(free) }), ret: won(returnFee), mode: t(`groupBuy.returnMode.${mode}`) });
 }
 
+// ── 상품정보제공고시(결정 87) ──
+/** 저장할 양식 — 차례를 1부터, 화면 키를 떼고, 지금 옵션에 없는 옵션 ID 는 뺀다 */
+function noticesOut(f: EditForm): GroupBuyNotice[] {
+    const ids = new Set(f.options.flatMap((o) => (o.id ? [o.id] : [])));
+    return f.notices.map(({ key: _key, ...n }, i) => ({ ...n, order: i + 1, optionIds: n.optionIds.filter((o) => ids.has(o)) }));
+}
+
+const noticeOptionRefs = computed<GroupBuyNoticeOptionRef[]>(() => form.value.options.map((o) => ({ key: o.key, id: o.id, name: o.name })));
+
+/** 구획 머리 배지·모집 시작 안내 — 서버와 같은 규칙으로 센다(판정은 서버) */
+const noticeSummary = computed(() => {
+    if (!catalog.value) return null;
+    const problems = UtilGroupBuy.noticeProblems(noticesOut(form.value), catalog.value);
+    const blank = problems.notices.reduce((sum, p) => sum + p.emptyKeys.length, 0);
+    const unassigned = problems.notices.filter((p) => p.optionsMissing).length;
+    return { baseMissing: problems.baseMissing, blank, unassigned, complete: UtilGroupBuy.noticeComplete(problems) };
+});
+const noticeErrorCount = computed(() => Object.keys(serverErrors.value).filter((k) => k.startsWith('notices[')).length);
+
+async function loadCatalog(): Promise<void> {
+    catalogLoading.value = true;
+    catalogError.value = null;
+    try {
+        catalog.value = await api.noticeCatalog();
+    } catch (e) {
+        catalogError.value = toApiError(e);
+    } finally {
+        catalogLoading.value = false;
+    }
+}
+
+function goNotice(): void {
+    void noticeEditor.value?.focusProblem();
+}
+
+/** 409 `GROUP_BUY_NOTICE_INCOMPLETE` 면 그 목록을 표시하고 첫 항목으로 옮긴다 */
+function showNoticeIncomplete(failure: ApiError): void {
+    if (failure.code !== 'GROUP_BUY_NOTICE_INCOMPLETE' || !failure.extras) return;
+    const extras = failure.extras as Partial<GroupBuyNoticeIncomplete>;
+    noticeIncomplete.value = { baseMissing: !!extras.baseMissing, notices: Array.isArray(extras.notices) ? extras.notices : [] };
+    void noticeEditor.value?.focusProblem();
+}
+
 const warnings = computed(() => UtilGroupBuy.phraseWarnings(form.value.title, form.value.summary, form.value.spec, form.value.description, form.value.withdrawalRestriction, ...form.value.options.map((o) => o.name)));
 
 // ── 읽기 ──
@@ -572,6 +652,7 @@ async function load(): Promise<void> {
 }
 
 onMounted(async () => {
+    void loadCatalog();
     await loadOptions();
     await load();
 });
@@ -616,6 +697,7 @@ function toRequest(f: EditForm): GroupBuySaveRequest {
         shipPlannedAt: f.fulfillment === 'AFTER_CLOSE' ? f.shipPlannedAt || null : null,
         shipWithinBusinessDays: f.fulfillment === 'IMMEDIATE' ? opt(f.shipWithinBusinessDays) : null,
         withdrawalRestriction: f.withdrawalRestriction.trim(),
+        notices: noticesOut(f),
         version: detail.value?.version ?? null,
     };
 }
@@ -625,6 +707,7 @@ async function save(): Promise<void> {
     saving.value = true;
     formError.value = '';
     serverErrors.value = {};
+    noticeIncomplete.value = null;
     try {
         if (isNew.value) {
             const created = await api.create(toRequest(form.value));
@@ -634,7 +717,7 @@ async function save(): Promise<void> {
             return;
         }
         const d = detail.value!;
-        const saved = draft.value ? await api.update(d.id, toRequest(form.value)) : await api.updateContent(d.id, { summary: form.value.summary, spec: form.value.spec, description: form.value.description, imageIds: form.value.images.map((i) => i.mediaId), version: d.version });
+        const saved = draft.value ? await api.update(d.id, toRequest(form.value)) : await api.updateContent(d.id, { summary: form.value.summary, spec: form.value.spec, description: form.value.description, imageIds: form.value.images.map((i) => i.mediaId), notices: noticesOut(form.value), version: d.version });
         applyDetail(saved);
         toast.success(t('groupBuy.saved'));
     } catch (e) {
@@ -644,6 +727,7 @@ async function save(): Promise<void> {
             formError.value = t('groupBuy.saveFieldsRejected');
         } else {
             formError.value = failure.message;
+            showNoticeIncomplete(failure);
         }
     } finally {
         saving.value = false;
@@ -679,7 +763,7 @@ function openCloseEarly(): void {
 }
 
 /** 동작 하나를 돌린다 — 성공하면 상세를 바꾸고 토스트, 실패는 대화상자 안(있으면) 또는 상태 칸 아래 */
-async function run(act: Act, work: () => Promise<GroupBuyDetail | null>, done: string, inDialog: boolean): Promise<boolean> {
+async function run(act: Act, work: () => Promise<GroupBuyDetail | null>, done: string, inDialog: boolean, onFailure?: (failure: ApiError) => void): Promise<boolean> {
     acting.value = act;
     actionError.value = '';
     dialogError.value = '';
@@ -691,6 +775,7 @@ async function run(act: Act, work: () => Promise<GroupBuyDetail | null>, done: s
         return true;
     } catch (e) {
         const failure = toApiError(e);
+        onFailure?.(failure);
         const reasonField = failure.field('reason');
         if (inDialog) {
             dialogFieldError.value = reasonField ?? '';
@@ -708,7 +793,8 @@ async function doStart(): Promise<void> {
     const d = detail.value;
     if (!d) return;
     const ok = await confirm({ title: t('groupBuy.startTitle'), message: t('groupBuy.startBody'), confirmLabel: t('groupBuy.actStart') });
-    if (ok) await run('start', () => api.start(d.id), t('groupBuy.started'), false);
+    noticeIncomplete.value = null;
+    if (ok) await run('start', () => api.start(d.id), t('groupBuy.started'), false, showNoticeIncomplete);
 }
 
 async function doCloseEarly(reason: string): Promise<void> {
