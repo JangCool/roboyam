@@ -600,17 +600,23 @@ final class GroupBuyTestKit {
             return this;
         }
 
+        /** 상품 등록 값 — 단품 목록(축 값 조합마다 한 줄, 이름 = 값을 「 / 」로 이은 것, 축이 없으면 상품 이름). 이미 있는 상품이면 같은 이름의 단품 ID 를 싣는다 */
         ProductDraft productDraft() {
-            List<ProductDraft.SkuDraft> skus = new ArrayList<>();
-            for (List<String> combination : combinations()) {
-                skus.add(new ProductDraft.SkuDraft(combination, supply, true));
-            }
-            return new ProductDraft(categoryId, productName, "요약", "사양", "<p>설명</p>", null, null, null, null, copyAxes(), skus,
-                    List.of(new GroupBuyDraft.ImageRef("img/a.jpg", "img/a-t.jpg")));
+            return productDraft(true);
         }
 
-        private List<GroupBuyDraft.AxisDraft> copyAxes() {
-            return axes.stream().map(a -> new GroupBuyDraft.AxisDraft(a.name(), List.copyOf(a.values()))).toList();
+        private ProductDraft productDraft(boolean withIds) {
+            java.util.Map<String, Long> existing = new java.util.HashMap<>();
+            if (withIds && productId != null) {
+                products.skus(productId).forEach(s -> existing.put(s.name(), s.id()));
+            }
+            List<ProductDraft.SkuDraft> skus = new ArrayList<>();
+            for (List<String> combination : combinations()) {
+                String name = combination.isEmpty() ? productName : String.join(" / ", combination);
+                skus.add(new ProductDraft.SkuDraft(existing.get(name), name, combination, supply, true));
+            }
+            return new ProductDraft(categoryId, productName, "요약", "사양", "<p>설명</p>", null, null, null, null, axes.stream().map(GroupBuyDraft.AxisDraft::name).toList(),
+                    skus, List.of(new GroupBuyDraft.ImageRef("img/a.jpg", "img/a-t.jpg")));
         }
 
         private List<List<String>> combinations() {
@@ -632,19 +638,19 @@ final class GroupBuyTestKit {
 
         /** 상품을 만들거나(처음) 상품 칸이 바뀌었으면 고친다 */
         long ensureProduct() {
-            ProductDraft draft = productDraft();
+            ProductDraft key = productDraft(false);
             if (productId == null) {
-                productId = products.create(draft, operator, "127.0.0.1");
-                savedProduct = draft;
-            } else if (savedProduct != null && !savedProduct.equals(draft)) {
-                products.update(productId, products.product(productId).version(), draft, operator, "127.0.0.1");
-                savedProduct = draft;
+                productId = products.create(key, operator, "127.0.0.1");
+                savedProduct = key;
+            } else if (savedProduct != null && !savedProduct.equals(key)) {
+                products.update(productId, products.product(productId).version(), productDraft(true), operator, "127.0.0.1");
+                savedProduct = key;
             }
             for (int k = 0; k < addons.size(); k++) {
                 AddonSpec a = addons.get(k);
                 if (a.productSkuId() == 0) {
                     long addonProduct = products.create(new ProductDraft(category, a.name(), null, null, null, null, null, null, null, List.of(),
-                            List.of(new ProductDraft.SkuDraft(List.of(), a.price() / 2, true)), List.of()), operator, "127.0.0.1");
+                            List.of(new ProductDraft.SkuDraft(null, a.name(), List.of(), a.price() / 2, true)), List.of()), operator, "127.0.0.1");
                     addons.set(k, new AddonSpec(a.name(), a.price(), a.max(), a.supply(), products.skus(addonProduct).getFirst().id()));
                 }
             }

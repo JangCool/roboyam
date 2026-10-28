@@ -142,7 +142,7 @@ CREATE TABLE group_buy_product_images (
 );
 CREATE UNIQUE INDEX ux_group_buy_product_images_order ON group_buy_product_images (product_id, sort_order);
 
--- 옵션 축(0~3개, 예 색상·사이즈)·값(축마다, 예 블랙·화이트) — 상품에 붙는다(결정 88·89). 고칠 때 같은 이름의 축·값은 ID 를 유지한다.
+-- 옵션 축(0~3개 — 상품의 옵션 이름, 예 색상·사이즈)·값(단품들의 값에서 서버가 만든다, 예 블랙·화이트) — 상품에 붙는다(결정 88·89). 고칠 때 옵션 이름이 같으면 같은 값은 ID 를 유지한다.
 CREATE TABLE group_buy_option_axes (
     id          bigint       PRIMARY KEY,
     product_id  bigint       NOT NULL REFERENCES group_buy_products (id) ON DELETE CASCADE,
@@ -162,7 +162,8 @@ CREATE TABLE group_buy_option_values (
 );
 CREATE UNIQUE INDEX ux_group_buy_option_values_value ON group_buy_option_values (axis_id, value);
 
--- 상품 단품: 축 값 조합마다 하나(축이 없으면 하나 — 이름 = 상품 이름, 축이 있으면 「블랙 / M」). default_supply_price: 기본 공급가(선택 — 공구 단품으로 복사해 고친다).
+-- 상품 단품(2b-1 사용자 결정 — 단품 목록이 정본): 운영자가 한 줄씩 등록한 파는 단위(이름 — 상품 안에서 유일). value_ids: 옵션 이름(축)마다 값(축 차례, 옵션이 없으면 빈 배열 — 서버가 값으로 축·값을 만든다).
+-- default_supply_price: 기본 공급가(선택 — 공구 단품으로 복사해 고친다).
 -- on_sale: 새 공구의 기본 판매 여부. 공구 단품이 가리키는 상품 단품은 지울 수 없다(FK).
 CREATE TABLE group_buy_product_skus (
     id                   bigint        PRIMARY KEY,
@@ -177,7 +178,8 @@ CREATE TABLE group_buy_product_skus (
 );
 CREATE UNIQUE INDEX ux_gbps_product ON group_buy_product_skus (id, product_id);
 CREATE UNIQUE INDEX ux_gbps_name ON group_buy_product_skus (product_id, name);
-CREATE UNIQUE INDEX ux_gbps_combination ON group_buy_product_skus (product_id, value_ids);
+-- 같은 값 묶음 두 단품 금지(옵션이 있을 때 — 옵션이 없으면 이름으로 가린다)
+CREATE UNIQUE INDEX ux_gbps_combination ON group_buy_product_skus (product_id, value_ids) WHERE cardinality(value_ids) > 0;
 
 -- ── 공구 ─────────────────────────────────────────────────────────────────────
 -- product_id: 파는 상품(결정 89 — 설명·이미지·고시·정상가·청약철회 제한은 상품에). 추가 차수 = 같은 상품으로 새 공구.

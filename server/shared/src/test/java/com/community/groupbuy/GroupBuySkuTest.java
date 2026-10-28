@@ -249,13 +249,13 @@ class GroupBuySkuTest {
     void G44_축_조합_추가상품_등록_검사() {
         String policy = policy();
         assertThatThrownBy(() -> kit.spec(policy).axis("a", "1").axis("b", "1").axis("c", "1").axis("d", "1").create())
-                .as("축은 3개까지").isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("axes"));
+                .as("옵션 이름은 3개까지").isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("optionNames"));
         String[] many = new String[15];
         for (int i = 0; i < many.length; i++) {
             many[i] = "v" + i;
         }
         assertThatThrownBy(() -> kit.spec(policy).axis("a", many).axis("b", many).create())
-                .as("조합 225 > 200").isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("axes"));
+                .as("단품 225 > 200").isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("skus"));
         assertThatThrownBy(() -> kit.spec(policy).axis("a", "x", "x").create()).as("값 중복").isInstanceOf(ValidationException.class);
         assertThatThrownBy(() -> kit.spec(policy).axis("a", "x").combo(List.of("x"), 0, null, false).create())
                 .as("판매하는 조합이 없다").isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("skus"));

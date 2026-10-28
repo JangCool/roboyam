@@ -19,8 +19,8 @@ import java.util.function.Function;
 /**
  * 옵션 축·값·단품 계획(결정 88·89).
  * <ul>
- *   <li><b>상품</b>({@link #product}): 축 0~3개·축마다 값 1~30개·조합 최대 {@value #COMBINATIONS_MAX}개 — 상품 단품은 조합마다 하나(축이 없으면 하나, 이름 = 상품 이름),
- *       이름은 값을 「 / 」로 이은 것. 조합 설정을 적지 않은 조합은 기본 공급가 없음·판매.</li>
+ *   <li><b>상품</b>({@link #product} — 2b-1 사용자 결정: <b>단품 목록이 정본</b>): 운영자가 단품을 한 줄씩(1~{@value #SKUS_MAX}개, 이름 유일), 옵션 이름 0~{@value #AXES_MAX}개를 두면
+ *       단품마다 값 모두 필수·같은 값 묶음 두 줄 금지. 옵션 축의 값은 단품들의 값에서 처음 나온 차례대로 만든다(축마다 최대 {@value #VALUES_MAX}개).</li>
  *   <li><b>공구</b>({@link #group}): 공구 상품의 상품 단품마다 MAIN 공구 단품(설정을 적지 않으면 추가금 0·한도 없음·판매 여부와 공급가는 상품 단품의 기본값),
  *       추가 구성상품은 다른 상품의 단품(최대 {@value #ADDONS_MAX}개). 공구 단품 이름은 공구 안에서 유일.</li>
  * </ul>
@@ -29,9 +29,10 @@ final class GroupBuySkuPlan {
 
     static final int AXES_MAX = 3;
     static final int VALUES_MAX = 30;
-    static final int COMBINATIONS_MAX = 200;
+    static final int SKUS_MAX = 200;
     static final int ADDONS_MAX = 20;
     static final int NAME_MAX = 30;
+    static final int SKU_NAME_MAX = 100;
 
     private GroupBuySkuPlan() {
     }
@@ -40,8 +41,8 @@ final class GroupBuySkuPlan {
     record PlannedAxis(String name, List<String> values) {
     }
 
-    /** 계획한 상품 단품(축 차례대로 값 이름) */
-    record PlannedProductSku(List<String> valueNames, String name, Long defaultSupplyPrice, boolean onSale) {
+    /** 계획한 상품 단품 — {@code skuId} 기존 단품(새 단품이면 null), {@code valueNames} 옵션 이름 차례대로 값 */
+    record PlannedProductSku(Long skuId, List<String> valueNames, String name, Long defaultSupplyPrice, boolean onSale) {
     }
 
     /** 상품의 축·단품 계획 */
@@ -53,62 +54,63 @@ final class GroupBuySkuPlan {
                       Long supplyPrice) {
     }
 
-    /** 추가 구성상품으로 고른 상품 단품과 그 상품 */
-    record AddonSource(ProductSkuRow sku, String productName) {
+    /** 추가 구성상품으로 고른 상품 단품과 그 상품({@code single}: 그 상품의 단품이 하나뿐) */
+    record AddonSource(ProductSkuRow sku, String productName, boolean single) {
 
-        /** 공구 단품 이름 — 축 없는 상품이면 상품 이름, 아니면 「상품 이름 (조합)」 */
+        /** 공구 단품 이름 — 단품이 하나뿐인 상품이면 상품 이름, 아니면 「상품 이름 (단품 이름)」 */
         String name() {
-            return sku.valueIds().isEmpty() ? productName : productName + " (" + sku.name() + ")";
+            return single || sku.name().equals(productName) ? productName : productName + " (" + sku.name() + ")";
         }
     }
 
     // ── 상품 ────────────────────────────────────────────────────────────────
 
     /** 상품 등록 값에서 — 문제가 있으면 {@code f} 에 칸 오류를 넣고 null */
-    static ProductPlan product(ProductDraft d, String productName, Map<String, MessageRef> f) {
-        List<GroupBuyDraft.AxisDraft> axisDrafts = d.axes() == null ? List.of() : d.axes();
-        if (axisDrafts.size() > AXES_MAX) {
-            f.put("axes", new MessageRef("groupbuy.admin.axes.invalid"));
+    static ProductPlan product(ProductDraft d, Map<String, MessageRef> f) {
+        List<String> optionNames = new ArrayList<>();
+        Set<String> seenNames = new HashSet<>();
+        for (String n : d.optionNames() == null ? List.<String>of() : d.optionNames()) {
+            if (blankOrLonger(n, NAME_MAX) || !seenNames.add(n.strip())) {
+                f.put("optionNames", new MessageRef("groupbuy.admin.optionNames.invalid"));
+                return null;
+            }
+            optionNames.add(n.strip());
+        }
+        if (optionNames.size() > AXES_MAX) {
+            f.put("optionNames", new MessageRef("groupbuy.admin.optionNames.invalid"));
+            return null;
+        }
+        List<ProductDraft.SkuDraft> drafts = d.skus() == null ? List.of() : d.skus();
+        if (drafts.isEmpty() || drafts.size() > SKUS_MAX) {
+            f.put("skus", new MessageRef("groupbuy.admin.skus.invalid"));
+            return null;
+        }
+        Set<String> skuNames = new HashSet<>();
+        Set<List<String>> combinations = new HashSet<>();
+        Set<Long> skuIds = new HashSet<>();
+        List<PlannedProductSku> skus = new ArrayList<>();
+        List<java.util.LinkedHashSet<String>> values = new ArrayList<>();
+        optionNames.forEach(n -> values.add(new java.util.LinkedHashSet<>()));
+        for (ProductDraft.SkuDraft s : drafts) {
+            List<String> v = s == null || s.values() == null ? List.of() : s.values().stream().map(x -> x == null ? "" : x.strip()).toList();
+            if (s == null || blankOrLonger(s.name(), SKU_NAME_MAX) || !skuNames.add(s.name().strip()) || (s.skuId() != null && !skuIds.add(s.skuId()))
+                    || v.size() != optionNames.size() || v.stream().anyMatch(x -> x.isEmpty() || x.length() > NAME_MAX) || (!v.isEmpty() && !combinations.add(v))
+                    || (s.defaultSupplyPrice() != null && s.defaultSupplyPrice() < 0)) {
+                f.put("skus", new MessageRef("groupbuy.admin.skus.invalid")); // 이름 겹침·값 빠짐·같은 값 묶음
+                return null;
+            }
+            for (int i = 0; i < v.size(); i++) {
+                values.get(i).add(v.get(i));
+            }
+            skus.add(new PlannedProductSku(s.skuId(), v, s.name().strip(), s.defaultSupplyPrice(), s.onSale()));
+        }
+        if (values.stream().anyMatch(x -> x.size() > VALUES_MAX)) {
+            f.put("skus", new MessageRef("groupbuy.admin.skus.invalid"));
             return null;
         }
         List<PlannedAxis> axes = new ArrayList<>();
-        Set<String> axisNames = new HashSet<>();
-        long combinations = 1;
-        for (GroupBuyDraft.AxisDraft a : axisDrafts) {
-            if (a == null || blankOrLonger(a.name(), NAME_MAX) || !axisNames.add(a.name().strip()) || a.values() == null || a.values().isEmpty()
-                    || a.values().size() > VALUES_MAX) {
-                f.put("axes", new MessageRef("groupbuy.admin.axes.invalid"));
-                return null;
-            }
-            Set<String> seen = new HashSet<>();
-            List<String> values = new ArrayList<>();
-            for (String v : a.values()) {
-                if (blankOrLonger(v, NAME_MAX) || !seen.add(v.strip())) {
-                    f.put("axes", new MessageRef("groupbuy.admin.axes.invalid"));
-                    return null;
-                }
-                values.add(v.strip());
-            }
-            axes.add(new PlannedAxis(a.name().strip(), List.copyOf(values)));
-            combinations *= values.size();
-        }
-        if (combinations > COMBINATIONS_MAX) {
-            f.put("axes", new MessageRef("groupbuy.admin.axes.tooMany"));
-            return null;
-        }
-        Map<List<String>, ProductDraft.SkuDraft> settings = new HashMap<>();
-        for (ProductDraft.SkuDraft s : d.skus() == null ? List.<ProductDraft.SkuDraft>of() : d.skus()) {
-            List<String> key = s == null || s.values() == null ? null : s.values().stream().map(v -> v == null ? "" : v.strip()).toList();
-            if (key == null || !validCombination(axes, key) || settings.put(key, s) != null || (s.defaultSupplyPrice() != null && s.defaultSupplyPrice() < 0)) {
-                f.put("skus", new MessageRef("groupbuy.admin.skus.invalid"));
-                return null;
-            }
-        }
-        List<PlannedProductSku> skus = new ArrayList<>();
-        for (List<String> combination : combinations(axes)) {
-            ProductDraft.SkuDraft s = settings.get(combination);
-            String name = combination.isEmpty() ? productName : String.join(" / ", combination);
-            skus.add(new PlannedProductSku(combination, name, s == null ? null : s.defaultSupplyPrice(), s == null || s.onSale()));
+        for (int i = 0; i < optionNames.size(); i++) {
+            axes.add(new PlannedAxis(optionNames.get(i), List.copyOf(values.get(i))));
         }
         return new ProductPlan(List.copyOf(axes), List.copyOf(skus));
     }
@@ -199,36 +201,6 @@ final class GroupBuySkuPlan {
 
     private static Integer baseMax(SkuRow s) {
         return s.initialMaxQty() == null ? s.maxQty() : s.initialMaxQty();
-    }
-
-    private static boolean validCombination(List<PlannedAxis> axes, List<String> key) {
-        if (key.size() != axes.size()) {
-            return false;
-        }
-        for (int i = 0; i < key.size(); i++) {
-            if (!axes.get(i).values().contains(key.get(i))) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /** 축 값의 모든 조합(축 차례, 값 차례) — 축이 없으면 빈 조합 하나 */
-    static List<List<String>> combinations(List<PlannedAxis> axes) {
-        List<List<String>> out = new ArrayList<>();
-        out.add(List.of());
-        for (PlannedAxis axis : axes) {
-            List<List<String>> next = new ArrayList<>();
-            for (List<String> prefix : out) {
-                for (String value : axis.values()) {
-                    List<String> combination = new ArrayList<>(prefix);
-                    combination.add(value);
-                    next.add(List.copyOf(combination));
-                }
-            }
-            out = next;
-        }
-        return out;
     }
 
     private static boolean blankOrLonger(String value, int max) {

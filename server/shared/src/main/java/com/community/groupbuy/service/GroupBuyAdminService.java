@@ -502,7 +502,8 @@ public class GroupBuyAdminService {
         }
         // 공구 단품·추가 구성상품(결정 88·89)
         List<GroupBuySkuPlan.PlannedSku> plan = product.isEmpty() ? null : GroupBuySkuPlan.group(d, d.productId(), products.skus(d.productId()),
-                skuId -> products.sku(skuId).flatMap(s -> products.find(s.productId()).map(p -> new GroupBuySkuPlan.AddonSource(s, p.name()))), f);
+                skuId -> products.sku(skuId).flatMap(s -> products.find(s.productId()).map(p -> new GroupBuySkuPlan.AddonSource(s, p.name(),
+                        products.skus(p.id()).size() == 1))), f);
         if (!f.isEmpty()) {
             throw new ValidationException(f);
         }

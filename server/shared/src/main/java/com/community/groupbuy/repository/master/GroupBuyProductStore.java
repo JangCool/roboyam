@@ -190,9 +190,16 @@ public class GroupBuyProductStore {
                 id, productId, longArray(valueIds), name, defaultSupplyPrice, onSale, sortOrder);
     }
 
-    public void updateSku(long id, String name, Long defaultSupplyPrice, boolean onSale, int sortOrder) {
-        jdbc.update("UPDATE group_buy_product_skus SET name = ?, default_supply_price = ?, on_sale = ?, sort_order = ? WHERE id = ?", name, defaultSupplyPrice, onSale,
-                sortOrder, id);
+    public void updateSku(long id, String name, List<Long> valueIds, Long defaultSupplyPrice, boolean onSale, int sortOrder) {
+        jdbc.update("UPDATE group_buy_product_skus SET name = ?, value_ids = ?::bigint[], default_supply_price = ?, on_sale = ?, sort_order = ? WHERE id = ?", name,
+                longArray(valueIds), defaultSupplyPrice, onSale, sortOrder, id);
+    }
+
+    /** 상품 단품의 값·이름이 바뀌었다 — 공구 MAIN 단품의 조합 사본은 늘, 이름 사본은 공개 전 DRAFT 공구만 고친다(공개된 공구의 이름은 표시 기록) */
+    public void updateGroupSkuCopies(long productSkuId, List<Long> valueIds, String name) {
+        jdbc.update("UPDATE group_buy_skus SET value_ids = ?::bigint[] WHERE product_sku_id = ? AND kind = 'MAIN'", longArray(valueIds), productSkuId);
+        jdbc.update("UPDATE group_buy_skus s SET name = ? FROM group_buys g WHERE g.id = s.group_buy_id AND s.product_sku_id = ? AND s.kind = 'MAIN' "
+                + "AND g.status = 'DRAFT' AND g.published_at IS NULL", name, productSkuId);
     }
 
     public void deleteSku(long id) {

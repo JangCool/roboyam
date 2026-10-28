@@ -135,7 +135,7 @@ public class GroupBuyProductService {
     public long create(ProductDraft draft, Long operatorId, String ip) {
         Map<String, MessageRef> f = new LinkedHashMap<>();
         NewProduct p = validate(draft, f);
-        GroupBuySkuPlan.ProductPlan plan = p == null ? null : GroupBuySkuPlan.product(draft, p.name(), f);
+        GroupBuySkuPlan.ProductPlan plan = p == null ? null : GroupBuySkuPlan.product(draft, f);
         if (!f.isEmpty()) {
             throw new ValidationException(f);
         }
@@ -159,7 +159,7 @@ public class GroupBuyProductService {
     public void update(long id, int version, ProductDraft draft, Long operatorId, String ip) {
         Map<String, MessageRef> f = new LinkedHashMap<>();
         NewProduct p = validate(draft, f);
-        GroupBuySkuPlan.ProductPlan plan = p == null ? null : GroupBuySkuPlan.product(draft, p.name(), f);
+        GroupBuySkuPlan.ProductPlan plan = p == null ? null : GroupBuySkuPlan.product(draft, f);
         if (!f.isEmpty()) {
             throw new ValidationException(f);
         }
@@ -227,41 +227,50 @@ public class GroupBuyProductService {
                 d.normalPrice() == null ? null : d.normalPriceBasis(), trimToNull(d.normalPriceSource()), trimToNull(d.withdrawalRestriction()));
     }
 
-    /** 축 이름·값(차례)·단품 조합·단품 이름이 같은가(기본 공급가·판매 여부는 구성이 아니다) */
+    /** 옵션 이름(차례)·단품(같은 ID 묶음)·단품 이름·값이 같은가(기본 공급가·판매 여부는 구성이 아니다) */
     private static boolean sameStructure(GroupBuySkuPlan.ProductPlan plan, List<AxisRow> axes, List<ProductSkuRow> skus) {
-        if (axes.size() != plan.axes().size() || skus.size() != plan.skus().size()) {
+        if (!axes.stream().map(AxisRow::name).toList().equals(plan.axes().stream().map(GroupBuySkuPlan.PlannedAxis::name).toList())
+                || skus.size() != plan.skus().size()) {
             return false;
         }
-        for (int i = 0; i < axes.size(); i++) {
-            if (!axes.get(i).name().equals(plan.axes().get(i).name())
-                    || !axes.get(i).values().stream().map(ValueRow::value).toList().equals(plan.axes().get(i).values())) {
+        Map<Long, String> valueNames = valueNames(axes);
+        Map<Long, ProductSkuRow> byId = new HashMap<>();
+        skus.forEach(s -> byId.put(s.id(), s));
+        for (GroupBuySkuPlan.PlannedProductSku planned : plan.skus()) {
+            ProductSkuRow saved = planned.skuId() == null ? null : byId.get(planned.skuId());
+            if (saved == null || !saved.name().equals(planned.name())
+                    || !saved.valueIds().stream().map(valueNames::get).toList().equals(planned.valueNames())) {
                 return false;
             }
         }
-        Map<List<String>, ProductSkuRow> saved = savedByCombination(axes, skus);
-        return plan.skus().stream().allMatch(s -> saved.containsKey(s.valueNames()) && saved.get(s.valueNames()).name().equals(s.name()));
+        return true;
     }
 
-    private static Map<List<String>, ProductSkuRow> savedByCombination(List<AxisRow> axes, List<ProductSkuRow> skus) {
-        Map<Long, String> valueNames = new HashMap<>();
-        axes.forEach(a -> a.values().forEach(v -> valueNames.put(v.id(), v.value())));
-        Map<List<String>, ProductSkuRow> out = new HashMap<>();
-        skus.forEach(s -> out.put(s.valueIds().stream().map(valueNames::get).toList(), s));
+    private static Map<Long, String> valueNames(List<AxisRow> axes) {
+        Map<Long, String> out = new HashMap<>();
+        axes.forEach(a -> a.values().forEach(v -> out.put(v.id(), v.value())));
         return out;
     }
 
     /**
-     * 계획대로 축·값·상품 단품을 맞춘다 — 축 이름(차례)이 같으면 같은 이름의 값·같은 조합의 단품은 ID 를 유지하고 고치기만, 새 것은 넣고, 없어진 것은 지운다
-     * (공구가 가리키는 단품이면 409). 축 이름이 다르면 모두 다시 만든다(가리키는 단품이 있으면 409).
+     * 계획대로 옵션 축·값·상품 단품을 맞춘다(2b-1 사용자 결정 — 단품 목록이 정본). 단품은 {@code skuId} 로 가리킨 것은 고치고, 새 줄은 넣고, 목록에 없는 기존 단품은 지운다
+     * (공개된 공구가 가리키면 409). 옵션 이름(차례)이 같으면 같은 값은 ID 를 유지하고, 다르면 축·값을 다시 만든다. 단품의 값이 바뀌면 공구 단품의 조합 사본도 고친다.
      */
     private void sync(long productId, GroupBuySkuPlan.ProductPlan plan) {
         List<AxisRow> axes = store.axes(productId);
         List<ProductSkuRow> skus = store.skus(productId);
-        boolean sameAxes = axes.stream().map(AxisRow::name).toList().equals(plan.axes().stream().map(GroupBuySkuPlan.PlannedAxis::name).toList());
-        Map<List<String>, ProductSkuRow> saved = sameAxes ? savedByCombination(axes, skus) : Map.of();
-        Set<List<String>> planned = new java.util.HashSet<>();
-        plan.skus().forEach(s -> planned.add(s.valueNames()));
-        List<ProductSkuRow> removed = sameAxes ? saved.entrySet().stream().filter(e -> !planned.contains(e.getKey())).map(Map.Entry::getValue).toList() : skus;
+        Map<Long, ProductSkuRow> byId = new HashMap<>();
+        skus.forEach(s -> byId.put(s.id(), s));
+        Set<Long> kept = new java.util.HashSet<>();
+        for (GroupBuySkuPlan.PlannedProductSku planned : plan.skus()) {
+            if (planned.skuId() != null) {
+                if (!byId.containsKey(planned.skuId())) {
+                    throw ValidationException.of("skus", new MessageRef("groupbuy.admin.skus.invalid")); // 이 상품의 단품이 아니다
+                }
+                kept.add(planned.skuId());
+            }
+        }
+        List<ProductSkuRow> removed = skus.stream().filter(s -> !kept.contains(s.id())).toList();
         List<String> inUse = removed.stream().filter(s -> store.skuInUse(s.id())).map(ProductSkuRow::name).toList();
         if (!inUse.isEmpty()) {
             throw GroupBuyException.productSkuInUse(inUse);
@@ -270,59 +279,69 @@ public class GroupBuyProductService {
             store.deleteDraftGroupSkus(s.id()); // 공개 전 DRAFT 공구는 상품 구성을 따라간다
             store.deleteSku(s.id());
         });
+        // 이름·값 묶음 유일 — 바뀌는 단품은 먼저 비켜 둔다(두 단품의 이름을 맞바꿔도 되게)
+        Map<Long, String> oldValueNames = valueNames(axes);
+        for (GroupBuySkuPlan.PlannedProductSku planned : plan.skus()) {
+            ProductSkuRow saved = planned.skuId() == null ? null : byId.get(planned.skuId());
+            if (saved != null && (!saved.name().equals(planned.name()) || !saved.valueIds().stream().map(oldValueNames::get).toList().equals(planned.valueNames()))) {
+                store.updateSku(saved.id(), "#" + saved.id(), List.of(), saved.defaultSupplyPrice(), saved.onSale(), saved.sortOrder());
+            }
+        }
+        // 축·값
+        boolean sameAxes = axes.stream().map(AxisRow::name).toList().equals(plan.axes().stream().map(GroupBuySkuPlan.PlannedAxis::name).toList());
         List<Map<String, Long>> valueIds = new ArrayList<>();
         if (!sameAxes) {
             store.deleteAxes(productId);
-            for (int i = 0; i < plan.axes().size(); i++) {
-                long axisId = ids.nextId();
-                store.insertAxis(axisId, productId, i, plan.axes().get(i).name());
-                Map<String, Long> byValue = new HashMap<>();
-                List<String> values = plan.axes().get(i).values();
-                for (int j = 0; j < values.size(); j++) {
-                    long valueId = ids.nextId();
-                    store.insertValue(valueId, axisId, productId, j, values.get(j));
-                    byValue.put(values.get(j), valueId);
-                }
-                valueIds.add(byValue);
-            }
-        } else {
-            for (int i = 0; i < axes.size(); i++) {
-                AxisRow axis = axes.get(i);
-                Map<String, Long> byValue = new HashMap<>();
-                axis.values().forEach(v -> byValue.put(v.value(), v.id()));
-                List<String> values = plan.axes().get(i).values();
-                for (int j = 0; j < values.size(); j++) {
-                    Long existing = byValue.get(values.get(j));
-                    if (existing != null) {
-                        store.moveValue(existing, j);
-                    } else {
-                        long valueId = ids.nextId();
-                        store.insertValue(valueId, axis.id(), productId, j, values.get(j));
-                        byValue.put(values.get(j), valueId);
-                    }
-                }
-                for (ValueRow v : axis.values()) {
-                    if (!values.contains(v.value())) {
-                        store.deleteValue(v.id()); // 이 값의 단품은 위에서 지웠다
-                    }
-                }
-                valueIds.add(byValue);
-            }
         }
-        for (int i = 0; i < plan.skus().size(); i++) {
-            GroupBuySkuPlan.PlannedProductSku s = plan.skus().get(i);
-            ProductSkuRow existing = saved.get(s.valueNames());
-            if (existing != null) {
-                store.updateSku(existing.id(), s.name(), s.defaultSupplyPrice(), s.onSale(), i);
-            } else {
-                List<Long> combination = new ArrayList<>();
-                for (int a = 0; a < s.valueNames().size(); a++) {
-                    combination.add(valueIds.get(a).get(s.valueNames().get(a)));
+        for (int i = 0; i < plan.axes().size(); i++) {
+            GroupBuySkuPlan.PlannedAxis planned = plan.axes().get(i);
+            Map<String, Long> byValue = new HashMap<>();
+            long axisId;
+            if (sameAxes) {
+                AxisRow axis = axes.get(i);
+                axisId = axis.id();
+                axis.values().forEach(v -> byValue.put(v.value(), v.id()));
+                for (ValueRow v : axis.values()) {
+                    if (!planned.values().contains(v.value())) {
+                        store.deleteValue(v.id()); // 이 값을 쓰는 단품은 이제 없다
+                        byValue.remove(v.value());
+                    }
                 }
+            } else {
+                axisId = ids.nextId();
+                store.insertAxis(axisId, productId, i, planned.name());
+            }
+            for (int j = 0; j < planned.values().size(); j++) {
+                Long existing = byValue.get(planned.values().get(j));
+                if (existing != null) {
+                    store.moveValue(existing, j);
+                } else {
+                    long valueId = ids.nextId();
+                    store.insertValue(valueId, axisId, productId, j, planned.values().get(j));
+                    byValue.put(planned.values().get(j), valueId);
+                }
+            }
+            valueIds.add(byValue);
+        }
+        // 단품
+        for (int i = 0; i < plan.skus().size(); i++) {
+            GroupBuySkuPlan.PlannedProductSku planned = plan.skus().get(i);
+            List<Long> combination = new ArrayList<>();
+            for (int a = 0; a < planned.valueNames().size(); a++) {
+                combination.add(valueIds.get(a).get(planned.valueNames().get(a)));
+            }
+            ProductSkuRow saved = planned.skuId() == null ? null : byId.get(planned.skuId());
+            if (saved != null) {
+                store.updateSku(saved.id(), planned.name(), combination, planned.defaultSupplyPrice(), planned.onSale(), i);
+                if (!saved.valueIds().equals(combination) || !saved.name().equals(planned.name())) {
+                    store.updateGroupSkuCopies(saved.id(), combination, planned.name());
+                }
+            } else {
                 long skuId = ids.nextId();
-                store.insertSku(skuId, productId, combination, s.name(), s.defaultSupplyPrice(), s.onSale(), i);
+                store.insertSku(skuId, productId, combination, planned.name(), planned.defaultSupplyPrice(), planned.onSale(), i);
                 for (long groupBuyId : store.draftGroupBuys(productId)) { // 공개 전 DRAFT 공구에 기본값으로 더한다
-                    groups.insertSku(ids.nextId(), groupBuyId, SkuKind.MAIN, skuId, combination, s.name(), 0, null, null, s.onSale(), s.defaultSupplyPrice(), 1000 + i);
+                    groups.insertSku(ids.nextId(), groupBuyId, SkuKind.MAIN, skuId, combination, planned.name(), 0, null, null, planned.onSale(),
+                            planned.defaultSupplyPrice(), 1000 + i);
                 }
             }
         }
