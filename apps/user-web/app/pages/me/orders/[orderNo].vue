@@ -155,7 +155,7 @@
                             <span class="text-xs tabular-nums text-muted-color">{{ time.listLabel(request.createdAt) }}</span>
                         </div>
                         <p class="m-0 text-xs text-muted-color">
-                            <span v-for="(item, index) in request.items" :key="item.orderItemId">
+                            <span v-for="(item, index) in request.items" :key="item.skuId">
                                 <span v-if="index > 0"> · </span><template v-if="item.kind === 'ADDON'">[{{ t('groupBuy.addonTag') }}] </template>{{ item.skuName }} {{ t('groupBuy.qtyCount', { count: item.qty }) }}<template v-if="item.reason"> ({{ t(`groupBuy.requestReason.${item.reason}`) }})</template>
                             </span>
                             <template v-if="request.collectionMethod"> · {{ t(`groupBuy.collection.${request.collectionMethod}`) }}</template>
@@ -791,7 +791,7 @@ async function preview(): Promise<void> {
     previewError.value = '';
     try {
         if (dialogMode.value === 'RETURN') {
-            const res = await api.returnPreview(current.orderNo, { items: picked.value.map((p) => ({ orderItemId: p.item.id, qty: p.qty!, reason: p.reason! })) });
+            const res = await api.returnPreview(current.orderNo, { items: picked.value.map((p) => ({ skuId: p.item.skuId, qty: p.qty!, reason: p.reason! })) });
             if (mine === previewSeq) returnPreview.value = res;
         } else {
             const res = await api.cancelPreview(current.orderNo, { lines: cancelLines() });
@@ -899,7 +899,7 @@ async function submitDialog(): Promise<void> {
             current.orderNo,
             {
                 type: mode === 'RETURN' ? 'RETURN' : 'CANCEL',
-                items: picked.value.map((p) => ({ orderItemId: p.item.id, qty: p.qty!, reason: mode === 'RETURN' ? p.reason : null })),
+                items: picked.value.map((p) => ({ skuId: p.item.skuId, qty: p.qty!, reason: mode === 'RETURN' ? p.reason : null })),
                 collectionMethod: mode === 'RETURN' ? collection.value : null,
                 resolution: mode === 'RETURN' ? resolution.value : null,
                 reasonText: reasonText.value.trim(),

@@ -40,7 +40,7 @@ export default class UtilGroupBuy {
     static readonly NOTICE_CUSTOM_MAX = 20;
 
     /** 옵션 축·단품(결정 88 — 축 3 · 값 30 · 조합 200 · 추가 구성상품 20 은 서버 2b-2, 글자 길이는 화면 가정) */
-    static readonly SKU = { axisMax: 3, valueMax: 30, comboMax: 200, addonMax: 20, axisNameMax: 20, valueNameMax: 30, addonNameMax: 50 } as const;
+    static readonly SKU = { axisMax: 3, valueMax: 30, comboMax: 200, addonMax: 20, axisNameMax: 30, valueNameMax: 30, addonNameMax: 100 } as const;
     /** MAIN 단품 이름의 축 값 사이(서버가 같은 규칙으로 만든다 — 「블랙 / M」) */
     static readonly SKU_NAME_SEPARATOR = ' / ';
 

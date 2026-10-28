@@ -14,7 +14,7 @@
 //   · 결과가 마이너스이면 요청은 `AWAITING_PAYMENT`(부족분 결제해야 접수 — 결정 68), 결제창 대상(`GROUP_BUY_RETURN_FEE`, 유효 30분)을 같이 준다.
 //   · 본인 취소·지연 취소·공급 불가 전체 취소의 환불은 「진행 중」으로 더한다(카드사 반영 3~7영업일).
 //   · 줄은 단품 단위(결정 88). 본인 즉시 취소는 `lines[{ skuId, qty }]` — 본 상품을 모두 취소하면서 추가 구성상품을 남기면 409 GROUP_BUY_ADDON_ONLY {skuIds}(서버 2b-2).
-//     취소 요청·반품 요청은 아직 주문 줄 ID(`orderItemId`)로 받고 그 409 를 내지 않는다(서버 2b-3 미정 — 화면이 먼저 「함께 고를까요?」를 묻는다).
+//     취소 요청·반품 요청도 단품 줄(`skuId`)로 받는다(서버 2b-2 답 — 주문 안 단품 줄은 하나뿐). 반품도 본 상품을 모두 고르고 추가 구성상품을 남기면 409 `GROUP_BUY_ADDON_ONLY` 가 서버 규칙이지만, 화면이 먼저 「함께 고를까요?」를 묻는다.
 
 import { ApiError } from '~/composables/common/useApiClient';
 import { MOCK_ERRORS, mockClone, mockDelay, mockFlags } from '~/composables/common/mock/mock-util';
@@ -56,10 +56,10 @@ function refreshSelectable(order: MyGroupBuyOrderDetail): void {
     const inOpen = new Map<number, number>();
     for (const request of order.requests) {
         if (!OPEN.includes(request.status)) continue;
-        for (const item of request.items) inOpen.set(item.orderItemId, (inOpen.get(item.orderItemId) ?? 0) + item.qty);
+        for (const item of request.items) inOpen.set(item.skuId, (inOpen.get(item.skuId) ?? 0) + item.qty);
     }
     const selectableStatus = ['JOINED', 'CONFIRMED', 'PREPARING', 'DELIVERED'].includes(order.status);
-    for (const item of order.items) item.selectableQty = selectableStatus ? Math.max(0, item.qty - item.canceledQty - item.returnedQty - (inOpen.get(item.id) ?? 0)) : 0;
+    for (const item of order.items) item.selectableQty = selectableStatus ? Math.max(0, item.qty - item.canceledQty - item.returnedQty - (inOpen.get(item.skuId) ?? 0)) : 0;
 }
 
 /** 요청이 닫힌 뒤 단추 되살리기(서버 몫 흉내) */
@@ -175,13 +175,13 @@ function shippingOf(order: MyGroupBuyOrderDetail) {
 /** 이 줄들을 빼고 남는 상품 금액 */
 function remainingAfter(order: MyGroupBuyOrderDetail, lines: GroupBuyItemQty[]): number {
     return order.items.reduce((sum, item) => {
-        const taken = lines.filter((l) => l.orderItemId === item.id).reduce((n, l) => n + l.qty, 0);
+        const taken = lines.filter((l) => l.skuId === item.skuId).reduce((n, l) => n + l.qty, 0);
         return sum + (item.qty - item.canceledQty - item.returnedQty - taken) * item.unitPrice;
     }, 0);
 }
 
 function itemsOf(order: MyGroupBuyOrderDetail, lines: GroupBuyItemQty[]): number {
-    return lines.reduce((sum, line) => sum + (order.items.find((i) => i.id === line.orderItemId)?.unitPrice ?? 0) * line.qty, 0);
+    return lines.reduce((sum, line) => sum + (order.items.find((i) => i.skuId === line.skuId)?.unitPrice ?? 0) * line.qty, 0);
 }
 
 function checkSelection(order: MyGroupBuyOrderDetail, lines: GroupBuyItemQty[]): void {
@@ -189,7 +189,7 @@ function checkSelection(order: MyGroupBuyOrderDetail, lines: GroupBuyItemQty[]):
     const fields: Record<string, string> = {};
     if (lines.length === 0 || lines.every((l) => l.qty < 1)) fields.items = '취소·반품할 상품과 수량을 골라 주세요.';
     lines.forEach((line, index) => {
-        const item = order.items.find((i) => i.id === line.orderItemId);
+        const item = order.items.find((i) => i.skuId === line.skuId);
         if (!item || line.qty > item.selectableQty) fields[`items[${index}].qty`] = '고를 수 있는 수량보다 많아요.';
     });
     if (Object.keys(fields).length > 0) throw MOCK_ERRORS.validation(fields);
@@ -229,7 +229,7 @@ function returnCalc(order: MyGroupBuyOrderDetail, lines: GroupBuyReturnLine[]): 
 /** 취소한 줄을 반영하고 환불을 「진행 중」으로 더한다 */
 function applyCancel(order: MyGroupBuyOrderDetail, lines: GroupBuyItemQty[], amount: number, cause: 'USER_CANCEL' | 'DELAY' | 'SUPPLY_FAILURE'): void {
     for (const line of lines) {
-        const item = order.items.find((i) => i.id === line.orderItemId);
+        const item = order.items.find((i) => i.skuId === line.skuId);
         if (item) item.canceledQty += line.qty;
     }
     order.refundedAmount += amount;
@@ -242,14 +242,14 @@ function applyCancel(order: MyGroupBuyOrderDetail, lines: GroupBuyItemQty[], amo
     refreshActions(order);
 }
 
-/** 단품 줄(`lines[{ skuId, qty }]` — 서버 2b-2) → 주문 줄 */
+/** 본인 취소 줄(`lines[{ skuId, qty }]` — 서버 2b-2)을 요청 줄 모양으로(둘 다 단품 단위) */
 function toItemLines(order: MyGroupBuyOrderDetail, body: GroupBuyCancelRequest): GroupBuyItemQty[] {
-    return body.lines.map((l) => ({ orderItemId: order.items.find((i) => i.skuId === l.skuId)?.id ?? -1, qty: l.qty }));
+    return body.lines.map((l) => ({ skuId: l.skuId, qty: l.qty }));
 }
 
 /** 본 상품을 모두 취소하면서 추가 구성상품을 남기면 409 `GROUP_BUY_ADDON_ONLY {skuIds}`(서버 2b-2) — 남는 추가 구성상품 단품 ID */
 function addonLeftAlone(order: MyGroupBuyOrderDetail, lines: GroupBuyItemQty[]): number[] {
-    const left = (i: MyGroupBuyOrderItem) => i.qty - i.canceledQty - i.returnedQty - lines.filter((l) => l.orderItemId === i.id).reduce((n, l) => n + l.qty, 0);
+    const left = (i: MyGroupBuyOrderItem) => i.qty - i.canceledQty - i.returnedQty - lines.filter((l) => l.skuId === i.skuId).reduce((n, l) => n + l.qty, 0);
     if (order.items.some((i) => i.kind === 'MAIN' && left(i) > 0)) return [];
     return order.items.filter((i) => i.kind === 'ADDON' && left(i) > 0).map((i) => i.skuId);
 }
@@ -319,8 +319,8 @@ export async function mockCreateRequest(orderNo: string, body: GroupBuyRequestCr
         type: body.type,
         status: due ? 'AWAITING_PAYMENT' : 'REQUESTED',
         items: lines.map((l) => {
-            const item = order.items.find((i) => i.id === l.orderItemId)!;
-            return { orderItemId: l.orderItemId, skuName: item.skuName, kind: item.kind, qty: l.qty, reason: l.reason };
+            const item = order.items.find((i) => i.skuId === l.skuId)!;
+            return { skuId: l.skuId, skuName: item.skuName, kind: item.kind, qty: l.qty, reason: l.reason };
         }),
         collectionMethod: body.collectionMethod,
         resolution: body.resolution,
@@ -369,7 +369,7 @@ export async function mockDelayCancel(orderNo: string): Promise<MyGroupBuyOrderD
     await mockDelay();
     const order = find(orderNo);
     if (!order.actions.delayCancel || !order.delayNotice) throw new ApiError({ status: 409, code: 'GROUP_BUY_ORDER_STATE', message: '지금은 지연 취소를 할 수 없어요.' });
-    const lines = order.items.map((i) => ({ orderItemId: i.id, qty: i.qty - i.canceledQty - i.returnedQty })).filter((l) => l.qty > 0);
+    const lines = order.items.map((i) => ({ skuId: i.skuId, qty: i.qty - i.canceledQty - i.returnedQty })).filter((l) => l.qty > 0);
     applyCancel(order, lines, order.delayNotice.refundAmount, 'DELAY');
     return mockClone(order);
 }
@@ -381,7 +381,7 @@ export async function mockSupplyChoice(orderNo: string, body: GroupBuySupplyChoi
     order.supplyChoice.choice = body.choice;
     order.actions.supplyChoice = false;
     if (body.choice === 'CANCEL_ALL') {
-        const lines = order.items.map((i) => ({ orderItemId: i.id, qty: i.qty - i.canceledQty - i.returnedQty })).filter((l) => l.qty > 0);
+        const lines = order.items.map((i) => ({ skuId: i.skuId, qty: i.qty - i.canceledQty - i.returnedQty })).filter((l) => l.qty > 0);
         applyCancel(order, lines, order.supplyChoice.cancelAllRefund, 'SUPPLY_FAILURE');
     }
     return mockClone(order);

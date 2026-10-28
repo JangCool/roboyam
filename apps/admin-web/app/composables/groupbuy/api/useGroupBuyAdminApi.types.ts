@@ -303,7 +303,7 @@ export interface GroupBuySkuInput {
 export interface GroupBuyAddonInput {
     name: string;
     price: number;
-    /** 화면은 필수로 받는다(추가 구성상품은 자기 한도만 센다 — null 허용 여부는 서버 확인 필요) */
+    /** 비우면 null = 한도 없음(서버 2b-2 확정 — 추가 구성상품은 자기 한도만 센다) */
     maxQty: number | null;
     /** 이미지 올리기 결과 `mediaId`(없으면 null) */
     imageKey: string | null;

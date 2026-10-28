@@ -465,7 +465,7 @@ function skuFields(body: GroupBuySaveRequest, fields: Record<string, string>): v
     else if (UtilGroupBuy.repeatedNames(addons.map((a) => a.name)).length) fields.addons = '같은 이름의 추가 구성상품이 있어요.';
     else if (addons.some((a) => comboNames.has(UtilGroupBuy.noticeNameKey(a.name)))) fields.addons = '추가 구성상품 이름이 옵션 조합 이름과 같아요.';
     else if (addons.some((a) => !(a.price > 0))) fields.addons = '추가 구성상품 가격을 입력해 주세요.';
-    else if (addons.some((a) => a.maxQty === null || a.maxQty < 1)) fields.addons = '추가 구성상품 한도 수량을 1 이상으로 적어 주세요.';
+    else if (addons.some((a) => a.maxQty !== null && a.maxQty < 1)) fields.addons = '추가 구성상품 한도 수량은 1 이상이거나 비워 두세요(비우면 한도 없음).';
 }
 
 /** 저장 칸 검사 — 서버 `GroupBuyAdminService` 의 규칙 후보(필드 키 = 요청 칸 이름) */

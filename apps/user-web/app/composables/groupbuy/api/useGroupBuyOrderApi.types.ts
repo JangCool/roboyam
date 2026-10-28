@@ -99,7 +99,7 @@ export interface MyGroupBuyShipment {
 }
 
 export interface MyGroupBuyRequestItem {
-    orderItemId: number;
+    skuId: number;
     /** 주문 줄의 단품 이름 */
     skuName: string;
     kind: GroupBuySkuKind;
@@ -217,7 +217,7 @@ export interface MyGroupBuyOrderDetail {
 
 /** 줄·수량 고르기 */
 export interface GroupBuyItemQty {
-    orderItemId: number;
+    skuId: number;
     qty: number;
 }
 

@@ -1,6 +1,6 @@
 <template>
     <!--
-        공구 「추가 구성상품」 구획 본문(결정 88 — 고시 원칙 ⑦ 의 별개 상품, 단품 종류 ADDON). 줄마다 이미지 한 장(선택) · 이름 · 가격 · 한도(필수) · 차례 · 빼기. 20개까지.
+        공구 「추가 구성상품」 구획 본문(결정 88 — 고시 원칙 ⑦ 의 별개 상품, 단품 종류 ADDON). 줄마다 이미지 한 장(선택) · 이름 · 가격 · 한도(비우면 한도 없음 — 서버 null 허용) · 차례 · 빼기. 20개까지.
         회원은 본 상품과 함께만 담는다(단독 구매 불가). 공구 최대·성사·1인 한도는 본 상품(MAIN)만 세고 추가 구성상품은 자기 한도만 센다. 고시 양식은 상품마다 따로 필수.
         서버 저장 모양(`addons[{name, price, maxQty, imageKey}]`)에 판매 여부 칸이 없어 끄기 대신 줄을 뺀다. 이름은 다른 추가 구성상품·조합 이름(`mainNames`)과 겹치면 안 된다.
         모집 뒤(`locked`)에는 구성·가격이 잠긴다(읽기 전용 + 확정·결제 중). 한도는 수량 화면에서 추가 입고·줄이기.
@@ -37,7 +37,7 @@
                     </div>
                     <div class="flex flex-col gap-1">
                         <label :for="`${baseId}-max-${row.key}`" class="text-xs font-medium">{{ t('groupBuy.addonMax') }}</label>
-                        <InputText :id="`${baseId}-max-${row.key}`" :model-value="row.maxQty" inputmode="numeric" :readonly="ro" :invalid="!!row.maxQty.trim() && UtilGroupBuy.int(row.maxQty) === null" class="w-full text-right tabular-nums" @update:model-value="(v: string | undefined) => patch(index, { maxQty: v ?? '' })" />
+                        <InputText :id="`${baseId}-max-${row.key}`" :model-value="row.maxQty" inputmode="numeric" :placeholder="t('groupBuy.optionUnlimited')" :readonly="ro" :invalid="!!row.maxQty.trim() && UtilGroupBuy.int(row.maxQty) === null" class="w-full text-right tabular-nums" @update:model-value="(v: string | undefined) => patch(index, { maxQty: v ?? '' })" />
                     </div>
                     <p v-if="locked" class="m-0 text-xs tabular-nums text-muted-color sm:col-span-3">{{ t('groupBuy.addonSoldLine', { current: row.currentQty, reserved: row.reservedQty }) }}</p>
                     <p v-for="(message, i) in imageErrors[row.key] ?? []" :key="i" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400 sm:col-span-3">{{ message }}</p>
