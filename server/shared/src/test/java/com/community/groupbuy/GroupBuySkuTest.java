@@ -199,44 +199,40 @@ class GroupBuySkuTest {
     }
 
     @Test
-    void G44_고시_양식은_추가상품마다_따로_필수이고_MAIN_과_한_양식에_섞을_수_없다() {
+    void G44_고시_양식은_추가상품의_상품에도_따로_있어야_모집을_시작한다() {
         long gb = kit.spec(policy()).addon("충전기", 9_000, null).addon("케이스", 3_000, null).create();
-        kit.notices.save(gb, List.of(kit.fullNotice("OTHER_GOODS", "본체", List.of()), kit.fullNotice("SMALL_ELECTRONICS", "충전기", List.of("충전기"))),
-                kit.operator, "ip");
+        List<Long> products = kit.productsOf(gb);
+        kit.notices.save(products.get(0), List.of(kit.fullNotice("OTHER_GOODS", "본체", List.of())), kit.operator, "ip");
+        kit.notices.save(products.get(1), List.of(kit.fullNotice("SMALL_ELECTRONICS", "충전기", List.of())), kit.operator, "ip");
         assertThatThrownBy(() -> kit.admin.publish(gb, kit.group(gb).version(), kit.operator, "ip"))
                 .isInstanceOfSatisfying(GroupBuyException.class, e -> {
                     assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.NOTICE_INCOMPLETE);
-                    assertThat(e.getExtras()).as("기본 양식은 추가상품을 덮지 않는다").containsEntry("unassignedSkus", List.of("케이스"));
+                    assertThat(e.getExtras()).as("케이스 상품의 양식이 없다").containsEntry("productId", products.get(2).toString()).containsEntry("noNotice", true);
                 });
-        assertThatThrownBy(() -> kit.notices.save(gb, List.of(kit.fullNotice("OTHER_GOODS", "본체", List.of()),
-                kit.fullNotice("SMALL_ELECTRONICS", "부속", List.of("충전기", "케이스"))), kit.operator, "ip"))
-                .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("notices[1].skuNames"));
-        assertThatThrownBy(() -> kit.notices.save(gb, List.of(kit.fullNotice("OTHER_GOODS", "본체", List.of("시험 상품", "케이스"))), kit.operator, "ip"))
-                .as("MAIN 과 추가상품을 한 양식에").isInstanceOf(ValidationException.class);
-
         kit.fillNotice(gb);
         kit.admin.publish(gb, kit.group(gb).version(), kit.operator, "ip");
         assertThat(kit.group(gb).status()).isEqualTo(GroupBuyStatus.RECRUITING);
-        assertThat(kit.notices.notices(gb)).hasSize(3);
+        assertThat(kit.count("SELECT jsonb_array_length(notices) FROM group_buy_revisions WHERE group_buy_id = ? AND revision_no = 1", gb))
+                .as("모집 시작 이력에 공구 상품과 추가 구성상품의 고시 사본").isEqualTo(3);
     }
 
     @Test
-    void G44_모집_뒤에는_축_조합_추가상품_구성을_못_바꾸고_추가상품_입고는_공구_최대를_움직이지_않는다() {
+    void G44_모집_뒤에는_조합_추가상품_구성을_못_바꾸고_추가상품_입고는_공구_최대를_움직이지_않는다() {
         GroupBuyTestKit.Spec spec = kit.spec(policy()).qty(0, 10).axis("색상", "블랙", "화이트").addon("케이블", 5_000, 5);
         long gb = spec.open();
         GroupBuyDraft o = spec.draft();
-        List<GroupBuyDraft.AddonDraft> pricier = List.of(new GroupBuyDraft.AddonDraft("케이블", 6_000, 5, null));
-        List<GroupBuyDraft.SkuDraft> offWhite = List.of(new GroupBuyDraft.SkuDraft(List.of("화이트"), 0, null, false));
-        List<GroupBuyDraft.AxisDraft> moreValues = List.of(new GroupBuyDraft.AxisDraft("색상", List.of("블랙", "화이트", "레드")));
-        for (GroupBuyDraft changed : List.of(withOptions(o, o.axes(), o.skus(), pricier), withOptions(o, o.axes(), offWhite, o.addons()),
-                withOptions(o, moreValues, o.skus(), o.addons()))) {
+        long white = kit.products.skus(kit.productOf(gb)).stream().filter(s -> s.name().equals("화이트")).findFirst().orElseThrow().id();
+        long cableSku = o.addons().getFirst().productSkuId();
+        List<GroupBuyDraft.AddonDraft> pricier = List.of(new GroupBuyDraft.AddonDraft(cableSku, 6_000, 5, null));
+        List<GroupBuyDraft.SkuDraft> offWhite = List.of(new GroupBuyDraft.SkuDraft(white, 0, null, false, null));
+        for (GroupBuyDraft changed : List.of(withOptions(o, o.skus(), pricier), withOptions(o, offWhite, o.addons()), withOptions(o, o.skus(), List.of()))) {
             assertThatThrownBy(() -> kit.admin.update(gb, kit.group(gb).version(), changed, kit.operator, "ip"))
                     .isInstanceOfSatisfying(GroupBuyException.class, e -> {
                         assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.LOCKED_FIELD);
                         assertThat(e.getExtras()).containsEntry("field", "options");
                     });
         }
-        kit.admin.update(gb, kit.group(gb).version(), withOptions(o, o.axes(), o.skus(), o.addons()), kit.operator, "ip"); // 같은 구성이면 통과
+        kit.admin.update(gb, kit.group(gb).version(), withOptions(o, o.skus(), o.addons()), kit.operator, "ip"); // 같은 구성이면 통과
 
         long cable = kit.skuId(gb, "케이블");
         StockChange added = kit.admin.addStock(gb, cable, 3, "케이블 입고", kit.operator, "ip");
@@ -261,31 +257,32 @@ class GroupBuySkuTest {
         assertThatThrownBy(() -> kit.spec(policy).axis("a", many).axis("b", many).create())
                 .as("조합 225 > 200").isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("axes"));
         assertThatThrownBy(() -> kit.spec(policy).axis("a", "x", "x").create()).as("값 중복").isInstanceOf(ValidationException.class);
-        assertThatThrownBy(() -> kit.spec(policy).axis("a", "x").combo(List.of("y"), 0, null, true).create())
-                .as("없는 조합").isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("skus"));
         assertThatThrownBy(() -> kit.spec(policy).axis("a", "x").combo(List.of("x"), 0, null, false).create())
                 .as("판매하는 조합이 없다").isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("skus"));
         assertThatThrownBy(() -> kit.spec(policy).axis("a", "x").addon("x", 1_000, null).create())
                 .as("추가상품 이름이 조합 이름과 같다").isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("addons"));
         assertThatThrownBy(() -> kit.spec(policy).addon("y", 0, null).create()).as("추가상품 가격 0").isInstanceOf(ValidationException.class);
+        GroupBuyTestKit.Spec own = kit.spec(policy);
+        GroupBuyDraft d = own.draft();
+        long mainSku = kit.products.skus(own.productId).getFirst().id();
+        assertThatThrownBy(() -> kit.admin.create(withOptions(d, d.skus(), List.of(new GroupBuyDraft.AddonDraft(mainSku, 1_000, null, null))), kit.operator, "ip"))
+                .as("같은 상품의 단품은 추가 구성상품이 될 수 없다").isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("addons"));
 
         long plain = kit.spec(policy).mainMax(4).create();
         assertThat(kit.skus(plain)).singleElement().satisfies(s -> {
             assertThat(s.name()).as("축이 없으면 MAIN 단품 하나(이름 = 상품 이름)").isEqualTo("시험 상품");
             assertThat(s.maxQty()).isEqualTo(4);
         });
-        assertThat(kit.count("SELECT count(*) FROM group_buy_option_axes WHERE group_buy_id = ?", plain)).isZero();
+        assertThat(kit.count("SELECT count(*) FROM group_buy_option_axes WHERE product_id = ?", kit.productOf(plain))).isZero();
     }
 
     private static Availability.Sku skuOf(Availability a, long skuId) {
         return a.skus().stream().filter(s -> s.skuId() == skuId).findFirst().orElseThrow();
     }
 
-    private static GroupBuyDraft withOptions(GroupBuyDraft o, List<GroupBuyDraft.AxisDraft> axes, List<GroupBuyDraft.SkuDraft> skus,
-                                             List<GroupBuyDraft.AddonDraft> addons) {
-        return new GroupBuyDraft(o.title(), o.productName(), o.summary(), o.spec(), o.description(), o.normalPrice(), o.normalPriceBasis(), o.normalPriceSource(),
-                o.groupPrice(), o.shippingPolicyCode(), o.minQty(), o.maxQty(), o.maxQtyPerUser(), o.startAt(), o.endAt(), o.extensionMode(), o.fulfillment(),
-                o.shipPlannedAt(), o.shipWithinBusinessDays(), o.withdrawalRestriction(), o.returnPolicy(), o.roundLimitShared(), new ArrayList<>(axes),
-                new ArrayList<>(skus), new ArrayList<>(addons), o.images());
+    private static GroupBuyDraft withOptions(GroupBuyDraft o, List<GroupBuyDraft.SkuDraft> skus, List<GroupBuyDraft.AddonDraft> addons) {
+        return new GroupBuyDraft(o.productId(), o.title(), o.groupPrice(), o.shippingPolicyCode(), o.minQty(), o.maxQty(), o.maxQtyPerUser(), o.startAt(), o.endAt(),
+                o.extensionMode(), o.fulfillment(), o.shipPlannedAt(), o.shipWithinBusinessDays(), o.returnPolicy(), o.roundLimitShared(), new ArrayList<>(skus),
+                new ArrayList<>(addons), o.marginConfirmed());
     }
 }

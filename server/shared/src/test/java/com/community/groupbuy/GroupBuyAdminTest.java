@@ -8,6 +8,7 @@ import com.community.groupbuy.dto.CancelSummary;
 import com.community.groupbuy.dto.GroupBuyDraft;
 import com.community.groupbuy.dto.GroupBuyEvents;
 import com.community.groupbuy.dto.JoinResult;
+import com.community.groupbuy.dto.ProductDraft;
 import com.community.groupbuy.dto.RoundCreated;
 import com.community.groupbuy.entity.GroupBuyStatus;
 import com.community.groupbuy.entity.ParticipationStatus;
@@ -47,18 +48,17 @@ class GroupBuyAdminTest {
     @Test
     void G37_마감_후_발주_공구는_발송_예정일이_없으면_저장_거절_즉시_발송은_선착순만() {
         GroupBuyDraft base = kit.spec(policy()).qty(3, 10).draft();
-        GroupBuyDraft noPlan = new GroupBuyDraft(base.title(), base.productName(), base.summary(), base.spec(), base.description(), null, null, null, base.groupPrice(),
-                base.shippingPolicyCode(), 3, 10, null, base.startAt(), base.endAt(), "DEMAND", "AFTER_CLOSE", null, null, null, null, false, List.of(), List.of(), List.of(), List.of());
+        GroupBuyDraft noPlan = new GroupBuyDraft(base.productId(), base.title(), base.groupPrice(), base.shippingPolicyCode(), 3, 10, null, base.startAt(), base.endAt(),
+                "DEMAND", "AFTER_CLOSE", null, null, null, false, List.of(), List.of(), false);
         assertThatThrownBy(() -> kit.admin.create(noPlan, kit.operator, "ip"))
                 .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("shipPlannedAt"));
-        GroupBuyDraft immediateDemand = new GroupBuyDraft(base.title(), base.productName(), null, null, null, null, null, null, base.groupPrice(), base.shippingPolicyCode(),
-                3, 10, null, base.startAt(), base.endAt(), "DEMAND", "IMMEDIATE", null, null, null, null, false, List.of(), List.of(), List.of(), List.of());
+        GroupBuyDraft immediateDemand = new GroupBuyDraft(base.productId(), base.title(), base.groupPrice(), base.shippingPolicyCode(), 3, 10, null, base.startAt(),
+                base.endAt(), "DEMAND", "IMMEDIATE", null, null, null, false, List.of(), List.of(), false);
         assertThatThrownBy(() -> kit.admin.create(immediateDemand, kit.operator, "ip"))
                 .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("fulfillment"));
-        GroupBuyDraft normalPriceWithoutBasis = new GroupBuyDraft(base.title(), base.productName(), null, null, null, 30_000L, null, null, base.groupPrice(),
-                base.shippingPolicyCode(), 0, 10, null, base.startAt(), base.endAt(), "DEMAND", "IMMEDIATE", null, null, null, null, false, List.of(), List.of(), List.of(), List.of());
-        assertThatThrownBy(() -> kit.admin.create(normalPriceWithoutBasis, kit.operator, "ip"))
-                .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("normalPriceBasis"));
+        // 정상가 근거는 상품 칸(결정 58·89)
+        assertThatThrownBy(() -> kit.products.create(new ProductDraft(kit.category, "정상가 상품", null, null, null, 30_000L, null, null, null, List.of(), List.of(),
+                List.of()), kit.operator, "ip")).isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("normalPriceBasis"));
     }
 
     @Test
@@ -97,39 +97,46 @@ class GroupBuyAdminTest {
     }
 
     @Test
-    void 모집_뒤에는_설명_이미지만_고칠_수_있고_가격_기간_옵션은_LOCKED_FIELD() {
+    void 모집_뒤에는_공급가만_고칠_수_있고_가격_단품_구성은_LOCKED_FIELD_설명_이미지는_상품에서_고치면_공구_이력에_사본() {
         GroupBuyTestKit.Spec spec = kit.spec(policy()).option("A", 0, 5);
         long gb = spec.open();
         GroupBuyDraft original = spec.draft();
-        GroupBuyDraft priceChanged = new GroupBuyDraft(original.title(), original.productName(), original.summary(), original.spec(), original.description(), null, null,
-                null, 30_000, original.shippingPolicyCode(), original.minQty(), original.maxQty(), null, original.startAt(), original.endAt(), original.extensionMode(),
-                original.fulfillment(), null, null, null, null, false, original.axes(), original.skus(), original.addons(), original.images());
-        assertThatThrownBy(() -> kit.admin.update(gb, kit.group(gb).version(), priceChanged, kit.operator, "ip"))
+        assertThatThrownBy(() -> kit.admin.update(gb, kit.group(gb).version(), with(original, 30_000, original.skus()), kit.operator, "ip"))
                 .isInstanceOfSatisfying(GroupBuyException.class, e -> {
                     assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.LOCKED_FIELD);
                     assertThat(e.getExtras()).containsEntry("field", "groupPrice");
                 });
-        GroupBuyDraft optionAdded = new GroupBuyDraft(original.title(), original.productName(), original.summary(), original.spec(), original.description(), null, null,
-                null, original.groupPrice(), original.shippingPolicyCode(), original.minQty(), original.maxQty(), null, original.startAt(), original.endAt(),
-                original.extensionMode(), original.fulfillment(), null, null, null, null, false,
-                List.of(new GroupBuyDraft.AxisDraft("옵션", List.of("A", "B"))),
-                List.of(new GroupBuyDraft.SkuDraft(List.of("A"), 0, 5, true), new GroupBuyDraft.SkuDraft(List.of("B"), 0, 5, true)), List.of(), original.images());
-        assertThatThrownBy(() -> kit.admin.update(gb, kit.group(gb).version(), optionAdded, kit.operator, "ip"))
+        long a = original.skus().getFirst().productSkuId();
+        assertThatThrownBy(() -> kit.admin.update(gb, kit.group(gb).version(), with(original, original.groupPrice(),
+                List.of(new GroupBuyDraft.SkuDraft(a, 1_000, 5, true, null))), kit.operator, "ip"))
                 .isInstanceOfSatisfying(GroupBuyException.class, e -> assertThat(e.getExtras()).containsEntry("field", "options"));
 
-        GroupBuyDraft described = new GroupBuyDraft(original.title(), original.productName(), "새 요약", original.spec(), "<p>새 설명</p>", null, null, null,
-                original.groupPrice(), original.shippingPolicyCode(), original.minQty(), original.maxQty(), null, original.startAt(), original.endAt(),
-                original.extensionMode(), original.fulfillment(), null, null, null, null, false, original.axes(), original.skus(), original.addons(),
-                List.of(new GroupBuyDraft.ImageRef("img/b.jpg", null)));
+        // 공급가는 모집 뒤에도(돈 관련 감사)
         int version = kit.group(gb).version();
-        kit.admin.update(gb, version, described, kit.operator, "ip");
+        GroupBuyDraft supplied = with(original, original.groupPrice(), List.of(new GroupBuyDraft.SkuDraft(a, 0, 5, true, 12_000L)));
+        kit.admin.update(gb, version, supplied, kit.operator, "ip");
+        assertThat(kit.sku(gb, kit.skuId(gb, "A")).supplyPrice()).isEqualTo(12_000);
+        assertThat(kit.audits).anySatisfy(e -> assertThat(e.action()).isEqualTo(AuditActions.GROUPBUY_SUPPLY_PRICE));
+        assertThatThrownBy(() -> kit.admin.update(gb, version, supplied, kit.operator, "ip"))
+                .isInstanceOfSatisfying(GroupBuyException.class, e -> assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.VERSION_CONFLICT));
+
+        // 설명·이미지는 상품에서 — 진행 중 공구에 바로 보이고 이력에 사본(결정 89)
+        long product = kit.productOf(gb);
+        ProductDraft p = spec.productDraft();
+        kit.products.update(product, kit.products.product(product).version(), new ProductDraft(p.categoryId(), p.name(), "새 요약", p.spec(), "<p>새 설명</p>",
+                p.normalPrice(), p.normalPriceBasis(), p.normalPriceSource(), p.withdrawalRestriction(), p.axes(), p.skus(),
+                List.of(new GroupBuyDraft.ImageRef("img/b.jpg", null))), kit.operator, "ip");
         var g = kit.group(gb);
         assertThat(g.description()).isEqualTo("<p>새 설명</p>");
         assertThat(g.revisionNo()).isEqualTo(2);
         assertThat(kit.count("SELECT count(*) FROM group_buy_revisions WHERE group_buy_id = ? AND revision_no = 2 AND change_kind = 'CONTENT' "
-                + "AND images @> '[{\"imageKey\":\"img/b.jpg\"}]'", gb)).isEqualTo(1);
-        assertThatThrownBy(() -> kit.admin.update(gb, version, described, kit.operator, "ip"))
-                .isInstanceOfSatisfying(GroupBuyException.class, e -> assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.VERSION_CONFLICT));
+                + "AND images @> '[{\"imageKey\":\"img/b.jpg\"}]' AND description = '<p>새 설명</p>'", gb)).isEqualTo(1);
+    }
+
+    private static GroupBuyDraft with(GroupBuyDraft o, long price, List<GroupBuyDraft.SkuDraft> skus) {
+        return new GroupBuyDraft(o.productId(), o.title(), price, o.shippingPolicyCode(), o.minQty(), o.maxQty(), o.maxQtyPerUser(), o.startAt(), o.endAt(),
+                o.extensionMode(), o.fulfillment(), o.shipPlannedAt(), o.shipWithinBusinessDays(), o.returnPolicy(), o.roundLimitShared(), skus, o.addons(),
+                o.marginConfirmed());
     }
 
     @Test
@@ -184,7 +191,7 @@ class GroupBuyAdminTest {
             assertThat(o.name()).isEqualTo("A");
             assertThat(o.extraPrice()).isEqualTo(500);
         });
-        assertThat(kit.groupStore.images(round.groupBuyId())).hasSize(1);
+        assertThat(copy.productId()).as("같은 상품(결정 89)").isEqualTo(source.productId());
         assertThat(kit.audits).anySatisfy(a -> assertThat(a.action()).isEqualTo(AuditActions.GROUPBUY_ROUND_CREATE));
 
         assertThatThrownBy(() -> kit.admin.createRound(root, start, end, null, kit.operator, "ip"))

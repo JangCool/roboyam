@@ -386,6 +386,25 @@
 - **아직**: 관리자 등록·상세 API·화면 연결(2b-4), 반품의 추가상품 규칙(2b-3), local 시드 예시 품목(2b-4 — 위 절).
 - **세션 정리 결정 — 2b-1 목업 질문(2026-10-28)**: ① 상세 단품 알림 상태 `skuWatches{watchable, watching}`·신청 `{kind, skuId}` 는 목업 모양 그대로(표 `group_buy_watches.sku_id` 가 받친다, API 는 2b-4). ② 주문 줄 칸 `skuId`·`skuName`·`kind` 그대로. ③ 취소·반품 요청·미리 보기 줄은 **`skuId`**(주문 안에서 단품 줄은 하나 — 유일 (주문, 단품). 본인 취소가 이미 `skuId`). ④ 반품도 같은 규칙 — 본 상품을 모두 반품하며 추가상품을 남기면 409 `GROUP_BUY_ADDON_ONLY`(2b-3 이 같은 검사를 쓴다). ⑤ 추가상품 판매 여부 스위치 없음(늘 판매, 모집 뒤 구성 잠금), `addons.maxQty` null = 한도 없음 허용(화면도 비우면 무제한). ⑥ 축 없는 공구의 MAIN 이름 = 상품 이름, 모집 뒤 판매 끈 조합 다시 켜기 불가(`LOCKED_FIELD options`). ⑦ 글자 상한 정본 = 서버: 축 이름 30·값 30·추가상품 이름 100(MAIN 이름은 값 셋 + 「 / 」 ≤ 96).
 
+### 2b-2 구조 변경 — 상품 마스터·카테고리·공급가 (2026-10-28, 결정 89 — develop 계약 「### 상품 마스터 · 카테고리 · 공급가」가 정본)
+위 절들의 「공구의 설명·이미지·옵션 축·고시」는 이제 **상품** 것이다(공구 = 상품 하나 + 판매 조건).
+- **V101 고침**: `group_buy_categories`(2단 — 2단 제한은 앱, 이름 유일 (부모, 이름), 차례·숨김) · `group_buy_products`(카테고리 필수·이름·요약·사양·설명·정상가·근거·청약철회 제한·version) · `group_buy_product_images` · 옵션 축/값은 `product_id` · `group_buy_product_skus`(조합·이름·`default_supply_price`·`on_sale`). `group_buys` 는 `product_id` + 판매 조건만(이름·설명·정상가·청약철회 제한 열 삭제, 조회는 상품을 이어 읽어 `GroupBuyRow` 모양 그대로). 공구 단품 `group_buy_skus` 에 `product_sku_id`(유일 (공구, 상품 단품))·`supply_price`(≥ 0, null = 아직), `image_key` 삭제. 고시 `group_buy_notices.product_id`·`group_buy_notice_skus(notice_id, product_id, product_sku_id)`. 수정 이력에 `product_name`, 고시 사본은 공구 상품 + 추가 구성상품의 상품.
+- **코드**: `GroupBuyProductService`(카테고리 등록·수정·회원 목록 필터 `publicList`, 상품 등록·수정) · `GroupBuyProductStore` · `ProductDraft`. `GroupBuyNoticeService` 는 상품 단위(`save(productId, …)`·`assertComplete(productId)`). 감사 `GROUPBUY_PRODUCT_SAVE`·`GROUPBUY_CATEGORY_SAVE`(일반)·`GROUPBUY_SUPPLY_PRICE`(돈 관련). 오류 `GROUP_BUY_SUPPLY_PRICE_MISSING`·`GROUP_BUY_NEGATIVE_MARGIN`(둘 다 `skuIds`)·`GROUP_BUY_PRODUCT_NOT_FOUND`·`GROUP_BUY_PRODUCT_SKU_IN_USE`(`skuNames`), 고시 미완성 오류에 `productId`.
+- **API 모양**(2b-4 가 싣는다):
+  - 상품 등록 값 `ProductDraft{categoryId, name, summary, spec, description, normalPrice, normalPriceBasis, normalPriceSource, withdrawalRestriction, axes[{name, values[]}], skus[{values[], defaultSupplyPrice, onSale}], images[]}`.
+  - 공구 등록 값 `GroupBuyDraft{productId, title, groupPrice, shippingPolicyCode, minQty, maxQty, maxQtyPerUser, startAt, endAt, extensionMode, fulfillment, shipPlannedAt, shipWithinBusinessDays, returnPolicy, roundLimitShared, skus[{productSkuId, extraPrice, maxQty, onSale, supplyPrice}], addons[{productSkuId, price, maxQty, supplyPrice}], marginConfirmed}`(결정 88 의 `axes`·`skus[{values…}]`·`addons[{name…}]` 를 대신). 모집 시작 `marginConfirmed`(역마진 확인).
+  - 회원 응답(상세·견적)은 바뀌지 않았다 — 공급가는 싣지 않는다.
+- **정한 세부**
+  1. 공구 단품 설정을 적지 않은 상품 단품은 추가금 0·한도 없음·판매 여부와 공급가는 상품 단품 기본값. 추가 구성상품 = **다른 상품**의 단품(같은 상품 단품은 400 `addons`), 이름 = 축 없는 상품이면 상품 이름, 아니면 「상품 이름 (조합)」.
+  2. 상품 수정: 설명·이미지·카테고리·기본 공급가·기본 판매 여부는 언제든 — 진행 중 공구(모집 중~발송 중)마다 수정 이력 사본(`CONTENT`), 고시 저장은 `NOTICE` 사본. 이름·정상가·청약철회 제한·옵션 구성은 그 상품을 쓰는(공구 상품 또는 추가 구성상품) 공구가 「모집 중」(공개된 예정·모집 중·집계 중)이면 409 `LOCKED_FIELD`. 모집 시작은 관련 상품 행을 잠가 구성 바꾸기와 하나만 이긴다.
+  3. 구성 바꾸기는 같은 이름의 축 값·같은 조합의 상품 단품 ID 를 유지(공구 단품·고시 연결이 그대로). 축 이름이 바뀌면 모두 다시 만든다. 공개된 공구가 가리키는 상품 단품을 없애면 409 `PRODUCT_SKU_IN_USE`. **공개 전 DRAFT 공구는 상품 구성을 따라간다**(없앤 단품은 빠지고 더한 단품은 기본값으로).
+  4. 공급가: DRAFT 는 비워도 저장, 모집 시작 때 모든 공구 단품(MAIN·ADDON, 판매 끈 조합 포함)에 있어야 한다(0 명시 허용). 판매가 < 공급가면 `marginConfirmed` 없이 409 `NEGATIVE_MARGIN`(모집 시작 감사에 `negativeMarginSkus`). 모집 뒤 공구 수정은 공급가만 — 비우기 거절, 판매가보다 크게 올리면 확인, 단품마다 `GROUPBUY_SUPPLY_PRICE` 감사. 수정 이력 사본에는 공급가를 넣지 않는다.
+  5. 추가 차수 = 같은 상품으로 새 DRAFT(판매 조건·공급가 복사, 고시 복사 없음 — 같은 상품의 양식을 그대로 쓴다). 상품에 새로 더한 단품은 기본값으로 들어간다.
+  6. 회원 목록 `publicList(categoryId)`: 공개된 공구(중단 제외), 최상위를 고르면 그 아래 단도, 숨긴 카테고리(또는 숨긴 부모 아래)는 뺀다. 목록 응답 모양은 2b-4.
+- **테스트 G45**(`GroupBuyProductTest` 6개): 상품 하나로 공구 둘(단품 수량·한도·가격은 공구마다) / 모집 시작 사본(상품 이름·설명·이미지·축·단품·고시, 공급가 없음) / 모집 중 상품 이름·구성 잠금(추가 구성상품으로 쓰여도), 설명 정정은 바로 보임, 중단 뒤 값 더하기 가능·가리키는 단품 지우기 409 / 공급가 빈 값 409·0 허용·역마진 확인 / 공급가는 회원 응답 레코드에 없음 / 카테고리 2단·필터·숨김·카테고리 필수. 기존 시험은 상품 구조로 고쳤다(시험 키트 `Spec` 이 상품을 만들고 `option`·`axis`·`addon` 은 상품 칸, 고시는 `kit.productOf(gb)`, G43 추가 차수 시험은 「같은 상품의 양식을 그대로 쓴다」로, DRAFT 다시 잇기 시험은 「상품 단품 ID 유지」로 바꿈, G44 고시 시험은 「추가 구성상품의 상품에도 양식」으로).
+- **실행**: `./gradlew :server:shared:test --tests 'com.community.groupbuy.*'` → **108개 통과**(102 + G45 6) · admin `GroupBuyStateSchedulerTest`(3)·`AuditRetentionAdminTest`(6)·api `IdentityHttpTest`(6) 통과.
+- **아직**: 상품·카테고리·공급가 관리자 API 와 권한(`commerce.product.manage`·`commerce.product.read`·`commerce.product.price`/`commerce.settlement.read` 로 공급가 보기)·회원 목록 응답(2b-4), 상품 목록 화면 조회(JPA·QueryDSL — 2b-4).
+
 ## 승인 (2026-10-28)
 사용자: 「지금까지 확정된 상태로 다음 단계 진행해」 — 결정 1~86·Q&A 규칙·작업 단위·화면 목록·마이그레이션 계획을 추천안 그대로 승인, 2b-2 는 화면 확정 전 병행. 결정 43 은 지금 규칙 유지(나눠 모두 반품해도 한 번에 반품한 것과 같게 — 판매자 손해가 더 커지지 않는다, 처음 배송비까지 받으려면 그 공구의 배송비 정책을 왕복으로).
 

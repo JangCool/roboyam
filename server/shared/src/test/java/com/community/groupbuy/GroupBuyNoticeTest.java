@@ -93,7 +93,7 @@ class GroupBuyNoticeTest {
         long partial = kit.spec(policy()).create();
         NoticeDraft full = kit.fullNotice("CLOTHING", "티셔츠", List.of());
         List<NoticeDraft.Value> missingTwo = full.values().stream().filter(v -> !v.itemKey().equals("color") && !v.itemKey().equals("size")).toList();
-        kit.notices.save(partial, List.of(new NoticeDraft("CLOTHING", "티셔츠", List.of(), missingTwo)), kit.operator, "ip");
+        kit.notices.save(kit.productOf(partial), List.of(new NoticeDraft("CLOTHING", "티셔츠", List.of(), missingTwo)), kit.operator, "ip");
         assertThatThrownBy(() -> publish(partial)).isInstanceOfSatisfying(GroupBuyException.class, e -> {
             assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.NOTICE_INCOMPLETE);
             assertThat(incompleteNotices(e)).singleElement().satisfies(n -> {
@@ -107,14 +107,14 @@ class GroupBuyNoticeTest {
         List<NoticeDraft.Value> blank = new ArrayList<>(missingTwo);
         blank.add(new NoticeDraft.Value("color", "  ", false, null));
         blank.add(new NoticeDraft.Value("size", "FREE", false, null));
-        kit.notices.save(partial, List.of(new NoticeDraft("CLOTHING", "티셔츠", List.of(), blank)), kit.operator, "ip");
+        kit.notices.save(kit.productOf(partial), List.of(new NoticeDraft("CLOTHING", "티셔츠", List.of(), blank)), kit.operator, "ip");
         assertThatThrownBy(() -> publish(partial)).isInstanceOf(GroupBuyException.class);
 
         // 「제공 불가 + 사유」는 채운 것으로 본다
         List<NoticeDraft.Value> filled = new ArrayList<>(missingTwo);
         filled.add(new NoticeDraft.Value("color", null, true, "단색 상품이 아니라 받는 색이 무작위로 정해집니다"));
         filled.add(new NoticeDraft.Value("size", "FREE", false, null));
-        kit.notices.save(partial, List.of(new NoticeDraft("CLOTHING", "티셔츠", List.of(), filled)), kit.operator, "ip");
+        kit.notices.save(kit.productOf(partial), List.of(new NoticeDraft("CLOTHING", "티셔츠", List.of(), filled)), kit.operator, "ip");
         publish(partial);
         assertThat(kit.group(partial).status()).isEqualTo(GroupBuyStatus.RECRUITING);
     }
@@ -122,11 +122,11 @@ class GroupBuyNoticeTest {
     @Test
     void G43_제공_불가는_사유가_없으면_저장_거절_DB_도_막는다() {
         long gb = kit.spec(policy()).create();
-        assertThatThrownBy(() -> kit.notices.save(gb, List.of(new NoticeDraft("OTHER_GOODS", "본체", List.of(),
+        assertThatThrownBy(() -> kit.notices.save(kit.productOf(gb), List.of(new NoticeDraft("OTHER_GOODS", "본체", List.of(),
                 List.of(new NoticeDraft.Value("product_model_name", null, true, " ")))), kit.operator, "ip"))
                 .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("notices[0].values.product_model_name"));
         kit.fillNotice(gb);
-        long noticeId = kit.notices.notices(gb).get(0).id();
+        long noticeId = kit.notices.notices(kit.productOf(gb)).get(0).id();
         assertThatThrownBy(() -> kit.jdbc.update("UPDATE group_buy_notice_values SET unavailable = true, value = NULL, unavailable_reason = NULL WHERE notice_id = ? "
                 + "AND item_key = 'product_model_name'", noticeId)).hasMessageContaining("ck_gbnv_unavailable");
     }
@@ -134,7 +134,7 @@ class GroupBuyNoticeTest {
     @Test
     void G43_어느_양식에도_속하지_않은_단품이_있으면_거절_기본_양식이_있으면_나머지_MAIN_을_덮는다() {
         long gb = kit.spec(policy()).option("본체", 0, 10).option("충전기", 5_000, 10).option("케이스", 3_000, 10).create();
-        kit.notices.save(gb, List.of(kit.fullNotice("SMALL_ELECTRONICS", "본체", List.of("본체")), kit.fullNotice("SMALL_ELECTRONICS", "충전기", List.of("충전기"))),
+        kit.notices.save(kit.productOf(gb), List.of(kit.fullNotice("SMALL_ELECTRONICS", "본체", List.of("본체")), kit.fullNotice("SMALL_ELECTRONICS", "충전기", List.of("충전기"))),
                 kit.operator, "ip");
         assertThatThrownBy(() -> publish(gb)).isInstanceOfSatisfying(GroupBuyException.class, e -> {
             assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.NOTICE_INCOMPLETE);
@@ -143,10 +143,10 @@ class GroupBuyNoticeTest {
         });
 
         // 케이스는 부수 상품 — 공구 전체(기본) 양식이 덮는다(일반원칙 ⑦)
-        kit.notices.save(gb, List.of(kit.fullNotice("SMALL_ELECTRONICS", "본체", List.of()), kit.fullNotice("SMALL_ELECTRONICS", "충전기", List.of("충전기"))),
+        kit.notices.save(kit.productOf(gb), List.of(kit.fullNotice("SMALL_ELECTRONICS", "본체", List.of()), kit.fullNotice("SMALL_ELECTRONICS", "충전기", List.of("충전기"))),
                 kit.operator, "ip");
         publish(gb);
-        var saved = kit.notices.notices(gb);
+        var saved = kit.notices.notices(kit.productOf(gb));
         assertThat(saved).hasSize(2);
         assertThat(saved.get(1).skuNames()).containsExactly("충전기");
     }
@@ -154,22 +154,22 @@ class GroupBuyNoticeTest {
     @Test
     void G43_한_단품은_양식_하나에만_기본_양식은_하나만() {
         long gb = kit.spec(policy()).option("본체", 0, 10).option("충전기", 5_000, 10).create();
-        assertThatThrownBy(() -> kit.notices.save(gb, List.of(kit.fullNotice("SMALL_ELECTRONICS", "A", List.of("충전기")),
+        assertThatThrownBy(() -> kit.notices.save(kit.productOf(gb), List.of(kit.fullNotice("SMALL_ELECTRONICS", "A", List.of("충전기")),
                 kit.fullNotice("SMALL_ELECTRONICS", "B", List.of("충전기", "본체"))), kit.operator, "ip"))
                 .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("notices[1].skuNames"));
-        assertThatThrownBy(() -> kit.notices.save(gb, List.of(kit.fullNotice("SMALL_ELECTRONICS", "A", List.of()), kit.fullNotice("SMALL_ELECTRONICS", "B", List.of())),
+        assertThatThrownBy(() -> kit.notices.save(kit.productOf(gb), List.of(kit.fullNotice("SMALL_ELECTRONICS", "A", List.of()), kit.fullNotice("SMALL_ELECTRONICS", "B", List.of())),
                 kit.operator, "ip")).isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("notices"));
-        assertThatThrownBy(() -> kit.notices.save(gb, List.of(kit.fullNotice("SMALL_ELECTRONICS", "A", List.of("없는 단품"))), kit.operator, "ip"))
+        assertThatThrownBy(() -> kit.notices.save(kit.productOf(gb), List.of(kit.fullNotice("SMALL_ELECTRONICS", "A", List.of("없는 단품"))), kit.operator, "ip"))
                 .isInstanceOf(ValidationException.class);
-        assertThatThrownBy(() -> kit.notices.save(gb, List.of(new NoticeDraft("NOT_A_CATEGORY", "A", List.of(), List.of())), kit.operator, "ip"))
+        assertThatThrownBy(() -> kit.notices.save(kit.productOf(gb), List.of(new NoticeDraft("NOT_A_CATEGORY", "A", List.of(), List.of())), kit.operator, "ip"))
                 .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("notices[0].categoryCode"));
-        assertThatThrownBy(() -> kit.notices.save(gb, List.of(new NoticeDraft("CLOTHING", "A", List.of(), List.of(new NoticeDraft.Value("screen_spec", "x", false, null))))
+        assertThatThrownBy(() -> kit.notices.save(kit.productOf(gb), List.of(new NoticeDraft("CLOTHING", "A", List.of(), List.of(new NoticeDraft.Value("screen_spec", "x", false, null))))
                 , kit.operator, "ip")).as("그 품목에 없는 항목").isInstanceOf(ValidationException.class);
         // DB 도 한 단품은 하나에만
-        kit.notices.save(gb, List.of(kit.fullNotice("SMALL_ELECTRONICS", "A", List.of("충전기")), kit.fullNotice("SMALL_ELECTRONICS", "B", List.of("본체"))),
+        kit.notices.save(kit.productOf(gb), List.of(kit.fullNotice("SMALL_ELECTRONICS", "A", List.of("충전기")), kit.fullNotice("SMALL_ELECTRONICS", "B", List.of("본체"))),
                 kit.operator, "ip");
-        var saved = kit.notices.notices(gb);
-        assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO group_buy_notice_skus (notice_id, group_buy_id, sku_id) VALUES (?, ?, ?)", saved.get(1).id(), gb,
+        var saved = kit.notices.notices(kit.productOf(gb));
+        assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO group_buy_notice_skus (notice_id, product_id, product_sku_id) VALUES (?, ?, ?)", saved.get(1).id(), kit.productOf(gb),
                 saved.get(0).skuIds().get(0))).isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
     }
 
@@ -180,7 +180,7 @@ class GroupBuyNoticeTest {
         NoticeDraft corrected = kit.fullNotice("OTHER_GOODS", "본체", List.of());
         List<NoticeDraft.Value> values = new ArrayList<>(corrected.values().stream().filter(v -> !v.itemKey().equals("country_or_origin")).toList());
         values.add(new NoticeDraft.Value("country_or_origin", "대한민국", false, null));
-        kit.notices.save(gb, List.of(new NoticeDraft("OTHER_GOODS", "본체", List.of(), values)), kit.operator, "ip");
+        kit.notices.save(kit.productOf(gb), List.of(new NoticeDraft("OTHER_GOODS", "본체", List.of(), values)), kit.operator, "ip");
 
         var g = kit.group(gb);
         assertThat(g.revisionNo()).isEqualTo(revisionBefore + 1);
@@ -190,60 +190,60 @@ class GroupBuyNoticeTest {
                 .as("모집 시작 이력에도 고시 사본").isEqualTo(1);
 
         List<NoticeDraft.Value> emptied = values.stream().filter(v -> !v.itemKey().equals("contact")).toList();
-        assertThatThrownBy(() -> kit.notices.save(gb, List.of(new NoticeDraft("OTHER_GOODS", "본체", List.of(), emptied)), kit.operator, "ip"))
+        assertThatThrownBy(() -> kit.notices.save(kit.productOf(gb), List.of(new NoticeDraft("OTHER_GOODS", "본체", List.of(), emptied)), kit.operator, "ip"))
                 .isInstanceOfSatisfying(GroupBuyException.class, e -> assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.NOTICE_INCOMPLETE));
-        assertThat(kit.notices.notices(gb).get(0).values()).containsKey("contact");
+        assertThat(kit.notices.notices(kit.productOf(gb)).get(0).values()).containsKey("contact");
         assertThat(kit.group(gb).revisionNo()).isEqualTo(g.revisionNo());
     }
 
     @Test
-    void G43_추가_차수에_양식을_복사하고_카탈로그_버전은_만든_때_그대로() {
+    void G43_추가_차수는_같은_상품의_양식을_그대로_쓰고_카탈로그_버전은_만든_때_그대로() {
         long root = kit.spec(policy()).qty(0, 1).option("본체", 0, 1).option("충전기", 0, null).create();
-        kit.notices.save(root, List.of(kit.fullNotice("OTHER_GOODS", "본체", List.of()), kit.fullNotice("SMALL_ELECTRONICS", "충전기", List.of("충전기"))),
+        kit.notices.save(kit.productOf(root), List.of(kit.fullNotice("OTHER_GOODS", "본체", List.of()), kit.fullNotice("SMALL_ELECTRONICS", "충전기", List.of("충전기"))),
                 kit.operator, "ip");
         publish(root);
-        // 이 공구가 옛 고시 때 만들어진 것처럼(시험 전용 옛 버전 2022-01-01 — 기타 재화 항목 둘뿐)
-        kit.jdbc.update("UPDATE group_buy_notices SET catalog_version = '2022-01-01' WHERE group_buy_id = ? AND category_code = 'OTHER_GOODS'", root);
+        // 이 상품이 옛 고시 때 만들어진 것처럼(시험 전용 옛 버전 2022-01-01 — 기타 재화 항목 둘뿐)
+        kit.jdbc.update("UPDATE group_buy_notices SET catalog_version = '2022-01-01' WHERE product_id = ? AND category_code = 'OTHER_GOODS'", kit.productOf(root));
         kit.paidOrder(kit.newMember(), root, GroupBuyTestKit.lines(kit.skuId(root, "본체"), 1));
         assertThat(kit.group(root).status()).isEqualTo(GroupBuyStatus.CLOSING);
 
         var round = kit.admin.createRound(root, kit.now().minus(Duration.ofMinutes(1)), kit.now().plus(Duration.ofDays(1)), null, kit.operator, "ip");
-        var copied = kit.notices.notices(round.groupBuyId());
-        assertThat(copied).hasSize(2);
-        assertThat(copied.get(0).catalogVersion()).isEqualTo("2022-01-01");
-        assertThat(copied.get(1).catalogVersion()).isEqualTo("2023-01-01");
-        assertThat(copied.get(1).skuNames()).containsExactly("충전기");
-        assertThat(copied.get(1).skuIds()).as("새 차수의 단품에 이어진다").doesNotContainAnyElementsOf(kit.notices.notices(root).get(1).skuIds());
-        assertThat(copied.get(0).values()).containsKeys("product_model_name", "contact");
+        assertThat(kit.productOf(round.groupBuyId())).as("추가 차수 = 같은 상품(결정 89)").isEqualTo(kit.productOf(root));
+        var forms = kit.notices.notices(kit.productOf(round.groupBuyId()));
+        assertThat(forms).hasSize(2);
+        assertThat(forms.get(0).catalogVersion()).isEqualTo("2022-01-01");
+        assertThat(forms.get(1).catalogVersion()).isEqualTo("2023-01-01");
+        assertThat(forms.get(1).skuNames()).containsExactly("충전기");
 
         // 옛 버전 양식은 옛 항목으로 검사한다 — 2022 판 항목(둘)만 채워도 완성
         NoticeDraft oldForm = new NoticeDraft("OTHER_GOODS", "본체", List.of(), List.of(new NoticeDraft.Value("product_model_name", "모델 A", false, null),
                 new NoticeDraft.Value("contact", "1588-0000", false, null)));
-        kit.notices.save(round.groupBuyId(), List.of(oldForm, kit.fullNotice("SMALL_ELECTRONICS", "충전기", List.of("충전기"))), kit.operator, "ip");
-        assertThat(kit.notices.notices(round.groupBuyId()).get(0).catalogVersion()).as("같은 자리·같은 품목이면 버전 유지").isEqualTo("2022-01-01");
+        kit.notices.save(kit.productOf(round.groupBuyId()), List.of(oldForm, kit.fullNotice("SMALL_ELECTRONICS", "충전기", List.of("충전기"))), kit.operator, "ip");
+        assertThat(kit.notices.notices(kit.productOf(round.groupBuyId())).get(0).catalogVersion()).as("같은 자리·같은 품목이면 버전 유지").isEqualTo("2022-01-01");
         publish(round.groupBuyId());
         assertThat(kit.group(round.groupBuyId()).status()).isEqualTo(GroupBuyStatus.RECRUITING);
 
         // 품목을 바꾸면 그 양식은 지금 버전
         long other = kit.spec(policy()).create();
         kit.fillNotice(other);
-        kit.jdbc.update("UPDATE group_buy_notices SET catalog_version = '2022-01-01' WHERE group_buy_id = ?", other);
-        kit.notices.save(other, List.of(kit.fullNotice("CLOTHING", "본체", List.of())), kit.operator, "ip");
-        assertThat(kit.notices.notices(other).get(0).catalogVersion()).isEqualTo("2023-01-01");
+        kit.jdbc.update("UPDATE group_buy_notices SET catalog_version = '2022-01-01' WHERE product_id = ?", kit.productOf(other));
+        kit.notices.save(kit.productOf(other), List.of(kit.fullNotice("CLOTHING", "본체", List.of())), kit.operator, "ip");
+        assertThat(kit.notices.notices(kit.productOf(other)).get(0).catalogVersion()).isEqualTo("2023-01-01");
     }
 
     @Test
-    void DRAFT_단품을_고쳐_다시_넣어도_양식의_적용_단품은_이름으로_다시_이어진다() {
+    void 상품_옵션에_값을_더해도_같은_조합의_상품_단품_ID_는_그대로라_양식의_적용_단품이_유지된다() {
         GroupBuyTestKit.Spec spec = kit.spec(policy()).option("본체", 0, 10).option("충전기", 5_000, 10);
         long gb = spec.create();
-        kit.notices.save(gb, List.of(kit.fullNotice("SMALL_ELECTRONICS", "본체", List.of()), kit.fullNotice("SMALL_ELECTRONICS", "충전기", List.of("충전기"))),
+        long product = kit.productOf(gb);
+        kit.notices.save(product, List.of(kit.fullNotice("SMALL_ELECTRONICS", "본체", List.of()), kit.fullNotice("SMALL_ELECTRONICS", "충전기", List.of("충전기"))),
                 kit.operator, "ip");
-        long before = kit.skuId(gb, "충전기");
-        spec.price(26_000);
+        long before = kit.notices.notices(product).get(1).skuIds().getFirst();
+        spec.option("케이스", 3_000, 10); // 상품에 값 더하기(공구가 아직 공개 전이라 구성 잠금 없음)
         kit.admin.update(gb, kit.group(gb).version(), spec.draft(), kit.operator, "ip");
-        long after = kit.skuId(gb, "충전기");
-        assertThat(after).isNotEqualTo(before);
-        assertThat(kit.notices.notices(gb).get(1).skuIds()).containsExactly(after);
+        assertThat(kit.products.skus(product)).extracting(s -> s.name()).containsExactly("본체", "충전기", "케이스");
+        assertThat(kit.notices.notices(product).get(1).skuIds()).containsExactly(before);
+        assertThat(kit.skus(gb)).extracting(s -> s.name()).contains("케이스");
     }
 
     // ── 판매자 추가 항목(사용자 지시 2026-10-28) ─────────────────────────────
@@ -258,16 +258,16 @@ class GroupBuyNoticeTest {
     @Test
     void G43_판매자_추가_항목은_차례대로_저장되고_빈_줄은_빼며_완성_검사_대상이_아니다() {
         long gb = kit.spec(policy()).create();
-        kit.notices.save(gb, List.of(withCustoms("AGRI_LIVESTOCK_FISHERY", List.of(NoticeDraft.Value.custom("수확 시기", "매년 9월 말", 2),
+        kit.notices.save(kit.productOf(gb), List.of(withCustoms("AGRI_LIVESTOCK_FISHERY", List.of(NoticeDraft.Value.custom("수확 시기", "매년 9월 말", 2),
                 NoticeDraft.Value.custom("  ", " ", 0), NoticeDraft.Value.custom("원산지 세부", "경기도 이천시", 1)))), kit.operator, "ip");
-        var saved = kit.notices.notices(gb).get(0);
+        var saved = kit.notices.notices(kit.productOf(gb)).get(0);
         assertThat(saved.customItems()).extracting(c -> c.name() + "=" + c.value() + "@" + c.sortOrder())
                 .containsExactly("원산지 세부=경기도 이천시@0", "수확 시기=매년 9월 말@1");
         assertThat(saved.values()).doesNotContainKeys("수확 시기", "원산지 세부");
         publish(gb); // 추가 항목은 선택 — 고시 항목만 차면 된다
 
         // 모집 뒤 수정 이력에 추가 항목도 사본으로
-        kit.notices.save(gb, List.of(withCustoms("AGRI_LIVESTOCK_FISHERY", List.of(NoticeDraft.Value.custom("수확 시기", "매년 10월 초", null)))), kit.operator, "ip");
+        kit.notices.save(kit.productOf(gb), List.of(withCustoms("AGRI_LIVESTOCK_FISHERY", List.of(NoticeDraft.Value.custom("수확 시기", "매년 10월 초", null)))), kit.operator, "ip");
         assertThat(kit.count("SELECT count(*) FROM group_buy_revisions WHERE group_buy_id = ? AND change_kind = 'NOTICE' "
                 + "AND notices -> 0 -> 'customItems' -> 0 ->> 'value' = '매년 10월 초' AND jsonb_array_length(notices -> 0 -> 'customItems') = 1", gb)).isEqualTo(1);
     }
@@ -278,24 +278,24 @@ class GroupBuyNoticeTest {
         // 고시 항목 이름 그대로(공백 무시) · 쉼표로 나뉜 이름(「크기, 무게」의 크기 · 「제조자, 수입품의 경우 …」의 제조자)
         for (String reserved : List.of("제조국", "품명및모델명", "크기", "제조자")) {
             String category = reserved.equals("품명및모델명") || reserved.equals("제조자") ? "OTHER_GOODS" : "SMALL_ELECTRONICS";
-            assertThatThrownBy(() -> kit.notices.save(gb, List.of(withCustoms(category, List.of(NoticeDraft.Value.custom(reserved, "값", null)))), kit.operator, "ip"))
+            assertThatThrownBy(() -> kit.notices.save(kit.productOf(gb), List.of(withCustoms(category, List.of(NoticeDraft.Value.custom(reserved, "값", null)))), kit.operator, "ip"))
                     .as(reserved).isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("notices[0].customItems[0].name"));
         }
         List<NoticeDraft.Value> many = new ArrayList<>();
         for (int i = 0; i < 21; i++) {
             many.add(NoticeDraft.Value.custom("추가 " + i, "내용", i));
         }
-        assertThatThrownBy(() -> kit.notices.save(gb, List.of(withCustoms("OTHER_GOODS", many)), kit.operator, "ip"))
+        assertThatThrownBy(() -> kit.notices.save(kit.productOf(gb), List.of(withCustoms("OTHER_GOODS", many)), kit.operator, "ip"))
                 .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("notices[0].customItems"));
-        kit.notices.save(gb, List.of(withCustoms("OTHER_GOODS", many.subList(0, 20))), kit.operator, "ip"); // 20개까지는 된다
-        assertThatThrownBy(() -> kit.notices.save(gb, List.of(withCustoms("OTHER_GOODS", List.of(NoticeDraft.Value.custom("보관 방법", "서늘한 곳", 0),
+        kit.notices.save(kit.productOf(gb), List.of(withCustoms("OTHER_GOODS", many.subList(0, 20))), kit.operator, "ip"); // 20개까지는 된다
+        assertThatThrownBy(() -> kit.notices.save(kit.productOf(gb), List.of(withCustoms("OTHER_GOODS", List.of(NoticeDraft.Value.custom("보관 방법", "서늘한 곳", 0),
                 NoticeDraft.Value.custom("보관방법", "냉장", 1)))), kit.operator, "ip")).isInstanceOf(ValidationException.class);
-        assertThatThrownBy(() -> kit.notices.save(gb, List.of(withCustoms("OTHER_GOODS", List.of(NoticeDraft.Value.custom("사이즈 표", " ", 0)))), kit.operator, "ip"))
+        assertThatThrownBy(() -> kit.notices.save(kit.productOf(gb), List.of(withCustoms("OTHER_GOODS", List.of(NoticeDraft.Value.custom("사이즈 표", " ", 0)))), kit.operator, "ip"))
                 .isInstanceOf(ValidationException.class);
-        assertThatThrownBy(() -> kit.notices.save(gb, List.of(withCustoms("OTHER_GOODS", List.of(NoticeDraft.Value.custom("x".repeat(41), "내용", 0)))), kit.operator,
+        assertThatThrownBy(() -> kit.notices.save(kit.productOf(gb), List.of(withCustoms("OTHER_GOODS", List.of(NoticeDraft.Value.custom("x".repeat(41), "내용", 0)))), kit.operator,
                 "ip")).isInstanceOf(ValidationException.class);
         // DB: 추가 항목 줄은 키가 없고 이름·내용이 있어야 한다
-        long noticeId = kit.notices.notices(gb).get(0).id();
+        long noticeId = kit.notices.notices(kit.productOf(gb)).get(0).id();
         assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO group_buy_notice_values (id, notice_id, custom, item_key, custom_name, value, sort_order) "
                 + "VALUES (?, ?, true, 'contact', '연락처', '1588', 99)", kit.ids.nextId(), noticeId)).hasMessageContaining("ck_gbnv_kind");
         assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO group_buy_notice_values (id, notice_id, custom, item_key, value) VALUES (?, ?, false, NULL, 'x')",
@@ -303,13 +303,13 @@ class GroupBuyNoticeTest {
     }
 
     @Test
-    void G43_추가_차수에_판매자_추가_항목도_복사된다() {
+    void G43_추가_차수는_같은_상품이라_판매자_추가_항목도_그대로_보인다() {
         long root = kit.spec(policy()).qty(0, 1).create();
-        kit.notices.save(root, List.of(withCustoms("OTHER_GOODS", List.of(NoticeDraft.Value.custom("호환 기종", "ROBO-1, ROBO-2", 0)))), kit.operator, "ip");
+        kit.notices.save(kit.productOf(root), List.of(withCustoms("OTHER_GOODS", List.of(NoticeDraft.Value.custom("호환 기종", "ROBO-1, ROBO-2", 0)))), kit.operator, "ip");
         publish(root);
         kit.paidOrder(kit.newMember(), root, 1);
         var round = kit.admin.createRound(root, kit.now().minus(Duration.ofMinutes(1)), kit.now().plus(Duration.ofDays(1)), null, kit.operator, "ip");
-        assertThat(kit.notices.notices(round.groupBuyId()).get(0).customItems()).extracting(c -> c.name() + "=" + c.value())
+        assertThat(kit.notices.notices(kit.productOf(round.groupBuyId())).get(0).customItems()).extracting(c -> c.name() + "=" + c.value())
                 .containsExactly("호환 기종=ROBO-1, ROBO-2");
     }
 
@@ -319,7 +319,7 @@ class GroupBuyNoticeTest {
         NoticeDraft full = kit.fullNotice("OTHER_GOODS", "본체", List.of());
         List<NoticeDraft.Value> values = new ArrayList<>(full.values().stream().filter(v -> !v.itemKey().equals("legal_certification")).toList());
         values.add(new NoticeDraft.Value("legal_certification", "상세페이지 참조", false, null));
-        List<GroupBuyNoticeService.DetailPageWarning> warnings = kit.notices.save(gb, List.of(new NoticeDraft("OTHER_GOODS", "본체", List.of(), values)), kit.operator, "ip");
+        List<GroupBuyNoticeService.DetailPageWarning> warnings = kit.notices.save(kit.productOf(gb), List.of(new NoticeDraft("OTHER_GOODS", "본체", List.of(), values)), kit.operator, "ip");
         assertThat(warnings).containsExactly(new GroupBuyNoticeService.DetailPageWarning(0, "legal_certification"));
         publish(gb);
     }

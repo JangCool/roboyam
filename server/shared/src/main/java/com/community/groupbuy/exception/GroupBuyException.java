@@ -31,6 +31,10 @@ public class GroupBuyException extends CommonException {
     public static final String VERSION_CONFLICT = "GROUP_BUY_VERSION_CONFLICT";
     public static final String SKU_UNLIMITED = "GROUP_BUY_SKU_UNLIMITED";
     public static final String NOTICE_INCOMPLETE = "GROUP_BUY_NOTICE_INCOMPLETE";
+    public static final String SUPPLY_PRICE_MISSING = "GROUP_BUY_SUPPLY_PRICE_MISSING";
+    public static final String NEGATIVE_MARGIN = "GROUP_BUY_NEGATIVE_MARGIN";
+    public static final String PRODUCT_NOT_FOUND = "GROUP_BUY_PRODUCT_NOT_FOUND";
+    public static final String PRODUCT_SKU_IN_USE = "GROUP_BUY_PRODUCT_SKU_IN_USE";
     public static final String SHIPPING_POLICY_NOT_FOUND = "SHIPPING_POLICY_NOT_FOUND";
     public static final String SHIPPING_POLICY_CONFLICT = "SHIPPING_POLICY_CONFLICT";
 
@@ -137,8 +141,33 @@ public class GroupBuyException extends CommonException {
      * {@code unassignedSkus}(속할 양식이 없는 단품 이름 — 기본 양식이 없는 MAIN, 자기 양식이 없는 ADDON).
      */
     public static GroupBuyException noticeIncomplete(boolean noNotice, java.util.List<java.util.Map<String, Object>> notices, java.util.List<String> unassignedSkus) {
-        return new GroupBuyException(HttpStatus.CONFLICT, NOTICE_INCOMPLETE).with("noNotice", noNotice).with("notices", notices)
+        return noticeIncomplete(null, noNotice, notices, unassignedSkus);
+    }
+
+    /** @param productId 고시가 덜 된 상품(공구 상품 또는 추가 구성상품의 상품 — 결정 89) */
+    public static GroupBuyException noticeIncomplete(Long productId, boolean noNotice, java.util.List<java.util.Map<String, Object>> notices,
+                                                     java.util.List<String> unassignedSkus) {
+        return new GroupBuyException(HttpStatus.CONFLICT, NOTICE_INCOMPLETE).with("productId", productId == null ? "" : productId.toString()).with("noNotice", noNotice).with("notices", notices)
                 .with("unassignedSkus", unassignedSkus);
+    }
+
+    /** 모집 시작 때 공급가가 빈 단품(결정 89 — 0 은 명시 입력만) */
+    public static GroupBuyException supplyPriceMissing(java.util.List<String> skuIds) {
+        return new GroupBuyException(HttpStatus.CONFLICT, SUPPLY_PRICE_MISSING).with("skuIds", skuIds);
+    }
+
+    /** 판매가 < 공급가(역마진) — 확인({@code marginConfirmed})해야 진행(결정 89) */
+    public static GroupBuyException negativeMargin(java.util.List<String> skuIds) {
+        return new GroupBuyException(HttpStatus.CONFLICT, NEGATIVE_MARGIN).with("skuIds", skuIds);
+    }
+
+    public static GroupBuyException productNotFound() {
+        return new GroupBuyException(HttpStatus.NOT_FOUND, PRODUCT_NOT_FOUND);
+    }
+
+    /** 공구 단품이 가리키는 상품 단품은 지울 수 없다(상품 옵션 구성 바꾸기 — 결정 89) */
+    public static GroupBuyException productSkuInUse(java.util.List<String> names) {
+        return new GroupBuyException(HttpStatus.CONFLICT, PRODUCT_SKU_IN_USE).with("skuNames", names);
     }
 
     public static GroupBuyException shippingPolicyNotFound() {

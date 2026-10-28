@@ -32,7 +32,7 @@ public final class AuditRetention {
             // 결제 이상·대사 처리 — 돈이 움직이거나 돈의 기록을 바로잡는 일(commerce-payment-contract 결정 12)
             AuditActions.RECONCILE_ISSUE_RESOLVE, AuditActions.PAYMENT_CANCEL_RETRY, AuditActions.PAYMENT_CANCEL_MANUAL, AuditActions.PAYMENT_RECHECK,
             // 공구 중단(환불)·수량 조정·추가 차수·배송비 정책 — 돈이 움직이거나 판매 조건(값)을 바꾸는 일(commerce-groupbuy-contract 「감사·오류 코드 후보」)
-            AuditActions.GROUPBUY_CANCEL, AuditActions.GROUPBUY_STOCK_ADD, AuditActions.GROUPBUY_STOCK_REDUCE, AuditActions.GROUPBUY_ROUND_CREATE,
+            AuditActions.GROUPBUY_CANCEL, AuditActions.GROUPBUY_SUPPLY_PRICE, AuditActions.GROUPBUY_STOCK_ADD, AuditActions.GROUPBUY_STOCK_REDUCE, AuditActions.GROUPBUY_ROUND_CREATE,
             AuditActions.COMMERCE_SHIPPING_POLICY_CREATE);
 
     private static final Set<String> PERSONAL_DATA = Set.of(
@@ -94,7 +94,8 @@ public final class AuditRetention {
             // 이 날 다시 대사 — 대사 배치를 다시 돌릴 뿐 돈·기록을 바꾸지 않는다(commerce-payment-contract 확정한 목업 가정 3 — 사유 없이 확인창만)
             AuditActions.PAYMENT_RECONCILE_RERUN,
             // 공구 등록·수정·모집 시작·조기 마감·발송 지연 공지 — 일반 운영(commerce-groupbuy-contract 「감사·오류 코드 후보」 — 돈은 중단·환불이 움직인다)
-            AuditActions.GROUPBUY_CREATE, AuditActions.GROUPBUY_UPDATE, AuditActions.GROUPBUY_START, AuditActions.GROUPBUY_CLOSE_EARLY, AuditActions.GROUPBUY_DELAY_NOTICE);
+            AuditActions.GROUPBUY_CREATE, AuditActions.GROUPBUY_UPDATE, AuditActions.GROUPBUY_START, AuditActions.GROUPBUY_CLOSE_EARLY, AuditActions.GROUPBUY_DELAY_NOTICE,
+            AuditActions.GROUPBUY_PRODUCT_SAVE, AuditActions.GROUPBUY_CATEGORY_SAVE);
 
     private static final Map<String, AuditRetentionClass> TABLE = table();
 

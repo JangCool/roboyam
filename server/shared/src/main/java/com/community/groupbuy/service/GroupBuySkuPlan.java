@@ -1,9 +1,9 @@
 package com.community.groupbuy.service;
 
 import com.community.groupbuy.dto.GroupBuyDraft;
+import com.community.groupbuy.dto.ProductDraft;
 import com.community.groupbuy.entity.SkuKind;
-import com.community.groupbuy.repository.master.GroupBuyStore;
-import com.community.groupbuy.repository.master.GroupBuyStore.AxisRow;
+import com.community.groupbuy.repository.master.GroupBuyProductStore.ProductSkuRow;
 import com.community.groupbuy.repository.master.GroupBuyStore.SkuRow;
 import com.community.zconfiguration.message.MessageRef;
 import java.util.ArrayList;
@@ -12,12 +12,18 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
- * 등록 값의 옵션 축·값·단품 계획(결정 88) — 축 0~3개·축마다 값 1~30개·조합(MAIN 단품) 최대 {@value #COMBINATIONS_MAX}개·추가 구성상품 최대 {@value #ADDONS_MAX}개.
- * MAIN 단품은 축 값 조합마다 하나(축이 없으면 하나 — 이름 = 상품 이름), 이름은 값을 「 / 」로 이은 것. 조합 설정을 적지 않은 조합은 추가금 0·한도 없음·판매.
- * 단품 이름은 공구 안에서 유일(추가 구성상품 이름이 조합 이름·다른 추가상품과 겹치면 안 된다).
+ * 옵션 축·값·단품 계획(결정 88·89).
+ * <ul>
+ *   <li><b>상품</b>({@link #product}): 축 0~3개·축마다 값 1~30개·조합 최대 {@value #COMBINATIONS_MAX}개 — 상품 단품은 조합마다 하나(축이 없으면 하나, 이름 = 상품 이름),
+ *       이름은 값을 「 / 」로 이은 것. 조합 설정을 적지 않은 조합은 기본 공급가 없음·판매.</li>
+ *   <li><b>공구</b>({@link #group}): 공구 상품의 상품 단품마다 MAIN 공구 단품(설정을 적지 않으면 추가금 0·한도 없음·판매 여부와 공급가는 상품 단품의 기본값),
+ *       추가 구성상품은 다른 상품의 단품(최대 {@value #ADDONS_MAX}개). 공구 단품 이름은 공구 안에서 유일.</li>
+ * </ul>
  */
 final class GroupBuySkuPlan {
 
@@ -26,26 +32,40 @@ final class GroupBuySkuPlan {
     static final int COMBINATIONS_MAX = 200;
     static final int ADDONS_MAX = 20;
     static final int NAME_MAX = 30;
-    static final int ADDON_NAME_MAX = 100;
+
+    private GroupBuySkuPlan() {
+    }
 
     /** 계획한 축 */
     record PlannedAxis(String name, List<String> values) {
     }
 
-    /** 계획한 단품 — MAIN 은 {@code valueNames}(축 차례), ADDON 은 빈 목록 */
-    record PlannedSku(SkuKind kind, List<String> valueNames, String name, long extraPrice, Long addonPrice, Integer maxQty, boolean onSale, String imageKey) {
+    /** 계획한 상품 단품(축 차례대로 값 이름) */
+    record PlannedProductSku(List<String> valueNames, String name, Long defaultSupplyPrice, boolean onSale) {
     }
 
-    final List<PlannedAxis> axes;
-    final List<PlannedSku> skus;
-
-    private GroupBuySkuPlan(List<PlannedAxis> axes, List<PlannedSku> skus) {
-        this.axes = axes;
-        this.skus = skus;
+    /** 상품의 축·단품 계획 */
+    record ProductPlan(List<PlannedAxis> axes, List<PlannedProductSku> skus) {
     }
 
-    /** 등록 값에서 — 문제가 있으면 {@code f} 에 칸 오류를 넣고 null */
-    static GroupBuySkuPlan of(GroupBuyDraft d, Map<String, MessageRef> f) {
+    /** 계획한 공구 단품 — MAIN 은 공구 상품의 단품, ADDON 은 다른 상품의 단품 */
+    record PlannedSku(SkuKind kind, long productSkuId, List<Long> valueIds, String name, long extraPrice, Long addonPrice, Integer maxQty, boolean onSale,
+                      Long supplyPrice) {
+    }
+
+    /** 추가 구성상품으로 고른 상품 단품과 그 상품 */
+    record AddonSource(ProductSkuRow sku, String productName) {
+
+        /** 공구 단품 이름 — 축 없는 상품이면 상품 이름, 아니면 「상품 이름 (조합)」 */
+        String name() {
+            return sku.valueIds().isEmpty() ? productName : productName + " (" + sku.name() + ")";
+        }
+    }
+
+    // ── 상품 ────────────────────────────────────────────────────────────────
+
+    /** 상품 등록 값에서 — 문제가 있으면 {@code f} 에 칸 오류를 넣고 null */
+    static ProductPlan product(ProductDraft d, String productName, Map<String, MessageRef> f) {
         List<GroupBuyDraft.AxisDraft> axisDrafts = d.axes() == null ? List.of() : d.axes();
         if (axisDrafts.size() > AXES_MAX) {
             f.put("axes", new MessageRef("groupbuy.admin.axes.invalid"));
@@ -76,82 +96,105 @@ final class GroupBuySkuPlan {
             f.put("axes", new MessageRef("groupbuy.admin.axes.tooMany"));
             return null;
         }
-        // 조합 설정(값 이름 목록 → 설정)
-        Map<List<String>, GroupBuyDraft.SkuDraft> settings = new HashMap<>();
-        for (GroupBuyDraft.SkuDraft s : d.skus() == null ? List.<GroupBuyDraft.SkuDraft>of() : d.skus()) {
+        Map<List<String>, ProductDraft.SkuDraft> settings = new HashMap<>();
+        for (ProductDraft.SkuDraft s : d.skus() == null ? List.<ProductDraft.SkuDraft>of() : d.skus()) {
             List<String> key = s == null || s.values() == null ? null : s.values().stream().map(v -> v == null ? "" : v.strip()).toList();
-            if (key == null || !validCombination(axes, key) || settings.put(key, s) != null || s.extraPrice() < 0 || (s.maxQty() != null && s.maxQty() < 1)) {
+            if (key == null || !validCombination(axes, key) || settings.put(key, s) != null || (s.defaultSupplyPrice() != null && s.defaultSupplyPrice() < 0)) {
                 f.put("skus", new MessageRef("groupbuy.admin.skus.invalid"));
                 return null;
             }
         }
-        List<PlannedSku> skus = new ArrayList<>();
-        Set<String> names = new HashSet<>();
+        List<PlannedProductSku> skus = new ArrayList<>();
         for (List<String> combination : combinations(axes)) {
-            GroupBuyDraft.SkuDraft s = settings.get(combination);
-            String name = combination.isEmpty() ? d.productName().strip() : String.join(" / ", combination);
-            names.add(name);
-            skus.add(new PlannedSku(SkuKind.MAIN, combination, name, s == null ? 0 : s.extraPrice(), null, s == null ? null : s.maxQty(), s == null || s.onSale(), null));
+            ProductDraft.SkuDraft s = settings.get(combination);
+            String name = combination.isEmpty() ? productName : String.join(" / ", combination);
+            skus.add(new PlannedProductSku(combination, name, s == null ? null : s.defaultSupplyPrice(), s == null || s.onSale()));
         }
-        if (skus.stream().noneMatch(PlannedSku::onSale)) {
+        return new ProductPlan(List.copyOf(axes), List.copyOf(skus));
+    }
+
+    // ── 공구 ────────────────────────────────────────────────────────────────
+
+    /**
+     * 공구 등록 값에서 — 공구 상품의 상품 단품 {@code mainSkus}(차례대로), 추가 구성상품으로 고른 상품 단품을 찾는 {@code addons}(다른 상품만).
+     * 문제가 있으면 {@code f} 에 칸 오류를 넣고 null.
+     */
+    static List<PlannedSku> group(GroupBuyDraft d, long productId, List<ProductSkuRow> mainSkus, Function<Long, Optional<AddonSource>> addons,
+                                  Map<String, MessageRef> f) {
+        Map<Long, GroupBuyDraft.SkuDraft> settings = new HashMap<>();
+        Set<Long> mainIds = new HashSet<>();
+        mainSkus.forEach(s -> mainIds.add(s.id()));
+        for (GroupBuyDraft.SkuDraft s : d.skus() == null ? List.<GroupBuyDraft.SkuDraft>of() : d.skus()) {
+            if (s == null || !mainIds.contains(s.productSkuId()) || settings.put(s.productSkuId(), s) != null || s.extraPrice() < 0
+                    || (s.maxQty() != null && s.maxQty() < 1) || (s.supplyPrice() != null && s.supplyPrice() < 0)) {
+                f.put("skus", new MessageRef("groupbuy.admin.skus.invalid"));
+                return null;
+            }
+        }
+        List<PlannedSku> out = new ArrayList<>();
+        Set<String> names = new HashSet<>();
+        for (ProductSkuRow p : mainSkus) {
+            GroupBuyDraft.SkuDraft s = settings.get(p.id());
+            names.add(p.name());
+            out.add(new PlannedSku(SkuKind.MAIN, p.id(), p.valueIds(), p.name(), s == null ? 0 : s.extraPrice(), null, s == null ? null : s.maxQty(),
+                    s == null ? p.onSale() : s.onSale(), s == null || s.supplyPrice() == null ? p.defaultSupplyPrice() : s.supplyPrice()));
+        }
+        if (out.stream().noneMatch(PlannedSku::onSale)) {
             f.put("skus", new MessageRef("groupbuy.admin.skus.noneOnSale"));
             return null;
         }
-        List<GroupBuyDraft.AddonDraft> addons = d.addons() == null ? List.of() : d.addons();
-        if (addons.size() > ADDONS_MAX) {
+        List<GroupBuyDraft.AddonDraft> addonDrafts = d.addons() == null ? List.of() : d.addons();
+        if (addonDrafts.size() > ADDONS_MAX) {
             f.put("addons", new MessageRef("groupbuy.admin.addons.invalid"));
             return null;
         }
-        for (GroupBuyDraft.AddonDraft a : addons) {
-            if (a == null || blankOrLonger(a.name(), ADDON_NAME_MAX) || !names.add(a.name().strip()) || a.price() < 1 || (a.maxQty() != null && a.maxQty() < 1)
-                    || (a.imageKey() != null && a.imageKey().length() > 300)) {
-                f.put("addons", new MessageRef("groupbuy.admin.addons.invalid")); // 이름이 단품과 겹치면 안 된다
+        Set<Long> seen = new HashSet<>();
+        for (GroupBuyDraft.AddonDraft a : addonDrafts) {
+            Optional<AddonSource> source = a == null || !seen.add(a.productSkuId()) ? Optional.empty() : addons.apply(a.productSkuId());
+            if (source.isEmpty() || source.get().sku().productId() == productId || !names.add(source.get().name()) || a.price() < 1
+                    || (a.maxQty() != null && a.maxQty() < 1) || (a.supplyPrice() != null && a.supplyPrice() < 0)) {
+                f.put("addons", new MessageRef("groupbuy.admin.addons.invalid")); // 다른 상품의 단품만, 이름이 겹치면 안 된다
                 return null;
             }
-            skus.add(new PlannedSku(SkuKind.ADDON, List.of(), a.name().strip(), 0, a.price(), a.maxQty(), true,
-                    a.imageKey() == null || a.imageKey().isBlank() ? null : a.imageKey().strip()));
+            out.add(new PlannedSku(SkuKind.ADDON, a.productSkuId(), List.of(), source.get().name(), 0, a.price(), a.maxQty(), true,
+                    a.supplyPrice() == null ? source.get().sku().defaultSupplyPrice() : a.supplyPrice()));
         }
-        return new GroupBuySkuPlan(List.copyOf(axes), List.copyOf(skus));
+        return List.copyOf(out);
     }
 
-    /** 등록 값의 옵션 부분 */
-    record DraftParts(List<GroupBuyDraft.AxisDraft> axes, List<GroupBuyDraft.SkuDraft> skus, List<GroupBuyDraft.AddonDraft> addons) {
+    /** 공구의 옵션 부분(추가 차수 복사 — 한도는 처음 수량, 공급가 그대로) */
+    record DraftParts(List<GroupBuyDraft.SkuDraft> skus, List<GroupBuyDraft.AddonDraft> addons) {
     }
 
-    /** 저장된 공구에서 등록 값의 옵션 부분을 다시 만든다(추가 차수 복사 — 한도는 처음 수량) */
-    static DraftParts draftParts(List<AxisRow> axes, List<SkuRow> skus) {
-        Map<Long, String> valueNames = new HashMap<>();
-        axes.forEach(a -> a.values().forEach(v -> valueNames.put(v.id(), v.value())));
-        List<GroupBuyDraft.AxisDraft> axisDrafts = axes.stream().map(a -> new GroupBuyDraft.AxisDraft(a.name(),
-                a.values().stream().map(GroupBuyStore.ValueRow::value).toList())).toList();
-        List<GroupBuyDraft.SkuDraft> skuDrafts = skus.stream().filter(SkuRow::main).map(s -> new GroupBuyDraft.SkuDraft(
-                s.valueIds().stream().map(valueNames::get).toList(), s.extraPrice(), baseMax(s), s.onSale())).toList();
-        List<GroupBuyDraft.AddonDraft> addonDrafts = skus.stream().filter(s -> !s.main()).map(s -> new GroupBuyDraft.AddonDraft(s.name(), s.addonPrice(), baseMax(s),
-                s.imageKey())).toList();
-        return new DraftParts(axisDrafts, skuDrafts, addonDrafts);
+    static DraftParts draftParts(List<SkuRow> skus) {
+        return new DraftParts(skus.stream().filter(SkuRow::main).map(s -> new GroupBuyDraft.SkuDraft(s.productSkuId(), s.extraPrice(), baseMax(s), s.onSale(),
+                s.supplyPrice())).toList(), skus.stream().filter(s -> !s.main()).map(s -> new GroupBuyDraft.AddonDraft(s.productSkuId(), s.addonPrice(), baseMax(s),
+                s.supplyPrice())).toList());
     }
 
-    /** 이 계획이 저장된 축·단품과 같은가(모집 뒤 잠금 — 축·값·조합·추가금·한도·판매 여부·추가상품, 결정 88) */
-    boolean sameAs(List<AxisRow> savedAxes, List<SkuRow> savedSkus) {
-        if (savedAxes.size() != axes.size() || savedSkus.size() != skus.size()) {
-            return false;
-        }
-        for (int i = 0; i < axes.size(); i++) {
-            AxisRow a = savedAxes.get(i);
-            if (!a.name().equals(axes.get(i).name()) || !a.values().stream().map(GroupBuyStore.ValueRow::value).toList().equals(axes.get(i).values())) {
+    /**
+     * 이 계획이 저장된 공구 단품과 같은가(모집 뒤 잠금 — 상품 단품 연결·추가금·가격·한도·판매 여부, 결정 88). 공급가는 보지 않는다(모집 뒤에도 고친다 — 결정 89).
+     * 공구에 없는 상품 단품(공구를 만든 뒤 상품에 더한 단품)의 MAIN 계획은 본다 — 판매로 켜면 다르다.
+     */
+    static boolean sameAs(List<PlannedSku> plan, List<SkuRow> saved) {
+        Map<Long, SkuRow> byProductSku = new HashMap<>();
+        saved.forEach(s -> byProductSku.put(s.productSkuId(), s));
+        int matched = 0;
+        for (PlannedSku p : plan) {
+            SkuRow s = byProductSku.get(p.productSkuId());
+            if (s == null) {
+                if (p.kind() == SkuKind.MAIN && !p.onSale()) {
+                    continue;
+                }
                 return false;
             }
-        }
-        Map<String, SkuRow> byName = new HashMap<>();
-        savedSkus.forEach(s -> byName.put(s.name(), s));
-        for (PlannedSku p : skus) {
-            SkuRow s = byName.get(p.name());
-            if (s == null || s.kind() != p.kind() || s.extraPrice() != p.extraPrice() || !Objects.equals(s.addonPrice(), p.addonPrice()) || s.onSale() != p.onSale()
+            matched++;
+            if (s.kind() != p.kind() || s.extraPrice() != p.extraPrice() || !Objects.equals(s.addonPrice(), p.addonPrice()) || s.onSale() != p.onSale()
                     || (!Objects.equals(baseMax(s), p.maxQty()) && !Objects.equals(s.maxQty(), p.maxQty()))) {
                 return false;
             }
         }
-        return true;
+        return matched == saved.size();
     }
 
     private static Integer baseMax(SkuRow s) {

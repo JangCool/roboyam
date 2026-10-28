@@ -4,7 +4,8 @@
 -- 무엇이 생기나
 --   · 배송비 정책(shipping_policies): 정책 이름(code)별 기간 줄. 같은 code 의 기간은 겹치지 않는다(배제 제약). 적용이 시작된 줄은 금액·방식·시작을 고치거나 지우지 못한다
 --     (트리거 — 끝 시각만 미래로 정할 수 있다: 새 줄을 더할 때 지금 줄을 닫는 길). 공구는 모집 시작 때 그 시각에 유효한 줄의 값을 복사해 끝까지 쓴다(10-2).
---   · 공구(group_buys)·대표 이미지·옵션 축·값·단품(MAIN·ADDON)·수정 이력(표시·광고 6개월 — 10-2)·공구 상태 이력.
+--   · 카테고리(group_buy_categories — 2단)·상품(group_buy_products — 설명·이미지·고시 양식·옵션 축/값·상품 단품, 결정 89).
+--   · 공구(group_buys — 상품 하나 + 판매 조건)·공구 단품(MAIN·ADDON — 상품 단품을 가리키고 공급가·수량 열)·수정 이력(표시·광고 6개월 — 10-2)·공구 상태 이력.
 --   · 주문(group_buy_participations — 한 번의 결제·배송지·배송비) + 주문 줄(group_buy_participation_items — 단품·수량·단가, 결정 23·88).
 --   · 수량 이동(group_buy_qty_movements): 수량을 바꾸는 모든 길이 한 줄씩(RESERVE·RELEASE·CONFIRM·CANCEL·RETURN·RESTOCK·ADD·REDUCE·EXCHANGE_OUT), 공구(MAIN 만)·단품 양쪽의 이후 값.
 --   · 주문 상태 이력(participation_status_history — 선점 반복 이탈은 여기서 HOLD_TIMEOUT 만 센다, 결정 28).
@@ -93,7 +94,93 @@ END;
 $$;
 CREATE TRIGGER trg_shipping_policies_guard BEFORE UPDATE OR DELETE ON shipping_policies FOR EACH ROW EXECUTE FUNCTION shipping_policies_guard();
 
+-- ── 카테고리(결정 89) — 2단(최상위·그 아래 하나, 2단 제한은 앱), 차례·숨김. 상품마다 하나 필수, 회원 목록 필터(최상위를 고르면 아래 단도) ──
+CREATE TABLE group_buy_categories (
+    id          bigint       PRIMARY KEY,
+    parent_id   bigint       REFERENCES group_buy_categories (id),
+    name        varchar(30)  NOT NULL,
+    sort_order  integer      NOT NULL DEFAULT 0,
+    hidden      boolean      NOT NULL DEFAULT false,
+    created_at  timestamptz  NOT NULL,
+    updated_at  timestamptz  NOT NULL,
+    CONSTRAINT ck_group_buy_categories_name CHECK (length(btrim(name)) BETWEEN 1 AND 30),
+    CONSTRAINT ck_group_buy_categories_parent CHECK (parent_id IS NULL OR parent_id <> id),
+    CONSTRAINT ux_group_buy_categories_name UNIQUE NULLS NOT DISTINCT (parent_id, name)
+);
+
+-- ── 상품(결정 89 — 같은 상품을 차수·조건을 바꿔 반복해서 판다) ─────────────────────────────────────────
+-- 설명·이미지·고시 양식은 상품에 — 고치면 진행 중 공구에도 바로 보이고 그 공구 수정 이력에 사본(정보 정정).
+-- 이름·정상가·청약철회 제한·옵션 축/값·상품 단품 구성은 그 상품을 쓰는 공구가 모집 중(공개된 예정·모집 중·집계 중)이면 잠금(새 단품은 다음 공구부터).
+CREATE TABLE group_buy_products (
+    id                     bigint        PRIMARY KEY,
+    category_id            bigint        NOT NULL REFERENCES group_buy_categories (id),
+    name                   varchar(100)  NOT NULL,
+    summary                varchar(5000),
+    spec                   varchar(5000),
+    description            text,
+    normal_price           bigint,
+    normal_price_basis     varchar(20),
+    normal_price_source    varchar(500),
+    withdrawal_restriction varchar(1000),
+    version                integer       NOT NULL DEFAULT 0,
+    created_by             bigint,
+    created_at             timestamptz   NOT NULL,
+    updated_at             timestamptz   NOT NULL,
+    CONSTRAINT ck_group_buy_products_name CHECK (length(btrim(name)) BETWEEN 1 AND 100),
+    CONSTRAINT ck_group_buy_products_price CHECK (normal_price IS NULL OR normal_price > 0),
+    CONSTRAINT ck_group_buy_products_price_basis CHECK (normal_price_basis IS NULL OR normal_price_basis IN ('OFFICIAL_STORE', 'PREVIOUS_ROUND', 'MARKET', 'PREVIOUS_SALE'))
+);
+CREATE INDEX ix_group_buy_products_category ON group_buy_products (category_id);
+
+CREATE TABLE group_buy_product_images (
+    id          bigint        PRIMARY KEY,
+    product_id  bigint        NOT NULL REFERENCES group_buy_products (id) ON DELETE CASCADE,
+    image_key   varchar(300)  NOT NULL,
+    thumb_key   varchar(300),
+    sort_order  integer       NOT NULL,
+    created_at  timestamptz   NOT NULL
+);
+CREATE UNIQUE INDEX ux_group_buy_product_images_order ON group_buy_product_images (product_id, sort_order);
+
+-- 옵션 축(0~3개, 예 색상·사이즈)·값(축마다, 예 블랙·화이트) — 상품에 붙는다(결정 88·89). 고칠 때 같은 이름의 축·값은 ID 를 유지한다.
+CREATE TABLE group_buy_option_axes (
+    id          bigint       PRIMARY KEY,
+    product_id  bigint       NOT NULL REFERENCES group_buy_products (id) ON DELETE CASCADE,
+    sort_order  integer      NOT NULL,
+    name        varchar(30)  NOT NULL,
+    CONSTRAINT ck_group_buy_option_axes_name CHECK (length(btrim(name)) BETWEEN 1 AND 30)
+);
+CREATE UNIQUE INDEX ux_group_buy_option_axes_name ON group_buy_option_axes (product_id, name);
+
+CREATE TABLE group_buy_option_values (
+    id          bigint       PRIMARY KEY,
+    axis_id     bigint       NOT NULL REFERENCES group_buy_option_axes (id) ON DELETE CASCADE,
+    product_id  bigint       NOT NULL,
+    sort_order  integer      NOT NULL,
+    value       varchar(30)  NOT NULL,
+    CONSTRAINT ck_group_buy_option_values_value CHECK (length(btrim(value)) BETWEEN 1 AND 30)
+);
+CREATE UNIQUE INDEX ux_group_buy_option_values_value ON group_buy_option_values (axis_id, value);
+
+-- 상품 단품: 축 값 조합마다 하나(축이 없으면 하나 — 이름 = 상품 이름, 축이 있으면 「블랙 / M」). default_supply_price: 기본 공급가(선택 — 공구 단품으로 복사해 고친다).
+-- on_sale: 새 공구의 기본 판매 여부. 공구 단품이 가리키는 상품 단품은 지울 수 없다(FK).
+CREATE TABLE group_buy_product_skus (
+    id                   bigint        PRIMARY KEY,
+    product_id           bigint        NOT NULL REFERENCES group_buy_products (id) ON DELETE CASCADE,
+    value_ids            bigint[]      NOT NULL DEFAULT '{}',
+    name                 varchar(100)  NOT NULL,
+    default_supply_price bigint,
+    on_sale              boolean       NOT NULL DEFAULT true,
+    sort_order           integer       NOT NULL DEFAULT 0,
+    CONSTRAINT ck_gbps_supply CHECK (default_supply_price IS NULL OR default_supply_price >= 0),
+    CONSTRAINT ck_gbps_name CHECK (length(btrim(name)) BETWEEN 1 AND 100)
+);
+CREATE UNIQUE INDEX ux_gbps_product ON group_buy_product_skus (id, product_id);
+CREATE UNIQUE INDEX ux_gbps_name ON group_buy_product_skus (product_id, name);
+CREATE UNIQUE INDEX ux_gbps_combination ON group_buy_product_skus (product_id, value_ids);
+
 -- ── 공구 ─────────────────────────────────────────────────────────────────────
+-- product_id: 파는 상품(결정 89 — 설명·이미지·고시·정상가·청약철회 제한은 상품에). 추가 차수 = 같은 상품으로 새 공구.
 -- status: DRAFT → RECRUITING → CLOSING → CLOSED_SUCCESS → ORDERED → SHIPPING → COMPLETED / CLOSING → CLOSED_FAILED / (RECRUITING~SHIPPING) → CANCELED (10-2, 결정 49).
 -- published_at: 운영자가 「모집 시작」을 누른 시각(공개 — 시작 시각 전이면 「예정」 공구). 시작 시각이 되면 상태 워커가 RECRUITING 으로 바꾼다.
 -- min_qty 0 = 선착순. fulfillment: IMMEDIATE 즉시 발송(선착순만) · AFTER_CLOSE 마감 후 발주.
@@ -106,14 +193,8 @@ CREATE TRIGGER trg_shipping_policies_guard BEFORE UPDATE OR DELETE ON shipping_p
 -- revision_no: 마지막 수정 이력 번호(모집 시작 때 1). 주문은 결제 때의 번호를 남긴다.
 CREATE TABLE group_buys (
     id                          bigint        PRIMARY KEY,
+    product_id                  bigint        NOT NULL REFERENCES group_buy_products (id),
     title                       varchar(100)  NOT NULL,
-    product_name                varchar(100)  NOT NULL,
-    summary                     varchar(5000),
-    spec                        varchar(5000),
-    description                 text,
-    normal_price                bigint,
-    normal_price_basis          varchar(20),
-    normal_price_source         varchar(500),
     group_price                 bigint        NOT NULL,
     shipping_policy_code        varchar(30)   NOT NULL,
     shipping_fee                bigint,
@@ -136,7 +217,6 @@ CREATE TABLE group_buys (
     fulfillment                 varchar(12)   NOT NULL,
     ship_planned_at             date,
     ship_within_business_days   integer,
-    withdrawal_restriction      varchar(1000),
     return_policy               varchar(2000),
     status                      varchar(20)   NOT NULL DEFAULT 'DRAFT',
     published_at                timestamptz,
@@ -158,8 +238,7 @@ CREATE TABLE group_buys (
     CONSTRAINT ck_group_buys_fulfillment_min CHECK (fulfillment = 'AFTER_CLOSE' OR min_qty = 0),
     CONSTRAINT ck_group_buys_extension CHECK (extension_mode IN ('DEMAND', 'ALWAYS')),
     CONSTRAINT ck_group_buys_close_reason CHECK (close_reason IS NULL OR close_reason IN ('SOLD_OUT', 'TIME_UP', 'EARLY_CLOSED', 'CANCELED')),
-    CONSTRAINT ck_group_buys_price CHECK (group_price > 0 AND (normal_price IS NULL OR normal_price > 0)),
-    CONSTRAINT ck_group_buys_price_basis CHECK (normal_price_basis IS NULL OR normal_price_basis IN ('OFFICIAL_STORE', 'PREVIOUS_ROUND', 'MARKET', 'PREVIOUS_SALE')),
+    CONSTRAINT ck_group_buys_price CHECK (group_price > 0),
     CONSTRAINT ck_group_buys_qty CHECK (min_qty >= 0 AND max_qty > 0 AND min_qty <= max_qty AND (max_qty_per_user IS NULL OR max_qty_per_user > 0)),
     CONSTRAINT ck_group_buys_counts CHECK (current_qty >= 0 AND reserved_qty >= 0 AND current_qty + reserved_qty <= max_qty AND added_qty >= 0),
     CONSTRAINT ck_group_buys_period CHECK (end_at > start_at AND (extended_until IS NULL OR extended_until > end_at)),
@@ -177,51 +256,22 @@ CREATE TABLE group_buys (
 );
 CREATE UNIQUE INDEX ux_group_buys_round ON group_buys (round_root_id, round_no);
 CREATE INDEX ix_group_buys_status ON group_buys (status, start_at);
+CREATE INDEX ix_group_buys_product ON group_buys (product_id);
 -- 상태 워커: 모집 중 공구의 마감 시각, 집계 중 공구
 CREATE INDEX ix_group_buys_recruiting_end ON group_buys (end_at) WHERE status = 'RECRUITING';
 CREATE INDEX ix_group_buys_draft_start ON group_buys (start_at) WHERE status = 'DRAFT' AND published_at IS NOT NULL;
 
-CREATE TABLE group_buy_images (
-    id           bigint        PRIMARY KEY,
-    group_buy_id bigint        NOT NULL REFERENCES group_buys (id) ON DELETE CASCADE,
-    image_key    varchar(300)  NOT NULL,
-    thumb_key    varchar(300),
-    sort_order   integer       NOT NULL,
-    created_at   timestamptz   NOT NULL
-);
-CREATE UNIQUE INDEX ux_group_buy_images_order ON group_buy_images (group_buy_id, sort_order);
-
--- ── 옵션 축·값·단품(결정 88 — 사용자 결정: 일반 이커머스 구조) ─────────────────────────────────────
--- 축(group_buy_option_axes): 공구마다 0~3개(예 색상·사이즈) · 값(group_buy_option_values): 축마다(예 블랙·화이트 / S·M·L).
-CREATE TABLE group_buy_option_axes (
-    id           bigint       PRIMARY KEY,
-    group_buy_id bigint       NOT NULL REFERENCES group_buys (id) ON DELETE CASCADE,
-    sort_order   integer      NOT NULL,
-    name         varchar(30)  NOT NULL,
-    CONSTRAINT ck_group_buy_option_axes_name CHECK (length(btrim(name)) BETWEEN 1 AND 30)
-);
-CREATE UNIQUE INDEX ux_group_buy_option_axes_order ON group_buy_option_axes (group_buy_id, sort_order);
-CREATE UNIQUE INDEX ux_group_buy_option_axes_name ON group_buy_option_axes (group_buy_id, name);
-
-CREATE TABLE group_buy_option_values (
-    id           bigint       PRIMARY KEY,
-    axis_id      bigint       NOT NULL REFERENCES group_buy_option_axes (id) ON DELETE CASCADE,
-    group_buy_id bigint       NOT NULL,
-    sort_order   integer      NOT NULL,
-    value        varchar(30)  NOT NULL,
-    CONSTRAINT ck_group_buy_option_values_value CHECK (length(btrim(value)) BETWEEN 1 AND 30)
-);
-CREATE UNIQUE INDEX ux_group_buy_option_values_order ON group_buy_option_values (axis_id, sort_order);
-CREATE UNIQUE INDEX ux_group_buy_option_values_value ON group_buy_option_values (axis_id, value);
-
--- 단품(group_buy_skus — 실제 판매 단위): kind MAIN 본 상품(축 값 조합마다 하나, 축이 없으면 하나) / ADDON 추가 구성상품(별개 상품 — 단독 구매 불가).
---   value_ids: MAIN 의 축 값 조합(축 차례대로, 축이 없으면 빈 배열), ADDON 은 빈 배열. name: MAIN 은 「블랙 / M」(축이 없으면 상품 이름), ADDON 은 상품 이름 — 공구 안에서 유일.
+-- 공구 단품(group_buy_skus — 실제 판매 단위, 결정 88·89): product_sku_id 가 가리키는 상품 단품마다 이 공구의 추가금·한도·판매 여부·공급가·수량 열.
+--   kind MAIN = 공구 상품의 단품(조합마다 하나) / ADDON = 다른 상품의 단품을 추가 구성상품으로 연결(단독 구매 불가 — 고시는 그 상품 것).
+--   value_ids·name 은 상품 단품의 사본(MAIN 조합·이름, ADDON 은 빈 배열·「상품 이름」 또는 「상품 이름 (조합)」) — 공구 안에서 유일.
+--   supply_price: 공급가 — 모집 시작 때 모든 단품에 있어야 한다(0 은 명시 입력, 빈 값은 409 GROUP_BUY_SUPPLY_PRICE_MISSING). 회원 응답에는 없다.
 --   가격: MAIN = 공구가 + extra_price, ADDON = addon_price. max_qty null = 단품 한도 없음(MAIN 은 공구 최대만). 한도 없는 단품도 수량 열은 늘 갱신한다(결정 77).
 --   공구 최대·성사 판정·1인 한도는 MAIN 수량만 센다 — 공구 행의 current·reserved = Σ MAIN 단품(결정 88). on_sale: 판매 여부(필요 없는 조합은 끈다).
 CREATE TABLE group_buy_skus (
     id              bigint        PRIMARY KEY,
     group_buy_id    bigint        NOT NULL REFERENCES group_buys (id) ON DELETE CASCADE,
     kind            varchar(10)   NOT NULL,
+    product_sku_id  bigint        NOT NULL REFERENCES group_buy_product_skus (id),
     value_ids       bigint[]      NOT NULL DEFAULT '{}',
     name            varchar(100)  NOT NULL,
     extra_price     bigint        NOT NULL DEFAULT 0,
@@ -231,7 +281,7 @@ CREATE TABLE group_buy_skus (
     current_qty     integer       NOT NULL DEFAULT 0,
     reserved_qty    integer       NOT NULL DEFAULT 0,
     on_sale         boolean       NOT NULL DEFAULT true,
-    image_key       varchar(300),
+    supply_price    bigint,
     sort_order      integer       NOT NULL DEFAULT 0,
     CONSTRAINT ck_group_buy_skus_kind CHECK (kind IN ('MAIN', 'ADDON')),
     CONSTRAINT ck_group_buy_skus_price CHECK ((kind = 'MAIN' AND extra_price >= 0 AND addon_price IS NULL)
@@ -239,20 +289,24 @@ CREATE TABLE group_buy_skus (
     CONSTRAINT ck_group_buy_skus_counts CHECK (current_qty >= 0 AND reserved_qty >= 0 AND (max_qty IS NULL OR (max_qty > 0 AND current_qty + reserved_qty <= max_qty))),
     -- 한도 없는 단품은 처음 수량도 없다(한도 없는 단품에는 단품 ADD·REDUCE 가 없다 — 결정 80)
     CONSTRAINT ck_group_buy_skus_initial CHECK (max_qty IS NOT NULL OR initial_max_qty IS NULL),
-    CONSTRAINT ck_group_buy_skus_name CHECK (length(btrim(name)) BETWEEN 1 AND 100)
+    CONSTRAINT ck_group_buy_skus_name CHECK (length(btrim(name)) BETWEEN 1 AND 100),
+    CONSTRAINT ck_group_buy_skus_supply CHECK (supply_price IS NULL OR supply_price >= 0)
 );
 -- 주문 줄·고시 양식의 단품이 같은 공구 것인지 보는 복합 FK 의 대상(결정 66)
 CREATE UNIQUE INDEX ux_group_buy_skus_group ON group_buy_skus (id, group_buy_id);
 CREATE UNIQUE INDEX ux_group_buy_skus_name ON group_buy_skus (group_buy_id, name);
+CREATE UNIQUE INDEX ux_group_buy_skus_product_sku ON group_buy_skus (group_buy_id, product_sku_id);
+CREATE INDEX ix_group_buy_skus_product_sku ON group_buy_skus (product_sku_id);
 -- 축 값 조합마다 MAIN 단품 하나
 CREATE UNIQUE INDEX ux_group_buy_skus_combination ON group_buy_skus (group_buy_id, value_ids) WHERE kind = 'MAIN';
 
--- 수정 이력(표시·광고 기록 6개월 — 10-2, 시행령 제6조): 설명·이미지·수량 사본(추가 입고도 표시 기록 — 계약 「마이그레이션 계획」)
+-- 수정 이력(표시·광고 기록 6개월 — 10-2, 시행령 제6조): 상품 내용(설명·이미지·고시·단품 이름 — 결정 89)·수량 사본(추가 입고도 표시 기록 — 계약 「마이그레이션 계획」)
 CREATE TABLE group_buy_revisions (
     id             bigint        PRIMARY KEY,
     group_buy_id   bigint        NOT NULL REFERENCES group_buys (id) ON DELETE CASCADE,
     revision_no    integer       NOT NULL,
     title          varchar(100)  NOT NULL,
+    product_name   varchar(100)  NOT NULL,
     summary        varchar(5000),
     spec           varchar(5000),
     description    text,
@@ -271,13 +325,14 @@ CREATE UNIQUE INDEX ux_group_buy_revisions_no ON group_buy_revisions (group_buy_
 CREATE INDEX ix_group_buy_revisions_created ON group_buy_revisions (created_at);
 
 -- ── 상품정보제공고시 양식(결정 87 — 공정위 「전자상거래 등에서의 상품 등의 정보제공에 관한 고시」 Ⅲ-1 품목별 정보) ─────────────────
--- 양식(group_buy_notices): 공구마다 여러 장 — 차례·품목 코드(카탈로그 groupbuy/notice-catalog-<버전>.json 의 code)·제목(예 「본체」·「충전기」)·카탈로그 버전(만든 때 버전 고정).
--- 적용 단품(group_buy_notice_skus): 비면 그 양식은 공구 전체 = 기본 상품(목록에 없는 MAIN 단품을 덮는다 — 추가 구성상품은 덮지 않는다, 결정 88). 한 단품은 양식 하나에만(유일 sku_id).
+-- 양식(group_buy_notices): 상품마다 여러 장(결정 89 — 고시는 상품에 붙는다) — 차례·품목 코드(카탈로그 groupbuy/notice-catalog-<버전>.json 의 code)·제목·카탈로그 버전(만든 때 버전 고정).
+-- 적용 단품(group_buy_notice_skus — 상품 단품): 비면 그 양식은 상품 전체 = 기본 상품(목록에 없는 상품 단품을 덮는다). 한 단품은 양식 하나에만(유일 product_sku_id).
+-- 추가 구성상품은 다른 상품이라 그 상품의 양식이 따로 필요하다(결정 88).
 -- 값(group_buy_notice_values): 항목마다 「값」 또는 「제공 불가 + 사유」(일반원칙 ③ — 빈 항목 금지는 모집 시작 때 검사, 제공 불가에 사유가 없는 줄은 DB 가 막는다).
 --   custom = true 는 판매자 추가 항목(사용자 지시 2026-10-28): 항목 키 없이 이름(1~40자)·내용(1~1,000자 평문)·차례, 양식당 20개까지(앱), 모집 시작 완성 검사 대상 아님.
 CREATE TABLE group_buy_notices (
     id              bigint       PRIMARY KEY,
-    group_buy_id    bigint       NOT NULL REFERENCES group_buys (id) ON DELETE CASCADE,
+    product_id      bigint       NOT NULL REFERENCES group_buy_products (id) ON DELETE CASCADE,
     sort_order      integer      NOT NULL,
     category_code   varchar(40)  NOT NULL,
     title           varchar(60)  NOT NULL,
@@ -286,20 +341,20 @@ CREATE TABLE group_buy_notices (
     updated_at      timestamptz  NOT NULL,
     CONSTRAINT ck_group_buy_notices_code CHECK (category_code ~ '^[A-Z][A-Z0-9_]{1,39}$'),
     CONSTRAINT ck_group_buy_notices_title CHECK (length(btrim(title)) BETWEEN 1 AND 60),
-    CONSTRAINT ux_group_buy_notices_group UNIQUE (id, group_buy_id)
+    CONSTRAINT ux_group_buy_notices_product UNIQUE (id, product_id)
 );
-CREATE UNIQUE INDEX ux_group_buy_notices_order ON group_buy_notices (group_buy_id, sort_order);
+CREATE UNIQUE INDEX ux_group_buy_notices_order ON group_buy_notices (product_id, sort_order);
 
 CREATE TABLE group_buy_notice_skus (
-    notice_id    bigint  NOT NULL,
-    group_buy_id bigint  NOT NULL,
-    sku_id       bigint  NOT NULL,
-    PRIMARY KEY (notice_id, sku_id),
-    CONSTRAINT fk_gbns_notice FOREIGN KEY (notice_id, group_buy_id) REFERENCES group_buy_notices (id, group_buy_id) ON DELETE CASCADE,
-    CONSTRAINT fk_gbns_sku FOREIGN KEY (sku_id, group_buy_id) REFERENCES group_buy_skus (id, group_buy_id) ON DELETE CASCADE
+    notice_id      bigint  NOT NULL,
+    product_id     bigint  NOT NULL,
+    product_sku_id bigint  NOT NULL,
+    PRIMARY KEY (notice_id, product_sku_id),
+    CONSTRAINT fk_gbns_notice FOREIGN KEY (notice_id, product_id) REFERENCES group_buy_notices (id, product_id) ON DELETE CASCADE,
+    CONSTRAINT fk_gbns_sku FOREIGN KEY (product_sku_id, product_id) REFERENCES group_buy_product_skus (id, product_id) ON DELETE CASCADE
 );
 -- 한 단품은 양식 하나에만
-CREATE UNIQUE INDEX ux_gbns_sku ON group_buy_notice_skus (sku_id);
+CREATE UNIQUE INDEX ux_gbns_sku ON group_buy_notice_skus (product_sku_id);
 
 CREATE TABLE group_buy_notice_values (
     id                 bigint         PRIMARY KEY,
