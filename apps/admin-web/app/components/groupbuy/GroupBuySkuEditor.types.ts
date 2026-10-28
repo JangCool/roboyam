@@ -19,10 +19,12 @@ export interface GroupBuyAxisRow {
     values: GroupBuyAxisValueRow[];
 }
 
-/** MAIN 단품 한 줄 — 축 값 조합 하나(축이 없으면 `valueKeys` 빈 줄 하나). 키는 `main:` + 값 키들(조합이 같으면 줄을 살린다) */
+/** 공구 MAIN 단품 한 줄 — 상품 단품 하나(키 = `main:` + 상품 단품 ID). 이름은 상품 단품 이름(읽기 전용) */
 export interface GroupBuyMainSkuRow {
     key: string;
     id: string | null;
+    /** 상품 단품 이름(옵션 없는 단품 하나면 빈 글자 — 상품 이름으로 보인다) */
+    name: string;
     /** 상품 단품(결정 89 — 공구는 상품 단품마다 한 줄, 상품 화면에서 새로 만든 조합은 null) */
     productSkuId: string | null;
     /** 축 차례의 값 키 */

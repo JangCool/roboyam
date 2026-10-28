@@ -874,4 +874,10 @@ export default {
     pskuNameBlank: 'Enter a name or option values.',
     pskuNameRepeated: 'Another SKU has the same name.',
     pskuValuesRepeated: 'Another SKU has the same option values.',
+    // 공구 단품 설정 표
+    skuSettingsHelp: 'SKUs come from the product — here you set only this group buy’s extra price, max quantity, supply price and on-sale.',
+    skuEditOnProduct: 'Change SKUs on the product page',
+    skuPickProductFirst: 'Pick a product to see its SKUs here.',
+    skuName: 'SKU',
+    bulkAllSkus: 'Apply to all SKUs',
 };

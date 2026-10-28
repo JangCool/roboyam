@@ -874,4 +874,10 @@ export default {
     pskuNameBlank: '이름이나 옵션 값을 넣어 주세요.',
     pskuNameRepeated: '같은 이름의 단품이 있어요.',
     pskuValuesRepeated: '옵션 값이 같은 단품이 있어요.',
+    // 공구 단품 설정 표
+    skuSettingsHelp: '단품은 상품에서 와요 — 여기서는 이 공구의 추가금·최대 수량·공급가·판매 여부만 정해요.',
+    skuEditOnProduct: '단품을 바꾸려면 상품 화면에서',
+    skuPickProductFirst: '상품을 고르면 그 상품의 단품이 여기 나와요.',
+    skuName: '단품',
+    bulkAllSkus: '모든 단품에 한 번에 넣기',
 };

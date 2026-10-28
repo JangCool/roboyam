@@ -214,7 +214,7 @@
                 <!-- ④ 옵션(축·조합 = MAIN 단품) — 결정 88 -->
                 <AppGadget :title="t('groupBuy.secOptions')" anchor="gb-options" :invalid="fe('axes') || fe('skus') || fe('options') ? 1 : 0">
                     <template v-if="!draft" #title-extra><Tag :value="t('groupBuy.locked')" severity="secondary" /></template>
-                    <GroupBuyAxesEditor v-model:axes="form.axes" v-model:mains="form.mains" :group-price="form.groupPrice" :locked="!draft" :disabled="!canManage || saving" :errors="serverErrors" axes-locked :show-supply="canSeeSupply" :supply-editable="canPrice" />
+                    <GroupBuySkuSettingsEditor v-model:mains="form.mains" :product-id="form.productId" :product-name="form.productName" :group-price="form.groupPrice" :locked="!draft" :disabled="!canManage || saving" :errors="serverErrors" :show-supply="canSeeSupply" :supply-editable="canPrice" />
                 </AppGadget>
 
                 <!-- ④-2 추가 구성상품(ADDON 단품) — 결정 88 -->
@@ -551,7 +551,7 @@ function emptyForm(): EditForm {
 
 /** 축 없는 단품 하나(공구 전체) */
 function singleMain(): GroupBuyMainSkuRow {
-    return { key: 'main:', id: null, productSkuId: null, valueKeys: [], extraPrice: '0', maxQty: '', onSale: true, supplyPrice: '', currentQty: 0, reservedQty: 0 };
+    return { key: 'main:', id: null, name: '', productSkuId: null, valueKeys: [], extraPrice: '0', maxQty: '', onSale: true, supplyPrice: '', currentQty: 0, reservedQty: 0 };
 }
 
 /** 응답 단품 → 편집 줄. 불러온 축·값·단품의 줄 키는 서버 ID(조합 줄 키 = `main:` + 값 ID 들 — 편집기와 같은 규칙) */
@@ -559,7 +559,7 @@ function skuRowsOf(d: GroupBuyDetail): Pick<EditForm, 'axes' | 'mains' | 'addons
     const axes = d.axes.map((a) => ({ key: a.id, id: a.id, name: a.name, values: a.values.map((v) => ({ key: v.id, id: v.id, name: v.name })) }));
     const mains = d.skus
         .filter((s) => s.kind === 'MAIN')
-        .map((s) => ({ key: mainKeyOf(s), id: s.skuId, productSkuId: s.productSkuId, valueKeys: [...s.valueIds], extraPrice: String(s.extraPrice), maxQty: s.maxQty === null ? '' : String(s.maxQty), onSale: s.onSale, supplyPrice: s.supplyPrice === null ? '' : String(s.supplyPrice), currentQty: s.currentQty, reservedQty: s.reservedQty }));
+        .map((s) => ({ key: mainKeyOf(s), id: s.skuId, name: s.name, productSkuId: s.productSkuId, valueKeys: [...s.valueIds], extraPrice: String(s.extraPrice), maxQty: s.maxQty === null ? '' : String(s.maxQty), onSale: s.onSale, supplyPrice: s.supplyPrice === null ? '' : String(s.supplyPrice), currentQty: s.currentQty, reservedQty: s.reservedQty }));
     const addons = d.skus
         .filter((s) => s.kind === 'ADDON')
         .map((s) => ({
@@ -579,14 +579,14 @@ function skuRowsOf(d: GroupBuyDetail): Pick<EditForm, 'axes' | 'mains' | 'addons
 
 /** 응답 단품의 편집 줄 키 — MAIN 은 `main:` + 값 ID 들(편집기의 조합 키와 같은 규칙), ADDON 은 단품 ID */
 function mainKeyOf(s: GroupBuySku): string {
-    return s.kind === 'MAIN' ? `main:${s.valueIds.join('|')}` : s.skuId;
+    return s.kind === 'MAIN' ? `main:${s.productSkuId ?? s.skuId}` : s.skuId;
 }
 
 /** 편집 중 단품 목록(고시 적용 대상 · 저장 이름) — MAIN 이름은 지금 축 값으로 만든다. 추가 구성상품은 늘 판매(저장 칸 없음) */
 function skuRefsOf(f: Pick<EditForm, 'axes' | 'mains' | 'addons'>): GroupBuySkuRef[] {
     const valueName = new Map(f.axes.flatMap((a) => a.values.map((v) => [v.key, v.name] as const)));
     return [
-        ...f.mains.map((m): GroupBuySkuRef => ({ key: m.key, kind: 'MAIN', name: UtilGroupBuy.skuMainName(m.valueKeys.map((k) => valueName.get(k) ?? '')), onSale: m.onSale })),
+        ...f.mains.map((m): GroupBuySkuRef => ({ key: m.key, kind: 'MAIN', name: m.name, onSale: m.onSale })),
         ...f.addons.map((a): GroupBuySkuRef => ({ key: a.key, kind: 'ADDON', name: a.name.trim(), onSale: true })),
     ];
 }
@@ -784,7 +784,7 @@ async function loadProducts(): Promise<void> {
 /** 상품의 설명·이미지·고시·옵션 축·단품을 공구 칸에 채운다(단품별 공구 설정은 새로 — 공급가는 기본 공급가 복사) */
 function fillFromProduct(p: GroupBuyProductDetail): void {
     const axes = p.axes.map((a) => ({ key: a.id, id: null, name: a.name, values: a.values.map((v) => ({ key: v.id, id: null, name: v.name })) }));
-    const mains: GroupBuyMainSkuRow[] = p.skus.map((s) => ({ key: `main:${s.valueIds.join('|')}`, id: null, productSkuId: s.skuId, valueKeys: [...s.valueIds], extraPrice: '0', maxQty: '', onSale: s.onSale, supplyPrice: s.defaultSupplyPrice === null ? '' : String(s.defaultSupplyPrice), currentQty: 0, reservedQty: 0 }));
+    const mains: GroupBuyMainSkuRow[] = p.skus.map((s) => ({ key: `main:${s.skuId}`, id: null, name: p.skus.length > 1 || p.optionNames.length ? s.name : '', productSkuId: s.skuId, valueKeys: [...s.valueIds], extraPrice: '0', maxQty: '', onSale: s.onSale, supplyPrice: s.defaultSupplyPrice === null ? '' : String(s.defaultSupplyPrice), currentQty: 0, reservedQty: 0 }));
     const keyOfName = new Map(p.skus.map((s, i) => [s.name, mains[i]!.key]));
     form.value = {
         ...form.value,
