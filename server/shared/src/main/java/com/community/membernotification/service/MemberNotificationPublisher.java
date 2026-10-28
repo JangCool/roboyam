@@ -477,6 +477,43 @@ public class MemberNotificationPublisher {
     }
 
     /**
+     * 공동구매 알림(커머스 2b-4 — {@code GROUP_BUY}). 덧붙임 {@code kind}·{@code groupBuyId}·{@code title}·{@code amount}·{@code note}·{@code path}. 끌 수 없는 거래 알림.
+     * 업무 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 업무를 깨지 않는다).
+     *
+     * @param kind  종류(번들 {@code member.notification.GROUP_BUY.kind.<kind>})
+     * @param note  주문 번호·날짜 같은 덧붙임(없으면 null)
+     * @param path  누르면 갈 사이트 안 경로(메일 버튼도 같은 곳)
+     * @param email 회원 알림 메일도 낼까(회원 이벤트 설정의 이메일이 켜져 있을 때만 — 꼭 가야 하는 메일은 커머스 메일 대기열이 따로 보낸다)
+     */
+    public int groupBuy(long userId, String kind, long groupBuyId, String title, long amount, String note, String path, boolean email) {
+        return isolated.run("member-notification:group-buy", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.GROUP_BUY, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(title, SNAPSHOT_MAX);
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("kind", kind);
+                payload.put("groupBuyId", Long.toString(groupBuyId));
+                payload.put("title", name);
+                payload.put("amount", amount);
+                if (note != null) {
+                    payload.put("note", note);
+                }
+                payload.put("path", path);
+                writer.insert(ids.nextId(), userId, MemberNotificationType.GROUP_BUY.name(), null, null, null, null, MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (email && on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.groupBuy(kind, name, amount, note), null, null, path);
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
      * 정지 중에 낸 포인트 상점 환불 신청이 결정됐다(V87, commerce-stage1-contract 「1-2 정지 중 환불 신청」) — 수락 {@code POINT_SHOP_REFUND_APPROVED}(돌려준 포인트) ·
      * 거절 {@code POINT_SHOP_REFUND_REJECTED}(사유). 끌 수 없는 처리 알림, 덧붙임 {@code requestId}·{@code purchaseId}·{@code itemName}·{@code points}|{@code reason}. 누르면 내 아이템.
      * 결정 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 결정을 깨지 않는다).

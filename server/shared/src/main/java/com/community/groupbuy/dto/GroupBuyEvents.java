@@ -56,6 +56,14 @@ public final class GroupBuyEvents {
     public record RefundResolvedManually(long refundId, long participationId, long userId, String method) {
     }
 
+    /** 모집이 연장됐다(DEMAND·ALWAYS — 관심 신청자에게 「연장」 알림, 2b-4) */
+    public record Extended(long groupBuyId, Instant until) {
+    }
+
+    /** 발송 지연을 공지했다(결정 52 — 발송 전 주문 전원에게 앱 + 메일, 2b-4) */
+    public record DelayAnnounced(long groupBuyId, java.time.LocalDate newPlannedAt, String reason) {
+    }
+
     /** 공구가 마감·판정·중단됐다 */
     public record StatusChanged(long groupBuyId, String from, String to, String reason) {
     }

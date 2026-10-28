@@ -1,5 +1,6 @@
 package com.community.payment.controller;
 
+import com.community.payment.dto.request.PaymentManualCancelRequest;
 import com.community.payment.dto.request.PaymentReasonRequest;
 import com.community.payment.dto.response.PaymentAnomalyPageView;
 import com.community.payment.dto.response.PaymentCancelView;
@@ -97,10 +98,13 @@ public class PaymentAdminController {
         return noStore(service.retryCancel(actor, id, body));
     }
 
-    /** 멈춘 취소 수동 처리 완료(GAVE_UP → MANUAL, 취소 누계 불변) — 409 {@code PAYMENT_CANCEL_NOT_GAVE_UP} */
+    /**
+     * 멈춘 취소 수동 처리 완료(GAVE_UP → MANUAL) — 409 {@code PAYMENT_CANCEL_NOT_GAVE_UP}. 처리 방법(공구 결정 74 — 2b-4): {@code CONSOLE_CANCEL} 이면 포트원 취소 ID 를 붙이고
+     * 취소 누계까지, {@code BANK_TRANSFER} 면 누계 그대로(계좌 송금), 비우면 표시만.
+     */
     @RequirePermission(Permission.COMMERCE_RECONCILE_MANAGE)
     @PostMapping("/payment-cancels/{id}/manual")
-    public ResponseEntity<ApiResponse<PaymentCancelView>> manualCancel(@PathVariable String id, @RequestBody(required = false) PaymentReasonRequest body,
+    public ResponseEntity<ApiResponse<PaymentCancelView>> manualCancel(@PathVariable String id, @RequestBody(required = false) PaymentManualCancelRequest body,
                                                                        AdminActor actor) {
         return noStore(service.manualCancel(actor, id, body));
     }

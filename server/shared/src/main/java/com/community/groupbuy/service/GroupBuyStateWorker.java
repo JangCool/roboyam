@@ -114,6 +114,7 @@ public class GroupBuyStateWorker {
                 Instant until = g.endAt().plus(Duration.ofMinutes(settings.extensionMinutes()));
                 if (now.isBefore(until) && groups.extend(g.id(), until, now)) {
                     groups.insertStatusHistory(ids.nextId(), g.id(), GroupBuyStatus.RECRUITING, GroupBuyStatus.RECRUITING, "EXTENDED", null, now);
+                    events.publishEvent(new GroupBuyEvents.Extended(g.id(), until));
                     return true;
                 }
             }

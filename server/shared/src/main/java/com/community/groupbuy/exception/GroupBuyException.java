@@ -62,6 +62,9 @@ public class GroupBuyException extends CommonException {
     public static final String CARRIER_IN_USE = "COMMERCE_CARRIER_IN_USE";
     public static final String SHIPPING_POLICY_NOT_FOUND = "SHIPPING_POLICY_NOT_FOUND";
     public static final String SHIPPING_POLICY_CONFLICT = "SHIPPING_POLICY_CONFLICT";
+    // 2b-4 설정·관리자 API
+    public static final String SHIPPING_POLICY_STARTED = "COMMERCE_SHIPPING_POLICY_STARTED";
+    public static final String CATEGORY_IN_USE = "GROUP_BUY_CATEGORY_IN_USE";
 
     private GroupBuyException(HttpStatus status, String code) {
         super(status, code, new MessageRef("error." + code));
@@ -209,6 +212,16 @@ public class GroupBuyException extends CommonException {
         return new GroupBuyException(HttpStatus.CONFLICT, SHIPPING_POLICY_CONFLICT);
     }
     // ── 2b-3 발송·요청·환불 ────────────────────────────────────────────────
+
+    /** 상품·아래 단이 있는 카테고리는 지울 수 없다(2b-4) — {@code name} */
+    public static GroupBuyException categoryInUse(String name) {
+        return new GroupBuyException(HttpStatus.CONFLICT, CATEGORY_IN_USE).with("name", name);
+    }
+
+    /** 적용이 시작된 배송비 정책 줄은 지울 수 없다(2b-4) */
+    public static GroupBuyException shippingPolicyStarted() {
+        return new GroupBuyException(HttpStatus.CONFLICT, SHIPPING_POLICY_STARTED);
+    }
 
     public static GroupBuyException requestNotFound() {
         return new GroupBuyException(HttpStatus.NOT_FOUND, REQUEST_NOT_FOUND);

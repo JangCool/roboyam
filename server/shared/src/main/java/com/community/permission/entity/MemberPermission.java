@@ -24,7 +24,8 @@ public enum MemberPermission {
     /** 소모임 개설 신청(V90 — 글쓰기를 가진 역할에 같이 줬다) */
     GROUP_CREATE("group.create", MemberPermissionGroup.USE, true, false),
     HOTDEAL_WRITE("hotdeal.write", MemberPermissionGroup.USE, false, false),
-    COMMERCE_PURCHASE("commerce.purchase", MemberPermissionGroup.USE, false, false),
+    /** 공구 주문(10-5 자격 — 2b-4 에서 기능이 생겼다, V104 가 pointshop.use 를 가진 역할에 같이 줬다) */
+    COMMERCE_PURCHASE("commerce.purchase", MemberPermissionGroup.USE, true, false),
     AD_APPLY("ad.apply", MemberPermissionGroup.USE, false, false),
     BOARD_POST_HIDE("board.post.hide", MemberPermissionGroup.BOARD, true, false),
     BOARD_POST_DELETE("board.post.delete", MemberPermissionGroup.BOARD, true, false),

@@ -197,6 +197,28 @@ public class BuiltinMessages {
                             + p(text(new MessageRef("mail.emailChangeNotice.greeting", "{{nickname}}", "{{siteName}}", "{{newEmail}}"), locale))
                             + p(text("mail.emailChangeNotice.guide", locale))
                             + p(text("mail.emailChangeNotice.warn", locale))};
+            case GROUP_BUY_ORDER_CONFIRMED -> new String[] {text(new MessageRef("mail.groupBuyOrder.subject", "{{orderNo}}"), locale),
+                    strong(text("mail.groupBuyOrder.title", locale))
+                            + p(text(new MessageRef("mail.groupBuyOrder.greeting", "{{recipientName}}", "{{groupBuyTitle}}", "{{orderNo}}"), locale))
+                            + p(text(new MessageRef("mail.groupBuyOrder.items", "{{items}}"), locale))
+                            + p(text(new MessageRef("mail.groupBuyOrder.amount", "{{amount}}", "{{shippingFee}}"), locale))
+                            + p(text(new MessageRef("mail.groupBuyOrder.terms", "{{saleTerms}}"), locale))
+                            + p(text(new MessageRef("mail.groupBuyOrder.ship", "{{shipPlan}}"), locale))
+                            + p(text(new MessageRef("mail.groupBuyOrder.withdrawal", "{{withdrawal}}"), locale))
+                            + p(text("mail.groupBuyOrder.refundDelay", locale))
+                            + p(text("mail.groupBuyOrder.dispute", locale))
+                            + p(text(new MessageRef("mail.groupBuyOrder.seller", "{{seller}}"), locale))
+                            + button("orderLink", text("mail.groupBuyOrder.button", locale))};
+            case GROUP_BUY_REFUND_COMPLETED -> new String[] {text(new MessageRef("mail.groupBuyRefund.subject", "{{orderNo}}"), locale),
+                    strong(text("mail.groupBuyRefund.title", locale))
+                            + p(text(new MessageRef("mail.groupBuyRefund.body", "{{recipientName}}", "{{groupBuyTitle}}", "{{amount}}", "{{refundMethod}}"), locale))
+                            + p(text("mail.groupBuyRefund.card", locale))
+                            + button("orderLink", text("mail.groupBuyOrder.button", locale))};
+            case GROUP_BUY_ORDER_NOTICE -> new String[] {text(new MessageRef("mail.groupBuyNotice.subject", "{{orderNo}}"), locale),
+                    strong(text("mail.groupBuyNotice.title", locale))
+                            + p(text(new MessageRef("mail.groupBuyNotice.body", "{{recipientName}}", "{{groupBuyTitle}}"), locale))
+                            + p("{{detail}}")
+                            + button("orderLink", text("mail.groupBuyOrder.button", locale))};
         };
     }
 

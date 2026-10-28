@@ -144,7 +144,13 @@ public enum BatchCatalog implements BatchDefinition {
     PAYMENT_RECONCILIATION("payment-reconciliation", BatchCategory.SYSTEM, BatchSource.JAVA, "0 50 4 * * *", true),
 
     /** 받은 지 보관 기간(기본 90일)이 지난 결제 웹훅 수신 기록 삭제 — DB 배치, 기본 매일 04:45 KST({@code R__batch_31_payment_webhook_log_cleanup.sql}, commerce.md 8-1·15-5) */
-    PAYMENT_WEBHOOK_LOG_CLEANUP("payment-webhook-log-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true);
+    PAYMENT_WEBHOOK_LOG_CLEANUP("payment-webhook-log-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
+     * 공구 개인정보 보관 정리 — 배송지(배송완료·취소 뒤 180일, 만료 주문 30일 — 공구 설정) · 다음 판이 생긴 지 180일 지난 수정 이력 · 끝난 지 3년 지난 요청의 회원 사유 글·사진.
+     * DB 배치, 기본 매일 04:35 KST({@code R__batch_32_groupbuy_privacy_cleanup.sql}, commerce.md 10-9, 공구 계약 결정 34)
+     */
+    GROUPBUY_PRIVACY_CLEANUP("groupbuy-privacy-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true);
 
     private static final Pattern PROCEDURE_NAME = Pattern.compile("[a-z][a-z0-9_]{0,62}");
 

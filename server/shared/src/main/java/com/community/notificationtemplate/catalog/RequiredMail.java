@@ -18,7 +18,12 @@ public enum RequiredMail {
     MEMBER_PASSWORD_RESET(MessageAudience.MEMBER, true),
     MEMBER_PASSWORD_SOCIAL(MessageAudience.MEMBER, true),
     MEMBER_EMAIL_CHANGE(MessageAudience.MEMBER, true),
-    MEMBER_EMAIL_CHANGE_NOTICE(MessageAudience.MEMBER, true);
+    MEMBER_EMAIL_CHANGE_NOTICE(MessageAudience.MEMBER, true),
+    // 공동구매(커머스 2b-4 — 커머스 메일 대기열로 나간다, 회원이 끌 수 없다): 주문 확인(계약 내용 통지 — 전자상거래법 제13조 ②) · 환불 완료 · 주문 안내(발송 지연 통지 제15조 ② ·
+    // 공급 불가 선택 · 자동 취소 등)
+    GROUP_BUY_ORDER_CONFIRMED(MessageAudience.MEMBER, false),
+    GROUP_BUY_REFUND_COMPLETED(MessageAudience.MEMBER, false),
+    GROUP_BUY_ORDER_NOTICE(MessageAudience.MEMBER, false);
 
     private final MessageAudience audience;
     private final boolean security;

@@ -101,6 +101,40 @@ public class GroupBuyAdminRefundService {
         }
     }
 
+    /** 운영 환불 미리 보기(2b-4 — 화면 확인 창의 숫자) */
+    public record Preview(long itemRefund, long shippingRefund, long reshippingFee, long total, long remainingAfter, long adminTotalAfter, long threshold,
+                          boolean needsLarge) {
+    }
+
+    /**
+     * 운영 환불 미리 보기 — 막는 조건(배송 중·열린 요청·대사 이슈·남은 결제액)과 계산은 {@link #refund} 와 같고 아무것도 바꾸지 않는다.
+     *
+     * @param largeAllowed 부르는 운영자가 고액 권한을 가졌는가(없고 누계가 문턱에 닿으면 {@code needsLarge})
+     */
+    public Preview preview(long participationId, List<OrderLine> lines, Long amount, boolean sellerFault, boolean largeAllowed) {
+        ParticipationRow p = participations.find(participationId).orElseThrow(GroupBuyException::orderNotFound);
+        Plan plan = plan(p, lines, amount, sellerFault);
+        long item = plan.amount();
+        long shipping = 0;
+        long reshipping = 0;
+        if ("PRE_SHIPPING".equals(plan.kind())) {
+            GroupBuyRow g = groups.find(p.groupBuyId()).orElseThrow();
+            List<ItemRow> items = participations.items(p.id());
+            List<GroupBuyRefundCalculator.Held> held = items.stream().map(i -> new GroupBuyRefundCalculator.Held(i.id(), i.skuId(), i.main(), i.unitPrice(), i.heldQty(), 0))
+                    .toList();
+            List<GroupBuyRefundCalculator.Line> calcLines = plan.lines().entrySet().stream().filter(e -> e.getValue() > 0)
+                    .map(e -> new GroupBuyRefundCalculator.Line(e.getKey(), e.getValue(), null)).toList();
+            GroupBuyRefundCalculator.Result r = GroupBuyRefundCalculator.cancel(GroupBuyRefundCalculator.order(p), GroupBuyRefundCalculator.policy(g), held, calcLines,
+                    !sellerFault);
+            item = r.itemRefund();
+            shipping = r.shippingRefund() + r.reshippingRefund();
+            reshipping = r.reshippingFee();
+        }
+        long threshold = groups.settings().largeRefundThreshold();
+        long after = refundStore.operatorAmountTotal(p.id()) + plan.amount();
+        return new Preview(item, shipping, reshipping, plan.amount(), p.remainingCash() - plan.amount(), after, threshold, threshold > 0 && !largeAllowed && after >= threshold);
+    }
+
     /** 승인 대기 승인(고액 권한자) — 그때의 상태로 다시 확인하고 넣는다 */
     public Result approvePending(long pendingId, long operatorId, String ip) {
         return tx.execute(status -> {
