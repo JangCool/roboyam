@@ -224,13 +224,57 @@ CREATE TABLE group_buy_revisions (
     max_qty        integer       NOT NULL,
     added_qty      integer       NOT NULL,
     option_max     jsonb         NOT NULL DEFAULT '[]',
+    notices        jsonb         NOT NULL DEFAULT '[]',
     change_kind    varchar(20)   NOT NULL,
     edited_by      bigint,
     created_at     timestamptz   NOT NULL,
-    CONSTRAINT ck_group_buy_revisions_kind CHECK (change_kind IN ('START', 'CONTENT', 'STOCK_ADD', 'STOCK_REDUCE', 'SHIP_DELAY'))
+    CONSTRAINT ck_group_buy_revisions_kind CHECK (change_kind IN ('START', 'CONTENT', 'STOCK_ADD', 'STOCK_REDUCE', 'SHIP_DELAY', 'NOTICE'))
 );
 CREATE UNIQUE INDEX ux_group_buy_revisions_no ON group_buy_revisions (group_buy_id, revision_no);
 CREATE INDEX ix_group_buy_revisions_created ON group_buy_revisions (created_at);
+
+-- ── 상품정보제공고시 양식(결정 87 — 공정위 「전자상거래 등에서의 상품 등의 정보제공에 관한 고시」 Ⅲ-1 품목별 정보) ─────────────────
+-- 양식(group_buy_notices): 공구마다 여러 장 — 차례·품목 코드(카탈로그 groupbuy/notice-catalog-<버전>.json 의 code)·제목(예 「본체」·「충전기」)·카탈로그 버전(만든 때 버전 고정).
+-- 적용 옵션(group_buy_notice_options): 비면 그 양식은 공구 전체 = 기본 상품(목록에 없는 옵션도 덮는다). 한 옵션은 양식 하나에만(유일 option_id).
+-- 값(group_buy_notice_values): 항목마다 「값」 또는 「제공 불가 + 사유」(일반원칙 ③ — 빈 항목 금지는 모집 시작 때 검사, 제공 불가에 사유가 없는 줄은 DB 가 막는다).
+CREATE TABLE group_buy_notices (
+    id              bigint       PRIMARY KEY,
+    group_buy_id    bigint       NOT NULL REFERENCES group_buys (id) ON DELETE CASCADE,
+    sort_order      integer      NOT NULL,
+    category_code   varchar(40)  NOT NULL,
+    title           varchar(60)  NOT NULL,
+    catalog_version varchar(20)  NOT NULL,
+    created_at      timestamptz  NOT NULL,
+    updated_at      timestamptz  NOT NULL,
+    CONSTRAINT ck_group_buy_notices_code CHECK (category_code ~ '^[A-Z][A-Z0-9_]{1,39}$'),
+    CONSTRAINT ck_group_buy_notices_title CHECK (length(btrim(title)) BETWEEN 1 AND 60),
+    CONSTRAINT ux_group_buy_notices_group UNIQUE (id, group_buy_id)
+);
+CREATE UNIQUE INDEX ux_group_buy_notices_order ON group_buy_notices (group_buy_id, sort_order);
+
+CREATE TABLE group_buy_notice_options (
+    notice_id    bigint  NOT NULL,
+    group_buy_id bigint  NOT NULL,
+    option_id    bigint  NOT NULL,
+    PRIMARY KEY (notice_id, option_id),
+    CONSTRAINT fk_gbno_notice FOREIGN KEY (notice_id, group_buy_id) REFERENCES group_buy_notices (id, group_buy_id) ON DELETE CASCADE,
+    CONSTRAINT fk_gbno_option FOREIGN KEY (option_id, group_buy_id) REFERENCES group_buy_options (id, group_buy_id) ON DELETE CASCADE
+);
+-- 한 옵션은 양식 하나에만
+CREATE UNIQUE INDEX ux_gbno_option ON group_buy_notice_options (option_id);
+
+CREATE TABLE group_buy_notice_values (
+    notice_id          bigint         NOT NULL REFERENCES group_buy_notices (id) ON DELETE CASCADE,
+    item_key           varchar(60)    NOT NULL,
+    value              varchar(2000),
+    unavailable        boolean        NOT NULL DEFAULT false,
+    unavailable_reason varchar(1000),
+    PRIMARY KEY (notice_id, item_key),
+    CONSTRAINT ck_gbnv_key CHECK (item_key ~ '^[a-z][a-z0-9_]{0,59}$'),
+    -- 제공 불가면 구체적 사유가 있어야 하고 값은 두지 않는다(일반원칙 ③)
+    CONSTRAINT ck_gbnv_unavailable CHECK ((NOT unavailable AND unavailable_reason IS NULL)
+        OR (unavailable AND value IS NULL AND unavailable_reason IS NOT NULL AND length(btrim(unavailable_reason)) > 0))
+);
 
 CREATE TABLE group_buy_status_history (
     id           bigint       PRIMARY KEY,

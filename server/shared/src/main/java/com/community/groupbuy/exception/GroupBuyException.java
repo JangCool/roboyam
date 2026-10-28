@@ -28,6 +28,7 @@ public class GroupBuyException extends CommonException {
     public static final String INVALID_STATE = "GROUP_BUY_INVALID_STATE";
     public static final String VERSION_CONFLICT = "GROUP_BUY_VERSION_CONFLICT";
     public static final String OPTION_UNLIMITED = "GROUP_BUY_OPTION_UNLIMITED";
+    public static final String NOTICE_INCOMPLETE = "GROUP_BUY_NOTICE_INCOMPLETE";
     public static final String SHIPPING_POLICY_NOT_FOUND = "SHIPPING_POLICY_NOT_FOUND";
     public static final String SHIPPING_POLICY_CONFLICT = "SHIPPING_POLICY_CONFLICT";
 
@@ -117,6 +118,15 @@ public class GroupBuyException extends CommonException {
     /** 한도 없는 옵션에 옵션 추가 입고·줄이기 — 공구 단위로 한다(결정 80) */
     public static GroupBuyException optionUnlimited() {
         return new GroupBuyException(HttpStatus.CONFLICT, OPTION_UNLIMITED);
+    }
+
+    /**
+     * 상품정보제공고시가 다 차지 않았다(결정 87) — {@code noNotice}(양식이 하나도 없음), {@code notices}(빈 항목이 있는 양식: 차례·제목·품목·빈 항목 키),
+     * {@code unassignedOptions}(어느 양식에도 속하지 않은 옵션 이름).
+     */
+    public static GroupBuyException noticeIncomplete(boolean noNotice, java.util.List<java.util.Map<String, Object>> notices, java.util.List<String> unassignedOptions) {
+        return new GroupBuyException(HttpStatus.CONFLICT, NOTICE_INCOMPLETE).with("noNotice", noNotice).with("notices", notices)
+                .with("unassignedOptions", unassignedOptions);
     }
 
     public static GroupBuyException shippingPolicyNotFound() {

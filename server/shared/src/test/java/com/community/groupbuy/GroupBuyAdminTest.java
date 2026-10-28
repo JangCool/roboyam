@@ -89,6 +89,7 @@ class GroupBuyAdminTest {
         assertThatThrownBy(() -> kit.admin.publish(demand, kit.group(demand).version(), kit.operator, "ip"))
                 .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("endAt"));
         long firstCome = kit.spec(policy()).period(kit.now(), kit.now().plus(Duration.ofDays(15))).create();
+        kit.fillNotice(firstCome);
         kit.admin.publish(firstCome, kit.group(firstCome).version(), kit.operator, "ip"); // 선착순 30일 안
         long noPolicy = kit.spec("NOPOLICY" + Long.toString(kit.ids.nextId(), 36).toUpperCase().substring(0, 6)).create();
         assertThatThrownBy(() -> kit.admin.publish(noPolicy, kit.group(noPolicy).version(), kit.operator, "ip"))

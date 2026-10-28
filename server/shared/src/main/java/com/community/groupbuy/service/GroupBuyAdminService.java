@@ -74,6 +74,8 @@ public class GroupBuyAdminService {
     private final GroupBuyStore groups;
     private final ShippingPolicyStore policies;
     private final GroupBuyQtyService qty;
+    private final GroupBuyNoticeService notices;
+    private final com.community.groupbuy.repository.master.GroupBuyNoticeStore noticeStore;
     private final AuditLogService audit;
     private final SnowflakeIdGenerator ids;
     private final ApplicationEventPublisher events;
@@ -82,11 +84,14 @@ public class GroupBuyAdminService {
     private final TransactionTemplate separate;
     private final Clock clock;
 
-    public GroupBuyAdminService(GroupBuyStore groups, ShippingPolicyStore policies, GroupBuyQtyService qty, AuditLogService audit, SnowflakeIdGenerator ids,
+    public GroupBuyAdminService(GroupBuyStore groups, ShippingPolicyStore policies, GroupBuyQtyService qty, GroupBuyNoticeService notices,
+                                com.community.groupbuy.repository.master.GroupBuyNoticeStore noticeStore, AuditLogService audit, SnowflakeIdGenerator ids,
                                 ApplicationEventPublisher events, DataSource dataSource, PlatformTransactionManager transactions, ObjectProvider<Clock> clocks) {
         this.groups = groups;
         this.policies = policies;
         this.qty = qty;
+        this.notices = notices;
+        this.noticeStore = noticeStore;
         this.audit = audit;
         this.ids = ids;
         this.events = events;
@@ -132,8 +137,10 @@ public class GroupBuyAdminService {
                 if (!groups.updateDraft(id, version, g, now)) {
                     throw GroupBuyException.versionConflict();
                 }
+                java.util.Map<Long, List<String>> noticeLinks = noticeStore.optionNamesByNotice(id); // 옵션 ID 가 바뀌므로 양식의 적용 옵션은 이름으로 다시 잇는다
                 groups.deleteOptions(id);
                 insertOptions(id, draft.options());
+                notices.relinkOptions(id, noticeLinks);
                 replaceImages(id, draft.images(), now);
                 record(operatorId, AuditActions.GROUPBUY_UPDATE, id, ip, Map.of("stage", "DRAFT"));
                 return;
@@ -157,7 +164,7 @@ public class GroupBuyAdminService {
     /**
      * 모집 시작(공개) — 기간 상한·배송비 정책을 확인한다. 시작 시각이 이미 됐으면 그 자리에서 RECRUITING.
      *
-     * @throws GroupBuyException   {@code INVALID_STATE}(이미 공개) · {@code VERSION_CONFLICT} · {@code SHIPPING_POLICY_NOT_FOUND}
+     * @throws GroupBuyException   {@code INVALID_STATE}(이미 공개) · {@code VERSION_CONFLICT} · {@code SHIPPING_POLICY_NOT_FOUND} · {@code NOTICE_INCOMPLETE}(상품정보제공고시 — 결정 87)
      * @throws ValidationException 기간이 상한을 넘거나 마감이 지났다
      */
     public void publish(long id, int version, Long operatorId, String ip) {
@@ -179,6 +186,7 @@ public class GroupBuyAdminService {
             if (policies.effective(row.shippingPolicyCode(), from).isEmpty()) {
                 throw GroupBuyException.shippingPolicyNotFound();
             }
+            notices.assertComplete(id); // 상품정보제공고시 — 모든 양식의 모든 항목이 값 또는 제공 불가 + 사유, 모든 옵션이 어느 양식에(결정 87)
             if (!groups.publish(id, version, now)) {
                 throw GroupBuyException.versionConflict();
             }
@@ -352,6 +360,7 @@ public class GroupBuyAdminService {
                 long id = ids.nextId();
                 groups.insert(id, g, root, roundNo, operatorId, now);
                 insertOptions(id, draft.options());
+                notices.copy(sourceId, id, now); // 고시 양식도 복사 — 카탈로그 버전 그대로(결정 87)
                 replaceImages(id, draft.images(), now);
                 record(operatorId, AuditActions.GROUPBUY_ROUND_CREATE, id, ip, Map.of("sourceId", Long.toString(sourceId), "roundNo", roundNo));
                 return new RoundCreated(id, root, roundNo, true);

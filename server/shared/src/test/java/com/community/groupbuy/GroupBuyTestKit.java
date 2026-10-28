@@ -19,6 +19,9 @@ import com.community.groupbuy.repository.master.ParticipationStore;
 import com.community.groupbuy.repository.master.ParticipationStore.ItemRow;
 import com.community.groupbuy.repository.master.ParticipationStore.ParticipationRow;
 import com.community.groupbuy.service.DefaultGroupBuySalesSwitch;
+import com.community.groupbuy.dto.NoticeDraft;
+import com.community.groupbuy.service.GroupBuyNoticeCatalog;
+import com.community.groupbuy.service.GroupBuyNoticeService;
 import com.community.groupbuy.service.GroupBuyAdminService;
 import com.community.groupbuy.service.GroupBuyInvariantCheck;
 import com.community.groupbuy.service.GroupBuyJoinService;
@@ -138,6 +141,8 @@ final class GroupBuyTestKit {
     final GroupBuyRefundWorker refundWorker;
     final GroupBuyPaymentHandler handler;
     final GroupBuyInvariantCheck invariants;
+    final GroupBuyNoticeService notices;
+    final GroupBuyNoticeCatalog catalog;
     final GroupBuyStore groupStore;
     final ParticipationStore participationStore;
     final PaymentOrderStore paymentOrders;
@@ -156,7 +161,7 @@ final class GroupBuyTestKit {
     /** 시험 문맥 — 공구 패키지는 스캔(판매 스위치 기본 구현만 빼고 시험 것으로), 결제 모듈과 0단계 장치는 손으로 */
     @Configuration
     @EnableTransactionManagement
-    @ComponentScan(basePackages = "com.community.groupbuy", excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = DefaultGroupBuySalesSwitch.class))
+    @ComponentScan(basePackages = "com.community.groupbuy", excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {DefaultGroupBuySalesSwitch.class, GroupBuyNoticeCatalog.class}))
     static class Wiring {
 
         @Bean
@@ -177,6 +182,12 @@ final class GroupBuyTestKit {
         @Bean
         SnowflakeIdGenerator snowflakeIdGenerator() {
             return current.idsForWiring;
+        }
+
+        @Bean
+        GroupBuyNoticeCatalog groupBuyNoticeCatalog() {
+            // 실제 카탈로그 + 시험 전용 옛 버전(카탈로그 버전 고정 시험)
+            return new GroupBuyNoticeCatalog(GroupBuyNoticeCatalog.DEFAULT_PATTERN, "classpath*:groupbuy-test/notice-catalog-*.json");
         }
 
         @Bean
@@ -358,6 +369,8 @@ final class GroupBuyTestKit {
         refundWorker = spring.getBean(GroupBuyRefundWorker.class);
         handler = spring.getBean(GroupBuyPaymentHandler.class);
         invariants = spring.getBean(GroupBuyInvariantCheck.class);
+        notices = spring.getBean(GroupBuyNoticeService.class);
+        catalog = spring.getBean(GroupBuyNoticeCatalog.class);
         groupStore = spring.getBean(GroupBuyStore.class);
         participationStore = spring.getBean(ParticipationStore.class);
         paymentOrders = spring.getBean(PaymentOrderStore.class);
@@ -523,9 +536,24 @@ final class GroupBuyTestKit {
         /** 등록 + 모집 시작(시작 시각이 지났으면 그 자리에서 RECRUITING) */
         long open() {
             long id = create();
+            fillNotice(id);
             admin.publish(id, group(id).version(), operator, "127.0.0.1");
             return id;
         }
+    }
+
+    // ── 상품정보제공고시 ──────────────────────────────────────────────────────
+
+    /** 그 품목(지금 카탈로그)의 모든 항목을 채운 양식 */
+    NoticeDraft fullNotice(String categoryCode, String title, List<String> optionNames) {
+        List<NoticeDraft.Value> values = catalog.current().category(categoryCode).orElseThrow().items().stream()
+                .map(i -> new NoticeDraft.Value(i.key(), "시험 값 " + i.no(), false, null)).toList();
+        return new NoticeDraft(categoryCode, title, optionNames, values);
+    }
+
+    /** 공구 전체(기본 상품)를 덮는 「기타 재화」 양식 하나를 다 채워 저장한다 */
+    void fillNotice(long groupBuyId) {
+        notices.save(groupBuyId, List.of(fullNotice("OTHER_GOODS", "본체", List.of())), operator, "127.0.0.1");
     }
 
     GroupBuyRow group(long id) {
