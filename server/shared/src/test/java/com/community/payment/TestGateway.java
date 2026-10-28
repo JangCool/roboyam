@@ -150,4 +150,14 @@ final class TestGateway implements PaymentGateway {
         }
         return fake.verifyWebhook(webhookId, webhookTimestamp, webhookSignature, body, now);
     }
+
+    @Override
+    public com.community.payment.gateway.EscrowResult registerEscrowLogistics(String paymentId, com.community.payment.gateway.EscrowLogistics logistics, boolean update) {
+        return fake.registerEscrowLogistics(paymentId, logistics, update);
+    }
+
+    @Override
+    public com.community.payment.gateway.EscrowResult completeEscrow(String paymentId) {
+        return fake.completeEscrow(paymentId);
+    }
 }

@@ -5,6 +5,7 @@ import static com.community.payment.repository.master.PaymentOrderStore.ts;
 
 import com.community.payment.dto.CancelKind;
 import com.community.payment.dto.CancelStatus;
+import com.community.payment.dto.ManualCancelMethod;
 import com.community.payment.dto.PgCancelStatus;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -148,8 +149,18 @@ public class PaymentCancelStore {
      * @return 닫았으면 true
      */
     public boolean markManual(long id, long operatorId, String note, Instant now) {
-        return jdbc.update("UPDATE payment_cancels SET status = 'MANUAL', completed_at = ?, resolved_by = ?, resolve_note = ? WHERE id = ? AND status = 'GAVE_UP'",
-                ts(now), operatorId, note, id) == 1;
+        return markManual(id, operatorId, note, null, null, now);
+    }
+
+    /**
+     * 수동 처리 완료에 실제 처리 방법을 함께 적는다(공구 계약 결정 74) — 콘솔 취소면 그 취소 ID 를 붙인다(취소 누계는 부르는 쪽이 올린다). {@code method} null = 표시만.
+     *
+     * @return 닫았으면 true(GAVE_UP 일 때만)
+     */
+    public boolean markManual(long id, long operatorId, String note, ManualCancelMethod method, String pgCancelId, Instant now) {
+        return jdbc.update("UPDATE payment_cancels SET status = 'MANUAL', completed_at = ?, resolved_by = ?, resolve_note = ?, manual_method = ?, "
+                        + "pg_cancel_id = coalesce(?, pg_cancel_id) WHERE id = ? AND status = 'GAVE_UP'", ts(now), operatorId, note, method == null ? null : method.name(),
+                pgCancelId, id) == 1;
     }
 
     /** 잠근다(운영자 처리 — 결제 주문 행 다음 차례, 구현 때 정한 것 4) */
@@ -157,10 +168,10 @@ public class PaymentCancelStore {
         return jdbc.query("SELECT " + COLUMNS + " FROM payment_cancels WHERE id = ? FOR UPDATE", PaymentCancelStore::row, id).stream().findFirst();
     }
 
-    /** 그 결제 주문의 성공한 취소 금액 합(불변식 — 취소 누계 = SUCCEEDED 합) */
+    /** 그 결제 주문의 성공한 취소 금액 합(불변식 — 취소 누계 = SUCCEEDED 합 + 콘솔에서 취소해 수동 처리한 줄, 공구 계약 결정 74) */
     public long succeededAmount(long paymentOrderId) {
-        Long sum = jdbc.queryForObject("SELECT coalesce(sum(amount), 0) FROM payment_cancels WHERE payment_order_id = ? AND status = 'SUCCEEDED'", Long.class,
-                paymentOrderId);
+        Long sum = jdbc.queryForObject("SELECT coalesce(sum(amount), 0) FROM payment_cancels WHERE payment_order_id = ? AND (status = 'SUCCEEDED' "
+                + "OR (status = 'MANUAL' AND manual_method = 'CONSOLE_CANCEL'))", Long.class, paymentOrderId);
         return sum == null ? 0 : sum;
     }
 

@@ -15,7 +15,8 @@ import org.springframework.stereotype.Component;
  *   <li>Σ MAIN 단품 current = 공구 current, Σ MAIN 단품 reserved = 공구 reserved(단품 최대 합과 공구 최대는 관계 없다)</li>
  *   <li>공구 값을 적은 수량 이동 줄의 마지막(ID 순) 이후 값 = 지금 공구 값, 단품 값을 적은 마지막 줄 = 지금 단품 값</li>
  *   <li>모집을 시작한 공구: {@code max_qty = initial_max_qty + ΣADD − ΣREDUCE}(공구 값을 적은 줄만 — 추가 구성상품 입고는 빼고), {@code added_qty = ΣADD}</li>
- *   <li>받아들인 결제(이상 없음): 결제 − 취소됨 − 아직 끝나지 않은 취소 = 현금 − 환불 누계 − 보상 누계(결정 39)</li>
+ *   <li>받아들인 결제(이상 없음): 결제 − 취소됨 − 아직 끝나지 않은 취소 − 계좌 송금으로 돌린 취소 = 현금 − 환불 누계 − 보상 누계(결정 39·74)</li>
+ *   <li>반품비 추가 결제(결정 68): 결제 − 취소됨 − 끝나지 않은 취소 = 요청의 낸 금액 − 돌려준 금액</li>
  * </ol>
  * 대상 공구를 주면 그 공구들만 본다(시험·운영자 점검), 비면 전체.
  */
@@ -47,10 +48,16 @@ public class GroupBuyInvariantCheck {
                          WHERE group_buy_id IN (SELECT id FROM g) AND kind = 'MAIN' GROUP BY group_buy_id),
             pay AS (SELECT p.id, p.cash_amount - p.refunded_amount - p.compensation_amount AS expected,
                            po.paid_amount - po.canceled_amount - coalesce((SELECT sum(c.amount) FROM payment_cancels c WHERE c.payment_order_id = po.id
-                               AND c.status IN ('PENDING', 'SENDING', 'GAVE_UP')), 0) AS actual
+                               AND (c.status IN ('PENDING', 'SENDING', 'GAVE_UP') OR (c.status = 'MANUAL' AND c.manual_method = 'BANK_TRANSFER'))), 0) AS actual
                     FROM group_buy_participations p JOIN payment_orders po ON po.order_type = 'GROUP_BUY' AND po.order_ref_id = p.id
                         AND po.anomaly IS NULL AND po.status IN ('PAID', 'PARTIAL_CANCELED', 'CANCELED')
-                    WHERE p.group_buy_id IN (SELECT id FROM g))
+                    WHERE p.group_buy_id IN (SELECT id FROM g)),
+            fee AS (SELECT r.id, r.fee_paid_amount - r.fee_refunded_amount AS expected,
+                           coalesce((SELECT sum(po.paid_amount - po.canceled_amount - coalesce((SELECT sum(c.amount) FROM payment_cancels c WHERE c.payment_order_id = po.id
+                               AND (c.status IN ('PENDING', 'SENDING', 'GAVE_UP') OR (c.status = 'MANUAL' AND c.manual_method = 'BANK_TRANSFER'))), 0))
+                               FROM payment_orders po WHERE po.order_type = 'GROUP_BUY_RETURN_FEE' AND po.order_ref_id = r.id AND po.anomaly IS NULL
+                               AND po.status IN ('PAID', 'PARTIAL_CANCELED', 'CANCELED')), 0) AS actual
+                    FROM group_buy_requests r WHERE r.group_buy_id IN (SELECT id FROM g))
             SELECT 'GROUP_CURRENT', g.id, coalesce(s.current_qty, 0), g.current_qty FROM g LEFT JOIN sold s ON s.group_buy_id = g.id
                 WHERE g.current_qty <> coalesce(s.current_qty, 0)
             UNION ALL
@@ -82,6 +89,8 @@ public class GroupBuyInvariantCheck {
                 WHERE g.initial_max_qty IS NOT NULL AND g.added_qty <> coalesce(a.added, 0)
             UNION ALL
             SELECT 'PAYMENT_BALANCE', pay.id, pay.expected, pay.actual FROM pay WHERE pay.expected <> pay.actual
+            UNION ALL
+            SELECT 'RETURN_FEE_BALANCE', fee.id, fee.expected, fee.actual FROM fee WHERE fee.expected <> fee.actual
             """;
 
     private final JdbcTemplate jdbc;

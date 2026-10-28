@@ -9,6 +9,8 @@ public enum PaymentOrderType {
     POINT_CHARGE,
     /** 공구 참여(2b) */
     GROUP_BUY,
+    /** 공구 반품비 부족분 추가 결제(2b-3, 공구 계약 결정 68 — 대상 = 반품 요청, 선점 없음) */
+    GROUP_BUY_RETURN_FEE,
     /** 결제 모듈 시험 주문(local·dev 의 {@code roboyam.payment.test-orders} — prod 에서 켜면 기동하지 않는다) */
     PAYMENT_TEST
 }

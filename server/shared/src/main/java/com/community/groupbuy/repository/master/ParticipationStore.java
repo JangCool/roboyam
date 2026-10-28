@@ -28,13 +28,15 @@ import org.springframework.stereotype.Repository;
 public class ParticipationStore {
 
     private static final String COLUMNS = "id, order_no, group_buy_id, user_id, status, items_amount, shipping_fee, amount, point_amount, cash_amount, refunded_amount, "
-            + "compensation_amount, reshipping_fee_charged, group_buy_revision, payment_order_id, reserved_until, expire_cause, joined_at, created_at";
+            + "compensation_amount, reshipping_fee_charged, group_buy_revision, payment_order_id, reserved_until, expire_cause, joined_at, created_at, "
+            + "shipped_shipping_fee, shipped_at, delivered_at, address_masked_at";
     private static final DateTimeFormatter DAY = DateTimeFormatter.BASIC_ISO_DATE;
 
     /** 주문 한 줄 */
     public record ParticipationRow(long id, String orderNo, long groupBuyId, long userId, ParticipationStatus status, long itemsAmount, long shippingFee, long amount,
                                    long pointAmount, long cashAmount, long refundedAmount, long compensationAmount, long reshippingFeeCharged, int groupBuyRevision,
-                                   Long paymentOrderId, Instant reservedUntil, ExpireCause expireCause, Instant joinedAt, Instant createdAt) {
+                                   Long paymentOrderId, Instant reservedUntil, ExpireCause expireCause, Instant joinedAt, Instant createdAt,
+                                   Long shippedShippingFee, Instant shippedAt, Instant deliveredAt, Instant addressMaskedAt) {
 
         /** 남은 결제액 = 현금 − 환불 누계 − 보상 누계(결정 38) */
         public long remainingCash() {
@@ -213,10 +215,11 @@ public class ParticipationStore {
                 qty) == 1;
     }
 
-    /** 환불 누계를 올린다 — 보상까지 합쳐 남은 결제액을 넘지 않을 때만(결정 38 — 공구가 상한의 정본) */
-    public boolean addRefunded(long id, long amount, Instant now) {
-        return jdbc.update("UPDATE group_buy_participations SET refunded_amount = refunded_amount + ?, updated_at = ? WHERE id = ? "
-                + "AND refunded_amount + compensation_amount + ? <= cash_amount", amount, ts(now), id, amount) == 1;
+    /** 환불·보상 누계를 올린다 — 합쳐 남은 결제액을 넘지 않을 때만(결정 38·39 — 공구가 상한의 정본) */
+    public boolean addRefunded(long id, long refund, long compensation, Instant now) {
+        return jdbc.update("UPDATE group_buy_participations SET refunded_amount = refunded_amount + ?, compensation_amount = compensation_amount + ?, updated_at = ? WHERE id = ? "
+                + "AND refunded_amount + compensation_amount + ? + ? <= cash_amount AND refunded_amount + ? <= amount", refund, compensation, ts(now), id, refund, compensation,
+                refund) == 1;
     }
 
     /** 재부과 배송비 누계(결정 33·42) */
@@ -234,13 +237,105 @@ public class ParticipationStore {
                 + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", id, participationId, groupBuyId, userId, from == null ? null : from.name(), to.name(), cause, ts(now));
     }
 
+    // ── 발송·반품(2b-3) ──────────────────────────────────────────────────────
+
+    /** 준비중(CONFIRMED → PREPARING — 운영자가 포장을 시작했다, 10-3) */
+    public boolean prepare(long id, Instant now) {
+        return jdbc.update("UPDATE group_buy_participations SET status = 'PREPARING', updated_at = ? WHERE id = ? AND status = 'CONFIRMED'", ts(now), id) == 1;
+    }
+
+    /** 발송(CONFIRMED·PREPARING → SHIPPED) — 처음 배송비를 고정한다: 낸 배송비 + 그때까지의 재부과(결정 43) */
+    public boolean ship(long id, Instant now) {
+        return jdbc.update("UPDATE group_buy_participations SET status = 'SHIPPED', shipped_at = ?, shipped_shipping_fee = shipping_fee + reshipping_fee_charged, updated_at = ? "
+                + "WHERE id = ? AND status IN ('CONFIRMED', 'PREPARING')", ts(now), ts(now), id) == 1;
+    }
+
+    /** 배송완료(SHIPPED → DELIVERED — 청약철회 7일의 시작, 결정 7) */
+    public boolean deliver(long id, Instant now) {
+        return jdbc.update("UPDATE group_buy_participations SET status = 'DELIVERED', delivered_at = ?, updated_at = ? WHERE id = ? AND status = 'SHIPPED'", ts(now), ts(now),
+                id) == 1;
+    }
+
+    /** 줄의 반품 수량을 올린다(회수 확인 때 — 결정 83, 아직 가진 수량 안에서만) */
+    public boolean returnItemQty(long itemId, int qty) {
+        return jdbc.update("UPDATE group_buy_participation_items SET returned_qty = returned_qty + ? WHERE id = ? AND canceled_qty + returned_qty + ? <= qty", qty, itemId,
+                qty) == 1;
+    }
+
+    /** 다시 판매 수량(반품 수량 안에서만 — 결정 15) */
+    public boolean restockItemQty(long itemId, int qty) {
+        return jdbc.update("UPDATE group_buy_participation_items SET restocked_qty = restocked_qty + ? WHERE id = ? AND restocked_qty + ? <= returned_qty", qty, itemId, qty) == 1;
+    }
+
+    /** 교환 출고 수량(기록만 — 결정 54) */
+    public void exchangeItemQty(long itemId, int qty) {
+        jdbc.update("UPDATE group_buy_participation_items SET exchanged_qty = exchanged_qty + ? WHERE id = ?", qty, itemId);
+    }
+
+    /** 재부과 누계를 고친다(반품의 재부과 − 돌려줌, 음수 가능 — 결정 33·43) */
+    public void addReshippingDelta(long id, long delta, Instant now) {
+        if (delta != 0) {
+            jdbc.update("UPDATE group_buy_participations SET reshipping_fee_charged = reshipping_fee_charged + ?, updated_at = ? WHERE id = ?", delta, ts(now), id);
+        }
+    }
+
+    /** 배송지 암호문(가린 값·전체 보기·명단 내보내기는 서비스가 푼다) */
+    public record AddressRow(long participationId, String recipientEnc, String phoneEnc, String postcode, String address1Enc, String address2Enc, String memoEnc,
+                             Instant maskedAt) {
+    }
+
+    private static final String ADDRESS_COLUMNS = "id, recipient_enc, phone_enc, postcode, address1_enc, address2_enc, memo_enc, address_masked_at";
+
+    private static AddressRow addressRow(ResultSet rs, int i) throws SQLException {
+        return new AddressRow(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7), instant(rs.getTimestamp(8)));
+    }
+
+    public Optional<AddressRow> address(long id) {
+        return jdbc.query("SELECT " + ADDRESS_COLUMNS + " FROM group_buy_participations WHERE id = ?", ParticipationStore::addressRow, id).stream().findFirst();
+    }
+
+    /** 배송지 수정(파기되지 않은 주문만 — 기한은 서비스, 결정 30) */
+    public boolean updateAddress(long id, String recipientEnc, String phoneEnc, String postcode, String address1Enc, String address2Enc, String memoEnc, Instant now) {
+        return jdbc.update("UPDATE group_buy_participations SET recipient_enc = ?, phone_enc = ?, postcode = ?, address1_enc = ?, address2_enc = ?, memo_enc = ?, updated_at = ? "
+                + "WHERE id = ? AND address_masked_at IS NULL", recipientEnc, phoneEnc, postcode, address1Enc, address2Enc, memoEnc, ts(now), id) == 1;
+    }
+
+    /** 배송 명단 대상 — 발송 전 결제된 주문(CONFIRMED·PREPARING — 결정 30) */
+    public List<AddressRow> exportAddresses(long groupBuyId) {
+        return jdbc.query("SELECT " + ADDRESS_COLUMNS + " FROM group_buy_participations WHERE group_buy_id = ? AND status IN ('CONFIRMED', 'PREPARING') ORDER BY id",
+                ParticipationStore::addressRow, groupBuyId);
+    }
+
+    /** 그 공구에서 그 상태의 주문 */
+    public List<ParticipationRow> ofGroup(long groupBuyId, Set<ParticipationStatus> statuses) {
+        return jdbc.query("SELECT " + COLUMNS + " FROM group_buy_participations WHERE group_buy_id = ? AND status IN (" + ParticipationStatus.sqlList(statuses) + ") ORDER BY id",
+                ParticipationStore::row, groupBuyId);
+    }
+
+    /**
+     * 줄마다 금액만 돌려준 운영 환불 중 아직 반품 환불에서 빼지 않은 몫(결정 71) — 운영 환불 기록의 줄 내역({@code amountOnly}) 합 − 끝난 반품 요청 줄의 {@code prior_refund_offset} 합.
+     */
+    public java.util.Map<Long, Long> priorRefundLeft(long participationId) {
+        java.util.Map<Long, Long> out = new java.util.HashMap<>();
+        jdbc.query("SELECT (l->>'itemId')::bigint, sum((l->>'amount')::bigint) FROM group_buy_refunds r, jsonb_array_elements(r.lines) l WHERE r.participation_id = ? "
+                + "AND r.cause = 'ADMIN' AND coalesce((l->>'amountOnly')::boolean, false) GROUP BY 1", (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
+            out.merge(rs.getLong(1), rs.getLong(2), Long::sum);
+        }, participationId);
+        jdbc.query("SELECT ri.participation_item_id, sum(ri.prior_refund_offset) FROM group_buy_request_items ri JOIN group_buy_requests rq ON rq.id = ri.request_id "
+                + "WHERE rq.participation_id = ? AND rq.status = 'COMPLETED' GROUP BY 1", (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
+            out.merge(rs.getLong(1), -rs.getLong(2), Long::sum);
+        }, participationId);
+        return out;
+    }
+
     static ParticipationRow row(ResultSet rs, int i) throws SQLException {
         String cause = rs.getString("expire_cause");
         return new ParticipationRow(rs.getLong("id"), rs.getString("order_no"), rs.getLong("group_buy_id"), rs.getLong("user_id"),
                 ParticipationStatus.valueOf(rs.getString("status")), rs.getLong("items_amount"), rs.getLong("shipping_fee"), rs.getLong("amount"), rs.getLong("point_amount"),
                 rs.getLong("cash_amount"), rs.getLong("refunded_amount"), rs.getLong("compensation_amount"), rs.getLong("reshipping_fee_charged"),
                 rs.getInt("group_buy_revision"), nLong(rs, "payment_order_id"), instant(rs.getTimestamp("reserved_until")), cause == null ? null : ExpireCause.valueOf(cause),
-                instant(rs.getTimestamp("joined_at")), instant(rs.getTimestamp("created_at")));
+                instant(rs.getTimestamp("joined_at")), instant(rs.getTimestamp("created_at")), nLong(rs, "shipped_shipping_fee"),
+                instant(rs.getTimestamp("shipped_at")), instant(rs.getTimestamp("delivered_at")), instant(rs.getTimestamp("address_masked_at")));
     }
 
     static ItemRow item(ResultSet rs, int i) throws SQLException {

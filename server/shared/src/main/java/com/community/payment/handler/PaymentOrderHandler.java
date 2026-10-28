@@ -1,6 +1,7 @@
 package com.community.payment.handler;
 
 import com.community.payment.dto.CanceledPayment;
+import com.community.payment.dto.ManualCancelResolution;
 import com.community.payment.dto.PaidPayment;
 import com.community.payment.dto.PaymentDecision;
 import com.community.payment.dto.PaymentOrderType;
@@ -23,4 +24,11 @@ public interface PaymentOrderHandler {
     PaymentDecision onPaid(PaidPayment payment);
 
     void onCanceled(CanceledPayment cancellation);
+
+    /**
+     * 멈춘(GAVE_UP) 취소를 운영자가 「수동 처리 완료」로 닫았다(공구 계약 결정 16·74 — 방법: 콘솔 취소·계좌 송금·표시만). 결제 주문 행·취소 줄을 잠근 트랜잭션 안에서 불린다.
+     * 기본은 아무것도 하지 않는다.
+     */
+    default void onCancelResolvedManually(ManualCancelResolution resolution) {
+    }
 }

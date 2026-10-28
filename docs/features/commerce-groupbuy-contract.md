@@ -12,7 +12,7 @@
 |---|---|---|---|
 | 2b-1 화면 목업 | 아래 「화면 목록」(Q&A 제외) | frontend | **화면 확정 2026-10-28**(결정 87~89·옵션 종류 코드 반영 뒤 사용자 확정, 브랜치 `claude/commerce-2b-1-groupbuy-screens-677185` 4cf01bf8) — develop 병합 대기: 메인 체크아웃의 다른 대화 미커밋 작업(테마·메뉴·홈 레이아웃)과 8개 파일이 겹쳐 그 작업이 커밋된 뒤 합친다(2b-4 연결 전까지) |
 | 2b-2 공구 핵심 서버 | V101, 공구·옵션·배송비 정책·수정 이력, 주문·주문 줄(자격·멱등·선점)·`GroupBuyPaymentHandler`·선점 만료·이탈 제한, 상태 워커(모집 시작·마감·연장·판정·불발 환불), 본인 취소, 추가 입고·줄이기·추가 차수, 불변식, 규칙 테스트 | backend | **구현 완료**(2026-10-28, 브랜치 `claude/commerce-2b-2-groupbuy-core-d751c0` — 아래 「2b-2 구현 결과」) — **develop 병합 2026-10-28**(11420d86 까지, V101). 병합 뒤 확인(메인 작업 트리를 임시 폴더에 복사해 실행 — 띄운 서버의 jar 를 덮지 않게): shared `com.community.groupbuy.*`·`com.community.payment.*` **224 통과**, admin `GroupBuyStateSchedulerTest`·`AuditRetentionAdminTest`·`com.community.payment.*` **25 통과**, api `IdentityHttpTest`·`com.community.payment.*` **13 통과**, 실패 0 |
-| 2b-3 발송·요청·환불 서버 | V102, 발주·준비중·발송·배송완료(일괄 부분 성공)·에스크로 송장 등록, 택배사, 배송지 열람·수정·명단 내보내기, 취소·반품 요청(줄·수량 단위)·처리 방법·`GroupBuyRefundCalculator`·보상액·운영 환불, 규칙 테스트 | backend | 제안 |
+| 2b-3 발송·요청·환불 서버 | V102, 발주·준비중·발송·배송완료(일괄 부분 성공)·에스크로 송장 등록, 택배사, 배송지 열람·수정·명단 내보내기, 취소·반품 요청(줄·수량 단위)·처리 방법·`GroupBuyRefundCalculator`·보상액·운영 환불, 규칙 테스트 | backend | **구현 완료**(2026-10-28, 브랜치 `claude/festive-cori-faed64` — 아래 「2b-3 구현 결과」, develop 병합 전) |
 | 2b-4 설정·알림 + 관리자 API + 연결 | V103, 판매 스위치·체크리스트·사업자 정보·공구 설정, 회원 알림·메일(계약 통지 포함)·관심·수량 풀림·연장·차수 알림, 운영자 알림·기한 경고, 개인정보 파기 pg_cron, 관리자·회원 API 정리, 화면 연결 | backend → frontend | 제안 |
 | 2b-5 실제 확인 | 포트원 테스트 채널로 공구 결제·불발 환불·발송 후 반품 환불 사람 확인(공개 주소가 필요한 웹훅·에스크로는 dev 서버) | 사용자 + 세션 | 제안 |
 | 2b-6 공구 Q&A | V104, 아래 「Q&A 규칙」 — 화면 목업 → 확정 → 서버 → 연결 | frontend → backend | 사용자 결정 2026-10-28 |
@@ -438,6 +438,71 @@
 - **테스트 G45**(`GroupBuyProductTest` 8개 — 단품 목록 정본·옵션 종류 시험 2개 더함): 상품 하나로 공구 둘(단품 수량·한도·가격은 공구마다) / 모집 시작 사본(상품 이름·설명·이미지·축·단품·고시, 공급가 없음) / 모집 중 상품 이름·구성 잠금(추가 구성상품으로 쓰여도), 설명 정정은 바로 보임, 중단 뒤 값 더하기 가능·가리키는 단품 지우기 409 / 공급가 빈 값 409·0 허용·역마진 확인 / 공급가는 회원 응답 레코드에 없음 / 카테고리 2단·필터·숨김·카테고리 필수. 기존 시험은 상품 구조로 고쳤다(시험 키트 `Spec` 이 상품을 만들고 `option`·`axis`·`addon` 은 상품 칸, 고시는 `kit.productOf(gb)`, G43 추가 차수 시험은 「같은 상품의 양식을 그대로 쓴다」로, DRAFT 다시 잇기 시험은 「상품 단품 ID 유지」로 바꿈, G44 고시 시험은 「추가 구성상품의 상품에도 양식」으로).
 - **실행**: `./gradlew :server:shared:test --tests 'com.community.groupbuy.*'` → **110개 통과**(102 + G45 8) · admin `GroupBuyStateSchedulerTest`(3)·`AuditRetentionAdminTest`(6)·api `IdentityHttpTest`(6) 통과.
 - **아직**: 상품·카테고리·공급가 관리자 API 와 권한(`commerce.product.manage`·`commerce.product.read`·`commerce.product.price`/`commerce.settlement.read` 로 공급가 보기)·회원 목록 응답(2b-4), 상품 목록 화면 조회(JPA·QueryDSL — 2b-4).
+
+## 2b-3 구현 결과 (2026-10-28 — 브랜치 `claude/festive-cori-faed64`, develop 병합 전)
+- **마이그레이션** shared `V102__group_buy_fulfillment.sql`(develop shared 마지막 V101 다음 — 합칠 때 다시 확인): `commerce_carriers`(6개 시드 — 조회 주소 `https://` + `{no}` 한 번 CHECK) · `group_buy_shipments`(ORIGINAL 주문당 하나 · EXCHANGE 요청당 하나, 송장 CHECK, 에스크로 시각·`escrow_applicable`) · `group_buy_escrow_jobs`(LOGISTICS·COMPLETE, 끝나지 않은 일 (발송, 종류) 부분 유일) · `group_buy_requests`(+ 열린 요청 부분 유일 — AWAITING_FEE 포함, 반품비 부족분 결제 칸, 거절 사유 CHECK) · `group_buy_request_items`(사유·`refund_amount`·`prior_refund_offset`) · `group_buy_return_dispositions` · `group_buy_request_photos`(MEMBER·OPERATOR) · `commerce_address_views`(REVEAL·EXPORT, 사유 5~200 CHECK) · `commerce_bank_transfers`(계좌 암호문, SENT 면 지운 시각 CHECK) · `group_buy_supply_failures` · `group_buy_supply_choices` · `group_buy_admin_refunds`(고액 승인 대기, 주문당 하나) · `group_buy_refunds` 에 `fee_covered`·`fee_refund`·`operator_amount`(합 CHECK 고침) · 주문 줄 `exchanged_qty` · 결제 `payment_orders.order_type` 에 `GROUP_BUY_RETURN_FEE`, `payment_cancels.manual_method`(CONSOLE_CANCEL·BANK_TRANSFER). 발송 지연 공지 표는 V101 에 이미 있다.
+- **결제 모듈 소폭**: `PaymentOrderType.GROUP_BUY_RETURN_FEE` · `PaymentOrderHandler.onCancelResolvedManually`(기본 빈 메서드, 결정 16) · `PaymentCancelManualService`(수동 처리 한 길 — 콘솔 취소면 취소 ID + 취소 누계까지, 계좌 송금이면 누계 그대로, 처리기를 같은 트랜잭션에서 부름 — 결정 74) · `PaymentAdminActionService.manualCancel(…, method, pgCancelId, …)` 겹쳐 받기(기존 서명은 「표시만」 그대로 — 관리자 화면에 방법 고르기는 2b-4) · `PaymentCancelStore.succeededAmount` 에 콘솔 수동 포함 · `PaymentGateway.registerEscrowLogistics`·`completeEscrow`(포트원: 결제 조회 본문의 `escrow` 로 에스크로 여부 판단 → `POST·PATCH /payments/{id}/escrow/logistics`·`POST …/escrow/complete`, 4xx 중 `ALREADY…` 는 성공 — 실제 응답은 2b-5 확인, 가짜 PG 는 기록만) · `EscrowLogistics`·`EscrowResult`.
+- **코드**(shared `com.community.groupbuy`): `GroupBuyRefundCalculator`(순수 계산 한 곳 — `cancel`·`returnRefund`) · `FulfillmentService`(발주·준비중·발송(≤ 200, 줄마다 트랜잭션·행 결과)·배송완료·송장 정정·택배사 저장) · `GroupBuyEscrowWorker`(커밋 밖 호출·임대·재시도 표 1분→5분→30분→2시간→6시간, 6번째 실패 GAVE_UP + 이벤트, 배송완료 7일 뒤 열린 요청 없으면 구매 확정) · `AddressRevealService`(가린 값·본인 보기/수정·운영자 열람·명단 CSV) · `GroupBuyRequestService`(회원 미리 보기·요청·철회·부족분 결제 다시 열기, 운영자 승인·회수 송장·회수 확인·완료·교환 재발송·환불 전환·거절, 미결제 요청 닫기, 사진, 처리 기한 단계) · `GroupBuyAdminRefundService`(운영 환불·승인 대기) · `GroupBuySupplyService` · `BankTransferService` · `GroupBuyBusinessDays` · `GroupBuyFulfillmentWorker`(워커 키 `groupbuy-fulfillment` — admin `GroupBuyStateScheduler.fulfillmentTick`, `roboyam.groupbuy.fulfillment-poll-millis`) · `GroupBuyAudit` · `handler.GroupBuyReturnFeeHandler`·`GroupBuyManualRefunds` · 저장소 `FulfillmentStore`·`GroupBuyRequestStore`·`BankTransferStore`. `ParticipationCancelService` 는 계산기를 쓰게 바꾸고 `cancelLines`(취소 요청 승인·운영 환불·공급 불가가 같이 쓰는 한 길)·`supersedeOpenRequests` 를 더했다. `GroupBuyRefundService.Parts` 에 반품비·PG 보상·부족분 메움, `Extra`(요청 ID·계좌 보상·운영자 금액), `refundReturnFee`. 감사 행위 10개(`GROUPBUY_REFUND`·`_REQUEST_APPROVE`·`_REQUEST_REJECT`·`_RETURN_DISPOSE`·`_SUPPLY_FAILURE`·`_BANK_TRANSFER` 돈 관련 · `_ADDRESS_REVEAL`·`_SHIPPING_EXPORT` 개인정보 · `_FULFILLMENT`·`COMMERCE_CARRIER_SAVE` 일반) + 오류 코드 24개, 번들 ko·en. 이벤트 `EscrowGaveUp`·`RequestChanged`·`SupplyChoiceAsked`·`RefundResolvedManually`(받는 곳은 2b-4).
+- **정한 세부**(계약에 없던 것 — 추천안으로 정함)
+  1. 요청 상태 `AWAITING_FEE → REQUESTED → APPROVED → RECEIVED → COMPLETED` / `REJECTED`·`WITHDRAWN`·`SUPERSEDED`·`EXPIRED`. 부족분 결제 전(AWAITING_FEE)도 「열린 요청」이다 — 회수 방식을 바꾸려면 철회 뒤 다시. 철회는 회수 확인 전까지.
+  2. 요청 줄 사유 `CHANGE_OF_MIND`·`DEFECT`·`WRONG_ITEM`·`DAMAGED`(배송 중 훼손)·`OTHER` — 업체 부담은 앞 셋 다음 둘(하자·오배송·훼손), **기타는 회원 부담**으로 본다.
+  3. 반품 기한: 단순 변심·기타 줄이 하나라도 있으면 배송완료(한국 날짜) + 7일, 모두 업체 부담 줄이면 + 3개월. 「안 날부터 30일」은 시스템이 알 수 없어 운영자 판단(막지 못한 규칙).
+  4. 「전체 반품」= 이 요청으로 주문의 남은 줄(추가상품 포함)이 모두 빠질 때. 업체 부담 전체 반품은 처음 배송비 + 발송 전·뒤 재부과까지 모두 돌려준다(G32 하자 28,000). 회원 부담 전체는 편도·고객발송이면 발송 뒤 재부과만 돌려주고, 왕복 + 업체회수면 처음 배송비를 한 번만 받은 것으로(이미 받은 재부과와 차액).
+  5. 반품 배송비·재부과 몫은 요청 줄 중 회원 부담 줄(없으면 마지막 줄)의 `refund_amount` 에 싣는다(결정 44 「하자 줄은 전액」).
+  6. 결과가 음수면 부족분 = −결과로 `GROUP_BUY_RETURN_FEE` 결제(30분, 같은 요청에 다시 열기 가능), 요청은 하루 뒤 EXPIRED(결제창도 결제 행 먼저 닫음). 완료 때 낸 부족분이 메운 몫은 `fee_covered`(주문 결제 환불액에 더해 합이 맞는다), 남는 몫은 그 결제에서 부분 취소(`RETURN_FEE_REFUND`). 다시 계산한 부족분이 낸 돈보다 크면 재부과 → 반품비 차례로 실제 받은 만큼만 남긴다.
+  7. 발송 전 취소 요청 거절은 「이미 발송함」 + 택배사·송장 — 같은 트랜잭션에서 발송 처리(열린 요청이 발송을 막으므로 거절이 먼저).
+  8. 반품 거절은 근거 사진 1~3장 필수, `USED_VALUE_LOSS`·`TIME_VALUE_LOSS` 는 상품 `withdrawal_restriction` 이 있고 업체 부담 요청이 아닐 때만, 반품에 `ALREADY_SHIPPED` 금지. 받아 둔 부족분은 거절·철회·닫힘·SUPERSEDED 때 모두 돌려준다.
+  9. 보상액은 하자·오배송·훼손 + 고객발송 반품만, 상한 = 공구 설정 `compensation_cap`. PG 몫 = min(보상, 남은 결제액 − 이번 환불), 넘는 몫 `commerce_bank_transfers(GROUP_BUY_COMPENSATION)`. 보상은 고액 문턱 누계(`operator_amount`)에 든다 — 넘으면 403 `GROUP_BUY_REFUND_LARGE_REQUIRED`(완료를 고액 권한자가). 계산값을 고쳐 승인하는 기능은 두지 않았다(필요하면 운영 환불로).
+  10. 운영 환불: 발송 전 = 줄·수량(비면 전체) 취소와 같은 계산(사업자 귀책이면 재계산 없음) · 배송완료 = 금액만(1 ~ 남은 결제액, 줄 비례 나눔 `amountOnly`). 고액 문턱(누계 ≥ 문턱, 0 = 끔)에 닿고 권한이 없으면 `group_buy_admin_refunds` 승인 대기(`AWAITING_APPROVAL`) → 고액 권한자 `approvePending`(그때 다시 계산해 금액이 다르면 409). 운영 환불 줄 몫은 그 줄의 다음 반품 환불에서 먼저 뺀다(`prior_refund_offset`).
+  11. 공급 불가: ① 기록 + 판매 중지 ② 주문마다 새 트랜잭션 — 그 단품 줄 전부 취소(재계산 없음), 본 상품이 모두 빠지면 주문 전체(배송비 포함) ③ 단품 최대 = max(확정 + 선점, 1), MAIN 이면 공구 최대도 같은 수만큼(최소 수량 아래로는 DB CHECK 가 막아 그만큼만). 선택 기한 = 설정 영업일의 마지막 날 끝(KST), 기한 전 미응답 주문은 발송 거절, 기한 뒤 워커가 KEEP_REST(defaulted).
+  12. 배송지 수정 기한: 즉시 발송 = 결제 중·CONFIRMED, 마감 후 발주 = 결제 중·JOINED·CONFIRMED 이고 공구가 RECRUITING·CLOSING·CLOSED_SUCCESS. 명단 CSV 는 UTF-8 BOM·늘 큰따옴표, `= + - @`·탭·CR 로 시작하면 `'`. 열람 감사 detail 은 사유·주문 번호만.
+  13. 에스크로 결제 여부는 발송 줄 `escrow_applicable` 에 처음 호출 결과로 남긴다(아니면 SKIPPED, 구매 확정 대상에서 빠짐). 송장 정정·교환 재발송은 LOGISTICS 를 다시(이미 등록됐으면 PATCH).
+  14. 수동 처리 「계좌 송금」은 결제 모듈 → 공구 처리기가 환불 기록 방법을 BANK_TRANSFER(진행 중 그대로) + 송금 대기 줄 — 송금 완료 때 기록 COMPLETED. 공구 쪽 `BankTransferService.convertRefund` 가 같은 길을 부른다(금액 변경 전환은 받지 않음). 불변식은 BANK_TRANSFER 수동 취소를 「아직 돌려줄 몫」에서 뺀다.
+  15. 불변식 검사에 `RETURN_FEE_BALANCE`(부족분 결제 − 취소 = 낸 금액 − 돌려준 금액)를 더하고, `PAYMENT_BALANCE` 는 계좌 송금으로 돌린 취소를 뺀다. 다시 판매·폐기·교환 출고 이동 줄은 단품 이후 값을 조건부 UPDATE … RETURNING 으로(기록만 하는 이동도 같은 문장).
+- **규칙 → 테스트**(shared, 실제 PostgreSQL `CommerceTestDatabase` — 새 시험 5개 클래스 52개)
+
+  | 규칙 | 테스트 |
+  |---|---|
+  | 10-8 기준 표 P36·P37·P37b·P37c·P37d·P38·P38b·P39·P40·P41·P42 | `GroupBuyRefundCalculatorTest` 해당 이름 |
+  | G7(세 번 반품 22,000·19,000·25,000, 재부과 두 번 빼지 않음, 왕복 맞춤) | `GroupBuyRefundCalculatorTest.G7_…`(둘) · `GroupBuyRequestTest.G7_G6_…`(실제 요청 흐름·REFUNDED·PG 누계 66,000) |
+  | G14(하자 + 변심 한 요청 — 반품비 운영자, 줄별 금액, 결정 43 맞춤 편도·왕복) | `GroupBuyRefundCalculatorTest.G14_…` · `GroupBuyRequestTest.G14_…` |
+  | G31(업체회수 −1,000 부족분 결제해야 접수 · 고객발송 2,000 · 미결제 하루 뒤 닫힘·결제창 닫힘 · 접수 뒤 거절이면 1,000 취소) · 결정 68 | `GroupBuyRefundCalculatorTest.G31_…` · `GroupBuyRequestTest.G31_…` |
+  | G32(발송 전 2/3 취소 뒤 남은 1개 22,000·25,000·28,000) · 결정 42·53 | `GroupBuyRefundCalculatorTest.G32_…` · `결정42_…` |
+  | 결정 71(운영 환불 몫을 반품에서 뺌·남은 결제액 이하) · G33 | `GroupBuyRefundCalculatorTest.결정71_…` · `GroupBuyAdminRefundTest.G33_결정71_…` |
+  | P33·P34 반품 기한 | `GroupBuyRequestTest.P33_P34_…` |
+  | G1 다시 판매(모집 중 + 단순 변심 · 하자 거절 · CLOSING 뒤 거절 · 보관/폐기 수량 그대로 · 합 ≠ 줄 수량) · 결정 15 · G6 | `GroupBuyRequestTest.G1_…` |
+  | G15·P41 보상(PG 안이면 함께·보상 누계 / 넘는 몫 계좌 송금·송금 완료 뒤 계좌 삭제 · 상한 · 변심엔 없음) | `GroupBuyRequestTest.P41_G15_…` · `G15_보상이_…` |
+  | G30 전체 반품 뒤 REFUNDED · 그 뒤 운영 환불 거절 · 결정 46 | `GroupBuyRequestTest.G7_G6_…` |
+  | G36·결정 73 대사 이슈 열린 결제 승인 거절 | `GroupBuyRequestTest.G36_…` |
+  | G40·결정 55 거절 사유 코드·근거 사진·청약철회 제한 안내 | `GroupBuyRequestTest.G40_…` |
+  | G39·결정 54 교환 재발송·환불 0·교환 출고·에스크로 다시·환불 전환(미리 보기 다시 계산) · 변심 교환 거절 | `GroupBuyRequestTest.G39_…` |
+  | 10-3 발송 전 취소 요청 승인(줄·재부과)·열린 요청 하나·「이미 발송함」 거절은 송장으로 발송 | `GroupBuyRequestTest.발송_전_취소_요청은_…` |
+  | 결정 72 미리 보기 ↔ 승인 | `GroupBuyRequestTest.결정72_…` |
+  | 결정 88 반품도 추가상품만 남기기 금지 · 철회 뒤 다시 요청 | `GroupBuyRequestTest.반품도_…` |
+  | G20 반품은 처리 방법과 관계없이 1인 한도에서 빠짐 | `GroupBuyRequestTest.G20_…` |
+  | 결정 69 지연 취소 전액이면 열린 요청 SUPERSEDED | `GroupBuyRequestTest.결정69_…` |
+  | G34·결정 70 계산 환불은 일반 권한·PG 한 번, 운영 환불 누계 문턱·승인 대기·문턱 0 | `GroupBuyAdminRefundTest.G34_…` |
+  | 결정 32 운영 환불(발송 전 = 취소·배송 중 거절·배송완료 금액만·REFUNDED·남은 결제액 초과 거절) | `GroupBuyAdminRefundTest.결정32_…` |
+  | G35·G21(GAVE_UP 중 같은 금액 다시 — 결정 38)·결정 67 계좌 송금 전환·송금 완료 | `GroupBuyAdminRefundTest.G35_G21_…` |
+  | G35·G18·결정 16·74 콘솔 수동 처리 — 취소 누계 반영·환불 MANUAL·이벤트·대사 SUCCEEDED 합 | `GroupBuyAdminRefundTest.G35_G18_…` |
+  | G38·결정 53 공급 불가(그 단품만 산 주문 전액 · 섞인 주문 그 줄만 재부과 없음 · 판매 중지·최대 줄임 · 기한 전 발송 거절 · 전체 취소 · 기한 뒤 나머지만) | `GroupBuySupplyTest.G38_…` |
+  | G21·P35 영업일(주말·휴일)·2영업일 경고·3영업일 심각·요청 처리 기한 단계 | `GroupBuySupplyTest.G21_P35_…` · `P35_…` |
+  | 결정 11 택배사 시드·이력 있으면 지우기 금지·주소 규칙 · 송장 정리 | `GroupBuyFulfillmentTest.택배사는_…` · `송장은_…` |
+  | 결정 47·43·10-3 발송 일괄 행 결과(열린 요청·택배사·송장) · 처음 배송비 고정 | `GroupBuyFulfillmentTest.발송_일괄은_…` |
+  | 발주 → 준비중 → 발송(SHIPPING) → 배송완료 → COMPLETED(결정 7·9) | `GroupBuyFulfillmentTest.마감_후_발주_공구는_…` |
+  | 결정 64 에스크로 커밋 밖·재시도 표·송장 정정 PATCH · 6번 실패 GAVE_UP · 결정 14 구매 확정 7일·열린 요청이면 안 함 | `GroupBuyFulfillmentTest.에스크로_…`(둘) · `결정14_…` |
+  | 10-9 가린 값·운영자 열람(사유·기록·감사에 평문 없음·10분)·본인 보기 | `GroupBuyFulfillmentTest.가린_값과_…` |
+  | G10·결정 30 배송지 수정·명단 기한(즉시 발송 / 마감 후 발주) · 발송된 주문이 있는 공구 중단 | `GroupBuyFulfillmentTest.G10_…`(셋) |
+  | G21·결정 20 CSV 수식 주입 | `GroupBuyFulfillmentTest.G21_…` |
+  | 불변식(판매 수량·이동 줄·결제 잔액(계좌 송금 제외)·반품비 결제 잔액) | 위 시험마다 끝의 `assertInvariants` |
+  | 워커 「언제 돌릴지」 — 발송·요청 워커 | admin `GroupBuyStateSchedulerTest`(고침) |
+- **실행**(JAVA_HOME 지정): `./gradlew :server:shared:test --tests 'com.community.groupbuy.*' --tests 'com.community.payment.*' --tests 'com.community.audit.*'` → **278개 통과**(공구 158 = 2b-2 106 + 새 52, 결제·감사 포함, 실패 0) · `./gradlew :server:admin:test --tests 'com.community.batch.service.GroupBuyStateSchedulerTest' --tests '*AuditRetentionAdminTest' --tests 'com.community.payment.*' :server:api:test --tests '*IdentityHttpTest' --tests 'com.community.payment.*'` → admin **25 통과**·api **13 통과**(두 앱 문맥이 새 빈과 함께 뜬다), 실패 0. 전체 테스트는 돌리지 않았다.
+- **아직 테스트로 막지 못한 규칙과 이유**
+  - 결정 53 공급 불가 때 **결제 중(PENDING_PAYMENT) 주문**이 그 단품을 품고 뒤늦게 결제되면 그 줄이 남는다 — 판매 중지로 새 선점은 막지만 진행 중 선점은 만료를 기다린다(운영자가 선점 만료 뒤 처리하거나 2b-4 에서 공급 불가 때 결제 중 주문 닫기를 더할 것).
+  - G17 「반품 승인 ∥ 결제 확정·중단」 동시성 — 반품 대상은 이미 결제·배송된 주문이라 결제 확정과 겹치지 않는다(주문 행 잠금 차례만 지킴, 동시 시험은 쓰지 않음).
+  - 「안 날부터 30일」(하자) — 시스템이 알 수 없어 운영자 판단.
+  - 포트원 에스크로·부분 취소 실제 동작(2b-5), 회원·관리자 컨트롤러·권한 코드(`commerce.order.manage`·`commerce.refund.approve`·`.large`·`commerce.address.reveal`·`commerce.export`)·`MoneyRequestGuard`·알림·메일·P35 운영자 알림 발송(이벤트만) — 2b-4.
+  - 결제 관리자 화면의 「수동 처리 방법」 고르기(서비스는 받음) — 2b-4 컨트롤러.
 
 ## 승인 (2026-10-28)
 사용자: 「지금까지 확정된 상태로 다음 단계 진행해」 — 결정 1~86·Q&A 규칙·작업 단위·화면 목록·마이그레이션 계획을 추천안 그대로 승인, 2b-2 는 화면 확정 전 병행. 결정 43 은 지금 규칙 유지(나눠 모두 반품해도 한 번에 반품한 것과 같게 — 판매자 손해가 더 커지지 않는다, 처음 배송비까지 받으려면 그 공구의 배송비 정책을 왕복으로).

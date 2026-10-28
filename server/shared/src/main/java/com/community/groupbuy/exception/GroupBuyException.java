@@ -36,6 +36,30 @@ public class GroupBuyException extends CommonException {
     public static final String PRODUCT_NOT_FOUND = "GROUP_BUY_PRODUCT_NOT_FOUND";
     public static final String PRODUCT_SKU_IN_USE = "GROUP_BUY_PRODUCT_SKU_IN_USE";
     public static final String OPTION_TYPE_IN_USE = "GROUP_BUY_OPTION_TYPE_IN_USE";
+    // 2b-3 발송·요청·환불
+    public static final String REQUEST_NOT_FOUND = "GROUP_BUY_REQUEST_NOT_FOUND";
+    public static final String REQUEST_OPEN = "GROUP_BUY_REQUEST_OPEN";
+    public static final String REQUEST_NOT_OPEN = "GROUP_BUY_REQUEST_NOT_OPEN";
+    public static final String RETURN_WINDOW_CLOSED = "GROUP_BUY_RETURN_WINDOW_CLOSED";
+    public static final String NOT_RESELLABLE = "GROUP_BUY_NOT_RESELLABLE";
+    public static final String REFUND_AMOUNT_CHANGED = "GROUP_BUY_REFUND_AMOUNT_CHANGED";
+    public static final String REJECT_REASON_NOT_ALLOWED = "GROUP_BUY_REJECT_REASON_NOT_ALLOWED";
+    public static final String PAYMENT_UNRECONCILED = "GROUP_BUY_PAYMENT_UNRECONCILED";
+    public static final String REFUND_SHIPPED = "GROUP_BUY_REFUND_SHIPPED";
+    public static final String REFUND_LARGE_REQUIRED = "GROUP_BUY_REFUND_LARGE_REQUIRED";
+    public static final String ORDER_STATE = "GROUP_BUY_ORDER_STATE";
+    public static final String ORDER_NOT_PREPARABLE = "GROUP_BUY_ORDER_NOT_PREPARABLE";
+    public static final String ORDER_NOT_SHIPPABLE = "GROUP_BUY_ORDER_NOT_SHIPPABLE";
+    public static final String NOT_ORDERABLE = "GROUP_BUY_NOT_ORDERABLE";
+    public static final String TRACKING_INVALID = "GROUP_BUY_TRACKING_INVALID";
+    public static final String ADDRESS_LOCKED = "GROUP_BUY_ADDRESS_LOCKED";
+    public static final String ADDRESS_ERASED = "GROUP_BUY_ADDRESS_ERASED";
+    public static final String EXPORT_NOT_READY = "GROUP_BUY_EXPORT_NOT_READY";
+    public static final String EXCHANGE_NOT_ALLOWED = "GROUP_BUY_EXCHANGE_NOT_ALLOWED";
+    public static final String SUPPLY_CHOICE_CLOSED = "GROUP_BUY_SUPPLY_CHOICE_CLOSED";
+    public static final String COMPENSATION_OVER_CAP = "GROUP_BUY_COMPENSATION_OVER_CAP";
+    public static final String BANK_TRANSFER_STATE = "COMMERCE_BANK_TRANSFER_STATE";
+    public static final String CARRIER_IN_USE = "COMMERCE_CARRIER_IN_USE";
     public static final String SHIPPING_POLICY_NOT_FOUND = "SHIPPING_POLICY_NOT_FOUND";
     public static final String SHIPPING_POLICY_CONFLICT = "SHIPPING_POLICY_CONFLICT";
 
@@ -183,5 +207,119 @@ public class GroupBuyException extends CommonException {
     /** 배송비 정책 예약이 기존 줄과 겹치거나 이미 시작된 시각이다 */
     public static GroupBuyException shippingPolicyConflict() {
         return new GroupBuyException(HttpStatus.CONFLICT, SHIPPING_POLICY_CONFLICT);
+    }
+    // ── 2b-3 발송·요청·환불 ────────────────────────────────────────────────
+
+    public static GroupBuyException requestNotFound() {
+        return new GroupBuyException(HttpStatus.NOT_FOUND, REQUEST_NOT_FOUND);
+    }
+
+    /** 주문에 열린 요청이 이미 있다(결정 44·66) — 그 요청이 끝나야 새 요청·발송·운영 환불 */
+    public static GroupBuyException requestOpen() {
+        return new GroupBuyException(HttpStatus.CONFLICT, REQUEST_OPEN);
+    }
+
+    /** 요청이 이 처리를 할 상태가 아니다(이미 처리·철회됨) */
+    public static GroupBuyException requestNotOpen() {
+        return new GroupBuyException(HttpStatus.CONFLICT, REQUEST_NOT_OPEN);
+    }
+
+    /** 반품 기한 지남(단순 변심 배송완료 7일 · 하자 3개월 — L2) */
+    public static GroupBuyException returnWindowClosed() {
+        return new GroupBuyException(HttpStatus.CONFLICT, RETURN_WINDOW_CLOSED);
+    }
+
+    /** 다시 판매할 수 없다 — 공구가 모집 중이 아니거나 단순 변심 줄이 아니다(결정 15) */
+    public static GroupBuyException notResellable() {
+        return new GroupBuyException(HttpStatus.CONFLICT, NOT_RESELLABLE);
+    }
+
+    /** 미리 본 금액과 지금 계산이 다르다 — 두 값을 보이고 확인 뒤 다시(결정 72) */
+    public static GroupBuyException refundAmountChanged(long preview, long current) {
+        return new GroupBuyException(HttpStatus.CONFLICT, REFUND_AMOUNT_CHANGED).with("previewAmount", preview).with("amount", current);
+    }
+
+    /** 이 요청에 쓸 수 없는 거절 사유(결정 55 — 청약철회 제한 안내 없는 가치 감소, 반품에 「이미 발송함」 등) 또는 근거 사진 없음 */
+    public static GroupBuyException rejectReasonNotAllowed() {
+        return new GroupBuyException(HttpStatus.CONFLICT, REJECT_REASON_NOT_ALLOWED);
+    }
+
+    /** 그 결제에 열린 대사 이슈(콘솔 직접 취소)가 있다 — 대사 처리 뒤(결정 73) */
+    public static GroupBuyException paymentUnreconciled() {
+        return new GroupBuyException(HttpStatus.CONFLICT, PAYMENT_UNRECONCILED);
+    }
+
+    /** 배송 중 주문은 운영 환불을 받지 않는다 — 배송완료 뒤 또는 반품 요청으로(결정 32) */
+    public static GroupBuyException refundShipped() {
+        return new GroupBuyException(HttpStatus.CONFLICT, REFUND_SHIPPED);
+    }
+
+    /** 운영자가 금액을 정한 환불 누계가 고액 문턱 이상 — 고액 환불 권한이 필요하다(결정 70) */
+    public static GroupBuyException refundLargeRequired(long threshold) {
+        return new GroupBuyException(HttpStatus.FORBIDDEN, REFUND_LARGE_REQUIRED).with("threshold", threshold);
+    }
+
+    /** 주문이 이 처리를 할 상태가 아니다 */
+    public static GroupBuyException orderState() {
+        return new GroupBuyException(HttpStatus.CONFLICT, ORDER_STATE);
+    }
+
+    public static GroupBuyException orderNotPreparable() {
+        return new GroupBuyException(HttpStatus.CONFLICT, ORDER_NOT_PREPARABLE);
+    }
+
+    /** 발송할 수 없다 — 상태·발주 전·열린 요청·공급 불가 답 기다림 */
+    public static GroupBuyException orderNotShippable() {
+        return new GroupBuyException(HttpStatus.CONFLICT, ORDER_NOT_SHIPPABLE);
+    }
+
+    /** 발주할 수 없다(성사된 마감 후 발주 공구만) */
+    public static GroupBuyException notOrderable() {
+        return new GroupBuyException(HttpStatus.CONFLICT, NOT_ORDERABLE);
+    }
+
+    /** 택배사가 없거나 꺼졌다, 송장이 숫자·영문 6~30자가 아니다 */
+    public static GroupBuyException trackingInvalid() {
+        return new GroupBuyException(HttpStatus.BAD_REQUEST, TRACKING_INVALID);
+    }
+
+    /** 배송지를 고칠 수 있는 기한이 지났다(결정 30) */
+    public static GroupBuyException addressLocked() {
+        return new GroupBuyException(HttpStatus.CONFLICT, ADDRESS_LOCKED);
+    }
+
+    /** 보관 기간이 지나 배송지를 지웠다(10-9) */
+    public static GroupBuyException addressErased() {
+        return new GroupBuyException(HttpStatus.CONFLICT, ADDRESS_ERASED);
+    }
+
+    /** 명단을 내보낼 때가 아니다(마감 후 발주 공구는 발주 뒤 — 결정 30) */
+    public static GroupBuyException exportNotReady() {
+        return new GroupBuyException(HttpStatus.CONFLICT, EXPORT_NOT_READY);
+    }
+
+    /** 교환은 하자·오배송·훼손만(결정 54) */
+    public static GroupBuyException exchangeNotAllowed() {
+        return new GroupBuyException(HttpStatus.CONFLICT, EXCHANGE_NOT_ALLOWED);
+    }
+
+    /** 공급 불가 선택 기한이 지났거나 이미 답했다 */
+    public static GroupBuyException supplyChoiceClosed() {
+        return new GroupBuyException(HttpStatus.CONFLICT, SUPPLY_CHOICE_CLOSED);
+    }
+
+    /** 보상액이 설정 상한을 넘는다(10-8 — 기본 10,000원) */
+    public static GroupBuyException compensationOverCap(long cap) {
+        return new GroupBuyException(HttpStatus.CONFLICT, COMPENSATION_OVER_CAP).with("cap", cap);
+    }
+
+    /** 계좌 송금이 이 처리를 할 상태가 아니다 */
+    public static GroupBuyException bankTransferState() {
+        return new GroupBuyException(HttpStatus.CONFLICT, BANK_TRANSFER_STATE);
+    }
+
+    /** 발송 이력이 있는 택배사는 지우지 못하고 끄기만(결정 11) */
+    public static GroupBuyException carrierInUse(java.util.List<String> codes) {
+        return new GroupBuyException(HttpStatus.CONFLICT, CARRIER_IN_USE).with("codes", codes);
     }
 }

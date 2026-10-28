@@ -1,6 +1,7 @@
 package com.community.groupbuy.dto;
 
 import com.community.groupbuy.entity.QtyMovementKind;
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -37,6 +38,22 @@ public final class GroupBuyEvents {
 
     /** 자동 취소(늦은 결제·도메인 거절)가 끝났다 — 주문 금액·상태는 그대로, 회원 안내만(결정 40) */
     public record AutoCancelCompleted(long participationId, long userId, long paymentOrderId) {
+    }
+
+    /** 에스크로 호출을 재시도 끝에 그만뒀다(운영자 알림 — 결정 64) */
+    public record EscrowGaveUp(long shipmentId, long participationId, String kind) {
+    }
+
+    /** 요청 상태가 바뀌었다(접수·승인·회수 확인·완료·거절·교환 → 환불 전환 등 — 회원 알림, 운영자 요청 알림 COMMERCE_REFUND_REQUESTED) */
+    public record RequestChanged(long requestId, long participationId, long userId, String status, String reason) {
+    }
+
+    /** 단품 공급 불가로 회원에게 「나머지만 받기 / 전체 취소」를 묻는다(결정 53 — 앱 + 메일) */
+    public record SupplyChoiceAsked(long participationId, long userId, long skuId, Instant deadline) {
+    }
+
+    /** 운영자가 콘솔에서 직접 처리한 환불(결정 16 — 「환불 처리됨(운영자 확인)」 알림·메일) */
+    public record RefundResolvedManually(long refundId, long participationId, long userId, String method) {
     }
 
     /** 공구가 마감·판정·중단됐다 */
