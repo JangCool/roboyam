@@ -60,10 +60,52 @@ function notice(categoryCode: string, title: string, skuIds: string[], filled: R
     return { categoryCode, title, skuIds, skuNames: [], values, customItems: customs.map(([name, value], sortOrder) => ({ name, value, sortOrder })) };
 }
 
-/** 고시 양식의 적용 단품 이름을 그 공구 단품 이름으로 채운다 */
-function withNoticeNames(list: GroupBuyDetail[]): GroupBuyDetail[] {
-    for (const g of list) g.notices = g.notices.map((n) => ({ ...n, skuNames: n.skuIds.map((id) => g.skus.find((s) => s.skuId === id)?.name ?? '') }));
-    return list;
+/** 공구 → 상품 ID(결정 89 — 목업은 공구마다 상품 하나, 같은 번호) */
+export function productIdOf(groupBuyId: string): string {
+    return `pd-${groupBuyId.replace(/^gb-/, '')}`;
+}
+
+/** 공구(=그 상품)의 카테고리 — 상품 목업(`groupbuy-product-mock.ts`)의 카테고리 ID */
+export const PRODUCT_CATEGORY_OF: Record<string, string> = {
+    'gb-101': 'ct-home',
+    'gb-102': 'ct-robot',
+    'gb-103': 'ct-robot',
+    'gb-104': 'ct-robot',
+    'gb-105': 'ct-robot',
+    'gb-106': 'ct-robot',
+    'gb-107': 'ct-rice',
+    'gb-108': 'ct-fruit',
+    'gb-109': 'ct-sea',
+    'gb-110': 'ct-kimchi',
+    'gb-111': 'ct-clothes',
+    'gb-112': 'ct-shoes',
+};
+const CATEGORY_PATH: Record<string, string> = { 'ct-home': '디지털·로봇 › 생활 가전', 'ct-robot': '디지털·로봇 › 로봇 키트', 'ct-rice': '식품 › 쌀·잡곡', 'ct-fruit': '식품 › 과일', 'ct-sea': '식품 › 수산', 'ct-kimchi': '식품 › 김치·반찬', 'ct-clothes': '패션 › 의류', 'ct-shoes': '패션 › 신발' };
+
+/** 목업 기본 공급가 — 판매가의 약 62%(100원 단위) */
+export function supplyGuess(unitPrice: number): number {
+    return Math.round((unitPrice * 0.62) / 100) * 100;
+}
+
+/**
+ * 고시 양식의 적용 단품 이름을 그 공구 단품 이름으로 채우고, 상품 연결(결정 89)을 붙인다 — 단품마다 상품 단품 ID `p` + 단품 ID, 공급가는 `supplyGuess`.
+ * 예외: gb-105(DRAFT)는 공급가를 비워 모집 시작 `409 GROUP_BUY_SUPPLY_PRICE_MISSING`, gb-109(DRAFT)는 한 단품을 역마진으로(확인 창).
+ */
+function withNoticeNames(list: (Omit<GroupBuyDetail, 'productId' | 'categoryPath'> & Partial<Pick<GroupBuyDetail, 'productId' | 'categoryPath'>>)[]): GroupBuyDetail[] {
+    return list.map((g) => {
+        const skus = g.skus.map((s, i) => ({
+            ...s,
+            productSkuId: `p${s.skuId}`,
+            supplyPrice: g.id === 'gb-105' ? null : g.id === 'gb-109' && i === 1 ? s.unitPrice + 2000 : supplyGuess(s.unitPrice),
+        }));
+        return {
+            ...g,
+            productId: productIdOf(g.id),
+            categoryPath: CATEGORY_PATH[PRODUCT_CATEGORY_OF[g.id] ?? ''] ?? '',
+            skus,
+            notices: g.notices.map((n) => ({ ...n, skuNames: n.skuIds.map((id) => skus.find((s) => s.skuId === id)?.name ?? '') })),
+        };
+    });
 }
 
 // ── 옵션 축·단품(결정 88) 만들기 ──
@@ -99,6 +141,8 @@ function sku(skuId: string, kind: GroupBuySku['kind'], valueIds: string[], name:
         imageKey,
         imageUrl,
         sortOrder: 0,
+        productSkuId: null,
+        supplyPrice: null,
     };
 }
 
@@ -138,6 +182,8 @@ function seed(over: Partial<GroupBuyDetail> & Pick<GroupBuyDetail, 'id' | 'statu
         roundNo: 1,
         roundRootId: over.id,
         rounds: [],
+        productId: null,
+        categoryPath: '',
         summary: '',
         spec: '',
         description: '',

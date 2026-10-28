@@ -104,6 +104,37 @@
             <Message v-for="w in warnings" :key="w" severity="warn" :closable="false" size="small">{{ t(`groupBuy.phraseWarning.${w}`) }}</Message>
 
             <form :key="formKey" class="flex flex-col gap-4" novalidate @submit.prevent="save">
+                <!-- ⓪ 상품(결정 89) — 설명·이미지·고시·옵션 축은 상품에서 온다. 상품은 DRAFT 에서만 고른다 -->
+                <AppGadget :title="t('groupBuy.secProduct')" anchor="gb-product" :invalid="fe('productId') ? 1 : 0">
+                    <div class="flex flex-col gap-3">
+                        <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('groupBuy.productPickHelp') }}</p>
+                        <LabeledField :label="t('groupBuy.fieldProduct')" :hint="draft ? '' : t('groupBuy.locked')" :error="fe('productId') || productError">
+                            <template #default="{ id, describedBy, invalid }">
+                                <Select
+                                    :input-id="id"
+                                    :model-value="form.productId"
+                                    :options="productChoices"
+                                    option-label="label"
+                                    option-value="value"
+                                    filter
+                                    :loading="productLoading"
+                                    :placeholder="t('groupBuy.productPickPlaceholder')"
+                                    :disabled="!draft || !canManage || saving"
+                                    :invalid="invalid"
+                                    :aria-describedby="describedBy"
+                                    fluid
+                                    @update:model-value="(v: string) => void pickProduct(v)"
+                                />
+                            </template>
+                        </LabeledField>
+                        <div v-if="form.productId" class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                            <span class="text-muted-color">{{ t('groupBuy.productCategory') }} <b class="font-medium text-color">{{ productPath || '—' }}</b></span>
+                            <NuxtLink :to="`/group-buy-products/${encodeURIComponent(form.productId)}`" class="text-primary hover:underline">{{ t('groupBuy.productEdit') }}</NuxtLink>
+                        </div>
+                        <Message v-if="!form.productId" severity="warn" :closable="false" size="small">{{ t('groupBuy.productNone') }}</Message>
+                    </div>
+                </AppGadget>
+
                 <!-- ① 기본 정보 -->
                 <AppGadget :title="t('groupBuy.secBasic')" anchor="gb-basic">
                     <div class="grid gap-4 md:grid-cols-2">
@@ -130,9 +161,10 @@
                     </div>
                 </AppGadget>
 
-                <!-- ② 설명·이미지 -->
+                <!-- ② 설명·이미지 — 상품에서 온 사본(여기서 고치지 않는다) -->
                 <AppGadget :title="t('groupBuy.secContent')" anchor="gb-content">
                     <div class="flex flex-col gap-4">
+                        <Message severity="secondary" :closable="false" size="small">{{ t('groupBuy.fromProductHelp') }}</Message>
                         <div class="flex flex-col gap-1.5">
                             <span :id="descLabelId" class="text-sm font-medium">{{ t('groupBuy.fieldDescription') }}</span>
                             <RichEditor :key="`gb-desc-${formKey}`" v-model="form.description" level="ADVANCED" image-upload :upload="richUpload" :disabled="ro('description')" :labelledby="descLabelId" :invalid="!!fe('description')" :placeholder="t('groupBuy.descriptionPlaceholder')" />
@@ -182,13 +214,13 @@
                 <!-- ④ 옵션(축·조합 = MAIN 단품) — 결정 88 -->
                 <AppGadget :title="t('groupBuy.secOptions')" anchor="gb-options" :invalid="fe('axes') || fe('skus') || fe('options') ? 1 : 0">
                     <template v-if="!draft" #title-extra><Tag :value="t('groupBuy.locked')" severity="secondary" /></template>
-                    <GroupBuyAxesEditor v-model:axes="form.axes" v-model:mains="form.mains" :group-price="form.groupPrice" :locked="!draft" :disabled="!canManage || saving" :errors="serverErrors" />
+                    <GroupBuyAxesEditor v-model:axes="form.axes" v-model:mains="form.mains" :group-price="form.groupPrice" :locked="!draft" :disabled="!canManage || saving" :errors="serverErrors" axes-locked :show-supply="canSeeSupply" :supply-editable="canPrice" />
                 </AppGadget>
 
                 <!-- ④-2 추가 구성상품(ADDON 단품) — 결정 88 -->
                 <AppGadget :title="t('groupBuy.secAddons')" anchor="gb-addons" :invalid="fe('addons') ? 1 : 0">
                     <template v-if="!draft" #title-extra><Tag :value="t('groupBuy.locked')" severity="secondary" /></template>
-                    <GroupBuyAddonsEditor v-model="form.addons" :upload="uploadImage" :main-names="mainNames" :locked="!draft" :disabled="!canManage || saving" :errors="serverErrors" />
+                    <GroupBuyAddonsEditor v-model="form.addons" :sources="addonSources" :locked="!draft" :disabled="!canManage || saving" :errors="serverErrors" :show-supply="canSeeSupply" :supply-editable="canPrice" />
                 </AppGadget>
 
                 <!-- ⑤ 수량·방식 -->
@@ -303,7 +335,8 @@
                             <Tag v-if="noticeSummary.complete" :value="t('groupBuy.noticeHeaderOk', { n: form.notices.length })" severity="success" />
                         </template>
                     </template>
-                    <GroupBuyNoticeEditor v-if="catalog" ref="noticeEditor" v-model="form.notices" :catalog="catalog" :skus="skuRefs" :disabled="!canManage || saving" :errors="serverErrors" :incomplete="noticeIncomplete" />
+                    <Message severity="secondary" :closable="false" size="small" class="mb-3">{{ t('groupBuy.noticeFromProduct') }}</Message>
+                    <GroupBuyNoticeEditor v-if="catalog" ref="noticeEditor" v-model="form.notices" :catalog="catalog" :skus="skuRefs" disabled :errors="serverErrors" :incomplete="noticeIncomplete" />
                     <ErrorState v-else-if="catalogError" :title="t('groupBuy.noticeCatalogFailed')" :description="catalogError.message" retry :retrying="catalogLoading" @retry="loadCatalog" />
                     <Skeleton v-else height="8rem" />
                 </AppGadget>
@@ -400,10 +433,13 @@ import type {
     ReturnFeeMode,
 } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
 import { NORMAL_PRICE_BASES } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
+import type { GroupBuyAddonSource, GroupBuyProductDetail, GroupBuyProductRow } from '~/composables/groupbuy/api/useGroupBuyProductApi.types';
 import UtilGroupBuy from '~/utils/util-groupbuy';
 
 interface EditForm {
     title: string;
+    /** 상품(결정 89) */
+    productId: string | null;
     productName: string;
     summary: string;
     spec: string;
@@ -451,6 +487,9 @@ const idParam = computed(() => String(route.params.id ?? ''));
 const isNew = computed(() => idParam.value === 'new');
 const canManage = computed(() => can('commerce.product.manage'));
 const canPrice = computed(() => can('commerce.product.price'));
+/** 공급가를 보는가(결정 89 — 가격 권한 또는 정산 조회). 고치는 것은 `canPrice` */
+const canSeeSupply = computed(() => canPrice.value || can('commerce.settlement.read'));
+const productApi = useGroupBuyProductApi();
 const canSupply = computed(() => can('commerce.order.manage') && can('commerce.refund.approve'));
 const nowIso = new Date().toISOString();
 
@@ -481,6 +520,7 @@ const draft = computed(() => isNew.value || detail.value?.status === 'DRAFT');
 function emptyForm(): EditForm {
     return {
         title: '',
+        productId: typeof route.query.productId === 'string' ? route.query.productId : null,
         productName: '',
         summary: '',
         spec: '',
@@ -511,7 +551,7 @@ function emptyForm(): EditForm {
 
 /** 축 없는 단품 하나(공구 전체) */
 function singleMain(): GroupBuyMainSkuRow {
-    return { key: 'main:', id: null, valueKeys: [], extraPrice: '0', maxQty: '', onSale: true, currentQty: 0, reservedQty: 0 };
+    return { key: 'main:', id: null, valueKeys: [], extraPrice: '0', maxQty: '', onSale: true, supplyPrice: '', currentQty: 0, reservedQty: 0 };
 }
 
 /** 응답 단품 → 편집 줄. 불러온 축·값·단품의 줄 키는 서버 ID(조합 줄 키 = `main:` + 값 ID 들 — 편집기와 같은 규칙) */
@@ -519,14 +559,16 @@ function skuRowsOf(d: GroupBuyDetail): Pick<EditForm, 'axes' | 'mains' | 'addons
     const axes = d.axes.map((a) => ({ key: a.id, id: a.id, name: a.name, values: a.values.map((v) => ({ key: v.id, id: v.id, name: v.name })) }));
     const mains = d.skus
         .filter((s) => s.kind === 'MAIN')
-        .map((s) => ({ key: mainKeyOf(s), id: s.skuId, valueKeys: [...s.valueIds], extraPrice: String(s.extraPrice), maxQty: s.maxQty === null ? '' : String(s.maxQty), onSale: s.onSale, currentQty: s.currentQty, reservedQty: s.reservedQty }));
+        .map((s) => ({ key: mainKeyOf(s), id: s.skuId, valueKeys: [...s.valueIds], extraPrice: String(s.extraPrice), maxQty: s.maxQty === null ? '' : String(s.maxQty), onSale: s.onSale, supplyPrice: s.supplyPrice === null ? '' : String(s.supplyPrice), currentQty: s.currentQty, reservedQty: s.reservedQty }));
     const addons = d.skus
         .filter((s) => s.kind === 'ADDON')
         .map((s) => ({
             key: s.skuId,
             id: s.skuId,
+            productSkuId: s.productSkuId,
             name: s.name,
             price: String(s.unitPrice),
+            supplyPrice: s.supplyPrice === null ? '' : String(s.supplyPrice),
             maxQty: s.maxQty === null ? '' : String(s.maxQty),
             image: s.imageKey && s.imageUrl ? { mediaId: s.imageKey, url: s.imageUrl, thumbUrl: s.imageUrl } : null,
             currentQty: s.currentQty,
@@ -554,6 +596,7 @@ function formOf(d: GroupBuyDetail): EditForm {
     const keyOfSku = new Map(d.skus.map((s) => [s.skuId, mainKeyOf(s)]));
     return {
         title: d.title,
+        productId: d.productId,
         productName: d.productName,
         summary: d.summary,
         spec: d.spec,
@@ -588,8 +631,8 @@ function snapshot(f: EditForm): string {
         ...f,
         images: f.images.map((i) => i.mediaId),
         axes: f.axes.map((a) => [a.id, a.name, a.values.map((v) => [v.id, v.name])]),
-        mains: f.mains.map((m) => [m.key, m.extraPrice, m.maxQty, m.onSale]),
-        addons: f.addons.map((a) => [a.id, a.name, a.price, a.maxQty, a.image?.mediaId ?? null]),
+        mains: f.mains.map((m) => [m.key, m.extraPrice, m.maxQty, m.onSale, m.supplyPrice]),
+        addons: f.addons.map((a) => [a.id, a.productSkuId, a.name, a.price, a.maxQty, a.supplyPrice]),
         notices: noticesView(f),
     });
 }
@@ -608,11 +651,13 @@ function applyDetail(d: GroupBuyDetail): void {
 /** 칸이 읽기 전용인가 — 권한 없음 · 저장 중 · 모집 뒤 잠긴 칸 · 가격 칸인데 가격 권한 없음 */
 function ro(field: string, price = false): boolean {
     if (!canManage.value || saving.value) return true;
+    if (UtilGroupBuy.PRODUCT_FIELDS.includes(field)) return true;
     if (!draft.value && !UtilGroupBuy.CONTENT_FIELDS.includes(field)) return true;
     return price && !canPrice.value;
 }
 
 function lockHint(field: string, price = false): string {
+    if (UtilGroupBuy.PRODUCT_FIELDS.includes(field)) return t('groupBuy.fromProduct');
     if (!draft.value && !UtilGroupBuy.CONTENT_FIELDS.includes(field)) return t('groupBuy.locked');
     if (draft.value && price && canManage.value && !canPrice.value) return t('groupBuy.locked');
     return '';
@@ -713,6 +758,135 @@ const warnings = computed(() =>
     UtilGroupBuy.phraseWarnings(form.value.title, form.value.summary, form.value.spec, form.value.description, form.value.withdrawalRestriction, ...form.value.axes.flatMap((a) => [a.name, ...a.values.map((v) => v.name)]), ...form.value.addons.map((a) => a.name)),
 );
 
+// ── 상품(결정 89) ──
+const products = ref<GroupBuyProductRow[]>([]);
+const productLoading = ref(false);
+const productError = ref('');
+const addonSources = ref<GroupBuyAddonSource[]>([]);
+/** 추가 구성상품 상품의 고시 양식(상품 ID → 상세) — 고른 단품마다 그 상품의 양식을 붙인다 */
+const addonProducts = new Map<string, GroupBuyProductDetail>();
+
+const productChoices = computed(() => products.value.map((p) => ({ value: p.id, label: `${p.name} · ${p.categoryPath}` })));
+const productPath = computed(() => products.value.find((p) => p.id === form.value.productId)?.categoryPath ?? detail.value?.categoryPath ?? '');
+
+async function loadProducts(): Promise<void> {
+    productLoading.value = true;
+    try {
+        products.value = (await productApi.list({ page: 0, size: 200 })).items;
+        addonSources.value = await productApi.addonSources(form.value.productId);
+    } catch (e) {
+        productError.value = toApiError(e).message;
+    } finally {
+        productLoading.value = false;
+    }
+}
+
+/** 상품의 설명·이미지·고시·옵션 축·단품을 공구 칸에 채운다(단품별 공구 설정은 새로 — 공급가는 기본 공급가 복사) */
+function fillFromProduct(p: GroupBuyProductDetail): void {
+    const axes = p.axes.map((a) => ({ key: a.id, id: null, name: a.name, values: a.values.map((v) => ({ key: v.id, id: null, name: v.name })) }));
+    const mains: GroupBuyMainSkuRow[] = p.skus.map((s) => ({ key: `main:${s.valueIds.join('|')}`, id: null, valueKeys: [...s.valueIds], extraPrice: '0', maxQty: '', onSale: s.onSale, supplyPrice: s.baseSupplyPrice === null ? '' : String(s.baseSupplyPrice), currentQty: 0, reservedQty: 0 }));
+    const keyOfName = new Map(p.skus.map((s, i) => [s.name, mains[i]!.key]));
+    form.value = {
+        ...form.value,
+        productId: p.id,
+        productName: p.name,
+        title: form.value.title.trim() ? form.value.title : `${p.name} 공동구매`,
+        summary: p.summary,
+        spec: p.spec,
+        description: p.description,
+        images: p.images.map((i) => ({ ...i })),
+        normalPriceBasis: p.normalPriceBasis,
+        normalPriceSource: p.normalPriceSource,
+        withdrawalRestriction: p.withdrawalRestriction,
+        axes,
+        mains: mains.length ? mains : [singleMain()],
+        addons: [],
+        notices: p.notices.map((n, i) => ({ key: `notice-p-${i}`, categoryCode: n.categoryCode, title: n.title, skuKeys: n.skuNames.flatMap((name) => (keyOfName.has(name) ? [keyOfName.get(name)!] : [])), values: n.values.map((v) => ({ ...v })), customItems: n.customItems.map((c) => ({ ...c })) })),
+    };
+    formKey.value += 1;
+}
+
+async function pickProduct(id: string): Promise<void> {
+    if (!id || id === form.value.productId) return;
+    if (form.value.productId && !(await confirm({ title: t('groupBuy.productChangeTitle'), message: t('groupBuy.productChangeBody'), confirmLabel: t('groupBuy.productChange') }))) return;
+    productError.value = '';
+    try {
+        fillFromProduct(await productApi.detail(id));
+        addonSources.value = await productApi.addonSources(id);
+    } catch (e) {
+        productError.value = toApiError(e).message;
+    }
+}
+
+/** 추가 구성상품을 고르거나 빼면 그 상품의 고시 양식을 붙이거나 뗀다(그 상품의 첫 양식 = 그 단품 하나에 적용) */
+async function syncAddonNotices(): Promise<void> {
+    if (!draft.value) return;
+    const addonKeys = new Set(form.value.addons.map((a) => a.key));
+    const mainNotices = form.value.notices.filter((n) => !n.key.startsWith('notice-a-'));
+    const addonNotices: GroupBuyNoticeRow[] = [];
+    for (const a of form.value.addons) {
+        const src = addonSources.value.find((s) => s.productSkuId === a.productSkuId);
+        if (!src) continue;
+        let p = addonProducts.get(src.productId);
+        if (!p) {
+            try {
+                p = await productApi.detail(src.productId);
+                addonProducts.set(src.productId, p);
+            } catch {
+                continue;
+            }
+        }
+        const n = p.notices[0];
+        if (n) addonNotices.push({ key: `notice-a-${a.key}`, categoryCode: n.categoryCode, title: n.title || a.name, skuKeys: [a.key], values: n.values.map((v) => ({ ...v })), customItems: n.customItems.map((c) => ({ ...c })) });
+    }
+    void addonKeys;
+    form.value = { ...form.value, notices: [...mainNotices, ...addonNotices] };
+}
+watch(
+    () => form.value.addons.map((a) => `${a.key}:${a.productSkuId ?? ''}`).join(','),
+    (now, before) => {
+        if (before !== undefined && now !== before) void syncAddonNotices();
+    },
+);
+
+// ── 공급가(결정 89) ──
+/** 판매가 < 공급가인 단품 이름(역마진) */
+function formMarginLoss(): string[] {
+    const base = UtilGroupBuy.int(form.value.groupPrice) ?? 0;
+    const nameOf = new Map(skuRefs.value.map((s) => [s.key, s.name]));
+    const loss = (price: number | null, supply: string) => price !== null && UtilGroupBuy.int(supply) !== null && price < UtilGroupBuy.int(supply)!;
+    return [
+        ...form.value.mains.filter((m) => m.onSale && loss(base + (UtilGroupBuy.int(m.extraPrice) ?? 0), m.supplyPrice)).map((m) => nameOf.get(m.key) || form.value.productName),
+        ...form.value.addons.filter((a) => loss(UtilGroupBuy.int(a.price), a.supplyPrice)).map((a) => a.name),
+    ];
+}
+
+function detailMarginLoss(d: GroupBuyDetail): string[] {
+    return d.skus.filter((s) => s.onSale && s.supplyPrice !== null && s.unitPrice < s.supplyPrice).map((s) => s.name || d.productName);
+}
+
+/** 역마진이면 확인을 받는다(결정 89 — 경고 후 확인해야 진행). 공급가를 못 보는 운영자는 묻지 않는다(서버가 판단) */
+async function confirmMargin(names: string[]): Promise<boolean> {
+    if (!canSeeSupply.value || !names.length) return true;
+    return confirm({ title: t('groupBuy.marginTitle'), message: t('groupBuy.marginBody', { names: names.join(', ') }), confirmLabel: t('groupBuy.marginConfirm'), tone: 'danger' });
+}
+
+/** 모집 뒤 공급가 정정 — 단품 ID 와 지금 칸 값 */
+function supplyPricesOut(f: EditForm, d: GroupBuyDetail): { skuId: string; supplyPrice: number | null }[] {
+    const opt = (s: string) => (s.trim() === '' ? null : UtilGroupBuy.int(s));
+    const mainId = new Map(d.skus.filter((s) => s.kind === 'MAIN').map((s) => [mainKeyOf(s), s.skuId]));
+    return [...f.mains.flatMap((m) => (mainId.get(m.key) ? [{ skuId: mainId.get(m.key)!, supplyPrice: opt(m.supplyPrice) }] : [])), ...f.addons.flatMap((a) => (a.id ? [{ skuId: a.id, supplyPrice: opt(a.supplyPrice) }] : []))];
+}
+
+/** 모집 시작 실패 — 고시 409 는 목록 표시, 공급가 409 는 빠진 단품 이름을 붙인다 */
+function onStartFailure(failure: ApiError): void {
+    showNoticeIncomplete(failure);
+    if (failure.code === 'GROUP_BUY_SUPPLY_PRICE_MISSING') {
+        const names = Array.isArray(failure.extras?.skuNames) ? (failure.extras.skuNames as string[]) : [];
+        if (names.length) queueMicrotask(() => (actionError.value = `${failure.message} (${names.join(', ')})`));
+    }
+}
+
 // ── 읽기 ──
 async function loadOptions(): Promise<void> {
     optionsError.value = null;
@@ -751,6 +925,14 @@ onMounted(async () => {
     void loadCatalog();
     await loadOptions();
     await load();
+    await loadProducts();
+    // 「이 상품으로 공구 만들기」(`?productId=`) — 새 공구에 상품을 바로 채운다
+    if (isNew.value && form.value.productId) {
+        const id = form.value.productId;
+        form.value = { ...form.value, productId: null };
+        await pickProduct(id);
+        initial.value = snapshot(emptyForm());
+    }
 });
 watch(idParam, () => void load());
 
@@ -777,8 +959,9 @@ function skusOut(f: EditForm): Pick<GroupBuySaveRequest, 'axes' | 'skus' | 'addo
     const valueName = new Map(active.flatMap((a) => a.values.map((v) => [v.key, v.name.trim()] as const)));
     return {
         axes: active.map((a) => ({ name: a.name.trim(), values: a.values.map((v) => v.name.trim()) })),
-        skus: active.length ? f.mains.map((m): GroupBuySkuInput => ({ values: m.valueKeys.map((k) => valueName.get(k) ?? ''), extraPrice: num(m.extraPrice), maxQty: opt(m.maxQty), onSale: m.onSale })) : [],
-        addons: f.addons.map((a) => ({ name: a.name.trim(), price: num(a.price), maxQty: opt(a.maxQty), imageKey: a.image?.mediaId ?? null })),
+        // 축이 없으면 단품 하나의 공급가를 값 없는 줄 하나로 보낸다(결정 89 — 2b-2 확정 전 가정)
+        skus: f.mains.map((m): GroupBuySkuInput => ({ values: m.valueKeys.map((k) => valueName.get(k) ?? ''), extraPrice: num(m.extraPrice), maxQty: opt(m.maxQty), onSale: m.onSale, supplyPrice: opt(m.supplyPrice) })),
+        addons: f.addons.map((a) => ({ name: a.name.trim(), price: num(a.price), maxQty: opt(a.maxQty), imageKey: null, productSkuId: a.productSkuId, supplyPrice: opt(a.supplyPrice) })),
     };
 }
 
@@ -787,6 +970,7 @@ function toRequest(f: EditForm): GroupBuySaveRequest {
     const opt = (s: string) => (s.trim() === '' ? null : UtilGroupBuy.int(s));
     return {
         title: f.title.trim(),
+        productId: f.productId,
         productName: f.productName.trim(),
         summary: f.summary,
         spec: f.spec,
@@ -816,6 +1000,7 @@ function toRequest(f: EditForm): GroupBuySaveRequest {
 
 async function save(): Promise<void> {
     if (saving.value || !dirty.value || fulfillProblem.value) return;
+    if (!(await confirmMargin(formMarginLoss()))) return;
     saving.value = true;
     formError.value = '';
     serverErrors.value = {};
@@ -829,7 +1014,7 @@ async function save(): Promise<void> {
             return;
         }
         const d = detail.value!;
-        const saved = draft.value ? await api.update(d.id, toRequest(form.value)) : await api.updateContent(d.id, { summary: form.value.summary, spec: form.value.spec, description: form.value.description, imageIds: form.value.images.map((i) => i.mediaId), notices: noticesOut(form.value), version: d.version });
+        const saved = draft.value ? await api.update(d.id, toRequest(form.value)) : await api.updateContent(d.id, { summary: form.value.summary, spec: form.value.spec, description: form.value.description, imageIds: form.value.images.map((i) => i.mediaId), notices: noticesOut(form.value), supplyPrices: canPrice.value ? supplyPricesOut(form.value, d) : undefined, version: d.version });
         applyDetail(saved);
         toast.success(t('groupBuy.saved'));
     } catch (e) {
@@ -904,9 +1089,10 @@ async function run(act: Act, work: () => Promise<GroupBuyDetail | null>, done: s
 async function doStart(): Promise<void> {
     const d = detail.value;
     if (!d) return;
+    if (!(await confirmMargin(detailMarginLoss(d)))) return;
     const ok = await confirm({ title: t('groupBuy.startTitle'), message: t('groupBuy.startBody'), confirmLabel: t('groupBuy.actStart') });
     noticeIncomplete.value = null;
-    if (ok) await run('start', () => api.start(d.id), t('groupBuy.started'), false, showNoticeIncomplete);
+    if (ok) await run('start', () => api.start(d.id), t('groupBuy.started'), false, onStartFailure);
 }
 
 async function doCloseEarly(reason: string): Promise<void> {

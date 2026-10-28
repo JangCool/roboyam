@@ -1,4 +1,5 @@
 import type { GroupBuyCloseReason, GroupBuyNotice, GroupBuyNoticeIncomplete, GroupBuySkuKind, GroupBuyStatus, NoticeCatalog, NoticeCustomItem, NoticeItemDef, NoticeItemValue } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
+import type { GroupBuyCategory } from '~/composables/groupbuy/api/useGroupBuyProductApi.types';
 import type { GroupBuyOrderStatus, GroupBuyRefundState } from '~/composables/groupbuy/api/useGroupBuyOrderApi.types';
 import type { GroupBuyDeadlineLevel, GroupBuyDisposition, GroupBuyReasonCode, GroupBuyRequestStatus } from '~/composables/groupbuy/api/useGroupBuyRequestApi.types';
 
@@ -30,6 +31,30 @@ export default class UtilGroupBuy {
     static readonly MEMO_MAX = 1000;
 
     /** 모집 시작 뒤에도 고칠 수 있는 칸(설명·이미지 — 결정 2, 고시 양식 — 결정 87). 나머지는 잠긴다 */
+    /** 상품에서 오는 칸(결정 89) — 공구 화면에서는 고치지 않는다(상품 화면에서 고친다) */
+    static readonly PRODUCT_FIELDS: readonly string[] = ['productName', 'summary', 'spec', 'description', 'images', 'normalPriceBasis', 'normalPriceSource', 'withdrawalRestriction'];
+    /**
+     * 카테고리 고르기 목록(결정 89 — 2단). 상품은 아래 단을 고른다(아래 단이 없는 위 카테고리는 그대로). `withParents` 면 위 단도 넣는다(목록 거르기 — 아래 단 포함).
+     * @param {GroupBuyCategory[]} categories - 서버 목록(차례 `sortOrder`).
+     * @param {boolean} withParents - 위 단도 넣을지.
+     * @param {string} hiddenMark - 숨긴 카테고리 뒤에 붙일 글(화면이 번역해 넘긴다).
+     * @returns {{ value: string; label: string }[]} 「위 › 아래」 이름(숨긴 카테고리는 「(숨김)」).
+     */
+    static categoryChoices(categories: readonly GroupBuyCategory[], withParents = false, hiddenMark = ''): { value: string; label: string }[] {
+        const byOrder = (a: GroupBuyCategory, b: GroupBuyCategory) => a.sortOrder - b.sortOrder;
+        const mark = (c: GroupBuyCategory) => (c.hidden && hiddenMark ? ` ${hiddenMark}` : '');
+        return categories
+            .filter((c) => c.parentId === null)
+            .sort(byOrder)
+            .flatMap((top) => {
+                const children = categories.filter((c) => c.parentId === top.id).sort(byOrder);
+                const own = { value: top.id, label: top.name + mark(top) };
+                if (!children.length) return [own];
+                const rows = children.map((c) => ({ value: c.id, label: `${top.name} › ${c.name}${mark(c)}` }));
+                return withParents ? [own, ...rows] : rows;
+            });
+    }
+
     static readonly CONTENT_FIELDS: readonly string[] = ['summary', 'spec', 'description', 'images', 'notices'];
     /** 고시 항목 값·사유 최대 글자 */
     static readonly NOTICE_TEXT_MAX = 1000;

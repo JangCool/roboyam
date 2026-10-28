@@ -493,4 +493,8 @@ export default {
     switchToSend: '직접 발송으로 바꾸기({amount})',
     payShortfallAndSubmit: '부족분 {amount} 결제하고 접수',
     exchangePreview: '교환은 환불 없이 같은 상품을 다시 보내 드려요. 반품·재발송 비용은 저희가 내요.',
+    // 결정 89 — 목록 카테고리 거르기
+    categoryFilter: '카테고리',
+    categoryAll: '전체',
+    categoryAllOf: '{name} 전체',
 };

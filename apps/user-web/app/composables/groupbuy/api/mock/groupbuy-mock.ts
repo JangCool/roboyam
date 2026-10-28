@@ -36,8 +36,7 @@ import type {
     GroupBuyQuote,
     GroupBuyQuoteItem,
     GroupBuyQuoteRequest,
-    GroupBuyWatchRequest,
-} from '~/composables/groupbuy/api/useGroupBuyApi.types';
+    GroupBuyWatchRequest, GroupBuyCategoryNode } from '~/composables/groupbuy/api/useGroupBuyApi.types';
 import type { MyGroupBuyOrderDetail } from '~/composables/groupbuy/api/useGroupBuyOrderApi.types';
 import type { PaymentCompleteRequest, PaymentFakeCheckoutRequest, PaymentResult } from '~/composables/payment/api/usePaymentApi.types';
 
@@ -115,12 +114,33 @@ function view(gb: GroupBuyDetail): GroupBuyDetail {
     return out;
 }
 
-export async function mockGroupBuyList(phase: GroupBuyPhase, page: number): Promise<GroupBuyListPage> {
+/** 목업 카테고리(결정 89 — 관리자 목업과 같은 이름, 숨긴 「시즌 특가」는 뺐다) */
+const CATEGORIES: GroupBuyCategoryNode[] = [
+    { id: 'ct-food', name: '식품', children: [{ id: 'ct-rice', name: '쌀·잡곡' }, { id: 'ct-fruit', name: '과일' }, { id: 'ct-sea', name: '수산' }, { id: 'ct-kimchi', name: '김치·반찬' }] },
+    { id: 'ct-fashion', name: '패션', children: [{ id: 'ct-clothes', name: '의류' }, { id: 'ct-shoes', name: '신발' }] },
+    { id: 'ct-digital', name: '디지털·로봇', children: [{ id: 'ct-robot', name: '로봇 키트' }, { id: 'ct-home', name: '생활 가전' }, { id: 'ct-parts', name: '부품·소모품' }] },
+];
+/** 공구 → 카테고리(목업) */
+const CATEGORY_OF: Record<number, string> = { 101: 'ct-home', 102: 'ct-robot', 103: 'ct-robot', 104: 'ct-robot', 105: 'ct-robot', 106: 'ct-robot', 107: 'ct-home', 108: 'ct-robot', 109: 'ct-rice', 110: 'ct-fruit', 111: 'ct-sea', 112: 'ct-kimchi', 113: 'ct-clothes', 114: 'ct-shoes' };
+
+function inCategory(id: number, category: string | null): boolean {
+    if (!category) return true;
+    const own = CATEGORY_OF[id] ?? 'ct-robot';
+    return own === category || !!CATEGORIES.find((c) => c.id === category)?.children.some((x) => x.id === own);
+}
+
+export async function mockGroupBuyCategories(): Promise<GroupBuyCategoryNode[]> {
+    await mockDelay();
+    if (mockFlags().has('gb-categories-fail')) throw MOCK_ERRORS.internal();
+    return mockClone(CATEGORIES);
+}
+
+export async function mockGroupBuyList(phase: GroupBuyPhase, page: number, category: string | null = null): Promise<GroupBuyListPage> {
     await mockDelay();
     const flags = mockFlags();
     if (flags.has('gb-list-fail')) throw MOCK_ERRORS.internal();
     const size = 12;
-    const all = flags.has('gb-list-empty') ? [] : mockGroupBuyStore().groupBuys.filter((gb) => gb.phase === phase).map(view);
+    const all = flags.has('gb-list-empty') ? [] : mockGroupBuyStore().groupBuys.filter((gb) => gb.phase === phase && inCategory(gb.id, category)).map(view);
     const items = all.slice(page * size, page * size + size).map(
         (gb): GroupBuyListItem => ({
             id: gb.id,
@@ -143,6 +163,7 @@ export async function mockGroupBuyList(phase: GroupBuyPhase, page: number): Prom
             extendedUntil: gb.extendedUntil,
             closingSoon: gb.closingSoon,
             roundNo: gb.roundNo,
+            categoryId: CATEGORY_OF[gb.id] ?? 'ct-robot',
         }),
     );
     return { items, page, size, total: all.length };

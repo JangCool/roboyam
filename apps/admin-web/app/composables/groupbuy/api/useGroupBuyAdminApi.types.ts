@@ -141,6 +141,10 @@ export interface GroupBuySku {
     imageKey: string | null;
     imageUrl: string | null;
     sortOrder: number;
+    /** 상품 단품 ID(결정 89 — MAIN 은 이 공구 상품의 단품, ADDON 은 다른 상품의 단품) */
+    productSkuId: string | null;
+    /** 공급가(원) — 가격 권한(`commerce.product.price` · `commerce.settlement.read`)이 있을 때만 서버가 준다, 없으면 null. 회원 응답에는 없다 */
+    supplyPrice: number | null;
 }
 
 /** 모집 시작 때 공구에 복사한 배송비 정책 사본(DRAFT 는 null) */
@@ -220,7 +224,11 @@ export interface GroupBuyDetail {
     roundRootId: string;
     rounds: GroupBuyRoundRef[];
     title: string;
+    /** 상품(결정 89) — 설명·이미지·고시·옵션 축은 상품에서 온다(이 공구 응답의 그 칸들은 상품 값의 사본) */
+    productId: string | null;
     productName: string;
+    /** 카테고리 경로(예 「식품 › 과일」) */
+    categoryPath: string;
     /** 평문 ≤ 5,000 */
     summary: string;
     spec: string;
@@ -294,6 +302,8 @@ export interface GroupBuySkuInput {
     /** null = 한도 없음(공구 최대만) */
     maxQty: number | null;
     onSale: boolean;
+    /** 공급가(결정 89 — 빈 값 null 은 DRAFT 저장은 되고 모집 시작 때 `409 GROUP_BUY_SUPPLY_PRICE_MISSING`, 0 은 명시 입력) — 2b-2 확정 전 가정 */
+    supplyPrice: number | null;
 }
 
 /**
@@ -307,11 +317,16 @@ export interface GroupBuyAddonInput {
     maxQty: number | null;
     /** 이미지 올리기 결과 `mediaId`(없으면 null) */
     imageKey: string | null;
+    /** 다른 상품의 단품(결정 89 — 이름·이미지·고시는 그 상품 것) — 2b-2 확정 전 가정 */
+    productSkuId: string | null;
+    supplyPrice: number | null;
 }
 
 /** `POST /api/admin/group-buys`(새로) · `PUT /api/admin/group-buys/{id}`(DRAFT 만) — 모든 칸 */
 export interface GroupBuySaveRequest {
     title: string;
+    /** 상품(결정 89) — 필수. 설명·이미지·고시 칸은 상품 값을 그대로 보낸다(서버는 상품 값을 쓴다 — 목업 편의) */
+    productId: string | null;
     productName: string;
     summary: string;
     spec: string;
@@ -353,6 +368,8 @@ export interface GroupBuyContentRequest {
     description: string;
     imageIds: string[];
     notices: GroupBuyNoticeInput[];
+    /** 모집 뒤 공급가 정정(결정 89 — 감사 돈 관련) — 가격 권한이 없으면 보내지 않는다 */
+    supplyPrices?: { skuId: string; supplyPrice: number | null }[];
     version: number;
 }
 

@@ -64,6 +64,8 @@ export default {
     pointShopSettings: '포인트 상점 설정',
     // 공구 묶음(일반 모드, 결제 묶음 앞) — 운영자가 파는 실물 공동구매
     groupBuy: '공구',
+    groupBuyProducts: '상품',
+    groupBuyCategories: '카테고리',
     groupBuys: '공구',
     groupBuyStock: '수량',
     groupBuyOrders: '주문',

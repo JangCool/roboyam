@@ -106,6 +106,8 @@ function base(seed: Seed): GroupBuyDetail {
         status: 'RECRUITING',
         phase: 'ONGOING',
         closeReason: null,
+        // 카테고리는 목록 목업(`groupbuy-mock.ts` 의 CATEGORY_OF)이 다시 정한다
+        categoryId: 'ct-robot',
         fulfillment: 'AFTER_CLOSE',
         groupPrice: 10000,
         priceFrom: false,

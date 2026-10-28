@@ -491,4 +491,8 @@ export default {
     switchToSend: 'Ship it myself ({amount})',
     payShortfallAndSubmit: 'Pay {amount} and submit',
     exchangePreview: 'An exchange sends the same item again with no refund. We pay return and resend costs.',
+    // 결정 89 — 목록 카테고리 거르기
+    categoryFilter: 'Categories',
+    categoryAll: 'All',
+    categoryAllOf: 'All {name}',
 };

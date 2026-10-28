@@ -2,6 +2,7 @@ import {
     mockGroupBuyCompletePayment,
     mockGroupBuyDetail,
     mockGroupBuyFakeCheckout,
+    mockGroupBuyCategories,
     mockGroupBuyList,
     mockGroupBuyOrder,
     mockGroupBuyQuote,
@@ -15,14 +16,14 @@ import type {
     GroupBuyPhase,
     GroupBuyQuote,
     GroupBuyQuoteRequest,
-    GroupBuyWatchRequest,
-} from '~/composables/groupbuy/api/useGroupBuyApi.types';
+    GroupBuyWatchRequest, GroupBuyCategoryNode } from '~/composables/groupbuy/api/useGroupBuyApi.types';
 import type { PaymentCompleteRequest, PaymentFakeCheckoutRequest, PaymentResult } from '~/composables/payment/api/usePaymentApi.types';
 import UtilIdempotency from '~/utils/util-idempotency';
 
 /**
  * 공구(회원) API — 서버 주소 문자열(`/api/group-buys…`)이 있는 **유일한 곳**이다. 상태는 없다. 계약 `docs/features/commerce-groupbuy-contract.md`.
- *  - `GET  /api/group-buys?phase=UPCOMING|ONGOING|ENDED&page=` → `GroupBuyListPage` (로그인 없이)
+ *  - `GET  /api/group-buys?phase=UPCOMING|ONGOING|ENDED&category=&page=` → `GroupBuyListPage` (로그인 없이 — `category` 는 위 단이면 아래 단 포함, 결정 89)
+ *  - `GET  /api/group-buys/categories` → `GroupBuyCategoryNode[]`(필터 칩 — 숨긴 카테고리 빼고 차례대로)
  *  - `GET  /api/group-buys/{id}` → `GroupBuyDetail` · `404 GROUP_BUY_NOT_FOUND` (로그인 없이 — 로그인했으면 `purchase`·`watches`·`myOrderNo` 가 그 회원 기준)
  *  - `POST /api/group-buys/{id}/quote` `{ items[{ skuId, qty }] }` → `GroupBuyQuote` · `400 VALIDATION fields.items|items[i].qty|items[i].skuId`
  *      · `409 GROUP_BUY_SKU_NOT_ON_SALE|ADDON_ONLY|SKU_SOLD_OUT` (선점하지 않는다 — 결정 88, 2b-2 확정 전 가정)
@@ -50,10 +51,16 @@ export function useGroupBuyApi() {
     void PATH;
 
     return {
-        list: (phase: GroupBuyPhase, page = 0): Promise<GroupBuyListPage> =>
+        list: (phase: GroupBuyPhase, page = 0, category: string | null = null): Promise<GroupBuyListPage> =>
             // MOCK:
-            mockGroupBuyList(phase, page),
-        // REAL: client.get<GroupBuyListPage>(PATH.list, { query: { phase, page } }),
+            mockGroupBuyList(phase, page, category),
+        // REAL: client.get<GroupBuyListPage>(PATH.list, { query: { phase, page, category: category ?? undefined } }),
+
+        /** 목록 필터 카테고리(2단) */
+        categories: (): Promise<GroupBuyCategoryNode[]> =>
+            // MOCK:
+            mockGroupBuyCategories(),
+        // REAL: client.get<GroupBuyCategoryNode[]>(`${PATH.list}/categories`),
 
         get: (id: number): Promise<GroupBuyDetail> =>
             // MOCK:

@@ -29,6 +29,8 @@ export interface GroupBuyMainSkuRow {
     /** 비우면 한도 없음(공구 최대만) */
     maxQty: string;
     onSale: boolean;
+    /** 공급가(결정 89 — 상품 화면은 기본 공급가). 빈 글자 = 아직 없음(모집 시작 때 409) */
+    supplyPrice: string;
     /** 모집 뒤 표시용(확정·선점) */
     currentQty: number;
     reservedQty: number;
@@ -38,9 +40,12 @@ export interface GroupBuyMainSkuRow {
 export interface GroupBuyAddonRow {
     key: string;
     id: string | null;
+    /** 고른 다른 상품의 단품(결정 89) — 이름·이미지는 그 상품 것 */
+    productSkuId: string | null;
     name: string;
     price: string;
-    /** 화면은 필수로 받는다(추가 구성상품은 자기 한도만 센다) */
+    supplyPrice: string;
+    /** 비우면 한도 없음(추가 구성상품은 자기 한도만 센다) */
     maxQty: string;
     /** 저장 `imageKey` = 이미지 `mediaId` */
     image: GroupBuyImage | null;

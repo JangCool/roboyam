@@ -473,6 +473,7 @@ function validateSave(body: GroupBuySaveRequest): void {
     const fields: Record<string, string> = {};
     noticeFields(body.notices, draftTargets(body), fields);
     skuFields(body, fields);
+    if (!body.productId) fields.productId = '상품을 골라 주세요.';
     if (!body.title.trim()) fields.title = '제목을 입력해 주세요.';
     if (!body.productName.trim()) fields.productName = '상품명을 입력해 주세요.';
     if (!(body.groupPrice > 0)) fields.groupPrice = '공구가를 입력해 주세요.';
@@ -506,9 +507,9 @@ function buildSkus(g: GroupBuyDetail, body: GroupBuySaveRequest): Pick<GroupBuyD
               const name = UtilGroupBuy.skuMainName(values.map((v) => v.name));
               const input = body.skus.find((s) => UtilGroupBuy.skuMainName(s.values) === name);
               const extra = input?.extraPrice ?? 0;
-              return { skuId: mainsBefore.find((s) => s.name === name)?.skuId ?? nextId('sku'), kind: 'MAIN', valueIds: values.map((v) => v.id), name, extraPrice: extra, unitPrice: body.groupPrice + extra, maxQty: input?.maxQty ?? null, initialMaxQty: null, currentQty: 0, reservedQty: 0, onSale: input?.onSale ?? true, imageKey: null, imageUrl: null, sortOrder: 0 };
+              return { skuId: mainsBefore.find((s) => s.name === name)?.skuId ?? nextId('sku'), kind: 'MAIN', valueIds: values.map((v) => v.id), name, extraPrice: extra, unitPrice: body.groupPrice + extra, maxQty: input?.maxQty ?? null, initialMaxQty: null, currentQty: 0, reservedQty: 0, onSale: input?.onSale ?? true, imageKey: null, imageUrl: null, sortOrder: 0, productSkuId: mainsBefore.find((s) => s.name === name)?.productSkuId ?? null, supplyPrice: input?.supplyPrice ?? null };
           })
-        : [{ skuId: mainsBefore.find((s) => s.valueIds.length === 0)?.skuId ?? nextId('sku'), kind: 'MAIN', valueIds: [], name: '', extraPrice: 0, unitPrice: body.groupPrice, maxQty: null, initialMaxQty: null, currentQty: 0, reservedQty: 0, onSale: true, imageKey: null, imageUrl: null, sortOrder: 0 }];
+        : [{ skuId: mainsBefore.find((s) => s.valueIds.length === 0)?.skuId ?? nextId('sku'), kind: 'MAIN', valueIds: [], name: '', extraPrice: 0, unitPrice: body.groupPrice, maxQty: null, initialMaxQty: null, currentQty: 0, reservedQty: 0, onSale: true, imageKey: null, imageUrl: null, sortOrder: 0, productSkuId: mainsBefore.find((s) => s.valueIds.length === 0)?.productSkuId ?? null, supplyPrice: body.skus[0]?.supplyPrice ?? null }];
     const addons: GroupBuySku[] = body.addons.map((a) => ({
         skuId: g.skus.find((s) => s.kind === 'ADDON' && s.name === a.name.trim())?.skuId ?? nextId('sku'),
         kind: 'ADDON',
@@ -524,6 +525,8 @@ function buildSkus(g: GroupBuyDetail, body: GroupBuySaveRequest): Pick<GroupBuyD
         imageKey: a.imageKey,
         imageUrl: a.imageKey ? imageOf(a.imageKey).thumbUrl : null,
         sortOrder: 0,
+        productSkuId: a.productSkuId,
+        supplyPrice: a.supplyPrice,
     }));
     return { axes, skus: [...mains, ...addons].map((s, i) => ({ ...s, sortOrder: i })) };
 }
@@ -531,6 +534,7 @@ function buildSkus(g: GroupBuyDetail, body: GroupBuySaveRequest): Pick<GroupBuyD
 function applySave(g: GroupBuyDetail, body: GroupBuySaveRequest): void {
     Object.assign(g, {
         title: body.title.trim(),
+        productId: body.productId,
         productName: body.productName.trim(),
         summary: body.summary,
         spec: body.spec,
@@ -555,8 +559,25 @@ function applySave(g: GroupBuyDetail, body: GroupBuySaveRequest): void {
     });
     g.images = body.imageIds.map((mediaId) => imageOf(mediaId));
     Object.assign(g, buildSkus(g, body));
+    // 공급가·상품 단품 연결(결정 89) — 조합은 이름으로, 추가 구성상품은 상품 단품 ID 로 맞춘다
+    const active = body.axes.filter((a) => a.values.length > 0);
+    g.skus = g.skus.map((s) => {
+        if (s.kind === 'MAIN') {
+            const input = active.length ? body.skus.find((x) => UtilGroupBuy.skuMainName(x.values) === s.name) : body.skus[0];
+            return { ...s, supplyPrice: input?.supplyPrice ?? null, productSkuId: s.productSkuId };
+        }
+        const input = body.addons.find((a) => a.name.trim() === s.name);
+        return { ...s, supplyPrice: input?.supplyPrice ?? null, productSkuId: input?.productSkuId ?? null };
+    });
     g.notices = noticesOf(body.notices, g.skus);
     g.version += 1;
+}
+
+/** 이 상품을 쓰는 공구(상품 목업이 부른다) — 본 상품이거나 추가 구성상품의 상품 */
+export function mockGroupBuyUses(productId: string, productSkuIds: readonly string[]): { id: string; title: string; status: GroupBuyStatus; roundNo: number }[] {
+    return db()
+        .groupBuys.filter((g) => g.productId === productId || g.skus.some((s) => s.kind === 'ADDON' && s.productSkuId !== null && productSkuIds.includes(s.productSkuId)))
+        .map((g) => ({ id: g.id, title: g.title, status: g.status, roundNo: g.roundNo }));
 }
 
 /** 올린 이미지 기억(올리기 응답의 주소를 저장 때 다시 찾는다) */
@@ -621,6 +642,14 @@ export async function mockGroupBuyContent(id: string, body: GroupBuyContentReque
         if (incomplete) throw incomplete;
     }
     const changed: string[] = [];
+    // 모집 뒤 공급가 정정(결정 89 — 서버는 감사 돈 관련)
+    for (const p of body.supplyPrices ?? []) {
+        const s = g.skus.find((x) => x.skuId === p.skuId);
+        if (s && s.supplyPrice !== p.supplyPrice) {
+            s.supplyPrice = p.supplyPrice;
+            if (!changed.includes('supplyPrices')) changed.push('supplyPrices');
+        }
+    }
     if (body.description !== g.description) changed.push('description');
     if (body.summary !== g.summary) changed.push('summary');
     if (body.spec !== g.spec) changed.push('spec');
@@ -663,6 +692,9 @@ export async function mockGroupBuyStart(id: string): Promise<GroupBuyDetail> {
     if (g.fulfillment === 'AFTER_CLOSE' && !g.shipPlannedAt) throw MOCK_ERRORS.validation({ shipPlannedAt: '마감 후 발주 공구는 발송 예정일이 필요해요.' });
     const incomplete = noticeIncompleteError(g.notices, namedSkus(g), flags.has('notice-incomplete'));
     if (incomplete) throw incomplete;
+    // 공급가 필수(결정 89) — 판매하는 단품마다(0 은 명시 입력이라 된다)
+    const missing = g.skus.filter((s) => s.onSale && s.supplyPrice === null);
+    if (flags.has('supply-missing') || missing.length) throw MOCK_ERRORS.conflict('GROUP_BUY_SUPPLY_PRICE_MISSING', '공급가를 넣지 않은 단품이 있어요. 단품마다 공급가를 넣어 주세요(0 도 직접 넣어야 해요).', { skuNames: missing.map((s) => s.name || g.productName) });
     g.status = 'RECRUITING';
     g.shippingSnapshot = g.shippingPolicyCode === 'BULKY' ? { shippingFee: 15000, freeShippingOver: null, returnShippingFee: 15000, returnFeeMode: 'ROUND_TRIP' } : { shippingFee: 3000, freeShippingOver: 50000, returnShippingFee: 3000, returnFeeMode: 'ONE_WAY' };
     g.initialMaxQty = g.maxQty;

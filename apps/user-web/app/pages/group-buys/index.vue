@@ -18,6 +18,18 @@
             @update:model-value="setPhase"
         />
 
+        <!-- 카테고리 거르기(결정 89) — 주소의 `?category=`. 위 카테고리를 고르면 그 아래 카테고리 칩이 한 줄 더 나온다(위 단 = 아래 단 포함) -->
+        <nav v-if="categories.length" class="flex flex-col gap-1.5" :aria-label="t('groupBuy.categoryFilter')" data-testid="group-buys-category">
+            <div class="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+                <button type="button" class="shrink-0 rounded-full border px-3 py-1 text-xs" :class="chipClass(!category)" :aria-pressed="!category" @click="setCategory(null)">{{ t('groupBuy.categoryAll') }}</button>
+                <button v-for="c in categories" :key="c.id" type="button" class="shrink-0 rounded-full border px-3 py-1 text-xs" :class="chipClass(topOf(category) === c.id)" :aria-pressed="topOf(category) === c.id" @click="setCategory(c.id)">{{ c.name }}</button>
+            </div>
+            <div v-if="openTop && openTop.children.length" class="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+                <button type="button" class="shrink-0 rounded-full px-2.5 py-0.5 text-[11px]" :class="subChipClass(category === openTop.id)" :aria-pressed="category === openTop.id" @click="setCategory(openTop.id)">{{ t('groupBuy.categoryAllOf', { name: openTop.name }) }}</button>
+                <button v-for="c in openTop.children" :key="c.id" type="button" class="shrink-0 rounded-full px-2.5 py-0.5 text-[11px]" :class="subChipClass(category === c.id)" :aria-pressed="category === c.id" @click="setCategory(c.id)">{{ c.name }}</button>
+            </div>
+        </nav>
+
         <div v-if="status === 'loading'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" role="status" :aria-label="t('common.loading')" data-testid="group-buys-loading">
             <div v-for="n in 6" :key="n" class="h-72 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
         </div>
@@ -69,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import type { GroupBuyListItem, GroupBuyPhase } from '~/composables/groupbuy/api/useGroupBuyApi.types';
+import type { GroupBuyListItem, GroupBuyPhase, GroupBuyCategoryNode } from '~/composables/groupbuy/api/useGroupBuyApi.types';
 import UtilCommerce from '~/utils/util-commerce';
 import UtilGroupBuy from '~/utils/util-group-buy';
 import UtilGroupBuyMessages from '~/utils/util-group-buy-messages';
@@ -94,6 +106,35 @@ function setPhase(value: GroupBuyPhase): void {
     void router.replace({ query: { ...route.query, phase: value === 'ONGOING' ? undefined : value } });
 }
 
+// ── 카테고리 거르기(결정 89) ──
+const categories = ref<GroupBuyCategoryNode[]>([]);
+const category = computed<string | null>(() => (typeof route.query.category === 'string' && route.query.category ? route.query.category : null));
+/** 고른 카테고리의 위 단 ID(위 단이면 그 자신) */
+function topOf(id: string | null): string | null {
+    if (!id) return null;
+    return categories.value.find((c) => c.id === id || c.children.some((x) => x.id === id))?.id ?? null;
+}
+const openTop = computed(() => categories.value.find((c) => c.id === topOf(category.value)) ?? null);
+
+function setCategory(id: string | null): void {
+    void router.replace({ query: { ...route.query, category: id ?? undefined } });
+}
+
+function chipClass(on: boolean): string {
+    return on ? 'border-primary bg-primary text-primary-contrast' : 'border-surface bg-surface-0 text-color hover:bg-surface-100 dark:bg-surface-900 dark:hover:bg-surface-800';
+}
+function subChipClass(on: boolean): string {
+    return on ? 'bg-primary/15 font-semibold text-primary' : 'text-muted-color hover:text-color';
+}
+
+onMounted(async () => {
+    try {
+        categories.value = await api.categories();
+    } catch {
+        // 필터만 빠진다 — 목록은 그대로
+    }
+});
+
 const status = ref<'loading' | 'ready' | 'error'>('loading');
 const loadError = ref('');
 const items = ref<GroupBuyListItem[]>([]);
@@ -109,7 +150,7 @@ async function load(quiet: boolean): Promise<void> {
     loadError.value = '';
     moreError.value = '';
     try {
-        const res = await api.list(phase.value, 0);
+        const res = await api.list(phase.value, 0, category.value);
         if (mine !== seq) return;
         items.value = res.items;
         total.value = res.total;
@@ -128,7 +169,7 @@ async function loadMore(): Promise<void> {
     moreBusy.value = true;
     moreError.value = '';
     try {
-        const res = await api.list(phase.value, page.value + 1);
+        const res = await api.list(phase.value, page.value + 1, category.value);
         if (mine !== seq) return;
         items.value = [...items.value, ...res.items];
         total.value = res.total;
@@ -140,7 +181,7 @@ async function loadMore(): Promise<void> {
     }
 }
 
-watch(phase, () => void load(false), { immediate: true });
+watch([phase, category], () => void load(false), { immediate: true });
 onBeforeUnmount(() => seq++);
 
 type Tone = 'neutral' | 'primary' | 'success' | 'warn' | 'danger';

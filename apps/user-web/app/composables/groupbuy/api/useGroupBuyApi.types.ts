@@ -88,6 +88,15 @@ export interface GroupBuyListItem {
     /** 마감 임박(서버가 정한 기준 — 목업은 24시간 안) */
     closingSoon: boolean;
     roundNo: number;
+    /** 상품의 카테고리(결정 89 — 아래 단, 아래 단이 없으면 위 단) */
+    categoryId: string;
+}
+
+/** `GET /api/group-buys/categories` — 회원 목록 필터(2단, 숨긴 카테고리는 서버가 뺀다). 2b-2 확정 전 가정 */
+export interface GroupBuyCategoryNode {
+    id: string;
+    name: string;
+    children: { id: string; name: string }[];
 }
 
 export interface GroupBuyListPage {

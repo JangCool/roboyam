@@ -64,6 +64,8 @@ export default {
     pointShopSettings: 'Point shop settings',
     // Group buy section (normal mode, before Payments) — physical group buys sold by the operator
     groupBuy: 'Group buys',
+    groupBuyProducts: 'Products',
+    groupBuyCategories: 'Categories',
     groupBuys: 'Group buys',
     groupBuyStock: 'Quantities',
     groupBuyOrders: 'Orders',

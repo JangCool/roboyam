@@ -194,6 +194,9 @@ export default class UtilAdminMenu {
             icon: 'pi pi-truck',
             labelKey: 'menu.groupBuy',
             items: [
+                // 결정 89 — 상품(이름·설명·이미지·카테고리·고시·옵션 축/단품·기본 공급가)과 카테고리(2단). 서버 AdminScreenRegistry 에도 두 줄
+                { key: 'groupBuyProducts', to: '/group-buy-products', icon: 'pi pi-tag', labelKey: 'menu.groupBuyProducts', permission: 'commerce.product.read' },
+                { key: 'groupBuyCategories', to: '/group-buy-categories', icon: 'pi pi-sitemap', labelKey: 'menu.groupBuyCategories', permission: 'commerce.product.read' },
                 { key: 'groupBuys', to: '/group-buys', icon: 'pi pi-shopping-bag', labelKey: 'menu.groupBuys', permission: 'commerce.product.read' },
                 { key: 'groupBuyStock', to: '/group-buy-stock', icon: 'pi pi-box', labelKey: 'menu.groupBuyStock', permission: 'commerce.product.read' },
                 { key: 'groupBuyOrders', to: '/group-buy-orders', icon: 'pi pi-list', labelKey: 'menu.groupBuyOrders', permission: 'commerce.order.read' },
