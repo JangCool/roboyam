@@ -97,7 +97,7 @@ public class GroupBuyJoinService {
      * 주문한다 — {@code POST /api/group-buys/{id}/orders}(2b-4).
      *
      * @throws ValidationException 동의·줄·배송지
-     * @throws GroupBuyException   없음·모집 중 아님·다 팔림/잠시 품절·옵션 품절·한도·진행 중 주문·금액 바뀜·판매 꺼짐
+     * @throws GroupBuyException   없음·모집 중 아님·다 팔림/잠시 품절·단품 품절·판매 안 함·한도·진행 중 주문·금액 바뀜·판매 꺼짐
      */
     public JoinResult join(GroupBuyBuyer buyer, JoinRequest request) {
         validate(request);
@@ -121,8 +121,8 @@ public class GroupBuyJoinService {
         if (group.status() != com.community.groupbuy.entity.GroupBuyStatus.RECRUITING || now.isBefore(group.startAt()) || !now.isBefore(group.deadline())) {
             throw GroupBuyException.notRecruiting();
         }
-        Quote quote = GroupBuyQuoteService.price(group, groups.options(group.id()), request.lines(), quotes.shippingOf(group));
-        int requested = quote.lines().stream().mapToInt(Quote.Line::qty).sum();
+        Quote quote = GroupBuyQuoteService.price(group, groups.skus(group.id()), request.items(), quotes.shippingOf(group));
+        int requested = quote.items().stream().filter(l -> "MAIN".equals(l.kind())).mapToInt(Quote.Line::qty).sum(); // 1인 한도는 MAIN 수량만(결정 88)
         if (group.maxQtyPerUser() != null) {
             List<Long> scope = group.roundLimitShared() ? groups.roundIds(group.roundRootId()) : List.of(group.id());
             int used = participations.limitUsed(userId, scope);
@@ -142,10 +142,10 @@ public class GroupBuyJoinService {
                 cipher.encrypt(PHONE, a.phone().strip()), a.postcode().strip(), cipher.encrypt(ADDRESS1, a.address1().strip()), enc(ADDRESS2, a.address2()),
                 enc(MEMO, a.memo()), now));
         List<ItemRow> items = new ArrayList<>();
-        for (Quote.Line line : quote.lines()) {
+        for (Quote.Line line : quote.items()) {
             long itemId = ids.nextId();
-            participations.insertItem(itemId, participationId, group.id(), line.optionId(), line.qty(), line.unitPrice());
-            items.add(new ItemRow(itemId, participationId, group.id(), line.optionId(), line.qty(), line.unitPrice(), line.itemAmount(), 0, 0, 0));
+            participations.insertItem(itemId, participationId, group.id(), line.skuId(), line.qty(), line.unitPrice());
+            items.add(new ItemRow(itemId, participationId, group.id(), line.skuId(), "MAIN".equals(line.kind()), line.qty(), line.unitPrice(), line.itemAmount(), 0, 0, 0));
         }
         qty.reserve(group, participationId, items, now);
         ParticipationRow created = participations.find(participationId).orElseThrow();
@@ -208,8 +208,8 @@ public class GroupBuyJoinService {
         if (!request.agreePrivacy()) {
             fields.put("agreePrivacy", new MessageRef("groupbuy.order.agree.required"));
         }
-        if (request.lines() == null || request.lines().isEmpty()) {
-            fields.put("lines", new MessageRef("groupbuy.order.lines.required"));
+        if (request.items() == null || request.items().isEmpty()) {
+            fields.put("items", new MessageRef("groupbuy.order.lines.required"));
         }
         ShippingAddress a = request.address();
         if (a == null || blankOrLonger(a.recipient(), 50)) {

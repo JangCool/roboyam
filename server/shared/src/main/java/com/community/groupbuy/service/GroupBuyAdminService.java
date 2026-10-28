@@ -17,7 +17,6 @@ import com.community.groupbuy.exception.GroupBuyException;
 import com.community.groupbuy.repository.master.GroupBuyStore;
 import com.community.groupbuy.repository.master.GroupBuyStore.GroupBuyRow;
 import com.community.groupbuy.repository.master.GroupBuyStore.ImageRow;
-import com.community.groupbuy.repository.master.GroupBuyStore.OptionRow;
 import com.community.groupbuy.repository.master.ShippingPolicyStore;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
@@ -65,7 +64,7 @@ public class GroupBuyAdminService {
     public static final int TITLE_MAX = 100;
     public static final int TEXT_MAX = 5000;
     public static final int DESCRIPTION_MAX = 200_000;
-    public static final int OPTIONS_MAX = 50;
+
     public static final int IMAGES_MAX = 8;
     public static final int REASON_MIN = 2;
     public static final int REASON_MAX = 200;
@@ -107,12 +106,13 @@ public class GroupBuyAdminService {
     /** 공구 등록(DRAFT, 1차) — 새 공구 ID */
     public long create(GroupBuyDraft draft, Long operatorId, String ip) {
         GroupBuyStore.Settings settings = groups.settings();
-        GroupBuyStore.NewGroupBuy g = validate(draft, settings);
+        Validated v = validate(draft, settings);
+        GroupBuyStore.NewGroupBuy g = v.group();
         return tx.execute(status -> {
             Instant now = now();
             long id = ids.nextId();
             groups.insert(id, g, id, 1, operatorId, now);
-            insertOptions(id, draft.options());
+            insertSkus(id, v.plan());
             replaceImages(id, draft.images(), now);
             record(operatorId, AuditActions.GROUPBUY_CREATE, id, ip, Map.of("title", g.title(), "roundNo", 1));
             return id;
@@ -126,7 +126,8 @@ public class GroupBuyAdminService {
      */
     public void update(long id, int version, GroupBuyDraft draft, Long operatorId, String ip) {
         GroupBuyStore.Settings settings = groups.settings();
-        GroupBuyStore.NewGroupBuy g = validate(draft, settings);
+        Validated v = validate(draft, settings);
+        GroupBuyStore.NewGroupBuy g = v.group();
         tx.executeWithoutResult(status -> {
             Instant now = now();
             GroupBuyRow row = groups.find(id).orElseThrow(GroupBuyException::notFound);
@@ -137,15 +138,15 @@ public class GroupBuyAdminService {
                 if (!groups.updateDraft(id, version, g, now)) {
                     throw GroupBuyException.versionConflict();
                 }
-                java.util.Map<Long, List<String>> noticeLinks = noticeStore.optionNamesByNotice(id); // 옵션 ID 가 바뀌므로 양식의 적용 옵션은 이름으로 다시 잇는다
-                groups.deleteOptions(id);
-                insertOptions(id, draft.options());
-                notices.relinkOptions(id, noticeLinks);
+                java.util.Map<Long, List<String>> noticeLinks = noticeStore.skuNamesByNotice(id); // 단품 ID 가 바뀌므로 양식의 적용 단품은 이름으로 다시 잇는다
+                groups.deleteSkuStructure(id);
+                insertSkus(id, v.plan());
+                notices.relinkSkus(id, noticeLinks);
                 replaceImages(id, draft.images(), now);
                 record(operatorId, AuditActions.GROUPBUY_UPDATE, id, ip, Map.of("stage", "DRAFT"));
                 return;
             }
-            String locked = lockedFieldChanged(row, groups.options(id), g, draft.options());
+            String locked = v.plan().sameAs(groups.axes(id), groups.skus(id)) ? lockedFieldChanged(row, g) : "options";
             if (locked != null) {
                 throw GroupBuyException.lockedField(locked);
             }
@@ -217,7 +218,7 @@ public class GroupBuyAdminService {
             if (!groups.start(id, policy.get(), now)) {
                 return false;
             }
-            groups.fixOptionInitial(id);
+            groups.fixSkuInitial(id);
             groups.snapshotRevision(ids.nextId(), id, 1, "START", null, now);
             groups.insertStatusHistory(ids.nextId(), id, GroupBuyStatus.DRAFT, GroupBuyStatus.RECRUITING, "START", null, now);
             events.publishEvent(new GroupBuyEvents.StatusChanged(id, GroupBuyStatus.DRAFT.name(), GroupBuyStatus.RECRUITING.name(), "START"));
@@ -291,36 +292,36 @@ public class GroupBuyAdminService {
     // ── 수량 ────────────────────────────────────────────────────────────────
 
     /** 추가 입고(결정 17·80) — 사유 필수, 수정 이력(수량 사본)·감사 */
-    public StockChange addStock(long id, Long optionId, int count, String reason, Long operatorId, String ip) {
+    public StockChange addStock(long id, Long skuId, int count, String reason, Long operatorId, String ip) {
         String why = requireReason(reason);
         requirePositive(count);
         return tx.execute(status -> {
             Instant now = now();
             GroupBuyRow before = groups.find(id).orElseThrow(GroupBuyException::notFound);
-            StockChange change = qty.add(id, optionId, count, why, operatorId, now);
+            StockChange change = qty.add(id, skuId, count, why, operatorId, now);
             groups.snapshotRevision(ids.nextId(), id, groups.nextRevision(id, now), "STOCK_ADD", operatorId, now);
-            record(operatorId, AuditActions.GROUPBUY_STOCK_ADD, id, ip, stockDetail(optionId, count, why, before.maxQty(), change.maxQty()));
+            record(operatorId, AuditActions.GROUPBUY_STOCK_ADD, id, ip, stockDetail(skuId, count, why, before.maxQty(), change.maxQty()));
             return change;
         });
     }
 
     /** 줄이기(결정 17·48·80) — 사유 필수, 줄인 결과 다 팔리면 그 자리에서 CLOSING */
-    public StockChange reduceStock(long id, Long optionId, int count, String reason, Long operatorId, String ip) {
+    public StockChange reduceStock(long id, Long skuId, int count, String reason, Long operatorId, String ip) {
         String why = requireReason(reason);
         requirePositive(count);
         return tx.execute(status -> {
             Instant now = now();
             GroupBuyRow before = groups.find(id).orElseThrow(GroupBuyException::notFound);
-            StockChange change = qty.reduce(id, optionId, count, why, operatorId, now);
+            StockChange change = qty.reduce(id, skuId, count, why, operatorId, now);
             groups.snapshotRevision(ids.nextId(), id, groups.nextRevision(id, now), "STOCK_REDUCE", operatorId, now);
-            record(operatorId, AuditActions.GROUPBUY_STOCK_REDUCE, id, ip, stockDetail(optionId, count, why, before.maxQty(), change.maxQty()));
+            record(operatorId, AuditActions.GROUPBUY_STOCK_REDUCE, id, ip, stockDetail(skuId, count, why, before.maxQty(), change.maxQty()));
             return change;
         });
     }
 
-    private static Map<String, Object> stockDetail(Long optionId, int count, String reason, int before, int after) {
+    private static Map<String, Object> stockDetail(Long skuId, int count, String reason, int before, int after) {
         Map<String, Object> detail = new LinkedHashMap<>();
-        detail.put("optionId", optionId == null ? "" : optionId.toString());
+        detail.put("skuId", skuId == null ? "" : skuId.toString());
         detail.put("qty", count);
         detail.put("reason", reason);
         detail.put("before", Map.of("maxQty", before));
@@ -331,7 +332,7 @@ public class GroupBuyAdminService {
     // ── 추가 차수 ───────────────────────────────────────────────────────────
 
     /**
-     * 추가 차수 공구(결정 31) — 설명·이미지·요약·사양·옵션(이름·추가금·한도)·가격·방식·배송비 정책·차수 한도 합산을 복사한 새 DRAFT. 기간·발송 예정일은 새로 받는다.
+     * 추가 차수 공구(결정 31) — 설명·이미지·요약·사양·옵션 축·값·조합·추가 구성상품(추가금·가격·처음 한도)·가격·방식·배송비 정책·차수 한도 합산을 복사한 새 DRAFT. 기간·발송 예정일은 새로 받는다.
      *
      * @throws GroupBuyException {@code ROUND_SOURCE_INVALID}(모집이 끝나지 않았거나 중단) · {@code ROUND_EXISTS}(루트에 DRAFT·RECRUITING 차수가 있다 — 동시 두 번 포함)
      */
@@ -348,18 +349,18 @@ public class GroupBuyAdminService {
                     throw GroupBuyException.roundExists();
                 }
                 int roundNo = groups.maxRoundNo(root) + 1;
-                List<OptionRow> options = groups.options(sourceId);
+                GroupBuySkuPlan.DraftParts parts = GroupBuySkuPlan.draftParts(groups.axes(sourceId), groups.skus(sourceId));
                 GroupBuyDraft draft = new GroupBuyDraft(source.title(), source.productName(), source.summary(), source.spec(), source.description(), source.normalPrice(),
                         source.normalPriceBasis(), source.normalPriceSource(), source.groupPrice(), source.shippingPolicyCode(), source.minQty(),
                         source.initialMaxQty() == null ? source.maxQty() : source.initialMaxQty(), source.maxQtyPerUser(), startAt, endAt, source.extensionMode(),
                         source.fulfillment(), shipPlannedAt, source.shipWithinBusinessDays(), source.withdrawalRestriction(), source.returnPolicy(),
-                        source.roundLimitShared(), options.stream().map(o -> new GroupBuyDraft.OptionDraft(o.name(), o.extraPrice(),
-                        o.initialMaxQty() == null ? o.maxQty() : o.initialMaxQty())).toList(),
+                        source.roundLimitShared(), parts.axes(), parts.skus(), parts.addons(),
                         groups.images(sourceId).stream().map(i -> new GroupBuyDraft.ImageRef(i.imageKey(), i.thumbKey())).toList());
-                GroupBuyStore.NewGroupBuy g = validate(draft, groups.settings());
+                Validated v = validate(draft, groups.settings());
+                GroupBuyStore.NewGroupBuy g = v.group();
                 long id = ids.nextId();
                 groups.insert(id, g, root, roundNo, operatorId, now);
-                insertOptions(id, draft.options());
+                insertSkus(id, v.plan());
                 notices.copy(sourceId, id, now); // 고시 양식도 복사 — 카탈로그 버전 그대로(결정 87)
                 replaceImages(id, draft.images(), now);
                 record(operatorId, AuditActions.GROUPBUY_ROUND_CREATE, id, ip, Map.of("sourceId", Long.toString(sourceId), "roundNo", roundNo));
@@ -400,7 +401,7 @@ public class GroupBuyAdminService {
     // ── 검사 ────────────────────────────────────────────────────────────────
 
     /** 등록 값 검사 — 칸마다 400. 즉시 발송 공구의 발송 영업일이 비면 공구 설정 기본값 */
-    GroupBuyStore.NewGroupBuy validate(GroupBuyDraft d, GroupBuyStore.Settings settings) {
+    Validated validate(GroupBuyDraft d, GroupBuyStore.Settings settings) {
         Map<String, MessageRef> f = new LinkedHashMap<>();
         if (blankOrLonger(d.title(), TITLE_MAX)) {
             f.put("title", new MessageRef("groupbuy.admin.title.invalid"));
@@ -451,12 +452,7 @@ public class GroupBuyAdminService {
         if (longer(d.withdrawalRestriction(), 1000) || longer(d.returnPolicy(), 2000)) {
             f.put("withdrawalRestriction", new MessageRef("groupbuy.admin.text.tooLong"));
         }
-        List<GroupBuyDraft.OptionDraft> options = d.options() == null ? List.of() : d.options();
-        Set<String> names = new HashSet<>();
-        if (options.size() > OPTIONS_MAX || options.stream().anyMatch(o -> o == null || blankOrLonger(o.name(), 60) || o.extraPrice() < 0
-                || (o.maxQty() != null && o.maxQty() < 1) || !names.add(o.name().strip()))) {
-            f.put("options", new MessageRef("groupbuy.admin.options.invalid"));
-        }
+        GroupBuySkuPlan plan = d.productName() == null || d.productName().isBlank() ? null : GroupBuySkuPlan.of(d, f); // 옵션 축·값·단품·추가 구성상품(결정 88)
         List<GroupBuyDraft.ImageRef> images = d.images() == null ? List.of() : d.images();
         if (images.size() > IMAGES_MAX || images.stream().anyMatch(i -> i == null || blankOrLonger(i.imageKey(), 300) || longer(i.thumbKey(), 300))) {
             f.put("images", new MessageRef("groupbuy.admin.images.invalid"));
@@ -464,15 +460,15 @@ public class GroupBuyAdminService {
         if (!f.isEmpty()) {
             throw new ValidationException(f);
         }
-        return new GroupBuyStore.NewGroupBuy(d.title().strip(), d.productName().strip(), trimToNull(d.summary()), trimToNull(d.spec()), d.description(), d.normalPrice(),
+        return new Validated(new GroupBuyStore.NewGroupBuy(d.title().strip(), d.productName().strip(), trimToNull(d.summary()), trimToNull(d.spec()), d.description(), d.normalPrice(),
                 d.normalPrice() == null ? null : d.normalPriceBasis(), trimToNull(d.normalPriceSource()), d.groupPrice(), d.shippingPolicyCode(), d.minQty(), d.maxQty(),
                 d.maxQtyPerUser(), d.startAt().truncatedTo(ChronoUnit.MICROS), d.endAt().truncatedTo(ChronoUnit.MICROS), extension, d.fulfillment(),
                 Fulfillment.AFTER_CLOSE.name().equals(d.fulfillment()) ? d.shipPlannedAt() : null, shipDays, trimToNull(d.withdrawalRestriction()),
-                trimToNull(d.returnPolicy()), d.roundLimitShared());
+                trimToNull(d.returnPolicy()), d.roundLimitShared()), plan);
     }
 
-    /** 공개 뒤 잠긴 칸 중 바뀐 칸 이름(없으면 null) — 가격·기간·옵션 구성·배송비·방식·수량(수량은 추가 입고·줄이기로만) */
-    static String lockedFieldChanged(GroupBuyRow row, List<OptionRow> options, GroupBuyStore.NewGroupBuy g, List<GroupBuyDraft.OptionDraft> draftOptions) {
+    /** 공개 뒤 잠긴 칸 중 바뀐 칸 이름(없으면 null) — 가격·기간·배송비·방식·수량(수량은 추가 입고·줄이기로만). 옵션 구성은 {@link GroupBuySkuPlan#sameAs} */
+    static String lockedFieldChanged(GroupBuyRow row, GroupBuyStore.NewGroupBuy g) {
         if (!row.title().equals(g.title())) return "title";
         if (!row.productName().equals(g.productName())) return "productName";
         if (row.groupPrice() != g.groupPrice()) return "groupPrice";
@@ -487,26 +483,35 @@ public class GroupBuyAdminService {
         if (!Objects.equals(row.shipPlannedAt(), g.shipPlannedAt()) || !Objects.equals(row.shipWithinBusinessDays(), g.shipWithinBusinessDays())) return "shipPlan";
         if (!Objects.equals(row.withdrawalRestriction(), g.withdrawalRestriction()) || !Objects.equals(row.returnPolicy(), g.returnPolicy())) return "returnPolicy";
         if (row.roundLimitShared() != g.roundLimitShared()) return "roundLimitShared";
-        List<GroupBuyDraft.OptionDraft> drafts = draftOptions == null ? List.of() : draftOptions;
-        if (drafts.size() != options.size()) return "options";
-        for (int i = 0; i < drafts.size(); i++) {
-            OptionRow o = options.get(i);
-            GroupBuyDraft.OptionDraft d = drafts.get(i);
-            Integer baseMax = o.initialMaxQty() == null ? o.maxQty() : o.initialMaxQty();
-            if (!o.name().equals(d.name().strip()) || o.extraPrice() != d.extraPrice() || (!Objects.equals(baseMax, d.maxQty()) && !Objects.equals(o.maxQty(), d.maxQty()))) {
-                return "options";
-            }
-        }
         return null;
     }
 
-    private void insertOptions(long groupBuyId, List<GroupBuyDraft.OptionDraft> options) {
-        if (options == null) {
-            return;
+    /** 검사를 마친 등록 값 — 공구 칸과 옵션 계획 */
+    record Validated(GroupBuyStore.NewGroupBuy group, GroupBuySkuPlan plan) {
+    }
+
+    /** 축·값·단품을 넣는다(값 이름 → ID 로 조합을 잇는다) */
+    private void insertSkus(long groupBuyId, GroupBuySkuPlan plan) {
+        List<Map<String, Long>> valueIds = new java.util.ArrayList<>();
+        for (int i = 0; i < plan.axes.size(); i++) {
+            GroupBuySkuPlan.PlannedAxis axis = plan.axes.get(i);
+            long axisId = ids.nextId();
+            groups.insertAxis(axisId, groupBuyId, i, axis.name());
+            Map<String, Long> byValue = new java.util.HashMap<>();
+            for (int j = 0; j < axis.values().size(); j++) {
+                long valueId = ids.nextId();
+                groups.insertValue(valueId, axisId, groupBuyId, j, axis.values().get(j));
+                byValue.put(axis.values().get(j), valueId);
+            }
+            valueIds.add(byValue);
         }
-        for (int i = 0; i < options.size(); i++) {
-            GroupBuyDraft.OptionDraft o = options.get(i);
-            groups.insertOption(ids.nextId(), groupBuyId, o.name().strip(), o.extraPrice(), o.maxQty(), i);
+        for (int i = 0; i < plan.skus.size(); i++) {
+            GroupBuySkuPlan.PlannedSku s = plan.skus.get(i);
+            List<Long> combination = new java.util.ArrayList<>();
+            for (int a = 0; a < s.valueNames().size(); a++) {
+                combination.add(valueIds.get(a).get(s.valueNames().get(a)));
+            }
+            groups.insertSku(ids.nextId(), groupBuyId, s.kind(), combination, s.name(), s.extraPrice(), s.addonPrice(), s.maxQty(), s.onSale(), s.imageKey(), i);
         }
     }
 

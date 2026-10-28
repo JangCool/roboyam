@@ -12,13 +12,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 상품정보제공고시 양식·적용 옵션·항목 값·판매자 추가 항목(계약 결정 87). 저장은 공구 단위로 통째로 바꾼다(양식 줄을 지우면 옵션·값은 CASCADE).
+ * 상품정보제공고시 양식·적용 단품·항목 값·판매자 추가 항목(계약 결정 87). 저장은 공구 단위로 통째로 바꾼다(양식 줄을 지우면 옵션·값은 CASCADE).
  */
 @Repository
 public class GroupBuyNoticeStore {
 
-    /** 양식 한 장(적용 옵션 이름·고시 항목 값·판매자 추가 항목 포함) */
-    public record NoticeRow(long id, int sortOrder, String categoryCode, String title, String catalogVersion, List<Long> optionIds, List<String> optionNames,
+    /** 양식 한 장(적용 단품 이름·고시 항목 값·판매자 추가 항목 포함) */
+    public record NoticeRow(long id, int sortOrder, String categoryCode, String title, String catalogVersion, List<Long> skuIds, List<String> skuNames,
                             Map<String, ValueRow> values, List<CustomRow> customItems) {
     }
 
@@ -43,10 +43,10 @@ public class GroupBuyNoticeStore {
                     new LinkedHashMap<>(), new ArrayList<>()));
         }, groupBuyId);
         for (NoticeRow notice : out) {
-            jdbc.query("SELECT o.id, o.name FROM group_buy_notice_options n JOIN group_buy_options o ON o.id = n.option_id WHERE n.notice_id = ? ORDER BY o.sort_order, o.id",
+            jdbc.query("SELECT o.id, o.name FROM group_buy_notice_skus n JOIN group_buy_skus o ON o.id = n.sku_id WHERE n.notice_id = ? ORDER BY o.kind DESC, o.sort_order, o.id",
                     rs -> {
-                        notice.optionIds().add(rs.getLong(1));
-                        notice.optionNames().add(rs.getString(2));
+                        notice.skuIds().add(rs.getLong(1));
+                        notice.skuNames().add(rs.getString(2));
                     }, notice.id());
             jdbc.query("SELECT custom, item_key, custom_name, sort_order, value, unavailable, unavailable_reason FROM group_buy_notice_values WHERE notice_id = ? "
                     + "ORDER BY custom, sort_order, item_key", rs -> {
@@ -69,8 +69,8 @@ public class GroupBuyNoticeStore {
                 + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", id, groupBuyId, sortOrder, categoryCode, title, catalogVersion, ts(now), ts(now));
     }
 
-    public void insertOption(long noticeId, long groupBuyId, long optionId) {
-        jdbc.update("INSERT INTO group_buy_notice_options (notice_id, group_buy_id, option_id) VALUES (?, ?, ?)", noticeId, groupBuyId, optionId);
+    public void insertSku(long noticeId, long groupBuyId, long skuId) {
+        jdbc.update("INSERT INTO group_buy_notice_skus (notice_id, group_buy_id, sku_id) VALUES (?, ?, ?)", noticeId, groupBuyId, skuId);
     }
 
     public void insertValue(long id, long noticeId, String itemKey, String value, boolean unavailable, String reason) {
@@ -83,10 +83,10 @@ public class GroupBuyNoticeStore {
                 sortOrder);
     }
 
-    /** DRAFT 옵션을 다시 넣기 전 — 양식별 적용 옵션 이름(다시 넣은 뒤 이름으로 다시 잇는다) */
-    public Map<Long, List<String>> optionNamesByNotice(long groupBuyId) {
+    /** DRAFT 단품을 다시 넣기 전 — 양식별 적용 단품 이름(다시 넣은 뒤 이름으로 다시 잇는다) */
+    public Map<Long, List<String>> skuNamesByNotice(long groupBuyId) {
         Map<Long, List<String>> out = new LinkedHashMap<>();
-        jdbc.query("SELECT n.notice_id, o.name FROM group_buy_notice_options n JOIN group_buy_options o ON o.id = n.option_id WHERE n.group_buy_id = ?",
+        jdbc.query("SELECT n.notice_id, o.name FROM group_buy_notice_skus n JOIN group_buy_skus o ON o.id = n.sku_id WHERE n.group_buy_id = ?",
                 rs -> {
                     out.computeIfAbsent(rs.getLong(1), k -> new ArrayList<>()).add(rs.getString(2));
                 }, groupBuyId);

@@ -43,7 +43,7 @@ public class ParticipationStore {
     }
 
     /** 주문 줄 한 줄 */
-    public record ItemRow(long id, long participationId, long groupBuyId, Long optionId, int qty, long unitPrice, long itemAmount, int canceledQty, int returnedQty,
+    public record ItemRow(long id, long participationId, long groupBuyId, long skuId, boolean main, int qty, long unitPrice, long itemAmount, int canceledQty, int returnedQty,
                           int restockedQty) {
 
         /** 아직 가진(취소·반품하지 않은) 수량 */
@@ -90,8 +90,9 @@ public class ParticipationStore {
     }
 
     public List<ItemRow> items(long participationId) {
-        return jdbc.query("SELECT id, participation_id, group_buy_id, option_id, qty, unit_price, item_amount, canceled_qty, returned_qty, restocked_qty "
-                + "FROM group_buy_participation_items WHERE participation_id = ? ORDER BY option_id NULLS FIRST, id", ParticipationStore::item, participationId);
+        return jdbc.query("SELECT i.id, i.participation_id, i.group_buy_id, i.sku_id, s.kind = 'MAIN', i.qty, i.unit_price, i.item_amount, i.canceled_qty, i.returned_qty, "
+                + "i.restocked_qty FROM group_buy_participation_items i JOIN group_buy_skus s ON s.id = i.sku_id WHERE i.participation_id = ? ORDER BY i.sku_id",
+                ParticipationStore::item, participationId);
     }
 
     /** 그 회원의 그 공구 진행 중 주문(PENDING_PAYMENT~SHIPPED) */
@@ -110,7 +111,7 @@ public class ParticipationStore {
         List<Object> args = new ArrayList<>();
         args.add(userId);
         args.addAll(groupBuyIds);
-        Integer n = jdbc.queryForObject("SELECT coalesce(sum(i.qty - i.canceled_qty - i.returned_qty), 0) FROM group_buy_participation_items i "
+        Integer n = jdbc.queryForObject("SELECT coalesce(sum(i.qty - i.canceled_qty - i.returned_qty), 0) FROM group_buy_participation_items i JOIN group_buy_skus s ON s.id = i.sku_id AND s.kind = 'MAIN' "
                 + "JOIN group_buy_participations p ON p.id = i.participation_id WHERE p.user_id = ? AND p.status <> 'EXPIRED' AND p.group_buy_id IN (" + marks(groupBuyIds)
                 + ")", Integer.class, args.toArray());
         return n == null ? 0 : n;
@@ -151,9 +152,9 @@ public class ParticipationStore {
                 p.address2Enc(), p.memoEnc(), ts(p.now()), ts(p.now()));
     }
 
-    public void insertItem(long id, long participationId, long groupBuyId, Long optionId, int qty, long unitPrice) {
-        jdbc.update("INSERT INTO group_buy_participation_items (id, participation_id, group_buy_id, option_id, qty, unit_price, item_amount) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                id, participationId, groupBuyId, optionId, qty, unitPrice, unitPrice * qty);
+    public void insertItem(long id, long participationId, long groupBuyId, long skuId, int qty, long unitPrice) {
+        jdbc.update("INSERT INTO group_buy_participation_items (id, participation_id, group_buy_id, sku_id, qty, unit_price, item_amount) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                id, participationId, groupBuyId, skuId, qty, unitPrice, unitPrice * qty);
     }
 
     /** 결제 시도와 선점 끝을 붙인다(결제 중일 때만 — 결정 41) */
@@ -243,7 +244,7 @@ public class ParticipationStore {
     }
 
     static ItemRow item(ResultSet rs, int i) throws SQLException {
-        return new ItemRow(rs.getLong(1), rs.getLong(2), rs.getLong(3), nLong(rs, "option_id"), rs.getInt(5), rs.getLong(6), rs.getLong(7), rs.getInt(8), rs.getInt(9),
-                rs.getInt(10));
+        return new ItemRow(rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4), rs.getBoolean(5), rs.getInt(6), rs.getLong(7), rs.getLong(8), rs.getInt(9), rs.getInt(10),
+                rs.getInt(11));
     }
 }

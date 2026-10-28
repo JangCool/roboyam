@@ -33,7 +33,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li>모집 시작: 공개됐고 시작 시각이 된 DRAFT → RECRUITING({@link GroupBuyAdminService#startNow} — 배송비 사본·처음 수량·수정 이력 1)</li>
  *   <li>마감: 마감 시각이 지난 모집 중 공구 — 연장 조건(10-2: DEMAND = 결제 중 선점이 남았거나 마감 전 판단 창(5분) 안에 수량이 풀림(RELEASE·CANCEL·RESTOCK·ADD — 결정 25·81),
  *       ALWAYS = 수량이 남음)이면 원래 마감에서 한 번 {@code extended_until = end_at + 연장 시간}, 아니면 CLOSING(TIME_UP). 연장 끝이 지나면 CLOSING.</li>
- *   <li>다 팔림 안전망(10-7 ③ — 옵션 전부 다 팔림 포함, 결정 78)</li>
+ *   <li>다 팔림 안전망(10-7 ③ — 판매 중인 MAIN 단품 전부 다 팔림 포함, 결정 78)</li>
  *   <li>판정: 집계 중이고 (남은 선점 0 이거나 closing_at + 선점 시간 + 여유가 지남) — 공구 행을 {@code FOR UPDATE} 로 잠그고 다시 판단(결정 37 ①). 확정 ≥ 최소면 성사, 아니면 불발
  *       (불발 환불은 {@code groupbuy-refund} 워커 — 결정 61).</li>
  *   <li>성사 공구의 JOINED → CONFIRMED 일괄(판정 트랜잭션과 따로 — 공구 행을 쥔 채 주문 행을 잠그지 않는다)</li>

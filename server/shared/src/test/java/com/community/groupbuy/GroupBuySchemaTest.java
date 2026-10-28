@@ -46,14 +46,16 @@ class GroupBuySchemaTest {
     }
 
     @Test
-    void 옵션_없는_줄은_주문당_하나_NULLS_NOT_DISTINCT_그리고_줄의_옵션은_같은_공구_것만_복합_FK() {
+    void 주문_줄은_단품마다_하나_단품은_필수_그리고_줄의_단품은_같은_공구_것만_복합_FK() {
         long gb = kit.spec(policy()).open();
         long other = kit.spec(policy()).option("X", 0, 5).open();
         JoinResult joined = kit.order(kit.newMember(), gb, 1);
-        assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO group_buy_participation_items (id, participation_id, group_buy_id, option_id, qty, unit_price, item_amount) "
-                + "VALUES (?, ?, ?, NULL, 1, 25000, 25000)", kit.ids.nextId(), joined.participationId(), gb)).isInstanceOf(DuplicateKeyException.class);
-        assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO group_buy_participation_items (id, participation_id, group_buy_id, option_id, qty, unit_price, item_amount) "
-                + "VALUES (?, ?, ?, ?, 1, 25000, 25000)", kit.ids.nextId(), joined.participationId(), gb, kit.optionId(other, "X")))
+        assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO group_buy_participation_items (id, participation_id, group_buy_id, sku_id, qty, unit_price, item_amount) "
+                + "VALUES (?, ?, ?, ?, 1, 25000, 25000)", kit.ids.nextId(), joined.participationId(), gb, kit.mainSku(gb))).isInstanceOf(DuplicateKeyException.class);
+        assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO group_buy_participation_items (id, participation_id, group_buy_id, sku_id, qty, unit_price, item_amount) "
+                + "VALUES (?, ?, ?, NULL, 1, 25000, 25000)", kit.ids.nextId(), joined.participationId(), gb)).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO group_buy_participation_items (id, participation_id, group_buy_id, sku_id, qty, unit_price, item_amount) "
+                + "VALUES (?, ?, ?, ?, 1, 25000, 25000)", kit.ids.nextId(), joined.participationId(), gb, kit.skuId(other, "X")))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
@@ -94,20 +96,20 @@ class GroupBuySchemaTest {
     @Test
     void G6_불변식_검사는_판매_수량_식으로_맞추고_어긋나면_잡는다() {
         long gb = kit.spec(policy()).option("A", 0, 10).option("B", 0, null).open();
-        long a = kit.optionId(gb, "A");
-        JoinResult paid = kit.paidOrder(kit.newMember(), gb, lines(a, 3, kit.optionId(gb, "B"), 1));
+        long a = kit.skuId(gb, "A");
+        JoinResult paid = kit.paidOrder(kit.newMember(), gb, lines(a, 3, kit.skuId(gb, "B"), 1));
         kit.order(kit.newMember(), gb, lines(a, 2));
         kit.assertInvariants(gb);
 
         // 반품 처리(2b-3)를 흉내: A 2개 반품 중 1개 다시 판매(RESTOCK — 확정 감소), 1개 폐기(판매 수량 그대로)
-        long itemA = kit.items(paid.participationId()).stream().filter(i -> i.optionId() == a).findFirst().orElseThrow().id();
+        long itemA = kit.items(paid.participationId()).stream().filter(i -> i.skuId() == a).findFirst().orElseThrow().id();
         kit.jdbc.update("UPDATE group_buy_participation_items SET returned_qty = 2, restocked_qty = 1 WHERE id = ?", itemA);
         List<Violation> before = kit.invariants.violations(List.of(gb));
-        assertThat(before).extracting(Violation::check).contains("GROUP_CURRENT", "OPTION_CURRENT");
+        assertThat(before).extracting(Violation::check).contains("GROUP_CURRENT", "SKU_CURRENT");
         kit.jdbc.update("UPDATE group_buys SET current_qty = current_qty - 1 WHERE id = ?", gb);
-        kit.jdbc.update("UPDATE group_buy_options SET current_qty = current_qty - 1 WHERE id = ?", a);
+        kit.jdbc.update("UPDATE group_buy_skus SET current_qty = current_qty - 1 WHERE id = ?", a);
         assertThat(kit.invariants.violations(List.of(gb))).extracting(Violation::check).as("수량 열은 맞지만 이동 줄이 없다")
-                .containsOnly("LAST_MOVE_GROUP", "LAST_MOVE_OPTION");
+                .containsOnly("LAST_MOVE_GROUP", "LAST_MOVE_SKU");
 
         // 결제 금액 식(결정 39) — 환불 누계만 올리고 취소를 넣지 않으면 어긋난다
         kit.jdbc.update("UPDATE group_buy_participations SET refunded_amount = 1000 WHERE id = ?", paid.participationId());

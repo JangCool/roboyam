@@ -42,7 +42,7 @@ class ParticipationCancelTest {
         JoinResult paid = kit.paidOrder(member, gb, 3);
         assertThat(paid.amount()).isEqualTo(75_000);
 
-        CancelResult result = kit.cancels.cancelByMember(member, paid.participationId(), lines(null, 2));
+        CancelResult result = kit.cancels.cancelByMember(member, paid.participationId(), lines(kit.mainSku(gb), 2));
 
         assertThat(result.refundAmount()).isEqualTo(47_000);
         assertThat(result.reshippingFee()).isEqualTo(3_000);
@@ -75,7 +75,7 @@ class ParticipationCancelTest {
         long gb = kit.spec(policy).open();
         long member = kit.newMember();
         JoinResult paid = kit.paidOrder(member, gb, 2); // 50,000 + 3,000
-        CancelResult result = kit.cancels.cancelByMember(member, paid.participationId(), lines(null, 1));
+        CancelResult result = kit.cancels.cancelByMember(member, paid.participationId(), lines(kit.mainSku(gb), 1));
         assertThat(result.refundAmount()).isEqualTo(25_000);
         assertThat(result.reshippingFee()).isZero();
         kit.assertInvariants(gb);
@@ -85,14 +85,14 @@ class ParticipationCancelTest {
     void 여러_옵션_주문에서_한_줄만_취소하고_남은_상품이_기준_이상이면_배송비_재부과_없음() {
         String policy = kit.policy(3_000, 50_000L, 3_000, "ONE_WAY");
         long gb = kit.spec(policy).option("A", 0, null).option("B", 5_000, null).open();
-        long a = kit.optionId(gb, "A");
-        long b = kit.optionId(gb, "B");
+        long a = kit.skuId(gb, "A");
+        long b = kit.skuId(gb, "B");
         long member = kit.newMember();
         JoinResult paid = kit.paidOrder(member, gb, lines(a, 2, b, 1)); // 50,000 + 30,000 = 80,000 무료
         CancelResult result = kit.cancels.cancelByMember(member, paid.participationId(), lines(b, 1));
         assertThat(result.refundAmount()).isEqualTo(30_000);
-        assertThat(kit.option(gb, b).currentQty()).isZero();
-        assertThat(kit.option(gb, a).currentQty()).isEqualTo(2);
+        assertThat(kit.sku(gb, b).currentQty()).isZero();
+        assertThat(kit.sku(gb, a).currentQty()).isEqualTo(2);
         kit.assertInvariants(gb);
     }
 
@@ -133,7 +133,7 @@ class ParticipationCancelTest {
         JoinResult paid = kit.paidOrder(member, gb, 1);
         assertThatThrownBy(() -> kit.cancels.cancelByMember(kit.newMember(), paid.participationId(), null))
                 .isInstanceOfSatisfying(GroupBuyException.class, e -> assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.ORDER_NOT_FOUND));
-        assertThatThrownBy(() -> kit.cancels.cancelByMember(member, paid.participationId(), lines(null, 2))).isInstanceOf(ValidationException.class);
+        assertThatThrownBy(() -> kit.cancels.cancelByMember(member, paid.participationId(), lines(kit.mainSku(gb), 2))).isInstanceOf(ValidationException.class);
         assertThat(kit.participation(paid.participationId()).refundedAmount()).isZero();
     }
 
@@ -149,7 +149,7 @@ class ParticipationCancelTest {
         assertThatThrownBy(() -> kit.cancels.cancelByMember(member, paid.participationId(), null)).isInstanceOf(GroupBuyException.class);
 
         kit.admin.announceDelay(gb, LocalDate.now().plusDays(30), "공급처 입고 지연", kit.operator, "ip");
-        CancelResult result = kit.cancels.cancelByMember(member, paid.participationId(), lines(null, 1)); // 줄을 골라도 주문 전체
+        CancelResult result = kit.cancels.cancelByMember(member, paid.participationId(), lines(kit.mainSku(gb), 1)); // 줄을 골라도 주문 전체
         assertThat(result.wholeOrder()).isTrue();
         assertThat(result.refundAmount()).isEqualTo(75_000);
         assertThat(result.reshippingFee()).isZero();

@@ -4,9 +4,9 @@
 -- 무엇이 생기나
 --   · 배송비 정책(shipping_policies): 정책 이름(code)별 기간 줄. 같은 code 의 기간은 겹치지 않는다(배제 제약). 적용이 시작된 줄은 금액·방식·시작을 고치거나 지우지 못한다
 --     (트리거 — 끝 시각만 미래로 정할 수 있다: 새 줄을 더할 때 지금 줄을 닫는 길). 공구는 모집 시작 때 그 시각에 유효한 줄의 값을 복사해 끝까지 쓴다(10-2).
---   · 공구(group_buys)·대표 이미지·옵션·수정 이력(표시·광고 6개월 — 10-2)·공구 상태 이력.
---   · 주문(group_buy_participations — 한 번의 결제·배송지·배송비) + 주문 줄(group_buy_participation_items — 옵션·수량·단가, 결정 23).
---   · 수량 이동(group_buy_qty_movements): 수량을 바꾸는 모든 길이 한 줄씩(RESERVE·RELEASE·CONFIRM·CANCEL·RETURN·RESTOCK·ADD·REDUCE·EXCHANGE_OUT), 공구·옵션 양쪽의 이후 값.
+--   · 공구(group_buys)·대표 이미지·옵션 축·값·단품(MAIN·ADDON)·수정 이력(표시·광고 6개월 — 10-2)·공구 상태 이력.
+--   · 주문(group_buy_participations — 한 번의 결제·배송지·배송비) + 주문 줄(group_buy_participation_items — 단품·수량·단가, 결정 23·88).
+--   · 수량 이동(group_buy_qty_movements): 수량을 바꾸는 모든 길이 한 줄씩(RESERVE·RELEASE·CONFIRM·CANCEL·RETURN·RESTOCK·ADD·REDUCE·EXCHANGE_OUT), 공구(MAIN 만)·단품 양쪽의 이후 값.
 --   · 주문 상태 이력(participation_status_history — 선점 반복 이탈은 여기서 HOLD_TIMEOUT 만 센다, 결정 28).
 --   · 환불 기록(group_buy_refunds — 결정 36·75): 계약은 V102 로 적었지만 2b-2 의 불발·중단 환불·본인 취소가 쓰므로 여기서 만든다(요청 ID 는 V102 의 요청 표를 가리킨다 — FK 없이).
 --   · 관심 신청(group_buy_watches)·발송 지연 공지(group_buy_delay_notices)·주문 번호 일련(group_buy_order_counters)·공구 설정(group_buy_settings, 1행).
@@ -191,25 +191,61 @@ CREATE TABLE group_buy_images (
 );
 CREATE UNIQUE INDEX ux_group_buy_images_order ON group_buy_images (group_buy_id, sort_order);
 
--- 옵션: max_qty null = 옵션 한도 없음(공구 최대만). 한도 없는 옵션도 수량 열은 늘 갱신한다(결정 77).
-CREATE TABLE group_buy_options (
-    id              bigint       PRIMARY KEY,
-    group_buy_id    bigint       NOT NULL REFERENCES group_buys (id) ON DELETE CASCADE,
-    name            varchar(60)  NOT NULL,
-    extra_price     bigint       NOT NULL DEFAULT 0,
+-- ── 옵션 축·값·단품(결정 88 — 사용자 결정: 일반 이커머스 구조) ─────────────────────────────────────
+-- 축(group_buy_option_axes): 공구마다 0~3개(예 색상·사이즈) · 값(group_buy_option_values): 축마다(예 블랙·화이트 / S·M·L).
+CREATE TABLE group_buy_option_axes (
+    id           bigint       PRIMARY KEY,
+    group_buy_id bigint       NOT NULL REFERENCES group_buys (id) ON DELETE CASCADE,
+    sort_order   integer      NOT NULL,
+    name         varchar(30)  NOT NULL,
+    CONSTRAINT ck_group_buy_option_axes_name CHECK (length(btrim(name)) BETWEEN 1 AND 30)
+);
+CREATE UNIQUE INDEX ux_group_buy_option_axes_order ON group_buy_option_axes (group_buy_id, sort_order);
+CREATE UNIQUE INDEX ux_group_buy_option_axes_name ON group_buy_option_axes (group_buy_id, name);
+
+CREATE TABLE group_buy_option_values (
+    id           bigint       PRIMARY KEY,
+    axis_id      bigint       NOT NULL REFERENCES group_buy_option_axes (id) ON DELETE CASCADE,
+    group_buy_id bigint       NOT NULL,
+    sort_order   integer      NOT NULL,
+    value        varchar(30)  NOT NULL,
+    CONSTRAINT ck_group_buy_option_values_value CHECK (length(btrim(value)) BETWEEN 1 AND 30)
+);
+CREATE UNIQUE INDEX ux_group_buy_option_values_order ON group_buy_option_values (axis_id, sort_order);
+CREATE UNIQUE INDEX ux_group_buy_option_values_value ON group_buy_option_values (axis_id, value);
+
+-- 단품(group_buy_skus — 실제 판매 단위): kind MAIN 본 상품(축 값 조합마다 하나, 축이 없으면 하나) / ADDON 추가 구성상품(별개 상품 — 단독 구매 불가).
+--   value_ids: MAIN 의 축 값 조합(축 차례대로, 축이 없으면 빈 배열), ADDON 은 빈 배열. name: MAIN 은 「블랙 / M」(축이 없으면 상품 이름), ADDON 은 상품 이름 — 공구 안에서 유일.
+--   가격: MAIN = 공구가 + extra_price, ADDON = addon_price. max_qty null = 단품 한도 없음(MAIN 은 공구 최대만). 한도 없는 단품도 수량 열은 늘 갱신한다(결정 77).
+--   공구 최대·성사 판정·1인 한도는 MAIN 수량만 센다 — 공구 행의 current·reserved = Σ MAIN 단품(결정 88). on_sale: 판매 여부(필요 없는 조합은 끈다).
+CREATE TABLE group_buy_skus (
+    id              bigint        PRIMARY KEY,
+    group_buy_id    bigint        NOT NULL REFERENCES group_buys (id) ON DELETE CASCADE,
+    kind            varchar(10)   NOT NULL,
+    value_ids       bigint[]      NOT NULL DEFAULT '{}',
+    name            varchar(100)  NOT NULL,
+    extra_price     bigint        NOT NULL DEFAULT 0,
+    addon_price     bigint,
     max_qty         integer,
     initial_max_qty integer,
-    current_qty     integer      NOT NULL DEFAULT 0,
-    reserved_qty    integer      NOT NULL DEFAULT 0,
-    sort_order      integer      NOT NULL DEFAULT 0,
-    CONSTRAINT ck_group_buy_options_price CHECK (extra_price >= 0),
-    CONSTRAINT ck_group_buy_options_counts CHECK (current_qty >= 0 AND reserved_qty >= 0 AND (max_qty IS NULL OR (max_qty > 0 AND current_qty + reserved_qty <= max_qty))),
-    -- 한도 없는 옵션은 처음 수량도 없다(한도 없는 옵션에는 옵션 ADD·REDUCE 가 없다 — 결정 80)
-    CONSTRAINT ck_group_buy_options_initial CHECK (max_qty IS NOT NULL OR initial_max_qty IS NULL)
+    current_qty     integer       NOT NULL DEFAULT 0,
+    reserved_qty    integer       NOT NULL DEFAULT 0,
+    on_sale         boolean       NOT NULL DEFAULT true,
+    image_key       varchar(300),
+    sort_order      integer       NOT NULL DEFAULT 0,
+    CONSTRAINT ck_group_buy_skus_kind CHECK (kind IN ('MAIN', 'ADDON')),
+    CONSTRAINT ck_group_buy_skus_price CHECK ((kind = 'MAIN' AND extra_price >= 0 AND addon_price IS NULL)
+        OR (kind = 'ADDON' AND extra_price = 0 AND addon_price > 0 AND cardinality(value_ids) = 0)),
+    CONSTRAINT ck_group_buy_skus_counts CHECK (current_qty >= 0 AND reserved_qty >= 0 AND (max_qty IS NULL OR (max_qty > 0 AND current_qty + reserved_qty <= max_qty))),
+    -- 한도 없는 단품은 처음 수량도 없다(한도 없는 단품에는 단품 ADD·REDUCE 가 없다 — 결정 80)
+    CONSTRAINT ck_group_buy_skus_initial CHECK (max_qty IS NOT NULL OR initial_max_qty IS NULL),
+    CONSTRAINT ck_group_buy_skus_name CHECK (length(btrim(name)) BETWEEN 1 AND 100)
 );
--- 주문 줄의 옵션이 같은 공구 것인지 보는 복합 FK 의 대상(결정 66)
-CREATE UNIQUE INDEX ux_group_buy_options_group ON group_buy_options (id, group_buy_id);
-CREATE UNIQUE INDEX ux_group_buy_options_name ON group_buy_options (group_buy_id, name);
+-- 주문 줄·고시 양식의 단품이 같은 공구 것인지 보는 복합 FK 의 대상(결정 66)
+CREATE UNIQUE INDEX ux_group_buy_skus_group ON group_buy_skus (id, group_buy_id);
+CREATE UNIQUE INDEX ux_group_buy_skus_name ON group_buy_skus (group_buy_id, name);
+-- 축 값 조합마다 MAIN 단품 하나
+CREATE UNIQUE INDEX ux_group_buy_skus_combination ON group_buy_skus (group_buy_id, value_ids) WHERE kind = 'MAIN';
 
 -- 수정 이력(표시·광고 기록 6개월 — 10-2, 시행령 제6조): 설명·이미지·수량 사본(추가 입고도 표시 기록 — 계약 「마이그레이션 계획」)
 CREATE TABLE group_buy_revisions (
@@ -223,7 +259,8 @@ CREATE TABLE group_buy_revisions (
     images         jsonb         NOT NULL DEFAULT '[]',
     max_qty        integer       NOT NULL,
     added_qty      integer       NOT NULL,
-    option_max     jsonb         NOT NULL DEFAULT '[]',
+    option_axes    jsonb         NOT NULL DEFAULT '[]',
+    skus           jsonb         NOT NULL DEFAULT '[]',
     notices        jsonb         NOT NULL DEFAULT '[]',
     change_kind    varchar(20)   NOT NULL,
     edited_by      bigint,
@@ -235,7 +272,7 @@ CREATE INDEX ix_group_buy_revisions_created ON group_buy_revisions (created_at);
 
 -- ── 상품정보제공고시 양식(결정 87 — 공정위 「전자상거래 등에서의 상품 등의 정보제공에 관한 고시」 Ⅲ-1 품목별 정보) ─────────────────
 -- 양식(group_buy_notices): 공구마다 여러 장 — 차례·품목 코드(카탈로그 groupbuy/notice-catalog-<버전>.json 의 code)·제목(예 「본체」·「충전기」)·카탈로그 버전(만든 때 버전 고정).
--- 적용 옵션(group_buy_notice_options): 비면 그 양식은 공구 전체 = 기본 상품(목록에 없는 옵션도 덮는다). 한 옵션은 양식 하나에만(유일 option_id).
+-- 적용 단품(group_buy_notice_skus): 비면 그 양식은 공구 전체 = 기본 상품(목록에 없는 MAIN 단품을 덮는다 — 추가 구성상품은 덮지 않는다, 결정 88). 한 단품은 양식 하나에만(유일 sku_id).
 -- 값(group_buy_notice_values): 항목마다 「값」 또는 「제공 불가 + 사유」(일반원칙 ③ — 빈 항목 금지는 모집 시작 때 검사, 제공 불가에 사유가 없는 줄은 DB 가 막는다).
 --   custom = true 는 판매자 추가 항목(사용자 지시 2026-10-28): 항목 키 없이 이름(1~40자)·내용(1~1,000자 평문)·차례, 양식당 20개까지(앱), 모집 시작 완성 검사 대상 아님.
 CREATE TABLE group_buy_notices (
@@ -253,16 +290,16 @@ CREATE TABLE group_buy_notices (
 );
 CREATE UNIQUE INDEX ux_group_buy_notices_order ON group_buy_notices (group_buy_id, sort_order);
 
-CREATE TABLE group_buy_notice_options (
+CREATE TABLE group_buy_notice_skus (
     notice_id    bigint  NOT NULL,
     group_buy_id bigint  NOT NULL,
-    option_id    bigint  NOT NULL,
-    PRIMARY KEY (notice_id, option_id),
-    CONSTRAINT fk_gbno_notice FOREIGN KEY (notice_id, group_buy_id) REFERENCES group_buy_notices (id, group_buy_id) ON DELETE CASCADE,
-    CONSTRAINT fk_gbno_option FOREIGN KEY (option_id, group_buy_id) REFERENCES group_buy_options (id, group_buy_id) ON DELETE CASCADE
+    sku_id       bigint  NOT NULL,
+    PRIMARY KEY (notice_id, sku_id),
+    CONSTRAINT fk_gbns_notice FOREIGN KEY (notice_id, group_buy_id) REFERENCES group_buy_notices (id, group_buy_id) ON DELETE CASCADE,
+    CONSTRAINT fk_gbns_sku FOREIGN KEY (sku_id, group_buy_id) REFERENCES group_buy_skus (id, group_buy_id) ON DELETE CASCADE
 );
--- 한 옵션은 양식 하나에만
-CREATE UNIQUE INDEX ux_gbno_option ON group_buy_notice_options (option_id);
+-- 한 단품은 양식 하나에만
+CREATE UNIQUE INDEX ux_gbns_sku ON group_buy_notice_skus (sku_id);
 
 CREATE TABLE group_buy_notice_values (
     id                 bigint         PRIMARY KEY,
@@ -370,13 +407,13 @@ CREATE INDEX ix_gbp_group_status ON group_buy_participations (group_buy_id, stat
 CREATE INDEX ix_gbp_user ON group_buy_participations (user_id, created_at);
 CREATE INDEX ix_gbp_payment ON group_buy_participations (payment_order_id);
 
--- 주문 줄: 같은 옵션 두 줄 금지(옵션 없는 공구는 줄 하나 — NULLS NOT DISTINCT, 결정 66).
--- 판매 수량(재고 기준) = qty − canceled_qty − restocked_qty · 1인 한도 기준 = qty − canceled_qty − returned_qty(결정 28).
+-- 주문 줄: 줄마다 단품 하나, 같은 단품 두 줄 금지(결정 66·88). 주문에는 MAIN 단품 줄이 하나 이상(추가 구성상품 단독 구매 불가 — 앱).
+-- 판매 수량(재고 기준) = qty − canceled_qty − restocked_qty · 1인 한도 기준 = qty − canceled_qty − returned_qty(결정 28, MAIN 단품만).
 CREATE TABLE group_buy_participation_items (
     id               bigint   PRIMARY KEY,
     participation_id bigint   NOT NULL,
     group_buy_id     bigint   NOT NULL,
-    option_id        bigint,
+    sku_id           bigint   NOT NULL,
     qty              integer  NOT NULL,
     unit_price       bigint   NOT NULL,
     item_amount      bigint   NOT NULL,
@@ -386,11 +423,11 @@ CREATE TABLE group_buy_participation_items (
     CONSTRAINT ck_gbpi_qty CHECK (qty > 0 AND canceled_qty >= 0 AND returned_qty >= 0 AND canceled_qty + returned_qty <= qty),
     CONSTRAINT ck_gbpi_restocked CHECK (restocked_qty >= 0 AND restocked_qty <= returned_qty),
     CONSTRAINT ck_gbpi_amount CHECK (unit_price > 0 AND item_amount = unit_price * qty),
-    CONSTRAINT ux_gbpi_option UNIQUE NULLS NOT DISTINCT (participation_id, option_id),
+    CONSTRAINT ux_gbpi_sku UNIQUE (participation_id, sku_id),
     CONSTRAINT fk_gbpi_participation FOREIGN KEY (participation_id, group_buy_id) REFERENCES group_buy_participations (id, group_buy_id) ON DELETE CASCADE,
-    CONSTRAINT fk_gbpi_option FOREIGN KEY (option_id, group_buy_id) REFERENCES group_buy_options (id, group_buy_id)
+    CONSTRAINT fk_gbpi_sku FOREIGN KEY (sku_id, group_buy_id) REFERENCES group_buy_skus (id, group_buy_id)
 );
-CREATE INDEX ix_gbpi_group_option ON group_buy_participation_items (group_buy_id, option_id);
+CREATE INDEX ix_gbpi_group_sku ON group_buy_participation_items (group_buy_id, sku_id);
 
 CREATE TABLE participation_status_history (
     id               bigint       PRIMARY KEY,
@@ -409,27 +446,30 @@ CREATE INDEX ix_participation_hold_timeout ON participation_status_history (user
 
 -- ── 수량 이동 — 수량을 바꾸는 모든 길이 한 줄(이후 값은 조건부 UPDATE … RETURNING 으로, 결정 82) ─────────────────
 -- kind: RESERVE·RELEASE·CONFIRM·CANCEL·RETURN(반품 기록, 수량 불변)·RESTOCK(다시 판매)·ADD(추가 입고)·REDUCE(줄이기)·EXCHANGE_OUT(교환 출고, 기록만).
--- option_* 은 옵션 이동일 때만. max_after 는 공구 최대(ADD·REDUCE 불변식 — 결정 80).
+-- 공구 이후 값(current·reserved·max_after)은 공구 행을 바꾼 이동(MAIN 단품·공구 단위)만, sku_* 은 단품 이동만(결정 88 — 추가 구성상품은 공구 행을 바꾸지 않는다).
+-- max_after 는 공구 최대(ADD·REDUCE 불변식 — 결정 80).
 CREATE TABLE group_buy_qty_movements (
     id                    bigint        PRIMARY KEY,
     group_buy_id          bigint        NOT NULL REFERENCES group_buys (id) ON DELETE CASCADE,
-    option_id             bigint,
+    sku_id                bigint,
     participation_id      bigint,
     participation_item_id bigint,
     kind                  varchar(15)   NOT NULL,
     qty                   integer       NOT NULL,
-    current_after         integer       NOT NULL,
-    reserved_after        integer       NOT NULL,
-    max_after             integer       NOT NULL,
-    option_current_after  integer,
-    option_reserved_after integer,
-    option_max_after      integer,
+    current_after         integer,
+    reserved_after        integer,
+    max_after             integer,
+    sku_current_after     integer,
+    sku_reserved_after    integer,
+    sku_max_after         integer,
     reason                varchar(200),
     actor_id              bigint,
     created_at            timestamptz   NOT NULL,
     CONSTRAINT ck_gbqm_kind CHECK (kind IN ('RESERVE', 'RELEASE', 'CONFIRM', 'CANCEL', 'RETURN', 'RESTOCK', 'ADD', 'REDUCE', 'EXCHANGE_OUT')),
     CONSTRAINT ck_gbqm_qty CHECK (qty > 0),
-    CONSTRAINT ck_gbqm_option CHECK (option_id IS NOT NULL OR (option_current_after IS NULL AND option_reserved_after IS NULL AND option_max_after IS NULL))
+    CONSTRAINT ck_gbqm_group CHECK ((current_after IS NULL) = (reserved_after IS NULL) AND (current_after IS NULL) = (max_after IS NULL)),
+    CONSTRAINT ck_gbqm_sku CHECK (sku_id IS NOT NULL OR (sku_current_after IS NULL AND sku_reserved_after IS NULL AND sku_max_after IS NULL)),
+    CONSTRAINT ck_gbqm_side CHECK (current_after IS NOT NULL OR sku_current_after IS NOT NULL)
 );
 -- 연장 판단(마감 전 5분 안의 풀림 — 결정 81)·이동 내역
 CREATE INDEX ix_gbqm_group_created ON group_buy_qty_movements (group_buy_id, created_at);
@@ -478,17 +518,17 @@ CREATE UNIQUE INDEX ux_gbr_request_key ON group_buy_refunds (request_key);
 CREATE UNIQUE INDEX ux_gbr_cancel ON group_buy_refunds (payment_cancel_id) WHERE payment_cancel_id IS NOT NULL;
 CREATE INDEX ix_gbr_participation ON group_buy_refunds (participation_id, created_at);
 
--- ── 관심 신청(결정 17·84) — kind: CLOSING_SOON 마감 임박 · RESTOCK 수량 풀림 · NEXT_ROUND 다음 차수(1차 공구 기준). option_id: 옵션 품절 알림(선택) ──
+-- ── 관심 신청(결정 17·84) — kind: CLOSING_SOON 마감 임박 · RESTOCK 수량 풀림 · NEXT_ROUND 다음 차수(1차 공구 기준). sku_id: 단품 품절 알림(선택, 결정 84·88) ──
 CREATE TABLE group_buy_watches (
     id               bigint       PRIMARY KEY,
     group_buy_id     bigint       NOT NULL REFERENCES group_buys (id) ON DELETE CASCADE,
     user_id          bigint       NOT NULL,
     kind             varchar(15)  NOT NULL,
-    option_id        bigint,
+    sku_id           bigint,
     last_notified_at timestamptz,
     created_at       timestamptz  NOT NULL,
     CONSTRAINT ck_group_buy_watches_kind CHECK (kind IN ('CLOSING_SOON', 'RESTOCK', 'NEXT_ROUND')),
-    CONSTRAINT ux_group_buy_watches UNIQUE NULLS NOT DISTINCT (group_buy_id, user_id, kind, option_id)
+    CONSTRAINT ux_group_buy_watches UNIQUE NULLS NOT DISTINCT (group_buy_id, user_id, kind, sku_id)
 );
 CREATE INDEX ix_group_buy_watches_user ON group_buy_watches (user_id);
 

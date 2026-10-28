@@ -102,21 +102,21 @@ class GroupBuyStockTest {
     @Test
     void G5_G29_옵션_추가_입고와_줄이기는_공구_최대도_같은_수만큼_움직이고_식이_맞는다() {
         long gb = kit.spec(policy()).qty(0, 10).option("빨강", 0, 3).option("파랑", 0, 3).option("자유", 0, null).open();
-        long red = kit.optionId(gb, "빨강");
-        long free = kit.optionId(gb, "자유");
+        long red = kit.skuId(gb, "빨강");
+        long free = kit.skuId(gb, "자유");
         kit.paidOrder(kit.newMember(), gb, lines(red, 3));
-        assertThat(kit.quotes.availability(gb).options().stream().filter(o -> o.optionId() == red).findFirst().orElseThrow().soldOut())
+        assertThat(kit.quotes.availability(gb).skus().stream().filter(o -> o.skuId() == red).findFirst().orElseThrow().soldOut())
                 .as("옵션 다 팔림 — 공구는 모집 중").isTrue();
 
         StockChange added = kit.admin.addStock(gb, red, 2, "빨강 입고", kit.operator, "ip");
-        assertThat(added.optionMaxQty()).isEqualTo(5);
+        assertThat(added.skuMaxQty()).isEqualTo(5);
         assertThat(added.maxQty()).isEqualTo(12);
-        StockChange reduced = kit.admin.reduceStock(gb, kit.optionId(gb, "파랑"), 1, "파랑 불량", kit.operator, "ip");
-        assertThat(reduced.optionMaxQty()).isEqualTo(2);
+        StockChange reduced = kit.admin.reduceStock(gb, kit.skuId(gb, "파랑"), 1, "파랑 불량", kit.operator, "ip");
+        assertThat(reduced.skuMaxQty()).isEqualTo(2);
         assertThat(reduced.maxQty()).isEqualTo(11);
 
         assertThatThrownBy(() -> kit.admin.addStock(gb, free, 1, "자유 입고", kit.operator, "ip"))
-                .isInstanceOfSatisfying(GroupBuyException.class, e -> assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.OPTION_UNLIMITED));
+                .isInstanceOfSatisfying(GroupBuyException.class, e -> assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.SKU_UNLIMITED));
         assertThatThrownBy(() -> kit.admin.reduceStock(gb, red, 3, "하한 아래", kit.operator, "ip"))
                 .isInstanceOfSatisfying(GroupBuyException.class, e -> {
                     assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.QTY_BELOW_FLOOR);
@@ -145,9 +145,9 @@ class GroupBuyStockTest {
     @Test
     void G5_여러_줄_동시_선점과_결제_추가_입고가_섞여도_교착_없이_수량이_맞는다() throws Exception {
         long gb = kit.spec(policy()).qty(0, 40).option("A", 0, 20).option("B", 0, 20).option("C", 0, null).open();
-        long a = kit.optionId(gb, "A");
-        long b = kit.optionId(gb, "B");
-        long c = kit.optionId(gb, "C");
+        long a = kit.skuId(gb, "A");
+        long b = kit.skuId(gb, "B");
+        long c = kit.skuId(gb, "C");
         List<java.util.concurrent.Callable<Object>> tasks = new java.util.ArrayList<>();
         for (int i = 0; i < 8; i++) {
             long member = kit.newMember();

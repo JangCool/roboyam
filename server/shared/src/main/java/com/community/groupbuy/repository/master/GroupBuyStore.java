@@ -1,6 +1,7 @@
 package com.community.groupbuy.repository.master;
 
 import com.community.groupbuy.entity.GroupBuyStatus;
+import com.community.groupbuy.entity.SkuKind;
 import java.sql.Array;
 import java.sql.Date;
 import java.sql.ResultSet;
@@ -18,7 +19,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 /**
- * 공구({@code group_buys})·옵션·대표 이미지·수정 이력·상태 이력·지연 공지·공구 설정 읽기·쓰기. 수량 열은 여기서 바꾸지 않는다({@link GroupBuyQtyStore} — 수량을 바꾸는 유일한 길).
+ * 공구({@code group_buys})·옵션 축·값·단품·대표 이미지·수정 이력·상태 이력·지연 공지·공구 설정 읽기·쓰기. 수량 열은 여기서 바꾸지 않는다({@link GroupBuyQtyStore} — 수량을 바꾸는 유일한 길).
  * 상태 전이는 한 문장 조건부 UPDATE(이긴 쪽만, commerce.md 3절).
  *
  * <p>JDBC 인 이유: 조건부 전이·{@code FOR UPDATE}·{@code RETURNING} 을 쓰고, 결제 확정 트랜잭션(결제 모듈 — JDBC)과 한 연결에서 돌고, 시험이 스프링 문맥 없이 조립한다
@@ -51,8 +52,28 @@ public class GroupBuyStore {
         }
     }
 
-    /** 옵션 한 줄 */
-    public record OptionRow(long id, long groupBuyId, String name, long extraPrice, Integer maxQty, Integer initialMaxQty, int currentQty, int reservedQty, int sortOrder) {
+    /**
+     * 단품 한 줄(결정 88) — {@code kind} MAIN 본 상품 / ADDON 추가 구성상품, {@code valueIds} 축 값 조합(MAIN, 축 차례), {@code maxQty} null = 단품 한도 없음.
+     */
+    public record SkuRow(long id, long groupBuyId, SkuKind kind, List<Long> valueIds, String name, long extraPrice, Long addonPrice, Integer maxQty,
+                         Integer initialMaxQty, int currentQty, int reservedQty, boolean onSale, String imageKey, int sortOrder) {
+
+        public boolean main() {
+            return kind == SkuKind.MAIN;
+        }
+
+        /** 단가 — MAIN = 공구가 + 추가금, ADDON = 자기 가격 */
+        public long unitPrice(long groupPrice) {
+            return main() ? Math.addExact(groupPrice, extraPrice) : addonPrice;
+        }
+    }
+
+    /** 옵션 축(차례대로)과 값 */
+    public record AxisRow(long id, String name, int sortOrder, List<ValueRow> values) {
+    }
+
+    /** 축 값 */
+    public record ValueRow(long id, long axisId, String value, int sortOrder) {
     }
 
     /** 대표 이미지 한 줄 */
@@ -151,9 +172,9 @@ public class GroupBuyStore {
                 policy.baseFee(), policy.freeShippingOver(), policy.returnFee(), policy.returnFeeMode(), ts(now), id, ts(now)) == 1;
     }
 
-    /** 모집 시작 때 옵션의 처음 수량을 고정한다 */
-    public void fixOptionInitial(long groupBuyId) {
-        jdbc.update("UPDATE group_buy_options SET initial_max_qty = max_qty WHERE group_buy_id = ?", groupBuyId);
+    /** 모집 시작 때 단품의 처음 수량을 고정한다 */
+    public void fixSkuInitial(long groupBuyId) {
+        jdbc.update("UPDATE group_buy_skus SET initial_max_qty = max_qty WHERE group_buy_id = ?", groupBuyId);
     }
 
     /** 마감 시각이 지난 모집 중 공구 */
@@ -180,11 +201,16 @@ public class GroupBuyStore {
                 ts(now), ts(now), id) == 1;
     }
 
-    /** 다 팔림 안전망 대상 — 공구 최대에 닿았거나 모든 옵션에 한도가 있고 모두 다 팔린 모집 중 공구(10-7 ③ · 결정 78) */
+    /**
+     * 다 팔림 조건(공구 별칭 {@code g}) — 공구 최대(MAIN 수량)에 닿았거나, 판매 중인 MAIN 단품이 모두 한도가 있고 모두 확정 = 한도(결정 27·48·78·88).
+     * 추가 구성상품은 공구 마감을 정하지 않는다.
+     */
+    static final String SOLD_OUT_CONDITION = "(g.current_qty = g.max_qty OR NOT EXISTS (SELECT 1 FROM group_buy_skus s WHERE s.group_buy_id = g.id AND s.kind = 'MAIN' "
+            + "AND s.on_sale AND (s.max_qty IS NULL OR s.current_qty < s.max_qty)))";
+
+    /** 다 팔림 안전망 대상(10-7 ③ · 결정 78) */
     public List<Long> recruitingSoldOut(int limit) {
-        return jdbc.queryForList("SELECT g.id FROM group_buys g WHERE g.status = 'RECRUITING' AND (g.current_qty = g.max_qty OR (EXISTS (SELECT 1 FROM group_buy_options o "
-                + "WHERE o.group_buy_id = g.id) AND NOT EXISTS (SELECT 1 FROM group_buy_options o WHERE o.group_buy_id = g.id AND (o.max_qty IS NULL OR o.current_qty < o.max_qty)))) "
-                + "ORDER BY g.id LIMIT ?", Long.class, limit);
+        return jdbc.queryForList("SELECT g.id FROM group_buys g WHERE g.status = 'RECRUITING' AND " + SOLD_OUT_CONDITION + " ORDER BY g.id LIMIT ?", Long.class, limit);
     }
 
     /** 집계 중이고 판정할 때가 된 공구(남은 선점 0 이거나 closing_at + 선점 시간 + 여유가 지남) */
@@ -217,21 +243,47 @@ public class GroupBuyStore {
                 groupBuyId, from == null ? null : from.name(), to.name(), reason, actorId, ts(now));
     }
 
-    // ── 옵션·이미지 ─────────────────────────────────────────────────────────
+    // ── 옵션 축·값·단품·이미지(결정 88) ───────────────────────────────────────
 
-    public List<OptionRow> options(long groupBuyId) {
-        return jdbc.query("SELECT id, group_buy_id, name, extra_price, max_qty, initial_max_qty, current_qty, reserved_qty, sort_order FROM group_buy_options "
-                + "WHERE group_buy_id = ? ORDER BY sort_order, id", GroupBuyStore::option, groupBuyId);
+    private static final String SKU_COLUMNS = "id, group_buy_id, kind, value_ids, name, extra_price, addon_price, max_qty, initial_max_qty, current_qty, reserved_qty, "
+            + "on_sale, image_key, sort_order";
+
+    /** 단품 — MAIN 먼저, 차례대로 */
+    public List<SkuRow> skus(long groupBuyId) {
+        return jdbc.query("SELECT " + SKU_COLUMNS + " FROM group_buy_skus WHERE group_buy_id = ? ORDER BY kind DESC, sort_order, id", GroupBuyStore::sku, groupBuyId);
     }
 
-    public void insertOption(long id, long groupBuyId, String name, long extraPrice, Integer maxQty, int sortOrder) {
-        jdbc.update("INSERT INTO group_buy_options (id, group_buy_id, name, extra_price, max_qty, sort_order) VALUES (?, ?, ?, ?, ?, ?)", id, groupBuyId, name, extraPrice,
-                maxQty, sortOrder);
+    /** 옵션 축과 값(차례대로) */
+    public List<AxisRow> axes(long groupBuyId) {
+        List<AxisRow> axes = jdbc.query("SELECT id, name, sort_order FROM group_buy_option_axes WHERE group_buy_id = ? ORDER BY sort_order",
+                (rs, i) -> new AxisRow(rs.getLong(1), rs.getString(2), rs.getInt(3), new ArrayList<>()), groupBuyId);
+        for (AxisRow axis : axes) {
+            axis.values().addAll(jdbc.query("SELECT id, axis_id, value, sort_order FROM group_buy_option_values WHERE axis_id = ? ORDER BY sort_order",
+                    (rs, i) -> new ValueRow(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getInt(4)), axis.id()));
+        }
+        return axes;
     }
 
-    /** DRAFT 의 옵션을 모두 지운다(다시 넣는다) */
-    public void deleteOptions(long groupBuyId) {
-        jdbc.update("DELETE FROM group_buy_options WHERE group_buy_id = ?", groupBuyId);
+    public void insertAxis(long id, long groupBuyId, int sortOrder, String name) {
+        jdbc.update("INSERT INTO group_buy_option_axes (id, group_buy_id, sort_order, name) VALUES (?, ?, ?, ?)", id, groupBuyId, sortOrder, name);
+    }
+
+    public void insertValue(long id, long axisId, long groupBuyId, int sortOrder, String value) {
+        jdbc.update("INSERT INTO group_buy_option_values (id, axis_id, group_buy_id, sort_order, value) VALUES (?, ?, ?, ?, ?)", id, axisId, groupBuyId, sortOrder, value);
+    }
+
+    /** 새 단품(MAIN 은 추가금, ADDON 은 자기 가격) */
+    public void insertSku(long id, long groupBuyId, SkuKind kind, List<Long> valueIds, String name, long extraPrice, Long addonPrice, Integer maxQty, boolean onSale,
+                          String imageKey, int sortOrder) {
+        jdbc.update("INSERT INTO group_buy_skus (id, group_buy_id, kind, value_ids, name, extra_price, addon_price, max_qty, on_sale, image_key, sort_order) "
+                        + "VALUES (?, ?, ?, ?::bigint[], ?, ?, ?, ?, ?, ?, ?)", id, groupBuyId, kind.name(), longArray(valueIds), name, extraPrice, addonPrice, maxQty, onSale,
+                imageKey, sortOrder);
+    }
+
+    /** DRAFT 의 축·값·단품을 모두 지운다(다시 넣는다 — 고시 양식의 적용 단품은 CASCADE 로 빠지므로 부르는 쪽이 이름으로 다시 잇는다) */
+    public void deleteSkuStructure(long groupBuyId) {
+        jdbc.update("DELETE FROM group_buy_skus WHERE group_buy_id = ?", groupBuyId);
+        jdbc.update("DELETE FROM group_buy_option_axes WHERE group_buy_id = ?", groupBuyId);
     }
 
     public List<ImageRow> images(long groupBuyId) {
@@ -252,15 +304,18 @@ public class GroupBuyStore {
 
     /** 지금 공구 상태의 사본을 수정 이력으로 남긴다(설명·이미지·수량·상품정보제공고시 — 표시 기록) */
     public void snapshotRevision(long id, long groupBuyId, int revisionNo, String changeKind, Long editedBy, Instant now) {
-        jdbc.update("INSERT INTO group_buy_revisions (id, group_buy_id, revision_no, title, summary, spec, description, images, max_qty, added_qty, option_max, "
+        jdbc.update("INSERT INTO group_buy_revisions (id, group_buy_id, revision_no, title, summary, spec, description, images, max_qty, added_qty, option_axes, skus, "
                         + "notices, change_kind, edited_by, created_at) SELECT ?, g.id, ?, g.title, g.summary, g.spec, g.description, "
                         + "coalesce((SELECT jsonb_agg(jsonb_build_object('imageKey', i.image_key, 'thumbKey', i.thumb_key) ORDER BY i.sort_order) FROM group_buy_images i "
                         + "WHERE i.group_buy_id = g.id), '[]'::jsonb), g.max_qty, g.added_qty, "
-                        + "coalesce((SELECT jsonb_agg(jsonb_build_object('optionId', o.id::text, 'name', o.name, 'maxQty', o.max_qty) ORDER BY o.sort_order, o.id) "
-                        + "FROM group_buy_options o WHERE o.group_buy_id = g.id), '[]'::jsonb), "
+                        + "coalesce((SELECT jsonb_agg(jsonb_build_object('name', a.name, 'values', (SELECT coalesce(jsonb_agg(v.value ORDER BY v.sort_order), '[]'::jsonb) "
+                        + "FROM group_buy_option_values v WHERE v.axis_id = a.id)) ORDER BY a.sort_order) FROM group_buy_option_axes a WHERE a.group_buy_id = g.id), '[]'::jsonb), "
+                        + "coalesce((SELECT jsonb_agg(jsonb_build_object('skuId', s.id::text, 'kind', s.kind, 'name', s.name, 'extraPrice', s.extra_price, "
+                        + "'addonPrice', s.addon_price, 'maxQty', s.max_qty, 'onSale', s.on_sale) ORDER BY s.kind DESC, s.sort_order, s.id) "
+                        + "FROM group_buy_skus s WHERE s.group_buy_id = g.id), '[]'::jsonb), "
                         + "coalesce((SELECT jsonb_agg(jsonb_build_object('title', n.title, 'categoryCode', n.category_code, 'catalogVersion', n.catalog_version, "
-                        + "'options', (SELECT coalesce(jsonb_agg(o.name ORDER BY o.sort_order, o.id), '[]'::jsonb) FROM group_buy_notice_options x "
-                        + "JOIN group_buy_options o ON o.id = x.option_id WHERE x.notice_id = n.id), "
+                        + "'skus', (SELECT coalesce(jsonb_agg(s.name ORDER BY s.kind DESC, s.sort_order, s.id), '[]'::jsonb) FROM group_buy_notice_skus x "
+                        + "JOIN group_buy_skus s ON s.id = x.sku_id WHERE x.notice_id = n.id), "
                         + "'values', (SELECT coalesce(jsonb_object_agg(v.item_key, jsonb_build_object('value', v.value, 'unavailable', v.unavailable, "
                         + "'reason', v.unavailable_reason)), '{}'::jsonb) FROM group_buy_notice_values v WHERE v.notice_id = n.id AND NOT v.custom), "
                         + "'customItems', (SELECT coalesce(jsonb_agg(jsonb_build_object('name', v.custom_name, 'value', v.value) ORDER BY v.sort_order), '[]'::jsonb) "
@@ -326,9 +381,26 @@ public class GroupBuyStore {
                 rs.getInt("version"), nLong(rs, "created_by"), instant(rs.getTimestamp("created_at")), instant(rs.getTimestamp("updated_at")));
     }
 
-    static OptionRow option(ResultSet rs, int i) throws SQLException {
-        return new OptionRow(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getLong(4), nInt(rs, "max_qty"), nInt(rs, "initial_max_qty"), rs.getInt(7), rs.getInt(8),
-                rs.getInt(9));
+    static SkuRow sku(ResultSet rs, int i) throws SQLException {
+        return new SkuRow(rs.getLong("id"), rs.getLong("group_buy_id"), SkuKind.valueOf(rs.getString("kind")), longs(rs.getArray("value_ids")), rs.getString("name"),
+                rs.getLong("extra_price"), nLong(rs, "addon_price"), nInt(rs, "max_qty"), nInt(rs, "initial_max_qty"), rs.getInt("current_qty"), rs.getInt("reserved_qty"),
+                rs.getBoolean("on_sale"), rs.getString("image_key"), rs.getInt("sort_order"));
+    }
+
+    static List<Long> longs(Array array) throws SQLException {
+        if (array == null) {
+            return List.of();
+        }
+        List<Long> out = new ArrayList<>();
+        for (Object value : (Object[]) array.getArray()) {
+            out.add(((Number) value).longValue());
+        }
+        return List.copyOf(out);
+    }
+
+    /** {@code ?::bigint[]} 로 넘길 배열 글자({1,2,3}) */
+    static String longArray(List<Long> values) {
+        return values.stream().map(String::valueOf).collect(Collectors.joining(",", "{", "}"));
     }
 
     static List<LocalDate> dates(Array array) throws SQLException {

@@ -125,24 +125,38 @@ public class ParticipationCancelService {
         long canceledAmount = 0;
         long remainingItems = 0;
         int remainingQty = 0;
+        int remainingMain = 0;
+        List<String> leftAddons = new ArrayList<>();
+        Map<ItemRow, Integer> counts = new LinkedHashMap<>();
         StringJoiner lines = new StringJoiner(",", "[", "]");
         for (ItemRow item : GroupBuyQtyService.lockOrder(items)) {
             int count = plan.getOrDefault(item.id(), 0);
             if (count > 0) {
-                if (!participations.cancelItemQty(item.id(), count)) {
-                    throw GroupBuyException.cancelNotAllowed();
-                }
-                if (!qty.cancel(group.id(), item, count, requireAccepting, actorId, cause.name(), now)) {
-                    throw GroupBuyException.cancelNotAllowed(); // 그새 판정됐다 — 이제는 취소 요청으로(10-3 표)
-                }
+                counts.put(item, count);
                 long amount = item.unitPrice() * count;
                 canceledAmount += amount;
-                lines.add("{\"itemId\":\"" + item.id() + "\",\"optionId\":" + (item.optionId() == null ? "null" : "\"" + item.optionId() + "\"") + ",\"qty\":" + count
-                        + ",\"amount\":" + amount + "}");
+                lines.add("{\"itemId\":\"" + item.id() + "\",\"skuId\":\"" + item.skuId() + "\",\"qty\":" + count + ",\"amount\":" + amount + "}");
             }
             int left = item.heldQty() - count;
             remainingQty += left;
             remainingItems += item.unitPrice() * left;
+            if (item.main()) {
+                remainingMain += left;
+            } else if (left > 0) {
+                leftAddons.add(Long.toString(item.skuId()));
+            }
+        }
+        if (remainingMain == 0 && !leftAddons.isEmpty()) {
+            // 본 상품 줄을 모두 취소하면 추가 구성상품만 남길 수 없다 — 함께 취소하라고 묻는다(결정 88)
+            throw GroupBuyException.addonOnly(leftAddons);
+        }
+        for (Map.Entry<ItemRow, Integer> e : counts.entrySet()) {
+            if (!participations.cancelItemQty(e.getKey().id(), e.getValue())) {
+                throw GroupBuyException.cancelNotAllowed();
+            }
+        }
+        if (!counts.isEmpty() && !qty.cancel(group.id(), counts, requireAccepting, actorId, cause.name(), now)) {
+            throw GroupBuyException.cancelNotAllowed(); // 그새 판정됐다 — 이제는 취소 요청으로(10-3 표)
         }
         boolean whole = remainingQty == 0;
         long remainingCash = p.remainingCash();
@@ -184,7 +198,7 @@ public class ParticipationCancelService {
         return out;
     }
 
-    /** 요청 줄(옵션·수량) → 주문 줄 ID → 수량. 비면 전부 */
+    /** 요청 줄(단품·수량) → 주문 줄 ID → 수량. 비면 전부 */
     private static Map<Long, Integer> plan(List<ItemRow> items, List<OrderLine> lines) {
         if (lines == null || lines.isEmpty()) {
             return all(items);
@@ -192,9 +206,9 @@ public class ParticipationCancelService {
         Map<Long, Integer> out = new LinkedHashMap<>();
         List<Long> seen = new ArrayList<>();
         for (OrderLine line : lines) {
-            ItemRow item = items.stream().filter(i -> Objects.equals(i.optionId(), line.optionId())).findFirst().orElse(null);
+            ItemRow item = items.stream().filter(i -> i.skuId() == line.skuId()).findFirst().orElse(null);
             if (item == null || line.qty() < 1 || line.qty() > item.heldQty() || seen.contains(item.id())) {
-                throw ValidationException.of("lines", new MessageRef("groupbuy.cancel.lines.invalid"));
+                throw ValidationException.of("items", new MessageRef("groupbuy.cancel.lines.invalid"));
             }
             seen.add(item.id());
             out.put(item.id(), line.qty());

@@ -341,7 +341,7 @@
 
 ### 2b-2 추가 — 상품정보제공고시 서버 (2026-10-28, 결정 87 — develop 계약의 「### 상품정보제공고시」 절이 정본, 이 브랜치에서는 참조만)
 - **카탈로그 데이터** `server/shared/src/main/resources/groupbuy/notice-catalog-2023-01-01.json` — 공정거래위원회고시 제2022-15호(2023-01-01 시행) Ⅲ-1 품목별 정보 **40개 품목 · 379개 항목**. 국가법령정보센터 본문 iframe 의 항목 표 이미지 40장을 Claude in Chrome 으로 확대해 2026-10-28 에 옮겼다(파일 머리에 고시 번호·시행일·옮긴 날짜·출처 URL·일반원칙 2~7 원문). **읽기 어려운 글자는 없어 `unverified` 항목은 없다.** 항목마다 `no`(원문 번호, 하위는 `7-1` 등 + `group` 에 묶음 줄)·`key`(영문 — 같은 뜻은 품목이 달라도 같은 키)·`name`·`description`(이름 + 괄호 설명 = 원문 한 줄)·`kind`(`TEXT`·`DATE_LIKE` 원칙 ④·`KC_CERT` 원칙 ⑥·`QUALITY_WARRANTY` 원칙 ⑤)·`required`(모두 true — 원칙 ③)·`conditional`(원문에 「…에 한함」 등 — 해당 없으면 「제공 불가 + 사유」). 품목 `scope`(37·38 의 적용 범위 문구)·`warrantyDisadvantageDisclosure`(원칙 ⑤ 후단 — 10 노트북·11~14). 가운데점은 `·` 로 통일.
-- **V101 에 더함**: `group_buy_notices`(공구·차례·품목 코드·제목·카탈로그 버전) · `group_buy_notice_options`(적용 옵션 — **옵션 유일**: 한 옵션은 양식 하나에만, 복합 FK 로 같은 공구 옵션만) · `group_buy_notice_values`(항목 키·값 / 제공 불가 + 사유 — CHECK: 제공 불가면 값 없이 사유 필수) · `group_buy_revisions.notices`(jsonb 사본) + 이력 종류 `NOTICE`.
+- **V101 에 더함**: `group_buy_notices`(공구·차례·품목 코드·제목·카탈로그 버전) · `group_buy_notice_skus`(적용 단품 — **단품 유일**: 한 단품은 양식 하나에만, 복합 FK 로 같은 공구 단품만. 결정 88 로 `group_buy_notice_options` 를 바꿨다 — 아래 「구조 변경」) · `group_buy_notice_values`(항목 키·값 / 제공 불가 + 사유 — CHECK: 제공 불가면 값 없이 사유 필수) · `group_buy_revisions.notices`(jsonb 사본) + 이력 종류 `NOTICE`.
 - **코드**: `GroupBuyNoticeCatalog`(`classpath*:groupbuy/notice-catalog-*.json` 을 모두 읽고 가장 늦은 시행일이 지금 버전) · `GroupBuyNoticeService`(저장·완성 검사·복사·옵션 다시 잇기) · `GroupBuyNoticeStore` · `NoticeDraft` · 오류 409 `GROUP_BUY_NOTICE_INCOMPLETE`(추가 값 `noNotice`·`notices[{index,title,categoryCode,missingKeys}]`·`unassignedOptions`) · 번들 ko·en.
 - **정한 세부**
   1. 양식의 적용 옵션은 **옵션 이름**으로 받는다(DRAFT 수정은 옵션을 지우고 다시 넣어 ID 가 바뀐다 — 다시 넣은 뒤 이름으로 다시 잇는다).
@@ -360,6 +360,30 @@
   - 완성 검사 대상이 아니다(선택). 수정 이력 사본(`notices[].customItems`)·추가 차수 복사 대상.
   - 테스트(G43 보강 3개): 차례대로 저장·빈 줄 제외·완성 검사 밖·이력 사본 / 고시 항목과 같은 이름·21개·이름 겹침·반쪽 줄·41자 거절 + DB CHECK / 차수 복사. `--tests 'com.community.groupbuy.*'` → **92개 통과**, 실패 0.
 - **local 시드의 예시 품목 넓히기**(결정 87 「예시(목업·local 시드) 품목을 넓힌다」 — 쌀·과일·생선(20)·김치·소스(21)·티셔츠(1)·운동화(2) + 로봇 키트, 각 공구의 고시 양식을 그 품목으로): **2b-2 범위가 아니라 하지 않았다** — local 시드(결정 11)는 판매 스위치·사업자 정보(V103)와 함께 2b-4 가 만든다. 그때 이 품목들로 공구와 고시 양식을 채운다(신선식품은 `DATE_LIKE` 항목에 일반원칙 ④ 대체 표기 예시).
+
+### 2b-2 구조 변경 — 옵션 축·단품(SKU)·추가 구성상품 (2026-10-28, 결정 88 — develop 계약 「### 옵션 축·단품·추가 구성상품」이 정본)
+위 절들에서 「옵션」이라 쓴 수량·가격 단위는 이제 **단품**이다(주문 줄·수량 이동·추가 입고/줄이기·품절·관심 신청·고시 적용 대상).
+- **V101 고침**(아직 병합 전이라 같은 파일을 고쳤다): `group_buy_options` → `group_buy_option_axes`(공구·차례·이름, 유일 (공구, 차례)·(공구, 이름)) · `group_buy_option_values`(축·차례·값, 유일 (축, 차례)·(축, 값)) · `group_buy_skus`(공구·`kind` MAIN/ADDON·`value_ids bigint[]`(축 차례)·이름·`extra_price`(MAIN)·`addon_price`(ADDON ≥ 1)·`max_qty`/`initial_max_qty`/`current_qty`/`reserved_qty`·`on_sale`·`image_key`·차례 — CHECK 종류별 가격·수량, 유일 (공구, 이름)·MAIN 의 (공구, 조합)). 주문 줄 `sku_id NOT NULL`·유일 (주문, 단품)·복합 FK(같은 공구 단품만). 수량 이동 `sku_id` + `sku_*_after`, 공구 쪽 `*_after` 는 **추가상품만 움직인 줄이면 NULL**(CHECK 로 둘 중 하나는 있다). 관심 신청 `sku_id`(NULLS NOT DISTINCT 유일). 고시 `group_buy_notice_skus`. 수정 이력 `option_axes`·`skus` jsonb(예전 `option_max` 대신).
+- **API 모양**(2b-4 컨트롤러가 그대로 싣는다):
+  - 상세 `Availability`: `remaining`·`soldOut`·`temporarilyUnavailable`·`addedQty` + `axes[{axisId, name, values[{valueId, value}]}]` + `skus[{skuId, kind(MAIN|ADDON), name, valueIds[](축 차례), unitPrice, remaining(null = 제한 없음 — ADDON 한도 없음), soldOut, temporarilyUnavailable, onSale}]`. MAIN 남은 = min(단품 남은, 공구 남은), ADDON 은 자기 한도만.
+  - 견적·주문 요청: `items[{skuId, qty}]`(예전 `lines[{optionId, qty}]`) — 줄마다 그 공구 단품, 같은 단품 두 줄·수량 0 은 400, **MAIN 줄이 하나 이상**(아니면 400 `items` — `groupbuy.order.main.required`), 판매 안 함은 409 `GROUP_BUY_SKU_NOT_ON_SALE`, 품절은 409 `GROUP_BUY_SKU_SOLD_OUT`(`skuId`·`temporary`). 견적 `items[{skuId, kind, name, qty, unitPrice, itemAmount}]`.
+  - 관리자 등록 값 `GroupBuyDraft`: `axes[{name, values[]}]`(0~3개, 값 1~30개, 조합 ≤ 200) · `skus[{values[](축 차례 값 이름), extraPrice, maxQty, onSale}]`(적지 않은 조합은 추가금 0·한도 없음·판매, 축이 없으면 `values` 가 빈 줄 하나로 MAIN 한도) · `addons[{name, price, maxQty, imageKey}]`(≤ 20, 이름은 조합 이름과도 겹치면 안 된다). 오류 칸 `axes`·`skus`·`addons`. 판매하는 조합이 하나는 있어야 한다.
+  - 추가 입고·줄이기 `skuId`(null = 공구 최대만). 결과 `StockChange.skuMaxQty`. 한도 없는 단품은 409 `GROUP_BUY_SKU_UNLIMITED`.
+  - 고시 양식 `NoticeDraft.skuNames[]`(예전 `optionNames`), 응답 `skuIds`·`skuNames`, 미완성 오류 `unassignedSkus`(예전 `unassignedOptions`).
+  - 본인 취소 `lines[{skuId, qty}]`, 본 상품을 모두 취소하면서 추가상품을 남기면 409 `GROUP_BUY_ADDON_ONLY`(`skuIds` — 함께 취소하라고 묻는 화면).
+- **정한 세부**
+  1. MAIN 단품 이름 = 축 값을 「 / 」로 이은 것(축이 없으면 상품 이름). 단품 이름은 공구 안에서 유일 — 고시 양식·DRAFT 수정 뒤 다시 잇기·추가 차수 복사가 이름으로 가리킨다.
+  2. **공구 행의 `current/reserved/max` = MAIN 단품만**(최대·성사 판정·다 팔림·1인 한도 — 결정 88). 추가상품은 자기 행만 움직이고, 추가상품 입고·줄이기는 공구 최대·`added_qty` 를 바꾸지 않는다. 다 팔림 = 공구 확정 = 최대 또는 판매 중인 MAIN 단품이 모두 한도까지 팔림(추가상품 품절은 공구를 닫지 않는다).
+  3. 잠금 차례: 어드바이저리 → 공구 행(MAIN 수량 합, 한 문장) → 단품 행 ID 오름차순. 추가상품만 있는 수량 변경은 없으므로(MAIN 필수) 공구 행이 늘 먼저다.
+  4. 무료배송 기준 금액 = 추가상품을 포함한 상품 금액 합.
+  5. 본인 취소에서 MAIN 이 0 이 되는데 추가상품이 남으면 거절(409 `GROUP_BUY_ADDON_ONLY`) — 화면이 「추가 구성상품도 함께 취소할까요?」로 묻고 함께 보내게(결정 88 「함께 취소 대상으로 묻는다」). 불발·중단·지연 취소는 늘 주문 전체라 해당 없음. 반품(2b-3)도 같은 규칙을 쓴다.
+  6. 고시: 기본 양식(적용 단품 없음)은 **MAIN 만** 덮는다. 추가상품은 **자기 양식이 따로 있어야** 완성이고(`unassignedSkus`), 추가상품을 가리키는 양식은 그 단품 하나만(MAIN·다른 추가상품과 섞으면 400 `skuNames`).
+  7. 모집 뒤 잠금 `options`: 축 이름·값·차례, 조합의 추가금·한도(처음 한도나 지금 한도 중 하나와 같으면 같다고 본다 — 추가 입고로 바뀐 한도를 화면이 그대로 보내도 통과)·판매 여부, 추가상품 이름·가격·한도·종류가 같아야 한다.
+  8. 불변식 검사: 공구 = Σ MAIN 줄 판매 수량, 단품마다 = 그 단품 줄, Σ MAIN 단품 = 공구, 공구 마지막 이동은 공구 값을 적은 줄, 최대 식은 공구 값을 적은 ADD·REDUCE 만.
+  9. 관리자 「조합 표」의 이미지(MAIN 단품 이미지)는 이번에 받지 않았다 — 열 `image_key` 만 두고 추가상품만 쓴다.
+- **테스트 G44**(`GroupBuySkuTest` 10개): 축 2개 → 6조합·이름·추가금·한도·판매 끔과 상세의 축·값·`valueIds` / 판매 끈 조합 견적·주문 409 / 단품 한도: 결제 중이면 잠시 구매 불가·다 팔리면 그 단품만 품절, 공구는 모집 중 / 추가상품만 담으면 견적·주문 400 / 공구 최대·1인 한도는 MAIN 만·무료배송 기준엔 추가상품 포함 / 성사 판정은 MAIN 만(추가상품 10개 있어도 불발) / 본 상품 모두 취소하며 추가상품 남기면 409 `ADDON_ONLY`·함께 보내면 주문 전체 취소 / 고시: 기본 양식은 추가상품을 덮지 않음·추가상품 양식에 둘 이상·MAIN 과 섞기 400 / 모집 뒤 추가상품 가격·조합 판매·축 값 바꾸면 `LOCKED_FIELD options`, 추가상품 입고·줄이기는 공구 최대 그대로 / 등록 검사(축 4개·조합 225·값 중복·없는 조합·판매 조합 없음·추가상품 이름 겹침·가격 0, 축 없으면 MAIN 하나). 기존 시험 92개는 단품 구조로 고쳤다(시험 키트: `option(name, extra, max)` = 축 하나 「옵션」의 값, `axis`·`combo`·`addon`·`mainSku`, `fillNotice` 는 추가상품마다 양식을 더 채운다).
+- **실행**: `./gradlew :server:shared:test --tests 'com.community.groupbuy.*'` → **102개 통과**(기존 92 + G44 10) · admin `GroupBuyStateSchedulerTest`(3)·`AuditRetentionAdminTest`(6)·api `IdentityHttpTest`(6) 통과(문맥 로드 확인).
+- **아직**: 관리자 등록·상세 API·화면 연결(2b-4), 반품의 추가상품 규칙(2b-3), local 시드 예시 품목(2b-4 — 위 절).
 
 ## 승인 (2026-10-28)
 사용자: 「지금까지 확정된 상태로 다음 단계 진행해」 — 결정 1~86·Q&A 규칙·작업 단위·화면 목록·마이그레이션 계획을 추천안 그대로 승인, 2b-2 는 화면 확정 전 병행. 결정 43 은 지금 규칙 유지(나눠 모두 반품해도 한 번에 반품한 것과 같게 — 판매자 손해가 더 커지지 않는다, 처음 배송비까지 받으려면 그 공구의 배송비 정책을 왕복으로).

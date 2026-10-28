@@ -12,7 +12,7 @@ import com.community.groupbuy.repository.master.GroupBuyNoticeStore;
 import com.community.groupbuy.repository.master.GroupBuyNoticeStore.NoticeRow;
 import com.community.groupbuy.repository.master.GroupBuyStore;
 import com.community.groupbuy.repository.master.GroupBuyStore.GroupBuyRow;
-import com.community.groupbuy.repository.master.GroupBuyStore.OptionRow;
+import com.community.groupbuy.repository.master.GroupBuyStore.SkuRow;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import com.community.zconfiguration.message.MessageRef;
@@ -38,11 +38,11 @@ import org.springframework.transaction.support.TransactionTemplate;
  * 상품정보제공고시 양식 저장·검증(계약 결정 87 — 공정위 「전자상거래 등에서의 상품 등의 정보제공에 관한 고시」).
  *
  * <ul>
- *   <li>공구마다 양식 여러 장(품목별로 따로 — 기본 상품 + 별개 상품 옵션, 일반원칙 ⑦). 적용 옵션이 빈 양식은 공구 전체 = 기본 상품이고 다른 양식에 없는 옵션을 덮는다(하나까지).
- *       한 옵션은 양식 하나에만(DB 유일 + 저장 검사).</li>
+ *   <li>공구마다 양식 여러 장(품목별로 따로 — 기본 상품 + 별개 상품, 일반원칙 ⑦). 적용 단품이 빈 양식은 공구 전체 = 기본 상품이고 다른 양식에 없는 <b>MAIN</b> 단품을 덮는다(하나까지).
+ *       한 단품은 양식 하나에만(DB 유일 + 저장 검사). <b>추가 구성상품(ADDON)은 단품마다 자기 양식이 따로 필수</b>(결정 88) — ADDON 을 가리키는 양식은 그 단품 하나만 가리킨다.</li>
  *   <li>저장은 통째로 바꾼다. 각 양식은 만든 때의 카탈로그 버전을 그대로 쓴다(같은 자리·같은 품목이면 버전 유지, 새 양식은 지금 버전) — 고시가 바뀌어도 기존 공구는 옛 항목.</li>
- *   <li><b>완성 검사</b>({@link #assertComplete}): 양식이 하나 이상이고, 모든 양식의 모든 항목이 「값」 또는 「제공 불가 + 구체적 사유」(일반원칙 ③), 옵션이 있으면 모든 옵션이 어느 양식에 속한다.
- *       아니면 409 {@code GROUP_BUY_NOTICE_INCOMPLETE}(빈 양식·항목·속하지 않은 옵션을 함께). 모집 시작(공개) 때와, 공개 뒤 저장 때 쓴다(공개된 고시를 비울 수 없다).</li>
+ *   <li><b>완성 검사</b>({@link #assertComplete}): 양식이 하나 이상이고, 모든 양식의 모든 항목이 「값」 또는 「제공 불가 + 구체적 사유」(일반원칙 ③), MAIN 단품은 기본 양식이 없으면 모두 어느 양식에, ADDON 단품은 모두 자기 양식에 속한다.
+ *       아니면 409 {@code GROUP_BUY_NOTICE_INCOMPLETE}(빈 양식·항목·속하지 않은 단품을 함께). 모집 시작(공개) 때와, 공개 뒤 저장 때 쓴다(공개된 고시를 비울 수 없다).</li>
  *   <li>공개 뒤 수정은 정보 정정으로 받고(결정 87) 모집 중 이후면 수정 이력(표시·광고 기록 6개월)에 사본을 남긴다.</li>
  *   <li>「상세페이지 참조」만 적은 항목은 막지 않되 경고로 돌려준다(일반원칙 ③ 취지 — 항목마다 직접 적기 권장).</li>
  * </ul>
@@ -66,10 +66,10 @@ public class GroupBuyNoticeService {
     }
 
     /** 완성 검사 결과 */
-    public record Completeness(boolean noNotice, List<IncompleteNotice> notices, List<String> unassignedOptions) {
+    public record Completeness(boolean noNotice, List<IncompleteNotice> notices, List<String> unassignedSkus) {
 
         public boolean complete() {
-            return !noNotice && notices.isEmpty() && unassignedOptions.isEmpty();
+            return !noNotice && notices.isEmpty() && unassignedSkus.isEmpty();
         }
     }
 
@@ -104,18 +104,18 @@ public class GroupBuyNoticeService {
      * 양식을 통째로 저장한다 — 관리자 공구 등록·수정의 「고시 양식」 구획.
      *
      * @return 「상세페이지 참조」 경고(막지 않는다)
-     * @throws ValidationException 품목·항목·옵션·제공 불가 사유·길이
-     * @throws GroupBuyException   {@code NOTICE_INCOMPLETE} — 공개 뒤인데 빈 항목·속하지 않은 옵션이 남는다
+     * @throws ValidationException 품목·항목·단품·제공 불가 사유·길이
+     * @throws GroupBuyException   {@code NOTICE_INCOMPLETE} — 공개 뒤인데 빈 항목·속하지 않은 단품이 남는다
      */
     public List<DetailPageWarning> save(long groupBuyId, List<NoticeDraft> drafts, Long operatorId, String ip) {
         return tx.execute(status -> {
             Instant now = now();
             GroupBuyRow group = groups.lock(groupBuyId).orElseThrow(GroupBuyException::notFound);
-            List<OptionRow> options = groups.options(groupBuyId);
+            List<SkuRow> skus = groups.skus(groupBuyId);
             List<NoticeRow> existing = store.notices(groupBuyId);
-            List<Prepared> prepared = prepare(drafts == null ? List.of() : drafts, existing, options);
+            List<Prepared> prepared = prepare(drafts == null ? List.of() : drafts, existing, skus);
             if (group.publishedAt() != null) {
-                Completeness completeness = completeness(prepared, options);
+                Completeness completeness = completeness(prepared, skus);
                 if (!completeness.complete()) {
                     throw incomplete(completeness);
                 }
@@ -133,9 +133,9 @@ public class GroupBuyNoticeService {
 
     /** 지금 저장된 양식의 완성 검사 */
     public Completeness completeness(long groupBuyId) {
-        List<OptionRow> options = groups.options(groupBuyId);
+        List<SkuRow> skus = groups.skus(groupBuyId);
         List<Prepared> rows = store.notices(groupBuyId).stream().map(GroupBuyNoticeService::prepared).toList();
-        return completeness(rows, options);
+        return completeness(rows, skus);
     }
 
     /** 모집 시작 때 — 완성이 아니면 409 {@code GROUP_BUY_NOTICE_INCOMPLETE} */
@@ -146,38 +146,38 @@ public class GroupBuyNoticeService {
         }
     }
 
-    /** 추가 차수 복사 — 양식·값·판매자 추가 항목·카탈로그 버전 그대로, 적용 옵션은 옵션 이름으로 새 공구의 옵션에 잇는다. 부르는 쪽 트랜잭션 안에서 */
+    /** 추가 차수 복사 — 양식·값·판매자 추가 항목·카탈로그 버전 그대로, 적용 단품은 단품 이름으로 새 공구의 단품에 잇는다. 부르는 쪽 트랜잭션 안에서 */
     @Transactional(propagation = Propagation.MANDATORY)
     public void copy(long sourceId, long targetId, Instant now) {
         insert(targetId, store.notices(sourceId).stream().map(GroupBuyNoticeService::prepared).toList(), now);
     }
 
     private static Prepared prepared(NoticeRow n) {
-        return new Prepared(n.categoryCode(), n.title(), n.catalogVersion(), n.optionNames(), n.values(), n.customItems());
+        return new Prepared(n.categoryCode(), n.title(), n.catalogVersion(), n.skuNames(), n.values(), n.customItems());
     }
 
-    /** DRAFT 의 옵션을 다시 넣은 뒤 — 양식의 적용 옵션을 옵션 이름으로 다시 잇는다(이름이 사라진 옵션은 빠진다) */
+    /** DRAFT 의 단품을 다시 넣은 뒤 — 양식의 적용 단품을 단품 이름으로 다시 잇는다(이름이 사라진 단품은 빠진다) */
     @Transactional(propagation = Propagation.MANDATORY)
-    public void relinkOptions(long groupBuyId, Map<Long, List<String>> namesByNotice) {
+    public void relinkSkus(long groupBuyId, Map<Long, List<String>> namesByNotice) {
         Map<String, Long> byName = new HashMap<>();
-        groups.options(groupBuyId).forEach(o -> byName.put(o.name(), o.id()));
+        groups.skus(groupBuyId).forEach(s -> byName.put(s.name(), s.id()));
         namesByNotice.forEach((noticeId, names) -> names.stream().map(byName::get).filter(java.util.Objects::nonNull)
-                .forEach(optionId -> store.insertOption(noticeId, groupBuyId, optionId)));
+                .forEach(skuId -> store.insertSku(noticeId, groupBuyId, skuId)));
     }
 
     /** 저장 직전의 양식 한 장(검사를 마친 값) */
-    record Prepared(String categoryCode, String title, String catalogVersion, List<String> optionNames, Map<String, GroupBuyNoticeStore.ValueRow> values,
+    record Prepared(String categoryCode, String title, String catalogVersion, List<String> skuNames, Map<String, GroupBuyNoticeStore.ValueRow> values,
                     List<GroupBuyNoticeStore.CustomRow> customItems) {
     }
 
-    private List<Prepared> prepare(List<NoticeDraft> drafts, List<NoticeRow> existing, List<OptionRow> options) {
+    private List<Prepared> prepare(List<NoticeDraft> drafts, List<NoticeRow> existing, List<SkuRow> skus) {
         Map<String, MessageRef> f = new LinkedHashMap<>();
         if (drafts.size() > NOTICES_MAX) {
             f.put("notices", new MessageRef("groupbuy.notice.tooMany"));
         }
-        Set<String> optionNames = new HashSet<>();
-        options.forEach(o -> optionNames.add(o.name()));
-        Set<String> usedOptions = new HashSet<>();
+        Map<String, SkuRow> skuByName = new HashMap<>();
+        skus.forEach(s -> skuByName.put(s.name(), s));
+        Set<String> usedSkus = new HashSet<>();
         int baseNotices = 0;
         List<Prepared> out = new ArrayList<>();
         for (int i = 0; i < drafts.size() && f.isEmpty(); i++) {
@@ -198,15 +198,18 @@ public class GroupBuyNoticeService {
                 f.put(field + ".title", new MessageRef("groupbuy.notice.title.invalid"));
                 break;
             }
-            List<String> names = d.optionNames() == null ? List.of() : d.optionNames().stream().map(String::strip).toList();
+            List<String> names = d.skuNames() == null ? List.of() : d.skuNames().stream().map(n -> n == null ? "" : n.strip()).toList();
             if (names.isEmpty()) {
                 baseNotices++;
             }
             for (String name : names) {
-                if (!optionNames.contains(name)) {
-                    f.put(field + ".optionNames", new MessageRef("groupbuy.notice.option.unknown"));
-                } else if (!usedOptions.add(name)) {
-                    f.put(field + ".optionNames", new MessageRef("groupbuy.notice.option.duplicate")); // 한 옵션은 양식 하나에만
+                SkuRow sku = skuByName.get(name);
+                if (sku == null) {
+                    f.put(field + ".skuNames", new MessageRef("groupbuy.notice.sku.unknown"));
+                } else if (!usedSkus.add(name)) {
+                    f.put(field + ".skuNames", new MessageRef("groupbuy.notice.sku.duplicate")); // 한 단품은 양식 하나에만
+                } else if (!sku.main() && names.size() > 1) {
+                    f.put(field + ".skuNames", new MessageRef("groupbuy.notice.sku.addonAlone")); // 추가 구성상품은 단품마다 따로(결정 88)
                 }
             }
             Map<String, GroupBuyNoticeStore.ValueRow> values = new LinkedHashMap<>();
@@ -236,7 +239,7 @@ public class GroupBuyNoticeService {
             List<GroupBuyNoticeStore.CustomRow> customs = f.isEmpty() ? customItems(customDrafts, category.get(), field, f) : List.of();
             out.add(new Prepared(d.categoryCode(), d.title().strip(), version, names, values, customs));
         }
-        if (f.isEmpty() && baseNotices > 1 && !options.isEmpty()) {
+        if (f.isEmpty() && baseNotices > 1) {
             f.put("notices", new MessageRef("groupbuy.notice.base.duplicate")); // 공구 전체(기본 상품) 양식은 하나
         }
         if (!f.isEmpty()) {
@@ -300,14 +303,14 @@ public class GroupBuyNoticeService {
         return value.replaceAll("\\s", "");
     }
 
-    private Completeness completeness(List<Prepared> notices, List<OptionRow> options) {
+    private Completeness completeness(List<Prepared> notices, List<SkuRow> skus) {
         List<IncompleteNotice> incomplete = new ArrayList<>();
         Set<String> assigned = new HashSet<>();
         boolean base = false;
         for (int i = 0; i < notices.size(); i++) {
             Prepared n = notices.get(i);
-            assigned.addAll(n.optionNames());
-            base |= n.optionNames().isEmpty();
+            assigned.addAll(n.skuNames());
+            base |= n.skuNames().isEmpty();
             GroupBuyNoticeCatalog.Category category = catalog.version(n.catalogVersion()).flatMap(v -> v.category(n.categoryCode()))
                     .orElseThrow(() -> new IllegalStateException("양식의 카탈로그 품목이 없다: " + n.catalogVersion() + "/" + n.categoryCode()));
             List<String> missing = new ArrayList<>();
@@ -323,21 +326,23 @@ public class GroupBuyNoticeService {
                 incomplete.add(new IncompleteNotice(i, n.title(), n.categoryCode(), missing));
             }
         }
-        List<String> unassigned = base ? List.of() : options.stream().map(OptionRow::name).filter(name -> !assigned.contains(name)).toList();
+        // 기본 양식은 MAIN 단품만 덮는다 — ADDON 은 늘 자기 양식이 있어야 한다(결정 88)
+        boolean coversMain = base;
+        List<String> unassigned = skus.stream().filter(s -> !assigned.contains(s.name()) && !(coversMain && s.main())).map(SkuRow::name).toList();
         return new Completeness(notices.isEmpty(), incomplete, unassigned);
     }
 
     private void insert(long groupBuyId, List<Prepared> notices, Instant now) {
         Map<String, Long> byName = new HashMap<>();
-        groups.options(groupBuyId).forEach(o -> byName.put(o.name(), o.id()));
+        groups.skus(groupBuyId).forEach(s -> byName.put(s.name(), s.id()));
         for (int i = 0; i < notices.size(); i++) {
             Prepared n = notices.get(i);
             long id = ids.nextId();
             store.insertNotice(id, groupBuyId, i, n.categoryCode(), n.title(), n.catalogVersion(), now);
-            for (String name : n.optionNames()) {
-                Long optionId = byName.get(name);
-                if (optionId != null) {
-                    store.insertOption(id, groupBuyId, optionId);
+            for (String name : n.skuNames()) {
+                Long skuId = byName.get(name);
+                if (skuId != null) {
+                    store.insertSku(id, groupBuyId, skuId);
                 }
             }
             for (GroupBuyNoticeStore.ValueRow v : n.values().values()) {
@@ -366,7 +371,7 @@ public class GroupBuyNoticeService {
         for (IncompleteNotice n : result.notices()) {
             notices.add(Map.of("index", n.index(), "title", n.title(), "categoryCode", n.categoryCode(), "missingKeys", n.missingKeys()));
         }
-        return GroupBuyException.noticeIncomplete(result.noNotice(), notices, result.unassignedOptions());
+        return GroupBuyException.noticeIncomplete(result.noNotice(), notices, result.unassignedSkus());
     }
 
     private Instant now() {

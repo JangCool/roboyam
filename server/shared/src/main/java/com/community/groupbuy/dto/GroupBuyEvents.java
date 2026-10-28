@@ -11,8 +11,8 @@ public final class GroupBuyEvents {
     private GroupBuyEvents() {
     }
 
-    /** 남은 수량이 늘었다(선점 만료·본인 취소·다시 판매·추가 입고 — 수량 풀림 알림, 결정 81: 공구·옵션 둘 다 남을 때만 보낸다) */
-    public record QtyReleased(long groupBuyId, Long optionId, QtyMovementKind kind) {
+    /** 남은 수량이 늘었다(선점 만료·본인 취소·다시 판매·추가 입고 — 수량 풀림 알림, 결정 81: 공구·단품 둘 다 남을 때만 보낸다) */
+    public record QtyReleased(long groupBuyId, Long skuId, QtyMovementKind kind) {
     }
 
     /** 결제가 확정됐다(주문 확인 = 계약 내용 통지 메일) */

@@ -3,11 +3,11 @@ package com.community.groupbuy.dto;
 import java.util.List;
 
 /**
- * 상품정보제공고시 양식 하나(계약 결정 87) — 품목 코드(카탈로그), 제목(예 「본체」), 적용 옵션 이름(비면 공구 전체 = 기본 상품 — 옵션 ID 는 DRAFT 수정 때 바뀌므로 이름으로 가리킨다),
+ * 상품정보제공고시 양식 하나(계약 결정 87) — 품목 코드(카탈로그), 제목(예 「본체」), 적용 단품 이름(비면 공구 전체 = 기본 상품 — MAIN 단품만 덮는다, 추가 구성상품은 단품마다 따로 양식 필수. 단품 ID 는 DRAFT 수정 때 바뀌므로 이름으로 가리킨다),
  * 항목 값. 값을 비운 채 저장할 수는 있지만 모집 시작 때 모든 고시 항목이 「값」 또는 「제공 불가 + 사유」여야 한다.
  * {@code values} 에는 판매자 추가 항목({@link Value#custom} — 키 없이 이름·내용·차례, 선택 사항)도 함께 담는다.
  */
-public record NoticeDraft(String categoryCode, String title, List<String> optionNames, List<Value> values) {
+public record NoticeDraft(String categoryCode, String title, List<String> skuNames, List<Value> values) {
 
     /**
      * 항목 값.

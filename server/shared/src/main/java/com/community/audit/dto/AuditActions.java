@@ -284,9 +284,9 @@ public final class AuditActions {
     public static final String GROUPBUY_CLOSE_EARLY = "GROUPBUY_CLOSE_EARLY";
     /** 공구 중단 — {@code reason}·환불 대상 건수·금액·이미 발송 건수. 돈 관련 */
     public static final String GROUPBUY_CANCEL = "GROUPBUY_CANCEL";
-    /** 추가 입고 — {@code optionId}·{@code qty}·{@code reason}·{@code before}/{@code after}(최대). 돈 관련 */
+    /** 추가 입고 — {@code skuId}·{@code qty}·{@code reason}·{@code before}/{@code after}(최대). 돈 관련 */
     public static final String GROUPBUY_STOCK_ADD = "GROUPBUY_STOCK_ADD";
-    /** 수량 줄이기 — {@code optionId}·{@code qty}·{@code reason}·{@code before}/{@code after}. 돈 관련 */
+    /** 수량 줄이기 — {@code skuId}·{@code qty}·{@code reason}·{@code before}/{@code after}. 돈 관련 */
     public static final String GROUPBUY_STOCK_REDUCE = "GROUPBUY_STOCK_REDUCE";
     /** 추가 차수 만들기 — 대상 새 공구, {@code sourceId}·{@code roundNo}. 돈 관련 */
     public static final String GROUPBUY_ROUND_CREATE = "GROUPBUY_ROUND_CREATE";

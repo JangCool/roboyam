@@ -6,7 +6,7 @@ import com.community.groupbuy.dto.Quote;
 import com.community.groupbuy.exception.GroupBuyException;
 import com.community.groupbuy.repository.master.GroupBuyStore;
 import com.community.groupbuy.repository.master.GroupBuyStore.GroupBuyRow;
-import com.community.groupbuy.repository.master.GroupBuyStore.OptionRow;
+import com.community.groupbuy.repository.master.GroupBuyStore.SkuRow;
 import com.community.groupbuy.repository.master.ShippingPolicyStore;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
@@ -24,13 +24,13 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 /**
- * 견적과 남은 수량(화면 표시용 — 주문 때 {@link GroupBuyJoinService} 가 같은 식으로 다시 계산한다, commerce.md 3절). 선점하지 않는다.
+ * 견적과 상세의 옵션 축·단품·남은 수량(화면 표시용 — 주문 때 {@link GroupBuyJoinService} 가 같은 식으로 다시 계산한다, commerce.md 3절). 선점하지 않는다.
  * 모집 전(예정) 공구는 시작 때 복사될 배송비 정책 줄로 보여 준다(예정 공구 가격 미리 공개).
  */
 @Service
 public class GroupBuyQuoteService {
 
-    /** 주문 한 번의 줄 수 상한(옵션 수와 같은 규모 — 터무니없는 요청을 막는다) */
+    /** 주문 한 번의 줄 수 상한 */
     public static final int MAX_LINES = 50;
     /** 줄 하나의 수량 상한 */
     public static final int MAX_QTY_PER_LINE = 9999;
@@ -45,63 +45,76 @@ public class GroupBuyQuoteService {
         this.clock = clocks.getIfUnique(Clock::systemUTC);
     }
 
-    /** 주문 줄의 금액 */
-    public Quote quote(long groupBuyId, List<OrderLine> lines) {
+    /** 주문 줄의 금액(상세의 「선택한 상품」 합계) */
+    public Quote quote(long groupBuyId, List<OrderLine> items) {
         GroupBuyRow group = groups.find(groupBuyId).filter(g -> g.publishedAt() != null).orElseThrow(GroupBuyException::notFound);
-        return price(group, groups.options(groupBuyId), lines, shippingOf(group));
+        return price(group, groups.skus(groupBuyId), items, shippingOf(group));
     }
 
-    /** 공구·옵션별 남은 수량과 품절 구분(결정 17·84) */
+    /** 상세 화면 — 옵션 축·값과 단품별 남은 수량·품절 구분(결정 17·84·88) */
     public Availability availability(long groupBuyId) {
         GroupBuyRow g = groups.find(groupBuyId).filter(row -> row.publishedAt() != null).orElseThrow(GroupBuyException::notFound);
         int groupRemaining = g.maxQty() - g.currentQty() - g.reservedQty();
         boolean soldOut = g.currentQty() >= g.maxQty();
-        List<Availability.OptionAvailability> options = new ArrayList<>();
-        for (OptionRow o : groups.options(groupBuyId)) {
-            int optionRemaining = o.maxQty() == null ? groupRemaining : Math.min(o.maxQty() - o.currentQty() - o.reservedQty(), groupRemaining);
-            boolean optionSoldOut = soldOut || (o.maxQty() != null && o.currentQty() >= o.maxQty());
-            options.add(new Availability.OptionAvailability(o.id(), o.name(), Math.max(0, optionRemaining), optionSoldOut, !optionSoldOut && optionRemaining <= 0));
+        List<Availability.Sku> skus = new ArrayList<>();
+        for (SkuRow s : groups.skus(groupBuyId)) {
+            Integer skuRemaining = s.maxQty() == null ? null : s.maxQty() - s.currentQty() - s.reservedQty();
+            Integer remaining;
+            boolean skuSoldOut;
+            if (s.main()) {
+                remaining = Math.max(0, skuRemaining == null ? groupRemaining : Math.min(skuRemaining, groupRemaining));
+                skuSoldOut = soldOut || (s.maxQty() != null && s.currentQty() >= s.maxQty());
+            } else {
+                remaining = skuRemaining == null ? null : Math.max(0, skuRemaining);
+                skuSoldOut = s.maxQty() != null && s.currentQty() >= s.maxQty();
+            }
+            skus.add(new Availability.Sku(s.id(), s.kind().name(), s.name(), s.valueIds(), s.unitPrice(g.groupPrice()), remaining, skuSoldOut,
+                    !skuSoldOut && remaining != null && remaining <= 0, s.onSale()));
         }
+        List<Availability.Axis> axes = groups.axes(groupBuyId).stream().map(a -> new Availability.Axis(a.id(), a.name(),
+                a.values().stream().map(v -> new Availability.Value(v.id(), v.value())).toList())).toList();
         return new Availability(g.id(), Math.max(0, groupRemaining), soldOut, !soldOut && groupRemaining <= 0,
-                g.initialMaxQty() == null ? 0 : Math.max(0, g.maxQty() - g.initialMaxQty()), options);
+                g.initialMaxQty() == null ? 0 : Math.max(0, g.maxQty() - g.initialMaxQty()), axes, skus);
     }
 
     /**
-     * 줄을 검사하고 금액을 계산한다 — 옵션이 있는 공구는 줄마다 그 공구의 옵션, 없는 공구는 옵션 없는 줄 하나. 같은 옵션 두 줄·수량 0 은 400.
+     * 줄을 검사하고 금액을 계산한다 — 줄마다 그 공구의 판매 중인 단품, 같은 단품 두 줄·수량 0 은 400, <b>MAIN 단품 줄이 하나 이상</b>(추가 구성상품 단독 구매 불가 — 결정 88).
+     * 판매하지 않는 단품은 409 {@code GROUP_BUY_SKU_NOT_ON_SALE}.
      */
-    static Quote price(GroupBuyRow group, List<OptionRow> options, List<OrderLine> lines, Shipping shipping) {
-        if (lines == null || lines.isEmpty() || lines.size() > MAX_LINES) {
-            throw ValidationException.of("lines", new MessageRef("groupbuy.order.lines.required"));
+    static Quote price(GroupBuyRow group, List<SkuRow> skus, List<OrderLine> items, Shipping shipping) {
+        if (items == null || items.isEmpty() || items.size() > MAX_LINES) {
+            throw ValidationException.of("items", new MessageRef("groupbuy.order.lines.required"));
         }
-        Map<Long, OptionRow> byId = options.stream().collect(Collectors.toMap(OptionRow::id, Function.identity()));
+        Map<Long, SkuRow> byId = skus.stream().collect(Collectors.toMap(SkuRow::id, Function.identity()));
         Set<Long> seen = new HashSet<>();
         List<Quote.Line> out = new ArrayList<>();
-        long items = 0;
-        for (OrderLine line : lines) {
+        long total = 0;
+        boolean anyMain = false;
+        for (OrderLine line : items) {
             if (line == null || line.qty() < 1 || line.qty() > MAX_QTY_PER_LINE) {
-                throw ValidationException.of("lines", new MessageRef("groupbuy.order.qty.invalid"));
+                throw ValidationException.of("items", new MessageRef("groupbuy.order.qty.invalid"));
             }
-            OptionRow option = null;
-            if (options.isEmpty()) {
-                if (line.optionId() != null || lines.size() != 1) {
-                    throw ValidationException.of("lines", new MessageRef("groupbuy.order.option.invalid"));
-                }
-            } else {
-                option = line.optionId() == null ? null : byId.get(line.optionId());
-                if (option == null) {
-                    throw ValidationException.of("lines", new MessageRef("groupbuy.order.option.required"));
-                }
+            SkuRow sku = byId.get(line.skuId());
+            if (sku == null) {
+                throw ValidationException.of("items", new MessageRef("groupbuy.order.sku.unknown"));
             }
-            if (!seen.add(line.optionId() == null ? -1L : line.optionId())) {
-                throw ValidationException.of("lines", new MessageRef("groupbuy.order.option.duplicate"));
+            if (!seen.add(sku.id())) {
+                throw ValidationException.of("items", new MessageRef("groupbuy.order.sku.duplicate"));
             }
-            long unit = GroupBuyPricing.unitPrice(group.groupPrice(), option == null ? 0 : option.extraPrice());
+            if (!sku.onSale()) {
+                throw GroupBuyException.skuNotOnSale(sku.id());
+            }
+            anyMain |= sku.main();
+            long unit = sku.unitPrice(group.groupPrice());
             long amount = Math.multiplyExact(unit, line.qty());
-            items = Math.addExact(items, amount);
-            out.add(new Quote.Line(line.optionId(), option == null ? null : option.name(), line.qty(), unit, amount));
+            total = Math.addExact(total, amount);
+            out.add(new Quote.Line(sku.id(), sku.kind().name(), sku.name(), line.qty(), unit, amount));
         }
-        long fee = GroupBuyPricing.shippingFee(items, shipping.baseFee(), shipping.freeShippingOver());
-        return new Quote(group.id(), out, items, fee, items + fee, shipping.freeShippingOver());
+        if (!anyMain) {
+            throw ValidationException.of("items", new MessageRef("groupbuy.order.main.required"));
+        }
+        long fee = GroupBuyPricing.shippingFee(total, shipping.baseFee(), shipping.freeShippingOver());
+        return new Quote(group.id(), out, total, fee, total + fee, shipping.freeShippingOver());
     }
 
     /** 배송비 — 모집을 시작한 공구는 고정 사본, 예정 공구는 시작 때(또는 지금) 유효한 정책 줄 */

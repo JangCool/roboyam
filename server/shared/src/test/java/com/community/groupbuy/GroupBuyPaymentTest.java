@@ -84,8 +84,8 @@ class GroupBuyPaymentTest {
     @Test
     void G16_옵션_한도_합이_공구_최대보다_작아도_옵션이_모두_다_팔리면_즉시_CLOSING() {
         long gb = kit.spec(policy()).qty(0, 100).option("빨강", 0, 2).option("파랑", 0, 1).open();
-        long red = kit.optionId(gb, "빨강");
-        long blue = kit.optionId(gb, "파랑");
+        long red = kit.skuId(gb, "빨강");
+        long blue = kit.skuId(gb, "파랑");
         kit.paidOrder(kit.newMember(), gb, lines(red, 2));
         assertThat(kit.group(gb).status()).isEqualTo(GroupBuyStatus.RECRUITING);
         kit.paidOrder(kit.newMember(), gb, lines(blue, 1));
@@ -97,7 +97,7 @@ class GroupBuyPaymentTest {
     @Test
     void 한도_없는_옵션이_있으면_옵션으로는_다_팔림이_아니다() {
         long gb = kit.spec(policy()).qty(0, 100).option("빨강", 0, 1).option("자유", 0, null).open();
-        kit.paidOrder(kit.newMember(), gb, lines(kit.optionId(gb, "빨강"), 1));
+        kit.paidOrder(kit.newMember(), gb, lines(kit.skuId(gb, "빨강"), 1));
         assertThat(kit.group(gb).status()).isEqualTo(GroupBuyStatus.RECRUITING);
     }
 

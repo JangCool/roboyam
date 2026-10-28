@@ -134,7 +134,7 @@ class GroupBuyStateWorkerTest {
         long member = kit.newMember();
         JoinResult paid = kit.paidOrder(member, gb, 2);
         kit.advance(Duration.ofMinutes(7));
-        kit.cancels.cancelByMember(member, paid.participationId(), lines(null, 1));
+        kit.cancels.cancelByMember(member, paid.participationId(), lines(kit.mainSku(gb), 1));
         assertThat(kit.eventsOf(com.community.groupbuy.dto.GroupBuyEvents.QtyReleased.class))
                 .anySatisfy(e -> assertThat(e.kind().name()).isEqualTo("CANCEL"));
         kit.advance(Duration.ofMinutes(3).plusSeconds(1));
@@ -179,7 +179,7 @@ class GroupBuyStateWorkerTest {
         kit.tx.executeWithoutResult(s -> {
             var item = kit.items(paid.participationId()).get(0);
             kit.jdbc.update("UPDATE group_buy_participation_items SET canceled_qty = 1 WHERE id = ?", item.id());
-            kit.spring.getBean(com.community.groupbuy.service.GroupBuyQtyService.class).cancel(gb, item, 1, false, kit.operator, "APPROVED", kit.now());
+            kit.spring.getBean(com.community.groupbuy.service.GroupBuyQtyService.class).cancel(gb, java.util.Map.of(item, 1), false, kit.operator, "APPROVED", kit.now());
         });
         assertThat(kit.group(gb).currentQty()).isEqualTo(1);
         kit.runStateWorker();
@@ -229,8 +229,8 @@ class GroupBuyStateWorkerTest {
     @Test
     void G27_두_옵션의_마지막_하나가_동시에_확정돼도_워커가_1분_안에_CLOSING() throws Exception {
         long gb = kit.spec(policy()).qty(0, 10).option("A", 0, 1).option("B", 0, 1).open();
-        JoinResult a = kit.order(kit.newMember(), gb, lines(kit.optionId(gb, "A"), 1));
-        JoinResult b = kit.order(kit.newMember(), gb, lines(kit.optionId(gb, "B"), 1));
+        JoinResult a = kit.order(kit.newMember(), gb, lines(kit.skuId(gb, "A"), 1));
+        JoinResult b = kit.order(kit.newMember(), gb, lines(kit.skuId(gb, "B"), 1));
         kit.fakePg.pay(a.checkout().paymentId(), a.amount(), "KRW", kit.now());
         kit.fakePg.pay(b.checkout().paymentId(), b.amount(), "KRW", kit.now());
         GroupBuyTestKit.runTogether(List.of(() -> kit.confirm.confirm(a.checkout().paymentId(), ConfirmedVia.WEBHOOK),

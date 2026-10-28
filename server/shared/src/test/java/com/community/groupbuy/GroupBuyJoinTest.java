@@ -85,9 +85,9 @@ class GroupBuyJoinTest {
         long gb = kit.spec(policy).open();
         long member = kit.newMember();
         for (JoinRequest bad : List.of(
-                new JoinRequest(gb, lines(null, 1), address(), false, true, true, 28_000L),
-                new JoinRequest(gb, lines(null, 1), address(), true, false, true, 28_000L),
-                new JoinRequest(gb, lines(null, 1), address(), true, true, false, 28_000L),
+                new JoinRequest(gb, lines(kit.mainSku(gb), 1), address(), false, true, true, 28_000L),
+                new JoinRequest(gb, lines(kit.mainSku(gb), 1), address(), true, false, true, 28_000L),
+                new JoinRequest(gb, lines(kit.mainSku(gb), 1), address(), true, true, false, 28_000L),
                 new JoinRequest(gb, List.of(), address(), true, true, true, 28_000L))) {
             assertThatThrownBy(() -> kit.join.join(buyer(member), bad)).isInstanceOf(ValidationException.class);
         }
@@ -100,12 +100,12 @@ class GroupBuyJoinTest {
         String policy = kit.policy(3_000, null, 3_000, "ONE_WAY");
         long gb = kit.spec(policy).open();
         long member = kit.newMember();
-        assertThatThrownBy(() -> kit.join.join(buyer(member), new JoinRequest(gb, lines(null, 1), address(), true, true, true, 25_000L)))
+        assertThatThrownBy(() -> kit.join.join(buyer(member), new JoinRequest(gb, lines(kit.mainSku(gb), 1), address(), true, true, true, 25_000L)))
                 .isInstanceOfSatisfying(GroupBuyException.class, e -> {
                     assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.AMOUNT_CHANGED);
                     assertThat(e.getExtras()).containsEntry("amount", 28_000L);
                 });
-        assertThatThrownBy(() -> kit.join.join(buyer(member), new JoinRequest(gb, lines(null, 1), address(), true, true, true, null)))
+        assertThatThrownBy(() -> kit.join.join(buyer(member), new JoinRequest(gb, lines(kit.mainSku(gb), 1), address(), true, true, true, null)))
                 .isInstanceOfSatisfying(GroupBuyException.class, e -> assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.AMOUNT_CHANGED));
         assertThat(kit.group(gb).reservedQty()).isZero();
         assertThat(kit.count("SELECT count(*) FROM group_buy_participations WHERE user_id = ?", member)).isZero();
@@ -153,12 +153,12 @@ class GroupBuyJoinTest {
         spec.period(kit.now().plus(Duration.ofHours(1)), kit.now().plus(Duration.ofDays(1)));
         long upcoming = spec.open();
         assertThat(kit.group(upcoming).status().name()).isEqualTo("DRAFT");
-        assertThatThrownBy(() -> kit.join.join(buyer(kit.newMember()), new JoinRequest(upcoming, lines(null, 1), address(), true, true, true, 28_000L)))
+        assertThatThrownBy(() -> kit.join.join(buyer(kit.newMember()), new JoinRequest(upcoming, lines(kit.mainSku(upcoming), 1), address(), true, true, true, 28_000L)))
                 .isInstanceOfSatisfying(GroupBuyException.class, e -> assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.NOT_RECRUITING));
 
         long ending = kit.spec(policy).period(kit.now().minus(Duration.ofMinutes(1)), kit.now().plus(Duration.ofMinutes(10))).open();
         kit.advance(Duration.ofMinutes(11));
-        assertThatThrownBy(() -> kit.join.join(buyer(kit.newMember()), new JoinRequest(ending, lines(null, 1), address(), true, true, true, 28_000L)))
+        assertThatThrownBy(() -> kit.join.join(buyer(kit.newMember()), new JoinRequest(ending, lines(kit.mainSku(ending), 1), address(), true, true, true, 28_000L)))
                 .isInstanceOfSatisfying(GroupBuyException.class, e -> assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.NOT_RECRUITING));
     }
 
@@ -228,32 +228,33 @@ class GroupBuyJoinTest {
     void G5_여러_줄_중_한_줄이라도_모자라면_주문_전체가_실패하고_아무것도_선점하지_않는다() {
         String policy = kit.policy(3_000, null, 3_000, "ONE_WAY");
         long gb = kit.spec(policy).option("빨강", 0, 5).option("파랑", 1_000, 1).option("검정", 0, null).open();
-        long red = kit.optionId(gb, "빨강");
-        long blue = kit.optionId(gb, "파랑");
-        long black = kit.optionId(gb, "검정");
+        long red = kit.skuId(gb, "빨강");
+        long blue = kit.skuId(gb, "파랑");
+        long black = kit.skuId(gb, "검정");
 
         assertThatThrownBy(() -> kit.order(kit.newMember(), gb, lines(red, 2, blue, 2, black, 1)))
                 .isInstanceOfSatisfying(GroupBuyException.class, e -> {
-                    assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.OPTION_SOLD_OUT);
-                    assertThat(e.getExtras()).containsEntry("optionId", Long.toString(blue));
+                    assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.SKU_SOLD_OUT);
+                    assertThat(e.getExtras()).containsEntry("skuId", Long.toString(blue));
                 });
         assertThat(kit.group(gb).reservedQty()).isZero();
-        assertThat(kit.options(gb)).allSatisfy(o -> assertThat(o.reservedQty()).isZero());
+        assertThat(kit.skus(gb)).allSatisfy(o -> assertThat(o.reservedQty()).isZero());
 
         JoinResult ok = kit.order(kit.newMember(), gb, lines(red, 2, blue, 1, black, 3));
         assertThat(ok.amount()).isEqualTo(25_000 * 2 + 26_000 + 25_000 * 3 + 3_000);
         assertThat(kit.group(gb).reservedQty()).isEqualTo(6);
-        assertThat(kit.option(gb, black).reservedQty()).as("한도 없는 옵션도 수량 열을 갱신(결정 77)").isEqualTo(3);
+        assertThat(kit.sku(gb, black).reservedQty()).as("한도 없는 단품도 수량 열을 갱신(결정 77)").isEqualTo(3);
         assertThat(kit.items(ok.participationId())).hasSize(3);
         kit.assertInvariants(gb);
     }
 
     @Test
-    void 옵션이_있는_공구는_옵션을_골라야_하고_같은_옵션_두_줄은_400() {
+    void 다른_공구의_단품이나_같은_단품_두_줄은_400() {
         String policy = kit.policy(3_000, null, 3_000, "ONE_WAY");
         long gb = kit.spec(policy).option("빨강", 0, 5).open();
-        long red = kit.optionId(gb, "빨강");
-        assertThatThrownBy(() -> kit.join.join(buyer(kit.newMember()), new JoinRequest(gb, lines(null, 1), address(), true, true, true, 28_000L)))
+        long red = kit.skuId(gb, "빨강");
+        long elsewhere = kit.mainSku(kit.spec(policy).create());
+        assertThatThrownBy(() -> kit.join.join(buyer(kit.newMember()), new JoinRequest(gb, lines(elsewhere, 1), address(), true, true, true, 28_000L)))
                 .isInstanceOf(ValidationException.class);
         assertThatThrownBy(() -> kit.join.join(buyer(kit.newMember()), new JoinRequest(gb, lines(red, 1, red, 1), address(), true, true, true, 53_000L)))
                 .isInstanceOf(ValidationException.class);
@@ -265,7 +266,7 @@ class GroupBuyJoinTest {
         long gb = kit.spec(policy).perUser(3).open();
         long member = kit.newMember();
         JoinResult first = kit.paidOrder(member, gb, 2);
-        kit.cancels.cancelByMember(member, first.participationId(), lines(null, 1)); // 1 취소 — 이제 1개 가짐
+        kit.cancels.cancelByMember(member, first.participationId(), lines(kit.mainSku(gb), 1)); // 1 취소 — 이제 1개 가짐
         // 진행 중 주문이 있어 새 주문은 막히지만 한도 계산 자체를 본다: 배송완료로 끝낸 뒤 새 주문
         kit.jdbc.update("UPDATE group_buy_participations SET status = 'DELIVERED' WHERE id = ?", first.participationId());
         assertThatThrownBy(() -> kit.order(member, gb, 3))
@@ -337,11 +338,11 @@ class GroupBuyJoinTest {
     void 없는_공구_비공개_DRAFT_는_404() {
         String policy = kit.policy(3_000, null, 3_000, "ONE_WAY");
         long draft = kit.spec(policy).create();
-        assertThatThrownBy(() -> kit.join.join(buyer(kit.newMember()), new JoinRequest(draft, lines(null, 1), address(), true, true, true, 28_000L)))
+        assertThatThrownBy(() -> kit.join.join(buyer(kit.newMember()), new JoinRequest(draft, lines(kit.mainSku(draft), 1), address(), true, true, true, 28_000L)))
                 .isInstanceOfSatisfying(CommonException.class, e -> assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.NOT_FOUND));
     }
 
     private static JoinRequest request(long gb) {
-        return new JoinRequest(gb, lines(null, 1), address(), true, true, true, 28_000L);
+        return new JoinRequest(gb, lines(kit.mainSku(gb), 1), address(), true, true, true, 28_000L);
     }
 }

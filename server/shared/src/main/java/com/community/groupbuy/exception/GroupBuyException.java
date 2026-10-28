@@ -6,7 +6,7 @@ import org.springframework.http.HttpStatus;
 
 /**
  * 공구 업무 오류(계약 「감사·오류 코드 후보」) — 화면이 분기하는 값은 {@link #getErrorCode()}, 문구는 번들 {@code error.<코드>}.
- * 종류가 많아 클래스 하나에 만드는 길(정적 메서드)을 모았다. 추가 값은 오류 본문 최상위 칸이다({@code temporary}·{@code optionId}·{@code amount} 등).
+ * 종류가 많아 클래스 하나에 만드는 길(정적 메서드)을 모았다. 추가 값은 오류 본문 최상위 칸이다({@code temporary}·{@code skuId}·{@code amount} 등).
  */
 public class GroupBuyException extends CommonException {
 
@@ -14,7 +14,9 @@ public class GroupBuyException extends CommonException {
     public static final String ORDER_NOT_FOUND = "GROUP_BUY_ORDER_NOT_FOUND";
     public static final String NOT_RECRUITING = "GROUP_BUY_NOT_RECRUITING";
     public static final String SOLD_OUT = "GROUP_BUY_SOLD_OUT";
-    public static final String OPTION_SOLD_OUT = "GROUP_BUY_OPTION_SOLD_OUT";
+    public static final String SKU_SOLD_OUT = "GROUP_BUY_SKU_SOLD_OUT";
+    public static final String SKU_NOT_ON_SALE = "GROUP_BUY_SKU_NOT_ON_SALE";
+    public static final String ADDON_ONLY = "GROUP_BUY_ADDON_ONLY";
     public static final String LIMIT_EXCEEDED = "GROUP_BUY_LIMIT_EXCEEDED";
     public static final String ALREADY_JOINED = "GROUP_BUY_ALREADY_JOINED";
     public static final String SALES_CLOSED = "GROUP_BUY_SALES_CLOSED";
@@ -27,7 +29,7 @@ public class GroupBuyException extends CommonException {
     public static final String CANCEL_NOT_ALLOWED = "GROUP_BUY_CANCEL_NOT_ALLOWED";
     public static final String INVALID_STATE = "GROUP_BUY_INVALID_STATE";
     public static final String VERSION_CONFLICT = "GROUP_BUY_VERSION_CONFLICT";
-    public static final String OPTION_UNLIMITED = "GROUP_BUY_OPTION_UNLIMITED";
+    public static final String SKU_UNLIMITED = "GROUP_BUY_SKU_UNLIMITED";
     public static final String NOTICE_INCOMPLETE = "GROUP_BUY_NOTICE_INCOMPLETE";
     public static final String SHIPPING_POLICY_NOT_FOUND = "SHIPPING_POLICY_NOT_FOUND";
     public static final String SHIPPING_POLICY_CONFLICT = "SHIPPING_POLICY_CONFLICT";
@@ -58,8 +60,18 @@ public class GroupBuyException extends CommonException {
         return new GroupBuyException(HttpStatus.CONFLICT, SOLD_OUT).with("temporary", temporary);
     }
 
-    public static GroupBuyException optionSoldOut(long optionId, boolean temporary) {
-        return new GroupBuyException(HttpStatus.CONFLICT, OPTION_SOLD_OUT).with("optionId", Long.toString(optionId)).with("temporary", temporary);
+    public static GroupBuyException skuSoldOut(long skuId, boolean temporary) {
+        return new GroupBuyException(HttpStatus.CONFLICT, SKU_SOLD_OUT).with("skuId", Long.toString(skuId)).with("temporary", temporary);
+    }
+
+    /** 판매하지 않는 단품(운영자가 끈 조합 — 결정 88) */
+    public static GroupBuyException skuNotOnSale(long skuId) {
+        return new GroupBuyException(HttpStatus.CONFLICT, SKU_NOT_ON_SALE).with("skuId", Long.toString(skuId));
+    }
+
+    /** 본 상품 줄을 모두 빼고 추가 구성상품만 남기려 했다 — 남은 추가상품도 함께 취소한다(결정 88). {@code skuIds} 는 남는 추가상품 */
+    public static GroupBuyException addonOnly(java.util.List<String> skuIds) {
+        return new GroupBuyException(HttpStatus.CONFLICT, ADDON_ONLY).with("skuIds", skuIds);
     }
 
     /** @param remaining 지금 더 살 수 있는 수량 */
@@ -115,18 +127,18 @@ public class GroupBuyException extends CommonException {
         return new GroupBuyException(HttpStatus.CONFLICT, VERSION_CONFLICT);
     }
 
-    /** 한도 없는 옵션에 옵션 추가 입고·줄이기 — 공구 단위로 한다(결정 80) */
-    public static GroupBuyException optionUnlimited() {
-        return new GroupBuyException(HttpStatus.CONFLICT, OPTION_UNLIMITED);
+    /** 한도 없는 단품에 단품 추가 입고·줄이기 — 공구 단위로 한다(결정 80) */
+    public static GroupBuyException skuUnlimited() {
+        return new GroupBuyException(HttpStatus.CONFLICT, SKU_UNLIMITED);
     }
 
     /**
      * 상품정보제공고시가 다 차지 않았다(결정 87) — {@code noNotice}(양식이 하나도 없음), {@code notices}(빈 항목이 있는 양식: 차례·제목·품목·빈 항목 키),
-     * {@code unassignedOptions}(어느 양식에도 속하지 않은 옵션 이름).
+     * {@code unassignedSkus}(속할 양식이 없는 단품 이름 — 기본 양식이 없는 MAIN, 자기 양식이 없는 ADDON).
      */
-    public static GroupBuyException noticeIncomplete(boolean noNotice, java.util.List<java.util.Map<String, Object>> notices, java.util.List<String> unassignedOptions) {
+    public static GroupBuyException noticeIncomplete(boolean noNotice, java.util.List<java.util.Map<String, Object>> notices, java.util.List<String> unassignedSkus) {
         return new GroupBuyException(HttpStatus.CONFLICT, NOTICE_INCOMPLETE).with("noNotice", noNotice).with("notices", notices)
-                .with("unassignedOptions", unassignedOptions);
+                .with("unassignedSkus", unassignedSkus);
     }
 
     public static GroupBuyException shippingPolicyNotFound() {

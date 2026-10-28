@@ -132,13 +132,13 @@ class GroupBuyNoticeTest {
     }
 
     @Test
-    void G43_어느_양식에도_속하지_않은_옵션이_있으면_거절_기본_양식이_있으면_나머지를_덮는다() {
+    void G43_어느_양식에도_속하지_않은_단품이_있으면_거절_기본_양식이_있으면_나머지_MAIN_을_덮는다() {
         long gb = kit.spec(policy()).option("본체", 0, 10).option("충전기", 5_000, 10).option("케이스", 3_000, 10).create();
         kit.notices.save(gb, List.of(kit.fullNotice("SMALL_ELECTRONICS", "본체", List.of("본체")), kit.fullNotice("SMALL_ELECTRONICS", "충전기", List.of("충전기"))),
                 kit.operator, "ip");
         assertThatThrownBy(() -> publish(gb)).isInstanceOfSatisfying(GroupBuyException.class, e -> {
             assertThat(e.getErrorCode()).isEqualTo(GroupBuyException.NOTICE_INCOMPLETE);
-            assertThat(e.getExtras()).containsEntry("unassignedOptions", List.of("케이스"));
+            assertThat(e.getExtras()).containsEntry("unassignedSkus", List.of("케이스"));
             assertThat(incompleteNotices(e)).isEmpty();
         });
 
@@ -148,29 +148,29 @@ class GroupBuyNoticeTest {
         publish(gb);
         var saved = kit.notices.notices(gb);
         assertThat(saved).hasSize(2);
-        assertThat(saved.get(1).optionNames()).containsExactly("충전기");
+        assertThat(saved.get(1).skuNames()).containsExactly("충전기");
     }
 
     @Test
-    void G43_한_옵션은_양식_하나에만_기본_양식은_하나만() {
+    void G43_한_단품은_양식_하나에만_기본_양식은_하나만() {
         long gb = kit.spec(policy()).option("본체", 0, 10).option("충전기", 5_000, 10).create();
         assertThatThrownBy(() -> kit.notices.save(gb, List.of(kit.fullNotice("SMALL_ELECTRONICS", "A", List.of("충전기")),
                 kit.fullNotice("SMALL_ELECTRONICS", "B", List.of("충전기", "본체"))), kit.operator, "ip"))
-                .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("notices[1].optionNames"));
+                .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("notices[1].skuNames"));
         assertThatThrownBy(() -> kit.notices.save(gb, List.of(kit.fullNotice("SMALL_ELECTRONICS", "A", List.of()), kit.fullNotice("SMALL_ELECTRONICS", "B", List.of())),
                 kit.operator, "ip")).isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("notices"));
-        assertThatThrownBy(() -> kit.notices.save(gb, List.of(kit.fullNotice("SMALL_ELECTRONICS", "A", List.of("없는 옵션"))), kit.operator, "ip"))
+        assertThatThrownBy(() -> kit.notices.save(gb, List.of(kit.fullNotice("SMALL_ELECTRONICS", "A", List.of("없는 단품"))), kit.operator, "ip"))
                 .isInstanceOf(ValidationException.class);
         assertThatThrownBy(() -> kit.notices.save(gb, List.of(new NoticeDraft("NOT_A_CATEGORY", "A", List.of(), List.of())), kit.operator, "ip"))
                 .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsKey("notices[0].categoryCode"));
         assertThatThrownBy(() -> kit.notices.save(gb, List.of(new NoticeDraft("CLOTHING", "A", List.of(), List.of(new NoticeDraft.Value("screen_spec", "x", false, null))))
                 , kit.operator, "ip")).as("그 품목에 없는 항목").isInstanceOf(ValidationException.class);
-        // DB 도 한 옵션은 하나에만
+        // DB 도 한 단품은 하나에만
         kit.notices.save(gb, List.of(kit.fullNotice("SMALL_ELECTRONICS", "A", List.of("충전기")), kit.fullNotice("SMALL_ELECTRONICS", "B", List.of("본체"))),
                 kit.operator, "ip");
         var saved = kit.notices.notices(gb);
-        assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO group_buy_notice_options (notice_id, group_buy_id, option_id) VALUES (?, ?, ?)", saved.get(1).id(), gb,
-                saved.get(0).optionIds().get(0))).isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
+        assertThatThrownBy(() -> kit.jdbc.update("INSERT INTO group_buy_notice_skus (notice_id, group_buy_id, sku_id) VALUES (?, ?, ?)", saved.get(1).id(), gb,
+                saved.get(0).skuIds().get(0))).isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
     }
 
     @Test
@@ -204,7 +204,7 @@ class GroupBuyNoticeTest {
         publish(root);
         // 이 공구가 옛 고시 때 만들어진 것처럼(시험 전용 옛 버전 2022-01-01 — 기타 재화 항목 둘뿐)
         kit.jdbc.update("UPDATE group_buy_notices SET catalog_version = '2022-01-01' WHERE group_buy_id = ? AND category_code = 'OTHER_GOODS'", root);
-        kit.paidOrder(kit.newMember(), root, GroupBuyTestKit.lines(kit.optionId(root, "본체"), 1));
+        kit.paidOrder(kit.newMember(), root, GroupBuyTestKit.lines(kit.skuId(root, "본체"), 1));
         assertThat(kit.group(root).status()).isEqualTo(GroupBuyStatus.CLOSING);
 
         var round = kit.admin.createRound(root, kit.now().minus(Duration.ofMinutes(1)), kit.now().plus(Duration.ofDays(1)), null, kit.operator, "ip");
@@ -212,8 +212,8 @@ class GroupBuyNoticeTest {
         assertThat(copied).hasSize(2);
         assertThat(copied.get(0).catalogVersion()).isEqualTo("2022-01-01");
         assertThat(copied.get(1).catalogVersion()).isEqualTo("2023-01-01");
-        assertThat(copied.get(1).optionNames()).containsExactly("충전기");
-        assertThat(copied.get(1).optionIds()).as("새 차수의 옵션에 이어진다").doesNotContainAnyElementsOf(kit.notices.notices(root).get(1).optionIds());
+        assertThat(copied.get(1).skuNames()).containsExactly("충전기");
+        assertThat(copied.get(1).skuIds()).as("새 차수의 단품에 이어진다").doesNotContainAnyElementsOf(kit.notices.notices(root).get(1).skuIds());
         assertThat(copied.get(0).values()).containsKeys("product_model_name", "contact");
 
         // 옛 버전 양식은 옛 항목으로 검사한다 — 2022 판 항목(둘)만 채워도 완성
@@ -233,17 +233,17 @@ class GroupBuyNoticeTest {
     }
 
     @Test
-    void DRAFT_옵션을_고쳐_다시_넣어도_양식의_적용_옵션은_이름으로_다시_이어진다() {
+    void DRAFT_단품을_고쳐_다시_넣어도_양식의_적용_단품은_이름으로_다시_이어진다() {
         GroupBuyTestKit.Spec spec = kit.spec(policy()).option("본체", 0, 10).option("충전기", 5_000, 10);
         long gb = spec.create();
         kit.notices.save(gb, List.of(kit.fullNotice("SMALL_ELECTRONICS", "본체", List.of()), kit.fullNotice("SMALL_ELECTRONICS", "충전기", List.of("충전기"))),
                 kit.operator, "ip");
-        long before = kit.optionId(gb, "충전기");
+        long before = kit.skuId(gb, "충전기");
         spec.price(26_000);
         kit.admin.update(gb, kit.group(gb).version(), spec.draft(), kit.operator, "ip");
-        long after = kit.optionId(gb, "충전기");
+        long after = kit.skuId(gb, "충전기");
         assertThat(after).isNotEqualTo(before);
-        assertThat(kit.notices.notices(gb).get(1).optionIds()).containsExactly(after);
+        assertThat(kit.notices.notices(gb).get(1).skuIds()).containsExactly(after);
     }
 
     // ── 판매자 추가 항목(사용자 지시 2026-10-28) ─────────────────────────────

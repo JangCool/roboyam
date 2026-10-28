@@ -14,7 +14,7 @@ import com.community.groupbuy.dto.ShippingAddress;
 import com.community.groupbuy.handler.GroupBuyPaymentHandler;
 import com.community.groupbuy.repository.master.GroupBuyStore;
 import com.community.groupbuy.repository.master.GroupBuyStore.GroupBuyRow;
-import com.community.groupbuy.repository.master.GroupBuyStore.OptionRow;
+import com.community.groupbuy.repository.master.GroupBuyStore.SkuRow;
 import com.community.groupbuy.repository.master.ParticipationStore;
 import com.community.groupbuy.repository.master.ParticipationStore.ItemRow;
 import com.community.groupbuy.repository.master.ParticipationStore.ParticipationRow;
@@ -470,7 +470,9 @@ final class GroupBuyTestKit {
         String fulfillment = "IMMEDIATE";
         LocalDate shipPlannedAt = null;
         boolean roundLimitShared = false;
-        List<GroupBuyDraft.OptionDraft> options = new ArrayList<>();
+        List<GroupBuyDraft.AxisDraft> axes = new ArrayList<>();
+        List<GroupBuyDraft.SkuDraft> skus = new ArrayList<>();
+        List<GroupBuyDraft.AddonDraft> addons = new ArrayList<>();
 
         Spec(String policy) {
             this.policy = policy;
@@ -511,8 +513,37 @@ final class GroupBuyTestKit {
             return this;
         }
 
+        /** 축 하나(「옵션」)짜리 공구의 값 하나 = MAIN 단품 하나(이름 = 값) — 예전 「옵션」 시험용 */
         Spec option(String name, long extra, Integer max) {
-            options.add(new GroupBuyDraft.OptionDraft(name, extra, max));
+            if (axes.isEmpty()) {
+                axes.add(new GroupBuyDraft.AxisDraft("옵션", new ArrayList<>()));
+            }
+            axes.getFirst().values().add(name);
+            skus.add(new GroupBuyDraft.SkuDraft(List.of(name), extra, max, true));
+            return this;
+        }
+
+        /** 옵션 축 */
+        Spec axis(String name, String... values) {
+            axes.add(new GroupBuyDraft.AxisDraft(name, List.of(values)));
+            return this;
+        }
+
+        /** 조합 설정(축 차례대로 값) */
+        Spec combo(List<String> values, long extra, Integer max, boolean onSale) {
+            skus.add(new GroupBuyDraft.SkuDraft(values, extra, max, onSale));
+            return this;
+        }
+
+        /** 축 없는 공구의 MAIN 단품 한도 */
+        Spec mainMax(Integer max) {
+            skus.add(new GroupBuyDraft.SkuDraft(List.of(), 0, max, true));
+            return this;
+        }
+
+        /** 추가 구성상품 */
+        Spec addon(String name, long addonPrice, Integer max) {
+            addons.add(new GroupBuyDraft.AddonDraft(name, addonPrice, max, null));
             return this;
         }
 
@@ -525,7 +556,7 @@ final class GroupBuyTestKit {
             LocalDate plan = "AFTER_CLOSE".equals(fulfillment) ? (shipPlannedAt != null ? shipPlannedAt : LocalDate.ofInstant(endAt, java.time.ZoneOffset.UTC).plusDays(7))
                     : null;
             return new GroupBuyDraft(title, "시험 상품", "요약", "사양", "<p>설명</p>", null, null, null, price, policy, minQty, maxQty, perUser, startAt, endAt, extension,
-                    fulfillment, plan, null, null, null, roundLimitShared, options, List.of(new GroupBuyDraft.ImageRef("img/a.jpg", "img/a-t.jpg")));
+                    fulfillment, plan, null, null, null, roundLimitShared, axes, skus, addons, List.of(new GroupBuyDraft.ImageRef("img/a.jpg", "img/a-t.jpg")));
         }
 
         /** 등록만(DRAFT) */
@@ -545,31 +576,41 @@ final class GroupBuyTestKit {
     // ── 상품정보제공고시 ──────────────────────────────────────────────────────
 
     /** 그 품목(지금 카탈로그)의 모든 항목을 채운 양식 */
-    NoticeDraft fullNotice(String categoryCode, String title, List<String> optionNames) {
+    NoticeDraft fullNotice(String categoryCode, String title, List<String> skuNames) {
         List<NoticeDraft.Value> values = catalog.current().category(categoryCode).orElseThrow().items().stream()
                 .map(i -> new NoticeDraft.Value(i.key(), "시험 값 " + i.no(), false, null)).toList();
-        return new NoticeDraft(categoryCode, title, optionNames, values);
+        return new NoticeDraft(categoryCode, title, skuNames, values);
     }
 
-    /** 공구 전체(기본 상품)를 덮는 「기타 재화」 양식 하나를 다 채워 저장한다 */
+    /** 공구 전체(기본 상품 — MAIN 단품)를 덮는 「기타 재화」 양식 하나 + 추가 구성상품마다 양식 하나를 다 채워 저장한다(결정 88) */
     void fillNotice(long groupBuyId) {
-        notices.save(groupBuyId, List.of(fullNotice("OTHER_GOODS", "본체", List.of())), operator, "127.0.0.1");
+        List<NoticeDraft> drafts = new ArrayList<>();
+        drafts.add(fullNotice("OTHER_GOODS", "본체", List.of()));
+        skus(groupBuyId).stream().filter(s -> !s.main()).forEach(s -> drafts.add(fullNotice("OTHER_GOODS", s.name(), List.of(s.name()))));
+        notices.save(groupBuyId, drafts, operator, "127.0.0.1");
     }
 
     GroupBuyRow group(long id) {
         return groupStore.find(id).orElseThrow();
     }
 
-    List<OptionRow> options(long groupBuyId) {
-        return groupStore.options(groupBuyId);
+    List<SkuRow> skus(long groupBuyId) {
+        return groupStore.skus(groupBuyId);
     }
 
-    long optionId(long groupBuyId, String name) {
-        return options(groupBuyId).stream().filter(o -> o.name().equals(name)).findFirst().orElseThrow().id();
+    long skuId(long groupBuyId, String name) {
+        return skus(groupBuyId).stream().filter(s -> s.name().equals(name)).findFirst().orElseThrow().id();
     }
 
-    OptionRow option(long groupBuyId, long optionId) {
-        return options(groupBuyId).stream().filter(o -> o.id() == optionId).findFirst().orElseThrow();
+    SkuRow sku(long groupBuyId, long skuId) {
+        return skus(groupBuyId).stream().filter(s -> s.id() == skuId).findFirst().orElseThrow();
+    }
+
+    /** 축 없는 공구의 MAIN 단품(하나) */
+    long mainSku(long groupBuyId) {
+        List<SkuRow> mains = skus(groupBuyId).stream().filter(SkuRow::main).toList();
+        assertThat(mains).as("축 없는 공구의 MAIN 단품").hasSize(1);
+        return mains.getFirst().id();
     }
 
     // ── 주문·결제 ───────────────────────────────────────────────────────────
@@ -578,10 +619,10 @@ final class GroupBuyTestKit {
         return new ShippingAddress("홍길동", "010-1234-5678", "06236", "서울시 강남구 테헤란로 1", "101호", "문 앞");
     }
 
-    static List<OrderLine> lines(Object... optionAndQty) {
+    static List<OrderLine> lines(Object... skuAndQty) {
         List<OrderLine> out = new ArrayList<>();
-        for (int i = 0; i < optionAndQty.length; i += 2) {
-            out.add(new OrderLine((Long) optionAndQty[i], (Integer) optionAndQty[i + 1]));
+        for (int i = 0; i < skuAndQty.length; i += 2) {
+            out.add(new OrderLine((Long) skuAndQty[i], (Integer) skuAndQty[i + 1]));
         }
         return out;
     }
@@ -592,9 +633,9 @@ final class GroupBuyTestKit {
         return join.join(buyer(userId), new JoinRequest(groupBuyId, lines, address(), true, true, true, quote.amount()));
     }
 
-    /** 옵션 없는 공구에 수량만 */
+    /** 축 없는 공구에 수량만(MAIN 단품 하나) */
     JoinResult order(long userId, long groupBuyId, int qty) {
-        return order(userId, groupBuyId, lines(null, qty));
+        return order(userId, groupBuyId, lines(mainSku(groupBuyId), qty));
     }
 
     /** 가짜 PG 에 결제됨(지금 시각)을 쓰고 확정 코드를 부른다(웹훅) */
@@ -615,7 +656,7 @@ final class GroupBuyTestKit {
     }
 
     JoinResult paidOrder(long userId, long groupBuyId, int qty) {
-        return paidOrder(userId, groupBuyId, lines(null, qty));
+        return paidOrder(userId, groupBuyId, lines(mainSku(groupBuyId), qty));
     }
 
     ParticipationRow participation(long id) {
