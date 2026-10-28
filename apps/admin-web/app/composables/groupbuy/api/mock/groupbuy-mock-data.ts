@@ -91,11 +91,15 @@ export function supplyGuess(unitPrice: number): number {
  * 고시 양식의 적용 단품 이름을 그 공구 단품 이름으로 채우고, 상품 연결(결정 89)을 붙인다 — 단품마다 상품 단품 ID `p` + 단품 ID, 공급가는 `supplyGuess`.
  * 예외: gb-105(DRAFT)는 공급가를 비워 모집 시작 `409 GROUP_BUY_SUPPLY_PRICE_MISSING`, gb-109(DRAFT)는 한 단품을 역마진으로(확인 창).
  */
+/** 상품 단품 ID 채번(목업 — 상품 ID 와 따로, 5001 부터 시드 차례대로) */
+let productSkuSeq = 5000;
+
 function withNoticeNames(list: (Omit<GroupBuyDetail, 'productId' | 'categoryPath'> & Partial<Pick<GroupBuyDetail, 'productId' | 'categoryPath'>>)[]): GroupBuyDetail[] {
+    productSkuSeq = 5000;
     return list.map((g) => {
         const skus = g.skus.map((s, i) => ({
             ...s,
-            productSkuId: `p${s.skuId}`,
+            productSkuId: String(++productSkuSeq),
             supplyPrice: g.id === 'gb-105' ? null : g.id === 'gb-109' && i === 1 ? s.unitPrice + 2000 : supplyGuess(s.unitPrice),
         }));
         return {

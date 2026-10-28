@@ -41,6 +41,10 @@
             <!-- 기본 정보 -->
             <AppGadget :title="t('groupBuy.productSecBasic')" anchor="pd-basic">
                 <div class="flex flex-col gap-4">
+                    <div class="flex items-baseline gap-2 text-[13px]">
+                        <span class="text-muted-color">{{ t('groupBuy.productIdLabel') }}</span>
+                        <span class="font-mono tabular-nums" :class="detail ? '' : 'text-muted-color'">{{ detail?.id ?? t('groupBuy.pskuIdAuto') }}</span>
+                    </div>
                     <LabeledField :label="t('groupBuy.productName')" :hint="detail?.structureLocked ? t('groupBuy.locked') : ''" :error="fe('name')">
                         <template #default="{ id, describedBy, invalid }">
                             <InputText :id="id" v-model="form.name" maxlength="100" :readonly="lockedRo" :invalid="invalid" :aria-describedby="describedBy" fluid />
@@ -108,9 +112,9 @@
             </AppGadget>
 
             <!-- 단품(옵션) — 단품 목록이 정본, 옵션 이름은 속성(사용자 결정 2026-10-28) -->
-            <AppGadget :title="t('groupBuy.secProductSkus')" anchor="pd-skus" :invalid="fe('optionNames') || fe('skus') ? 1 : 0">
+            <AppGadget :title="t('groupBuy.secProductSkus')" anchor="pd-skus" :invalid="fe('optionTypeCodes') || fe('skus') ? 1 : 0">
                 <template v-if="detail?.structureLocked" #title-extra><Tag :value="t('groupBuy.locked')" severity="secondary" /></template>
-                <GroupBuyProductSkusEditor v-model="form.skus" v-model:option-names="form.optionNames" :locked="!!detail?.structureLocked" :disabled="ro" :errors="serverErrors" :show-supply="canSeeSupply" :supply-editable="canPrice && canManage" />
+                <GroupBuyProductSkusEditor v-model="form.skus" v-model:option-types="form.optionTypes" :types="optionTypes" :locked="!!detail?.structureLocked" :disabled="ro" :errors="serverErrors" :show-supply="canSeeSupply" :supply-editable="canPrice && canManage" />
             </AppGadget>
 
             <!-- 상품정보제공고시 -->
@@ -132,7 +136,7 @@ import type { GroupBuyProductSkuRow, GroupBuySkuRef } from '~/components/groupbu
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { GroupBuyImage, GroupBuyNoticeInput, NormalPriceBasis, NoticeCatalog, NoticeCustomInput } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
 import { NORMAL_PRICE_BASES } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
-import type { GroupBuyCategory, GroupBuyProductDetail, GroupBuyProductSaveRequest } from '~/composables/groupbuy/api/useGroupBuyProductApi.types';
+import type { GroupBuyCategory, GroupBuyOptionType, GroupBuyProductDetail, GroupBuyProductSaveRequest } from '~/composables/groupbuy/api/useGroupBuyProductApi.types';
 import UtilGroupBuy from '~/utils/util-groupbuy';
 
 interface ProductForm {
@@ -146,8 +150,8 @@ interface ProductForm {
     normalPriceBasis: NormalPriceBasis | null;
     normalPriceSource: string;
     withdrawalRestriction: string;
-    /** 옵션 이름(속성 0~3) · 단품 목록 */
-    optionNames: string[];
+    /** 옵션 종류 코드(0~3) · 단품 목록 */
+    optionTypes: string[];
     skus: GroupBuyProductSkuRow[];
     notices: GroupBuyNoticeRow[];
 }
@@ -177,6 +181,8 @@ const formError = ref('');
 const serverErrors = ref<Record<string, string>>({});
 const formKey = ref(0);
 const categories = ref<GroupBuyCategory[]>([]);
+/** 옵션 종류(이름 · 숨김 · 값 자동완성) */
+const optionTypes = ref<GroupBuyOptionType[]>([]);
 const categoryError = ref('');
 const catalog = ref<NoticeCatalog | null>(null);
 const catalogError = ref<ApiError | null>(null);
@@ -196,7 +202,7 @@ function firstSku(): GroupBuyProductSkuRow {
 }
 
 function emptyForm(): ProductForm {
-    return { name: '', categoryId: null, summary: '', spec: '', description: '', images: [], normalPrice: '', normalPriceBasis: null, normalPriceSource: '', withdrawalRestriction: '', optionNames: [], skus: [firstSku()], notices: [] };
+    return { name: '', categoryId: null, summary: '', spec: '', description: '', images: [], normalPrice: '', normalPriceBasis: null, normalPriceSource: '', withdrawalRestriction: '', optionTypes: [], skus: [firstSku()], notices: [] };
 }
 
 function formOf(p: GroupBuyProductDetail): ProductForm {
@@ -213,7 +219,7 @@ function formOf(p: GroupBuyProductDetail): ProductForm {
         normalPriceBasis: p.normalPriceBasis,
         normalPriceSource: p.normalPriceSource,
         withdrawalRestriction: p.withdrawalRestriction,
-        optionNames: [...p.optionNames],
+        optionTypes: [...p.optionTypeCodes],
         skus: skus.length ? skus : [firstSku()],
         notices: p.notices.map((n, i) => ({ key: `notice-${i}`, categoryCode: n.categoryCode, title: n.title, skuKeys: n.skuNames.flatMap((name) => (keyOfName.has(name) ? [keyOfName.get(name)!] : [])), values: n.values.map((v) => ({ ...v })), customItems: n.customItems.map((c) => ({ ...c })) })),
     };
@@ -228,7 +234,7 @@ const dirty = computed(() => initial.value !== '' && snapshot(form.value) !== in
 
 /** 단품 이름 — 직접 적은 이름, 없으면 옵션 값(「블랙 / M」), 옵션도 없으면 상품 이름 */
 function skuNameOf(s: GroupBuyProductSkuRow, f: ProductForm): string {
-    return s.name.trim() || (f.optionNames.length ? UtilGroupBuy.skuMainName(f.optionNames.map((_, i) => s.values[i] ?? '')) : f.name.trim());
+    return s.name.trim() || (f.optionTypes.length ? UtilGroupBuy.skuMainName(f.optionTypes.map((_, i) => s.values[i] ?? '')) : f.name.trim());
 }
 
 /** 단품 목록(고시 적용 대상) */
@@ -279,7 +285,7 @@ async function loadCatalog(): Promise<void> {
 onMounted(async () => {
     void loadCatalog();
     try {
-        categories.value = await api.categories();
+        [categories.value, optionTypes.value] = await Promise.all([api.categories(), api.optionTypes()]);
     } catch (e) {
         categoryError.value = toApiError(e).message;
     }
@@ -317,8 +323,8 @@ function toRequest(f: ProductForm): GroupBuyProductSaveRequest {
         normalPriceBasis: f.normalPriceBasis,
         normalPriceSource: f.normalPriceSource.trim(),
         withdrawalRestriction: f.withdrawalRestriction.trim(),
-        optionNames: f.optionNames.map((n) => n.trim()),
-        skus: f.skus.map((s) => ({ skuId: s.id, name: skuNameOf(s, f), values: f.optionNames.map((_, i) => (s.values[i] ?? '').trim()), defaultSupplyPrice: canPrice.value ? opt(s.supplyPrice) : null, onSale: s.onSale })),
+        optionTypeCodes: [...f.optionTypes],
+        skus: f.skus.map((s) => ({ skuId: s.id, name: skuNameOf(s, f), values: f.optionTypes.map((_, i) => (s.values[i] ?? '').trim()), defaultSupplyPrice: canPrice.value ? opt(s.supplyPrice) : null, onSale: s.onSale })),
         notices,
         version: detail.value?.version ?? null,
     };

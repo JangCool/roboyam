@@ -32,6 +32,7 @@ export interface GroupBuyCategoryInput {
  * `values` 는 상품 `optionNames` 차례의 옵션 값, `valueIds` 는 서버가 그 값으로 만든 축 값 ID(회원 상세의 차례 고르기 · 공구 화면이 쓴다).
  */
 export interface GroupBuyProductSku {
+    /** 단품 ID — 서버 자동 채번. 상품 ID 를 붙이지 않는다(단품 표 열 `product_id` · `id` 따로) */
     skuId: string;
     /** 옵션 값(옵션 이름이 없으면 빈 배열) */
     values: string[];
@@ -71,6 +72,7 @@ export interface GroupBuyProductQuery {
 }
 
 export interface GroupBuyProductDetail {
+    /** 상품 ID — 서버 자동 채번 */
     id: string;
     name: string;
     categoryId: string;
@@ -85,7 +87,8 @@ export interface GroupBuyProductDetail {
     normalPriceBasis: NormalPriceBasis | null;
     normalPriceSource: string;
     withdrawalRestriction: string;
-    /** 옵션 이름(속성, 0~3 — 예 색상·사이즈). 비면 회원은 단품 목록 하나에서 고른다 */
+    /** 옵션 종류 코드(0~3 — 예 `COLOR`·`SIZE`) · 그 이름(서버가 붙인다). 비면 회원은 단품 목록 하나에서 고른다 */
+    optionTypeCodes: string[];
     optionNames: string[];
     /** 서버가 단품의 옵션 값으로 만든 축(읽기 전용 — 공구 화면·회원 상세가 쓴다) */
     axes: GroupBuyOptionAxis[];
@@ -99,13 +102,36 @@ export interface GroupBuyProductDetail {
     updatedAt: string;
 }
 
+/**
+ * 옵션 종류(사용자 결정 2026-10-28 — 옵션 이름은 코드로 고른다, 값은 자유 입력 + 자동완성). `GET·PUT /api/admin/group-buys/option-types`.
+ * 상품은 옵션 종류 코드(0~3)를 고르고 단품마다 그 값을 적는다. `usedValues` = 그 종류로 이미 쓴 값(자동완성 — 서버가 상품 단품에서 모은다).
+ */
+export interface GroupBuyOptionType {
+    /** 영문 대문자·숫자·_ 2~20(예 `COLOR`) — 만든 뒤 바꾸지 않는다 */
+    code: string;
+    name: string;
+    sortOrder: number;
+    /** 숨기면 새 상품에서 고를 수 없다(쓰던 상품은 그대로) */
+    hidden: boolean;
+    /** 이 종류를 쓰는 상품 수 — 있으면 지우지 못한다 */
+    productCount: number;
+    usedValues: string[];
+}
+
+/** 옵션 종류 저장 줄(통째로, 차례 = 배열 차례) */
+export interface GroupBuyOptionTypeInput {
+    code: string;
+    name: string;
+    hidden: boolean;
+}
+
 /** 상품 단품 저장 줄 — 파는 것만 등록한다. 같은 이름 · 같은 옵션 값 묶음 두 줄은 `400 skus` */
 export interface GroupBuyProductSkuInput {
     /** 기존 단품이면 그 ID(새 줄 null) — 공구가 쓰는 단품을 빼면 `409 GROUP_BUY_PRODUCT_SKU_IN_USE` */
     skuId: string | null;
     /** 이름(1~100) — 옵션 값이 있으면 화면이 「블랙 / M」으로 채워 보낸다 */
     name: string;
-    /** `optionNames` 차례의 값(옵션 이름이 있으면 모두 필수) */
+    /** `optionTypeCodes` 차례의 값(옵션이 있으면 모두 필수) */
     values: string[];
     defaultSupplyPrice: number | null;
     onSale: boolean;
@@ -126,8 +152,8 @@ export interface GroupBuyProductSaveRequest {
     normalPriceBasis: NormalPriceBasis | null;
     normalPriceSource: string;
     withdrawalRestriction: string;
-    /** 옵션 이름(0~3) — 사용자 결정 2026-10-28(2b-2 의 `axes[{name, values}]` 를 대신, 확정 전 제안) */
-    optionNames: string[];
+    /** 옵션 종류 코드(0~3, 숨긴 종류·없는 코드는 `400 optionTypeCodes`) — 사용자 결정 2026-10-28, 2b-2 의 `optionNames` 를 대신(확정 전 제안) */
+    optionTypeCodes: string[];
     skus: GroupBuyProductSkuInput[];
     /** 대표 이미지 `mediaId`(차례대로) */
     images: string[];

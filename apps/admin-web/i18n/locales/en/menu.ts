@@ -65,6 +65,7 @@ export default {
     // Group buy section (normal mode, before Payments) — physical group buys sold by the operator
     groupBuy: 'Group buys',
     groupBuyProducts: 'Products',
+    groupBuyOptionTypes: 'Option types',
     groupBuyCategories: 'Categories',
     groupBuys: 'Group buys',
     groupBuyStock: 'Quantities',

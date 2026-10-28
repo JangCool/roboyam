@@ -43,11 +43,11 @@ export interface GroupBuyMainSkuRow {
 /** 상품 단품 한 줄(상품 화면 — 사용자 결정 2026-10-28: 단품 목록이 정본, 옵션 이름은 속성) */
 export interface GroupBuyProductSkuRow {
     key: string;
-    /** 서버 상품 단품 ID(새 줄은 null) */
+    /** 서버가 자동으로 붙인 단품 ID(새 줄은 null — 저장하면 생긴다) */
     id: string | null;
     /** 직접 적은 이름 — 비우면 옵션 값으로(「블랙 / M」) */
     name: string;
-    /** 옵션 이름 차례의 값(옵션 이름이 없으면 빈 배열) */
+    /** 옵션 종류 차례의 값(옵션이 없으면 빈 배열) */
     values: string[];
     onSale: boolean;
     /** 기본 공급가 글자(빈 글자 = 없음) */

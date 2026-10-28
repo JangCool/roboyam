@@ -1,9 +1,11 @@
-import { mockAddonSources, mockCategoryList, mockCategorySave, mockProductCreate, mockProductDetail, mockProductList, mockProductUpdate } from '~/composables/groupbuy/api/mock/groupbuy-product-mock';
+import { mockAddonSources, mockCategoryList, mockCategorySave, mockOptionTypeList, mockOptionTypeSave, mockProductCreate, mockProductDetail, mockProductList, mockProductUpdate } from '~/composables/groupbuy/api/mock/groupbuy-product-mock';
 import type { GroupBuyPage } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
 import type {
     GroupBuyAddonSource,
     GroupBuyCategory,
     GroupBuyCategoryInput,
+    GroupBuyOptionType,
+    GroupBuyOptionTypeInput,
     GroupBuyProductDetail,
     GroupBuyProductQuery,
     GroupBuyProductRow,
@@ -15,6 +17,7 @@ import type {
  * 모양은 2b-1 화면 목업의 제안이고 서버(2b-2)가 정한다. 권한: 조회 `commerce.product.read` · 등록·수정·카테고리 `commerce.product.manage`
  * · 기본 공급가는 `commerce.product.price` 또는 `commerce.settlement.read` 가 있을 때만 응답에 있다(없으면 null).
  *   - `GET  /api/admin/group-buys/categories` → `GroupBuyCategory[]` · `PUT` 통째로(`GroupBuyCategoryInput[]`) — 상품이 있는 카테고리 지우기는 `400 fields.categories`
+ *   - `GET  /api/admin/group-buys/option-types` → `GroupBuyOptionType[]`(값 자동완성 `usedValues` 포함) · `PUT` 통째로 — 쓰는 상품이 있는 종류 지우기·코드 겹침은 `400 fields.optionTypes`
  *   - `GET  /api/admin/group-buy-products?q=&categoryId=&page=&size=` → 목록 · `GET /{id}` → `GroupBuyProductDetail`
  *   - `POST /api/admin/group-buy-products` · `PUT /{id}` → 상세 · `400 VALIDATION fields.name|categoryId|axes|skus|notices[i]…` · `409 GROUP_BUY_PRODUCT_STRUCTURE_LOCKED`(모집 중 공구가 쓰는 상품의 옵션 구성) · `GROUP_BUY_VERSION_CONFLICT`
  *   - `GET  /api/admin/group-buy-products/addon-sources?except={productId}` → 공구의 추가 구성상품으로 고를 다른 상품의 단품
@@ -24,6 +27,7 @@ import type {
  */
 const PATH = {
     categories: '/api/admin/group-buys/categories',
+    optionTypes: '/api/admin/group-buys/option-types',
     products: '/api/admin/group-buy-products',
     one: (id: string) => `/api/admin/group-buy-products/${encodeURIComponent(id)}`,
     addonSources: '/api/admin/group-buy-products/addon-sources',
@@ -44,6 +48,16 @@ export function useGroupBuyProductApi() {
             // MOCK:
             mockCategorySave(items),
         // REAL: client.put<GroupBuyCategory[]>(PATH.categories, items),
+
+        optionTypes: (): Promise<GroupBuyOptionType[]> =>
+            // MOCK:
+            mockOptionTypeList(),
+        // REAL: client.get<GroupBuyOptionType[]>(PATH.optionTypes),
+
+        saveOptionTypes: (items: GroupBuyOptionTypeInput[]): Promise<GroupBuyOptionType[]> =>
+            // MOCK:
+            mockOptionTypeSave(items),
+        // REAL: client.put<GroupBuyOptionType[]>(PATH.optionTypes, items),
 
         list: (query: GroupBuyProductQuery): Promise<GroupBuyPage<GroupBuyProductRow>> =>
             // MOCK:
