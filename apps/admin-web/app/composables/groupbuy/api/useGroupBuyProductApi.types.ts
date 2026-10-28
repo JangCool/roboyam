@@ -3,7 +3,7 @@
  * 상품 = 이름·요약·사양·설명·이미지·정상가 근거·청약철회 제한·카테고리·고시 양식·옵션 축/값·상품 단품(조합·기본 공급가·판매 여부).
  * 공구는 상품 하나를 골라 판매 조건과 단품별 설정(추가금·한도·판매 여부·공급가)을 더한다. 기본 공급가는 가격 권한이 있을 때만 서버가 준다(없으면 null).
  */
-import type { GroupBuyAxisInput, GroupBuyImage, GroupBuyNotice, GroupBuyNoticeInput, GroupBuyOptionAxis, GroupBuyStatus, NormalPriceBasis } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
+import type { GroupBuyImage, GroupBuyNotice, GroupBuyNoticeInput, GroupBuyOptionAxis, GroupBuyStatus, NormalPriceBasis } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
 
 /** 카테고리 — 2단(위 카테고리 `parentId` null), 차례·숨김. 상품마다 하나 필수(아래 단만 고른다 — 아래 단이 없는 위 카테고리는 그대로) */
 export interface GroupBuyCategory {
@@ -27,9 +27,14 @@ export interface GroupBuyCategoryInput {
     hidden: boolean;
 }
 
-/** 상품 단품 — 축 값 조합마다 하나(축이 없으면 하나, 이름 = 상품 이름) */
+/**
+ * 상품 단품 — 운영자가 직접 등록한 아이템 한 줄(사용자 결정 2026-10-28 — 축·값 조합 자동 생성을 대신한다). 단품이 하나면 옵션 없는 상품.
+ * `values` 는 상품 `optionNames` 차례의 옵션 값, `valueIds` 는 서버가 그 값으로 만든 축 값 ID(회원 상세의 차례 고르기 · 공구 화면이 쓴다).
+ */
 export interface GroupBuyProductSku {
     skuId: string;
+    /** 옵션 값(옵션 이름이 없으면 빈 배열) */
+    values: string[];
     valueIds: string[];
     name: string;
     /** 기본 공급가(선택) — 공구 단품으로 복사해 고친다. 가격 권한이 없으면 null */
@@ -80,6 +85,9 @@ export interface GroupBuyProductDetail {
     normalPriceBasis: NormalPriceBasis | null;
     normalPriceSource: string;
     withdrawalRestriction: string;
+    /** 옵션 이름(속성, 0~3 — 예 색상·사이즈). 비면 회원은 단품 목록 하나에서 고른다 */
+    optionNames: string[];
+    /** 서버가 단품의 옵션 값으로 만든 축(읽기 전용 — 공구 화면·회원 상세가 쓴다) */
     axes: GroupBuyOptionAxis[];
     skus: GroupBuyProductSku[];
     /** 고시 양식(결정 87 — 상품에 붙는다). 적용 단품 `skuNames` 는 이 상품의 단품 이름 */
@@ -91,8 +99,13 @@ export interface GroupBuyProductDetail {
     updatedAt: string;
 }
 
-/** 상품 단품 저장 줄 — 축 차례의 값 이름(적지 않은 조합 = 판매·공급가 없음) */
+/** 상품 단품 저장 줄 — 파는 것만 등록한다. 같은 이름 · 같은 옵션 값 묶음 두 줄은 `400 skus` */
 export interface GroupBuyProductSkuInput {
+    /** 기존 단품이면 그 ID(새 줄 null) — 공구가 쓰는 단품을 빼면 `409 GROUP_BUY_PRODUCT_SKU_IN_USE` */
+    skuId: string | null;
+    /** 이름(1~100) — 옵션 값이 있으면 화면이 「블랙 / M」으로 채워 보낸다 */
+    name: string;
+    /** `optionNames` 차례의 값(옵션 이름이 있으면 모두 필수) */
     values: string[];
     defaultSupplyPrice: number | null;
     onSale: boolean;
@@ -113,7 +126,8 @@ export interface GroupBuyProductSaveRequest {
     normalPriceBasis: NormalPriceBasis | null;
     normalPriceSource: string;
     withdrawalRestriction: string;
-    axes: GroupBuyAxisInput[];
+    /** 옵션 이름(0~3) — 사용자 결정 2026-10-28(2b-2 의 `axes[{name, values}]` 를 대신, 확정 전 제안) */
+    optionNames: string[];
     skus: GroupBuyProductSkuInput[];
     /** 대표 이미지 `mediaId`(차례대로) */
     images: string[];

@@ -107,10 +107,10 @@
                 </div>
             </AppGadget>
 
-            <!-- 옵션 축 · 단품(기본 공급가) -->
-            <AppGadget :title="t('groupBuy.secOptions')" anchor="pd-options" :invalid="fe('axes') || fe('skus') ? 1 : 0">
+            <!-- 단품(옵션) — 단품 목록이 정본, 옵션 이름은 속성(사용자 결정 2026-10-28) -->
+            <AppGadget :title="t('groupBuy.secProductSkus')" anchor="pd-skus" :invalid="fe('optionNames') || fe('skus') ? 1 : 0">
                 <template v-if="detail?.structureLocked" #title-extra><Tag :value="t('groupBuy.locked')" severity="secondary" /></template>
-                <GroupBuyAxesEditor v-model:axes="form.axes" v-model:mains="form.mains" mode="PRODUCT" :locked="!!detail?.structureLocked" :disabled="ro" :errors="serverErrors" :show-supply="canSeeSupply" :supply-editable="canPrice && canManage" />
+                <GroupBuyProductSkusEditor v-model="form.skus" v-model:option-names="form.optionNames" :locked="!!detail?.structureLocked" :disabled="ro" :errors="serverErrors" :show-supply="canSeeSupply" :supply-editable="canPrice && canManage" />
             </AppGadget>
 
             <!-- 상품정보제공고시 -->
@@ -128,7 +128,7 @@
 <script setup lang="ts">
 import type { RichImageUploader } from '#layers/rich-editor/components/RichEditor.types';
 import type { GroupBuyNoticeRow } from '~/components/groupbuy/GroupBuyNoticeEditor.types';
-import type { GroupBuyAxisRow, GroupBuyMainSkuRow, GroupBuySkuRef } from '~/components/groupbuy/GroupBuySkuEditor.types';
+import type { GroupBuyProductSkuRow, GroupBuySkuRef } from '~/components/groupbuy/GroupBuySkuEditor.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { GroupBuyImage, GroupBuyNoticeInput, NormalPriceBasis, NoticeCatalog, NoticeCustomInput } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
 import { NORMAL_PRICE_BASES } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
@@ -146,8 +146,9 @@ interface ProductForm {
     normalPriceBasis: NormalPriceBasis | null;
     normalPriceSource: string;
     withdrawalRestriction: string;
-    axes: GroupBuyAxisRow[];
-    mains: GroupBuyMainSkuRow[];
+    /** 옵션 이름(속성 0~3) · 단품 목록 */
+    optionNames: string[];
+    skus: GroupBuyProductSkuRow[];
     notices: GroupBuyNoticeRow[];
 }
 
@@ -189,18 +190,18 @@ const lockedRo = computed(() => ro.value || !!detail.value?.structureLocked);
 const categoryChoices = computed(() => UtilGroupBuy.categoryChoices(categories.value, false, t('groupBuy.categoryHiddenMark')));
 const basisOptions = computed(() => NORMAL_PRICE_BASES.map((b) => ({ value: b, label: t(`groupBuy.basis.${b}`) })));
 
-function singleMain(): GroupBuyMainSkuRow {
-    return { key: 'main:', id: null, productSkuId: null, valueKeys: [], extraPrice: '0', maxQty: '', onSale: true, supplyPrice: '', currentQty: 0, reservedQty: 0 };
+/** 새 상품의 첫 단품 한 줄(옵션 없는 상품) */
+function firstSku(): GroupBuyProductSkuRow {
+    return { key: 'psku-first', id: null, name: '', values: [], onSale: true, supplyPrice: '' };
 }
 
 function emptyForm(): ProductForm {
-    return { name: '', categoryId: null, summary: '', spec: '', description: '', images: [], normalPrice: '', normalPriceBasis: null, normalPriceSource: '', withdrawalRestriction: '', axes: [], mains: [singleMain()], notices: [] };
+    return { name: '', categoryId: null, summary: '', spec: '', description: '', images: [], normalPrice: '', normalPriceBasis: null, normalPriceSource: '', withdrawalRestriction: '', optionNames: [], skus: [firstSku()], notices: [] };
 }
 
 function formOf(p: GroupBuyProductDetail): ProductForm {
-    const axes = p.axes.map((a) => ({ key: a.id, id: a.id, name: a.name, values: a.values.map((v) => ({ key: v.id, id: v.id, name: v.name })) }));
-    const mains = p.skus.map((s): GroupBuyMainSkuRow => ({ key: `main:${s.valueIds.join('|')}`, id: s.skuId, productSkuId: s.skuId, valueKeys: [...s.valueIds], extraPrice: '0', maxQty: '', onSale: s.onSale, supplyPrice: s.defaultSupplyPrice === null ? '' : String(s.defaultSupplyPrice), currentQty: 0, reservedQty: 0 }));
-    const keyOfName = new Map(p.skus.map((s, i) => [s.name, mains[i]!.key]));
+    const skus = p.skus.map((s): GroupBuyProductSkuRow => ({ key: s.skuId, id: s.skuId, name: s.name, values: [...s.values], onSale: s.onSale, supplyPrice: s.defaultSupplyPrice === null ? '' : String(s.defaultSupplyPrice) }));
+    const keyOfName = new Map(p.skus.map((s) => [s.name, s.skuId]));
     return {
         name: p.name,
         categoryId: p.categoryId,
@@ -212,8 +213,8 @@ function formOf(p: GroupBuyProductDetail): ProductForm {
         normalPriceBasis: p.normalPriceBasis,
         normalPriceSource: p.normalPriceSource,
         withdrawalRestriction: p.withdrawalRestriction,
-        axes,
-        mains: mains.length ? mains : [singleMain()],
+        optionNames: [...p.optionNames],
+        skus: skus.length ? skus : [firstSku()],
         notices: p.notices.map((n, i) => ({ key: `notice-${i}`, categoryCode: n.categoryCode, title: n.title, skuKeys: n.skuNames.flatMap((name) => (keyOfName.has(name) ? [keyOfName.get(name)!] : [])), values: n.values.map((v) => ({ ...v })), customItems: n.customItems.map((c) => ({ ...c })) })),
     };
 }
@@ -221,15 +222,17 @@ function formOf(p: GroupBuyProductDetail): ProductForm {
 const form = ref<ProductForm>(emptyForm());
 const initial = ref('');
 function snapshot(f: ProductForm): string {
-    return JSON.stringify({ ...f, images: f.images.map((i) => i.mediaId), axes: f.axes.map((a) => [a.name, a.values.map((v) => v.name)]), mains: f.mains.map((m) => [m.key, m.onSale, m.supplyPrice]) });
+    return JSON.stringify({ ...f, images: f.images.map((i) => i.mediaId), skus: f.skus.map((s) => [s.id, s.name, s.values, s.onSale, s.supplyPrice]) });
 }
 const dirty = computed(() => initial.value !== '' && snapshot(form.value) !== initial.value);
 
-/** 단품 목록(고시 적용 대상) — 축이 없으면 상품 이름 하나 */
-const skuRefs = computed<GroupBuySkuRef[]>(() => {
-    const valueName = new Map(form.value.axes.flatMap((a) => a.values.map((v) => [v.key, v.name] as const)));
-    return form.value.mains.map((m) => ({ key: m.key, kind: 'MAIN', name: m.valueKeys.length ? UtilGroupBuy.skuMainName(m.valueKeys.map((k) => valueName.get(k) ?? '')) : form.value.name.trim(), onSale: m.onSale }));
-});
+/** 단품 이름 — 직접 적은 이름, 없으면 옵션 값(「블랙 / M」), 옵션도 없으면 상품 이름 */
+function skuNameOf(s: GroupBuyProductSkuRow, f: ProductForm): string {
+    return s.name.trim() || (f.optionNames.length ? UtilGroupBuy.skuMainName(f.optionNames.map((_, i) => s.values[i] ?? '')) : f.name.trim());
+}
+
+/** 단품 목록(고시 적용 대상) */
+const skuRefs = computed<GroupBuySkuRef[]>(() => form.value.skus.map((s) => ({ key: s.key, kind: 'MAIN', name: skuNameOf(s, form.value), onSale: s.onSale })));
 const noticeErrorCount = computed(() => Object.keys(serverErrors.value).filter((k) => k.startsWith('notices[')).length);
 
 function fe(field: string): string {
@@ -296,8 +299,6 @@ const richUpload: RichImageUploader = async (file, opts) => {
 
 function toRequest(f: ProductForm): GroupBuyProductSaveRequest {
     const opt = (s: string) => (s.trim() === '' ? null : UtilGroupBuy.int(s));
-    const active = f.axes.filter((a) => a.values.length > 0);
-    const valueName = new Map(active.flatMap((a) => a.values.map((v) => [v.key, v.name.trim()] as const)));
     const nameOf = new Map(skuRefs.value.map((s) => [s.key, s.name]));
     const notices: GroupBuyNoticeInput[] = f.notices.map((n) => ({
         categoryCode: n.categoryCode,
@@ -316,8 +317,8 @@ function toRequest(f: ProductForm): GroupBuyProductSaveRequest {
         normalPriceBasis: f.normalPriceBasis,
         normalPriceSource: f.normalPriceSource.trim(),
         withdrawalRestriction: f.withdrawalRestriction.trim(),
-        axes: active.map((a) => ({ name: a.name.trim(), values: a.values.map((v) => v.name.trim()) })),
-        skus: f.mains.map((m) => ({ values: m.valueKeys.map((k) => valueName.get(k) ?? ''), defaultSupplyPrice: canPrice.value ? opt(m.supplyPrice) : null, onSale: m.onSale })),
+        optionNames: f.optionNames.map((n) => n.trim()),
+        skus: f.skus.map((s) => ({ skuId: s.id, name: skuNameOf(s, f), values: f.optionNames.map((_, i) => (s.values[i] ?? '').trim()), defaultSupplyPrice: canPrice.value ? opt(s.supplyPrice) : null, onSale: s.onSale })),
         notices,
         version: detail.value?.version ?? null,
     };

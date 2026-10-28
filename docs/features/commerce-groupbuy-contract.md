@@ -101,6 +101,12 @@
 - **아직 목업 가정**: 카테고리 API `GET·PUT /api/admin/group-buys/categories`(통째, 새 줄 `tempKey`·`parent`) · 상품 목록 `?q=&categoryId=` · `GET /api/admin/group-buy-products/addon-sources?except=` · 모집 시작에도 `marginConfirmed`(`POST …/start {marginConfirmed}`) · 409 의 `skuIds` 는 저장 때 상품 단품 ID, 저장된 공구는 공구 단품 ID 로 봄 · 회원 `GET /api/group-buys/categories` → `[{id, name, children[{id, name}]}]`, 목록 `?category=`·줄 `categoryId`.
 - **목업 가정**: 상품 목업은 공구 목업에서 만든다(공구 gb-1xx ↔ 상품 pd-1xx, gb-102 의 추가 구성상품 둘 = pd-201·pd-202). 기본 공급가 = 판매가의 약 62%. 볼 곳: 관리자 `/group-buy-products` · `/group-buy-products/pd-102`(모집 중 → 구성 잠금) · `/group-buy-products/pd-105`(공급가 빔) · `/group-buy-categories` · `/group-buys/gb-105`(모집 시작 → 공급가 409) · `/group-buys/gb-109`(역마진 확인 창) · `/group-buys/new` / 회원 `/group-buys?category=ct-food`.
 
+### 추가분 — 상품 단품 목록이 정본 (사용자 결정 2026-10-28 — 화면 확인 때, 결정 88 의 「축·값 → 조합 자동 생성」을 바꾼다)
+- **결정**: 옵션도 단품이다. 상품 아래에 **파는 아이템(단품)을 한 줄씩 직접 등록**하고(이름 · 판매 여부 · 기본 공급가), 같은 상품의 단품들이 회원 화면에서 옵션으로 보인다. 단품이 하나면 옵션 없는 상품. **옵션 이름(속성, 선택 0~3 — 예 색상·사이즈)** 을 두면 단품마다 그 값을 적고, 회원 상세는 옵션 이름 차례로 고른다(앞을 고르면 없는 조합은 회색 — 서버가 단품의 값으로 축을 만들어 지금 회원 응답 `availability.axes`·`skus[].valueIds` 모양 그대로 준다). 조합을 만들고 끄는 대신 파는 것만 등록한다. 추가 구성상품 = 다른 상품의 단품(그대로).
+- **화면**: 관리자 상품 「단품(옵션)」 구획(`GroupBuyProductSkusEditor` — 옵션 이름 칩, 단품 표(옵션 값 열 · 이름(비우면 「블랙 / M」) · 기본 공급가 · 판매), 줄 더하기·복사·차례·빼기, 같은 이름·같은 값 묶음 막기, 모집 중 공구가 쓰면 잠금). 공구 화면·회원 화면은 그대로(상품 단품마다 공구 설정).
+- **서버 제안(2b-2 에 알림)**: 상품 저장 `ProductDraft` 의 `axes[{name, values}]`·`skus[{values, defaultSupplyPrice, onSale}]` 를 `optionNames: string[]` · `skus[{skuId|null, name, values[](optionNames 차례), defaultSupplyPrice, onSale}]` 로. 상세는 `optionNames` + `skus[{skuId, name, values, valueIds, defaultSupplyPrice, onSale}]` + 서버가 만든 `axes`(읽기 전용). 검사: 단품 ≥ 1 · 이름 겹침 · 옵션 이름이 있으면 값 모두 필수 · 같은 값 묶음 두 줄 금지 → `400 skus`/`optionNames`. 공구가 쓰는 단품을 빼면 `409 GROUP_BUY_PRODUCT_SKU_IN_USE {skuNames}`, 모집 중이면 구성 변경 `409 LOCKED_FIELD options`.
+- **옵션 유형 정리**: 조합형(색상 × 사이즈)·단독형(중량)·묶음(1kg × 2)은 모두 단품 한 줄씩. 추가 구성상품은 다른 상품의 단품. **입력형 옵션(각인 문구·메시지 등)은 단품이 아니라 주문 줄에 적는 글이라 지금 범위 밖**(주문 제작은 결정 55 로 2b 미지원).
+
 ## 마이그레이션 계획 (가번호 — develop 에 합칠 때 다시 확인, 지금 shared 마지막 V100 — 2a 보강 `payment_cancel_one_sending`)
 | 가번호 | 스트림 | 내용 | 단위 |
 |---|---|---|---|
