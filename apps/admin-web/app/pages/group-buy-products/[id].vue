@@ -40,7 +40,7 @@
 
             <!-- 기본 정보 -->
             <AppGadget :title="t('groupBuy.productSecBasic')" anchor="pd-basic">
-                <div class="grid gap-4 md:grid-cols-2">
+                <div class="flex flex-col gap-4">
                     <LabeledField :label="t('groupBuy.productName')" :hint="detail?.structureLocked ? t('groupBuy.locked') : ''" :error="fe('name')">
                         <template #default="{ id, describedBy, invalid }">
                             <InputText :id="id" v-model="form.name" maxlength="100" :readonly="lockedRo" :invalid="invalid" :aria-describedby="describedBy" fluid />
@@ -51,12 +51,12 @@
                             <Select :input-id="id" v-model="form.categoryId" :options="categoryChoices" option-label="label" option-value="value" filter :placeholder="t('groupBuy.productCategoryPlaceholder')" :disabled="ro" :invalid="invalid" :aria-describedby="describedBy" fluid />
                         </template>
                     </LabeledField>
-                    <LabeledField :label="t('groupBuy.fieldSummary')" :hint="t('groupBuy.plainHint', { max: UtilGroupBuy.TEXT_MAX })" :error="fe('summary')" class="md:col-span-2">
+                    <LabeledField :label="t('groupBuy.fieldSummary')" :hint="t('groupBuy.plainHint', { max: UtilGroupBuy.TEXT_MAX })" :error="fe('summary')">
                         <template #default="{ id, describedBy, invalid }">
                             <Textarea :id="id" v-model="form.summary" rows="2" auto-resize :maxlength="UtilGroupBuy.TEXT_MAX" :readonly="ro" :invalid="invalid" :aria-describedby="describedBy" fluid />
                         </template>
                     </LabeledField>
-                    <LabeledField :label="t('groupBuy.fieldSpec')" :hint="t('groupBuy.plainHint', { max: UtilGroupBuy.TEXT_MAX })" :error="fe('spec')" class="md:col-span-2">
+                    <LabeledField :label="t('groupBuy.fieldSpec')" :hint="t('groupBuy.plainHint', { max: UtilGroupBuy.TEXT_MAX })" :error="fe('spec')">
                         <template #default="{ id, describedBy, invalid }">
                             <Textarea :id="id" v-model="form.spec" rows="4" auto-resize :maxlength="UtilGroupBuy.TEXT_MAX" :readonly="ro" :invalid="invalid" :aria-describedby="describedBy" fluid />
                         </template>
@@ -80,7 +80,7 @@
 
             <!-- 정상가 근거 · 청약철회 제한 -->
             <AppGadget :title="t('groupBuy.productSecPolicy')" anchor="pd-policy">
-                <div class="grid gap-4 md:grid-cols-2">
+                <div class="flex flex-col gap-4">
                     <LabeledField :label="t('groupBuy.fieldNormalPrice')" :hint="detail?.structureLocked ? t('groupBuy.locked') : ''" :error="fe('normalPrice')">
                         <template #default="{ id, describedBy, invalid }">
                             <InputGroup>
@@ -99,7 +99,7 @@
                             <InputText :id="id" v-model="form.normalPriceSource" maxlength="300" :readonly="ro" :invalid="invalid" :aria-describedby="describedBy" fluid />
                         </template>
                     </LabeledField>
-                    <LabeledField :label="t('groupBuy.fieldWithdrawal')" :help="t('groupBuy.withdrawalHelp')" :error="fe('withdrawalRestriction')" class="md:col-span-2">
+                    <LabeledField :label="t('groupBuy.fieldWithdrawal')" :help="t('groupBuy.withdrawalHelp')" :error="fe('withdrawalRestriction')">
                         <template #default="{ id, describedBy, invalid }">
                             <Textarea :id="id" v-model="form.withdrawalRestriction" rows="3" auto-resize maxlength="1000" :readonly="lockedRo" :invalid="invalid" :aria-describedby="describedBy" fluid />
                         </template>
