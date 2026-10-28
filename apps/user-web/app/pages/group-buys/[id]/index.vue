@@ -77,55 +77,72 @@
                         <p v-if="gb.delayNotice.previousPlannedAt" class="m-0 mt-0.5 text-xs">{{ t('groupBuy.delayPrevious', { date: time.serviceDate(gb.delayNotice.previousPlannedAt) }) }}</p>
                     </Message>
 
-                    <!-- 옵션 선택 — 앞 축(칩)을 차례로 고르고, 마지막 축은 단품 줄(가격·남은 수량·품절)을 눌러 담는다(결정 88) -->
-                    <section v-if="canPick && axes.length > 0" :aria-labelledby="pickId" class="flex flex-col gap-2.5" data-testid="group-buy-pick">
+                    <!-- 옵션 선택 — 축마다 선택 칸(Select, 일반 쇼핑몰처럼). 마지막 축(축 없는 단품 여럿이면 그 목록)·추가 구성상품에서 고르면 「선택한 상품」에 담고 칸을 비운다(결정 88) -->
+                    <section v-if="canPick && pickSelects.length > 0" :aria-labelledby="pickId" class="flex flex-col gap-2.5" data-testid="group-buy-pick">
                         <h2 :id="pickId" class="m-0 text-sm font-semibold">{{ t('groupBuy.pickTitle') }}</h2>
-                        <div v-for="(axis, axisIndex) in axes.slice(0, lastAxis)" :key="axis.axisId" class="flex flex-col gap-1.5">
-                            <span :id="`${pickId}-axis-${axis.axisId}`" class="text-xs font-medium text-muted-color">{{ axis.name }}</span>
-                            <div class="flex flex-wrap gap-1.5" role="group" :aria-labelledby="`${pickId}-axis-${axis.axisId}`">
-                                <Button
-                                    v-for="value in axis.values"
-                                    :key="value.valueId"
-                                    type="button"
-                                    size="small"
-                                    :label="chipLabel(axisIndex, value.valueId, value.value)"
-                                    :severity="chosen[axisIndex] === value.valueId ? undefined : 'secondary'"
-                                    :variant="chosen[axisIndex] === value.valueId ? undefined : 'outlined'"
-                                    :class="chipState(axisIndex, value.valueId) !== 'AVAILABLE' && chosen[axisIndex] !== value.valueId ? 'opacity-60' : ''"
-                                    :aria-pressed="chosen[axisIndex] === value.valueId"
-                                    :disabled="!axisOpen(axisIndex) || chipState(axisIndex, value.valueId) === 'OFF'"
-                                    :data-testid="`group-buy-axis-value-${value.valueId}`"
-                                    @click="choose(axisIndex, value.valueId)"
-                                />
-                            </div>
-                            <p v-if="!axisOpen(axisIndex)" class="m-0 text-xs text-muted-color">{{ t('groupBuy.pickPrevFirst', { name: axes[axisIndex - 1]?.name ?? '' }) }}</p>
+                        <div v-for="sel in pickSelects" :key="sel.key" class="flex flex-col gap-1">
+                            <label v-if="sel.label" :for="`${pickId}-${sel.key}`" class="text-xs font-medium text-muted-color">{{ sel.label }}</label>
+                            <Select
+                                :key="sel.adds ? `${sel.key}-${pickRound}` : sel.key"
+                                :input-id="`${pickId}-${sel.key}`"
+                                :model-value="sel.value"
+                                :options="sel.options"
+                                option-label="label"
+                                option-value="key"
+                                :option-disabled="isOff"
+                                :placeholder="sel.placeholder"
+                                :disabled="sel.disabled"
+                                :aria-labelledby="sel.label ? undefined : pickId"
+                                fluid
+                                :data-testid="`group-buy-select-${sel.key}`"
+                                @update:model-value="sel.pick"
+                            >
+                                <template #option="{ option }">
+                                    <span class="flex w-full items-center gap-3 text-sm">
+                                        <span class="min-w-0 flex-1">
+                                            <span class="font-medium">{{ option.label }}</span>
+                                            <span v-if="option.sku && option.state !== 'OFF'" class="ml-1.5 tabular-nums text-muted-color">{{ UtilGroupBuyMessages.won(t, option.sku.unitPrice) }}</span>
+                                        </span>
+                                        <span class="shrink-0 text-xs tabular-nums" :class="stateClass(option)">{{ stateText(option) }}</span>
+                                    </span>
+                                </template>
+                            </Select>
+                            <p v-if="sel.help" class="m-0 text-xs text-muted-color">{{ sel.help }}</p>
+                        </div>
+                        <!-- 품절 단품을 고르면 담지 않고 안내 · 재입고 알림 -->
+                        <div v-if="soldOutPick" class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-surface px-3 py-2 text-sm" role="status" data-testid="group-buy-soldout-pick">
+                            <span class="min-w-0 flex-1">
+                                <span class="font-medium">{{ soldOutPick.sku!.name }}</span>
+                                <span class="ml-1.5 text-muted-color">{{ t(`groupBuy.stockHelp.${soldOutPick.state}`) }}</span>
+                            </span>
+                            <Button
+                                v-if="gb.skuWatches.watchable.includes(soldOutPick.sku!.skuId)"
+                                type="button"
+                                size="small"
+                                variant="text"
+                                :icon="watchingSku(soldOutPick.sku!.skuId) ? 'pi pi-bell-slash' : 'pi pi-bell'"
+                                :label="watchingSku(soldOutPick.sku!.skuId) ? t('groupBuy.watchOff') : t('groupBuy.watchRestockShort')"
+                                :aria-pressed="watchingSku(soldOutPick.sku!.skuId)"
+                                :aria-label="t('groupBuy.watchSkuLabel', { name: soldOutPick.sku!.name })"
+                                :loading="watchBusy === `sku-${soldOutPick.sku!.skuId}`"
+                                @click="toggleWatch('RESTOCK', soldOutPick.sku!.skuId, watchingSku(soldOutPick.sku!.skuId))"
+                            />
                         </div>
                     </section>
 
-                    <!-- 단품 줄 구역 — 마지막 축 · 추가 구성상품 · (고를 수 없을 때) 상품별 남은 수량 -->
-                    <section v-for="sec in skuSections" :key="sec.key" :aria-labelledby="`${pickId}-${sec.key}`" class="flex flex-col gap-1.5" :data-testid="`group-buy-skus-${sec.key}`">
-                        <h2 v-if="sec.key !== 'axis'" :id="`${pickId}-${sec.key}`" class="m-0 text-sm font-semibold">{{ sec.title }}</h2>
-                        <span v-else :id="`${pickId}-${sec.key}`" class="text-xs font-medium text-muted-color">{{ sec.title }}</span>
-                        <p v-if="sec.help" class="m-0 text-xs text-muted-color">{{ sec.help }}</p>
-                        <ul v-if="sec.rows.length > 0" class="m-0 flex list-none flex-col divide-y divide-surface rounded-lg border border-surface p-0">
-                            <li v-for="row in sec.rows" :key="row.key" class="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm" :class="row.state === 'OFF' ? 'text-muted-color' : ''">
+                    <!-- 고를 수 없을 때(예정·종료 등) — 상품별 남은 수량(축이나 추가 구성상품이 있을 때) -->
+                    <section v-if="listRows.length > 0" :aria-labelledby="`${pickId}-list`" class="flex flex-col gap-1.5" data-testid="group-buy-skus-list">
+                        <h2 :id="`${pickId}-list`" class="m-0 text-sm font-semibold">{{ t('groupBuy.skusTitle') }}</h2>
+                        <ul class="m-0 flex list-none flex-col divide-y divide-surface rounded-lg border border-surface p-0">
+                            <li v-for="row in listRows" :key="row.key" class="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm" :class="row.state === 'OFF' ? 'text-muted-color' : ''">
                                 <span class="min-w-0 flex-1">
                                     <span class="inline-flex flex-wrap items-center gap-1.5">
-                                        <PointShopTag v-if="sec.key === 'list' && row.sku?.kind === 'ADDON'" tone="neutral">{{ t('groupBuy.addonTag') }}</PointShopTag>
+                                        <PointShopTag v-if="row.sku?.kind === 'ADDON'" tone="neutral">{{ t('groupBuy.addonTag') }}</PointShopTag>
                                         <span class="font-medium">{{ row.label }}</span>
                                     </span>
                                     <span v-if="row.sku && row.state !== 'OFF'" class="ml-1.5 tabular-nums text-muted-color">{{ UtilGroupBuyMessages.won(t, row.sku.unitPrice) }}</span>
                                 </span>
-                                <PointShopTag v-if="row.state === 'OFF'" tone="neutral">{{ t('groupBuy.pickValueOff') }}</PointShopTag>
-                                <PointShopTag v-else-if="row.state === 'SOLD_OUT'" tone="danger">{{ t('groupBuy.stock.SOLD_OUT') }}</PointShopTag>
-                                <PointShopTag v-else-if="row.state === 'TEMP_SOLD_OUT'" tone="warn">{{ t('groupBuy.stock.TEMP_SOLD_OUT') }}</PointShopTag>
-                                <span
-                                    v-else-if="row.sku && gb.status === 'RECRUITING'"
-                                    class="tabular-nums"
-                                    :class="row.sku.remaining !== null && UtilGroupBuy.lowStock(row.sku.remaining, gb.maxQty) ? 'font-semibold text-orange-700 dark:text-orange-400' : 'text-muted-color'"
-                                >
-                                    {{ row.sku.remaining === null ? t('groupBuy.skuNoLimit') : t('groupBuy.skuRemaining', { count: row.sku.remaining }) }}
-                                </span>
+                                <span class="text-xs tabular-nums" :class="stateClass(row)">{{ stateText(row) }}</span>
                                 <Button
                                     v-if="row.sku && gb.skuWatches.watchable.includes(row.sku.skuId)"
                                     type="button"
@@ -138,20 +155,6 @@
                                     :loading="watchBusy === `sku-${row.sku.skuId}`"
                                     @click="toggleWatch('RESTOCK', row.sku.skuId, watchingSku(row.sku.skuId))"
                                 />
-                                <Button
-                                    v-if="sec.key !== 'list' && row.sku && row.state === 'AVAILABLE'"
-                                    type="button"
-                                    size="small"
-                                    icon="pi pi-plus"
-                                    :label="t('groupBuy.pickAdd')"
-                                    severity="secondary"
-                                    variant="outlined"
-                                    :aria-label="t('groupBuy.pickAddLabel', { name: row.sku.name })"
-                                    :disabled="!row.addable"
-                                    :data-testid="`group-buy-add-${row.sku.skuId}`"
-                                    @click="addLine(row.sku)"
-                                />
-                                <p v-if="row.state === 'TEMP_SOLD_OUT' || row.state === 'SOLD_OUT'" class="m-0 w-full text-xs text-muted-color">{{ t(`groupBuy.stockHelp.${row.state}`) }}</p>
                             </li>
                         </ul>
                     </section>
@@ -279,8 +282,8 @@ import UtilRedirect from '~/utils/util-redirect';
 /**
  * 공동구매 상세 `/group-buys/{id}` — 로그인 없이 볼 수 있다. 계약 commerce-groupbuy 화면 목록.
  * - 그림·요약·가격(정상가 기준 — 결정 58)·지금 상태(예정 · 마감 연장 · 집계 중 · 종료 사유)·진행률·남은 수량·발송 예정(결정 51)·발송 지연 공지(결정 52).
- * - **상품 고르기는 이 화면에서**(결정 88 — 일반 쇼핑몰처럼): 앞 축을 칩으로 차례로 고르면, 마지막 축의 단품 줄(가격·남은 수량·다 팔림/잠시 구매 불가/판매 안 함)을 눌러 「선택한 상품」에 담는다.
- *   이미 담긴 단품이면 수량 +1. 줄마다 수량 ± · 빼기(상한은 단품 남은 수량 · 1인 한도(본 상품만) — 편의, 최종은 서버). 축이 없으면 본 상품 한 줄(수량만)이 처음부터 담긴다.
+ * - **상품 고르기는 이 화면에서**(결정 88 — 일반 쇼핑몰처럼): 축마다 선택 칸(Select)을 차례로 고르고, 마지막 축 칸에서 단품(가격·남은 수량·다 팔림/잠시 구매 불가/판매 안 함)을 고르면 「선택한 상품」에 담고 칸을 비운다.
+ *   품절 단품을 고르면 담지 않고 안내·재입고 알림. 이미 담긴 단품이면 수량 +1. 줄마다 수량 ± · 빼기(상한은 단품 남은 수량 · 1인 한도(본 상품만) — 편의, 최종은 서버). 축이 없으면 본 상품 한 줄(수량만)이 처음부터 담긴다.
  * - 「추가 구성상품」: 본 상품 줄이 있어야 담는다(단독 구매 불가). 본 상품 줄을 모두 빼려 하면 「추가 구성상품도 뺄까요?」 — 예면 함께 빼고, 아니면 그대로 둔다.
  * - 합계는 서버 견적(줄을 바꾸면 300ms 뒤 다시). 고른 목록은 주소 `?items=skuId:qty,…` 에도 적어 새로고침·로그인·주문서 왕복에도 남는다.
  * - 구매 단추는 서버의 `actions.order`·`purchase.reason` 으로만: 구매하기 · 로그인하고 · 본인인증하고(`useIdentityGate` — 용도 GROUP_BUY) · 막는 안내(+ 이미 주문했으면 그 주문으로).
@@ -390,30 +393,24 @@ const canPick = computed(() => {
     return g.actions.order || reason.value === 'LOGIN_REQUIRED' || reason.value === 'IDENTITY_REQUIRED';
 });
 
-/** 앞 축에서 고른 값(축 차례, 고르지 않으면 null) — 마지막 축은 고르지 않고 단품 줄을 눌러 담는다 */
+/** 앞 축에서 고른 값(축 차례, 고르지 않으면 null) — 마지막 축은 값을 들고 있지 않고, 고르면 바로 담는다 */
 const chosen = ref<(string | null)[]>([]);
+/** 담는 선택 칸을 비우는 차례 — 고를 때마다 늘려 칸을 다시 그린다(같은 값 다시 고르기도 받는다) */
+const pickRound = ref(0);
+/** 고른 품절 단품 — 담지 않고 안내·재입고 알림을 보인다 */
+const soldOutPick = ref<SkuRow | null>(null);
 
 function axisOpen(axisIndex: number): boolean {
     return axisIndex === 0 || chosen.value[axisIndex - 1] !== null;
 }
 
-function chipState(axisIndex: number, valueId: string): GroupBuyValueState {
-    return UtilGroupBuy.valueState(skus.value, chosen.value, axisIndex, valueId);
-}
-
-function chipLabel(axisIndex: number, valueId: string, value: string): string {
-    const state = chipState(axisIndex, valueId);
-    if (state === 'OFF') return `${value} · ${t('groupBuy.pickValueOff')}`;
-    if (state !== 'AVAILABLE') return `${value} · ${t(`groupBuy.stock.${state}`)}`;
-    return value;
-}
-
-/** 앞 축 값을 고른다 — 뒤 축 고른 값은 지운다(다시 누르면 풀린다) */
-function choose(axisIndex: number, valueId: string): void {
+/** 앞 축 값을 고른다 — 뒤 축 고른 값은 지운다 */
+function choose(axisIndex: number, valueId: string | null): void {
     const next = chosen.value.slice();
-    next[axisIndex] = next[axisIndex] === valueId ? null : valueId;
+    next[axisIndex] = valueId;
     for (let i = axisIndex + 1; i < next.length; i++) next[i] = null;
     chosen.value = next;
+    soldOutPick.value = null;
 }
 
 interface SkuRow {
@@ -421,50 +418,99 @@ interface SkuRow {
     sku: GroupBuySku | null;
     label: string;
     state: GroupBuyValueState;
-    /** 담기 단추를 켤 수 있나(본 상품 줄 · 상한) */
-    addable: boolean;
-}
-interface SkuSection {
-    key: 'axis' | 'main' | 'addons' | 'list';
-    title: string;
-    help: string;
-    rows: SkuRow[];
 }
 
 function rowOf(sku: GroupBuySku, label = sku.name): SkuRow {
     const state: GroupBuyValueState = !sku.onSale ? 'OFF' : UtilGroupBuy.buyable(sku) ? 'AVAILABLE' : sku.temporarilyUnavailable ? 'TEMP_SOLD_OUT' : 'SOLD_OUT';
-    const addable = state === 'AVAILABLE' && capOf(sku) > qtyOf(sku.skuId) && (sku.kind === 'MAIN' || hasMain.value);
-    return { key: `sku-${sku.skuId}`, sku, label, state, addable };
+    return { key: `sku-${sku.skuId}`, sku, label, state };
 }
 
-/** 단품 줄 구역 — 고를 수 있으면 마지막 축 · 추가 구성상품, 아니면 상품별 남은 수량(축이나 추가 구성상품이 있을 때) */
-const skuSections = computed<SkuSection[]>(() => {
+function isOff(row: SkuRow): boolean {
+    return row.state === 'OFF';
+}
+
+/** 선택 칸 오른쪽 글자 — 판매 안 함 · 품절 · (단품이면) 남은 수량 */
+function stateText(row: SkuRow): string {
+    if (row.state === 'OFF') return t('groupBuy.pickValueOff');
+    if (row.state !== 'AVAILABLE') return t(`groupBuy.stock.${row.state}`);
+    if (!row.sku || gb.value?.status !== 'RECRUITING') return '';
+    return row.sku.remaining === null ? t('groupBuy.skuNoLimit') : t('groupBuy.skuRemaining', { count: row.sku.remaining });
+}
+
+function stateClass(row: SkuRow): string {
+    if (row.state === 'SOLD_OUT') return 'font-semibold text-red-700 dark:text-red-400';
+    if (row.state === 'TEMP_SOLD_OUT') return 'font-semibold text-orange-700 dark:text-orange-400';
     const g = gb.value;
-    if (!g) return [];
-    const out: SkuSection[] = [];
-    if (!canPick.value) {
-        if (axes.value.length > 0 || addonSkus.value.length > 0 || plainMains.value.length > 1) out.push({ key: 'list', title: t('groupBuy.skusTitle'), help: '', rows: saleSkus.value.map((s) => rowOf(s)) });
-        return out;
+    if (row.state === 'AVAILABLE' && row.sku?.remaining != null && g && UtilGroupBuy.lowStock(row.sku.remaining, g.maxQty)) return 'font-semibold text-orange-700 dark:text-orange-400';
+    return 'text-muted-color';
+}
+
+/** 담는 칸에서 고름 — 살 수 있으면 담고(이미 있으면 +1) 칸을 비운다, 품절이면 안내만 */
+function pickRow(rows: SkuRow[], key: string | null): void {
+    const row = rows.find((r) => r.key === key);
+    pickRound.value++;
+    if (!row?.sku || row.state === 'OFF') return;
+    if (row.state !== 'AVAILABLE') {
+        soldOutPick.value = row;
+        return;
     }
-    if (axes.value.length > 0) {
-        const last = axes.value[lastAxis.value]!;
-        const prefix = chosen.value.slice(0, lastAxis.value);
-        const waiting = prefix.findIndex((v) => v === null);
-        if (waiting >= 0) out.push({ key: 'axis', title: last.name, help: t('groupBuy.pickPrevFirst', { name: axes.value[waiting]!.name }), rows: [] });
-        else {
-            const rows = last.values.map((v): SkuRow => {
-                const sku = UtilGroupBuy.comboSku(skus.value, [...(prefix as string[]), v.valueId]);
-                return sku ? rowOf(sku, v.value) : { key: `value-${v.valueId}`, sku: null, label: v.value, state: 'OFF', addable: false };
-            });
-            out.push({ key: 'axis', title: last.name, help: '', rows });
+    soldOutPick.value = null;
+    addLine(row.sku);
+    if (row.sku.kind === 'MAIN') chosen.value = axes.value.map(() => null);
+}
+
+interface PickSelect {
+    key: string;
+    label: string;
+    options: SkuRow[];
+    value: string | null;
+    placeholder: string;
+    disabled: boolean;
+    help: string;
+    /** 고르면 담는 칸인가(고른 값을 들고 있지 않는다) */
+    adds: boolean;
+    pick: (key: string | null) => void;
+}
+
+/** 선택 칸들 — 앞 축(값을 든다) · 마지막 축 또는 축 없는 단품 여럿(담는다) · 추가 구성상품(담는다) */
+const pickSelects = computed<PickSelect[]>(() => {
+    if (!canPick.value) return [];
+    const out: PickSelect[] = [];
+    axes.value.forEach((axis, axisIndex) => {
+        const open = axisOpen(axisIndex);
+        const placeholder = open ? t('groupBuy.pickPlaceholder', { name: axis.name }) : t('groupBuy.pickPrevFirst', { name: axes.value[axisIndex - 1]?.name ?? '' });
+        if (axisIndex < lastAxis.value) {
+            const options = axis.values.map((v): SkuRow => ({ key: v.valueId, sku: null, label: v.value, state: UtilGroupBuy.valueState(skus.value, chosen.value, axisIndex, v.valueId) }));
+            out.push({ key: `axis-${axis.axisId}`, label: axis.name, options, value: chosen.value[axisIndex] ?? null, placeholder, disabled: !open, help: '', adds: false, pick: (k) => choose(axisIndex, k) });
+            return;
         }
+        const prefix = chosen.value.slice(0, lastAxis.value);
+        const options = prefix.some((v) => v === null)
+            ? []
+            : axis.values.map((v): SkuRow => {
+                  const sku = UtilGroupBuy.comboSku(skus.value, [...(prefix as string[]), v.valueId]);
+                  return sku ? rowOf(sku, v.value) : { key: `value-${v.valueId}`, sku: null, label: v.value, state: 'OFF' };
+              });
+        out.push({ key: `axis-${axis.axisId}`, label: axis.name, options, value: null, placeholder, disabled: !open, help: '', adds: true, pick: (k) => pickRow(options, k) });
+    });
+    // 옵션 없는 단품 여럿(예 쌀 10kg·20kg) — 한 칸에서 고른다
+    if (plainMains.value.length > 1) {
+        const options = plainMains.value.filter((s) => s.onSale).map((s) => rowOf(s));
+        out.push({ key: 'main', label: '', options, value: null, placeholder: t('groupBuy.pickItemPlaceholder'), disabled: false, help: '', adds: true, pick: (k) => pickRow(options, k) });
     }
-    // 옵션 없는 단품 여럿 — 한 목록에서 고른다
-    if (plainMains.value.length > 1) out.push({ key: 'main', title: t('groupBuy.pickTitle'), help: '', rows: plainMains.value.filter((s) => s.onSale).map((s) => rowOf(s)) });
     if (addonSkus.value.length > 0) {
-        out.push({ key: 'addons', title: t('groupBuy.addonsTitle'), help: hasMain.value ? t('groupBuy.addonsHelp') : `${t('groupBuy.addonsHelp')} ${t('groupBuy.addonsNeedMain')}`, rows: addonSkus.value.filter((s) => s.onSale).map((s) => rowOf(s)) });
+        const options = addonSkus.value.filter((s) => s.onSale).map((s) => rowOf(s));
+        const help = hasMain.value ? t('groupBuy.addonsHelp') : `${t('groupBuy.addonsHelp')} ${t('groupBuy.addonsNeedMain')}`;
+        out.push({ key: 'addons', label: t('groupBuy.addonsTitle'), options, value: null, placeholder: t('groupBuy.pickPlaceholder', { name: t('groupBuy.addonsTitle') }), disabled: !hasMain.value, help, adds: true, pick: (k) => pickRow(options, k) });
     }
     return out;
+});
+
+/** 고를 수 없을 때 — 상품별 남은 수량(축이나 추가 구성상품, 이름으로 가리는 단품 여럿이 있을 때) */
+const listRows = computed<SkuRow[]>(() => {
+    if (!gb.value || canPick.value) return [];
+    if (axes.value.length === 0 && addonSkus.value.length === 0 && plainMains.value.length <= 1) return [];
+    return saleSkus.value.map((s) => rowOf(s));
 });
 
 /* ── 선택한 상품(주소 `?items=` 와 같이 간다) ── */
@@ -499,6 +545,7 @@ function capMessage(sku: GroupBuySku): string {
 function restoreLines(detail: GroupBuyDetail): void {
     const all = detail.availability.skus;
     chosen.value = detail.availability.axes.map(() => null);
+    soldOutPick.value = null;
     capNote.value = '';
     if (detail.status !== 'RECRUITING') {
         lines.value = [];
