@@ -27,7 +27,7 @@
                 :data-testid="`group-buy-picked-qty-${line.skuId}`"
                 @update:model-value="(value: number | null) => onQty(line.skuId, value)"
             />
-            <span class="w-24 text-right font-semibold tabular-nums">{{ line.amount === null ? '—' : UtilGroupBuyMessages.won(t, line.amount) }}</span>
+            <span class="w-24 text-right font-semibold tabular-nums transition-opacity" :class="line.pending ? 'opacity-50' : ''" :aria-busy="line.pending || undefined">{{ line.amount === null ? '—' : UtilGroupBuyMessages.won(t, line.amount) }}</span>
             <Button
                 v-if="editable && line.removable"
                 type="button"

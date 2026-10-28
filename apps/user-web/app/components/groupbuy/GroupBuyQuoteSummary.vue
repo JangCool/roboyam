@@ -7,7 +7,7 @@
         <p v-if="!ready" class="m-0 text-sm text-muted-color">{{ t('groupBuy.quotePending') }}</p>
         <p v-else-if="busy && !quote" class="m-0 text-sm text-muted-color" role="status">{{ t('groupBuy.quoting') }}</p>
         <Message v-else-if="error" severity="error" size="small" variant="simple" :closable="false" role="alert">{{ error }}</Message>
-        <dl v-else-if="quote" class="m-0 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 text-sm" :class="busy ? 'opacity-60' : ''">
+        <dl v-else-if="quote" class="m-0 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 text-sm transition-opacity" :class="busy ? 'opacity-60' : ''">
             <dt class="text-muted-color">{{ t('groupBuy.itemsAmount') }}</dt>
             <dd class="m-0 text-right tabular-nums">{{ UtilGroupBuyMessages.won(t, quote.itemsAmount) }}</dd>
             <dt class="text-muted-color">{{ t('groupBuy.shippingFee') }}</dt>

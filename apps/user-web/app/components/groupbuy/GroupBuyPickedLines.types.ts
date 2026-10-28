@@ -13,6 +13,8 @@ export interface GroupBuyPickedLine {
     max: number;
     /** 서버 견적의 줄 금액 — 아직 없으면 null(「—」) */
     amount: number | null;
+    /** 수량을 바꿔 새 견적을 기다리는 중 — `amount` 는 지난 견적 값(흐리게 두고 「—」로 바꾸지 않는다 — 깜빡임 방지) */
+    pending?: boolean;
     /** 「빼기」 단추를 둘지 — 축 없는 본 상품 줄은 빼지 않는다 */
     removable: boolean;
 }

@@ -557,8 +557,10 @@ const pickedLines = computed<GroupBuyPickedLine[]>(() =>
     lines.value.flatMap((l) => {
         const sku = skuOf(l.skuId);
         if (!sku) return [];
-        const amount = quote.value?.items.find((q) => q.skuId === l.skuId && q.qty === l.qty)?.itemAmount ?? null;
-        return [{ skuId: sku.skuId, name: sku.name, kind: sku.kind, unitPrice: sku.unitPrice, qty: l.qty, max: capOf(sku), amount, removable: axes.value.length > 0 || sku.kind === 'ADDON' }];
+        // 수량이 바뀌어 견적을 기다리는 동안은 지난 견적의 줄 금액을 흐리게 둔다(「—」로 바꿨다 되돌리면 깜빡인다)
+        const quoted = quote.value?.items.find((q) => q.skuId === l.skuId) ?? null;
+        const pending = quoted !== null && quoted.qty !== l.qty;
+        return [{ skuId: sku.skuId, name: sku.name, kind: sku.kind, unitPrice: sku.unitPrice, qty: l.qty, max: capOf(sku), amount: quoted?.itemAmount ?? null, pending, removable: axes.value.length > 0 || sku.kind === 'ADDON' }];
     }),
 );
 
@@ -610,12 +612,14 @@ watch(
         }
         if (quoteTimer) clearTimeout(quoteTimer);
         quoteSeq++;
-        quoteBusy.value = false;
         if (!hasMain.value) {
+            quoteBusy.value = false;
             quote.value = null;
             quoteError.value = '';
             return;
         }
+        // 기다림을 바로 표시하고 결과가 올 때까지 이어 둔다 — 300ms 사이에 false→true 로 다시 바뀌며 깜빡이지 않게
+        quoteBusy.value = true;
         quoteTimer = setTimeout(() => void requote(), 300);
     },
 );
