@@ -43,16 +43,419 @@
     .text-\[13px\] {
         font-size: calc(13px * var(--text-scale, 1));
     }
+    /* 테마 셸의 탭·링크 글자(다음식 GNB 17px · 네이버식 탭 16.5px · 네이버식 윗줄 링크 13.5px) */
+    .text-\[13\.5px\] {
+        font-size: calc(13.5px * var(--text-scale, 1));
+    }
+    .text-\[16\.5px\] {
+        font-size: calc(16.5px * var(--text-scale, 1));
+    }
+    .text-\[17px\] {
+        font-size: calc(17px * var(--text-scale, 1));
+    }
+    /* 테마의 목록 줄(다음식 헤드라인형·네이버식 기사형) — 제목 15.5px · 메타 12.5px */
+    .text-\[12\.5px\] {
+        font-size: calc(12.5px * var(--text-scale, 1));
+    }
+    .text-\[15\.5px\] {
+        font-size: calc(15.5px * var(--text-scale, 1));
+    }
+}
+
+/*
+ * 셸의 역할 변수(themes.md 2-1 의 1단계) — 셸 부품은 값 대신 이 이름을 읽고, 사이트 테마(`html[data-theme]`)가 채운다. 아래 기본값이 기본 테마의 모양이다.
+ *   --page-bg      레이아웃 바탕(헤더 밖·본문 뒤)          --card-bg / --card-radius / --card-shadow  카드 면(`shell-card`)
+ *   --hairline     카드 안의 가는 구분선                    --hairline-strong  조금 진한 구분선·작은 테두리 상자
+ *   --tab-fg / --tab-fg-active        흰 면 위 큰 탭(비활성 · 활성)
+ *   --subtab-fg / --subtab-fg-active  흰 면 위 작은 탭(비활성 · 활성)
+ *   --nav-tab-fg   주 색상 바(`.app-nav`) 위 탭의 비활성 글자(활성은 `--nav-fg`)
+ * Tailwind 에서는 `bg-page` `bg-card` `border-hairline` `text-tab` … 로 쓴다(아래 `@theme inline`). 이름에 테마 이름을 넣지 않는다.
+ */
+:root {
+    --page-bg: var(--p-surface-50);
+    --card-bg: var(--p-surface-0);
+    --card-radius: 0px;
+    --card-shadow: none;
+    --hairline: var(--p-content-border-color);
+    --hairline-strong: var(--p-surface-300);
+    --tab-fg: var(--p-text-muted-color);
+    --tab-fg-active: var(--p-text-color);
+    --subtab-fg: var(--p-text-muted-color);
+    --subtab-fg-active: var(--p-text-color);
+}
+html[data-color-scheme='dark'] {
+    --page-bg: var(--p-surface-950);
+    --card-bg: var(--p-surface-900);
+    --hairline-strong: var(--p-surface-700);
+}
+
+/*
+ * 다음식(`daum`) — news.daum.net 을 잰 값(2026-10-27): 페이지 #f2f4f7 · 흰 카드 반경 12 + 거의 없는 그림자 · 전체 폭 1168 ·
+ * GNB 글자 검정 72%(활성 검정) · LNB 글자 검정 48%(활성 본문 글자색) · GNB/LNB 사이 #eceef1. 다크는 페이지 #17181b · 카드 #202125 · 선 #2e3036.
+ * 로보얌 테마(`roboyam`, 사용자 결정 2026-10-28)는 겉모양이 다음식 그대로라 이 파일의 다음식 규칙을 모두 함께 쓴다(`html:is([data-theme='daum'], [data-theme='roboyam'])`).
+ * 로보얌만 바꿀 값은 파일 끝의 「로보얌 테마 덮어쓰기」 자리에 둔다.
+ */
+html:is([data-theme='daum'], [data-theme='roboyam']) {
+    --page-bg: #f2f4f7;
+    --card-bg: #ffffff;
+    --card-radius: 12px;
+    --card-shadow: 0 0 4px rgba(0, 0, 0, 0.04);
+    --hairline: #eceef1;
+    --hairline-strong: #d9dce1;
+    --tab-fg: rgba(0, 0, 0, 0.72);
+    --tab-fg-active: #000000;
+    --subtab-fg: rgba(0, 0, 0, 0.48);
+    --content-max: 1168px;
+}
+html:is([data-theme='daum'], [data-theme='roboyam'])[data-color-scheme='dark'] {
+    --page-bg: #17181b;
+    --card-bg: #202125;
+    --card-shadow: none;
+    --hairline: #2e3036;
+    --hairline-strong: #41444c;
+    --tab-fg: rgba(236, 238, 241, 0.72);
+    --tab-fg-active: #eceef1;
+    --subtab-fg: rgba(236, 238, 241, 0.48);
+}
+
+/*
+ * 네이버식(`naver`) — community 시안(`design/_shared/botbi-news.css` `.nv-top`·`.nw-bhead .tabs`): 페이지 #f4f5f7 · 윗줄 흰 면 + 아래 선 #eceef1 · 링크 구분선·로그인 상자 #d9dce1.
+ * 탭 바는 주 색상 바(`--nav-bg`)라 상표색을 가져오지 않는다. 다크는 페이지 #17181b · 면 #202125 · 선 #2e3036 · 진한 선 #41444c.
+ */
+html[data-theme='naver'] {
+    --page-bg: #f4f5f7;
+    --card-bg: #ffffff;
+    --hairline: #eceef1;
+    --hairline-strong: #d9dce1;
+}
+html[data-theme='naver'][data-color-scheme='dark'] {
+    --page-bg: #17181b;
+    --card-bg: #202125;
+    --hairline: #2e3036;
+    --hairline-strong: #41444c;
+}
+
+@theme inline {
+    --color-page: var(--page-bg);
+    --color-card: var(--card-bg);
+    --color-hairline: var(--hairline);
+    --color-hairline-strong: var(--hairline-strong);
+    --color-tab: var(--tab-fg);
+    --color-tab-active: var(--tab-fg-active);
+    --color-subtab: var(--subtab-fg);
+    --color-subtab-active: var(--subtab-fg-active);
+    --color-nav-fg: var(--nav-fg);
+    --color-nav-tab: var(--nav-tab-fg);
+}
+
+/*
+ * 사이드 메뉴(`AppSideMenu`)가 창 위에 붙는 자리 — 셸의 붙는 헤더 높이(`--shell-header-h`) + 사이 간격(`--side-menu-gap`), 높이는 그 아래 창 높이까지(안에서 스크롤).
+ * 기본 테마는 붙는 상단 바 48px · 간격 0, 다음식·네이버식은 붙는 헤더가 없어(윗줄은 붙지 않는다) 0 · 간격 16px.
+ * 섞인 배치(상단 + 사이드)에서 상단 메뉴 막대도 창 위에 붙으면 그 높이(`--shell-bar-h`)를 더한다(`.side-menu[data-with-bar]`):
+ * 기본 테마 `AppTopMenu` 41px(2.5rem + 아래 선), 네이버식 탭 바 50px, 다음식 메뉴 카드는 붙지 않아 0.
+ * 메뉴 넘침 표시가 얇은 스크롤(`SCROLLBAR`)이면 바닥에 밑줄이 붙는 막대(`AppTopMenu`·네이버식 탭 바)는 줄 아래 예약 자리만큼 처음부터 높다(`AppScrollRow` 의 `reserve`) —
+ * 그 높이(`--shell-bar-reserve`)도 더한다(`.side-menu[data-with-bar][data-bar-overflow='SCROLLBAR']`, 셸이 `AppSideMenu` 의 `barOverflow` 로 알린다).
+ */
+:root {
+    --shell-header-h: 3rem;
+    --shell-bar-h: calc(2.5rem + 1px);
+    --shell-bar-reserve: var(--scroll-reserve);
+    --side-menu-gap: 0px;
+}
+html:is([data-theme='daum'], [data-theme='roboyam']),
+html[data-theme='naver'] {
+    --shell-header-h: 0px;
+    --side-menu-gap: 16px;
+}
+html:is([data-theme='daum'], [data-theme='roboyam']) {
+    --shell-bar-h: 0px;
+    --shell-bar-reserve: 0px;
+}
+html[data-theme='naver'] {
+    --shell-bar-h: 50px;
+}
+/* 사이드 메뉴 카드(`shell-card`) — 네이버식은 반경 10 · 그림자 없음(다음식은 위의 12 · 옅은 그림자) */
+html[data-theme='naver'] {
+    --card-radius: 10px;
+}
+.side-menu {
+    top: calc(var(--shell-header-h) + var(--side-menu-gap));
+    max-height: calc(100dvh - var(--shell-header-h) - 2 * var(--side-menu-gap));
+}
+.side-menu[data-with-bar] {
+    top: calc(var(--shell-header-h) + var(--shell-bar-h) + var(--side-menu-gap));
+    max-height: calc(100dvh - var(--shell-header-h) - var(--shell-bar-h) - 2 * var(--side-menu-gap));
+}
+.side-menu[data-with-bar][data-bar-overflow='SCROLLBAR'] {
+    top: calc(var(--shell-header-h) + var(--shell-bar-h) + var(--shell-bar-reserve) + var(--side-menu-gap));
+    max-height: calc(100dvh - var(--shell-header-h) - var(--shell-bar-h) - var(--shell-bar-reserve) - 2 * var(--side-menu-gap));
+}
+/* 2단계 — 다음식 로고 옆 링크 줄(최상위 항목 「로고 옆」)은 다음 뉴스 서비스 링크처럼 16px */
+html:is([data-theme='daum'], [data-theme='roboyam']) .logo-links a {
+    font-size: calc(16px * var(--text-scale, 1));
+}
+/* 2단계 — 네이버식 사이드 메뉴의 지금 있는 곳: 연한 바탕 위에 본문 쪽 가장자리 3px 주 색상 막대 */
+html[data-theme='naver'] .side-menu[data-side='LEFT'] [aria-current='page'] {
+    box-shadow: inset 3px 0 0 var(--p-primary-color);
+}
+html[data-theme='naver'] .side-menu[data-side='RIGHT'] [aria-current='page'] {
+    box-shadow: inset -3px 0 0 var(--p-primary-color);
+}
+
+/* 카드 면 — 바탕·모서리·그림자를 한꺼번에(테마 셸의 메뉴 카드) */
+@utility shell-card {
+    background-color: var(--card-bg);
+    border-radius: var(--card-radius);
+    box-shadow: var(--card-shadow);
+    /* 카드 위 가로 메뉴 줄의 화살표 단추 그라데이션은 카드 바탕에서 사라진다(`AppScrollRow`) */
+    --scroll-fade-bg: var(--card-bg);
+}
+/* 상단 메뉴 폭 「화면 전체」(운영자 `menuWidth: FULL`) — 메뉴 카드가 창 좌우 끝까지 닿는 띠가 되므로 모서리를 없앤다(다음식 메뉴 카드 `DaumMenuBar`). 층 밖 규칙이라 유틸리티를 이긴다 */
+.shell-card[data-menu-width='FULL'] {
+    border-radius: 0;
+}
+
+/*
+ * 본문 카드(`content-card`) — 게시판 목록(머리·목록·쪽 번호 한 장)과 글 상세(본문 영역 · 댓글 영역 각각)를 감싼다. 구조는 그대로 두고 1단계 변수로만 모양을 바꾼다.
+ *   --content-card-bg / -radius / -shadow / -pad  카드 면과 안쪽 여백        --content-card-gap  카드와 카드 사이
+ *   --content-card-bleed  카드의 좌우 바깥 여백(모바일에서 음수면 본문 여백을 넘어 화면 끝까지)
+ * 기본값은 「카드 없음」(바탕 투명·여백 0)이라 기본 테마 화면은 감싸기 전과 같다. 카드 안의 `border-surface`(목록 줄·구분선)는 머리카락 선(`--hairline`)이 된다.
+ */
+:root {
+    --content-card-bg: transparent;
+    --content-card-radius: 0px;
+    --content-card-shadow: none;
+    --content-card-pad: 0px;
+    --content-card-gap: 0px;
+    --content-card-bleed: 0px;
+}
+@utility content-card {
+    background-color: var(--content-card-bg);
+    border-radius: var(--content-card-radius);
+    box-shadow: var(--content-card-shadow);
+    padding: var(--content-card-pad);
+    margin-inline: var(--content-card-bleed);
+}
+.content-card {
+    --p-content-border-color: var(--hairline);
+}
+.content-card + .content-card {
+    margin-top: var(--content-card-gap);
+}
+
+/* 다음식 — 카드 안 여백 위 6 · 좌우 24 · 아래 22(시안 `.nw-card`), 모바일은 좌우 16 · 반경 0 으로 화면 끝까지 */
+html:is([data-theme='daum'], [data-theme='roboyam']) {
+    --content-card-bg: var(--card-bg);
+    --content-card-radius: var(--card-radius);
+    --content-card-shadow: var(--card-shadow);
+    --content-card-pad: 6px 24px 22px;
+    --content-card-gap: 16px;
+}
+/* 네이버식 — 흰 카드 · 반경 10 · 그림자 없음 */
+html[data-theme='naver'] {
+    --content-card-bg: var(--card-bg);
+    --content-card-radius: 10px;
+    --content-card-shadow: none;
+    --content-card-pad: 6px 20px 20px;
+    --content-card-gap: 12px;
+}
+@media (max-width: 47.99rem) {
+    html:is([data-theme='daum'], [data-theme='roboyam']),
+    html[data-theme='naver'] {
+        --content-card-radius: 0px;
+        --content-card-shadow: none;
+        --content-card-pad: 4px 16px 14px;
+        --content-card-bleed: -1rem;
+    }
+}
+
+/*
+ * 2단계(themes.md 2-1) — 카드가 보이는 테마(다음식·네이버식)에서만:
+ *  - 카드 첫 줄의 바깥 위 여백(댓글 구획의 `mt-6` 등)은 카드 위 여백이 대신하므로 없앤다. 머리(`<header>`)가 첫 줄이면 위 여백을 조금 준다.
+ *  - 글 제목(`.post-title`)은 다음식에서 22/30 굵게(모바일 20/28).
+ * 층 밖 규칙이라 Tailwind 유틸리티를 이긴다.
+ */
+html:is([data-theme='daum'], [data-theme='roboyam']) .content-card > :first-child,
+html[data-theme='naver'] .content-card > :first-child {
+    margin-top: 0;
+}
+html:is([data-theme='daum'], [data-theme='roboyam']) .content-card > header:first-child,
+html[data-theme='naver'] .content-card > header:first-child {
+    padding-top: 14px;
+}
+html:is([data-theme='daum'], [data-theme='roboyam']) .post-title {
+    font-size: calc(20px * var(--text-scale, 1));
+    line-height: 28px;
+    font-weight: 700;
+}
+@media (min-width: 48rem) {
+    html:is([data-theme='daum'], [data-theme='roboyam']) .post-title {
+        font-size: calc(22px * var(--text-scale, 1));
+        line-height: 30px;
+    }
+}
+
+/*
+ * 홈 가젯 카드(`gadget-card`) — 홈 가젯 껍데기(`HomeGadgetFrame`)의 카드 모양이 읽는 역할 변수. 가젯 컴포넌트는 테마 공통이고 값은 테마가 채운다(themes.md 2-1 의 1단계).
+ *   --gadget-card-bg / -border / -radius / -shadow / -pad  카드 면 · 테두리 색 · 모서리 · 그림자 · 안쪽 여백
+ *   --gadget-card-bleed  카드의 좌우 바깥 여백(모바일에서 음수면 화면 끝까지)      --gadget-gap  칸 안 카드 사이 · 칸과 칸 사이
+ *   --gadget-thumb-radius  가젯 안 사진 모서리
+ *   --gadget-card-pad-x  카드 안쪽 좌우 여백(`--gadget-card-pad` 의 좌우 값과 같게 둔다 — 한 열의 가로로 미는 줄·끝까지 닿는 사진이 카드 끝까지 나간다)
+ *   --gadget-row-card-radius  가로로 미는 줄 안 카드(게시판 카드 묶음 등)의 모서리 — 모바일 카드 반경이 0 이어도 줄 안 카드는 둥글게
+ * 기본값이 기본 테마(기본형 템플릿)의 사이드 카드 모양(테두리 + 반경 12)이다. 카드 없는 구역(`FLAT`)은 이 카드를 쓰지 않는다.
+ * 고른 색(제목·카드·배지)은 껍데기가 인라인 변수 `--gx-c`·`--gx-on`·`--gx-card-c`·`--gx-bc`·`--gx-rk` 로 건다(`UtilHomeGadget.frameVars` — 색 값은 `UtilColor`).
+ */
+:root {
+    --gadget-card-bg: var(--card-bg);
+    --gadget-card-border: var(--p-content-border-color);
+    --gadget-card-radius: 0.75rem;
+    --gadget-card-shadow: none;
+    --gadget-card-pad: 0.625rem 1rem 0.75rem;
+    --gadget-card-pad-x: 1rem;
+    --gadget-card-bleed: 0px;
+    --gadget-gap: 1.5rem;
+    --gadget-thumb-radius: 6px;
+    --gadget-row-card-radius: 0.75rem;
+}
+/* 다음식 — 시안 `02-home-v2`(카드 반경 12 · 거의 없는 그림자 · 안 여백 6/24/22 · 카드 사이 16) */
+html:is([data-theme='daum'], [data-theme='roboyam']) {
+    --gadget-card-border: transparent;
+    --gadget-card-radius: var(--card-radius);
+    --gadget-card-shadow: var(--card-shadow);
+    --gadget-card-pad: 6px 24px 22px;
+    --gadget-card-pad-x: 24px;
+    --gadget-gap: 16px;
+    --gadget-thumb-radius: 8px;
+}
+/* 네이버형 — 시안 `23-theme-naver`(흰 카드 · 반경 10 · 그림자 없음 · 카드 사이 12) */
+html[data-theme='naver'] {
+    --gadget-card-border: transparent;
+    --gadget-card-radius: 10px;
+    --gadget-card-pad: 6px 20px 20px;
+    --gadget-card-pad-x: 20px;
+    --gadget-gap: 12px;
+    --gadget-thumb-radius: 6px;
+    --gadget-row-card-radius: 10px;
+}
+@media (max-width: 47.99rem) {
+    :root {
+        --gadget-gap: 1.25rem;
+    }
+    html:is([data-theme='daum'], [data-theme='roboyam']),
+    html[data-theme='naver'] {
+        --gadget-card-radius: 0px;
+        --gadget-card-shadow: none;
+        --gadget-card-pad: 4px 16px 14px;
+        --gadget-card-pad-x: 16px;
+        --gadget-card-bleed: -1rem;
+        --gadget-gap: 10px;
+    }
+}
+@utility gadget-card {
+    min-width: 0;
+    background-color: var(--gadget-card-bg);
+    border: 1px solid var(--gadget-card-border);
+    border-radius: var(--gadget-card-radius);
+    box-shadow: var(--gadget-card-shadow);
+    padding: var(--gadget-card-pad);
+    margin-inline: var(--gadget-card-bleed);
+}
+.gadget-card {
+    --p-content-border-color: var(--hairline);
+}
+/* 가젯 칸 — 세로로 쌓는 줄(칸 안 카드 사이 간격) */
+.gadget-stack {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--gadget-gap);
+}
+/* 가젯 머리의 막대(`BAR`)·밑줄(`UNDERLINE`)·채움(`FILLED`) 색 — 고른 색이 없으면 주 색상 */
+.gadget-bar {
+    background-color: var(--gx-c, var(--p-primary-color));
+}
+.gadget-thumb {
+    border-radius: var(--gadget-thumb-radius);
+}
+
+/*
+ * 홈 한 열(모바일 — 홈 격자 `stack`) 모양. 데스크톱·태블릿 격자에는 쓰이지 않는다(가젯이 한 열 + 템플릿 한 열 모양 `mobile` 일 때만 이 클래스를 붙이고, 아래 규칙은 `[data-grid-mode='stack']` 안에서만).
+ *   --gadget-bleed  가젯 내용이 좌우로 나갈 수 있는 폭 — 카드 안이면 카드 안쪽 좌우 여백(`--gadget-card-pad-x`), 카드 없는 구역은 모바일 본문 좌우 여백(1rem, 셸 `px-4`)·그 밖 0
+ *   --row-item      가로로 미는 줄 한 칸의 폭(컴포넌트가 준다 — 갤러리 42% ≈ 2.3장 · 하이라이트 64% · 공동구매 84% · 소모임 8.75rem …)
+ * 가로로 미는 줄(`gadget-scroll-row`): 스크롤바 숨김(손가락 밀기) · 칸 시작에 스냅 · 줄은 `--gadget-bleed` 만큼 좌우 끝까지 나가고 첫 칸은 본문 글자와 줄을 맞춘다.
+ * 칸 안은 링크라 Tab 으로 차례로 넘어가고(초점 칸이 보이게 브라우저가 민다), 키보드 초점 윤곽이 잘리지 않게 위아래 4px 여유를 둔다. 줄 이름(`aria-label`)은 컴포넌트가 단다.
+ */
+:root {
+    --gadget-bleed: 0px;
+}
+@media (max-width: 47.99rem) {
+    :root {
+        --gadget-bleed: 1rem;
+    }
+}
+.gadget-card {
+    --gadget-bleed: var(--gadget-card-pad-x);
+}
+.gadget-scroll-row {
+    display: flex;
+    gap: 0.75rem;
+    margin-inline: calc(-1 * var(--gadget-bleed));
+    padding-block: 0.25rem;
+    padding-inline: var(--gadget-bleed);
+    list-style: none;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--gadget-bleed);
+    scrollbar-width: none;
+}
+.gadget-scroll-row::-webkit-scrollbar {
+    display: none;
+}
+.gadget-scroll-row > * {
+    flex: 0 0 var(--row-item, 42%);
+    min-width: 0;
+    scroll-snap-align: start;
+}
+/* 줄 안 카드(바깥이 평평한 게시판 카드 묶음 — 카드 한 장 한 장이 테마 카드)는 화면 끝까지 닿는 모바일 카드 여백·반경 0 을 쓰지 않는다 */
+.gadget-scroll-row > .gadget-card {
+    margin-inline: 0;
+    border-radius: var(--gadget-row-card-radius);
+}
+/* 끝까지 닿는 사진(로보얌 하이라이트 큰 글) — 카드 안쪽 좌우 여백만큼 나가고 모서리 없음 */
+.gadget-bleed-x {
+    margin-inline: calc(-1 * var(--gadget-bleed));
+    border-radius: 0;
+}
+/* 한 열의 머리 「더보기 ›」 — 손가락으로 누르기 쉽게 높이 44px · 좌우 8px 터치 영역(글자 자리는 그대로) */
+[data-grid-mode='stack'] .gadget-head .gadget-more {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding-inline: 0.5rem;
+    margin-inline-end: -0.5rem;
+}
+/*
+ * 글 목록 두 열 — 세로로 먼저 채운다(1~5 왼쪽 줄, 6~10 오른쪽 줄 — 다음식 「지금 뜨는 글」). 가젯 내용 칸(`@container`)이 28rem 이상일 때만, 좁으면 한 열.
+ * 행 수는 글 수의 절반(올림) — 컴포넌트가 `--gx-rows` 로 준다.
+ */
+@container (min-width: 28rem) {
+    .gadget-cols2 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-rows: repeat(var(--gx-rows, 1), auto);
+        grid-auto-flow: column;
+        column-gap: 1.5rem;
+    }
 }
 
 html {
-    background-color: var(--p-surface-50);
+    background-color: var(--page-bg);
     color-scheme: light;
     -webkit-text-size-adjust: 100%;
 }
 
 html[data-color-scheme='dark'] {
-    background-color: var(--p-surface-950);
     color-scheme: dark;
 }
 
@@ -75,6 +478,91 @@ body {
 }
 .no-scrollbar::-webkit-scrollbar {
     display: none;
+}
+
+/*
+ * 가로 메뉴 줄이 넘칠 때의 표시(`AppScrollRow` — 운영자 「메뉴가 넘칠 때」: 얇은 스크롤 · 양끝 화살표 단추). 브라우저 스크롤바는 위 `no-scrollbar` 로 늘 숨기고 이것을 직접 그린다.
+ *   --scroll-reserve   줄 아래 예약 자리 높이(위 여유 2 + 막대 3 + 아래 여유 2). 줄 높이 안의 아래 여백에 겹쳐 두거나, 여백이 없는 막대는 처음부터 이만큼 덧붙인다(`reserve`)
+ *   --scroll-bar-h     트랙·손잡이 두께                    --scroll-track / --scroll-thumb / --scroll-thumb-active  트랙 · 손잡이 · 손잡이(가리킴·끄는 중)
+ *   --scroll-arrow-w   화살표 단추(그라데이션) 폭(px — 키보드 초점 칸을 이만큼 안쪽에 보이게 한다)
+ *   --scroll-fade-bg   그라데이션이 시작하는 바탕 = 줄이 놓인 면의 바탕(기본 페이지 바탕, `shell-card` = 카드 바탕, `.app-nav` = 주 색상 바, 그 밖의 면은 그 면이 채운다)
+ *   --scroll-arrow-fg / --scroll-arrow-fg-hover  화살표 글자색
+ * 이름에 테마 이름을 넣지 않는다. 다크는 글자색(`--p-text-color`)·면 바탕 변수를 따라간다.
+ */
+:root {
+    --scroll-reserve: 7px;
+    --scroll-bar-h: 3px;
+    --scroll-arrow-w: 40px;
+    --scroll-fade-bg: var(--page-bg);
+    --scroll-track: color-mix(in srgb, var(--p-text-color) 8%, transparent);
+    --scroll-thumb: color-mix(in srgb, var(--p-text-color) 30%, transparent);
+    --scroll-thumb-active: color-mix(in srgb, var(--p-text-color) 55%, transparent);
+    --scroll-arrow-fg: var(--p-text-muted-color);
+    --scroll-arrow-fg-hover: var(--p-text-color);
+}
+/* 부품 층에 둔다 — 모바일에서 숨기는 `max-md:hidden` 유틸리티가 이긴다 */
+@layer components {
+    .scroll-row-track {
+        position: absolute;
+        inset-inline: 0;
+        bottom: 0;
+        height: var(--scroll-reserve);
+        cursor: pointer;
+        touch-action: none;
+    }
+    .scroll-row-track::before {
+        content: '';
+        position: absolute;
+        inset-inline: 0;
+        top: 50%;
+        height: var(--scroll-bar-h);
+        margin-top: calc(var(--scroll-bar-h) / -2);
+        border-radius: 9999px;
+        background-color: var(--scroll-track);
+    }
+    .scroll-row-thumb {
+        position: absolute;
+        left: 0;
+        top: 50%;
+        height: var(--scroll-bar-h);
+        margin-top: calc(var(--scroll-bar-h) / -2);
+        border-radius: 9999px;
+        background-color: var(--scroll-thumb);
+        cursor: grab;
+        transition: background-color 0.15s;
+    }
+    .scroll-row-track:hover .scroll-row-thumb,
+    .scroll-row-track[data-dragging] .scroll-row-thumb {
+        background-color: var(--scroll-thumb-active);
+    }
+    .scroll-row-track[data-dragging] .scroll-row-thumb {
+        cursor: grabbing;
+    }
+    .scroll-row-arrow {
+        position: absolute;
+        inset-block: 0;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        width: var(--scroll-arrow-w);
+        padding: 0 4px;
+        border: 0;
+        color: var(--scroll-arrow-fg);
+        cursor: pointer;
+    }
+    .scroll-row-arrow:hover {
+        color: var(--scroll-arrow-fg-hover);
+    }
+    .scroll-row-arrow[data-edge='start'] {
+        left: 0;
+        justify-content: flex-start;
+        background: linear-gradient(to right, var(--scroll-fade-bg) 45%, transparent);
+    }
+    .scroll-row-arrow[data-edge='end'] {
+        right: 0;
+        justify-content: flex-end;
+        background: linear-gradient(to left, var(--scroll-fade-bg) 45%, transparent);
+    }
 }
 
 /*
@@ -153,6 +641,8 @@ body {
 html {
     --nav-bg: light-dark(var(--p-primary-color), var(--p-primary-900));
     --nav-fg: light-dark(var(--p-primary-contrast-color), #ffffff);
+    /* 주 색상 바 위 탭의 비활성 글자 — 바 글자색의 82%(네이버식 탭 바) */
+    --nav-tab-fg: color-mix(in srgb, var(--nav-fg) 82%, transparent);
 }
 
 /*
@@ -166,6 +656,13 @@ html {
     border-color: color-mix(in srgb, var(--nav-fg) 18%, transparent);
     --p-text-color: var(--nav-fg);
     --p-text-muted-color: color-mix(in srgb, var(--nav-fg) 72%, transparent);
+    /* 바 위 가로 메뉴 줄의 넘침 표시(`AppScrollRow`) — 그라데이션은 바 색에서 사라지고, 손잡이·화살표는 바 글자색 기준 */
+    --scroll-fade-bg: var(--nav-bg);
+    --scroll-track: color-mix(in srgb, var(--nav-fg) 16%, transparent);
+    --scroll-thumb: color-mix(in srgb, var(--nav-fg) 55%, transparent);
+    --scroll-thumb-active: color-mix(in srgb, var(--nav-fg) 85%, transparent);
+    --scroll-arrow-fg: var(--nav-tab-fg);
+    --scroll-arrow-fg-hover: var(--nav-fg);
 }
 @media (hover: hover) {
     .app-nav .hover\:bg-surface-100:hover,
@@ -192,4 +689,107 @@ html {
     --p-button-primary-active-background: color-mix(in srgb, var(--nav-fg) 78%, var(--nav-bg));
     --p-button-primary-active-border-color: color-mix(in srgb, var(--nav-fg) 78%, var(--nav-bg));
     --p-button-primary-active-color: var(--nav-bg);
+}
+
+/*
+ * 2단계(themes.md 2-1) — 네이버식: 흰 윗줄(`.shell-topbar`)의 로그인 단추는 작은 네모 테두리 상자(모서리 3px · 위아래 3px · 좌우 9px · 진한 구분선 테두리).
+ * 주 색상 바 안(`.app-nav`)의 같은 단추는 위 `.app-nav .nav-btn-outline` 이 맡는다. 층 밖 규칙이라 PrimeVue 변수(`@layer primevue`)를 이긴다.
+ */
+html[data-theme='naver'] .shell-topbar .nav-btn-outline {
+    --p-button-border-radius: 3px;
+    --p-button-sm-padding-y: 3px;
+    --p-button-sm-padding-x: 9px;
+    --p-button-outlined-secondary-border-color: var(--hairline-strong);
+    --p-button-outlined-secondary-color: var(--p-text-color);
+}
+
+/*
+ * 로보얌 테마 덮어쓰기(`html[data-theme='roboyam']`) — 셸·목록은 위의 다음식 규칙을 함께 쓰고, 로보얌만 바꿀 값을 여기에 둔다(지금은 홈 가젯만 — 로보얌 홈 템플릿 `RoboyamHome`).
+ * 역할 변수만 다시 채우거나(예: `html[data-theme='roboyam'] { --page-bg: …; }`, 다크는 `[data-color-scheme='dark']` 를 붙인다), 공통 부품이 열어 둔 고리 클래스(`gadget-icon`·`gadget-more`)에 2단계 모양을 건다.
+ * 다음식 규칙과 우선순위가 같아 파일 뒤에 있는 이 자리가 이긴다(모바일 값도 그래서 아래에 다시 둔다). 변수 이름에 테마 이름을 넣지 않는다(themes.md).
+ */
+/* 홈 가젯 카드 — 안 여백을 넉넉하게(위 8 · 좌우 26 · 아래 26), 사진 모서리 10. 테두리 없음 · 그림자(거의 없음)는 다음식 값 그대로. 모바일은 화면 끝까지 닿는 카드(반경 0 · 그림자 없음 — 다음식 모바일 값)에 좌우 16(본문 글자가 셸 좌우 여백 16 과 줄이 맞는다) · 아래 20 */
+html[data-theme='roboyam'] {
+    --gadget-card-pad: 8px 26px 26px;
+    --gadget-card-pad-x: 26px;
+    --gadget-thumb-radius: 10px;
+}
+@media (max-width: 47.99rem) {
+    html[data-theme='roboyam'] {
+        --gadget-card-pad: 4px 16px 20px;
+        --gadget-card-pad-x: 16px;
+    }
+}
+/* 2단계 — 가젯 머리 아이콘은 옅은 주 색상 칩(운영자가 제목 색을 고르면 그 색 — `--gx-c`). 막대 대신 이것으로 제목을 정돈한다(시드는 머리 `PLAIN` + 아이콘) */
+html[data-theme='roboyam'] .gadget-icon {
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin-right: 0.25rem;
+    border-radius: 0.5rem;
+    font-size: calc(0.8125rem * var(--text-scale, 1));
+    color: var(--gx-c, var(--p-primary-color));
+    background-color: color-mix(in srgb, var(--gx-c, var(--p-primary-color)) 12%, transparent);
+}
+html[data-theme='roboyam'][data-color-scheme='dark'] .gadget-icon {
+    background-color: color-mix(in srgb, var(--gx-c, var(--p-primary-color)) 18%, transparent);
+}
+/* 2단계 — 「더보기 ›」는 작게(12px) */
+html[data-theme='roboyam'] .gadget-more {
+    font-size: calc(0.75rem * var(--text-scale, 1));
+}
+
+/*
+ * 모바일 상단 바 모양 「흰 바」(운영자 설정 `mobileHeader: PLAIN` > 테마 기본 — 로보얌 기본, 사용자 결정 2026-10-28) — 테마 이름이 아니라 해석된 설정값(루트 `data-mobile-header`, `plugins/01.site-theme.client.ts`)에 묶는다.
+ * 모바일 셸(상단 바 `AppHeader` · 상단 탭 `AppTopTabs`)은 테마 공통 부품이고 겉모양만 바꾼다(기본 `BRAND` = 주 색상 채움).
+ *  - 상단 바: 주 색상 채움 대신 흰 면(카드 바탕 — 회색 페이지 바탕은 쓰지 않는다) + 본문 글자색(`.app-nav` 가 읽는 `--nav-bg`·`--nav-fg` 를 다시 채운다 — 아이콘·로그인 단추·초점 윤곽이 함께 따라온다).
+ *    모바일(md 미만)에서만 — 데스크톱의 `.app-nav`(네이버식 탭 바·기본 테마 상단 바)는 그대로 주 색상이다.
+ *  - 상단 탭: 흰 띠(카드 바탕 + 머리카락 선) + 데스크톱 첫 줄과 같은 탭 글자(굵게 · 비활성 `--tab-fg` · 활성 `--tab-fg-active` 와 같은 색 밑줄 2px). 상단 탭은 모바일에만 있다.
+ */
+@media (max-width: 47.99rem) {
+    html[data-mobile-header='plain'] .app-nav {
+        --nav-bg: var(--card-bg);
+        --nav-fg: var(--p-text-color);
+        /* 흰 바 아래는 진한 선 대신 머리카락 선(아래 메뉴 줄과 같은 선) */
+        border-color: var(--hairline);
+    }
+}
+html[data-mobile-header='plain'] .app-top-tabs {
+    background-color: var(--card-bg);
+    border-color: var(--hairline);
+}
+html[data-mobile-header='plain'] .app-top-tabs :is(a, button) {
+    font-weight: 700;
+    color: var(--tab-fg);
+}
+html[data-mobile-header='plain'] .app-top-tabs :is(a, button)[data-active='true'] {
+    color: var(--tab-fg-active);
+    border-color: var(--tab-fg-active);
+}
+/* 둘째 줄(고른 그룹의 칸, `AppMobileMenuRows`) — 데스크톱 둘째 줄처럼 한 단계 작고 밑줄 없이, 활성은 진하게 */
+html[data-mobile-header='plain'] .app-top-tabs .app-top-tabs-sub a {
+    font-weight: 600;
+    color: var(--subtab-fg);
+}
+html[data-mobile-header='plain'] .app-top-tabs .app-top-tabs-sub a[data-active='true'] {
+    color: var(--subtab-fg-active);
+}
+
+/*
+ * 메뉴 붙이기(운영자 설정 `stickyMenu: ON` > 테마 기본 — 로보얌 기본, 사용자 결정 2026-10-28) — 본문을 내리면 로고·알림이 있는 윗줄은 위로 사라지고 메뉴 줄이 창 맨 위에 붙는다.
+ *  - 데스크톱: 다음식 셸(`DaumShell`)이 메뉴 카드를 `sticky top-0` 으로 두고, 사이드 메뉴가 그 카드 아래에 붙도록 본문 상자에 붙는 머리 높이(`--shell-header-h`)를 카드 높이로 채운다
+ *    (작은 카드 103px · 보통 126px — 메뉴 크기 설정에 따라). 기본 테마·네이버식 셸은 원래 상단 바·탭 바가 붙는다.
+ *  - 모바일: 루트 `data-sticky-menu='on'` — 상단 바(`AppHeader`)는 붙지 않고 위로 사라지며, 상단 탭(`app-top-tabs` — 한 줄 탭·메뉴 두 줄)이 창 맨 위에 붙는다.
+ *    ⚠ 상단 바 높이(48px)를 전제로 `top-12` 에 붙는 다른 화면 요소(검색·설정 등)는 이 설정의 모바일에서 붙는 자리가 어긋날 수 있다.
+ */
+@media (max-width: 47.99rem) {
+    html[data-sticky-menu='on'] .app-nav {
+        position: static;
+    }
+    html[data-sticky-menu='on'] .app-top-tabs {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+    }
 }

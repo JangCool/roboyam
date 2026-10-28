@@ -51,206 +51,211 @@
         <ErrorState v-else-if="pageState === 'error' || !post || !board" :title="t('post.loadFailed')" :description="pageError" retry @retry="load" />
 
         <article v-else :aria-labelledby="titleId">
-            <!-- 머리 -->
-            <header class="border-b border-surface pb-3">
-                <div class="flex flex-wrap items-center gap-2">
-                    <!-- 소모임 글 — 「소모임 › 이름」(해산했으면 링크 없이) + 공개 라벨(글자가 늘 있다) -->
-                    <template v-if="post.group">
-                        <span v-if="post.group.dissolved" class="text-xs font-semibold text-muted-color" data-testid="post-group-dissolved">{{ UtilGroupMessages.postLocation(t, post.group) }}</span>
-                        <NuxtLink v-else :to="UtilGroup.detailPath(post.group.id)" class="min-w-0 truncate text-xs font-semibold text-primary hover:underline" data-testid="post-group-link">
-                            {{ UtilGroupMessages.postLocation(t, post.group) }}
-                        </NuxtLink>
-                        <GroupTag :tone="post.group.visibility === 'PUBLIC' ? 'blue' : 'gray'" data-testid="post-group-visibility">{{ UtilGroupMessages.postVisibility(t, post.group.visibility) }}</GroupTag>
-                    </template>
-                    <NuxtLink v-else :to="`/boards/${board.slug}`" class="text-xs font-semibold text-primary hover:underline max-md:hidden">{{ boardName }}</NuxtLink>
-                    <!-- 지금 하이라이트로 노출 중인 글 -->
-                    <span v-if="post.highlighted" class="inline-flex items-center justify-center gap-1 rounded bg-amber-100 px-1.5 py-1 text-[0.6875rem] font-semibold leading-none text-amber-800 dark:bg-amber-900/50 dark:text-amber-200" data-testid="post-highlighted">
-                        <span class="relative top-[-0.09em]">{{ t('post.highlighted') }}</span>
-                    </span>
-                </div>
-                <!-- 접힌 글은 제목(말머리)을 가린다 — 글의 이름표(`aria-labelledby`)는 접힌 까닭으로 둔다(아래 접힌 줄이 같은 글자를 보이므로 화면에서는 숨김) -->
-                <h1 v-if="folded && foldReason" :id="titleId" class="sr-only">{{ UtilBlockMessages.folded(t, foldReason, 'post') }}</h1>
-                <h1 v-else :id="titleId" class="mt-1 break-words text-lg font-bold leading-snug md:text-xl">
-                    <PostPrefixTag v-if="post.prefix" :prefix="post.prefix" class="mr-1.5 align-[3px]" />{{ post.title }}
-                </h1>
-                <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-color">
-                    <!-- 회원 작성자 앞 작은 이니셜 동그라미 — 장착한 프로필 테두리가 여기 보인다(목록·댓글·쪽지는 줄이 좁아 닉네임 색만) -->
-                    <ProfileBorderAvatar v-if="post.author.kind === 'MEMBER'" :initial="UtilPointShop.initial(post.author.name)" :src="authorAvatar" size="xs" :border-style="authorDecoration?.profileBorder ?? null" />
-                    <PostAuthorLabel :author="post.author" show-ip strong link class="text-sm" />
-                    <span aria-hidden="true">·</span>
-                    <time :datetime="post.createdAt" :title="time.full(post.createdAt)">{{ time.detail(post.createdAt) }}</time>
-                    <span v-if="post.updatedAt" :title="time.full(post.updatedAt)">{{ t('post.edited') }}</span>
-                    <span aria-hidden="true">·</span>
-                    <span>{{ t('post.views', { n: post.viewCount.toLocaleString() }) }}</span>
-                    <span aria-hidden="true">·</span>
-                    <span>{{ t('post.likes', { n: post.likeCount.toLocaleString() }) }}</span>
-                </div>
-            </header>
-
-            <!-- 비멤버가 보는 비공개 소모임의 개별 공개 글(5단계) — 어느 소모임 멤버가 공개한 글인지 -->
-            <p v-if="individualGroup" class="m-0 mt-3 flex items-start gap-2 rounded-lg bg-surface-100 px-3 py-2.5 text-sm dark:bg-surface-800" data-testid="post-group-individual-notice">
-                <i class="pi pi-globe mt-0.5 shrink-0 text-xs text-muted-color" aria-hidden="true" />
-                <i18n-t keypath="groupVisibility.individualNotice" scope="global" tag="span" class="min-w-0">
-                    <template #name>
-                        <NuxtLink :to="UtilGroup.detailPath(individualGroup.id)" class="font-semibold text-primary hover:underline">{{ individualGroup.name }}</NuxtLink>
-                    </template>
-                </i18n-t>
-            </p>
-
-            <!-- 예약 삭제된 글 · 댓글 많은 글 보호(수정·삭제할 수 있는 사람에게만) -->
-            <Message v-if="post.deleteScheduledAt" severity="warn" :closable="false" size="small" class="mt-3" data-testid="post-delete-scheduled">
-                {{ t('post.deleteScheduledNotice', { at: time.full(post.deleteScheduledAt) }) }}
-            </Message>
-            <Message v-if="manageable && protectionNotice" severity="info" :closable="false" size="small" class="mt-3" data-testid="post-protected">
-                <b>{{ protectionNotice.title }}</b>
-                <span v-for="item in protectionNotice.items" :key="item"> · {{ item }}</span>
-            </Message>
-
-            <!-- 차단한 회원·단어의 글 — 본문·추천 줄을 접힌 칸으로(게시판 글 목록과 같은 `FoldedRow`·문구). 펼치면 아래에 「다시 숨기기」 -->
-            <FoldedRow
-                v-model:open="foldRevealed"
-                :reason="foldReason"
-                kind="post"
-                class="my-6 justify-center rounded-lg border border-surface px-5 py-8 text-center text-sm"
-                hide-class="flex justify-center pb-2"
-                data-testid="post-folded"
-            >
-                <!-- 본문 — 19금 글은 확인 전에 가린다(가정: 성인 인증이 생기면 서버 판정으로 바뀐다) -->
-                <div v-if="post.adult && !adultConfirmed" class="my-6 flex flex-col items-center rounded-lg border border-surface px-5 py-8 text-center" data-testid="post-adult-gate">
-                    <span class="mb-3 grid size-12 place-items-center rounded-full bg-red-600 text-base font-bold text-white" aria-hidden="true">19</span>
-                    <p class="font-semibold">{{ t('post.adultGateTitle') }}</p>
-                    <p class="mt-1 text-sm text-muted-color">{{ t('post.adultGateText') }}</p>
-                    <div class="mt-4 flex gap-2">
-                        <Button type="button" :label="t('post.back')" severity="secondary" variant="outlined" @click="goBoard" />
-                        <Button type="button" :label="t('post.adultConfirm')" severity="danger" @click="adultConfirmed = true" />
-                    </div>
-                </div>
-                <!--
-                    에디터로 쓴 글(`contentFormat === 'HTML'`) — 서버가 정화(sanitize)한 HTML 만 온다(공개 게시판 계약 「에디터 화면」: 서버가 허용 태그 밖을 지우고 이미지 주소를 채운다).
-                    새 `v-html` 은 이곳(글 본문)과 `CommentItem`(댓글 본문)·`TermsDocumentView`(약관 본문 — 서버 정화본) 세 곳뿐이다. 다른 경로의 글자(제목·닉네임·안내문 등)는 절대 넣지 않는다.
-                    그린 뒤 유튜브(누르면 youtube-nocookie iframe)·이미지(실패 자리표시)는 `UtilRichBody.enhance` 가 DOM API 로만 손질한다. 평문 글은 아래처럼 글자로 그린다
-                -->
-                <!-- eslint-disable-next-line vue/no-v-html -->
-                <div v-else-if="post.contentFormat === 'HTML'" ref="htmlBody" class="rich-text py-5 text-[0.9375rem]" data-testid="post-body" v-html="post.content" />
-                <div v-else class="py-5 text-[0.9375rem] leading-relaxed" data-testid="post-body">
-                    <p v-for="(lines, i) in paragraphs" :key="i" class="mb-4 break-words last:mb-0">
-                        <template v-for="(line, j) in lines" :key="j">
-                            <br v-if="j > 0" />
-                            <template v-for="(seg, k) in UtilPost.segments(line, siteOrigin)" :key="k">
-                                <a
-                                    v-if="seg.kind === 'link'"
-                                    :href="seg.href"
-                                    :target="seg.external ? '_blank' : undefined"
-                                    :rel="UtilPost.linkRel(seg.external, post.externalLinkNofollow)"
-                                    class="break-all text-primary underline underline-offset-2"
-                                >{{ seg.text }}</a>
-                                <template v-else>{{ seg.text }}</template>
-                            </template>
+            <!-- 본문 영역 카드(머리 ~ 게시판으로) · 댓글 영역 카드 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 다음식·네이버식은 흰 카드다(`main.css` `content-card`) -->
+            <div class="content-card" data-testid="post-body-card">
+                <!-- 머리 -->
+                <header class="border-b border-surface pb-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- 소모임 글 — 「소모임 › 이름」(해산했으면 링크 없이) + 공개 라벨(글자가 늘 있다) -->
+                        <template v-if="post.group">
+                            <span v-if="post.group.dissolved" class="text-xs font-semibold text-muted-color" data-testid="post-group-dissolved">{{ UtilGroupMessages.postLocation(t, post.group) }}</span>
+                            <NuxtLink v-else :to="UtilGroup.detailPath(post.group.id)" class="min-w-0 truncate text-xs font-semibold text-primary hover:underline" data-testid="post-group-link">
+                                {{ UtilGroupMessages.postLocation(t, post.group) }}
+                            </NuxtLink>
+                            <GroupTag :tone="post.group.visibility === 'PUBLIC' ? 'blue' : 'gray'" data-testid="post-group-visibility">{{ UtilGroupMessages.postVisibility(t, post.group.visibility) }}</GroupTag>
                         </template>
-                    </p>
+                        <NuxtLink v-else :to="`/boards/${board.slug}`" class="text-xs font-semibold text-primary hover:underline max-md:hidden">{{ boardName }}</NuxtLink>
+                        <!-- 지금 하이라이트로 노출 중인 글 -->
+                        <span v-if="post.highlighted" class="inline-flex items-center justify-center gap-1 rounded bg-amber-100 px-1.5 py-1 text-[0.6875rem] font-semibold leading-none text-amber-800 dark:bg-amber-900/50 dark:text-amber-200" data-testid="post-highlighted">
+                            <span class="relative top-[-0.09em]">{{ t('post.highlighted') }}</span>
+                        </span>
+                    </div>
+                    <!-- 접힌 글은 제목(말머리)을 가린다 — 글의 이름표(`aria-labelledby`)는 접힌 까닭으로 둔다(아래 접힌 줄이 같은 글자를 보이므로 화면에서는 숨김) -->
+                    <h1 v-if="folded && foldReason" :id="titleId" class="sr-only">{{ UtilBlockMessages.folded(t, foldReason, 'post') }}</h1>
+                    <h1 v-else :id="titleId" class="post-title mt-1 break-words text-lg font-bold leading-snug md:text-xl">
+                        <PostPrefixTag v-if="post.prefix" :prefix="post.prefix" class="mr-1.5 align-[3px]" />{{ post.title }}
+                    </h1>
+                    <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-color">
+                        <!-- 회원 작성자 앞 작은 이니셜 동그라미 — 장착한 프로필 테두리가 여기 보인다(목록·댓글·쪽지는 줄이 좁아 닉네임 색만) -->
+                        <ProfileBorderAvatar v-if="post.author.kind === 'MEMBER'" :initial="UtilPointShop.initial(post.author.name)" :src="authorAvatar" size="xs" :border-style="authorDecoration?.profileBorder ?? null" />
+                        <PostAuthorLabel :author="post.author" show-ip strong link class="text-sm" />
+                        <span aria-hidden="true">·</span>
+                        <time :datetime="post.createdAt" :title="time.full(post.createdAt)">{{ time.detail(post.createdAt) }}</time>
+                        <span v-if="post.updatedAt" :title="time.full(post.updatedAt)">{{ t('post.edited') }}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{{ t('post.views', { n: post.viewCount.toLocaleString() }) }}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{{ t('post.likes', { n: post.likeCount.toLocaleString() }) }}</span>
+                    </div>
+                </header>
+
+                <!-- 비멤버가 보는 비공개 소모임의 개별 공개 글(5단계) — 어느 소모임 멤버가 공개한 글인지 -->
+                <p v-if="individualGroup" class="m-0 mt-3 flex items-start gap-2 rounded-lg bg-surface-100 px-3 py-2.5 text-sm dark:bg-surface-800" data-testid="post-group-individual-notice">
+                    <i class="pi pi-globe mt-0.5 shrink-0 text-xs text-muted-color" aria-hidden="true" />
+                    <i18n-t keypath="groupVisibility.individualNotice" scope="global" tag="span" class="min-w-0">
+                        <template #name>
+                            <NuxtLink :to="UtilGroup.detailPath(individualGroup.id)" class="font-semibold text-primary hover:underline">{{ individualGroup.name }}</NuxtLink>
+                        </template>
+                    </i18n-t>
+                </p>
+
+                <!-- 예약 삭제된 글 · 댓글 많은 글 보호(수정·삭제할 수 있는 사람에게만) -->
+                <Message v-if="post.deleteScheduledAt" severity="warn" :closable="false" size="small" class="mt-3" data-testid="post-delete-scheduled">
+                    {{ t('post.deleteScheduledNotice', { at: time.full(post.deleteScheduledAt) }) }}
+                </Message>
+                <Message v-if="manageable && protectionNotice" severity="info" :closable="false" size="small" class="mt-3" data-testid="post-protected">
+                    <b>{{ protectionNotice.title }}</b>
+                    <span v-for="item in protectionNotice.items" :key="item"> · {{ item }}</span>
+                </Message>
+
+                <!-- 차단한 회원·단어의 글 — 본문·추천 줄을 접힌 칸으로(게시판 글 목록과 같은 `FoldedRow`·문구). 펼치면 아래에 「다시 숨기기」 -->
+                <FoldedRow
+                    v-model:open="foldRevealed"
+                    :reason="foldReason"
+                    kind="post"
+                    class="my-6 justify-center rounded-lg border border-surface px-5 py-8 text-center text-sm"
+                    hide-class="flex justify-center pb-2"
+                    data-testid="post-folded"
+                >
+                    <!-- 본문 — 19금 글은 확인 전에 가린다(가정: 성인 인증이 생기면 서버 판정으로 바뀐다) -->
+                    <div v-if="post.adult && !adultConfirmed" class="my-6 flex flex-col items-center rounded-lg border border-surface px-5 py-8 text-center" data-testid="post-adult-gate">
+                        <span class="mb-3 grid size-12 place-items-center rounded-full bg-red-600 text-base font-bold text-white" aria-hidden="true">19</span>
+                        <p class="font-semibold">{{ t('post.adultGateTitle') }}</p>
+                        <p class="mt-1 text-sm text-muted-color">{{ t('post.adultGateText') }}</p>
+                        <div class="mt-4 flex gap-2">
+                            <Button type="button" :label="t('post.back')" severity="secondary" variant="outlined" @click="goBoard" />
+                            <Button type="button" :label="t('post.adultConfirm')" severity="danger" @click="adultConfirmed = true" />
+                        </div>
+                    </div>
+                    <!--
+                        에디터로 쓴 글(`contentFormat === 'HTML'`) — 서버가 정화(sanitize)한 HTML 만 온다(공개 게시판 계약 「에디터 화면」: 서버가 허용 태그 밖을 지우고 이미지 주소를 채운다).
+                        새 `v-html` 은 이곳(글 본문)과 `CommentItem`(댓글 본문)·`TermsDocumentView`(약관 본문 — 서버 정화본) 세 곳뿐이다. 다른 경로의 글자(제목·닉네임·안내문 등)는 절대 넣지 않는다.
+                        그린 뒤 유튜브(누르면 youtube-nocookie iframe)·이미지(실패 자리표시)는 `UtilRichBody.enhance` 가 DOM API 로만 손질한다. 평문 글은 아래처럼 글자로 그린다
+                    -->
+                    <!-- eslint-disable-next-line vue/no-v-html -->
+                    <div v-else-if="post.contentFormat === 'HTML'" ref="htmlBody" class="rich-text py-5 text-[0.9375rem]" data-testid="post-body" v-html="post.content" />
+                    <div v-else class="py-5 text-[0.9375rem] leading-relaxed" data-testid="post-body">
+                        <p v-for="(lines, i) in paragraphs" :key="i" class="mb-4 break-words last:mb-0">
+                            <template v-for="(line, j) in lines" :key="j">
+                                <br v-if="j > 0" />
+                                <template v-for="(seg, k) in UtilPost.segments(line, siteOrigin)" :key="k">
+                                    <a
+                                        v-if="seg.kind === 'link'"
+                                        :href="seg.href"
+                                        :target="seg.external ? '_blank' : undefined"
+                                        :rel="UtilPost.linkRel(seg.external, post.externalLinkNofollow)"
+                                        class="break-all text-primary underline underline-offset-2"
+                                    >{{ seg.text }}</a>
+                                    <template v-else>{{ seg.text }}</template>
+                                </template>
+                            </template>
+                        </p>
+                    </div>
+
+                    <!-- 투표 — 본문 바로 다음, 찬반 토론 위(19금 확인 전에는 본문과 함께 가린다) -->
+                    <PostPollCard v-if="post.poll && !(post.adult && !adultConfirmed)" :poll="post.poll" :actions="pollActions" @update:poll="onPollUpdate" />
+
+                    <!-- 찬반 토론 — 본문 바로 다음, 추천 줄 위(19금 확인 전에는 본문과 함께 가린다) -->
+                    <CommentSection
+                        v-if="showDebate && !(post.adult && !adultConfirmed)"
+                        variant="debate"
+                        :board="board"
+                        :data="opinions.data.value"
+                        :state="opinions.state.value"
+                        :error-message="opinions.errorMessage.value"
+                        :sort="opinions.sort.value"
+                        :kind="opinions.kind.value"
+                        :actions="opinionActions"
+                        :debate-actions="debateActions"
+                        @kind="opinions.setKind"
+                        @retry="opinions.load"
+                        @report="(c) => openReport('COMMENT', c.id)"
+                        @settings="openDebateSettings"
+                    />
+
+                    <!-- 추천 · 링크 복사 · 신고 -->
+                    <div class="flex flex-wrap items-center justify-center gap-2 py-3">
+                        <Button
+                            type="button"
+                            :icon="post.liked ? 'pi pi-thumbs-up-fill' : 'pi pi-thumbs-up'"
+                            :label="`${t('post.like')} ${post.likeCount.toLocaleString()}`"
+                            :variant="post.liked ? undefined : 'outlined'"
+                            :aria-pressed="post.liked"
+                            :disabled="post.mine"
+                            :loading="liking"
+                            rounded
+                            data-testid="post-like"
+                            @click="onLike"
+                        />
+                        <Button type="button" icon="pi pi-link" :label="t('post.copyLink')" severity="secondary" variant="outlined" rounded @click="copyLink" />
+                        <Button v-if="board.reportEnabled && !post.mine" type="button" icon="pi pi-flag" :label="t('post.report')" severity="secondary" variant="text" rounded @click="openReport('POST', post.id)" />
+                    </div>
+                </FoldedRow>
+
+                <!-- 찬반 토론 열기(토론이 없는 글 — 열 수 있는 사람만) · 수정·삭제 — 내 글은 바로, 비회원 글은 비밀번호 -->
+                <div v-if="manageable || canOpenDebate" class="flex flex-wrap justify-end gap-1 border-t border-surface pt-2">
+                    <Button v-if="canOpenDebate" type="button" icon="pi pi-comments" :label="t('comment.debateOpenAction')" size="small" severity="secondary" variant="text" data-testid="post-debate-open" @click="openDebateSettings" />
+                    <template v-if="manageable">
+                        <Button type="button" icon="pi pi-pencil" :label="t('common.edit')" size="small" severity="secondary" variant="text" data-testid="post-edit" @click="onEdit" />
+                        <Button type="button" icon="pi pi-trash" :label="t('common.delete')" size="small" severity="danger" variant="text" data-testid="post-delete" @click="onDelete" />
+                    </template>
                 </div>
 
-                <!-- 투표 — 본문 바로 다음, 찬반 토론 위(19금 확인 전에는 본문과 함께 가린다) -->
-                <PostPollCard v-if="post.poll && !(post.adult && !adultConfirmed)" :poll="post.poll" :actions="pollActions" @update:poll="onPollUpdate" />
-
-                <!-- 찬반 토론 — 본문 바로 다음, 추천 줄 위(19금 확인 전에는 본문과 함께 가린다) -->
-                <CommentSection
-                    v-if="showDebate && !(post.adult && !adultConfirmed)"
-                    variant="debate"
-                    :board="board"
-                    :data="opinions.data.value"
-                    :state="opinions.state.value"
-                    :error-message="opinions.errorMessage.value"
-                    :sort="opinions.sort.value"
-                    :kind="opinions.kind.value"
-                    :actions="opinionActions"
-                    :debate-actions="debateActions"
-                    @kind="opinions.setKind"
-                    @retry="opinions.load"
-                    @report="(c) => openReport('COMMENT', c.id)"
-                    @settings="openDebateSettings"
+                <!-- 소모임 글의 공개 범위 — 안내는 모두에게, 단추는 서버가 준 권한(`group.can*`)이 있는 사람에게만 -->
+                <GroupPostPanel
+                    v-if="post.group"
+                    :group="post.group"
+                    :mine="post.mine"
+                    :author-name="post.author.memberId ? post.author.name : null"
+                    :actions="groupPanelActions"
+                    @change="onGroupChange"
+                    @session="prompt('view')"
                 />
 
-                <!-- 추천 · 링크 복사 · 신고 -->
-                <div class="flex flex-wrap items-center justify-center gap-2 py-3">
-                    <Button
-                        type="button"
-                        :icon="post.liked ? 'pi pi-thumbs-up-fill' : 'pi pi-thumbs-up'"
-                        :label="`${t('post.like')} ${post.likeCount.toLocaleString()}`"
-                        :variant="post.liked ? undefined : 'outlined'"
-                        :aria-pressed="post.liked"
-                        :disabled="post.mine"
-                        :loading="liking"
-                        rounded
-                        data-testid="post-like"
-                        @click="onLike"
-                    />
-                    <Button type="button" icon="pi pi-link" :label="t('post.copyLink')" severity="secondary" variant="outlined" rounded @click="copyLink" />
-                    <Button v-if="board.reportEnabled && !post.mine" type="button" icon="pi pi-flag" :label="t('post.report')" severity="secondary" variant="text" rounded @click="openReport('POST', post.id)" />
+                <BoardInvestmentNotice v-if="board.investmentNotice" variant="post" class="mt-3" />
+
+                <!-- 이전·다음 글 · 게시판으로(소모임 글에는 이전·다음 글이 없다) -->
+                <nav v-if="!post.group" class="mt-4 divide-y divide-surface border-y border-surface text-sm" :aria-label="t('post.neighborNav')">
+                    <NuxtLink v-if="post.next" :to="`/posts/${post.next.id}`" class="flex gap-3 px-1 py-2.5 hover:bg-surface-100 dark:hover:bg-surface-800/60">
+                        <span class="w-14 shrink-0 text-xs text-muted-color"><i class="pi pi-angle-up mr-1 text-[0.625rem]" aria-hidden="true" />{{ t('post.next') }}</span>
+                        <span class="truncate">{{ post.next.title }}</span>
+                    </NuxtLink>
+                    <NuxtLink v-if="post.prev" :to="`/posts/${post.prev.id}`" class="flex gap-3 px-1 py-2.5 hover:bg-surface-100 dark:hover:bg-surface-800/60">
+                        <span class="w-14 shrink-0 text-xs text-muted-color"><i class="pi pi-angle-down mr-1 text-[0.625rem]" aria-hidden="true" />{{ t('post.prev') }}</span>
+                        <span class="truncate">{{ post.prev.title }}</span>
+                    </NuxtLink>
+                </nav>
+                <div class="mt-3 flex justify-center">
+                    <Button type="button" icon="pi pi-list" :label="post.group ? t('group.postListBack') : t('post.backToBoard')" severity="secondary" variant="outlined" size="small" @click="goBoard" />
                 </div>
-            </FoldedRow>
-
-            <!-- 찬반 토론 열기(토론이 없는 글 — 열 수 있는 사람만) · 수정·삭제 — 내 글은 바로, 비회원 글은 비밀번호 -->
-            <div v-if="manageable || canOpenDebate" class="flex flex-wrap justify-end gap-1 border-t border-surface pt-2">
-                <Button v-if="canOpenDebate" type="button" icon="pi pi-comments" :label="t('comment.debateOpenAction')" size="small" severity="secondary" variant="text" data-testid="post-debate-open" @click="openDebateSettings" />
-                <template v-if="manageable">
-                    <Button type="button" icon="pi pi-pencil" :label="t('common.edit')" size="small" severity="secondary" variant="text" data-testid="post-edit" @click="onEdit" />
-                    <Button type="button" icon="pi pi-trash" :label="t('common.delete')" size="small" severity="danger" variant="text" data-testid="post-delete" @click="onDelete" />
-                </template>
             </div>
 
-            <!-- 소모임 글의 공개 범위 — 안내는 모두에게, 단추는 서버가 준 권한(`group.can*`)이 있는 사람에게만 -->
-            <GroupPostPanel
-                v-if="post.group"
-                :group="post.group"
-                :mine="post.mine"
-                :author-name="post.author.memberId ? post.author.name : null"
-                :actions="groupPanelActions"
-                @change="onGroupChange"
-                @session="prompt('view')"
-            />
+            <div class="content-card" data-testid="post-comments-card">
+                <!-- 멤버 전용 댓글 안내(5단계) — 비공개 소모임의 개별 공개 글을 비멤버·비회원이 볼 때, 공개 전에 달려 가려진 댓글 수(목록의 댓글 수는 전체 그대로) -->
+                <p
+                    v-if="membersOnlyCommentCount > 0"
+                    class="m-0 mt-4 flex items-center gap-1.5 rounded-lg bg-surface-100 px-3 py-2 text-xs text-muted-color dark:bg-surface-800/50"
+                    data-testid="comment-members-only-banner"
+                >
+                    <i class="pi pi-lock text-[0.6875rem]" aria-hidden="true" />
+                    <span>{{ t('groupVisibility.membersOnlyBanner', { n: membersOnlyCommentCount }) }}</span>
+                </p>
 
-            <BoardInvestmentNotice v-if="board.investmentNotice" variant="post" class="mt-3" />
-
-            <!-- 이전·다음 글 · 게시판으로(소모임 글에는 이전·다음 글이 없다) -->
-            <nav v-if="!post.group" class="mt-4 divide-y divide-surface border-y border-surface text-sm" :aria-label="t('post.neighborNav')">
-                <NuxtLink v-if="post.next" :to="`/posts/${post.next.id}`" class="flex gap-3 px-1 py-2.5 hover:bg-surface-100 dark:hover:bg-surface-800/60">
-                    <span class="w-14 shrink-0 text-xs text-muted-color"><i class="pi pi-angle-up mr-1 text-[0.625rem]" aria-hidden="true" />{{ t('post.next') }}</span>
-                    <span class="truncate">{{ post.next.title }}</span>
-                </NuxtLink>
-                <NuxtLink v-if="post.prev" :to="`/posts/${post.prev.id}`" class="flex gap-3 px-1 py-2.5 hover:bg-surface-100 dark:hover:bg-surface-800/60">
-                    <span class="w-14 shrink-0 text-xs text-muted-color"><i class="pi pi-angle-down mr-1 text-[0.625rem]" aria-hidden="true" />{{ t('post.prev') }}</span>
-                    <span class="truncate">{{ post.prev.title }}</span>
-                </NuxtLink>
-            </nav>
-            <div class="mt-3 flex justify-center">
-                <Button type="button" icon="pi pi-list" :label="post.group ? t('group.postListBack') : t('post.backToBoard')" severity="secondary" variant="outlined" size="small" @click="goBoard" />
+                <!-- 일반 댓글 — 맨 아래 원래 댓글 자리(입장 없는 원댓글 + 답글) -->
+                <CommentSection
+                    variant="general"
+                    :board="board"
+                    :data="comments.data.value"
+                    :state="comments.state.value"
+                    :error-message="comments.errorMessage.value"
+                    :sort="comments.sort.value"
+                    kind="GENERAL"
+                    :actions="commentActions"
+                    @sort="comments.setSort"
+                    @retry="comments.load"
+                    @report="(c) => openReport('COMMENT', c.id)"
+                />
             </div>
-
-            <!-- 멤버 전용 댓글 안내(5단계) — 비공개 소모임의 개별 공개 글을 비멤버·비회원이 볼 때, 공개 전에 달려 가려진 댓글 수(목록의 댓글 수는 전체 그대로) -->
-            <p
-                v-if="membersOnlyCommentCount > 0"
-                class="m-0 mt-4 flex items-center gap-1.5 rounded-lg bg-surface-100 px-3 py-2 text-xs text-muted-color dark:bg-surface-800/50"
-                data-testid="comment-members-only-banner"
-            >
-                <i class="pi pi-lock text-[0.6875rem]" aria-hidden="true" />
-                <span>{{ t('groupVisibility.membersOnlyBanner', { n: membersOnlyCommentCount }) }}</span>
-            </p>
-
-            <!-- 일반 댓글 — 맨 아래 원래 댓글 자리(입장 없는 원댓글 + 답글) -->
-            <CommentSection
-                variant="general"
-                :board="board"
-                :data="comments.data.value"
-                :state="comments.state.value"
-                :error-message="comments.errorMessage.value"
-                :sort="comments.sort.value"
-                kind="GENERAL"
-                :actions="commentActions"
-                @sort="comments.setSort"
-                @retry="comments.load"
-                @report="(c) => openReport('COMMENT', c.id)"
-            />
         </article>
 
         <BoardPasswordDialog

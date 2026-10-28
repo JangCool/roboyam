@@ -93,6 +93,8 @@ PNG 서명 기준 판별·다시 인코딩, 아이콘 크기별 PNG 생성, OG 1
 4. (`/api/site/theme` 은 2026-10-23 구현·연결 — 아래 「테마」) `/api/site/terms` 는 아직 서버에 없다(용어는 `useSiteTerms` 가 서버 값 없이 기본 이름).
 5. 서비스 워커·푸시 알림 아이콘은 범위 밖.
 
+> 2026-10-28: 테마 고르기 화면은 「일반」에서 `설정 › 테마`(`/settings/theme`)로 옮겼고, 테마마다 레이아웃·메뉴 설정이 붙었다 — `site-theme-layout-contract.md`. 아래 테마 API 계약(`{ theme, themes }`)은 그대로 정본.
+
 ## 테마 (서버 구현 2026-10-23 · 화면 연결 2026-10-23 — 관리자 설정 > 일반 「공개 사이트 테마」 구획(`site-theme`), user-web `useThemeApi` 실제 호출)
 **의도**: 운영자가 공개 사이트 테마 하나를 고른다(사용자 개인 테마 없음 — `.claude/guides/frontend/themes.md`). 공개 사이트는 비로그인에도 그 id 를 받아 루트 `data-theme`·셸을 고르고, 모르는 id 면 기본 테마로 그린다.
 

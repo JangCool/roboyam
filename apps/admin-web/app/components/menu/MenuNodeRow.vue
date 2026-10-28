@@ -18,6 +18,7 @@
                 <MenuTag v-if="node.newTab && (node.targetType === 'URL' || node.targetType === 'PATH')" :value="t('menuConfig.tag.newTab')" />
             </template>
 
+            <MenuTag v-if="side && top && node.divider !== 'NONE'" :value="t(`menuConfig.dividerTag.${node.divider}`)" icon="pi pi-grip-lines-vertical" />
             <MenuTag v-if="node.audience !== 'ALL'" :value="audienceText" severity="info" icon="pi pi-eye" />
             <MenuTag v-if="!node.visible" :value="t('menuConfig.tag.hidden')" icon="pi pi-eye-slash" />
             <MenuTag v-if="node.kind === 'ITEM' && side && node.mobileTab" :value="t('menuConfig.tag.mobileTab')" severity="contrast" icon="pi pi-mobile" />
@@ -34,6 +35,7 @@
                 <Button type="button" icon="pi pi-trash" size="small" severity="danger" variant="text" rounded :aria-label="t('menuConfig.removeNode', { name: name.text })" v-tooltip.top="t('common.delete')" @click="emit('remove')" />
             </div>
         </div>
+        <p v-if="node.kind === 'ITEM' && side && top && node.description" class="m-0 truncate pl-5 text-[11px] text-muted-color" :title="node.description">{{ node.description }}</p>
         <p v-if="status !== 'OK' && statusHint" class="m-0 pl-5 text-[11px] text-amber-700 dark:text-amber-400">{{ statusHint }}</p>
         <ul v-if="errors.length" class="m-0 list-none pl-5" role="alert">
             <li v-for="(message, i) in errors" :key="i" class="text-[11px] text-red-600 dark:text-red-400">{{ message }}</li>
@@ -56,9 +58,11 @@ interface Props {
     readonly?: boolean;
     /** 폴더 안에 항목을 더 넣을 수 있다(단계·노드 수 한도) */
     canAddInside?: boolean;
+    /** 최상위 줄(구분선 딱지는 최상위만) */
+    top?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { dimmed: false, errors: () => [], readonly: false, canAddInside: true });
+const props = withDefaults(defineProps<Props>(), { dimmed: false, errors: () => [], readonly: false, canAddInside: true, top: false });
 const emit = defineEmits<{ (e: 'edit'): void; (e: 'remove'): void; (e: 'addInside'): void }>();
 
 const { t } = useI18n();

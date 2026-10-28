@@ -63,14 +63,25 @@ const RoboyamPreset = definePreset(Aura, {
 
 export default defineNuxtConfig({
     // 두 앱이 같이 쓰는 공유 레이어(apps-packages/*) — 패키지 이름으로 extends 한다. 규약은 .claude/guides/frontend/layers.md
+    // 홈 가젯 배치(`@roboyam/home-layout`)는 공개 홈(user-web)과 홈 배치 편집기(admin-web)가 같이 쓴다
     // 서식 에디터(`@roboyam/rich-editor`)는 메일 템플릿 편집이 쓴다(간단 수준)
-    extends: ['@roboyam/display-time', '@roboyam/rich-editor', '@roboyam/i18n'],
+    extends: ['@roboyam/display-time', '@roboyam/rich-editor', '@roboyam/i18n', '@roboyam/home-layout'],
     ssr: false,
     compatibilityDate: '2026-08-01',
     devtools: { enabled: true },
 
     devServer: {
         port: Number(process.env.NUXT_PORT ?? 3200),
+    },
+
+    runtimeConfig: {
+        public: {
+            /**
+             * 공개 사이트(user-web) 주소 — 테마 화면 「실제 화면」이 iframe 으로 `{주소}/?adminPreview=1` 을 띄운다(`ThemeLivePreview`).
+             * 환경 변수 `NUXT_PUBLIC_USER_WEB_ORIGIN`. 기본은 로컬 공개 사이트 개발 서버. 운영 값(공개 주소)은 미확정 — 서버의 공개 주소 설정과 맞출지 정해야 한다.
+             */
+            userWebOrigin: 'http://localhost:3100',
+        },
     },
 
     nitro: {

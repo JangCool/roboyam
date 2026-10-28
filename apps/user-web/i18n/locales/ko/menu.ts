@@ -24,4 +24,8 @@ export default {
     home: '홈',
     myGroups: '내 {groups}',
     allGroups: '전체 {groups}',
+    descLabel: '메뉴 설명',
+    descPopular: '실시간 · 어제 · 이번 주, 반응이 가장 좋은 글을 모아 봐요',
+    descLatest: '모든 게시판의 새 글을 올라온 순서대로 봐요',
+    descBoard: '{name}의 새 소식을 모아 봐요',
 };

@@ -22,7 +22,7 @@
         </span>
         <i v-if="row.hasImage" class="pi pi-image ml-1 text-xs text-muted-color" :title="t('board.hasImage')" aria-hidden="true" />
         <span v-if="row.hasImage" class="sr-only">{{ t('board.hasImage') }}</span>
-        <span v-if="row.commentCount > 0" class="ml-1 text-xs font-semibold text-primary">
+        <span v-if="commentCount && row.commentCount > 0" class="ml-1 text-xs font-semibold text-primary">
             <span class="sr-only">{{ t('board.commentCountLabel') }}</span>[{{ row.commentCount }}]
         </span>
         <span v-if="isNew" class="ml-1 inline-flex size-4 items-center justify-center rounded-full bg-primary align-[1px] text-[0.5625rem] font-bold leading-none text-primary-contrast" :title="t('board.newMark')">
@@ -44,6 +44,8 @@ interface Props {
     showPrefix?: boolean;
     /** 고정 공지에 핀 표시 */
     pinnedMark?: boolean;
+    /** 제목 뒤 [댓글 수] — 댓글 수를 줄의 다른 자리에 따로 그리는 목록 모양(테마의 기사형 줄)은 끈다 */
+    commentCount?: boolean;
     /** 검색 결과의 일치 강조 단어(검색 응답의 `tokens`) — 비면 강조하지 않는다 */
     tokens?: string[];
 }
@@ -51,6 +53,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
     showPrefix: true,
     pinnedMark: true,
+    commentCount: true,
     tokens: () => [],
 });
 

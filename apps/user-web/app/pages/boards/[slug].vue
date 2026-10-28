@@ -17,7 +17,8 @@
         </ErrorState>
         <ErrorState v-else-if="boardState === 'error' && !view" :title="t('board.loadFailed')" :description="boardError" retry @retry="retryAll" />
 
-        <template v-else>
+        <!-- 게시판 머리·목록·쪽 번호를 한 카드에 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 다음식·네이버식은 흰 카드다(`main.css` `content-card`) -->
+        <div v-else class="content-card" data-testid="board-card">
             <!-- 머리 -->
             <header class="flex items-start gap-3">
                 <div class="min-w-0 flex-1">
@@ -134,7 +135,7 @@
                     <BoardPager :page="list.page" :total-pages="list.totalPages" :to="pageLink" />
                 </template>
             </div>
-        </template>
+        </div>
     </div>
 </template>
 
@@ -142,12 +143,10 @@
 import type { BoardDetail, BoardView } from '~/composables/board/api/useBoardApi.types';
 import type { PostListQuery, PostListResponse, PostSort } from '~/composables/board/api/usePostApi.types';
 import type { BoardViewMode } from '~/composables/board/useBoardViewMode';
-import BoardPostCards from '~/components/board/BoardPostCards.vue';
-import BoardPostGallery from '~/components/board/BoardPostGallery.vue';
-import BoardPostList from '~/components/board/BoardPostList.vue';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilBoardQuery from '~/utils/util-board-query';
+import UtilTheme from '~/utils/util-theme';
 
 const SORTS: readonly PostSort[] = ['LATEST', 'OLDEST'];
 const VIEW_MODES: readonly BoardViewMode[] = ['LIST', 'GALLERY'];
@@ -218,11 +217,14 @@ const activeView = computed<BoardViewMode>(() => {
     const chosen = canToggleView.value ? viewMode.chosen(slug.value) : null;
     return chosen ?? (view.value?.layout === 'GALLERY' ? 'GALLERY' : 'LIST');
 });
-/** 그릴 목록 모양 — 카드형은 전환 없이 늘 카드, 모르는 값은 목록형 */
-const listComponent = computed(() => {
-    if (view.value?.layout === 'CARD') return BoardPostCards;
-    return activeView.value === 'GALLERY' ? BoardPostGallery : BoardPostList;
+/** 그릴 목록 유형 — 카드형은 전환 없이 늘 카드, 모르는 값은 목록형. 유형은 게시판이 정하고 테마는 그 유형의 생김새만 바꾼다 */
+const listKind = computed<'LIST' | 'CARD' | 'GALLERY'>(() => {
+    if (view.value?.layout === 'CARD') return 'CARD';
+    return activeView.value === 'GALLERY' ? 'GALLERY' : 'LIST';
 });
+/** 그릴 목록 컴포넌트 — 현재 테마의 `postList:<유형>`, 없으면 기본 테마 것(`UtilTheme.resolve`, 계약 `BoardPostListProps`) */
+const { theme } = useTheme();
+const listComponent = computed(() => UtilTheme.resolve(theme.value, 'postList', listKind.value));
 
 function onView(mode: BoardViewMode): void {
     viewMode.choose(slug.value, mode);

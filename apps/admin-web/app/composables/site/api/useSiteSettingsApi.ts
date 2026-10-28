@@ -13,6 +13,7 @@ import type {
     SiteThemeRequest,
     SiteThemeResponse,
 } from '~/composables/site/api/useSiteSettingsApi.types';
+import { isMockOnlyTheme, mockSaveTheme, mockSaveThemeMenu, mockThemeMenu, type SiteThemeMenuFields, type SiteThemeServerFields } from '~/composables/site/api/mock/site-theme-mock';
 
 /**
  * 사이트 설정 API — 서버 주소 문자열(`/api/admin/site…`)이 있는 **유일한 곳**이다. 상태는 없다(화면이 쓰는 값은 일반 화면의 `ref`).
@@ -42,6 +43,11 @@ import type {
  *   - `GET /api/admin/site/theme` → 200 `{ theme, themes: string[] }`  (`site.read`) — `themes` 는 고를 수 있는 id(보일 순서). 이름은 화면이 id 로 i18n 키를 찾는다
  *   - `PUT /api/admin/site/theme` `{ theme }` → 200 같은 모양  (`site.manage`) · 400 VALIDATION(`fields.theme` 목록 밖·빈 값, `fields.site` 설정 행 없음)
  *       공개 사이트(`GET /api/site/theme`)는 서버 사본(20초) + 브라우저 캐시(60초) 뒤에 따라온다. 같은 값 저장은 감사·알림을 남기지 않는다.
+ *       ⚠ MOCK: 메뉴 배치(`menuPosition`·`topItems`·`barGroupIds`·`menuWidth`·`menuOverflow`·`themeMenuDefaults`·`themeTopItemsDefaults`·`themeMenuWidthDefaults`·`themeMenuOverflowDefaults`)와
+ *         메뉴 모양 7칸(`menuStyle` — `menuGroupStyle`·`sideGroupStyle`·`menuSize`·`mobileMenu`·`menuDescription`·`stickyMenu`·`mobileHeader`, 테마별 기본 `themeMenuStyleDefaults`)는 서버에 칸이 없다 —
+ *         실제 응답에 목업 값(`./mock/site-theme-mock.ts`)을 덧붙이고, `PUT` 에는 `theme` 만 보낸다(모르는 칸으로 400 이 나지 않게). 서버 계약이 메뉴 모양을 평평한 칸으로 정하면 REAL 줄에서 펼친다.
+ *         서버 `SiteThemes.IDS` 에 아직 없는 로보얌 테마(`roboyam`)는 목업이 고를 수 있는 목록 끝에 덧붙이고, 그 테마를 고른 저장은 서버에 `PUT` 하지 않고(목록 밖 id 는 400) 서버 값을 다시 받아 목업 값을 얹는다.
+ *         서버가 칸·테마를 받으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
  *
  * 그 밖의 오류: 503 `STORAGE_UNAVAILABLE`(저장소에 쓰지 못함) · 503 `IMAGE_BUSY`(이미지 동시 처리 자리 없음) · 413 `FILE_TOO_LARGE`(multipart 10MB 초과; 2MB 초과는 `fields.file` 문구로 안내) · 403 `PERMISSION_DENIED`.
  * 이미지 주소(`logoUrl`·`previewUrl`·`url`·`defaultPreviewUrl`·`defaultUrl`)는 `/media/…` 상대 주소다 — 운영은 같은 도메인에서 서빙되고, 개발 서버는 `nuxt.config.ts` 의 `/media` 프록시가 잇는다.
@@ -116,10 +122,24 @@ export function useSiteSettingsApi() {
         /** 표시 기본값을 저장한다 — 저장된 모양을 돌려준다 */
         saveDisplayDefaults: (body: SiteDisplayDefaultsRequest): Promise<SiteDisplayDefaultsResponse> => client.put<SiteDisplayDefaultsResponse>(PATH.displayDefaults, body),
 
-        /** 공개 사이트 테마(지금 값과 고를 수 있는 id 목록) */
-        theme: (): Promise<SiteThemeResponse> => client.get<SiteThemeResponse>(PATH.theme),
+        /** 공개 사이트 테마(지금 값과 고를 수 있는 id 목록) + `forTheme`(없으면 지금 테마)의 메뉴 설정 */
+        theme: (forTheme?: string): Promise<SiteThemeResponse> =>
+            // MOCK:
+            client.get<SiteThemeServerFields>(PATH.theme).then((res) => mockThemeMenu(res, forTheme)),
+        // REAL: client.get<SiteThemeResponse>(PATH.theme, { query: { forTheme } }),
 
-        /** 공개 사이트 테마를 저장한다 — 저장된 모양을 돌려준다 */
-        saveTheme: (body: SiteThemeRequest): Promise<SiteThemeResponse> => client.put<SiteThemeResponse>(PATH.theme, body),
+        /** 공개 사이트 테마를 저장한다(메뉴 설정은 테마마다 따로 — `saveThemeMenu`) — 저장된 모양을 돌려준다 */
+        saveTheme: (body: SiteThemeRequest): Promise<SiteThemeResponse> =>
+            // MOCK: 목업 전용 테마(서버 목록 밖)면 서버에 보내지 않고 서버 값을 다시 받는다
+            (isMockOnlyTheme(body.theme) ? client.get<SiteThemeServerFields>(PATH.theme) : client.put<SiteThemeServerFields>(PATH.theme, { theme: body.theme })).then(
+                (res) => (mockSaveTheme(body.theme), mockThemeMenu(res)),
+            ),
+        // REAL: client.put<SiteThemeResponse>(PATH.theme, body),
+
+        /** 테마 하나의 메뉴 설정(배치·모양)을 저장한다 — 그 테마의 메뉴 설정을 담은 모양을 돌려준다(서버 후보 `PUT /api/admin/site/themes/{id}/menu`) */
+        saveThemeMenu: (themeId: string, menu: SiteThemeMenuFields): Promise<SiteThemeResponse> =>
+            // MOCK: 서버에 칸이 없어 목업에만 둔다
+            client.get<SiteThemeServerFields>(PATH.theme).then((res) => (mockSaveThemeMenu(themeId, menu), mockThemeMenu(res, themeId))),
+        // REAL: client.put<SiteThemeResponse>(`/api/admin/site/themes/${encodeURIComponent(themeId)}/menu`, menu),
     };
 }

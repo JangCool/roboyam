@@ -72,10 +72,21 @@ const RoboyamPreset = definePreset(Aura, {
 
 export default defineNuxtConfig({
     // 두 앱이 같이 쓰는 공유 레이어(apps-packages/*) — 패키지 이름으로 extends 한다. 규약은 .claude/guides/frontend/layers.md
-    extends: ['@roboyam/display-time', '@roboyam/rich-editor', '@roboyam/i18n'],
+    // 홈 가젯 배치(`@roboyam/home-layout`)는 공개 홈(user-web)과 홈 배치 편집기(admin-web)가 같이 쓴다
+    extends: ['@roboyam/display-time', '@roboyam/rich-editor', '@roboyam/i18n', '@roboyam/home-layout'],
     ssr: false,
     compatibilityDate: '2026-08-01',
     devtools: { enabled: true },
+
+    runtimeConfig: {
+        public: {
+            /**
+             * 관리자 미리보기(`?adminPreview=1`, 관리자 테마 화면의 iframe)가 메시지를 받을 관리자 주소들(쉼표로) — 이 주소에서 온 메시지만 받는다(`plugins/03.admin-preview.client.ts`).
+             * 환경 변수 `NUXT_PUBLIC_ADMIN_ORIGINS`. 기본은 로컬 관리자 개발 서버. 운영은 관리자 주소로 채우고, 웹 서버의 frame-ancestors 에도 같은 주소를 허용해야 iframe 에 뜬다.
+             */
+            adminOrigins: 'http://localhost:3200,http://localhost:3201',
+        },
+    },
 
     devServer: {
         port: Number(process.env.NUXT_PORT ?? 3100),

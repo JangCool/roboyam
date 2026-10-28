@@ -1,25 +1,32 @@
 <template>
-    <!-- 상단 메뉴(데스크톱 전용 — 보기 설정의 메뉴 위치 「상단」) — 헤더 바로 아래 가로 한 줄: 최상위 항목(홈·공동구매)과 최상위 그룹별 "그룹 이름 + 직속 항목". 넘치면 옆으로 밀고 활성 항목을 가운데로 끌어온다.
+    <!-- 상단 메뉴(데스크톱 전용 — 기본 테마의 메뉴 위치 「상단」·「상단+사이드」, 섞인 배치면 상단 띠 그룹만(`useMenuItems('bar')`, `UtilMenu.split`). 로딩·오류 안내는 사이드가 없을 때만 여기서) — 헤더 바로 아래 가로 한 줄: 최상위 항목(홈·공동구매)과 최상위 그룹별 "그룹 이름 + 직속 항목". 넘치면 옆으로 밀고 활성 항목을 가운데로 끌어온다.
          그룹 안의 하위 그룹은 눌렀을 때 드롭다운으로 펼친다(`AppTopMenuDropdown`). 접기 설정은 가로라 무시한다.
-         메뉴 구성(그룹·순서·활성 판정·로딩/오류)은 왼쪽·오른쪽 메뉴·햄버거와 같은 `useMenuItems` 를 쓴다. 모바일은 `AppTopTabs`·하단 탭·☰ 가 그대로 맡는다(이 막대는 md 미만에서 숨는다) -->
-    <nav :aria-label="t('menu.navLabel')" class="sticky top-12 z-20 border-b border-surface bg-surface-0 max-md:hidden dark:bg-surface-900" data-testid="top-menu">
+         메뉴 구성(그룹·순서·활성 판정·로딩/오류)은 왼쪽·오른쪽 메뉴·햄버거와 같은 `useMenuItems` 를 쓴다. 모바일은 `AppTopTabs`·하단 탭·☰ 가 그대로 맡는다(이 막대는 md 미만에서 숨는다).
+         넘칠 때의 표시(`overflow`)는 공통 `AppScrollRow` 가 그린다. 칸의 활성 밑줄(`border-b-2`)이 줄(2.5rem) 바닥에 붙어 줄 안에 빈 아래 여백이 없으므로,
+         얇은 스크롤(`SCROLLBAR`)이면 줄 아래에 예약 자리(`--scroll-reserve` 7px)를 처음부터 덧붙인다(`reserve` — 막대 2.5rem + 7px + 아래 선 1px, 넘쳐도 그대로).
+         화살표 단추의 그라데이션은 이 막대 바탕(surface-0 · 다크 surface-900)에서 사라진다(`--scroll-fade-bg`) -->
+    <nav
+        :aria-label="t('menu.navLabel')"
+        class="sticky top-12 z-20 border-b border-surface bg-surface-0 [--scroll-fade-bg:var(--p-surface-0)] max-md:hidden dark:bg-surface-900 dark:[--scroll-fade-bg:var(--p-surface-900)]"
+        data-testid="top-menu"
+    >
         <div class="mx-auto flex w-full max-w-[var(--content-max)] items-center px-4">
-            <div ref="scroller" class="no-scrollbar relative flex min-w-0 flex-1 items-center overflow-x-auto whitespace-nowrap text-sm">
+            <AppScrollRow ref="row" :mode="overflow" reserve class="flex-1" scroller-class="flex h-10 items-center whitespace-nowrap text-sm">
                 <!-- 아직 못 받았다 — 막대 높이(2.5rem)를 그대로 두고 줄 모양 스켈레톤 -->
-                <div v-if="state === 'loading'" class="flex h-10 shrink-0 items-center gap-3" role="status" :aria-label="t('menu.loadingLabel')">
+                <div v-if="ownsState && state === 'loading'" class="flex h-10 shrink-0 items-center gap-3" role="status" :aria-label="t('menu.loadingLabel')">
                     <span v-for="n in 6" :key="n" class="h-3.5 animate-pulse rounded bg-surface-200 dark:bg-surface-800" :class="n % 2 ? 'w-14' : 'w-10'" />
                 </div>
 
                 <!-- 보여 드릴 메뉴가 없다 -->
-                <div v-else-if="state === 'empty'" class="flex h-10 shrink-0 items-center gap-2 text-xs text-muted-color" data-testid="menu-empty">
+                <div v-else-if="ownsState && state === 'empty'" class="flex h-10 shrink-0 items-center gap-2 text-xs text-muted-color" data-testid="menu-empty">
                     <span>{{ t('menu.emptyTitle') }}</span>
                     <Button type="button" :label="t('menu.emptyHome')" size="small" variant="outlined" severity="secondary" @click="goHome" />
                 </div>
 
-                <template v-else>
+                <template v-else-if="state !== 'loading' && state !== 'empty'">
                     <!-- 서버 메뉴를 못 받았다 — 기본 메뉴 앞에 안내 한 줄(게시판 목록도 못 받았으면 오류 문구) + 다시 시도 -->
                     <div
-                        v-if="state === 'fallback' || state === 'error'"
+                        v-if="ownsState && (state === 'fallback' || state === 'error')"
                         class="mr-2 flex shrink-0 items-center gap-2 border-r border-surface pr-3 text-xs text-muted-color"
                         :role="state === 'error' ? 'alert' : 'status'"
                         data-testid="menu-fallback-notice"
@@ -55,7 +62,7 @@
                         </ul>
                     </section>
                 </template>
-            </div>
+            </AppScrollRow>
         </div>
     </nav>
 </template>
@@ -63,13 +70,21 @@
 <script setup lang="ts">
 import UtilBoard from '~/utils/util-board';
 import UtilMenu from '~/utils/util-menu';
+import type { MenuOverflow } from '~/utils/util-menu-position';
+
+interface Props {
+    /** 줄이 넘칠 때의 표시(운영자 설정 > 테마 기본, 셸이 넘긴다) — 얇은 스크롤 · 양끝 화살표 단추 */
+    overflow?: MenuOverflow;
+}
+withDefaults(defineProps<Props>(), { overflow: 'SCROLLBAR' });
 
 const { t } = useI18n();
-const { bar, state, activeId, loading, reload } = useMenuItems();
+const { bar, state, ownsState, activeId, loading, reload } = useMenuItems('bar');
 const uid = useId();
 // 메뉴 이름은 운영자가 만든 동적 이름이다 — `label`(한국어)과 선택 영문명 `nameEn` 을 지금 언어로 고른다
 const { localizedName } = useLocalizedName();
-const scroller = ref<HTMLElement | null>(null);
+/** 메뉴 줄(`AppScrollRow`)과 그 안의 스크롤 상자 — 활성 항목 가운데로 끌어오기가 쓴다 */
+const { row, scroller } = useScrollRowRef();
 
 /** 메뉴 자리가 비었을 때 — 로고를 누르는 것과 같이 홈으로 간다 */
 async function goHome() {

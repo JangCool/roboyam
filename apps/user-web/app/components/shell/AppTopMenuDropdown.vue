@@ -3,7 +3,7 @@
          가로 줄(`overflow-x-auto`) 안에 두면 드롭다운이 잘리므로 PrimeVue `Popover` 가 본문으로 띄운다 — 바깥 누르기·Esc 로 닫히고 키보드로 열고 닫는다 -->
     <button
         type="button"
-        :class="UtilMenu.barItemClass(entry.active)"
+        :class="buttonClass || UtilMenu.barItemClass(entry.active)"
         :data-active="entry.active ? 'true' : undefined"
         aria-haspopup="true"
         :aria-expanded="open"
@@ -55,9 +55,11 @@ interface PopoverHandle {
 interface Props {
     /** 드롭다운 칸 하나 — 하위 그룹과 그 안의 항목 덩어리들 */
     entry: Extract<MenuBarEntry, { kind: 'dropdown' }>;
+    /** 제목 단추의 클래스 — 테마 셸이 자기 탭 모양을 줄 때만(활성 여부는 `entry.active` 로 셸이 고른다). 비우면 상단 가로 막대 칸 모양(`UtilMenu.barItemClass`) */
+    buttonClass?: string;
 }
 
-const props = withDefaults(defineProps<Props>(), {});
+const props = withDefaults(defineProps<Props>(), { buttonClass: '' });
 
 const route = useRoute();
 const { t } = useI18n();

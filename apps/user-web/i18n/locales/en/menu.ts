@@ -23,4 +23,8 @@ export default {
     home: 'Home',
     myGroups: 'My {groups}',
     allGroups: 'All {groups}',
+    descLabel: 'About this menu',
+    descPopular: 'The most-loved posts — live, yesterday and this week',
+    descLatest: 'New posts from every board, newest first',
+    descBoard: 'The latest from {name}',
 };

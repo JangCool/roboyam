@@ -9,7 +9,8 @@ import type { ViewSettings } from '~/composables/view/api/useViewSettingsApi.typ
  *  - 로그인 필요(`401 UNAUTHENTICATED`) — **비로그인이면 부르지 않는다**(`useViewSettings` 가 이 브라우저 사본만 쓴다).
  * 서버는 값만 저장하고 **적용은 화면이 한다**(야간 모드·글자 크기는 `<html>` 에, 댓글 정렬은 댓글 목록 요청의 `sort`).
  *
- * 서버 연결됨(2026-10-24).
+ * 서버 연결됨(2026-10-24). 단 `menuPosition`(데스크톱 메뉴 위치)은 서버에 아직 칸이 없다 — ⚠ MOCK: `PUT` 에서 빼고 보내고(모르는 칸으로 400 이 나지 않게) 응답에 보낸 값을 되붙인다.
+ * `GET` 응답에 칸이 없으면 `useViewSettings` 가 이 브라우저 사본의 값을 둔다. 서버가 칸을 받으면 `// MOCK:` 줄을 지우고 `// REAL:` 줄을 살린다.
  */
 const PATH = {
     settings: '/api/me/settings',
@@ -20,11 +21,21 @@ export function useViewSettingsApi() {
     const auth = useAuthApi();
     const client = useApiClient({ refreshCsrf: () => auth.me() });
 
+    // MOCK: 서버에 `menuPosition` 칸이 생기면 이 함수를 지운다
+    async function mockUpdateWithoutMenuPosition(settings: ViewSettings): Promise<ViewSettings> {
+        const { menuPosition, ...serverFields } = settings;
+        const saved = await client.put<Omit<ViewSettings, 'menuPosition'>>(PATH.settings, serverFields);
+        return { ...saved, menuPosition };
+    }
+
     return {
         /** 내 보기 설정 */
         get: (signal?: AbortSignal): Promise<ViewSettings> => client.get<ViewSettings>(PATH.settings, { signal }),
 
-        /** 보기 설정 바꾸기 — 세 칸 모두 보낸다 */
-        update: (settings: ViewSettings): Promise<ViewSettings> => client.put<ViewSettings>(PATH.settings, settings),
+        /** 보기 설정 바꾸기 — 칸을 모두 보낸다 */
+        update: (settings: ViewSettings): Promise<ViewSettings> =>
+            // MOCK: 서버가 아직 모르는 `menuPosition` 은 빼고 보내고, 응답에 보낸 값을 되붙인다
+            mockUpdateWithoutMenuPosition(settings),
+        // REAL: client.put<ViewSettings>(PATH.settings, settings),
     };
 }

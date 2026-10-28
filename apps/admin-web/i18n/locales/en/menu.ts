@@ -7,6 +7,8 @@ export default {
     dashboard: 'Dashboard',
     system: 'System',
     general: 'General',
+    theme: 'Theme',
+    themeLayout: 'Layout',
     socialLogin: 'Social login',
     portone: 'PortOne',
     loginSecurity: 'Sign-in security',

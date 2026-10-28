@@ -131,6 +131,15 @@
                 <p class="m-0 text-xs text-muted-color">{{ t('menuConfig.mobileTabHelp', { n: tabCount + (form.mobileTab ? 1 : 0), max: UtilMenu.LIMITS.mobileTabs }) }}</p>
             </div>
 
+            <MenuDividerField v-if="side" v-model="form.divider" :top-level="topLevel" />
+
+            <!-- 설명 — 상단 메뉴 둘째 줄(최상위 항목만, 하위에서는 비활성) -->
+            <LabeledField v-if="side" :label="t('menuConfig.field.description')" :hint="t('menuConfig.itemDescCount', { n: form.description.length, max: UtilMenu.LIMITS.descriptionMax })" :help="topLevel ? t('menuConfig.itemDescHelp') : t('menuConfig.itemDescTopOnly')">
+                <template #default="{ id, describedBy }">
+                    <InputText :id="id" v-model="form.description" :maxlength="UtilMenu.LIMITS.descriptionMax" :disabled="!topLevel" :aria-describedby="describedBy" :placeholder="t('menuConfig.itemDescPlaceholder')" autocomplete="off" fluid />
+                </template>
+            </LabeledField>
+
             <div v-if="form.targetType === 'PATH' || form.targetType === 'URL'" class="flex items-center gap-2">
                 <ToggleSwitch v-model="form.newTab" :input-id="`${formId}-newtab`" />
                 <label :for="`${formId}-newtab`" class="cursor-pointer text-sm">{{ t('menuConfig.field.newTab') }}</label>
@@ -164,9 +173,11 @@ interface Props {
     linked: Map<string, MenuLinkedTarget>;
     /** 이 항목을 뺀 모바일 탭 수 */
     tabCount?: number;
+    /** 고칠 항목이 최상위인가(구분선은 최상위만) — 추가할 때는 넣을 곳으로 정한다 */
+    editTopLevel?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { item: null, parents: () => [], parentKey: '', tabCount: 0 });
+const props = withDefaults(defineProps<Props>(), { item: null, parents: () => [], parentKey: '', tabCount: 0, editTopLevel: true });
 const emit = defineEmits<{ (e: 'update:visible', value: boolean): void; (e: 'save', item: MenuEditItem, parentKey: string | null): void }>();
 
 const { t } = useI18n();
@@ -197,6 +208,7 @@ watch(
 
 const header = computed(() => (props.item ? t('menuConfig.itemEditTitle') : t('menuConfig.itemAddTitle')));
 const side = computed(() => UtilMenu.isSide(props.ctx.placement));
+const topLevel = computed(() => (props.item ? props.editTopLevel : parentValue.value === ''));
 const typeDef = computed(() => (form.value ? UtilMenu.typeOf(form.value.targetType) : undefined));
 const needsLabel = computed(() => form.value?.targetType === 'PATH' || form.value?.targetType === 'URL');
 const tabsFull = computed(() => props.tabCount >= UtilMenu.LIMITS.mobileTabs);
@@ -270,6 +282,7 @@ function apply() {
             nameEn: value.nameEn.trim(),
             path: value.path.trim(),
             href: value.href.trim(),
+            description: value.description.trim(),
             minGrade: value.audience === 'GRADE_MIN' ? value.minGrade : null,
             mobileTab: side.value && value.mobileTab,
             newTab: value.targetType === 'PATH' || value.targetType === 'URL' ? value.newTab : false,

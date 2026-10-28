@@ -34,6 +34,8 @@
                 <SelectButton v-model="form.collapse" :options="collapseOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-labelledby="`${formId}-collapse`" class="self-start" />
             </div>
 
+            <MenuDividerField v-if="side" v-model="form.divider" :top-level="topLevel" />
+
             <div v-if="side" class="flex flex-col gap-1">
                 <div class="flex items-center gap-2">
                     <ToggleSwitch v-model="form.autoAdd" :input-id="`${formId}-auto`" />
@@ -65,9 +67,11 @@ interface Props {
     /** 처음 고른 넣을 곳(`''` 은 최상위) */
     parentKey?: string;
     ctx: MenuContext;
+    /** 고칠 폴더가 최상위인가(구분선은 최상위만) — 추가할 때는 넣을 곳으로 정한다 */
+    editTopLevel?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { folder: null, parents: () => [], parentKey: '' });
+const props = withDefaults(defineProps<Props>(), { folder: null, parents: () => [], parentKey: '', editTopLevel: true });
 const emit = defineEmits<{ (e: 'update:visible', value: boolean): void; (e: 'save', folder: MenuEditFolder, parentKey: string | null): void }>();
 
 const { t } = useI18n();
@@ -78,6 +82,7 @@ const parentValue = ref('');
 const submitted = ref(false);
 
 const side = computed(() => UtilMenu.isSide(props.ctx.placement));
+const topLevel = computed(() => (props.folder ? props.editTopLevel : parentValue.value === ''));
 const collapseOptions = computed(() => UtilMenu.COLLAPSE_MODES.map((value) => ({ value, label: t(`menuConfig.collapse.${value}`) })));
 
 watch(

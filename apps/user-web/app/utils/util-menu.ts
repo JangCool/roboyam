@@ -1,8 +1,9 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
 import type { BoardView } from '~/composables/board/api/useBoardApi.types';
-import type { MenuBoardRef, MenuGroupNode, MenuItemNode, MenuNode, MenuResponse } from '~/composables/menu/api/useMenuApi.types';
+import type { MenuBoardRef, MenuDivider, MenuGroupNode, MenuItemNode, MenuNode, MenuResponse } from '~/composables/menu/api/useMenuApi.types';
 import type { SiteTerms } from '~/composables/site/useSiteTerms.types';
 import UtilBoard from '~/utils/util-board';
+import type { MenuBarScope, TopItemsPosition } from '~/utils/util-menu-position';
 import UtilSiteTerms from '~/utils/util-site-terms';
 
 /**
@@ -91,6 +92,28 @@ export interface MenuBarSection {
     entries: MenuBarEntry[];
 }
 
+/**
+ * 메뉴를 그리는 자리(범위) — 같은 트리를 나눠 그린다(`UtilMenu.split`).
+ * `all` 전체(햄버거·모바일) · `bar` 상단 막대 · `side` 사이드 메뉴 · `logo` 로고 옆 작은 링크 줄
+ */
+export type MenuScope = 'all' | 'bar' | 'side' | 'logo';
+
+/** 데스크톱 메뉴 배치 — 최상위 항목 위치 + 상단 막대 범위(`UtilMenuPosition.barScope`) */
+export interface MenuLayout {
+    topItems: TopItemsPosition;
+    bar: MenuBarScope;
+}
+
+/** 나눈 결과 — 각 자리가 그릴 노드(원래 트리의 노드를 그대로 쓴다) */
+export interface MenuSplit {
+    /** 로고 옆 작은 링크 줄 — 최상위 항목(`topItems = LOGO` 일 때만) */
+    logo: MenuNode[];
+    /** 상단 막대 */
+    bar: MenuNode[];
+    /** 사이드 메뉴 */
+    side: MenuNode[];
+}
+
 /** 서버 메뉴가 없을 때 만드는 기본 메뉴 */
 export interface FallbackMenu {
     nodes: MenuNode[];
@@ -135,6 +158,27 @@ function readNameEn(raw: Record<string, unknown>): string | null {
     return typeof raw.nameEn === 'string' && raw.nameEn.trim() !== '' ? raw.nameEn.trim() : null;
 }
 
+/** 서버가 준 구분선 — 모르는 값·없음이면 null(긋지 않는다) */
+function readDivider(raw: Record<string, unknown>): MenuDivider | null {
+    return raw.divider === 'BEFORE' || raw.divider === 'AFTER' ? raw.divider : null;
+}
+
+/** 개발 미리보기 `?divider=이름:before|after,…` 를 이 탭에 기억하는 저장 키 */
+const DIVIDER_PREVIEW_KEY = 'roboyam:menu-divider-preview';
+
+/** `이름:before|after` 쉼표 목록 → 이름 → 구분선. 읽을 수 없으면 null */
+function readDividerPreview(text: string | null): Map<string, MenuDivider> | null {
+    if (!text) return null;
+    const map = new Map<string, MenuDivider>();
+    for (const part of text.split(',')) {
+        const [name, side] = part.split(':').map((s) => s.trim());
+        if (!name) continue;
+        const value = side?.toLowerCase() === 'after' ? 'AFTER' : side?.toLowerCase() === 'before' ? 'BEFORE' : null;
+        if (value) map.set(name, value);
+    }
+    return map.size ? map : null;
+}
+
 function readNode(raw: unknown, depth: number): MenuNode | null {
     if (!isRecord(raw) || typeof raw.id !== 'string' || raw.id === '' || typeof raw.label !== 'string' || raw.label === '') return null;
     if (raw.kind === 'GROUP') {
@@ -143,7 +187,7 @@ function readNode(raw: unknown, depth: number): MenuNode | null {
         // 보이는 항목이 하나도 없는 그룹은 뺀다 — 서버도 같은 규칙으로 빼지만, 읽다가 항목이 빠진 그룹이 제목만 남지 않게 한다
         if (children.length === 0) return null;
         const collapsible = raw.collapsible === true;
-        return { id: raw.id, kind: 'GROUP', label: raw.label, nameEn: readNameEn(raw), collapsible, collapsed: collapsible && raw.collapsed === true, children };
+        return { id: raw.id, kind: 'GROUP', label: raw.label, nameEn: readNameEn(raw), collapsible, collapsed: collapsible && raw.collapsed === true, divider: readDivider(raw), children };
     }
     if (raw.kind === 'ITEM') {
         if (typeof raw.path !== 'string' || !isUsablePath(raw.path)) return null;
@@ -160,6 +204,8 @@ function readNode(raw: unknown, depth: number): MenuNode | null {
             mobileTab: raw.mobileTab === true,
             board: readBoardRef(raw.board),
             extra: isRecord(raw.extra) ? raw.extra : null,
+            divider: readDivider(raw),
+            description: typeof raw.description === 'string' && raw.description.trim() !== '' ? raw.description.trim() : null,
         };
     }
     return null;
@@ -327,6 +373,38 @@ export default class UtilMenu {
     }
 
     /**
+     * 개발 모드 전용 구분선 미리보기 — 주소 `?divider=공동구매:before,커뮤니티:after`(최상위 노드 이름)를 이 탭에 기억하고 최상위 노드에 입힌다. 서버가 `divider` 를 주면 서버 값이 이긴다.
+     * 운영 빌드(`import.meta.dev` 거짓)에서는 그대로 돌려준다. 저장소가 막혀 있으면 미리보기 없이.
+     * @param {MenuNode[]} nodes - 읽은 메뉴 트리.
+     * @returns {MenuNode[]} 구분선을 입힌 트리(최상위만).
+     */
+    static withDividerPreview(nodes: MenuNode[]): MenuNode[] {
+        if (!import.meta.dev) return nodes;
+        let map: Map<string, MenuDivider> | null = null;
+        try {
+            const fromUrl = new URLSearchParams(window.location.search).get('divider');
+            if (fromUrl !== null) window.sessionStorage.setItem(DIVIDER_PREVIEW_KEY, fromUrl);
+            map = readDividerPreview(fromUrl ?? window.sessionStorage.getItem(DIVIDER_PREVIEW_KEY));
+        } catch {
+            return nodes;
+        }
+        if (!map) return nodes;
+        const preview = map;
+        return nodes.map((node) => (node.divider || !preview.has(node.label) ? node : { ...node, divider: preview.get(node.label)! }));
+    }
+
+    /**
+     * 상단 가로 메뉴 칸 옆 구분선 클래스 — 칸(`li`)을 flex 로 두고 `before:`/`after:` 로 세로 선(높이 16, 머리카락 선 색)을 긋는다. 구분선이 없으면 빈 글자.
+     * @param {MenuDivider | null | undefined} divider - 노드의 구분선.
+     * @returns {string} 클래스 문자열.
+     */
+    static dividerClass(divider: MenuDivider | null | undefined): string {
+        if (divider === 'BEFORE') return "flex items-center before:mx-1.5 before:h-4 before:w-px before:bg-hairline-strong before:content-['']";
+        if (divider === 'AFTER') return "flex items-center after:mx-1.5 after:h-4 after:w-px after:bg-hairline-strong after:content-['']";
+        return '';
+    }
+
+    /**
      * 서버 응답을 읽는다 — 모양이 깨졌으면 null(받지 못한 것으로 보고 기본 메뉴로 그린다). 모르는 칸은 버리고, 그릴 수 없는 노드(주소·글자가 없다)는 뺀다.
      * 서버가 이미 거르고 정렬해 준 것이라 거르거나 정렬하지는 않는다. 읽다가 항목이 다 빠진 그룹만 뺀다.
      * @param {unknown} raw - `GET /api/menu` 응답.
@@ -476,6 +554,36 @@ export default class UtilMenu {
             if (group && UtilMenu.isCollapsed(group, memory)) next = { ...(next ?? memory), [groupId]: false };
         }
         return next;
+    }
+
+    /**
+     * 데스크톱 메뉴 배치에 따라 트리를 로고 옆 · 상단 막대 · 사이드로 나눈다 — 모든 셸·메뉴 부품이 이 한 규칙을 쓴다(`useMenuItems(scope)`).
+     * - 최상위 항목(그룹 밖에 놓인 항목 — 홈·인기글 …): `LOGO` 면 로고 옆에만, `MENU` 면 메뉴 안(상단 막대가 있으면 막대, 없으면 사이드).
+     * - 최상위 그룹: `ALL` 이면 모두 막대, `NONE` 이면 모두 사이드, 그룹 ID 목록이면 고른 그룹은 막대·나머지는 사이드.
+     *   고른 ID 가 비었거나 지금 트리에 없는 ID 뿐이면 **첫 최상위 그룹 하나**를 막대에 둔다.
+     * - 섞인 배치에서 메뉴 안의 최상위 항목은 **막대 맨 앞**에 모은다. `ALL`·`NONE` 은 트리 차례 그대로다.
+     * 활성 판정은 나눈 뒤에도 전체 트리 기준이다(`useMenuItems` 가 전체 트리로 `activeId` 를 구한다).
+     * @param {readonly MenuNode[]} nodes - 메뉴 트리.
+     * @param {MenuLayout} layout - 배치.
+     * @returns {MenuSplit} 자리별 노드.
+     */
+    static split(nodes: readonly MenuNode[], layout: MenuLayout): MenuSplit {
+        const items = nodes.filter((node) => node.kind === 'ITEM');
+        const logo = layout.topItems === 'LOGO' ? items : [];
+        const inMenu = layout.topItems === 'LOGO' ? nodes.filter((node) => node.kind === 'GROUP') : [...nodes];
+        if (layout.bar === 'ALL') return { logo, bar: inMenu, side: [] };
+        if (layout.bar === 'NONE') return { logo, bar: [], side: inMenu };
+
+        const groups = nodes.filter((node): node is MenuGroupNode => node.kind === 'GROUP');
+        const wanted = new Set(layout.bar);
+        let barGroups = groups.filter((group) => wanted.has(group.id));
+        if (barGroups.length === 0) barGroups = groups.slice(0, 1);
+        const barIds = new Set(barGroups.map((group) => group.id));
+        return {
+            logo,
+            bar: [...(layout.topItems === 'MENU' ? items : []), ...barGroups],
+            side: groups.filter((group) => !barIds.has(group.id)),
+        };
     }
 
     /**
@@ -707,7 +815,8 @@ export default class UtilMenu {
 
     /**
      * 색 점 자리의 클래스 — 점 폭(`size-2`) + 글자와의 간격(`mr-2`) 한 곳. 점이 있는 줄과 없는 줄이 같은 자리를 써서 글자 시작 위치가 맞는다.
-     * 점이 없는 줄도 이 자리를 비워 둔다(세로 메뉴·햄버거·상단 드롭다운, `docs/decisions.md` "공개 메뉴 색 점 — 정렬·홈 카드 로고").
+     * 상단 드롭다운은 점이 없는 줄도 이 자리를 비워 둔다(community `docs/decisions.md` "공개 메뉴 색 점 — 정렬·홈 카드 로고").
+     * 세로 메뉴·햄버거(`AppMenuList`)는 점이 없는 줄에 자리를 두지 않고 글자를 왼쪽에 붙인다(사용자 결정 2026-10-28).
      */
     static readonly DOT_SLOT_CLASS = 'mr-2 inline-block size-2 shrink-0';
 

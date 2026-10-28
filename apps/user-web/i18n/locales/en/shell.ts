@@ -7,6 +7,12 @@ export default {
     homeLink: '{site} home',
     accountNav: 'Account',
     accountMenu: 'My account menu',
+    // Theme shell top menus (Daum-style sub menu, Naver-style top links)
+    subMenuLabel: '{title} menu',
+    quickLinks: 'Quick links',
+    // Arrow buttons at both ends of an overflowing menu row (`AppScrollRow`)
+    scrollMenuLeft: 'Scroll menu left',
+    scrollMenuRight: 'Scroll menu right',
 
     // Menu rows
     menu: 'Menu',
@@ -43,8 +49,4 @@ export default {
     gradeRegular: 'Regular',
     gradeLoyal: 'Loyal',
     gradeVeteran: 'Veteran',
-
-    // Placeholder home
-    homePlaceholderTitle: 'The home screen is not built yet',
-    homePlaceholderBody: 'This is a placeholder screen for checking the default layout.',
 };

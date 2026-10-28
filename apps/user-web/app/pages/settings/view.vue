@@ -71,6 +71,34 @@
                 </div>
             </section>
 
+            <!-- 메뉴 — 데스크톱 메뉴 위치(자동 = 사이트 설정 따름). 모바일에는 적용하지 않는다(하단 탭·메뉴 단추 그대로) -->
+            <section :aria-labelledby="`${uid}-menu`">
+                <h2 :id="`${uid}-menu`" class="px-1 pb-1.5 text-xs font-semibold text-muted-color">{{ t('view.sectionMenu') }}</h2>
+                <div class="flex flex-col gap-2 rounded-xl border border-surface bg-surface-0 px-4 py-3 md:flex-row md:items-center md:justify-between md:gap-4 dark:bg-surface-900">
+                    <div class="min-w-0 flex-1">
+                        <p :id="`${uid}-menu-label`" class="m-0 text-sm font-medium">{{ t('view.menuPosition') }}</p>
+                        <p :id="`${uid}-menu-hint`" class="m-0 mt-0.5 text-xs leading-snug text-muted-color">
+                            {{ settings.menuPosition === 'AUTO' ? t('view.menuPositionAutoHint', { position: positionName(sitePosition) }) : t('view.menuPositionHint') }}
+                        </p>
+                        <p class="m-0 mt-0.5 text-xs leading-snug text-muted-color" data-testid="setting-menu-mobile-note">{{ t('view.menuPositionMobileNote') }}</p>
+                    </div>
+                    <!-- 고를 것이 여섯이라 선택 단추 줄이 넘친다 — 펼침 목록으로 고른다 -->
+                    <div class="w-full md:w-64 md:shrink-0">
+                        <Select
+                            :model-value="settings.menuPosition"
+                            :options="menuOptions"
+                            option-label="label"
+                            option-value="value"
+                            :aria-labelledby="`${uid}-menu-label`"
+                            :aria-describedby="`${uid}-menu-hint`"
+                            fluid
+                            data-testid="setting-menu-position"
+                            @update:model-value="(v: MemberMenuSetting | null) => v && change({ menuPosition: v })"
+                        />
+                    </div>
+                </div>
+            </section>
+
             <!-- 댓글 — 처음 보이는 정렬 -->
             <section :aria-labelledby="`${uid}-comments`">
                 <h2 :id="`${uid}-comments`" class="px-1 pb-1.5 text-xs font-semibold text-muted-color">{{ t('view.sectionComments') }}</h2>
@@ -144,14 +172,16 @@
 <script setup lang="ts">
 import type { CommentOrderSetting, ThemeSetting, ViewSettings } from '~/composables/view/api/useViewSettingsApi.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import type { MemberMenuSetting, MenuPosition } from '~/utils/util-menu-position';
 import UtilViewSettings from '~/utils/util-view-settings';
 
 /**
  * 보기 설정 `/settings/view` — 로그인 필요(community `pages/settings/view.vue` 중 로보얌에 적용할 곳이 있는 것).
- * 「화면」: 야간 모드(자동·라이트·다크) · 글자 크기(90·100·110·125%), 「댓글」: 처음 정렬, 「시간 표시」는 따로 있는 화면으로 잇는다, 맨 아래 라이트·다크 미리보기.
+ * 「화면」: 야간 모드(자동·라이트·다크) · 글자 크기(90·100·110·125%), 「메뉴」: 데스크톱 메뉴 위치(자동·상단·왼쪽·오른쪽·상단+왼쪽·상단+오른쪽 — 회원 > 운영자 > 테마 기본, `useMenuPosition`), 「댓글」: 처음 정렬, 「시간 표시」는 따로 있는 화면으로 잇는다, 맨 아래 라이트·다크 미리보기.
  * **바꾸는 즉시 저장한다** — 화면에 먼저 반영하고(`useViewSettings().update`) 실패하면 바꾼 칸을 되돌리고 서버 문구를 토스트(8초). 성공은 토스트(3초).
  * 야간 모드·글자 크기를 `<html>` 에 거는 것은 `plugins/view-theme.client.ts` 다 — 여기서는 값만 바꾼다.
- * community 대비 뺀 것(themes.md — 사용자 개인 테마·보기 설정 금지, 사이트 테마 몫): 주 색상·배경 색상·본문 너비·목록 밀도·메뉴 위치·화면 꾸미기 되돌리기.
+ * community 대비 뺀 것(themes.md — 사용자 개인 테마 금지, 사이트 테마 몫): 주 색상·배경 색상·본문 너비·목록 밀도·화면 꾸미기 되돌리기.
+ * 메뉴 위치는 ⚠ MOCK: 서버에 칸이 없어 이 브라우저에만 저장한다(`useViewSettingsApi`) — 로그인해 있어도 「이 기기에 저장했어요」로 알린다.
  * 적용할 곳이 아직 없어 뺀 것: 이미지 숨기기·답글 접기·한 번에 보는 댓글 수. 서버 `GET·PUT /api/me/settings`(`useViewSettingsApi`).
  */
 definePageMeta({ middleware: 'auth' });
@@ -169,6 +199,26 @@ const themeOptions = computed(() => [
     { value: 'LIGHT', label: t('view.themeLight') },
     { value: 'DARK', label: t('view.themeDark') },
 ]);
+const menuOptions = computed<{ value: MemberMenuSetting; label: string }[]>(() => [
+    { value: 'AUTO', label: t('view.menuAuto') },
+    { value: 'TOP', label: t('view.menuTop') },
+    { value: 'LEFT', label: t('view.menuLeft') },
+    { value: 'RIGHT', label: t('view.menuRight') },
+    { value: 'TOP_LEFT', label: t('view.menuTopLeft') },
+    { value: 'TOP_RIGHT', label: t('view.menuTopRight') },
+]);
+/** 「자동」일 때 따라갈 위치(운영자 설정 → 테마 기본) — 안내 문구에 보인다 */
+const { sitePosition } = useMenuPosition();
+const POSITION_KEYS: Record<MenuPosition, string> = {
+    TOP: 'view.menuTop',
+    LEFT: 'view.menuLeft',
+    RIGHT: 'view.menuRight',
+    TOP_LEFT: 'view.menuTopLeft',
+    TOP_RIGHT: 'view.menuTopRight',
+};
+function positionName(position: MenuPosition): string {
+    return t(POSITION_KEYS[position]);
+}
 const orderOptions = computed(() => [
     { value: 'OLDEST', label: t('view.orderOldest') },
     { value: 'LATEST', label: t('view.orderLatest') },
@@ -182,7 +232,10 @@ async function change(partial: Partial<ViewSettings>) {
     if (UtilViewSettings.isSame(settings.value, UtilViewSettings.merge(settings.value, partial))) return;
     try {
         const where = await update(partial);
-        toast.success(where === 'server' ? t('view.saved') : t('view.savedDevice'));
+        // MOCK: 메뉴 위치는 서버에 칸이 없어 이 기기에만 남는다
+        const deviceOnly = 'menuPosition' in partial;
+        // REAL: const deviceOnly = false;
+        toast.success(where === 'server' && !deviceOnly ? t('view.saved') : t('view.savedDevice'));
     } catch (e) {
         toast.error(t('view.saveFailed', { reason: UtilBoardMessages.of(t, e) }), 8000);
     }

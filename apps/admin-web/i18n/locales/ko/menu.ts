@@ -7,6 +7,8 @@ export default {
     dashboard: '대시보드',
     system: '시스템',
     general: '일반',
+    theme: '테마',
+    themeLayout: '레이아웃',
     socialLogin: '소셜 로그인',
     portone: '포트원',
     loginSecurity: '로그인 보안',

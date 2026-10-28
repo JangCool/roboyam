@@ -48,6 +48,12 @@ export type MenuSetUpdateRequest = Omit<MenuSetCreateRequest, 'key'>;
 /** 보이는 대상 — 모두 · 비로그인만 · 로그인 · 등급 이상(`minGrade`) · 게시판 매니저·스텝(게시판 매니저·스텝을 하나라도 맡은 회원) */
 export type MenuAudience = 'ALL' | 'GUEST' | 'MEMBER' | 'GRADE_MIN' | 'STAFF';
 
+/**
+ * 구분선 — 공개 사이트 상단 가로 메뉴(첫 줄)에서 이 노드의 왼쪽(`BEFORE`)·오른쪽(`AFTER`)에 세로 줄을 긋는다. 최상위 노드에서만 뜻이 있고 세로 메뉴·햄버거에서는 쓰지 않는다.
+ * ⚠ MOCK: 서버에 아직 칸이 없다 — `useMenuApi.ts` 가 `./mock/menu-extra-mock.ts` 로 응답에 덧붙이고 요청에서는 뺀다.
+ */
+export type MenuDivider = 'NONE' | 'BEFORE' | 'AFTER';
+
 /** 화면이 아는 연결 유형. 응답에 다른 값이 오면 화면은 「알 수 없는 유형」으로 보이고 그대로 돌려보낸다 */
 export type MenuKnownTargetType = 'BOARD' | 'BUILTIN' | 'PATH' | 'URL';
 
@@ -61,6 +67,8 @@ interface MenuNodeBase {
     audience: MenuAudience;
     /** `GRADE_MIN` 일 때의 등급 키. 그 밖에는 null */
     minGrade: string | null;
+    /** 구분선(MOCK — 서버가 칸을 주면 필수로 바꾼다. 없으면 `NONE`) */
+    divider?: MenuDivider;
 }
 
 /** 폴더 — 이름과 하위 노드뿐(주소 없음). 깊이 3 까지 */
@@ -88,6 +96,12 @@ export interface MenuItemDto extends MenuNodeBase {
     settings: Record<string, unknown> | null;
     /** 모바일 상단 탭 — `SIDE` 그룹에서만, 그룹당 10개까지 */
     mobileTab: boolean;
+    /**
+     * 설명 한 줄(80자까지) — 공개 사이트 상단 메뉴에서 최상위 항목에 들어가면 메뉴 둘째 줄에 보인다. 비우면(`null`) 공개 화면이 기본 설명(인기글·최신글 기본 문구, 게시판 소개)을 쓴다.
+     * 최상위 항목에서만 뜻이 있다(`SIDE` 그룹, 안쪽 줄은 `null` 로 보낸다).
+     * ⚠ MOCK: 서버에 아직 칸이 없다 — `./mock/menu-extra-mock.ts` 가 응답에 덧붙이고 요청에서는 뺀다. 서버가 칸을 주면 필수(`string | null`)로 바꾼다.
+     */
+    description?: string | null;
     /**
      * 서버가 본 항목 상태(트리 응답에만 있다, 서버 `MenuItemView.Resolved`) — 화면은 같은 규칙(`UtilMenu.itemStatus`)으로 스스로 계산하고
      * 저장 요청에는 싣지 않는다(`UtilMenu.toDto` 가 다시 만든다). 값은 `UtilMenu` 의 `MenuItemStatus` 와 같다.

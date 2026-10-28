@@ -9,6 +9,12 @@ export default {
     homeLink: '{site} 홈',
     accountNav: '계정',
     accountMenu: '내 계정 메뉴',
+    // 테마 셸의 상단 메뉴(다음식 LNB · 네이버식 윗줄 링크)
+    subMenuLabel: '{title} 메뉴',
+    quickLinks: '바로가기',
+    // 가로 메뉴 줄이 넘칠 때 양끝 화살표 단추(`AppScrollRow`)
+    scrollMenuLeft: '메뉴 왼쪽으로 넘기기',
+    scrollMenuRight: '메뉴 오른쪽으로 넘기기',
 
     // 메뉴 줄
     menu: '메뉴',
@@ -45,8 +51,4 @@ export default {
     gradeRegular: '일반',
     gradeLoyal: '단골',
     gradeVeteran: '베테랑',
-
-    // 자리표시 홈
-    homePlaceholderTitle: '홈 화면은 아직 만들지 않았어요',
-    homePlaceholderBody: 'default 레이아웃을 확인하는 자리표시 화면이에요.',
 };

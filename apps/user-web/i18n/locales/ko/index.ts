@@ -27,6 +27,7 @@ import group from './group';
 import groupEvent from './groupEvent';
 import groupManager from './groupManager';
 import groupVisibility from './groupVisibility';
+import home from './home';
 import install from './install';
 import login from './login';
 import mail from './mail';
@@ -77,6 +78,7 @@ export default {
     groupEvent,
     groupManager,
     groupVisibility,
+    home,
     install,
     login,
     mail,

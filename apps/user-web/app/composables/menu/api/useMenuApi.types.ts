@@ -17,6 +17,12 @@ export interface MenuBoardRef {
     investmentNotice: boolean;
 }
 
+/**
+ * 상단 가로 메뉴(첫 줄)에서 이 노드 옆에 긋는 세로 구분선 — `BEFORE` 왼쪽 · `AFTER` 오른쪽 · `NONE`(또는 없음) 없음. 운영자가 메뉴 구성에서 최상위 노드에 정한다(사용자 결정 2026-10-28).
+ * 세로 메뉴·햄버거에서는 쓰지 않는다. ⚠ 서버가 아직 주지 않는다 — 개발 모드는 `?divider=<이름>:before|after,…` 로 미리 본다(`useMenu`).
+ */
+export type MenuDivider = 'NONE' | 'BEFORE' | 'AFTER';
+
 /** 연결 대상이 있는 끝 노드(게시판·앱 화면·외부 링크) */
 export interface MenuItemNode {
     id: string;
@@ -39,6 +45,10 @@ export interface MenuItemNode {
     board?: MenuBoardRef | null;
     /** 유형이 더 실어 보낸 칸 — 있는 키만 그린다(모르는 키는 무시). `external: true` 면 작은 외부 링크 아이콘(`URL` 의 `https://` 주소). 없으면 null */
     extra?: Record<string, unknown> | null;
+    /** 상단 가로 메뉴에서 옆에 긋는 구분선(`MenuDivider`) — 없으면 없음 */
+    divider?: MenuDivider | null;
+    /** 운영자가 적은 한 줄 설명 — 최상위 항목(인기글·최신글·공지 …)에 들어가면 메뉴 둘째 줄에 보인다(`useMenuDescription`). 없으면 화면 기본 설명. ⚠ 서버가 아직 주지 않는다 */
+    description?: string | null;
 }
 
 /** 폴더형 노드 — 이름과 아래 노드들뿐이다(주소 없음) */
@@ -52,6 +62,8 @@ export interface MenuGroupNode {
     collapsible: boolean;
     /** 브라우저가 기억한 접힘이 없을 때의 처음 상태 */
     collapsed: boolean;
+    /** 상단 가로 메뉴에서 이 그룹 이름 탭 옆에 긋는 구분선(`MenuDivider`) — 없으면 없음 */
+    divider?: MenuDivider | null;
     children: MenuNode[];
 }
 

@@ -94,6 +94,7 @@
                                                 :node="row.node"
                                                 :ctx="ctx"
                                                 :dimmed="row.dimmed"
+                                                :top="row.depth === 1"
                                                 :errors="errorsOf(row.node.key)"
                                                 :readonly="readonly || saving"
                                                 :can-add-inside="!nodesFull && UtilMenu.canAddInside(draft, row.node.key, 'ITEM')"
@@ -124,8 +125,8 @@
         </template>
 
         <MenuSetDialog v-model:visible="setDialogOpen" :set="setDialogTarget" :taken-keys="(sets ?? []).map((s) => s.key)" :saving="setSaving" :field-errors="setFieldErrors" :error="setError" @submit="submitSet" />
-        <MenuFolderDialog v-if="options" v-model:visible="folderOpen" :folder="folderTarget" :parents="folderParents" :parent-key="dialogParent" :ctx="ctx" @save="onFolderSave" />
-        <MenuItemDialog v-if="options" v-model:visible="itemOpen" :item="itemTarget" :parents="itemParents" :parent-key="dialogParent" :ctx="ctx" :linked="linked" :tab-count="itemTabCount" @save="onItemSave" />
+        <MenuFolderDialog v-if="options" v-model:visible="folderOpen" :folder="folderTarget" :parents="folderParents" :parent-key="dialogParent" :ctx="ctx" :edit-top-level="isTopLevel(folderTarget)" @save="onFolderSave" />
+        <MenuItemDialog v-if="options" v-model:visible="itemOpen" :item="itemTarget" :parents="itemParents" :parent-key="dialogParent" :ctx="ctx" :linked="linked" :tab-count="itemTabCount" :edit-top-level="isTopLevel(itemTarget)" @save="onItemSave" />
     </div>
 </template>
 
@@ -323,6 +324,8 @@ function parentOptions(kind: 'FOLDER' | 'ITEM') {
 }
 const folderParents = computed(() => parentOptions('FOLDER'));
 const itemParents = computed(() => parentOptions('ITEM'));
+/** 고칠 노드가 최상위 줄인가(구분선은 최상위만) */
+const isTopLevel = (node: MenuEditNode | null) => node !== null && draft.value.some((n) => n.key === node.key);
 const itemTabCount = computed(() => tabCount.value - (itemTarget.value?.mobileTab ? 1 : 0));
 
 function openFolder(folder: MenuEditFolder | null, parentKey: string) {

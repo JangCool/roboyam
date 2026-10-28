@@ -1,7 +1,9 @@
 <template>
     <!-- 상단 가로 스크롤 탭(모바일) — 운영자가 메뉴 구성에서 "모바일 탭"으로 정한 항목들(기본: 홈 + 주제 게시판). 순서·이름은 서버가 준 것이고, 나머지는 ☰ 메뉴와 게시판 탭에서 들어간다.
-         보여 드릴 탭이 없으면(빈 메뉴·탭으로 고른 항목 없음) 막대 자체를 그리지 않는다 — 로고와 하단 탭으로 이동한다 -->
-    <nav v-if="visible" ref="scroller" :aria-label="t('menu.tabsLabel')" class="no-scrollbar relative flex overflow-x-auto whitespace-nowrap border-b border-surface bg-surface-0 px-2 text-sm dark:bg-surface-900">
+         보여 드릴 탭이 없으면(빈 메뉴·탭으로 고른 항목 없음) 막대 자체를 그리지 않는다 — 로고와 하단 탭으로 이동한다.
+         `app-top-tabs` 는 겉모양만 바꾸는 고리 클래스다(모바일 상단 바 모양 `PLAIN`·메뉴 붙이기 — 루트 `data-mobile-header`·`data-sticky-menu`, `main.css` 끝) -->
+    <AppMobileMenuRows v-if="menuRows" />
+    <nav v-else-if="visible" ref="scroller" :aria-label="t('menu.tabsLabel')" class="app-top-tabs no-scrollbar relative flex overflow-x-auto whitespace-nowrap border-b border-surface bg-surface-0 px-2 text-sm dark:bg-surface-900">
         <template v-if="state === 'loading'">
             <span v-for="n in 5" :key="n" class="mx-2 my-3 h-3.5 w-12 animate-pulse rounded bg-surface-200 dark:bg-surface-800" aria-hidden="true" />
         </template>
@@ -26,6 +28,8 @@
 
 <script setup lang="ts">
 const { t } = useI18n();
+/** 모바일 상단 메뉴를 메뉴 구조 두 줄로 그리는가(운영자 설정 「모바일 상단 메뉴」 `MENU` > 테마 기본, 로보얌 기본 — `useMenuStyle`) — 그러면 운영자가 고른 모바일 탭 대신 `AppMobileMenuRows` */
+const { mobileMenuRows: menuRows } = useMenuStyle();
 const { tabs, state, activeId, reload } = useMenuItems();
 const scroller = ref<HTMLElement | null>(null);
 // 메뉴 이름은 운영자가 만든 동적 이름이다 — `label`(한국어)과 선택 영문명 `nameEn` 을 지금 언어로 고른다

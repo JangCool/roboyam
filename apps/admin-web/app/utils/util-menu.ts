@@ -1,5 +1,6 @@
 import type {
     MenuAudience,
+    MenuDivider,
     MenuBoardOption,
     MenuFolderDto,
     MenuGradeOption,
@@ -33,6 +34,8 @@ interface MenuEditCommon {
     visible: boolean;
     audience: MenuAudience;
     minGrade: string | null;
+    /** 구분선 — 최상위에서만 뜻이 있다(하위로 옮기면 저장 때 `NONE` 으로 보낸다) */
+    divider: MenuDivider;
 }
 
 export interface MenuEditFolder extends MenuEditCommon {
@@ -54,6 +57,8 @@ export interface MenuEditItem extends MenuEditCommon {
     /** `PATH`·`URL` 만 */
     newTab: boolean;
     mobileTab: boolean;
+    /** 설명 한 줄 — 최상위에서만 뜻이 있다(하위로 옮기면 저장 때 null 로 보낸다). 빈 글자 = 공개 화면 기본 설명 */
+    description: string;
     /** 화면이 모르는 유형의 설정 — 받은 그대로 돌려보낸다 */
     rawSettings: Record<string, unknown> | null;
 }
@@ -175,6 +180,8 @@ export default class UtilMenu {
         nameEnMax: 40,
         pathMax: 500,
         hrefMax: 2000,
+        /** 항목 설명(MOCK — 서버 한도가 정해지면 맞춘다) */
+        descriptionMax: 80,
     } as const;
 
     /** 메뉴 그룹 칸 한도 */
@@ -187,6 +194,9 @@ export default class UtilMenu {
     static readonly AUDIENCES: readonly MenuAudience[] = ['ALL', 'GUEST', 'MEMBER', 'GRADE_MIN', 'STAFF'];
 
     static readonly COLLAPSE_MODES: readonly MenuCollapseMode[] = ['NONE', 'OPEN', 'CLOSED'];
+
+    /** 구분선 고르기 차례 — 없음 · 왼쪽 · 오른쪽 */
+    static readonly DIVIDERS: readonly MenuDivider[] = ['NONE', 'BEFORE', 'AFTER'];
 
     /**
      * 연결 유형 표 — 서버 `GET /api/admin/menu/target-types` 응답을 흉내 낸다(`type → { 이름, 대상 고르기 모양 }`).
@@ -286,7 +296,7 @@ export default class UtilMenu {
      */
     static toEdit(nodes: MenuNodeDto[]): MenuEditNode[] {
         return nodes.map((node): MenuEditNode => {
-            const common = { key: UtilMenuTree.newKey(), id: node.id, label: node.label ?? '', nameEn: node.nameEn ?? '', visible: node.visible, audience: node.audience, minGrade: node.minGrade };
+            const common = { key: UtilMenuTree.newKey(), id: node.id, label: node.label ?? '', nameEn: node.nameEn ?? '', visible: node.visible, audience: node.audience, minGrade: node.minGrade, divider: node.divider ?? 'NONE' };
             if (node.kind === 'FOLDER') {
                 return { ...common, kind: 'FOLDER', collapse: !node.collapsible ? 'NONE' : node.collapsed ? 'CLOSED' : 'OPEN', autoAdd: node.autoAdd, children: UtilMenu.toEdit(node.children) };
             }
@@ -302,6 +312,7 @@ export default class UtilMenu {
                 href: node.targetType === 'URL' && typeof settings.href === 'string' ? settings.href : '',
                 newTab: settings.newTab === true,
                 mobileTab: node.mobileTab,
+                description: node.description ?? '',
                 rawSettings: known ? null : node.settings,
             };
         });
@@ -310,10 +321,11 @@ export default class UtilMenu {
     /**
      * 화면 편집 트리 → 서버 요청 트리(화면 열쇠를 뺀다. 이름은 다듬어 보내고 빈 이름은 null).
      * @param {MenuEditNode[]} nodes - 편집 트리.
-     * @param {MenuPlacement} placement - 그룹의 위치(SIDE 가 아니면 모바일 탭·자동 추가를 끄고 보낸다).
+     * @param {MenuPlacement} placement - 그룹의 위치(SIDE 가 아니면 모바일 탭·자동 추가·구분선을 끄고 보낸다).
+     * @param {boolean} top - 최상위 줄인가(구분선은 최상위만 — 안쪽 줄은 `NONE`).
      * @returns {MenuNodeDto[]} 서버 트리.
      */
-    static toDto(nodes: MenuEditNode[], placement: MenuPlacement): MenuNodeDto[] {
+    static toDto(nodes: MenuEditNode[], placement: MenuPlacement, top: boolean = true): MenuNodeDto[] {
         const side = UtilMenu.isSide(placement);
         return nodes.map((node): MenuNodeDto => {
             const common = {
@@ -323,9 +335,10 @@ export default class UtilMenu {
                 visible: node.visible,
                 audience: node.audience,
                 minGrade: node.audience === 'GRADE_MIN' ? node.minGrade : null,
+                divider: side && top ? node.divider : 'NONE',
             };
             if (node.kind === 'FOLDER') {
-                const folder: MenuFolderDto = { ...common, kind: 'FOLDER', collapsible: node.collapse !== 'NONE', collapsed: node.collapse === 'CLOSED', autoAdd: side && node.autoAdd, children: UtilMenu.toDto(node.children, placement) };
+                const folder: MenuFolderDto = { ...common, kind: 'FOLDER', collapsible: node.collapse !== 'NONE', collapsed: node.collapse === 'CLOSED', autoAdd: side && node.autoAdd, children: UtilMenu.toDto(node.children, placement, false) };
                 return folder;
             }
             let settings: Record<string, unknown> | null = null;
@@ -340,6 +353,7 @@ export default class UtilMenu {
                 targetKey: node.targetType === 'BUILTIN' ? node.targetKey : UtilMenu.typeOf(node.targetType) ? null : node.targetKey,
                 settings,
                 mobileTab: side && node.mobileTab,
+                description: (side && top && node.description.trim()) || null,
             };
             return item;
         });
@@ -350,7 +364,7 @@ export default class UtilMenu {
      * @returns {MenuEditFolder} 이름이 빈 폴더(보임 · 모두 · 접기 안 함).
      */
     static newFolder(): MenuEditFolder {
-        return { key: UtilMenuTree.newKey(), id: null, kind: 'FOLDER', label: '', nameEn: '', visible: true, audience: 'ALL', minGrade: null, collapse: 'NONE', autoAdd: false, children: [] };
+        return { key: UtilMenuTree.newKey(), id: null, kind: 'FOLDER', label: '', nameEn: '', visible: true, audience: 'ALL', minGrade: null, divider: 'NONE', collapse: 'NONE', autoAdd: false, children: [] };
     }
 
     /**
@@ -368,6 +382,7 @@ export default class UtilMenu {
             visible: true,
             audience: 'ALL',
             minGrade: null,
+            divider: 'NONE',
             targetType: type,
             targetId: null,
             targetKey: null,
@@ -375,6 +390,7 @@ export default class UtilMenu {
             href: type === 'URL' ? 'https://' : '',
             newTab: type === 'URL',
             mobileTab: false,
+            description: '',
             rawSettings: null,
         };
     }

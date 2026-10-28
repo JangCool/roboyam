@@ -1,4 +1,5 @@
 import type { CommentOrderSetting, TextScaleSetting, ThemeSetting, ViewSettings } from '~/composables/view/api/useViewSettingsApi.types';
+import UtilMenuPosition from '~/utils/util-menu-position';
 
 /**
  * 보기 설정의 순수 규칙 — 기본값·고를 수 있는 값·서버 응답 읽기·합치기·되돌리기·야간 모드 풀기·글자 크기 단계(community `UtilSettings`·`UtilDisplay` 중 쓰는 것).
@@ -12,7 +13,10 @@ export default class UtilViewSettings {
     static readonly TEXT_SCALES: readonly TextScaleSetting[] = [90, 100, 110, 125];
     static readonly COMMENT_ORDERS: readonly CommentOrderSetting[] = ['OLDEST', 'LATEST'];
 
-    static readonly DEFAULTS: Readonly<ViewSettings> = Object.freeze({ theme: 'AUTO', textScale: 100, commentOrder: 'OLDEST' });
+    static readonly DEFAULTS: Readonly<ViewSettings> = Object.freeze({ theme: 'AUTO', textScale: 100, commentOrder: 'OLDEST', menuPosition: UtilMenuPosition.MEMBER_DEFAULT });
+
+    /** 칸 이름들 — 같은지 보기·되돌리기가 함께 쓴다 */
+    static readonly KEYS = ['theme', 'textScale', 'commentOrder', 'menuPosition'] as const;
 
     /** 글자 배율을 담는 CSS 변수 */
     static readonly TEXT_SCALE_VAR = '--text-scale';
@@ -34,6 +38,7 @@ export default class UtilViewSettings {
             theme: UtilViewSettings.THEMES.find((v) => v === root.theme) ?? d.theme,
             textScale: UtilViewSettings.TEXT_SCALES.find((v) => v === root.textScale) ?? d.textScale,
             commentOrder: UtilViewSettings.COMMENT_ORDERS.find((v) => v === root.commentOrder) ?? d.commentOrder,
+            menuPosition: UtilMenuPosition.readMember(root.menuPosition),
         };
     }
 
@@ -61,9 +66,9 @@ export default class UtilViewSettings {
         return UtilViewSettings.sanitize({ ...base, ...partial });
     }
 
-    /** 세 칸이 모두 같은가 */
+    /** 모든 칸이 같은가 */
     static isSame(a: ViewSettings, b: ViewSettings): boolean {
-        return a.theme === b.theme && a.textScale === b.textScale && a.commentOrder === b.commentOrder;
+        return UtilViewSettings.KEYS.every((key) => a[key] === b[key]);
     }
 
     /**
@@ -75,7 +80,7 @@ export default class UtilViewSettings {
      */
     static revert(current: ViewSettings, target: ViewSettings, confirmed: ViewSettings): ViewSettings {
         const out = { ...current };
-        for (const key of ['theme', 'textScale', 'commentOrder'] as const) {
+        for (const key of UtilViewSettings.KEYS) {
             if (current[key] === target[key] && target[key] !== confirmed[key]) (out as Record<string, unknown>)[key] = confirmed[key];
         }
         return UtilViewSettings.sanitize(out);

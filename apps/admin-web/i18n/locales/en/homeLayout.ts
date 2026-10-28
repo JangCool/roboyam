@@ -1,0 +1,105 @@
+/**
+ * homeLayout messages — home layout editor (`/settings/home-layout`). Same keys, same order as `ko/homeLayout.ts`.
+ */
+export default {
+    title: 'Home layout',
+    subtitle: 'Set where each home gadget goes and how big it is, per theme. Drag to move, drag the bottom-right corner to resize.',
+    mockNote: 'Mock — saves stay only in this admin page’s memory and do not reach the public site yet (a reload resets them).',
+    readOnly: 'You can only view this layout.',
+    loadFailed: 'Could not load the home layout.',
+    saved: 'Home layout saved.',
+    saveFailed: 'Could not save the home layout.',
+    lastSaved: 'Last saved {at} · {by}',
+    neverSaved: 'Never saved — this is the theme’s default layout.',
+
+    // ── Theme · columns ─
+    themeTabs: 'Theme to edit',
+    currentTheme: 'Current theme',
+    columns: 'Grid columns',
+    columnsOption: '{count} columns',
+    columnsHint: 'Changing columns doubles or halves positions and widths (rounded when halving, keeping each gadget’s minimum width). Positions on screen stay the same.',
+    liveEditHint: 'In the live view below, drag a gadget to move it, drag its bottom-right corner to resize, and use × at the top right to remove it.',
+
+    // ── Editor ─
+    editorSection: 'Layout',
+    editorLabel: '{theme} home layout editor',
+    keyboardHint: 'Select a gadget and use the arrow keys to move it (up/down swaps with the neighbor). Shift + arrows resize, Delete removes.',
+    empty: 'No gadgets placed. Use “Add gadget” to add one.',
+    itemLabel: '{title} ({kind}) — column {x}, row {y}, width {w}, height {h}',
+    announce: '{title}: column {x}, row {y}, width {w}, height {h}',
+    size: '{w}×{h}',
+    desktopOnly: 'PC only',
+    mobileOnly: 'Mobile only',
+    hiddenBoth: 'Hidden',
+    newBadge: 'New',
+    notesTitle: 'On the public home',
+    noteHeight: 'Height (h) is a minimum. Longer content grows the cell and pushes down only the gadgets below it in the same columns (no overlap).',
+    noteResponsive: 'On tablets, or when a side menu makes it narrow, the grid uses half the columns (two half-width gadgets side by side, others full width). On mobile gadgets stack top to bottom, left to right.',
+    noteHidden: 'PC-only and mobile-only gadgets leave no gap where they are hidden — gadgets below move up.',
+    noteFixed: 'Row height 15px and gap 16px are fixed. Editing gadget content (boards, counts, style) is not available yet.',
+    notePreview: 'The content inside each cell is a sample to show the look (not real posts). Short cells cut it off — on the public home cells grow to fit their content.',
+
+    // ── Cell preview (sample) ─
+    previewPeriod: {
+        REALTIME: 'Live',
+        YESTERDAY: 'Yesterday',
+        WEEK: 'This week',
+    },
+    previewMembers: '{n} members',
+    previewPrice: '₩{amount}',
+    previewDiscount: '{n}%',
+    previewSold: '{n}% sold',
+
+    // ── Selected gadget ─
+    selectedSection: 'Selected gadget',
+    noneSelected: 'Select a gadget to set its position and size with numbers.',
+    fieldX: 'Column (x)',
+    fieldY: 'Row (y)',
+    fieldW: 'Width (w)',
+    fieldH: 'Min height (h)',
+    fieldRange: '{min}–{max}',
+    remove: 'Remove',
+    removeLabel: 'Remove {title}',
+    removed: 'Removed “{title}”. Use Reset before saving to bring it back.',
+
+    // ── Add · reset ─
+    add: 'Add gadget',
+    addTitle: 'Add gadget',
+    addLead: 'Pick a kind. It goes to the bottom at its default size. Its content (boards, counts …) is created with the kind’s defaults when you save.',
+    added: 'Added “{title}” at the bottom.',
+    resetDefault: 'Theme default',
+    resetTitle: 'Switch to the theme’s default layout?',
+    resetMessage: 'The gadgets and positions in the editor become the theme’s default layout. Save to apply.',
+    resetConfirm: 'Use default',
+    resetDone: 'Loaded the theme’s default layout. Save to apply.',
+    switchTitle: 'You have unsaved layout changes',
+    switchMessage: 'Moving to another theme discards your changes.',
+    switchConfirm: 'Discard and move',
+    leaveTitle: 'You have unsaved layout changes',
+    leaveMessage: 'Leaving this page discards your changes.',
+    leaveConfirm: 'Leave',
+    stay: 'Stay',
+
+    // ── Gadget kinds ─
+    kind: {
+        HIGHLIGHT: 'Highlight',
+        POST_LIST: 'Post list',
+        BOARD_CARDS: 'Board cards',
+        GALLERY: 'Gallery',
+        GROUPS: 'Popular groups',
+        GROUP_BUY: 'Group buy',
+        QUICK_LINKS: 'Quick links',
+        NOTICE_TEXT: 'Notice text',
+        UNKNOWN: 'Unknown kind',
+    },
+    kindDesc: {
+        HIGHLIGHT: 'Shows posts picked by operators, large.',
+        POST_LIST: 'Popular, latest or board posts as rows.',
+        BOARD_CARDS: 'A card per board with a lead post and titles.',
+        GALLERY: 'Photo and video posts as tiles.',
+        GROUPS: 'Groups that are active lately.',
+        GROUP_BUY: 'Group buys in progress.',
+        QUICK_LINKS: 'A row of buttons to popular places.',
+        NOTICE_TEXT: 'A short note written by operators.',
+    },
+};

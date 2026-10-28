@@ -1,0 +1,16 @@
+{
+    "name": "@roboyam/home-layout",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "description": "user-web · admin-web 이 같이 쓰는 홈 가젯 배치(격자 칸 수·위치·크기) Nuxt 레이어 — 배치 모양·고정값(행 높이·간격)·읽기·칸 수 바꾸기·위로 당기기(순수 함수)",
+    "main": "./nuxt.config.ts",
+    "peerDependencies": {
+        "nuxt": "^4.6.2",
+        "vue": "^3.5.0"
+    },
+    "devDependencies": {
+        "nuxt": "4.6.2",
+        "vue": "3.5.44"
+    }
+}

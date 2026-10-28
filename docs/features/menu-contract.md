@@ -50,6 +50,11 @@
 ## 설치 프리셋의 메뉴 (2026-10-27 확정, 구현 전)
 설치 때 `main` 트리를 프리셋 JSON 의 `menu` 로 바꾸고(ROBOYAM: 홈·인기글·최신글·「주제」·「커뮤니티」(autoAdd)·「소모임」·공지), `mypage` 의 V49 숨김을 화면이 있는 항목만 풀고 `MY_SHOP` 을 넣는다(새 마이그레이션). 정본은 `install-contract.md` 「프리셋 구조」.
 
+## 구분선·설명 (화면 확정 2026-10-28 — 서버 칸 없음, 관리자 목업 `composables/menu/api/mock/menu-extra-mock.ts`)
+- 공개 메뉴 노드(폴더·항목)에 `divider`: `NONE`(기본) · `BEFORE` · `AFTER` — 공개 사이트 상단 메뉴 첫 줄에서 그 칸 앞/뒤에 세로 구분선(예: 나중에 「공동구매 · 핫딜」 묶음 앞). 관리자 항목·폴더 대화상자 `MenuDividerField`.
+- 항목에 `description`(80자까지, 최상위 항목에서만 뜻) — 공개 사이트 상단 메뉴 둘째 줄의 메뉴 설명(운영자 설정 「메뉴 설명 줄」이 켜졌을 때, `useMenuDescription`). 비우면 기본 설명(인기글·최신글 기본 문구, 게시판 소개).
+- 서버 단계: 트리 `GET/PUT /api/admin/menu-sets/{key}/tree` 와 공개 메뉴 응답에 두 칸 추가(마이그레이션 필요). 메뉴 설정(배치·모양)은 `site-theme-layout-contract.md`.
+
 ## 미확정 사항
 1. 저장한 관리자 메뉴를 실제 관리자 셸이 언제부터 읽을지.
 2. 공동구매 판매 스위치(공동구매 기능 생길 때).

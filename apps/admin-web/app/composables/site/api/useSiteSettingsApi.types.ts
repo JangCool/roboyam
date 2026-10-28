@@ -100,8 +100,94 @@ export interface SiteThemeResponse {
     theme: string;
     /** 고를 수 있는 테마 id(보일 순서) */
     themes: string[];
+    /** 공개 사이트의 데스크톱 메뉴 위치(운영자 값) — **서버 후보 칸**, 지금은 목업(`mock/site-theme-mock.ts`) */
+    menuPosition: SiteMenuPositionSetting;
+    /** 테마 id → 그 테마의 기본 메뉴 위치(「테마 기본(상단)」 안내용) — **서버 후보 칸**, 지금은 목업 */
+    themeMenuDefaults: Record<string, SiteThemeMenuPosition>;
+    /** 최상위 항목(그룹 밖 항목 — 홈·인기글 …) 위치(운영자 값) — **서버 후보 칸**, 지금은 목업 */
+    topItems: SiteTopItemsSetting;
+    /** 테마 id → 그 테마의 최상위 항목 위치 기본값 — **서버 후보 칸**, 지금은 목업 */
+    themeTopItemsDefaults: Record<string, SiteTopItemsPosition>;
+    /** 섞인 배치(`TOP_LEFT`·`TOP_RIGHT`)에서 상단 띠에 둘 최상위 그룹 ID(공개 메뉴 `main` 의 폴더 ID). 비면 첫 그룹 — **서버 후보 칸**, 지금은 목업 */
+    barGroupIds: string[];
+    /** 상단 메뉴 폭(운영자 값) — 상단 메뉴가 있는 배치에서만 쓰인다 — **서버 후보 칸**, 지금은 목업 */
+    menuWidth: SiteMenuWidthSetting;
+    /** 테마 id → 그 테마의 상단 메뉴 폭 기본값(「테마 기본(본문 폭)」 안내용) — **서버 후보 칸**, 지금은 목업 */
+    themeMenuWidthDefaults: Record<string, SiteMenuWidth>;
+    /** 가로 메뉴 줄이 넘칠 때의 표시(운영자 값) — **서버 후보 칸**, 지금은 목업 */
+    menuOverflow: SiteMenuOverflowSetting;
+    /** 테마 id → 그 테마의 넘침 표시 기본값(「테마 기본(얇은 스크롤)」 안내용) — **서버 후보 칸**, 지금은 목업 */
+    themeMenuOverflowDefaults: Record<string, SiteMenuOverflow>;
+    /** 메뉴 모양 7칸(운영자 값, 칸마다 `THEME` = 테마 기본 따름, 사용자 결정 2026-10-28) — **서버 후보 칸**, 지금은 목업 */
+    menuStyle: SiteMenuStyleSetting;
+    /** 테마 id → 그 테마의 메뉴 모양 기본값(「테마 기본(…)」 안내용) — **서버 후보 칸**, 지금은 목업 */
+    themeMenuStyleDefaults: Record<string, SiteMenuStyle>;
 }
 
 export interface SiteThemeRequest {
     theme: string;
+    /** 아래 칸은 서버 후보 — 지금은 보내지 않는다(`useSiteSettingsApi` 의 `// MOCK:`) */
+    menuPosition: SiteMenuPositionSetting;
+    topItems: SiteTopItemsSetting;
+    barGroupIds: string[];
+    menuWidth: SiteMenuWidthSetting;
+    menuOverflow: SiteMenuOverflowSetting;
+    /** 메뉴 모양 7칸 — 서버에는 평평한 칸(`menuGroupStyle` … `mobileHeader`)으로 보낼 후보 */
+    menuStyle: SiteMenuStyleSetting;
 }
+
+/**
+ * 메뉴 모양 칸 → 고를 수 있는 값(user-web `UtilMenuPosition` 의 `MENU_STYLE_VALUES` 와 같은 값, 사용자 결정 2026-10-28 — 예전에는 테마 선언에 고정).
+ *  - `menuGroupStyle` 상단 메뉴 그룹 표시: `TABS` 그룹 이름 탭 → 누르면 둘째 줄 · `INLINE` 첫 줄은 최상위 항목, 둘째 줄에 「그룹 이름 + 칸」
+ *  - `sideGroupStyle` 섞인 배치의 사이드 그룹: `COLUMN` 사이드에 늘 모두 · `PICK` 첫 줄 탭으로 올려 누른 그룹만 사이드
+ *  - `menuSize` 상단 메뉴 크기: `NORMAL` · `COMPACT`
+ *  - `mobileMenu` 모바일 상단 메뉴: `PICKED` 메뉴 구성에서 고른 모바일 탭 한 줄 · `MENU` 메뉴 구조 두 줄
+ *  - `menuDescription` 메뉴 설명 줄: `ON` · `OFF`
+ *  - `stickyMenu` 메뉴 붙이기: `ON` · `OFF`
+ *  - `mobileHeader` 모바일 상단 바 모양: `BRAND` 주 색상 · `PLAIN` 흰 바
+ */
+export const SITE_MENU_STYLE_VALUES = {
+    menuGroupStyle: ['TABS', 'INLINE'],
+    sideGroupStyle: ['COLUMN', 'PICK'],
+    menuSize: ['NORMAL', 'COMPACT'],
+    mobileMenu: ['PICKED', 'MENU'],
+    menuDescription: ['ON', 'OFF'],
+    stickyMenu: ['ON', 'OFF'],
+    mobileHeader: ['BRAND', 'PLAIN'],
+} as const;
+
+/** 메뉴 모양 칸 이름 */
+export type SiteMenuStyleKey = keyof typeof SITE_MENU_STYLE_VALUES;
+
+/** 메뉴 모양(테마 기본값 — `THEME` 없음) */
+export type SiteMenuStyle = { [K in SiteMenuStyleKey]: (typeof SITE_MENU_STYLE_VALUES)[K][number] };
+
+/** 운영자의 메뉴 모양 값 — 칸마다 `THEME` 은 테마 기본값을 따른다 */
+export type SiteMenuStyleSetting = { [K in SiteMenuStyleKey]: 'THEME' | SiteMenuStyle[K] };
+
+/** 가로 메뉴 줄이 넘칠 때의 표시 — 줄 아래 얇은 스크롤 · 줄 양끝 화살표 단추(user-web `MenuOverflow` 와 같은 값) */
+export type SiteMenuOverflow = 'SCROLLBAR' | 'ARROWS';
+
+/** 운영자의 넘침 표시 값 — `THEME` 은 테마 기본값을 따른다(회원은 고르지 않는다) */
+export type SiteMenuOverflowSetting = 'THEME' | SiteMenuOverflow;
+
+/** 상단 메뉴(상단 막대·메뉴 카드·탭 바) 폭 — 본문 폭 · 화면 좌우 끝까지(user-web `MenuWidth` 와 같은 값) */
+export type SiteMenuWidth = 'CONTENT' | 'FULL';
+
+/** 운영자의 상단 메뉴 폭 값 — `THEME` 은 테마 기본값을 따른다(회원은 고르지 않는다) */
+export type SiteMenuWidthSetting = 'THEME' | SiteMenuWidth;
+
+/** 메뉴 위치 — 상단 · 사이드 왼쪽 · 사이드 오른쪽 · 상단+사이드 왼쪽 · 상단+사이드 오른쪽(user-web `MenuPosition` 과 같은 값) */
+export type SiteThemeMenuPosition = 'TOP' | 'LEFT' | 'RIGHT' | 'TOP_LEFT' | 'TOP_RIGHT';
+
+/** 최상위 항목 위치 — 로고 옆 · 메뉴 안(user-web `TopItemsPosition` 과 같은 값) */
+export type SiteTopItemsPosition = 'LOGO' | 'MENU';
+
+/** 운영자의 최상위 항목 위치 값 — `THEME` 은 테마 기본값을 따른다(회원은 고르지 않는다) */
+export type SiteTopItemsSetting = 'THEME' | SiteTopItemsPosition;
+
+/**
+ * 운영자의 메뉴 위치 값 — `THEME` 은 테마 기본값을 따른다. 공개 사이트에서는 회원 보기 설정(자동이 아니면)이 이 값보다 먼저다(회원 > 운영자 > 테마 기본, 사용자 결정 2026-10-28).
+ * 관리자 앱 자신의 메뉴 위치(`useLayoutPrefs` 의 `MenuPosition`)와는 다른 값이다.
+ */
+export type SiteMenuPositionSetting = 'THEME' | SiteThemeMenuPosition;

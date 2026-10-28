@@ -68,7 +68,9 @@ export function useViewSettings() {
             .get()
             .then((res) => {
                 if (mine !== loadSeq) return;
-                const next = UtilViewSettings.sanitize(res);
+                // 서버에 아직 없는 칸(`menuPosition`)은 이 브라우저 사본의 값을 둔다 — 서버가 칸을 주면 그 값이 이긴다
+                const fromServer: Partial<ViewSettings> = res;
+                const next = UtilViewSettings.sanitize({ ...fromServer, menuPosition: fromServer.menuPosition ?? state.value.menuPosition });
                 confirmed = next;
                 state.value = next;
                 writeStored(next);
