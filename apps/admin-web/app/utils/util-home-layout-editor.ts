@@ -3,10 +3,10 @@ import UtilHomeLayout from '#layers/home-layout/utils/util-home-layout';
 import type { HomeGadgetKind } from '~/composables/home/api/useHomeLayoutApi.types';
 
 /**
- * 홈 배치 편집기(`/settings/home-layout`)의 순수 계산 — 가젯 종류별 아이콘·최소/기본 크기, 편집기 자리(`grid-layout-plus` 의 `i` 모양)와 저장 모양 사이 변환,
- * 끌기 대신 쓰는 키보드·숫자 입력의 옮기기·크기 바꾸기. 상태도 요청도 없다. 배치 자체의 규칙(읽기·위로 당기기·칸 수 바꾸기)은 공유 레이어 `UtilHomeLayout`.
+ * 홈 구성 편집(`/settings/theme` 의 `HomeLayoutEditor`)의 순수 계산 — 가젯 종류별 아이콘·최소/기본 크기, 편집기 자리와 저장 모양 사이 변환,
+ * 실제 화면에서 온 옮기기·크기(`setBox`). 상태도 요청도 없다. 배치 자체의 규칙(읽기·위로 당기기·칸 수 바꾸기)은 공유 레이어 `UtilHomeLayout`.
  *
- * 편집기는 늘 위로 당긴 모양을 둔다(`grid-layout-plus` `verticalCompact` 와 같은 규칙 — 공개 홈도 같은 규칙으로 그린다).
+ * 편집기는 늘 위로 당긴 모양을 둔다(공개 홈도 같은 규칙으로 그린다).
  */
 
 /** 종류 하나의 편집기 값 — 크기는 12칸 기준(24칸이면 폭을 2배) */
@@ -21,7 +21,7 @@ export interface HomeKindSpec {
     h: number;
 }
 
-/** 편집기 자리 — `grid-layout-plus` 가 읽는 모양(`i` = 가젯 ID) */
+/** 편집기 자리(`i` = 가젯 ID) */
 export interface HomeEditorItem {
     i: string;
     x: number;

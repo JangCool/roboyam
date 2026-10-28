@@ -1,7 +1,7 @@
 <template>
     <!--
         홈 격자 — 운영자가 관리자 홈 배치 편집기에서 정한 배치(테마마다 칸 수 12·24 + 가젯마다 x·y·w·h, 공유 레이어 `UtilHomeLayout`)대로 가젯을 그린다. 모든 테마 홈 템플릿이 이것 하나를 쓴다(템플릿은 겉모양만).
-        **라이브러리를 쓰지 않는다**(편집기만 `grid-layout-plus`) — CSS grid: 칸 `repeat(N, minmax(0, 1fr))` · 행 `grid-auto-rows` 15px · 간격 16px(편집기와 같은 고정값), 가젯은 `grid-column: x+1 / span w` · `grid-row: y+1 / span 행`.
+        **라이브러리를 쓰지 않는다** — CSS grid: 칸 `repeat(N, minmax(0, 1fr))` · 행 `grid-auto-rows` 15px · 간격 16px(편집기와 같은 고정값), 가젯은 `grid-column: x+1 / span w` · `grid-row: y+1 / span 행`.
         모양은 홈 자기 폭과 창 폭으로 고른다(`UtilHomeGrid.mode`):
           · `full` 데스크톱(lg 이상) + 홈 폭 52rem 이상 — 운영자 배치 그대로
           · `half` 태블릿(md~lg) 또는 사이드 메뉴 때문에 홈 폭이 좁은 데스크톱 — 칸 수 반, 반 폭 이하 가젯 둘은 나란히·나머지는 전체 폭(`UtilHomeGrid.half`)

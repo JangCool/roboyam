@@ -4,7 +4,7 @@
 보기와 편집은 **실제 공개 화면**에서 한다 — 관리자가 공개 사이트를 iframe 으로 띄워 저장 전 값을 보내고, 공개 사이트가 그대로 그린다(관리자에서 흉내 내 그리지 않는다).
 
 ## 화면 (기준 코드 — 칸 이름·범위·기본값의 원천)
-- 관리자 `설정 › 테마 › 레이아웃` = `/settings/theme`(`pages/settings/theme/[[tab]].vue`, `/settings/theme/menu` 는 메뉴 설정 drawer 를 연 채 시작). 옛 주소 `/settings/home-layout`·`/settings/menu-layout` 은 여기로 보낸다. 「일반」에서 테마 구획을 뺐다.
+- 관리자 `설정 › 테마 › 레이아웃` = `/settings/theme`(`pages/settings/theme/[[tab]].vue`, `/settings/theme/menu` 는 메뉴 설정 drawer 를 연 채 시작). 옛 주소 `/settings/home-layout`·`/settings/menu-layout` 은 없앴다. 「일반」에서 테마 구획을 뺐다.
   - 왼쪽 위: 테마 카드(세로 목록) + [테마 적용](사이트 테마 저장) · [되돌리기]. 카드를 고르면 아래가 그 테마의 것으로 바뀐다(`?theme=`). 저장하지 않은 변경이 있으면 묻는다.
   - 가운데: 페이지 종류(홈 · 게시판「준비 중」 · 페이지「준비 중」) · 「보기 | 편집」 · [메뉴 설정] → 실제 화면(`ThemeLivePreview` — 공개 사이트 1280×800 을 칸 폭에 맞춰 줄임, 안에서 스크롤).
   - 편집: 실제 홈 격자의 가젯 위 손잡이 — 끌기 = 옮기기 · 오른쪽 아래 = 크기 · × = 빼기(좌표 입력 칸 없음). 도구 줄: 격자 칸 수 12/24 · 테마 기본 배치로 · 가젯 넣기(8종). 저장 줄은 늘 있다. 배치 계산·저장의 주인은 `components/theme/HomeLayoutEditor.vue`.

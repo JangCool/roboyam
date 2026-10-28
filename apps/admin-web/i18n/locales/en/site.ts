@@ -97,7 +97,7 @@ export default {
 
     // Public site theme — names and descriptions are looked up by theme id (`themeName_<id>`, `themeDesc_<id>`; same ids as the server `SiteThemes.IDS` and user-web `util-theme.ts`)
     themeTitle: 'Public site theme',
-    // Theme screen (`/settings/theme`) · menu settings screen (`/settings/menu-layout`) — the "Theme & layout" group of the settings menu
+    // Theme screen (`/settings/theme`) — theme · layout · menu settings drawer
     themePageTitle: 'Theme',
     themePageSubtitle: 'Choose the public site theme, then set that theme’s layout and menu. Layout and menu settings are saved per theme.',
     themeMockNote: 'This is a prototype screen. Saving a theme’s layout and menu settings is not connected to the server yet, so a refresh brings back the initial values and nothing reaches the public site.',
