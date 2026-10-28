@@ -122,45 +122,52 @@ export interface GroupBuyOption {
 
 /* ── 상품정보제공고시(결정 87 — 공정위고시 제2022-15호) ── */
 
-/** 항목 종류 — 글 · 날짜(대체 표기 원칙 ④) · KC 인증(원칙 ⑥) · 품질보증기준(원칙 ⑤) */
-export type NoticeRowKind = 'TEXT' | 'DATE' | 'KC' | 'WARRANTY';
-/** 날짜 항목 표기 — 정확한 날짜 · 가장 빠른 날짜 · 범위 · 주문일/발송일 기준 기간 */
-export type NoticeDateMode = 'EXACT' | 'EARLIEST' | 'RANGE' | 'ORDER_BASED';
-/** KC 항목 — 인증번호(식별부호) · 면제 사실 */
-export type NoticeKcMode = 'CERT' | 'EXEMPT';
+/** 항목 종류(서버 카탈로그) — 글 · 날짜(대체 표기 원칙 4) · KC 인증(원칙 6) · 품질보증기준(원칙 5) */
+export type NoticeRowKind = 'TEXT' | 'DATE_LIKE' | 'KC_CERT' | 'QUALITY_WARRANTY';
 
-/** 고시 양식의 항목 한 줄 — 이름은 서버 카탈로그가 붙여 준다 */
+/** 고시 양식의 항목 한 줄 — 항목 번호·묶음·이름·설명은 서버가 카탈로그에서 붙여 준다(가정) */
 export interface NoticeRowView {
-    /** 카탈로그 항목 키 */
-    key: string;
+    itemKey: string;
+    /** 원문 번호(예 `7`, `7-1`) */
+    no: string;
+    /** 하위 번호 항목의 묶음 줄(예 「7. 이동통신 가입조건」) — 없으면 null */
+    group: string | null;
     name: string;
+    /** 원문 괄호 설명 */
+    description: string | null;
     kind: NoticeRowKind;
     /** 「제공 불가」면 빈 문자열일 수 있다 */
     value: string;
-    /** 「제공 불가」(원칙 ③ — 사유를 그대로 보인다) */
+    /** 「제공 불가」(원칙 3 — 사유를 그대로 보인다) */
     unavailable: boolean;
-    reason: string;
-    dateMode?: NoticeDateMode;
-    kcMode?: NoticeKcMode;
+    unavailableReason: string;
 }
 
-/** 고시 양식 한 장(품목 하나) — `optionIds` 가 비면 기본 상품(공구 전체), 아니면 별개 상품 옵션용(원칙 ⑦) */
+/** 판매자 추가 항목 한 줄(서버 `customItems` — 0부터 차례) */
+export interface NoticeCustomItemView {
+    name: string;
+    value: string;
+    sortOrder: number;
+}
+
+/** 고시 양식 한 장(품목 하나) — 배열 차례가 표시 차례. `optionNames` 가 비면 기본 상품(공구 전체), 아니면 별개 상품 옵션용(원칙 7) */
 export interface GroupBuyNoticeView {
-    id: string;
-    order: number;
-    /** 품목 번호 1~40 */
+    /** 품목 코드(예 `SMALL_ELECTRONICS`) */
+    categoryCode: string;
+    /** 품목 번호 1~40(표시용 — 서버가 붙여 줌) */
     categoryNo: number;
-    /** 품목 이름(서버 카탈로그) */
+    /** 품목 이름(표시용 — 서버가 붙여 줌) */
     categoryName: string;
     /** 운영자가 붙인 제목(예 「본체」·「확장 센서 팩」) */
     title: string;
-    /** 적용 옵션 ID — 한 옵션은 양식 하나에만 속한다 */
-    optionIds: number[];
+    /** 적용 옵션 이름 — 한 옵션은 양식 하나에만 속한다 */
+    optionNames: string[];
+    rows: NoticeRowView[];
+    customItems: NoticeCustomItemView[];
     /** 카탈로그 버전(예 `2023-01-01`) */
     catalogVersion: string;
-    /** 카탈로그 출처(예 「공정거래위원회고시 제2022-15호」) */
-    catalogSource: string;
-    rows: NoticeRowView[];
+    /** 고시 번호(예 「공정거래위원회고시 제2022-15호」) — 출처 줄 */
+    noticeNo: string;
 }
 
 /** 서버가 정한 단추 상태 */
@@ -200,7 +207,7 @@ export interface GroupBuyDetail extends GroupBuyListItem {
     roundLimitShared: boolean;
     /** 옵션 없는 공구는 빈 배열 */
     options: GroupBuyOption[];
-    /** 상품정보제공고시 양식(결정 87 — `order` 차례, 기본 양식 하나는 늘 있다) */
+    /** 상품정보제공고시 양식(결정 87 — 배열 차례. 공개된 공구는 양식이 다 찬 상태다) */
     notices: GroupBuyNoticeView[];
     delayNotice: GroupBuyDelayNotice | null;
     purchase: { reason: GroupBuyPurchaseReason | null };

@@ -55,7 +55,7 @@ import type {
  *   - `POST   /api/admin/group-buys` · `PUT /api/admin/group-buys/{id}`(DRAFT 만) → `GroupBuyDetail` · `400 VALIDATION fields.*` · `409 GROUP_BUY_LOCKED_FIELD`·`GROUP_BUY_VERSION_CONFLICT`
  *   - `PATCH  /api/admin/group-buys/{id}/content`(모집 뒤 설명·이미지 + 고시 양식 `notices`) → `GroupBuyDetail` · 수정 이력 한 판(고시만 바뀌면 `NOTICE`)
  *   - `GET    /api/admin/group-buys/notice-catalog` → `NoticeCatalog`(상품정보제공고시 품목 40개·항목 — 서버 데이터 파일이 정본, 결정 87)
- *   - 고시 양식: 저장 `400 VALIDATION fields.notices[i].title|optionIds|categoryNo|values[j].reason` · 모집 시작·모집 뒤 저장 `409 GROUP_BUY_NOTICE_INCOMPLETE`(extras = `GroupBuyNoticeIncomplete`)
+ *   - 고시 양식: 저장 `400 VALIDATION fields.notices[i].title|categoryCode|optionNames|values[j].unavailableReason|values[j].value|values[j].label`(label = 판매자 추가 항목, 2b-2 확정 전 가정) · 모집 시작·모집 뒤 저장 `409 GROUP_BUY_NOTICE_INCOMPLETE`(extras = `GroupBuyNoticeIncomplete`)
  *   - `POST   /api/admin/group-buys/images`(multipart `file`) → `GroupBuyImageUpload`
  *   - `GET    /api/admin/group-buys/{id}` · `…/revisions?page=&size=`
  *   - `POST   /api/admin/group-buys/{id}/start` · `…/close-early {reason}` · `…/cancel {reason}`(+ `GET …/cancel-preview`) · `…/ordered` · `…/rounds`

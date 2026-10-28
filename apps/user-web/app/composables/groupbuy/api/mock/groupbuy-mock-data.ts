@@ -10,6 +10,8 @@
 //   106 기간 끝 · 불발(CLOSED_FAILED · TIME_UP)
 //   107 조기 마감(EARLY_CLOSED) · 성사 · 발주(ORDERED) · 발송 지연 공지 · 옵션 하나 공급 불가
 //   108 운영 종료(CANCELED)
+//   ── 로봇 밖 예시 품목(결정 87) ─
+//   109 햅쌀 10kg 성사형 모집 중 · 110 사과·감귤 선착순(옵션마다 고시 양식) · 111 고등어·전복 모집 예정 · 112 김치 다 팔림 · 113 티셔츠 선착순(옵션 넷 · 하나 잠시 품절) · 114 러닝화 성사형 마감 임박
 //
 // ── 배송비 정책(모집 시작 때 고정한 사본) ─
 //   STANDARD: 3,000 · 무료 50,000 · 반품 3,000 · 편도   ROUND: 3,000 · 무료 50,000 · 반품 3,000 · 왕복(103만)
@@ -38,6 +40,9 @@ const ROUND: GroupBuyShipping = { fee: 3000, freeShippingOver: 50000, returnFee:
 /** 정화된 HTML 이라고 가정한 고정 문자열(서버가 공용 편집기 정화를 거친다 — 결정 2) */
 const DESC = (name: string) =>
     `<p><strong>${name}</strong>는 로봇 교육·취미용으로 만든 제품이에요.</p><ul><li>구성품은 아래 사양을 확인해 주세요.</li><li>실제 색상은 화면과 조금 다를 수 있어요.</li></ul><p>사용 설명서는 상자 안에 들어 있어요.</p>`;
+
+/** 로봇 밖 상품 설명(정화된 HTML 이라고 가정) */
+const GOODS_DESC = (what: string, note: string) => `<p><strong>${what}</strong>을(를) 공동구매가로 모아요.</p><p>${note}</p><p>실제 색상·크기는 화면과 조금 다를 수 있어요.</p>`;
 
 function base(over: Partial<GroupBuyDetail> & Pick<GroupBuyDetail, 'id' | 'title'>): GroupBuyDetail {
     return {
@@ -249,6 +254,147 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             shipPlannedAt: ymd(20),
             purchase: { reason: 'NOT_RECRUITING' },
             actions: { order: false, watchRestock: false, watchClosingSoon: false, watchNextRound: false },
+        }),
+        // ── 로봇 밖 예시 품목(결정 87 — 쌀·과일·생선·김치·옷·신발) ──
+        base({
+            id: 109,
+            title: '이천 햅쌀 10kg 산지 공동구매',
+            fulfillment: 'AFTER_CLOSE',
+            groupPrice: 42900,
+            normalPrice: 52000,
+            normalPriceBasis: 'MARKET',
+            minQty: 50,
+            maxQty: 200,
+            currentQty: 37,
+            remainingQty: 163,
+            endAt: at(6 * DAY),
+            shipPlannedAt: ymd(10),
+            maxQtyPerUser: 4,
+            descriptionHtml: GOODS_DESC('올가을 수확한 햅쌀', '50포가 모이면 성사되고, 마감 뒤 도정해 보내 드려요.'),
+            summary: '50포가 모이면 성사돼요. 마감 뒤 도정해 발송 예정일에 보내 드려요.',
+            spec: '품종 추청(아키바레)\n중량 10kg\n도정 발송 3일 전',
+        }),
+        base({
+            id: 110,
+            title: '제철 사과·감귤 선착순',
+            fulfillment: 'IMMEDIATE',
+            groupPrice: 23900,
+            priceFrom: true,
+            normalPrice: 39000,
+            normalPriceBasis: 'PREV_SALE',
+            minQty: 0,
+            maxQty: 160,
+            currentQty: 83,
+            remainingQty: 77,
+            endAt: at(4 * DAY),
+            shipWithinBusinessDays: 2,
+            maxQtyPerUser: 3,
+            descriptionHtml: GOODS_DESC('제철 과일', '사과와 감귤은 다른 농가 상품이라 상품정보를 따로 적었어요.'),
+            summary: '산지 창고 재고예요. 결제 다음 날 수확·선별해 보내 드려요.',
+            spec: '사과 5kg(14~16과) · 감귤 5kg(S~M)',
+            withdrawalRestriction: '신선식품이라 받은 뒤 시간이 지나 가치가 크게 떨어지면 단순 변심 반품이 제한될 수 있어요(상한 것·오배송은 제외).',
+            options: [
+                { id: 1101, name: '사과 5kg (부사)', extraPrice: 6000, unitPrice: 29900, remainingQty: 28, maxQty: 80, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
+                { id: 1102, name: '감귤 5kg (노지)', extraPrice: 0, unitPrice: 23900, remainingQty: 49, maxQty: 80, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
+            ],
+        }),
+        base({
+            id: 111,
+            title: '손질 고등어·활전복 산지 직송 예약',
+            status: 'DRAFT',
+            phase: 'UPCOMING',
+            fulfillment: 'AFTER_CLOSE',
+            groupPrice: 24900,
+            priceFrom: true,
+            normalPrice: 45000,
+            normalPriceBasis: 'MARKET',
+            minQty: 30,
+            maxQty: 100,
+            currentQty: 0,
+            remainingQty: 100,
+            startAt: at(3 * DAY),
+            endAt: at(10 * DAY),
+            shipPlannedAt: ymd(14),
+            descriptionHtml: GOODS_DESC('산지 수산물', '고등어는 냉동, 전복은 냉장으로 따로 보내요.'),
+            summary: '30세트가 모이면 성사돼요. 마감 뒤 출하해 보내 드려요.',
+            options: [
+                { id: 1111, name: '손질 고등어 1kg (냉동)', extraPrice: 0, unitPrice: 24900, remainingQty: 60, maxQty: 60, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
+                { id: 1112, name: '활전복 1kg (냉장)', extraPrice: 12000, unitPrice: 36900, remainingQty: 40, maxQty: 40, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
+            ],
+            purchase: { reason: 'NOT_STARTED' },
+            actions: { order: false, watchRestock: false, watchClosingSoon: false, watchNextRound: false },
+        }),
+        base({
+            id: 112,
+            title: '김장 포기김치 선착순',
+            status: 'CLOSED_SUCCESS',
+            phase: 'ENDED',
+            closeReason: 'SOLD_OUT',
+            fulfillment: 'IMMEDIATE',
+            groupPrice: 25900,
+            priceFrom: true,
+            minQty: 0,
+            maxQty: 100,
+            currentQty: 100,
+            remainingQty: 0,
+            stockState: 'SOLD_OUT',
+            startAt: at(-9 * DAY),
+            endAt: at(-3 * DAY),
+            shipWithinBusinessDays: 2,
+            descriptionHtml: GOODS_DESC('전라도식 포기김치', '준비한 수량이 다 팔렸어요.'),
+            options: [
+                { id: 1121, name: '포기김치 3kg', extraPrice: 0, unitPrice: 25900, remainingQty: 0, maxQty: 60, stockState: 'SOLD_OUT', watchingRestock: false, canWatchRestock: false },
+                { id: 1122, name: '포기김치 5kg', extraPrice: 14000, unitPrice: 39900, remainingQty: 0, maxQty: 40, stockState: 'SOLD_OUT', watchingRestock: false, canWatchRestock: false },
+            ],
+            purchase: { reason: 'NOT_RECRUITING' },
+            actions: { order: false, watchRestock: false, watchClosingSoon: false, watchNextRound: true },
+        }),
+        base({
+            id: 113,
+            title: '오버핏 코튼 티셔츠 선착순',
+            fulfillment: 'IMMEDIATE',
+            groupPrice: 15900,
+            normalPrice: 25000,
+            normalPriceBasis: 'PREV_SALE',
+            minQty: 0,
+            maxQty: 200,
+            currentQty: 136,
+            remainingQty: 64,
+            endAt: at(7 * DAY),
+            shipWithinBusinessDays: 3,
+            maxQtyPerUser: 5,
+            descriptionHtml: GOODS_DESC('기본 반팔 티셔츠', '색상·사이즈만 다른 같은 상품이라 상품정보는 하나예요.'),
+            spec: '면 100% · 20수 싱글 저지',
+            options: [
+                { id: 1131, name: '화이트 M', extraPrice: 0, unitPrice: 15900, remainingQty: 9, maxQty: 50, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
+                { id: 1132, name: '화이트 L', extraPrice: 0, unitPrice: 15900, remainingQty: 22, maxQty: 50, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
+                { id: 1133, name: '블랙 M', extraPrice: 0, unitPrice: 15900, remainingQty: 0, maxQty: 50, stockState: 'TEMP_SOLD_OUT', watchingRestock: false, canWatchRestock: true },
+                { id: 1134, name: '블랙 L', extraPrice: 0, unitPrice: 15900, remainingQty: 33, maxQty: 50, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
+            ],
+        }),
+        base({
+            id: 114,
+            title: '쿠션 러닝화 RX-1 (마감 임박)',
+            fulfillment: 'AFTER_CLOSE',
+            groupPrice: 64000,
+            normalPrice: 89000,
+            normalPriceBasis: 'OFFICIAL_STORE',
+            minQty: 40,
+            maxQty: 100,
+            currentQty: 34,
+            remainingQty: 66,
+            endAt: at(5 * HOUR),
+            closingSoon: true,
+            shipPlannedAt: ymd(12),
+            maxQtyPerUser: 2,
+            descriptionHtml: GOODS_DESC('쿠션 러닝화', '40켤레가 모이면 성사돼요. 사이즈만 다른 같은 상품이라 상품정보는 하나예요.'),
+            options: [
+                { id: 1141, name: '240', extraPrice: 0, unitPrice: 64000, remainingQty: 14, maxQty: 20, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
+                { id: 1142, name: '250', extraPrice: 0, unitPrice: 64000, remainingQty: 12, maxQty: 20, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
+                { id: 1143, name: '260', extraPrice: 0, unitPrice: 64000, remainingQty: 9, maxQty: 20, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
+                { id: 1144, name: '270', extraPrice: 0, unitPrice: 64000, remainingQty: 15, maxQty: 20, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
+                { id: 1145, name: '280', extraPrice: 0, unitPrice: 64000, remainingQty: 16, maxQty: 20, stockState: 'AVAILABLE', watchingRestock: false, canWatchRestock: false },
+            ],
         }),
     ];
 }

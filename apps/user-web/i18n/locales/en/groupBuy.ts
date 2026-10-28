@@ -146,15 +146,9 @@ export default {
     productInfoItem: 'Item',
     productInfoValue: 'Details',
     productInfoUnavailable: 'Not available — {reason}',
-    productInfoDateMode: {
-        EARLIEST: 'Shown as the earliest date',
-        RANGE: 'Shown as a range',
-        ORDER_BASED: 'Shown as a period from the order or shipping date',
-    },
-    productInfoKc: {
-        CERT: 'KC certified',
-        EXEMPT: 'KC exempt',
-    },
+    productInfoKc: 'KC certification',
+    productInfoCustom: 'More from the seller',
+    productInfoCustomCaption: '{title} — more from the seller',
     productInfoSource: 'Based on {source}',
 
     // ── Sales terms · shipping notice ──

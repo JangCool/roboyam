@@ -148,15 +148,9 @@ export default {
     productInfoItem: '항목',
     productInfoValue: '내용',
     productInfoUnavailable: '제공 불가 — {reason}',
-    productInfoDateMode: {
-        EARLIEST: '가장 빠른 날짜로 적었어요',
-        RANGE: '범위로 적었어요',
-        ORDER_BASED: '주문일 · 발송일 기준 기간으로 적었어요',
-    },
-    productInfoKc: {
-        CERT: 'KC 인증',
-        EXEMPT: 'KC 인증 면제',
-    },
+    productInfoKc: 'KC 인증정보',
+    productInfoCustom: '판매자 추가 정보',
+    productInfoCustomCaption: '{title} 판매자 추가 정보',
     productInfoSource: '{source} 기준',
 
     // ── 판매조건 · 배송비 고지 ──

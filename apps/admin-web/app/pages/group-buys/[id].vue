@@ -5,8 +5,8 @@
           가격·배송비 칸은 `commerce.product.price` 가 없으면 읽기 전용이다. 저장은 화면 하나로(DRAFT `PUT` 한 번 · 모집 뒤 `PATCH …/content` 한 번) — 떠 있는 저장 줄.
         · 칸: 제목·상품명·요약·사양·설명(`@roboyam/rich-editor` 고급 수준 + 본문 이미지)·대표 이미지(8장·순서)·정상가·공구가·정상가 기준(+ 출처 메모, 「최저가」 금지 안내)·옵션·성사 수량(0 = 선착순)·발송 시점
           (즉시 발송은 선착순만)·최대 수량·1인 한도·차수 사이 한도 합산·기간·연장 방식·배송비 정책·발송 예정일(마감 후 발주) 또는 결제 후 N영업일(즉시 발송)·청약철회 제한 안내.
-        · 고시 양식(결정 87, `GroupBuyNoticeEditor`): 기본 양식 1장(공구 전체) + 별개 상품 옵션용 양식, 품목별 항목·「제공 불가」 + 사유. **모집 뒤에도 고친다**(`PATCH …/content` 에 같이 — 이력 `NOTICE`).
-          빈 항목·옵션 미배정이 있으면 모집 시작이 `409 GROUP_BUY_NOTICE_INCOMPLETE` — 화면이 그 항목으로 옮겨 표시한다. 카탈로그는 `GET …/notice-catalog`(서버 정본).
+        · 고시 양식(결정 87, `GroupBuyNoticeEditor`): 기본 양식(적용 옵션 빔 = 공구 전체) + 별개 상품 옵션용 양식, 품목별 항목·「제공 불가」 + 사유·판매자 추가 항목. **모집 뒤에도 고친다**(`PATCH …/content` 에 같이 — 이력 `NOTICE`).
+          적용 옵션은 화면에서 옵션 줄 키로 들고, 저장 때 옵션 이름(`optionNames`)으로 바꾼다. 양식 없음·빈 항목·어느 양식에도 안 든 옵션이 있으면 모집 시작이 `409 GROUP_BUY_NOTICE_INCOMPLETE` — 화면이 그 항목으로 옮겨 표시한다. 카탈로그는 `GET …/notice-catalog`(서버 정본).
         · 문구 경고(결정 55·58): 「개봉하면 반품 불가」·「재판매 금지·리셀」·「최저가」·「한정」이 보이면 위에 경고(막지는 않는다).
         · 운영 동작(서버가 정한 `actions`): 모집 시작 · 조기 마감(사유) · 중단(확인 창 「환불 N명 · 총 N원 / 이미 발송 M명은 그대로」 + 사유) · 발주 처리 · 추가 차수로 열기 ·
           발송 지연 공지(새 예정일 + 사유) · 옵션 공급 불가 처리(옵션 + 사유, 결과 미리 보기) · 수정 이력(오른쪽 서랍) · 수량 화면·주문 링크.
@@ -62,7 +62,7 @@
                     </div>
                     <p v-if="dirty && detail.actions.canStart" class="m-0 text-xs text-amber-700 dark:text-amber-400">{{ t('groupBuy.saveBeforeStart') }}</p>
                     <p v-else-if="detail.actions.canStart && canManage && noticeSummary && !noticeSummary.complete" class="m-0 text-xs text-amber-700 dark:text-amber-400">
-                        {{ noticeSummary.baseMissing ? t('groupBuy.noticeStartBlockedBase') : t('groupBuy.noticeStartBlocked', { blank: noticeSummary.blank, unassigned: noticeSummary.unassigned }) }}
+                        {{ noticeSummary.noNotice ? t('groupBuy.noticeStartBlockedNone') : t('groupBuy.noticeStartBlocked', { blank: noticeSummary.blank, unassigned: noticeSummary.unassigned }) }}
                         <a href="#gb-notice" class="ml-1 text-primary hover:underline" @click.prevent="goNotice">{{ t('groupBuy.noticeGo') }}</a>
                     </p>
                     <p v-if="canManage && detail.status !== 'DRAFT' && !detail.actions.canCreateRound && detail.actions.roundBlockedReason" class="m-0 text-xs text-muted-color">{{ t(`groupBuy.roundBlocked.${detail.actions.roundBlockedReason}`) }}</p>
@@ -287,7 +287,7 @@
                 <AppGadget :title="t('groupBuy.secNotice')" anchor="gb-notice" :invalid="noticeErrorCount">
                     <template #title-extra>
                         <template v-if="noticeSummary">
-                            <Tag v-if="noticeSummary.baseMissing" :value="t('groupBuy.noticeHeaderNone')" severity="danger" />
+                            <Tag v-if="noticeSummary.noNotice" :value="t('groupBuy.noticeHeaderNone')" severity="danger" />
                             <Tag v-if="noticeSummary.blank" :value="t('groupBuy.noticeHeaderBlank', { n: noticeSummary.blank })" severity="warn" />
                             <Tag v-if="noticeSummary.unassigned" :value="t('groupBuy.noticeHeaderUnassigned', { n: noticeSummary.unassigned })" severity="danger" />
                             <Tag v-if="noticeSummary.complete" :value="t('groupBuy.noticeHeaderOk', { n: form.notices.length })" severity="success" />
@@ -376,11 +376,13 @@ import type {
     GroupBuyImage,
     GroupBuyNotice,
     GroupBuyNoticeIncomplete,
+    GroupBuyNoticeInput,
     GroupBuyRevision,
     GroupBuySaveRequest,
     GroupBuySupplyFailurePreview,
     NormalPriceBasis,
     NoticeCatalog,
+    NoticeCustomInput,
     ReturnFeeMode,
 } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
 import { NORMAL_PRICE_BASES } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
@@ -513,7 +515,7 @@ function formOf(d: GroupBuyDetail): EditForm {
         shipPlannedAt: d.shipPlannedAt ?? '',
         shipWithinBusinessDays: d.shipWithinBusinessDays === null ? '' : String(d.shipWithinBusinessDays),
         withdrawalRestriction: d.withdrawalRestriction,
-        notices: d.notices.map((n) => ({ ...n, key: n.id ?? `notice-${n.order}`, optionIds: [...n.optionIds], values: n.values.map((v) => ({ ...v })) })),
+        notices: d.notices.map((n, i) => noticeRowOf(n, i, d.options)),
     };
 }
 
@@ -521,7 +523,7 @@ const form = ref<EditForm>(emptyForm());
 const initial = ref('');
 /** 비교용 — 줄 키·표시용 수량은 뺀다 */
 function snapshot(f: EditForm): string {
-    return JSON.stringify({ ...f, images: f.images.map((i) => i.mediaId), options: f.options.map((o) => [o.id, o.name, o.extraPrice, o.maxQty]), notices: noticesOut(f) });
+    return JSON.stringify({ ...f, images: f.images.map((i) => i.mediaId), options: f.options.map((o) => [o.id, o.name, o.extraPrice, o.maxQty]), notices: noticesView(f) });
 }
 const dirty = computed(() => initial.value !== '' && snapshot(form.value) !== initial.value);
 
@@ -573,21 +575,41 @@ function policyText(fee: number, free: number | null, returnFee: number, mode: R
 }
 
 // ── 상품정보제공고시(결정 87) ──
-/** 저장할 양식 — 차례를 1부터, 화면 키를 떼고, 지금 옵션에 없는 옵션 ID 는 뺀다 */
-function noticesOut(f: EditForm): GroupBuyNotice[] {
-    const ids = new Set(f.options.flatMap((o) => (o.id ? [o.id] : [])));
-    return f.notices.map(({ key: _key, ...n }, i) => ({ ...n, order: i + 1, optionIds: n.optionIds.filter((o) => ids.has(o)) }));
+/** 응답 양식 → 편집 줄. 적용 옵션 이름을 옵션 줄 키(불러온 옵션은 ID)로 바꾼다 — 지금 옵션에 없는 이름은 버린다 */
+function noticeRowOf(n: GroupBuyNotice, index: number, opts: readonly { id: string; name: string }[]): GroupBuyNoticeRow {
+    const optionKeys = n.optionNames.flatMap((name) => opts.filter((o) => o.name === name).map((o) => o.id));
+    return { key: `notice-${index}`, categoryCode: n.categoryCode, title: n.title, optionKeys, values: n.values.map((v) => ({ ...v })), customItems: n.customItems.map((c) => ({ ...c })) };
 }
 
-const noticeOptionRefs = computed<GroupBuyNoticeOptionRef[]>(() => form.value.options.map((o) => ({ key: o.key, id: o.id, name: o.name })));
+/** 응답 모양 양식 — 화면 키를 떼고 적용 옵션을 지금 옵션 이름으로(이름 없는·지운 옵션은 뺀다). 미리 세기·비교용 */
+function noticesView(f: EditForm): GroupBuyNotice[] {
+    const nameOf = new Map(f.options.map((o) => [o.key, o.name.trim()]));
+    return f.notices.map((n) => ({
+        categoryCode: n.categoryCode,
+        title: n.title,
+        optionNames: n.optionKeys.flatMap((key) => (nameOf.get(key) ? [nameOf.get(key)!] : [])),
+        values: n.values.map((v) => ({ ...v })),
+        customItems: n.customItems.map((c, i) => ({ ...c, sortOrder: i })),
+    }));
+}
+
+/** 저장 요청 양식 — 고시 항목 뒤에 판매자 추가 항목을 `values[]` 의 `custom` 줄로(빈 줄도 보낸다 — 서버가 버린다) */
+function noticesOut(f: EditForm): GroupBuyNoticeInput[] {
+    return noticesView(f).map(({ customItems, ...n }) => ({
+        ...n,
+        values: [...n.values, ...customItems.map((c): NoticeCustomInput => ({ custom: true, itemKey: null, name: c.name, value: c.value, sortOrder: c.sortOrder }))],
+    }));
+}
+
+const noticeOptionRefs = computed<GroupBuyNoticeOptionRef[]>(() => form.value.options.map((o) => ({ key: o.key, name: o.name })));
 
 /** 구획 머리 배지·모집 시작 안내 — 서버와 같은 규칙으로 센다(판정은 서버) */
 const noticeSummary = computed(() => {
     if (!catalog.value) return null;
-    const problems = UtilGroupBuy.noticeProblems(noticesOut(form.value), catalog.value);
-    const blank = problems.notices.reduce((sum, p) => sum + p.emptyKeys.length, 0);
-    const unassigned = problems.notices.filter((p) => p.optionsMissing).length;
-    return { baseMissing: problems.baseMissing, blank, unassigned, complete: UtilGroupBuy.noticeComplete(problems) };
+    const optionNames = form.value.options.map((o) => o.name.trim()).filter(Boolean);
+    const problems = UtilGroupBuy.noticeProblems(noticesView(form.value), catalog.value, optionNames);
+    const blank = problems.notices.reduce((sum, p) => sum + p.missingKeys.length, 0);
+    return { noNotice: problems.noNotice, blank, unassigned: problems.unassignedOptions.length, complete: UtilGroupBuy.noticeComplete(problems) };
 });
 const noticeErrorCount = computed(() => Object.keys(serverErrors.value).filter((k) => k.startsWith('notices[')).length);
 
@@ -611,7 +633,7 @@ function goNotice(): void {
 function showNoticeIncomplete(failure: ApiError): void {
     if (failure.code !== 'GROUP_BUY_NOTICE_INCOMPLETE' || !failure.extras) return;
     const extras = failure.extras as Partial<GroupBuyNoticeIncomplete>;
-    noticeIncomplete.value = { baseMissing: !!extras.baseMissing, notices: Array.isArray(extras.notices) ? extras.notices : [] };
+    noticeIncomplete.value = { noNotice: !!extras.noNotice, notices: Array.isArray(extras.notices) ? extras.notices : [], unassignedOptions: Array.isArray(extras.unassignedOptions) ? extras.unassignedOptions : [] };
     void noticeEditor.value?.focusProblem();
 }
 

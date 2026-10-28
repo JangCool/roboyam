@@ -224,7 +224,7 @@ export interface GroupBuyDetail {
     version: number;
     /** 마지막 수정 이력 번호 */
     revisionNo: number;
-    /** 상품정보제공고시 양식들(결정 87) — `order` 순. 기본 양식(`optionIds` 빔 = 공구 전체) 하나 + 별개 상품 옵션용 양식. 모집 뒤에도 고친다 */
+    /** 상품정보제공고시 양식들(결정 87) — 배열 차례. 기본 양식(`optionNames` 빔 = 공구 전체) + 별개 상품 옵션용 양식. 모집 뒤에도 고친다 */
     notices: GroupBuyNotice[];
     actions: GroupBuyActions;
     delayNotices: GroupBuyDelayNotice[];
@@ -268,7 +268,7 @@ export interface GroupBuySaveRequest {
     shipWithinBusinessDays: number | null;
     withdrawalRestriction: string;
     /** 고시 양식 전부(결정 87) — DRAFT 는 비거나 덜 채워도 저장된다(모집 시작 때 검사) */
-    notices: GroupBuyNotice[];
+    notices: GroupBuyNoticeInput[];
     /** 새로 만들 때는 null */
     version: number | null;
 }
@@ -282,96 +282,149 @@ export interface GroupBuyContentRequest {
     spec: string;
     description: string;
     imageIds: string[];
-    notices: GroupBuyNotice[];
+    notices: GroupBuyNoticeInput[];
     version: number;
 }
 
 // ── 상품정보제공고시(결정 87) ───────────────────────────
-// 카탈로그는 서버가 정본(`server/shared/.../groupbuy/notice-catalog-<시행일>.json` → `GroupBuyNoticeCatalog`). user-web 도 같은 모양을 쓴다.
+// 카탈로그는 서버가 정본(`server/shared/.../groupbuy/notice-catalog-<시행일>.json`) — 응답은 그 파일 모양 그대로라고 가정한다.
 
-/** 항목 종류 — 글 · 날짜(대체 표기, 원칙 ④) · KC 인증(인증번호/면제 사실, 원칙 ⑥) · 품질보증기준(원칙 ⑤) */
-export type NoticeItemKind = 'TEXT' | 'DATE' | 'KC' | 'WARRANTY';
-/** 날짜 항목의 표기 — 정확한 날짜 · 가장 빠른 날짜 · 범위 · 주문일/발송일 기준 기간 */
-export type NoticeDateMode = 'EXACT' | 'EARLIEST' | 'RANGE' | 'ORDER_BASED';
-export const NOTICE_DATE_MODES: readonly NoticeDateMode[] = ['EXACT', 'EARLIEST', 'RANGE', 'ORDER_BASED'];
-/** KC 항목의 표기 — 인증번호(식별부호) · 면제 사실 */
-export type NoticeKcMode = 'CERT' | 'EXEMPT';
-export const NOTICE_KC_MODES: readonly NoticeKcMode[] = ['CERT', 'EXEMPT'];
+/** 항목 종류 — 글 · 날짜(대체 표기, 원칙 4) · KC 인증(원칙 6) · 품질보증기준(원칙 5). 설명 원문은 `NoticeCatalog.itemKinds` */
+export type NoticeItemKind = 'TEXT' | 'DATE_LIKE' | 'KC_CERT' | 'QUALITY_WARRANTY';
 
-/** `GET /api/admin/group-buys/notice-catalog` — 고시 품목 40개와 품목별 항목 */
+/** 고시 일반원칙 2~7 원문(키는 카탈로그 파일 그대로) */
+export interface NoticeCatalogPrinciples {
+    /** 2. 비슷한 품목 고르기 · 없으면 (39)/(40) */
+    similarCategory: string;
+    /** 3. 제공할 수 없으면 구체적 사유 */
+    unavailableReason: string;
+    /** 4. 날짜 대체 표기 */
+    dateAlternatives: string;
+    /** 5. 품질보증기준 */
+    qualityWarranty: string;
+    /** 6. KC 인증정보 */
+    kcCert: string;
+    /** 7. 부수 상품 · 별개 상품 */
+    accessory: string;
+}
+
+/** `GET /api/admin/group-buys/notice-catalog` — 고시 품목 40개와 품목별 항목(서버 데이터 파일 그대로) */
 export interface NoticeCatalog {
-    /** 시행일(예 `2023-01-01`) — 양식이 만든 때 버전을 기억한다 */
+    /** 시행일 버전(예 `2023-01-01`) */
     version: string;
+    title: string;
     /** 예 `공정거래위원회고시 제2022-15호` */
+    noticeNo: string;
+    effectiveDate: string;
+    /** 원문을 옮긴 날 */
+    transcribedAt: string;
+    /** 원문 주소 */
     source: string;
+    transcriptionNote: string;
+    itemKinds: Record<NoticeItemKind, string>;
+    principles: NoticeCatalogPrinciples;
     categories: NoticeCategory[];
 }
 
 export interface NoticeCategory {
     /** 고시 품목 번호 1~40 */
     no: number;
-    /** 예 `HOME_APPLIANCE` */
+    /** 예 `SMALL_ELECTRONICS` — 양식이 고르는 값 */
     code: string;
     name: string;
-    /** 이름·항목을 원문에서 아직 옮기지 못한 임시 값(목업 단계) */
-    provisional?: boolean;
+    /** 품목 적용 범위(예 (37) 「안전확인대상생활화학제품에 한함」) */
+    scope?: string;
+    /** 품질보증기준이 소비자분쟁해결기준보다 불리하면 그 사실·내용(원칙 5 — (10) 노트북 · (11)~(14)) */
+    warrantyDisadvantageDisclosure?: string;
     items: NoticeItemDef[];
 }
 
 export interface NoticeItemDef {
+    /** 원문 번호(예 `7`, `7-1`) */
+    no: string;
+    /** 영문 snake_case 키 — 같은 뜻이면 품목이 달라도 같은 키 */
     key: string;
+    /** 하위 번호 항목의 묶음 줄(예 「7. 이동통신 가입조건」) — 없으면 빠지거나 null */
+    group?: string | null;
     name: string;
-    required: boolean;
+    /** 원문 괄호 설명 */
+    description: string | null;
     kind: NoticeItemKind;
-    /** 항목 아래 안내 문구 */
-    guide?: string;
+    /** 원칙 3 — 모든 항목이 「값」 또는 「제공 불가 + 사유」 */
+    required: boolean;
+    /** 「…에 한함」 — 해당 없으면 「제공 불가 + 사유(해당 없음과 그 까닭)」 */
+    conditional?: boolean;
 }
 
-/** 공구 응답·저장 요청의 고시 양식 한 장(`group_buy_notices` + `group_buy_notice_values`) */
+/** 공구 응답의 고시 양식 한 장(관리자 조회 · 수정 이력 사본) — 배열 차례가 표시 차례다 */
 export interface GroupBuyNotice {
-    /** 새 양식은 null */
-    id: string | null;
-    /** 1부터 — 기본 양식이 1 */
-    order: number;
-    categoryNo: number;
+    categoryCode: string;
     /** 예 「본체」·「충전기」 */
     title: string;
-    /** 적용 옵션(`GroupBuyOption.id`). 비면 기본 양식(공구 전체). 한 옵션은 양식 하나에만 */
-    optionIds: string[];
-    catalogVersion: string;
-    values: NoticeValue[];
+    /**
+     * 적용 옵션 이름. 비면 공구 전체 = 기본 상품. 옵션이 있는 공구에서 기본 양식은 하나까지, 한 옵션은 양식 하나에만.
+     * 기본 양식이 없으면 모든 옵션이 어느 양식에 들어야 한다(409 `unassignedOptions`).
+     */
+    optionNames: string[];
+    /** 고시 항목 값(`itemKey` 로 찾는다) */
+    values: NoticeItemValue[];
+    /** 판매자 추가 항목(`sortOrder` 0부터 차례) */
+    customItems: NoticeCustomItem[];
 }
 
-/** 항목 한 칸 — 값, 또는 「제공 불가」 + 사유(원칙 ③) */
-export interface NoticeValue {
-    key: string;
+/** 고시 항목 한 칸 — 값, 또는 「제공 불가」 + 사유(원칙 3) */
+export interface NoticeItemValue {
+    itemKey: string;
     value: string;
     unavailable: boolean;
-    reason: string;
-    /** 날짜 항목만 */
-    dateMode?: NoticeDateMode;
-    /** KC 항목만 */
-    kcMode?: NoticeKcMode;
+    unavailableReason: string;
 }
 
 /**
- * 모집 시작(또는 모집 뒤 저장) 거절 `409 GROUP_BUY_NOTICE_INCOMPLETE` 의 `extras`.
- * 옵션은 다른 양식에 들지 않으면 기본 양식을 따른다 — 「옵션 미배정」은 **추가 양식인데 적용 옵션이 없는 것**이다.
+ * 판매자 추가 항목 한 줄 — 이름 1~40자 · 내용 1~1,000자 평문, 양식당 20개, 같은 양식 안 이름 겹침 금지,
+ * 고시 항목과 같은 이름 금지(공백 무시, 「크기, 무게」처럼 쉼표로 나뉜 각 이름 포함). 선택 사항이라 모집 시작 검사(409) 대상이 아니다.
  */
+export interface NoticeCustomItem {
+    name: string;
+    value: string;
+    /** 0부터 */
+    sortOrder: number;
+}
+
+/** 저장 요청 `values[]` 의 판매자 추가 항목 줄 — 이름·내용 둘 다 빈 줄은 서버가 버린다 */
+export interface NoticeCustomInput {
+    custom: true;
+    itemKey: null;
+    name: string;
+    value: string;
+    sortOrder: number;
+}
+
+/** 저장 요청의 고시 양식 한 장 — 고시 항목 뒤에 판매자 추가 항목을 같은 `values[]` 에 */
+export interface GroupBuyNoticeInput {
+    categoryCode: string;
+    title: string;
+    optionNames: string[];
+    values: (NoticeItemValue | NoticeCustomInput)[];
+}
+
+/** 모집 시작(공개)과 공개 뒤 저장의 거절 `409 GROUP_BUY_NOTICE_INCOMPLETE` 의 `extras` */
 export interface GroupBuyNoticeIncomplete {
-    /** 기본 양식(적용 옵션 없음)이 없다 */
-    baseMissing: boolean;
+    /** 양식이 하나도 없다 */
+    noNotice: boolean;
+    /** 빈 항목이 있는 양식 */
     notices: GroupBuyNoticeProblem[];
+    /** 기본 양식이 없을 때 어느 양식에도 들지 않은 옵션 이름(화면 해석 — 2b-2 확인 필요) */
+    unassignedOptions: string[];
 }
 
 export interface GroupBuyNoticeProblem {
-    /** 양식 `order` */
-    order: number;
+    /** 양식 차례(0부터 — `notices[i]` 와 같다고 가정) */
+    index: number;
     title: string;
-    /** 필수 항목인데 값이 비었거나, 「제공 불가」인데 사유가 빈 항목 키 */
-    emptyKeys: string[];
-    /** 추가 양식인데 적용 옵션이 없다 */
-    optionsMissing: boolean;
+    categoryCode: string;
+    /** 값이 비었거나 「제공 불가」인데 사유가 빈 항목 키 */
+    missingKeys: string[];
 }
 
 /** 등록 화면의 고를 값 — `GET /api/admin/group-buys/form-options` */

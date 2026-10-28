@@ -24,9 +24,11 @@
 //   · 「모집 시작」= DRAFT → RECRUITING(공개). 시작 시각이 미래면 회원 화면은 그때까지 「예정」 탭.
 //   · 운영자 조기 마감의 `close_reason` 은 `EARLY_CLOSED`(사용자 결정 2026-10-28 — 결정 79 에 더함).
 //   · 취소 요청 거절은 `ALREADY_SHIPPED` 하나뿐이고 사진이 필요 없다. 반품 거절은 그 밖의 코드 + 사진 1~3장.
-//   · 고시 양식(결정 87): 옵션은 다른 양식에 들지 않으면 기본 양식(적용 옵션 없음 = 공구 전체)을 따른다. 「옵션 미배정」 = 추가 양식인데 적용 옵션이 없음.
-//     저장(모든 상태) 400 — 양식 제목 빔 · 「제공 불가」인데 사유 빔 · 한 옵션이 두 양식에 · 없는 품목·옵션. 모집 시작과 모집 뒤 저장 409 — 기본 양식 없음 · 빈 항목 · 옵션 미배정.
-//     모집 뒤 수정은 `PATCH …/content` 에 같이 보내고, 고시만 바뀌면 이력 종류 `NOTICE`. 추가 차수는 양식을 복사하고 옵션 ID 를 새 옵션으로 바꾼다.
+//   · 고시 양식(결정 87 — 2b-2 서버 모양): 저장 `notices[{categoryCode, title, optionNames, values[고시 항목 {itemKey, value, unavailable, unavailableReason} + 추가 항목 {custom: true, itemKey: null, name, value, sortOrder}]}]`,
+//     응답 `notices[{categoryCode, title, optionNames, values, customItems[{name, value, sortOrder}]}]`. 적용 옵션이 빈 양식 = 기본 양식(공구 전체).
+//     옵션이 있으면 기본 양식은 하나까지, 기본 양식이 없으면 모든 옵션이 어느 양식에 들어야 한다(`unassignedOptions` = 그때 빠진 옵션 이름 — 화면 해석).
+//     저장(모든 상태) 400 — 양식 제목 빔 · 「제공 불가」인데 사유 빔 · 한 옵션이 두 양식에 · 기본 양식 둘 · 없는 품목·옵션 · 추가 항목(반쪽 줄·40자·20개·이름 겹침·고시 항목 이름).
+//     모집 시작과 모집 뒤 저장 409 — 양식 없음 · 빈 항목 · 빠진 옵션(추가 항목은 대상 아님). 모집 뒤 수정은 `PATCH …/content` 에 같이, 고시만 바뀌면 이력 `NOTICE`. 추가 차수는 양식을 그대로 복사.
 
 import { MOCK_ERRORS, mockClone, mockDelay, mockFlags } from '~/composables/common/mock/mock-util';
 import type { ApiError } from '~/composables/common/useApiClient';
@@ -45,6 +47,7 @@ import type {
     GroupBuyMovement,
     GroupBuyMovementQuery,
     GroupBuyNotice,
+    GroupBuyNoticeInput,
     GroupBuyOption,
     GroupBuyPage,
     GroupBuyQuery,
@@ -59,6 +62,8 @@ import type {
     GroupBuySupplyFailurePreview,
     GroupBuySupplyFailureRequest,
     NoticeCatalog,
+    NoticeCustomInput,
+    NoticeItemValue,
 } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
 import { GROUP_BUY_STATUSES } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
 import type {
@@ -315,66 +320,99 @@ export async function mockGroupBuyNoticeCatalog(): Promise<NoticeCatalog> {
     return mockClone(CATALOG);
 }
 
-/** 양식 저장 검사(모든 상태 — 400 `fields.notices[i].…`). 빈 항목·옵션 미배정은 여기서 막지 않는다(모집 시작 때 409) */
-function noticeFields(notices: readonly GroupBuyNotice[], optionIds: ReadonlySet<string>, options: readonly { id: string | null; name: string }[], fields: Record<string, string>): void {
+/** 요청 `values[]` 를 고시 항목 · 판매자 추가 항목으로 나눈다 */
+function splitValues(n: GroupBuyNoticeInput): { items: NoticeItemValue[]; customs: NoticeCustomInput[] } {
+    const items: NoticeItemValue[] = [];
+    const customs: NoticeCustomInput[] = [];
+    for (const v of n.values) {
+        if ('custom' in v && v.custom) customs.push(v);
+        else items.push(v as NoticeItemValue);
+    }
+    return { items, customs };
+}
+
+/**
+ * 양식 저장 검사(모든 상태 — 400 `fields.notices[i].…`). 빈 항목·어느 양식에도 안 든 옵션은 여기서 막지 않는다(모집 시작 때 409).
+ * `optionNames` 는 이 저장이 끝난 뒤의 옵션 이름 전부(DRAFT 는 요청의 옵션, 모집 뒤는 지금 옵션).
+ * 판매자 추가 항목 오류 키 `notices[i].customItems[k].name|value` 의 k 는 요청의 추가 항목 차례(빈 줄 포함)라고 가정한다.
+ */
+function noticeFields(notices: readonly GroupBuyNoticeInput[], optionNames: readonly string[], fields: Record<string, string>): void {
     const owner = new Map<string, number>();
+    let baseSeen = false;
     notices.forEach((n, i) => {
-        const category = CATALOG.categories.find((c) => c.no === n.categoryNo);
-        if (!category) fields[`notices[${i}].categoryNo`] = '고시 품목을 골라 주세요.';
+        const category = CATALOG.categories.find((c) => c.code === n.categoryCode);
+        if (!category) fields[`notices[${i}].categoryCode`] = '고시 품목을 골라 주세요.';
         if (!n.title.trim()) fields[`notices[${i}].title`] = '양식 제목을 입력해 주세요.';
         else if (Array.from(n.title.trim()).length > UtilGroupBuy.NOTICE_TITLE_MAX) fields[`notices[${i}].title`] = `양식 제목은 ${UtilGroupBuy.NOTICE_TITLE_MAX}자까지예요.`;
-        for (const optionId of n.optionIds) {
-            if (!optionIds.has(optionId)) fields[`notices[${i}].optionIds`] = '없는 옵션이 들어 있어요. 화면을 새로 불러와 주세요.';
-            else if (owner.has(optionId)) {
-                const name = options.find((o) => o.id === optionId)?.name ?? optionId;
-                fields[`notices[${i}].optionIds`] = `「${name}」 옵션은 이미 「${notices[owner.get(optionId)!]!.title}」 양식에 들어 있어요. 한 옵션은 양식 하나에만 넣어요.`;
-            } else owner.set(optionId, i);
+        if (n.optionNames.length === 0) {
+            if (baseSeen && optionNames.length > 0) fields[`notices[${i}].optionNames`] = '옵션이 있는 공구는 기본 양식(적용 옵션 비움)을 하나만 둘 수 있어요. 적용할 옵션을 골라 주세요.';
+            baseSeen = true;
+        }
+        for (const name of n.optionNames) {
+            if (!optionNames.includes(name)) fields[`notices[${i}].optionNames`] = `「${name}」 옵션이 없어요. 화면을 새로 불러와 주세요.`;
+            else if (owner.has(name)) fields[`notices[${i}].optionNames`] = `「${name}」 옵션은 이미 「${notices[owner.get(name)!]!.title}」 양식에 들어 있어요. 한 옵션은 양식 하나에만 넣어요.`;
+            else owner.set(name, i);
         }
         n.values.forEach((v, j) => {
-            if (v.unavailable && !v.reason.trim()) fields[`notices[${i}].values[${j}].reason`] = '제공할 수 없는 사유를 구체적으로 적어 주세요.';
-            if (Array.from(v.value).length > UtilGroupBuy.NOTICE_TEXT_MAX || Array.from(v.reason).length > UtilGroupBuy.NOTICE_TEXT_MAX) fields[`notices[${i}].values[${j}].value`] = `${UtilGroupBuy.NOTICE_TEXT_MAX}자까지 적을 수 있어요.`;
+            if ('custom' in v && v.custom) return;
+            const item = v as NoticeItemValue;
+            if (item.unavailable && !item.unavailableReason.trim()) fields[`notices[${i}].values[${j}].unavailableReason`] = '제공할 수 없는 사유를 구체적으로 적어 주세요.';
+            else if (Array.from(item.unavailableReason).length > UtilGroupBuy.NOTICE_TEXT_MAX) fields[`notices[${i}].values[${j}].unavailableReason`] = `${UtilGroupBuy.NOTICE_TEXT_MAX}자까지 적을 수 있어요.`;
+            if (Array.from(item.value).length > UtilGroupBuy.NOTICE_TEXT_MAX) fields[`notices[${i}].values[${j}].value`] = `${UtilGroupBuy.NOTICE_TEXT_MAX}자까지 적을 수 있어요.`;
+        });
+        // 판매자 추가 항목 — 이름·내용 둘 다 빈 줄은 버린다(검사 안 함), 반쪽 줄은 400
+        const { customs } = splitValues(n);
+        let kept = 0;
+        customs.forEach((c, k) => {
+            const key = (field: string) => `notices[${i}].customItems[${k}].${field}`;
+            if (!c.name.trim() && !c.value.trim()) return;
+            kept += 1;
+            if (kept > UtilGroupBuy.NOTICE_CUSTOM_MAX) fields[key('name')] = `판매자 추가 항목은 양식마다 ${UtilGroupBuy.NOTICE_CUSTOM_MAX}개까지예요.`;
+            else if (!c.name.trim()) fields[key('name')] = '항목 이름을 입력해 주세요.';
+            else if (Array.from(c.name).length > UtilGroupBuy.NOTICE_CUSTOM_LABEL_MAX) fields[key('name')] = `항목 이름은 ${UtilGroupBuy.NOTICE_CUSTOM_LABEL_MAX}자까지예요.`;
+            else if (category && UtilGroupBuy.noticeCustomNameTaken(c.name, category.items)) fields[key('name')] = `「${c.name.trim()}」은(는) 고시 항목 이름이에요. 고시 항목 칸에 적어 주세요.`;
+            else if (UtilGroupBuy.noticeCustomNameRepeated(customs, k)) fields[key('name')] = `「${c.name.trim()}」 항목이 이 양식에 이미 있어요.`;
+            if (!c.value.trim()) fields[key('value')] = '내용을 입력해 주세요.';
+            else if (Array.from(c.value).length > UtilGroupBuy.NOTICE_TEXT_MAX) fields[key('value')] = `${UtilGroupBuy.NOTICE_TEXT_MAX}자까지 적을 수 있어요.`;
         });
     });
 }
 
-/** 저장할 양식 — 차례를 1부터 다시 매기고 새 양식에 ID 를 준다. 없는 옵션 ID 는 뺀다 */
-function noticesOf(notices: readonly GroupBuyNotice[], optionIds: ReadonlySet<string>): GroupBuyNotice[] {
-    return notices.map((n, i) => ({
-        id: n.id ?? nextId('nt'),
-        order: i + 1,
-        categoryNo: n.categoryNo,
-        title: n.title.trim(),
-        optionIds: n.optionIds.filter((o) => optionIds.has(o)),
-        catalogVersion: n.catalogVersion || CATALOG.version,
-        values: n.values.map((v) => ({ ...v, value: v.value.trim(), reason: v.unavailable ? v.reason.trim() : '' })),
-    }));
+/** 저장할 양식(응답 모양) — 지금 옵션에 없는 이름을 빼고, 빈 추가 줄을 버리고 `sortOrder` 를 0부터 다시 매긴다. 글은 그대로(평문 글자 그대로) */
+function noticesOf(notices: readonly GroupBuyNoticeInput[], optionNames: readonly string[]): GroupBuyNotice[] {
+    return notices.map((n) => {
+        const { items, customs } = splitValues(n);
+        return {
+            categoryCode: n.categoryCode,
+            title: n.title.trim(),
+            optionNames: n.optionNames.filter((o) => optionNames.includes(o)),
+            values: items.map((v) => ({ itemKey: v.itemKey, value: v.value, unavailable: v.unavailable, unavailableReason: v.unavailable ? v.unavailableReason : '' })),
+            customItems: customs.filter((c) => c.name.trim() || c.value.trim()).map((c, k) => ({ name: c.name, value: c.value, sortOrder: k })),
+        };
+    });
 }
 
-/** 비교용 — ID 를 뺀 양식 내용 */
+/** 비교용 양식 내용 */
 function noticeShape(notices: readonly GroupBuyNotice[]): string {
-    return JSON.stringify(notices.map((n) => [n.categoryNo, n.title.trim(), [...n.optionIds].sort(), n.values.map((v) => [v.key, v.value.trim(), v.unavailable, v.unavailable ? v.reason.trim() : '', v.dateMode ?? '', v.kcMode ?? ''])]));
+    return JSON.stringify(notices.map((n) => ({ ...n, optionNames: [...n.optionNames].sort() })));
 }
 
-function noticeIncompleteError(notices: readonly GroupBuyNotice[], force: boolean): ApiError | null {
-    const problems = UtilGroupBuy.noticeProblems(
-        notices.map((n, i) => ({ ...n, order: i + 1 })),
-        CATALOG,
-    );
+function noticeIncompleteError(notices: readonly GroupBuyNotice[], optionNames: readonly string[], force: boolean): ApiError | null {
+    const problems = UtilGroupBuy.noticeProblems(notices, CATALOG, optionNames);
     if (force && UtilGroupBuy.noticeComplete(problems)) {
         const first = notices[0];
-        const key = first ? CATALOG.categories.find((c) => c.no === first.categoryNo)?.items[0]?.key : undefined;
-        if (first && key) problems.notices.push({ order: 1, title: first.title, emptyKeys: [key], optionsMissing: false });
-        else problems.baseMissing = true;
+        const key = first ? CATALOG.categories.find((c) => c.code === first.categoryCode)?.items[0]?.key : undefined;
+        if (first && key) problems.notices.push({ index: 0, title: first.title, categoryCode: first.categoryCode, missingKeys: [key] });
+        else problems.noNotice = true;
     }
     if (UtilGroupBuy.noticeComplete(problems)) return null;
-    return MOCK_ERRORS.conflict('GROUP_BUY_NOTICE_INCOMPLETE', '상품정보제공고시 양식을 다 채우지 않았어요. 빈 항목은 값을 적거나 「제공 불가」와 사유를 적고, 추가 양식에는 적용 옵션을 골라 주세요.', { ...problems });
+    return MOCK_ERRORS.conflict('GROUP_BUY_NOTICE_INCOMPLETE', '상품정보제공고시 양식을 다 채우지 않았어요. 빈 항목은 값을 적거나 「제공 불가」와 사유를 적고, 모든 옵션이 어느 양식에 들게 해 주세요.', { ...problems });
 }
 
 /** 저장 칸 검사 — 서버 `GroupBuyAdminService` 의 규칙 후보(필드 키 = 요청 칸 이름) */
 function validateSave(body: GroupBuySaveRequest): void {
     const fields: Record<string, string> = {};
-    const savedOptionIds = new Set(body.options.flatMap((o) => (o.id ? [o.id] : [])));
-    noticeFields(body.notices, savedOptionIds, body.options, fields);
+    noticeFields(body.notices, body.options.map((o) => o.name.trim()).filter(Boolean), fields);
     if (!body.title.trim()) fields.title = '제목을 입력해 주세요.';
     if (!body.productName.trim()) fields.productName = '상품명을 입력해 주세요.';
     if (!(body.groupPrice > 0)) fields.groupPrice = '공구가를 입력해 주세요.';
@@ -425,7 +463,7 @@ function applySave(g: GroupBuyDetail, body: GroupBuySaveRequest): void {
     });
     g.images = body.imageIds.map((mediaId) => imageOf(mediaId));
     g.options = body.options.map((o) => ({ id: o.id ?? nextId('op'), name: o.name.trim(), extraPrice: o.extraPrice, maxQty: o.maxQty, initialMaxQty: null, currentQty: 0, reservedQty: 0 }));
-    g.notices = noticesOf(body.notices, new Set(g.options.map((o) => o.id)));
+    g.notices = noticesOf(body.notices, g.options.map((o) => o.name));
     g.version += 1;
 }
 
@@ -480,13 +518,14 @@ export async function mockGroupBuyContent(id: string, body: GroupBuyContentReque
     if (flags.has('gb-version') || body.version !== g.version) throw MOCK_ERRORS.conflict('GROUP_BUY_VERSION_CONFLICT', '다른 운영자가 먼저 고쳤어요. 새로 불러온 뒤 다시 고쳐 주세요.');
     const fields: Record<string, string> = {};
     if (body.imageIds.length > 8) fields.imageIds = '대표 이미지는 8장까지예요.';
-    const optionIds = new Set(g.options.map((o) => o.id));
-    noticeFields(body.notices, optionIds, g.options, fields);
+    const optionNames = g.options.map((o) => o.name);
+    noticeFields(body.notices, optionNames, fields);
     if (Object.keys(fields).length) throw MOCK_ERRORS.validation(fields);
-    const noticesChanged = noticeShape(body.notices) !== noticeShape(g.notices);
+    const nextNotices = noticesOf(body.notices, optionNames);
+    const noticesChanged = noticeShape(nextNotices) !== noticeShape(g.notices);
     // 모집 뒤라 공개된 양식이 덜 찬 채로 남으면 안 된다
     if (noticesChanged) {
-        const incomplete = noticeIncompleteError(body.notices, false);
+        const incomplete = noticeIncompleteError(nextNotices, optionNames, false);
         if (incomplete) throw incomplete;
     }
     const changed: string[] = [];
@@ -498,7 +537,7 @@ export async function mockGroupBuyContent(id: string, body: GroupBuyContentReque
     g.spec = body.spec;
     g.description = body.description;
     g.images = body.imageIds.map((mediaId) => imageOf(mediaId));
-    if (noticesChanged) g.notices = noticesOf(body.notices, optionIds);
+    if (noticesChanged) g.notices = nextNotices;
     g.version += 1;
     g.updatedAt = new Date().toISOString();
     if (noticesChanged && !changed.length) addRevision(g, 'NOTICE', ['notices']);
@@ -530,7 +569,7 @@ export async function mockGroupBuyStart(id: string): Promise<GroupBuyDetail> {
     if (g.status !== 'DRAFT') throw MOCK_ERRORS.conflict('GROUP_BUY_NOT_DRAFT', '이미 모집을 시작한 공구예요.');
     if (flags.has('gb-no-policy') || g.shippingPolicyCode === 'FREE') throw MOCK_ERRORS.conflict('GROUP_BUY_SHIPPING_POLICY_MISSING', '고른 배송비 정책에 지금 유효한 줄이 없어요. 설정 › 커머스 설정에서 확인해 주세요.');
     if (g.fulfillment === 'AFTER_CLOSE' && !g.shipPlannedAt) throw MOCK_ERRORS.validation({ shipPlannedAt: '마감 후 발주 공구는 발송 예정일이 필요해요.' });
-    const incomplete = noticeIncompleteError(g.notices, flags.has('notice-incomplete'));
+    const incomplete = noticeIncompleteError(g.notices, g.options.map((o) => o.name), flags.has('notice-incomplete'));
     if (incomplete) throw incomplete;
     g.status = 'RECRUITING';
     g.shippingSnapshot = g.shippingPolicyCode === 'BULKY' ? { shippingFee: 15000, freeShippingOver: null, returnShippingFee: 15000, returnFeeMode: 'ROUND_TRIP' } : { shippingFee: 3000, freeShippingOver: 50000, returnShippingFee: 3000, returnFeeMode: 'ONE_WAY' };
@@ -607,14 +646,9 @@ export async function mockGroupBuyCreateRound(id: string): Promise<GroupBuyRound
     const roundNo = Math.max(...db().groupBuys.filter((g) => g.roundRootId === source.roundRootId).map((g) => g.roundNo)) + 1;
     const newId = nextId('gb');
     const now = new Date().toISOString();
-    // 옵션은 새 ID 로, 고시 양식은 복사하고 적용 옵션을 새 ID 로 바꾼다(카탈로그 버전은 원본 그대로 — 결정 87)
-    const optionIdMap = new Map<string, string>();
-    const options: GroupBuyOption[] = source.options.map((o) => {
-        const id = nextId('op');
-        optionIdMap.set(o.id, id);
-        return { ...o, id, initialMaxQty: null, currentQty: 0, reservedQty: 0 };
-    });
-    const notices: GroupBuyNotice[] = mockClone(source.notices).map((n) => ({ ...n, id: nextId('nt'), optionIds: n.optionIds.flatMap((o) => (optionIdMap.has(o) ? [optionIdMap.get(o)!] : [])) }));
+    // 옵션은 새 ID 로, 고시 양식(판매자 추가 항목 포함)은 그대로 복사한다(적용 옵션은 이름이라 그대로 — 결정 87)
+    const options: GroupBuyOption[] = source.options.map((o) => ({ ...o, id: nextId('op'), initialMaxQty: null, currentQty: 0, reservedQty: 0 }));
+    const notices: GroupBuyNotice[] = mockClone(source.notices);
     const copy: GroupBuyDetail = {
         ...mockClone(source),
         id: newId,
