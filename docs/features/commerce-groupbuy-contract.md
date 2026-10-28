@@ -5,7 +5,7 @@
 **테스트**: commerce.md 와 이 문서의 규칙은 모두 테스트로 막고 통과해야 끝난다(CLAUDE.md 커머스 예외, commerce.md 18절 — P3·P3b·P15·P16·P16b~e·P25·P26·P33~P42·P35 와 불변식 + 아래 「새 규칙 → 테스트」 G1~G12).
 **범위 밖(2b)**: 공구 포인트 결제(11절 — 3+ 단계, 표 열만 둔다) · 회원 주최 공구 · 택배사 API · 쿠폰 · 매출·정산 화면과 세금계산서 요청·발행 표시(16-2 — 21-1 「4」) · 리뷰·구매 확정 단추(community 에도 없다) · 저장된 배송지 불러오기 · 1:1 문의(roboyam 에 없다 — 공구 밖 문의는 사업자 정보의 전화·이메일).
 **community 대조(2026-10-28)**: `D:\project\community\workspace\community\docs\` 의 `api-commerce.md`(C)·`api-commerce-admin.md`(A)·`api-deal-shop.md`(S)·`features.md` 23절·`decisions.md`(D 450~513)와 맞춰 봤다. 큰 줄기는 같고 roboyam 이 더 엄격하다(늦은 결제는 살리지 않고 자동 취소 — community 는 재고가 있으면 살림). 에스크로·영업일·고객 택배비 보상·계좌 송금은 community 에 없어 roboyam 설계가 정본이다. 가져온 것은 결정 13~22 와 화면 목록에 적었다.
-**사용자 결정(2026-10-28)**: 결정 15(반품 처리 방법 선택)·17(추가 입고 = 늘리기 + 추가 차수)·21(공구 Q&A)·23(한 주문에 여러 옵션)·24(차수 사이 1인 한도는 공구별 선택, 기본 독립)·25(다시 판매·추가 입고도 마감 연장 조건)·26(Q&A 개인정보 자동 비밀글 + 안내 · 신고 대상 · 3년 보관 · 답변 수정 이력). 그 뒤 처음 보는 검토자 점검(같은 날)에서 나온 빈 곳은 「수량·상태 규칙」·「Q&A 규칙」에 메웠다.
+**사용자 결정(2026-10-28)**: 결정 15(반품 처리 방법 선택)·17(추가 입고 = 늘리기 + 추가 차수)·21(공구 Q&A)·23(한 주문에 여러 옵션)·24(차수 사이 1인 한도는 공구별 선택, 기본 독립)·25(다시 판매·추가 입고도 마감 연장 조건)·26(Q&A 개인정보 자동 비밀글 + 안내 · 신고 대상 · 3년 보관 · 답변 수정 이력). 그 뒤 처음 보는 검토자 점검(같은 날)에서 나온 빈 곳은 「수량·상태 규칙」·「Q&A 규칙」에 메웠다. 두 번째 검토(Fable, 같은 날 — 주문 줄 전환·결제 모듈 경계 중심)의 빈 곳과 사용자 결정 37·38·41·42 는 「2차 검토 보강」에 메웠다.
 
 ## 작업 단위와 순서 (제안)
 | 단위 | 내용 | 담당 | 상태 |
@@ -37,12 +37,13 @@
 | 가번호 | 스트림 | 내용 | 단위 |
 |---|---|---|---|
 | V101 `group_buy_core` | shared | `shipping_policies`(기간 배제 제약 + 적용 시작 줄 불변 트리거) · `group_buys` · `group_buy_images` · `group_buy_options` · `group_buy_revisions` · `group_buy_participations`(주문) · **`group_buy_participation_items`(주문 줄)** · `group_buy_qty_movements` · `group_buy_status_history` · `participation_status_history` · `group_buy_watches` · `group_buy_settings`(한 줄 — `point_shop_settings` 모양) | 2b-2 |
-| V102 `group_buy_fulfillment` | shared | `commerce_carriers`(6개 시드) · `group_buy_shipments` · `group_buy_requests` · **`group_buy_request_items`**(요청 줄 — 주문 줄·수량) · **`group_buy_return_dispositions`**(요청 줄·처리 방법·수량) · `group_buy_request_photos` · `commerce_address_views` · `commerce_bank_transfers`(결정 6) | 2b-3 |
+| V102 `group_buy_fulfillment` | shared | `commerce_carriers`(6개 시드) · `group_buy_shipments` · `group_buy_requests`(+ `received_at` 반환받은 날 — 3영업일 기한 시작) · **`group_buy_request_items`**(요청 줄 — 주문 줄·수량·**사유**·`refund_amount`) · **`group_buy_refunds`**(결정 36) · **`group_buy_return_dispositions`**(요청 줄·처리 방법·수량) · `group_buy_request_photos` · `commerce_address_views` · `commerce_bank_transfers`(결정 6) | 2b-3 |
 | V103 `commerce_sales_switch` | shared | 판매 스위치·체크리스트·사업자 정보(`commerce_sales_settings` 등), `R__batch_32_groupbuy_privacy_cleanup`(배송지 마스킹·수정 이력 6개월·요청 3년·만료 주문 배송지 — 결정 34) | 2b-4 |
 | V104 `group_buy_qna` | shared | `group_buy_questions` · `group_buy_answers` · `group_buy_answer_revisions`, 신고 대상 `GROUP_BUY_QUESTION`(기존 `reports` 의 대상 종류 CHECK), 파기 배치에 3년 더하기 | 2b-6 |
 - Java 워커(카탈로그 없음, `worker_heartbeats`): `groupbuy-state`(1분 — 선점 만료·모집 시작·마감·연장·판정, 다 팔림 마감의 안전망), 운영자 기한 점검은 19절 점검 워커가 생길 때까지 2b-4 가 1시간 워커로.
 - 열은 commerce.md 10-1 표가 바탕이고, 바뀌거나 더하는 것:
-  - **주문과 주문 줄**(결정 23): `group_buy_participations` 는 주문 한 건(회원·배송지·배송비·금액·결제·상태·`order_no`·`admin_memo`·`refunded_amount`·`reshipping_fee_charged`). 옵션·수량·단가는 `group_buy_participation_items`(주문·옵션·`qty`·`unit_price`·`item_amount`·`canceled_qty`·`returned_qty`·`restocked_qty`, CHECK `0 ≤ restocked_qty ≤ returned_qty`, `canceled_qty + returned_qty ≤ qty`). 옵션이 없는 공구는 줄 하나(옵션 null).
+  - **주문과 주문 줄**(결정 23): `group_buy_participations` 는 주문 한 건(회원·배송지·배송비·금액·결제·상태·`order_no`·`admin_memo`·`refunded_amount`(상품·배송비 환불 누계)·`compensation_amount`(PG 로 돌려준 고객 택배비 보상 누계 — 결정 39)·`point_refunded`(11절 포인트 결제 대비, 2b 에서는 0)·`reshipping_fee_charged`). 옵션·수량·단가는 `group_buy_participation_items`(주문·옵션·`qty`·`unit_price`·`item_amount`·`canceled_qty`·`returned_qty`·`restocked_qty`, CHECK `0 ≤ restocked_qty ≤ returned_qty`, `canceled_qty + returned_qty ≤ qty`, 유일 `(participation_id, option_id)` — 같은 옵션 두 줄 금지). 옵션이 없는 공구는 줄 하나(옵션 null, 그 주문에 한 줄).
+  - 수량 이동 줄에 `participation_item_id`(주문 줄)를 더한다.
   - 주문 CHECK `0 ≤ refunded_amount ≤ amount`(community 는 이 CHECK 로 이중 환불을 막았다 — D 512).
   - `group_buys`: `version`(설명·이미지 편집의 낙관 잠금 — 수량 열은 조건부 UPDATE 로 바꾸고 `version` 을 올리지 않는다), `closing_at`, `summary`·`spec`(평문 ≤ 5,000), `round_root_id`(1차 공구 ID, 1차는 자기 자신)·`round_no`(유일 `(round_root_id, round_no)`)·`round_limit_shared`(결정 24)·`added_qty`, CHECK `min_qty ≤ max_qty`.
   - `group_buy_revisions` 에 수량 사본(`max_qty`·`added_qty`, 옵션별 최대)을 더한다 — 추가 입고도 표시 기록. 주문은 결제 때의 `revision_no` 를 남긴다(낙관 잠금 `version` 과 다른 번호).
@@ -56,7 +57,7 @@
   - `entity`·`dto` — `GroupBuyStatus`·`ParticipationStatus`·`Fulfillment`·`ExtensionMode`·`ReturnFeeMode`·`QtyMovementKind`·`RequestType`·`RequestStatus`·`CollectionMethod`·`ReturnDisposition`·`ExpireCause`
   - `repository` — 수량·상태 전이는 JDBC(조건부 UPDATE, `SKIP LOCKED`), 관리자 조회는 JPA + QueryDSL
   - `service` — `GroupBuyAdminService`(등록·수정·모집 시작·조기 마감·중단·추가 차수) · `ShippingPolicyService` · `GroupBuyQuoteService`(견적 — 주문 때 다시 계산) · **`GroupBuyJoinService`**(자격 → 선점 → 금액 → 배송지 암호화 → 주문 PENDING → `PaymentOrderService.create`) · **`GroupBuyQtyService`**(RESERVE·RELEASE·CONFIRM·CANCEL·RETURN·RESTOCK·ADD·REDUCE — 수량을 바꾸는 유일한 길, 공구 행 → 옵션 행 차례로 잠금, 이동 줄 하나씩) · `GroupBuyStateWorker.runOnce` · `GroupBuyJudgeService`(성사·불발 — 불발은 주문 REFUNDED + CANCEL 이동 + `PaymentCancelService` 전액) · `ParticipationCancelService` · `FulfillmentService`(발주·준비중·발송·배송완료) · `GroupBuyRequestService` · **`GroupBuyRefundCalculator`**(한 곳 — 요청·승인 화면이 같은 값, 재부과 배송비 누계로 차액만) · `AddressRevealService` · `GroupBuyInvariantCheck`
-  - `handler` — `GroupBuyPaymentHandler implements PaymentOrderHandler`(`GROUP_BUY` — `onPaid`: 8-6 표 판정 → JOINED/IMMEDIATE 면 CONFIRMED + CONFIRM(+ 다 팔리면 같은 트랜잭션에서 CLOSING — 결정 27), 아니면 REJECT(`GROUP_BUY_CLOSED`·`HOLD_EXPIRED`) · `onCanceled`: 환불 누계·REFUNDED)
+  - `handler` — `GroupBuyPaymentHandler implements PaymentOrderHandler`(`GROUP_BUY` — `onPaid`: 8-6 표 판정 → JOINED/IMMEDIATE 면 CONFIRMED + CONFIRM(+ 다 팔리면 같은 트랜잭션에서 CLOSING — 결정 27), 아니면 REJECT(`GROUP_BUY_CLOSED`·`HOLD_EXPIRED`) · `onCanceled`: **표시·알림만**(환불 기록 `group_buy_refunds` 를 완료로, 환불 완료 알림·메일) — 환불 누계는 취소를 넣을 때 이미 올렸다(결정 38), 자동 취소(`anomaly != null`)는 회원 안내만(결정 40). 결제 행을 쥔 채 불리므로 **공구 행을 `FOR UPDATE` 하지 않는다**(결정 37))
   - `qna`(2b-6) — 질문·답변·답변 이력·숨김·개인정보 감지
 - api `groupbuy.controller`: 목록·상세·견적·주문(`MoneyRequestGuard` — 멱등 키·속도 제한)·결제 다시 열기·내 주문·본인 취소·요청·배송지 보기/수정·관심 신청·Q&A.
 - admin `groupbuy.controller`: 공구·수량·주문·발주/발송·요청·배송지 열람·명단 내보내기·배송비 정책·택배사·설정·Q&A, `batch.service.GroupBuyStateScheduler`(1분, `roboyam.batch.enabled` 서버만 — `PaymentCancelScheduler` 모양), 관리자 이미지 올리기(결정 2).
@@ -80,7 +81,7 @@
     - **다시 판매**(`RESELL`): 공구가 **모집 중**(`RECRUITING`)이고 **사유가 단순 변심**(`CHANGE_OF_MIND`)일 때만. 하자·오배송은 서버가 거절(`GROUP_BUY_NOT_RESELLABLE`). 그 옵션·공구의 확정 수량을 줄여(이동 `RESTOCK`, 조건 `status='RECRUITING'`) 남은 수량이 늘고, 수량 풀림 알림. 반품은 배송완료 뒤에만 생기므로 실제로는 선착순 즉시 발송 공구에서만 고를 수 있다 — 화면은 다른 공구에서 이 선택지를 숨긴다.
     - **폐기·공급처 반송·보관**(`DISCARD`·`RETURN_TO_SUPPLIER`·`KEEP`): 공구 수량은 그대로, 이동 `RETURN` 으로 기록만.
     - 수량 화면에 판매·반품·다시 판매를 나눠 보인다. 성사 판정은 뒤집지 않는다(10-4). (community 는 전체 반품만 자동 재입고 — A 138)
-16. **환불 진행 표시**: 주문은 같은 트랜잭션에서 REFUNDED·CANCELED 로 바뀌지만 돈은 취소 워커가 보낸다. 회원·관리자 화면은 연결된 `payment_cancels` 상태로 「환불 진행 중 · 카드사 반영까지 3~7영업일」/「환불 완료(날짜)」/「환불 지연 — 확인 중」(GAVE_UP)을 나눠 보인다. community 의 「취소됐지만 환불 실패」 상태(A 141)를 이 표시로 대신한다.
+16. **환불 진행 표시**: 주문은 같은 트랜잭션에서 REFUNDED·CANCELED 로 바뀌지만 돈은 취소 워커가 보낸다. 회원·관리자 화면은 `group_buy_refunds` 에 남긴 `payment_cancel_id`(결정 36)로 결제 취소 상태를 읽어 「환불 진행 중 · 카드사 반영까지 3~7영업일」/「환불 완료(날짜)」/「환불 지연 — 확인 중」(GAVE_UP)/「운영자가 직접 처리함」(MANUAL)을 나눠 보인다. MANUAL 은 지금 `onCanceled` 가 오지 않으므로 결제 모듈의 `PaymentOrderHandler` 에 기본 메서드 `onCancelResolvedManually(…)` 를 더하고 `PaymentAdminActionService` 「수동 처리 완료」가 같은 트랜잭션에서 부른다(결제 모듈은 여전히 도메인을 모른다 — 2b-3 에서 결제 모듈을 조금 고친다). 공구 처리기는 환불 기록을 완료로 두고 회원에게 「환불 처리됨(운영자 확인)」 알림·메일. community 의 「취소됐지만 환불 실패」 상태(A 141)를 이 표시로 대신한다.
 17. **모집 뒤 수량 조정 · 추가 입고**(사용자 결정 — commerce.md 10-2 를 고쳤다, 권한 `commerce.stock.adjust`):
     - 「품절」은 둘이다. **잠시 품절**(확정 + 선점 = 최대, 공구는 모집 중 — 선점이 5분 안에 풀릴 수 있다)과 **다 팔림**(확정 = 최대 → 그 자리에서 `CLOSING` → 판정, 결정 27). 옵션도 같다 — 옵션 하나가 다 팔려도 공구는 그 옵션만 「다 팔림」이고, **모든 옵션이 다 팔리거나 공구 최대에 닿으면** 공구가 마감된다.
     - **늘리기(추가 입고)**: 공구가 `RECRUITING` 이고 다 팔리기 전(잠시 품절 포함)에만 — 조건부 UPDATE `status='RECRUITING' AND current_qty < max_qty`. 옵션을 지정하면 옵션 최대와 공구 최대를 한 트랜잭션에서(공구 행 → 옵션 행 차례). 이동 `ADD`, `added_qty` 누계, 상세에 「추가 입고 N개」(줄이기 뒤에는 순증가분만), 수정 이력·감사(돈 관련), 수량 풀림 알림. 사유 필수.
@@ -100,13 +101,33 @@
 ## 수량·상태 규칙 (검토 보강 2026-10-28)
 27. **다 팔림은 그 자리에서 마감**: 결제 확정(`onPaid` 의 CONFIRM)·줄이기(REDUCE)가 확정 = 최대를 만들면 **같은 트랜잭션**에서 `RECRUITING → CLOSING`(`closing_at`, 상태 이력, 종료 사유 `SOLD_OUT`). 1분 워커(10-7 ③)는 안전망으로만 남는다. 추가 입고·다시 판매는 `status='RECRUITING' AND current_qty < max_qty` 조건부라 마감과 경쟁해도 둘 중 하나만 이긴다.
 28. **수량에 들어가는 주문과 불변식**: 결제 확정(CONFIRM)된 주문 줄의 `qty − canceled_qty − restocked_qty` 가 「판매 수량」이다. 발송 전 취소·불발·중단 환불은 CANCEL 이동 + `canceled_qty`, 반품은 `returned_qty`(폐기·반송·보관이면 판매 수량 그대로 — 이미 팔려 나간 것), 다시 판매는 RESTOCK + `restocked_qty`. **불변식**: 공구·옵션별 `current_qty` = Σ 판매 수량, `reserved_qty` = Σ PENDING_PAYMENT 줄 수량, 이동 줄 마지막 값 = 현재 값(commerce.md 18절을 이 식으로 고친다). **1인 한도**는 재고 기준과 다르다 — 그 회원의 Σ `qty − canceled_qty − returned_qty`(반품은 처리 방법과 관계없이 뺀다 — 돌려준 것은 그 회원이 가진 것이 아니다, 10-4 「한도는 취소·환불 수량을 뺀다」) + 진행 중 선점(+ 결정 24 합산). 판매 수량(재고 기준)은 폐기·보관한 반품을 빼지 않는다 — 다시 팔 수 없는 물건이라 남은 수량으로 돌아오면 안 된다. **진행 중 주문**(부분 유일) = PENDING_PAYMENT·JOINED·CONFIRMED·PREPARING·SHIPPED. **만료 원인**(`ExpireCause`): `HOLD_TIMEOUT`(선점 시간 초과 — 이탈 횟수에 센다)·`GROUP_BUY_CANCELED`·`PAYMENT_FAILED_CLOSED` 등 — 이탈 제한(`GROUP_BUY_BAN`)은 `HOLD_TIMEOUT` 만 센다.
-29. **중단**: 한 트랜잭션에서 ① PENDING_PAYMENT → EXPIRED(원인 `GROUP_BUY_CANCELED`) + RELEASE + 연결된 `payment_orders` READY → EXPIRED(뒤늦은 결제는 늦은 결제로 자동 취소) ② **발송 전**(JOINED·CONFIRMED·PREPARING) → REFUNDED + CANCEL + 전액 취소 ③ **이미 발송**(SHIPPED·DELIVERED)은 그대로 정상 흐름(반품은 요청으로). 확인 창에 「환불 N명 · 총 N원 / 이미 발송 M명」.
+29. **중단**: 공구 상태 전이 뒤 주문마다 새 트랜잭션에서(결정 37 — 교착 방지) ① PENDING_PAYMENT → EXPIRED(원인 `GROUP_BUY_CANCELED`) + RELEASE + 연결된 `payment_orders` READY → EXPIRED(뒤늦은 결제는 늦은 결제로 자동 취소) ② **발송 전**(JOINED·CONFIRMED·PREPARING) → REFUNDED + CANCEL + 전액 취소 ③ **이미 발송**(SHIPPED·DELIVERED)은 그대로 정상 흐름(반품은 요청으로). 확인 창에 「환불 N명 · 총 N원 / 이미 발송 M명」.
 30. **배송지 수정·명단 내보내기 기한은 주문 기준**: 수정은 마감 후 발주 공구면 공구 ORDERED 전, 즉시 발송 공구면 주문 PREPARING 전. 명단 내보내기는 「발송 전 주문(CONFIRMED·PREPARING)」 단위 — 마감 후 발주 공구는 ORDERED 뒤, 즉시 발송 공구는 언제든(commerce.md 10-5·10-9 를 고친다).
 31. **추가 차수**: 원본은 모집이 끝난 공구(CLOSING 이후 — 다 팔림·기간 끝·완료, 중단 제외). 같은 루트에 DRAFT·RECRUITING 차수가 이미 있으면 거절(동시 클릭은 유일 `(round_root_id, round_no)` 가 막는다). `round_root_id` = 1차 공구, `round_no` = 그 루트의 최대 + 1. 복사: 설명·이미지·`summary`·`spec`·옵션 이름·추가금·방식(성사형/선착순·발송 시점·연장 방식)·`round_limit_shared`. 새로 넣음: 수량·기간·가격(복사값을 채워 두되 DRAFT 라 고칠 수 있다). 배송비는 모집 시작 때 정책. 복사할 때 「이전 차수의 날짜·수량·배송비 문구가 설명에 남아 있는지 확인하세요」 경고, 모집 시작 때 수정 이력 첫 판. 모집을 시작하면 루트의 모든 차수의 `NEXT_ROUND`·`RESTOCK`·`CLOSING_SOON` 신청자에게 한 번 알림(같은 회원 한 번), 신청은 새 차수로 옮기지 않는다.
 32. **운영 환불**(요청 없이, `commerce.refund.approve` · 고액 문턱 `commerce.refund.large`, 사유 필수): 발송 전 주문(JOINED·CONFIRMED·PREPARING)은 「발송 전 취소」와 같다(CANCELED + CANCEL 이동, 줄·수량 지정 가능). 배송완료 주문은 **금액만 돌려주는 환불**(회수 없음 — 보상·가격 조정)로 수량 이동 없이 `refunded_amount` 만, 누계가 결제액이 되면 REFUNDED. SHIPPED 주문은 거절(배송완료 뒤 또는 반품 요청으로).
 33. **연속 부분 반품의 배송비**: 주문에 `reshipping_fee_charged`(지금까지 재부과한 배송비) — `GroupBuyRefundCalculator` 는 「남은 수량 기준 배송비 − 이미 재부과한 것」의 차액만 뺀다. 마지막 남은 것을 반품하면 전체 반품 규칙(편도·왕복)으로 다시 맞춘다.
 34. **배송지 파기 보강**: 결제하지 못한 주문(EXPIRED)은 만료 30일 뒤(설정값) 배송지 암호문 삭제. 불발·중단 환불(REFUNDED)은 commerce.md 10-9 「취소 후 6개월」.
-35. **권한**(commerce.md 13-2 에 더한다): 추가 입고·줄이기 `commerce.stock.adjust` · 추가 차수 만들기 `commerce.product.manage` · 반품 처리 방법(다시 판매 포함) `commerce.order.manage`(반품 완료 처리와 같은 사람) · Q&A 답변·숨김·신고 처리 `commerce.order.manage`, Q&A 조회 `commerce.order.read`.
+35. **권한**(commerce.md 13-2 에 더한다): 공구 중단 `commerce.groupbuy.cancel`(이미 있음 — 2b 에서 `featureReady=true`) · 추가 입고·줄이기 `commerce.stock.adjust` · 추가 차수 만들기 `commerce.product.manage` · 반품 처리 방법(다시 판매 포함) `commerce.order.manage`(반품 완료 처리와 같은 사람) · Q&A 답변·숨김·신고 처리 `commerce.order.manage`, Q&A 조회 `commerce.order.read`.
+
+## 2차 검토 보강 (Fable 검토 2026-10-28 — 결제 코드와 대조해 확인)
+36. **환불 기록 표 `group_buy_refunds`**: 공구 쪽에서 돈을 돌려주는 모든 일 — 요청 승인·본인 즉시 취소·불발·중단·운영 환불 — 을 한 줄씩: 주문, 원인(`REQUEST`·`USER_CANCEL`·`FAILED`·`CANCELED`·`ADMIN`), 요청 ID(있으면), 상품·배송비 환불액, 보상액, `payment_cancel_id`(`PaymentCancelService.request` 가 돌려준 번호), 요청 키 `GB_REFUND:{id}`, 상태(진행 중·완료·지연·수동). 줄별 금액은 `group_buy_request_items.refund_amount`(요청) 또는 이 표의 줄 내역(jsonb, 요청 없는 환불). 결제 모듈은 바꾸지 않는다(취소 대기열 요청 키·결과로 연결). `CancelKind` 매핑: 본인 취소 `USER_CANCEL` · 불발·중단·반품 `REFUND` · 운영 환불 `ADMIN`.
+37. **잠금 차례 — 교착 막기**(코드 확인: 결제 확정·취소 완료는 `payment_orders` 행을 잠근 채 처리기를 부르고, 취소 넣기는 안에서 `payment_orders` 행을 잠근다):
+    - `onPaid`·`onCanceled` 안에서는 공구·옵션 행을 `FOR UPDATE` 하지 않고 **조건부 UPDATE 만** 쓴다(수량 확정 `UPDATE … SET current_qty = current_qty + :q, reserved_qty = reserved_qty - :q WHERE … AND status IN (…)`, 다 팔림 마감도 조건부).
+    - 공구 행을 잠그는 일(중단·판정·추가 입고·줄이기·추가 차수)은 **결제 행을 잠그는 일과 같은 트랜잭션에 넣지 않는다**: 중단·불발 판정은 ① 공구 상태 전이만 짧은 트랜잭션 ② 주문마다 새 트랜잭션에서 「주문 조건부 전이 → 수량 CANCEL → 환불 기록 → 취소 넣기」(조건부라 다시 돌려도 한 번 — 워커가 이어 받는다). commerce.md 10-7 「활성 참여마다 같은 트랜잭션」을 이렇게 고친다.
+    - 주문 하나 안에서는 주문 행 → (조건부) 공구·옵션 수량 → 결제 행 차례.
+38. **환불 누계는 취소를 넣을 때 올린다**: `refunded_amount` 는 취소를 대기열에 넣는 트랜잭션에서 조건부로 올린다(`WHERE refunded_amount + :amt <= amount`) — 공구가 상한의 정본이다. PG 가 GAVE_UP·MANUAL 이어도 같은 금액을 두 번 넣지 못한다. 「남은 결제액」= `amount − refunded_amount`.
+39. **보상액은 따로 센다**: PG 취소에 함께 담은 고객 택배비 보상은 `compensation_amount`, 계좌 송금분은 `commerce_bank_transfers`. 불변식: `payment_orders.paid_amount − canceled_amount` = `amount − refunded_amount − compensation_amount`(+ 진행 중 취소분 — 넣은 뒤 완료 전). 매출 집계는 상품 환불과 보상을 가른다.
+40. **자동 취소의 `onCanceled`**: 늦은 결제·도메인 거절(`anomaly != null`)의 취소 완료는 주문 금액·상태를 건드리지 않고 회원 안내(commerce.md 8-2 5 문구)만.
+41. **선점과 결제 유효 시각을 같게**: 결제 주문 `expires_at = reserved_until`(`PaymentOrderService.create` 의 유효 시간 = `reserved_until − 지금`). 「결제 다시 열기」도 같은 끝 시각 — 선점을 늘리지 않는다, 남은 시간이 없으면 `GROUP_BUY_HOLD_EXPIRED`.
+42. **발송 전 일부 줄 취소의 배송비**(사용자 결정 — commerce.md 10-3 D11 을 고친다): 주문 전체 취소면 전액. **일부 줄만 취소해 무료배송 기준 아래로 떨어지면 남은 상품 기준으로 배송비를 다시 계산**해 환불액에서 뺀다(반품비 없음, `reshipping_fee_charged` 에 누계) — 발송 후 부분 반품과 같은 계산(`GroupBuyRefundCalculator` 한 길). 본인 즉시 취소도 줄·수량 단위.
+43. **나눠서 모두 반품하면 앞서 뺀 배송비를 돌려준다**(사용자 결정): 마지막 반품으로 주문 전체가 반품되면 **처음 배송비 처리만** 한 번에 전체 반품한 결과와 같게 맞춘다 — 편도면 처음 배송비 0 이 되도록 그동안 재부과한 배송비(`reshipping_fee_charged`)를 그 환불에 더해 돌려주고, 왕복이면 처음 배송비를 한 번만 받은 것으로 맞춘다. 반품비는 실제로 보낸 택배(요청)마다 받는다(나눠 보내면 택배비가 실제로 여러 번 든다). G7 기대값: 25,000 × 3 무료배송(편도, 업체회수, 반품비 3,000) — 1개 반품 22,000(남은 50,000 ≥ 기준) → 1개 반품 19,000(재부과 3,000 + 반품비 3,000) → 마지막 1개 25,000 − 3,000(반품비) + 3,000(재부과 돌려줌) = 25,000. 합계 66,000 = 75,000 − 반품비 3,000 × 3.
+44. **반품 요청은 줄마다 사유**(사용자 결정): 한 요청(한 택배) 안에 줄마다 사유(단순 변심·하자·오배송·기타)와 수량. 반품 배송비·보상액은 요청당 한 번 — 하자·오배송 줄이 하나라도 있으면 반품 배송비는 운영자 부담. 줄별 환불액은 줄 사유로 계산(하자 줄은 재계산 없이 전액, 변심 줄은 10-8 표). 주문당 열린 요청 1개는 그대로.
+45. **모집 끝난 뒤 집계 중(CLOSING) 본인 즉시 취소 허용**(사용자 결정): 성사형 JOINED 주문은 CLOSING 중에도 본인이 바로 취소할 수 있다(청약철회). 판정은 판정 시점의 수량으로 — 이 취소로 불발이 될 수도 있다. 판정과 취소는 주문 조건부 전이로 하나만 이긴다.
+46. **주문 상태는 줄 전체로**: 주문 CANCELED·REFUNDED 는 Σ(`qty − canceled_qty`) = 0(전부 취소) 또는 `refunded_amount = amount` 일 때만. 일부 줄만 취소·반품되면 상태는 그대로이고 줄 수량만 바뀐다. 「진행 중 주문 1건」·COMPLETED 조건(결정 9)이 이 정의를 쓴다.
+47. **발송은 주문 한 번에**: 줄마다 따로 발송하지 않는다(`group_buy_shipments` 는 주문당). 줄 하나라도 열린 요청이 있으면 주문 전체를 발송하지 못한다(10-3).
+48. **옵션 전부 다 팔림도 마감**: 모든 옵션에 한도가 있고 모두 확정 = 한도이면(옵션 한도 합 < 공구 최대여도) 결정 27 과 같이 그 자리에서 CLOSING(종료 사유 `SOLD_OUT`). 옵션 줄이기 하한은 그 옵션의 확정 + 선점.
+49. **중단·종료 공구의 남은 일**: 공구 CANCELED 뒤에도 이미 발송된 주문의 배송완료·반품 요청·환불은 계속된다. 마감 후 발주 공구의 `SHIPPING → CANCELED`(발송 일부만 된 뒤 남은 수량을 못 보낼 때)를 허용한다(commerce.md 10-2 전이 목록에 더한다) — 발송 전 주문만 환불(결정 29).
+50. **판정 경쟁**: 마감 시각의 연장 판단과 마지막 1개 확정은 둘 다 `status='RECRUITING'` 조건부라 하나만 이긴다(확정이 이기면 SOLD_OUT 마감, 연장이 이기면 연장 중 판매).
 
 ## Q&A 규칙 (2b-6 — 사용자 결정 2026-10-28)
 - **표**: `group_buy_questions`(공구·회원·본문 평문 ≤ 1,000자·비밀글·`forced_secret`(개인정보로 자동 전환)·상태 OPEN/ANSWERED·숨김·지운 시각·보관 만료일) · `group_buy_answers`(질문·운영자·본문·시각) · `group_buy_answer_revisions`(답변 이전 내용·고친 운영자·시각).
@@ -134,6 +155,15 @@
 | G10 | 즉시 발송 공구: 배송 명단 내보내기·배송지 수정 기한 · 발송된 주문이 있는 공구 중단 | 주문 기준 기한 / 발송 전만 환불 | 2b-3 |
 | G11 | Q&A: 비밀글 열람 권한·답변 전후 수정·지워도 3년 보관·개인정보 자동 비밀글과 안내·숨김 감사·신고·속도 제한·정지 회원 | 규칙대로 | 2b-6 |
 | G12 | 마감 4분 전 다시 판매·추가 입고(`DEMAND`) | 30분 연장 | 2b-2·2b-3 |
+| G13 | 25,000 × 3 무료배송 발송 전 2개 취소 | 47,000 환불(배송비 재계산 3,000), `reshipping_fee_charged` 3,000 | 2b-2 |
+| G14 | 한 요청에 하자 줄 + 변심 줄 · 하자 A 먼저 → 변심 B 마지막(편도·왕복) | 반품비 운영자 부담 · 줄별 금액 · 결정 43 맞춤 | 2b-3 |
+| G15 | 보상액이 든 PG 취소 뒤 · 보상 > 남은 결제액 | 불변식(결정 39) · 넘는 부분 계좌 송금 | 2b-3 |
+| G16 | 옵션 한도 합 < 공구 최대에서 옵션 모두 다 팔림 | 즉시 CLOSING(SOLD_OUT) | 2b-2 |
+| G17 | 결제 확정 ∥ 중단 · 판정 · 반품 승인 동시 | 교착 없음, 확정이 이기면 중단 단계 ②가 그 주문을 환불 | 2b-2·2b-3 |
+| G18 | 결제 다시 열기 · 자동 취소의 `onCanceled` · MANUAL 처리 | 선점 안 늘어남 · `refunded_amount` 그대로 · 공구 완료 표시·메일 | 2b-2·2b-3 |
+| G19 | 일부 줄 취소 뒤 주문 상태 · 전부 취소 뒤 CANCELED · 그 뒤 새 주문 | 결정 46 대로 | 2b-2 |
+| G20 | 1인 한도: 폐기 반품은 빼고 금액만 운영 환불은 그대로 · `round_limit_shared` · CLOSING 중 본인 취소로 불발 | 결정 28·24·45 대로 | 2b-2·2b-3 |
+| G21 | 휴일이 낀 2·3영업일 경고 · CSV 수식 주입 · 같은 금액 두 번 환불 시도(GAVE_UP 중) | 휴일 건너뜀 · `'` 붙음 · 두 번째 거절(결정 38) | 2b-3·2b-4 |
 
 ## 감사·오류 코드 후보
 - 감사 행위: `GROUPBUY_CREATE`·`GROUPBUY_UPDATE`·`GROUPBUY_START`·`GROUPBUY_CLOSE_EARLY`(일반) · `GROUPBUY_CANCEL`·`GROUPBUY_REFUND`·`GROUPBUY_REQUEST_APPROVE`·`GROUPBUY_STOCK_ADD`·`GROUPBUY_STOCK_REDUCE`·`GROUPBUY_RETURN_DISPOSE`·`GROUPBUY_ROUND_CREATE`·`COMMERCE_SALES_TOGGLE`·`COMMERCE_SHIPPING_POLICY_*`(돈 관련) · `GROUPBUY_ADDRESS_REVEAL`·`GROUPBUY_SHIPPING_EXPORT`·`GROUPBUY_ORDER_VIEW`·`GROUPBUY_QNA_VIEW`(개인정보 열람) · `GROUPBUY_QNA_HIDE`·`GROUPBUY_QNA_ANSWER_EDIT`(일반).
@@ -143,6 +173,6 @@
 포트원 취소 호출을 결제 주문 행 잠금 밖으로 옮기고, 한 결제에 보내는 중인 취소는 하나(V100)로 줄을 세웠다 — 공구 불발로 취소가 몰려도 확정·웹훅이 PG 응답을 기다리지 않는다. 상세는 `commerce-payment-contract.md` 「2a 보강 — 취소 호출을 잠금 밖으로」.
 
 ## 미확정 (승인 때 정할 것)
-- 결정 1~14·16·18~20·22·27~35, 작업 단위·화면 목록·마이그레이션 계획(15·17·21·23~26 은 사용자 결정 2026-10-28).
+- 결정 1~14·16·18~20·22·27~36·39~41·46~50, 작업 단위·화면 목록·마이그레이션 계획(15·17·21·23~26·42~45 는 사용자 결정 2026-10-28, 37·38 은 결제 코드로 확인한 필수 규칙).
 - 2b-2 를 화면 확정 전에 병행할지(2a 와 같이).
 - [확인 필요] 「한정 N개」 문구를 쓴 공구에 추가 입고·다음 차수를 열 때 표시·광고 문제 — 등록 화면에 「한정」 표현 안내를 두고 법무 확인 목록(commerce.md 20-2)에 더한다.

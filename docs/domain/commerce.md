@@ -364,6 +364,7 @@
 ## 10. 공구 (2단계 — D2)
 
 ### 10-1. 표 [개정]
+> **2026-10-28 — 표 구조의 정본은 `docs/features/commerce-groupbuy-contract.md`** 다(사용자 결정: 한 주문에 여러 옵션). 아래 `group_buy_participations` 의 `option_id·qty·unit_price·item_amount` 는 주문 줄 표 `group_buy_participation_items` 로, `group_buy_requests` 의 `return_qty`·사유는 요청 줄 표 `group_buy_request_items` 로 옮기고, 수량 이동 줄에 주문 줄 ID 를 더하고, 환불 기록 표 `group_buy_refunds` 를 둔다. 이 표는 처음 설계 기록으로 남긴다.
 | 표 | 주요 열 |
 |---|---|
 | `group_buys` | id, title, description, product_name, images, normal_price, group_price, **shipping_policy_code**(배송비 정책) + 모집 시작 때 고정한 사본 **shipping_fee, free_shipping_over, return_shipping_fee, return_fee_mode** [확정 2026-10-23], min_qty(**0 = 선착순**, D1), **fulfillment(IMMEDIATE 즉시 발송 / AFTER_CLOSE 마감 후 발주, CHECK `fulfillment = 'AFTER_CLOSE' OR min_qty = 0`)**, max_qty, max_qty_per_user, current_qty, reserved_qty, start_at, end_at, **extension_mode(DEMAND 기본 / ALWAYS), extended_until(null = 연장 안 됨)** [확정 2026-10-23], status, host_type(OPERATOR만), point_payment_allowed(false), allowed_point_kinds(PAID/PAID_AND_FREE, 기본 PAID), free_point_cap_per_participation(null), return_policy(반품 배송비 규칙 문구), version, created_by, created_at, updated_at. CHECK `0 ≤ current_qty`, `0 ≤ reserved_qty`, `current_qty + reserved_qty ≤ max_qty` |
@@ -383,7 +384,7 @@
 DRAFT → RECRUITING → CLOSING → CLOSED_SUCCESS → ORDERED → SHIPPING → COMPLETED
                                              ↘ COMPLETED (fulfillment = IMMEDIATE — 참여가 모두 끝나면, 공구 단위 발주·배송 단계 없음)
                              ↘ CLOSED_FAILED  (current_qty < min_qty → 전액 환불)
-RECRUITING / CLOSING / CLOSED_SUCCESS / ORDERED → CANCELED (운영 중단·발주 실패·품절 → 전액 환불)
+RECRUITING / CLOSING / CLOSED_SUCCESS / ORDERED / SHIPPING → CANCELED (운영 중단·발주 실패·품절 → 발송 전 주문 전액 환불, 이미 발송된 주문은 그대로 — 2026-10-28 SHIPPING 더함)
 ```
 - **마감 자동 연장** [확정 2026-10-23]: 선점이 결제 없이 만료돼 수량이 마감 무렵에 다시 풀리면, 품절을 보고 돌아선 회원이 억울하게 못 사는 일이 생긴다. 그래서 `end_at` 에 아래 조건이면 모집(`RECRUITING`)을 **최대 30분**(설정값) 더 이어 간다(`extended_until = end_at + 30분`). 연장 중에는 새 선점·구매가 모두 되고, **수량이 다 팔리면(확정 기준 `current_qty = max_qty`) 그 자리에서 종료**(→ `CLOSING`). 연장은 원래 마감에서 한 번, 합계 최대 30분이다.
 
@@ -418,14 +419,14 @@ RECRUITING / CLOSING / CLOSED_SUCCESS / ORDERED → CANCELED (운영 중단·발
 ```
 PENDING_PAYMENT → JOINED → CONFIRMED → PREPARING → SHIPPED → DELIVERED
 PENDING_PAYMENT → EXPIRED   (선점 만료 — 결제창 실패는 만료 전까지 재시도 가능)
-JOINED → CANCELED            (RECRUITING 중 본인 취소 — 즉시 전액)
+JOINED → CANCELED            (RECRUITING 중 본인 취소 — 즉시 전액. 2026-10-28 사용자 결정: 집계 중(CLOSING)에도 허용, 판정은 판정 시점 수량)
 CONFIRMED / PREPARING → CANCELED (발송 전 취소 — 아래 표, 전액, D11)
 JOINED / CONFIRMED / PREPARING → REFUNDED (불발·중단 — 발주 실패·품절 포함)
 DELIVERED → (반품 요청 승인·회수 확인) → REFUNDED(전액) 또는 DELIVERED + refunded_amount(부분)
 ```
 - 반품·취소 「요청」은 상태가 아니라 `group_buy_requests` 로 다룬다(요청 철회·거절이 참여 상태를 흔들지 않게) [개정 — community].
 - 발주(ORDERED)는 공구 단위, 준비중·발송·배송완료는 참여 단위. `PREPARING`(준비중)은 운영자가 포장을 시작했다는 표시다(일괄 처리 가능).
-- **발송 전 취소 [확정 D11 — 2026-10-23]** — 발송 전 취소는 배송비가 들지 않으므로 늘 전액 환불:
+- **발송 전 취소 [확정 D11 — 2026-10-23]** — 발송 전 취소는 배송비가 들지 않으므로 늘 전액 환불. **2026-10-28 개정(사용자 결정)**: 주문 전체 취소면 전액, **일부 줄만 취소해 무료배송 기준 아래로 떨어지면 남은 상품 기준 배송비를 환불액에서 뺀다**(반품비 없음 — 발송 후 부분 반품과 같은 계산):
 
   | 시점 | 성사형(`AFTER_CLOSE`) | 선착순 즉시 발송(`IMMEDIATE`) |
   |---|---|---|
@@ -452,7 +453,7 @@ DELIVERED → (반품 요청 승인·회수 확인) → REFUNDED(전액) 또는 
 ### 10-5. 참여 정책
 | 항목 | 값 | 표기 |
 |---|---|---|
-| 중복 참여 | 공구당 활성 참여 1건. 수량 변경은 취소 후 재참여 | [확정] — **2026-10-28 개정**(사용자 결정): 한 주문(참여)에 옵션 여러 줄 × 수량을 담는다. 진행 중 주문(PENDING_PAYMENT~SHIPPED)은 공구당 1건, 배송완료 뒤에는 새로 주문할 수 있다(1인 한도는 판매 수량 합으로). 상세 `commerce-groupbuy-contract.md` 결정 23·28 |
+| 중복 참여 | 공구당 활성 참여 1건. 수량 변경은 취소 후 재참여 | [확정] — **2026-10-28 개정**(사용자 결정): 한 주문(참여)에 옵션 여러 줄 × 수량을 담는다. 진행 중 주문(PENDING_PAYMENT~SHIPPED)은 공구당 1건, 배송완료 뒤에는 새로 주문할 수 있다(1인 한도는 산 수량 − 취소 − 반품 합으로 — 재고 기준 판매 수량과 다르다). 상세 `commerce-groupbuy-contract.md` 결정 23·28 |
 | 1인 한도 | `max_qty_per_user` | [확정] |
 | 모집 중 본인 취소 | 허용(수량 반환 + 전액 결제 취소) | [확정] |
 | 성사 뒤·발송 전 취소 | 취소 요청 → 운영자 승인 → 전액 환불(10-3 표) | [확정 D11][법무] |
@@ -472,6 +473,7 @@ DELIVERED → (반품 요청 승인·회수 확인) → REFUNDED(전액) 또는 
 ### 10-7. 마감 처리 [개정 — D9]
 - 1분 주기: `RECRUITING` 이고 ① `end_at` 이 지났으면 연장 조건(10-2)을 보고 `extended_until` 을 정하거나 `CLOSING` 으로 ② 연장 중이면 `extended_until` 이 지났을 때 `CLOSING` 으로 ③ `current_qty = max_qty` 이면 바로 `CLOSING` 으로. `CLOSING` 이고 판정 조건(10-2)이 된 공구 → 판정.
 - 불발·중단: 활성 참여마다 같은 트랜잭션에서 참여 REFUNDED + 포인트 복원(있으면) + `payment_cancels`(전액) 생성. 현금은 취소 워커가 처리.
+  - **트랜잭션 개정(2026-10-28, 계약 결정 37 — 결제 확정과의 교착 방지)**: 「같은 트랜잭션」 대신 공구 상태 전이를 짧게 먼저 하고, 주문마다 새 트랜잭션에서 주문 조건부 전이 → 수량 CANCEL → 환불 기록 → 취소 넣기(다시 돌려도 한 번).
   - 보강(2026-10-28, 계약 결정 29): 환불하는 것은 **발송 전**(JOINED·CONFIRMED·PREPARING) 참여뿐이고 수량 이동 CANCEL 을 남긴다. 결제 중(PENDING_PAYMENT)은 EXPIRED(원인 `GROUP_BUY_CANCELED` — 이탈 횟수에 세지 않는다) + 선점 해제 + 결제 READY → EXPIRED. 이미 발송된 참여는 그대로 정상 흐름(반품은 요청으로).
 - **다 팔림 마감은 그 자리에서**(2026-10-28, 계약 결정 27): 결제 확정·수량 줄이기가 `current_qty = max_qty` 를 만들면 같은 트랜잭션에서 `CLOSING`. 아래 1분 주기 ③은 안전망.
 - 판정·전이는 조건부 UPDATE 라 두 번 돌아도 한 번만 [확정].
@@ -506,6 +508,7 @@ DELIVERED → (반품 요청 승인·회수 확인) → REFUNDED(전액) 또는 
     - **`ONE_WAY` 편도(기본)**: 반품 배송비만 뺀다 — 50,000 − 3,000 = **47,000**. 면제된 처음 배송비를 반품 때 받는 것은 법에 명시된 허용 규정이 없어(위약금으로 볼 여지 — 20-2 1번) 기본으로 둔다.
     - **`ROUND_TRIP` 왕복(선택)**: 면제된 처음 배송비도 받는다 — 50,000 − 3,000 − 3,000 = **44,000**. **금액까지 미리 고지한 공구에만** 쓴다. 관리자 배송비 정책 화면에서 왕복을 고르면 「법에 명시된 허용 규정은 없어요 · 반품 비용을 금액까지 미리 알려야 해요」 경고를 보인다. 실제 운영 표가 이 방식이다.
     - 고객발송이면 편도·왕복 모두 처음 배송비를 받지 않고 반품비도 빼지 않는다 — **50,000 전액**(고객이 택배비를 직접 냈다).
+  - **나눠서 모두 반품**(2026-10-28 사용자 결정, 계약 결정 43): 마지막 반품으로 주문 전체가 반품되면 처음 배송비 처리만 한 번에 전체 반품한 것과 같게 맞춘다(편도면 앞서 재부과한 배송비를 돌려준다). 반품비는 실제로 보낸 택배마다. 한 반품 요청 안에서 줄마다 사유를 고르고, 하자·오배송 줄이 있으면 그 요청의 반품비는 운영자 부담(계약 결정 44).
   - **단순 변심 · 부분 반품**(2개 중 1개) — 무료배송 주문은 **남은 수량 기준으로 배송비를 다시 계산**한다: 남은 상품 금액(단가 × 남은 수량, 옵션 추가금 포함)이 무료배송 기준 이상이면 0, 아래로 떨어지면 처음 배송비를 **남은 상품의 배송비로 부과**해 환불액에서 뺀다(회수 방식·편도/왕복과 관계없다). 업체회수면 반품 배송비도 따로 뺀다.
     - 예(개당 25,000 · 기준 50,000 · 배송비 3,000 · 반품비 3,000, 업체회수): 2개 무료배송 중 1개 반품 → 남은 25,000 < 기준 → 25,000 − 3,000(재부과) − 3,000 = **19,000** / 3개(75,000) 중 1개 반품 → 남은 50,000 ≥ 기준 → 25,000 − 3,000 = **22,000**. 고객발송이면 각각 22,000 / 25,000.
     - 실제로 받아 가는 상품에 대한 배송비라 위약금 성격이 아니다. 운영자가 승인할 때 최종 금액을 확정(남은 결제액 이하).
