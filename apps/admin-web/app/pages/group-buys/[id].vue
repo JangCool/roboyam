@@ -137,7 +137,7 @@
 
                 <!-- ① 기본 정보 -->
                 <AppGadget :title="t('groupBuy.secBasic')" anchor="gb-basic">
-                    <div class="grid gap-4 md:grid-cols-2">
+                    <div class="flex flex-col gap-4">
                         <LabeledField :label="t('groupBuy.fieldTitle')" :hint="lockHint('title')" :error="fe('title')">
                             <template #default="{ id, describedBy, invalid }">
                                 <InputText :id="id" v-model="form.title" maxlength="100" :readonly="ro('title')" :invalid="invalid" :aria-describedby="describedBy" fluid />
@@ -148,12 +148,12 @@
                                 <InputText :id="id" v-model="form.productName" maxlength="100" :readonly="ro('productName')" :invalid="invalid" :aria-describedby="describedBy" fluid />
                             </template>
                         </LabeledField>
-                        <LabeledField :label="t('groupBuy.fieldSummary')" :hint="t('groupBuy.plainHint', { max: UtilGroupBuy.TEXT_MAX })" :help="t('groupBuy.summaryHelp')" :error="fe('summary')" class="md:col-span-2">
+                        <LabeledField :label="t('groupBuy.fieldSummary')" :hint="t('groupBuy.plainHint', { max: UtilGroupBuy.TEXT_MAX })" :help="t('groupBuy.summaryHelp')" :error="fe('summary')">
                             <template #default="{ id, describedBy, invalid }">
                                 <Textarea :id="id" v-model="form.summary" rows="2" auto-resize :maxlength="UtilGroupBuy.TEXT_MAX" :readonly="ro('summary')" :invalid="invalid" :aria-describedby="describedBy" fluid />
                             </template>
                         </LabeledField>
-                        <LabeledField :label="t('groupBuy.fieldSpec')" :hint="t('groupBuy.plainHint', { max: UtilGroupBuy.TEXT_MAX })" :help="t('groupBuy.specHelp')" :error="fe('spec')" class="md:col-span-2">
+                        <LabeledField :label="t('groupBuy.fieldSpec')" :hint="t('groupBuy.plainHint', { max: UtilGroupBuy.TEXT_MAX })" :help="t('groupBuy.specHelp')" :error="fe('spec')">
                             <template #default="{ id, describedBy, invalid }">
                                 <Textarea :id="id" v-model="form.spec" rows="4" auto-resize :maxlength="UtilGroupBuy.TEXT_MAX" :readonly="ro('spec')" :invalid="invalid" :aria-describedby="describedBy" fluid />
                             </template>
@@ -180,7 +180,7 @@
 
                 <!-- ③ 가격 -->
                 <AppGadget :title="t('groupBuy.secPrice')" anchor="gb-price">
-                    <div class="grid gap-4 md:grid-cols-2">
+                    <div class="flex flex-col gap-4">
                         <LabeledField :label="t('groupBuy.fieldNormalPrice')" :hint="lockHint('normalPrice', true)" :error="fe('normalPrice')">
                             <template #default="{ id, describedBy, invalid }">
                                 <InputGroup>
@@ -207,7 +207,7 @@
                                 <InputText :id="id" v-model="form.normalPriceSource" maxlength="300" :readonly="ro('normalPriceSource', true)" :invalid="invalid" :aria-describedby="describedBy" fluid />
                             </template>
                         </LabeledField>
-                        <Message severity="secondary" :closable="false" size="small" class="md:col-span-2">{{ t('groupBuy.basisNotice') }}</Message>
+                        <Message severity="secondary" :closable="false" size="small">{{ t('groupBuy.basisNotice') }}</Message>
                     </div>
                 </AppGadget>
 
@@ -225,7 +225,7 @@
 
                 <!-- ⑤ 수량·방식 -->
                 <AppGadget :title="t('groupBuy.secQty')" anchor="gb-qty">
-                    <div class="grid gap-4 md:grid-cols-2">
+                    <div class="flex flex-col gap-4">
                         <LabeledField :label="t('groupBuy.fieldMinQty')" :hint="lockHint('minQty')" :help="t('groupBuy.minQtyHelp')" :error="fe('minQty')">
                             <template #default="{ id, describedBy, invalid }">
                                 <InputText :id="id" v-model="form.minQty" inputmode="numeric" :readonly="ro('minQty')" :invalid="invalid" :aria-describedby="describedBy" class="w-32 text-right tabular-nums" />
@@ -251,7 +251,7 @@
                                 <InputText :id="id" v-model="form.maxQtyPerUser" inputmode="numeric" :placeholder="t('groupBuy.unlimited')" :readonly="ro('maxQtyPerUser')" :invalid="invalid" :aria-describedby="describedBy" class="w-32 text-right tabular-nums" />
                             </template>
                         </LabeledField>
-                        <div class="flex items-start gap-2 md:col-span-2">
+                        <div class="flex items-start gap-2">
                             <Checkbox v-model="form.roundLimitShared" binary :input-id="sharedId" :disabled="ro('roundLimitShared')" class="mt-0.5" />
                             <label :for="sharedId" class="text-[13px]">
                                 <span class="font-medium">{{ t('groupBuy.fieldRoundShared') }}</span>
@@ -289,7 +289,7 @@
 
                 <!-- ⑦ 배송 -->
                 <AppGadget :title="t('groupBuy.secShipping')" anchor="gb-shipping">
-                    <div class="grid gap-4 md:grid-cols-2">
+                    <div class="flex flex-col gap-4">
                         <LabeledField :label="t('groupBuy.fieldPolicy')" :hint="lockHint('shippingPolicyCode', true)" :error="fe('shippingPolicyCode')">
                             <template #default="{ id, describedBy, invalid }">
                                 <Select :input-id="id" v-model="form.shippingPolicyCode" :options="policyOptions" option-label="label" option-value="value" :disabled="ro('shippingPolicyCode', true)" :invalid="invalid" :aria-describedby="describedBy" fluid />
