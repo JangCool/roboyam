@@ -74,6 +74,18 @@ class GroupBuySchemaTest {
     }
 
     @Test
+    void 종료_사유는_SOLD_OUT_TIME_UP_EARLY_CLOSED_CANCELED_넷뿐이고_열거와_같다() {
+        long gb = kit.spec(policy()).open();
+        for (com.community.groupbuy.entity.CloseReason reason : com.community.groupbuy.entity.CloseReason.values()) {
+            assertThat(kit.jdbc.update("UPDATE group_buys SET close_reason = ? WHERE id = ?", reason.name(), gb)).isEqualTo(1);
+        }
+        assertThat(java.util.Arrays.stream(com.community.groupbuy.entity.CloseReason.values()).map(Enum::name))
+                .containsExactly("SOLD_OUT", "TIME_UP", "EARLY_CLOSED", "CANCELED");
+        assertThatThrownBy(() -> kit.jdbc.update("UPDATE group_buys SET close_reason = 'EARLY_CLOSE' WHERE id = ?", gb))
+                .hasMessageContaining("ck_group_buys_close_reason");
+    }
+
+    @Test
     void 모집을_시작한_공구는_배송비_사본_없이_있을_수_없다() {
         long gb = kit.spec(policy()).open();
         assertThatThrownBy(() -> kit.jdbc.update("UPDATE group_buys SET shipping_fee = NULL WHERE id = ?", gb)).hasMessageContaining("ck_group_buys_started_copy");

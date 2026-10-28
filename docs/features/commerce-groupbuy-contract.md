@@ -273,14 +273,14 @@
   3. **결제 다시 열기**: 결정 63 대로 유효한 READY 가 있으면 같은 결제를 돌려주되, 화면이 「결제창 실패 뒤」(`afterFailure`)라고 알리면 새 결제 번호를 만든다(commerce.md 8-1 — 포트원은 실패한 결제 ID 재사용을 보장하지 않는다). 둘 다 선점 끝은 그대로.
   4. **`onPaid` 거절 사유 코드**: `GROUP_BUY_ORDER_NOT_FOUND`·`_ORDER_NOT_PENDING`·`_PAYMENT_MISMATCH`·`_HOLD_EXPIRED`·`_AMOUNT_MISMATCH`·`_CLOSED`(판정·중단 뒤)·`_QTY_ANOMALY`(선점 부족 — 이벤트 `anomaly=true`)·`_CONFLICT`(DB 제약 충돌). 받아들이는 일은 JDBC 세이브포인트 안이라 지면 되돌리고 만료 + RELEASE(조건부, 이긴 쪽만).
   5. **만료 원인** `ExpireCause`: `HOLD_TIMEOUT`(이탈로 셈) · `GROUP_BUY_CANCELED` · `PAYMENT_FAILED_CLOSED`(불발 공구의 결제 중 주문) · `REJECTED_CLOSED` · `LATE_PAYMENT` · `REJECTED_ANOMALY`.
-  6. **조기 마감**은 종료 사유 `TIME_UP`(closing_at = 누른 시각), 상태 이력 사유 `EARLY_CLOSE`. 연장은 상태 이력 `RECRUITING → RECRUITING`(사유 `EXTENDED`).
+  6. **조기 마감**은 종료 사유 `EARLY_CLOSED`(closing_at = 누른 시각, 상태 이력 사유 `EARLY_CLOSE`) — 2b-1 화면 세션이 알린 사용자 결정(2026-10-28, 결정 79 고침: 종료 사유 `SOLD_OUT`·`TIME_UP`·`EARLY_CLOSED`·`CANCELED` 넷, 2b-1 커밋 f883ae80)을 따랐다. `close_reason` 은 varchar(15). 연장은 상태 이력 `RECRUITING → RECRUITING`(사유 `EXTENDED`).
   7. **발송 지연 공지 뒤 즉시 취소**(결정 52)는 공지 전에 결제한 발송 전 주문의 **주문 전체**(줄을 골라도 전체), 원인 `DELAY`, 재부과 없음, 상태 CANCELED.
   8. 불발·중단 환불의 주문 상태는 REFUNDED, 본인 취소·지연 취소는 CANCELED(결정 46). 금액 나눔: 전액 = 남은 결제액 → 상품(가진 수량) + 나머지(앞서 재부과한 배송비는 `reshipping_refund`, 그 밖은 `shipping_refund`).
   9. 배송지 암호 용도 `groupbuy.address.{recipient,phone,line1,line2,memo}`(DataCipher), 우편번호만 평문.
   10. 판매 스위치는 인터페이스 `GroupBuySalesSwitch` + 기본 구현 `DefaultGroupBuySalesSwitch`(늘 열림) — **2b-4 가 V103 설정을 읽는 구현으로 바꾼다**(회원 주문 API 도 2b-4 라 지금 주문이 들어올 길은 없다).
   11. 회원·운영자 알림·메일은 `GroupBuyEvents`(주문 확정·거절·선점 만료·수량 풀림·차수 시작(받는 사람 중복 없이)·환불 완료·자동 취소 완료·상태 변경)를 업무 트랜잭션 안에서 발행만 한다 — 받는 곳은 2b-4. `COMMERCE_ORDER_ANOMALY` 운영자 알림은 아직 `reserved()` 그대로(이벤트 `OrderRejected.anomaly`).
   12. 관리자 목록 조회용 JPA 엔티티·QueryDSL 은 만들지 않았다(쓰는 화면 API 가 2b-4) — 이번에는 모두 JDBC 행 레코드.
-- **규칙 → 테스트**(shared `com.community.groupbuy.*` 79개 + admin `GroupBuyStateSchedulerTest` 3개, 실제 PostgreSQL `CommerceTestDatabase`):
+- **규칙 → 테스트**(shared `com.community.groupbuy.*` 80개 + admin `GroupBuyStateSchedulerTest` 3개, 실제 PostgreSQL `CommerceTestDatabase`):
 
   | 규칙 | 테스트 |
   |---|---|
@@ -326,11 +326,12 @@
   | 모집 뒤 설명·이미지만(LOCKED_FIELD)·수정 이력·낙관 잠금, DRAFT 는 모두 | `GroupBuyAdminTest.모집_뒤에는_…` · `공개_전_DRAFT_는_…` |
   | 추가 차수: 끝난 공구만·복사 범위·동시 두 번 하나·DRAFT 차수 있으면 거절·중단 공구 거절·시작 때 이전 신청자 한 번 — G8 | `GroupBuyAdminTest.G8_…` · `중단된_공구에서는_…` |
   | 중단 ① 공구만 → ② 환불 워커(발송 전만 환불·결제 중 닫음·발송된 주문 그대로·다시 돌려도 한 번) — 29 | `GroupBuyAdminTest.결정29_…` · `조기_마감은_…` |
+  | 종료 사유 넷(`SOLD_OUT`·`TIME_UP`·`EARLY_CLOSED`·`CANCELED`) — 조기 마감은 `EARLY_CLOSED`(결정 79 고침) | `GroupBuyAdminTest.조기_마감은_…_EARLY_CLOSED` · `GroupBuySchemaTest.종료_사유는_…` |
   | P16e 배송비 예약 인상 · 지난·앞선 예약 거절 · 적용 시작 줄 불변·기간 겹침 금지(DB) | `GroupBuyAdminTest.P16e_…` · `지난_시각이나_…` · `적용이_시작된_…_DB` |
   | V101 제약(부분 유일·NULLS NOT DISTINCT·복합 FK·금액·수량·방식 CHECK) | `GroupBuySchemaTest` |
   | 불변식 한 SQL — 판매 수량 식(다시 판매·폐기 반품)·이동 줄 마지막 값·결제 금액(39)·옵션 합(77)·최대 식(80) — G6(2b-2 몫) | `GroupBuySchemaTest.G6_…` + 각 시험 끝의 `assertInvariants` |
   | 워커 「언제 돌릴지」 — 배치를 켠 서버만, 둘 따로, 워커 기록·가린 오류 | admin `GroupBuyStateSchedulerTest` |
-- **실행**(이 PC 셸에 `JAVA_HOME` 이 없어 지정): `JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2 ./gradlew :server:shared:test --tests 'com.community.groupbuy.*'` → **79개 통과**(두 번 돌려 두 번 다 통과, G24 약 70초) · `./gradlew :server:admin:test --tests 'com.community.batch.service.GroupBuyStateSchedulerTest'` → **3개 통과**. 바꾼 곳 회귀 확인: shared `AuditRetentionTest`(6)·`PaymentOrderServiceTest`(7)·`PaymentCompletionTest`(7), admin `Commerce2aCatalogTest`(6)·`Commerce04AdminCatalogTest`(5)·`AuditRetentionAdminTest`(6 — admin 앱 문맥이 공구 빈과 함께 뜸), api `IdentityHttpTest`(6 — api 앱 문맥) 모두 통과. 실패 0. 전체 테스트는 돌리지 않았다.
+- **실행**(이 PC 셸에 `JAVA_HOME` 이 없어 지정): `JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-25-amd64-windows.2 ./gradlew :server:shared:test --tests 'com.community.groupbuy.*'` → **80개 통과**(조기 마감 종료 사유를 고친 뒤 다시 돌려 통과, G24 약 70초) · `./gradlew :server:admin:test --tests 'com.community.batch.service.GroupBuyStateSchedulerTest'` → **3개 통과**. 바꾼 곳 회귀 확인: shared `AuditRetentionTest`(6)·`PaymentOrderServiceTest`(7)·`PaymentCompletionTest`(7), admin `Commerce2aCatalogTest`(6)·`Commerce04AdminCatalogTest`(5)·`AuditRetentionAdminTest`(6 — admin 앱 문맥이 공구 빈과 함께 뜸), api `IdentityHttpTest`(6 — api 앱 문맥) 모두 통과. 실패 0. 전체 테스트는 돌리지 않았다.
 - **아직 테스트로 막지 못한 규칙과 이유**
   - P26(같은 멱등 키·다른 본문 409)·속도 제한 `GROUPBUY_JOIN` — 장치는 0-5 시험이 막고 있고, 공구 주문 API 에 `MoneyRequestGuard` 를 붙이는 것은 컨트롤러와 함께 2b-4.
   - 권한 코드(`commerce.groupbuy.cancel`·`commerce.stock.adjust`·`commerce.product.manage`)와 설명 HTML 정화 — 관리자 컨트롤러(2b-4). 권한 `featureReady` 도 그때.

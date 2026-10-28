@@ -221,7 +221,7 @@ public class GroupBuyAdminService {
         return Boolean.TRUE.equals(started);
     }
 
-    /** 조기 마감 — RECRUITING → CLOSING(closing_at = 지금, 종료 사유 TIME_UP) */
+    /** 조기 마감 — RECRUITING → CLOSING(closing_at = 지금, 종료 사유 EARLY_CLOSED) */
     public void closeEarly(long id, String reason, Long operatorId, String ip) {
         String why = requireReason(reason);
         tx.executeWithoutResult(status -> {

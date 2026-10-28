@@ -242,12 +242,14 @@ class GroupBuyAdminTest {
     }
 
     @Test
-    void 조기_마감은_CLOSING_으로_closing_at_은_지금() {
+    void 조기_마감은_CLOSING_으로_closing_at_은_지금_종료_사유는_EARLY_CLOSED() {
         long gb = kit.spec(policy()).open();
         kit.admin.closeEarly(gb, "운영 판단", kit.operator, "ip");
         var g = kit.group(gb);
         assertThat(g.status()).isEqualTo(GroupBuyStatus.CLOSING);
         assertThat(g.closingAt()).isEqualTo(kit.now());
+        assertThat(g.closeReason()).as("2b-1 사용자 결정 — 기간 끝(TIME_UP)과 나눈다").isEqualTo("EARLY_CLOSED");
+        assertThat(kit.audits).anySatisfy(a -> assertThat(a.action()).isEqualTo(AuditActions.GROUPBUY_CLOSE_EARLY));
         assertThatThrownBy(() -> kit.admin.closeEarly(gb, "두 번", kit.operator, "ip")).isInstanceOf(GroupBuyException.class);
     }
 

@@ -100,7 +100,7 @@ CREATE TRIGGER trg_shipping_policies_guard BEFORE UPDATE OR DELETE ON shipping_p
 -- 배송비 사본(shipping_fee·free_shipping_over·return_shipping_fee·return_fee_mode)은 모집 시작 때 정책에서 복사하고 끝까지 바꾸지 않는다.
 -- 수량: max_qty(지금 최대) · initial_max_qty(모집 시작 때 고정) · added_qty(ADD 합) · current_qty(판매 수량 합 — 결정 28) · reserved_qty(결제 중 선점 합).
 --   수량 열은 조건부 UPDATE 로만 바꾸고 version 을 올리지 않는다(version 은 설명·이미지 편집의 낙관 잠금).
--- close_reason: SOLD_OUT 다 팔림 · TIME_UP 기간 끝(조기 마감 포함) · CANCELED 중단 — CLOSING(또는 중단) 전이와 같은 문장에서(결정 79).
+-- close_reason: SOLD_OUT 다 팔림 · TIME_UP 기간 끝 · EARLY_CLOSED 운영자 조기 마감 · CANCELED 중단(2b-1 사용자 결정 — 결정 79 고침) — CLOSING(또는 중단) 전이와 같은 문장에서(결정 79).
 -- closing_at: CLOSING 에 들어간 시각(마감 시각, 연장됐으면 extended_until, 다 팔림·조기 마감이면 그 시각) — 판정 시각 = closing_at + 선점 시간 + 여유.
 -- round_root_id: 1차 공구 ID(1차는 자기 자신) · round_no(유일 (round_root_id, round_no)) · round_limit_shared: 차수 사이 1인 한도 합산(결정 24, 기본 꺼짐).
 -- revision_no: 마지막 수정 이력 번호(모집 시작 때 1). 주문은 결제 때의 번호를 남긴다.
@@ -132,7 +132,7 @@ CREATE TABLE group_buys (
     extension_mode              varchar(10)   NOT NULL DEFAULT 'DEMAND',
     extended_until              timestamptz,
     closing_at                  timestamptz,
-    close_reason                varchar(10),
+    close_reason                varchar(15),
     fulfillment                 varchar(12)   NOT NULL,
     ship_planned_at             date,
     ship_within_business_days   integer,
@@ -157,7 +157,7 @@ CREATE TABLE group_buys (
     -- 성사형은 마감 후 발주만(성사 전에 보낼 수 없다 — D1)
     CONSTRAINT ck_group_buys_fulfillment_min CHECK (fulfillment = 'AFTER_CLOSE' OR min_qty = 0),
     CONSTRAINT ck_group_buys_extension CHECK (extension_mode IN ('DEMAND', 'ALWAYS')),
-    CONSTRAINT ck_group_buys_close_reason CHECK (close_reason IS NULL OR close_reason IN ('SOLD_OUT', 'TIME_UP', 'CANCELED')),
+    CONSTRAINT ck_group_buys_close_reason CHECK (close_reason IS NULL OR close_reason IN ('SOLD_OUT', 'TIME_UP', 'EARLY_CLOSED', 'CANCELED')),
     CONSTRAINT ck_group_buys_price CHECK (group_price > 0 AND (normal_price IS NULL OR normal_price > 0)),
     CONSTRAINT ck_group_buys_price_basis CHECK (normal_price_basis IS NULL OR normal_price_basis IN ('OFFICIAL_STORE', 'PREVIOUS_ROUND', 'MARKET', 'PREVIOUS_SALE')),
     CONSTRAINT ck_group_buys_qty CHECK (min_qty >= 0 AND max_qty > 0 AND min_qty <= max_qty AND (max_qty_per_user IS NULL OR max_qty_per_user > 0)),

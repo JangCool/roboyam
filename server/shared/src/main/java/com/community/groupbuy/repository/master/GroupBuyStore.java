@@ -176,7 +176,7 @@ public class GroupBuyStore {
 
     /** 조기 마감(운영자) → CLOSING(closing_at = 지금) */
     public boolean closeEarly(long id, Instant now) {
-        return jdbc.update("UPDATE group_buys SET status = 'CLOSING', close_reason = 'TIME_UP', closing_at = ?, updated_at = ? WHERE id = ? AND status = 'RECRUITING'",
+        return jdbc.update("UPDATE group_buys SET status = 'CLOSING', close_reason = 'EARLY_CLOSED', closing_at = ?, updated_at = ? WHERE id = ? AND status = 'RECRUITING'",
                 ts(now), ts(now), id) == 1;
     }
 
