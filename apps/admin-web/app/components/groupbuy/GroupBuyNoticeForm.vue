@@ -27,7 +27,7 @@
         </div>
 
         <!-- 제목 · 품목 · 적용 옵션 -->
-        <div class="grid gap-3 md:grid-cols-2">
+        <div class="flex flex-col gap-3">
             <LabeledField :label="t('groupBuy.noticeTitle')" :error="err('title')">
                 <template #default="{ id, describedBy, invalid }">
                     <InputText :id="id" :model-value="model.title" :maxlength="UtilGroupBuy.NOTICE_TITLE_MAX" :placeholder="t('groupBuy.noticeTitlePlaceholder')" :readonly="disabled" :invalid="invalid" :aria-describedby="describedBy" fluid @update:model-value="(v: string | undefined) => patch({ title: v ?? '' })" />
@@ -52,7 +52,7 @@
                 </template>
             </LabeledField>
 
-            <div class="flex flex-col gap-1.5 md:col-span-2">
+            <div class="flex flex-col gap-1.5">
                 <span class="text-sm font-medium">{{ t('groupBuy.noticeOptions') }}</span>
                 <p v-if="!hasOptions" class="m-0 text-xs text-muted-color">{{ t('groupBuy.noticeOptionsNone') }}</p>
                 <template v-else>
@@ -88,14 +88,14 @@
         <Message v-if="category?.warrantyDisadvantageDisclosure" severity="info" :closable="false" size="small">{{ t('groupBuy.noticeWarrantyDisclosure', { text: category.warrantyDisadvantageDisclosure }) }}</Message>
 
         <!-- 고시 항목 칸 -->
-        <div class="grid gap-3 md:grid-cols-2">
+        <div class="flex flex-col gap-3">
             <template v-for="block in blocks" :key="block.key">
-                <p v-if="block.group" class="m-0 mt-1 text-xs font-semibold md:col-span-2">{{ block.group }}</p>
+                <p v-if="block.group" class="m-0 mt-1 text-xs font-semibold">{{ block.group }}</p>
                 <div
                     v-for="def in block.items"
                     :key="def.key"
                     class="flex flex-col gap-1.5 rounded-md border px-3 py-2"
-                    :class="[isMarked(def.key) ? 'border-red-400 dark:border-red-700' : 'border-(--line)', def.kind === 'TEXT' ? '' : 'md:col-span-2']"
+                    :class="[isMarked(def.key) ? 'border-red-400 dark:border-red-700' : 'border-(--line)']"
                     :data-notice-problem="isMarked(def.key) ? '' : undefined"
                 >
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
