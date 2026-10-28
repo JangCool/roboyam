@@ -19,6 +19,7 @@ export default {
     wonSuffix: ' 원',
     minuteSuffix: ' 분',
     autoCancel: '자동 취소',
+    portoneMissing: '결제창을 열 수 없어요. 잠시 후 다시 시도하거나 고객센터에 알려 주세요.',
     status: {
         READY: '결제 대기',
         PAID: '결제 완료',

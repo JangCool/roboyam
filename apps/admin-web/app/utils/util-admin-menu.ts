@@ -185,6 +185,26 @@ export default class UtilAdminMenu {
                 { key: 'pointShopSettings', to: '/point-shop/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.pointShopSettings', permission: 'pointshop.read' },
             ],
         },
+        // 공구 묶음(결제 묶음 앞) — 운영자가 파는 실물 공동구매(현금 결제): 공구(목록·등록·운영 동작) · 수량(총량·선점·변동·추가 입고/줄이기) · 주문(발주·발송·운영 환불·명단) · 취소·반품 요청 대기열.
+        // 계약 commerce-groupbuy 「화면 목록 (2b-1)」·결정 3·35. ⚠ 화면은 아직 목업(`useGroupBuy*Api`)이다. 서버 `AdminScreenRegistry` 에도 같은 네 줄이 필요하고, 쓰는 권한의 `featureReady` 를 켜야 한다(2b-2~2b-4).
+        // 조회는 공구·수량 `commerce.product.read`, 주문·요청 `commerce.order.read`. 화면 안 처리는 `commerce.product.manage`·`commerce.stock.adjust`·`commerce.groupbuy.cancel`·`commerce.order.manage`·`commerce.refund.approve`·`commerce.refund.large`·`commerce.address.reveal`·`commerce.export` 를 따로 본다.
+        // 주소는 서로 앞부분이 겹치지 않게 둔다(`/group-buys` 와 `/group-buy-…`). Q&A 대기열은 2b-6 에서 더한다.
+        {
+            key: 'groupBuy',
+            icon: 'pi pi-truck',
+            labelKey: 'menu.groupBuy',
+            items: [
+                // 결정 89 — 상품(이름·설명·이미지·카테고리·고시·옵션 축/단품·기본 공급가)과 카테고리(2단). 서버 AdminScreenRegistry 에도 두 줄
+                { key: 'groupBuyProducts', to: '/group-buy-products', icon: 'pi pi-tag', labelKey: 'menu.groupBuyProducts', permission: 'commerce.product.read' },
+                // 옵션 종류(사용자 결정 2026-10-28 — 상품 옵션 이름은 코드로 고른다). 서버 AdminScreenRegistry 에도 한 줄
+                { key: 'groupBuyOptionTypes', to: '/group-buy-option-types', icon: 'pi pi-list-check', labelKey: 'menu.groupBuyOptionTypes', permission: 'commerce.product.read' },
+                { key: 'groupBuyCategories', to: '/group-buy-categories', icon: 'pi pi-sitemap', labelKey: 'menu.groupBuyCategories', permission: 'commerce.product.read' },
+                { key: 'groupBuys', to: '/group-buys', icon: 'pi pi-shopping-bag', labelKey: 'menu.groupBuys', permission: 'commerce.product.read' },
+                { key: 'groupBuyStock', to: '/group-buy-stock', icon: 'pi pi-box', labelKey: 'menu.groupBuyStock', permission: 'commerce.product.read' },
+                { key: 'groupBuyOrders', to: '/group-buy-orders', icon: 'pi pi-list', labelKey: 'menu.groupBuyOrders', permission: 'commerce.order.read' },
+                { key: 'groupBuyRequests', to: '/group-buy-requests', icon: 'pi pi-replay', labelKey: 'menu.groupBuyRequests', permission: 'commerce.order.read' },
+            ],
+        },
         // 결제 묶음(포인트 상점 묶음 다음) — 현금 결제 모듈(포트원 V2)의 결제 주문 · 웹훅 수신 내역 · 결제 이상 · 날짜별 대사 · 대사 불일치. commerce.md 13-5, 계약 commerce-payment 결정 13.
         // 서버 API 에 연결됨(2a-3 — `usePaymentAdminApi`). 서버 `AdminScreenRegistry` 의 같은 다섯 줄·권한 `commerce.payment.read`·`commerce.reconcile.manage`(`featureReady` 켬)와 맞춘다 — 바꿀 때 두 곳을 같게 한다.
         // 다섯 화면 모두 조회 `commerce.payment.read`, 화면 안의 처리(다시 시도 · 수동 처리 완료 · 포트원에서 다시 확인 · 대사 처리)는 `commerce.reconcile.manage`. PG 설정은 설정 › 포트원(`/settings/portone`) 그대로.

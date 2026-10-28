@@ -14,7 +14,7 @@ import { definePreset } from '@primeuix/themes';
  *   NUXT_PORT   기본 3200
  *
  * 인증·역할·역할 유형·운영자·초대·등급 설정·회원 조회·배치·사이트 설정·내 정보·감사 로그·게시판 관리(목록·설정·기본 설정 하위 화면·매니저/스텝·개인정보 보유기간)·메뉴 관리(공개 사이트 메뉴·관리자 사이트 메뉴) API 는 실제 서버(`/api/admin/**`)를 부르고 아래 `/api` 프록시가 그 요청을 잇는다. 알림(종 알림 서랍, 알림 이벤트 관리, 알림 도구, 조직 구성(팀), 내 정보의 이벤트별 알림)·포인트(포인트 내역·포인트 정책·수동 지급/차감)·포인트 상점(품목·아바타 묶음 변경·구매 내역·예외 환불·설정)도 실제 서버를 부른다.
- * 알림 템플릿·문구(`/settings/notification-templates/**`·`/settings/notification-messages/**`)와 회원 이벤트(`/settings/notifications/member`)·소모임(목록·개설 승인·분류·설정)도 실제 서버를 부른다 — 지금 목업으로 남은 영역은 없다. 새 화면을 목업으로 시작할 때는 `composables/<업무>/api/mock/` 에 두고 아래 훅이 자동 임포트에서 뺀다.
+ * 알림 템플릿·문구(`/settings/notification-templates/**`·`/settings/notification-messages/**`)와 회원 이벤트(`/settings/notifications/member`)·소모임(목록·개설 승인·분류·설정)도 실제 서버를 부른다 — 지금 목업으로 남은 영역은 커머스 2b-1(공구 묶음 `/group-buys`·`/group-buy-*`, 커머스 설정의 2b 구획, 대시보드 커머스 칸 — `?mock=` 스위치는 각 목업 파일 머리)이다. 새 화면을 목업으로 시작할 때는 `composables/<업무>/api/mock/` 에 두고 아래 훅이 자동 임포트에서 뺀다.
  * 사이트 설정의 이미지 주소(로고·아이콘·링크 미리보기 이미지)는 `/media/…` 상대 주소다 — 운영은 같은 도메인의 서버가 서빙하고, 개발 서버는 아래 `/media` 프록시가 같은 admin 서버로 잇는다.
  * 세션 쿠키(`ADMIN_SESSION`)·CSRF 쿠키(`XSRF-TOKEN`)는 프록시를 지나 개발 서버 주소(`localhost:NUXT_PORT`)의 쿠키로 저장된다(쿠키는 포트를 가르지 않는다).
  */
