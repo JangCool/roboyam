@@ -1,7 +1,7 @@
 <template>
     <!--
         공구 › 옵션 종류(`/group-buy-option-types`) — 상품 옵션 이름의 코드 목록(사용자 결정 2026-10-28: 옵션 이름은 코드로 고르고, 값은 상품마다 자유 입력 + 자동완성).
-        줄마다 코드(만든 뒤 바꾸지 않음) · 이름 · 숨김 · 쓰는 상품 수 · 이미 쓴 값 수. 차례 바꾸기 · 더하기 · 지우기(상품이 쓰면 못 지움). 저장은 통째로(PUT).
+        줄마다 코드(만든 뒤 바꾸지 않음) · 이름 · 숨김 · 쓰는 상품 수 · 이미 쓴 값 수. 차례 바꾸기 · 더하기 · 지우기(상품이 쓰면 못 지움). 저장은 통째로(PUT) — 쓰는 상품이 있는 종류를 빼면 409 `GROUP_BUY_OPTION_TYPE_IN_USE {codes}`(아무것도 지우지 않음).
         이름을 바꾸면 그 종류를 쓰는 상품의 옵션 이름도 따라간다(서버 몫). 고치기 `commerce.product.manage`. 서버 호출은 `useGroupBuyProductApi`(목업 — `?mock=option-types-fail`·`save-fail`·`forbidden`).
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -23,7 +23,7 @@
                     <ul v-else class="m-0 flex list-none flex-col divide-y divide-(--line) rounded-lg border border-(--line) p-0">
                         <li v-for="(row, i) in rows" :key="row.key" class="flex flex-wrap items-center gap-2 px-3 py-2">
                             <InputText :model-value="row.code" :aria-label="t('groupBuy.optionTypeCode')" maxlength="20" :readonly="ro || !row.isNew" :invalid="!/^[A-Z][A-Z0-9_]{1,19}$/.test(row.code)" size="small" class="w-36 font-mono uppercase" @update:model-value="(v: string | undefined) => patch(row.key, { code: (v ?? '').toUpperCase() })" />
-                            <InputText :model-value="row.name" :aria-label="t('groupBuy.optionTypeName')" maxlength="20" :readonly="ro" :invalid="!row.name.trim()" size="small" class="w-40" @update:model-value="(v: string | undefined) => patch(row.key, { name: v ?? '' })" />
+                            <InputText :model-value="row.name" :aria-label="t('groupBuy.optionTypeName')" maxlength="30" :readonly="ro" :invalid="!row.name.trim()" size="small" class="w-40" @update:model-value="(v: string | undefined) => patch(row.key, { name: v ?? '' })" />
                             <label class="flex items-center gap-1.5 text-xs"><ToggleSwitch :model-value="row.hidden" :disabled="ro" @update:model-value="(v: boolean) => patch(row.key, { hidden: v })" />{{ t('groupBuy.categoryHidden') }}</label>
                             <span class="text-xs tabular-nums text-muted-color" :title="row.usedValues.join(', ')">{{ t('groupBuy.optionTypeUsed', { n: row.productCount, v: row.usedValues.length }) }}</span>
                             <div v-if="!ro" class="ml-auto flex items-center gap-1">

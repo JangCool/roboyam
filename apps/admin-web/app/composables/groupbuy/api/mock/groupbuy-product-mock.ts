@@ -256,7 +256,7 @@ function validate(body: GroupBuyProductSaveRequest, selfId: string | null): void
     const d = db();
     const types = new Map(d.optionTypes.map((x) => [x.code, x]));
     if (body.optionTypeCodes.length > S.axisMax) fields.optionTypeCodes = `옵션은 ${S.axisMax}개까지예요.`;
-    else if (body.optionTypeCodes.some((c) => !types.has(c)) || new Set(body.optionTypeCodes).size !== body.optionTypeCodes.length) fields.optionTypeCodes = '옵션 종류를 다시 골라 주세요.';
+    else if (body.optionTypeCodes.some((c) => !types.has(c) || (types.get(c)!.hidden && !d.products.find((x) => x.id === selfId)?.optionTypeCodes.includes(c))) || new Set(body.optionTypeCodes).size !== body.optionTypeCodes.length) fields.optionTypeCodes = '옵션 종류를 다시 골라 주세요(숨긴 종류는 이미 쓰던 상품만 둘 수 있어요).';
     if (!body.skus.length) fields.skus = '단품을 하나 이상 넣어 주세요.';
     else if (body.skus.length > S.comboMax) fields.skus = `단품은 ${S.comboMax}개까지예요.`;
     else if (body.skus.some((x) => !x.name.trim())) fields.skus = '단품 이름을 넣어 주세요.';
@@ -368,7 +368,7 @@ function presentTypes(): GroupBuyOptionType[] {
     return d.optionTypes.map((x, i) => {
         const using = d.products.filter((p) => p.optionTypeCodes.includes(x.code));
         const used = using.flatMap((p) => p.skus.map((k) => k.values[p.optionTypeCodes.indexOf(x.code)] ?? '')).filter(Boolean);
-        return { ...x, sortOrder: i, productCount: using.length, usedValues: [...new Set(used)] };
+        return { ...x, sortOrder: i, productCount: using.length, usedValues: [...new Set(used)].sort((a, b) => a.localeCompare(b, 'ko')) };
     });
 }
 
@@ -384,10 +384,12 @@ export async function mockOptionTypeSave(items: GroupBuyOptionTypeInput[]): Prom
     const fields: Record<string, string> = {};
     if (items.some((x) => !/^[A-Z][A-Z0-9_]{1,19}$/.test(x.code))) fields.optionTypes = '코드는 영문 대문자로 시작하는 영문 대문자·숫자·_ 2~20자예요.';
     else if (new Set(items.map((x) => x.code)).size !== items.length) fields.optionTypes = '같은 코드가 두 줄 있어요.';
-    else if (items.some((x) => !x.name.trim() || x.name.trim().length > 20)) fields.optionTypes = '이름은 1~20자로 적어 주세요.';
-    const removed = counted.filter((x) => !items.some((y) => y.code === x.code) && x.productCount > 0);
-    if (removed.length) fields.optionTypes = `상품이 쓰는 옵션 종류는 지울 수 없어요: ${removed.map((x) => x.name).join(', ')}`;
+    else if (items.some((x) => !x.name.trim() || x.name.trim().length > 30)) fields.optionTypes = '이름은 1~30자로 적어 주세요.';
+    else if (new Set(items.map((x) => x.name.trim())).size !== items.length) fields.optionTypes = '같은 이름이 두 줄 있어요.';
     if (Object.keys(fields).length) throw MOCK_ERRORS.validation(fields);
+    // 쓰는 상품이 있는 종류를 빼면 409 — 아무것도 지우지 않는다(서버 2b-2 11420d86)
+    const removed = counted.filter((x) => !items.some((y) => y.code === x.code) && x.productCount > 0);
+    if (removed.length) throw MOCK_ERRORS.conflict('GROUP_BUY_OPTION_TYPE_IN_USE', `상품이 쓰는 옵션 종류는 지울 수 없어요: ${removed.map((x) => x.name).join(', ')}`, { codes: removed.map((x) => x.code) });
     d.optionTypes = items.map((x) => ({ code: x.code, name: x.name.trim(), hidden: x.hidden }));
     // 이름이 바뀌면 그 종류를 쓰는 상품의 옵션 이름·축 이름도 따라간다
     for (const p of d.products) {
