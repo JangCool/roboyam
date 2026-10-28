@@ -14,7 +14,7 @@ export type GroupBuyFulfillment = 'IMMEDIATE' | 'AFTER_CLOSE';
 /** 마감 자동 연장 방식 */
 export type GroupBuyExtensionMode = 'DEMAND' | 'ALWAYS';
 /** 종료 사유 `close_reason`(결정 79) */
-export type GroupBuyCloseReason = 'SOLD_OUT' | 'TIME_UP' | 'CANCELED';
+export type GroupBuyCloseReason = 'SOLD_OUT' | 'TIME_UP' | 'EARLY_CLOSED' | 'CANCELED';
 /** 정상가 기준 `normal_price_basis`(결정 58) — 공식 판매처가 · 직전 차수 공구가 · 시가 · 종전 판매가 */
 export type NormalPriceBasis = 'OFFICIAL_STORE' | 'PREVIOUS_ROUND' | 'MARKET' | 'PREVIOUS_SALE';
 export const NORMAL_PRICE_BASES: readonly NormalPriceBasis[] = ['OFFICIAL_STORE', 'PREVIOUS_ROUND', 'MARKET', 'PREVIOUS_SALE'];

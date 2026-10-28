@@ -38,6 +38,7 @@ export default {
     closeReason: {
         SOLD_OUT: '다 팔림',
         TIME_UP: '기간 끝',
+        EARLY_CLOSED: '조기 마감',
         CANCELED: '운영 종료',
     },
     status: {
@@ -88,6 +89,7 @@ export default {
     closeReasonNotice: {
         SOLD_OUT: '다 팔려 마감됐어요.',
         TIME_UP: '모집 기간이 끝났어요.',
+        EARLY_CLOSED: '운영자가 모집을 일찍 마감했어요.',
         CANCELED: '운영 사정으로 공동구매를 종료했어요. 발송 전 주문은 전액 환불돼요.',
     },
     remaining: '남은 수량 {count}개 / 총 {total}개',

@@ -20,7 +20,7 @@
 // ── 목업 가정(계약에 없는 것 — 보고에 적었다) ─
 //   · 모든 금액·수량·미리 보기는 서버 계산 값이라 치고 대충 맞춘 숫자다(`GroupBuyRefundCalculator` 를 흉내 내지 않는다).
 //   · 「모집 시작」= DRAFT → RECRUITING(공개). 시작 시각이 미래면 회원 화면은 그때까지 「예정」 탭.
-//   · 조기 마감의 `close_reason` 은 `TIME_UP` 으로 둔다(결정 79 에 운영 종료 값이 없다 — 미확정).
+//   · 운영자 조기 마감의 `close_reason` 은 `EARLY_CLOSED`(사용자 결정 2026-10-28 — 결정 79 에 더함).
 //   · 취소 요청 거절은 `ALREADY_SHIPPED` 하나뿐이고 사진이 필요 없다. 반품 거절은 그 밖의 코드 + 사진 1~3장.
 
 import { MOCK_ERRORS, mockClone, mockDelay, mockFlags } from '~/composables/common/mock/mock-util';
@@ -455,7 +455,7 @@ export async function mockGroupBuyCloseEarly(id: string, reason: string): Promis
     const g = findGroupBuy(id);
     if (g.status !== 'RECRUITING') throw MOCK_ERRORS.conflict('GROUP_BUY_NOT_RECRUITING', '모집 중인 공구가 아니에요.');
     g.status = 'CLOSING';
-    g.closeReason = 'TIME_UP';
+    g.closeReason = 'EARLY_CLOSED';
     g.closingAt = new Date().toISOString();
     g.updatedAt = g.closingAt;
     return present(g);

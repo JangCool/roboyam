@@ -11,7 +11,7 @@ export type GroupBuyStatus = 'DRAFT' | 'RECRUITING' | 'CLOSING' | 'CLOSED_SUCCES
 /** 목록 탭 — 서버가 상태·시각으로 정한다(예정 = 모집 시작 전 공개, 진행 = 모집 중·집계 중, 종료 = 그 밖) */
 export type GroupBuyPhase = 'UPCOMING' | 'ONGOING' | 'ENDED';
 /** 결정 79 — 다 팔림 · 기간 끝 · 운영 종료(중단) */
-export type GroupBuyCloseReason = 'SOLD_OUT' | 'TIME_UP' | 'CANCELED';
+export type GroupBuyCloseReason = 'SOLD_OUT' | 'TIME_UP' | 'EARLY_CLOSED' | 'CANCELED';
 export type GroupBuyFulfillment = 'IMMEDIATE' | 'AFTER_CLOSE';
 export type GroupBuyExtensionMode = 'DEMAND' | 'ALWAYS';
 export type GroupBuyReturnFeeMode = 'ONE_WAY' | 'ROUND_TRIP';

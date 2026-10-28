@@ -36,6 +36,7 @@ export default {
     closeReason: {
         SOLD_OUT: 'Sold out',
         TIME_UP: 'Time up',
+        EARLY_CLOSED: 'Closed early',
         CANCELED: 'Called off',
     },
     status: {
@@ -86,6 +87,7 @@ export default {
     closeReasonNotice: {
         SOLD_OUT: 'Sold out and closed.',
         TIME_UP: 'The ordering period has ended.',
+        EARLY_CLOSED: 'Ordering was closed early by the operator.',
         CANCELED: 'This group buy was called off. Orders not yet shipped are fully refunded.',
     },
     remaining: '{count} left of {total}',

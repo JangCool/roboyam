@@ -28,7 +28,7 @@ export default {
         CLOSED_FAILED: 'Failed',
         CANCELED: 'Canceled',
     },
-    closeReason: { SOLD_OUT: 'Sold out', TIME_UP: 'Time up', CANCELED: 'Stopped' },
+    closeReason: { SOLD_OUT: 'Sold out', TIME_UP: 'Time up', EARLY_CLOSED: 'Closed early', CANCELED: 'Stopped' },
     fulfillment: { IMMEDIATE: 'Ships immediately', AFTER_CLOSE: 'Ordered after close' },
     fulfillmentHelp: {
         IMMEDIATE: 'In stock — ships as soon as payment is confirmed. Only for first-come group buys (minimum 0).',

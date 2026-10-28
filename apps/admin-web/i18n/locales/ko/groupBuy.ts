@@ -28,7 +28,7 @@ export default {
         CLOSED_FAILED: '불발',
         CANCELED: '중단',
     },
-    closeReason: { SOLD_OUT: '다 팔림', TIME_UP: '기간 끝', CANCELED: '운영 중단' },
+    closeReason: { SOLD_OUT: '다 팔림', TIME_UP: '기간 끝', EARLY_CLOSED: '조기 마감', CANCELED: '운영 중단' },
     fulfillment: { IMMEDIATE: '즉시 발송', AFTER_CLOSE: '마감 후 발주' },
     fulfillmentHelp: {
         IMMEDIATE: '재고를 갖고 있어 결제가 확정되면 바로 보내요. 선착순(성사 수량 0) 공구만 고를 수 있어요.',

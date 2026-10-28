@@ -8,7 +8,7 @@
 //   104 다 팔려 끝난 1차(SOLD_OUT) — 「다음 차수 알림 받기」
 //   105 모집 예정(가격 미리 공개)
 //   106 기간 끝 · 불발(CLOSED_FAILED · TIME_UP)
-//   107 성사 · 발주(ORDERED) · 발송 지연 공지 · 옵션 하나 공급 불가
+//   107 조기 마감(EARLY_CLOSED) · 성사 · 발주(ORDERED) · 발송 지연 공지 · 옵션 하나 공급 불가
 //   108 운영 종료(CANCELED)
 //
 // ── 배송비 정책(모집 시작 때 고정한 사본) ─
@@ -212,7 +212,7 @@ export function seedGroupBuys(): GroupBuyDetail[] {
             title: '스마트 화분 로봇 P2',
             status: 'ORDERED',
             phase: 'ENDED',
-            closeReason: 'TIME_UP',
+            closeReason: 'EARLY_CLOSED',
             minQty: 10,
             maxQty: 50,
             currentQty: 37,

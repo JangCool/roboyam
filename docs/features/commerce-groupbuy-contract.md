@@ -53,7 +53,7 @@
 
 ### 목업 가정 (서버 단계에서 확정)
 - 예정 공구는 상태 이름이 계약에 없어 user-web 목업은 `status` + 서버가 주는 `phase`(`UPCOMING`·`ONGOING`·`ENDED`)로 탭을 가른다. 관리자 「모집 시작」은 DRAFT → RECRUITING 이고 `start_at` 이 미래면 회원 화면은 「예정」.
-- **운영자 조기 마감의 `close_reason`** 이 결정 79(`SOLD_OUT`·`TIME_UP`·`CANCELED`)에 없다 — 관리자 목업은 `TIME_UP`, user-web 은 중단을 `CANCELED`(「운영 종료」)로 그린다. 조기 마감 값 하나를 정해야 한다.
+- **운영자 조기 마감의 `close_reason` = `EARLY_CLOSED`**(사용자 결정 2026-10-28 — 결정 79 에 더함). 두 앱 목업이 이 값을 쓴다(관리자 「조기 마감」, user-web 「조기 마감」 딱지·안내). 중단은 `CANCELED`(「운영 종료」).
 - 반품비 부족분 결제 전 요청 상태를 `AWAITING_PAYMENT` 로 두었다(결정 68 「접수 전」 — 이름 미정).
 - 「마감 임박」은 서버 `closingSoon`(목업 24시간), 「남은 수량 적음」(≤ 5개 또는 ≤ 10%)만 화면 판정. 선점 「5분」은 문구에 박혀 있다 — 상세 응답에 `holdMinutes` 를 받는 것을 권한다.
 - 결제창은 목업에서 늘 가짜 게이트웨이이고 공구 목업이 가짜 결제·완료 요청을 흉내 낸다(REAL 줄은 `usePaymentApi().complete`). 결제 시작 응답에 **구매자 정보 `customer{fullName,phoneNumber,email}`** 를 새로 제안(KG이니시스가 요구 — 서버가 배송지·회원 정보로 채움).
@@ -237,7 +237,7 @@
 ### 재고
 77. **한도 없는 옵션도 옵션 행을 늘 갱신**: 조건만 `max_qty IS NULL OR current_qty + reserved_qty + :q <= max_qty`. 옵션 CHECK `0 ≤ current, 0 ≤ reserved, (max IS NULL OR current + reserved ≤ max)`. 불변식: 옵션 있는 공구는 Σ옵션 current = 공구 current, Σ옵션 reserved = 공구 reserved(옵션 최대 합과 공구 최대는 관계 없음 — 어느 쪽이 커도 된다).
 78. **옵션 전부 다 팔림의 동시 확정**: `onPaid` 의 마감 UPDATE 를 한 문장으로 — `UPDATE group_buys SET status='CLOSING', close_reason='SOLD_OUT' … WHERE id=? AND status='RECRUITING' AND (current_qty = max_qty OR NOT EXISTS (옵션 중 max IS NULL 또는 current < max))`. 두 옵션의 마지막 1개가 동시에 확정돼 서로 못 보는 경우는 1분 워커 안전망이 같은 조건으로 잡는다(10-7 ③에 옵션 조건을 더한다).
-79. **종료 사유 열** `group_buys.close_reason`(`SOLD_OUT`·`TIME_UP`·`CANCELED`) — CLOSING 전이와 같은 문장에서 기록. 다 팔림 뒤 CLOSING 중 취소로 수량이 줄어도 표시·「다음 차수 알림 받기」·목록 탭은 이 열로.
+79. **종료 사유 열** `group_buys.close_reason`(`SOLD_OUT` 다 팔림 · `TIME_UP` 기간 끝 · **`EARLY_CLOSED` 운영자 조기 마감**(사용자 결정 2026-10-28) · `CANCELED` 중단) — CLOSING 전이와 같은 문장에서 기록. 다 팔림 뒤 CLOSING 중 취소로 수량이 줄어도 표시·「다음 차수 알림 받기」·목록 탭은 이 열로.
 80. **처음 수량과 추가 입고 표시**: `initial_max_qty`(모집 시작 때 고정, 옵션도) — 「추가 입고 N개」 = max(0, `max_qty − initial_max_qty`), `added_qty` = ADD 합. 불변식 `max_qty = initial_max_qty + ΣADD − ΣREDUCE`(이동 줄 기준, 모집 시작 이후만). 옵션 추가 입고·줄이기는 **같은 수만큼 공구 최대도** 움직인다. 한도 없는 옵션에는 옵션 ADD/REDUCE 를 거절(공구 ADD 로).
 81. **모집 중 본인 취소로 풀린 수량도 「수량 풀림」**: 알림(신청자)과 DEMAND 연장 조건(결정 25)에 CANCEL 을 더한다. 알림은 공구·옵션 둘 다 남은 수량 > 0 일 때만(헛알림 방지). 연장 판단은 이동 줄 `kind IN (RELEASE, CANCEL, RESTOCK, ADD) AND created_at ∈ [end_at − 5분, 판단 시각]` — 색인 `(group_buy_id, created_at)`.
 82. **이동 줄의 이후 값은 조건부 UPDATE … RETURNING 으로**(따로 SELECT 하면 다른 트랜잭션 값이 섞인다). 「마지막」은 `id` 순. CONFIRM·RELEASE 조건에 `reserved_qty >= :q` 를 넣고, 0 행이면 REJECT + `COMMERCE_ORDER_ANOMALY`(불변식이 이미 깨진 상태).
