@@ -300,6 +300,27 @@ public final class AuditActions {
     public static final String GROUPBUY_CATEGORY_SAVE = "GROUPBUY_CATEGORY_SAVE";
     /** 공구 옵션 종류 저장(2b-1 사용자 결정) — 대상 GROUP_BUY_OPTION_TYPE + 코드(목록 통째면 ALL), {@code codes} 또는 {@code name}·{@code hidden}. 일반 */
     public static final String GROUPBUY_OPTION_TYPE_SAVE = "GROUPBUY_OPTION_TYPE_SAVE";
+    // ── 2b-3 공구 발송·요청·환불 — 대상 GROUP_BUY_ORDER(주문 ID)·GROUP_BUY_REQUEST(요청 ID)·GROUP_BUY(공구 ID)·COMMERCE_BANK_TRANSFER·COMMERCE_CARRIER ──
+    /** 발주·준비중·발송·배송완료·송장 정정 — {@code step}·건수. 일반 */
+    public static final String GROUPBUY_FULFILLMENT = "GROUPBUY_FULFILLMENT";
+    /** 운영 환불(요청 없이 — 결정 32)·승인 대기 승인 — {@code amount}·{@code reason}·{@code sellerFault}. 돈 관련 */
+    public static final String GROUPBUY_REFUND = "GROUPBUY_REFUND";
+    /** 취소·반품 요청 승인·완료(환불) — {@code amount}·{@code previewAmount}·{@code compensation}. 돈 관련 */
+    public static final String GROUPBUY_REQUEST_APPROVE = "GROUPBUY_REQUEST_APPROVE";
+    /** 요청 거절 — {@code reasonCode}·근거 사진 수(계약·청약철회 기록 5년 — 결정 55). 돈 관련 */
+    public static final String GROUPBUY_REQUEST_REJECT = "GROUPBUY_REQUEST_REJECT";
+    /** 반품 처리 방법(다시 판매 포함 — 결정 15) — 줄마다 방법·수량. 돈 관련 */
+    public static final String GROUPBUY_RETURN_DISPOSE = "GROUPBUY_RETURN_DISPOSE";
+    /** 단품 공급 불가 처리(결정 53) — {@code skuId}·환불 건수·선택을 묻는 건수. 돈 관련 */
+    public static final String GROUPBUY_SUPPLY_FAILURE = "GROUPBUY_SUPPLY_FAILURE";
+    /** 계좌 송금 전환·송금 완료(결정 6·67) — {@code step}·{@code amount}(계좌는 싣지 않는다). 돈 관련 */
+    public static final String GROUPBUY_BANK_TRANSFER = "GROUPBUY_BANK_TRANSFER";
+    /** 배송지 열람(사유 — 10-9) — {@code reason}. 개인정보 열람 */
+    public static final String GROUPBUY_ADDRESS_REVEAL = "GROUPBUY_ADDRESS_REVEAL";
+    /** 배송 명단 내보내기 — {@code rowCount}·{@code reason}(평문 없음). 개인정보 열람 */
+    public static final String GROUPBUY_SHIPPING_EXPORT = "GROUPBUY_SHIPPING_EXPORT";
+    /** 택배사 목록 저장(결정 11) — {@code codes}. 일반 */
+    public static final String COMMERCE_CARRIER_SAVE = "COMMERCE_CARRIER_SAVE";
     /** 배송비 정책 줄 추가(예약) — 대상 SHIPPING_POLICY + 줄 ID, {@code code}·{@code effectiveFrom}·{@code before}/{@code after}. 돈 관련 */
     public static final String COMMERCE_SHIPPING_POLICY_CREATE = "COMMERCE_SHIPPING_POLICY_CREATE";
 

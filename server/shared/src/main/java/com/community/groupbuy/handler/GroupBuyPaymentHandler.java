@@ -65,17 +65,19 @@ public class GroupBuyPaymentHandler implements PaymentOrderHandler {
     private final GroupBuyRefundStore refunds;
     private final GroupBuyQtyService qty;
     private final GroupBuySavepoint savepoint;
+    private final GroupBuyManualRefunds manual;
     private final SnowflakeIdGenerator ids;
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public GroupBuyPaymentHandler(ParticipationStore participations, GroupBuyStore groups, GroupBuyRefundStore refunds, GroupBuyQtyService qty, GroupBuySavepoint savepoint,
-                                  SnowflakeIdGenerator ids, ApplicationEventPublisher events, ObjectProvider<Clock> clocks) {
+                                  GroupBuyManualRefunds manual, SnowflakeIdGenerator ids, ApplicationEventPublisher events, ObjectProvider<Clock> clocks) {
         this.participations = participations;
         this.groups = groups;
         this.refunds = refunds;
         this.qty = qty;
         this.savepoint = savepoint;
+        this.manual = manual;
         this.ids = ids;
         this.events = events;
         this.clock = clocks.getIfUnique(Clock::systemUTC);
@@ -177,6 +179,12 @@ public class GroupBuyPaymentHandler implements PaymentOrderHandler {
         }
         refunds.completeByCancel(cancellation.cancelId(), clock.instant().truncatedTo(ChronoUnit.MICROS))
                 .ifPresent(refund -> events.publishEvent(new GroupBuyEvents.RefundCompleted(refund.id(), refund.participationId(), refund.userId())));
+    }
+
+    /** 운영자가 멈춘 환불을 직접 처리했다(결정 16·67·74) — 환불 기록 MANUAL 또는 계좌 송금 전환 */
+    @Override
+    public void onCancelResolvedManually(com.community.payment.dto.ManualCancelResolution resolution) {
+        manual.resolve(resolution);
     }
 
     /** 받아들이기를 되돌리는 도메인 사정(세이브포인트 밖으로 사유를 싣는다) */

@@ -132,6 +132,10 @@ final class GroupBuyTestKit {
     final List<AuditEvent> audits = new CopyOnWriteArrayList<>();
     final List<AdminNotificationEvent> operatorNotices = new CopyOnWriteArrayList<>();
     volatile boolean salesOpen = true;
+    /** 가짜 PG 취소를 거절하게(PG 취소 기간 지남 — 결정 67) */
+    volatile boolean pgCancelDown = false;
+    /** 에스크로 배송 정보 등록을 이만큼 실패하게(재시도 표 — 결정 64) */
+    final java.util.concurrent.atomic.AtomicInteger escrowFailures = new java.util.concurrent.atomic.AtomicInteger();
 
     final GroupBuyAdminService admin;
     final ShippingPolicyService policies;
@@ -154,6 +158,16 @@ final class GroupBuyTestKit {
     final PaymentCancelStore paymentCancels;
     final PaymentConfirmService confirm;
     final PaymentCancelWorker cancelWorker;
+    final com.community.groupbuy.service.FulfillmentService fulfillment;
+    final com.community.groupbuy.service.GroupBuyRequestService requests;
+    final com.community.groupbuy.service.GroupBuyAdminRefundService adminRefunds;
+    final com.community.groupbuy.service.GroupBuySupplyService supply;
+    final com.community.groupbuy.service.BankTransferService bankTransfers;
+    final com.community.groupbuy.service.AddressRevealService addresses;
+    final com.community.groupbuy.service.GroupBuyEscrowWorker escrowWorker;
+    final com.community.groupbuy.service.GroupBuyFulfillmentWorker fulfillmentWorker;
+    final com.community.payment.service.PaymentCancelManualService manualCancels;
+    final FakePaymentGateway fakeGateway;
     final long operator;
 
     static synchronized GroupBuyTestKit get() {
@@ -267,7 +281,24 @@ final class GroupBuyTestKit {
         PaymentGateway paymentGateway(DataSource dataSource, PlatformTransactionManager transactions, Clock clock) {
             TransactionTemplate separate = new TransactionTemplate(transactions);
             separate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-            return new FakePaymentGateway(new FakePgStore(dataSource), separate, clock);
+            return new FakePaymentGateway(new FakePgStore(dataSource), separate, clock) {
+                @Override
+                public com.community.payment.gateway.PgCancelResult cancel(String paymentId, long amount, long currentCancellableAmount, String reason) {
+                    if (current.pgCancelDown) {
+                        return com.community.payment.gateway.PgCancelResult.failed(null, "CANCELLABLE_PERIOD_EXPIRED");
+                    }
+                    return super.cancel(paymentId, amount, currentCancellableAmount, reason);
+                }
+
+                @Override
+                public com.community.payment.gateway.EscrowResult registerEscrowLogistics(String paymentId, com.community.payment.gateway.EscrowLogistics logistics,
+                                                                                         boolean update) {
+                    if (current.escrowFailures.getAndUpdate(n -> Math.max(0, n - 1)) > 0) {
+                        return com.community.payment.gateway.EscrowResult.failed("TEMPORARY");
+                    }
+                    return super.registerEscrowLogistics(paymentId, logistics, update);
+                }
+            };
         }
 
         @Bean
@@ -316,6 +347,12 @@ final class GroupBuyTestKit {
                                                     PaymentGateway gateway, PaymentAnomalyService anomalies, PaymentProperties properties, SnowflakeIdGenerator ids,
                                                     PlatformTransactionManager transactions, ObjectProvider<Clock> clocks) {
             return new PaymentCancelExecutor(orders, cancels, events, handlers, gateway, anomalies, properties, ids, transactions, NODE_ID, clocks);
+        }
+
+        @Bean
+        com.community.payment.service.PaymentCancelManualService paymentCancelManualService(PaymentOrderStore orders, PaymentCancelStore cancels, PaymentEventStore events,
+                                                                                            PaymentOrderHandlers handlers, SnowflakeIdGenerator ids, ObjectProvider<Clock> clocks) {
+            return new com.community.payment.service.PaymentCancelManualService(orders, cancels, events, handlers, ids, clocks);
         }
 
         @Bean
@@ -383,6 +420,16 @@ final class GroupBuyTestKit {
         paymentCancels = spring.getBean(PaymentCancelStore.class);
         confirm = spring.getBean(PaymentConfirmService.class);
         cancelWorker = spring.getBean(PaymentCancelWorker.class);
+        fulfillment = spring.getBean(com.community.groupbuy.service.FulfillmentService.class);
+        requests = spring.getBean(com.community.groupbuy.service.GroupBuyRequestService.class);
+        adminRefunds = spring.getBean(com.community.groupbuy.service.GroupBuyAdminRefundService.class);
+        supply = spring.getBean(com.community.groupbuy.service.GroupBuySupplyService.class);
+        bankTransfers = spring.getBean(com.community.groupbuy.service.BankTransferService.class);
+        addresses = spring.getBean(com.community.groupbuy.service.AddressRevealService.class);
+        escrowWorker = spring.getBean(com.community.groupbuy.service.GroupBuyEscrowWorker.class);
+        fulfillmentWorker = spring.getBean(com.community.groupbuy.service.GroupBuyFulfillmentWorker.class);
+        manualCancels = spring.getBean(com.community.payment.service.PaymentCancelManualService.class);
+        fakeGateway = (FakePaymentGateway) spring.getBean(PaymentGateway.class);
         operator = newOperator();
         category = products.createCategory("시험 " + ids.nextId(), null, 0, operator, "127.0.0.1");
     }
@@ -400,6 +447,8 @@ final class GroupBuyTestKit {
     /** 시험 하나의 시작 — 판매 스위치 켜기, 모은 이벤트·감사 비우기, 시계를 조금 앞으로(앞 시험과 같은 시각을 쓰지 않게) */
     void reset() {
         salesOpen = true;
+        pgCancelDown = false;
+        escrowFailures.set(0);
         events.clear();
         audits.clear();
         operatorNotices.clear();
@@ -483,6 +532,7 @@ final class GroupBuyTestKit {
         boolean roundLimitShared = false;
         Long supply = 10_000L;
         long categoryId = category;
+        String withdrawalRestriction = null;
         List<GroupBuyDraft.AxisDraft> axes = new ArrayList<>();
         /** 조합(값 이름 「 / 」 이음, 축 없으면 "") → 공구 단품 설정 */
         java.util.Map<String, Combo> combos = new java.util.LinkedHashMap<>();
@@ -595,6 +645,12 @@ final class GroupBuyTestKit {
             return this;
         }
 
+        /** 상품의 청약철회 제한 안내(결정 55) */
+        Spec withdrawalRestriction(String text) {
+            withdrawalRestriction = text;
+            return this;
+        }
+
         Spec shared() {
             roundLimitShared = true;
             return this;
@@ -615,7 +671,7 @@ final class GroupBuyTestKit {
                 String name = combination.isEmpty() ? productName : String.join(" / ", combination);
                 skus.add(new ProductDraft.SkuDraft(existing.get(name), name, combination, supply, true));
             }
-            return new ProductDraft(categoryId, productName, "요약", "사양", "<p>설명</p>", null, null, null, null, axes.stream().map(x -> optionType(x.name())).toList(),
+            return new ProductDraft(categoryId, productName, "요약", "사양", "<p>설명</p>", null, null, null, withdrawalRestriction, axes.stream().map(x -> optionType(x.name())).toList(),
                     skus, List.of(new GroupBuyDraft.ImageRef("img/a.jpg", "img/a-t.jpg")));
         }
 
@@ -798,6 +854,32 @@ final class GroupBuyTestKit {
 
     JoinResult paidOrder(long userId, long groupBuyId, int qty) {
         return paidOrder(userId, groupBuyId, lines(mainSku(groupBuyId), qty));
+    }
+
+    // ── 발송(2b-3) ──────────────────────────────────────────────────────────
+
+    /** 발송 처리(CJ, 송장 자동) — 성공해야 한다 */
+    void ship(long participationId) {
+        var result = fulfillment.ship(List.of(new com.community.groupbuy.service.FulfillmentService.ShipLine(participationId, "CJ", "6" + Long.toString(ids.nextId()).substring(8))),
+                operator, "127.0.0.1");
+        assertThat(result.succeeded()).as("발송 " + result.results()).isEqualTo(1);
+    }
+
+    void deliver(long participationId) {
+        assertThat(fulfillment.deliver(List.of(participationId), operator, "127.0.0.1").succeeded()).isEqualTo(1);
+    }
+
+    /** 주문 + 결제 + 발송 + 배송완료(즉시 발송 공구) */
+    JoinResult delivered(long userId, long groupBuyId, List<OrderLine> lines) {
+        JoinResult joined = paidOrder(userId, groupBuyId, lines);
+        ship(joined.participationId());
+        deliver(joined.participationId());
+        return joined;
+    }
+
+    /** 그 주문의 결제 취소를 모두 끝낸다(가짜 PG — 커밋 뒤 즉시 시도가 실패했으면 워커) */
+    void settleCancels() {
+        cancelWorker.runOnce();
     }
 
     ParticipationRow participation(long id) {

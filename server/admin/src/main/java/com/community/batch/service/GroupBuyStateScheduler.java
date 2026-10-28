@@ -3,6 +3,7 @@ package com.community.batch.service;
 import com.community.batch.config.BatchProperties;
 import com.community.batch.core.WorkerHeartbeats;
 import com.community.groupbuy.service.GroupBuyRefundWorker;
+import com.community.groupbuy.service.GroupBuyFulfillmentWorker;
 import com.community.groupbuy.service.GroupBuyStateWorker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,12 +28,15 @@ public class GroupBuyStateScheduler {
     private final BatchProperties properties;
     private final GroupBuyStateWorker stateWorker;
     private final GroupBuyRefundWorker refundWorker;
+    private final GroupBuyFulfillmentWorker fulfillmentWorker;
     private final WorkerHeartbeats heartbeats;
 
-    public GroupBuyStateScheduler(BatchProperties properties, GroupBuyStateWorker stateWorker, GroupBuyRefundWorker refundWorker, WorkerHeartbeats heartbeats) {
+    public GroupBuyStateScheduler(BatchProperties properties, GroupBuyStateWorker stateWorker, GroupBuyRefundWorker refundWorker, GroupBuyFulfillmentWorker fulfillmentWorker,
+                                  WorkerHeartbeats heartbeats) {
         this.properties = properties;
         this.stateWorker = stateWorker;
         this.refundWorker = refundWorker;
+        this.fulfillmentWorker = fulfillmentWorker;
         this.heartbeats = heartbeats;
     }
 
@@ -66,6 +70,23 @@ public class GroupBuyStateScheduler {
         } catch (RuntimeException e) {
             log.error("공구 환불 워커 한 바퀴가 실패했다 원인={}", e.getClass().getSimpleName());
             heartbeats.failure(GroupBuyRefundWorker.WORKER_KEY, e);
+            return 0;
+        }
+    }
+
+    /** 발송·요청 워커(에스크로 대기열·부족분 미결제 요청 닫기·공급 불가 기본 선택 — 2b-3). @return 다룬 건수(배치를 끈 서버면 -1) */
+    @Scheduled(initialDelayString = "${roboyam.groupbuy.fulfillment-poll-millis:60000}", fixedDelayString = "${roboyam.groupbuy.fulfillment-poll-millis:60000}")
+    public int fulfillmentTick() {
+        if (!properties.enabled()) {
+            return -1;
+        }
+        try {
+            int handled = fulfillmentWorker.runOnce();
+            heartbeats.success(GroupBuyFulfillmentWorker.WORKER_KEY, handled);
+            return handled;
+        } catch (RuntimeException e) {
+            log.error("공구 발송·요청 워커 한 바퀴가 실패했다 원인={}", e.getClass().getSimpleName());
+            heartbeats.failure(GroupBuyFulfillmentWorker.WORKER_KEY, e);
             return 0;
         }
     }

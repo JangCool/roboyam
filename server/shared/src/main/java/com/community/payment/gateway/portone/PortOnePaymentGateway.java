@@ -2,6 +2,8 @@ package com.community.payment.gateway.portone;
 
 import com.community.payment.exception.PaymentGatewayUnavailableException;
 import com.community.payment.exception.PaymentNotConfiguredException;
+import com.community.payment.gateway.EscrowLogistics;
+import com.community.payment.gateway.EscrowResult;
 import com.community.payment.gateway.PaymentCheckoutInfo;
 import com.community.payment.gateway.PaymentGateway;
 import com.community.payment.gateway.PaymentGatewayKind;
@@ -132,6 +134,77 @@ public class PortOnePaymentGateway implements PaymentGateway {
             return PgCancelResult.failed(null, type);
         }
         log.warn("포트원 결제 취소 실패 status={} type={}", response.status(), type);
+        throw new PaymentGatewayUnavailableException();
+    }
+
+    @Override
+    public EscrowResult registerEscrowLogistics(String paymentId, EscrowLogistics logistics, boolean update) {
+        PortOnePaymentCredentials credentials = credentials();
+        if (!escrowPayment(paymentId, credentials)) {
+            return EscrowResult.notEscrow();
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("storeId", credentials.storeId());
+        body.put("logistics", Map.of("company", logistics.carrierCode(), "invoiceNumber", logistics.trackingNo(), "sentAt", logistics.sentAt().toString()));
+        String json = JSON.writeValueAsString(body);
+        Response response = exchange("에스크로 배송 정보", () -> (update ? http.patch() : http.post())
+                .uri("/payments/{id}/escrow/logistics", paymentId)
+                .header(HttpHeaders.AUTHORIZATION, "PortOne " + credentials.apiSecret())
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .body(json)
+                .exchange((request, raw) -> new Response(raw.getStatusCode().value(), new String(raw.getBody().readAllBytes(), StandardCharsets.UTF_8))));
+        return escrowResult("에스크로 배송 정보", response);
+    }
+
+    @Override
+    public EscrowResult completeEscrow(String paymentId) {
+        PortOnePaymentCredentials credentials = credentials();
+        if (!escrowPayment(paymentId, credentials)) {
+            return EscrowResult.notEscrow();
+        }
+        String json = JSON.writeValueAsString(Map.of("storeId", credentials.storeId(), "fromStore", true));
+        Response response = exchange("에스크로 구매 확정", () -> http.post()
+                .uri("/payments/{id}/escrow/complete", paymentId)
+                .header(HttpHeaders.AUTHORIZATION, "PortOne " + credentials.apiSecret())
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .body(json)
+                .exchange((request, raw) -> new Response(raw.getStatusCode().value(), new String(raw.getBody().readAllBytes(), StandardCharsets.UTF_8))));
+        return escrowResult("에스크로 구매 확정", response);
+    }
+
+    /** 결제 단건 조회 본문에 {@code escrow} 가 있으면 에스크로 결제다(포트원 V2 — 실제 응답 모양은 2b-5 에서 확인) */
+    private boolean escrowPayment(String paymentId, PortOnePaymentCredentials credentials) {
+        Response response = exchange("결제 조회", () -> http.get()
+                .uri(uri -> uri.path("/payments/{id}").queryParam("storeId", credentials.storeId()).build(paymentId))
+                .header(HttpHeaders.AUTHORIZATION, "PortOne " + credentials.apiSecret())
+                .accept(MediaType.APPLICATION_JSON)
+                .exchange((request, raw) -> new Response(raw.getStatusCode().value(), new String(raw.getBody().readAllBytes(), StandardCharsets.UTF_8))));
+        if (response.status() != 200) {
+            log.warn("포트원 결제 조회 실패 status={} type={}", response.status(), PortOnePaymentParser.errorType(response.body()));
+            throw new PaymentGatewayUnavailableException();
+        }
+        return parse(() -> {
+            var escrow = JSON.readTree(response.body()).get("escrow");
+            return escrow != null && !escrow.isNull();
+        });
+    }
+
+    /** 200 → 마침, 4xx 중 「이미」(ALREADY…) → 마침, 그 밖 4xx → 거절(재시도), 5xx → 503 */
+    private static EscrowResult escrowResult(String what, Response response) {
+        if (response.status() == 200) {
+            return EscrowResult.done();
+        }
+        String type = PortOnePaymentParser.errorType(response.body());
+        if (response.status() >= 400 && response.status() < 500) {
+            if (type != null && type.contains("ALREADY")) {
+                return EscrowResult.done();
+            }
+            log.warn("포트원 {} 거절 status={} type={}", what, response.status(), type);
+            return EscrowResult.failed(type);
+        }
+        log.warn("포트원 {} 실패 status={} type={}", what, response.status(), type);
         throw new PaymentGatewayUnavailableException();
     }
 

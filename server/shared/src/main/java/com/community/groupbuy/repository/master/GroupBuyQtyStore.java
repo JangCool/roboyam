@@ -120,6 +120,22 @@ public class GroupBuyQtyStore {
                 + "AND max_qty - ? >= 1 RETURNING current_qty, reserved_qty, max_qty", qty, skuId, groupBuyId, qty, qty);
     }
 
+    /** 단품 다시 판매(확정 감소 — 공구 행 조건은 {@link #groupRestock} 이 먼저) */
+    public Optional<After> skuRestock(long skuId, int qty) {
+        return one("UPDATE group_buy_skus SET current_qty = current_qty - ? WHERE id = ? AND current_qty >= ? RETURNING current_qty, reserved_qty, max_qty", qty, skuId, qty);
+    }
+
+    /** 수량을 바꾸지 않고 지금 값을 읽는다(기록만 하는 이동 RETURN·EXCHANGE_OUT 의 이후 값 — 결정 82: 따로 SELECT 하지 않고 같은 문장으로) */
+    public Optional<After> skuTouch(long skuId) {
+        return one("UPDATE group_buy_skus SET current_qty = current_qty WHERE id = ? RETURNING current_qty, reserved_qty, max_qty", skuId);
+    }
+
+    /** 공급 불가 줄이기(결정 53 — 모집 상태와 관계없이, 하한 = max(확정 + 선점, 성사형 최소, 1) — 최소 수량 CHECK 는 DB 가 지킨다) */
+    public Optional<After> groupReduceAnyStatus(long groupBuyId, int qty) {
+        return one("UPDATE group_buys SET max_qty = max_qty - ? WHERE id = ? AND max_qty - ? >= current_qty + reserved_qty AND max_qty - ? >= min_qty AND max_qty - ? >= 1 "
+                + "RETURNING current_qty, reserved_qty, max_qty", qty, groupBuyId, qty, qty, qty);
+    }
+
     // ── 이동 줄 ─────────────────────────────────────────────────────────────
 
     /** 수량 이동 한 줄 — 공구 이후 값은 공구 행을 바꾼 이동만({@code group} null 이면 비움), 단품 이후 값은 단품 이동만 */

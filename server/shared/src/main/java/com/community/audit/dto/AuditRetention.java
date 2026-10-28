@@ -33,13 +33,18 @@ public final class AuditRetention {
             AuditActions.RECONCILE_ISSUE_RESOLVE, AuditActions.PAYMENT_CANCEL_RETRY, AuditActions.PAYMENT_CANCEL_MANUAL, AuditActions.PAYMENT_RECHECK,
             // 공구 중단(환불)·수량 조정·추가 차수·배송비 정책 — 돈이 움직이거나 판매 조건(값)을 바꾸는 일(commerce-groupbuy-contract 「감사·오류 코드 후보」)
             AuditActions.GROUPBUY_CANCEL, AuditActions.GROUPBUY_SUPPLY_PRICE, AuditActions.GROUPBUY_STOCK_ADD, AuditActions.GROUPBUY_STOCK_REDUCE, AuditActions.GROUPBUY_ROUND_CREATE,
-            AuditActions.COMMERCE_SHIPPING_POLICY_CREATE);
+            AuditActions.COMMERCE_SHIPPING_POLICY_CREATE,
+            // 공구 환불·요청 승인·거절·반품 처리·공급 불가·계좌 송금 — 돈이 움직이거나 청약철회 기록(commerce-groupbuy-contract 결정 55·70)
+            AuditActions.GROUPBUY_REFUND, AuditActions.GROUPBUY_REQUEST_APPROVE, AuditActions.GROUPBUY_REQUEST_REJECT, AuditActions.GROUPBUY_RETURN_DISPOSE,
+            AuditActions.GROUPBUY_SUPPLY_FAILURE, AuditActions.GROUPBUY_BANK_TRANSFER);
 
     private static final Set<String> PERSONAL_DATA = Set.of(
             AuditActions.MEMBER_VIEW,
             AuditActions.WITHDRAWN_CONTACT_REVEAL,
             // 결제 주문 상세(회원 번호·닉네임 — commerce-payment-contract 결정 17)
-            AuditActions.PAYMENT_ORDER_VIEW);
+            AuditActions.PAYMENT_ORDER_VIEW,
+            // 공구 배송지 열람·배송 명단 내보내기(commerce.md 10-9)
+            AuditActions.GROUPBUY_ADDRESS_REVEAL, AuditActions.GROUPBUY_SHIPPING_EXPORT);
 
     /** 일반 운영으로 <b>정한</b> 행위 — 빠뜨린 것과 구별하려고 나열한다 */
     private static final Set<String> GENERAL = Set.of(
@@ -95,7 +100,9 @@ public final class AuditRetention {
             AuditActions.PAYMENT_RECONCILE_RERUN,
             // 공구 등록·수정·모집 시작·조기 마감·발송 지연 공지 — 일반 운영(commerce-groupbuy-contract 「감사·오류 코드 후보」 — 돈은 중단·환불이 움직인다)
             AuditActions.GROUPBUY_CREATE, AuditActions.GROUPBUY_UPDATE, AuditActions.GROUPBUY_START, AuditActions.GROUPBUY_CLOSE_EARLY, AuditActions.GROUPBUY_DELAY_NOTICE,
-            AuditActions.GROUPBUY_PRODUCT_SAVE, AuditActions.GROUPBUY_CATEGORY_SAVE, AuditActions.GROUPBUY_OPTION_TYPE_SAVE);
+            AuditActions.GROUPBUY_PRODUCT_SAVE, AuditActions.GROUPBUY_CATEGORY_SAVE, AuditActions.GROUPBUY_OPTION_TYPE_SAVE,
+            // 발주·발송·배송완료·택배사 — 일반 운영(돈은 환불이 움직인다)
+            AuditActions.GROUPBUY_FULFILLMENT, AuditActions.COMMERCE_CARRIER_SAVE);
 
     private static final Map<String, AuditRetentionClass> TABLE = table();
 

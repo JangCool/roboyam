@@ -10,6 +10,7 @@ import com.community.batch.entity.BatchRequestKind;
 import com.community.payment.batch.PaymentReconciliationJob;
 import com.community.payment.dto.CancelStatus;
 import com.community.payment.dto.ConfirmedVia;
+import com.community.payment.dto.ManualCancelMethod;
 import com.community.payment.dto.response.PaymentCancelView;
 import com.community.payment.dto.response.PaymentRecheckView;
 import com.community.payment.dto.response.ReconcileDayView;
@@ -77,6 +78,7 @@ public class PaymentAdminActionService {
     private final PaymentConfirmService confirm;
     private final PaymentWebhookService webhooks;
     private final PaymentAdminReadService read;
+    private final PaymentCancelManualService manual;
     private final BatchRequestQueue requests;
     private final AuditLogService audit;
     private final SnowflakeIdGenerator ids;
@@ -85,7 +87,7 @@ public class PaymentAdminActionService {
 
     public PaymentAdminActionService(PaymentOrderStore orders, PaymentCancelStore cancels, PaymentEventStore events, ReconciliationIssueStore issues,
                                      PaymentAdminQueries queries, PaymentConfirmService confirm, PaymentWebhookService webhooks, PaymentAdminReadService read,
-                                     BatchRequestQueue requests, AuditLogService audit, SnowflakeIdGenerator ids, PlatformTransactionManager transactions,
+                                     PaymentCancelManualService manual, BatchRequestQueue requests, AuditLogService audit, SnowflakeIdGenerator ids, PlatformTransactionManager transactions,
                                      ObjectProvider<Clock> clocks) {
         this.orders = orders;
         this.cancels = cancels;
@@ -95,6 +97,7 @@ public class PaymentAdminActionService {
         this.confirm = confirm;
         this.webhooks = webhooks;
         this.read = read;
+        this.manual = manual;
         this.requests = requests;
         this.audit = audit;
         this.ids = ids;
@@ -122,12 +125,16 @@ public class PaymentAdminActionService {
     /** 멈춘 취소 수동 처리 완료(표시만 — 취소 누계 불변) — GAVE_UP 이 아니면 409 */
     @Transactional
     public PaymentCancelView manualCancel(long cancelId, String reason, long operatorId, String ip) {
+        return manualCancel(cancelId, reason, null, null, operatorId, ip);
+    }
+
+    /**
+     * 멈춘 취소 수동 처리 완료 + 실제 처리 방법(공구 계약 결정 74 — 콘솔 취소면 취소 ID 를 붙이고 취소 누계까지, 계좌 송금이면 누계 그대로). GAVE_UP 이 아니면 409.
+     */
+    @Transactional
+    public PaymentCancelView manualCancel(long cancelId, String reason, ManualCancelMethod method, String pgCancelId, long operatorId, String ip) {
         String note = reasonOf(reason);
-        CancelRow cancel = lockGaveUp(cancelId);
-        Instant now = now();
-        cancels.markManual(cancelId, operatorId, note, now);
-        events.insert(ids.nextId(), cancel.paymentOrderId(), PaymentEventStore.Kind.CANCEL_MANUAL,
-                Map.of("cancelId", Long.toString(cancelId), "kind", cancel.kind().name(), "amount", cancel.amount()), now);
+        CancelRow cancel = manual.resolve(cancelId, method, pgCancelId, note, operatorId);
         auditCancel(AuditActions.PAYMENT_CANCEL_MANUAL, cancel, note, operatorId, ip);
         return read.cancel(cancelId);
     }

@@ -1,5 +1,7 @@
 package com.community.payment.gateway.fake;
 
+import com.community.payment.gateway.EscrowLogistics;
+import com.community.payment.gateway.EscrowResult;
 import com.community.payment.gateway.PaymentCheckoutInfo;
 import com.community.payment.gateway.PaymentGateway;
 import com.community.payment.gateway.PaymentGatewayKind;
@@ -74,6 +76,28 @@ public class FakePaymentGateway implements PaymentGateway {
             return PgCancelResult.failed(null, outcome == null ? "?" : outcome.errorType());
         }
         return PgCancelResult.succeeded(outcome.cancellationId());
+    }
+
+    /** 에스크로 호출 기록(local·시험 — 가짜 PG 는 기록만 하고 늘 마침, 계약 결정 4) */
+    public record EscrowCall(String paymentId, String kind, EscrowLogistics logistics) {
+    }
+
+    private final List<EscrowCall> escrowCalls = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public List<EscrowCall> escrowCalls() {
+        return List.copyOf(escrowCalls);
+    }
+
+    @Override
+    public EscrowResult registerEscrowLogistics(String paymentId, EscrowLogistics logistics, boolean update) {
+        escrowCalls.add(new EscrowCall(paymentId, update ? "LOGISTICS_UPDATE" : "LOGISTICS", logistics));
+        return EscrowResult.done();
+    }
+
+    @Override
+    public EscrowResult completeEscrow(String paymentId) {
+        escrowCalls.add(new EscrowCall(paymentId, "COMPLETE", null));
+        return EscrowResult.done();
     }
 
     @Override

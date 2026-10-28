@@ -204,6 +204,62 @@ public class GroupBuyQtyService {
         return new StockChange(groupBuyId, after.maxQty(), after.addedQty(), s == null ? null : s.max(), closed);
     }
 
+    /** 반품 기록(RETURN — 수량 불변, 폐기·공급처 반송·보관 — 결정 15·28). 처리 방법은 사유 칸에 */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void recordReturn(long groupBuyId, ItemRow item, int count, String disposition, Long actorId, Instant now) {
+        After s = qty.skuTouch(item.skuId()).orElseThrow();
+        movement(groupBuyId, item, item.participationId(), QtyMovementKind.RETURN, count, null, s, disposition, actorId, now);
+    }
+
+    /**
+     * 다시 판매(RESTOCK — 결정 15·25): 공구가 모집 중이고 다 팔리기 전일 때만 확정 수량을 줄여 남은 수량을 늘린다(마감과 겨뤄도 하나만 이긴다 — 결정 27). MAIN 이면 공구 행도.
+     *
+     * @throws GroupBuyException 모집 중이 아니다({@code NOT_RESELLABLE})
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void restock(long groupBuyId, ItemRow item, int count, Long actorId, Instant now) {
+        After g = qty.groupRestock(groupBuyId, item.main() ? count : 0).orElseThrow(GroupBuyException::notResellable);
+        After s = qty.skuRestock(item.skuId(), count).orElseThrow(() -> new IllegalStateException("단품 확정 수량이 모자란다 — 불변식이 깨졌다 skuId=" + item.skuId()));
+        movement(groupBuyId, item, item.participationId(), QtyMovementKind.RESTOCK, count, item.main() ? g : null, s, "RESELL", actorId, now);
+        events.publishEvent(new GroupBuyEvents.QtyReleased(groupBuyId, item.skuId(), QtyMovementKind.RESTOCK));
+    }
+
+    /** 교환 출고(EXCHANGE_OUT — 판매 수량 그대로, 기록만 — 결정 54) */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void exchangeOut(long groupBuyId, ItemRow item, int count, Long actorId, Instant now) {
+        After s = qty.skuTouch(item.skuId()).orElseThrow();
+        movement(groupBuyId, item, item.participationId(), QtyMovementKind.EXCHANGE_OUT, count, null, s, null, actorId, now);
+    }
+
+    /**
+     * 공급 불가 단품의 최대를 확정 + 선점으로 줄인다(결정 53 — 줄이기 하한 예외: 모집 상태와 관계없이). MAIN 이면 공구 최대도 같은 수만큼(공구 최소 수량 아래로는 DB 가 막아 그만큼만).
+     * 한도 없는 단품은 판매 중지만으로 끝(줄일 최대가 없다).
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void reduceForSupplyFailure(long groupBuyId, long skuId, String reason, Long actorId, Instant now) {
+        SkuRow sku = requireSku(groupBuyId, skuId);
+        if (sku.maxQty() == null) {
+            return;
+        }
+        int count = sku.maxQty() - Math.max(1, sku.currentQty() + sku.reservedQty());
+        if (count <= 0) {
+            return;
+        }
+        After g = null;
+        if (sku.main()) {
+            GroupBuyRow group = groups.find(groupBuyId).orElseThrow();
+            int groupCount = Math.min(count, group.maxQty() - Math.max(1, Math.max(group.minQty(), group.currentQty() + group.reservedQty())));
+            if (groupCount > 0) {
+                g = qty.groupReduceAnyStatus(groupBuyId, groupCount).orElse(null);
+                if (g != null) {
+                    qty.insertMovement(ids.nextId(), groupBuyId, null, null, null, QtyMovementKind.REDUCE, groupCount, g, null, reason, actorId, now);
+                }
+            }
+        }
+        After s = qty.skuReduce(skuId, groupBuyId, count).orElseThrow(() -> new IllegalStateException("공급 불가 단품을 줄이지 못했다 skuId=" + skuId));
+        qty.insertMovement(ids.nextId(), groupBuyId, skuId, null, null, QtyMovementKind.REDUCE, count, null, s, reason, actorId, now);
+    }
+
     /** 다 팔렸으면 그 자리에서 CLOSING + 상태 이력(결정 27·48·78). 바꿨으면 true */
     @Transactional(propagation = Propagation.MANDATORY)
     public boolean closeIfSoldOut(long groupBuyId, Long actorId, Instant now) {

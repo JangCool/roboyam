@@ -86,7 +86,8 @@ public class GroupBuyStore {
 
     /** 공구 설정(1행) — 돈·시각에 닿는 값은 그 트랜잭션 안에서 읽는다(결정 19) */
     public record Settings(int holdMinutes, int demandMaxDays, int firstComeMaxDays, int extensionMinutes, int extensionWindowMinutes, int judgeGraceMinutes,
-                           int shipWithinBusinessDays, List<LocalDate> holidays) {
+                           int shipWithinBusinessDays, List<LocalDate> holidays, long compensationCap, long largeRefundThreshold, int addressRevealMinutes,
+                           int supplyChoiceBusinessDays) {
     }
 
     private final JdbcTemplate jdbc;
@@ -99,8 +100,9 @@ public class GroupBuyStore {
 
     public Settings settings() {
         return jdbc.queryForObject("SELECT hold_minutes, demand_max_days, first_come_max_days, extension_minutes, extension_window_minutes, judge_grace_minutes, "
-                + "ship_within_business_days, holidays FROM group_buy_settings WHERE id = 1", (rs, i) -> new Settings(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4),
-                rs.getInt(5), rs.getInt(6), rs.getInt(7), dates(rs.getArray(8))));
+                + "ship_within_business_days, holidays, compensation_cap, large_refund_threshold, address_reveal_minutes, supply_choice_business_days FROM group_buy_settings WHERE id = 1",
+                (rs, i) -> new Settings(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4), rs.getInt(5), rs.getInt(6), rs.getInt(7), dates(rs.getArray(8)), rs.getLong(9),
+                        rs.getLong(10), rs.getInt(11), rs.getInt(12)));
     }
 
     // ── 공구 ────────────────────────────────────────────────────────────────
@@ -241,6 +243,22 @@ public class GroupBuyStore {
         return jdbc.queryForList("UPDATE group_buys g SET status = 'COMPLETED', updated_at = ? WHERE ((g.status = 'CLOSED_SUCCESS' AND g.fulfillment = 'IMMEDIATE') "
                 + "OR g.status = 'SHIPPING') AND NOT EXISTS (SELECT 1 FROM group_buy_participations p WHERE p.group_buy_id = g.id "
                 + "AND p.status IN ('PENDING_PAYMENT', 'JOINED', 'CONFIRMED', 'PREPARING', 'SHIPPED')) RETURNING g.id", Long.class, ts(now));
+    }
+
+    /** 단품 판매 중지(공급 불가 — 결정 53, 새 선점을 막는다) */
+    public void stopSelling(long skuId, long groupBuyId) {
+        jdbc.update("UPDATE group_buy_skus SET on_sale = false WHERE id = ? AND group_buy_id = ?", skuId, groupBuyId);
+    }
+
+    /** 발주(마감 후 발주 공구 — CLOSED_SUCCESS → ORDERED, 공구 단위 10-3) */
+    public boolean markOrdered(long id, Instant now) {
+        return jdbc.update("UPDATE group_buys SET status = 'ORDERED', updated_at = ? WHERE id = ? AND status = 'CLOSED_SUCCESS' AND fulfillment = 'AFTER_CLOSE'", ts(now),
+                id) == 1;
+    }
+
+    /** 첫 발송 처리(ORDERED → SHIPPING — 결정 9) */
+    public boolean markShipping(long id, Instant now) {
+        return jdbc.update("UPDATE group_buys SET status = 'SHIPPING', updated_at = ? WHERE id = ? AND status = 'ORDERED'", ts(now), id) == 1;
     }
 
     public void insertStatusHistory(long id, long groupBuyId, GroupBuyStatus from, GroupBuyStatus to, String reason, Long actorId, Instant now) {

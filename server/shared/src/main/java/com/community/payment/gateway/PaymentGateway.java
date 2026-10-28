@@ -31,6 +31,15 @@ public interface PaymentGateway {
      */
     PgCancelResult cancel(String paymentId, long amount, long currentCancellableAmount, String reason);
 
+    /**
+     * 에스크로 배송 정보 등록({@code update} false — {@code POST})·수정(true — {@code PATCH}) — 발송·송장 정정·교환 재발송 뒤 트랜잭션 밖에서(공구 계약 결정 4·64).
+     * 에스크로 결제가 아니면 {@link EscrowResult.Outcome#NOT_ESCROW}.
+     */
+    EscrowResult registerEscrowLogistics(String paymentId, EscrowLogistics logistics, boolean update);
+
+    /** 에스크로 구매 확정({@code POST /payments/{paymentId}/escrow/complete} — 배송완료 7일 뒤, 결정 14). 에스크로 결제가 아니면 NOT_ESCROW */
+    EscrowResult completeEscrow(String paymentId);
+
     /** 결제 다건 조회 — 상태 업데이트 시점(STATUS_CHANGED_AT) 기준 [from, until] 의 {@code pageNumber} 쪽(0부터, 대사 2a-3) */
     PgPaymentPage listPayments(Instant from, Instant until, int pageNumber, int pageSize);
 
