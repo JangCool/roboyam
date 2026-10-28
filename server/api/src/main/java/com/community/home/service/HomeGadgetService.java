@@ -123,7 +123,8 @@ public class HomeGadgetService {
             case "POST_LIST" -> {
                 PostListDataView d = postList(config, ctx);
                 data = d;
-                empty = d.items().isEmpty();
+                // 기간 탭이면 세 기간이 모두 빌 때만 비었다(실시간만 비어도 다른 탭에 글이 있다)
+                empty = d.periods() == null ? d.items().isEmpty() : d.periods().values().stream().allMatch(List::isEmpty);
             }
             case "HIGHLIGHT" -> {
                 HighlightDataView d = highlight(config, ctx);

@@ -75,7 +75,8 @@ public final class SiteThemeMenus {
         choice(fields, "menuWidth", in.menuWidth(), WIDTHS);
         choice(fields, "menuOverflow", in.menuOverflow(), OVERFLOWS);
         SiteThemeMenu.Style style = in.style() == null ? new SiteThemeMenu.Style(null, null, null, null, null, null, null) : in.style();
-        List<String> styleValues = List.of(style.menuGroupStyle(), style.sideGroupStyle(), style.menuSize(), style.mobileMenu(), style.menuDescription(),
+        // 빠진 칸(null)도 칸 오류로 돌려주려고 null 을 받는 목록을 쓴다(List.of 는 null 에 NPE)
+        List<String> styleValues = java.util.Arrays.asList(style.menuGroupStyle(), style.sideGroupStyle(), style.menuSize(), style.mobileMenu(), style.menuDescription(),
                 style.stickyMenu(), style.mobileHeader());
         int i = 0;
         for (Map.Entry<String, List<String>> e : STYLE_VALUES.entrySet()) {

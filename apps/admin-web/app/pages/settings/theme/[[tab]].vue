@@ -1,8 +1,8 @@
 <template>
     <!--
-        테마(`/settings/theme/{layout|menu}`, 목업 — 사용자 결정 2026-10-28) — 설정 메뉴 「테마」 묶음의 「레이아웃」 항목(`/settings/theme`). 메뉴 설정은 설정 메뉴에 따로 두지 않고 이 화면의 탭으로만 연다. 탭 이름 없이 오면 레이아웃.
+        테마(`/settings/theme/{layout|menu}`, 사용자 결정 2026-10-28 — 서버 연결 2026-10-29) — 설정 메뉴 「테마」 묶음의 「레이아웃」 항목(`/settings/theme`). 메뉴 설정은 설정 메뉴에 따로 두지 않고 이 화면의 탭으로만 연다. 탭 이름 없이 오면 레이아웃.
         흐름: **테마를 고른다 → 그 테마의 레이아웃(홈 구성 …)이 보인다 → 그 상태에서 메뉴 설정을 정한다.** 레이아웃·메뉴 설정은 테마마다 따로 저장된다.
-        ① 테마(`site-theme`) — 서버 목록 + 목업 테마(기본 · 다음식 · 네이버식 · 로보얌, `site-theme-mock.ts`) 라디오 카드. 이름·설명은 `site.themeName_<id>`·`site.themeDesc_<id>`, 지금 사이트 테마에 「사용 중」.
+        ① 테마(`site-theme`) — 서버 목록(기본 · 다음식 · 네이버식 · 로보얌, `SiteThemes.IDS`) 라디오 카드. 이름·설명은 `site.themeName_<id>`·`site.themeDesc_<id>`, 지금 사이트 테마에 「사용 중」.
           카드를 고르면 아래 탭이 그 테마의 것으로 바뀐다(주소 `?theme=` 에 남는다, 아래에 저장하지 않은 변경이 있으면 묻는다). 사이트에 적용하는 것은 [테마 적용](`PUT /api/admin/site/theme` — 테마 id 만).
         배치: 넓은 화면(lg 이상)은 두 칸 — 왼쪽 위 ① 테마(폭 22.5rem, 창 위에 붙는다, 카드는 세로 목록·설명 두 줄) · 가운데 ②. 좁은 화면은 위아래.
         ② 레이아웃 — 페이지 종류 줄(홈 · 게시판 · 페이지 — 게시판·페이지는 자리만, 「준비 중」) + 보기(실제 화면 · 편집) + [메뉴 설정] 단추.
@@ -133,7 +133,7 @@
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
-import type { SiteThemeMenuFields } from '~/composables/site/api/mock/site-theme-mock';
+import type { SiteThemeMenuFields } from '~/composables/site/api/useSiteSettingsApi.types';
 import type { SiteThemeResponse } from '~/composables/site/api/useSiteSettingsApi.types';
 import type { HomeLayoutBody } from '~/composables/home/api/useHomeLayoutApi.types';
 import type { HomeLayoutOp } from '~/components/theme/HomeLayoutEditor.vue';

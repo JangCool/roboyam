@@ -21,8 +21,7 @@ export interface ViewSettings {
     textScale: TextScaleSetting;
     commentOrder: CommentOrderSetting;
     /**
-     * 데스크톱 메뉴 위치(`AUTO` = 사이트 설정 따름 · `TOP` · `LEFT` · `RIGHT`). 모바일에는 적용하지 않는다.
-     * **서버 후보 칸** — 지금 서버에는 없어 이 브라우저 사본에만 남고 서버 요청에는 넣지 않는다(`useViewSettingsApi` 의 `// MOCK:`).
+     * 데스크톱 메뉴 위치(`AUTO` = 사이트 설정 따름 · `TOP` · `LEFT` · `RIGHT` · `TOP_LEFT` · `TOP_RIGHT`). 모바일에는 적용하지 않는다. 서버 `member_view_settings.menu_position`(V105).
      */
     menuPosition: MemberMenuSetting;
 }

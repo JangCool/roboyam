@@ -80,7 +80,7 @@ export function useMenu() {
                 if (mine !== sequence) return;
                 const parsed = UtilMenu.parse(res);
                 if (!parsed) throw new Error('menu-shape');
-                // MOCK: 서버가 아직 `divider` 를 주지 않는다 — 개발 모드의 `?divider=` 미리보기를 최상위 노드에 입힌다. REAL: serverNodes.value = parsed.nodes;
+                // 서버 구분선(2026-10-29)이 없는 최상위 노드에만 개발 모드의 `?divider=` 미리보기를 입힌다(운영 빌드는 그대로)
                 serverNodes.value = UtilMenu.withDividerPreview(parsed.nodes);
                 serverTabs.value = parsed.mobileTabs;
                 phase.value = 'ready';

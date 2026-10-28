@@ -50,7 +50,7 @@ export type MenuAudience = 'ALL' | 'GUEST' | 'MEMBER' | 'GRADE_MIN' | 'STAFF';
 
 /**
  * 구분선 — 공개 사이트 상단 가로 메뉴(첫 줄)에서 이 노드의 왼쪽(`BEFORE`)·오른쪽(`AFTER`)에 세로 줄을 긋는다. 최상위 노드에서만 뜻이 있고 세로 메뉴·햄버거에서는 쓰지 않는다.
- * ⚠ MOCK: 서버에 아직 칸이 없다 — `useMenuApi.ts` 가 `./mock/menu-extra-mock.ts` 로 응답에 덧붙이고 요청에서는 뺀다.
+ * 서버 `menu_nodes.divider`(V105) — 요청에서 빠지면 `NONE`.
  */
 export type MenuDivider = 'NONE' | 'BEFORE' | 'AFTER';
 
@@ -67,8 +67,8 @@ interface MenuNodeBase {
     audience: MenuAudience;
     /** `GRADE_MIN` 일 때의 등급 키. 그 밖에는 null */
     minGrade: string | null;
-    /** 구분선(MOCK — 서버가 칸을 주면 필수로 바꾼다. 없으면 `NONE`) */
-    divider?: MenuDivider;
+    /** 구분선(서버가 늘 준다, 새 노드는 `NONE`) */
+    divider: MenuDivider;
 }
 
 /** 폴더 — 이름과 하위 노드뿐(주소 없음). 깊이 3 까지 */
@@ -99,9 +99,9 @@ export interface MenuItemDto extends MenuNodeBase {
     /**
      * 설명 한 줄(80자까지) — 공개 사이트 상단 메뉴에서 최상위 항목에 들어가면 메뉴 둘째 줄에 보인다. 비우면(`null`) 공개 화면이 기본 설명(인기글·최신글 기본 문구, 게시판 소개)을 쓴다.
      * 최상위 항목에서만 뜻이 있다(`SIDE` 그룹, 안쪽 줄은 `null` 로 보낸다).
-     * ⚠ MOCK: 서버에 아직 칸이 없다 — `./mock/menu-extra-mock.ts` 가 응답에 덧붙이고 요청에서는 뺀다. 서버가 칸을 주면 필수(`string | null`)로 바꾼다.
+     * 서버 `menu_nodes.description`(V105) — 앞뒤 공백을 지우고 비면 null.
      */
-    description?: string | null;
+    description: string | null;
     /**
      * 서버가 본 항목 상태(트리 응답에만 있다, 서버 `MenuItemView.Resolved`) — 화면은 같은 규칙(`UtilMenu.itemStatus`)으로 스스로 계산하고
      * 저장 요청에는 싣지 않는다(`UtilMenu.toDto` 가 다시 만든다). 값은 `UtilMenu` 의 `MenuItemStatus` 와 같다.

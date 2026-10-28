@@ -1,14 +1,14 @@
-import { mockHomeLayout, mockHomeLayoutDefaults, mockSaveHomeLayout } from '~/composables/home/api/mock/home-layout-mock';
 import type { HomeLayoutBody, HomeLayoutSaveRequest, HomeLayoutView } from '~/composables/home/api/useHomeLayoutApi.types';
 
 /**
  * 관리자 홈 배치 API — 서버 주소 문자열(`/api/admin/home-layouts`)이 있는 **유일한 곳**이다. 상태는 없다. 모양·가정은 `useHomeLayoutApi.types.ts`.
- *   - `GET /api/admin/home-layouts/{theme}` → 200 `HomeLayoutView`  (`site.read`) — 저장한 배치, 없으면 테마 기본 배치(`updatedAt: null`)
+ * 계약: `docs/features/site-theme-layout-contract.md` 「API」(서버 `HomeLayoutController`).
+ *   - `GET /api/admin/home-layouts/{theme}` → 200 `HomeLayoutView`  (`site.read`) — 저장한 배치, 없으면 테마 기본 배치(`updatedAt: null`) · 404 모르는 테마
  *   - `GET /api/admin/home-layouts/{theme}/defaults` → 200 `HomeLayoutBody`  (`site.read`) — 테마 기본 배치(초기화용, 저장하지 않는다)
- *   - `PUT /api/admin/home-layouts/{theme}` `HomeLayoutSaveRequest` → 200 `HomeLayoutView`  (`site.manage`) · 400 VALIDATION(`fields.layout` 범위·겹침, `fields.gadgets` 종류·개수 한도)
- *       빠진 기존 가젯은 지우고, 모르는 ID(`new-<n>`·기본 배치 ID)는 종류별 기본 설정으로 새로 만든다. 공개 홈(`GET /api/home/gadgets`)은 서버 사본 뒤에 따라온다.
- *
- * ⚠ MOCK: 서버에 API 가 없어 `./mock/home-layout-mock.ts`(메모리)를 부른다. 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
+ *   - `PUT /api/admin/home-layouts/{theme}` `HomeLayoutSaveRequest` → 200 `HomeLayoutView`  (`site.manage`) · 400 VALIDATION(`fields.layout.columns` · `fields.gadgets`(30개 한도) ·
+ *       `fields.gadgets[i].id|type|title` · `fields.layout.items[i]`(없는 가젯·두 번째 자리·격자 밖·종류별 최소 크기 미만) · `fields.layout.items`(자리 없는 가젯·겹침))
+ *       빠진 기존 가젯은 지우고, 기본 배치 ID(`seed-<n>`)는 그 시드 설정으로, 모르는 ID(`new-<n>`)는 종류별 처음 값으로 새로 만든다. 서버가 위로 당겨 저장한다.
+ *       공개 홈(`GET /api/home/gadgets`)은 요청마다 읽어 바로 따라온다.
  */
 const PATH = {
     layout: (theme: string) => `/api/admin/home-layouts/${encodeURIComponent(theme)}`,
@@ -16,27 +16,17 @@ const PATH = {
 };
 
 export function useHomeLayoutApi() {
-    // REAL: const auth = useAdminAuthApi();
-    // REAL: const client = useApiClient({ refreshCsrf: () => auth.me() });
-    void PATH;
+    const auth = useAdminAuthApi();
+    const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
         /** 테마 하나의 배치 */
-        get: (theme: string): Promise<HomeLayoutView> =>
-            // MOCK:
-            mockHomeLayout(theme),
-        // REAL: client.get<HomeLayoutView>(PATH.layout(theme)),
+        get: (theme: string): Promise<HomeLayoutView> => client.get<HomeLayoutView>(PATH.layout(theme)),
 
         /** 테마 기본 배치(저장하지 않는다) */
-        defaults: (theme: string): Promise<HomeLayoutBody> =>
-            // MOCK:
-            mockHomeLayoutDefaults(theme),
-        // REAL: client.get<HomeLayoutBody>(PATH.defaults(theme)),
+        defaults: (theme: string): Promise<HomeLayoutBody> => client.get<HomeLayoutBody>(PATH.defaults(theme)),
 
         /** 배치 저장 */
-        save: (theme: string, body: HomeLayoutSaveRequest): Promise<HomeLayoutView> =>
-            // MOCK:
-            mockSaveHomeLayout(theme, body),
-        // REAL: client.put<HomeLayoutView>(PATH.layout(theme), body),
+        save: (theme: string, body: HomeLayoutSaveRequest): Promise<HomeLayoutView> => client.put<HomeLayoutView>(PATH.layout(theme), body),
     };
 }

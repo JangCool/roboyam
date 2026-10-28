@@ -1,8 +1,8 @@
 /**
- * 관리자 홈 배치 API(`/api/admin/home-layouts/**`)가 주고받는 모양 — **서버 후보**(아직 서버 없음, 목업 `./mock/home-layout-mock.ts`).
+ * 관리자 홈 배치 API(`/api/admin/home-layouts/**`)가 주고받는 모양 — 서버 `HomeLayoutController`(site-theme-layout-contract 「API」).
  * 홈 배치는 **테마마다 따로** 둔다(템플릿 = 테마, 사용자 결정 2026-10-28). 배치 모양·고정값·계산은 공유 레이어 `@roboyam/home-layout`(`UtilHomeLayout`) — 공개 홈(user-web)과 같은 값이다.
  * 이번 범위는 **위치·크기·칸 수와 가젯 넣기·빼기**만이다. 가젯 내용 설정(게시판·개수·꾸미기 …)은 다루지 않는다 — 새로 넣은 가젯은 서버가 종류별 기본 설정으로 만든다.
- * ⚠ ID 는 문자열(Snowflake). 화면에서 새로 넣은 가젯은 저장 전까지 `new-<n>`, 테마 기본 배치에서 다시 넣은 가젯은 기본 배치의 ID 를 쓴다(서버가 모르는 ID 면 새로 만든다).
+ * ⚠ ID 는 문자열(Snowflake). 화면에서 새로 넣은 가젯은 저장 전까지 `new-<n>`, 테마 기본 배치에서 다시 넣은 가젯은 기본 배치의 ID 를 쓴다(`seed-<n>` — 서버가 그 시드 설정으로, 모르는 ID 면 종류별 처음 값으로 새로 만든다).
  */
 import type { HomeLayout } from '#layers/home-layout/utils/util-home-layout';
 

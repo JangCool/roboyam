@@ -1,5 +1,6 @@
 /**
- * 공개 홈 가젯 API(`GET /api/home/gadgets`)가 주고받는 모양 — **서버 후보**(아직 서버 없음, 목업 `./mock/home-gadget-mock.ts`).
+ * 공개 홈 가젯 API(`GET /api/home/gadgets`)가 주고받는 모양 — 서버 `HomeGadgetService`(site-theme-layout-contract 「API」, 2026-10-29).
+ * 지금 서버는 `GROUP_BUY` 데이터를 늘 빈 목록으로 주고(공개 공구 목록 API 없음), `GalleryItem.kind` 는 null, `locked` 는 false 다(노출 기간·보는 사람 설정 없음).
  * community `docs/api-home-gadgets.md` 1·2·4절의 공개 응답을 로보얌으로 옮겼다. 다른 점:
  *  - **템플릿 = 사이트 테마**(사용자 결정 2026-10-28) — 응답의 배치는 서버가 지금 사이트 테마(`default` 기본형 · `daum` 다음식 · `roboyam` 로보얌형 · `naver` 네이버형)로 정한다.
  *    요청에 템플릿·테마를 싣지 않는다. 이용자 유형별 템플릿 규칙·「기본 템플릿」 고르기는 없다. 응답의 `theme` 은 이 배치가 어느 테마 것인지 알려 주는 값이다.
@@ -190,7 +191,7 @@ export interface GalleryData {
 }
 
 /**
- * `HIGHLIGHT` 한 칸 — 운영자가 고른 글(관리자 하이라이트 `/api/admin/highlights`, `popular-highlight-contract.md`). 공개용 모양은 **서버 후보**.
+ * `HIGHLIGHT` 한 칸 — 운영자가 고른 글(관리자 하이라이트 `/api/admin/highlights`, `popular-highlight-contract.md`). 노출 중인 것만, 관리자 순서.
  * `title`·`summary`·`imageUrl` 은 운영자가 적은 노출 제목·요약·대표 이미지(없으면 글 제목·요약 없음·글 썸네일).
  */
 export interface HomeHighlight {
@@ -211,7 +212,7 @@ export interface GroupsData {
 }
 
 /**
- * `GROUP_BUY` 한 장 — 진행 중 공동구매(커머스 2b 가 개발 중 — 공개 목록 API 가 생기면 그 줄 모양에 맞춘다, **서버 후보**).
+ * `GROUP_BUY` 한 장 — 진행 중 공동구매(커머스 2b 가 개발 중 — 공개 목록 API 가 생기면 그 줄 모양에 맞춘다 — 지금 서버는 빈 목록).
  * `totalQty` 가 null 이면 수량 제한이 없는 공구(진행률을 그리지 않는다).
  */
 export interface HomeGroupBuyItem {

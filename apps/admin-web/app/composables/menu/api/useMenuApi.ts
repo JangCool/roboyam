@@ -8,7 +8,6 @@ import type {
     MenuTreeResponse,
     MenuTreeSaveRequest,
 } from '~/composables/menu/api/useMenuApi.types';
-import { mockAttachExtras, mockSaveExtras, mockStripExtras } from '~/composables/menu/api/mock/menu-extra-mock';
 
 /**
  * 메뉴 관리 API — 서버 주소 문자열(`/api/admin/menu-sets…`·`/api/admin/menu/…`·`/api/admin/admin-menu`)이 있는 **유일한 곳**이다. 상태는 없다.
@@ -44,8 +43,7 @@ import { mockAttachExtras, mockSaveExtras, mockStripExtras } from '~/composables
  *   게시판 만들기·삭제도 해당 그룹(`main` 등)의 `version` 을 올린다(화면을 열어 둔 채 저장하면 409 — 화면은 서버 문구를 보이고 [최신 다시 받기]를 낸다) · 관리자 메뉴를 저장한 적이 없으면 기본 구성을 `id: null` 로 준다.
  *
  * 서버 연결됨(2026-10-22).
- *   ⚠ MOCK: 트리 노드의 구분선(`divider`)·항목 설명(`description`)은 서버에 칸이 없다 — 응답에 목업 값(`./mock/menu-extra-mock.ts`)을 덧붙이고, `PUT` 요청에서는 뺀다(모르는 칸으로 400 이 나지 않게).
- *     서버가 칸을 받으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
+ *   트리 노드의 구분선(`divider` — 빠지면 `NONE`, 목록 밖 `fields.<경로>.divider`)·항목 설명(`description` — 80자·`<` `>` 줄바꿈 금지 `fields.<경로>.description`, 폴더는 서버가 버린다)은 2026-10-29 서버 연결.
  */
 const PATH = {
     sets: '/api/admin/menu-sets',
@@ -74,16 +72,10 @@ export function useMenuApi() {
         deleteSet: (key: string): Promise<void> => client.del<void>(PATH.set(key)),
 
         /** 그룹의 트리 + 버전 */
-        tree: (key: string): Promise<MenuTreeResponse> =>
-            // MOCK:
-            client.get<MenuTreeResponse>(PATH.tree(key)).then(mockAttachExtras),
-        // REAL: client.get<MenuTreeResponse>(PATH.tree(key)),
+        tree: (key: string): Promise<MenuTreeResponse> => client.get<MenuTreeResponse>(PATH.tree(key)),
 
         /** 그룹의 트리를 통째로 바꾼다 */
-        saveTree: (key: string, body: MenuTreeSaveRequest): Promise<MenuTreeResponse> =>
-            // MOCK: 구분선·설명은 빼고 보내고, 응답 노드 ID 에 기억해 덧붙인다
-            client.put<MenuTreeResponse>(PATH.tree(key), { ...body, nodes: mockStripExtras(body.nodes) }).then((res) => mockSaveExtras(body.nodes, res)),
-        // REAL: client.put<MenuTreeResponse>(PATH.tree(key), body),
+        saveTree: (key: string, body: MenuTreeSaveRequest): Promise<MenuTreeResponse> => client.put<MenuTreeResponse>(PATH.tree(key), body),
 
         /** 대상 고르기·상태·미리보기에 쓰는 게시판·등급·판매 스위치 */
         targetOptions: (key: string): Promise<MenuTargetOptions> => client.get<MenuTargetOptions>(PATH.targetOptions, { query: { set: key } }),
