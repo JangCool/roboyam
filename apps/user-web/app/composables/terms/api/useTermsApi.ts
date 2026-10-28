@@ -8,7 +8,7 @@ import type { TermsDocument, TermsKind, TermsSummary, TermsVersion } from '~/com
  *   - `GET /api/terms/summary` → `{ showLinks, kinds:[{kind, current, notice}] }`
  *   - `GET /api/terms/{kind}` → `{ kind, current|null, upcoming|null, history }` · 모르는 종류 404
  *   - `GET /api/terms/{kind}/versions/{version}` → 게시본 + `body` · 없으면 404
- * 서버가 짧은 사본과 `Cache-Control: public, max-age=60` 으로 내려 주므로 화면이 따로 캐시하지 않는다. 경로의 `{kind}` 는 소문자다.
+ * 서버가 짧은 사본과 `Cache-Control: no-cache` + `ETag`(브라우저가 매번 확인, 같으면 304)로 내려 주므로 화면이 따로 캐시하지 않는다. 경로의 `{kind}` 는 소문자다.
  */
 const PATH = {
     root: '/api/terms',

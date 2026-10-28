@@ -75,7 +75,7 @@ PNG 서명 기준 판별·다시 인코딩, 아이콘 크기별 PNG 생성, OG 1
 **`GET /api/site/info`**(비로그인, `ApiResponse`) → `{siteName|null, tagline|null, logoUrl|null, icon:{version,favicon32,favicon48,appleTouch,icon192,icon512}|null, ogImageUrl, displayDefaults:{language,zoneId,timeFormat,dateFormat}}`.
 - `logoUrl`·`icon.*` 은 관리자 `me` 와 같은 소스(`SiteAssets`)라 같은 주소(`/media/…` 상대, SVG 로고는 data URI). `icon` 은 올린 아이콘이 없으면 null(화면은 기본 `/media/default/site-icon.svg`). `ogImageUrl` 은 올린 이미지, 없으면 기본 PNG(`/media/default/site-og.png`) — 공개 주소가 있으면 절대 주소. 설정 행이 없으면 이름·소개·로고·아이콘이 null, `displayDefaults` 는 처음 값(ko·Asia/Seoul·H24·YMD_DASH).
 - 허용 필드만 담는다(이메일·설치 정보·내부 ID·공개 주소 원문 없음). 설치 전에는 기존 가드가 `503 NOT_INSTALLED`(`/api/**` 전체 규칙) — 화면은 설치 상태를 먼저 본다.
-- 캐시: 서버 메모리 사본 20초(`PublicSiteService` — 다시 읽다 실패하면 이전 값을 쓰고 5초 뒤 재시도), 응답 `Cache-Control: public, max-age=60` + `ETag`(사본 지문, `If-None-Match` 가 같으면 304). `SecurityConfig` 에 `GET /api/site/info` 허용(api 에만 있는 주소).
+- 캐시: 서버 메모리 사본 20초(`PublicSiteService` — 다시 읽다 실패하면 이전 값을 쓰고 5초 뒤 재시도), 응답 `Cache-Control: no-cache` + `ETag`(사본 지문, `If-None-Match` 가 같으면 304 — 브라우저는 매번 확인한다, 2026-10-29 사용자 결정으로 `public, max-age=60` 에서 바꿈). `SecurityConfig` 에 `GET /api/site/info` 허용(api 에만 있는 주소).
 
 **`GET /manifest.webmanifest`**(`application/manifest+json`, `ApiResponse` 로 감싸지 않는다 — 표준 형식) — `name`=사이트 이름(없으면 `Roboyam`), `short_name`(12자까지), `description`=슬로건, `lang`=표시 언어, `start_url`·`scope`=`/`, `display=standalone`, 색 `#ffffff`, `icons` = 올린 192·512 PNG(`purpose: any`) 또는 기본 SVG(`sizes: any`). 아이콘 주소는 상대 주소(같은 서버가 서빙) — 위 「서빙」의 「절대 주소」 안내와 달리 매니페스트는 상대로 뒀다(공개 주소와 접속 도메인이 달라도 깨지지 않게). 캐시·ETag 는 위와 같다.
 
@@ -87,7 +87,7 @@ PNG 서명 기준 판별·다시 인코딩, 아이콘 크기별 PNG 생성, OG 1
 **기본 og PNG**: 크롤러가 SVG `og:image` 를 못 읽는 경우가 있어 jar 에 `media-default/site-og.png`(1200×630, 기본 SVG 와 같은 그림)를 동봉했고 `SiteMediaKeys.DEFAULT_OG_PNG_URL` 로 공개 쪽(info·머리 메타)만 PNG 를 쓴다. 관리자 화면의 `defaultUrl` 은 기존 SVG 그대로. 디자인이 정해지면 같은 이름 파일만 바꾸면 된다.
 
 **미확정/후속**
-1. 관리자가 바꾼 설정은 이 서버에 최대 20초(+브라우저 60초) 뒤 보인다.
+1. 관리자가 바꾼 설정은 이 서버에 최대 20초 뒤 보인다(브라우저 캐시는 매번 확인).
 2. 공개 응답에 `Set-Cookie: XSRF-TOKEN` 이 같이 나간다(기존 CSRF 필터) — CDN 이 응답을 캐시하려면 쿠키를 무시하게 설정해야 한다.
 3. user-web 의 `SiteTermsResponse` 는 `/api/site/terms` 에서 `siteName`·`siteIcon`(키 이름)·`tagline` 을 받는 모양이다. `/api/site/info` 의 `icon` 과 키 이름이 달라 화면 쪽 타입·로더를 새로 맞춘다.
 4. (`/api/site/theme` 은 2026-10-23 구현·연결 — 아래 「테마」) `/api/site/terms` 는 아직 서버에 없다(용어는 `useSiteTerms` 가 서버 값 없이 기본 이름).
@@ -98,12 +98,12 @@ PNG 서명 기준 판별·다시 인코딩, 아이콘 크기별 PNG 생성, OG 1
 ## 테마 (서버 구현 2026-10-23 · 화면 연결 2026-10-23 — 관리자 설정 > 일반 「공개 사이트 테마」 구획(`site-theme`), user-web `useThemeApi` 실제 호출)
 **의도**: 운영자가 공개 사이트 테마 하나를 고른다(사용자 개인 테마 없음 — `.claude/guides/frontend/themes.md`). 공개 사이트는 비로그인에도 그 id 를 받아 루트 `data-theme`·셸을 고르고, 모르는 id 면 기본 테마로 그린다.
 
-**결정**: 공개 응답은 **기존 사이트 정보 사본에 합쳤다** — `PublicSiteService` 사본(20초 TTL)에 `theme` 를 넣어 `GET /api/site/info` 의 `theme` 칸으로 주고, 같은 사본에서 `GET /api/site/theme` 도 같은 값을 준다(user-web `useThemeApi` 후보 주소·모양 그대로라 프론트 변경이 `// REAL:` 교체뿐). 캐시·ETag·전파(관리자 저장 → 공개 서버 최대 20초 + 브라우저 60초)는 `/api/site/info` 와 같다.
+**결정**: 공개 응답은 **기존 사이트 정보 사본에 합쳤다** — `PublicSiteService` 사본(20초 TTL)에 `theme` 를 넣어 `GET /api/site/info` 의 `theme` 칸으로 주고, 같은 사본에서 `GET /api/site/theme` 도 같은 값을 준다(user-web `useThemeApi` 후보 주소·모양 그대로라 프론트 변경이 `// REAL:` 교체뿐). 캐시·ETag·전파(관리자 저장 → 공개 서버 최대 20초, 브라우저는 매번 확인)는 `/api/site/info` 와 같다.
 
 **API**
 | | 권한 | 요청 → 응답 |
 |---|---|---|
-| `GET /api/site/theme` (api, 비로그인) | — | → `{ theme, …지금 테마의 메뉴 설정 평평한 칸 }`(2026-10-29 — 칸은 `site-theme-layout-contract.md`) · `Cache-Control: public, max-age=60` + `ETag`(사본 지문, 304) |
+| `GET /api/site/theme` (api, 비로그인) | — | → `{ theme, …지금 테마의 메뉴 설정 평평한 칸 }`(2026-10-29 — 칸은 `site-theme-layout-contract.md`) · `Cache-Control: no-cache` + `ETag`(사본 지문, 304) |
 | `GET /api/site/info` (api) | — | 기존 응답 끝에 `theme` 칸 추가 |
 | `GET /api/admin/site/theme?forTheme=` (admin) | `site.read` | → `{ theme, themes: string[], …forTheme 의 메뉴 설정·테마별 기본값 }`(2026-10-29) |
 | `PUT /api/admin/site/theme` (admin, CSRF) | `site.manage` | `{ theme }` → 같은 모양 · 목록 밖·빈 값 `400 VALIDATION` `fields.theme`("알 수 없는 테마예요. 목록에서 골라 주세요.") · 설정 행 없음 `fields.site` |

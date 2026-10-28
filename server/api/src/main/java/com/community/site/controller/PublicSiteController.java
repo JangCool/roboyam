@@ -5,7 +5,6 @@ import com.community.site.dto.response.SiteInfoResponse;
 import com.community.site.dto.response.SiteThemeResponse;
 import com.community.site.service.PublicSiteService;
 import com.community.zconfiguration.response.ApiResponse;
-import java.time.Duration;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,7 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 공개 사이트가 읽는 사이트 설정 — 로그인 없이 부른다. 사이트 이름·소개·로고·아이콘·링크 미리보기 이미지·표시 기본값·테마만 내보낸다.
- * {@code ETag} 가 사본의 지문이라 같은 값이면 {@code 304} 로 답한다(스프링이 {@code If-None-Match} 를 비교한다). 브라우저는 60초 동안 다시 묻지 않는다.
+ * {@code ETag} 가 사본의 지문이라 같은 값이면 {@code 304} 로 답한다(스프링이 {@code If-None-Match} 를 비교한다).
+ * 브라우저는 저장해 두되 쓸 때마다 묻는다({@code Cache-Control: no-cache}) — 운영자가 바꾼 값이 서버 사본(20초) 말고는 늦지 않게, 바뀌지 않았으면 본문 없이 {@code 304}.
  */
 @RestController
 @RequestMapping("/api/site")
@@ -30,7 +30,7 @@ public class PublicSiteController {
     public ResponseEntity<ApiResponse<SiteInfoResponse>> info() {
         PublicSiteSnapshot snapshot = siteService.snapshot();
         return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(Duration.ofSeconds(60)).cachePublic())
+                .cacheControl(CacheControl.noCache())
                 .eTag(snapshot.etag())
                 .body(ApiResponse.success(snapshot.info()));
     }
@@ -40,7 +40,7 @@ public class PublicSiteController {
     public ResponseEntity<ApiResponse<SiteThemeResponse>> theme() {
         PublicSiteSnapshot snapshot = siteService.snapshot();
         return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(Duration.ofSeconds(60)).cachePublic())
+                .cacheControl(CacheControl.noCache())
                 .eTag(snapshot.etag())
                 .body(ApiResponse.success(snapshot.theme()));
     }

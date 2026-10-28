@@ -43,7 +43,7 @@
 | `GET /api/terms/summary` | → `{ showLinks, kinds:[{kind, current:{version,effectiveDate}\|null, notice:{version,effectiveDate,upcoming:boolean,changeNote}\|null}] }` — 레이아웃 `auth`·`TermsAgreement`(링크)·기본 레이아웃(띠)이 쓴다 |
 | `GET /api/terms/{kind}` | → `{ kind, current:{version,effectiveDate,publishedAt,changeNote,body}\|null, upcoming:{version,effectiveDate,changeNote}\|null, history:[{version,effectiveDate,status}] }`(빈 상태 = `current` null) |
 | `GET /api/terms/{kind}/versions/{version}` | → `{version,effectiveDate,publishedAt,changeNote,status,body}` · 없으면 `404` |
-- 모르는 `{kind}` 는 `404`. 캐시는 서버 사본 짧게 + `Cache-Control: public, max-age=60`(사이트 정보와 같은 방식).
+- 모르는 `{kind}` 는 `404`. 캐시는 서버 사본 짧게 + `Cache-Control: no-cache` + `ETag`(본문 지문, 같으면 304 — 사이트 정보와 같은 방식, 2026-10-29 `public, max-age=60` 에서 바꿈).
 
 ## 가입 연결 (2026-10-24 병합 때 연결함)
 - 이메일 가입(`SignupService`)과 소셜 가입 마무리(`SocialAccountWriter`)는 `com.community.auth.service.TermsVersionProvider#currentTermsVersion()` 한 곳에서 버전을 받고, 그 몸통이 `TermsService#currentAgreementVersion()`(`T{n}.P{m}`)을 부른다.
@@ -55,7 +55,7 @@
 ## 서버 구현 결과 (2026-10-24)
 - **가입 동의 버전**: `com.community.terms.service.TermsService#currentAgreementVersion()`(server/shared, `@Service`) → `T{n}.P{m}`. 가입·소셜 가입 연결은 위 「가입 연결」.
 - **마이그레이션**: shared `V62__terms.sql` — `terms_versions`(UNIQUE(kind, version), FK 없는 `published_by`), `terms_drafts`(PK = 종류), `site_settings.terms_links_visible`. 권한 부여 데이터는 없다(역할은 사용자가 만들고 루트는 모든 권한, 카탈로그는 기동 때 코드에서 맞춘다).
-- **계약과 달라진 점**: `DELETE /terms/{kind}/draft` 는 `204`(본문 없음 — 다른 삭제 API 와 같다). 공개 `history` 는 모든 게시본(지금·예정·지난, 최신 먼저)이고 화면이 `status` 로 거른다. 변경 안내의 「시행된 지 7일 안」= 시행일부터 0~6일째. 공개 사본은 20초(`PublicSiteService` 와 같다) — 관리자 게시·옵션이 공개 화면에 최대 20초 + 브라우저 60초 늦게 보인다. 지난·예정 버전 본문은 사본 없이 그때 읽는다.
+- **계약과 달라진 점**: `DELETE /terms/{kind}/draft` 는 `204`(본문 없음 — 다른 삭제 API 와 같다). 공개 `history` 는 모든 게시본(지금·예정·지난, 최신 먼저)이고 화면이 `status` 로 거른다. 변경 안내의 「시행된 지 7일 안」= 시행일부터 0~6일째. 공개 사본은 20초(`PublicSiteService` 와 같다) — 관리자 게시·옵션이 공개 화면에 최대 20초 늦게 보인다(브라우저는 매번 확인). 지난·예정 버전 본문은 사본 없이 그때 읽는다.
 - **감사 대상 이름**: `TERMS` 대상은 종류로 이름을 낸다(`audit.targetName.TERMS.TERMS`=이용약관 · `.PRIVACY`=개인정보처리방침, `AuditQueryService.targetName`).
 - **검증 문구 키**: `terms.body.required`·`.max`, `terms.effectiveDate.required`·`.invalid`·`.past`·`.beforeLast`, `terms.changeNote.max`, `terms.draft.missing`, `terms.showLinks.required`(`PUT /terms/settings` 의 `showLinks` 가 없을 때 `fields.showLinks`).
 

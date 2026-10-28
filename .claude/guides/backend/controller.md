@@ -11,7 +11,7 @@
 ## 2. 주요 업무 및 규약
 * **URL**: `/api/<업무>/<리소스>` — 리소스는 명사 `kebab-case`, 버전 접두어(`/v1`)는 없다. CRUD 가 아닌 동작만 동사형 하위 경로를 허용한다(`/login`, `/verify-token`).
 * **HTTP Method/상태**: `GET` 조회 · `POST` 생성(`201`)·동작 · `PUT` 전체 수정 · `PATCH` 부분 수정 · `DELETE` 삭제(`204`). 본문이 없는 성공은 `204`, 비동기 접수는 `202`.
-* **응답**: 본문이 있는 성공은 `ApiResponse.success(data)`(공통 응답 래퍼, `com.community.zconfiguration.response`)로 감싼다 — `{success:true, data, meta}`. 상태 코드가 기본(200)이면 반환 타입을 `ApiResponse<T>` 로, `201` 등 상태·헤더를 정해야 하면 `ResponseEntity<ApiResponse<T>>` 로 쓴다. 본문이 없는 성공(`204`)은 래퍼 없이 `ResponseEntity<Void>`. `data` 에는 Response DTO(또는 그 목록)만 넣고, `meta` 는 팩터리가 채우므로 Controller 가 만들지 않는다. 목록은 `data` 가 배열이고, 페이징 응답 모양은 필요해질 때 정해 이 가이드에 적는다. 인증·설치처럼 민감한 응답은 `Cache-Control: no-store`.
+* **응답**: 본문이 있는 성공은 `ApiResponse.success(data)`(공통 응답 래퍼, `com.community.zconfiguration.response`)로 감싼다 — `{success:true, data, meta}`. 상태 코드가 기본(200)이면 반환 타입을 `ApiResponse<T>` 로, `201` 등 상태·헤더를 정해야 하면 `ResponseEntity<ApiResponse<T>>` 로 쓴다. 본문이 없는 성공(`204`)은 래퍼 없이 `ResponseEntity<Void>`. `data` 에는 Response DTO(또는 그 목록)만 넣고, `meta` 는 팩터리가 채우므로 Controller 가 만들지 않는다. 목록은 `data` 가 배열이고, 페이징 응답 모양은 필요해질 때 정해 이 가이드에 적는다. 인증·설치처럼 민감한 응답은 `Cache-Control: no-store`. 운영자가 바꾸는 공개 설정(사이트 정보·테마·약관 등)은 브라우저 `max-age` 를 쓰지 않고 `Cache-Control: no-cache` + `ETag`(같으면 304)로 낸다 — 브라우저 사본은 서버가 비울 수 없어 반영이 늦어진다. DB 부하는 서버 메모리 사본이 막는다(사용자 결정 2026-10-29).
 * **Entity 노출 금지**: Entity 를 파라미터·반환 타입으로 쓰지 않는다. DTO 이름은 용도가 드러나게 짓는다(`LoginRequest`, `MeResponse`).
 * **입력 검증**: 단순 요청은 Request DTO 의 Bean Validation + 파라미터의 `@Valid`. 검사 순서가 계약이거나 경로 키(`root.email`)가 필요한 요청은 `@Valid` 없이 Service 가 `ValidationException` 으로 모은다(`service.md`).
 * **의존성**: Service 와 세션 보조 클래스만 생성자 주입한다.
