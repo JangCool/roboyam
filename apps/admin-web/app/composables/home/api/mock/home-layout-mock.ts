@@ -8,7 +8,7 @@
 
 import type { HomeGridColumns } from '#layers/home-layout/utils/util-home-layout';
 import UtilHomeLayout from '#layers/home-layout/utils/util-home-layout';
-import type { HomeLayoutBody, HomeLayoutGadget, HomeLayoutSaveRequest, HomeLayoutThemesResponse, HomeLayoutView } from '~/composables/home/api/useHomeLayoutApi.types';
+import type { HomeLayoutBody, HomeLayoutGadget, HomeLayoutSaveRequest, HomeLayoutView } from '~/composables/home/api/useHomeLayoutApi.types';
 
 const THEMES: readonly string[] = ['default', 'daum', 'naver', 'roboyam'];
 
@@ -92,15 +92,6 @@ function defaults(theme: string): HomeLayoutBody {
     const gadgets: HomeLayoutGadget[] = def.seeds.map(([type, title, desktop, mobile], i) => ({ id: String(9001 + i), type, title, desktop, mobile }));
     const items = def.seeds.map(([, , , , x, y, w, h], i) => ({ gadgetId: String(9001 + i), x, y, w, h }));
     return { layout: { columns: def.columns, items }, gadgets };
-}
-
-/**
- * 고칠 수 있는 테마 목록
- * @returns {Promise<HomeLayoutThemesResponse>} 테마 id(보일 순서).
- */
-export async function mockHomeLayoutThemes(): Promise<HomeLayoutThemesResponse> {
-    await delay(120);
-    return { themes: [...THEMES] };
 }
 
 /**

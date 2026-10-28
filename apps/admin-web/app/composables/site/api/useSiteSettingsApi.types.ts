@@ -126,14 +126,6 @@ export interface SiteThemeResponse {
 
 export interface SiteThemeRequest {
     theme: string;
-    /** 아래 칸은 서버 후보 — 지금은 보내지 않는다(`useSiteSettingsApi` 의 `// MOCK:`) */
-    menuPosition: SiteMenuPositionSetting;
-    topItems: SiteTopItemsSetting;
-    barGroupIds: string[];
-    menuWidth: SiteMenuWidthSetting;
-    menuOverflow: SiteMenuOverflowSetting;
-    /** 메뉴 모양 7칸 — 서버에는 평평한 칸(`menuGroupStyle` … `mobileHeader`)으로 보낼 후보 */
-    menuStyle: SiteMenuStyleSetting;
 }
 
 /**

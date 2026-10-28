@@ -279,16 +279,7 @@ async function saveTheme(): Promise<void> {
     themeSaving.value = true;
     themeError.value = '';
     try {
-        const { menuPosition, topItems, barGroupIds, menuWidth, menuOverflow, menuStyle } = saved;
-        siteSaved.value = await api.saveTheme({
-            theme: theme.value,
-            menuPosition,
-            topItems,
-            barGroupIds: [...barGroupIds],
-            menuWidth,
-            menuOverflow,
-            menuStyle: { ...menuStyle },
-        });
+        siteSaved.value = await api.saveTheme({ theme: theme.value });
         toast.success(t('site.themeSaved'));
     } catch (e) {
         const error = toApiError(e);

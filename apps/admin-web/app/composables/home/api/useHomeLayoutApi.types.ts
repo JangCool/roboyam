@@ -37,10 +37,5 @@ export interface HomeLayoutView extends HomeLayoutBody {
     updatedBy: string | null;
 }
 
-/** `GET /api/admin/home-layouts` 응답 — 배치를 고칠 수 있는 테마(보일 순서) */
-export interface HomeLayoutThemesResponse {
-    themes: string[];
-}
-
 /** `PUT /api/admin/home-layouts/{theme}` 본문 — 가젯은 넣고 뺀 결과 전체(빠진 기존 가젯은 지운다). 제목·노출은 서버 값을 쓰고 새 가젯만 `type`·`title` 로 만든다 */
 export type HomeLayoutSaveRequest = HomeLayoutBody;

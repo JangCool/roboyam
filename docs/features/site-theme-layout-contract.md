@@ -30,7 +30,7 @@
 | `PUT /api/admin/site/theme` | `site.manage` | `{ theme }` — 사이트 테마만 |
 | `PUT /api/admin/site/themes/{id}/menu` | `site.manage` | 메뉴 설정 칸 전부 → 같은 모양 |
 | `GET /api/site/theme` (공개) | — | `{ theme, …지금 테마의 메뉴 설정 평평한 칸 }`(user-web `useThemeApi.types.ts`) |
-| `GET/PUT /api/admin/home-layouts[/{theme}[/defaults]]` | `site.read`/`site.manage` | admin `useHomeLayoutApi.ts` 머리말 |
+| `GET/PUT /api/admin/home-layouts/{theme}`, `GET …/{theme}/defaults` | `site.read`/`site.manage` | admin `useHomeLayoutApi.ts` 머리말 |
 | `GET /api/home/gadgets` (공개) | — | `{ theme, layout, gadgets }`(user-web `useHomeGadgetApi.types.ts`) |
 - 서버가 줄 테마별 기본값(`themeMenuDefaults` 등)은 지금 관리자 목업(`site-theme-mock.ts`)이 user-web `THEMES` 값을 복사해 둔다 — 서버가 주면 원천은 서버 한 곳.
 - `AdminScreenRegistry` 에 테마 화면 한 줄(`/settings/theme`, `site.read`). 회원 보기 설정 `menuPosition` 칸(`/api/me/settings`)도 서버에 없다.

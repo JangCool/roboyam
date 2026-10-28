@@ -32,8 +32,6 @@ export interface HomeEditorItem {
     minH: number;
 }
 
-export type HomeMoveDirection = 'left' | 'right' | 'up' | 'down';
-
 /** 가젯 종류 8종(보일 순서) — 로보얌에 없는 핫딜·직접홍보·광고는 없다 */
 const KINDS: readonly HomeKindSpec[] = [
     { kind: 'HIGHLIGHT', icon: 'pi-sparkles', minW: 4, minH: 8, w: 8, h: 12 },
@@ -57,10 +55,6 @@ function toItems(items: readonly HomeEditorItem[]) {
 function settle(items: readonly HomeEditorItem[], first?: string): HomeEditorItem[] {
     const prepared = toItems(items).map((it) => (it.i === first ? { ...it, y: it.y - 0.25 } : it));
     return UtilHomeLayout.compact(prepared).map(({ gadgetId: _gadgetId, ...rest }) => rest);
-}
-
-function overlapsX(a: HomeEditorItem, b: HomeEditorItem): boolean {
-    return a.x < b.x + b.w && b.x < a.x + a.w;
 }
 
 export default class UtilHomeLayoutEditor {
@@ -142,51 +136,6 @@ export default class UtilHomeLayoutEditor {
      */
     static normalize(items: readonly HomeEditorItem[]): HomeEditorItem[] {
         return settle(items);
-    }
-
-    /**
-     * 키보드로 옮기기 — 왼쪽·오른쪽은 한 칸, 위·아래는 같은 열의 이웃 가젯과 자리를 바꾼다(늘 위로 당긴 모양이라 한 행씩 내리면 다시 올라온다)
-     * @param {readonly HomeEditorItem[]} items - 지금 자리.
-     * @param {string} id - 옮길 가젯 ID.
-     * @param {HomeMoveDirection} dir - 방향.
-     * @param {HomeGridColumns} columns - 칸 수.
-     * @returns {HomeEditorItem[]} 새 자리(못 옮기면 그대로).
-     */
-    static move(items: readonly HomeEditorItem[], id: string, dir: HomeMoveDirection, columns: HomeGridColumns): HomeEditorItem[] {
-        const me = items.find((it) => it.i === id);
-        if (!me) return [...items];
-        if (dir === 'left' || dir === 'right') {
-            const x = Math.min(columns - me.w, Math.max(0, me.x + (dir === 'left' ? -1 : 1)));
-            if (x === me.x) return [...items];
-            return settle(
-                items.map((it) => (it.i === id ? { ...it, x } : it)),
-                id,
-            );
-        }
-        const others = items.filter((it) => it.i !== id && overlapsX(it, me));
-        const neighbor =
-            dir === 'up'
-                ? others.filter((it) => it.y < me.y).sort((a, b) => b.y - a.y)[0]
-                : others.filter((it) => it.y > me.y).sort((a, b) => a.y - b.y)[0];
-        if (!neighbor) return [...items];
-        // 이웃의 바로 앞(위)·뒤(아래) 순서로 놓고 당긴다
-        const y = dir === 'up' ? neighbor.y - 0.5 : neighbor.y + 0.5;
-        return settle(items.map((it) => (it.i === id ? { ...it, y } : it)));
-    }
-
-    /**
-     * 크기 바꾸기 — 폭·높이를 더하거나 뺀다(최소 크기·칸 수 안에서). 커져서 부딪친 가젯은 아래로 밀린다
-     * @param {readonly HomeEditorItem[]} items - 지금 자리.
-     * @param {string} id - 가젯 ID.
-     * @param {number} dw - 폭 변화(칸).
-     * @param {number} dh - 높이 변화(행).
-     * @param {HomeGridColumns} columns - 칸 수.
-     * @returns {HomeEditorItem[]} 새 자리.
-     */
-    static resize(items: readonly HomeEditorItem[], id: string, dw: number, dh: number, columns: HomeGridColumns): HomeEditorItem[] {
-        const me = items.find((it) => it.i === id);
-        if (!me) return [...items];
-        return UtilHomeLayoutEditor.setBox(items, id, { w: me.w + dw, h: me.h + dh }, columns);
     }
 
     /**

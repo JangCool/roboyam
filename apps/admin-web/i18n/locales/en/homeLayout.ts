@@ -1,10 +1,7 @@
 /**
- * homeLayout messages — home layout editor (`/settings/home-layout`). Same keys, same order as `ko/homeLayout.ts`.
+ * homeLayout messages — home layout editing on the theme screen (`/settings/theme`). Same keys, same order as `ko/homeLayout.ts`.
  */
 export default {
-    title: 'Home layout',
-    subtitle: 'Set where each home gadget goes and how big it is, per theme. Drag to move, drag the bottom-right corner to resize.',
-    mockNote: 'Mock — saves stay only in this admin page’s memory and do not reach the public site yet (a reload resets them).',
     readOnly: 'You can only view this layout.',
     loadFailed: 'Could not load the home layout.',
     saved: 'Home layout saved.',
@@ -12,54 +9,13 @@ export default {
     lastSaved: 'Last saved {at} · {by}',
     neverSaved: 'Never saved — this is the theme’s default layout.',
 
-    // ── Theme · columns ─
-    themeTabs: 'Theme to edit',
-    currentTheme: 'Current theme',
+    // ── Columns ─
     columns: 'Grid columns',
     columnsOption: '{count} columns',
-    columnsHint: 'Changing columns doubles or halves positions and widths (rounded when halving, keeping each gadget’s minimum width). Positions on screen stay the same.',
     liveEditHint: 'In the live view below, drag a gadget to move it, drag its bottom-right corner to resize, and use × at the top right to remove it.',
 
     // ── Editor ─
-    editorSection: 'Layout',
-    editorLabel: '{theme} home layout editor',
-    keyboardHint: 'Select a gadget and use the arrow keys to move it (up/down swaps with the neighbor). Shift + arrows resize, Delete removes.',
-    empty: 'No gadgets placed. Use “Add gadget” to add one.',
-    itemLabel: '{title} ({kind}) — column {x}, row {y}, width {w}, height {h}',
     announce: '{title}: column {x}, row {y}, width {w}, height {h}',
-    size: '{w}×{h}',
-    desktopOnly: 'PC only',
-    mobileOnly: 'Mobile only',
-    hiddenBoth: 'Hidden',
-    newBadge: 'New',
-    notesTitle: 'On the public home',
-    noteHeight: 'Height (h) is a minimum. Longer content grows the cell and pushes down only the gadgets below it in the same columns (no overlap).',
-    noteResponsive: 'On tablets, or when a side menu makes it narrow, the grid uses half the columns (two half-width gadgets side by side, others full width). On mobile gadgets stack top to bottom, left to right.',
-    noteHidden: 'PC-only and mobile-only gadgets leave no gap where they are hidden — gadgets below move up.',
-    noteFixed: 'Row height 15px and gap 16px are fixed. Editing gadget content (boards, counts, style) is not available yet.',
-    notePreview: 'The content inside each cell is a sample to show the look (not real posts). Short cells cut it off — on the public home cells grow to fit their content.',
-
-    // ── Cell preview (sample) ─
-    previewPeriod: {
-        REALTIME: 'Live',
-        YESTERDAY: 'Yesterday',
-        WEEK: 'This week',
-    },
-    previewMembers: '{n} members',
-    previewPrice: '₩{amount}',
-    previewDiscount: '{n}%',
-    previewSold: '{n}% sold',
-
-    // ── Selected gadget ─
-    selectedSection: 'Selected gadget',
-    noneSelected: 'Select a gadget to set its position and size with numbers.',
-    fieldX: 'Column (x)',
-    fieldY: 'Row (y)',
-    fieldW: 'Width (w)',
-    fieldH: 'Min height (h)',
-    fieldRange: '{min}–{max}',
-    remove: 'Remove',
-    removeLabel: 'Remove {title}',
     removed: 'Removed “{title}”. Use Reset before saving to bring it back.',
 
     // ── Add · reset ─
