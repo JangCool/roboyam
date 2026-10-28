@@ -664,7 +664,7 @@ DELIVERED → (반품 요청 승인·회수 확인) → REFUNDED(전액) 또는 
 | 회원 원장 조회 | ✓ `point.read` | 전원 |
 | 포인트 수동 지급·회수(무상만) | ✓ `point.adjust` | SUPER·FINANCE |
 | 1회 ±10,000P 초과 조정(최대 ±100,000P) | + `point.adjust.large` (SENSITIVE) | SUPER |
-| 고액 공구 환불(1회 100,000원 이상) | + `commerce.refund.large` (SENSITIVE) | SUPER |
+| 고액 공구 환불(1회 100,000원 이상) | + `commerce.refund.large` (SENSITIVE) | SUPER — **2026-10-28 개정(사용자 결정)**: 서버가 계산한 환불(발송 전 취소·반품 승인·공급 불가·지연 취소·불발·중단)은 금액과 관계없이 일반 권한, **운영자가 금액을 직접 넣는 환불(운영 환불·보상·계산값 수정)에만** 그 주문 누계로 문턱 적용(설정값, 0 = 끔). 로봇 공구는 백만 원대 상품이 있어 금액 기준이면 승인이 밀린다(`commerce-groupbuy-contract.md` 결정 70) |
 | 고액 충전 포인트 환불(1회 100,000원 이상) | + `point.refund.large` (SENSITIVE) | SUPER |
 | 유상 포인트 환불 승인 | + `point.refund.approve` (SENSITIVE) | SUPER·FINANCE |
 | 회원 기능 제한 | ✓ `sanction.manage` | SUPER·CS |
