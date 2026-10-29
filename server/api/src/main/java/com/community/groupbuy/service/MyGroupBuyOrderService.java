@@ -370,8 +370,8 @@ public class MyGroupBuyOrderService {
         Long refund = r.status() == RequestStatus.COMPLETED ? refundStore.ofRequest(r.id()).stream().mapToLong(GroupBuyRefundStore.RefundRow::amount).sum() : null;
         Long feeDue = r.status() == RequestStatus.AWAITING_FEE ? r.feeAmount() - r.feePaidAmount() : null;
         Instant handled = jdbc.query("SELECT COALESCE(completed_at, decided_at) FROM group_buy_requests WHERE id = ?", (rs, i) -> GroupBuyMemberService.ts(rs.getTimestamp(1)),
-                r.id()).stream().findFirst().orElse(null);
-        String tracking = jdbc.query("SELECT pickup_tracking_no FROM group_buy_requests WHERE id = ?", (rs, i) -> rs.getString(1), r.id()).stream().findFirst().orElse(null);
+                r.id()).stream().filter(java.util.Objects::nonNull).findFirst().orElse(null);
+        String tracking = jdbc.query("SELECT pickup_tracking_no FROM group_buy_requests WHERE id = ?", (rs, i) -> rs.getString(1), r.id()).stream().filter(java.util.Objects::nonNull).findFirst().orElse(null);
         boolean withdraw = EnumSetHolder.WITHDRAWABLE.contains(r.status());
         return new MyGroupBuyOrderView.Request(Long.toString(r.id()), r.type().name(), status(r.status()), items, r.method() == null ? null : r.method().name(),
                 r.resolution() == null ? null : r.resolution().name(), r.previewAmount(), refund, feeDue, r.rejectReasonCode(), tracking, r.createdAt(), handled,

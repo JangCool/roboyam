@@ -105,13 +105,15 @@ public class PaymentTestOrderService {
      *
      * @param amount 결제했다고 할 금액(null 이면 주문 금액, PAID 일 때 1원 이상)
      * @param late   true 면 결제 시각 = 그 결제 주문의 유효 시각 + 1분(늦은 결제 시험)
-     * @throws PaymentOrderNotFoundException  그 회원의 시험 결제가 아니다(404)
+     * 시험 결제뿐 아니라 그 회원의 모든 결제 주문(공구·반품비 등)을 받는다 — 가짜 게이트웨이에서는 업무 결제창도 이 길로 결과를 남긴다.
+     *
+     * @throws PaymentOrderNotFoundException  그 회원의 결제 주문이 아니다(404)
      * @throws PaymentGatewayNotFakeException 가짜 게이트웨이가 아니다(409)
      * @throws FakePgAlreadyDoneException     그 결제의 결과가 가짜 PG 에 이미 있다(409)
      * @throws ValidationException            금액이 1원 미만({@code fields.amount})
      */
     public void fakeCheckout(long userId, String paymentId, FakeOutcome outcome, Long amount, boolean late) {
-        OrderRow order = mine(userId, paymentId);
+        OrderRow order = orderStore.findByPaymentId(paymentId).filter(o -> o.userId() == userId).orElseThrow(PaymentOrderNotFoundException::new);
         if (!(gateway instanceof FakePaymentGateway fake)) {
             throw new PaymentGatewayNotFakeException();
         }

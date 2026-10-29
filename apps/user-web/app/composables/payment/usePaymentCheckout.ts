@@ -119,7 +119,8 @@ export function usePaymentCheckout<T extends PaymentCheckoutTarget>(options: Pay
                 totalAmount: amount,
                 currency: 'KRW',
                 payMethod: 'CARD',
-                customer: options.customer(value),
+                // 평범한 객체로 복사해 넘긴다 — 반응형 상태(Proxy)를 그대로 주면 SDK 가 결제창(iframe)으로 postMessage 하다 DataCloneError 로 실패한다
+                customer: { ...toRaw(options.customer(value)) },
                 redirectUrl: new URL(router.resolve({ path: options.redirectPath(value) }).href, window.location.origin).href,
             });
         } catch (e) {

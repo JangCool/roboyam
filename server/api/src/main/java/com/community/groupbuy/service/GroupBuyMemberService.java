@@ -228,7 +228,7 @@ public class GroupBuyMemberService {
     public GroupBuyMemberView.PaymentStart paymentStart(String orderType, long refId, String orderNo, PaymentCheckout checkout, long userId, String name, String phone) {
         GroupBuyMemberView.Customer customer = null;
         if (checkout.provider() == PaymentGatewayKind.PORTONE) {
-            String email = jdbc.query("SELECT email FROM users WHERE id = ?", (rs, i) -> rs.getString(1), userId).stream().findFirst().orElse("");
+            String email = jdbc.query("SELECT email FROM users WHERE id = ?", (rs, i) -> rs.getString(1), userId).stream().filter(java.util.Objects::nonNull).findFirst().orElse("");
             customer = new GroupBuyMemberView.Customer(nz(name), nz(phone), nz(email));
         }
         return new GroupBuyMemberView.PaymentStart(orderType, Long.toString(refId), checkout.expiresAt(), PaymentCheckoutView.of(checkout), orderNo, customer);

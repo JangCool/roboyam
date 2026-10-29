@@ -13,6 +13,7 @@ import com.community.commerce.CommerceApiTestBase;
 import com.community.groupbuy.dto.GroupBuyDraft;
 import com.community.groupbuy.dto.NoticeDraft;
 import com.community.groupbuy.dto.ProductDraft;
+import com.community.groupbuy.service.FulfillmentService;
 import com.community.groupbuy.service.GroupBuyAdminService;
 import com.community.groupbuy.service.GroupBuyNoticeCatalog;
 import com.community.groupbuy.service.GroupBuyNoticeService;
@@ -58,6 +59,8 @@ class GroupBuyHttpTest extends CommerceApiTestBase {
     private GroupBuyNoticeService notices;
     @Autowired
     private GroupBuyNoticeCatalog catalog;
+    @Autowired
+    private FulfillmentService fulfillment;
 
     private MockMvc mvc;
 
@@ -200,5 +203,32 @@ class GroupBuyHttpTest extends CommerceApiTestBase {
         JsonNode watches = MAPPER.readTree(detail).path("data").path("watches");
         assertThat(watches.path("CLOSING_SOON").asBoolean()).isTrue();
         assertThat(watches.path("RESTOCK").asBoolean()).isFalse();
+    }
+
+    /** 2b-5 실제 확인에서 잡힌 500 — 막 만든 요청은 처리 시각·회수 송장이 없다(값이 null 인 한 줄을 findFirst 하면 NPE). 응답·내 주문 조회 모두 200 */
+    @Test
+    void 반품_요청은_처리_시각과_회수_송장이_아직_없어도_만들어지고_내_주문에_보인다() throws Exception {
+        long[] g = recruiting();
+        long m = buyer();
+        String created = mvc.perform(as(m, post("/api/group-buys/" + g[0] + "/orders")).header("Idempotency-Key", "gb-" + ids.nextId()).content(orderBody(g[1], 1, 28_000)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        JsonNode order = MAPPER.readTree(created).path("data");
+        String orderNo = order.path("orderNo").asString();
+        String paymentId = order.path("payment").path("checkout").path("paymentId").asString();
+        mvc.perform(as(m, post("/api/dev/payments/" + paymentId + "/fake-checkout")).content("{\"outcome\":\"PAID\",\"late\":false}")).andExpect(status().isNoContent());
+        mvc.perform(as(m, post("/api/payments/" + paymentId + "/complete"))
+                .content("{\"orderType\":\"GROUP_BUY\",\"orderRefId\":\"" + order.path("payment").path("orderRefId").asString() + "\"}")).andExpect(status().isOk());
+        long participation = jdbc.queryForObject("SELECT id FROM group_buy_participations WHERE order_no = ?", Long.class, orderNo);
+        long op = newOperator();
+        fulfillment.ship(List.of(new FulfillmentService.ShipLine(participation, "CJ", "123456789012")), op, "ip");
+        fulfillment.deliver(List.of(participation), op, "ip");
+
+        String body = "{\"type\":\"RETURN\",\"items\":[{\"skuId\":\"" + g[1] + "\",\"qty\":1,\"reason\":\"CHANGE_OF_MIND\"}],\"collectionMethod\":\"COMPANY_PICKUP\","
+                + "\"resolution\":null,\"reasonText\":\"\",\"photoIds\":[],\"expectedAmount\":null}";
+        mvc.perform(as(m, post("/api/me/orders/" + orderNo + "/requests")).header("Idempotency-Key", "rq-" + ids.nextId()).content(body))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.request.type").value("RETURN"))
+                .andExpect(jsonPath("$.data.request.handledAt").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.data.request.pickupTrackingNo").value(org.hamcrest.Matchers.nullValue()));
+        mvc.perform(as(m, get("/api/me/orders/" + orderNo))).andExpect(status().isOk()).andExpect(jsonPath("$.data.requests[0].type").value("RETURN"));
     }
 }

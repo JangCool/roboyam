@@ -172,7 +172,7 @@ public class GroupBuyOrderAdminFacade {
         List<GroupBuyOrderAdminView.AddressView> views = jdbc.query("SELECT o.operator_name, v.reason, v.created_at FROM commerce_address_views v "
                 + "LEFT JOIN operators o ON o.id = v.operator_id WHERE v.participation_id = ? AND v.kind = 'REVEAL' ORDER BY v.created_at DESC",
                 (rs, i) -> new GroupBuyOrderAdminView.AddressView(nz(rs.getString(1)), rs.getString(2), rs.getTimestamp(3).toInstant()), o.id());
-        String memo = jdbc.query("SELECT admin_memo FROM group_buy_participations WHERE id = ?", (rs, i) -> rs.getString(1), o.id()).stream().findFirst().orElse(null);
+        String memo = jdbc.query("SELECT admin_memo FROM group_buy_participations WHERE id = ?", (rs, i) -> rs.getString(1), o.id()).stream().filter(java.util.Objects::nonNull).findFirst().orElse(null);
         List<GroupBuyOrderAdminView.StatusChange> history = jdbc.query("SELECT h.from_status, h.to_status, o.operator_name, h.cause, h.created_at, h.actor_id "
                 + "FROM participation_status_history h LEFT JOIN operators o ON o.id = h.actor_id WHERE h.participation_id = ? ORDER BY h.created_at, h.id",
                 (rs, i) -> new GroupBuyOrderAdminView.StatusChange(rs.getString(1), rs.getString(2), rs.getString(3) != null ? rs.getString(3)

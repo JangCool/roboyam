@@ -105,7 +105,8 @@ export default class UtilGroupBuy {
         if (parts.length > UtilGroupBuy.ITEMS_MAX) return null;
         const out: GroupBuyOrderLine[] = [];
         for (const part of parts) {
-            const m = /^(\d{1,12}):(\d{1,4})$/.exec(part.trim());
+            // 단품 ID 는 서버 Long(눈송이 ID 18~19자리) — 글자 그대로 둔다
+            const m = /^(\d{1,19}):(\d{1,4})$/.exec(part.trim());
             if (!m) return null;
             const skuId = m[1]!;
             const qty = Number(m[2]);
