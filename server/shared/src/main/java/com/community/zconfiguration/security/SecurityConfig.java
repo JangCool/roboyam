@@ -97,8 +97,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/groups", "/api/groups/categories", "/api/groups/creation-rules", "/api/groups/*").permitAll()
                         // 소모임 글(2단계) — 글 탭(비회원은 공개로 전환된 글만)·소모임 게시판 정보는 비회원도 읽는다. 글쓰기·공개 전환·봤어요는 로그인 필요
                         .requestMatchers(HttpMethod.GET, "/api/groups/*/posts", "/api/groups/*/board").permitAll()
-                        // 공동구매 목록·카테고리·상세·사업자 정보(커머스 2b-4 — 로그인 없이 본다, 견적·주문·관심 신청은 로그인)
-                        .requestMatchers(HttpMethod.GET, "/api/group-buys", "/api/group-buys/categories", "/api/group-buys/*", "/api/commerce/info").permitAll()
+                        // 공동구매 목록·카테고리·상세·문의 목록·리뷰 목록·사업자 정보(커머스 2b-4·2b-6 — 로그인 없이 본다, 견적·주문·관심 신청·글쓰기는 로그인)
+                        .requestMatchers(HttpMethod.GET, "/api/group-buys", "/api/group-buys/categories", "/api/group-buys/*", "/api/group-buys/*/questions", "/api/group-buys/*/reviews",
+                                "/api/commerce/info").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/group-buys/*/quote").permitAll()
                         // 포트원 결제 웹훅(docs/features/commerce-payment-contract.md 결정 5) — 로그인·CSRF 없이 받고 서명은 서비스가 검증한다(틀리면 400). 공개 사이트 서버(api)에만 있는 주소
                         .requestMatchers(HttpMethod.POST, PaymentWebhookPaths.PORTONE).permitAll()

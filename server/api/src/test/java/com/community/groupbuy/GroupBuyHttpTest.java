@@ -21,7 +21,9 @@ import com.community.groupbuy.service.GroupBuyProductService;
 import com.community.groupbuy.service.ShippingPolicyService;
 import com.community.identity.dto.IdentityProviderKind;
 import com.community.identity.repository.master.IdentityStore;
+import com.community.installation.service.InstallationState;
 import com.community.user.entity.Role;
+import jakarta.servlet.Filter;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -30,6 +32,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
@@ -61,6 +64,11 @@ class GroupBuyHttpTest extends CommerceApiTestBase {
     private GroupBuyNoticeCatalog catalog;
     @Autowired
     private FulfillmentService fulfillment;
+    @Autowired
+    private InstallationState installation;
+    @Autowired
+    @Qualifier("springSecurityFilterChain")
+    private Filter securityFilterChain;
 
     private MockMvc mvc;
 
@@ -131,6 +139,13 @@ class GroupBuyHttpTest extends CommerceApiTestBase {
                 .getContentAsString();
         assertThat(MAPPER.readTree(list).path("data").path("items").toString()).contains("\"id\":\"" + g[0] + "\"");
         mvc.perform(get("/api/group-buys/abc")).andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("GROUP_BUY_NOT_FOUND"));
+        // 보안 필터를 거쳐 로그인 없이 — 상세·문의·리뷰 목록은 200(2b-6 — 문의·리뷰 규칙이 빠져 비회원에게 401 이던 것을 실제 확인에서 잡음), 견적은 로그인 없이 되고 주문은 막힌다
+        installation.markCompleted();
+        MockMvc secured = MockMvcBuilders.webAppContextSetup(context).addFilters(securityFilterChain).build();
+        secured.perform(get("/api/group-buys/" + g[0])).andExpect(status().isOk());
+        secured.perform(get("/api/group-buys/" + g[0] + "/questions")).andExpect(status().isOk());
+        secured.perform(get("/api/group-buys/" + g[0] + "/reviews")).andExpect(status().isOk()).andExpect(jsonPath("$.data.summary.count").value(0));
+        secured.perform(get("/api/me/group-buy-reviews")).andExpect(status().isUnauthorized());
     }
 
     @Test
