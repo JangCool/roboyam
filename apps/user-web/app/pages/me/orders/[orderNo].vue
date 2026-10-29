@@ -259,7 +259,13 @@
                     <legend class="mb-1 text-sm font-medium">{{ t('groupBuy.pickLines') }}</legend>
                     <div v-for="pick in picks" :key="pick.item.id" class="flex flex-col gap-2 rounded-lg border border-surface p-3">
                         <label class="flex cursor-pointer items-center gap-2 text-sm">
-                            <Checkbox v-model="pick.on" binary :input-id="`${dialogFormId}-pick-${pick.item.id}`" :disabled="dialogBusy" />
+                            <Checkbox
+                                :model-value="pick.on"
+                                binary
+                                :input-id="`${dialogFormId}-pick-${pick.item.id}`"
+                                :disabled="dialogBusy"
+                                @update:model-value="(on: boolean) => setPicked(pick, on)"
+                            />
                             <span class="inline-flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
                                 <PointShopTag v-if="pick.item.kind === 'ADDON'" tone="neutral">{{ t('groupBuy.addonTag') }}</PointShopTag>
                                 <span class="font-medium">{{ pick.item.skuName }}</span>
@@ -734,6 +740,12 @@ function openDialog(mode: DialogMode): void {
     dialogError.value = '';
     dialogKey = UtilIdempotency.newKey();
     dialogOpen.value = true;
+}
+
+/** 줄 고르기 — 처음 고르면 수량을 1로 채운다(빈 칸이면 「+」를 한 번 더 눌러야 했다) */
+function setPicked(pick: Pick, on: boolean): void {
+    pick.on = on;
+    if (on && pick.qty === null) pick.qty = 1;
 }
 
 const picked = computed(() => picks.value.filter((p) => p.on && p.qty !== null && p.qty >= 1));
