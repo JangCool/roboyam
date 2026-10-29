@@ -10,6 +10,7 @@
  */
 import account from './account';
 import adult from './adult';
+import address from './address';
 import auth from './auth';
 import avatar from './avatar';
 import block from './block';
@@ -65,6 +66,7 @@ import terms from './terms';
 export default {
     account,
     adult,
+    address,
     auth,
     avatar,
     block,

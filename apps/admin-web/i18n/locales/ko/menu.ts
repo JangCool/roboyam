@@ -11,6 +11,7 @@ export default {
     themeLayout: '레이아웃',
     socialLogin: '소셜 로그인',
     portone: '포트원',
+    addressSearch: '주소 검색',
     loginSecurity: '로그인 보안',
     mail: '메일',
     mailSettings: '메일 서버',

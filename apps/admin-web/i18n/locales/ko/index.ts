@@ -6,6 +6,7 @@
  * 레이어(`@roboyam/i18n`·`@roboyam/display-time`)가 이미 쓰는 최상위 키(`common`·`display`)는 여기서 다시 쓰지 않는다 — 합칠 때 한쪽이 덮인다.
  */
 import account from './account';
+import address from './address';
 import audit from './audit';
 import batch from './batch';
 import board from './board';
@@ -57,6 +58,7 @@ import report from './report';
 
 export default {
     account,
+    address,
     audit,
     batch,
     board,
