@@ -81,6 +81,7 @@ export default class UtilGadgetConfig {
             out.boardIds = [];
         }
         if (type === 'POST_LIST') out.periodTabs = false;
+        if (type === 'BOARD_CARDS') out.cardHead = true;
         return out;
     }
 
@@ -108,6 +109,7 @@ export default class UtilGadgetConfig {
             out.boardIds = scope === 'PICK' ? ids : [];
         }
         if (type === 'POST_LIST') out.periodTabs = out.sort === 'POPULAR' && c.periodTabs === true;
+        if (type === 'BOARD_CARDS') out.cardHead = c.cardHead !== false;
         return out;
     }
 
@@ -119,6 +121,6 @@ export default class UtilGadgetConfig {
     static key(config: HomeGadgetConfig | null | undefined): string {
         if (!config) return '';
         const c = config;
-        return JSON.stringify([c.count ?? null, c.sort ?? null, c.boardScope ?? null, c.boardIds ?? null, c.periodTabs ?? null, c.perBoard ?? null]);
+        return JSON.stringify([c.count ?? null, c.sort ?? null, c.boardScope ?? null, c.boardIds ?? null, c.periodTabs ?? null, c.perBoard ?? null, c.cardHead ?? null]);
     }
 }

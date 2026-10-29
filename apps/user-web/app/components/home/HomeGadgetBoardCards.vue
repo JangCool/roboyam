@@ -5,6 +5,7 @@
         한 열(모바일) + 템플릿이 `mobile.boardCardsScroll` 을 고르면(네이버형) 격자 대신 가로로 미는 카드 줄(`gadget-scroll-row` — 한 칸 84%, 줄 안 카드는 둥근 모서리).
         산업·주식(투자 고지) 게시판 카드에는 고지 한 줄이 늘 붙는다 — 카드의 `board.investmentNotice`(slug 로 짐작하지 않는다).
         로고 색: 자동은 운영자가 고른 게시판 표시색, 없으면 순서로 정한 색(`UtilBoard.toneAt`) · 고정 색 · 회색. 로고에는 글자가 늘 있다(색만으로 뜻을 전하지 않는다).
+        설정 `cardHead` 가 꺼지면(관리자 ⚙ — 게시판 하나짜리 카드 가젯) 카드 머리(로고·이름)와 「게시판 가기 ›」를 그리지 않는다 — 가젯 제목·「더보기」가 그 게시판을 가리킨다. 투자 고지 줄은 그대로 붙는다.
     -->
     <HomeGadgetFrame :gadget="gadget" :empty="gadget.empty || cards.length === 0" empty-icon="pi pi-th-large">
         <div
@@ -15,7 +16,7 @@
             data-testid="home-board-cards"
         >
             <article v-for="(card, i) in cards" :key="card.board.slug" class="flex min-w-0 flex-col" :class="innerCard" :aria-label="nameOf(card)" data-testid="home-board-card">
-                <header class="mb-3 flex items-center gap-2">
+                <header v-if="cfg.cardHead" class="mb-3 flex items-center gap-2">
                     <span class="grid size-8 shrink-0 place-items-center rounded-full text-xs font-extrabold" :class="logoClass(i, card)" :style="logoStyle(card)" aria-hidden="true">{{ UtilBoard.iconText(nameOf(card)) }}</span>
                     <NuxtLink :to="`/boards/${card.board.slug}`" class="min-w-0 flex-1 truncate rounded text-[0.9375rem] font-extrabold hover:underline focus-visible:outline-2 focus-visible:outline-primary">{{ nameOf(card) }}</NuxtLink>
                 </header>
@@ -41,10 +42,11 @@
                 </ul>
                 <p v-else-if="!card.lead" class="m-0 py-4 text-center text-xs text-muted-color">{{ t('home.boardEmpty') }}</p>
 
-                <footer class="mt-auto flex items-center justify-between gap-2 border-t border-surface pt-2.5 text-xs text-muted-color">
+                <footer v-if="cfg.cardHead || card.board.investmentNotice" class="mt-auto flex items-center justify-between gap-2 border-t border-surface pt-2.5 text-xs text-muted-color">
                     <span v-if="card.board.investmentNotice" class="min-w-0 text-color" data-testid="home-board-stock-note"><i class="pi pi-exclamation-triangle mr-1 text-[0.6875rem]" aria-hidden="true" />{{ t('home.boardStockNote') }}</span>
                     <span v-else />
                     <NuxtLink
+                        v-if="cfg.cardHead"
                         :to="`/boards/${card.board.slug}`"
                         class="shrink-0 whitespace-nowrap rounded hover:text-color hover:underline focus-visible:outline-2 focus-visible:outline-primary"
                         :aria-label="t('home.boardGoLabel', { name: nameOf(card) })"

@@ -59,7 +59,7 @@ class HomeLayoutGroupBuyConfigTest extends CommerceAdminTestBase {
 
     /** 공구 가젯 설정 요청 */
     private static HomeLayoutSaveRequest.Config gb(Integer count, String sort) {
-        return new HomeLayoutSaveRequest.Config(count, sort, null, null, null, null);
+        return new HomeLayoutSaveRequest.Config(count, sort, null, null, null, null, null);
     }
 
     /** 응답 설정이 공구 칸 {count, sort} 만 그 값인가 */

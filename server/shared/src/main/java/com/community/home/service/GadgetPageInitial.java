@@ -12,7 +12,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * 가젯 페이지의 처음 배치 — 만들 때 기준 폴더의 게시판으로 한 번 만들어 {@code gadget_pages.initial_layout} 에 둔다(gadget-page-contract 「필드·검증」, admin-web {@code UtilGadgetPage.initialLayout} 과 같은 규칙).
- * 24칸, 줄마다 꽉 차게(사용자 결정 2026-10-29): 「{폴더} 인기글」(인기·기간 탭·대상 폴더, 24칸) / 게시판 카드(갤러리로 쓴 게시판을 뺀 폴더 게시판마다, 12+12 두 열 — 홀수면 마지막 24칸) /
+ * 24칸, 줄마다 꽉 차게(사용자 결정 2026-10-29): 「{폴더} 인기글」(인기·기간 탭·대상 폴더, 24칸) / 게시판 카드(갤러리로 쓴 게시판을 뺀 폴더 게시판마다, 12+12 두 열 — 홀수면 마지막 24칸, 카드 머리 끔 — 가젯 제목이 게시판 이름) /
  * 「{폴더} 최신글」(대상 폴더, 24칸) / 맨 아래 「{게시판}」 갤러리(사진·영상 게시판 — 목록 모양 GALLERY 또는 갤러리 보기 전환이 켜진 첫 폴더 게시판, 24칸 — 없으면 이 줄이 없다).
  * 나란한 가젯은 같은 높이(h — 최소 높이)라 아래 끝이 맞고, 높이는 보통 내용에 맞췄다(내용이 길면 격자가 늘린다).
  * 기준 폴더가 없으면 이름 자리는 「전체」. 가젯 ID 는 {@code seed-<n>} — 저장 요청에 이 ID 가 오면 그 설정 그대로 만든다.
@@ -53,7 +53,7 @@ public final class GadgetPageInitial {
             boolean left = i % 2 == 0;
             boolean last = i == cards.size() - 1;
             b.add("BOARD_CARDS", board.name(), "pi-th-large",
-                    scope(HomeLayoutJson.object().put("columns", "AUTO").put("perBoard", 4), GadgetConfigs.PICK, List.of(board.slug())),
+                    scope(HomeLayoutJson.object().put("columns", "AUTO").put("perBoard", 4).put("cardHead", false), GadgetConfigs.PICK, List.of(board.slug())),
                     "/boards/" + board.slug(), left ? 0 : 12, y, left && last ? 24 : 12, CARDS_H);
             if (!left || last) {
                 y += CARDS_H;

@@ -59,6 +59,8 @@ export default {
     postSort_VIEWS: '조회 많은 순',
     postSort_LIKES: '추천 많은 순',
     postSort_COMMENTS: '댓글 많은 순',
+    settingsCardHead: '카드 머리 보이기',
+    settingsCardHeadHint: '게시판 로고·이름과 「게시판 가기」예요. 게시판 하나짜리 가젯은 가젯 제목·「더보기」와 겹치니 꺼 두세요.',
     settingsPeriodTabs: '실시간 · 어제 · 이번 주 탭 보이기',
     settingsPreviewNoteBoards: '저장하기 전 실제 화면은 지금 보이는 글 안에서만 개수·게시판을 바꿔 보여요. 저장하면 이 설정으로 다시 골라요.',
 

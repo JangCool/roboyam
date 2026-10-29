@@ -36,7 +36,7 @@ import tools.jackson.databind.node.ObjectNode;
  *   <li>검사(모아서 {@code 400 VALIDATION}): {@code layout.columns} · {@code gadgets}(한도) · {@code gadgets[i].id|type|title} · {@code layout.items[i]}(없는 가젯·두 번째 자리·범위·최소 크기) ·
  *       {@code layout.items}(자리 없는 가젯·겹침) · 내용 설정 {@code gadgets[i].config.<칸>}(아래).</li>
  *   <li>내용 설정(⚙ — {@link GadgetConfigs}, gadget-page-contract 「가젯 설정」): 공구 {@code count}·{@code sort} · 글 목록 {@code boardScope}·{@code boardIds}·{@code count}·{@code sort}·{@code periodTabs} ·
- *       갤러리 {@code boardScope}·{@code boardIds}·{@code count} · 게시판 카드 {@code boardScope}·{@code boardIds}·{@code perBoard}. 보내면 그 칸만 저장 설정에 덮고(꾸미기용 다른 칸은 그대로), 보내지 않으면 그대로.
+ *       갤러리 {@code boardScope}·{@code boardIds}·{@code count} · 게시판 카드 {@code boardScope}·{@code boardIds}·{@code perBoard}·{@code cardHead}. 보내면 그 칸만 저장 설정에 덮고(꾸미기용 다른 칸은 그대로), 보내지 않으면 그대로.
  *       {@code FOLDER}(폴더 게시판 전체)는 가젯 페이지에서만 된다. 다른 종류의 {@code config} 는 무시한다.</li>
  * </ul>
  */
@@ -236,6 +236,9 @@ public class GadgetLayoutWriter {
             } else {
                 out.put("periodTabs", tabs);
             }
+        }
+        if ("BOARD_CARDS".equals(type)) {
+            out.put("cardHead", !Boolean.FALSE.equals(raw.cardHead()));
         }
         if (GadgetConfigs.boards(type)) {
             String scope = raw.boardScope();

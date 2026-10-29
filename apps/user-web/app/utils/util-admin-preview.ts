@@ -7,7 +7,7 @@ export type AdminPreviewGroupBuySort = 'DEADLINE' | 'NEWEST' | 'POPULAR';
 
 /**
  * 가젯 내용 설정(관리자 ⚙ 설정 창 — admin-web `UtilGadgetConfig`) — 서버 JSON 그대로의 평평한 모양, 종류마다 쓰는 칸만:
- * 공구 `count`·`sort` · 글 목록 `boardScope`·`boardIds`·`count`·`sort`·`periodTabs` · 갤러리 `boardScope`·`boardIds`·`count` · 게시판 카드 `boardScope`·`boardIds`·`perBoard`.
+ * 공구 `count`·`sort` · 글 목록 `boardScope`·`boardIds`·`count`·`sort`·`periodTabs` · 갤러리 `boardScope`·`boardIds`·`count` · 게시판 카드 `boardScope`·`boardIds`·`perBoard`·`cardHead`.
  */
 export interface AdminPreviewGadgetConfig {
     count?: number;
@@ -16,6 +16,7 @@ export interface AdminPreviewGadgetConfig {
     boardIds?: string[];
     periodTabs?: boolean;
     perBoard?: number;
+    cardHead?: boolean;
 }
 
 /** 가젯 페이지 머리(관리자의 저장 전 값 — 가젯 페이지 미리보기일 때만) */
@@ -136,7 +137,7 @@ export default class UtilAdminPreview {
             case 'GALLERY':
                 return { count: int(value.count, 1, 24), boardScope, boardIds };
             default:
-                return { perBoard: int(value.perBoard, 1, 10), boardScope, boardIds };
+                return { perBoard: int(value.perBoard, 1, 10), boardScope, boardIds, cardHead: value.cardHead !== false };
         }
     }
 
@@ -171,7 +172,7 @@ export default class UtilAdminPreview {
      *   · 공구 — 정렬·개수(`groupBuy`)
      *   · 글 목록 — 정렬·기간 탭은 설정 값으로(탭을 끄면 기간 글을 뺀다), 개수만큼 자른다
      *   · 갤러리 — 개수만큼 자른다
-     *   · 게시판 카드 — 직접 고른 게시판이면 그 게시판 카드만(고른 차례), 카드마다 글 수만큼 자른다
+     *   · 게시판 카드 — 직접 고른 게시판이면 그 게시판 카드만(고른 차례), 카드마다 글 수만큼 자른다, 카드 머리 보이기는 설정 값으로
      * @param {HomeGadget} gadget - 가젯(사본 — 고친다).
      * @param {AdminPreviewGadgetConfig} config - 설정.
      */
@@ -192,6 +193,7 @@ export default class UtilAdminPreview {
             const cards = (data as unknown as BoardCardsData).cards;
             const picked = config.boardScope === 'PICK' && config.boardIds?.length ? config.boardIds.map((slug) => cards.find((c) => c.board.slug === slug)).filter((c) => c !== undefined) : cards;
             data.cards = picked.map((c) => ({ ...c, items: config.perBoard ? c.items.slice(0, config.perBoard) : c.items }));
+            gadget.config = { ...gadget.config, cardHead: config.cardHead !== false };
         }
     }
 

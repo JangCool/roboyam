@@ -53,7 +53,7 @@ export default class UtilGadgetPage {
      *   · 나란한 가젯은 같은 높이라 아래 끝이 맞고, 높이는 보통 내용에 맞췄다(내용이 길면 격자가 늘린다). 켜진 게시판만 쓴다.
      *   · 인기글·최신글은 대상 게시판 = 폴더 게시판 전체(`FOLDER`) — 폴더에 게시판을 넣고 빼면 따라간다.
      *   · 갤러리는 사진·영상 게시판 — 목록 모양이 갤러리인 첫 게시판, 없으면 갤러리 보기 전환이 켜진 첫 게시판(직접 고르기, 제목 = 게시판 이름, 맨 아래 줄). 없으면 그 줄이 없다.
-     *   · 게시판 카드는 갤러리로 쓴 게시판을 뺀 폴더 게시판마다 하나, 두 열(12+12) — 홀수면 마지막이 24칸.
+     *   · 게시판 카드는 갤러리로 쓴 게시판을 뺀 폴더 게시판마다 하나, 두 열(12+12) — 홀수면 마지막이 24칸. 카드 머리는 끈다(가젯 제목이 게시판 이름이라).
      *   · 게시판 카드는 폴더 게시판마다 하나(직접 고르기 — 그 게시판 하나), 두 개씩 나란히(12칸). 홀수면 마지막이 24칸.
      *   · 기준 폴더가 없거나 게시판이 없으면 인기글 + 최신글(대상 = 폴더 게시판 전체 → 전체 게시판과 같다).
      * 가젯 ID 는 `seed-<n>`(저장 전 — 서버가 저장 때 새 ID 를 준다).
@@ -86,7 +86,7 @@ export default class UtilGadgetPage {
             const last = index === cards.length - 1;
             const left = index % 2 === 0;
             const w = left && last ? 24 : 12;
-            put('BOARD_CARDS', board.name, { boardScope: 'PICK', boardIds: [board.slug], perBoard: 4 }, left ? 0 : 12, y, w, CARDS_H);
+            put('BOARD_CARDS', board.name, { boardScope: 'PICK', boardIds: [board.slug], perBoard: 4, cardHead: false }, left ? 0 : 12, y, w, CARDS_H);
             if (!left || last) y += CARDS_H;
         });
 

@@ -132,6 +132,8 @@ export interface PostListConfig {
 export interface BoardCardsConfig {
     columns: 'AUTO' | 2 | 3;
     badge: GadgetBadgeConfig;
+    /** 카드 머리(게시판 로고·이름)와 「게시판 가기」를 보이는가 — 끄면 가젯 제목·「더보기」만(게시판 하나짜리 카드 가젯에서 이름이 두 번 나오지 않게). 없으면 보인다 */
+    cardHead: boolean;
 }
 
 export interface HighlightConfig {

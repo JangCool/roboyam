@@ -58,6 +58,8 @@ export default {
     postSort_VIEWS: 'Most viewed',
     postSort_LIKES: 'Most liked',
     postSort_COMMENTS: 'Most commented',
+    settingsCardHead: 'Show card heading',
+    settingsCardHeadHint: 'Board logo, name and “Go to board”. Turn it off for a single-board gadget — the gadget title and “More” already point there.',
     settingsPeriodTabs: 'Show Now · Yesterday · This week tabs',
     settingsPreviewNoteBoards: 'Before you save, the live view only trims and filters the posts already shown. Saving picks them again with these settings.',
 

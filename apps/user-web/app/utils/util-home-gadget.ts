@@ -379,7 +379,7 @@ export default class UtilHomeGadget {
     static boardCardsConfig(config: Record<string, unknown>): BoardCardsConfig {
         const c = obj(config);
         const columns = c.columns === 2 || c.columns === '2' ? 2 : c.columns === 3 || c.columns === '3' ? 3 : 'AUTO';
-        return { columns, badge: readBadge(c.badge) };
+        return { columns, badge: readBadge(c.badge), cardHead: c.cardHead !== false };
     }
 
     /**

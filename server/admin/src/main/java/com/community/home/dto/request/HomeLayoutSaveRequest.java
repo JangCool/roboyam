@@ -30,7 +30,8 @@ public record HomeLayoutSaveRequest(Layout layout, List<Gadget> gadgets) {
      * @param boardIds   {@code PICK} 의 게시판 slug 1~20개
      * @param periodTabs 글 목록 인기 순의 기간 탭
      * @param perBoard   게시판 카드의 카드마다 글 수 1~10
+     * @param cardHead   게시판 카드의 카드 머리(로고·이름·「게시판 가기」) 보이기 — 빠지면 켬
      */
-    public record Config(Integer count, String sort, String boardScope, List<String> boardIds, Boolean periodTabs, Integer perBoard) {
+    public record Config(Integer count, String sort, String boardScope, List<String> boardIds, Boolean periodTabs, Integer perBoard, Boolean cardHead) {
     }
 }

@@ -4,7 +4,7 @@
           · 공동구매 — 보일 개수(1~10) · 정렬(마감 임박 · 새로 시작한 · 참여 많은 순) (사용자 결정 2026-10-29)
           · 글 목록 — 대상 게시판 · 개수(1~30) · 정렬(최신 · 인기 · 조회 · 추천 · 댓글) · 인기일 때 기간 탭(실시간·어제·이번 주)
           · 갤러리 — 대상 게시판 · 개수(1~24)
-          · 게시판 카드 — 카드로 보일 게시판 · 카드마다 글 수(1~10)
+          · 게시판 카드 — 카드로 보일 게시판 · 카드마다 글 수(1~10) · 카드 머리(게시판 이름·「게시판 가기」) 보이기 — 게시판 하나짜리 카드는 꺼서 가젯 제목과 겹치지 않게
         대상 게시판: 전체 게시판(홈) · 「이 페이지가 연결된 폴더의 게시판 전체」(가젯 페이지 — 폴더에 게시판을 넣고 빼면 따라간다) · 직접 고르기(여러 개, 고른 차례 — 20개까지).
         게시판 카드는 「전체」 대신 서버가 켜진 일반 게시판 앞 6개를 보인다(서버 `HomeGadgetService`).
         [적용]은 편집 중인 값에만 넣는다(저장은 편집기 저장 줄). 고를 게시판 목록은 메뉴 대상 고르기 값(`useGadgetPageFolders`)이다.
@@ -74,6 +74,15 @@
                     <ToggleSwitch v-model="periodModel" :input-id="`${uid}-period`" />
                     <label :for="`${uid}-period`" class="cursor-pointer text-sm">{{ t('homeLayout.settingsPeriodTabs') }}</label>
                 </div>
+            </div>
+
+            <!-- 게시판 카드의 카드 머리 -->
+            <div v-if="gadget.type === 'BOARD_CARDS'" class="flex flex-col gap-1">
+                <div class="flex items-center gap-2">
+                    <ToggleSwitch v-model="cardHeadModel" :input-id="`${uid}-head`" />
+                    <label :for="`${uid}-head`" class="cursor-pointer text-sm">{{ t('homeLayout.settingsCardHead') }}</label>
+                </div>
+                <small class="text-xs text-muted-color">{{ t('homeLayout.settingsCardHeadHint') }}</small>
             </div>
 
             <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t(gadget.type === 'GROUP_BUY' ? 'homeLayout.settingsPreviewNote' : 'homeLayout.settingsPreviewNoteBoards') }}</p>
@@ -157,6 +166,13 @@ const periodModel = computed<boolean>({
     get: () => draft.value?.periodTabs === true,
     set: (value) => {
         if (draft.value) draft.value.periodTabs = value;
+    },
+});
+
+const cardHeadModel = computed<boolean>({
+    get: () => draft.value?.cardHead !== false,
+    set: (value) => {
+        if (draft.value) draft.value.cardHead = value;
     },
 });
 

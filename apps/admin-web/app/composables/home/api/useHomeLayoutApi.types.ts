@@ -27,7 +27,7 @@ export type HomeBoardScope = 'ALL' | 'FOLDER' | 'PICK';
  *   · `GROUP_BUY` `count`(1~10) · `sort`(HomeGroupBuySort)
  *   · `POST_LIST` `boardScope`·`boardIds` · `count`(1~30) · `sort`(HomePostListSort) · `periodTabs`(인기일 때 실시간·어제·이번 주 탭)
  *   · `GALLERY` `boardScope`·`boardIds` · `count`(1~24)
- *   · `BOARD_CARDS` `boardScope`·`boardIds`(카드로 보일 게시판) · `perBoard`(카드마다 제목 수 1~10)
+ *   · `BOARD_CARDS` `boardScope`·`boardIds`(카드로 보일 게시판) · `perBoard`(카드마다 제목 수 1~10) · `cardHead`(카드 머리·「게시판 가기」 보이기, 기본 켬)
  * 다른 종류는 null.
  */
 export interface HomeGadgetConfig {
@@ -37,6 +37,7 @@ export interface HomeGadgetConfig {
     boardIds?: string[];
     periodTabs?: boolean;
     perBoard?: number;
+    cardHead?: boolean;
 }
 
 /** 배치 편집기가 보는 가젯 한 개(내용 설정은 고칠 수 있는 종류만 — 공구 · 글 목록 · 갤러리 · 게시판 카드) */

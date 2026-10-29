@@ -8,7 +8,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * 관리자 ⚙ 설정 창이 고치는 가젯 내용 설정 — 종류·칸·범위·처음 값(docs/features/gadget-page-contract.md 「가젯 설정」, admin-web {@code UtilGadgetConfig} 와 같은 값).
- * 공구({@code count}·{@code sort}) · 글 목록·갤러리·게시판 카드(대상 게시판 {@code boardScope}·{@code boardIds} + 개수 · 글 목록은 정렬·기간 탭).
+ * 공구({@code count}·{@code sort}) · 글 목록·갤러리·게시판 카드(대상 게시판 {@code boardScope}·{@code boardIds} + 개수 · 글 목록은 정렬·기간 탭 · 게시판 카드는 카드 머리 {@code cardHead}).
  *
  * <p>대상 게시판 {@code boardScope}: {@code ALL} 전체 · {@code FOLDER} 가젯 페이지의 기준 폴더 게시판 전체(페이지에서만) · {@code PICK} {@code boardIds}(게시판 slug).
  * 저장 설정에 {@code boardScope} 가 없으면(옛 시드) {@code boardIds} 가 있으면 PICK, 없으면 ALL 로 읽는다.
@@ -96,6 +96,15 @@ public final class GadgetConfigs {
         if ("POST_LIST".equals(type)) {
             out.put("periodTabs", "POPULAR".equals(out.path("sort").asString()) && HomeLayoutJson.flag(config, "periodTabs"));
         }
+        if ("BOARD_CARDS".equals(type)) {
+            out.put("cardHead", cardHead(config));
+        }
         return out;
+    }
+
+    /** 게시판 카드의 카드 머리(로고·이름·「게시판 가기」)를 보이는가 — 칸이 없거나 불리언이 아니면 보인다 */
+    public static boolean cardHead(JsonNode config) {
+        JsonNode value = config == null ? null : config.get("cardHead");
+        return value == null || !value.isBoolean() || value.asBoolean();
     }
 }

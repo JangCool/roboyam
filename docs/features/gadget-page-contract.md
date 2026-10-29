@@ -32,7 +32,7 @@
 | `GROUP_BUY` | `count` 1~10(기본 5) · `sort` DEADLINE·NEWEST·POPULAR (기존) |
 | `POST_LIST` | `boardScope` · `boardIds` · `count` 1~30(기본 10) · `sort` LATEST·POPULAR·VIEWS·LIKES·COMMENTS · `periodTabs`(POPULAR 일 때만 참) |
 | `GALLERY` | `boardScope` · `boardIds` · `count` 1~24(기본 6) |
-| `BOARD_CARDS` | `boardScope` · `boardIds`(카드로 보일 게시판) · `perBoard` 1~10(기본 4) |
+| `BOARD_CARDS` | `boardScope` · `boardIds`(카드로 보일 게시판) · `perBoard` 1~10(기본 4) · `cardHead` 카드 머리(로고·이름·「게시판 가기」) 보이기(기본 켬 — 게시판 하나짜리 카드는 꺼서 가젯 제목과 겹치지 않게, 처음 배치의 카드는 끔) |
 - `boardScope`: `ALL` 전체(글 목록·갤러리는 최신글과 같은 범위, 게시판 카드는 켜진 일반 게시판 앞 6개) · `FOLDER` 이 페이지의 기준 폴더 게시판 전체(가젯 페이지에서만 — 홈에서 보내면 400) · `PICK` `boardIds`(게시판 slug 1~20개, 고른 차례).
   저장된 설정에 `boardScope` 가 없으면(옛 시드) `boardIds` 가 있으면 PICK, 없으면 ALL 로 읽는다. FOLDER 인데 기준 폴더가 없거나 게시판이 없으면 ALL 과 같다.
 - 저장: 보낸 칸만 저장 설정에 덮는다(꾸미기용 다른 칸 — `rowStyle` 등 — 은 그대로). 오류 `400 fields.gadgets[i].config.<칸>`.
