@@ -50,7 +50,7 @@ export default {
     groupBuySoon: 'Ends soon',
     groupBuySold: '{n}% sold',
     groupBuyLeft: '{n} left',
-    groupBuySoldCount: '{n} sold',
+    groupBuySalesClosed: 'Orders are paused right now',
     groupBuyPrev: 'Previous group buy',
     groupBuyNext: 'Next group buy',
     groupBuyPick: 'Show group buy {n}',

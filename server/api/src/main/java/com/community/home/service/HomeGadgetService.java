@@ -6,6 +6,8 @@ import com.community.board.entity.BoardGadget;
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.BoardFields;
 import com.community.group.service.GroupQueryService;
+import com.community.groupbuy.service.GroupBuyMemberService;
+import com.community.groupbuy.service.GroupBuySalesSwitch;
 import com.community.highlight.entity.HighlightEntity;
 import com.community.highlight.repository.master.HighlightRepository;
 import com.community.home.dto.HomeGadgetSpec;
@@ -15,6 +17,7 @@ import com.community.home.dto.response.HomeGadgetsResponse;
 import com.community.home.dto.response.gadget.BoardCardView;
 import com.community.home.dto.response.gadget.BoardCardsDataView;
 import com.community.home.dto.response.gadget.GalleryItemView;
+import com.community.home.dto.response.gadget.GroupBuyDataView;
 import com.community.home.dto.response.gadget.HighlightDataView;
 import com.community.home.dto.response.gadget.HighlightPickView;
 import com.community.home.dto.response.gadget.ItemsDataView;
@@ -57,7 +60,8 @@ import tools.jackson.databind.JsonNode;
  *       VIEWS·LIKES·COMMENTS(이번 주 인기글 후보를 그 수로 다시 정렬 — 전체 글을 세지 않는다). {@code count} 기본 10.</li>
  *   <li>{@code HIGHLIGHT}: 노출 중인 하이라이트(관리자 순서), 글이 지금 보이는 것만, {@code count} 기본 5. {@code GALLERY}: 사진 있는 최신 글, {@code count} 기본 6.
  *       {@code BOARD_CARDS}: 게시판마다 최신 {@code perBoard}(기본 4)개 + 대표 글, 게시판을 정하지 않으면 켜진 일반 게시판 앞 6개. {@code GROUPS}: 지금 뜨는 소모임 {@code count}(기본 3)개.</li>
- *   <li>{@code GROUP_BUY}: 공개 공동구매 목록 API 가 아직 없어 늘 빈 목록이다. {@code QUICK_LINKS}·{@code NOTICE_TEXT}: 가젯 설정의 {@code items}·{@code text}·{@code format}.</li>
+ *   <li>{@code GROUP_BUY}: 모집 중인 공개 공구를 마감 이른 순으로 {@code count}(기본 {@value #GROUP_BUY_DEFAULT}, 1~{@value #GROUP_BUY_MAX})개 — 줄은 회원 공구 목록과 같은 모양
+ *       ({@link GroupBuyMemberService#recruiting}), 판매 스위치는 거르지 않고 {@code salesOpen} 으로 싣는다. {@code QUICK_LINKS}·{@code NOTICE_TEXT}: 가젯 설정의 {@code items}·{@code text}·{@code format}.</li>
  *   <li>노출 기간·보는 사람(로그인 전용) 설정은 아직 없다 — {@code locked} 는 늘 false.</li>
  * </ul>
  */
@@ -67,6 +71,8 @@ public class HomeGadgetService {
 
     private static final int POPULAR_POOL = 50;
     private static final int BOARD_CARDS_DEFAULT = 6;
+    static final int GROUP_BUY_DEFAULT = 5;
+    static final int GROUP_BUY_MAX = 10;
     private static final List<String> PERIODS = List.of("REALTIME", "YESTERDAY", "WEEK");
 
     private final PublicSiteService site;
@@ -80,10 +86,14 @@ public class HomeGadgetService {
     private final FileRepository files;
     private final ImageStorage storage;
     private final GroupQueryService groups;
+    private final GroupBuyMemberService groupBuys;
+    private final GroupBuySalesSwitch sales;
 
     public HomeGadgetService(PublicSiteService site, HomeLayoutRepository layouts, HomeGadgetRepository gadgets, BoardCatalog catalog,
                              PostFeedRepositoryQDSL feeds, PostFeedRows rows, PopularService popular, HighlightRepository highlights, FileRepository files,
-                             ImageStorage storage, GroupQueryService groups) {
+                             ImageStorage storage, GroupQueryService groups, GroupBuyMemberService groupBuys, GroupBuySalesSwitch sales) {
+        this.groupBuys = groupBuys;
+        this.sales = sales;
         this.site = site;
         this.layouts = layouts;
         this.gadgets = gadgets;
@@ -161,10 +171,10 @@ public class HomeGadgetService {
                 data = new NoticeTextDataView(text, HomeLayoutJson.text(config, "format", "PLAIN"));
                 empty = text.isBlank();
             }
-            // 공개 공동구매 목록 API 가 생기면 그 줄 모양으로 채운다
             case "GROUP_BUY" -> {
-                data = new ItemsDataView(List.of());
-                empty = true;
+                GroupBuyDataView d = groupBuy(config);
+                data = d;
+                empty = d.items().isEmpty();
             }
             default -> {
                 data = null;
@@ -276,6 +286,14 @@ public class HomeGadgetService {
             cards.add(new BoardCardView(new BoardCardView.Board(b.slug(), b.name(), b.nameEn(), b.color(), b.investmentNotice()), lead, items));
         }
         return new BoardCardsDataView(cards);
+    }
+
+    // ── GROUP_BUY ───────────────────────────────────────────────────────────
+
+    /** 모집 중인 공개 공구(목록 진행 탭과 같은 거름·차례) + 판매 스위치 */
+    GroupBuyDataView groupBuy(JsonNode config) {
+        int count = HomeLayoutJson.number(config, "count", GROUP_BUY_DEFAULT, 1, GROUP_BUY_MAX);
+        return new GroupBuyDataView(groupBuys.recruiting(count), sales.groupBuyOpen());
     }
 
     // ── 게시판 고르기 ───────────────────────────────────────────────────────

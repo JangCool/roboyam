@@ -690,3 +690,8 @@
 - **테스트** shared `GroupBuyFeedbackTest` 15건(G11·G11R) 통과 · 함께 돌린 것: `GroupBuyPrivacyCleanupBatchTest`·`GroupBuyNotificationsTest`·`GroupBuySchemaTest`·admin `AuditRetentionAdminTest`·`CommercePermissionsAndMenuTest`·`GroupBuyAdminHttpTest`·api `GroupBuyHttpTest` 통과. 전체 회귀는 돌리지 않았다.
 - **화면 연결**: user-web·admin-web 의 Q&A·리뷰 API 목업을 지우고 실제 주소로(타입 검사 통과). 메인 서버(8910·8920)는 이 브랜치 jar 가 아니라 **실제 호출 확인은 병합 뒤 서버를 다시 띄워야 한다**.
 - **미확정 · 다음**: 공구 참여 제한(`GROUP_BUY_BAN`)이 질문을 막지 않는다는 규칙은 코드(정지·탈퇴만 막음)로만 지켜지고 시험은 없다 · 「이전 차수 문의 보기」 시험 없음 · 지운 리뷰 본문 보관 기간 미정(지금은 남긴다) · 붙지 않은 리뷰 사진 정리 배치 없음 · 대시보드 「기한 지난 Q&A」 칸 미연결 · 홈 GROUP_BUY 가젯은 공구 개발 끝난 뒤.
+
+## 홈 `GROUP_BUY` 가젯 연결 (2026-10-29 — 브랜치 `claude/home-groupbuy-gadget-64ac1e`)
+- **서버**: `GroupBuyMemberService.recruiting(count)` — 회원 목록(`GET /api/group-buys`)과 같은 거름(공개 · 숨긴 카테고리 제외)·차례(진행 탭 — 마감(연장 끝) 이른 순)·줄 모양(`ListItem`, 리뷰 평균·수 포함)에서 **모집 중(`RECRUITING`)만**(집계 중 `CLOSING` 은 살 수 없어 뺀다). 목록과 쿼리 앞부분(`VISIBLE_FROM`·`DEADLINE_ORDER`)·줄 만들기(`listItems`)를 같이 쓴다. 홈 가젯 data = `{items, salesOpen}` — 판매 스위치는 목록처럼 거르지 않고 값만 싣는다.
+- **화면**: `HomeGadgetGroupBuyCard` 가 `GroupBuyListItem` 을 그린다(상세 주소는 목록처럼 `UtilGroupBuy.detailPath(id)` — 응답에 주소 칸은 없다). 판매가 꺼지면 가젯 위에 「지금은 주문을 받지 않아요」.
+- **테스트** api `HomeGadgetGroupBuyTest` 4건(모집 중만·마감 순·줄 모양 / 공개 전·집계 중·숨긴 카테고리 제외 / `count` 1~10·기본 5 / 판매 꺼짐) 통과, `GroupBuyHttpTest` 7건 함께 통과.

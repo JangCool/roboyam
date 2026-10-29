@@ -51,7 +51,7 @@ export default {
     groupBuySoon: '곧 마감',
     groupBuySold: '{n}% 판매됨',
     groupBuyLeft: '남은 수량 {n}개',
-    groupBuySoldCount: '{n}개 판매됨',
+    groupBuySalesClosed: '지금은 주문을 받지 않아요',
     groupBuyPrev: '이전 공동구매',
     groupBuyNext: '다음 공동구매',
     groupBuyPick: '{n}번째 공동구매 보기',
