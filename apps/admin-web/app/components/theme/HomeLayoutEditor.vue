@@ -7,9 +7,10 @@
           · 도구 줄: 격자 칸 수 12/24(바꾸면 위치·폭 2배/반 — `UtilHomeLayout.convert`) · 테마 기본 배치로(저장해야 적용) · 가젯 넣기(종류 8종 — 맨 아래 기본 크기).
           · 저장(`PUT /api/admin/home-layouts/{theme}` — 아래 붙는 저장 줄) · 되돌리기(마지막 저장으로).
         `hidden` 이면 도구 줄을 숨긴다(화면이 「보기」일 때) — 저장 줄과 편집 중인 값은 그대로다. 실제 화면은 기본 슬롯으로 받아 도구 줄과 저장 줄 사이에 둔다.
-        `theme` 이 바뀌면 그 테마의 구성을 다시 읽는다(저장하지 않은 변경 확인은 화면이 `dirty` 이벤트를 받아 먼저 한다). 화면을 나갈 때는 여기서 묻는다.
-        ⚙ 설정 창: 공구 가젯의 보일 개수(1~10)·정렬(마감 임박 · 새로 시작한 · 참여 많은 순) — 고친 값은 배치와 함께 저장한다(사용자 결정 2026-10-29 — 서버가 검사·저장, 400 `fields.gadgets[i].config.*`).
-          실제 화면은 저장 전에는 이미 받은 공구 줄 안에서만 순서·개수를 바꿔 보인다. 다른 종류의 내용 설정(게시판·개수·꾸미기) 편집은 범위 밖. 권한: 바꾸기·저장 `site.manage`(없으면 도구·저장 줄이 없고 iframe 의 손잡이 일도 받지 않는다). 막는 것은 서버다.
+        **가젯 페이지**(`page` — 사용자 결정 2026-10-29): 주면 홈 대신 그 페이지의 이 테마 배치를 편집한다(`useGadgetPageApi` — 읽기·저장·「처음 배치로」). 모양·손잡이·도구 줄은 홈과 같다.
+        `theme`·`page` 가 바뀌면 그 구성을 다시 읽는다(저장하지 않은 변경 확인은 화면이 `dirty` 이벤트를 받아 먼저 한다). 화면을 나갈 때는 여기서 묻는다.
+        ⚙ 설정 창(`GadgetSettingsDialog`): 공구(개수·정렬) · 글 목록 · 갤러리 · 게시판 카드(대상 게시판 · 개수 · 정렬) — 고친 값은 배치와 함께 저장한다(서버가 검사·저장, 400 `fields.gadgets[i].config.*`).
+          실제 화면은 저장 전에는 이미 받은 줄 안에서만 차례·개수·게시판을 바꿔 보인다. 꾸미기 편집은 범위 밖. 권한: 바꾸기·저장 `site.manage`(없으면 도구·저장 줄이 없고 iframe 의 손잡이 일도 받지 않는다). 막는 것은 서버다.
     -->
     <div class="flex flex-col gap-4">
         <div v-show="!hidden" class="flex flex-col gap-2" data-testid="home-layout-tools">
@@ -20,7 +21,7 @@
 
             <Message v-else-if="status === 'error'" severity="error" size="small" :closable="false">
                 <span class="flex flex-wrap items-center gap-2">
-                    {{ t('homeLayout.loadFailed') }} — {{ loadError?.message }}
+                    {{ word('loadFailed') }} — {{ loadError?.message }}
                     <Button v-if="loadError?.status !== 403" type="button" :label="t('common.retry')" size="small" severity="secondary" variant="text" @click="reload" />
                 </span>
             </Message>
@@ -40,14 +41,14 @@
                         :aria-describedby="`${baseId}-hint`"
                         @update:model-value="(v: HomeGridColumns) => changeColumns(v)"
                     />
-                    <p :id="`${baseId}-hint`" class="m-0 min-w-0 flex-1 basis-64 text-xs leading-relaxed text-muted-color">{{ canManage ? t('homeLayout.liveEditHint') : t('homeLayout.readOnly') }}</p>
+                    <p :id="`${baseId}-hint`" class="m-0 min-w-0 flex-1 basis-64 text-xs leading-relaxed text-muted-color">{{ canManage ? t('homeLayout.liveEditHint') : word('readOnly') }}</p>
                     <div v-if="canManage" class="flex flex-wrap items-center gap-2">
-                        <Button type="button" :label="t('homeLayout.resetDefault')" icon="pi pi-replay" severity="secondary" variant="outlined" size="small" :disabled="saving" @click="resetToDefault" />
+                        <Button type="button" :label="word('resetDefault')" icon="pi pi-replay" severity="secondary" variant="outlined" size="small" :disabled="saving" @click="resetToDefault" />
                         <Button type="button" :label="t('homeLayout.add')" icon="pi pi-plus" size="small" :disabled="saving" @click="addOpen = true" />
                     </div>
                 </div>
                 <p class="m-0 text-xs text-muted-color">
-                    {{ view.updatedAt ? t('homeLayout.lastSaved', { at: time.full(view.updatedAt), by: view.updatedBy ?? '—' }) : t('homeLayout.neverSaved') }}
+                    {{ view.updatedAt ? t('homeLayout.lastSaved', { at: time.full(view.updatedAt), by: view.updatedBy ?? '—' }) : word('neverSaved') }}
                 </p>
             </template>
             <p class="sr-only" aria-live="polite">{{ announcement }}</p>
@@ -78,37 +79,8 @@
             </ul>
         </Dialog>
 
-        <!-- 가젯 내용 설정(⚙) — 지금은 공구 가젯만 -->
-        <Dialog v-model:visible="settingsOpen" modal :header="t('homeLayout.settingsTitle', { title: settingsGadget?.title ?? '' })" :draggable="false" :style="{ width: '28rem', maxWidth: '92vw' }">
-            <form v-if="settingsDraft" class="flex flex-col gap-4" @submit.prevent="applySettings">
-                <p class="m-0 text-sm leading-relaxed text-muted-color">{{ t('homeLayout.settingsLead') }}</p>
-                <div class="flex flex-col gap-1">
-                    <label :for="`${baseId}-count`" class="text-sm font-medium">{{ t('homeLayout.settingsCount') }}</label>
-                    <InputNumber
-                        v-model="settingsDraft.count"
-                        :input-id="`${baseId}-count`"
-                        :min="HOME_GROUP_BUY_COUNT.min"
-                        :max="HOME_GROUP_BUY_COUNT.max"
-                        show-buttons
-                        button-layout="horizontal"
-                        :allow-empty="false"
-                        :aria-describedby="`${baseId}-count-hint`"
-                        class="w-40"
-                        input-class="w-16 text-center"
-                    />
-                    <small :id="`${baseId}-count-hint`" class="text-xs text-muted-color">{{ t('homeLayout.settingsCountHint', HOME_GROUP_BUY_COUNT) }}</small>
-                </div>
-                <div class="flex flex-col gap-1">
-                    <span :id="`${baseId}-sort`" class="text-sm font-medium">{{ t('homeLayout.settingsSort') }}</span>
-                    <SelectButton v-model="settingsDraft.sort" :options="sortOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-labelledby="`${baseId}-sort`" />
-                </div>
-                <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('homeLayout.settingsPreviewNote') }}</p>
-                <div class="flex justify-end gap-2">
-                    <Button type="button" :label="t('common.cancel')" severity="secondary" variant="text" @click="settingsOpen = false" />
-                    <Button type="submit" :label="t('homeLayout.settingsApply')" />
-                </div>
-            </form>
-        </Dialog>
+        <!-- 가젯 내용 설정(⚙) — 공구 · 글 목록 · 갤러리 · 게시판 카드 -->
+        <GadgetSettingsDialog v-model:visible="settingsOpen" :gadget="settingsGadget ?? null" :in-page="Boolean(page)" :folder="page ? { name: page.folderName, boards: page.folderBoards } : null" @apply="applySettings" />
     </div>
 </template>
 
@@ -116,10 +88,14 @@
 import type { HomeGridColumns } from '#layers/home-layout/utils/util-home-layout';
 import UtilHomeLayout from '#layers/home-layout/utils/util-home-layout';
 import type { ApiError } from '~/composables/common/useApiClient';
-import type { HomeGadgetConfig, HomeLayoutGadget, HomeLayoutView } from '~/composables/home/api/useHomeLayoutApi.types';
-import { HOME_GROUP_BUY_COUNT, HOME_GROUP_BUY_DEFAULT_CONFIG, HOME_GROUP_BUY_SORTS } from '~/composables/home/api/useHomeLayoutApi.types';
+import type { HomeGadgetConfig, HomeLayoutBody, HomeLayoutGadget } from '~/composables/home/api/useHomeLayoutApi.types';
+import type { GadgetPage } from '~/composables/page/api/useGadgetPageApi.types';
+import UtilGadgetConfig from '~/utils/util-gadget-config';
 import type { HomeEditorItem } from '~/utils/util-home-layout-editor';
 import UtilHomeLayoutEditor from '~/utils/util-home-layout-editor';
+
+/** 편집기가 읽고 저장하는 배치(홈 `HomeLayoutView` · 가젯 페이지 `GadgetPageLayoutView` 의 같은 칸) */
+type EditorView = HomeLayoutBody & { updatedAt: string | null; updatedBy: string | null };
 
 /** 실제 화면(iframe)의 홈 격자가 알리는 일 — 놓은 칸 · 칸·행 · 빼기 · ⚙ 설정 열기(user-web `AdminPreviewLayoutOp` 와 같은 모양) */
 export type HomeLayoutOp =
@@ -133,16 +109,19 @@ interface Props {
     theme: string;
     /** 도구 줄을 숨기는가(화면이 「보기」일 때) — 저장 줄과 편집 중인 값은 그대로 둔다 */
     hidden?: boolean;
+    /** 가젯 페이지 — 주면 그 페이지의 이 테마 배치를 편집한다(없으면 홈) */
+    page?: GadgetPage | null;
 }
-const props = withDefaults(defineProps<Props>(), { hidden: false });
+const props = withDefaults(defineProps<Props>(), { hidden: false, page: null });
 const emit = defineEmits<{
     (e: 'dirty', value: boolean): void;
     /** 편집 중인 홈 구성(저장 전 포함) — 화면의 실제 화면(공개 사이트 iframe)이 바로 따른다 */
-    (e: 'change', value: { layout: HomeLayoutView['layout']; gadgets: HomeLayoutGadget[] }): void;
+    (e: 'change', value: HomeLayoutBody): void;
 }>();
 
 const { t } = useI18n();
 const api = useHomeLayoutApi();
+const pageApi = useGadgetPageApi();
 const toast = useAppToast();
 const toApiError = useApiErrorOf();
 const time = useDisplayTime();
@@ -155,10 +134,16 @@ const canManage = computed(() => can('site.manage'));
 
 /** 편집하는 테마 */
 const theme = computed(() => props.theme);
+/** 편집하는 가젯 페이지 ID(홈이면 null) */
+const pageId = computed(() => props.page?.id ?? null);
+/** 문구 마디 — 홈 · 페이지(`homeLayout.<key>` · `homeLayout.page_<key>`) */
+function word(key: string, values?: Record<string, unknown>): string {
+    return t(pageId.value ? `homeLayout.page_${key}` : `homeLayout.${key}`, values ?? {});
+}
 
 const status = ref<'loading' | 'ready' | 'error'>('loading');
 const loadError = ref<ApiError | null>(null);
-const view = ref<HomeLayoutView | null>(null);
+const view = ref<EditorView | null>(null);
 
 const gadgets = ref<HomeLayoutGadget[]>([]);
 const columns = ref<HomeGridColumns>(UtilHomeLayout.DEFAULT_COLUMNS);
@@ -170,12 +155,10 @@ const saveError = ref('');
 const addOpen = ref(false);
 let newSeq = 0;
 
-/* ⚙ 설정 창 — 고치는 가젯과 입력 중인 값(적용을 눌러야 편집 중인 값에 들어간다) */
+/* ⚙ 설정 창(`GadgetSettingsDialog`) — 고치는 가젯(적용을 눌러야 편집 중인 값에 들어간다) */
 const settingsOpen = ref(false);
 const settingsId = ref<string | null>(null);
-const settingsDraft = ref<HomeGadgetConfig | null>(null);
 const settingsGadget = computed(() => (settingsId.value ? gadgetOf(settingsId.value) : undefined));
-const sortOptions = computed(() => HOME_GROUP_BUY_SORTS.map((value) => ({ value, label: t(`homeLayout.sort_${value}`) })));
 
 const columnOptions = computed(() => UtilHomeLayout.COLUMN_CHOICES.map((value) => ({ value, label: t('homeLayout.columnsOption', { count: value }) })));
 
@@ -211,16 +194,20 @@ function configsOf(list: readonly HomeLayoutGadget[]): string {
     return JSON.stringify(
         list
             .filter((g) => g.config)
-            .map((g) => [g.id, g.config?.count, g.config?.sort])
+            .map((g) => [g.id, UtilGadgetConfig.key(g.config)])
             .sort(),
     );
+}
+
+function copyConfig(config: HomeGadgetConfig | null | undefined): HomeGadgetConfig | null | undefined {
+    return config ? { ...config, boardIds: config.boardIds ? [...config.boardIds] : config.boardIds } : config;
 }
 
 /* ── 불러오기 ── */
 
 /** 배치 하나로 채운다 */
-function fill(body: { layout: HomeLayoutView['layout']; gadgets: HomeLayoutGadget[] }): void {
-    gadgets.value = body.gadgets.map((g) => ({ ...g, config: g.config ? { ...g.config } : g.config }));
+function fill(body: HomeLayoutBody): void {
+    gadgets.value = body.gadgets.map((g) => ({ ...g, config: copyConfig(g.config) }));
     const read = UtilHomeLayout.read(
         body.layout,
         body.gadgets.map((g) => g.id),
@@ -236,7 +223,7 @@ async function load(id: string): Promise<void> {
     status.value = 'loading';
     loadError.value = null;
     try {
-        const res = await api.get(id);
+        const res: EditorView = pageId.value ? await pageApi.layout(pageId.value, id) : await api.get(id);
         if (mine !== loadSeq) return;
         view.value = res;
         fill(res);
@@ -287,19 +274,15 @@ function applyOp(op: HomeLayoutOp): void {
 
 function openSettings(id: string): void {
     const g = gadgetOf(id);
-    if (g?.type !== 'GROUP_BUY') return;
+    if (!g || !UtilGadgetConfig.settable(g.type)) return;
     settingsId.value = id;
-    settingsDraft.value = { ...(g.config ?? HOME_GROUP_BUY_DEFAULT_CONFIG) };
     settingsOpen.value = true;
 }
 
-function applySettings(): void {
+function applySettings(config: HomeGadgetConfig): void {
     const id = settingsId.value;
-    const draft = settingsDraft.value;
-    if (!id || !draft) return;
-    const count = Math.min(HOME_GROUP_BUY_COUNT.max, Math.max(HOME_GROUP_BUY_COUNT.min, Math.round(draft.count || HOME_GROUP_BUY_DEFAULT_CONFIG.count)));
-    gadgets.value = gadgets.value.map((g) => (g.id === id ? { ...g, config: { count, sort: draft.sort } } : g));
-    settingsOpen.value = false;
+    if (!id) return;
+    gadgets.value = gadgets.value.map((g) => (g.id === id ? { ...g, config } : g));
     saveError.value = '';
     toast.show(t('homeLayout.settingsApplied', { title: gadgetOf(id)?.title ?? '' }));
 }
@@ -314,7 +297,7 @@ function add(kind: string): void {
     newSeq += 1;
     const id = `new-${newSeq}`;
     const title = kindName(kind);
-    gadgets.value = [...gadgets.value, { id, type: kind, title, desktop: true, mobile: true, config: kind === 'GROUP_BUY' ? { ...HOME_GROUP_BUY_DEFAULT_CONFIG } : null }];
+    gadgets.value = [...gadgets.value, { id, type: kind, title, desktop: true, mobile: true, config: UtilGadgetConfig.initial(kind, Boolean(pageId.value)) }];
     apply(UtilHomeLayoutEditor.add(items.value, id, kind, columns.value));
     addOpen.value = false;
     toast.show(t('homeLayout.added', { title }));
@@ -328,10 +311,10 @@ function remove(id: string): void {
 }
 
 async function resetToDefault(): Promise<void> {
-    if (!(await confirm({ title: t('homeLayout.resetTitle'), message: t('homeLayout.resetMessage'), confirmLabel: t('homeLayout.resetConfirm'), cancelLabel: t('common.cancel') }))) return;
+    if (!(await confirm({ title: word('resetTitle'), message: word('resetMessage'), confirmLabel: word('resetConfirm'), cancelLabel: t('common.cancel') }))) return;
     try {
-        fill(await api.defaults(theme.value));
-        toast.show(t('homeLayout.resetDone'));
+        fill(pageId.value ? await pageApi.initial(pageId.value) : await api.defaults(theme.value));
+        toast.show(word('resetDone'));
     } catch (e) {
         toast.error(toApiError(e).message);
     }
@@ -347,12 +330,13 @@ async function save(): Promise<void> {
     saving.value = true;
     saveError.value = '';
     try {
-        const res = await api.save(theme.value, { layout: currentLayout.value, gadgets: gadgets.value.map((g) => ({ ...g, config: g.config ? { ...g.config } : g.config })) });
+        const body: HomeLayoutBody = { layout: currentLayout.value, gadgets: gadgets.value.map((g) => ({ ...g, config: copyConfig(g.config) })) };
+        const res: EditorView = pageId.value ? await pageApi.saveLayout(pageId.value, theme.value, body) : await api.save(theme.value, body);
         view.value = res;
         fill(res);
-        toast.success(t('homeLayout.saved'));
+        toast.success(word('saved'));
     } catch (e) {
-        saveError.value = toApiError(e).message || t('homeLayout.saveFailed');
+        saveError.value = toApiError(e).message || word('saveFailed');
     } finally {
         saving.value = false;
     }
@@ -360,13 +344,13 @@ async function save(): Promise<void> {
 
 defineExpose({ applyOp });
 
-// 테마가 바뀌면 그 테마의 구성을 읽는다 · 저장하지 않은 변경 여부를 화면에 알린다(테마를 바꾸기 전에 화면이 묻는다)
-watch(theme, (id) => void load(id), { immediate: true });
+// 테마·페이지가 바뀌면 그 구성을 읽는다 · 저장하지 않은 변경 여부를 화면에 알린다(바꾸기 전에 화면이 묻는다)
+watch([theme, pageId], ([id]) => void load(id), { immediate: true });
 watch(dirty, (value) => emit('dirty', value), { immediate: true });
 watch(
     [currentLayout, gadgets],
     () => {
-        if (view.value) emit('change', { layout: currentLayout.value, gadgets: gadgets.value.map((g) => ({ ...g, config: g.config ? { ...g.config } : g.config })) });
+        if (view.value) emit('change', { layout: currentLayout.value, gadgets: gadgets.value.map((g) => ({ ...g, config: copyConfig(g.config) })) });
     },
     { deep: true, immediate: true },
 );

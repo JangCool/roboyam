@@ -45,6 +45,14 @@ public final class AuditActions {
     public static final String SITE_THEME_MENU_UPDATE = "SITE_THEME_MENU_UPDATE";
     /** 테마 하나의 홈 구성 저장 — 대상 SITE/1, {@code theme} + 칸 수·가젯 수 전후와 넣은·뺀 가젯 수 */
     public static final String HOME_LAYOUT_UPDATE = "HOME_LAYOUT_UPDATE";
+    /** 가젯 페이지 만들기 — 대상 GADGET_PAGE/id, {@code key}·{@code name}·{@code folderId} */
+    public static final String GADGET_PAGE_CREATE = "GADGET_PAGE_CREATE";
+    /** 가젯 페이지 정보 고치기 — 바뀐 칸의 {@code before}/{@code after}(바뀐 때만) */
+    public static final String GADGET_PAGE_UPDATE = "GADGET_PAGE_UPDATE";
+    /** 가젯 페이지 지우기 — {@code key}·{@code name} · 비운 메뉴 그룹 키 */
+    public static final String GADGET_PAGE_DELETE = "GADGET_PAGE_DELETE";
+    /** 가젯 페이지 하나의 테마 하나 배치 저장 — {@code theme} + 칸 수·가젯 수 전후와 넣은·뺀 가젯 수 */
+    public static final String GADGET_PAGE_LAYOUT_UPDATE = "GADGET_PAGE_LAYOUT_UPDATE";
     /** 메일 서버 설정 저장 — 대상 SITE + {@code mail}, 바뀐 칸 이름만({@code fields}). 비밀번호 값·암호문은 싣지 않는다 */
     public static final String MAIL_SETTINGS_UPDATE = "MAIL_SETTINGS_UPDATE";
     /** 메일 서버 시험 발송 — 성공 여부·원인 코드만(받는 주소·서버 응답은 싣지 않는다) */

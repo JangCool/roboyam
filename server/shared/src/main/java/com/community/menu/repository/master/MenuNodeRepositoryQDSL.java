@@ -67,6 +67,34 @@ public class MenuNodeRepositoryQDSL extends RoboyamRepositoryQDSL {
                 .where(node.kind.eq(FOLDER), node.targetType.eq(BOARD), node.targetId.eq(Long.toString(boardId))).execute();
     }
 
+    /** 이 유형·대상 ID 를 가리키는 노드가 있는 그룹 키(항목·폴더 연결 모두) — 가젯 페이지 지우기 */
+    public List<String> setKeysLinking(String targetType, long targetId) {
+        QMenuNodeEntity node = QMenuNodeEntity.menuNodeEntity;
+        return query.selectDistinct(node.setKey).from(node)
+                .where(node.targetType.eq(targetType), node.targetId.eq(Long.toString(targetId)))
+                .orderBy(node.setKey.asc()).fetch();
+    }
+
+    /** 이 유형·대상 ID 를 가리키는 노드 수(항목·폴더 연결 모두) */
+    public long countLinking(String targetType, long targetId) {
+        QMenuNodeEntity node = QMenuNodeEntity.menuNodeEntity;
+        Long n = query.select(node.count()).from(node).where(node.targetType.eq(targetType), node.targetId.eq(Long.toString(targetId))).fetchOne();
+        return n == null ? 0 : n;
+    }
+
+    /** 이 유형·대상 ID 를 가리키는 <b>항목</b>을 모든 그룹에서 지운다 */
+    public long deleteItems(String targetType, long targetId) {
+        QMenuNodeEntity node = QMenuNodeEntity.menuNodeEntity;
+        return query.delete(node).where(node.kind.eq(ITEM), node.targetType.eq(targetType), node.targetId.eq(Long.toString(targetId))).execute();
+    }
+
+    /** 이 유형·대상 ID 에 연결된 폴더의 연결을 모든 그룹에서 비운다 */
+    public long clearFolderLinks(String targetType, long targetId) {
+        QMenuNodeEntity node = QMenuNodeEntity.menuNodeEntity;
+        return query.update(node).setNull(node.targetType).setNull(node.targetId).setNull(node.targetKey).setNull(node.settings).setNull(node.linkClick)
+                .where(node.kind.eq(FOLDER), node.targetType.eq(targetType), node.targetId.eq(Long.toString(targetId))).execute();
+    }
+
     /** {@code SIDE} 전용 칸(모바일 탭·자동 추가)을 끈다 — 그룹의 위치가 {@code SIDE} 에서 바뀔 때. 바뀐 행 수 */
     public long clearSideOnly(String setKey) {
         QMenuNodeEntity node = QMenuNodeEntity.menuNodeEntity;

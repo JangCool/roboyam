@@ -1,0 +1,48 @@
+/**
+ * gadgetPage copy — gadget page picking, creating and editing on the theme screen (`GadgetPagePicker`·`GadgetPageDialog`). Same keys and order as `ko/gadgetPage.ts`.
+ * Editor copy lives in `homeLayout` (`page_*`). Starting-layout gadget titles (`seed*`) are first-run data the operator can change.
+ */
+export default {
+    pick: 'Page',
+    new: 'New page',
+    info: 'Page info',
+    empty: 'No gadget pages yet. Create a page you lay out with gadgets like the home page (e.g. Community), then make a menu folder open it in Menus.',
+    loadFailed: 'Could not load the pages.',
+    openNewTab: '(opens the public page in a new tab)',
+    folderOf: 'Folder: {folder}',
+
+    createTitle: 'New gadget page',
+    editTitle: 'Page info',
+    create: 'Create',
+    created: 'Created the “{name}” page.',
+    saved: 'Saved the “{name}” page info.',
+    optional: 'Optional',
+    name: 'Name',
+    nameHint: 'Up to {max} · page heading',
+    nameRequired: 'Enter a name.',
+    nameEn: 'English name',
+    key: 'Address',
+    keyHelp: 'Public address /p/address — 2–30 lowercase letters, digits or -, starting with a letter. Menu links follow a change, but the old address stops working.',
+    keyInvalid: 'Use 2–30 lowercase letters, digits or -, starting with a letter.',
+    description: 'Description',
+    descriptionHint: 'Up to {max} · second line of the heading',
+    folder: 'Folder',
+    folderNone: 'None',
+    folderBoards: '{count} boards',
+    folderHint: 'A folder of the public menu. The “all boards in this page’s folder” gadget option and the starting layout use its boards. Making the folder open this page is set in Menus.',
+    writeButton: 'Show a Write button in the heading',
+    writeButtonHelp: 'Opens the editor with the folder’s first board chosen.',
+    initialTitle: 'Starting layout',
+    initialLead: 'Filled from the folder’s boards. Every theme starts with this layout and can change it separately.',
+    initialWidth: '{w}/24 columns',
+    delete: 'Delete page',
+    deleteTitle: 'Delete the “{name}” page?',
+    deleteMessage: 'Its layouts for every theme are deleted too. This can’t be undone.',
+    deleteMessageLinked: 'Its layouts for every theme are deleted too, and {count} menu links to this page are cleared. This can’t be undone.',
+    deleted: 'Deleted the “{name}” page.',
+
+    seedPopular: '{folder} popular',
+    seedLatest: '{folder} latest',
+    seedGallery: '{board} gallery',
+    seedAll: 'All',
+};

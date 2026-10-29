@@ -13,7 +13,7 @@ export default {
     // ── 칸 수 ─
     columns: '격자 칸 수',
     columnsOption: '{count}칸',
-    liveEditHint: '아래 실제 화면에서 가젯을 끌어 옮기고, 오른쪽 아래 모서리를 끌어 크기를 바꾸고, 오른쪽 위 ×로 빼요. 공동구매 가젯은 ⚙로 개수·정렬을 바꿔요.',
+    liveEditHint: '아래 실제 화면에서 가젯을 끌어 옮기고, 오른쪽 아래 모서리를 끌어 크기를 바꾸고, 오른쪽 위 ×로 빼요. 글 목록·갤러리·게시판 카드·공동구매 가젯은 ⚙로 게시판·개수·정렬을 바꿔요.',
 
     // ── 가젯 설정(⚙ — 지금은 공동구매만) ─
     settingsTitle: '「{title}」 설정',
@@ -27,6 +27,40 @@ export default {
     settingsPreviewNote: '저장하기 전 실제 화면은 지금 보이는 공구 안에서만 차례·개수를 바꿔 보여요. 저장하면 이 설정으로 다시 골라요.',
     settingsApply: '적용',
     settingsApplied: '「{title}」 설정을 바꿨어요. 저장해야 적용돼요.',
+
+    // ── 가젯 설정(⚙ — 글 목록 · 갤러리 · 게시판 카드) ─
+    settingsLead_GROUP_BUY: '보일 공동구매의 개수와 차례를 정해요. 모집 중인 공개 공구만 보여요.',
+    settingsLead_POST_LIST: '어느 게시판의 글을 어떤 차례로 몇 개 보일지 정해요.',
+    settingsLead_GALLERY: '어느 게시판의 사진·영상 글을 몇 개 보일지 정해요. 최신 글부터 보여요.',
+    settingsLead_BOARD_CARDS: '카드로 보일 게시판과 카드마다 보일 글 수를 정해요. 카드마다 대표 글 하나와 최신 글 제목이 보여요.',
+    settingsBoards: '대상 게시판',
+    settingsCardBoards: '카드로 보일 게시판',
+    scope_ALL: '전체 게시판',
+    scope_FOLDER: '이 페이지의 폴더 게시판 전체',
+    scope_PICK: '직접 고르기',
+    scopeAllNote: '최신글과 같은 범위(켜진 게시판 중 최신글에서 빼지 않은 것)예요.',
+    scopeAllCards: '켜진 일반 게시판의 앞 6개가 카드로 보여요.',
+    scopeFolderNote: '「{folder}」 폴더의 게시판: {boards}. 메뉴 관리에서 폴더에 게시판을 넣고 빼면 따라가요.',
+    scopeFolderEmpty: '아직 없어요',
+    scopeFolderNone: '이 페이지에 기준 폴더가 없어 전체 게시판과 같아요. 페이지 정보에서 기준 폴더를 고를 수 있어요.',
+    boardSearch: '게시판 찾기',
+    boardPickPlaceholder: '게시판을 고르세요',
+    boardPicked: '{0}개 고름',
+    boardPickHint: '고른 차례대로 보여요. {max}개까지 고를 수 있어요.',
+    boardPickRequired: '게시판을 하나 이상 고르세요.',
+    boardEmpty: '고를 게시판이 없어요.',
+    boardInactive: '꺼짐',
+    settingsCount_GROUP_BUY: '보일 개수',
+    settingsCount_POST_LIST: '보일 글 수',
+    settingsCount_GALLERY: '보일 칸 수',
+    settingsCount_BOARD_CARDS: '카드마다 글 수',
+    postSort_LATEST: '최신 순',
+    postSort_POPULAR: '인기 순',
+    postSort_VIEWS: '조회 많은 순',
+    postSort_LIKES: '추천 많은 순',
+    postSort_COMMENTS: '댓글 많은 순',
+    settingsPeriodTabs: '실시간 · 어제 · 이번 주 탭 보이기',
+    settingsPreviewNoteBoards: '저장하기 전 실제 화면은 지금 보이는 글 안에서만 개수·게시판을 바꿔 보여요. 저장하면 이 설정으로 다시 골라요.',
 
     // ── 편집기 ─
     announce: '{title}: {x}칸, {y}행, 폭 {w}칸, 높이 {h}행',
@@ -44,11 +78,24 @@ export default {
     resetDone: '테마 기본 배치를 불러왔어요. 저장해야 적용돼요.',
     switchTitle: '저장하지 않은 배치가 있어요',
     switchMessage: '다른 테마로 가면 지금 바꾼 배치가 사라져요.',
+    switchPageMessage: '다른 페이지로 가면 지금 바꾼 배치가 사라져요.',
     switchConfirm: '버리고 이동',
     leaveTitle: '저장하지 않은 배치가 있어요',
     leaveMessage: '이 화면을 나가면 바꾼 배치가 사라져요.',
     leaveConfirm: '나가기',
     stay: '머무르기',
+
+    // ── 가젯 페이지 편집(같은 편집기 — 페이지일 때 바뀌는 문구) ─
+    page_loadFailed: '페이지 배치를 불러오지 못했어요.',
+    page_saved: '페이지 배치를 저장했어요.',
+    page_saveFailed: '페이지 배치를 저장하지 못했어요.',
+    page_neverSaved: '이 테마에서 저장한 적이 없어 처음 배치예요.',
+    page_readOnly: '보기 권한만 있어 배치를 바꿀 수 없어요.',
+    page_resetDefault: '처음 배치로',
+    page_resetTitle: '처음 배치로 바꿀까요?',
+    page_resetMessage: '지금 편집기의 가젯과 자리가 페이지를 만들 때의 처음 배치로 바뀌어요. 저장해야 적용돼요.',
+    page_resetConfirm: '처음 배치로',
+    page_resetDone: '처음 배치를 불러왔어요. 저장해야 적용돼요.',
 
     // ── 가젯 종류 ─
     kind: {

@@ -167,6 +167,7 @@ export default {
 
     // ── App screens ──
     builtinCategory: {
+        GADGET_PAGE: 'Gadget pages',
         GENERAL: 'General',
         GROUP_BUY: 'Group buy',
         GROUPS: 'Clubs',

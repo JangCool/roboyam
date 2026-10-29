@@ -1,0 +1,48 @@
+/**
+ * gadgetPage 업무 문구 — 테마 화면 「레이아웃 › 페이지」의 가젯 페이지 고르기·만들기·고치기(`GadgetPagePicker`·`GadgetPageDialog`). `en/gadgetPage.ts` 와 같은 키, 같은 차례.
+ * 배치 편집기 문구는 `homeLayout`(`page_*`). 처음 배치의 가젯 제목(`seed*`)은 만들 때 한 번 쓰는 처음 데이터다(운영자가 고칠 값).
+ */
+export default {
+    pick: '페이지',
+    new: '새 페이지',
+    info: '페이지 정보',
+    empty: '아직 가젯 페이지가 없어요. 홈처럼 가젯으로 꾸미는 페이지(예: 커뮤니티)를 만들고, 메뉴 관리에서 폴더를 누르면 이 페이지로 가게 할 수 있어요.',
+    loadFailed: '페이지 목록을 불러오지 못했어요.',
+    openNewTab: '(새 탭에서 공개 화면 열기)',
+    folderOf: '기준 폴더: {folder}',
+
+    createTitle: '새 가젯 페이지',
+    editTitle: '페이지 정보',
+    create: '만들기',
+    created: '「{name}」 페이지를 만들었어요.',
+    saved: '「{name}」 페이지 정보를 저장했어요.',
+    optional: '선택',
+    name: '이름',
+    nameHint: '{max}자까지 · 페이지 머리의 제목',
+    nameRequired: '이름을 적어 주세요.',
+    nameEn: '영문 이름',
+    key: '영문 주소',
+    keyHelp: '공개 주소 /p/주소 — 영문 소문자로 시작하는 소문자·숫자·- 2~30자예요. 바꾸면 메뉴 연결은 따라가지만 옛 주소는 열리지 않아요.',
+    keyInvalid: '영문 소문자로 시작하는 소문자·숫자·- 2~30자로 적어 주세요.',
+    description: '설명',
+    descriptionHint: '{max}자까지 · 머리의 둘째 줄',
+    folder: '기준 폴더',
+    folderNone: '없음',
+    folderBoards: '게시판 {count}개',
+    folderHint: '공개 메뉴의 폴더예요. 가젯의 대상 게시판 「이 페이지의 폴더 게시판 전체」와 처음 배치가 이 폴더의 게시판을 써요. 폴더를 누르면 이 페이지로 가게 하는 것은 메뉴 관리에서 정해요.',
+    writeButton: '머리에 글쓰기 단추 두기',
+    writeButtonHelp: '누르면 글쓰기 화면이 열려요(기준 폴더의 첫 게시판을 골라 둔 채).',
+    initialTitle: '처음 배치',
+    initialLead: '기준 폴더의 게시판으로 채워요. 모든 테마가 이 배치로 시작하고, 테마마다 따로 고칠 수 있어요.',
+    initialWidth: '{w}/24칸',
+    delete: '페이지 지우기',
+    deleteTitle: '「{name}」 페이지를 지울까요?',
+    deleteMessage: '모든 테마의 배치도 함께 지워져요. 되돌릴 수 없어요.',
+    deleteMessageLinked: '모든 테마의 배치도 함께 지워지고, 이 페이지를 가리키던 메뉴 {count}곳의 연결이 비워져요. 되돌릴 수 없어요.',
+    deleted: '「{name}」 페이지를 지웠어요.',
+
+    seedPopular: '{folder} 인기글',
+    seedLatest: '{folder} 최신글',
+    seedGallery: '{board} 갤러리',
+    seedAll: '전체',
+};

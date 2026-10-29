@@ -58,7 +58,7 @@ export type MenuDivider = 'NONE' | 'BEFORE' | 'AFTER';
 export type MenuLinkClick = 'NAVIGATE_OPEN' | 'NAVIGATE';
 
 /** 화면이 아는 연결 유형. 응답에 다른 값이 오면 화면은 「알 수 없는 유형」으로 보이고 그대로 돌려보낸다 */
-export type MenuKnownTargetType = 'BOARD' | 'BUILTIN' | 'PATH' | 'URL';
+export type MenuKnownTargetType = 'BOARD' | 'BUILTIN' | 'PATH' | 'URL' | 'GADGET_PAGE';
 
 interface MenuNodeBase {
     /** 저장 전 새 노드는 null */
@@ -101,9 +101,9 @@ export interface MenuItemDto extends MenuNodeBase {
     kind: 'ITEM';
     /** 연결 유형(`MenuKnownTargetType` 또는 화면이 모르는 새 유형) */
     targetType: string;
-    /** `BOARD` 의 게시판 ID */
+    /** `BOARD` 의 게시판 ID · `GADGET_PAGE` 의 가젯 페이지 ID */
     targetId: string | null;
-    /** `BUILTIN` 의 앱 화면 키(`UtilMenu.BUILTINS`) — 화면에서는 `PATH` 와 함께 「사이트 화면」 하나로 보인다 */
+    /** `BUILTIN` 의 앱 화면 키(`UtilMenu.BUILTINS`) — 화면에서는 `PATH`·`GADGET_PAGE` 와 함께 「사이트 화면」 하나로 보인다 */
     targetKey: string | null;
     /** 유형별 설정 — `PATH`: `{ path, newTab }` · `URL`: `{ href, newTab }` · 그 밖에는 null(모르는 유형은 받은 그대로) */
     settings: Record<string, unknown> | null;
@@ -158,9 +158,19 @@ export interface MenuGradeOption {
     level: number;
 }
 
+/** 고를 수 있는 가젯 페이지(연결 유형 `GADGET_PAGE`, `targetId` = `id` — 영문 주소가 바뀌어도 따라간다. 공개 주소 `/p/{key}`) */
+export interface MenuGadgetPageOption {
+    id: string;
+    key: string;
+    name: string;
+    nameEn: string | null;
+}
+
 /** `GET /api/admin/menu/target-options?set=` 응답 — 대상 고르기·상태 계산·미리보기에 쓰는 값 한 번에 */
 export interface MenuTargetOptions {
     boards: MenuBoardOption[];
+    /** 가젯 페이지(만든 차례, 2026-10-29) — 연결 유형 `GADGET_PAGE` */
+    gadgetPages: MenuGadgetPageOption[];
     grades: MenuGradeOption[];
     /** 공동구매 판매 스위치 — 꺼지면 `GROUP_BUYS` 계열 앱 화면 항목은 방문자에게 안 보인다 */
     salesEnabled: boolean;

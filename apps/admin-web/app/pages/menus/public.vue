@@ -202,7 +202,7 @@ const side = computed(() => UtilMenu.isSide(placement.value));
 const canManage = computed(() => can('layout.settings'));
 const readonly = computed(() => !canManage.value || tree.value?.editable === false);
 
-const ctx = computed<MenuContext>(() => ({ placement: placement.value, boards: options.value?.boards ?? [], grades: options.value?.grades ?? [], salesEnabled: options.value?.salesEnabled ?? true }));
+const ctx = computed<MenuContext>(() => ({ placement: placement.value, boards: options.value?.boards ?? [], grades: options.value?.grades ?? [], salesEnabled: options.value?.salesEnabled ?? true, pages: options.value?.gadgetPages ?? [] }));
 
 const serialized = computed(() => JSON.stringify(UtilMenu.toDto(draft.value, placement.value)));
 const dirty = computed(() => tree.value !== null && serialized.value !== baseline.value);

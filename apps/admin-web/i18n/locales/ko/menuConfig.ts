@@ -167,6 +167,7 @@ export default {
 
     // ── 앱 화면 ──
     builtinCategory: {
+        GADGET_PAGE: '가젯 페이지',
         GENERAL: '일반',
         GROUP_BUY: '공동구매',
         GROUPS: '소모임',

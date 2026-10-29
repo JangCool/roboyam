@@ -5,7 +5,9 @@
         ① 테마(`site-theme`) — 서버 목록(기본 · 다음식 · 네이버식 · 로보얌, `SiteThemes.IDS`) 라디오 카드. 이름·설명은 `site.themeName_<id>`·`site.themeDesc_<id>`, 지금 사이트 테마에 「사용 중」.
           카드를 고르면 아래 탭이 그 테마의 것으로 바뀐다(주소 `?theme=` 에 남는다, 아래에 저장하지 않은 변경이 있으면 묻는다). 사이트에 적용하는 것은 [테마 적용](`PUT /api/admin/site/theme` — 테마 id 만).
         배치: 넓은 화면(lg 이상)은 두 칸 — 왼쪽 위 ① 테마(폭 22.5rem, 창 위에 붙는다, 카드는 세로 목록·설명 두 줄) · 가운데 ②. 좁은 화면은 위아래.
-        ② 레이아웃 — 페이지 종류 줄(홈 · 게시판 · 페이지 — 게시판·페이지는 자리만, 「준비 중」) + 보기(실제 화면 · 편집) + [메뉴 설정] 단추.
+        ② 레이아웃 — 페이지 종류 줄(홈 · 게시판 「준비 중」 · 페이지) + 보기(실제 화면 · 편집) + [메뉴 설정] 단추.
+          페이지(가젯 페이지, 사용자 결정 2026-10-29) — 홈처럼 가젯 격자로 꾸미는 공개 페이지(`/p/{key}`)를 여러 개 만들고 고른다(`GadgetPagePicker` — 목록 · 만들기 · 정보 고치기 · 지우기).
+            고른 페이지를 홈과 같은 실제 화면 편집(같은 `ThemeLivePreview` + `HomeLayoutEditor`)으로 꾸미고, 배치는 홈처럼 테마마다 따로다. 종류·페이지는 주소 `?kind=page&page=<id>` 에 남는다.
           보기(처음) · 편집 — **둘 다 실제 화면**이다(`ThemeLivePreview` — 공개 사이트 iframe, 사용자 결정 2026-10-28: 미리보기도 편집도 실제 공개 화면에서).
             고른 테마 · 메뉴 설정(drawer 가 열려 있으면 입력 중인 값) · 홈 구성(저장 전 값)을 그대로 그리고, 그 안의 윗줄·메뉴를 누르면 메뉴 설정 drawer 가 열린다.
             편집이면 실제 홈 격자의 가젯 위에 손잡이가 얹혀 끌어 옮기기 · 오른쪽 아래 모서리로 크기 · ×로 빼기를 하고(좌표 입력 칸은 없다), 그 일을 홈 구성 편집 도구(`HomeLayoutEditor` — 배치의 주인)가
@@ -75,10 +77,21 @@
             <!-- ② 고른 테마의 레이아웃 — 실제 화면(공개 사이트 iframe) · 편집(홈 구성 격자) -->
             <div v-if="theme" class="flex min-w-0 flex-col gap-4">
                 <div class="flex flex-wrap items-center gap-2">
-                    <!-- 페이지 종류 — 지금은 홈만. 게시판·페이지 레이아웃은 자리만 둔다 -->
+                    <!-- 페이지 종류 — 홈 · 페이지(가젯 페이지). 게시판 레이아웃은 자리만 둔다 -->
                     <div role="group" :aria-label="t('site.layoutPageKinds')" class="flex flex-wrap items-center gap-2" data-testid="layout-kinds">
                         <span class="mr-1 text-sm font-medium">{{ t('site.layoutPageKinds') }}</span>
-                        <Button type="button" :label="t('site.layoutKindHome')" icon="pi pi-home" size="small" aria-pressed="true" />
+                        <Button
+                            v-for="item in KINDS"
+                            :key="item.kind"
+                            type="button"
+                            :label="t(item.labelKey)"
+                            :icon="item.icon"
+                            size="small"
+                            :severity="layoutKind === item.kind ? undefined : 'secondary'"
+                            :variant="layoutKind === item.kind ? undefined : 'outlined'"
+                            :aria-pressed="layoutKind === item.kind"
+                            @click="selectKind(item.kind)"
+                        />
                         <Button
                             v-for="kind in SOON_KINDS"
                             :key="kind"
@@ -105,10 +118,29 @@
                     />
                     <Button type="button" :label="t('site.themeTabMenu')" icon="pi pi-bars" size="small" severity="secondary" variant="outlined" data-testid="open-menu-settings" @click="openMenu" />
                 </div>
-                <!-- 홈 구성 편집 도구(칸 수 · 기본 배치로 · 가젯 넣기 · 저장 줄) — 배치의 주인. 「보기」일 때는 도구 줄만 숨는다 -->
-                <HomeLayoutEditor ref="editor" :theme="theme" :hidden="viewMode !== 'edit'" @dirty="(v) => (childDirty = v)" @change="(v) => (liveHome = v)">
+                <!-- 가젯 페이지 고르기(페이지일 때) — 목록 · 만들기 · 정보 고치기 -->
+                <GadgetPagePicker v-if="layoutKind === 'PAGE'" :model-value="pageId" :can-manage="canManage" :before-switch="confirmDiscard" @update:model-value="selectPage" @update:page="(p) => (page = p)" />
+                <!-- 홈·페이지 구성 편집 도구(칸 수 · 기본 배치로 · 가젯 넣기 · 저장 줄) — 배치의 주인. 「보기」일 때는 도구 줄만 숨는다 -->
+                <HomeLayoutEditor
+                    v-if="layoutKind === 'HOME' || page"
+                    ref="editor"
+                    :theme="theme"
+                    :page="layoutKind === 'PAGE' ? page : null"
+                    :hidden="viewMode !== 'edit'"
+                    @dirty="(v) => (childDirty = v)"
+                    @change="(v) => (liveHome = v)"
+                >
                     <!-- 실제 화면 — 보기도 편집도 여기서(편집이면 실제 가젯 위에 끌기·크기·빼기 손잡이) -->
-                    <ThemeLivePreview :theme="theme" :menu="previewMenu" :home="liveHome" :editing="viewMode === 'edit' && canManage" @edit-menu="openMenu" @layout-op="(op) => editor?.applyOp(op)" />
+                    <ThemeLivePreview
+                        :theme="theme"
+                        :menu="previewMenu"
+                        :home="liveHome"
+                        :path="previewPath"
+                        :page="previewPage"
+                        :editing="viewMode === 'edit' && canManage"
+                        @edit-menu="openMenu"
+                        @layout-op="(op) => editor?.applyOp(op)"
+                    />
                 </HomeLayoutEditor>
             </div>
         </div>
@@ -136,6 +168,8 @@ import type { SiteThemeMenuFields } from '~/composables/site/api/useSiteSettings
 import type { SiteThemeResponse } from '~/composables/site/api/useSiteSettingsApi.types';
 import type { HomeLayoutBody } from '~/composables/home/api/useHomeLayoutApi.types';
 import type { HomeLayoutOp } from '~/components/theme/HomeLayoutEditor.vue';
+import type { GadgetPage } from '~/composables/page/api/useGadgetPageApi.types';
+import UtilGadgetPage from '~/utils/util-gadget-page';
 
 const { t, te } = useI18n();
 const route = useRoute();
@@ -146,12 +180,19 @@ const toast = useAppToast();
 const toApiError = useApiErrorOf();
 const { confirm } = useConfirmDialog();
 const { can } = useAdminPermission();
+const { localizedName } = useLocalizedName();
 
 /** 이 화면에서 하는 일에 필요한 권한(정의: util-permission-catalog.ts) — 숨기는 것은 편의이고 막는 것은 서버다 */
 const canManage = computed(() => can('site.manage'));
 
-/** 자리만 둔 레이아웃 종류(게시판 · 페이지) */
-const SOON_KINDS = ['BOARD', 'PAGE'] as const;
+/** 레이아웃 종류 — 홈 · 가젯 페이지 */
+type LayoutKind = 'HOME' | 'PAGE';
+const KINDS: readonly { kind: LayoutKind; labelKey: string; icon: string }[] = [
+    { kind: 'HOME', labelKey: 'site.layoutKindHome', icon: 'pi pi-home' },
+    { kind: 'PAGE', labelKey: 'site.layoutKind_PAGE', icon: 'pi pi-th-large' },
+];
+/** 자리만 둔 레이아웃 종류(게시판) */
+const SOON_KINDS = ['BOARD'] as const;
 
 useSeoMeta({ title: () => t('site.themePageTitle') });
 
@@ -164,8 +205,46 @@ const themeSaving = ref(false);
 /** 저장 거절 문구(`fields.theme`·`fields.site`) 또는 그 밖의 저장 오류 — 다른 것을 고르면 지운다 */
 const themeError = ref('');
 const themeGroupId = useId();
-/** 홈 구성에 저장하지 않은 변경이 있는가 — 테마를 바꾸기 전에 묻는다 */
+/** 홈·페이지 구성에 저장하지 않은 변경이 있는가 — 테마·종류·페이지를 바꾸기 전에 묻는다 */
 const childDirty = ref(false);
+
+/* ── 레이아웃 종류 · 가젯 페이지 ── */
+
+/** 지금 보는 레이아웃 종류 — 주소 `?kind=page` 면 페이지 */
+const layoutKind = ref<LayoutKind>(route.query.kind === 'page' ? 'PAGE' : 'HOME');
+/** 고른 가젯 페이지 ID(주소 `?page=`) · 그 페이지(고르기 줄이 알려 준다) */
+const pageId = ref<string | null>(typeof route.query.page === 'string' ? route.query.page : null);
+const page = ref<GadgetPage | null>(null);
+
+/** 실제 화면 주소 — 홈 `/` · 페이지 `/p/{key}` */
+const previewPath = computed(() => (layoutKind.value === 'PAGE' && page.value ? UtilGadgetPage.path(page.value.key) : '/'));
+/** 실제 화면의 페이지 머리 */
+const previewPage = computed(() =>
+    layoutKind.value === 'PAGE' && page.value ? { name: localizedName(page.value.name, page.value.nameEn), description: page.value.description, writeButton: page.value.writeButton } : null,
+);
+
+/** 저장하지 않은 배치가 있으면 버릴지 묻는다 */
+async function confirmDiscard(): Promise<boolean> {
+    if (!childDirty.value) return true;
+    const ok = await confirm({ title: t('homeLayout.switchTitle'), message: t('homeLayout.switchPageMessage'), confirmLabel: t('homeLayout.switchConfirm'), cancelLabel: t('homeLayout.stay'), tone: 'danger' });
+    if (ok) childDirty.value = false;
+    return ok;
+}
+
+async function selectKind(kind: LayoutKind): Promise<void> {
+    if (kind === layoutKind.value || !(await confirmDiscard())) return;
+    liveHome.value = null;
+    layoutKind.value = kind;
+    void router.replace({ query: { ...route.query, kind: kind === 'PAGE' ? 'page' : undefined } });
+}
+
+function selectPage(id: string | null): void {
+    if (id === pageId.value) return;
+    liveHome.value = null;
+    childDirty.value = false;
+    pageId.value = id;
+    void router.replace({ query: { ...route.query, page: id ?? undefined } });
+}
 
 /* ── 실제 화면 · 편집 · 메뉴 설정 drawer ── */
 

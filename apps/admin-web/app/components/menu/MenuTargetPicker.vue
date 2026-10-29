@@ -2,7 +2,7 @@
     <!--
         연결 대상 고르기 — 항목 시트(`MenuItemDialog`)와 폴더 시트(`MenuFolderDialog`)의 「누르면 가는 곳」이 같이 쓴다. 모양은 유형(`targetType`)이 정한다:
           · 게시판 — 게시판 목록(`linkedNote` 가 글자를 주면 비활성 + 그 안내, 꺼진 게시판은 딱지)
-          · 사이트 화면 — [목록에서 고르기](`BUILTIN`, 카테고리별 앱 화면) · [주소 직접 입력](`PATH`). 둘을 오가도 고른 화면·적은 주소는 남는다(저장은 지금 유형의 칸만).
+          · 사이트 화면 — [목록에서 고르기](맨 위 「가젯 페이지」 묶음 = `GADGET_PAGE`(2026-10-29) + 카테고리별 앱 화면 `BUILTIN`) · [주소 직접 입력](`PATH`). 둘을 오가도 고른 화면·적은 주소는 남는다(저장은 지금 유형의 칸만).
             직접 입력으로 넘어갈 때 주소가 비었으면 고른 화면의 주소를 채우고, 목록으로 돌아갈 때 주소가 목록의 화면과 같으면 그 화면을 고른다.
           · 외부 링크 — 주소 입력
         사이트 안 주소·외부 링크는 「새 탭에서 열기」를 같이 둔다.
@@ -37,13 +37,13 @@
         </div>
 
         <!-- 사이트 화면 — 목록에서 고르기 · 주소 직접 입력 -->
-        <template v-else-if="targetType === 'BUILTIN' || targetType === 'PATH'">
+        <template v-else-if="targetType === 'BUILTIN' || targetType === 'GADGET_PAGE' || targetType === 'PATH'">
             <SelectButton :model-value="siteMode" :options="siteModes" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('menuConfig.siteModeLabel')" class="self-start" @update:model-value="setSiteMode" />
 
-            <div v-if="targetType === 'BUILTIN'" class="flex flex-col gap-1.5">
+            <div v-if="targetType !== 'PATH'" class="flex flex-col gap-1.5">
                 <span :id="`${uid}-target`" class="text-sm font-medium">{{ t('menuConfig.field.builtin') }}</span>
                 <Listbox
-                    :model-value="targetKey"
+                    :model-value="listValue"
                     :options="builtinGroups"
                     option-label="label"
                     option-value="value"
@@ -101,7 +101,7 @@ type SiteMode = 'LIST' | 'INPUT';
 
 interface Props {
     ctx: MenuContext;
-    /** 이미 연결된 대상의 안내(`BOARD:<id>` · `BUILTIN:<key>`) — 글자가 있으면 그 줄을 비활성으로 둔다. 폴더 연결은 겹쳐도 되므로 넘기지 않는다 */
+    /** 이미 연결된 대상의 안내(`BOARD:<id>` · `BUILTIN:<key>` · `GADGET_PAGE:<id>`) — 글자가 있으면 그 줄을 비활성으로 둔다. 폴더 연결은 겹쳐도 되므로 넘기지 않는다 */
     linkedNote?: (id: string) => string;
     /** 칸 문제 문구 — 보여 줄 때만 넘긴다 */
     errors?: Partial<Record<MenuProblemField, string>>;
@@ -133,7 +133,31 @@ const boardOptions = computed(() =>
     }),
 );
 
-const builtinGroups = computed(() =>
+/** 가젯 페이지 공개 주소 앞부분 */
+const GADGET_PAGE_PREFIX = '/p/';
+/** 목록 값의 가젯 페이지 표시 — 앱 화면 키와 겹치지 않게 앞에 붙인다 */
+const PAGE_VALUE = 'GADGET_PAGE:';
+
+/** 목록에서 고른 값 — 가젯 페이지는 `GADGET_PAGE:<id>`, 앱 화면은 키 그대로 */
+const listValue = computed(() => (targetType.value === 'GADGET_PAGE' ? (targetId.value ? `${PAGE_VALUE}${targetId.value}` : null) : targetKey.value));
+
+/** 사이트 화면 목록 — 맨 위 가젯 페이지 묶음(있을 때만) + 카테고리별 앱 화면 */
+const builtinGroups = computed(() => [
+    ...(props.ctx.pages.length
+        ? [
+              {
+                  label: t('menuConfig.builtinCategory.GADGET_PAGE'),
+                  items: props.ctx.pages.map((page) => {
+                      const note = props.linkedNote(`GADGET_PAGE:${page.id}`);
+                      return { value: `${PAGE_VALUE}${page.id}`, label: localizedName(page.name, page.nameEn), path: `${GADGET_PAGE_PREFIX}${page.key}`, login: false, note, disabled: note !== '' };
+                  }),
+              },
+          ]
+        : []),
+    ...builtinCategoryGroups.value,
+]);
+
+const builtinCategoryGroups = computed(() =>
     UtilMenu.builtinCategoryOrder(props.ctx.placement).map((category) => ({
         label: t(`menuConfig.builtinCategory.${category}`),
         items: UtilMenu.BUILTINS.filter((def) => def.category === category).map((def) => {
@@ -143,22 +167,40 @@ const builtinGroups = computed(() =>
     })),
 );
 
-function pickBuiltin(key: string | null) {
-    targetKey.value = key;
-    emit('builtin', key);
+function pickBuiltin(value: string | null) {
+    if (value?.startsWith(PAGE_VALUE)) {
+        targetType.value = 'GADGET_PAGE';
+        targetId.value = value.slice(PAGE_VALUE.length);
+        emit('builtin', null);
+        return;
+    }
+    targetType.value = 'BUILTIN';
+    targetKey.value = value;
+    emit('builtin', value);
 }
 
 /** 목록 ↔ 직접 입력 — 고른 화면과 적은 주소는 서로 이어 준다 */
 function setSiteMode(mode: SiteMode | null) {
     if (!mode || mode === siteMode.value) return;
     if (mode === 'INPUT') {
-        const def = UtilMenu.builtinOf(targetKey.value);
-        if (!path.value.trim() && def) path.value = def.path;
+        const def = targetType.value === 'BUILTIN' ? UtilMenu.builtinOf(targetKey.value) : undefined;
+        const page = targetType.value === 'GADGET_PAGE' ? props.ctx.pages.find((p) => p.id === targetId.value) : undefined;
+        const pagePath = page ? `${GADGET_PAGE_PREFIX}${page.key}` : '';
+        if (!path.value.trim() && (def || pagePath)) path.value = def?.path ?? pagePath;
         targetType.value = 'PATH';
+        return;
+    }
+    const pageKey = path.value.trim().startsWith(GADGET_PAGE_PREFIX) ? path.value.trim().slice(GADGET_PAGE_PREFIX.length) : '';
+    const samePage = pageKey ? props.ctx.pages.find((p) => p.key === pageKey) : undefined;
+    if (samePage && !props.linkedNote(`GADGET_PAGE:${samePage.id}`)) {
+        targetId.value = samePage.id;
+        targetType.value = 'GADGET_PAGE';
+        emit('builtin', null);
         return;
     }
     const same = UtilMenu.builtinByPath(path.value);
     if (same && !props.linkedNote(`BUILTIN:${same.key}`)) targetKey.value = same.key;
+    else if (!UtilMenu.builtinOf(targetKey.value)) targetKey.value = null;
     targetType.value = 'BUILTIN';
     emit('builtin', targetKey.value);
 }

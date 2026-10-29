@@ -3,6 +3,7 @@ import type {
     MenuDivider,
     MenuBoardOption,
     MenuFolderDto,
+    MenuGadgetPageOption,
     MenuGradeOption,
     MenuItemDto,
     MenuKnownTargetType,
@@ -80,6 +81,8 @@ export interface MenuContext {
     boards: MenuBoardOption[];
     grades: MenuGradeOption[];
     salesEnabled: boolean;
+    /** 가젯 페이지(연결 유형 `GADGET_PAGE`) — 없으면 빈 목록 */
+    pages: MenuGadgetPageOption[];
 }
 
 // ── 연결 유형 · 앱 화면 레지스트리 ─
@@ -88,8 +91,8 @@ export interface MenuContext {
 export type MenuPicker = 'BOARD_SELECT' | 'BUILTIN_SELECT' | 'PATH_INPUT' | 'URL_INPUT';
 
 /**
- * 화면이 보여 주는 연결 종류 — 게시판 · 사이트 화면(목록에서 고르는 `BUILTIN` + 주소를 적는 `PATH`) · 외부 링크.
- * 서버 유형(`targetType`)은 그대로 넷이고, 「앱 화면」과 「페이지」를 화면에서만 「사이트 화면」 하나로 합쳤다(2026-10-29).
+ * 화면이 보여 주는 연결 종류 — 게시판 · 사이트 화면(목록에서 고르는 `BUILTIN`·`GADGET_PAGE` + 주소를 적는 `PATH`) · 외부 링크.
+ * 「앱 화면」과 「페이지」를 화면에서만 「사이트 화면」 하나로 합쳤다(2026-10-29). 가젯 페이지(`GADGET_PAGE`, 2026-10-29)도 사이트 화면 목록의 맨 위 묶음으로 고른다.
  */
 export type MenuTargetKind = 'BOARD' | 'SITE' | 'URL';
 
@@ -236,6 +239,7 @@ export default class UtilMenu {
         { type: 'BOARD', kind: 'BOARD', labelKey: 'menuConfig.type.BOARD', descKey: 'menuConfig.typeDesc.BOARD', icon: 'pi pi-th-large', picker: 'BOARD_SELECT' },
         { type: 'BUILTIN', kind: 'SITE', labelKey: 'menuConfig.type.SITE', descKey: 'menuConfig.typeDesc.SITE', icon: 'pi pi-desktop', picker: 'BUILTIN_SELECT' },
         { type: 'PATH', kind: 'SITE', labelKey: 'menuConfig.type.SITE', descKey: 'menuConfig.typeDesc.SITE', icon: 'pi pi-desktop', picker: 'PATH_INPUT' },
+        { type: 'GADGET_PAGE', kind: 'SITE', labelKey: 'menuConfig.type.SITE', descKey: 'menuConfig.typeDesc.SITE', icon: 'pi pi-desktop', picker: 'BUILTIN_SELECT' },
         { type: 'URL', kind: 'URL', labelKey: 'menuConfig.type.URL', descKey: 'menuConfig.typeDesc.URL', icon: 'pi pi-external-link', picker: 'URL_INPUT' },
     ];
 
@@ -399,7 +403,8 @@ export default class UtilMenu {
         let settings: Record<string, unknown> | null = null;
         if (link.targetType === 'PATH') settings = { path: link.path.trim(), newTab: link.newTab };
         else if (link.targetType === 'URL') settings = { href: link.href.trim(), newTab: link.newTab };
-        return { targetType: link.targetType, targetId: link.targetType === 'BOARD' ? link.targetId : null, targetKey: link.targetType === 'BUILTIN' ? link.targetKey : null, settings };
+        const byId = link.targetType === 'BOARD' || link.targetType === 'GADGET_PAGE';
+        return { targetType: link.targetType, targetId: byId ? link.targetId : null, targetKey: link.targetType === 'BUILTIN' ? link.targetKey : null, settings };
     }
 
     /**
@@ -520,6 +525,7 @@ export default class UtilMenu {
             if (!def) return 'TARGET_MISSING';
             if (def.salesGated && !ctx.salesEnabled) return 'SALES_OFF';
         }
+        if (item.targetType === 'GADGET_PAGE' && !UtilMenu.gadgetPageOf(item.targetId, ctx)) return 'TARGET_MISSING';
         return 'OK';
     }
 
@@ -538,7 +544,21 @@ export default class UtilMenu {
             const def = UtilMenu.builtinOf(item.targetKey);
             return def ? { labelKey: def.labelKey } : null;
         }
+        if (item.targetType === 'GADGET_PAGE') {
+            const page = UtilMenu.gadgetPageOf(item.targetId, ctx);
+            return page ? { name: page.name, nameEn: page.nameEn } : null;
+        }
         return null;
+    }
+
+    /**
+     * 가젯 페이지 하나.
+     * @param {string | null} id - 가젯 페이지 ID(`targetId`).
+     * @param {MenuContext} ctx - 가젯 페이지 목록.
+     * @returns {MenuGadgetPageOption | undefined} 페이지. 없으면 undefined.
+     */
+    static gadgetPageOf(id: string | null, ctx: MenuContext): MenuGadgetPageOption | undefined {
+        return id ? ctx.pages.find((p) => p.id === id) : undefined;
     }
 
     /**
@@ -557,6 +577,10 @@ export default class UtilMenu {
                 return UtilMenu.builtinOf(item.targetKey)?.path ?? item.targetKey ?? '';
             case 'PATH':
                 return item.path;
+            case 'GADGET_PAGE': {
+                const page = UtilMenu.gadgetPageOf(item.targetId, ctx);
+                return page ? `/p/${page.key}` : (item.targetId ?? '');
+            }
             case 'URL':
                 return UtilMenu.hostOf(item.href);
             default:
@@ -611,13 +635,14 @@ export default class UtilMenu {
     }
 
     /**
-     * 한 그룹 안에서 한 번만 연결할 수 있는 대상의 이름표 — 게시판·앱 화면만.
+     * 한 그룹 안에서 한 번만 연결할 수 있는 대상의 이름표 — 게시판·앱 화면·가젯 페이지.
      * @param {MenuEditLink} item - 항목(또는 폴더의 연결 대상).
-     * @returns {string | null} `BOARD:<id>` · `BUILTIN:<key>`. 그 밖에는 null.
+     * @returns {string | null} `BOARD:<id>` · `BUILTIN:<key>` · `GADGET_PAGE:<key>`. 그 밖에는 null.
      */
     static linkId(item: MenuEditLink): string | null {
         if (item.targetType === 'BOARD' && item.targetId) return `BOARD:${item.targetId}`;
         if (item.targetType === 'BUILTIN' && item.targetKey) return `BUILTIN:${item.targetKey}`;
+        if (item.targetType === 'GADGET_PAGE' && item.targetId) return `GADGET_PAGE:${item.targetId}`;
         return null;
     }
 
@@ -735,6 +760,7 @@ export default class UtilMenu {
         const out: Partial<Record<MenuProblemField, MenuProblemCode>> = {};
         if (link.targetType === 'BOARD' && !link.targetId) out.target = 'TARGET_REQUIRED';
         if (link.targetType === 'BUILTIN' && !link.targetKey) out.target = 'TARGET_REQUIRED';
+        if (link.targetType === 'GADGET_PAGE' && !link.targetId) out.target = 'TARGET_REQUIRED';
         if (link.targetType === 'PATH') {
             const path = UtilMenu.pathProblem(link.path);
             if (path) out.path = path;

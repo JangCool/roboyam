@@ -65,7 +65,7 @@ public class PublicMenuService {
         }
         List<GradeEntity> grades = snapshots.grades();
         Map<String, Integer> levels = MenuSnapshots.levels(grades);
-        MenuResolveContext context = new MenuResolveContext(snapshots.boards(), levels, MenuSales.enabled(), viewerOf(userId, levels));
+        MenuResolveContext context = new MenuResolveContext(snapshots.boards(), levels, MenuSales.enabled(), viewerOf(userId, levels), snapshots.pages());
         return composer.compose(store.load(set.getSetKey()), MenuLimits.isSide(set.getPlacement()), context, version);
     }
 

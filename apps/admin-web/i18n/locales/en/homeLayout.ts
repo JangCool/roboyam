@@ -12,7 +12,7 @@ export default {
     // ── Columns ─
     columns: 'Grid columns',
     columnsOption: '{count} columns',
-    liveEditHint: 'In the live view below, drag a gadget to move it, drag its bottom-right corner to resize, and use × at the top right to remove it. Use ⚙ on the group-buy gadget to change its count and order.',
+    liveEditHint: 'In the live view below, drag a gadget to move it, drag its bottom-right corner to resize, and use × at the top right to remove it. Use ⚙ on post list, gallery, board card and group-buy gadgets to change boards, count and order.',
 
     // ── Gadget settings (⚙ — group buy only for now) ─
     settingsTitle: '"{title}" settings',
@@ -26,6 +26,40 @@ export default {
     settingsPreviewNote: 'Before you save, the live view only reorders and trims the group buys already shown. Saving picks them again with these settings.',
     settingsApply: 'Apply',
     settingsApplied: 'Changed the "{title}" settings. Save to apply.',
+
+    // ── Gadget settings (⚙ — post list · gallery · board cards) ─
+    settingsLead_GROUP_BUY: 'Choose how many group buys to show and in what order. Only open, recruiting group buys appear.',
+    settingsLead_POST_LIST: 'Choose which boards to show posts from, in what order and how many.',
+    settingsLead_GALLERY: 'Choose which boards to show photo and video posts from and how many. Newest first.',
+    settingsLead_BOARD_CARDS: 'Choose the boards to show as cards and how many posts each card lists. Each card shows one featured post and the latest titles.',
+    settingsBoards: 'Boards',
+    settingsCardBoards: 'Boards shown as cards',
+    scope_ALL: 'All boards',
+    scope_FOLDER: 'All boards in this page’s folder',
+    scope_PICK: 'Choose boards',
+    scopeAllNote: 'Same range as Latest (active boards not excluded from Latest).',
+    scopeAllCards: 'The first 6 active general boards appear as cards.',
+    scopeFolderNote: 'Boards in “{folder}”: {boards}. Follows the folder when you add or remove boards in Menus.',
+    scopeFolderEmpty: 'none yet',
+    scopeFolderNone: 'This page has no folder, so this is the same as all boards. You can pick a folder in Page info.',
+    boardSearch: 'Find a board',
+    boardPickPlaceholder: 'Choose boards',
+    boardPicked: '{0} chosen',
+    boardPickHint: 'Shown in the order you choose them. Up to {max}.',
+    boardPickRequired: 'Choose at least one board.',
+    boardEmpty: 'No boards to choose.',
+    boardInactive: 'off',
+    settingsCount_GROUP_BUY: 'Number to show',
+    settingsCount_POST_LIST: 'Posts to show',
+    settingsCount_GALLERY: 'Tiles to show',
+    settingsCount_BOARD_CARDS: 'Posts per card',
+    postSort_LATEST: 'Newest',
+    postSort_POPULAR: 'Popular',
+    postSort_VIEWS: 'Most viewed',
+    postSort_LIKES: 'Most liked',
+    postSort_COMMENTS: 'Most commented',
+    settingsPeriodTabs: 'Show Now · Yesterday · This week tabs',
+    settingsPreviewNoteBoards: 'Before you save, the live view only trims and filters the posts already shown. Saving picks them again with these settings.',
 
     // ── Editor ─
     announce: '{title}: column {x}, row {y}, width {w}, height {h}',
@@ -43,11 +77,24 @@ export default {
     resetDone: 'Loaded the theme’s default layout. Save to apply.',
     switchTitle: 'You have unsaved layout changes',
     switchMessage: 'Moving to another theme discards your changes.',
+    switchPageMessage: 'Moving to another page discards your changes.',
     switchConfirm: 'Discard and move',
     leaveTitle: 'You have unsaved layout changes',
     leaveMessage: 'Leaving this page discards your changes.',
     leaveConfirm: 'Leave',
     stay: 'Stay',
+
+    // ── Gadget page editing (same editor — wording for pages) ─
+    page_loadFailed: 'Could not load the page layout.',
+    page_saved: 'Page layout saved.',
+    page_saveFailed: 'Could not save the page layout.',
+    page_neverSaved: 'Never saved for this theme — this is the starting layout.',
+    page_readOnly: 'You can only view, so you can’t change the layout.',
+    page_resetDefault: 'Starting layout',
+    page_resetTitle: 'Switch to the starting layout?',
+    page_resetMessage: 'The gadgets and positions in the editor become the layout the page started with. Save to apply.',
+    page_resetConfirm: 'Starting layout',
+    page_resetDone: 'Loaded the starting layout. Save to apply.',
 
     // ── Gadget kinds ─
     kind: {

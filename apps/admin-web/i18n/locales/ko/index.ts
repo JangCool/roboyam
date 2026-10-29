@@ -14,6 +14,7 @@ import dashboard from './dashboard';
 import error from './error';
 import grade from './grade';
 import homeLayout from './homeLayout';
+import gadgetPage from './gadgetPage';
 import groupBuy from './groupBuy';
 import groupBuyQna from './groupBuyQna';
 import groupBuyReview from './groupBuyReview';
@@ -64,6 +65,7 @@ export default {
     error,
     grade,
     homeLayout,
+    gadgetPage,
     groupBuy,
     groupBuyQna,
     groupBuyReview,

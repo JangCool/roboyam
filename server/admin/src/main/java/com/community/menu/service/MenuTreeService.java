@@ -6,11 +6,13 @@ import com.community.audit.entity.AuditResult;
 import com.community.audit.service.AuditLogService;
 import com.community.grade.entity.GradeEntity;
 import com.community.menu.dto.MenuBoardRef;
+import com.community.menu.dto.MenuPageRef;
 import com.community.menu.dto.MenuNode;
 import com.community.menu.dto.MenuViewer;
 import com.community.menu.dto.request.MenuPreviewRequest;
 import com.community.menu.dto.request.MenuTreeSaveRequest;
 import com.community.menu.dto.response.MenuBoardOptionView;
+import com.community.menu.dto.response.MenuGadgetPageOptionView;
 import com.community.menu.dto.response.MenuGradeOptionView;
 import com.community.menu.dto.response.MenuResponse;
 import com.community.menu.dto.response.MenuTargetOptionsResponse;
@@ -99,9 +101,9 @@ public class MenuTreeService {
         Map<Long, MenuBoardRef> boards = snapshots.boards();
         List<GradeEntity> grades = snapshots.grades();
         Map<Long, Boolean> stored = nodeQueries.autoAddById(set.getSetKey());
-        List<MenuNode> wanted = validator.validate(MenuViews.fromRequest(request.nodes()), validationContext(set, boards, grades), stored);
+        List<MenuNode> wanted = validator.validate(MenuViews.fromRequest(request.nodes()), validationContext(set, boards, grades, snapshots.pages()), stored);
 
-        MenuResolveContext statusContext = new MenuResolveContext(boards, MenuSnapshots.levels(grades), MenuSales.enabled(), null);
+        MenuResolveContext statusContext = new MenuResolveContext(boards, MenuSnapshots.levels(grades), MenuSales.enabled(), null, snapshots.pages());
         List<MenuNode> current = store.load(set.getSetKey());
         if (wanted.equals(current)) {
             return response(set, current, statusContext, actor);
@@ -123,9 +125,9 @@ public class MenuTreeService {
         Map<Long, MenuBoardRef> boards = snapshots.boards();
         List<GradeEntity> grades = snapshots.grades();
         MenuViewer viewer = viewer(request == null ? null : request.viewer(), grades);
-        List<MenuNode> tree = validator.validate(MenuViews.fromRequest(request == null ? null : request.nodes()), validationContext(set, boards, grades),
+        List<MenuNode> tree = validator.validate(MenuViews.fromRequest(request == null ? null : request.nodes()), validationContext(set, boards, grades, snapshots.pages()),
                 nodeQueries.autoAddById(set.getSetKey()));
-        MenuResolveContext context = new MenuResolveContext(boards, MenuSnapshots.levels(grades), MenuSales.enabled(), viewer);
+        MenuResolveContext context = new MenuResolveContext(boards, MenuSnapshots.levels(grades), MenuSales.enabled(), viewer, snapshots.pages());
         return composer.compose(tree, MenuLimits.isSide(set.getPlacement()), context, null);
     }
 
@@ -136,7 +138,9 @@ public class MenuTreeService {
                 .map(board -> new MenuBoardOptionView(Long.toString(board.id()), board.slug(), board.name(), board.nameEn(), board.active())).toList();
         List<MenuGradeOptionView> grades = snapshots.grades().stream().map(grade -> new MenuGradeOptionView(grade.getGradeKey(), grade.getLabel(), grade.getLevel()))
                 .toList();
-        return new MenuTargetOptionsResponse(boards, grades, MenuSales.enabled());
+        List<MenuGadgetPageOptionView> pages = snapshots.pages().values().stream()
+                .map(page -> new MenuGadgetPageOptionView(Long.toString(page.id()), page.key(), page.name(), page.nameEn())).toList();
+        return new MenuTargetOptionsResponse(boards, grades, MenuSales.enabled(), pages);
     }
 
     /** 연결 유형 표 — 등록된 리졸버(고를 수 있음) + 준비 중 유형 */
@@ -155,11 +159,11 @@ public class MenuTreeService {
     }
 
     private MenuResolveContext statusContext() {
-        return new MenuResolveContext(snapshots.boards(), Map.of(), MenuSales.enabled(), null);
+        return new MenuResolveContext(snapshots.boards(), Map.of(), MenuSales.enabled(), null, snapshots.pages());
     }
 
-    private static MenuValidationContext validationContext(MenuSetEntity set, Map<Long, MenuBoardRef> boards, List<GradeEntity> grades) {
-        return new MenuValidationContext(boards, new HashSet<>(MenuSnapshots.levels(grades).keySet()), set.getPlacement());
+    private static MenuValidationContext validationContext(MenuSetEntity set, Map<Long, MenuBoardRef> boards, List<GradeEntity> grades, Map<Long, MenuPageRef> pages) {
+        return new MenuValidationContext(boards, new HashSet<>(MenuSnapshots.levels(grades).keySet()), set.getPlacement(), pages);
     }
 
     /** 미리보기의 보는 사람 — {@code MEMBER} 는 등급 키(없으면 첫 등급)의 서열 */

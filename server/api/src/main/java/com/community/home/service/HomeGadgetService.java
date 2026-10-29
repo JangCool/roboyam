@@ -12,6 +12,7 @@ import com.community.highlight.entity.HighlightEntity;
 import com.community.highlight.repository.master.HighlightRepository;
 import com.community.home.dto.HomeGadgetSpec;
 import com.community.home.dto.HomeGridLayout;
+import com.community.home.dto.response.GadgetPageResponse;
 import com.community.home.dto.response.HomeGadgetView;
 import com.community.home.dto.response.HomeGadgetsResponse;
 import com.community.home.dto.response.gadget.BoardCardView;
@@ -23,8 +24,13 @@ import com.community.home.dto.response.gadget.HighlightPickView;
 import com.community.home.dto.response.gadget.ItemsDataView;
 import com.community.home.dto.response.gadget.NoticeTextDataView;
 import com.community.home.dto.response.gadget.PostListDataView;
+import com.community.home.entity.GadgetPageEntity;
+import com.community.home.entity.GadgetPageLayoutEntity;
 import com.community.home.entity.HomeGadgetEntity;
 import com.community.home.entity.HomeLayoutEntity;
+import com.community.home.exception.GadgetPageNotFoundException;
+import com.community.home.repository.master.GadgetPageLayoutRepository;
+import com.community.home.repository.master.GadgetPageRepository;
 import com.community.home.repository.master.HomeGadgetRepository;
 import com.community.home.repository.master.HomeLayoutRepository;
 import com.community.media.repository.master.FileRepository;
@@ -62,6 +68,9 @@ import tools.jackson.databind.JsonNode;
  *       {@code BOARD_CARDS}: 게시판마다 최신 {@code perBoard}(기본 4)개 + 대표 글, 게시판을 정하지 않으면 켜진 일반 게시판 앞 6개. {@code GROUPS}: 지금 뜨는 소모임 {@code count}(기본 3)개.</li>
  *   <li>{@code GROUP_BUY}: 모집 중인 공개 공구 {@code count}(기본 5, 1~10)개를 {@code sort} 차례로(DEADLINE 마감 이른 순 기본 · NEWEST 새로 시작한 순 · POPULAR 참여 많은 순) — 줄은 회원 공구 목록과 같은 모양
  *       ({@link GroupBuyMemberService#recruiting}), 판매 스위치는 거르지 않고 {@code salesOpen} 으로 싣는다. {@code QUICK_LINKS}·{@code NOTICE_TEXT}: 가젯 설정의 {@code items}·{@code text}·{@code format}.</li>
+ *   <li>대상 게시판 {@code boardScope}(gadget-page-contract 「가젯 설정」): {@code ALL} 전체 · {@code PICK} {@code boardIds} · {@code FOLDER} 가젯 페이지의 기준 폴더 켜진 게시판
+ *       (폴더가 없거나 게시판이 없으면 전체). 칸이 없는 옛 설정은 {@code boardIds} 가 있으면 PICK.</li>
+ *   <li>가젯 페이지({@code GET /api/pages/{key}}, {@link #page}): 지금 테마의 그 페이지 배치(저장한 것, 없으면 페이지의 처음 배치) + 머리(이름·설명·글쓰기 단추·글쓰기 게시판). 없는 페이지는 404.</li>
  *   <li>노출 기간·보는 사람(로그인 전용) 설정은 아직 없다 — {@code locked} 는 늘 false.</li>
  * </ul>
  */
@@ -88,10 +97,17 @@ public class HomeGadgetService {
     private final GroupQueryService groups;
     private final GroupBuyMemberService groupBuys;
     private final GroupBuySalesSwitch sales;
+    private final GadgetPageRepository pages;
+    private final GadgetPageLayoutRepository pageLayouts;
+    private final GadgetPageFolders folders;
 
     public HomeGadgetService(PublicSiteService site, HomeLayoutRepository layouts, HomeGadgetRepository gadgets, BoardCatalog catalog,
                              PostFeedRepositoryQDSL feeds, PostFeedRows rows, PopularService popular, HighlightRepository highlights, FileRepository files,
-                             ImageStorage storage, GroupQueryService groups, GroupBuyMemberService groupBuys, GroupBuySalesSwitch sales) {
+                             ImageStorage storage, GroupQueryService groups, GroupBuyMemberService groupBuys, GroupBuySalesSwitch sales,
+                             GadgetPageRepository pages, GadgetPageLayoutRepository pageLayouts, GadgetPageFolders folders) {
+        this.pages = pages;
+        this.pageLayouts = pageLayouts;
+        this.folders = folders;
         this.groupBuys = groupBuys;
         this.sales = sales;
         this.site = site;
@@ -119,10 +135,45 @@ public class HomeGadgetService {
             specs = home.gadgets();
         } else {
             layout = row.toLayout();
-            specs = gadgets.findByThemeOrderByIdAsc(theme).stream().map(HomeGadgetEntity::toSpec).toList();
+            specs = gadgets.findByThemeAndPageIdIsNullOrderByIdAsc(theme).stream().map(HomeGadgetEntity::toSpec).toList();
         }
-        Ctx ctx = new Ctx(catalog.snapshot(), Instant.now(), viewerId);
+        Ctx ctx = new Ctx(catalog.snapshot(), Instant.now(), viewerId, null);
         return new HomeGadgetsResponse(theme, layout, specs.stream().map(spec -> view(spec, ctx)).toList());
+    }
+
+    /**
+     * 가젯 페이지 하나 — 지금 테마의 배치(저장한 것, 없으면 처음 배치) + 가젯마다 데이터 + 머리. 대상 게시판 {@code FOLDER} 는 기준 폴더의 켜진 게시판이다.
+     * @param key      영문 주소
+     * @param viewerId 로그인한 회원(비로그인 null)
+     */
+    public GadgetPageResponse page(String key, Long viewerId) {
+        GadgetPageEntity page = key == null ? null : pages.findByPageKey(key.strip()).orElse(null);
+        if (page == null) {
+            throw new GadgetPageNotFoundException();
+        }
+        String theme = site.snapshot().info().theme();
+        GadgetPageLayoutEntity row = pageLayouts.findByPageIdAndTheme(page.getId(), theme).orElse(null);
+        HomeGridLayout layout;
+        List<HomeGadgetSpec> specs;
+        if (row == null) {
+            HomeLayoutDefaults.Home initial = GadgetPageInitial.read(page.getInitialLayout(), theme);
+            layout = initial.layout();
+            specs = initial.gadgets();
+        } else {
+            layout = row.toLayout();
+            specs = gadgets.findByPageIdAndThemeOrderByIdAsc(page.getId(), theme).stream().map(HomeGadgetEntity::toSpec).toList();
+        }
+        List<String> folderSlugs = folders.of(page.getFolderId()).map(GadgetPageFolders.Folder::activeSlugs).orElse(List.of());
+        BoardCatalogSnapshot snapshot = catalog.snapshot();
+        Set<String> activeFolder = new java.util.LinkedHashSet<>();
+        for (String slug : folderSlugs) {
+            snapshot.board(slug).filter(EffectiveBoard::active).ifPresent(b -> activeFolder.add(b.slug()));
+        }
+        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, activeFolder.isEmpty() ? null : activeFolder);
+        String writeBoard = activeFolder.isEmpty() ? null : activeFolder.iterator().next();
+        GadgetPageResponse.Page head = new GadgetPageResponse.Page(page.getPageKey(), page.getName(), page.getNameEn(), page.getDescription(), page.isWriteButton(),
+                writeBoard);
+        return new GadgetPageResponse(head, theme, layout, specs.stream().map(spec -> view(spec, ctx)).toList());
     }
 
     private HomeGadgetView view(HomeGadgetSpec g, Ctx ctx) {
@@ -298,8 +349,18 @@ public class HomeGadgetService {
 
     // ── 게시판 고르기 ───────────────────────────────────────────────────────
 
-    /** 설정 {@code boardIds}(slug) 중 켜진 게시판 — 정하지 않았거나 하나도 남지 않으면 null(거르지 않음). 차례는 설정 차례 */
+    /**
+     * 대상 게시판(slug, 차례) — {@code ALL} 은 null(거르지 않음), {@code FOLDER} 는 페이지 기준 폴더의 켜진 게시판(없으면 null),
+     * {@code PICK} 은 설정 {@code boardIds} 중 켜진 게시판(하나도 남지 않으면 null). 차례는 설정·폴더 차례
+     */
     private static Set<String> boardSlugs(JsonNode config, Ctx ctx) {
+        String scope = GadgetConfigs.scope(config);
+        if (GadgetConfigs.ALL.equals(scope)) {
+            return null;
+        }
+        if (GadgetConfigs.FOLDER.equals(scope)) {
+            return ctx.folder();
+        }
         Set<String> out = new java.util.LinkedHashSet<>();
         for (String slug : HomeLayoutJson.texts(config, "boardIds")) {
             ctx.s().board(slug).filter(EffectiveBoard::active).ifPresent(b -> out.add(b.slug()));
@@ -315,7 +376,11 @@ public class HomeGadgetService {
         return ctx.s().boards().stream().filter(b -> b.active() && !b.excludedFrom(BoardGadget.LATEST)).map(EffectiveBoard::id).toList();
     }
 
-    /** 한 요청 동안 같이 쓰는 값 */
-    private record Ctx(BoardCatalogSnapshot s, Instant now, Long viewerId) {
+    /**
+     * 한 요청 동안 같이 쓰는 값
+     *
+     * @param folder 가젯 페이지 기준 폴더의 켜진 게시판 slug — 홈이거나 없으면 null(대상 {@code FOLDER} 는 전체)
+     */
+    private record Ctx(BoardCatalogSnapshot s, Instant now, Long viewerId, Set<String> folder) {
     }
 }

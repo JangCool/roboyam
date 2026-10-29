@@ -5,22 +5,36 @@ import com.community.board.repository.master.BoardRepository;
 import com.community.board.service.BoardFields;
 import com.community.grade.entity.GradeEntity;
 import com.community.grade.repository.master.GradeRepositoryQDSL;
+import com.community.home.entity.GadgetPageEntity;
+import com.community.home.repository.master.GadgetPageRepository;
 import com.community.menu.dto.MenuBoardRef;
+import com.community.menu.dto.MenuPageRef;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
-/** 메뉴 검사·해석의 재료를 한 번에 읽는다 — 게시판(꺼진 것 포함, 게시판 순서)·등급(서열 순서). 부르는 쪽의 트랜잭션 안에서 쓴다 */
+/** 메뉴 검사·해석의 재료를 한 번에 읽는다 — 게시판(꺼진 것 포함, 게시판 순서)·등급(서열 순서)·가젯 페이지(만든 차례). 부르는 쪽의 트랜잭션 안에서 쓴다 */
 @Component
 public class MenuSnapshots {
 
     private final BoardRepository boards;
     private final GradeRepositoryQDSL grades;
+    private final GadgetPageRepository pages;
 
-    public MenuSnapshots(BoardRepository boards, GradeRepositoryQDSL grades) {
+    public MenuSnapshots(BoardRepository boards, GradeRepositoryQDSL grades, GadgetPageRepository pages) {
         this.boards = boards;
         this.grades = grades;
+        this.pages = pages;
+    }
+
+    /** 가젯 페이지 ID → 요약(만든 차례) — 연결 유형 {@code GADGET_PAGE} */
+    public Map<Long, MenuPageRef> pages() {
+        Map<Long, MenuPageRef> out = new LinkedHashMap<>();
+        for (GadgetPageEntity page : pages.findAllByOrderByIdAsc()) {
+            out.put(page.getId(), new MenuPageRef(page.getId(), page.getPageKey(), page.getName(), page.getNameEn()));
+        }
+        return out;
     }
 
     /**

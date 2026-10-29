@@ -8,6 +8,8 @@ import java.util.List;
  * @param boards       모든 게시판(꺼진 것 포함, 게시판 순서)
  * @param grades       등급(서열 순서)
  * @param salesEnabled 공동구매 판매 스위치 — 지금은 늘 true({@code MenuSales})
+ * @param gadgetPages  가젯 페이지(만든 차례) — 연결 유형 {@code GADGET_PAGE}
  */
-public record MenuTargetOptionsResponse(List<MenuBoardOptionView> boards, List<MenuGradeOptionView> grades, boolean salesEnabled) {
+public record MenuTargetOptionsResponse(List<MenuBoardOptionView> boards, List<MenuGradeOptionView> grades, boolean salesEnabled,
+                                        List<MenuGadgetPageOptionView> gadgetPages) {
 }

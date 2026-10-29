@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 public class MenuTargetRegistry {
 
     /** 화면 차례(admin-web {@code UtilMenu.TARGET_TYPES}) */
-    private static final List<String> ORDER = List.of("BOARD", "BUILTIN", "PATH", "URL");
+    private static final List<String> ORDER = List.of("BOARD", "BUILTIN", "GADGET_PAGE", "PATH", "URL");
 
     /** 준비 중 유형 — 서버 리졸버가 없고 화면에 흐린 줄로만 보인다(고정 페이지는 CMS 기능이 생길 때) */
     public static final List<String> SOON_TYPES = List.of("PAGE");
