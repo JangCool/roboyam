@@ -48,7 +48,9 @@ public final class AuditRetention {
             // 공구 배송지 열람·배송 명단 내보내기(commerce.md 10-9)
             AuditActions.GROUPBUY_ADDRESS_REVEAL, AuditActions.GROUPBUY_SHIPPING_EXPORT,
             // 관리자 공구 주문 상세(회원 번호·닉네임 — 2b-4)
-            AuditActions.GROUPBUY_ORDER_VIEW);
+            AuditActions.GROUPBUY_ORDER_VIEW,
+            // 관리자 공구 문의 목록·상세(비밀글 본문 — 2b-6)
+            AuditActions.GROUPBUY_QNA_VIEW);
 
     /** 일반 운영으로 <b>정한</b> 행위 — 빠뜨린 것과 구별하려고 나열한다 */
     private static final Set<String> GENERAL = Set.of(
@@ -109,7 +111,9 @@ public final class AuditRetention {
             // 발주·발송·배송완료·택배사 — 일반 운영(돈은 환불이 움직인다)
             AuditActions.GROUPBUY_FULFILLMENT, AuditActions.COMMERCE_CARRIER_SAVE,
             // 운영 체크 항목·사업자 정보·주문 메모 — 일반 운영(판매를 켜는 일은 스위치가 돈 관련으로 남긴다)
-            AuditActions.COMMERCE_SALES_CHECKLIST, AuditActions.COMMERCE_BUSINESS_INFO_UPDATE, AuditActions.GROUPBUY_ORDER_MEMO);
+            AuditActions.COMMERCE_SALES_CHECKLIST, AuditActions.COMMERCE_BUSINESS_INFO_UPDATE, AuditActions.GROUPBUY_ORDER_MEMO,
+            // 공구 문의·리뷰 숨김·답변(답글) 수정(2b-6)
+            AuditActions.GROUPBUY_QNA_HIDE, AuditActions.GROUPBUY_QNA_ANSWER_EDIT, AuditActions.GROUPBUY_REVIEW_HIDE, AuditActions.GROUPBUY_REVIEW_REPLY_EDIT);
 
     private static final Map<String, AuditRetentionClass> TABLE = table();
 

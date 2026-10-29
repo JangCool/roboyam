@@ -60,6 +60,12 @@
                                 <span class="sr-only">{{ t('groupBuy.normalPrice') }}</span>{{ UtilGroupBuyMessages.won(t, gb.normalPrice) }}
                             </s>
                         </p>
+                        <!-- 리뷰 평균 별점·수(2b-6 — 같은 상품의 모든 차수) -->
+                        <p v-if="gb.reviews && gb.reviews.count > 0" class="m-0 flex items-center gap-1 text-xs text-muted-color" data-testid="group-buys-item-reviews">
+                            <i class="pi pi-star-fill text-[11px] text-amber-500" aria-hidden="true" />
+                            <span class="font-semibold tabular-nums text-(--p-text-color)">{{ gb.reviews.average?.toFixed(1) }}</span>
+                            <span class="tabular-nums">{{ t('groupBuyReview.countShort', { count: gb.reviews.count }) }}</span>
+                        </p>
                         <!-- 성사형 진행률(확정 / 최소) -->
                         <div v-if="gb.minQty > 0 && gb.phase !== 'UPCOMING'" class="flex flex-col gap-1">
                             <ProgressBar :value="UtilGroupBuy.progress(gb.currentQty, gb.minQty) ?? 0" :show-value="false" class="h-1.5" :aria-label="t('groupBuy.progressLabel')" />

@@ -117,12 +117,15 @@ interface Props {
     prioritySkuIds?: string[];
     /** 양식 제목 태그 — 바깥 제목이 h2 면 h3, 시트(제목 h3) 안이면 h4 */
     headingTag?: 'h3' | 'h4';
+    /** 양식이 하나여도 접고 펴기(공구 상세 맨 아래 — 쿠팡 「필수 표기정보」 자리) */
+    alwaysCollapsible?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     skus: () => [],
     prioritySkuIds: () => [],
     headingTag: 'h3',
+    alwaysCollapsible: false,
 });
 
 const { t } = useI18n();
@@ -168,7 +171,7 @@ const sorted = computed(() => {
     return [...first, ...entries.value.filter((e) => !priorityForms.value.has(e.index))];
 });
 
-const collapsible = computed(() => props.notices.length > 1);
+const collapsible = computed(() => props.alwaysCollapsible || props.notices.length > 1);
 /** 따로 둔 양식(추가 구성상품·종류별)이 있을 때만 단품 칩(기본 양식 하나뿐이면 고를 까닭이 없다) */
 const showChips = computed(() => props.skus.length > 1 && props.notices.some((n) => n.skuIds.length > 0));
 

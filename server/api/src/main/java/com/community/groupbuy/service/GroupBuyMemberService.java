@@ -38,6 +38,8 @@ import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import com.community.groupbuy.feedback.FeedbackView;
+import com.community.groupbuy.feedback.GroupBuyReviewService;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -76,6 +78,7 @@ public class GroupBuyMemberService {
     private final HoldExpiryService holds;
     private final GroupBuyEligibility eligibility;
     private final GroupBuyWatchService watches;
+    private final GroupBuyReviewService reviews;
     private final BoardActorResolver actors;
     private final BoardCatalog boards;
     private final ImageStorage storage;
@@ -83,7 +86,9 @@ public class GroupBuyMemberService {
 
     public GroupBuyMemberService(DataSource dataSource, GroupBuyStore groups, GroupBuyProductStore products, GroupBuyNoticeStore noticeStore, GroupBuyNoticeCatalog catalog,
                                  ParticipationStore participations, GroupBuyQuoteService quotes, GroupBuyJoinService joins, HoldExpiryService holds, GroupBuyEligibility eligibility,
-                                 GroupBuyWatchService watches, BoardActorResolver actors, BoardCatalog boards, ImageStorage storage, ObjectProvider<Clock> clocks) {
+                                 GroupBuyWatchService watches, BoardActorResolver actors, BoardCatalog boards, ImageStorage storage, ObjectProvider<Clock> clocks,
+                                 GroupBuyReviewService reviews) {
+        this.reviews = reviews;
         this.jdbc = new JdbcTemplate(dataSource);
         this.groups = groups;
         this.products = products;
@@ -135,9 +140,16 @@ public class GroupBuyMemberService {
         List<Long> ids = jdbc.queryForList("SELECT g.id" + sql + " ORDER BY " + order + " LIMIT ? OFFSET ?", Long.class, pageArgs.toArray());
         Instant now = now();
         List<GroupBuyMemberView.ListItem> items = new ArrayList<>();
+        Map<Long, Long> productOf = new HashMap<>();
         for (long gid : ids) {
-            groups.find(gid).ifPresent(g -> items.add(listItem(g, quotes.availability(gid), groups.skus(gid), now)));
+            groups.find(gid).ifPresent(g -> {
+                productOf.put(gid, g.productId());
+                items.add(listItem(g, quotes.availability(gid), groups.skus(gid), now));
+            });
         }
+        // 리뷰 평균·수(2b-6) — 상품마다 한 번에
+        Map<Long, FeedbackView.Stats> stats = reviews.stats(new ArrayList<>(productOf.values()));
+        items.replaceAll(it -> it.withReviews(stats.getOrDefault(productOf.get(Long.parseLong(it.id())), new FeedbackView.Stats(null, 0))));
         return new GroupBuyMemberView.ListPage(items, p, PAGE_SIZE, total == null ? 0 : total);
     }
 
@@ -266,7 +278,7 @@ public class GroupBuyMemberService {
         boolean closingSoon = g.status() == GroupBuyStatus.RECRUITING && g.deadline() != null && !g.deadline().isAfter(now.plus(CLOSING_SOON));
         return new GroupBuyMemberView.ListItem(Long.toString(g.id()), title(g), thumbnail(g), g.status().name(), phase(g), g.closeReason(), g.fulfillment(), price,
                 prices.size() > 1, g.normalPrice(), g.minQty(), g.maxQty(), g.currentQty(), Math.max(0, a.remaining()), stock, g.startAt(), g.endAt(), g.extendedUntil(),
-                closingSoon, g.roundNo(), Long.toString(g.categoryId()));
+                closingSoon, g.roundNo(), Long.toString(g.categoryId()), null);
     }
 
     static String phase(GroupBuyRow g) {

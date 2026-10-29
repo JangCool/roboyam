@@ -1,5 +1,6 @@
 package com.community.groupbuy.dto.response;
 
+import com.community.groupbuy.feedback.FeedbackView;
 import com.community.payment.dto.response.PaymentCheckoutView;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -18,7 +19,13 @@ public final class GroupBuyMemberView {
     /** 목록 한 줄 */
     public record ListItem(String id, String title, String thumbnailUrl, String status, String phase, String closeReason, String fulfillment, long groupPrice,
                            boolean priceFrom, Long normalPrice, int minQty, int maxQty, int currentQty, int remainingQty, String stockState, Instant startAt,
-                           Instant endAt, Instant extendedUntil, boolean closingSoon, int roundNo, String categoryId) {
+                           Instant endAt, Instant extendedUntil, boolean closingSoon, int roundNo, String categoryId, FeedbackView.Stats reviews) {
+
+        /** 목록 카드의 리뷰 평균·수(2b-6 — 같은 상품의 모든 차수) */
+        public ListItem withReviews(FeedbackView.Stats stats) {
+            return new ListItem(id, title, thumbnailUrl, status, phase, closeReason, fulfillment, groupPrice, priceFrom, normalPrice, minQty, maxQty, currentQty, remainingQty,
+                    stockState, startAt, endAt, extendedUntil, closingSoon, roundNo, categoryId, stats);
+        }
     }
 
     public record ListPage(List<ListItem> items, int page, int size, long total) {

@@ -30,6 +30,7 @@ import com.community.post.entity.PostModerationEventEntity;
 import com.community.post.service.PostModerationLog;
 import com.community.post.service.PostQueryService;
 import com.community.report.dto.request.ReportRequest;
+import com.community.groupbuy.feedback.GroupBuyUgcReportService;
 import com.community.report.entity.ReportCaseEntity;
 import com.community.report.entity.ReportEntity;
 import com.community.report.entity.ReportEventEntity;
@@ -72,6 +73,9 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p><b>사건</b>(V82 {@code report_cases}): 대상 단위 잠금 아래 대상의 열린 사건(대기·검토 중)을 잠가 읽어 신고를 붙이고, 없으면 새 사건을 연다(닫힌 사건 뒤의 신고는 새 사건으로 0부터).
  * 사건의 신고 수·마지막 신고 시각을 고치고 기록 {@code REPORTED}(신고자 ID 는 남기지 않는다).
+ *
+ * <p><b>공구 질문·리뷰 신고</b>({@code GROUP_BUY_QUESTION}·{@code GROUP_BUY_REVIEW}, 2b-6): 회원 상태·신고 켜짐·사유(글·댓글 체계)·설명 검사는 같고, 저장은 공구 신고 표
+ * ({@code GroupBuyUgcReportService} — 게시판·사건이 없다). 처리는 공구 Q&A·리뷰 화면의 숨김이다(자동 숨김 없음).
  *
  * <p><b>소모임 신고</b>({@code targetType: GROUP}, V95 — community docs/api-report.md 1절): 대상 = 열린(ACTIVE) 소모임(그 밖·없음 404 REPORT_TARGET_NOT_FOUND),
  * 사유 = PROMOTION · OFFLINE_RISK · STOCK_RECOMMENDATION · OTHER(글·댓글 사유를 보내면 {@code 400 fields.reason}), STOCK_RECOMMENDATION 은 투자 고지 게시판의 소모임만
@@ -116,12 +120,14 @@ public class ReportService {
     private final ReportCaseLog caseLog;
     private final GroupPostGate groupGate;
     private final GroupRepository groups;
+    private final GroupBuyUgcReportService groupBuyReports;
 
     public ReportService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                          CommentRepositoryQDSL commentQueries, PostCounterQueries counters, ReportRepository reports, ReportRepositoryQDSL reportQueries,
                          ProfileRepository profiles, BoardStaffRepository boardStaff, NotificationPublisher publisher, MemberNotificationPublisher memberNotices,
                          SnowflakeIdGenerator ids, PostModerationLog moderation, ReportCaseRepository cases, ReportCaseLog caseLog, GroupPostGate groupGate,
-                         GroupRepository groups) {
+                         GroupRepository groups, GroupBuyUgcReportService groupBuyReports) {
+        this.groupBuyReports = groupBuyReports;
         this.groupGate = groupGate;
         this.groups = groups;
         this.cases = cases;
@@ -182,7 +188,7 @@ public class ReportService {
 
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         String type = body.targetType();
-        if (!ReportEntity.POST.equals(type) && !ReportEntity.COMMENT.equals(type) && !ReportEntity.GROUP.equals(type)) {
+        if (!ReportEntity.POST.equals(type) && !ReportEntity.COMMENT.equals(type) && !ReportEntity.GROUP.equals(type) && !GroupBuyUgcReportService.TYPES.contains(type)) {
             fields.put("targetType", new MessageRef("board.report.targetType"));
         }
         Long targetId = PostQueryService.parseId(body.targetId());
@@ -204,6 +210,10 @@ public class ReportService {
         }
 
         Instant now = Instant.now();
+        if (GroupBuyUgcReportService.TYPES.contains(type)) { // 공구 질문·리뷰(2b-6) — 공구 신고 표로(게시판·사건이 없다), 처리는 운영자 숨김
+            groupBuyReports.report(type, targetId, userId, reason, detail);
+            return;
+        }
         if (ReportEntity.GROUP.equals(type)) {
             reportGroup(targetId, reason, detail, userId, actor, s, policy, now);
             return;

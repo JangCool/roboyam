@@ -73,6 +73,8 @@ export default {
     groupBuyStock: 'Quantities',
     groupBuyOrders: 'Orders',
     groupBuyRequests: 'Cancel & return requests',
+    groupBuyQna: 'Q&A',
+    groupBuyReviews: 'Reviews',
     // Payments section (normal mode, after Point shop) — cash payment module
     payment: 'Payments',
     paymentOrders: 'Payment orders',

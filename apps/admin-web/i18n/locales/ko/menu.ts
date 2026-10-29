@@ -73,6 +73,8 @@ export default {
     groupBuyStock: '수량',
     groupBuyOrders: '주문',
     groupBuyRequests: '취소·반품 요청',
+    groupBuyQna: 'Q&A',
+    groupBuyReviews: '리뷰',
     // 결제 묶음(일반 모드, 포인트 상점 다음) — 현금 결제 모듈
     payment: '결제',
     paymentOrders: '결제 주문',

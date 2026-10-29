@@ -43,6 +43,16 @@
                     >
                         <i class="pi pi-receipt text-xs" aria-hidden="true" />{{ t('commerce.ordersTitle') }}
                     </NuxtLink>
+                    <!-- 내 리뷰(2b-6 공구 리뷰) -->
+                    <NuxtLink
+                        v-if="!businessAccount"
+                        to="/me/reviews"
+                        class="mt-1 flex items-center gap-1 rounded text-xs text-muted-color hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+                        data-testid="drawer-reviews"
+                        @click="close"
+                    >
+                        <i class="pi pi-star text-xs" aria-hidden="true" />{{ t('groupBuyReview.myLink') }}
+                    </NuxtLink>
                     <!-- 쪽지함 — 안 읽은 대화가 있으면 수가 붙는다(모바일은 헤더에 쪽지 아이콘이 없다) -->
                     <NuxtLink
                         to="/messages"

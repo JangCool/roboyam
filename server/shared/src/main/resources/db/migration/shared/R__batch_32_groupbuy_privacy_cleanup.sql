@@ -5,6 +5,7 @@
 --      → 배송지 암호문·우편번호를 지우고 address_masked_at 을 적는다.
 --   ② 수정 이력(표시·광고 기록 — 10-2 「6개월」): 다음 판이 생긴 지 revision_days(기본 180일)가 지난 판을 지운다(지금 판·주문이 가리키는 판 번호는 남는다 — 공구마다 마지막 판은 지우지 않는다).
 --   ③ 요청(소비자 불만·분쟁 처리 기록 3년): 끝난 지 request_days(기본 1095일)가 지난 요청의 회원 사유 글(memo)과 회원이 올린 사진 줄을 지운다(운영자 거절 근거·금액은 청약철회 기록으로 남는다).
+--   ④ 공구 문의(2b-6, 소비자 문의 기록 3년): 보관 만료일(group_buy_questions.retain_until)이 지난 질문을 지운다(답변·답변 이력 함께).
 -- 기본 실행: 매일 04:35 (한국시간 — 메일 대기열 정리 04:40 앞). 설정값(batch_params): delivered_days(180) · canceled_days(180) · revision_days(180) · request_days(1095) ·
 --   chunk_size(1000) · max_per_run(100000).
 -- 결과: 처리 건수 = 지운(가린) 행 수 합, 0 이면 SKIP. 덩어리마다 COMMIT. 실패하면 그때까지의 건수와 사유(민감값을 가려)를 남기고 FAIL.
@@ -103,6 +104,25 @@ BEGIN
             v_err := batch_error_text(v_state, v_msg);
         END;
         COMMIT;
+    END IF;
+
+    -- ④ 공구 문의(2b-6 — 소비자 문의 기록 3년): 보관 만료일(마지막 답변일, 답변이 없으면 작성일 + 3년)이 지난 질문(답변·답변 이력은 함께 지워진다)
+    IF v_err IS NULL AND v_total < v_max THEN
+        LOOP
+            BEGIN
+                DELETE FROM group_buy_questions
+                 WHERE id IN (SELECT id FROM group_buy_questions WHERE retain_until < (now() AT TIME ZONE 'Asia/Seoul')::date
+                               ORDER BY id LIMIT least(v_chunk, v_max - v_total));
+                GET DIAGNOSTICS v_n = ROW_COUNT;
+            EXCEPTION WHEN OTHERS THEN
+                GET STACKED DIAGNOSTICS v_state = RETURNED_SQLSTATE, v_msg = MESSAGE_TEXT;
+                v_err := batch_error_text(v_state, v_msg);
+                EXIT;
+            END;
+            v_total := v_total + v_n;
+            COMMIT;
+            EXIT WHEN v_n = 0 OR v_total >= v_max;
+        END LOOP;
     END IF;
 
     PERFORM batch_run_close(p_run_id, c_job, v_total, v_err,

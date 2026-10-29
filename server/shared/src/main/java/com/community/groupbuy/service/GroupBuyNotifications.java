@@ -56,7 +56,9 @@ public class GroupBuyNotifications {
     public enum Kind {
         PAID, REJECTED, AUTO_CANCELED, HOLD_EXPIRED, RESTOCK, CLOSING_SOON, EXTENDED, ROUND_STARTED, REFUNDED, REFUND_MANUAL, DELAY, SUPPLY_CHOICE,
         JUDGED_SUCCESS, JUDGED_FAILED, GROUP_CANCELED, REQUEST_REQUESTED, REQUEST_APPROVED, REQUEST_RECEIVED, REQUEST_COMPLETED, REQUEST_REJECTED, REQUEST_EXPIRED,
-        REQUEST_SUPERSEDED, REQUEST_EXCHANGE_SHIPPED, REQUEST_EXCHANGE_TO_REFUND
+        REQUEST_SUPERSEDED, REQUEST_EXCHANGE_SHIPPED, REQUEST_EXCHANGE_TO_REFUND,
+        /** 공구 문의 답변 · 리뷰 판매자 답글(2b-6) */
+        QNA_ANSWERED, REVIEW_REPLIED
     }
 
     private static final DateTimeFormatter MINUTE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -328,6 +330,29 @@ public class GroupBuyNotifications {
     }
 
     /** 공구 제목 = 공구 이름(없으면 상품 이름) */
+    // ── Q&A · 리뷰(2b-6) ────────────────────────────────────────────────────
+
+    /** 질문에 첫 답변이 달렸다 — 작성자에게 앱 알림(결정 12) */
+    public void questionAnswered(long userId, long groupBuyId) {
+        members.groupBuy(userId, Kind.QNA_ANSWERED.name(), groupBuyId, title(groupBuyId), 0, null, groupBuyPath(groupBuyId) + "#qna", false);
+    }
+
+    /** 리뷰에 첫 판매자 답글이 달렸다 — 작성자에게 앱 알림 */
+    public void reviewReplied(long userId, long groupBuyId) {
+        members.groupBuy(userId, Kind.REVIEW_REPLIED.name(), groupBuyId, title(groupBuyId), 0, null, "/me/reviews", false);
+    }
+
+    /** 새 질문 — 운영자 알림(5분 안 연속은 한 건) */
+    public void questionAsked(long questionId) {
+        operators.publish(AdminNotificationEvent.COMMERCE_QNA_RECEIVED, NotificationContext.empty().dedupe(Long.toString(questionId)));
+    }
+
+    /** 질문·리뷰 신고 — 운영자 알림(대상마다 하루 한 건) */
+    public void ugcReported(String targetType, long targetId) {
+        AdminNotificationEvent event = "GROUP_BUY_REVIEW".equals(targetType) ? AdminNotificationEvent.COMMERCE_REVIEW_REPORTED : AdminNotificationEvent.COMMERCE_QNA_REPORTED;
+        operators.publish(event, NotificationContext.empty().dedupe(targetType + ":" + targetId).link("id", Long.toString(targetId)));
+    }
+
     private String title(long groupBuyId) {
         return jdbc.query("SELECT COALESCE(NULLIF(g.title, ''), p.name) FROM group_buys g JOIN group_buy_products p ON p.id = g.product_id WHERE g.id = ?",
                 (rs, i) -> rs.getString(1), groupBuyId).stream().findFirst().orElse("");

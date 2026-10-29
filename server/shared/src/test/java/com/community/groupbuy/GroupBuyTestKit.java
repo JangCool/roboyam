@@ -175,6 +175,9 @@ final class GroupBuyTestKit {
     final com.community.groupbuy.service.GroupBuyShipDeadlines shipDeadlines;
     final com.community.groupbuy.service.GroupBuyWatchService watches;
     final com.community.groupbuy.service.GroupBuySettingsService settingsService;
+    final com.community.groupbuy.feedback.GroupBuyQnaService qna;
+    final com.community.groupbuy.feedback.GroupBuyReviewService reviews;
+    final com.community.groupbuy.feedback.GroupBuyUgcReportService ugcReports;
     final FakePaymentGateway fakeGateway;
     final long operator;
 
@@ -225,6 +228,23 @@ final class GroupBuyTestKit {
         @Bean
         EventSink eventSink() {
             return new EventSink(current.events);
+        }
+
+        /** 공구 리뷰 사진(2b-6) — 저장소 없이 키만 만든다(주소는 `/img/<키>`) */
+        @Bean
+        com.community.commerce.image.GroupBuyImageUploader groupBuyImageUploader(SnowflakeIdGenerator ids, org.springframework.beans.factory.ObjectProvider<Clock> clocks) {
+            return new com.community.commerce.image.GroupBuyImageUploader(null, null, ids, clocks) {
+                @Override
+                public Uploaded upload(String purpose, byte[] data) {
+                    String key = "groupbuy/" + purpose + "/test/" + ids.nextId() + ".jpg";
+                    return new Uploaded(key, key, "/img/" + key, "/img/" + key, 1, 1);
+                }
+
+                @Override
+                public String url(String key) {
+                    return key == null ? null : "/img/" + key;
+                }
+            };
         }
 
         @Bean
@@ -469,6 +489,9 @@ final class GroupBuyTestKit {
         shipDeadlines = spring.getBean(com.community.groupbuy.service.GroupBuyShipDeadlines.class);
         watches = spring.getBean(com.community.groupbuy.service.GroupBuyWatchService.class);
         settingsService = spring.getBean(com.community.groupbuy.service.GroupBuySettingsService.class);
+        qna = spring.getBean(com.community.groupbuy.feedback.GroupBuyQnaService.class);
+        reviews = spring.getBean(com.community.groupbuy.feedback.GroupBuyReviewService.class);
+        ugcReports = spring.getBean(com.community.groupbuy.feedback.GroupBuyUgcReportService.class);
         fakeGateway = (FakePaymentGateway) spring.getBean(PaymentGateway.class);
         operator = newOperator();
         category = products.createCategory("시험 " + ids.nextId(), null, 0, operator, "127.0.0.1");

@@ -342,6 +342,16 @@ public final class AuditActions {
     public static final String GROUPBUY_ORDER_MEMO = "GROUPBUY_ORDER_MEMO";
     /** 관리자 공구 주문 상세 열람(회원 번호·닉네임 — 결제 주문 상세와 같다). 개인정보 열람 */
     public static final String GROUPBUY_ORDER_VIEW = "GROUPBUY_ORDER_VIEW";
+    /** 관리자 공구 문의 목록·상세 열람(비밀글 본문 — 2b-6). 개인정보 열람 */
+    public static final String GROUPBUY_QNA_VIEW = "GROUPBUY_QNA_VIEW";
+    /** 공구 문의 숨김·숨김 풀기 — {@code action}(HIDE·UNHIDE)·{@code reason}. 일반 */
+    public static final String GROUPBUY_QNA_HIDE = "GROUPBUY_QNA_HIDE";
+    /** 공구 문의 답변 수정(이전 내용은 답변 이력) — 글자 수. 일반 */
+    public static final String GROUPBUY_QNA_ANSWER_EDIT = "GROUPBUY_QNA_ANSWER_EDIT";
+    /** 공구 리뷰 숨김·숨김 풀기 — {@code action}·{@code reasonCode}·{@code memo}(낮은 별점은 사유가 아니다). 일반 */
+    public static final String GROUPBUY_REVIEW_HIDE = "GROUPBUY_REVIEW_HIDE";
+    /** 공구 리뷰 공식 답글 수정 — 글자 수. 일반 */
+    public static final String GROUPBUY_REVIEW_REPLY_EDIT = "GROUPBUY_REVIEW_REPLY_EDIT";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

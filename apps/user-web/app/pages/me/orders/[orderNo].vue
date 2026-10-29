@@ -96,6 +96,15 @@
                             <span v-if="item.returnedQty > 0" class="ml-1.5 text-xs text-muted-color">{{ t('groupBuy.returnedQty', { count: item.returnedQty }) }}</span>
                         </span>
                         <span class="tabular-nums">{{ UtilGroupBuyMessages.won(t, item.itemAmount) }}</span>
+                        <!-- 리뷰(2b-6) — 배송완료 뒤 줄마다 하나, 배송완료일 + 90일까지 -->
+                        <div v-if="reviewTargetOf(item.id) && reviewTargetOf(item.id)!.state !== 'NONE'" class="flex w-full flex-wrap items-center justify-end gap-2 pt-1" :data-testid="`my-order-review-${item.id}`">
+                            <template v-if="reviewTargetOf(item.id)!.state === 'WRITABLE'">
+                                <span v-if="reviewTargetOf(item.id)!.writableUntil" class="text-xs text-muted-color">{{ t('groupBuyReview.writableUntil', { date: reviewTargetOf(item.id)!.writableUntil }) }}</span>
+                                <Button type="button" size="small" icon="pi pi-star" :label="t('groupBuyReview.write')" @click="openReview(item)" />
+                            </template>
+                            <Button v-else-if="reviewTargetOf(item.id)!.state === 'WRITTEN'" as="router-link" to="/me/reviews" size="small" severity="secondary" variant="outlined" icon="pi pi-star-fill" :label="t('groupBuyReview.written')" />
+                            <span v-else class="text-xs text-muted-color">{{ t('groupBuyReview.expired') }}</span>
+                        </div>
                     </li>
                 </ul>
                 <dl class="m-0 mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 border-t border-surface pt-2 text-sm">
@@ -415,6 +424,18 @@
             @submit="pay.submitFake"
             @close="pay.closeFake"
         />
+        <GroupBuyReviewDialog
+            v-if="reviewItem && order"
+            :key="`${reviewItem.id}-${reviewRound}`"
+            v-model:visible="reviewOpen"
+            :sku-name="reviewItem.skuName"
+            :round-no="order.groupBuy.roundNo"
+            :upload="reviewApi.uploadPhoto"
+            :busy="reviewSaving"
+            :error="reviewError"
+            :field-errors="reviewFields"
+            @submit="submitReview"
+        />
     </div>
 </template>
 
@@ -433,6 +454,7 @@ import type {
     MyGroupBuyOrderItem,
     GroupBuyRequestPhoto,
 } from '~/composables/groupbuy/api/useGroupBuyOrderApi.types';
+import type { GroupBuyReviewRequest, GroupBuyReviewTarget } from '~/composables/groupbuy/api/useGroupBuyReviewApi.types';
 import type { PaymentResult } from '~/composables/payment/api/usePaymentApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilCommerce from '~/utils/util-commerce';
@@ -496,6 +518,67 @@ async function load(quiet: boolean): Promise<void> {
 function apply(detail: MyGroupBuyOrderDetail): void {
     order.value = detail;
     holdEndsAt.value = detail.reservedUntil ? Date.parse(detail.reservedUntil) : 0;
+    void loadReviewTargets(detail);
+}
+
+/* ── 리뷰(2b-6) — 줄마다 쓸 수 있는지는 서버가 정한다 ── */
+
+const reviewApi = useGroupBuyReviewApi();
+const reviewTargets = ref<GroupBuyReviewTarget[]>([]);
+let reviewSeq = 0;
+
+async function loadReviewTargets(detail: MyGroupBuyOrderDetail): Promise<void> {
+    const mine = ++reviewSeq;
+    if (detail.status !== 'DELIVERED') {
+        reviewTargets.value = [];
+        return;
+    }
+    try {
+        const found = await reviewApi.targets(detail);
+        if (mine === reviewSeq) reviewTargets.value = found;
+    } catch {
+        // 리뷰 단추만 빠진다 — 주문 화면은 그대로 쓴다
+        if (mine === reviewSeq) reviewTargets.value = [];
+    }
+}
+
+function reviewTargetOf(itemId: string): GroupBuyReviewTarget | null {
+    return reviewTargets.value.find((r) => r.itemId === itemId) ?? null;
+}
+
+const reviewItem = ref<MyGroupBuyOrderDetail['items'][number] | null>(null);
+const reviewOpen = ref(false);
+const reviewSaving = ref(false);
+const reviewError = ref('');
+const reviewFields = ref<Record<string, string>>({});
+const reviewRound = ref(0);
+
+function openReview(item: MyGroupBuyOrderDetail['items'][number]): void {
+    reviewItem.value = item;
+    reviewError.value = '';
+    reviewFields.value = {};
+    reviewRound.value++;
+    reviewOpen.value = true;
+}
+
+async function submitReview(body: GroupBuyReviewRequest): Promise<void> {
+    const current = order.value;
+    const item = reviewItem.value;
+    if (!current || !item) return;
+    reviewSaving.value = true;
+    reviewError.value = '';
+    reviewFields.value = {};
+    try {
+        await reviewApi.create(current, item.id, body);
+        reviewOpen.value = false;
+        toast.success(t('groupBuyReview.created'));
+        void loadReviewTargets(current);
+    } catch (e) {
+        if (e instanceof ApiError && e.code === 'VALIDATION' && e.fields) reviewFields.value = e.fields;
+        else reviewError.value = UtilGroupBuyMessages.error(t, e);
+    } finally {
+        reviewSaving.value = false;
+    }
 }
 
 watch(orderNo, () => {

@@ -124,6 +124,12 @@ public enum AdminNotificationEvent {
      * 요청·단계마다 한 번(묶음 키 = 요청 ID + 단계). 처리는 요청 대기열
      */
     COMMERCE_REFUND_REQUESTED(spec(GROUPBUY, WARNING).holders(Permission.COMMERCE_REFUND_APPROVE, Permission.COMMERCE_ORDER_MANAGE).link("/group-buy-requests").collapse(300)),
+    /** 공구 새 문의(2b-6 — 결정 12). 5분 안 연속은 한 건. 처리는 Q&A 대기열 */
+    COMMERCE_QNA_RECEIVED(spec(GROUPBUY, INFO).holders(Permission.COMMERCE_ORDER_MANAGE).link("/group-buy-qna").collapse(300)),
+    /** 공구 문의 신고(2b-6) — 대상마다 하루 한 건. 처리는 Q&A 상세 서랍의 숨김 */
+    COMMERCE_QNA_REPORTED(spec(GROUPBUY, WARNING).holders(Permission.COMMERCE_ORDER_MANAGE).link("/group-buy-qna?tab=ALL&question={id}").collapse(86400)),
+    /** 공구 리뷰 신고(2b-6) — 대상마다 하루 한 건. 처리는 리뷰 상세 서랍의 숨김(사유 코드) */
+    COMMERCE_REVIEW_REPORTED(spec(GROUPBUY, WARNING).holders(Permission.COMMERCE_ORDER_MANAGE).link("/group-buy-reviews?tab=REPORTED&review={id}").collapse(86400)),
     BUSINESS_APPLICATION_PENDING(spec(BIZ_AD, INFO).holders(Permission.BUSINESS_MANAGE).reserved()),
     AD_REVIEW_PENDING(spec(BIZ_AD, INFO).holders(Permission.AD_MANAGE).reserved()),
     /** 운영자 신청 기능이 구현된 뒤 */

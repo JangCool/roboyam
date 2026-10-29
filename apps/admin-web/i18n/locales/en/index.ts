@@ -15,6 +15,8 @@ import error from './error';
 import grade from './grade';
 import homeLayout from './homeLayout';
 import groupBuy from './groupBuy';
+import groupBuyQna from './groupBuyQna';
+import groupBuyReview from './groupBuyReview';
 import identity from './identity';
 import group from './group';
 import login from './login';
@@ -63,6 +65,8 @@ export default {
     grade,
     homeLayout,
     groupBuy,
+    groupBuyQna,
+    groupBuyReview,
     identity,
     group,
     login,
