@@ -1,4 +1,4 @@
-import type { InjectionKey, Ref } from 'vue';
+import type { InjectionKey, Ref, VNode } from 'vue';
 import type { HomeGadgetLook, HomeGadgetLookInput, HomeGadgetLookOptions, HomeGadgetShared } from '~/composables/home/useHomeGadgetContext.types';
 import UtilHomeGadget from '~/utils/util-home-gadget';
 
@@ -11,6 +11,7 @@ const SHARED_KEY: InjectionKey<HomeGadgetShared> = Symbol('home-gadget-shared');
 const LOOK_KEY: InjectionKey<HomeGadgetLook> = Symbol('home-gadget-look');
 const LOOK_OPTIONS_KEY: InjectionKey<HomeGadgetLookOptions> = Symbol('home-gadget-look-options');
 const STACKED_KEY: InjectionKey<Readonly<Ref<boolean>>> = Symbol('home-gadget-stacked');
+const BOARD_BODY_KEY: InjectionKey<() => VNode[] | undefined> = Symbol('board-layout-body');
 
 /** 세부 모양 기본값 — 값을 주지 않는 템플릿의 모양(한 열도 지금 모양 그대로) */
 const DEFAULT_LOOK_OPTIONS: Readonly<HomeGadgetLookOptions> = {
@@ -91,4 +92,21 @@ export function useHomeGadgetLook(): HomeGadgetLook {
  */
 export function useHomeGadgetLookOptions(): Readonly<HomeGadgetLookOptions> {
     return inject(LOOK_OPTIONS_KEY, DEFAULT_LOOK_OPTIONS);
+}
+
+/**
+ * 게시판 레이아웃 격자(`BoardLayoutGrid`)가 부른다 — 고정 칸 「게시판 본문」(`BOARD_BODY`) 자리에 그릴 내용(게시판 목록·글 보기 화면의 슬롯)을 아래 격자에 넘긴다.
+ * 템플릿(테마 홈 겉모양)을 사이에 두고도 닿게 provide 로 넘긴다 — 슬롯 함수라 화면(페이지)의 상태를 그대로 따른다.
+ * @param {() => VNode[] | undefined} render - 본문 그리기(보통 `slots.default`).
+ */
+export function provideBoardLayoutBody(render: () => VNode[] | undefined): void {
+    provide(BOARD_BODY_KEY, render);
+}
+
+/**
+ * 홈 격자가 부른다 — 게시판 본문 그리기(게시판 레이아웃 밖이면 null — 본문 칸을 그리지 않는다).
+ * @returns {(() => VNode[] | undefined) | null} 본문 그리기.
+ */
+export function useBoardLayoutBody(): (() => VNode[] | undefined) | null {
+    return inject(BOARD_BODY_KEY, null);
 }

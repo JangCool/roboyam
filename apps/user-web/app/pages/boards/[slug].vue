@@ -9,133 +9,136 @@
           꺼진 게시판은 `403 BOARD_INACTIVE` 로 온다고 가정한다.
     -->
     <div>
-        <ErrorState v-if="boardState === 'notfound'" code="404" :title="t('board.notFoundTitle')" :description="t('board.notFoundText')">
-            <Button as="router-link" to="/" :label="t('board.goHome')" />
-        </ErrorState>
-        <ErrorState v-else-if="boardState === 'inactive'" :title="t('board.inactiveTitle')" :description="boardError">
-            <Button as="router-link" to="/" :label="t('board.goHome')" />
-        </ErrorState>
-        <ErrorState v-else-if="boardState === 'error' && !view" :title="t('board.loadFailed')" :description="boardError" retry @retry="retryAll" />
+        <!-- 게시판 레이아웃(테마마다 하나 — 켜져 있으면 이 화면 내용이 격자의 「게시판 본문」 칸에 들어가고 둘레에 가젯, 아니면 그대로. 2026-10-30) -->
+        <BoardLayoutFrame screen="LIST" :board="boardState === 'notfound' || boardState === 'inactive' ? null : slug">
+            <ErrorState v-if="boardState === 'notfound'" code="404" :title="t('board.notFoundTitle')" :description="t('board.notFoundText')">
+                <Button as="router-link" to="/" :label="t('board.goHome')" />
+            </ErrorState>
+            <ErrorState v-else-if="boardState === 'inactive'" :title="t('board.inactiveTitle')" :description="boardError">
+                <Button as="router-link" to="/" :label="t('board.goHome')" />
+            </ErrorState>
+            <ErrorState v-else-if="boardState === 'error' && !view" :title="t('board.loadFailed')" :description="boardError" retry @retry="retryAll" />
 
-        <!-- 게시판 머리·목록·쪽 번호를 한 카드에 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 다음식·네이버식은 흰 카드다(`main.css` `content-card`) -->
-        <div v-else class="content-card" data-testid="board-card">
-            <!-- 머리 -->
-            <header class="flex items-start gap-3">
-                <div class="min-w-0 flex-1">
-                    <h1 class="break-words text-lg font-bold leading-tight" :style="UtilBoard.textStyle(view?.color)" data-testid="board-title">
-                        <template v-if="view">{{ localizedName(view.name, view.nameEn) }}</template>
-                        <span v-else class="inline-block h-5 w-28 animate-pulse rounded bg-surface-200 align-middle dark:bg-surface-800" :aria-label="t('board.loadingName')" />
-                    </h1>
-                    <p v-if="view?.description" class="mt-0.5 text-xs text-muted-color">{{ view.description }}</p>
-                </div>
-                <Button
-                    v-if="writeButton !== 'hidden'"
-                    type="button"
-                    :label="t('shell.write')"
-                    icon="pi pi-pencil"
-                    size="small"
-                    :severity="writeButton === 'disabled' ? 'secondary' : undefined"
-                    :aria-disabled="writeButton === 'disabled' ? 'true' : undefined"
-                    :class="writeButton === 'disabled' ? 'opacity-60' : ''"
-                    :disabled="writeButton === 'loading'"
-                    data-testid="board-write"
-                    @click="onWrite"
-                />
-            </header>
-
-            <!-- 쓰기 잠금 · 글쓰기가 막힌 까닭(등급 미달 등) — 판정은 서버, 이 안내는 편의 -->
-            <Message v-if="lockNotice" severity="warn" :closable="false" size="small" class="mt-3" data-testid="board-lock">{{ lockNotice }}</Message>
-            <Message v-else-if="blockedNotice" severity="info" :closable="false" size="small" class="mt-3" data-testid="board-write-blocked">{{ blockedNotice }}</Message>
-
-            <!-- 게시판 안내문(운영자가 적은 평문 — 줄바꿈 유지, HTML 로 해석하지 않는다) -->
-            <p v-if="detail?.introText" class="mt-3 whitespace-pre-line rounded-lg bg-surface-100 px-3 py-2 text-sm leading-relaxed dark:bg-surface-800/60" data-testid="board-intro">{{ detail.introText }}</p>
-
-            <BoardInvestmentNotice v-if="view?.investmentNotice" class="mt-3" />
-
-            <!-- 19금 글을 허용하는 게시판 — 가정: 성인 인증이 아직 없어 안내만 하고, 글 보기에서 확인 단추로 가린다 -->
-            <p v-if="view?.allowAdult" class="mt-3 flex items-center gap-1.5 text-xs text-muted-color" data-testid="board-adult">
-                <i class="pi pi-info-circle" aria-hidden="true" />{{ t('board.adultNotice') }}
-            </p>
-
-            <!-- 말머리 탭 — 전체 + 사용 중 말머리(공통 말머리 포함), 서버가 준 차례 -->
-            <nav v-if="view && view.prefixes.length" class="-mx-4 mt-3 overflow-x-auto px-4" :aria-label="t('board.prefixNav')">
-                <ul class="m-0 flex list-none gap-1.5 p-0 py-1">
-                    <li v-for="chip in prefixChips" :key="chip.id">
-                        <NuxtLink
-                            :to="listLink({ prefix: chip.id, page: 1 })"
-                            class="inline-flex h-8 items-center whitespace-nowrap rounded-full border px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary"
-                            :class="query.prefix === chip.id ? 'border-surface-900 bg-surface-900 font-semibold text-surface-0 dark:border-surface-100 dark:bg-surface-100 dark:text-surface-900' : 'border-surface text-muted-color hover:text-color'"
-                            :aria-current="query.prefix === chip.id ? 'page' : undefined"
-                        >
-                            {{ chip.name }}
-                        </NuxtLink>
-                    </li>
-                </ul>
-            </nav>
-
-            <!-- 정렬 · 보기 전환 · 게시판 안 검색 -->
-            <div class="mt-2 flex flex-wrap items-center gap-2 border-b border-surface pb-2">
-                <div class="flex gap-1 text-xs" role="group" :aria-label="t('board.sortLabel')">
-                    <NuxtLink
-                        v-for="s in SORTS"
-                        :key="s"
-                        :to="listLink({ sort: s, page: 1 })"
-                        :class="pillClass(query.sort === s)"
-                        :aria-current="query.sort === s ? 'true' : undefined"
-                    >
-                        {{ t(s === 'LATEST' ? 'board.sortLatest' : 'board.sortOldest') }}
-                    </NuxtLink>
-                </div>
-                <div v-if="canToggleView" class="flex gap-1 text-xs" role="group" :aria-label="t('board.viewLabel')">
-                    <button v-for="m in VIEW_MODES" :key="m" type="button" :class="pillClass(activeView === m)" :aria-pressed="activeView === m" @click="onView(m)">
-                        <i :class="m === 'LIST' ? 'pi pi-list' : 'pi pi-th-large'" class="mr-1 text-[0.625rem]" aria-hidden="true" />{{ t(m === 'LIST' ? 'board.viewList' : 'board.viewGallery') }}
-                    </button>
-                </div>
-                <form class="ml-auto flex w-full items-center gap-1 sm:w-auto" role="search" @submit.prevent="onSearch">
-                    <IconField class="min-w-0 flex-1 sm:w-56">
-                        <InputIcon class="pi pi-search" />
-                        <InputText v-model="searchText" type="search" size="small" :placeholder="t('board.searchPlaceholder')" :aria-label="t('board.searchLabel')" fluid />
-                    </IconField>
-                    <Button type="submit" :label="t('common.search')" size="small" severity="secondary" variant="outlined" />
-                </form>
-            </div>
-            <p v-if="query.q" class="mt-2 flex items-center gap-2 text-xs text-muted-color" data-testid="board-search-summary">
-                {{ t('board.searchSummary', { q: query.q, n: list?.totalCount ?? 0 }) }}
-                <NuxtLink :to="listLink({ q: '', page: 1 })" class="font-semibold text-primary underline-offset-2 hover:underline">{{ t('board.searchClear') }}</NuxtLink>
-            </p>
-
-            <!-- 목록 -->
-            <div :aria-busy="listState === 'loading'">
-                <div v-if="listState === 'loading'" class="-mx-4 md:mx-0" role="status" :aria-label="t('board.loadingList')">
-                    <div v-for="n in 7" :key="n" class="border-b border-surface px-4 py-3.5 md:px-0">
-                        <div class="h-3.5 animate-pulse rounded bg-surface-200 dark:bg-surface-800" :class="n % 2 ? 'w-11/12' : 'w-2/3'" />
-                        <div class="mt-2 h-3 w-2/5 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
+            <!-- 게시판 머리·목록·쪽 번호를 한 카드에 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 다음식·네이버식은 흰 카드다(`main.css` `content-card`) -->
+            <div v-else class="content-card" data-testid="board-card">
+                <!-- 머리 -->
+                <header class="flex items-start gap-3">
+                    <div class="min-w-0 flex-1">
+                        <h1 class="break-words text-lg font-bold leading-tight" :style="UtilBoard.textStyle(view?.color)" data-testid="board-title">
+                            <template v-if="view">{{ localizedName(view.name, view.nameEn) }}</template>
+                            <span v-else class="inline-block h-5 w-28 animate-pulse rounded bg-surface-200 align-middle dark:bg-surface-800" :aria-label="t('board.loadingName')" />
+                        </h1>
+                        <p v-if="view?.description" class="mt-0.5 text-xs text-muted-color">{{ view.description }}</p>
                     </div>
+                    <Button
+                        v-if="writeButton !== 'hidden'"
+                        type="button"
+                        :label="t('shell.write')"
+                        icon="pi pi-pencil"
+                        size="small"
+                        :severity="writeButton === 'disabled' ? 'secondary' : undefined"
+                        :aria-disabled="writeButton === 'disabled' ? 'true' : undefined"
+                        :class="writeButton === 'disabled' ? 'opacity-60' : ''"
+                        :disabled="writeButton === 'loading'"
+                        data-testid="board-write"
+                        @click="onWrite"
+                    />
+                </header>
+
+                <!-- 쓰기 잠금 · 글쓰기가 막힌 까닭(등급 미달 등) — 판정은 서버, 이 안내는 편의 -->
+                <Message v-if="lockNotice" severity="warn" :closable="false" size="small" class="mt-3" data-testid="board-lock">{{ lockNotice }}</Message>
+                <Message v-else-if="blockedNotice" severity="info" :closable="false" size="small" class="mt-3" data-testid="board-write-blocked">{{ blockedNotice }}</Message>
+
+                <!-- 게시판 안내문(운영자가 적은 평문 — 줄바꿈 유지, HTML 로 해석하지 않는다) -->
+                <p v-if="detail?.introText" class="mt-3 whitespace-pre-line rounded-lg bg-surface-100 px-3 py-2 text-sm leading-relaxed dark:bg-surface-800/60" data-testid="board-intro">{{ detail.introText }}</p>
+
+                <BoardInvestmentNotice v-if="view?.investmentNotice" class="mt-3" />
+
+                <!-- 19금 글을 허용하는 게시판 — 가정: 성인 인증이 아직 없어 안내만 하고, 글 보기에서 확인 단추로 가린다 -->
+                <p v-if="view?.allowAdult" class="mt-3 flex items-center gap-1.5 text-xs text-muted-color" data-testid="board-adult">
+                    <i class="pi pi-info-circle" aria-hidden="true" />{{ t('board.adultNotice') }}
+                </p>
+
+                <!-- 말머리 탭 — 전체 + 사용 중 말머리(공통 말머리 포함), 서버가 준 차례 -->
+                <nav v-if="view && view.prefixes.length" class="-mx-4 mt-3 overflow-x-auto px-4" :aria-label="t('board.prefixNav')">
+                    <ul class="m-0 flex list-none gap-1.5 p-0 py-1">
+                        <li v-for="chip in prefixChips" :key="chip.id">
+                            <NuxtLink
+                                :to="listLink({ prefix: chip.id, page: 1 })"
+                                class="inline-flex h-8 items-center whitespace-nowrap rounded-full border px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary"
+                                :class="query.prefix === chip.id ? 'border-surface-900 bg-surface-900 font-semibold text-surface-0 dark:border-surface-100 dark:bg-surface-100 dark:text-surface-900' : 'border-surface text-muted-color hover:text-color'"
+                                :aria-current="query.prefix === chip.id ? 'page' : undefined"
+                            >
+                                {{ chip.name }}
+                            </NuxtLink>
+                        </li>
+                    </ul>
+                </nav>
+
+                <!-- 정렬 · 보기 전환 · 게시판 안 검색 -->
+                <div class="mt-2 flex flex-wrap items-center gap-2 border-b border-surface pb-2">
+                    <div class="flex gap-1 text-xs" role="group" :aria-label="t('board.sortLabel')">
+                        <NuxtLink
+                            v-for="s in SORTS"
+                            :key="s"
+                            :to="listLink({ sort: s, page: 1 })"
+                            :class="pillClass(query.sort === s)"
+                            :aria-current="query.sort === s ? 'true' : undefined"
+                        >
+                            {{ t(s === 'LATEST' ? 'board.sortLatest' : 'board.sortOldest') }}
+                        </NuxtLink>
+                    </div>
+                    <div v-if="canToggleView" class="flex gap-1 text-xs" role="group" :aria-label="t('board.viewLabel')">
+                        <button v-for="m in VIEW_MODES" :key="m" type="button" :class="pillClass(activeView === m)" :aria-pressed="activeView === m" @click="onView(m)">
+                            <i :class="m === 'LIST' ? 'pi pi-list' : 'pi pi-th-large'" class="mr-1 text-[0.625rem]" aria-hidden="true" />{{ t(m === 'LIST' ? 'board.viewList' : 'board.viewGallery') }}
+                        </button>
+                    </div>
+                    <form class="ml-auto flex w-full items-center gap-1 sm:w-auto" role="search" @submit.prevent="onSearch">
+                        <IconField class="min-w-0 flex-1 sm:w-56">
+                            <InputIcon class="pi pi-search" />
+                            <InputText v-model="searchText" type="search" size="small" :placeholder="t('board.searchPlaceholder')" :aria-label="t('board.searchLabel')" fluid />
+                        </IconField>
+                        <Button type="submit" :label="t('common.search')" size="small" severity="secondary" variant="outlined" />
+                    </form>
                 </div>
+                <p v-if="query.q" class="mt-2 flex items-center gap-2 text-xs text-muted-color" data-testid="board-search-summary">
+                    {{ t('board.searchSummary', { q: query.q, n: list?.totalCount ?? 0 }) }}
+                    <NuxtLink :to="listLink({ q: '', page: 1 })" class="font-semibold text-primary underline-offset-2 hover:underline">{{ t('board.searchClear') }}</NuxtLink>
+                </p>
 
-                <ErrorState v-else-if="listState === 'error'" :title="t('board.listFailed')" :description="listError" retry @retry="loadList" />
+                <!-- 목록 -->
+                <div :aria-busy="listState === 'loading'">
+                    <div v-if="listState === 'loading'" class="-mx-4 md:mx-0" role="status" :aria-label="t('board.loadingList')">
+                        <div v-for="n in 7" :key="n" class="border-b border-surface px-4 py-3.5 md:px-0">
+                            <div class="h-3.5 animate-pulse rounded bg-surface-200 dark:bg-surface-800" :class="n % 2 ? 'w-11/12' : 'w-2/3'" />
+                            <div class="mt-2 h-3 w-2/5 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
+                        </div>
+                    </div>
 
-                <template v-else-if="isEmpty">
-                    <EmptyState v-if="query.q" :title="t('board.searchEmptyTitle')" :description="t('board.searchEmptyText')" icon="pi pi-search">
-                        <Button as="router-link" :to="listLink({ q: '', page: 1 })" :label="t('board.searchClear')" severity="secondary" variant="outlined" />
-                    </EmptyState>
-                    <EmptyState v-else-if="query.page > 1" :title="t('board.pageEmptyTitle')" icon="pi pi-file">
-                        <Button as="router-link" :to="listLink({ page: 1 })" :label="t('board.firstPage')" />
-                    </EmptyState>
-                    <EmptyState v-else-if="query.prefix" :title="t('board.prefixEmptyTitle', { name: activePrefixName })" :description="t('board.prefixEmptyText')" icon="pi pi-filter">
-                        <Button as="router-link" :to="listLink({ prefix: '', page: 1 })" :label="t('board.allPosts')" severity="secondary" variant="outlined" />
-                    </EmptyState>
-                    <EmptyState v-else :title="t('board.emptyTitle')" :description="writeButton === 'ready' ? t('board.emptyText') : t('board.emptyReadOnly')" icon="pi pi-file">
-                        <Button v-if="writeButton === 'ready'" type="button" :label="t('shell.write')" @click="onWrite" />
-                    </EmptyState>
-                </template>
+                    <ErrorState v-else-if="listState === 'error'" :title="t('board.listFailed')" :description="listError" retry @retry="loadList" />
 
-                <template v-else-if="list">
-                    <component :is="listComponent" :rows="list.items" :pinned="list.pinned" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" />
-                    <BoardPager :page="list.page" :total-pages="list.totalPages" :to="pageLink" />
-                </template>
+                    <template v-else-if="isEmpty">
+                        <EmptyState v-if="query.q" :title="t('board.searchEmptyTitle')" :description="t('board.searchEmptyText')" icon="pi pi-search">
+                            <Button as="router-link" :to="listLink({ q: '', page: 1 })" :label="t('board.searchClear')" severity="secondary" variant="outlined" />
+                        </EmptyState>
+                        <EmptyState v-else-if="query.page > 1" :title="t('board.pageEmptyTitle')" icon="pi pi-file">
+                            <Button as="router-link" :to="listLink({ page: 1 })" :label="t('board.firstPage')" />
+                        </EmptyState>
+                        <EmptyState v-else-if="query.prefix" :title="t('board.prefixEmptyTitle', { name: activePrefixName })" :description="t('board.prefixEmptyText')" icon="pi pi-filter">
+                            <Button as="router-link" :to="listLink({ prefix: '', page: 1 })" :label="t('board.allPosts')" severity="secondary" variant="outlined" />
+                        </EmptyState>
+                        <EmptyState v-else :title="t('board.emptyTitle')" :description="writeButton === 'ready' ? t('board.emptyText') : t('board.emptyReadOnly')" icon="pi pi-file">
+                            <Button v-if="writeButton === 'ready'" type="button" :label="t('shell.write')" @click="onWrite" />
+                        </EmptyState>
+                    </template>
+
+                    <template v-else-if="list">
+                        <component :is="listComponent" :rows="list.items" :pinned="list.pinned" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" />
+                        <BoardPager :page="list.page" :total-pages="list.totalPages" :to="pageLink" />
+                    </template>
+                </div>
             </div>
-        </div>
+        </BoardLayoutFrame>
     </div>
 </template>
 

@@ -12,9 +12,11 @@
         가젯의 PC/모바일 노출(`desktop`·`mobile`, lg 경계)·비어서 감춤은 `UtilHomeGadget.isVisible` 그대로이고, 숨긴 가젯의 자리는 당겨 메운다. 요소 순서는 읽는 순서((y, x))라 화면 읽기·Tab 순서가 보이는 순서와 같다.
         카드는 칸 높이를 채운다. 같은 행에 같은 h 로 나란히 둔 가젯은 그중 가장 긴 가젯 높이로 함께 늘어난다(`UtilHomeGrid.place` 「같은 줄 맞추기」). 데이터는 받기만 한다(조회는 페이지).
         **관리자 미리보기 편집**(`useAdminPreview().editing` — 관리자 테마 화면의 iframe 안, 사용자 결정 2026-10-28: 편집도 실제 화면에서): 가젯마다 위에 덮는 손잡이 층을 얹는다 —
-          가운데를 끌면 옮기기, 오른쪽 아래 모서리를 끌면 크기, 오른쪽 위 ×는 빼기, 그 옆 ⚙(내용 설정이 있는 종류 — 지금은 공구)는 관리자 설정 창 열기(`settings`). 끄는 동안 놓일 칸을 이 격자의 칸·행 크기로 계산해 자리 표시를 그리고, 놓으면 관리자에게 알린다
+          가운데를 끌면 옮기기, 오른쪽 아래 모서리를 끌면 크기, 오른쪽 위 ×는 빼기, 그 옆 ⚙(8종 전부 — 내용·모양·노출)는 관리자 설정 창 열기(`settings`). 끄는 동안 놓일 칸을 이 격자의 칸·행 크기로 계산해 자리 표시를 그리고, 놓으면 관리자에게 알린다
           (`postToAdminPreview` — 놓은 칸 `place` · 칸·행 `size` · `remove`). 실제 계산(최소 크기·겹침·위로 당기기)과 저장은 관리자 편집기가 하고, 바뀐 배치를 다시 보내면 이 격자가 그린다.
           편집 중에는 PC 에서 숨는 가젯(모바일만)도 흐리게 그린다(자리를 고칠 수 있게). 공개 화면(편집 아님)에는 아무 영향이 없다.
+        **게시판 레이아웃**(2026-10-30, `BoardLayoutGrid` 가 `provideBoardLayoutBody` 로 본문을 넘길 때만): 고정 칸 「게시판 본문」(`BOARD_BODY`) 자리에 게시판 목록(·글 보기) 화면 내용을 그대로 그린다(높이는 내용대로).
+          한 열에서는 본문을 먼저(본문 위에 통째로 놓인 가젯은 그 위 그대로 — `UtilHomeGrid.bodyFirst`). 편집 손잡이는 옮기기·크기만(× · ⚙ 없음).
     -->
     <div ref="root" class="min-w-0" :class="[mode === 'stack' ? 'gadget-stack' : 'grid items-start', editing ? 'relative' : '']" :style="gridStyle" :data-grid-mode="mode" data-testid="home-grid">
         <div
@@ -26,8 +28,10 @@
             :class="editing ? ['relative', drag?.id === cell.gadget.id && drag.kind === 'move' ? 'z-20 opacity-80' : '', cell.gadget.desktop ? '' : 'opacity-50'] : ''"
             :style="[cellStyle(cell), dragStyle(cell)]"
         >
-            <HomeGadgetRenderer :gadget="cell.gadget" />
-            <!-- 관리자 미리보기 편집 손잡이 층 — 가운데 끌기 = 옮기기 · 오른쪽 아래 = 크기 · 오른쪽 위 × = 빼기 · ⚙ = 내용 설정 -->
+            <!-- 게시판 레이아웃의 고정 칸 — 게시판 목록(·글 보기) 화면 내용 그대로(`provideBoardLayoutBody`) -->
+            <div v-if="cell.gadget.type === BOARD_BODY" class="min-w-0" data-testid="board-layout-body"><BodyOutlet /></div>
+            <HomeGadgetRenderer v-else :gadget="cell.gadget" />
+            <!-- 관리자 미리보기 편집 손잡이 층 — 가운데 끌기 = 옮기기 · 오른쪽 아래 = 크기 · 오른쪽 위 × = 빼기 · ⚙ = 내용 설정(게시판 본문은 옮기기·크기만) -->
             <div
                 v-if="editing"
                 data-home-edit
@@ -36,7 +40,8 @@
                 @pointerdown="onDown($event, cell, 'move')"
             >
                 <span class="home-edit-badge">
-                    {{ t('home.editSize', { w: cell.w, h: cell.h }) }}<template v-if="!cell.gadget.desktop"> · {{ t('home.editMobileOnly') }}</template>
+                    <template v-if="cell.gadget.type === BOARD_BODY">{{ t('home.editBoardBody') }} · </template>{{ t('home.editSize', { w: cell.w, h: cell.h })
+                    }}<template v-if="!cell.gadget.desktop"> · {{ t('home.editMobileOnly') }}</template>
                 </span>
                 <button
                     v-if="UtilAdminPreview.settable(cell.gadget.type)"
@@ -48,7 +53,14 @@
                 >
                     <i class="pi pi-cog text-xs" aria-hidden="true" />
                 </button>
-                <button type="button" class="home-edit-remove" :aria-label="t('home.editRemove', { title: cell.gadget.title })" @pointerdown.stop @click.stop="remove(cell.gadget.id)">
+                <button
+                    v-if="UtilAdminPreview.removable(cell.gadget.type)"
+                    type="button"
+                    class="home-edit-remove"
+                    :aria-label="t('home.editRemove', { title: cell.gadget.title })"
+                    @pointerdown.stop
+                    @click.stop="remove(cell.gadget.id)"
+                >
                     <i class="pi pi-times text-xs" aria-hidden="true" />
                 </button>
                 <span class="home-edit-resize" :aria-label="t('home.editResize')" @pointerdown.stop="onDown($event, cell, 'size')" />
@@ -60,14 +72,14 @@
 </template>
 
 <script setup lang="ts">
-import type { ComponentPublicInstance, CSSProperties } from 'vue';
+import type { ComponentPublicInstance, CSSProperties, FunctionalComponent } from 'vue';
 import type { HomeLayout, HomeLayoutItem } from '#layers/home-layout/utils/util-home-layout';
 import UtilHomeLayout from '#layers/home-layout/utils/util-home-layout';
 import type { HomeGadget } from '~/composables/home/api/useHomeGadgetApi.types';
 import type { HomeGridCell } from '~/utils/util-home-grid';
 import UtilHomeGadget from '~/utils/util-home-gadget';
 import UtilHomeGrid from '~/utils/util-home-grid';
-import UtilAdminPreview, { ADMIN_PREVIEW_LAYOUT } from '~/utils/util-admin-preview';
+import UtilAdminPreview, { ADMIN_PREVIEW_LAYOUT, BOARD_BODY } from '~/utils/util-admin-preview';
 
 interface Props {
     /** 운영자 배치(읽은 값 — `UtilHomeGadget.sanitize`) */
@@ -86,6 +98,10 @@ const { t } = useI18n();
 const { wide } = useHomeGadgetShared();
 const { editing } = useAdminPreview();
 const md = useMediaQuery(UtilHomeGrid.MD_QUERY);
+/** 게시판 레이아웃이면 본문 그리기(밖이면 null — 본문 칸은 그리지 않는다) */
+const boardBody = useBoardLayoutBody();
+/** 본문 칸 내용 — 받은 슬롯을 그대로 그린다 */
+const BodyOutlet: FunctionalComponent = () => boardBody?.() ?? null;
 
 const root = ref<HTMLElement | null>(null);
 /** 홈 자기 폭(px) — 아직 못 쟀으면 0(창 폭으로만 고른다) */
@@ -101,7 +117,10 @@ const columns = computed(() => (mode.value === 'half' ? props.layout.columns / 2
 /** 이 폭에서 그릴 가젯의 운영자 자리 */
 const visibleItems = computed(() => {
     // 관리자 미리보기 편집 중에는 PC 에서 숨는 가젯도 그린다(흐리게 — 자리를 고칠 수 있게)
-    const shown = new Set(props.gadgets.filter((g) => (editing.value && !g.empty) || UtilHomeGadget.isVisible(g, wide.value)).map((g) => g.id));
+    // 게시판 본문은 게시판 레이아웃 안에서 늘 그린다(아는 가젯 종류가 아니라 `isVisible` 이 거른다)
+    const shown = new Set(
+        props.gadgets.filter((g) => (g.type === BOARD_BODY ? Boolean(boardBody) : (editing.value && !g.empty) || UtilHomeGadget.isVisible(g, wide.value))).map((g) => g.id),
+    );
     return props.layout.items.filter((it) => shown.has(it.gadgetId));
 });
 
@@ -115,9 +134,11 @@ const cells = computed<Cell[]>(() => {
     });
 });
 
-/** 한 열 순서 — 템플릿이 고른다(기본 (y, x)) */
+/** 한 열 순서 — 템플릿이 고른다(기본 (y, x)). 게시판 레이아웃이면 본문을 먼저(본문 위에 통째로 놓인 가젯은 그 위 그대로 — `UtilHomeGrid.bodyFirst`) */
 function stackOrder(items: readonly HomeLayoutItem[]): HomeLayoutItem[] {
-    return mobileOrder === 'columns' ? UtilHomeGrid.byColumns(items, props.layout.columns) : UtilHomeLayout.byReadingOrder(items);
+    const order = mobileOrder === 'columns' ? UtilHomeGrid.byColumns(items, props.layout.columns) : UtilHomeLayout.byReadingOrder(items);
+    const body = boardBody ? props.gadgets.find((g) => g.type === BOARD_BODY) : undefined;
+    return body ? UtilHomeGrid.bodyFirst(order, body.id) : order;
 }
 
 const gridStyle = computed<CSSProperties | undefined>(() =>
@@ -230,6 +251,7 @@ function remove(id: string): void {
     postToAdminPreview({ type: ADMIN_PREVIEW_LAYOUT, op: 'remove', id });
 }
 
+/** ⚙ — 관리자 설정 창 열기(창은 관리자 응답 값으로 채운다) */
 function openSettings(id: string): void {
     postToAdminPreview({ type: ADMIN_PREVIEW_LAYOUT, op: 'settings', id });
 }

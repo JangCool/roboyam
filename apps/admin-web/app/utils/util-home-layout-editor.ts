@@ -44,6 +44,12 @@ const KINDS: readonly HomeKindSpec[] = [
     { kind: 'NOTICE_TEXT', icon: 'pi-megaphone', minW: 2, minH: 3, w: 4, h: 6 },
 ];
 
+/**
+ * 고정 칸 — 넣기 목록에는 없고 그 레이아웃에 꼭 하나 있는 칸(게시판 레이아웃의 「게시판 본문」 `BOARD_BODY`, 2026-10-30). 옮기기·크기만 되고 빼기·⚙ 는 없다.
+ * 최소 크기는 12칸 기준 폭 6 · 높이 20(본문은 내용대로 늘어난다).
+ */
+const FIXED_KINDS: readonly (Omit<HomeKindSpec, 'kind'> & { kind: string })[] = [{ kind: 'BOARD_BODY', icon: 'pi-file', minW: 6, minH: 20, w: 12, h: 20 }];
+
 /** 모르는 종류(서버가 먼저 보낸 새 종류) */
 const UNKNOWN: Omit<HomeKindSpec, 'kind'> = { icon: 'pi-box', minW: 2, minH: 2, w: 6, h: 8 };
 
@@ -57,6 +63,15 @@ function settle(items: readonly HomeEditorItem[], first?: string): HomeEditorIte
     return UtilHomeLayout.compact(prepared).map(({ gadgetId: _gadgetId, ...rest }) => rest);
 }
 
+/** 저장 실패(`400 VALIDATION`)의 칸 오류를 가젯별로 나눈 것 — `byGadget` 가젯 ID → (`gadgets[i].` 뒤의 칸 경로 → 문구) · `other` 가젯에 붙지 않는 문구(배치·적용 화면·한도) */
+export interface HomeSaveErrors {
+    byGadget: Record<string, Record<string, string>>;
+    other: string[];
+}
+
+/** `gadgets[i].<칸>` — 서버 저장 오류 키 */
+const GADGET_FIELD = /^gadgets\[(\d+)\]\.(.+)$/;
+
 export default class UtilHomeLayoutEditor {
     /** 가젯 종류 8종 */
     static readonly KINDS: readonly HomeKindSpec[] = KINDS;
@@ -67,7 +82,16 @@ export default class UtilHomeLayoutEditor {
      * @returns {Omit<HomeKindSpec, 'kind'>} 값.
      */
     static spec(type: string): Omit<HomeKindSpec, 'kind'> {
-        return KINDS.find((k) => k.kind === type) ?? UNKNOWN;
+        return KINDS.find((k) => k.kind === type) ?? FIXED_KINDS.find((k) => k.kind === type) ?? UNKNOWN;
+    }
+
+    /**
+     * 고정 칸인가(게시판 본문) — 빼기·⚙·두 번째 넣기가 없다
+     * @param {string} type - 종류 키.
+     * @returns {boolean} 고정 칸이면 true.
+     */
+    static isFixed(type: string): boolean {
+        return FIXED_KINDS.some((k) => k.kind === type);
     }
 
     /**
@@ -188,5 +212,24 @@ export default class UtilHomeLayoutEditor {
                 .sort()
                 .join('|');
         return key(a) === key(b);
+    }
+
+    /**
+     * 저장 실패의 칸 오류(`ApiError.fields`)를 가젯별로 나눈다 — `gadgets[i].title` 은 보낸 차례 `i` 의 가젯 ID 로, 나머지(`layout.items` · `screens.list` · `gadgets` 등)와
+     * ⚙ 가 없는 가젯(`settable` 이 거짓 — 게시판 본문)의 오류는 `other` 로.
+     * @param {Record<string, string> | undefined} fields - 칸 경로 → 문구.
+     * @param {readonly string[]} ids - 보낸 가젯 ID(보낸 차례).
+     * @param {(id: string) => boolean} settable - ⚙ 설정 창을 열 수 있는 가젯인가.
+     * @returns {HomeSaveErrors} 나눈 오류.
+     */
+    static saveErrors(fields: Record<string, string> | undefined, ids: readonly string[], settable: (id: string) => boolean): HomeSaveErrors {
+        const out: HomeSaveErrors = { byGadget: {}, other: [] };
+        for (const [key, message] of Object.entries(fields ?? {})) {
+            const m = GADGET_FIELD.exec(key);
+            const id = m ? ids[Number(m[1])] : undefined;
+            if (m && id && settable(id)) (out.byGadget[id] ??= {})[m[2]!] = message;
+            else if (!out.other.includes(message)) out.other.push(message);
+        }
+        return out;
     }
 }

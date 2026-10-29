@@ -1,4 +1,4 @@
-import type { AdminPreviewHome, AdminPreviewPage } from '~/utils/util-admin-preview';
+import type { AdminPreviewBoard, AdminPreviewHome, AdminPreviewPage } from '~/utils/util-admin-preview';
 
 /** 관리자 쪽 창 — 허용한 주소들과, 메시지를 받은 뒤 정해진 그 주소(`plugins/03.admin-preview.client.ts` 가 채운다) */
 const channel: { origins: string[]; parent: string | null } = { origins: [], parent: null };
@@ -34,14 +34,16 @@ export function postToAdminPreview(message: Record<string, unknown>): void {
  * 켜져 있으면 회원 보기 설정의 메뉴 위치를 쓰지 않고(`useMenuPosition` — 운영자 설정 > 테마 기본만), 홈은 관리자의 홈 구성(`home`)을 덮어 그린다(`pages/index.vue`).
  * 가젯 페이지(`pages/p/[key].vue`)도 같은 `home` 자리로 받은 그 페이지의 배치를 덮고, 머리는 `page`(이름·설명·글쓰기 단추 — 저장 전 값)로 그린다.
  * 편집 중(`editing`)이면 홈 격자가 가젯 위에 끌기·크기·빼기 손잡이를 얹는다(`HomeGadgetGrid` — 바뀐 자리는 관리자에게 알리고, 계산·저장은 관리자가 한다).
+ * 게시판 목록·글 보기(`BoardLayoutFrame`)는 `home` 자리로 받은 게시판 레이아웃(본문 칸 `BOARD_BODY` 포함)을 덮고, 적용 화면은 `board` 로 받는다(2026-10-30).
  * 컴포저블은 setup 에서 부른다.
  *
- * @returns `active` 미리보기 중인가 · `editing` 홈 구성 편집 중인가 · `home` 관리자 홈(·가젯 페이지) 구성(없으면 공개 화면 그대로) · `page` 가젯 페이지 머리(없으면 서버 값).
+ * @returns `active` 미리보기 중인가 · `editing` 홈 구성 편집 중인가 · `home` 관리자 홈(·가젯 페이지·게시판 레이아웃) 구성(없으면 공개 화면 그대로) · `page` 가젯 페이지 머리(없으면 서버 값) · `board` 게시판 레이아웃 적용 화면.
  */
 export function useAdminPreview() {
     const active = useState<boolean>('admin-preview-active', () => false);
     const editing = useState<boolean>('admin-preview-editing', () => false);
     const home = useState<AdminPreviewHome | null>('admin-preview-home', () => null);
     const page = useState<AdminPreviewPage | null>('admin-preview-page', () => null);
-    return { active, editing, home, page };
+    const board = useState<AdminPreviewBoard | null>('admin-preview-board', () => null);
+    return { active, editing, home, page, board };
 }

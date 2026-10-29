@@ -63,6 +63,7 @@ export default {
     // 관리자 미리보기 편집(관리자 테마 화면의 실제 화면 — 홈 격자 손잡이)
     editSize: '{w}×{h}',
     editMobileOnly: '모바일만',
+    editBoardBody: '게시판 본문',
     editRemove: '{title} 빼기',
     editSettings: '{title} 설정',
     editResize: '크기 바꾸기',
