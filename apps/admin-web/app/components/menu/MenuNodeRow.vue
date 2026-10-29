@@ -1,6 +1,6 @@
 <template>
     <!--
-        공개 사이트 메뉴 트리의 한 줄 내용(손잡이는 `MenuTreeEditor`) — 폴더/항목 아이콘 · 이름(항목 이름이 비면 대상 이름을 흐리게) · 연결 유형 + 대상 ·
+        공개 사이트 메뉴 트리의 한 줄 내용(손잡이는 `MenuTreeEditor`) — 폴더/항목 아이콘 · 이름(항목 이름이 비면 대상 이름을 흐리게) · 연결 유형 + 대상(폴더는 연결이 있으면 고리 아이콘 + 대상) ·
         보이는 대상 · 숨김 · 모바일 탭 · 자동 추가 · 접기 · 상태 경고 · [항목 넣기](폴더) [수정] [삭제]. 숨김 폴더 안의 줄은 흐리게 그린다(방문자에게 안 보인다).
         줄의 문제(화면 검사·서버 입력 오류)는 줄 아래에 빨간 글자로 선다.
     -->
@@ -23,6 +23,14 @@
             <MenuTag v-if="!node.visible" :value="t('menuConfig.tag.hidden')" icon="pi pi-eye-slash" />
             <MenuTag v-if="node.kind === 'ITEM' && side && node.mobileTab" :value="t('menuConfig.tag.mobileTab')" severity="contrast" icon="pi pi-mobile" />
             <template v-if="node.kind === 'FOLDER'">
+                <!-- 폴더 이름을 누르면 가는 곳 -->
+                <span v-if="node.link" class="inline-flex min-w-0 items-center gap-1 text-[11px] text-muted-color" :title="t('menuConfig.folderLinkTag')">
+                    <i class="pi pi-link text-[10px]" :aria-label="t('menuConfig.folderLinkTag')" />
+                    <code class="truncate">{{ linkText }}</code>
+                    <i v-if="UtilMenu.isExternal(node.link)" class="pi pi-external-link text-[10px]" :aria-label="t('menuConfig.externalLink')" />
+                </span>
+                <MenuTag v-if="node.link && node.linkClick === 'NAVIGATE'" :value="t('menuConfig.linkClickTag')" />
+                <MenuTag v-if="linkStatus !== 'OK'" :value="t('menuConfig.folderLinkOff', { status: t(`menuConfig.status.${linkStatus}`) })" severity="warn" icon="pi pi-exclamation-triangle" />
                 <MenuTag v-if="side && node.autoAdd" :value="t('menuConfig.tag.autoAdd')" severity="success" icon="pi pi-bolt" />
                 <MenuTag v-if="node.collapse !== 'NONE'" :value="t(`menuConfig.collapseTag.${node.collapse}`)" />
                 <span class="text-[11px] text-muted-color">{{ t('menuConfig.childCount', { n: node.children.length }) }}</span>
@@ -76,5 +84,8 @@ const status = computed(() => (props.node.kind === 'ITEM' ? UtilMenu.itemStatus(
 const statusHint = computed(() => (status.value === 'OK' ? '' : t(`menuConfig.statusHint.${status.value}`)));
 const targetText = computed(() => (props.node.kind === 'ITEM' ? UtilMenu.targetText(props.node, props.ctx) : ''));
 const external = computed(() => props.node.kind === 'ITEM' && UtilMenu.isExternal(props.node));
+/** 폴더 연결 — 대상 글자(게시판·사이트 화면 주소, 외부 링크 도메인)와 상태(방문자에게 안 보이면 폴더 이름만 남는다) */
+const linkText = computed(() => (props.node.kind === 'FOLDER' && props.node.link ? UtilMenu.targetText(props.node.link, props.ctx) : ''));
+const linkStatus = computed(() => (props.node.kind === 'FOLDER' && props.node.link ? UtilMenu.itemStatus(props.node.link, props.ctx) : 'OK'));
 const audienceText = computed(() => UtilMenuMessages.audience(t, props.node.audience, props.node.minGrade, props.ctx.grades));
 </script>

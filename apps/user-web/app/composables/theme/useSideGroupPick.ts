@@ -5,7 +5,7 @@ import type { MenuSection } from '~/utils/util-menu';
  * 탭을 누르면 그 그룹 하나만 오른쪽(또는 왼쪽) 사이드 메뉴에 보인다. 메뉴 막대(`DaumMenuBar`)와 사이드 칸(`AppSideMenu`)이 **같은 상태**를 본다(`useState`).
  *
  * - 고른 그룹 기본값 = 지금 있는 곳이 든 사이드 그룹(없으면 아무것도 고르지 않음 → 사이드 칸이 없다). 주소가 바뀌면 다시 기본값으로.
- * - 같은 탭을 다시 누르면 닫는다.
+ * - 같은 탭을 다시 누르면 닫는다. 그룹에 「누르면 가는 곳」이 있으면 탭은 링크이고, 이동한 뒤 그 그룹을 연다(`open`).
  * 컴포저블은 setup 에서 부른다.
  *
  * @returns `groups` 사이드 몫의 최상위 그룹 구역 · `activeKey` 지금 있는 곳이 든 그룹 · `picked` 고른 그룹 키 · `current` 고른 그룹 구역(없으면 null) · `pick(key)` 고르기/닫기.
@@ -32,5 +32,10 @@ export function useSideGroupPick() {
         picked.value = picked.value === key ? null : key;
     }
 
-    return { groups, activeKey, picked, current, pick };
+    /** 닫지 않고 연다 — 연결이 있는 그룹 탭을 눌러 이동한 뒤(`useAfterMenuNavigate`) */
+    function open(key: string): void {
+        picked.value = key;
+    }
+
+    return { groups, activeKey, picked, current, pick, open };
 }

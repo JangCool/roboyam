@@ -6,6 +6,7 @@ export default {
     // 접근성 이름(스크린리더)
     navLabel: 'Main menu',
     externalLabel: '(external link)',
+    openSubmenu: 'Open the {name} submenu',
     tabsLabel: 'Board tabs',
     loadingLabel: 'Loading menu',
     groupButtonLabel: '{title}, items: {count}',

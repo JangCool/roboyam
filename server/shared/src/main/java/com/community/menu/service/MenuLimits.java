@@ -36,6 +36,9 @@ public final class MenuLimits {
     /** 상단 가로 메뉴 첫 줄의 구분선 — 없음 · 앞 · 뒤 */
     public static final List<String> DIVIDERS = List.of("NONE", "BEFORE", "AFTER");
 
+    /** 연결이 있는 폴더의 상단 탭 동작 — 이동하고 하위 메뉴도 열기(기본) · 이동만 */
+    public static final List<String> LINK_CLICKS = List.of("NAVIGATE_OPEN", "NAVIGATE");
+
     /** 항목 설명(메뉴 설명 줄) 글자 수 */
     public static final int DESCRIPTION_MAX = 80;
 

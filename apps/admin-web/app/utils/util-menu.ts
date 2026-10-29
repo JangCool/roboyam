@@ -6,6 +6,7 @@ import type {
     MenuGradeOption,
     MenuItemDto,
     MenuKnownTargetType,
+    MenuLinkClick,
     MenuNodeDto,
     MenuPlacement,
 } from '~/composables/menu/api/useMenuApi.types';
@@ -38,15 +39,8 @@ interface MenuEditCommon {
     divider: MenuDivider;
 }
 
-export interface MenuEditFolder extends MenuEditCommon {
-    kind: 'FOLDER';
-    collapse: MenuCollapseMode;
-    autoAdd: boolean;
-    children: MenuEditNode[];
-}
-
-export interface MenuEditItem extends MenuEditCommon {
-    kind: 'ITEM';
+/** 연결 대상 — 항목의 대상, 폴더 이름을 누르면 가는 곳(`MenuEditFolder.link`)이 같은 모양이다 */
+export interface MenuEditLink {
     targetType: string;
     targetId: string | null;
     targetKey: string | null;
@@ -56,6 +50,21 @@ export interface MenuEditItem extends MenuEditCommon {
     href: string;
     /** `PATH`·`URL` 만 */
     newTab: boolean;
+}
+
+export interface MenuEditFolder extends MenuEditCommon {
+    kind: 'FOLDER';
+    collapse: MenuCollapseMode;
+    autoAdd: boolean;
+    /** 폴더 이름을 누르면 가는 곳(선택) — null 이면 이름은 펼치기·접기만 한다. 유형은 게시판·사이트 화면·외부 링크 */
+    link: MenuEditLink | null;
+    /** 연결이 있을 때 상단 탭을 누르면 — 이동하고 하위 메뉴도 열기(기본) · 이동만. 연결이 없으면 쓰지 않는다 */
+    linkClick: MenuLinkClick;
+    children: MenuEditNode[];
+}
+
+export interface MenuEditItem extends MenuEditCommon, MenuEditLink {
+    kind: 'ITEM';
     mobileTab: boolean;
     /** 설명 한 줄 — 최상위에서만 뜻이 있다(하위로 옮기면 저장 때 null 로 보낸다). 빈 글자 = 공개 화면 기본 설명 */
     description: string;
@@ -78,8 +87,24 @@ export interface MenuContext {
 /** 대상 고르기 모양 — 게시판 목록 · 앱 화면 목록 · 주소 입력 · 외부 링크 입력 */
 export type MenuPicker = 'BOARD_SELECT' | 'BUILTIN_SELECT' | 'PATH_INPUT' | 'URL_INPUT';
 
+/**
+ * 화면이 보여 주는 연결 종류 — 게시판 · 사이트 화면(목록에서 고르는 `BUILTIN` + 주소를 적는 `PATH`) · 외부 링크.
+ * 서버 유형(`targetType`)은 그대로 넷이고, 「앱 화면」과 「페이지」를 화면에서만 「사이트 화면」 하나로 합쳤다(2026-10-29).
+ */
+export type MenuTargetKind = 'BOARD' | 'SITE' | 'URL';
+
+export interface MenuTargetKindDef {
+    kind: MenuTargetKind;
+    labelKey: string;
+    descKey: string;
+    icon: string;
+    /** 이 종류를 처음 고를 때의 서버 유형 */
+    initialType: MenuKnownTargetType;
+}
+
 export interface MenuTargetTypeDef {
     type: MenuKnownTargetType;
+    kind: MenuTargetKind;
     labelKey: string;
     descKey: string;
     icon: string;
@@ -116,6 +141,8 @@ export type MenuViewer = { kind: 'GUEST' } | { kind: 'MEMBER'; level: number } |
 export interface MenuPreviewNode {
     node: MenuEditNode;
     children: MenuPreviewNode[];
+    /** 폴더 이름이 링크로 보이는가(`UtilMenu.folderLinkShown`) — 항목은 없음 */
+    linked?: boolean;
 }
 
 /** 메뉴에 없는 게시판 — 항목이 없다 · 숨김 안에만 있다 */
@@ -198,15 +225,25 @@ export default class UtilMenu {
     /** 구분선 고르기 차례 — 없음 · 왼쪽 · 오른쪽 */
     static readonly DIVIDERS: readonly MenuDivider[] = ['NONE', 'BEFORE', 'AFTER'];
 
+    /** 연결 있는 폴더의 탭을 누르면 — 고르기 차례(첫째가 기본) */
+    static readonly LINK_CLICKS: readonly MenuLinkClick[] = ['NAVIGATE_OPEN', 'NAVIGATE'];
+
     /**
      * 연결 유형 표 — 서버 `GET /api/admin/menu/target-types` 응답을 흉내 낸다(`type → { 이름, 대상 고르기 모양 }`).
      * 새 유형은 서버 표와 함께 여기에 한 줄 더한다. 이 표에 없는 유형이 응답에 오면 「알 수 없는 유형」으로 보인다.
      */
     static readonly TARGET_TYPES: readonly MenuTargetTypeDef[] = [
-        { type: 'BOARD', labelKey: 'menuConfig.type.BOARD', descKey: 'menuConfig.typeDesc.BOARD', icon: 'pi pi-th-large', picker: 'BOARD_SELECT' },
-        { type: 'BUILTIN', labelKey: 'menuConfig.type.BUILTIN', descKey: 'menuConfig.typeDesc.BUILTIN', icon: 'pi pi-mobile', picker: 'BUILTIN_SELECT' },
-        { type: 'PATH', labelKey: 'menuConfig.type.PATH', descKey: 'menuConfig.typeDesc.PATH', icon: 'pi pi-file', picker: 'PATH_INPUT' },
-        { type: 'URL', labelKey: 'menuConfig.type.URL', descKey: 'menuConfig.typeDesc.URL', icon: 'pi pi-external-link', picker: 'URL_INPUT' },
+        { type: 'BOARD', kind: 'BOARD', labelKey: 'menuConfig.type.BOARD', descKey: 'menuConfig.typeDesc.BOARD', icon: 'pi pi-th-large', picker: 'BOARD_SELECT' },
+        { type: 'BUILTIN', kind: 'SITE', labelKey: 'menuConfig.type.SITE', descKey: 'menuConfig.typeDesc.SITE', icon: 'pi pi-desktop', picker: 'BUILTIN_SELECT' },
+        { type: 'PATH', kind: 'SITE', labelKey: 'menuConfig.type.SITE', descKey: 'menuConfig.typeDesc.SITE', icon: 'pi pi-desktop', picker: 'PATH_INPUT' },
+        { type: 'URL', kind: 'URL', labelKey: 'menuConfig.type.URL', descKey: 'menuConfig.typeDesc.URL', icon: 'pi pi-external-link', picker: 'URL_INPUT' },
+    ];
+
+    /** 추가 시트·폴더 연결에서 고르는 종류 — 사이트 화면은 목록(`BUILTIN`)에서 시작하고 「주소 직접 입력」으로 `PATH` 가 된다 */
+    static readonly TARGET_KINDS: readonly MenuTargetKindDef[] = [
+        { kind: 'BOARD', labelKey: 'menuConfig.type.BOARD', descKey: 'menuConfig.typeDesc.BOARD', icon: 'pi pi-th-large', initialType: 'BOARD' },
+        { kind: 'SITE', labelKey: 'menuConfig.type.SITE', descKey: 'menuConfig.typeDesc.SITE', icon: 'pi pi-desktop', initialType: 'BUILTIN' },
+        { kind: 'URL', labelKey: 'menuConfig.type.URL', descKey: 'menuConfig.typeDesc.URL', icon: 'pi pi-external-link', initialType: 'URL' },
     ];
 
     /** 준비 중 유형 — 대상 표가 생겨야 고를 수 있다(추가 시트에 흐린 「준비 중」 줄로만 보인다) */
@@ -260,6 +297,25 @@ export default class UtilMenu {
     }
 
     /**
+     * 화면이 보여 주는 연결 종류 — `BUILTIN`·`PATH` 는 「사이트 화면」.
+     * @param {string} type - 연결 유형.
+     * @returns {MenuTargetKind | undefined} 종류. 모르는 유형이면 undefined.
+     */
+    static kindOf(type: string): MenuTargetKind | undefined {
+        return UtilMenu.typeOf(type)?.kind;
+    }
+
+    /**
+     * 주소가 같은 앱 화면 — 「주소 직접 입력」에서 「목록에서 고르기」로 돌아갈 때 그 화면을 고른 채로 둔다.
+     * @param {string} path - 주소.
+     * @returns {MenuBuiltinDef | undefined} 정의. 없으면 undefined.
+     */
+    static builtinByPath(path: string): MenuBuiltinDef | undefined {
+        const value = path.trim();
+        return value ? UtilMenu.BUILTINS.find((def) => def.path === value) : undefined;
+    }
+
+    /**
      * 앱 화면 정의.
      * @param {string | null} key - 앱 화면 키.
      * @returns {MenuBuiltinDef | undefined} 정의. 레지스트리에 없으면 undefined.
@@ -298,24 +354,52 @@ export default class UtilMenu {
         return nodes.map((node): MenuEditNode => {
             const common = { key: UtilMenuTree.newKey(), id: node.id, label: node.label ?? '', nameEn: node.nameEn ?? '', visible: node.visible, audience: node.audience, minGrade: node.minGrade, divider: node.divider ?? 'NONE' };
             if (node.kind === 'FOLDER') {
-                return { ...common, kind: 'FOLDER', collapse: !node.collapsible ? 'NONE' : node.collapsed ? 'CLOSED' : 'OPEN', autoAdd: node.autoAdd, children: UtilMenu.toEdit(node.children) };
+                // 이 화면이 모르는 유형의 폴더 연결은 연결 없음으로 읽는다(폴더 연결은 화면이 아는 유형만 저장된다)
+                const link = node.targetType && UtilMenu.typeOf(node.targetType) ? UtilMenu.linkOf(node.targetType, node.targetId ?? null, node.targetKey ?? null, node.settings ?? null) : null;
+                return { ...common, kind: 'FOLDER', collapse: !node.collapsible ? 'NONE' : node.collapsed ? 'CLOSED' : 'OPEN', autoAdd: node.autoAdd, link, linkClick: node.linkClick ?? 'NAVIGATE_OPEN', children: UtilMenu.toEdit(node.children) };
             }
-            const settings = node.settings ?? {};
             const known = UtilMenu.typeOf(node.targetType);
             return {
                 ...common,
                 kind: 'ITEM',
-                targetType: node.targetType,
-                targetId: node.targetId,
-                targetKey: node.targetKey,
-                path: node.targetType === 'PATH' && typeof settings.path === 'string' ? settings.path : '',
-                href: node.targetType === 'URL' && typeof settings.href === 'string' ? settings.href : '',
-                newTab: settings.newTab === true,
+                ...UtilMenu.linkOf(node.targetType, node.targetId, node.targetKey, node.settings),
                 mobileTab: node.mobileTab,
                 description: node.description ?? '',
                 rawSettings: known ? null : node.settings,
             };
         });
+    }
+
+    /**
+     * 서버 칸(유형·ID·키·설정) → 화면 연결 대상.
+     * @param {string} targetType - 연결 유형.
+     * @param {string | null} targetId - `BOARD` 의 게시판 ID.
+     * @param {string | null} targetKey - `BUILTIN` 의 앱 화면 키.
+     * @param {Record<string, unknown> | null} raw - 유형별 설정.
+     * @returns {MenuEditLink} 연결 대상.
+     */
+    static linkOf(targetType: string, targetId: string | null, targetKey: string | null, raw: Record<string, unknown> | null): MenuEditLink {
+        const settings = raw ?? {};
+        return {
+            targetType,
+            targetId,
+            targetKey,
+            path: targetType === 'PATH' && typeof settings.path === 'string' ? settings.path : '',
+            href: targetType === 'URL' && typeof settings.href === 'string' ? settings.href : '',
+            newTab: settings.newTab === true,
+        };
+    }
+
+    /**
+     * 화면 연결 대상 → 서버 칸(유형에 맞는 칸만 채운다). 이 화면이 아는 유형만 넘긴다.
+     * @param {MenuEditLink} link - 연결 대상.
+     * @returns {{ targetType: string; targetId: string | null; targetKey: string | null; settings: Record<string, unknown> | null }} 서버 칸.
+     */
+    static linkDto(link: MenuEditLink): { targetType: string; targetId: string | null; targetKey: string | null; settings: Record<string, unknown> | null } {
+        let settings: Record<string, unknown> | null = null;
+        if (link.targetType === 'PATH') settings = { path: link.path.trim(), newTab: link.newTab };
+        else if (link.targetType === 'URL') settings = { href: link.href.trim(), newTab: link.newTab };
+        return { targetType: link.targetType, targetId: link.targetType === 'BOARD' ? link.targetId : null, targetKey: link.targetType === 'BUILTIN' ? link.targetKey : null, settings };
     }
 
     /**
@@ -338,20 +422,26 @@ export default class UtilMenu {
                 divider: side && top ? node.divider : 'NONE',
             };
             if (node.kind === 'FOLDER') {
-                const folder: MenuFolderDto = { ...common, kind: 'FOLDER', collapsible: node.collapse !== 'NONE', collapsed: node.collapse === 'CLOSED', autoAdd: side && node.autoAdd, children: UtilMenu.toDto(node.children, placement, false) };
+                // 폴더 연결은 화면이 아는 유형만 만든다(`newLink`)
+                const link = node.link ? { ...UtilMenu.linkDto(node.link), targetType: node.link.targetType as MenuKnownTargetType } : { targetType: null, targetId: null, targetKey: null, settings: null };
+                const folder: MenuFolderDto = {
+                    ...common,
+                    kind: 'FOLDER',
+                    collapsible: node.collapse !== 'NONE',
+                    collapsed: node.collapse === 'CLOSED',
+                    autoAdd: side && node.autoAdd,
+                    ...link,
+                    linkClick: node.link ? node.linkClick : null,
+                    children: UtilMenu.toDto(node.children, placement, false),
+                };
                 return folder;
             }
-            let settings: Record<string, unknown> | null = null;
-            if (node.targetType === 'PATH') settings = { path: node.path.trim(), newTab: node.newTab };
-            else if (node.targetType === 'URL') settings = { href: node.href.trim(), newTab: node.newTab };
-            else if (!UtilMenu.typeOf(node.targetType)) settings = node.rawSettings;
+            // 모르는 유형은 받은 그대로 돌려보낸다
+            const target = UtilMenu.typeOf(node.targetType) ? UtilMenu.linkDto(node) : { targetType: node.targetType, targetId: node.targetId, targetKey: node.targetKey, settings: node.rawSettings };
             const item: MenuItemDto = {
                 ...common,
                 kind: 'ITEM',
-                targetType: node.targetType,
-                targetId: node.targetType === 'BOARD' ? node.targetId : UtilMenu.typeOf(node.targetType) ? null : node.targetId,
-                targetKey: node.targetType === 'BUILTIN' ? node.targetKey : UtilMenu.typeOf(node.targetType) ? null : node.targetKey,
-                settings,
+                ...target,
                 mobileTab: side && node.mobileTab,
                 description: (side && top && node.description.trim()) || null,
             };
@@ -364,7 +454,7 @@ export default class UtilMenu {
      * @returns {MenuEditFolder} 이름이 빈 폴더(보임 · 모두 · 접기 안 함).
      */
     static newFolder(): MenuEditFolder {
-        return { key: UtilMenuTree.newKey(), id: null, kind: 'FOLDER', label: '', nameEn: '', visible: true, audience: 'ALL', minGrade: null, divider: 'NONE', collapse: 'NONE', autoAdd: false, children: [] };
+        return { key: UtilMenuTree.newKey(), id: null, kind: 'FOLDER', label: '', nameEn: '', visible: true, audience: 'ALL', minGrade: null, divider: 'NONE', collapse: 'NONE', autoAdd: false, link: null, linkClick: 'NAVIGATE_OPEN', children: [] };
     }
 
     /**
@@ -383,27 +473,42 @@ export default class UtilMenu {
             audience: 'ALL',
             minGrade: null,
             divider: 'NONE',
-            targetType: type,
-            targetId: null,
-            targetKey: null,
-            path: '',
-            href: type === 'URL' ? 'https://' : '',
-            newTab: type === 'URL',
+            ...UtilMenu.newLink(type),
             mobileTab: false,
             description: '',
             rawSettings: null,
         };
     }
 
+    /**
+     * 새 연결 대상 — 대상이 빈 채(외부 링크는 `https://` + 새 탭).
+     * @param {MenuKnownTargetType} type - 연결 유형.
+     * @returns {MenuEditLink} 연결 대상.
+     */
+    static newLink(type: MenuKnownTargetType): MenuEditLink {
+        return { targetType: type, targetId: null, targetKey: null, path: '', href: type === 'URL' ? 'https://' : '', newTab: type === 'URL' };
+    }
+
+    /**
+     * 연결 유형을 바꾼다 — 대상 칸만 비우고 나머지(이름·보이는 대상·탭·구분선·설명·ID)는 그대로 둔다. 이미 만든 항목의 유형 바꾸기에 쓴다.
+     * @param {T} node - 항목 또는 연결 대상.
+     * @param {MenuKnownTargetType} type - 새 유형.
+     * @returns {T} 유형을 바꾼 복사본(같은 유형이면 그대로 복사).
+     */
+    static retarget<T extends MenuEditLink>(node: T, type: MenuKnownTargetType): T {
+        if (node.targetType === type) return { ...node };
+        return { ...node, ...UtilMenu.newLink(type), ...('rawSettings' in node ? { rawSettings: null } : {}) };
+    }
+
     // ── 대상 · 상태 · 이름 ─
 
     /**
      * 항목 상태 — 방문자에게 안 보이는 이유(저장은 된다).
-     * @param {MenuEditItem} item - 항목.
+     * @param {MenuEditLink} item - 항목(또는 폴더의 연결 대상).
      * @param {MenuContext} ctx - 게시판 목록·판매 스위치.
      * @returns {MenuItemStatus} 상태.
      */
-    static itemStatus(item: MenuEditItem, ctx: MenuContext): MenuItemStatus {
+    static itemStatus(item: MenuEditLink, ctx: MenuContext): MenuItemStatus {
         if (!UtilMenu.typeOf(item.targetType)) return 'UNKNOWN_TYPE';
         if (item.targetType === 'BOARD') {
             const board = ctx.boards.find((b) => b.id === item.targetId);
@@ -420,11 +525,11 @@ export default class UtilMenu {
 
     /**
      * 항목이 이름을 비웠을 때 따라가는 대상 이름 — 게시판 이름(+영문명) 또는 앱 화면 기본 이름의 키. 주소·외부 링크·모르는 유형은 따라갈 이름이 없다.
-     * @param {MenuEditItem} item - 항목.
+     * @param {MenuEditLink} item - 항목(또는 폴더의 연결 대상).
      * @param {MenuContext} ctx - 게시판 목록.
      * @returns {{ name: string; nameEn: string | null } | { labelKey: string } | null} 대상 이름.
      */
-    static targetName(item: MenuEditItem, ctx: MenuContext): { name: string; nameEn: string | null } | { labelKey: string } | null {
+    static targetName(item: MenuEditLink, ctx: MenuContext): { name: string; nameEn: string | null } | { labelKey: string } | null {
         if (item.targetType === 'BOARD') {
             const board = ctx.boards.find((b) => b.id === item.targetId);
             return board ? { name: board.name, nameEn: board.nameEn } : null;
@@ -438,11 +543,11 @@ export default class UtilMenu {
 
     /**
      * 줄에 보일 대상 — 게시판 주소(`/boards/{slug}`, slug 작은 글자) · 앱 화면 주소 · 페이지 주소 · 외부 링크 도메인.
-     * @param {MenuEditItem} item - 항목.
+     * @param {MenuEditLink} item - 항목(또는 폴더의 연결 대상).
      * @param {MenuContext} ctx - 게시판 목록.
      * @returns {string} 대상 글자(모르면 빈 글자).
      */
-    static targetText(item: MenuEditItem, ctx: MenuContext): string {
+    static targetText(item: MenuEditLink, ctx: MenuContext): string {
         switch (item.targetType) {
             case 'BOARD': {
                 const board = ctx.boards.find((b) => b.id === item.targetId);
@@ -476,15 +581,16 @@ export default class UtilMenu {
 
     /**
      * 외부(다른 도메인)로 가는 링크인가.
-     * @param {MenuEditItem} item - 항목.
+     * @param {MenuEditLink} item - 항목(또는 폴더의 연결 대상).
      * @returns {boolean} `URL` 이고 `https://` 주소면 true.
      */
-    static isExternal(item: MenuEditItem): boolean {
+    static isExternal(item: MenuEditLink): boolean {
         return item.targetType === 'URL' && item.href.trim().startsWith('https://');
     }
 
     /**
      * 이 그룹에 이미 연결된 게시판·앱 화면 — `BOARD:<id>` · `BUILTIN:<key>` → 항목과 들어 있는 폴더 이름.
+     * 폴더 연결(`link`)은 세지 않는다 — 폴더 이름 바로가기라 하위 항목과 같은 대상(예: 「소모임」 폴더와 그 안의 「전체 소모임」)을 가리켜도 된다.
      * @param {MenuEditNode[]} nodes - 트리.
      * @returns {Map<string, MenuLinkedTarget>} 연결.
      */
@@ -506,10 +612,10 @@ export default class UtilMenu {
 
     /**
      * 한 그룹 안에서 한 번만 연결할 수 있는 대상의 이름표 — 게시판·앱 화면만.
-     * @param {MenuEditItem} item - 항목.
+     * @param {MenuEditLink} item - 항목(또는 폴더의 연결 대상).
      * @returns {string | null} `BOARD:<id>` · `BUILTIN:<key>`. 그 밖에는 null.
      */
-    static linkId(item: MenuEditItem): string | null {
+    static linkId(item: MenuEditLink): string | null {
         if (item.targetType === 'BOARD' && item.targetId) return `BOARD:${item.targetId}`;
         if (item.targetType === 'BUILTIN' && item.targetKey) return `BUILTIN:${item.targetKey}`;
         return null;
@@ -614,21 +720,29 @@ export default class UtilMenu {
         const nameEn = UtilMenu.nameEnProblem(item.nameEn);
         if (nameEn) out.nameEn = nameEn;
         if (item.audience === 'GRADE_MIN' && !item.minGrade) out.minGrade = 'GRADE_REQUIRED';
-        if (item.targetType === 'BOARD' && !item.targetId) out.target = 'TARGET_REQUIRED';
-        if (item.targetType === 'BUILTIN') {
-            const def = UtilMenu.builtinOf(item.targetKey);
-            if (!item.targetKey) out.target = 'TARGET_REQUIRED';
-            else if (def?.loginRequired && !UtilMenu.isLoginAudience(item.audience)) out.audience = 'LOGIN_AUDIENCE';
-        }
-        if (item.targetType === 'PATH') {
-            const path = UtilMenu.pathProblem(item.path);
+        Object.assign(out, UtilMenu.linkProblems(item));
+        if (item.targetType === 'BUILTIN' && UtilMenu.builtinOf(item.targetKey)?.loginRequired && !UtilMenu.isLoginAudience(item.audience)) out.audience = 'LOGIN_AUDIENCE';
+        if (item.mobileTab && !UtilMenu.isSide(placement)) out.mobileTab = 'MOBILE_TAB_SIDE';
+        return out;
+    }
+
+    /**
+     * 연결 대상의 문제 — 대상 고르기 · 주소 · 링크 주소. 항목과 폴더 연결이 같은 규칙이다.
+     * @param {MenuEditLink} link - 연결 대상.
+     * @returns {Partial<Record<MenuProblemField, MenuProblemCode>>} 칸별 문제(`target`·`path`·`href`).
+     */
+    static linkProblems(link: MenuEditLink): Partial<Record<MenuProblemField, MenuProblemCode>> {
+        const out: Partial<Record<MenuProblemField, MenuProblemCode>> = {};
+        if (link.targetType === 'BOARD' && !link.targetId) out.target = 'TARGET_REQUIRED';
+        if (link.targetType === 'BUILTIN' && !link.targetKey) out.target = 'TARGET_REQUIRED';
+        if (link.targetType === 'PATH') {
+            const path = UtilMenu.pathProblem(link.path);
             if (path) out.path = path;
         }
-        if (item.targetType === 'URL') {
-            const href = UtilMenu.hrefProblem(item.href);
+        if (link.targetType === 'URL') {
+            const href = UtilMenu.hrefProblem(link.href);
             if (href) out.href = href;
         }
-        if (item.mobileTab && !UtilMenu.isSide(placement)) out.mobileTab = 'MOBILE_TAB_SIDE';
         return out;
     }
 
@@ -644,6 +758,7 @@ export default class UtilMenu {
         const nameEn = UtilMenu.nameEnProblem(folder.nameEn);
         if (nameEn) out.nameEn = nameEn;
         if (folder.audience === 'GRADE_MIN' && !folder.minGrade) out.minGrade = 'GRADE_REQUIRED';
+        if (folder.link) Object.assign(out, UtilMenu.linkProblems(folder.link));
         return out;
     }
 
@@ -834,7 +949,7 @@ export default class UtilMenu {
             if (!UtilMenu.audienceAllows(node.audience, node.minGrade, viewer, ctx.grades)) continue;
             if (node.kind === 'FOLDER') {
                 const children = UtilMenu.preview(node.children, viewer, ctx);
-                if (children.length) out.push({ node, children });
+                if (children.length) out.push({ node, children, linked: UtilMenu.folderLinkShown(node, viewer, ctx) });
                 continue;
             }
             if (UtilMenu.itemStatus(node, ctx) !== 'OK') continue;
@@ -842,6 +957,20 @@ export default class UtilMenu {
             out.push({ node, children: [] });
         }
         return out;
+    }
+
+    /**
+     * 폴더 이름이 이 사람에게 링크로 보이는가 — 연결이 있고, 그 대상이 방문자에게 보이는 상태이고, 로그인 필요 화면을 비로그인이 보는 것이 아닐 때. 아니면 이름만(펼치기·접기) 보인다.
+     * 폴더 자체는 연결과 상관없이 하위 항목이 있으면 보인다.
+     * @param {MenuEditFolder} folder - 폴더.
+     * @param {MenuViewer} viewer - 보는 사람.
+     * @param {MenuContext} ctx - 게시판·판매 스위치.
+     * @returns {boolean} 링크면 true.
+     */
+    static folderLinkShown(folder: MenuEditFolder, viewer: MenuViewer, ctx: MenuContext): boolean {
+        const link = folder.link;
+        if (!link || UtilMenu.itemStatus(link, ctx) !== 'OK') return false;
+        return !(link.targetType === 'BUILTIN' && viewer.kind === 'GUEST' && UtilMenu.builtinOf(link.targetKey)?.loginRequired);
     }
 
     /**

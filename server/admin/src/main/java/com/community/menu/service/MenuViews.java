@@ -36,8 +36,11 @@ public class MenuViews {
         for (MenuNode node : nodes) {
             String id = node.id() == null ? null : Long.toString(node.id());
             if (node.isFolder()) {
+                boolean linked = node.hasFolderLink();
                 out.add(new MenuFolderView(id, MenuNode.FOLDER, node.label(), node.nameEn(), node.visible(), node.audience(), node.minGrade(),
-                        node.collapsible(), node.collapsed(), node.autoAdd(), node.divider(), nodes(node.children(), context)));
+                        node.collapsible(), node.collapsed(), node.autoAdd(), node.divider(), linked ? node.targetType() : null,
+                        linked ? node.targetId() : null, linked ? node.targetKey() : null, linked ? node.settings() : null,
+                        linked ? (node.linkClick() == null ? MenuNode.LINK_CLICK_NAVIGATE_OPEN : node.linkClick()) : null, nodes(node.children(), context)));
                 continue;
             }
             MenuTargetResolver resolver = registry.find(node.targetType()).orElse(null);
@@ -64,7 +67,7 @@ public class MenuViews {
             out.add(new MenuNode(MenuResolveContext.parseId(node.id()), node.kind(), node.label(), node.nameEn(), !Boolean.FALSE.equals(node.visible()),
                     node.audience(), node.minGrade(), Boolean.TRUE.equals(node.collapsible()), Boolean.TRUE.equals(node.collapsed()),
                     Boolean.TRUE.equals(node.autoAdd()), node.targetType(), node.targetId(), node.targetKey(), node.settings(),
-                    Boolean.TRUE.equals(node.mobileTab()), fromRequest(node.children()), node.divider(), node.description()));
+                    Boolean.TRUE.equals(node.mobileTab()), fromRequest(node.children()), node.divider(), node.description(), node.linkClick()));
         }
         return out;
     }
@@ -81,6 +84,12 @@ public class MenuViews {
             StringBuilder line = new StringBuilder("  ".repeat(depth));
             if (node.isFolder()) {
                 line.append('[').append(node.label()).append(']');
+                if (node.hasFolderLink()) {
+                    line.append(" → ").append(node.targetType()).append(':').append(target(node));
+                    if (MenuNode.LINK_CLICK_NAVIGATE.equals(node.linkClick())) {
+                        line.append(" [navigate]");
+                    }
+                }
                 if (node.autoAdd()) {
                     line.append(" [autoAdd]");
                 }

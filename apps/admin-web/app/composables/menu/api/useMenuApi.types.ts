@@ -54,6 +54,9 @@ export type MenuAudience = 'ALL' | 'GUEST' | 'MEMBER' | 'GRADE_MIN' | 'STAFF';
  */
 export type MenuDivider = 'NONE' | 'BEFORE' | 'AFTER';
 
+/** 연결이 있는 폴더의 상단 탭을 누르면 — `NAVIGATE_OPEN` 이동하고 그 폴더 하위 메뉴도 연다(기본) · `NAVIGATE` 이동만 한다(가는 곳이 그 폴더 안이면 지금 있는 곳 규칙으로 하위 메뉴가 보인다) */
+export type MenuLinkClick = 'NAVIGATE_OPEN' | 'NAVIGATE';
+
 /** 화면이 아는 연결 유형. 응답에 다른 값이 오면 화면은 「알 수 없는 유형」으로 보이고 그대로 돌려보낸다 */
 export type MenuKnownTargetType = 'BOARD' | 'BUILTIN' | 'PATH' | 'URL';
 
@@ -71,7 +74,7 @@ interface MenuNodeBase {
     divider: MenuDivider;
 }
 
-/** 폴더 — 이름과 하위 노드뿐(주소 없음). 깊이 3 까지 */
+/** 폴더 — 이름과 하위 노드, 그리고 이름을 누르면 가는 곳(선택). 깊이 3 까지 */
 export interface MenuFolderDto extends MenuNodeBase {
     kind: 'FOLDER';
     /** 접을 수 있는가 */
@@ -80,6 +83,16 @@ export interface MenuFolderDto extends MenuNodeBase {
     collapsed: boolean;
     /** 새 게시판 자동 추가 폴더 — `SIDE` 그룹에서만, 한 그룹 안에서 한 폴더만 */
     autoAdd: boolean;
+    /**
+     * 폴더 이름을 누르면 가는 곳(선택, 서버 shared V107 `menu_nodes` 의 같은 칸 + `link_click`) — 항목과 같은 칸·같은 검사(서버 `MenuTreeValidator.folderLink`, 오류 경로도 항목과 같은 꼴)(`BOARD`·`BUILTIN`·`PATH`·`URL`). 연결이 없으면 네 칸 모두 null.
+     * 한 그룹 안 한 번 규칙(게시판·앱 화면)과 로그인 필요 화면의 보이는 대상 규칙은 폴더 연결에 걸지 않는다 — 방문자가 그 대상을 볼 수 없으면 공개 응답에서 폴더는 이름만 남는다.
+     */
+    targetType?: MenuKnownTargetType | null;
+    targetId?: string | null;
+    targetKey?: string | null;
+    settings?: Record<string, unknown> | null;
+    /** 연결이 있을 때 공개 사이트 상단 첫 줄의 폴더 탭을 누르면 — 이동하고 하위 메뉴도 열기(기본) · 이동만. 연결이 없으면 null. 연결이 있는데 빠지면 서버가 `NAVIGATE_OPEN` 으로 저장한다 */
+    linkClick?: MenuLinkClick | null;
     children: MenuNodeDto[];
 }
 
@@ -90,7 +103,7 @@ export interface MenuItemDto extends MenuNodeBase {
     targetType: string;
     /** `BOARD` 의 게시판 ID */
     targetId: string | null;
-    /** `BUILTIN` 의 앱 화면 키(`UtilMenu.BUILTINS`) */
+    /** `BUILTIN` 의 앱 화면 키(`UtilMenu.BUILTINS`) — 화면에서는 `PATH` 와 함께 「사이트 화면」 하나로 보인다 */
     targetKey: string | null;
     /** 유형별 설정 — `PATH`: `{ path, newTab }` · `URL`: `{ href, newTab }` · 그 밖에는 null(모르는 유형은 받은 그대로) */
     settings: Record<string, unknown> | null;

@@ -51,11 +51,22 @@ export interface MenuItemNode {
     description?: string | null;
 }
 
-/** 폴더형 노드 — 이름과 아래 노드들뿐이다(주소 없음) */
+/** 폴더형 노드 — 이름과 아래 노드들, 그리고 이름을 누르면 가는 곳(선택) */
 export interface MenuGroupNode {
     id: string;
     kind: 'GROUP';
     label: string;
+    /**
+     * 그룹 이름을 누르면 가는 곳(운영자가 폴더에 연결을 골랐고 이 사람이 그 대상을 볼 수 있을 때만 서버가 준다 — 서버 `MenuViewComposer.folderLink`, 못 보면 null) — 항목의 `path` 와 같은 모양.
+     * 없으면(null) 이름은 펼치기·접기만 한다. 있으면 이름이 링크이고 펼치기·접기는 옆 화살표가 맡는다(세로 메뉴·상단 드롭다운). 지금 있는 곳 판정에는 쓰지 않는다.
+     */
+    path?: string | null;
+    /** `path` 를 새 탭으로 여는가 */
+    newTab?: boolean;
+    /** 상단 첫 줄 그룹 탭을 누르면 — `NAVIGATE_OPEN` 이동하고 그 그룹 하위 메뉴도 연다(기본) · `NAVIGATE` 이동만(운영자가 폴더에서 고른다) */
+    linkClick?: 'NAVIGATE_OPEN' | 'NAVIGATE';
+    /** 항목의 `extra` 와 같다 — `external: true` 면 외부 링크 아이콘 */
+    extra?: Record<string, unknown> | null;
     /** 선택 영문명 — `label` 의 영문명(없으면 null/없음) */
     nameEn?: string | null;
     /** 세로 메뉴·햄버거에서 제목을 눌러 접을 수 있는가(상단 가로 메뉴는 무시한다) */

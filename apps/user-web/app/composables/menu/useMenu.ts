@@ -81,7 +81,8 @@ export function useMenu() {
                 const parsed = UtilMenu.parse(res);
                 if (!parsed) throw new Error('menu-shape');
                 // 서버 구분선(2026-10-29)이 없는 최상위 노드에만 개발 모드의 `?divider=` 미리보기를 입힌다(운영 빌드는 그대로)
-                serverNodes.value = UtilMenu.withDividerPreview(parsed.nodes);
+                // 그룹 연결도 같다 — 서버 `path` 가 없는 그룹에만 개발 모드의 `?groupLink=` 미리보기
+                serverNodes.value = UtilMenu.withGroupLinkPreview(UtilMenu.withDividerPreview(parsed.nodes));
                 serverTabs.value = parsed.mobileTabs;
                 phase.value = 'ready';
             })

@@ -1,6 +1,7 @@
 <template>
     <!-- 메뉴(세로) — 햄버거(모바일)와 왼쪽·오른쪽 메뉴(데스크톱)가 같은 데이터·같은 모양을 쓴다. 구성은 서버가 준 메뉴 트리 그대로다(`GET /api/menu`, 운영자가 메뉴 구성에서 정한다).
          연속된 최상위 항목(홈·공동구매)은 제목 없는 첫 구역, 최상위 그룹은 제목 있는 구역, 2단계 이하 그룹은 들여쓴 소제목이다(시안 25-menu M-1~M-4).
+         그룹에 「누르면 가는 곳」(`path`)이 있으면 제목 이름이 링크(`AppMenuGroupLabel`)이고 접기는 오른쪽 표시 단추만 맡는다. 없으면 지금처럼 제목 전체가 접기 단추다.
          구성(구역·활성 판정·접힘·상태)은 상단 메뉴(가로, `AppTopMenu`)와 같은 `useMenuItems` 를 쓴다. `scope` 는 그리는 자리 — 햄버거는 전체(`all`), 데스크톱 사이드 메뉴는 배치대로 나눈 몫(`side`, `UtilMenu.split`).
          로딩·빈 메뉴·오류 안내는 이 자리가 맡을 때만(`ownsState`) 그린다 -->
     <nav :aria-label="t('menu.navLabel')" class="text-sm">
@@ -52,8 +53,23 @@
                 <!-- 제목 있는 구역 — 최상위 그룹. 접을 수 있으면 제목이 단추다 -->
                 <section v-else :aria-labelledby="`${uid}-${section.key}`">
                     <h2 :id="`${uid}-${section.key}`" class="px-4 pb-1 pt-4 text-xs font-normal text-muted-color">
+                        <!-- 이름에 연결이 있으면 이름은 링크, 접기는 옆 표시 단추 -->
+                        <span v-if="section.group.path" class="flex w-full items-center justify-between gap-2">
+                            <AppMenuGroupLabel :group="section.group" @click="$emit('navigate')" />
+                            <button
+                                v-if="section.collapsible"
+                                type="button"
+                                class="shrink-0 rounded px-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                                :aria-expanded="!section.collapsed"
+                                :aria-controls="`${uid}-${section.key}-panel`"
+                                :aria-label="UtilMenuMessages.groupButtonLabel(t, localizedName(section.title ?? '', section.titleEn), section.count)"
+                                @click="toggle(section.group!)"
+                            >
+                                <span aria-hidden="true">{{ section.collapsed ? UtilMenuMessages.collapsedMark(section.count) : UtilMenuMessages.EXPANDED_MARK }}</span>
+                            </button>
+                        </span>
                         <button
-                            v-if="section.collapsible"
+                            v-else-if="section.collapsible"
                             type="button"
                             class="flex w-full items-center justify-between gap-2 rounded text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                             :aria-expanded="!section.collapsed"
@@ -70,8 +86,22 @@
                         <template v-for="block in section.blocks" :key="block.key">
                             <!-- 하위 그룹의 소제목 — 들여쓴다. 이 그룹도 접을 수 있게 정했다면 단추다 -->
                             <h3 v-if="block.group" :id="`${uid}-${block.key}`" class="px-4 pb-0.5 pt-2 text-xs font-normal text-muted-color" :style="indent(block.level)">
+                                <span v-if="block.group.path" class="flex w-full items-center justify-between gap-2">
+                                    <AppMenuGroupLabel :group="block.group" @click="$emit('navigate')" />
+                                    <button
+                                        v-if="block.collapsible"
+                                        type="button"
+                                        class="shrink-0 rounded px-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                                        :aria-expanded="!block.collapsed"
+                                        :aria-controls="`${uid}-${block.key}-panel`"
+                                        :aria-label="UtilMenuMessages.groupButtonLabel(t, localizedName(block.group.label, block.group.nameEn), block.count)"
+                                        @click="toggle(block.group!)"
+                                    >
+                                        <span aria-hidden="true">{{ block.collapsed ? UtilMenuMessages.collapsedMark(block.count) : UtilMenuMessages.EXPANDED_MARK }}</span>
+                                    </button>
+                                </span>
                                 <button
-                                    v-if="block.collapsible"
+                                    v-else-if="block.collapsible"
                                     type="button"
                                     class="flex w-full items-center justify-between gap-2 rounded text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                                     :aria-expanded="!block.collapsed"

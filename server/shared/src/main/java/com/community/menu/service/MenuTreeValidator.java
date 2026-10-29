@@ -19,7 +19,10 @@ import org.springframework.stereotype.Component;
  * (칸 경로 {@code nodes[1].children[2].label}, 트리 전체 문제는 {@code nodes}).
  *
  * <ul>
- *   <li>폴더: 이름 필수 · 깊이 ≤ 3({@code kind}) · 자동 추가는 {@code SIDE} 그룹만({@code autoAdd}). 접힌 채 시작은 접기를 켰을 때만 남긴다.</li>
+ *   <li>폴더: 이름 필수 · 깊이 ≤ 3({@code kind}) · 자동 추가는 {@code SIDE} 그룹만({@code autoAdd}). 접힌 채 시작은 접기를 켰을 때만 남긴다.
+ *       선택 연결({@code targetType} 이 비면 연결 없음 — 연결 칸과 {@code linkClick} 을 버린다)은 항목과 같은 리졸버 정리·검사를 거치되
+ *       「그룹 안에서 한 번」 중복 규칙에 세지 않고 로그인 필요 화면의 보이는 대상 규칙도 걸지 않는다. 화면이 모르는 유형은 400({@code targetType}),
+ *       {@code linkClick} 은 빠지면 {@code NAVIGATE_OPEN}, 목록 밖은 400({@code linkClick}).</li>
  *   <li>항목: 하위 노드 금지({@code children}) · 깊이 ≤ 4({@code kind}) · 모바일 탭은 {@code SIDE} 그룹만({@code mobileTab}) · 유형별 검사는 리졸버
  *       (이름 필수 여부·대상·주소·로그인 필요 화면의 보이는 대상) · 게시판·앱 화면은 그룹 안에서 한 번.
  *       모르는 유형은 유형 코드 모양·이름 길이만 보고 나머지 칸은 받은 그대로 보존한다.</li>
@@ -142,13 +145,52 @@ public class MenuTreeValidator {
             if (node.autoAdd() && !side) {
                 fieldErrors.add("autoAdd", new MessageRef("menu.autoAdd.side"));
             }
+            MenuNode link = folderLink(node, path, audience, fieldErrors);
+            String linkClick = null;
+            if (link != null) {
+                linkClick = node.linkClick() == null ? MenuNode.LINK_CLICK_NAVIGATE_OPEN : node.linkClick();
+                if (!MenuLimits.LINK_CLICKS.contains(linkClick)) {
+                    fieldErrors.add("linkClick", new MessageRef("siteThemeMenu.choice"));
+                }
+            }
             List<MenuNode> children = nodes(node.children(), path + ".children", depth + 1);
             MenuNode folder = new MenuNode(node.id(), MenuNode.FOLDER, label, nameEn, node.visible(), audience, minGrade, node.collapsible(),
-                    node.collapsible() && node.collapsed(), side && node.autoAdd(), null, null, null, null, false, children, divider, null);
+                    node.collapsible() && node.collapsed(), side && node.autoAdd(), link == null ? null : link.targetType(),
+                    link == null ? null : link.targetId(), link == null ? null : link.targetKey(), link == null ? null : link.settings(), false, children,
+                    divider, null, linkClick);
             if (folder.autoAdd()) {
                 autoAddFolders.add(folder);
             }
             return folder;
+        }
+
+        /**
+         * 폴더의 선택 연결 — 항목과 같은 리졸버로 정리·검사하고 정리한 연결 칸(유형·ID·키·설정)을 가진 노드를 돌려준다. 연결이 없으면 null.
+         * 「그룹 안에서 한 번」 중복에 세지 않고, 리졸버가 거는 보이는 대상 문제({@code audience} — 로그인 필요 화면)는 폴더에 걸지 않는다.
+         */
+        private MenuNode folderLink(MenuNode node, String path, String audience, MenuFieldErrors fieldErrors) {
+            String type = MenuRules.stripToNull(node.targetType());
+            if (type == null) {
+                return null;
+            }
+            MenuTargetResolver resolver = registry.find(type).orElse(null);
+            if (resolver == null) {
+                // 폴더 연결은 화면이 아는 유형만 저장한다(모르는 유형 보존은 항목만)
+                fieldErrors.add("targetType", new MessageRef("menu.target.type"));
+                return null;
+            }
+            MenuNode base = new MenuNode(node.id(), MenuNode.ITEM, null, null, true, audience, null, false, false, false, type, node.targetId(),
+                    node.targetKey(), node.settings(), false, List.of());
+            MenuNode link = resolver.normalize(base);
+            Map<String, MessageRef> found = new LinkedHashMap<>();
+            resolver.validate(link, context, new MenuFieldErrors(path, found));
+            String audienceField = path + ".audience";
+            found.forEach((field, message) -> {
+                if (!field.equals(audienceField)) {
+                    errors.putIfAbsent(field, message);
+                }
+            });
+            return link;
         }
 
         private MenuNode item(MenuNode node, int depth, MenuFieldErrors fieldErrors, String label, String nameEn, String audience, String minGrade) {

@@ -47,6 +47,9 @@ public class MenuNodeEntity {
     /** 항목 설명(메뉴 설명 줄) — 폴더·없음은 null(V105) */
     private String description;
 
+    /** 연결이 있는 폴더의 상단 탭 동작 NAVIGATE_OPEN · NAVIGATE — 항목·연결 없는 폴더는 null(V107) */
+    private String linkClick;
+
     protected MenuNodeEntity() {
     }
 
@@ -73,13 +76,14 @@ public class MenuNodeEntity {
         entity.mobileTab = node.mobileTab();
         entity.divider = node.divider();
         entity.description = node.isItem() ? node.description() : null;
+        entity.linkClick = node.hasFolderLink() ? node.linkClick() : null;
         return entity;
     }
 
     /** 저장 형태 → 노드(하위 없음) */
     public MenuNode toNode() {
         return new MenuNode(id, kind, label, nameEn, visible, audience, minGrade, collapsible, collapsed, autoAdd, targetType, targetId, targetKey,
-                MenuSettingsJson.read(settings), mobileTab, java.util.List.of(), divider, description);
+                MenuSettingsJson.read(settings), mobileTab, java.util.List.of(), divider, description, linkClick);
     }
 
     public Long getId() {

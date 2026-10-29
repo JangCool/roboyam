@@ -1,7 +1,23 @@
 <template>
     <!-- 상단 가로 메뉴 안의 하위 그룹 — 제목 단추를 누르면 항목이 드롭다운으로 펼쳐진다. 안에 지금 있는 곳이 있으면 이 단추도 활성(아래 줄)이다.
+         그룹에 「누르면 가는 곳」(`path`)이 있으면 제목 이름은 링크이고 드롭다운은 옆 화살표 단추가 연다.
          가로 줄(`overflow-x-auto`) 안에 두면 드롭다운이 잘리므로 PrimeVue `Popover` 가 본문으로 띄운다 — 바깥 누르기·Esc 로 닫히고 키보드로 열고 닫는다 -->
+    <!-- 「누르면 가는 곳」이 있는 그룹 — 이름은 링크, 옆 화살표 단추가 드롭다운을 연다(칸 모양·활성 표시는 감싼 칸이 그대로 갖는다) -->
+    <span v-if="entry.group.path" :class="buttonClass || UtilMenu.barItemClass(entry.active)" :data-active="entry.active ? 'true' : undefined" :data-testid="`top-menu-dropdown-${entry.key}`">
+        <AppMenuGroupLabel :group="entry.group" />
+        <button
+            type="button"
+            class="-mr-1 rounded px-1 focus-visible:outline-2 focus-visible:outline-primary"
+            aria-haspopup="true"
+            :aria-expanded="open"
+            :aria-label="t('menu.openSubmenu', { name: localizedName(entry.group.label, entry.group.nameEn) })"
+            @click="toggle"
+        >
+            <i class="pi pi-angle-down text-xs" :class="open ? 'rotate-180' : ''" aria-hidden="true" />
+        </button>
+    </span>
     <button
+        v-else
         type="button"
         :class="buttonClass || UtilMenu.barItemClass(entry.active)"
         :data-active="entry.active ? 'true' : undefined"

@@ -86,6 +86,8 @@ export type MenuBarEntry =
 /** 상단 가로 막대의 구역 하나 — 제목 + 직속 칸들(왼쪽에 구분선) */
 export interface MenuBarSection {
     key: string;
+    /** 제목이 된 최상위 그룹(제목 이름을 누르면 가는 곳 `path` 가 여기 있다) — 제목 없는 구역이면 null */
+    group: MenuGroupNode | null;
     title: string | null;
     /** 제목의 영문명 — 없으면 null */
     titleEn: string | null;
@@ -179,6 +181,23 @@ function readDividerPreview(text: string | null): Map<string, MenuDivider> | nul
     return map.size ? map : null;
 }
 
+/** 개발 미리보기 `?groupLink=이름:/주소,…` 를 이 탭에 기억하는 저장 키 */
+const GROUP_LINK_PREVIEW_KEY = 'roboyam:menu-group-link-preview';
+
+/** `이름:/주소` 쉼표 목록(주소 끝 `!` = 이동만) → 이름 → 주소(사이트 안 주소만). 읽을 수 없으면 null */
+function readGroupLinkPreview(text: string | null): Map<string, string> | null {
+    if (!text) return null;
+    const map = new Map<string, string>();
+    for (const part of text.split(',')) {
+        const at = part.indexOf(':');
+        if (at < 1) continue;
+        const name = part.slice(0, at).trim();
+        const path = part.slice(at + 1).trim();
+        if (name && path.startsWith('/') && !path.startsWith('//')) map.set(name, path);
+    }
+    return map.size ? map : null;
+}
+
 function readNode(raw: unknown, depth: number): MenuNode | null {
     if (!isRecord(raw) || typeof raw.id !== 'string' || raw.id === '' || typeof raw.label !== 'string' || raw.label === '') return null;
     if (raw.kind === 'GROUP') {
@@ -187,7 +206,22 @@ function readNode(raw: unknown, depth: number): MenuNode | null {
         // 보이는 항목이 하나도 없는 그룹은 뺀다 — 서버도 같은 규칙으로 빼지만, 읽다가 항목이 빠진 그룹이 제목만 남지 않게 한다
         if (children.length === 0) return null;
         const collapsible = raw.collapsible === true;
-        return { id: raw.id, kind: 'GROUP', label: raw.label, nameEn: readNameEn(raw), collapsible, collapsed: collapsible && raw.collapsed === true, divider: readDivider(raw), children };
+        // 이름을 누르면 가는 곳 — 그릴 수 없는 주소면 연결 없는 그룹으로 읽는다
+        const path = typeof raw.path === 'string' && isUsablePath(raw.path) ? raw.path : null;
+        return {
+            id: raw.id,
+            kind: 'GROUP',
+            label: raw.label,
+            nameEn: readNameEn(raw),
+            path,
+            newTab: path !== null && raw.newTab === true,
+            linkClick: raw.linkClick === 'NAVIGATE' ? 'NAVIGATE' : 'NAVIGATE_OPEN',
+            extra: path !== null && isRecord(raw.extra) ? raw.extra : null,
+            collapsible,
+            collapsed: collapsible && raw.collapsed === true,
+            divider: readDivider(raw),
+            children,
+        };
     }
     if (raw.kind === 'ITEM') {
         if (typeof raw.path !== 'string' || !isUsablePath(raw.path)) return null;
@@ -391,6 +425,35 @@ export default class UtilMenu {
         if (!map) return nodes;
         const preview = map;
         return nodes.map((node) => (node.divider || !preview.has(node.label) ? node : { ...node, divider: preview.get(node.label)! }));
+    }
+
+    /**
+     * 개발 모드 전용 그룹 연결 미리보기(서버 칸이 생기기 전 화면 확인용) — 주소 `?groupLink=소모임:/groups,주제:/boards!`(그룹 이름:주소, 끝 `!` 는 「이동만」)를 이 탭에 기억하고 그 이름의 그룹(어느 단계든)에 `path` 를 입힌다.
+     * 서버가 `path` 를 주면 서버 값이 이긴다. 운영 빌드에서는 그대로 돌려준다. 저장소가 막혀 있으면 미리보기 없이.
+     * @param {MenuNode[]} nodes - 읽은 메뉴 트리.
+     * @returns {MenuNode[]} 연결을 입힌 트리.
+     */
+    static withGroupLinkPreview(nodes: MenuNode[]): MenuNode[] {
+        if (!import.meta.dev) return nodes;
+        let map: Map<string, string> | null = null;
+        try {
+            const fromUrl = new URLSearchParams(window.location.search).get('groupLink');
+            if (fromUrl !== null) window.sessionStorage.setItem(GROUP_LINK_PREVIEW_KEY, fromUrl);
+            map = readGroupLinkPreview(fromUrl ?? window.sessionStorage.getItem(GROUP_LINK_PREVIEW_KEY));
+        } catch {
+            return nodes;
+        }
+        if (!map) return nodes;
+        const preview = map;
+        const walk = (list: MenuNode[]): MenuNode[] =>
+            list.map((node) => {
+                if (node.kind !== 'GROUP') return node;
+                if (node.path || !preview.has(node.label)) return { ...node, children: walk(node.children) };
+                const raw = preview.get(node.label)!;
+                const only = raw.endsWith('!');
+                return { ...node, path: only ? raw.slice(0, -1) : raw, linkClick: only ? 'NAVIGATE' : 'NAVIGATE_OPEN', children: walk(node.children) };
+            });
+        return walk(nodes);
     }
 
     /**
@@ -632,8 +695,8 @@ export default class UtilMenu {
             return entries;
         };
         return splitTop(nodes).map((part, index) => {
-            if ('run' in part) return { key: `top-${index}-${part.run[0]!.id}`, title: null, titleEn: null, entries: entriesOf(part.run) };
-            return { key: part.group.id, title: part.group.label, titleEn: part.group.nameEn ?? null, entries: entriesOf(part.group.children) };
+            if ('run' in part) return { key: `top-${index}-${part.run[0]!.id}`, group: null, title: null, titleEn: null, entries: entriesOf(part.run) };
+            return { key: part.group.id, group: part.group, title: part.group.label, titleEn: part.group.nameEn ?? null, entries: entriesOf(part.group.children) };
         });
     }
 

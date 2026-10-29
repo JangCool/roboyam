@@ -30,8 +30,8 @@ import UtilMenu from '~/utils/util-menu';
 const { t } = useI18n();
 
 interface Props {
-    /** 서버가 준 메뉴 항목 */
-    node: MenuItemNode;
+    /** 서버가 준 메뉴 항목 — 또는 연결이 있는 그룹의 같은 칸(`AppMenuGroupLabel` 이 `path` 를 확인하고 넘긴다) */
+    node: Pick<MenuItemNode, 'path' | 'newTab' | 'extra'>;
 }
 
 const props = withDefaults(defineProps<Props>(), {});

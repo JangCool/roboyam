@@ -26,6 +26,7 @@ import org.springframework.stereotype.Component;
  *   <li>보이는 대상({@code audience}) — {@link #audienceAllows}.</li>
  *   <li>항목은 리졸버가 해석한다 — 모르는 유형·대상 없음·꺼진 게시판·판매 꺼짐·로그인 필요 화면을 비로그인이 봄이면 빠진다.</li>
  *   <li>빈 폴더 제거(아래에서 위로).</li>
+ *   <li>남은 폴더에 연결이 있으면 같은 리졸버로 해석해 보일 때만 {@code path}·{@code newTab}·{@code extra}·{@code linkClick} 을 싣는다(연결이 빈 폴더를 살리지 않는다).</li>
  * </ol>
  * 모바일 탭은 {@code SIDE} 그룹에서만, 남은 항목 중 깊이 우선 차례로 최대 10개다.
  */
@@ -75,8 +76,11 @@ public class MenuViewComposer {
             if (node.isFolder()) {
                 List<MenuNodeView> children = filter(node.children(), side, context, tabs);
                 if (!children.isEmpty()) {
-                    out.add(MenuGroupNodeView.of(idOf(node), node.label() == null ? "" : node.label(), node.nameEn(), node.collapsible(),
-                            node.collapsible() && node.collapsed(), node.divider(), children));
+                    MenuGroupNodeView group = MenuGroupNodeView.of(idOf(node), node.label() == null ? "" : node.label(), node.nameEn(), node.collapsible(),
+                            node.collapsible() && node.collapsed(), node.divider(), children);
+                    ResolvedTarget link = folderLink(node, context);
+                    out.add(link == null ? group : group.withLink(link.path(), link.newTab(), link.extra(),
+                            node.linkClick() == null ? MenuNode.LINK_CLICK_NAVIGATE_OPEN : node.linkClick()));
                 }
                 continue;
             }
@@ -100,6 +104,18 @@ public class MenuViewComposer {
                     boardView, target.extra(), node.divider(), node.description()));
         }
         return out;
+    }
+
+    /**
+     * 폴더 연결이 이 사람에게 항목이었다면 보였을 대상 — 항목과 같은 리졸버 판정(모르는 유형·대상 없음·꺼진 게시판·판매 꺼짐·로그인 필요 화면을 비로그인이 봄이면 null).
+     * 폴더가 남을지는 연결과 상관없이 하위 노드가 정한다.
+     */
+    private ResolvedTarget folderLink(MenuNode folder, MenuResolveContext context) {
+        if (!folder.hasFolderLink()) {
+            return null;
+        }
+        MenuTargetResolver resolver = registry.find(folder.targetType()).orElse(null);
+        return resolver == null ? null : resolver.resolve(folder, context);
     }
 
     private static String idOf(MenuNode node) {

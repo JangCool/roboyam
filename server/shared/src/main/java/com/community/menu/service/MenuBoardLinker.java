@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li>만들기: {@code main} 그룹의 자동 추가 폴더 끝에 그 게시판 항목을 넣는다(이름 비움 = 게시판 이름, 모두에게 보임). 폴더가 없거나 노드 한도(80)면 넣지 않는다.
  *       관리자 「만들기」와 설치 프리셋이 같은 길({@code BoardCreator})로 온다.</li>
- *   <li>지우기: 그 게시판을 가리키는 항목을 모든 그룹에서 지운다.</li>
+ *   <li>지우기: 그 게시판을 가리키는 항목을 모든 그룹에서 지운다. 그 게시판에 연결된 <b>폴더는 지우지 않고</b>(하위가 CASCADE 로 사라진다) 연결만 비운다.</li>
  *   <li>트리가 바뀐 그룹은 행을 잠그고 버전을 올린다 — 그사이 메뉴 화면을 열어 둔 운영자의 저장은 409 {@code MENU_VERSION_CONFLICT} 가 된다.</li>
  * </ul>
  */
@@ -66,7 +66,7 @@ public class MenuBoardLinker {
         return true;
     }
 
-    /** 이 게시판을 가리키는 항목을 모든 그룹에서 지운다. 바뀐 그룹 키 */
+    /** 이 게시판을 가리키는 항목을 모든 그룹에서 지우고, 이 게시판에 연결된 폴더는 연결만 비운다. 바뀐 그룹 키 */
     @Transactional(propagation = Propagation.MANDATORY)
     public List<String> boardDeleted(long boardId, Instant now) {
         List<String> keys = nodeQueries.setKeysLinkingBoard(boardId);
@@ -75,6 +75,7 @@ public class MenuBoardLinker {
         }
         if (!keys.isEmpty()) {
             nodeQueries.deleteBoardItems(boardId);
+            nodeQueries.clearBoardFolderLinks(boardId);
         }
         return keys;
     }

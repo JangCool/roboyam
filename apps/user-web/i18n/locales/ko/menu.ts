@@ -7,6 +7,7 @@ export default {
     // 접근성 이름(스크린리더)
     navLabel: '전체 메뉴',
     externalLabel: '(외부 링크)',
+    openSubmenu: '「{name}」 하위 메뉴 열기',
     tabsLabel: '게시판 탭',
     loadingLabel: '메뉴를 불러오는 중',
     groupButtonLabel: '{title}, 항목 {count}개',

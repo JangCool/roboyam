@@ -21,7 +21,11 @@
                         class="flex shrink-0 items-end"
                         :class="index > 0 ? 'ml-5' : ''"
                     >
-                        <h2 v-if="section.title" :id="`${uid}-${section.key}`" class="m-0 self-center pr-1 text-xs font-normal text-muted-color">{{ localizedName(section.title, section.titleEn) }}</h2>
+                        <!-- 그룹 이름 — 「누르면 가는 곳」이 있으면 링크 -->
+                        <h2 v-if="section.title" :id="`${uid}-${section.key}`" class="m-0 self-center pr-1 text-xs font-normal text-muted-color">
+                            <AppMenuGroupLabel v-if="section.group" :group="section.group" />
+                            <template v-else>{{ localizedName(section.title, section.titleEn) }}</template>
+                        </h2>
                         <ul class="m-0 flex list-none items-end gap-1.5 p-0">
                             <li v-for="entry in section.entries" :key="entry.key">
                                 <AppMenuLink

@@ -24,6 +24,16 @@
                     >
                         {{ localizedName(tab.row.node.label, tab.row.node.nameEn) }}
                     </AppMenuLink>
+                    <!-- 그룹에 「누르면 가는 곳」이 있으면 링크 — 그곳으로 가고, 간 뒤에도 둘째 줄을 이 그룹으로 연다 -->
+                    <AppMenuLink
+                        v-else-if="tab.group?.path"
+                        :node="{ path: tab.group.path, newTab: tab.group.newTab === true, extra: tab.group.extra ?? null }"
+                        :data-active="tab.key === underlineKey ? 'true' : undefined"
+                        :class="tabClass(tab.key === underlineKey)"
+                        @click="afterNavigate(tab.group, () => sidePick.open(tab.key))"
+                    >
+                        {{ localizedName(tab.title, tab.titleEn) }}
+                    </AppMenuLink>
                     <button
                         v-else
                         type="button"
@@ -59,7 +69,11 @@
                 class="flex shrink-0 items-center"
                 :class="index > 0 ? 'ml-1 border-l border-hairline pl-1' : ''"
             >
-                <h2 :id="`${rowId}-${group.key}`" class="m-0 shrink-0 pl-2 pr-1 text-xs font-normal text-muted-color">{{ localizedName(group.title, group.titleEn) }}</h2>
+                <!-- 그룹 이름 — 「누르면 가는 곳」이 있으면 링크(첫 줄 그룹 단추는 둘째 줄을 바꾸는 일만 한다) -->
+                <h2 :id="`${rowId}-${group.key}`" class="m-0 shrink-0 pl-2 pr-1 text-xs font-normal text-muted-color">
+                    <AppMenuGroupLabel v-if="group.group" :group="group.group" />
+                    <template v-else>{{ localizedName(group.title, group.titleEn) }}</template>
+                </h2>
                 <ul class="m-0 flex list-none items-center p-0">
                     <li v-for="row in group.items" :key="row.key">
                         <AppMenuLink
@@ -79,18 +93,20 @@
 </template>
 
 <script setup lang="ts">
-import type { MenuDivider } from '~/composables/menu/api/useMenuApi.types';
+import type { MenuDivider, MenuGroupNode } from '~/composables/menu/api/useMenuApi.types';
 import type { MenuBarSection, MenuItemRow, MenuSection } from '~/utils/util-menu';
 import UtilBoard from '~/utils/util-board';
 
 /** 첫 줄 칸 — 최상위 항목(링크) 또는 사이드 몫 그룹(고르는 단추) */
 type FirstTab =
     | { kind: 'item'; key: string; row: MenuItemRow; divider: MenuDivider | null }
-    | { kind: 'group'; key: string; title: string; titleEn: string | null; divider: MenuDivider | null };
+    | { kind: 'group'; key: string; group: MenuGroupNode | null; title: string; titleEn: string | null; divider: MenuDivider | null };
 
 /** 둘째 줄의 그룹 하나 — 이름과 평평하게 편 칸 */
 interface SecondGroup {
     key: string;
+    /** 그 그룹 노드 — 이름을 누르면 가는 곳(`path`)이 여기 있다 */
+    group: MenuGroupNode | null;
     title: string;
     titleEn: string | null;
     items: MenuItemRow[];
@@ -103,6 +119,8 @@ const { bar: allBar, state, activeId, reload } = useMenuItems();
 const { bar: barSections } = useMenuItems('bar');
 // 사이드 몫 그룹(커뮤니티·소모임 …)과 고른 그룹 — 데스크톱 사이드와 같은 상태
 const sidePick = useSideGroupPick();
+/** 연결이 있는 그룹 칸 — 이동한 뒤 그 그룹을 둘째 줄에 연다 */
+const { afterNavigate } = useAfterMenuNavigate();
 /** 지금 있는 최상위 항목(인기글·최신글·공지 …)의 설명 — 설명 줄이 켜져 있고(운영자 설정 「메뉴 설명 줄」 > 테마 기본, `useMenuStyle`) 고른 그룹이 없으면 둘째 줄이 주제 대신 이것 */
 const { description: menuDesc } = useMenuDescription();
 const { menuDescription: showDesc } = useMenuStyle();
@@ -125,7 +143,7 @@ const tabs = computed<FirstTab[]>(() => {
         .flatMap<FirstTab>((section) =>
             section.entries.flatMap<FirstTab>((entry) => (entry.kind === 'item' ? [{ kind: 'item', key: entry.key, row: entry.row, divider: entry.row.node.divider ?? null }] : [])),
         );
-    const groups = sidePick.groups.value.map<FirstTab>((section) => ({ kind: 'group', key: section.key, title: section.title ?? '', titleEn: section.titleEn, divider: groupDivider(section.key) }));
+    const groups = sidePick.groups.value.map<FirstTab>((section) => ({ kind: 'group', key: section.key, group: section.group, title: section.title ?? '', titleEn: section.titleEn, divider: groupDivider(section.key) }));
     return [...items, ...groups];
 });
 
@@ -141,6 +159,7 @@ const underlineKey = computed<string | null>(
 function fromBar(section: MenuBarSection): SecondGroup {
     return {
         key: section.key,
+        group: section.group,
         title: section.title ?? '',
         titleEn: section.titleEn,
         items: section.entries.flatMap((entry) => (entry.kind === 'item' ? [entry.row] : entry.blocks.flatMap((block) => block.items))),
@@ -149,7 +168,7 @@ function fromBar(section: MenuBarSection): SecondGroup {
 
 /** 세로 구역(사이드 그룹) → 둘째 줄 그룹 */
 function fromSide(section: MenuSection): SecondGroup {
-    return { key: section.key, title: section.title ?? '', titleEn: section.titleEn, items: section.blocks.flatMap((block) => block.items) };
+    return { key: section.key, group: section.group, title: section.title ?? '', titleEn: section.titleEn, items: section.blocks.flatMap((block) => block.items) };
 }
 
 /** 둘째 줄 — 고른 사이드 그룹(커뮤니티·소모임)이 있으면 그 그룹 하나, 없으면 상단 띠 그룹(주제 …) 모두 */

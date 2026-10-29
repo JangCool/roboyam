@@ -2,6 +2,7 @@
     <!--
         다음식 메뉴 카드(데스크톱 전용) — 흰 카드 안에 두 줄.
           GNB(높이 70): 최상위 항목(홈·공동구매 …)은 링크 탭, 최상위 그룹은 이름 탭(단추). 그룹 탭을 누르면 그 그룹을 "고른 그룹"으로 만들어 아래 LNB 에 직속 칸을 보인다(이동하지 않는다).
+            운영자가 그 폴더에 「누르면 가는 곳」을 골랐으면(`group.path`) 그룹 탭은 링크다 — 그곳으로 가고, 간 뒤에도 그 그룹을 연다(`useAfterMenuNavigate`). 사이드 그룹 탭도 같다.
           LNB(높이 55): 고른 그룹의 직속 항목 + 하위 그룹 드롭다운(`AppTopMenuDropdown`). 고른 그룹이 없으면 줄 자체가 없다.
           `inlineGroups`(운영자 설정 「상단 메뉴 그룹 표시」 > 테마 기본, 로보얌 기본): GNB 는 최상위 항목만, LNB 에 막대 몫의 그룹을 모두 「그룹 이름(작은 글자) + 칸」으로 이어 놓는다(고르는 단추 없음, 사용자 결정 2026-10-28).
           모양 값(`inlineGroups`·`sideTabs`·`compact`·`description`)은 셸이 `useMenuStyle` 로 해석해 넘긴다 — 이 부품은 테마 선언을 읽지 않는다.
@@ -19,7 +20,19 @@
                 <ul v-if="showEntries" class="m-0 flex list-none items-center p-0">
                     <!-- 사이드 그룹 탭(`sideTabs`, 로보얌) — 최상위 항목 뒤에 이어 놓고, 누르면 그 그룹만 사이드 칸에 보인다(다시 누르면 닫는다) -->
                     <li v-for="group in sideTabs ? sidePick.groups.value : []" :key="`side-${group.key}`" class="order-last" :class="UtilMenu.dividerClass(group.group?.divider)">
+                        <!-- 그룹에 「누르면 가는 곳」이 있으면 탭은 링크 — 그곳으로 가고, 간 뒤에도 이 그룹을 사이드 칸에 연다 -->
+                        <AppMenuLink
+                            v-if="group.group?.path"
+                            :node="{ path: group.group.path, newTab: group.group.newTab === true, extra: group.group.extra ?? null }"
+                            :class="gnbClass(group.key === underlineKey)"
+                            :data-active="group.key === underlineKey ? 'true' : undefined"
+                            :data-testid="`daum-menu-side-${group.key}`"
+                            @click="afterNavigate(group.group, () => sidePick.open(group.key))"
+                        >
+                            <span :class="gnbLabelClass(group.key === underlineKey)">{{ localizedName(group.title ?? '', group.titleEn) }}</span>
+                        </AppMenuLink>
                         <button
+                            v-else
                             type="button"
                             class="cursor-pointer"
                             :class="gnbClass(group.key === underlineKey)"
@@ -42,6 +55,17 @@
                         >
                             <i v-if="tab.row.color" class="inline-block size-2 shrink-0 rounded-full" :style="UtilBoard.dotStyle(tab.row.color)" aria-hidden="true" data-testid="menu-dot-color" />
                             <span :class="gnbLabelClass(tab.key === underlineKey)">{{ localizedName(tab.row.node.label, tab.row.node.nameEn) }}</span>
+                        </AppMenuLink>
+                        <!-- 그룹 이름 탭 — 「누르면 가는 곳」이 있으면 링크(간 뒤에도 이 그룹을 LNB 에 연다), 없으면 고르기 단추 -->
+                        <AppMenuLink
+                            v-else-if="tab.section.group?.path"
+                            :node="{ path: tab.section.group.path, newTab: tab.section.group.newTab === true, extra: tab.section.group.extra ?? null }"
+                            :class="gnbClass(tab.key === activeTabKey || tab.key === selectedKey)"
+                            :data-active="tab.key === activeTabKey ? 'true' : undefined"
+                            :data-testid="`daum-menu-group-${tab.key}`"
+                            @click="afterNavigate(tab.section.group, () => (selectedKey = tab.key))"
+                        >
+                            <span :class="gnbLabelClass(tab.key === activeTabKey)">{{ localizedName(tab.section.title, tab.section.titleEn) }}</span>
                         </AppMenuLink>
                         <button
                             v-else
@@ -86,7 +110,10 @@
                         class="flex shrink-0 items-center"
                         :class="index > 0 ? 'ml-2 border-l border-hairline pl-2' : ''"
                     >
-                        <h2 :id="`${lnbId}-${section.key}`" class="m-0 pl-4 pr-0.5 text-xs font-normal text-muted-color">{{ localizedName(section.title, section.titleEn) }}</h2>
+                        <h2 :id="`${lnbId}-${section.key}`" class="m-0 pl-4 pr-0.5 text-xs font-normal text-muted-color">
+                            <AppMenuGroupLabel v-if="section.group" :group="section.group" />
+                            <template v-else>{{ localizedName(section.title, section.titleEn) }}</template>
+                        </h2>
                         <ul class="m-0 flex list-none items-center p-0">
                             <li v-for="entry in section.entries" :key="entry.key">
                                 <AppMenuLink
@@ -165,6 +192,8 @@ const props = withDefaults(defineProps<Props>(), { full: false, inlineGroups: fa
 
 /** 사이드 그룹 고르기 — 사이드 칸(`AppSideMenu`)과 같은 상태 */
 const sidePick = useSideGroupPick();
+/** 연결이 있는 그룹 탭 — 이동한 뒤 그 그룹을 연다 */
+const { afterNavigate } = useAfterMenuNavigate();
 /** 지금 있는 최상위 항목(인기글·최신글·공지 …)의 설명 — 설명 줄이 켜져 있으면(`description`) 둘째 줄이 이것 */
 const { description: menuDesc } = useMenuDescription();
 /** 설명 줄 자리에 놓을 설명 — 꺼져 있거나 최상위 항목이 아니면 null */

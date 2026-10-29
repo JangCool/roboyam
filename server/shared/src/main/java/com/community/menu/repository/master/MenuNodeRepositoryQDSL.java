@@ -13,6 +13,8 @@ import org.springframework.stereotype.Repository;
 public class MenuNodeRepositoryQDSL extends RoboyamRepositoryQDSL {
 
     private static final String BOARD = "BOARD";
+    private static final String ITEM = "ITEM";
+    private static final String FOLDER = "FOLDER";
 
     public MenuNodeRepositoryQDSL(JPAQueryFactory query) {
         super(query);
@@ -52,10 +54,17 @@ public class MenuNodeRepositoryQDSL extends RoboyamRepositoryQDSL {
                 .orderBy(node.setKey.asc()).fetch();
     }
 
-    /** 이 게시판을 가리키는 항목을 모든 그룹에서 지운다 */
+    /** 이 게시판을 가리키는 <b>항목</b>을 모든 그룹에서 지운다(폴더는 지우지 않는다 — 하위가 CASCADE 로 사라진다) */
     public long deleteBoardItems(long boardId) {
         QMenuNodeEntity node = QMenuNodeEntity.menuNodeEntity;
-        return query.delete(node).where(node.targetType.eq(BOARD), node.targetId.eq(Long.toString(boardId))).execute();
+        return query.delete(node).where(node.kind.eq(ITEM), node.targetType.eq(BOARD), node.targetId.eq(Long.toString(boardId))).execute();
+    }
+
+    /** 이 게시판에 연결된 폴더의 연결을 모든 그룹에서 비운다(유형·ID·키·설정·탭 동작). 바뀐 행 수 */
+    public long clearBoardFolderLinks(long boardId) {
+        QMenuNodeEntity node = QMenuNodeEntity.menuNodeEntity;
+        return query.update(node).setNull(node.targetType).setNull(node.targetId).setNull(node.targetKey).setNull(node.settings).setNull(node.linkClick)
+                .where(node.kind.eq(FOLDER), node.targetType.eq(BOARD), node.targetId.eq(Long.toString(boardId))).execute();
     }
 
     /** {@code SIDE} 전용 칸(모바일 탭·자동 추가)을 끈다 — 그룹의 위치가 {@code SIDE} 에서 바뀔 때. 바뀐 행 수 */
