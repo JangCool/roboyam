@@ -26,6 +26,7 @@ export default {
     emptyText: 'Buyers can write a review from My orders after delivery.',
     emptyPhoto: 'No photo reviews',
     roundBought: 'Bought in round {n}',
+    boughtOption: 'Option: {sku}',
     withdrawn: 'Former member',
     mine: 'Mine',
     editedMark: 'Edited',

@@ -26,6 +26,7 @@ export default {
     emptyText: '상품을 받은 회원이 내 주문에서 리뷰를 쓸 수 있어요.',
     emptyPhoto: '사진 리뷰가 없어요',
     roundBought: '{n}차 구매',
+    boughtOption: '구매 옵션: {sku}',
     withdrawn: '탈퇴한 회원',
     mine: '내 리뷰',
     editedMark: '수정됨',

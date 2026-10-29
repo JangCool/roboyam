@@ -1,41 +1,49 @@
 <template>
     <!--
         공구 상세의 구매 리뷰 구역 — 계약 「리뷰 규칙」(2b-6, 가정). 같은 상품의 다른 차수 리뷰도 함께(카드마다 「n차 구매」).
-        · 요약: 평균 별점 · 리뷰 수 · 별점 분포(숨긴 리뷰는 세지 않는다 — 서버 값). 보상 없음 안내 한 줄.
-        · 정렬(최신 · 별점 높은 · 낮은 · 사진 먼저) · 「사진 리뷰만」 · 10개씩 「더 보기」.
+        · 요약 상자: 평균 별점·수(왼쪽) | 별점 분포(오른쪽) — 숨긴 리뷰는 세지 않는다(서버 값). 사진 모아보기. 맨 아래 보상 없음 한 줄.
+        · 목록 위 한 줄: 정렬(글자 단추 — 최신 · 별점 높은 · 낮은 · 사진 먼저) | 「사진 리뷰만」. 10개씩 「더 보기」.
         · 내 리뷰: 고치기(30일 안 — 서버 `actions.edit`) · 지우기. 남의 리뷰: 신고(대상 `GROUP_BUY_REVIEW`). 쓰기는 내 주문에서(산 회원만).
         부르는 화면은 로그인 회원이 바뀌면 `:key` 로 이 구역을 새로 그린다.
     -->
-    <section id="reviews" :aria-labelledby="titleId" class="flex flex-col gap-3 rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" data-testid="group-buy-reviews">
-        <h2 :id="titleId" class="m-0 text-sm font-semibold">
-            {{ t('groupBuyReview.title') }}<span v-if="summary" class="ml-1.5 font-normal tabular-nums text-muted-color">{{ t('groupBuyReview.count', { count: summary.count }) }}</span>
-        </h2>
+    <section id="reviews" :aria-labelledby="titleId" class="flex flex-col gap-5 rounded-xl border border-surface bg-surface-0 p-4 sm:p-6 dark:bg-surface-900" data-testid="group-buy-reviews">
+        <div class="flex flex-col gap-1">
+            <h2 :id="titleId" class="m-0 text-base font-semibold">
+                {{ t('groupBuyReview.title') }}<span v-if="summary" class="ml-1.5 font-normal tabular-nums text-muted-color">{{ summary.count }}</span>
+            </h2>
+            <p class="m-0 text-xs text-muted-color">{{ t('groupBuyReview.scopeNote') }}</p>
+        </div>
 
-        <!-- 요약 -->
-        <div v-if="summary && summary.count > 0" class="flex flex-wrap items-center gap-x-6 gap-y-3" data-testid="group-buy-reviews-summary">
-            <div class="flex flex-col items-center gap-1">
-                <span class="text-3xl font-bold tabular-nums" :aria-label="t('groupBuyReview.averageLabel', { value: summary.average ?? 0 })">{{ summary.average?.toFixed(1) }}</span>
-                <GroupBuyStars :value="summary.average ?? 0" size="text-sm" />
+        <!-- 요약 — 평균(왼쪽) | 별점 분포(오른쪽), 한 상자 -->
+        <div v-if="summary && summary.count > 0" class="grid items-center gap-5 rounded-lg bg-surface-50 px-5 py-4 sm:grid-cols-[10rem_minmax(0,1fr)] dark:bg-surface-800/50" data-testid="group-buy-reviews-summary">
+            <div class="flex flex-col items-center gap-1.5 sm:border-r sm:border-surface sm:pr-5">
+                <span class="text-4xl font-bold leading-none tabular-nums" :aria-label="t('groupBuyReview.averageLabel', { value: summary.average ?? 0 })">{{ summary.average?.toFixed(1) }}</span>
+                <GroupBuyStars :value="summary.average ?? 0" size="text-base" />
+                <span class="text-xs tabular-nums text-muted-color">{{ t('groupBuyReview.countShort', { count: summary.count }) }}</span>
             </div>
-            <ul class="m-0 flex min-w-48 flex-1 list-none flex-col gap-1 p-0" :aria-label="t('groupBuyReview.distributionLabel')">
-                <li v-for="star in STARS" :key="star" class="flex items-center gap-2 text-xs">
-                    <span class="w-7 shrink-0 tabular-nums text-muted-color">{{ t('groupBuyReview.distributionRow', { star }) }}</span>
-                    <span class="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700" aria-hidden="true">
-                        <span class="block h-full rounded-full bg-amber-500" :style="{ width: `${percent(summary.distribution[star])}%` }" />
+            <ul class="m-0 flex w-full max-w-sm list-none flex-col gap-1.5 justify-self-center p-0 sm:justify-self-start" :aria-label="t('groupBuyReview.distributionLabel')">
+                <li v-for="star in STARS" :key="star" class="flex items-center gap-2.5 text-xs">
+                    <span class="w-6 shrink-0 tabular-nums text-muted-color">{{ t('groupBuyReview.distributionRow', { star }) }}</span>
+                    <span class="h-1 flex-1 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700" aria-hidden="true">
+                        <span class="block h-full rounded-full bg-amber-400" :style="{ width: `${percent(summary.distribution[star])}%` }" />
                     </span>
-                    <span class="w-8 shrink-0 text-right tabular-nums text-muted-color">{{ summary.distribution[star] }}</span>
+                    <span class="w-6 shrink-0 text-right tabular-nums text-muted-color">{{ summary.distribution[star] }}</span>
                 </li>
             </ul>
         </div>
+
         <!-- 사진 모아보기 — 누르면 「사진 리뷰만」 -->
-        <div v-if="summary && summary.photos.length > 0" class="flex flex-col gap-1.5" data-testid="group-buy-reviews-photos">
-            <span class="text-xs font-medium text-muted-color">{{ t('groupBuyReview.photoStrip', { count: summary.photoCount }) }}</span>
-            <div class="flex gap-2 overflow-x-auto pb-1">
+        <div v-if="summary && summary.photos.length > 0" class="flex flex-col gap-2" data-testid="group-buy-reviews-photos">
+            <div class="flex items-baseline justify-between gap-2">
+                <span class="text-sm font-medium">{{ t('groupBuyReview.photoStrip', { count: summary.photoCount }) }}</span>
+                <button type="button" class="text-xs text-muted-color hover:text-(--p-text-color) hover:underline" @click="changePhotoOnly(true)">{{ t('groupBuyReview.photoStripOpen') }} ›</button>
+            </div>
+            <div class="flex gap-1.5 overflow-x-auto">
                 <button
                     v-for="(p, i) in summary.photos"
                     :key="`${p.reviewId}-${i}`"
                     type="button"
-                    class="size-20 shrink-0 overflow-hidden rounded-lg border border-surface focus-visible:outline-2 focus-visible:outline-primary"
+                    class="size-[4.5rem] shrink-0 overflow-hidden rounded-md bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary dark:bg-surface-800"
                     :aria-label="t('groupBuyReview.photoStripOpen')"
                     @click="changePhotoOnly(true)"
                 >
@@ -43,15 +51,26 @@
                 </button>
             </div>
         </div>
-        <p class="m-0 text-xs text-muted-color"><i class="pi pi-info-circle mr-1 text-xs" aria-hidden="true" />{{ t('groupBuyReview.scopeNote') }} {{ t('groupBuyReview.rewardNote') }}</p>
 
-        <!-- 정렬 · 사진 리뷰만 -->
-        <div v-if="summary && summary.count > 0" class="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <label class="sr-only" :for="sortId">{{ t('groupBuyReview.sortLabel') }}</label>
-            <Select :input-id="sortId" :model-value="sort" :options="sortOptions" option-label="label" option-value="value" size="small" class="w-40" @update:model-value="(v: GroupBuyReviewSort) => changeSort(v)" />
+        <!-- 정렬(글자 단추) · 사진 리뷰만 — 목록 바로 위 한 줄 -->
+        <div v-if="summary && summary.count > 0" class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-surface pb-2.5">
+            <div class="flex flex-wrap items-center text-[13px]" role="group" :aria-label="t('groupBuyReview.sortLabel')">
+                <template v-for="(o, i) in sortOptions" :key="o.value">
+                    <span v-if="i > 0" class="mx-2 h-3 w-px bg-surface-300 dark:bg-surface-600" aria-hidden="true" />
+                    <button
+                        type="button"
+                        class="focus-visible:outline-2 focus-visible:outline-primary"
+                        :class="sort === o.value ? 'font-semibold text-(--p-text-color)' : 'text-muted-color hover:text-(--p-text-color)'"
+                        :aria-pressed="sort === o.value"
+                        @click="changeSort(o.value)"
+                    >
+                        {{ o.label }}
+                    </button>
+                </template>
+            </div>
             <div class="flex items-center gap-1.5">
-                <Checkbox :model-value="photoOnly" binary :input-id="photoId" @update:model-value="(v: boolean) => changePhotoOnly(v)" />
-                <label :for="photoId" class="text-sm">{{ t('groupBuyReview.photoOnly', { count: summary.photoCount }) }}</label>
+                <Checkbox :model-value="photoOnly" binary :input-id="photoId" size="small" @update:model-value="(v: boolean) => changePhotoOnly(v)" />
+                <label :for="photoId" class="text-[13px] text-muted-color">{{ t('groupBuyReview.photoOnly', { count: summary.photoCount }) }}</label>
             </div>
         </div>
 
@@ -60,12 +79,13 @@
         </div>
         <ErrorState v-else-if="status === 'error'" :title="t('groupBuyReview.loadFailed')" :description="loadError" retry @retry="load(false)" />
         <EmptyState v-else-if="items.length === 0" icon="pi pi-star" :title="photoOnly ? t('groupBuyReview.emptyPhoto') : t('groupBuyReview.empty')" :description="photoOnly ? '' : t('groupBuyReview.emptyText')" />
-        <ul v-else class="m-0 flex list-none flex-col divide-y divide-surface p-0" data-testid="group-buy-reviews-list">
-            <li v-for="review in items" :key="review.id" class="py-3 first:pt-0 last:pb-0">
+        <ul v-else class="-mt-2 m-0 flex list-none flex-col divide-y divide-surface p-0" data-testid="group-buy-reviews-list">
+            <li v-for="review in items" :key="review.id" class="py-5 last:pb-0">
                 <GroupBuyReviewCard :review="review" :busy="busyId === review.id" @edit="openEdit(review)" @delete="remove(review)" @report="openReport(review)" />
             </li>
         </ul>
-        <Button v-if="status === 'ready' && page?.hasMore" type="button" :label="t('groupBuyReview.more')" severity="secondary" variant="outlined" size="small" class="self-center" :loading="moreBusy" @click="load(true)" />
+        <Button v-if="status === 'ready' && page?.hasMore" type="button" :label="t('groupBuyReview.more')" severity="secondary" variant="outlined" class="w-full sm:w-auto sm:self-center sm:px-10" :loading="moreBusy" @click="load(true)" />
+        <p class="m-0 text-[11px] text-muted-color">{{ t('groupBuyReview.rewardNote') }}</p>
 
         <GroupBuyReviewDialog
             v-if="editing"
@@ -101,7 +121,6 @@ const api = useGroupBuyReviewApi();
 const toast = useAppToast();
 const { confirm } = useConfirmDialog();
 const titleId = useId();
-const sortId = useId();
 const photoId = useId();
 
 const sortOptions = computed(() => GROUP_BUY_REVIEW_SORTS.map((value) => ({ value, label: t(`groupBuyReview.sort.${value}`) })));
