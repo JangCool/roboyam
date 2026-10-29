@@ -111,6 +111,12 @@
                     <p :id="`${barGroupId}-hint`" class="m-0 text-xs text-muted-color">{{ t('site.barGroupsHint') }}</p>
                 </fieldset>
 
+                <!-- 차례의 주인은 메뉴 관리(사용자 결정 2026-10-29) — 이 설정은 놓을 자리만 정한다 -->
+                <p class="m-0 text-xs text-muted-color" data-testid="site-menu-order-hint">
+                    {{ t('site.menuOrderHint') }}
+                    <NuxtLink to="/menus/public" class="font-medium text-primary underline-offset-2 hover:underline">{{ t('site.menuOrderLink') }}</NuxtLink>
+                </p>
+
                 <Message v-if="layoutFormError" severity="error" variant="simple" size="small">{{ layoutFormError }}</Message>
 
                 <div v-if="canManage" class="flex flex-wrap items-center justify-end gap-2">

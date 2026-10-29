@@ -161,6 +161,8 @@ export default {
     barGroupsHint: '고른 그룹은 상단 메뉴에, 나머지 그룹은 사이드 메뉴에 놓여요. 하나도 고르지 않으면 첫 그룹이 상단에 놓여요.',
     barGroupsEmpty: '공개 메뉴에 그룹이 없어요. 메뉴 관리에서 그룹을 먼저 만들어 주세요.',
     barGroupsNoPermission: '메뉴를 볼 권한이 없어 그룹 목록을 불러올 수 없어요.',
+    menuOrderHint: '메뉴 차례(상단 줄·사이드·모바일 모두)는 메뉴 관리에서 끌어 옮겨 바꿔요. 여기서는 놓을 자리만 정해요.',
+    menuOrderLink: '메뉴 관리로',
     // 소제목 — 메뉴 배치(어디에) · 메뉴 모양(어떻게)
     menuLayoutHeading: '메뉴 배치',
     menuStyleHeading: '메뉴 모양',

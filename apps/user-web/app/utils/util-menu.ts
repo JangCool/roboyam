@@ -624,7 +624,7 @@ export default class UtilMenu {
      * - 최상위 항목(그룹 밖에 놓인 항목 — 홈·인기글 …): `LOGO` 면 로고 옆에만, `MENU` 면 메뉴 안(상단 막대가 있으면 막대, 없으면 사이드).
      * - 최상위 그룹: `ALL` 이면 모두 막대, `NONE` 이면 모두 사이드, 그룹 ID 목록이면 고른 그룹은 막대·나머지는 사이드.
      *   고른 ID 가 비었거나 지금 트리에 없는 ID 뿐이면 **첫 최상위 그룹 하나**를 막대에 둔다.
-     * - 섞인 배치에서 메뉴 안의 최상위 항목은 **막대 맨 앞**에 모은다. `ALL`·`NONE` 은 트리 차례 그대로다.
+     * - 막대는 **언제나 트리 차례 그대로**다(사용자 결정 2026-10-29 — 차례의 주인은 메뉴 관리. 섞인 배치에서도 항목을 앞에 모으지 않는다: 그룹 뒤에 둔 항목은 막대에서도 그룹 뒤).
      * 활성 판정은 나눈 뒤에도 전체 트리 기준이다(`useMenuItems` 가 전체 트리로 `activeId` 를 구한다).
      * @param {readonly MenuNode[]} nodes - 메뉴 트리.
      * @param {MenuLayout} layout - 배치.
@@ -644,7 +644,7 @@ export default class UtilMenu {
         const barIds = new Set(barGroups.map((group) => group.id));
         return {
             logo,
-            bar: [...(layout.topItems === 'MENU' ? items : []), ...barGroups],
+            bar: nodes.filter((node) => (node.kind === 'ITEM' ? layout.topItems === 'MENU' : barIds.has(node.id))),
             side: groups.filter((group) => !barIds.has(group.id)),
         };
     }
