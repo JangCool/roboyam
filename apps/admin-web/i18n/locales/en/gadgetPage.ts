@@ -43,6 +43,5 @@ export default {
 
     seedPopular: '{folder} popular',
     seedLatest: '{folder} latest',
-    seedGallery: '{board} gallery',
     seedAll: 'All',
 };

@@ -165,7 +165,6 @@ const initialRows = computed(() => {
     const body = UtilGadgetPage.initialLayout(folder?.name ?? null, folder?.boards ?? [], {
         popular: (name) => t('gadgetPage.seedPopular', { folder: name }),
         latest: (name) => t('gadgetPage.seedLatest', { folder: name }),
-        gallery: (name) => t('gadgetPage.seedGallery', { board: name }),
         all: t('gadgetPage.seedAll'),
     });
     return body.gadgets.map((g) => ({ id: g.id, type: g.type, title: g.title, w: body.layout.items.find((it) => it.gadgetId === g.id)?.w ?? 0 }));

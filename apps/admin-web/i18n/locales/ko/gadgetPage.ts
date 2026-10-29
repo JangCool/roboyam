@@ -43,6 +43,5 @@ export default {
 
     seedPopular: '{folder} 인기글',
     seedLatest: '{folder} 최신글',
-    seedGallery: '{board} 갤러리',
     seedAll: '전체',
 };
