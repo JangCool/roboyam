@@ -126,6 +126,7 @@ export default {
         READY_CLEANUP: 'Pending cleanup (every 10 min)',
         ADMIN_RECHECK: 'Operator recheck',
     },
+    groupBuyCancelCause: { USER_CANCEL: 'Group buy member cancel', REQUEST: 'Group buy cancel/return request', ADMIN: 'Group buy operator refund', FAILED: 'Group buy failed', CANCELED: 'Group buy stopped', SUPPLY_FAILURE: 'Group buy supply failure', DELAY: 'Group buy delay cancel', RETURN_FEE_REFUND: 'Group buy return fee refund' },
     cancelKind: {
         USER_CANCEL: 'Member cancel',
         REFUND: 'Refund',
@@ -220,7 +221,7 @@ export default {
         webhookId: 'webhook-id {id}',
         secCancels: 'Cancel queue',
         cancelsEmpty: 'No cancel requests.',
-        cancelReason: 'Reason: {reason}',
+        cancelReasonLabel: 'Reason',
         lastError: 'Last error: {error}',
         resolvedLine: 'Handled by {name}: {note}',
         gaveUpHint: 'Retry a failed cancel or mark it handled on the Payment issues screen.',

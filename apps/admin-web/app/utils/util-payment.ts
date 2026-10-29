@@ -1,4 +1,4 @@
-import type { PaymentCancelStatus, PaymentStatus, PaymentWebhookResult, ReconcileDayStatus } from '~/composables/payment/api/usePaymentAdminApi.types';
+import type { PaymentCancelKind, PaymentCancelStatus, PaymentOrderType, PaymentStatus, PaymentWebhookResult, ReconcileDayStatus } from '~/composables/payment/api/usePaymentAdminApi.types';
 import UtilMember from '~/utils/util-member';
 
 /** PrimeVue `Tag` 의 색 */
@@ -27,6 +27,20 @@ export default class UtilPayment {
         if (status === 'GAVE_UP') return 'danger';
         if (status === 'MANUAL') return 'secondary';
         return 'info';
+    }
+
+    /** 취소 종류 색 — 운영자 주황 · 자동 거절 빨강 · 업무 환불 파랑 · 회원 쪽(회원 취소·충전 환불) 회색 */
+    static cancelKindSeverity(kind: PaymentCancelKind): PaymentTagSeverity {
+        if (kind === 'ADMIN') return 'warn';
+        if (kind === 'AUTO_REJECT') return 'danger';
+        if (kind === 'REFUND') return 'info';
+        return 'secondary';
+    }
+
+    static orderTypeSeverity(type: PaymentOrderType): PaymentTagSeverity {
+        if (type === 'GROUP_BUY') return 'info';
+        if (type === 'POINT_CHARGE') return 'success';
+        return 'secondary';
     }
 
     static webhookSeverity(result: PaymentWebhookResult): PaymentTagSeverity {

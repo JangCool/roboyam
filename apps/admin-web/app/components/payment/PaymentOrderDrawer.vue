@@ -45,19 +45,19 @@
                     <div :class="ROW">
                         <dt :class="DT">{{ t('payment.field.member') }}</dt>
                         <dd :class="DD">
-                            <span :class="detail.member.withdrawn ? 'text-muted-color' : ''">{{ detail.member.nickname }}</span>
+                            <span class="font-medium" :class="detail.member.withdrawn ? 'text-muted-color line-through' : ''">{{ detail.member.nickname }}</span>
                             <code v-if="detail.member.id" class="ml-1.5 text-xs tabular-nums text-muted-color">{{ detail.member.id }}</code>
                         </dd>
                     </div>
                     <div :class="ROW">
                         <dt :class="DT">{{ t('payment.field.order') }}</dt>
-                        <dd :class="DD">
-                            {{ t(`payment.orderType.${detail.orderType}`) }}
-                            <code class="ml-1.5 text-xs tabular-nums text-muted-color">{{ detail.orderRefId }}</code>
+                        <dd :class="DD" class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <Tag :value="t(`payment.orderType.${detail.orderType}`)" :severity="UtilPayment.orderTypeSeverity(detail.orderType)" />
+                            <code class="text-xs tabular-nums text-muted-color">{{ detail.orderRefId }}</code>
                             <NuxtLink
                                 v-if="detail.orderType === 'GROUP_BUY' && can('commerce.order.read')"
                                 :to="`/group-buy-orders?order=${encodeURIComponent(detail.orderRefId)}`"
-                                class="ml-2 whitespace-nowrap text-xs text-primary hover:underline"
+                                class="whitespace-nowrap text-xs text-primary hover:underline"
                             >
                                 {{ t('payment.drawer.openGroupBuyOrder') }} ›
                             </NuxtLink>
@@ -65,7 +65,7 @@
                     </div>
                     <div :class="ROW">
                         <dt :class="DT">{{ t('payment.field.payMethod') }}</dt>
-                        <dd :class="DD">{{ detail.payMethod ?? '—' }}<span v-if="detail.pgProvider" class="text-muted-color"> · {{ detail.pgProvider }}</span></dd>
+                        <dd :class="DD"><span class="font-medium">{{ detail.payMethod ?? '—' }}</span><span v-if="detail.pgProvider" class="text-muted-color"> · {{ detail.pgProvider }}</span></dd>
                     </div>
                     <div v-if="detail.pgTxId" :class="ROW">
                         <dt :class="DT">{{ t('payment.field.pgTxId') }}</dt>
@@ -76,19 +76,24 @@
                     </div>
                     <div :class="ROW">
                         <dt :class="DT">{{ t('payment.field.confirmedVia') }}</dt>
-                        <dd :class="DD">{{ detail.confirmedVia ? t(`payment.confirmedVia.${detail.confirmedVia}`) : '—' }}</dd>
-                    </div>
-                    <div :class="ROW">
-                        <dt :class="DT">{{ t('payment.field.createdAt') }}</dt>
-                        <dd :class="DD" class="tabular-nums">{{ time.full(detail.createdAt) }}</dd>
-                    </div>
-                    <div :class="ROW">
-                        <dt :class="DT">{{ t('payment.field.expiresAt') }}</dt>
-                        <dd :class="DD" class="tabular-nums">{{ time.full(detail.expiresAt) }}</dd>
+                        <dd :class="DD">
+                            <Tag v-if="detail.confirmedVia" :value="t(`payment.confirmedVia.${detail.confirmedVia}`)" :severity="detail.confirmedVia === 'ADMIN_RECHECK' || detail.confirmedVia === 'READY_CLEANUP' ? 'warn' : 'info'" />
+                            <template v-else>—</template>
+                        </dd>
                     </div>
                     <div :class="ROW">
                         <dt :class="DT">{{ t('payment.field.paidAt') }}</dt>
-                        <dd :class="DD" class="tabular-nums">{{ detail.paidAt ? time.full(detail.paidAt) : '—' }}</dd>
+                        <dd class="tabular-nums" :class="[DD, detail.paidAt ? 'font-medium text-green-700 dark:text-green-400' : 'text-muted-color']">
+                            <i v-if="detail.paidAt" class="pi pi-check-circle mr-1 text-xs" aria-hidden="true" />{{ detail.paidAt ? time.full(detail.paidAt) : '—' }}
+                        </dd>
+                    </div>
+                    <div :class="ROW">
+                        <dt :class="DT">{{ t('payment.field.createdAt') }}</dt>
+                        <dd :class="DD" class="tabular-nums text-muted-color">{{ time.full(detail.createdAt) }}</dd>
+                    </div>
+                    <div :class="ROW">
+                        <dt :class="DT">{{ t('payment.field.expiresAt') }}</dt>
+                        <dd :class="DD" class="tabular-nums text-muted-color">{{ time.full(detail.expiresAt) }}</dd>
                     </div>
                 </dl>
             </section>
@@ -116,15 +121,24 @@
             <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-cancels`">
                 <h3 :id="`${titleId}-cancels`" class="text-sm font-semibold">{{ t('payment.drawer.secCancels') }}</h3>
                 <p v-if="!detail.cancels.length" class="m-0 text-[13px] text-muted-color">{{ t('payment.drawer.cancelsEmpty') }}</p>
-                <ul v-else class="m-0 flex list-none flex-col gap-2 p-0">
-                    <li v-for="c in detail.cancels" :key="c.id" class="flex flex-col gap-1 rounded-lg border border-(--line) px-3 py-2">
+                <!-- 취소 한 칸: 빼는 금액(빨강) · 종류 태그 · 상태 태그 · 사유(공구 사유는 원인·주문 번호로 풀어 씀) · 진행 -->
+                <ul v-else class="m-0 flex list-none flex-col divide-y divide-(--line) rounded-lg border border-(--line) p-0">
+                    <li v-for="c in detail.cancels" :key="c.id" class="flex flex-col gap-1.5 px-3.5 py-3">
                         <div class="flex flex-wrap items-center gap-2">
-                            <span class="text-[13px] font-semibold tabular-nums">{{ t('payment.won', { amount: UtilPayment.won(c.amount, locale) }) }}</span>
-                            <span class="text-[13px]">{{ t(`payment.cancelKind.${c.kind}`) }}</span>
+                            <span class="text-[15px] font-semibold tabular-nums" :class="c.status === 'SUCCEEDED' || c.status === 'MANUAL' ? 'text-red-600 dark:text-red-400' : ''">−{{ t('payment.won', { amount: UtilPayment.won(c.amount, locale) }) }}</span>
+                            <Tag :value="t(`payment.cancelKind.${c.kind}`)" :severity="UtilPayment.cancelKindSeverity(c.kind)" />
                             <Tag :value="t(`payment.cancelStatus.${c.status}`)" :severity="UtilPayment.cancelSeverity(c.status)" />
                             <span class="ml-auto text-[11px] tabular-nums text-muted-color">{{ time.full(c.createdAt) }}</span>
                         </div>
-                        <p v-if="c.reason" class="m-0 text-xs text-muted-color">{{ t('payment.drawer.cancelReason', { reason: c.reason }) }}</p>
+                        <p v-if="c.reason" class="m-0 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
+                            <span>{{ t('payment.drawer.cancelReasonLabel') }}</span>
+                            <template v-if="groupBuyReason(c.reason)">
+                                <span class="text-(--p-text-color)">{{ groupBuyReason(c.reason)!.cause }}</span>
+                                <span aria-hidden="true">·</span>
+                                <code class="text-[11px]">{{ groupBuyReason(c.reason)!.orderNo }}</code>
+                            </template>
+                            <span v-else class="text-(--p-text-color) [overflow-wrap:anywhere]">{{ c.reason }}</span>
+                        </p>
                         <p class="m-0 text-xs text-muted-color">{{ cancelProgress(c) }}</p>
                         <p v-if="c.lastError && c.status !== 'SUCCEEDED'" class="m-0 text-xs text-red-600 [overflow-wrap:anywhere] dark:text-red-400">{{ t('payment.drawer.lastError', { error: c.lastError }) }}</p>
                         <p v-if="c.resolvedBy" class="m-0 text-xs text-muted-color">{{ t('payment.drawer.resolvedLine', { name: c.resolvedBy, note: c.resolveNote ?? '—' }) }}</p>
@@ -187,7 +201,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), { loading: false, error: null, busy: false, canManage: false });
 const emit = defineEmits<{ recheck: []; retry: [] }>();
 
-const { t, locale } = useI18n();
+const { t, te, locale } = useI18n();
 const time = useDisplayTime();
 const { can } = useAdminPermission();
 const { prefs } = useLayoutPrefs();
@@ -208,8 +222,8 @@ const amountBoxes = computed(() => {
     return [
         { key: 'amount', label: t('payment.field.amount'), value: won(d.amount), tone: '' },
         { key: 'paid', label: t('payment.field.paidAmount'), value: won(d.paidAmount), tone: mismatch ? 'text-red-600 dark:text-red-400' : '' },
-        { key: 'canceled', label: t('payment.field.canceledAmount'), value: won(d.canceledAmount), tone: d.canceledAmount > 0 ? 'text-orange-600 dark:text-orange-400' : '' },
-        { key: 'net', label: t('payment.field.netAmount'), value: won(d.paidAmount === null ? null : d.paidAmount - d.canceledAmount), tone: '' },
+        { key: 'canceled', label: t('payment.field.canceledAmount'), value: d.canceledAmount > 0 ? `−${won(d.canceledAmount)}` : won(0), tone: d.canceledAmount > 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-color' },
+        { key: 'net', label: t('payment.field.netAmount'), value: won(d.paidAmount === null ? null : d.paidAmount - d.canceledAmount), tone: 'text-primary' },
     ];
 });
 
@@ -218,6 +232,14 @@ function eventDot(kind: PaymentEventKind): string {
     if (kind === 'ANOMALY' || kind === 'CANCEL_GAVE_UP' || kind === 'EXTERNAL_CANCEL') return 'border-red-600 bg-red-100 dark:bg-red-950';
     if (kind === 'CANCEL_REQUESTED' || kind === 'CANCEL_RETRY' || kind === 'CANCEL_MANUAL') return 'border-orange-500 bg-orange-100 dark:bg-orange-950';
     return 'border-surface-400 bg-(--p-content-background)';
+}
+
+/** 공구 취소의 PG 사유는 서버가 `공구 <원인> <주문 번호>` 로 남긴다 — 원인은 글자로, 번호는 따로 */
+function groupBuyReason(reason: string): { cause: string; orderNo: string } | null {
+    const m = /^공구 ([A-Z_]+) (G\d+)$/.exec(reason);
+    if (!m) return null;
+    const key = `payment.groupBuyCancelCause.${m[1]}`;
+    return { cause: te(key) ? t(key) : m[1]!, orderNo: m[2]! };
 }
 
 /** 시도 횟수 · 다음 시도 / 끝난 시각 한 줄 */

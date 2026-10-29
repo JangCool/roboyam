@@ -127,6 +127,7 @@ export default {
         READY_CLEANUP: '결제 대기 정리(10분마다)',
         ADMIN_RECHECK: '운영자 다시 확인',
     },
+    groupBuyCancelCause: { USER_CANCEL: '공구 회원 취소', REQUEST: '공구 취소·반품 요청', ADMIN: '공구 운영 환불', FAILED: '공구 불발', CANCELED: '공구 중단', SUPPLY_FAILURE: '공구 공급 불가', DELAY: '공구 발송 지연 취소', RETURN_FEE_REFUND: '공구 반품비 환불' },
     cancelKind: {
         USER_CANCEL: '회원 취소',
         REFUND: '환불',
@@ -221,7 +222,7 @@ export default {
         webhookId: 'webhook-id {id}',
         secCancels: '취소 대기열',
         cancelsEmpty: '취소 요청이 없어요.',
-        cancelReason: '사유: {reason}',
+        cancelReasonLabel: '사유',
         lastError: '마지막 오류: {error}',
         resolvedLine: '{name} 처리: {note}',
         gaveUpHint: '최종 실패한 취소는 결제 이상 화면에서 다시 시도하거나 수동 처리 완료로 표시해요.',
