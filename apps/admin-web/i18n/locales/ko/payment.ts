@@ -215,6 +215,7 @@ export default {
         notFound: '결제 주문을 찾을 수 없어요.',
         openIssues: '이 결제에 열린 대사 이슈가 {count}건 있어요.',
         openIssuesLink: '대사 불일치 보기',
+        openGroupBuyOrder: '공구 주문 보기',
         secAmount: '금액',
         secEvents: '이력',
         webhookId: 'webhook-id {id}',

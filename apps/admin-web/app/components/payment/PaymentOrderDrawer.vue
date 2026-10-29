@@ -54,6 +54,13 @@
                         <dd :class="DD">
                             {{ t(`payment.orderType.${detail.orderType}`) }}
                             <code class="ml-1.5 text-xs tabular-nums text-muted-color">{{ detail.orderRefId }}</code>
+                            <NuxtLink
+                                v-if="detail.orderType === 'GROUP_BUY' && can('commerce.order.read')"
+                                :to="`/group-buy-orders?order=${encodeURIComponent(detail.orderRefId)}`"
+                                class="ml-2 whitespace-nowrap text-xs text-primary hover:underline"
+                            >
+                                {{ t('payment.drawer.openGroupBuyOrder') }} ›
+                            </NuxtLink>
                         </dd>
                     </div>
                     <div :class="ROW">
@@ -182,6 +189,7 @@ const emit = defineEmits<{ recheck: []; retry: [] }>();
 
 const { t, locale } = useI18n();
 const time = useDisplayTime();
+const { can } = useAdminPermission();
 const { prefs } = useLayoutPrefs();
 const titleId = useId();
 

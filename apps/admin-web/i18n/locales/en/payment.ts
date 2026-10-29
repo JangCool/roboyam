@@ -214,6 +214,7 @@ export default {
         notFound: 'Payment order not found.',
         openIssues: 'This payment has {count} open reconciliation issue(s).',
         openIssuesLink: 'View reconciliation',
+        openGroupBuyOrder: 'View group buy order',
         secAmount: 'Amounts',
         secEvents: 'History',
         webhookId: 'webhook-id {id}',

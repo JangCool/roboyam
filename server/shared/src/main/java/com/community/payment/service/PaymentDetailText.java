@@ -24,7 +24,7 @@ import tools.jackson.databind.json.JsonMapper;
 public class PaymentDetailText {
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
-    private static final Set<String> AMOUNTS = Set.of("amount", "paidAmount", "expectedAmount", "pgAmount", "pgCancelled", "localPaidAmount", "localCanceled");
+    private static final Set<String> AMOUNTS = Set.of("amount", "paidAmount", "expectedAmount", "pgAmount", "pgCancelled", "localPaidAmount", "localCanceled", "canceledTotal");
     private static final Set<String> TIMES = Set.of("expiresAt", "nextAttemptAt");
     private static final Set<String> CODES = Set.of("anomaly", "kind", "via", "previousStatus", "reason", "pgStatus", "localStatus", "outcome", "by");
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ServiceTime.ZONE);
