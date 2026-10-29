@@ -1,7 +1,7 @@
 <template>
     <!--
         공용 주소 입력 시연 (개발 모드 전용 — `/dev/address`). 운영 빌드·`generate` 에서는 404 다(아래 라우트 미들웨어).
-        관리자 설정 › 주소 검색에서 제공처를 바꾼 뒤 「설정 다시 받기」를 누르면 받아 둔 설정을 버리고 다시 묻는다 — 다음 「우편번호 찾기」가 새 설정으로 연다.
+        「우편번호 찾기」는 열 때마다 제공처 설정을 새로 받는다 — 관리자 설정 › 주소 검색에서 바꾼 값이 바로 따라온다. 「설정 다시 받기」는 지금 값을 보여 주기만 한다.
     -->
     <div class="mx-auto flex max-w-2xl flex-col gap-8" data-testid="dev-address">
         <header>
@@ -56,11 +56,10 @@ const { t } = useI18n();
 const uid = useId();
 const addressSearch = useAddressSearch();
 
-/** 받아 둔 제공처 설정을 버리고 다시 받는다(관리자 설정을 바꾼 뒤) */
+/** 제공처 설정을 다시 받아 보인다(「우편번호 찾기」는 열 때마다 새로 받는다) */
 const reloading = ref(false);
 async function reload(): Promise<void> {
     reloading.value = true;
-    addressSearch.forget();
     try {
         await addressSearch.ensureConfig();
     } finally {

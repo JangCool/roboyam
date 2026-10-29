@@ -26,7 +26,7 @@ export default {
     devTitle: 'Address input demo',
     devIntro: 'Try the shared address input — how the Admin › Address search provider looks on the member site.',
     devCaseTitle: '1. Current settings',
-    devCaseIntro: 'Provider and Daum script URL from the server. If you changed them in the admin, reload, then press Find postcode.',
+    devCaseIntro: 'Provider and Daum script URL from the server. Find postcode fetches them again each time it opens.',
     devReload: 'Reload settings',
     devInputTitle: '2. New address',
     devShowErrors: 'Show / hide field errors',

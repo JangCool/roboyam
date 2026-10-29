@@ -102,8 +102,11 @@ services:
       NODE_ID: ${ADMIN_NODE_ID}
       # 관리 콘솔은 트래픽이 작다 — 한 대에 같이 올리므로 힙을 작게 잡는다
       JAVA_OPTS: ${ADMIN_JAVA_OPTS:--Xmx512m}
+      # 주소 DB 를 서버 폴더에서 적재(address-search-contract) — 아래 볼륨에 행정안전부 zip 을 두면 설정 › 주소 검색에서 고른다(읽기만)
+      ROBOYAM_ADDRESS_IMPORT_DIR: /var/lib/roboyam/address-import
     volumes:
       - roboyam-dev-media:/var/lib/roboyam/media
+      - ${ADDRESS_IMPORT_DIR:-roboyam-dev-address-import}:/var/lib/roboyam/address-import:ro
     stop_grace_period: 40s
 
   # HTTPS 종단. 인증서 발급·갱신(Let's Encrypt)은 Caddy 가 알아서 한다
@@ -127,5 +130,6 @@ services:
 volumes:
   roboyam-dev-pgdata:
   roboyam-dev-media:
+  roboyam-dev-address-import:
   roboyam-dev-caddy-data:
   roboyam-dev-caddy-config:

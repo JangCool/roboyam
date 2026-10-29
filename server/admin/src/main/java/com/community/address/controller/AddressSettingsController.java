@@ -1,9 +1,11 @@
 package com.community.address.controller;
 
+import com.community.address.dto.request.AddressServerImportRequest;
 import com.community.address.dto.request.AddressSettingsSaveRequest;
 import com.community.address.dto.response.AddressDbLoadPage;
 import com.community.address.dto.response.AddressImportProgressView;
 import com.community.address.dto.response.AddressImportStartedResponse;
+import com.community.address.dto.response.AddressServerFilesView;
 import com.community.address.dto.response.AddressSettingsView;
 import com.community.address.service.AddressImportService;
 import com.community.address.service.AddressSettingsService;
@@ -60,6 +62,21 @@ public class AddressSettingsController {
                                                                                  @RequestParam(value = "charset", required = false) String charset,
                                                                                  AdminActor actor) {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.success(imports.start(actor, files, charset)));
+    }
+
+    /** 서버 폴더의 파일로 적재 — 202, 400 {@code VALIDATION}({@code fields.charset}·{@code fileNames}) · 409 {@code ADDRESS_IMPORT_RUNNING} */
+    @RequirePermission(Permission.SITE_MANAGE)
+    @PostMapping("/imports/server")
+    public ResponseEntity<ApiResponse<AddressImportStartedResponse>> startServerImport(@RequestBody(required = false) AddressServerImportRequest body, AdminActor actor) {
+        AddressServerImportRequest request = body == null ? new AddressServerImportRequest(null, null) : body;
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.success(imports.startFromServer(actor, request.fileNames(), request.charset())));
+    }
+
+    /** 서버 폴더에서 고를 수 있는 파일 — 폴더가 설정돼 있지 않으면 {@code enabled: false} */
+    @RequirePermission(Permission.SITE_READ)
+    @GetMapping("/server-files")
+    public ApiResponse<AddressServerFilesView> serverFiles() {
+        return ApiResponse.success(imports.serverFiles());
     }
 
     /** 돌고 있는 적재 — 없으면 {@code data: null} */

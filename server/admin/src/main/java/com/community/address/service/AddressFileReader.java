@@ -29,8 +29,17 @@ public final class AddressFileReader {
     static final String JIBUN_PREFIX = "jibun_rnaddrkor_";
     static final String ENGLISH_PREFIX = "rneng_";
 
-    /** 올린 파일 하나 — 서버 임시 파일과 사용자가 고른 이름 */
-    public record Source(Path path, String name) {
+    /**
+     * 적재할 파일 하나 — 서버의 파일과 보일 이름.
+     *
+     * @param temporary 올린 파일을 옮긴 임시 파일이면 true(적재가 끝나면 지운다). 서버 폴더의 파일({@link AddressServerFiles})은 false — 지우지 않는다
+     */
+    public record Source(Path path, String name, boolean temporary) {
+
+        /** 올린 파일의 임시 사본 */
+        public Source(Path path, String name) {
+            this(path, name, true);
+        }
     }
 
     /** 넣은 줄 수 */

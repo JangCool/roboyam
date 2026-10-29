@@ -30,7 +30,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  *
  * <p>한 트랜잭션 안에서: 스테이징 비우기 → 줄 수 세기 → 도로명·지번·영문을 스테이징에 넣기 → (지번·영문이 있으면) 관리번호로 덩어리 UPDATE 해 붙이기 → 색인 만들기 →
  * 이름 세 번 바꾸기로 {@code address_entries} 와 맞바꾸기 → 적재 줄 {@code DONE} + 감사. 어디서 멈추든 트랜잭션이 되돌려 지금 주소 DB 는 그대로다.
- * 실패는 따로 트랜잭션에서 적재 줄 {@code FAILED}(사유 문구 키) + 감사(실패)로 남긴다. 올린 임시 파일은 끝나면 지운다.
+ * 실패는 따로 트랜잭션에서 적재 줄 {@code FAILED}(사유 문구 키) + 감사(실패)로 남긴다. 올린 임시 파일은 끝나면 지운다(서버 폴더의 파일은 그대로 둔다).
  *
  * <p>바꾼 것(pionworld2 대비): 스테이징 색인을 지우고 다 넣은 뒤 새로 만든다(수백만 줄을 GIN 색인을 단 채로 넣지 않게) · 진행 단계를 적재 줄에도 남긴다 ·
  * 새 건수가 지금의 절반 아래면 멈추는 규칙은 같다({@code address.import.dropped}).
@@ -106,6 +106,9 @@ public class AddressImportWorker {
         } finally {
             jobs.end(loadId);
             for (AddressFileReader.Source source : sources) {
+                if (!source.temporary()) {
+                    continue; // 서버 폴더의 파일은 운영자 것 — 지우지 않는다
+                }
                 try {
                     Files.deleteIfExists(source.path());
                 } catch (IOException e) {

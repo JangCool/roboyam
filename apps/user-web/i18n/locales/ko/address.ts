@@ -26,7 +26,7 @@ export default {
     devTitle: '주소 입력 시연',
     devIntro: '공용 주소 입력을 눌러 봐요. 관리자 설정 › 주소 검색의 제공처가 회원 화면에서 어떻게 보이는지 확인하는 화면이에요.',
     devCaseTitle: '1. 지금 설정',
-    devCaseIntro: '서버에서 받은 제공처와 다음 스크립트 주소예요. 관리자 화면에서 바꿨으면 다시 받은 뒤 「우편번호 찾기」를 눌러 주세요.',
+    devCaseIntro: '서버에서 받은 제공처와 다음 스크립트 주소예요. 「우편번호 찾기」는 열 때마다 새로 받아요.',
     devReload: '설정 다시 받기',
     devInputTitle: '2. 새 주소 입력',
     devShowErrors: '칸 오류 보이기 · 감추기',

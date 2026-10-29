@@ -3,6 +3,7 @@ import type {
     AddressImportCharset,
     AddressImportProgress,
     AddressImportStarted,
+    AddressServerFiles,
     AddressSettingsSaveRequest,
     AddressSettingsView,
 } from '~/composables/address/api/useAddressSettingsApi.types';
@@ -18,6 +19,8 @@ import type {
  *  - `GET /api/admin/address/imports/current` → 돌고 있는 작업(`AddressImportProgress`) 또는 없음 — 화면을 다시 열었을 때 이어서 보인다
  *  - `GET /api/admin/address/imports/{jobId}` → `AddressImportProgress`(화면이 1.5초마다 묻는다). 없으면 404 `ADDRESS_IMPORT_JOB_NOT_FOUND`
  *  - `GET /api/admin/address/imports/history?page=&size=` → `AddressDbLoadPage`
+ *  - `GET /api/admin/address/server-files` → `AddressServerFiles`(서버 폴더에 둔 zip — 올리지 않고 고른다)
+ *  - `POST /api/admin/address/imports/server` `{ fileNames, charset }` → 202 `AddressImportStarted`. 400 `fields.fileNames`(목록에 없는 이름·꺼짐)·`fields.charset`, 409 은 같다
  */
 const PATH = {
     root: '/api/admin/address',
@@ -26,6 +29,8 @@ const PATH = {
     currentImport: () => `${PATH.root}/imports/current`,
     importOf: (jobId: string) => `${PATH.root}/imports/${encodeURIComponent(jobId)}`,
     history: () => `${PATH.root}/imports/history`,
+    serverImport: () => `${PATH.root}/imports/server`,
+    serverFiles: () => `${PATH.root}/server-files`,
 };
 
 /** 파일 올리기를 기다리는 시간 — 한글 + 영문 zip(합쳐 수백 MB)을 느린 회선으로 보내도 끊지 않게 */
@@ -53,6 +58,13 @@ export function useAddressSettingsApi() {
         currentImport: async (): Promise<AddressImportProgress | null> => (await client.get<AddressImportProgress | null | undefined>(PATH.currentImport())) ?? null,
 
         importProgress: (jobId: string): Promise<AddressImportProgress> => client.get<AddressImportProgress>(PATH.importOf(jobId)),
+
+        /** 서버 폴더에서 고를 수 있는 파일 */
+        serverFiles: (): Promise<AddressServerFiles> => client.get<AddressServerFiles>(PATH.serverFiles()),
+
+        /** 서버 폴더의 파일로 적재 — 올리지 않으니 기다리는 시간은 기본 */
+        startServerImport: (fileNames: string[], charset: AddressImportCharset): Promise<AddressImportStarted> =>
+            client.post<AddressImportStarted>(PATH.serverImport(), { fileNames: [...fileNames], charset }),
 
         /** 적재 이력 — 최신이 위 */
         history: (page: number, size: number): Promise<AddressDbLoadPage> => client.get<AddressDbLoadPage>(PATH.history(), { query: { page, size } }),

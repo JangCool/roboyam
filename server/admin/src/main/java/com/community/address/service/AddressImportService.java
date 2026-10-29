@@ -4,6 +4,7 @@ import com.community.address.dto.response.AddressDbLoadPage;
 import com.community.address.dto.response.AddressDbLoadRowView;
 import com.community.address.dto.response.AddressImportProgressView;
 import com.community.address.dto.response.AddressImportStartedResponse;
+import com.community.address.dto.response.AddressServerFilesView;
 import com.community.address.entity.AddressDbLoadEntity;
 import com.community.address.entity.AddressImportPhase;
 import com.community.address.entity.AddressLoadStatus;
@@ -50,6 +51,7 @@ import org.springframework.web.multipart.MultipartFile;
  *   <li><b>시작</b>: 파일 1~2개(zip · 빈 파일 아님 · 한 개 {@value #FILE_MAX_MB}MB 이하)와 글자 집합(MS949 | UTF-8)을 검사해 400 {@code VALIDATION}
  *       ({@code fields.files}·{@code fields.charset}) → 돌고 있는 적재가 있으면 409 {@code ADDRESS_IMPORT_RUNNING}(DB 부분 유일 색인이 최종 판정) →
  *       파일을 서버 임시 파일로 옮기고 적재 줄({@code RUNNING})을 넣은 뒤 가상 스레드로 {@link AddressImportWorker} 를 돌리고 작업 번호를 바로 준다.</li>
+ *   <li><b>서버 폴더에서 시작</b>: 올리지 않고 {@link AddressServerFiles} 폴더의 zip 을 이름으로 고른다(크기 한도 없음, 파일은 지우지 않는다). 나머지는 같다.</li>
  *   <li><b>진행</b>: 이 서버가 돌리는 중이면 메모리의 단계·줄 수, 아니면 적재 줄(끝났으면 결과·사유 문구를 요청 언어로).</li>
  *   <li><b>서버가 다시 뜨면</b> 이 서버가 돌리다 멈춘 {@code RUNNING} 줄을 「중단」으로 닫는다(트랜잭션이 되돌려져 주소 DB 는 그대로다).</li>
  * </ul>
@@ -73,19 +75,21 @@ public class AddressImportService {
     private final OperatorRepository operators;
     private final AddressImportJobs jobs;
     private final AddressImportWorker worker;
+    private final AddressServerFiles serverFiles;
     private final SnowflakeIdGenerator ids;
     private final Messages messages;
     private final TransactionTemplate tx;
     private final int nodeId;
 
     public AddressImportService(AddressDbLoadRepository loads, AddressDbLoadQueries loadQueries, OperatorRepository operators, AddressImportJobs jobs,
-                                AddressImportWorker worker, SnowflakeIdGenerator ids, Messages messages, PlatformTransactionManager transactions,
+                                AddressImportWorker worker, AddressServerFiles serverFiles, SnowflakeIdGenerator ids, Messages messages, PlatformTransactionManager transactions,
                                 @Value("${roboyam.node-id}") int nodeId) {
         this.loads = loads;
         this.loadQueries = loadQueries;
         this.operators = operators;
         this.jobs = jobs;
         this.worker = worker;
+        this.serverFiles = serverFiles;
         this.ids = ids;
         this.messages = messages;
         this.tx = new TransactionTemplate(transactions);
@@ -104,6 +108,32 @@ public class AddressImportService {
             for (MultipartFile file : chosen) {
                 sources.add(copyToTemp(file));
             }
+            return launch(actor, sources, charset);
+        } catch (RuntimeException e) {
+            deleteAll(sources);
+            throw e;
+        }
+    }
+
+    /** 서버 폴더의 파일로 적재 — 검사 순서: 글자 집합 · 파일 이름(400) → 돌고 있는 적재(409). 파일은 지우지 않는다 */
+    public AddressImportStartedResponse startFromServer(AdminActor actor, List<String> fileNames, String charset) {
+        if (charset == null || !CHARSETS.contains(charset)) {
+            throw ValidationException.of("charset", new MessageRef("address.import.charsetUnknown"));
+        }
+        List<AddressFileReader.Source> sources = serverFiles.resolve(fileNames);
+        if (loads.findFirstByStatus(AddressLoadStatus.RUNNING).isPresent()) {
+            throw new AddressImportRunningException();
+        }
+        return launch(actor, sources, charset);
+    }
+
+    public AddressServerFilesView serverFiles() {
+        return new AddressServerFilesView(serverFiles.enabled(), serverFiles.list());
+    }
+
+    /** 적재 줄({@code RUNNING})을 넣고 가상 스레드로 적재를 시작한다 — 이미 돌고 있으면(부분 유일 색인) 409 */
+    private AddressImportStartedResponse launch(AdminActor actor, List<AddressFileReader.Source> sources, String charset) {
+        try {
             long loadId = ids.nextId();
             List<String> names = sources.stream().map(AddressFileReader.Source::name).toList();
             Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
@@ -117,11 +147,7 @@ public class AddressImportService {
             log.info("주소 DB 적재를 시작했다 loadId={} files={} by operatorId={}", loadId, names, actor.operatorId());
             return new AddressImportStartedResponse(Long.toString(loadId));
         } catch (DataIntegrityViolationException e) {
-            deleteAll(sources);
             throw new AddressImportRunningException(); // 같은 때 다른 운영자가 먼저 시작했다(부분 유일 색인)
-        } catch (RuntimeException e) {
-            deleteAll(sources);
-            throw e;
         }
     }
 
@@ -247,6 +273,9 @@ public class AddressImportService {
 
     private static void deleteAll(List<AddressFileReader.Source> sources) {
         for (AddressFileReader.Source source : sources) {
+            if (!source.temporary()) {
+                continue;
+            }
             try {
                 Files.deleteIfExists(source.path());
             } catch (IOException e) {

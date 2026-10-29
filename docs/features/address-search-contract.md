@@ -5,9 +5,11 @@
 
 ## 화면 (기준 코드)
 - user-web 공용 주소 입력 `components/address/AddressInput.vue`(+ `AddressSearchPanel.vue`) — 시트 안에 다음 위젯을 끼우거나(팝업 아님) 자체 DB 검색 칸을 보인다. 늘 「직접 입력」이 있다.
-  값 `{ postcode, address1, address2 }`(공구 배송지 `GroupBuyAddressFields` 와 같은 이름). 설정은 세션마다 한 번 받고(`useAddressSearch`), 못 받으면 다음 기본값으로 계속한다.
+  값 `{ postcode, address1, address2 }`(공구 배송지 `GroupBuyAddressFields` 와 같은 이름). 설정은 「우편번호 찾기」를 열 때마다 새로 받고(`useAddressSearch` — 관리자가 바꾸면 다음 열기부터 따른다), 못 받으면 앞서 받은 값, 없으면 다음 기본값으로 계속한다.
+  공구 주문서·내 주문의 배송지(`GroupBuyAddressFields`)가 이 부품을 쓴다(받는 분·전화·메모만 공구 몫, 2b-1 의 `usePostcodeSearch` 는 지웠다).
   개발 확인 화면 `/dev/address`(개발 모드만, 운영은 404).
-- admin-web `설정 › 시스템 › 주소 검색` = `/settings/address`(`pages/settings/address.vue`) — ① 제공처 ② 주소 DB(상태·올리기·진행) ③ 적재 이력. 메뉴는 로그인 보안 다음.
+- admin-web `설정 › 시스템 › 주소 검색` = `/settings/address`(`pages/settings/address.vue`) — ① 제공처(다음만 · 자체 DB 만 · 다음 먼저 중 고르기) ② 주소 DB(상태 · 가져올 곳 「내 컴퓨터에서 올리기」/「서버 폴더의 파일」 · 진행).
+  ③ 적재 이력은 제목 옆 「적재 이력」 단추가 여는 오른쪽 서랍(`SettingHistoryDrawer` — components.md 「설정 변경 이력은 서랍」, 처음 열 때 받는다). 메뉴는 로그인 보안 다음.
 
 ## 데이터 원천
 - 행정안전부 도로명주소 개발자센터(business.juso.go.kr) › 주소 DB 의 **「도로명주소 한글 전체분」 zip(필수)** + **「영문 전체분」 zip(선택)**, 매달 새로 나온다. 풀지 않고 그대로 올린다.
@@ -25,6 +27,9 @@
   저장은 세 칸을 모두 보고 틀린 칸을 모아 400 `VALIDATION`(`fields.provider`·`scriptUrl`·`staleWarnDays`). 바뀐 칸만 감사.
 - 「갱신 권고」 = 마지막 적재가 끝난 지 권고 일수보다 오래됐거나 올린 적이 없음.
 - 올리기: 파일 1~2개, 각각 `.zip` · 빈 파일 아님 · 300MB(300×1024² 바이트) 이하, 글자 집합 `MS949 | UTF-8`(기본 MS949) — 400 `fields.files`·`fields.charset`.
+- 서버 폴더: 배포 설정 `ROBOYAM_ADDRESS_IMPORT_DIR`(비우면 꺼짐 — 화면은 「가져올 곳」을 보이지 않는다). 폴더 **바로 아래**의 숨기지 않은 `.zip` 만 목록에 나오고(링크로 폴더 밖을 가리키는 것 제외),
+  요청은 경로가 아니라 목록의 **이름** 1~2개를 보낸다(목록에 없으면 400 `fields.fileNames` — `../` 로 폴더 밖을 고를 수 없다). 크기 한도 없음, 빈 파일은 안 된다, 적재 뒤에도 지우지 않는다.
+  도커: dev `compose.yml`·prod `compose.admin.yml` 의 admin 에 `ADDRESS_IMPORT_DIR`(호스트 폴더, 없으면 이름 붙은 볼륨)을 `/var/lib/roboyam/address-import` 에 읽기 전용으로 붙였다.
 - 검색어: 앞뒤 공백을 지우고 80자까지, 괄호·쉼표는 띄어쓰기로 보고 낱말로 나눈다(같은 낱말 한 번, 6개까지). 띄어쓰기를 뺀 글자가 2자 미만이면 400 `fields.keyword`.
   **모든 낱말이 들어 있는 줄**(낱말마다 `search_text ILIKE '%낱말%'`, `% _ \` 는 글자 그대로). `search_text` = 도로명 주소 + 읍면동(+리) + 건물 이름 + 우편번호 + 관련지번 + 영문.
   차례는 파일 차례(`id` — 시·도, 도로 순). 한 쪽 1~30줄(기본 10), `total` 은 1000 까지만 센다. 질의가 3초를 넘으면 400 `fields.keyword`(「더 자세히」).
@@ -44,6 +49,8 @@
 | admin | `GET /api/admin/address/imports/current` | 돌고 있는 작업 또는 `data` 없음 |
 | admin | `GET /api/admin/address/imports/{jobId}` | `{jobId, phase, totalRows(-1 = 모름), processedRows, done, failed, failedPhase, message, fileNames, startedAt, startedBy}` · 404 `ADDRESS_IMPORT_JOB_NOT_FOUND` |
 | admin | `GET /api/admin/address/imports/history?page&size` | `{items[{id(문자열), loadedAt, sourceLabel, entryCount, englishCount, loadedBy}], total, page, size}` — 끝난 적재만, 최신이 위 |
+| admin | `GET /api/admin/address/server-files` | `{enabled, files[{name, size, modifiedAt}]}` — 경로는 내보내지 않는다 |
+| admin | `POST /api/admin/address/imports/server` `{fileNames, charset}` | 202 `{jobId}` · 400 `fields.fileNames`·`fields.charset` · 409 `ADDRESS_IMPORT_RUNNING` |
 
 ## 적재 규칙
 - 사이트에 **하나씩**(`address_db_loads` 부분 유일 색인 — 동시에 눌러도 하나만 `RUNNING`). 받은 관리자 서버가 가상 스레드에서 돌린다 — Java 배치(`BatchJob`)로 하지 않았다
@@ -68,15 +75,18 @@
 - 마이그레이션 `server/shared/.../db/migration/shared/V109__address_search.sql`(develop 마지막 V108 다음 — 합치기 직전에 다시 본다).
 - shared `com.community.address` — 엔티티(설정·적재 줄) · `AddressEntryQueries`(JDBC 검색) · `AddressSearchPolicy`(한도·검사) · `AddressSearchService`.
 - api `com.community.address` — `AddressController` · `AddressSearchRateLimiter`. admin `com.community.address` — `AddressSettingsController` · `AddressSettingsService` ·
-  `AddressImportService`(시작·진행·이력·재시작 정리) · `AddressImportWorker`(적재) · `AddressFileReader`/`AddressFileParser` · `AddressUploadLimitFilter`. `AdminScreenRegistry` 한 줄.
+  `AddressImportService`(시작·서버 폴더에서 시작·진행·이력·재시작 정리) · `AddressServerFiles`(서버 폴더 목록·이름 확인) · `AddressImportWorker`(적재) · `AddressFileReader`/`AddressFileParser` · `AddressUploadLimitFilter`. `AdminScreenRegistry` 한 줄.
 - 시험(`--tests 'com.community.address.*'`, DB 없음 — Testcontainers 는 커머스 시험 전용): 검색어·설정 칸 규칙, 파서 표기 규칙, zip 읽기(종류 판정·덩어리·글자 집합·깨진 zip·도로명 없음),
-  올리기 검사, 업로드 한도 필터, IP 한도 — 34개 통과. 메뉴 차례 `AdminScreenRegistryLoginSecurityTest` 통과.
+  올리기 검사, 업로드 한도 필터, IP 한도, 서버 폴더(목록 거르기·폴더 밖 이름 거절·지우지 않음) — 39개 통과. 메뉴 차례 `AdminScreenRegistryLoginSecurityTest` 통과.
   적재·검색 SQL(V109 · 스테이징 → 붙이기 → 색인 → 맞바꾸기 · 낱말 AND · `%`/`_` 글자 그대로 · GIN 색인 사용 · 동시 적재 막힘)은 임시 postgres:18 컨테이너에서 손으로 돌려 확인했다(시험 코드로는 남기지 않음).
 
 ## 미확정
-- 공구 배송지(2b) 연결 — `GroupBuyAddressFields` 의 우편번호·주소 칸을 `AddressInput` 으로 바꾸고 2b-1 의 `usePostcodeSearch` 를 지운다(다음 스크립트를 두 곳에서 따로 부르지 않게).
-- 「지정 경로에서 적재」(서버 폴더의 파일) — 화면에 없어 만들지 않았다. 필요하면 경로 제한·권한을 정한 뒤 `AddressImportService` 에 원천 하나를 더한다.
-- 실제 「한글 전체분」(약 600만 줄)으로 걸리는 시간·디스크(스테이징 + 색인이 잠깐 두 벌)는 재지 않았다. 관리자 서버가 여러 대면 진행 줄 수는 받은 서버에서만 보인다(다른 서버는 단계만).
-- 회원 화면은 설정을 세션에 한 번 받으므로 관리자가 제공처를 바꾸면 새로 열거나 새로 고친 화면부터 따른다.
-- 적재 이력이 본문 아래 구획이다 — `components.md` 의 「설정 변경 이력은 제목 옆 서랍」 규칙과 맞출지(적재 이력을 변경 이력으로 볼지) 사용자 확인이 필요하다.
-- 설치형(`installer/`)·dev·prod 의 DB 계정이 `pg_trgm` 을 쓸 수 있는지는 V1 이 이미 쓰므로 같다고 본다.
+- 실제 「한글 전체분」(약 600만 줄)으로 걸리는 시간·디스크(스테이징 + 색인이 잠깐 두 벌)는 재지 않았다.
+
+## 세션 정리 결정 (2026-10-30)
+- 공구 배송지는 공용 주소 입력을 쓴다 — 우편번호 찾기의 정본은 이 계약(제공처 설정)이고, 공구 계약은 이곳을 가리킨다.
+- 「지정 경로에서 적재」 = 서버 폴더(`ROBOYAM_ADDRESS_IMPORT_DIR`)의 zip 을 이름으로 고르기(위 「필드·검증」).
+- 적재 이력은 설정 변경 이력과 같은 자리(제목 옆 서랍)에 둔다.
+- 회원 화면은 우편번호 찾기를 열 때마다 설정을 받는다(바꾼 제공처가 바로 따른다).
+- 관리자 서버가 여러 대면 진행 줄 수는 적재를 받은 서버에서만 보이고 다른 서버는 단계만 보인다 — 관리자 앱은 한 대로 운영하므로 그대로 둔다.
+- `pg_trgm` 은 V1 이 이미 만든다(V109 는 확장을 만들지 않는다) — 설치형·dev·prod 에서 따로 할 일이 없다.

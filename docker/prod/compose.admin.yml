@@ -44,10 +44,14 @@ services:
       ADMIN_URL: ${ADMIN_URL:-}
       PUBLIC_URL: ${PUBLIC_URL:-}
       JAVA_OPTS: ${ADMIN_JAVA_OPTS:--XX:MaxRAMPercentage=60}
+      # 주소 DB 를 서버 폴더에서 적재(address-search-contract) — ADDRESS_IMPORT_DIR 에 행정안전부 zip 을 두면 설정 › 주소 검색에서 고른다(읽기만)
+      ROBOYAM_ADDRESS_IMPORT_DIR: /var/lib/roboyam/address-import
     # 올린 이미지 저장 폴더 — 관리자 앱이 쓰므로 공개 사이트 앱 서버(compose.yml)와 같은 공유 디스크 경로를 MEDIA_DIR 에 준다(자세한 설명은 compose.yml)
     volumes:
       - ${MEDIA_DIR:-roboyam-media}:/var/lib/roboyam/media
+      - ${ADDRESS_IMPORT_DIR:-roboyam-address-import}:/var/lib/roboyam/address-import:ro
     stop_grace_period: 40s
 
 volumes:
   roboyam-media:
+  roboyam-address-import:

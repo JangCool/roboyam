@@ -99,3 +99,16 @@ export interface AddressDbLoadPage {
     page: number;
     size: number;
 }
+
+/** 서버 폴더의 주소 DB 파일 하나(이름만 — 경로는 서버만 안다) */
+export interface AddressServerFile {
+    name: string;
+    size: number;
+    modifiedAt: string;
+}
+
+/** `GET /api/admin/address/server-files` — 서버 폴더(`ROBOYAM_ADDRESS_IMPORT_DIR`)가 설정돼 있지 않으면 `enabled: false` */
+export interface AddressServerFiles {
+    enabled: boolean;
+    files: AddressServerFile[];
+}
