@@ -1,6 +1,6 @@
 <template>
     <!-- 새 쪽지 `/messages/new?to=` — 받는 사람 · 내용 · 오늘 남은 한도 · 보내기. 모바일은 안쪽 화면, 데스크톱은 쪽지함 오른쪽 칸 -->
-    <section class="flex min-h-0 flex-1 flex-col bg-surface-0 dark:bg-surface-900" :aria-label="t('dm.newLabel')" data-testid="dm-new-page">
+    <section class="flex min-h-0 flex-1 flex-col bg-card" :aria-label="t('dm.newLabel')" data-testid="dm-new-page">
         <header class="flex h-12 shrink-0 items-center gap-1 border-b border-surface px-2">
             <button
                 type="button"

@@ -23,7 +23,7 @@
                 프로필 아바타 — 이 구획은 **고르면 바로 저장**된다(`PUT /api/me/profile/avatar`). 아래 닉네임·소개 폼(맨 아래 떠 있는 저장 줄 하나로 저장)과 저장 단위가 달라
                 폼 밖의 따로 된 구획으로 두고 「바로 저장돼요」를 늘 적는다(forms.md 2-4 — 다른 저장 단위의 단추·저장 줄을 섞지 않는다).
             -->
-            <section class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-labelledby="`${uid}-avatar`" data-testid="profile-avatar">
+            <section class="panel-card p-4" :aria-labelledby="`${uid}-avatar`" data-testid="profile-avatar">
                 <div class="flex flex-wrap items-center gap-3">
                     <ProfileBorderAvatar :initial="UtilPointShop.initial(saved.nickname)" :src="avatarShown" size="lg" surface="card" :border-style="myDecoration?.profileBorder ?? null" />
                     <div class="min-w-0 flex-1">
@@ -65,7 +65,7 @@
                 </div>
             </section>
             <form :key="formKey" class="flex flex-col gap-4" novalidate data-testid="profile-form" @submit.prevent="save">
-            <section class="flex flex-col gap-5 rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-label="t('profile.title')">
+            <section class="flex flex-col gap-5 panel-card p-4" :aria-label="t('profile.title')">
                 <LabeledField
                     :label="t('signup.nicknameLabel')"
                     :hint="t('signup.nicknameHint', { min: UtilValidation.NICKNAME_MIN, max: UtilValidation.NICKNAME_MAX })"

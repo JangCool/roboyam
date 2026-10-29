@@ -4,7 +4,7 @@
         값은 부르는 쪽이 `useCommerceInfo().shownBusiness`(판매 스위치 켜짐 + 칸 완비일 때만)로 넘긴다 — 여기서는 서버를 부르지 않는다.
         `footer`: 작은 글씨 한 덩어리(구분점으로 잇는다) · `panel`: 정의 목록(공구 화면 하단).
     -->
-    <section :aria-label="t('commerce.bizTitle')" :class="variant === 'footer' ? 'text-xs leading-relaxed text-muted-color' : 'rounded-xl border border-surface bg-surface-0 p-4 text-sm dark:bg-surface-900'" data-testid="commerce-business-info">
+    <section :aria-label="t('commerce.bizTitle')" :class="variant === 'footer' ? 'text-xs leading-relaxed text-muted-color' : 'panel-card p-4 text-sm'" data-testid="commerce-business-info">
         <template v-if="variant === 'footer'">
             <p class="m-0">
                 <span v-for="(row, index) in rows" :key="row.key">

@@ -7,7 +7,7 @@
         입구가 막힌 사람(비회원·멤버 아님·이메일 인증 전·정지 등 `canWritePost` false, 또는 게시판 정보의 `viewer.writeBlockedReason`)에게는 폼 대신 까닭을 보인다 — 서버가 최종 판단한다(`403 GROUP_NOT_MEMBER` 등).
         등록하면(`201 { id, pointsEarned }` — 일반 글쓰기처럼 포인트 토스트는 띄우지 않는다) 토스트를 띄우고 글 상세(`/posts/{id}`)로 간다(`replace` — 뒤로 가기가 글쓰기로 돌아오지 않게). 저장하지 않고 나가면 확인을 묻는다.
     -->
-    <div class="mx-auto max-w-3xl">
+    <div class="content-card mx-auto max-w-3xl">
         <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface px-2 py-1.5 md:hidden">
             <Button type="button" icon="pi pi-times" variant="text" severity="secondary" :aria-label="t('common.cancel')" @click="cancel" />
             <span class="text-sm font-semibold">{{ t('group.writeTitle') }}</span>

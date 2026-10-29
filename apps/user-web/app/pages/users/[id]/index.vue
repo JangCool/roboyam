@@ -1,5 +1,5 @@
 <template>
-    <div class="mx-auto max-w-2xl">
+    <div class="content-card mx-auto max-w-2xl">
         <!-- 로딩 -->
         <div v-if="status === 'loading'" role="status" :aria-label="t('profile.publicLoading')" data-testid="profile-loading">
             <div class="flex items-start gap-3">
@@ -105,7 +105,7 @@
             <!-- 보유 포인트 · 다음 등급까지 — 내 프로필에만. 포인트 화면·등급 안내로 가는 길을 겸한다. 둘 다 못 받으면 카드를 감춘다(프로필은 그대로) -->
             <section
                 v-if="profile.isMe && progressVisible"
-                class="mt-4 rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900"
+                class="mt-4 panel-card p-4"
                 :aria-label="t('profile.progressLabel')"
                 data-testid="profile-progress"
             >
@@ -142,7 +142,7 @@
             </section>
 
             <!-- 활동 수치 — 글·댓글·받은 추천(서버가 최대 60초 늦을 수 있다) -->
-            <dl class="m-0 mt-4 grid grid-cols-3 divide-x divide-surface-200 rounded-xl border border-surface bg-surface-0 py-3 text-center dark:divide-surface-700 dark:bg-surface-900" data-testid="profile-stats">
+            <dl class="m-0 mt-4 grid grid-cols-3 divide-x divide-surface-200 panel-card py-3 text-center dark:divide-surface-700" data-testid="profile-stats">
                 <div v-for="cell in statCells" :key="cell.key" class="flex min-w-0 flex-col px-1">
                     <dt class="order-2 text-xs text-muted-color">{{ cell.label }}</dt>
                     <dd class="order-1 m-0 text-base font-bold tabular-nums">{{ UtilProfile.count(profile.stats[cell.key]) }}</dd>

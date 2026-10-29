@@ -17,7 +17,7 @@
                 <li v-for="order in items" :key="order.orderNo">
                     <NuxtLink
                         :to="UtilGroupBuy.myOrderPath(order.orderNo)"
-                        class="flex gap-3 rounded-xl border border-surface bg-surface-0 p-3 hover:border-primary focus-visible:outline-2 focus-visible:outline-primary dark:bg-surface-900"
+                        class="flex gap-3 panel-card p-3 hover:border-primary focus-visible:outline-2 focus-visible:outline-primary"
                         data-testid="my-orders-item"
                     >
                         <GroupBuyThumb :src="order.thumbnailUrl" :alt="order.title" size="sm" />

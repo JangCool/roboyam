@@ -1,5 +1,6 @@
 <template>
-    <div>
+    <!-- 머리·탭·목록·쪽 번호를 한 카드에 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 카드 테마는 흰 카드다(`main.css` `content-card`) -->
+    <div class="content-card" data-testid="popular-card">
         <!-- 머리: 이름 · 고른 기간이 무엇을 보여 주는지 한 줄 설명 -->
         <header>
             <h1 class="break-words text-lg font-bold leading-tight">{{ name }}</h1>

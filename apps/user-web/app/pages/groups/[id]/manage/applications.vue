@@ -41,7 +41,7 @@
                     <span>{{ t('group.slotsLeft', { n: Math.max(0, capacity - memberCount) }) }}</span>
                     <small class="text-xs font-normal text-muted-color">{{ t('group.capacityStat', { members: memberCount, capacity }) }}</small>
                 </p>
-                <ul class="m-0 list-none overflow-hidden rounded-xl border border-surface bg-surface-0 p-0 dark:bg-surface-900" data-testid="group-applications-list">
+                <ul class="m-0 list-none overflow-hidden panel-card p-0" data-testid="group-applications-list">
                     <li v-for="row in items" :key="row.user.id ?? row.appliedAt" class="border-b border-surface px-4 py-3 last:border-b-0" data-testid="group-application">
                         <p class="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">
                             <PostAuthorLabel :author="UtilGroup.authorOf(row.user, t('group.withdrawn'))" link strong />

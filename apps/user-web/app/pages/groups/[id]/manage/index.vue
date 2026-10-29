@@ -13,7 +13,7 @@
     -->
     <GroupManageShell :title="t('group.manageTitle')" :state="state" :error-message="errorMessage" :group-id="id" :back-to="UtilGroup.detailPath(id)" :back-label="t('group.backToGroup')" :blocked-reason="group?.blockedReason ?? null" @retry="load()">
         <template v-if="group">
-            <section class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" data-testid="group-manage-head">
+            <section class="panel-card p-4" data-testid="group-manage-head">
                 <div class="flex items-center gap-3">
                     <GroupInitial :name="group.name" size="lg" />
                     <div class="min-w-0 flex-1">
@@ -40,7 +40,7 @@
 
             <section class="mt-4" :aria-labelledby="`${uid}-members`">
                 <h2 :id="`${uid}-members`" class="px-1 pb-1.5 text-xs font-semibold text-muted-color">{{ t('group.sectionMembers') }}</h2>
-                <div class="overflow-hidden rounded-xl border border-surface bg-surface-0 dark:bg-surface-900">
+                <div class="overflow-hidden panel-card">
                     <NuxtLink v-if="group.permissions.canHandleApplications" :to="UtilGroup.managePath(id, 'applications')" :class="ROW" data-testid="group-manage-applications">
                         <span class="min-w-0 flex-1">
                             <span class="block text-sm font-medium">{{ t('group.rowApplications') }}</span>
@@ -91,7 +91,7 @@
             <!-- 글(5단계) — 공개 요청. 기능이 꺼진 서버면 구획이 없다 -->
             <section v-if="showPostsSection" class="mt-4" :aria-labelledby="`${uid}-posts`" data-testid="group-manage-posts">
                 <h2 :id="`${uid}-posts`" class="px-1 pb-1.5 text-xs font-semibold text-muted-color">{{ t('groupVisibility.sectionPosts') }}</h2>
-                <div class="overflow-hidden rounded-xl border border-surface bg-surface-0 dark:bg-surface-900">
+                <div class="overflow-hidden panel-card">
                     <NuxtLink v-if="group.permissions.canDecidePublishRequests" :to="UtilGroup.managePath(id, 'publish-requests')" :class="ROW" data-testid="group-manage-publish-requests">
                         <span class="min-w-0 flex-1">
                             <span class="block text-sm font-medium">{{ t('groupVisibility.rowRequests') }}</span>
@@ -119,7 +119,7 @@
 
             <section class="mt-4" :aria-labelledby="`${uid}-group`">
                 <h2 :id="`${uid}-group`" class="px-1 pb-1.5 text-xs font-semibold text-muted-color">{{ t('group.title') }}</h2>
-                <div class="overflow-hidden rounded-xl border border-surface bg-surface-0 dark:bg-surface-900">
+                <div class="overflow-hidden panel-card">
                     <!-- 공개 범위(5단계, 모임장) — 누르면 변경 시트 -->
                     <button v-if="group.permissions.canChangeVisibility && group.visibility" type="button" :class="ROW" aria-haspopup="dialog" data-testid="group-manage-visibility" @click="openVisibility">
                         <span class="min-w-0 flex-1">
@@ -172,7 +172,7 @@
             <!-- 내 역할 — 매니저에서 물러나기(매니저에게만) -->
             <section v-if="!isLeader" class="mt-4" :aria-labelledby="`${uid}-role`">
                 <h2 :id="`${uid}-role`" class="px-1 pb-1.5 text-xs font-semibold text-muted-color">{{ t('groupManager.roleSection') }}</h2>
-                <div class="overflow-hidden rounded-xl border border-surface bg-surface-0 dark:bg-surface-900">
+                <div class="overflow-hidden panel-card">
                     <button type="button" :class="[ROW, resignBlocked ? 'cursor-not-allowed opacity-60' : '']" :disabled="resignBlocked" data-testid="group-manage-resign" @click="openResign">
                         <span class="min-w-0 flex-1">
                             <span class="block text-sm font-medium">{{ t('groupManager.resignRow') }}</span>
@@ -185,7 +185,7 @@
 
             <section v-if="group.permissions.canEditGroup" class="mt-4" :aria-labelledby="`${uid}-danger`">
                 <h2 :id="`${uid}-danger`" class="px-1 pb-1.5 text-xs font-semibold text-muted-color">{{ t('group.sectionDanger') }}</h2>
-                <div class="overflow-hidden rounded-xl border border-surface bg-surface-0 dark:bg-surface-900">
+                <div class="overflow-hidden panel-card">
                     <button type="button" :class="[ROW, group.blockedReason ? 'cursor-not-allowed opacity-60' : '']" :disabled="Boolean(group.blockedReason)" data-testid="group-manage-dissolve" @click="openDissolve">
                         <span class="min-w-0 flex-1 text-sm font-medium text-red-600 dark:text-red-400">{{ t('group.rowDissolve') }}</span>
                         <i class="pi pi-angle-right shrink-0 text-muted-color" aria-hidden="true" />

@@ -94,7 +94,7 @@ const restricted = computed(() => me.value?.sender.reason === 'ACCOUNT_RESTRICTE
  * 데스크톱(lg)은 300px + 나머지의 2단(높이는 셸 막대를 뺀 화면 — 목록·대화방이 각자 안에서 스크롤).
  */
 const frameClass = computed(() => [
-    'flex flex-col bg-surface-0 max-md:-m-4 md:overflow-hidden md:rounded-xl md:border md:border-surface dark:bg-surface-900',
+    'panel-card flex flex-col max-md:-m-4 max-md:rounded-none max-md:border-0 max-md:shadow-none md:overflow-hidden',
     'lg:grid lg:h-[calc(100dvh-6rem)] lg:min-h-[28rem] lg:grid-cols-[300px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]',
     atList.value ? '' : 'max-md:h-dvh md:h-[calc(100dvh-6rem)] md:min-h-[28rem]',
 ]);

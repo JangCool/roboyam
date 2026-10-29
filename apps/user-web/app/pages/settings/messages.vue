@@ -14,7 +14,7 @@
             <!-- 받기 / 받지 않기 — 고르면 바로 저장한다 -->
             <section :aria-labelledby="`${uid}-title`">
                 <h2 :id="`${uid}-title`" class="sr-only">{{ t('dm.settingsGroup') }}</h2>
-                <div role="radiogroup" :aria-labelledby="`${uid}-title`" class="rounded-xl border border-surface bg-surface-0 dark:bg-surface-900" data-testid="dm-settings-options">
+                <div role="radiogroup" :aria-labelledby="`${uid}-title`" class="panel-card" data-testid="dm-settings-options">
                     <label
                         v-for="option in options"
                         :key="option.id"

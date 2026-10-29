@@ -21,7 +21,7 @@
         <template v-else-if="status.verified">
             <section :aria-labelledby="`${uid}-state`">
                 <h2 :id="`${uid}-state`" class="mb-2 px-1 text-xs font-semibold text-muted-color">{{ t('identity.stateTitle') }}</h2>
-                <dl class="m-0 rounded-xl border border-surface bg-surface-0 dark:bg-surface-900" data-testid="identity-verified">
+                <dl class="m-0 panel-card" data-testid="identity-verified">
                     <div class="flex min-h-12 items-center gap-3 border-b border-surface px-4 py-2.5">
                         <dt class="w-28 shrink-0 text-sm text-muted-color">{{ t('identity.stateLabel') }}</dt>
                         <dd class="m-0 flex items-center gap-1.5 text-sm font-medium text-green-700 dark:text-green-400">
@@ -52,7 +52,7 @@
         <template v-else>
             <section class="mb-6" :aria-labelledby="`${uid}-why`">
                 <h2 :id="`${uid}-why`" class="mb-2 px-1 text-xs font-semibold text-muted-color">{{ t('identity.whyTitle') }}</h2>
-                <div class="rounded-xl border border-surface bg-surface-0 px-4 py-3.5 dark:bg-surface-900">
+                <div class="panel-card px-4 py-3.5">
                     <p class="m-0 text-sm leading-relaxed">{{ t('identity.whyText') }}</p>
                     <ul class="m-0 mt-2.5 flex list-none flex-col gap-1.5 p-0 text-sm">
                         <li v-for="use in USES" :key="use.key" class="flex items-center gap-2">
@@ -65,7 +65,7 @@
 
             <section class="mb-6" :aria-labelledby="`${uid}-stored`">
                 <h2 :id="`${uid}-stored`" class="mb-2 px-1 text-xs font-semibold text-muted-color">{{ t('identity.storedTitle') }}</h2>
-                <div class="rounded-xl border border-surface bg-surface-0 px-4 py-3.5 text-sm leading-relaxed dark:bg-surface-900">
+                <div class="panel-card px-4 py-3.5 text-sm leading-relaxed">
                     <p class="m-0 flex items-start gap-2"><i class="pi pi-database mt-1 text-muted-color" aria-hidden="true" />{{ t('identity.storedYes') }}</p>
                     <p class="m-0 mt-1.5 flex items-start gap-2"><i class="pi pi-eye-slash mt-1 text-muted-color" aria-hidden="true" />{{ t('identity.storedNo') }}</p>
                 </div>

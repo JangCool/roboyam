@@ -51,7 +51,7 @@
         <!-- 상태를 스크린리더가 읽는다 -->
         <p role="status" aria-live="polite" class="sr-only">{{ summaryText }}</p>
 
-        <section class="rounded-xl border border-surface bg-surface-0 dark:bg-surface-900" :aria-busy="status === 'loading'" :aria-label="t('notification.listLabel')">
+        <section class="panel-card" :aria-busy="status === 'loading'" :aria-label="t('notification.listLabel')">
             <div v-if="status === 'loading'" aria-hidden="true" data-testid="notifications-loading">
                 <div v-for="n in 6" :key="n" class="flex items-start gap-3 border-b border-surface px-4 py-3.5 last:border-b-0">
                     <div class="size-5 shrink-0 animate-pulse rounded-full bg-surface-200 dark:bg-surface-800" />

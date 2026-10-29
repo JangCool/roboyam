@@ -3,7 +3,7 @@
         배송비·반품비 금액 고지 + 청약철회 제한 안내 — 공구 상세와 주문서가 같이 쓴다(commerce.md 10-8 끝: 상세·주문서·반품 요청 화면에 반품 비용을 금액까지, 결정 55·59 — 처음부터 보인다).
         문장은 서버가 준 배송비 사본으로 만든다(`UtilGroupBuyMessages.shippingLines`). 접지 않는다.
     -->
-    <section :aria-labelledby="headingId" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" data-testid="group-buy-shipping-notice">
+    <section :aria-labelledby="headingId" class="panel-card p-4" data-testid="group-buy-shipping-notice">
         <h2 :id="headingId" class="m-0 mb-2 text-sm font-semibold">{{ t('groupBuy.noticeTitle') }}</h2>
         <ul class="m-0 flex list-disc flex-col gap-1 pl-5 text-sm leading-relaxed">
             <li v-for="(line, index) in lines" :key="index">{{ line }}</li>

@@ -38,7 +38,7 @@
                 <EmptyState v-if="users.length === 0" :title="t('block.usersEmptyTitle')" :description="t('block.usersEmptyText')" icon="pi pi-user-minus" data-testid="blocks-users-empty" />
 
                 <template v-else>
-                    <ul class="m-0 mt-3 list-none rounded-xl border border-surface bg-surface-0 p-0 dark:bg-surface-900" data-testid="blocks-users-list">
+                    <ul class="m-0 mt-3 list-none panel-card p-0" data-testid="blocks-users-list">
                         <li v-for="row in users" :key="row.id" class="flex min-h-14 items-center gap-3 border-b border-surface px-4 py-2.5 last:border-b-0" data-testid="blocks-user">
                             <div class="min-w-0 flex-1">
                                 <p class="m-0 flex min-w-0 items-center gap-1.5 text-sm">
@@ -111,7 +111,7 @@
 
                 <EmptyState v-if="words.length === 0" :title="t('block.wordsEmptyTitle')" :description="t('block.wordsEmptyText')" icon="pi pi-filter-slash" data-testid="blocks-words-empty" />
 
-                <ul v-else class="m-0 mt-3 list-none rounded-xl border border-surface bg-surface-0 p-0 dark:bg-surface-900" data-testid="blocks-words-list">
+                <ul v-else class="m-0 mt-3 list-none panel-card p-0" data-testid="blocks-words-list">
                     <li v-for="row in words" :key="row.id" class="flex min-h-14 items-center gap-3 border-b border-surface px-4 py-2.5 last:border-b-0" data-testid="blocks-word">
                         <p class="m-0 min-w-0 flex-1 break-words text-sm font-medium [overflow-wrap:anywhere]">{{ row.word }}</p>
                         <Button

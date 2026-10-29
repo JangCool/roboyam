@@ -3,7 +3,7 @@
     <div class="flex flex-col gap-4">
         <h1 class="text-lg font-bold">{{ t('settings.title') }}</h1>
 
-        <ul class="m-0 list-none rounded-xl border border-surface bg-surface-0 p-0 dark:bg-surface-900" data-testid="settings-list">
+        <ul class="m-0 list-none panel-card p-0" data-testid="settings-list">
             <li v-for="entry in UtilSettings.ENTRIES" :key="entry.to" class="border-b border-surface last:border-b-0">
                 <NuxtLink
                     :to="entry.to"

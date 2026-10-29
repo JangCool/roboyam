@@ -7,7 +7,7 @@
         공개 범위(5단계): 개설 규칙의 `visibilityChoice` 가 true 일 때만 「공개 범위」 라디오(비공개 소모임 기본 · 공개 소모임). 공개를 고르면 안내 띠(승인제 일반 회원이면 「운영팀이 공개 범위도 함께 확인해요」).
           고를 수 없는 서버에는 본문에 `visibility` 를 싣지 않는다. 승인 대기 화면에 신청한 공개 범위 한 줄.
     -->
-    <div class="mx-auto max-w-xl">
+    <div class="content-card mx-auto max-w-xl">
         <NuxtLink :to="UtilGroup.LIST_PATH" class="inline-flex items-center gap-1 rounded text-xs text-muted-color hover:underline focus-visible:outline-2 focus-visible:outline-primary">
             <i class="pi pi-angle-left text-xs" aria-hidden="true" />{{ t('group.backToList') }}
         </NuxtLink>
@@ -37,7 +37,7 @@
         <!-- 신청 완료(승인제) — 승인 대기 -->
         <section v-else-if="view === 'pending'" class="mt-2 flex flex-col gap-4" :aria-labelledby="`${uid}-pending`" data-testid="group-create-pending">
             <h1 :id="`${uid}-pending`" ref="pendingHeading" tabindex="-1" class="m-0 text-lg font-bold">{{ t('group.pendingTitle') }}</h1>
-            <div class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900">
+            <div class="panel-card p-4">
                 <div class="flex items-center gap-3">
                     <GroupInitial :name="sent.name" size="lg" />
                     <div class="min-w-0 flex-1">

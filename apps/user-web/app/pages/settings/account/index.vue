@@ -21,7 +21,7 @@
             <!-- 로그인 정보 — 이메일(인증 상태 + 미인증이면 인증 메일 다시 보내기) · 비밀번호 유무 · 이메일 변경 · 비밀번호 변경 -->
             <section class="mb-6" :aria-labelledby="`${uid}-methods`">
                 <h2 :id="`${uid}-methods`" class="mb-2 px-1 text-xs font-semibold text-muted-color">{{ t('account.methodsTitle') }}</h2>
-                <div class="rounded-xl border border-surface bg-surface-0 dark:bg-surface-900">
+                <div class="panel-card">
                     <div class="flex min-h-14 items-center gap-3 border-b border-surface px-4 py-2.5" data-testid="account-email">
                         <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-100 text-muted-color dark:bg-surface-800" aria-hidden="true">
                             <i class="pi pi-at" />
@@ -105,7 +105,7 @@
             <!-- 소셜 계정 연결 — 서버가 카카오·네이버·구글 3개를 모두 준다 -->
             <section :aria-labelledby="`${uid}-social`">
                 <h2 :id="`${uid}-social`" class="mb-2 px-1 text-xs font-semibold text-muted-color">{{ t('account.socialTitle') }}</h2>
-                <div class="rounded-xl border border-surface bg-surface-0 dark:bg-surface-900">
+                <div class="panel-card">
                     <div
                         v-for="p in view.providers"
                         :key="p.id"

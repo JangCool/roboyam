@@ -51,7 +51,7 @@
             <GroupBuyShippingNotice :shipping="gb.shipping" :withdrawal-restriction="gb.withdrawalRestriction" />
 
             <!-- 1. 주문 상품 — 상세에서 고른 목록을 확인만(바꾸려면 상세로 — 결정 88) -->
-            <section :aria-labelledby="`${uid}-items`" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" data-testid="group-buy-order-lines">
+            <section :aria-labelledby="`${uid}-items`" class="panel-card p-4" data-testid="group-buy-order-lines">
                 <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
                     <h2 :id="`${uid}-items`" class="m-0 text-base font-semibold">{{ t('groupBuy.itemsTitle') }}</h2>
                     <Button v-if="!started" as="router-link" :to="detailLink" :label="t('groupBuy.repick')" icon="pi pi-pencil" size="small" severity="secondary" variant="text" data-testid="group-buy-repick" />
@@ -64,21 +64,21 @@
             </section>
 
             <!-- 2. 금액(서버 견적) -->
-            <section :aria-labelledby="`${uid}-amount`" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900">
+            <section :aria-labelledby="`${uid}-amount`" class="panel-card p-4">
                 <h2 :id="`${uid}-amount`" class="m-0 mb-2 text-base font-semibold">{{ t('groupBuy.amountTitle') }}</h2>
                 <GroupBuyQuoteSummary :quote="quote" :ready="lines.length > 0" :busy="quoteBusy" :error="quoteError" />
                 <Button v-if="quoteError && !started" as="router-link" :to="detailLink" :label="t('groupBuy.repick')" icon="pi pi-pencil" size="small" severity="secondary" variant="outlined" class="mt-2" />
             </section>
 
             <!-- 3. 배송지 -->
-            <section :aria-labelledby="`${uid}-address`" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900">
+            <section :aria-labelledby="`${uid}-address`" class="panel-card p-4">
                 <h2 :id="`${uid}-address`" class="m-0 mb-1 text-base font-semibold">{{ t('groupBuy.addressTitle') }}</h2>
                 <p class="m-0 mb-3 text-xs text-muted-color">{{ t('groupBuy.addressHelp') }}</p>
                 <GroupBuyAddressFields v-model="address" :errors="addressErrors" :disabled="locked" />
             </section>
 
             <!-- 4. 결제 안내 · 동의 3종(기본 체크 없음) -->
-            <section :aria-labelledby="`${uid}-agree`" class="flex flex-col gap-3 rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900">
+            <section :aria-labelledby="`${uid}-agree`" class="flex flex-col gap-3 panel-card p-4">
                 <h2 :id="`${uid}-agree`" class="m-0 text-base font-semibold">{{ t('groupBuy.payTitle') }}</h2>
                 <ul class="m-0 flex list-disc flex-col gap-1 pl-5 text-sm leading-relaxed">
                     <li>{{ t('groupBuy.payCardOnly') }}</li>

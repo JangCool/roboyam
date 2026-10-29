@@ -1,7 +1,7 @@
 <template>
     <!-- 대화방 — 머리(‹ · 상대 · ⋯) · 법적 고지 · 말풍선 · 안내 · 입력창. 모바일은 화면 전체(안쪽 화면), 데스크톱(lg)은 쪽지함 오른쪽 칸.
          받은 쪽지 읽기·대화 삭제·차단은 보낼 수 없는 상태에서도 된다 -->
-    <section class="flex min-h-0 flex-1 flex-col bg-surface-0 dark:bg-surface-900" :aria-label="t('dm.roomLabel')" data-testid="dm-room">
+    <section class="flex min-h-0 flex-1 flex-col bg-card" :aria-label="t('dm.roomLabel')" data-testid="dm-room">
         <header class="flex h-12 shrink-0 items-center gap-1 border-b border-surface px-2">
             <NuxtLink
                 :to="UtilDm.INBOX_PATH"

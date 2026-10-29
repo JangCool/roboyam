@@ -6,7 +6,7 @@
         `fixed` 가 아니라 `sticky` 라서 줄이 본문 흐름 안에 자리를 차지하므로 페이지 끝에서 마지막 칸을 가리지 않는다.
     -->
     <div
-        class="flex flex-col gap-2 rounded-xl border border-surface bg-surface-0 px-3 py-2.5 shadow-md dark:bg-surface-900"
+        class="flex flex-col gap-2 panel-card px-3 py-2.5 [--panel-shadow:0_4px_6px_-1px_rgb(0_0_0/0.1),0_2px_4px_-2px_rgb(0_0_0/0.1)]"
         :class="stickyOnMobile ? 'sticky bottom-3 z-20' : 'md:sticky md:bottom-3 md:z-20'"
         data-testid="sticky-save-bar"
     >

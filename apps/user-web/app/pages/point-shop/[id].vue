@@ -18,7 +18,7 @@
 
         <template v-else>
             <!-- 머리: 이름 · 설명 · 가격 · 딱지 -->
-            <section class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-labelledby="titleId" data-testid="pointshop-detail">
+            <section class="panel-card p-4" :aria-labelledby="titleId" data-testid="pointshop-detail">
                 <h1 :id="titleId" class="m-0 text-lg font-bold leading-snug">{{ localizedName(item.name, item.nameEn) }}</h1>
                 <p class="m-0 mt-1 whitespace-pre-line break-words text-sm leading-relaxed text-muted-color">{{ localizedName(item.description, item.descriptionEn) }}</p>
                 <div class="mt-3 flex flex-wrap items-center gap-1.5">
@@ -29,7 +29,7 @@
             </section>
 
             <!-- 미리보기(필수 — commerce.md 7-3 · 20-1 L6). 닉네임 색: 내 닉네임을 두 바탕에 · 글 작성자 줄. 테두리: 내 이니셜 큰 것·작은 것 -->
-            <section v-if="item.kind === 'NICKNAME_COLOR' && colorPair" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-labelledby="`${titleId}-preview`" data-testid="pointshop-preview-color">
+            <section v-if="item.kind === 'NICKNAME_COLOR' && colorPair" class="panel-card p-4" :aria-labelledby="`${titleId}-preview`" data-testid="pointshop-preview-color">
                 <h2 :id="`${titleId}-preview`" class="m-0 text-sm font-semibold">{{ t('pointShop.previewTitle') }}</h2>
                 <div class="mt-3 grid grid-cols-2 gap-2">
                     <!-- 두 바탕은 `UtilColor` 의 카드 바탕(보정 기준)과 같은 값 — 지금 테마와 무관하게 나란히 보인다 -->
@@ -61,7 +61,7 @@
                 </div>
             </section>
 
-            <section v-else-if="item.kind === 'PROFILE_BORDER'" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-labelledby="`${titleId}-preview`" data-testid="pointshop-preview-border">
+            <section v-else-if="item.kind === 'PROFILE_BORDER'" class="panel-card p-4" :aria-labelledby="`${titleId}-preview`" data-testid="pointshop-preview-border">
                 <h2 :id="`${titleId}-preview`" class="m-0 text-sm font-semibold">{{ t('pointShop.previewTitle') }}</h2>
                 <p v-if="borderDef" class="m-0 mt-0.5 text-xs text-muted-color">{{ t('pointShop.borderName', { name: t(borderDef.nameKey) }) }}</p>
                 <div class="mt-3 flex flex-wrap items-center gap-x-6 gap-y-4">
@@ -81,7 +81,7 @@
             </section>
 
             <!-- 프로필 아바타 — 내 장착 테두리·닉네임 색과 함께 크게(상점 아바타 탭과 같은 모양) -->
-            <section v-else-if="item.kind === 'PROFILE_AVATAR'" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-labelledby="`${titleId}-preview`" data-testid="pointshop-preview-avatar">
+            <section v-else-if="item.kind === 'PROFILE_AVATAR'" class="panel-card p-4" :aria-labelledby="`${titleId}-preview`" data-testid="pointshop-preview-avatar">
                 <h2 :id="`${titleId}-preview`" class="m-0 text-sm font-semibold">{{ t('pointShop.previewTitle') }}</h2>
                 <div class="mt-3 flex flex-wrap items-center gap-x-6 gap-y-4">
                     <ProfileBorderAvatar :initial="initial" :src="item.avatarUrl" size="xl" surface="card" :border-style="mine?.profileBorder ?? null" />
@@ -94,7 +94,7 @@
             </section>
 
             <!-- 변경권 — 미리보기가 없어 내용을 다섯 줄로 늘 적는다(계약 「미리보기 없는 품목」) + 내 무료 변경 상태 -->
-            <section v-else-if="item.kind === 'NICKNAME_CHANGE_TICKET'" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-labelledby="`${titleId}-about`" data-testid="pointshop-ticket-about">
+            <section v-else-if="item.kind === 'NICKNAME_CHANGE_TICKET'" class="panel-card p-4" :aria-labelledby="`${titleId}-about`" data-testid="pointshop-ticket-about">
                 <h2 :id="`${titleId}-about`" class="m-0 text-sm font-semibold">{{ t('pointShop.ticketAboutTitle') }}</h2>
                 <dl class="m-0 mt-2 flex flex-col gap-2 text-sm">
                     <div v-for="line in ticketLines" :key="line.key" class="grid grid-cols-[5.5rem_1fr] gap-2">

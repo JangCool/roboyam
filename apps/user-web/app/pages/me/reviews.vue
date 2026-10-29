@@ -14,7 +14,7 @@
             <Button as="router-link" :to="UtilCommerce.ORDERS_PATH" :label="t('commerce.ordersTitle')" severity="secondary" variant="outlined" />
         </EmptyState>
         <ul v-else class="m-0 flex list-none flex-col gap-3 p-0">
-            <li v-for="review in items" :key="review.id" class="flex flex-col gap-2 rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900">
+            <li v-for="review in items" :key="review.id" class="flex flex-col gap-2 panel-card p-4">
                 <div class="flex flex-wrap items-baseline justify-between gap-2 text-sm">
                     <NuxtLink :to="`${UtilGroupBuy.detailPath(review.groupBuy.id)}#reviews`" class="min-w-0 truncate font-semibold hover:underline">{{ review.groupBuy.title }}</NuxtLink>
                     <NuxtLink v-if="review.orderNo" :to="UtilGroupBuy.myOrderPath(review.orderNo)" class="text-xs text-muted-color hover:underline"><code>{{ review.orderNo }}</code></NuxtLink>

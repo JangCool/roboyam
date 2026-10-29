@@ -5,7 +5,7 @@
         <h1 v-if="view === 'loading' || view === 'error' || view === 'form'" class="mb-4 text-lg font-bold">{{ t('account.emailChange') }}</h1>
 
         <!-- 로딩 -->
-        <div v-if="view === 'loading'" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" role="status" :aria-label="t('account.accountLoading')" data-testid="email-loading">
+        <div v-if="view === 'loading'" class="panel-card p-4" role="status" :aria-label="t('account.accountLoading')" data-testid="email-loading">
             <div class="space-y-4">
                 <div v-for="n in 3" :key="n" class="h-10 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
             </div>
@@ -15,7 +15,7 @@
         <ErrorState v-else-if="view === 'error'" :title="t('account.accountLoadFailed')" :description="loadError" retry data-testid="email-error" @retry="load" />
 
         <!-- 소셜 가입자 — 이메일을 바꿀 수 없다 -->
-        <div v-else-if="view === 'social'" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900">
+        <div v-else-if="view === 'social'" class="panel-card p-4">
             <StatusPanel icon="pi pi-info-circle" :title="t('password.socialAccountTitle')" data-testid="email-social">
                 {{ t('account.noEmailChangeReason') }}.
                 <template #actions>
@@ -25,7 +25,7 @@
         </div>
 
         <!-- 인증 메일을 보냈다 — 링크를 누를 때까지 지금 이메일이 그대로다. 다시 보내려면 비밀번호를 한 번 더 받는다 -->
-        <div v-else-if="view === 'sent'" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900">
+        <div v-else-if="view === 'sent'" class="panel-card p-4">
             <StatusPanel icon="pi pi-envelope" :title="t('account.sentTitle')" data-testid="email-sent">
                 <b class="break-all text-color" data-testid="email-sent-to">{{ sentTo }}</b>
                 <br />
@@ -56,7 +56,7 @@
         </div>
 
         <!-- 입력 -->
-        <form v-else class="flex flex-col gap-4 rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" novalidate :aria-label="t('account.emailChange')" @submit.prevent="submit">
+        <form v-else class="flex flex-col gap-4 panel-card p-4" novalidate :aria-label="t('account.emailChange')" @submit.prevent="submit">
             <!-- 이미 보낸 변경 요청이 있다 — 새로 보내면 이전 링크는 쓸 수 없다 -->
             <Message v-if="account?.pendingEmail" severity="info" :closable="false" size="small" data-testid="email-pending">
                 {{ t('account.pendingNote', { email: account.pendingEmail }) }}
