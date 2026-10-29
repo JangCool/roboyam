@@ -83,6 +83,8 @@ export interface RequestOptions {
     query?: Record<string, QueryValue>;
     /** 화면이 떠나거나 새 요청이 앞 요청을 대신할 때 끊는다 */
     signal?: AbortSignal;
+    /** 기다리는 시간(ms) — 기본 30초. 큰 파일 올리기(주소 DB 300MB)만 늘린다 */
+    timeoutMs?: number;
 }
 
 export interface ApiClientOptions {
@@ -271,7 +273,7 @@ export function useApiClient(options: ApiClientOptions = {}) {
                 body: body as Record<string, unknown> | undefined,
                 headers: { ...languageHeaders(), ...(mutating ? csrfHeaders() : {}) },
                 signal: request.signal,
-                timeout: TIMEOUT_MS,
+                timeout: request.timeoutMs ?? TIMEOUT_MS,
                 retry: 0,
             });
             return unwrap<T>(response._data, response.status, response.headers.get('x-request-id'));

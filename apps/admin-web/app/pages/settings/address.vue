@@ -6,12 +6,16 @@
           ② 주소 DB(`address-db`) — 지금 올라 있는 DB(마지막 적재·주소 수·영문 수·파일 이름, 오래되면 「갱신 권고」)와 파일 올리기. 행정안전부 「도로명주소 한글 전체분」 zip(필수)과 「영문 전체분」 zip(선택)을 그대로 올린다.
              [올리기]는 되돌릴 수 없어 확인을 묻는다. 서버는 작업 번호만 바로 주고 적재를 이어 가며(수 분), 화면은 1.5초마다 진행을 묻는다(세기 → 넣기 → 지번·영문 붙이기 → 바꿔 끼우기).
              새 데이터는 스테이징 표에 다 넣은 뒤 맞바꾸므로 적재 중에도 회원 검색은 앞 데이터로 된다. 화면을 떠나도 적재는 이어지고, 다시 열면 돌고 있는 작업을 이어서 보인다. 실패하면 서버 사유를 그대로 보이고 지금 DB 는 그대로다.
-          ③ 적재 이력 — 올릴 때마다 한 줄(`address_db_meta`), 최신이 위.
+          ③ 적재 이력 — 제목 옆 「적재 이력」 단추가 여는 오른쪽 서랍(`SettingHistoryDrawer`, components.md 「설정 변경 이력」). 끝난 적재마다 한 줄(`address_db_loads`), 최신이 위. 처음 열 때 받는다.
         권한: 조회 `site.read`(메뉴), 저장·올리기 `site.manage` — 없으면 저장 줄·올리기가 사라지고 입력칸은 `readonly`. 감추는 것은 편의이고 막는 것은 서버다.
-        ⚠ 목업: `useAddressSettingsApi` 가 아직 `./mock/address-mock.ts` 를 부른다(스위치는 그 파일 머리말).
+        계약: `docs/features/address-search-contract.md`.
     -->
     <div class="flex flex-col gap-4">
-        <PageTitle :title="t('address.title')" :subtitle="t('address.subtitle')" />
+        <PageTitle :title="t('address.title')" :subtitle="t('address.subtitle')">
+            <template #actions>
+                <Button :label="t('address.historyOpen')" icon="pi pi-history" severity="secondary" outlined size="small" @click="openHistory" />
+            </template>
+        </PageTitle>
 
         <Message v-if="!canManage" severity="info" :closable="false" size="small">{{ t('address.readOnly') }}</Message>
 
@@ -178,11 +182,41 @@
                         <ul class="m-0 mt-1 flex list-none flex-col gap-1 p-0 text-xs leading-relaxed text-muted-color">
                             <li class="flex items-start gap-2"><i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" /><span>{{ t('address.uploadWhere') }}</span></li>
                             <li class="flex items-start gap-2"><i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" /><span>{{ t('address.uploadSwap') }}</span></li>
-                            <li class="flex items-start gap-2"><i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" /><span>{{ t('address.uploadLimit') }}</span></li>
+                            <li v-if="source === 'upload'" class="flex items-start gap-2"><i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" /><span>{{ t('address.uploadLimit') }}</span></li>
                         </ul>
                     </div>
 
-                    <div class="grid gap-4 md:grid-cols-2">
+                    <!-- 가져올 곳 — 서버 폴더가 설정돼 있을 때만 고른다 -->
+                    <div v-if="serverFiles?.enabled" class="flex flex-col gap-1.5">
+                        <span :id="`${uid}-source`" class="text-sm font-medium">{{ t('address.sourceLabel') }}</span>
+                        <SelectButton v-model="source" :options="SOURCE_OPTIONS" option-label="label" option-value="value" :allow-empty="false" size="small" :disabled="uploading" :aria-labelledby="`${uid}-source`" class="self-start" />
+                    </div>
+
+                    <div v-if="source === 'server'" class="flex flex-col gap-3">
+                        <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('address.serverHelp') }}</p>
+                        <div v-if="serverFiles && serverFiles.files.length > 0" class="grid gap-4 md:grid-cols-2">
+                            <LabeledField v-for="slot in FILE_SLOTS" :key="slot" :label="t(`address.file_${slot}`)" :hint="slot === 'ko' ? t('address.required') : t('address.optional')" :help="t(`address.fileHelp_${slot}`)">
+                                <template #default="{ id, describedBy }">
+                                    <Select
+                                        v-model="serverPick[slot]"
+                                        :input-id="id"
+                                        :options="serverOptions"
+                                        option-label="label"
+                                        option-value="value"
+                                        :placeholder="t('address.fileNone')"
+                                        :show-clear="slot === 'en'"
+                                        :disabled="uploading"
+                                        :aria-describedby="describedBy"
+                                        fluid
+                                    />
+                                </template>
+                            </LabeledField>
+                        </div>
+                        <EmptyState v-else icon="pi pi-folder-open" :title="t('address.serverEmpty')" />
+                        <Button type="button" :label="t('address.serverRefresh')" icon="pi pi-refresh" size="small" severity="secondary" variant="text" class="self-start" :loading="serverLoading" @click="loadServerFiles" />
+                    </div>
+
+                    <div v-else class="grid gap-4 md:grid-cols-2">
                         <div v-for="slot in FILE_SLOTS" :key="slot" class="flex flex-col gap-1.5">
                             <span :id="`${uid}-${slot}-label`" class="text-sm font-medium">
                                 {{ t(`address.file_${slot}`) }}
@@ -217,8 +251,8 @@
             </div>
         </AppGadget>
 
-        <!-- ③ 적재 이력 -->
-        <AppGadget :title="t('address.historySection')">
+        <!-- ③ 적재 이력 — 오른쪽 서랍 -->
+        <SettingHistoryDrawer v-model:visible="historyOpen" :title="t('address.historySection')" :hint="t('address.historyHint')">
             <DataTable
                 :value="history?.items ?? []"
                 data-key="id"
@@ -254,7 +288,7 @@
                     <template #body="{ data }"><span class="text-[12px]">{{ data.loadedBy ?? '—' }}</span></template>
                 </Column>
             </DataTable>
-        </AppGadget>
+        </SettingHistoryDrawer>
     </div>
 </template>
 
@@ -266,6 +300,7 @@ import type {
     AddressImportPhase,
     AddressImportProgress,
     AddressProvider,
+    AddressServerFiles,
     AddressSettingsView,
 } from '~/composables/address/api/useAddressSettingsApi.types';
 import type { ImportFileProblem, ScriptUrlProblem, StaleDaysProblem } from '~/utils/util-address-settings';
@@ -403,7 +438,41 @@ const fileErrors = computed<Record<FileSlot, string>>(() => ({
     ko: fileProblems.value.ko ? t(FILE_PROBLEM_KEYS[fileProblems.value.ko], { max: UtilAddressSettings.megabytes(UtilAddressSettings.FILE_MAX_BYTES) }) : '',
     en: fileProblems.value.en ? t(FILE_PROBLEM_KEYS[fileProblems.value.en], { max: UtilAddressSettings.megabytes(UtilAddressSettings.FILE_MAX_BYTES) }) : '',
 }));
-const canUpload = computed(() => Boolean(files.value.ko) && !fileProblems.value.ko && !fileProblems.value.en && !uploading.value);
+/* 가져올 곳 — 내 컴퓨터에서 올리기(기본) · 서버 폴더의 파일(`ROBOYAM_ADDRESS_IMPORT_DIR` 가 있을 때만) */
+type ImportSource = 'upload' | 'server';
+const source = ref<ImportSource>('upload');
+const SOURCE_OPTIONS = computed<{ value: ImportSource; label: string }[]>(() => [
+    { value: 'upload', label: t('address.source_upload') },
+    { value: 'server', label: t('address.source_server') },
+]);
+const serverFiles = ref<AddressServerFiles | null>(null);
+const serverLoading = ref(false);
+const serverPick = ref<Record<FileSlot, string | null>>({ ko: null, en: null });
+const serverOptions = computed(() =>
+    (serverFiles.value?.files ?? []).map((f) => ({ value: f.name, label: `${f.name} · ${UtilAddressSettings.megabytes(f.size)}MB · ${time.value.full(f.modifiedAt)}` })),
+);
+
+/** 서버 폴더 목록 — 없어진 파일을 고른 채면 비운다 */
+async function loadServerFiles(): Promise<void> {
+    serverLoading.value = true;
+    try {
+        const fresh = await api.serverFiles();
+        serverFiles.value = fresh;
+        const names = new Set(fresh.files.map((f) => f.name));
+        serverPick.value = { ko: serverPick.value.ko && names.has(serverPick.value.ko) ? serverPick.value.ko : null, en: serverPick.value.en && names.has(serverPick.value.en) ? serverPick.value.en : null };
+        if (!fresh.enabled) source.value = 'upload';
+    } catch (e) {
+        uploadError.value = toApiError(e).message;
+    } finally {
+        serverLoading.value = false;
+    }
+}
+
+const canUpload = computed(() => {
+    if (uploading.value) return false;
+    if (source.value === 'server') return Boolean(serverPick.value.ko) && serverPick.value.ko !== serverPick.value.en;
+    return Boolean(files.value.ko) && !fileProblems.value.ko && !fileProblems.value.en;
+});
 
 function pick(slot: FileSlot): void {
     inputs[slot]?.click();
@@ -423,13 +492,14 @@ function setFile(slot: FileSlot, file: File | null): void {
 }
 
 async function startImport(): Promise<void> {
-    const ko = files.value.ko;
-    if (!ko || !canUpload.value || !saved.value) return;
-    const chosen = [ko, files.value.en].filter((f): f is File => f !== null);
+    if (!canUpload.value || !saved.value) return;
+    const fromServer = source.value === 'server';
+    const chosen = [files.value.ko, files.value.en].filter((f): f is File => f !== null);
+    const names = fromServer ? [serverPick.value.ko, serverPick.value.en].filter((n): n is string => Boolean(n)) : chosen.map((f) => f.name);
     const current = saved.value.db.entryCount;
     const ok = await confirm({
         title: t('address.uploadConfirmTitle'),
-        message: current ? t('address.uploadConfirmReplace', { count: current.toLocaleString(locale.value), files: chosen.map((f) => f.name).join(', ') }) : t('address.uploadConfirmFirst', { files: chosen.map((f) => f.name).join(', ') }),
+        message: current ? t('address.uploadConfirmReplace', { count: current.toLocaleString(locale.value), files: names.join(', ') }) : t('address.uploadConfirmFirst', { files: names.join(', ') }),
         confirmLabel: t('address.uploadConfirm'),
         tone: 'danger',
     });
@@ -437,9 +507,10 @@ async function startImport(): Promise<void> {
     uploading.value = true;
     uploadError.value = '';
     try {
-        const started = await api.startImport(chosen, charset.value);
+        const started = fromServer ? await api.startServerImport(names, charset.value) : await api.startImport(chosen, charset.value);
         files.value = { ko: null, en: null };
         fileProblems.value = { ko: null, en: null };
+        serverPick.value = { ko: null, en: null };
         await follow(started.jobId);
     } catch (e) {
         uploadError.value = toApiError(e).message;
@@ -461,9 +532,9 @@ function stepState(index: number): 'past' | 'current' | 'future' {
     const j = job.value;
     if (!j) return 'future';
     if (j.done) return 'past';
-    const at = STEPS.indexOf(j.phase);
-    // 실패는 단계가 FAILED 라 어디서 멈췄는지 모른다 — 진행 줄 수로 어림한다(셌으면 넣기 중, 다 넣었으면 그다음)
-    const current = at >= 0 ? at : j.totalRows < 0 ? 0 : j.processedRows < j.totalRows ? 1 : 2;
+    // 실패는 단계가 FAILED 라 멈춘 단계(failedPhase)로 그린다
+    const at = STEPS.indexOf(j.failed && j.failedPhase ? j.failedPhase : j.phase);
+    const current = Math.max(at, 0);
     return index < current ? 'past' : index === current ? 'current' : 'future';
 }
 
@@ -498,7 +569,8 @@ async function refreshDb(): Promise<void> {
     } catch {
         // 상태 줄이 늦을 뿐 — 이력은 아래에서 다시 받는다
     }
-    await loadHistory(0);
+    // 이력 서랍을 한 번이라도 열었으면 새 줄이 보이게 다시 받는다(아직 안 열었으면 열 때 받는다)
+    if (history.value || historyError.value) await loadHistory(0);
 }
 
 async function loadCurrentJob(): Promise<void> {
@@ -513,9 +585,16 @@ async function loadCurrentJob(): Promise<void> {
     }
 }
 
-/* ── ③ 적재 이력 ── */
+/* ── ③ 적재 이력(서랍) ── */
 
+const historyOpen = ref(false);
 const history = ref<AddressDbLoadPage | null>(null);
+
+/** 서랍을 열고 처음이면 받는다 */
+function openHistory(): void {
+    historyOpen.value = true;
+    if (!history.value && !historyLoading.value) void loadHistory(0);
+}
 const historyPage = ref(0);
 const historyLoading = ref(false);
 const historyError = ref<ApiError | null>(null);
@@ -537,7 +616,7 @@ async function loadHistory(page: number): Promise<void> {
 onMounted(() => {
     void load();
     void loadCurrentJob();
-    void loadHistory(0);
+    if (canManage.value) void loadServerFiles();
 });
 
 onBeforeUnmount(() => {

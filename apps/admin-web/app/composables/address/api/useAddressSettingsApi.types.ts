@@ -1,6 +1,6 @@
 /**
- * 주소 검색 설정 API 의 주고받는 모양(`useAddressSettingsApi`). 계약 후보는 `docs/features/address-search-contract.md`(화면 확정 뒤 작성) — 지금은 화면 목업의 가정이다.
- * 원본: pionworld2 `core.address`(`AddressSearchSettingsResponse`·`AddressImportProgressResponse`·`address_db_meta`).
+ * 주소 검색 설정 API 의 주고받는 모양(`useAddressSettingsApi`). 계약: `docs/features/address-search-contract.md`.
+ * 원본: pionworld2 `core.address`(`AddressSearchSettingsResponse`·`AddressImportProgressResponse`) — 적재 이력은 이곳의 `address_db_loads`.
  */
 
 /**
@@ -64,6 +64,8 @@ export interface AddressImportProgress {
     processedRows: number;
     done: boolean;
     failed: boolean;
+    /** 실패했으면 멈춘 단계(`COUNTING`~`SWAPPING`), 아니면 null */
+    failedPhase: AddressImportPhase | null;
     /** 끝났으면 결과 한 줄, 실패면 서버 사유 */
     message: string | null;
     fileNames: string[];
@@ -79,9 +81,10 @@ export interface AddressImportStarted {
 /** 파일을 읽을 글자 집합 — 행정안전부 파일은 CP949(`MS949`) */
 export type AddressImportCharset = 'MS949' | 'UTF-8';
 
-/** 적재 이력 한 줄(`address_db_meta`) */
+/** 적재 이력 한 줄(끝난 적재 — `address_db_loads` 의 DONE 줄) */
 export interface AddressDbLoadRow {
-    id: number;
+    /** 적재 ID(Snowflake — 문자열) */
+    id: string;
     loadedAt: string;
     sourceLabel: string;
     entryCount: number;
@@ -95,4 +98,17 @@ export interface AddressDbLoadPage {
     total: number;
     page: number;
     size: number;
+}
+
+/** 서버 폴더의 주소 DB 파일 하나(이름만 — 경로는 서버만 안다) */
+export interface AddressServerFile {
+    name: string;
+    size: number;
+    modifiedAt: string;
+}
+
+/** `GET /api/admin/address/server-files` — 서버 폴더(`ROBOYAM_ADDRESS_IMPORT_DIR`)가 설정돼 있지 않으면 `enabled: false` */
+export interface AddressServerFiles {
+    enabled: boolean;
+    files: AddressServerFile[];
 }

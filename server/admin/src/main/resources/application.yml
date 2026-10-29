@@ -24,6 +24,13 @@ spring:
         size: 4
       thread-name-prefix: worker-
 
+  # 주소 DB 올리기(설정 › 주소 검색 — address-search-contract) 때문에 컨테이너 한도를 파일 한 개 300MB · 요청 610MB(한글 + 영문 zip)로 올린다.
+  # 그 밖의 올리기는 AddressUploadLimitFilter 가 아래 roboyam.upload.default-max-request-size(공유 설정과 같은 11MB)로 본문을 읽기 전에 막는다
+  servlet:
+    multipart:
+      max-file-size: 300MB
+      max-request-size: 610MB
+
 server:
   port: ${SERVER_PORT:8920}
   servlet:
@@ -33,6 +40,13 @@ server:
         name: ADMIN_SESSION
 
 roboyam:
+  # 주소 DB 올리기가 아닌 multipart 요청의 한도(roboyam-shared.yml 의 spring.servlet.multipart.max-request-size 와 같은 값)
+  upload:
+    default-max-request-size: 11MB
+  # 주소 DB 를 서버 폴더에서 적재(설정 › 주소 검색 — address-search-contract). 운영자가 이 폴더에 행정안전부 zip 을 두면 화면에서 골라 넣는다(올리지 않는다).
+  # 비우면 꺼진다. 폴더 바로 아래 .zip 만 보이고 적재 뒤에도 지우지 않는다
+  address:
+    import-dir: ${ROBOYAM_ADDRESS_IMPORT_DIR:}
   schema:
     # 자기 스트림(db/migration/admin). shared 이관은 api 와 어느 쪽이 먼저 떠도 된다 — Flyway 가 DB 잠금으로 한 쪽만 적용한다
     stream: admin
