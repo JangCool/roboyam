@@ -27,6 +27,22 @@
                 </li>
             </ul>
         </div>
+        <!-- 사진 모아보기 — 누르면 「사진 리뷰만」 -->
+        <div v-if="summary && summary.photos.length > 0" class="flex flex-col gap-1.5" data-testid="group-buy-reviews-photos">
+            <span class="text-xs font-medium text-muted-color">{{ t('groupBuyReview.photoStrip', { count: summary.photoCount }) }}</span>
+            <div class="flex gap-2 overflow-x-auto pb-1">
+                <button
+                    v-for="(p, i) in summary.photos"
+                    :key="`${p.reviewId}-${i}`"
+                    type="button"
+                    class="size-20 shrink-0 overflow-hidden rounded-lg border border-surface focus-visible:outline-2 focus-visible:outline-primary"
+                    :aria-label="t('groupBuyReview.photoStripOpen')"
+                    @click="changePhotoOnly(true)"
+                >
+                    <img :src="p.url" alt="" class="size-full object-cover" loading="lazy" />
+                </button>
+            </div>
+        </div>
         <p class="m-0 text-xs text-muted-color"><i class="pi pi-info-circle mr-1 text-xs" aria-hidden="true" />{{ t('groupBuyReview.scopeNote') }} {{ t('groupBuyReview.rewardNote') }}</p>
 
         <!-- 정렬 · 사진 리뷰만 -->
@@ -69,13 +85,15 @@
 </template>
 
 <script setup lang="ts">
-import type { GroupBuyReview, GroupBuyReviewPage, GroupBuyReviewRequest, GroupBuyReviewSort } from '~/composables/groupbuy/api/useGroupBuyReviewApi.types';
+import type { GroupBuyReview, GroupBuyReviewPage, GroupBuyReviewRequest, GroupBuyReviewSort, GroupBuyReviewStats } from '~/composables/groupbuy/api/useGroupBuyReviewApi.types';
 import { GROUP_BUY_REVIEW_SORTS } from '~/composables/groupbuy/api/useGroupBuyReviewApi.types';
 import type { ReportReason } from '~/composables/report/api/useReportApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilGroupBuyMessages from '~/utils/util-group-buy-messages';
 
 const props = defineProps<{ groupBuyId: string }>();
+/** 요약(평균·수)을 받으면 — 부르는 화면의 위쪽 별점 링크·탭 (수) */
+const emit = defineEmits<{ summary: [stats: GroupBuyReviewStats] }>();
 
 const STARS = [5, 4, 3, 2, 1] as const;
 const { t } = useI18n();
@@ -109,6 +127,7 @@ async function load(more: boolean): Promise<void> {
         const res = await api.list(props.groupBuyId, sort.value, photoOnly.value, next);
         if (mine !== seq) return;
         page.value = res;
+        emit('summary', { average: res.summary.average, count: res.summary.count });
         items.value = more ? [...items.value, ...res.items.filter((r) => !items.value.some((o) => o.id === r.id))] : res.items;
         status.value = 'ready';
     } catch (e) {

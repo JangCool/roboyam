@@ -107,6 +107,8 @@ import UtilGroupBuyMessages from '~/utils/util-group-buy-messages';
 import UtilRedirect from '~/utils/util-redirect';
 
 const props = defineProps<{ groupBuyId: string }>();
+/** 전체 문의 수가 바뀌면(읽기·쓰기·지우기) — 부르는 화면의 탭 (수) */
+const emit = defineEmits<{ count: [total: number] }>();
 
 const { t } = useI18n();
 const { user } = useAuth();
@@ -146,7 +148,10 @@ async function load(more: boolean): Promise<void> {
         if (mineNow !== seq) return;
         page.value = res;
         items.value = more ? [...items.value, ...res.items.filter((q) => !items.value.some((o) => o.id === q.id))] : res.items;
-        if (!mine.value) allTotal.value = res.total;
+        if (!mine.value) {
+            allTotal.value = res.total;
+            emit('count', res.total);
+        }
         status.value = 'ready';
     } catch (e) {
         if (mineNow !== seq) return;
@@ -231,6 +236,7 @@ async function submitNew(body: GroupBuyQuestionRequest): Promise<void> {
         const created = await api.ask(props.groupBuyId, body);
         items.value = [created, ...items.value];
         allTotal.value++;
+        emit('count', allTotal.value);
         if (page.value) page.value.total++;
         composer.value = null;
         forcedNotice.value = created.forcedSecret;
@@ -295,6 +301,7 @@ async function remove(q: GroupBuyQuestion): Promise<void> {
         await api.remove(q.id);
         items.value = items.value.filter((o) => o.id !== q.id);
         allTotal.value = Math.max(0, allTotal.value - 1);
+        emit('count', allTotal.value);
         if (page.value) page.value.total = Math.max(0, page.value.total - 1);
         if (composer.value === q.id) closeComposer();
         toast.success(t('groupBuyQna.deleted'));

@@ -19,6 +19,8 @@ export default {
         PHOTO: 'Photos first',
     },
     photoOnly: 'With photos ({count})',
+    photoStrip: 'Photo gallery ({count})',
+    photoStripOpen: 'Show photo reviews',
     loadFailed: 'Couldn’t load reviews.',
     empty: 'No reviews yet',
     emptyText: 'Buyers can write a review from My orders after delivery.',

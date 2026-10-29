@@ -44,6 +44,19 @@
                         <PointShopTag v-for="tag in tags" :key="tag.key" :tone="tag.tone">{{ tag.text }}</PointShopTag>
                     </div>
                     <h1 :id="titleId" class="m-0 text-xl font-bold leading-snug">{{ gb.title }}</h1>
+                    <!-- 평균 별점 · 상품평 수 — 누르면 상품평 구역으로 -->
+                    <a
+                        v-if="reviewStats && reviewStats.count > 0"
+                        href="#reviews"
+                        class="-mt-1 inline-flex w-fit items-center gap-1 text-sm hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+                        :aria-label="t('groupBuy.ratingLink', { value: reviewStats.average?.toFixed(1) ?? '0', count: reviewStats.count })"
+                        data-testid="group-buy-rating-link"
+                        @click.prevent="goReviews"
+                    >
+                        <i class="pi pi-star-fill text-xs text-amber-500" aria-hidden="true" />
+                        <span class="font-semibold tabular-nums">{{ reviewStats.average?.toFixed(1) }}</span>
+                        <span class="tabular-nums text-muted-color">({{ reviewStats.count }})</span>
+                    </a>
                     <div>
                         <p class="m-0 flex flex-wrap items-baseline gap-x-2">
                             <span class="text-2xl font-bold tabular-nums text-primary">{{ gb.priceFrom ? t('groupBuy.priceFrom', { price: UtilGroupBuyMessages.won(t, gb.groupPrice) }) : UtilGroupBuyMessages.won(t, gb.groupPrice) }}</span>
@@ -228,49 +241,36 @@
                 </section>
             </div>
 
-            <GroupBuySalesTerms :gb="gb" />
-            <GroupBuyShippingNotice :shipping="gb.shipping" :withdrawal-restriction="gb.withdrawalRestriction" />
+            <!-- 탭 막대 + 구역 넷(일반 쇼핑몰 상품 상세 — 탭은 구역을 숨기지 않고 그 자리로 스크롤한다). 구역은 붙은 막대 높이만큼 위를 띄운다(`group-buy-section`) -->
+            <div class="flex flex-col gap-4">
+                <GroupBuyDetailTabs :tabs="detailTabs" />
 
-            <!-- 상세 설명(서버가 정화한 HTML) · 사양 -->
-            <section :aria-labelledby="descId" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900">
-                <h2 :id="descId" class="m-0 mb-2 text-sm font-semibold">{{ t('groupBuy.descriptionTitle') }}</h2>
-                <div class="rich-text text-[0.9375rem]" data-testid="group-buy-description" v-html="gb.descriptionHtml" />
-                <template v-if="gb.spec">
-                    <h3 class="m-0 mb-1 mt-4 text-sm font-semibold">{{ t('groupBuy.specTitle') }}</h3>
-                    <p class="m-0 whitespace-pre-line text-sm leading-relaxed">{{ gb.spec }}</p>
-                </template>
-            </section>
+                <!-- ① 상품상세: 상세 설명(서버가 정화한 HTML) → 사양 → 판매조건 요약 → 상품정보제공고시(양식마다 접고 펴기 — 결정 87·88) -->
+                <section id="detail" :aria-labelledby="descId" class="group-buy-section flex flex-col gap-4 rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900">
+                    <h2 :id="descId" class="m-0 text-sm font-semibold">{{ t('groupBuy.descriptionTitle') }}</h2>
+                    <div class="rich-text text-[0.9375rem]" data-testid="group-buy-description" v-html="gb.descriptionHtml" />
+                    <div v-if="gb.spec">
+                        <h3 class="m-0 mb-1 text-sm font-semibold">{{ t('groupBuy.specTitle') }}</h3>
+                        <p class="m-0 whitespace-pre-line text-sm leading-relaxed">{{ gb.spec }}</p>
+                    </div>
+                    <GroupBuySalesTerms :gb="gb" />
+                    <div v-if="gb.notices.length > 0" class="flex flex-col gap-2" data-testid="group-buy-product-info">
+                        <h3 class="m-0 text-sm font-semibold">{{ t('groupBuy.productInfoTitle') }}</h3>
+                        <GroupBuyProductNotices :notices="gb.notices" :skus="saleSkus" heading-tag="h4" always-collapsible />
+                    </div>
+                </section>
 
-            <!-- 상품정보제공고시(결정 87·88) — 넓은 폭은 그 자리에 펼치고, 모바일은 단추로 시트를 연다 -->
-            <section v-if="gb.notices.length > 0" :aria-labelledby="noticesId" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" data-testid="group-buy-product-info">
-                <h2 :id="noticesId" class="m-0 mb-2 text-sm font-semibold">{{ t('groupBuy.productInfoTitle') }}</h2>
-                <GroupBuyProductNotices v-if="desktop" :notices="gb.notices" :skus="saleSkus" />
-                <template v-else>
-                    <p class="m-0 mb-3 text-sm text-muted-color">{{ t('groupBuy.productInfoHelp') }}</p>
-                    <Button
-                        type="button"
-                        :label="t('groupBuy.productInfoOpen')"
-                        icon="pi pi-list"
-                        severity="secondary"
-                        variant="outlined"
-                        size="small"
-                        aria-haspopup="dialog"
-                        data-testid="group-buy-product-info-open"
-                        @click="noticesOpen = true"
-                    />
-                    <AppSheet v-model:visible="noticesOpen" :title="t('groupBuy.productInfoTitle')" wide>
-                        <div class="px-5 pt-3">
-                            <GroupBuyProductNotices :notices="gb.notices" :skus="saleSkus" heading-tag="h4" />
-                        </div>
-                    </AppSheet>
-                </template>
-            </section>
+                <!-- ② 상품평 · ③ 상품문의(2b-6) — 로그인 회원이 바뀌면 새로 그린다. 수는 탭과 위쪽 별점 링크에 쓴다 -->
+                <GroupBuyReviews :key="`r-${gb.id}-${user?.id ?? 'guest'}`" class="group-buy-section" :group-buy-id="gb.id" @summary="(s) => (reviewStats = s)" />
+                <GroupBuyQna :key="`${gb.id}-${user?.id ?? 'guest'}`" class="group-buy-section" :group-buy-id="gb.id" @count="(n) => (qnaCount = n)" />
 
-            <!-- 구매 리뷰 · 상품 문의(2b-6) — 로그인 회원이 바뀌면 새로 그린다 -->
-            <GroupBuyReviews :key="`r-${gb.id}-${user?.id ?? 'guest'}`" :group-buy-id="gb.id" />
-            <GroupBuyQna :key="`${gb.id}-${user?.id ?? 'guest'}`" :group-buy-id="gb.id" />
-
-            <CommerceBusinessInfo v-if="shownBusiness" :business="shownBusiness" variant="panel" />
+                <!-- ④ 배송/교환/반품 안내(표) + 판매자(사업자) 정보 -->
+                <section id="delivery" :aria-labelledby="deliveryId" class="group-buy-section flex flex-col gap-4 rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900">
+                    <h2 :id="deliveryId" class="m-0 text-sm font-semibold">{{ t('groupBuy.deliveryTitle') }}</h2>
+                    <GroupBuyDeliveryInfo :gb="gb" />
+                    <CommerceBusinessInfo v-if="shownBusiness" :business="shownBusiness" variant="panel" />
+                </section>
+            </div>
         </template>
     </div>
 </template>
@@ -278,6 +278,8 @@
 <script setup lang="ts">
 import type { GroupBuyDetail, GroupBuyOrderLine, GroupBuyQuote, GroupBuySku, GroupBuyWatchKind } from '~/composables/groupbuy/api/useGroupBuyApi.types';
 import type { GroupBuyPickedLine } from '~/components/groupbuy/GroupBuyPickedLines.types';
+import type { GroupBuyDetailTab } from '~/components/groupbuy/GroupBuyDetailTabs.types';
+import type { GroupBuyReviewStats } from '~/composables/groupbuy/api/useGroupBuyReviewApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilGroupBuy, { type GroupBuyValueState } from '~/utils/util-group-buy';
 import UtilGroupBuyMessages from '~/utils/util-group-buy-messages';
@@ -292,8 +294,10 @@ import UtilRedirect from '~/utils/util-redirect';
  * - 합계는 서버 견적(줄을 바꾸면 300ms 뒤 다시). 고른 목록은 주소 `?items=skuId:qty,…` 에도 적어 새로고침·로그인·주문서 왕복에도 남는다.
  * - 구매 단추는 서버의 `actions.order`·`purchase.reason` 으로만: 구매하기 · 로그인하고 · 본인인증하고(`useIdentityGate` — 용도 GROUP_BUY) · 막는 안내(+ 이미 주문했으면 그 주문으로).
  * - 알림 신청: 단품 단위 수량 풀림(단품 줄의 종) · 공구 단위 수량 풀림 · 마감 임박 · 다음 차수(결정 17). 로그인하지 않았으면 로그인으로 보낸다.
- * - 판매조건 요약(결정 57)·배송비·반품비 금액 고지(10-8)·청약철회 제한(결정 55)·상세 설명(정화된 HTML)·사양·사업자 정보(판매 스위치 켜짐일 때 — 결정 18·56). 상품 문의는 `GroupBuyQna`(2b-6).
- * - 상품정보제공고시(결정 87·88): 양식마다 품목·적용 단품·항목 표(`GroupBuyProductNotices`), 단품 칩으로 그 단품의 양식을 펼친다. 모바일은 「상품정보제공고시 보기」 → 시트.
+ * - 위쪽 아래는 탭 막대(`GroupBuyDetailTabs` — 붙는 막대·scrollspy·주소 해시) + 구역 넷이 차례로(탭은 구역을 숨기지 않는다 — 쿠팡·11번가 방식):
+ *   ① 상품상세 `#detail`: 상세 설명(정화된 HTML) → 사양 → 판매조건 요약(결정 57) → 상품정보제공고시(양식마다 접고 펴기·단품 칩 — 결정 87·88)
+ *   ② 상품평 `#reviews`(`GroupBuyReviews`) ③ 상품문의 `#qna`(`GroupBuyQna`) ④ 배송/교환/반품 안내 `#delivery`(표 — 배송비·반품비 금액 10-8 · 청약철회 제한 결정 55 · 사업자 정보 결정 18·56).
+ * - 위쪽 요약의 「★평균 (수)」는 상품평 구역으로 간다. 넓은 화면 오른쪽 붙는 구매 요약·모바일 아래 고정 구매 막대는 두지 않았다(선택 사항).
  */
 const { t } = useI18n();
 const { term } = useSiteTerms();
@@ -309,12 +313,24 @@ const commerce = useCommerceInfo();
 const { shownBusiness } = commerce;
 const titleId = useId();
 const descId = useId();
-const noticesId = useId();
+const deliveryId = useId();
 const pickId = useId();
 const pickedId = useId();
-const desktop = useIsDesktop();
-/** 모바일 — 상품정보제공고시 시트 */
-const noticesOpen = ref(false);
+/** 상품평 요약 · 문의 수 — 아래 구역이 읽으면 올려 준다(탭 (수) · 위쪽 별점 링크) */
+const reviewStats = ref<GroupBuyReviewStats | null>(null);
+const qnaCount = ref<number | null>(null);
+const detailTabs = computed<GroupBuyDetailTab[]>(() => [
+    { id: 'detail', label: t('groupBuy.tab.detail') },
+    { id: 'reviews', label: t('groupBuy.tab.reviews'), count: reviewStats.value?.count ?? null },
+    { id: 'qna', label: t('groupBuy.tab.qna'), count: qnaCount.value },
+    { id: 'delivery', label: t('groupBuy.tab.delivery') },
+]);
+
+/** 위쪽 「★평균 (수)」 — 상품평 구역으로 부드럽게(주소 해시도 맞춘다) */
+function goReviews(): void {
+    document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    history.replaceState(history.state, '', `${location.pathname}${location.search}#reviews`);
+}
 
 const id = computed(() => String(route.params.id));
 const gb = ref<GroupBuyDetail | null>(null);
@@ -739,3 +755,10 @@ async function toggleWatch(kind: GroupBuyWatchKind, skuId: string | null, on: bo
     }
 }
 </script>
+
+<style scoped>
+/* 탭으로 간 구역 — 공용 헤더 + 붙은 탭 막대(3rem) 아래에서 시작하게 */
+.group-buy-section {
+    scroll-margin-top: calc(var(--shell-header-h) + 3rem + 0.5rem);
+}
+</style>

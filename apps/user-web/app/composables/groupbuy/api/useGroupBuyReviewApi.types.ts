@@ -25,6 +25,8 @@ export interface GroupBuyReviewSummary extends GroupBuyReviewStats {
     /** 별점별 수 — 키 1~5 */
     distribution: Record<1 | 2 | 3 | 4 | 5, number>;
     photoCount: number;
+    /** 사진 모아보기 — 최근 사진 리뷰의 사진(최대 12장) */
+    photos: { reviewId: string; url: string }[];
 }
 
 export interface GroupBuyReview {

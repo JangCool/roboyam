@@ -19,6 +19,8 @@ export default {
         PHOTO: '사진 먼저',
     },
     photoOnly: '사진 리뷰만 ({count})',
+    photoStrip: '사진 모아보기 ({count})',
+    photoStripOpen: '사진 리뷰만 보기',
     loadFailed: '리뷰를 불러오지 못했어요.',
     empty: '아직 리뷰가 없어요',
     emptyText: '상품을 받은 회원이 내 주문에서 리뷰를 쓸 수 있어요.',

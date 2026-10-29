@@ -107,7 +107,8 @@ function stats(list: Stored[]): GroupBuyReviewPage['summary'] {
     const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } as GroupBuyReviewPage['summary']['distribution'];
     for (const s of shown) distribution[s.rating]++;
     const sum = shown.reduce((n, s) => n + s.rating, 0);
-    return { average: shown.length ? Math.round((sum / shown.length) * 10) / 10 : null, count: shown.length, distribution, photoCount: shown.filter((s) => s.photos.length > 0).length };
+    const photos = [...shown].sort(sortBy('LATEST')).flatMap((s) => s.photos.map((p) => ({ reviewId: s.id, url: p.url }))).slice(0, 12);
+    return { average: shown.length ? Math.round((sum / shown.length) * 10) / 10 : null, count: shown.length, distribution, photoCount: shown.filter((s) => s.photos.length > 0).length, photos };
 }
 
 function sortBy(sort: GroupBuyReviewSort): (a: Stored, b: Stored) => number {
