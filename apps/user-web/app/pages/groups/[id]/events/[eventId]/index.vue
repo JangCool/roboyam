@@ -62,7 +62,7 @@
             <h1 :id="titleId" class="mt-1.5 break-words text-lg font-bold leading-snug [overflow-wrap:anywhere]" :class="detail.state === 'CANCELED' ? 'text-muted-color line-through' : ''" data-testid="event-title">{{ detail.title }}</h1>
 
             <!-- 일시 · 진행(온라인) / 장소(오프라인) · 만든 사람 -->
-            <dl class="m-0 mt-3 rounded-xl border border-surface bg-surface-0 text-sm dark:bg-surface-900">
+            <dl class="m-0 mt-3 panel-card text-sm">
                 <div class="flex gap-3 border-b border-surface px-4 py-2.5">
                     <dt class="w-16 shrink-0 text-muted-color">{{ t('groupEvent.whenLabel') }}</dt>
                     <dd class="m-0 min-w-0 flex-1 break-words" data-testid="event-when"><time :datetime="detail.startsAt">{{ when }}</time></dd>

@@ -25,7 +25,7 @@
             </div>
 
             <!-- 지금 장착 — 자리마다 하나(닉네임 색 · 프로필 테두리) -->
-            <section class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-labelledby="`${uid}-equipped`" data-testid="myitems-equipped">
+            <section class="panel-card p-4" :aria-labelledby="`${uid}-equipped`" data-testid="myitems-equipped">
                 <h2 :id="`${uid}-equipped`" class="m-0 text-sm font-semibold">{{ t('pointShop.equippedTitle') }}</h2>
                 <div class="mt-3 grid gap-3 sm:grid-cols-2">
                     <div v-for="slot in slots" :key="slot.key" class="flex items-center gap-3 rounded-lg bg-surface-50 p-3 dark:bg-surface-950" :data-testid="`myitems-slot-${slot.key}`">
@@ -45,7 +45,7 @@
             </section>
 
             <!-- 자리별 보유 목록 -->
-            <section v-for="group in wearGroups" :key="group.key" class="rounded-xl border border-surface bg-surface-0 dark:bg-surface-900" :aria-labelledby="`${uid}-${group.key}`" :data-testid="`myitems-group-${group.key}`">
+            <section v-for="group in wearGroups" :key="group.key" class="panel-card" :aria-labelledby="`${uid}-${group.key}`" :data-testid="`myitems-group-${group.key}`">
                 <h2 :id="`${uid}-${group.key}`" class="m-0 px-4 pt-4 text-sm font-semibold">{{ group.title }}</h2>
                 <ul class="m-0 mt-2 list-none p-0">
                     <li v-for="row in group.rows" :key="row.id" class="flex flex-wrap items-center gap-3 border-t border-surface px-4 py-3" :class="row.expired ? 'opacity-60' : ''" data-testid="myitems-row">
@@ -83,7 +83,7 @@
             </section>
 
             <!-- 프로필 아바타 — 산 것(쓰는 중이 위). 아바타는 장착 칸이 아니라 프로필 그림이라 「프로필로 쓰기」(고르면 환불할 수 없다) -->
-            <section v-if="grouped.avatars.length > 0" class="rounded-xl border border-surface bg-surface-0 dark:bg-surface-900" :aria-labelledby="`${uid}-avatar`" data-testid="myitems-group-avatar">
+            <section v-if="grouped.avatars.length > 0" class="panel-card" :aria-labelledby="`${uid}-avatar`" data-testid="myitems-group-avatar">
                 <h2 :id="`${uid}-avatar`" class="m-0 px-4 pt-4 text-sm font-semibold">{{ t('pointShop.kindAvatar') }}</h2>
                 <ul class="m-0 mt-2 list-none p-0">
                     <li v-for="row in grouped.avatars" :key="row.id" class="flex flex-wrap items-center gap-3 border-t border-surface px-4 py-3" data-testid="myitems-avatar-row">
@@ -109,7 +109,7 @@
             </section>
 
             <!-- 변경권 — 품목별 한 카드(장수), 펼치면 장마다 구매일·상태·환불 -->
-            <section v-for="group in grouped.tickets" :key="group.itemId" class="rounded-xl border border-surface bg-surface-0 dark:bg-surface-900" data-testid="myitems-tickets">
+            <section v-for="group in grouped.tickets" :key="group.itemId" class="panel-card" data-testid="myitems-tickets">
                 <button
                     type="button"
                     class="flex w-full items-center gap-3 rounded-xl p-4 text-left focus-visible:outline-2 focus-visible:outline-primary"
@@ -146,7 +146,7 @@
             </section>
 
             <!-- 환불됨 — 접힌 구획 -->
-            <details v-if="grouped.revoked.length > 0" class="rounded-xl border border-surface bg-surface-0 dark:bg-surface-900" data-testid="myitems-revoked">
+            <details v-if="grouped.revoked.length > 0" class="panel-card" data-testid="myitems-revoked">
                 <summary class="cursor-pointer rounded-xl px-4 py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-primary">{{ t('pointShop.revokedTitle', { count: grouped.revoked.length }) }}</summary>
                 <ul class="m-0 list-none p-0">
                     <li v-for="row in grouped.revoked" :key="row.id" class="flex items-center gap-3 border-t border-surface px-4 py-3 text-sm text-muted-color">

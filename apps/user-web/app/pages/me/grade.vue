@@ -9,7 +9,7 @@
         </Message>
 
         <!-- 내 등급과 진행도 -->
-        <section class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-label="t('grade.mineLabel')" data-testid="grade-mine">
+        <section class="panel-card p-4" :aria-label="t('grade.mineLabel')" data-testid="grade-mine">
             <div v-if="!loaded" class="space-y-3" role="status" :aria-label="t('grade.authLoading')">
                 <div class="h-5 w-1/3 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
                 <div class="h-12 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
@@ -49,7 +49,7 @@
         <section class="mt-5" :aria-labelledby="rulesTitleId">
             <h2 :id="rulesTitleId" class="px-1 pb-1.5 text-xs font-semibold text-muted-color">{{ t('grade.rulesHeading') }}</h2>
 
-            <div v-if="rulesStatus === 'loading'" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" role="status" :aria-label="t('grade.rulesLoading')" data-testid="grade-rules-loading">
+            <div v-if="rulesStatus === 'loading'" class="panel-card p-4" role="status" :aria-label="t('grade.rulesLoading')" data-testid="grade-rules-loading">
                 <div v-for="n in 4" :key="n" class="py-2"><div class="h-5 animate-pulse rounded bg-surface-200 dark:bg-surface-800" :class="n % 2 ? 'w-4/5' : 'w-3/5'" /></div>
             </div>
 
@@ -58,12 +58,12 @@
                 :title="t('grade.rulesErrorTitle')"
                 :description="rulesError"
                 retry
-                class="rounded-xl border border-surface bg-surface-0 dark:bg-surface-900"
+                class="panel-card"
                 data-testid="grade-rules-error"
                 @retry="loadRules"
             />
 
-            <ul v-else class="m-0 list-none rounded-xl border border-surface bg-surface-0 p-0 dark:bg-surface-900" data-testid="grade-rules">
+            <ul v-else class="m-0 list-none panel-card p-0" data-testid="grade-rules">
                 <li
                     v-for="rule in rules"
                     :key="rule.code"

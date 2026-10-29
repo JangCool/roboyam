@@ -47,6 +47,10 @@
 
 * 컴포넌트는 값을 직접 쓰지 않고 **역할 이름의 변수**를 읽는다: `--post-row-py` `--card-radius` `--thumb-ratio`. 테마가 그 변수를 채운다. 변수 이름에 테마 이름을 넣지 않는다(`--naver-green` ❌).
 * 셸 역할 변수는 `main.css` 에 있다: `--page-bg`(레이아웃 바탕) `--card-bg` `--card-radius` `--card-shadow`(카드 면 = `shell-card`) `--hairline` `--hairline-strong` `--tab-fg(-active)` `--subtab-fg(-active)` `--nav-tab-fg` `--content-max`. 기본값이 기본 테마 모양이고, Tailwind 로는 `bg-page` `bg-card` `border-hairline` `text-tab` … 로 쓴다. 다크는 `html[data-theme='<id>'][data-color-scheme='dark']` 로 채운다.
+* **화면의 면은 두 가지 카드로만 그린다**(사용자 요청 2026-10-29 — 테마를 바꾸면 모든 공개 화면의 카드가 같이 바뀌게). 둘 다 `main.css` 의 유틸리티이고 값은 테마가 채운다.
+    * `content-card` — 화면 본문 한 장(머리·탭·목록·쪽 번호를 한 카드에). 게시판 목록·글 상세·인기글·최신글·검색·게시판 모음·소모임 목록·소모임 본문 열·프로필·글쓰기 계열. 기본 테마는 보이지 않고(바탕 투명·여백 0), 카드 테마(다음식·로보얌·네이버식)는 흰 카드 + 안 여백, 모바일은 화면 끝까지(좌우 바깥 여백은 카드 테마의 모바일에서만 걸려 `mx-auto` 와 함께 써도 된다).
+    * `panel-card` — 화면 안의 작은 상자(마이페이지·설정 묶음, 주문·공동구매 구획, 소모임 옆 칸 …). 안 여백은 쓰는 곳이 `p-4` 등으로 준다. 기본 테마 = 흰 면 + 회색 테두리 + 반경 12, 카드 테마 = 테두리 없는 흰 카드(가젯 카드와 같은 반경·그림자). 흰 카드(`content-card`·`gadget-card`·`panel-card`) 안의 패널은 머리카락 선 테두리로 바뀐다.
+    * `rounded-xl border border-surface bg-surface-0 dark:bg-surface-900` 같은 고정 조합, 맨 페이지 바탕에 목록을 바로 놓기, `bg-surface-50` 같은 고정 페이지 바탕(→ `bg-page`)은 쓰지 않는다. 알림·경고 상자(주 색상·노랑 바탕)는 의미 색이라 그대로 둔다.
 * 이산적 차이는 `@custom-variant naver (&:where([data-theme='naver'], [data-theme='naver'] *))` 처럼 선언해 `naver:py-2` 로 쓴다. 한 컴포넌트에 테마 분기가 3개를 넘으면 변수화나 슬롯 승격을 검토한다.
 * 색은 PrimeVue 프리셋과 `surface-*` 토큰으로 간다. 색을 하드코딩하지 않는다.
 
@@ -129,7 +133,7 @@ export const themes = {
 3. ❌ 카탈로그에 없는 항목의 컴포넌트를 테마별로 복제
 4. ❌ `default.vue` 에 테마별 `v-if` 분기 누적
 5. ❌ 슬롯 컴포넌트에서 서버 호출·로직 처리, 같은 슬롯의 props 계약을 테마마다 다르게 정의, 홈 템플릿에 칸 이름·열 배치를 다시 두기(배치는 운영자 격자 — `HomeGadgetGrid`)
-6. ❌ 색·모서리·간격 하드코딩
+6. ❌ 색·모서리·간격 하드코딩, 카드를 `rounded-xl border bg-surface-0` 조합으로 직접 그리기(→ `content-card`·`panel-card`)
 7. ❌ 테마 컴포넌트를 동기 임포트(번들 부풀림)
 8. ❌ 셸·부품이 테마 선언(`UtilTheme.menuStyleDefault` 등)을 직접 읽어 메뉴 모양을 정하기, 메뉴 모양 CSS 를 `data-theme` 테마 이름에 묶기 — 해석 값(`useMenuStyle`·루트 설정 속성)을 쓴다
 9. ❌ 데스크톱 가로 메뉴 줄을 `AppScrollRow` 없이 직접 `overflow-x-auto` 로 만들기·넘침 계산 복사, 브라우저 기본 가로 스크롤바 드러내기, 넘칠 때 줄 높이가 바뀌는 표시

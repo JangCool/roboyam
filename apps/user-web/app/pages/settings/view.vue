@@ -12,7 +12,7 @@
             <!-- 화면 — 야간 모드 · 글자 크기. 바꾸는 즉시 저장한다 -->
             <section :aria-labelledby="`${uid}-screen`">
                 <h2 :id="`${uid}-screen`" class="px-1 pb-1.5 text-xs font-semibold text-muted-color">{{ t('view.sectionScreen') }}</h2>
-                <div class="rounded-xl border border-surface bg-surface-0 dark:bg-surface-900">
+                <div class="panel-card">
                     <div class="flex flex-col gap-2 border-b border-surface px-4 py-3 md:flex-row md:items-center md:justify-between md:gap-4">
                         <div class="min-w-0 flex-1">
                             <p :id="`${uid}-theme-label`" class="m-0 text-sm font-medium">{{ t('view.theme') }}</p>
@@ -74,7 +74,7 @@
             <!-- 메뉴 — 데스크톱 메뉴 위치(자동 = 사이트 설정 따름). 모바일에는 적용하지 않는다(하단 탭·메뉴 단추 그대로) -->
             <section :aria-labelledby="`${uid}-menu`">
                 <h2 :id="`${uid}-menu`" class="px-1 pb-1.5 text-xs font-semibold text-muted-color">{{ t('view.sectionMenu') }}</h2>
-                <div class="flex flex-col gap-2 rounded-xl border border-surface bg-surface-0 px-4 py-3 md:flex-row md:items-center md:justify-between md:gap-4 dark:bg-surface-900">
+                <div class="flex flex-col gap-2 panel-card px-4 py-3 md:flex-row md:items-center md:justify-between md:gap-4">
                     <div class="min-w-0 flex-1">
                         <p :id="`${uid}-menu-label`" class="m-0 text-sm font-medium">{{ t('view.menuPosition') }}</p>
                         <p :id="`${uid}-menu-hint`" class="m-0 mt-0.5 text-xs leading-snug text-muted-color">
@@ -102,7 +102,7 @@
             <!-- 댓글 — 처음 보이는 정렬 -->
             <section :aria-labelledby="`${uid}-comments`">
                 <h2 :id="`${uid}-comments`" class="px-1 pb-1.5 text-xs font-semibold text-muted-color">{{ t('view.sectionComments') }}</h2>
-                <div class="flex flex-col gap-2 rounded-xl border border-surface bg-surface-0 px-4 py-3 md:flex-row md:items-center md:justify-between md:gap-4 dark:bg-surface-900">
+                <div class="flex flex-col gap-2 panel-card px-4 py-3 md:flex-row md:items-center md:justify-between md:gap-4">
                     <div class="min-w-0 flex-1">
                         <p :id="`${uid}-order-label`" class="m-0 text-sm font-medium">{{ t('view.commentOrder') }}</p>
                         <p :id="`${uid}-order-hint`" class="m-0 mt-0.5 text-xs leading-snug text-muted-color">{{ settings.commentOrder === 'LATEST' ? t('view.commentOrderLatestHint') : t('view.commentOrderOldestHint') }}</p>
@@ -127,7 +127,7 @@
             <!-- 시간 표시 — 로보얌은 따로 있는 화면(언어·시간대·형식, 자기 저장 줄)이라 이어지는 줄만 둔다 -->
             <NuxtLink
                 to="/settings/display"
-                class="flex min-h-14 items-center gap-3 rounded-xl border border-surface bg-surface-0 px-4 py-2.5 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary dark:bg-surface-900 dark:hover:bg-surface-800"
+                class="flex min-h-14 items-center gap-3 panel-card px-4 py-2.5 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary dark:hover:bg-surface-800"
                 data-testid="view-display-link"
             >
                 <i class="pi pi-clock text-muted-color" aria-hidden="true" />

@@ -4,7 +4,7 @@
         끝났거나(종료) 취소된(취소됨) 일정을 최근 순으로, 줄을 누르면 일정 상세. 「더보기」는 쪽 번호. 끝난 일정은 고칠 수 없어 「수정」이 없다.
         소모임 상세를 받지 않는다 — 멤버인지는 서버가 정한다(`403 GROUP_NOT_MEMBER` → 잠금). 로그인 전이면 요청하지 않고 로그인 안내.
     -->
-    <div class="mx-auto max-w-2xl" data-testid="events-past">
+    <div class="content-card mx-auto max-w-2xl" data-testid="events-past">
         <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface px-2 py-1.5 md:hidden">
             <Button type="button" icon="pi pi-angle-left" variant="text" severity="secondary" :aria-label="t('common.back')" @click="goBack" />
             <span class="text-sm font-semibold">{{ t('groupEvent.pastTitle') }}</span>

@@ -5,7 +5,7 @@
         <h1 v-if="view === 'loading' || view === 'error' || view === 'form'" class="mb-4 text-lg font-bold">{{ t('account.passwordChange') }}</h1>
 
         <!-- 로딩 -->
-        <div v-if="view === 'loading'" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" role="status" :aria-label="t('account.accountLoading')" data-testid="password-loading">
+        <div v-if="view === 'loading'" class="panel-card p-4" role="status" :aria-label="t('account.accountLoading')" data-testid="password-loading">
             <div class="space-y-4">
                 <div v-for="n in 3" :key="n" class="h-10 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
             </div>
@@ -15,7 +15,7 @@
         <ErrorState v-else-if="view === 'error'" :title="t('account.accountLoadFailed')" :description="loadError" retry data-testid="password-error" @retry="load" />
 
         <!-- 변경 완료 — 이 기기는 로그인이 남고 다른 기기는 끊긴다 -->
-        <div v-else-if="view === 'done'" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900">
+        <div v-else-if="view === 'done'" class="panel-card p-4">
             <StatusPanel icon="pi pi-check" tone="success" :title="t('password.changedTitle')" data-testid="password-done">
                 {{ t('password.changedText') }}
                 <template #actions>
@@ -25,7 +25,7 @@
         </div>
 
         <!-- 소셜 가입자가 들어왔다 — 비밀번호가 없어서 바꿀 수 없다 -->
-        <div v-else-if="view === 'social'" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900">
+        <div v-else-if="view === 'social'" class="panel-card p-4">
             <StatusPanel icon="pi pi-info-circle" :title="socialCopy.title" data-testid="password-social">
                 {{ socialCopy.text }}
                 <template #actions>
@@ -35,7 +35,7 @@
         </div>
 
         <!-- 입력 -->
-        <form v-else class="flex flex-col gap-4 rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" novalidate :aria-label="t('account.passwordChange')" @submit.prevent="submit">
+        <form v-else class="flex flex-col gap-4 panel-card p-4" novalidate :aria-label="t('account.passwordChange')" @submit.prevent="submit">
             <!-- 시도 제한: 현재 비밀번호를 여러 번 틀려 잠겼다. 잠긴 동안은 입력도 단추도 막는다 -->
             <Message v-if="locked" severity="error" :closable="false" size="small" data-testid="password-locked">
                 <b>{{ t('password.lockedTitle') }}</b> {{ t('password.lockedText', { minutes: UtilAccount.minutes(lock.remaining.value) }) }}

@@ -234,13 +234,48 @@ html[data-theme='naver'] .side-menu[data-side='RIGHT'] [aria-current='page'] {
     border-radius: var(--content-card-radius);
     box-shadow: var(--content-card-shadow);
     padding: var(--content-card-pad);
-    margin-inline: var(--content-card-bleed);
 }
 .content-card {
     --p-content-border-color: var(--hairline);
 }
 .content-card + .content-card {
     margin-top: var(--content-card-gap);
+}
+
+/*
+ * 패널 카드(`panel-card`) — 화면 안의 작은 상자(내 정보 묶음·설정 묶음·주문 요약·공동구매 구획·소모임 카드 …). 안쪽 여백은 쓰는 곳이 정한다(`p-4` 등).
+ *   --panel-bg / -border / -radius / -shadow  면 · 테두리 색 · 모서리 · 그림자
+ * 기본값이 기본 테마 모양(흰 면 + 회색 테두리 + 반경 12)이고, 카드 테마(다음식·로보얌·네이버식)는 테두리 없는 흰 카드(가젯 카드와 같은 반경·그림자)다.
+ * 흰 카드(`content-card`·`gadget-card`) 안이나 패널 안의 패널은 바탕이 같아 경계가 사라지므로 머리카락 선 테두리 · 그림자 없음으로 바꾼다.
+ * `rounded-xl border border-surface bg-surface-0 dark:bg-surface-900` 같은 고정 조합을 직접 쓰지 않는다(themes.md 2-1).
+ */
+:root {
+    --panel-bg: var(--card-bg);
+    --panel-border: var(--p-content-border-color);
+    --panel-radius: 0.75rem;
+    --panel-shadow: none;
+}
+html:is([data-theme='daum'], [data-theme='roboyam']) {
+    --panel-border: transparent;
+    --panel-radius: var(--card-radius);
+    --panel-shadow: var(--card-shadow);
+}
+html[data-theme='naver'] {
+    --panel-border: transparent;
+    --panel-radius: 10px;
+}
+@utility panel-card {
+    background-color: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--panel-radius);
+    box-shadow: var(--panel-shadow);
+}
+.panel-card {
+    --p-content-border-color: var(--hairline);
+}
+:is(.content-card, .gadget-card, .panel-card) .panel-card {
+    --panel-border: var(--hairline);
+    --panel-shadow: none;
 }
 
 /* 다음식 — 카드 안 여백 위 6 · 좌우 24 · 아래 22(시안 `.nw-card`), 모바일은 좌우 16 · 반경 0 으로 화면 끝까지 */
@@ -266,6 +301,10 @@ html[data-theme='naver'] {
         --content-card-shadow: none;
         --content-card-pad: 4px 16px 14px;
         --content-card-bleed: -1rem;
+    }
+    /* 좌우 바깥 여백은 화면 끝까지 닿을 때(카드 테마의 모바일)만 건다 — 데스크톱에서 가운데 정렬(`mx-auto`)한 카드와 부딪치지 않게 */
+    html:is([data-theme='daum'], [data-theme='roboyam'], [data-theme='naver']) .content-card {
+        margin-inline: var(--content-card-bleed);
     }
 }
 

@@ -84,7 +84,7 @@
             <Message v-if="actionError" severity="error" size="small" variant="simple" :closable="false" role="alert">{{ actionError }}</Message>
 
             <!-- 주문 상품 -->
-            <section :aria-labelledby="`${uid}-items`" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900">
+            <section :aria-labelledby="`${uid}-items`" class="panel-card p-4">
                 <h2 :id="`${uid}-items`" class="m-0 mb-2 text-base font-semibold">{{ t('groupBuy.itemsTitle') }}</h2>
                 <ul class="m-0 flex list-none flex-col divide-y divide-surface p-0" data-testid="my-order-items">
                     <li v-for="item in order.items" :key="item.id" class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-2 text-sm">
@@ -139,7 +139,7 @@
             </p>
 
             <!-- 환불 진행(결정 16) -->
-            <section v-if="order.refunds.length > 0" :aria-labelledby="`${uid}-refunds`" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" data-testid="my-order-refunds">
+            <section v-if="order.refunds.length > 0" :aria-labelledby="`${uid}-refunds`" class="panel-card p-4" data-testid="my-order-refunds">
                 <h2 :id="`${uid}-refunds`" class="m-0 mb-2 text-base font-semibold">{{ t('groupBuy.refundsTitle') }}</h2>
                 <ul class="m-0 flex list-none flex-col gap-2 p-0">
                     <li v-for="refund in order.refunds" :key="refund.id" class="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
@@ -153,7 +153,7 @@
             </section>
 
             <!-- 요청(취소·반품) — 상태 · 철회 · 반품비 부족분 결제 -->
-            <section v-if="order.requests.length > 0" :aria-labelledby="`${uid}-requests`" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" data-testid="my-order-requests">
+            <section v-if="order.requests.length > 0" :aria-labelledby="`${uid}-requests`" class="panel-card p-4" data-testid="my-order-requests">
                 <h2 :id="`${uid}-requests`" class="m-0 mb-2 text-base font-semibold">{{ t('groupBuy.requestsTitle') }}</h2>
                 <ul class="m-0 flex list-none flex-col divide-y divide-surface p-0">
                     <li v-for="request in order.requests" :key="request.id" class="flex flex-col gap-1 py-2 text-sm">
@@ -184,7 +184,7 @@
             </section>
 
             <!-- 배송 -->
-            <section :aria-labelledby="`${uid}-ship`" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" data-testid="my-order-shipping">
+            <section :aria-labelledby="`${uid}-ship`" class="panel-card p-4" data-testid="my-order-shipping">
                 <h2 :id="`${uid}-ship`" class="m-0 mb-2 text-base font-semibold">{{ t('groupBuy.shippingTitle') }}</h2>
                 <p v-if="!order.shipment" class="m-0 text-sm text-muted-color">{{ UtilGroupBuyMessages.shipPlan(t, time, order) || t('groupBuy.notShippedYet') }}</p>
                 <dl v-else class="m-0 grid grid-cols-[minmax(0,6rem)_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
@@ -203,7 +203,7 @@
             </section>
 
             <!-- 배송지 — 가린 값 · 전체 보기 · 수정(기한 안 — 서버 actions) -->
-            <section :aria-labelledby="`${uid}-addr`" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" data-testid="my-order-address">
+            <section :aria-labelledby="`${uid}-addr`" class="panel-card p-4" data-testid="my-order-address">
                 <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <h2 :id="`${uid}-addr`" class="m-0 text-base font-semibold">{{ t('groupBuy.addressTitle') }}</h2>
                     <div v-if="!editing && !order.address.purged" class="flex gap-1">

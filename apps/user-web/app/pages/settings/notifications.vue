@@ -21,7 +21,7 @@
 
             <section v-for="group in groups" :key="group.area" :aria-labelledby="`${uid}-${group.area}`">
                 <h2 :id="`${uid}-${group.area}`" class="mb-2 px-1 text-xs font-semibold text-muted-color">{{ t(group.titleKey) }}</h2>
-                <ul class="m-0 list-none rounded-xl border border-surface bg-surface-0 p-0 dark:bg-surface-900">
+                <ul class="m-0 list-none panel-card p-0">
                     <li v-for="row in group.rows" :key="row.code" class="flex flex-col gap-2 border-b border-surface px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4" :data-code="row.code" data-testid="notify-settings-row">
                         <div class="min-w-0 flex-1">
                             <p :id="`${uid}-${row.code}-name`" class="text-sm font-medium">{{ row.name }}</p>

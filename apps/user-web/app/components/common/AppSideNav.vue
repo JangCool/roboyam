@@ -3,7 +3,7 @@
         화면 안의 좌측 서브메뉴(넓은 화면 전용) — 한 묶음의 화면들(설정 …)을 왼쪽에 세로로 늘어놓고, 고른 것은 알약 모양 배경으로 짚는다(admin-web `AppSideNav` 와 같은 모양).
         공개 사이트는 화면마다 주소가 있어 항목이 **링크**다(admin 은 값 고르기). 좁은 화면에서는 부르는 쪽이 이것 대신 목록 화면을 보인다.
     -->
-    <nav class="w-full rounded-xl border border-surface bg-surface-0 p-2 dark:bg-surface-900" :aria-label="navLabel">
+    <nav class="w-full panel-card p-2" :aria-label="navLabel">
         <p v-if="title" class="m-0 px-2.5 pb-1.5 pt-1 text-xs font-semibold text-muted-color">{{ title }}</p>
         <ul class="m-0 flex list-none flex-col gap-0.5 p-0">
             <li v-for="item in items" :key="item.to">

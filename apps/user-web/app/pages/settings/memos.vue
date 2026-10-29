@@ -14,7 +14,7 @@
             <EmptyState v-if="items.length === 0" :title="t('block.memosEmptyTitle')" :description="t('block.memosEmptyText')" icon="pi pi-bookmark" data-testid="memos-empty" />
 
             <template v-else>
-                <ul class="m-0 list-none rounded-xl border border-surface bg-surface-0 p-0 dark:bg-surface-900" data-testid="memos-list">
+                <ul class="m-0 list-none panel-card p-0" data-testid="memos-list">
                     <li v-for="row in items" :key="row.id" class="flex min-h-14 items-center gap-2 border-b border-surface px-4 py-2.5 last:border-b-0" data-testid="memos-row">
                         <div class="min-w-0 flex-1">
                             <p class="m-0 flex min-w-0 items-center gap-1.5 text-sm">

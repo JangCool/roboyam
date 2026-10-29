@@ -1,6 +1,6 @@
 <template>
     <!-- 로그인·가입·인증·재설정·온보딩 — 가운데 카드. 모바일 우선이고 데스크톱에서는 카드 폭만 제한한다 -->
-    <div class="flex min-h-dvh flex-col bg-surface-50 dark:bg-surface-950">
+    <div class="flex min-h-dvh flex-col bg-page">
         <div class="mx-auto flex w-full max-w-[26rem] flex-1 flex-col px-4 pb-6 pt-6 sm:justify-center sm:py-10">
             <header class="mb-5 text-center">
                 <!-- 상단 로고는 공개 헤더·모바일 메뉴와 같은 부품(아이콘 + 사이트 이름, 아이콘이 없으면 이름만) — docs/api-site-icon.md -->
@@ -9,7 +9,7 @@
                 <p v-if="tagline" class="mt-0.5 text-xs text-muted-color" data-testid="site-tagline">{{ tagline }}</p>
             </header>
 
-            <main class="rounded-2xl border border-surface bg-surface-0 p-5 dark:bg-surface-900 sm:p-6">
+            <main class="panel-card p-5 sm:p-6">
                 <slot />
             </main>
 

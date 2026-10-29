@@ -1,6 +1,6 @@
 <template>
     <!-- 제재·이의제기 요약 표 — 이름과 값을 한 줄씩. `tone` 이 있는 줄은 값을 색 태그로 그린다. 사유처럼 줄바꿈이 있는 글은 그대로 두 줄로(글자로만 그린다) -->
-    <dl v-if="rows.length" class="m-0 overflow-hidden rounded-xl border border-surface bg-surface-0 dark:bg-surface-900" data-testid="sanction-summary">
+    <dl v-if="rows.length" class="m-0 overflow-hidden panel-card" data-testid="sanction-summary">
         <div v-for="row in rows" :key="row.label" class="flex items-baseline gap-3 border-b border-surface px-3.5 py-2.5 text-sm last:border-b-0">
             <dt class="w-20 shrink-0 text-muted-color">{{ row.label }}</dt>
             <dd class="m-0 min-w-0 flex-1 whitespace-pre-line break-words [overflow-wrap:anywhere]">

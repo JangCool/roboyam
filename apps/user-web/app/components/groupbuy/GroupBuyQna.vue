@@ -7,7 +7,7 @@
         · 하자·오배송은 반품 요청으로 안내 · 「이전 차수 문의 보기」(서버 `previousRound`).
         부르는 화면은 로그인 회원이 바뀌면 `:key` 로 이 구역을 새로 그린다.
     -->
-    <section id="qna" :aria-labelledby="titleId" class="flex flex-col gap-3 rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" data-testid="group-buy-qna">
+    <section id="qna" :aria-labelledby="titleId" class="flex flex-col gap-3 panel-card p-4" data-testid="group-buy-qna">
         <div class="flex flex-wrap items-center justify-between gap-2">
             <h2 :id="titleId" class="m-0 text-sm font-semibold">
                 {{ t('groupBuyQna.title') }}<span v-if="page" class="ml-1.5 font-normal tabular-nums text-muted-color">{{ t('groupBuyQna.count', { count: allTotal }) }}</span>

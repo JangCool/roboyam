@@ -1,5 +1,6 @@
 <template>
-    <div>
+    <!-- 검색 막대·필터·결과를 한 카드에 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 카드 테마는 흰 카드다(`main.css` `content-card`) -->
+    <div class="content-card" data-testid="search-card">
         <!-- 검색 막대 — 모바일은 ‹ · 입력 · 검색 단추가 위에 붙어 따라온다, 데스크톱은 본문 맨 위 -->
         <form
             role="search"

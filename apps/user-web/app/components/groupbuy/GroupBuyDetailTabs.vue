@@ -6,7 +6,7 @@
         · 주소 해시(`#reviews` 등)로 들어오면 처음 그릴 때 그 구역으로 간다. 모바일은 네 칸이 꽉 차고, 넘치면 가로로 민다.
         구역 요소는 부르는 쪽이 같은 화면에 둔다(이 막대가 그려질 때 이미 있어야 한다 — 같은 부모 아래 형제).
     -->
-    <nav class="group-buy-tabs sticky z-20 -mx-4 border-b border-surface bg-surface-0/95 px-4 backdrop-blur dark:bg-surface-900/95 sm:mx-0 sm:rounded-t-xl sm:px-0" :aria-label="t('groupBuy.tabsLabel')" data-testid="group-buy-tabs">
+    <nav class="group-buy-tabs sticky z-20 -mx-4 border-b border-hairline bg-card/95 px-4 backdrop-blur sm:mx-0 sm:rounded-t-[var(--panel-radius)] sm:px-0" :aria-label="t('groupBuy.tabsLabel')" data-testid="group-buy-tabs">
         <ul class="m-0 flex list-none overflow-x-auto p-0 [scrollbar-width:none]">
             <li v-for="tab in tabs" :key="tab.id" class="flex-1 shrink-0">
                 <a

@@ -29,7 +29,7 @@
                 </div>
                 <ul
                     v-if="state.ineligibleReason !== 'SUSPENDED' && requirementRows.length"
-                    class="m-0 mt-3 flex list-none flex-col divide-y divide-surface rounded-xl border border-surface bg-surface-0 p-0 text-sm dark:bg-surface-900"
+                    class="m-0 mt-3 flex list-none flex-col divide-y divide-surface panel-card p-0 text-sm"
                     :aria-label="t('nicknameImage.requirementsLabel')"
                     data-testid="nickname-image-requirements"
                 >
@@ -63,7 +63,7 @@
             </section>
 
             <!-- 승인 대기 — 신청한 이미지 · 운영자 확인 후 적용 · 신청 취소 -->
-            <section v-if="layout.request === 'PENDING' && state.request" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-labelledby="`${uid}-pending`" data-testid="nickname-image-pending">
+            <section v-if="layout.request === 'PENDING' && state.request" class="panel-card p-4" :aria-labelledby="`${uid}-pending`" data-testid="nickname-image-pending">
                 <div class="flex items-center justify-between gap-2">
                     <h2 :id="`${uid}-pending`" class="m-0 text-sm font-semibold">
                         <span class="inline-flex items-center justify-center rounded bg-amber-100 px-1.5 py-1 text-xs leading-none text-amber-900 dark:bg-amber-900/40 dark:text-amber-200"
@@ -91,7 +91,7 @@
             <!-- 반려 — 사유 · 다시 신청할 수 있는 때 -->
             <section v-else-if="layout.request === 'REJECTED' && state.request" :aria-labelledby="`${uid}-rejected`" data-testid="nickname-image-rejected">
                 <div class="rounded-lg bg-red-50 px-3 py-2.5 text-sm leading-relaxed text-red-900 dark:bg-red-950/40 dark:text-red-200" role="status">{{ t('nicknameImage.rejectedBanner') }}</div>
-                <div class="mt-3 rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900">
+                <div class="mt-3 panel-card p-4">
                     <div class="flex items-center justify-between gap-2">
                         <h2 :id="`${uid}-rejected`" class="m-0 text-sm font-semibold">
                             <span class="inline-flex items-center justify-center rounded bg-red-100 px-1.5 py-1 text-xs leading-none text-red-900 dark:bg-red-900/40 dark:text-red-200"
@@ -125,7 +125,7 @@
                     <h2 :id="`${uid}-current`" class="m-0 text-sm font-semibold">{{ t('nicknameImage.currentBanner') }}</h2>
                 </div>
                 <NicknameImageFrame :src="state.current.url" :alt="t('nicknameImage.altCurrent')" class="mt-3" />
-                <section class="mt-3 rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-labelledby="`${uid}-preview`" data-testid="nickname-image-preview">
+                <section class="mt-3 panel-card p-4" :aria-labelledby="`${uid}-preview`" data-testid="nickname-image-preview">
                     <h3 :id="`${uid}-preview`" class="m-0 text-xs font-semibold text-muted-color">{{ t('nicknameImage.previewTitle') }}</h3>
                     <p class="m-0 mt-3 text-xs text-muted-color">{{ t('nicknameImage.previewList') }}</p>
                     <div class="mt-1 rounded-lg border border-surface px-3 py-2.5">
@@ -176,7 +176,7 @@
             </section>
 
             <!-- 신청 — 파일 고르기 · 미리보기(4:1 틀) · 안내 · 올리기. 서버 응답을 받은 뒤에야 「승인 대기」가 된다 -->
-            <section v-if="layout.form" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-labelledby="`${uid}-form`" data-testid="nickname-image-form">
+            <section v-if="layout.form" class="panel-card p-4" :aria-labelledby="`${uid}-form`" data-testid="nickname-image-form">
                 <h2 :id="`${uid}-form`" class="m-0 text-sm font-semibold">{{ layout.current ? t('nicknameImage.change') : t('nicknameImage.formTitle') }}</h2>
 
                 <ul class="m-0 mt-2 list-none space-y-0.5 p-0 text-xs leading-relaxed text-muted-color" data-testid="nickname-image-rules">

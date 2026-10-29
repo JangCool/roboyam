@@ -1,5 +1,6 @@
 <template>
-    <div>
+    <!-- 머리·목록을 한 카드에 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 카드 테마는 흰 카드다(`main.css` `content-card`) -->
+    <div class="content-card" data-testid="latest-card">
         <!-- 머리: 이름 · 한 줄 설명 — 정렬은 늘 최신순이라 토글이 없다 -->
         <header>
             <h1 class="break-words text-lg font-bold leading-tight">{{ name }}</h1>

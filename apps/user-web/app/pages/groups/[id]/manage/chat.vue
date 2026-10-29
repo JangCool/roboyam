@@ -20,7 +20,7 @@
             <section
                 v-for="p in PROVIDERS"
                 :key="p.field"
-                class="flex flex-col gap-3 rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900"
+                class="flex flex-col gap-3 panel-card p-4"
                 :aria-labelledby="`${uid}-${p.field}`"
                 :data-testid="`group-chat-${p.field}`"
             >

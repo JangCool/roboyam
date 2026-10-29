@@ -46,7 +46,8 @@
         </div>
 
         <div v-else-if="group" class="lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start lg:gap-6">
-            <div class="min-w-0">
+            <!-- 본문 열을 한 카드에 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 카드 테마는 흰 카드다(`main.css` `content-card`) -->
+            <div class="content-card min-w-0" data-testid="group-main-card">
                 <header>
                     <div class="flex items-start gap-3">
                         <GroupInitial :name="group.name" size="lg" />
@@ -370,7 +371,7 @@
 
             <!-- 오른쪽 — 데스크톱에서만: 모임 정보(신규 가입자 포함) · 채팅 열기(멤버만) -->
             <aside class="space-y-4 max-lg:hidden" :aria-label="t('group.info')" data-testid="group-sidebar">
-                <section class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900">
+                <section class="panel-card p-4">
                     <h2 class="text-sm font-semibold">{{ t('group.info') }}</h2>
                     <dl class="m-0 mt-3 space-y-2 text-sm">
                         <div v-if="group.leader" class="flex items-center justify-between gap-3">
@@ -407,7 +408,7 @@
                     </div>
                 </section>
 
-                <section v-if="isMember" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900">
+                <section v-if="isMember" class="panel-card p-4">
                     <h2 class="text-sm font-semibold">{{ t('group.tabChat') }}</h2>
                     <template v-if="chats.length > 0">
                         <p class="m-0 mt-1 text-xs leading-relaxed text-muted-color">{{ t('group.chatSideText') }}</p>

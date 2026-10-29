@@ -6,7 +6,7 @@
         · 내 리뷰: 고치기(30일 안 — 서버 `actions.edit`) · 지우기. 남의 리뷰: 신고(대상 `GROUP_BUY_REVIEW`). 쓰기는 내 주문에서(산 회원만).
         부르는 화면은 로그인 회원이 바뀌면 `:key` 로 이 구역을 새로 그린다.
     -->
-    <section id="reviews" :aria-labelledby="titleId" class="flex flex-col gap-5 rounded-xl border border-surface bg-surface-0 p-4 sm:p-6 dark:bg-surface-900" data-testid="group-buy-reviews">
+    <section id="reviews" :aria-labelledby="titleId" class="flex flex-col gap-5 panel-card p-4 sm:p-6" data-testid="group-buy-reviews">
         <!-- 머리(네이버 쇼핑 모양) — 「리뷰 n」 | 오른쪽 「리뷰 제공 기준 ⓘ」(지난 차수 포함 · 보상 없음), 그 아래 ★ 평균 한 줄 -->
         <div class="flex flex-col gap-2" data-testid="group-buy-reviews-summary">
             <div class="flex items-center justify-between gap-3">

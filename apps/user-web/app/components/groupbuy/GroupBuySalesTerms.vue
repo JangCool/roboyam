@@ -3,7 +3,7 @@
         판매조건 요약(결정 57 — 모집 기간 · 총 수량 · 1인 한도 · 차수 · 성사 조건) + 발송 예정(결정 51) + 정상가 기준(결정 58). 공구 상세와 주문서가 같이 쓴다.
         「한정」은 시스템 문구로 쓰지 않고 「총 N개」만(결정 58). 값은 서버가 준 그대로.
     -->
-    <section :aria-labelledby="headingId" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" data-testid="group-buy-sales-terms">
+    <section :aria-labelledby="headingId" class="panel-card p-4" data-testid="group-buy-sales-terms">
         <h2 :id="headingId" class="m-0 mb-2 text-sm font-semibold">{{ t('groupBuy.termsTitle') }}</h2>
         <dl class="m-0 grid grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">
             <dt class="text-muted-color">{{ t('groupBuy.termsPeriod') }}</dt>

@@ -12,7 +12,7 @@
 
         <template v-else-if="status">
             <!-- 지금 상태 — "성인 확인됨 · 1999년생" / "아직 확인하지 않았어요" -->
-            <section class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-label="t('adult.stateLabel')" data-testid="adult-state">
+            <section class="panel-card p-4" :aria-label="t('adult.stateLabel')" data-testid="adult-state">
                 <p class="m-0 flex items-center gap-2 text-base font-semibold">
                     <i :class="[stateIcon, 'text-lg']" aria-hidden="true" />
                     <span data-testid="adult-state-line">{{ stateLine }}</span>

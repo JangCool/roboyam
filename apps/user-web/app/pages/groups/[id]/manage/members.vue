@@ -73,7 +73,7 @@
         </p>
 
         <!-- 줄 — 전체와 매니저 거르기가 같은 모양 -->
-        <ul v-if="shownRows.length > 0" class="m-0 list-none overflow-hidden rounded-xl border border-surface bg-surface-0 p-0 dark:bg-surface-900" :data-testid="showingManagers ? 'group-managers-list' : 'group-members-list'">
+        <ul v-if="shownRows.length > 0" class="m-0 list-none overflow-hidden panel-card p-0" :data-testid="showingManagers ? 'group-managers-list' : 'group-members-list'">
             <li v-for="(member, index) in shownRows" :key="member.user.id ?? `withdrawn-${index}`" class="flex min-h-14 items-center gap-3 border-b border-surface px-4 py-2.5 last:border-b-0" data-testid="group-member">
                 <div class="min-w-0 flex-1">
                     <p class="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm">

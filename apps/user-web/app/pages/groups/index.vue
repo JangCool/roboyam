@@ -47,7 +47,8 @@
         </form>
 
         <div class="mt-3 lg:grid lg:grid-cols-[minmax(0,1fr)_18.75rem] lg:items-start lg:gap-6">
-            <div class="min-w-0">
+            <!-- 본문 열(지금 뜨는 소모임 ~ 목록)을 한 카드에 — 기본 테마는 카드가 보이지 않고(역할 변수 기본값), 카드 테마는 흰 카드다(`main.css` `content-card`) -->
+            <div class="content-card min-w-0" data-testid="group-list-card">
                 <!-- 지금 뜨는 소모임 — 가로로 밀어 넘기는 카드 줄(scroll-snap, 자동으로 넘어가지 않는다). 검색 중에는 숨기고, 후보가 없으면(빈 응답) 자리를 통째로 생략한다.
                      카드 전체가 상세로 가는 링크이고 오른쪽 아래 「가입하기」는 모양만이다(링크 안에 단추를 넣지 않는다 — 상세에서 가입한다) -->
                 <section
@@ -67,7 +68,7 @@
 
                     <div
                         v-else-if="trendingStatus === 'error'"
-                        class="mt-2 flex items-center justify-between gap-3 rounded-xl border border-surface bg-surface-0 px-3 py-2.5 text-sm dark:bg-surface-900"
+                        class="mt-2 flex items-center justify-between gap-3 panel-card px-3 py-2.5 text-sm"
                         role="alert"
                         data-testid="group-trending-error"
                     >
@@ -88,7 +89,7 @@
                             <li v-for="row in trending" :key="row.id" class="w-[16.5rem] shrink-0 snap-start">
                                 <NuxtLink
                                     :to="UtilGroup.detailPath(row.id)"
-                                    class="flex h-full flex-col rounded-xl border border-surface bg-surface-0 p-3 hover:bg-surface-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:bg-surface-900 dark:hover:bg-surface-800"
+                                    class="flex h-full flex-col panel-card p-3 hover:bg-surface-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:hover:bg-surface-800"
                                     data-testid="group-trending-card"
                                 >
                                     <span class="flex items-center gap-2.5">
@@ -257,7 +258,7 @@
 
             <!-- 데스크톱 오른쪽 — 내 소모임 요약(로그인했을 때만). 받지 못해도 이 카드만 오류를 말한다 -->
             <aside class="max-lg:hidden" :aria-label="t('group.myTitle')">
-                <section v-if="user" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" data-testid="group-my-summary">
+                <section v-if="user" class="panel-card p-4" data-testid="group-my-summary">
                     <h2 class="text-sm font-semibold">{{ t('group.myTitle') }}</h2>
                     <div v-if="my.status.value === 'idle' || my.status.value === 'loading'" class="mt-3 space-y-2" aria-hidden="true">
                         <div v-for="n in 3" :key="n" class="h-4 animate-pulse rounded bg-surface-200 dark:bg-surface-800" :class="n % 2 ? 'w-3/4' : 'w-1/2'" />

@@ -3,7 +3,7 @@
         내 소모임 `/groups/me` (메뉴 `GROUPS_MINE`) — 가입한 모임(새 글 수 · 다음 일정 「일정 내일 20:00」 — 4단계) · 승인 대기(가입 신청) · 내 개설 신청(검토 중 · 반려). 비회원은 로그인 안내(목록은 로그인 없이 볼 수 있다).
         개설 신청은 아직 열린 소모임이 아니라 상세가 없다 — 검토 중은 [신청 취소], 반려는 사유 + [수정해서 다시 신청](`/groups/new?from=<신청 id>`).
     -->
-    <div class="mx-auto max-w-2xl">
+    <div class="content-card mx-auto max-w-2xl">
         <header class="flex items-center gap-2">
             <h1 class="min-w-0 flex-1 text-lg font-bold leading-tight">{{ t('group.myTitle') }}</h1>
             <Button v-if="user" as="router-link" :to="UtilGroup.NEW_PATH" :label="t('group.create')" size="small" class="shrink-0 whitespace-nowrap" data-testid="group-my-create" />

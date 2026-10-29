@@ -8,7 +8,7 @@
 
         <form v-else-if="mine" class="flex flex-col gap-4" novalidate data-testid="display-settings-form" @submit.prevent="save">
             <!-- 지금 무엇이 적용되는지 — 내 값 · 사이트 기본값 -->
-            <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-surface bg-surface-0 px-4 py-3 text-sm dark:bg-surface-900" data-testid="display-source">
+            <div class="flex flex-wrap items-center justify-between gap-2 panel-card px-4 py-3 text-sm" data-testid="display-source">
                 <p class="flex items-center gap-2">
                     <Tag :value="mine.own ? t('settings.displayOwnTag') : t('settings.displayDefaultTag')" :severity="mine.own ? 'info' : 'secondary'" />
                     <span class="text-muted-color">{{ mine.own ? t('settings.displayOwnText') : t('settings.displayDefaultText') }}</span>
@@ -27,7 +27,7 @@
                 />
             </div>
 
-            <section class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-label="t('settings.display')">
+            <section class="panel-card p-4" :aria-label="t('settings.display')">
                 <DisplayValueForm v-model="values" :errors="fieldErrors" :disabled="saving || resetting" />
             </section>
 

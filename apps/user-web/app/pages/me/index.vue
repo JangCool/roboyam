@@ -4,7 +4,7 @@
 
         <template v-if="user">
             <!-- 프로필 요약 — 뱃지·닉네임·이메일은 로그인 정보, 가입일·한 줄 소개는 내 프로필(`/api/me/profile`)에서 -->
-            <section class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-labelledby="`${uid}-profile`" data-testid="me-profile">
+            <section class="panel-card p-4" :aria-labelledby="`${uid}-profile`" data-testid="me-profile">
                 <h2 :id="`${uid}-profile`" class="sr-only">{{ t('me.profileTitle') }}</h2>
                 <div class="flex items-start gap-3">
                     <!-- 내 프로필 아바타(고르지 않았으면 basic-default — 결정 14) + 장착한 프로필 테두리. 방금 고른·장착한 것을 겹친다(`useMyDecoration`) -->
@@ -34,7 +34,7 @@
             </section>
 
             <!-- 포인트 요약 — 사업자 전용 계정은 포인트가 없다(서버 `403 BUSINESS_ACCOUNT_RESTRICTED`) -->
-            <section v-if="!businessAccount" class="rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-labelledby="`${uid}-points`" data-testid="me-points">
+            <section v-if="!businessAccount" class="panel-card p-4" :aria-labelledby="`${uid}-points`" data-testid="me-points">
                 <div class="flex items-center justify-between gap-2">
                     <h2 :id="`${uid}-points`" class="text-sm font-semibold">{{ t('point.title') }}</h2>
                     <NuxtLink to="/me/points" class="inline-flex min-h-8 items-center gap-1 rounded text-sm text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary" data-testid="me-points-link">
@@ -65,7 +65,7 @@
             </section>
 
             <!-- 바로가기 — 지금 만들어진 화면만(스크랩은 기능이 없어 넣지 않는다). 포인트 상점·내 아이템은 포인트 내역 다음(사업자 전용 계정 제외). 내 프로필 보기·등급 안내는 회원 활동 화면, 쪽지함은 소통 화면 -->
-            <nav class="rounded-xl border border-surface bg-surface-0 p-2 dark:bg-surface-900" :aria-label="t('me.shortcuts')">
+            <nav class="panel-card p-2" :aria-label="t('me.shortcuts')">
                 <ul class="m-0 list-none p-0">
                     <li v-for="entry in entries" :key="entry.to">
                         <NuxtLink
@@ -89,7 +89,7 @@
             </nav>
 
             <!-- 운영자·운영진만 — 관리자 앱(별도 사이트, 새 탭) -->
-            <nav v-if="adminUrl" class="rounded-xl border border-surface bg-surface-0 p-2 dark:bg-surface-900" :aria-label="t('shell.adminApp')">
+            <nav v-if="adminUrl" class="panel-card p-2" :aria-label="t('shell.adminApp')">
                 <AdminAppLink class="min-h-11 rounded-lg px-2 py-2.5 text-sm hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-primary dark:hover:bg-surface-800" />
             </nav>
 

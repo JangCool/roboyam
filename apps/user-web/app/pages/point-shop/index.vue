@@ -7,7 +7,7 @@
 
         <template v-else>
             <!-- 내 포인트 · 내 아이템 — 포인트는 그 탭 응답의 `balance`(품목 목록 또는 아바타 카탈로그 — 충전을 열기 전이라 하나, D13) -->
-            <section class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900" :aria-label="t('pointShop.myPoints')" data-testid="pointshop-balance">
+            <section class="flex flex-wrap items-center justify-between gap-3 panel-card p-4" :aria-label="t('pointShop.myPoints')" data-testid="pointshop-balance">
                 <div>
                     <p class="m-0 text-xs font-semibold text-muted-color">{{ t('pointShop.myPoints') }}</p>
                     <p v-if="balance !== null" class="m-0 mt-0.5 text-2xl font-bold tabular-nums">{{ UtilPoint.points(balance) }}</p>
@@ -41,7 +41,7 @@
                 <template v-else>
                     <section
                         v-if="picked"
-                        class="flex flex-wrap items-center gap-4 rounded-xl border border-surface bg-surface-0 p-4 dark:bg-surface-900"
+                        class="flex flex-wrap items-center gap-4 panel-card p-4"
                         :aria-labelledby="`${uid}-picked`"
                         data-testid="pointshop-avatar-preview"
                     >
@@ -101,7 +101,7 @@
                 <li v-for="item in data.items" :key="item.id">
                     <NuxtLink
                         :to="UtilPointShop.itemPath(item.id)"
-                        class="flex h-full flex-col gap-2 rounded-xl border border-surface bg-surface-0 p-3 hover:border-primary focus-visible:outline-2 focus-visible:outline-primary dark:bg-surface-900"
+                        class="flex h-full flex-col gap-2 panel-card p-3 hover:border-primary focus-visible:outline-2 focus-visible:outline-primary"
                         :class="item.saleState === 'SOLD_OUT' ? 'opacity-70' : ''"
                         data-testid="pointshop-item"
                     >
