@@ -105,6 +105,8 @@ public final class AdminScreenRegistry {
                     leaf(s("portone", "/settings/portone", "menu.portone", "pi pi-credit-card", Permission.SITE_READ)),
                     // 로그인 보안(관리자 2차 인증 — commerce-foundation-contract 「0-3」) — 루트 전용, 권한 코드 없음
                     leaf(superOnly("loginSecurity", "/settings/login-security", "menu.loginSecurity", "pi pi-shield")),
+                    // 주소 검색(address-search-contract) — 우편번호 찾기 제공처·자체 주소 DB 올리기. 조회 site.read, 저장·올리기는 화면 안에서 site.manage
+                    leaf(s("addressSearch", "/settings/address", "menu.addressSearch", "pi pi-map-marker", Permission.SITE_READ)),
                     leaf(s("teams", "/settings/teams", "menu.teams", "pi pi-sitemap", Permission.TEAM_READ)),
                     // 약관(docs/features/terms-contract.md) — 이용약관·개인정보처리방침 게시·「보기」 링크 옵션
                     leaf(s("terms", "/settings/terms", "menu.terms", "pi pi-file", Permission.TERMS_READ))),

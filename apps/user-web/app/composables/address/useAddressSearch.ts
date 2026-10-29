@@ -38,7 +38,7 @@ export function useAddressSearch() {
         return pending;
     }
 
-    /** 받아 둔 설정을 버린다 — 다음 `ensureConfig` 가 다시 묻는다(개발 확인 화면이 목업 스위치를 바꿀 때) */
+    /** 받아 둔 설정을 버린다 — 다음 `ensureConfig` 가 다시 묻는다(개발 확인 화면이 관리자 설정을 바꾼 뒤 다시 받을 때) */
     function forget(): void {
         config.value = undefined;
     }

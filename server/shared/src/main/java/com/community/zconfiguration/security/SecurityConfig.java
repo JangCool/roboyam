@@ -106,6 +106,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/group-buys", "/api/group-buys/categories", "/api/group-buys/*", "/api/group-buys/*/questions", "/api/group-buys/*/reviews",
                                 "/api/commerce/info").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/group-buys/*/quote").permitAll()
+                        // 우편번호 찾기(docs/features/address-search-contract.md) — 제공처 설정·자체 주소 DB 검색은 비회원 화면(공구 견적·가입 등)도 쓴다. 검색은 IP 한도를
+                        // 서비스가 센다(공개 사이트 서버(api)에만 있는 주소)
+                        .requestMatchers(HttpMethod.GET, "/api/address/config", "/api/address/search").permitAll()
                         // 포트원 결제 웹훅(docs/features/commerce-payment-contract.md 결정 5) — 로그인·CSRF 없이 받고 서명은 서비스가 검증한다(틀리면 400). 공개 사이트 서버(api)에만 있는 주소
                         .requestMatchers(HttpMethod.POST, PaymentWebhookPaths.PORTONE).permitAll()
                         // 관리자 앱(admin)의 로그인 상태 조회·로그인·로그아웃 — 같은 규약이다(공개 사이트 서버에는 이 주소가 없다). 그 밖의 /api/admin/** 는 로그인이 필요하고,

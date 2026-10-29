@@ -6,9 +6,9 @@
           ② 주소 DB(`address-db`) — 지금 올라 있는 DB(마지막 적재·주소 수·영문 수·파일 이름, 오래되면 「갱신 권고」)와 파일 올리기. 행정안전부 「도로명주소 한글 전체분」 zip(필수)과 「영문 전체분」 zip(선택)을 그대로 올린다.
              [올리기]는 되돌릴 수 없어 확인을 묻는다. 서버는 작업 번호만 바로 주고 적재를 이어 가며(수 분), 화면은 1.5초마다 진행을 묻는다(세기 → 넣기 → 지번·영문 붙이기 → 바꿔 끼우기).
              새 데이터는 스테이징 표에 다 넣은 뒤 맞바꾸므로 적재 중에도 회원 검색은 앞 데이터로 된다. 화면을 떠나도 적재는 이어지고, 다시 열면 돌고 있는 작업을 이어서 보인다. 실패하면 서버 사유를 그대로 보이고 지금 DB 는 그대로다.
-          ③ 적재 이력 — 올릴 때마다 한 줄(`address_db_meta`), 최신이 위.
+          ③ 적재 이력 — 끝난 적재마다 한 줄(`address_db_loads`), 최신이 위.
         권한: 조회 `site.read`(메뉴), 저장·올리기 `site.manage` — 없으면 저장 줄·올리기가 사라지고 입력칸은 `readonly`. 감추는 것은 편의이고 막는 것은 서버다.
-        ⚠ 목업: `useAddressSettingsApi` 가 아직 `./mock/address-mock.ts` 를 부른다(스위치는 그 파일 머리말).
+        계약: `docs/features/address-search-contract.md`.
     -->
     <div class="flex flex-col gap-4">
         <PageTitle :title="t('address.title')" :subtitle="t('address.subtitle')" />
@@ -461,9 +461,9 @@ function stepState(index: number): 'past' | 'current' | 'future' {
     const j = job.value;
     if (!j) return 'future';
     if (j.done) return 'past';
-    const at = STEPS.indexOf(j.phase);
-    // 실패는 단계가 FAILED 라 어디서 멈췄는지 모른다 — 진행 줄 수로 어림한다(셌으면 넣기 중, 다 넣었으면 그다음)
-    const current = at >= 0 ? at : j.totalRows < 0 ? 0 : j.processedRows < j.totalRows ? 1 : 2;
+    // 실패는 단계가 FAILED 라 멈춘 단계(failedPhase)로 그린다
+    const at = STEPS.indexOf(j.failed && j.failedPhase ? j.failedPhase : j.phase);
+    const current = Math.max(at, 0);
     return index < current ? 'past' : index === current ? 'current' : 'future';
 }
 

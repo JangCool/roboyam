@@ -360,6 +360,10 @@ public final class AuditActions {
     public static final String GROUPBUY_REVIEW_HIDE = "GROUPBUY_REVIEW_HIDE";
     /** 공구 리뷰 공식 답글 수정 — 글자 수. 일반 */
     public static final String GROUPBUY_REVIEW_REPLY_EDIT = "GROUPBUY_REVIEW_REPLY_EDIT";
+    /** 주소 검색 설정 저장(address-search-contract) — 대상 ADDRESS_SEARCH/settings, 바뀐 칸의 {@code before}/{@code after}(바뀐 때만). 일반 */
+    public static final String ADDRESS_SEARCH_SETTINGS_UPDATE = "ADDRESS_SEARCH_SETTINGS_UPDATE";
+    /** 주소 DB 적재 결과 — 대상 ADDRESS_SEARCH/적재 ID, 성공은 {@code files}·{@code entries}·{@code jibun}·{@code english}, 실패는 {@code reason}(문구 키). 일반 */
+    public static final String ADDRESS_DB_IMPORT = "ADDRESS_DB_IMPORT";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

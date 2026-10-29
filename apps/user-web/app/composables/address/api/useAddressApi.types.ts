@@ -1,5 +1,5 @@
 /**
- * 주소 검색 API 의 주고받는 모양(`useAddressApi`). 계약 후보는 `docs/features/address-search-contract.md`(화면 확정 뒤 작성) — 지금은 화면 목업의 가정이다.
+ * 주소 검색 API 의 주고받는 모양(`useAddressApi`). 계약: `docs/features/address-search-contract.md`.
  * 원본: pionworld2 `core.address`(`AddressSearchSettingsResponse`·`AddressSearchResultResponse`·`AddressSearchPageResponse`). 회원 화면에는 제공처·스크립트 주소만 내려 준다(적재 이력은 관리자 몫).
  */
 

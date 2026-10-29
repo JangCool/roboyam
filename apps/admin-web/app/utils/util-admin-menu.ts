@@ -247,10 +247,10 @@ export default class UtilAdminMenu {
                 { key: 'socialLogin', to: '/settings/social-login', icon: 'pi pi-key', labelKey: 'menu.socialLogin', permission: 'site.read' },
                 // 포트원 설정(본인인증 — 상점 ID·API 비밀키·채널 키, 2a 에 결제 칸) — 조회는 `site.read`, 저장·지우기는 화면 안에서 `site.secret`(커머스 0-4). 서버 `AdminScreenRegistry` 에도 같은 한 줄이 필요하다(서버 단계)
                 { key: 'portone', to: '/settings/portone', icon: 'pi pi-credit-card', labelKey: 'menu.portone', permission: 'site.read' },
-                // 주소 검색(회원 화면 「우편번호 찾기」의 제공처 · 자체 주소 DB 올리기 — pionworld2 core.address) — 조회는 `site.read`, 저장·올리기는 화면 안에서 `site.manage`. 서버 `AdminScreenRegistry` 에도 같은 한 줄이 필요하다(서버 단계)
-                { key: 'addressSearch', to: '/settings/address', icon: 'pi pi-map-marker', labelKey: 'menu.addressSearch', permission: 'site.read' },
                 // 로그인 보안(관리자 2차 인증 켜기·끄기와 값) — 최고 관리자만(commerce.md 13-3, 권한 코드로 위임하지 않는다). 서버 `AdminScreenRegistry` 에도 같은 한 줄이 필요하다(서버 단계)
                 { key: 'loginSecurity', to: '/settings/login-security', icon: 'pi pi-shield', labelKey: 'menu.loginSecurity', superOnly: true },
+                // 주소 검색(회원 화면 「우편번호 찾기」의 제공처 · 자체 주소 DB 올리기 — address-search-contract) — 조회는 `site.read`, 저장·올리기는 화면 안에서 `site.manage`. 서버 `AdminScreenRegistry` 의 같은 한 줄(로그인 보안 다음)
+                { key: 'addressSearch', to: '/settings/address', icon: 'pi pi-map-marker', labelKey: 'menu.addressSearch', permission: 'site.read' },
                 // 조직 구성 — 운영자를 팀으로 묶는다(알림 이벤트의 「추가 수신 팀」으로 쓴다)
                 { key: 'teams', to: '/settings/teams', icon: 'pi pi-sitemap', labelKey: 'menu.teams', permission: 'team.read' },
                 { key: 'terms', to: '/settings/terms', icon: 'pi pi-file', labelKey: 'menu.terms', permission: 'terms.read' },
