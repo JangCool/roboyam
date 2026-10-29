@@ -46,7 +46,8 @@ public final class HomeLayoutDefaults {
      * 네 테마의 기본 배치는 로보얌 구성을 기준으로 같은 가젯·같은 차례·같은 칸 배분이다(사용자 결정 2026-10-29 「로보얌 가젯 기준으로 해당 테마도 구성 맞추기」):
      *   본문 넓은 열(하이라이트 · 인기글 두 열 · [모바일 전용 공구] · 영상·짤 · 방금 올라온 글 두 열) + 오른쪽 열(공구 — 데스크톱 전용 · 인기 소모임).
      *   24칸 테마는 17 + 7, 다음식은 12칸 8 + 4(같은 비율). 높이(최소)도 같다 — 영상·짤만 한 줄 4장(로보얌 템플릿 `galleryColumns: 4`)이 아닌 테마는 3장 두 줄이라 더 높다.
-     * 테마마다 다른 것은 꾸미기(머리 모양·제목 색·부제)와 하이라이트 모양뿐이다 — 다음식은 막대 머리 + 제목 색, 네이버식은 막대 머리 + 하이라이트 사진 카드 한 줄, 기본형은 구역 이름 줄(본문은 카드 없음 · 오른쪽 열은 카드).
+     * 테마마다 다른 것은 꾸미기(머리 모양·제목 색·부제)와 하이라이트 모양이다 — 다음식은 막대 머리 + 제목 색, 네이버식은 막대 머리 + 하이라이트 사진 카드 한 줄, 기본형은 구역 이름 줄(본문은 카드 없음 · 오른쪽 열은 카드).
+     * 네이버식만 가젯을 더한다 — 본문 게시판 카드 격자 · 오른쪽 많이 본 글(언론사 홈 모양, 아래 {@link #naver()}).
      */
 
     /** 기본형 — 24칸: 본문 17칸(하이라이트 · 인기글 · [모바일 전용 공구] · 영상·짤 · 방금 올라온 글) + 오른쪽 7칸(공구 · 인기 소모임) */
@@ -88,7 +89,11 @@ public final class HomeLayoutDefaults {
         return b.build();
     }
 
-    /** 네이버형 — 24칸: 본문 17칸(하이라이트 사진 카드 한 줄 · 인기글 · [모바일 전용 공구] · 영상·짤 · 방금 올라온 글) + 오른쪽 7칸(공구 · 인기 소모임) */
+    /**
+     * 네이버형 — 24칸: 본문 17칸(하이라이트 사진 카드 한 줄 · 인기글 · [모바일 전용 공구] · 게시판 카드 격자 · 영상·짤 · 방금 올라온 글) + 오른쪽 7칸(공구 · 많이 본 글 · 인기 소모임).
+     * 로보얌 구성에 언론사 홈 같은 게시판별 새 글 격자(게시판 카드 — 카드마다 게시판 이름 · 대표 글 · 새 글 4개)를 더해 본문을 채우고(사용자 요청 2026-10-29 「네이버식 본문 내용이 부족해」),
+     * 본문이 길어진 만큼 오른쪽 열에 많이 본 글 순위를 더한다.
+     */
     private static Home naver() {
         Builder b = new Builder("naver", 24);
         b.add("HIGHLIGHT", "하이라이트", true, true, style().set("empty", noKeep()), cfg().put("lead", "NONE").put("thumbs", "ALL").put("count", 4), null, null, 0, 0, 17, 8);
@@ -96,13 +101,18 @@ public final class HomeLayoutDefaults {
                 cfg().put("sort", "POPULAR").put("rowStyle", "RANK").put("columns", 2).put("count", 6).put("periodTabs", true).set("meta", meta("BOARD", "COMMENTS", "TIME")),
                 null, "/popular", 0, 8, 17, 8);
         b.add("GROUP_BUY", "진행 중 공동구매", false, true, style().set("empty", noKeep()), null, null, null, 0, 16, 17, 10);
-        b.add("GALLERY", "영상·짤", true, true, null, cfg().put("count", 6).set("boardIds", meta("video")), "영상·짤 게시판", "/boards/video", 0, 26, 17, 11);
+        b.add("BOARD_CARDS", "게시판별 새 글", true, true, style().put("headerStyle", "HIDDEN").put("cardLook", "FLAT"),
+                cfg().put("columns", "AUTO").put("perBoard", 4).put("boardScope", GadgetConfigs.PICK).set("boardIds", meta("ai", "robot", "stock", "game", "sports", "free")),
+                null, null, 0, 26, 17, 30);
+        b.add("GALLERY", "영상·짤", true, true, null, cfg().put("count", 6).set("boardIds", meta("video")), "영상·짤 게시판", "/boards/video", 0, 56, 17, 11);
         b.add("POST_LIST", "방금 올라온 글", true, true, null,
                 cfg().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("thumbnail", "NONE").put("titleLines", 1).put("columns", 2).put("count", 8)
                         .set("meta", meta("BOARD", "COMMENTS", "TIME")),
-                null, "/latest", 0, 37, 17, 8);
+                null, "/latest", 0, 67, 17, 8);
         b.add("GROUP_BUY", "진행 중 공동구매", true, false, style().set("empty", noKeep()), null, null, null, 17, 0, 7, 12);
-        b.add("GROUPS", "인기 소모임", true, true, null, cfg().put("count", 3), "소모임 전체", "/groups", 17, 12, 7, 9);
+        b.add("POST_LIST", "많이 본 글", true, false, null, cfg().put("sort", "VIEWS").put("rowStyle", "RANK").put("count", 5).set("meta", meta("BOARD", "TIME")),
+                null, null, 17, 12, 7, 9);
+        b.add("GROUPS", "인기 소모임", true, true, null, cfg().put("count", 3), "소모임 전체", "/groups", 17, 21, 7, 9);
         return b.build();
     }
 

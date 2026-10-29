@@ -34,10 +34,13 @@ public class HomeController {
         this.gadgets = gadgets;
     }
 
-    /** 지금 사이트 테마의 홈 구성 + 가젯마다 데이터 — 템플릿·테마는 요청에 싣지 않는다 */
+    /**
+     * 지금 사이트 테마의 홈 구성 + 가젯마다 데이터. {@code theme} 은 관리자 테마 화면 미리보기만 싣는다 — 그 테마의 구성(저장한 것, 없으면 기본 배치)을 준다.
+     * 모르는 테마 값은 무시하고 사이트 테마로 준다(공개 데이터만 담겨 권한은 따로 보지 않는다).
+     */
     @GetMapping("/gadgets")
-    public ResponseEntity<ApiResponse<HomeGadgetsResponse>> gadgets(Authentication authentication) {
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(gadgets.gadgets(viewerId(authentication))));
+    public ResponseEntity<ApiResponse<HomeGadgetsResponse>> gadgets(@RequestParam(required = false) String theme, Authentication authentication) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(gadgets.gadgets(theme, viewerId(authentication))));
     }
 
     /** 최신글 — {@code size}(1~50, 기본 20) · {@code cursor}(이전 응답의 nextCursor) */
