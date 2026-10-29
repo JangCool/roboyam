@@ -59,7 +59,7 @@ public class SiteThemeService {
         SiteSettingEntity row = settings.findById(SiteSettingEntity.ROW_ID).orElseThrow(() -> new CommonException(ErrorCode.NOT_FOUND));
         String current = SiteThemes.normalize(row.getTheme());
         String menuTheme = wanted == null ? current : wanted;
-        return view(current, menuTheme, menuOf(menuTheme));
+        return view(current, menuTheme, menuOf(menuTheme), row.getPublicUrl());
     }
 
     /** 사이트 테마만 바꾼다(메뉴 설정은 테마마다 따로 — {@link #saveMenu}) → 지금 테마의 메뉴 설정을 담은 모양 */
@@ -78,7 +78,7 @@ public class SiteThemeService {
             notices.siteSettingsChanged(actor, "siteTheme");
             log.info("사이트 테마를 바꿨다 operatorId={} theme={}", actor.operatorId(), theme);
         }
-        return view(theme, theme, menuOf(theme));
+        return view(theme, theme, menuOf(theme), row.getPublicUrl());
     }
 
     /**
@@ -113,7 +113,7 @@ public class SiteThemeService {
             notices.siteSettingsChanged(actor, "siteThemeMenu");
             log.info("테마 메뉴 설정을 바꿨다 operatorId={} theme={} fields={}", actor.operatorId(), themeId, to.keySet());
         }
-        return view(SiteThemes.normalize(site.getTheme()), themeId, next);
+        return view(SiteThemes.normalize(site.getTheme()), themeId, next, site.getPublicUrl());
     }
 
     private SiteSettingEntity lockSettings() {
@@ -155,11 +155,12 @@ public class SiteThemeService {
         return out;
     }
 
-    private static SiteThemeResponse view(String current, String menuTheme, SiteThemeMenu menu) {
+    private static SiteThemeResponse view(String current, String menuTheme, SiteThemeMenu menu, String publicUrl) {
         Map<String, SiteThemeMenu> defaults = SiteThemeMenus.allDefaults();
         return new SiteThemeResponse(current, SiteThemes.IDS, menuTheme, menu.menuPosition(), menu.topItems(), menu.barGroupIds(), menu.menuWidth(),
                 menu.menuOverflow(), menu.style(), pick(defaults, SiteThemeMenu::menuPosition), pick(defaults, SiteThemeMenu::topItems),
-                pick(defaults, SiteThemeMenu::menuWidth), pick(defaults, SiteThemeMenu::menuOverflow), pick(defaults, SiteThemeMenu::style));
+                pick(defaults, SiteThemeMenu::menuWidth), pick(defaults, SiteThemeMenu::menuOverflow), pick(defaults, SiteThemeMenu::style),
+                publicUrl == null || publicUrl.isBlank() ? null : publicUrl);
     }
 
     private static <T> Map<String, T> pick(Map<String, SiteThemeMenu> defaults, Function<SiteThemeMenu, T> field) {

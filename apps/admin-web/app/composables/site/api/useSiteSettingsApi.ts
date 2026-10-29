@@ -40,7 +40,7 @@ import type {
  *   - `GET /api/admin/site/display-defaults` → 200 `{ values: { language, zoneId, timeFormat, dateFormat } }`  (`site.read`)
  *   - `PUT /api/admin/site/display-defaults` `{ values }` → 200 저장된 모양  (`site.manage`) · 400 VALIDATION(`fields.language|zoneId|timeFormat|dateFormat`, 시간대는 JDK 가 아는 IANA 이름만)
  *       이 값이 개인 설정 탭의 "기본 설정"(`GET /api/admin/profile/display` 의 `inherited`)이다 — 서버가 요청마다 읽어 주므로 저장 뒤 내 표시 값을 다시 받으면 따라온다(`general.vue` 가 저장 직후 `useMyDisplay().load()`).
- *   - 테마·테마별 메뉴 설정(`docs/features/site-theme-layout-contract.md` 「API」) — 응답은 모두 `SiteThemeResponse`(지금 테마·고를 수 있는 id·한 테마의 메뉴 설정·테마별 기본값):
+ *   - 테마·테마별 메뉴 설정(`docs/features/site-theme-layout-contract.md` 「API」) — 응답은 모두 `SiteThemeResponse`(지금 테마·고를 수 있는 id·한 테마의 메뉴 설정·테마별 기본값·사이트 공개 주소 `publicUrl`):
  *       · `GET /api/admin/site/theme?forTheme=` → 200  (`site.read`) — 메뉴 칸은 `forTheme`(없으면 지금 테마) 것, `menuTheme` 이 그 테마. 목록 밖 `forTheme` 은 400 `fields.forTheme`
  *       · `PUT /api/admin/site/theme` `{ theme }` → 200 새 테마의 메뉴 칸  (`site.manage`) · 400 VALIDATION(`fields.theme` 목록 밖·빈 값, `fields.site` 설정 행 없음)
  *       · `PUT /api/admin/site/themes/{id}/menu` 메뉴 설정 칸 전부 → 200 그 테마의 메뉴 칸  (`site.manage`) · 404(모르는 테마) · 400 VALIDATION(`fields.menuPosition` … `fields.menuStyle.<칸>`, `fields.barGroupIds`)

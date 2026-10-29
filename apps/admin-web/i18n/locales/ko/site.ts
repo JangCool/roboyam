@@ -115,6 +115,7 @@ export default {
     viewModeEdit: '편집',
     livePreviewTitle: '공개 사이트 실제 화면 미리보기',
     livePreviewLoading: '공개 사이트를 불러오는 중이에요',
+    livePreviewNoOrigin: '공개 사이트 주소가 정해지지 않아 실제 화면을 띄울 수 없어요. 설치 때 정한 공개 주소를 확인해 주세요',
     menuLoadFailed: '메뉴 설정을 불러오지 못했어요',
     menuLayoutSaved: '메뉴 배치를 저장했어요',
     menuStyleSaved: '메뉴 모양을 저장했어요',

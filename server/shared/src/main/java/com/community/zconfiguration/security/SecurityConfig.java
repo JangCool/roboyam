@@ -5,10 +5,10 @@ import com.community.installation.service.InstallationState;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
 import com.community.zconfiguration.exception.ErrorResponseWriter;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -34,6 +34,8 @@ import org.springframework.security.web.savedrequest.NullRequestCache;
  *       {@code POST /api/auth/login}·{@code /api/auth/logout}, 소셜 로그인 {@code /api/auth/social/*}(시작·콜백·가입 대기·가입 완료). 그 밖의 {@code /api/**}(인증 메일 재발송 포함)는 인증이 필요하다 —
  *       인증이 없으면 JSON {@code 401 UNAUTHENTICATED}. 화면(정적 파일)·actuator 는 연다.</li>
  *   <li>오류는 JSON 으로 답한다(화면이 HTML 오류 페이지를 받지 않게). CSRF 거절은 {@code 403 CSRF_INVALID}.</li>
+ *   <li>보안 헤더는 Spring 기본값이고 프레임만 {@link FrameHeaderWriter} 가 붙인다 — 늘 {@code X-Frame-Options: DENY}, 앱의 {@link FrameAncestorsPolicy} 가 허락한 응답만
+ *       그 대신 {@code Content-Security-Policy: frame-ancestors …}(공개 사이트의 관리자 미리보기 화면).</li>
  * </ul>
  */
 @Configuration
@@ -42,7 +44,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, InstallationState installationState,
-                                           SecurityContextRepository securityContextRepository, ErrorResponseWriter errors) throws Exception {
+                                           SecurityContextRepository securityContextRepository, ErrorResponseWriter errors,
+                                           ObjectProvider<FrameAncestorsPolicy> framePolicy) throws Exception {
         http
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
@@ -127,7 +130,10 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
                 .logout(logout -> logout.disable())
-                .headers(Customizer.withDefaults());
+                .headers(headers -> headers
+                        // 프레임은 기본 X-Frame-Options 대신 FrameHeaderWriter 가 맡는다(허락한 응답만 frame-ancestors)
+                        .frameOptions(frame -> frame.disable())
+                        .addHeaderWriter(new FrameHeaderWriter(framePolicy.getIfAvailable())));
         return http.build();
     }
 

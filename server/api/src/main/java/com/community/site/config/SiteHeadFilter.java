@@ -25,6 +25,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * <p>적용하지 않는 요청: {@code GET}·{@code HEAD} 가 아닌 것, {@code /api}·{@code /media}·{@code /actuator}·{@code /error}·{@code /_nuxt}·{@code /.well-known},
  * 파일 확장자가 있는 주소(정적 자산 — {@code /index.html} 만 예외). 화면 파일이 없거나(빌드 전) 머리를 만들다 실패하면 그대로 지나가 평소처럼 처리된다(서버가 막히지 않는다).
  * 내려 보내는 {@code index.html} 은 {@code Cache-Control: no-cache} + {@code ETag} 라 브라우저가 매번 물어보되 같으면 {@code 304} 다(설정을 바꾸면 곧 따라온다).
+ * 관리자 미리보기 요청({@link AdminPreviewFrame#isPreview} — {@code ?adminPreview=1})이면 머리에 관리자 origin 메타를 더한 사본을 내린다(프레임 헤더는 보안 설정이 붙인다).
  *
  * <p>보안 필터 체인 뒤에서 돈다 — 요청 정리(HttpFirewall)를 거친 경로만 온다.
  */
@@ -39,10 +40,12 @@ public class SiteHeadFilter extends OncePerRequestFilter {
 
     private final PublicSiteService siteService;
     private final IndexHtmlRenderer renderer;
+    private final AdminPreviewFrame preview;
 
-    public SiteHeadFilter(PublicSiteService siteService, IndexHtmlRenderer renderer) {
+    public SiteHeadFilter(PublicSiteService siteService, IndexHtmlRenderer renderer, AdminPreviewFrame preview) {
         this.siteService = siteService;
         this.renderer = renderer;
+        this.preview = preview;
     }
 
     @Override
@@ -86,6 +89,9 @@ public class SiteHeadFilter extends OncePerRequestFilter {
             return;
         }
         RenderedIndex index = rendered.get();
+        if (preview.isPreview(request)) {
+            index = renderer.withAdminOrigin(index, preview.adminOrigin().orElseThrow());
+        }
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache");
         if (new ServletWebRequest(request, response).checkNotModified("\"" + index.etag() + "\"")) {
             return; // 304

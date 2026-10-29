@@ -78,10 +78,15 @@ export default defineNuxtConfig({
         public: {
             /**
              * 공개 사이트(user-web) 주소 — 테마 화면 「실제 화면」이 iframe 으로 `{주소}/?adminPreview=1` 을 띄운다(`ThemeLivePreview`).
-             * 환경 변수 `NUXT_PUBLIC_USER_WEB_ORIGIN`. 기본은 로컬 공개 사이트 개발 서버. 운영 값(공개 주소)은 미확정 — 서버의 공개 주소 설정과 맞출지 정해야 한다.
+             * 환경 변수 `NUXT_PUBLIC_USER_WEB_ORIGIN`. 기본은 로컬 공개 사이트 개발 서버. 빌드한 화면(`$production` — jar·운영 이미지)은 비워 두고 테마 응답의 사이트 공개 주소를 쓴다
+             * (`useUserWebOrigin` — 운영 주소를 화면 빌드에 박지 않는다. site-theme-layout-contract 「운영 배포」).
              */
             userWebOrigin: 'http://localhost:3100',
         },
+    },
+
+    $production: {
+        runtimeConfig: { public: { userWebOrigin: '' } },
     },
 
     nitro: {

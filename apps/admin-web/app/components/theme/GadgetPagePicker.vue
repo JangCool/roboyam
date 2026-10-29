@@ -70,7 +70,7 @@ const toast = useAppToast();
 const toApiError = useApiErrorOf();
 const { confirm } = useConfirmDialog();
 const { localizedName } = useLocalizedName();
-const userWebOrigin = String(useRuntimeConfig().public.userWebOrigin ?? '').replace(/\/+$/, '');
+const { origin: userWebOrigin } = useUserWebOrigin();
 
 const pages = ref<GadgetPage[]>([]);
 const status = ref<'loading' | 'ready' | 'error'>('loading');

@@ -82,10 +82,15 @@ export default defineNuxtConfig({
         public: {
             /**
              * 관리자 미리보기(`?adminPreview=1`, 관리자 테마 화면의 iframe)가 메시지를 받을 관리자 주소들(쉼표로) — 이 주소에서 온 메시지만 받는다(`plugins/03.admin-preview.client.ts`).
-             * 환경 변수 `NUXT_PUBLIC_ADMIN_ORIGINS`. 기본은 로컬 관리자 개발 서버. 운영은 관리자 주소로 채우고, 웹 서버의 frame-ancestors 에도 같은 주소를 허용해야 iframe 에 뜬다.
+             * 환경 변수 `NUXT_PUBLIC_ADMIN_ORIGINS`. 기본은 로컬 관리자 개발 서버. 빌드한 화면(`$production` — jar·운영 이미지)은 비워 두고, 공개 사이트 서버(api)가 `?adminPreview=1`
+             * 응답 머리에 넣는 `<meta name="roboyam-admin-origin">`(서버 환경 값 `ADMIN_URL`)을 쓴다 — 같은 응답에 frame-ancestors 도 그 주소로 붙는다(site-theme-layout-contract 「운영 배포」).
              */
             adminOrigins: 'http://localhost:3200,http://localhost:3201',
         },
+    },
+
+    $production: {
+        runtimeConfig: { public: { adminOrigins: '' } },
     },
 
     devServer: {
