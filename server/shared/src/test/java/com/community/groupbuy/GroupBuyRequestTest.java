@@ -166,6 +166,26 @@ class GroupBuyRequestTest {
                 .satisfies(e -> assertThat(code(e)).isEqualTo(GroupBuyException.ORDER_STATE));
     }
 
+    /** 2b-5 확인에서 잡힘 — 회수·완료 전이가 승인 시각을 덮어 이력 순서가 뒤집혔다. 결정 시각은 처음 결정(승인) 그대로 */
+    @Test
+    void 승인_시각은_회수_확인과_완료가_덮지_않는다() {
+        long gb = kit.spec(kit.policy(3_000, null, 3_000, "ONE_WAY")).open();
+        long member = kit.newMember();
+        JoinResult order = kit.delivered(member, gb, lines(kit.mainSku(gb), 1));
+        long sku = kit.mainSku(gb);
+        Created r = kit.requests.create(member, order.participationId(), ret(COMPANY_PICKUP, sku, 1, CHANGE_OF_MIND));
+        kit.requests.approve(r.requestId(), null, kit.operator, "ip");
+        java.time.Instant approvedAt = kit.clock.instant();
+        kit.clock.advance(java.time.Duration.ofMinutes(5));
+        kit.requests.receive(r.requestId(), kit.operator);
+        kit.clock.advance(java.time.Duration.ofMinutes(5));
+        kit.requests.complete(r.requestId(), List.of(new DispositionInput(sku, DISCARD, 1)), 0, null, false, kit.operator, "ip");
+        java.sql.Timestamp decided = kit.jdbc.queryForObject("SELECT decided_at FROM group_buy_requests WHERE id = ?", java.sql.Timestamp.class, r.requestId());
+        java.sql.Timestamp completed = kit.jdbc.queryForObject("SELECT completed_at FROM group_buy_requests WHERE id = ?", java.sql.Timestamp.class, r.requestId());
+        assertThat(decided.toInstant()).isEqualTo(approvedAt.truncatedTo(java.time.temporal.ChronoUnit.MICROS));
+        assertThat(completed.toInstant()).isAfter(decided.toInstant());
+    }
+
     @Test
     void G1_다시_판매는_모집_중_단순_변심만_하자는_거절_마감_뒤는_거절_폐기는_수량_그대로() {
         long gb = kit.spec(kit.policy(3_000, 50_000L, 3_000, "ONE_WAY")).open();
