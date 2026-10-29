@@ -1,6 +1,6 @@
 /**
  * 공개 홈 가젯 API(`GET /api/home/gadgets`)가 주고받는 모양 — 서버 `HomeGadgetService`(site-theme-layout-contract 「API」, 2026-10-29).
- * 지금 서버는 `GROUP_BUY` 데이터를 늘 빈 목록으로 주고(공개 공구 목록 API 없음), `GalleryItem.kind` 는 null, `locked` 는 false 다(노출 기간·보는 사람 설정 없음).
+ * `GROUP_BUY` 줄은 회원 공구 목록(`GET /api/group-buys`)과 같은 모양이다. `GalleryItem.kind` 는 null, `locked` 는 false 다(노출 기간·보는 사람 설정 없음).
  * community `docs/api-home-gadgets.md` 1·2·4절의 공개 응답을 로보얌으로 옮겼다. 다른 점:
  *  - **템플릿 = 사이트 테마**(사용자 결정 2026-10-28) — 응답의 배치는 서버가 지금 사이트 테마(`default` 기본형 · `daum` 다음식 · `roboyam` 로보얌형 · `naver` 네이버형)로 정한다.
  *    요청에 템플릿·테마를 싣지 않는다. 이용자 유형별 템플릿 규칙·「기본 템플릿」 고르기는 없다. 응답의 `theme` 은 이 배치가 어느 테마 것인지 알려 주는 값이다.
@@ -14,6 +14,7 @@
 import type { HomeLayout } from '#layers/home-layout/utils/util-home-layout';
 import type { PostFeedRow } from '~/composables/board/api/usePostApi.types';
 import type { GroupRow } from '~/composables/group/api/useGroupApi.types';
+import type { GroupBuyListItem } from '~/composables/groupbuy/api/useGroupBuyApi.types';
 import type { PopularPeriod } from '~/composables/home/api/useHomeApi.types';
 
 /** 가젯 종류 8종 — 서버 레지스트리의 키. 서버가 새 종류를 먼저 보내면 화면은 모르는 키로 받아 건너뛴다 */
@@ -212,25 +213,12 @@ export interface GroupsData {
 }
 
 /**
- * `GROUP_BUY` 한 장 — 진행 중 공동구매(커머스 2b 가 개발 중 — 공개 목록 API 가 생기면 그 줄 모양에 맞춘다 — 지금 서버는 빈 목록).
- * `totalQty` 가 null 이면 수량 제한이 없는 공구(진행률을 그리지 않는다).
+ * `GROUP_BUY` — 모집 중인 공개 공구를 마감 이른 순으로 가젯 `count`(기본 5, 1~10)개. 줄은 회원 공구 목록(`GET /api/group-buys`)의 줄 그대로다.
+ * 판매 스위치가 꺼져도 목록처럼 공구는 오고 `salesOpen: false` 다(화면이 「지금은 주문을 받지 않아요」를 덧붙인다).
  */
-export interface HomeGroupBuyItem {
-    id: string;
-    title: string;
-    imageUrl: string | null;
-    /** 공구가(원) */
-    price: number;
-    /** 정가(원) — 없으면 할인율을 그리지 않는다 */
-    listPrice: number | null;
-    /** 모집 마감 시각 */
-    endsAt: string;
-    soldQty: number;
-    totalQty: number | null;
-}
-
 export interface GroupBuyData {
-    items: HomeGroupBuyItem[];
+    items: GroupBuyListItem[];
+    salesOpen: boolean;
 }
 
 /** `QUICK_LINKS` 한 항목 — `kind` 로 주소를 화면이 만든다(`UtilHomeGadget.linkOf`). `BOARD` 의 `value` 는 게시판 slug, `PATH` 는 사이트 안 경로 */

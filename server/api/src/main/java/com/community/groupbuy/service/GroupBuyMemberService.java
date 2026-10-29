@@ -66,6 +66,11 @@ public class GroupBuyMemberService {
 
     public static final int PAGE_SIZE = 20;
     private static final Duration CLOSING_SOON = GroupBuyDeadlineWatch.CLOSING_SOON;
+    /** 회원에게 보이는 공구(공개됨 · 숨긴 카테고리와 그 아래 제외) — 뒤에 탭 조건을 잇는다 */
+    private static final String VISIBLE_FROM = " FROM group_buys g JOIN group_buy_products p ON p.id = g.product_id JOIN group_buy_categories c ON c.id = p.category_id "
+            + "LEFT JOIN group_buy_categories pc ON pc.id = c.parent_id WHERE g.published_at IS NOT NULL AND NOT c.hidden AND NOT COALESCE(pc.hidden, false) AND ";
+    /** 진행 탭·홈 가젯 차례 — 마감(연장 중이면 연장 끝) 이른 순 */
+    private static final String DEADLINE_ORDER = "COALESCE(g.extended_until, g.end_at), g.id";
 
     private final JdbcTemplate jdbc;
     private final GroupBuyStore groups;
@@ -119,13 +124,11 @@ public class GroupBuyMemberService {
         };
         String order = switch (tab) {
             case "UPCOMING" -> "g.start_at, g.id";
-            case "ONGOING" -> "COALESCE(g.extended_until, g.end_at), g.id";
+            case "ONGOING" -> DEADLINE_ORDER;
             default -> "g.closing_at DESC NULLS LAST, g.updated_at DESC, g.id DESC";
         };
         List<Object> args = new ArrayList<>();
-        StringBuilder sql = new StringBuilder(" FROM group_buys g JOIN group_buy_products p ON p.id = g.product_id JOIN group_buy_categories c ON c.id = p.category_id "
-                + "LEFT JOIN group_buy_categories pc ON pc.id = c.parent_id WHERE g.published_at IS NOT NULL AND NOT c.hidden AND NOT COALESCE(pc.hidden, false) AND ")
-                .append(where);
+        StringBuilder sql = new StringBuilder(VISIBLE_FROM).append(where);
         if (category != null && !category.isBlank()) {
             long categoryId = id(category, "category");
             sql.append(" AND (c.id = ? OR c.parent_id = ?)");
@@ -138,6 +141,21 @@ public class GroupBuyMemberService {
         pageArgs.add(PAGE_SIZE);
         pageArgs.add(p * PAGE_SIZE);
         List<Long> ids = jdbc.queryForList("SELECT g.id" + sql + " ORDER BY " + order + " LIMIT ? OFFSET ?", Long.class, pageArgs.toArray());
+        return new GroupBuyMemberView.ListPage(listItems(ids), p, PAGE_SIZE, total == null ? 0 : total);
+    }
+
+    /**
+     * 홈 공구 가젯({@code GROUP_BUY}) — 모집 중({@code RECRUITING})인 공개 공구 {@code count} 개. 거름(공개 · 숨긴 카테고리 제외)·차례(마감 이른 순)·줄 모양은 목록 진행 탭과 같고,
+     * 집계 중({@code CLOSING})은 살 수 없어 뺀다. 판매 스위치로 거르지 않는다(목록과 같다).
+     */
+    @Transactional(readOnly = true)
+    public List<GroupBuyMemberView.ListItem> recruiting(int count) {
+        List<Long> ids = jdbc.queryForList("SELECT g.id" + VISIBLE_FROM + "g.status = 'RECRUITING' ORDER BY " + DEADLINE_ORDER + " LIMIT ?", Long.class, count);
+        return listItems(ids);
+    }
+
+    /** 목록 줄 — 차례는 {@code ids} 그대로, 리뷰 평균·수(2b-6)는 상품마다 한 번에 */
+    private List<GroupBuyMemberView.ListItem> listItems(List<Long> ids) {
         Instant now = now();
         List<GroupBuyMemberView.ListItem> items = new ArrayList<>();
         Map<Long, Long> productOf = new HashMap<>();
@@ -147,10 +165,9 @@ public class GroupBuyMemberService {
                 items.add(listItem(g, quotes.availability(gid), groups.skus(gid), now));
             });
         }
-        // 리뷰 평균·수(2b-6) — 상품마다 한 번에
         Map<Long, FeedbackView.Stats> stats = reviews.stats(new ArrayList<>(productOf.values()));
         items.replaceAll(it -> it.withReviews(stats.getOrDefault(productOf.get(Long.parseLong(it.id())), new FeedbackView.Stats(null, 0))));
-        return new GroupBuyMemberView.ListPage(items, p, PAGE_SIZE, total == null ? 0 : total);
+        return items;
     }
 
     /** 회원 목록 필터 — 2단, 숨긴 카테고리(와 그 아래)는 뺀다 */

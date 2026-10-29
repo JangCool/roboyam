@@ -39,7 +39,7 @@
 **규칙(서버)**
 - 테마별 기본값의 원천은 서버 `SiteThemeMenus`(메뉴 설정 — user-web `THEMES[*]` 와 같은 값)·`HomeLayoutDefaults`(홈 기본 배치 — 확정 때 목업과 같은 가젯·자리·꾸미기·설정). 저장 표: `site_theme_menus`(테마마다 한 행, 없으면 칸마다 `THEME`)·`home_layouts`(테마마다 한 행)·`home_gadgets`(테마에 딸림). 테마 id 칸에 CHECK 없음.
 - 홈 저장 = 넣고 뺀 결과 전체: 빠진 저장 가젯은 지우고, 저장 가젯 ID 는 그대로(제목·노출·꾸미기·설정은 서버 값), 기본 배치 ID(`seed-<n>`)는 그 시드 설정 그대로, 그 밖(`new-<n>`)은 종류별 처음 값(테마 기본 꾸미기 · 빈 설정 · PC·모바일 보임) + 보낸 제목으로 새로 만든다. 통과하면 공유 레이어 `compact` 와 같이 위로 당겨 저장한다. 최소 크기는 admin `KINDS` 와 같은 값(24칸이면 폭 ×2).
-- 공개 홈 데이터(가젯 설정 `config` 로 고른다, `boardIds` 는 게시판 slug): `POST_LIST` `sort` LATEST(최신글 범위)·POPULAR(인기글 스냅샷, `periodTabs` 면 세 기간)·VIEWS·LIKES·COMMENTS(이번 주 인기글 후보 50개를 그 수로 다시 정렬 — 전체 글 집계 아님), `count` 기본 10 · `HIGHLIGHT` 노출 중인 하이라이트 · `GALLERY` 사진 있는 최신 글 · `BOARD_CARDS` 게시판마다 최신 `perBoard`(기본 4) + 대표 글(정하지 않으면 켜진 일반 게시판 앞 6개) · `GROUPS` 지금 뜨는 소모임 · `QUICK_LINKS`·`NOTICE_TEXT` 는 설정의 `items`·`text`·`format`. **`GROUP_BUY` 는 공개 공구 목록 API 가 없어 늘 빈 목록**(`empty: true`), `GALLERY.kind` 는 늘 null, 노출 기간·보는 사람 설정이 없어 `locked` 는 늘 false.
+- 공개 홈 데이터(가젯 설정 `config` 로 고른다, `boardIds` 는 게시판 slug): `POST_LIST` `sort` LATEST(최신글 범위)·POPULAR(인기글 스냅샷, `periodTabs` 면 세 기간)·VIEWS·LIKES·COMMENTS(이번 주 인기글 후보 50개를 그 수로 다시 정렬 — 전체 글 집계 아님), `count` 기본 10 · `HIGHLIGHT` 노출 중인 하이라이트 · `GALLERY` 사진 있는 최신 글 · `BOARD_CARDS` 게시판마다 최신 `perBoard`(기본 4) + 대표 글(정하지 않으면 켜진 일반 게시판 앞 6개) · `GROUPS` 지금 뜨는 소모임 · `QUICK_LINKS`·`NOTICE_TEXT` 는 설정의 `items`·`text`·`format`. `GROUP_BUY` 모집 중인 공개 공구(회원 공구 목록과 같은 거름·줄 모양, 마감 이른 순, `count` 기본 5 · 1~10) + `salesOpen`(판매 스위치 — 꺼져도 공구는 보이고 화면이 안내 한 줄), `GALLERY.kind` 는 늘 null, 노출 기간·보는 사람 설정이 없어 `locked` 는 늘 false.
 - 감사: 메뉴 설정 `SITE_THEME_MENU_UPDATE`(바뀐 때만, 바뀐 칸 전후 + `theme`) · 홈 저장 `HOME_LAYOUT_UPDATE`(저장마다, 칸 수·가젯 수 전후 + 넣은·뺀 수). 관리자 알림은 사이트 설정 변경(변형 `siteThemeMenu`·`homeLayout`). 같은 테마 저장은 사이트 설정 행 잠금으로 줄 세운다.
 - `AdminScreenRegistry` 에 테마 묶음(`settingsTheme` 자리 — `menu.theme` › `themeLayout` `/settings/theme`, `site.read`)을 admin-web 과 같은 차례로 더했다.
 
@@ -47,7 +47,7 @@
 - 운영 배포: 관리자가 띄울 공개 사이트 주소(서버의 공개 주소 설정과 맞출지), 공개 사이트 웹 서버의 `frame-ancestors` 에 관리자 주소 허용.
 - 실제 화면은 이 브라우저의 공개 사이트 로그인 상태로 보인다(비로그인 화면으로 볼지).
 - 새로 넣은 가젯은 서버가 종류별 처음 값(빈 설정 — 게시판 전체·기본 개수)으로 데이터를 준다. 가젯 내용 설정(게시판·개수·꾸미기) 편집 화면은 범위 밖.
-- 공개 공동구매 목록 API 가 생기면 `GROUP_BUY` 가젯 데이터를 채운다. 기본 배치의 가젯 제목·운영 원칙 문구는 한국어 시드다(운영자가 고칠 처음 데이터).
+- ~~공개 공동구매 목록 API 가 생기면 `GROUP_BUY` 가젯 데이터를 채운다~~ → **채움(2026-10-29)** — 위 「공개 홈 데이터」 줄, 상세는 commerce-groupbuy-contract 「홈 `GROUP_BUY` 가젯 연결」. **가정**: 가젯 설정에 정렬 칸이 없어 마감 이른 순으로 고정(목록 진행 탭 기본 정렬과 같다), `count` 기본 5 · 1~10(관리자 편집기에 `count` 칸은 아직 없다). 기본 배치의 가젯 제목·운영 원칙 문구는 한국어 시드다(운영자가 고칠 처음 데이터).
 - 키보드로 가젯 옮기기는 없다(마우스 끌기만).
 - 게시판·페이지 레이아웃의 내용.
 

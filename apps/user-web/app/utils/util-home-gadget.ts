@@ -1,5 +1,6 @@
 import type { PostFeedRow } from '~/composables/board/api/usePostApi.types';
 import type { GroupRow } from '~/composables/group/api/useGroupApi.types';
+import type { GroupBuyListItem } from '~/composables/groupbuy/api/useGroupBuyApi.types';
 import type { PopularPeriod } from '~/composables/home/api/useHomeApi.types';
 import type {
     BoardCard,
@@ -13,7 +14,6 @@ import type {
     HighlightConfig,
     HomeGadget,
     HomeGadgetsResponse,
-    HomeGroupBuyItem,
     HomeHighlight,
     NoticeTextData,
     PostListConfig,
@@ -24,6 +24,7 @@ import type {
 } from '~/composables/home/api/useHomeGadgetApi.types';
 import UtilHomeLayout from '#layers/home-layout/utils/util-home-layout';
 import UtilColor from '~/utils/util-color';
+import UtilGroupBuy from '~/utils/util-group-buy';
 
 /**
  * 홈 가젯의 순수 계산 — 서버 응답(`GET /api/home/gadgets`)을 읽고(없는 칸·모르는 값에도 깨지지 않게), 가젯을 폭에 따라 거르고,
@@ -479,47 +480,47 @@ export default class UtilHomeGadget {
     }
 
     /**
-     * 공구 장 — 이름·ID·가격이 없는 장은 뺀다
-     * @param {unknown} data - 가젯 `data`(`{ items }`).
-     * @returns {HomeGroupBuyItem[]} 공구.
+     * 공구 장(회원 공구 목록 줄) — ID·이름·공구가·마감 시각이 없는 장은 뺀다. 서버가 가젯 `count` 만큼 주지만 10장을 넘기지 않는다
+     * @param {unknown} data - 가젯 `data`(`{ items, salesOpen }`).
+     * @returns {GroupBuyListItem[]} 공구.
      */
-    static groupBuyItems(data: unknown): HomeGroupBuyItem[] {
-        const out: HomeGroupBuyItem[] = [];
-        for (const raw of list(obj(data).items)) {
-            const g = obj(raw);
-            if (typeof g.id !== 'string' || typeof g.title !== 'string' || typeof g.price !== 'number' || typeof g.endsAt !== 'string') continue;
-            out.push({
-                id: g.id,
-                title: g.title,
-                imageUrl: typeof g.imageUrl === 'string' && g.imageUrl !== '' ? g.imageUrl : null,
-                price: g.price,
-                listPrice: typeof g.listPrice === 'number' && g.listPrice > g.price ? g.listPrice : null,
-                endsAt: g.endsAt,
-                soldQty: typeof g.soldQty === 'number' ? Math.max(0, g.soldQty) : 0,
-                totalQty: typeof g.totalQty === 'number' && g.totalQty > 0 ? g.totalQty : null,
-            });
-        }
-        return out.slice(0, 10);
+    static groupBuyItems(data: unknown): GroupBuyListItem[] {
+        return list(obj(data).items)
+            .filter((v): v is GroupBuyListItem => {
+                const g = obj(v);
+                return typeof g.id === 'string' && typeof g.title === 'string' && typeof g.groupPrice === 'number' && typeof g.endAt === 'string';
+            })
+            .slice(0, 10);
     }
 
     /**
-     * 할인율(%) — 정가가 없으면 null
-     * @param {HomeGroupBuyItem} item - 공구.
+     * 판매 스위치 — 칸이 없으면(옛 응답) 켜짐으로 본다
+     * @param {unknown} data - 가젯 `data`.
+     * @returns {boolean} 주문을 받으면 true.
+     */
+    static groupBuySalesOpen(data: unknown): boolean {
+        return obj(data).salesOpen !== false;
+    }
+
+    /**
+     * 할인율(%) — 정상가가 없거나 공구가보다 싸지 않으면 null
+     * @param {GroupBuyListItem} item - 공구.
      * @returns {number | null} 반올림한 할인율.
      */
-    static discountPercent(item: HomeGroupBuyItem): number | null {
-        if (item.listPrice === null || item.listPrice <= 0) return null;
-        return Math.round((1 - item.price / item.listPrice) * 100);
+    static discountPercent(item: GroupBuyListItem): number | null {
+        if (item.normalPrice === null || item.normalPrice <= item.groupPrice) return null;
+        return Math.round((1 - item.groupPrice / item.normalPrice) * 100);
     }
 
     /**
-     * 팔린 비율(0~100) — 수량 제한이 없으면 null
-     * @param {HomeGroupBuyItem} item - 공구.
-     * @returns {number | null} 비율.
+     * 진행 막대(0~100) — 성사형은 확정 / 성사 최소(`UtilGroupBuy.progress`, 목록 화면과 같다), 선착순은 확정 / 최대
+     * @param {GroupBuyListItem} item - 공구.
+     * @returns {number | null} 비율. 최대 수량이 없으면 null.
      */
-    static soldPercent(item: HomeGroupBuyItem): number | null {
-        if (item.totalQty === null) return null;
-        return Math.min(100, Math.max(0, Math.round((item.soldQty / item.totalQty) * 100)));
+    static soldPercent(item: GroupBuyListItem): number | null {
+        if (item.minQty > 0) return UtilGroupBuy.progress(item.currentQty, item.minQty);
+        if (item.maxQty <= 0) return null;
+        return Math.min(100, Math.max(0, Math.round((item.currentQty / item.maxQty) * 100)));
     }
 
     /**
