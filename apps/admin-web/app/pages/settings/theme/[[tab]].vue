@@ -18,7 +18,6 @@
     <div class="flex flex-col gap-4">
         <PageTitle :title="t('site.themePageTitle')" :subtitle="t('site.themePageSubtitle')" />
 
-        <Message severity="warn" size="small" :closable="false">{{ t('site.themeMockNote') }}</Message>
         <Message v-if="!canManage" severity="info" size="small" :closable="false">{{ t('site.readOnly') }}</Message>
 
         <!-- 두 칸 — 왼쪽 위 테마 고르기(넓은 화면에서 창 위에 붙는다) · 가운데 고른 테마의 레이아웃·메뉴 설정. 좁은 화면은 위아래로 -->

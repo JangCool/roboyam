@@ -100,7 +100,6 @@ export default {
     // Theme screen (`/settings/theme`) — theme · layout · menu settings drawer
     themePageTitle: 'Theme',
     themePageSubtitle: 'Choose the public site theme, then set that theme’s layout and menu. Layout and menu settings are saved per theme.',
-    themeMockNote: 'This is a prototype screen. Saving a theme’s layout and menu settings is not connected to the server yet, so a refresh brings back the initial values and nothing reaches the public site.',
     themePickHint: 'Pick a theme to see its layout and menu settings below. Press Apply theme to use it on the public site. Members cannot pick their own theme; changes reach the public site within a minute or two.',
     themeApply: 'Apply theme',
     themeTabMenu: 'Menu settings',
