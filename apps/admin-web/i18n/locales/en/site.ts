@@ -115,6 +115,7 @@ export default {
     viewModeEdit: 'Edit',
     livePreviewTitle: 'Live preview of the public site',
     livePreviewLoading: 'Loading the public site',
+    livePreviewNoOrigin: 'The public site address is not set, so the live view cannot be shown. Check the public URL set during installation',
     menuLoadFailed: 'Could not load the menu settings',
     menuLayoutSaved: 'Menu layout saved',
     menuStyleSaved: 'Menu style saved',

@@ -125,6 +125,8 @@ export interface SiteThemeResponse {
     menuStyle: SiteMenuStyleSetting;
     /** 테마 id → 그 테마의 메뉴 모양 기본값(「테마 기본(…)」 안내용) */
     themeMenuStyleDefaults: Record<string, SiteMenuStyle>;
+    /** 사이트 설정의 공개 주소(설치 때 정한 값) — 빌드한 화면의 「실제 화면」 iframe 이 이 주소를 띄운다(`useUserWebOrigin`). 정하지 않았으면 null */
+    publicUrl: string | null;
 }
 
 export interface SiteThemeRequest {

@@ -28,6 +28,10 @@ roboyam:
   schema:
     # 자기 스트림(db/migration/api). 이 값이 있어야 자기 스트림이 이관된다 — shared 는 늘 먼저 이관된다
     stream: api
+  # 관리자 테마 화면의 「실제 화면」(공개 사이트를 /?adminPreview=1 iframe 으로 띄운다 — site-theme-layout-contract). 관리자 앱 주소(환경 변수 ADMIN_URL, http(s)://…)의
+  # origin 만 그 요청의 frame-ancestors 로 허락한다(AdminPreviewFrame). 비우면 공개 화면은 어디서도 iframe 에 뜨지 않는다(X-Frame-Options: DENY)
+  admin-preview:
+    origin: ${ADMIN_URL:}
   # 우리가 운영해 믿는 프록시(Caddy). 요청자 IP 는 X-Forwarded-For 의 뒤에서 trusted-hops 번째 값을 쓴다 — 앞쪽 값은 요청자가 꾸밀 수 있어 쓰지 않는다.
   # 설치 토큰 IP 잠금이 쓴다(ClientIpResolver). 프록시 없이 앱을 바로 열어 두는 구성이면 0 으로 둔다(헤더를 믿지 않고 접속 주소만 쓴다)
   proxy:

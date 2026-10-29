@@ -30,7 +30,8 @@ x-roboyam-env: &roboyam-env
   ROBOYAM_INDEX_KEY: ${ROBOYAM_INDEX_KEY:-}
   # 설치 마법사(/install) 토큰 — 비우면 서버가 뜰 때 무작위 토큰을 만들어 로그에 한 번 출력한다(docker compose logs app). 서버를 여러 대 띄우면 같은 값을 준다
   ROBOYAM_INSTALL_TOKEN: ${ROBOYAM_INSTALL_TOKEN:-}
-  # 관리자 앱 주소(공개 사이트의 "관리자 앱" 링크). 비우면 링크가 보이지 않는다. 예: https://admin.dev.example.com
+  # 관리자 앱 주소(http(s)://…, 예: https://admin.dev.example.com) — 초대·알림 메일의 관리자 링크(admin), 관리자 테마 화면 「실제 화면」 iframe 허락(app 이 ?adminPreview=1 화면에만
+  # frame-ancestors 로 이 origin 을 붙인다). 비우면 「실제 화면」이 뜨지 않는다. init-env.sh 가 https://<ADMIN_DOMAIN> 으로 채운다
   ADMIN_URL: ${ADMIN_URL:-}
   PUBLIC_URL: ${PUBLIC_URL:-}
   JAVA_OPTS: ${JAVA_OPTS:--Xmx1g}

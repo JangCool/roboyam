@@ -170,6 +170,15 @@ aws s3 ls s3://roboyam-dev-backup-123456789012/roboyam-dev/db/
 
 소셜 로그인을 쓰면 공급자 콘솔에 콜백 주소 `https://dev.example.com/api/auth/social/{kakao|naver|google}/callback`을 등록한다.
 
+**관리자 테마 화면의 「실제 화면」**(관리자 앱이 공개 사이트를 iframe으로 띄운다)에 필요한 값은 둘이고, 화면 빌드에는 주소를 넣지 않는다(이미지는 환경마다 한 벌).
+
+| 값 | 어디에 | 하는 일 |
+|---|---|---|
+| `ADMIN_URL` | 서버 `.env`(`init-env.sh`가 `https://<관리자 도메인>`으로 채운다) | 공개 사이트 앱이 `?adminPreview=1` 화면 응답에만 `Content-Security-Policy: frame-ancestors 'self' <이 origin>`을 붙이고 `X-Frame-Options`를 뺀다. 같은 응답 머리에 이 주소를 넣어 공개 화면이 그 주소의 메시지만 받는다. 비우면 「실제 화면」이 뜨지 않는다 |
+| 사이트 공개 주소 | ⑤ 설치 마법사에서 정한 값(DB `site_settings.public_url`) | 관리자 화면이 iframe으로 띄울 공개 사이트 주소. 정하지 않았으면 「실제 화면」 자리에 안내만 보인다 |
+
+그 밖의 화면·API·관리자 앱 응답은 지금처럼 `X-Frame-Options: DENY`다. 확인: `curl -sI "https://dev.example.com/?adminPreview=1" | grep -i -E 'frame|content-security'`. 개발 서버(`pnpm dev`)는 `NUXT_PUBLIC_USER_WEB_ORIGIN`(관리자 화면, 기본 `http://localhost:3100`)·`NUXT_PUBLIC_ADMIN_ORIGINS`(공개 화면, 기본 `http://localhost:3200,http://localhost:3201`)를 쓰고, 빌드한 화면은 이 둘을 비워 위 서버 값을 쓴다.
+
 ## 10. 평소 운영
 
 | 하려는 일 | 명령 |

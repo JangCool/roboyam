@@ -176,6 +176,7 @@ const route = useRoute();
 const router = useRouter();
 
 const api = useSiteSettingsApi();
+const { setFromServer: setUserWebOrigin } = useUserWebOrigin();
 const toast = useAppToast();
 const toApiError = useApiErrorOf();
 const { confirm } = useConfirmDialog();
@@ -320,6 +321,7 @@ async function load(): Promise<void> {
     try {
         const res = await api.theme();
         siteSaved.value = res;
+        setUserWebOrigin(res.publicUrl);
         const asked = typeof route.query.theme === 'string' ? route.query.theme : '';
         theme.value = res.themes.includes(asked) ? asked : res.theme;
     } catch (e) {

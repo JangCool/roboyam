@@ -52,7 +52,7 @@ services:
       NODE_ID: ${NODE_ID}
       # 설치 마법사(/install) 토큰 — 비워 두면 서버가 뜰 때 무작위 토큰을 만들어 로그에 한 번 출력한다. 앱 서버를 여러 대 띄우면 같은 값을 준다
       ROBOYAM_INSTALL_TOKEN: ${ROBOYAM_INSTALL_TOKEN:-}
-      # 관리자 앱 주소(공개 사이트의 "관리자 앱" 링크). 비우면 링크가 보이지 않는다
+      # 관리자 앱 주소(http(s)://…) — 관리자 테마 화면 「실제 화면」 iframe 허락(?adminPreview=1 화면에만 frame-ancestors 로 이 origin 을 붙인다). 비우면 「실제 화면」이 뜨지 않는다
       ADMIN_URL: ${ADMIN_URL:-}
       # 서버 2대 x 풀 크기가 RDS 최대 연결 수보다 작아야 한다
       DB_POOL_SIZE: ${DB_POOL_SIZE:-20}

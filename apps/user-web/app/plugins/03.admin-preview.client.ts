@@ -1,7 +1,8 @@
 /**
  * 관리자 미리보기 — 관리자 테마 화면(admin-web `/settings/theme`)이 이 앱을 iframe 으로 `/?adminPreview=1` 로 띄우면 켜진다(사용자 결정 2026-10-28: 미리보기는 실제 공개 화면과 똑같아야 한다).
  *
- * - iframe 안이고 주소에 `adminPreview=1` 이 있을 때만 켠다. 메시지는 `runtimeConfig.public.adminOrigins`(쉼표로 여러 개)에서 온 것만 받는다 — 다른 곳의 메시지는 버린다.
+ * - iframe 안이고 주소에 `adminPreview=1` 이 있을 때만 켠다. 메시지는 `runtimeConfig.public.adminOrigins`(쉼표로 여러 개, 개발 서버)와 서버가 머리에 넣은
+ *   `<meta name="roboyam-admin-origin">`(빌드한 화면 — api 의 `AdminPreviewFrame`, 환경 값 `ADMIN_URL`)에서 온 것만 받는다 — 다른 곳의 메시지는 버린다.
  * - 받는 것(`roboyam:admin-preview`): 테마 id · 메뉴 설정(운영자 설정 모양 — 저장 전 값) · 홈 구성(배치 + 가젯 id·종류·제목·보이는 폭·내용 설정) · 가젯 페이지 머리(`/p/{key}` 를 띄웠을 때). 이 탭의 화면 상태만 바꾼다(서버에 아무것도 보내지 않는다).
  *   테마·메뉴는 `useTheme` 의 상태(`site-theme`·`site-menu-*`)를 덮고, 홈 구성은 `useAdminPreview().home` 에 두어 홈 화면이 덮어 그린다(`pages/index.vue`).
  * - 보내는 것: 준비됨(`…-ready` — 관리자가 이때 값을 보낸다) · 메뉴 자리를 눌렀다(`…-edit-menu` — 관리자가 메뉴 설정 drawer 를 연다).
@@ -23,8 +24,9 @@ import UtilTheme, { type ThemeId } from '~/utils/util-theme';
 export default defineNuxtPlugin(() => {
     if (window.parent === window || new URLSearchParams(window.location.search).get('adminPreview') !== '1') return;
 
-    const allowed = String(useRuntimeConfig().public.adminOrigins ?? '')
-        .split(',')
+    // 관리자 주소 — 개발 서버는 runtimeConfig, 빌드한 화면은 서버가 이 응답 머리에 넣은 메타(ADMIN_URL — 서버가 같은 주소만 frame-ancestors 로 허락한다)
+    const served = document.querySelector<HTMLMetaElement>('meta[name="roboyam-admin-origin"]')?.content ?? '';
+    const allowed = [...String(useRuntimeConfig().public.adminOrigins ?? '').split(','), served]
         .map((origin) => origin.trim())
         .filter(Boolean);
     if (!allowed.length) return;

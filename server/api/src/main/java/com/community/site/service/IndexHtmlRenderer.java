@@ -39,6 +39,8 @@ public class IndexHtmlRenderer {
     private static final String INDEX = "static/index.html";
     private static final String MANIFEST_URL = "/manifest.webmanifest";
     private static final String TITLE_SEPARATOR = " — ";
+    /** 관리자 미리보기 응답에만 넣는 관리자 origin 메타 이름(user-web {@code plugins/03.admin-preview.client.ts} 가 읽는다) */
+    static final String ADMIN_ORIGIN_META = "roboyam-admin-origin";
 
     private static final Pattern HEAD_OPEN = Pattern.compile("<head(?:\\s[^>]*)?>", Pattern.CASE_INSENSITIVE);
     private static final Pattern HEAD_CLOSE = Pattern.compile("</head\\s*>", Pattern.CASE_INSENSITIVE);
@@ -68,6 +70,21 @@ public class IndexHtmlRenderer {
         RenderedIndex index = new RenderedIndex(body, hash(body));
         cached = new Cached(snapshot.etag(), index);
         return Optional.of(index);
+    }
+
+    /**
+     * 관리자 미리보기 응답 — 머리 맨 앞에 {@code <meta name="roboyam-admin-origin" content="관리자 origin">} 을 더한 사본(지문도 새로). 공개 화면이 이 주소의 메시지만 받는다
+     * (user-web {@code plugins/03.admin-preview.client.ts}). 머리가 없는 틀이면 그대로다.
+     */
+    public RenderedIndex withAdminOrigin(RenderedIndex index, String adminOrigin) {
+        String html = new String(index.body(), StandardCharsets.UTF_8);
+        Matcher open = HEAD_OPEN.matcher(html);
+        if (!open.find()) {
+            return index;
+        }
+        String meta = "\n<meta name=\"" + ADMIN_ORIGIN_META + "\" content=\"" + HtmlUtils.htmlEscape(adminOrigin) + "\">";
+        byte[] body = (html.substring(0, open.end()) + meta + html.substring(open.end())).getBytes(StandardCharsets.UTF_8);
+        return new RenderedIndex(body, hash(body));
     }
 
     /** 틀은 jar 안 파일이라 한 번 읽으면 된다. 없으면 기억하지 않고 다음 요청에 다시 본다(빌드 직후의 개발 환경) */

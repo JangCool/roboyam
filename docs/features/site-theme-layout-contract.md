@@ -21,12 +21,12 @@
 
 ## 권한·정책
 - 조회 `site.read`(메뉴), 테마 적용·메뉴 설정·홈 구성 저장 `site.manage`. 감추는 것은 편의, 막는 것은 서버.
-- 미리보기 모드는 그 iframe 탭의 화면 상태만 바꾼다(서버에 아무것도 쓰지 않는다). 공개 사이트는 `NUXT_PUBLIC_ADMIN_ORIGINS` 주소의 메시지만 받고, 관리자는 `NUXT_PUBLIC_USER_WEB_ORIGIN` 으로만 보낸다. 미리보기 안에서는 회원 보기 설정의 메뉴 위치를 쓰지 않고 링크 이동을 막는다.
+- 미리보기 모드는 그 iframe 탭의 화면 상태만 바꾼다(서버에 아무것도 쓰지 않는다). 공개 사이트는 관리자 주소(개발 `NUXT_PUBLIC_ADMIN_ORIGINS`, 운영 `ADMIN_URL`)의 메시지만 받고, 관리자는 공개 사이트 주소(개발 `NUXT_PUBLIC_USER_WEB_ORIGIN`, 운영 사이트 공개 주소)로만 보낸다(아래 「운영 배포」). 미리보기 안에서는 회원 보기 설정의 메뉴 위치를 쓰지 않고 링크 이동을 막는다.
 
 ## API (서버 구현 2026-10-29 — 마이그레이션 shared V105)
 | 주소 | 권한 | 요청 → 응답 |
 |---|---|---|
-| `GET /api/admin/site/theme?forTheme=` | `site.read` | → `SiteThemeResponse` `{ theme, themes, menuTheme, menuPosition, topItems, barGroupIds, menuWidth, menuOverflow, menuStyle{7칸}, themeMenuDefaults, themeTopItemsDefaults, themeMenuWidthDefaults, themeMenuOverflowDefaults, themeMenuStyleDefaults }` — 메뉴 칸은 `forTheme`(없으면 지금 테마) 것, `menuTheme` 가 그 테마. 목록 밖 `forTheme` 은 `400 fields.forTheme` |
+| `GET /api/admin/site/theme?forTheme=` | `site.read` | → `SiteThemeResponse` `{ theme, themes, menuTheme, menuPosition, topItems, barGroupIds, menuWidth, menuOverflow, menuStyle{7칸}, themeMenuDefaults, themeTopItemsDefaults, themeMenuWidthDefaults, themeMenuOverflowDefaults, themeMenuStyleDefaults, publicUrl }`(`publicUrl` = 사이트 공개 주소, 없으면 null — 「운영 배포」) — 메뉴 칸은 `forTheme`(없으면 지금 테마) 것, `menuTheme` 가 그 테마. 목록 밖 `forTheme` 은 `400 fields.forTheme` |
 | `PUT /api/admin/site/theme` (CSRF) | `site.manage` | `{ theme }` → 같은 모양(새 테마의 메뉴 칸) · `400 fields.theme`·`fields.site` — 사이트 테마만 바꾼다 |
 | `PUT /api/admin/site/themes/{id}/menu` (CSRF) | `site.manage` | `{ menuPosition, topItems, barGroupIds, menuWidth, menuOverflow, menuStyle{7칸} }`(칸 전부) → 같은 모양(그 테마의 메뉴 칸) · 모르는 테마 `404` · `400 fields.menuPosition`…`fields.menuStyle.<칸>`(빠짐·목록 밖 「목록에서 골라 주세요」), `fields.barGroupIds`(숫자 ID 글자 아님 · 20개 넘음) |
 | `GET /api/site/theme` (공개) | — | → `{ theme, menuPosition, topItems, barGroupIds, menuWidth, menuOverflow, menuGroupStyle, sideGroupStyle, menuSize, mobileMenu, menuDescription, stickyMenu, mobileHeader }` — **지금 테마**의 운영자 값(칸마다 `THEME` 또는 값). 사본·캐시·전파는 `/api/site/info` 와 같다(서버 사본 20초, 브라우저는 `no-cache` + ETag 로 매번 확인) |
@@ -44,8 +44,16 @@
 - 감사: 메뉴 설정 `SITE_THEME_MENU_UPDATE`(바뀐 때만, 바뀐 칸 전후 + `theme`) · 홈 저장 `HOME_LAYOUT_UPDATE`(저장마다, 칸 수·가젯 수 전후 + 넣은·뺀 수). 관리자 알림은 사이트 설정 변경(변형 `siteThemeMenu`·`homeLayout`). 같은 테마 저장은 사이트 설정 행 잠금으로 줄 세운다.
 - `AdminScreenRegistry` 에 테마 묶음(`settingsTheme` 자리 — `menu.theme` › `themeLayout` `/settings/theme`, `site.read`)을 admin-web 과 같은 차례로 더했다.
 
+## 운영 배포 (결정 2026-10-29)
+화면은 `nuxt generate` 정적 파일이라 `NUXT_PUBLIC_*` 가 빌드 때 박히지만, 이미지는 로컬·dev·prod·설치형이 한 벌이므로 **운영 주소를 화면 빌드에 넣지 않고 서버 설정을 실행 때 쓴다**. 빌드한 화면(`$production`)은 두 값을 비워 둔다.
+- 공개 사이트 HTML 은 nginx 가 아니라 api 가 내린다(`SiteHeadFilter` — Caddy·ALB 는 전달만). 프레임 헤더는 공통 `SecurityConfig` 의 `FrameHeaderWriter` 가 붙인다: 늘 `X-Frame-Options: DENY`, 앱의 `FrameAncestorsPolicy` 가 허락한 응답만 그 대신 `Content-Security-Policy: frame-ancestors …`.
+- 허락하는 응답(api `AdminPreviewFrame`): 화면 주소의 GET·HEAD 이면서 `adminPreview=1` 인 것만 `frame-ancestors 'self' <관리자 origin>`. 관리자 origin = 환경 값 `ADMIN_URL`(api 의 `roboyam.admin-preview.origin`)의 스킴·호스트·포트 — 비었거나 http(s) 가 아니면 허락하지 않는다. 그 밖의 화면·API·정적 파일·관리자 앱은 그대로 DENY(관리자 앱은 정책 빈이 없다).
+- 공개 화면이 받을 관리자 주소: 같은 응답 머리의 `<meta name="roboyam-admin-origin">`(서버가 넣는다) + `runtimeConfig.public.adminOrigins`(개발 서버 기본 `http://localhost:3200,3201`).
+- 관리자가 띄울 공개 사이트 주소: 사이트 설정 공개 주소(설치 마법사 값 — `GET /api/admin/site/theme` 응답 `publicUrl`)의 origin. 개발 서버는 `runtimeConfig.public.userWebOrigin`(기본 `http://localhost:3100`)이 먼저다(`useUserWebOrigin`). 둘 다 없으면 「실제 화면」 자리에 안내 문구(`site.livePreviewNoOrigin`).
+- 하위 도메인 여부와 무관하다(주소를 origin 으로 정확히 맞춘다). 다만 공개·관리자 도메인의 등록 도메인이 다르면 iframe 안 공개 사이트 쿠키가 서드파티라 브라우저가 막을 수 있다 — 그때 실제 화면은 비로그인 화면으로 보인다(아래 미확정 「로그인 상태」와 같은 결과).
+- 배포 값: dev 는 `init-env.sh` 가 `ADMIN_URL=https://<관리자 도메인>` 을 쓴다. prod 는 `.env` 의 `ADMIN_URL`(앱 서버·관리자 앱 같은 값). 설치형(`installer/`)은 관리자 앱이 없어 해당 없음. 절차·확인 명령은 `docker/dev/README.md` 9.
+
 ## 미확정 사항
-- 운영 배포: 관리자가 띄울 공개 사이트 주소(서버의 공개 주소 설정과 맞출지), 공개 사이트 웹 서버의 `frame-ancestors` 에 관리자 주소 허용.
 - 실제 화면은 이 브라우저의 공개 사이트 로그인 상태로 보인다(비로그인 화면으로 볼지).
 - 새로 넣은 가젯은 서버가 종류별 처음 값(빈 설정 — 게시판 전체·기본 개수)으로 데이터를 준다. 가젯 내용 설정(게시판·개수·꾸미기) 편집 화면은 범위 밖.
 - ~~공개 공동구매 목록 API 가 생기면 `GROUP_BUY` 가젯 데이터를 채운다~~ → **채움(2026-10-29)** — 위 「공개 홈 데이터」 줄, 상세는 commerce-groupbuy-contract 「홈 `GROUP_BUY` 가젯 연결」. ~~가정: 정렬은 마감 이른 순 고정, 관리자 편집기에 `count` 칸 없음~~ → **처리(2026-10-29 사용자 결정)**: 정렬 3가지(DEADLINE·NEWEST·POPULAR) + `count` 1~10(기본 5)을 관리자 실제 화면 편집의 공구 가젯 ⚙ 설정 창에서 고친다(공구 가젯만 — 다른 종류의 내용 설정은 범위 밖). 저장 전 미리보기는 받은 줄 안에서만 차례·개수를 바꿔 보이고, 저장하면 서버가 그 설정으로 다시 고른다. 기본 배치의 가젯 제목·운영 원칙 문구는 한국어 시드다(운영자가 고칠 처음 데이터).
