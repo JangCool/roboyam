@@ -91,8 +91,9 @@
                         </div>
                         <p v-if="gb.summary" class="m-0 whitespace-pre-line text-sm leading-relaxed text-muted-color">{{ gb.summary }}</p>
 
-                        <!-- 지금 상태 한 줄 -->
-                        <Message v-if="phaseNotice" :severity="phaseNotice.severity" size="small" :closable="false" role="status" data-testid="group-buy-phase-notice">{{ phaseNotice.text }}</Message>
+                        <!-- 남은 시간(예정 → 시작까지, 모집 중 → 마감·연장 마감까지) — 0 이 되면 다시 읽어 모집 시작·집계 중으로 바꾼다. 그 밖은 지금 상태 한 줄 -->
+                        <GroupBuyCountdown v-if="gb.phase === 'UPCOMING' || gb.status === 'RECRUITING'" :gb="gb" variant="detail" @finished="load(true)" />
+                        <Message v-else-if="phaseNotice" :severity="phaseNotice.severity" size="small" :closable="false" role="status" data-testid="group-buy-phase-notice">{{ phaseNotice.text }}</Message>
 
                         <!-- 성사형 달성률 · 남은 수량(본 상품만 센다 — 결정 88) · 발송 -->
                         <div class="flex flex-col gap-2 text-sm">

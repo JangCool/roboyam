@@ -8,6 +8,19 @@ export type GroupBuyValueState = GroupBuyStockState | 'OFF';
 /** 목록 정렬(화면 안) — `UtilGroupBuy.SORTS` */
 export type GroupBuyListSort = 'DEFAULT' | 'DEADLINE' | 'PRICE' | 'POPULAR';
 
+/** 남은 시간 — 무엇까지(시작·마감·연장 마감) · 끝나는 시각 · 일·시·분·초 · 하루 안(강조) · 한 시간 안(더 강조) */
+export interface GroupBuyCountdown {
+    kind: 'START' | 'END' | 'EXTENDED';
+    target: string;
+    seconds: number;
+    days: number;
+    hours: number;
+    minutes: number;
+    secs: number;
+    urgent: boolean;
+    critical: boolean;
+}
+
 /**
  * 공구 화면의 순수 규칙 — 주소·표시 판정(남은 수량 적음·진행률)·금액 글자·고른 상품 목록(결정 88)의 주소 글자와 담을 수 있는 수량. 상태도 요청도 없다.
  * 금액·남은 수량·품절 판정·단추 상태는 서버 값이고, 여기는 그 값을 **어떻게 보일지**만 정한다. 담는 수량의 상한은 편의 — 최종 판정은 서버(견적·주문).
@@ -104,6 +117,39 @@ export default class UtilGroupBuy {
      */
     static sortOf(value: unknown): GroupBuyListSort {
         return UtilGroupBuy.SORTS.includes(value as GroupBuyListSort) ? (value as GroupBuyListSort) : 'DEFAULT';
+    }
+
+    /**
+     * 카운트다운 — 예정이면 시작까지, 모집 중이면 마감(연장 중이면 연장 끝)까지. 그 밖(집계 중·종료)은 null.
+     * 서버 시각 값을 그대로 쓰고 화면은 빼기만 한다(0 밑으로 내려가지 않는다 — 넘으면 부르는 쪽이 다시 읽는다).
+     * @param {Pick<GroupBuyListItem, 'phase' | 'status' | 'startAt' | 'endAt' | 'extendedUntil'>} gb - 공구.
+     * @param {number} nowMs - 지금(밀리초).
+     * @returns {GroupBuyCountdown | null} 남은 시간.
+     */
+    static countdown(gb: Pick<GroupBuyListItem, 'phase' | 'status' | 'startAt' | 'endAt' | 'extendedUntil'>, nowMs: number): GroupBuyCountdown | null {
+        let kind: GroupBuyCountdown['kind'];
+        let target: string;
+        if (gb.phase === 'UPCOMING') {
+            kind = 'START';
+            target = gb.startAt;
+        } else if (gb.status === 'RECRUITING') {
+            kind = gb.extendedUntil ? 'EXTENDED' : 'END';
+            target = gb.extendedUntil ?? gb.endAt;
+        } else {
+            return null;
+        }
+        const seconds = Math.max(0, Math.floor((Date.parse(target) - nowMs) / 1000));
+        return {
+            kind,
+            target,
+            seconds,
+            days: Math.floor(seconds / 86_400),
+            hours: Math.floor((seconds % 86_400) / 3_600),
+            minutes: Math.floor((seconds % 3_600) / 60),
+            secs: seconds % 60,
+            urgent: kind !== 'START' && seconds < 86_400,
+            critical: kind !== 'START' && seconds < 3_600,
+        };
     }
 
     /**

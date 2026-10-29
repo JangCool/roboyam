@@ -52,7 +52,9 @@
                 <PointShopTag v-for="tag in tags" :key="tag.key" :tone="tag.tone">{{ tag.text }}</PointShopTag>
             </div>
 
-            <p class="m-0 mt-auto flex items-center gap-1 pt-0.5 text-xs tabular-nums text-muted-color">
+            <!-- 예정·모집 중은 남은 시간(1초마다, 하루 안이면 빨강), 그 밖은 상태 글자 -->
+            <GroupBuyCountdown v-if="gb.phase === 'UPCOMING' || gb.status === 'RECRUITING'" :gb="gb" class="mt-auto pt-0.5" />
+            <p v-else class="m-0 mt-auto flex items-center gap-1 pt-0.5 text-xs tabular-nums text-muted-color">
                 <i class="pi pi-clock text-[0.6875rem]" aria-hidden="true" />{{ UtilGroupBuyMessages.deadline(t, time, gb) }}
             </p>
         </div>

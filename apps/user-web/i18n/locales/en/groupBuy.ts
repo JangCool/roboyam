@@ -31,6 +31,14 @@ export default {
     addedQty: '{count} restocked',
     startsAt: 'Opens {at}',
     endsAt: 'Closes {at}',
+    countdown: {
+        to: { START: 'Starts in', END: 'Ends in', EXTENDED: 'Extension ends in' },
+        title: { START: 'Time until it opens', END: 'Time left', EXTENDED: 'Time left in the extension' },
+        at: { START: 'Opens {at}', END: 'Closes {at}', EXTENDED: 'Extension closes {at}' },
+        days: '{n}d',
+        dayUnit: 'd',
+        extendedHelp: 'Some stock opened up just before closing, so we extended it. It ends right away if it sells out.',
+    },
     extendedUntil: 'Extended · until {at} at most',
     judging: 'Closed · tallying results',
     closeReason: {
