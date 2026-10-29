@@ -1,9 +1,12 @@
-import type { GroupBuyOrderLine, GroupBuyPhase, GroupBuySku, GroupBuyStockState } from '~/composables/groupbuy/api/useGroupBuyApi.types';
+import type { GroupBuyListItem, GroupBuyOrderLine, GroupBuyPhase, GroupBuySku, GroupBuyStockState } from '~/composables/groupbuy/api/useGroupBuyApi.types';
 import type { GroupBuyRequestReason } from '~/composables/groupbuy/api/useGroupBuyOrderApi.types';
 import UtilCommerce from '~/utils/util-commerce';
 
 /** 축 값 하나의 상태 — 그 값으로 갈 수 있는 단품들의 품절 판정을 모은 것, 판매하는 단품이 없으면 OFF(판매 안 함) */
 export type GroupBuyValueState = GroupBuyStockState | 'OFF';
+
+/** 목록 정렬(화면 안) — `UtilGroupBuy.SORTS` */
+export type GroupBuyListSort = 'DEFAULT' | 'DEADLINE' | 'PRICE' | 'POPULAR';
 
 /**
  * 공구 화면의 순수 규칙 — 주소·표시 판정(남은 수량 적음·진행률)·금액 글자·고른 상품 목록(결정 88)의 주소 글자와 담을 수 있는 수량. 상태도 요청도 없다.
@@ -64,6 +67,62 @@ export default class UtilGroupBuy {
     static progress(current: number, min: number): number | null {
         if (min <= 0) return null;
         return Math.min(100, Math.floor((current / min) * 100));
+    }
+
+    /**
+     * 성사형 달성률 글자(확정 / 최소, 100 을 넘어도 그대로 — 「150% 달성」) — 선착순(min 0)이면 null
+     * @param {number} current - 확정 수량.
+     * @param {number} min - 성사 최소 수량.
+     * @returns {number | null} 0 이상.
+     */
+    static reached(current: number, min: number): number | null {
+        if (min <= 0) return null;
+        return Math.floor((current / min) * 100);
+    }
+
+    /**
+     * 정상가 대비 할인율(내림, 정수 %) — 정상가가 없거나 공구가가 같거나 비싸면 null.
+     * 「N원부터」(단품마다 값이 다름)는 가장 싼 값 기준이라 할인율이 부풀려 보일 수 있어 보이지 않는다(표시·광고 고시 — 결정 58).
+     * @param {number | null} normalPrice - 정상가.
+     * @param {number} price - 공구가.
+     * @param {boolean} priceFrom - 「N원부터」인가.
+     * @returns {number | null} 1~99.
+     */
+    static discountRate(normalPrice: number | null, price: number, priceFrom: boolean): number | null {
+        if (priceFrom || !normalPrice || normalPrice <= 0 || price >= normalPrice) return null;
+        const rate = Math.floor(((normalPrice - price) / normalPrice) * 100);
+        return rate >= 1 ? rate : null;
+    }
+
+    /** 목록 정렬(화면 안 — 불러온 목록만). `DEFAULT` 는 서버 차례 그대로 */
+    static readonly SORTS = ['DEFAULT', 'DEADLINE', 'PRICE', 'POPULAR'] as const;
+
+    /**
+     * 주소의 `?sort=` → 정렬(모르는 값이면 `DEFAULT`)
+     * @param {unknown} value - 쿼리 값.
+     * @returns {GroupBuyListSort} 정렬.
+     */
+    static sortOf(value: unknown): GroupBuyListSort {
+        return UtilGroupBuy.SORTS.includes(value as GroupBuyListSort) ? (value as GroupBuyListSort) : 'DEFAULT';
+    }
+
+    /**
+     * 불러온 목록을 정렬한 새 배열 — 마감 빠른순(연장 끝 → 마감, 예정은 시작 시각) · 낮은 가격순 · 많이 모인순(확정 수량). 같으면 서버 차례.
+     * @param {GroupBuyListItem[]} items - 서버 차례의 목록.
+     * @param {GroupBuyListSort} sort - 정렬.
+     * @returns {GroupBuyListItem[]} 정렬한 목록(`DEFAULT` 면 그대로).
+     */
+    static sortItems(items: GroupBuyListItem[], sort: GroupBuyListSort): GroupBuyListItem[] {
+        if (sort === 'DEFAULT') return items;
+        const key = (gb: GroupBuyListItem): number => {
+            if (sort === 'PRICE') return gb.groupPrice;
+            if (sort === 'POPULAR') return -gb.currentQty;
+            return Date.parse(gb.phase === 'UPCOMING' ? gb.startAt : (gb.extendedUntil ?? gb.endAt));
+        };
+        return items
+            .map((gb, index) => ({ gb, index, k: key(gb) }))
+            .sort((a, b) => a.k - b.k || a.index - b.index)
+            .map((x) => x.gb);
     }
 
     /**
