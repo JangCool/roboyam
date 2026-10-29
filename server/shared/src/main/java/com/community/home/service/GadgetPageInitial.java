@@ -3,6 +3,7 @@ package com.community.home.service;
 import com.community.home.dto.HomeGadgetSpec;
 import com.community.home.dto.HomeGridLayout;
 import com.community.home.dto.HomeLayoutItem;
+import com.community.site.service.SiteThemes;
 import java.util.ArrayList;
 import java.util.List;
 import tools.jackson.databind.JsonNode;
@@ -11,13 +12,19 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * 가젯 페이지의 처음 배치 — 만들 때 기준 폴더의 게시판으로 한 번 만들어 {@code gadget_pages.initial_layout} 에 둔다(gadget-page-contract 「필드·검증」, admin-web {@code UtilGadgetPage.initialLayout} 과 같은 규칙).
- * 24칸: 「{폴더} 인기글」(인기·기간 탭·대상 폴더, 갤러리가 있으면 16칸) + 「{게시판} 갤러리」(목록 모양 GALLERY 인 첫 폴더 게시판, 8칸) / 게시판 카드(폴더 게시판마다, 12+12 — 홀수면 마지막 24칸) /
- * 「{폴더} 최신글」(대상 폴더, 24칸). 기준 폴더가 없으면 이름 자리는 「전체」. 가젯 ID 는 {@code seed-<n>} — 저장 요청에 이 ID 가 오면 그 설정 그대로 만든다.
- * 꾸미기는 저장하지 않고 읽을 때 그 테마의 기본 꾸미기({@link HomeGadgetKinds#baseStyle}) + 아이콘을 입힌다. 제목은 운영자가 고칠 처음 데이터(한국어 시드)다.
+ * 24칸, 줄마다 꽉 차게: 「{폴더} 인기글」(인기·기간 탭·대상 폴더, 16칸) + 「{게시판} 갤러리」(사진·영상 게시판 — 목록 모양 GALLERY 또는 갤러리 보기 전환이 켜진 첫 폴더 게시판, 8칸 —
+ * 없으면 인기글이 24칸) / 게시판 카드(폴더 게시판마다, 12+12 — 홀수면 마지막 24칸) / 「{폴더} 최신글」(대상 폴더, 24칸).
+ * 나란한 가젯은 같은 높이(h — 최소 높이)라 아래 끝이 맞고, 높이는 보통 내용에 맞췄다(내용이 길면 격자가 늘린다).
+ * 기준 폴더가 없으면 이름 자리는 「전체」. 가젯 ID 는 {@code seed-<n>} — 저장 요청에 이 ID 가 오면 그 설정 그대로 만든다.
+ * 꾸미기는 저장하지 않고 읽을 때 그 테마의 기본 꾸미기({@link HomeGadgetKinds#baseStyle}) + 아이콘을 입힌다(로보얌은 홈 로보얌 시드처럼 카드 + 아이콘 머리). 제목은 운영자가 고칠 처음 데이터(한국어 시드)다.
  */
 public final class GadgetPageInitial {
 
     private static final String ALL_NAME = "전체";
+    /** 줄마다 높이(행) — 인기글·갤러리 줄 · 게시판 카드 줄 · 최신글 */
+    static final int TOP_H = 15;
+    static final int CARDS_H = 13;
+    static final int LATEST_H = 15;
 
     private GadgetPageInitial() {
     }
@@ -31,32 +38,33 @@ public final class GadgetPageInitial {
     public static ObjectNode build(String folderName, List<GadgetPageFolders.Board> boards) {
         String folder = folderName == null || folderName.isBlank() ? ALL_NAME : folderName;
         Builder b = new Builder();
-        GadgetPageFolders.Board gallery = boards.stream().filter(x -> "GALLERY".equals(x.layout())).findFirst().orElse(null);
+        GadgetPageFolders.Board gallery = boards.stream().filter(x -> "GALLERY".equals(x.layout())).findFirst()
+                .orElseGet(() -> boards.stream().filter(GadgetPageFolders.Board::gallery).findFirst().orElse(null));
         int y = 0;
         b.add("POST_LIST", folder + " 인기글", "pi-chart-line",
                 scope(HomeLayoutJson.object().put("sort", "POPULAR").put("rowStyle", "RANK").put("periodTabs", true).put("count", 10), GadgetConfigs.FOLDER, List.of())
                         .set("meta", strings("BOARD", "COMMENTS", "TIME")),
-                null, 0, y, gallery == null ? 24 : 16, 16);
+                null, 0, y, gallery == null ? 24 : 16, TOP_H);
         if (gallery != null) {
             b.add("GALLERY", gallery.name() + " 갤러리", "pi-images", scope(HomeLayoutJson.object().put("count", 6), GadgetConfigs.PICK, List.of(gallery.slug())),
-                    "/boards/" + gallery.slug(), 16, y, 8, 16);
+                    "/boards/" + gallery.slug(), 16, y, 8, TOP_H);
         }
-        y += 16;
+        y += TOP_H;
         for (int i = 0; i < boards.size(); i++) {
             GadgetPageFolders.Board board = boards.get(i);
             boolean left = i % 2 == 0;
             boolean last = i == boards.size() - 1;
             b.add("BOARD_CARDS", board.name(), "pi-th-large",
                     scope(HomeLayoutJson.object().put("columns", "AUTO").put("perBoard", 4), GadgetConfigs.PICK, List.of(board.slug())),
-                    "/boards/" + board.slug(), left ? 0 : 12, y, left && last ? 24 : 12, 20);
+                    "/boards/" + board.slug(), left ? 0 : 12, y, left && last ? 24 : 12, CARDS_H);
             if (!left || last) {
-                y += 20;
+                y += CARDS_H;
             }
         }
         b.add("POST_LIST", folder + " 최신글", "pi-clock",
                 scope(HomeLayoutJson.object().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("columns", 2).put("count", 16), GadgetConfigs.FOLDER, List.of())
                         .set("meta", strings("BOARD", "COMMENTS", "TIME")),
-                null, 0, y, 24, 14);
+                null, 0, y, 24, LATEST_H);
         return b.json;
     }
 
@@ -70,6 +78,10 @@ public final class GadgetPageInitial {
         if (raw != null && raw.isArray()) {
             for (JsonNode g : raw) {
                 ObjectNode style = HomeGadgetKinds.baseStyle(theme);
+                if ("roboyam".equals(SiteThemes.normalize(theme))) {
+                    // 홈 로보얌 시드와 같은 모양 — 흰 카드 + 아이콘 머리
+                    style.put("headerStyle", "PLAIN").put("cardLook", "DEFAULT");
+                }
                 String icon = HomeLayoutJson.text(g, "icon", null);
                 if (icon != null) {
                     style.put("icon", icon);

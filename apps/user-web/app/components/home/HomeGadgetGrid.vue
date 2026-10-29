@@ -9,7 +9,7 @@
             순서는 템플릿의 한 열 모양(`mobile.order`): `reading` (y, x) · `columns` 본문 열 먼저(`UtilHomeGrid.byColumns`). 한 열인지는 아래 가젯에 알린다(`provideHomeGadgetStacked` — 가젯의 한 열 모양: 가로로 미는 줄 등)
         **h 는 최소 높이**: 칸마다 `min-height` 가 h 행이고, 내용이 길면 칸이 늘어난다 — 잰 높이(ResizeObserver)로 차지할 행을 늘리고 위로 당겨(`UtilHomeGrid.place`) 같은 열 아래 가젯만 밀린다(겹치지 않는다).
         가젯의 PC/모바일 노출(`desktop`·`mobile`, lg 경계)·비어서 감춤은 `UtilHomeGadget.isVisible` 그대로이고, 숨긴 가젯의 자리는 당겨 메운다. 요소 순서는 읽는 순서((y, x))라 화면 읽기·Tab 순서가 보이는 순서와 같다.
-        카드는 칸 높이를 채운다(같은 줄 카드의 아래 끝이 맞는다). 데이터는 받기만 한다(조회는 페이지).
+        카드는 칸 높이를 채운다(같은 줄 카드의 아래 끝이 맞는다). 같은 행에 같은 h 로 나란히 둔 가젯은 그중 가장 긴 가젯 높이로 함께 늘어난다(`UtilHomeGrid.place` 「같은 줄 맞추기」). 데이터는 받기만 한다(조회는 페이지).
         **관리자 미리보기 편집**(`useAdminPreview().editing` — 관리자 테마 화면의 iframe 안, 사용자 결정 2026-10-28: 편집도 실제 화면에서): 가젯마다 위에 덮는 손잡이 층을 얹는다 —
           가운데를 끌면 옮기기, 오른쪽 아래 모서리를 끌면 크기, 오른쪽 위 ×는 빼기, 그 옆 ⚙(내용 설정이 있는 종류 — 지금은 공구)는 관리자 설정 창 열기(`settings`). 끄는 동안 놓일 칸을 이 격자의 칸·행 크기로 계산해 자리 표시를 그리고, 놓으면 관리자에게 알린다
           (`postToAdminPreview` — 놓은 칸 `place` · 칸·행 `size` · `remove`). 실제 계산(최소 크기·겹침·위로 당기기)과 저장은 관리자 편집기가 하고, 바뀐 배치를 다시 보내면 이 격자가 그린다.
@@ -134,7 +134,8 @@ function cellStyle(cell: Cell): CSSProperties | undefined {
     return {
         gridColumn: `${cell.x + 1} / span ${cell.w}`,
         gridRow: `${cell.y + 1} / span ${cell.rows}`,
-        minHeight: `${UtilHomeLayout.px(cell.h)}px`,
+        // 같은 줄 맞추기로 함께 늘린 가젯은 그 높이를 채운다(아래 끝이 맞는다)
+        minHeight: `${UtilHomeLayout.px(cell.aligned ? cell.rows : cell.h)}px`,
     };
 }
 

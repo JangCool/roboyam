@@ -137,7 +137,12 @@ watch(
     { immediate: true },
 );
 
-const folderOptions = computed(() => folders.value.map((f) => ({ value: f.id, label: f.boards.length ? `${f.label} (${t('gadgetPage.folderBoards', { count: f.boards.length })})` : f.label })));
+const folderOptions = computed(() =>
+    folders.value.map((f) => {
+        const count = f.boards.filter((b) => b.active).length;
+        return { value: f.id, label: count ? `${f.label} (${t('gadgetPage.folderBoards', { count })})` : f.label };
+    }),
+);
 
 /** 기준 폴더를 고르면(만들 때) 빈 이름·주소를 폴더로 채운다 */
 function onFolder(id: string | null): void {

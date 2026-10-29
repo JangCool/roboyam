@@ -19,10 +19,11 @@
   - 폴더 게시판 = 그 폴더 아래(하위 폴더까지) `BOARD` 항목의 게시판, 메뉴 차례, 겹치면 한 번. 꺼진 게시판은 공개 데이터에서 빠진다.
 - `writeButton` 참/거짓. 글쓰기 단추는 `/write?board=<기준 폴더의 첫 켜진 게시판>`(없으면 `/write`) — 판정은 글쓰기 화면·서버.
 - 페이지 수 한도 50.
-- 처음 배치(만들 때 서버가 기준 폴더의 게시판으로 만든다 — admin `UtilGadgetPage.initialLayout` 과 같은 규칙, 24칸, 가젯 ID `seed-<n>`):
-  「{폴더} 인기글」(POST_LIST POPULAR·기간 탭·대상 FOLDER, 갤러리가 있으면 16칸 아니면 24칸) + 「{게시판} 갤러리」(GALLERY, 목록 모양이 `GALLERY` 인 첫 폴더 게시판 PICK, 8칸) /
-  게시판 카드(BOARD_CARDS, 폴더 게시판마다 하나 PICK, 12+12, 홀수면 마지막 24칸) / 「{폴더} 최신글」(POST_LIST LATEST·대상 FOLDER, 24칸). 기준 폴더가 없으면 이름 자리는 「전체」.
-  저장한 적 없는 테마는 이 처음 배치를 보인다(꾸미기는 그 테마의 기본 꾸미기). 기준 폴더를 바꿔도 처음 배치는 다시 만들지 않는다.
+- 처음 배치(만들 때 서버가 기준 폴더의 **켜진** 게시판으로 만든다 — 서버 `GadgetPageInitial`, admin `UtilGadgetPage.initialLayout` 은 만들기 창의 미리 보기, 24칸 · 줄마다 꽉 차게, 가젯 ID `seed-<n>`):
+  「{폴더} 인기글」(POST_LIST POPULAR·기간 탭·대상 FOLDER, 16칸 · 갤러리가 없으면 24칸) + 「{게시판} 갤러리」(GALLERY PICK 8칸 — 사진·영상 게시판: 목록 모양 `GALLERY` 인 첫 폴더 게시판, 없으면 갤러리 보기 전환(`viewToggle`)이 켜진 첫 게시판) /
+  게시판 카드(BOARD_CARDS, 폴더 게시판마다 하나 PICK, 12+12, 홀수면 마지막 24칸) / 「{폴더} 최신글」(POST_LIST LATEST 16개 두 열·대상 FOLDER, 24칸). 기준 폴더가 없으면 이름 자리는 「전체」.
+  높이(h = 최소 높이, 행): 인기글·갤러리 줄 15 · 게시판 카드 줄 13 · 최신글 15 — 나란한 가젯은 같은 h 라 아래 끝이 맞고 보통 내용에 맞췄다(내용이 길면 격자가 늘린다).
+  저장한 적 없는 테마는 이 처음 배치를 보인다(꾸미기는 그 테마의 기본 꾸미기 + 아이콘 — 로보얌 테마는 홈 로보얌 시드처럼 흰 카드 + 아이콘 머리). 기준 폴더를 바꿔도 처음 배치는 다시 만들지 않는다.
 
 ## 가젯 설정(⚙ — 홈과 가젯 페이지 공통, 2026-10-29 넓힘)
 | 종류 | 칸(서버 JSON `config`) |
@@ -44,7 +45,8 @@
 ## API (서버 구현 2026-10-29 — 마이그레이션 shared V108)
 | 주소 | 권한 | 요청 → 응답 |
 |---|---|---|
-| `GET /api/admin/gadget-pages` | `site.read` | → `{ pages: GadgetPage[] }` — `{ id, key, name, nameEn, description, folderId, folderName, folderBoards[{slug,name,nameEn,layout}], writeButton, menuLinks, updatedAt, updatedBy }` |
+| `GET /api/admin/gadget-pages/folders` | `site.read` | → `{ folders[{ id, name, nameEn, label, boards[{slug,name,nameEn,layout,viewToggle,active}] }] }` — 기준 폴더로 고를 main 의 폴더(트리 차례, 하위 폴더 게시판까지) |
+| `GET /api/admin/gadget-pages` | `site.read` | → `{ pages: GadgetPage[] }` — `{ id, key, name, nameEn, description, folderId, folderName, folderBoards[{slug,name,nameEn,layout,viewToggle,active}], writeButton, menuLinks, updatedAt, updatedBy }` |
 | `POST /api/admin/gadget-pages` (CSRF) | `site.manage` | `{ key, name, nameEn, description, folderId, writeButton }` → `GadgetPage` · `400 fields.key|name|nameEn|description|folderId`·`fields.pages`(한도) |
 | `PUT /api/admin/gadget-pages/{id}` (CSRF) | `site.manage` | 같은 본문(칸 전부) → `GadgetPage` · `404` · 같은 400 |
 | `DELETE /api/admin/gadget-pages/{id}` (CSRF) | `site.manage` | → 200 `null` · `404` |

@@ -15,7 +15,11 @@ import java.util.List;
 public record GadgetPageView(String id, String key, String name, String nameEn, String description, String folderId, String folderName,
                              List<Board> folderBoards, boolean writeButton, long menuLinks, Instant updatedAt, String updatedBy) {
 
-    /** @param layout 게시판 목록 모양 {@code LIST}·{@code CARD}·{@code GALLERY} */
-    public record Board(String slug, String name, String nameEn, String layout) {
+    /**
+     * @param layout     게시판 목록 모양 {@code LIST}·{@code CARD}·{@code GALLERY}
+     * @param viewToggle 목록·갤러리 보기 전환 — 처음 배치의 갤러리 고르기
+     * @param active     켜진 게시판인가(꺼진 게시판은 처음 배치·공개 데이터에서 빠진다)
+     */
+    public record Board(String slug, String name, String nameEn, String layout, boolean viewToggle, boolean active) {
     }
 }

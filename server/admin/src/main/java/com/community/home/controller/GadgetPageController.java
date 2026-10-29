@@ -2,6 +2,8 @@ package com.community.home.controller;
 
 import com.community.home.dto.request.GadgetPageSaveRequest;
 import com.community.home.dto.request.HomeLayoutSaveRequest;
+import com.community.home.dto.response.GadgetPageFolderListResponse;
+import com.community.home.dto.response.GadgetPageFolderView;
 import com.community.home.dto.response.GadgetPageLayoutView;
 import com.community.home.dto.response.GadgetPageListResponse;
 import com.community.home.dto.response.GadgetPageView;
@@ -38,6 +40,13 @@ public class GadgetPageController {
     @GetMapping
     public ApiResponse<GadgetPageListResponse> list() {
         return ApiResponse.success(service.list());
+    }
+
+    /** 기준 폴더로 고를 폴더들 — 폴더마다 게시판(목록 모양·보기 전환·켜짐) */
+    @RequirePermission(Permission.SITE_READ)
+    @GetMapping("/folders")
+    public ApiResponse<GadgetPageFolderListResponse> folders() {
+        return ApiResponse.success(service.folders());
     }
 
     /** 만들기 — 기준 폴더의 게시판으로 처음 배치를 만든다 */

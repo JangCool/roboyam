@@ -7,14 +7,17 @@ import UtilHomeLayout from '#layers/home-layout/utils/util-home-layout';
  *  - **모양(mode)**: `full` 운영자 배치 그대로(데스크톱 lg 이상 + 홈 폭 52rem 이상) · `half` 태블릿 파생 배치(칸 수 반 — md 이상, 또는 데스크톱이지만 사이드 메뉴 때문에 홈 폭이 좁을 때) · `stack` 한 열((y, x) 순서 — md 미만, 또는 홈 폭 36rem 미만).
  *  - **h 는 최소 높이**: 가젯 실제 높이(잰 값)가 h 행보다 크면 그만큼 행을 늘리고(`place`), 위로 당기기(`UtilHomeLayout.compact`)로 **가로로 겹치는 아래 가젯만** 밀어 겹치지 않게 한다(다른 열은 그대로).
  *    숨긴 가젯(이 폭에서 안 보임·비어서 감춤)의 자리도 같은 당기기로 메운다.
+ *  - **같은 줄 맞추기**: 같은 행(y)에서 같은 높이(h)로 시작하는 가젯들은 그중 가장 큰 높이로 함께 늘린다 — 운영자가 나란히 맞춘 줄은 내용 길이가 달라도 아래 끝이 맞는다.
+ *    (늘린 가젯은 그 높이를 채우므로, 그 줄에서 가장 긴 가젯의 내용이 줄어도 그 줄은 다시 그릴 때까지 높이를 유지한다)
  */
 
 /** 홈 격자를 그리는 모양 */
 export type HomeGridMode = 'full' | 'half' | 'stack';
 
-/** 그릴 자리 한 개 — `h` 는 운영자가 정한 최소 높이(행), `rows` 는 실제로 차지하는 행(`h` 이상) */
+/** 그릴 자리 한 개 — `h` 는 운영자가 정한 최소 높이(행), `rows` 는 실제로 차지하는 행(`h` 이상), `aligned` 는 같은 줄 맞추기로 함께 늘린 가젯인가(그 높이를 채운다) */
 export interface HomeGridCell extends HomeLayoutItem {
     rows: number;
+    aligned?: boolean;
 }
 
 /** 운영자 배치 그대로 그릴 홈 폭(px) — 52rem. 그보다 좁으면(사이드 메뉴 + 좁은 창) 태블릿 파생 배치 */
@@ -93,11 +96,22 @@ export default class UtilHomeGrid {
      * @returns {HomeGridCell[]} 그릴 자리.
      */
     static place(items: readonly HomeLayoutItem[], heights: Readonly<Record<string, number>>): HomeGridCell[] {
-        const grown = items.map((it) => {
+        const measuredRows = (it: HomeLayoutItem) => {
             const measured = heights[it.gadgetId];
-            const rows = measured === undefined ? it.h : Math.max(it.h, UtilHomeLayout.rowsFor(measured));
+            return measured === undefined ? it.h : Math.max(it.h, UtilHomeLayout.rowsFor(measured));
+        };
+        // 같은 줄 맞추기 — 운영자가 같은 행(y)에 같은 높이(h)로 나란히 둔 가젯은 그중 가장 큰 높이로 함께 늘려 아래 끝을 맞춘다
+        const rowKey = (it: HomeLayoutItem) => `${it.y}:${it.h}`;
+        const groupRows = new Map<string, { rows: number; size: number }>();
+        for (const it of items) {
+            const g = groupRows.get(rowKey(it)) ?? { rows: 0, size: 0 };
+            groupRows.set(rowKey(it), { rows: Math.max(g.rows, measuredRows(it)), size: g.size + 1 });
+        }
+        const grown = items.map((it) => {
+            const group = groupRows.get(rowKey(it))!;
+            const aligned = group.size > 1;
             // 당기기는 `h` 를 차지하는 행으로 본다 — 늘린 행으로 당긴 뒤 원래 `h` 를 되돌린다
-            return { ...it, h: rows, minH: it.h };
+            return { ...it, h: aligned ? group.rows : measuredRows(it), minH: it.h, aligned };
         });
         return UtilHomeLayout.compact(grown).map(({ minH, h, ...rest }) => ({ ...rest, h: minH, rows: h }));
     }

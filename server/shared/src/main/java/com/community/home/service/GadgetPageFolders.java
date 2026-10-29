@@ -31,12 +31,26 @@ public class GadgetPageFolders {
         this.boards = boards;
     }
 
-    /** 폴더의 게시판 한 개 */
-    public record Board(long id, String slug, String name, String nameEn, String layout, boolean active) {
+    /**
+     * 폴더의 게시판 한 개
+     *
+     * @param layout     목록 모양 LIST·CARD·GALLERY
+     * @param viewToggle 읽는 사람의 목록·갤러리 보기 전환 — 처음 배치의 갤러리 고르기에 쓴다
+     */
+    public record Board(long id, String slug, String name, String nameEn, String layout, boolean viewToggle, boolean active) {
+
+        /** 사진·영상 게시판으로 보는가 — 목록 모양이 갤러리이거나 갤러리 보기 전환이 켜져 있다 */
+        public boolean gallery() {
+            return "GALLERY".equals(layout) || viewToggle;
+        }
     }
 
-    /** 기준 폴더로 고를 수 있는 폴더 한 개 */
-    public record Folder(long id, String name, String nameEn, List<Board> boards) {
+    /**
+     * 기준 폴더로 고를 수 있는 폴더 한 개
+     *
+     * @param label 위 폴더가 있으면 「위 › 이름」
+     */
+    public record Folder(long id, String name, String nameEn, String label, List<Board> boards) {
 
         /** 켜진 게시판의 slug */
         public List<String> activeSlugs() {
@@ -59,11 +73,11 @@ public class GadgetPageFolders {
         Map<Long, Board> byId = new HashMap<>();
         for (BoardEntity b : boards.findAllByOrderBySortOrderAscIdAsc()) {
             if (!BoardFields.KIND_GROUP.equals(b.getKind())) {
-                byId.put(b.getId(), new Board(b.getId(), b.getSlug(), b.getName(), b.getNameEn(), b.getLayout(), b.isActive()));
+                byId.put(b.getId(), new Board(b.getId(), b.getSlug(), b.getName(), b.getNameEn(), b.getLayout(), b.isViewToggle(), b.isActive()));
             }
         }
         Map<Long, Folder> out = new LinkedHashMap<>();
-        walk(roots, children, byId, out);
+        walk(roots, children, byId, out, null);
         return out;
     }
 
@@ -71,7 +85,7 @@ public class GadgetPageFolders {
         return folderId == null ? Optional.empty() : Optional.ofNullable(all().get(folderId));
     }
 
-    private static void walk(List<MenuNodeEntity> list, Map<Long, List<MenuNodeEntity>> children, Map<Long, Board> byId, Map<Long, Folder> out) {
+    private static void walk(List<MenuNodeEntity> list, Map<Long, List<MenuNodeEntity>> children, Map<Long, Board> byId, Map<Long, Folder> out, String parent) {
         for (MenuNodeEntity row : list) {
             if (!MenuNode.FOLDER.equals(row.getKind())) {
                 continue;
@@ -79,8 +93,9 @@ public class GadgetPageFolders {
             List<Board> found = new ArrayList<>();
             collect(children.getOrDefault(row.getId(), List.of()), children, byId, found);
             MenuNode node = row.toNode();
-            out.put(row.getId(), new Folder(row.getId(), node.label(), node.nameEn(), List.copyOf(found)));
-            walk(children.getOrDefault(row.getId(), List.of()), children, byId, out);
+            String label = parent == null ? node.label() : parent + " › " + node.label();
+            out.put(row.getId(), new Folder(row.getId(), node.label(), node.nameEn(), label, List.copyOf(found)));
+            walk(children.getOrDefault(row.getId(), List.of()), children, byId, out, label);
         }
     }
 

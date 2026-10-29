@@ -7,6 +7,8 @@ import com.community.audit.service.AuditLogService;
 import com.community.home.dto.HomeGridLayout;
 import com.community.home.dto.request.GadgetPageSaveRequest;
 import com.community.home.dto.request.HomeLayoutSaveRequest;
+import com.community.home.dto.response.GadgetPageFolderListResponse;
+import com.community.home.dto.response.GadgetPageFolderView;
 import com.community.home.dto.response.GadgetPageLayoutView;
 import com.community.home.dto.response.GadgetPageListResponse;
 import com.community.home.dto.response.GadgetPageView;
@@ -95,6 +97,13 @@ public class GadgetPageAdminService {
     public GadgetPageListResponse list() {
         Map<Long, GadgetPageFolders.Folder> all = folders.all();
         return new GadgetPageListResponse(pages.findAllByOrderByIdAsc().stream().map(p -> view(p, all)).toList());
+    }
+
+    /** 기준 폴더로 고를 폴더들(트리 차례) */
+    @Transactional(readOnly = true)
+    public GadgetPageFolderListResponse folders() {
+        return new GadgetPageFolderListResponse(folders.all().values().stream()
+                .map(f -> new GadgetPageFolderView(Long.toString(f.id()), f.name(), f.nameEn(), f.label(), boards(f))).toList());
     }
 
     @Transactional
@@ -246,7 +255,7 @@ public class GadgetPageAdminService {
     private GadgetPageView view(GadgetPageEntity page, Map<Long, GadgetPageFolders.Folder> all) {
         GadgetPageFolders.Folder folder = page.getFolderId() == null ? null : all.get(page.getFolderId());
         List<GadgetPageView.Board> boards = folder == null ? List.of()
-                : folder.boards().stream().map(b -> new GadgetPageView.Board(b.slug(), b.name(), b.nameEn(), b.layout())).toList();
+                : boards(folder);
         return new GadgetPageView(Long.toString(page.getId()), page.getPageKey(), page.getName(), page.getNameEn(), page.getDescription(),
                 page.getFolderId() == null ? null : page.getFolderId().toString(), folder == null ? null : folder.name(), boards, page.isWriteButton(),
                 nodeQueries.countLinking(GadgetPageMenuTargetResolver.TYPE, page.getId()), page.getUpdatedAt(), operatorName(page.getUpdatedBy()));
@@ -255,6 +264,10 @@ public class GadgetPageAdminService {
     private GadgetPageLayoutView view(GadgetPageLayoutEntity row, List<HomeGadgetEntity> rows) {
         return new GadgetPageLayoutView(Long.toString(row.getPageId()), row.getTheme(), row.toLayout(),
                 GadgetLayoutWriter.views(rows.stream().map(HomeGadgetEntity::toSpec).toList()), row.getUpdatedAt(), operatorName(row.getUpdatedBy()));
+    }
+
+    private static List<GadgetPageView.Board> boards(GadgetPageFolders.Folder folder) {
+        return folder.boards().stream().map(b -> new GadgetPageView.Board(b.slug(), b.name(), b.nameEn(), b.layout(), b.viewToggle(), b.active())).toList();
     }
 
     private String operatorName(Long operatorId) {

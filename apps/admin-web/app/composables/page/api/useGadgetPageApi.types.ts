@@ -14,8 +14,28 @@ export interface GadgetPageBoard {
     slug: string;
     name: string;
     nameEn: string | null;
-    /** 게시판 목록 모양 — 처음 배치의 갤러리 가젯이 `GALLERY` 게시판을 고른다 */
+    /** 게시판 목록 모양 */
     layout: 'LIST' | 'CARD' | 'GALLERY';
+    /** 목록·갤러리 보기 전환 — 처음 배치의 갤러리 가젯은 목록 모양이 `GALLERY` 이거나 이것이 켜진 첫 게시판을 고른다 */
+    viewToggle: boolean;
+    /** 켜진 게시판인가 — 꺼진 게시판은 처음 배치·공개 데이터에서 빠진다 */
+    active: boolean;
+}
+
+/** 기준 폴더로 고를 수 있는 폴더 한 개(`GET /api/admin/gadget-pages/folders`) — 공개 메뉴 main 의 폴더(깊이 무관, 트리 차례) */
+export interface GadgetPageFolder {
+    id: string;
+    name: string;
+    nameEn: string | null;
+    /** 위 폴더가 있으면 「위 › 이름」 */
+    label: string;
+    /** 폴더 아래(하위 폴더까지) 게시판 항목의 게시판(메뉴 차례, 꺼진 것 포함) */
+    boards: GadgetPageBoard[];
+}
+
+/** `GET /api/admin/gadget-pages/folders` 응답 */
+export interface GadgetPageFolderListResponse {
+    folders: GadgetPageFolder[];
 }
 
 /** 가젯 페이지 한 개 */
