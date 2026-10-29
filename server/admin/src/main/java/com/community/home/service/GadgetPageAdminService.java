@@ -166,7 +166,7 @@ public class GadgetPageAdminService {
         GadgetPageLayoutEntity row = layouts.findByPageIdAndTheme(id, themeId).orElse(null);
         if (row == null) {
             HomeLayoutDefaults.Home initial = GadgetPageInitial.read(page.getInitialLayout(), themeId);
-            return new GadgetPageLayoutView(Long.toString(id), themeId, initial.layout(), GadgetLayoutWriter.views(initial.gadgets()), null, null);
+            return new GadgetPageLayoutView(Long.toString(id), themeId, initial.layout(), GadgetLayoutWriter.views(themeId, initial.gadgets()), null, null);
         }
         return view(row, gadgets.findByPageIdAndThemeOrderByIdAsc(id, themeId));
     }
@@ -175,7 +175,7 @@ public class GadgetPageAdminService {
     public HomeLayoutBodyView initial(long id) {
         GadgetPageEntity page = pages.findById(id).orElseThrow(GadgetPageNotFoundException::new);
         HomeLayoutDefaults.Home initial = GadgetPageInitial.read(page.getInitialLayout(), SiteThemes.DEFAULT);
-        return new HomeLayoutBodyView(initial.layout(), GadgetLayoutWriter.views(initial.gadgets()));
+        return new HomeLayoutBodyView(initial.layout(), GadgetLayoutWriter.views(SiteThemes.DEFAULT, initial.gadgets()));
     }
 
     @Transactional
@@ -186,7 +186,7 @@ public class GadgetPageAdminService {
         List<HomeGadgetEntity> stored = gadgets.findByPageIdAndThemeOrderByIdAsc(id, themeId);
         HomeLayoutDefaults.Home seeds = GadgetPageInitial.read(page.getInitialLayout(), themeId);
         Instant now = Instant.now();
-        GadgetLayoutWriter.Result result = writer.write(themeId, id, stored, seeds::gadget, request, now);
+        GadgetLayoutWriter.Result result = writer.write(GadgetLayoutWriter.Target.page(themeId, id), stored, seeds::gadget, request, now);
 
         HomeGridLayout saved = result.layout();
         HomeGridLayout before = row == null ? seeds.layout() : row.toLayout();
@@ -201,7 +201,7 @@ public class GadgetPageAdminService {
                 .with("theme", themeId)
                 .with("before", Map.of("columns", before.columns(), "gadgets", before.items().size()))
                 .with("after", Map.of("columns", saved.columns(), "gadgets", saved.items().size()))
-                .with("added", result.added()).with("removed", result.removed()).with("configChanged", result.configChanged()));
+                .with("added", result.added()).with("removed", result.removed()).with("configChanged", result.configChanged()).with("changed", result.changed()));
         notices.siteSettingsChanged(actor, "gadgetPage");
         log.info("가젯 페이지 배치를 저장했다 operatorId={} id={} theme={} gadgets={}", actor.operatorId(), id, themeId, result.gadgets().size());
         return view(row, result.gadgets());
@@ -263,7 +263,8 @@ public class GadgetPageAdminService {
 
     private GadgetPageLayoutView view(GadgetPageLayoutEntity row, List<HomeGadgetEntity> rows) {
         return new GadgetPageLayoutView(Long.toString(row.getPageId()), row.getTheme(), row.toLayout(),
-                GadgetLayoutWriter.views(rows.stream().map(HomeGadgetEntity::toSpec).toList()), row.getUpdatedAt(), operatorName(row.getUpdatedBy()));
+                GadgetLayoutWriter.views(row.getTheme(), rows.stream().map(HomeGadgetEntity::toSpec).toList()), row.getUpdatedAt(),
+                operatorName(row.getUpdatedBy()));
     }
 
     private static List<GadgetPageView.Board> boards(GadgetPageFolders.Folder folder) {

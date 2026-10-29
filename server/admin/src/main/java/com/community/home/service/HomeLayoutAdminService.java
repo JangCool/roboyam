@@ -48,9 +48,10 @@ import tools.jackson.databind.node.ObjectNode;
  *
  * <ul>
  *   <li>저장은 넣고 뺀 결과 전체다 — 검사·가젯 행 고치기·위로 당기기는 가젯 페이지와 같은 {@link GadgetLayoutWriter}(시드 = 테마 기본 배치). 같은 테마의 저장은 사이트 설정 행 잠금으로 줄 세운다.</li>
- *   <li>내용 설정(⚙ — 공구 · 글 목록 · 갤러리 · 게시판 카드, gadget-page-contract 「가젯 설정」)은 보낸 칸만 덮는다. 홈에서는 대상 게시판 {@code FOLDER} 를 받지 않는다.
- *       응답의 {@code config} 는 ⚙ 칸만({@link GadgetConfigs#view}).</li>
- *   <li>저장마다 감사 {@code HOME_LAYOUT_UPDATE}(테마 · 칸 수·가젯 수 전후 · 넣은·뺀 수 · 설정을 바꾼 가젯 수)와 관리자 알림(사이트 설정 변경). 공개 홈({@code GET /api/home/gadgets})은 요청마다 읽는다.</li>
+ *   <li>⚙ 설정(8종 내용 + 제목·노출·꾸미기, gadget-page-contract 「가젯 설정」)은 저장 가젯도 바꾸고 꾸미기·설정은 보낸 칸만 덮는다. 홈에서는 대상 게시판 {@code FOLDER}·{@code BOARD} 를 받지 않는다.
+ *       응답의 {@code style}·{@code config} 는 칸 전부({@link GadgetStyles#view}·{@link GadgetConfigs#view}).</li>
+ *   <li>저장마다 감사 {@code HOME_LAYOUT_UPDATE}(테마 · 칸 수·가젯 수 전후 · 넣은·뺀 수 · 설정을 바꾼 가젯 수 {@code configChanged} · 무엇이든 바꾼 가젯 수 {@code changed})와
+ *       관리자 알림(사이트 설정 변경). 공개 홈({@code GET /api/home/gadgets})은 요청마다 읽는다.</li>
  * </ul>
  */
 @Service
@@ -83,14 +84,15 @@ public class HomeLayoutAdminService {
         HomeLayoutEntity row = layouts.findById(id).orElse(null);
         if (row == null) {
             HomeLayoutDefaults.Home home = HomeLayoutDefaults.of(id);
-            return new HomeLayoutView(id, home.layout(), GadgetLayoutWriter.views(home.gadgets()), null, null);
+            return new HomeLayoutView(id, home.layout(), GadgetLayoutWriter.views(id, home.gadgets()), null, null);
         }
-        return view(row, gadgets.findByThemeAndPageIdIsNullOrderByIdAsc(id));
+        return view(row, gadgets.findByThemeAndPageIdIsNullAndBoardLayoutFalseOrderByIdAsc(id));
     }
 
     public HomeLayoutBodyView defaults(String theme) {
-        HomeLayoutDefaults.Home home = HomeLayoutDefaults.of(known(theme));
-        return new HomeLayoutBodyView(home.layout(), GadgetLayoutWriter.views(home.gadgets()));
+        String id = known(theme);
+        HomeLayoutDefaults.Home home = HomeLayoutDefaults.of(id);
+        return new HomeLayoutBodyView(home.layout(), GadgetLayoutWriter.views(id, home.gadgets()));
     }
 
     @Transactional
@@ -98,10 +100,10 @@ public class HomeLayoutAdminService {
         String themeId = known(theme);
         settings.findWithLockById(SiteSettingEntity.ROW_ID).orElseThrow(() -> ValidationException.of("site", new MessageRef("siteSetting.missing")));
         HomeLayoutEntity row = layouts.findWithLockByTheme(themeId).orElse(null);
-        List<HomeGadgetEntity> stored = row == null ? List.of() : gadgets.findByThemeAndPageIdIsNullOrderByIdAsc(themeId);
+        List<HomeGadgetEntity> stored = row == null ? List.of() : gadgets.findByThemeAndPageIdIsNullAndBoardLayoutFalseOrderByIdAsc(themeId);
         HomeLayoutDefaults.Home seeds = HomeLayoutDefaults.of(themeId);
         Instant now = Instant.now();
-        GadgetLayoutWriter.Result result = writer.write(themeId, null, stored, seeds::gadget, request, now);
+        GadgetLayoutWriter.Result result = writer.write(GadgetLayoutWriter.Target.home(themeId), stored, seeds::gadget, request, now);
 
         HomeGridLayout saved = result.layout();
         HomeGridLayout before = row == null ? seeds.layout() : row.toLayout();
@@ -116,7 +118,7 @@ public class HomeLayoutAdminService {
                 .with("theme", themeId)
                 .with("before", Map.of("columns", before.columns(), "gadgets", before.items().size()))
                 .with("after", Map.of("columns", saved.columns(), "gadgets", saved.items().size()))
-                .with("added", result.added()).with("removed", result.removed()).with("configChanged", result.configChanged()));
+                .with("added", result.added()).with("removed", result.removed()).with("configChanged", result.configChanged()).with("changed", result.changed()));
         notices.siteSettingsChanged(actor, "homeLayout");
         log.info("홈 구성을 저장했다 operatorId={} theme={} gadgets={} added={} removed={}", actor.operatorId(), themeId, result.gadgets().size(), result.added(),
                 result.removed());
@@ -133,7 +135,8 @@ public class HomeLayoutAdminService {
 
     private HomeLayoutView view(HomeLayoutEntity row, List<HomeGadgetEntity> rows) {
         String updatedBy = row.getUpdatedBy() == null ? null : operators.findById(row.getUpdatedBy()).map(OperatorEntity::getOperatorName).orElse(null);
-        return new HomeLayoutView(row.getTheme(), row.toLayout(), GadgetLayoutWriter.views(rows.stream().map(HomeGadgetEntity::toSpec).toList()), row.getUpdatedAt(), updatedBy);
+        return new HomeLayoutView(row.getTheme(), row.toLayout(), GadgetLayoutWriter.views(row.getTheme(), rows.stream().map(HomeGadgetEntity::toSpec).toList()), row.getUpdatedAt(),
+                updatedBy);
     }
 
 }

@@ -26,17 +26,24 @@
   높이(h = 최소 높이, 행): 인기글 15 · 갤러리 11 · 게시판 카드 줄 13 · 최신글 15 — 보통 내용에 맞췄고(내용이 길면 격자가 늘린다), 같은 행·같은 h 로 나란한 가젯은 공개 격자가 가장 긴 가젯 높이로 함께 늘려 아래 끝을 맞춘다(user-web `UtilHomeGrid.place` 「같은 줄 맞추기」).
   저장한 적 없는 테마는 이 처음 배치를 보인다(꾸미기는 그 테마의 기본 꾸미기 + 아이콘 — 로보얌 테마는 홈 로보얌 시드처럼 흰 카드 + 아이콘 머리). 기준 폴더를 바꿔도 처음 배치는 다시 만들지 않는다.
 
-## 가젯 설정(⚙ — 홈과 가젯 페이지 공통, 2026-10-29 넓힘)
-| 종류 | 칸(서버 JSON `config`) |
+## 가젯 설정(⚙ — 홈·가젯 페이지·게시판 레이아웃 공통, 2026-10-29 넓힘 · 2026-10-30 8종 전부 + 모양·노출, 화면 확정)
+창은 「내용」「모양」「노출」 세 탭(`GadgetSettingsDialog.vue`, 범위의 원천 admin `util-gadget-config.ts`·`util-gadget-style.ts` = 공개 읽기 user-web `UtilHomeGadget`).
+| 종류 | 내용 칸(서버 JSON `config`) |
 |---|---|
 | `GROUP_BUY` | `count` 1~10(기본 5) · `sort` DEADLINE·NEWEST·POPULAR (기존) |
-| `POST_LIST` | `boardScope` · `boardIds` · `count` 1~30(기본 10) · `sort` LATEST·POPULAR·VIEWS·LIKES·COMMENTS · `periodTabs`(POPULAR 일 때만 참) |
+| `POST_LIST` | `boardScope` · `boardIds` · `count` 1~30(기본 10) · `sort` LATEST·POPULAR·VIEWS·LIKES·COMMENTS · `periodTabs`(POPULAR 일 때만 참) · 보기 모양 `rowStyle` HEADLINE·RANK·ARTICLE·COMPACT · `columns` 1·2 · `thumbnail` AUTO·NONE·RIGHT·LEFT · `titleLines` 0·1·2 · `lead` NONE·HERO · `meta` BOARD·PREFIX·COMMENTS·TIME·AUTHOR 부분집합 · `dividers` · `newBadgeHours` 0~72 · `hotBadgeLikes` 0~1000 (`badge`·`rank` 는 화면이 보내지 않음 — 저장 값 유지) |
 | `GALLERY` | `boardScope` · `boardIds` · `count` 1~24(기본 6) |
-| `BOARD_CARDS` | `boardScope` · `boardIds`(카드로 보일 게시판) · `perBoard` 1~10(기본 4) · `cardHead` 카드 머리(로고·이름·「게시판 가기」) 보이기(기본 켬 — 게시판 하나짜리 카드는 꺼서 가젯 제목과 겹치지 않게, 처음 배치의 카드는 끔) |
-- `boardScope`: `ALL` 전체(글 목록·갤러리는 최신글과 같은 범위, 게시판 카드는 켜진 일반 게시판 앞 6개) · `FOLDER` 이 페이지의 기준 폴더 게시판 전체(가젯 페이지에서만 — 홈에서 보내면 400) · `PICK` `boardIds`(게시판 slug 1~20개, 고른 차례).
+| `BOARD_CARDS` | `boardScope` · `boardIds`(카드로 보일 게시판) · `perBoard` 1~10(기본 4) · `cardHead` 카드 머리(로고·이름·「게시판 가기」) 보이기(기본 켬 — 게시판 하나짜리 카드는 꺼서 가젯 제목과 겹치지 않게, 처음 배치의 카드는 끔) · `columns` AUTO·2·3 |
+| `HIGHLIGHT` | `count` 1~6(기본 5 — 공개 데이터도 이 수) · `lead` HERO·NONE(기본 HERO) · `thumbs` ALL·FIRST·NONE(기본 ALL) |
+| `GROUPS` | `count` 1~6(기본 3) |
+| `QUICK_LINKS` | `shape` PILL·TAB · `items` 0~12개 `{label 1~12자(앞뒤 공백 제거), kind ALL·POPULAR·LATEST·GROUPS·GROUP_BUY·BOARD·PATH, value}` — `BOARD` 는 있는 게시판 slug, `PATH` 는 `/` 로 시작하는 사이트 안 경로(`//`·스킴·공백·제어 문자·역슬래시 없음, 300자 이하), 나머지는 null |
+| `NOTICE_TEXT` | `text` 0~300자(줄바꿈 허용, 평문) · `format` PLAIN·BULLETS |
+- **모양·노출(모든 종류)**: `title` 1~40자(줄바꿈·제어 문자 금지 — 저장 가젯도 바꾼다) · `desktop`·`mobile`(둘 다 false 금지) · `style`: `icon` `^pi-[a-z0-9-]{2,30}$` 또는 null · `headerStyle` BAR·UNDERLINE·FILLED·PLAIN·HIDDEN · `titleSize` S·M·L · `titleColor`·`cardColor` 프리셋 12색 이름·`#rrggbb`·null · `subtitle` 0~40 · `cardLook` DEFAULT·FLAT·OUTLINE·TINT · `mobileFold` NONE·OPEN·CLOSED · `empty{keep, message, text 0~40}`. 오류 `400 fields.gadgets[i].title|desktop|mobile|style.<칸>`.
+- `boardScope`: `ALL` 전체(글 목록·갤러리는 최신글과 같은 범위, 게시판 카드는 켜진 일반 게시판 앞 6개) · `FOLDER` 이 페이지의 기준 폴더 게시판 전체(가젯 페이지에서만 — 그 밖에서 보내면 400) · `BOARD` 지금 보는 게시판(게시판 레이아웃에서만 — `board-layout-contract.md`) · `PICK` `boardIds`(게시판 slug 1~20개, 고른 차례).
   저장된 설정에 `boardScope` 가 없으면(옛 시드) `boardIds` 가 있으면 PICK, 없으면 ALL 로 읽는다. FOLDER 인데 기준 폴더가 없거나 게시판이 없으면 ALL 과 같다.
-- 저장: 보낸 칸만 저장 설정에 덮는다(꾸미기용 다른 칸 — `rowStyle` 등 — 은 그대로). 오류 `400 fields.gadgets[i].config.<칸>`.
-- 관리자 응답의 `config` 는 이 표의 칸만(저장 값, 없으면 처음 값). 다른 종류는 null.
+- 저장: `style`·`config` 는 보낸 칸만 저장 값에 덮는다(보내지 않은 칸 — `badge` 등 — 은 그대로), `null` 이면 그대로. 오류 `400 fields.gadgets[i].config.<칸>`.
+- 새로 넣은 가젯의 처음 꾸미기(서버 `HomeGadgetKinds.baseStyle(theme, type)`): 다음식·네이버식 카드 + 막대 머리 · 로보얌 흰 카드 + 장식 없는 머리 + 종류 아이콘(홈 로보얌 시드와 같은 모양, 2026-10-30) · 기본 카드 없는 구역.
+- 관리자 응답: `config` 는 이 표의 칸(저장 값, 없으면 처음 값 — 8종 전부), `style` 은 위 칸 전부(저장 값, 없으면 테마 기본 꾸미기). 기본·처음 배치 응답도 같다.
 
 ## 권한·정책
 - 조회 `site.read`, 만들기·고치기·지우기·배치 저장 `site.manage`. 공개 조회는 로그인 없이(보는 사람 몫 — 차단·메모 — 이 섞여 `no-store`).

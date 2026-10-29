@@ -9,7 +9,7 @@ import type { HomeLayoutBody, HomeLayoutSaveRequest, HomeLayoutView } from '~/co
  *       `fields.gadgets[i].id|type|title` · `fields.gadgets[i].config.count|sort`(공구 가젯 개수 1~10 · 정렬 3종) · `fields.layout.items[i]`(없는 가젯·두 번째 자리·격자 밖·종류별 최소 크기 미만) ·
  *       `fields.layout.items`(자리 없는 가젯·겹침))
  *       빠진 기존 가젯은 지우고, 기본 배치 ID(`seed-<n>`)는 그 시드 설정으로, 모르는 ID(`new-<n>`)는 종류별 처음 값으로 새로 만든다. 서버가 위로 당겨 저장한다.
- *       공구 가젯의 `config`(개수·정렬)는 보내면 그 값으로 바꾸고, 없으면 그대로 둔다(다른 종류의 `config` 는 무시).
+ *       2026-10-30: 가젯마다 `{ id, type, title, desktop, mobile, style, config }` — `style`·`config` 는 보낸 칸만 덮고 null 이면 그대로. 400 `fields.gadgets[i].title|desktop|type|style.<칸>|config.<칸>`.
  *       공개 홈(`GET /api/home/gadgets`)은 요청마다 읽어 바로 따라온다.
  */
 const PATH = {

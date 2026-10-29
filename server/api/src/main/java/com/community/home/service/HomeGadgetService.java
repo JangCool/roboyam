@@ -12,6 +12,8 @@ import com.community.highlight.entity.HighlightEntity;
 import com.community.highlight.repository.master.HighlightRepository;
 import com.community.home.dto.HomeGadgetSpec;
 import com.community.home.dto.HomeGridLayout;
+import com.community.board.service.PublicBoardService;
+import com.community.home.dto.response.BoardLayoutResponse;
 import com.community.home.dto.response.GadgetPageResponse;
 import com.community.home.dto.response.HomeGadgetView;
 import com.community.home.dto.response.HomeGadgetsResponse;
@@ -24,11 +26,13 @@ import com.community.home.dto.response.gadget.HighlightPickView;
 import com.community.home.dto.response.gadget.ItemsDataView;
 import com.community.home.dto.response.gadget.NoticeTextDataView;
 import com.community.home.dto.response.gadget.PostListDataView;
+import com.community.home.entity.BoardLayoutEntity;
 import com.community.home.entity.GadgetPageEntity;
 import com.community.home.entity.GadgetPageLayoutEntity;
 import com.community.home.entity.HomeGadgetEntity;
 import com.community.home.entity.HomeLayoutEntity;
 import com.community.home.exception.GadgetPageNotFoundException;
+import com.community.home.repository.master.BoardLayoutRepository;
 import com.community.home.repository.master.GadgetPageLayoutRepository;
 import com.community.home.repository.master.GadgetPageRepository;
 import com.community.home.repository.master.HomeGadgetRepository;
@@ -65,13 +69,14 @@ import tools.jackson.databind.JsonNode;
  *       없거나 꺼진 게시판은 건너뛴다(하나도 남지 않으면 거르지 않는다).</li>
  *   <li>{@code POST_LIST}: {@code sort} LATEST(최신글과 같은 게시판 범위) · POPULAR(인기글 순위 스냅샷, {@code periodTabs} 면 세 기간을 함께) ·
  *       VIEWS·LIKES·COMMENTS(이번 주 인기글 후보를 그 수로 다시 정렬 — 전체 글을 세지 않는다). {@code count} 기본 10.</li>
- *   <li>{@code HIGHLIGHT}: 노출 중인 하이라이트(관리자 순서), 글이 지금 보이는 것만, {@code count} 기본 5. {@code GALLERY}: 사진 있는 최신 글, {@code count} 기본 6.
- *       {@code BOARD_CARDS}: 게시판마다 최신 {@code perBoard}(기본 4)개 + 대표 글, 게시판을 정하지 않으면 켜진 일반 게시판 앞 6개. {@code GROUPS}: 지금 뜨는 소모임 {@code count}(기본 3)개.</li>
+ *   <li>{@code HIGHLIGHT}: 노출 중인 하이라이트(관리자 순서), 글이 지금 보이는 것만, {@code count} 1~6(기본 5). {@code GALLERY}: 사진 있는 최신 글, {@code count} 기본 6.
+ *       {@code BOARD_CARDS}: 게시판마다 최신 {@code perBoard}(기본 4)개 + 대표 글, 게시판을 정하지 않으면 켜진 일반 게시판 앞 6개. {@code GROUPS}: 지금 뜨는 소모임 {@code count} 1~6(기본 3)개(범위는 {@link GadgetConfigs#count}).</li>
  *   <li>{@code GROUP_BUY}: 모집 중인 공개 공구 {@code count}(기본 5, 1~10)개를 {@code sort} 차례로(DEADLINE 마감 이른 순 기본 · NEWEST 새로 시작한 순 · POPULAR 참여 많은 순) — 줄은 회원 공구 목록과 같은 모양
  *       ({@link GroupBuyMemberService#recruiting}), 판매 스위치는 거르지 않고 {@code salesOpen} 으로 싣는다. {@code QUICK_LINKS}·{@code NOTICE_TEXT}: 가젯 설정의 {@code items}·{@code text}·{@code format}.</li>
  *   <li>대상 게시판 {@code boardScope}(gadget-page-contract 「가젯 설정」): {@code ALL} 전체 · {@code PICK} {@code boardIds} · {@code FOLDER} 가젯 페이지의 기준 폴더 켜진 게시판
- *       (폴더가 없거나 게시판이 없으면 전체). 칸이 없는 옛 설정은 {@code boardIds} 가 있으면 PICK.</li>
+ *       (폴더가 없거나 게시판이 없으면 전체) · {@code BOARD} 게시판 레이아웃이 그리는 게시판(그 밖에서는 전체). 칸이 없는 옛 설정은 {@code boardIds} 가 있으면 PICK.</li>
  *   <li>가젯 페이지({@code GET /api/pages/{key}}, {@link #page}): 지금 테마의 그 페이지 배치(저장한 것, 없으면 페이지의 처음 배치) + 머리(이름·설명·글쓰기 단추·글쓰기 게시판). 없는 페이지는 404.</li>
+ *   <li>게시판 레이아웃({@code GET /api/boards/{slug}/layout}, {@link #boardLayout}): 그 테마의 게시판 레이아웃(저장한 것, 없으면 본문만) + 적용 화면. 본문 가젯은 {@code data: null}·{@code empty: false}.</li>
  *   <li>노출 기간·보는 사람(로그인 전용) 설정은 아직 없다 — {@code locked} 는 늘 false.</li>
  * </ul>
  */
@@ -101,11 +106,14 @@ public class HomeGadgetService {
     private final GadgetPageRepository pages;
     private final GadgetPageLayoutRepository pageLayouts;
     private final GadgetPageFolders folders;
+    private final BoardLayoutRepository boardLayouts;
 
     public HomeGadgetService(PublicSiteService site, HomeLayoutRepository layouts, HomeGadgetRepository gadgets, BoardCatalog catalog,
                              PostFeedRepositoryQDSL feeds, PostFeedRows rows, PopularService popular, HighlightRepository highlights, FileRepository files,
                              ImageStorage storage, GroupQueryService groups, GroupBuyMemberService groupBuys, GroupBuySalesSwitch sales,
-                             GadgetPageRepository pages, GadgetPageLayoutRepository pageLayouts, GadgetPageFolders folders) {
+                             GadgetPageRepository pages, GadgetPageLayoutRepository pageLayouts, GadgetPageFolders folders,
+                             BoardLayoutRepository boardLayouts) {
+        this.boardLayouts = boardLayouts;
         this.pages = pages;
         this.pageLayouts = pageLayouts;
         this.folders = folders;
@@ -139,9 +147,9 @@ public class HomeGadgetService {
             specs = home.gadgets();
         } else {
             layout = row.toLayout();
-            specs = gadgets.findByThemeAndPageIdIsNullOrderByIdAsc(theme).stream().map(HomeGadgetEntity::toSpec).toList();
+            specs = gadgets.findByThemeAndPageIdIsNullAndBoardLayoutFalseOrderByIdAsc(theme).stream().map(HomeGadgetEntity::toSpec).toList();
         }
-        Ctx ctx = new Ctx(catalog.snapshot(), Instant.now(), viewerId, null);
+        Ctx ctx = new Ctx(catalog.snapshot(), Instant.now(), viewerId, null, null);
         return new HomeGadgetsResponse(theme, layout, specs.stream().map(spec -> view(spec, ctx)).toList());
     }
 
@@ -173,11 +181,41 @@ public class HomeGadgetService {
         for (String slug : folderSlugs) {
             snapshot.board(slug).filter(EffectiveBoard::active).ifPresent(b -> activeFolder.add(b.slug()));
         }
-        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, activeFolder.isEmpty() ? null : activeFolder);
+        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, activeFolder.isEmpty() ? null : activeFolder, null);
         String writeBoard = activeFolder.isEmpty() ? null : activeFolder.iterator().next();
         GadgetPageResponse.Page head = new GadgetPageResponse.Page(page.getPageKey(), page.getName(), page.getNameEn(), page.getDescription(), page.isWriteButton(),
                 writeBoard);
         return new GadgetPageResponse(head, theme, layout, specs.stream().map(spec -> view(spec, ctx)).toList());
+    }
+
+    /**
+     * 게시판 레이아웃 — 그 테마의 게시판 레이아웃(저장한 것, 없으면 기본 배치 — 본문만) + 가젯마다 데이터 + 적용 화면(board-layout-contract).
+     * 본문 가젯({@code BOARD_BODY})은 {@code data: null}·{@code empty: false}, 대상 게시판 {@code BOARD} 는 이 게시판이다. 없는·꺼진 게시판은 게시판 조회와 같은 오류
+     * ({@code 404 BOARD_NOT_FOUND}·{@code 403 BOARD_INACTIVE} — 소모임 게시판은 없는 게시판).
+     *
+     * @param requestedTheme 관리자 미리보기가 보는 테마(아니면 null) — 아는 테마면 그 테마, 아니면 사이트 테마(홈 가젯과 같은 규칙)
+     * @param viewerId       로그인한 회원(비로그인 null)
+     */
+    public BoardLayoutResponse boardLayout(String slug, String requestedTheme, Long viewerId) {
+        BoardCatalogSnapshot snapshot = catalog.snapshot();
+        EffectiveBoard board = PublicBoardService.requireActive(snapshot, slug == null ? "" : slug.strip());
+        String theme = SiteThemes.isKnown(requestedTheme) ? requestedTheme : site.snapshot().info().theme();
+        BoardLayoutEntity row = boardLayouts.findById(theme).orElse(null);
+        BoardLayoutResponse.Screens screens;
+        HomeGridLayout layout;
+        List<HomeGadgetSpec> specs;
+        if (row == null) {
+            BoardLayoutDefaults.Board defaults = BoardLayoutDefaults.of(theme);
+            screens = new BoardLayoutResponse.Screens(defaults.screens().list(), defaults.screens().post());
+            layout = defaults.home().layout();
+            specs = defaults.home().gadgets();
+        } else {
+            screens = new BoardLayoutResponse.Screens(row.isListEnabled(), row.isPostEnabled());
+            layout = row.toLayout();
+            specs = gadgets.findByThemeAndBoardLayoutTrueOrderByIdAsc(theme).stream().map(HomeGadgetEntity::toSpec).toList();
+        }
+        Ctx ctx = new Ctx(snapshot, Instant.now(), viewerId, null, board.slug());
+        return new BoardLayoutResponse(theme, screens, layout, specs.stream().map(spec -> view(spec, ctx)).toList());
     }
 
     private HomeGadgetView view(HomeGadgetSpec g, Ctx ctx) {
@@ -185,6 +223,11 @@ public class HomeGadgetService {
         Object data;
         boolean empty;
         switch (g.type()) {
+            case HomeGadgetKinds.BOARD_BODY -> {
+                // 화면이 그 자리에 게시판 목록·글 보기를 그린다
+                data = null;
+                empty = false;
+            }
             case "POST_LIST" -> {
                 PostListDataView d = postList(config, ctx);
                 data = d;
@@ -207,7 +250,8 @@ public class HomeGadgetService {
                 empty = d.cards().isEmpty();
             }
             case "GROUPS" -> {
-                int count = HomeLayoutJson.number(config, "count", 3, 1, 12);
+                GadgetConfigs.Count limit = GadgetConfigs.count("GROUPS");
+                int count = HomeLayoutJson.number(config, "count", limit.initial(), limit.min(), limit.max());
                 List<?> items = groups.trending(ctx.viewerId()).items().stream().limit(count).toList();
                 data = new ItemsDataView(items);
                 empty = items.isEmpty();
@@ -285,7 +329,8 @@ public class HomeGadgetService {
     // ── HIGHLIGHT · GALLERY · BOARD_CARDS ───────────────────────────────────
 
     private HighlightDataView highlight(JsonNode config, Ctx ctx) {
-        int count = HomeLayoutJson.number(config, "count", 5, 1, 12);
+        GadgetConfigs.Count limit = GadgetConfigs.count("HIGHLIGHT");
+        int count = HomeLayoutJson.number(config, "count", limit.initial(), limit.min(), limit.max());
         List<HighlightEntity> showing = highlights.findAllByOrderBySortOrderAscIdAsc().stream().filter(h -> h.isShowingAt(ctx.now())).toList();
         if (showing.isEmpty()) {
             return new HighlightDataView(List.of());
@@ -365,6 +410,9 @@ public class HomeGadgetService {
         if (GadgetConfigs.FOLDER.equals(scope)) {
             return ctx.folder();
         }
+        if (GadgetConfigs.BOARD.equals(scope)) {
+            return ctx.board() == null ? null : Set.of(ctx.board());
+        }
         Set<String> out = new java.util.LinkedHashSet<>();
         for (String slug : HomeLayoutJson.texts(config, "boardIds")) {
             ctx.s().board(slug).filter(EffectiveBoard::active).ifPresent(b -> out.add(b.slug()));
@@ -384,7 +432,8 @@ public class HomeGadgetService {
      * 한 요청 동안 같이 쓰는 값
      *
      * @param folder 가젯 페이지 기준 폴더의 켜진 게시판 slug — 홈이거나 없으면 null(대상 {@code FOLDER} 는 전체)
+     * @param board  게시판 레이아웃이 그리는 게시판 slug(켜진 게시판) — 게시판 레이아웃이 아니면 null(대상 {@code BOARD} 는 전체)
      */
-    private record Ctx(BoardCatalogSnapshot s, Instant now, Long viewerId, Set<String> folder) {
+    private record Ctx(BoardCatalogSnapshot s, Instant now, Long viewerId, Set<String> folder, String board) {
     }
 }

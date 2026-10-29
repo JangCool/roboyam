@@ -90,6 +90,22 @@ export default class UtilHomeGrid {
     }
 
     /**
+     * 게시판 레이아웃의 한 열 순서 — 본문(`bodyId`)을 먼저 둔다(사용자 결정 2026-10-30: 모바일은 본문 먼저, 그 다음 가젯).
+     * 단, 본문 위에 통째로 놓인 가젯(아래 끝 ≤ 본문 위 끝 — 본문 위의 전체 폭 띠 등)은 본문 위 그대로 둔다. 나머지 차례는 받은 차례(템플릿의 한 열 순서) 그대로.
+     * 예) 추천 배치(본문 17 + 오른쪽 열 7) → 본문 → 이 게시판 인기글 → 공동구매 → 인기 소모임 / 본문 위에 바로가기 띠 → 바로가기 → 본문 → ….
+     * @param {readonly T[]} order - 한 열 순서(`byColumns` 또는 (y, x)).
+     * @param {string} bodyId - 본문 가젯 ID.
+     * @returns {T[]} 새 배열(본문이 없으면 그대로).
+     */
+    static bodyFirst<T extends HomeLayoutItem>(order: readonly T[], bodyId: string): T[] {
+        const body = order.find((it) => it.gadgetId === bodyId);
+        if (!body) return [...order];
+        const above = order.filter((it) => it !== body && it.y + it.h <= body.y);
+        const rest = order.filter((it) => it !== body && !above.includes(it));
+        return [...above, body, ...rest];
+    }
+
+    /**
      * 그릴 자리 — 잰 높이로 행을 늘리고(`h` 보다 작아지지 않는다) 위로 당긴다. 결과 순서가 읽는 순서(화면 읽기·Tab 순서)다.
      * @param {readonly HomeLayoutItem[]} items - 자리.
      * @param {Readonly<Record<string, number>>} heights - 가젯 ID → 잰 높이(px). 아직 못 잰 가젯은 `h` 그대로.

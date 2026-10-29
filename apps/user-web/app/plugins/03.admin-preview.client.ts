@@ -5,10 +5,11 @@
  *   `<meta name="roboyam-admin-origin">`(빌드한 화면 — api 의 `AdminPreviewFrame`, 환경 값 `ADMIN_URL`)에서 온 것만 받는다 — 다른 곳의 메시지는 버린다.
  * - 받는 것(`roboyam:admin-preview`): 테마 id · 메뉴 설정(운영자 설정 모양 — 저장 전 값) · 홈 구성(배치 + 가젯 id·종류·제목·보이는 폭·내용 설정) · 가젯 페이지 머리(`/p/{key}` 를 띄웠을 때). 이 탭의 화면 상태만 바꾼다(서버에 아무것도 보내지 않는다).
  *   테마·메뉴는 `useTheme` 의 상태(`site-theme`·`site-menu-*`)를 덮고, 홈 구성은 `useAdminPreview().home` 에 두어 홈 화면이 덮어 그린다(`pages/index.vue`).
+ *   게시판 레이아웃(게시판 목록·글 보기를 띄웠을 때)은 같은 `home` 자리 + 적용 화면 `board`(`BoardLayoutFrame`).
  * - 보내는 것: 준비됨(`…-ready` — 관리자가 이때 값을 보낸다) · 메뉴 자리를 눌렀다(`…-edit-menu` — 관리자가 메뉴 설정 drawer 를 연다).
  *   iframe 은 정해진 창 크기(관리자가 줄여 보인다)이고 안에서 스크롤한다 — 메뉴 붙이기 같은 스크롤 동작도 공개 사이트 그대로 보인다.
  * - 편집 중(`editing`)이면 홈 격자가 가젯 위에 손잡이를 얹고, 옮기기·크기·빼기를 관리자에게 알린다(`…-layout`, 계산·저장은 관리자 — `HomeGadgetGrid`).
- * - 미리보기 안에서는 다른 화면으로 가지 않는다 — 링크 누르기는 막고, 윗줄·메뉴·사이드 메뉴(`header`·`nav`·`.side-menu`)를 누르면 메뉴 설정을 열라고 알린다.
+ * - 미리보기 안에서는 다른 화면으로 가지 않는다 — 링크 누르기는 막고(단추가 부르는 화면 이동도 라우터에서 막는다), 윗줄·메뉴·사이드 메뉴(본문 `#main-content` 밖의 `header`·`nav`, `.side-menu`)를 누르면 메뉴 설정을 열라고 알린다.
  * - 회원 보기 설정의 메뉴 위치는 쓰지 않는다(`useMenuPosition`) — 운영자가 보는 값이 공개 기본 화면이어야 한다.
  */
 import UtilAdminPreview, { ADMIN_PREVIEW_EDIT_MENU, ADMIN_PREVIEW_READY } from '~/utils/util-admin-preview';
@@ -31,7 +32,7 @@ export default defineNuxtPlugin(() => {
         .filter(Boolean);
     if (!allowed.length) return;
 
-    const { active, editing, home, page } = useAdminPreview();
+    const { active, editing, home, page, board } = useAdminPreview();
     active.value = true;
     openAdminPreviewChannel(allowed);
 
@@ -60,6 +61,7 @@ export default defineNuxtPlugin(() => {
         }
         home.value = msg.home;
         page.value = msg.page;
+        board.value = msg.board;
         editing.value = msg.editing;
     });
 
@@ -71,7 +73,9 @@ export default defineNuxtPlugin(() => {
             if (!target) return;
             // 편집 중의 홈 격자 손잡이는 격자가 맡는다
             if (target.closest('[data-home-edit]')) return;
-            if (target.closest('header, nav, .side-menu')) {
+            // 셸의 윗줄·메뉴만 — 본문(`#main-content`) 안의 머리·탭(게시판 머리·말머리 탭, 가젯 머리)은 메뉴 자리가 아니다(링크만 막는다)
+            const shellZone = target.closest('header, nav');
+            if (target.closest('.side-menu') || (shellZone && !shellZone.closest('#main-content'))) {
                 event.preventDefault();
                 event.stopPropagation();
                 postToAdminPreview({ type: ADMIN_PREVIEW_EDIT_MENU });
@@ -84,6 +88,9 @@ export default defineNuxtPlugin(() => {
         },
         true,
     );
+
+    // 링크가 아닌 단추가 화면을 옮기려 해도(게시판 본문의 [글쓰기] 등 — 게시판 레이아웃 미리보기, 2026-10-30) 다른 주소로는 가지 않는다(같은 화면의 쿼리만 바뀌는 것은 둔다)
+    useRouter().beforeEach((to, from) => (from.matched.length > 0 && to.path !== from.path ? false : true));
 
     postToAdminPreview({ type: ADMIN_PREVIEW_READY });
 });

@@ -6,7 +6,9 @@
         창 크기는 공개 사이트 데스크톱 폭 1280 × 높이 800 으로 띄우고 이 칸 폭에 맞춰 줄여 보인다(`transform: scale`) — 안에서 스크롤하므로 메뉴 붙이기 같은 스크롤 동작도 그대로다.
         미리보기 안에서는 다른 화면으로 가지 않고, 윗줄·메뉴·사이드 메뉴를 누르면 `edit-menu`(화면이 메뉴 설정 drawer 를 연다).
         편집 중(`editing`)이면 공개 홈 격자가 가젯 위에 손잡이를 얹고, 끌어 옮기기·크기·빼기·⚙ 설정 열기를 알려 온다 → `layout-op`(화면이 홈 구성 편집 도구 `applyOp` 에 넘겨 계산하고, 바뀐 배치를 다시 보낸다).
+        보내는 홈 구성의 가젯은 제목·노출·꾸미기(`style`)·내용 설정(`config`)을 싣는다(2026-10-30 — 설정 창은 관리자 응답 값으로 채운다).
         가젯 페이지(`path` = `/p/{key}`, 2026-10-29)면 그 페이지를 띄우고 홈 구성 자리에 그 페이지의 배치를, `page` 에 페이지 머리(이름·설명·글쓰기 단추 — 저장 전 값)를 보낸다. 주소가 바뀌면 다시 띄운다.
+        게시판 레이아웃(`path` = `/boards/{slug}` · `/posts/{id}`, 2026-10-30)이면 홈 구성 자리(`home`)에 게시판 레이아웃(본문 칸 `BOARD_BODY` 포함)을, `board` 에 적용 화면을 보낸다 — 손잡이·편집 알림은 홈과 같은 `home`/`layout` 메시지다.
         메시지는 공개 사이트 origin 으로만 보내고 그 origin 에서 온 것만 받는다. 운영에서는 공개 사이트 서버(api)가 `?adminPreview=1` 화면 응답에만
         `frame-ancestors 'self' <관리자 주소(ADMIN_URL)>` 를 붙여야 뜬다(site-theme-layout-contract 「운영 배포」). origin 을 모르면(공개 주소 미설정) 띄우지 않고 안내만 보인다.
     -->
@@ -45,8 +47,10 @@ interface Props {
     path?: string;
     /** 가젯 페이지 머리(저장 전 값) — 가젯 페이지일 때만 */
     page?: { name: string; description: string; writeButton: boolean } | null;
+    /** 게시판 레이아웃의 적용 화면(저장 전 값) — 게시판 레이아웃일 때만(`home` 자리에 그 배치를 싣는다) */
+    board?: { screens: { list: boolean; post: boolean } } | null;
 }
-const props = withDefaults(defineProps<Props>(), { editing: false, path: '/', page: null });
+const props = withDefaults(defineProps<Props>(), { editing: false, path: '/', page: null, board: null });
 const emit = defineEmits<{ (e: 'edit-menu'): void; (e: 'layout-op', value: HomeLayoutOp): void }>();
 
 const { t } = useI18n();
@@ -67,7 +71,7 @@ const ready = ref(false);
 function send(): void {
     const target = frame.value?.contentWindow;
     if (!target || !origin.value) return;
-    const message = JSON.parse(JSON.stringify({ type: 'roboyam:admin-preview', theme: props.theme, menu: props.menu, home: props.home, editing: props.editing, page: props.page }));
+    const message = JSON.parse(JSON.stringify({ type: 'roboyam:admin-preview', theme: props.theme, menu: props.menu, home: props.home, editing: props.editing, page: props.page, board: props.board }));
     target.postMessage(message, origin.value);
 }
 
@@ -96,7 +100,7 @@ function readOp(data: unknown): HomeLayoutOp | null {
     return null;
 }
 
-watch(() => [props.theme, props.menu, props.home, props.editing, props.page], send, { deep: true });
+watch(() => [props.theme, props.menu, props.home, props.editing, props.page, props.board], send, { deep: true });
 // 다른 페이지를 띄우면 「준비됨」을 다시 기다린다
 watch(src, () => (ready.value = false));
 
