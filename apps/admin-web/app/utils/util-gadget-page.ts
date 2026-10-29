@@ -49,10 +49,10 @@ export default class UtilGadgetPage {
     }
 
     /**
-     * 처음 배치(24칸, 줄마다 꽉 차게 — 사용자 결정 2026-10-29) — 커뮤니티 예: 「커뮤니티 인기글」(인기·기간 탭, 24칸) / 「영상·짤」 갤러리(24칸) / 게시판 카드 자유게시판·유머게시판(12+12 두 열) / 「커뮤니티 최신글」(24칸).
+     * 처음 배치(24칸, 줄마다 꽉 차게 — 사용자 결정 2026-10-29) — 커뮤니티 예: 「커뮤니티 인기글」(인기·기간 탭, 24칸) / 게시판 카드 자유게시판·유머게시판(12+12 두 열) / 「커뮤니티 최신글」(24칸) / 맨 아래 「영상·짤」 갤러리(24칸).
      *   · 나란한 가젯은 같은 높이라 아래 끝이 맞고, 높이는 보통 내용에 맞췄다(내용이 길면 격자가 늘린다). 켜진 게시판만 쓴다.
      *   · 인기글·최신글은 대상 게시판 = 폴더 게시판 전체(`FOLDER`) — 폴더에 게시판을 넣고 빼면 따라간다.
-     *   · 갤러리는 사진·영상 게시판 — 목록 모양이 갤러리인 첫 게시판, 없으면 갤러리 보기 전환이 켜진 첫 게시판(직접 고르기, 제목 = 게시판 이름). 없으면 그 줄이 없다.
+     *   · 갤러리는 사진·영상 게시판 — 목록 모양이 갤러리인 첫 게시판, 없으면 갤러리 보기 전환이 켜진 첫 게시판(직접 고르기, 제목 = 게시판 이름, 맨 아래 줄). 없으면 그 줄이 없다.
      *   · 게시판 카드는 갤러리로 쓴 게시판을 뺀 폴더 게시판마다 하나, 두 열(12+12) — 홀수면 마지막이 24칸.
      *   · 게시판 카드는 폴더 게시판마다 하나(직접 고르기 — 그 게시판 하나), 두 개씩 나란히(12칸). 홀수면 마지막이 24칸.
      *   · 기준 폴더가 없거나 게시판이 없으면 인기글 + 최신글(대상 = 폴더 게시판 전체 → 전체 게시판과 같다).
@@ -80,10 +80,6 @@ export default class UtilGadgetPage {
         let y = 0;
         put('POST_LIST', titles.popular(folder), { boardScope: 'FOLDER', boardIds: [], count: 10, sort: 'POPULAR', periodTabs: true }, 0, y, 24, TOP_H);
         y += TOP_H;
-        if (gallery) {
-            put('GALLERY', gallery.name, { boardScope: 'PICK', boardIds: [gallery.slug], count: 8 }, 0, y, 24, GALLERY_H);
-            y += GALLERY_H;
-        }
 
         const cards = boards.filter((b) => b !== gallery);
         cards.forEach((board, index) => {
@@ -95,6 +91,8 @@ export default class UtilGadgetPage {
         });
 
         put('POST_LIST', titles.latest(folder), { boardScope: 'FOLDER', boardIds: [], count: 16, sort: 'LATEST', periodTabs: false }, 0, y, 24, LATEST_H);
+        y += LATEST_H;
+        if (gallery) put('GALLERY', gallery.name, { boardScope: 'PICK', boardIds: [gallery.slug], count: 8 }, 0, y, 24, GALLERY_H);
         return { layout: { columns, items }, gadgets };
     }
 }

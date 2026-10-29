@@ -12,8 +12,8 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * 가젯 페이지의 처음 배치 — 만들 때 기준 폴더의 게시판으로 한 번 만들어 {@code gadget_pages.initial_layout} 에 둔다(gadget-page-contract 「필드·검증」, admin-web {@code UtilGadgetPage.initialLayout} 과 같은 규칙).
- * 24칸, 줄마다 꽉 차게(사용자 결정 2026-10-29): 「{폴더} 인기글」(인기·기간 탭·대상 폴더, 24칸) / 「{게시판}」 갤러리(사진·영상 게시판 — 목록 모양 GALLERY 또는
- * 갤러리 보기 전환이 켜진 첫 폴더 게시판, 24칸 — 없으면 이 줄이 없다) / 나머지 게시판의 게시판 카드(게시판마다, 12+12 두 열 — 홀수면 마지막 24칸) / 「{폴더} 최신글」(대상 폴더, 24칸).
+ * 24칸, 줄마다 꽉 차게(사용자 결정 2026-10-29): 「{폴더} 인기글」(인기·기간 탭·대상 폴더, 24칸) / 게시판 카드(갤러리로 쓴 게시판을 뺀 폴더 게시판마다, 12+12 두 열 — 홀수면 마지막 24칸) /
+ * 「{폴더} 최신글」(대상 폴더, 24칸) / 맨 아래 「{게시판}」 갤러리(사진·영상 게시판 — 목록 모양 GALLERY 또는 갤러리 보기 전환이 켜진 첫 폴더 게시판, 24칸 — 없으면 이 줄이 없다).
  * 나란한 가젯은 같은 높이(h — 최소 높이)라 아래 끝이 맞고, 높이는 보통 내용에 맞췄다(내용이 길면 격자가 늘린다).
  * 기준 폴더가 없으면 이름 자리는 「전체」. 가젯 ID 는 {@code seed-<n>} — 저장 요청에 이 ID 가 오면 그 설정 그대로 만든다.
  * 꾸미기는 저장하지 않고 읽을 때 그 테마의 기본 꾸미기({@link HomeGadgetKinds#baseStyle}) + 아이콘을 입힌다(로보얌은 홈 로보얌 시드처럼 카드 + 아이콘 머리). 제목은 운영자가 고칠 처음 데이터(한국어 시드)다.
@@ -21,7 +21,7 @@ import tools.jackson.databind.node.ObjectNode;
 public final class GadgetPageInitial {
 
     private static final String ALL_NAME = "전체";
-    /** 줄마다 높이(행) — 인기글 · 갤러리 · 게시판 카드 줄 · 최신글 */
+    /** 줄마다 높이(행) — 인기글 · 갤러리(맨 아래) · 게시판 카드 줄 · 최신글 */
     static final int TOP_H = 15;
     static final int GALLERY_H = 11;
     static final int CARDS_H = 13;
@@ -47,11 +47,6 @@ public final class GadgetPageInitial {
                         .set("meta", strings("BOARD", "COMMENTS", "TIME")),
                 null, 0, y, 24, TOP_H);
         y += TOP_H;
-        if (gallery != null) {
-            b.add("GALLERY", gallery.name(), "pi-images", scope(HomeLayoutJson.object().put("count", 8), GadgetConfigs.PICK, List.of(gallery.slug())),
-                    "/boards/" + gallery.slug(), 0, y, 24, GALLERY_H);
-            y += GALLERY_H;
-        }
         List<GadgetPageFolders.Board> cards = boards.stream().filter(x -> x != gallery).toList();
         for (int i = 0; i < cards.size(); i++) {
             GadgetPageFolders.Board board = cards.get(i);
@@ -68,6 +63,11 @@ public final class GadgetPageInitial {
                 scope(HomeLayoutJson.object().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("columns", 2).put("count", 16), GadgetConfigs.FOLDER, List.of())
                         .set("meta", strings("BOARD", "COMMENTS", "TIME")),
                 null, 0, y, 24, LATEST_H);
+        y += LATEST_H;
+        if (gallery != null) {
+            b.add("GALLERY", gallery.name(), "pi-images", scope(HomeLayoutJson.object().put("count", 8), GadgetConfigs.PICK, List.of(gallery.slug())),
+                    "/boards/" + gallery.slug(), 0, y, 24, GALLERY_H);
+        }
         return b.json;
     }
 
