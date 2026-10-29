@@ -470,7 +470,7 @@ export default {
     previewChanged: '그 사이 환불 예정 금액이 바뀌었어요. 새 금액을 확인하고 다시 눌러 주세요.',
     itemRefund: '상품 금액',
     shippingRefund: '배송비 환불',
-    reshippingFee: '다시 받는 배송비',
+    reshippingFee: '추가 배송비',
     refundAmount: '돌려받을 금액',
     reshippingHelp: '남은 상품이 무료배송 기준 아래가 되어 배송비를 다시 받아요.',
     feeBearer: {

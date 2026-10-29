@@ -468,7 +468,7 @@ export default {
     previewChanged: 'The expected refund changed in the meantime. Check the new amount and press again.',
     itemRefund: 'Items',
     shippingRefund: 'Shipping refund',
-    reshippingFee: 'Shipping charged again',
+    reshippingFee: 'Extra shipping',
     refundAmount: 'You get back',
     reshippingHelp: 'The remaining items fall below the free-shipping threshold, so shipping is charged again.',
     feeBearer: {

@@ -118,7 +118,8 @@ public class GroupBuyRequestStore {
             args.add(ts(now));
         }
         args.add(id);
-        return jdbc.update("UPDATE group_buy_requests SET status = ?, updated_at = ?" + (operatorId != null ? ", decided_by = ?, decided_at = ?" : "") + done
+        // 결정(승인·거절)은 처음 한 번만 — 뒤의 회수·완료 같은 전이가 승인 시각·승인한 사람을 덮지 않는다(이력 순서가 뒤집혔다, 2b-5 확인)
+        return jdbc.update("UPDATE group_buy_requests SET status = ?, updated_at = ?" + (operatorId != null ? ", decided_by = COALESCE(decided_by, ?), decided_at = COALESCE(decided_at, ?)" : "") + done
                 + " WHERE id = ? AND status IN (" + in + ")", args.toArray()) == 1;
     }
 

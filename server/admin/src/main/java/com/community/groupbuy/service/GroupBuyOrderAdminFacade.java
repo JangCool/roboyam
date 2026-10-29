@@ -17,6 +17,7 @@ import com.community.groupbuy.repository.master.ParticipationStore;
 import com.community.groupbuy.repository.master.ParticipationStore.ItemRow;
 import com.community.groupbuy.repository.master.ParticipationStore.ParticipationRow;
 import com.community.payment.dto.response.PaymentMemberView;
+import com.community.payment.service.PaymentDetailText;
 import com.community.permission.dto.AdminActor;
 import com.community.permission.entity.Permission;
 import com.community.zconfiguration.exception.CommonException;
@@ -62,11 +63,13 @@ public class GroupBuyOrderAdminFacade {
     private final GroupBuyAdminRefundService adminRefunds;
     private final GroupBuyShipDeadlines shipDeadlines;
     private final GroupBuyAudit audit;
+    private final PaymentDetailText paymentText;
     private final ObjectProvider<Clock> clocks;
 
     public GroupBuyOrderAdminFacade(DataSource dataSource, ParticipationStore participations, GroupBuyStore groups, GroupBuyRequestStore requests, GroupBuyRefundStore refunds,
                                     FulfillmentStore fulfillmentStore, FulfillmentService fulfillment, AddressRevealService addresses,
-                                    GroupBuyAdminRefundService adminRefunds, GroupBuyShipDeadlines shipDeadlines, GroupBuyAudit audit, ObjectProvider<Clock> clocks) {
+                                    GroupBuyAdminRefundService adminRefunds, GroupBuyShipDeadlines shipDeadlines, GroupBuyAudit audit, PaymentDetailText paymentText,
+                                    ObjectProvider<Clock> clocks) {
         this.jdbc = new JdbcTemplate(dataSource);
         this.participations = participations;
         this.groups = groups;
@@ -77,6 +80,7 @@ public class GroupBuyOrderAdminFacade {
         this.addresses = addresses;
         this.adminRefunds = adminRefunds;
         this.shipDeadlines = shipDeadlines;
+        this.paymentText = paymentText;
         this.audit = audit;
         this.clocks = clocks;
     }
@@ -159,7 +163,7 @@ public class GroupBuyOrderAdminFacade {
                 o.refundedAmount(), o.compensationAmount(), o.reshippingFeeCharged(), o.remainingCash());
         GroupBuyOrderAdminView.Payment payment = o.paymentOrderId() == null ? null : jdbc.query("SELECT po.id, po.payment_id, po.status, po.pay_method, po.paid_at, "
                 + "EXISTS (SELECT 1 FROM group_buy_shipments s WHERE s.participation_id = ? AND s.escrow_applicable) FROM payment_orders po WHERE po.id = ?",
-                (rs, i) -> new GroupBuyOrderAdminView.Payment(Long.toString(rs.getLong(1)), rs.getString(2), rs.getString(3), rs.getString(4), rs.getBoolean(6),
+                (rs, i) -> new GroupBuyOrderAdminView.Payment(Long.toString(rs.getLong(1)), rs.getString(2), rs.getString(3), paymentText.payMethod(rs.getString(4)), rs.getBoolean(6),
                         rs.getTimestamp(5) == null ? null : rs.getTimestamp(5).toInstant()), o.id(), o.paymentOrderId()).stream().findFirst().orElse(null);
         GroupBuyOrderAdminView.MaskedAddress address;
         if (o.addressMaskedAt() != null) {
@@ -172,7 +176,7 @@ public class GroupBuyOrderAdminFacade {
         List<GroupBuyOrderAdminView.AddressView> views = jdbc.query("SELECT o.operator_name, v.reason, v.created_at FROM commerce_address_views v "
                 + "LEFT JOIN operators o ON o.id = v.operator_id WHERE v.participation_id = ? AND v.kind = 'REVEAL' ORDER BY v.created_at DESC",
                 (rs, i) -> new GroupBuyOrderAdminView.AddressView(nz(rs.getString(1)), rs.getString(2), rs.getTimestamp(3).toInstant()), o.id());
-        String memo = jdbc.query("SELECT admin_memo FROM group_buy_participations WHERE id = ?", (rs, i) -> rs.getString(1), o.id()).stream().findFirst().orElse(null);
+        String memo = jdbc.query("SELECT admin_memo FROM group_buy_participations WHERE id = ?", (rs, i) -> rs.getString(1), o.id()).stream().filter(java.util.Objects::nonNull).findFirst().orElse(null);
         List<GroupBuyOrderAdminView.StatusChange> history = jdbc.query("SELECT h.from_status, h.to_status, o.operator_name, h.cause, h.created_at, h.actor_id "
                 + "FROM participation_status_history h LEFT JOIN operators o ON o.id = h.actor_id WHERE h.participation_id = ? ORDER BY h.created_at, h.id",
                 (rs, i) -> new GroupBuyOrderAdminView.StatusChange(rs.getString(1), rs.getString(2), rs.getString(3) != null ? rs.getString(3)

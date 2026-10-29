@@ -38,44 +38,47 @@
                     </div>
                 </div>
                 <p class="m-0 text-xs text-muted-color">{{ t('groupBuy.amountBreakdown', { items: won(detail.amounts.itemsAmount), ship: won(detail.amounts.shippingFee), reship: won(detail.amounts.reshippingFeeCharged) }) }}</p>
-                <div class="overflow-x-auto">
-                    <table class="w-full min-w-[30rem] border-collapse text-[13px]">
-                        <thead>
-                            <tr class="border-b border-(--line) text-left text-xs text-muted-color">
-                                <th class="py-1.5 pr-2 font-normal">{{ t('groupBuy.itemSku') }}</th>
-                                <th class="py-1.5 pr-2 text-right font-normal">{{ t('groupBuy.itemQty') }}</th>
-                                <th class="py-1.5 pr-2 text-right font-normal">{{ t('groupBuy.itemUnit') }}</th>
-                                <th class="py-1.5 pr-2 text-right font-normal">{{ t('groupBuy.itemAmount') }}</th>
-                                <th class="py-1.5 font-normal">{{ t('groupBuy.itemChanges') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="item in detail.items" :key="item.id" class="border-b border-(--line) last:border-b-0">
-                                <td class="py-1.5 pr-2"><GroupBuySkuLabel :name="item.skuName" :kind="item.kind" /></td>
-                                <td class="py-1.5 pr-2 text-right tabular-nums">{{ item.qty }}</td>
-                                <td class="py-1.5 pr-2 text-right tabular-nums">{{ won(item.unitPrice) }}</td>
-                                <td class="py-1.5 pr-2 text-right tabular-nums">{{ won(item.itemAmount) }}</td>
-                                <td class="py-1.5 text-xs text-muted-color">
-                                    <template v-if="item.canceledQty || item.returnedQty || item.restockedQty">{{ t('groupBuy.itemChangeLine', { canceled: item.canceledQty, returned: item.returnedQty, restocked: item.restockedQty }) }}</template>
-                                    <template v-else>—</template>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                <!-- 상품 한 칸: 아이콘 · 이름/금액 · 단가×수량 · 바뀐 수량(취소 회색 · 반품 주황 · 다시 판매 초록) -->
+                <ul class="m-0 flex list-none flex-col divide-y divide-(--line) rounded-lg border border-(--line) p-0">
+                    <li v-for="item in detail.items" :key="item.id" class="flex items-start gap-3 px-3.5 py-3 text-[13px]">
+                        <span class="flex size-9 shrink-0 items-center justify-center rounded-md bg-(--p-content-hover-background) text-muted-color" aria-hidden="true"><i class="pi pi-box" /></span>
+                        <div class="flex min-w-0 flex-1 flex-col gap-1">
+                            <div class="flex items-baseline justify-between gap-3">
+                                <GroupBuySkuLabel :name="item.skuName" :kind="item.kind" class="min-w-0 font-medium" />
+                                <span class="shrink-0 font-semibold tabular-nums">{{ t('groupBuy.won', { amount: won(item.itemAmount) }) }}</span>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-color">
+                                <span class="tabular-nums">{{ t('groupBuy.unitTimesQty', { price: won(item.unitPrice), qty: item.qty }) }}</span>
+                                <template v-for="c in itemChanges(item)" :key="c.key">
+                                    <span aria-hidden="true">·</span>
+                                    <span class="inline-flex items-center gap-1.5 text-(--p-text-color)"><span class="size-2 rounded-full" :class="c.dot" aria-hidden="true" />{{ c.label }}</span>
+                                </template>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
             </section>
 
             <!-- ② 결제 -->
             <section class="flex flex-col gap-1" :aria-labelledby="`${titleId}-pay`">
-                <h3 :id="`${titleId}-pay`" class="text-sm font-semibold">{{ t('groupBuy.secPayment') }}</h3>
+                <div class="flex items-center gap-2">
+                    <h3 :id="`${titleId}-pay`" class="text-sm font-semibold">{{ t('groupBuy.secPayment') }}</h3>
+                    <NuxtLink v-if="detail.payment && can('commerce.payment.read')" :to="`/payments/orders?payment=${encodeURIComponent(detail.payment.paymentOrderId)}`" class="ml-auto text-xs text-primary hover:underline">{{ t('groupBuy.openPayment') }} ›</NuxtLink>
+                </div>
                 <p v-if="!detail.payment" class="m-0 text-[13px] text-muted-color">{{ t('groupBuy.paymentNone') }}</p>
-                <p v-else class="m-0 flex flex-wrap items-center gap-x-2 text-[13px]">
-                    <code class="text-xs">{{ detail.payment.paymentId }}</code>
-                    <span>{{ detail.payment.payMethod ?? '—' }}</span>
-                    <Tag v-if="detail.payment.escrow" :value="t('groupBuy.escrow')" severity="secondary" />
-                    <span class="text-xs text-muted-color">{{ detail.payment.paidAt ? time.full(detail.payment.paidAt) : '—' }}</span>
-                    <NuxtLink v-if="can('commerce.payment.read')" :to="`/payments/orders?payment=${encodeURIComponent(detail.payment.paymentOrderId)}`" class="text-xs text-primary hover:underline">{{ t('groupBuy.openPayment') }} ›</NuxtLink>
-                </p>
+                <dl v-else class="m-0 flex flex-col">
+                    <div :class="ROW">
+                        <dt :class="DT">{{ t('groupBuy.payMethodLabel') }}</dt>
+                        <dd :class="DD" class="flex flex-wrap items-center gap-2"><span class="font-medium">{{ detail.payment.payMethod ?? '—' }}</span><Tag v-if="detail.payment.escrow" :value="t('groupBuy.escrow')" severity="info" /></dd>
+                    </div>
+                    <div :class="ROW">
+                        <dt :class="DT">{{ t('groupBuy.payPaidAt') }}</dt>
+                        <dd class="tabular-nums" :class="[DD, detail.payment.paidAt ? 'font-medium text-green-700 dark:text-green-400' : 'text-muted-color']">
+                            <i v-if="detail.payment.paidAt" class="pi pi-check-circle mr-1 text-xs" aria-hidden="true" />{{ detail.payment.paidAt ? time.full(detail.payment.paidAt) : '—' }}
+                        </dd>
+                    </div>
+                    <div :class="ROW"><dt :class="DT">{{ t('groupBuy.payIdLabel') }}</dt><dd :class="DD"><code class="text-xs text-muted-color">{{ detail.payment.paymentId }}</code></dd></div>
+                </dl>
             </section>
 
             <!-- ③ 배송지 -->
@@ -108,7 +111,7 @@
                 <p v-if="!detail.shipments.length" class="m-0 text-[13px] text-muted-color">{{ t('groupBuy.shipmentsEmpty') }}</p>
                 <ul v-else class="m-0 flex list-none flex-col gap-1 p-0">
                     <li v-for="(s, i) in detail.shipments" :key="i" class="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg border border-(--line) px-3 py-2 text-[13px]">
-                        <Tag :value="t(`groupBuy.shipmentKind.${s.kind}`)" severity="secondary" />
+                        <Tag :value="t(`groupBuy.shipmentKind.${s.kind}`)" :severity="s.kind === 'EXCHANGE' ? 'warn' : 'info'" icon="pi pi-truck" />
                         <span>{{ s.carrierName }}</span>
                         <code class="text-xs">{{ s.trackingNo }}</code>
                         <a v-if="s.trackingUrl" :href="s.trackingUrl" target="_blank" rel="noopener noreferrer" class="text-xs text-primary hover:underline">{{ t('groupBuy.trackLink') }} <i class="pi pi-external-link text-[10px]" aria-hidden="true" /></a>
@@ -121,19 +124,27 @@
             <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-refund`">
                 <h3 :id="`${titleId}-refund`" class="text-sm font-semibold">{{ t('groupBuy.secRefunds') }}</h3>
                 <p v-if="!detail.refunds.length" class="m-0 text-[13px] text-muted-color">{{ t('groupBuy.refundsEmpty') }}</p>
-                <ul v-else class="m-0 flex list-none flex-col gap-2 p-0">
-                    <li v-for="r in detail.refunds" :key="r.id" class="flex flex-col gap-1 rounded-lg border border-(--line) px-3 py-2">
+                <!-- 환불 한 칸: 금액·원인·상태 · 구성(더하는 값 초록 · 빼는 값 빨강) · 진행 안내 · 사유(요청에서 나온 환불은 그 요청으로) -->
+                <ul v-else class="m-0 flex list-none flex-col divide-y divide-(--line) rounded-lg border border-(--line) p-0">
+                    <li v-for="r in detail.refunds" :key="r.id" class="flex flex-col gap-1.5 px-3.5 py-3 text-[13px]">
                         <div class="flex flex-wrap items-center gap-2">
-                            <span class="text-[13px] font-semibold tabular-nums">{{ t('groupBuy.won', { amount: won(r.total) }) }}</span>
-                            <span class="text-[13px]">{{ t(`groupBuy.refundCause.${r.cause}`) }}</span>
+                            <span class="text-[15px] font-semibold tabular-nums" :class="r.state === 'DONE' ? 'text-red-600 dark:text-red-400' : ''">−{{ t('groupBuy.won', { amount: won(r.total) }) }}</span>
+                            <Tag :value="t(`groupBuy.refundCause.${r.cause}`)" :severity="UtilGroupBuy.refundCauseSeverity(r.cause)" />
                             <Tag :value="t(`groupBuy.refundState.${r.state}`)" :severity="UtilGroupBuy.refundSeverity(r.state)" />
-                            <Tag v-if="r.businessFault" :value="t('groupBuy.businessFault')" severity="secondary" />
+                            <Tag v-if="r.businessFault" :value="t('groupBuy.businessFault')" severity="warn" />
                             <Tag v-if="r.method !== 'PG_CANCEL'" :value="t(`groupBuy.refundMethod.${r.method}`)" severity="secondary" />
                             <span class="ml-auto text-[11px] tabular-nums text-muted-color">{{ time.full(r.requestedAt) }}</span>
                         </div>
-                        <p class="m-0 text-xs text-muted-color">{{ refundParts(r) }}</p>
+                        <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+                            <span v-for="p in refundParts(r)" :key="p.key" class="tabular-nums"><span class="text-muted-color">{{ p.label }}</span> <span :class="p.amount < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400'">{{ signed(p.amount) }}</span></span>
+                        </div>
                         <p class="m-0 text-xs text-muted-color">{{ t(`groupBuy.refundStateHelp.${r.state}`, { at: r.completedAt ? time.date(r.completedAt) : '' }) }}</p>
-                        <p v-if="r.reason" class="m-0 text-xs text-muted-color">{{ t('groupBuy.refundReasonLine', { reason: r.reason, operator: r.operator ?? '—' }) }}</p>
+                        <p v-if="r.reason" class="m-0 text-xs text-muted-color">
+                            <template v-if="requestIdOf(r.reason)">
+                                <NuxtLink :to="`/group-buy-requests?request=${requestIdOf(r.reason)}`" class="text-primary hover:underline">{{ t('groupBuy.refundFromRequest') }} ›</NuxtLink> · {{ r.operator ?? '—' }}
+                            </template>
+                            <template v-else>{{ t('groupBuy.refundReasonLine', { reason: r.reason, operator: r.operator ?? '—' }) }}</template>
+                        </p>
                     </li>
                 </ul>
             </section>
@@ -151,12 +162,18 @@
             <!-- ⑦ 상태 이력 -->
             <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-history`">
                 <h3 :id="`${titleId}-history`" class="text-sm font-semibold">{{ t('groupBuy.secHistory') }}</h3>
+                <!-- 시간 순 타임라인 — 점 색은 바뀐 뒤 상태, 원인 코드는 글자로 -->
                 <ol class="m-0 flex list-none flex-col p-0">
-                    <li v-for="(h, i) in detail.history" :key="i" class="flex flex-wrap items-baseline gap-x-2 border-b border-(--line) py-1.5 text-[13px] last:border-b-0">
-                        <span class="text-[11px] tabular-nums text-muted-color">{{ time.full(h.at) }}</span>
-                        <span>{{ h.from ? `${t(`groupBuy.orderStatus.${h.from}`)} → ` : '' }}{{ t(`groupBuy.orderStatus.${h.to}`) }}</span>
-                        <span class="text-xs text-muted-color">{{ h.actor === 'SYSTEM' ? t('groupBuy.system') : h.actor }}</span>
-                        <span v-if="h.note" class="text-xs text-muted-color">· {{ h.note }}</span>
+                    <li v-for="(h, i) in detail.history" :key="i" class="relative flex gap-3 pb-3 text-[13px] last:pb-0">
+                        <span v-if="i < detail.history.length - 1" class="absolute left-[5px] top-4 bottom-0 w-px bg-(--line)" aria-hidden="true" />
+                        <span class="mt-1 size-[11px] shrink-0 rounded-full ring-2 ring-(--p-content-background)" :class="statusDot(h.to)" aria-hidden="true" />
+                        <div class="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
+                            <span class="font-medium">{{ t(`groupBuy.orderStatus.${h.to}`) }}</span>
+                            <span v-if="h.from" class="text-xs text-muted-color">{{ t('groupBuy.historyFrom', { status: t(`groupBuy.orderStatus.${h.from}`) }) }}</span>
+                            <span class="text-xs text-muted-color">{{ h.actor === 'SYSTEM' ? t('groupBuy.system') : h.actor }}</span>
+                            <span v-if="h.note" class="text-xs text-muted-color">· {{ causeText(h.note) }}</span>
+                            <span class="ml-auto text-[11px] tabular-nums text-muted-color">{{ time.full(h.at) }}</span>
+                        </div>
                     </li>
                 </ol>
             </section>
@@ -210,7 +227,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), { loading: false, error: null, revealed: null, revealBusy: false, memoBusy: false, busy: false, canManage: false, canRefund: false, canReveal: false });
 const emit = defineEmits<{ retry: []; reveal: []; saveMemo: [memo: string]; prepare: []; ship: []; fixTracking: []; deliver: []; refund: [] }>();
 
-const { t, locale } = useI18n();
+const { t, te, locale } = useI18n();
 const time = useDisplayTime();
 const { can } = useAdminPermission();
 const { prefs } = useLayoutPrefs();
@@ -238,20 +255,55 @@ const amountBoxes = computed(() => {
     const text = (n: number) => t('groupBuy.won', { amount: won(n) });
     return [
         { key: 'amount', label: t('groupBuy.amountTotal'), value: text(a.amount), tone: '' },
-        { key: 'refunded', label: t('groupBuy.amountRefunded'), value: text(a.refundedAmount), tone: a.refundedAmount > 0 ? 'text-orange-600 dark:text-orange-400' : '' },
-        { key: 'comp', label: t('groupBuy.amountCompensation'), value: text(a.compensationAmount), tone: '' },
-        { key: 'remaining', label: t('groupBuy.amountRemaining'), value: text(a.remaining), tone: '' },
+        { key: 'refunded', label: t('groupBuy.amountRefunded'), value: a.refundedAmount > 0 ? `−${text(a.refundedAmount)}` : text(0), tone: a.refundedAmount > 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-color' },
+        { key: 'comp', label: t('groupBuy.amountCompensation'), value: text(a.compensationAmount), tone: a.compensationAmount > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-muted-color' },
+        { key: 'remaining', label: t('groupBuy.amountRemaining'), value: text(a.remaining), tone: 'text-primary' },
     ];
 });
 
-function refundParts(r: GroupBuyRefundRecord): string {
-    const parts = [t('groupBuy.partItem', { n: won(r.itemRefund) })];
-    if (r.shippingRefund) parts.push(t('groupBuy.partShipping', { n: won(r.shippingRefund) }));
-    if (r.returnFee) parts.push(t('groupBuy.partReturnFee', { n: won(r.returnFee) }));
-    if (r.reshippingFee) parts.push(t('groupBuy.partReshipping', { n: won(r.reshippingFee) }));
-    if (r.reshippingRefund) parts.push(t('groupBuy.partReshippingRefund', { n: won(r.reshippingRefund) }));
-    if (r.compensation) parts.push(t('groupBuy.partCompensation', { n: won(r.compensation) }));
-    return parts.join(' · ');
+function signed(amount: number): string {
+    return amount < 0 ? `−${won(-amount)}` : `+${won(amount)}`;
+}
+
+/** 환불 구성 — 상품은 늘, 나머지는 0 이 아닐 때만. 반품비·추가 배송비는 빼는 값(−) */
+function refundParts(r: GroupBuyRefundRecord): { key: string; label: string; amount: number }[] {
+    const parts = [{ key: 'item', label: t('groupBuy.calcItem'), amount: r.itemRefund }];
+    if (r.shippingRefund) parts.push({ key: 'ship', label: t('groupBuy.calcShipping'), amount: r.shippingRefund });
+    if (r.returnFee) parts.push({ key: 'return', label: t('groupBuy.calcReturnFee'), amount: -r.returnFee });
+    if (r.reshippingFee) parts.push({ key: 'reship', label: t('groupBuy.calcReshipping'), amount: -r.reshippingFee });
+    if (r.reshippingRefund) parts.push({ key: 'reshipRefund', label: t('groupBuy.calcReshippingRefund'), amount: r.reshippingRefund });
+    if (r.compensation) parts.push({ key: 'comp', label: t('groupBuy.calcCompensation'), amount: r.compensation });
+    return parts;
+}
+
+/** 요청에서 나온 환불의 사유는 서버가 `REQUEST <요청 번호>` 로 남긴다 — 그 요청으로 잇는다 */
+function requestIdOf(reason: string): string | null {
+    return /^REQUEST (\d+)$/.exec(reason)?.[1] ?? null;
+}
+
+/** 주문 줄의 바뀐 수량 — 있는 것만 */
+function itemChanges(item: GroupBuyOrderDetail['items'][number]): { key: string; label: string; dot: string }[] {
+    const out = [];
+    if (item.canceledQty) out.push({ key: 'canceled', label: t('groupBuy.itemCanceledN', { n: item.canceledQty }), dot: 'bg-surface-400' });
+    if (item.returnedQty) out.push({ key: 'returned', label: t('groupBuy.itemReturnedN', { n: item.returnedQty }), dot: 'bg-amber-500' });
+    if (item.restockedQty) out.push({ key: 'restocked', label: t('groupBuy.itemRestockedN', { n: item.restockedQty }), dot: 'bg-green-500' });
+    return out;
+}
+
+/** 이력 원인 코드 → 글자(모르는 코드는 그대로) */
+function causeText(code: string): string {
+    const key = `groupBuy.historyCause.${code}`;
+    return te(key) ? t(key) : code;
+}
+
+function statusDot(status: GroupBuyOrderDetail['status']): string {
+    const severity = UtilGroupBuy.orderSeverity(status);
+    if (severity === 'success') return 'bg-green-600';
+    if (severity === 'danger') return 'bg-red-500';
+    if (severity === 'warn') return 'bg-amber-500';
+    if (severity === 'info') return 'bg-sky-500';
+    if (severity === 'contrast') return 'bg-surface-700 dark:bg-surface-200';
+    return 'bg-surface-400';
 }
 
 const shipBlockedText = computed(() => {
