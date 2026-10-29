@@ -11,6 +11,8 @@ export default {
     distributionRow: '{star} stars',
     scopeNote: 'Includes reviews from earlier rounds of the same product. Only buyers can review.',
     rewardNote: 'No rewards were given for these reviews.',
+    basis: 'About reviews',
+    hiddenNotCounted: 'Reviews hidden under our policy aren’t counted. We never hide a review just for a low rating.',
     sortLabel: 'Sort',
     sort: {
         LATEST: 'Newest',

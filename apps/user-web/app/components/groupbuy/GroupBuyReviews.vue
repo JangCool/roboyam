@@ -1,35 +1,38 @@
 <template>
     <!--
         공구 상세의 구매 리뷰 구역 — 계약 「리뷰 규칙」(2b-6, 가정). 같은 상품의 다른 차수 리뷰도 함께(카드마다 「n차 구매」).
-        · 요약 상자: 평균 별점·수(왼쪽) | 별점 분포(오른쪽) — 숨긴 리뷰는 세지 않는다(서버 값). 사진 모아보기. 맨 아래 보상 없음 한 줄.
+        · 머리(네이버 쇼핑 모양): 「리뷰 n」 · 「리뷰 제공 기준 ⓘ」(지난 차수 포함·보상 없음 — 풍선 도움말) · ★ 평균. 숨긴 리뷰는 세지 않는다(서버 값). 그 아래 사진 모아보기.
         · 목록 위 한 줄: 정렬(글자 단추 — 최신 · 별점 높은 · 낮은 · 사진 먼저) | 「사진 리뷰만」. 10개씩 「더 보기」.
         · 내 리뷰: 고치기(30일 안 — 서버 `actions.edit`) · 지우기. 남의 리뷰: 신고(대상 `GROUP_BUY_REVIEW`). 쓰기는 내 주문에서(산 회원만).
         부르는 화면은 로그인 회원이 바뀌면 `:key` 로 이 구역을 새로 그린다.
     -->
     <section id="reviews" :aria-labelledby="titleId" class="flex flex-col gap-5 rounded-xl border border-surface bg-surface-0 p-4 sm:p-6 dark:bg-surface-900" data-testid="group-buy-reviews">
-        <div class="flex flex-col gap-1">
-            <h2 :id="titleId" class="m-0 text-base font-semibold">
-                {{ t('groupBuyReview.title') }}<span v-if="summary" class="ml-1.5 font-normal tabular-nums text-muted-color">{{ summary.count }}</span>
-            </h2>
-            <p class="m-0 text-xs text-muted-color">{{ t('groupBuyReview.scopeNote') }}</p>
-        </div>
-
-        <!-- 요약 — 평균(왼쪽) | 별점 분포(오른쪽), 한 상자 -->
-        <div v-if="summary && summary.count > 0" class="grid items-center gap-5 rounded-lg bg-surface-50 px-5 py-4 sm:grid-cols-[10rem_minmax(0,1fr)] dark:bg-surface-800/50" data-testid="group-buy-reviews-summary">
-            <div class="flex flex-col items-center gap-1.5 sm:border-r sm:border-surface sm:pr-5">
-                <span class="text-4xl font-bold leading-none tabular-nums" :aria-label="t('groupBuyReview.averageLabel', { value: summary.average ?? 0 })">{{ summary.average?.toFixed(1) }}</span>
-                <GroupBuyStars :value="summary.average ?? 0" size="text-base" />
-                <span class="text-xs tabular-nums text-muted-color">{{ t('groupBuyReview.countShort', { count: summary.count }) }}</span>
+        <!-- 머리(네이버 쇼핑 모양) — 「리뷰 n」 | 오른쪽 「리뷰 제공 기준 ⓘ」(지난 차수 포함 · 보상 없음), 그 아래 ★ 평균 한 줄 -->
+        <div class="flex flex-col gap-2" data-testid="group-buy-reviews-summary">
+            <div class="flex items-center justify-between gap-3">
+                <h2 :id="titleId" class="m-0 text-lg font-bold">
+                    {{ t('groupBuyReview.title') }}<span v-if="summary" class="ml-1.5 tabular-nums">{{ summary.count }}</span>
+                </h2>
+                <button
+                    type="button"
+                    class="inline-flex items-center gap-1 text-[13px] text-muted-color hover:text-(--p-text-color) focus-visible:outline-2 focus-visible:outline-primary"
+                    aria-haspopup="dialog"
+                    @click="(e) => basisPopover?.toggle(e)"
+                >
+                    {{ t('groupBuyReview.basis') }}<i class="pi pi-info-circle text-xs" aria-hidden="true" />
+                </button>
+                <Popover ref="basisPopover" :aria-label="t('groupBuyReview.basis')" class="max-w-[min(20rem,calc(100vw-2rem))]">
+                    <ul class="m-0 flex list-disc flex-col gap-1 pl-4 text-[13px] leading-relaxed">
+                        <li>{{ t('groupBuyReview.scopeNote') }}</li>
+                        <li>{{ t('groupBuyReview.hiddenNotCounted') }}</li>
+                        <li>{{ t('groupBuyReview.rewardNote') }}</li>
+                    </ul>
+                </Popover>
             </div>
-            <ul class="m-0 flex w-full max-w-sm list-none flex-col gap-1.5 justify-self-center p-0 sm:justify-self-start" :aria-label="t('groupBuyReview.distributionLabel')">
-                <li v-for="star in STARS" :key="star" class="flex items-center gap-2.5 text-xs">
-                    <span class="w-6 shrink-0 tabular-nums text-muted-color">{{ t('groupBuyReview.distributionRow', { star }) }}</span>
-                    <span class="h-1 flex-1 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700" aria-hidden="true">
-                        <span class="block h-full rounded-full bg-amber-400" :style="{ width: `${percent(summary.distribution[star])}%` }" />
-                    </span>
-                    <span class="w-6 shrink-0 text-right tabular-nums text-muted-color">{{ summary.distribution[star] }}</span>
-                </li>
-            </ul>
+            <p v-if="summary && summary.count > 0" class="m-0 flex items-center gap-1.5" :aria-label="t('groupBuyReview.averageLabel', { value: summary.average ?? 0 })">
+                <i class="pi pi-star-fill text-base text-red-500" aria-hidden="true" />
+                <span class="text-lg font-bold tabular-nums" aria-hidden="true">{{ summary.average?.toFixed(2) }}</span>
+            </p>
         </div>
 
         <!-- 사진 모아보기 — 누르면 「사진 리뷰만」 -->
@@ -85,7 +88,6 @@
             </li>
         </ul>
         <Button v-if="status === 'ready' && page?.hasMore" type="button" :label="t('groupBuyReview.more')" severity="secondary" variant="outlined" class="w-full sm:w-auto sm:self-center sm:px-10" :loading="moreBusy" @click="load(true)" />
-        <p class="m-0 text-[11px] text-muted-color">{{ t('groupBuyReview.rewardNote') }}</p>
 
         <GroupBuyReviewDialog
             v-if="editing"
@@ -115,7 +117,8 @@ const props = defineProps<{ groupBuyId: string }>();
 /** 요약(평균·수)을 받으면 — 부르는 화면의 위쪽 별점 링크·탭 (수) */
 const emit = defineEmits<{ summary: [stats: GroupBuyReviewStats] }>();
 
-const STARS = [5, 4, 3, 2, 1] as const;
+/** 「리뷰 제공 기준」 풍선(지난 차수 포함 · 숨긴 리뷰 제외 · 보상 없음) */
+const basisPopover = ref<{ toggle: (event: Event) => void } | null>(null);
 const { t } = useI18n();
 const api = useGroupBuyReviewApi();
 const toast = useAppToast();
@@ -169,11 +172,6 @@ function changeSort(value: GroupBuyReviewSort): void {
 function changePhotoOnly(value: boolean): void {
     photoOnly.value = value;
     void load(false);
-}
-
-function percent(n: number): number {
-    const total = summary.value?.count ?? 0;
-    return total > 0 ? Math.round((n / total) * 100) : 0;
 }
 
 onMounted(() => void load(false));

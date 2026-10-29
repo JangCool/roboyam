@@ -2,7 +2,7 @@
  * 공구 리뷰 문구 — 공구 상세 리뷰 구역 · 목록 카드 · 내 주문의 「리뷰 쓰기」 · 내 리뷰 `/me/reviews`(계약 commerce-groupbuy 「리뷰 규칙」, 2b-6). `en/groupBuyReview.ts` 와 같은 키, 같은 차례.
  */
 export default {
-    title: '구매 리뷰',
+    title: '리뷰',
     countShort: '리뷰 {count}',
     count: '{count}개',
     averageLabel: '평균 별점 {value}점(5점 만점)',
@@ -11,6 +11,8 @@ export default {
     distributionRow: '{star}점',
     scopeNote: '같은 상품의 지난 차수 리뷰도 함께 보여요. 이 상품을 산 회원만 쓸 수 있어요.',
     rewardNote: '리뷰를 쓴 대가로 받은 혜택은 없어요.',
+    basis: '리뷰 제공 기준',
+    hiddenNotCounted: '운영 정책에 따라 숨긴 리뷰는 별점과 수에 넣지 않아요. 낮은 별점만으로는 숨기지 않아요.',
     sortLabel: '정렬',
     sort: {
         LATEST: '최신순',

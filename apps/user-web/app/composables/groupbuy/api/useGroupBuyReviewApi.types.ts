@@ -16,7 +16,7 @@ export interface GroupBuyReviewPhoto {
 
 /** 평균 별점 · 리뷰 수(숨긴 리뷰는 세지 않는다 — 가정) */
 export interface GroupBuyReviewStats {
-    /** 소수 첫째 자리, 리뷰가 없으면 null */
+    /** 소수 둘째 자리(상세 머리 4.78), 리뷰가 없으면 null — 목록 카드는 첫째 자리로 보인다 */
     average: number | null;
     count: number;
 }
