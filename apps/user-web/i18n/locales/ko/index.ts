@@ -24,6 +24,7 @@ import identity from './identity';
 import feed from './feed';
 import grade from './grade';
 import groupBuy from './groupBuy';
+import groupBuyQna from './groupBuyQna';
 import group from './group';
 import groupEvent from './groupEvent';
 import groupManager from './groupManager';
@@ -76,6 +77,7 @@ export default {
     feed,
     grade,
     groupBuy,
+    groupBuyQna,
     group,
     groupEvent,
     groupManager,

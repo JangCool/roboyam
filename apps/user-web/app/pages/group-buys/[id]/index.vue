@@ -266,6 +266,9 @@
                 </template>
             </section>
 
+            <!-- 상품 문의(2b-6) — 로그인 회원이 바뀌면 새로 그린다 -->
+            <GroupBuyQna :key="`${gb.id}-${user?.id ?? 'guest'}`" :group-buy-id="gb.id" />
+
             <CommerceBusinessInfo v-if="shownBusiness" :business="shownBusiness" variant="panel" />
         </template>
     </div>
@@ -288,7 +291,7 @@ import UtilRedirect from '~/utils/util-redirect';
  * - 합계는 서버 견적(줄을 바꾸면 300ms 뒤 다시). 고른 목록은 주소 `?items=skuId:qty,…` 에도 적어 새로고침·로그인·주문서 왕복에도 남는다.
  * - 구매 단추는 서버의 `actions.order`·`purchase.reason` 으로만: 구매하기 · 로그인하고 · 본인인증하고(`useIdentityGate` — 용도 GROUP_BUY) · 막는 안내(+ 이미 주문했으면 그 주문으로).
  * - 알림 신청: 단품 단위 수량 풀림(단품 줄의 종) · 공구 단위 수량 풀림 · 마감 임박 · 다음 차수(결정 17). 로그인하지 않았으면 로그인으로 보낸다.
- * - 판매조건 요약(결정 57)·배송비·반품비 금액 고지(10-8)·청약철회 제한(결정 55)·상세 설명(정화된 HTML)·사양·사업자 정보(판매 스위치 켜짐일 때 — 결정 18·56). Q&A 는 2b-6.
+ * - 판매조건 요약(결정 57)·배송비·반품비 금액 고지(10-8)·청약철회 제한(결정 55)·상세 설명(정화된 HTML)·사양·사업자 정보(판매 스위치 켜짐일 때 — 결정 18·56). 상품 문의는 `GroupBuyQna`(2b-6).
  * - 상품정보제공고시(결정 87·88): 양식마다 품목·적용 단품·항목 표(`GroupBuyProductNotices`), 단품 칩으로 그 단품의 양식을 펼친다. 모바일은 「상품정보제공고시 보기」 → 시트.
  */
 const { t } = useI18n();
