@@ -3,6 +3,7 @@ package com.community.home.service;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
@@ -18,6 +19,13 @@ public final class HomeGadgetKinds {
     public static final int MAX_GADGETS = 30;
     /** 가젯 제목 글자 수 */
     public static final int TITLE_MAX = 40;
+
+    /** 공구 가젯({@code GROUP_BUY}) 설정 — 보일 개수 1~{@value #GROUP_BUY_COUNT_MAX}(기본 {@value #GROUP_BUY_COUNT_DEFAULT}) · 정렬(사용자 결정 2026-10-29, 관리자 ⚙ 설정 창) */
+    public static final int GROUP_BUY_COUNT_DEFAULT = 5;
+    public static final int GROUP_BUY_COUNT_MAX = 10;
+    /** 마감 임박 순(기본 — 연장 중이면 연장 끝) · 새로 시작한 순(시작 시각 늦은 순) · 참여 많은 순(참여 수량, 같으면 마감 이른 순) */
+    public static final List<String> GROUP_BUY_SORTS = List.of("DEADLINE", "NEWEST", "POPULAR");
+    public static final String GROUP_BUY_SORT_DEFAULT = "DEADLINE";
 
     /** 종류 → {minW, minH}(12칸 기준) */
     private static final Map<String, int[]> MIN = minSizes();
@@ -41,6 +49,17 @@ public final class HomeGadgetKinds {
 
     public static int minH(String type) {
         return MIN.getOrDefault(type, new int[]{2, 2})[1];
+    }
+
+    /** 공구 가젯 설정의 보일 개수 — 없거나 정수가 아니면 기본, 1~{@value #GROUP_BUY_COUNT_MAX} 로 자른다 */
+    public static int groupBuyCount(JsonNode config) {
+        return HomeLayoutJson.number(config, "count", GROUP_BUY_COUNT_DEFAULT, 1, GROUP_BUY_COUNT_MAX);
+    }
+
+    /** 공구 가젯 설정의 정렬 — 없거나 모르는 값이면 마감 임박 순 */
+    public static String groupBuySort(JsonNode config) {
+        String sort = HomeLayoutJson.text(config, "sort", GROUP_BUY_SORT_DEFAULT);
+        return GROUP_BUY_SORTS.contains(sort) ? sort : GROUP_BUY_SORT_DEFAULT;
     }
 
     /**

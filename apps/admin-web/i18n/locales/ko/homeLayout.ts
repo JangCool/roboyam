@@ -13,7 +13,20 @@ export default {
     // ── 칸 수 ─
     columns: '격자 칸 수',
     columnsOption: '{count}칸',
-    liveEditHint: '아래 실제 화면에서 가젯을 끌어 옮기고, 오른쪽 아래 모서리를 끌어 크기를 바꾸고, 오른쪽 위 ×로 빼요.',
+    liveEditHint: '아래 실제 화면에서 가젯을 끌어 옮기고, 오른쪽 아래 모서리를 끌어 크기를 바꾸고, 오른쪽 위 ×로 빼요. 공동구매 가젯은 ⚙로 개수·정렬을 바꿔요.',
+
+    // ── 가젯 설정(⚙ — 지금은 공동구매만) ─
+    settingsTitle: '「{title}」 설정',
+    settingsLead: '홈에 보일 공동구매의 개수와 차례를 정해요. 모집 중인 공개 공구만 보여요.',
+    settingsCount: '보일 개수',
+    settingsCountHint: '{min}~{max}개',
+    settingsSort: '정렬',
+    sort_DEADLINE: '마감 임박 순',
+    sort_NEWEST: '새로 시작한 순',
+    sort_POPULAR: '참여 많은 순',
+    settingsPreviewNote: '저장하기 전 실제 화면은 지금 보이는 공구 안에서만 차례·개수를 바꿔 보여요. 저장하면 이 설정으로 다시 골라요.',
+    settingsApply: '적용',
+    settingsApplied: '「{title}」 설정을 바꿨어요. 저장해야 적용돼요.',
 
     // ── 편집기 ─
     announce: '{title}: {x}칸, {y}행, 폭 {w}칸, 높이 {h}행',

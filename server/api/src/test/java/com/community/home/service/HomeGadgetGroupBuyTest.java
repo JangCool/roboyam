@@ -24,7 +24,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import tools.jackson.databind.JsonNode;
 
 /**
- * 홈 {@code GROUP_BUY} 가젯 데이터 — 회원 공구 목록 진행 탭과 같은 거름(공개 · 숨긴 카테고리 제외)에서 모집 중만, 마감 이른 순, 가젯 설정 {@code count}(1~10),
+ * 홈 {@code GROUP_BUY} 가젯 데이터 — 회원 공구 목록 진행 탭과 같은 거름(공개 · 숨긴 카테고리 제외)에서 모집 중만, 가젯 설정 {@code count}(1~10)·{@code sort}
+ * (DEADLINE 마감 이른 순 기본 · NEWEST 새로 시작한 순 · POPULAR 참여 많은 순, 같으면 마감 이른 순 — 사용자 결정 2026-10-29),
  * 판매 스위치는 거르지 않고 {@code salesOpen} 으로. DB 를 다른 시험과 같이 쓰므로 공구 마감을 몇 분 뒤로 잡아 앞줄에 오게 한다.
  */
 class HomeGadgetGroupBuyTest extends CommerceApiTestBase {
@@ -140,6 +141,56 @@ class HomeGadgetGroupBuyTest extends CommerceApiTestBase {
         assertThat(service.groupBuy(count(0)).items()).hasSize(1);
         assertThat(service.groupBuy(count(99)).items()).hasSize(HomeGadgetService.GROUP_BUY_MAX);
         assertThat(service.groupBuy(null).items()).hasSize(HomeGadgetService.GROUP_BUY_DEFAULT);
+    }
+
+    private static JsonNode sort(String sort) {
+        return HomeLayoutJson.object().put("count", 10).put("sort", sort);
+    }
+
+    @Test
+    void 정렬_NEWEST_는_새로_시작한_순() {
+        long category = category();
+        long oldest = groupBuy(category, 5, true);
+        long newest = groupBuy(category, 6, true);
+        long middle = groupBuy(category, 7, true);
+        // 다른 시험의 공구보다 앞에 오게 시작을 하루 뒤로 미룬다(모집 중 상태는 그대로)
+        Instant base = clock.instant().plus(Duration.ofDays(1));
+        for (Object[] row : List.of(new Object[]{oldest, 1}, new Object[]{newest, 3}, new Object[]{middle, 2})) {
+            jdbc.update("UPDATE group_buys SET start_at = ?, end_at = ? WHERE id = ?", java.sql.Timestamp.from(base.plus(Duration.ofHours((int) row[1]))),
+                    java.sql.Timestamp.from(base.plus(Duration.ofDays(2))), row[0]);
+        }
+
+        List<String> found = ids(service.groupBuy(sort("NEWEST")));
+
+        assertThat(found.subList(0, 3)).containsExactly(Long.toString(newest), Long.toString(middle), Long.toString(oldest));
+    }
+
+    @Test
+    void 정렬_POPULAR_는_참여_많은_순_같으면_마감_이른_순() {
+        long category = category();
+        long few = groupBuy(category, 5, true);
+        long many = groupBuy(category, 9, true);
+        long tieLater = groupBuy(category, 8, true);
+        long tieSooner = groupBuy(category, 7, true);
+        // 다른 시험의 공구보다 앞에 오게 참여 수량을 크게 잡는다
+        for (Object[] row : List.of(new Object[]{few, 70_000}, new Object[]{many, 90_000}, new Object[]{tieLater, 80_000}, new Object[]{tieSooner, 80_000})) {
+            jdbc.update("UPDATE group_buys SET max_qty = 100000, current_qty = ? WHERE id = ?", row[1], row[0]);
+        }
+
+        List<String> found = ids(service.groupBuy(sort("POPULAR")));
+
+        assertThat(found.subList(0, 4)).containsExactly(Long.toString(many), Long.toString(tieSooner), Long.toString(tieLater), Long.toString(few));
+    }
+
+    @Test
+    void 정렬이_없거나_모르는_값이면_마감_이른_순() {
+        long category = category();
+        long later = groupBuy(category, 7, true);
+        long first = groupBuy(category, 5, true);
+
+        assertThat(ids(service.groupBuy(sort("DEADLINE")))).containsSubsequence(Long.toString(first), Long.toString(later));
+        assertThat(ids(service.groupBuy(sort("WHATEVER")))).containsSubsequence(Long.toString(first), Long.toString(later));
+        assertThat(ids(service.groupBuy(count(10)))).containsSubsequence(Long.toString(first), Long.toString(later));
     }
 
     @Test

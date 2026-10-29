@@ -1,7 +1,7 @@
 <template>
     <!--
         진행 중 공동구매 가젯(`GROUP_BUY`) — 모집 중인 공구를 한 장씩 넘겨 보는 카드(사진 + 마감·품절 표시 · 이름 · 할인율·공구가·정상가 · 리뷰 · 진행 막대 · 남은 수량).
-        가젯 `data` 는 `{ items, salesOpen }` — 줄은 회원 공구 목록(`GET /api/group-buys`)과 같고, 서버가 마감 이른 순으로 가젯 `count` 개를 준다.
+        가젯 `data` 는 `{ items, salesOpen }` — 줄은 회원 공구 목록(`GET /api/group-buys`)과 같고, 서버가 가젯 설정 `sort`(마감 이른 순 기본 · 새로 시작한 순 · 참여 많은 순) 차례로 `count` 개를 준다.
         판매 스위치가 꺼지면(`salesOpen: false`) 공구는 그대로 보이고 위에 「지금은 주문을 받지 않아요」 한 줄을 덧붙인다(목록·상세처럼 막지 않는다 — 주문 단추가 막는다).
         공구가 없으면 `HomeGadgetFrame` 의 빈 상태(가젯 꾸미기 `empty` 그대로 — 기본 배치는 가젯을 숨긴다).
         넘기기는 이전·다음 단추와 점(지금 장은 `aria-current`)이고, 자동으로 넘어가지 않는다. 공구가 하나면 넘기기가 없다. 카드 한 장은 `HomeGadgetGroupBuyCard`.

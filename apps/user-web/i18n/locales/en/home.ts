@@ -63,5 +63,6 @@ export default {
     editSize: '{w}×{h}',
     editMobileOnly: 'Mobile only',
     editRemove: 'Remove {title}',
+    editSettings: '{title} settings',
     editResize: 'Resize',
 };

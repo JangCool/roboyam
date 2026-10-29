@@ -144,13 +144,26 @@ public class GroupBuyMemberService {
         return new GroupBuyMemberView.ListPage(listItems(ids), p, PAGE_SIZE, total == null ? 0 : total);
     }
 
+    /** 홈 공구 가젯의 차례(사용자 결정 2026-10-29) — 마감 이른 순(목록 진행 탭과 같다) · 새로 시작한 순 · 참여 많은 순(참여 수량, 같으면 마감 이른 순) */
+    public enum RecruitingOrder {
+        DEADLINE(DEADLINE_ORDER),
+        NEWEST("g.start_at DESC, g.id DESC"),
+        POPULAR("g.current_qty DESC, " + DEADLINE_ORDER);
+
+        private final String sql;
+
+        RecruitingOrder(String sql) {
+            this.sql = sql;
+        }
+    }
+
     /**
-     * 홈 공구 가젯({@code GROUP_BUY}) — 모집 중({@code RECRUITING})인 공개 공구 {@code count} 개. 거름(공개 · 숨긴 카테고리 제외)·차례(마감 이른 순)·줄 모양은 목록 진행 탭과 같고,
+     * 홈 공구 가젯({@code GROUP_BUY}) — 모집 중({@code RECRUITING})인 공개 공구 {@code count} 개를 {@code order} 차례로. 거름(공개 · 숨긴 카테고리 제외)·줄 모양은 목록 진행 탭과 같고,
      * 집계 중({@code CLOSING})은 살 수 없어 뺀다. 판매 스위치로 거르지 않는다(목록과 같다).
      */
     @Transactional(readOnly = true)
-    public List<GroupBuyMemberView.ListItem> recruiting(int count) {
-        List<Long> ids = jdbc.queryForList("SELECT g.id" + VISIBLE_FROM + "g.status = 'RECRUITING' ORDER BY " + DEADLINE_ORDER + " LIMIT ?", Long.class, count);
+    public List<GroupBuyMemberView.ListItem> recruiting(int count, RecruitingOrder order) {
+        List<Long> ids = jdbc.queryForList("SELECT g.id" + VISIBLE_FROM + "g.status = 'RECRUITING' ORDER BY " + order.sql + " LIMIT ?", Long.class, count);
         return listItems(ids);
     }
 

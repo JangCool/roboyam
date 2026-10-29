@@ -5,7 +5,7 @@
           고른 테마 · 메뉴 설정(저장 전 값 포함) · 홈 구성(편집기의 저장 전 값). 값이 바뀔 때마다 다시 보내고, 공개 사이트가 「준비됨」을 알리면 그때도 보낸다.
         창 크기는 공개 사이트 데스크톱 폭 1280 × 높이 800 으로 띄우고 이 칸 폭에 맞춰 줄여 보인다(`transform: scale`) — 안에서 스크롤하므로 메뉴 붙이기 같은 스크롤 동작도 그대로다.
         미리보기 안에서는 다른 화면으로 가지 않고, 윗줄·메뉴·사이드 메뉴를 누르면 `edit-menu`(화면이 메뉴 설정 drawer 를 연다).
-        편집 중(`editing`)이면 공개 홈 격자가 가젯 위에 손잡이를 얹고, 끌어 옮기기·크기·빼기를 알려 온다 → `layout-op`(화면이 홈 구성 편집 도구 `applyOp` 에 넘겨 계산하고, 바뀐 배치를 다시 보낸다).
+        편집 중(`editing`)이면 공개 홈 격자가 가젯 위에 손잡이를 얹고, 끌어 옮기기·크기·빼기·⚙ 설정 열기를 알려 온다 → `layout-op`(화면이 홈 구성 편집 도구 `applyOp` 에 넘겨 계산하고, 바뀐 배치를 다시 보낸다).
         메시지는 공개 사이트 주소(`userWebOrigin`)로만 보내고 그 주소에서 온 것만 받는다. 운영에서는 공개 사이트의 frame-ancestors 에 관리자 주소를 허용해야 뜬다(미확정 — 배포 설정).
     -->
     <div ref="box" class="relative w-full overflow-hidden rounded-lg border border-(--line) bg-surface-0 dark:bg-surface-900" :style="{ height: `${VIEW_H * scale}px` }" data-testid="theme-live-preview">
@@ -82,6 +82,7 @@ function readOp(data: unknown): HomeLayoutOp | null {
     const d = data as Record<string, unknown>;
     if (typeof d.id !== 'string') return null;
     if (d.op === 'remove') return { op: 'remove', id: d.id };
+    if (d.op === 'settings') return { op: 'settings', id: d.id };
     if (d.op === 'place' && Number.isFinite(d.x) && Number.isFinite(d.y)) return { op: 'place', id: d.id, x: Number(d.x), y: Number(d.y) };
     if (d.op === 'size' && Number.isFinite(d.w) && Number.isFinite(d.h)) return { op: 'size', id: d.id, w: Number(d.w), h: Number(d.h) };
     return null;

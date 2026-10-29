@@ -64,5 +64,6 @@ export default {
     editSize: '{w}×{h}',
     editMobileOnly: '모바일만',
     editRemove: '{title} 빼기',
+    editSettings: '{title} 설정',
     editResize: '크기 바꾸기',
 };

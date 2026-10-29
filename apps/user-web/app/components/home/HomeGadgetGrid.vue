@@ -11,7 +11,7 @@
         가젯의 PC/모바일 노출(`desktop`·`mobile`, lg 경계)·비어서 감춤은 `UtilHomeGadget.isVisible` 그대로이고, 숨긴 가젯의 자리는 당겨 메운다. 요소 순서는 읽는 순서((y, x))라 화면 읽기·Tab 순서가 보이는 순서와 같다.
         카드는 칸 높이를 채운다(같은 줄 카드의 아래 끝이 맞는다). 데이터는 받기만 한다(조회는 페이지).
         **관리자 미리보기 편집**(`useAdminPreview().editing` — 관리자 테마 화면의 iframe 안, 사용자 결정 2026-10-28: 편집도 실제 화면에서): 가젯마다 위에 덮는 손잡이 층을 얹는다 —
-          가운데를 끌면 옮기기, 오른쪽 아래 모서리를 끌면 크기, 오른쪽 위 ×는 빼기. 끄는 동안 놓일 칸을 이 격자의 칸·행 크기로 계산해 자리 표시를 그리고, 놓으면 관리자에게 알린다
+          가운데를 끌면 옮기기, 오른쪽 아래 모서리를 끌면 크기, 오른쪽 위 ×는 빼기, 그 옆 ⚙(내용 설정이 있는 종류 — 지금은 공구)는 관리자 설정 창 열기(`settings`). 끄는 동안 놓일 칸을 이 격자의 칸·행 크기로 계산해 자리 표시를 그리고, 놓으면 관리자에게 알린다
           (`postToAdminPreview` — 놓은 칸 `place` · 칸·행 `size` · `remove`). 실제 계산(최소 크기·겹침·위로 당기기)과 저장은 관리자 편집기가 하고, 바뀐 배치를 다시 보내면 이 격자가 그린다.
           편집 중에는 PC 에서 숨는 가젯(모바일만)도 흐리게 그린다(자리를 고칠 수 있게). 공개 화면(편집 아님)에는 아무 영향이 없다.
     -->
@@ -26,7 +26,7 @@
             :style="[cellStyle(cell), dragStyle(cell)]"
         >
             <HomeGadgetRenderer :gadget="cell.gadget" />
-            <!-- 관리자 미리보기 편집 손잡이 층 — 가운데 끌기 = 옮기기 · 오른쪽 아래 = 크기 · 오른쪽 위 × = 빼기 -->
+            <!-- 관리자 미리보기 편집 손잡이 층 — 가운데 끌기 = 옮기기 · 오른쪽 아래 = 크기 · 오른쪽 위 × = 빼기 · ⚙ = 내용 설정 -->
             <div
                 v-if="editing"
                 data-home-edit
@@ -37,6 +37,16 @@
                 <span class="home-edit-badge">
                     {{ t('home.editSize', { w: cell.w, h: cell.h }) }}<template v-if="!cell.gadget.desktop"> · {{ t('home.editMobileOnly') }}</template>
                 </span>
+                <button
+                    v-if="UtilAdminPreview.settable(cell.gadget.type)"
+                    type="button"
+                    class="home-edit-remove home-edit-settings"
+                    :aria-label="t('home.editSettings', { title: cell.gadget.title })"
+                    @pointerdown.stop
+                    @click.stop="openSettings(cell.gadget.id)"
+                >
+                    <i class="pi pi-cog text-xs" aria-hidden="true" />
+                </button>
                 <button type="button" class="home-edit-remove" :aria-label="t('home.editRemove', { title: cell.gadget.title })" @pointerdown.stop @click.stop="remove(cell.gadget.id)">
                     <i class="pi pi-times text-xs" aria-hidden="true" />
                 </button>
@@ -56,7 +66,7 @@ import type { HomeGadget } from '~/composables/home/api/useHomeGadgetApi.types';
 import type { HomeGridCell } from '~/utils/util-home-grid';
 import UtilHomeGadget from '~/utils/util-home-gadget';
 import UtilHomeGrid from '~/utils/util-home-grid';
-import { ADMIN_PREVIEW_LAYOUT } from '~/utils/util-admin-preview';
+import UtilAdminPreview, { ADMIN_PREVIEW_LAYOUT } from '~/utils/util-admin-preview';
 
 interface Props {
     /** 운영자 배치(읽은 값 — `UtilHomeGadget.sanitize`) */
@@ -217,6 +227,10 @@ function remove(id: string): void {
     postToAdminPreview({ type: ADMIN_PREVIEW_LAYOUT, op: 'remove', id });
 }
 
+function openSettings(id: string): void {
+    postToAdminPreview({ type: ADMIN_PREVIEW_LAYOUT, op: 'settings', id });
+}
+
 /** 옮기는 칸은 손가락을 따라간다 */
 function dragStyle(cell: Cell): CSSProperties | undefined {
     const d = drag.value;
@@ -333,6 +347,9 @@ onBeforeUnmount(() => {
     cursor: pointer;
     opacity: 0;
     transition: opacity 0.12s;
+}
+.home-edit-settings {
+    right: 2.75rem;
 }
 .home-edit-resize {
     position: absolute;

@@ -213,7 +213,7 @@ export interface GroupsData {
 }
 
 /**
- * `GROUP_BUY` — 모집 중인 공개 공구를 마감 이른 순으로 가젯 `count`(기본 5, 1~10)개. 줄은 회원 공구 목록(`GET /api/group-buys`)의 줄 그대로다.
+ * `GROUP_BUY` — 모집 중인 공개 공구를 가젯 `sort` 차례(마감 이른 순 기본 · 새로 시작한 순 · 참여 많은 순)로 `count`(기본 5, 1~10)개. 줄은 회원 공구 목록(`GET /api/group-buys`)의 줄 그대로다.
  * 판매 스위치가 꺼져도 목록처럼 공구는 오고 `salesOpen: false` 다(화면이 「지금은 주문을 받지 않아요」를 덧붙인다).
  */
 export interface GroupBuyData {

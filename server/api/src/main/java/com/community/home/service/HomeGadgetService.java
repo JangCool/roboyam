@@ -60,7 +60,7 @@ import tools.jackson.databind.JsonNode;
  *       VIEWS·LIKES·COMMENTS(이번 주 인기글 후보를 그 수로 다시 정렬 — 전체 글을 세지 않는다). {@code count} 기본 10.</li>
  *   <li>{@code HIGHLIGHT}: 노출 중인 하이라이트(관리자 순서), 글이 지금 보이는 것만, {@code count} 기본 5. {@code GALLERY}: 사진 있는 최신 글, {@code count} 기본 6.
  *       {@code BOARD_CARDS}: 게시판마다 최신 {@code perBoard}(기본 4)개 + 대표 글, 게시판을 정하지 않으면 켜진 일반 게시판 앞 6개. {@code GROUPS}: 지금 뜨는 소모임 {@code count}(기본 3)개.</li>
- *   <li>{@code GROUP_BUY}: 모집 중인 공개 공구를 마감 이른 순으로 {@code count}(기본 {@value #GROUP_BUY_DEFAULT}, 1~{@value #GROUP_BUY_MAX})개 — 줄은 회원 공구 목록과 같은 모양
+ *   <li>{@code GROUP_BUY}: 모집 중인 공개 공구 {@code count}(기본 5, 1~10)개를 {@code sort} 차례로(DEADLINE 마감 이른 순 기본 · NEWEST 새로 시작한 순 · POPULAR 참여 많은 순) — 줄은 회원 공구 목록과 같은 모양
  *       ({@link GroupBuyMemberService#recruiting}), 판매 스위치는 거르지 않고 {@code salesOpen} 으로 싣는다. {@code QUICK_LINKS}·{@code NOTICE_TEXT}: 가젯 설정의 {@code items}·{@code text}·{@code format}.</li>
  *   <li>노출 기간·보는 사람(로그인 전용) 설정은 아직 없다 — {@code locked} 는 늘 false.</li>
  * </ul>
@@ -71,8 +71,8 @@ public class HomeGadgetService {
 
     private static final int POPULAR_POOL = 50;
     private static final int BOARD_CARDS_DEFAULT = 6;
-    static final int GROUP_BUY_DEFAULT = 5;
-    static final int GROUP_BUY_MAX = 10;
+    static final int GROUP_BUY_DEFAULT = HomeGadgetKinds.GROUP_BUY_COUNT_DEFAULT;
+    static final int GROUP_BUY_MAX = HomeGadgetKinds.GROUP_BUY_COUNT_MAX;
     private static final List<String> PERIODS = List.of("REALTIME", "YESTERDAY", "WEEK");
 
     private final PublicSiteService site;
@@ -290,10 +290,10 @@ public class HomeGadgetService {
 
     // ── GROUP_BUY ───────────────────────────────────────────────────────────
 
-    /** 모집 중인 공개 공구(목록 진행 탭과 같은 거름·차례) + 판매 스위치 */
+    /** 모집 중인 공개 공구(목록 진행 탭과 같은 거름) — 설정 {@code count}·{@code sort}({@link HomeGadgetKinds#groupBuyCount}·{@link HomeGadgetKinds#groupBuySort}) + 판매 스위치 */
     GroupBuyDataView groupBuy(JsonNode config) {
-        int count = HomeLayoutJson.number(config, "count", GROUP_BUY_DEFAULT, 1, GROUP_BUY_MAX);
-        return new GroupBuyDataView(groupBuys.recruiting(count), sales.groupBuyOpen());
+        GroupBuyMemberService.RecruitingOrder order = GroupBuyMemberService.RecruitingOrder.valueOf(HomeGadgetKinds.groupBuySort(config));
+        return new GroupBuyDataView(groupBuys.recruiting(HomeGadgetKinds.groupBuyCount(config), order), sales.groupBuyOpen());
     }
 
     // ── 게시판 고르기 ───────────────────────────────────────────────────────

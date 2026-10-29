@@ -12,7 +12,20 @@ export default {
     // ── Columns ─
     columns: 'Grid columns',
     columnsOption: '{count} columns',
-    liveEditHint: 'In the live view below, drag a gadget to move it, drag its bottom-right corner to resize, and use × at the top right to remove it.',
+    liveEditHint: 'In the live view below, drag a gadget to move it, drag its bottom-right corner to resize, and use × at the top right to remove it. Use ⚙ on the group-buy gadget to change its count and order.',
+
+    // ── Gadget settings (⚙ — group buy only for now) ─
+    settingsTitle: '"{title}" settings',
+    settingsLead: 'Choose how many group buys to show on the home page and in what order. Only open, recruiting group buys appear.',
+    settingsCount: 'Number to show',
+    settingsCountHint: '{min}–{max}',
+    settingsSort: 'Order',
+    sort_DEADLINE: 'Ending soonest',
+    sort_NEWEST: 'Newest',
+    sort_POPULAR: 'Most joined',
+    settingsPreviewNote: 'Before you save, the live view only reorders and trims the group buys already shown. Saving picks them again with these settings.',
+    settingsApply: 'Apply',
+    settingsApplied: 'Changed the "{title}" settings. Save to apply.',
 
     // ── Editor ─
     announce: '{title}: column {x}, row {y}, width {w}, height {h}',

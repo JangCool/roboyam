@@ -40,6 +40,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * 관리자 홈 구성(테마마다 배치 한 벌) 조회·저장 — site-theme-layout-contract 「홈 구성」. 저장한 적 없는 테마는 기본 배치({@link HomeLayoutDefaults})를 준다.
@@ -49,15 +51,18 @@ import org.springframework.transaction.annotation.Transactional;
  *       그 밖의 ID({@code new-<n>})는 종류별 처음 값(테마 기본 꾸미기 · 빈 설정 · PC·모바일 모두 보임)과 보낸 제목으로 새로 만든다.</li>
  *   <li>검사(모아서 {@code 400 VALIDATION}): {@code layout.columns}(12·24) · {@code gadgets}(개수 한도) · {@code gadgets[i].id}(비었거나 겹침) ·
  *       {@code gadgets[i].type}(새 가젯의 모르는 종류) · {@code gadgets[i].title}(새 가젯 1~40자) · {@code layout.items[i]}(없는 가젯·두 번째 자리·범위·종류별 최소 크기) ·
- *       {@code layout.items}(자리 없는 가젯·겹침).</li>
+ *       {@code layout.items}(자리 없는 가젯·겹침) · 공구 가젯의 {@code gadgets[i].config.count}(1~10)·{@code gadgets[i].config.sort}(DEADLINE·NEWEST·POPULAR).</li>
+ *   <li>공구 가젯({@code GROUP_BUY})은 {@code config}(개수·정렬, 사용자 결정 2026-10-29)를 보내면 그 값으로 바꾼다 — 설정의 다른 칸은 그대로 두고, 보내지 않으면 저장 값 그대로.
+ *       다른 종류의 {@code config} 는 무시한다. 응답의 공구 가젯 {@code config} 는 저장 값(없으면 5개 · 마감 임박 순).</li>
  *   <li>통과하면 공유 레이어 {@code UtilHomeLayout.compact} 와 같이 읽는 차례대로 위로 당겨 저장한다. 같은 테마의 저장은 사이트 설정 행 잠금으로 줄 세운다.</li>
- *   <li>저장마다 감사 {@code HOME_LAYOUT_UPDATE}(테마 · 칸 수·가젯 수 전후 · 넣은·뺀 수)와 관리자 알림(사이트 설정 변경). 공개 홈({@code GET /api/home/gadgets})은 요청마다 읽는다.</li>
+ *   <li>저장마다 감사 {@code HOME_LAYOUT_UPDATE}(테마 · 칸 수·가젯 수 전후 · 넣은·뺀 수 · 설정을 바꾼 가젯 수)와 관리자 알림(사이트 설정 변경). 공개 홈({@code GET /api/home/gadgets})은 요청마다 읽는다.</li>
  * </ul>
  */
 @Service
 public class HomeLayoutAdminService {
 
     private static final Logger log = LoggerFactory.getLogger(HomeLayoutAdminService.class);
+    private static final String GROUP_BUY = "GROUP_BUY";
 
     private final HomeLayoutRepository layouts;
     private final HomeGadgetRepository gadgets;
@@ -124,13 +129,13 @@ public class HomeLayoutAdminService {
             HomeGadgetEntity keep = storedById.get(id);
             if (keep != null) {
                 typeOf.put(id, keep.getType());
-                plans.add(new Plan(id, keep, null));
+                plans.add(new Plan(id, keep, null, groupBuyConfig(keep.getType(), g.config(), path, fields)));
                 continue;
             }
             HomeGadgetSpec seed = id.startsWith(HomeLayoutDefaults.SEED_PREFIX) ? seeds.gadget(id).orElse(null) : null;
             if (seed != null) {
                 typeOf.put(id, seed.type());
-                plans.add(new Plan(id, null, seed));
+                plans.add(new Plan(id, null, seed, groupBuyConfig(seed.type(), g.config(), path, fields)));
                 continue;
             }
             String type = g.type() == null ? null : g.type().strip();
@@ -144,7 +149,7 @@ public class HomeLayoutAdminService {
             if (HomeGadgetKinds.isKnown(type)) {
                 typeOf.put(id, type);
                 plans.add(new Plan(id, null, new HomeGadgetSpec(id, type, title, true, true, HomeGadgetKinds.baseStyle(themeId),
-                        HomeLayoutJson.object(), null)));
+                        HomeLayoutJson.object(), null), groupBuyConfig(type, g.config(), path, fields)));
             }
         }
 
@@ -196,12 +201,24 @@ public class HomeLayoutAdminService {
         Map<String, String> rename = new HashMap<>();
         List<HomeGadgetEntity> result = new ArrayList<>();
         int added = 0;
+        int configChanged = 0;
         for (Plan p : plans) {
             if (p.kept() != null) {
+                JsonNode current = p.kept().toSpec().config();
+                if (p.config() != null) {
+                    JsonNode next = merged(current, p.config());
+                    if (!next.equals(current)) {
+                        p.kept().changeConfig(next);
+                        configChanged++;
+                    }
+                }
                 result.add(p.kept());
                 continue;
             }
-            HomeGadgetEntity created = HomeGadgetEntity.create(ids.nextId(), themeId, p.spec(), now);
+            HomeGadgetSpec spec = p.config() == null ? p.spec()
+                    : new HomeGadgetSpec(p.spec().id(), p.spec().type(), p.spec().title(), p.spec().desktop(), p.spec().mobile(), p.spec().style(),
+                            merged(p.spec().config(), p.config()), p.spec().more());
+            HomeGadgetEntity created = HomeGadgetEntity.create(ids.nextId(), themeId, spec, now);
             gadgets.persist(created);
             rename.put(p.requestId(), Long.toString(created.getId()));
             result.add(created);
@@ -222,7 +239,7 @@ public class HomeLayoutAdminService {
                 .with("theme", themeId)
                 .with("before", Map.of("columns", before.columns(), "gadgets", before.items().size()))
                 .with("after", Map.of("columns", saved.columns(), "gadgets", saved.items().size()))
-                .with("added", added).with("removed", removed.size()));
+                .with("added", added).with("removed", removed.size()).with("configChanged", configChanged));
         notices.siteSettingsChanged(actor, "homeLayout");
         log.info("홈 구성을 저장했다 operatorId={} theme={} gadgets={} added={} removed={}", actor.operatorId(), themeId, result.size(), added, removed.size());
         result.sort(Comparator.comparing(HomeGadgetEntity::getId));
@@ -243,7 +260,39 @@ public class HomeLayoutAdminService {
     }
 
     private static List<HomeLayoutGadgetView> views(List<HomeGadgetSpec> specs) {
-        return specs.stream().map(s -> new HomeLayoutGadgetView(s.id(), s.type(), s.title(), s.desktop(), s.mobile())).toList();
+        return specs.stream().map(s -> new HomeLayoutGadgetView(s.id(), s.type(), s.title(), s.desktop(), s.mobile(), configView(s))).toList();
+    }
+
+    /** 공구 가젯 설정(저장 값, 없으면 처음 값) — 다른 종류는 null */
+    private static HomeLayoutGadgetView.Config configView(HomeGadgetSpec s) {
+        return GROUP_BUY.equals(s.type()) ? new HomeLayoutGadgetView.Config(HomeGadgetKinds.groupBuyCount(s.config()), HomeGadgetKinds.groupBuySort(s.config())) : null;
+    }
+
+    /**
+     * 보낸 공구 가젯 설정을 검사한다 — 공구 가젯이 아니거나 보내지 않았으면 null(바꾸지 않음). 틀리면 칸 경로로 모으고 null.
+     * @return {@code {count, sort}} 또는 null.
+     */
+    private static ObjectNode groupBuyConfig(String type, HomeLayoutSaveRequest.Config raw, String path, Map<String, MessageRef> fields) {
+        if (!GROUP_BUY.equals(type) || raw == null) {
+            return null;
+        }
+        boolean ok = true;
+        if (raw.count() == null || raw.count() < 1 || raw.count() > HomeGadgetKinds.GROUP_BUY_COUNT_MAX) {
+            fields.put(path + ".config.count", new MessageRef("homeLayout.gadget.config.count", "1", String.valueOf(HomeGadgetKinds.GROUP_BUY_COUNT_MAX)));
+            ok = false;
+        }
+        if (raw.sort() == null || !HomeGadgetKinds.GROUP_BUY_SORTS.contains(raw.sort())) {
+            fields.put(path + ".config.sort", new MessageRef("homeLayout.gadget.config.sort"));
+            ok = false;
+        }
+        return ok ? HomeLayoutJson.object().put("count", raw.count()).put("sort", raw.sort()) : null;
+    }
+
+    /** 저장 설정에 바꿀 칸만 덮는다(설정의 다른 칸은 그대로) */
+    private static JsonNode merged(JsonNode base, ObjectNode patch) {
+        ObjectNode out = base != null && base.isObject() ? (ObjectNode) base.deepCopy() : HomeLayoutJson.object();
+        out.setAll(patch);
+        return out;
     }
 
     /** 두 자리가 겹치는가(사각형) */
@@ -277,7 +326,7 @@ public class HomeLayoutAdminService {
         return placed;
     }
 
-    /** 저장할 가젯 하나 — 남길 저장 가젯 또는 새로 만들 값 */
-    private record Plan(String requestId, HomeGadgetEntity kept, HomeGadgetSpec spec) {
+    /** 저장할 가젯 하나 — 남길 저장 가젯 또는 새로 만들 값, 바꿀 공구 가젯 설정(없으면 null) */
+    private record Plan(String requestId, HomeGadgetEntity kept, HomeGadgetSpec spec, ObjectNode config) {
     }
 }

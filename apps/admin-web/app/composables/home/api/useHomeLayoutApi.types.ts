@@ -1,7 +1,7 @@
 /**
  * 관리자 홈 배치 API(`/api/admin/home-layouts/**`)가 주고받는 모양 — 서버 `HomeLayoutController`(site-theme-layout-contract 「API」).
  * 홈 배치는 **테마마다 따로** 둔다(템플릿 = 테마, 사용자 결정 2026-10-28). 배치 모양·고정값·계산은 공유 레이어 `@roboyam/home-layout`(`UtilHomeLayout`) — 공개 홈(user-web)과 같은 값이다.
- * 이번 범위는 **위치·크기·칸 수와 가젯 넣기·빼기**만이다. 가젯 내용 설정(게시판·개수·꾸미기 …)은 다루지 않는다 — 새로 넣은 가젯은 서버가 종류별 기본 설정으로 만든다.
+ * 범위는 **위치·크기·칸 수와 가젯 넣기·빼기** + 공구 가젯의 개수·정렬(`config`, 2026-10-29)이다. 다른 가젯 내용 설정(게시판·개수·꾸미기 …)은 다루지 않는다 — 새로 넣은 가젯은 서버가 종류별 기본 설정으로 만든다.
  * ⚠ ID 는 문자열(Snowflake). 화면에서 새로 넣은 가젯은 저장 전까지 `new-<n>`, 테마 기본 배치에서 다시 넣은 가젯은 기본 배치의 ID 를 쓴다(`seed-<n>` — 서버가 그 시드 설정으로, 모르는 ID 면 종류별 처음 값으로 새로 만든다).
  */
 import type { HomeLayout } from '#layers/home-layout/utils/util-home-layout';
@@ -9,7 +9,21 @@ import type { HomeLayout } from '#layers/home-layout/utils/util-home-layout';
 /** 가젯 종류 8종 — user-web `GadgetKind` 와 같은 키(로보얌에 없는 핫딜·직접홍보·광고는 없다) */
 export type HomeGadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'QUICK_LINKS' | 'NOTICE_TEXT';
 
-/** 배치 편집기가 보는 가젯 한 개(내용 설정은 싣지 않는다) */
+/** 공구 가젯 정렬 — 마감 임박 순(기본) · 새로 시작한 순 · 참여 많은 순(사용자 결정 2026-10-29) */
+export type HomeGroupBuySort = 'DEADLINE' | 'NEWEST' | 'POPULAR';
+
+/** 가젯 내용 설정(실제 화면의 ⚙ → 설정 창) — 지금은 공구 가젯의 개수(1~10)·정렬만. 다른 종류는 `null` */
+export interface HomeGadgetConfig {
+    count: number;
+    sort: HomeGroupBuySort;
+}
+
+/** 공구 가젯 설정의 범위·처음 값 — 서버 `HomeGadgetService` 의 공구 가젯과 같다 */
+export const HOME_GROUP_BUY_COUNT = { min: 1, max: 10 } as const;
+export const HOME_GROUP_BUY_SORTS: readonly HomeGroupBuySort[] = ['DEADLINE', 'NEWEST', 'POPULAR'];
+export const HOME_GROUP_BUY_DEFAULT_CONFIG: HomeGadgetConfig = { count: 5, sort: 'DEADLINE' };
+
+/** 배치 편집기가 보는 가젯 한 개(내용 설정은 고칠 수 있는 종류만 — 지금은 공구) */
 export interface HomeLayoutGadget {
     id: string;
     /** 종류 — 모르는 키도 받는다(편집기는 기본 아이콘으로 그린다) */
@@ -20,6 +34,8 @@ export interface HomeLayoutGadget {
     desktop: boolean;
     /** 모바일에서 보이는가 */
     mobile: boolean;
+    /** 내용 설정 — 공구 가젯만(서버가 저장 값, 없으면 5개 · 마감 임박 순을 준다). 다른 종류는 null. 저장 때 보내면 그 값으로 바꾸고 null 이면 그대로 */
+    config?: HomeGadgetConfig | null;
 }
 
 /** 배치 + 가젯 목록 */
