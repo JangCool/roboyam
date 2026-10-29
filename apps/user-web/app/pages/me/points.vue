@@ -3,7 +3,7 @@
         <h1 class="text-lg font-bold">{{ t('point.title') }}</h1>
 
         <!-- 사업자 전용 계정(H-2) — 포인트가 없다(서버 `403 BUSINESS_ACCOUNT_RESTRICTED`) -->
-        <EmptyState v-if="businessAccount" :title="t('point.businessTitle')" :description="t('point.businessText')" icon="pi pi-wallet" data-testid="points-business" />
+        <EmptyState v-if="businessAccount" class="panel-card" :title="t('point.businessTitle')" :description="t('point.businessText')" icon="pi pi-wallet" data-testid="points-business" />
 
         <template v-else-if="user">
             <!-- 보유 포인트 · 오늘 적립 — 실제 `GET /api/me/points` -->

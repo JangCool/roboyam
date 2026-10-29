@@ -16,107 +16,111 @@
                 <Button as="router-link" :to="UtilPointShop.MY_ITEMS_PATH" :label="t('pointShop.myItems')" icon="pi pi-box" size="small" severity="secondary" variant="outlined" data-testid="pointshop-my-items" />
             </section>
 
-            <!-- 종류 거르기 — 주소의 `?kind=` 가 상태다 -->
-            <SelectButton
-                :model-value="kind"
-                :options="kindOptions"
-                option-label="label"
-                option-value="value"
-                :allow-empty="false"
-                size="small"
-                class="flex-wrap"
-                :aria-label="t('pointShop.kindFilter')"
-                data-testid="pointshop-kind"
-                @update:model-value="setKind"
-            />
-
-            <div v-if="status === 'loading'" class="grid grid-cols-2 gap-3 sm:grid-cols-3" role="status" :aria-label="t('pointShop.loading')" data-testid="pointshop-loading">
-                <div v-for="n in 6" :key="n" class="h-48 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
-            </div>
-            <ErrorState v-else-if="status === 'error'" :title="t('pointShop.loadFailed')" :description="loadError" retry data-testid="pointshop-error" @retry="load" />
-
-            <!-- 아바타 탭 — 유료 306종(`GET /api/avatars`). 카테고리 칩 + 격자, 누르면 위에 크게 미리보기(내 닉네임·장착 테두리와 함께) + 구매 -->
-            <template v-else-if="kind === 'PROFILE_AVATAR'">
-                <EmptyState v-if="!catalog || shopItems.length === 0" :title="t('pointShop.emptyFiltered')" :description="t('pointShop.emptyText')" icon="pi pi-user" data-testid="pointshop-avatar-empty" />
-                <template v-else>
-                    <section
-                        v-if="picked"
-                        class="flex flex-wrap items-center gap-4 panel-card p-4"
-                        :aria-labelledby="`${uid}-picked`"
-                        data-testid="pointshop-avatar-preview"
+            <!-- 종류 탭 · 품목 격자 · 안내를 한 카드에 — 기본 테마는 카드가 보이지 않고, 카드 테마는 흰 카드다(`main.css` `content-card`) -->
+            <div class="content-card flex flex-col gap-4" data-testid="pointshop-catalog">
+                <!-- 종류 거르기 — 주소의 `?kind=` 가 상태다(공동구매 목록과 같은 밑줄 탭) -->
+                <div role="group" :aria-label="t('pointShop.kindFilter')" class="no-scrollbar flex gap-5 overflow-x-auto border-b border-hairline" data-testid="pointshop-kind">
+                    <button
+                        v-for="opt in kindOptions"
+                        :key="opt.value"
+                        type="button"
+                        class="-mb-px inline-flex min-h-11 shrink-0 items-center whitespace-nowrap border-b-2 text-[0.9375rem] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+                        :class="kind === opt.value ? 'border-(--p-text-color) font-bold text-color' : 'border-transparent text-muted-color hover:text-color'"
+                        :aria-pressed="kind === opt.value"
+                        @click="setKind(opt.value)"
                     >
-                        <ProfileBorderAvatar :initial="initial" :src="picked.url" :alt="picked.name" size="xl" surface="card" :border-style="mine?.profileBorder ?? null" />
-                        <div class="min-w-0 flex-1">
-                            <h2 :id="`${uid}-picked`" class="m-0 text-base font-bold">{{ picked.name }}</h2>
-                            <p class="m-0 mt-0.5 text-xs text-muted-color">{{ t(UtilAvatar.categoryKey(picked.category)) }}</p>
-                            <div class="mt-2 flex items-center gap-2 text-xs text-muted-color">
-                                <ProfileBorderAvatar :initial="initial" :src="picked.url" size="xs" surface="card" :border-style="mine?.profileBorder ?? null" />
-                                <PostAuthorLabel :author="previewAuthor" preview strong class="text-sm" />
-                            </div>
-                            <div class="mt-2 flex flex-wrap items-center gap-1.5">
-                                <span class="mr-1 text-lg font-bold tabular-nums text-primary">{{ UtilPoint.points(picked.price ?? 0) }}</span>
-                                <PointShopTag>{{ t('pointShop.usagePermanent') }}</PointShopTag>
-                                <PointShopTag v-if="picked.selected" tone="primary">{{ t('avatar.inUse') }}</PointShopTag>
-                                <PointShopTag v-else-if="picked.owned" tone="success">{{ t('pointShop.owned') }}</PointShopTag>
-                                <PointShopTag v-else-if="!picked.forSale">{{ t('avatar.notForSale') }}</PointShopTag>
-                            </div>
-                        </div>
-                        <div class="flex w-full flex-col gap-1.5 sm:w-auto">
-                            <Button
-                                v-if="picked.owned && !picked.selected"
-                                type="button"
-                                :label="t('avatar.useNow')"
-                                icon="pi pi-user"
-                                :loading="selecting"
-                                data-testid="pointshop-avatar-use"
-                                @click="useAvatar(picked)"
-                            />
-                            <Button
-                                v-else-if="!picked.owned"
-                                type="button"
-                                :label="t('pointShop.buy', { points: UtilPoint.points(picked.price ?? 0) })"
-                                icon="pi pi-shopping-cart"
-                                :disabled="!picked.forSale"
-                                data-testid="pointshop-avatar-buy"
-                                @click="buyFlow.start()"
-                            />
-                            <p v-if="!picked.owned && !picked.forSale" class="m-0 text-xs text-muted-color">{{ t('avatar.notForSaleText') }}</p>
-                        </div>
-                    </section>
-                    <p v-else class="m-0 text-sm text-muted-color">{{ t('avatar.shopPickHint') }}</p>
+                        {{ opt.label }}
+                    </button>
+                </div>
 
-                    <AvatarCategoryChips v-model="avatarCategory" :categories="shopCategories" :label="t('avatar.categoriesLabel')" testid="pointshop-avatar-categories" />
-                    <AvatarGrid :cells="shopCells" :label="t(UtilAvatar.categoryKey(avatarCategory))" testid="pointshop-avatar-grid" @choose="pickedId = $event" />
+                <div v-if="status === 'loading'" class="grid grid-cols-2 gap-3 sm:grid-cols-3" role="status" :aria-label="t('pointShop.loading')" data-testid="pointshop-loading">
+                    <div v-for="n in 6" :key="n" class="h-48 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
+                </div>
+                <ErrorState v-else-if="status === 'error'" :title="t('pointShop.loadFailed')" :description="loadError" retry data-testid="pointshop-error" @retry="load" />
+
+                <!-- 아바타 탭 — 유료 306종(`GET /api/avatars`). 카테고리 칩 + 격자, 누르면 위에 크게 미리보기(내 닉네임·장착 테두리와 함께) + 구매 -->
+                <template v-else-if="kind === 'PROFILE_AVATAR'">
+                    <EmptyState v-if="!catalog || shopItems.length === 0" :title="t('pointShop.emptyFiltered')" :description="t('pointShop.emptyText')" icon="pi pi-user" data-testid="pointshop-avatar-empty" />
+                    <template v-else>
+                        <section
+                            v-if="picked"
+                            class="flex flex-wrap items-center gap-4 panel-card p-4"
+                            :aria-labelledby="`${uid}-picked`"
+                            data-testid="pointshop-avatar-preview"
+                        >
+                            <ProfileBorderAvatar :initial="initial" :src="picked.url" :alt="picked.name" size="xl" surface="card" :border-style="mine?.profileBorder ?? null" />
+                            <div class="min-w-0 flex-1">
+                                <h2 :id="`${uid}-picked`" class="m-0 text-base font-bold">{{ picked.name }}</h2>
+                                <p class="m-0 mt-0.5 text-xs text-muted-color">{{ t(UtilAvatar.categoryKey(picked.category)) }}</p>
+                                <div class="mt-2 flex items-center gap-2 text-xs text-muted-color">
+                                    <ProfileBorderAvatar :initial="initial" :src="picked.url" size="xs" surface="card" :border-style="mine?.profileBorder ?? null" />
+                                    <PostAuthorLabel :author="previewAuthor" preview strong class="text-sm" />
+                                </div>
+                                <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                    <span class="mr-1 text-lg font-bold tabular-nums text-primary">{{ UtilPoint.points(picked.price ?? 0) }}</span>
+                                    <PointShopTag>{{ t('pointShop.usagePermanent') }}</PointShopTag>
+                                    <PointShopTag v-if="picked.selected" tone="primary">{{ t('avatar.inUse') }}</PointShopTag>
+                                    <PointShopTag v-else-if="picked.owned" tone="success">{{ t('pointShop.owned') }}</PointShopTag>
+                                    <PointShopTag v-else-if="!picked.forSale">{{ t('avatar.notForSale') }}</PointShopTag>
+                                </div>
+                            </div>
+                            <div class="flex w-full flex-col gap-1.5 sm:w-auto">
+                                <Button
+                                    v-if="picked.owned && !picked.selected"
+                                    type="button"
+                                    :label="t('avatar.useNow')"
+                                    icon="pi pi-user"
+                                    :loading="selecting"
+                                    data-testid="pointshop-avatar-use"
+                                    @click="useAvatar(picked)"
+                                />
+                                <Button
+                                    v-else-if="!picked.owned"
+                                    type="button"
+                                    :label="t('pointShop.buy', { points: UtilPoint.points(picked.price ?? 0) })"
+                                    icon="pi pi-shopping-cart"
+                                    :disabled="!picked.forSale"
+                                    data-testid="pointshop-avatar-buy"
+                                    @click="buyFlow.start()"
+                                />
+                                <p v-if="!picked.owned && !picked.forSale" class="m-0 text-xs text-muted-color">{{ t('avatar.notForSaleText') }}</p>
+                            </div>
+                        </section>
+                        <p v-else class="m-0 text-sm text-muted-color">{{ t('avatar.shopPickHint') }}</p>
+
+                        <AvatarCategoryChips v-model="avatarCategory" :categories="shopCategories" :label="t('avatar.categoriesLabel')" testid="pointshop-avatar-categories" />
+                        <AvatarGrid :cells="shopCells" :label="t(UtilAvatar.categoryKey(avatarCategory))" testid="pointshop-avatar-grid" @choose="pickedId = $event" />
+                    </template>
                 </template>
-            </template>
 
-            <EmptyState
-                v-else-if="!data || data.items.length === 0"
-                :title="t(kind === 'ALL' ? 'pointShop.empty' : 'pointShop.emptyFiltered')"
-                :description="t('pointShop.emptyText')"
-                icon="pi pi-shopping-bag"
-                data-testid="pointshop-empty"
-            />
-            <ul v-else class="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3" data-testid="pointshop-items">
-                <li v-for="item in data.items" :key="item.id">
-                    <NuxtLink
-                        :to="UtilPointShop.itemPath(item.id)"
-                        class="flex h-full flex-col gap-2 panel-card p-3 hover:border-primary focus-visible:outline-2 focus-visible:outline-primary"
-                        :class="item.saleState === 'SOLD_OUT' ? 'opacity-70' : ''"
-                        data-testid="pointshop-item"
-                    >
-                        <PointShopItemThumb :kind="item.kind" :color="item.color" :border-style="item.borderStyle" :my-avatar-src="myAvatar" :nickname="nickname" />
-                        <p class="m-0 line-clamp-2 text-sm font-semibold leading-snug">{{ localizedName(item.name, item.nameEn) }}</p>
-                        <p class="m-0 text-sm font-bold tabular-nums text-primary">{{ UtilPoint.points(item.price) }}</p>
-                        <div class="mt-auto flex flex-wrap items-center gap-1">
-                            <PointShopTag>{{ UtilPointShopMessages.usage(t, item) }}</PointShopTag>
-                            <PointShopTag v-for="tag in UtilPointShopMessages.tags(t, time, item)" :key="tag.key" :tone="tag.tone">{{ tag.text }}</PointShopTag>
-                        </div>
-                    </NuxtLink>
-                </li>
-            </ul>
+                <EmptyState
+                    v-else-if="!data || data.items.length === 0"
+                    :title="t(kind === 'ALL' ? 'pointShop.empty' : 'pointShop.emptyFiltered')"
+                    :description="t('pointShop.emptyText')"
+                    icon="pi pi-shopping-bag"
+                    data-testid="pointshop-empty"
+                />
+                <ul v-else class="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3" data-testid="pointshop-items">
+                    <li v-for="item in data.items" :key="item.id">
+                        <NuxtLink
+                            :to="UtilPointShop.itemPath(item.id)"
+                            class="flex h-full flex-col gap-2 panel-card p-3 hover:border-primary focus-visible:outline-2 focus-visible:outline-primary"
+                            :class="item.saleState === 'SOLD_OUT' ? 'opacity-70' : ''"
+                            data-testid="pointshop-item"
+                        >
+                            <PointShopItemThumb :kind="item.kind" :color="item.color" :border-style="item.borderStyle" :my-avatar-src="myAvatar" :nickname="nickname" />
+                            <p class="m-0 line-clamp-2 text-sm font-semibold leading-snug">{{ localizedName(item.name, item.nameEn) }}</p>
+                            <p class="m-0 text-sm font-bold tabular-nums text-primary">{{ UtilPoint.points(item.price) }}</p>
+                            <div class="mt-auto flex flex-wrap items-center gap-1">
+                                <PointShopTag>{{ UtilPointShopMessages.usage(t, item) }}</PointShopTag>
+                                <PointShopTag v-for="tag in UtilPointShopMessages.tags(t, time, item)" :key="tag.key" :tone="tag.tone">{{ tag.text }}</PointShopTag>
+                            </div>
+                        </NuxtLink>
+                    </li>
+                </ul>
 
-            <p class="text-xs leading-relaxed text-muted-color">{{ t('pointShop.listNote', { days: refundDays }) }}</p>
+                <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('pointShop.listNote', { days: refundDays }) }}</p>
+            </div>
         </template>
 
         <PointShopPurchaseDialog
@@ -188,7 +192,7 @@ const myAvatar = computed(() => decoration.myAvatarUrl());
 const mine = computed(() => decoration.mine());
 
 const kind = computed<PointShopKindFilter>(() => UtilPointShop.parseKind(route.query.kind));
-const kindOptions = computed(() => [
+const kindOptions = computed<{ value: PointShopKindFilter; label: string }[]>(() => [
     { value: 'ALL', label: t('common.all') },
     { value: 'NICKNAME_COLOR', label: t('pointShop.kindNicknameColor') },
     { value: 'PROFILE_BORDER', label: t('pointShop.kindProfileBorder') },

@@ -5,7 +5,7 @@
         진행 중 일정은 시작이 읽기 전용(서버가 준 시작 시각을 그대로 보낸다), 끝났거나 취소된 일정은 폼 대신 안내. 개인 책임 확인 체크는 온라인 → 오프라인일 때만.
         저장하면 토스트 후 일정 상세로(`replace`). 고치던 내용이 있으면 나갈 때 묻는다.
     -->
-    <div class="mx-auto max-w-xl">
+    <div class="content-card mx-auto max-w-xl">
         <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface px-2 py-1.5 md:hidden">
             <Button type="button" icon="pi pi-times" variant="text" severity="secondary" :aria-label="t('common.cancel')" @click="cancel" />
             <span class="text-sm font-semibold">{{ t('groupEvent.editTitle') }}</span>

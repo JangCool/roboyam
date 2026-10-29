@@ -14,7 +14,7 @@
         :blocked-reason="group?.blockedReason ?? null"
         @retry="load()"
     >
-        <form v-if="group" class="flex flex-col gap-5" novalidate data-testid="group-edit-form" @submit.prevent="save">
+        <form v-if="group" class="content-card flex flex-col gap-5" novalidate data-testid="group-edit-form" @submit.prevent="save">
             <LabeledField :label="t('group.fieldName')" :hint="t('group.nameHint', { min: UtilGroup.NAME_MIN, max: UtilGroup.NAME_MAX })" :error="fieldError('name')">
                 <template #aside>
                     <small class="text-xs tabular-nums" :class="nameLength > UtilGroup.NAME_MAX ? 'font-semibold text-red-600 dark:text-red-400' : 'text-muted-color'">{{ t('group.counter', { n: nameLength, max: UtilGroup.NAME_MAX }) }}</small>

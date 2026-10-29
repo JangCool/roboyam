@@ -1,5 +1,5 @@
 <template>
-    <div class="mx-auto max-w-xl">
+    <div class="content-card mx-auto max-w-xl">
         <!-- 불러오는 중 -->
         <div v-if="status === 'loading'" class="mt-2" role="status" :aria-label="t('sanction.loading')" data-testid="sanction-loading">
             <div class="mx-auto size-14 animate-pulse rounded-full bg-surface-200 dark:bg-surface-800" />

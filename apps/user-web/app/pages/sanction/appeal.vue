@@ -1,5 +1,5 @@
 <template>
-    <div class="mx-auto max-w-xl">
+    <div class="content-card mx-auto max-w-xl">
         <h1 class="mb-3 text-lg font-bold">{{ headerTitle }}</h1>
 
         <!-- 불러오는 중 -->

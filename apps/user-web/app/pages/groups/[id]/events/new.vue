@@ -4,7 +4,7 @@
         칸: 제목(60자) · 시작(지금 뒤 · `limits.eventMaxDaysAhead` 일 안) · 끝(선택, 시작 뒤 · `limits.eventMaxLengthDays` 일 안) · 진행 방식 · 장소(오프라인) · 설명(1000자) · 오프라인 확인 체크.
         입구가 막힌 사람에게는 폼 대신 까닭(`GroupEventGate`). 등록하면 「멤버에게 알림이 가요」 토스트 후 일정 상세로(`replace`). 쓰던 내용이 있으면 나갈 때 묻는다.
     -->
-    <div class="mx-auto max-w-xl">
+    <div class="content-card mx-auto max-w-xl">
         <div class="-mx-4 -mt-4 mb-3 flex items-center gap-1 border-b border-surface px-2 py-1.5 md:hidden">
             <Button type="button" icon="pi pi-times" variant="text" severity="secondary" :aria-label="t('common.cancel')" @click="cancel" />
             <span class="text-sm font-semibold">{{ t('groupEvent.createTitle') }}</span>

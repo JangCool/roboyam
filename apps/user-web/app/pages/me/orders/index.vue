@@ -9,7 +9,7 @@
             <div v-for="n in 4" :key="n" class="h-24 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
         </div>
         <ErrorState v-else-if="status === 'error'" :title="t('groupBuy.ordersFailed')" :description="loadError" retry data-testid="my-orders-error" @retry="load" />
-        <EmptyState v-else-if="items.length === 0" :title="t('groupBuy.ordersEmpty')" :description="t('groupBuy.ordersEmptyText')" icon="pi pi-receipt" data-testid="my-orders-empty">
+        <EmptyState v-else-if="items.length === 0" class="panel-card" :title="t('groupBuy.ordersEmpty')" :description="t('groupBuy.ordersEmptyText')" icon="pi pi-receipt" data-testid="my-orders-empty">
             <Button as="router-link" :to="UtilGroupBuy.LIST_PATH" :label="t('groupBuy.browse')" />
         </EmptyState>
         <template v-else>

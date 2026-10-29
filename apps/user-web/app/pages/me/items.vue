@@ -5,14 +5,14 @@
             <Button as="router-link" :to="UtilPointShop.PATH" :label="term('POINT_SHOP')" icon="pi pi-shopping-bag" size="small" severity="secondary" variant="outlined" data-testid="myitems-shop" />
         </div>
 
-        <EmptyState v-if="businessAccount" :title="t('point.businessTitle')" :description="t('point.businessText')" icon="pi pi-wallet" />
+        <EmptyState v-if="businessAccount" class="panel-card" :title="t('point.businessTitle')" :description="t('point.businessText')" icon="pi pi-wallet" />
 
         <div v-else-if="status === 'loading'" class="flex flex-col gap-4" role="status" :aria-label="t('pointShop.myItemsLoading')" data-testid="myitems-loading">
             <div class="h-28 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
             <div v-for="n in 3" :key="n" class="h-16 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
         </div>
         <ErrorState v-else-if="status === 'error'" :title="t('pointShop.myItemsLoadFailed')" :description="loadError" retry data-testid="myitems-error" @retry="load()" />
-        <EmptyState v-else-if="items.length === 0" :title="t('pointShop.myItemsEmpty')" :description="t('pointShop.myItemsEmptyText')" icon="pi pi-box" data-testid="myitems-empty">
+        <EmptyState v-else-if="items.length === 0" class="panel-card" :title="t('pointShop.myItemsEmpty')" :description="t('pointShop.myItemsEmptyText')" icon="pi pi-box" data-testid="myitems-empty">
             <Button as="router-link" :to="UtilPointShop.PATH" :label="term('POINT_SHOP')" />
         </EmptyState>
 

@@ -10,7 +10,7 @@
             <div v-for="n in 3" :key="n" class="h-28 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
         </div>
         <ErrorState v-else-if="status === 'error'" :title="t('groupBuyReview.loadFailed')" :description="loadError" retry @retry="load(false)" />
-        <EmptyState v-else-if="items.length === 0" icon="pi pi-star" :title="t('groupBuyReview.myEmpty')" :description="t('groupBuyReview.myEmptyText')">
+        <EmptyState v-else-if="items.length === 0" class="panel-card" icon="pi pi-star" :title="t('groupBuyReview.myEmpty')" :description="t('groupBuyReview.myEmptyText')">
             <Button as="router-link" :to="UtilCommerce.ORDERS_PATH" :label="t('commerce.ordersTitle')" severity="secondary" variant="outlined" />
         </EmptyState>
         <ul v-else class="m-0 flex list-none flex-col gap-3 p-0">

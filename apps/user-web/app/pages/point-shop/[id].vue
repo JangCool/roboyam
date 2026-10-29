@@ -4,7 +4,7 @@
             <i class="pi pi-angle-left text-xs" aria-hidden="true" />{{ term('POINT_SHOP') }}
         </NuxtLink>
 
-        <EmptyState v-if="businessAccount" :title="t('point.businessTitle')" :description="t('point.businessText')" icon="pi pi-wallet" />
+        <EmptyState v-if="businessAccount" class="panel-card" :title="t('point.businessTitle')" :description="t('point.businessText')" icon="pi pi-wallet" />
 
         <div v-else-if="status === 'loading'" class="flex flex-col gap-4" role="status" :aria-label="t('pointShop.loading')" data-testid="pointshop-detail-loading">
             <div class="h-28 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" />
