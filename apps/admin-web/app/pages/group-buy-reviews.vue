@@ -1,10 +1,10 @@
 <template>
     <!--
-        공구 › 리뷰(`/group-buy-reviews`) — 계약 「리뷰 규칙」(2b-6, 가정 — 사용자 확인 대기).
+        공구 › 리뷰(`/group-buy-reviews`) — 계약 「리뷰 규칙」(2b-6, 사용자 확정 2026-10-29).
         · 상태 탭(건수): 공개 · 신고 있음 · 숨김 · 전체(작성자가 지운 것 포함). 별점 하나 · 사진 있음 · 답글 없음 · 찾기(상품·공구 · 닉네임 · 회원·주문 번호). 새 것이 위.
         · 한 줄: 작성 시각 · 상품·공구(차수) · 회원 · 별점 · 리뷰 앞부분(사진 수 · 신고 수) · 상태(답글 여부).
         · 줄을 누르면 상세 서랍(`?review=ID`): 공식 답글(하나, 수정 가능) · 숨기기(사유 코드만 — 낮은 별점은 사유가 아니다) · 숨김 풀기(사유 5~200자).
-        권한(가정): 화면 `commerce.order.read` · 답글·숨김 `commerce.order.manage`. 서버 호출은 `useGroupBuyReviewAdminApi`(지금 목업 — `?mock=review-fail`·`review-empty` …).
+        권한: 화면 `commerce.order.read` · 답글·숨김 `commerce.order.manage`. 서버 호출은 `useGroupBuyReviewAdminApi`(서버 연결 2026-10-29).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('groupBuyReview.title')" :subtitle="t('groupBuyReview.subtitle')" />

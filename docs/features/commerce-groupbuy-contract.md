@@ -15,7 +15,7 @@
 | 2b-3 발송·요청·환불 서버 | V102, 발주·준비중·발송·배송완료(일괄 부분 성공)·에스크로 송장 등록, 택배사, 배송지 열람·수정·명단 내보내기, 취소·반품 요청(줄·수량 단위)·처리 방법·`GroupBuyRefundCalculator`·보상액·운영 환불, 규칙 테스트 | backend | **구현 완료**(2026-10-28, 브랜치 `claude/festive-cori-faed64` — 아래 「2b-3 구현 결과」) — **develop 병합 2026-10-28**(V102, 7a7cd545) · 보강 V103(f60a5033) **develop 병합 2026-10-29** |
 | 2b-4 설정·알림 + 관리자 API + 연결 | V104(2b-3 보강이 V103 을 썼다), 판매 스위치·체크리스트·사업자 정보·공구 설정, 회원 알림·메일(계약 통지 포함)·관심·수량 풀림·연장·차수 알림, 운영자 알림·기한 경고, 개인정보 파기 pg_cron, 관리자·회원 API 정리, 화면 연결 | backend → frontend | **구현 완료**(2026-10-28, 브랜치 `claude/commerce-2b-4-groupbuy-api-9e8cb4` 57cb2f3d — 아래 「2b-4 구현 결과」, 2b-1 화면 브랜치를 합쳐 연결) — **develop 병합 2026-10-29**(2b-1 화면 포함) |
 | 2b-5 실제 확인 | 포트원 테스트 채널로 공구 결제·불발 환불·발송 후 반품 환불 사람 확인(공개 주소가 필요한 웹훅·에스크로는 dev 서버) | 사용자 + 세션 | **로컬 확인 2026-10-29**(아래 「2b-5 로컬 실제 확인」) — 웹훅·에스크로는 dev 서버에서 |
-| 2b-6 공구 Q&A · 리뷰 | V106(V105 는 테마·레이아웃이 먼저 썼다 — 2026-10-29) 하나에 Q&A 와 리뷰, 아래 「Q&A 규칙」·「리뷰 규칙」 — 화면 목업 → 확정 → 서버 → 연결 | frontend → backend | Q&A 사용자 결정 2026-10-28 · 리뷰는 2026-10-29 추가(가정 — 사용자 확인 대기) |
+| 2b-6 공구 Q&A · 리뷰 | V106(V105 는 테마·레이아웃이 먼저 썼다 — 2026-10-29) 하나에 Q&A 와 리뷰, 아래 「Q&A 규칙」·「리뷰 규칙」 — 화면 목업 → 확정 → 서버 → 연결 | frontend → backend | **화면 확정·서버·연결 2026-10-29**(상세 탭 구조·리뷰·Q&A 함께 — 아래 「2b-6 결과」) |
 순서: 2b-1 ∥ 2b-2 → 화면 확정 → 2b-3 → 2b-4 → 2b-5, 2b-6 은 2b-4 다음(구매 흐름을 막지 않는다). 2b-2 는 화면과 무관한 서버 핵심이라 2a 와 같이 화면 확정 전에 병행한다(승인 필요). 세션마다 자기 worktree.
 
 ## 화면 목록 (2b-1)
@@ -321,7 +321,7 @@
 - **보관**(사용자 결정): 단순 문의도 소비자 문의 기록으로 보고 **마지막 답변일(답변이 없으면 작성일)부터 3년** 보관 후 파기(commerce.md 17-3 「문의 3년」). 탈퇴 회원의 질문은 「탈퇴한 회원」으로 표시. 개인정보 처리방침에 항목을 더한다. [법무 확인 — 단순 상품 문의가 「소비자 불만·분쟁 처리 기록」에 드는지. 보수적으로 3년]
 - 하자·오배송 환불은 Q&A 가 아니라 반품 요청(하자)으로 안내.
 
-## 리뷰 규칙 (2b-6 — 2026-10-29 추가, **가정 — 사용자 확인 대기**)
+## 리뷰 규칙 (2b-6 — 2026-10-29 추가, **사용자 확정 2026-10-29**)
 - **누가·언제**: 그 단품을 산 회원. 주문 줄이 배송완료된 뒤부터 배송완료일 + 90일까지, 주문 줄(단품)마다 하나. 전부 취소·반품된 줄은 쓰지 못한다. 쓸 수 있는지는 서버가 줄마다 정한다(`WRITABLE`·`WRITTEN`·`EXPIRED`·`NONE`).
 - **내용**: 별점 1~5(필수) · 글 10~1,000자 · 사진 5장까지(반품 요청 사진과 같은 방식 — 먼저 올리고 ID 로 붙인다) · 산 단품 이름은 주문 줄 사본을 자동 표시.
 - **작성자**: 작성 30일 안에 고치기(이전 내용은 `group_buy_review_revisions`), 언제든 지우기(같은 줄에 다시 쓰지 못한다 — 가정).
@@ -680,3 +680,13 @@
 - [확인 필요 — 2b-5·법무] ~~이니시스 V2 카드 부분 취소 연속 2회~~(2b-5 로컬 확인 2026-10-29 — 됨), 네이버페이·카카오페이 부분 취소 연속 2회, 에스크로 구매 확정 전·후 부분 취소, PG 가맹점 취소 한도(불발 대량 환불), 공정위 사업자정보공개 링크 의무, 소비자분쟁해결기준·표시광고 고시 현행 원문(최종 검토는 법령 사본·판결 인용으로 확인 — law.go.kr 본문은 못 읽음).
 - 2b-2 를 화면 확정 전에 병행할지(2a 와 같이).
 - [확인 필요] 「한정 N개」 문구를 쓴 공구에 추가 입고·다음 차수를 열 때 표시·광고 문제 — 등록 화면에 「한정」 표현 안내를 두고 법무 확인 목록(commerce.md 20-2)에 더한다.
+
+## 2b-6 결과 (2026-10-29 — 화면 확정 · 서버 · 연결, 브랜치 `claude/commerce-2b-6-groupbuy-qna-794c53`)
+사용자: 「모두 확정」 — 공구 상세 탭 구조(상품상세·상품평·상품문의·배송/교환/반품 안내, 붙는 탭·scrollspy·해시), 리뷰 머리(네이버 쇼핑 모양 — 별점 분포 없음, 「리뷰 제공 기준 ⓘ」), 리뷰·Q&A 화면과 「리뷰 규칙」 가정 그대로.
+- **마이그레이션** shared `V106__group_buy_qna_review.sql`: Q&A 셋(`group_buy_questions`·`group_buy_answers`·`group_buy_answer_revisions`) · 리뷰 넷(`group_buy_reviews` — `item_id` 유일, 지워도 줄은 남는다 · `_photos` · `_revisions` · `_replies`) · 신고 `group_buy_ugc_reports`. 반복 `R__batch_32` 에 ④ 문의 보관 만료 파기.
+- **세션 정리 결정 — 신고 저장소**: 계약의 「기존 `reports` 대상 종류 CHECK 에 더한다」 대신 공구 신고 표 `group_buy_ugc_reports` 에 둔다. 기존 `reports`·`report_cases` 는 `board_id` 가 꼭 있어야 하고 신고 관리 화면이 게시판 기준이라, 공구 질문·리뷰를 넣으면 화면·사건 모델을 함께 고쳐야 한다. 회원 쪽 길은 같다(공용 `POST /api/reports`, 대상 `GROUP_BUY_QUESTION`·`GROUP_BUY_REVIEW` — `ReportService` 가 회원 상태·신고 켜짐·사유를 같은 규칙으로 검사한 뒤 넘긴다). 처리는 Q&A·리뷰 상세의 숨김(열린 신고 RESOLVED). 신고 간격·하루 한도는 아직 걸지 않았다(대상마다 한 번만).
+- **서버** shared `com.community.groupbuy.feedback`: `GroupBuyQnaService`(쓰기 간격 30초 — 가정, 개인정보 모양 `PersonalInfo` — 전화·이메일·「구/군 + 로/길 + 번지」) · `GroupBuyReviewService` · `GroupBuyUgcReportService` · `FeedbackView` · `FeedbackException`. api `GroupBuyFeedbackController`(경로는 user-web API 주석 그대로) · 공구 목록 카드 `reviews`(평균 소수 첫째 자리·수). admin `GroupBuyFeedbackAdminController` · 관리자 메뉴 「공구 › Q&A」·「리뷰」(`AdminScreenRegistry`, `commerce.order.read`).
+- **감사** `GROUPBUY_QNA_VIEW`(개인정보 열람) · `GROUPBUY_QNA_HIDE`·`GROUPBUY_QNA_ANSWER_EDIT`·`GROUPBUY_REVIEW_HIDE`·`GROUPBUY_REVIEW_REPLY_EDIT`(일반). **알림** 회원 `GROUP_BUY` 종류 `QNA_ANSWERED`·`REVIEW_REPLIED`(첫 답변·답글만) · 운영자 `COMMERCE_QNA_RECEIVED`·`COMMERCE_QNA_REPORTED`·`COMMERCE_REVIEW_REPORTED`.
+- **테스트** shared `GroupBuyFeedbackTest` 15건(G11·G11R) 통과 · 함께 돌린 것: `GroupBuyPrivacyCleanupBatchTest`·`GroupBuyNotificationsTest`·`GroupBuySchemaTest`·admin `AuditRetentionAdminTest`·`CommercePermissionsAndMenuTest`·`GroupBuyAdminHttpTest`·api `GroupBuyHttpTest` 통과. 전체 회귀는 돌리지 않았다.
+- **화면 연결**: user-web·admin-web 의 Q&A·리뷰 API 목업을 지우고 실제 주소로(타입 검사 통과). 메인 서버(8910·8920)는 이 브랜치 jar 가 아니라 **실제 호출 확인은 병합 뒤 서버를 다시 띄워야 한다**.
+- **미확정 · 다음**: 공구 참여 제한(`GROUP_BUY_BAN`)이 질문을 막지 않는다는 규칙은 코드(정지·탈퇴만 막음)로만 지켜지고 시험은 없다 · 「이전 차수 문의 보기」 시험 없음 · 지운 리뷰 본문 보관 기간 미정(지금은 남긴다) · 붙지 않은 리뷰 사진 정리 배치 없음 · 대시보드 「기한 지난 Q&A」 칸 미연결 · 홈 GROUP_BUY 가젯은 공구 개발 끝난 뒤.

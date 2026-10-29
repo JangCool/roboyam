@@ -1,5 +1,5 @@
 /**
- * 공구 Q&A 관리자 API(`/api/admin/group-buy-qna…`)가 주고받는 모양 — 계약 `commerce-groupbuy-contract.md` 「Q&A 규칙」·결정 35·60(2b-6, 화면 확정 전 가정).
+ * 공구 Q&A 관리자 API(`/api/admin/group-buy-qna…`)가 주고받는 모양 — 계약 `commerce-groupbuy-contract.md` 「Q&A 규칙」·결정 35·60(2b-6, 서버 연결 2026-10-29).
  * 관리자는 비밀글 본문도 본다 — 목록 조회·상세 열기는 서버가 개인정보 열람 감사(`GROUPBUY_QNA_VIEW`, 2년)를 남긴다.
  */
 import type { GroupBuyMember, GroupBuyPage } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';

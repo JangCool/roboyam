@@ -1,5 +1,5 @@
 /**
- * 공구 리뷰 관리자 API(`/api/admin/group-buy-reviews…`)가 주고받는 모양 — 계약 「리뷰 규칙」(2b-6, 가정 — 사용자 확인 대기).
+ * 공구 리뷰 관리자 API(`/api/admin/group-buy-reviews…`)가 주고받는 모양 — 계약 「리뷰 규칙」(2b-6, 사용자 확정 2026-10-29).
  * 숨김은 사유 코드로만 — 낮은 별점은 숨길 사유가 아니다(표시광고법·공정위 소비자 리뷰 지침).
  */
 import type { GroupBuyMember, GroupBuyPage } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';

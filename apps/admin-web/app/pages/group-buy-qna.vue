@@ -5,7 +5,7 @@
         · 한 줄: 작성 시각 · 공구(차수) · 회원 · 문의 앞부분(비밀글·자동 비밀글·신고 수) · 상태(경과 영업일 · 기한 지남).
         · 줄을 누르면 상세 서랍(`?question=ID`): 답변·답변 수정(이력) · 숨기기/숨김 풀기(사유 5~200자).
         권한: 화면 `commerce.order.read` · 답변·숨김 `commerce.order.manage`. 목록·상세 조회는 서버가 개인정보 열람 감사(`GROUPBUY_QNA_VIEW`)를 남긴다.
-        서버 호출은 `useGroupBuyQnaAdminApi`(지금 목업 — `?mock=qna-fail`·`qna-empty`·`answer-fail` …).
+        서버 호출은 `useGroupBuyQnaAdminApi`(서버 연결 2026-10-29).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('groupBuyQna.title')" :subtitle="t('groupBuyQna.subtitle')" />

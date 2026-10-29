@@ -18,6 +18,9 @@ public class GroupBuyAudit {
     public static final String TARGET_ORDER = "GROUP_BUY_ORDER";
     public static final String TARGET_REQUEST = "GROUP_BUY_REQUEST";
     public static final String TARGET_GROUP_BUY = "GROUP_BUY";
+    /** 공구 문의·리뷰(2b-6) */
+    public static final String TARGET_QUESTION = "GROUP_BUY_QUESTION";
+    public static final String TARGET_REVIEW = "GROUP_BUY_REVIEW";
     public static final String TARGET_BANK_TRANSFER = "COMMERCE_BANK_TRANSFER";
     public static final String TARGET_CARRIER = "COMMERCE_CARRIER";
 

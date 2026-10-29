@@ -1,7 +1,7 @@
 import type { ReportReason } from '~/composables/report/api/useReportApi.types';
 
 /**
- * 공구 리뷰(회원) API 가 주고받는 모양 — 계약 `commerce-groupbuy-contract.md` 「리뷰 규칙」(2b-6, 가정 — 사용자 확인 대기).
+ * 공구 리뷰(회원) API 가 주고받는 모양 — 계약 `commerce-groupbuy-contract.md` 「리뷰 규칙」(2b-6, 사용자 확정 2026-10-29).
  * 리뷰는 상품(상품 마스터)마다 모인다 — 같은 상품의 다른 차수 공구 리뷰도 함께 오고 `roundNo` 로 「n차 구매」를 붙인다.
  */
 

@@ -1,7 +1,7 @@
 import type { ReportReason } from '~/composables/report/api/useReportApi.types';
 
 /**
- * 공구 Q&A(회원) API 가 주고받는 모양 — 계약 `commerce-groupbuy-contract.md` 「Q&A 규칙」(2b-6). 화면 확정 전 가정이다.
+ * 공구 Q&A(회원) API 가 주고받는 모양 — 계약 `commerce-groupbuy-contract.md` 「Q&A 규칙」(2b-6). 서버 연결 2026-10-29.
  * 볼 수 없는 것(남의 비밀글·숨긴 질문)은 서버가 본문을 비워(`null`) 보낸다 — 화면은 감추기만 한다.
  */
 
