@@ -1,6 +1,6 @@
 import type { GroupBuyCloseReason, GroupBuyNotice, GroupBuyNoticeIncomplete, GroupBuySkuKind, GroupBuyStatus, NoticeCatalog, NoticeCustomItem, NoticeItemDef, NoticeItemValue } from '~/composables/groupbuy/api/useGroupBuyAdminApi.types';
 import type { GroupBuyCategory } from '~/composables/groupbuy/api/useGroupBuyProductApi.types';
-import type { GroupBuyOrderStatus, GroupBuyRefundState } from '~/composables/groupbuy/api/useGroupBuyOrderApi.types';
+import type { GroupBuyOrderStatus, GroupBuyRefundCause, GroupBuyRefundState } from '~/composables/groupbuy/api/useGroupBuyOrderApi.types';
 import type { GroupBuyDeadlineLevel, GroupBuyDisposition, GroupBuyReasonCode, GroupBuyRequestStatus } from '~/composables/groupbuy/api/useGroupBuyRequestApi.types';
 
 /** PrimeVue `Tag` 의 색 */
@@ -108,6 +108,14 @@ export default class UtilGroupBuy {
         if (state === 'AWAITING_APPROVAL') return 'warn';
         if (state === 'MANUAL') return 'secondary';
         return 'info';
+    }
+
+    /** 환불 원인 태그 색 — 운영자 주황 · 공구 불발·중단 빨강 · 공급 불가·지연 주황 · 요청 파랑 · 회원 쪽 회색(결제 서랍의 취소 종류와 같은 결) */
+    static refundCauseSeverity(cause: GroupBuyRefundCause): GroupBuyTagSeverity {
+        if (cause === 'ADMIN' || cause === 'SUPPLY_FAILURE' || cause === 'DELAY') return 'warn';
+        if (cause === 'FAILED' || cause === 'CANCELED') return 'danger';
+        if (cause === 'REQUEST') return 'info';
+        return 'secondary';
     }
 
     /** 원 금액 글자(천 단위 쉼표) — 단위는 문구가 붙인다 */

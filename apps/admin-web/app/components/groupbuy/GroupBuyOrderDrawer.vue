@@ -69,9 +69,14 @@
                 <dl v-else class="m-0 flex flex-col">
                     <div :class="ROW">
                         <dt :class="DT">{{ t('groupBuy.payMethodLabel') }}</dt>
-                        <dd :class="DD" class="flex flex-wrap items-center gap-2">{{ detail.payment.payMethod ?? '—' }}<Tag v-if="detail.payment.escrow" :value="t('groupBuy.escrow')" severity="info" /></dd>
+                        <dd :class="DD" class="flex flex-wrap items-center gap-2"><span class="font-medium">{{ detail.payment.payMethod ?? '—' }}</span><Tag v-if="detail.payment.escrow" :value="t('groupBuy.escrow')" severity="info" /></dd>
                     </div>
-                    <div :class="ROW"><dt :class="DT">{{ t('groupBuy.payPaidAt') }}</dt><dd :class="DD" class="tabular-nums">{{ detail.payment.paidAt ? time.full(detail.payment.paidAt) : '—' }}</dd></div>
+                    <div :class="ROW">
+                        <dt :class="DT">{{ t('groupBuy.payPaidAt') }}</dt>
+                        <dd class="tabular-nums" :class="[DD, detail.payment.paidAt ? 'font-medium text-green-700 dark:text-green-400' : 'text-muted-color']">
+                            <i v-if="detail.payment.paidAt" class="pi pi-check-circle mr-1 text-xs" aria-hidden="true" />{{ detail.payment.paidAt ? time.full(detail.payment.paidAt) : '—' }}
+                        </dd>
+                    </div>
                     <div :class="ROW"><dt :class="DT">{{ t('groupBuy.payIdLabel') }}</dt><dd :class="DD"><code class="text-xs text-muted-color">{{ detail.payment.paymentId }}</code></dd></div>
                 </dl>
             </section>
@@ -106,7 +111,7 @@
                 <p v-if="!detail.shipments.length" class="m-0 text-[13px] text-muted-color">{{ t('groupBuy.shipmentsEmpty') }}</p>
                 <ul v-else class="m-0 flex list-none flex-col gap-1 p-0">
                     <li v-for="(s, i) in detail.shipments" :key="i" class="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg border border-(--line) px-3 py-2 text-[13px]">
-                        <Tag :value="t(`groupBuy.shipmentKind.${s.kind}`)" severity="secondary" />
+                        <Tag :value="t(`groupBuy.shipmentKind.${s.kind}`)" :severity="s.kind === 'EXCHANGE' ? 'warn' : 'info'" icon="pi pi-truck" />
                         <span>{{ s.carrierName }}</span>
                         <code class="text-xs">{{ s.trackingNo }}</code>
                         <a v-if="s.trackingUrl" :href="s.trackingUrl" target="_blank" rel="noopener noreferrer" class="text-xs text-primary hover:underline">{{ t('groupBuy.trackLink') }} <i class="pi pi-external-link text-[10px]" aria-hidden="true" /></a>
@@ -123,8 +128,8 @@
                 <ul v-else class="m-0 flex list-none flex-col divide-y divide-(--line) rounded-lg border border-(--line) p-0">
                     <li v-for="r in detail.refunds" :key="r.id" class="flex flex-col gap-1.5 px-3.5 py-3 text-[13px]">
                         <div class="flex flex-wrap items-center gap-2">
-                            <span class="text-[15px] font-semibold tabular-nums">{{ t('groupBuy.won', { amount: won(r.total) }) }}</span>
-                            <span>{{ t(`groupBuy.refundCause.${r.cause}`) }}</span>
+                            <span class="text-[15px] font-semibold tabular-nums" :class="r.state === 'DONE' ? 'text-red-600 dark:text-red-400' : ''">−{{ t('groupBuy.won', { amount: won(r.total) }) }}</span>
+                            <Tag :value="t(`groupBuy.refundCause.${r.cause}`)" :severity="UtilGroupBuy.refundCauseSeverity(r.cause)" />
                             <Tag :value="t(`groupBuy.refundState.${r.state}`)" :severity="UtilGroupBuy.refundSeverity(r.state)" />
                             <Tag v-if="r.businessFault" :value="t('groupBuy.businessFault')" severity="warn" />
                             <Tag v-if="r.method !== 'PG_CANCEL'" :value="t(`groupBuy.refundMethod.${r.method}`)" severity="secondary" />
@@ -250,9 +255,9 @@ const amountBoxes = computed(() => {
     const text = (n: number) => t('groupBuy.won', { amount: won(n) });
     return [
         { key: 'amount', label: t('groupBuy.amountTotal'), value: text(a.amount), tone: '' },
-        { key: 'refunded', label: t('groupBuy.amountRefunded'), value: text(a.refundedAmount), tone: a.refundedAmount > 0 ? 'text-orange-600 dark:text-orange-400' : '' },
-        { key: 'comp', label: t('groupBuy.amountCompensation'), value: text(a.compensationAmount), tone: '' },
-        { key: 'remaining', label: t('groupBuy.amountRemaining'), value: text(a.remaining), tone: '' },
+        { key: 'refunded', label: t('groupBuy.amountRefunded'), value: a.refundedAmount > 0 ? `−${text(a.refundedAmount)}` : text(0), tone: a.refundedAmount > 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-color' },
+        { key: 'comp', label: t('groupBuy.amountCompensation'), value: text(a.compensationAmount), tone: a.compensationAmount > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-muted-color' },
+        { key: 'remaining', label: t('groupBuy.amountRemaining'), value: text(a.remaining), tone: 'text-primary' },
     ];
 });
 
