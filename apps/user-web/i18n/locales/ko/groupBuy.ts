@@ -33,6 +33,14 @@ export default {
     addedQty: '추가 입고 {count}개',
     startsAt: '{at} 모집 시작',
     endsAt: '{at} 마감',
+    countdown: {
+        to: { START: '시작까지', END: '마감까지', EXTENDED: '연장 마감까지' },
+        title: { START: '모집 시작까지 남은 시간', END: '마감까지 남은 시간', EXTENDED: '연장 마감까지 남은 시간' },
+        at: { START: '{at} 시작', END: '{at} 마감', EXTENDED: '{at} 연장 마감' },
+        days: '{n}일',
+        dayUnit: '일',
+        extendedHelp: '마감 직전에 수량이 풀려 마감을 늘렸어요. 그동안 다 팔리면 바로 끝나요.',
+    },
     extendedUntil: '마감 연장 · 최대 {at}까지',
     judging: '마감됐어요 · 결과 집계 중',
     closeReason: {

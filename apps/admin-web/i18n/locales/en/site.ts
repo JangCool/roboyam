@@ -161,6 +161,8 @@ export default {
     barGroupsHint: 'Checked groups go in the top menu and the rest go in the side menu. If none are checked, the first group goes in the top menu.',
     barGroupsEmpty: 'The public menu has no groups yet. Create a group in menu management first.',
     barGroupsNoPermission: 'You do not have permission to view the menu, so the group list cannot be loaded.',
+    menuOrderHint: 'The menu order (top bar, side and mobile alike) is changed by dragging in Menu management. Here you only choose where things go.',
+    menuOrderLink: 'Go to Menu management',
     // Subheadings — menu layout (where) and menu style (how)
     menuLayoutHeading: 'Menu layout',
     menuStyleHeading: 'Menu style',

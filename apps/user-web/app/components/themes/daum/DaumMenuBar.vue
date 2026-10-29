@@ -18,8 +18,13 @@
                 <AppMenuBarState v-if="ownsState" :state="state" :loading="loading" class="px-3" @reload="reload" />
 
                 <ul v-if="showEntries" class="m-0 flex list-none items-center p-0">
-                    <!-- 사이드 그룹 탭(`sideTabs`, 로보얌) — 최상위 항목 뒤에 이어 놓고, 누르면 그 그룹만 사이드 칸에 보인다(다시 누르면 닫는다) -->
-                    <li v-for="group in sideTabs ? sidePick.groups.value : []" :key="`side-${group.key}`" class="order-last" :class="UtilMenu.dividerClass(group.group?.divider)">
+                    <!-- 사이드 그룹 탭(`sideTabs`, 로보얌) — 최상위 항목과 메뉴 관리 차례대로 섞어 놓고(`orderStyle`), 누르면 그 그룹만 사이드 칸에 보인다(다시 누르면 닫는다) -->
+                    <li
+                        v-for="group in sideTabs ? sidePick.groups.value : []"
+                        :key="`side-${group.key}`"
+                        :class="UtilMenu.dividerClass(group.group?.divider)"
+                        :style="orderStyle(group.key)"
+                    >
                         <!-- 그룹에 「누르면 가는 곳」이 있으면 탭은 링크 — 그곳으로 가고, 간 뒤에도 이 그룹을 사이드 칸에 연다 -->
                         <AppMenuLink
                             v-if="group.group?.path"
@@ -45,7 +50,7 @@
                         </button>
                     </li>
                     <!-- 칸 옆 구분선(운영자가 메뉴 구성에서 정한다 — 예: 공동구매 왼쪽) -->
-                    <li v-for="tab in tabs" :key="tab.key" :class="UtilMenu.dividerClass(tab.kind === 'item' ? tab.row.node.divider : groupDivider(tab.key))">
+                    <li v-for="tab in tabs" :key="tab.key" :class="UtilMenu.dividerClass(tab.kind === 'item' ? tab.row.node.divider : groupDivider(tab.key))" :style="orderStyle(tab.key)">
                         <AppMenuLink
                             v-if="tab.kind === 'item'"
                             :node="tab.row.node"
@@ -243,6 +248,12 @@ const tabs = computed<GnbTab[]>(() =>
 const { nodes: menuNodes } = useMenu();
 function groupDivider(key: string) {
     return menuNodes.value.find((node) => node.id === key)?.divider ?? null;
+}
+
+/** 첫 줄 칸의 차례 — 최상위 항목·그룹 탭·사이드 그룹 탭을 메뉴 트리 차례 그대로 섞는다(사용자 결정 2026-10-29: 차례의 주인은 메뉴 관리) */
+const topOrder = computed(() => new Map(menuNodes.value.map((node, index) => [node.id, index])));
+function orderStyle(key: string): { order: number } {
+    return { order: topOrder.value.get(key) ?? 0 };
 }
 
 /** 둘째 줄에 이어 놓을 그룹들(`inlineGroups`) — 막대 몫의 최상위 그룹 전부 */

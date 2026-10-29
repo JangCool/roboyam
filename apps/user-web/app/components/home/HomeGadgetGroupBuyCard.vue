@@ -27,6 +27,8 @@
             <span class="font-semibold tabular-nums text-color">{{ item.reviews.average?.toFixed(1) }}</span>
             <span class="tabular-nums">{{ t('groupBuyReview.countShort', { count: item.reviews.count }) }}</span>
         </p>
+        <!-- 남은 시간(1초마다, 하루 안이면 빨강) -->
+        <GroupBuyCountdown :gb="item" class="mt-1.5" />
         <div v-if="sold !== null" class="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700" aria-hidden="true">
             <div class="h-full rounded-full bg-primary" :style="{ width: `${sold}%` }" />
         </div>
