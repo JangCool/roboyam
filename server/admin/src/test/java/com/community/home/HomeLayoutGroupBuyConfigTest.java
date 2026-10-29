@@ -114,17 +114,19 @@ class HomeLayoutGroupBuyConfigTest extends CommerceAdminTestBase {
     void 틀린_개수와_정렬은_칸_경로로_400_설정이_없는_종류의_설정은_무시() {
         HomeLayoutView before = service.get(THEME);
         List<HomeLayoutGadgetView> gadgets = before.gadgets();
-        int index = gadgets.indexOf(groupBuy(before));
+        // 기본 배치에 공구 가젯이 둘(본문 모바일 전용 · 오른쪽 열 PC 전용) — 틀린 설정은 첫 공구 가젯에만 보낸다
+        HomeLayoutGadgetView target = groupBuy(before);
+        int index = gadgets.indexOf(target);
 
         assertThatThrownBy(() -> service.save(root, THEME, request(gadgets, before.layout(),
-                g -> "GROUP_BUY".equals(g.type()) ? gb(0, "BEST") : null)))
+                g -> target.id().equals(g.id()) ? gb(0, "BEST") : null)))
                 .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields())
                         .containsKeys("gadgets[" + index + "].config.count", "gadgets[" + index + "].config.sort"));
         assertThatThrownBy(() -> service.save(root, THEME, request(gadgets, before.layout(),
-                g -> "GROUP_BUY".equals(g.type()) ? gb(11, "DEADLINE") : null)))
+                g -> target.id().equals(g.id()) ? gb(11, "DEADLINE") : null)))
                 .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields()).containsOnlyKeys("gadgets[" + index + "].config.count"));
         assertThatThrownBy(() -> service.save(root, THEME, request(gadgets, before.layout(),
-                g -> "GROUP_BUY".equals(g.type()) ? gb(null, null) : null)))
+                g -> target.id().equals(g.id()) ? gb(null, null) : null)))
                 .isInstanceOfSatisfying(ValidationException.class, e -> assertThat(e.getFields())
                         .containsOnlyKeys("gadgets[" + index + "].config.count", "gadgets[" + index + "].config.sort"));
 

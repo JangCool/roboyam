@@ -68,8 +68,8 @@ async function load(): Promise<void> {
     abort = controller;
     status.value = 'loading';
     try {
-        const raw = await api.gadgets(controller.signal);
-        // 관리자 미리보기면 관리자의 저장 전 홈 구성을 덮는다(`useAdminPreview`)
+        // 관리자 미리보기면 보는 테마의 홈(그 테마 가젯의 꾸미기·데이터)을 받고, 관리자의 저장 전 홈 구성을 덮는다(`useAdminPreview`)
+        const raw = await api.gadgets(controller.signal, preview.active.value ? theme.value : undefined);
         const res = UtilHomeGadget.sanitize(preview.home.value ? UtilAdminPreview.applyHome(raw, preview.home.value) : raw);
         if (mine !== seq) return;
         if (!res) throw new Error('bad home response');

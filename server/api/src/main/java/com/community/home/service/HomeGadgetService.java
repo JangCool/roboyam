@@ -40,6 +40,7 @@ import com.community.post.dto.response.PostFeedRowView;
 import com.community.post.repository.master.PostFeedRepositoryQDSL;
 import com.community.post.service.PostFeedRows;
 import com.community.site.service.PublicSiteService;
+import com.community.site.service.SiteThemes;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -123,9 +124,12 @@ public class HomeGadgetService {
         this.groups = groups;
     }
 
-    /** @param viewerId 로그인한 회원(비로그인 null) — 글 줄의 차단·메모, 소모임 줄의 내 상태 */
-    public HomeGadgetsResponse gadgets(Long viewerId) {
-        String theme = site.snapshot().info().theme();
+    /**
+     * @param requestedTheme 관리자 미리보기가 보는 테마(아니면 null) — 아는 테마면 그 테마의 구성, 아니면 사이트 테마
+     * @param viewerId 로그인한 회원(비로그인 null) — 글 줄의 차단·메모, 소모임 줄의 내 상태
+     */
+    public HomeGadgetsResponse gadgets(String requestedTheme, Long viewerId) {
+        String theme = SiteThemes.isKnown(requestedTheme) ? requestedTheme : site.snapshot().info().theme();
         HomeLayoutEntity row = layouts.findById(theme).orElse(null);
         HomeGridLayout layout;
         List<HomeGadgetSpec> specs;

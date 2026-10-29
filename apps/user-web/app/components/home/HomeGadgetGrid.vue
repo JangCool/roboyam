@@ -7,9 +7,10 @@
           · `half` 태블릿(md~lg) 또는 사이드 메뉴 때문에 홈 폭이 좁은 데스크톱 — 칸 수 반, 반 폭 이하 가젯 둘은 나란히·나머지는 전체 폭(`UtilHomeGrid.half`)
           · `stack` 모바일(md 미만) 또는 홈 폭 36rem 미만 — 한 열, 간격은 테마 역할 변수 `--gadget-gap`(카드가 화면 끝까지 닿는 모바일 모양 그대로).
             순서는 템플릿의 한 열 모양(`mobile.order`): `reading` (y, x) · `columns` 본문 열 먼저(`UtilHomeGrid.byColumns`). 한 열인지는 아래 가젯에 알린다(`provideHomeGadgetStacked` — 가젯의 한 열 모양: 가로로 미는 줄 등)
-        **h 는 최소 높이**: 칸마다 `min-height` 가 h 행이고, 내용이 길면 칸이 늘어난다 — 잰 높이(ResizeObserver)로 차지할 행을 늘리고 위로 당겨(`UtilHomeGrid.place`) 같은 열 아래 가젯만 밀린다(겹치지 않는다).
+        **h 는 최소 높이**: 내용이 길면 칸이 늘어난다 — 카드 내용 높이(ResizeObserver)로 차지할 행을 늘리고 위로 당겨(`UtilHomeGrid.place`) 같은 열 아래 가젯만 밀린다(겹치지 않는다).
+          칸은 차지한 행을 끝까지 채운다(`min-height` = 차지한 행) — 카드 아래 끝이 행 경계에 붙어 위아래 가젯 사이가 어디서나 16px 이다.
         가젯의 PC/모바일 노출(`desktop`·`mobile`, lg 경계)·비어서 감춤은 `UtilHomeGadget.isVisible` 그대로이고, 숨긴 가젯의 자리는 당겨 메운다. 요소 순서는 읽는 순서((y, x))라 화면 읽기·Tab 순서가 보이는 순서와 같다.
-        카드는 칸 높이를 채운다(같은 줄 카드의 아래 끝이 맞는다). 같은 행에 같은 h 로 나란히 둔 가젯은 그중 가장 긴 가젯 높이로 함께 늘어난다(`UtilHomeGrid.place` 「같은 줄 맞추기」). 데이터는 받기만 한다(조회는 페이지).
+        카드는 칸 높이를 채운다. 같은 행에 같은 h 로 나란히 둔 가젯은 그중 가장 긴 가젯 높이로 함께 늘어난다(`UtilHomeGrid.place` 「같은 줄 맞추기」). 데이터는 받기만 한다(조회는 페이지).
         **관리자 미리보기 편집**(`useAdminPreview().editing` — 관리자 테마 화면의 iframe 안, 사용자 결정 2026-10-28: 편집도 실제 화면에서): 가젯마다 위에 덮는 손잡이 층을 얹는다 —
           가운데를 끌면 옮기기, 오른쪽 아래 모서리를 끌면 크기, 오른쪽 위 ×는 빼기, 그 옆 ⚙(내용 설정이 있는 종류 — 지금은 공구)는 관리자 설정 창 열기(`settings`). 끄는 동안 놓일 칸을 이 격자의 칸·행 크기로 계산해 자리 표시를 그리고, 놓으면 관리자에게 알린다
           (`postToAdminPreview` — 놓은 칸 `place` · 칸·행 `size` · `remove`). 실제 계산(최소 크기·겹침·위로 당기기)과 저장은 관리자 편집기가 하고, 바뀐 배치를 다시 보내면 이 격자가 그린다.
@@ -134,8 +135,9 @@ function cellStyle(cell: Cell): CSSProperties | undefined {
     return {
         gridColumn: `${cell.x + 1} / span ${cell.w}`,
         gridRow: `${cell.y + 1} / span ${cell.rows}`,
-        // 같은 줄 맞추기로 함께 늘린 가젯은 그 높이를 채운다(아래 끝이 맞는다)
-        minHeight: `${UtilHomeLayout.px(cell.aligned ? cell.rows : cell.h)}px`,
+        // 차지한 행을 끝까지 채운다 — 카드 아래 끝이 행 경계에 붙어 아래 가젯과의 간격이 늘 16px 이다(내용 높이에서 멈추면 행 올림만큼 최대 30px 가 더 벌어진다).
+        // 같은 줄 맞추기로 함께 늘린 가젯도 그래서 아래 끝이 맞는다
+        minHeight: `${UtilHomeLayout.px(cell.rows)}px`,
     };
 }
 
@@ -251,11 +253,39 @@ const ghost = computed<CSSProperties | null>(() => {
 
 onBeforeUnmount(() => window.removeEventListener('pointermove', onMove));
 
-/* ── 높이 재기 — 칸의 높이는 자기 내용과 min-height(h)로만 정해져(차지하는 행 수와 무관) 재고 → 행을 늘리는 일이 되먹임하지 않는다 ── */
+/* ── 높이 재기 — 칸은 차지한 행을 채우므로 칸 높이가 아니라 가젯 카드의 내용 높이(카드 자식들의 아래 끝 + 아래 안 여백)를 잰다 → 행을 늘리는 일이 되먹임하지 않고, 내용이 줄면 행도 준다.
+       칸 안에서 내용만 줄거나 늘면 칸 크기는 그대로라 카드의 자식(머리·내용·더보기)도 함께 지켜본다 ── */
 
 const observed = new Map<string, Element>();
 let cellObserver: ResizeObserver | null = null;
 let rootObserver: ResizeObserver | null = null;
+
+/** 가젯 카드(칸의 첫 자식 — `HomeGadgetFrame` 의 section, 블록 흐름이라 자식은 늘어나지 않는다)의 내용 높이(px) */
+function contentHeight(cell: HTMLElement): number {
+    const card = cell.firstElementChild as HTMLElement | null;
+    if (!card || card.hasAttribute('data-home-edit')) return 0;
+    const top = card.getBoundingClientRect().top;
+    let bottom = top;
+    for (const child of card.children) {
+        const r = child.getBoundingClientRect();
+        if (r.height === 0) continue;
+        bottom = Math.max(bottom, r.bottom + (parseFloat(getComputedStyle(child).marginBottom) || 0));
+    }
+    const cs = getComputedStyle(card);
+    return bottom - top + (parseFloat(cs.paddingBottom) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+}
+
+/** 카드의 자식도 지켜본다(이미 보는 것은 건너뛴다) */
+const watchedChildren = new WeakSet<Element>();
+function watchChildren(cell: Element): void {
+    const card = cell.firstElementChild;
+    if (!card || !cellObserver) return;
+    for (const child of card.children) {
+        if (watchedChildren.has(child)) continue;
+        watchedChildren.add(child);
+        cellObserver.observe(child);
+    }
+}
 
 function bind(id: string, el: Element | ComponentPublicInstance | null): void {
     const next = el instanceof Element ? el : null;
@@ -274,13 +304,19 @@ function bind(id: string, el: Element | ComponentPublicInstance | null): void {
 onMounted(() => {
     if (typeof ResizeObserver === 'undefined') return;
     cellObserver = new ResizeObserver((entries) => {
+        const ids = new Set<string>();
+        for (const entry of entries) {
+            const id = (entry.target.closest('[data-gadget-id]') as HTMLElement | null)?.dataset.gadgetId;
+            if (id) ids.add(id);
+        }
         let changed = false;
         const nextHeights = { ...heights.value };
-        for (const entry of entries) {
-            const id = (entry.target as HTMLElement).dataset.gadgetId;
-            if (!id) continue;
-            const px = Math.ceil(entry.borderBoxSize?.[0]?.blockSize ?? (entry.target as HTMLElement).offsetHeight);
-            if (nextHeights[id] !== px) {
+        for (const id of ids) {
+            const cell = observed.get(id) as HTMLElement | undefined;
+            if (!cell) continue;
+            watchChildren(cell);
+            const px = Math.ceil(contentHeight(cell));
+            if (px > 0 && nextHeights[id] !== px) {
                 nextHeights[id] = px;
                 changed = true;
             }
