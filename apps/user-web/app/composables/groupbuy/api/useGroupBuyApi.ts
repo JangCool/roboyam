@@ -1,3 +1,4 @@
+import { mockReviewStats } from '~/composables/groupbuy/api/mock/groupbuy-review-mock';
 import type {
     GroupBuyDetail,
     GroupBuyListPage,
@@ -40,7 +41,9 @@ export function useGroupBuyApi() {
 
     return {
         list: (phase: GroupBuyPhase, page = 0, category: string | null = null): Promise<GroupBuyListPage> =>
-            client.get<GroupBuyListPage>(PATH.list, { query: { phase, page, category: category ?? undefined } }),
+            client.get<GroupBuyListPage>(PATH.list, { query: { phase, page, category: category ?? undefined } })
+                // MOCK: 리뷰 평균·수는 서버(2b-6)가 아직 주지 않아 목업 값을 붙인다 — 서버가 붙으면 이 줄을 지운다
+                .then((res) => ({ ...res, items: res.items.map((item) => ({ ...item, reviews: item.reviews ?? mockReviewStats(item.id) })) })),
 
         /** 목록 필터 카테고리(2단) */
         categories: (): Promise<GroupBuyCategoryNode[]> =>

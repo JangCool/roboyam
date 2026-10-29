@@ -266,7 +266,8 @@
                 </template>
             </section>
 
-            <!-- 상품 문의(2b-6) — 로그인 회원이 바뀌면 새로 그린다 -->
+            <!-- 구매 리뷰 · 상품 문의(2b-6) — 로그인 회원이 바뀌면 새로 그린다 -->
+            <GroupBuyReviews :key="`r-${gb.id}-${user?.id ?? 'guest'}`" :group-buy-id="gb.id" />
             <GroupBuyQna :key="`${gb.id}-${user?.id ?? 'guest'}`" :group-buy-id="gb.id" />
 
             <CommerceBusinessInfo v-if="shownBusiness" :business="shownBusiness" variant="panel" />

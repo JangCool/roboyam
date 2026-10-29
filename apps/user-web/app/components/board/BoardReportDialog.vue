@@ -81,7 +81,7 @@ const REASON_KEY: Record<ReportReason, string> = {
     OTHER: 'post.reasonOther',
 };
 /** 대상 → 제목 키 */
-const TITLE_KEY: Record<ReportTargetType, string> = { POST: 'post.reportPostTitle', COMMENT: 'post.reportCommentTitle', GROUP: 'group.reportTitle', GROUP_BUY_QUESTION: 'groupBuyQna.reportTitle' };
+const TITLE_KEY: Record<ReportTargetType, string> = { POST: 'post.reportPostTitle', COMMENT: 'post.reportCommentTitle', GROUP: 'group.reportTitle', GROUP_BUY_QUESTION: 'groupBuyQna.reportTitle', GROUP_BUY_REVIEW: 'groupBuyReview.reportTitle' };
 const title = computed(() => t(TITLE_KEY[props.target]));
 /** 대상의 사유 — 소모임은 소모임 사유(종목 추천은 투자 고지 소모임만), 글·댓글은 글 사유 */
 const reasons = computed(() => {

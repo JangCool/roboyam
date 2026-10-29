@@ -15,7 +15,7 @@
 | 2b-3 발송·요청·환불 서버 | V102, 발주·준비중·발송·배송완료(일괄 부분 성공)·에스크로 송장 등록, 택배사, 배송지 열람·수정·명단 내보내기, 취소·반품 요청(줄·수량 단위)·처리 방법·`GroupBuyRefundCalculator`·보상액·운영 환불, 규칙 테스트 | backend | **구현 완료**(2026-10-28, 브랜치 `claude/festive-cori-faed64` — 아래 「2b-3 구현 결과」) — **develop 병합 2026-10-28**(V102, 7a7cd545) · 보강 V103(f60a5033) **develop 병합 2026-10-29** |
 | 2b-4 설정·알림 + 관리자 API + 연결 | V104(2b-3 보강이 V103 을 썼다), 판매 스위치·체크리스트·사업자 정보·공구 설정, 회원 알림·메일(계약 통지 포함)·관심·수량 풀림·연장·차수 알림, 운영자 알림·기한 경고, 개인정보 파기 pg_cron, 관리자·회원 API 정리, 화면 연결 | backend → frontend | **구현 완료**(2026-10-28, 브랜치 `claude/commerce-2b-4-groupbuy-api-9e8cb4` 57cb2f3d — 아래 「2b-4 구현 결과」, 2b-1 화면 브랜치를 합쳐 연결) — **develop 병합 2026-10-29**(2b-1 화면 포함) |
 | 2b-5 실제 확인 | 포트원 테스트 채널로 공구 결제·불발 환불·발송 후 반품 환불 사람 확인(공개 주소가 필요한 웹훅·에스크로는 dev 서버) | 사용자 + 세션 | **로컬 확인 2026-10-29**(아래 「2b-5 로컬 실제 확인」) — 웹훅·에스크로는 dev 서버에서 |
-| 2b-6 공구 Q&A | V106(V105 는 테마·레이아웃이 먼저 썼다 — 2026-10-29), 아래 「Q&A 규칙」 — 화면 목업 → 확정 → 서버 → 연결 | frontend → backend | 사용자 결정 2026-10-28 |
+| 2b-6 공구 Q&A · 리뷰 | V106(V105 는 테마·레이아웃이 먼저 썼다 — 2026-10-29) 하나에 Q&A 와 리뷰, 아래 「Q&A 규칙」·「리뷰 규칙」 — 화면 목업 → 확정 → 서버 → 연결 | frontend → backend | Q&A 사용자 결정 2026-10-28 · 리뷰는 2026-10-29 추가(가정 — 사용자 확인 대기) |
 순서: 2b-1 ∥ 2b-2 → 화면 확정 → 2b-3 → 2b-4 → 2b-5, 2b-6 은 2b-4 다음(구매 흐름을 막지 않는다). 2b-2 는 화면과 무관한 서버 핵심이라 2a 와 같이 화면 확정 전에 병행한다(승인 필요). 세션마다 자기 worktree.
 
 ## 화면 목록 (2b-1)
@@ -117,7 +117,7 @@
 | V102 `group_buy_fulfillment` | shared | `commerce_carriers`(6개 시드) · `group_buy_shipments` · `group_buy_requests`(+ `received_at` 반환받은 날 — 3영업일 기한 시작) · **`group_buy_request_items`**(요청 줄 — 주문 줄·수량·**사유**·`refund_amount`) · ~~`group_buy_refunds`~~(결정 36 — 2b-2 가 V101 로 당겼다, 「2b-2 구현 결과」) · **`group_buy_return_dispositions`**(요청 줄·처리 방법·수량) · `group_buy_request_photos` · `commerce_address_views` · `commerce_bank_transfers`(결정 6) | 2b-3 |
 | V103 `group_buy_defect_known_on` | shared | `group_buy_requests.defect_known_on`(업체 부담 반품의 「하자를 안 날」 — 2b-3 보강, 사용자 지시 2026-10-28) | 2b-3 보강 |
 | V104 `commerce_sales_switch` | shared | 판매 스위치·체크리스트·사업자 정보(`commerce_sales_settings` 등), `R__batch_32_groupbuy_privacy_cleanup`(배송지 마스킹·수정 이력 6개월·요청 3년·만료 주문 배송지 — 결정 34) | 2b-4 |
-| V106 `group_buy_qna`(V105 는 테마·레이아웃 `site_theme_layout` 이 먼저 썼다 — 2026-10-29) | shared | `group_buy_questions` · `group_buy_answers` · `group_buy_answer_revisions`, 신고 대상 `GROUP_BUY_QUESTION`(기존 `reports` 의 대상 종류 CHECK), 파기 배치에 3년 더하기 | 2b-6 |
+| V106 `group_buy_qna_review`(V105 는 테마·레이아웃 `site_theme_layout` 이 먼저 썼다 — 2026-10-29) | shared | Q&A `group_buy_questions` · `group_buy_answers` · `group_buy_answer_revisions` · 리뷰 `group_buy_reviews`(주문 줄마다 하나) · `group_buy_review_photos` · `group_buy_review_revisions` · `group_buy_review_replies`, 신고 대상 `GROUP_BUY_QUESTION`·`GROUP_BUY_REVIEW`(기존 `reports` 의 대상 종류 CHECK), 파기 배치에 Q&A 3년 더하기 | 2b-6 |
 - Java 워커(카탈로그 없음, `worker_heartbeats`): `groupbuy-state`(1분 — 선점 만료·모집 시작·마감·연장·판정, 다 팔림 마감의 안전망), 운영자 기한 점검은 19절 점검 워커가 생길 때까지 2b-4 가 1시간 워커로.
 - 열은 commerce.md 10-1 표가 바탕이고, 바뀌거나 더하는 것:
   - **주문과 주문 줄**(결정 23): `group_buy_participations` 는 주문 한 건(회원·배송지·배송비·금액·결제·상태·`order_no`·`admin_memo`·`refunded_amount`(상품·배송비 환불 누계)·`compensation_amount`(PG 로 돌려준 고객 택배비 보상 누계 — 결정 39)·`point_refunded`(11절 포인트 결제 대비, 2b 에서는 0)·`reshipping_fee_charged`). 옵션·수량·단가는 `group_buy_participation_items`(주문·옵션·`qty`·`unit_price`·`item_amount`·`canceled_qty`·`returned_qty`·`restocked_qty`, CHECK `0 ≤ restocked_qty ≤ returned_qty`, `canceled_qty + returned_qty ≤ qty`, 유일 `(participation_id, option_id)` — 같은 옵션 두 줄 금지). 옵션이 없는 공구는 줄 하나(옵션 null, 그 주문에 한 줄).
@@ -321,6 +321,17 @@
 - **보관**(사용자 결정): 단순 문의도 소비자 문의 기록으로 보고 **마지막 답변일(답변이 없으면 작성일)부터 3년** 보관 후 파기(commerce.md 17-3 「문의 3년」). 탈퇴 회원의 질문은 「탈퇴한 회원」으로 표시. 개인정보 처리방침에 항목을 더한다. [법무 확인 — 단순 상품 문의가 「소비자 불만·분쟁 처리 기록」에 드는지. 보수적으로 3년]
 - 하자·오배송 환불은 Q&A 가 아니라 반품 요청(하자)으로 안내.
 
+## 리뷰 규칙 (2b-6 — 2026-10-29 추가, **가정 — 사용자 확인 대기**)
+- **누가·언제**: 그 단품을 산 회원. 주문 줄이 배송완료된 뒤부터 배송완료일 + 90일까지, 주문 줄(단품)마다 하나. 전부 취소·반품된 줄은 쓰지 못한다. 쓸 수 있는지는 서버가 줄마다 정한다(`WRITABLE`·`WRITTEN`·`EXPIRED`·`NONE`).
+- **내용**: 별점 1~5(필수) · 글 10~1,000자 · 사진 5장까지(반품 요청 사진과 같은 방식 — 먼저 올리고 ID 로 붙인다) · 산 단품 이름은 주문 줄 사본을 자동 표시.
+- **작성자**: 작성 30일 안에 고치기(이전 내용은 `group_buy_review_revisions`), 언제든 지우기(같은 줄에 다시 쓰지 못한다 — 가정).
+- **운영자**: 공식 답글 하나(수정 가능 — 회원 화면에 「답글 수정됨」), 숨김은 **사유 코드로만**(욕설·개인정보·광고·무관한 내용·기타 + 메모, 기타는 메모 필수 5~200자), 감사 `GROUPBUY_REVIEW_HIDE`·`GROUPBUY_REVIEW_REPLY_EDIT`. **낮은 별점은 숨김 사유가 아니다**(표시광고법·공정위 소비자 리뷰 지침 — 부정 리뷰 임의 삭제 금지). 숨긴 리뷰는 작성자에게 「숨김 처리됨 + 사유」로 보이고 평균·수에서 빠진다. 숨김 풀기는 사유 5~200자. 숨기면 열린 신고도 처리된다. 권한은 Q&A 와 같게(조회 `commerce.order.read`, 답글·숨김 `commerce.order.manage`).
+- **신고**: 기존 `reports` 에 대상 `GROUP_BUY_REVIEW`(사유는 글·댓글 체계).
+- **노출**: 공구 상세에 평균 별점·리뷰 수·별점 분포, 정렬(최신·별점 높은·낮은·사진 먼저), 사진 리뷰만. 목록 카드에는 평균과 수만. **같은 상품(상품 마스터)의 다른 차수 리뷰도 함께** 보이고 카드마다 「n차 구매」.
+- **보상**: 없음(정책 미확정 — 사용자 결정 대기). 나중에 포인트 등 보상을 넣으면 **「대가를 받은 리뷰」 표시 의무**(표시광고법·공정위 추천·보증 심사지침)가 생긴다 — 리뷰에 보상 여부 열을 두고 화면에 표시해야 한다. 지금 화면은 「리뷰를 쓴 대가로 받은 혜택은 없어요」 한 줄.
+- **회원 화면**: 내 주문 상세의 배송완료 줄에 「리뷰 쓰기」(기한 표시)·「리뷰 보기」, 내 리뷰 `/me/reviews`(상단 메뉴 서랍에 링크). **관리자 화면**: `/group-buy-reviews`(공개·신고 있음·숨김·전체 탭, 별점·사진·답글 없음 필터) + 상세 서랍(답글·작성자 수정 이력·신고·숨김).
+- 목업 가정: 답글 수정은 이력을 남기지 않는다(시각·사람만), 탈퇴 회원은 「탈퇴한 회원」, 숨긴 남의 리뷰는 회원 목록에서 아예 빠진다(Q&A 는 자리 글을 남긴다 — 리뷰는 평균에서도 빠지므로).
+
 ## 새 규칙 → 테스트 (commerce.md 18절에 없는 것 — 구현 단위가 쓴다)
 | # | 시나리오 | 기대 결과 | 단위 |
 |---|---|---|---|
@@ -335,6 +346,7 @@
 | G9 | 결제창이 열린 동안 중단 → 그 뒤 결제 도착 | 주문 EXPIRED(`GROUP_BUY_CANCELED`)·선점 해제·늦은 결제 자동 취소·이탈 횟수 안 셈 | 2b-2 |
 | G10 | 즉시 발송 공구: 배송 명단 내보내기·배송지 수정 기한 · 발송된 주문이 있는 공구 중단 | 주문 기준 기한 / 발송 전만 환불 | 2b-3 |
 | G11 | Q&A: 비밀글 열람 권한·답변 전후 수정·지워도 3년 보관·개인정보 자동 비밀글과 안내·숨김 감사·신고·속도 제한·정지 회원 | 규칙대로 | 2b-6 |
+| G11R | 리뷰(가정): 산 회원·배송완료 뒤 90일·줄마다 하나·모두 취소·반품 줄 거절 · 별점·글·사진 검증 · 30일 수정·이력·삭제 · 숨김 사유 코드만(별점 사유 없음)·감사·작성자에게 사유 · 숨긴 리뷰는 평균·수에서 빠짐 · 신고 · 같은 상품 다른 차수 묶음 | 규칙대로 | 2b-6 |
 | G12 | 마감 4분 전 다시 판매·추가 입고(`DEMAND`) | 30분 연장 | 2b-2·2b-3 |
 | G13 | 25,000 × 3 무료배송 발송 전 2개 취소 | 47,000 환불(배송비 재계산 3,000), `reshipping_fee_charged` 3,000 | 2b-2 |
 | G14 | 한 요청에 하자 줄 + 변심 줄 · 하자 A 먼저 → 변심 B 마지막(편도·왕복) | 반품비 운영자 부담 · 줄별 금액 · 결정 43 맞춤 | 2b-3 |

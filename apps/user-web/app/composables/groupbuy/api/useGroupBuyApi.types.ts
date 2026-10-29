@@ -1,3 +1,4 @@
+import type { GroupBuyReviewStats } from '~/composables/groupbuy/api/useGroupBuyReviewApi.types';
 import type { PaymentCheckout } from '~/composables/payment/api/usePaymentApi.types';
 
 /**
@@ -90,6 +91,8 @@ export interface GroupBuyListItem {
     roundNo: number;
     /** 상품의 카테고리(결정 89 — 아래 단, 아래 단이 없으면 위 단) */
     categoryId: string;
+    /** 리뷰 평균 별점·수(같은 상품의 모든 차수 — 2b-6). 리뷰가 없으면 `count: 0` */
+    reviews?: GroupBuyReviewStats | null;
 }
 
 /** `GET /api/group-buys/categories` — 회원 목록 필터(2단, 숨긴 카테고리는 서버가 뺀다). 2b-2 확정 전 가정 */
