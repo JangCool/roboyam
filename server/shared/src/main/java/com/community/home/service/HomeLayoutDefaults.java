@@ -13,7 +13,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * 테마별 홈 기본 배치(시드) — 서버의 원천이다. 운영자가 그 테마의 홈을 저장한 적이 없으면 관리자 편집기·공개 홈 모두 이것을 쓰고, 「테마 기본 배치로」도 이것을 준다.
- * 가젯·자리·꾸미기·설정은 화면 확정 때의 목업(admin {@code home-layout-mock.ts}·user-web {@code home-gadget-mock.ts})과 같다. 제목·운영 원칙 문구는 설치 프리셋처럼
+ * 네 테마 모두 로보얌 구성(같은 가젯·차례·칸 배분)이고 꾸미기만 테마 모양을 따른다(아래 주석). 제목은 설치 프리셋처럼
  * 운영자가 고칠 수 있는 처음 데이터다(화면 문구가 아니다). 가젯 ID 는 {@code seed-<n>}(테마 안에서 1부터) — 저장 요청에 이 ID 가 오면 그 시드의 설정 그대로 새 가젯을 만든다.
  * 게시판을 slug 로 가리키는 설정({@code boardIds})은 ROBOYAM 설치 프리셋의 게시판이다 — 없는 게시판은 공개 홈이 건너뛴다.
  */
@@ -21,8 +21,6 @@ public final class HomeLayoutDefaults {
 
     /** 시드 가젯 ID 앞머리 */
     public static final String SEED_PREFIX = "seed-";
-
-    private static final String RULES = String.join("\n", "주장에는 출처를 붙여요", "비방·인신공격은 금지예요", "허위정보는 신고할 수 있어요", "산업·주식 글은 투자 권유가 아니에요");
 
     private HomeLayoutDefaults() {
     }
@@ -44,59 +42,67 @@ public final class HomeLayoutDefaults {
         };
     }
 
-    /** 기본형 — 24칸: 본문 17칸(모바일 전용 공구 · 하이라이트 · 인기글 · 최신글 · 영상·짤) + 오른쪽 7칸(공구 · 소모임 · 운영 원칙 — 데스크톱 전용) */
+    /*
+     * 네 테마의 기본 배치는 로보얌 구성을 기준으로 같은 가젯·같은 차례·같은 칸 배분이다(사용자 결정 2026-10-29 「로보얌 가젯 기준으로 해당 테마도 구성 맞추기」):
+     *   본문 넓은 열(하이라이트 · 인기글 두 열 · [모바일 전용 공구] · 영상·짤 · 방금 올라온 글 두 열) + 오른쪽 열(공구 — 데스크톱 전용 · 인기 소모임).
+     *   24칸 테마는 17 + 7, 다음식은 12칸 8 + 4(같은 비율). 높이(최소)도 같다 — 영상·짤만 한 줄 4장(로보얌 템플릿 `galleryColumns: 4`)이 아닌 테마는 3장 두 줄이라 더 높다.
+     * 테마마다 다른 것은 꾸미기(머리 모양·제목 색·부제)와 하이라이트 모양뿐이다 — 다음식은 막대 머리 + 제목 색, 네이버식은 막대 머리 + 하이라이트 사진 카드 한 줄, 기본형은 구역 이름 줄(본문은 카드 없음 · 오른쪽 열은 카드).
+     */
+
+    /** 기본형 — 24칸: 본문 17칸(하이라이트 · 인기글 · [모바일 전용 공구] · 영상·짤 · 방금 올라온 글) + 오른쪽 7칸(공구 · 인기 소모임) */
     private static Home classic() {
         Builder b = new Builder("default", 24);
-        b.add("GROUP_BUY", "공동구매", false, true, style().put("headerStyle", "HIDDEN").put("cardLook", "DEFAULT").set("empty", noKeep()), null, null, null, 0, 0, 17, 10);
-        b.add("HIGHLIGHT", "하이라이트", true, true, style().put("headerStyle", "HIDDEN").set("empty", noKeep()), cfg().put("lead", "HERO").put("thumbs", "ALL"),
-                null, null, 0, 10, 17, 13);
-        b.add("POST_LIST", "인기글", true, true, null, cfg().put("sort", "POPULAR").put("rowStyle", "RANK").put("periodTabs", true).set("meta", meta("BOARD", "COMMENTS", "TIME")),
-                "인기글 더보기", "/popular", 0, 23, 17, 15);
-        b.add("POST_LIST", "최신글", true, true, null, cfg().put("sort", "LATEST").put("rowStyle", "HEADLINE").set("meta", meta("BOARD", "COMMENTS", "TIME")),
-                "최신글 더보기", "/latest", 0, 38, 17, 20);
-        b.add("GALLERY", "영상·짤", true, true, null, cfg().put("count", 6).set("boardIds", meta("video")), null, "/boards/video", 0, 58, 17, 11);
+        b.add("HIGHLIGHT", "하이라이트", true, true, style().put("headerStyle", "HIDDEN").set("empty", noKeep()), cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 4),
+                null, null, 0, 0, 17, 12);
+        b.add("POST_LIST", "인기글", true, true, null,
+                cfg().put("sort", "POPULAR").put("rowStyle", "RANK").put("columns", 2).put("count", 6).put("periodTabs", true).set("meta", meta("BOARD", "COMMENTS", "TIME")),
+                "인기글 더보기", "/popular", 0, 12, 17, 8);
+        b.add("GROUP_BUY", "진행 중 공동구매", false, true, style().put("cardLook", "DEFAULT").set("empty", noKeep()), null, null, null, 0, 20, 17, 10);
+        b.add("GALLERY", "영상·짤", true, true, null, cfg().put("count", 6).set("boardIds", meta("video")), "영상·짤 더보기", "/boards/video", 0, 30, 17, 11);
+        b.add("POST_LIST", "방금 올라온 글", true, true, null,
+                cfg().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("thumbnail", "NONE").put("titleLines", 1).put("columns", 2).put("count", 8)
+                        .set("meta", meta("BOARD", "COMMENTS", "TIME")),
+                "최신글 더보기", "/latest", 0, 41, 17, 8);
         b.add("GROUP_BUY", "진행 중 공동구매", true, false, style().put("cardLook", "DEFAULT").set("empty", noKeep()), null, null, null, 17, 0, 7, 12);
-        b.add("GROUPS", "인기 소모임", true, false, style().put("cardLook", "DEFAULT"), cfg().put("count", 3), "소모임 더 보기", "/groups", 17, 12, 7, 9);
-        b.add("NOTICE_TEXT", "운영 원칙", true, false, style().put("cardLook", "DEFAULT").set("empty", noKeep()), cfg().put("format", "BULLETS").put("text", RULES),
-                "공지 보기", "/boards/notice", 17, 21, 7, 6);
+        b.add("GROUPS", "인기 소모임", true, true, style().put("cardLook", "DEFAULT"), cfg().put("count", 3), "소모임 더 보기", "/groups", 17, 12, 7, 9);
         return b.build();
     }
 
-    /** 다음식 — 12칸: 본문 8칸(하이라이트 · 지금 뜨는 글 · 갤러리 · 방금 올라온 글) + 오른쪽 4칸(공구 · 로봇 인기 · 소모임 · 운영 원칙) */
+    /** 다음식 — 12칸: 본문 8칸(하이라이트 · 지금 뜨는 글 · [모바일 전용 공구] · 영상·짤 · 방금 올라온 글) + 오른쪽 4칸(공구 · 인기 소모임) */
     private static Home daum() {
         Builder b = new Builder("daum", 12);
-        b.add("HIGHLIGHT", "하이라이트", true, true, style().put("subtitle", "운영자가 고른 글").set("empty", noKeep()), cfg().put("lead", "HERO").put("thumbs", "ALL"),
-                null, null, 0, 0, 8, 13);
+        b.add("HIGHLIGHT", "하이라이트", true, true, style().put("subtitle", "운영자가 고른 글").set("empty", noKeep()), cfg().put("lead", "HERO").put("thumbs", "ALL").put("count", 4),
+                null, null, 0, 0, 8, 12);
         b.add("POST_LIST", "지금 뜨는 글", true, true, null,
-                cfg().put("sort", "POPULAR").put("rowStyle", "RANK").put("columns", 2).put("periodTabs", true).set("meta", meta("BOARD", "COMMENTS", "TIME")),
-                null, "/popular", 0, 13, 8, 10);
-        b.add("GALLERY", "갤러리", true, true, style().put("titleColor", "ORANGE"), cfg().put("count", 6).set("boardIds", meta("video")), "영상·짤 게시판", "/boards/video",
-                0, 23, 8, 11);
+                cfg().put("sort", "POPULAR").put("rowStyle", "RANK").put("columns", 2).put("count", 6).put("periodTabs", true).set("meta", meta("BOARD", "COMMENTS", "TIME")),
+                null, "/popular", 0, 12, 8, 8);
+        b.add("GROUP_BUY", "진행 중 공동구매", false, true, style().put("titleColor", "RED").set("empty", noKeep()), null, null, null, 0, 20, 8, 10);
+        b.add("GALLERY", "영상·짤", true, true, style().put("titleColor", "ORANGE"), cfg().put("count", 6).set("boardIds", meta("video")), "영상·짤 게시판", "/boards/video",
+                0, 30, 8, 11);
         b.add("POST_LIST", "방금 올라온 글", true, true, style().put("titleColor", "TEAL").put("subtitle", "전체 게시판 최신순"),
-                cfg().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("count", 8).put("newBadgeHours", 1).set("meta", meta("BOARD", "PREFIX", "COMMENTS", "TIME")),
-                "최신글 더보기", "/latest", 0, 34, 8, 18);
-        b.add("GROUP_BUY", "진행 중 공동구매", true, true, style().put("titleColor", "RED").set("empty", noKeep()), null, null, null, 8, 0, 4, 12);
-        b.add("POST_LIST", "로봇 인기", true, true, style().put("titleColor", "PURPLE"),
-                cfg().put("sort", "POPULAR").put("rowStyle", "RANK").put("count", 5).set("meta", meta("COMMENTS", "TIME")).set("boardIds", meta("robot")),
-                "로봇 게시판", "/boards/robot", 8, 12, 4, 9);
-        b.add("GROUPS", "인기 소모임", true, false, style().put("titleColor", "PURPLE"), cfg().put("count", 3), "소모임 전체", "/groups", 8, 21, 4, 9);
-        b.add("NOTICE_TEXT", "운영 원칙", true, false, style().put("headerStyle", "PLAIN").set("empty", noKeep()), cfg().put("format", "BULLETS").put("text", RULES),
-                "공지 보기", "/boards/notice", 8, 30, 4, 6);
+                cfg().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("thumbnail", "NONE").put("titleLines", 1).put("columns", 2).put("count", 8)
+                        .put("newBadgeHours", 1).set("meta", meta("BOARD", "COMMENTS", "TIME")),
+                "최신글 더보기", "/latest", 0, 41, 8, 8);
+        b.add("GROUP_BUY", "진행 중 공동구매", true, false, style().put("titleColor", "RED").set("empty", noKeep()), null, null, null, 8, 0, 4, 12);
+        b.add("GROUPS", "인기 소모임", true, true, style().put("titleColor", "PURPLE"), cfg().put("count", 3), "소모임 전체", "/groups", 8, 12, 4, 9);
         return b.build();
     }
 
-    /** 네이버형 — 24칸: 본문 17칸(하이라이트 행 → 게시판 카드 격자 · 갤러리) + 오른쪽 7칸(많이 본 글 · 공구 · 소모임). 바로가기 줄은 기본 배치에 두지 않는다 */
+    /** 네이버형 — 24칸: 본문 17칸(하이라이트 사진 카드 한 줄 · 인기글 · [모바일 전용 공구] · 영상·짤 · 방금 올라온 글) + 오른쪽 7칸(공구 · 인기 소모임) */
     private static Home naver() {
         Builder b = new Builder("naver", 24);
         b.add("HIGHLIGHT", "하이라이트", true, true, style().set("empty", noKeep()), cfg().put("lead", "NONE").put("thumbs", "ALL").put("count", 4), null, null, 0, 0, 17, 8);
-        b.add("BOARD_CARDS", "게시판", true, true, style().put("headerStyle", "HIDDEN").put("cardLook", "FLAT"),
-                cfg().put("columns", "AUTO").put("perBoard", 4).set("boardIds", meta("ai", "robot", "stock", "game", "sports", "free")), null, null, 0, 8, 17, 30);
-        b.add("GALLERY", "갤러리", true, true, style().put("titleColor", "ORANGE"), cfg().put("count", 6).set("boardIds", meta("video")), "영상·짤 게시판", "/boards/video",
-                0, 38, 17, 11);
-        b.add("POST_LIST", "많이 본 글", true, true, null, cfg().put("sort", "VIEWS").put("rowStyle", "RANK").put("count", 5).set("meta", meta("BOARD", "TIME")),
-                null, null, 17, 0, 7, 9);
-        b.add("GROUP_BUY", "진행 중 공동구매", true, true, style().set("empty", noKeep()), null, null, null, 17, 9, 7, 12);
-        b.add("GROUPS", "인기 소모임", true, false, null, cfg().put("count", 3), "소모임 전체", "/groups", 17, 21, 7, 9);
+        b.add("POST_LIST", "인기글", true, true, null,
+                cfg().put("sort", "POPULAR").put("rowStyle", "RANK").put("columns", 2).put("count", 6).put("periodTabs", true).set("meta", meta("BOARD", "COMMENTS", "TIME")),
+                null, "/popular", 0, 8, 17, 8);
+        b.add("GROUP_BUY", "진행 중 공동구매", false, true, style().set("empty", noKeep()), null, null, null, 0, 16, 17, 10);
+        b.add("GALLERY", "영상·짤", true, true, null, cfg().put("count", 6).set("boardIds", meta("video")), "영상·짤 게시판", "/boards/video", 0, 26, 17, 11);
+        b.add("POST_LIST", "방금 올라온 글", true, true, null,
+                cfg().put("sort", "LATEST").put("rowStyle", "HEADLINE").put("thumbnail", "NONE").put("titleLines", 1).put("columns", 2).put("count", 8)
+                        .set("meta", meta("BOARD", "COMMENTS", "TIME")),
+                null, "/latest", 0, 37, 17, 8);
+        b.add("GROUP_BUY", "진행 중 공동구매", true, false, style().set("empty", noKeep()), null, null, null, 17, 0, 7, 12);
+        b.add("GROUPS", "인기 소모임", true, true, null, cfg().put("count", 3), "소모임 전체", "/groups", 17, 12, 7, 9);
         return b.build();
     }
 

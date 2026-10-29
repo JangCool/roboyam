@@ -53,8 +53,9 @@
         <!-- 내용 — 접어도 DOM 은 남긴다(안쪽 상태를 잃지 않게) -->
         <div v-show="bodyShown" :id="bodyId" class="@container min-w-0">
             <template v-if="showEmpty">
-                <p v-if="style.empty.message" class="m-0 px-1 py-8 text-center text-sm text-muted-color" data-testid="home-gadget-empty">
-                    <i :class="[emptyIcon, 'mb-2 block text-xl']" aria-hidden="true" />{{ UtilHomeGadgetMessages.emptyTitle(t, gadget) }}
+                <!-- 아이콘을 글 위 한 줄로 — `.pi` 가 inline-block 이라 `block` 클래스로는 줄이 바뀌지 않아 세로 flex 로 쌓는다 -->
+                <p v-if="style.empty.message" class="m-0 flex flex-col items-center px-1 py-8 text-center text-sm text-muted-color" data-testid="home-gadget-empty">
+                    <i :class="[emptyIcon, 'mb-2 text-xl']" aria-hidden="true" />{{ UtilHomeGadgetMessages.emptyTitle(t, gadget) }}
                 </p>
                 <!-- 안내를 끈 경우 — 틀은 남기고 높이만 조금 가진 빈 칸 -->
                 <div v-else class="min-h-20" aria-hidden="true" data-testid="home-gadget-empty-frame" />
