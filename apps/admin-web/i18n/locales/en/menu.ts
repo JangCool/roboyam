@@ -91,6 +91,13 @@ export default {
     groupRequests: 'Creation requests',
     groupCategories: 'Club categories',
     groupSettings: 'Club settings',
+    // Business section (mockup) — business review · application review
+    business: 'Businesses',
+    businesses: 'Business review',
+    bizApplications: 'Application review',
+    // Ads section (mockup) — schedule
+    ad: 'Ads',
+    ads: 'Ad schedule',
     operatorsAndPermissions: 'Operators and permissions',
     operators: 'Operators',
     roles: 'Roles',

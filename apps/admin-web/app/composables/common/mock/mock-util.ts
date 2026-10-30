@@ -1,6 +1,6 @@
 // MOCK: 목업 API 들(각 업무의 `api/mock/*-mock.ts`)이 함께 쓰는 작은 도구 — 개발 전용 스위치 읽기와 지연. (user-web `composables/common/mock/mock-util.ts` 와 같은 모양)
 // 서버가 붙으면 각 업무의 목업 폴더(`composables/<업무>/api/mock/`)와 함께 지운다(쓰는 목업이 하나도 없을 때 이 파일도).
-// 지금 쓰는 목업: 없음(공구·커머스 설정 목업은 커머스 2b-4 에서 실제 API 로 바꿨다).
+// 지금 쓰는 목업: 사업자 심사(`business/api/mock`) · 사업자 신청 건(`bizapplication/api/mock`) · 광고 일정표(`ad/api/mock`). 공구·커머스 설정 목업은 커머스 2b-4 에서 실제 API 로 바꿨다.
 
 import { ApiError } from '~/composables/common/useApiClient';
 

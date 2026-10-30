@@ -91,6 +91,13 @@ export default {
     groupRequests: '개설 승인',
     groupCategories: '소모임 분류',
     groupSettings: '소모임 설정',
+    // 사업자 묶음(목업) — 사업자 심사 · 신청 심사
+    business: '사업자',
+    businesses: '사업자 심사',
+    bizApplications: '신청 심사',
+    // 광고 묶음(목업) — 일정표
+    ad: '광고',
+    ads: '광고 일정표',
     operatorsAndPermissions: '운영자와 권한',
     operators: '운영자 관리',
     roles: '역할 관리',

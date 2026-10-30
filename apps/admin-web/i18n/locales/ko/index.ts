@@ -55,6 +55,9 @@ import highlight from './highlight';
 import popular from './popular';
 import post from './post';
 import report from './report';
+import business from './business';
+import bizApplication from './bizApplication';
+import ad from './ad';
 
 export default {
     account,
@@ -107,4 +110,7 @@ export default {
     popular,
     post,
     report,
+    business,
+    bizApplication,
+    ad,
 };

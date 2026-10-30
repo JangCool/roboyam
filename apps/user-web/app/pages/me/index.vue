@@ -104,6 +104,7 @@
 import type { PointCount } from '~/composables/point/api/usePointApi.types';
 import type { MyProfile } from '~/composables/profile/api/useProfileApi.types';
 import UtilBusiness from '~/utils/util-business';
+import UtilBusinessMessages from '~/utils/util-business-messages';
 import UtilPoint from '~/utils/util-point';
 import UtilPointMessages from '~/utils/util-point-messages';
 import UtilPointShop from '~/utils/util-point-shop';
@@ -216,6 +217,9 @@ const entries = computed<Entry[]>(() => {
         list.push({ to: UtilPointShop.PATH, icon: 'pi pi-shopping-bag', label: term('POINT_SHOP'), hint: '', badge: '', testid: 'me-entry-point-shop' });
         list.push({ to: UtilPointShop.MY_ITEMS_PATH, icon: 'pi pi-box', label: t('pointShop.myItems'), hint: '', badge: '', testid: 'me-entry-my-items' });
     }
+    // 사업자 센터 — 신청했거나 사업자 전용 계정이면 「사업자 센터」, 일반 회원이고 신청 전이면 「사업자 신청」(운영진은 줄 없음, 셸 메뉴와 같은 규칙 `UtilBusiness.entryOf`)
+    const business = UtilBusiness.entryOf(user.value);
+    if (business) list.push({ to: UtilBusiness.CENTER_PATH, icon: UtilBusinessMessages.ENTRY_CENTER_ICON, label: business === 'CENTER' ? t('business.centerEntry') : t('business.applyEntry'), hint: '', badge: '', testid: 'me-entry-business' });
     list.push({ to: '/notifications', icon: 'pi pi-bell', label: t('notification.title'), hint: '', badge: badge.text.value, ariaLabel: badge.label.value, testid: 'me-entry-notifications' });
     // 쪽지함 — 안 읽은 대화 수(`docs/features/member-social-contract.md`)
     list.push({ to: '/messages', icon: 'pi pi-envelope', label: t('notification.dmTitle'), hint: '', badge: dmBadge.text.value, ariaLabel: dmBadge.label.value, testid: 'me-entry-messages' });

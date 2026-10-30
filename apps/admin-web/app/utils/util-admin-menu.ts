@@ -235,6 +235,24 @@ export default class UtilAdminMenu {
                 { key: 'groupSettings', to: '/group-settings', icon: 'pi pi-sliders-h', labelKey: 'menu.groupSettings', permission: 'group.read' },
             ],
         },
+        // 사업자 묶음 — 사업자 신원 심사 · 사업자 신청 건(광고·핫딜) 심사·결제 확인(docs/plans/biz-ad-hotdeal 00-overview ★ 절). ⚠ 화면은 목업(`useBusinessApi`·`useBizApplicationApi`).
+        // 서버 `AdminScreenRegistry` 에도 같은 두 줄이 필요하고, 권한 `business.read`(featureReady=false — 메뉴 감춤에는 쓰지 않는다)를 켜야 한다(백엔드 단계). 주소는 앞부분이 겹치지 않게(`/businesses` 와 `/biz-applications`)
+        {
+            key: 'business',
+            icon: 'pi pi-briefcase',
+            labelKey: 'menu.business',
+            items: [
+                { key: 'businesses', to: '/businesses', icon: 'pi pi-id-card', labelKey: 'menu.businesses', permission: 'business.read' },
+                { key: 'bizApplications', to: '/biz-applications', icon: 'pi pi-inbox', labelKey: 'menu.bizApplications', permission: 'business.read' },
+            ],
+        },
+        // 광고 묶음 — 광고 일정표(유형별 한도·달력·광고 건·운영자 수동 등록·긴급 내림·되돌리기, 02-ad.md 7-1). ⚠ 화면은 목업(`useAdApi`). 서버 `AdminScreenRegistry` 한 줄 + `ad.read` featureReady 는 백엔드 단계
+        {
+            key: 'ad',
+            icon: 'pi pi-megaphone',
+            labelKey: 'menu.ad',
+            items: [{ key: 'ads', to: '/ads', icon: 'pi pi-calendar', labelKey: 'menu.ads', permission: 'ad.read' }],
+        },
         // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」·「소셜 로그인」·「조직 구성」이 있고(메일 서버는 다음 「메일」 묶음, 알림 도구·템플릿·문구·이벤트는 그다음 「알림·이벤트」 묶음) 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다
         {
             key: 'settingsSystem',
