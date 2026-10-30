@@ -132,7 +132,7 @@ import UtilBusinessMessages from '~/utils/util-business-messages';
 
 /**
  * 사업자 신청/수정 `/business/apply` — 로그인 필요. 사업자 센터 홈의 [사업자 신청]·[다시 신청]·[정보 수정]이 온다.
- * 판정은 서버다(번호 체크섬·중복 409 `BUSINESS_NUMBER_TAKEN`·국세청 조회는 운영 심사 때). ⚠ 목업 단계(`useBusinessApi`).
+ * 판정은 서버다(번호 체크섬·중복 409 `BUSINESS_DUPLICATE`·국세청 조회는 신청 뒤 서버가 한 번, 심사 때 운영자가 다시). 사본은 `uploadCertificate` 로 먼저 올린다.
  */
 definePageMeta({ middleware: 'auth' });
 
@@ -258,7 +258,7 @@ async function uploadCertificate(file: File): Promise<void> {
     uploadBusy.value = true;
     formError.value = '';
     try {
-        certificate.value = await api.uploadFile(file);
+        certificate.value = await api.uploadCertificate(file);
         serverFields.value = { ...serverFields.value, certificate: '' };
     } catch (e) {
         formError.value = e instanceof Error ? e.message : t('common.failed');

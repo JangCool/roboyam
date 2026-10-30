@@ -3,7 +3,7 @@
         사업자 센터 홈 `/business` — 상태가 하나뿐인 화면이라 탭 대신 「지금 할 일 하나」를 맨 위에 둔다(§6, 01 §7-2 F).
         미신청 = 안내 + [사업자 신청] · 심사 중 = 확인 중 안내 + 가린 요약 · 반려 = 사유 + [다시 신청] · 정지 = 사유 + 문의 안내 ·
         승인 = (재심사 중이면 안내) + 할 일 카드(결제 대기 — 기한·[결제하기], 입금 확인 대기) + 서비스 카드(광고·핫딜) + 사업자 정보 요약 + 최근 신청 건.
-        ⚠ MOCK: 오른쪽 아래 「목업」 상자로 사업자 상태를 바꿔 본다(서버가 붙으면 지운다).
+        사업자 신원은 서버(`GET /api/business/me`), 신청 건 목록은 아직 목업(`useBusinessApi` — 신청 건 백엔드에서 붙인다).
     -->
     <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="business-home">
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -169,17 +169,11 @@
                 </ul>
             </section>
         </template>
-
-        <!-- MOCK: 사업자 상태 바꾸기 -->
-        <BusinessMockPanel :title="t('business.mock.title')" floating>
-            <label :for="`${uid}-mock`" class="text-xs font-medium">{{ t('business.mock.profileStatus') }}</label>
-            <Select :model-value="mockChoice" :input-id="`${uid}-mock`" :options="mockOptions" option-label="label" option-value="value" size="small" :disabled="mockBusy" fluid data-testid="business-mock-status" @update:model-value="changeMock" />
-        </BusinessMockPanel>
     </div>
 </template>
 
 <script setup lang="ts">
-import type { BizApplicationSummary, BusinessProfile, BusinessProfileStatus } from '~/composables/business/api/useBusinessApi.types';
+import type { BizApplicationSummary, BusinessProfile } from '~/composables/business/api/useBusinessApi.types';
 import UtilBusiness from '~/utils/util-business';
 import UtilBusinessMessages from '~/utils/util-business-messages';
 
@@ -240,29 +234,4 @@ const services = computed(() => [
     { to: UtilBusiness.AD_NEW_PATH, icon: 'pi pi-megaphone', label: t('business.home.serviceAd'), text: t('business.home.serviceAdText'), testid: 'business-service-ad' },
     { to: UtilBusiness.DEAL_NEW_PATH, icon: 'pi pi-tag', label: t('business.home.serviceDeal'), text: t('business.home.serviceDealText'), testid: 'business-service-deal' },
 ]);
-
-/* ── MOCK: 상태 바꾸기 ── */
-type MockChoice = BusinessProfileStatus | 'APPROVED_RE_REVIEW';
-const mockBusy = ref(false);
-const mockChoice = computed<MockChoice | null>(() => {
-    if (!profile.value) return null;
-    return profile.value.status === 'APPROVED' && profile.value.reReview ? 'APPROVED_RE_REVIEW' : profile.value.status;
-});
-const mockOptions = computed(() =>
-    (['NONE', 'PENDING', 'APPROVED', 'APPROVED_RE_REVIEW', 'REJECTED', 'SUSPENDED'] as const).map((value) => ({
-        value,
-        label: value === 'APPROVED_RE_REVIEW' ? t('business.mock.reReview') : t(`business.profileStatus.${value}`),
-    })),
-);
-
-async function changeMock(value: MockChoice): Promise<void> {
-    mockBusy.value = true;
-    try {
-        profile.value = value === 'APPROVED_RE_REVIEW' ? await api.mockSetStatus('APPROVED', true) : await api.mockSetStatus(value);
-        status.value = 'ready';
-        if (profile.value.status === 'APPROVED') void loadApplications();
-    } finally {
-        mockBusy.value = false;
-    }
-}
 </script>

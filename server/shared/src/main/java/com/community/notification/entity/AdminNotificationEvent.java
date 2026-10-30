@@ -130,7 +130,10 @@ public enum AdminNotificationEvent {
     COMMERCE_QNA_REPORTED(spec(GROUPBUY, WARNING).holders(Permission.COMMERCE_ORDER_MANAGE).link("/group-buy-qna?tab=ALL&question={id}").collapse(86400)),
     /** 공구 리뷰 신고(2b-6) — 대상마다 하루 한 건. 처리는 리뷰 상세 서랍의 숨김(사유 코드) */
     COMMERCE_REVIEW_REPORTED(spec(GROUPBUY, WARNING).holders(Permission.COMMERCE_ORDER_MANAGE).link("/group-buy-reviews?tab=REPORTED&review={id}").collapse(86400)),
-    BUSINESS_APPLICATION_PENDING(spec(BIZ_AD, INFO).holders(Permission.BUSINESS_MANAGE).reserved()),
+    /** 사업자 신청(처음·반려 뒤 재신청)이 심사를 기다린다 — 사업자 심사(business-contract, V111) */
+    BUSINESS_APPLICATION_PENDING(spec(BIZ_AD, INFO).holders(Permission.BUSINESS_MANAGE).link("/businesses?id={profileId}").collapse(300)),
+    /** 승인 사업자가 상호·번호를 고쳐 재심사를 기다린다(F7) — 이미 예약·진행 중인 신청 건은 그대로, 새 신청만 막혀 있다 */
+    BUSINESS_RE_REVIEW_PENDING(spec(BIZ_AD, WARNING).holders(Permission.BUSINESS_MANAGE).link("/businesses?id={profileId}").collapse(300)),
     AD_REVIEW_PENDING(spec(BIZ_AD, INFO).holders(Permission.AD_MANAGE).reserved()),
     /** 운영자 신청 기능이 구현된 뒤 */
     OPERATOR_APPLICATION_PENDING(spec(SYSTEM, INFO).holders(Permission.OPERATOR_MANAGE).reserved());

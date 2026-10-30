@@ -14,8 +14,11 @@ export type BizPaymentCompleteRequest = PaymentFakeCheckoutRequest;
 /** 사업자 신원 상태 — 로그인 정보의 `businessStatus` 와 같은 값 */
 export type BusinessProfileStatus = BusinessUserStatus;
 
-/** 반려 사유 코드(운영자가 고른다 — 글은 따로) */
+/** 신청 건 반려 사유 코드(운영자가 고른다 — 글은 따로, 신청 건 백엔드가 확정) */
 export type BusinessRejectCode = 'DOCUMENT_UNREADABLE' | 'INFO_MISMATCH' | 'CLOSED_BUSINESS' | 'POLICY' | 'OTHER';
+
+/** 사업자 신원 반려 사유 코드 — 서버 `BusinessRejectCode`(관리자 화면과 같은 값) */
+export type BusinessProfileRejectCode = 'DOC_UNREADABLE' | 'INFO_MISMATCH' | 'NTS_CLOSED' | 'DUPLICATE' | 'OTHER';
 
 /** 첨부 파일(사업자등록증 사본·광고 이미지) — 올리기 API 가 준다 */
 export interface BusinessFile {
@@ -42,7 +45,7 @@ export interface BusinessProfile {
     certificate: Pick<BusinessFile, 'fileId' | 'name' | 'size'> | null;
     submittedAt: string | null;
     reviewedAt: string | null;
-    rejectCode: BusinessRejectCode | null;
+    rejectCode: BusinessProfileRejectCode | null;
     rejectReason: string | null;
     suspendReason: string | null;
     /** 승인 뒤 상호·번호를 고쳐 다시 심사 중(F7) — 이미 예약·진행 중인 건은 그대로, 새 신청만 막힌다 */

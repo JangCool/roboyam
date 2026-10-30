@@ -3,6 +3,7 @@ package com.community.auth.service;
 import com.community.auth.dto.response.MeResponse;
 import com.community.auth.dto.response.RestrictionView;
 import com.community.auth.dto.response.UserView;
+import com.community.business.service.BusinessEligibility;
 import com.community.grade.entity.GradeEntity;
 import com.community.grade.repository.master.GradeRepository;
 import com.community.user.entity.ProfileEntity;
@@ -24,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li>{@code restriction}: 제재 표가 아직 없다 — {@code SUSPENDED}·{@code BANNED} 일 때만 {@code { status, until: null, pendingNotices: 0 }}, 그 밖에는 null.</li>
  *   <li>{@code adminUrl}: 항상 null — 운영자는 공개 사이트에 로그인하지 않는다(회원과 별도 계정, 관리자 앱에서만 일한다). 화면의 칸은 남겨 두었다.</li>
- *   <li>{@code businessStatus}: 사업자 기능이 없어 항상 null.</li>
+ *   <li>{@code businessStatus}: 사업자 신원 상태(business-contract) — {@code NONE}·{@code PENDING}·{@code APPROVED}·{@code REJECTED}·{@code SUSPENDED}, 재심사 중은 {@code APPROVED}.</li>
  *   <li>{@code grade}: 등급 설정의 등급 키(기본 SEEDLING·REGULAR·LOYAL·VETERAN), {@code gradeLabel}: 그 등급의 이름 — 운영자가 등급 설정에서 입력한 값이라 요청 언어와 상관없이 같다.</li>
  * </ul>
  */
@@ -36,8 +37,10 @@ public class MeService {
     private final ProfileRepository profiles;
     private final UserIdentityRepository identities;
     private final GradeRepository grades;
+    private final BusinessEligibility business;
 
-    public MeService(UserRepository users, ProfileRepository profiles, UserIdentityRepository identities, GradeRepository grades) {
+    public MeService(UserRepository users, ProfileRepository profiles, UserIdentityRepository identities, GradeRepository grades, BusinessEligibility business) {
+        this.business = business;
         this.users = users;
         this.grades = grades;
         this.profiles = profiles;
@@ -66,7 +69,7 @@ public class MeService {
 
         String gradeLabel = grades.findById(p.getGradeKey()).map(GradeEntity::getLabel).orElse(p.getGradeKey()); // 등급 행이 없을 수는 없지만(외래키) 키라도 보인다
         UserView view = new UserView(Long.toString(u.getId()), p.getNickname(), p.getGradeKey(), gradeLabel, u.getRole().name(), u.getEmail(),
-                u.isEmailVerified(), List.copyOf(methods), null);
+                u.isEmailVerified(), List.copyOf(methods), business.memberStatusOf(userId));
 
         boolean restricted = u.getStatus() == UserStatus.SUSPENDED || u.getStatus() == UserStatus.BANNED;
         RestrictionView restriction = restricted ? new RestrictionView(u.getStatus().name(), null, 0) : null;

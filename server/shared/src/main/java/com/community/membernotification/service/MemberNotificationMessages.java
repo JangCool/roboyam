@@ -255,6 +255,13 @@ public class MemberNotificationMessages {
             return new Facts(MemberNotificationType.GROUP_BUY, null, null, null, 1, amount, null, note, false, title, kind);
         }
 
+        /**
+         * 사업자 신원 알림(V111) — 종류({@code result} — SUBMITTED·APPROVED·REJECTED·SUSPENDED·UNSUSPENDED·RE_REVIEW)·상호({@code snapshot})·사유({@code note}).
+         */
+        public static Facts business(String kind, String companyName, String note) {
+            return new Facts(MemberNotificationType.BUSINESS, null, null, null, 1, 0, null, note, false, companyName, kind);
+        }
+
         /** 운영자가 숨긴 글의 숨김 알림인가 */
         public boolean byStaff() {
             return BY_STAFF.equals(result);
@@ -354,6 +361,8 @@ public class MemberNotificationMessages {
             case GROUP_BUY -> builder.variable("groupBuyTitle", nz(facts.snapshot()))
                     .variable("detail", messages.get(new MessageRef("member.notification.GROUP_BUY.kind." + nz(facts.result()), String.format("%,d", facts.amount()),
                             nz(facts.note())), locale));
+            case BUSINESS -> builder.variable("companyName", nz(facts.snapshot()))
+                    .variable("detail", messages.get(new MessageRef("member.notification.BUSINESS.kind." + nz(facts.result()), nz(facts.note())), locale));
             case POINTS_EXPIRING -> builder.variable("amount", String.format("%,d", facts.amount()))
                     .variable("date", facts.expiring() == null || facts.expiring().date() == null ? "" : facts.expiring().date().toString())
                     .variable("days", facts.expiring() == null ? "" : String.valueOf(facts.expiring().days()));

@@ -284,6 +284,12 @@ public class MemberNotificationService {
                         number(payload.get("amount")), payload.get("note") instanceof String n ? n : null);
                 link = payload.get("path") instanceof String p && p.startsWith("/") ? p : "/me/orders";
             }
+            case BUSINESS -> {
+                // 사업자 신원(V111) — 종류 · 상호(알릴 때) · 반려·정지 사유. 누르면 사업자 센터
+                facts = MemberNotificationMessages.Facts.business(payload.get("kind") instanceof String k ? k : "", payload.get("companyName") instanceof String n ? n : null,
+                        payload.get("note") instanceof String why && !why.isBlank() ? why : null);
+                link = "/business";
+            }
             case POINT_SHOP_REFUND_REJECTED -> {
                 // 정지 중 환불 신청 거절 — 품목 이름 · 사유. 누르면 내 아이템
                 facts = MemberNotificationMessages.Facts.refundRejected(payload.get("itemName") instanceof String n ? n : null,

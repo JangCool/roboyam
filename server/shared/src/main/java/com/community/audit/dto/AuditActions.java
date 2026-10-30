@@ -366,6 +366,23 @@ public final class AuditActions {
     public static final String ADDRESS_SEARCH_SETTINGS_UPDATE = "ADDRESS_SEARCH_SETTINGS_UPDATE";
     /** 주소 DB 적재 결과 — 대상 ADDRESS_SEARCH/적재 ID, 성공은 {@code files}·{@code entries}·{@code jibun}·{@code english}, 실패는 {@code reason}(문구 키). 일반 */
     public static final String ADDRESS_DB_IMPORT = "ADDRESS_DB_IMPORT";
+    // ── 사업자 신원(business-contract, V111) — 대상 BUSINESS + 신원 ID. detail 에 등록번호·대표자·연락처·주소 평문을 싣지 않는다(상호·끝 4자리·사유만) ──
+    /** 사업자 승인 — {@code companyName}·{@code ntsStatus}. 일반 */
+    public static final String BUSINESS_APPROVE = "BUSINESS_APPROVE";
+    /** 사업자 반려 — {@code code}·{@code text}. 일반 */
+    public static final String BUSINESS_REJECT = "BUSINESS_REJECT";
+    /** 사업자 정지(H2) — {@code code}·{@code text}·진행 건 처리 {@code pendingAction}·{@code scheduledAction}·{@code runningAction}. 민감 */
+    public static final String BUSINESS_SUSPEND = "BUSINESS_SUSPEND";
+    /** 사업자 정지 해제 — {@code restore}(진행 중이던 건 처리)·{@code note}. 민감 */
+    public static final String BUSINESS_UNSUSPEND = "BUSINESS_UNSUSPEND";
+    /** 사업자 신원 평문 열람(B3) — {@code reason}. 개인정보 열람 */
+    public static final String BUSINESS_REVEAL = "BUSINESS_REVEAL";
+    /** 사업자등록증 사본 열람(B2). 개인정보 열람 */
+    public static final String BUSINESS_CERT_VIEW = "BUSINESS_CERT_VIEW";
+    /** 국세청 상태조회 다시 하기(B1) — {@code status}. 일반 */
+    public static final String BUSINESS_NTS_CHECK = "BUSINESS_NTS_CHECK";
+    /** 국세청 조회 불가인데 사유를 적고 승인(B1) — {@code reason}. 민감 */
+    public static final String BUSINESS_NTS_OVERRIDE = "BUSINESS_NTS_OVERRIDE";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

@@ -111,6 +111,12 @@ roboyam:
   identity:
     provider: ${ROBOYAM_IDENTITY_PROVIDER:portone}
     verification-ttl: 30m        # 서버가 발급한 인증 번호의 유효 시간 — 지나면 확정할 수 없다(410)
+  # 사업자 신원(docs/features/business-contract.md) — 국세청 사업자 상태조회 구현은 배포 설정이다 — odcloud(공공데이터포털) | fake(local·시험 전용).
+  # dev · prod 프로필에서 fake 면 기동을 멈춘다(NtsConfig). 인증키(일반 인증키 Decoding)가 비면 모든 조회가 「조회 불가(키 없음)」 — 운영자는 사유를 적고 승인한다
+  business:
+    nts:
+      provider: ${ROBOYAM_NTS_PROVIDER:odcloud}
+      service-key: ${ROBOYAM_NTS_SERVICE_KEY:}
   # 소모임(docs/features/group-contract.md — GroupProperties). 아래는 관리자 앱 소모임 설정에 저장된 값이 없을 때의 기본값이다(저장된 값이 이긴다 — DB > yml).
   # 화면에 없는 한도: 하루 개설 신청 수 · 하루 가입·신청 수 · 상세 「최근 N일 가입」. 그 밖의 칸(매니저·공개 범위·지금 뜨는·일정 한도)은 GroupProperties 의 기본값을 쓴다
   groups:

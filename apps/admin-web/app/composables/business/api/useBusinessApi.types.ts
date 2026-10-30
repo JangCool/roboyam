@@ -1,5 +1,5 @@
 /**
- * 사업자 심사(관리자) — 서버와 주고받는 모양. 계약 전 목업 단계(docs/plans/biz-ad-hotdeal/00-overview.md ★ 절 · 01-business.md 7-1).
+ * 사업자 심사(관리자) — 서버와 주고받는 모양. 계약 `docs/features/business-contract.md`(근거 docs/plans/biz-ad-hotdeal/00-overview.md ★ 절 · 01-business.md 7-1).
  * 사업자 = 「신원 1줄 + 서비스별 이용 권한 N줄」(HOTDEAL · AD). 목록에는 가린 값만 온다(평문 칸 자체가 없다).
  */
 
@@ -13,8 +13,8 @@ export const BUSINESS_SERVICES: readonly BusinessService[] = ['HOTDEAL', 'AD'];
 
 export type BusinessServiceStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'OFF';
 
-/** 국세청 상태조회 결과 — 계속사업자 · 휴업 · 폐업 · 조회 불가(장애·키 없음). 「계속」일 때만 [승인] 이 켜진다(B1) */
-export type NtsBizStatus = 'CONTINUING' | 'PAUSED' | 'CLOSED' | 'UNAVAILABLE';
+/** 국세청 상태조회 결과 — 계속사업자 · 휴업 · 폐업 · 국세청에 없는 번호 · 조회 불가(장애·키 없음·아직 조회 전). 「계속」일 때만 [승인] 이 켜진다(B1) */
+export type NtsBizStatus = 'CONTINUING' | 'PAUSED' | 'CLOSED' | 'NOT_FOUND' | 'UNAVAILABLE';
 
 export interface NtsCheck {
     status: NtsBizStatus;
@@ -39,6 +39,8 @@ export interface BusinessRow {
     /** 가린 등록번호(`124-**-***98`) */
     maskedRegNo: string;
     status: BusinessStatus;
+    /** 승인 뒤 상호·번호를 고쳐 다시 심사 중(F7 — `status` 는 `PENDING`) */
+    reReview: boolean;
     services: BusinessServiceRow[];
     applicant: { memberId: string; nickname: string };
     appliedAt: string;
@@ -73,7 +75,7 @@ export interface BusinessSuspendImpact {
 
 export interface BusinessHistory {
     at: string;
-    action: 'APPLIED' | 'NTS_CHECKED' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'REVEALED' | 'CERT_VIEWED' | 'UPDATED';
+    action: 'APPLIED' | 'NTS_CHECKED' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'UNSUSPENDED' | 'REVEALED' | 'CERT_VIEWED' | 'UPDATED' | 'WITHDRAWN';
     actor: string;
     note: string | null;
 }
@@ -112,6 +114,21 @@ export interface BusinessReveal {
     email: string;
     /** 이 시각이 지나면 화면이 가린다(ISO) */
     hideAt: string;
+}
+
+/** 사업자등록증 사본 — 공개 주소가 없어 `data:` 주소로 온다(열 때마다 열람 기록) */
+export interface BusinessCertificateFile {
+    url: string;
+    mimeType: string;
+    fileName: string;
+}
+
+/** 정지 해제 때 정지로 내려간 진행 중 건 — 남은 기간 연장 후 되돌리기 · 환불 유지(H2) */
+export type UnsuspendRestore = 'EXTEND_RESTORE' | 'KEEP_REFUND';
+
+export interface BusinessUnsuspendRequest {
+    restore: UnsuspendRestore;
+    note?: string;
 }
 
 export interface BusinessApproveRequest {

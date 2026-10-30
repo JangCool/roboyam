@@ -497,6 +497,10 @@ export default {
         DOCUMENT_UNREADABLE: '서류 확인 불가',
         INFO_MISMATCH: '정보 불일치',
         CLOSED_BUSINESS: '휴업·폐업',
+        // 사업자 신원 반려 코드(서버 정본 — 관리자 화면과 같은 값)
+        DOC_UNREADABLE: '서류 확인 불가',
+        NTS_CLOSED: '휴업·폐업',
+        DUPLICATE: '중복 신청',
         POLICY: '정책 위반',
         OTHER: '기타',
     },

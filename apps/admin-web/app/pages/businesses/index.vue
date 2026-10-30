@@ -4,8 +4,8 @@
         · 상태 탭(심사 중·승인·반려·정지·탈퇴·전체, 건수) · 서비스(핫딜/광고) · 찾기(사업자명·번호·신청자). 심사 중은 오래된 것이 위.
         · 한 줄: 사업자명 · 가린 등록번호 · 신원 상태 · 서비스 · 신청자 · 신청일 · 국세청 조회 결과. 평문 칸은 목록에 없다.
         · 줄을 누르면 상세 서랍(`?id=`): 승인(계속사업자만 — 조회 불가는 사유) · 반려(코드+글) · 정지(영향 건수와 처리 선택) · 평문 보기(사유 → 10분) · 등록증 열람.
-        권한: 화면 `business.read` · 처리 `business.manage` · 평문 `business.reveal`(SENSITIVE, 서버 `Permission` 에 추가 예정).
-        서버 호출은 `useBusinessApi`(지금 목업 — `?mock=biz-list-fail`·`biz-empty`·`nts-down`).
+        권한: 화면 `business.read` · 처리 `business.manage` · 평문 `business.reveal`(SENSITIVE). 계약 `docs/features/business-contract.md`.
+        서버 호출은 `useBusinessApi`. 등록증 사본은 `data:` 주소로 온다 — 그림은 `<img>`, PDF 는 `<iframe>`.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('business.title')" :subtitle="t('business.subtitle')" />
@@ -138,7 +138,8 @@
 
         <Dialog v-model:visible="certOpen" modal :draggable="false" :header="t('business.certTitle')" :style="{ width: 'min(32rem, calc(100vw - 2rem))' }">
             <div class="flex flex-col items-center gap-2">
-                <img v-if="certUrl" :src="certUrl" :alt="t('business.certTitle')" class="max-h-[70vh] w-auto rounded border border-(--line)" />
+                <iframe v-if="certUrl && certMime === 'application/pdf'" :src="certUrl" :title="t('business.certTitle')" class="h-[70vh] w-full rounded border border-(--line)" />
+                <img v-else-if="certUrl" :src="certUrl" :alt="t('business.certTitle')" class="max-h-[70vh] w-auto rounded border border-(--line)" />
                 <p class="m-0 text-xs text-muted-color">{{ t('business.certViewLog') }}</p>
             </div>
         </Dialog>
@@ -393,12 +394,15 @@ async function submitReveal(reason: string): Promise<void> {
 
 const certOpen = ref(false);
 const certUrl = ref('');
+const certMime = ref('');
 async function openCert(): Promise<void> {
     const d = drawerDetail.value;
     if (!d) return;
     working.value = 'cert';
     try {
-        certUrl.value = (await api.certificate(d.id)).url;
+        const file = await api.certificate(d.id);
+        certUrl.value = file.url;
+        certMime.value = file.mimeType;
         certOpen.value = true;
         void loadDetail();
     } catch (e) {

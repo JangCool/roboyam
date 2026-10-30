@@ -1,12 +1,12 @@
-// MOCK: 사업자 센터(신원·광고/핫딜 신청 건·결제·환불 요청)의 메모리 목업 — `useBusinessApi.ts` 가 부른다.
-// 서버가 붙으면 `business/api/mock/` 와 함께 지운다. 새로고침하면 처음 상태(승인된 사업자 + 신청 건 9개)로 돌아간다.
+// MOCK: 사업자 센터의 신청 건(광고/핫딜 신청 건·결제·환불 요청·광고 이미지)의 메모리 목업 — `useBusinessApi.ts` 가 부른다. 신원은 서버에 붙었다.
+// 신청 건 백엔드가 붙으면 `business/api/mock/` 와 함께 지운다. 새로고침하면 처음 상태(목업 안의 승인된 사업자 + 신청 건 9개)로 돌아간다 — 서버 신원과 따로 판정한다.
 //
 // ── 목업 규칙(가정 — `docs/plans/biz-ad-hotdeal/00-overview.md` ★-6) ─
 //   · 요금 = 종류 × 하루 단가 × 일수 + 부가세 10%. 운영자가 승인 때 확정한다(목업 승인은 예상 금액 그대로).
 //   · 결제 기한 72시간 · 입금 기한 7일 · 첨부 10MB. 결제는 가짜 결제창(`PaymentFakeCheckoutDialog`)으로만 — 실제 PG 를 부르지 않는다.
 //   · 「예약 → 진행 → 종료」는 기간과 오늘(브라우저 날짜)로 계산한다. 목업 운영자 처리 START·END 는 기간을 옮겨 단계를 바꾼다.
 //   · 사업자 핫딜에 노출을 고르면 같은 신청 건(HOTDEAL_POST)에 묶어 한 번에 결제한다.
-//   · 상태 바꾸기·운영자 처리는 개발용(`mockSetProfileStatus`·`mockOperate`)이다 — 서버에는 없다.
+//   · 운영자 처리는 개발용(`mockOperate`)이다 — 서버에는 없다.
 
 import { ApiError } from '~/composables/common/useApiClient';
 import { mockClone, mockDelay } from '~/composables/common/mock/mock-util';
@@ -26,10 +26,8 @@ import type {
     BizMockOperatorAction,
     BizPaymentCompleteRequest,
     BizPaymentStart,
-    BusinessApplyRequest,
     BusinessFile,
     BusinessProfile,
-    BusinessProfileStatus,
     DealApplyRequest,
     DealLinkCheck,
     DealProduct,
@@ -59,7 +57,7 @@ const DEAL_PRODUCT: DealProduct = {
 
 const DEPOSIT_ACCOUNT = { bankName: '국민은행', accountNo: '123456-01-987654', accountHolder: '(주)로보얌' };
 
-let profile: BusinessProfile = approvedProfile();
+const profile: BusinessProfile = approvedProfile();
 let apps: BizApplicationDetail[] = seedApplications();
 let seq = 100;
 
@@ -106,25 +104,6 @@ function approvedProfile(): BusinessProfile {
         certificate: { fileId: 'f-cert-1', name: '사업자등록증.pdf', size: 482_113 },
         submittedAt: iso(-20 * DAY),
         reviewedAt: iso(-18 * DAY),
-        rejectCode: null,
-        rejectReason: null,
-        suspendReason: null,
-        reReview: false,
-    };
-}
-
-function emptyProfile(): BusinessProfile {
-    return {
-        status: 'NONE',
-        companyName: null,
-        bizNoMasked: null,
-        ownerName: null,
-        phoneMasked: null,
-        email: null,
-        address: null,
-        certificate: null,
-        submittedAt: null,
-        reviewedAt: null,
         rejectCode: null,
         rejectReason: null,
         suspendReason: null,
@@ -313,28 +292,7 @@ function checkPeriodOpen(slot: AvailabilitySlot, start: string, end: string): vo
     }
 }
 
-/* ── 신원 ─────────────────────────────────────────────── */
-
-export async function mockProfile(): Promise<BusinessProfile> {
-    await mockDelay();
-    return mockClone(profile);
-}
-
-/** 개발용 — 목업 신원 상태 바꾸기 */
-export async function mockSetProfileStatus(status: BusinessProfileStatus, reReview = false): Promise<BusinessProfile> {
-    await mockDelay();
-    if (status === 'NONE') profile = emptyProfile();
-    else {
-        profile = { ...approvedProfile(), status, reReview: status === 'APPROVED' && reReview };
-        if (status === 'PENDING') profile.reviewedAt = null;
-        if (status === 'REJECTED') {
-            profile.rejectCode = 'DOCUMENT_UNREADABLE';
-            profile.rejectReason = '사업자등록증 사본의 글자가 흐려 읽을 수 없어요. 선명한 사본으로 다시 올려 주세요.';
-        }
-        if (status === 'SUSPENDED') profile.suspendReason = '허위 할인율 표시가 반복돼 이용을 정지했어요(운영정책 4조).';
-    }
-    return mockClone(profile);
-}
+/* ── 첨부(광고 이미지) ───────────────────────────────── */
 
 export async function mockUploadFile(file: File): Promise<BusinessFile> {
     await mockDelay();
@@ -346,42 +304,6 @@ export async function mockUploadFile(file: File): Promise<BusinessFile> {
         contentType: file.type,
         previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
     };
-}
-
-export async function mockApply(body: BusinessApplyRequest, edit: boolean): Promise<BusinessProfile> {
-    await mockDelay();
-    const fields: Record<string, string> = {};
-    if (body.bizNo !== null && !UtilBusiness.isValidBizNo(body.bizNo)) fields.bizNo = '올바른 사업자등록번호가 아니에요.';
-    if (body.bizNo === '1234567891') {
-        throw conflict('BUSINESS_NUMBER_TAKEN', '이미 다른 계정이 신청한 사업자등록번호예요. 본인 사업자라면 운영팀에 문의해 주세요.');
-    }
-    if (Object.keys(fields).length) throw new ApiError({ status: 400, code: 'VALIDATION', message: '입력한 값을 확인해 주세요.', fields });
-
-    const masked = (no: string | null, fallback: string | null) => (no ? `${no.slice(0, 3)}-${no.slice(3, 5)}-*****` : fallback);
-    const phoneMasked = (p: string | null, fallback: string | null) => (p ? `${UtilBusiness.digits(p).slice(0, 3)}-****-${UtilBusiness.digits(p).slice(-4)}` : fallback);
-    const identityChanged = edit && (body.companyName !== profile.companyName || body.bizNo !== null);
-
-    profile = {
-        ...profile,
-        companyName: body.companyName,
-        bizNoMasked: masked(body.bizNo, profile.bizNoMasked),
-        ownerName: body.ownerName,
-        phoneMasked: phoneMasked(body.phone, profile.phoneMasked),
-        email: body.email,
-        address: { ...body.address },
-        certificate: profile.certificate?.fileId === body.certificateFileId ? profile.certificate : { fileId: body.certificateFileId, name: '사업자등록증 사본', size: 0 },
-        rejectCode: null,
-        rejectReason: null,
-    };
-    if (!edit) {
-        profile.status = 'PENDING';
-        profile.submittedAt = iso(0);
-        profile.reviewedAt = null;
-    } else if (identityChanged) {
-        profile.reReview = true;
-        profile.submittedAt = iso(0);
-    }
-    return mockClone(profile);
 }
 
 /* ── 상품·남은 칸 ─────────────────────────────────────── */

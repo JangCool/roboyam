@@ -496,6 +496,10 @@ export default {
         DOCUMENT_UNREADABLE: 'Unreadable document',
         INFO_MISMATCH: 'Info mismatch',
         CLOSED_BUSINESS: 'Closed business',
+        // business identity reject codes (server canonical — same values as the admin screen)
+        DOC_UNREADABLE: 'Unreadable document',
+        NTS_CLOSED: 'Closed business',
+        DUPLICATE: 'Duplicate application',
         POLICY: 'Policy violation',
         OTHER: 'Other',
     },

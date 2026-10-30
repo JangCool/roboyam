@@ -58,6 +58,11 @@ public enum MemberNotificationType {
      * 끌 수 없는 거래 알림(관심 알림은 회원이 신청한 것). 꼭 가야 하는 메일(계약 통지·환불 완료·지연 통지)은 커머스 메일 대기열이 따로 보낸다.
      */
     GROUP_BUY("system"),
+    /**
+     * 사업자 신원(V111 — docs/features/business-contract.md) — 덧붙임 {@code kind}(SUBMITTED 접수 · APPROVED 승인 · REJECTED 반려 · SUSPENDED 정지 · UNSUSPENDED 해제 ·
+     * RE_REVIEW 재심사 대기) · {@code companyName}(알릴 때 상호) · {@code note}(반려·정지 사유). 끌 수 없는 계정 알림. 누르면 사업자 센터({@code /business})
+     */
+    BUSINESS("system"),
 
     // ── 소모임(V90 — docs/features/group-contract.md 1단계, community api-groups.md 7절). 묶음 system(user-web 거르기에 소모임 묶음이 없어 계정·처리 알림과 같이). 덧붙임 groupId·groupName(+reason·applicantId) ──
     /** 내 개설 신청이 승인돼 소모임이 열렸다 — 누르면 그 소모임 */

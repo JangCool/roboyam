@@ -2,16 +2,13 @@ import {
     mockAdProducts,
     mockApplication,
     mockApplications,
-    mockApply,
     mockAvailability,
     mockCancel,
     mockCheckDealLink,
     mockCompletePayment,
     mockDealProduct,
     mockOperate,
-    mockProfile,
     mockRefundRequest,
-    mockSetProfileStatus,
     mockStartPayment,
     mockSubmitAd,
     mockSubmitDeal,
@@ -32,7 +29,6 @@ import type {
     BusinessApplyRequest,
     BusinessFile,
     BusinessProfile,
-    BusinessProfileStatus,
     DealApplyRequest,
     DealLinkCheck,
     DealProduct,
@@ -40,15 +36,16 @@ import type {
 
 /**
  * 사업자 센터 API — 서버 주소 문자열(`/api/business/…`)이 있는 **유일한 곳**이다. 상태는 없다. 로그인 필요(401).
- * 요구사항 정본 `docs/plans/biz-ad-hotdeal/00-overview.md` 「★ 확정」(사전 심사 → 결제, 온라인/수동 결제, 신청 건 상태). 계약 문서는 화면 확정 뒤 만든다.
- *  - 신원: `GET/POST/PUT /api/business/me` · 첨부 `POST /api/business/files`(multipart, 10MB)
+ * 요구사항 정본 `docs/plans/biz-ad-hotdeal/00-overview.md` 「★ 확정」(사전 심사 → 결제, 온라인/수동 결제, 신청 건 상태). 계약 `docs/features/business-contract.md`·`biz-application-contract.md`.
+ *  - 신원(서버 연결됨): `GET/POST/PUT /api/business/me` · 사업자등록증 사본 `POST /api/business/files`(multipart, PDF·JPG·PNG 10MB) — 409 `BUSINESS_DUPLICATE`·`BUSINESS_ALREADY_APPLIED`·
+ *    `BUSINESS_NOT_EDITABLE`, 429 `BUSINESS_REAPPLY_LIMIT`, 400 `fields.*`
  *  - 상품·남은 칸: `GET /api/business/ad-products` · `GET /api/business/deal-products` · `GET /api/business/availability`
  *  - 신청 건: `POST /api/business/applications/{ads|deals}` · `GET /api/business/applications[?bucket=]` · `GET …/{id}` · `POST …/{id}/cancel` · `POST …/{id}/refund-request`
  *  - 결제(온라인): `POST …/{id}/payment` → 결제창 정보(`payment` 모듈 `BIZ_APPLICATION`) — 완료는 `payment` 모듈 완료 API
  *  - 409 `BUSINESS_NOT_APPROVED`·`BUSINESS_RE_REVIEW`·`BIZ_SLOT_FULL`·`BIZ_APPLICATION_STATE_CHANGED`(화면이 다시 읽는다)
  *
- * ⚠ MOCK: 서버에 API 가 없어 `./mock/business-mock.ts` 를 부른다. 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
- * `mockSetStatus`·`mockOperate` 는 개발용(서버에 없음) — 서버가 붙으면 쓰는 곳(목업 표시 상자)과 함께 지운다.
+ * ⚠ MOCK(신청 건 — 상품·남은 칸·신청·결제·광고 이미지 올리기): 서버에 API 가 없어 `./mock/business-mock.ts` 를 부른다. 신청 건 백엔드가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고
+ * `// REAL:` 줄을 살린다. 목업 신청 건은 목업 안의 사업자 상태(승인)로 판정한다 — 서버 신원과 따로다. `mockOperate` 는 개발용(서버에 없음).
  */
 const PATH = {
     me: '/api/business/me',
@@ -62,29 +59,22 @@ const PATH = {
 };
 
 export function useBusinessApi() {
-    // REAL: const client = useApiClient();
-    void PATH;
+    const client = useApiClient();
 
     return {
         /** 내 사업자 신원 */
-        profile: (): Promise<BusinessProfile> =>
-            // MOCK:
-            mockProfile(),
-        // REAL: client.get<BusinessProfile>(PATH.me),
+        profile: (): Promise<BusinessProfile> => client.get<BusinessProfile>(PATH.me),
 
-        /** 사업자 신청(새로) — 심사 대기가 된다 */
-        apply: (body: BusinessApplyRequest): Promise<BusinessProfile> =>
-            // MOCK:
-            mockApply(body, false),
-        // REAL: client.post<BusinessProfile>(PATH.me, body),
+        /** 사업자 신청(새로·반려 뒤 다시) — 심사 대기가 된다 */
+        apply: (body: BusinessApplyRequest): Promise<BusinessProfile> => client.post<BusinessProfile>(PATH.me, body),
 
         /** 사업자 정보 수정 — 상호·번호를 바꾸면 다시 심사(F7) */
-        update: (body: BusinessApplyRequest): Promise<BusinessProfile> =>
-            // MOCK:
-            mockApply(body, true),
-        // REAL: client.put<BusinessProfile>(PATH.me, body),
+        update: (body: BusinessApplyRequest): Promise<BusinessProfile> => client.put<BusinessProfile>(PATH.me, body),
 
-        /** 첨부 올리기(사업자등록증 사본·광고 이미지) */
+        /** 사업자등록증 사본 올리기(PDF·JPG·PNG 10MB) — 신청·수정이 `certificateFileId` 로 붙인다 */
+        uploadCertificate: (file: File): Promise<BusinessFile> => client.upload<BusinessFile>(PATH.files, ((f) => (f.append('file', file), f))(new FormData())),
+
+        /** 광고 이미지 올리기 — 신청 건 백엔드가 주소·용도를 정한다(지금은 목업) */
         uploadFile: (file: File): Promise<BusinessFile> =>
             // MOCK:
             mockUploadFile(file),
@@ -161,9 +151,6 @@ export function useBusinessApi() {
             // MOCK:
             mockRefundRequest(id, reason),
         // REAL: client.post<BizApplicationDetail>(`${PATH.application(id)}/refund-request`, { reason }),
-
-        /** 개발용 — 목업 신원 상태 바꾸기 */
-        mockSetStatus: (status: BusinessProfileStatus, reReview = false): Promise<BusinessProfile> => mockSetProfileStatus(status, reReview),
 
         /** 개발용 — 운영자 처리 흉내 */
         mockOperate: (id: string, action: BizMockOperatorAction): Promise<BizApplicationDetail> => mockOperate(id, action),

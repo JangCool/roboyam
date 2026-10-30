@@ -113,8 +113,14 @@ public enum Permission {
     /** 결제 이상·대사 처리(다시 시도·수동 처리 완료·포트원에서 다시 확인·이슈 처리·다시 대사) — 2a-3 에서 준비됨 */
     COMMERCE_RECONCILE_MANAGE("commerce.reconcile.manage", GB_SETTLE, SENSITIVE, true),
     COMMERCE_SETTINGS("commerce.settings", GB_CONFIG, CONFIG, true),
-    BUSINESS_READ("business.read", BIZ_REVIEW, READ, false),
-    BUSINESS_MANAGE("business.manage", BIZ_REVIEW, MANAGE, false),
+    /** 사업자 심사 조회 — 목록·상세(가린 값만)·처리 기록(docs/features/business-contract.md) */
+    BUSINESS_READ("business.read", BIZ_REVIEW, READ, true),
+    /** 사업자 심사 처리 — 국세청 다시 조회·승인·반려·정지(진행 건 처리 선택)·사업자등록증 사본 열람(기록) */
+    BUSINESS_MANAGE("business.manage", BIZ_REVIEW, MANAGE, true),
+    /** 사업자 신원 평문 열람(등록번호·대표자·연락처·이메일·주소) — 사유 필수 · 열람 기록 · 화면은 10분 뒤 가린다(B3) */
+    BUSINESS_REVEAL("business.reveal", BIZ_REVIEW, SENSITIVE, true),
+    /** 사업자 정지 해제 — 정지로 내려간 진행 중 건을 연장 후 되돌리기 · 환불 유지(B3·H2) */
+    BUSINESS_UNSUSPEND("business.unsuspend", BIZ_REVIEW, SENSITIVE, true),
     DEAL_ORDER_READ("deal-order.read", BIZ_PRODUCT, READ, false),
     DEAL_ORDER_MANAGE("deal-order.manage", BIZ_PRODUCT, MANAGE, false),
     DEAL_ORDER_SETTINGS("deal-order.settings", BIZ_PRODUCT, CONFIG, false),

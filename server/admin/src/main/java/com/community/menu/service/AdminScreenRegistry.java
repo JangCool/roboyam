@@ -98,6 +98,11 @@ public final class AdminScreenRegistry {
                     leaf(s("groupRequests", "/group-requests", "menu.groupRequests", "pi pi-inbox", Permission.GROUP_READ)),
                     leaf(s("groupCategories", "/group-categories", "menu.groupCategories", "pi pi-tags", Permission.GROUP_READ)),
                     leaf(s("groupSettings", "/group-settings", "menu.groupSettings", "pi pi-sliders-h", Permission.GROUP_READ))),
+            // 사업자 묶음(docs/features/business-contract.md · biz-application-contract.md) — 소모임 묶음 다음. 두 화면 모두 조회 business.read(화면 안에서 처리 business.manage ·
+            // 평문 열람 business.reveal · 정지 해제 business.unsuspend). admin-web UtilAdminMenu 의 business 묶음과 같은 키·주소·권한·아이콘·차례
+            section(NORMAL, "menu.business", "pi pi-briefcase",
+                    leaf(s("businesses", "/businesses", "menu.businesses", "pi pi-id-card", Permission.BUSINESS_READ)),
+                    leaf(s("bizApplications", "/biz-applications", "menu.bizApplications", "pi pi-inbox", Permission.BUSINESS_READ))),
             section(SETTINGS, "menu.system", "pi pi-cog",
                     leaf(s("siteGeneral", "/settings/general", "menu.general", "pi pi-sliders-h", Permission.SITE_READ)),
                     leaf(s("socialLogin", "/settings/social-login", "menu.socialLogin", "pi pi-key", Permission.SITE_READ)),

@@ -514,6 +514,38 @@ public class MemberNotificationPublisher {
     }
 
     /**
+     * 사업자 신원 알림(V111 — {@code BUSINESS}). 덧붙임 {@code kind}·{@code companyName}·{@code note}(반려·정지 사유). 끌 수 없는 계정 알림, 누르면 사업자 센터.
+     * 업무 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 업무를 깨지 않는다). 메일은 회원 이벤트 설정의 이메일이 켜져 있을 때만.
+     *
+     * @param kind 종류(번들 {@code member.notification.BUSINESS.kind.<kind>})
+     * @param note 반려·정지 사유(없으면 null)
+     */
+    public int business(long userId, String kind, String companyName, String note) {
+        return isolated.run("member-notification:business", () -> {
+            EventSwitch on = switchOf(MemberNotificationType.BUSINESS, userId);
+            if (!on.delivers() || !writer.receivable(userId)) {
+                return 0;
+            }
+            int made = 0;
+            String name = cut(companyName, SNAPSHOT_MAX);
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("kind", kind);
+                payload.put("companyName", name);
+                if (note != null) {
+                    payload.put("note", note);
+                }
+                writer.insert(ids.nextId(), userId, MemberNotificationType.BUSINESS.name(), null, null, null, null, MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(userId, MemberNotificationMessages.Facts.business(kind, name, note), null, null, "/business");
+            }
+            return made;
+        }, 0);
+    }
+
+    /**
      * 정지 중에 낸 포인트 상점 환불 신청이 결정됐다(V87, commerce-stage1-contract 「1-2 정지 중 환불 신청」) — 수락 {@code POINT_SHOP_REFUND_APPROVED}(돌려준 포인트) ·
      * 거절 {@code POINT_SHOP_REFUND_REJECTED}(사유). 끌 수 없는 처리 알림, 덧붙임 {@code requestId}·{@code purchaseId}·{@code itemName}·{@code points}|{@code reason}. 누르면 내 아이템.
      * 결정 트랜잭션 안에서 부른다(세이브포인트 — 실패해도 결정을 깨지 않는다).
