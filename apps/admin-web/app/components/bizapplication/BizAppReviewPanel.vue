@@ -2,6 +2,7 @@
     <!--
         신청 건 가운데 칸 — 신청 내용 + 상태별 처리.
         · 심사 대기: 점검표 5개(규격·링크·정책·기간·가격) — 다 체크해야 [승인]. 시작이 지났으면 경고(승인 창에서 기간을 옮긴다 — F6). 자리가 없으면 경고.
+          운영자 등록 건: 계약서 사본을 심사 대기부터 올릴 수 있고(서버 허용), [취소](등록 실수)가 있다. 자기 승인을 막는 설정이면 [승인] 대신 「다른 운영자가 승인」 안내.
         · 결제 대기: 확정 금액 · 결제 기한 카운트다운 · [수동 결제로 전환] · [취소](결제 완료는 사업자의 온라인 결제 — 결제 모듈).
         · 입금·계약 확인 대기(기한 지남 포함): `BizAppDepositPanel`.
         · 환불: 종류·상태 · 일할 계산 제안 · [거절] · [환불 승인](열린 환불만) · 수동 환불 송금 대기면 [송금 완료 표시].
@@ -41,8 +42,16 @@
                 <span v-if="detail.approval?.adjustReason" class="block text-[11px] text-muted-color">{{ t('bizApplication.adjusted', { reason: detail.approval.adjustReason }) }}</span>
                 <span v-for="line in quoteLines" :key="line.product" class="block text-[11px] text-muted-color">{{ t('bizApplication.quoteLine', { product: t(`bizApplication.product.${line.product}`), price: won(line.unitPrice), units: line.units, unit: t(`bizApplication.unit.${line.unit}`), supply: won(line.supply) }) }}</span>
             </dd>
+            <template v-if="operator">
+                <dt class="text-muted-color">{{ t('bizApplication.weight') }}</dt>
+                <dd class="m-0 tabular-nums">{{ detail.weight }}</dd>
+            </template>
+            <template v-if="detail.registrant">
+                <dt class="text-muted-color">{{ t('bizApplication.registrant') }}</dt>
+                <dd class="m-0">{{ detail.registrant.name }}<Tag v-if="detail.registrant.me" :value="t('bizApplication.registrantMe')" severity="secondary" class="ml-1" /></dd>
+            </template>
             <template v-if="detail.memo">
-                <dt class="text-muted-color">{{ t('bizApplication.memo') }}</dt>
+                <dt class="text-muted-color">{{ operator ? t('bizApplication.operatorMemo') : t('bizApplication.memo') }}</dt>
                 <dd class="m-0 [overflow-wrap:anywhere]">{{ detail.memo }}</dd>
             </template>
             <template v-if="detail.policyAgreedVersion">
@@ -62,11 +71,18 @@
                     <label :for="`${uid}-${item}`" class="text-[13px] leading-snug">{{ t(`bizApplication.check.${item}`) }}</label>
                 </div>
             </fieldset>
-            <div v-if="canManage" class="flex flex-wrap justify-end gap-2">
-                <Button type="button" :label="t('bizApplication.actReject')" severity="danger" variant="outlined" :disabled="busy" @click="emit('reject')" />
-                <Button type="button" :label="t('bizApplication.actApprove')" icon="pi pi-check" :disabled="busy || checked.length < UtilBizApplication.CHECKLIST.length" @click="emit('approve')" />
+            <!-- 운영자 등록 건 — 오프라인으로 먼저 받은 계약서 사본은 심사 대기부터 올릴 수 있다(입금 확인은 승인 뒤) -->
+            <div v-if="operator && canManage" class="flex flex-col gap-1.5">
+                <h4 class="m-0 text-[13px] font-semibold">{{ t('bizApplication.contract.title') }}</h4>
+                <BizContractFiles :files="detail.contracts" editable viewable :busy="busy" :error="fieldErrors.file ?? error" @upload="(f) => emit('upload', f)" @replace="(b) => emit('replace', b)" @view="(id) => emit('viewContract', id)" />
             </div>
-            <p v-if="canManage && checked.length < UtilBizApplication.CHECKLIST.length" class="m-0 text-right text-xs text-muted-color">{{ t('bizApplication.checklistHint') }}</p>
+            <div v-if="canManage" class="flex flex-wrap items-center justify-end gap-2">
+                <Button v-if="operator" type="button" :label="t('bizApplication.actCancel')" severity="secondary" variant="outlined" :disabled="busy" @click="emit('cancel')" />
+                <Button type="button" :label="t('bizApplication.actReject')" severity="danger" variant="outlined" :disabled="busy" @click="emit('reject')" />
+                <Message v-if="selfDenied" severity="info" size="small" :closable="false"><span class="text-[13px]">{{ t('bizApplication.selfApprovalDenied') }}</span></Message>
+                <Button v-else type="button" :label="t('bizApplication.actApprove')" icon="pi pi-check" :disabled="busy || checked.length < UtilBizApplication.CHECKLIST.length" @click="emit('approve')" />
+            </div>
+            <p v-if="canManage && !selfDenied && checked.length < UtilBizApplication.CHECKLIST.length" class="m-0 text-right text-xs text-muted-color">{{ t('bizApplication.checklistHint') }}</p>
         </section>
 
         <!-- 결제 대기 -->
@@ -139,7 +155,7 @@
         </section>
 
         <!-- 결제 기록(확정 뒤) -->
-        <section v-if="detail.onlinePayment || (detail.status !== 'AWAITING_DEPOSIT' && (detail.contracts.length || detail.deposit))" class="flex flex-col gap-2">
+        <section v-if="detail.onlinePayment || (detail.status !== 'AWAITING_DEPOSIT' && !(operator && canManage && detail.status === 'SUBMITTED') && (detail.contracts.length || detail.deposit))" class="flex flex-col gap-2">
             <h3 class="m-0 text-sm font-semibold">{{ t('bizApplication.paymentRecord') }}</h3>
             <p v-if="detail.onlinePayment" class="m-0 text-[13px]">{{ t('bizApplication.paidOnline', { at: time.shortDateTime(detail.onlinePayment.paidAt), tx: detail.onlinePayment.pgTxId }) }}</p>
             <template v-else>
@@ -203,6 +219,10 @@ const uid = useId();
 const checked = ref<string[]>([]);
 const won = (n: number) => UtilBizApplicationMessages.won(t, n, locale.value);
 const refund = computed(() => props.detail.refund);
+/** 운영자 등록 건(광고 일정표 수동 등록) */
+const operator = computed(() => props.detail.source === 'OPERATOR');
+/** 내가 등록한 건인데 자기 승인을 막는 설정 — 서버 409 `BIZ_SELF_APPROVAL_DENIED` */
+const selfDenied = computed(() => props.detail.registrant?.me === true && props.detail.selfApproval === 'DENY');
 /** 요금표 줄 — 두 줄 이상(핫딜 글 + 노출)일 때만 나눠 보인다 */
 const quoteLines = computed(() => (props.detail.quote.lines && props.detail.quote.lines.length > 1 ? props.detail.quote.lines : []));
 const history = computed(() => [...props.detail.history].sort((a, b) => b.at.localeCompare(a.at)));

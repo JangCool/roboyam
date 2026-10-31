@@ -3,14 +3,18 @@
         신청 건 승인 대화상자(★-1·★-2 · F6) — 승인하는 순간 금액이 확정되고 자리를 잡는다.
         ① 결제 방식(온라인 / 수동 — 사업자가 고른 값이 기본) ② 기간(시작이 지났으면 「같은 길이로 뒤로 옮기기」 — 그대로는 승인 불가) + 남은 자리
         ③ 금액(요금표 계산값 → 공급가 조정 시 사유 필수, 부가세 10%) ④ 기한(온라인 = 결제 기한 72시간 / 수동 = 입금 기한, 기본 7일).
+        운영자 등록 건(source=OPERATOR): 결제 방식 수동 고정(서버 400 `fields.method`), 공급가 처음 값 = 등록 때 제안(`proposedSupply`).
+        자기 승인(`registrant.me`, 설정 ALLOW): 경고 + 메모(1~200자, 필수) → 본문 `memo`. 설정 DENY 면 부모 패널이 [승인] 대신 안내를 보인다(서버 409 `BIZ_SELF_APPROVAL_DENIED`).
         기간을 바꾸면 `period` 를 올리고 부모가 남은 자리·요금(`availability`)을 다시 받아 내려 준다.
     -->
     <Dialog :visible="visible" modal :draggable="false" :closable="!busy" :close-on-escape="!busy" :header="t('bizApplication.approveTitle', { no: detail.no })" :style="{ width: 'min(40rem, calc(100vw - 2rem))' }" @update:visible="(v: boolean) => emit('update:visible', v)">
         <form :id="formId" class="flex flex-col gap-4" novalidate @submit.prevent="submit">
             <div class="flex flex-col gap-1.5">
                 <span :id="`${formId}-m`" class="text-sm font-medium">① {{ t('bizApplication.methodLabel') }}</span>
-                <SelectButton v-model="method" :options="methodOptions" option-label="label" option-value="value" :allow-empty="false" :aria-labelledby="`${formId}-m`" :disabled="busy" />
-                <small class="text-xs text-muted-color">{{ method === 'ONLINE' ? t('bizApplication.methodOnlineHelp') : t('bizApplication.methodManualHelp') }}<template v-if="method !== detail.preferredMethod"> · {{ t('bizApplication.methodChanged') }}</template></small>
+                <SelectButton v-model="method" :options="methodOptions" option-label="label" option-value="value" option-disabled="disabled" :allow-empty="false" :aria-labelledby="`${formId}-m`" :disabled="busy" />
+                <small class="text-xs text-muted-color">
+                    <template v-if="operator">{{ t('bizApplication.methodOperatorOnly') }} · </template>{{ method === 'ONLINE' ? t('bizApplication.methodOnlineHelp') : t('bizApplication.methodManualHelp') }}<template v-if="method !== detail.preferredMethod"> · {{ t('bizApplication.methodChanged') }}</template>
+                </small>
             </div>
 
             <div class="flex flex-col gap-1.5">
@@ -40,6 +44,7 @@
                         <InputNumber v-model="supply" :input-id="id" :min="0" :max="999_999_999" :suffix="t('bizApplication.wonSuffix')" :disabled="busy" :invalid="invalid" :aria-describedby="describedBy" fluid />
                     </template>
                 </LabeledField>
+                <p v-if="detail.proposedSupply !== null && operator" class="m-0 text-xs text-muted-color tabular-nums">{{ t('bizApplication.proposedSupplyNote') }} ({{ won(detail.proposedSupply) }})</p>
                 <p class="m-0 text-[13px] tabular-nums">{{ t('bizApplication.totalLine', { supply: won(amount.supply), vat: won(amount.vat), total: won(amount.total) }) }}</p>
                 <LabeledField v-if="adjusted" :label="t('bizApplication.adjustReason')" :error="adjustError">
                     <template #default="{ id, describedBy, invalid }">
@@ -59,12 +64,21 @@
                 </LabeledField>
             </div>
 
+            <div v-if="selfApproval" class="flex flex-col gap-1.5">
+                <Message severity="warn" :closable="false"><span class="text-[13px]">{{ t('bizApplication.selfApprovalWarn') }}</span></Message>
+                <LabeledField :label="t('bizApplication.selfApprovalMemo')" :hint="t('bizApplication.reason.hint', { min: 1, max: 200 })" :error="memoError">
+                    <template #default="{ id, describedBy, invalid }">
+                        <Textarea :id="id" v-model="memo" rows="2" auto-resize maxlength="200" :disabled="busy" :invalid="invalid" :aria-describedby="describedBy" fluid />
+                    </template>
+                </LabeledField>
+            </div>
+
             <p class="m-0 flex items-start gap-1.5 text-xs text-muted-color"><i class="pi pi-bell mt-0.5 text-xs" aria-hidden="true" />{{ method === 'ONLINE' ? t('bizApplication.notifyOnline') : t('bizApplication.notifyManual') }}</p>
             <Message v-if="error" severity="error" size="small" variant="simple" :closable="false" role="alert">{{ error }}</Message>
         </form>
         <template #footer>
             <Button type="button" :label="t('common.cancel')" severity="secondary" variant="text" :disabled="busy" @click="emit('update:visible', false)" />
-            <Button type="submit" :form="formId" :label="t('bizApplication.actApprove')" icon="pi pi-check" :loading="busy" :disabled="started || slotsLeft <= 0 || checking" />
+            <Button type="submit" :form="formId" :label="t('bizApplication.actApprove')" icon="pi pi-check" :loading="busy" :disabled="started || slotsLeft <= 0 || checking || selfDenied" />
         </template>
     </Dialog>
 </template>
@@ -98,7 +112,14 @@ const period = ref<BizPeriod>({ startAt: '', endAt: '' });
 const supply = ref<number | null>(0);
 const adjustReason = ref('');
 const depositDate = ref('');
+const memo = ref('');
 const submitted = ref(false);
+
+/** 운영자 등록 건 — 수동 결제만 */
+const operator = computed(() => props.detail.source === 'OPERATOR');
+/** 자기 승인(내가 등록한 건) — 허용이면 메모 필수, 막는 설정이면 승인 불가 */
+const selfApproval = computed(() => props.detail.registrant?.me === true && props.detail.selfApproval !== 'DENY');
+const selfDenied = computed(() => props.detail.registrant?.me === true && props.detail.selfApproval === 'DENY');
 /** 열 때의 시각 — 결제 기한 표시용 */
 const openedAt = ref(Date.now());
 
@@ -106,10 +127,11 @@ watch(
     () => props.visible,
     (open) => {
         if (!open) return;
-        method.value = props.detail.preferredMethod;
+        method.value = operator.value ? 'MANUAL' : props.detail.preferredMethod;
         period.value = { ...props.detail.period };
-        supply.value = props.detail.quote.supply;
+        supply.value = props.detail.proposedSupply ?? props.detail.quote.supply;
         adjustReason.value = '';
+        memo.value = '';
         depositDate.value = UtilBizApplication.addDays(UtilBizApplication.kstToday(), UtilBizApplication.DEPOSIT_DEADLINE_DAYS);
         submitted.value = false;
         openedAt.value = Date.now();
@@ -117,7 +139,7 @@ watch(
     { immediate: true },
 );
 
-const methodOptions = computed(() => (['ONLINE', 'MANUAL'] as const).map((m) => ({ value: m, label: t(`bizApplication.method.${m}`) })));
+const methodOptions = computed(() => (['ONLINE', 'MANUAL'] as const).map((m) => ({ value: m, label: t(`bizApplication.method.${m}`), disabled: operator.value && m === 'ONLINE' })));
 /** 요금표 계산 — 기간을 옮기면 서버가 다시 계산한 값(`availability`), 아니면 상세의 계산값 */
 const quote = computed(() => props.availability?.quote ?? props.detail.quote);
 const slotsLeft = computed(() => props.availability?.remainingSlots ?? props.detail.remainingSlots);
@@ -132,6 +154,7 @@ function onlineDeadlineFrom(base: number): string {
 const onlineDeadline = computed(() => onlineDeadlineFrom(openedAt.value));
 
 const supplyError = computed(() => props.fieldErrors.supply ?? (submitted.value && !(supply.value && supply.value > 0) ? t('bizApplication.supplyRequired') : ''));
+const memoError = computed(() => props.fieldErrors.memo ?? (submitted.value && selfApproval.value && !memo.value.trim() ? t('bizApplication.selfApprovalMemoRequired') : ''));
 const adjustError = computed(() => props.fieldErrors.adjustReason ?? (submitted.value && adjusted.value && !adjustReason.value.trim() ? t('bizApplication.adjustReasonRequired') : ''));
 
 function shift(): void {
@@ -141,10 +164,18 @@ function shift(): void {
 
 function submit(): void {
     submitted.value = true;
-    if (props.busy || started.value || slotsLeft.value <= 0) return;
+    if (props.busy || started.value || slotsLeft.value <= 0 || selfDenied.value) return;
     if (!(supply.value && supply.value > 0) || (adjusted.value && !adjustReason.value.trim())) return;
+    if (selfApproval.value && !memo.value.trim()) return;
     if (method.value === 'MANUAL' && !depositDate.value) return;
     const deadlineAt = method.value === 'ONLINE' ? onlineDeadlineFrom(Date.now()) : UtilBizApplication.kstMidnight(UtilBizApplication.addDays(depositDate.value, 1));
-    emit('submit', { method: method.value, supply: supply.value, adjustReason: adjusted.value ? adjustReason.value.trim() : undefined, deadlineAt, period: { ...period.value } });
+    emit('submit', {
+        method: method.value,
+        supply: supply.value,
+        adjustReason: adjusted.value ? adjustReason.value.trim() : undefined,
+        deadlineAt,
+        period: { ...period.value },
+        memo: selfApproval.value ? memo.value.trim() : undefined,
+    });
 }
 </script>

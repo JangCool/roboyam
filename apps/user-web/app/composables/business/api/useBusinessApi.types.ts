@@ -101,6 +101,8 @@ export interface BizCreative {
     linkUrl: string;
     altText: string | null;
     text: string | null;
+    /** 지금 배너 이미지의 파일 ID — 소재 바꾸기에서 이미지를 다시 고르지 않으면 그대로 보낸다(서버도 비우면 지금 이미지를 쓴다) */
+    imageFileId: string | null;
 }
 
 /** 사업자 핫딜 정보 */

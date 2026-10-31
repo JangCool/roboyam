@@ -1,5 +1,5 @@
 /**
- * Ad schedule (`/ads`) — mockup stage. Ad type names, payment method, contract and deposit texts come from `bizApplication.*`.
+ * Ad schedule (`/ads`) — server V115. Ad type names, payment method, contract and deposit texts come from `bizApplication.*`.
  * Same keys and order as `ko/ad.ts`.
  */
 export default {
@@ -48,6 +48,11 @@ export default {
     source: 'Source',
     amount: 'Amount',
     memo: 'Note',
+    memoHelp: 'For operators only. Also shown in Ad review.',
+    registrant: 'Registered by',
+    registrantMe: 'You',
+    proposedSupply: 'Proposed net {supply} at registration — fixed on approval.',
+    openInReview: { AD: 'Open in Ad review', HOTDEAL: 'Open in Hot deal review' },
     versionN: 'Version {n}',
     versionCurrent: 'Live creative',
     versionOld: 'Previous',
@@ -62,8 +67,8 @@ export default {
     goApplication: 'Review, contract and deposit are handled on this application in Ads › Ad review.',
     notReviewedYet: 'Not reviewed yet',
     mismatchReason: 'Amount difference: {reason}',
-    takenDownNote: 'Taken down {at} by {by}',
-    mailSent: 'advertiser emailed',
+    takenDownNote: '{at} {cause}',
+    takedownMail: { SENT: 'The advertiser was emailed.', FAILED: 'Could not email the advertiser. Contact them directly.', NO_ADDRESS: 'No advertiser email, so no mail was sent.' },
     actTakedown: 'Take down',
     actRestore: 'Restore',
     takedownTitle: 'Take down',
@@ -89,14 +94,17 @@ export default {
     contactName: 'Contact person',
     contactPhone: 'Phone',
     contactEmail: 'Email',
+    contactPhoneHelp: '9–11 digits',
     typeAndPeriod: 'Type and period',
     periodBad: 'The end must be after the start.',
     slotOk: '{n}/{limit} slots left in this period — OK to register.',
     slotFull: 'Some days are full: {dates}. Change the period.',
     imagePick: 'Choose banner image',
     imageChange: 'Change image',
-    imageRule: 'JPG/PNG/WEBP, size per type',
+    imageRule: 'PNG/JPG/GIF/WEBP up to 2MB — uploads as soon as you pick',
     imageRequired: 'Choose a banner image.',
+    imageBadType: 'Only PNG, JPG, GIF or WEBP images.',
+    imageTooBig: 'Images can be up to {mb}MB.',
     altRequired: 'Enter alt text.',
     lineText: 'Text line',
     lineTextHint: 'up to 40 chars',
@@ -112,4 +120,6 @@ export default {
     condSlot: 'Slot free',
     condCreative: 'Creative',
     manualDone: 'Registered. Approve it in Ad review.',
+    manualCreatedNote: 'The ad for {name} is waiting for review. Approve it in Ad review.',
+    openReview: 'Open in Ad review',
 };

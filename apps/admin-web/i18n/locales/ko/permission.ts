@@ -328,6 +328,8 @@ export default {
         adTakedownDesc: '게재 중인 광고를 바로 내립니다.',
         adRestore: '내린 광고 되돌리기',
         adRestoreDesc: '긴급 내린 광고를 다시 게재합니다.',
+        adContactReveal: '광고주 연락처 열람',
+        adContactRevealDesc: '가려 둔 광고주 담당자·연락처·이메일을 사유를 적고 잠시 봅니다.',
         siteSecret: '키·비밀 변경',
         siteSecretDesc: '소셜 로그인 키·메일 서버 비밀번호 같은 비밀 값을 바꿉니다.',
     },

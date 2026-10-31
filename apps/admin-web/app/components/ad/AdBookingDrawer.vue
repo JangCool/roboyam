@@ -2,7 +2,8 @@
     <!--
         광고 건 상세 서랍 — 일정표 목록에서 줄을 누르면 연다(`?id=`). 02-ad.md 7-1.
         탭: 기본 · 소재(버전 목록 — 심사 승인 때 고정, 교체는 새 버전, 옛 버전 보존 — A2) · 일정 · 결제(온라인 결제 정보 또는 계약서 사본·입금 기록) · 처리 기록.
-        맨 아래: [긴급 내림](진행·예약, `ad.takedown`) · [되돌리기](내린 건). 서버는 부르지 않는다 — 동작은 emit.
+        맨 아래: [긴급 내림](진행·예약, `ad.takedown`) · [되돌리기](긴급 내린 건, `ad.restore`). 머리에 「광고 심사에서 열기」(건의 도메인 심사 화면 `?id=`).
+        처리 기록 코드는 신청 건 것(`UtilBizApplicationMessages` 로 번역). 서버는 부르지 않는다 — 동작은 emit.
     -->
     <Drawer v-model:visible="open" :position="prefs.drawerPosition" :aria-labelledby="titleId" :style="{ width: '44rem', maxWidth: '100vw' }">
         <template #header>
@@ -13,6 +14,9 @@
                     <Tag :value="t(`bizApplication.method.${head.paymentMethod}`)" severity="secondary" />
                 </div>
                 <span class="truncate text-[12px] text-muted-color">{{ t(`bizApplication.adType.${head.type}`) }} · {{ UtilBizApplicationMessages.period(t, time, head.period) }}</span>
+                <NuxtLink :to="UtilAd.reviewLink(head)" class="inline-flex w-fit items-center gap-1 text-[12px] font-medium text-(--p-primary-color) hover:underline">
+                    <i class="pi pi-external-link text-[11px]" aria-hidden="true" />{{ t(`ad.openInReview.${head.domain}`) }}
+                </NuxtLink>
             </div>
         </template>
 
@@ -23,7 +27,12 @@
 
         <template v-else>
             <Message v-if="detail.takedown" severity="error" :closable="false" class="mb-3">
-                <span class="text-[13px]">{{ t('ad.takenDownNote', { at: time.shortDateTime(detail.takedown.at), by: detail.takedown.by }) }} — {{ detail.takedown.reason }}<template v-if="detail.takedown.mailSent"> · {{ t('ad.mailSent') }}</template></span>
+                <span class="flex flex-col gap-0.5 text-[13px]">
+                    <span>
+                        {{ t('ad.takenDownNote', { at: time.shortDateTime(detail.takedown.at), cause: t(`bizApplication.takedownCause.${detail.takedown.cause}`) }) }}<template v-if="detail.takedown.by"> · {{ detail.takedown.by }}</template><template v-if="detail.takedown.reason"> — {{ detail.takedown.reason }}</template>
+                    </span>
+                    <span v-if="detail.takedown.mail" class="text-xs">{{ t(`ad.takedownMail.${detail.takedown.mail}`) }}</span>
+                </span>
             </Message>
             <Tabs v-model:value="tab" scrollable>
                 <TabList>
@@ -46,8 +55,15 @@
                             <dd class="m-0 tabular-nums">{{ detail.weight }}</dd>
                             <dt class="text-muted-color">{{ t('ad.source') }}</dt>
                             <dd class="m-0">{{ t(`ad.sourceKind.${detail.source}`) }}<code v-if="detail.applicationNo" class="ml-1 text-[11px]">{{ detail.applicationNo }}</code></dd>
+                            <template v-if="detail.registrant">
+                                <dt class="text-muted-color">{{ t('ad.registrant') }}</dt>
+                                <dd class="m-0">{{ detail.registrant.name }}<Tag v-if="detail.registrant.me" :value="t('ad.registrantMe')" severity="secondary" class="ml-1" /></dd>
+                            </template>
                             <dt class="text-muted-color">{{ t('ad.amount') }}</dt>
-                            <dd class="m-0 tabular-nums">{{ won(detail.amount.total) }} <span class="text-[11px] text-muted-color">({{ t('bizApplication.supplyVat', { supply: won(detail.amount.supply), vat: won(detail.amount.vat) }) }})</span></dd>
+                            <dd class="m-0 tabular-nums">
+                                {{ won(detail.amount.total) }} <span class="text-[11px] text-muted-color">({{ t('bizApplication.supplyVat', { supply: won(detail.amount.supply), vat: won(detail.amount.vat) }) }})</span>
+                                <span v-if="detail.proposedSupply !== null && detail.status === 'SUBMITTED'" class="block text-[11px] text-muted-color">{{ t('ad.proposedSupply', { supply: won(detail.proposedSupply) }) }}</span>
+                            </dd>
                             <template v-if="detail.memo">
                                 <dt class="text-muted-color">{{ t('ad.memo') }}</dt>
                                 <dd class="m-0">{{ detail.memo }}</dd>
@@ -95,15 +111,22 @@
                                 <p v-else class="m-0 text-[13px] text-muted-color">{{ t('ad.noDeposit') }}</p>
                                 <p v-if="detail.status === 'SUBMITTED' || detail.status === 'AWAITING_DEPOSIT'" class="m-0 text-xs text-muted-color">{{ t('ad.goApplication') }}</p>
                             </template>
+                            <template v-if="detail.refund">
+                                <h3 class="m-0 text-[13px] font-semibold">{{ t('bizApplication.refundTitle') }} <span class="font-normal text-muted-color">· {{ t(`bizApplication.refundType.${detail.refund.type}`) }} · {{ t(`bizApplication.refundStatus.${detail.refund.status}`) }}</span></h3>
+                                <p class="m-0 text-[13px] tabular-nums">
+                                    <template v-if="detail.refund.approvedAmount !== null">{{ t('bizApplication.refundApprovedLine', { amount: won(detail.refund.approvedAmount) }) }}</template>
+                                    <template v-else>{{ t('bizApplication.refundCalc', { paid: won(detail.refund.paidAmount), used: detail.refund.usedDays, total: detail.refund.totalDays, proposed: won(detail.refund.proposedAmount) }) }}</template>
+                                </p>
+                            </template>
                         </div>
                     </TabPanel>
                     <TabPanel value="history">
                         <Timeline :value="historyDesc" class="text-[13px]" :pt="{ eventOpposite: { class: 'hidden' } }">
                             <template #content="{ item }">
                                 <div class="flex flex-col pb-3">
-                                    <span class="font-medium">{{ item.action }} <span class="font-normal text-muted-color">· {{ item.actor }}</span></span>
+                                    <span class="font-medium">{{ UtilBizApplicationMessages.historyAction(t, item.action) }} <span class="font-normal text-muted-color">· {{ item.actor }}</span></span>
                                     <span class="text-[11px] text-muted-color">{{ time.shortDateTime(item.at) }}</span>
-                                    <span v-if="item.note" class="text-xs [overflow-wrap:anywhere]">{{ item.note }}</span>
+                                    <span v-if="item.note" class="text-xs [overflow-wrap:anywhere]">{{ UtilBizApplicationMessages.historyNote(t, item.action, item.note, locale) }}</span>
                                 </div>
                             </template>
                         </Timeline>
@@ -154,7 +177,7 @@ const head = computed(() => props.detail ?? props.summary);
 const creativesDesc = computed(() => [...(props.detail?.creatives ?? [])].sort((a, b) => b.version - a.version));
 const historyDesc = computed(() => [...(props.detail?.history ?? [])].sort((a, b) => b.at.localeCompare(a.at)));
 const canTakedownNow = computed(() => props.canTakedown && Boolean(props.detail) && UtilAd.canTakedown(props.detail!.status));
-const canRestoreNow = computed(() => props.canRestore && props.detail?.status === 'TAKEN_DOWN');
+const canRestoreNow = computed(() => props.canRestore && Boolean(props.detail) && UtilAd.canRestore(props.detail!.status, props.detail!.takedown));
 
 watch(
     () => props.summary?.id ?? props.detail?.id,

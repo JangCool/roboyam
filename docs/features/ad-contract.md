@@ -46,3 +46,10 @@ API 요청·응답 모양 전체는 서버 DTO(admin `ad/dto/AdAdminView`·`AdAd
 - **되돌리기**: 긴급 내림만(정지 내림은 사업자 해제가) · 끝이 지나지 않았을 때만(아니면 409 `BIZ_APPLICATION_STATE_CHANGED`). 중단 시간 = 지금 − max(내린 시각, 시작)(분 단위, 시작 전에 내리고 시작 전에 되돌리면 0). `EXTEND` = 끝을 중단 시간만큼 늘린다 — 그 기간에 자리가 없으면 **409 `BIZ_SLOT_FULL`(늘리지 않고 되돌리지도 않는다)**, 자리 판정은 승인과 같은 어드바이저리 잠금. `PRORATE_REFUND` = 환불 종류 `DOWNTIME` 을 바로 승인(온라인 결제 모듈 부분 취소 · 수동 송금 대기) — **금액(가정, 계약 미확정) = floor(결제액 × 중단 일수 / 총 일수)**, 중단 일수 = ceil(중단 시간 / 24시간)(최소 1·총 일수까지), 총 일수 = 기간의 한국 날짜 수, 이미 환불한 몫을 넘지 않는다, 0원이면 환불 줄 없음. 심사 대기 환불이 있으면 409(그 심사 먼저). 처리 기록 `RESTORED`(메모 `EXTENDED:<분> · 사유` / `REFUND:<원> · 사유`) · 감사 `AD_RESTORE`(돈 — `compensation`·`lostMinutes`·`endAt`·`refundAmount`) · 사업자 알림 `RESTORED`(+ 환불이 있으면 `REFUND_APPROVED`). `DOWNTIME` 환불은 사업자 환불 요청(「환불 줄이 한 번도 없을 때만」)을 막지 않고, 뒤에 생기는 진행 중 일할 제안액에서 이미 돌려준 몫을 뺀다.
 - **권한**: `ad.read` 조회(핫딜 노출 자리 탭 포함) · `ad.manage` 등록·광고주·계약서·이미지 · `ad.takedown` 긴급 내림 · `ad.restore` 되돌리기 · `ad.contact.reveal` 연락처 평문 — 셋(takedown·restore·contact.reveal) featureReady 켬.
 - **공개 노출 쿼리 후보**(후속 — `AdSlot`·가젯 `AD`·한 줄 광고): 그 상품 줄이 있고 `status = 'SCHEDULED' AND start_at <= now < end_at` 인 건 + 최신 **승인된** 소재 버전(`biz_creative_versions.approved_at IS NOT NULL` 중 최신), 비중(`weight`) 가중 무작위는 노출 쪽, 사본 20초 캐시(내림·되돌리기는 상태로 반영). 일별 집계 표(`ad_daily_stats` — 버전 단위)는 그 단계에서.
+
+## 화면 연결 결정 (2026-10-31)
+- admin-web `useAdApi` 는 실제 API(목업 폴더 삭제). 달력은 `calendar` 한 번(`bookings` 사용). 수동 등록·첫 등록·빈 칸 누르기는 광고 종류 탭(배너 넷·한 줄)에서만. 이미지는 고르면 바로 `POST /images`(PNG·JPG·GIF·WEBP 2MB 미리 검사), 계약서 사본은 한 장씩 `POST /contract-files`(서랍의 [바꾸기]는 아직 안 붙은 사본이라 목록에서 빼고 새 파일을 더함). 등록 성공 = 토스트 + 상단 닫을 수 있는 안내(「심사 대기로 등록했어요」 + `/ad-reviews?id=`).
+- 상세 Drawer 머리에 「광고 심사에서 열기」/「핫딜 심사에서 열기」(`domain`), 처리 기록은 신청 건 처리 기록 문구 재사용, 내림 까닭·운영자·사유·메일 결과, [되돌리기]는 긴급 내림 건만(`ad.restore` — 끝이 지났는지는 서버 409).
+- 광고 심사 화면: 큐 줄 「운영자 등록」 Tag · 승인 창은 운영자 건 MANUAL 고정·공급가 처음 값 = `proposedSupply`(요금표와 다르면 기존대로 조정 사유) · 자기 승인(ALLOW) 경고 + 메모 필수 · DENY + 나 = [승인] 대신 「다른 운영자가 승인해야 해요」 · 운영자 건 `SUBMITTED` 에서 [취소]·계약서 올리기.
+- 광고주 연락처 평문 보기 UI 는 없다(composable `revealAdvertiser` 만 — 광고주 관리 화면 후속).
+- user-web 배너 [소재 바꾸기]는 새 이미지를 고르지 않으면 지금 `imageFileId` 를 그대로 보낸다.

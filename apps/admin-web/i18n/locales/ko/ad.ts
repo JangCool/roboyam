@@ -1,5 +1,5 @@
 /**
- * 광고 일정표(`/ads`) 문구 — 목업 단계(docs/plans/biz-ad-hotdeal/02-ad.md 7-1, 00-overview.md ★-2·F5).
+ * 광고 일정표(`/ads`) 문구 — 서버 V115(docs/plans/biz-ad-hotdeal/02-ad.md 7-1, 00-overview.md ★-2·F5).
  * 광고 유형 이름·결제 방식·계약서·입금 확인 문구는 `bizApplication.*` 를 같이 쓴다. `en/ad.ts` 와 같은 키, 같은 차례.
  */
 export default {
@@ -48,6 +48,11 @@ export default {
     source: '접수 경로',
     amount: '금액',
     memo: '메모',
+    memoHelp: '운영자끼리 보는 메모예요. 광고 심사 화면에도 보여요.',
+    registrant: '등록한 운영자',
+    registrantMe: '나',
+    proposedSupply: '등록 때 제안한 공급가 {supply} — 승인 때 확정해요.',
+    openInReview: { AD: '광고 심사에서 열기', HOTDEAL: '핫딜 심사에서 열기' },
     versionN: '버전 {n}',
     versionCurrent: '지금 나가는 소재',
     versionOld: '이전 버전',
@@ -62,8 +67,8 @@ export default {
     goApplication: '심사·계약서·입금 확인은 「광고 › 광고 심사」의 이 신청 건에서 해요.',
     notReviewedYet: '심사 전',
     mismatchReason: '금액 차이 사유: {reason}',
-    takenDownNote: '{at} {by} 긴급 내림',
-    mailSent: '광고주에게 메일 보냄',
+    takenDownNote: '{at} {cause}',
+    takedownMail: { SENT: '광고주에게 메일을 보냈어요.', FAILED: '광고주 메일을 보내지 못했어요. 따로 연락해 주세요.', NO_ADDRESS: '광고주 이메일이 없어 메일을 보내지 못했어요.' },
     actTakedown: '긴급 내림',
     actRestore: '되돌리기',
     takedownTitle: '긴급 내림',
@@ -89,14 +94,17 @@ export default {
     contactName: '담당자',
     contactPhone: '연락처',
     contactEmail: '이메일',
+    contactPhoneHelp: '숫자 9~11자리',
     typeAndPeriod: '종류·기간',
     periodBad: '끝 시각은 시작 시각보다 늦어야 해요.',
     slotOk: '이 기간 남은 칸 {n}/{limit} — 등록할 수 있어요.',
     slotFull: '꽉 찬 날이 있어요: {dates}. 기간을 바꿔 주세요.',
     imagePick: '배너 그림 고르기',
     imageChange: '그림 바꾸기',
-    imageRule: 'JPG·PNG·WEBP, 유형별 크기',
+    imageRule: 'PNG·JPG·GIF·WEBP, 2MB까지 — 고르면 바로 올려요',
     imageRequired: '배너 그림을 골라 주세요.',
+    imageBadType: 'PNG·JPG·GIF·WEBP 그림만 올릴 수 있어요.',
+    imageTooBig: '그림은 {mb}MB까지 올릴 수 있어요.',
     altRequired: '대체 글을 적어 주세요.',
     lineText: '한 줄 문구',
     lineTextHint: '40자까지',
@@ -112,4 +120,6 @@ export default {
     condSlot: '남은 칸',
     condCreative: '소재',
     manualDone: '등록했어요. 「광고 심사」에서 승인해 주세요.',
+    manualCreatedNote: '{name} 광고를 심사 대기로 등록했어요. 광고 심사에서 승인해 주세요.',
+    openReview: '광고 심사에서 열기',
 };

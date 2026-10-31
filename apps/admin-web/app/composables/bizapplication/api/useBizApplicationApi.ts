@@ -18,15 +18,16 @@ import type {
  *  - `GET  /api/admin/biz-applications?domain=AD|HOTDEAL&queue=&kind=&q=` → `BizApplicationList`(큐별 건수도 그 도메인 안에서). `domain` 필수(400 `fields.domain`), 다른 도메인 kind 400 `fields.kind`
  *  - `GET  /api/admin/biz-applications/{id}` → `BizApplicationDetail`
  *  - `GET  /api/admin/biz-applications/{id}/availability?startAt=&endAt=` → `BizAvailability`(요금표 계산 + 남은 자리, 자기 제외)
- *  - `POST …/{id}/approve` `{ method, supply, adjustReason?, deadlineAt, period }` — 시작이 지난 기간 400 `fields.period`(F6), 조정 사유 없음 400 `fields.adjustReason`,
- *    온라인 기한이 시작 뒤 400 `fields.deadlineAt`, 자리 없음 409 `BIZ_SLOT_FULL`. 승인 순간부터 자리를 잡는다
+ *  - `POST …/{id}/approve` `{ method, supply, adjustReason?, deadlineAt, period, memo? }` — 시작이 지난 기간 400 `fields.period`(F6), 조정 사유 없음 400 `fields.adjustReason`,
+ *    온라인 기한이 시작 뒤 400 `fields.deadlineAt`, 자리 없음 409 `BIZ_SLOT_FULL`. 승인 순간부터 자리를 잡는다.
+ *    운영자 등록 건(source=OPERATOR)은 수동 결제만(400 `fields.method`). 자기 승인은 `memo` 1~200자 필수(400 `fields.memo`), 막는 설정이면 409 `BIZ_SELF_APPROVAL_DENIED`
  *  - `POST …/{id}/reject` `{ code, text }`(결제 전이라 환불 없음)
  *  - `POST …/{id}/manual` `{ deadlineAt, reason }`(결제 대기 → 수동 결제로 전환)
  *  - `POST …/{id}/contracts` 멀티파트 `files`(+ `replaceId`) — 원본 보존, 옛 파일은 「대체됨」. 서버 요청 한도(11MB) 때문에 **한 장씩** 올린다(화면이 차례로 부른다)
  *  - `GET  …/{id}/contracts/{fileId}` → `BizContractView`(`data:` 주소 — 열람 기록·감사)
  *  - `PUT  …/{id}/deposit` `{ amount, depositedOn, depositorName, mismatchReason? }`(감사 `BIZ_DEPOSIT_CONFIRM`)
  *  - `POST …/{id}/confirm` — 계약서 1장 이상 + 입금 확인 둘 다(서버 CHECK, 아니면 409 `BIZ_DEPOSIT_INCOMPLETE`)
- *  - `POST …/{id}/deposit-deadline` `{ deadlineAt }` · `POST …/{id}/cancel` `{ reason }`
+ *  - `POST …/{id}/deposit-deadline` `{ deadlineAt }` · `POST …/{id}/cancel` `{ reason }`(운영자 등록 건은 심사 대기에서도 취소 — 등록 실수. 계약서 올리기도 운영자 등록 건은 심사 대기부터)
  *  - `POST …/{id}/refund/approve` `{ amount, reason }` · `POST …/{id}/refund/deny` `{ reason }` · `POST …/{id}/refund/transfer` `{ note? }`(수동 환불 송금 완료 표시)
  *  상태가 이미 바뀌었으면 409 `BIZ_APPLICATION_STATE_CHANGED`.
  */

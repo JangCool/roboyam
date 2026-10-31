@@ -328,6 +328,8 @@ export default {
         adTakedownDesc: 'Take a running ad down immediately.',
         adRestore: 'Restore taken-down ads',
         adRestoreDesc: 'Put an ad that was taken down back on air.',
+        adContactReveal: 'View advertiser contacts',
+        adContactRevealDesc: 'Briefly reveal an advertiser’s masked contact name, phone and email, with a reason.',
         siteSecret: 'Change keys and secrets',
         siteSecretDesc: 'Change secret values such as social login keys and mail server passwords.',
     },

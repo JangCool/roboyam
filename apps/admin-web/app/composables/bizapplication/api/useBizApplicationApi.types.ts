@@ -124,8 +124,8 @@ export interface BizDepositRequest {
 
 /** 환불 심사 상태 — 열린 환불 = REQUESTED(「환불 심사」 큐) */
 export type BizRefundStatus = 'REQUESTED' | 'APPROVED' | 'DENIED';
-/** 환불 종류 — 시작 전 전액 자동 · 진행 중 일할 심사 · 사업자 정지로 내림(일할) */
-export type BizRefundType = 'FULL_AUTO' | 'PRORATED' | 'SUSPEND_PRORATED';
+/** 환불 종류 — 시작 전 전액 자동 · 진행 중 일할 심사 · 사업자 정지로 내림(일할) · 긴급 내림 되돌리기의 중단 기간 일할(바로 승인) */
+export type BizRefundType = 'FULL_AUTO' | 'PRORATED' | 'SUSPEND_PRORATED' | 'DOWNTIME';
 
 export interface BizRefundRequest {
     requestedAt: string;
@@ -215,12 +215,24 @@ export interface BizApplicationRow {
     deadlineAt: string | null;
     /** 열린 환불(REQUESTED)이 있다 */
     hasRefundRequest: boolean;
+    /** 사업자 신청 · 운영자 등록(화면이 「운영자 등록」 Tag) */
+    source: BizSource;
 }
 
+/** 운영자 등록 건의 등록자 — `me` 면 승인이 자기 승인이다(04 §2 — 경고와 메모 칸). 사업자 신청 건은 null */
+export interface BizRegistrant {
+    id: string;
+    name: string;
+    me: boolean;
+}
+
+/** 자기 승인 설정(`roboyam.biz.self-approval`) — DENY 면 등록한 운영자는 승인할 수 없다(409 `BIZ_SELF_APPROVAL_DENIED`) */
+export type BizSelfApproval = 'ALLOW' | 'DENY';
+
 export interface BizApplicationDetail extends BizApplicationRow {
-    source: BizSource;
     applicant: string;
     content: BizApplicationContent;
+    /** 사업자 메모 · 운영자 등록 건은 운영자 메모 */
     memo: string | null;
     quote: BizQuote;
     /** 이 기간·유형의 남은 자리(자기 제외 — 승인 때 다시 판정). 한도 없는 핫딜 글은 1/1 */
@@ -236,6 +248,12 @@ export interface BizApplicationDetail extends BizApplicationRow {
     /** 「광고 정책 v1 · 환불 규정 v1」 — 동의 기록이 없으면(운영자 등록 건) null */
     policyAgreedVersion: string | null;
     history: BizApplicationHistory[];
+    /** 운영자 등록 때 적은 계약 금액 제안(공급가) — 승인 창의 처음 값 */
+    proposedSupply: number | null;
+    /** 같은 자리에 여럿이 돌 때의 비중(1~10, 사업자 신청 건은 5) */
+    weight: number;
+    registrant: BizRegistrant | null;
+    selfApproval: BizSelfApproval;
 }
 
 export interface BizApplicationQuery {
@@ -267,6 +285,8 @@ export interface BizApproveRequest {
     /** 결제 기한(온라인 — 시작 시각 이전) 또는 입금 기한(수동) */
     deadlineAt: string;
     period: BizPeriod;
+    /** 자기 승인 메모(운영자 등록 건을 등록한 운영자가 승인할 때 1~200자 필수 — 400 `fields.memo`) */
+    memo?: string;
 }
 
 /** 수동 환불 송금 완료 표시 */

@@ -53,22 +53,29 @@ export default class UtilBizApplicationMessages {
             case 'APPROVED_MANUAL':
                 return note
                     .split(' · ')
-                    .map((part) => (part === 'PERIOD_MOVED' ? t('bizApplication.note.PERIOD_MOVED') : part))
+                    .map((part) => (part === 'PERIOD_MOVED' || part === 'SELF_APPROVED' ? t(`bizApplication.note.${part}`) : part))
                     .join(' · ');
             case 'CREATIVE_CHANGED':
                 return note === 'BACK_TO_REVIEW' ? t('bizApplication.note.BACK_TO_REVIEW') : note;
-            case 'RESTORED':
+            case 'RESTORED': {
                 if (note === 'EXTEND_FAILED') return t('bizApplication.note.EXTEND_FAILED');
-                if (note.startsWith('EXTENDED:')) return t('bizApplication.note.EXTENDED', { span: UtilBizApplicationMessages.minutes(t, Number(note.slice(9)) || 0) });
-                return note;
+                // 정지 해제 `EXTENDED:<분>` · 긴급 내림 되돌리기 `EXTENDED:<분> · 사유` / `REFUND:<원> · 사유`(서버 `AdOperatorService.restore`)
+                const [head = '', ...rest] = note.split(' · ');
+                let lead = head;
+                if (head.startsWith('EXTENDED:')) lead = t('bizApplication.note.EXTENDED', { span: UtilBizApplicationMessages.minutes(t, Number(head.slice(9)) || 0) });
+                else if (head.startsWith('REFUND:')) lead = t('bizApplication.note.REFUND', { amount: UtilBizApplicationMessages.won(t, Number(head.slice(7)) || 0, locale) });
+                return [lead, ...rest].join(' · ');
+            }
             case 'DEPOSIT_CONFIRMED':
                 return note.startsWith('MISMATCH · ') ? t('bizApplication.note.MISMATCH', { reason: note.slice(11) }) : note;
             case 'REFUND_APPROVED':
             case 'REFUNDED':
             case 'REFUND_TRANSFERRED':
                 return amount();
-            case 'REFUND_REQUESTED':
             case 'TAKEN_DOWN':
+                if (note === 'EMERGENCY') return t('bizApplication.takedownCause.EMERGENCY');
+                return note === 'SUSPENDED' || note === 'RESTORED' ? t(`bizApplication.note.${note}`) : note;
+            case 'REFUND_REQUESTED':
             case 'REFUND_DENIED':
                 return note === 'SUSPENDED' || note === 'RESTORED' ? t(`bizApplication.note.${note}`) : note;
             default:

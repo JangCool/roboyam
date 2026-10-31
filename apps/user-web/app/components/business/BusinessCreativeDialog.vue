@@ -1,7 +1,7 @@
 <template>
     <!--
         광고 소재 바꾸기(결제 전) — 배너는 이미지·링크·대체 글, 한 줄은 문구·링크. 승인 뒤 결제 전에 바꾸면 처음부터 다시 심사한다(안내 한 줄).
-        배너 이미지는 다시 올려야 한다(상세 응답에 지금 이미지의 파일 ID 가 없다 — 서버는 `imageFileId` 필수). 올리기·보내기는 부르는 쪽이 한다(`pickImage`·`submit`).
+        배너 이미지는 다시 고르지 않으면 지금 이미지(`creative.imageFileId`)를 그대로 보낸다(서버도 비우면 지금 이미지를 쓴다). 올리기·보내기는 부르는 쪽이 한다(`pickImage`·`submit`).
         핫딜 글 소재 바꾸기는 이 대화상자가 맡지 않는다(composable `updateCreative` 만 있다).
     -->
     <Dialog
@@ -31,6 +31,7 @@
                         @select="(f: File) => emit('pickImage', f)"
                         @remove="emit('removeImage')"
                     />
+                    <small v-if="!image && currentImageId" class="text-xs text-muted-color">{{ t('business.detail.creativeImageKeep') }}<template v-if="creative?.imageName"> · {{ creative.imageName }}</template></small>
                 </template>
             </LabeledField>
             <LabeledField v-else :label="t('business.ad.text')" :hint="`${text.length}/40`" :help="t('business.ad.textHelp')" :error="errors.text">
@@ -85,6 +86,8 @@ const formId = useId();
 
 const LINK_PLACEHOLDER = 'https://';
 const banner = computed(() => props.adType !== 'TEXT_LINE');
+/** 지금 배너 이미지 — 새로 고르지 않으면 이 ID 를 그대로 보낸다 */
+const currentImageId = computed(() => props.creative?.imageFileId ?? null);
 const text = ref('');
 const linkUrl = ref('');
 const altText = ref('');
@@ -111,7 +114,7 @@ const errors = computed(() => {
     if (f.text) out.text = f.text;
     if (!tried.value) return out;
     if (banner.value) {
-        if (!props.image) out.image ??= t('business.detail.creativeImageAgain');
+        if (!props.image && !currentImageId.value) out.image ??= t('business.detail.creativeImageAgain');
         if (!altText.value.trim()) out.alt ??= t('business.ad.altRequired');
     } else if (!text.value.trim()) out.text ??= t('business.ad.textRequired');
     if (!UtilBusiness.isHttpUrl(linkUrl.value)) out.link ??= t('business.ad.linkInvalid');
@@ -124,7 +127,7 @@ function submit(): void {
     emit(
         'submit',
         banner.value
-            ? { imageFileId: props.image?.fileId ?? null, linkUrl: linkUrl.value.trim(), altText: altText.value.trim() }
+            ? { imageFileId: props.image?.fileId ?? currentImageId.value, linkUrl: linkUrl.value.trim(), altText: altText.value.trim() }
             : { text: text.value.trim(), linkUrl: linkUrl.value.trim() },
     );
 }

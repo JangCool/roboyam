@@ -54,6 +54,16 @@ class BizApplicationAdminCatalogTest {
     }
 
     @Test
+    void admin_web_권한_카탈로그도_광고_조치_셋을_같은_단위_유형_기능_켬으로_둔다() throws IOException {
+        List<String> lines = java.nio.file.Files.readAllLines(java.nio.file.Path.of("..", "..", "apps", "admin-web", "app", "utils", "util-permission-catalog.ts"),
+                StandardCharsets.UTF_8);
+        for (String code : List.of("ad.takedown", "ad.restore", "ad.contact.reveal")) {
+            String line = lines.stream().filter(l -> l.contains("code: '" + code + "'")).findFirst().orElse(null);
+            assertThat(line).as(code).isNotNull().contains("unit: 'SENSITIVE'").contains("type: 'adPromo'").contains("featureReady: true");
+        }
+    }
+
+    @Test
     void 종류의_도메인과_도메인의_권한() {
         assertThat(BizApplicationKind.AD_BANNER.domain()).isEqualTo(BizDomain.AD);
         assertThat(BizApplicationKind.AD_TEXT_LINE.domain()).isEqualTo(BizDomain.AD);

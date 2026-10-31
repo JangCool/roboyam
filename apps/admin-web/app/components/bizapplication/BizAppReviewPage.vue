@@ -6,6 +6,7 @@
         · Splitter 3단: 왼쪽 목록 · 가운데 신청 내용 + 점검표 + 상태별 처리 · 오른쪽 미리보기. 고른 건은 주소 `?id=` 에 남는다(`?queue=` 로 탭도). 좁은 화면은 위아래로 쌓는다.
         · 처리: 승인(결제 방식·금액·기한·기간 옮기기·남은 자리) · 반려(코드+글, 결제 전이라 환불 없음) · 수동 결제로 전환 · 계약서 사본(한 장씩 올림 · [보기] 열람 기록) + 입금 확인 → 예약 확정
           · 입금 기한 연장/취소 · 환불 승인/거절 · 수동 환불 송금 완료 표시.
+        · 운영자 등록 건(광고 일정표 수동 등록, 「운영자 등록」 Tag): 수동 결제 고정 · 공급가 처음 값 = 제안 · 자기 승인 경고·메모(막는 설정이면 안내만) · 심사 대기에서도 취소·계약서 올리기.
         권한: 화면 조회는 메뉴 항목의 권한(`ad.read`·`hotdeal.read` — 셸이 거른다) · 심사·결제 처리 `ad.manage`·`hotdeal.manage`(그 도메인 것) · 환불 승인·거절·송금 `deal-order.refund`(서버 `Permission`).
         다른 도메인 건을 `?id=` 로 열면 서버가 403 을 준다(권한 없음 안내). 관리자 알림(`AD_REVIEW_PENDING`·`HOTDEAL_REVIEW_PENDING`·`*_REFUND_REQUESTED`)의 링크가 `?id=` 로 들어온다.
         서버 호출은 `useBizApplicationApi`(V112) — 화면 한 벌을 두 주소가 같이 쓰려고 컴포넌트가 직접 부른다(페이지 파일은 `domain` 만 넘긴다).
@@ -145,7 +146,7 @@
             <BizReasonDialog
                 v-model:visible="dialogs.cancel"
                 :title="t('bizApplication.cancelTitle', { no: detail.no })"
-                :description="t('bizApplication.cancelBody')"
+                :description="detail.source === 'OPERATOR' && detail.status === 'SUBMITTED' ? t('bizApplication.cancelOperatorBody') : t('bizApplication.cancelBody')"
                 :confirm-label="t('bizApplication.actCancel')"
                 tone="danger"
                 :busy="working === 'cancel'"

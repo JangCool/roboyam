@@ -3,15 +3,16 @@
         광고 › 일정표(`/ads`) — 02-ad.md 7-1, 00-overview.md ★-2(수동 결제)·F5(되돌리기 보상).
         · 유형 탭(넓은 배너·띠·네모·작은 배너·한 줄·핫딜 홈 상단·핫딜 말머리 상단) → 요약 띠(한도·진행·예약·결제 대기) → 두 달 달력(날짜별 남은 칸 점) → 광고 건 목록.
         · 한 줄: 광고주/사업자 · 기간(「~10/10 00:00」 반열림) · 상태 · 결제 방식(온라인/수동) · 비중. 줄을 누르면 상세 서랍(`?id=`).
-        · [수동 등록]: 광고주 → 종류·기간(남은 칸) → 소재 → 계약서 사본(필수) → 입금 확인 → [예약 확정].
+        · [수동 등록](광고 종류 탭 — 배너 넷·한 줄만, 핫딜 노출 자리는 글이 있어야 해서 서버가 400): 광고주 → 종류·기간(남은 칸) → 소재 → 계약서 사본(선택) → [심사 요청]
+          → 광고 심사(`/ad-reviews`)의 심사 대기. 상세 서랍의 「광고 심사에서 열기」가 그 신청 건으로 간다.
         · 긴급 내림(사유·메일·「최대 20초 남을 수 있어요」) · 되돌리기(중단 시간만큼 끝 시각 연장 / 일할 환불).
-        권한: 화면 `ad.read` · 등록 `ad.manage` · 긴급 내림 `ad.takedown` · 되돌리기 `ad.restore`(서버 `Permission` 에 추가 예정 — 지금은 `ad.takedown` 으로 본다).
-        서버 호출은 `useAdApi`(지금 목업 — `?mock=ads-fail`·`ads-empty`). 사업자 신청 심사에서 승인·확정한 광고 건도 이 장부에 나타난다(같은 세션 메모리).
+        권한: 화면 `ad.read` · 등록 `ad.manage` · 긴급 내림 `ad.takedown` · 되돌리기 `ad.restore`(서버 `Permission`).
+        서버 호출은 `useAdApi`(V115). 달력은 `calendar` 한 번(그 달에 걸친 장부 건 `bookings` 포함). 사업자 신청 심사에서 승인한 광고 건도 이 장부에 나타난다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('ad.title')" :subtitle="t('ad.subtitle')">
             <template #actions>
-                <Button v-if="can('ad.manage')" type="button" :label="t('ad.actManual')" icon="pi pi-plus" size="small" @click="manualOpen = true" />
+                <Button v-if="canManual" type="button" :label="t('ad.actManual')" icon="pi pi-plus" size="small" @click="manualOpen = true" />
             </template>
         </PageTitle>
 
@@ -20,6 +21,13 @@
                 <Tab v-for="ty in UtilAd.TYPES" :key="ty" :value="ty">{{ t(`bizApplication.adType.${ty}`) }}</Tab>
             </TabList>
         </Tabs>
+
+        <Message v-if="manualCreated" severity="success" closable @close="manualCreated = null">
+            <span class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
+                {{ t('ad.manualCreatedNote', { name: manualCreated.advertiser.name }) }}
+                <NuxtLink :to="UtilAd.reviewLink(manualCreated)" class="font-medium underline underline-offset-2">{{ t('ad.openReview') }}</NuxtLink>
+            </span>
+        </Message>
 
         <!-- 요약 띠 -->
         <dl class="m-0 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -38,7 +46,7 @@
                 :bookings="calendarBookings"
                 :loading="calendarLoading"
                 :compact="narrow"
-                :can-pick="can('ad.manage')"
+                :can-pick="canManual"
                 @month="onMonth"
                 @open="openFromCalendar"
                 @pick="startManualOn"
@@ -76,7 +84,7 @@
                     <div v-else-if="busy" class="h-32" aria-hidden="true" />
                     <EmptyState v-else-if="applied.q || applied.status" icon="pi pi-filter-slash" :title="t('common.emptyFiltered')" />
                     <EmptyState v-else icon="pi pi-megaphone" :title="t('ad.empty')">
-                        <Button v-if="can('ad.manage')" type="button" :label="t('ad.firstManual')" icon="pi pi-plus" size="small" @click="manualOpen = true" />
+                        <Button v-if="canManual" type="button" :label="t('ad.firstManual')" icon="pi pi-plus" size="small" @click="manualOpen = true" />
                     </EmptyState>
                 </template>
 
@@ -113,7 +121,7 @@
             :error="drawerError"
             :busy="working !== null"
             :can-takedown="can('ad.takedown')"
-            :can-restore="can('ad.takedown')"
+            :can-restore="can('ad.restore')"
             @retry="loadDetail"
             @takedown="openDialog('takedown')"
             @restore="openDialog('restore')"
@@ -127,6 +135,7 @@
             :create-advertiser="api.createAdvertiser"
             :check-availability="api.availability"
             :upload-contract="api.uploadContract"
+            :upload-image="api.uploadImage"
             :to-error="toApiError"
             :busy="working === 'manual'"
             :error="manualError"
@@ -205,6 +214,8 @@ const type = ref<AdType>((UtilAd.TYPES as readonly string[]).includes(queryStrin
 const status = ref<string>('');
 const q = ref('');
 const applied = ref<{ status?: AdBookingStatus; q?: string }>({});
+/** 운영자 등록은 광고 종류(배너 넷·한 줄)만 — 핫딜 노출 자리 탭에서는 숨긴다(서버 400 `fields.type`) */
+const canManual = computed(() => can('ad.manage') && UtilAd.isManualType(type.value));
 const statusOptions = computed(() => [{ value: '', label: t('ad.allStatus') }, ...AD_BOOKING_STATUSES.map((s) => ({ value: s, label: t(`ad.status.${s}`) }))]);
 
 // ── 달력·요약 ──
@@ -212,18 +223,17 @@ const month = ref(UtilBizApplication.kstToday().slice(0, 7));
 const calendar = ref<AdCalendar | null>(null);
 const calendarLoading = ref(false);
 const calendarError = ref<ApiError | null>(null);
-/** 달력 칸에 이름으로 그릴 이 유형의 광고 건(취소 제외) — 목록의 필터·쪽과 따로 받는다 */
-const calendarBookings = ref<AdBookingRow[]>([]);
+/** 달력 칸에 이름으로 그릴 그 달의 광고 건(취소 제외) — `calendar` 응답에 함께 온다 */
+const calendarBookings = computed<AdBookingRow[]>(() => (calendar.value?.bookings ?? []).filter((b) => b.status !== 'CANCELED'));
 let cseq = 0;
 async function loadCalendar(): Promise<void> {
     const mine = ++cseq;
     calendarLoading.value = true;
     calendarError.value = null;
     try {
-        const [found, booked] = await Promise.all([api.calendar(type.value, month.value), api.list({ type: type.value, page: 0, size: 500 })]);
+        const found = await api.calendar(type.value, month.value);
         if (mine !== cseq) return;
         calendar.value = found;
-        calendarBookings.value = booked.items.filter((b) => b.status !== 'CANCELED');
     } catch (e) {
         if (mine === cseq) calendarError.value = toApiError(e);
     } finally {
@@ -413,13 +423,18 @@ const manualOpen = ref(false);
 /** 달력에서 고른 시작 날짜(`YYYY-MM-DD`) — 없으면 서랍이 내일로 잡는다 */
 const manualStart = ref<string | null>(null);
 watch(manualOpen, (open) => {
-    if (!open) manualStart.value = null;
+    if (open) return;
+    manualStart.value = null;
+    manualError.value = '';
+    manualFields.value = {};
 });
 function startManualOn(ymd: string): void {
     manualStart.value = ymd;
     manualOpen.value = true;
 }
 const manualError = ref('');
+/** 방금 등록한 건 — 「광고 심사에서 승인해 주세요」 안내 줄(닫을 때까지) */
+const manualCreated = ref<AdBookingDetail | null>(null);
 const manualFields = ref<Record<string, string>>({});
 async function submitManual(body: AdManualCreateRequest): Promise<void> {
     working.value = 'manual';
@@ -429,12 +444,17 @@ async function submitManual(body: AdManualCreateRequest): Promise<void> {
         const created = await api.createManual(body);
         toast.success(t('ad.manualDone'));
         manualOpen.value = false;
+        manualCreated.value = created;
         if (created.type !== type.value) selectType(created.type);
         else refreshAll();
     } catch (e) {
         const failure = toApiError(e);
-        if (failure.code === 'VALIDATION' && failure.fields) manualFields.value = failure.fields;
-        else manualError.value = failure.message;
+        if (failure.code === 'VALIDATION' && failure.fields) {
+            manualFields.value = failure.fields;
+            // 칸에 붙지 않는 것(유형 등)은 위쪽에 모은다
+            const loose = Object.entries(failure.fields).filter(([k]) => !UtilAd.MANUAL_FIELDS.includes(k));
+            if (loose.length) manualError.value = loose.map(([, v]) => v).join(' · ');
+        } else manualError.value = failure.message;
     } finally {
         working.value = null;
     }
