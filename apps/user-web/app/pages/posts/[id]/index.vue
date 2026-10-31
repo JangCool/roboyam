@@ -356,10 +356,14 @@ const foldRevealed = ref(false);
 
 const publicAds = usePublicAds();
 void publicAds.ensurePlacements();
-/** 글 보기 광고를 물을 게시판 — 소모임 글·19금 글·`adsHidden`·19금 게시판이면 빈 글자(게시판 맥락 호출이라 `board` 로 넘긴다) */
+/**
+ * 글 보기 광고를 물을 게시판 — 소모임 글·`adsHidden` 이면 빈 글자, 19금 글(`post.adult`)·19금 게시판은 자리 설정 `adult.enabled` 가 꺼져 있으면 빈 글자
+ * (게시판 맥락 호출이라 `board` 로 넘긴다 — 서버는 게시판만 판정하고 19금 글은 화면이 거른다)
+ */
 const inlineBoard = computed(() => {
     const p = post.value;
-    if (!p || p.group || p.adult || board.value?.slug !== p.board.slug || UtilAd.boardAdsHidden(board.value)) return '';
+    const adultOn = publicAds.adultEnabled.value;
+    if (!p || p.group || (p.adult && !adultOn) || board.value?.slug !== p.board.slug || UtilAd.boardAdsHidden(board.value, adultOn)) return '';
     return p.board.slug;
 });
 /** 자리 꺼짐·광고 없는 글·후보 0건이면 null */
@@ -402,8 +406,14 @@ async function load(): Promise<void> {
         if (mine !== request) return;
         post.value = loaded;
         board.value = loadedBoard;
-        // 소모임 글에는 날개 배너도 없다
-        publicAds.setPostWings(route.path, !loaded.group);
+        // 날개 배너 — 그 게시판 `board` 로 부른다. 소모임 글·광고 숨김 게시판·19금 글/게시판(옵션 꺼짐)이면 그리지 않는다
+        publicAds.setWingContext({
+            path: route.path,
+            board: loaded.board.slug,
+            adsHidden: loadedBoard.adsHidden === true,
+            adult: loaded.adult || loadedBoard.allowAdult === true,
+            group: Boolean(loaded.group),
+        });
         if (!loaded.group) current.set(loaded.board.slug);
         pageState.value = 'ready';
         opinionsStarted = false;

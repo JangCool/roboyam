@@ -6,7 +6,7 @@
           · 매니저·스텝 지정/해제, 게시판 켜고 끄기, 삭제는 **누르면 바로**(확인창 + 토스트) — 저장 줄과 무관하다.
         정책 칸은 모두 「기본값 따름」(null)을 고를 수 있고 그때 지금 기본값을 흐리게 보인다(`BoardSettingField`, 칸 정의는 `UtilBoard.SPECS` — 기본 설정 화면과 같은 부품). 읽기 전용 잠금(writeLock)은 기본값이 없는 게시판 전용 칸이다.
         「노출」의 가젯 노출 금지(gadgetExclusions)도 기본값이 없는 게시판 전용 칸이다(서버가 준 `gadgets` 순서의 체크 목록, 권한 `board.settings`). 이 칸이 「홈·인기·최신 포함」(inHome)을 대신해 inHome 은 화면에서 다루지 않는다(받은 값 그대로 저장 요청에 돌아간다).
-        「노출」의 광고 숨김(adsHidden, 기본 끔)도 게시판 전용 칸이다(권한 `board.settings` — 서버가 정책 묶음으로 본다). 켜면 목록 한 줄·글 보기·핫딜 노출 광고가 없다. 19금·소모임 게시판은 이 칸과 상관없이 늘 없다(안내 문구).
+        「노출」의 광고 숨김(adsHidden, 기본 끔)도 게시판 전용 칸이다(권한 `board.settings` — 서버가 정책 묶음으로 본다). 켜면 목록 한 줄·글 보기·핫딜 노출·날개 배너 광고가 없다. 19금 게시판은 광고 자리 설정의 19금 옵션(`adult.enabled`)을 따르고, 소모임 게시판은 이 칸과 상관없이 늘 없다(안내 문구).
         community 와 다른 점:
           · 최소 자격은 등급 목록(`useGradeAppearance`)의 등급 또는 운영진만(댓글은 끔도). 「지킴이」 → 매니저·스텝(정책 `docs/domain/operator-permissions.md`): 매니저 기본 3·최대 10, 스텝 최대 10, 한 회원 최대 5개 게시판. 핫딜·직접홍보·소모임 게시판은 지정 불가.
           · 말머리를 따로 저장하지 않고 게시판 저장에 함께 보낸다(서버가 목록을 diff — 빠진 말머리는 지우고, 쓰는 글이 있으면 409 `PREFIX_IN_USE`). 화면은 글이 있는 말머리의 삭제 단추를 잠그고 끄기를 안내한다. 사용 중 고유 말머리는 최대 6개.
@@ -269,7 +269,7 @@
                             </p>
                         </div>
 
-                        <!-- 광고 숨김 — 게시판마다의 값(기본값 따름 없음). 목록 한 줄·글 보기·핫딜 노출 광고를 내지 않는다 -->
+                        <!-- 광고 숨김 — 게시판마다의 값(기본값 따름 없음). 목록 한 줄·글 보기·핫딜 노출·날개 배너 광고를 내지 않는다 -->
                         <div class="flex items-start gap-2">
                             <ToggleSwitch v-model="adsHiddenModel" :input-id="`${idBase}-ads-hidden`" :disabled="!canSettings || saving" class="shrink-0" :aria-describedby="`${idBase}-ads-hidden-help`" />
                             <label :for="`${idBase}-ads-hidden`" class="flex flex-col gap-0.5">

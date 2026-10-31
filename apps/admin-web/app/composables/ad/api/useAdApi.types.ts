@@ -243,11 +243,17 @@ export interface AdBoardListSetting {
     after: number;
 }
 
+/** 19금 게시판·19금 글에도 광고(목록 한 줄·글 보기·핫딜 노출·날개)를 낼지 — 기본 false. 게시판 「광고 숨김」·소모임은 이 값과 상관없이 늘 빠진다 */
+export interface AdAdultSetting {
+    enabled: boolean;
+}
+
 /** `PUT /api/admin/ads/placements` 본문 */
 export interface AdPlacementsRequest {
     postInline: AdPostInlineSetting;
     wings: AdWingSetting;
     boardList: AdBoardListSetting;
+    adult: AdAdultSetting;
 }
 
 /** `GET`·`PUT /api/admin/ads/placements` 응답 — 저장한 적 없으면 서버 기본값 + `updatedAt/updatedBy: null` */

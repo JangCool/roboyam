@@ -6,14 +6,15 @@ import UtilAd from '~/utils/util-ad';
 
 /**
  * 핫딜 게시판 첫 쪽 위 노출 — 말머리를 고르지 않았으면 `HOTDEAL_TOP`, 골랐으면 `HOTDEAL_CATEGORY`.
- * 게시판 맥락 호출이라 `board` 를 넘긴다. `adsHidden`·19금 게시판은 부르지 않는다(서버도 빈 목록).
+ * 게시판 맥락 호출이라 `board` 를 넘긴다. `adsHidden`·19금 게시판(자리 설정 `adult.enabled` 꺼짐)은 부르지 않는다(서버도 빈 목록).
  */
 export function useHotdealAds(target: MaybeRef<HotdealAdTarget | null>) {
     const ads = usePublicAds();
+    void ads.ensurePlacements();
 
     const placement = computed<Extract<AdPlacement, 'HOTDEAL_TOP' | 'HOTDEAL_CATEGORY'> | null>(() => {
         const t = toValue(target);
-        if (!t || !t.firstPage || !t.dealEnabled || UtilAd.boardAdsHidden(t.view)) return null;
+        if (!t || !t.firstPage || !t.dealEnabled || UtilAd.boardAdsHidden(t.view, ads.adultEnabled.value)) return null;
         return t.prefix ? 'HOTDEAL_CATEGORY' : 'HOTDEAL_TOP';
     });
 

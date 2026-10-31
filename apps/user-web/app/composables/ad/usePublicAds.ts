@@ -1,5 +1,5 @@
 import type { AdImpressionItem, PublicAd, PublicAdPlacements, PublicAdType } from '~/composables/ad/api/usePublicAdApi.types';
-import type { AdPlacement } from '~/composables/ad/usePublicAds.types';
+import type { AdPlacement, WingContext } from '~/composables/ad/usePublicAds.types';
 import UtilAd from '~/utils/util-ad';
 
 /**
@@ -17,14 +17,14 @@ interface PublicAdsState {
     /** undefined = 아직, null = 못 받음 */
     placements: PublicAdPlacements | null | undefined;
     placementsAt: number;
-    /** 글 보기가 알려 준 지금 글의 날개 허용 — 소모임 글이면 false(주소만으로는 소모임 글인지 모른다) */
-    postWings: { path: string; allowed: boolean } | null;
+    /** 게시판 화면·글 보기가 알려 준 날개 맥락(주소만으로는 소모임 글·숨김 게시판인지 모른다) */
+    wingContext: WingContext | null;
 }
 
 type PublicAdApi = ReturnType<typeof usePublicAdApi>;
 
 /* 화면 상태가 아니라 요청 묶기·노출 대기열이라 모듈에 둔다(SPA 한 창에 하나) */
-/** 게시판 slug(가젯·날개는 빈 글자) → 이번 틱에 물을 유형 */
+/** 게시판 slug(가젯·홈·가젯 페이지의 날개는 빈 글자) → 이번 틱에 물을 유형 */
 let pending = new Map<string, Set<PublicAdType>>();
 let batch: Promise<void> | null = null;
 const inflight = new Map<string, Promise<void>>();
@@ -65,7 +65,7 @@ function hotdealKey(board: string, prefix: string): string {
 
 export function usePublicAds() {
     const api = usePublicAdApi();
-    const state = useState<PublicAdsState>('public-ads', () => ({ ads: {}, loadedAt: {}, placements: undefined, placementsAt: 0, postWings: null }));
+    const state = useState<PublicAdsState>('public-ads', () => ({ ads: {}, loadedAt: {}, placements: undefined, placementsAt: 0, wingContext: null }));
 
     function fresh(key: string): boolean {
         const at = state.value.loadedAt[key];
@@ -95,7 +95,7 @@ export function usePublicAds() {
 
     /**
      * 20초 안에 받은 유형은 건너뛰고, 같은 틱에 부른 유형은 게시판마다 한 번에 묻는다.
-     * `board` 는 게시판 맥락(목록 한 줄·글 보기)만 넘긴다 — 서버가 그 게시판에 광고를 안 내면 빈 목록이라 사본도 게시판마다 따로 둔다.
+     * `board` 는 게시판 맥락(목록 한 줄·글 보기, 게시판 화면·글 보기의 날개)만 넘긴다 — 서버가 그 게시판에 광고를 안 내면 빈 목록이라 사본도 게시판마다 따로 둔다.
      */
     function ensure(types: readonly PublicAdType[], board = ''): Promise<void> {
         const waits: Promise<void>[] = [];
@@ -152,6 +152,8 @@ export function usePublicAds() {
     }
 
     const placements = computed(() => state.value.placements);
+    /** 19금 게시판·19금 글에도 광고를 낼지 — 자리 설정을 아직 못 받았거나 못 받으면 끔 */
+    const adultEnabled = computed(() => state.value.placements?.adult?.enabled === true);
 
     function ensurePlacements(): Promise<void> {
         if (placementsRun) return placementsRun;
@@ -183,18 +185,18 @@ export function usePublicAds() {
         api.click(ad.id, { version: ad.version, placement });
     }
 
-    /** 글 보기가 글을 받은 뒤 부른다 — 날개(`AdWings`)는 그 주소의 글이 허용될 때만 그린다 */
-    function setPostWings(path: string, allowed: boolean): void {
-        const cur = state.value.postWings;
-        if (cur?.path === path && cur.allowed === allowed) return;
-        state.value = { ...state.value, postWings: { path, allowed } };
+    /** 게시판 화면은 게시판을, 글 보기는 글·게시판을 받은 뒤 부른다 — 날개(`AdWings`)가 이 맥락으로 그릴지·어느 `board` 로 부를지 정한다 */
+    function setWingContext(next: WingContext): void {
+        const cur = state.value.wingContext;
+        if (cur && cur.path === next.path && cur.board === next.board && cur.adsHidden === next.adsHidden && cur.adult === next.adult && cur.group === next.group) return;
+        state.value = { ...state.value, wingContext: { ...next } };
     }
 
-    /** 이 주소의 글이 날개를 허용하나 — 글을 아직 받지 못했으면 false(소모임 글에 잠깐 비치지 않게) */
-    function postWingsAllowed(path: string): boolean {
-        const cur = state.value.postWings;
-        return cur !== null && cur.path === path && cur.allowed;
+    /** 이 주소에 알려 준 날개 맥락 — 없으면 null(글 보기는 글을 받기 전이라 그리지 않고, 게시판 화면은 서버 판정에 맡긴다) */
+    function wingContextOf(path: string): WingContext | null {
+        const cur = state.value.wingContext;
+        return cur !== null && cur.path === path ? cur : null;
     }
 
-    return { ensure, ensureHotdeal, candidates, hotdealCandidates, placements, ensurePlacements, impression, click, setPostWings, postWingsAllowed };
+    return { ensure, ensureHotdeal, candidates, hotdealCandidates, placements, adultEnabled, ensurePlacements, impression, click, setWingContext, wingContextOf };
 }

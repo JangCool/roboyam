@@ -4,6 +4,7 @@
           ① 글 보기 — 켜기 · 유형(한 줄·띠 배너·네모 배너) · 위치(글 카드와 댓글 카드 사이 / 본문 바로 아래)
           ② 날개 배너 — 왼쪽·오른쪽 켜기 · 보일 화면(홈·가젯 페이지·게시판 목록·글 보기)
           ③ 게시판 목록 한 줄 — 켜기 · 일반 글 몇 번째 뒤(1~20)
+          ④ 19금 — 19금 게시판·19금 글에도 광고 보이기(기본 끔. 끄면 날개까지 모두 빠짐 · 게시판 「광고 숨김」·소모임은 늘 빠짐)
         화면 하나로 한 번에 저장한다(`PUT` 한 번 — 아래 떠 있는 저장 줄, `forms.md` 2-4). 홈·가젯 페이지·게시판 레이아웃의 광고는 가젯(가젯 편집기)이라 여기 없다.
         권한: 화면 `ad.read` · 저장 `ad.settings`(없으면 입력이 잠기고 저장 줄 대신 읽기 전용 안내). 막는 것은 서버다.
         서버가 거절한 칸(400 `fields.postInline.adType` 등)은 그 칸 아래, 빠진 묶음(`fields.postInline` 등)은 그 묶음 위, 나머지는 저장 줄에 서버 문구 그대로.
@@ -136,6 +137,22 @@
                 </div>
             </AppGadget>
 
+            <!-- ④ 19금 게시판 -->
+            <AppGadget :title="t('ad.adultSection')" anchor="ad-adult" :changes="changes.adult" :invalid="invalidOf('adult')">
+                <div class="flex flex-col gap-4">
+                    <Message v-if="errorOf('adult')" severity="error" variant="simple" size="small" :closable="false" role="alert">{{ errorOf('adult') }}</Message>
+                    <div class="flex items-start gap-2">
+                        <ToggleSwitch v-model="form.adult.enabled" :input-id="`${idBase}-adult-on`" :disabled="locked" class="shrink-0" :aria-describedby="`${idBase}-adult-help`" @update:model-value="clearServer('adult.enabled')" />
+                        <label :for="`${idBase}-adult-on`" class="flex flex-col gap-0.5">
+                            <span class="text-sm">{{ t('ad.adultEnabled') }}</span>
+                            <span :id="`${idBase}-adult-help`" class="text-xs leading-relaxed" :class="errorOf('adult.enabled') ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="errorOf('adult.enabled') ? 'alert' : undefined">
+                                {{ errorOf('adult.enabled') || t('ad.adultHelp') }}
+                            </span>
+                        </label>
+                    </div>
+                </div>
+            </AppGadget>
+
             <p class="m-0 text-xs text-muted-color" data-testid="ad-placements-saved-at">
                 {{ saved.updatedAt ? t('ad.placementsLastSaved', { at: time.full(saved.updatedAt), by: saved.updatedBy?.name ?? '—' }) : t('ad.placementsNeverSaved') }}
             </p>
@@ -150,7 +167,7 @@ import type { AdPlacementsRequest, AdPlacementsView } from '~/composables/ad/api
 import type { ApiError } from '~/composables/common/useApiClient';
 import UtilAd from '~/utils/util-ad';
 
-type Section = 'postInline' | 'wings' | 'boardList';
+type Section = 'postInline' | 'wings' | 'boardList' | 'adult';
 
 const { t } = useI18n();
 useSeoMeta({ title: () => t('ad.placementsTitle') });
@@ -190,8 +207,8 @@ const afterModel = computed<number | null>({
     },
 });
 
-const changes = computed(() => (form.value && saved.value ? UtilAd.placementChanges(form.value, saved.value) : { postInline: 0, wings: 0, boardList: 0 }));
-const changeCount = computed(() => changes.value.postInline + changes.value.wings + changes.value.boardList);
+const changes = computed(() => (form.value && saved.value ? UtilAd.placementChanges(form.value, saved.value) : { postInline: 0, wings: 0, boardList: 0, adult: 0 }));
+const changeCount = computed(() => changes.value.postInline + changes.value.wings + changes.value.boardList + changes.value.adult);
 const dirty = computed(() => changeCount.value > 0);
 const errorCount = computed(() => Object.keys(serverErrors.value).length);
 

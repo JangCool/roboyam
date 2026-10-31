@@ -96,24 +96,28 @@ export default class UtilAd {
         'boardList',
         'boardList.enabled',
         'boardList.after',
+        'adult',
+        'adult.enabled',
     ];
 
-    /** 편집용 사본(서버 응답을 그대로 고치지 않게) — 날개 화면은 정해진 차례로 */
+    /** 편집용 사본(서버 응답을 그대로 고치지 않게) — 날개 화면은 정해진 차례로. `adult` 가 없는 응답(옛 서버)은 끔으로 읽는다 */
     static placementsForm(view: AdPlacementsRequest): AdPlacementsRequest {
         return {
             postInline: { ...view.postInline },
             wings: { left: view.wings.left, right: view.wings.right, screens: UtilAd.WING_SCREENS.filter((s) => view.wings.screens.includes(s)) },
             boardList: { ...view.boardList },
+            adult: { enabled: view.adult?.enabled === true },
         };
     }
 
     /** 묶음마다 저장된 값과 다른 칸 수 */
-    static placementChanges(form: AdPlacementsRequest, saved: AdPlacementsRequest): { postInline: number; wings: number; boardList: number } {
+    static placementChanges(form: AdPlacementsRequest, saved: AdPlacementsRequest): { postInline: number; wings: number; boardList: number; adult: number } {
         const screens = (a: readonly AdWingScreen[]) => UtilAd.WING_SCREENS.filter((s) => a.includes(s)).join(',');
         return {
             postInline: [form.postInline.enabled !== saved.postInline.enabled, form.postInline.adType !== saved.postInline.adType, form.postInline.position !== saved.postInline.position].filter(Boolean).length,
             wings: [form.wings.left !== saved.wings.left, form.wings.right !== saved.wings.right, screens(form.wings.screens) !== screens(saved.wings.screens)].filter(Boolean).length,
             boardList: [form.boardList.enabled !== saved.boardList.enabled, form.boardList.after !== saved.boardList.after].filter(Boolean).length,
+            adult: [(form.adult?.enabled === true) !== (saved.adult?.enabled === true)].filter(Boolean).length,
         };
     }
 }

@@ -27,24 +27,37 @@ const { theme } = useTheme();
 const ads = usePublicAds();
 void ads.ensurePlacements();
 
-const sides = computed(() => {
+/**
+ * 그릴 쪽과 물을 게시판 — 홈·가젯 페이지는 `board` 없이, 게시판 화면(BOARD)·글 보기(POST)는 그 게시판 `board` 로(서버 판정: 소모임·숨김·19금 옵션 꺼짐이면 빈 목록).
+ * 소모임 화면(`/groups/**`)은 `wingScreen` 이 null. 글 보기는 글을 받아 맥락을 알려 주기 전에는 그리지 않고(소모임 글에 잠깐 비치지 않게),
+ * 게시판 화면은 맥락(상세의 `adsHidden`)을 아직 못 받았으면 주소의 slug 로 불러 서버 판정에 맡긴다.
+ */
+const wing = computed<{ left: boolean; right: boolean; board: string }>(() => {
+    const none = { left: false, right: false, board: '' };
     const w = ads.placements.value?.wings;
     const screen = UtilAd.wingScreen(route.path);
-    // 소모임 화면(`/groups/**`)은 `wingScreen` 이 null, 소모임 글은 글 보기가 알려 준다
-    if (!w || !screen || !UtilAd.wingScreens(w.screens).includes(screen)) return { left: false, right: false };
-    if (screen === 'POST' && !ads.postWingsAllowed(route.path)) return { left: false, right: false };
-    return { left: w.left === true, right: w.right === true };
+    if (!w || !screen || !UtilAd.wingScreens(w.screens).includes(screen)) return none;
+    let board = '';
+    if (screen === 'BOARD' || screen === 'POST') {
+        const ctx = ads.wingContextOf(route.path);
+        if (screen === 'POST' && !ctx) return none;
+        if (ctx && UtilAd.wingContextHidden(ctx, ads.adultEnabled.value)) return none;
+        board = ctx?.board || UtilAd.boardSlugOf(route.path);
+        if (!board) return none;
+    }
+    return { left: w.left === true, right: w.right === true, board };
 });
 
 watch(
-    () => sides.value.left || sides.value.right,
-    (on) => {
-        if (on) void ads.ensure(['WING_BANNER']);
+    () => (wing.value.left || wing.value.right ? `WING@${wing.value.board}` : ''),
+    (key) => {
+        if (key) void ads.ensure(['WING_BANNER'], wing.value.board);
     },
     { immediate: true },
 );
 
-const candidates = computed(() => ads.candidates('WING_BANNER') ?? null);
+const sides = computed(() => ({ left: wing.value.left, right: wing.value.right }));
+const candidates = computed(() => (wing.value.left || wing.value.right ? (ads.candidates('WING_BANNER', wing.value.board) ?? null) : null));
 
 const picked = ref<{ left: PublicAd | null; right: PublicAd | null }>({ left: null, right: null });
 watch(

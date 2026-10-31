@@ -251,10 +251,27 @@ export default class UtilAd {
     }
 
     /**
-     * 게시판 맥락 광고(목록 한 줄·글 보기·핫딜)를 그리지 않는 게시판 — 「광고 숨김」(`adsHidden`) 또는 19금(`allowAdult`).
+     * 게시판 맥락 광고(목록 한 줄·글 보기·핫딜·게시판 화면의 날개)를 그리지 않는 게시판 — 「광고 숨김」(`adsHidden`), 또는 19금(`allowAdult`)인데 자리 설정 `adult.enabled` 가 꺼짐.
+     * `adultEnabled` 는 자리 설정을 아직 못 받았으면 false 로 넘긴다.
      * 메뉴의 게시판 요약(`BoardView`)에는 `adsHidden` 이 없다 — 상세를 받기 전에는 서버의 `board` 판정(빈 목록)이 막는다.
      */
-    static boardAdsHidden(board: { adsHidden?: boolean; allowAdult?: boolean } | null): boolean {
-        return board !== null && (board.adsHidden === true || board.allowAdult === true);
+    static boardAdsHidden(board: { adsHidden?: boolean; allowAdult?: boolean } | null, adultEnabled: boolean): boolean {
+        return board !== null && (board.adsHidden === true || (board.allowAdult === true && !adultEnabled));
+    }
+
+    /** 게시판 화면(`/boards/<slug>`)의 slug — 날개를 그 게시판 판정으로 부른다. 다른 주소는 빈 글자 */
+    static boardSlugOf(path: string): string {
+        const m = /^\/boards\/([^/]+)\/?$/.exec(path);
+        if (!m?.[1]) return '';
+        try {
+            return decodeURIComponent(m[1]);
+        } catch {
+            return m[1];
+        }
+    }
+
+    /** 게시판 화면·글 보기가 알려 준 맥락으로 날개를 뺄지 — 소모임 · 광고 숨김 · 19금(옵션 꺼짐) */
+    static wingContextHidden(ctx: { adsHidden: boolean; adult: boolean; group: boolean }, adultEnabled: boolean): boolean {
+        return ctx.group || ctx.adsHidden || (ctx.adult && !adultEnabled);
     }
 }

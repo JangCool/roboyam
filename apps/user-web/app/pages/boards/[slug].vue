@@ -169,6 +169,7 @@ const { localizedName } = useLocalizedName();
 const { display, ensureLoaded: ensureDisplay } = useBoardDisplay();
 const viewMode = useBoardViewMode();
 const recentBoards = useRecentBoards();
+const publicAds = usePublicAds();
 void ensureDisplay();
 
 const slug = computed(() => String(route.params.slug ?? ''));
@@ -195,6 +196,8 @@ async function loadBoard(): Promise<void> {
         detail.value = result;
         boardState.value = 'ready';
         current.setWrite({ slug: wanted, canWrite: result.viewer.canWrite, reason: result.viewer.writeBlockedReason });
+        // 날개 배너 — 광고 숨김·19금(옵션 꺼짐) 게시판이면 그리지 않는다(받기 전에는 `board` 판정을 서버에 맡긴다)
+        if (slug.value === wanted) publicAds.setWingContext({ path: route.path, board: wanted, adsHidden: result.adsHidden === true, adult: result.allowAdult === true, group: false });
         // 게시판 모음(`/boards`)의 「최근 방문」 — 열린 게시판만 이 기기에 남긴다
         recentBoards.record(wanted);
     } catch (e) {

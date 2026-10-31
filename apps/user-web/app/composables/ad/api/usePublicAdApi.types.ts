@@ -38,7 +38,7 @@ export interface PublicAd {
 
 export interface PublicAdsQuery {
     types: PublicAdType[];
-    /** 게시판 맥락 호출(목록 한 줄·글 보기·핫딜)만 — 가젯·날개는 넘기지 않는다 */
+    /** 게시판 맥락 호출(목록 한 줄·글 보기·핫딜, 게시판 화면·글 보기의 날개)만 — 홈·가젯 페이지(가젯·날개)는 넘기지 않는다 */
     board?: string;
     prefix?: string;
 }
@@ -72,10 +72,16 @@ export interface BoardListPlacement {
     after: number;
 }
 
+/** 19금 게시판·19금 글에도 광고(목록 한 줄·글 보기·핫딜 노출·날개)를 낼지 — 기본 false. 「광고 숨김」 게시판·소모임은 늘 빠진다 */
+export interface AdultPlacement {
+    enabled: boolean;
+}
+
 export interface PublicAdPlacements {
     postInline: PostInlinePlacement;
     wings: WingPlacement;
     boardList: BoardListPlacement;
+    adult: AdultPlacement;
 }
 
 export interface AdImpressionItem {
