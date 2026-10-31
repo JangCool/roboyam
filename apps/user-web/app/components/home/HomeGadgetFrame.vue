@@ -10,6 +10,7 @@
         한 열(모바일, 격자 `stack`)에서는 머리 「더보기 ›」의 터치 영역을 44px 로 넓힌다(`main.css` `[data-grid-mode='stack'] .gadget-head .gadget-more` — 모든 테마).
     -->
     <section
+        ref="card"
         :class="rootClass"
         :style="rootStyle"
         :aria-labelledby="showHeader ? headingId : undefined"
@@ -156,14 +157,21 @@ const rootStyle = computed(() => {
  */
 const rootClass = computed(() => `${style.value.cardLook === 'FLAT' ? 'min-w-0' : 'gadget-card'} flex flex-col`);
 
-/** 기본형 카드의 「더보기」 줄 — 카드 아래·좌우 끝까지 닿는 바닥 줄(카드 아래 여백 밑에 줄이 또 떠 있지 않게). 평평한 가젯은 그대로 */
+/**
+ * 눈에 보이는 여백(잉크 기준, 사용자 결정 2026-10-31) — 카드의 첫·마지막 자식에 위·아래 바깥 여백을 걸어 보이는 첫 윗선·마지막 아랫선이 카드 위·아래에서 좌우 여백만큼 떨어지게 한다
+ * (투명 버튼 터치 영역·글자 반행간·빈 상태 안 여백 같은 보이지 않는 여유를 뺀다 — `useGadgetInk`). 카드 모양이 없는(평평) 가젯은 하지 않는다.
+ */
+const card = ref<HTMLElement | null>(null);
+useGadgetInk(card, () => style.value.cardLook !== 'FLAT');
+
+/** 기본형 카드의 「더보기」 줄 — 카드 좌우 끝까지 닿는 바닥 줄. 평평한 가젯은 그대로 */
 const classicMoreStyle = computed(() =>
     style.value.cardLook === 'FLAT'
         ? undefined
         : {
               marginLeft: 'calc(-1 * var(--gadget-card-pad-x))',
               marginRight: 'calc(-1 * var(--gadget-card-pad-x))',
-              marginBottom: 'calc(-1 * var(--gadget-card-pad-x))',
+              // 아래 바깥 여백은 잉크 맞추기(`useGadgetInk`)가 건다 — 「더보기」 글자 밑선이 카드 아래에서 좌우 여백만큼 떨어지게
               borderBottomLeftRadius: 'var(--gadget-card-radius)',
               borderBottomRightRadius: 'var(--gadget-card-radius)',
           },
