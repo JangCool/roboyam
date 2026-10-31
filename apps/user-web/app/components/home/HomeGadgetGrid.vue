@@ -286,15 +286,20 @@ let rootObserver: ResizeObserver | null = null;
 function contentHeight(cell: HTMLElement): number {
     const card = cell.firstElementChild as HTMLElement | null;
     if (!card || card.hasAttribute('data-home-edit')) return 0;
-    const top = card.getBoundingClientRect().top;
-    let bottom = top;
+    // 자식들의 위·아래 끝으로 잰다 — 카드 위 끝에서 재면, 내용을 세로 가운데에 두는 카드(머리 숨김 — `HomeGadgetFrame`)는 늘어난 만큼 위 빈 곳까지 내용으로 쳐서 행이 계속 는다
+    let top = Number.POSITIVE_INFINITY;
+    let bottom = Number.NEGATIVE_INFINITY;
     for (const child of card.children) {
         const r = child.getBoundingClientRect();
         if (r.height === 0) continue;
-        bottom = Math.max(bottom, r.bottom + (parseFloat(getComputedStyle(child).marginBottom) || 0));
+        const ccs = getComputedStyle(child);
+        top = Math.min(top, r.top - (parseFloat(ccs.marginTop) || 0));
+        bottom = Math.max(bottom, r.bottom + (parseFloat(ccs.marginBottom) || 0));
     }
     const cs = getComputedStyle(card);
-    return bottom - top + (parseFloat(cs.paddingBottom) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+    const frame = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.paddingBottom) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+    if (!Number.isFinite(top)) return frame;
+    return bottom - top + frame;
 }
 
 /** 카드의 자식도 지켜본다(이미 보는 것은 건너뛴다) */

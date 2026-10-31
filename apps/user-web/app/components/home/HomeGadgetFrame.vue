@@ -17,6 +17,7 @@
         :data-gadget="gadget.type"
         :data-gadget-id="gadget.id"
         :data-look="look"
+        :data-headless="showHeader ? undefined : ''"
         data-testid="home-gadget"
     >
         <div v-if="showHeader" :class="['gadget-head', headerClass]" :style="headerStyle" data-testid="home-gadget-header">
@@ -67,6 +68,7 @@
         <NuxtLink
             v-if="more && look === 'classic' && bodyShown && !showEmpty"
             :to="more.to"
+            :style="classicMoreStyle"
             class="mt-1 block border-t border-surface py-2.5 text-center text-sm text-muted-color hover:bg-surface-100 hover:text-color focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary dark:hover:bg-surface-800"
             data-testid="home-gadget-more"
         >
@@ -143,8 +145,29 @@ const rootStyle = computed(() => {
     return vars;
 });
 
-/** 카드 — 평평한 가젯만 카드 없이. 나머지는 테마가 값을 채우는 `gadget-card` */
-const rootClass = computed(() => (style.value.cardLook === 'FLAT' ? 'min-w-0' : 'gadget-card'));
+/**
+ * 카드 — 평평한 가젯만 카드 없이. 나머지는 테마가 값을 채우는 `gadget-card`(안 여백 규칙은 `main.css` — 위·아래·좌·우가 같게 보이게).
+ * 격자가 칸을 내용보다 높게 늘리면(행 올림 · 운영자 최소 높이 · 같은 줄 맞추기 — `HomeGadgetGrid`) 늘어난 높이는 카드가 받는다(카드 아래 끝 = 칸 아래 끝 — 같은 줄 맞추기 유지):
+ *   · 머리가 있는 가젯 — 내용은 위에서 시작하고 빈 곳은 카드 아래가 받는다(같은 행 가젯들의 머리 줄이 한 줄로 맞는다)
+ *   · 머리를 숨긴 가젯(광고 등) — 맞출 머리 줄이 없으므로 내용을 세로 가운데에 둔다(위·아래 빈 곳이 같다)
+ */
+const rootClass = computed(() => {
+    const base = style.value.cardLook === 'FLAT' ? 'min-w-0' : 'gadget-card';
+    return showHeader.value ? base : `${base} flex flex-col justify-center`;
+});
+
+/** 기본형 카드의 「더보기」 줄 — 카드 아래·좌우 끝까지 닿는 바닥 줄(카드 아래 여백 밑에 줄이 또 떠 있지 않게). 평평한 가젯은 그대로 */
+const classicMoreStyle = computed(() =>
+    style.value.cardLook === 'FLAT'
+        ? undefined
+        : {
+              marginLeft: 'calc(-1 * var(--gadget-card-pad-x))',
+              marginRight: 'calc(-1 * var(--gadget-card-pad-x))',
+              marginBottom: 'calc(-1 * var(--gadget-card-pad-x))',
+              borderBottomLeftRadius: 'var(--gadget-card-radius)',
+              borderBottomRightRadius: 'var(--gadget-card-radius)',
+          },
+);
 
 const headerClass = computed(() => {
     const h = style.value.headerStyle;

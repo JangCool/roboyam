@@ -184,9 +184,20 @@ function adGadget(id: string, type: 'AD' | 'AD_TEXT_LINE', title: string, config
     return { id, type, title, desktop: true, mobile: true, empty: false, locked: false, style: adStyle(type, keep), config, more: null, data: null };
 }
 
+/** 받은 배치의 오른쪽 열 시작 칸 — 오른쪽 끝에 붙은 가젯들이 가장 많이 쓰는 시작 칸(로보얌 24칸 홈이면 17), 없으면 ⅔ 지점 */
+function rightColumnStart(items: readonly { x: number; w: number }[], columns: number): number {
+    const counts = new Map<number, number>();
+    for (const it of items) if (it.x > 0 && it.x + it.w === columns) counts.set(it.x, (counts.get(it.x) ?? 0) + 1);
+    let best = columns - Math.round(columns / 3);
+    let most = 0;
+    for (const [x, n] of counts) if (n > most || (n === most && x > best)) [best, most] = [x, n];
+    return best;
+}
+
 /**
  * `?mock=ad-gadgets` — 받은 홈(·가젯 페이지·게시판 레이아웃) 응답에 광고 가젯을 덧붙인다: 맨 위 전체 폭 넓은 배너(나머지는 아래로 민다) ·
- * 맨 아래 한 줄 광고 3줄(⅔) + 네모 배너(⅓) · 그 아래 띠 배너(⅔) · 작은 배너(⅓). 가젯 ID 는 `mock-ad-*`.
+ * 맨 아래 **받은 배치의 열 그대로**(왼쪽 본문 열 0~s · 오른쪽 열 s~끝 — `rightColumnStart`, 다른 가젯과 같은 시작선·끝선) — 왼쪽 열에 한 줄 광고 3줄 · 그 아래 띠 배너, 오른쪽 열에 네모 배너 · 그 아래 작은 배너.
+ * 높이(h)는 최소 높이라 내용에 가깝게 작게 둔다(내용이 길면 격자가 늘린다). 가젯 ID 는 `mock-ad-*`.
  * @param {HomeGadgetsResponse} res - 읽은 응답(`UtilHomeGadget.sanitize` 뒤).
  * @param {AdPlacement} place - 어디인가(제목에만 쓴다).
  * @returns {HomeGadgetsResponse} 덧붙인 응답(받은 값은 고치지 않는다).
@@ -195,7 +206,7 @@ export function mockAdGadgets(res: HomeGadgetsResponse, place: AdPlacement): Hom
     if (res.gadgets.some((g) => g.id.startsWith('mock-ad-'))) return res;
     const keep = mockFlags().has('ad-keep');
     const c = res.layout.columns;
-    const third = c / 3;
+    const s = rightColumnStart(res.layout.items, c);
     const top = 4;
     const shifted = res.layout.items.map((it) => ({ ...it, y: it.y + top }));
     const y = UtilHomeLayout.bottom(shifted);
@@ -210,10 +221,10 @@ export function mockAdGadgets(res: HomeGadgetsResponse, place: AdPlacement): Hom
     const items = [
         { gadgetId: 'mock-ad-wide', x: 0, y: 0, w: c, h: top },
         ...shifted,
-        { gadgetId: 'mock-ad-text', x: 0, y, w: c - third, h: 5 },
-        { gadgetId: 'mock-ad-square', x: c - third, y, w: third, h: 8 },
-        { gadgetId: 'mock-ad-strip', x: 0, y: y + 5, w: c - third, h: 3 },
-        { gadgetId: 'mock-ad-small', x: 0, y: y + 8, w: third, h: 3 },
+        { gadgetId: 'mock-ad-text', x: 0, y, w: s, h: 6 },
+        { gadgetId: 'mock-ad-square', x: s, y, w: c - s, h: 9 },
+        { gadgetId: 'mock-ad-strip', x: 0, y: y + 6, w: s, h: 3 },
+        { gadgetId: 'mock-ad-small', x: s, y: y + 9, w: c - s, h: 4 },
     ];
     return { ...res, layout: { columns: c, items }, gadgets };
 }

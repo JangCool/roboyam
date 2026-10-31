@@ -181,7 +181,7 @@
                         -->
                         <div v-if="inlineAd?.position === 'AFTER_BODY'" class="py-3" data-testid="post-inline-ad" data-position="AFTER_BODY">
                             <AdTextLines v-if="inlineAd.type === 'TEXT_LINE'" :ads="inlineAd.ads" :count="1" placement="POST_INLINE" />
-                            <AdSlot v-else :type="inlineAd.type" :ads="inlineAd.ads" placement="POST_INLINE" />
+                            <AdSlot v-else :type="inlineAd.type" :ads="inlineAd.ads" placement="POST_INLINE" align="center" />
                         </div>
 
                         <!-- 추천 · 링크 복사 · 신고 -->

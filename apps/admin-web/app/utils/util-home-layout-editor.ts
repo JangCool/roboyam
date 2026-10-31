@@ -42,9 +42,9 @@ const KINDS: readonly HomeKindSpec[] = [
     { kind: 'GROUP_BUY', icon: 'pi-shopping-bag', minW: 3, minH: 8, w: 4, h: 12 },
     { kind: 'QUICK_LINKS', icon: 'pi-link', minW: 3, minH: 2, w: 12, h: 2 },
     { kind: 'NOTICE_TEXT', icon: 'pi-megaphone', minW: 2, minH: 3, w: 4, h: 6 },
-    // 광고 — 높이는 최소(내용이 비율 틀만큼 늘린다). 배너는 처음에 전체 폭(넓은 배너), 한 줄 광고는 반 폭 3줄
+    // 광고 — 높이는 최소(내용이 비율 틀만큼 늘린다). 배너는 처음에 전체 폭(넓은 배너), 한 줄 광고는 반 폭 3줄(h 6 = 줄 40×3 + 위아래 여백 — 내용보다 크게 두지 않는다)
     { kind: 'AD', icon: 'pi-image', minW: 2, minH: 2, w: 12, h: 4 },
-    { kind: 'AD_TEXT_LINE', icon: 'pi-bars', minW: 3, minH: 2, w: 6, h: 5 },
+    { kind: 'AD_TEXT_LINE', icon: 'pi-bars', minW: 3, minH: 2, w: 6, h: 6 },
 ];
 
 /**
