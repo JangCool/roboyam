@@ -8,6 +8,9 @@
  * 표의 칸: 종류(data-gadget) · 제목 · 좌우 기준(카드 안 왼쪽 여백 px) · 위/아래/왼쪽/오른쪽(잉크 — 글자 근사) · 위/아래(원값 — 글자 줄 상자 그대로) · 벗어남(±2px 를 넘는 칸).
  *   - 위   = 카드 위 테두리 안쪽 → 보이는 첫 요소 윗선      아래 = 보이는 마지막 요소 아랫선 → 카드 아래 테두리 안쪽
  *   - 왼쪽·오른쪽 = 카드 옆 테두리 안쪽 → 가장 바깥 잉크(오른쪽은 글이 짧으면 크게 나온다 — 줄이 끝까지 차지 않을 뿐이라 벗어남 판정은 위·아래·왼쪽만)
+ *   - 빈 상태(`[data-testid="home-gadget-empty"]` 가 있는 카드): 「몸통 위」 = 머리 줄 아래 끝(머리가 없으면 카드 위 + 기준) → 안내 잉크 윗선,
+ *     「몸통 아래」 = 안내 잉크 밑선 → 카드 아래 − 기준. 둘이 ±2px 이면 통과. 몸통 아래가 0(±2)이면 칸 여유가 없는 최소 상태라 「최소」로 적는다
+ *     (최소 상태는 카드 아래 보이는 여백 = 기준이 맞고, 머리 아래 → 안내 사이는 안내 블록의 위 안 여백 그대로다).
  *
  * 잉크 규칙(앱의 `app/composables/home/useGadgetInk.ts` 와 같다):
  *   - 글자: 텍스트 노드 Range 의 `getClientRects`(줄 상자). 원값은 그 상자 그대로, 잉크값은 em 상자(글자 크기)를 줄 상자 가운데에 두고 위 14% · 아래 10% 를 뺀 근사
@@ -107,7 +110,27 @@
                 '위(원값)': Math.round(raw.top - inner.top),
                 '아래(원값)': Math.round(inner.bottom - raw.bottom),
             };
-            const off = ['위', '아래', '왼쪽'].filter((k) => Math.abs(row[k] - base) > TOL);
+            const empty = card.querySelector('[data-testid="home-gadget-empty"]');
+            let emptyOff = false;
+            if (empty) {
+                const e = measure(empty).ink;
+                const head = card.querySelector('[data-testid="home-gadget-header"]');
+                const bodyTop = head ? head.getBoundingClientRect().bottom : inner.top + base;
+                const up = Math.round(e.top - bodyTop);
+                const down = Math.round(inner.bottom - base - e.bottom);
+                row['빈 상태 몸통 위'] = up;
+                row['빈 상태 몸통 아래'] = down;
+                if (Math.abs(down) <= TOL) row['빈 상태'] = '최소(여유 없음)';
+                else if (Math.abs(up - down) <= TOL) row['빈 상태'] = '통과(가운데)';
+                else {
+                    row['빈 상태'] = `✗ 위-아래 ${up - down}`;
+                    emptyOff = true;
+                }
+            }
+            // 빈 상태가 칸보다 작아 가운데에 띄운 카드는 아래 보이는 여백이 기준보다 크다(몸통 가운데 판정으로 본다)
+            const keys = empty && row['빈 상태'] !== '최소(여유 없음)' ? ['위', '왼쪽'] : ['위', '아래', '왼쪽'];
+            const off = keys.filter((k) => Math.abs(row[k] - base) > TOL);
+            if (emptyOff) off.push('빈 상태');
             row.벗어남 = off.length ? `✗ ${off.join('·')}` : '';
             rows.push(row);
         }

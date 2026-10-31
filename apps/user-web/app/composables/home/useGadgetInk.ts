@@ -10,7 +10,10 @@ import type { Ref } from 'vue';
  *    `visibility:hidden`·`display:none`·투명(opacity 0)·크기 1px 이하(sr-only)는 뺀다.
  *  - 늘어나는 상자(`data-grid-fill` — 껍데기 본문, 바닥 조작 줄이 있는 가젯 본문)는 안으로 내려가 첫·마지막 자식의 여유를 더한다 — 칸이 커서 늘어난 높이(아래 빈 곳)는 세지 않는다
  *    (그래서 격자 높이 재기 `naturalHeight` 와 되먹임이 없다: 최소 상태에서 카드 = 내용, 걸어 둔 여백은 자식 자신의 여백을 빼고 계산해 다시 재도 같은 값).
- *  - 카드 모양이 없는 가젯(평평 `FLAT`)은 하지 않는다(보이는 상자가 없다). 높이·DOM 이 바뀌면(ResizeObserver · MutationObserver) 다음 그리기에 다시 맞춘다.
+ *  - 빈 상태 안내(`data-grid-float`): 칸이 내용보다 크면(같은 줄 맞추기 · 운영자 h) 남는 높이를 그 덩어리의 위·아래 바깥 여백으로 나눠 걸어 몸통(머리 아래 끝 ~ 카드 아래 여백선) 세로 가운데에 둔다 —
+ *    머리 아래 → 안내 윗선 = 안내 밑선 → 카드 아래 여백선. 머리가 없는 카드는 카드 위 여백선부터. 최소 상태(남는 높이 0)에서는 걸지 않는다(카드 위·아래 보이는 여백 = 좌우 여백 그대로).
+ *    격자 높이 재기와 아래 맞추기는 이 여백을 세지 않는다(남는 공간이라 — 세면 상자가 줄어들지 못한다).
+ *  - 카드 모양이 없는 가젯(평평 `FLAT`)은 하지 않는다(보이는 상자가 없다). 높이·DOM·글꼴이 바뀌면(ResizeObserver — 카드와 늘어나는 상자 안 요소 · MutationObserver · 글꼴 로드) 다음 그리기에 다시 맞춘다.
  * 브라우저 콘솔 확인용 스크립트: `apps/user-web/scripts/gadget-ink-padding.js`(같은 잉크 규칙).
  * ⚠ setup 에서 부른다.
  * @param {Ref<HTMLElement | null>} card - 가젯 카드(`HomeGadgetFrame` 의 section).
@@ -21,13 +24,27 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
     let resize: ResizeObserver | null = null;
     let mutation: MutationObserver | null = null;
     let marked: HTMLElement[] = [];
+    let floated: HTMLElement[] = [];
+    const watched = new WeakSet<Element>();
 
     function clear(): void {
-        for (const el of marked) {
+        for (const el of [...marked, ...floated]) {
             el.style.marginTop = '';
             el.style.marginBottom = '';
         }
         marked = [];
+        floated = [];
+    }
+
+    /** 카드의 자식, 늘어나는 상자 안은 그 자식까지 지켜본다(늘어난 상자는 안 내용이 바뀌어도 자기 크기가 그대로다) */
+    function watchTree(el: Element): void {
+        for (const child of el.children) {
+            if (!watched.has(child)) {
+                watched.add(child);
+                resize?.observe(child);
+            }
+            if (child.hasAttribute('data-grid-fill')) watchTree(child);
+        }
     }
 
     function apply(): void {
@@ -58,6 +75,31 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
         marked = [first, last].filter((m, i, list) => list.indexOf(m) === i);
         setPx(first, 'marginTop', top);
         setPx(last, 'marginBottom', bottom);
+
+        // 빈 상태 안내 — 남는 높이를 위·아래로 나눠 몸통 가운데에(머리 있는 카드: 머리 아래 → 안내 윗선 = 안내 밑선 → 아래 여백선)
+        const floats = Array.from(el.querySelectorAll<HTMLElement>('[data-grid-float]')).filter((f) => getComputedStyle(f).display !== 'none');
+        for (const f of floated) {
+            if (floats.includes(f)) continue;
+            f.style.marginTop = '';
+            f.style.marginBottom = '';
+        }
+        floated = floats;
+        if (floats.length) {
+            const extra = el.getBoundingClientRect().height - naturalHeight(el);
+            for (const f of floats) {
+                if (extra <= 0.5) {
+                    setPx(f, 'marginTop', null);
+                    setPx(f, 'marginBottom', null);
+                    continue;
+                }
+                // 머리가 있으면 안내의 위 여유(안 여백 + 아이콘까지)는 머리 아래에 그대로 보이므로 그만큼 위를 덜 준다. 머리가 없으면 위 여유는 첫 자식 여백이 이미 맞췄다
+                const lead = first.contains(f) ? 0 : (leading(f) ?? 0);
+                const mt = extra >= lead ? Math.round((extra - lead) / 2) : 0;
+                setPx(f, 'marginTop', mt);
+                setPx(f, 'marginBottom', Math.max(0, Math.round(extra - mt)));
+            }
+        }
+        watchTree(el);
     }
 
     function schedule(): void {
@@ -76,12 +118,18 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
             mutation = new MutationObserver(schedule);
             mutation.observe(el, { childList: true, subtree: true, characterData: true });
         }
+        // 글꼴이 늦게 오면 줄 상자(글리프 근사)가 바뀌는데 카드 크기는 그대로일 수 있다 — 글꼴 로드 뒤에 다시
+        if (typeof document !== 'undefined' && document.fonts) {
+            void document.fonts.ready.then(schedule);
+            document.fonts.addEventListener('loadingdone', schedule);
+        }
         schedule();
     });
     watch(enabled, schedule);
     onBeforeUnmount(() => {
         resize?.disconnect();
         mutation?.disconnect();
+        if (typeof document !== 'undefined' && document.fonts) document.fonts.removeEventListener('loadingdone', schedule);
         if (frame) window.cancelAnimationFrame(frame);
     });
 }
@@ -115,7 +163,8 @@ function leading(el: HTMLElement): number | null {
         for (const child of visibleChildren(el)) {
             const ccs = getComputedStyle(child);
             const inner = leading(child);
-            if (inner !== null) return acc + num(ccs.marginTop) + inner;
+            const mt = child.hasAttribute('data-grid-float') ? 0 : num(ccs.marginTop);
+            if (inner !== null) return acc + mt + inner;
             // 잉크 없는 앞 자식(빈 칸)은 그 높이째 여유로 치고 다음 자식으로
             acc += num(ccs.marginTop) + child.getBoundingClientRect().height + num(ccs.marginBottom);
         }
@@ -134,10 +183,33 @@ function trailing(el: HTMLElement): number | null {
         const last = kids[kids.length - 1];
         if (!last) return null;
         const inner = trailing(last);
-        return inner === null ? null : tail + num(getComputedStyle(last).marginBottom) + inner;
+        const mb = last.hasAttribute('data-grid-float') ? 0 : num(getComputedStyle(last).marginBottom);
+        return inner === null ? null : tail + mb + inner;
     }
     const ink = inkOf(el);
     return ink ? el.getBoundingClientRect().bottom - ink.bottom : null;
+}
+
+/**
+ * 늘어나는 상자의 본래 높이(격자 `HomeGadgetGrid` 의 `naturalHeight` 와 같은 규칙) — 자식 높이 + 바깥 여백 + 줄 간격 + 안 여백·테두리.
+ * 밀린 줄(`data-grid-push`)의 위 여백, 띄운 덩어리(`data-grid-float`)의 위·아래 여백은 남는 공간이라 세지 않는다.
+ */
+function naturalHeight(el: Element): number {
+    if (!el.hasAttribute('data-grid-fill')) return el.getBoundingClientRect().height;
+    const cs = getComputedStyle(el);
+    let sum = num(cs.paddingTop) + num(cs.paddingBottom) + num(cs.borderTopWidth) + num(cs.borderBottomWidth);
+    let count = 0;
+    for (const child of el.children) {
+        const ccs = getComputedStyle(child);
+        if (ccs.display === 'none' || ccs.position === 'absolute' || ccs.position === 'fixed') continue;
+        const h = naturalHeight(child);
+        if (h === 0 && !child.hasAttribute('data-grid-fill')) continue;
+        const float = child.hasAttribute('data-grid-float');
+        const top = float || child.hasAttribute('data-grid-push') ? 0 : num(ccs.marginTop);
+        sum += h + top + (float ? 0 : num(ccs.marginBottom));
+        count += 1;
+    }
+    return sum + (count > 1 ? (count - 1) * num(cs.rowGap) : 0);
 }
 
 /** 색이 보이는가 — 투명(알파 0)이 아니면 */

@@ -57,8 +57,9 @@
         <!-- 본문은 카드의 남는 높이를 받는다(`flex-1` · 세로 flex) — 내용은 위에서 시작하고, 바닥 조작 줄(쪽 넘김 등 — 가젯이 `mt-auto`)·아래 「더보기」 줄은 카드 아래쪽에 붙는다 -->
         <div v-show="bodyShown" :id="bodyId" class="@container flex min-w-0 flex-1 flex-col" data-grid-fill>
             <template v-if="showEmpty">
+                <!-- 빈 상태 안내 — 칸이 내용보다 크면 몸통(머리 아래 ~ 카드 아래 여백선)의 세로 가운데에 띄운다(`data-grid-float` — 위·아래 바깥 여백은 `useGadgetInk` 가 나눠 걸고 격자 높이 재기는 세지 않는다) -->
                 <!-- 아이콘을 글 위 한 줄로 — `.pi` 가 inline-block 이라 `block` 클래스로는 줄이 바뀌지 않아 세로 flex 로 쌓는다 -->
-                <p v-if="style.empty.message" class="m-0 flex flex-col items-center px-1 py-8 text-center text-sm text-muted-color" data-testid="home-gadget-empty">
+                <p v-if="style.empty.message" class="m-0 flex flex-col items-center px-1 py-8 text-center text-sm text-muted-color" data-grid-float data-testid="home-gadget-empty">
                     <i :class="[emptyIcon, 'mb-2 text-xl']" aria-hidden="true" />{{ UtilHomeGadgetMessages.emptyTitle(t, gadget) }}
                 </p>
                 <!-- 안내를 끈 경우 — 틀은 남기고 높이만 조금 가진 빈 칸 -->

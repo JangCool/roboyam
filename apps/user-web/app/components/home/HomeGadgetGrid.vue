@@ -314,7 +314,8 @@ let mutationObserver: MutationObserver | null = null;
 
 /**
  * 늘어나는 세로 flex 상자(`data-grid-fill` — 껍데기 카드·본문, 바닥 조작 줄이 있는 가젯의 본문 덩어리)의 **본래** 높이(px) — 칸이 커서 늘어난 높이가 아니라
- * 자식들 높이 + 바깥 여백 + 줄 간격 + 자기 안 여백·테두리의 합. 아래로 밀린 줄(`data-grid-push` — `mt-auto`)의 위 바깥 여백은 늘어난 빈 곳이라 세지 않는다.
+ * 자식들 높이 + 바깥 여백 + 줄 간격 + 자기 안 여백·테두리의 합. 아래로 밀린 줄(`data-grid-push` — `mt-auto`)의 위 바깥 여백, 가운데에 띄운 덩어리(`data-grid-float` — 빈 상태 안내,
+ * `useGadgetInk` 가 남는 높이를 위·아래 바깥 여백으로 나눠 건다)의 위·아래 바깥 여백은 늘어난 빈 곳이라 세지 않는다.
  * 늘지 않는 요소는 그대로의 높이. (늘어난 높이를 내용으로 세면 상자 = max(hPx, 잰 높이) 가 줄어들지 못한다 — 되먹임)
  */
 function naturalHeight(el: Element): number {
@@ -327,8 +328,9 @@ function naturalHeight(el: Element): number {
         if (ccs.display === 'none' || ccs.position === 'absolute' || ccs.position === 'fixed') continue;
         const h = naturalHeight(child);
         if (h === 0 && !child.hasAttribute('data-grid-fill')) continue;
-        const top = child.hasAttribute('data-grid-push') ? 0 : parseFloat(ccs.marginTop) || 0;
-        sum += h + top + (parseFloat(ccs.marginBottom) || 0);
+        const float = child.hasAttribute('data-grid-float');
+        const top = float || child.hasAttribute('data-grid-push') ? 0 : parseFloat(ccs.marginTop) || 0;
+        sum += h + top + (float ? 0 : parseFloat(ccs.marginBottom) || 0);
         count += 1;
     }
     return sum + (count > 1 ? (count - 1) * (parseFloat(cs.rowGap) || 0) : 0);
