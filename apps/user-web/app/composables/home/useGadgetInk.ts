@@ -51,6 +51,11 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
 
     function apply(): void {
         frame = 0;
+        run(false);
+    }
+
+    /** 맞추기 한 번 — `retry` 는 끝의 넘침 검사에서 한 번 더 도는 회차(그 회차에서는 다시 돌지 않는다 — 무한 반복 금지) */
+    function run(retry: boolean): void {
         const el = card.value;
         if (!el || !enabled()) {
             clear();
@@ -142,6 +147,14 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
             }
         }
         watchTree(el);
+
+        // 불변식 — 카드 높이 = 칸 높이. 카드가 칸보다 1px 넘게 길면(세지 않는 띄움 여백이 남은 것) 띄움 여백을 없애고 한 번만 다시 맞춘다
+        const slotNow = slotHeight(el);
+        if (!retry && float && slotNow !== null && el.getBoundingClientRect().height > slotNow + 1 && (float.style.marginTop !== '' || float.style.marginBottom !== '')) {
+            setPx(float, 'marginTop', null);
+            setPx(float, 'marginBottom', null);
+            run(true);
+        }
     }
 
     function schedule(): void {
@@ -155,10 +168,14 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
         if (typeof ResizeObserver !== 'undefined') {
             resize = new ResizeObserver(schedule);
             resize.observe(el);
+            // 칸(격자 칸 요소 — 절대 배치, 높이를 격자가 정한다)도 지켜본다: 칸만 줄고 카드는 (세지 않는 띄움 여백 때문에) 그대로인 경우 카드·자식 관찰로는 알 수 없다
+            if (el.parentElement) resize.observe(el.parentElement);
         }
         if (typeof MutationObserver !== 'undefined') {
             mutation = new MutationObserver(schedule);
             mutation.observe(el, { childList: true, subtree: true, characterData: true });
+            // 격자가 칸 높이 표식(`data-grid-height`)을 바꾸면(크기 끌기 중 놓일 h 미리보기 포함) 다시 맞춘다
+            if (el.parentElement) mutation.observe(el.parentElement, { attributes: true, attributeFilter: ['data-grid-height'] });
         }
         // 글꼴이 늦게 오면 줄 상자(글리프 근사)가 바뀌는데 카드 크기는 그대로일 수 있다 — 글꼴 로드 뒤에 다시
         if (typeof document !== 'undefined' && document.fonts) {
