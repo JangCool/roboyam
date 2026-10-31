@@ -95,6 +95,7 @@ public class MemberSearchParser {
         Long pointMax = number("pointMax", request.pointMax(), fields, invalid);
         BoardRole boardRole = oneOf("boardRole", request.boardRole(), BoardRole::valueOf, null, fields, invalid);
         Boolean hasSanction = bool("hasSanction", request.hasSanction(), fields, invalid);
+        Boolean businessVerified = bool("businessVerified", request.businessVerified(), fields, invalid);
 
         SortField sortField = SortField.JOINED_AT;
         boolean ascending = false;
@@ -140,7 +141,7 @@ public class MemberSearchParser {
 
         return new MemberSearchCriteria(searchField, keyword, statuses, roleIds, joinedFrom, joinedTo, lastLoginFrom, lastLoginTo, Boolean.TRUE.equals(noLoginHistory),
                 grades, memberType, emailVerified, authMethods, dormantFrom != null || dormantTo != null, statusChangedKind, statusChangedFrom, statusChangedTo,
-                pointMin, pointMax, boardRole, hasSanction, sortField, ascending, pageNumber == null ? 0 : pageNumber.intValue(),
+                pointMin, pointMax, boardRole, hasSanction, businessVerified, sortField, ascending, pageNumber == null ? 0 : pageNumber.intValue(),
                 pageSize == null ? DEFAULT_SIZE : pageSize.intValue());
     }
 

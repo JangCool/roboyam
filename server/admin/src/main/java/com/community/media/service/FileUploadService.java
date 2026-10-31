@@ -105,7 +105,7 @@ public class FileUploadService {
         }
         try {
             FilePurpose purpose = FilePurpose.valueOf(text.strip());
-            return purpose == FilePurpose.POST_IMAGE ? null : purpose; // 글 이미지는 공개 사이트(POST /api/images)에서만 올린다
+            return purpose == FilePurpose.POST_IMAGE || purpose == FilePurpose.BIZ_AD_IMAGE ? null : purpose; // 글 이미지·사업자 광고 이미지는 공개 사이트에서만 올린다
         } catch (IllegalArgumentException e) {
             return null;
         }
@@ -116,7 +116,7 @@ public class FileUploadService {
         return switch (purpose) {
             case SITE_LOGO -> Permission.SITE_MANAGE;
             case HIGHLIGHT_IMAGE -> Permission.HIGHLIGHT_MANAGE;
-            case POST_IMAGE -> throw new IllegalStateException("글 이미지는 관리자 앱에서 올리지 않는다");
+            case POST_IMAGE, BIZ_AD_IMAGE -> throw new IllegalStateException("글 이미지·사업자 광고 이미지는 관리자 앱에서 올리지 않는다");
         };
     }
 }

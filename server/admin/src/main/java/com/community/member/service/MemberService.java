@@ -128,6 +128,7 @@ public class MemberService {
         List<Long> ids = rows.stream().map(MemberRecord::id).toList();
         Map<Long, MemberRoles> roles = roleResolver.resolve(rows);
         Map<Long, List<SocialProvider>> providers = members.providersOf(ids);
+        java.util.Set<Long> businesses = members.approvedBusinessUsers(ids);
 
         List<MemberView> items = new ArrayList<>();
         for (MemberRecord row : rows) {
@@ -135,7 +136,7 @@ public class MemberService {
             items.add(new MemberView(Long.toString(row.id()), canPii ? row.email() : MemberMasking.email(row.email()), row.email() != null && !canPii, row.nickname(),
                     row.gradeKey(), memberRoles.memberType(), row.status().name(), authMethodOf(row, providers.getOrDefault(row.id(), List.of())), row.emailVerifiedAt(),
                     row.createdAt(), row.lastLoginAt(), pointOf(row), memberRoles.roles().stream().map(role -> new MemberRoleRef(role.roleId(), role.roleName())).toList(), null,
-                    statusChangedAt(row), memberRoles.boardRole(), 0));
+                    statusChangedAt(row), memberRoles.boardRole(), 0, businesses.contains(row.id())));
         }
         return new MemberPage(items, total, criteria.page(), criteria.size());
     }
@@ -178,7 +179,7 @@ public class MemberService {
                 null, activity, List.of(), null, reports,
                 withdrawn ? null : profile.getBio(), social, null, acceptDm, null, withdrawn ? record.deletedAt() : null,
                 withdrawn ? List.of() : canPii ? nicknameHistoryOf(id) : null, !canPii,
-                gradePoint, settings, null, null, consents, null, nicknameChange, nicknameImage, identity);
+                gradePoint, settings, null, null, consents, null, nicknameChange, nicknameImage, identity, members.approvedBusinessUsers(List.of(id)).contains(id));
 
         audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.MEMBER_VIEW, AuditResult.SUCCESS).target("MEMBER", Long.toString(id))
                 .with("emailRevealed", canPii && record.email() != null));

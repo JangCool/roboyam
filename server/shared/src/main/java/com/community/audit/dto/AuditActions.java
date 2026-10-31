@@ -383,6 +383,33 @@ public final class AuditActions {
     public static final String BUSINESS_NTS_CHECK = "BUSINESS_NTS_CHECK";
     /** 국세청 조회 불가인데 사유를 적고 승인(B1) — {@code reason}. 민감 */
     public static final String BUSINESS_NTS_OVERRIDE = "BUSINESS_NTS_OVERRIDE";
+    // ── 사업자 신청 건(biz-application-contract, V112) — 대상 BIZ_APPLICATION + 신청 건 ID. detail 에 개인정보를 싣지 않는다(금액·기간·사유·파일 이름만) ──
+    /** 승인 — {@code method}·{@code supply}·{@code total}·기간·{@code deadlineAt}. 돈 관련(금액 확정) */
+    public static final String BIZ_APP_APPROVE = "BIZ_APP_APPROVE";
+    /** 반려 — {@code code}·{@code text}. 일반 */
+    public static final String BIZ_APP_REJECT = "BIZ_APP_REJECT";
+    /** 수동 결제로 전환 — {@code deadlineAt}·{@code reason}. 일반 */
+    public static final String BIZ_APP_MANUAL_SWITCH = "BIZ_APP_MANUAL_SWITCH";
+    /** 계약서 사본 올리기·바꾸기 — {@code files}(이름)·{@code replaced}. 돈 관련(계약 기록 5년) */
+    public static final String BIZ_APP_CONTRACT_UPLOAD = "BIZ_APP_CONTRACT_UPLOAD";
+    /** 계약서 사본 열람 — {@code fileId}·{@code fileName}. 개인정보 열람 */
+    public static final String BIZ_APP_CONTRACT_VIEW = "BIZ_APP_CONTRACT_VIEW";
+    /** 입금 확인 기록 — {@code amount}·{@code depositedOn}·{@code approvedTotal}·{@code mismatchReason}. 돈 관련(5년) */
+    public static final String BIZ_DEPOSIT_CONFIRM = "BIZ_DEPOSIT_CONFIRM";
+    /** 수동 예약 확정 — {@code contracts}·{@code deposit}. 돈 관련 */
+    public static final String BIZ_APP_CONFIRM = "BIZ_APP_CONFIRM";
+    /** 운영자 취소 — {@code from}·{@code reason}·{@code refund}. 돈 관련 */
+    public static final String BIZ_APP_CANCEL = "BIZ_APP_CANCEL";
+    /** 환불 승인 — {@code refundId}·{@code amount}·{@code proposed}·{@code reason}. 돈 관련 */
+    public static final String BIZ_APP_REFUND_APPROVE = "BIZ_APP_REFUND_APPROVE";
+    /** 환불 거절 — {@code refundId}·{@code reason}. 돈 관련 */
+    public static final String BIZ_APP_REFUND_DENY = "BIZ_APP_REFUND_DENY";
+    /** 수동 환불 송금 완료 표시 — {@code refundId}·{@code amount}·{@code note}. 돈 관련 */
+    public static final String BIZ_APP_REFUND_TRANSFER = "BIZ_APP_REFUND_TRANSFER";
+    /** 승인 때 요금표와 다른 공급가 — {@code quoteSupply}·{@code supply}·{@code reason}. 돈 관련 */
+    public static final String BIZ_APP_PRICE_ADJUST = "BIZ_APP_PRICE_ADJUST";
+    /** 입금 기한 바꾸기 — {@code from}·{@code to}. 일반 */
+    public static final String BIZ_APP_DEPOSIT_DEADLINE = "BIZ_APP_DEPOSIT_DEADLINE";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

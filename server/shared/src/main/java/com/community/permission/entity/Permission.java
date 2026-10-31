@@ -124,9 +124,11 @@ public enum Permission {
     DEAL_ORDER_READ("deal-order.read", BIZ_PRODUCT, READ, false),
     DEAL_ORDER_MANAGE("deal-order.manage", BIZ_PRODUCT, MANAGE, false),
     DEAL_ORDER_SETTINGS("deal-order.settings", BIZ_PRODUCT, CONFIG, false),
-    DEAL_ORDER_REFUND("deal-order.refund", BIZ_PRODUCT, SENSITIVE, false),
+    /** 사업자 신청 건 환불 승인·거절·수동 송금 완료 표시(biz-application-contract — 이름은 기존 키 재사용) */
+    DEAL_ORDER_REFUND("deal-order.refund", BIZ_PRODUCT, SENSITIVE, true),
     AD_READ("ad.read", AD_PROMO, READ, false),
-    AD_MANAGE("ad.manage", AD_PROMO, MANAGE, false),
+    /** 사업자 신청 건 심사·승인·반려·수동 전환·계약서·입금 확인·예약 확정·취소(biz-application-contract) */
+    AD_MANAGE("ad.manage", AD_PROMO, MANAGE, true),
     PROMO_MANAGE("promo.manage", AD_PROMO, MANAGE, false),
     AD_SETTINGS("ad.settings", AD_PROMO, CONFIG, false),
     AD_TAKEDOWN("ad.takedown", AD_PROMO, SENSITIVE, false),

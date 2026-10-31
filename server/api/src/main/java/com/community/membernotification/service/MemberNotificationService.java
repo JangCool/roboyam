@@ -290,6 +290,12 @@ public class MemberNotificationService {
                         payload.get("note") instanceof String why && !why.isBlank() ? why : null);
                 link = "/business";
             }
+            case BIZ_APPLICATION -> {
+                // 사업자 신청 건(V112) — 종류 · 제목(알릴 때) · 금액 · 기한·사유. 누르면 신청 건 상세
+                facts = MemberNotificationMessages.Facts.bizApplication(payload.get("kind") instanceof String k ? k : "", payload.get("title") instanceof String t ? t : null,
+                        number(payload.get("amount")), payload.get("note") instanceof String n && !n.isBlank() ? n : null);
+                link = payload.get("path") instanceof String p && p.startsWith("/") ? p : "/business/applications";
+            }
             case POINT_SHOP_REFUND_REJECTED -> {
                 // 정지 중 환불 신청 거절 — 품목 이름 · 사유. 누르면 내 아이템
                 facts = MemberNotificationMessages.Facts.refundRejected(payload.get("itemName") instanceof String n ? n : null,

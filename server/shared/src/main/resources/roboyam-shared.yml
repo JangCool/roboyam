@@ -117,6 +117,15 @@ roboyam:
     nts:
       provider: ${ROBOYAM_NTS_PROVIDER:odcloud}
       service-key: ${ROBOYAM_NTS_SERVICE_KEY:}
+  # 사업자 신청 건(docs/features/biz-application-contract.md — BizApplicationProperties). 결제 기한 기본 72시간 · 입금 기한 기본 7일(승인 화면이 기한을 정해 보낸다).
+  # 입금 계좌는 수동 결제 안내(공개 상세)에 보인다 — 비면 화면은 「운영팀이 따로 안내」(가정)
+  biz:
+    payment-hours: 72
+    deposit-days: 7
+    deposit-account:
+      bank-name: ${ROBOYAM_BIZ_BANK_NAME:}
+      account-no: ${ROBOYAM_BIZ_ACCOUNT_NO:}
+      account-holder: ${ROBOYAM_BIZ_ACCOUNT_HOLDER:}
   # 소모임(docs/features/group-contract.md — GroupProperties). 아래는 관리자 앱 소모임 설정에 저장된 값이 없을 때의 기본값이다(저장된 값이 이긴다 — DB > yml).
   # 화면에 없는 한도: 하루 개설 신청 수 · 하루 가입·신청 수 · 상세 「최근 N일 가입」. 그 밖의 칸(매니저·공개 범위·지금 뜨는·일정 한도)은 GroupProperties 의 기본값을 쓴다
   groups:

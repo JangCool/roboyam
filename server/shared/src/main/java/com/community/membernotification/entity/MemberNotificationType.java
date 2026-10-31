@@ -63,6 +63,12 @@ public enum MemberNotificationType {
      * RE_REVIEW 재심사 대기) · {@code companyName}(알릴 때 상호) · {@code note}(반려·정지 사유). 끌 수 없는 계정 알림. 누르면 사업자 센터({@code /business})
      */
     BUSINESS("system"),
+    /**
+     * 사업자 신청 건(광고·핫딜 — V112, docs/features/biz-application-contract.md) — 덧붙임 {@code kind}(접수·승인·반려·수동 전환·결제 완료·예약 확정·기한 지남·결제 기한 임박·
+     * 시작 임박·종료 임박·취소·중단·되돌림·환불 요청·환불 승인·환불 거절·환불 완료·자동 취소 — {@code BizApplicationNotices.Kind}) · {@code applicationId} · {@code title}(알릴 때 제목) ·
+     * {@code amount} · {@code note}(기한·사유) · {@code path}. 끌 수 없는 거래 알림. 누르면 신청 건 상세({@code /business/applications/{id}})
+     */
+    BIZ_APPLICATION("system"),
 
     // ── 소모임(V90 — docs/features/group-contract.md 1단계, community api-groups.md 7절). 묶음 system(user-web 거르기에 소모임 묶음이 없어 계정·처리 알림과 같이). 덧붙임 groupId·groupName(+reason·applicantId) ──
     /** 내 개설 신청이 승인돼 소모임이 열렸다 — 누르면 그 소모임 */

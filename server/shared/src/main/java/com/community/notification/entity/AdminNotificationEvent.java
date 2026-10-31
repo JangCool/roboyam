@@ -134,6 +134,10 @@ public enum AdminNotificationEvent {
     BUSINESS_APPLICATION_PENDING(spec(BIZ_AD, INFO).holders(Permission.BUSINESS_MANAGE).link("/businesses?id={profileId}").collapse(300)),
     /** 승인 사업자가 상호·번호를 고쳐 재심사를 기다린다(F7) — 이미 예약·진행 중인 신청 건은 그대로, 새 신청만 막혀 있다 */
     BUSINESS_RE_REVIEW_PENDING(spec(BIZ_AD, WARNING).holders(Permission.BUSINESS_MANAGE).link("/businesses?id={profileId}").collapse(300)),
+    /** 사업자 신청 건(광고·핫딜)이 심사를 기다린다 — 새 신청·승인 뒤 소재 바꾸기(V112, biz-application-contract F10). 신청 건마다 5분 묶음 */
+    BIZ_APPLICATION_REVIEW_PENDING(spec(BIZ_AD, INFO).holders(Permission.AD_MANAGE).link("/biz-applications?id={id}").collapse(300)),
+    /** 사업자 신청 건의 진행 중 환불(일할) 심사가 기다린다 — 사업자 요청·정지로 내림(F10). 처리는 환불 권한 */
+    BIZ_APPLICATION_REFUND_REQUESTED(spec(BIZ_AD, WARNING).holders(Permission.DEAL_ORDER_REFUND).link("/biz-applications?id={id}").collapse(300)),
     AD_REVIEW_PENDING(spec(BIZ_AD, INFO).holders(Permission.AD_MANAGE).reserved()),
     /** 운영자 신청 기능이 구현된 뒤 */
     OPERATOR_APPLICATION_PENDING(spec(SYSTEM, INFO).holders(Permission.OPERATOR_MANAGE).reserved());

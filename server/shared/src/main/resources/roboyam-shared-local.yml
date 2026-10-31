@@ -52,6 +52,12 @@ roboyam:
   business:
     nts:
       provider: ${ROBOYAM_NTS_PROVIDER:fake}
+  # 사업자 신청 건 — local 은 예시 입금 계좌(가정)
+  biz:
+    deposit-account:
+      bank-name: ${ROBOYAM_BIZ_BANK_NAME:국민은행}
+      account-no: ${ROBOYAM_BIZ_ACCOUNT_NO:123456-01-987654}
+      account-holder: ${ROBOYAM_BIZ_ACCOUNT_HOLDER:(주)로보얌}
   # 결제 — local 은 가짜 게이트웨이(가짜 결제창 /dev/payment)와 결제 시험 주문을 켠다. dev · prod 에서 fake 면 기동하지 않는다
   payment:
     gateway: ${ROBOYAM_PAYMENT_GATEWAY:fake}

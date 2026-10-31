@@ -262,6 +262,13 @@ public class MemberNotificationMessages {
             return new Facts(MemberNotificationType.BUSINESS, null, null, null, 1, 0, null, note, false, companyName, kind);
         }
 
+        /**
+         * 사업자 신청 건 알림(V112) — 종류({@code result} — {@code BizApplicationNotices.Kind} 이름)·제목({@code snapshot})·금액({@code amount})·덧붙임({@code note} — 기한·사유).
+         */
+        public static Facts bizApplication(String kind, String title, long amount, String note) {
+            return new Facts(MemberNotificationType.BIZ_APPLICATION, null, null, null, 1, amount, null, note, false, title, kind);
+        }
+
         /** 운영자가 숨긴 글의 숨김 알림인가 */
         public boolean byStaff() {
             return BY_STAFF.equals(result);
@@ -363,6 +370,9 @@ public class MemberNotificationMessages {
                             nz(facts.note())), locale));
             case BUSINESS -> builder.variable("companyName", nz(facts.snapshot()))
                     .variable("detail", messages.get(new MessageRef("member.notification.BUSINESS.kind." + nz(facts.result()), nz(facts.note())), locale));
+            case BIZ_APPLICATION -> builder.variable("bizTitle", nz(facts.snapshot()))
+                    .variable("detail", messages.get(new MessageRef("member.notification.BIZ_APPLICATION.kind." + nz(facts.result()), String.format("%,d", facts.amount()),
+                            nz(facts.note())), locale));
             case POINTS_EXPIRING -> builder.variable("amount", String.format("%,d", facts.amount()))
                     .variable("date", facts.expiring() == null || facts.expiring().date() == null ? "" : facts.expiring().date().toString())
                     .variable("days", facts.expiring() == null ? "" : String.valueOf(facts.expiring().days()));
