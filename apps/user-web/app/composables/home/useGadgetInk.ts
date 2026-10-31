@@ -95,12 +95,14 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
         // 위 — 보이는 위 여백(카드 위 안쪽 → 가장 위 잉크, 띄운 안내가 맨 위면 그 띄움 여백 제외)이 좌우 여백이 되게 첫 자식 위 바깥 여백을 그만큼 옮긴다
         const floatAbove = float && ink.topEl && float.contains(ink.topEl) ? num(float.style.marginTop) : 0;
         const gapTop = ink.top - (rect.top + borderT) - floatAbove;
-        const top = Math.round(num(getComputedStyle(first).marginTop) + (padX - gapTop));
+        const top = num(getComputedStyle(first).marginTop) + (padX - gapTop);
 
         // 아래 — 가장 아래 잉크 밑선 → 카드 아래까지에서 늘어난 빈 곳을 뺀다: 띄운 안내 안이면 그 아래 띄움 여백, 밀린 줄(쪽 넘김)·본문 뒤 줄(「더보기」)이면 0(빈 곳은 그 위), 그 밖은 늘어난 빈 곳 전부(아래에 있다)
         const owner = ink.bottomEl;
         let slack = extra;
-        if (float && owner && float.contains(owner)) slack = num(float.style.marginBottom);
+        // 띄운 안내 안이면 그 아래의 빈 곳 = 늘어난 빈 곳 − 안내 위 띄움 여백(아직 띄움 여백을 나누기 전이면 빈 곳은 모두 안내 아래 몸통에 있다 —
+        // 예전처럼 「안내 아래 띄움 여백」만 빼면 첫 번에 빈 곳 전부를 보이는 여백으로 잘못 보고 아래를 그만큼 당겨, 본래 높이가 줄고 빈 곳이 다시 커지는 되먹임이 났다)
+        if (float && owner && float.contains(owner)) slack = Math.max(0, extra - num(float.style.marginTop));
         else if (owner && (owner.closest('[data-grid-push]') || !insideBody(el, owner))) slack = 0;
         // 빈 상태 안내 — 「안내 바로 위 마지막 잉크 밑선 → 안내 윗선」(A) = 「안내 밑선 → 카드 아래 테두리」(B). 최소 상태 기준 T = max(A0, 좌우 여백)
         let a0 = 0;
@@ -115,7 +117,7 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
                 gapBottom = rect.bottom - ink.bottom - slack; // 카드 아래 테두리 바깥까지
             }
         }
-        const bottom = Math.round(num(getComputedStyle(last).marginBottom) + (target - gapBottom));
+        const bottom = num(getComputedStyle(last).marginBottom) + (target - gapBottom);
         setPx(first, 'marginTop', top);
         setPx(last, 'marginBottom', bottom);
 
@@ -126,9 +128,9 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
                 setPx(float, 'marginTop', null);
                 setPx(float, 'marginBottom', null);
             } else {
-                const mt = Math.min(e, Math.max(0, Math.round((e + target - a0) / 2)));
+                const mt = Math.min(e, Math.max(0, (e + target - a0) / 2));
                 setPx(float, 'marginTop', mt);
-                setPx(float, 'marginBottom', Math.max(0, Math.round(e - mt)));
+                setPx(float, 'marginBottom', Math.max(0, e - mt));
             }
         }
         watchTree(el);
@@ -170,9 +172,19 @@ function num(value: string): number {
     return parseFloat(value) || 0;
 }
 
-function setPx(el: HTMLElement, key: 'marginTop' | 'marginBottom', value: number | null): void {
-    const next = value === null ? '' : `${value}px`;
-    if (el.style[key] !== next) el.style[key] = next;
+/**
+ * 여백 걸기 — 계산값(소수)을 받아 정수 px 로 건다. 지금 걸린 값과 1px 미만으로만 다르면 그대로 둔다
+ * (소수 측정값의 반올림이 ±1px 로 뒤집히며 측정 → 보정 → 재배치가 왕복하지 않게 — 한 번 걸린 값은 1px 이상 어긋날 때만 바뀐다).
+ */
+function setPx(el: HTMLElement, key: 'marginTop' | 'marginBottom', ideal: number | null): void {
+    const current = el.style[key];
+    if (ideal === null) {
+        if (current !== '') el.style[key] = '';
+        return;
+    }
+    if (current !== '' && Math.abs(num(current) - ideal) < 1) return;
+    const next = `${Math.round(ideal)}px`;
+    if (current !== next) el.style[key] = next;
 }
 
 /** 흐름에 있는 보이는 자식(감춤·absolute·fixed 제외) */

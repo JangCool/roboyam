@@ -5,7 +5,7 @@
  *          DevTools 콘솔에 이 파일 내용을 통째로 붙여 넣는다 → 가젯 카드(`section.gadget-card[data-testid="home-gadget"]`)마다 표가 나온다.
  *          게시판 카드 묶음의 안쪽 카드(`article.gadget-card`)도 함께 잰다. 다시 재려면 `gadgetInkPadding()` 을 부른다.
  *
- * 표의 칸: 종류(data-gadget) · 제목 · 좌우 기준(카드 안 왼쪽 여백 px) · 위/아래/왼쪽/오른쪽(잉크 — 글자 근사) · 위/아래(원값 — 글자 줄 상자 그대로) · 벗어남(±2px 를 넘는 칸).
+ * 표의 칸(「늘린 빈 곳」 = 칸 요소의 data-grid-stretched — 운영자가 키운 만큼, 그만큼은 아래 여백이 큰 것이 규칙대로): 종류(data-gadget) · 제목 · 좌우 기준(카드 안 왼쪽 여백 px) · 위/아래/왼쪽/오른쪽(잉크 — 글자 근사) · 위/아래(원값 — 글자 줄 상자 그대로) · 벗어남(±2px 를 넘는 칸).
  *   - 위   = 카드 위 테두리 안쪽 → 보이는 첫 요소 윗선      아래 = 보이는 마지막 요소 아랫선 → 카드 아래 테두리 안쪽
  *   - 왼쪽·오른쪽 = 카드 옆 테두리 안쪽 → 가장 바깥 잉크(오른쪽은 글이 짧으면 크게 나온다 — 줄이 끝까지 차지 않을 뿐이라 벗어남 판정은 위·아래·왼쪽만)
  *   - 빈 상태·안내(`[data-grid-float]` — 공통 빈 상태 · 인기글 기간 빈 문구 · 잠김 안내, 정본 2026-10-31):
@@ -123,6 +123,8 @@
                 오른쪽: Math.round(inner.right - ink.right),
                 '위(원값)': Math.round(raw.top - inner.top),
                 '아래(원값)': Math.round(inner.bottom - raw.bottom),
+                // 격자가 칸을 내용보다 크게 잡은 만큼(운영자 h · 같은 줄 맞추기 짝 — 칸 요소의 data-grid-stretched). 있으면 아래 여백이 그만큼 큰 것이 규칙대로다
+                '늘린 빈 곳': card.closest('[data-grid-stretched]')?.getAttribute('data-grid-stretched') ?? '',
             };
             const empty = Array.from(card.querySelectorAll('[data-grid-float]')).find((el) => getComputedStyle(el).display !== 'none');
             let emptyOff = false;
@@ -142,7 +144,9 @@
             }
             // 빈 상태·안내가 있는 카드는 아래 보이는 여백이 기준과 다를 수 있다(안내 위 = 안내 아래 판정으로 본다)
             const keys = empty ? ['위', '왼쪽'] : ['위', '아래', '왼쪽'];
-            const off = keys.filter((k) => Math.abs(row[k] - base) > TOL);
+            // 운영자가 키운 칸(늘린 빈 곳)은 그만큼 아래 여백이 큰 것이 규칙대로 — 빼고 판정한다
+            const stretched = Number(row['늘린 빈 곳']) || 0;
+            const off = keys.filter((k) => Math.abs(row[k] - (k === '아래' ? stretched : 0) - base) > TOL);
             if (emptyOff) off.push('빈 상태');
             row.벗어남 = off.length ? `✗ ${off.join('·')}` : '';
             rows.push(row);

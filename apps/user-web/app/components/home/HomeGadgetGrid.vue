@@ -29,6 +29,7 @@
             :key="cell.gadget.id"
             :ref="(el) => bind(cell.gadget.id, el)"
             :data-gadget-id="cell.gadget.id"
+            :data-grid-stretched="stretchedOf(cell)"
             class="flex min-w-0 flex-col empty:hidden [&>*]:grow"
             :class="editing ? ['relative', drag?.id === cell.gadget.id && drag.kind === 'move' ? 'z-20 opacity-80' : '', cell.gadget.desktop ? '' : 'opacity-50'] : ''"
             :style="[cellStyle(cell), dragStyle(cell)]"
@@ -261,6 +262,17 @@ function onUp(): void {
     }
 }
 
+/**
+ * 운영자가 키운 빈 곳(px) — 칸 높이가 내용 높이(contentPx)가 아니라 hPx·같은 줄 맞추기 짝으로 정해졌을 때 그 차이. 칸 요소의 `data-grid-stretched` 로 드러낸다
+ * (실측·디버깅용 — 잉크 보정 `useGadgetInk` 은 측정 잔여와 섞지 않게 카드 높이 − 본래 높이로 계산한다). 0.5px 이하·못 쟀으면 없음.
+ */
+function stretchedOf(cell: Cell): number | undefined {
+    const content = heights.value[cell.gadget.id];
+    if (mode.value === 'stack' || content === undefined) return undefined;
+    const s = cell.height - content;
+    return s > 0.5 ? Math.round(s) : undefined;
+}
+
 /** 꼬리표에 보일 크기 — 모서리를 끄는 중이면 놓일 크기(실시간), 아니면 운영자 크기 */
 function sizeOf(cell: Cell): { w: number; h: number } {
     const d = drag.value;
@@ -382,7 +394,9 @@ function measureInto(id: string, next: Record<string, number>): boolean {
     if (!cell) return false;
     watchChildren(cell);
     const px = Math.ceil(contentHeight(cell));
-    if (px > 0 && next[id] !== px) {
+    // 1px 이하의 흔들림(소수 높이 올림이 259.9 ↔ 260.1 처럼 오가는 것)은 무시한다 — 측정 → 보정 → 재배치가 ±1px 로 왕복하지 않게
+    const prev = next[id];
+    if (px > 0 && (prev === undefined || Math.abs(px - prev) > 1)) {
         next[id] = px;
         return true;
     }
