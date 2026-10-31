@@ -1,5 +1,6 @@
 package com.community.group.service;
 
+import com.community.business.service.BusinessEligibility;
 import com.community.grade.entity.GradeEntity;
 import com.community.grade.repository.master.GradeRepository;
 import com.community.group.dto.response.GroupPersonView;
@@ -18,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import org.springframework.stereotype.Component;
 
 /**
@@ -32,15 +34,17 @@ public class GroupPeople {
     private final GradeRepository grades;
     private final OperatorRepository operators;
     private final ShopDecorationResolver decorations;
+    private final BusinessEligibility businessEligibility;
     private final Messages messages;
 
     public GroupPeople(UserRepository users, ProfileRepository profiles, GradeRepository grades, OperatorRepository operators, ShopDecorationResolver decorations,
-                       Messages messages) {
+                       BusinessEligibility businessEligibility, Messages messages) {
         this.users = users;
         this.profiles = profiles;
         this.grades = grades;
         this.operators = operators;
         this.decorations = decorations;
+        this.businessEligibility = businessEligibility;
         this.messages = messages;
     }
 
@@ -51,12 +55,15 @@ public class GroupPeople {
         private final Map<Long, ProfileEntity> profileById;
         private final Map<String, GradeEntity> gradeByKey;
         private final Map<Long, AuthorLook> looks;
+        private final Set<Long> businesses;
 
-        private Members(Map<Long, UserEntity> userById, Map<Long, ProfileEntity> profileById, Map<String, GradeEntity> gradeByKey, Map<Long, AuthorLook> looks) {
+        private Members(Map<Long, UserEntity> userById, Map<Long, ProfileEntity> profileById, Map<String, GradeEntity> gradeByKey, Map<Long, AuthorLook> looks,
+                        Set<Long> businesses) {
             this.userById = userById;
             this.profileById = profileById;
             this.gradeByKey = gradeByKey;
             this.looks = looks;
+            this.businesses = businesses;
         }
 
         /** 그 회원 — null 이면 null */
@@ -67,14 +74,14 @@ public class GroupPeople {
             UserEntity user = userById.get(userId);
             ProfileEntity profile = profileById.get(userId);
             if (user == null || user.isGone() || profile == null) {
-                return new GroupPersonView(null, messages.get(new MessageRef("member.notification.actor.withdrawn")), true, null, null, null);
+                return new GroupPersonView(null, messages.get(new MessageRef("member.notification.actor.withdrawn")), true, null, null, null, false);
             }
             GradeEntity grade = profile.getGradeKey() == null ? null : gradeByKey.get(profile.getGradeKey());
             GroupPersonView.GroupGradeView badge = grade == null ? null
                     : new GroupPersonView.GroupGradeView(grade.getGradeKey(), grade.getLabel(), grade.getBadgeColor(), grade.getBadgeIcon());
             AuthorLook look = looks.get(userId);
             return new GroupPersonView(Long.toString(userId), profile.getNickname(), false, badge, look == null ? null : look.decoration(),
-                    look == null ? null : look.avatarUrl());
+                    look == null ? null : look.avatarUrl(), businesses.contains(userId));
         }
 
         /** 그 회원의 지금 닉네임(탈퇴면 「탈퇴한 회원」) */
@@ -91,7 +98,7 @@ public class GroupPeople {
 
     /**
      * @param ids      회원 ID(null 은 건너뛴다)
-     * @param withLook 장식·아바타를 같이 읽는가(공개 사이트 true, 관리자 false)
+     * @param withLook 장식·아바타·사업자 뱃지를 같이 읽는가(공개 사이트 true, 관리자 false)
      */
     public Members members(Collection<Long> ids, boolean withLook) {
         List<Long> wanted = ids.stream().filter(Objects::nonNull).distinct().toList();
@@ -99,15 +106,17 @@ public class GroupPeople {
         Map<Long, ProfileEntity> profileById = new HashMap<>();
         Map<String, GradeEntity> gradeByKey = new HashMap<>();
         Map<Long, AuthorLook> looks = Map.of();
+        Set<Long> approved = Set.of();
         if (!wanted.isEmpty()) {
             users.findAllById(wanted).forEach(u -> userById.put(u.getId(), u));
             profiles.findAllById(wanted).forEach(p -> profileById.put(p.getUserId(), p));
             grades.findAll().forEach(g -> gradeByKey.put(g.getGradeKey(), g));
             if (withLook) {
                 looks = decorations.resolve(wanted);
+                approved = businessEligibility.approvedUserIds(wanted);
             }
         }
-        return new Members(userById, profileById, gradeByKey, looks);
+        return new Members(userById, profileById, gradeByKey, looks, approved);
     }
 
     /** 운영자들(처리자·승인자) — 지워졌으면 「삭제된 운영자」·withdrawn */
@@ -122,8 +131,8 @@ public class GroupPeople {
         for (Long id : wanted) {
             OperatorEntity op = byId.get(id);
             out.put(id, op == null
-                    ? new GroupPersonView(Long.toString(id), messages.get(new MessageRef("group.person.operatorDeleted")), true, null, null, null)
-                    : new GroupPersonView(Long.toString(id), op.getOperatorName(), false, null, null, null));
+                    ? new GroupPersonView(Long.toString(id), messages.get(new MessageRef("group.person.operatorDeleted")), true, null, null, null, false)
+                    : new GroupPersonView(Long.toString(id), op.getOperatorName(), false, null, null, null, false));
         }
         return out;
     }

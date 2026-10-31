@@ -6,8 +6,12 @@ import com.community.business.entity.BusinessServiceStatus;
 import com.community.business.entity.BusinessStatus;
 import com.community.business.exception.BusinessException;
 import com.community.business.repository.master.BusinessProfileRepository;
+import com.community.business.repository.master.BusinessProfileRepositoryQDSL;
 import com.community.business.repository.master.BusinessServiceRepository;
+import java.util.Collection;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,10 +29,20 @@ public class BusinessEligibility {
 
     private final BusinessProfileRepository profiles;
     private final BusinessServiceRepository services;
+    private final BusinessProfileRepositoryQDSL profileQueries;
 
-    public BusinessEligibility(BusinessProfileRepository profiles, BusinessServiceRepository services) {
+    public BusinessEligibility(BusinessProfileRepository profiles, BusinessServiceRepository services, BusinessProfileRepositoryQDSL profileQueries) {
         this.profiles = profiles;
         this.services = services;
+        this.profileQueries = profileQueries;
+    }
+
+    /**
+     * 사업자 뱃지가 붙는 회원 ID(글·댓글 작성자·쪽지 상대·소모임 사람·공개 프로필의 {@code business}) — 사업자 신원 {@code APPROVED} 만. 재심사 중({@code PENDING})·반려·정지·탈퇴는
+     * 빠지고 서비스별(광고·핫딜) 승인은 보지 않는다. 본인이 숨길 수 없다. 목록 하나에 <b>한 문장</b>(줄마다 읽지 않는다), null 은 건너뛴다.
+     */
+    public Set<Long> approvedUserIds(Collection<Long> userIds) {
+        return profileQueries.approvedUserIds(userIds.stream().filter(Objects::nonNull).distinct().toList());
     }
 
     /** 그 서비스를 쓸 수 있는 승인 사업자 — 아니면 비어 있다 */

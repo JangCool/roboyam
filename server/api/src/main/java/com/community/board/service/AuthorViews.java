@@ -1,6 +1,7 @@
 package com.community.board.service;
 
 import com.community.board.dto.BoardCatalogSnapshot;
+import com.community.business.service.BusinessEligibility;
 import com.community.pointshop.dto.AuthorLook;
 import com.community.pointshop.service.ShopDecorationResolver;
 import com.community.post.dto.response.PostAuthorView;
@@ -13,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import org.springframework.stereotype.Component;
 
 /**
@@ -29,14 +31,16 @@ public class AuthorViews {
 
     private final ProfileRepository profiles;
     private final ShopDecorationResolver decorations;
+    private final BusinessEligibility businesses;
 
-    public AuthorViews(ProfileRepository profiles, ShopDecorationResolver decorations) {
+    public AuthorViews(ProfileRepository profiles, ShopDecorationResolver decorations, BusinessEligibility businesses) {
         this.profiles = profiles;
         this.decorations = decorations;
+        this.businesses = businesses;
     }
 
     /**
-     * 회원 ID → 프로필(닉네임·등급) + 포인트 상점 표시(장식·아바타). 목록 하나에 프로필 한 번, 표시 한 번(장착 표 + 프로필 이미지) — 줄마다 읽지 않는다.
+     * 회원 ID → 프로필(닉네임·등급) + 포인트 상점 표시(장식·아바타) + 사업자 뱃지. 목록 하나에 프로필 한 번, 표시 한 번(장착 표 + 프로필 이미지), 사업자 신원 한 번 — 줄마다 읽지 않는다.
      */
     public AuthorMembers members(Collection<Long> ids) {
         List<Long> wanted = ids.stream().filter(Objects::nonNull).distinct().toList();
@@ -46,7 +50,8 @@ public class AuthorViews {
         Map<Long, ProfileEntity> out = new HashMap<>();
         profiles.findAllById(wanted).forEach(p -> out.put(p.getUserId(), p));
         Map<Long, AuthorLook> looks = decorations.resolve(wanted);
-        return new AuthorMembers(out, looks);
+        Set<Long> approved = businesses.approvedUserIds(wanted);
+        return new AuthorMembers(out, looks, approved);
     }
 
     /**
@@ -55,19 +60,19 @@ public class AuthorViews {
      */
     public PostAuthorView of(Long authorId, String guestName, String authorIp, AuthorMembers members, BoardCatalogSnapshot catalog) {
         if (authorId == null) {
-            return new PostAuthorView(GUEST, null, guestName == null ? "" : guestName, null, null, null, maskIp(authorIp), null, null, null);
+            return new PostAuthorView(GUEST, null, guestName == null ? "" : guestName, null, null, null, maskIp(authorIp), null, null, null, false);
         }
         ProfileEntity profile = members.get(authorId);
         String gradeKey = profile == null ? null : profile.getGradeKey();
         String label = gradeKey == null ? null : catalog.gradeLabel(gradeKey);
         AuthorLook look = members.look(authorId);
         return new PostAuthorView(MEMBER, Long.toString(authorId), profile == null ? "" : profile.getNickname(), gradeKey, label == null ? gradeKey : label,
-                ROLE_USER, null, null, look == null ? null : look.decoration(), look == null ? null : look.avatarUrl());
+                ROLE_USER, null, null, look == null ? null : look.decoration(), look == null ? null : look.avatarUrl(), members.business(authorId));
     }
 
-    /** 숨긴 글·지운 댓글의 작성자 — 이름·IP·장식·아바타를 비운다(종류·회원 ID 는 그대로) */
+    /** 숨긴 글·지운 댓글의 작성자 — 이름·IP·장식·아바타·사업자 뱃지를 비운다(종류·회원 ID 는 그대로) */
     public static PostAuthorView blank(PostAuthorView author) {
-        return new PostAuthorView(author.kind(), author.memberId(), "", author.grade(), author.gradeLabel(), author.role(), null, null, null, null);
+        return new PostAuthorView(author.kind(), author.memberId(), "", author.grade(), author.gradeLabel(), author.role(), null, null, null, null, false);
     }
 
     /** IP 앞 두 자리 — IPv4 {@code 123.45.*.*}, IPv6 앞 두 묶음 {@code 2001:db8:*:*}. IP 가 없으면(보유기간이 지나 지움) null, 읽지 못하면 {@code *} */

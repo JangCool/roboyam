@@ -4,6 +4,7 @@ import com.community.grade.repository.master.GradeRepositoryQDSL;
 import com.community.permission.entity.MemberPermission;
 import com.community.permission.service.BootstrapLock;
 import com.community.role.entity.RoleEntity;
+import com.community.role.entity.MemberRoleIds;
 import com.community.role.entity.RoleGrantMode;
 import com.community.role.entity.RolePermissionEntity;
 import com.community.role.entity.RoleScope;
@@ -20,7 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 제품이 넣는 <b>내장 회원 역할</b>을 서버가 뜰 때 한 번 넣는다 — 회원 유형(일반 회원 · 사업자 회원)과 게시판 단위(게시판 매니저 · 게시판 스텝).
+ * 제품이 넣는 <b>내장 회원 역할</b>을 서버가 뜰 때 한 번 넣는다 — 회원 유형(일반 회원 · 홍보 전용 계정)과 게시판 단위(게시판 매니저 · 게시판 스텝).
  * 이미 있는 역할은 건드리지 않는다(운영자가 조정한 권한을 되돌리지 않는다). 처음 넣을 때만 기본 권한 세트를 준다 — 값은 목업의 기본값이고 운영자가 조정할 수 있다.
  * 등급 역할(파생, {@code ROLE_GRADE_<등급키>})은 등급 설정이 원천이라 {@link GradeRoleSynchronizer} 가 만든다 — 기동 때는 아직 역할이 없는 등급의 역할만 채운다(이미 있는 역할은 이름만 맞춘다). 운영자 역할은 시드가 없다(최고 관리자가 만든다).
  * 이름·설명은 운영자가 고칠 수 있는 데이터라 한국어 한 값으로 둔다. 카탈로그 맞춤({@code PermissionCatalogSynchronizer}) 뒤에 돌아야 한다(권한 외래키).
@@ -34,13 +35,17 @@ public class BuiltinRoleSeeder {
                         List<MemberPermission> permissions) {
     }
 
+    /** {@code ROLE_MEMBER_BUSINESS} 의 시드 이름·설명 — V113 과 같은 글자 */
+    static final String PROMO_NAME = "홍보 전용 계정";
+    static final String PROMO_DESCRIPTION = "따로 가입한 홍보용 계정 — 일반 활동이 제한됩니다(1차에는 가입 길이 없어 붙는 회원 없음)";
+
     private static final List<MemberPermission> USE_REGULAR = List.of(MemberPermission.POST_WRITE, MemberPermission.COMMENT_WRITE, MemberPermission.POST_REACT,
             MemberPermission.REPORT_CREATE, MemberPermission.MESSAGE_SEND, MemberPermission.FILE_ATTACH, MemberPermission.POINTSHOP_USE, MemberPermission.GROUP_CREATE);
 
     private static final List<Seed> SEEDS = List.of(
             new Seed("ROLE_MEMBER_GENERAL", RoleTypes.KIND, "일반 회원", "가입하면 기본으로 갖는 회원 유형입니다.", RoleScope.SITE, RoleGrantMode.AUTO, USE_REGULAR),
-            new Seed("ROLE_MEMBER_BUSINESS", RoleTypes.KIND, "사업자 회원", "사업자 승인을 받은 회원입니다. 읽기·프로필·허용 게시판 위주로 제한됩니다.", RoleScope.SITE,
-                    RoleGrantMode.AUTO, List.of(MemberPermission.REPORT_CREATE)),
+            // 홍보 전용 계정(사용자 결정 2026-10-31) — 사업자 인증(뱃지, business_profiles)과 따로다. 이미 있는 줄의 예전 이름·설명은 V113 이 바꾼다
+            new Seed(MemberRoleIds.BUSINESS, RoleTypes.KIND, PROMO_NAME, PROMO_DESCRIPTION, RoleScope.SITE, RoleGrantMode.AUTO, List.of(MemberPermission.REPORT_CREATE)),
             new Seed("ROLE_BOARD_MANAGER", RoleTypes.BOARD, "게시판 매니저", "게시판 하나를 맡아 운영합니다. 스텝 지정도 합니다.", RoleScope.BOARD, RoleGrantMode.APPOINTED,
                     List.of(MemberPermission.BOARD_POST_HIDE, MemberPermission.BOARD_POST_DELETE, MemberPermission.BOARD_COMMENT_DELETE,
                             MemberPermission.BOARD_SANCTION_ISSUE, MemberPermission.BOARD_NOTICE_PIN, MemberPermission.BOARD_STAFF_APPOINT,

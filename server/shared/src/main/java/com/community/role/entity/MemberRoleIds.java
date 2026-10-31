@@ -10,6 +10,7 @@ public final class MemberRoleIds {
 
     /** 일반 회원 — 가입하면 기본으로 갖는 회원 유형(사업자 회원이 아닌 회원) */
     public static final String GENERAL = "ROLE_MEMBER_GENERAL";
+    /** 홍보 전용 계정 — 따로 가입한 홍보용 계정(일반 활동 제한). 사업자 인증(뱃지 — 사업자 신원 {@code APPROVED})과 따로다(사용자 결정 2026-10-31) */
     public static final String BUSINESS = "ROLE_MEMBER_BUSINESS";
     public static final String BOARD_MANAGER = "ROLE_BOARD_MANAGER";
     public static final String BOARD_STAFF = MemberPermission.BOARD_STAFF_ROLE_ID;
