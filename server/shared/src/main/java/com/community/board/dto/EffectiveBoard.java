@@ -26,6 +26,7 @@ import java.util.Set;
  * @param pointMinLengthApplied 「적립 최소 글자 수 적용」(게시판 값 ?? 기본값, 기본 켬) — 끄면 글 본문 최소 글자 수만 빠진다(커머스 1-3 확정 1)
  * @param prefixes           이 게시판의 말머리 전부(꺼진 것 포함, 정렬 순서대로)
  * @param gadgetExclusions   이 게시판 글을 내지 않을 홈 가젯(게시판 값 그대로 — 기본 설정에서 물려받지 않는다)
+ * @param adsHidden          「이 게시판에 광고 숨김」(게시판 값 그대로) — 켜면 게시판 맥락 광고(목록 한 줄·글 보기·핫딜 노출)가 없다. 19금·소모임 게시판은 이 값과 상관없이 없다
  */
 public record EffectiveBoard(long id, String slug, String name, String nameEn, String description, String kind, String layout, boolean viewToggle,
                              String color, boolean allowAdult, boolean investmentNotice, boolean active, int sortOrder, String writeLock, String introText,
@@ -35,7 +36,8 @@ public record EffectiveBoard(long id, String slug, String name, String nameEn, S
                              int commentProtectMin, boolean commentProtectEdit, String commentProtectDelete, int commentProtectDelayMinutes,
                              int commentGuestDelayMinutes, boolean staffHiddenNotice, boolean commentDislikeEnabled, String commentLikeLabel,
                              String commentDislikeLabel, List<String> pinRequestReviewers, boolean debateEnabled, boolean pollEnabled, boolean pointsEnabled,
-                             boolean pointMinLengthApplied, List<BoardPrefixInfo> prefixes, Set<BoardGadget> gadgetExclusions) {
+                             boolean pointMinLengthApplied, List<BoardPrefixInfo> prefixes, Set<BoardGadget> gadgetExclusions,
+                             boolean adsHidden) {
 
     public EffectiveBoard {
         pinRequestReviewers = pinRequestReviewers == null ? List.of() : List.copyOf(pinRequestReviewers);

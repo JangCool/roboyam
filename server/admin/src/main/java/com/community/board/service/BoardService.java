@@ -71,6 +71,7 @@ import org.springframework.transaction.annotation.Transactional;
  *       투자 고지는 켜기만(409 {@code BOARD_INVESTMENT_NOTICE_LOCKED}). 사용 중 고유 말머리 최대 6(409 {@code PREFIX_LIMIT}), 글이 있는 말머리는 못 지운다(409 {@code PREFIX_IN_USE}).</li>
  *   <li>쓰기 자격: GUEST · 등급 키(등급 표에 있는 것) · STAFF, 댓글은 OFF 도. 핫딜·직접홍보는 GUEST 불가, 핫딜 글쓰기는 첫 등급(새싹) 불가.</li>
  *   <li>가젯 노출 금지({@code gadgetExclusions}): null 이면 그대로, 중복은 하나로(목록 순서로 저장), 모르는 값은 400 {@code gadgetExclusions}.</li>
+ *   <li>광고 숨김({@code adsHidden}, V117): null 이면 그대로 — 정책 묶음({@code board.settings})으로 본다(가젯 노출 금지와 같은 「노출」 설정, 가정).</li>
  *   <li>삭제는 삭제되지 않은 글(임시저장 포함)이 없을 때만(409 {@code BOARD_HAS_POSTS}) — 남은 삭제된 글·댓글도 함께 지운다.</li>
  *   <li>만들기는 종류 {@code GENERAL}(기본)·{@code GROUP}(소모임 — 메뉴에 자동으로 넣지 않는다)만. 소모임 분류({@code groupCategoryId})는 소모임 게시판만 받고
  *       {@code group.settings} 도 필요하며, 같은 트랜잭션으로 그 분류 끝에 할당한다(docs/features/group-contract.md).</li>
@@ -251,7 +252,8 @@ public class BoardService {
         boolean settingsChanged = diff(before, after, "writeLock", board.getWriteLock(), in.writeLock)
                 | diff(before, after, "introText", board.getIntroText(), in.introText)
                 | diff(before, after, "writeGuideText", board.getWriteGuideText(), in.writeGuideText)
-                | diff(before, after, "gadgetExclusions", gadgetNames(board.getGadgetExclusions()), gadgetNames(in.gadgetExclusions));
+                | diff(before, after, "gadgetExclusions", gadgetNames(board.getGadgetExclusions()), gadgetNames(in.gadgetExclusions))
+                | diff(before, after, "adsHidden", board.isAdsHidden(), in.adsHidden);
         boolean limitChanged = false;
         Map<String, Object> oldPolicy = board.policy().toMap();
         Map<String, Object> newPolicy = in.policy.toMap();
@@ -359,6 +361,7 @@ public class BoardService {
         board.changeBasic(in.name, in.nameEn, in.description, in.layout, in.viewToggle, in.color, in.allowAdult, in.investmentNotice);
         board.changeGuides(in.writeLock, in.introText, in.writeGuideText);
         board.changeGadgetExclusions(in.gadgetExclusions);
+        board.changeAdsHidden(in.adsHidden);
         board.changePolicy(in.policy);
         board.touch(actor.operatorId(), now);
         for (BoardPrefixEntity p : commonById.values()) {
@@ -481,6 +484,7 @@ public class BoardService {
         /** 고를 가젯(enum 순서·중복 없음 — 모르는 값은 빼고 {@link #gadgetUnknown}) */
         List<BoardGadget> gadgetExclusions;
         boolean gadgetUnknown;
+        boolean adsHidden;
 
         /** 카드형은 보기 전환이 늘 꺼진다 */
         boolean viewToggleEffective() {
@@ -498,6 +502,7 @@ public class BoardService {
         in.color = request.color() == null || request.color().isBlank() ? null : request.color();
         in.allowAdult = request.allowAdult() == null ? board.isAllowAdult() : request.allowAdult();
         in.investmentNotice = request.investmentNotice() == null ? board.isInvestmentNotice() : request.investmentNotice();
+        in.adsHidden = request.adsHidden() == null ? board.isAdsHidden() : request.adsHidden();
         in.writeLock = request.writeLock() == null || request.writeLock().isBlank() ? null : request.writeLock();
         in.introText = BoardRules.normalizeText(request.introText());
         in.writeGuideText = BoardRules.normalizeText(request.writeGuideText());
