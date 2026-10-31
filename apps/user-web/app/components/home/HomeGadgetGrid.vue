@@ -30,6 +30,7 @@
             :ref="(el) => bind(cell.gadget.id, el)"
             :data-gadget-id="cell.gadget.id"
             :data-grid-stretched="stretchedOf(cell)"
+            :data-grid-height="mode === 'stack' ? undefined : Math.round(cell.height)"
             class="flex min-w-0 flex-col empty:hidden [&>*]:grow"
             :class="editing ? ['relative', drag?.id === cell.gadget.id && drag.kind === 'move' ? 'z-20 opacity-80' : '', cell.gadget.desktop ? '' : 'opacity-50'] : ''"
             :style="[cellStyle(cell), dragStyle(cell)]"
@@ -400,6 +401,14 @@ function measureInto(id: string, next: Record<string, number>): boolean {
     if (px > 0 && (prev === undefined || Math.abs(px - prev) > 1)) {
         next[id] = px;
         return true;
+    }
+    // 개발 감시 — 잰 높이가 그대로인데(안정된 상태) 카드가 칸보다 1px 넘게 길면 넘침(이전 보정이 남은 것 등). 운영 빌드에서는 빠진다
+    if (import.meta.dev && mode.value !== 'stack') {
+        const card = cell.firstElementChild as HTMLElement | null;
+        const slot = Number(cell.getAttribute('data-grid-height'));
+        if (card && Number.isFinite(slot) && slot > 0 && card.getBoundingClientRect().height > slot + 1) {
+            console.warn(`[home-grid] 가젯 ${id} 카드(${Math.round(card.getBoundingClientRect().height)}px)가 칸(${slot}px)보다 커요 — 넘침`, card);
+        }
     }
     return false;
 }

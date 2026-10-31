@@ -77,6 +77,13 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
         }
         const float = floats[0] ?? null;
         floated = float ? [float] : [];
+        // 칸 높이(격자가 정한 값). 칸에 남는 높이가 없으면(최소 상태 — 칸이 줄어든 직후 포함) 지난 상태에서 건 띄움 여백을 재기 전에 바로 없앤다
+        // (남겨 두면 카드가 칸보다 길어져 넘치고, 그 길이로 잰 아래 여백이 틀어진다)
+        const slot = slotHeight(el);
+        if (float && (slot === null || slot - naturalHeight(el) <= 0.5)) {
+            setPx(float, 'marginTop', null);
+            setPx(float, 'marginBottom', null);
+        }
 
         // 화면상 가장 위·가장 아래 잉크(카드 안 모든 글자 줄 상자 근사·보이는 요소 상자 중 — DOM 순서가 아니라 위치로. 두 열 목록의 긴 열 끝 줄 등)
         const ink = inkOf(el, true);
@@ -89,8 +96,9 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
         const padX = num(cs.paddingLeft);
         const borderT = num(cs.borderTopWidth);
         const borderB = num(cs.borderBottomWidth);
-        // 칸이 커서 늘어난 빈 곳 — 카드 높이 − 본래 높이(띄운 안내 여백·밀린 줄 위 여백 제외)
-        const extra = Math.max(0, rect.height - naturalHeight(el));
+        // 칸이 커서 늘어난 빈 곳 — **격자가 정한 칸 높이** − 본래 높이(띄운 안내 여백·밀린 줄 위 여백 제외). 카드 자신의 높이로 재면 안 된다:
+        // 띄움 여백이 남아 카드가 칸보다 길어지면(넘침) 그 넘친 만큼이 다시 「남는 높이」로 잡혀 여백이 줄지 않는 되먹임이 난다(2026-10-31 — 영상·짤·소모임 빈 상태)
+        const extra = slot === null ? 0 : Math.max(0, slot - naturalHeight(el));
 
         // 위 — 보이는 위 여백(카드 위 안쪽 → 가장 위 잉크, 띄운 안내가 맨 위면 그 띄움 여백 제외)이 좌우 여백이 되게 첫 자식 위 바깥 여백을 그만큼 옮긴다
         const floatAbove = float && ink.topEl && float.contains(ink.topEl) ? num(float.style.marginTop) : 0;
@@ -123,7 +131,7 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
 
         // 칸에 여유가 있으면 띄움 여백으로 나눠 A = B — 위 = (E + T − A0)/2, 아래 = 나머지(격자 높이 재기는 이 여백을 세지 않는다 — 되먹임 없음)
         if (float) {
-            const e = el.getBoundingClientRect().height - naturalHeight(el);
+            const e = slot === null ? 0 : slot - naturalHeight(el);
             if (e <= 0.5) {
                 setPx(float, 'marginTop', null);
                 setPx(float, 'marginBottom', null);
@@ -170,6 +178,14 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
 
 function num(value: string): number {
     return parseFloat(value) || 0;
+}
+
+/** 격자가 정한 칸 높이(px — 칸 요소의 `data-grid-height`). 한 열(모바일 — 칸이 내용 높이)·격자 밖이면 null(늘어난 빈 곳 없음) */
+function slotHeight(card: Element): number | null {
+    const v = card.parentElement?.getAttribute('data-grid-height');
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
 }
 
 /**
