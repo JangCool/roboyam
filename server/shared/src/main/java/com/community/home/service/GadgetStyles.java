@@ -46,7 +46,7 @@ public final class GadgetStyles {
         if (!HomeGadgetKinds.isKnown(type)) {
             return null;
         }
-        ObjectNode out = HomeGadgetKinds.baseStyle(theme);
+        ObjectNode out = HomeGadgetKinds.kindStyle(HomeGadgetKinds.baseStyle(theme), type);
         if (stored == null || !stored.isObject()) {
             return out;
         }

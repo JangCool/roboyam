@@ -16,7 +16,7 @@ import tools.jackson.databind.node.ObjectNode;
  *       {@code rowStyle}·{@code columns} 1·2·{@code thumbnail}·{@code titleLines} 0·1·2·{@code lead}·{@code meta}·{@code dividers}·{@code newBadgeHours} 0~72·{@code hotBadgeLikes} 0~1000 ·
  *       {@code GALLERY} 대상 게시판 · {@code count} 1~24(6) · {@code BOARD_CARDS} 대상 게시판 · {@code perBoard} 1~10(4) · {@code cardHead} · {@code columns} AUTO·2·3 ·
  *       {@code HIGHLIGHT} {@code count} 1~6(5) · {@code lead} · {@code thumbs} · {@code GROUPS} {@code count} 1~6(3) · {@code QUICK_LINKS} {@code shape} · {@code items} 0~12 ·
- *       {@code NOTICE_TEXT} {@code text} 0~300 · {@code format}.</li>
+ *       {@code NOTICE_TEXT} {@code text} 0~300 · {@code format} · {@code AD} {@code adType} 배너 넷(WIDE_BANNER) · {@code AD_TEXT_LINE} {@code count} 1~5(3).</li>
  *   <li>대상 게시판 {@code boardScope}: {@code ALL} 전체 · {@code FOLDER} 가젯 페이지의 기준 폴더 게시판 전체(페이지에서만) · {@code BOARD} 지금 보는 게시판(게시판 레이아웃에서만) ·
  *       {@code PICK} {@code boardIds}(게시판 slug). 저장 설정에 {@code boardScope} 가 없으면(옛 시드) {@code boardIds} 가 있으면 PICK, 없으면 ALL 로 읽는다.</li>
  * </ul>
@@ -42,6 +42,9 @@ public final class GadgetConfigs {
     public static final List<String> QUICK_SHAPES = List.of("PILL", "TAB");
     public static final List<String> QUICK_KINDS = List.of("ALL", "POPULAR", "LATEST", "GROUPS", "GROUP_BUY", "BOARD", "PATH");
     public static final List<String> NOTICE_FORMATS = List.of("PLAIN", "BULLETS");
+    /** 광고 배너 가젯의 배너 유형(상품 이름 — 날개 배너는 가젯에 없다) — admin-web {@code AD_BANNER_TYPES} 와 같은 차례 */
+    public static final List<String> AD_TYPES = List.of("WIDE_BANNER", "STRIP_BANNER", "SQUARE_BANNER", "SMALL_BANNER");
+    public static final String AD_TYPE_DEFAULT = "WIDE_BANNER";
     public static final int NEW_BADGE_MAX = 72;
     public static final int HOT_BADGE_MAX = 1000;
     public static final int QUICK_LINK_MAX = 12;
@@ -59,7 +62,8 @@ public final class GadgetConfigs {
             "GALLERY", new Count("count", 1, 24, 6),
             "BOARD_CARDS", new Count("perBoard", 1, 10, 4),
             "HIGHLIGHT", new Count("count", 1, 6, 5),
-            "GROUPS", new Count("count", 1, 6, 3));
+            "GROUPS", new Count("count", 1, 6, 3),
+            HomeGadgetKinds.AD_TEXT_LINE, new Count("count", 1, 5, 3));
 
     private GadgetConfigs() {
     }
@@ -93,7 +97,7 @@ public final class GadgetConfigs {
         }
     }
 
-    /** ⚙ 설정을 고칠 수 있는 종류인가 — 8종 전부(게시판 본문은 아니다) */
+    /** ⚙ 설정을 고칠 수 있는 종류인가 — 8종 + 광고 2종 전부(게시판 본문은 아니다) */
     public static boolean settable(String type) {
         return HomeGadgetKinds.isKnown(type);
     }
@@ -208,6 +212,7 @@ public final class GadgetConfigs {
                 out.put("text", cut(HomeLayoutJson.text(config, "text", ""), NOTICE_MAX));
                 out.put("format", oneOf(config, "format", NOTICE_FORMATS, "PLAIN"));
             }
+            case HomeGadgetKinds.AD -> out.put("adType", oneOf(config, "adType", AD_TYPES, AD_TYPE_DEFAULT));
             default -> {
             }
         }

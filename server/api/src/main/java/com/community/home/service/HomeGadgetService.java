@@ -77,6 +77,7 @@ import tools.jackson.databind.JsonNode;
  *       (폴더가 없거나 게시판이 없으면 전체) · {@code BOARD} 게시판 레이아웃이 그리는 게시판(그 밖에서는 전체). 칸이 없는 옛 설정은 {@code boardIds} 가 있으면 PICK.</li>
  *   <li>가젯 페이지({@code GET /api/pages/{key}}, {@link #page}): 지금 테마의 그 페이지 배치(저장한 것, 없으면 페이지의 처음 배치) + 머리(이름·설명·글쓰기 단추·글쓰기 게시판). 없는 페이지는 404.</li>
  *   <li>게시판 레이아웃({@code GET /api/boards/{slug}/layout}, {@link #boardLayout}): 그 테마의 게시판 레이아웃(저장한 것, 없으면 본문만) + 적용 화면. 본문 가젯은 {@code data: null}·{@code empty: false}.</li>
+ *   <li>광고 가젯({@code AD}·{@code AD_TEXT_LINE}): {@code data: null}·{@code empty: false} — 화면이 {@code GET /api/ads} 로 후보를 채운다(ad-contract 「공개 노출」).</li>
  *   <li>노출 기간·보는 사람(로그인 전용) 설정은 아직 없다 — {@code locked} 는 늘 false.</li>
  * </ul>
  */
@@ -223,8 +224,8 @@ public class HomeGadgetService {
         Object data;
         boolean empty;
         switch (g.type()) {
-            case HomeGadgetKinds.BOARD_BODY -> {
-                // 화면이 그 자리에 게시판 목록·글 보기를 그린다
+            case HomeGadgetKinds.BOARD_BODY, HomeGadgetKinds.AD, HomeGadgetKinds.AD_TEXT_LINE -> {
+                // 본문: 화면이 그 자리에 게시판 목록·글 보기를 그린다 · 광고: 화면이 GET /api/ads 로 채우고 비었는지도 화면이 정한다
                 data = null;
                 empty = false;
             }
