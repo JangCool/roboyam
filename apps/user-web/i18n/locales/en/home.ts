@@ -66,4 +66,7 @@ export default {
     editRemove: 'Remove {title}',
     editSettings: '{title} settings',
     editResize: 'Resize',
+    // Size hint on the edit badge — operator height (rows) vs rows the content needs (n = rows)
+    editTooSmall: 'Content gets cut if smaller — at least {n} rows',
+    editTooLarge: 'Can be {n} rows shorter',
 };
