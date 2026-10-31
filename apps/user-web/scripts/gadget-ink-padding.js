@@ -8,9 +8,9 @@
  * 표의 칸: 종류(data-gadget) · 제목 · 좌우 기준(카드 안 왼쪽 여백 px) · 위/아래/왼쪽/오른쪽(잉크 — 글자 근사) · 위/아래(원값 — 글자 줄 상자 그대로) · 벗어남(±2px 를 넘는 칸).
  *   - 위   = 카드 위 테두리 안쪽 → 보이는 첫 요소 윗선      아래 = 보이는 마지막 요소 아랫선 → 카드 아래 테두리 안쪽
  *   - 왼쪽·오른쪽 = 카드 옆 테두리 안쪽 → 가장 바깥 잉크(오른쪽은 글이 짧으면 크게 나온다 — 줄이 끝까지 차지 않을 뿐이라 벗어남 판정은 위·아래·왼쪽만)
- *   - 빈 상태(`[data-testid="home-gadget-empty"]` 가 있는 카드): 「몸통 위」 = 머리 줄 아래 끝(머리가 없으면 카드 위 + 기준) → 안내 잉크 윗선,
- *     「몸통 아래」 = 안내 잉크 밑선 → 카드 아래 − 기준. 둘이 ±2px 이면 통과. 몸통 아래가 0(±2)이면 칸 여유가 없는 최소 상태라 「최소」로 적는다
- *     (최소 상태는 카드 아래 보이는 여백 = 기준이 맞고, 머리 아래 → 안내 사이는 안내 블록의 위 안 여백 그대로다).
+ *   - 빈 상태·안내(`[data-grid-float]` — 공통 빈 상태 · 인기글 기간 빈 문구 · 잠김 안내, 정본 2026-10-31):
+ *     「안내 위」 = 안내 바로 위에 보이는 마지막 잉크 밑선(제목·기간 탭 칩 …, 없으면 카드 위 테두리) → 안내 잉크 윗선,
+ *     「안내 아래」 = 안내 잉크 밑선 → 카드 아래 테두리. 둘이 ±2px 이면 통과(최소 상태·칸 여유 있음 모두).
  *
  * 잉크 규칙(앱의 `app/composables/home/useGadgetInk.ts` 와 같다):
  *   - 글자: 텍스트 노드 Range 의 `getClientRects`(줄 상자). 원값은 그 상자 그대로, 잉크값은 em 상자(글자 크기)를 줄 상자 가운데에 두고 위 14% · 아래 10% 를 뺀 근사
@@ -41,8 +41,8 @@
         return ['top', 'right', 'bottom', 'left'].some((s) => num(cs.getPropertyValue(`border-${s}-width`)) > 0 && visibleColor(cs.getPropertyValue(`border-${s}-color`)));
     }
 
-    /** 카드 안 잉크의 끝 — ink(글자 근사) · raw(글자 줄 상자 그대로) */
-    function measure(card) {
+    /** 요소 안 잉크의 끝 — ink(글자 근사) · raw(글자 줄 상자 그대로). withSelf 면 그 요소 자신의 바탕·테두리도 잉크(카드는 빼고 잰다) */
+    function measure(card, withSelf) {
         const ink = { top: Infinity, bottom: -Infinity, left: Infinity, right: -Infinity };
         const raw = { top: Infinity, bottom: -Infinity };
         const add = (box, r) => {
@@ -80,8 +80,22 @@
                 }
             }
         };
-        visit(card, true);
+        visit(card, !withSelf);
         return { ink, raw };
+    }
+
+    /** 카드 안에서 target 바로 위에 보이는 마지막 잉크의 밑선 — 앞선 형제(조상의 앞선 형제 포함)의 잉크 중 가장 아래. 없으면 null */
+    function inkAbove(card, target) {
+        let bottom = null;
+        let node = target;
+        while (node && node !== card) {
+            for (let prev = node.previousElementSibling; prev; prev = prev.previousElementSibling) {
+                const ink = measure(prev, true).ink;
+                if (Number.isFinite(ink.bottom)) bottom = bottom === null ? ink.bottom : Math.max(bottom, ink.bottom);
+            }
+            node = node.parentElement;
+        }
+        return bottom;
     }
 
     function report() {
@@ -110,25 +124,24 @@
                 '위(원값)': Math.round(raw.top - inner.top),
                 '아래(원값)': Math.round(inner.bottom - raw.bottom),
             };
-            const empty = card.querySelector('[data-testid="home-gadget-empty"]');
+            const empty = Array.from(card.querySelectorAll('[data-grid-float]')).find((el) => getComputedStyle(el).display !== 'none');
             let emptyOff = false;
             if (empty) {
-                const e = measure(empty).ink;
-                const head = card.querySelector('[data-testid="home-gadget-header"]');
-                const bodyTop = head ? head.getBoundingClientRect().bottom : inner.top + base;
-                const up = Math.round(e.top - bodyTop);
-                const down = Math.round(inner.bottom - base - e.bottom);
-                row['빈 상태 몸통 위'] = up;
-                row['빈 상태 몸통 아래'] = down;
-                if (Math.abs(down) <= TOL) row['빈 상태'] = '최소(여유 없음)';
-                else if (Math.abs(up - down) <= TOL) row['빈 상태'] = '통과(가운데)';
+                const e = measure(empty, true).ink;
+                const above = inkAbove(card, empty);
+                const ref = above === null ? r.top : above;
+                const up = Math.round(e.top - ref);
+                const down = Math.round(r.bottom - e.bottom);
+                row['안내 위'] = up;
+                row['안내 아래'] = down;
+                if (Math.abs(up - down) <= TOL) row['빈 상태'] = '통과';
                 else {
-                    row['빈 상태'] = `✗ 위-아래 ${up - down}`;
+                    row['빈 상태'] = `✗ 위−아래 ${up - down}`;
                     emptyOff = true;
                 }
             }
-            // 빈 상태가 칸보다 작아 가운데에 띄운 카드는 아래 보이는 여백이 기준보다 크다(몸통 가운데 판정으로 본다)
-            const keys = empty && row['빈 상태'] !== '최소(여유 없음)' ? ['위', '왼쪽'] : ['위', '아래', '왼쪽'];
+            // 빈 상태·안내가 있는 카드는 아래 보이는 여백이 기준과 다를 수 있다(안내 위 = 안내 아래 판정으로 본다)
+            const keys = empty ? ['위', '왼쪽'] : ['위', '아래', '왼쪽'];
             const off = keys.filter((k) => Math.abs(row[k] - base) > TOL);
             if (emptyOff) off.push('빈 상태');
             row.벗어남 = off.length ? `✗ ${off.join('·')}` : '';

@@ -10,9 +10,10 @@ import type { Ref } from 'vue';
  *    `visibility:hidden`·`display:none`·투명(opacity 0)·크기 1px 이하(sr-only)는 뺀다.
  *  - 늘어나는 상자(`data-grid-fill` — 껍데기 본문, 바닥 조작 줄이 있는 가젯 본문)는 안으로 내려가 첫·마지막 자식의 여유를 더한다 — 칸이 커서 늘어난 높이(아래 빈 곳)는 세지 않는다
  *    (그래서 격자 높이 재기 `naturalHeight` 와 되먹임이 없다: 최소 상태에서 카드 = 내용, 걸어 둔 여백은 자식 자신의 여백을 빼고 계산해 다시 재도 같은 값).
- *  - 빈 상태 안내(`data-grid-float`): 칸이 내용보다 크면(같은 줄 맞추기 · 운영자 h) 남는 높이를 그 덩어리의 위·아래 바깥 여백으로 나눠 걸어 몸통(머리 아래 끝 ~ 카드 아래 여백선) 세로 가운데에 둔다 —
- *    머리 아래 → 안내 윗선 = 안내 밑선 → 카드 아래 여백선. 머리가 없는 카드는 카드 위 여백선부터. 최소 상태(남는 높이 0)에서는 걸지 않는다(카드 위·아래 보이는 여백 = 좌우 여백 그대로).
- *    격자 높이 재기와 아래 맞추기는 이 여백을 세지 않는다(남는 공간이라 — 세면 상자가 줄어들지 못한다).
+ *  - 빈 상태 안내(`data-grid-float` — 공통 빈 상태 · 인기글 기간 빈 문구 · 잠김 안내, 정본 2026-10-31): 「안내 바로 위에 보이는 마지막 잉크 밑선(머리 제목·기간 탭 칩 …, 없으면 카드 위 테두리)
+ *    → 안내 윗선」(A) = 「안내 밑선 → 카드 아래 테두리」(B). 최소 상태에서는 카드 아래 여백(세는 여백 — 마지막 자식 아래 바깥 여백)을 B = T = max(A0, 좌우 여백) 이 되게 잡아
+ *    빈 상태 카드의 최소 높이를 정하고(A0 = 띄움 여백 없을 때의 A), 칸에 여유가 있으면 그 여유를 안내 위·아래 바깥 여백으로 나눠 A = B 를 지킨다.
+ *    격자 높이 재기와 아래 맞추기는 띄움 여백을 세지 않는다(남는 공간이라 — 세면 상자가 줄어들지 못한다).
  *  - 카드 모양이 없는 가젯(평평 `FLAT`)은 하지 않는다(보이는 상자가 없다). 높이·DOM·글꼴이 바뀌면(ResizeObserver — 카드와 늘어나는 상자 안 요소 · MutationObserver · 글꼴 로드) 다음 그리기에 다시 맞춘다.
  * 브라우저 콘솔 확인용 스크립트: `apps/user-web/scripts/gadget-ink-padding.js`(같은 잉크 규칙).
  * ⚠ setup 에서 부른다.
@@ -66,7 +67,30 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
         const lead = leading(first);
         const trail = trailing(last);
         const top = lead === null ? null : Math.round(padX - num(cs.paddingTop) - lead);
-        const bottom = trail === null ? null : Math.round(padX - num(cs.paddingBottom) - trail);
+
+        // 빈 상태 안내(`data-grid-float`, 마지막 자식 안 — 카드에 하나) — 「안내 바로 위 마지막 잉크 밑선 → 안내 윗선」(A) = 「안내 밑선 → 카드 아래 테두리」(B)
+        const floats = Array.from(el.querySelectorAll<HTMLElement>('[data-grid-float]')).filter((f) => getComputedStyle(f).display !== 'none' && last.contains(f));
+        for (const f of floated) {
+            if (floats[0] === f) continue;
+            f.style.marginTop = '';
+            f.style.marginBottom = '';
+        }
+        const float = floats[0] ?? null;
+        floated = float ? [float] : [];
+        // 최소 상태의 기준 T = max(A0, 좌우 여백) — A0 = 띄움 여백이 없을 때의 A. 카드 아래 여백(세는 여백)을 B = T 가 되게 잡아 최소 높이도 이 규칙으로 정해진다
+        let a0 = 0;
+        let target = padX;
+        if (float) {
+            const ink = inkOf(float);
+            if (ink) {
+                const above = inkAbove(el, float);
+                const ref = above ?? el.getBoundingClientRect().top;
+                a0 = ink.top - ref - num(float.style.marginTop);
+                target = Math.max(a0, padX);
+            }
+        }
+        const bottom =
+            trail === null ? null : float ? Math.round(target - num(cs.paddingBottom) - num(cs.borderBottomWidth) - trail) : Math.round(padX - num(cs.paddingBottom) - trail);
         // 지난번에 건 자식 중 이번에 첫·마지막이 아닌 것은 되돌린다
         for (const m of marked) {
             if (m !== first) m.style.marginTop = '';
@@ -76,27 +100,16 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
         setPx(first, 'marginTop', top);
         setPx(last, 'marginBottom', bottom);
 
-        // 빈 상태 안내 — 남는 높이를 위·아래로 나눠 몸통 가운데에(머리 있는 카드: 머리 아래 → 안내 윗선 = 안내 밑선 → 아래 여백선)
-        const floats = Array.from(el.querySelectorAll<HTMLElement>('[data-grid-float]')).filter((f) => getComputedStyle(f).display !== 'none');
-        for (const f of floated) {
-            if (floats.includes(f)) continue;
-            f.style.marginTop = '';
-            f.style.marginBottom = '';
-        }
-        floated = floats;
-        if (floats.length) {
+        // 칸에 여유(E = 카드 높이 − 본래 높이)가 있으면 띄움 여백으로 나눠 A = B — 위 = (E + T − A0)/2, 아래 = 나머지(격자 높이 재기는 이 여백을 세지 않는다 — 되먹임 없음)
+        if (float) {
             const extra = el.getBoundingClientRect().height - naturalHeight(el);
-            for (const f of floats) {
-                if (extra <= 0.5) {
-                    setPx(f, 'marginTop', null);
-                    setPx(f, 'marginBottom', null);
-                    continue;
-                }
-                // 머리가 있으면 안내의 위 여유(안 여백 + 아이콘까지)는 머리 아래에 그대로 보이므로 그만큼 위를 덜 준다. 머리가 없으면 위 여유는 첫 자식 여백이 이미 맞췄다
-                const lead = first.contains(f) ? 0 : (leading(f) ?? 0);
-                const mt = extra >= lead ? Math.round((extra - lead) / 2) : 0;
-                setPx(f, 'marginTop', mt);
-                setPx(f, 'marginBottom', Math.max(0, Math.round(extra - mt)));
+            if (extra <= 0.5) {
+                setPx(float, 'marginTop', null);
+                setPx(float, 'marginBottom', null);
+            } else {
+                const mt = Math.min(extra, Math.max(0, Math.round((extra + target - a0) / 2)));
+                setPx(float, 'marginTop', mt);
+                setPx(float, 'marginBottom', Math.max(0, Math.round(extra - mt)));
             }
         }
         watchTree(el);
@@ -210,6 +223,22 @@ function naturalHeight(el: Element): number {
         count += 1;
     }
     return sum + (count > 1 ? (count - 1) * num(cs.rowGap) : 0);
+}
+
+/** 카드 안에서 `target` 바로 위에 보이는 마지막 잉크의 밑선(뷰포트 px) — 앞선 형제들(조상의 앞선 형제 포함)의 잉크 중 가장 아래. 없으면 null(머리 없는 카드의 첫 안내) */
+function inkAbove(card: Element, target: Element): number | null {
+    let bottom: number | null = null;
+    let node: Element | null = target;
+    while (node && node !== card) {
+        let prev = node.previousElementSibling;
+        while (prev) {
+            const ink = inkOf(prev);
+            if (ink) bottom = bottom === null ? ink.bottom : Math.max(bottom, ink.bottom);
+            prev = prev.previousElementSibling;
+        }
+        node = node.parentElement;
+    }
+    return bottom;
 }
 
 /** 색이 보이는가 — 투명(알파 0)이 아니면 */

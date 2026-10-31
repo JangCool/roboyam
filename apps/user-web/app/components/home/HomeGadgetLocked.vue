@@ -4,7 +4,8 @@
         종류 컴포넌트는 마운트하지 않는다(`HomeGadgetRenderer`). 로그인 뒤 돌아올 곳은 지금 페이지다(`UtilRedirect.toLogin`).
     -->
     <HomeGadgetFrame :gadget="gadget" :empty="false">
-        <div class="flex min-h-24 flex-col items-center justify-center gap-2 px-3 py-6 text-center" data-testid="home-gadget-locked">
+        <!-- 안내 덩어리 — 빈 상태 안내와 같은 규칙(`data-grid-float` — 제목 밑선 → 안내 = 안내 → 카드 아래 테두리, `useGadgetInk`) -->
+        <div class="flex min-h-24 flex-col items-center justify-center gap-2 px-3 py-6 text-center" data-grid-float data-testid="home-gadget-locked">
             <i class="pi pi-lock text-xl text-muted-color" aria-hidden="true" />
             <p class="m-0 text-sm text-muted-color">{{ t('home.lockedText') }}</p>
             <Button as="router-link" :to="loginTo" :label="t('home.lockedLogin')" size="small" />

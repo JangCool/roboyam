@@ -23,7 +23,8 @@
                 {{ UtilFeedMessages.periodLabel(t, key) }}
             </button>
         </div>
-        <p v-if="periods && items.length === 0" :id="`${uid}-panel`" role="tabpanel" class="m-0 py-6 text-center text-sm text-muted-color">{{ t('home.periodEmpty') }}</p>
+        <!-- 이 기간 글 없음 — 빈 상태 안내와 같은 규칙(`data-grid-float` — 탭 칩 밑선 → 안내 = 안내 → 카드 아래 테두리, `useGadgetInk`) -->
+        <p v-if="periods && items.length === 0" :id="`${uid}-panel`" role="tabpanel" class="m-0 py-6 text-center text-sm text-muted-color" data-grid-float data-testid="home-period-empty">{{ t('home.periodEmpty') }}</p>
         <ul
             v-else
             :id="periods ? `${uid}-panel` : undefined"
@@ -41,7 +42,7 @@
                 :cfg="cfg"
                 :rank="ranked ? i + 1 : null"
                 :hero="hero && i === 0"
-                :class="hero && i === 0 ? 'col-span-full' : ''"
+                :class="[hero && i === 0 ? 'col-span-full' : '', i === leftColumnEnd ? '@min-[28rem]:border-b-0!' : '']"
             />
         </ul>
     </HomeGadgetFrame>
@@ -83,5 +84,10 @@ const listClass = computed(() => {
     if (cfg.value.columns !== 2 || stacked.value) return '';
     return hero.value ? 'grid @min-[28rem]:grid-cols-2 @min-[28rem]:gap-x-6' : 'gadget-cols2';
 });
+/**
+ * 세로로 먼저 채우는 두 열(`gadget-cols2`)에서 왼쪽 열의 마지막 줄 — 구분선을 그리지 않는다(`last:border-b-0` 은 DOM 의 마지막 줄 = 오른쪽 열 끝에만 걸려,
+ * 왼쪽 열 끝에만 선이 남아 「마지막 보이는 잉크」가 그 선이 되고 두 열의 끝이 달라 보였다). 두 열 격자는 가젯 내용 칸 28rem 이상일 때만이라 같은 조건(`@min-[28rem]`)에서만 뺀다. 두 열이 아니면 -1
+ */
+const leftColumnEnd = computed(() => (cfg.value.columns === 2 && !hero.value && !stacked.value && items.value.length > 1 ? Math.ceil(items.value.length / 2) - 1 : -1));
 const listStyle = computed(() => (cfg.value.columns === 2 && !hero.value && !stacked.value ? { '--gx-rows': String(Math.ceil(items.value.length / 2)) } : undefined));
 </script>
