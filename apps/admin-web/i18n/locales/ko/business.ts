@@ -1,10 +1,19 @@
 /**
- * 사업자 심사(`/businesses`) 문구 — 목업 단계(docs/plans/biz-ad-hotdeal/01-business.md 7-1, 00-overview.md ★-4).
+ * 사업자 화면 문구 — 인증 심사(`/business-reviews`) · 사업자 목록(`/businesses`)(04-ia-review 5절, 01-business.md 7-1, 00-overview.md ★-4).
  * `en/business.ts` 와 같은 키, 같은 차례.
  */
 export default {
-    title: '사업자 심사',
-    subtitle: '사업자 신원 신청을 국세청 상태조회와 사업자등록증으로 확인하고 승인·반려·정지해요.',
+    title: '사업자 목록',
+    subtitle: '승인된 사업자를 정지하거나 정지를 풀고, 필요할 때만 평문·등록증을 열람해요.',
+    reviewTitle: '사업자 인증 심사',
+    reviewSubtitle: '사업자 신원 신청을 국세청 상태조회와 사업자등록증으로 확인하고 승인·반려해요.',
+    reviewQueue: '심사 대기',
+    reviewOrder: '오래 기다린 신청이 위에 있어요.',
+    reReview: '재심사',
+    pendingElsewhere: '심사 중인 신청은 인증 심사 화면에서 처리해요.',
+    goReview: '인증 심사에서 처리',
+    doneElsewhere: '이미 심사가 끝난 사업자예요. 정지·정지 해제는 사업자 목록에서 해요.',
+    goDirectory: '사업자 목록에서 보기',
     search: '사업자 찾기',
     searchPlaceholder: '사업자명 · 등록번호 · 신청자',
     serviceLabel: '서비스',
@@ -84,4 +93,17 @@ export default {
     suspendCode: { POLICY_VIOLATION: '정책 위반', FRAUD: '사기·허위', NTS_CLOSED: '휴·폐업', OTHER: '기타' },
     suspended: '정지했어요.',
     suspendedNote: '정지({code}, {at})',
+    actUnsuspend: '정지 해제',
+    unsuspendTitle: '{name} 정지 해제',
+    unsuspendBody: '정지를 풀면 서비스 이용 권한이 다시 켜지고 사업자에게 알림이 가요. 정지로 내려간 진행 중이던 건을 어떻게 할지 고르세요.',
+    restoreLabel: '정지로 내려간 진행 중이던 건',
+    restore: { EXTEND_RESTORE: '남은 기간을 늘려 되돌리기', KEEP_REFUND: '환불 심사는 그대로 두기' },
+    restoreHelp: {
+        EXTEND_RESTORE: '내려가 있던 시간만큼 끝을 늘려 다시 노출해요. 자리가 꽉 차면 늘리지 않고 되돌려요. 정지로 생긴 환불 요청은 거절로 닫혀요.',
+        KEEP_REFUND: '환불 심사를 기다리는 건은 그대로 두고, 환불 대기가 없는 내린 건만 기간 연장 없이 되돌려요.',
+    },
+    unsuspendNote: '메모(선택)',
+    unsuspendNoteHint: '{max}자까지',
+    unsuspendNoteTooLong: '메모는 {max}자까지 쓸 수 있어요.',
+    unsuspended: '정지를 해제했어요.',
 };

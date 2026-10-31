@@ -26,6 +26,7 @@ import com.community.zconfiguration.id.SnowflakeIdGenerator;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.beans.factory.ObjectProvider;
@@ -91,9 +92,13 @@ public class BizApplicationOps {
         store.insertEvent(ids.nextId(), applicationId, action, actorType, actorId, note, now);
     }
 
-    /** 감사 — 운영자가 한 일(업무 트랜잭션 안) */
-    public void audit(long operatorId, String ip, String action, long applicationId, Map<String, Object> detail) {
-        audit.record(new AuditEvent(AuditActorType.OPERATOR, operatorId, action, AuditResult.SUCCESS, AUDIT_TARGET, Long.toString(applicationId), ip, detail));
+    /** 감사 — 운영자가 한 일(업무 트랜잭션 안). detail 앞에 건의 도메인({@code AD}·{@code HOTDEAL})과 출처({@code BUSINESS}·{@code OPERATOR})를 싣는다(04-ia-review S6) */
+    public void audit(long operatorId, String ip, String action, AppRow app, Map<String, Object> detail) {
+        Map<String, Object> full = new LinkedHashMap<>();
+        full.put("domain", app.kind().domain().name());
+        full.put("source", app.source().name());
+        full.putAll(detail);
+        audit.record(new AuditEvent(AuditActorType.OPERATOR, operatorId, action, AuditResult.SUCCESS, AUDIT_TARGET, Long.toString(app.id()), ip, full));
     }
 
     /**

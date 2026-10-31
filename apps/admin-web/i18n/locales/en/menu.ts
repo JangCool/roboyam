@@ -91,13 +91,17 @@ export default {
     groupRequests: 'Creation requests',
     groupCategories: 'Club categories',
     groupSettings: 'Club settings',
-    // Business section (mockup) — business review · application review
+    // Business section — verification review · business list
     business: 'Businesses',
-    businesses: 'Business review',
-    bizApplications: 'Application review',
-    // Ads section (mockup) — schedule
+    businessReviews: 'Verification review',
+    businesses: 'Business list',
+    // Ads section — ad review · schedule
     ad: 'Ads',
+    adReviews: 'Ad review',
     ads: 'Ad schedule',
+    // Hot deal section — hot deal review
+    hotdeal: 'Hot deals',
+    hotdealReviews: 'Hot deal review',
     operatorsAndPermissions: 'Operators and permissions',
     operators: 'Operators',
     roles: 'Roles',

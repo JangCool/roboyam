@@ -58,7 +58,7 @@
 ```mermaid
 stateDiagram-v2
     [*] --> SUBMITTED : 사업자 신청(심사 대기)
-    [*] --> AWAITING_DEPOSIT : 운영자 직접 등록(수동)
+    [*] --> SUBMITTED : 운영자 직접 등록(source=OPERATOR — 같은 심사 큐, ★-7)
     SUBMITTED --> REJECTED : 반려(사유 코드+글) — 결제 전이라 환불 없음
     SUBMITTED --> CANCELED : 사업자 취소
     SUBMITTED --> AWAITING_PAYMENT : 승인·온라인(금액·기한 확정, 자리 확보)
@@ -116,6 +116,15 @@ stateDiagram-v2
 - 결제 기한 72시간·입금 기한 7일·계약서 10MB 는 설정값 가정.
 - 결제는 목업 단추(실제 PG 호출 없음).
 
+### ★-7. 2026-10-31 결정 — 관리자 IA 도메인별 · 수동 등록도 심사 (정본 [04-ia-review.md](04-ia-review.md))
+- **메뉴·화면·권한·알림은 업무(도메인)별 — 사업자 / 광고 / 핫딜, 서버 엔진은 `biz_applications` 하나 유지**(04 안 C). 종류 → 도메인: `AD_BANNER`·`AD_TEXT_LINE` = 광고, `HOTDEAL_POST`·`HOTDEAL_PLACEMENT` = 핫딜(서버 `BizDomain`).
+- 관리자 메뉴: 사업자(인증 심사 `/business-reviews` · 사업자 목록 `/businesses`) → 광고(광고 심사 `/ad-reviews` · 광고 일정표 `/ads`) → 핫딜(핫딜 심사 `/hotdeal-reviews`). 통합 「신청 심사」(`/biz-applications`)는 **없앤다** — 1인 운영의 한눈 보기는 대시보드 「처리할 일」 카드(광고 심사·핫딜 심사·입금 확인 대기·입금 기한 지남·환불 심사·사업자 인증 대기, 권한 있는 카드만).
+- 권한: 광고 조회 `ad.read`·처리 `ad.manage`, 핫딜 조회 `hotdeal.read`·처리 `hotdeal.manage`(심사 = manage 관례), 신청 건 환불은 1차에 `deal-order.refund` 하나(Q2). 서버는 입구 `anyOf` + 건의 도메인으로 다시 검사(아니면 403). `ad.restore` 추가.
+- 운영자 알림 도메인별: `AD_REVIEW_PENDING`·`HOTDEAL_REVIEW_PENDING`·`AD_REFUND_REQUESTED`·`HOTDEAL_REFUND_REQUESTED`. 사업자 인증 알림 링크는 `/business-reviews`.
+- **운영자 수동 등록도 심사**: `source=OPERATOR` 건을 `SUBMITTED` 로 만들어 같은 광고 심사 큐에서 승인(결제 방식 `MANUAL` 고정) → 계약서 사본 + 입금 확인 → [예약 확정]. 자기 승인(등록자 = 승인자)은 설정 `roboyam.biz.self-approval`(**기본 허용** — 경고·메모 필수·감사 `selfApproved`, `deny` 면 409 `BIZ_SELF_APPROVAL_DENIED`). 등록 실수는 `OPERATOR_CANCEL`(운영자 건 `SUBMITTED → CANCELED`). 계약서 올리기는 운영자 건 `SUBMITTED` 부터 허용. **구현은 `/ads` 백엔드 세션**(광고주 표 `ad_advertisers` 와 함께).
+- 핫딜 노출 자리(홈 상단·말머리 상단)의 달력·한도·긴급 내림은 **광고 일정표의 탭**(Q3) — 핫딜 담당에는 `ad.read` 를 같이 줘 조회만.
+- 사업자 화면 두 메뉴(Q4): 인증 심사 = `PENDING`(처음·재신청·재심사) 큐, 사업자 목록 = 승인·정지·탈퇴·반려 운영 + **정지 해제 단추**.
+
 ---
 
 ## 1. 영역별 핵심 보완점 (상세는 01·02·03)
@@ -146,7 +155,7 @@ stateDiagram-v2
 | X10 | 열람 기록 | 사업자 평문 열람(사유 없음) · 광고주 연락처 열람 | 로보얌 배송지 열람 모델(사유·운영자·IP·자동 가림)로 **한 표**(`sensitive_views(kind, target, reason, operator, ip)`) 또는 같은 모양 두 표 | 사업자 |
 | X11 | 알림 | 사업자 `BUSINESS_REVIEWED` 하나 + 결과 payload, `BUSINESS_AD`·`BUSINESS_ORDER`·`BUSINESS_PLACEMENT` | 로보얌 `MemberEvent` 카탈로그에 이벤트별 등록(계정 알림 = 끌 수 없음). 운영자 알림 = 사업자 신청·서비스 신청·재심사·광고 신청·환불 필요 | 각 영역 |
 | X12 | 배치 | api 앱(커뮤니티) | 로보얌 admin `BatchCatalog`: 입점권 만료·임박, 노출/광고 임박, 핫딜 자동 종료, 결제 전 주문 만료(이미 payment 에 있으면 재사용), 반려 신청 파기 | 각 영역 |
-| X13 | 메뉴·권한 | 메뉴 `BUSINESSES`·`ADS`·`HOTDEALS`·`DEAL_ORDERS` | 이미 예약된 권한을 켠다: `business.read/manage`, `hotdeal.read/manage/domain.manage`, `deal-order.read/manage/settings/refund`, `ad.read/manage/settings/takedown`, `promo.manage`(`Permission.java:93-126`). 추가: `business.reveal`·`business.unsuspend`·`ad.restore`·`ad.contact.reveal`(SENSITIVE). 사이드바 묶음 「사업자」·「광고」 + 콘텐츠 아래 「핫딜」 | 각 영역 |
+| X13 | 메뉴·권한 | 메뉴 `BUSINESSES`·`ADS`·`HOTDEALS`·`DEAL_ORDERS` | 이미 예약된 권한을 켠다: `business.read/manage`, `hotdeal.read/manage/domain.manage`, `deal-order.read/manage/settings/refund`, `ad.read/manage/settings/takedown`, `promo.manage`(`Permission.java:93-126`). 추가: `business.reveal`·`business.unsuspend`·`ad.restore`·`ad.contact.reveal`(SENSITIVE). ~~사이드바 묶음 「사업자」·「광고」 + 콘텐츠 아래 「핫딜」~~ → **★-7(2026-10-31)**: 사이드바 묶음 「사업자」(인증 심사·사업자 목록) → 「광고」(광고 심사·광고 일정표) → 「핫딜」(핫딜 심사 + 후속 핫딜 글 등), 통합 「신청 심사」 없음 | 각 영역 |
 
 ---
 
@@ -248,11 +257,11 @@ flowchart LR
 ### 화면 지도
 | 앱 | 메뉴 | 화면 | 단계 | 상세 |
 |---|---|---|---|---|
-| admin | 사업자 | 사업자 심사 목록 + 상세 Drawer · 대행 등록 Dialog · 서비스 이용 규칙 · 대시보드 칸 | 1차(대행·규칙 2차) | 01 §7-1 |
+| admin | 대시보드 | 「처리할 일」 카드(광고 심사·핫딜 심사·입금 확인 대기·입금 기한 지남·환불 심사·사업자 인증 대기 — ★-7) | 1차 | 04 §1-2 |
+| admin | 사업자 | 인증 심사 `/business-reviews`(심사 중·재심사) · 사업자 목록 `/businesses`(승인·정지·탈퇴·반려 + 정지 해제) + 상세 Drawer · 대행 등록 Dialog · 서비스 이용 규칙 | 1차(대행·규칙 2차) | 01 §7-1, 04 §5 |
 | admin | 사업자 | 사업자 상품 · 사업자 주문(환불·세금계산서) | 2차 | 03 §7-1 |
-| admin | 광고 | 일정표(달력+광고 건 목록+Drawer) · 광고주 · 유형 설정 · 자리 | 1차 | 02 §7-1~7-5 |
-| admin | 광고 | 신청 심사(Splitter 3단) · 노출 현황(핫딜 유형 탭) | 2차 | 02 §7-4, 03 §7-1 |
-| admin | 콘텐츠 › 핫딜 | 핫딜 글 · 링크 규칙 · 의심 후보 · 핫딜 설정 | 1차 | 03 §7-1 |
+| admin | 광고 | 광고 심사 `/ad-reviews`(Splitter 3단 — 사업자 신청 + 운영자 등록) · 일정표 `/ads`(달력+광고 건 목록+Drawer, 핫딜 노출 자리 탭) · 광고주 · 유형 설정 · 자리 | 1차 | 02 §7-1~7-5, 04 §1-2 |
+| admin | 핫딜 | 핫딜 심사 `/hotdeal-reviews` · (후속) 핫딜 글 · 링크 규칙 · 의심 후보 · 핫딜 설정 | 1차 | 03 §7-1, 04 §4 |
 | user | 게시판(DEAL) | 핫딜 목록 · 쓰기(링크 붙여넣기 → 자동 채움) · 상세 딜 카드 | 1차 | 03 §7-2 |
 | user | 마이페이지 › 사업자 센터 | 홈(상태별) · 신청/수정 Stepper · 서비스 신청 시트 | 1차 | 01 §7-2 |
 | user | 사업자 센터 | 내 핫딜(노출 연결 달력) · 상품 결제 · 주문·환불 요청 · 광고 신청 Stepper · 내 광고 | 2차 | 02 §7-6, 03 §7-2 |

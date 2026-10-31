@@ -42,7 +42,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * 운영자 쪽 신청 건 처리(admin-web {@code /biz-applications}) — 승인·반려·수동 전환·계약서 사본·입금 확인·예약 확정·입금 기한·취소·환불 승인·거절·송금 완료.
+ * 운영자 쪽 신청 건 처리(admin-web {@code /ad-reviews}·{@code /hotdeal-reviews}, API {@code /api/admin/biz-applications}) — 승인·반려·수동 전환·계약서 사본·입금 확인·예약 확정·입금 기한·취소·환불 승인·거절·송금 완료.
  * 처리는 신청 건 행을 잠그고 상태를 다시 본다 — 이미 바뀌었으면 409 {@code BIZ_APPLICATION_STATE_CHANGED}. 감사·처리 기록·알림은 같은 트랜잭션. 권한은 관리자 앱 컨트롤러가 본다.
  */
 @Service
@@ -153,9 +153,9 @@ public class BizApplicationReviewService {
             detail.put("startAt", period.start().toString());
             detail.put("endAt", period.end().toString());
             detail.put("deadlineAt", deadline.toString());
-            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_APPROVE, id, detail);
+            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_APPROVE, app, detail);
             if (adjusted) {
-                ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_PRICE_ADJUST, id,
+                ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_PRICE_ADJUST, app,
                         Map.of("quoteSupply", quote.supply(), "supply", supply, "reason", adjust));
             }
             AppRow after = store.find(id).orElseThrow();
@@ -178,7 +178,7 @@ public class BizApplicationReviewService {
                 throw BizApplicationException.stateChanged();
             }
             ops.event(id, BizEventAction.REJECTED, BizActorType.OPERATOR, actor.operatorId(), code.name(), now);
-            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_REJECT, id, Map.of("code", code.name(), "text", text));
+            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_REJECT, app, Map.of("code", code.name(), "text", text));
             ops.notices().member(app, BizApplicationNotices.Kind.REJECTED, 0, text);
         });
     }
@@ -200,7 +200,7 @@ public class BizApplicationReviewService {
                 throw BizApplicationException.stateChanged();
             }
             ops.event(id, BizEventAction.MANUAL_SWITCH, BizActorType.OPERATOR, actor.operatorId(), reason, now);
-            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_MANUAL_SWITCH, id, Map.of("deadlineAt", deadline.toString(), "reason", reason));
+            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_MANUAL_SWITCH, app, Map.of("deadlineAt", deadline.toString(), "reason", reason));
             ops.notices().member(app, BizApplicationNotices.Kind.MANUAL, app.approved().total(), ServiceTime.dateOf(deadline).toString());
         });
     }
@@ -258,19 +258,19 @@ public class BizApplicationReviewService {
             if (replaceId != null) {
                 detail.put("replaced", Long.toString(replaceId));
             }
-            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_CONTRACT_UPLOAD, id, detail);
+            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_CONTRACT_UPLOAD, app, detail);
         });
     }
 
     /** 계약서 사본 열람 — 열 때마다 처리 기록 + 감사(어느 상태든) */
     public BizContractFile viewContract(BizOperator actor, long id, long fileId) {
         return tx.execute(status -> {
-            store.find(id).orElseThrow(BizApplicationException::notFound);
+            AppRow app = store.find(id).orElseThrow(BizApplicationException::notFound);
             ContractRow row = contracts.find(id, fileId).orElseThrow(BizApplicationException::contractNotFound);
             byte[] plain = cipher.decryptBytes(CONTRACT, contracts.content(id, fileId).orElseThrow(BizApplicationException::contractNotFound));
             Instant now = ops.now();
             ops.event(id, BizEventAction.CONTRACT_VIEWED, BizActorType.OPERATOR, actor.operatorId(), row.fileName(), now);
-            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_CONTRACT_VIEW, id, Map.of("fileId", Long.toString(fileId), "fileName", row.fileName()));
+            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_CONTRACT_VIEW, app, Map.of("fileId", Long.toString(fileId), "fileName", row.fileName()));
             return new BizContractFile("data:" + row.contentType() + ";base64," + Base64.getEncoder().encodeToString(plain), row.contentType(), row.fileName());
         });
     }
@@ -314,7 +314,7 @@ public class BizApplicationReviewService {
             if (differs) {
                 detail.put("mismatchReason", mismatch);
             }
-            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_DEPOSIT_CONFIRM, id, detail);
+            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_DEPOSIT_CONFIRM, app, detail);
         });
     }
 
@@ -332,7 +332,7 @@ public class BizApplicationReviewService {
             store.setContractCount(id, active, now);
             ops.move(app, Action.CONFIRM, now);
             ops.event(id, BizEventAction.SCHEDULED, BizActorType.OPERATOR, actor.operatorId(), null, now);
-            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_CONFIRM, id, Map.of("contracts", active, "deposit", deposit.amount()));
+            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_CONFIRM, app, Map.of("contracts", active, "deposit", deposit.amount()));
             ops.notices().member(app, BizApplicationNotices.Kind.CONFIRMED, deposit.amount(), null);
             ops.scheduled(app);
         });
@@ -356,7 +356,7 @@ public class BizApplicationReviewService {
             Map<String, Object> detail = new LinkedHashMap<>();
             detail.put("from", app.depositDeadlineAt() == null ? null : app.depositDeadlineAt().toString());
             detail.put("to", deadline.toString());
-            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_DEPOSIT_DEADLINE, id, detail);
+            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_DEPOSIT_DEADLINE, app, detail);
         });
     }
 
@@ -382,7 +382,7 @@ public class BizApplicationReviewService {
                 refunded = app.status() == BizApplicationStatus.AWAITING_DEPOSIT ? store.deposit(id).map(DepositRow::amount).orElse(0L) : 0;
                 ops.cancelBeforePayment(app, Action.OPERATOR_CANCEL, BizActorType.OPERATOR, actor.operatorId(), reason, now);
             }
-            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_CANCEL, id, Map.of("from", app.status().name(), "reason", reason, "refund", refunded));
+            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_CANCEL, app, Map.of("from", app.status().name(), "reason", reason, "refund", refunded));
             ops.notices().member(app, BizApplicationNotices.Kind.CANCELED, refunded, reason);
         });
     }
@@ -418,7 +418,7 @@ public class BizApplicationReviewService {
                 ops.requestPgCancel(app, open.id(), amount, actor.operatorId());
             }
             ops.event(id, BizEventAction.REFUND_APPROVED, BizActorType.OPERATOR, actor.operatorId(), String.valueOf(amount), now);
-            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_REFUND_APPROVE, id,
+            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_REFUND_APPROVE, app,
                     Map.of("refundId", Long.toString(open.id()), "amount", amount, "proposed", open.proposedAmount(), "reason", reason));
             ops.notices().member(app, BizApplicationNotices.Kind.REFUND_APPROVED, amount, null);
             ops.closedAfterSchedule(app);
@@ -438,7 +438,7 @@ public class BizApplicationReviewService {
                 throw BizApplicationException.stateChanged();
             }
             ops.event(id, BizEventAction.REFUND_DENIED, BizActorType.OPERATOR, actor.operatorId(), reason, now);
-            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_REFUND_DENY, id, Map.of("refundId", Long.toString(open.id()), "reason", reason));
+            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_REFUND_DENY, app, Map.of("refundId", Long.toString(open.id()), "reason", reason));
             ops.notices().member(app, BizApplicationNotices.Kind.REFUND_DENIED, 0, reason);
         });
     }
@@ -464,7 +464,7 @@ public class BizApplicationReviewService {
             if (note != null) {
                 detail.put("note", note);
             }
-            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_REFUND_TRANSFER, id, detail);
+            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_REFUND_TRANSFER, app, detail);
             ops.notices().member(app, BizApplicationNotices.Kind.REFUNDED, amount, null);
         });
     }

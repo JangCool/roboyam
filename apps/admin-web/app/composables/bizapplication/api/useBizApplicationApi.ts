@@ -13,8 +13,9 @@ import type {
 
 /**
  * 사업자 신청 건(광고·핫딜) 심사 API(관리자) — 서버 주소(`/api/admin/biz-applications/…`)가 있는 **유일한 곳**이다. 상태는 없다.
- * 계약 `docs/features/biz-application-contract.md`. 권한: 조회 `business.read`, 심사·결제 처리 `ad.manage`, 환불 승인·거절·송금 `deal-order.refund`. 처리 응답은 모두 처리 뒤 상세.
- *  - `GET  /api/admin/biz-applications?queue=&kind=&q=` → `BizApplicationList`(큐별 건수 포함)
+ * 계약 `docs/features/biz-application-contract.md`(04-ia-review). 권한은 건의 도메인으로 가른다: 조회 `ad.read`·`hotdeal.read`, 심사·결제 처리 `ad.manage`·`hotdeal.manage`,
+ * 환불 승인·거절·송금 `deal-order.refund`. 건의 도메인 권한이 없으면 403. 처리 응답은 모두 처리 뒤 상세.
+ *  - `GET  /api/admin/biz-applications?domain=AD|HOTDEAL&queue=&kind=&q=` → `BizApplicationList`(큐별 건수도 그 도메인 안에서). `domain` 필수(400 `fields.domain`), 다른 도메인 kind 400 `fields.kind`
  *  - `GET  /api/admin/biz-applications/{id}` → `BizApplicationDetail`
  *  - `GET  /api/admin/biz-applications/{id}/availability?startAt=&endAt=` → `BizAvailability`(요금표 계산 + 남은 자리, 자기 제외)
  *  - `POST …/{id}/approve` `{ method, supply, adjustReason?, deadlineAt, period }` — 시작이 지난 기간 400 `fields.period`(F6), 조정 사유 없음 400 `fields.adjustReason`,

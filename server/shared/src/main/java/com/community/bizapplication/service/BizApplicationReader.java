@@ -94,8 +94,14 @@ public class BizApplicationReader {
         return store.latestCreatives(ids);
     }
 
-    public List<AppRow> forAdmin(com.community.bizapplication.entity.BizApplicationKind kind, String q) {
-        return store.forAdmin(kind, q);
+    /** 관리자 큐의 재료 — 그 도메인의 건만 */
+    public List<AppRow> forAdmin(com.community.bizapplication.entity.BizDomain domain, com.community.bizapplication.entity.BizApplicationKind kind, String q) {
+        return store.forAdmin(domain, kind, q);
+    }
+
+    /** 건 하나(없으면 404) — 처리 전에 도메인 권한을 가를 때 */
+    public AppRow app(long id) {
+        return store.find(id).orElseThrow(BizApplicationException::notFound);
     }
 
     public List<AppRow> byUser(long userId) {

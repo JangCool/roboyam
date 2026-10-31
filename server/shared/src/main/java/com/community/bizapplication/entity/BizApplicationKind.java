@@ -23,4 +23,9 @@ public enum BizApplicationKind {
     public boolean ad() {
         return service == BusinessServiceKind.AD;
     }
+
+    /** 관리자 메뉴·권한·알림을 가르는 도메인(광고 → AD, 핫딜 → HOTDEAL) */
+    public BizDomain domain() {
+        return ad() ? BizDomain.AD : BizDomain.HOTDEAL;
+    }
 }

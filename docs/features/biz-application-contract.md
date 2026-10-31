@@ -2,11 +2,11 @@
 
 **의도**: 사업자 광고와 사업자 핫딜은 모두 **사전 심사를 신청**하고, 운영자가 승인한 뒤에만 돈을 받는다. 결제는 온라인(`payment` 모듈) 또는 수동(계약서 사본 + 입금 확인) 두 길이고, 둘 다 확정되면 예약 → 시각에 맞춰 자동 시작·종료한다.
 **정본·근거**: `docs/plans/biz-ad-hotdeal/00-overview.md` **★ 절**(★-1~★-5 — 사용자 확정 2026-10-30). 분석 `02-ad.md`·`03-hotdeal.md`.
-**프론트 기준**: admin-web `pages/biz-applications.vue`, `components/bizapplication/**`, `composables/bizapplication/api/useBizApplicationApi.ts`(+types·mock) / user-web `pages/business/ads/new.vue`·`deals/new.vue`·`applications/index.vue`·`applications/[id].vue`, `composables/business/api/useBusinessApi.ts`.
+**프론트 기준**: admin-web `pages/ad-reviews.vue`·`pages/hotdeal-reviews.vue`(공통 심사 화면에 `domain` 을 넘김 — 2026-10-31 IA 결정, `pages/biz-applications.vue` 는 지움), `components/bizapplication/**`, `composables/bizapplication/api/useBizApplicationApi.ts`(+types·mock) / user-web `pages/business/ads/new.vue`·`deals/new.vue`·`applications/index.vue`·`applications/[id].vue`, `composables/business/api/useBusinessApi.ts`.
 **커머스 규칙 적용**: 돈이 움직이므로 `docs/domain/commerce.md` 18절(설계 규칙은 모두 테스트로 막고 `--tests` 로 통과해야 완료)을 따른다.
 
 ## 화면 경로
-- 관리자 `/biz-applications` — 큐 탭(심사 대기·결제 대기·입금 확인 대기·입금 기한 지남·예약·진행·환불 심사·종료/반려/취소) + 종류 필터 + 3단(목록 · 내용+점검표 5개 · 미리보기). 메뉴 묶음 「사업자」(`business.read`).
+- 관리자 **광고 심사 `/ad-reviews`**(메뉴 묶음 「광고」, `ad.read` — 종류 AD_BANNER·AD_TEXT_LINE) · **핫딜 심사 `/hotdeal-reviews`**(묶음 「핫딜」, `hotdeal.read` — HOTDEAL_POST·HOTDEAL_PLACEMENT) — 같은 화면 짜임: 큐 탭(심사 대기·결제 대기·입금 확인 대기·입금 기한 지남·예약·진행·환불 심사·종료/반려/취소) + 그 도메인 종류 필터 + 3단(목록 · 내용+점검표 5개 · 미리보기). 통합 `/biz-applications` 는 **없앴다**(세션 정리 결정 2026-10-31 — `docs/plans/biz-ad-hotdeal/04-ia-review.md`). 한눈 보기는 대시보드 「처리할 일」 카드.
 - 공개 `/business/ads/new`(5단계) · `/business/deals/new` · `/business/applications`(상태 묶음 + 카드) · `/business/applications/[id]`(단계 표시·결제·입금 안내·취소·환불 요청·처리 기록).
 
 ## 종류
@@ -21,7 +21,7 @@
 
 ## 상태
 `SUBMITTED`(심사 대기) → `REJECTED` / `CANCELED`(사업자) / `AWAITING_PAYMENT`(승인·온라인) / `AWAITING_DEPOSIT`(승인·수동) · `AWAITING_PAYMENT` → `SCHEDULED`(결제 완료) / `EXPIRED`(72시간) / `AWAITING_DEPOSIT`(수동 전환) · `AWAITING_DEPOSIT` → `SCHEDULED`([예약 확정]) / `CANCELED` · `SCHEDULED` 안에서 `RUNNING`·`ENDED` 는 시각으로 계산 · `SCHEDULED` → `TAKEN_DOWN`(긴급 내림·사업자 정지) ↔ 되돌리기 · → `CANCELED`(환불).
-- 운영자가 직접 등록하는 건은 `AWAITING_DEPOSIT` 에서 시작한다(광고 `ad-contract.md` 수동 등록).
+- ~~운영자가 직접 등록하는 건은 `AWAITING_DEPOSIT` 에서 시작한다~~ → **세션 정리 결정(2026-10-31, 04 §2)**: 운영자 직접 등록도 심사를 거친다 — `source=OPERATOR` 건을 **`SUBMITTED`** 로 만들어 같은 광고 심사 큐(「운영자 등록」 Tag)에서 승인(결제 방식 `MANUAL` 만, 온라인이면 400 `fields.method`) → 계약서 사본 + 입금 확인 → [예약 확정](`ck_ba_manual_confirmed` 그대로). 계약서 올리기는 운영자 건 `SUBMITTED` 부터 허용, 입금 확인은 `AWAITING_DEPOSIT` 에서만. **자기 승인**(등록자 = 승인자)은 설정 `roboyam.biz.self-approval`(`allow` 기본 — 승인 창 경고 + 메모 필수 + 처리 기록·감사 detail `selfApproved=true` / `deny` — 409 `BIZ_SELF_APPROVAL_DENIED`). 등록 실수는 `OPERATOR_CANCEL`(운영자 건만 `SUBMITTED → CANCELED`, 반려로 닫지 않음). 감사 `BIZ_APP_OPERATOR_CREATE`. ⚠ **설계만 — 구현(등록 API·자기 승인 설정·OPERATOR_CANCEL·계약서 상태 허용 넓히기)은 `/ads` 백엔드 세션**(DB·전이표는 바꿀 것 없음 — `ck_ba_source_operator` 가 운영자 건에 정책 동의·사업자 신원을 요구하지 않는다).
 - **세션 정리 결정**: 환불 요청은 상태가 아니라 신청 건의 `refund` 하위 값(`REQUESTED`·`APPROVED`·`DENIED`, 요청 금액·제안 금액·사유)이다. 관리자 「환불 심사」 큐 = `refund.status = REQUESTED`. user-web 목업의 `REFUND_REQUESTED` 상태는 API 연결 때 이 모양으로 바꾼다.
 - 승인 뒤 결제 전에 사업자가 소재를 바꾸면 `SUBMITTED`(재심사). 예약 확정 뒤 소재 교체는 운영자 소재 교체 심사 → 새 소재 버전(옛 버전 보존).
 
@@ -37,7 +37,7 @@
 - 정책 동의(광고 정책·환불 규정, 버전) 없이는 신청 400.
 
 ## 권한·감사·알림
-- 관리자: 조회 `business.read`, 심사·승인·반려·수동 전환·계약서·입금 확인·확정·취소 `ad.manage`, 환불 승인 `deal-order.refund`(SENSITIVE — 이름은 기존 키 재사용, 백엔드에서 확정).
+- 관리자(**2026-10-31 도메인별로 바꿈** — 04 §1·S2): 광고 건 조회 `ad.read`·처리(심사·승인·반려·수동 전환·계약서·입금 확인·확정·취소·기한) `ad.manage` / 핫딜 건 조회 `hotdeal.read`·처리 `hotdeal.manage` / 환불 승인·거절·송금 `deal-order.refund`(SENSITIVE, 두 도메인 공통 — 1차). 서버 입구는 `anyOf`, 서비스가 건의 도메인으로 다시 검사(아니면 403). 목록은 `domain`(AD|HOTDEAL) 필수.
 - 감사: `BIZ_APP_APPROVE`·`_REJECT`·`_MANUAL_SWITCH`·`_CONTRACT_UPLOAD`·`_CONTRACT_VIEW`·`BIZ_DEPOSIT_CONFIRM`(돈 — 5년)·`_CONFIRM`·`_CANCEL`·`_REFUND_APPROVE`·`_REFUND_DENY`·`_PRICE_ADJUST`.
 - 사업자 알림(F9): 접수·승인(결제 요청 — 금액·기한)·반려·결제 기한 24시간 전·결제 완료·시작·종료 임박·중단·환불. 관리자 알림·대시보드(F10): 심사 대기·입금 확인 대기·입금 기한 지남·환불 심사.
 - 배치(admin `BatchCatalog`): 결제 기한 만료, 결제 기한 임박 알림, 시작·종료 임박 알림.
@@ -73,8 +73,8 @@ API 요청·응답 모양 전체는 서버 DTO(admin `bizapplication/dto/BizAdmi
 - **처리 기록 action = 코드**(관리자·공개 같은 묶음, 화면 i18n). 공개에는 운영 기록(계약서 교체·열람)을 내지 않는다. `STARTED`·`ENDED` 는 기록하지 않고 시각으로 계산한다. 관리자 상세에 `source`·`takedown`·`quote.lines` 를 더했다.
 - **사업자 정지·해제·탈퇴 훅**(`BizApplicationHookImpl`): 정지 Pending CANCEL = 심사·결제·입금 대기 취소(입금 기록 있으면 수동 환불) · Scheduled REFUND_FULL = 취소 + 전액 환불 / HOLD = `TAKEN_DOWN` · Running TAKEDOWN_PRORATE = `TAKEN_DOWN` + 일할 환불 심사 대기 / TAKEDOWN_ONLY = `TAKEN_DOWN`. 해제 EXTEND_RESTORE = 끝 시각을 (지금 − max(내린 시각, 시작))만큼 늘려 되돌림(자리 잠금 판정, 꽉 차면 늘리지 않고 되돌리고 `EXTEND_FAILED` 기록, 정지로 생긴 환불 요청은 거절 처리) · KEEP_REFUND = 환불 심사 대기 건은 그대로, 환불 대기가 없는 내림 건은 연장 없이 되돌림(그대로 두면 되돌릴 길이 없어서). 탈퇴 판정 = 진행 중 건이 있으면 막음, 탈퇴 = 대기 건 취소·시작 전 전액 환불·포기 동의 시 진행 중 `CANCELED`(환불 없음, `FORFEITED`).
 - **배치**(admin `BatchCatalog`, 작업은 shared `bizapplication.batch`): `biz-payment-expire`(결제 기한 지남 → `EXPIRED`·자리 반납·알림) · `biz-payment-due-notice`(기한 24시간 전 1회) · `biz-schedule-notice`(시작·종료 24시간 전 1회씩). 입금 기한 지남은 자동 취소 없이 「입금 기한 지남」 큐.
-- **알림**: 회원 `BIZ_APPLICATION` 한 종류(덧붙임 kind — 접수·승인·반려·수동·결제 완료·확정·만료·결제 기한 임박·시작·종료 임박·취소·내림·되돌림·환불 요청·승인·거절·환불됨·자동 취소, 링크 `/business/applications/{id}`). 관리자 `BIZ_APPLICATION_REVIEW_PENDING`(`ad.manage`) · `BIZ_APPLICATION_REFUND_REQUESTED`(`deal-order.refund`) — 예약돼 있던 `AD_REVIEW_PENDING` 은 핫딜도 담아야 해 쓰지 않았다.
-- **권한·감사·메뉴**: `ad.manage`·`deal-order.refund` featureReady 켬(환불 승인·거절·송금 = `deal-order.refund`). 감사 계약 목록 + `BIZ_APP_DEPOSIT_DEADLINE`, 대상 종류 `BIZ_APPLICATION`, 보관 분류 돈(5년) = 승인·조정·계약서 올리기·입금·확정·취소·환불 3종 / 개인정보 = 계약서 열람 / 일반 = 반려·수동 전환·입금 기한. 메뉴 「사업자」 묶음에 `/biz-applications`(`business.read`).
+- **알림**: 회원 `BIZ_APPLICATION` 한 종류(덧붙임 kind — 접수·승인·반려·수동·결제 완료·확정·만료·결제 기한 임박·시작·종료 임박·취소·내림·되돌림·환불 요청·승인·거절·환불됨·자동 취소, 링크 `/business/applications/{id}`). 관리자 ~~`BIZ_APPLICATION_REVIEW_PENDING`·`BIZ_APPLICATION_REFUND_REQUESTED`~~ → **2026-10-31 도메인별**: `AD_REVIEW_PENDING`(`ad.manage`, `/ad-reviews?id=`) · `HOTDEAL_REVIEW_PENDING`(`hotdeal.manage`, `/hotdeal-reviews?id=`) · `AD_REFUND_REQUESTED`·`HOTDEAL_REFUND_REQUESTED`(`deal-order.refund`, 링크만 다름).
+- **권한·감사·메뉴**: `ad.manage`·`deal-order.refund` featureReady 켬(환불 승인·거절·송금 = `deal-order.refund`). 감사 계약 목록 + `BIZ_APP_DEPOSIT_DEADLINE`, 대상 종류 `BIZ_APPLICATION`, 보관 분류 돈(5년) = 승인·조정·계약서 올리기·입금·확정·취소·환불 3종 / 개인정보 = 계약서 열람 / 일반 = 반려·수동 전환·입금 기한. ~~메뉴 「사업자」 묶음에 `/biz-applications`(`business.read`)~~ → 2026-10-31: 메뉴 「광고」 묶음 `/ad-reviews`(`ad.read`) · 「핫딜」 묶음 `/hotdeal-reviews`(`hotdeal.read`). 감사 detail 에 `domain`·`source`(운영자 등록 뒤 `selfApproved`).
 - **광고 이미지** 새 API `POST /api/business/ad-images`(JPG·PNG·GIF·WEBP 10MB, 글 이미지와 같은 검사·다시 인코딩, 공개 노출용이라 `/media` 사용 — 파일 용도 `BIZ_AD_IMAGE`). 사업자등록증 `/files` 와 따로다. **딜 링크 검사** `GET /api/business/deal-link-check?url=`(단축 URL 차단·쇼핑몰 이름 상수표 — 목업 그대로), 신청 때 서버가 다시 막는다.
 - **공개 `HOTDEAL_PLACEMENT` 신청은 만들지 않았다**(게시된 사업자 핫딜이 아직 없음). 핫딜 글 게시는 고리(`BizHotdealPosting`, 기본 아무것도 안 함)만.
 - **입금 계좌 안내**: 설정 `roboyam.biz.deposit-account.*`(`ROBOYAM_BIZ_*`, local 은 예시 값), 입금자명 = 상호.
@@ -85,6 +85,13 @@ API 요청·응답 모양 전체는 서버 DTO(admin `bizapplication/dto/BizAdmi
 - user-web 결제는 `startPayment` → `usePaymentCheckout`(가짜 결제창·포트원·모바일 리디렉션) → 상세 다시 읽기. 입금 확인 전 입금 대기 건은 [신청 취소]. 광고 [소재 바꾸기](`BusinessCreativeDialog`)는 결제 전에만, 승인 뒤면 「다시 심사」 경고.
 - ⚠ 배너 소재를 바꿀 때 이미지를 다시 올려야 한다(공개 상세 `creative` 에 `imageFileId` 가 없고 PUT 은 필수) — 후속. 핫딜 글 소재 바꾸기는 composable(`updateCreative`)만 있다.
 - 광고 일정표(`/ads`) 목업과 그 안의 `AD_SLOT_FULL` 은 광고 일정표 세션 몫이라 그대로.
+
+## IA 보완 구현 (2026-10-31 — 04-ia-review §7-1)
+- 서버 `BizDomain`(AD·HOTDEAL — 조회·처리 권한·종류), 목록 `domain` 필수(400 `fields.domain`·`fields.kind`), 건의 도메인 권한 재검사 403 `PERMISSION_DENIED`(거부 감사 기록). 환불 3개는 `deal-order.refund` 만 본다(Q2). 감사 detail 에 `domain`·`source`.
+- 마이그레이션: shared **V114**(관리자 알림 `BIZ_APPLICATION_*` → 도메인별 4종 — 운영자 설정·전달 도구·개인 끄기를 새 두 이름에 복사, 사용자 문구는 광고 쪽으로만, 받은 알림 이름·링크 바꿈, 사업자 알림 링크 `/business-reviews`) · admin **V4**(저장된 관리자 메뉴의 `bizApplications` → `adReviews`). 권한은 기동 동기화라 마이그레이션 없음.
+- 사업자 목록 `GET /api/admin/businesses` 정렬: `status=PENDING` 은 오래된 것 먼저(`submitted_at ASC`), 그 밖은 최신 먼저.
+- admin-web: 공통 `BizAppReviewPage`(prop `domain`) + `/ad-reviews`·`/hotdeal-reviews`, 옛 `/biz-applications` 는 `/ad-reviews` 로 리디렉트(쿼리 유지), 사업자 `BusinessAdminPage`(mode review·directory) + `/business-reviews`·`/businesses`, 정지 해제 창(`BusinessUnsuspendDialog`), 대시보드 「처리할 일」 칸(권한 있는 칸만, 403 칸은 빠짐).
+- ⚠ 대시보드 건수는 목록 API 의 `counts` 를 쓴다(건수 전용 API 없음 — 행도 같이 받음). 사업자 관리자 알림 아이콘은 화면 표에 아직 없다.
 
 ## 후속 (이 세션 범위 밖)
 - 관리자 `/ads` 일정표 API(수동 등록 `source=OPERATOR`·긴급 내림·되돌리기 — F5 보상 선택), 공개 광고 노출(`AdSlot`), 핫딜 글 실제 게시·회원 핫딜, 공개 `HOTDEAL_PLACEMENT` 신청.

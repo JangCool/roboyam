@@ -1,10 +1,15 @@
 /**
- * 사업자 신청 건(광고·핫딜) 심사(`/biz-applications`) 문구 + 신청 건·광고가 같이 쓰는 결제 확인(계약서 사본·입금 확인)·사유 대화상자 문구.
+ * 사업자 신청 건 심사 — 광고 심사(`/ad-reviews`) · 핫딜 심사(`/hotdeal-reviews`) 문구 + 신청 건·광고가 같이 쓰는 결제 확인(계약서 사본·입금 확인)·사유 대화상자 문구.
  * 서버 V112(docs/features/biz-application-contract.md). `en/bizApplication.ts` 와 같은 키, 같은 차례.
  */
 export default {
-    title: '사업자 신청 심사',
-    subtitle: '광고·핫딜 신청을 먼저 심사하고, 승인한 건만 결제(온라인) 또는 계약서·입금 확인(수동)으로 예약을 확정해요.',
+    domain: { AD: '광고', HOTDEAL: '핫딜' },
+    domainTitle: { AD: '광고 심사', HOTDEAL: '핫딜 심사' },
+    domainSubtitle: {
+        AD: '사업자 광고 신청을 먼저 심사하고, 승인한 건만 결제(온라인) 또는 계약서·입금 확인(수동)으로 예약을 확정해요.',
+        HOTDEAL: '사업자 핫딜 신청을 먼저 심사하고, 승인한 건만 결제(온라인) 또는 계약서·입금 확인(수동)으로 예약을 확정해요.',
+    },
+    otherDomain: '이 화면에서 열 수 없는 신청 건이에요.',
     search: '신청 건 찾기',
     searchPlaceholder: '신청 번호 · 사업자명',
     kindLabel: '종류',

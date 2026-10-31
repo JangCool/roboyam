@@ -90,8 +90,10 @@ public enum Permission {
     GROUP_READ("group.read", CLUB, READ, true),
     GROUP_MANAGE("group.manage", CLUB, MANAGE, true),
     GROUP_SETTINGS("group.settings", CLUB, CONFIG, true),
-    HOTDEAL_READ("hotdeal.read", HOTDEAL, READ, false),
-    HOTDEAL_MANAGE("hotdeal.manage", HOTDEAL, MANAGE, false),
+    /** 핫딜 심사(사업자 핫딜 신청 건) 조회 — 04-ia-review S4 */
+    HOTDEAL_READ("hotdeal.read", HOTDEAL, READ, true),
+    /** 사업자 핫딜 신청 건 심사·승인·반려·수동 전환·계약서·입금 확인·예약 확정·취소 */
+    HOTDEAL_MANAGE("hotdeal.manage", HOTDEAL, MANAGE, true),
     HOTDEAL_DOMAIN_MANAGE("hotdeal.domain.manage", HOTDEAL, CONFIG, false),
     COMMERCE_PRODUCT_READ("commerce.product.read", GB_PLAN, READ, true),
     COMMERCE_PRODUCT_MANAGE("commerce.product.manage", GB_PLAN, MANAGE, true),
@@ -126,12 +128,15 @@ public enum Permission {
     DEAL_ORDER_SETTINGS("deal-order.settings", BIZ_PRODUCT, CONFIG, false),
     /** 사업자 신청 건 환불 승인·거절·수동 송금 완료 표시(biz-application-contract — 이름은 기존 키 재사용) */
     DEAL_ORDER_REFUND("deal-order.refund", BIZ_PRODUCT, SENSITIVE, true),
-    AD_READ("ad.read", AD_PROMO, READ, false),
-    /** 사업자 신청 건 심사·승인·반려·수동 전환·계약서·입금 확인·예약 확정·취소(biz-application-contract) */
+    /** 광고 심사(사업자 광고 신청 건)·광고 일정표 조회 — 04-ia-review S4 */
+    AD_READ("ad.read", AD_PROMO, READ, true),
+    /** 사업자 광고 신청 건 심사·승인·반려·수동 전환·계약서·입금 확인·예약 확정·취소(biz-application-contract) */
     AD_MANAGE("ad.manage", AD_PROMO, MANAGE, true),
     PROMO_MANAGE("promo.manage", AD_PROMO, MANAGE, false),
     AD_SETTINGS("ad.settings", AD_PROMO, CONFIG, false),
     AD_TAKEDOWN("ad.takedown", AD_PROMO, SENSITIVE, false),
+    /** 긴급 내린 광고 되돌리기(광고 일정표 — /ads 백엔드 세션에서 기능이 생긴다) */
+    AD_RESTORE("ad.restore", AD_PROMO, SENSITIVE, false),
     OPERATOR_READ("operator.read", OPERATOR_ROLE, READ, true),
     ROLE_READ("role.read", OPERATOR_ROLE, READ, true),
     OPERATOR_MANAGE("operator.manage", OPERATOR_ROLE, MANAGE, true),

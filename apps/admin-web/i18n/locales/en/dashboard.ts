@@ -1,5 +1,5 @@
 /**
- * Dashboard screen — the commerce panel for now (commerce.md section 19). Keys are two parts: `dashboard.what`. Same keys and order as `ko/dashboard.ts`.
+ * Dashboard screen — the to-do panel (businesses · ads · hot deals) · the commerce panel (commerce.md section 19). Keys are two parts: `dashboard.what`. Same keys and order as `ko/dashboard.ts`.
  */
 export default {
     title: 'Dashboard',
@@ -24,4 +24,20 @@ export default {
     shipOverdueNote: 'Check whether a delay notice is needed',
     deliveryStale: 'Shipped over {days} days ago',
     deliveryStaleNote: 'Delivery not marked — the withdrawal window has not started',
+
+    // ── To-do panel (04-ia-review Q5 — replaces the combined application queue) ─
+    todoTitle: 'To do',
+    todoLoadFailed: 'Could not load the to-do list.',
+    todoAdReview: 'Ad review',
+    todoHotdealReview: 'Hot deal review',
+    todoReviewNote: 'Business applications — payment opens after approval',
+    todoDeposit: 'Awaiting deposit',
+    todoDepositNote: 'Manual payment — confirm after contract copy and deposit',
+    todoDepositOverdue: 'Deposit overdue',
+    todoDepositOverdueNote: 'Extend the deadline or cancel',
+    todoRefund: 'Refund review',
+    todoRefundNote: 'Refund requests on running items',
+    todoBusinessReview: 'Business verification',
+    todoBusinessReviewNote: 'New applications, reapplications and re-reviews',
+    todoDomainLink: '{domain} {count}',
 };

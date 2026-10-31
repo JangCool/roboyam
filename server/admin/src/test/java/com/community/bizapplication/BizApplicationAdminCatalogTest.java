@@ -7,11 +7,17 @@ import com.community.audit.dto.AuditRetention;
 import com.community.audit.dto.AuditRetentionClass;
 import com.community.audit.service.AuditLabels;
 import com.community.batch.core.BatchCatalog;
+import com.community.bizapplication.entity.BizApplicationKind;
+import com.community.bizapplication.entity.BizDomain;
+import com.community.bizapplication.service.BizApplicationNotices;
 import com.community.membernotification.entity.MemberEvent;
 import com.community.membernotification.entity.MemberNotificationType;
+import com.community.menu.dto.AdminMenuNode;
 import com.community.menu.service.AdminScreenRegistry;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.permission.entity.Permission;
+import com.community.permission.entity.PermissionType;
+import com.community.permission.entity.PermissionUnit;
 import com.community.payment.dto.PaymentOrderType;
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,23 +29,66 @@ import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
 /**
- * 사업자 신청 건이 서버 카탈로그에 더한 줄 — 권한(ad.manage·deal-order.refund 기능 켬), 메뉴 「사업자」의 신청 심사, 감사 행위 13개의 보관 분류와 대상 종류, 운영자 알림 두 종류,
- * 회원 알림 종류, 결제 주문 종류, Java 배치 셋, 새 문구가 두 언어에 다 있다.
+ * 사업자 신청 건이 서버 카탈로그에 더한 줄 — 권한(ad.manage·deal-order.refund·ad.read·hotdeal.read·hotdeal.manage 기능 켬, ad.restore 추가), 메뉴(업무별 — 사업자 · 광고 · 핫딜,
+ * 04-ia-review S7), 감사 행위 13개의 보관 분류와 대상 종류, 운영자 알림(도메인별 심사 대기·환불 심사 대기 넷 + 사업자 인증 링크), 회원 알림 종류, 결제 주문 종류, Java 배치 셋,
+ * 새 문구가 두 언어에 다 있다.
  */
 class BizApplicationAdminCatalogTest {
 
     @Test
-    void 권한_ad_manage_와_deal_order_refund_는_기능이_생겼다() {
-        assertThat(Permission.AD_MANAGE.featureReady()).isTrue();
-        assertThat(Permission.DEAL_ORDER_REFUND.featureReady()).isTrue();
-        assertThat(Permission.BUSINESS_READ.featureReady()).isTrue();
+    void 권한_도메인별_조회_처리는_기능이_생겼고_ad_restore_는_ad_takedown_바로_다음의_민감_조치() {
+        for (Permission p : List.of(Permission.AD_MANAGE, Permission.DEAL_ORDER_REFUND, Permission.BUSINESS_READ, Permission.AD_READ, Permission.HOTDEAL_READ,
+                Permission.HOTDEAL_MANAGE)) {
+            assertThat(p.featureReady()).as(p.code()).isTrue();
+        }
+        assertThat(Permission.ofCode("ad.restore")).contains(Permission.AD_RESTORE);
+        assertThat(Permission.AD_RESTORE.type()).isEqualTo(PermissionType.AD_PROMO);
+        assertThat(Permission.AD_RESTORE.unit()).isEqualTo(PermissionUnit.SENSITIVE);
+        assertThat(Permission.AD_RESTORE.featureReady()).isFalse(); // 되돌리기는 /ads 백엔드 세션
+        assertThat(Permission.AD_RESTORE.ordinal()).isEqualTo(Permission.AD_TAKEDOWN.ordinal() + 1);
     }
 
     @Test
-    void 메뉴_사업자_묶음에_신청_심사_화면이_있고_조회는_business_read() {
-        AdminScreenRegistry.Screen screen = AdminScreenRegistry.screen("bizApplications").orElseThrow();
-        assertThat(screen.path()).isEqualTo("/biz-applications");
-        assertThat(screen.permission()).isEqualTo(Permission.BUSINESS_READ);
+    void 종류의_도메인과_도메인의_권한() {
+        assertThat(BizApplicationKind.AD_BANNER.domain()).isEqualTo(BizDomain.AD);
+        assertThat(BizApplicationKind.AD_TEXT_LINE.domain()).isEqualTo(BizDomain.AD);
+        assertThat(BizApplicationKind.HOTDEAL_POST.domain()).isEqualTo(BizDomain.HOTDEAL);
+        assertThat(BizApplicationKind.HOTDEAL_PLACEMENT.domain()).isEqualTo(BizDomain.HOTDEAL);
+        assertThat(BizDomain.AD.kinds()).containsExactly(BizApplicationKind.AD_BANNER, BizApplicationKind.AD_TEXT_LINE);
+        assertThat(BizDomain.HOTDEAL.kinds()).containsExactly(BizApplicationKind.HOTDEAL_POST, BizApplicationKind.HOTDEAL_PLACEMENT);
+        assertThat(BizDomain.AD.readPermission()).isEqualTo(Permission.AD_READ);
+        assertThat(BizDomain.AD.managePermission()).isEqualTo(Permission.AD_MANAGE);
+        assertThat(BizDomain.HOTDEAL.readPermission()).isEqualTo(Permission.HOTDEAL_READ);
+        assertThat(BizDomain.HOTDEAL.managePermission()).isEqualTo(Permission.HOTDEAL_MANAGE);
+    }
+
+    @Test
+    void 메뉴는_업무별_사업자_광고_핫딜_묶음이고_통합_신청_심사는_없다() {
+        assertThat(AdminScreenRegistry.screen("bizApplications")).isEmpty();
+        record Expect(String key, String path, Permission permission) {
+        }
+        for (Expect e : List.of(new Expect("businessReviews", "/business-reviews", Permission.BUSINESS_READ),
+                new Expect("businesses", "/businesses", Permission.BUSINESS_READ), new Expect("adReviews", "/ad-reviews", Permission.AD_READ),
+                new Expect("ads", "/ads", Permission.AD_READ), new Expect("hotdealReviews", "/hotdeal-reviews", Permission.HOTDEAL_READ))) {
+            AdminScreenRegistry.Screen screen = AdminScreenRegistry.screen(e.key()).orElseThrow();
+            assertThat(screen.path()).as(e.key()).isEqualTo(e.path());
+            assertThat(screen.permission()).as(e.key()).isEqualTo(e.permission());
+            assertThat(screen.labelKey()).as(e.key()).isEqualTo("menu." + e.key());
+        }
+        // 묶음 차례: 소모임 → 사업자(인증 심사 · 사업자 목록) → 광고(광고 심사 · 광고 일정표) → 핫딜(핫딜 심사), 묶음 아이콘은 04-ia-review 1-2 표
+        List<AdminMenuNode> normal = AdminScreenRegistry.defaults().get(AdminScreenRegistry.NORMAL);
+        List<String> labels = normal.stream().map(AdminMenuNode::labelKey).toList();
+        int group = labels.indexOf("menu.group");
+        assertThat(group).isNotNegative();
+        assertThat(labels.subList(group, group + 4)).containsExactly("menu.group", "menu.business", "menu.ad", "menu.hotdeal");
+        assertThat(normal.get(group + 1).icon()).isEqualTo("pi pi-briefcase");
+        assertThat(normal.get(group + 2).icon()).isEqualTo("pi pi-megaphone");
+        assertThat(normal.get(group + 3).icon()).isEqualTo("pi pi-ticket");
+        assertThat(normal.get(group + 1).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("businessReviews", "businesses");
+        assertThat(normal.get(group + 2).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("adReviews", "ads");
+        assertThat(normal.get(group + 3).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("hotdealReviews");
+        assertThat(AdminScreenRegistry.isGroupLabelKey("menu.ad")).isTrue();
+        assertThat(AdminScreenRegistry.isGroupLabelKey("menu.hotdeal")).isTrue();
     }
 
     @Test
@@ -57,11 +106,28 @@ class BizApplicationAdminCatalogTest {
     }
 
     @Test
-    void 운영자_알림_심사_대기는_광고_처리_권한_환불_심사는_환불_권한_링크는_신청_건() {
-        assertThat(AdminNotificationEvent.BIZ_APPLICATION_REVIEW_PENDING.recipientPermissions()).containsExactly(Permission.AD_MANAGE);
-        assertThat(AdminNotificationEvent.BIZ_APPLICATION_REVIEW_PENDING.linkPath()).isEqualTo("/biz-applications?id={id}");
-        assertThat(AdminNotificationEvent.BIZ_APPLICATION_REFUND_REQUESTED.recipientPermissions()).containsExactly(Permission.DEAL_ORDER_REFUND);
-        assertThat(AdminNotificationEvent.BIZ_APPLICATION_REFUND_REQUESTED.featureReady()).isTrue();
+    void 운영자_알림은_도메인별_심사_대기는_그_도메인_처리_권한_환불은_환불_권한_링크는_그_도메인_심사_화면() {
+        assertThat(AdminNotificationEvent.ofCode("BIZ_APPLICATION_REVIEW_PENDING")).isEmpty();
+        assertThat(AdminNotificationEvent.ofCode("BIZ_APPLICATION_REFUND_REQUESTED")).isEmpty();
+        record Expect(AdminNotificationEvent event, Permission holder, String link) {
+        }
+        for (Expect e : List.of(new Expect(AdminNotificationEvent.AD_REVIEW_PENDING, Permission.AD_MANAGE, "/ad-reviews?id={id}"),
+                new Expect(AdminNotificationEvent.HOTDEAL_REVIEW_PENDING, Permission.HOTDEAL_MANAGE, "/hotdeal-reviews?id={id}"),
+                new Expect(AdminNotificationEvent.AD_REFUND_REQUESTED, Permission.DEAL_ORDER_REFUND, "/ad-reviews?id={id}"),
+                new Expect(AdminNotificationEvent.HOTDEAL_REFUND_REQUESTED, Permission.DEAL_ORDER_REFUND, "/hotdeal-reviews?id={id}"))) {
+            assertThat(e.event().recipientPermissions()).as(e.event().name()).containsExactly(e.holder());
+            assertThat(e.event().requiredPermission()).as(e.event().name()).isEqualTo(e.holder());
+            assertThat(e.event().linkPath()).as(e.event().name()).isEqualTo(e.link());
+            assertThat(e.event().featureReady()).as(e.event().name()).isTrue();
+            assertThat(e.event().collapseSeconds()).as(e.event().name()).isEqualTo(300);
+        }
+        assertThat(BizApplicationNotices.reviewEvent(BizDomain.AD)).isEqualTo(AdminNotificationEvent.AD_REVIEW_PENDING);
+        assertThat(BizApplicationNotices.reviewEvent(BizDomain.HOTDEAL)).isEqualTo(AdminNotificationEvent.HOTDEAL_REVIEW_PENDING);
+        assertThat(BizApplicationNotices.refundEvent(BizDomain.AD)).isEqualTo(AdminNotificationEvent.AD_REFUND_REQUESTED);
+        assertThat(BizApplicationNotices.refundEvent(BizDomain.HOTDEAL)).isEqualTo(AdminNotificationEvent.HOTDEAL_REFUND_REQUESTED);
+        // 사업자 인증 알림은 「인증 심사」 화면으로
+        assertThat(AdminNotificationEvent.BUSINESS_APPLICATION_PENDING.linkPath()).isEqualTo("/business-reviews?id={profileId}");
+        assertThat(AdminNotificationEvent.BUSINESS_RE_REVIEW_PENDING.linkPath()).isEqualTo("/business-reviews?id={profileId}");
     }
 
     @Test
@@ -103,7 +169,8 @@ class BizApplicationAdminCatalogTest {
         for (com.community.bizapplication.service.BizApplicationNotices.Kind kind : com.community.bizapplication.service.BizApplicationNotices.Kind.values()) {
             keys.add("member.notification.BIZ_APPLICATION.kind." + kind.name());
         }
-        for (AdminNotificationEvent event : List.of(AdminNotificationEvent.BIZ_APPLICATION_REVIEW_PENDING, AdminNotificationEvent.BIZ_APPLICATION_REFUND_REQUESTED)) {
+        for (AdminNotificationEvent event : List.of(AdminNotificationEvent.AD_REVIEW_PENDING, AdminNotificationEvent.HOTDEAL_REVIEW_PENDING,
+                AdminNotificationEvent.AD_REFUND_REQUESTED, AdminNotificationEvent.HOTDEAL_REFUND_REQUESTED)) {
             keys.addAll(List.of(event.nameKey(), event.descriptionKey(), event.recipientsKey(), event.titleKey(), "notification.event." + event.name() + ".body"));
         }
         for (String key : keys) {

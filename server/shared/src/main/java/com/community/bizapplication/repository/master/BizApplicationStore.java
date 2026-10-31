@@ -3,6 +3,7 @@ package com.community.bizapplication.repository.master;
 import com.community.bizapplication.entity.BizActorType;
 import com.community.bizapplication.entity.BizApplicationKind;
 import com.community.bizapplication.entity.BizApplicationStatus;
+import com.community.bizapplication.entity.BizDomain;
 import com.community.bizapplication.entity.BizEventAction;
 import com.community.bizapplication.entity.BizPaymentMethod;
 import com.community.bizapplication.entity.BizProduct;
@@ -145,10 +146,13 @@ public class BizApplicationStore {
         return jdbc.query("SELECT * FROM biz_applications WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 500", (rs, i) -> app(rs), userId);
     }
 
-    /** 관리자 큐 — 종류·검색(번호·상호·광고주) 거르기. 큐는 상태·기한·환불로 서비스가 가른다(최근 2,000건까지) */
-    public List<AppRow> forAdmin(BizApplicationKind kind, String q) {
-        StringBuilder sql = new StringBuilder("SELECT * FROM biz_applications WHERE 1 = 1");
-        MapSqlParameterSource args = new MapSqlParameterSource();
+    /**
+     * 관리자 큐 — 도메인(그 도메인의 종류만)·종류·검색(번호·상호·광고주) 거르기. 큐는 상태·기한·환불로 서비스가 가른다(최근 2,000건까지 — 큐별 건수도 이 안에서 센다).
+     * 종류는 그 도메인의 것이어야 한다(부르는 쪽이 확인한다).
+     */
+    public List<AppRow> forAdmin(BizDomain domain, BizApplicationKind kind, String q) {
+        StringBuilder sql = new StringBuilder("SELECT * FROM biz_applications WHERE kind IN (:kinds)");
+        MapSqlParameterSource args = new MapSqlParameterSource("kinds", domain.kinds().stream().map(Enum::name).toList());
         if (kind != null) {
             sql.append(" AND kind = :kind");
             args.addValue("kind", kind.name());

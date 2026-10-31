@@ -226,7 +226,7 @@ public class BizApplicationMemberService {
         ops.event(id, BizEventAction.SUBMITTED, BizActorType.MEMBER, userId, null, now);
         AppRow app = store.find(id).orElseThrow();
         ops.notices().member(app, BizApplicationNotices.Kind.SUBMITTED, quote.total(), null);
-        ops.notices().reviewPending(id);
+        ops.notices().reviewPending(app);
         return id;
     }
 
@@ -320,7 +320,7 @@ public class BizApplicationMemberService {
                 store.markImageUsed(image.id(), now);
             }
             ops.event(id, BizEventAction.CREATIVE_CHANGED, BizActorType.MEMBER, userId, app.status() == BizApplicationStatus.SUBMITTED ? null : "BACK_TO_REVIEW", now);
-            ops.notices().reviewPending(id);
+            ops.notices().reviewPending(app);
         });
     }
 
@@ -383,7 +383,7 @@ public class BizApplicationMemberService {
                 case RUNNING -> {
                     ops.requestProrated(app, BizRefundType.PRORATED, reason, now);
                     ops.notices().member(app, BizApplicationNotices.Kind.REFUND_REQUESTED, 0, null);
-                    ops.notices().refundRequested(id);
+                    ops.notices().refundRequested(app);
                 }
                 case ENDED -> throw BizApplicationException.stateChanged();
             }

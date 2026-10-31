@@ -5,6 +5,7 @@
 **프론트 기준**: admin-web `pages/businesses/index.vue`, `components/business/**`, `composables/business/api/useBusinessApi.ts`(+types·mock) / user-web `pages/business/index.vue`·`apply.vue`, `components/business/**`, `composables/business/api/useBusinessApi.ts`.
 
 ## 화면 경로
+- **세션 정리 결정(2026-10-31, `docs/plans/biz-ad-hotdeal/04-ia-review.md` §5)**: 사업자 화면은 두 메뉴다 — **인증 심사 `/business-reviews`**(심사 중 = 처음·재신청 `PENDING` + 재심사 `PENDING+re_review`, 오래된 것 위 · 국세청 다시 조회·승인·반려·등록증 열람) · **사업자 목록 `/businesses`**(승인·정지·탈퇴·반려·전체 + 서비스 필터 · 정지·**정지 해제 단추**·평문 열람·등록증 열람·서비스 카드). 같은 Drawer·Dialog 를 쓰고 탭 집합·기본 정렬만 다르다. 사업자 알림 링크 `/business-reviews?id=`. 아래 한 화면 설명은 이 둘로 나뉜다.
 - 관리자 `/businesses` — 상태 탭(심사 중·승인·반려·정지·탈퇴·전체) + 서비스 필터 + 검색 + 표(국세청 조회 Tag) → 행 Drawer(`?id=`): 신원(가린 값·[평문 보기])·국세청 카드([다시 조회])·사업자등록증 사본·서비스 카드(영향 건수)·처리 기록. 메뉴 묶음 「사업자」(`business.read`).
 - 공개 `/business`(상태별 한 화면, 마이페이지 바로가기) · `/business/apply`(신청·수정 Stepper 3단계).
 
@@ -35,7 +36,7 @@
 - 보존: 반려·탈퇴 90일 뒤 등록증·암호문 파기(DB 배치), 거래 근거(상호·끝 4자리·주문 요약)는 5년.
 
 ## 권한·감사·알림
-- 권한(기존 `Permission`): `business.read`(목록·상세) · `business.manage`(승인·반려·정지·서비스 처리) — featureReady 켬. **추가**: `business.reveal`·`business.unsuspend`(SENSITIVE). 메뉴는 `AdminScreenRegistry` 에 「사업자」 묶음.
+- 권한(기존 `Permission`): `business.read`(목록·상세) · `business.manage`(승인·반려·정지·서비스 처리) — featureReady 켬. **추가**: `business.reveal`·`business.unsuspend`(SENSITIVE). 메뉴는 `AdminScreenRegistry` 에 「사업자」 묶음(2026-10-31: 인증 심사 `businessReviews` · 사업자 목록 `businesses`, 둘 다 `business.read` — 광고·핫딜 신청 건 심사는 각 「광고」·「핫딜」 묶음).
 - 감사: `BUSINESS_APPROVE`·`_REJECT`·`_SUSPEND`·`_UNSUSPEND`·`_REVEAL`·`_CERT_VIEW`·`_NTS_CHECK`·`_NTS_OVERRIDE`.
 - 회원 알림(계정 알림 — 끌 수 없음): 접수됨·승인·반려·정지·해제·재심사 대기. 관리자 알림: 사업자 신청·재심사.
 

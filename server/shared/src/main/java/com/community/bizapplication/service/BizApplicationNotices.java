@@ -1,5 +1,6 @@
 package com.community.bizapplication.service;
 
+import com.community.bizapplication.entity.BizDomain;
 import com.community.bizapplication.repository.master.BizApplicationStore.AppRow;
 import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.notification.dto.NotificationContext;
@@ -37,15 +38,32 @@ public class BizApplicationNotices {
         members.bizApplication(app.userId(), kind.name(), app.id(), app.title(), amount, note);
     }
 
-    /** 운영자에게 — 심사 대기(새 신청·소재 바꾸기) */
-    public void reviewPending(long applicationId) {
-        String id = Long.toString(applicationId);
-        operators.publish(AdminNotificationEvent.BIZ_APPLICATION_REVIEW_PENDING, NotificationContext.empty().dedupe(id).link("id", id));
+    /** 운영자에게 — 심사 대기(새 신청·소재 바꾸기). 건의 도메인으로 이벤트를 고른다(광고 → {@code AD_REVIEW_PENDING}, 핫딜 → {@code HOTDEAL_REVIEW_PENDING}) */
+    public void reviewPending(AppRow app) {
+        operators.publish(reviewEvent(app.kind().domain()), context(app.id()));
     }
 
-    /** 운영자에게 — 진행 중 환불(일할) 심사 대기 */
-    public void refundRequested(long applicationId) {
+    /** 운영자에게 — 진행 중 환불(일할) 심사 대기. 광고 → {@code AD_REFUND_REQUESTED}, 핫딜 → {@code HOTDEAL_REFUND_REQUESTED} */
+    public void refundRequested(AppRow app) {
+        operators.publish(refundEvent(app.kind().domain()), context(app.id()));
+    }
+
+    public static AdminNotificationEvent reviewEvent(BizDomain domain) {
+        return switch (domain) {
+            case AD -> AdminNotificationEvent.AD_REVIEW_PENDING;
+            case HOTDEAL -> AdminNotificationEvent.HOTDEAL_REVIEW_PENDING;
+        };
+    }
+
+    public static AdminNotificationEvent refundEvent(BizDomain domain) {
+        return switch (domain) {
+            case AD -> AdminNotificationEvent.AD_REFUND_REQUESTED;
+            case HOTDEAL -> AdminNotificationEvent.HOTDEAL_REFUND_REQUESTED;
+        };
+    }
+
+    private static NotificationContext context(long applicationId) {
         String id = Long.toString(applicationId);
-        operators.publish(AdminNotificationEvent.BIZ_APPLICATION_REFUND_REQUESTED, NotificationContext.empty().dedupe(id).link("id", id));
+        return NotificationContext.empty().dedupe(id).link("id", id);
     }
 }

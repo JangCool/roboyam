@@ -113,7 +113,7 @@ public class BizApplicationHookImpl implements BusinessApplicationHook {
                     if (plan.running() == BusinessSuspendPlan.Running.TAKEDOWN_PRORATE && refunds.lockOpen(app.id()).isEmpty()) {
                         ops.requestProrated(app, BizRefundType.SUSPEND_PRORATED, "SUSPENDED", now);
                         ops.event(app.id(), BizEventAction.REFUND_REQUESTED, BizActorType.SYSTEM, null, "SUSPENDED", now);
-                        ops.notices().refundRequested(app.id());
+                        ops.notices().refundRequested(app);
                     }
                 }
                 case ENDED -> {

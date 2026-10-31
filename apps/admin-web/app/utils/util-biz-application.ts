@@ -1,4 +1,4 @@
-import type { BizAdType, BizAmount, BizApplicationKind, BizApplicationStatus, BizPeriod, BizQuote } from '~/composables/bizapplication/api/useBizApplicationApi.types';
+import type { BizAdType, BizAmount, BizApplicationKind, BizApplicationStatus, BizDomain, BizPeriod, BizQuote } from '~/composables/bizapplication/api/useBizApplicationApi.types';
 
 type Severity = 'secondary' | 'info' | 'success' | 'warn' | 'danger' | 'contrast';
 
@@ -31,6 +31,13 @@ export default class UtilBizApplication {
     static readonly REASON = { min: 5, max: 200 } as const;
     /** 심사 점검표 — 다 체크해야 [승인] */
     static readonly CHECKLIST = ['spec', 'link', 'policy', 'period', 'price'] as const;
+    /** 도메인별 심사 화면 주소·조회 권한·처리 권한(04-ia-review 1-2 — 메뉴 `util-admin-menu.ts` 와 서버 `AdminScreenRegistry` 와 같게) */
+    static readonly DOMAIN_SCREENS: Readonly<Record<BizDomain, { path: string; read: string; manage: string }>> = {
+        AD: { path: '/ad-reviews', read: 'ad.read', manage: 'ad.manage' },
+        HOTDEAL: { path: '/hotdeal-reviews', read: 'hotdeal.read', manage: 'hotdeal.manage' },
+    };
+    /** 환불 승인·거절·수동 송금 표시 — 두 도메인 공통(1차, 04-ia-review Q2) */
+    static readonly REFUND_PERMISSION = 'deal-order.refund';
 
     /** 하루 단가(공급가, 원) — 요금표 가정 */
     static readonly DAILY_PRICE: Record<BizAdType, number> = {

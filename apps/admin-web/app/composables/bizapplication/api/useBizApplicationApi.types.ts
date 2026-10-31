@@ -1,11 +1,20 @@
 /**
- * 사업자 신청 건(`biz_applications`) 심사 — 광고·핫딜 통합 큐. 서버와 주고받는 모양(서버 `BizAdminView`·`BizAdminRequest`, V112).
+ * 사업자 신청 건(`biz_applications`) 심사 — 서버는 엔진 하나, 화면·권한은 도메인(광고 / 핫딜)별. 서버와 주고받는 모양(서버 `BizAdminView`·`BizAdminRequest`, V112).
  * 흐름: 신청(SUBMITTED) → 심사 승인 → 온라인 결제 대기(AWAITING_PAYMENT, 72시간) 또는 입금·계약 확인 대기(AWAITING_DEPOSIT, 기본 7일) → 예약(SCHEDULED) → 진행 → 종료.
  * 기간은 반열림 `[startAt, endAt)`(ISO) — 끝 시각은 포함하지 않는다.
  */
 
 export type BizApplicationKind = 'AD_BANNER' | 'AD_TEXT_LINE' | 'HOTDEAL_POST' | 'HOTDEAL_PLACEMENT';
 export const BIZ_APPLICATION_KINDS: readonly BizApplicationKind[] = ['AD_BANNER', 'AD_TEXT_LINE', 'HOTDEAL_POST', 'HOTDEAL_PLACEMENT'];
+
+/** 업무 도메인 — 종류(kind)를 화면·권한 단위로 가른다(서버 `BizDomain`, 04-ia-review S1) */
+export type BizDomain = 'AD' | 'HOTDEAL';
+export const BIZ_DOMAINS: readonly BizDomain[] = ['AD', 'HOTDEAL'];
+/** 도메인 → 그 도메인의 종류(서버 `BizApplicationKind.domain()` 과 같게) */
+export const BIZ_DOMAIN_KINDS: Readonly<Record<BizDomain, readonly BizApplicationKind[]>> = {
+    AD: ['AD_BANNER', 'AD_TEXT_LINE'],
+    HOTDEAL: ['HOTDEAL_POST', 'HOTDEAL_PLACEMENT'],
+};
 
 /**
  * 상태 — SCHEDULED 안의 「진행 중」·「종료」는 서버가 시각으로 계산해 `RUNNING`·`ENDED` 로 내려 준다(저장 상태는 SCHEDULED).
@@ -230,7 +239,10 @@ export interface BizApplicationDetail extends BizApplicationRow {
 }
 
 export interface BizApplicationQuery {
+    /** 필수 — 그 도메인의 건·건수만 온다(없으면 400 `fields.domain`) */
+    domain: BizDomain;
     queue: BizApplicationQueue;
+    /** 그 도메인의 종류만(아니면 400 `fields.kind`) */
     kind?: BizApplicationKind;
     q?: string;
 }

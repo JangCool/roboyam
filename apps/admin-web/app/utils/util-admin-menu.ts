@@ -235,23 +235,35 @@ export default class UtilAdminMenu {
                 { key: 'groupSettings', to: '/group-settings', icon: 'pi pi-sliders-h', labelKey: 'menu.groupSettings', permission: 'group.read' },
             ],
         },
-        // 사업자 묶음 — 사업자 신원 심사 · 사업자 신청 건(광고·핫딜) 심사·결제 확인(docs/plans/biz-ad-hotdeal 00-overview ★ 절). ⚠ 화면은 목업(`useBusinessApi`·`useBizApplicationApi`).
-        // 서버 `AdminScreenRegistry` 에도 같은 두 줄이 필요하고, 권한 `business.read`(featureReady=false — 메뉴 감춤에는 쓰지 않는다)를 켜야 한다(백엔드 단계). 주소는 앞부분이 겹치지 않게(`/businesses` 와 `/biz-applications`)
+        // 사업자 묶음 — 신원 인증 심사(`/business-reviews`, 심사 중·재심사) · 승인된 사업자 운영(`/businesses`, 정지·정지 해제·평문 열람). 계약 business-contract · 04-ia-review 5절.
+        // 두 화면 모두 조회 `business.read`(화면 안에서 처리 `business.manage` · 평문 `business.reveal` · 정지 해제 `business.unsuspend`). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례
         {
             key: 'business',
             icon: 'pi pi-briefcase',
             labelKey: 'menu.business',
             items: [
+                { key: 'businessReviews', to: '/business-reviews', icon: 'pi pi-inbox', labelKey: 'menu.businessReviews', permission: 'business.read' },
                 { key: 'businesses', to: '/businesses', icon: 'pi pi-id-card', labelKey: 'menu.businesses', permission: 'business.read' },
-                { key: 'bizApplications', to: '/biz-applications', icon: 'pi pi-inbox', labelKey: 'menu.bizApplications', permission: 'business.read' },
             ],
         },
-        // 광고 묶음 — 광고 일정표(유형별 한도·달력·광고 건·운영자 수동 등록·긴급 내림·되돌리기, 02-ad.md 7-1). ⚠ 화면은 목업(`useAdApi`). 서버 `AdminScreenRegistry` 한 줄 + `ad.read` featureReady 는 백엔드 단계
+        // 광고 묶음 — 광고 심사(`/ad-reviews`, 신청 건 AD_* — 조회 `ad.read`, 처리 `ad.manage`, 환불 `deal-order.refund`) · 광고 일정표(`/ads`, ⚠ 목업 `useAdApi`). 04-ia-review 1-2.
+        // 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례. 주소는 앞부분이 겹치지 않게(`/ads` 와 `/ad-reviews`)
         {
             key: 'ad',
             icon: 'pi pi-megaphone',
             labelKey: 'menu.ad',
-            items: [{ key: 'ads', to: '/ads', icon: 'pi pi-calendar', labelKey: 'menu.ads', permission: 'ad.read' }],
+            items: [
+                { key: 'adReviews', to: '/ad-reviews', icon: 'pi pi-inbox', labelKey: 'menu.adReviews', permission: 'ad.read' },
+                { key: 'ads', to: '/ads', icon: 'pi pi-calendar', labelKey: 'menu.ads', permission: 'ad.read' },
+            ],
+        },
+        // 핫딜 묶음 — 핫딜 심사(`/hotdeal-reviews`, 신청 건 HOTDEAL_* — 조회 `hotdeal.read`, 처리 `hotdeal.manage`, 환불 `deal-order.refund`).
+        // 핫딜 글·링크 규칙·의심 후보·설정은 화면이 생기면 더한다(04-ia-review 1-2). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례
+        {
+            key: 'hotdeal',
+            icon: 'pi pi-ticket',
+            labelKey: 'menu.hotdeal',
+            items: [{ key: 'hotdealReviews', to: '/hotdeal-reviews', icon: 'pi pi-inbox', labelKey: 'menu.hotdealReviews', permission: 'hotdeal.read' }],
         },
         // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」·「소셜 로그인」·「조직 구성」이 있고(메일 서버는 다음 「메일」 묶음, 알림 도구·템플릿·문구·이벤트는 그다음 「알림·이벤트」 묶음) 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다
         {

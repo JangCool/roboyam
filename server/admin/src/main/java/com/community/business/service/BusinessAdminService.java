@@ -109,7 +109,10 @@ public class BusinessAdminService {
 
     // ── 목록 ────────────────────────────────────────────────────────────────
 
-    /** 상태·서비스·검색(상호·닉네임·등록번호 10자리·끝 4자리) — 상태별 건수는 상태 거르기를 뺀 같은 조건 */
+    /**
+     * 상태·서비스·검색(상호·닉네임·등록번호 10자리·끝 4자리) — 상태별 건수는 상태 거르기를 뺀 같은 조건. 정렬: {@code status=PENDING}(인증 심사 큐 — 처음·재신청·재심사)은
+     * 신청 시각 오래된 것 먼저({@code submitted_at ASC, id ASC} — 04-ia-review 5절), 그 밖(다른 상태·전체)은 최근 것 먼저({@code submitted_at DESC, id DESC})
+     */
     public BusinessAdminView.Page list(String statusText, String serviceText, String q, int page, int size) {
         BusinessStatus status = optionalEnum(BusinessStatus.class, statusText, "status");
         BusinessServiceKind service = optionalEnum(BusinessServiceKind.class, serviceText, "service");
@@ -149,7 +152,8 @@ public class BusinessAdminService {
         Long total = jdbc.queryForObject("SELECT count(*)" + filtered, args, Long.class);
         args.addValue("limit", limit).addValue("offset", offset);
         List<RowBase> rows = jdbc.query("SELECT bp.id, bp.company_name, bp.biz_no_last4, bp.status, bp.re_review, bp.user_id, pr.nickname, bp.submitted_at" + filtered
-                        + " ORDER BY bp.submitted_at DESC, bp.id DESC LIMIT :limit OFFSET :offset", args,
+                        + (status == BusinessStatus.PENDING ? " ORDER BY bp.submitted_at ASC, bp.id ASC" : " ORDER BY bp.submitted_at DESC, bp.id DESC")
+                        + " LIMIT :limit OFFSET :offset", args,
                 (rs, i) -> new RowBase(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getBoolean(5), rs.getLong(6), rs.getString(7),
                         rs.getTimestamp(8).toInstant()));
         List<Long> idList = rows.stream().map(RowBase::id).toList();

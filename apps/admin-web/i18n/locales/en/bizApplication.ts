@@ -1,10 +1,15 @@
 /**
- * Business application review (ads · hot deals) + shared payment confirmation (contract copies · deposit) and reason dialogs.
+ * Business application review — ad review (`/ad-reviews`) · hot deal review (`/hotdeal-reviews`) + shared payment confirmation (contract copies · deposit) and reason dialogs.
  * Server V112. Same keys and order as `ko/bizApplication.ts`.
  */
 export default {
-    title: 'Application review',
-    subtitle: 'Review ad and hot deal applications first; only approved ones are paid online or confirmed with a contract and deposit.',
+    domain: { AD: 'Ads', HOTDEAL: 'Hot deals' },
+    domainTitle: { AD: 'Ad review', HOTDEAL: 'Hot deal review' },
+    domainSubtitle: {
+        AD: 'Review business ad applications first; only approved ones are paid online or confirmed with a contract and deposit.',
+        HOTDEAL: 'Review business hot deal applications first; only approved ones are paid online or confirmed with a contract and deposit.',
+    },
+    otherDomain: 'This application cannot be opened on this screen.',
     search: 'Find applications',
     searchPlaceholder: 'Application no. · business',
     kindLabel: 'Kind',

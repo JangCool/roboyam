@@ -30,7 +30,7 @@
 
             <BusinessIdentitySection :detail="detail" :reveal="reveal" :can-reveal="canReveal" :busy="busy" @reveal="emit('reveal')" @hide="emit('hide')" />
 
-            <BusinessNtsCard :nts="detail.nts" :can-recheck="canManage && detail.status === 'PENDING'" :busy="busy" @recheck="emit('recheck')" />
+            <BusinessNtsCard :nts="detail.nts" :can-recheck="mode === 'review' && canManage && detail.status === 'PENDING'" :busy="busy" @recheck="emit('recheck')" />
 
             <!-- ③ 사업자등록증 사본 -->
             <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-cert`">
@@ -77,16 +77,23 @@
             </section>
         </div>
 
-        <template v-if="detail && canManage && (detail.status === 'PENDING' || detail.status === 'APPROVED')" #footer>
+        <!-- 심사 화면: 심사 중이면 승인·반려, 이미 심사가 끝난 건(옛 알림 링크)은 사업자 목록으로. 목록 화면: 승인이면 정지, 정지면 정지 해제, 심사 중이면 인증 심사로 -->
+        <template v-if="footer" #footer>
             <div class="flex flex-col gap-2">
-                <p v-if="detail.status === 'PENDING' && approvability === 'LOCKED'" class="m-0 flex items-center gap-1.5 text-xs text-red-700 dark:text-red-400"><i class="pi pi-lock" aria-hidden="true" />{{ t('business.approveLocked', { status: t(`business.nts.${detail.nts.status}`) }) }}</p>
-                <p v-else-if="detail.status === 'PENDING' && approvability === 'NEEDS_REASON'" class="m-0 flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400"><i class="pi pi-info-circle" aria-hidden="true" />{{ t('business.approveNeedsReason') }}</p>
+                <template v-if="footer === 'review'">
+                    <p v-if="approvability === 'LOCKED'" class="m-0 flex items-center gap-1.5 text-xs text-red-700 dark:text-red-400"><i class="pi pi-lock" aria-hidden="true" />{{ t('business.approveLocked', { status: t(`business.nts.${detail!.nts.status}`) }) }}</p>
+                    <p v-else-if="approvability === 'NEEDS_REASON'" class="m-0 flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400"><i class="pi pi-info-circle" aria-hidden="true" />{{ t('business.approveNeedsReason') }}</p>
+                </template>
+                <p v-else-if="footer === 'toReview' || footer === 'toDirectory'" class="m-0 flex items-center gap-1.5 text-xs text-muted-color"><i class="pi pi-info-circle" aria-hidden="true" />{{ footer === 'toReview' ? t('business.pendingElsewhere') : t('business.doneElsewhere') }}</p>
                 <div class="flex flex-wrap justify-end gap-2">
-                    <template v-if="detail.status === 'PENDING'">
+                    <template v-if="footer === 'review'">
                         <Button type="button" :label="t('business.actReject')" severity="danger" variant="outlined" :disabled="busy" @click="emit('reject')" />
                         <Button type="button" :label="t('business.actApprove')" icon="pi pi-check" :disabled="busy || approvability === 'LOCKED'" @click="emit('approve')" />
                     </template>
-                    <Button v-else type="button" :label="t('business.actSuspend')" icon="pi pi-ban" severity="danger" variant="outlined" :disabled="busy" @click="emit('suspend')" />
+                    <Button v-else-if="footer === 'suspend'" type="button" :label="t('business.actSuspend')" icon="pi pi-ban" severity="danger" variant="outlined" :disabled="busy" @click="emit('suspend')" />
+                    <Button v-else-if="footer === 'unsuspend'" type="button" :label="t('business.actUnsuspend')" icon="pi pi-replay" :disabled="busy" @click="emit('unsuspend')" />
+                    <Button v-else-if="footer === 'toReview'" as="router-link" :to="`/business-reviews?id=${encodeURIComponent(detail!.id)}`" :label="t('business.goReview')" icon="pi pi-arrow-right" icon-pos="right" size="small" severity="secondary" variant="outlined" />
+                    <Button v-else-if="footer === 'toDirectory'" as="router-link" :to="`/businesses?status=ALL&id=${encodeURIComponent(detail!.id)}`" :label="t('business.goDirectory')" icon="pi pi-arrow-right" icon-pos="right" size="small" severity="secondary" variant="outlined" />
                 </div>
             </div>
         </template>
@@ -96,12 +103,15 @@
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { BusinessDetail, BusinessReveal, BusinessRow } from '~/composables/business/api/useBusinessApi.types';
+import type { BusinessScreenMode } from '~/components/business/BusinessDetailDrawer.types';
 import UtilBizApplication from '~/utils/util-biz-application';
 import UtilBusiness from '~/utils/util-business';
 
 const open = defineModel<boolean>('visible', { required: true });
 
 interface Props {
+    /** 어느 화면의 서랍인가 — 인증 심사(`review`: 국세청 다시 조회·승인·반려) · 사업자 목록(`directory`: 정지·정지 해제) */
+    mode?: BusinessScreenMode;
     summary?: BusinessRow | null;
     detail?: BusinessDetail | null;
     loading?: boolean;
@@ -109,11 +119,23 @@ interface Props {
     busy?: boolean;
     canManage?: boolean;
     canReveal?: boolean;
+    canUnsuspend?: boolean;
     reveal?: BusinessReveal | null;
 }
 
-const props = withDefaults(defineProps<Props>(), { summary: null, detail: null, loading: false, error: null, busy: false, canManage: false, canReveal: false, reveal: null });
-const emit = defineEmits<{ retry: []; approve: []; reject: []; suspend: []; recheck: []; reveal: []; hide: []; openCert: [] }>();
+const props = withDefaults(defineProps<Props>(), {
+    mode: 'review',
+    summary: null,
+    detail: null,
+    loading: false,
+    error: null,
+    busy: false,
+    canManage: false,
+    canReveal: false,
+    canUnsuspend: false,
+    reveal: null,
+});
+const emit = defineEmits<{ retry: []; approve: []; reject: []; suspend: []; unsuspend: []; recheck: []; reveal: []; hide: []; openCert: [] }>();
 
 const { t } = useI18n();
 const time = useDisplayTime();
@@ -124,4 +146,18 @@ const head = computed(() => props.detail ?? props.summary);
 const approvability = computed(() => (props.detail ? UtilBusiness.approvability(props.detail.nts.status) : 'LOCKED'));
 /** 최신이 위 */
 const history = computed(() => [...(props.detail?.history ?? [])].sort((a, b) => b.at.localeCompare(a.at)));
+
+/** 서랍 아래 칸 — 화면과 상태·권한으로 고른다(없으면 칸을 그리지 않는다) */
+const footer = computed<'review' | 'suspend' | 'unsuspend' | 'toReview' | 'toDirectory' | null>(() => {
+    const d = props.detail;
+    if (!d) return null;
+    if (props.mode === 'review') {
+        if (d.status !== 'PENDING') return 'toDirectory';
+        return props.canManage ? 'review' : null;
+    }
+    if (d.status === 'PENDING') return 'toReview';
+    if (d.status === 'APPROVED') return props.canManage ? 'suspend' : null;
+    if (d.status === 'SUSPENDED') return props.canUnsuspend ? 'unsuspend' : null;
+    return null;
+});
 </script>

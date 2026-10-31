@@ -7,6 +7,7 @@ import com.community.bizapplication.dto.BizOperator;
 import com.community.bizapplication.dto.BizUpload;
 import com.community.bizapplication.entity.BizActorType;
 import com.community.bizapplication.entity.BizApplicationKind;
+import com.community.bizapplication.entity.BizDomain;
 import com.community.bizapplication.entity.BizProduct;
 import com.community.bizapplication.exception.BizApplicationException;
 import com.community.bizapplication.repository.master.BizApplicationStore.AppRow;
@@ -18,6 +19,9 @@ import com.community.bizapplication.service.BizApplicationReader.Summary;
 import com.community.bizapplication.service.BizPricing.Amount;
 import com.community.business.service.BusinessFields;
 import com.community.permission.dto.AdminActor;
+import com.community.permission.entity.Permission;
+import com.community.permission.exception.PermissionDeniedException;
+import com.community.permission.service.AccessDeniedRecorder;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
 import com.community.zconfiguration.message.Messages;
@@ -32,8 +36,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 사업자 신청 건 심사(admin-web {@code /biz-applications}) — 응답 만들기와 입력 꺼내기. 처리 규칙은 shared {@link BizApplicationReviewService}, 읽기는 {@link BizApplicationReader}.
- * 큐(탭)는 상태·기한·환불 요청으로 서버가 가른다(환불 심사 대기가 먼저, 입금 대기는 기한이 지났으면 「입금 기한 지남」).
+ * 사업자 신청 건 심사(admin-web {@code /ad-reviews}·{@code /hotdeal-reviews}) — 응답 만들기와 입력 꺼내기·도메인 권한. 처리 규칙은 shared {@link BizApplicationReviewService},
+ * 읽기는 {@link BizApplicationReader}. 큐(탭)는 상태·기한·환불 요청으로 서버가 가른다(환불 심사 대기가 먼저, 입금 대기는 기한이 지났으면 「입금 기한 지남」).
+ *
+ * <p><b>도메인 권한</b>(04-ia-review S2): 컨트롤러 입구는 두 도메인 중 하나의 권한(anyOf)만 본다. 여기서 목록은 고른 {@code domain}, 상세·기간 판정·처리는 <b>건의 종류가 속한
+ * 도메인</b>으로 조회({@code ad.read}·{@code hotdeal.read})·처리({@code ad.manage}·{@code hotdeal.manage}) 권한을 다시 보고, 없으면 403 {@code PERMISSION_DENIED} + 거부 감사.
+ * 환불(승인·거절·송금 완료)은 두 도메인 모두 {@code deal-order.refund} 하나라 다시 보지 않는다(Q2).
  */
 @Service
 public class BizApplicationAdminService {
@@ -41,21 +49,34 @@ public class BizApplicationAdminService {
     private final BizApplicationReader reader;
     private final BizApplicationReviewService review;
     private final Messages messages;
+    private final AccessDeniedRecorder denied;
 
-    public BizApplicationAdminService(BizApplicationReader reader, BizApplicationReviewService review, Messages messages) {
+    public BizApplicationAdminService(BizApplicationReader reader, BizApplicationReviewService review, Messages messages, AccessDeniedRecorder denied) {
         this.reader = reader;
         this.review = review;
         this.messages = messages;
+        this.denied = denied;
     }
 
     // ── 목록·상세 ───────────────────────────────────────────────────────────
 
-    /** 큐 목록 + 큐별 건수(종류·검색 거르기 뒤) */
-    public BizAdminView.Page list(String queueText, String kindText, String q) {
+    /**
+     * 큐 목록 + 큐별 건수(그 도메인 안, 종류·검색 거르기 뒤). {@code domain} 필수(없거나 틀리면 400 {@code fields.domain}) → 그 도메인 조회 권한(403) →
+     * 큐·종류(그 도메인의 종류가 아니면 400 {@code fields.kind}).
+     */
+    public BizAdminView.Page list(AdminActor actor, String domainText, String queueText, String kindText, String q) {
+        if (domainText == null || domainText.isBlank()) {
+            throw ValidationException.of("domain", new MessageRef("bizapp.field.required"));
+        }
+        BizDomain domain = parse(BizDomain.class, domainText, "domain");
+        require(actor, domain.readPermission(), "ENDPOINT", "GET /api/admin/biz-applications?domain=" + domain.name());
         Queue queue = queueText == null || queueText.isBlank() ? Queue.REVIEW : parse(Queue.class, queueText, "queue");
         BizApplicationKind kind = kindText == null || kindText.isBlank() ? null : parse(BizApplicationKind.class, kindText, "kind");
+        if (kind != null && kind.domain() != domain) {
+            throw ValidationException.of("kind", new MessageRef("bizapp.value.invalid"));
+        }
         Instant now = reader.now();
-        List<Summary> all = reader.summaries(reader.forAdmin(kind, q));
+        List<Summary> all = reader.summaries(reader.forAdmin(domain, kind, q));
         Map<String, Long> counts = new LinkedHashMap<>();
         for (Queue x : Queue.values()) {
             counts.put(x.name(), 0L);
@@ -77,11 +98,13 @@ public class BizApplicationAdminService {
         return new BizAdminView.Page(picked.stream().map(s -> row(s.app(), s.items(), s.refund(), now)).toList(), counts);
     }
 
-    public BizAdminView.Detail detail(long id) {
-        return detailOf(reader.snapshot(id));
+    public BizAdminView.Detail detail(AdminActor actor, long id) {
+        canRead(actor, id);
+        return detail(id);
     }
 
-    public BizAdminView.Availability availability(long id, String startAt, String endAt) {
+    public BizAdminView.Availability availability(AdminActor actor, long id, String startAt, String endAt) {
+        canRead(actor, id);
         BizApplicationReviewService.Availability a = review.availability(id, startAt, endAt);
         return new BizAdminView.Availability(quote(a.items(), a.quote()), a.room().remaining(), a.room().capacity());
     }
@@ -89,6 +112,7 @@ public class BizApplicationAdminService {
     // ── 처리 ───────────────────────────────────────────────────────────────
 
     public BizAdminView.Detail approve(AdminActor actor, long id, BizAdminRequest.Approve body) {
+        canManage(actor, id);
         BizAdminRequest.Approve b = body == null ? new BizAdminRequest.Approve(null, null, null, null, null) : body;
         BizAdminRequest.Period p = b.period() == null ? new BizAdminRequest.Period(null, null) : b.period();
         review.approve(op(actor), id, b.method(), b.supply(), b.adjustReason(), b.deadlineAt(), p.startAt(), p.endAt());
@@ -96,16 +120,19 @@ public class BizApplicationAdminService {
     }
 
     public BizAdminView.Detail reject(AdminActor actor, long id, BizAdminRequest.Reject body) {
+        canManage(actor, id);
         review.reject(op(actor), id, body == null ? null : body.code(), body == null ? null : body.text());
         return detail(id);
     }
 
     public BizAdminView.Detail switchToManual(AdminActor actor, long id, BizAdminRequest.Manual body) {
+        canManage(actor, id);
         review.switchToManual(op(actor), id, body == null ? null : body.deadlineAt(), body == null ? null : body.reason());
         return detail(id);
     }
 
     public BizAdminView.Detail uploadContracts(AdminActor actor, long id, List<MultipartFile> files, String replaceId) {
+        canManage(actor, id);
         List<BizUpload> uploads = new ArrayList<>();
         for (MultipartFile f : files == null ? List.<MultipartFile>of() : files) {
             try {
@@ -119,27 +146,32 @@ public class BizApplicationAdminService {
     }
 
     public BizAdminView.ContractFile contract(AdminActor actor, long id, long fileId) {
+        canManage(actor, id);
         BizContractFile file = review.viewContract(op(actor), id, fileId);
         return new BizAdminView.ContractFile(file.url(), file.mimeType(), file.fileName());
     }
 
     public BizAdminView.Detail saveDeposit(AdminActor actor, long id, BizAdminRequest.Deposit body) {
+        canManage(actor, id);
         BizAdminRequest.Deposit b = body == null ? new BizAdminRequest.Deposit(null, null, null, null) : body;
         review.saveDeposit(op(actor), id, b.amount(), b.depositedOn(), b.depositorName(), b.mismatchReason());
         return detail(id);
     }
 
     public BizAdminView.Detail confirm(AdminActor actor, long id) {
+        canManage(actor, id);
         review.confirm(op(actor), id);
         return detail(id);
     }
 
     public BizAdminView.Detail extendDeposit(AdminActor actor, long id, BizAdminRequest.Deadline body) {
+        canManage(actor, id);
         review.extendDeposit(op(actor), id, body == null ? null : body.deadlineAt());
         return detail(id);
     }
 
     public BizAdminView.Detail cancel(AdminActor actor, long id, BizAdminRequest.Reason body) {
+        canManage(actor, id);
         review.cancel(op(actor), id, body == null ? null : body.reason());
         return detail(id);
     }
@@ -160,6 +192,28 @@ public class BizApplicationAdminService {
     }
 
     // ── 안 ──────────────────────────────────────────────────────────────────
+
+    /** 처리 뒤 응답 — 권한은 이미 봤다 */
+    private BizAdminView.Detail detail(long id) {
+        return detailOf(reader.snapshot(id));
+    }
+
+    /** 건의 도메인 조회 권한(없는 건은 404 가 먼저) */
+    private void canRead(AdminActor actor, long id) {
+        require(actor, reader.app(id).kind().domain().readPermission(), BizApplicationOps.AUDIT_TARGET, Long.toString(id));
+    }
+
+    /** 건의 도메인 처리 권한(없는 건은 404 가 먼저) */
+    private void canManage(AdminActor actor, long id) {
+        require(actor, reader.app(id).kind().domain().managePermission(), BizApplicationOps.AUDIT_TARGET, Long.toString(id));
+    }
+
+    private void require(AdminActor actor, Permission permission, String targetType, String targetId) {
+        if (!actor.can(permission)) {
+            denied.record(actor, "MISSING_PERMISSION", targetType, targetId, List.of(permission.code()));
+            throw new PermissionDeniedException();
+        }
+    }
 
     private BizAdminView.Row row(AppRow a, List<ItemRow> items, RefundRow refund, Instant now) {
         BizProduct capacity = BizApplicationReader.capacityProduct(items);

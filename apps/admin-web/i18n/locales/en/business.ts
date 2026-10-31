@@ -1,9 +1,18 @@
 /**
- * Business review (`/businesses`) — mockup stage. Same keys and order as `ko/business.ts`.
+ * Business screens — verification review (`/business-reviews`) · business list (`/businesses`). Same keys and order as `ko/business.ts`.
  */
 export default {
-    title: 'Business review',
-    subtitle: 'Verify business applications with the NTS status check and registration certificate, then approve, reject or suspend.',
+    title: 'Business list',
+    subtitle: 'Manage approved businesses: suspend or lift a suspension, and view plain values or the certificate only when needed.',
+    reviewTitle: 'Business verification review',
+    reviewSubtitle: 'Verify business applications with the NTS status check and registration certificate, then approve or reject.',
+    reviewQueue: 'Awaiting review',
+    reviewOrder: 'The longest-waiting applications are on top.',
+    reReview: 'Re-review',
+    pendingElsewhere: 'Applications under review are handled on the verification review screen.',
+    goReview: 'Handle in verification review',
+    doneElsewhere: 'This business has already been reviewed. Suspensions are handled on the business list.',
+    goDirectory: 'View in business list',
     search: 'Find businesses',
     searchPlaceholder: 'Name · registration no. · applicant',
     serviceLabel: 'Service',
@@ -83,4 +92,17 @@ export default {
     suspendCode: { POLICY_VIOLATION: 'Policy violation', FRAUD: 'Fraud/false claims', NTS_CLOSED: 'Paused/closed', OTHER: 'Other' },
     suspended: 'Suspended.',
     suspendedNote: 'Suspended ({code}, {at})',
+    actUnsuspend: 'Lift suspension',
+    unsuspendTitle: 'Lift suspension of {name}',
+    unsuspendBody: 'Lifting the suspension turns the services back on and notifies the business. Choose what to do with running items taken down by the suspension.',
+    restoreLabel: 'Running items taken down by the suspension',
+    restore: { EXTEND_RESTORE: 'Extend and restore', KEEP_REFUND: 'Keep refund reviews' },
+    restoreHelp: {
+        EXTEND_RESTORE: 'Extends the end by the time they were down and puts them back. If the slots are full they are restored without the extension. Refund requests caused by the suspension are closed as denied.',
+        KEEP_REFUND: 'Items awaiting a refund review stay as they are; taken-down items without a pending refund are restored without an extension.',
+    },
+    unsuspendNote: 'Note (optional)',
+    unsuspendNoteHint: 'Up to {max} characters',
+    unsuspendNoteTooLong: 'The note can be up to {max} characters.',
+    unsuspended: 'Suspension lifted.',
 };
