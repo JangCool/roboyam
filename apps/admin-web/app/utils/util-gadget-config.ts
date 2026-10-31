@@ -154,7 +154,7 @@ export default class UtilGadgetConfig {
     static readonly AD_BANNER_TYPES = AD_BANNER_TYPES;
 
     /**
-     * 광고 가젯인가 — 서버가 아직 종류를 몰라 저장하면 400 이라 편집기가 막는다
+     * 광고 가젯인가(`AD`·`AD_TEXT_LINE`) — 새로 넣을 때 처음 꾸미기를 싣는다
      * @param {string} type - 가젯 종류.
      * @returns {boolean} 광고 가젯이면 true.
      */

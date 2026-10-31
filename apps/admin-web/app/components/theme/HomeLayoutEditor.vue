@@ -6,7 +6,7 @@
           · iframe 이 알리는 일(`applyOp` — 놓은 칸 `place` · 칸·행 `size` · `remove` · ⚙ `settings`)을 받아 계산한다 — 최소 크기는 종류별(`UtilHomeLayoutEditor.KINDS`), 부딪친 가젯은 밀리고 늘 위로 당긴 모양(`UtilHomeLayoutEditor.setBox`).
           · 도구 줄: 격자 칸 수 12/24(바꾸면 위치·폭 2배/반 — `UtilHomeLayout.convert`) · 테마 기본 배치로(저장해야 적용) · 가젯 넣기(종류 8종 — 맨 아래 기본 크기).
           · 저장(`PUT /api/admin/home-layouts/{theme}` — 아래 붙는 저장 줄) · 되돌리기(마지막 저장으로).
-        **광고 가젯**(`AD`·`AD_TEXT_LINE`, 목업): 서버가 아직 종류를 몰라(저장 400) 배치에 있으면 저장을 막고 경고(`homeLayout.adSaveBlocked`)를 보인다 — 광고만 조용히 빼고 저장하지 않는다.
+        **광고 가젯**(`AD`·`AD_TEXT_LINE`): 서버 가젯 종류라 다른 가젯처럼 저장한다(공개 응답의 `data` 는 null — 사용자 화면이 `/api/ads` 로 채운다).
         `hidden` 이면 도구 줄을 숨긴다(화면이 「보기」일 때) — 저장 줄과 편집 중인 값은 그대로다. 실제 화면은 기본 슬롯으로 받아 도구 줄과 저장 줄 사이에 둔다.
         **가젯 페이지**(`page` — 사용자 결정 2026-10-29): 주면 홈 대신 그 페이지의 이 테마 배치를 편집한다(`useGadgetPageApi` — 읽기·저장·「처음 배치로」). 모양·손잡이·도구 줄은 홈과 같다.
         **게시판 레이아웃**(`board` — 2026-10-30, `useBoardLayoutApi`): 테마마다 하나, 모든 게시판에 같이 쓴다. 고정 칸 「게시판 본문」(`BOARD_BODY`)이 꼭 하나 있다(본문 = 종류가 `BOARD_BODY` 인 가젯 — ID 는 서버가 정한다) —
@@ -91,11 +91,7 @@
         <!-- 실제 화면(화면이 넣는다) — 도구 줄과 저장 줄 사이 -->
         <slot />
 
-        <!-- 광고 가젯이 있으면 저장을 막는다(서버가 종류를 몰라 400) -->
-        <Message v-if="canManage && view && hasAdGadget" severity="warn" size="small" :closable="false" data-testid="home-layout-ad-blocked">
-            {{ t('homeLayout.adSaveBlocked') }}
-        </Message>
-        <StickySaveBar v-if="canManage && view" revertable :dirty="dirty" :saving="saving" :disabled="hasAdGadget" :error="saveError" @save="save" @revert="revert" />
+        <StickySaveBar v-if="canManage && view" revertable :dirty="dirty" :saving="saving" :error="saveError" @save="save" @revert="revert" />
 
         <!-- 가젯 넣기 -->
         <Dialog v-model:visible="addOpen" modal :header="t('homeLayout.addTitle')" :draggable="false" :style="{ width: '36rem', maxWidth: '92vw' }">
@@ -239,8 +235,6 @@ function kindName(type: string): string {
 /** 저장 모양 — 저장 본문·바뀜 비교 */
 const currentLayout = computed(() => UtilHomeLayoutEditor.toLayout(columns.value, items.value));
 
-const hasAdGadget = computed(() => gadgets.value.some((g) => UtilGadgetConfig.isAdKind(g.type)));
-
 const dirty = computed(() => {
     if (!view.value) return false;
     const savedIds = view.value.gadgets
@@ -365,7 +359,7 @@ function add(kind: string): void {
     newSeq += 1;
     const id = `new-${newSeq}`;
     const title = kindName(kind);
-    // 광고 가젯은 서버 처음 꾸미기가 없어 화면이 정한다
+    // 광고 가젯은 처음 꾸미기(머리 숨김·배너 FLAT·비면 접기 — 서버 처음 꾸미기와 같다)를 실어 미리보기에 바로 그 모양으로 보인다
     const style = UtilGadgetConfig.isAdKind(kind) ? { style: UtilGadgetStyle.initial(kind) } : {};
     gadgets.value = [...gadgets.value, { id, type: kind, title, desktop: true, mobile: true, ...style, config: UtilGadgetConfig.initial(kind, place.value) }];
     apply(UtilHomeLayoutEditor.add(items.value, id, kind, columns.value));
@@ -418,10 +412,6 @@ function revert(): void {
 
 async function save(): Promise<void> {
     if (!canManage.value || saving.value || !dirty.value) return;
-    if (hasAdGadget.value) {
-        saveError.value = t('homeLayout.adSaveBlocked');
-        return;
-    }
     saving.value = true;
     saveError.value = '';
     serverErrors.value = {};
