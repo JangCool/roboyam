@@ -5,24 +5,30 @@ import UtilHomeLayout from '#layers/home-layout/utils/util-home-layout';
  * 공개 홈 격자(`HomeGadgetGrid`)의 순수 계산 — 운영자가 정한 배치(`HomeLayout`, 공유 레이어 `UtilHomeLayout`)를 이 화면 폭에 맞춰 그릴 자리로 바꾼다. 상태도 요청도 없다.
  *
  *  - **모양(mode)**: `full` 운영자 배치 그대로(데스크톱 lg 이상 + 홈 폭 52rem 이상) · `half` 태블릿 파생 배치(칸 수 반 — md 이상, 또는 데스크톱이지만 사이드 메뉴 때문에 홈 폭이 좁을 때) · `stack` 한 열((y, x) 순서 — md 미만, 또는 홈 폭 36rem 미만).
- *  - **h 는 최소 높이**: 가젯 실제 높이(잰 값)가 h 행보다 크면 그만큼 행을 늘리고(`place`), 위로 당기기(`UtilHomeLayout.compact`)로 **가로로 겹치는 아래 가젯만** 밀어 겹치지 않게 한다(다른 열은 그대로).
- *    숨긴 가젯(이 폭에서 안 보임·비어서 감춤)의 자리도 같은 당기기로 메운다.
- *  - **같은 줄 맞추기**: 같은 행(y)에서 같은 높이(h)로 시작하는 가젯들은 그중 가장 큰 높이로 함께 늘린다 — 운영자가 나란히 맞춘 줄은 내용 길이가 달라도 아래 끝이 맞는다.
+ *  - **px 배치**(사용자 결정 2026-10-31 — 정본): 상자 높이 = 잰 내용 높이(내용 + 테마 위·아래 여백) 정확히. 행 올림·운영자 h 로 높이를 늘리지 않는다(`h` 는 끌기 단위·순서일 뿐).
+ *    위 끝 = 읽는 순서에서 앞선 가젯 중 열이 겹치는 것들의 아래 끝 중 가장 낮은 값 + 간격 16px(없으면 0) — 가젯 사이 세로 간격은 늘 정확히 16px 이다(`place`).
+ *    숨긴 가젯(이 폭에서 안 보임·비어서 감춤)은 목록에 없으므로 그 자리는 저절로 메워진다.
+ *  - **같은 줄 맞추기**: 같은 y·같은 h 로 나란히 둔 가젯(운영자가 짝지은 것)만 그중 가장 긴 높이로 함께 늘린다 — 아래 끝이 맞는다(늘어난 짧은 상자는 남는 높이를 위·아래에 반씩 — `HomeGadgetFrame`).
  *    (격자는 칸 높이가 아니라 카드 내용 높이를 재므로, 그 줄에서 가장 긴 가젯의 내용이 줄면 그 줄도 다시 준다)
  */
 
 /** 홈 격자를 그리는 모양 */
 export type HomeGridMode = 'full' | 'half' | 'stack';
 
-/** 그릴 자리 한 개 — `h` 는 운영자가 정한 최소 높이(행), `rows` 는 실제로 차지하는 행(`h` 이상), `aligned` 는 같은 줄 맞추기로 함께 늘린 가젯인가(그 높이를 채운다) */
+/** 그릴 자리 한 개 — `x`·`y`·`w`·`h` 는 운영자 자리(행·칸 — 끌기·순서), `top`·`height` 는 그릴 위치·높이(px), `aligned` 는 같은 줄 맞추기로 함께 늘린 가젯인가 */
 export interface HomeGridCell extends HomeLayoutItem {
-    rows: number;
+    top: number;
+    height: number;
     aligned?: boolean;
 }
 
+function overlapsX(a: { x: number; w: number }, b: { x: number; w: number }): boolean {
+    return a.x < b.x + b.w && b.x < a.x + a.w;
+}
+
 /**
- * 편집 꼬리표의 크기 알림 — 운영자 h 가 내용에 필요한 행 수(`need`)보다 작다(`small` — 빨강 「내용이 칸보다 길어요 — 최소 need칸」, 칸은 need 행으로 늘어나 있다)·
- * 크다(`large` — 주황 「spare칸 줄여도 돼요」, 상자 안 위·아래 여백이 커진 상태). 같으면(또는 종류별 최소 높이 때문에 더 줄일 수 없으면) 알림 없음(null).
+ * 편집 꼬리표의 크기 알림 — 운영자 h 가 내용에 필요한 행 수(`need`)보다 작다(`small` — 빨강 「내용이 칸보다 길어요 — 최소 need칸」, 높이는 어차피 내용대로)·
+ * 크다(`large` — 주황 「spare칸 줄여도 돼요」, 높이는 내용대로라 화면에는 남는 공간이 없지만 끌기 단위가 내용보다 크다). 같으면(또는 종류별 최소 높이 때문에 더 줄일 수 없으면) 알림 없음(null).
  */
 export interface HomeGridSizeHint {
     kind: 'small' | 'large';
@@ -134,30 +140,56 @@ export default class UtilHomeGrid {
     }
 
     /**
-     * 그릴 자리 — 잰 높이로 행을 늘리고(`h` 보다 작아지지 않는다) 위로 당긴다. 결과 순서가 읽는 순서(화면 읽기·Tab 순서)다.
-     * 상자(카드)는 늘 이 칸을 채우고, 칸이 내용보다 큰 만큼은 상자 안 위·아래 여백에 나눈다(`HomeGadgetGrid`·`HomeGadgetFrame`). 같은 줄 맞추기로 함께 늘린 칸도 같다.
+     * 그릴 자리(px) — 상자 높이 = 잰 내용 높이(아직 못 쟀으면 `h` 행의 px), 같은 줄 맞추기 짝은 그중 가장 긴 높이. 위 끝은 읽는 순서(y, x)로 앞선 가젯 중
+     * 열이 겹치는 것들의 아래 끝 + 간격(16px) 중 가장 낮은 값(없으면 0). 결과 순서가 읽는 순서(화면 읽기·Tab 순서)다.
+     * `h` 는 높이를 늘리지 않는다(끌기 단위·순서 — 관리자 편집기의 충돌·당기기는 행 단위 그대로이고, 이 순서와 모순되지 않는다: 같은 열에서 앞선 가젯이 늘 위다).
      * @param {readonly HomeLayoutItem[]} items - 자리.
-     * @param {Readonly<Record<string, number>>} heights - 가젯 ID → 잰 높이(px). 아직 못 잰 가젯은 `h` 그대로.
+     * @param {Readonly<Record<string, number>>} heights - 가젯 ID → 잰 높이(px).
      * @returns {HomeGridCell[]} 그릴 자리.
      */
     static place(items: readonly HomeLayoutItem[], heights: Readonly<Record<string, number>>): HomeGridCell[] {
-        const measuredRows = (it: HomeLayoutItem) => {
-            const measured = heights[it.gadgetId];
-            return measured === undefined ? it.h : Math.max(it.h, UtilHomeLayout.rowsFor(measured));
-        };
-        // 같은 줄 맞추기 — 운영자가 같은 행(y)에 같은 높이(h)로 나란히 둔 가젯은 그중 가장 큰 높이로 함께 늘려 아래 끝을 맞춘다
+        const own = (it: HomeLayoutItem) => heights[it.gadgetId] ?? UtilHomeLayout.px(it.h);
+        // 같은 줄 맞추기 — 운영자가 같은 행(y)에 같은 높이(h)로 나란히 둔 가젯은 그중 가장 긴 높이로 함께 늘려 아래 끝을 맞춘다
         const rowKey = (it: HomeLayoutItem) => `${it.y}:${it.h}`;
-        const groupRows = new Map<string, { rows: number; size: number }>();
+        const groups = new Map<string, { height: number; size: number }>();
         for (const it of items) {
-            const g = groupRows.get(rowKey(it)) ?? { rows: 0, size: 0 };
-            groupRows.set(rowKey(it), { rows: Math.max(g.rows, measuredRows(it)), size: g.size + 1 });
+            const g = groups.get(rowKey(it)) ?? { height: 0, size: 0 };
+            groups.set(rowKey(it), { height: Math.max(g.height, own(it)), size: g.size + 1 });
         }
-        const grown = items.map((it) => {
-            const group = groupRows.get(rowKey(it))!;
+        const placed: HomeGridCell[] = [];
+        for (const it of UtilHomeLayout.byReadingOrder(items)) {
+            const group = groups.get(rowKey(it))!;
             const aligned = group.size > 1;
-            // 당기기는 `h` 를 차지하는 행으로 본다 — 늘린 행으로 당긴 뒤 원래 `h` 를 되돌린다
-            return { ...it, h: aligned ? group.rows : measuredRows(it), minH: it.h, aligned };
-        });
-        return UtilHomeLayout.compact(grown).map(({ minH, h, ...rest }) => ({ ...rest, h: minH, rows: h }));
+            let top = 0;
+            for (const p of placed) if (overlapsX(p, it)) top = Math.max(top, p.top + p.height + UtilHomeLayout.GAP);
+            placed.push({ ...it, top, height: aligned ? group.height : own(it), aligned });
+        }
+        return placed;
+    }
+
+    /**
+     * 격자 전체 높이(px) — 가장 아래 가젯의 아래 끝
+     * @param {readonly HomeGridCell[]} cells - 그릴 자리.
+     * @returns {number} px.
+     */
+    static totalHeight(cells: readonly HomeGridCell[]): number {
+        return cells.reduce((max, c) => Math.max(max, c.top + c.height), 0);
+    }
+
+    /**
+     * 끌어 놓은 위치(px) → 운영자 행(y) — 놓은 열과 겹치는 가젯(끄는 가젯 제외) 중 위 끝이 놓은 위 끝 이하인 가장 아래 가젯을 찾아,
+     * 놓은 위 끝이 그 가젯의 위쪽 절반이면 그 가젯의 y(그 앞), 아래쪽 절반이면 y + h(그 뒤). 없으면 0. px 배치는 행과 1:1 이 아니어서 화면 순서로 되짚는다.
+     * @param {readonly HomeGridCell[]} cells - 그릴 자리.
+     * @param {{ id: string; x: number; w: number; top: number }} drop - 끄는 가젯 · 놓일 칸 · 놓일 위 끝(px).
+     * @returns {number} 행.
+     */
+    static rowAt(cells: readonly HomeGridCell[], drop: { id: string; x: number; w: number; top: number }): number {
+        let hit: HomeGridCell | null = null;
+        for (const c of cells) {
+            if (c.gadgetId === drop.id || !overlapsX(c, drop) || c.top > drop.top) continue;
+            if (!hit || c.top > hit.top) hit = c;
+        }
+        if (!hit) return 0;
+        return drop.top < hit.top + hit.height / 2 ? hit.y : hit.y + hit.h;
     }
 }
