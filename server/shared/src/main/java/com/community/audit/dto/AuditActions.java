@@ -421,6 +421,8 @@ public final class AuditActions {
     public static final String AD_TAKEDOWN = "AD_TAKEDOWN";
     /** 긴급 내림 되돌리기 — {@code compensation}(EXTEND·PRORATE_REFUND)·{@code reason}·{@code lostMinutes}·{@code endAt}·{@code refundAmount}. 돈 관련 */
     public static final String AD_RESTORE = "AD_RESTORE";
+    /** 광고 노출 자리 설정 저장(글 보기 중간·날개·목록 한 줄, 대상 AD_PLACEMENTS · 1) — 바뀐 칸 {@code before}·{@code after}(처음 저장이면 기본값에서). 일반 */
+    public static final String AD_PLACEMENT_UPDATE = "AD_PLACEMENT_UPDATE";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

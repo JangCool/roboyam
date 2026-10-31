@@ -105,10 +105,12 @@ public final class AdminScreenRegistry {
             section(NORMAL, "menu.business", "pi pi-briefcase",
                     leaf(s("businessReviews", "/business-reviews", "menu.businessReviews", "pi pi-inbox", Permission.BUSINESS_READ)),
                     leaf(s("businesses", "/businesses", "menu.businesses", "pi pi-id-card", Permission.BUSINESS_READ))),
-            // 광고 묶음(biz-application-contract · ad-contract) — 광고 심사(AD_* 신청 건, 처리 ad.manage · 환불 deal-order.refund) · 광고 일정표(처리 ad.manage · ad.takedown · ad.restore)
+            // 광고 묶음(biz-application-contract · ad-contract) — 광고 심사(AD_* 신청 건, 처리 ad.manage · 환불 deal-order.refund) · 광고 일정표(처리 ad.manage · ad.takedown · ad.restore) · 노출 자리 설정(저장 ad.settings)
             section(NORMAL, "menu.ad", "pi pi-megaphone",
                     leaf(s("adReviews", "/ad-reviews", "menu.adReviews", "pi pi-inbox", Permission.AD_READ)),
-                    leaf(s("ads", "/ads", "menu.ads", "pi pi-calendar", Permission.AD_READ))),
+                    leaf(s("ads", "/ads", "menu.ads", "pi pi-calendar", Permission.AD_READ)),
+                    // 노출 자리 설정(글 보기 중간 · 날개 · 목록 한 줄) — 조회 ad.read, 저장은 화면 안에서 ad.settings
+                    leaf(s("adPlacements", "/ads/placements", "menu.adPlacements", "pi pi-sliders-h", Permission.AD_READ))),
             // 핫딜 묶음 — 핫딜 심사(HOTDEAL_* 신청 건, 처리 hotdeal.manage · 환불 deal-order.refund). 핫딜 글·링크 규칙·의심 후보·설정은 화면이 생길 때 더한다
             section(NORMAL, "menu.hotdeal", "pi pi-ticket",
                     leaf(s("hotdealReviews", "/hotdeal-reviews", "menu.hotdealReviews", "pi pi-inbox", Permission.HOTDEAL_READ))),

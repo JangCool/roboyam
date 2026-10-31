@@ -132,8 +132,8 @@ public final class AuditRetention {
             AuditActions.BUSINESS_NTS_OVERRIDE,
             // 사업자 신청 건 반려·수동 전환·입금 기한 — 돈이 움직이지 않는 심사 일(biz-application-contract)
             AuditActions.BIZ_APP_REJECT, AuditActions.BIZ_APP_MANUAL_SWITCH, AuditActions.BIZ_APP_DEPOSIT_DEADLINE,
-            // 광고 일정표 — 광고주 만들기·긴급 내림(돈은 되돌리기가 움직인다)
-            AuditActions.AD_ADVERTISER_CREATE, AuditActions.AD_TAKEDOWN);
+            // 광고 일정표 — 광고주 만들기·긴급 내림(돈은 되돌리기가 움직인다) · 노출 자리 설정
+            AuditActions.AD_ADVERTISER_CREATE, AuditActions.AD_TAKEDOWN, AuditActions.AD_PLACEMENT_UPDATE);
 
     private static final Map<String, AuditRetentionClass> TABLE = table();
 
