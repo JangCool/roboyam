@@ -54,7 +54,13 @@ API 요청·응답 모양 전체는 서버 DTO(admin `ad/dto/AdAdminView`·`AdAd
 - 광고주 연락처 평문 보기 UI 는 없다(composable `revealAdvertiser` 만 — 광고주 관리 화면 후속).
 - user-web 배너 [소재 바꾸기]는 새 이미지를 고르지 않으면 지금 `imageFileId` 를 그대로 보낸다.
 
-## 공개 노출 목업 (2026-10-31 — **화면 확정 전**, 서버 없음)
+## 공개 노출 목업 (2026-10-31 목업 · **화면 확정 2026-11-01**)
+- **확정 결정(사용자 2026-11-01)** — 아래 「미확정」 중 이것으로 닫는다:
+  - 날개 배너 `WING_BANNER` 요금표: 하루 30,000원 · 동시 한도 4(양쪽 두 자리를 비중대로 돌림) · 최대 30일 · 60일 전부터 신청. 새 마이그레이션으로 더한다(V112 고치지 않음).
+  - 부풀림 거르기: 같은 방문자(로그인 회원 ID, 아니면 IP+User-Agent 해시 — 원본 IP 저장 안 함)·같은 광고 버전·같은 자리는 **하루(한국 날짜) 노출 1번·클릭 1번**만 센다. 봇 User-Agent 제외, 노출 한 번에 20건까지. 집계 두 주소(`POST /api/ads/impressions`·`/api/ads/{id}/clicks`)는 CSRF 검사에서 뺀다.
+  - 게시판 `adsHidden`: 관리자 게시판 편집에 「이 게시판에 광고 숨김」(기본 끔). 켜면 그 게시판의 목록 한 줄·글 보기·핫딜 노출이 없다. 19금(`allowAdult`) 게시판은 칸과 상관없이 늘 제외.
+  - 소모임 게시판·글에는 글 보기·목록 한 줄 광고를 넣지 않는다(날개 배너도 소모임 화면은 뺀다).
+- 남은 작은 것은 가정으로 둔다: 같은 페이지에서 서로 다른 자리에 같은 광고가 겹치는 것은 허용(날개 양쪽만 다르게) · 서버가 광고 가젯 종류를 알게 되면 저장 막음(`homeLayout.adSaveBlocked`)을 풀고 「광고만 빼고 저장」은 만들지 않음 · 사업자·관리자 미리보기의 `rel` 도 `sponsored nofollow noopener` 로 맞춤.
 - user-web: `components/ad/{AdSlot,AdTextLines,AdInquiry,AdHotdealPlacement}.vue` · 가젯 `HomeGadgetAd`(`AD`, `config.adType` 배너 넷 — 처음 `WIDE_BANNER`)·`HomeGadgetAdTextLine`(`AD_TEXT_LINE`, `config.count` 1~5 — 처음 3) · 글 보기 글 카드와 댓글 카드 사이 회색 틈 한 자리(아래 「2차·3차 수정」) · 게시판 목록 위 핫딜 노출(`dealEnabled` 게시판·첫 쪽·검색 아님 — 공개 핫딜 목록 화면이 따로 없어서). 목업 `composables/ad/api/usePublicAdApi.ts`(+types·mock), 고르기·틀 `utils/util-ad.ts`.
 - 목업 스위치: `?mock=ad-gadgets`(홈·가젯 페이지·게시판 레이아웃에 광고 가젯을 화면 쪽에서 덧붙임) · `ad-empty` · `ad-keep` · `ad-one` · `ad-fail` · `ad-inline-off` · `ad-hotdeal` (+ 아래 「2차 수정」 스위치).
 - 가정: 「광고」 표시 항상 · `rel="sponsored nofollow noopener"`(noreferrer 는 광고주 유입 집계 때문에 뺌 — 사업자 미리보기 `BusinessAdPreview`·admin `BizAppPreview` 는 아직 noreferrer, 맞출지 미확정) · 비율 넓은 4:1·띠 12:1·네모 6:5·작은 3:1(네모·작은 최대 300px) · **빈 자리 기본 접기**, 가젯 `style.empty.keep` 을 켜면 「광고 문의 ›」(→ `/business`) · 글 중간·핫딜은 늘 접기 · 고르기는 클라이언트(SPA), 사본이 바뀌어도 보이던 건이 남아 있으면 유지 · 노출 = 절반 이상 보였을 때 자리·버전마다 한 번(1초 모아 보내기, 숨길 때 `sendBeacon`), 클릭 = `sendBeacon`(href 는 광고 주소 그대로) · 19금 글은 글 중간 광고 없음.
