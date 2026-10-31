@@ -56,7 +56,17 @@ export interface AdminPreviewBoard {
  */
 export interface AdminPreviewHome {
     layout: HomeLayout;
-    gadgets: { id: string; type: string; title: string; desktop: boolean; mobile: boolean; style?: Record<string, unknown> | null; config?: AdminPreviewGadgetConfig | null }[];
+    gadgets: {
+        id: string;
+        type: string;
+        title: string;
+        desktop: boolean;
+        mobile: boolean;
+        style?: Record<string, unknown> | null;
+        config?: AdminPreviewGadgetConfig | null;
+        /** 관리자 편집기의 종류별 최소 높이(행, `UtilHomeLayoutEditor.KINDS`) — 편집 꼬리표 「n칸 줄여도 돼요」가 그 아래로는 권하지 않게. 없으면 모른다 */
+        minH?: number;
+    }[];
 }
 
 /** 관리자가 보내는 미리보기 값 — 메뉴 칸은 운영자 설정 모양 그대로(`THEME` 또는 값, 읽기는 `UtilMenuPosition` 이 한다) */
@@ -180,7 +190,12 @@ export default class UtilAdminPreview {
                 (g): g is AdminPreviewHome['gadgets'][number] =>
                     isRecord(g) && typeof g.id === 'string' && typeof g.type === 'string' && typeof g.title === 'string' && typeof g.desktop === 'boolean' && typeof g.mobile === 'boolean',
             )
-            .map((g) => ({ ...g, style: isRecord(g.style) ? g.style : null, config: UtilAdminPreview.readConfig(g.type, g.config) }));
+            .map((g) => ({
+                ...g,
+                style: isRecord(g.style) ? g.style : null,
+                config: UtilAdminPreview.readConfig(g.type, g.config),
+                minH: typeof g.minH === 'number' && Number.isInteger(g.minH) && g.minH > 0 ? g.minH : undefined,
+            }));
         return { layout: value.layout as unknown as HomeLayout, gadgets };
     }
 

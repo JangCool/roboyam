@@ -147,10 +147,10 @@ const rootStyle = computed(() => {
 
 /**
  * 카드 — 평평한 가젯만 카드 없이. 나머지는 테마가 값을 채우는 `gadget-card`(안 여백 규칙은 `main.css` — 위·아래·좌·우가 같게 보이게).
- * 카드 높이 = 내용 높이(2026-10-31) — 격자가 칸을 내용보다 높게 잡아도(행 올림 · 운영자 h · 같은 줄 맞추기) 카드는 늘지 않고 남는 칸은 카드 밖 바탕이다(`HomeGadgetGrid`).
- * 그래서 머리를 숨긴 카드도 세로 가운데 맞춤이 필요 없다(늘어난 빈 곳이 카드 안에 생기지 않는다).
+ * **상자 = 격자 칸**(사용자 결정 2026-10-31 — 정본): 격자(`HomeGadgetGrid`)가 칸을 max(운영자 h, 내용에 필요한 행)으로 잡고 카드는 칸을 꽉 채운다. 칸이 내용보다 큰 만큼(행 올림 0~30px ·
+ * 운영자 h · 같은 줄 맞추기)은 위·아래 여백에 똑같이 나눈다 — 머리 + 본문 덩어리 전체를 세로 가운데에 둔다(머리가 있어도). 한 열(모바일)은 칸이 내용 높이라 그대로다.
  */
-const rootClass = computed(() => (style.value.cardLook === 'FLAT' ? 'min-w-0' : 'gadget-card'));
+const rootClass = computed(() => `${style.value.cardLook === 'FLAT' ? 'min-w-0' : 'gadget-card'} flex flex-col justify-center`);
 
 /** 기본형 카드의 「더보기」 줄 — 카드 아래·좌우 끝까지 닿는 바닥 줄(카드 아래 여백 밑에 줄이 또 떠 있지 않게). 평평한 가젯은 그대로 */
 const classicMoreStyle = computed(() =>

@@ -33,6 +33,7 @@
 import type { SiteThemeMenuFields } from '~/composables/site/api/useSiteSettingsApi.types';
 import type { HomeLayoutBody } from '~/composables/home/api/useHomeLayoutApi.types';
 import type { HomeLayoutOp } from '~/components/theme/HomeLayoutEditor.vue';
+import UtilHomeLayoutEditor from '~/utils/util-home-layout-editor';
 
 interface Props {
     /** 고른 테마 id */
@@ -67,11 +68,15 @@ const frame = ref<HTMLIFrameElement | null>(null);
 const scale = ref(0.8);
 const ready = ref(false);
 
-/** 지금 값을 공개 사이트로 보낸다 — 반응형 감싸기를 벗겨(JSON) 보낸다 */
+/**
+ * 지금 값을 공개 사이트로 보낸다 — 반응형 감싸기를 벗겨(JSON) 보낸다. 홈 구성의 가젯마다 종류별 최소 높이(`minH` — `UtilHomeLayoutEditor.spec`)를 실어
+ * 실제 화면의 크기 꼬리표(「n칸 줄여도 돼요」)가 편집기가 막는 높이 아래로는 권하지 않게 한다(user-web `UtilHomeGrid.sizeHint`).
+ */
 function send(): void {
     const target = frame.value?.contentWindow;
     if (!target || !origin.value) return;
-    const message = JSON.parse(JSON.stringify({ type: 'roboyam:admin-preview', theme: props.theme, menu: props.menu, home: props.home, editing: props.editing, page: props.page, board: props.board }));
+    const home = props.home ? { ...props.home, gadgets: props.home.gadgets.map((g) => ({ ...g, minH: UtilHomeLayoutEditor.spec(g.type).minH })) } : null;
+    const message = JSON.parse(JSON.stringify({ type: 'roboyam:admin-preview', theme: props.theme, menu: props.menu, home, editing: props.editing, page: props.page, board: props.board }));
     target.postMessage(message, origin.value);
 }
 

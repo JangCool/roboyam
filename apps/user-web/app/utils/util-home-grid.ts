@@ -21,14 +21,14 @@ export interface HomeGridCell extends HomeLayoutItem {
 }
 
 /**
- * 편집 꼬리표의 크기 알림 — 운영자 h 가 내용에 필요한 행 수(`need`)보다 작다(`small` — 빨강 「더 줄이면 내용이 잘려요 — 최소 need칸」)·크다(`large` — 주황 「spare칸 줄여도 돼요」).
- * 같으면 알림 없음(null).
+ * 편집 꼬리표의 크기 알림 — 운영자 h 가 내용에 필요한 행 수(`need`)보다 작다(`small` — 빨강 「내용이 칸보다 길어요 — 최소 need칸」, 칸은 need 행으로 늘어나 있다)·
+ * 크다(`large` — 주황 「spare칸 줄여도 돼요」, 상자 안 위·아래 여백이 커진 상태). 같으면(또는 종류별 최소 높이 때문에 더 줄일 수 없으면) 알림 없음(null).
  */
 export interface HomeGridSizeHint {
     kind: 'small' | 'large';
     /** 내용에 필요한 행 수 */
     need: number;
-    /** 줄여도 되는 행 수(`large` 만 — `small` 은 0) */
+    /** 줄여도 되는 행 수(`large` 만 — 종류별 최소 높이 아래로는 세지 않는다. `small` 은 0) */
     spare: number;
 }
 
@@ -121,19 +121,21 @@ export default class UtilHomeGrid {
      * 편집 꼬리표의 크기 알림 — 운영자 h 와 내용에 필요한 행 수(잰 내용 높이 px → `UtilHomeLayout.rowsFor` — 격자와 같은 「행 15 + 간격 16」 환산, 칸 수 12·24 와 무관)를 견준다.
      * @param {number} h - 운영자 h(끄는 중이면 놓일 h).
      * @param {number | undefined} contentPx - 잰 내용 높이(px). 아직 못 쟀으면 undefined.
+     * @param {number} [minH] - 관리자 편집기의 종류별 최소 높이(행 — 미리보기 메시지 `home.gadgets[].minH`). 모르면 1.
      * @returns {HomeGridSizeHint | null} 알림(같거나 못 쟀으면 null).
      */
-    static sizeHint(h: number, contentPx: number | undefined): HomeGridSizeHint | null {
+    static sizeHint(h: number, contentPx: number | undefined, minH = 1): HomeGridSizeHint | null {
         if (contentPx === undefined || !(contentPx > 0)) return null;
         const need = UtilHomeLayout.rowsFor(contentPx);
         if (h < need) return { kind: 'small', need, spare: 0 };
-        if (h > need) return { kind: 'large', need, spare: h - need };
+        const spare = h - Math.max(need, minH);
+        if (spare > 0) return { kind: 'large', need, spare };
         return null;
     }
 
     /**
      * 그릴 자리 — 잰 높이로 행을 늘리고(`h` 보다 작아지지 않는다) 위로 당긴다. 결과 순서가 읽는 순서(화면 읽기·Tab 순서)다.
-     * 행은 **칸 자리**다 — 상자(카드)는 늘리지 않는다(상자 높이 = 내용 높이, `HomeGadgetGrid`). 같은 줄 맞추기도 칸만 함께 잡아 다음 행의 시작선을 맞춘다.
+     * 상자(카드)는 늘 이 칸을 채우고, 칸이 내용보다 큰 만큼은 상자 안 위·아래 여백에 나눈다(`HomeGadgetGrid`·`HomeGadgetFrame`). 같은 줄 맞추기로 함께 늘린 칸도 같다.
      * @param {readonly HomeLayoutItem[]} items - 자리.
      * @param {Readonly<Record<string, number>>} heights - 가젯 ID → 잰 높이(px). 아직 못 잰 가젯은 `h` 그대로.
      * @returns {HomeGridCell[]} 그릴 자리.

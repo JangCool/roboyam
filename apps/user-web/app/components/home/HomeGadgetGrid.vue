@@ -8,16 +8,17 @@
           · `stack` 모바일(md 미만) 또는 홈 폭 36rem 미만 — 한 열, 간격은 테마 역할 변수 `--gadget-gap`(카드가 화면 끝까지 닿는 모바일 모양 그대로).
             순서는 템플릿의 한 열 모양(`mobile.order`): `reading` (y, x) · `columns` 본문 열 먼저(`UtilHomeGrid.byColumns`). 한 열인지는 아래 가젯에 알린다(`provideHomeGadgetStacked` — 가젯의 한 열 모양: 가로로 미는 줄 등)
         **h 는 최소 높이**: 내용이 길면 칸이 늘어난다 — 카드 내용 높이(ResizeObserver)로 차지할 행을 늘리고 위로 당겨(`UtilHomeGrid.place`) 같은 열 아래 가젯만 밀린다(겹치지 않는다).
-          칸은 차지한 행을 끝까지 차지하지만(`min-height` = 차지한 행 — 다음 행 가젯이 그 아래에서 시작한다) **카드(상자)는 늘리지 않는다 — 상자 높이 = 내용 높이**(사용자 결정 2026-10-31).
-          운영자 h 가 내용보다 크거나 행 올림(31px 단위)으로 남는 칸은 상자 밖 바탕으로 남는다 — 상자 안에 빈 공간이 생기지 않는다(위·아래·좌·우 안 여백이 늘 같다).
+          **상자 = 격자 칸**(사용자 결정 2026-10-31 — 정본): 칸 높이 = max(운영자 h, 내용에 필요한 행 수) 행(31px 격자선에 맞음, `min-height` = 차지한 행)이고 카드(상자)는 늘 칸을 꽉 채운다 — 점선 칸과 상자 테두리가 겹쳐 상자 밖 바탕 띠가 없다.
+          칸이 내용보다 큰 만큼(행 올림 0~30px · 운영자 h · 같은 줄 맞추기)은 상자 **안** 위·아래 여백에 똑같이 나눈다 — 껍데기(`HomeGadgetFrame`)가 머리 + 본문 덩어리를 세로 가운데에 둔다.
         가젯의 PC/모바일 노출(`desktop`·`mobile`, lg 경계)·비어서 감춤은 `UtilHomeGadget.isVisible` 그대로이고, 숨긴 가젯의 자리는 당겨 메운다. 요소 순서는 읽는 순서((y, x))라 화면 읽기·Tab 순서가 보이는 순서와 같다.
-        같은 행에 같은 h 로 나란히 둔 가젯은 그중 가장 긴 가젯 높이만큼 **칸**을 함께 잡는다(`UtilHomeGrid.place` 「같은 줄 맞추기」 — 다음 행이 그 행에서 가장 긴 것 아래에서 시작) — 상자 아래 끝은 내용대로 달라진다. 데이터는 받기만 한다(조회는 페이지).
+        같은 행에 같은 h 로 나란히 둔 가젯은 그중 가장 긴 가젯 높이로 칸을 함께 늘린다(`UtilHomeGrid.place` 「같은 줄 맞추기」 — 상자도 칸을 채워 아래 끝이 맞는다). 데이터는 받기만 한다(조회는 페이지).
         **관리자 미리보기 편집**(`useAdminPreview().editing` — 관리자 테마 화면의 iframe 안, 사용자 결정 2026-10-28: 편집도 실제 화면에서): 가젯마다 위에 덮는 손잡이 층을 얹는다 —
           가운데를 끌면 옮기기, 오른쪽 아래 모서리를 끌면 크기, 오른쪽 위 ×는 빼기, 그 옆 ⚙(8종 전부 — 내용·모양·노출)는 관리자 설정 창 열기(`settings`). 끄는 동안 놓일 칸을 이 격자의 칸·행 크기로 계산해 자리 표시를 그리고, 놓으면 관리자에게 알린다
           (`postToAdminPreview` — 놓은 칸 `place` · 칸·행 `size` · `remove`). 실제 계산(최소 크기·겹침·위로 당기기)과 저장은 관리자 편집기가 하고, 바뀐 배치를 다시 보내면 이 격자가 그린다.
           편집 중에는 PC 에서 숨는 가젯(모바일만)도 흐리게 그린다(자리를 고칠 수 있게). 공개 화면(편집 아님)에는 아무 영향이 없다.
-          편집 중에는 칸마다 옅은 점선 윤곽(예약된 칸)을 늘 그려 상자(내용 높이)와 구분한다. 크기 꼬리표(`w×h`)는 내용에 필요한 행 수(잰 내용 높이 → `UtilHomeLayout.rowsFor`)와 비교해
-          운영자 h 가 작으면 빨강 「더 줄이면 내용이 잘려요 — 최소 n칸」, 크면 주황 「n칸 줄여도 돼요」(상자 밖 바탕이 남는다)를 늘 보인다 — 모서리를 끄는 동안은 놓일 h 로 실시간(`UtilHomeGrid.sizeHint`). 저장은 막지 않는다.
+          편집 중에는 칸마다 옅은 점선 윤곽을 늘 그린다(상자가 칸을 채우므로 상자 테두리와 겹친다). 크기 꼬리표(`w×h`)는 내용에 필요한 행 수(잰 내용 높이 → `UtilHomeLayout.rowsFor`)와 비교해
+          운영자 h 가 작으면 빨강 「내용이 칸보다 길어요 — 최소 n칸」(칸은 n칸으로 늘어나 있다), 크면 주황 「n칸 줄여도 돼요」(상자 안 위·아래 여백이 커진 상태 — 관리자 종류별 최소 높이 `minH` 아래로는 권하지 않는다)를 늘 보인다
+          — 모서리를 끄는 동안은 놓일 h 로 실시간(`UtilHomeGrid.sizeHint`). 저장은 막지 않는다.
         **게시판 레이아웃**(2026-10-30, `BoardLayoutGrid` 가 `provideBoardLayoutBody` 로 본문을 넘길 때만): 고정 칸 「게시판 본문」(`BOARD_BODY`) 자리에 게시판 목록(·글 보기) 화면 내용을 그대로 그린다(높이는 내용대로).
           한 열에서는 본문을 먼저(본문 위에 통째로 놓인 가젯은 그 위 그대로 — `UtilHomeGrid.bodyFirst`). 편집 손잡이는 옮기기·크기만(× · ⚙ 없음).
     -->
@@ -27,7 +28,7 @@
             :key="cell.gadget.id"
             :ref="(el) => bind(cell.gadget.id, el)"
             :data-gadget-id="cell.gadget.id"
-            class="flex min-w-0 flex-col empty:hidden"
+            class="flex min-w-0 flex-col empty:hidden [&>*]:grow"
             :class="editing ? ['relative', drag?.id === cell.gadget.id && drag.kind === 'move' ? 'z-20 opacity-80' : '', cell.gadget.desktop ? '' : 'opacity-50'] : ''"
             :style="[cellStyle(cell), dragStyle(cell)]"
         >
@@ -101,7 +102,7 @@ interface Cell extends HomeGridCell {
 
 const { t } = useI18n();
 const { wide } = useHomeGadgetShared();
-const { editing } = useAdminPreview();
+const { editing, home: previewHome } = useAdminPreview();
 const md = useMediaQuery(UtilHomeGrid.MD_QUERY);
 /** 게시판 레이아웃이면 본문 그리기(밖이면 null — 본문 칸은 그리지 않는다) */
 const boardBody = useBoardLayoutBody();
@@ -261,7 +262,8 @@ function sizeOf(cell: Cell): { w: number; h: number } {
 /** 운영자 h 와 내용에 필요한 행 수 비교(편집 꼬리표 색·문구) — 아직 못 잰 가젯·게시판 본문(보는 게시판마다 길이가 다르다)은 없음 */
 function hintOf(cell: Cell): HomeGridSizeHint | null {
     if (cell.gadget.type === BOARD_BODY) return null;
-    return UtilHomeGrid.sizeHint(sizeOf(cell).h, heights.value[cell.gadget.id]);
+    const minH = previewHome.value?.gadgets.find((g) => g.id === cell.gadget.id)?.minH;
+    return UtilHomeGrid.sizeHint(sizeOf(cell).h, heights.value[cell.gadget.id], minH);
 }
 
 function remove(id: string): void {
@@ -292,7 +294,7 @@ const ghost = computed<CSSProperties | null>(() => {
 
 onBeforeUnmount(() => window.removeEventListener('pointermove', onMove));
 
-/* ── 높이 재기 — 칸 높이가 아니라 가젯 카드의 내용 높이(카드는 늘지 않아 카드 높이와 같다 — 편집 꼬리표의 크기 알림도 이 값을 쓴다)(카드 자식들의 아래 끝 + 아래 안 여백)를 잰다 → 행을 늘리는 일이 되먹임하지 않고, 내용이 줄면 행도 준다.
+/* ── 높이 재기 — 칸 높이가 아니라 가젯 카드의 내용 높이(카드는 칸을 채우고 내용을 세로 가운데에 두므로 자식들의 위·아래 끝으로 잰다 — 편집 꼬리표의 크기 알림도 이 값을 쓴다)(카드 자식들의 아래 끝 + 아래 안 여백)를 잰다 → 행을 늘리는 일이 되먹임하지 않고, 내용이 줄면 행도 준다.
        칸 안에서 내용만 줄거나 늘면 칸 크기는 그대로라 카드의 자식(머리·내용·더보기)도 함께 지켜본다 ── */
 
 const observed = new Map<string, Element>();
@@ -387,7 +389,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 /* 관리자 미리보기 편집 손잡이 — 올리면 주 색상 점선 테두리, 끄는 칸은 실선. 색은 주 색상 토큰만 */
-/* 예약된 칸 — 편집 중 늘 옅은 점선 윤곽(상자는 내용 높이라 칸보다 짧을 수 있다 — 칸과 상자를 구분해 보이게) */
+/* 칸 — 편집 중 늘 옅은 점선 윤곽(상자가 칸을 채우므로 상자 테두리와 겹친다) */
 .home-edit {
     border-radius: var(--gadget-card-radius, 0.75rem);
     outline: 2px dashed color-mix(in srgb, var(--p-primary-color) 28%, transparent);

@@ -68,6 +68,6 @@ export default {
     editSettings: '{title} 설정',
     editResize: '크기 바꾸기',
     // 편집 꼬리표의 크기 알림 — 운영자 높이(행)와 내용에 필요한 행 수 비교(n = 행 수)
-    editTooSmall: '더 줄이면 내용이 잘려요 — 최소 {n}칸',
+    editTooSmall: '내용이 칸보다 길어요 — 최소 {n}칸',
     editTooLarge: '{n}칸 줄여도 돼요',
 };
