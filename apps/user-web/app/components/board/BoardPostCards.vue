@@ -27,8 +27,8 @@
                     </NuxtLink>
                 </FoldedRow>
             </li>
-            <!-- 목록 안 한 줄 광고(목업) — 카드 한 칸(꼬리표 + 문구) -->
-            <li v-if="feedAd && i === feedAd.afterIndex" class="overflow-hidden rounded-lg border border-surface bg-surface-0 dark:bg-surface-900"><AdFeedRow :ad="feedAd.ad" variant="card" /></li>
+            <!-- 목록 안 한 줄 광고(목업) — 카드 한 칸이 아니라 두 열을 가로지르는 얇은 한 줄(꼬리표 + 문구) -->
+            <li v-if="feedAd && i === feedAd.afterIndex" class="overflow-hidden rounded-lg border border-surface bg-surface-0 md:col-span-2 dark:bg-surface-900"><AdFeedRow :ad="feedAd.ad" variant="card" /></li>
             </template>
         </ul>
     </div>

@@ -10,7 +10,7 @@ import type { AdClickRequest, AdImpressionsRequest, PublicAdPlacements, PublicAd
  *      서버 사본 20초(`Cache-Control` 공개 캐시 가능 — 보는 사람 몫이 섞이지 않는다). 긴급 내림·되돌리기는 사본 갱신(최대 20초)으로 반영된다.
  *      화면이 비중(`weight`) 가중 무작위로 자리마다 1건(한 줄 광고는 N건 중복 없이)을 고른다(`UtilAd.pick`·`pickMany`).
  *      `HOTDEAL_TOP`·`HOTDEAL_CATEGORY` 는 `board`(핫딜 게시판 slug) · `prefix`(말머리 ID — 말머리 상단만)를 함께 보내고, 후보에 핫딜 글(`deal`)이 붙는다.
- *  - `GET /api/ads/placements` → `PublicAdPlacements { postInline{ enabled, adType: TEXT_LINE|STRIP_BANNER|SQUARE_BANNER, position: BEFORE_COMMENTS|AFTER_BODY }, wings{ left, right, screens[HOME|PAGE|BOARD|POST] } }`
+ *  - `GET /api/ads/placements` → `PublicAdPlacements { postInline{ enabled, adType: TEXT_LINE|STRIP_BANNER|SQUARE_BANNER, position: BETWEEN_CARDS|AFTER_BODY }, wings{ left, right, screens[HOME|PAGE|BOARD|POST] } }`
  *      `boardList{ enabled, after: 1~20(기본 5) }`(게시판 목록 한 줄 광고 — 일반 글 N번째 뒤 한 줄, 첫 쪽만)
  *      — 가젯이 아닌 자리(글 보기 · 날개 배너 · 게시판 목록) 설정, 사이트 단위. 후보에 `advertiserName`(선택 — 목록 줄의 작성자 자리)을 실어 주면 좋다. 사본 20초. 날개 배너 후보는 `GET /api/ads?types=WING_BANNER`(새 유형 — 서버 상품에 더해야 한다).
  *  - `POST /api/ads/impressions` `{ items[{ adId, version, placement }] }` → `204` — 실제로 화면에 보였을 때 한 번(절반 이상 보임, IntersectionObserver), 1초 모아 보내기.

@@ -6,8 +6,8 @@
 //   ad-keep        덧붙인 광고 가젯의 「빈 자리 유지」를 켠다(`ad-empty` 와 함께 — 「광고 문의」 안내가 보인다)
 //   ad-empty       광고 후보가 하나도 없다(가젯은 접히고, 글 보기·핫딜·날개 자리도 사라진다)
 //   ad-one         유형마다 비중이 가장 큰 한 건만(날개는 한쪽만 나온다 — 같은 광고를 양쪽에 두지 않는다)
-//   ad-inline-off  글 보기 광고 끔(기본은 한 줄 광고 · 댓글 영역 앞)
-//   ad-inline-strip  글 보기 광고를 띠 배너로(댓글 영역 앞)
+//   ad-inline-off  글 보기 광고 끔(기본은 한 줄 광고 · 글 카드와 댓글 카드 사이 틈)
+//   ad-inline-strip  글 보기 광고를 띠 배너로(같은 틈)
 //   ad-inline-square 글 보기 광고를 네모 배너로 · 본문 바로 아래(옛 모습)
 //   ad-wing-off    날개 배너 끔        ad-wing-left  왼쪽 날개만
 //   ad-feed-off    게시판 목록 한 줄 광고 끔(기본 켬 — 일반 글 5번째 뒤, 첫 쪽만)    ad-feed-after-2  일반 글 2번째 뒤로(1~20)
@@ -16,7 +16,7 @@
 //
 // ── 목업 규칙(가정) ─
 //   · 이미지는 외부 서비스가 아니라 SVG data URI 로 그린 자리 이미지(규격 비율 그대로 — 1200×300 · 1200×100 · 300×250 · 300×100 · 날개 160×600).
-//   · 자리 설정 기본값: 글 보기 = 한 줄 광고 · 댓글 영역 앞, 날개 = 양쪽 켬 · 홈·가젯 페이지·게시판 목록·글 보기 네 화면.
+//   · 자리 설정 기본값: 글 보기 = 한 줄 광고 · 두 카드 사이 틈, 날개 = 양쪽 켬 · 홈·가젯 페이지·게시판 목록·글 보기 네 화면.
 //   · 링크는 `https://example.com/…`(예약된 예시 주소). 핫딜 노출은 `/posts/{id}`(없는 글일 수 있다).
 //   · 노출·클릭은 메모리에 쌓고 개발 콘솔에 남긴다(`console.debug`). 새로고침하면 비워진다.
 
@@ -127,7 +127,7 @@ export async function mockPublicAds(query: PublicAdsQuery): Promise<PublicAdsRes
     return { items: mockClone(items) };
 }
 
-/** `GET /api/ads/placements` — 글 보기 자리(기본 한 줄 광고 · 댓글 영역 앞) · 날개(기본 양쪽 · 네 화면) */
+/** `GET /api/ads/placements` — 글 보기 자리(기본 한 줄 광고 · 두 카드 사이 틈) · 날개(기본 양쪽 · 네 화면) */
 export async function mockAdPlacements(): Promise<PublicAdPlacements> {
     await mockDelay();
     const flags = mockFlags();
@@ -137,7 +137,7 @@ export async function mockAdPlacements(): Promise<PublicAdPlacements> {
         postInline: {
             enabled: !flags.has('ad-inline-off'),
             adType: square ? 'SQUARE_BANNER' : flags.has('ad-inline-strip') ? 'STRIP_BANNER' : 'TEXT_LINE',
-            position: square ? 'AFTER_BODY' : 'BEFORE_COMMENTS',
+            position: square ? 'AFTER_BODY' : 'BETWEEN_CARDS',
         },
         wings: { left: !wingOff, right: !wingOff && !flags.has('ad-wing-left'), screens: ['HOME', 'PAGE', 'BOARD', 'POST'] },
         boardList: { enabled: !flags.has('ad-feed-off'), after: feedAfter(flags) },

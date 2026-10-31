@@ -310,12 +310,12 @@ export default class UtilAd {
     }
 
     /**
-     * 글 보기 광고 자리 읽기 — 댓글 영역 앞(기본) · 본문 바로 아래
+     * 글 보기 광고 자리 읽기 — 두 카드 사이 틈(기본) · 본문 바로 아래
      * @param {unknown} value - 자리 설정의 `position`.
      * @returns {PostInlinePosition} 자리.
      */
     static inlinePosition(value: unknown): PostInlinePosition {
-        return value === 'AFTER_BODY' ? 'AFTER_BODY' : 'BEFORE_COMMENTS';
+        return value === 'AFTER_BODY' ? 'AFTER_BODY' : 'BETWEEN_CARDS';
     }
 
     /* ───────────── 날개 배너 ───────────── */

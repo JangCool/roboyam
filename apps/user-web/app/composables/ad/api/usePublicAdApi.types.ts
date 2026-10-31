@@ -75,8 +75,8 @@ export interface PublicAdsResponse {
 /** 글 보기 광고 유형 — 한 줄 광고(기본 — 이미지 없이 가볍다) · 띠 배너 · 네모 배너 */
 export type PostInlineAdType = 'TEXT_LINE' | 'STRIP_BANNER' | 'SQUARE_BANNER';
 
-/** 글 보기 광고 자리 — 댓글 영역 앞(기본 — 본문·추천·이전/다음 글이 끝난 뒤) · 본문 바로 아래(추천 줄 위) */
-export type PostInlinePosition = 'BEFORE_COMMENTS' | 'AFTER_BODY';
+/** 글 보기 광고 자리 — 글 카드와 댓글 카드 사이 회색 틈(기본 — 어느 카드에도 들지 않는 한 줄) · 본문 바로 아래(추천 줄 위 — 네모 배너를 두는 선택지) */
+export type PostInlinePosition = 'BETWEEN_CARDS' | 'AFTER_BODY';
 
 /** 글 보기 광고 자리 설정(커뮤니티 `inline_after` 자리의 로보얌 몫 — 가젯 격자로 못 그리는 자리) */
 export interface PostInlinePlacement {
