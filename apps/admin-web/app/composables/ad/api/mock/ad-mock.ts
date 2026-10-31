@@ -266,32 +266,33 @@ export async function mockAdCreateManual(body: AdManualCreateRequest): Promise<A
     ensure();
     const adv = advertisers.find((a) => a.id === body.advertiserId);
     if (!adv) throw MOCK_ERRORS.validation({ advertiserId: '광고주를 골라 주세요.' });
-    if (!body.contractFileIds.length) throw MOCK_ERRORS.validation({ contracts: '계약서 사본을 1장 이상 올려 주세요.' });
+    // 심사 대기는 아직 자리를 차지하지 않지만, 꽉 찬 기간은 등록부터 막는다(승인 때 서버가 다시 판정 — 409 BIZ_SLOT_FULL)
     const slot = mockAdSlotState(body.type, body.period);
-    if (slot.remaining <= 0) throw MOCK_ERRORS.conflict('AD_SLOT_FULL', `이 기간에 꽉 찬 날이 있어요(${slot.fullDates.slice(0, 3).join(', ')}).`);
+    if (slot.remaining <= 0) throw MOCK_ERRORS.conflict('BIZ_SLOT_FULL', `이 기간에 꽉 찬 날이 있어요(${slot.fullDates.slice(0, 3).join(', ')}).`);
     const amount = UtilBizApplication.amountOf(body.supply);
     const now = new Date().toISOString();
+    const id = ++seq;
     const s: Stored = {
-        stored: 'SCHEDULED',
+        stored: 'SUBMITTED',
         detail: {
-            id: `ad-${++seq}`,
+            id: `ad-${id}`,
             type: body.type,
             advertiser: adv,
             period: body.period,
-            status: 'SCHEDULED',
+            status: 'SUBMITTED',
             paymentMethod: 'MANUAL',
             weight: body.weight,
             source: 'OPERATOR',
-            applicationNo: null,
+            applicationNo: `OP-${String(id).padStart(5, '0')}`,
             lastActionAt: now,
             amount,
-            creatives: [{ version: 1, ...body.creative, approvedAt: now, approvedBy: ME, current: true }],
+            creatives: [{ version: 1, ...body.creative, approvedAt: null, approvedBy: null, current: true }],
             onlinePayment: null,
-            contracts: body.contractFileIds.map((id, n) => ({ id, fileName: `계약서_${n + 1}.pdf`, mimeType: 'application/pdf', size: 700_000, uploadedAt: now, uploadedBy: ME, replacedAt: null, replacedBy: null })),
-            deposit: { ...body.deposit, mismatchReason: body.deposit.mismatchReason ?? null, confirmedBy: ME, confirmedAt: now },
+            contracts: body.contractFileIds.map((cid, n) => ({ id: cid, fileName: `계약서_${n + 1}.pdf`, mimeType: 'application/pdf', size: 700_000, uploadedAt: now, uploadedBy: ME, replacedAt: null, replacedBy: null })),
+            deposit: null,
             takedown: null,
             memo: body.memo || null,
-            history: [{ at: now, action: '운영자 수동 등록 · 계약서·입금 확인 · 예약 확정', actor: ME, note: body.adjustReason ?? null }],
+            history: [{ at: now, action: '운영자 수동 등록 · 광고 심사 요청', actor: ME, note: body.contractFileIds.length ? `계약서 사본 ${body.contractFileIds.length}장 미리 첨부` : null }],
         },
     };
     state!.push(s);

@@ -63,7 +63,7 @@
                                 </div>
                                 <img v-if="c.imageUrl" :src="c.imageUrl" :alt="c.altText ?? ''" class="h-auto max-w-full rounded" />
                                 <p v-if="c.text" class="m-0 rounded bg-(--p-content-hover-background) px-2.5 py-1.5 text-[13px]">{{ c.text }}</p>
-                                <span class="text-[11px] text-muted-color [overflow-wrap:anywhere]">{{ c.linkUrl }} · {{ t('ad.approvedBy', { who: c.approvedBy, at: time.shortDateTime(c.approvedAt) }) }}</span>
+                                <span class="text-[11px] text-muted-color [overflow-wrap:anywhere]">{{ c.linkUrl }} · {{ c.approvedAt ? t('ad.approvedBy', { who: c.approvedBy, at: time.shortDateTime(c.approvedAt) }) : t('ad.notReviewedYet') }}</span>
                             </li>
                         </ul>
                         <p class="m-0 mt-2 text-xs text-muted-color">{{ t('ad.versionNote') }}</p>
@@ -93,7 +93,7 @@
                                     <span v-if="detail.deposit.mismatchReason" class="block text-xs text-amber-700 dark:text-amber-400">{{ t('ad.mismatchReason', { reason: detail.deposit.mismatchReason }) }}</span>
                                 </p>
                                 <p v-else class="m-0 text-[13px] text-muted-color">{{ t('ad.noDeposit') }}</p>
-                                <p v-if="detail.status === 'AWAITING_DEPOSIT' && detail.applicationNo" class="m-0 text-xs text-muted-color">{{ t('ad.goApplication') }}</p>
+                                <p v-if="detail.status === 'SUBMITTED' || detail.status === 'AWAITING_DEPOSIT'" class="m-0 text-xs text-muted-color">{{ t('ad.goApplication') }}</p>
                             </template>
                         </div>
                     </TabPanel>

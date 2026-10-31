@@ -1,9 +1,9 @@
 <template>
     <!--
-        광고 수동 등록(운영자 모드 — ★-2) — 한 서랍에서 위에서 아래로:
+        광고 수동 등록(운영자 모드 — 04-ia-review §2 「수동 등록도 심사」) — 한 서랍에서 위에서 아래로:
         ① 광고주(사업자 또는 계정 없는 광고주 — AutoComplete + [새 광고주]) ② 종류·기간(남은 칸을 바로 보여 준다 — 꽉 찬 날이 있으면 막힘) · 비중
-        ③ 소재(배너 그림 또는 한 줄 문구, 링크, 대체 글) ④ 계약서 사본(필수) ⑤ 금액·입금 확인(필수) → [예약 확정].
-        [예약 확정] 은 계약서 사본과 입금 확인이 둘 다 있어야 켜진다(서버도 CHECK). 운영자가 직접 등록하는 건은 늘 수동 결제다.
+        ③ 소재(배너 그림 또는 한 줄 문구, 링크, 대체 글) ④ 계약 금액(제안 — 승인 때 확정) · 계약서 사본(선택 — 오프라인으로 먼저 받았을 때) → [심사 요청].
+        등록하면 바로 확정되지 않고 「광고 › 광고 심사」 심사 대기(`SUBMITTED`)로 들어간다. 승인(수동 결제 고정) → 계약서 사본 + 입금 확인 → [예약 확정] 은 광고 심사 화면에서 한다.
         서버 호출은 부모가 넘긴 함수로만 한다(광고주 찾기·만들기, 남은 칸, 계약서 올리기). 저장은 `submit`.
     -->
     <Drawer v-model:visible="open" :position="prefs.drawerPosition" :aria-labelledby="titleId" :style="{ width: '46rem', maxWidth: '100vw' }">
@@ -12,6 +12,11 @@
         </template>
 
         <form :id="formId" class="flex flex-col gap-6" novalidate @submit.prevent="submit">
+            <!-- 안내 — 한글이 낱자로 끊기지 않게 낱말 단위로 줄을 바꾼다 -->
+            <Message severity="info" :closable="false" class="mt-1">
+                <p class="m-0 break-keep py-0.5 text-[13px] leading-relaxed">{{ t('ad.manualReviewNote') }}</p>
+            </Message>
+
             <!-- ① 광고주 -->
             <section class="flex flex-col gap-2">
                 <h3 class="m-0 text-sm font-semibold">① {{ t('ad.advertiser') }}</h3>
@@ -81,26 +86,20 @@
                 </LabeledField>
             </section>
 
-            <!-- ④ 계약서 사본 -->
+            <!-- ④ 계약 금액(제안)·계약서 사본(선택) — 입금 확인은 승인 뒤 광고 심사 화면에서 -->
             <section class="flex flex-col gap-2">
-                <h3 class="m-0 text-sm font-semibold">④ {{ t('bizApplication.contract.title') }} <span class="text-red-600">*</span></h3>
-                <BizContractFiles :files="contracts" editable :busy="uploading" :error="uploadError" @upload="onUpload" @replace="(b) => onUpload([b.file], b.id)" />
-            </section>
-
-            <!-- ⑤ 금액·입금 확인 -->
-            <section class="flex flex-col gap-2">
-                <h3 class="m-0 text-sm font-semibold">⑤ {{ t('ad.amountAndDeposit') }} <span class="text-red-600">*</span></h3>
+                <h3 class="m-0 text-sm font-semibold">④ {{ t('ad.amountAndContract') }}</h3>
                 <p v-if="availability" class="m-0 text-xs text-muted-color tabular-nums">{{ t('bizApplication.quoteDay', { price: won(availability.quote.unitPrice), units: availability.quote.units, supply: won(availability.quote.supply) }) }}</p>
                 <div class="grid grid-cols-1 gap-x-3 sm:grid-cols-2">
-                    <LabeledField :label="t('bizApplication.supply')" :error="tried && !(supply && supply > 0) ? t('bizApplication.supplyRequired') : ''">
-                        <template #default="{ id, invalid }"><InputNumber v-model="supply" :input-id="id" :min="0" :max="999_999_999" :suffix="t('bizApplication.wonSuffix')" :invalid="invalid" fluid /></template>
+                    <LabeledField :label="t('bizApplication.supply')" :help="t('ad.supplyProposalHelp')" :error="tried && !(supply && supply > 0) ? t('bizApplication.supplyRequired') : ''">
+                        <template #default="{ id, describedBy, invalid }"><InputNumber v-model="supply" :input-id="id" :min="0" :max="999_999_999" :suffix="t('bizApplication.wonSuffix')" :invalid="invalid" :aria-describedby="describedBy" fluid /></template>
                     </LabeledField>
                     <div class="flex items-center pt-5 text-[13px] tabular-nums">{{ t('bizApplication.totalLine', { supply: won(amount.supply), vat: won(amount.vat), total: won(amount.total) }) }}</div>
                 </div>
-                <LabeledField v-if="adjusted" :label="t('bizApplication.adjustReason')" :error="tried && !adjustReason.trim() ? t('bizApplication.adjustReasonRequired') : ''">
-                    <template #default="{ id, invalid }"><Textarea :id="id" v-model="adjustReason" rows="2" auto-resize maxlength="200" :invalid="invalid" fluid /></template>
-                </LabeledField>
-                <BizDepositForm v-model="deposit" :contract-total="amount.total" :show-errors="tried" :field-errors="fieldErrors" />
+                <div class="flex flex-col gap-1">
+                    <span class="text-[13px] font-medium">{{ t('bizApplication.contract.title') }} <span class="text-xs font-normal text-muted-color">{{ t('ad.contractOptional') }}</span></span>
+                    <BizContractFiles :files="contracts" editable :busy="uploading" :error="uploadError" @upload="onUpload" @replace="(b) => onUpload([b.file], b.id)" />
+                </div>
                 <LabeledField :label="t('ad.memo')">
                     <template #default="{ id }"><Textarea :id="id" v-model="memo" rows="2" auto-resize maxlength="200" fluid /></template>
                 </LabeledField>
@@ -115,7 +114,7 @@
                 <Message v-if="error" severity="error" size="small" variant="simple" :closable="false" role="alert">{{ error }}</Message>
                 <div class="flex justify-end gap-2">
                     <Button type="button" :label="t('common.cancel')" severity="secondary" variant="text" :disabled="busy" @click="open = false" />
-                    <Button type="submit" :form="formId" :label="t('bizApplication.actConfirmBooking')" icon="pi pi-calendar-plus" :loading="busy" :disabled="!evidenceReady" />
+                    <Button type="submit" :form="formId" :label="t('ad.actRequestReview')" icon="pi pi-send" :loading="busy" :disabled="!requiredReady" />
                 </div>
             </div>
         </template>
@@ -128,7 +127,7 @@
 import type { AdAdvertiser, AdAdvertiserCreateRequest, AdAvailability, AdManualCreateRequest, AdType } from '~/composables/ad/api/useAdApi.types';
 import type { BizContractFile, BizPeriod } from '~/composables/bizapplication/api/useBizApplicationApi.types';
 import UtilAd from '~/utils/util-ad';
-import UtilBizApplication, { type BizDepositDraft } from '~/utils/util-biz-application';
+import UtilBizApplication from '~/utils/util-biz-application';
 import UtilBizApplicationMessages from '~/utils/util-biz-application-messages';
 
 const open = defineModel<boolean>('visible', { required: true });
@@ -171,8 +170,6 @@ const lineText = ref('');
 const linkUrl = ref('');
 const contracts = ref<BizContractFile[]>([]);
 const supply = ref<number | null>(null);
-const adjustReason = ref('');
-const deposit = ref<BizDepositDraft>(UtilBizApplication.emptyDeposit());
 const memo = ref('');
 const tried = ref(false);
 const imageInput = ref<HTMLInputElement | null>(null);
@@ -196,8 +193,6 @@ watch(
         linkUrl.value = '';
         contracts.value = [];
         supply.value = null;
-        adjustReason.value = '';
-        deposit.value = UtilBizApplication.emptyDeposit();
         memo.value = '';
         tried.value = false;
         uploadError.value = '';
@@ -240,19 +235,16 @@ watch(
 onBeforeUnmount(() => timer && clearTimeout(timer));
 
 const amount = computed(() => UtilBizApplication.amountOf(supply.value ?? 0));
-const adjusted = computed(() => Boolean(availability.value) && (supply.value ?? 0) !== availability.value!.quote.supply);
 const linkOk = computed(() => /^https?:\/\/\S+\.\S+/.test(linkUrl.value.trim()));
 const creativeOk = computed(() => (UtilAd.isBanner(type.value) ? Boolean(imageUrl.value) && Boolean(altText.value.trim()) : Boolean(lineText.value.trim())) && linkOk.value);
 const activeContracts = computed(() => contracts.value.filter((c) => !c.replacedAt));
-const depositOk = computed(() => Object.keys(UtilBizApplication.depositProblems(deposit.value, amount.value.total)).length === 0);
-/** 증빙 둘 — 이것이 없으면 [예약 확정] 이 꺼진다 */
-const evidenceReady = computed(() => activeContracts.value.length > 0 && depositOk.value);
+const slotOk = computed(() => Boolean(availability.value && availability.value.remaining > 0 && !periodBad.value));
+/** 심사 요청에 필요한 것 — 계약서·입금은 승인 뒤라 여기서 막지 않는다 */
+const requiredReady = computed(() => Boolean(advertiser.value) && slotOk.value && creativeOk.value && Boolean(supply.value && supply.value > 0));
 const conditions = computed(() => [
     { key: 'adv', ok: Boolean(advertiser.value), label: t('ad.condAdvertiser') },
-    { key: 'slot', ok: Boolean(availability.value && availability.value.remaining > 0 && !periodBad.value), label: t('ad.condSlot') },
+    { key: 'slot', ok: slotOk.value, label: t('ad.condSlot') },
     { key: 'creative', ok: creativeOk.value, label: t('ad.condCreative') },
-    { key: 'contract', ok: activeContracts.value.length > 0, label: t('bizApplication.condContract', { n: activeContracts.value.length }) },
-    { key: 'deposit', ok: depositOk.value, label: t('bizApplication.condDeposit') },
 ]);
 
 async function onComplete(event: { query: string }): Promise<void> {
@@ -314,9 +306,7 @@ async function onUpload(files: File[], replaceId?: string): Promise<void> {
 
 function submit(): void {
     tried.value = true;
-    if (props.busy || !advertiser.value || periodBad.value || !availability.value || availability.value.remaining <= 0 || !creativeOk.value) return;
-    if (!evidenceReady.value || !(supply.value && supply.value > 0) || (adjusted.value && !adjustReason.value.trim())) return;
-    const d = deposit.value;
+    if (props.busy || !requiredReady.value || !advertiser.value || !supply.value) return;
     const banner = UtilAd.isBanner(type.value);
     emit('submit', {
         advertiserId: advertiser.value.id,
@@ -325,9 +315,7 @@ function submit(): void {
         weight: weight.value ?? 5,
         creative: { imageUrl: banner ? imageUrl.value : null, text: banner ? null : lineText.value.trim(), linkUrl: linkUrl.value.trim(), altText: banner ? altText.value.trim() : null },
         supply: supply.value,
-        adjustReason: adjusted.value ? adjustReason.value.trim() : undefined,
         contractFileIds: activeContracts.value.map((c) => c.id),
-        deposit: { amount: d.amount ?? 0, depositedOn: d.depositedOn, depositorName: d.depositorName.trim(), mismatchReason: d.amount !== amount.value.total ? d.mismatchReason.trim() : undefined },
         memo: memo.value.trim(),
     });
 }

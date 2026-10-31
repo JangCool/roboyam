@@ -1,4 +1,4 @@
-import type { BizAdType, BizAmount, BizContractFile, BizDeposit, BizDepositRequest, BizPaymentMethod, BizPeriod, BizQuote } from '~/composables/bizapplication/api/useBizApplicationApi.types';
+import type { BizAdType, BizAmount, BizContractFile, BizDeposit, BizPaymentMethod, BizPeriod, BizQuote } from '~/composables/bizapplication/api/useBizApplicationApi.types';
 
 /**
  * 광고 일정표(관리자) — 광고 건 · 유형별 한도 · 날짜별 남은 칸 · 운영자 수동 등록. 서버와 주고받는 모양(계약 전 목업, 02-ad.md 7-1 · 00-overview.md ★-2).
@@ -8,8 +8,9 @@ import type { BizAdType, BizAmount, BizContractFile, BizDeposit, BizDepositReque
 
 export type AdType = BizAdType;
 
-export type AdBookingStatus = 'AWAITING_PAYMENT' | 'AWAITING_DEPOSIT' | 'SCHEDULED' | 'RUNNING' | 'ENDED' | 'TAKEN_DOWN' | 'CANCELED';
-export const AD_BOOKING_STATUSES: readonly AdBookingStatus[] = ['AWAITING_PAYMENT', 'AWAITING_DEPOSIT', 'SCHEDULED', 'RUNNING', 'ENDED', 'TAKEN_DOWN', 'CANCELED'];
+/** `SUBMITTED` = 운영자 수동 등록 뒤 광고 심사 대기(04-ia-review §2 — 자리는 승인 때부터 차지한다) */
+export type AdBookingStatus = 'SUBMITTED' | 'AWAITING_PAYMENT' | 'AWAITING_DEPOSIT' | 'SCHEDULED' | 'RUNNING' | 'ENDED' | 'TAKEN_DOWN' | 'CANCELED';
+export const AD_BOOKING_STATUSES: readonly AdBookingStatus[] = ['SUBMITTED', 'AWAITING_PAYMENT', 'AWAITING_DEPOSIT', 'SCHEDULED', 'RUNNING', 'ENDED', 'TAKEN_DOWN', 'CANCELED'];
 
 export interface AdTypeSummary {
     type: AdType;
@@ -63,8 +64,9 @@ export interface AdCreativeVersion {
     text: string | null;
     linkUrl: string;
     altText: string | null;
-    approvedAt: string;
-    approvedBy: string;
+    /** 심사 승인 시각·승인자 — 심사 대기(`SUBMITTED`)는 null */
+    approvedAt: string | null;
+    approvedBy: string | null;
     current: boolean;
 }
 
@@ -115,6 +117,10 @@ export interface AdAdvertiserCreateRequest {
     memo: string;
 }
 
+/**
+ * 운영자 수동 등록 = 신청 건 `SUBMITTED`(source=OPERATOR) — 광고 심사에서 승인 → 계약서 사본 + 입금 확인 → [예약 확정].
+ * `supply` 는 계약 금액 제안(승인 때 확정, 요금표와 다르면 승인 창에서 사유). 계약서는 오프라인으로 먼저 받았을 때만 미리 붙인다(선택).
+ */
 export interface AdManualCreateRequest {
     advertiserId: string;
     type: AdType;
@@ -122,9 +128,7 @@ export interface AdManualCreateRequest {
     weight: number;
     creative: { imageUrl: string | null; text: string | null; linkUrl: string; altText: string | null };
     supply: number;
-    adjustReason?: string;
     contractFileIds: string[];
-    deposit: BizDepositRequest;
     memo: string;
 }
 

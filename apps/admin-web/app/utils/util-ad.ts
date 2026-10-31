@@ -22,6 +22,7 @@ export default class UtilAd {
                 return 'success';
             case 'SCHEDULED':
                 return 'contrast';
+            case 'SUBMITTED':
             case 'AWAITING_PAYMENT':
             case 'AWAITING_DEPOSIT':
                 return 'warn';

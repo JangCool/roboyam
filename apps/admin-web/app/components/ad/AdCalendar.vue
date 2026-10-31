@@ -115,7 +115,7 @@ const emit = defineEmits<{ month: [month: string]; open: [id: string]; pick: [ym
 
 const { t, locale } = useI18n();
 const MAX = 3;
-const LEGEND_STATUSES: readonly AdBookingStatus[] = ['RUNNING', 'SCHEDULED', 'AWAITING_PAYMENT', 'TAKEN_DOWN', 'ENDED'];
+const LEGEND_STATUSES: readonly AdBookingStatus[] = ['RUNNING', 'SCHEDULED', 'AWAITING_PAYMENT', 'SUBMITTED', 'TAKEN_DOWN', 'ENDED'];
 const today = computed(() => UtilBizApplication.kstToday());
 
 const weekdays = computed(() => {
@@ -165,6 +165,8 @@ function dotClass(status: AdBookingStatus): string {
             return 'bg-emerald-500';
         case 'SCHEDULED':
             return 'bg-blue-500';
+        case 'SUBMITTED':
+            return 'bg-violet-500';
         case 'AWAITING_PAYMENT':
         case 'AWAITING_DEPOSIT':
             return 'bg-amber-500';

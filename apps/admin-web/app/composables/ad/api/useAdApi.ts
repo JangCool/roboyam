@@ -34,7 +34,7 @@ import type { BizContractFile, BizPeriod } from '~/composables/bizapplication/ap
  *  - `GET  /api/admin/ads/availability?type=&startAt=&endAt=` → `AdAvailability`(저장 때 서버가 다시 판정 — 꽉 차면 409 `AD_SLOT_FULL`)
  *  - `GET  /api/admin/ads/advertisers?q=` · `POST /api/admin/ads/advertisers` → 광고주(사업자 + 계정 없는 광고주)
  *  - `POST /api/admin/ads/contract-files` 멀티파트 → `BizContractFile`(PDF·JPG·PNG 10MB, 원본 보존)
- *  - `POST /api/admin/ads/manual` → 예약 확정된 `AdBookingDetail`(계약서 1장 이상 + 입금 확인 둘 다 — 서버 CHECK)
+ *  - `POST /api/admin/ads/manual` → 심사 대기 `AdBookingDetail`(`SUBMITTED`, source=OPERATOR — 광고 심사 큐로 간다. 승인 → 계약서 사본 + 입금 확인 → 확정은 `/api/admin/biz-applications/**`, 04-ia-review §2). 계약서는 선택 첨부
  *  - `POST /api/admin/ads/{id}/takedown` `{ reason, notifyMail }` · `POST /api/admin/ads/{id}/restore` `{ compensation, reason }`
  *
  * ⚠ MOCK: 서버에 API 가 없어 `./mock/ad-mock.ts` 를 부른다. 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
