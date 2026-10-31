@@ -3,6 +3,7 @@ package com.community.ad;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.community.ad.dto.AdPlacements;
 import com.community.ad.dto.PublicAdView;
 import com.community.ad.repository.master.AdPlacementStore;
 import com.community.ad.repository.master.PublicAdStore;
@@ -33,7 +34,8 @@ import org.springframework.beans.factory.annotation.Autowired;
  *
  * <ul>
  *   <li>목록: 예약 확정(SCHEDULED)·기간 안·최신 <b>승인된</b> 소재 버전만 — 승인 안 된 새 버전은 안 나가고, 긴급 내림은 빠진다. 서버 사본 20초(시계로 시험).</li>
- *   <li>게시판 맥락: 「광고 숨김」·19금·소모임·꺼진·없는 게시판은 빈 목록, 보통 게시판은 나온다.</li>
+ *   <li>게시판 맥락(날개 배너 포함): 「광고 숨김」·소모임·꺼진·없는 게시판은 늘 빈 목록, 19금 게시판은 자리 설정 {@code adult.enabled} 가 꺼지면 빈 목록·켜면 나온다
+ *       (숨김·소모임이 우선 — 사용자 결정 2026-11-01 2차), 보통 게시판은 나온다.</li>
  *   <li>하루 1번: 같은 방문자·버전·자리는 한국 하루 노출 1번·클릭 1번 — 다른 자리·다른 버전·다음 날은 다시 센다, 회원과 비회원은 따로, 봇·빈 User-Agent 는 세지 않는다,
  *       20건 초과 400, 나가지 않는 건·지금 버전이 아닌 줄·모르는 자리는 그 줄만 버린다, 해시 키가 없으면 세지 않는다.</li>
  * </ul>
@@ -69,6 +71,7 @@ class PublicAdServiceTest extends BizApplicationApiTestBase {
     void cleanUp() {
         createdBoards.forEach(id -> jdbc.update("DELETE FROM boards WHERE id = ?", id));
         createdBoards.clear();
+        jdbc.update("DELETE FROM ad_placement_settings");
         catalog.invalidate();
         ads.invalidate();
     }
@@ -223,6 +226,12 @@ class PublicAdServiceTest extends BizApplicationApiTestBase {
 
     // ── 게시판 맥락 ───────────────────────────────────────────────────────────
 
+    /** 자리 설정 「19금 게시판에도 광고 보이기」 — 나머지 칸은 기본값 */
+    private void adultOption(boolean enabled) {
+        AdPlacements d = AdPlacements.DEFAULTS;
+        placementStore.save(new AdPlacements(d.postInline(), d.wings(), d.boardList(), new AdPlacements.Adult(enabled)), operator.operatorId(), clock.instant());
+    }
+
     @Test
     void 광고_숨김_19금_소모임_꺼진_없는_게시판은_빈_목록이고_보통_게시판은_나온다() {
         BizPeriods.Period p = freshPeriod(3);
@@ -233,11 +242,12 @@ class PublicAdServiceTest extends BizApplicationApiTestBase {
         long group = board("GROUP", false, false, true);
         long off = board("GENERAL", false, false, false);
         catalog.invalidate();
+        jdbc.update("DELETE FROM ad_placement_settings"); // 저장한 적 없음 = 19금 끔
         inside(p);
 
         assertThat(ids(ads.list("TEXT_LINE", slug(normal)).items())).contains(Long.toString(id));
         assertThat(ads.list("TEXT_LINE", slug(hidden)).items()).isEmpty();
-        assertThat(ads.list("TEXT_LINE", slug(adult)).items()).isEmpty();
+        assertThat(ads.list("TEXT_LINE", slug(adult)).items()).as("기본(19금 끔)").isEmpty();
         assertThat(ads.list("TEXT_LINE", slug(group)).items()).isEmpty();
         assertThat(ads.list("TEXT_LINE", slug(off)).items()).isEmpty();
         assertThat(ads.list("TEXT_LINE", "no-such-board-" + id).items()).isEmpty();
@@ -246,6 +256,61 @@ class PublicAdServiceTest extends BizApplicationApiTestBase {
         // 공개 게시판 상세에 adsHidden
         assertThat(boards.board(slug(hidden), null).adsHidden()).isTrue();
         assertThat(boards.board(slug(normal), null).adsHidden()).isFalse();
+    }
+
+    @Test
+    void 날개_배너도_board_를_주면_같은_판정_숨김_게시판은_빈_목록() {
+        BizPeriods.Period p = freshPeriod(3);
+        long wing = scheduled("WING", p);
+        long normal = board("GENERAL", false, false, true);
+        long hidden = board("GENERAL", false, true, true);
+        long group = board("GROUP", false, false, true);
+        catalog.invalidate();
+        adultOption(true); // 옵션과 무관
+        inside(p);
+
+        assertThat(ids(ads.list("WING_BANNER", slug(normal)).items())).contains(Long.toString(wing));
+        assertThat(ads.list("WING_BANNER", slug(hidden)).items()).isEmpty();
+        assertThat(ads.list("WING_BANNER", slug(group)).items()).isEmpty();
+        assertThat(ids(ads.list("WING_BANNER", null).items())).as("홈·가젯 페이지(board 없음)").contains(Long.toString(wing));
+    }
+
+    @Test
+    void 십구금_게시판은_자리_설정_옵션이_꺼지면_빈_목록_켜면_나오고_바로_반영된다() {
+        BizPeriods.Period p = freshPeriod(3);
+        long text = scheduled("TEXT_LINE", p);
+        long wing = scheduled("WING", p);
+        long adult = board("GENERAL", true, false, true);
+        catalog.invalidate();
+        inside(p);
+
+        adultOption(false);
+        assertThat(ads.list("TEXT_LINE", slug(adult)).items()).isEmpty();
+        assertThat(ads.list("WING_BANNER", slug(adult)).items()).as("날개 포함").isEmpty();
+
+        adultOption(true); // 목록 사본(20초)과 따로 — 자리 설정은 그때 읽는다
+        assertThat(ids(ads.list("TEXT_LINE", slug(adult)).items())).contains(Long.toString(text));
+        assertThat(ids(ads.list("WING_BANNER", slug(adult)).items())).contains(Long.toString(wing));
+
+        adultOption(false);
+        assertThat(ads.list("WING_BANNER,TEXT_LINE", slug(adult)).items()).isEmpty();
+    }
+
+    @Test
+    void 십구금_옵션을_켜도_광고_숨김과_소모임_게시판은_빈_목록() {
+        BizPeriods.Period p = freshPeriod(3);
+        scheduled("TEXT_LINE", p);
+        scheduled("WING", p);
+        long adultHidden = board("GENERAL", true, true, true);
+        long adultGroup = board("GROUP", true, false, true);
+        long group = board("GROUP", false, false, true);
+        catalog.invalidate();
+        adultOption(true);
+        inside(p);
+
+        assertThat(ads.list("WING_BANNER,TEXT_LINE", slug(adultHidden)).items()).as("adsHidden 우선").isEmpty();
+        assertThat(ads.list("WING_BANNER,TEXT_LINE", slug(adultGroup)).items()).isEmpty();
+        assertThat(ads.list("WING_BANNER,TEXT_LINE", slug(group)).items()).isEmpty();
     }
 
     // ── 하루 1번 ───────────────────────────────────────────────────────────

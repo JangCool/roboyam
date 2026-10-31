@@ -112,6 +112,6 @@ class PublicAdHttpTest extends BizApplicationApiTestBase {
                 .andExpect(jsonPath("$.data.postInline.position").value("BETWEEN_CARDS")).andExpect(jsonPath("$.data.wings.left").value(true))
                 .andExpect(jsonPath("$.data.wings.right").value(true)).andExpect(jsonPath("$.data.wings.screens.length()").value(4))
                 .andExpect(jsonPath("$.data.wings.screens[0]").value("HOME")).andExpect(jsonPath("$.data.boardList.enabled").value(true))
-                .andExpect(jsonPath("$.data.boardList.after").value(5));
+                .andExpect(jsonPath("$.data.boardList.after").value(5)).andExpect(jsonPath("$.data.adult.enabled").value(false));
     }
 }

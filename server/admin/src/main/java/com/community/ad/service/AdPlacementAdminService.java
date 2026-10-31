@@ -27,7 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
  * 바뀐 칸이 없어도 저장한다). 공개 사이트는 같은 행을 읽는다(공개 광고 목록 사본과 달리 요청마다 읽는다).
  *
  * <ul>
- *   <li>세 묶음({@code postInline}·{@code wings}·{@code boardList}) 모두 필요 — 빠지면 400 {@code fields.<묶음>}.</li>
+ *   <li>네 묶음({@code postInline}·{@code wings}·{@code boardList}·{@code adult}) 모두 필요 — 빠지면 400 {@code fields.<묶음>}. {@code adult.enabled} 는 「19금 게시판에도
+ *       광고 보이기」(사용자 결정 2026-11-01 2차, 기본 끔).</li>
  *   <li>켜기 칸(불리언)이 비면 {@code fields.<묶음>.<칸>}(가정 — 칸을 빠뜨린 요청을 기본값으로 메우지 않는다).</li>
  *   <li>{@code postInline.adType} TEXT_LINE·STRIP_BANNER·SQUARE_BANNER · {@code postInline.position} BETWEEN_CARDS·AFTER_BODY · {@code wings.screens} HOME·PAGE·BOARD·POST 중
  *       0~4개(겹치면 하나로, 보일 차례로 저장 — 비어도 된다: 가정) · {@code boardList.after} 1~20.</li>
@@ -84,7 +85,7 @@ public class AdPlacementAdminService {
 
     private static AdPlacementAdmin.View view(AdPlacementStore.Stored stored) {
         AdPlacements p = stored == null ? AdPlacements.DEFAULTS : stored.value();
-        return new AdPlacementAdmin.View(p.postInline(), p.wings(), p.boardList(), stored == null ? null : stored.updatedAt().toString(),
+        return new AdPlacementAdmin.View(p.postInline(), p.wings(), p.boardList(), p.adult(), stored == null ? null : stored.updatedAt().toString(),
                 stored == null ? null : new AdPlacementAdmin.Operator(Long.toString(stored.updatedBy()), stored.updatedByName()));
     }
 
@@ -95,6 +96,7 @@ public class AdPlacementAdminService {
         AdPlacementAdmin.PostInline pi = body == null ? null : body.postInline();
         AdPlacementAdmin.Wings w = body == null ? null : body.wings();
         AdPlacementAdmin.BoardList bl = body == null ? null : body.boardList();
+        AdPlacementAdmin.Adult ad = body == null ? null : body.adult();
         if (pi == null) {
             fields.put("postInline", required);
         } else {
@@ -135,11 +137,16 @@ public class AdPlacementAdminService {
                 fields.put("boardList.after", new MessageRef("ad.placement.after", String.valueOf(AdPlacements.AFTER_MIN), String.valueOf(AdPlacements.AFTER_MAX)));
             }
         }
+        if (ad == null) {
+            fields.put("adult", required);
+        } else if (ad.enabled() == null) {
+            fields.put("adult.enabled", required);
+        }
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
         return new AdPlacements(new AdPlacements.PostInline(pi.enabled(), pi.adType(), pi.position()), new AdPlacements.Wings(w.left(), w.right(), screens),
-                new AdPlacements.BoardList(bl.enabled(), bl.after()));
+                new AdPlacements.BoardList(bl.enabled(), bl.after()), new AdPlacements.Adult(ad.enabled()));
     }
 
     /** 감사 비교용 칸 이름 → 값 */
@@ -153,6 +160,7 @@ public class AdPlacementAdminService {
         out.put("wings.screens", p.wings().screens());
         out.put("boardList.enabled", p.boardList().enabled());
         out.put("boardList.after", p.boardList().after());
+        out.put("adult.enabled", p.adult().enabled());
         return out;
     }
 }

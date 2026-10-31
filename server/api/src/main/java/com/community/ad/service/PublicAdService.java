@@ -36,7 +36,8 @@ import org.springframework.stereotype.Service;
  * <ul>
  *   <li><b>목록</b>: 나가는 건({@link PublicAdStore#running})의 서버 사본을 {@value #CACHE_SECONDS}초 둔다(서버마다 메모리) — 긴급 내림·되돌리기는 상태로 반영되어 최대
  *       {@value #CACHE_SECONDS}초 늦을 수 있다. 핫딜 노출 두 유형은 게시된 핫딜 글이 아직 없어 늘 빈 목록이다.</li>
- *   <li><b>게시판 맥락</b>({@code board} 를 준 호출): 없는 게시판 · 꺼진 게시판 · 소모임 게시판 · 19금 · 「광고 숨김」이면 빈 목록.</li>
+ *   <li><b>게시판 맥락</b>({@code board} 를 준 호출 — 날개 배너도 게시판·글 보기 화면에서는 붙인다): 없는 게시판 · 꺼진 게시판 · 소모임 게시판 · 「광고 숨김」이면 빈 목록,
+ *       19금 게시판은 자리 설정 「19금 게시판에도 광고 보이기」가 꺼져 있으면 빈 목록.</li>
  *   <li><b>집계</b>: 같은 방문자 · 같은 광고 버전 · 같은 자리는 한국 하루 노출 1번 · 클릭 1번. 방문자 = 로그인 회원 ID, 아니면 IP + User-Agent — 날짜와 함께 서버 해시 키
  *       ({@link BlindIndex}, 용도 {@code ad.visitor})로 HMAC 해 저장한다(원본 IP 저장 없음). 키가 없거나 봇·빈 User-Agent 면 세지 않는다(응답은 같다).
  *       나가지 않는 건·그 건의 지금 버전이 아닌 줄·모르는 자리는 그 줄만 버린다(판정은 같은 사본).</li>
@@ -115,10 +116,16 @@ public class PublicAdService {
         snapshot = null;
     }
 
-    /** 게시판 맥락 광고를 그 게시판에 내는가 — 없거나 꺼졌거나 소모임·19금·「광고 숨김」이면 아니다 */
+    /**
+     * 게시판 맥락 광고(날개 포함 — 유형별 예외 없음)를 그 게시판에 내는가 — 없거나 꺼졌거나 소모임·「광고 숨김」이면 늘 아니다. 19금 게시판은 자리 설정
+     * {@code adult.enabled} 가 켜졌을 때만 낸다(사용자 결정 2026-11-01 2차 — 자리 설정은 사본 없이 그때 읽어 바로 반영).
+     */
     boolean boardAllows(String slug) {
         EffectiveBoard b = catalog.snapshot().board(slug).orElse(null);
-        return b != null && b.active() && !BoardFields.KIND_GROUP.equals(b.kind()) && !b.allowAdult() && !b.adsHidden();
+        if (b == null || !b.active() || BoardFields.KIND_GROUP.equals(b.kind()) || b.adsHidden()) {
+            return false;
+        }
+        return !b.allowAdult() || placements.current().adult().enabled();
     }
 
     private static Set<BizProduct> types(String text) {

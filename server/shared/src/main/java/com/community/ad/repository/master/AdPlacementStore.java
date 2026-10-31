@@ -13,7 +13,7 @@ import javax.sql.DataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-/** 광고 노출 자리 설정(V118 {@code ad_placement_settings} — 한 행, id = 1). 행이 없으면 {@link AdPlacements#DEFAULTS} */
+/** 광고 노출 자리 설정(V118 {@code ad_placement_settings} — 한 행, id = 1 · V119 {@code adult_enabled} 기본 끔). 행이 없으면 {@link AdPlacements#DEFAULTS} */
 @Repository
 public class AdPlacementStore {
 
@@ -45,13 +45,13 @@ public class AdPlacementStore {
 
     public void save(AdPlacements p, long operatorId, Instant now) {
         jdbc.update("INSERT INTO ad_placement_settings (id, post_inline_enabled, post_inline_type, post_inline_position, wing_left, wing_right, wing_screens, "
-                        + "board_list_enabled, board_list_after, updated_at, updated_by) VALUES (1, ?, ?, ?, ?, ?, string_to_array(?, ','), ?, ?, ?, ?) "
+                        + "board_list_enabled, board_list_after, adult_enabled, updated_at, updated_by) VALUES (1, ?, ?, ?, ?, ?, string_to_array(?, ','), ?, ?, ?, ?, ?) "
                         + "ON CONFLICT (id) DO UPDATE SET post_inline_enabled = EXCLUDED.post_inline_enabled, post_inline_type = EXCLUDED.post_inline_type, "
                         + "post_inline_position = EXCLUDED.post_inline_position, wing_left = EXCLUDED.wing_left, wing_right = EXCLUDED.wing_right, "
                         + "wing_screens = EXCLUDED.wing_screens, board_list_enabled = EXCLUDED.board_list_enabled, board_list_after = EXCLUDED.board_list_after, "
-                        + "updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by",
+                        + "adult_enabled = EXCLUDED.adult_enabled, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by",
                 p.postInline().enabled(), p.postInline().adType(), p.postInline().position(), p.wings().left(), p.wings().right(),
-                String.join(",", p.wings().screens()), p.boardList().enabled(), p.boardList().after(), Timestamp.from(now), operatorId);
+                String.join(",", p.wings().screens()), p.boardList().enabled(), p.boardList().after(), p.adult().enabled(), Timestamp.from(now), operatorId);
     }
 
     private static Stored stored(ResultSet rs) throws SQLException {
@@ -59,7 +59,7 @@ public class AdPlacementStore {
         List<String> list = screens == null ? List.of() : Arrays.stream((Object[]) screens.getArray()).map(String::valueOf).filter(s -> !s.isEmpty()).toList();
         AdPlacements value = new AdPlacements(new AdPlacements.PostInline(rs.getBoolean("post_inline_enabled"), rs.getString("post_inline_type"),
                 rs.getString("post_inline_position")), new AdPlacements.Wings(rs.getBoolean("wing_left"), rs.getBoolean("wing_right"), list),
-                new AdPlacements.BoardList(rs.getBoolean("board_list_enabled"), rs.getInt("board_list_after")));
+                new AdPlacements.BoardList(rs.getBoolean("board_list_enabled"), rs.getInt("board_list_after")), new AdPlacements.Adult(rs.getBoolean("adult_enabled")));
         return new Stored(value, rs.getTimestamp("updated_at").toInstant(), rs.getLong("updated_by"), rs.getString("operator_name"));
     }
 }

@@ -28,7 +28,8 @@ import org.springframework.http.MediaType;
 class AdPlacementAdminHttpTest extends Commerce04AdminTestBase {
 
     private static final String VALID = "{\"postInline\":{\"enabled\":false,\"adType\":\"SQUARE_BANNER\",\"position\":\"AFTER_BODY\"},"
-            + "\"wings\":{\"left\":true,\"right\":false,\"screens\":[\"POST\",\"HOME\",\"HOME\"]},\"boardList\":{\"enabled\":true,\"after\":12}}";
+            + "\"wings\":{\"left\":true,\"right\":false,\"screens\":[\"POST\",\"HOME\",\"HOME\"]},\"boardList\":{\"enabled\":true,\"after\":12},"
+            + "\"adult\":{\"enabled\":true}}";
 
     @BeforeEach
     void reset() {
@@ -45,7 +46,7 @@ class AdPlacementAdminHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.postInline.position").value("BETWEEN_CARDS")).andExpect(jsonPath("$.data.wings.left").value(true))
                 .andExpect(jsonPath("$.data.wings.right").value(true)).andExpect(jsonPath("$.data.wings.screens.length()").value(4))
                 .andExpect(jsonPath("$.data.boardList.enabled").value(true)).andExpect(jsonPath("$.data.boardList.after").value(5))
-                .andExpect(jsonPath("$.data.updatedAt").doesNotExist()).andExpect(jsonPath("$.data.updatedBy").doesNotExist());
+                .andExpect(jsonPath("$.data.adult.enabled").value(false)).andExpect(jsonPath("$.data.updatedAt").doesNotExist()).andExpect(jsonPath("$.data.updatedBy").doesNotExist());
     }
 
     @Test
@@ -64,16 +65,17 @@ class AdPlacementAdminHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.postInline.position").value("AFTER_BODY")).andExpect(jsonPath("$.data.wings.left").value(true))
                 .andExpect(jsonPath("$.data.wings.right").value(false)).andExpect(jsonPath("$.data.wings.screens.length()").value(2))
                 .andExpect(jsonPath("$.data.wings.screens[0]").value("HOME")).andExpect(jsonPath("$.data.wings.screens[1]").value("POST"))
-                .andExpect(jsonPath("$.data.boardList.after").value(12)).andExpect(jsonPath("$.data.updatedAt").isString())
+                .andExpect(jsonPath("$.data.boardList.after").value(12)).andExpect(jsonPath("$.data.adult.enabled").value(true))
+                .andExpect(jsonPath("$.data.updatedAt").isString())
                 .andExpect(jsonPath("$.data.updatedBy.id").value(Long.toString(me))).andExpect(jsonPath("$.data.updatedBy.name").value(operatorName(me)));
         Map<String, Object> row = jdbc.queryForMap("SELECT post_inline_enabled, post_inline_type, array_to_string(wing_screens, ',') AS screens, board_list_after, "
-                + "updated_by FROM ad_placement_settings WHERE id = 1");
+                + "adult_enabled, updated_by FROM ad_placement_settings WHERE id = 1");
         assertThat(row).containsEntry("post_inline_enabled", false).containsEntry("post_inline_type", "SQUARE_BANNER").containsEntry("screens", "HOME,POST")
-                .containsEntry("updated_by", me);
+                .containsEntry("adult_enabled", true).containsEntry("updated_by", me);
         assertThat(((Number) row.get("board_list_after")).intValue()).isEqualTo(12);
         String detail = jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE actor_id = ? AND action = 'AD_PLACEMENT_UPDATE' ORDER BY occurred_at DESC, id DESC "
                 + "LIMIT 1", String.class, me);
-        assertThat(detail).contains("\"before\"", "\"after\"", "postInline.adType", "SQUARE_BANNER", "wings.right", "boardList.after", "fromDefaults")
+        assertThat(detail).contains("\"before\"", "\"after\"", "postInline.adType", "SQUARE_BANNER", "wings.right", "boardList.after", "adult.enabled", "fromDefaults")
                 .doesNotContain("boardList.enabled"); // 바뀌지 않은 칸은 싣지 않는다
         assertThat(jdbc.queryForObject("SELECT target_type FROM audit_logs WHERE actor_id = ? AND action = 'AD_PLACEMENT_UPDATE' LIMIT 1", String.class, me))
                 .isEqualTo("AD_PLACEMENTS");
@@ -85,7 +87,16 @@ class AdPlacementAdminHttpTest extends Commerce04AdminTestBase {
         mvc.perform(withCsrf(put("/api/admin/ads/placements"), settings).content(VALID.replace("[\"POST\",\"HOME\",\"HOME\"]", "[]"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.wings.screens.length()").value(0));
         mvc.perform(get("/api/admin/ads/placements").cookie(reader)).andExpect(status().isOk()).andExpect(jsonPath("$.data.wings.screens.length()").value(0))
-                .andExpect(jsonPath("$.data.postInline.adType").value("SQUARE_BANNER"));
+                .andExpect(jsonPath("$.data.postInline.adType").value("SQUARE_BANNER")).andExpect(jsonPath("$.data.adult.enabled").value(true));
+
+        // 19금 옵션만 끄기 — 감사에 adult.enabled 의 before true · after false
+        mvc.perform(withCsrf(put("/api/admin/ads/placements"), settings).content(VALID.replace("[\"POST\",\"HOME\",\"HOME\"]", "[]")
+                .replace("\"adult\":{\"enabled\":true}", "\"adult\":{\"enabled\":false}"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.adult.enabled").value(false));
+        String last = jdbc.queryForObject("SELECT detail::text FROM audit_logs WHERE actor_id = ? AND action = 'AD_PLACEMENT_UPDATE' ORDER BY occurred_at DESC, id DESC "
+                + "LIMIT 1", String.class, me);
+        assertThat(last.replace(" ", "")).contains("\"before\":{\"adult.enabled\":true}", "\"after\":{\"adult.enabled\":false}");
+        assertThat(jdbc.queryForObject("SELECT adult_enabled FROM ad_placement_settings WHERE id = 1", Boolean.class)).isFalse();
     }
 
     @Test
@@ -100,9 +111,17 @@ class AdPlacementAdminHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.error.fields.['boardList.after']").exists());
         mvc.perform(withCsrf(put("/api/admin/ads/placements"), settings).content("{}")).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.fields.postInline").exists()).andExpect(jsonPath("$.error.fields.wings").exists())
-                .andExpect(jsonPath("$.error.fields.boardList").exists());
+                .andExpect(jsonPath("$.error.fields.boardList").exists()).andExpect(jsonPath("$.error.fields.adult").exists());
         mvc.perform(withCsrf(put("/api/admin/ads/placements"), settings).content(VALID.replace("\"right\":false,", ""))).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.fields.['wings.right']").exists());
+        // 19금 묶음 — 빠지면 fields.adult, enabled 가 비면 fields.adult.enabled(기본값으로 메우지 않는다)
+        mvc.perform(withCsrf(put("/api/admin/ads/placements"), settings).content(VALID.replace(",\"adult\":{\"enabled\":true}", ""))).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.fields.adult").exists()).andExpect(jsonPath("$.error.fields.length()").value(1));
+        mvc.perform(withCsrf(put("/api/admin/ads/placements"), settings).content(VALID.replace("\"adult\":{\"enabled\":true}", "\"adult\":{\"enabled\":null}")))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields.['adult.enabled']").exists())
+                .andExpect(jsonPath("$.error.fields.length()").value(1));
+        mvc.perform(withCsrf(put("/api/admin/ads/placements"), settings).content(VALID.replace("\"adult\":{\"enabled\":true}", "\"adult\":{}")))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields.['adult.enabled']").exists());
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ad_placement_settings", Integer.class)).isZero();
     }
 

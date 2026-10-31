@@ -9,8 +9,10 @@ import java.util.List;
  * @param postInline 글 보기 중간 광고 — 켜기 · 유형(한 줄 · 띠 · 네모) · 위치(글 카드와 댓글 카드 사이 · 본문 바로 아래)
  * @param wings      날개 배너 — 왼쪽 · 오른쪽 · 보일 화면(홈 · 가젯 페이지 · 게시판 목록 · 글 보기)
  * @param boardList  게시판 목록 한 줄 광고 — 켜기 · 공지·고정을 뺀 일반 글 몇 번째 뒤(1~20)
+ * @param adult      19금 게시판에도 광고 보이기(V119, 사용자 결정 2026-11-01 2차) — 끄면 19금 게시판의 게시판 맥락 광고(날개 포함)는 빈 목록. 숨김·소모임 게시판은 이 칸과
+ *                   상관없이 늘 제외
  */
-public record AdPlacements(PostInline postInline, Wings wings, BoardList boardList) {
+public record AdPlacements(PostInline postInline, Wings wings, BoardList boardList, Adult adult) {
 
     /** 글 보기 중간 광고 유형(상품 이름) */
     public static final List<String> INLINE_TYPES = List.of("TEXT_LINE", "STRIP_BANNER", "SQUARE_BANNER");
@@ -20,9 +22,9 @@ public record AdPlacements(PostInline postInline, Wings wings, BoardList boardLi
     public static final int AFTER_MIN = 1;
     public static final int AFTER_MAX = 20;
 
-    /** 저장한 적 없을 때 — 글 보기 켬 · 한 줄 광고 · 카드 사이, 날개 양쪽 켬 · 네 화면, 목록 한 줄 켬 · 5번째 뒤 */
+    /** 저장한 적 없을 때 — 글 보기 켬 · 한 줄 광고 · 카드 사이, 날개 양쪽 켬 · 네 화면, 목록 한 줄 켬 · 5번째 뒤, 19금 게시판 끔 */
     public static final AdPlacements DEFAULTS = new AdPlacements(new PostInline(true, "TEXT_LINE", "BETWEEN_CARDS"), new Wings(true, true, WING_SCREENS),
-            new BoardList(true, 5));
+            new BoardList(true, 5), new Adult(false));
 
     public record PostInline(boolean enabled, String adType, String position) {
     }
@@ -35,5 +37,8 @@ public record AdPlacements(PostInline postInline, Wings wings, BoardList boardLi
     }
 
     public record BoardList(boolean enabled, int after) {
+    }
+
+    public record Adult(boolean enabled) {
     }
 }
