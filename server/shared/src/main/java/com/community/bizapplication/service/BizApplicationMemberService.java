@@ -94,12 +94,13 @@ public class BizApplicationMemberService {
 
     // ── 상품·남은 칸 ───────────────────────────────────────────────────────
 
-    /** 광고 종류(배너 넷 + 한 줄) — 앞으로 30일(내일부터) 중 빈 날 수 */
+    /** 광고 종류(배너 다섯 — 날개 포함 + 한 줄) — 앞으로 30일(내일부터) 중 빈 날 수 */
     public List<ProductInfo> adProducts() {
         Map<BizProduct, PriceRule> all = rules.all();
         LocalDate from = today().plusDays(1);
         List<ProductInfo> out = new ArrayList<>();
-        for (BizProduct p : List.of(BizProduct.WIDE_BANNER, BizProduct.STRIP_BANNER, BizProduct.SQUARE_BANNER, BizProduct.SMALL_BANNER, BizProduct.TEXT_LINE)) {
+        for (BizProduct p : List.of(BizProduct.WIDE_BANNER, BizProduct.STRIP_BANNER, BizProduct.SQUARE_BANNER, BizProduct.SMALL_BANNER, BizProduct.WING_BANNER,
+                BizProduct.TEXT_LINE)) {
             PriceRule rule = all.get(p);
             int open = (int) slots.daily(p, from, from.plusDays(29)).stream().filter(d -> d.remaining() > 0).count();
             out.add(new ProductInfo(rule, open));

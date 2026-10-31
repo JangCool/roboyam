@@ -56,7 +56,7 @@ public class MyBizApplicationController {
         return noStore(service.dealProduct());
     }
 
-    /** 날짜별 남은 칸 — {@code slot} WIDE·STRIP·SQUARE·SMALL·TEXT_LINE·HOME_TOP·CATEGORY_TOP, 92일까지 */
+    /** 날짜별 남은 칸 — {@code slot} WIDE·STRIP·SQUARE·SMALL·WING·TEXT_LINE·HOME_TOP·CATEGORY_TOP, 92일까지 */
     @GetMapping("/availability")
     public ResponseEntity<ApiResponse<List<BizMemberView.AvailabilityDay>>> availability(@RequestParam(required = false) String slot,
                                                                                           @RequestParam(required = false) String from,

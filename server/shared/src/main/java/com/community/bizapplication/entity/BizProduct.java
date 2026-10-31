@@ -3,7 +3,7 @@ package com.community.bizapplication.entity;
 import java.util.Optional;
 
 /**
- * 요금표·자리의 단위(biz_price_rules.product) — 관리자 화면은 이 이름 그대로({@code BizAdType}), 공개 화면은 광고 종류 {@code WIDE·STRIP·SQUARE·SMALL·TEXT_LINE} ·
+ * 요금표·자리의 단위(biz_price_rules.product) — 관리자 화면은 이 이름 그대로({@code BizAdType}), 공개 화면은 광고 종류 {@code WIDE·STRIP·SQUARE·SMALL·WING·TEXT_LINE} ·
  * 노출 자리 {@code HOME_TOP·CATEGORY_TOP} 이름으로 주고받는다({@link #publicName()}·{@link #ofPublic}). {@link #HOTDEAL_POST} 는 건당이고 한도가 없다.
  */
 public enum BizProduct {
@@ -11,6 +11,8 @@ public enum BizProduct {
     STRIP_BANNER("STRIP"),
     SQUARE_BANNER("SQUARE"),
     SMALL_BANNER("SMALL"),
+    /** 날개 배너 — 본문 바깥 좌우 세로 160×600(4:15), V116(ad-contract 「공개 노출 목업」 확정 2026-11-01). 서버는 소재 비율을 보지 않는다(다른 배너와 같다) */
+    WING_BANNER("WING"),
     TEXT_LINE("TEXT_LINE"),
     HOTDEAL_TOP("HOME_TOP"),
     HOTDEAL_CATEGORY("CATEGORY_TOP"),
@@ -28,7 +30,7 @@ public enum BizProduct {
     }
 
     public boolean banner() {
-        return this == WIDE_BANNER || this == STRIP_BANNER || this == SQUARE_BANNER || this == SMALL_BANNER;
+        return this == WIDE_BANNER || this == STRIP_BANNER || this == SQUARE_BANNER || this == SMALL_BANNER || this == WING_BANNER;
     }
 
     public boolean adProduct() {
