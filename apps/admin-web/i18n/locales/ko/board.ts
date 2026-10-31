@@ -291,6 +291,7 @@ export default {
         guestRetentionDays: '비회원 글',
         guestMode: '비회원 글 처리 방식',
         gadgetExclusions: '가젯 노출 금지',
+        adsHidden: '이 게시판에 광고 숨김',
     },
     fieldHelp: {
         dateDisplay: '작성 시각을 보이는 방식이에요.',
@@ -374,6 +375,8 @@ export default {
         guestRetentionDays: '기간이 지난 비회원 글을 아래 방식으로 처리해요. 0이면 처리 안 함.',
         guestMode: '익명화는 작성자 이름을 ***로 가리고 비밀번호·IP 를 파기해요(글은 남아요). 삭제는 글을 지우고 제목·본문·첨부를 파기해요.',
         gadgetExclusions: '고른 가젯에는 이 게시판 글이 나오지 않아요.',
+        adsHidden: '켜면 이 게시판의 목록 한 줄·글 보기·핫딜 노출 광고가 나오지 않아요. 19금 게시판은 이 칸과 상관없이 광고가 나오지 않아요.',
+        adsHiddenGroup: '소모임 게시판은 이 칸과 상관없이 광고가 나오지 않아요. 19금 게시판도 마찬가지예요.',
     },
     /** 게시판 설정 화면에서만 뜻이 다른 칸 안내(이름 칸의 빈 값 = 기본 설정 따름) */
     fieldHelpBoard: {
