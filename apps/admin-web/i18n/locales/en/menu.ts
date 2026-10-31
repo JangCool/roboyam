@@ -99,6 +99,7 @@ export default {
     ad: 'Ads',
     adReviews: 'Ad review',
     ads: 'Ad schedule',
+    adPlacements: 'Ad placements',
     // Hot deal section — hot deal review
     hotdeal: 'Hot deals',
     hotdealReviews: 'Hot deal review',

@@ -213,3 +213,45 @@ export interface AdRestoreRequest {
     compensation: AdRestoreCompensation;
     reason: string;
 }
+
+/* ── 광고 자리 설정(`/ads/placements`) ── */
+
+/** 글 보기 광고 유형 — 한 줄(기본)·띠 배너·네모 배너 */
+export type AdPostInlineType = 'TEXT_LINE' | 'STRIP_BANNER' | 'SQUARE_BANNER';
+
+/** 글 카드와 댓글 카드 사이(기본) · 본문 바로 아래 */
+export type AdPostInlinePosition = 'BETWEEN_CARDS' | 'AFTER_BODY';
+
+/** 날개 배너를 둘 화면 — 홈 · 가젯 페이지 · 게시판 목록 · 글 보기 */
+export type AdWingScreen = 'HOME' | 'PAGE' | 'BOARD' | 'POST';
+
+export interface AdPostInlineSetting {
+    enabled: boolean;
+    adType: AdPostInlineType;
+    position: AdPostInlinePosition;
+}
+
+export interface AdWingSetting {
+    left: boolean;
+    right: boolean;
+    screens: AdWingScreen[];
+}
+
+export interface AdBoardListSetting {
+    enabled: boolean;
+    /** 일반 글(공지·고정 제외) 몇 번째 뒤 — 1~20 */
+    after: number;
+}
+
+/** `PUT /api/admin/ads/placements` 본문 */
+export interface AdPlacementsRequest {
+    postInline: AdPostInlineSetting;
+    wings: AdWingSetting;
+    boardList: AdBoardListSetting;
+}
+
+/** `GET`·`PUT /api/admin/ads/placements` 응답 — 저장한 적 없으면 서버 기본값 + `updatedAt/updatedBy: null` */
+export interface AdPlacementsView extends AdPlacementsRequest {
+    updatedAt: string | null;
+    updatedBy: { id: string; name: string } | null;
+}

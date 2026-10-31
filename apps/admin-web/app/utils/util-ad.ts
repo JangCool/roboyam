@@ -1,4 +1,4 @@
-import type { AdBookingRow, AdBookingStatus, AdDaySlot, AdTakedown, AdType } from '~/composables/ad/api/useAdApi.types';
+import type { AdBookingRow, AdBookingStatus, AdDaySlot, AdPlacementsRequest, AdPostInlinePosition, AdPostInlineType, AdTakedown, AdType, AdWingScreen } from '~/composables/ad/api/useAdApi.types';
 import { BIZ_AD_TYPES } from '~/composables/bizapplication/api/useBizApplicationApi.types';
 import UtilBizApplication from '~/utils/util-biz-application';
 
@@ -74,5 +74,46 @@ export default class UtilAd {
     /** 긴급 내림 가능(진행·예약) */
     static canTakedown(status: AdBookingStatus): boolean {
         return status === 'RUNNING' || status === 'SCHEDULED';
+    }
+
+    /* ── 광고 자리 설정(`/ads/placements`) — 서버 `PUT /api/admin/ads/placements` 와 같은 값 ── */
+
+    static readonly INLINE_TYPES: readonly AdPostInlineType[] = ['TEXT_LINE', 'STRIP_BANNER', 'SQUARE_BANNER'];
+    static readonly INLINE_POSITIONS: readonly AdPostInlinePosition[] = ['BETWEEN_CARDS', 'AFTER_BODY'];
+    static readonly WING_SCREENS: readonly AdWingScreen[] = ['HOME', 'PAGE', 'BOARD', 'POST'];
+    /** 게시판 목록 한 줄 — 일반 글 몇 번째 뒤(서버 400 `fields.boardList.after`) */
+    static readonly FEED_AFTER = { min: 1, max: 20 } as const;
+    /** 칸 아래·묶음 위에 붙이는 서버 오류 키(`fields.*`) — 나머지는 저장 줄에 모은다 */
+    static readonly PLACEMENT_FIELDS: readonly string[] = [
+        'postInline',
+        'postInline.enabled',
+        'postInline.adType',
+        'postInline.position',
+        'wings',
+        'wings.left',
+        'wings.right',
+        'wings.screens',
+        'boardList',
+        'boardList.enabled',
+        'boardList.after',
+    ];
+
+    /** 편집용 사본(서버 응답을 그대로 고치지 않게) — 날개 화면은 정해진 차례로 */
+    static placementsForm(view: AdPlacementsRequest): AdPlacementsRequest {
+        return {
+            postInline: { ...view.postInline },
+            wings: { left: view.wings.left, right: view.wings.right, screens: UtilAd.WING_SCREENS.filter((s) => view.wings.screens.includes(s)) },
+            boardList: { ...view.boardList },
+        };
+    }
+
+    /** 묶음마다 저장된 값과 다른 칸 수 */
+    static placementChanges(form: AdPlacementsRequest, saved: AdPlacementsRequest): { postInline: number; wings: number; boardList: number } {
+        const screens = (a: readonly AdWingScreen[]) => UtilAd.WING_SCREENS.filter((s) => a.includes(s)).join(',');
+        return {
+            postInline: [form.postInline.enabled !== saved.postInline.enabled, form.postInline.adType !== saved.postInline.adType, form.postInline.position !== saved.postInline.position].filter(Boolean).length,
+            wings: [form.wings.left !== saved.wings.left, form.wings.right !== saved.wings.right, screens(form.wings.screens) !== screens(saved.wings.screens)].filter(Boolean).length,
+            boardList: [form.boardList.enabled !== saved.boardList.enabled, form.boardList.after !== saved.boardList.after].filter(Boolean).length,
+        };
     }
 }
