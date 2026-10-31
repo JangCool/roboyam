@@ -1,4 +1,4 @@
-# 광고 일정표 계약 (화면 확정 2026-10-30 · 서버 구현·화면 연결 2026-10-31 — V115)
+# 광고 일정표 계약 (화면 확정 2026-10-30 · 서버 구현·화면 연결 2026-10-31 — V115 · 공개 노출 2026-11-01 — V116~V118)
 
 **의도**: 운영자가 광고 유형별로 언제 자리가 비었는지 보고, 광고 건(사업자 신청 건에서 확정된 것 + 운영자 수동 등록)을 한 장부에서 관리한다. 긴급 내림·되돌리기로 사고에 대응한다.
 **정본·근거**: `docs/plans/biz-ad-hotdeal/00-overview.md` ★ 절(★-2 수동 결제·A1~A3·F5), 분석 `02-ad.md`. 신청·결제 흐름은 `biz-application-contract.md` 가 정본이다(광고 건 = 신청 건이 `SCHEDULED` 이후인 것).
@@ -6,7 +6,7 @@
 
 ## 화면 경로
 - 관리자 `/ads` — 유형 탭 7개(넓은·띠·네모·작은 배너·한 줄·핫딜 홈 상단·핫딜 말머리 상단) → 요약 띠(한도·진행·예약·결제·입금 대기) → **한 달 큰 달력**(하모니카3 월 보기 짜임: 칸마다 「남은/한도」 알약 + 그날 걸친 광고 건 이름·상태 색 점, 최대 3 + 「+N건 더」, 건을 누르면 상세, 오늘 이후 빈 곳을 누르면 그 날짜로 수동 등록) → 광고 건 표(상태·결제 방식·비중) → 상세 Drawer(기본·소재 버전·일정·결제·처리 기록). 메뉴 묶음 「광고」(`ad.read`).
-- 공개 노출 컴포넌트(`AdSlot`·가젯 `AD`·`AD_TEXT_LINE`·글 중간)는 아래 「공개 노출 목업」(화면 확정 전) — 02 §7-7 이 설계 정본.
+- 공개 노출 컴포넌트(`AdSlot`·가젯 `AD`·`AD_TEXT_LINE`·글 중간·날개·목록 한 줄)는 아래 「공개 노출 목업」(화면 확정 2026-11-01)·「공개 노출 서버 구현 결정」(2026-11-01). 관리자 광고 자리 설정 `/ads/placements`(`ad.read`, 저장 `ad.settings`).
 
 ## 규칙
 - 유형별 동시 한도(설정값). 날짜별 남은 칸 = 한도 − 그날 자리를 차지한 건(결제·입금 대기 포함, 취소·만료 제외). 달력은 안내이고 저장 때 서버가 다시 판정(409 `BIZ_SLOT_FULL`).
@@ -73,3 +73,18 @@ API 요청·응답 모양 전체는 서버 DTO(admin `ad/dto/AdAdminView`·`AdAd
   - **글 보기**: `postInline{ enabled, adType TEXT_LINE|STRIP_BANNER|SQUARE_BANNER, position BETWEEN_CARDS|AFTER_BODY }`. 기본은 **한 줄 광고 · 글 카드와 댓글 카드 사이 회색 틈**(3차 — 어느 카드에도 들어가지 않는 독립 줄, 페이지 바탕 + 옅은 선, 높이 32px, 위아래 여백이 카드 간격 `--content-card-gap` 의 반씩을 맡아 늘어나는 것은 줄 높이뿐, 광고가 없으면 요소 없음 = 원래 간격; 띠 배너 12:1 은 모바일 360px 에서 높이 약 30px 라 기본에서 뺌). 스위치 `ad-inline-strip`(같은 틈) · `ad-inline-square`(본문 바로 아래 네모 = 옛 모습) · `ad-inline-off`.
   - **게시판 목록 인피드 한 줄 광고** `AdFeedRow`: 한 쪽에 1줄, 공지·고정을 뺀 일반 글 N번째 뒤(기본 5 — 적으면 맨 끝, 0개면 없음). **첫 쪽만**, 검색 결과에는 없음. **정말 한 줄**(3차 — 「광고」 꼬리표 + 문구 40자, 넘치면 말줄임, 둘째 줄 없음). 광고주 이름(선택 `advertiserName`)은 PC 표의 작성자 칸 작은 글씨로만, 날짜·조회·추천은 빈칸, placement `BOARD_LIST`. 기본 목록(PC 표·모바일 한 줄)·다음식/로보얌 헤드라인·네이버식 기사형(글 줄보다 낮은 한 줄)·카드형(카드 칸 대신 두 열을 가로지르는 얇은 띠 — **사용자 결정 2026-10-31: 이대로 유지**)에 넣고 **갤러리는 뺌**. `adsHidden`·19금 게시판(`allowAdult`)은 제외. 자리 설정 `placements.boardList{ enabled, after 1~20 }`. 스위치 `ad-feed-off`·`ad-feed-after-<n>`(기본 켬).
   - 관리자 자리 설정 화면(날개·글 보기·목록 한 줄 — 02 §7-2)은 서버 저장이 없어 만들지 않음. 백엔드 단계에서 만든다.
+
+## 공개 노출 서버 구현 결정 (2026-11-01 — V116~V118, R__batch_33)
+요청·응답 모양 전체는 서버 DTO(api `ad/dto/PublicAdView`, shared `ad/dto/AdPlacements`, admin `ad/dto/AdPlacementAdmin`)가 정본이다. 아래는 규칙만.
+- **마이그레이션**(shared): `V116__ad_wing_banner.sql`(상품 CHECK ∪ `WING_BANNER`, 요금표 하루 30,000·한도 4·최대 30일·미리 60일·받기 켬) · `V117__board_ads_hidden.sql`(`boards.ads_hidden` 기본 false) · `V118__ad_public_exposure.sql`(`ad_daily_stats` PK 건·버전·KST 날짜·자리 / 하루 1번 판정 `ad_view_marks` / 자리 설정 한 행 `ad_placement_settings`) · DB 배치 `ad-view-mark-cleanup`(`R__batch_33`, 매일 04:15 KST, 판정 행 2일 보관). ⚠ develop 에 합치기 직전 마지막 번호를 다시 본다.
+- **날개 배너**: 상품 `WING_BANNER`(사업자 공개 이름 `WING`, 신청 종류 `AD_BANNER`). 관리자 `/ads` 유형 8개·수동 등록 가능, 미리보기 세로 틀(4:15·160px). 서버에 배너 이미지 비율 검사는 없다(모든 배너 공통 — 후속).
+- **가젯 `AD`·`AD_TEXT_LINE`**: 서버 종류 등록(최소 AD 2×2·AD_TEXT_LINE 3×2), `config.adType` 배너 넷(처음 WIDE_BANNER)·`count` 1~5(처음 3), 범위 밖 400 `gadgets[i].config.adType|count`. 처음 꾸미기 = 테마 기본 위에 머리 HIDDEN·`empty.keep false`·AD 는 FLAT. 공개 응답 `data: null`·`empty: false`. 관리자 편집기의 저장 막음(`homeLayout.adSaveBlocked`)은 지웠다.
+- **공개 `GET /api/ads?types=&board=&prefix=`**(no-store): `types` 1~8개(비었거나 모름·초과 400 `fields.types`). 나가는 건 = 상품 자리 줄 + `SCHEDULED` + `start_at ≤ now < end_at` + 최신 **승인** 소재 버전(없으면 뺌). 서버 메모리 사본 20초(긴급 내림·되돌리기는 다음 사본에서 반영). `board` 를 주면 없음·꺼짐·소모임(`kind=GROUP`)·19금·`adsHidden` 게시판은 빈 목록 — 화면은 목록 한 줄·글 보기·핫딜 호출에만 `board` 를 넘기고, 가젯·날개 호출은 넘기지 않는다. `advertiserName` = 사업자 상호 또는 광고주 이름. **핫딜 두 유형은 게시된 핫딜 글이 없어 늘 빈 목록**(`deal` null, `prefix` 미사용 — 핫딜 게시 때 채운다).
+- **`GET /api/ads/placements`**: 저장 없으면 기본 postInline `{true, TEXT_LINE, BETWEEN_CARDS}` · wings `{true, true, [HOME,PAGE,BOARD,POST]}` · boardList `{true, 5}`.
+- **집계** `POST /api/ads/impressions`(0~20건, 초과 400 `fields.items`)·`POST /api/ads/{id}/clicks` — 로그인·**CSRF 없이**(이 두 주소만, `PublicAdPaths`), 200(`data` 키 없음). 같은 방문자·소재 버전·자리 KST 하루 노출 1번·클릭 1번. 방문자 = `BlindIndex`(용도 `ad.visitor`) 해시 — 입력 `KST날짜|m:<회원 ID>` 또는 `KST날짜|g:<IP>\n<UA 512자>`, 원본 IP 저장 없음, 키가 없으면 세지 않는다. 봇·빈 User-Agent 는 회원이어도 세지 않는다(정규식 목록). 지금 나가지 않는 건·지금 버전이 아닌 줄·모르는 자리는 그 줄만 버린다(판정은 같은 20초 사본 — 내림 직후 최대 20초 더 셀 수 있음). 클릭은 그날 노출 여부를 보지 않고, 광고 유형과 자리가 맞는지도 보지 않는다(가정).
+- **자리 설정** 관리자 `GET /api/admin/ads/placements`(`ad.read`)·`PUT`(`ad.settings` — featureReady 켬, CSRF) → `{postInline, wings, boardList, updatedAt, updatedBy{id,name}}`. 400 `fields.postInline.adType|position|enabled` · `fields.wings.left|right|screens` · `fields.boardList.after(1~20)|enabled` · 빠진 묶음 `fields.<묶음>`. `wings.screens` 는 비어도 되고 겹치면 합쳐 HOME·PAGE·BOARD·POST 차례로 저장. 감사 `AD_PLACEMENT_UPDATE`(일반, 대상 `AD_PLACEMENTS`, 바뀐 칸만 — 같은 값 다시 저장은 기록 없음). 화면 `/ads/placements`(메뉴 「광고」 셋째 `adPlacements`, 조회 `ad.read`·저장 단추 `ad.settings`) — admin 메뉴 마이그레이션 없음.
+- **게시판 `adsHidden`**: 관리자 게시판 편집 「노출」 묶음의 「이 게시판에 광고 숨김」(요청 `adsHidden` null = 그대로, 권한 `board.settings` — 가젯 노출 금지와 같은 정책 묶음, 감사 `BOARD_UPDATE` 전후). 공개 게시판 상세에 `adsHidden`. 화면은 `adsHidden || allowAdult` 면 목록 한 줄·글 보기·핫딜 노출을 그리지 않는다. 소모임 게시판 편집에도 칸은 보이고 안내가 「소모임 게시판은 늘 제외」로 바뀐다.
+- **소모임 제외**: 소모임 글(`post.group`)은 글 보기 광고 호출을 하지 않고, 날개는 글 보기가 글을 받은 뒤 소모임이 아닐 때만 그린다(글을 못 받으면 날개 없음). `/groups/**` 는 원래 날개 화면이 아니다. 날개 배너는 `adsHidden`·19금 게시판에서도 나온다(확정 결정은 목록 한 줄·글 보기·핫딜만 말함 — 가정).
+- **화면 연결**: user-web `usePublicAdApi` 실제 API(클릭은 `sendBeacon`, 못 보내면 보통 POST), 사본은 `유형@게시판` 단위. 목업 `ad-mock.ts` 와 `?mock=ad-*` 스위치는 **모두 지웠다**(가젯은 서버 등록·자리는 `/ads/placements`·후보는 `/ads` 등록과 승인으로 확인). 사업자 `BusinessAdPreview`·관리자 `BizAppPreview` rel = `sponsored nofollow noopener`.
+- 테스트: api `PublicAdServiceTest`·`PublicAdHttpTest`·`AdWingBannerTest`·`HomeGadgetAdTest` · admin `AdPlacementAdminHttpTest`·`BoardAdsHiddenHttpTest`·`HomeLayoutAdGadgetTest`·`AdViewMarkCleanupBatchTest` + 기존 신청 건·카탈로그 시험 갱신.
+- 미확정: 핫딜 노출 `deal` 채우기(핫딜 게시 후속) · 광고 리포트 화면 · 배너 비율 검사 · user-web `business/applications/[id]` 핫딜 글 링크의 `noreferrer`(미리보기 아님 — 그대로 둠) · 날개 배너를 19금·`adsHidden` 게시판에서도 뺄지.

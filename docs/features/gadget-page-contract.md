@@ -38,6 +38,8 @@
 | `GROUPS` | `count` 1~6(기본 3) |
 | `QUICK_LINKS` | `shape` PILL·TAB · `items` 0~12개 `{label 1~12자(앞뒤 공백 제거), kind ALL·POPULAR·LATEST·GROUPS·GROUP_BUY·BOARD·PATH, value}` — `BOARD` 는 있는 게시판 slug, `PATH` 는 `/` 로 시작하는 사이트 안 경로(`//`·스킴·공백·제어 문자·역슬래시 없음, 300자 이하), 나머지는 null |
 | `NOTICE_TEXT` | `text` 0~300자(줄바꿈 허용, 평문) · `format` PLAIN·BULLETS |
+| `AD` | `adType` WIDE_BANNER·STRIP_BANNER·SQUARE_BANNER·SMALL_BANNER(기본 WIDE_BANNER) — 공개 `data` null, 화면이 `/api/ads` 로 채움(`ad-contract.md` 「공개 노출 서버 구현 결정」) |
+| `AD_TEXT_LINE` | `count` 1~5(기본 3) — 위와 같음 |
 - **모양·노출(모든 종류)**: `title` 1~40자(줄바꿈·제어 문자 금지 — 저장 가젯도 바꾼다) · `desktop`·`mobile`(둘 다 false 금지) · `style`: `icon` `^pi-[a-z0-9-]{2,30}$` 또는 null · `headerStyle` BAR·UNDERLINE·FILLED·PLAIN·HIDDEN · `titleSize` S·M·L · `titleColor`·`cardColor` 프리셋 12색 이름·`#rrggbb`·null · `subtitle` 0~40 · `cardLook` DEFAULT·FLAT·OUTLINE·TINT · `mobileFold` NONE·OPEN·CLOSED · `empty{keep, message, text 0~40}`. 오류 `400 fields.gadgets[i].title|desktop|mobile|style.<칸>`.
 - `boardScope`: `ALL` 전체(글 목록·갤러리는 최신글과 같은 범위, 게시판 카드는 켜진 일반 게시판 앞 6개) · `FOLDER` 이 페이지의 기준 폴더 게시판 전체(가젯 페이지에서만 — 그 밖에서 보내면 400) · `BOARD` 지금 보는 게시판(게시판 레이아웃에서만 — `board-layout-contract.md`) · `PICK` `boardIds`(게시판 slug 1~20개, 고른 차례).
   저장된 설정에 `boardScope` 가 없으면(옛 시드) `boardIds` 가 있으면 PICK, 없으면 ALL 로 읽는다. FOLDER 인데 기준 폴더가 없거나 게시판이 없으면 ALL 과 같다.
