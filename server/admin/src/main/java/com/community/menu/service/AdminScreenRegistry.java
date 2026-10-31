@@ -98,6 +98,20 @@ public final class AdminScreenRegistry {
                     leaf(s("groupRequests", "/group-requests", "menu.groupRequests", "pi pi-inbox", Permission.GROUP_READ)),
                     leaf(s("groupCategories", "/group-categories", "menu.groupCategories", "pi pi-tags", Permission.GROUP_READ)),
                     leaf(s("groupSettings", "/group-settings", "menu.groupSettings", "pi pi-sliders-h", Permission.GROUP_READ))),
+            // 메뉴·권한·알림은 업무(사업자 / 광고 / 핫딜)별, 신청 건 서버 엔진은 하나(docs/plans/biz-ad-hotdeal/04-ia-review.md 1-2 · S7). 차례: 소모임 → 사업자 → 광고 → 핫딜.
+            // admin-web UtilAdminMenu 의 business · ad · hotdeal 묶음과 같은 키·주소·권한·차례
+            // 사업자 묶음(docs/features/business-contract.md) — 인증 심사 · 사업자 목록 모두 조회 business.read(화면 안에서 처리 business.manage ·
+            // 평문 열람 business.reveal · 정지 해제 business.unsuspend)
+            section(NORMAL, "menu.business", "pi pi-briefcase",
+                    leaf(s("businessReviews", "/business-reviews", "menu.businessReviews", "pi pi-inbox", Permission.BUSINESS_READ)),
+                    leaf(s("businesses", "/businesses", "menu.businesses", "pi pi-id-card", Permission.BUSINESS_READ))),
+            // 광고 묶음(biz-application-contract · ad-contract) — 광고 심사(AD_* 신청 건, 처리 ad.manage · 환불 deal-order.refund) · 광고 일정표(처리 ad.manage · ad.takedown · ad.restore)
+            section(NORMAL, "menu.ad", "pi pi-megaphone",
+                    leaf(s("adReviews", "/ad-reviews", "menu.adReviews", "pi pi-inbox", Permission.AD_READ)),
+                    leaf(s("ads", "/ads", "menu.ads", "pi pi-calendar", Permission.AD_READ))),
+            // 핫딜 묶음 — 핫딜 심사(HOTDEAL_* 신청 건, 처리 hotdeal.manage · 환불 deal-order.refund). 핫딜 글·링크 규칙·의심 후보·설정은 화면이 생길 때 더한다
+            section(NORMAL, "menu.hotdeal", "pi pi-ticket",
+                    leaf(s("hotdealReviews", "/hotdeal-reviews", "menu.hotdealReviews", "pi pi-inbox", Permission.HOTDEAL_READ))),
             section(SETTINGS, "menu.system", "pi pi-cog",
                     leaf(s("siteGeneral", "/settings/general", "menu.general", "pi pi-sliders-h", Permission.SITE_READ)),
                     leaf(s("socialLogin", "/settings/social-login", "menu.socialLogin", "pi pi-key", Permission.SITE_READ)),

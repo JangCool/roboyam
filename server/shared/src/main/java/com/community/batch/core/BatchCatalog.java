@@ -150,7 +150,19 @@ public enum BatchCatalog implements BatchDefinition {
      * 공구 개인정보 보관 정리 — 배송지(배송완료·취소 뒤 180일, 만료 주문 30일 — 공구 설정) · 다음 판이 생긴 지 180일 지난 수정 이력 · 끝난 지 3년 지난 요청의 회원 사유 글·사진.
      * DB 배치, 기본 매일 04:35 KST({@code R__batch_32_groupbuy_privacy_cleanup.sql}, commerce.md 10-9, 공구 계약 결정 34)
      */
-    GROUPBUY_PRIVACY_CLEANUP("groupbuy-privacy-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true);
+    GROUPBUY_PRIVACY_CLEANUP("groupbuy-privacy-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
+     * 사업자 신청 건 결제 기한 만료 — 결제 기한이 지난 결제 대기 전부를 열린 결제부터 닫고 EXPIRED(자리 반납) + 사업자 알림(Java 배치 {@code BizPaymentExpireJob},
+     * biz-application-contract 「기한」·F2). 기본 10분마다. 자리·돈이 걸린 업무라 분류는 회원(MEMBER).
+     */
+    BIZ_PAYMENT_EXPIRE("biz-payment-expire", BatchCategory.MEMBER, BatchSource.JAVA, "0 */10 * * * *", true),
+
+    /** 사업자 신청 건 결제 기한 임박 알림(24시간 전 한 번 — F9, Java 배치 {@code BizPaymentDueNoticeJob}). 기본 매시 05분 */
+    BIZ_PAYMENT_DUE_NOTICE("biz-payment-due-notice", BatchCategory.MEMBER, BatchSource.JAVA, "0 5 * * * *", true),
+
+    /** 사업자 신청 건 시작·종료 임박 알림(24시간 전 한 번씩 — F9, Java 배치 {@code BizScheduleNoticeJob}, 단계 start·end). 기본 매시 15분 */
+    BIZ_SCHEDULE_NOTICE("biz-schedule-notice", BatchCategory.MEMBER, BatchSource.JAVA, "0 15 * * * *", true);
 
     private static final Pattern PROCEDURE_NAME = Pattern.compile("[a-z][a-z0-9_]{0,62}");
 

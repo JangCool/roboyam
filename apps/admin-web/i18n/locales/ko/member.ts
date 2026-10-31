@@ -41,6 +41,7 @@ export default {
         lastLogin: '최근 로그인',
         grade: '등급',
         memberType: '회원 유형',
+        business: '사업자 인증',
         emailVerified: '이메일 인증',
         authMethod: '가입 방식',
         dormant: '휴면 전환일',
@@ -98,7 +99,7 @@ export default {
     },
     type: {
         GENERAL: '일반 회원',
-        BUSINESS: '사업자',
+        BUSINESS: '홍보 전용',
     },
     authMethod: {
         EMAIL: '이메일',
@@ -124,6 +125,10 @@ export default {
         YES: '있음',
         NO: '없음',
     },
+    businessVerified: {
+        YES: '인증됨',
+        NO: '아님',
+    },
 
     // 표
     col: {
@@ -132,6 +137,7 @@ export default {
         nickname: '닉네임',
         grade: '등급',
         memberType: '회원 유형',
+        businessVerified: '사업자',
         status: '상태',
         authMethod: '가입 방식',
         emailVerifiedAt: '이메일 인증일',

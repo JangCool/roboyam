@@ -18,8 +18,9 @@ import java.util.List;
  * @param statusChangedAt 가장 최근 상태 변경 시각 — 탈퇴 시각만 안다(정지 이력 표가 아직 없다)
  * @param boardRole      {@code MANAGER} · {@code STAFF} · {@code NONE}
  * @param sanctionCount  제재 이력 수 — 제재 표가 아직 없어 늘 0
+ * @param businessVerified 승인된 사업자인가(사업자 신원 {@code APPROVED} — 역할 기준 {@code memberType} 과 따로)
  */
 public record MemberView(String memberNo, String email, boolean emailMasked, String nickname, String grade, String memberType, String status, String authMethod,
                          Instant emailVerifiedAt, Instant joinedAt, Instant lastLoginAt, long point, List<MemberRoleRef> roles, Instant dormantAt,
-                         Instant statusChangedAt, String boardRole, long sanctionCount) {
+                         Instant statusChangedAt, String boardRole, long sanctionCount, boolean businessVerified) {
 }

@@ -111,6 +111,23 @@ roboyam:
   identity:
     provider: ${ROBOYAM_IDENTITY_PROVIDER:portone}
     verification-ttl: 30m        # 서버가 발급한 인증 번호의 유효 시간 — 지나면 확정할 수 없다(410)
+  # 사업자 신원(docs/features/business-contract.md) — 국세청 사업자 상태조회 구현은 배포 설정이다 — odcloud(공공데이터포털) | fake(local·시험 전용).
+  # dev · prod 프로필에서 fake 면 기동을 멈춘다(NtsConfig). 인증키(일반 인증키 Decoding)가 비면 모든 조회가 「조회 불가(키 없음)」 — 운영자는 사유를 적고 승인한다
+  business:
+    nts:
+      provider: ${ROBOYAM_NTS_PROVIDER:odcloud}
+      service-key: ${ROBOYAM_NTS_SERVICE_KEY:}
+  # 사업자 신청 건(docs/features/biz-application-contract.md — BizApplicationProperties). 결제 기한 기본 72시간 · 입금 기한 기본 7일(승인 화면이 기한을 정해 보낸다).
+  # 입금 계좌는 수동 결제 안내(공개 상세)에 보인다 — 비면 화면은 「운영팀이 따로 안내」(가정)
+  biz:
+    payment-hours: 72
+    deposit-days: 7
+    # 운영자 등록 건의 자기 승인(등록자 = 승인자, 04-ia-review §2) — allow(기본, 1인 운영: 승인 창 경고 + 메모 필수 + 처리 기록·감사 selfApproved) | deny(409 BIZ_SELF_APPROVAL_DENIED)
+    self-approval: ${ROBOYAM_BIZ_SELF_APPROVAL:allow}
+    deposit-account:
+      bank-name: ${ROBOYAM_BIZ_BANK_NAME:}
+      account-no: ${ROBOYAM_BIZ_ACCOUNT_NO:}
+      account-holder: ${ROBOYAM_BIZ_ACCOUNT_HOLDER:}
   # 소모임(docs/features/group-contract.md — GroupProperties). 아래는 관리자 앱 소모임 설정에 저장된 값이 없을 때의 기본값이다(저장된 값이 이긴다 — DB > yml).
   # 화면에 없는 한도: 하루 개설 신청 수 · 하루 가입·신청 수 · 상세 「최근 N일 가입」. 그 밖의 칸(매니저·공개 범위·지금 뜨는·일정 한도)은 GroupProperties 의 기본값을 쓴다
   groups:

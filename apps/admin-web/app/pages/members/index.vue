@@ -84,6 +84,10 @@
                             <template v-else-if="col.key === 'memberType'">
                                 <Tag :value="t(`member.type.${data.memberType}`)" :icon="UtilMember.typeIcon(data.memberType)" :severity="data.memberType === 'BUSINESS' ? 'contrast' : 'secondary'" />
                             </template>
+                            <template v-else-if="col.key === 'businessVerified'">
+                                <Tag v-if="data.businessVerified" :value="t('member.businessVerified.YES')" icon="pi pi-verified" severity="info" />
+                                <span v-else class="text-[13px] text-muted-color">{{ t('member.businessVerified.NO') }}</span>
+                            </template>
                             <template v-else-if="col.key === 'status'">
                                 <Tag :value="t(`member.status.${data.status}`)" :icon="UtilMember.statusIcon(data.status)" :severity="UtilMember.statusSeverity(data.status)" />
                             </template>

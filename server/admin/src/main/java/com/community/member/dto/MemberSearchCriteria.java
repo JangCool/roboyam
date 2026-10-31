@@ -12,13 +12,14 @@ import java.util.List;
  * @param statuses 거를 계정 상태. null 이면 거르지 않고, 비어 있으면(예: {@code DORMANT} 만 골랐다 — 휴면 상태는 아직 없다) 결과가 없다
  * @param grades   거를 등급 키
  * @param dormantRange 휴면 전환 기간이 주어졌다 — 휴면 이력이 없어 결과가 없다
+ * @param businessVerified 승인된 사업자(사업자 신원 {@code APPROVED})만 · 아닌 회원만 — null 이면 거르지 않는다(역할 기준 {@code memberType} 과 따로)
  */
 public record MemberSearchCriteria(
         SearchField searchField, String keyword, List<UserStatus> statuses, List<String> roleIds,
         Instant joinedFrom, Instant joinedTo, Instant lastLoginFrom, Instant lastLoginTo, boolean noLoginHistory,
         List<String> grades, MemberType memberType, Boolean emailVerified, List<AuthMethod> authMethods,
         boolean dormantRange, StatusChangeKind statusChangedKind, Instant statusChangedFrom, Instant statusChangedTo,
-        Long pointMin, Long pointMax, BoardRole boardRole, Boolean hasSanction,
+        Long pointMin, Long pointMax, BoardRole boardRole, Boolean hasSanction, Boolean businessVerified,
         SortField sortField, boolean sortAscending, int page, int size) {
 
     /** 검색 대상 */

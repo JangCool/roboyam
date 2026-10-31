@@ -67,6 +67,13 @@ public class FileEntity {
         return file;
     }
 
+    /** 회원이 올린 사업자 광고 이미지(V112) — 신청 건에 쓰이면 IN_USE */
+    public static FileEntity pendingBizAdImage(long id, String storageKey, String contentType, long sizeBytes, int width, int height, long userId, Instant now) {
+        FileEntity file = pendingPostImage(id, storageKey, contentType, sizeBytes, width, height, userId, now);
+        file.purpose = FilePurpose.BIZ_AD_IMAGE;
+        return file;
+    }
+
     /** 회원이 올린 글 이미지 — 아직 어느 글에도 쓰이지 않는다 */
     public static FileEntity pendingPostImage(long id, String storageKey, String contentType, long sizeBytes, int width, int height, long userId,
                                               Instant now) {

@@ -42,6 +42,11 @@ export default class UtilNotification {
         // 결제 — 결제 이상(링크 `/payments/anomalies`) · 대사 불일치(링크 `/payments/reconciliation`)
         COMMERCE_PAYMENT_ANOMALY: 'pi pi-credit-card',
         COMMERCE_RECONCILE_MISMATCH: 'pi pi-check-square',
+        // 사업자 신청 건 — 도메인별 심사 대기(신청·소재 바꿈) · 진행 중 환불 심사(링크 `/ad-reviews?id={id}` · `/hotdeal-reviews?id={id}`)
+        AD_REVIEW_PENDING: 'pi pi-inbox',
+        HOTDEAL_REVIEW_PENDING: 'pi pi-inbox',
+        AD_REFUND_REQUESTED: 'pi pi-replay',
+        HOTDEAL_REFUND_REQUESTED: 'pi pi-replay',
     };
 
     /**

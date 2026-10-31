@@ -1,5 +1,5 @@
 /**
- * 대시보드 화면의 문구 — 지금은 커머스 칸(commerce.md 19절). 키는 `dashboard.무엇` 두 마디. `en/dashboard.ts` 와 같은 키, 같은 차례.
+ * 대시보드 화면의 문구 — 처리할 일 칸(사업자·광고·핫딜) · 커머스 칸(commerce.md 19절). 키는 `dashboard.무엇` 두 마디. `en/dashboard.ts` 와 같은 키, 같은 차례.
  */
 export default {
     title: '대시보드',
@@ -24,4 +24,20 @@ export default {
     shipOverdueNote: '지연 공지가 필요한지 확인하세요',
     deliveryStale: '발송 뒤 {days}일 지난 배송 중',
     deliveryStaleNote: '배송완료 처리 누락 — 청약철회 기한이 시작되지 않아요',
+
+    // ── 처리할 일 칸(04-ia-review Q5 — 통합 신청 심사 큐 대신) ─
+    todoTitle: '처리할 일',
+    todoLoadFailed: '처리할 일을 불러오지 못했어요.',
+    todoAdReview: '광고 심사',
+    todoHotdealReview: '핫딜 심사',
+    todoReviewNote: '사업자가 신청한 건 — 승인해야 결제가 열려요',
+    todoDeposit: '입금 확인 대기',
+    todoDepositNote: '수동 결제 — 계약서 사본 + 입금 확인 뒤 예약 확정',
+    todoDepositOverdue: '입금 기한 지남',
+    todoDepositOverdueNote: '기한 연장 또는 취소가 필요해요',
+    todoRefund: '환불 심사',
+    todoRefundNote: '진행 중 건의 환불 요청',
+    todoBusinessReview: '사업자 인증 대기',
+    todoBusinessReviewNote: '처음 신청·재신청 + 재심사',
+    todoDomainLink: '{domain} {count}',
 };

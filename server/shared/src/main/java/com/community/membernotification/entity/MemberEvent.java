@@ -99,7 +99,11 @@ public enum MemberEvent {
     GROUP_POST_MEMBERS_ONLY(NotificationArea.CLUB, MemberNotificationType.GROUP_POST_MEMBERS_ONLY, MemberEventLockReason.ACTION, null),
     GROUP_POST_RELEASED(NotificationArea.CLUB, MemberNotificationType.GROUP_POST_RELEASED, MemberEventLockReason.ACTION, null),
     /** 공동구매 주문·관심 알림(커머스 2b-4) — 거래 알림이라 회원이 끌 수 없다 */
-    GROUP_BUY(NotificationArea.GROUPBUY, MemberNotificationType.GROUP_BUY, MemberEventLockReason.ACTION, null);
+    GROUP_BUY(NotificationArea.GROUPBUY, MemberNotificationType.GROUP_BUY, MemberEventLockReason.ACTION, null),
+    /** 사업자 신원 접수·승인·반려·정지·해제·재심사(V111) — 내 계정의 상태가 바뀐 알림이라 회원이 끌 수 없다 */
+    BUSINESS(NotificationArea.BIZ_AD, MemberNotificationType.BUSINESS, MemberEventLockReason.ACCOUNT, null),
+    /** 사업자 신청 건(광고·핫딜 — V112) 접수·승인·결제·기한·시작·종료·취소·환불 — 거래 알림이라 회원이 끌 수 없다 */
+    BIZ_APPLICATION(NotificationArea.BIZ_AD, MemberNotificationType.BIZ_APPLICATION, MemberEventLockReason.ACTION, null);
 
     private static final Map<String, MemberEvent> BY_CODE = Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(MemberEvent::code, Function.identity()));
 

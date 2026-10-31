@@ -5,6 +5,7 @@ import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.AuthorMembers;
 import com.community.board.service.AuthorViews;
+import com.community.business.service.BusinessEligibility;
 import com.community.board.service.BoardCatalog;
 import com.community.board.service.RichText;
 import com.community.group.dto.response.ProfileGroupsView;
@@ -77,12 +78,14 @@ public class UserProfileService {
     private final ShopDecorationResolver decorations;
     private final PostFeedRows feedRows;
     private final GroupQueryService groups;
+    private final BusinessEligibility businesses;
 
     public UserProfileService(UserRepository users, ProfileRepository profiles, UserActivityQueries activity, BoardCatalog catalog, AuthorViews authors,
                               ViewerBlocks viewerBlocks, PollQueries polls, ShopDecorationResolver decorations, PostFeedRows feedRows,
-                              GroupQueryService groups) {
+                              GroupQueryService groups, BusinessEligibility businesses) {
         this.feedRows = feedRows;
         this.groups = groups;
+        this.businesses = businesses;
         this.decorations = decorations;
         this.polls = polls;
         this.users = users;
@@ -105,7 +108,8 @@ public class UserProfileService {
         AuthorLook look = decorations.look(m.id());
         return new PublicProfileView(Long.toString(m.id()), m.profile().getNickname(), gradeKey, label == null ? gradeKey : label, ROLE_USER,
                 bio == null || bio.isBlank() ? null : bio, m.user().getCreatedAt(), viewerId != null && viewerId == m.id(),
-                new ProfileStatsView(stats.posts(), stats.comments(), stats.likesReceived()), toward.blocked(), toward.memo(), look.decoration(), look.avatarUrl());
+                new ProfileStatsView(stats.posts(), stats.comments(), stats.likesReceived()), toward.blocked(), toward.memo(), look.decoration(), look.avatarUrl(),
+                !businesses.approvedUserIds(List.of(m.id())).isEmpty());
     }
 
     /**

@@ -391,6 +391,7 @@ export default class UtilGroup {
             memo: withdrawn ? null : (user.memo ?? null),
             decoration: withdrawn ? null : (user.decoration ?? null),
             avatarUrl: withdrawn ? null : (user.avatarUrl ?? null),
+            business: withdrawn ? false : Boolean(user.business),
         };
     }
 

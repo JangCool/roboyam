@@ -366,6 +366,61 @@ public final class AuditActions {
     public static final String ADDRESS_SEARCH_SETTINGS_UPDATE = "ADDRESS_SEARCH_SETTINGS_UPDATE";
     /** 주소 DB 적재 결과 — 대상 ADDRESS_SEARCH/적재 ID, 성공은 {@code files}·{@code entries}·{@code jibun}·{@code english}, 실패는 {@code reason}(문구 키). 일반 */
     public static final String ADDRESS_DB_IMPORT = "ADDRESS_DB_IMPORT";
+    // ── 사업자 신원(business-contract, V111) — 대상 BUSINESS + 신원 ID. detail 에 등록번호·대표자·연락처·주소 평문을 싣지 않는다(상호·끝 4자리·사유만) ──
+    /** 사업자 승인 — {@code companyName}·{@code ntsStatus}. 일반 */
+    public static final String BUSINESS_APPROVE = "BUSINESS_APPROVE";
+    /** 사업자 반려 — {@code code}·{@code text}. 일반 */
+    public static final String BUSINESS_REJECT = "BUSINESS_REJECT";
+    /** 사업자 정지(H2) — {@code code}·{@code text}·진행 건 처리 {@code pendingAction}·{@code scheduledAction}·{@code runningAction}. 민감 */
+    public static final String BUSINESS_SUSPEND = "BUSINESS_SUSPEND";
+    /** 사업자 정지 해제 — {@code restore}(진행 중이던 건 처리)·{@code note}. 민감 */
+    public static final String BUSINESS_UNSUSPEND = "BUSINESS_UNSUSPEND";
+    /** 사업자 신원 평문 열람(B3) — {@code reason}. 개인정보 열람 */
+    public static final String BUSINESS_REVEAL = "BUSINESS_REVEAL";
+    /** 사업자등록증 사본 열람(B2). 개인정보 열람 */
+    public static final String BUSINESS_CERT_VIEW = "BUSINESS_CERT_VIEW";
+    /** 국세청 상태조회 다시 하기(B1) — {@code status}. 일반 */
+    public static final String BUSINESS_NTS_CHECK = "BUSINESS_NTS_CHECK";
+    /** 국세청 조회 불가인데 사유를 적고 승인(B1) — {@code reason}. 민감 */
+    public static final String BUSINESS_NTS_OVERRIDE = "BUSINESS_NTS_OVERRIDE";
+    // ── 사업자 신청 건(biz-application-contract, V112) — 대상 BIZ_APPLICATION + 신청 건 ID. detail 에 개인정보를 싣지 않는다(금액·기간·사유·파일 이름만) ──
+    /** 승인 — {@code method}·{@code supply}·{@code total}·기간·{@code deadlineAt}. 돈 관련(금액 확정) */
+    public static final String BIZ_APP_APPROVE = "BIZ_APP_APPROVE";
+    /** 반려 — {@code code}·{@code text}. 일반 */
+    public static final String BIZ_APP_REJECT = "BIZ_APP_REJECT";
+    /** 수동 결제로 전환 — {@code deadlineAt}·{@code reason}. 일반 */
+    public static final String BIZ_APP_MANUAL_SWITCH = "BIZ_APP_MANUAL_SWITCH";
+    /** 계약서 사본 올리기·바꾸기 — {@code files}(이름)·{@code replaced}. 돈 관련(계약 기록 5년) */
+    public static final String BIZ_APP_CONTRACT_UPLOAD = "BIZ_APP_CONTRACT_UPLOAD";
+    /** 계약서 사본 열람 — {@code fileId}·{@code fileName}. 개인정보 열람 */
+    public static final String BIZ_APP_CONTRACT_VIEW = "BIZ_APP_CONTRACT_VIEW";
+    /** 입금 확인 기록 — {@code amount}·{@code depositedOn}·{@code approvedTotal}·{@code mismatchReason}. 돈 관련(5년) */
+    public static final String BIZ_DEPOSIT_CONFIRM = "BIZ_DEPOSIT_CONFIRM";
+    /** 수동 예약 확정 — {@code contracts}·{@code deposit}. 돈 관련 */
+    public static final String BIZ_APP_CONFIRM = "BIZ_APP_CONFIRM";
+    /** 운영자 취소 — {@code from}·{@code reason}·{@code refund}. 돈 관련 */
+    public static final String BIZ_APP_CANCEL = "BIZ_APP_CANCEL";
+    /** 환불 승인 — {@code refundId}·{@code amount}·{@code proposed}·{@code reason}. 돈 관련 */
+    public static final String BIZ_APP_REFUND_APPROVE = "BIZ_APP_REFUND_APPROVE";
+    /** 환불 거절 — {@code refundId}·{@code reason}. 돈 관련 */
+    public static final String BIZ_APP_REFUND_DENY = "BIZ_APP_REFUND_DENY";
+    /** 수동 환불 송금 완료 표시 — {@code refundId}·{@code amount}·{@code note}. 돈 관련 */
+    public static final String BIZ_APP_REFUND_TRANSFER = "BIZ_APP_REFUND_TRANSFER";
+    /** 승인 때 요금표와 다른 공급가 — {@code quoteSupply}·{@code supply}·{@code reason}. 돈 관련 */
+    public static final String BIZ_APP_PRICE_ADJUST = "BIZ_APP_PRICE_ADJUST";
+    /** 입금 기한 바꾸기 — {@code from}·{@code to}. 일반 */
+    public static final String BIZ_APP_DEPOSIT_DEADLINE = "BIZ_APP_DEPOSIT_DEADLINE";
+    /** 운영자 등록(광고 일정표 수동 등록 → 심사 대기, 04-ia-review §2) — {@code type}·기간·{@code proposedSupply}·{@code weight}·{@code advertiser}(ID)·{@code contracts}(미리 붙인 장수). 돈 관련(계약 시작 기록) */
+    public static final String BIZ_APP_OPERATOR_CREATE = "BIZ_APP_OPERATOR_CREATE";
+    // ── 광고 일정표(ad-contract, V115) — 긴급 내림·되돌리기는 대상 BIZ_APPLICATION, 광고주는 대상 AD_ADVERTISER + 광고주 ID. detail 에 연락처 평문을 싣지 않는다 ──
+    /** 계정 없는 광고주 만들기 — {@code name}·{@code businessId}(연결했으면). 일반 */
+    public static final String AD_ADVERTISER_CREATE = "AD_ADVERTISER_CREATE";
+    /** 광고주 연락처 평문 열람 — {@code reason}. 개인정보 열람 */
+    public static final String AD_CONTACT_REVEAL = "AD_CONTACT_REVEAL";
+    /** 긴급 내림 — {@code reason}·{@code notifyMail}·{@code phase}. 일반(돈은 되돌리기 보상이 움직인다) */
+    public static final String AD_TAKEDOWN = "AD_TAKEDOWN";
+    /** 긴급 내림 되돌리기 — {@code compensation}(EXTEND·PRORATE_REFUND)·{@code reason}·{@code lostMinutes}·{@code endAt}·{@code refundAmount}. 돈 관련 */
+    public static final String AD_RESTORE = "AD_RESTORE";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

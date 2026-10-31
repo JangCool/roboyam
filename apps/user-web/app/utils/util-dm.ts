@@ -361,6 +361,8 @@ export default class UtilDm {
             // 닉네임 색(포인트 상점) — 탈퇴한 상대는 장식 없음
             decoration: partner.withdrawn ? null : (partner.decoration ?? null),
             avatarUrl: partner.withdrawn ? null : partner.avatarUrl,
+            // 승인된 사업자 뱃지 — 탈퇴한 상대는 없음
+            business: partner.withdrawn ? false : Boolean(partner.business),
         };
     }
 

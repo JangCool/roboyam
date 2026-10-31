@@ -38,7 +38,12 @@ public final class AuditRetention {
             AuditActions.GROUPBUY_REFUND, AuditActions.GROUPBUY_REQUEST_APPROVE, AuditActions.GROUPBUY_REQUEST_REJECT, AuditActions.GROUPBUY_RETURN_DISPOSE,
             AuditActions.GROUPBUY_SUPPLY_FAILURE, AuditActions.GROUPBUY_BANK_TRANSFER,
             // 판매 스위치·공구 설정(문턱·보상 상한)·배송비 정책 줄 지우기 — 판매를 열고 닫거나 돈의 기준을 바꾸는 일(2b-4)
-            AuditActions.COMMERCE_SALES_TOGGLE, AuditActions.GROUPBUY_SETTINGS_UPDATE, AuditActions.COMMERCE_SHIPPING_POLICY_DELETE);
+            AuditActions.COMMERCE_SALES_TOGGLE, AuditActions.GROUPBUY_SETTINGS_UPDATE, AuditActions.COMMERCE_SHIPPING_POLICY_DELETE,
+            // 사업자 신청 건 — 금액 확정(승인·조정)·계약서 사본·입금 확인·예약 확정·취소·환불 승인·거절·송금 — 계약·대금 기록(5년, biz-application-contract)
+            AuditActions.BIZ_APP_APPROVE, AuditActions.BIZ_APP_PRICE_ADJUST, AuditActions.BIZ_APP_CONTRACT_UPLOAD, AuditActions.BIZ_DEPOSIT_CONFIRM, AuditActions.BIZ_APP_CONFIRM,
+            AuditActions.BIZ_APP_CANCEL, AuditActions.BIZ_APP_REFUND_APPROVE, AuditActions.BIZ_APP_REFUND_DENY, AuditActions.BIZ_APP_REFUND_TRANSFER,
+            // 광고 일정표 — 운영자 등록(계약 시작)·긴급 내림 되돌리기(연장·일할 환불, F5)
+            AuditActions.BIZ_APP_OPERATOR_CREATE, AuditActions.AD_RESTORE);
 
     private static final Set<String> PERSONAL_DATA = Set.of(
             AuditActions.MEMBER_VIEW,
@@ -50,7 +55,11 @@ public final class AuditRetention {
             // 관리자 공구 주문 상세(회원 번호·닉네임 — 2b-4)
             AuditActions.GROUPBUY_ORDER_VIEW,
             // 관리자 공구 문의 목록·상세(비밀글 본문 — 2b-6)
-            AuditActions.GROUPBUY_QNA_VIEW);
+            AuditActions.GROUPBUY_QNA_VIEW,
+            // 사업자 신원 평문·등록증 열람 · 신청 건 계약서 사본 열람
+            AuditActions.BUSINESS_REVEAL, AuditActions.BUSINESS_CERT_VIEW, AuditActions.BIZ_APP_CONTRACT_VIEW,
+            // 광고주 연락처 평문 열람(ad-contract)
+            AuditActions.AD_CONTACT_REVEAL);
 
     /** 일반 운영으로 <b>정한</b> 행위 — 빠뜨린 것과 구별하려고 나열한다 */
     private static final Set<String> GENERAL = Set.of(
@@ -115,7 +124,16 @@ public final class AuditRetention {
             // 운영 체크 항목·사업자 정보·주문 메모 — 일반 운영(판매를 켜는 일은 스위치가 돈 관련으로 남긴다)
             AuditActions.COMMERCE_SALES_CHECKLIST, AuditActions.COMMERCE_BUSINESS_INFO_UPDATE, AuditActions.GROUPBUY_ORDER_MEMO,
             // 공구 문의·리뷰 숨김·답변(답글) 수정(2b-6)
-            AuditActions.GROUPBUY_QNA_HIDE, AuditActions.GROUPBUY_QNA_ANSWER_EDIT, AuditActions.GROUPBUY_REVIEW_HIDE, AuditActions.GROUPBUY_REVIEW_REPLY_EDIT);
+            AuditActions.GROUPBUY_QNA_HIDE, AuditActions.GROUPBUY_QNA_ANSWER_EDIT, AuditActions.GROUPBUY_REVIEW_HIDE, AuditActions.GROUPBUY_REVIEW_REPLY_EDIT,
+            // 주소 검색 설정·주소 DB 적재(address-search-contract) — 일반 운영(표에 빠져 있던 것을 더함)
+            AuditActions.ADDRESS_SEARCH_SETTINGS_UPDATE, AuditActions.ADDRESS_DB_IMPORT,
+            // 사업자 신원 심사(business-contract) — 승인·반려·정지·해제·국세청 조회(표에 빠져 있던 것을 더함)
+            AuditActions.BUSINESS_APPROVE, AuditActions.BUSINESS_REJECT, AuditActions.BUSINESS_SUSPEND, AuditActions.BUSINESS_UNSUSPEND, AuditActions.BUSINESS_NTS_CHECK,
+            AuditActions.BUSINESS_NTS_OVERRIDE,
+            // 사업자 신청 건 반려·수동 전환·입금 기한 — 돈이 움직이지 않는 심사 일(biz-application-contract)
+            AuditActions.BIZ_APP_REJECT, AuditActions.BIZ_APP_MANUAL_SWITCH, AuditActions.BIZ_APP_DEPOSIT_DEADLINE,
+            // 광고 일정표 — 광고주 만들기·긴급 내림(돈은 되돌리기가 움직인다)
+            AuditActions.AD_ADVERTISER_CREATE, AuditActions.AD_TAKEDOWN);
 
     private static final Map<String, AuditRetentionClass> TABLE = table();
 

@@ -32,6 +32,7 @@ import com.community.dm.repository.master.DmQueries;
 import com.community.grade.entity.GradeEntity;
 import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.permission.entity.MemberPermission;
+import com.community.business.service.BusinessEligibility;
 import com.community.pointshop.dto.AuthorLook;
 import com.community.pointshop.service.ShopDecorationResolver;
 import com.community.user.entity.UserEntity;
@@ -50,6 +51,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -87,11 +89,14 @@ public class DmService {
     private final MemberNotificationPublisher notices;
     private final Messages messages;
     private final ShopDecorationResolver decorations;
+    private final BusinessEligibility businesses;
     private final SnowflakeIdGenerator ids;
 
     public DmService(DmQueries queries, BlockRepositoryQDSL blocks, SocialMembers members, UserRepository users, BoardActorResolver actors, BoardCatalog catalog,
-                     MemberNotificationPublisher notices, Messages messages, SnowflakeIdGenerator ids, ShopDecorationResolver decorations) {
+                     MemberNotificationPublisher notices, Messages messages, SnowflakeIdGenerator ids, ShopDecorationResolver decorations,
+                     BusinessEligibility businesses) {
         this.decorations = decorations;
+        this.businesses = businesses;
         this.queries = queries;
         this.blocks = blocks;
         this.members = members;
@@ -157,6 +162,7 @@ public class DmService {
         Map<Long, DmQueries.Person> people = queries.people(partnerIds);
         Map<Long, String> memos = blocks.memosAmong(userId, partnerIds);
         Map<Long, AuthorLook> looks = decorations.resolve(partnerIds);
+        Set<Long> approved = businesses.approvedUserIds(partnerIds);
         Map<Long, Integer> unread = queries.unreadCounts(userId, page.stream().map(r -> r.box().threadId()).toList());
         BoardCatalogSnapshot s = catalog.snapshot();
         Locale locale = messages.locale();
@@ -165,7 +171,7 @@ public class DmService {
             DmQueries.Box box = row.box();
             DmLastMessageView last = new DmLastMessageView(Long.toString(box.lastMessageId()), row.lastSenderId() == userId, DmRules.preview(row.lastBody()),
                     row.lastAt());
-            items.add(new DmThreadItemView(Long.toString(box.threadId()), partner(people.get(box.partnerId()), memos, looks, s, locale), last,
+            items.add(new DmThreadItemView(Long.toString(box.threadId()), partner(people.get(box.partnerId()), memos, looks, approved, s, locale), last,
                     unread.getOrDefault(box.threadId(), 0)));
         }
         String next = more ? Long.toString(page.get(page.size() - 1).box().lastMessageId()) : null;
@@ -188,7 +194,8 @@ public class DmService {
         String reason = reasonFor(userId, box.partnerId(), person == null || person.gone(), Optional.of(box), state, check, now);
         Map<Long, String> memos = blocks.memosAmong(userId, List.of(box.partnerId()));
         Map<Long, AuthorLook> looks = decorations.resolve(List.of(box.partnerId()));
-        DmThreadHeaderView header = new DmThreadHeaderView(Long.toString(box.threadId()), partner(person, memos, looks, catalog.snapshot(), messages.locale()),
+        Set<Long> approved = businesses.approvedUserIds(List.of(box.partnerId()));
+        DmThreadHeaderView header = new DmThreadHeaderView(Long.toString(box.threadId()), partner(person, memos, looks, approved, catalog.snapshot(), messages.locale()),
                 reason == null, reason, "TOO_NEW".equals(reason) ? check.availableFrom() : null, box.partnerSent());
         List<DmMessageView> items = page.stream().map(m -> message(m, userId)).toList();
         String next = more ? Long.toString(page.get(page.size() - 1).id()) : null;
@@ -230,10 +237,11 @@ public class DmService {
         List<Long> recipientIds = rows.stream().map(DmQueries.RecipientRow::id).toList();
         Map<Long, String> memos = blocks.memosAmong(userId, recipientIds);
         Map<Long, AuthorLook> looks = decorations.resolve(recipientIds);
+        Set<Long> approved = businesses.approvedUserIds(recipientIds);
         BoardCatalogSnapshot s = catalog.snapshot();
         Locale locale = messages.locale();
         List<DmRecipientView> items = rows.stream()
-                .map(r -> new DmRecipientView(partner(new DmQueries.Person(r.id(), r.nickname(), r.gradeKey(), false), memos, looks, s, locale),
+                .map(r -> new DmRecipientView(partner(new DmQueries.Person(r.id(), r.nickname(), r.gradeKey(), false), memos, looks, approved, s, locale),
                         r.threadId() == null ? null : Long.toString(r.threadId())))
                 .toList();
         return new DmRecipientListView(items);
@@ -421,15 +429,16 @@ public class DmService {
         return new DmMessageView(Long.toString(m.id()), m.senderId() == userId, m.body(), m.createdAt());
     }
 
-    /** 상대 표시 — 탈퇴·없음은 「탈퇴한 회원」(id 없음, 첫 등급, 장식·아바타 없음), 메모는 내가 남긴 것, 장식·아바타는 포인트 상점 표시(커머스 1-2) */
-    private DmPartnerView partner(DmQueries.Person person, Map<Long, String> memos, Map<Long, AuthorLook> looks, BoardCatalogSnapshot s, Locale locale) {
+    /** 상대 표시 — 탈퇴·없음은 「탈퇴한 회원」(id 없음, 첫 등급, 장식·아바타·사업자 뱃지 없음), 메모는 내가 남긴 것, 장식·아바타는 포인트 상점 표시(커머스 1-2), 사업자 뱃지는 승인된 사업자 */
+    private DmPartnerView partner(DmQueries.Person person, Map<Long, String> memos, Map<Long, AuthorLook> looks, Set<Long> approved, BoardCatalogSnapshot s,
+                                  Locale locale) {
         if (person == null || person.gone()) {
             String base = GradeEntity.BASE_KEY;
             return new DmPartnerView(null, messages.get(new MessageRef("member.notification.actor.withdrawn"), locale), base, BlockService.label(s, base), ROLE_USER,
-                    true, null, null, null);
+                    true, null, null, null, false);
         }
         AuthorLook look = looks.get(person.id());
         return new DmPartnerView(Long.toString(person.id()), person.nickname(), person.gradeKey(), BlockService.label(s, person.gradeKey()), ROLE_USER, false,
-                memos.get(person.id()), look == null ? null : look.decoration(), look == null ? null : look.avatarUrl());
+                memos.get(person.id()), look == null ? null : look.decoration(), look == null ? null : look.avatarUrl(), approved.contains(person.id()));
     }
 }

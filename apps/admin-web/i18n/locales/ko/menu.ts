@@ -91,6 +91,17 @@ export default {
     groupRequests: '개설 승인',
     groupCategories: '소모임 분류',
     groupSettings: '소모임 설정',
+    // 사업자 묶음 — 인증 심사 · 사업자 목록
+    business: '사업자',
+    businessReviews: '인증 심사',
+    businesses: '사업자 목록',
+    // 광고 묶음 — 광고 심사 · 일정표
+    ad: '광고',
+    adReviews: '광고 심사',
+    ads: '광고 일정표',
+    // 핫딜 묶음 — 핫딜 심사
+    hotdeal: '핫딜',
+    hotdealReviews: '핫딜 심사',
     operatorsAndPermissions: '운영자와 권한',
     operators: '운영자 관리',
     roles: '역할 관리',

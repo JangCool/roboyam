@@ -149,6 +149,68 @@ public class DataCipher {
     }
 
     /**
+     * 파일 내용(사업자등록증 사본처럼 DB 에 두는 바이트)을 지금 키로 암호화한다 — 형식은 글자 암호문과 같은 앞머리({@code d<버전>:}, ASCII) ‖ IV 12바이트 ‖ 암호문 ‖ 태그.
+     * 키 교체 배치는 글자 칸만 다시 암호화하므로, 바이트 칸은 옛 키를 {@code ROBOYAM_DATA_KEY_PREVIOUS} 에 남겨 두는 동안 읽힌다.
+     *
+     * @throws CommonException 키가 없을 때({@code 503 DATA_KEY_MISSING})
+     */
+    public byte[] encryptBytes(DataPurpose purpose, byte[] plain) {
+        requireConfigured();
+        try {
+            byte[] iv = new byte[IV_BYTES];
+            RANDOM.nextBytes(iv);
+            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+            cipher.init(Cipher.ENCRYPT_MODE, keys.get(activeVersion), new GCMParameterSpec(TAG_BITS, iv));
+            cipher.updateAAD(purpose.name().getBytes(StandardCharsets.UTF_8));
+            byte[] encrypted = cipher.doFinal(plain);
+            byte[] head = ("d" + activeVersion + ":").getBytes(StandardCharsets.US_ASCII);
+            return ByteBuffer.allocate(head.length + iv.length + encrypted.length).put(head).put(iv).put(encrypted).array();
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException("데이터 암호화에 실패했습니다.", e);
+        }
+    }
+
+    /**
+     * {@link #encryptBytes} 의 암호문을 푼다.
+     *
+     * @throws CommonException          키가 없거나 그 버전의 키가 설정에서 빠졌을 때({@code 503 DATA_KEY_MISSING})
+     * @throws IllegalArgumentException 형식이 틀렸거나, 키·용도가 다르거나, 암호문이 깨졌을 때
+     */
+    public byte[] decryptBytes(DataPurpose purpose, byte[] cipherBytes) {
+        requireConfigured();
+        int colon = -1;
+        for (int i = 1; cipherBytes != null && i < Math.min(cipherBytes.length, 5); i++) {
+            if (cipherBytes[i] == ':') {
+                colon = i;
+                break;
+            }
+        }
+        if (colon < 2 || cipherBytes[0] != 'd' || cipherBytes.length <= colon + 1 + IV_BYTES) {
+            throw new IllegalArgumentException("지원하지 않는 암호문 형식입니다.");
+        }
+        int version;
+        try {
+            version = Integer.parseInt(new String(cipherBytes, 1, colon - 1, StandardCharsets.US_ASCII));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("지원하지 않는 암호문 형식입니다.");
+        }
+        SecretKeySpec key = keys.get(version);
+        if (key == null) {
+            log.error("암호문의 키 버전 {} 이 설정에 없다 — ROBOYAM_DATA_KEY_PREVIOUS 에서 빠뜨렸는지 확인", version);
+            throw new CommonException(ErrorCode.DATA_KEY_MISSING);
+        }
+        int start = colon + 1;
+        try {
+            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+            cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, cipherBytes, start, IV_BYTES));
+            cipher.updateAAD(purpose.name().getBytes(StandardCharsets.UTF_8));
+            return cipher.doFinal(cipherBytes, start + IV_BYTES, cipherBytes.length - start - IV_BYTES);
+        } catch (GeneralSecurityException e) {
+            throw new IllegalArgumentException("복호화에 실패했습니다. 키·용도 또는 암호문을 확인하세요.");
+        }
+    }
+
+    /**
      * 지금 키로 잠긴 암호문인가 — 키 교체 배치가 다시 암호화할 대상을 고를 때 쓴다(DB 에서는 {@code NOT LIKE 'd<지금 버전>:%'} 로 같은 판정을 한다).
      *
      * @throws IllegalArgumentException 암호문 형식이 아닐 때

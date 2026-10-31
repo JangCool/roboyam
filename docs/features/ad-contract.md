@@ -1,0 +1,55 @@
+# 광고 일정표 계약 (화면 확정 2026-10-30 · 서버 구현·화면 연결 2026-10-31 — V115)
+
+**의도**: 운영자가 광고 유형별로 언제 자리가 비었는지 보고, 광고 건(사업자 신청 건에서 확정된 것 + 운영자 수동 등록)을 한 장부에서 관리한다. 긴급 내림·되돌리기로 사고에 대응한다.
+**정본·근거**: `docs/plans/biz-ad-hotdeal/00-overview.md` ★ 절(★-2 수동 결제·A1~A3·F5), 분석 `02-ad.md`. 신청·결제 흐름은 `biz-application-contract.md` 가 정본이다(광고 건 = 신청 건이 `SCHEDULED` 이후인 것).
+**프론트 기준**: admin-web `pages/ads/index.vue`, `components/ad/**`(`AdCalendar`·`AdBookingDrawer`·`AdManualDrawer`·`AdAdvertiserDialog`), `composables/ad/api/useAdApi.ts`(+types·mock).
+
+## 화면 경로
+- 관리자 `/ads` — 유형 탭 7개(넓은·띠·네모·작은 배너·한 줄·핫딜 홈 상단·핫딜 말머리 상단) → 요약 띠(한도·진행·예약·결제·입금 대기) → **한 달 큰 달력**(하모니카3 월 보기 짜임: 칸마다 「남은/한도」 알약 + 그날 걸친 광고 건 이름·상태 색 점, 최대 3 + 「+N건 더」, 건을 누르면 상세, 오늘 이후 빈 곳을 누르면 그 날짜로 수동 등록) → 광고 건 표(상태·결제 방식·비중) → 상세 Drawer(기본·소재 버전·일정·결제·처리 기록). 메뉴 묶음 「광고」(`ad.read`).
+- 공개 노출 컴포넌트(`AdSlot`·가젯 `AD`·`AD_TEXT_LINE`·글 중간)는 이번 목업 범위 밖 — 02 §7-7 이 설계 정본.
+
+## 규칙
+- 유형별 동시 한도(설정값). 날짜별 남은 칸 = 한도 − 그날 자리를 차지한 건(결제·입금 대기 포함, 취소·만료 제외). 달력은 안내이고 저장 때 서버가 다시 판정(409 `BIZ_SLOT_FULL`).
+- ~~**수동 등록**: 광고주 → 유형·비중·기간 → 소재 → 계약서 사본(필수) → 금액·입금 확인 → [예약 확정]~~ → **세션 정리 결정(2026-10-31, `docs/plans/biz-ad-hotdeal/04-ia-review.md` §2)**: 수동 등록도 **심사를 거친다**. 서랍은 광고주(사업자 또는 계정 없는 광고주 — [새 광고주]) → 유형·비중(1~10)·기간 → 소재(이미지 JPG·PNG·WEBP, 링크 https·단축 URL 거부) → 계약서 사본(**선택 첨부**) → **[등록(심사 요청)]** 으로 끝나고, 신청 건 `source=OPERATOR`·`SUBMITTED`(결제 방식 MANUAL)가 생겨 **광고 심사 `/ad-reviews`** 큐(「운영자 등록」 Tag)에서 승인 → 계약서 사본 + 입금 확인 → [예약 확정](둘 다 없으면 서버 409 `BIZ_DEPOSIT_INCOMPLETE`). 자기 승인은 설정 `roboyam.biz.self-approval`(기본 허용 — 경고·메모·감사 `selfApproved`, `deny` 면 409 `BIZ_SELF_APPROVAL_DENIED`). 등록 실수 = `OPERATOR_CANCEL`. 감사 `BIZ_APP_OPERATOR_CREATE`(아래 `AD_MANUAL_CREATE` 대신). 규칙 정본은 `biz-application-contract.md` 「상태」. 서랍은 2026-10-31 이 흐름으로 바꿨고(계약 금액은 제안 — 승인 때 확정, 입금 확인 칸 없음) 같은 날 서버와 이었다 — 등록하면 실제 광고 심사 큐에 들어간다(아래 「서버 구현 결정」).
+- 핫딜 노출 자리(홈 상단·말머리 상단) 탭은 이 일정표에 둔다(04 §4 Q3) — 핫딜 담당에는 `ad.read` 를 같이 줘 조회만.
+- **긴급 내림**: 진행·예약 건, 사유 필수, 광고주 메일 선택, 「다른 서버 사본 최대 20초 남을 수 있어요」. **되돌리기**: 기간이 남았을 때만, 보상 「중단 시간만큼 끝 시각 연장 / 일할 환불」 선택(F5).
+- 소재 버전: 교체는 새 버전(옛 파일 삭제 금지), 노출 집계는 버전 단위(A2). 광고 코드(스크립트)는 받지 않는다(A1 — 3차, CSP 와 함께).
+- 공개 노출: 「광고」 표시 + `rel="sponsored nofollow noopener"`, 같은 시간 여러 건은 비중 가중 무작위, 사본 20초. 1차에 최소 일별 노출·클릭 집계(00 D9).
+
+## 권한·감사
+- `ad.read`(화면) · `ad.manage`(수동 등록·광고주) · `ad.takedown`(SENSITIVE, 긴급 내림) · `ad.restore`(SENSITIVE, 되돌리기) · `ad.contact.reveal`(광고주 연락처 평문). featureReady 켬, `AdminScreenRegistry` 에 「광고」 묶음(2026-10-31: 광고 심사 `adReviews` `/ad-reviews` · 광고 일정표 `ads` `/ads`, 둘 다 `ad.read` — `ad.read` featureReady·`ad.restore` 추가는 IA 보완에서 함, `/ads` API·`ad.takedown`·`ad.restore`·`ad.contact.reveal` 기능 켬은 2026-10-31 백엔드).
+- 감사: ~~`AD_MANUAL_CREATE`~~(→ `BIZ_APP_OPERATOR_CREATE`)·`AD_ADVERTISER_CREATE`·`AD_TAKEDOWN`·`AD_RESTORE`(보상 방식 포함)·`AD_CREATIVE_REPLACE`·`AD_CONTACT_REVEAL`.
+
+## API 후보
+목업 머리말이 정본 후보 — `useAdApi.ts`: `GET /api/admin/ads/calendar?type&month`(그 달 날짜별 남은 칸 + 유형 요약) · `GET /api/admin/ads?type&status&q&page&size` · `GET /api/admin/ads/{id}` · `GET /api/admin/ads/availability` · 광고주 `GET/POST /api/admin/ads/advertisers` · `POST /api/admin/ads/contract-files` · `POST /api/admin/ads/manual`(→ 신청 건 `SUBMITTED` 생성, 04 §2) · `POST /api/admin/ads/{id}/takedown` · `POST …/restore`.
+- 달력은 지금 목록 API 를 `size=500` 으로 따로 불러 칸에 이름을 그린다. 서버에서는 `calendar` 응답에 그 달에 걸친 건(이름·상태·기간)을 함께 내려 한 번에 받게 한다.
+
+## 저장 (제안)
+광고 건은 `biz_applications`(`biz-application-contract.md`)를 그대로 장부로 쓴다 — 수동 등록도 같은 표(`source = OPERATOR`). 추가: `ad_advertisers`(계정 없는 광고주, 연락처 암호문, 사업자 1:1 연결), `ad_type_settings`(유형별 한도·하루 단가), `ad_daily_stats`(일별 노출·클릭).
+
+## 미확정
+- ~~한도·하루 단가 초기값(목업 가정)~~ → 신청 건 요금표 시드 그대로(한 줄 광고 한도 5 — 목업 10 과 다름). 요금표 편집 화면은 후속.
+- 유형 설정·자리 관리 화면(02 §7-2·7-3)은 이번 목업에 없음 — 백엔드 전에 필요하면 추가.
+- **되돌리기 일할 환불 기준**(중단 일수 = 24시간 단위 올림, 총 일수 = 한국 날짜 수, 수수료 없음)은 가정 — 진행 중 환불 일할 기준과 함께 법무·정책 확정 필요.
+- 긴급 내림 광고주 메일 문구·발신(지금은 사이트 메일 서버로 한 통, 실패해도 재시도 없음) · 공개 노출 캐시 「사본 최대 20초」 고리(공개 노출 단계) · 미리 올리고 붙지 않은 계약서 사본 정리 배치 · 광고주 관리 화면(`/ad-advertisers` — 평문 열람 API 는 있음) · 운영자 등록 건의 소재 교체(`AD_CREATIVE_REPLACE`) — 모두 후속.
+- 운영자 등록에 요금표의 최대 일수·미리 신청 일수·받기 꺼짐을 적용하지 않았다(가정 — 운영자 재량).
+
+## 서버 구현 결정 (2026-10-31 — `/ads` 백엔드, V115)
+API 요청·응답 모양 전체는 서버 DTO(admin `ad/dto/AdAdminView`·`AdAdminRequest`, shared `ad/service/AdAdvertiserService.Option`·`Revealed`)가 정본이다. 아래는 규칙만.
+- **마이그레이션** shared `V115__ad_operator_ledger.sql`: `ad_advertisers`(이름 평문·유일, 담당자·연락처·이메일 암호문 + 가린 값, 사업자 1:1 `business_profile_id` 유일) · `ad_advertiser_views`(평문 열람 기록, 사유 5~200자) · `biz_applications` 에 `advertiser_id`·`created_by`(운영자 등록자 — `source=OPERATOR` 면 필수 CHECK)·`weight`(1~10, 기본 5 — 사업자 신청 건도 5)·`proposed_supply`(계약 금액 제안)·`operator_memo`·`taken_down_by`·`takedown_mail`(SENT·FAILED·NO_ADDRESS) · `biz_contract_files.application_id` NULL 허용(등록 전에 미리 올린 사본) · 환불 종류 ∪ `DOWNTIME`. admin 스트림 마이그레이션은 없음(메뉴 그대로).
+- **장부** = `biz_applications` 중 그 유형(상품) 자리 줄이 있는 건 — 자리를 차지하는 상태(결제·입금 대기·예약·내림) + 운영자 등록의 `SUBMITTED` + 승인 뒤 `CANCELED`. 사업자 신청의 심사 대기·반려·만료·승인 전 취소는 심사 큐에만. 유형 7개 = 상품 이름(`WIDE_BANNER`·`STRIP_BANNER`·`SQUARE_BANNER`·`SMALL_BANNER`·`TEXT_LINE`·`HOTDEAL_TOP`·`HOTDEAL_CATEGORY`). 보이는 상태는 신청 건 관리자 상태(`SCHEDULED`·`RUNNING`·`ENDED` 는 시각 계산). 한도·하루 단가는 신청 건 요금표(`biz_price_rules`) 그대로 — 목업 한도 표(`MOCK_AD_LIMITS`)는 버린다(한 줄 광고 한도 5).
+- **API**(`/api/admin/ads`, 응답 no-store): `GET /calendar?type&month=YYYY-MM` → `{ summary{type,limit,running,scheduled,awaitingPayment}, days[{date,remaining,limit}], bookings[Row] }`(그 달에 걸친 장부 건 — 화면의 `size=500` 목록 호출을 없앤다) · `GET ?type&status&q&page&size(≤100)` → `{ items[Row], total }` · `GET /{id}` → Detail(장부 유형 줄이 없는 건 404) · `GET /availability?type&startAt&endAt` → `{ remaining, limit, fullDates[], quote }` · `GET /advertisers?q` · `POST /advertisers` `{name,contactName,contactPhone,email,memo,businessId?}` · `POST /advertisers/{id}/reveal` `{reason}` → `{contactName,contactPhone,email,hideAt}` · `POST /contract-files`(multipart `file` 한 장) → `BizContractFile` · `POST /images`(multipart `file`, PNG·JPG·GIF·WEBP 2MB) → `{id,fileName,size,mimeType,url}` · `POST /manual` · `POST /{id}/takedown` `{reason, notifyMail}` · `POST /{id}/restore` `{compensation: EXTEND|PRORATE_REFUND, reason}`.
+- **Row** = `{ id, type, advertiser{id,kind,name,businessId,maskedRegNo,contactMasked}, period, status, paymentMethod(승인 전이면 희망), weight, source: APPLICATION|OPERATOR, applicationNo(BA-…), lastActionAt, domain: AD|HOTDEAL }`. **Detail** = Row + `amount`(확정 → 제안 → 요금표 순) · `proposedSupply` · `creatives[{version,imageUrl,text,linkUrl,altText,approvedAt,approvedBy,current}]` · `onlinePayment` · `contracts` · `deposit` · `takedown{at,cause:EMERGENCY|SUSPENDED,reason,by,mailSent,mail}` · `refund`(가장 최근 환불, 신청 건 상세와 같은 모양) · `memo` · `registrant{id,name,me}`(운영자 등록 건) · `history[{at,action(신청 건 처리 기록 코드),actor,note}]`.
+- **광고주 ID** = 문자열 하나 — 광고주 `adv-<id>`(사업자와 연결됐으면 `kind=BUSINESS`) · 광고주와 연결되지 않은 승인 사업자 `biz-<사업자 신원 id>`. 검색은 둘을 합쳐 이름 차례 30개. 같은 이름 400 `fields.name`, 이미 연결된 사업자 400 `fields.businessId`, 연락처 숫자 9~11자리·이메일 형식. 응답에는 가린 값만(연락처 → 없으면 이메일). 평문 열람 `ad.contact.reveal`(SENSITIVE 새 권한) — 사유 5~200자, 열람 기록 + 감사 `AD_CONTACT_REVEAL`(개인정보), `hideAt` = 10분 뒤. 감사 `AD_ADVERTISER_CREATE`(대상 `AD_ADVERTISER`).
+- **운영자 등록** `POST /manual` `{ advertiserId, type, period{startAt,endAt}, weight, creative{imageFileId|text, linkUrl, altText}, supply, contractFileIds[], memo }` → 신청 건 `source=OPERATOR`·`SUBMITTED`·희망 결제 `MANUAL` + 소재 버전 1(행위자 운영자) + 자리·금액 줄(요금표 계산 — `quote`) + `proposed_supply` + 처리 기록 `SUBMITTED`(운영자) + 감사 `BIZ_APP_OPERATOR_CREATE`(돈 — 5년) + 운영자 알림 `AD_REVIEW_PENDING`. 광고 종류(배너 넷·한 줄)만 — 핫딜 노출 자리 400 `fields.type`(글이 있어야 해서). 배너 이미지는 `POST /images` 로 올린 운영자 파일만(`creative.imageFileId`). 기간은 ISO 분 단위·시작이 지금 뒤. 등록 때 자리는 **잠그지 않고 안내 판정**(꽉 찼으면 409 `BIZ_SLOT_FULL`) — 심사 대기는 자리를 차지하지 않고 승인 때 잠금 아래 다시 판정. 요금표 일수·미리 신청 일수·받기 꺼짐은 운영자 등록에 적용하지 않는다(가정). 미리 올린 계약서는 그 건에 붙고(처리 기록 `CONTRACT_RECEIVED`·감사 `BIZ_APP_CONTRACT_UPLOAD` detail `draft`), 없거나 이미 붙은 사본이면 400 `fields.contractFileIds`. 사업자를 고른 등록은 `business_profile_id` + 상호·끝 4자리 스냅샷, `user_id` 는 비운다(사업자 화면·사업자 취소·결제에 나타나지 않는다 — 가정). 사업자 정지 훅은 이 건도 함께 처리한다.
+- **긴급 내림**: 예약(시작 전·진행 중, 끝나지 않은)만 → `TAKEN_DOWN`(까닭 `EMERGENCY`, 사유 1~200자, 내린 운영자). 처리 기록 `TAKEN_DOWN`(메모 `EMERGENCY`) · 감사 `AD_TAKEDOWN`(일반 — `reason`·`notifyMail`·`phase`) · 사업자 알림 `TAKEN_DOWN`(사유). `notifyMail` 이면 **커밋 뒤** 광고주 이메일(계정 없는 광고주 → 없으면 사업자 신원 이메일)로 보내고 결과를 `takedown.mail` 에. 메일 서버가 없으면 `FAILED`. 핫딜 글 건을 내리면 글 내림 고리도 분다. 공개 노출 사본 「최대 20초」는 노출 조회가 생길 때 그쪽이 상태를 다시 읽는 것으로 둔다(지금 고리 없음 — 공개 노출 후속).
+- **되돌리기**: 긴급 내림만(정지 내림은 사업자 해제가) · 끝이 지나지 않았을 때만(아니면 409 `BIZ_APPLICATION_STATE_CHANGED`). 중단 시간 = 지금 − max(내린 시각, 시작)(분 단위, 시작 전에 내리고 시작 전에 되돌리면 0). `EXTEND` = 끝을 중단 시간만큼 늘린다 — 그 기간에 자리가 없으면 **409 `BIZ_SLOT_FULL`(늘리지 않고 되돌리지도 않는다)**, 자리 판정은 승인과 같은 어드바이저리 잠금. `PRORATE_REFUND` = 환불 종류 `DOWNTIME` 을 바로 승인(온라인 결제 모듈 부분 취소 · 수동 송금 대기) — **금액(가정, 계약 미확정) = floor(결제액 × 중단 일수 / 총 일수)**, 중단 일수 = ceil(중단 시간 / 24시간)(최소 1·총 일수까지), 총 일수 = 기간의 한국 날짜 수, 이미 환불한 몫을 넘지 않는다, 0원이면 환불 줄 없음. 심사 대기 환불이 있으면 409(그 심사 먼저). 처리 기록 `RESTORED`(메모 `EXTENDED:<분> · 사유` / `REFUND:<원> · 사유`) · 감사 `AD_RESTORE`(돈 — `compensation`·`lostMinutes`·`endAt`·`refundAmount`) · 사업자 알림 `RESTORED`(+ 환불이 있으면 `REFUND_APPROVED`). `DOWNTIME` 환불은 사업자 환불 요청(「환불 줄이 한 번도 없을 때만」)을 막지 않고, 뒤에 생기는 진행 중 일할 제안액에서 이미 돌려준 몫을 뺀다.
+- **권한**: `ad.read` 조회(핫딜 노출 자리 탭 포함) · `ad.manage` 등록·광고주·계약서·이미지 · `ad.takedown` 긴급 내림 · `ad.restore` 되돌리기 · `ad.contact.reveal` 연락처 평문 — 셋(takedown·restore·contact.reveal) featureReady 켬.
+- **공개 노출 쿼리 후보**(후속 — `AdSlot`·가젯 `AD`·한 줄 광고): 그 상품 줄이 있고 `status = 'SCHEDULED' AND start_at <= now < end_at` 인 건 + 최신 **승인된** 소재 버전(`biz_creative_versions.approved_at IS NOT NULL` 중 최신), 비중(`weight`) 가중 무작위는 노출 쪽, 사본 20초 캐시(내림·되돌리기는 상태로 반영). 일별 집계 표(`ad_daily_stats` — 버전 단위)는 그 단계에서.
+
+## 화면 연결 결정 (2026-10-31)
+- admin-web `useAdApi` 는 실제 API(목업 폴더 삭제). 달력은 `calendar` 한 번(`bookings` 사용). 수동 등록·첫 등록·빈 칸 누르기는 광고 종류 탭(배너 넷·한 줄)에서만. 이미지는 고르면 바로 `POST /images`(PNG·JPG·GIF·WEBP 2MB 미리 검사), 계약서 사본은 한 장씩 `POST /contract-files`(서랍의 [바꾸기]는 아직 안 붙은 사본이라 목록에서 빼고 새 파일을 더함). 등록 성공 = 토스트 + 상단 닫을 수 있는 안내(「심사 대기로 등록했어요」 + `/ad-reviews?id=`).
+- 상세 Drawer 머리에 「광고 심사에서 열기」/「핫딜 심사에서 열기」(`domain`), 처리 기록은 신청 건 처리 기록 문구 재사용, 내림 까닭·운영자·사유·메일 결과, [되돌리기]는 긴급 내림 건만(`ad.restore` — 끝이 지났는지는 서버 409).
+- 광고 심사 화면: 큐 줄 「운영자 등록」 Tag · 승인 창은 운영자 건 MANUAL 고정·공급가 처음 값 = `proposedSupply`(요금표와 다르면 기존대로 조정 사유) · 자기 승인(ALLOW) 경고 + 메모 필수 · DENY + 나 = [승인] 대신 「다른 운영자가 승인해야 해요」 · 운영자 건 `SUBMITTED` 에서 [취소]·계약서 올리기.
+- 광고주 연락처 평문 보기 UI 는 없다(composable `revealAdvertiser` 만 — 광고주 관리 화면 후속).
+- user-web 배너 [소재 바꾸기]는 새 이미지를 고르지 않으면 지금 `imageFileId` 를 그대로 보낸다.

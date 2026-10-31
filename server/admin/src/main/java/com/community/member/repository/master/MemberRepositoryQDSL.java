@@ -1,5 +1,7 @@
 package com.community.member.repository.master;
 
+import com.community.business.entity.BusinessStatus;
+import com.community.business.entity.QBusinessProfileEntity;
 import com.community.grade.entity.GradeRoles;
 import com.community.grade.entity.QGradeEntity;
 import com.community.grade.entity.QMemberGradeChangeEntity;
@@ -58,6 +60,7 @@ public class MemberRepositoryQDSL extends RoboyamRepositoryQDSL {
     private static final QOperatorEntity OPERATOR = QOperatorEntity.operatorEntity;
     private static final QUserRoleEntity USER_ROLE = QUserRoleEntity.userRoleEntity;
     private static final QRoleEntity ROLE = QRoleEntity.roleEntity;
+    private static final QBusinessProfileEntity BUSINESS = QBusinessProfileEntity.businessProfileEntity;
     private static final QUserIdentityEntity IDENTITY = QUserIdentityEntity.userIdentityEntity;
     private static final QPointBalanceEntity BALANCE = QPointBalanceEntity.pointBalanceEntity;
 
@@ -121,6 +124,14 @@ public class MemberRepositoryQDSL extends RoboyamRepositoryQDSL {
             rows.computeIfAbsent(row.get(IDENTITY.userId), k -> new ArrayList<>()).add(row.get(IDENTITY.provider));
         }
         return rows;
+    }
+
+    /** 승인된 사업자(사업자 신원 APPROVED)인 회원 — 목록의 회원 ID 를 모아 한 번에 */
+    public java.util.Set<Long> approvedBusinessUsers(Collection<Long> userIds) {
+        if (userIds.isEmpty()) {
+            return java.util.Set.of();
+        }
+        return new java.util.HashSet<>(query.select(BUSINESS.userId).from(BUSINESS).where(BUSINESS.userId.in(userIds), BUSINESS.status.eq(BusinessStatus.APPROVED)).fetch());
     }
 
     /**
@@ -204,6 +215,9 @@ public class MemberRepositoryQDSL extends RoboyamRepositoryQDSL {
         if (Boolean.TRUE.equals(c.hasSanction())) {
             where.and(NEVER); // 제재 표가 아직 없어 이력이 있는 회원이 없다
         }
+        if (c.businessVerified() != null) {
+            where.and(c.businessVerified() ? approvedBusiness() : approvedBusiness().not()); // 사업자 신원 승인(역할 기준 회원 유형과 따로)
+        }
         return where;
     }
 
@@ -277,6 +291,11 @@ public class MemberRepositoryQDSL extends RoboyamRepositoryQDSL {
 
     private static BooleanExpression hasRole(String roleId) {
         return JPAExpressions.selectOne().from(USER_ROLE).where(USER_ROLE.userId.eq(USER.id), USER_ROLE.roleId.eq(roleId)).exists();
+    }
+
+    /** 승인된 사업자인가 — 사업자 신원({@code business_profiles}) 상태가 APPROVED. 재심사 중(PENDING)·정지·탈퇴는 아니다 */
+    private static BooleanExpression approvedBusiness() {
+        return JPAExpressions.selectOne().from(BUSINESS).where(BUSINESS.userId.eq(USER.id), BUSINESS.status.eq(BusinessStatus.APPROVED)).exists();
     }
 
     private static BooleanExpression hasIdentity(SocialProvider provider) {

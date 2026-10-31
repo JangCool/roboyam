@@ -19,6 +19,7 @@ import java.util.List;
  * @param statusChangedKind {@code SUSPENDED}(기간·영구 정지) · {@code WITHDRAWN} · {@code DORMANT}
  * @param boardRole     {@code MANAGER} · {@code STAFF} · {@code NONE}
  * @param hasSanction   {@code true} 제재 이력 있음 · {@code false} 없음
+ * @param businessVerified {@code true} 승인된 사업자({@code business_profiles.status = APPROVED} 가 있음) · {@code false} 아님 — 회원 유형(역할 기준 {@code memberType})과 따로
  * @param sort          {@code 칸,asc|desc} — 칸은 memberNo · email · nickname · grade · status · joinedAt · lastLoginAt · point · dormantAt. 기본 {@code joinedAt,desc}
  * @param page          0 부터(기본 0)
  * @param size          1~100(기본 20)
@@ -28,6 +29,6 @@ public record MemberSearchRequest(
         String joinedFrom, String joinedTo, String lastLoginFrom, String lastLoginTo, String noLoginHistory,
         List<String> grades, String memberType, String emailVerified, List<String> authMethods,
         String dormantFrom, String dormantTo, String statusChangedKind, String statusChangedFrom, String statusChangedTo,
-        String pointMin, String pointMax, String boardRole, String hasSanction,
+        String pointMin, String pointMax, String boardRole, String hasSanction, String businessVerified,
         String sort, String page, String size) {
 }

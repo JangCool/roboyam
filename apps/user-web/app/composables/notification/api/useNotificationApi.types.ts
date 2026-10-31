@@ -49,7 +49,11 @@ export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'P
     | 'GROUP_POST_MEMBERS_ONLY'
     | 'GROUP_POST_RELEASED'
     // 공동구매(커머스 2b-4) — 주문 확인·관심 알림·환불 완료 등(서버가 제목·본문을 그린다)
-    | 'GROUP_BUY';
+    | 'GROUP_BUY'
+    // 사업자 신원(V111) — 접수·승인·반려·정지·해제·재심사(서버가 제목·본문을 그린다, `link` 는 `/business`)
+    | 'BUSINESS'
+    // 사업자 신청 건(V112) — 접수·승인(결제 요청)·반려·결제·기한 임박·시작·종료 임박·중단·환불 등(끌 수 없는 거래 알림, 서버가 제목·본문을 그린다, `link` 는 `/business/applications/{id}`)
+    | 'BIZ_APPLICATION';
 
 /**
  * 알림 묶음 — 댓글·답글 · 계정(포인트 회수·소멸 예정·신고 숨김·닉네임 그림 검토·기능 제한 · 소모임 `GROUP_*` 전부 — 서버 `MemberNotificationType` 이 `system` 으로 묶는다) ·

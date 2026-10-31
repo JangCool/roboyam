@@ -54,6 +54,8 @@ export interface PostAuthor {
      * 화면은 `useMyDecoration().avatarOf` 로 채운다(내 것은 방금 고른 것).
      */
     avatarUrl?: string | null;
+    /** 승인된 사업자인가(사업자 신원 승인 — 재심사 중·정지는 false) — 이름 옆 「사업자」 뱃지. 로그인 정보의 `businessStatus` 와 따로다. 칸이 없는 옛 응답이면 뱃지 없음 */
+    business?: boolean;
 }
 
 /** 말머리를 가리키는 짧은 모양 */

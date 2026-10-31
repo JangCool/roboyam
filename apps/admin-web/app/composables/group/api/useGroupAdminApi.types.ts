@@ -21,6 +21,8 @@ export interface GroupPerson {
     decoration?: unknown;
     /** 관리자 응답에서는 늘 null(공개 사이트용 칸) */
     avatarUrl?: string | null;
+    /** 관리자 응답에서는 늘 false(공개 사이트의 「사업자」 뱃지 칸 — 그리지 않는다) */
+    business?: boolean;
 }
 
 /** 소모임 분류 — 분류 ID 와 이름(코드에 분류 목록을 박지 않는다) */

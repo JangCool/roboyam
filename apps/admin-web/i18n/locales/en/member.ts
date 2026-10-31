@@ -41,6 +41,7 @@ export default {
         lastLogin: 'Last login',
         grade: 'Grade',
         memberType: 'Member type',
+        business: 'Business verified',
         emailVerified: 'Email verification',
         authMethod: 'Sign-up method',
         dormant: 'Dormant since',
@@ -98,7 +99,7 @@ export default {
     },
     type: {
         GENERAL: 'Regular member',
-        BUSINESS: 'Business',
+        BUSINESS: 'Promo-only',
     },
     authMethod: {
         EMAIL: 'Email',
@@ -124,6 +125,10 @@ export default {
         YES: 'Yes',
         NO: 'No',
     },
+    businessVerified: {
+        YES: 'Verified',
+        NO: 'No',
+    },
 
     // Table
     col: {
@@ -132,6 +137,7 @@ export default {
         nickname: 'Nickname',
         grade: 'Grade',
         memberType: 'Member type',
+        businessVerified: 'Business',
         status: 'Status',
         authMethod: 'Sign-up method',
         emailVerifiedAt: 'Email verified',

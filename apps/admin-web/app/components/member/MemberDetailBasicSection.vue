@@ -71,6 +71,10 @@
                     </div>
                     <GradeBadge v-else-if="field.key === 'grade'" v-bind="gradeState.badgeOf(detail.grade)" />
                     <Tag v-else-if="field.key === 'memberType'" :value="t(`member.type.${detail.memberType}`)" :icon="UtilMember.typeIcon(detail.memberType)" :severity="detail.memberType === 'BUSINESS' ? 'contrast' : 'secondary'" />
+                    <span v-else-if="field.key === 'businessVerified'">
+                        <Tag v-if="detail.businessVerified" :value="t('member.businessVerified.YES')" icon="pi pi-verified" severity="info" />
+                        <span v-else class="text-muted-color">{{ t('member.businessVerified.NO') }}</span>
+                    </span>
                     <div v-else-if="field.key === 'status'" class="flex flex-col gap-1">
                         <span>
                             <Tag :value="t(`member.status.${detail.status}`)" :icon="UtilMember.statusIcon(detail.status)" :severity="UtilMember.statusSeverity(detail.status)" />
@@ -159,8 +163,8 @@ const thumbStyle = { width: `${UtilNicknameImage.WIDTH / 2 + 2}px`, height: `${U
 // 등급 뱃지 — 등급 설정의 이름·색·아이콘(앱 전체가 공유하는 등급 목록)
 const gradeState = useGradeAppearance();
 
-type FieldKey = 'memberNo' | 'email' | 'nickname' | 'nicknameImage' | 'grade' | 'memberType' | 'status' | 'authMethod' | 'social' | 'joinedAt' | 'withdrawnAt' | 'emailVerifiedAt' | 'adult' | 'acceptDm' | 'lastLoginAt' | 'dormantAt' | 'dormancy' | 'point';
-const KEYS: readonly FieldKey[] = ['memberNo', 'email', 'nickname', 'nicknameImage', 'grade', 'memberType', 'status', 'authMethod', 'social', 'joinedAt', 'withdrawnAt', 'emailVerifiedAt', 'adult', 'acceptDm', 'lastLoginAt', 'dormantAt', 'dormancy', 'point'];
+type FieldKey = 'memberNo' | 'email' | 'nickname' | 'nicknameImage' | 'grade' | 'memberType' | 'businessVerified' | 'status' | 'authMethod' | 'social' | 'joinedAt' | 'withdrawnAt' | 'emailVerifiedAt' | 'adult' | 'acceptDm' | 'lastLoginAt' | 'dormantAt' | 'dormancy' | 'point';
+const KEYS: readonly FieldKey[] = ['memberNo', 'email', 'nickname', 'nicknameImage', 'grade', 'memberType', 'businessVerified', 'status', 'authMethod', 'social', 'joinedAt', 'withdrawnAt', 'emailVerifiedAt', 'adult', 'acceptDm', 'lastLoginAt', 'dormantAt', 'dormancy', 'point'];
 /** 표에 없는 칸의 이름 — 목록 표 칸 이름(`member.col.*`)에 없는 것은 상세 전용 키 */
 const LABELS: Partial<Record<FieldKey, string>> = {
     nicknameImage: 'member.detail.nicknameImage',

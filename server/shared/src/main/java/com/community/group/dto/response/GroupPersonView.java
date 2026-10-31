@@ -4,7 +4,7 @@ import com.community.pointshop.dto.response.AuthorDecorationView;
 
 /**
  * 소모임 화면의 사람 한 명(모임장·신청자·멤버·처리자) — 닉네임·등급 뱃지(+공개 사이트는 장식·아바타) 외 개인정보는 싣지 않는다.
- * admin-web {@code GroupPerson} 과 같은 칸에 공개 사이트용 {@code decoration}·{@code avatarUrl} 을 더했다(관리자 응답에서는 늘 null).
+ * admin-web {@code GroupPerson} 과 같은 칸에 공개 사이트용 {@code decoration}·{@code avatarUrl}·{@code business} 를 더했다(관리자 응답에서는 늘 null·false).
  *
  * @param id         회원 ID(운영자면 운영자 ID). 탈퇴했으면 null
  * @param nickname   닉네임 — 탈퇴했으면 요청 언어의 「탈퇴한 회원」, 운영자는 운영자 이름
@@ -12,8 +12,10 @@ import com.community.pointshop.dto.response.AuthorDecorationView;
  * @param grade      등급 뱃지 — 운영자·모르는 등급·탈퇴면 null
  * @param decoration 장착한 포인트 상점 장식(공개 사이트만, 없으면 null)
  * @param avatarUrl  아바타 그림 주소(공개 사이트만, 탈퇴면 null)
+ * @param business   사업자 뱃지 — 사업자 신원 {@code APPROVED}(재심사 중·반려·정지·탈퇴는 false). 공개 사이트만 채우고 관리자 응답·운영자는 늘 false
  */
-public record GroupPersonView(String id, String nickname, boolean withdrawn, GroupGradeView grade, AuthorDecorationView decoration, String avatarUrl) {
+public record GroupPersonView(String id, String nickname, boolean withdrawn, GroupGradeView grade, AuthorDecorationView decoration, String avatarUrl,
+                              boolean business) {
 
     /**
      * 등급 뱃지(등급 설정의 키·이름·색·아이콘).

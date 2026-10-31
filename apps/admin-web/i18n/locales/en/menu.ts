@@ -91,6 +91,17 @@ export default {
     groupRequests: 'Creation requests',
     groupCategories: 'Club categories',
     groupSettings: 'Club settings',
+    // Business section — verification review · business list
+    business: 'Businesses',
+    businessReviews: 'Verification review',
+    businesses: 'Business list',
+    // Ads section — ad review · schedule
+    ad: 'Ads',
+    adReviews: 'Ad review',
+    ads: 'Ad schedule',
+    // Hot deal section — hot deal review
+    hotdeal: 'Hot deals',
+    hotdealReviews: 'Hot deal review',
     operatorsAndPermissions: 'Operators and permissions',
     operators: 'Operators',
     roles: 'Roles',

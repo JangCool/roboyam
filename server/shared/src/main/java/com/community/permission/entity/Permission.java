@@ -90,8 +90,10 @@ public enum Permission {
     GROUP_READ("group.read", CLUB, READ, true),
     GROUP_MANAGE("group.manage", CLUB, MANAGE, true),
     GROUP_SETTINGS("group.settings", CLUB, CONFIG, true),
-    HOTDEAL_READ("hotdeal.read", HOTDEAL, READ, false),
-    HOTDEAL_MANAGE("hotdeal.manage", HOTDEAL, MANAGE, false),
+    /** 핫딜 심사(사업자 핫딜 신청 건) 조회 — 04-ia-review S4 */
+    HOTDEAL_READ("hotdeal.read", HOTDEAL, READ, true),
+    /** 사업자 핫딜 신청 건 심사·승인·반려·수동 전환·계약서·입금 확인·예약 확정·취소 */
+    HOTDEAL_MANAGE("hotdeal.manage", HOTDEAL, MANAGE, true),
     HOTDEAL_DOMAIN_MANAGE("hotdeal.domain.manage", HOTDEAL, CONFIG, false),
     COMMERCE_PRODUCT_READ("commerce.product.read", GB_PLAN, READ, true),
     COMMERCE_PRODUCT_MANAGE("commerce.product.manage", GB_PLAN, MANAGE, true),
@@ -113,17 +115,31 @@ public enum Permission {
     /** 결제 이상·대사 처리(다시 시도·수동 처리 완료·포트원에서 다시 확인·이슈 처리·다시 대사) — 2a-3 에서 준비됨 */
     COMMERCE_RECONCILE_MANAGE("commerce.reconcile.manage", GB_SETTLE, SENSITIVE, true),
     COMMERCE_SETTINGS("commerce.settings", GB_CONFIG, CONFIG, true),
-    BUSINESS_READ("business.read", BIZ_REVIEW, READ, false),
-    BUSINESS_MANAGE("business.manage", BIZ_REVIEW, MANAGE, false),
+    /** 사업자 심사 조회 — 목록·상세(가린 값만)·처리 기록(docs/features/business-contract.md) */
+    BUSINESS_READ("business.read", BIZ_REVIEW, READ, true),
+    /** 사업자 심사 처리 — 국세청 다시 조회·승인·반려·정지(진행 건 처리 선택)·사업자등록증 사본 열람(기록) */
+    BUSINESS_MANAGE("business.manage", BIZ_REVIEW, MANAGE, true),
+    /** 사업자 신원 평문 열람(등록번호·대표자·연락처·이메일·주소) — 사유 필수 · 열람 기록 · 화면은 10분 뒤 가린다(B3) */
+    BUSINESS_REVEAL("business.reveal", BIZ_REVIEW, SENSITIVE, true),
+    /** 사업자 정지 해제 — 정지로 내려간 진행 중 건을 연장 후 되돌리기 · 환불 유지(B3·H2) */
+    BUSINESS_UNSUSPEND("business.unsuspend", BIZ_REVIEW, SENSITIVE, true),
     DEAL_ORDER_READ("deal-order.read", BIZ_PRODUCT, READ, false),
     DEAL_ORDER_MANAGE("deal-order.manage", BIZ_PRODUCT, MANAGE, false),
     DEAL_ORDER_SETTINGS("deal-order.settings", BIZ_PRODUCT, CONFIG, false),
-    DEAL_ORDER_REFUND("deal-order.refund", BIZ_PRODUCT, SENSITIVE, false),
-    AD_READ("ad.read", AD_PROMO, READ, false),
-    AD_MANAGE("ad.manage", AD_PROMO, MANAGE, false),
+    /** 사업자 신청 건 환불 승인·거절·수동 송금 완료 표시(biz-application-contract — 이름은 기존 키 재사용) */
+    DEAL_ORDER_REFUND("deal-order.refund", BIZ_PRODUCT, SENSITIVE, true),
+    /** 광고 심사(사업자 광고 신청 건)·광고 일정표 조회 — 04-ia-review S4 */
+    AD_READ("ad.read", AD_PROMO, READ, true),
+    /** 사업자 광고 신청 건 심사·승인·반려·수동 전환·계약서·입금 확인·예약 확정·취소(biz-application-contract) */
+    AD_MANAGE("ad.manage", AD_PROMO, MANAGE, true),
     PROMO_MANAGE("promo.manage", AD_PROMO, MANAGE, false),
     AD_SETTINGS("ad.settings", AD_PROMO, CONFIG, false),
-    AD_TAKEDOWN("ad.takedown", AD_PROMO, SENSITIVE, false),
+    /** 광고 긴급 내림(광고 일정표 — 사유 필수 · 광고주 메일 선택, ad-contract) */
+    AD_TAKEDOWN("ad.takedown", AD_PROMO, SENSITIVE, true),
+    /** 긴급 내린 광고 되돌리기 — 보상 「끝 시각 연장」(자리가 비었을 때만) 또는 「일할 환불」(F5) */
+    AD_RESTORE("ad.restore", AD_PROMO, SENSITIVE, true),
+    /** 계정 없는 광고주의 담당자·연락처·이메일 평문 열람 — 사유 5~200자 · 열람 기록 · 화면은 10분 뒤 가린다(사업자 평문 열람과 같다) */
+    AD_CONTACT_REVEAL("ad.contact.reveal", AD_PROMO, SENSITIVE, true),
     OPERATOR_READ("operator.read", OPERATOR_ROLE, READ, true),
     ROLE_READ("role.read", OPERATOR_ROLE, READ, true),
     OPERATOR_MANAGE("operator.manage", OPERATOR_ROLE, MANAGE, true),

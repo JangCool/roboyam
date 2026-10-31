@@ -213,6 +213,14 @@ public final class MessageTargetCatalog {
         out.add(member(MemberEvent.GROUP_BUY, List.of(MessageVariable.of("groupBuyTitle", "groupBuyTitle"), MessageVariable.of("detail", "groupBuyDetail")),
                 new InAppText("member.notification.GROUP_BUY.title", "member.notification.GROUP_BUY.body", null, List.of("groupBuyTitle", "detail")), "/me/orders",
                 List.of()));
+        // 사업자 신원(V111 — business-contract) — 상호 · 종류별 한 줄(접수·승인·반려·정지·해제·재심사 — 번들 member.notification.BUSINESS.kind.*)
+        out.add(member(MemberEvent.BUSINESS, List.of(MessageVariable.of("companyName", "businessCompanyName"), MessageVariable.of("detail", "businessDetail")),
+                new InAppText("member.notification.BUSINESS.title", "member.notification.BUSINESS.body", null, List.of("companyName", "detail")), "/business",
+                List.of()));
+        // 사업자 신청 건(V112 — biz-application-contract) — 신청 건 제목 · 종류별 한 줄(접수·승인·결제·기한·시작·종료·환불 — 번들 member.notification.BIZ_APPLICATION.kind.*)
+        out.add(member(MemberEvent.BIZ_APPLICATION, List.of(MessageVariable.of("bizTitle", "bizApplicationTitle"), MessageVariable.of("detail", "bizApplicationDetail")),
+                new InAppText("member.notification.BIZ_APPLICATION.title", "member.notification.BIZ_APPLICATION.body", null, List.of("bizTitle", "detail")),
+                "/business/applications/123", List.of()));
         // 소모임(V90 — group-contract 1단계) — 소모임 이름(+반려·거절·비활성 사유, 가입 신청한 회원)
         out.add(groupEvent(MemberEvent.GROUP_APPROVED, null, "/groups/123"));
         out.add(groupEvent(MemberEvent.GROUP_REJECTED, "groupRejectReason", "/groups/me"));

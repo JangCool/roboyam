@@ -455,7 +455,7 @@ public class CommentService {
 
     /** 나간 멤버의 가린 댓글의 작성자 — 회원이라는 것만(회원 ID·이름·등급·장식 없음). 화면은 「소모임을 나간 멤버의 댓글이에요」 */
     private static PostAuthorView groupLeftAuthor() {
-        return new PostAuthorView("MEMBER", null, "", null, null, null, null, null, null, null);
+        return new PostAuthorView("MEMBER", null, "", null, null, null, null, null, null, null, false);
     }
 
     /** 비회원에게 아직 보이지 않는 댓글인가 — 같은 IP 가 쓴 비회원 댓글은 본인 것으로 본다 */
