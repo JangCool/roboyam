@@ -147,10 +147,10 @@ const rootStyle = computed(() => {
 
 /**
  * 카드 — 평평한 가젯만 카드 없이. 나머지는 테마가 값을 채우는 `gadget-card`(안 여백 규칙은 `main.css` — 위·아래·좌·우가 같게 보이게).
- * **px 배치**(사용자 결정 2026-10-31 — 정본): 격자(`HomeGadgetGrid`)가 칸 높이를 이 카드의 잰 내용 높이 그대로 잡아 카드 = 칸이고, 위·아래 여백은 테마 값 그대로 같다.
- * 칸이 내용보다 큰 것은 같은 줄 맞추기 짝으로 함께 늘어난 짧은 카드뿐이다 — 그때만 남는 높이를 위·아래 반씩 나누도록 머리 + 본문 덩어리를 세로 가운데에 둔다. 한 열(모바일)은 내용 높이 그대로다.
+ * **px 배치**(사용자 결정 2026-10-31 — 정본): 격자(`HomeGadgetGrid`)가 칸 높이를 max(운영자 h 의 px, 이 카드의 잰 내용 높이)로 잡고 카드는 칸을 채운다(카드 = 칸).
+ * 내용은 늘 위에서 시작한다 — 운영자가 키운 높이·같은 줄 맞추기로 늘어난 높이의 남는 공간은 아래에 둔다(일부러 키운 것). 최소 상태(카드 = 내용)에서는 위·아래 여백이 테마 값 그대로 같다.
  */
-const rootClass = computed(() => `${style.value.cardLook === 'FLAT' ? 'min-w-0' : 'gadget-card'} flex flex-col justify-center`);
+const rootClass = computed(() => (style.value.cardLook === 'FLAT' ? 'min-w-0' : 'gadget-card'));
 
 /** 기본형 카드의 「더보기」 줄 — 카드 아래·좌우 끝까지 닿는 바닥 줄(카드 아래 여백 밑에 줄이 또 떠 있지 않게). 평평한 가젯은 그대로 */
 const classicMoreStyle = computed(() =>

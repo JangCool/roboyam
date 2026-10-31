@@ -7,17 +7,18 @@
           · `half` 태블릿(md~lg) 또는 사이드 메뉴 때문에 홈 폭이 좁은 데스크톱 — 칸 수 반, 반 폭 이하 가젯 둘은 나란히·나머지는 전체 폭(`UtilHomeGrid.half`)
           · `stack` 모바일(md 미만) 또는 홈 폭 36rem 미만 — 한 열, 간격은 테마 역할 변수 `--gadget-gap`(카드가 화면 끝까지 닿는 모바일 모양 그대로).
             순서는 템플릿의 한 열 모양(`mobile.order`): `reading` (y, x) · `columns` 본문 열 먼저(`UtilHomeGrid.byColumns`). 한 열인지는 아래 가젯에 알린다(`provideHomeGadgetStacked` — 가젯의 한 열 모양: 가로로 미는 줄 등)
-        **px 배치**(사용자 결정 2026-10-31 — 정본): 상자 높이 = 잰 내용 높이(내용 + 테마 위·아래 여백) 정확히 — 31px 행 올림·운영자 h 로 늘리지 않는다(`h` 는 끌기 단위·순서일 뿐). 칸 = 상자라 상자 밖 띠·상자 안 덧붙은 여백이 없다.
+        **px 배치**(사용자 결정 2026-10-31 — 정본): 상자 높이 = max(hPx, contentPx) 정확히(올림 없음 — hPx = h×15 + (h−1)×16, contentPx = 잰 내용 + 테마 위·아래 여백). 칸 = 상자라 상자 밖 띠가 없다.
+          운영자가 h 를 키우면 상자가 늘고(내용은 위에서 시작, 남는 공간은 아래 — 일부러 키운 것) 줄이면 줄되 contentPx 에서 멈춘다(위·아래 여백이 정확히 같은 최소 상태). 게시판 본문 칸은 내용 높이만.
           위 끝 = 읽는 순서에서 앞선 가젯 중 열이 겹치는 것들의 아래 끝 중 가장 낮은 값 + 16px(없으면 0) — 가젯 사이 세로 간격은 늘 정확히 16px. 높이가 바뀌면(ResizeObserver) 다시 쌓는다.
-          (예전 「상자 = 격자 칸 · 남는 높이는 위·아래 반씩」·「상자 = 내용 · 남는 칸은 바탕」 규칙은 이것으로 바뀌었다)
+          (예전 「상자 = 격자 칸 · 남는 높이는 위·아래 반씩」·「상자 = 내용 · h 는 높이를 늘리지 않음」 규칙은 이것으로 바뀌었다)
         가젯의 PC/모바일 노출(`desktop`·`mobile`, lg 경계)·비어서 감춤은 `UtilHomeGadget.isVisible` 그대로이고, 숨긴 가젯의 자리는 당겨 메운다. 요소 순서는 읽는 순서((y, x))라 화면 읽기·Tab 순서가 보이는 순서와 같다.
-        같은 y·같은 h 로 나란히 둔 가젯(운영자가 짝지은 것)만 그중 가장 긴 높이로 함께 늘린다(`UtilHomeGrid.place` 「같은 줄 맞추기」 — 아래 끝이 맞는다, 늘어난 짧은 상자는 남는 높이를 위·아래 반씩 — `HomeGadgetFrame`). 그 밖은 늘리지 않는다. 데이터는 받기만 한다(조회는 페이지).
+        같은 y·같은 h 로 나란히 둔 가젯(운영자가 짝지은 것)만 각자의 상자 높이 중 가장 큰 값으로 함께 맞춘다(`UtilHomeGrid.place` 「같은 줄 맞추기」 — 아래 끝이 맞는다, 늘어난 쪽도 내용은 위에서 시작). 데이터는 받기만 한다(조회는 페이지).
         **관리자 미리보기 편집**(`useAdminPreview().editing` — 관리자 테마 화면의 iframe 안, 사용자 결정 2026-10-28: 편집도 실제 화면에서): 가젯마다 위에 덮는 손잡이 층을 얹는다 —
           가운데를 끌면 옮기기, 오른쪽 아래 모서리를 끌면 크기, 오른쪽 위 ×는 빼기, 그 옆 ⚙(8종 전부 — 내용·모양·노출)는 관리자 설정 창 열기(`settings`). 끄는 동안 놓일 칸을 이 격자의 칸·행 크기로 계산해 자리 표시를 그리고, 놓으면 관리자에게 알린다
           (`postToAdminPreview` — 놓은 칸 `place` · 칸·행 `size` · `remove`). 실제 계산(최소 크기·겹침·위로 당기기)과 저장은 관리자 편집기가 하고, 바뀐 배치를 다시 보내면 이 격자가 그린다.
           편집 중에는 PC 에서 숨는 가젯(모바일만)도 흐리게 그린다(자리를 고칠 수 있게). 공개 화면(편집 아님)에는 아무 영향이 없다.
-          편집 중에는 칸마다 옅은 점선 윤곽을 늘 그린다(칸 = 상자라 상자 테두리와 겹친다 — 손잡이 층은 실제 칸 DOM 위). 크기 꼬리표(`w×h`)는 내용에 필요한 행 수(잰 내용 높이 → `UtilHomeLayout.rowsFor`)와 비교해
-          운영자 h 가 작으면 빨강 「내용이 칸보다 길어요 — 최소 n칸」, 크면 주황 「n칸 줄여도 돼요」(높이는 어차피 내용대로 — 끌기 단위가 내용보다 크다는 알림, 관리자 종류별 최소 높이 `minH` 아래로는 권하지 않는다)를 늘 보인다
+          편집 중에는 칸마다 옅은 점선 윤곽을 늘 그린다(칸 = 상자라 상자 테두리와 겹친다 — 손잡이 층은 실제 칸 DOM 위). 모서리를 끄는 동안은 놓일 h 로 상자를 바로 그린다. 크기 꼬리표(`w×h`)는
+          최적 칸 수 fit(= max(1, floor((contentPx + 16) / 31)) — hPx ≤ contentPx 인 가장 큰 h)보다 작으면 빨강 「더 줄일 수 없어요 — 최소 fit칸」, 크면 주황 「n칸 줄여도 내용이 다 보여요」(n = h − max(fit, 종류별 최소 높이 `minH`))를 늘 보인다
           — 모서리를 끄는 동안은 놓일 h 로 실시간(`UtilHomeGrid.sizeHint`). 끌어 옮길 때 놓일 행은 화면 순서로 되짚는다(`UtilHomeGrid.rowAt`). 저장은 막지 않는다.
         **게시판 레이아웃**(2026-10-30, `BoardLayoutGrid` 가 `provideBoardLayoutBody` 로 본문을 넘길 때만): 고정 칸 「게시판 본문」(`BOARD_BODY`) 자리에 게시판 목록(·글 보기) 화면 내용을 그대로 그린다(높이는 내용대로).
           한 열에서는 본문을 먼저(본문 위에 통째로 놓인 가젯은 그 위 그대로 — `UtilHomeGrid.bodyFirst`). 편집 손잡이는 옮기기·크기만(× · ⚙ 없음).
@@ -132,8 +133,13 @@ const visibleItems = computed(() => {
 
 const cells = computed<Cell[]>(() => {
     const byId = new Map(props.gadgets.map((g) => [g.id, g]));
-    const items = mode.value === 'half' ? UtilHomeGrid.half(visibleItems.value, props.layout.columns) : visibleItems.value;
-    const placed = mode.value === 'stack' ? stackOrder(items).map((it) => ({ ...it, top: 0, height: 0 })) : UtilHomeGrid.place(items, heights.value);
+    // 편집 중 모서리를 끄는 동안은 놓일 h 로 바로 그린다(상자가 hPx 로 늘고 줄며 contentPx 에서 멈춘다 — 아래 가젯도 따라 밀린다)
+    const d = drag.value;
+    const live = d && d.kind === 'size' ? visibleItems.value.map((it) => (it.gadgetId === d.id ? { ...it, h: d.target.h } : it)) : visibleItems.value;
+    const items = mode.value === 'half' ? UtilHomeGrid.half(live, props.layout.columns) : live;
+    const bodyId = props.gadgets.find((g) => g.type === BOARD_BODY)?.id;
+    const placed =
+        mode.value === 'stack' ? stackOrder(items).map((it) => ({ ...it, top: 0, height: 0 })) : UtilHomeGrid.place(items, heights.value, (id) => id === bodyId);
     return placed.flatMap((c) => {
         const gadget = byId.get(c.gadgetId);
         return gadget ? [{ ...c, gadget }] : [];
@@ -290,9 +296,10 @@ const ghost = computed<CSSProperties | null>(() => {
     if (!d) return null;
     const { colW, unitX } = steps();
     const { x, w } = d.target;
-    // 세로는 px 배치라 손가락 위치(옮기기)·지금 자리(크기)에 — 높이는 상자 그대로(높이는 내용대로이고 h 는 꼬리표가 알린다)
+    // 세로는 px 배치라 손가락 위치(옮기기)·지금 자리(크기)에. 높이 — 옮기기는 상자 그대로, 크기는 놓일 h 의 상자 높이 max(hPx, contentPx)(칸도 같은 높이로 바로 그린다)
     const top = d.kind === 'move' ? d.top + d.dy : d.top;
-    return { left: `${x * unitX}px`, top: `${top}px`, width: `${w * colW + (w - 1) * UtilHomeLayout.GAP}px`, height: `${d.height}px` };
+    const height = d.kind === 'move' ? d.height : Math.max(UtilHomeLayout.px(d.target.h), heights.value[d.id] ?? 0);
+    return { left: `${x * unitX}px`, top: `${top}px`, width: `${w * colW + (w - 1) * UtilHomeLayout.GAP}px`, height: `${height}px` };
 });
 
 onBeforeUnmount(() => window.removeEventListener('pointermove', onMove));
