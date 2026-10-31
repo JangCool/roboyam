@@ -12,8 +12,8 @@
         <ErrorState v-if="status === 'error'" :title="t('home.loadFailed')" :description="errorMessage" retry @retry="load" />
 
         <div v-else :aria-busy="status === 'loading'">
-            <HomeGadgetSkeleton v-if="!data" />
-            <component :is="template" v-else :layout="data.layout" :gadgets="data.gadgets" />
+            <HomeGadgetSkeleton v-if="!shown" />
+            <component :is="template" v-else :layout="shown.layout" :gadgets="shown.gadgets" />
 
             <BoardInvestmentNotice v-if="hasInvestment" variant="home" class="mt-4" data-testid="home-investment" />
         </div>
@@ -52,6 +52,8 @@ const template = computed(() => UtilTheme.resolve(theme.value, 'home'));
 const status = ref<'loading' | 'ready' | 'error'>('loading');
 const data = ref<HomeGadgetsResponse | null>(null);
 const errorMessage = ref('');
+/** 그릴 홈 — 광고 가젯(`AD`·`AD_TEXT_LINE`)에 따로 받은 광고 후보를 채운다(`useAdGadgets`) */
+const shown = useAdGadgets(data, 'HOME');
 
 /** 투자 고지 — 홈에 투자 고지 게시판(게시판 목록의 `investmentNotice`)의 글이 보이면 */
 const hasInvestment = computed(() => (data.value ? UtilHomeGadget.hasInvestmentBoard(data.value, (slug) => bySlug(slug)?.investmentNotice === true) : false));

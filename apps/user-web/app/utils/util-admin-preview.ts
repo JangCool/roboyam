@@ -9,7 +9,7 @@ export type AdminPreviewGroupBuySort = 'DEADLINE' | 'NEWEST' | 'POPULAR';
  * 가젯 내용 설정(관리자 ⚙ 설정 창 — admin-web `UtilGadgetConfig`) — 서버 JSON 그대로의 평평한 모양, 종류마다 쓰는 칸만(보낸 칸만 덮는다 — 없는 칸은 공개 응답 그대로):
  * 공구 `count`·`sort` · 글 목록 `boardScope`·`boardIds`·`count`·`sort`·`periodTabs` + 보기 모양(`rowStyle`·`columns`·`thumbnail`·`titleLines`·`lead`·`meta`·`dividers`·`newBadgeHours`·`hotBadgeLikes`) ·
  * 갤러리 `boardScope`·`boardIds`·`count` · 게시판 카드 `boardScope`·`boardIds`·`perBoard`·`cardHead`·`columns` · 하이라이트 `count`·`lead`·`thumbs` · 소모임 `count` ·
- * 바로가기 `shape`·`items` · 안내 글 `text`·`format`(2026-10-30 — 8종 전부).
+ * 바로가기 `shape`·`items` · 안내 글 `text`·`format`(2026-10-30 — 8종 전부) · 광고 배너 `adType` · 한 줄 광고 `count`(2026-10-31 목업).
  */
 export interface AdminPreviewGadgetConfig {
     count?: number;
@@ -34,6 +34,8 @@ export interface AdminPreviewGadgetConfig {
     items?: { label: string; kind: string; value: string | null }[];
     text?: string;
     format?: string;
+    /** 광고 배너 가젯(`AD`)의 배너 유형 — 한 줄 광고 가젯은 `count`(1~5) */
+    adType?: string;
 }
 
 /** 가젯 페이지 머리(관리자의 저장 전 값 — 가젯 페이지 미리보기일 때만) */
@@ -84,8 +86,11 @@ export type AdminPreviewLayoutOp =
     | { op: 'remove'; id: string }
     | { op: 'settings'; id: string };
 
-/** 관리자에서 설정(⚙)을 고칠 수 있는 가젯 종류 — 8종 전부(2026-10-30). admin-web `UtilGadgetConfig` 의 종류와 같다 */
-const SETTABLE_KINDS: readonly string[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'QUICK_LINKS', 'NOTICE_TEXT'];
+/** 관리자에서 설정(⚙)을 고칠 수 있는 가젯 종류 — 8종 전부(2026-10-30) + 광고 2종(2026-10-31 목업). admin-web `UtilGadgetConfig` 의 종류와 같다 */
+const SETTABLE_KINDS: readonly string[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'QUICK_LINKS', 'NOTICE_TEXT', 'AD', 'AD_TEXT_LINE'];
+/** 광고 가젯 — 데이터를 받지 않고(후보는 페이지가 `useAdGadgets` 로 채운다) 설정으로 바로 그린다. 설정이 없어도 새 가젯을 그린다 */
+const AD_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
+const AD_BANNER_TYPES: readonly string[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER'];
 const GROUP_BUY_SORTS: readonly string[] = ['DEADLINE', 'NEWEST', 'POPULAR'];
 const POST_LIST_SORTS: readonly string[] = ['LATEST', 'POPULAR', 'VIEWS', 'LIKES', 'COMMENTS'];
 const ROW_STYLES: readonly string[] = ['HEADLINE', 'RANK', 'ARTICLE', 'COMPACT'];
@@ -229,6 +234,10 @@ export default class UtilAdminPreview {
                 return defined({ count: int(value.count, 1, 6), lead: oneOf(value.lead, ['NONE', 'HERO']), thumbs: oneOf(value.thumbs, ['ALL', 'FIRST', 'NONE']) });
             case 'GROUPS':
                 return defined({ count: int(value.count, 1, 6) });
+            case 'AD':
+                return defined({ adType: oneOf(value.adType, AD_BANNER_TYPES) });
+            case 'AD_TEXT_LINE':
+                return defined({ count: int(value.count, 1, 5) });
             case 'QUICK_LINKS':
                 return defined({
                     shape: oneOf(value.shape, ['PILL', 'TAB']),
@@ -283,6 +292,11 @@ export default class UtilAdminPreview {
      * @param {AdminPreviewGadgetConfig} config - 설정.
      */
     static applyConfig(gadget: HomeGadget, config: AdminPreviewGadgetConfig): void {
+        // 광고 가젯 — 유형·줄 수만 설정으로(후보는 페이지가 채운다)
+        if (AD_KINDS.includes(gadget.type)) {
+            gadget.config = { ...gadget.config, ...defined({ adType: config.adType, count: config.count }) };
+            return;
+        }
         if (gadget.type === 'QUICK_LINKS') {
             if (config.shape) gadget.config = { ...gadget.config, shape: config.shape };
             if (config.items) {
@@ -366,7 +380,7 @@ export default class UtilAdminPreview {
      * 받은 홈(·가젯 페이지) 가젯 응답에 관리자의 구성을 덮는다 — 배치는 관리자 것, 가젯은 같은 id 의 가젯(새로 넣은 가젯은 같은 종류 중 설정이 비슷한 것 — `baseOf`)을 관리자 제목·보이는 폭으로.
      * 저장 전 내용 설정(`config`)은 받은 데이터 안에서 따른다(`applyConfig`). 꾸미기(`style`)는 관리자가 고친 것이 있으면 통째로 바꾼다(읽기는 그 뒤 `UtilHomeGadget.sanitize`).
      * `extra` 는 바탕으로만 쓰는 가젯(가젯 페이지 미리보기에서 홈 가젯 — 페이지에 없는 종류를 넣었을 때).
-     * 응답에 같은 종류가 없는 새 가젯은 그릴 내용이 없어 뺀다 — 바로가기·안내 글은 설정으로 바로 그리므로 빈 가젯에서 만든다. 게시판 본문(`BOARD_BODY`)도 빈 가젯에서 만든다(내용은 화면이 채운다).
+     * 응답에 같은 종류가 없는 새 가젯은 그릴 내용이 없어 뺀다 — 바로가기·안내 글은 설정으로 바로 그리므로 빈 가젯에서 만든다. 게시판 본문(`BOARD_BODY`)·광고 가젯(`AD`·`AD_TEXT_LINE`)도 빈 가젯에서 만든다(내용은 화면이 채운다).
      * @param {HomeGadgetsResponse} res - 가젯 응답.
      * @param {AdminPreviewHome} home - 관리자 구성.
      * @param {readonly HomeGadget[]} [extra] - 바탕으로 더 쓸 가젯.
@@ -381,7 +395,7 @@ export default class UtilAdminPreview {
                     byId.get(p.id) ??
                     (p.type === BOARD_BODY ? UtilAdminPreview.blank(p.type) : undefined) ??
                     UtilAdminPreview.baseOf(pool, p) ??
-                    (DIRECT_KINDS.includes(p.type) && p.config ? UtilAdminPreview.blank(p.type) : undefined);
+                    ((DIRECT_KINDS.includes(p.type) && p.config) || AD_KINDS.includes(p.type) ? UtilAdminPreview.blank(p.type) : undefined);
                 if (!base) return null;
                 const gadget: HomeGadget = { ...(JSON.parse(JSON.stringify(base)) as HomeGadget), id: p.id, title: p.title, desktop: p.desktop, mobile: p.mobile };
                 if (p.style) gadget.style = JSON.parse(JSON.stringify(p.style)) as GadgetStyle;

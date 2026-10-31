@@ -39,6 +39,10 @@ const ICONS: readonly string[] = [
 ];
 /** 비어도 자리를 남기는 종류(처음 값) — user-web `UtilHomeGadget.defaultKeep` 과 같다 */
 const KEEP_KINDS: readonly string[] = ['POST_LIST', 'BOARD_CARDS', 'GALLERY', 'HIGHLIGHT', 'GROUPS'];
+/** 머리 숨김이 처음 값인 종류 — 광고는 「광고」 표시가 제목 노릇을 한다(user-web `UtilHomeGadget` `HEADERLESS_KINDS` 와 같다) */
+const HEADERLESS_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
+/** 카드 없이(평평)가 처음 값인 종류 — 배너는 그림 자체가 면이다(user-web `FLAT_KINDS`) */
+const FLAT_KINDS: readonly string[] = ['AD'];
 
 const ICON = /^pi-[a-z0-9-]{2,30}$/;
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -78,11 +82,11 @@ export default class UtilGadgetStyle {
     static initial(type: string): HomeGadgetStyle {
         return {
             icon: null,
-            headerStyle: 'BAR',
+            headerStyle: HEADERLESS_KINDS.includes(type) ? 'HIDDEN' : 'BAR',
             titleSize: 'M',
             titleColor: null,
             subtitle: '',
-            cardLook: 'DEFAULT',
+            cardLook: FLAT_KINDS.includes(type) ? 'FLAT' : 'DEFAULT',
             cardColor: null,
             mobileFold: 'NONE',
             empty: { keep: KEEP_KINDS.includes(type), message: true, text: '' },

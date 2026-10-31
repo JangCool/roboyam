@@ -6,7 +6,7 @@
 
 ## 화면 경로
 - 관리자 `/ads` — 유형 탭 7개(넓은·띠·네모·작은 배너·한 줄·핫딜 홈 상단·핫딜 말머리 상단) → 요약 띠(한도·진행·예약·결제·입금 대기) → **한 달 큰 달력**(하모니카3 월 보기 짜임: 칸마다 「남은/한도」 알약 + 그날 걸친 광고 건 이름·상태 색 점, 최대 3 + 「+N건 더」, 건을 누르면 상세, 오늘 이후 빈 곳을 누르면 그 날짜로 수동 등록) → 광고 건 표(상태·결제 방식·비중) → 상세 Drawer(기본·소재 버전·일정·결제·처리 기록). 메뉴 묶음 「광고」(`ad.read`).
-- 공개 노출 컴포넌트(`AdSlot`·가젯 `AD`·`AD_TEXT_LINE`·글 중간)는 이번 목업 범위 밖 — 02 §7-7 이 설계 정본.
+- 공개 노출 컴포넌트(`AdSlot`·가젯 `AD`·`AD_TEXT_LINE`·글 중간)는 아래 「공개 노출 목업」(화면 확정 전) — 02 §7-7 이 설계 정본.
 
 ## 규칙
 - 유형별 동시 한도(설정값). 날짜별 남은 칸 = 한도 − 그날 자리를 차지한 건(결제·입금 대기 포함, 취소·만료 제외). 달력은 안내이고 저장 때 서버가 다시 판정(409 `BIZ_SLOT_FULL`).
@@ -53,3 +53,11 @@ API 요청·응답 모양 전체는 서버 DTO(admin `ad/dto/AdAdminView`·`AdAd
 - 광고 심사 화면: 큐 줄 「운영자 등록」 Tag · 승인 창은 운영자 건 MANUAL 고정·공급가 처음 값 = `proposedSupply`(요금표와 다르면 기존대로 조정 사유) · 자기 승인(ALLOW) 경고 + 메모 필수 · DENY + 나 = [승인] 대신 「다른 운영자가 승인해야 해요」 · 운영자 건 `SUBMITTED` 에서 [취소]·계약서 올리기.
 - 광고주 연락처 평문 보기 UI 는 없다(composable `revealAdvertiser` 만 — 광고주 관리 화면 후속).
 - user-web 배너 [소재 바꾸기]는 새 이미지를 고르지 않으면 지금 `imageFileId` 를 그대로 보낸다.
+
+## 공개 노출 목업 (2026-10-31 — **화면 확정 전**, 서버 없음)
+- user-web: `components/ad/{AdSlot,AdTextLines,AdInquiry,AdHotdealPlacement}.vue` · 가젯 `HomeGadgetAd`(`AD`, `config.adType` 배너 넷 — 처음 `WIDE_BANNER`)·`HomeGadgetAdTextLine`(`AD_TEXT_LINE`, `config.count` 1~5 — 처음 3) · 글 보기 본문 바로 아래(추천 줄 위) 한 자리 · 게시판 목록 위 핫딜 노출(`dealEnabled` 게시판·첫 쪽·검색 아님 — 공개 핫딜 목록 화면이 따로 없어서). 목업 `composables/ad/api/usePublicAdApi.ts`(+types·mock), 고르기·틀 `utils/util-ad.ts`.
+- 목업 스위치: `?mock=ad-gadgets`(홈·가젯 페이지·게시판 레이아웃에 광고 가젯을 화면 쪽에서 덧붙임) · `ad-empty` · `ad-keep` · `ad-one` · `ad-fail` · `ad-inline-text` · `ad-inline-off` · `ad-hotdeal`.
+- 가정: 「광고」 표시 항상 · `rel="sponsored nofollow noopener"`(noreferrer 는 광고주 유입 집계 때문에 뺌 — 사업자 미리보기 `BusinessAdPreview`·admin `BizAppPreview` 는 아직 noreferrer, 맞출지 미확정) · 비율 넓은 4:1·띠 12:1·네모 6:5·작은 3:1(네모·작은 최대 300px) · **빈 자리 기본 접기**, 가젯 `style.empty.keep` 을 켜면 「광고 문의 ›」(→ `/business`) · 글 중간·핫딜은 늘 접기 · 고르기는 클라이언트(SPA), 사본이 바뀌어도 보이던 건이 남아 있으면 유지 · 노출 = 절반 이상 보였을 때 자리·버전마다 한 번(1초 모아 보내기, 숨길 때 `sendBeacon`), 클릭 = `sendBeacon`(href 는 광고 주소 그대로) · 19금 글은 글 중간 광고 없음.
+- admin-web: 가젯 넣기에 「광고 배너」「한 줄 광고」, ⚙ 「내용」 탭 유형·줄 수. **서버가 종류를 몰라 광고 가젯이 든 배치는 저장을 막는다**(경고 `homeLayout.adSaveBlocked` — 서버 연결 때 푼다). 글 중간 켜기/끄기·자리·유형 설정 화면(02 §7-2·7-3)은 없음.
+- API 후보: `GET /api/ads?types=…[&board=&prefix=]`(사본 20초) → `{ items[{ id, type, version, imageUrl, text, linkUrl, altText, weight, deal? }] }` — 핫딜 두 유형은 `deal{ postId, title, shopName, dealPrice, listPrice, thumbnailUrl, prefixName }` · `GET /api/ads/placements` → `{ postInline{ enabled, adType } }` · `POST /api/ads/impressions` `{ items[{ adId, version, placement }] }` · `POST /api/ads/{id}/clicks` `{ version, placement }` — placement `HOME`·`PAGE`·`BOARD`·`POST_INLINE`·`HOTDEAL_TOP`·`HOTDEAL_CATEGORY`. 서버 가젯 종류 등록(`HomeGadgetKinds`·`GadgetConfigs`, 홈 응답 `data` null, 처음 꾸미기 머리 숨김·배너 FLAT·비면 접기).
+- 미확정: `sendBeacon` 은 CSRF 머리글을 못 붙임 → 집계 두 주소 CSRF 제외 + 부풀림 거르기 기준 · 게시판 `adsHidden`(없는 칸) · 같은 페이지 같은 광고 중복 허용 · 소모임 글 제외 · 「광고만 빼고 저장」 여부.

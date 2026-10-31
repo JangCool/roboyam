@@ -106,6 +106,9 @@
                     <NuxtLink :to="listLink({ q: '', page: 1 })" class="font-semibold text-primary underline-offset-2 hover:underline">{{ t('board.searchClear') }}</NuxtLink>
                 </p>
 
+                <!-- 핫딜 노출 광고(목업) — 핫딜 게시판 첫 쪽의 목록 위: 말머리를 안 골랐으면 「핫딜 홈 상단」, 골랐으면 「말머리 상단」(`useHotdealAds`). 후보가 없으면 그리지 않는다 -->
+                <AdHotdealPlacement v-if="hotdeal.placement.value" :ads="hotdeal.candidates.value" :placement="hotdeal.placement.value" :prefix-name="hotdeal.prefixName.value" />
+
                 <!-- 목록 -->
                 <div :aria-busy="listState === 'loading'">
                     <div v-if="listState === 'loading'" class="-mx-4 md:mx-0" role="status" :aria-label="t('board.loadingList')">
@@ -213,6 +216,15 @@ const blockedNotice = computed(() => {
 /* ── 말머리·보기 ── */
 const prefixChips = computed(() => [{ id: '', name: t('common.all') }, ...(view.value?.prefixes ?? []).map((p) => ({ id: p.id, name: p.name }))]);
 const activePrefixName = computed(() => view.value?.prefixes.find((p) => p.id === query.value.prefix)?.name ?? '');
+
+/** 핫딜 노출 광고(목업) — 핫딜 게시판(`dealEnabled`)의 첫 쪽·검색 아님일 때만(개발 스위치 `?mock=ad-hotdeal` 은 아무 게시판에서나) */
+const hotdeal = useHotdealAds(
+    computed(() =>
+        view.value
+            ? { board: slug.value, dealEnabled: view.value.dealEnabled === true, prefix: query.value.prefix, prefixName: activePrefixName.value, firstPage: query.value.page === 1 && !query.value.q }
+            : null,
+    ),
+);
 
 /** 보기 전환 단추 — 게시판 설정 `viewToggle` 이 켜져 있고 기본 모양이 목록형·갤러리형일 때만 */
 const canToggleView = computed(() => Boolean(view.value?.viewToggle) && view.value?.layout !== 'CARD');

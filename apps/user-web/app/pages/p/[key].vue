@@ -19,8 +19,8 @@
             <GadgetPageHeader v-if="head" :name="head.name" :description="head.description" :write-button="head.writeButton" :write-board="writeBoard" />
             <div v-else class="h-11 w-48 animate-pulse rounded bg-surface-200 dark:bg-surface-800" role="status" :aria-label="t('gadgetPage.loading')" />
 
-            <HomeGadgetSkeleton v-if="!data" />
-            <component :is="template" v-else :layout="data.layout" :gadgets="data.gadgets" />
+            <HomeGadgetSkeleton v-if="!shown" />
+            <component :is="template" v-else :layout="shown.layout" :gadgets="shown.gadgets" />
 
             <BoardInvestmentNotice v-if="hasInvestment" variant="home" data-testid="gadget-page-investment" />
         </div>
@@ -75,6 +75,8 @@ const data = computed(() => {
     if (!r) return null;
     return UtilHomeGadget.sanitize(preview.home.value ? UtilAdminPreview.applyHome(r.res, preview.home.value, r.extra) : r.res);
 });
+/** 광고 가젯(`AD`·`AD_TEXT_LINE`)에 따로 받은 광고 후보를 채운다(`useAdGadgets` — 홈과 같은 길) */
+const shown = useAdGadgets(data, 'PAGE');
 
 /** 투자 고지 — 투자 고지 게시판(게시판 목록의 `investmentNotice`)의 글이 보이면 */
 const hasInvestment = computed(() => (data.value ? UtilHomeGadget.hasInvestmentBoard(data.value, (slug) => bySlug(slug)?.investmentNotice === true) : false));
