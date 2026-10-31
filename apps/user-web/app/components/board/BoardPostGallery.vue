@@ -1,5 +1,5 @@
 <template>
-    <!-- 갤러리형(GALLERY) — 정사각 썸네일 격자(모바일 2열 · 데스크톱 4열) + 제목·작성자·날짜. 고정 공지는 위에 한 줄씩 -->
+    <!-- 갤러리형(GALLERY) — 정사각 썸네일 격자(모바일 2열 · 데스크톱 4열) + 제목·작성자·날짜. 고정 공지는 위에 한 줄씩. 목록 안 한 줄 광고(`feedAd`)는 그리지 않는다(이미지 격자에서 문구 칸이 튄다) -->
     <div>
         <BoardPinnedList :rows="pinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
         <ul class="m-0 mt-3 grid list-none grid-cols-2 gap-x-3 gap-y-4 p-0 md:grid-cols-4">
@@ -37,7 +37,7 @@ import type { BoardPostListProps } from '~/components/board/BoardPostList.types'
 
 interface Props extends BoardPostListProps {}
 
-const props = withDefaults(defineProps<Props>(), {});
+const props = withDefaults(defineProps<Props>(), { feedAd: null });
 
 const { t } = useI18n();
 /** 차단한 회원·단어의 글은 접힌 칸 — 서버의 `blocked`(서버 후보)에 이 기기에서 방금 바꾼 것을 겹친다 */

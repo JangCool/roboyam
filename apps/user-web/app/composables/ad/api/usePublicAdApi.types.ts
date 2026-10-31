@@ -4,11 +4,17 @@
  * ⚠ ID 는 문자열(Snowflake). 화면은 없는 칸·틀린 값에도 깨지지 않게 `UtilAd.readAds` 로 한 번 읽는다(링크가 틀린 광고는 버린다).
  */
 
-/** 광고 유형 7개 — 배너 넷 · 한 줄 광고 · 핫딜 홈 상단 · 핫딜 말머리 상단 */
-export type PublicAdType = 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER' | 'TEXT_LINE' | 'HOTDEAL_TOP' | 'HOTDEAL_CATEGORY';
+/**
+ * 광고 유형 8개 — 배너 넷 · 날개 배너 · 한 줄 광고 · 핫딜 홈 상단 · 핫딜 말머리 상단.
+ * `WING_BANNER`(날개 배너 — 본문 바깥 좌우 여백의 세로 배너 160×600, 2026-10-31 목업)는 **서버 상품에 아직 없는 새 유형**이다(서버 `BizProduct`·요금표·일정표에 더해야 한다).
+ */
+export type PublicAdType = 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER' | 'WING_BANNER' | 'TEXT_LINE' | 'HOTDEAL_TOP' | 'HOTDEAL_CATEGORY';
 
-/** 배너 넷(이미지 + 링크 + 대체 글) */
+/** 배너 넷(이미지 + 링크 + 대체 글) — 광고 배너 가젯(`AD`)이 고르는 유형. 날개 배너는 날개 자리 전용이라 넣지 않는다 */
 export type BannerAdType = Extract<PublicAdType, 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER'>;
+
+/** 이미지 광고(배너 넷 + 날개 배너) — 같은 틀 부품(`AdSlot`)이 그린다 */
+export type ImageAdType = BannerAdType | 'WING_BANNER';
 
 /** 핫딜 노출 두 유형(핫딜 글을 목록 위에 「광고」 표시로) */
 export type HotdealAdType = Extract<PublicAdType, 'HOTDEAL_TOP' | 'HOTDEAL_CATEGORY'>;
@@ -48,6 +54,8 @@ export interface PublicAd {
     /** 비중 1~10(기본 5) */
     weight: number;
     deal: PublicAdDeal | null;
+    /** 광고주 이름(선택 — 게시판 목록 한 줄 광고의 작성자 자리). 서버가 주지 않으면 비운다 */
+    advertiserName?: string | null;
 }
 
 /** `GET /api/ads` 질의 — 핫딜 말머리 상단은 그 게시판·말머리가 있어야 고른다 */
@@ -64,18 +72,40 @@ export interface PublicAdsResponse {
     items: PublicAd[];
 }
 
-/** 글 중간에 놓을 유형 — 배너 하나 또는 한 줄 광고 */
-export type PostInlineAdType = BannerAdType | 'TEXT_LINE';
+/** 글 보기 광고 유형 — 한 줄 광고(기본 — 이미지 없이 가볍다) · 띠 배너 · 네모 배너 */
+export type PostInlineAdType = 'TEXT_LINE' | 'STRIP_BANNER' | 'SQUARE_BANNER';
 
-/** 글 보기 중간 자리 설정(커뮤니티 `inline_after` 자리의 로보얌 몫 — 가젯 격자로 못 그리는 유일한 자리) */
+/** 글 보기 광고 자리 — 댓글 영역 앞(기본 — 본문·추천·이전/다음 글이 끝난 뒤) · 본문 바로 아래(추천 줄 위) */
+export type PostInlinePosition = 'BEFORE_COMMENTS' | 'AFTER_BODY';
+
+/** 글 보기 광고 자리 설정(커뮤니티 `inline_after` 자리의 로보얌 몫 — 가젯 격자로 못 그리는 자리) */
 export interface PostInlinePlacement {
     enabled: boolean;
     adType: PostInlineAdType;
+    position: PostInlinePosition;
+}
+
+/** 날개 배너를 둘 화면 — 홈 · 가젯 페이지 · 게시판 목록 · 글 보기(로그인·설정·마이페이지·결제 같은 화면에는 두지 않는다) */
+export type WingScreen = 'HOME' | 'PAGE' | 'BOARD' | 'POST';
+
+/** 날개 배너 자리 설정(사이트 단위) — 왼쪽·오른쪽을 따로 켜고, 둘 화면을 고른다 */
+export interface WingPlacement {
+    left: boolean;
+    right: boolean;
+    screens: WingScreen[];
+}
+
+/** 게시판 목록 한 줄 광고(인피드) 자리 설정 — 일반 글(공지·고정 제외) `after` 번째 뒤에 한 줄(1~20, 기본 5) */
+export interface BoardListPlacement {
+    enabled: boolean;
+    after: number;
 }
 
 /** `GET /api/ads/placements` 응답 — 가젯이 아닌 광고 자리 설정 */
 export interface PublicAdPlacements {
     postInline: PostInlinePlacement;
+    wings: WingPlacement;
+    boardList: BoardListPlacement;
 }
 
 /** 노출 한 번 — 화면에 실제로 보였을 때(절반 이상, 한 자리 한 번) */

@@ -1,4 +1,13 @@
-import type { BannerAdType, PublicAd, PublicAdDeal, PublicAdType, PostInlineAdType } from '~/composables/ad/api/usePublicAdApi.types';
+import type {
+    BannerAdType,
+    ImageAdType,
+    PublicAd,
+    PublicAdDeal,
+    PublicAdType,
+    PostInlineAdType,
+    PostInlinePosition,
+    WingScreen,
+} from '~/composables/ad/api/usePublicAdApi.types';
 import type { AdGadgetData, AdPlacement } from '~/composables/ad/usePublicAds.types';
 import type { HomeGadget } from '~/composables/home/api/useHomeGadgetApi.types';
 
@@ -8,20 +17,35 @@ export interface AdFrame {
     maxWidth: string;
 }
 
-const TYPES: readonly PublicAdType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'TEXT_LINE', 'HOTDEAL_TOP', 'HOTDEAL_CATEGORY'];
+/** 게시판 목록 한 줄 광고 자리 — 일반 글 `after` 번째 뒤 */
+export interface BoardFeedPlacement {
+    enabled: boolean;
+    after: number;
+}
+
+const TYPES: readonly PublicAdType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'WING_BANNER', 'TEXT_LINE', 'HOTDEAL_TOP', 'HOTDEAL_CATEGORY'];
 const BANNER_TYPES: readonly BannerAdType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER'];
-const PLACEMENTS: readonly AdPlacement[] = ['HOME', 'PAGE', 'BOARD', 'POST_INLINE', 'HOTDEAL_TOP', 'HOTDEAL_CATEGORY'];
+const PLACEMENTS: readonly AdPlacement[] = ['HOME', 'PAGE', 'BOARD', 'POST_INLINE', 'HOTDEAL_TOP', 'HOTDEAL_CATEGORY', 'WING_LEFT', 'WING_RIGHT', 'BOARD_LIST'];
+const INLINE_TYPES: readonly PostInlineAdType[] = ['TEXT_LINE', 'STRIP_BANNER', 'SQUARE_BANNER'];
+const WING_SCREENS: readonly WingScreen[] = ['HOME', 'PAGE', 'BOARD', 'POST'];
 
 /**
  * 유형별 틀 — 비율은 규격(1200×300 · 1200×100 · 300×250 · 300×100, 사업자 신청 안내 `business.adTypeSize`)과 같다. 사업자 광고 미리보기(`BusinessAdPreview`)와 같은 값이다.
  * 비율을 고정해 이미지가 늦게 와도 자리가 흔들리지 않는다. 네모·작은 배너는 300px 까지만 넓어진다(옆 칸·글 중간에서 늘어지지 않게).
+ * 날개 배너는 160×600(4:15) · 폭 160px 고정(본문 바깥 여백 전용 — `AdWings`).
  */
-const FRAMES: Readonly<Record<BannerAdType, AdFrame>> = {
+const FRAMES: Readonly<Record<ImageAdType, AdFrame>> = {
     WIDE_BANNER: { ratio: '4 / 1', maxWidth: '100%' },
     STRIP_BANNER: { ratio: '12 / 1', maxWidth: '100%' },
     SQUARE_BANNER: { ratio: '6 / 5', maxWidth: '300px' },
     SMALL_BANNER: { ratio: '3 / 1', maxWidth: '300px' },
+    WING_BANNER: { ratio: '4 / 15', maxWidth: '160px' },
 };
+
+/** 날개 배너 폭(px) · 본문 칸과 날개 사이 · 날개와 창 끝 사이 — 이만큼 바깥 여백이 있어야 날개를 띄운다 */
+const WING = { width: 160, gap: 16, edge: 16 } as const;
+/** 게시판 목록 한 줄 광고 — 일반 글 몇 번째 뒤(1~20, 기본 5) */
+const FEED_AFTER = { min: 1, max: 20, initial: 5 } as const;
 
 /** 광고 가젯 종류 — 배너 자리 하나(`AD`) · 한 줄 광고 N줄(`AD_TEXT_LINE`) */
 const GADGET_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
@@ -87,11 +111,11 @@ function readAd(raw: unknown): PublicAd | null {
     const imageUrl = imageOf(a.imageUrl);
     const text = str(a.text, 200);
     const deal = readDeal(a.deal);
-    // 그릴 것이 없는 후보는 버린다 — 배너는 이미지, 한 줄은 문구, 핫딜 노출은 글
-    if (UtilAd.isBanner(type) && !imageUrl) return null;
+    // 그릴 것이 없는 후보는 버린다 — 배너·날개는 이미지, 한 줄은 문구, 핫딜 노출은 글
+    if (UtilAd.isImage(type) && !imageUrl) return null;
     if (type === 'TEXT_LINE' && !text) return null;
     if ((type === 'HOTDEAL_TOP' || type === 'HOTDEAL_CATEGORY') && !deal) return null;
-    return { id: a.id, type, version, imageUrl, text, linkUrl, altText: str(a.altText, 200) ?? text ?? '', weight, deal };
+    return { id: a.id, type, version, imageUrl, text, linkUrl, altText: str(a.altText, 200) ?? text ?? '', weight, deal, advertiserName: str(a.advertiserName, 40) };
 }
 
 /**
@@ -111,8 +135,17 @@ export default class UtilAd {
      */
     static readonly REL = 'sponsored nofollow noopener';
 
+    static readonly WING = WING;
+    static readonly FEED_AFTER = FEED_AFTER;
+
+    /** 배너 넷인가(광고 배너 가젯이 고르는 유형 — 날개 배너는 아니다) */
     static isBanner(type: string): type is BannerAdType {
         return (BANNER_TYPES as readonly string[]).includes(type);
+    }
+
+    /** 이미지 광고인가(배너 넷 + 날개 배너) */
+    static isImage(type: string): type is ImageAdType {
+        return UtilAd.isBanner(type) || type === 'WING_BANNER';
     }
 
     /** 광고 가젯 종류인가(`AD`·`AD_TEXT_LINE`) */
@@ -122,10 +155,10 @@ export default class UtilAd {
 
     /**
      * 배너 틀
-     * @param {BannerAdType} type - 배너 유형.
+     * @param {ImageAdType} type - 이미지 광고 유형.
      * @returns {AdFrame} 비율·최대 폭.
      */
-    static frameOf(type: BannerAdType): AdFrame {
+    static frameOf(type: ImageAdType): AdFrame {
         return FRAMES[type];
     }
 
@@ -265,21 +298,92 @@ export default class UtilAd {
         return { ads: Array.isArray(d.ads) ? (d.ads as PublicAd[]) : null, placement: PLACEMENTS.find((p) => p === d.placement) ?? 'HOME' };
     }
 
-    /* ───────────── 글 중간 ───────────── */
+    /* ───────────── 글 보기 ───────────── */
 
     /**
-     * 글 중간 유형 읽기 — 배너 넷 또는 한 줄 광고(모르면 네모 배너)
+     * 글 보기 광고 유형 읽기 — 한 줄 광고 · 띠 배너 · 네모 배너(모르면 한 줄 광고 — 이미지 없이 가볍고, 띠 배너 12:1 은 모바일 360px 에서 높이 약 30px 라 읽기 어렵다)
      * @param {unknown} value - 자리 설정의 `adType`.
      * @returns {PostInlineAdType} 유형.
      */
     static inlineType(value: unknown): PostInlineAdType {
-        if (value === 'TEXT_LINE') return 'TEXT_LINE';
-        return BANNER_TYPES.find((t) => t === value) ?? 'SQUARE_BANNER';
+        return INLINE_TYPES.find((t) => t === value) ?? 'TEXT_LINE';
+    }
+
+    /**
+     * 글 보기 광고 자리 읽기 — 댓글 영역 앞(기본) · 본문 바로 아래
+     * @param {unknown} value - 자리 설정의 `position`.
+     * @returns {PostInlinePosition} 자리.
+     */
+    static inlinePosition(value: unknown): PostInlinePosition {
+        return value === 'AFTER_BODY' ? 'AFTER_BODY' : 'BEFORE_COMMENTS';
+    }
+
+    /* ───────────── 날개 배너 ───────────── */
+
+    /**
+     * 지금 화면이 날개 배너를 둘 수 있는 화면인가 — 주소로 판정한다: `/` 홈 · `/p/{key}` 가젯 페이지 · `/boards/{slug}` 게시판 목록 · `/posts/{id}` 글 보기.
+     * 로그인·가입·설정·마이페이지·쪽지·결제·글쓰기·수정 같은 화면은 null(두지 않는다).
+     * @param {string} path - 라우트 경로.
+     * @returns {WingScreen | null} 화면.
+     */
+    static wingScreen(path: string): WingScreen | null {
+        if (path === '/' || path === '') return 'HOME';
+        if (/^\/p\/[^/]+\/?$/.test(path)) return 'PAGE';
+        if (/^\/boards\/[^/]+\/?$/.test(path)) return 'BOARD';
+        if (/^\/posts\/[^/]+\/?$/.test(path)) return 'POST';
+        return null;
+    }
+
+    /**
+     * 날개 화면 목록 읽기 — 아는 화면만
+     * @param {unknown} value - 자리 설정의 `screens`.
+     * @returns {WingScreen[]} 화면.
+     */
+    static wingScreens(value: unknown): WingScreen[] {
+        return Array.isArray(value) ? WING_SCREENS.filter((s) => value.includes(s)) : [];
+    }
+
+    /**
+     * 날개 둘 — 켠 쪽마다 비중 가중 무작위로 고르되 **양쪽에 같은 광고를 두지 않는다**(왼쪽부터 고르고 남은 후보에서 오른쪽). 후보가 1건이면 한쪽만
+     * @param {readonly PublicAd[]} ads - 날개 배너 후보.
+     * @param {{ left: boolean; right: boolean }} sides - 켠 쪽.
+     * @param {() => number} [random] - 0 이상 1 미만.
+     * @returns {{ left: PublicAd | null; right: PublicAd | null }} 쪽마다 광고.
+     */
+    static pickWings(ads: readonly PublicAd[], sides: { left: boolean; right: boolean }, random: () => number = Math.random): { left: PublicAd | null; right: PublicAd | null } {
+        const left = sides.left ? UtilAd.pick(ads, random) : null;
+        const rest = left ? ads.filter((ad) => ad.id !== left.id) : ads;
+        const right = sides.right ? UtilAd.pick(rest, random) : null;
+        return { left, right };
+    }
+
+    /* ───────────── 게시판 목록 한 줄 광고 ───────────── */
+
+    /**
+     * 게시판 목록 한 줄 광고 자리 읽기 — 꺼짐 · 일반 글 몇 번째 뒤(1~20, 기본 5)
+     * @param {unknown} value - 자리 설정의 `boardList`.
+     * @returns {BoardFeedPlacement} 자리.
+     */
+    static feedPlacement(value: unknown): BoardFeedPlacement {
+        const v = obj(value);
+        const after = typeof v.after === 'number' && Number.isFinite(v.after) ? Math.min(FEED_AFTER.max, Math.max(FEED_AFTER.min, Math.round(v.after))) : FEED_AFTER.initial;
+        return { enabled: v.enabled === true, after };
+    }
+
+    /**
+     * 한 줄 광고를 넣을 차례 — 일반 글(공지·고정 제외) `after` 번째 뒤, 글이 그보다 적으면 맨 끝. 글이 없으면 null(넣지 않는다)
+     * @param {number} rows - 일반 글 수.
+     * @param {number} after - 몇 번째 뒤.
+     * @returns {number | null} 이 차례의 일반 글 **뒤에** 넣는다(0부터 — `rows - 1` 이면 맨 끝).
+     */
+    static feedIndex(rows: number, after: number): number | null {
+        if (rows <= 0) return null;
+        return Math.min(rows, after) - 1;
     }
 
     /**
      * 게시판이 광고를 숨기는가 — 게시판 설정 `adsHidden`(19금 게시판 기본 켬, 02 §3). **아직 서버에 없는 칸**이라 응답에 있을 때만 읽는다(없으면 보인다).
-     * 지금은 글 중간만 읽는다(19금·게시판 제외는 가젯이 아니라 글 중간에서만 — 게시판 레이아웃 광고 가젯도 읽을지는 서버 연결 때 정한다).
+     * 글 보기 광고와 게시판 목록 한 줄 광고가 읽는다(가젯은 읽지 않는다 — 게시판 레이아웃 광고 가젯도 읽을지는 서버 연결 때 정한다).
      * @param {object | null} board - 게시판 정보.
      * @returns {boolean} 숨기면 true.
      */

@@ -136,7 +136,7 @@
                     </template>
 
                     <template v-else-if="list">
-                        <component :is="listComponent" :rows="list.items" :pinned="list.pinned" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" />
+                        <component :is="listComponent" :rows="list.items" :pinned="list.pinned" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :feed-ad="feedAd" />
                         <BoardPager :page="list.page" :total-pages="list.totalPages" :to="pageLink" />
                     </template>
                 </div>
@@ -301,6 +301,11 @@ const list = ref<PostListResponse | null>(null);
 const listState = ref<ListState>('loading');
 const listError = ref('');
 const isEmpty = computed(() => !list.value || (list.value.items.length === 0 && list.value.pinned.length === 0));
+
+/** 목록 안 한 줄 광고(목업) — 일반 글 N번째 뒤 한 줄, 첫 쪽·검색 아님만(`useBoardFeedAd`). 갤러리형 목록은 받아도 그리지 않는다 */
+const feedAd = useBoardFeedAd(
+    computed(() => (view.value && list.value ? { board: view.value, firstPage: query.value.page === 1, search: Boolean(query.value.q), rows: list.value.items.length } : null)),
+);
 
 let listRequest = 0;
 let listAbort: AbortController | null = null;

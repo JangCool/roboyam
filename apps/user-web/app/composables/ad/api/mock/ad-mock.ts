@@ -4,15 +4,19 @@
 // ── 개발 전용 스위치 — 주소의 `?mock=이름`(쉼표로 여러 개) ─
 //   ad-gadgets     홈 · 가젯 페이지 · 게시판 레이아웃 응답에 광고 가젯 5개를 화면 쪽에서 덧붙인다(맨 위 넓은 배너 · 맨 아래 한 줄 광고 · 네모 · 띠 · 작은 배너)
 //   ad-keep        덧붙인 광고 가젯의 「빈 자리 유지」를 켠다(`ad-empty` 와 함께 — 「광고 문의」 안내가 보인다)
-//   ad-empty       광고 후보가 하나도 없다(가젯은 접히고, 글 중간·핫딜 자리도 사라진다)
-//   ad-one         유형마다 비중이 가장 큰 한 건만
-//   ad-inline-off  글 중간 광고 끔
-//   ad-inline-text 글 중간을 한 줄 광고로(기본은 네모 배너)
+//   ad-empty       광고 후보가 하나도 없다(가젯은 접히고, 글 보기·핫딜·날개 자리도 사라진다)
+//   ad-one         유형마다 비중이 가장 큰 한 건만(날개는 한쪽만 나온다 — 같은 광고를 양쪽에 두지 않는다)
+//   ad-inline-off  글 보기 광고 끔(기본은 한 줄 광고 · 댓글 영역 앞)
+//   ad-inline-strip  글 보기 광고를 띠 배너로(댓글 영역 앞)
+//   ad-inline-square 글 보기 광고를 네모 배너로 · 본문 바로 아래(옛 모습)
+//   ad-wing-off    날개 배너 끔        ad-wing-left  왼쪽 날개만
+//   ad-feed-off    게시판 목록 한 줄 광고 끔(기본 켬 — 일반 글 5번째 뒤, 첫 쪽만)    ad-feed-after-2  일반 글 2번째 뒤로(1~20)
 //   ad-hotdeal     핫딜 게시판이 아니어도 게시판 목록 위에 핫딜 노출 광고(홈 상단 · 말머리를 고르면 말머리 상단)
 //   ad-fail        후보 읽기 실패(500 — 광고 자리는 조용히 접힌다)
 //
 // ── 목업 규칙(가정) ─
-//   · 이미지는 외부 서비스가 아니라 SVG data URI 로 그린 자리 이미지(규격 비율 그대로 — 1200×300 · 1200×100 · 300×250 · 300×100).
+//   · 이미지는 외부 서비스가 아니라 SVG data URI 로 그린 자리 이미지(규격 비율 그대로 — 1200×300 · 1200×100 · 300×250 · 300×100 · 날개 160×600).
+//   · 자리 설정 기본값: 글 보기 = 한 줄 광고 · 댓글 영역 앞, 날개 = 양쪽 켬 · 홈·가젯 페이지·게시판 목록·글 보기 네 화면.
 //   · 링크는 `https://example.com/…`(예약된 예시 주소). 핫딜 노출은 `/posts/{id}`(없는 글일 수 있다).
 //   · 노출·클릭은 메모리에 쌓고 개발 콘솔에 남긴다(`console.debug`). 새로고침하면 비워진다.
 
@@ -28,7 +32,26 @@ const SIZE: Record<string, [number, number]> = {
     STRIP_BANNER: [1200, 100],
     SQUARE_BANNER: [300, 250],
     SMALL_BANNER: [300, 100],
+    WING_BANNER: [160, 600],
 };
+
+/** 날개 배너 자리 이미지 — 세로라 글을 위아래로 쌓는다 */
+function wing(from: string, to: string, lines: string[], sub: string): string {
+    const text = lines.map((line, i) => `<text x="80" y="${150 + i * 40}" text-anchor="middle" font-family="sans-serif" font-size="26" font-weight="700" fill="#ffffff">${line}</text>`).join('');
+    const svg =
+        `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="600" viewBox="0 0 160 600">` +
+        `<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs>` +
+        `<rect width="160" height="600" fill="url(#g)"/>` +
+        `<circle cx="80" cy="470" r="56" fill="#ffffff" fill-opacity="0.14"/>` +
+        text +
+        `<text x="80" y="${180 + lines.length * 40}" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#ffffff" fill-opacity="0.85">${sub}</text>` +
+        `</svg>`;
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function wingAd(id: string, weight: number, colors: [string, string], lines: string[], sub: string, alt: string, path: string): PublicAd {
+    return { id, type: 'WING_BANNER', version: 1, imageUrl: wing(colors[0], colors[1], lines, sub), text: null, linkUrl: `https://example.com/${path}`, altText: alt, weight, deal: null };
+}
 
 /** 자리 이미지 — 그라데이션 바탕 + 큰 글 + 작은 글(이미지 안의 색은 소재의 일부라 토큰이 아니다) */
 function banner(type: string, from: string, to: string, title: string, sub: string): string {
@@ -50,8 +73,8 @@ function bannerAd(id: string, type: PublicAdType, weight: number, colors: [strin
     return { id, type, version: 1, imageUrl: banner(type, colors[0], colors[1], title, sub), text: null, linkUrl: `https://example.com/${path}`, altText: alt, weight, deal: null };
 }
 
-function textAd(id: string, weight: number, text: string, path: string): PublicAd {
-    return { id, type: 'TEXT_LINE', version: 1, imageUrl: null, text, linkUrl: `https://example.com/${path}`, altText: text, weight, deal: null };
+function textAd(id: string, weight: number, text: string, path: string, advertiserName: string | null = null): PublicAd {
+    return { id, type: 'TEXT_LINE', version: 1, imageUrl: null, text, linkUrl: `https://example.com/${path}`, altText: text, weight, deal: null, advertiserName };
 }
 
 function dealAd(id: string, type: PublicAdType, weight: number, postId: string, title: string, shopName: string, dealPrice: number, listPrice: number | null, prefixName: string | null): PublicAd {
@@ -68,9 +91,12 @@ const ADS: readonly PublicAd[] = [
     bannerAd('ad-q2', 'SQUARE_BANNER', 4, ['#0369a1', '#0891b2'], '코딩 로봇', '초등 방과후 교재', '초등 방과후 코딩 로봇 교재', 'coding-robot'),
     bannerAd('ad-m1', 'SMALL_BANNER', 5, ['#334155', '#0f172a'], '라즈베리파이 5', '재고 있음', '라즈베리파이 5 — 재고 있음', 'raspberry'),
     bannerAd('ad-m2', 'SMALL_BANNER', 1, ['#c2410c', '#ea580c'], '납땜 인두 세트', '무료 배송', '납땜 인두 세트 — 무료 배송', 'soldering'),
-    textAd('ad-t1', 8, '[무료 배송] 아두이노 호환 보드 묶음 할인 중', 'arduino'),
-    textAd('ad-t2', 5, '로봇 동아리 단체 구매 견적 바로 받기', 'club-quote'),
-    textAd('ad-t3', 5, 'ROS2 입문 온라인 강의 30% 할인 쿠폰', 'ros2'),
+    wingAd('ad-g1', 5, ['#1d4ed8', '#7c3aed'], ['로봇', '키트', '할인전'], '최대 40%', '로봇 키트 할인전 — 최대 40% 할인', 'wing-robot-kit'),
+    wingAd('ad-g2', 3, ['#047857', '#0e7490'], ['AI', '입문', '강의'], '주말 4주', 'AI 입문 강의 — 주말 4주 과정', 'wing-ai-class'),
+    wingAd('ad-g3', 2, ['#b91c1c', '#c2410c'], ['드론', '레이싱', '대회'], '참가 신청', '드론 레이싱 대회 참가 신청', 'wing-drone'),
+    textAd('ad-t1', 8, '[무료 배송] 아두이노 호환 보드 묶음 할인 중', 'arduino', '메이커샵'),
+    textAd('ad-t2', 5, '로봇 동아리 단체 구매 견적 바로 받기', 'club-quote', '로보몰'),
+    textAd('ad-t3', 5, 'ROS2 입문 온라인 강의 30% 할인 쿠폰', 'ros2', '에듀로봇'),
     textAd('ad-t4', 3, '중고 산업용 로봇팔 매입·판매 상담', 'robot-arm'),
     // 40자를 넘는 문구(서버는 40자까지 받는다) — 화면이 40자로 자르고, 좁은 폭에서는 말줄임으로 본다
     textAd('ad-t5', 2, '스마트팜 자동화 키트 체험단 모집 중 — 지금 신청하면 센서 세트를 함께 보내 드려요', 'smart-farm'),
@@ -101,11 +127,30 @@ export async function mockPublicAds(query: PublicAdsQuery): Promise<PublicAdsRes
     return { items: mockClone(items) };
 }
 
-/** `GET /api/ads/placements` — 글 중간 자리(기본 네모 배너) */
+/** `GET /api/ads/placements` — 글 보기 자리(기본 한 줄 광고 · 댓글 영역 앞) · 날개(기본 양쪽 · 네 화면) */
 export async function mockAdPlacements(): Promise<PublicAdPlacements> {
     await mockDelay();
     const flags = mockFlags();
-    return { postInline: { enabled: !flags.has('ad-inline-off'), adType: flags.has('ad-inline-text') ? 'TEXT_LINE' : 'SQUARE_BANNER' } };
+    const square = flags.has('ad-inline-square');
+    const wingOff = flags.has('ad-wing-off');
+    return {
+        postInline: {
+            enabled: !flags.has('ad-inline-off'),
+            adType: square ? 'SQUARE_BANNER' : flags.has('ad-inline-strip') ? 'STRIP_BANNER' : 'TEXT_LINE',
+            position: square ? 'AFTER_BODY' : 'BEFORE_COMMENTS',
+        },
+        wings: { left: !wingOff, right: !wingOff && !flags.has('ad-wing-left'), screens: ['HOME', 'PAGE', 'BOARD', 'POST'] },
+        boardList: { enabled: !flags.has('ad-feed-off'), after: feedAfter(flags) },
+    };
+}
+
+/** `ad-feed-after-N` — 게시판 목록 한 줄 광고 위치(일반 글 N번째 뒤, 기본 5) */
+function feedAfter(flags: Set<string>): number {
+    for (const flag of flags) {
+        const m = /^ad-feed-after-(\d{1,2})$/.exec(flag);
+        if (m) return Number(m[1]);
+    }
+    return 5;
 }
 
 /** `POST /api/ads/impressions` */

@@ -34,13 +34,13 @@
 </template>
 
 <script setup lang="ts">
-import type { BannerAdType, PublicAd } from '~/composables/ad/api/usePublicAdApi.types';
+import type { ImageAdType, PublicAd } from '~/composables/ad/api/usePublicAdApi.types';
 import type { AdPlacement } from '~/composables/ad/usePublicAds.types';
 import UtilAd from '~/utils/util-ad';
 
 interface Props {
     /** 배너 유형 — 틀 비율 */
-    type: BannerAdType;
+    type: ImageAdType;
     /** 이 유형의 후보 — null 이면 받는 중 */
     ads: PublicAd[] | null;
     /** 어디서 보였나(집계) */

@@ -1,4 +1,4 @@
-/** 공개 광고 노출(배너·한 줄 광고·핫딜 노출 — `components/ad/**`, 가젯 `AD`·`AD_TEXT_LINE`) */
+/** 공개 광고 노출(배너·날개 배너·한 줄 광고·게시판 목록 한 줄·핫딜 노출 — `components/ad/**`, 가젯 `AD`·`AD_TEXT_LINE`) */
 export default {
     mark: '광고',
     newTab: '새 탭에서 열려요',
@@ -10,4 +10,6 @@ export default {
     hotdealTopLabel: '추천 핫딜 광고',
     hotdealCategoryLabel: '{name} 추천 핫딜 광고',
     price: '{amount}원',
+    wingLeftLabel: '왼쪽 광고',
+    wingRightLabel: '오른쪽 광고',
 };

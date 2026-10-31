@@ -176,11 +176,10 @@
                         />
 
                         <!--
-                            글 중간 광고(02 §5-1 「글 중간」 — 가젯 격자로 못 그리는 유일한 자리) — 본문(·투표·토론) 바로 아래, 추천 줄 위 한 자리. 유형은 자리 설정(`usePublicAds().placements` 의 `postInline`):
-                            배너 하나(`AdSlot`) 또는 한 줄 광고 한 줄(`AdTextLines`). 19금 글 · 광고를 숨기는 게시판(`adsHidden` — 아직 없는 칸)에서는 그리지 않는다. 비면 늘 접는다(안내 없음).
+                            글 보기 광고 — 자리 `AFTER_BODY`(본문·투표·토론 바로 아래, 추천 줄 위 — 네모 배너를 두는 선택지)일 때만 여기. 기본 자리는 아래 댓글 영역 앞(`BEFORE_COMMENTS`).
                             차단으로 접힌 글은 이 칸도 함께 접힌다(접힌 칸 안).
                         -->
-                        <div v-if="inlineAd" class="py-3" data-testid="post-inline-ad">
+                        <div v-if="inlineAd?.position === 'AFTER_BODY'" class="py-3" data-testid="post-inline-ad" data-position="AFTER_BODY">
                             <AdTextLines v-if="inlineAd.type === 'TEXT_LINE'" :ads="inlineAd.ads" :count="1" placement="POST_INLINE" />
                             <AdSlot v-else :type="inlineAd.type" :ads="inlineAd.ads" placement="POST_INLINE" />
                         </div>
@@ -243,6 +242,15 @@
                 </div>
 
                 <div class="content-card" data-testid="post-comments-card">
+                    <!--
+                        글 보기 광고(02 §5-1 「글 중간」 — 가젯 격자로 못 그리는 유일한 자리) 기본 자리 `BEFORE_COMMENTS` — 본문·추천(링크 복사·신고 줄 포함)·이전·다음 글이 끝난 뒤, 댓글 영역 맨 앞.
+                        유형은 자리 설정(`usePublicAds().placements` 의 `postInline`): 한 줄 광고 한 줄(기본 — 이미지 없이 가볍다) · 띠 배너 · 네모 배너. 19금 글 · 광고를 숨기는 게시판(`adsHidden` — 아직 없는 칸) ·
+                        차단으로 접힌 글에서는 그리지 않는다. 비면 늘 접는다(안내 없음).
+                    -->
+                    <div v-if="inlineAd?.position === 'BEFORE_COMMENTS' && !folded" class="border-b border-hairline pb-3 pt-1" data-testid="post-inline-ad" data-position="BEFORE_COMMENTS">
+                        <AdTextLines v-if="inlineAd.type === 'TEXT_LINE'" :ads="inlineAd.ads" :count="1" placement="POST_INLINE" />
+                        <AdSlot v-else :type="inlineAd.type" :ads="inlineAd.ads" placement="POST_INLINE" />
+                    </div>
                     <!-- 멤버 전용 댓글 안내(5단계) — 비공개 소모임의 개별 공개 글을 비멤버·비회원이 볼 때, 공개 전에 달려 가려진 댓글 수(목록의 댓글 수는 전체 그대로) -->
                     <p
                         v-if="membersOnlyCommentCount > 0"
@@ -350,14 +358,14 @@ const foldRevealed = ref(false);
 /* ── 글 중간 광고(목업 — 자리 설정·후보는 `usePublicAds`) ── */
 const publicAds = usePublicAds();
 void publicAds.ensurePlacements();
-/** 이 글에 그릴 글 중간 광고 — 자리가 꺼졌거나 · 19금 글 · 광고를 숨기는 게시판(`adsHidden`, 아직 서버에 없는 칸 — `UtilAd.boardAdsHidden`)이면 null. 후보가 없으면(받은 뒤 0건) 접는다 */
+/** 이 글에 그릴 글 보기 광고(유형·자리) — 자리가 꺼졌거나 · 19금 글 · 광고를 숨기는 게시판(`adsHidden`, 아직 서버에 없는 칸 — `UtilAd.boardAdsHidden`)이면 null. 후보가 없으면(받은 뒤 0건) 접는다 */
 const inlineAd = computed(() => {
     const p = publicAds.placements.value?.postInline;
     if (!p?.enabled || !post.value || post.value.adult || UtilAd.boardAdsHidden(board.value)) return null;
     const type = UtilAd.inlineType(p.adType);
     const ads = publicAds.candidates(type);
     if (ads !== undefined && ads.length === 0) return null;
-    return { type, ads: ads ?? null };
+    return { type, position: UtilAd.inlinePosition(p.position), ads: ads ?? null };
 });
 watch(
     () => {

@@ -2,7 +2,8 @@
     <!-- 목록형(LIST) — 모바일: 두 줄짜리 글 줄 · 데스크톱: 표(제목·작성자·날짜·조회·추천). 고정 공지는 맨 위에 배경을 깔고, 신고로 숨겨진 글은 자리만 -->
     <div>
         <ul class="-mx-4 m-0 list-none p-0 md:hidden">
-            <li v-for="row in all" :key="`${row.pinned && pinnedIds.has(row.id) ? 'p' : ''}${row.id}`" class="border-b border-surface" :class="pinnedIds.has(row.id) ? 'bg-surface-100 dark:bg-surface-800/60' : ''">
+            <template v-for="(row, i) in all" :key="`${row.pinned && pinnedIds.has(row.id) ? 'p' : ''}${row.id}`">
+            <li class="border-b border-surface" :class="pinnedIds.has(row.id) ? 'bg-surface-100 dark:bg-surface-800/60' : ''">
                 <p v-if="row.hiddenReason" class="flex items-center gap-1.5 px-4 py-3 text-sm text-muted-color">
                     <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t(row.hiddenReason === 'STAFF' ? 'board.hiddenPostStaff' : 'board.hiddenPost') }}
                 </p>
@@ -25,6 +26,9 @@
                     </NuxtLink>
                 </FoldedRow>
             </li>
+            <!-- 목록 안 한 줄 광고(목업) — 일반 글 N번째 줄 뒤(공지 제외) -->
+            <li v-if="feedAd && i === feedAt" class="border-b border-surface"><AdFeedRow :ad="feedAd.ad" variant="compact" /></li>
+            </template>
         </ul>
 
         <table class="w-full table-fixed border-collapse text-sm max-md:hidden">
@@ -40,9 +44,8 @@
             </thead>
             <tbody>
                 <!-- 차단한 회원·단어의 글은 표 한 줄을 통째로 접는다(펼치면 제목 칸에 「다시 숨기기」) -->
+                <template v-for="(row, i) in all" :key="`${pinnedIds.has(row.id) ? 'p' : ''}${row.id}`">
                 <FoldedRow
-                    v-for="row in all"
-                    :key="`${pinnedIds.has(row.id) ? 'p' : ''}${row.id}`"
                     v-slot="{ revealed, hide }"
                     :reason="row.hiddenReason ? null : foldOf(row)"
                     kind="post"
@@ -69,6 +72,8 @@
                         </template>
                     </tr>
                 </FoldedRow>
+                <AdFeedRow v-if="feedAd && i === feedAt" :ad="feedAd.ad" variant="table" />
+                </template>
             </tbody>
         </table>
     </div>
@@ -80,12 +85,14 @@ import type { PostRow } from '~/composables/board/api/usePostApi.types';
 
 interface Props extends BoardPostListProps {}
 
-const props = withDefaults(defineProps<Props>(), {});
+const props = withDefaults(defineProps<Props>(), { feedAd: null });
 
 const { t } = useI18n();
 const overrides = useBlockOverrides();
 const pinnedIds = computed(() => new Set(props.pinned.map((p) => p.id)));
 const all = computed(() => [...props.pinned, ...props.rows]);
+/** 한 줄 광고를 넣을 `all` 차례(이 줄 뒤) — 공지는 세지 않는다 */
+const feedAt = computed(() => (props.feedAd ? props.pinned.length + props.feedAd.afterIndex : -1));
 
 /** 접는 까닭 — 서버의 `blocked`(`USER|WORD|null`)에 이 기기에서 방금 바꾼 차단을 겹친다 */
 function foldOf(row: PostRow) {

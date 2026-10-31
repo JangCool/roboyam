@@ -1,9 +1,9 @@
 import type { PublicAd } from '~/composables/ad/api/usePublicAdApi.types';
 
 /**
- * 광고가 어디서 보였나(노출·클릭 집계의 `placement`) — 홈 가젯 · 가젯 페이지 가젯 · 게시판 레이아웃 가젯 · 글 중간 · 핫딜 홈 상단 · 핫딜 말머리 상단
+ * 광고가 어디서 보였나(노출·클릭 집계의 `placement`) — 홈 가젯 · 가젯 페이지 가젯 · 게시판 레이아웃 가젯 · 글 보기 · 핫딜 홈 상단 · 핫딜 말머리 상단 · 왼쪽·오른쪽 날개 · 게시판 목록 한 줄
  */
-export type AdPlacement = 'HOME' | 'PAGE' | 'BOARD' | 'POST_INLINE' | 'HOTDEAL_TOP' | 'HOTDEAL_CATEGORY';
+export type AdPlacement = 'HOME' | 'PAGE' | 'BOARD' | 'POST_INLINE' | 'HOTDEAL_TOP' | 'HOTDEAL_CATEGORY' | 'WING_LEFT' | 'WING_RIGHT' | 'BOARD_LIST';
 
 /**
  * 광고 가젯(`AD`·`AD_TEXT_LINE`)의 `data` — 서버 홈 응답이 아니라 **화면이 채운다**(`useAdGadgets`): 광고는 홈 응답과 따로 사본 캐시(20초)라서

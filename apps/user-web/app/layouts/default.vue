@@ -7,7 +7,8 @@
         오른쪽 사이드(광고·공동구매 등)는 홈 가젯이 본문 옆에 그린다.
     -->
     <!-- 바탕은 역할 변수 `--page-bg`(테마가 채운다, 기본 = surface-50 · 다크 surface-950) -->
-    <div class="flex min-h-dvh flex-col bg-page">
+    <!-- `relative` — 날개 배너 층(`AdWings`)이 이 세로 줄을 기준으로 본문 바깥에 뜬다 -->
+    <div class="relative flex min-h-dvh flex-col bg-page">
         <a
             href="#main-content"
             class="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[3000] focus:rounded focus:bg-surface-0 focus:px-3 focus:py-2 focus:text-sm focus:shadow-lg dark:focus:bg-surface-900"
@@ -28,6 +29,9 @@
 
             <slot />
         </component>
+
+        <!-- 날개 배너(목업 — 본문 바깥 좌우 여백의 세로 배너, 넓은 데스크톱만). 셸·화면과 상관없이 여기 한 곳에만 붙는다. 어느 화면에 둘지는 자리 설정(`placements.wings`) -->
+        <AdWings />
 
         <AppBottomTabs v-if="!inner" class="md:hidden" />
 

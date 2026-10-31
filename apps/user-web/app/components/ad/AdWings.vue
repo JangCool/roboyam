@@ -1,0 +1,153 @@
+<template>
+    <!--
+        날개 배너(`WING_BANNER` — 160×600 세로 배너) — 본문 칼럼 **바깥** 좌우 여백에 띄운다. 앱 셸(`layouts/default.vue`)이 한 번만 붙인다(화면마다 넣지 않는다).
+          · 자리: 레이아웃 위에 덮는 층(absolute — 본문 배치를 밀거나 줄이지 않는다). 세로는 본문(`#main-content`)의 첫 줄에서 시작해 본문 끝까지이고, 그 안에서 `position: sticky` 로
+            스크롤을 따라온다 — 붙는 높이 = 창 위에 붙는 셸 막대(기본 테마 상단 바·가로 메뉴 · 다음식 붙는 메뉴 카드 · 네이버식 탭 바)의 아래 끝 + 16px. 가로는 본문 상자(본문 최대 폭 `--content-max` 상자) 바깥 16px.
+            셸마다 막대 구성이 달라 값을 박지 않고, 레이아웃 세로 줄의 직속 자식 중 `position: sticky` 인 것을 재서 정한다(테마·메뉴 설정이 바뀌어도 따라간다).
+          · 숨김: 본문 상자 바깥 여백이 「날개 160 + 사이 16 + 창 끝 16」보다 좁으면(= 창 폭 < 본문 최대 폭 + 384 — 기본·네이버식 1100 → 1484px, 다음식·로보얌 1168 → 1552px) 숨는다.
+            모바일·태블릿에서는 늘 숨는다. 자리 설정(`placements.wings` — 왼쪽·오른쪽 · 둘 화면)이 꺼졌거나 지금 화면이 고른 화면(홈·가젯 페이지·게시판 목록·글 보기 — 주소로 판정)이 아니면 없다.
+          · 고르기: 쪽마다 비중 가중 무작위, 양쪽에 같은 광고를 두지 않는다(`UtilAd.pickWings` — 후보가 1건이면 한쪽만). 광고가 없으면 자리를 비운다(안내 없음).
+          · 그리기·「광고」 표시·링크(`UtilAd.REL`·새 탭)·대체 글·노출(`WING_LEFT`·`WING_RIGHT`)·클릭은 다른 배너와 같은 `AdSlot`. 화면을 옮기면 새로 그려 노출을 그 화면에서 다시 센다.
+    -->
+    <div ref="host" class="pointer-events-none absolute inset-x-0 top-0 z-10 max-lg:hidden" :style="layerStyle" data-testid="ad-wings">
+        <template v-if="shown">
+            <div v-if="picked.left" class="absolute top-0 h-full" :style="{ left: `${box.left - UtilAd.WING.gap - UtilAd.WING.width}px`, width: `${UtilAd.WING.width}px` }">
+                <aside class="pointer-events-auto sticky" :style="{ top: `${box.stickyTop}px` }" :aria-label="t('ad.wingLeftLabel')" data-testid="ad-wing-left">
+                    <AdSlot :key="`${route.path}:${picked.left.id}`" type="WING_BANNER" :ads="[picked.left]" placement="WING_LEFT" />
+                </aside>
+            </div>
+            <div v-if="picked.right" class="absolute top-0 h-full" :style="{ left: `${box.right + UtilAd.WING.gap}px`, width: `${UtilAd.WING.width}px` }">
+                <aside class="pointer-events-auto sticky" :style="{ top: `${box.stickyTop}px` }" :aria-label="t('ad.wingRightLabel')" data-testid="ad-wing-right">
+                    <AdSlot :key="`${route.path}:${picked.right.id}`" type="WING_BANNER" :ads="[picked.right]" placement="WING_RIGHT" />
+                </aside>
+            </div>
+        </template>
+    </div>
+</template>
+
+<script setup lang="ts">
+import type { CSSProperties } from 'vue';
+import type { PublicAd } from '~/composables/ad/api/usePublicAdApi.types';
+import UtilAd from '~/utils/util-ad';
+
+const { t } = useI18n();
+const route = useRoute();
+const { theme } = useTheme();
+const ads = usePublicAds();
+void ads.ensurePlacements();
+
+/** 지금 화면의 날개 설정 — 화면이 고른 화면이 아니거나 꺼졌으면 양쪽 다 거짓 */
+const sides = computed(() => {
+    const w = ads.placements.value?.wings;
+    const screen = UtilAd.wingScreen(route.path);
+    if (!w || !screen || !UtilAd.wingScreens(w.screens).includes(screen)) return { left: false, right: false };
+    return { left: w.left === true, right: w.right === true };
+});
+
+watch(
+    () => sides.value.left || sides.value.right,
+    (on) => {
+        if (on) void ads.ensure(['WING_BANNER']);
+    },
+    { immediate: true },
+);
+
+const candidates = computed(() => ads.candidates('WING_BANNER') ?? null);
+
+/** 쪽마다 고른 광고 — 후보·켠 쪽이 바뀔 때만 다시 고른다(보이던 광고가 아직 있으면 그대로) */
+const picked = ref<{ left: PublicAd | null; right: PublicAd | null }>({ left: null, right: null });
+watch(
+    [candidates, () => sides.value.left, () => sides.value.right],
+    ([list, left, right]) => {
+        if (!list) {
+            picked.value = { left: null, right: null };
+            return;
+        }
+        const cur = picked.value;
+        // 켠 쪽은 보이던 광고가 아직 후보에 있고, 끈 쪽은 비어 있으면 그대로(오른쪽은 왼쪽 말고 남은 후보가 없어 빈 것도 그대로)
+        const valid = (on: boolean, ad: PublicAd | null) => (on ? ad !== null && UtilAd.stillIn(ad, list) : ad === null);
+        const rightEmptyOk = right && cur.right === null && !list.some((ad) => ad.id !== cur.left?.id);
+        if (valid(left, cur.left) && (valid(right, cur.right) || rightEmptyOk)) return;
+        picked.value = UtilAd.pickWings(list, { left, right });
+    },
+    { immediate: true },
+);
+
+/* ── 자리 재기 — 본문 상자·본문·창 위에 붙는 셸 막대(레이아웃 기준 px) ── */
+const host = ref<HTMLElement | null>(null);
+const box = ref({ ok: false, top: 0, height: 0, left: 0, right: 0, stickyTop: 0 });
+
+/** 레이아웃 세로 줄의 직속 자식 중 창 위에 붙는 것(sticky)의 아래 끝 중 가장 아래(px) */
+function stickyBottom(root: HTMLElement): number {
+    let bottom = 0;
+    for (const el of Array.from(root.children)) {
+        if (el === host.value) continue;
+        const cs = getComputedStyle(el);
+        if (cs.position !== 'sticky' || cs.display === 'none') continue;
+        const h = el.getBoundingClientRect().height;
+        if (h > 0) bottom = Math.max(bottom, (parseFloat(cs.top) || 0) + h);
+    }
+    return bottom;
+}
+
+let watchedMain: Element | null = null;
+
+function measure(): void {
+    const root = host.value?.parentElement;
+    const main = typeof document === 'undefined' ? null : document.getElementById('main-content');
+    const body = main?.parentElement;
+    if (!root || !main || !body) {
+        box.value = { ...box.value, ok: false };
+        return;
+    }
+    if (watchedMain !== main) {
+        if (watchedMain) observer?.unobserve(watchedMain);
+        observer?.observe(main);
+        watchedMain = main;
+    }
+    const r = root.getBoundingClientRect();
+    const b = body.getBoundingClientRect();
+    const m = main.getBoundingClientRect();
+    const need = UtilAd.WING.width + UtilAd.WING.gap + UtilAd.WING.edge;
+    const top = m.top - r.top + (parseFloat(getComputedStyle(main).paddingTop) || 0);
+    box.value = {
+        ok: b.left - r.left >= need && r.right - b.right >= need,
+        top,
+        height: Math.max(0, m.bottom - r.top - top),
+        left: b.left - r.left,
+        right: b.right - r.left,
+        stickyTop: stickyBottom(root) + UtilAd.WING.gap,
+    };
+}
+
+let frame = 0;
+function schedule(): void {
+    if (typeof window === 'undefined' || frame) return;
+    frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        measure();
+    });
+}
+
+let observer: ResizeObserver | null = null;
+onMounted(() => {
+    if (typeof ResizeObserver !== 'undefined') {
+        observer = new ResizeObserver(schedule);
+        const root = host.value?.parentElement;
+        if (root) observer.observe(root);
+    }
+    window.addEventListener('resize', schedule);
+    measure();
+});
+onBeforeUnmount(() => {
+    observer?.disconnect();
+    observer = null;
+    window.removeEventListener('resize', schedule);
+    if (frame) window.cancelAnimationFrame(frame);
+});
+// 화면·테마(셸)가 바뀌면 본문 요소가 바뀔 수 있다 — 그린 뒤 다시 잰다
+watch([() => route.path, theme], () => nextTick(schedule));
+
+const shown = computed(() => box.value.ok && (picked.value.left !== null || picked.value.right !== null));
+const layerStyle = computed<CSSProperties>(() => (shown.value ? { top: `${box.value.top}px`, height: `${box.value.height}px` } : { height: '0px' }));
+</script>
