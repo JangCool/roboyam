@@ -4,7 +4,7 @@
         가젯 `data` 는 `{ items, salesOpen }` — 줄은 회원 공구 목록(`GET /api/group-buys`)과 같고, 서버가 가젯 설정 `sort`(마감 이른 순 기본 · 새로 시작한 순 · 참여 많은 순) 차례로 `count` 개를 준다.
         판매 스위치가 꺼지면(`salesOpen: false`) 공구는 그대로 보이고 위에 「지금은 주문을 받지 않아요」 한 줄을 덧붙인다(목록·상세처럼 막지 않는다 — 주문 단추가 막는다).
         공구가 없으면 `HomeGadgetFrame` 의 빈 상태(가젯 꾸미기 `empty` 그대로 — 기본 배치는 가젯을 숨긴다).
-        넘기기는 이전·다음 단추와 점(지금 장은 `aria-current`)이고, 자동으로 넘어가지 않는다. 공구가 하나면 넘기기가 없다. 카드 한 장은 `HomeGadgetGroupBuyCard`.
+        넘기기는 이전·다음 단추와 점(지금 장은 `aria-current`)이고, 자동으로 넘어가지 않는다. 칸이 내용보다 크면 넘기기 줄은 카드 아래쪽에 붙는다(남는 공간은 상품과 넘기기 사이 — 사진은 비율 그대로). 공구가 하나면 넘기기가 없다. 카드 한 장은 `HomeGadgetGroupBuyCard`.
         한 열(모바일) + 템플릿이 `mobile.groupBuyScroll` 을 고르면 넘기기 대신 가로로 미는 카드 줄(`gadget-scroll-row` — 한 칸 84%, 하나면 한 장).
     -->
     <HomeGadgetFrame :gadget="gadget" :empty="gadget.empty || items.length === 0" empty-icon="pi pi-shopping-cart">
@@ -17,11 +17,12 @@
                 <HomeGadgetGroupBuyCard :item="item" />
             </li>
         </ul>
-        <div v-else-if="current" class="pt-1" data-testid="home-group-buy">
+        <!-- 카드 + 넘기기 — 칸이 내용보다 크면 이 덩어리가 남는 높이를 받고(`data-grid-fill`) 넘기기 줄은 아래에 붙는다(`mt-auto` — 상품 사진은 비율 그대로) -->
+        <div v-else-if="current" class="flex flex-1 flex-col pt-1" data-grid-fill data-testid="home-group-buy">
             <HomeGadgetGroupBuyCard :item="current" />
 
             <!-- 넘기기 — 공구가 둘 이상일 때 -->
-            <div v-if="items.length > 1" class="mt-2.5 flex items-center justify-center gap-1">
+            <div v-if="items.length > 1" class="mt-auto flex items-center justify-center gap-1 pt-2.5" data-grid-push>
                 <button type="button" :class="NAV_BUTTON" :aria-label="t('home.groupBuyPrev')" data-testid="home-group-buy-prev" @click="go(index - 1)">
                     <i class="pi pi-angle-left text-xs" aria-hidden="true" />
                 </button>

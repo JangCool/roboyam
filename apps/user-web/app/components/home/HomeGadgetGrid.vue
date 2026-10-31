@@ -310,12 +310,35 @@ onBeforeUnmount(() => window.removeEventListener('pointermove', onMove));
 const observed = new Map<string, Element>();
 let cellObserver: ResizeObserver | null = null;
 let rootObserver: ResizeObserver | null = null;
+let mutationObserver: MutationObserver | null = null;
 
-/** 가젯 카드(칸의 첫 자식 — `HomeGadgetFrame` 의 section, 블록 흐름이라 자식은 늘어나지 않는다)의 내용 높이(px) */
+/**
+ * 늘어나는 세로 flex 상자(`data-grid-fill` — 껍데기 카드·본문, 바닥 조작 줄이 있는 가젯의 본문 덩어리)의 **본래** 높이(px) — 칸이 커서 늘어난 높이가 아니라
+ * 자식들 높이 + 바깥 여백 + 줄 간격 + 자기 안 여백·테두리의 합. 아래로 밀린 줄(`data-grid-push` — `mt-auto`)의 위 바깥 여백은 늘어난 빈 곳이라 세지 않는다.
+ * 늘지 않는 요소는 그대로의 높이. (늘어난 높이를 내용으로 세면 상자 = max(hPx, 잰 높이) 가 줄어들지 못한다 — 되먹임)
+ */
+function naturalHeight(el: Element): number {
+    if (!el.hasAttribute('data-grid-fill')) return el.getBoundingClientRect().height;
+    const cs = getComputedStyle(el);
+    let sum = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0) + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+    let count = 0;
+    for (const child of el.children) {
+        const ccs = getComputedStyle(child);
+        if (ccs.display === 'none' || ccs.position === 'absolute' || ccs.position === 'fixed') continue;
+        const h = naturalHeight(child);
+        if (h === 0 && !child.hasAttribute('data-grid-fill')) continue;
+        const top = child.hasAttribute('data-grid-push') ? 0 : parseFloat(ccs.marginTop) || 0;
+        sum += h + top + (parseFloat(ccs.marginBottom) || 0);
+        count += 1;
+    }
+    return sum + (count > 1 ? (count - 1) * (parseFloat(cs.rowGap) || 0) : 0);
+}
+
+/** 가젯 카드(칸의 첫 자식 — `HomeGadgetFrame` 의 section)의 내용 높이(px) — 껍데기 카드는 `naturalHeight`, 그 밖(게시판 본문 칸 — 블록 흐름)은 자식들의 위·아래 끝 */
 function contentHeight(cell: HTMLElement): number {
     const card = cell.firstElementChild as HTMLElement | null;
     if (!card || card.hasAttribute('data-home-edit')) return 0;
-    // 자식들의 위·아래 끝으로 잰다 — 카드 위 끝에서 재면, 내용을 세로 가운데에 두는 카드(머리 숨김 — `HomeGadgetFrame`)는 늘어난 만큼 위 빈 곳까지 내용으로 쳐서 행이 계속 는다
+    if (card.hasAttribute('data-grid-fill')) return naturalHeight(card);
     let top = Number.POSITIVE_INFINITY;
     let bottom = Number.NEGATIVE_INFINITY;
     for (const child of card.children) {
@@ -331,16 +354,37 @@ function contentHeight(cell: HTMLElement): number {
     return bottom - top + frame;
 }
 
-/** 카드의 자식도 지켜본다(이미 보는 것은 건너뛴다) */
+/**
+ * 카드 안도 지켜본다(이미 보는 것은 건너뛴다) — 카드의 자식, 그리고 늘어나는 상자(`data-grid-fill`) 안은 그 자식까지 내려간다
+ * (늘어난 상자는 안 내용이 줄어도 자기 크기가 그대로라, 늘지 않는 안쪽 요소를 지켜봐야 줄어든 것을 안다). 갈아 끼운 요소는 `MutationObserver` 가 다시 잰다.
+ */
 const watchedChildren = new WeakSet<Element>();
+function watchTree(el: Element): void {
+    for (const child of el.children) {
+        if (!watchedChildren.has(child)) {
+            watchedChildren.add(child);
+            cellObserver?.observe(child);
+        }
+        if (child.hasAttribute('data-grid-fill')) watchTree(child);
+    }
+}
 function watchChildren(cell: Element): void {
     const card = cell.firstElementChild;
     if (!card || !cellObserver) return;
-    for (const child of card.children) {
-        if (watchedChildren.has(child)) continue;
-        watchedChildren.add(child);
-        cellObserver.observe(child);
+    watchTree(card);
+}
+
+/** 칸 하나를 다시 잰다 — 바뀌었으면 true */
+function measureInto(id: string, next: Record<string, number>): boolean {
+    const cell = observed.get(id) as HTMLElement | undefined;
+    if (!cell) return false;
+    watchChildren(cell);
+    const px = Math.ceil(contentHeight(cell));
+    if (px > 0 && next[id] !== px) {
+        next[id] = px;
+        return true;
     }
+    return false;
 }
 
 function bind(id: string, el: Element | ComponentPublicInstance | null): void {
@@ -367,19 +411,26 @@ onMounted(() => {
         }
         let changed = false;
         const nextHeights = { ...heights.value };
-        for (const id of ids) {
-            const cell = observed.get(id) as HTMLElement | undefined;
-            if (!cell) continue;
-            watchChildren(cell);
-            const px = Math.ceil(contentHeight(cell));
-            if (px > 0 && nextHeights[id] !== px) {
-                nextHeights[id] = px;
-                changed = true;
-            }
-        }
+        for (const id of ids) if (measureInto(id, nextHeights)) changed = true;
         if (changed) heights.value = nextHeights;
     });
     for (const el of observed.values()) cellObserver.observe(el);
+
+    // 카드 안 요소를 갈아 끼우면(빈 상태 ↔ 목록 · 쪽 넘김) 늘어난 상자는 크기가 그대로라 ResizeObserver 가 모른다 — 다음 그리기에 모든 칸을 다시 잰다
+    if (typeof MutationObserver !== 'undefined' && root.value) {
+        let frame = 0;
+        mutationObserver = new MutationObserver(() => {
+            if (frame) return;
+            frame = window.requestAnimationFrame(() => {
+                frame = 0;
+                let changed = false;
+                const nextHeights = { ...heights.value };
+                for (const id of observed.keys()) if (measureInto(id, nextHeights)) changed = true;
+                if (changed) heights.value = nextHeights;
+            });
+        });
+        mutationObserver.observe(root.value, { childList: true, subtree: true });
+    }
 
     rootObserver = new ResizeObserver((entries) => {
         const w = entries[0]?.contentRect.width ?? 0;
@@ -391,6 +442,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
     cellObserver?.disconnect();
     rootObserver?.disconnect();
+    mutationObserver?.disconnect();
+    mutationObserver = null;
     cellObserver = null;
     rootObserver = null;
     observed.clear();
