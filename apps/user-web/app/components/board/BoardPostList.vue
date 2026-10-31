@@ -26,7 +26,6 @@
                     </NuxtLink>
                 </FoldedRow>
             </li>
-            <!-- 목록 안 한 줄 광고(목업) — 일반 글 N번째 줄 뒤(공지 제외) -->
             <li v-if="feedAd && i === feedAt" class="border-b border-surface"><AdFeedRow :ad="feedAd.ad" variant="compact" /></li>
             </template>
         </ul>
@@ -91,7 +90,7 @@ const { t } = useI18n();
 const overrides = useBlockOverrides();
 const pinnedIds = computed(() => new Set(props.pinned.map((p) => p.id)));
 const all = computed(() => [...props.pinned, ...props.rows]);
-/** 한 줄 광고를 넣을 `all` 차례(이 줄 뒤) — 공지는 세지 않는다 */
+/** `all` 에서 한 줄 광고가 뒤에 붙는 차례 — 공지는 세지 않는다 */
 const feedAt = computed(() => (props.feedAd ? props.pinned.length + props.feedAd.afterIndex : -1));
 
 /** 접는 까닭 — 서버의 `blocked`(`USER|WORD|null`)에 이 기기에서 방금 바꾼 차단을 겹친다 */

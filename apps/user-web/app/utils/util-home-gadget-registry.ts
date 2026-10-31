@@ -17,7 +17,7 @@ const LOADERS: Readonly<Record<string, AsyncComponentLoader<Component>>> = {
     GROUP_BUY: () => import('~/components/home/HomeGadgetGroupBuy.vue'),
     QUICK_LINKS: () => import('~/components/home/HomeGadgetQuickLinks.vue'),
     NOTICE_TEXT: () => import('~/components/home/HomeGadgetNoticeText.vue'),
-    // 광고 가젯 2종(2026-10-31 목업 — 후보는 페이지가 `useAdGadgets` 로 채운다. 서버 `HomeGadgetKinds` 에는 아직 없다)
+    // 서버 `HomeGadgetKinds` 에는 아직 없다(목업)
     AD: () => import('~/components/home/HomeGadgetAd.vue'),
     AD_TEXT_LINE: () => import('~/components/home/HomeGadgetAdTextLine.vue'),
 };

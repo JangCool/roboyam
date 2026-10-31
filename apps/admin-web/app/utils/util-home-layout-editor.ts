@@ -32,7 +32,7 @@ export interface HomeEditorItem {
     minH: number;
 }
 
-/** 가젯 종류 8종 + 광고 2종(보일 순서 — 광고는 2026-10-31 목업, 서버 등록 전이라 넣으면 저장이 막힌다) — 커뮤니티의 핫딜·직접홍보는 없다 */
+/** 가젯 종류 8종 + 광고 2종(보일 순서 — 광고는 서버 등록 전이라 넣으면 저장이 막힌다) — 커뮤니티의 핫딜·직접홍보는 없다 */
 const KINDS: readonly HomeKindSpec[] = [
     { kind: 'HIGHLIGHT', icon: 'pi-sparkles', minW: 4, minH: 8, w: 8, h: 12 },
     { kind: 'POST_LIST', icon: 'pi-list', minW: 3, minH: 6, w: 6, h: 10 },
@@ -42,7 +42,7 @@ const KINDS: readonly HomeKindSpec[] = [
     { kind: 'GROUP_BUY', icon: 'pi-shopping-bag', minW: 3, minH: 8, w: 4, h: 12 },
     { kind: 'QUICK_LINKS', icon: 'pi-link', minW: 3, minH: 2, w: 12, h: 2 },
     { kind: 'NOTICE_TEXT', icon: 'pi-megaphone', minW: 2, minH: 3, w: 4, h: 6 },
-    // 광고 — 높이는 최소(내용이 비율 틀만큼 늘린다). 배너는 처음에 전체 폭(넓은 배너), 한 줄 광고는 반 폭 3줄(h 5 — 줄 40×3 + 위아래 보이는 여백 26 이면 내용 약 151px, 최적 칸 수 floor((151+16)/31) = 5)
+    // 배너는 처음에 전체 폭, 한 줄 광고는 반 폭 3줄
     { kind: 'AD', icon: 'pi-image', minW: 2, minH: 2, w: 12, h: 4 },
     { kind: 'AD_TEXT_LINE', icon: 'pi-bars', minW: 3, minH: 2, w: 6, h: 5 },
 ];

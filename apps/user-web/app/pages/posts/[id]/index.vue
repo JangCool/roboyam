@@ -175,11 +175,8 @@
                             @settings="openDebateSettings"
                         />
 
-                        <!--
-                            글 보기 광고 — 자리 `AFTER_BODY`(본문·투표·토론 바로 아래, 추천 줄 위 — 네모 배너를 두는 선택지)일 때만 여기. 기본 자리는 아래 글 카드와 댓글 카드 사이 틈(`BETWEEN_CARDS`).
-                            차단으로 접힌 글은 이 칸도 함께 접힌다(접힌 칸 안).
-                        -->
-                        <div v-if="inlineAd?.position === 'AFTER_BODY'" class="py-3" data-testid="post-inline-ad" data-position="AFTER_BODY">
+                        <!-- 자리 `AFTER_BODY` — 차단으로 접힌 글은 이 칸도 함께 접힌다 -->
+                        <div v-if="inlineAd?.position === 'AFTER_BODY'" class="py-3" data-testid="post-inline-ad">
                             <AdTextLines v-if="inlineAd.type === 'TEXT_LINE'" :ads="inlineAd.ads" :count="1" placement="POST_INLINE" />
                             <AdSlot v-else :type="inlineAd.type" :ads="inlineAd.ads" placement="POST_INLINE" align="center" />
                         </div>
@@ -241,19 +238,12 @@
                     </div>
                 </div>
 
-                <!--
-                    글 보기 광고(02 §5-1 「글 중간」 — 가젯 격자로 못 그리는 자리) 기본 자리 `BETWEEN_CARDS` — 글 카드(본문·추천·이전/다음 글·[목록으로])와 댓글 카드 **사이 회색 틈**, 어느 카드에도 들지 않는 독립된 한 줄.
-                    유형은 자리 설정(`usePublicAds().placements` 의 `postInline`): 한 줄 광고(기본 — 「광고」 꼬리표 + 문구, 바탕은 페이지 그대로 + 옅은 머리카락 선, 넘치면 말줄임) · 띠 배너(「광고」 표시가 있는 이미지 그대로).
-                    간격: 이 줄이 두 카드 사이에 끼면 `.content-card + .content-card`(카드 사이 `--content-card-gap` — 다음식·로보얌 16 · 네이버식 12 · 기본 0)가 걸리지 않으므로 이 줄의 위아래 여백이
-                    그 간격의 반씩(기본 테마처럼 0 이면 8px)을 맡는다 — 늘어나는 것은 줄 높이(32px)만이다. 후보를 받기 전·없음·꺼짐·19금·`adsHidden`·차단으로 접힌 글에서는 요소 자체가 없어 틈은 원래 간격 그대로다.
-                    게시판 레이아웃(`BoardLayoutFrame`) 안에서도 이 글 화면이 본문 칸에 그대로 들어가므로 같은 자리다.
-                -->
+                <!-- 두 카드 사이라 `.content-card + .content-card` 간격이 걸리지 않아 위아래 여백이 그 반씩(0 이면 8px)을 맡는다 -->
                 <div
                     v-if="inlineAd?.position === 'BETWEEN_CARDS' && inlineAd.ads && !folded"
                     class="my-[max(calc(var(--content-card-gap)/2),0.5rem)]"
                     :class="inlineAd.type === 'TEXT_LINE' ? 'rounded-md border border-hairline px-3' : ''"
                     data-testid="post-inline-ad"
-                    data-position="BETWEEN_CARDS"
                 >
                     <AdTextLines v-if="inlineAd.type === 'TEXT_LINE'" :ads="inlineAd.ads" :count="1" slim placement="POST_INLINE" />
                     <AdSlot v-else :type="inlineAd.type" :ads="inlineAd.ads" placement="POST_INLINE" />
@@ -364,10 +354,9 @@ const adultConfirmed = ref(false);
 /** 접힌 글을 「보기」로 펼쳤다 — 이 글을 보는 동안만(다른 글로 가면 다시 접힌다) */
 const foldRevealed = ref(false);
 
-/* ── 글 중간 광고(목업 — 자리 설정·후보는 `usePublicAds`) ── */
 const publicAds = usePublicAds();
 void publicAds.ensurePlacements();
-/** 이 글에 그릴 글 보기 광고(유형·자리) — 자리가 꺼졌거나 · 19금 글 · 광고를 숨기는 게시판(`adsHidden`, 아직 서버에 없는 칸 — `UtilAd.boardAdsHidden`)이면 null. 후보가 없으면(받은 뒤 0건) 접는다 */
+/** 자리 꺼짐·19금 글·`adsHidden` 게시판·후보 0건이면 null */
 const inlineAd = computed(() => {
     const p = publicAds.placements.value?.postInline;
     if (!p?.enabled || !post.value || post.value.adult || UtilAd.boardAdsHidden(board.value)) return null;

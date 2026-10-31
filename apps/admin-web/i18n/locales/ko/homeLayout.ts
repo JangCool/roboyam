@@ -81,7 +81,7 @@ export default {
     settingsCount_GROUPS: '보일 소모임 수',
     settingsPreviewNoteDirect: '입력하면 실제 화면에 바로 보여요. 저장해야 적용돼요.',
     settingsPreviewNoteStyle: '모양·노출은 실제 화면에 바로 보여요. 저장해야 적용돼요.',
-    // 광고 가젯 2종(2026-10-31 목업 — 서버 연결 전)
+    // 광고 가젯(목업)
     settingsLead_AD: '이 자리에 보일 배너 유형을 정해요. 그 유형의 진행 중인 광고 중 하나가 비중대로 골라져 보여요.',
     settingsLead_AD_TEXT_LINE: '한 줄 광고를 몇 줄 보일지 정해요. 진행 중인 한 줄 광고 중 겹치지 않게 비중대로 골라요.',
     settingsCount_AD_TEXT_LINE: '보일 줄 수',

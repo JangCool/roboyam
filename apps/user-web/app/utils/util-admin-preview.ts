@@ -9,7 +9,7 @@ export type AdminPreviewGroupBuySort = 'DEADLINE' | 'NEWEST' | 'POPULAR';
  * 가젯 내용 설정(관리자 ⚙ 설정 창 — admin-web `UtilGadgetConfig`) — 서버 JSON 그대로의 평평한 모양, 종류마다 쓰는 칸만(보낸 칸만 덮는다 — 없는 칸은 공개 응답 그대로):
  * 공구 `count`·`sort` · 글 목록 `boardScope`·`boardIds`·`count`·`sort`·`periodTabs` + 보기 모양(`rowStyle`·`columns`·`thumbnail`·`titleLines`·`lead`·`meta`·`dividers`·`newBadgeHours`·`hotBadgeLikes`) ·
  * 갤러리 `boardScope`·`boardIds`·`count` · 게시판 카드 `boardScope`·`boardIds`·`perBoard`·`cardHead`·`columns` · 하이라이트 `count`·`lead`·`thumbs` · 소모임 `count` ·
- * 바로가기 `shape`·`items` · 안내 글 `text`·`format`(2026-10-30 — 8종 전부) · 광고 배너 `adType` · 한 줄 광고 `count`(2026-10-31 목업).
+ * 바로가기 `shape`·`items` · 안내 글 `text`·`format`(2026-10-30 — 8종 전부) · 광고 배너 `adType` · 한 줄 광고 `count`.
  */
 export interface AdminPreviewGadgetConfig {
     count?: number;
@@ -34,7 +34,7 @@ export interface AdminPreviewGadgetConfig {
     items?: { label: string; kind: string; value: string | null }[];
     text?: string;
     format?: string;
-    /** 광고 배너 가젯(`AD`)의 배너 유형 — 한 줄 광고 가젯은 `count`(1~5) */
+    /** `AD` 배너 유형 */
     adType?: string;
 }
 
@@ -64,7 +64,7 @@ export interface AdminPreviewHome {
         mobile: boolean;
         style?: Record<string, unknown> | null;
         config?: AdminPreviewGadgetConfig | null;
-        /** 관리자 편집기의 종류별 최소 높이(행, `UtilHomeLayoutEditor.KINDS`) — 편집 꼬리표 「n칸 줄여도 돼요」가 그 아래로는 권하지 않게. 없으면 모른다 */
+        /** 편집기의 종류별 최소 높이(행) — 「n칸 줄여도」가 그 아래로 권하지 않게 */
         minH?: number;
     }[];
 }
@@ -96,9 +96,9 @@ export type AdminPreviewLayoutOp =
     | { op: 'remove'; id: string }
     | { op: 'settings'; id: string };
 
-/** 관리자에서 설정(⚙)을 고칠 수 있는 가젯 종류 — 8종 전부(2026-10-30) + 광고 2종(2026-10-31 목업). admin-web `UtilGadgetConfig` 의 종류와 같다 */
+/** 관리자에서 설정(⚙)을 고칠 수 있는 가젯 종류 — 8종 전부(2026-10-30) + 광고 2종. admin-web `UtilGadgetConfig` 의 종류와 같다 */
 const SETTABLE_KINDS: readonly string[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'QUICK_LINKS', 'NOTICE_TEXT', 'AD', 'AD_TEXT_LINE'];
-/** 광고 가젯 — 데이터를 받지 않고(후보는 페이지가 `useAdGadgets` 로 채운다) 설정으로 바로 그린다. 설정이 없어도 새 가젯을 그린다 */
+/** 광고 가젯 — 후보는 페이지가 채우므로 설정이 없어도 새 가젯을 그린다 */
 const AD_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
 const AD_BANNER_TYPES: readonly string[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER'];
 const GROUP_BUY_SORTS: readonly string[] = ['DEADLINE', 'NEWEST', 'POPULAR'];
@@ -307,7 +307,6 @@ export default class UtilAdminPreview {
      * @param {AdminPreviewGadgetConfig} config - 설정.
      */
     static applyConfig(gadget: HomeGadget, config: AdminPreviewGadgetConfig): void {
-        // 광고 가젯 — 유형·줄 수만 설정으로(후보는 페이지가 채운다)
         if (AD_KINDS.includes(gadget.type)) {
             gadget.config = { ...gadget.config, ...defined({ adType: config.adType, count: config.count }) };
             return;

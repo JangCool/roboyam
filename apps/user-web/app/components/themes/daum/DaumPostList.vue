@@ -34,7 +34,6 @@
                     </NuxtLink>
                 </FoldedRow>
             </li>
-            <!-- 목록 안 한 줄 광고(목업) — 일반 글 N번째 줄 뒤, 같은 줄 모양 -->
             <li v-if="feedAd && i === feedAd.afterIndex" class="border-t border-hairline"><AdFeedRow :ad="feedAd.ad" variant="headline" /></li>
             </template>
         </ul>

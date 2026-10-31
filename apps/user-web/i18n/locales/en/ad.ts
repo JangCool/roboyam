@@ -1,4 +1,4 @@
-/** Public ads (banners, wing banners, text lines, board-list lines, sponsored deals — `components/ad/**`, gadgets `AD`·`AD_TEXT_LINE`) */
+/** Public ads (`components/ad/**`, gadgets `AD`·`AD_TEXT_LINE`) */
 export default {
     mark: 'Ad',
     newTab: 'Opens in a new tab',

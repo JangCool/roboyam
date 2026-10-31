@@ -88,7 +88,7 @@ const stacked = useHomeGadgetStacked();
 const mobile = useHomeGadgetLookOptions().mobile;
 const scroll = computed(() => stacked.value && mobile.boardCardsScroll);
 
-/** 안쪽 카드 — 바깥이 평평한 카드형이면 카드 한 장 한 장이 테마 카드(머리 줄이 없는 카드라 네 쪽 여백을 같게 — `data-headless`, `main.css`), 그 밖은 테두리 상자(p-3 — 네 쪽 같음) */
+/** 안쪽 카드 — 바깥이 평평한 카드형이면 카드 한 장 한 장이 테마 카드(머리 줄이 없어 네 쪽 여백을 같게 — `data-headless`, `main.css`), 그 밖은 테두리 상자 */
 const innerCard = computed(() => (look === 'card' && props.gadget.style.cardLook === 'FLAT' ? 'gadget-card' : 'rounded-lg border border-surface p-3'));
 
 function nameOf(card: BoardCard): string {

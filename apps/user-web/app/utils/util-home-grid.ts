@@ -5,11 +5,8 @@ import UtilHomeLayout from '#layers/home-layout/utils/util-home-layout';
  * 공개 홈 격자(`HomeGadgetGrid`)의 순수 계산 — 운영자가 정한 배치(`HomeLayout`, 공유 레이어 `UtilHomeLayout`)를 이 화면 폭에 맞춰 그릴 자리로 바꾼다. 상태도 요청도 없다.
  *
  *  - **모양(mode)**: `full` 운영자 배치 그대로(데스크톱 lg 이상 + 홈 폭 52rem 이상) · `half` 태블릿 파생 배치(칸 수 반 — md 이상, 또는 데스크톱이지만 사이드 메뉴 때문에 홈 폭이 좁을 때) · `stack` 한 열((y, x) 순서 — md 미만, 또는 홈 폭 36rem 미만).
- *  - **px 배치**(사용자 결정 2026-10-31 — 정본): hPx = 운영자 h 의 px(h×15 + (h−1)×16), contentPx = 잰 내용 + 테마 위·아래 여백(정수).
- *    상자 높이 = hPx − contentPx 가 한 칸(31px) 이상이면 hPx(운영자가 일부러 키운 것 — 내용은 위, 남는 공간은 아래), 아니면 contentPx(한 칸 미만은 칸 단위 반올림일 뿐 — `boxHeight`).
- *    위 끝 = 읽는 순서에서 앞선 가젯 중 열이 겹치는 것들의 아래 끝 중 가장 낮은 값 + 간격 16px(없으면 0) — 가젯 사이 세로 간격은 늘 정확히 16px 이다(`place`).
- *    숨긴 가젯(이 폭에서 안 보임·비어서 감춤)은 목록에 없으므로 그 자리는 저절로 메워진다.
- *  - **같은 줄 맞추기**: 같은 y·같은 h 로 나란히 둔 가젯(운영자가 짝지은 것)만 각자의 상자 높이 중 가장 큰 값으로 함께 맞춘다 — 아래 끝이 맞는다(늘어난 상자도 내용은 위에서 시작, 남는 공간은 아래).
+ *  - **px 배치**: 상자 높이 = `boxHeight`, 위 끝 = 읽는 순서에서 앞선 가젯 중 열이 겹치는 것들의 아래 끝 + 16px(`place`). 숨긴 가젯의 자리는 저절로 메워진다.
+ *  - **같은 줄 맞추기**: 같은 y·같은 h 로 나란히 둔 가젯은 상자 높이 중 가장 큰 값으로 함께 맞춘다.
  *    (격자는 칸 높이가 아니라 카드 내용 높이를 재므로, 그 줄에서 가장 긴 가젯의 내용이 줄면 그 줄도 다시 준다)
  */
 
@@ -27,16 +24,11 @@ function overlapsX(a: { x: number; w: number }, b: { x: number; w: number }): bo
     return a.x < b.x + b.w && b.x < a.x + a.w;
 }
 
-/**
- * 편집 꼬리표의 크기 알림 — 최적 칸 수 `need`(hPx ≥ contentPx 가 되는 가장 작은 h — 내용이 다 들어가는 가장 작은 칸 수)와 운영자 h 를 견준다:
- * h < need(`small` — 빨강 「더 줄일 수 없어요 — 최소 need칸」, 상자는 contentPx) · h > need(`large` — 주황 「spare칸 줄여도 내용이 다 보여요」 — 따라 줄인 끝이 need 라 빨강이 되지 않는다).
- * h = need(또는 종류별 최소 높이 때문에 더 줄일 수 없으면) 알림 없음(null) — 상자 = contentPx.
- */
+/** 편집 꼬리표의 크기 알림 — h < need 면 `small`, h > max(need, minH) 면 `large` */
 export interface HomeGridSizeHint {
     kind: 'small' | 'large';
-    /** 최적 칸 수(`need`) */
     need: number;
-    /** 줄여도 되는 행 수(`large` 만 — 종류별 최소 높이 아래로는 세지 않는다. `small` 은 0) */
+    /** 줄여도 되는 행 수(`small` 은 0) */
     spare: number;
 }
 
@@ -126,10 +118,10 @@ export default class UtilHomeGrid {
     }
 
     /**
-     * 편집 꼬리표의 크기 알림 — 운영자 h 와 최적 칸 수 `need = ceil((contentPx + 16) / 31)`(`UtilHomeGrid.needRows`, 칸 수 12·24 와 무관)를 견준다.
+     * 편집 꼬리표의 크기 알림 — 운영자 h 와 최적 칸 수(`needRows`)를 견준다.
      * @param {number} h - 운영자 h(끄는 중이면 놓일 h).
      * @param {number | undefined} contentPx - 잰 내용 높이(px). 아직 못 쟀으면 undefined.
-     * @param {number} [minH] - 관리자 편집기의 종류별 최소 높이(행 — 미리보기 메시지 `home.gadgets[].minH`). 모르면 1.
+     * @param {number} [minH] - 종류별 최소 높이(행). 모르면 1.
      * @returns {HomeGridSizeHint | null} 알림(같거나 못 쟀으면 null).
      */
     static sizeHint(h: number, contentPx: number | undefined, minH = 1): HomeGridSizeHint | null {
@@ -142,8 +134,7 @@ export default class UtilHomeGrid {
     }
 
     /**
-     * 최적 칸 수 — hPx(= h×15 + (h−1)×16)가 contentPx 이상이 되는 가장 작은 h(1 이상): ceil((contentPx + 16) / 31). contentPx 는 정수로 반올림한 뒤 견준다
-     * (경계 hPx = contentPx 에서 ±0.5px 로 칸 수가 흔들리지 않게). h = need 이면 hPx − contentPx 는 0~30px(한 칸 미만)이라 상자 = contentPx 다.
+     * 최적 칸 수 — hPx 가 contentPx 이상이 되는 가장 작은 h. 경계에서 칸 수가 흔들리지 않게 contentPx 를 반올림한 뒤 견준다.
      * @param {number} contentPx - 잰 내용 높이(px — 내용 + 테마 위·아래 여백).
      * @returns {number} 행 수.
      */
@@ -153,8 +144,7 @@ export default class UtilHomeGrid {
     }
 
     /**
-     * 상자 높이(px) — hPx − contentPx 가 한 칸(행 15 + 간격 16 = 31px) 이상이면 운영자가 일부러 키운 것이라 hPx, 아니면 contentPx(한 칸 미만은 칸 단위 반올림 — 늘리지 않는다).
-     * h = need 이면 늘 contentPx, need + 1 부터 hPx(첫 칸은 31~61px 늘어난다).
+     * 상자 높이(px) — hPx − contentPx 가 한 칸(31px) 이상이면 운영자가 일부러 키운 것이라 hPx, 아니면 contentPx(한 칸 미만은 칸 단위 반올림일 뿐).
      * @param {number} h - 운영자 h(행).
      * @param {number} contentPx - 잰 내용 높이(px).
      * @returns {number} px.
@@ -166,12 +156,10 @@ export default class UtilHomeGrid {
     }
 
     /**
-     * 그릴 자리(px) — 상자 높이 = `boxHeight(h, contentPx)`(아직 못 쟀으면 hPx), 같은 줄 맞추기 짝은 각자 상자 높이 중 가장 큰 값. 위 끝은 읽는 순서(y, x)로 앞선 가젯 중
-     * 열이 겹치는 것들의 아래 끝 + 간격(16px) 중 가장 낮은 값(없으면 0). 결과 순서가 읽는 순서(화면 읽기·Tab 순서)다.
-     * 관리자 편집기의 충돌·당기기는 행 단위 그대로이고 이 순서와 모순되지 않는다(같은 열에서 앞선 가젯이 늘 위다).
+     * 그릴 자리(px) — 아직 못 잰 가젯은 hPx. 결과 순서가 읽는 순서(화면 읽기·Tab 순서)다.
      * @param {readonly HomeLayoutItem[]} items - 자리.
-     * @param {Readonly<Record<string, number>>} heights - 가젯 ID → 잰 높이(px — contentPx).
-     * @param {(gadgetId: string) => boolean} [contentOnly] - 운영자 h 를 쓰지 않고 내용 높이만 쓰는 칸(게시판 본문 — 보는 게시판마다 길이가 다르다).
+     * @param {Readonly<Record<string, number>>} heights - 가젯 ID → contentPx.
+     * @param {(gadgetId: string) => boolean} [contentOnly] - 내용 높이만 쓰는 칸(게시판 본문).
      * @returns {HomeGridCell[]} 그릴 자리.
      */
     static place(items: readonly HomeLayoutItem[], heights: Readonly<Record<string, number>>, contentOnly?: (gadgetId: string) => boolean): HomeGridCell[] {
@@ -180,7 +168,6 @@ export default class UtilHomeGrid {
             if (content === undefined) return UtilHomeLayout.px(it.h);
             return contentOnly?.(it.gadgetId) ? content : UtilHomeGrid.boxHeight(it.h, content);
         };
-        // 같은 줄 맞추기 — 운영자가 같은 행(y)에 같은 높이(h)로 나란히 둔 가젯은 그중 가장 긴 높이로 함께 늘려 아래 끝을 맞춘다
         const rowKey = (it: HomeLayoutItem) => `${it.y}:${it.h}`;
         const groups = new Map<string, { height: number; size: number }>();
         for (const it of items) {
@@ -208,8 +195,7 @@ export default class UtilHomeGrid {
     }
 
     /**
-     * 끌어 놓은 위치(px) → 운영자 행(y) — 놓은 열과 겹치는 가젯(끄는 가젯 제외) 중 위 끝이 놓은 위 끝 이하인 가장 아래 가젯을 찾아,
-     * 놓은 위 끝이 그 가젯의 위쪽 절반이면 그 가젯의 y(그 앞), 아래쪽 절반이면 y + h(그 뒤). 없으면 0. px 배치는 행과 1:1 이 아니어서 화면 순서로 되짚는다.
+     * 끌어 놓은 위치(px) → 운영자 행(y) — 놓은 위 끝 이하의 가장 아래 겹치는 가젯의 위쪽 절반이면 그 y, 아래쪽 절반이면 y + h. 없으면 0.
      * @param {readonly HomeGridCell[]} cells - 그릴 자리.
      * @param {{ id: string; x: number; w: number; top: number }} drop - 끄는 가젯 · 놓일 칸 · 놓일 위 끝(px).
      * @returns {number} 행.

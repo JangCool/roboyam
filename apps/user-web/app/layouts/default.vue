@@ -30,7 +30,6 @@
             <slot />
         </component>
 
-        <!-- 날개 배너(목업 — 본문 바깥 좌우 여백의 세로 배너, 넓은 데스크톱만). 셸·화면과 상관없이 여기 한 곳에만 붙는다. 어느 화면에 둘지는 자리 설정(`placements.wings`) -->
         <AdWings />
 
         <AppBottomTabs v-if="!inner" class="md:hidden" />

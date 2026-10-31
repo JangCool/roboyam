@@ -1,24 +1,6 @@
-// MOCK: 공개 광고 노출(`GET /api/ads` · `GET /api/ads/placements` · `POST /api/ads/impressions` · `POST /api/ads/{id}/clicks`)의 메모리 목업 — `usePublicAdApi.ts` 가 부른다.
-// 광고 가젯을 공개 화면에 덧붙이는 개발 스위치(`mockAdGadgets`)는 `useAdGadgets.ts` 가 부른다. 서버가 붙으면 `ad/api/mock/` 와 함께 지운다.
-//
-// ── 개발 전용 스위치 — 주소의 `?mock=이름`(쉼표로 여러 개) ─
-//   ad-gadgets     홈 · 가젯 페이지 · 게시판 레이아웃 응답에 광고 가젯 5개를 화면 쪽에서 덧붙인다(맨 위 넓은 배너 · 맨 아래 한 줄 광고 · 네모 · 띠 · 작은 배너)
-//   ad-keep        덧붙인 광고 가젯의 「빈 자리 유지」를 켠다(`ad-empty` 와 함께 — 「광고 문의」 안내가 보인다)
-//   ad-empty       광고 후보가 하나도 없다(가젯은 접히고, 글 보기·핫딜·날개 자리도 사라진다)
-//   ad-one         유형마다 비중이 가장 큰 한 건만(날개는 한쪽만 나온다 — 같은 광고를 양쪽에 두지 않는다)
-//   ad-inline-off  글 보기 광고 끔(기본은 한 줄 광고 · 글 카드와 댓글 카드 사이 틈)
-//   ad-inline-strip  글 보기 광고를 띠 배너로(같은 틈)
-//   ad-inline-square 글 보기 광고를 네모 배너로 · 본문 바로 아래(옛 모습)
-//   ad-wing-off    날개 배너 끔        ad-wing-left  왼쪽 날개만
-//   ad-feed-off    게시판 목록 한 줄 광고 끔(기본 켬 — 일반 글 5번째 뒤, 첫 쪽만)    ad-feed-after-2  일반 글 2번째 뒤로(1~20)
-//   ad-hotdeal     핫딜 게시판이 아니어도 게시판 목록 위에 핫딜 노출 광고(홈 상단 · 말머리를 고르면 말머리 상단)
-//   ad-fail        후보 읽기 실패(500 — 광고 자리는 조용히 접힌다)
-//
-// ── 목업 규칙(가정) ─
-//   · 이미지는 외부 서비스가 아니라 SVG data URI 로 그린 자리 이미지(규격 비율 그대로 — 1200×300 · 1200×100 · 300×250 · 300×100 · 날개 160×600).
-//   · 자리 설정 기본값: 글 보기 = 한 줄 광고 · 두 카드 사이 틈, 날개 = 양쪽 켬 · 홈·가젯 페이지·게시판 목록·글 보기 네 화면.
-//   · 링크는 `https://example.com/…`(예약된 예시 주소). 핫딜 노출은 `/posts/{id}`(없는 글일 수 있다).
-//   · 노출·클릭은 메모리에 쌓고 개발 콘솔에 남긴다(`console.debug`). 새로고침하면 비워진다.
+// MOCK: 공개 광고 노출 API 메모리 목업 — 서버가 붙으면 `ad/api/mock/` 와 함께 지운다.
+// 스위치 `?mock=`: ad-gadgets(광고 가젯 덧붙이기) · ad-keep(빈 자리 유지) · ad-empty · ad-one · ad-fail ·
+//   ad-inline-off · ad-inline-strip · ad-inline-square · ad-wing-off · ad-wing-left · ad-feed-off · ad-feed-after-<n> · ad-hotdeal
 
 import { MOCK_ERRORS, mockClone, mockDelay, mockFlags } from '~/composables/common/mock/mock-util';
 import type { AdClickRequest, AdImpressionsRequest, PublicAd, PublicAdPlacements, PublicAdsQuery, PublicAdsResponse, PublicAdType } from '~/composables/ad/api/usePublicAdApi.types';
@@ -26,7 +8,6 @@ import type { AdPlacement } from '~/composables/ad/usePublicAds.types';
 import type { GadgetStyle, HomeGadget, HomeGadgetsResponse } from '~/composables/home/api/useHomeGadgetApi.types';
 import UtilHomeLayout from '#layers/home-layout/utils/util-home-layout';
 
-/** 규격(px) — 사업자 신청 안내(`business.adTypeSize`)와 같다 */
 const SIZE: Record<string, [number, number]> = {
     WIDE_BANNER: [1200, 300],
     STRIP_BANNER: [1200, 100],
@@ -35,7 +16,6 @@ const SIZE: Record<string, [number, number]> = {
     WING_BANNER: [160, 600],
 };
 
-/** 날개 배너 자리 이미지 — 세로라 글을 위아래로 쌓는다 */
 function wing(from: string, to: string, lines: string[], sub: string): string {
     const text = lines.map((line, i) => `<text x="80" y="${150 + i * 40}" text-anchor="middle" font-family="sans-serif" font-size="26" font-weight="700" fill="#ffffff">${line}</text>`).join('');
     const svg =
@@ -53,7 +33,7 @@ function wingAd(id: string, weight: number, colors: [string, string], lines: str
     return { id, type: 'WING_BANNER', version: 1, imageUrl: wing(colors[0], colors[1], lines, sub), text: null, linkUrl: `https://example.com/${path}`, altText: alt, weight, deal: null };
 }
 
-/** 자리 이미지 — 그라데이션 바탕 + 큰 글 + 작은 글(이미지 안의 색은 소재의 일부라 토큰이 아니다) */
+/** 이미지 안의 색은 소재의 일부라 토큰이 아니다 */
 function banner(type: string, from: string, to: string, title: string, sub: string): string {
     const [w, h] = SIZE[type] ?? [1200, 300];
     const big = Math.round(h * (h > 200 ? 0.2 : 0.3));
@@ -98,7 +78,7 @@ const ADS: readonly PublicAd[] = [
     textAd('ad-t2', 5, '로봇 동아리 단체 구매 견적 바로 받기', 'club-quote', '로보몰'),
     textAd('ad-t3', 5, 'ROS2 입문 온라인 강의 30% 할인 쿠폰', 'ros2', '에듀로봇'),
     textAd('ad-t4', 3, '중고 산업용 로봇팔 매입·판매 상담', 'robot-arm'),
-    // 40자를 넘는 문구(서버는 40자까지 받는다) — 화면이 40자로 자르고, 좁은 폭에서는 말줄임으로 본다
+    // 40자를 넘는 문구 — 화면이 자르는지 본다
     textAd('ad-t5', 2, '스마트팜 자동화 키트 체험단 모집 중 — 지금 신청하면 센서 세트를 함께 보내 드려요', 'smart-farm'),
     textAd('ad-t6', 1, '배터리 셀 전문 쇼핑몰 오픈 기념 적립금', 'battery'),
     dealAd('ad-h1', 'HOTDEAL_TOP', 5, '900001', '로봇 청소기 X9 역대가', '로보몰', 289_000, 459_000, '가전'),
@@ -107,11 +87,10 @@ const ADS: readonly PublicAd[] = [
     dealAd('ad-c2', 'HOTDEAL_CATEGORY', 2, '900004', '말머리 상단 — 드론 배터리 2개', '드론나라', 32_000, null, null),
 ];
 
-/** 노출·클릭 기록(개발 확인용) */
+/** 노출·클릭 기록 — 집계 자리를 콘솔로 확인하는 용도 */
 const impressions: AdImpressionsRequest['items'] = [];
 const clicks: { adId: string; version: number; placement: string }[] = [];
 
-/** `GET /api/ads` — 요청한 유형의 후보. 말머리 상단은 고른 말머리를 이름으로 채운다(목업은 말머리를 가리지 않는다) */
 export async function mockPublicAds(query: PublicAdsQuery): Promise<PublicAdsResponse> {
     await mockDelay();
     const flags = mockFlags();
@@ -127,7 +106,6 @@ export async function mockPublicAds(query: PublicAdsQuery): Promise<PublicAdsRes
     return { items: mockClone(items) };
 }
 
-/** `GET /api/ads/placements` — 글 보기 자리(기본 한 줄 광고 · 두 카드 사이 틈) · 날개(기본 양쪽 · 네 화면) */
 export async function mockAdPlacements(): Promise<PublicAdPlacements> {
     await mockDelay();
     const flags = mockFlags();
@@ -144,7 +122,6 @@ export async function mockAdPlacements(): Promise<PublicAdPlacements> {
     };
 }
 
-/** `ad-feed-after-N` — 게시판 목록 한 줄 광고 위치(일반 글 N번째 뒤, 기본 5) */
 function feedAfter(flags: Set<string>): number {
     for (const flag of flags) {
         const m = /^ad-feed-after-(\d{1,2})$/.exec(flag);
@@ -153,19 +130,16 @@ function feedAfter(flags: Set<string>): number {
     return 5;
 }
 
-/** `POST /api/ads/impressions` */
 export async function mockAdImpressions(request: AdImpressionsRequest): Promise<void> {
     impressions.push(...request.items);
     console.debug('[ad-mock] 노출', request.items, `누적 ${impressions.length}`);
 }
 
-/** `POST /api/ads/{id}/clicks` */
 export function mockAdClick(adId: string, request: AdClickRequest): void {
     clicks.push({ adId, ...request });
     console.debug('[ad-mock] 클릭', { adId, ...request }, `누적 ${clicks.length}`);
 }
 
-/** 광고 가젯 꾸미기 — 머리 숨김 · 배너는 카드 없이(평평), 한 줄 광고는 테마 카드 */
 function adStyle(type: 'AD' | 'AD_TEXT_LINE', keep: boolean): GadgetStyle {
     return {
         icon: null,
@@ -184,7 +158,7 @@ function adGadget(id: string, type: 'AD' | 'AD_TEXT_LINE', title: string, config
     return { id, type, title, desktop: true, mobile: true, empty: false, locked: false, style: adStyle(type, keep), config, more: null, data: null };
 }
 
-/** 받은 배치의 오른쪽 열 시작 칸 — 오른쪽 끝에 붙은 가젯들이 가장 많이 쓰는 시작 칸(로보얌 24칸 홈이면 17), 없으면 ⅔ 지점 */
+/** 오른쪽 끝에 붙은 가젯들이 가장 많이 쓰는 시작 칸 — 덧붙인 광고가 다른 가젯과 같은 열에 서게 */
 function rightColumnStart(items: readonly { x: number; w: number }[], columns: number): number {
     const counts = new Map<number, number>();
     for (const it of items) if (it.x > 0 && it.x + it.w === columns) counts.set(it.x, (counts.get(it.x) ?? 0) + 1);
@@ -194,14 +168,7 @@ function rightColumnStart(items: readonly { x: number; w: number }[], columns: n
     return best;
 }
 
-/**
- * `?mock=ad-gadgets` — 받은 홈(·가젯 페이지·게시판 레이아웃) 응답에 광고 가젯을 덧붙인다: 맨 위 전체 폭 넓은 배너(나머지는 아래로 민다) ·
- * 맨 아래 **받은 배치의 열 그대로**(왼쪽 본문 열 0~s · 오른쪽 열 s~끝 — `rightColumnStart`, 다른 가젯과 같은 시작선·끝선) — 왼쪽 열에 한 줄 광고 3줄 · 그 아래 띠 배너, 오른쪽 열에 네모 배너 · 그 아래 작은 배너.
- * 높이(h)는 최소 높이라 내용에 가깝게 작게 둔다(내용이 길면 격자가 늘린다). 가젯 ID 는 `mock-ad-*`.
- * @param {HomeGadgetsResponse} res - 읽은 응답(`UtilHomeGadget.sanitize` 뒤).
- * @param {AdPlacement} place - 어디인가(제목에만 쓴다).
- * @returns {HomeGadgetsResponse} 덧붙인 응답(받은 값은 고치지 않는다).
- */
+/** `?mock=ad-gadgets` — 받은 배치에 광고 가젯을 덧붙인다(맨 위 넓은 배너 · 맨 아래 왼쪽 열 한 줄·띠, 오른쪽 열 네모·작은) */
 export function mockAdGadgets(res: HomeGadgetsResponse, place: AdPlacement): HomeGadgetsResponse {
     if (res.gadgets.some((g) => g.id.startsWith('mock-ad-'))) return res;
     const keep = mockFlags().has('ad-keep');

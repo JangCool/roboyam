@@ -80,7 +80,7 @@ export default {
     settingsCount_GROUPS: 'Groups to show',
     settingsPreviewNoteDirect: 'The live view follows as you type. Save to apply.',
     settingsPreviewNoteStyle: 'Look and visibility show in the live view right away. Save to apply.',
-    // Ad gadgets (mockup 2026-10-31 — not connected to the server yet)
+    // Ad gadgets (mockup)
     settingsLead_AD: 'Choose the banner type for this spot. One running ad of that type is picked by weight.',
     settingsLead_AD_TEXT_LINE: 'Choose how many text-line ads to show. Running text lines are picked by weight, without repeats.',
     settingsCount_AD_TEXT_LINE: 'Lines to show',

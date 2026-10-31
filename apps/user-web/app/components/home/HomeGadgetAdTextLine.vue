@@ -1,9 +1,5 @@
 <template>
-    <!--
-        한 줄 광고 가젯(`AD_TEXT_LINE` — 02 §5-1: 한 줄 N줄) — 설정 `config.count`(1~5, 처음 값 3)줄을 `AdTextLines` 가 그린다(겹치지 않게 비중 가중 무작위).
-        후보는 페이지가 `useAdGadgets` 로 채운 `data`(`AdGadgetData`). 처음 꾸미기는 머리 숨김 · 테마 카드(줄마다 「광고」 표시가 있어 제목 없이도 읽힌다).
-        비었을 때는 배너 가젯과 같다(유지가 꺼져 있으면 자리째 빠지고, 켜져 있으면 「광고 문의」).
-    -->
+    <!-- 비었을 때 껍데기의 기본 빈 안내 대신 「광고 문의」를 그린다(`:empty="false"`) -->
     <HomeGadgetFrame :gadget="gadget" :empty="false">
         <AdTextLines
             :ads="data.ads"

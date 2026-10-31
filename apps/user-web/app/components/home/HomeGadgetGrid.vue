@@ -1,25 +1,20 @@
 <template>
     <!--
         홈 격자 — 운영자가 관리자 홈 배치 편집기에서 정한 배치(테마마다 칸 수 12·24 + 가젯마다 x·y·w·h, 공유 레이어 `UtilHomeLayout`)대로 가젯을 그린다. 모든 테마 홈 템플릿이 이것 하나를 쓴다(템플릿은 겉모양만).
-        **라이브러리를 쓰지 않는다** — px 배치(2026-10-31): 가로는 칸 수로 나눈 비율(간격 16px — 편집기와 같은 고정값), 세로는 칸마다 절대 위치(`UtilHomeGrid.place` 의 위 끝·높이 px). 한 열(`stack`)만 흐름 배치.
+        **라이브러리를 쓰지 않는다** — 가로는 칸 수로 나눈 비율(간격 16px — 편집기와 같은 고정값), 세로는 칸마다 절대 위치(`UtilHomeGrid.place` 의 위 끝·높이 px). 한 열(`stack`)만 흐름 배치.
         모양은 홈 자기 폭과 창 폭으로 고른다(`UtilHomeGrid.mode`):
           · `full` 데스크톱(lg 이상) + 홈 폭 52rem 이상 — 운영자 배치 그대로
           · `half` 태블릿(md~lg) 또는 사이드 메뉴 때문에 홈 폭이 좁은 데스크톱 — 칸 수 반, 반 폭 이하 가젯 둘은 나란히·나머지는 전체 폭(`UtilHomeGrid.half`)
           · `stack` 모바일(md 미만) 또는 홈 폭 36rem 미만 — 한 열, 간격은 테마 역할 변수 `--gadget-gap`(카드가 화면 끝까지 닿는 모바일 모양 그대로).
             순서는 템플릿의 한 열 모양(`mobile.order`): `reading` (y, x) · `columns` 본문 열 먼저(`UtilHomeGrid.byColumns`). 한 열인지는 아래 가젯에 알린다(`provideHomeGadgetStacked` — 가젯의 한 열 모양: 가로로 미는 줄 등)
-        **px 배치**(사용자 결정 2026-10-31 — 정본): hPx = h×15 + (h−1)×16, contentPx = 잰 내용 + 테마 위·아래 여백(정수). 상자 높이 = hPx − contentPx 가 한 칸(31px) 이상이면 hPx(운영자가 일부러 키운 것 —
-          내용은 위에서 시작, 남는 공간은 아래), 아니면 contentPx(한 칸 미만은 칸 단위 반올림일 뿐 — 위·아래 여백이 정확히 같다, `UtilHomeGrid.boxHeight`). 칸 = 상자라 상자 밖 띠가 없다. 게시판 본문 칸은 내용 높이만.
-          위 끝 = 읽는 순서에서 앞선 가젯 중 열이 겹치는 것들의 아래 끝 중 가장 낮은 값 + 16px(없으면 0) — 가젯 사이 세로 간격은 늘 정확히 16px. 높이가 바뀌면(ResizeObserver) 다시 쌓는다.
-          (예전 「상자 = 격자 칸 · 남는 높이는 위·아래 반씩」·「상자 = 내용 · h 는 높이를 늘리지 않음」 규칙은 이것으로 바뀌었다)
+        **px 배치**: 칸 높이 = `UtilHomeGrid.boxHeight`(운영자 h 의 px 가 잰 내용보다 한 칸(31px) 이상 크면 그 px, 아니면 내용 높이), 위 끝 = 열이 겹치는 앞선 가젯 아래 끝 + 16px(`place`). 게시판 본문 칸은 내용 높이만.
         가젯의 PC/모바일 노출(`desktop`·`mobile`, lg 경계)·비어서 감춤은 `UtilHomeGadget.isVisible` 그대로이고, 숨긴 가젯의 자리는 당겨 메운다. 요소 순서는 읽는 순서((y, x))라 화면 읽기·Tab 순서가 보이는 순서와 같다.
-        같은 y·같은 h 로 나란히 둔 가젯(운영자가 짝지은 것)만 각자의 상자 높이 중 가장 큰 값으로 함께 맞춘다(`UtilHomeGrid.place` 「같은 줄 맞추기」 — 아래 끝이 맞는다, 늘어난 쪽도 내용은 위에서 시작). 데이터는 받기만 한다(조회는 페이지).
+        같은 y·같은 h 로 나란히 둔 가젯은 상자 높이 중 가장 큰 값으로 함께 맞춘다(「같은 줄 맞추기」). 데이터는 받기만 한다(조회는 페이지).
         **관리자 미리보기 편집**(`useAdminPreview().editing` — 관리자 테마 화면의 iframe 안, 사용자 결정 2026-10-28: 편집도 실제 화면에서): 가젯마다 위에 덮는 손잡이 층을 얹는다 —
           가운데를 끌면 옮기기, 오른쪽 아래 모서리를 끌면 크기, 오른쪽 위 ×는 빼기, 그 옆 ⚙(8종 전부 — 내용·모양·노출)는 관리자 설정 창 열기(`settings`). 끄는 동안 놓일 칸을 이 격자의 칸·행 크기로 계산해 자리 표시를 그리고, 놓으면 관리자에게 알린다
           (`postToAdminPreview` — 놓은 칸 `place` · 칸·행 `size` · `remove`). 실제 계산(최소 크기·겹침·위로 당기기)과 저장은 관리자 편집기가 하고, 바뀐 배치를 다시 보내면 이 격자가 그린다.
           편집 중에는 PC 에서 숨는 가젯(모바일만)도 흐리게 그린다(자리를 고칠 수 있게). 공개 화면(편집 아님)에는 아무 영향이 없다.
-          편집 중에는 칸마다 옅은 점선 윤곽을 늘 그린다(칸 = 상자라 상자 테두리와 겹친다 — 손잡이 층은 실제 칸 DOM 위). 모서리를 끄는 동안은 놓일 h 로 상자를 바로 그린다. 크기 꼬리표(`w×h`)는
-          최적 칸 수 need(= ceil((contentPx + 16) / 31) — 내용이 다 들어가는 가장 작은 h)보다 작으면 빨강 「더 줄일 수 없어요 — 최소 need칸」, 크면 주황 「n칸 줄여도 내용이 다 보여요」(n = h − max(need, 종류별 최소 높이 `minH`))를 늘 보인다
-          — 모서리를 끄는 동안은 놓일 h 로 실시간(`UtilHomeGrid.sizeHint`). 끌어 옮길 때 놓일 행은 화면 순서로 되짚는다(`UtilHomeGrid.rowAt`). 저장은 막지 않는다.
+          편집 중에는 칸마다 옅은 점선 윤곽을 그리고, 크기 꼬리표는 최적 칸 수보다 작으면 빨강·크면 주황 알림을 늘 보인다(`UtilHomeGrid.sizeHint` — 저장은 막지 않는다).
         **게시판 레이아웃**(2026-10-30, `BoardLayoutGrid` 가 `provideBoardLayoutBody` 로 본문을 넘길 때만): 고정 칸 「게시판 본문」(`BOARD_BODY`) 자리에 게시판 목록(·글 보기) 화면 내용을 그대로 그린다(높이는 내용대로).
           한 열에서는 본문을 먼저(본문 위에 통째로 놓인 가젯은 그 위 그대로 — `UtilHomeGrid.bodyFirst`). 편집 손잡이는 옮기기·크기만(× · ⚙ 없음).
     -->
@@ -135,7 +130,7 @@ const visibleItems = computed(() => {
 
 const cells = computed<Cell[]>(() => {
     const byId = new Map(props.gadgets.map((g) => [g.id, g]));
-    // 편집 중 모서리를 끄는 동안은 놓일 h 로 바로 그린다(상자가 hPx 로 늘고 줄며 contentPx 에서 멈춘다 — 아래 가젯도 따라 밀린다)
+    // 모서리를 끄는 동안은 놓일 h 로 바로 그린다(아래 가젯도 따라 밀린다)
     const d = drag.value;
     const live = d && d.kind === 'size' ? visibleItems.value.map((it) => (it.gadgetId === d.id ? { ...it, h: d.target.h } : it)) : visibleItems.value;
     const items = mode.value === 'half' ? UtilHomeGrid.half(live, props.layout.columns) : live;
@@ -158,10 +153,7 @@ function stackOrder(items: readonly HomeLayoutItem[]): HomeLayoutItem[] {
 /** 격자 높이 — px 배치라 가장 아래 가젯의 아래 끝(한 열은 흐름대로) */
 const gridStyle = computed<CSSProperties | undefined>(() => (mode.value === 'stack' ? undefined : { height: `${UtilHomeGrid.totalHeight(cells.value)}px` }));
 
-/**
- * 칸 자리 — 가로는 칸 수로 나눈 비율(간격 16px), 세로는 `UtilHomeGrid.place` 의 px(위 끝 · 높이 = 잰 내용 높이, 같은 줄 맞추기 짝은 가장 긴 높이).
- * 상자(카드)는 칸을 채운다(`[&>*]:grow`) — 짝으로 늘어난 짧은 상자만 남는 높이가 있고 껍데기가 위·아래 반씩 나눈다.
- */
+/** 가로는 칸 수 비율, 세로는 `UtilHomeGrid.place` 의 px — 카드는 칸을 채운다(`[&>*]:grow`) */
 function cellStyle(cell: Cell): CSSProperties | undefined {
     if (mode.value === 'stack') return undefined;
     const cols = columns.value;
@@ -263,10 +255,7 @@ function onUp(): void {
     }
 }
 
-/**
- * 운영자가 키운 빈 곳(px) — 칸 높이가 내용 높이(contentPx)가 아니라 hPx·같은 줄 맞추기 짝으로 정해졌을 때 그 차이. 칸 요소의 `data-grid-stretched` 로 드러낸다
- * (실측·디버깅용 — 잉크 보정 `useGadgetInk` 은 측정 잔여와 섞지 않게 카드 높이 − 본래 높이로 계산한다). 0.5px 이하·못 쟀으면 없음.
- */
+/** 칸이 내용보다 커서 늘어난 px — 칸 요소의 `data-grid-stretched`(콘솔 스크립트가 읽는다) */
 function stretchedOf(cell: Cell): number | undefined {
     const content = heights.value[cell.gadget.id];
     if (mode.value === 'stack' || content === undefined) return undefined;
@@ -274,13 +263,13 @@ function stretchedOf(cell: Cell): number | undefined {
     return s > 0.5 ? Math.round(s) : undefined;
 }
 
-/** 꼬리표에 보일 크기 — 모서리를 끄는 중이면 놓일 크기(실시간), 아니면 운영자 크기 */
+/** 모서리를 끄는 중이면 놓일 크기 */
 function sizeOf(cell: Cell): { w: number; h: number } {
     const d = drag.value;
     return d && d.id === cell.gadget.id && d.kind === 'size' ? { w: d.target.w, h: d.target.h } : { w: cell.w, h: cell.h };
 }
 
-/** 운영자 h 와 내용에 필요한 행 수 비교(편집 꼬리표 색·문구) — 아직 못 잰 가젯·게시판 본문(보는 게시판마다 길이가 다르다)은 없음 */
+/** 게시판 본문은 보는 게시판마다 길이가 달라 알림 없음 */
 function hintOf(cell: Cell): HomeGridSizeHint | null {
     if (cell.gadget.type === BOARD_BODY) return null;
     const minH = previewHome.value?.gadgets.find((g) => g.id === cell.gadget.id)?.minH;
@@ -309,7 +298,7 @@ const ghost = computed<CSSProperties | null>(() => {
     if (!d) return null;
     const { colW, unitX } = steps();
     const { x, w } = d.target;
-    // 세로는 px 배치라 손가락 위치(옮기기)·지금 자리(크기)에. 높이 — 옮기기는 상자 그대로, 크기는 놓일 h 의 상자 높이 `boxHeight`(칸도 같은 높이로 바로 그린다 — need 이하는 contentPx, need+1 부터 hPx)
+    // 크기 끌기의 높이는 놓일 h 의 상자 높이 — 칸도 같은 높이로 바로 그린다
     const top = d.kind === 'move' ? d.top + d.dy : d.top;
     const content = heights.value[d.id];
     const height = d.kind === 'move' ? d.height : content === undefined ? UtilHomeLayout.px(d.target.h) : UtilHomeGrid.boxHeight(d.target.h, content);
@@ -318,20 +307,14 @@ const ghost = computed<CSSProperties | null>(() => {
 
 onBeforeUnmount(() => window.removeEventListener('pointermove', onMove));
 
-/* ── 높이 재기 — 칸 높이가 아니라 가젯 카드의 내용 높이(카드는 칸을 채우고 내용을 세로 가운데에 두므로 자식들의 위·아래 끝으로 잰다 — 편집 꼬리표의 크기 알림도 이 값을 쓴다)(카드 자식들의 아래 끝 + 아래 안 여백)를 잰다 → 행을 늘리는 일이 되먹임하지 않고, 내용이 줄면 행도 준다.
-       칸 안에서 내용만 줄거나 늘면 칸 크기는 그대로라 카드의 자식(머리·내용·더보기)도 함께 지켜본다 ── */
+/* ── 높이 재기 — 칸이 아니라 카드의 내용 높이를 잰다(늘어난 높이를 세면 칸이 줄지 못한다) ── */
 
 const observed = new Map<string, Element>();
 let cellObserver: ResizeObserver | null = null;
 let rootObserver: ResizeObserver | null = null;
 let mutationObserver: MutationObserver | null = null;
 
-/**
- * 늘어나는 세로 flex 상자(`data-grid-fill` — 껍데기 카드·본문, 바닥 조작 줄이 있는 가젯의 본문 덩어리)의 **본래** 높이(px) — 칸이 커서 늘어난 높이가 아니라
- * 자식들 높이 + 바깥 여백 + 줄 간격 + 자기 안 여백·테두리의 합. 아래로 밀린 줄(`data-grid-push` — `mt-auto`)의 위 바깥 여백, 가운데에 띄운 덩어리(`data-grid-float` — 빈 상태 안내,
- * `useGadgetInk` 가 남는 높이를 위·아래 바깥 여백으로 나눠 건다)의 위·아래 바깥 여백은 늘어난 빈 곳이라 세지 않는다.
- * 늘지 않는 요소는 그대로의 높이. (늘어난 높이를 내용으로 세면 상자 높이(`boxHeight`)가 줄어들지 못한다 — 되먹임)
- */
+/** 늘어나는 상자(`data-grid-fill`)의 본래 높이 — 밀린 줄(`data-grid-push`) 위 여백·띄운 덩어리(`data-grid-float`) 여백은 늘어난 빈 곳이라 세지 않는다 */
 function naturalHeight(el: Element): number {
     if (!el.hasAttribute('data-grid-fill')) return el.getBoundingClientRect().height;
     const cs = getComputedStyle(el);
@@ -350,7 +333,7 @@ function naturalHeight(el: Element): number {
     return sum + (count > 1 ? (count - 1) * (parseFloat(cs.rowGap) || 0) : 0);
 }
 
-/** 가젯 카드(칸의 첫 자식 — `HomeGadgetFrame` 의 section)의 내용 높이(px) — 껍데기 카드는 `naturalHeight`, 그 밖(게시판 본문 칸 — 블록 흐름)은 자식들의 위·아래 끝 */
+/** 껍데기 카드는 `naturalHeight`, 게시판 본문 칸(블록 흐름)은 자식들의 위·아래 끝 */
 function contentHeight(cell: HTMLElement): number {
     const card = cell.firstElementChild as HTMLElement | null;
     if (!card || card.hasAttribute('data-home-edit')) return 0;
@@ -370,10 +353,7 @@ function contentHeight(cell: HTMLElement): number {
     return bottom - top + frame;
 }
 
-/**
- * 카드 안도 지켜본다(이미 보는 것은 건너뛴다) — 카드의 자식, 그리고 늘어나는 상자(`data-grid-fill`) 안은 그 자식까지 내려간다
- * (늘어난 상자는 안 내용이 줄어도 자기 크기가 그대로라, 늘지 않는 안쪽 요소를 지켜봐야 줄어든 것을 안다). 갈아 끼운 요소는 `MutationObserver` 가 다시 잰다.
- */
+/** 늘어난 상자는 안 내용이 줄어도 자기 크기가 그대로라 그 안 자식까지 지켜본다 */
 const watchedChildren = new WeakSet<Element>();
 function watchTree(el: Element): void {
     for (const child of el.children) {
@@ -390,19 +370,18 @@ function watchChildren(cell: Element): void {
     watchTree(card);
 }
 
-/** 칸 하나를 다시 잰다 — 바뀌었으면 true */
 function measureInto(id: string, next: Record<string, number>): boolean {
     const cell = observed.get(id) as HTMLElement | undefined;
     if (!cell) return false;
     watchChildren(cell);
     const px = Math.ceil(contentHeight(cell));
-    // 1px 이하의 흔들림(소수 높이 올림이 259.9 ↔ 260.1 처럼 오가는 것)은 무시한다 — 측정 → 보정 → 재배치가 ±1px 로 왕복하지 않게
+    // 1px 이하 흔들림은 무시한다(재기·재배치가 ±1px 로 왕복하지 않게)
     const prev = next[id];
     if (px > 0 && (prev === undefined || Math.abs(px - prev) > 1)) {
         next[id] = px;
         return true;
     }
-    // 개발 감시 — 잰 높이가 그대로인데(안정된 상태) 카드가 칸보다 1px 넘게 길면 넘침(이전 보정이 남은 것 등). 운영 빌드에서는 빠진다
+    // 개발 감시 — 안정된 상태에서 카드가 칸보다 길면 넘침
     if (import.meta.dev && mode.value !== 'stack') {
         const card = cell.firstElementChild as HTMLElement | null;
         const slot = Number(cell.getAttribute('data-grid-height'));
@@ -442,7 +421,7 @@ onMounted(() => {
     });
     for (const el of observed.values()) cellObserver.observe(el);
 
-    // 카드 안 요소를 갈아 끼우면(빈 상태 ↔ 목록 · 쪽 넘김) 늘어난 상자는 크기가 그대로라 ResizeObserver 가 모른다 — 다음 그리기에 모든 칸을 다시 잰다
+    // 요소를 갈아 끼우면(빈 상태 ↔ 목록 · 쪽 넘김) 늘어난 상자는 크기가 그대로라 ResizeObserver 가 모른다
     if (typeof MutationObserver !== 'undefined' && root.value) {
         let frame = 0;
         mutationObserver = new MutationObserver(() => {
@@ -478,7 +457,6 @@ onBeforeUnmount(() => {
 
 <style scoped>
 /* 관리자 미리보기 편집 손잡이 — 올리면 주 색상 점선 테두리, 끄는 칸은 실선. 색은 주 색상 토큰만 */
-/* 칸 — 편집 중 늘 옅은 점선 윤곽(상자가 칸을 채우므로 상자 테두리와 겹친다) */
 .home-edit {
     border-radius: var(--gadget-card-radius, 0.75rem);
     outline: 2px dashed color-mix(in srgb, var(--p-primary-color) 28%, transparent);
@@ -548,8 +526,7 @@ onBeforeUnmount(() => {
     border-radius: var(--gadget-card-radius, 0.75rem);
     background-color: color-mix(in srgb, var(--p-primary-color) 12%, transparent);
 }
-/* (아래에 둔다 — 올림·끄는 중 규칙보다 이겨 색이 늘 남게) */
-/* 크기 알림 — 너무 작음(빨강: 운영자 h < 내용에 필요한 행) · 너무 큼(주황: 남는 칸). 칸 윤곽과 꼬리표를 그 색으로, 꼬리표는 늘 보인다 */
+/* 크기 알림(빨강 작음 · 주황 큼) — 아래에 둬야 올림·끄는 중 규칙보다 이긴다 */
 .home-edit[data-size='small'] {
     outline-color: var(--p-red-500);
 }

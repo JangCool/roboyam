@@ -106,7 +106,6 @@
                     <NuxtLink :to="listLink({ q: '', page: 1 })" class="font-semibold text-primary underline-offset-2 hover:underline">{{ t('board.searchClear') }}</NuxtLink>
                 </p>
 
-                <!-- 핫딜 노출 광고(목업) — 핫딜 게시판 첫 쪽의 목록 위: 말머리를 안 골랐으면 「핫딜 홈 상단」, 골랐으면 「말머리 상단」(`useHotdealAds`). 후보가 없으면 그리지 않는다 -->
                 <AdHotdealPlacement v-if="hotdeal.placement.value" :ads="hotdeal.candidates.value" :placement="hotdeal.placement.value" :prefix-name="hotdeal.prefixName.value" />
 
                 <!-- 목록 -->
@@ -217,7 +216,6 @@ const blockedNotice = computed(() => {
 const prefixChips = computed(() => [{ id: '', name: t('common.all') }, ...(view.value?.prefixes ?? []).map((p) => ({ id: p.id, name: p.name }))]);
 const activePrefixName = computed(() => view.value?.prefixes.find((p) => p.id === query.value.prefix)?.name ?? '');
 
-/** 핫딜 노출 광고(목업) — 핫딜 게시판(`dealEnabled`)의 첫 쪽·검색 아님일 때만(개발 스위치 `?mock=ad-hotdeal` 은 아무 게시판에서나) */
 const hotdeal = useHotdealAds(
     computed(() =>
         view.value
@@ -302,7 +300,6 @@ const listState = ref<ListState>('loading');
 const listError = ref('');
 const isEmpty = computed(() => !list.value || (list.value.items.length === 0 && list.value.pinned.length === 0));
 
-/** 목록 안 한 줄 광고(목업) — 일반 글 N번째 뒤 한 줄, 첫 쪽·검색 아님만(`useBoardFeedAd`). 갤러리형 목록은 받아도 그리지 않는다 */
 const feedAd = useBoardFeedAd(
     computed(() => (view.value && list.value ? { board: view.value, firstPage: query.value.page === 1, search: Boolean(query.value.q), rows: list.value.items.length } : null)),
 );

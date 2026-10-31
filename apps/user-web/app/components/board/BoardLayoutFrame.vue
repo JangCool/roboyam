@@ -52,7 +52,6 @@ const base = computed<HomeGadgetsResponse | null>(() => {
     if (!applies(r.res.screens)) return null;
     return UtilHomeGadget.sanitize(r.res);
 });
-/** 광고 가젯(`AD`·`AD_TEXT_LINE`)에 따로 받은 광고 후보를 채운다(`useAdGadgets` — 홈과 같은 길) */
 const withAds = useAdGadgets(base, 'BOARD');
 
 /** 그릴 레이아웃 — null 이면 슬롯만(지금 화면 그대로) */

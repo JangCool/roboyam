@@ -8,13 +8,10 @@
  */
 import type { HomeLayout } from '#layers/home-layout/utils/util-home-layout';
 
-/**
- * 가젯 종류 8종 + 광고 2종 — user-web `GadgetKind` 와 같은 키. 광고(`AD` 배너 자리 하나 · `AD_TEXT_LINE` 한 줄 광고 N줄)는 2026-10-31 화면 목업이라
- * **서버 `HomeGadgetKinds`·`GadgetConfigs` 가 아직 모른다** — 편집기는 광고 가젯이 든 배치의 저장을 막는다(`HomeLayoutEditor`). 커뮤니티의 핫딜·직접홍보 가젯은 없다.
- */
+/** 가젯 종류 8종 + 광고 2종(user-web `GadgetKind` 와 같은 키) — 광고는 서버 `HomeGadgetKinds` 가 아직 몰라 편집기가 저장을 막는다 */
 export type HomeGadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'QUICK_LINKS' | 'NOTICE_TEXT' | 'AD' | 'AD_TEXT_LINE';
 
-/** 광고 배너 가젯(`AD`)이 보일 배너 유형 — 광고 일정표 유형(`AdType`) 중 배너 넷 */
+/** 광고 일정표 유형(`AdType`) 중 배너 넷 */
 export type HomeAdBannerType = 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER';
 
 /** 공구 가젯 정렬 — 마감 임박 순(기본) · 새로 시작한 순 · 참여 많은 순(사용자 결정 2026-10-29) */
@@ -57,7 +54,7 @@ export interface HomeQuickLink {
  *   · `BOARD_CARDS` `boardScope`·`boardIds`(카드로 보일 게시판) · `perBoard`(카드마다 제목 수 1~10) · `cardHead`(카드 머리·「게시판 가기」 보이기, 기본 켬) + `columns` AUTO·2·3
  *   · `HIGHLIGHT` `count` 1~6 · `lead` HERO·NONE · `thumbs` ALL·FIRST·NONE / `GROUPS` `count` 1~6 /
  *     `QUICK_LINKS` `shape` PILL·TAB · `items`(12개까지) / `NOTICE_TEXT` `text`(0~300자) · `format` PLAIN·BULLETS
- *   · `AD` `adType`(HomeAdBannerType, 처음 값 WIDE_BANNER) / `AD_TEXT_LINE` `count` 1~5(처음 값 3) — 2026-10-31 목업(서버 칸 후보)
+ *   · `AD` `adType`(HomeAdBannerType, 처음 값 WIDE_BANNER) / `AD_TEXT_LINE` `count` 1~5(처음 값 3) — 서버 칸 후보
  * 관리자 응답은 그 종류의 표 칸 전부(저장 값, 없으면 처음 값 — 서버 `GadgetConfigs.view`)를 준다. 게시판 본문(`BOARD_BODY`)은 null.
  */
 export interface HomeGadgetConfig {

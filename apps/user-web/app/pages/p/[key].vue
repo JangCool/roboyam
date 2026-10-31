@@ -75,7 +75,6 @@ const data = computed(() => {
     if (!r) return null;
     return UtilHomeGadget.sanitize(preview.home.value ? UtilAdminPreview.applyHome(r.res, preview.home.value, r.extra) : r.res);
 });
-/** 광고 가젯(`AD`·`AD_TEXT_LINE`)에 따로 받은 광고 후보를 채운다(`useAdGadgets` — 홈과 같은 길) */
 const shown = useAdGadgets(data, 'PAGE');
 
 /** 투자 고지 — 투자 고지 게시판(게시판 목록의 `investmentNotice`)의 글이 보이면 */

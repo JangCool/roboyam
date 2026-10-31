@@ -1,22 +1,10 @@
 /*
- * 홈 가젯 「눈에 보이는 여백」(잉크 기준) 확인 스크립트 — 개발자가 브라우저 콘솔에 붙여 넣어 쓴다. 빌드에 포함되지 않는다(앱 코드가 아니다).
+ * 가젯 카드의 보이는 여백(잉크 기준) 확인 — 브라우저 콘솔용, 빌드에 포함되지 않는다. 잉크 규칙은 `app/composables/home/useGadgetInk.ts` 와 같다.
  *
- * 쓰는 법: 공개 화면(홈 `/` · 가젯 페이지 `/p/{key}` · 게시판 레이아웃이 켜진 `/boards/{slug}`, 관리자 미리보기 iframe 안도 됨)을 열고
- *          DevTools 콘솔에 이 파일 내용을 통째로 붙여 넣는다 → 가젯 카드(`section.gadget-card[data-testid="home-gadget"]`)마다 표가 나온다.
- *          게시판 카드 묶음의 안쪽 카드(`article.gadget-card`)도 함께 잰다. 다시 재려면 `gadgetInkPadding()` 을 부른다.
- *
- * 표의 칸(「넘침」 = 카드 아래 − 칸 아래, 0 이 정상 · 「늘린 빈 곳」 = 칸 요소의 data-grid-stretched — 운영자가 키운 만큼, 그만큼은 아래 여백이 큰 것이 규칙대로): 종류(data-gadget) · 제목 · 좌우 기준(카드 안 왼쪽 여백 px) · 위/아래/왼쪽/오른쪽(잉크 — 글자 근사) · 위/아래(원값 — 글자 줄 상자 그대로) · 벗어남(±2px 를 넘는 칸).
- *   - 위   = 카드 위 테두리 안쪽 → 보이는 첫 요소 윗선      아래 = 보이는 마지막 요소 아랫선 → 카드 아래 테두리 안쪽
- *   - 왼쪽·오른쪽 = 카드 옆 테두리 안쪽 → 가장 바깥 잉크(오른쪽은 글이 짧으면 크게 나온다 — 줄이 끝까지 차지 않을 뿐이라 벗어남 판정은 위·아래·왼쪽만)
- *   - 빈 상태·안내(`[data-grid-float]` — 공통 빈 상태 · 인기글 기간 빈 문구 · 잠김 안내, 정본 2026-10-31):
- *     「안내 위」 = 안내 바로 위에 보이는 마지막 잉크 밑선(제목·기간 탭 칩 …, 없으면 카드 위 테두리) → 안내 잉크 윗선,
- *     「안내 아래」 = 안내 잉크 밑선 → 카드 아래 테두리. 둘이 ±2px 이면 통과(최소 상태·칸 여유 있음 모두).
- *
- * 잉크 규칙(앱의 `app/composables/home/useGadgetInk.ts` 와 같다):
- *   - 글자: 텍스트 노드 Range 의 `getClientRects`(줄 상자). 원값은 그 상자 그대로, 잉크값은 em 상자(글자 크기)를 줄 상자 가운데에 두고 위 14% · 아래 10% 를 뺀 근사
- *     (한글·숫자의 윗선/밑선이 em 상자 안쪽에 그만큼 들어와 있다 — 글꼴마다 ±1px 남짓 다를 수 있다).
- *   - 아이콘(i)·svg·img·video·canvas: 요소 상자. 그 밖의 요소는 바탕색·바탕 그림·테두리·그림자가 보일 때만 그 상자(점·칩·사진 틀 등). 투명 상자(버튼 터치 영역 등)는 잉크가 아니다.
- *   - 뺀다: display:none · visibility:hidden · opacity 0 · 너비나 높이 1px 이하(sr-only 포함).
+ * 쓰는 법: 홈 `/` · `/p/{key}` · 레이아웃이 켜진 `/boards/{slug}`(관리자 미리보기 iframe 안도 됨)에서 이 파일 내용을 콘솔에 붙여 넣는다.
+ *          가젯 카드마다 표가 나오고, 다시 재려면 `gadgetInkPadding()` 을 부른다.
+ * 판정: 위·아래·왼쪽이 좌우 기준 ±2px. 넘침(카드 아래 − 칸 아래)은 0, 늘린 빈 곳(`data-grid-stretched`)만큼 아래 여백이 큰 것은 정상.
+ *       빈 상태 안내(`data-grid-float`)는 「안내 위」 = 「안내 아래」 ±2px.
  */
 (function () {
     const TOL = 2;
@@ -84,7 +72,6 @@
         return { ink, raw };
     }
 
-    /** 카드 안에서 target 바로 위에 보이는 마지막 잉크의 밑선 — 앞선 형제(조상의 앞선 형제 포함)의 잉크 중 가장 아래. 없으면 null */
     function inkAbove(card, target) {
         let bottom = null;
         let node = target;
@@ -123,9 +110,7 @@
                 오른쪽: Math.round(inner.right - ink.right),
                 '위(원값)': Math.round(raw.top - inner.top),
                 '아래(원값)': Math.round(inner.bottom - raw.bottom),
-                // 격자가 칸을 내용보다 크게 잡은 만큼(운영자 h · 같은 줄 맞추기 짝 — 칸 요소의 data-grid-stretched). 있으면 아래 여백이 그만큼 큰 것이 규칙대로다
                 '늘린 빈 곳': card.closest('[data-grid-stretched]')?.getAttribute('data-grid-stretched') ?? '',
-                // 카드 아래 − 칸 아래(칸 요소 = data-grid-height 가 있는 부모). 0 이 정상, 양수면 카드가 칸 밖으로 넘친 것
                 넘침: card.parentElement?.hasAttribute('data-grid-height') ? Math.round(r.bottom - card.parentElement.getBoundingClientRect().bottom) : '',
             };
             const empty = Array.from(card.querySelectorAll('[data-grid-float]')).find((el) => getComputedStyle(el).display !== 'none');
@@ -144,9 +129,7 @@
                     emptyOff = true;
                 }
             }
-            // 빈 상태·안내가 있는 카드는 아래 보이는 여백이 기준과 다를 수 있다(안내 위 = 안내 아래 판정으로 본다)
             const keys = empty ? ['위', '왼쪽'] : ['위', '아래', '왼쪽'];
-            // 운영자가 키운 칸(늘린 빈 곳)은 그만큼 아래 여백이 큰 것이 규칙대로 — 빼고 판정한다
             const stretched = Number(row['늘린 빈 곳']) || 0;
             const off = keys.filter((k) => Math.abs(row[k] - (k === '아래' ? stretched : 0) - base) > TOL);
             if (emptyOff) off.push('빈 상태');

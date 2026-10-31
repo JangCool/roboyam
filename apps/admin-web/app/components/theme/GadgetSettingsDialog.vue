@@ -5,7 +5,7 @@
               공동구매 — 보일 개수(1~10) · 정렬 / 글 목록 — 대상 게시판 · 개수(1~30) · 정렬 · 인기일 때 기간 탭 + 보기 모양(줄 모양·열·사진·제목 줄·큰 글·줄 정보·구분선·NEW·HOT) /
               갤러리 — 대상 게시판 · 개수(1~24) / 게시판 카드 — 카드로 보일 게시판 · 카드마다 글 수 · 열 수 · 카드 머리 /
               하이라이트 — 개수(1~6) · 큰 글 · 사진(노출할 글은 「하이라이트 관리」) / 인기 소모임 — 개수(1~6) / 바로가기 — 모양 · 항목(12개까지) / 안내 글 — 글(300자) · 모양 /
-              광고 배너 — 배너 유형(넓은·띠·네모·작은) / 한 줄 광고 — 줄 수(1~5) (광고 2종은 2026-10-31 목업 — 저장은 편집기가 막는다)
+              광고 배너 — 배너 유형(넓은·띠·네모·작은) / 한 줄 광고 — 줄 수(1~5) (광고 2종은 저장을 편집기가 막는다)
           · 「모양」 제목(1~40자) · 부제 · 아이콘 · 머리 모양 · 제목 크기·색 · 카드 모양·색(`style` — `UtilGadgetStyle`)
           · 「노출」 PC/모바일(둘 다 끌 수 없다) · 모바일 접기(머리 숨김이면 못 고름) · 비었을 때(자리 남기기 · 안내 · 안내 문구)
         대상 게시판: 전체 게시판(홈) · 「이 페이지가 연결된 폴더의 게시판 전체」(가젯 페이지) · 「지금 보는 게시판」(게시판 레이아웃) · 직접 고르기(여러 개, 고른 차례 — 20개까지). 게시판 카드의 「전체」는 서버가 켜진 일반 게시판 앞 6개.
@@ -525,7 +525,7 @@ const sortOptions = computed(() =>
     (spec.value?.sorts ?? []).map((value) => ({ value, label: t(props.gadget?.type === 'GROUP_BUY' ? `homeLayout.sort_${value}` : `homeLayout.postSort_${value}`) })),
 );
 
-/** 광고 배너 유형 — 이름(광고 일정표·신청 건과 같은 문구) · 규격 */
+/** 이름은 광고 일정표·신청 건과 같은 문구 */
 const adTypeOptions = computed(() => UtilGadgetConfig.AD_BANNER_TYPES.map((value) => ({ value, label: `${t(`bizApplication.adType.${value}`)} · ${t(`homeLayout.adTypeSize_${value}`)}` })));
 
 const folderBoardNames = computed(() => (props.folder?.boards ?? []).map((b) => b.name).join(' · '));

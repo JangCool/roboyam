@@ -68,10 +68,7 @@ const frame = ref<HTMLIFrameElement | null>(null);
 const scale = ref(0.8);
 const ready = ref(false);
 
-/**
- * 지금 값을 공개 사이트로 보낸다 — 반응형 감싸기를 벗겨(JSON) 보낸다. 홈 구성의 가젯마다 종류별 최소 높이(`minH` — `UtilHomeLayoutEditor.spec`)를 실어
- * 실제 화면의 크기 꼬리표(「n칸 줄여도 돼요」)가 편집기가 막는 높이 아래로는 권하지 않게 한다(user-web `UtilHomeGrid.sizeHint`).
- */
+/** 반응형 감싸기를 벗겨(JSON) 보낸다 — 가젯마다 `minH` 를 실어 크기 꼬리표가 편집기가 막는 높이 아래로 권하지 않게 */
 function send(): void {
     const target = frame.value?.contentWindow;
     if (!target || !origin.value) return;

@@ -54,10 +54,10 @@
         </div>
 
         <!-- 내용 — 접어도 DOM 은 남긴다(안쪽 상태를 잃지 않게) -->
-        <!-- 본문은 카드의 남는 높이를 받는다(`flex-1` · 세로 flex) — 내용은 위에서 시작하고, 바닥 조작 줄(쪽 넘김 등 — 가젯이 `mt-auto`)·아래 「더보기」 줄은 카드 아래쪽에 붙는다 -->
+        <!-- 본문이 남는 높이를 받아 바닥 줄(`mt-auto`)·「더보기」 줄은 카드 아래에 붙는다 -->
         <div v-show="bodyShown" :id="bodyId" class="@container flex min-w-0 flex-1 flex-col" data-grid-fill>
             <template v-if="showEmpty">
-                <!-- 빈 상태 안내 — 칸이 내용보다 크면 몸통(머리 아래 ~ 카드 아래 여백선)의 세로 가운데에 띄운다(`data-grid-float` — 위·아래 바깥 여백은 `useGadgetInk` 가 나눠 걸고 격자 높이 재기는 세지 않는다) -->
+                <!-- 칸이 크면 세로 가운데에 띄운다 — 띄움 여백은 `useGadgetInk` 가 걸고 격자 높이 재기는 세지 않는다 -->
                 <!-- 아이콘을 글 위 한 줄로 — `.pi` 가 inline-block 이라 `block` 클래스로는 줄이 바뀌지 않아 세로 flex 로 쌓는다 -->
                 <p v-if="style.empty.message" class="m-0 flex flex-col items-center px-1 py-8 text-center text-sm text-muted-color" data-grid-float data-testid="home-gadget-empty">
                     <i :class="[emptyIcon, 'mb-2 text-xl']" aria-hidden="true" />{{ UtilHomeGadgetMessages.emptyTitle(t, gadget) }}
@@ -149,30 +149,19 @@ const rootStyle = computed(() => {
     return vars;
 });
 
-/**
- * 카드 — 평평한 가젯만 카드 없이. 나머지는 테마가 값을 채우는 `gadget-card`(안 여백 규칙은 `main.css` — 위·아래·좌·우가 같게 보이게).
- * **px 배치**(사용자 결정 2026-10-31 — 정본): 격자(`HomeGadgetGrid`)가 칸 높이를 `UtilHomeGrid.boxHeight`(운영자 h 의 px 가 잰 내용 높이보다 한 칸 이상 크면 그 px, 아니면 내용 높이)로 잡고 카드는 칸을 채운다(카드 = 칸).
- * 내용은 늘 위에서 시작한다 — 운영자가 키운 높이·같은 줄 맞추기로 늘어난 높이의 남는 공간은 본문 영역이 받는다(카드 세로 flex · 본문 `flex-1`, 2026-10-31).
- * 그래서 바닥 조작 줄(쪽 넘김 — 가젯이 `mt-auto` + `data-grid-push`)·기본형 「더보기」 바닥 줄·머리 숨긴 카드형 「더보기」는 카드 아래쪽(아래 여백 = 테마 값)에 붙고, 남는 공간은 내용과 그 줄 사이로 간다.
- * 최소 상태(카드 = 내용)에서는 남는 공간이 없어 위·아래 여백이 테마 값 그대로 같다. 격자는 늘어난 높이를 내용으로 세지 않는다(`data-grid-fill` — `HomeGadgetGrid` 의 `naturalHeight`).
- */
+/** 카드 — 평평한 가젯만 카드 없이. 세로 flex 라 운영자가 키운 높이의 남는 공간은 본문(`flex-1`)이 받는다 */
 const rootClass = computed(() => `${style.value.cardLook === 'FLAT' ? 'min-w-0' : 'gadget-card'} flex flex-col`);
 
-/**
- * 눈에 보이는 여백(잉크 기준, 사용자 결정 2026-10-31) — 카드의 첫·마지막 자식에 위·아래 바깥 여백을 걸어 보이는 첫 윗선·마지막 아랫선이 카드 위·아래에서 좌우 여백만큼 떨어지게 한다
- * (투명 버튼 터치 영역·글자 반행간·빈 상태 안 여백 같은 보이지 않는 여유를 뺀다 — `useGadgetInk`). 카드 모양이 없는(평평) 가젯은 하지 않는다.
- */
 const card = ref<HTMLElement | null>(null);
 useGadgetInk(card, () => style.value.cardLook !== 'FLAT');
 
-/** 기본형 카드의 「더보기」 줄 — 카드 좌우 끝까지 닿는 바닥 줄. 평평한 가젯은 그대로 */
+/** 기본형 「더보기」 줄은 카드 좌우 끝까지 — 아래 바깥 여백은 `useGadgetInk` 가 건다 */
 const classicMoreStyle = computed(() =>
     style.value.cardLook === 'FLAT'
         ? undefined
         : {
               marginLeft: 'calc(-1 * var(--gadget-card-pad-x))',
               marginRight: 'calc(-1 * var(--gadget-card-pad-x))',
-              // 아래 바깥 여백은 잉크 맞추기(`useGadgetInk`)가 건다 — 「더보기」 글자 밑선이 카드 아래에서 좌우 여백만큼 떨어지게
               borderBottomLeftRadius: 'var(--gadget-card-radius)',
               borderBottomRightRadius: 'var(--gadget-card-radius)',
           },
