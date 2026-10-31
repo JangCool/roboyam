@@ -219,7 +219,7 @@ const activePrefixName = computed(() => view.value?.prefixes.find((p) => p.id ==
 const hotdeal = useHotdealAds(
     computed(() =>
         view.value
-            ? { board: slug.value, dealEnabled: view.value.dealEnabled === true, prefix: query.value.prefix, prefixName: activePrefixName.value, firstPage: query.value.page === 1 && !query.value.q }
+            ? { board: slug.value, view: view.value, dealEnabled: view.value.dealEnabled === true, prefix: query.value.prefix, prefixName: activePrefixName.value, firstPage: query.value.page === 1 && !query.value.q }
             : null,
     ),
 );
@@ -301,7 +301,7 @@ const listError = ref('');
 const isEmpty = computed(() => !list.value || (list.value.items.length === 0 && list.value.pinned.length === 0));
 
 const feedAd = useBoardFeedAd(
-    computed(() => (view.value && list.value ? { board: view.value, firstPage: query.value.page === 1, search: Boolean(query.value.q), rows: list.value.items.length } : null)),
+    computed(() => (view.value && list.value ? { slug: slug.value, board: view.value, firstPage: query.value.page === 1, search: Boolean(query.value.q), rows: list.value.items.length } : null)),
 );
 
 let listRequest = 0;

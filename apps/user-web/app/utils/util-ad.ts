@@ -66,10 +66,9 @@ function linkOf(value: unknown, type: PublicAdType): string | null {
     }
 }
 
-/** `data:image/` 는 목업 자리 이미지 */
+/** 공개 media 주소(사이트 안 경로) 또는 http(s) */
 function imageOf(value: unknown): string | null {
     if (typeof value !== 'string' || value === '') return null;
-    if (value.startsWith('data:image/')) return value;
     if (value.startsWith('/') && !value.startsWith('//')) return value;
     return /^https?:\/\//.test(value) ? value : null;
 }
@@ -251,8 +250,11 @@ export default class UtilAd {
         return Math.min(rows, after) - 1;
     }
 
-    /** 게시판 설정 `adsHidden` 은 아직 서버에 없는 칸 — 응답에 있을 때만 읽는다 */
-    static boardAdsHidden(board: object | null): boolean {
-        return board !== null && 'adsHidden' in board && (board as { adsHidden?: unknown }).adsHidden === true;
+    /**
+     * 게시판 맥락 광고(목록 한 줄·글 보기·핫딜)를 그리지 않는 게시판 — 「광고 숨김」(`adsHidden`) 또는 19금(`allowAdult`).
+     * 메뉴의 게시판 요약(`BoardView`)에는 `adsHidden` 이 없다 — 상세를 받기 전에는 서버의 `board` 판정(빈 목록)이 막는다.
+     */
+    static boardAdsHidden(board: { adsHidden?: boolean; allowAdult?: boolean } | null): boolean {
+        return board !== null && (board.adsHidden === true || board.allowAdult === true);
     }
 }

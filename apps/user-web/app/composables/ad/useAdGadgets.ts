@@ -1,20 +1,16 @@
 import type { Ref } from 'vue';
 import type { AdGadgetData, AdPlacement } from '~/composables/ad/usePublicAds.types';
 import type { HomeGadget, HomeGadgetsResponse } from '~/composables/home/api/useHomeGadgetApi.types';
-// MOCK:
-import { mockAdGadgets } from '~/composables/ad/api/mock/ad-mock';
-import { mockFlags } from '~/composables/common/mock/mock-util';
 import UtilAd from '~/utils/util-ad';
 
-/** 광고 가젯(`AD`·`AD_TEXT_LINE`)에 후보를 채운다 — 받는 중이면 `ads = null`, 후보가 없으면 `empty = true` */
+/**
+ * 광고 가젯(`AD`·`AD_TEXT_LINE`)에 후보를 채운다 — 받는 중이면 `ads = null`, 후보가 없으면 `empty = true`.
+ * 서버는 광고 가젯의 `data` 를 null 로 보낸다. 가젯 호출은 `board` 를 넘기지 않는다(게시판 레이아웃 가젯도).
+ */
 export function useAdGadgets(source: Readonly<Ref<HomeGadgetsResponse | null>>, placement: Extract<AdPlacement, 'HOME' | 'PAGE' | 'BOARD'>): Readonly<Ref<HomeGadgetsResponse | null>> {
     const ads = usePublicAds();
 
-    // MOCK: 서버 연결 때 `const withMock = source;` 로
-    const flagged = mockFlags().has('ad-gadgets');
-    const withMock = computed(() => (source.value && flagged ? mockAdGadgets(source.value, placement) : source.value));
-
-    const types = computed(() => UtilAd.gadgetTypes(withMock.value?.gadgets ?? []));
+    const types = computed(() => UtilAd.gadgetTypes(source.value?.gadgets ?? []));
     watch(
         () => types.value.join(','),
         () => {
@@ -32,7 +28,7 @@ export function useAdGadgets(source: Readonly<Ref<HomeGadgetsResponse | null>>, 
     }
 
     return computed(() => {
-        const res = withMock.value;
+        const res = source.value;
         if (!res || !res.gadgets.some((g) => UtilAd.isGadgetKind(g.type))) return res;
         return { ...res, gadgets: res.gadgets.map(fill) };
     });

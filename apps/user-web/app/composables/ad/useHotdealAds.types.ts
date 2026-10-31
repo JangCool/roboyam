@@ -1,5 +1,7 @@
 export interface HotdealAdTarget {
     board: string;
+    /** `adsHidden`·`allowAdult` 를 본다 */
+    view: { adsHidden?: boolean; allowAdult?: boolean } | null;
     dealEnabled: boolean;
     /** 없으면 빈 글자 */
     prefix: string;

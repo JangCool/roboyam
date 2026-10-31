@@ -1,6 +1,6 @@
-/** 공개 광고 노출 API(`/api/ads/**`) 모양 — 후보, 계약 `docs/features/ad-contract.md` */
+/** 공개 광고 노출 API(`/api/ads/**`) 모양 — 계약 `docs/features/ad-contract.md` 「공개 노출 목업」 */
 
-/** 상품 이름 그대로(서버 `BizProduct`) — `WING_BANNER` 는 서버에 아직 없는 새 유형 */
+/** 상품 이름 그대로(서버 `BizProduct`) */
 export type PublicAdType = 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER' | 'WING_BANNER' | 'TEXT_LINE' | 'HOTDEAL_TOP' | 'HOTDEAL_CATEGORY';
 
 /** 광고 배너 가젯(`AD`)이 고르는 배너 넷 — 날개 배너는 날개 자리 전용 */
@@ -30,12 +30,15 @@ export interface PublicAd {
     altText: string;
     /** 1~10 — 화면이 가중 무작위로 고른다 */
     weight: number;
+    /** 핫딜 두 유형만 */
     deal: PublicAdDeal | null;
-    advertiserName?: string | null;
+    /** 광고주 표시 이름(사업자 상호 또는 광고주 이름) — 없으면 null */
+    advertiserName: string | null;
 }
 
 export interface PublicAdsQuery {
     types: PublicAdType[];
+    /** 게시판 맥락 호출(목록 한 줄·글 보기·핫딜)만 — 가젯·날개는 넘기지 않는다 */
     board?: string;
     prefix?: string;
 }

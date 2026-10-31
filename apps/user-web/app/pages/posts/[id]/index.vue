@@ -356,22 +356,29 @@ const foldRevealed = ref(false);
 
 const publicAds = usePublicAds();
 void publicAds.ensurePlacements();
-/** 자리 꺼짐·19금 글·`adsHidden` 게시판·후보 0건이면 null */
+/** 글 보기 광고를 물을 게시판 — 소모임 글·19금 글·`adsHidden`·19금 게시판이면 빈 글자(게시판 맥락 호출이라 `board` 로 넘긴다) */
+const inlineBoard = computed(() => {
+    const p = post.value;
+    if (!p || p.group || p.adult || board.value?.slug !== p.board.slug || UtilAd.boardAdsHidden(board.value)) return '';
+    return p.board.slug;
+});
+/** 자리 꺼짐·광고 없는 글·후보 0건이면 null */
 const inlineAd = computed(() => {
     const p = publicAds.placements.value?.postInline;
-    if (!p?.enabled || !post.value || post.value.adult || UtilAd.boardAdsHidden(board.value)) return null;
+    if (!p?.enabled || !inlineBoard.value) return null;
     const type = UtilAd.inlineType(p.adType);
-    const ads = publicAds.candidates(type);
+    const ads = publicAds.candidates(type, inlineBoard.value);
     if (ads !== undefined && ads.length === 0) return null;
     return { type, position: UtilAd.inlinePosition(p.position), ads: ads ?? null };
 });
 watch(
     () => {
         const p = publicAds.placements.value?.postInline;
-        return p?.enabled && post.value && !post.value.adult ? UtilAd.inlineType(p.adType) : null;
+        return p?.enabled && inlineBoard.value ? `${UtilAd.inlineType(p.adType)}@${inlineBoard.value}` : '';
     },
-    (type) => {
-        if (type) void publicAds.ensure([type]);
+    (key) => {
+        const p = publicAds.placements.value?.postInline;
+        if (key && p) void publicAds.ensure([UtilAd.inlineType(p.adType)], inlineBoard.value);
     },
     { immediate: true },
 );
@@ -395,6 +402,8 @@ async function load(): Promise<void> {
         if (mine !== request) return;
         post.value = loaded;
         board.value = loadedBoard;
+        // 소모임 글에는 날개 배너도 없다
+        publicAds.setPostWings(route.path, !loaded.group);
         if (!loaded.group) current.set(loaded.board.slug);
         pageState.value = 'ready';
         opinionsStarted = false;

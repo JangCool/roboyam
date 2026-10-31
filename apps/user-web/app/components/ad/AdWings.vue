@@ -30,7 +30,9 @@ void ads.ensurePlacements();
 const sides = computed(() => {
     const w = ads.placements.value?.wings;
     const screen = UtilAd.wingScreen(route.path);
+    // 소모임 화면(`/groups/**`)은 `wingScreen` 이 null, 소모임 글은 글 보기가 알려 준다
     if (!w || !screen || !UtilAd.wingScreens(w.screens).includes(screen)) return { left: false, right: false };
+    if (screen === 'POST' && !ads.postWingsAllowed(route.path)) return { left: false, right: false };
     return { left: w.left === true, right: w.right === true };
 });
 

@@ -17,12 +17,15 @@ interface PublicAdsState {
     /** undefined = 아직, null = 못 받음 */
     placements: PublicAdPlacements | null | undefined;
     placementsAt: number;
+    /** 글 보기가 알려 준 지금 글의 날개 허용 — 소모임 글이면 false(주소만으로는 소모임 글인지 모른다) */
+    postWings: { path: string; allowed: boolean } | null;
 }
 
 type PublicAdApi = ReturnType<typeof usePublicAdApi>;
 
 /* 화면 상태가 아니라 요청 묶기·노출 대기열이라 모듈에 둔다(SPA 한 창에 하나) */
-let pending = new Set<PublicAdType>();
+/** 게시판 slug(가젯·날개는 빈 글자) → 이번 틱에 물을 유형 */
+let pending = new Map<string, Set<PublicAdType>>();
 let batch: Promise<void> | null = null;
 const inflight = new Map<string, Promise<void>>();
 let placementsRun: Promise<void> | null = null;
@@ -52,13 +55,17 @@ function hookHide(): void {
     });
 }
 
+function adKey(type: PublicAdType, board: string): string {
+    return board ? `${type}@${board}` : type;
+}
+
 function hotdealKey(board: string, prefix: string): string {
     return prefix ? `HOTDEAL_CATEGORY:${board}:${prefix}` : `HOTDEAL_TOP:${board}`;
 }
 
 export function usePublicAds() {
     const api = usePublicAdApi();
-    const state = useState<PublicAdsState>('public-ads', () => ({ ads: {}, loadedAt: {}, placements: undefined, placementsAt: 0 }));
+    const state = useState<PublicAdsState>('public-ads', () => ({ ads: {}, loadedAt: {}, placements: undefined, placementsAt: 0, postWings: null }));
 
     function fresh(key: string): boolean {
         const at = state.value.loadedAt[key];
@@ -86,30 +93,38 @@ export function usePublicAds() {
         store(keys.map(({ key, type }) => [key, ads.filter((ad) => ad.type === type)]));
     }
 
-    /** 20초 안에 받은 유형은 건너뛰고, 같은 틱에 부른 유형은 한 번에 묻는다 */
-    function ensure(types: readonly PublicAdType[]): Promise<void> {
+    /**
+     * 20초 안에 받은 유형은 건너뛰고, 같은 틱에 부른 유형은 게시판마다 한 번에 묻는다.
+     * `board` 는 게시판 맥락(목록 한 줄·글 보기)만 넘긴다 — 서버가 그 게시판에 광고를 안 내면 빈 목록이라 사본도 게시판마다 따로 둔다.
+     */
+    function ensure(types: readonly PublicAdType[], board = ''): Promise<void> {
         const waits: Promise<void>[] = [];
         let queued = false;
         for (const type of types) {
             if (type === 'HOTDEAL_TOP' || type === 'HOTDEAL_CATEGORY') continue;
-            const running = inflight.get(type);
+            const key = adKey(type, board);
+            const running = inflight.get(key);
             if (running) waits.push(running);
-            else if (!fresh(type)) {
-                pending.add(type);
+            else if (!fresh(key)) {
+                const set = pending.get(board) ?? new Set<PublicAdType>();
+                set.add(type);
+                pending.set(board, set);
                 queued = true;
             }
         }
         if (queued) {
             batch ??= Promise.resolve().then(() => {
-                const list = UtilAd.TYPES.filter((t) => pending.has(t));
-                pending = new Set();
+                const groups = [...pending.entries()];
+                pending = new Map();
                 batch = null;
-                const run = fetchInto(
-                    list.map((type) => ({ key: type, type })),
-                    { types: list },
-                );
-                for (const type of list) inflight.set(type, run);
-                return run.finally(() => list.forEach((type) => inflight.delete(type)));
+                const runs = groups.map(([b, set]) => {
+                    const list = UtilAd.TYPES.filter((t) => set.has(t));
+                    const keys = list.map((type) => ({ key: adKey(type, b), type }));
+                    const run = fetchInto(keys, { types: list, board: b || undefined });
+                    for (const { key } of keys) inflight.set(key, run);
+                    return run.finally(() => keys.forEach(({ key }) => inflight.delete(key)));
+                });
+                return Promise.all(runs).then(() => undefined);
             });
             waits.push(batch);
         }
@@ -128,8 +143,8 @@ export function usePublicAds() {
     }
 
     /** undefined = 아직 안 받음(자리를 비율 틀로 잡는다), [] = 없음(자리를 접는다) */
-    function candidates(type: PublicAdType): PublicAd[] | undefined {
-        return state.value.ads[type];
+    function candidates(type: PublicAdType, board = ''): PublicAd[] | undefined {
+        return state.value.ads[adKey(type, board)];
     }
 
     function hotdealCandidates(board: string, prefix: string): PublicAd[] | undefined {
@@ -168,5 +183,18 @@ export function usePublicAds() {
         api.click(ad.id, { version: ad.version, placement });
     }
 
-    return { ensure, ensureHotdeal, candidates, hotdealCandidates, placements, ensurePlacements, impression, click };
+    /** 글 보기가 글을 받은 뒤 부른다 — 날개(`AdWings`)는 그 주소의 글이 허용될 때만 그린다 */
+    function setPostWings(path: string, allowed: boolean): void {
+        const cur = state.value.postWings;
+        if (cur?.path === path && cur.allowed === allowed) return;
+        state.value = { ...state.value, postWings: { path, allowed } };
+    }
+
+    /** 이 주소의 글이 날개를 허용하나 — 글을 아직 받지 못했으면 false(소모임 글에 잠깐 비치지 않게) */
+    function postWingsAllowed(path: string): boolean {
+        const cur = state.value.postWings;
+        return cur !== null && cur.path === path && cur.allowed;
+    }
+
+    return { ensure, ensureHotdeal, candidates, hotdealCandidates, placements, ensurePlacements, impression, click, setPostWings, postWingsAllowed };
 }
