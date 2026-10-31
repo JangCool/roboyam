@@ -8,8 +8,9 @@ import type { Ref } from 'vue';
  *  - 잉크: 글자 = 텍스트 노드 Range 의 줄 상자를 글자 크기로 근사한 글리프 윗선·아랫선(줄 상자 가운데에 em 상자, 그 위 14% · 아래 10% 를 뺀다 — 한글·숫자 윗선/밑선 근사).
  *    아이콘(i)·svg·img·video·canvas = 요소 상자. 그 밖의 요소는 바탕·테두리·그림자가 보일 때만 상자(투명 버튼·줄 상자는 잉크가 아니다).
  *    `visibility:hidden`·`display:none`·투명(opacity 0)·크기 1px 이하(sr-only)는 뺀다.
- *  - 늘어나는 상자(`data-grid-fill` — 껍데기 본문, 바닥 조작 줄이 있는 가젯 본문)는 안으로 내려가 첫·마지막 자식의 여유를 더한다 — 칸이 커서 늘어난 높이(아래 빈 곳)는 세지 않는다
- *    (그래서 격자 높이 재기 `naturalHeight` 와 되먹임이 없다: 최소 상태에서 카드 = 내용, 걸어 둔 여백은 자식 자신의 여백을 빼고 계산해 다시 재도 같은 값).
+ *  - 기준 잉크는 **위치로** 고른다(2026-10-31): 카드 안 모든 잉크 중 화면상 가장 위·가장 아래(DOM 마지막 자식을 따라가지 않는다 — 세로로 먼저 채우는 두 열 목록은 DOM 끝이 오른쪽 열 끝이라
+ *    긴 왼쪽 열 끝 줄을 놓쳤다). 지금 보이는 여백을 재서 첫·마지막 자식 바깥 여백을 그 차이만큼 옮긴다. 칸이 커서 늘어난 빈 곳(카드 높이 − 본래 높이 `naturalHeight`)은
+ *    가장 아래 잉크가 그 빈 곳 위에 있을 때만(밀린 줄·「더보기」 줄이 아니면) 빼고 잰다 — 그래서 격자 높이 재기와 되먹임이 없고, 최소 상태에서 카드 = 내용이다.
  *  - 빈 상태 안내(`data-grid-float` — 공통 빈 상태 · 인기글 기간 빈 문구 · 잠김 안내, 정본 2026-10-31): 「안내 바로 위에 보이는 마지막 잉크 밑선(머리 제목·기간 탭 칩 …, 없으면 카드 위 테두리)
  *    → 안내 윗선」(A) = 「안내 밑선 → 카드 아래 테두리」(B). 최소 상태에서는 카드 아래 여백(세는 여백 — 마지막 자식 아래 바깥 여백)을 B = T = max(A0, 좌우 여백) 이 되게 잡아
  *    빈 상태 카드의 최소 높이를 정하고(A0 = 띄움 여백 없을 때의 A), 칸에 여유가 있으면 그 여유를 안내 위·아래 바깥 여백으로 나눠 A = B 를 지킨다.
@@ -62,13 +63,12 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
             clear();
             return;
         }
-        const cs = getComputedStyle(el);
-        const padX = num(cs.paddingLeft);
-        const lead = leading(first);
-        const trail = trailing(last);
-        const top = lead === null ? null : Math.round(padX - num(cs.paddingTop) - lead);
-
-        // 빈 상태 안내(`data-grid-float`, 마지막 자식 안 — 카드에 하나) — 「안내 바로 위 마지막 잉크 밑선 → 안내 윗선」(A) = 「안내 밑선 → 카드 아래 테두리」(B)
+        // 지난번에 건 자식 중 이번에 첫·마지막이 아닌 것은 먼저 되돌린다(그 뒤에 잰다)
+        for (const m of marked) {
+            if (m !== first) m.style.marginTop = '';
+            if (m !== last) m.style.marginBottom = '';
+        }
+        marked = [first, last].filter((m, i, list) => list.indexOf(m) === i);
         const floats = Array.from(el.querySelectorAll<HTMLElement>('[data-grid-float]')).filter((f) => getComputedStyle(f).display !== 'none' && last.contains(f));
         for (const f of floated) {
             if (floats[0] === f) continue;
@@ -77,39 +77,58 @@ export function useGadgetInk(card: Ref<HTMLElement | null>, enabled: () => boole
         }
         const float = floats[0] ?? null;
         floated = float ? [float] : [];
-        // 최소 상태의 기준 T = max(A0, 좌우 여백) — A0 = 띄움 여백이 없을 때의 A. 카드 아래 여백(세는 여백)을 B = T 가 되게 잡아 최소 높이도 이 규칙으로 정해진다
+
+        // 화면상 가장 위·가장 아래 잉크(카드 안 모든 글자 줄 상자 근사·보이는 요소 상자 중 — DOM 순서가 아니라 위치로. 두 열 목록의 긴 열 끝 줄 등)
+        const ink = inkOf(el, true);
+        if (!ink) {
+            clear();
+            return;
+        }
+        const cs = getComputedStyle(el);
+        const rect = el.getBoundingClientRect();
+        const padX = num(cs.paddingLeft);
+        const borderT = num(cs.borderTopWidth);
+        const borderB = num(cs.borderBottomWidth);
+        // 칸이 커서 늘어난 빈 곳 — 카드 높이 − 본래 높이(띄운 안내 여백·밀린 줄 위 여백 제외)
+        const extra = Math.max(0, rect.height - naturalHeight(el));
+
+        // 위 — 보이는 위 여백(카드 위 안쪽 → 가장 위 잉크, 띄운 안내가 맨 위면 그 띄움 여백 제외)이 좌우 여백이 되게 첫 자식 위 바깥 여백을 그만큼 옮긴다
+        const floatAbove = float && ink.topEl && float.contains(ink.topEl) ? num(float.style.marginTop) : 0;
+        const gapTop = ink.top - (rect.top + borderT) - floatAbove;
+        const top = Math.round(num(getComputedStyle(first).marginTop) + (padX - gapTop));
+
+        // 아래 — 가장 아래 잉크 밑선 → 카드 아래까지에서 늘어난 빈 곳을 뺀다: 띄운 안내 안이면 그 아래 띄움 여백, 밀린 줄(쪽 넘김)·본문 뒤 줄(「더보기」)이면 0(빈 곳은 그 위), 그 밖은 늘어난 빈 곳 전부(아래에 있다)
+        const owner = ink.bottomEl;
+        let slack = extra;
+        if (float && owner && float.contains(owner)) slack = num(float.style.marginBottom);
+        else if (owner && (owner.closest('[data-grid-push]') || !insideBody(el, owner))) slack = 0;
+        // 빈 상태 안내 — 「안내 바로 위 마지막 잉크 밑선 → 안내 윗선」(A) = 「안내 밑선 → 카드 아래 테두리」(B). 최소 상태 기준 T = max(A0, 좌우 여백)
         let a0 = 0;
         let target = padX;
+        let gapBottom = rect.bottom - borderB - ink.bottom - slack;
         if (float) {
-            const ink = inkOf(float);
-            if (ink) {
+            const fi = inkOf(float, false);
+            if (fi) {
                 const above = inkAbove(el, float);
-                const ref = above ?? el.getBoundingClientRect().top;
-                a0 = ink.top - ref - num(float.style.marginTop);
+                a0 = fi.top - (above ?? rect.top) - num(float.style.marginTop);
                 target = Math.max(a0, padX);
+                gapBottom = rect.bottom - ink.bottom - slack; // 카드 아래 테두리 바깥까지
             }
         }
-        const bottom =
-            trail === null ? null : float ? Math.round(target - num(cs.paddingBottom) - num(cs.borderBottomWidth) - trail) : Math.round(padX - num(cs.paddingBottom) - trail);
-        // 지난번에 건 자식 중 이번에 첫·마지막이 아닌 것은 되돌린다
-        for (const m of marked) {
-            if (m !== first) m.style.marginTop = '';
-            if (m !== last) m.style.marginBottom = '';
-        }
-        marked = [first, last].filter((m, i, list) => list.indexOf(m) === i);
+        const bottom = Math.round(num(getComputedStyle(last).marginBottom) + (target - gapBottom));
         setPx(first, 'marginTop', top);
         setPx(last, 'marginBottom', bottom);
 
-        // 칸에 여유(E = 카드 높이 − 본래 높이)가 있으면 띄움 여백으로 나눠 A = B — 위 = (E + T − A0)/2, 아래 = 나머지(격자 높이 재기는 이 여백을 세지 않는다 — 되먹임 없음)
+        // 칸에 여유가 있으면 띄움 여백으로 나눠 A = B — 위 = (E + T − A0)/2, 아래 = 나머지(격자 높이 재기는 이 여백을 세지 않는다 — 되먹임 없음)
         if (float) {
-            const extra = el.getBoundingClientRect().height - naturalHeight(el);
-            if (extra <= 0.5) {
+            const e = el.getBoundingClientRect().height - naturalHeight(el);
+            if (e <= 0.5) {
                 setPx(float, 'marginTop', null);
                 setPx(float, 'marginBottom', null);
             } else {
-                const mt = Math.min(extra, Math.max(0, Math.round((extra + target - a0) / 2)));
+                const mt = Math.min(e, Math.max(0, Math.round((e + target - a0) / 2)));
                 setPx(float, 'marginTop', mt);
-                setPx(float, 'marginBottom', Math.max(0, Math.round(extra - mt)));
+                setPx(float, 'marginBottom', Math.max(0, Math.round(e - mt)));
             }
         }
         watchTree(el);
@@ -168,39 +187,10 @@ function visibleChildren(el: Element): HTMLElement[] {
     return out;
 }
 
-/** 첫 잉크까지 — 요소 위 끝에서 첫 잉크 윗선까지(늘어나는 상자는 안 여백 + 첫 자식 위 여백 + 그 자식의 여유). 잉크가 없으면 null */
-function leading(el: HTMLElement): number | null {
-    if (el.hasAttribute('data-grid-fill')) {
-        const cs = getComputedStyle(el);
-        let acc = num(cs.paddingTop) + num(cs.borderTopWidth);
-        for (const child of visibleChildren(el)) {
-            const ccs = getComputedStyle(child);
-            const inner = leading(child);
-            const mt = child.hasAttribute('data-grid-float') ? 0 : num(ccs.marginTop);
-            if (inner !== null) return acc + mt + inner;
-            // 잉크 없는 앞 자식(빈 칸)은 그 높이째 여유로 치고 다음 자식으로
-            acc += num(ccs.marginTop) + child.getBoundingClientRect().height + num(ccs.marginBottom);
-        }
-        return null;
-    }
-    const ink = inkOf(el);
-    return ink ? ink.top - el.getBoundingClientRect().top : null;
-}
-
-/** 마지막 잉크부터 — 마지막 잉크 아랫선에서 요소 아래 끝까지(늘어나는 상자는 마지막 자식 아래 여백 + 안 여백, 늘어난 빈 곳은 세지 않는다). 잉크가 없으면 null */
-function trailing(el: HTMLElement): number | null {
-    if (el.hasAttribute('data-grid-fill')) {
-        const cs = getComputedStyle(el);
-        const tail = num(cs.paddingBottom) + num(cs.borderBottomWidth);
-        const kids = visibleChildren(el);
-        const last = kids[kids.length - 1];
-        if (!last) return null;
-        const inner = trailing(last);
-        const mb = last.hasAttribute('data-grid-float') ? 0 : num(getComputedStyle(last).marginBottom);
-        return inner === null ? null : tail + mb + inner;
-    }
-    const ink = inkOf(el);
-    return ink ? el.getBoundingClientRect().bottom - ink.bottom : null;
+/** 잉크가 카드 본문(늘어나는 첫 `data-grid-fill` 자식 — 칸이 커서 늘어나는 곳) 안에 있는가 */
+function insideBody(card: Element, owner: Element): boolean {
+    for (const child of card.children) if (child.hasAttribute('data-grid-fill') && child.contains(owner)) return true;
+    return false;
 }
 
 /**
@@ -268,22 +258,33 @@ function textInk(rect: DOMRect, fontSize: number): { top: number; bottom: number
     return { top: emTop + fontSize * 0.14, bottom: emTop + fontSize * 0.9 };
 }
 
-/** 요소 안 잉크의 위·아래 끝(뷰포트 px) — 없으면 null */
-function inkOf(root: Element): { top: number; bottom: number } | null {
+/**
+ * 요소 안 잉크의 위·아래 끝(뷰포트 px)과 그 잉크의 주인 요소 — 없으면 null. `skipSelf` 면 그 요소 자신의 바탕·테두리는 잉크로 치지 않는다(카드).
+ * 위치로 고른다 — 모든 하위 글자 줄 상자(글리프 근사)·보이는 요소 상자 중 가장 위·가장 아래.
+ */
+function inkOf(root: Element, skipSelf = false): { top: number; bottom: number; topEl: Element | null; bottomEl: Element | null } | null {
     let top = Number.POSITIVE_INFINITY;
     let bottom = Number.NEGATIVE_INFINITY;
-    const add = (t: number, b: number) => {
+    let topEl: Element | null = null;
+    let bottomEl: Element | null = null;
+    const add = (t: number, b: number, owner: Element) => {
         if (b - t <= 0) return;
-        top = Math.min(top, t);
-        bottom = Math.max(bottom, b);
+        if (t < top) {
+            top = t;
+            topEl = owner;
+        }
+        if (b > bottom) {
+            bottom = b;
+            bottomEl = owner;
+        }
     };
     const visit = (el: Element) => {
         const cs = getComputedStyle(el);
         if (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0') return;
         const rect = el.getBoundingClientRect();
         if (rect.width <= 1 || rect.height <= 1) return; // 크기 0·sr-only
-        if (paints(el, cs)) {
-            add(rect.top, rect.bottom);
+        if (!(skipSelf && el === root) && paints(el, cs)) {
+            add(rect.top, rect.bottom, el);
             if (el.tagName === 'I' || el.tagName === 'IMG' || el.tagName.toLowerCase() === 'svg') return;
         }
         for (const node of el.childNodes) {
@@ -294,8 +295,8 @@ function inkOf(root: Element): { top: number; bottom: number } | null {
                 const fontSize = num(cs.fontSize);
                 for (const r of range.getClientRects()) {
                     if (r.width <= 0 || r.height <= 0) continue;
-                    const ink = textInk(r, fontSize);
-                    add(ink.top, ink.bottom);
+                    const t = textInk(r, fontSize);
+                    add(t.top, t.bottom, el);
                 }
             } else if (node.nodeType === Node.ELEMENT_NODE) {
                 visit(node as Element);
@@ -303,5 +304,5 @@ function inkOf(root: Element): { top: number; bottom: number } | null {
         }
     };
     visit(root);
-    return Number.isFinite(top) ? { top, bottom } : null;
+    return Number.isFinite(top) ? { top, bottom, topEl, bottomEl } : null;
 }
