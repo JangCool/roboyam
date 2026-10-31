@@ -44,7 +44,7 @@ const KINDS: readonly HomeKindSpec[] = [
     { kind: 'NOTICE_TEXT', icon: 'pi-megaphone', minW: 2, minH: 3, w: 4, h: 6 },
     // 배너는 처음에 전체 폭, 한 줄 광고는 반 폭 3줄
     { kind: 'AD', icon: 'pi-image', minW: 2, minH: 2, w: 12, h: 4 },
-    { kind: 'AD_TEXT_LINE', icon: 'pi-bars', minW: 3, minH: 2, w: 6, h: 5 },
+    { kind: 'AD_TEXT_LINE', icon: 'pi-bars', minW: 3, minH: 2, w: 6, h: 6 },
 ];
 
 /**

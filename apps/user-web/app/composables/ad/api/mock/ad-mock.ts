@@ -188,9 +188,9 @@ export function mockAdGadgets(res: HomeGadgetsResponse, place: AdPlacement): Hom
     const items = [
         { gadgetId: 'mock-ad-wide', x: 0, y: 0, w: c, h: top },
         ...shifted,
-        { gadgetId: 'mock-ad-text', x: 0, y, w: s, h: 5 },
+        { gadgetId: 'mock-ad-text', x: 0, y, w: s, h: 6 },
         { gadgetId: 'mock-ad-square', x: s, y, w: c - s, h: 9 },
-        { gadgetId: 'mock-ad-strip', x: 0, y: y + 5, w: s, h: 3 },
+        { gadgetId: 'mock-ad-strip', x: 0, y: y + 6, w: s, h: 3 },
         { gadgetId: 'mock-ad-small', x: s, y: y + 9, w: c - s, h: 4 },
     ];
     return { ...res, layout: { columns: c, items }, gadgets };
