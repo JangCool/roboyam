@@ -7,8 +7,8 @@
           · `half` 태블릿(md~lg) 또는 사이드 메뉴 때문에 홈 폭이 좁은 데스크톱 — 칸 수 반, 반 폭 이하 가젯 둘은 나란히·나머지는 전체 폭(`UtilHomeGrid.half`)
           · `stack` 모바일(md 미만) 또는 홈 폭 36rem 미만 — 한 열, 간격은 테마 역할 변수 `--gadget-gap`(카드가 화면 끝까지 닿는 모바일 모양 그대로).
             순서는 템플릿의 한 열 모양(`mobile.order`): `reading` (y, x) · `columns` 본문 열 먼저(`UtilHomeGrid.byColumns`). 한 열인지는 아래 가젯에 알린다(`provideHomeGadgetStacked` — 가젯의 한 열 모양: 가로로 미는 줄 등)
-        **px 배치**(사용자 결정 2026-10-31 — 정본): 상자 높이 = max(hPx, contentPx) 정확히(올림 없음 — hPx = h×15 + (h−1)×16, contentPx = 잰 내용 + 테마 위·아래 여백). 칸 = 상자라 상자 밖 띠가 없다.
-          운영자가 h 를 키우면 상자가 늘고(내용은 위에서 시작, 남는 공간은 아래 — 일부러 키운 것) 줄이면 줄되 contentPx 에서 멈춘다(위·아래 여백이 정확히 같은 최소 상태). 게시판 본문 칸은 내용 높이만.
+        **px 배치**(사용자 결정 2026-10-31 — 정본): hPx = h×15 + (h−1)×16, contentPx = 잰 내용 + 테마 위·아래 여백(정수). 상자 높이 = hPx − contentPx 가 한 칸(31px) 이상이면 hPx(운영자가 일부러 키운 것 —
+          내용은 위에서 시작, 남는 공간은 아래), 아니면 contentPx(한 칸 미만은 칸 단위 반올림일 뿐 — 위·아래 여백이 정확히 같다, `UtilHomeGrid.boxHeight`). 칸 = 상자라 상자 밖 띠가 없다. 게시판 본문 칸은 내용 높이만.
           위 끝 = 읽는 순서에서 앞선 가젯 중 열이 겹치는 것들의 아래 끝 중 가장 낮은 값 + 16px(없으면 0) — 가젯 사이 세로 간격은 늘 정확히 16px. 높이가 바뀌면(ResizeObserver) 다시 쌓는다.
           (예전 「상자 = 격자 칸 · 남는 높이는 위·아래 반씩」·「상자 = 내용 · h 는 높이를 늘리지 않음」 규칙은 이것으로 바뀌었다)
         가젯의 PC/모바일 노출(`desktop`·`mobile`, lg 경계)·비어서 감춤은 `UtilHomeGadget.isVisible` 그대로이고, 숨긴 가젯의 자리는 당겨 메운다. 요소 순서는 읽는 순서((y, x))라 화면 읽기·Tab 순서가 보이는 순서와 같다.
@@ -18,7 +18,7 @@
           (`postToAdminPreview` — 놓은 칸 `place` · 칸·행 `size` · `remove`). 실제 계산(최소 크기·겹침·위로 당기기)과 저장은 관리자 편집기가 하고, 바뀐 배치를 다시 보내면 이 격자가 그린다.
           편집 중에는 PC 에서 숨는 가젯(모바일만)도 흐리게 그린다(자리를 고칠 수 있게). 공개 화면(편집 아님)에는 아무 영향이 없다.
           편집 중에는 칸마다 옅은 점선 윤곽을 늘 그린다(칸 = 상자라 상자 테두리와 겹친다 — 손잡이 층은 실제 칸 DOM 위). 모서리를 끄는 동안은 놓일 h 로 상자를 바로 그린다. 크기 꼬리표(`w×h`)는
-          최적 칸 수 fit(= max(1, floor((contentPx + 16) / 31)) — hPx ≤ contentPx 인 가장 큰 h)보다 작으면 빨강 「더 줄일 수 없어요 — 최소 fit칸」, 크면 주황 「n칸 줄여도 내용이 다 보여요」(n = h − max(fit, 종류별 최소 높이 `minH`))를 늘 보인다
+          최적 칸 수 need(= ceil((contentPx + 16) / 31) — 내용이 다 들어가는 가장 작은 h)보다 작으면 빨강 「더 줄일 수 없어요 — 최소 need칸」, 크면 주황 「n칸 줄여도 내용이 다 보여요」(n = h − max(need, 종류별 최소 높이 `minH`))를 늘 보인다
           — 모서리를 끄는 동안은 놓일 h 로 실시간(`UtilHomeGrid.sizeHint`). 끌어 옮길 때 놓일 행은 화면 순서로 되짚는다(`UtilHomeGrid.rowAt`). 저장은 막지 않는다.
         **게시판 레이아웃**(2026-10-30, `BoardLayoutGrid` 가 `provideBoardLayoutBody` 로 본문을 넘길 때만): 고정 칸 「게시판 본문」(`BOARD_BODY`) 자리에 게시판 목록(·글 보기) 화면 내용을 그대로 그린다(높이는 내용대로).
           한 열에서는 본문을 먼저(본문 위에 통째로 놓인 가젯은 그 위 그대로 — `UtilHomeGrid.bodyFirst`). 편집 손잡이는 옮기기·크기만(× · ⚙ 없음).
@@ -308,9 +308,10 @@ const ghost = computed<CSSProperties | null>(() => {
     if (!d) return null;
     const { colW, unitX } = steps();
     const { x, w } = d.target;
-    // 세로는 px 배치라 손가락 위치(옮기기)·지금 자리(크기)에. 높이 — 옮기기는 상자 그대로, 크기는 놓일 h 의 상자 높이 max(hPx, contentPx)(칸도 같은 높이로 바로 그린다)
+    // 세로는 px 배치라 손가락 위치(옮기기)·지금 자리(크기)에. 높이 — 옮기기는 상자 그대로, 크기는 놓일 h 의 상자 높이 `boxHeight`(칸도 같은 높이로 바로 그린다 — need 이하는 contentPx, need+1 부터 hPx)
     const top = d.kind === 'move' ? d.top + d.dy : d.top;
-    const height = d.kind === 'move' ? d.height : Math.max(UtilHomeLayout.px(d.target.h), heights.value[d.id] ?? 0);
+    const content = heights.value[d.id];
+    const height = d.kind === 'move' ? d.height : content === undefined ? UtilHomeLayout.px(d.target.h) : UtilHomeGrid.boxHeight(d.target.h, content);
     return { left: `${x * unitX}px`, top: `${top}px`, width: `${w * colW + (w - 1) * UtilHomeLayout.GAP}px`, height: `${height}px` };
 });
 
@@ -328,7 +329,7 @@ let mutationObserver: MutationObserver | null = null;
  * 늘어나는 세로 flex 상자(`data-grid-fill` — 껍데기 카드·본문, 바닥 조작 줄이 있는 가젯의 본문 덩어리)의 **본래** 높이(px) — 칸이 커서 늘어난 높이가 아니라
  * 자식들 높이 + 바깥 여백 + 줄 간격 + 자기 안 여백·테두리의 합. 아래로 밀린 줄(`data-grid-push` — `mt-auto`)의 위 바깥 여백, 가운데에 띄운 덩어리(`data-grid-float` — 빈 상태 안내,
  * `useGadgetInk` 가 남는 높이를 위·아래 바깥 여백으로 나눠 건다)의 위·아래 바깥 여백은 늘어난 빈 곳이라 세지 않는다.
- * 늘지 않는 요소는 그대로의 높이. (늘어난 높이를 내용으로 세면 상자 = max(hPx, 잰 높이) 가 줄어들지 못한다 — 되먹임)
+ * 늘지 않는 요소는 그대로의 높이. (늘어난 높이를 내용으로 세면 상자 높이(`boxHeight`)가 줄어들지 못한다 — 되먹임)
  */
 function naturalHeight(el: Element): number {
     if (!el.hasAttribute('data-grid-fill')) return el.getBoundingClientRect().height;
