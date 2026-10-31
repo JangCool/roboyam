@@ -99,6 +99,16 @@ public class BizApplicationReader {
         return store.forAdmin(domain, kind, q);
     }
 
+    /** 운영자 이름(없으면 null) */
+    public String operatorName(Long operatorId) {
+        return store.operatorName(operatorId);
+    }
+
+    /** 소재 버전 전부(오래된 것 먼저) */
+    public List<CreativeRow> creativeVersions(long id) {
+        return store.creatives(id);
+    }
+
     /** 건 하나(없으면 404) — 처리 전에 도메인 권한을 가를 때 */
     public AppRow app(long id) {
         return store.find(id).orElseThrow(BizApplicationException::notFound);

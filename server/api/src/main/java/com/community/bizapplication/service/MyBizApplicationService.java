@@ -141,7 +141,8 @@ public class MyBizApplicationService {
         BizMemberView.Summary sum = summary(a, s.items(), s.creative(), s.refund(), now);
         Map<String, Object> c = s.creative() == null ? Map.of() : s.creative().content();
         BizMemberView.Creative creative = a.kind().ad() ? new BizMemberView.Creative(s.creative() == null ? 1 : s.creative().version(), str(c.get("imageUrl")),
-                str(c.get("imageUrl")) == null ? null : fileName(str(c.get("imageUrl"))), str(c.get("linkUrl")), str(c.get("altText")), str(c.get("text"))) : null;
+                str(c.get("imageUrl")) == null ? null : fileName(str(c.get("imageUrl"))), str(c.get("linkUrl")), str(c.get("altText")), str(c.get("text")),
+                str(c.get("imageFileId"))) : null;
         BizDealInfo deal = a.kind() == BizApplicationKind.HOTDEAL_POST ? new BizDealInfo(str(c.get("linkUrl")), str(c.get("shopName")), num(c.get("listPrice")),
                 num(c.get("dealPrice")), num(c.get("shippingFee")), str(c.get("endsOn")), str(c.get("stock")), str(c.get("body")), str(c.get("placement"))) : null;
         BizMemberView.Deposit deposit = null;

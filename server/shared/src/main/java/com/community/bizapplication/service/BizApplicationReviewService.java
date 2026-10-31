@@ -12,6 +12,7 @@ import com.community.bizapplication.entity.BizPhase;
 import com.community.bizapplication.entity.BizProduct;
 import com.community.bizapplication.entity.BizRefundStatus;
 import com.community.bizapplication.entity.BizRejectCode;
+import com.community.bizapplication.entity.BizSource;
 import com.community.bizapplication.exception.BizApplicationException;
 import com.community.bizapplication.repository.master.BizApplicationStore;
 import com.community.bizapplication.repository.master.BizApplicationStore.AppRow;
@@ -64,10 +65,11 @@ public class BizApplicationReviewService {
     private final BizApplicationOps ops;
     private final BizApplicationMemberService pricing;
     private final DataCipher cipher;
+    private final BizApplicationProperties props;
     private final TransactionTemplate tx;
 
     public BizApplicationReviewService(BizApplicationStore store, BizContractStore contracts, BizRefundStore refunds, BizSlotService slots, BizApplicationOps ops,
-                                       BizApplicationMemberService pricing, DataCipher cipher, PlatformTransactionManager transactions) {
+                                       BizApplicationMemberService pricing, DataCipher cipher, BizApplicationProperties props, PlatformTransactionManager transactions) {
         this.store = store;
         this.contracts = contracts;
         this.refunds = refunds;
@@ -75,6 +77,7 @@ public class BizApplicationReviewService {
         this.ops = ops;
         this.pricing = pricing;
         this.cipher = cipher;
+        this.props = props;
         this.tx = new TransactionTemplate(transactions);
     }
 
@@ -102,6 +105,18 @@ public class BizApplicationReviewService {
      * 자리 없음 409 {@code BIZ_SLOT_FULL}(상품마다 어드바이저리 잠금 아래 다시 판정). 승인 순간부터 자리를 잡는다. 금액 스냅샷 고정, 소재 버전 고정(A2).
      */
     public void approve(BizOperator actor, long id, String methodText, Long supply, String adjustReasonText, String deadlineText, String startText, String endText) {
+        approve(actor, id, methodText, supply, adjustReasonText, deadlineText, startText, endText, null);
+    }
+
+    /**
+     * 승인 + 운영자 등록 건 규칙(04 §2): 운영자 등록 건(source=OPERATOR)은 수동 결제만(온라인이면 400 {@code fields.method}). <b>자기 승인</b>(등록한 운영자 = 승인하는 운영자)은
+     * 설정 {@code roboyam.biz.self-approval} — {@code deny} 면 409 {@code BIZ_SELF_APPROVAL_DENIED}, {@code allow} 면 메모 1~200자 필수(400 {@code fields.memo})이고
+     * 처리 기록 메모 {@code SELF_APPROVED · 메모} · 감사 detail {@code selfApproved=true}·{@code selfApprovalMemo}.
+     *
+     * @param selfMemoText 자기 승인 메모(자기 승인이 아니면 무시)
+     */
+    public void approve(BizOperator actor, long id, String methodText, Long supply, String adjustReasonText, String deadlineText, String startText, String endText,
+                        String selfMemoText) {
         BizFields f = BizFields.start();
         BizPaymentMethod method = f.oneOf("method", methodText, BizPaymentMethod::valueOf);
         if (supply == null || supply < 1) {
@@ -123,6 +138,11 @@ public class BizApplicationReviewService {
         tx.executeWithoutResult(status -> {
             AppRow app = store.lock(id).orElseThrow(BizApplicationException::notFound);
             BizApplicationStatus to = BizTransitions.require(method == BizPaymentMethod.ONLINE ? Action.APPROVE_ONLINE : Action.APPROVE_MANUAL, app.status());
+            if (app.source() == BizSource.OPERATOR && method != BizPaymentMethod.MANUAL) {
+                throw com.community.zconfiguration.exception.ValidationException.of("method", new com.community.zconfiguration.message.MessageRef("bizapp.method.operatorManual"));
+            }
+            boolean self = selfApproval(app, actor);
+            String selfMemo = self ? selfApprovalMemo(props.selfApproval(), selfMemoText) : null;
             List<ItemRow> items = pricing.items(id, products(app), period);
             Amount quote = BizPricing.amountOf(items.stream().mapToLong(ItemRow::supply).sum());
             boolean adjusted = supply != quote.supply();
@@ -144,6 +164,9 @@ public class BizApplicationReviewService {
             if (adjusted) {
                 notes.add(adjust);
             }
+            if (self) {
+                notes.add(0, "SELF_APPROVED · " + selfMemo);
+            }
             ops.event(id, method == BizPaymentMethod.ONLINE ? BizEventAction.APPROVED_ONLINE : BizEventAction.APPROVED_MANUAL, BizActorType.OPERATOR, actor.operatorId(),
                     notes.isEmpty() ? null : String.join(" · ", notes), now);
             Map<String, Object> detail = new LinkedHashMap<>();
@@ -153,6 +176,10 @@ public class BizApplicationReviewService {
             detail.put("startAt", period.start().toString());
             detail.put("endAt", period.end().toString());
             detail.put("deadlineAt", deadline.toString());
+            if (self) {
+                detail.put("selfApproved", true);
+                detail.put("selfApprovalMemo", selfMemo);
+            }
             ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_APPROVE, app, detail);
             if (adjusted) {
                 ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_PRICE_ADJUST, app,
@@ -208,7 +235,7 @@ public class BizApplicationReviewService {
     // ── 수동 결제 ───────────────────────────────────────────────────────────
 
     /**
-     * 계약서 사본 올리기 — 입금 대기만. PDF·JPG·PNG(내용 첫 바이트로 판정) 한 장 10MB, 한 번에 1~10장. {@code replaceId} 를 주면 그 사본 하나를 「대체됨」으로(이때 정확히 1장).
+     * 계약서 사본 올리기 — 입금 대기, 그리고 운영자 등록 건은 심사 대기부터(오프라인 계약서를 먼저 받은 경우 — 04 §2). PDF·JPG·PNG(내용 첫 바이트로 판정) 한 장 10MB, 한 번에 1~10장. {@code replaceId} 를 주면 그 사본 하나를 「대체됨」으로(이때 정확히 1장).
      * 원본은 지우지 않는다. 대체되지 않은 사본 수를 같은 트랜잭션에서 맞춘다(수동 확정 CHECK).
      */
     public void uploadContracts(BizOperator actor, long id, List<BizUpload> files, String replaceIdText) {
@@ -237,7 +264,7 @@ public class BizApplicationReviewService {
         }
         tx.executeWithoutResult(status -> {
             AppRow app = store.lock(id).orElseThrow(BizApplicationException::notFound);
-            if (app.status() != BizApplicationStatus.AWAITING_DEPOSIT) {
+            if (!contractsAllowed(app)) {
                 throw BizApplicationException.stateChanged();
             }
             Instant now = ops.now();
@@ -260,6 +287,57 @@ public class BizApplicationReviewService {
             }
             ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_CONTRACT_UPLOAD, app, detail);
         });
+    }
+
+    /**
+     * 운영자 등록 전 계약서 사본 미리 올리기(광고 일정표 수동 등록 서랍 — 건이 아직 없다). 한 장, 검사·암호문은 {@link #uploadContracts} 와 같다. 등록 때 {@link #attachDrafts} 로
+     * 그 건에 붙고 그때 처리 기록·감사({@code BIZ_APP_CONTRACT_UPLOAD})를 남긴다. 붙지 않은 사본 정리는 후속.
+     */
+    public ContractRow uploadDraftContract(BizOperator actor, BizUpload file) {
+        if (file == null) {
+            throw com.community.zconfiguration.exception.ValidationException.of("file", new com.community.zconfiguration.message.MessageRef("bizapp.file.required"));
+        }
+        byte[] data = file.data();
+        if (data == null || data.length == 0) {
+            throw com.community.zconfiguration.exception.ValidationException.of("file", new com.community.zconfiguration.message.MessageRef("bizapp.file.required"));
+        }
+        if (data.length > FILE_MAX_BYTES) {
+            throw com.community.zconfiguration.exception.ValidationException.of("file", new com.community.zconfiguration.message.MessageRef("bizapp.file.tooLarge"));
+        }
+        String type = sniff(data);
+        if (type == null) {
+            throw com.community.zconfiguration.exception.ValidationException.of("file", new com.community.zconfiguration.message.MessageRef("bizapp.file.type"));
+        }
+        cipher.requireConfigured();
+        byte[] encrypted = cipher.encryptBytes(CONTRACT, data);
+        String name = fileName(file.originalName(), type);
+        return tx.execute(status -> {
+            long fileId = ops.nextId();
+            contracts.insertDraft(fileId, name, type, data.length, encrypted, sha256(data), actor.operatorId(), ops.now());
+            return contracts.findDraft(fileId).orElseThrow();
+        });
+    }
+
+    /**
+     * 미리 올린 사본을 운영자 등록 건에 붙인다 — 부르는 쪽(운영자 등록)의 트랜잭션 안. 아직 붙지 않은 사본만(없거나 이미 붙었으면 400 {@code fields.contractFileIds}).
+     * 대체되지 않은 사본 수를 맞추고 처리 기록 {@code CONTRACT_RECEIVED} · 감사 {@code BIZ_APP_CONTRACT_UPLOAD}.
+     */
+    public int attachDrafts(BizOperator actor, AppRow app, List<Long> fileIds, Instant now) {
+        if (fileIds.isEmpty()) {
+            return 0;
+        }
+        List<String> names = new ArrayList<>();
+        for (Long fileId : fileIds) {
+            names.add(contracts.findDraft(fileId).map(ContractRow::fileName).orElse(null));
+        }
+        if (names.contains(null) || contracts.attachDrafts(app.id(), fileIds) != fileIds.size()) {
+            throw com.community.zconfiguration.exception.ValidationException.of("contractFileIds",
+                    new com.community.zconfiguration.message.MessageRef("bizapp.contract.draftNotFound"));
+        }
+        store.setContractCount(app.id(), contracts.activeCount(app.id()), now);
+        ops.event(app.id(), BizEventAction.CONTRACT_RECEIVED, BizActorType.OPERATOR, actor.operatorId(), String.valueOf(fileIds.size()), now);
+        ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_CONTRACT_UPLOAD, app, Map.of("files", names, "draft", true));
+        return fileIds.size();
     }
 
     /** 계약서 사본 열람 — 열 때마다 처리 기록 + 감사(어느 상태든) */
@@ -361,7 +439,8 @@ public class BizApplicationReviewService {
     }
 
     /**
-     * 운영자 취소 — 결제 대기·입금 대기(입금 기록이 있으면 수동 전액 환불 송금 대기) · 시작 전 예약(전액 환불). 진행 중은 환불 승인으로만. 사유 1~200자.
+     * 운영자 취소 — 결제 대기·입금 대기(입금 기록이 있으면 수동 전액 환불 송금 대기) · 시작 전 예약(전액 환불) · 운영자 등록 건의 심사 대기(등록 실수 — 사업자 신청 건의 심사 대기는
+     * 반려로 닫는다, 409). 진행 중은 환불 승인으로만. 사유 1~200자.
      */
     public void cancel(BizOperator actor, long id, String reasonText) {
         BizFields f = BizFields.start();
@@ -370,6 +449,9 @@ public class BizApplicationReviewService {
         tx.executeWithoutResult(status -> {
             AppRow app = ops.closePaymentsThenLock(id, null, "BIZ_OPERATOR_CANCEL");
             BizTransitions.require(Action.OPERATOR_CANCEL, app.status());
+            if (app.status() == BizApplicationStatus.SUBMITTED && app.source() != BizSource.OPERATOR) {
+                throw BizApplicationException.stateChanged();
+            }
             Instant now = ops.now();
             long refunded = 0;
             if (app.status() == BizApplicationStatus.SCHEDULED) {
@@ -470,6 +552,27 @@ public class BizApplicationReviewService {
     }
 
     // ── 안 ──────────────────────────────────────────────────────────────────
+
+    /** 계약서 사본을 올릴 수 있는 상태 — 입금 대기, 운영자 등록 건은 심사 대기도 */
+    static boolean contractsAllowed(AppRow app) {
+        return app.status() == BizApplicationStatus.AWAITING_DEPOSIT || (app.status() == BizApplicationStatus.SUBMITTED && app.source() == BizSource.OPERATOR);
+    }
+
+    /** 자기 승인 — 운영자 등록 건을 등록한 운영자가 승인한다 */
+    static boolean selfApproval(AppRow app, BizOperator actor) {
+        return app.source() == BizSource.OPERATOR && app.createdBy() != null && app.createdBy() == actor.operatorId();
+    }
+
+    /** 자기 승인 판정 — 막는 설정이면 409, 허용이면 메모(1~200자)를 돌려준다(없으면 400 {@code fields.memo}) */
+    static String selfApprovalMemo(BizApplicationProperties.SelfApproval policy, String memoText) {
+        if (policy == BizApplicationProperties.SelfApproval.DENY) {
+            throw BizApplicationException.selfApprovalDenied();
+        }
+        BizFields f = BizFields.start();
+        String memo = f.text("memo", memoText, 200);
+        f.throwIfAny();
+        return memo;
+    }
 
     private List<BizProduct> products(AppRow app) {
         return store.items(app.id()).stream().map(ItemRow::product).toList();

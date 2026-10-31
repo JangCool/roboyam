@@ -82,8 +82,10 @@ public class BizRefundStore {
         return jdbc.query("SELECT * FROM biz_refunds WHERE application_id = ? AND status = 'REQUESTED' FOR UPDATE", (rs, i) -> row(rs), applicationId).stream().findFirst();
     }
 
+    /** 환불 줄이 있었나 — 긴급 내림 되돌리기의 보상(DOWNTIME)은 사업자 환불 요청을 막지 않아 빼고 센다 */
     public boolean exists(long applicationId) {
-        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM biz_refunds WHERE application_id = ?)", Boolean.class, applicationId));
+        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM biz_refunds WHERE application_id = ? AND type <> 'DOWNTIME')", Boolean.class,
+                applicationId));
     }
 
     /** 이미 승인(돌려주기로 한) 금액 합 */

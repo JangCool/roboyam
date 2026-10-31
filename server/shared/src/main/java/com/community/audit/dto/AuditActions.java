@@ -410,6 +410,17 @@ public final class AuditActions {
     public static final String BIZ_APP_PRICE_ADJUST = "BIZ_APP_PRICE_ADJUST";
     /** 입금 기한 바꾸기 — {@code from}·{@code to}. 일반 */
     public static final String BIZ_APP_DEPOSIT_DEADLINE = "BIZ_APP_DEPOSIT_DEADLINE";
+    /** 운영자 등록(광고 일정표 수동 등록 → 심사 대기, 04-ia-review §2) — {@code type}·기간·{@code proposedSupply}·{@code weight}·{@code advertiser}(ID)·{@code contracts}(미리 붙인 장수). 돈 관련(계약 시작 기록) */
+    public static final String BIZ_APP_OPERATOR_CREATE = "BIZ_APP_OPERATOR_CREATE";
+    // ── 광고 일정표(ad-contract, V115) — 긴급 내림·되돌리기는 대상 BIZ_APPLICATION, 광고주는 대상 AD_ADVERTISER + 광고주 ID. detail 에 연락처 평문을 싣지 않는다 ──
+    /** 계정 없는 광고주 만들기 — {@code name}·{@code businessId}(연결했으면). 일반 */
+    public static final String AD_ADVERTISER_CREATE = "AD_ADVERTISER_CREATE";
+    /** 광고주 연락처 평문 열람 — {@code reason}. 개인정보 열람 */
+    public static final String AD_CONTACT_REVEAL = "AD_CONTACT_REVEAL";
+    /** 긴급 내림 — {@code reason}·{@code notifyMail}·{@code phase}. 일반(돈은 되돌리기 보상이 움직인다) */
+    public static final String AD_TAKEDOWN = "AD_TAKEDOWN";
+    /** 긴급 내림 되돌리기 — {@code compensation}(EXTEND·PRORATE_REFUND)·{@code reason}·{@code lostMinutes}·{@code endAt}·{@code refundAmount}. 돈 관련 */
+    public static final String AD_RESTORE = "AD_RESTORE";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

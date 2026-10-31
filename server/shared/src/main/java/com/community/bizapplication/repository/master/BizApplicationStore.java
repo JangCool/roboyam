@@ -49,7 +49,8 @@ public class BizApplicationStore {
                          Long approvedBy, Instant paymentDeadlineAt, Instant depositDeadlineAt, Instant paidAt, Long paymentOrderId, int activeContractCount,
                          Instant depositConfirmedAt, BizRejectCode rejectCode, String rejectText, Instant takenDownAt, BizTakedownCause takedownCause,
                          String takedownText, String adPolicyVersion, String refundPolicyVersion, Instant agreedAt, Instant closedAt, int version,
-                         Instant createdAt, Instant updatedAt) {
+                         Instant createdAt, Instant updatedAt, Long advertiserId, Long createdBy, int weight, Long proposedSupply, String operatorMemo,
+                         Long takenDownBy, String takedownMail) {
 
         /** 결제·입금 기한(승인 뒤) */
         public Instant deadlineAt() {
@@ -107,6 +108,25 @@ public class BizApplicationStore {
                 a.id(), no, a.kind().name(), a.source().name(), a.businessProfileId(), a.userId(), a.advertiserName(), a.companyName(), a.bizNoLast4(), a.title(),
                 ts(a.startAt()), ts(a.endAt()), a.preferredMethod().name(), a.quote().supply(), a.quote().vat(), a.quote().total(), a.adPolicyVersion(),
                 a.refundPolicyVersion(), ts(a.agreedAt()), now, now);
+        return no;
+    }
+
+    /** 운영자 등록 건(04 §2) — 심사 대기 · 결제 방식 MANUAL · 등록자 · 광고주 · 비중 · 계약 금액 제안 · 운영 메모 */
+    public record NewOperatorApp(long id, BizApplicationKind kind, Long businessProfileId, Long advertiserId, String advertiserName, String companyName,
+                                 String bizNoLast4, String title, Instant startAt, Instant endAt, Amount quote, int weight, long proposedSupply, String memo,
+                                 long createdBy, Instant now) {
+    }
+
+    /** 운영자 등록 건을 넣고 화면 번호를 돌려준다 — 정책 동의·회원 없음(ck_ba_source_operator) */
+    public String insertOperator(NewOperatorApp a) {
+        Timestamp now = ts(a.now());
+        String no = jdbc.queryForObject("SELECT 'BA-' || to_char(?::timestamptz AT TIME ZONE 'Asia/Seoul', 'YYYY') || '-' || lpad(nextval('biz_application_no_seq')::text, 5, '0')",
+                String.class, now);
+        jdbc.update("INSERT INTO biz_applications (id, application_no, kind, status, source, business_profile_id, advertiser_id, advertiser_name, company_name, biz_no_last4, "
+                        + "title, start_at, end_at, preferred_method, quote_supply, quote_vat, quote_total, weight, proposed_supply, operator_memo, created_by, created_at, updated_at) "
+                        + "VALUES (?, ?, ?, 'SUBMITTED', 'OPERATOR', ?, ?, ?, ?, ?, ?, ?, ?, 'MANUAL', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                a.id(), no, a.kind().name(), a.businessProfileId(), a.advertiserId(), a.advertiserName(), a.companyName(), a.bizNoLast4(), a.title(), ts(a.startAt()),
+                ts(a.endAt()), a.quote().supply(), a.quote().vat(), a.quote().total(), a.weight(), a.proposedSupply(), a.memo(), a.createdBy(), now, now);
         return no;
     }
 
@@ -231,10 +251,22 @@ public class BizApplicationStore {
                 + "version = version + 1 WHERE id = ? AND status = 'SCHEDULED'", ts(now), cause.name(), text, ts(now), id) == 1;
     }
 
+    /** 예약 → 긴급 내림(운영자 — 사유 · 내린 운영자) */
+    public boolean takeDownEmergency(long id, String text, long operatorId, Instant now) {
+        return jdbc.update("UPDATE biz_applications SET status = 'TAKEN_DOWN', taken_down_at = ?, takedown_cause = 'EMERGENCY', takedown_text = ?, taken_down_by = ?, "
+                + "takedown_mail = NULL, updated_at = ?, version = version + 1 WHERE id = ? AND status = 'SCHEDULED'", ts(now), text, operatorId, ts(now), id) == 1;
+    }
+
+    /** 긴급 내림 메일 결과(SENT·FAILED·NO_ADDRESS) — 아직 내림 상태일 때만 */
+    public void setTakedownMail(long id, String result) {
+        jdbc.update("UPDATE biz_applications SET takedown_mail = ? WHERE id = ? AND status = 'TAKEN_DOWN'", result, id);
+    }
+
     /** 내림 → 예약(끝 시각을 바꿀 수 있다 — 연장 후 되돌리기) */
     public boolean restore(long id, Instant end, Instant now) {
         return jdbc.update("UPDATE biz_applications SET status = 'SCHEDULED', end_at = ?, taken_down_at = NULL, takedown_cause = NULL, takedown_text = NULL, "
-                + "end_notified_at = NULL, updated_at = ?, version = version + 1 WHERE id = ? AND status = 'TAKEN_DOWN'", ts(end), ts(now), id) == 1;
+                + "taken_down_by = NULL, takedown_mail = NULL, end_notified_at = NULL, updated_at = ?, version = version + 1 WHERE id = ? AND status = 'TAKEN_DOWN'",
+                ts(end), ts(now), id) == 1;
     }
 
     /** 알림 보낸 표시 — 아직 안 보냈을 때만(배치가 겹쳐도 한 번) */
@@ -312,6 +344,11 @@ public class BizApplicationStore {
     public void insertCreative(long id, long applicationId, int version, Map<String, Object> content, BizActorType byType, Long by, Instant now) {
         jdbc.update("INSERT INTO biz_creative_versions (id, application_id, version, content, created_by_type, created_by, created_at) VALUES (?, ?, ?, ?::jsonb, ?, ?, ?)",
                 id, applicationId, version, JSON.writeValueAsString(content), byType.name(), by, ts(now));
+    }
+
+    /** 소재 버전 전부(오래된 것 먼저) — 광고 일정표 상세 */
+    public List<CreativeRow> creatives(long applicationId) {
+        return jdbc.query("SELECT * FROM biz_creative_versions WHERE application_id = ? ORDER BY version", (rs, i) -> creative(rs), applicationId);
     }
 
     public Optional<CreativeRow> latestCreative(long applicationId) {
@@ -406,6 +443,12 @@ public class BizApplicationStore {
                 (rs, i) -> new AdImage(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getLong(4)), fileId, userId).stream().findFirst();
     }
 
+    /** 운영자가 올린 광고 이미지(광고 일정표 수동 등록 — {@code POST /api/admin/ads/images}) */
+    public Optional<AdImage> operatorAdImage(long fileId) {
+        return jdbc.query("SELECT id, storage_key, content_type, size_bytes FROM files WHERE id = ? AND uploaded_by IS NOT NULL AND purpose = 'BIZ_AD_IMAGE'",
+                (rs, i) -> new AdImage(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getLong(4)), fileId).stream().findFirst();
+    }
+
     /** 쓰는 중으로(올리다 만 파일 정리에서 빠진다) */
     public void markImageUsed(long fileId, Instant now) {
         jdbc.update("UPDATE files SET status = 'IN_USE', used_at = coalesce(used_at, ?) WHERE id = ?", ts(now), fileId);
@@ -426,7 +469,9 @@ public class BizApplicationStore {
                 enumOrNull(BizRejectCode.class, rs.getString("reject_code")), rs.getString("reject_text"), instant(rs.getTimestamp("taken_down_at")),
                 enumOrNull(BizTakedownCause.class, rs.getString("takedown_cause")), rs.getString("takedown_text"), rs.getString("ad_policy_version"),
                 rs.getString("refund_policy_version"), instant(rs.getTimestamp("agreed_at")), instant(rs.getTimestamp("closed_at")), rs.getInt("version"),
-                instant(rs.getTimestamp("created_at")), instant(rs.getTimestamp("updated_at")));
+                instant(rs.getTimestamp("created_at")), instant(rs.getTimestamp("updated_at")), (Long) rs.getObject("advertiser_id", Long.class),
+                (Long) rs.getObject("created_by", Long.class), rs.getInt("weight"), (Long) rs.getObject("proposed_supply", Long.class), rs.getString("operator_memo"),
+                (Long) rs.getObject("taken_down_by", Long.class), rs.getString("takedown_mail"));
     }
 
     private static ItemRow item(ResultSet rs) throws SQLException {

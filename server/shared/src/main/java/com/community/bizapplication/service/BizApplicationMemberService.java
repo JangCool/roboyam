@@ -278,10 +278,13 @@ public class BizApplicationMemberService {
             AdImage image = null;
             switch (app.kind()) {
                 case AD_BANNER -> {
-                    Long fileId = BizFields.id(b.imageFileId());
+                    // 이미지를 다시 올리지 않으면(imageFileId 없음) 지금 버전의 이미지를 그대로 쓴다
+                    String fileText = BizFields.strip(b.imageFileId()) != null ? b.imageFileId()
+                            : current.content().get("imageFileId") == null ? null : current.content().get("imageFileId").toString();
+                    Long fileId = BizFields.id(fileText);
                     image = fileId == null ? null : store.adImage(fileId, userId).orElse(null);
                     if (image == null) {
-                        f.add("imageFileId", BizFields.strip(b.imageFileId()) == null ? "bizapp.field.required" : "bizapp.image.notFound");
+                        f.add("imageFileId", BizFields.strip(fileText) == null ? "bizapp.field.required" : "bizapp.image.notFound");
                     }
                     String link = f.link("linkUrl", b.linkUrl(), true);
                     title = f.text("altText", b.altText(), 100);

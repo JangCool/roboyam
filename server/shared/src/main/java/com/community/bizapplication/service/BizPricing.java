@@ -56,6 +56,18 @@ public final class BizPricing {
         return (int) Math.max(1, ChronoUnit.DAYS.between(first, last) + 1);
     }
 
+    /**
+     * 긴급 내림 되돌리기의 일할 환불(F5 — 가정, 계약 미확정): 중단 일수 = ceil(중단 시간 / 24시간)(중단이 있으면 최소 1, 총 일수까지), 총 일수 = 기간의 한국 날짜 수,
+     * 금액 = floor(결제액 × 중단 일수 / 총). 돌려준 값의 쓴 날 = 총 − 중단 일수.
+     */
+    public static Prorate downtime(long paid, Instant start, Instant end, Duration lost) {
+        int total = serviceDays(start, end);
+        long minutes = Math.max(0, lost.toMinutes());
+        long perDay = DAY.toMinutes();
+        int lostDays = (int) Math.min(total, (minutes + perDay - 1) / perDay);
+        return new Prorate(total - lostDays, total, Math.floorDiv(paid * lostDays, total));
+    }
+
     /** 진행 중 일할 제안 — 시작 전이면 쓴 날 0, 끝난 뒤면 쓴 날 = 총 일수 */
     public static Prorate prorate(long paid, Instant start, Instant end, Instant now) {
         int total = serviceDays(start, end);

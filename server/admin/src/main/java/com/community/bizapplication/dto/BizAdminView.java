@@ -57,14 +57,22 @@ public final class BizAdminView {
     public record History(Instant at, String action, String actor, String note) {
     }
 
+    /** 큐 한 줄 — {@code source} BUSINESS(사업자 신청)·OPERATOR(운영자 등록 — 화면이 「운영자 등록」 Tag) */
     public record Row(String id, String no, String kind, String adType, String status, Business business, Instant submittedAt, Period period, String preferredMethod,
-                      long total, Instant deadlineAt, boolean hasRefundRequest) {
+                      long total, Instant deadlineAt, boolean hasRefundRequest, String source) {
     }
 
     public record Detail(String id, String no, String kind, String adType, String status, Business business, Instant submittedAt, Period period, String preferredMethod,
                          long total, Instant deadlineAt, boolean hasRefundRequest, String source, String applicant, Map<String, Object> content, String memo, Quote quote,
                          int remainingSlots, int slotLimit, Approval approval, OnlinePayment onlinePayment, List<Contract> contracts, Deposit deposit, Refund refund,
-                         Rejection rejection, Takedown takedown, String policyAgreedVersion, List<History> history) {
+                         Rejection rejection, Takedown takedown, String policyAgreedVersion, List<History> history, Long proposedSupply, int weight,
+                         Registrant registrant, String selfApproval) {
+    }
+
+    /**
+     * 운영자 등록 건의 등록자 — {@code me} 면 승인이 자기 승인이다(04 §2 — 화면이 경고와 메모 칸을 보인다). 사업자 신청 건은 null.
+     */
+    public record Registrant(String id, String name, boolean me) {
     }
 
     public record Page(List<Row> items, Map<String, Long> counts) {

@@ -21,7 +21,7 @@
 
 ## 상태
 `SUBMITTED`(심사 대기) → `REJECTED` / `CANCELED`(사업자) / `AWAITING_PAYMENT`(승인·온라인) / `AWAITING_DEPOSIT`(승인·수동) · `AWAITING_PAYMENT` → `SCHEDULED`(결제 완료) / `EXPIRED`(72시간) / `AWAITING_DEPOSIT`(수동 전환) · `AWAITING_DEPOSIT` → `SCHEDULED`([예약 확정]) / `CANCELED` · `SCHEDULED` 안에서 `RUNNING`·`ENDED` 는 시각으로 계산 · `SCHEDULED` → `TAKEN_DOWN`(긴급 내림·사업자 정지) ↔ 되돌리기 · → `CANCELED`(환불).
-- ~~운영자가 직접 등록하는 건은 `AWAITING_DEPOSIT` 에서 시작한다~~ → **세션 정리 결정(2026-10-31, 04 §2)**: 운영자 직접 등록도 심사를 거친다 — `source=OPERATOR` 건을 **`SUBMITTED`** 로 만들어 같은 광고 심사 큐(「운영자 등록」 Tag)에서 승인(결제 방식 `MANUAL` 만, 온라인이면 400 `fields.method`) → 계약서 사본 + 입금 확인 → [예약 확정](`ck_ba_manual_confirmed` 그대로). 계약서 올리기는 운영자 건 `SUBMITTED` 부터 허용, 입금 확인은 `AWAITING_DEPOSIT` 에서만. **자기 승인**(등록자 = 승인자)은 설정 `roboyam.biz.self-approval`(`allow` 기본 — 승인 창 경고 + 메모 필수 + 처리 기록·감사 detail `selfApproved=true` / `deny` — 409 `BIZ_SELF_APPROVAL_DENIED`). 등록 실수는 `OPERATOR_CANCEL`(운영자 건만 `SUBMITTED → CANCELED`, 반려로 닫지 않음). 감사 `BIZ_APP_OPERATOR_CREATE`. ⚠ **설계만 — 구현(등록 API·자기 승인 설정·OPERATOR_CANCEL·계약서 상태 허용 넓히기)은 `/ads` 백엔드 세션**(DB·전이표는 바꿀 것 없음 — `ck_ba_source_operator` 가 운영자 건에 정책 동의·사업자 신원을 요구하지 않는다).
+- ~~운영자가 직접 등록하는 건은 `AWAITING_DEPOSIT` 에서 시작한다~~ → **세션 정리 결정(2026-10-31, 04 §2)**: 운영자 직접 등록도 심사를 거친다 — `source=OPERATOR` 건을 **`SUBMITTED`** 로 만들어 같은 광고 심사 큐(「운영자 등록」 Tag)에서 승인(결제 방식 `MANUAL` 만, 온라인이면 400 `fields.method`) → 계약서 사본 + 입금 확인 → [예약 확정](`ck_ba_manual_confirmed` 그대로). 계약서 올리기는 운영자 건 `SUBMITTED` 부터 허용, 입금 확인은 `AWAITING_DEPOSIT` 에서만. **자기 승인**(등록자 = 승인자)은 설정 `roboyam.biz.self-approval`(`allow` 기본 — 승인 창 경고 + 메모 필수 + 처리 기록·감사 detail `selfApproved=true` / `deny` — 409 `BIZ_SELF_APPROVAL_DENIED`). 등록 실수는 `OPERATOR_CANCEL`(운영자 건만 `SUBMITTED → CANCELED`, 반려로 닫지 않음). 감사 `BIZ_APP_OPERATOR_CREATE`. **구현 2026-10-31(`/ads` 백엔드, V115)** — 아래 「운영자 등록·자기 승인 구현」 절.
 - **세션 정리 결정**: 환불 요청은 상태가 아니라 신청 건의 `refund` 하위 값(`REQUESTED`·`APPROVED`·`DENIED`, 요청 금액·제안 금액·사유)이다. 관리자 「환불 심사」 큐 = `refund.status = REQUESTED`. user-web 목업의 `REFUND_REQUESTED` 상태는 API 연결 때 이 모양으로 바꾼다.
 - 승인 뒤 결제 전에 사업자가 소재를 바꾸면 `SUBMITTED`(재심사). 예약 확정 뒤 소재 교체는 운영자 소재 교체 심사 → 새 소재 버전(옛 버전 보존).
 
@@ -83,7 +83,7 @@ API 요청·응답 모양 전체는 서버 DTO(admin `bizapplication/dto/BizAdmi
 - admin-web·user-web 신청 건은 실제 API(목업 파일·`mockPay`·`mockOperate`·개발용 상자 삭제). 관리자 처리 단추 권한은 `ad.manage`, 환불 송금 완료 단추는 `deal-order.refund`. 계약서는 한 장씩 차례로 올리고, 줄마다 [보기](PDF iframe·그림 img).
 - 처리 기록·환불·반려 코드는 i18n — 신원 반려(`business.rejectCode`)와 신청 건 반려(`business.applicationRejectCode`) 키를 나눴다. 공개 처리 기록의 노출 시작·종료는 화면이 phase 로 덧붙인다.
 - user-web 결제는 `startPayment` → `usePaymentCheckout`(가짜 결제창·포트원·모바일 리디렉션) → 상세 다시 읽기. 입금 확인 전 입금 대기 건은 [신청 취소]. 광고 [소재 바꾸기](`BusinessCreativeDialog`)는 결제 전에만, 승인 뒤면 「다시 심사」 경고.
-- ⚠ 배너 소재를 바꿀 때 이미지를 다시 올려야 한다(공개 상세 `creative` 에 `imageFileId` 가 없고 PUT 은 필수) — 후속. 핫딜 글 소재 바꾸기는 composable(`updateCreative`)만 있다.
+- ~~⚠ 배너 소재를 바꿀 때 이미지를 다시 올려야 한다~~ → 2026-10-31 고침: 공개 상세 `creative.imageFileId` 를 내려 주고, `PUT …/creative` 에서 `imageFileId` 를 비우면 지금 버전의 이미지를 그대로 쓴다(화면도 다시 올리기를 강요하지 않음). 핫딜 글 소재 바꾸기는 composable(`updateCreative`)만 있다.
 - 광고 일정표(`/ads`) 목업과 그 안의 `AD_SLOT_FULL` 은 광고 일정표 세션 몫이라 그대로.
 
 ## IA 보완 구현 (2026-10-31 — 04-ia-review §7-1)
@@ -94,5 +94,14 @@ API 요청·응답 모양 전체는 서버 DTO(admin `bizapplication/dto/BizAdmi
 - ⚠ 대시보드 건수는 목록 API 의 `counts` 를 쓴다(건수 전용 API 없음 — 행도 같이 받음). 사업자 관리자 알림 아이콘은 화면 표에 아직 없다.
 
 ## 후속 (이 세션 범위 밖)
-- 관리자 `/ads` 일정표 API(수동 등록 `source=OPERATOR`·긴급 내림·되돌리기 — F5 보상 선택), 공개 광고 노출(`AdSlot`), 핫딜 글 실제 게시·회원 핫딜, 공개 `HOTDEAL_PLACEMENT` 신청.
+- ~~관리자 `/ads` 일정표 API~~(2026-10-31 구현 — `ad-contract.md` 「서버 구현 결정」), 공개 광고 노출(`AdSlot`), 핫딜 글 실제 게시·회원 핫딜, 공개 `HOTDEAL_PLACEMENT` 신청.
 - 요금표 편집 API · 「입금 기한 지남」 운영자 알림 · 계약서 5년 보존 파기 · 일할 기준·수수료·청약철회(법무).
+
+## 운영자 등록·자기 승인 구현 (2026-10-31 — `/ads` 백엔드, V115 · 04-ia-review §2·S6·S9)
+일정표 쪽 API·장부·긴급 내림·되돌리기는 `ad-contract.md` 「서버 구현 결정」이 정본. 여기는 신청 건 엔진이 바뀐 것만.
+- **운영자 등록 건** = `source=OPERATOR`·`SUBMITTED`·희망 결제 `MANUAL`·`created_by`(등록 운영자 — CHECK `ck_ba_operator_created`)·`proposed_supply`(계약 금액 제안)·`weight`·`operator_memo`, 회원(`user_id`) 없음 — 사업자 알림·사업자 취소·결제와 무관. 처리 기록 `SUBMITTED`(행위자 OPERATOR) · 감사 `BIZ_APP_OPERATOR_CREATE`(돈 5년) · 운영자 알림 `AD_REVIEW_PENDING`.
+- **승인**: 운영자 등록 건은 `MANUAL` 만(온라인이면 400 `fields.method`). **자기 승인**(건의 `created_by` = 승인 운영자) — 설정 `roboyam.biz.self-approval`(`ROBOYAM_BIZ_SELF_APPROVAL`, 기본 `allow`): `allow` = 승인 본문 `memo` 1~200자 필수(400 `fields.memo`), 처리 기록 메모 `SELF_APPROVED · <메모>`(조정 사유가 있으면 뒤에 붙음), 감사 `BIZ_APP_APPROVE` detail `selfApproved=true`·`selfApprovalMemo` / `deny` = 409 **`BIZ_SELF_APPROVAL_DENIED`**(다른 운영자는 그대로 승인). 관리자 상세에 `registrant{id,name,me}`·`selfApproval`(ALLOW|DENY)·`proposedSupply`·`weight`·`memo`(운영 메모), 큐 줄에 `source`.
+- **`OPERATOR_CANCEL`** 전이표에 `SUBMITTED → CANCELED` 추가 — 서비스가 `source=OPERATOR` 만 허용(사업자 신청의 심사 대기는 409 `BIZ_APPLICATION_STATE_CHANGED`, 반려로 닫는다). API 는 기존 `POST …/cancel`.
+- **계약서 사본**: 올리기 허용 상태 = `AWAITING_DEPOSIT` + 운영자 등록 건의 `SUBMITTED`. 입금 확인은 여전히 `AWAITING_DEPOSIT` 만. 일정표 서랍에서 건이 생기기 전에 올린 사본은 `application_id` 없이 저장했다가 등록 때 붙인다(`POST /api/admin/ads/contract-files` → 등록 `contractFileIds`). 확정 CHECK(`ck_ba_manual_confirmed`)·409 `BIZ_DEPOSIT_INCOMPLETE` 는 그대로.
+- **환불 종류 `DOWNTIME`**(긴급 내림 되돌리기의 일할 보상, 바로 승인) 추가 — 사업자 환불 요청의 「환불 줄이 한 번도 없을 때만」 판정에서 빼고, 진행 중 일할 제안액은 `min(제안, 결제액 − 이미 승인한 환불)`.
+- 테스트: api `AdOperatorLedgerTest`(19) · admin `AdAdminHttpTest`(2)·`BizApplicationAdminCatalogTest`(갱신) · shared `BizApplicationRulesUnitTest`(전이표 갱신).

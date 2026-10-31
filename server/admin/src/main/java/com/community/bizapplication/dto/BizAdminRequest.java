@@ -12,7 +12,8 @@ public final class BizAdminRequest {
     /**
      * 승인 — @param method ONLINE·MANUAL · @param supply 공급가(부가세는 서버가 10% 버림) · @param adjustReason 요금표와 다르면 1~200자 · @param deadlineAt 결제·입금 기한(ISO)
      */
-    public record Approve(String method, Long supply, String adjustReason, String deadlineAt, Period period) {
+    /** @param memo 자기 승인 메모(운영자 등록 건을 등록한 운영자가 승인할 때 1~200자 필수 — 04 §2) */
+    public record Approve(String method, Long supply, String adjustReason, String deadlineAt, Period period, String memo) {
     }
 
     /** @param code {@code BizRejectCode} · @param text 1~200자 */

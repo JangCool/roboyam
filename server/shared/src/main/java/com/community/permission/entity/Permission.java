@@ -134,9 +134,12 @@ public enum Permission {
     AD_MANAGE("ad.manage", AD_PROMO, MANAGE, true),
     PROMO_MANAGE("promo.manage", AD_PROMO, MANAGE, false),
     AD_SETTINGS("ad.settings", AD_PROMO, CONFIG, false),
-    AD_TAKEDOWN("ad.takedown", AD_PROMO, SENSITIVE, false),
-    /** 긴급 내린 광고 되돌리기(광고 일정표 — /ads 백엔드 세션에서 기능이 생긴다) */
-    AD_RESTORE("ad.restore", AD_PROMO, SENSITIVE, false),
+    /** 광고 긴급 내림(광고 일정표 — 사유 필수 · 광고주 메일 선택, ad-contract) */
+    AD_TAKEDOWN("ad.takedown", AD_PROMO, SENSITIVE, true),
+    /** 긴급 내린 광고 되돌리기 — 보상 「끝 시각 연장」(자리가 비었을 때만) 또는 「일할 환불」(F5) */
+    AD_RESTORE("ad.restore", AD_PROMO, SENSITIVE, true),
+    /** 계정 없는 광고주의 담당자·연락처·이메일 평문 열람 — 사유 5~200자 · 열람 기록 · 화면은 10분 뒤 가린다(사업자 평문 열람과 같다) */
+    AD_CONTACT_REVEAL("ad.contact.reveal", AD_PROMO, SENSITIVE, true),
     OPERATOR_READ("operator.read", OPERATOR_ROLE, READ, true),
     ROLE_READ("role.read", OPERATOR_ROLE, READ, true),
     OPERATOR_MANAGE("operator.manage", OPERATOR_ROLE, MANAGE, true),

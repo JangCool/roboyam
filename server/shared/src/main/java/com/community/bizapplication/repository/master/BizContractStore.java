@@ -42,6 +42,26 @@ public class BizContractStore {
                 + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", id, applicationId, fileName, contentType, sizeBytes, encrypted, sha256, operatorId, ts(now));
     }
 
+    /** 건이 생기기 전에 올린 사본(광고 일정표 운영자 등록 서랍 — application_id 없음, V115) */
+    public void insertDraft(long id, String fileName, String contentType, int sizeBytes, byte[] encrypted, String sha256, long operatorId, Instant now) {
+        jdbc.update("INSERT INTO biz_contract_files (id, application_id, file_name, content_type, size_bytes, content, sha256, uploaded_by, uploaded_at) "
+                + "VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?)", id, fileName, contentType, sizeBytes, encrypted, sha256, operatorId, ts(now));
+    }
+
+    /** 미리 올린 사본 한 장(아직 건에 붙지 않은 것) */
+    public Optional<ContractRow> findDraft(long fileId) {
+        return jdbc.query(SELECT + "WHERE c.application_id IS NULL AND c.id = ?", (rs, i) -> row(rs), fileId).stream().findFirst();
+    }
+
+    /** 미리 올린 사본을 건에 붙인다 — 아직 붙지 않은 것만. 붙인 장수 */
+    public int attachDrafts(long applicationId, java.util.Collection<Long> fileIds) {
+        int n = 0;
+        for (Long fileId : fileIds) {
+            n += jdbc.update("UPDATE biz_contract_files SET application_id = ? WHERE id = ? AND application_id IS NULL", applicationId, fileId);
+        }
+        return n;
+    }
+
     /** 옛 파일을 「대체됨」으로 — 아직 대체되지 않았을 때만 */
     public boolean replace(long fileId, long applicationId, long newFileId, long operatorId, Instant now) {
         return jdbc.update("UPDATE biz_contract_files SET replaced_at = ?, replaced_by = ?, replaced_by_file_id = ? WHERE id = ? AND application_id = ? AND replaced_at IS NULL",

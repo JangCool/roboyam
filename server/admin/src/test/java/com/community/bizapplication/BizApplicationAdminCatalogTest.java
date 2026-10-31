@@ -44,7 +44,12 @@ class BizApplicationAdminCatalogTest {
         assertThat(Permission.ofCode("ad.restore")).contains(Permission.AD_RESTORE);
         assertThat(Permission.AD_RESTORE.type()).isEqualTo(PermissionType.AD_PROMO);
         assertThat(Permission.AD_RESTORE.unit()).isEqualTo(PermissionUnit.SENSITIVE);
-        assertThat(Permission.AD_RESTORE.featureReady()).isFalse(); // 되돌리기는 /ads 백엔드 세션
+        assertThat(Permission.AD_RESTORE.featureReady()).isTrue(); // /ads 백엔드에서 기능이 생겼다(긴급 내림·연락처 평문도)
+        assertThat(Permission.AD_TAKEDOWN.featureReady()).isTrue();
+        assertThat(Permission.ofCode("ad.contact.reveal")).contains(Permission.AD_CONTACT_REVEAL);
+        assertThat(Permission.AD_CONTACT_REVEAL.unit()).isEqualTo(PermissionUnit.SENSITIVE);
+        assertThat(Permission.AD_CONTACT_REVEAL.type()).isEqualTo(PermissionType.AD_PROMO);
+        assertThat(Permission.AD_CONTACT_REVEAL.ordinal()).isEqualTo(Permission.AD_RESTORE.ordinal() + 1);
         assertThat(Permission.AD_RESTORE.ordinal()).isEqualTo(Permission.AD_TAKEDOWN.ordinal() + 1);
     }
 
@@ -99,6 +104,13 @@ class BizApplicationAdminCatalogTest {
             assertThat(AuditRetention.classify(action)).as(action).isEqualTo(AuditRetentionClass.MONEY);
         }
         assertThat(AuditRetention.classify(AuditActions.BIZ_APP_CONTRACT_VIEW)).isEqualTo(AuditRetentionClass.PERSONAL_DATA);
+        // 광고 일정표 — 운영자 등록·되돌리기는 돈(5년), 연락처 평문은 개인정보, 광고주 만들기·긴급 내림은 일반
+        assertThat(AuditRetention.classify(AuditActions.BIZ_APP_OPERATOR_CREATE)).isEqualTo(AuditRetentionClass.MONEY);
+        assertThat(AuditRetention.classify(AuditActions.AD_RESTORE)).isEqualTo(AuditRetentionClass.MONEY);
+        assertThat(AuditRetention.classify(AuditActions.AD_CONTACT_REVEAL)).isEqualTo(AuditRetentionClass.PERSONAL_DATA);
+        assertThat(AuditRetention.declared(AuditActions.AD_ADVERTISER_CREATE)).contains(AuditRetentionClass.GENERAL);
+        assertThat(AuditRetention.declared(AuditActions.AD_TAKEDOWN)).contains(AuditRetentionClass.GENERAL);
+        assertThat(AuditLabels.TARGET_TYPES).contains("AD_ADVERTISER");
         for (String action : List.of(AuditActions.BIZ_APP_REJECT, AuditActions.BIZ_APP_MANUAL_SWITCH, AuditActions.BIZ_APP_DEPOSIT_DEADLINE)) {
             assertThat(AuditRetention.declared(action)).as(action).contains(AuditRetentionClass.GENERAL);
         }
@@ -148,15 +160,17 @@ class BizApplicationAdminCatalogTest {
         Properties en = bundle("messages/messages_en.properties");
         List<String> keys = new ArrayList<>();
         for (String code : List.of("BIZ_APPLICATION_NOT_FOUND", "BIZ_APPLICATION_STATE_CHANGED", "BIZ_SLOT_FULL", "BIZ_DEPOSIT_INCOMPLETE", "BIZ_PRODUCT_CLOSED",
-                "BIZ_CONTRACT_NOT_FOUND")) {
+                "BIZ_CONTRACT_NOT_FOUND", "BIZ_SELF_APPROVAL_DENIED", "AD_ADVERTISER_NOT_FOUND")) {
             keys.add("error." + code);
         }
         for (String action : AuditActions.all()) {
-            if (action.startsWith("BIZ_")) {
+            if (action.startsWith("BIZ_") || action.startsWith("AD_")) {
                 keys.add("audit.action." + action);
             }
         }
         keys.add("audit.targetType.BIZ_APPLICATION");
+        keys.addAll(List.of("audit.targetType.AD_ADVERTISER", "ad.advertiser.nameTaken", "ad.advertiser.businessLinked", "ad.advertiser.notFound", "ad.advertiser.phone",
+                "ad.advertiser.email", "ad.reason.invalid", "ad.weight.range", "ad.takedown.mail.subject", "ad.takedown.mail.body", "ad.takedown.mail.reason"));
         for (BatchCatalog job : List.of(BatchCatalog.BIZ_PAYMENT_EXPIRE, BatchCatalog.BIZ_PAYMENT_DUE_NOTICE, BatchCatalog.BIZ_SCHEDULE_NOTICE)) {
             keys.add(job.nameKey());
             keys.add(job.descriptionKey());

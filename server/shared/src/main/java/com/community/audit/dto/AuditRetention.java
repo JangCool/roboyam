@@ -41,7 +41,9 @@ public final class AuditRetention {
             AuditActions.COMMERCE_SALES_TOGGLE, AuditActions.GROUPBUY_SETTINGS_UPDATE, AuditActions.COMMERCE_SHIPPING_POLICY_DELETE,
             // 사업자 신청 건 — 금액 확정(승인·조정)·계약서 사본·입금 확인·예약 확정·취소·환불 승인·거절·송금 — 계약·대금 기록(5년, biz-application-contract)
             AuditActions.BIZ_APP_APPROVE, AuditActions.BIZ_APP_PRICE_ADJUST, AuditActions.BIZ_APP_CONTRACT_UPLOAD, AuditActions.BIZ_DEPOSIT_CONFIRM, AuditActions.BIZ_APP_CONFIRM,
-            AuditActions.BIZ_APP_CANCEL, AuditActions.BIZ_APP_REFUND_APPROVE, AuditActions.BIZ_APP_REFUND_DENY, AuditActions.BIZ_APP_REFUND_TRANSFER);
+            AuditActions.BIZ_APP_CANCEL, AuditActions.BIZ_APP_REFUND_APPROVE, AuditActions.BIZ_APP_REFUND_DENY, AuditActions.BIZ_APP_REFUND_TRANSFER,
+            // 광고 일정표 — 운영자 등록(계약 시작)·긴급 내림 되돌리기(연장·일할 환불, F5)
+            AuditActions.BIZ_APP_OPERATOR_CREATE, AuditActions.AD_RESTORE);
 
     private static final Set<String> PERSONAL_DATA = Set.of(
             AuditActions.MEMBER_VIEW,
@@ -55,7 +57,9 @@ public final class AuditRetention {
             // 관리자 공구 문의 목록·상세(비밀글 본문 — 2b-6)
             AuditActions.GROUPBUY_QNA_VIEW,
             // 사업자 신원 평문·등록증 열람 · 신청 건 계약서 사본 열람
-            AuditActions.BUSINESS_REVEAL, AuditActions.BUSINESS_CERT_VIEW, AuditActions.BIZ_APP_CONTRACT_VIEW);
+            AuditActions.BUSINESS_REVEAL, AuditActions.BUSINESS_CERT_VIEW, AuditActions.BIZ_APP_CONTRACT_VIEW,
+            // 광고주 연락처 평문 열람(ad-contract)
+            AuditActions.AD_CONTACT_REVEAL);
 
     /** 일반 운영으로 <b>정한</b> 행위 — 빠뜨린 것과 구별하려고 나열한다 */
     private static final Set<String> GENERAL = Set.of(
@@ -127,7 +131,9 @@ public final class AuditRetention {
             AuditActions.BUSINESS_APPROVE, AuditActions.BUSINESS_REJECT, AuditActions.BUSINESS_SUSPEND, AuditActions.BUSINESS_UNSUSPEND, AuditActions.BUSINESS_NTS_CHECK,
             AuditActions.BUSINESS_NTS_OVERRIDE,
             // 사업자 신청 건 반려·수동 전환·입금 기한 — 돈이 움직이지 않는 심사 일(biz-application-contract)
-            AuditActions.BIZ_APP_REJECT, AuditActions.BIZ_APP_MANUAL_SWITCH, AuditActions.BIZ_APP_DEPOSIT_DEADLINE);
+            AuditActions.BIZ_APP_REJECT, AuditActions.BIZ_APP_MANUAL_SWITCH, AuditActions.BIZ_APP_DEPOSIT_DEADLINE,
+            // 광고 일정표 — 광고주 만들기·긴급 내림(돈은 되돌리기가 움직인다)
+            AuditActions.AD_ADVERTISER_CREATE, AuditActions.AD_TAKEDOWN);
 
     private static final Map<String, AuditRetentionClass> TABLE = table();
 

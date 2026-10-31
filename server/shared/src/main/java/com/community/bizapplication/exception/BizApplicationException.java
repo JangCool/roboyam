@@ -16,6 +16,8 @@ public class BizApplicationException extends CommonException {
     public static final String DEPOSIT_INCOMPLETE = "BIZ_DEPOSIT_INCOMPLETE";
     public static final String PRODUCT_CLOSED = "BIZ_PRODUCT_CLOSED";
     public static final String CONTRACT_NOT_FOUND = "BIZ_CONTRACT_NOT_FOUND";
+    public static final String SELF_APPROVAL_DENIED = "BIZ_SELF_APPROVAL_DENIED";
+    public static final String ADVERTISER_NOT_FOUND = "AD_ADVERTISER_NOT_FOUND";
 
     private BizApplicationException(HttpStatus status, String code) {
         super(status, code, new MessageRef("error." + code));
@@ -44,6 +46,16 @@ public class BizApplicationException extends CommonException {
     /** 이 상품(광고 종류·노출 자리)은 지금 신청을 받지 않는다(요금표 accepting = false) */
     public static BizApplicationException productClosed() {
         return new BizApplicationException(HttpStatus.CONFLICT, PRODUCT_CLOSED);
+    }
+
+    /** 운영자 등록 건을 등록한 운영자가 직접 승인하려 했는데 설정이 자기 승인을 막는다(roboyam.biz.self-approval = deny) */
+    public static BizApplicationException selfApprovalDenied() {
+        return new BizApplicationException(HttpStatus.CONFLICT, SELF_APPROVAL_DENIED);
+    }
+
+    /** 광고주가 없다(광고 일정표 — 계정 없는 광고주) */
+    public static BizApplicationException advertiserNotFound() {
+        return new BizApplicationException(HttpStatus.NOT_FOUND, ADVERTISER_NOT_FOUND);
     }
 
     /** 계약서 사본이 없다(다른 신청 건의 것 포함) */

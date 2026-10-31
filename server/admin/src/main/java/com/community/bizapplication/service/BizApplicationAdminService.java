@@ -50,8 +50,11 @@ public class BizApplicationAdminService {
     private final BizApplicationReviewService review;
     private final Messages messages;
     private final AccessDeniedRecorder denied;
+    private final BizApplicationProperties props;
 
-    public BizApplicationAdminService(BizApplicationReader reader, BizApplicationReviewService review, Messages messages, AccessDeniedRecorder denied) {
+    public BizApplicationAdminService(BizApplicationReader reader, BizApplicationReviewService review, Messages messages, AccessDeniedRecorder denied,
+                                      BizApplicationProperties props) {
+        this.props = props;
         this.reader = reader;
         this.review = review;
         this.messages = messages;
@@ -100,7 +103,7 @@ public class BizApplicationAdminService {
 
     public BizAdminView.Detail detail(AdminActor actor, long id) {
         canRead(actor, id);
-        return detail(id);
+        return view(actor, id);
     }
 
     public BizAdminView.Availability availability(AdminActor actor, long id, String startAt, String endAt) {
@@ -113,22 +116,22 @@ public class BizApplicationAdminService {
 
     public BizAdminView.Detail approve(AdminActor actor, long id, BizAdminRequest.Approve body) {
         canManage(actor, id);
-        BizAdminRequest.Approve b = body == null ? new BizAdminRequest.Approve(null, null, null, null, null) : body;
+        BizAdminRequest.Approve b = body == null ? new BizAdminRequest.Approve(null, null, null, null, null, null) : body;
         BizAdminRequest.Period p = b.period() == null ? new BizAdminRequest.Period(null, null) : b.period();
-        review.approve(op(actor), id, b.method(), b.supply(), b.adjustReason(), b.deadlineAt(), p.startAt(), p.endAt());
-        return detail(id);
+        review.approve(op(actor), id, b.method(), b.supply(), b.adjustReason(), b.deadlineAt(), p.startAt(), p.endAt(), b.memo());
+        return view(actor, id);
     }
 
     public BizAdminView.Detail reject(AdminActor actor, long id, BizAdminRequest.Reject body) {
         canManage(actor, id);
         review.reject(op(actor), id, body == null ? null : body.code(), body == null ? null : body.text());
-        return detail(id);
+        return view(actor, id);
     }
 
     public BizAdminView.Detail switchToManual(AdminActor actor, long id, BizAdminRequest.Manual body) {
         canManage(actor, id);
         review.switchToManual(op(actor), id, body == null ? null : body.deadlineAt(), body == null ? null : body.reason());
-        return detail(id);
+        return view(actor, id);
     }
 
     public BizAdminView.Detail uploadContracts(AdminActor actor, long id, List<MultipartFile> files, String replaceId) {
@@ -142,7 +145,7 @@ public class BizApplicationAdminService {
             }
         }
         review.uploadContracts(op(actor), id, uploads, replaceId);
-        return detail(id);
+        return view(actor, id);
     }
 
     public BizAdminView.ContractFile contract(AdminActor actor, long id, long fileId) {
@@ -155,47 +158,47 @@ public class BizApplicationAdminService {
         canManage(actor, id);
         BizAdminRequest.Deposit b = body == null ? new BizAdminRequest.Deposit(null, null, null, null) : body;
         review.saveDeposit(op(actor), id, b.amount(), b.depositedOn(), b.depositorName(), b.mismatchReason());
-        return detail(id);
+        return view(actor, id);
     }
 
     public BizAdminView.Detail confirm(AdminActor actor, long id) {
         canManage(actor, id);
         review.confirm(op(actor), id);
-        return detail(id);
+        return view(actor, id);
     }
 
     public BizAdminView.Detail extendDeposit(AdminActor actor, long id, BizAdminRequest.Deadline body) {
         canManage(actor, id);
         review.extendDeposit(op(actor), id, body == null ? null : body.deadlineAt());
-        return detail(id);
+        return view(actor, id);
     }
 
     public BizAdminView.Detail cancel(AdminActor actor, long id, BizAdminRequest.Reason body) {
         canManage(actor, id);
         review.cancel(op(actor), id, body == null ? null : body.reason());
-        return detail(id);
+        return view(actor, id);
     }
 
     public BizAdminView.Detail approveRefund(AdminActor actor, long id, BizAdminRequest.RefundApprove body) {
         review.approveRefund(op(actor), id, body == null ? null : body.amount(), body == null ? null : body.reason());
-        return detail(id);
+        return view(actor, id);
     }
 
     public BizAdminView.Detail denyRefund(AdminActor actor, long id, BizAdminRequest.Reason body) {
         review.denyRefund(op(actor), id, body == null ? null : body.reason());
-        return detail(id);
+        return view(actor, id);
     }
 
     public BizAdminView.Detail markTransferred(AdminActor actor, long id, BizAdminRequest.Transfer body) {
         review.markTransferred(op(actor), id, body == null ? null : body.note());
-        return detail(id);
+        return view(actor, id);
     }
 
     // ── 안 ──────────────────────────────────────────────────────────────────
 
     /** 처리 뒤 응답 — 권한은 이미 봤다 */
-    private BizAdminView.Detail detail(long id) {
-        return detailOf(reader.snapshot(id));
+    private BizAdminView.Detail view(AdminActor actor, long id) {
+        return detailOf(reader.snapshot(id), actor);
     }
 
     /** 건의 도메인 조회 권한(없는 건은 404 가 먼저) */
@@ -219,10 +222,11 @@ public class BizApplicationAdminService {
         BizProduct capacity = BizApplicationReader.capacityProduct(items);
         return new BizAdminView.Row(Long.toString(a.id()), a.no(), a.kind().name(), capacity == null ? null : capacity.name(), BizApplicationReader.adminStatus(a, now),
                 business(a), a.createdAt(), new BizAdminView.Period(a.startAt(), a.endAt()), a.preferredMethod().name(),
-                a.approved() != null ? a.approved().total() : a.quote().total(), a.approved() == null ? null : a.deadlineAt(), BizApplicationReader.refundOpen(refund));
+                a.approved() != null ? a.approved().total() : a.quote().total(), a.approved() == null ? null : a.deadlineAt(), BizApplicationReader.refundOpen(refund),
+                a.source().name());
     }
 
-    private BizAdminView.Detail detailOf(Snapshot s) {
+    private BizAdminView.Detail detailOf(Snapshot s, AdminActor actor) {
         Instant now = reader.now();
         AppRow a = s.app();
         BizAdminView.Row row = row(a, s.items(), s.refund(), now);
@@ -253,7 +257,8 @@ public class BizApplicationAdminService {
         String applicant = s.applicantName();
         return new BizAdminView.Detail(row.id(), row.no(), row.kind(), row.adType(), row.status(), row.business(), row.submittedAt(), row.period(), row.preferredMethod(),
                 row.total(), row.deadlineAt(), row.hasRefundRequest(), a.source().name(), applicant, content(a, s.creative() == null ? Map.of() : s.creative().content()),
-                null, quote(s.items(), a.quote()), remaining, limit, approval, online, contracts, deposit, refund, rejection, takedown, policy, history);
+                a.operatorMemo(), quote(s.items(), a.quote()), remaining, limit, approval, online, contracts, deposit, refund, rejection, takedown, policy, history,
+                a.proposedSupply(), a.weight(), registrant(a, actor), props.selfApproval().name());
     }
 
     /** 종류별 내용 — admin-web {@code BizApplicationContent} 모양 */
@@ -262,6 +267,7 @@ public class BizApplicationAdminService {
         out.put("type", a.kind().name());
         switch (a.kind()) {
             case AD_BANNER -> {
+                out.put("imageFileId", c.get("imageFileId"));
                 out.put("imageUrl", c.get("imageUrl"));
                 out.put("linkUrl", c.get("linkUrl"));
                 out.put("altText", c.get("altText"));
@@ -302,6 +308,14 @@ public class BizApplicationAdminService {
                 i.unitPrice(), i.units(), i.supply())).toList();
         return new BizAdminView.Quote(main == null ? 0 : main.unitPrice(), main == null ? 0 : main.units(),
                 main == null || main.product() == BizProduct.HOTDEAL_POST ? "POST" : "DAY", total.supply(), total.vat(), total.total(), lines);
+    }
+
+    /** 운영자 등록 건의 등록자(사업자 신청 건은 null) */
+    private BizAdminView.Registrant registrant(AppRow a, AdminActor actor) {
+        if (a.source() != com.community.bizapplication.entity.BizSource.OPERATOR || a.createdBy() == null) {
+            return null;
+        }
+        return new BizAdminView.Registrant(Long.toString(a.createdBy()), reader.operatorName(a.createdBy()), a.createdBy() == actor.operatorId());
     }
 
     private static BizAdminView.Business business(AppRow a) {

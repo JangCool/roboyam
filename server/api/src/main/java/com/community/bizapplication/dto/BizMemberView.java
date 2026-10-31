@@ -18,7 +18,7 @@ public final class BizMemberView {
     }
 
     /** 광고 소재 — 배너는 이미지·링크·대체 글, 한 줄은 문구·링크 */
-    public record Creative(int version, String imageUrl, String imageName, String linkUrl, String altText, String text) {
+    public record Creative(int version, String imageUrl, String imageName, String linkUrl, String altText, String text, String imageFileId) {
     }
 
     /** 수동 결제 입금 안내 — {@code contract} WAITING·RECEIVED */

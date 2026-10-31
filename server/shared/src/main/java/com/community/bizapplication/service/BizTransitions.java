@@ -41,7 +41,7 @@ public final class BizTransitions {
         MANUAL_SWITCH,
         /** 수동 예약 확정(계약서 + 입금 확인) */
         CONFIRM,
-        /** 운영자 취소 — 예약은 시작 전만(서비스가 본다) */
+        /** 운영자 취소 — 예약은 시작 전만(서비스가 본다). 심사 대기는 운영자 등록 건(source=OPERATOR — 등록 실수)만 — 사업자 신청 건은 반려로 닫는다(서비스가 본다, 04 §2) */
         OPERATOR_CANCEL,
         /** 결제 전 건 정리(사업자 정지 · 탈퇴) — 심사·결제·입금 대기 → 취소 */
         SYSTEM_CANCEL,
@@ -77,6 +77,7 @@ public final class BizTransitions {
         put(t, Action.EXPIRE, AWAITING_PAYMENT, EXPIRED);
         put(t, Action.MANUAL_SWITCH, AWAITING_PAYMENT, AWAITING_DEPOSIT);
         put(t, Action.CONFIRM, AWAITING_DEPOSIT, SCHEDULED);
+        put(t, Action.OPERATOR_CANCEL, SUBMITTED, CANCELED);
         put(t, Action.OPERATOR_CANCEL, AWAITING_PAYMENT, CANCELED);
         put(t, Action.OPERATOR_CANCEL, AWAITING_DEPOSIT, CANCELED);
         put(t, Action.OPERATOR_CANCEL, SCHEDULED, CANCELED);

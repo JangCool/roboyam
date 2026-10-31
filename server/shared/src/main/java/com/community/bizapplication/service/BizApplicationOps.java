@@ -188,9 +188,11 @@ public class BizApplicationOps {
     public long requestProrated(AppRow app, BizRefundType type, String reason, Instant now) {
         long paid = paidAmount(app);
         BizPricing.Prorate p = BizPricing.prorate(paid, app.startAt(), app.endAt(), now);
+        // 되돌리기 보상(DOWNTIME)으로 이미 돌려준 몫은 제안에서 뺀다(승인 한도 = 결제액 − 이미 환불)
+        long proposed = Math.min(p.proposed(), Math.max(0, paid - refunds.approvedTotal(app.id())));
         long refundId = ids.nextId();
         try {
-            refunds.insert(new NewRefund(refundId, app.id(), type, BizRefundStatus.REQUESTED, app.paymentMethod(), paid, p.proposed(), p.usedDays(), p.totalDays(), null,
+            refunds.insert(new NewRefund(refundId, app.id(), type, BizRefundStatus.REQUESTED, app.paymentMethod(), paid, proposed, p.usedDays(), p.totalDays(), null,
                     cut(reason, 300), null, now, null, null, null));
         } catch (org.springframework.dao.DuplicateKeyException e) {
             throw BizApplicationException.stateChanged();
