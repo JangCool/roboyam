@@ -137,6 +137,7 @@ export default {
         STRIP: '띠 배너',
         SQUARE: '네모 배너',
         SMALL: '작은 배너',
+        WING: '날개 배너',
         TEXT_LINE: '한 줄 광고',
     },
 
@@ -145,6 +146,7 @@ export default {
         STRIP: '게시판 목록 위 가로 띠',
         SQUARE: '홈 옆 칸 · 글 중간',
         SMALL: '게시판 옆 칸 작은 자리',
+        WING: '본문 양옆 세로 자리(넓은 PC 화면)',
         TEXT_LINE: '게시판 목록 위 글자 한 줄',
     },
 
@@ -153,6 +155,7 @@ export default {
         STRIP: '1200×100',
         SQUARE: '300×250',
         SMALL: '300×100',
+        WING: '160×600',
         TEXT_LINE: '40자 이내',
     },
 

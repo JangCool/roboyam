@@ -13,8 +13,8 @@ export default class UtilAd {
     /** 긴급 내림 뒤 다른 서버 사본이 비워지기까지(초) — 로보얌 20초 사본 */
     static readonly CACHE_SECONDS = 20;
 
-    /** 운영자 등록이 되는 유형 — 광고 종류(배너 넷·한 줄). 핫딜 노출 자리는 글이 있어야 해서 서버가 400 `fields.type`(서버 `BizProduct.adProduct()`) */
-    static readonly MANUAL_TYPES: readonly AdType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'TEXT_LINE'];
+    /** 운영자 등록이 되는 유형 — 광고 종류(배너 넷·날개 배너·한 줄). 핫딜 노출 자리는 글이 있어야 해서 서버가 400 `fields.type`(서버 `BizProduct.adProduct()`) */
+    static readonly MANUAL_TYPES: readonly AdType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'WING_BANNER', 'TEXT_LINE'];
 
     /** 운영자 등록 서랍이 칸 아래에 붙이는 서버 오류 키(`fields.*`) — 나머지는 서랍 위쪽에 모은다 */
     static readonly MANUAL_FIELDS: readonly string[] = ['advertiserId', 'period', 'weight', 'supply', 'creative.imageFileId', 'creative.linkUrl', 'creative.altText', 'creative.text', 'memo', 'contractFileIds'];
@@ -34,7 +34,7 @@ export default class UtilAd {
     }
 
     static isBanner(type: AdType): boolean {
-        return type === 'WIDE_BANNER' || type === 'STRIP_BANNER' || type === 'SQUARE_BANNER' || type === 'SMALL_BANNER';
+        return type === 'WIDE_BANNER' || type === 'STRIP_BANNER' || type === 'SQUARE_BANNER' || type === 'SMALL_BANNER' || type === 'WING_BANNER';
     }
 
     static statusSeverity(status: AdBookingStatus): Severity {

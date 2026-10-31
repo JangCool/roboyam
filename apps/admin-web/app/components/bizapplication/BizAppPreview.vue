@@ -1,14 +1,18 @@
 <template>
     <!--
         신청 건 오른쪽 칸 — 공개 화면에서 어떻게 보일지(배너 / 한 줄 / 핫딜 카드). 모든 미리보기에 「광고」 표시가 붙고,
-        링크는 `rel="sponsored nofollow"` 로 나간다는 것을 아래에 적는다(H4). 실제 테마 틀이 아니라 목업 모양이다.
+        링크는 `rel="sponsored nofollow noopener"`(공개 노출과 같다 — noreferrer 는 광고주 유입 집계 때문에 뺀다). 날개 배너는 세로 틀(4:15, 폭 160px). 실제 테마 틀이 아니라 목업 모양이다.
     -->
     <div class="flex flex-col gap-3 p-3">
         <h3 class="m-0 text-sm font-semibold">{{ t('bizApplication.preview') }}</h3>
 
         <div class="rounded-lg border border-dashed border-(--line) bg-(--p-content-hover-background) p-3">
             <template v-if="content.type === 'AD_BANNER'">
-                <div class="relative mx-auto w-fit max-w-full">
+                <div v-if="adType === 'WING_BANNER'" class="relative mx-auto w-[160px] max-w-full overflow-hidden rounded bg-(--p-content-background)" style="aspect-ratio: 4 / 15" data-testid="biz-app-preview-wing">
+                    <img :src="content.imageUrl" :alt="content.altText" class="block size-full object-cover" />
+                    <span class="absolute top-1 right-1 inline-flex items-center rounded bg-black/60 px-1.5 py-0.5 text-[10px] leading-none text-white">{{ t('bizApplication.adMark') }}</span>
+                </div>
+                <div v-else class="relative mx-auto w-fit max-w-full">
                     <img :src="content.imageUrl" :alt="content.altText" class="block h-auto max-w-full rounded" />
                     <span class="absolute top-1 right-1 inline-flex items-center rounded bg-black/60 px-1.5 py-0.5 text-[10px] leading-none text-white">{{ t('bizApplication.adMark') }}</span>
                 </div>
@@ -16,14 +20,14 @@
                     <dt class="text-muted-color">{{ t('bizApplication.altText') }}</dt>
                     <dd class="m-0 [overflow-wrap:anywhere]">{{ content.altText }}</dd>
                     <dt class="text-muted-color">{{ t('bizApplication.link') }}</dt>
-                    <dd class="m-0 [overflow-wrap:anywhere]"><a :href="content.linkUrl" target="_blank" rel="noopener noreferrer sponsored nofollow" class="underline">{{ content.linkUrl }}</a></dd>
+                    <dd class="m-0 [overflow-wrap:anywhere]"><a :href="content.linkUrl" target="_blank" rel="sponsored nofollow noopener" class="underline">{{ content.linkUrl }}</a></dd>
                 </dl>
             </template>
 
             <template v-else-if="content.type === 'AD_TEXT_LINE'">
                 <div class="flex items-center gap-2 rounded bg-(--p-content-background) px-3 py-2 text-[13px]">
                     <span class="inline-flex shrink-0 items-center rounded border border-(--line) px-1.5 py-0.5 text-[10px] leading-none text-muted-color">{{ t('bizApplication.adMark') }}</span>
-                    <a :href="content.linkUrl" target="_blank" rel="noopener noreferrer sponsored nofollow" class="min-w-0 truncate hover:underline">{{ content.text }}</a>
+                    <a :href="content.linkUrl" target="_blank" rel="sponsored nofollow noopener" class="min-w-0 truncate hover:underline">{{ content.text }}</a>
                 </div>
                 <p class="m-0 mt-2 text-xs text-muted-color">{{ t('bizApplication.textLength', { n: content.text.length }) }}</p>
             </template>
@@ -44,7 +48,7 @@
                     </span>
                     <p v-if="content.type === 'HOTDEAL_POST'" class="m-0 text-xs leading-relaxed text-muted-color">{{ content.body }}</p>
                 </article>
-                <p v-if="content.type === 'HOTDEAL_POST'" class="m-0 mt-2 text-xs [overflow-wrap:anywhere]">{{ t('bizApplication.link') }}: <a :href="content.dealUrl" target="_blank" rel="noopener noreferrer sponsored nofollow" class="underline">{{ content.dealUrl }}</a></p>
+                <p v-if="content.type === 'HOTDEAL_POST'" class="m-0 mt-2 text-xs [overflow-wrap:anywhere]">{{ t('bizApplication.link') }}: <a :href="content.dealUrl" target="_blank" rel="sponsored nofollow noopener" class="underline">{{ content.dealUrl }}</a></p>
             </template>
         </div>
 

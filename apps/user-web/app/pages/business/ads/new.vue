@@ -172,6 +172,7 @@ const SKETCH: Record<AdType, string> = {
     STRIP: 'left-1.5 right-1.5 top-8 h-1 rounded-sm',
     SQUARE: 'right-1.5 top-4 h-5 w-5 rounded-sm',
     SMALL: 'right-1.5 bottom-1.5 h-2 w-5 rounded-sm',
+    WING: 'right-0.5 top-4 bottom-1.5 w-1.5 rounded-sm',
     TEXT_LINE: 'left-1.5 top-[0.9rem] h-0.5 w-11 rounded-full',
 };
 

@@ -28,8 +28,8 @@ export const BIZ_APPLICATION_QUEUES: readonly BizApplicationQueue[] = ['REVIEW',
 export type BizPaymentMethod = 'ONLINE' | 'MANUAL';
 
 /** 광고 유형(노출 자리 단위 — 한도·달력의 단위). 광고 일정표와 같은 값(서버 `BizProduct`) */
-export type BizAdType = 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER' | 'TEXT_LINE' | 'HOTDEAL_TOP' | 'HOTDEAL_CATEGORY';
-export const BIZ_AD_TYPES: readonly BizAdType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'TEXT_LINE', 'HOTDEAL_TOP', 'HOTDEAL_CATEGORY'];
+export type BizAdType = 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER' | 'WING_BANNER' | 'TEXT_LINE' | 'HOTDEAL_TOP' | 'HOTDEAL_CATEGORY';
+export const BIZ_AD_TYPES: readonly BizAdType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER', 'WING_BANNER', 'TEXT_LINE', 'HOTDEAL_TOP', 'HOTDEAL_CATEGORY'];
 
 export interface BizPeriod {
     startAt: string;
