@@ -1,11 +1,12 @@
 <template>
     <!--
         신청 건 상세 `/business/applications/{id}` — 단계 표시(신청 → 심사 → 결제 → 진행 → 종료) + 상태별 본문 + 신청 내용·소재 + 처리 기록(Timeline).
-        심사 중 = [신청 취소] · 소재 수정 시 재심사 안내 / 반려 = 사유 코드·글 + [고쳐서 다시 신청] /
-        결제 대기(온라인) = 확정 금액·기한 카운트다운(24시간 안이면 경고)·[결제하기] → 가짜 결제창(`PaymentFakeCheckoutDialog`) → 예약 확정 안내 /
-        입금 대기(수동) = 입금 계좌·금액·기한·입금자명, 계약서 상태, 「입금이 확인되면 운영팀이 예약을 확정해요」 /
-        예약·진행 = 기간·소재 버전·[취소·환불 요청](시작 전 = 전액 자동, 진행 중 = 일할 운영팀 확인 + 사유).
-        `?pay=1` 로 오면(홈의 [결제하기]) 결제창을 바로 연다. ⚠ MOCK: 아래 「목업 운영자 처리」로 승인·입금 확인·시작·종료를 흉내 낸다.
+        심사 중 = [신청 취소] · [소재 바꾸기](광고) / 반려 = 사유 코드·글 + [고쳐서 다시 신청] /
+        결제 대기(온라인) = 확정 금액·기한 카운트다운(24시간 안이면 경고)·[결제하기] → 결제 공용 흐름(`usePaymentCheckout` — 가짜 결제창 또는 포트원) → 완료 뒤 상세를 다시 읽는다 ·
+          [소재 바꾸기](광고 — 다시 심사로) /
+        입금 대기(수동) = 입금 계좌·금액·기한·입금자명, 계약서 상태, 입금 확인 전이면 [신청 취소]·[소재 바꾸기] /
+        예약·진행 = 기간·소재 버전·[취소·환불 요청](시작 전 = 전액 자동, 진행 중 = 일할 운영팀 확인 + 사유, 한 번만) · 환불은 `refund` 하위 값(요청·승인·거절).
+        `?pay=1` 로 오면(홈의 [결제하기]) 결제창을 바로 연다. 포트원 모바일 리디렉션은 쿼리 없이 이 화면으로 돌아오고 `resumeRedirect` 가 이어 간다.
     -->
     <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="business-application">
         <div class="flex items-center gap-2">
@@ -40,7 +41,8 @@
                     <h2 class="m-0 text-base font-semibold">{{ t('business.detail.reviewTitle') }}</h2>
                     <p class="m-0 text-sm leading-relaxed text-muted-color">{{ t('business.detail.reviewText') }}</p>
                     <p class="m-0 flex items-start gap-1.5 text-xs text-muted-color"><i class="pi pi-info-circle mt-0.5 text-[0.6875rem]" aria-hidden="true" />{{ t('business.detail.creativeEditNote') }}</p>
-                    <div>
+                    <div class="flex flex-wrap gap-2">
+                        <Button v-if="canEditCreative" type="button" :label="t('business.detail.creativeEdit')" icon="pi pi-pencil" severity="secondary" variant="outlined" size="small" :disabled="actionBusy" data-testid="business-creative-edit" @click="openCreative" />
                         <Button type="button" :label="t('business.detail.cancel')" severity="danger" variant="outlined" size="small" :loading="actionBusy" data-testid="business-cancel" @click="cancel" />
                     </div>
                 </template>
@@ -49,7 +51,7 @@
                 <template v-else-if="app.status === 'REJECTED'">
                     <h2 class="m-0 flex flex-wrap items-center gap-1.5 text-base font-semibold">
                         {{ t('business.detail.rejectedTitle') }}
-                        <PointShopTag v-if="app.rejectCode" tone="danger">{{ t(`business.rejectCode.${app.rejectCode}`) }}</PointShopTag>
+                        <PointShopTag v-if="app.rejectCode" tone="danger">{{ t(`business.applicationRejectCode.${app.rejectCode}`) }}</PointShopTag>
                     </h2>
                     <p class="m-0 whitespace-pre-line text-sm leading-relaxed">{{ app.rejectReason }}</p>
                     <div>
@@ -65,10 +67,12 @@
                     <BusinessDeadline v-if="app.paymentDueAt" :due-at="app.paymentDueAt" kind="PAYMENT" variant="box" />
                     <BusinessPriceSummary v-if="app.confirmed" :amount="app.confirmed" confirmed :adjust-reason="app.adjustReason" />
                     <div class="flex flex-wrap gap-2">
-                        <Button type="button" :label="t('business.detail.pay')" icon="pi pi-credit-card" :loading="payStarting" data-testid="business-pay" @click="startPay" />
+                        <Button type="button" :label="t('business.detail.pay')" icon="pi pi-credit-card" :loading="payStarting || pay.busy.value" data-testid="business-pay" @click="startPay" />
+                        <Button v-if="canEditCreative" type="button" :label="t('business.detail.creativeEdit')" icon="pi pi-pencil" severity="secondary" variant="outlined" :disabled="actionBusy || pay.busy.value" @click="openCreative" />
                         <Button type="button" :label="t('business.detail.cancel')" severity="secondary" variant="text" :loading="actionBusy" @click="cancel" />
                     </div>
-                    <Message v-if="payError" severity="error" size="small" variant="simple" :closable="false" role="alert">{{ payError }}</Message>
+                    <p v-if="payNote" class="m-0 text-sm text-muted-color" role="status">{{ payNote }}</p>
+                    <Message v-if="payError || pay.completeError.value" severity="error" size="small" variant="simple" :closable="false" role="alert">{{ payError || pay.completeError.value }}</Message>
                 </template>
 
                 <!-- 입금 대기(수동) -->
@@ -81,8 +85,10 @@
                         <dd class="m-0">{{ app.deposit.bankName }}</dd>
                         <dt class="text-muted-color">{{ t('business.detail.account') }}</dt>
                         <dd class="m-0 font-semibold tabular-nums">{{ app.deposit.accountNo }}</dd>
-                        <dt class="text-muted-color">{{ t('business.detail.holder') }}</dt>
-                        <dd class="m-0">{{ app.deposit.accountHolder }}</dd>
+                        <template v-if="app.deposit.accountHolder">
+                            <dt class="text-muted-color">{{ t('business.detail.holder') }}</dt>
+                            <dd class="m-0">{{ app.deposit.accountHolder }}</dd>
+                        </template>
                         <dt class="text-muted-color">{{ t('business.detail.depositAmount') }}</dt>
                         <dd class="m-0 font-bold tabular-nums">{{ UtilBusinessMessages.won(t, app.confirmed?.total ?? app.amount.total) }}</dd>
                         <dt class="text-muted-color">{{ t('business.detail.depositor') }}</dt>
@@ -99,7 +105,13 @@
                             <PointShopTag :tone="app.deposit.depositConfirmed ? 'success' : 'neutral'">{{ t(`business.detail.depositState.${app.deposit.depositConfirmed ? 'CONFIRMED' : 'WAITING'}`) }}</PointShopTag>
                         </dd>
                     </dl>
-                    <p class="m-0 text-xs text-muted-color">{{ t('business.detail.depositCancelNote') }}</p>
+                    <template v-if="!app.deposit.depositConfirmed">
+                        <p class="m-0 text-xs text-muted-color">{{ t('business.detail.depositCancelNote') }}</p>
+                        <div class="flex flex-wrap gap-2">
+                            <Button v-if="canEditCreative" type="button" :label="t('business.detail.creativeEdit')" icon="pi pi-pencil" severity="secondary" variant="outlined" size="small" :disabled="actionBusy" @click="openCreative" />
+                            <Button type="button" :label="t('business.detail.cancel')" severity="danger" variant="outlined" size="small" :loading="actionBusy" data-testid="business-cancel" @click="cancel" />
+                        </div>
+                    </template>
                 </template>
 
                 <!-- 예약·진행·종료 -->
@@ -135,10 +147,12 @@
                 <div v-if="app.refund" class="flex flex-col gap-1 rounded-lg border border-hairline p-3 text-sm" data-testid="business-refund-info">
                     <p class="m-0 flex flex-wrap items-center gap-1.5 font-semibold">
                         {{ t('business.detail.refundTitle') }}
-                        <PointShopTag :tone="app.refund.status === 'REFUNDED' ? 'success' : 'warn'">{{ t(`business.detail.refundStatus.${app.refund.status}`) }}</PointShopTag>
+                        <PointShopTag :tone="app.refund.status === 'APPROVED' ? 'success' : app.refund.status === 'DENIED' ? 'danger' : 'warn'">{{ t(`business.detail.refundStatus.${app.refund.status}`) }}</PointShopTag>
                         <span class="text-xs font-normal text-muted-color">{{ t(`business.detail.refundType.${app.refund.type}`) }}</span>
                     </p>
-                    <p v-if="app.refund.refundAmount !== null" class="m-0 tabular-nums">{{ t('business.detail.refundEstimate', { amount: UtilBusinessMessages.won(t, app.refund.refundAmount) }) }}</p>
+                    <p v-if="app.refund.refundAmount !== null" class="m-0 tabular-nums">{{ t('business.detail.refundApproved', { amount: UtilBusinessMessages.won(t, app.refund.refundAmount) }) }}</p>
+                    <p v-else-if="app.refund.status === 'REQUESTED'" class="m-0 tabular-nums">{{ t('business.detail.refundEstimate', { amount: UtilBusinessMessages.won(t, app.refund.proposedAmount) }) }}</p>
+                    <p v-if="app.refund.decisionReason" class="m-0 whitespace-pre-line text-sm">{{ app.refund.decisionReason }}</p>
                     <p class="m-0 whitespace-pre-line text-xs text-muted-color">{{ app.refund.reason }}</p>
                 </div>
             </section>
@@ -191,36 +205,35 @@
             <!-- 처리 기록 -->
             <section class="panel-card p-4" :aria-labelledby="`${uid}-history`">
                 <h2 :id="`${uid}-history`" class="m-0 mb-3 text-sm font-semibold">{{ t('business.detail.historyTitle') }}</h2>
-                <BusinessHistoryTimeline :history="app.history" />
+                <BusinessHistoryTimeline :history="history" />
             </section>
 
-            <!-- MOCK: 운영자 처리 흉내 -->
-            <BusinessMockPanel v-if="mockActions.length" :title="t('business.mock.operatorTitle')" :help="t('business.mock.operatorHelp')" initially-open>
-                <div class="flex flex-wrap gap-2">
-                    <Button
-                        v-for="action in mockActions"
-                        :key="action"
-                        type="button"
-                        :label="t(`business.mock.op.${action}`)"
-                        size="small"
-                        severity="warn"
-                        variant="outlined"
-                        :disabled="actionBusy"
-                        :data-testid="`business-mock-${action}`"
-                        @click="operate(action)"
-                    />
-                </div>
-            </BusinessMockPanel>
         </template>
 
         <PaymentFakeCheckoutDialog
-            :visible="payOpen"
-            :checkout="payTarget?.checkout ?? null"
-            :expires-at="payTarget?.expiresAt ?? ''"
-            :busy="payBusy"
-            :error="payDialogError"
-            @submit="completePay"
-            @close="payOpen = false"
+            :visible="pay.fakeOpen.value"
+            :checkout="pay.target.value?.checkout ?? null"
+            :expires-at="pay.target.value?.expiresAt ?? ''"
+            :busy="pay.fakeBusy.value"
+            :error="pay.fakeError.value"
+            @submit="pay.submitFake"
+            @close="pay.closeFake"
+        />
+        <BusinessCreativeDialog
+            v-if="app && app.adType"
+            :visible="creativeOpen"
+            :ad-type="app.adType"
+            :creative="app.creative"
+            :image="creativeImage"
+            :image-busy="creativeImageBusy"
+            :back-to-review="app.status !== 'SUBMITTED'"
+            :busy="actionBusy"
+            :error="creativeError"
+            :field-errors="creativeFields"
+            @pick-image="uploadCreativeImage"
+            @remove-image="creativeImage = null"
+            @submit="saveCreative"
+            @close="creativeOpen = false"
         />
         <BusinessRefundDialog
             v-if="app"
@@ -237,14 +250,15 @@
 </template>
 
 <script setup lang="ts">
-import type { BizApplicationDetail, BizMockOperatorAction, BizPaymentCompleteRequest, BizPaymentStart } from '~/composables/business/api/useBusinessApi.types';
+import type { BizApplicationDetail, BizCreativeRequest, BizPaymentStart, BusinessFile } from '~/composables/business/api/useBusinessApi.types';
+import type { PaymentResult } from '~/composables/payment/api/usePaymentApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilBusiness from '~/utils/util-business';
 import UtilBusinessMessages from '~/utils/util-business-messages';
 
 /**
  * 신청 건 상세 `/business/applications/{id}` — 로그인 필요. 내 신청 건 목록·사업자 센터 홈의 할 일 카드·알림(결제 요청·기한 임박)이 온다.
- * 결제는 `payment` 모듈 한 길(`BIZ_APPLICATION`) — 목업은 가짜 결제창만 쓴다(실제 PG 호출 없음). ⚠ 목업 단계(`useBusinessApi`).
+ * 결제는 `payment` 모듈 한 길(`BIZ_APPLICATION`) — 결제 시작(`useBusinessApi.startPayment`) 뒤 공용 결제창 흐름(`usePaymentCheckout`)으로 완료하고 상세를 다시 읽는다(공구 결제 화면과 같은 방식).
  */
 definePageMeta({ middleware: 'auth' });
 
@@ -259,6 +273,7 @@ const toast = useAppToast();
 const { confirm } = useConfirmDialog();
 const time = useDisplayTime();
 const now = useNowTicker();
+const { user } = useAuth();
 
 const id = computed(() => String(route.params.id ?? ''));
 const app = ref<BizApplicationDetail | null>(null);
@@ -281,6 +296,8 @@ async function load(): Promise<void> {
 }
 
 onMounted(async () => {
+    // 포트원 모바일 리디렉션에서 돌아왔으면 이어 간다(같은 결제 번호일 때만) — 결과는 `onPaid` 가 상세를 다시 읽는다
+    await pay.resumeRedirect();
     await load();
     // 홈의 [결제하기]로 왔으면 결제창을 바로 연다(쿼리는 지운다 — 새로고침에 다시 열리지 않게)
     if (route.query.pay) {
@@ -307,6 +324,8 @@ const kindLabel = computed(() => {
 const periodLabel = computed(() =>
     app.value ? UtilBusinessMessages.period(t, time.value.serviceDate(app.value.startDate), time.value.serviceDate(app.value.endDate), app.value.startDate, app.value.endDate) : '',
 );
+/** 처리 기록 + 시각으로 계산한 노출 시작·종료(서버는 기록하지 않는다) */
+const history = computed(() => (app.value ? UtilBusiness.withPhaseHistory(app.value.history, app.value.status, app.value.phase, app.value.startDate, app.value.endDate) : []));
 /** 결제(입금)까지 마친 건인가 — 단계 표시의 멈춘 자리 */
 const paid = computed(() => Boolean(app.value?.history.some((h) => h.action === 'PAID' || h.action === 'DEPOSIT_CONFIRMED')));
 const dueSoon = computed(() => Boolean(app.value?.paymentDueAt && Date.parse(app.value.paymentDueAt) - now.value < UtilBusiness.DUE_WARN_MS));
@@ -330,22 +349,41 @@ async function cancel(): Promise<void> {
     }
 }
 
-/* ── 결제(온라인) — 가짜 결제창 ── */
-const payTarget = ref<BizPaymentStart | null>(null);
-const payOpen = ref(false);
+/* ── 결제(온라인) — 결제 공용 흐름(가짜 결제창 · 포트원) ── */
 const payStarting = ref(false);
-const payBusy = ref(false);
 const payError = ref('');
-const payDialogError = ref('');
+const pay = usePaymentCheckout<BizPaymentStart>({
+    pendingKey: 'roboyam-biz-application-payment-pending',
+    redirectPath: (target) => UtilBusiness.applicationPath(target.orderRefId),
+    customer: () => ({ fullName: user.value?.nickname ?? '', phoneNumber: '', email: user.value?.email ?? '' }),
+    fakeCheckout: (paymentId, body) => api.fakeCheckout(paymentId, body),
+    complete: (paymentId, body) => api.completePayment(paymentId, body),
+    onResult: onPaid,
+});
+
+function onPaid(result: PaymentResult): void {
+    if (result.accepted) {
+        justPaid.value = true;
+        toast.success(t('business.detail.paidTitle'));
+    } else {
+        payError.value = t('business.detail.payNotDone');
+    }
+    void load();
+}
+
+/** 결제창을 닫았거나 실패했을 때의 한 줄 */
+const payNote = computed(() => {
+    const note = pay.note.value;
+    if (!note) return '';
+    return note === 'CLOSED' ? t('business.detail.payCanceled') : t('business.detail.payFailed');
+});
 
 async function startPay(): Promise<void> {
-    if (!app.value || payStarting.value) return;
+    if (!app.value || payStarting.value || pay.busy.value) return;
     payStarting.value = true;
     payError.value = '';
-    payDialogError.value = '';
     try {
-        payTarget.value = await api.startPayment(app.value.id);
-        payOpen.value = true;
+        pay.open(await api.startPayment(app.value.id));
     } catch (e) {
         payError.value = await handleError(e, t('business.detail.payFailed'));
     } finally {
@@ -353,20 +391,56 @@ async function startPay(): Promise<void> {
     }
 }
 
-async function completePay(body: BizPaymentCompleteRequest): Promise<void> {
-    if (!app.value) return;
-    payBusy.value = true;
-    payDialogError.value = '';
+/* ── 소재 바꾸기(광고 — 결제 전) ── */
+const creativeOpen = ref(false);
+const creativeImage = ref<BusinessFile | null>(null);
+const creativeImageBusy = ref(false);
+const creativeError = ref('');
+const creativeFields = ref<Record<string, string>>({});
+/** 결제 전(심사 중 · 결제 대기 · 입금 확인 전 입금 대기)의 광고만 — 핫딜 글은 신청 화면에서 고친다 */
+const canEditCreative = computed(() => {
+    const a = app.value;
+    if (!a || !a.adType || !UtilBusiness.isAd(a.kind)) return false;
+    return a.status === 'SUBMITTED' || a.status === 'AWAITING_PAYMENT' || (a.status === 'AWAITING_DEPOSIT' && !a.deposit?.depositConfirmed);
+});
+
+function openCreative(): void {
+    creativeImage.value = null;
+    creativeError.value = '';
+    creativeFields.value = {};
+    creativeOpen.value = true;
+}
+
+async function uploadCreativeImage(file: File): Promise<void> {
+    creativeImageBusy.value = true;
+    creativeError.value = '';
     try {
-        app.value = await api.completePayment(app.value.id, { ...body });
-        payOpen.value = false;
-        justPaid.value = true;
-        toast.success(t('business.detail.paidTitle'));
+        creativeImage.value = await api.uploadFile(file);
     } catch (e) {
-        payDialogError.value = await handleError(e, t('business.detail.payFailed'));
-        if (!payDialogError.value) payOpen.value = false;
+        creativeError.value = e instanceof Error ? e.message : t('common.failed');
     } finally {
-        payBusy.value = false;
+        creativeImageBusy.value = false;
+    }
+}
+
+async function saveCreative(body: BizCreativeRequest): Promise<void> {
+    if (!app.value) return;
+    const wasSubmitted = app.value.status === 'SUBMITTED';
+    actionBusy.value = true;
+    creativeError.value = '';
+    creativeFields.value = {};
+    try {
+        app.value = await api.updateCreative(app.value.id, { ...body });
+        creativeOpen.value = false;
+        toast.success(wasSubmitted ? t('business.detail.creativeSaved') : t('business.detail.creativeBackToReview'));
+    } catch (e) {
+        if (e instanceof ApiError && e.code === 'VALIDATION' && e.fields) creativeFields.value = { ...e.fields };
+        else {
+            creativeError.value = await handleError(e, t('common.failed'));
+            if (!creativeError.value) creativeOpen.value = false;
+        }
+    } finally {
+        actionBusy.value = false;
     }
 }
 
@@ -388,42 +462,10 @@ async function requestRefund(reason: string): Promise<void> {
         const result = await api.refundRequest(app.value.id, reason);
         app.value = result;
         refundOpen.value = false;
-        toast.success(result.refund?.status === 'REFUNDED' ? t('business.detail.refundAutoDone') : t('business.detail.refundRequested'));
+        toast.success(result.refund?.status === 'APPROVED' ? t('business.detail.refundAutoDone') : t('business.detail.refundRequested'));
     } catch (e) {
         refundError.value = await handleError(e, t('common.failed'));
         if (!refundError.value) refundOpen.value = false;
-    } finally {
-        actionBusy.value = false;
-    }
-}
-
-/* ── MOCK: 운영자 처리 ── */
-const mockActions = computed<BizMockOperatorAction[]>(() => {
-    const a = app.value;
-    if (!a) return [];
-    switch (a.status) {
-        case 'SUBMITTED':
-            return ['APPROVE_ONLINE', 'APPROVE_MANUAL', 'REJECT'];
-        case 'AWAITING_PAYMENT':
-            return ['NEAR_DUE'];
-        case 'AWAITING_DEPOSIT':
-            return ['CONTRACT_AND_DEPOSIT'];
-        case 'SCHEDULED':
-            return a.phase === 'UPCOMING' ? ['START'] : a.phase === 'RUNNING' ? ['END'] : [];
-        default:
-            return [];
-    }
-});
-
-async function operate(action: BizMockOperatorAction): Promise<void> {
-    if (!app.value) return;
-    actionBusy.value = true;
-    try {
-        app.value = await api.mockOperate(app.value.id, action);
-        justPaid.value = false;
-        toast.show(t('business.mock.done'));
-    } catch (e) {
-        toast.error(e instanceof Error ? e.message : t('common.failed'), 8000);
     } finally {
         actionBusy.value = false;
     }

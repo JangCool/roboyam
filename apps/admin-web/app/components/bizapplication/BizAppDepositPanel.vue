@@ -17,7 +17,7 @@
 
         <section class="flex flex-col gap-2" :aria-labelledby="`${uid}-c`">
             <h4 :id="`${uid}-c`" class="m-0 text-[13px] font-semibold">① {{ t('bizApplication.contract.title') }} <span class="text-red-600">*</span></h4>
-            <BizContractFiles :files="detail.contracts" editable :busy="busy" :error="fieldErrors.file ?? ''" @upload="(f) => emit('upload', f)" @replace="(b) => emit('replace', b)" />
+            <BizContractFiles :files="detail.contracts" editable viewable :busy="busy" :error="fieldErrors.file ?? ''" @upload="(f) => emit('upload', f)" @replace="(b) => emit('replace', b)" @view="(id) => emit('viewContract', id)" />
         </section>
 
         <section class="flex flex-col gap-2" :aria-labelledby="`${uid}-d`">
@@ -60,7 +60,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), { busy: false, error: '', fieldErrors: () => ({}), now: () => Date.now() });
-const emit = defineEmits<{ upload: [files: File[]]; replace: [body: { id: string; file: File }]; saveDeposit: [body: BizDepositRequest]; confirm: []; extend: []; cancel: [] }>();
+const emit = defineEmits<{ upload: [files: File[]]; replace: [body: { id: string; file: File }]; saveDeposit: [body: BizDepositRequest]; confirm: []; extend: []; cancel: []; viewContract: [id: string] }>();
 
 const { t, locale } = useI18n();
 const time = useDisplayTime();

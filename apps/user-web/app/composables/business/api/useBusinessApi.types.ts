@@ -1,21 +1,18 @@
 /**
- * 사업자 센터 API 의 주고받는 모양 — 목업 단계(서버 없음). 요구사항 정본 `docs/plans/biz-ad-hotdeal/00-overview.md` 「★ 확정」.
+ * 사업자 센터 API 의 주고받는 모양 — 신원(V111)·신청 건(V112, 서버 `BizMemberView`). 요구사항 정본 `docs/plans/biz-ad-hotdeal/00-overview.md` 「★ 확정」.
  * ⚠ ID 는 문자열이다(Snowflake 64비트). 날짜(`YYYY-MM-DD`)는 서비스 달력 날짜 글자, 시각은 ISO-8601 순간이다.
  */
 import type { BusinessUserStatus } from '~/composables/auth/api/useAuthApi.types';
 import type { AddressValue } from '~/components/address/AddressInput.types';
-import type { PaymentCheckout, PaymentFakeCheckoutRequest } from '~/composables/payment/api/usePaymentApi.types';
-
-/** 목업 결제 완료 요청 — 가짜 결제창에서 고른 결과(서버가 붙으면 `payment` 모듈의 완료 API 가 대신한다) */
-export type BizPaymentCompleteRequest = PaymentFakeCheckoutRequest;
+import type { PaymentCheckout } from '~/composables/payment/api/usePaymentApi.types';
 
 /* ── 사업자 신원 ─────────────────────────────────────────── */
 
 /** 사업자 신원 상태 — 로그인 정보의 `businessStatus` 와 같은 값 */
 export type BusinessProfileStatus = BusinessUserStatus;
 
-/** 신청 건 반려 사유 코드(운영자가 고른다 — 글은 따로, 신청 건 백엔드가 확정) */
-export type BusinessRejectCode = 'DOCUMENT_UNREADABLE' | 'INFO_MISMATCH' | 'CLOSED_BUSINESS' | 'POLICY' | 'OTHER';
+/** 신청 건 반려 사유 코드 — 서버 `BizRejectCode`(관리자 심사 화면과 같은 묶음). 글은 `rejectReason` 으로 따로 온다 */
+export type BusinessRejectCode = 'CREATIVE_SPEC' | 'POLICY_VIOLATION' | 'LINK_BROKEN' | 'PERIOD_UNAVAILABLE' | 'FALSE_PRICE' | 'OTHER';
 
 /** 사업자 신원 반려 사유 코드 — 서버 `BusinessRejectCode`(관리자 화면과 같은 값) */
 export type BusinessProfileRejectCode = 'DOC_UNREADABLE' | 'INFO_MISMATCH' | 'NTS_CLOSED' | 'DUPLICATE' | 'OTHER';
@@ -125,7 +122,8 @@ export interface BizDeal {
 export interface BizDepositInfo {
     bankName: string;
     accountNo: string;
-    accountHolder: string;
+    /** 예금주 — 서버 설정(`roboyam.biz.deposit-account`)이 비면 null */
+    accountHolder: string | null;
     /** 입금자명 — 이 이름으로 넣어 달라고 안내한다 */
     depositorName: string;
     /** 계약서 사본 — 운영팀이 올린다(F3). `WAITING` 아직 · `RECEIVED` 받음 */
@@ -133,14 +131,22 @@ export interface BizDepositInfo {
     depositConfirmed: boolean;
 }
 
-/** 취소·환불 요청(H1) */
+/**
+ * 취소·환불(H1) — 상태가 아니라 신청 건의 하위 값이다(세션 정리 결정). 시작 전 요청 = 신청 건 CANCELED + 이 값 APPROVED(FULL_AUTO),
+ * 진행 중 요청 = REQUESTED(PRORATED_REVIEW, 신청 건은 SCHEDULED 그대로) → 운영팀이 APPROVED·DENIED. 돈이 실제로 돌아간 것은 처리 기록의 `REFUNDED`·`REFUND_TRANSFERRED`.
+ */
 export interface BizRefundRequest {
     /** `FULL_AUTO` 시작 전 전액 자동 · `PRORATED_REVIEW` 진행 중 일할(운영팀 확인) */
     type: 'FULL_AUTO' | 'PRORATED_REVIEW';
+    status: 'REQUESTED' | 'APPROVED' | 'DENIED';
     reason: string;
     requestedAt: string;
-    status: 'REQUESTED' | 'REFUNDED';
+    /** 제안 금액(일할 계산 — 시작 전이면 전액) */
+    proposedAmount: number;
+    /** 승인 금액(승인 뒤) */
     refundAmount: number | null;
+    /** 운영팀의 승인·거절 사유 */
+    decisionReason: string | null;
 }
 
 /** 처리 기록 한 줄 */
@@ -156,15 +162,24 @@ export interface BizHistoryEntry {
         | 'CANCELED'
         | 'PAID'
         | 'EXPIRED'
+        | 'MANUAL_SWITCH'
         | 'CONTRACT_RECEIVED'
         | 'DEPOSIT_CONFIRMED'
+        | 'DEPOSIT_DEADLINE'
         | 'SCHEDULED'
-        | 'STARTED'
-        | 'ENDED'
         | 'TAKEN_DOWN'
+        | 'RESTORED'
         | 'REFUND_REQUESTED'
-        | 'REFUNDED';
-    /** 사유·메모(서버 문구 그대로) */
+        | 'REFUND_APPROVED'
+        | 'REFUND_DENIED'
+        | 'REFUNDED'
+        | 'REFUND_TRANSFERRED'
+        | 'AUTO_CANCELED'
+        | 'FORFEITED'
+        // 서버는 기록하지 않는다 — 화면이 `phase` 로 덧붙인다(`UtilBusiness.withPhaseHistory`)
+        | 'STARTED'
+        | 'ENDED';
+    /** 코드별 덧붙임(사유 코드·금액·`PERIOD_MOVED` 등) 또는 사유 글 — `UtilBusinessMessages.historyNote` 가 읽는다 */
     note: string | null;
 }
 
@@ -298,6 +313,22 @@ export interface BizApplicationCreated {
     id: string;
 }
 
+/**
+ * `PUT /api/business/applications/{id}/creative` — 소재 바꾸기(종류에 맞는 칸만 본다). 심사 중이면 새 버전, 승인 뒤 결제 전(결제 대기·입금 기록 없는 입금 대기)이면
+ * 심사 대기로 돌아간다(자리 반납). 핫딜 글은 노출 자리·기간을 바꿀 수 없다(400 `fields.deal.placement`).
+ */
+export interface BizCreativeRequest {
+    /** 배너 이미지(`POST /api/business/ad-images` 가 준 ID) */
+    imageFileId?: string | null;
+    linkUrl?: string | null;
+    altText?: string | null;
+    /** 한 줄 문구(40자) */
+    text?: string | null;
+    /** 핫딜 글 제목 */
+    title?: string | null;
+    deal?: BizDeal | null;
+}
+
 /* ── 결제(온라인) ───────────────────────────────────────── */
 
 /** `POST /api/business/applications/{id}/payment` — 결제 시작(결제창 정보). `payment` 모듈 한 길(`PaymentOrderType.BIZ_APPLICATION`) */
@@ -307,6 +338,3 @@ export interface BizPaymentStart {
     expiresAt: string;
     checkout: PaymentCheckout;
 }
-
-/** 목업 운영자 처리(개발용) — 서버가 붙으면 관리자 화면이 한다 */
-export type BizMockOperatorAction = 'APPROVE_ONLINE' | 'APPROVE_MANUAL' | 'REJECT' | 'CONTRACT_AND_DEPOSIT' | 'START' | 'END' | 'NEAR_DUE';

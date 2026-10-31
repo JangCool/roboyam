@@ -33,6 +33,8 @@ export interface DmPartner {
     decoration?: AuthorDecoration | null;
     /** 상대의 프로필 아바타 그림 주소 — 쪽지에는 지금 그리지 않는다(작성자 모양을 맞추려고 넘긴다) */
     avatarUrl?: string | null;
+    /** 승인된 사업자인가(사업자 신원 승인 — 재심사 중·정지는 false) — 이름 옆 「사업자」 뱃지. 로그인 정보의 `businessStatus` 와 따로다. 칸이 없는 옛 응답이면 뱃지 없음 */
+    business?: boolean;
 }
 
 /** 오늘(한국 시간)의 한도 — `resetsInSeconds` 는 다음 한국 시간 0시까지 남은 초. 전송이 실패하면 한도에 들어가지 않는다 */

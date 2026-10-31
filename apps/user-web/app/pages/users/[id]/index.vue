@@ -48,6 +48,8 @@
                         <span class="min-w-0 break-all" :style="nicknameStyle" data-testid="profile-nickname">{{ profile.nickname }}</span>
                         <StaffBadge v-if="profile.role !== 'USER'" :role="profile.role" class="shrink-0" />
                         <GradeBadge v-else :grade="profile.grade as Grade" :label="profile.gradeLabel" class="shrink-0" />
+                        <!-- 승인된 사업자(서버 `business` — 재심사 중·정지는 false). 홍보 전용 계정(역할 BUSINESS)은 위 공식 뱃지가 이미 「사업자」라 겹쳐 그리지 않는다 -->
+                        <StaffBadge v-if="profile.business && profile.role !== 'BUSINESS'" role="BUSINESS" class="shrink-0" data-testid="profile-business-badge" />
                         <!-- 이용자 메모 — 나에게만 보이는 노란 칩 -->
                         <span
                             v-if="menuTarget?.memo"

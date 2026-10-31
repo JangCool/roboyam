@@ -72,6 +72,8 @@ export interface MemberRow {
     boardRole: MemberBoardRole;
     /** 제재 이력 수 */
     sanctionCount: number;
+    /** 승인된 사업자인가(사업자 신원 `APPROVED` — 재심사 중·정지·탈퇴는 false). 역할 기준 `memberType` 과 따로 */
+    businessVerified: boolean;
 }
 
 /** 역할 고르개 한 항목 */
@@ -118,6 +120,8 @@ export interface MemberQuery {
     boardRole?: MemberBoardRole;
     /** true 제재 이력 있음 · false 없음 */
     hasSanction?: boolean;
+    /** true 승인된 사업자 · false 아님(역할 기준 `memberType` 과 따로) */
+    businessVerified?: boolean;
     /** `칸,asc|desc` — 기본 `joinedAt,desc` */
     sort?: string;
     /** 0 부터 */

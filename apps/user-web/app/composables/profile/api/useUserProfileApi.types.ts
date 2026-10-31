@@ -41,6 +41,8 @@ export interface PublicProfile {
     decoration?: AuthorDecoration | null;
     /** 프로필 아바타 그림 주소 — 서버가 늘 채운다(고르지 않았으면 `basic-default`). 그리기는 `useMyDecoration().avatarOf`(내 것은 방금 고른 것) */
     avatarUrl?: string | null;
+    /** 승인된 사업자인가(사업자 신원 승인 — 재심사 중·정지는 false) — 이름 옆 「사업자」 뱃지. 로그인 정보의 `businessStatus` 와 따로다. 칸이 없는 옛 응답이면 뱃지 없음 */
+    business?: boolean;
 }
 
 /** 작성글 —`GET /api/users/{id}/posts?size&cursor`. 최신이 위, 삭제·숨김 글과 꺼진 게시판의 글은 빠진다 */

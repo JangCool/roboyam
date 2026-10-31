@@ -2,7 +2,8 @@
     <!--
         계약서 사본(수동 결제 근거 — ★-2) — 신청 건 입금 확인 패널과 광고 수동 등록이 같이 쓴다.
         PDF·JPG·PNG, 한 장 10MB, 여러 장. 원본은 지우지 않는다 — [바꾸기] 는 새 파일을 더하고 옛 파일에 「대체됨」을 남긴다.
-        열람은 권한(`ad.manage` 이상) + 기록(안내 한 줄). 서버는 부르지 않는다 — 고른 파일은 `upload`·`replace` 로 올린다.
+        열람은 권한(`ad.manage` 이상) + 기록(안내 한 줄) — `viewable` 이면 줄마다 [보기](`view`, 부모가 `data:` 주소를 받아 연다).
+        서버는 부르지 않는다 — 고른 파일은 `upload`·`replace` 로 올린다(신청 건 화면은 한 장씩 나눠 올린다).
     -->
     <div class="flex flex-col gap-2">
         <ul v-if="files.length" class="m-0 flex list-none flex-col divide-y divide-(--line) rounded-lg border border-(--line) p-0">
@@ -15,6 +16,7 @@
                     </span>
                     <span class="text-[11px] text-muted-color">{{ UtilBizApplication.fileSize(f.size) }} · {{ time.shortDateTime(f.uploadedAt) }} · {{ f.uploadedBy }}</span>
                 </div>
+                <Button v-if="viewable" type="button" :label="t('bizApplication.contract.view')" icon="pi pi-eye" size="small" severity="secondary" variant="text" :disabled="busy" @click="emit('view', f.id)" />
                 <Button v-if="editable && !f.replacedAt" type="button" :label="t('bizApplication.contract.replace')" icon="pi pi-sync" size="small" severity="secondary" variant="text" :disabled="busy" @click="pickReplace(f.id)" />
             </li>
         </ul>
@@ -51,13 +53,15 @@ import UtilBizApplication from '~/utils/util-biz-application';
 interface Props {
     files: BizContractFile[];
     editable?: boolean;
+    /** 줄마다 [보기] — 누르면 `view`(파일 id) */
+    viewable?: boolean;
     busy?: boolean;
     /** 서버가 준 파일 오류 */
     error?: string;
 }
 
-const props = withDefaults(defineProps<Props>(), { editable: false, busy: false, error: '' });
-const emit = defineEmits<{ upload: [files: File[]]; replace: [body: { id: string; file: File }] }>();
+const props = withDefaults(defineProps<Props>(), { editable: false, viewable: false, busy: false, error: '' });
+const emit = defineEmits<{ upload: [files: File[]]; replace: [body: { id: string; file: File }]; view: [id: string] }>();
 
 const { t } = useI18n();
 const time = useDisplayTime();

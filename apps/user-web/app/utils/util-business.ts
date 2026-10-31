@@ -1,5 +1,5 @@
 import type { AuthUser, Role } from '~/composables/auth/api/useAuthApi.types';
-import type { AdType, BizAmount, BizApplicationBucket, BizApplicationKind, BizApplicationStatus, BizSchedulePhase } from '~/composables/business/api/useBusinessApi.types';
+import type { AdType, BizAmount, BizApplicationBucket, BizApplicationKind, BizApplicationStatus, BizHistoryEntry, BizSchedulePhase } from '~/composables/business/api/useBusinessApi.types';
 
 /** 사용자 메뉴의 사업자 줄 — `CENTER` 사업자 센터(신청했거나 사업자 전용 계정) · `APPLY` 사업자 신청(일반 회원, 신청 전) */
 export type BusinessEntry = 'CENTER' | 'APPLY';
@@ -211,6 +211,22 @@ export default class UtilBusiness {
     static addDays(ymd: string, days: number): string {
         const d = new Date(+ymd.slice(0, 4), +ymd.slice(5, 7) - 1, +ymd.slice(8, 10) + days);
         return UtilBusiness.todayYmd(d.getTime());
+    }
+
+    /** 한국 날짜(`YYYY-MM-DD`)의 00:00(KST) 순간 */
+    static kstStartOf(ymd: string): string {
+        return new Date(`${ymd}T00:00:00+09:00`).toISOString();
+    }
+
+    /**
+     * 처리 기록 + 시각으로 계산한 「노출 시작」·「노출 종료」 — 서버는 이 둘을 기록하지 않는다(`phase` 로 계산). 시각순(오래된 것 먼저)으로 돌려준다.
+     * 시작 = 시작 날짜 00:00(KST), 종료 = 끝 날짜 다음 날 00:00(KST — 끝 날짜 포함).
+     */
+    static withPhaseHistory(history: BizHistoryEntry[], status: BizApplicationStatus, phase: BizSchedulePhase | null, startDate: string, endDate: string): BizHistoryEntry[] {
+        const out = [...history];
+        if (status === 'SCHEDULED' && (phase === 'RUNNING' || phase === 'ENDED')) out.push({ at: UtilBusiness.kstStartOf(startDate), actor: 'SYSTEM', action: 'STARTED', note: null });
+        if (status === 'SCHEDULED' && phase === 'ENDED') out.push({ at: UtilBusiness.kstStartOf(UtilBusiness.addDays(endDate, 1)), actor: 'SYSTEM', action: 'ENDED', note: null });
+        return out.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
     }
 
     /** 단축 URL·형식 검사 — 링크 칸 미리 알림(서버가 다시 판정) */

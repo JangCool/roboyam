@@ -57,6 +57,12 @@
                 </template>
             </FilterRow>
 
+            <FilterRow v-if="shown('business')" :label="t('member.filter.business')" :error="errorOf('businessVerified')">
+                <template #default="{ labelId }">
+                    <FilterOptionGroup v-model="filter.businessVerified" :options="businessOptions" :labelledby="labelId" />
+                </template>
+            </FilterRow>
+
             <FilterRow v-if="shown('emailVerified')" :label="t('member.filter.emailVerified')" :error="errorOf('emailVerified')">
                 <template #default="{ labelId }">
                     <FilterOptionGroup v-model="filter.emailVerified" :options="verifiedOptions" :labelledby="labelId" />
@@ -155,7 +161,7 @@ const { t } = useI18n();
 /** 줄에 문구를 붙이는 조회 조건 이름 — 이 밖의 이름은 맨 아래 한 줄에 모은다 */
 const MAPPED_FIELDS = [
     'searchField', 'keyword', 'statuses', 'roleIds', 'joinedFrom', 'joinedTo', 'lastLoginFrom', 'lastLoginTo', 'noLoginHistory', 'grades', 'memberType', 'emailVerified', 'authMethods',
-    'dormantFrom', 'dormantTo', 'statusChangedKind', 'statusChangedFrom', 'statusChangedTo', 'pointMin', 'pointMax', 'boardRole', 'hasSanction',
+    'dormantFrom', 'dormantTo', 'statusChangedKind', 'statusChangedFrom', 'statusChangedTo', 'pointMin', 'pointMax', 'boardRole', 'hasSanction', 'businessVerified',
 ];
 
 const detailId = useId();
@@ -179,6 +185,11 @@ const verifiedOptions = computed(() => [
 const authOptions = computed(() => UtilMember.AUTH_METHODS.map((value) => ({ value: value as string, label: t(`member.authMethod.${value}`) })));
 const changeKindOptions = computed(() => [{ value: 'ALL', label: t('common.all') }, ...UtilMember.STATUS_CHANGE_KINDS.map((value) => ({ value: value as string, label: t(`member.statusChange.${value}`) }))]);
 const boardRoleOptions = computed(() => [{ value: '', label: t('common.all') }, ...UtilMember.BOARD_ROLES.map((value) => ({ value: value as string, label: t(`member.boardRole.${value}`) }))]);
+const businessOptions = computed(() => [
+    { value: '', label: t('common.all') },
+    { value: 'YES', label: t('member.businessVerified.YES') },
+    { value: 'NO', label: t('member.businessVerified.NO') },
+]);
 const sanctionOptions = computed(() => [
     { value: '', label: t('common.all') },
     { value: 'YES', label: t('member.sanction.YES') },

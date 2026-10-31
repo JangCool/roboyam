@@ -30,6 +30,8 @@ export interface GroupUser {
     memo?: string | null;
     decoration?: AuthorDecoration | null;
     avatarUrl?: string | null;
+    /** 승인된 사업자인가(사업자 신원 승인 — 재심사 중·정지는 false) — 이름 옆 「사업자」 뱃지. 로그인 정보의 `businessStatus` 와 따로다. 칸이 없는 옛 응답이면 뱃지 없음 */
+    business?: boolean;
 }
 
 /** 소모임의 분류 — 게시판이 할당된 분류에서 파생된다. 할당이 풀리면 null(태그를 그리지 않는다) */

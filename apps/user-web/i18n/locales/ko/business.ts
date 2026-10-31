@@ -1,31 +1,12 @@
 /**
  * 사업자 문구 — 사용자 메뉴의 사업자 줄·뱃지 + 사업자 센터(홈·신청·광고/핫딜 신청·신청 건). 키는 `business.무엇`. `en/business.ts` 와 같은 키, 같은 차례.
- * 요구사항 정본 `docs/plans/biz-ad-hotdeal/00-overview.md` 「★ 확정」. 목업 데이터의 문구(서버 몫)는 여기 두지 않는다(`i18n.md` 5절).
+ * 요구사항 정본 `docs/plans/biz-ad-hotdeal/00-overview.md` 「★ 확정」. 서버가 주는 문구는 여기 두지 않는다(`i18n.md` 5절).
  */
 export default {
     centerEntry: '사업자 센터',
     applyEntry: '사업자 신청',
     badge: '사업자',
     period: '{start} ~ {end} · {days}일',
-
-    mock: {
-        badge: '목업',
-        title: '목업 상태 바꾸기',
-        profileStatus: '사업자 상태',
-        reReview: '승인 · 재심사 중',
-        operatorTitle: '목업 운영자 처리',
-        operatorHelp: '서버가 붙으면 관리자 화면에서 하는 처리예요. 눌러서 흐름을 이어 볼 수 있어요.',
-        op: {
-            APPROVE_ONLINE: '승인 · 온라인 결제',
-            APPROVE_MANUAL: '승인 · 수동 결제',
-            REJECT: '반려',
-            CONTRACT_AND_DEPOSIT: '계약서·입금 확인 → 예약 확정',
-            START: '시작 시각 도달',
-            END: '종료 시각 도달',
-            NEAR_DUE: '결제 기한 3시간 전으로',
-        },
-        done: '목업 처리를 반영했어요',
-    },
 
     profileStatus: {
         NONE: '미신청',
@@ -399,6 +380,12 @@ export default {
         reviewTitle: '심사 중이에요',
         reviewText: '운영팀이 소재·링크·기간을 확인하고 있어요. 승인되면 알림으로 결제 요청을 보내 드려요.',
         creativeEditNote: '소재를 고치면 처음부터 다시 심사해요. 승인 뒤 결제 전에 고쳐도 다시 심사로 돌아가요.',
+        creativeEdit: '소재 바꾸기',
+        creativeEditSubmit: '바꾸기',
+        creativeEditBackToReview: '승인 뒤라 바꾸면 처음부터 다시 심사하고, 잡아 둔 자리와 결제 요청은 없어져요.',
+        creativeImageAgain: '배너 이미지를 다시 올려 주세요.',
+        creativeSaved: '소재를 바꿨어요',
+        creativeBackToReview: '소재를 바꿔 다시 심사를 기다려요',
         cancel: '신청 취소',
         cancelConfirmTitle: '신청을 취소할까요?',
         cancelConfirmMessage: '결제 전이라 돈은 나가지 않아요. 취소한 신청은 되돌릴 수 없어요.',
@@ -430,7 +417,9 @@ export default {
             WAITING: '확인 전',
             CONFIRMED: '확인됨',
         },
-        depositCancelNote: '입금 전에 취소하려면 운영팀에 문의해 주세요.',
+        depositCancelNote: '입금이 확인되기 전에는 바로 취소할 수 있어요.',
+        payCanceled: '결제창을 닫았어요. 기한 안에 다시 결제할 수 있어요.',
+        payNotDone: '결제가 끝나지 않았어요. 잠시 뒤 다시 불러와 주세요.',
         upcomingTitle: '예약됐어요',
         upcomingText: '{date} 에 자동으로 시작해요.',
         runningTitle: '지금 나가고 있어요',
@@ -446,6 +435,7 @@ export default {
         refundFullManual: '시작 전이라 전액 환불돼요. 계좌이체 건은 운영팀이 환불을 처리해요.',
         refundProrated: '진행 중이라 남은 기간을 일할로 운영팀이 확인해요.',
         refundEstimate: '예상 환불 {amount}',
+        refundApproved: '환불 금액 {amount}',
         refundReason: '사유',
         refundReasonRequired: '사유를 입력해 주세요.',
         refundSubmit: '요청하기',
@@ -457,7 +447,8 @@ export default {
         },
         refundStatus: {
             REQUESTED: '운영팀 확인 중',
-            REFUNDED: '환불 완료',
+            APPROVED: '환불 승인',
+            DENIED: '환불 거절',
         },
         refundTitle: '환불',
         stateChanged: '이미 처리 상태가 바뀌어 다시 불러왔어요',
@@ -476,14 +467,36 @@ export default {
             CANCELED: '취소',
             PAID: '결제 완료',
             EXPIRED: '결제 기한 지남 · 자동 취소',
+            MANUAL_SWITCH: '계좌 입금으로 바뀜',
             CONTRACT_RECEIVED: '계약서 사본 받음',
             DEPOSIT_CONFIRMED: '입금 확인',
+            DEPOSIT_DEADLINE: '입금 기한 바뀜',
             SCHEDULED: '예약 확정',
             STARTED: '노출 시작',
             ENDED: '노출 종료',
             TAKEN_DOWN: '노출 중단',
+            RESTORED: '노출 다시 시작',
             REFUND_REQUESTED: '취소·환불 요청',
+            REFUND_APPROVED: '환불 승인',
+            REFUND_DENIED: '환불 거절',
             REFUNDED: '환불 완료',
+            REFUND_TRANSFERRED: '환불 송금 완료',
+            AUTO_CANCELED: '결제 자동 취소',
+            FORFEITED: '환불 없이 종료',
+        },
+        note: {
+            PERIOD_MOVED: '시작이 지나 기간을 뒤로 옮겼어요',
+            BACK_TO_REVIEW: '승인 뒤 고쳐서 다시 심사해요',
+            EXTENDED: '끝 시각을 {span} 늘렸어요',
+            EXTEND_FAILED: '자리가 없어 끝 시각을 늘리지 못했어요',
+            MISMATCH: '금액 다름 · {reason}',
+            SUSPENDED: '사업자 정지',
+            RESTORED: '정지가 풀려 되돌렸어요',
+        },
+        span: {
+            DH: '{d}일 {h}시간',
+            HM: '{h}시간 {m}분',
+            M: '{m}분',
         },
     },
 
@@ -493,15 +506,21 @@ export default {
         sizeError: '파일은 한 장에 10MB 까지 올릴 수 있어요.',
     },
 
+    // 사업자 신원 반려 코드(서버 `BusinessRejectCode` — 관리자 화면과 같은 값)
     rejectCode: {
-        DOCUMENT_UNREADABLE: '서류 확인 불가',
-        INFO_MISMATCH: '정보 불일치',
-        CLOSED_BUSINESS: '휴업·폐업',
-        // 사업자 신원 반려 코드(서버 정본 — 관리자 화면과 같은 값)
         DOC_UNREADABLE: '서류 확인 불가',
+        INFO_MISMATCH: '정보 불일치',
         NTS_CLOSED: '휴업·폐업',
         DUPLICATE: '중복 신청',
-        POLICY: '정책 위반',
+        OTHER: '기타',
+    },
+    // 신청 건 반려 코드(서버 `BizRejectCode` — 관리자 심사 화면과 같은 값)
+    applicationRejectCode: {
+        CREATIVE_SPEC: '소재 규격 불일치',
+        POLICY_VIOLATION: '광고 정책 위반',
+        LINK_BROKEN: '링크 문제',
+        PERIOD_UNAVAILABLE: '기간·자리 없음',
+        FALSE_PRICE: '가격·할인 표기 문제',
         OTHER: '기타',
     },
 };

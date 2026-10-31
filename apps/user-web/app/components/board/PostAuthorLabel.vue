@@ -1,5 +1,5 @@
 <template>
-    <!-- 글·댓글·쪽지 상대 — 회원: 닉네임 + 등급 뱃지(+ 나에게만 보이는 이용자 메모 칩) · 비회원: 이름 + 「비회원」 (+ 글 보기·댓글에서는 작성 IP 앞 두 묶음).
+    <!-- 글·댓글·쪽지 상대 — 회원: 닉네임 + 등급 뱃지 + 승인된 사업자면 「사업자」 뱃지(+ 나에게만 보이는 이용자 메모 칩) · 비회원: 이름 + 「비회원」 (+ 글 보기·댓글에서는 작성 IP 앞 두 묶음).
          운영진 공식 뱃지는 그리지 않는다 — 서버가 작성자 `role` 을 회원이면 늘 `USER` 로 준다(운영자는 공개 사이트에 로그인하지 않고, 매니저·스텝 표시는 응답에 아직 없다) -->
     <span class="inline-flex min-w-0 items-center gap-1">
         <!-- 회원 이름은 공개 프로필(`/users/{id}`)로 가는 링크 — 글 줄 전체가 링크인 자리(모바일 목록 줄)에서는 `link` 를 켜지 않는다(링크 안 링크 금지) -->
@@ -14,6 +14,8 @@
         >
         <span v-else class="truncate" :class="strong ? 'font-semibold text-color' : ''" :style="nameStyle">{{ author.name }}</span>
         <GradeBadge v-if="author.kind === 'MEMBER' && author.grade" :grade="author.grade as Grade" :label="author.gradeLabel ?? ''" class="shrink-0" />
+        <!-- 승인된 사업자 — 서버 `author.business`(재심사 중·정지는 false, 로그인 정보의 `businessStatus` 와 따로). 모양은 공식 뱃지 부품의 사업자 스타일 -->
+        <StaffBadge v-if="author.kind === 'MEMBER' && author.business" role="BUSINESS" class="shrink-0" data-testid="author-business-badge" />
         <!-- 이용자 메모 — 나에게만 보이는 노란 칩. 좁은 줄에서는 말줄임으로 줄어든다 -->
         <span
             v-if="memo"

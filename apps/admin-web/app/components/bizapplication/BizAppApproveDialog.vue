@@ -51,7 +51,8 @@
             <div class="flex flex-col gap-1.5">
                 <span class="text-sm font-medium">④ {{ method === 'ONLINE' ? t('bizApplication.payDeadline') : t('bizApplication.depositDeadline') }}</span>
                 <p v-if="method === 'ONLINE'" class="m-0 text-[13px]">{{ t('bizApplication.payDeadlineLine', { hours: UtilBizApplication.PAYMENT_DEADLINE_HOURS, at: time.full(onlineDeadline) }) }}</p>
-                <LabeledField v-else :label="t('bizApplication.depositDeadlineDate')" :help="t('bizApplication.depositDeadlineHelp', { days: UtilBizApplication.DEPOSIT_DEADLINE_DAYS })" :error="submitted && !depositDate ? t('bizApplication.depositDeadlineRequired') : ''">
+                <small v-if="method === 'ONLINE' && fieldErrors.deadlineAt" class="text-xs text-red-600 dark:text-red-400">{{ fieldErrors.deadlineAt }}</small>
+                <LabeledField v-else :label="t('bizApplication.depositDeadlineDate')" :help="t('bizApplication.depositDeadlineHelp', { days: UtilBizApplication.DEPOSIT_DEADLINE_DAYS })" :error="fieldErrors.deadlineAt ?? (submitted && !depositDate ? t('bizApplication.depositDeadlineRequired') : '')">
                     <template #default="{ id, describedBy, invalid }">
                         <AppDatePicker v-model="depositDate" :input-id="id" :min="UtilBizApplication.kstToday()" :invalid="invalid" :described-by="describedBy" :disabled="busy" />
                     </template>
@@ -117,15 +118,20 @@ watch(
 );
 
 const methodOptions = computed(() => (['ONLINE', 'MANUAL'] as const).map((m) => ({ value: m, label: t(`bizApplication.method.${m}`) })));
-const quote = computed(() => props.availability?.quote ?? UtilBizApplication.quote(props.detail.kind, props.detail.adType, period.value));
+/** 요금표 계산 — 기간을 옮기면 서버가 다시 계산한 값(`availability`), 아니면 상세의 계산값 */
+const quote = computed(() => props.availability?.quote ?? props.detail.quote);
 const slotsLeft = computed(() => props.availability?.remainingSlots ?? props.detail.remainingSlots);
 const started = computed(() => UtilBizApplication.started(period.value, openedAt.value));
 const moved = computed(() => period.value.startAt !== props.detail.period.startAt);
 const amount = computed(() => UtilBizApplication.amountOf(supply.value ?? 0));
 const adjusted = computed(() => (supply.value ?? 0) !== quote.value.supply);
-const onlineDeadline = computed(() => new Date(openedAt.value + UtilBizApplication.PAYMENT_DEADLINE_HOURS * 3_600_000).toISOString());
+/** 온라인 결제 기한 — 72시간 뒤, 단 시작 시각을 넘지 않는다(서버: 온라인 기한은 시작 이전이어야 함 — 400 `fields.deadlineAt`) */
+function onlineDeadlineFrom(base: number): string {
+    return new Date(Math.min(base + UtilBizApplication.PAYMENT_DEADLINE_HOURS * 3_600_000, Date.parse(period.value.startAt) || Infinity)).toISOString();
+}
+const onlineDeadline = computed(() => onlineDeadlineFrom(openedAt.value));
 
-const supplyError = computed(() => (submitted.value && !(supply.value && supply.value > 0) ? t('bizApplication.supplyRequired') : ''));
+const supplyError = computed(() => props.fieldErrors.supply ?? (submitted.value && !(supply.value && supply.value > 0) ? t('bizApplication.supplyRequired') : ''));
 const adjustError = computed(() => props.fieldErrors.adjustReason ?? (submitted.value && adjusted.value && !adjustReason.value.trim() ? t('bizApplication.adjustReasonRequired') : ''));
 
 function shift(): void {
@@ -138,7 +144,7 @@ function submit(): void {
     if (props.busy || started.value || slotsLeft.value <= 0) return;
     if (!(supply.value && supply.value > 0) || (adjusted.value && !adjustReason.value.trim())) return;
     if (method.value === 'MANUAL' && !depositDate.value) return;
-    const deadlineAt = method.value === 'ONLINE' ? new Date(Date.now() + UtilBizApplication.PAYMENT_DEADLINE_HOURS * 3_600_000).toISOString() : UtilBizApplication.kstMidnight(UtilBizApplication.addDays(depositDate.value, 1));
+    const deadlineAt = method.value === 'ONLINE' ? onlineDeadlineFrom(Date.now()) : UtilBizApplication.kstMidnight(UtilBizApplication.addDays(depositDate.value, 1));
     emit('submit', { method: method.value, supply: supply.value, adjustReason: adjusted.value ? adjustReason.value.trim() : undefined, deadlineAt, period: { ...period.value } });
 }
 </script>

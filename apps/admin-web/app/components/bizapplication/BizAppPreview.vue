@@ -38,9 +38,9 @@
                     </span>
                     <strong class="text-[14px] leading-snug">{{ content.type === 'HOTDEAL_POST' ? content.title : content.postTitle }}</strong>
                     <span class="flex items-baseline gap-2">
-                        <span class="text-[15px] font-bold text-rose-600 tabular-nums">{{ discount }}%</span>
+                        <span v-if="discount > 0" class="text-[15px] font-bold text-rose-600 tabular-nums">{{ discount }}%</span>
                         <span class="text-[14px] font-semibold tabular-nums">{{ UtilBizApplicationMessages.won(t, content.price, locale) }}</span>
-                        <s class="text-[12px] text-muted-color tabular-nums">{{ UtilBizApplicationMessages.won(t, content.originalPrice, locale) }}</s>
+                        <s v-if="content.originalPrice" class="text-[12px] text-muted-color tabular-nums">{{ UtilBizApplicationMessages.won(t, content.originalPrice, locale) }}</s>
                     </span>
                     <p v-if="content.type === 'HOTDEAL_POST'" class="m-0 text-xs leading-relaxed text-muted-color">{{ content.body }}</p>
                 </article>
@@ -68,6 +68,6 @@ const { t, locale } = useI18n();
 const discount = computed(() => {
     const c = props.content;
     if (c.type !== 'HOTDEAL_POST' && c.type !== 'HOTDEAL_PLACEMENT') return 0;
-    return c.originalPrice > 0 ? Math.round((1 - c.price / c.originalPrice) * 100) : 0;
+    return c.originalPrice && c.originalPrice > 0 ? Math.round((1 - c.price / c.originalPrice) * 100) : 0;
 });
 </script>

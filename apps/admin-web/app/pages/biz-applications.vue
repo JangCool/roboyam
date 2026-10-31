@@ -3,9 +3,10 @@
         사업자 › 신청 심사(`/biz-applications`) — 광고·핫딜 「사업자 신청 건」 통합 큐(00-overview.md ★-1~★-5, 02-ad.md 7-4).
         · 탭(큐, 건수): 심사 대기 · 결제 대기 · 입금 확인 대기 · 입금 기한 지남 · 예약·진행 · 환불 심사 · 종료/반려/취소. 종류(배너·한 줄·핫딜 글·핫딜 노출) · 찾기(번호·사업자).
         · Splitter 3단: 왼쪽 목록 · 가운데 신청 내용 + 점검표 + 상태별 처리 · 오른쪽 미리보기. 고른 건은 주소 `?id=` 에 남는다. 좁은 화면은 위아래로 쌓는다.
-        · 처리: 승인(결제 방식·금액·기한·기간 옮기기·남은 자리) · 반려(코드+글, 결제 전이라 환불 없음) · 수동 결제로 전환 · 계약서 사본 + 입금 확인 → 예약 확정 · 입금 기한 연장/취소 · 환불 승인/거절.
-        권한(가정): 화면 `business.read` · 처리 `business.manage`(광고는 `ad.manage`, 핫딜은 `hotdeal.manage` 로 나눌지 계약에서 정한다) · 환불 `deal-order.refund`.
-        서버 호출은 `useBizApplicationApi`(지금 목업 — `?mock=bizapp-fail`·`bizapp-empty`). 결제는 목업 단추(실제 PG 호출 없음).
+        · 처리: 승인(결제 방식·금액·기한·기간 옮기기·남은 자리) · 반려(코드+글, 결제 전이라 환불 없음) · 수동 결제로 전환 · 계약서 사본(한 장씩 올림 · [보기] 열람 기록) + 입금 확인 → 예약 확정
+          · 입금 기한 연장/취소 · 환불 승인/거절 · 수동 환불 송금 완료 표시.
+        권한: 화면 `business.read` · 심사·결제 처리 `ad.manage` · 환불 승인·거절·송금 `deal-order.refund`(서버 `Permission`).
+        서버 호출은 `useBizApplicationApi`(V112). 온라인 결제는 사업자가 결제 모듈로 한다. 관리자 알림(`BIZ_APPLICATION_REVIEW_PENDING`·`_REFUND_REQUESTED`)의 링크가 `?id=` 로 들어온다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('bizApplication.title')" :subtitle="t('bizApplication.subtitle')" />
@@ -47,7 +48,7 @@
                         v-else
                         :key="detail.id"
                         :detail="detail"
-                        :can-manage="can('business.manage')"
+                        :can-manage="can('ad.manage')"
                         :can-refund="can('deal-order.refund')"
                         :busy="working !== null"
                         :error="panelError"
@@ -56,7 +57,6 @@
                         @approve="openApprove"
                         @reject="openDialog('reject')"
                         @switch-manual="openSwitch"
-                        @mock-pay="mockPay"
                         @cancel="openDialog('cancel')"
                         @upload="(files) => uploadContracts(files)"
                         @replace="(b) => uploadContracts([b.file], b.id)"
@@ -65,6 +65,8 @@
                         @extend="openExtend"
                         @approve-refund="openRefund"
                         @deny-refund="openDialog('denyRefund')"
+                        @mark-transferred="markTransferred"
+                        @view-contract="openContract"
                     />
                 </SplitterPanel>
                 <SplitterPanel :size="30" :min-size="20" class="min-h-0 overflow-y-auto">
@@ -168,6 +170,14 @@
                 @submit="submitDeny"
             />
         </template>
+
+        <Dialog v-model:visible="contractOpen" modal :draggable="false" :header="contractName || t('bizApplication.contract.title')" :style="{ width: 'min(40rem, calc(100vw - 2rem))' }">
+            <div class="flex flex-col items-center gap-2">
+                <iframe v-if="contractUrl && contractMime === 'application/pdf'" :src="contractUrl" :title="contractName" class="h-[70vh] w-full rounded border border-(--line)" />
+                <img v-else-if="contractUrl" :src="contractUrl" :alt="contractName" class="max-h-[70vh] w-auto rounded border border-(--line)" />
+                <p class="m-0 text-xs text-muted-color">{{ t('bizApplication.contract.viewLog') }}</p>
+            </div>
+        </Dialog>
     </div>
 </template>
 
@@ -188,7 +198,7 @@ import { BIZ_APPLICATION_KINDS, BIZ_APPLICATION_QUEUES, BIZ_REJECT_CODES } from 
 import UtilBizApplication from '~/utils/util-biz-application';
 import UtilBizApplicationMessages from '~/utils/util-biz-application-messages';
 
-type Work = 'approve' | 'reject' | 'switchManual' | 'mockPay' | 'cancel' | 'upload' | 'deposit' | 'confirm' | 'extend' | 'refund' | 'denyRefund';
+type Work = 'approve' | 'reject' | 'switchManual' | 'cancel' | 'upload' | 'deposit' | 'confirm' | 'extend' | 'refund' | 'denyRefund' | 'transfer' | 'contract';
 
 const { t, locale } = useI18n();
 useSeoMeta({ title: () => t('bizApplication.title') });
@@ -390,14 +400,59 @@ async function submitCancel(reason: string): Promise<void> {
     if (d) await run('cancel', () => api.cancel(d.id, reason), t('bizApplication.canceled'), 'cancel');
 }
 
-async function mockPay(): Promise<void> {
-    const d = detail.value;
-    if (d) await run('mockPay', () => api.mockPay(d.id), t('bizApplication.paid'));
-}
-
+/**
+ * 계약서 사본 올리기 — 서버 요청 한도(11MB) 때문에 한 장씩 차례로 올린다. 중간에 실패하면 거기서 멈추고(앞 장은 이미 올라감) 상세를 다시 읽는다.
+ */
 async function uploadContracts(files: File[], replaceId?: string): Promise<void> {
     const d = detail.value;
-    if (d) await run('upload', () => api.uploadContracts(d.id, files, replaceId), replaceId ? t('bizApplication.contract.replacedDone') : t('bizApplication.contract.uploaded', { n: files.length }));
+    if (!d) return;
+    let done = 0;
+    await run(
+        'upload',
+        async () => {
+            let last: BizApplicationDetail | null = null;
+            try {
+                for (const f of files) {
+                    last = await api.uploadContracts(d.id, [f], replaceId);
+                    done++;
+                    detail.value = last;
+                }
+            } catch (e) {
+                if (done > 0) void loadDetail();
+                throw e;
+            }
+            return last ?? d;
+        },
+        replaceId ? t('bizApplication.contract.replacedDone') : t('bizApplication.contract.uploaded', { n: files.length }),
+    );
+}
+
+const contractOpen = ref(false);
+const contractUrl = ref('');
+const contractMime = ref('');
+const contractName = ref('');
+/** 계약서 사본 열람 — `data:` 주소(그림은 `<img>`, PDF 는 `<iframe>`). 열람 기록이 남으니 상세를 다시 읽는다 */
+async function openContract(fileId: string): Promise<void> {
+    const d = detail.value;
+    if (!d) return;
+    working.value = 'contract';
+    try {
+        const file = await api.contract(d.id, fileId);
+        contractUrl.value = file.url;
+        contractMime.value = file.mimeType;
+        contractName.value = file.fileName;
+        contractOpen.value = true;
+        void loadDetail();
+    } catch (e) {
+        toast.error(toApiError(e).message, 8000);
+    } finally {
+        working.value = null;
+    }
+}
+
+async function markTransferred(): Promise<void> {
+    const d = detail.value;
+    if (d) await run('transfer', () => api.markTransferred(d.id), t('bizApplication.refundTransferred'));
 }
 
 async function saveDeposit(body: BizDepositRequest): Promise<void> {

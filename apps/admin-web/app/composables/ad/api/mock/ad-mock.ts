@@ -1,5 +1,5 @@
 // MOCK: 광고 일정표 API 목업 — 서버가 붙으면 이 폴더와 `useAdApi.ts` 의 `// MOCK:` 줄을 지운다.
-// 값은 메모리에만 둔다(새로고침하면 처음으로). 자리(한도) 장부도 여기 있어 사업자 신청 건 목업이 같이 본다(`mockAdSlotState`·`mockAdSyncFromApplication`).
+// 값은 메모리에만 둔다(새로고침하면 처음으로). 자리(한도) 장부는 이 목업 안에서만 센다 — 사업자 신청 건은 실제 서버(V112)라 이 장부에 반영되지 않는다.
 // 스위치(`?mock=`): ads-fail(목록 500) · ads-empty(광고 건 없음)
 // 문구(서버 몫)는 번역하지 않는다(i18n.md 5절).
 
@@ -174,35 +174,11 @@ function datesOf(period: BizPeriod): string[] {
     return out;
 }
 
-/** (사업자 신청 건 목업용) 그 기간 가장 빠듯한 날의 남은 칸 */
-export function mockAdSlotState(type: AdType, period: BizPeriod, excludeId?: string): { remaining: number; limit: number; fullDates: string[] } {
+/** 그 기간 가장 빠듯한 날의 남은 칸 */
+function mockAdSlotState(type: AdType, period: BizPeriod, excludeId?: string): { remaining: number; limit: number; fullDates: string[] } {
     const limit = MOCK_AD_LIMITS[type];
     const per = datesOf(period).map((d) => ({ d, left: limit - usedOn(type, d, excludeId) }));
     return { remaining: Math.max(0, Math.min(limit, ...per.map((p) => p.left))), limit, fullDates: per.filter((p) => p.left <= 0).map((p) => p.d) };
-}
-
-/** (사업자 신청 건 목업용) 승인·결제·입금으로 바뀐 신청 건을 광고 건 장부에 반영한다 — 같은 신청 번호면 고친다 */
-export function mockAdSyncFromApplication(app: { no: string; type: AdType; businessId: string; businessName: string; maskedRegNo: string; period: BizPeriod; status: AdBookingStatus; method: BizPaymentMethod; amount: AdBookingDetail['amount']; imageUrl: string | null; text: string | null; linkUrl: string; contracts: BizContractFile[]; deposit: AdBookingDetail['deposit']; paidAt: string | null; note: string }): void {
-    ensure();
-    let adv = advertisers.find((a) => a.businessId === app.businessId);
-    if (!adv) {
-        adv = { id: `adv-${app.businessId}`, kind: 'BUSINESS', name: app.businessName, businessId: app.businessId, maskedRegNo: app.maskedRegNo, contactMasked: null };
-        advertisers.push(adv);
-    }
-    const now = new Date().toISOString();
-    let row = state!.find((s) => s.detail.applicationNo === app.no);
-    if (!row) {
-        row = build({ type: app.type, adv: adv.id, period: app.period, stored: app.status, method: app.method, source: 'APPLICATION', color: '#475569', text: app.text ?? '' }, state!.length);
-        row.detail.applicationNo = app.no;
-        row.detail.history = [];
-        state!.push(row);
-    }
-    const d = row.detail;
-    row.stored = app.status;
-    Object.assign(d, { status: app.status, period: app.period, paymentMethod: app.method, amount: app.amount, contracts: mockClone(app.contracts), deposit: app.deposit, lastActionAt: now });
-    d.creatives = [{ version: 1, imageUrl: app.imageUrl, text: app.text, linkUrl: app.linkUrl, altText: app.text, approvedAt: now, approvedBy: ME, current: true }];
-    d.onlinePayment = app.paidAt ? { paidAt: app.paidAt, pgTxId: `pay_mock_${Date.now()}` } : null;
-    d.history.push({ at: now, action: app.note, actor: ME, note: null });
 }
 
 function rowOf(s: Stored): AdBookingRow {

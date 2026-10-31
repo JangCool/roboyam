@@ -21,7 +21,7 @@
             <p class="m-0 text-sm font-semibold tabular-nums">{{ t('business.detail.refundEstimate', { amount: UtilBusinessMessages.won(t, refundAmount) }) }}</p>
             <LabeledField :label="t('business.detail.refundReason')" :error="reasonError">
                 <template #default="{ id, describedBy, invalid }">
-                    <Textarea v-model="reason" :id="id" rows="3" auto-resize :maxlength="500" :invalid="invalid" :aria-describedby="describedBy" :disabled="busy" fluid />
+                    <Textarea v-model="reason" :id="id" rows="3" auto-resize :maxlength="300" :invalid="invalid" :aria-describedby="describedBy" :disabled="busy" fluid />
                 </template>
             </LabeledField>
             <Message v-if="error" severity="error" size="small" variant="simple" :closable="false" role="alert">{{ error }}</Message>

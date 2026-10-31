@@ -110,6 +110,7 @@ export default class UtilMemberMessages {
         if (shown.has('lastLogin')) add('member.filter.lastLogin', filter.noLoginHistory ? t('member.filter.noLoginHistory') : UtilMemberMessages.range(filter.lastLoginFrom, filter.lastLoginTo, ctx.date));
         if (shown.has('grade')) add('member.filter.grade', filter.grades.map(ctx.gradeName).join(', '));
         if (shown.has('memberType') && filter.memberType) add('member.filter.memberType', t(`member.type.${filter.memberType}`));
+        if (shown.has('business') && filter.businessVerified) add('member.filter.business', t(`member.businessVerified.${filter.businessVerified}`));
         if (shown.has('emailVerified') && filter.emailVerified) add('member.filter.emailVerified', t(`member.emailVerified.${filter.emailVerified}`));
         if (shown.has('authMethod')) add('member.filter.authMethod', list('member.authMethod', filter.authMethods));
         if (shown.has('dormant')) add('member.filter.dormant', UtilMemberMessages.range(filter.dormantFrom, filter.dormantTo, ctx.date));

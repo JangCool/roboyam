@@ -110,6 +110,7 @@ export default class UtilNotification {
         // 공동구매(커머스 2b-4) — 주문·관심 알림은 장바구니
         if (type === 'GROUP_BUY') return 'pi pi-shopping-cart';
         if (type === 'BUSINESS') return 'pi pi-briefcase';
+        if (type === 'BIZ_APPLICATION') return 'pi pi-megaphone';
         if (type.startsWith('GROUP_')) return 'pi pi-users';
         return 'pi pi-comment';
     }

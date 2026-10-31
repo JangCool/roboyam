@@ -10,7 +10,13 @@
 
 ## 모델
 - 신원 1줄 + 서비스별 이용 권한 N줄(community V103 구조). 서비스는 **`HOTDEAL`·`AD` 둘**(직접홍보는 광고 한 줄 광고로 합침 — 00 D2).
-- 사업자 전용 계정(소셜 없는 별도 가입)은 **두지 않는다**(00 D1). 일반 회원이 신청하고 승인되면 회원 역할 「사업자 회원」을 붙인다(정지·탈퇴 때 뗀다).
+- 사업자 전용 계정(소셜 없는 별도 가입)은 **두지 않는다**(00 D1). 일반 회원이 신청하고, 승인되면 **역할은 붙이지 않고** 사업자 인증(뱃지)만 생긴다(아래 세션 정리 결정).
+- **세션 정리 결정(사용자 2026-10-31)**:
+  - **사업자 = 일반 회원 + 사업자 인증(뱃지)**. 승인돼도 글쓰기·댓글·쪽지·소모임 등 일반 회원 활동은 그대로다. 「사업자」라는 말은 이 인증 하나만 가리킨다.
+  - 역할은 붙이지 않는다. 기존 `ROLE_MEMBER_BUSINESS` 는 **「홍보 전용 계정」**(따로 가입한 홍보용 계정 — 일반 활동 제한)으로 이름만 바꾼다(역할 ID·권한 묶음 그대로). 1차에는 쓰지 않고, 전용 가입 길을 열 때 쓴다.
+  - 신원이 `APPROVED` 인 동안 공개 「사업자」 뱃지(작성자 표시 `PostAuthorView.business` · 공개 프로필). 심사 중(재심사 포함)·반려·정지·탈퇴는 없음, 서비스별 승인은 보지 않음, 본인이 숨길 수 없음(투명성).
+  - 구현(2026-10-31): 뱃지 칸 `business` 는 `PostAuthorView`(글 목록·글 보기·댓글·토론 의견·피드)·`DmPartnerView`(쪽지·소모임 사람)·공개 프로필에 있고, 작성자 ID 를 모아 `BusinessEligibility.approvedUserIds` 로 한 번에 채운다. 숨긴 글·지운 댓글·나간 소모임 멤버의 가린 댓글은 false. 역할 이름·설명은 shared `V113__promo_account_role_name.sql`(원래 시드 글자인 칸만 바꿈 — 운영자가 고친 칸은 그대로).
+  - 관리자 회원 목록은 **회원 종류와 사업자 인증을 따로 본다**: 「회원 종류」(`memberType`)는 역할 기준 그대로(표시만 일반 / 홍보 전용), 「사업자」는 별도 칸·필터 `businessVerified`(사업자 신원 `APPROVED` 기준).
 - 이용 자격 판정은 shared 한 곳: `approvedProfileOf(userId, service)` = 신원 `APPROVED` 이고 그 서비스 줄 `APPROVED`. 광고·핫딜은 이것만 부른다.
 - 신원 상태: `PENDING`(심사 중) → `APPROVED` / `REJECTED`(재신청 = 같은 줄 `PENDING`) · `APPROVED` → `SUSPENDED` ↔ `APPROVED` · 모든 상태 → `WITHDRAWN`. 승인 뒤 상호·등록번호를 바꾸면 `PENDING`(재심사) — 그동안 이미 예약·진행 중인 신청 건은 그대로, 새 신청만 막힌다.
 
@@ -37,7 +43,7 @@
 목업 머리말이 정본 후보다 — admin `useBusinessApi.ts`(`/api/admin/businesses/**`: 목록·상세·nts-check·approve·reject·suspend·reveal·certificate), user-web `useBusinessApi.ts`(`GET/POST/PUT /api/business/me`, `POST /api/business/files`).
 
 ## 저장 (제안 — shared 스트림, V111~)
-`business_profiles`·`business_services`·`business_nts_checks`(스냅샷)·`business_documents`(등록증 파일 참조)·`business_sensitive_views`(사유·IP) + 회원 역할 시드 「사업자 회원」 + 약관 종류 `BUSINESS`.
+`business_profiles`·`business_services`·`business_nts_checks`(스냅샷)·`business_documents`(등록증 파일 참조)·`business_sensitive_views`(사유·IP) (회원 역할 시드 「사업자 회원」은 만들지 않음 — 모델 절 세션 정리 결정) + 약관 종류 `BUSINESS`.
 
 ## 미확정
 - 국세청 API 키 발급·호출 한도(공공데이터포털) — dev 배포 때 확인.
@@ -46,7 +52,7 @@
 
 ## 서버 구현 결정 (2026-10-30 — 계약과 다르게·더 정한 것)
 - **마이그레이션** shared `V111__business.sql`: 계약의 다섯 표 + **`business_history`(처리 기록)** + 회원 알림 종류 `BUSINESS`(CHECK 합집합 — V104 목록 ∪ BUSINESS).
-- **「사업자 회원」 역할은 붙이지 않는다.** 기존 `ROLE_MEMBER_BUSINESS`(KIND)는 community 의 별도 사업자 계정용이라 글쓰기·쪽지·소모임 쓰기를 막는다(`BUSINESS_ACCOUNT_RESTRICTED`). 일반 회원에게 붙이면 회원 기능이 사라지므로, 사업자 여부는 `business_profiles` 가 원천이고 판정은 `BusinessEligibility` 한 곳이다. 로그인 정보 `businessStatus` 는 이 표로 채운다. ⚠ 관리자 회원 목록의 「사업자」 거르기(`hasRole(BUSINESS)`)는 승인 사업자를 찾지 못한다 — 거르기를 `business_profiles` 로 바꿀지, 사업자 전용 새 역할을 만들지는 사용자 확인(미확정).
+- **「사업자 회원」 역할은 붙이지 않는다.** 기존 `ROLE_MEMBER_BUSINESS`(KIND)는 community 의 별도 사업자 계정용이라 글쓰기·쪽지·소모임 쓰기를 막는다(`BUSINESS_ACCOUNT_RESTRICTED`). 일반 회원에게 붙이면 회원 기능이 사라지므로, 사업자 여부는 `business_profiles` 가 원천이고 판정은 `BusinessEligibility` 한 곳이다. 로그인 정보 `businessStatus` 는 이 표로 채운다. → 2026-10-31 사용자 결정으로 확정(모델 절 「세션 정리 결정」): 회원 목록은 `memberType`(역할)과 `businessVerified`(사업자 표)를 따로 본다.
 - **약관 종류 `BUSINESS` 는 넣지 않았다.** `TermsService` 가 모든 `TermsKind` 로 회원 동의 문자열(`T3.P2`)을 만들어, 종류를 더하면 전 회원의 가입 동의 판정이 바뀐다. 동의 버전은 신원 줄(`terms_version`·`privacy_version`, 화면이 보낸 글자 1~20자)에 저장한다. 사업자 약관 게시·버전 관리는 후속.
 - **blind index** 는 기존 `BlindIndex`(HMAC-SHA256, `ROBOYAM_INDEX_KEY`, 용도 `business.biz-no`)를 쓴다 — `DataCipher` 에 따로 넣지 않았다. `DataCipher` 에는 **바이트 암호화**(`encryptBytes`·`decryptBytes`)만 더했다(등록증 사본). 키 교체 배치는 글자 칸만 다시 잠그므로 바이트 칸은 옛 키를 `ROBOYAM_DATA_KEY_PREVIOUS` 에 남겨 두는 동안 읽힌다(후속).
 - **등록증 사본은 공개 `/media` 폴더가 아니라 DB(`business_documents.content`, 암호문 bytea)** 에 둔다 — `/media/**` 는 로그인 없이 열린다. 형식은 내용 첫 바이트로 판정(PDF·JPEG·PNG), 10MB, 하루 20장(429 `BUSINESS_UPLOAD_LIMIT`). 관리자 열람 `GET …/certificate` 는 `{ url: data:…, mimeType, fileName }` — 화면은 그림 `<img>`, PDF `<iframe>`. 열람 권한 = `business.manage`(사유 없음, 열람 기록·처리 기록·감사).
@@ -64,4 +70,4 @@
 
 ## 후속 (이 세션 범위 밖)
 - 보존 기간 파기 DB 배치(반려·탈퇴 90일 뒤 암호문·등록증, 붙지 않은 사본 정리) — 표 칸(`erased_at`)만 있다.
-- 사업자 약관 게시(약관 종류) · 관리자 회원 목록 「사업자」 거르기 · 정지 해제 화면 단추 · 서비스별 처리.
+- 사업자 약관 게시(약관 종류) · 정지 해제 화면 단추 · 서비스별 처리.

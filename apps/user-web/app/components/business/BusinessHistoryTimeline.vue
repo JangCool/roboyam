@@ -1,5 +1,5 @@
 <template>
-    <!-- 처리 기록(`Timeline`) — 최근 것이 위. 누가(나·운영팀·자동) · 무엇을 · 언제 · 사유(서버 문구 그대로) -->
+    <!-- 처리 기록(`Timeline`) — 최근 것이 위(받는 기록은 오래된 것 먼저). 누가(나·운영팀·자동) · 무엇을(코드 → 문구) · 언제 · 덧붙임(코드는 문구로, 사유 글은 그대로) -->
     <Timeline :value="ordered" class="business-timeline" data-testid="business-history">
         <template #marker="{ item }">
             <span class="grid size-6 place-items-center rounded-full text-[0.625rem]" :class="MARKER[(item as BizHistoryEntry).actor]" aria-hidden="true">
@@ -10,7 +10,7 @@
             <div class="flex min-w-0 flex-col gap-0.5 pb-3">
                 <p class="m-0 text-sm font-medium">{{ t(`business.detail.action.${(item as BizHistoryEntry).action}`) }}</p>
                 <p class="m-0 text-xs tabular-nums text-muted-color">{{ t(`business.detail.actor.${(item as BizHistoryEntry).actor}`) }} · {{ time.full((item as BizHistoryEntry).at) }}</p>
-                <p v-if="(item as BizHistoryEntry).note" class="m-0 whitespace-pre-line break-words text-xs leading-relaxed">{{ (item as BizHistoryEntry).note }}</p>
+                <p v-if="(item as BizHistoryEntry).note" class="m-0 whitespace-pre-line break-words text-xs leading-relaxed">{{ UtilBusinessMessages.historyNote(t, (item as BizHistoryEntry).action, (item as BizHistoryEntry).note) }}</p>
             </div>
         </template>
     </Timeline>
@@ -18,6 +18,7 @@
 
 <script setup lang="ts">
 import type { BizHistoryEntry } from '~/composables/business/api/useBusinessApi.types';
+import UtilBusinessMessages from '~/utils/util-business-messages';
 
 interface Props {
     history: BizHistoryEntry[];

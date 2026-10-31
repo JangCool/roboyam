@@ -26,10 +26,10 @@ import type {
 } from '~/composables/member/api/useMemberApi.types';
 
 /** 상세 검색 조건의 한 줄 — 「검색편집」이 어느 줄을 화면에 보일지 고른다 */
-export type MemberDetailRow = 'lastLogin' | 'grade' | 'memberType' | 'emailVerified' | 'authMethod' | 'dormant' | 'statusChanged' | 'point' | 'boardRole' | 'sanction';
+export type MemberDetailRow = 'lastLogin' | 'grade' | 'memberType' | 'business' | 'emailVerified' | 'authMethod' | 'dormant' | 'statusChanged' | 'point' | 'boardRole' | 'sanction';
 
 /** 표의 칸 키 */
-export type MemberColumnKey = 'memberNo' | 'email' | 'nickname' | 'grade' | 'memberType' | 'status' | 'authMethod' | 'emailVerifiedAt' | 'joinedAt' | 'lastLoginAt' | 'point' | 'roles' | 'dormantAt' | 'statusChangedAt' | 'boardRole' | 'sanctionCount';
+export type MemberColumnKey = 'memberNo' | 'email' | 'nickname' | 'grade' | 'memberType' | 'businessVerified' | 'status' | 'authMethod' | 'emailVerifiedAt' | 'joinedAt' | 'lastLoginAt' | 'point' | 'roles' | 'dormantAt' | 'statusChangedAt' | 'boardRole' | 'sanctionCount';
 
 export interface MemberColumnDef {
     key: MemberColumnKey;
@@ -73,6 +73,8 @@ export interface MemberFilter {
     pointMax: number | null;
     boardRole: MemberBoardRole | '';
     hasSanction: 'YES' | 'NO' | '';
+    /** 사업자 인증(사업자 신원 승인) — 회원 유형과 따로 */
+    businessVerified: 'YES' | 'NO' | '';
 }
 
 export type TagSeverity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast';
@@ -89,7 +91,7 @@ export default class UtilMember {
     static readonly STATUS_CHANGE_KINDS: readonly MemberStatusChangeKind[] = ['SUSPENDED', 'WITHDRAWN', 'DORMANT'];
 
     /** 상세 검색 줄의 차례 */
-    static readonly DETAIL_ROWS: readonly MemberDetailRow[] = ['lastLogin', 'grade', 'memberType', 'emailVerified', 'authMethod', 'dormant', 'statusChanged', 'point', 'boardRole', 'sanction'];
+    static readonly DETAIL_ROWS: readonly MemberDetailRow[] = ['lastLogin', 'grade', 'memberType', 'business', 'emailVerified', 'authMethod', 'dormant', 'statusChanged', 'point', 'boardRole', 'sanction'];
 
     /** 표의 칸 — 이 차례로 그린다 */
     static readonly COLUMNS: readonly MemberColumnDef[] = [
@@ -98,6 +100,7 @@ export default class UtilMember {
         { key: 'nickname', labelKey: 'member.col.nickname', required: true, defaultShown: true, sort: 'nickname' },
         { key: 'grade', labelKey: 'member.col.grade', required: false, defaultShown: true, sort: 'grade' },
         { key: 'memberType', labelKey: 'member.col.memberType', required: false, defaultShown: true },
+        { key: 'businessVerified', labelKey: 'member.col.businessVerified', required: false, defaultShown: true },
         { key: 'status', labelKey: 'member.col.status', required: true, defaultShown: true, sort: 'status' },
         { key: 'authMethod', labelKey: 'member.col.authMethod', required: false, defaultShown: true },
         { key: 'emailVerifiedAt', labelKey: 'member.col.emailVerifiedAt', required: false, defaultShown: false },
@@ -169,6 +172,7 @@ export default class UtilMember {
             pointMax: null,
             boardRole: '',
             hasSanction: '',
+            businessVerified: '',
         };
     }
 
@@ -184,6 +188,7 @@ export default class UtilMember {
             lastLogin: ['lastLoginFrom', 'lastLoginTo', 'noLoginHistory'],
             grade: ['grades'],
             memberType: ['memberType'],
+            business: ['businessVerified'],
             emailVerified: ['emailVerified'],
             authMethod: ['authMethods'],
             dormant: ['dormantFrom', 'dormantTo'],
@@ -258,6 +263,7 @@ export default class UtilMember {
         }
         if (shown.has('boardRole') && filter.boardRole) q.boardRole = filter.boardRole;
         if (shown.has('sanction') && filter.hasSanction) q.hasSanction = filter.hasSanction === 'YES';
+        if (shown.has('business') && filter.businessVerified) q.businessVerified = filter.businessVerified === 'YES';
         return q;
     }
 

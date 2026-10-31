@@ -2,9 +2,10 @@
     <!--
         신청 건 가운데 칸 — 신청 내용 + 상태별 처리.
         · 심사 대기: 점검표 5개(규격·링크·정책·기간·가격) — 다 체크해야 [승인]. 시작이 지났으면 경고(승인 창에서 기간을 옮긴다 — F6). 자리가 없으면 경고.
-        · 결제 대기: 확정 금액 · 결제 기한 카운트다운 · [수동 결제로 전환] · [취소] · (목업) 결제 완료.
+        · 결제 대기: 확정 금액 · 결제 기한 카운트다운 · [수동 결제로 전환] · [취소](결제 완료는 사업자의 온라인 결제 — 결제 모듈).
         · 입금·계약 확인 대기(기한 지남 포함): `BizAppDepositPanel`.
-        · 환불 심사: 일할 계산 제안 · [거절] · [환불 승인].
+        · 환불: 종류·상태 · 일할 계산 제안 · [거절] · [환불 승인](열린 환불만) · 수동 환불 송금 대기면 [송금 완료 표시].
+        · 내림(사업자 정지·긴급) 사유. 계약서 사본은 [보기](`viewContract` — 부모가 `data:` 주소로 연다, 열람 기록).
         · 그 밖: 결제 기록(온라인 결제 또는 계약서·입금 기록)만.
         맨 아래 처리 기록. 서버는 부르지 않는다 — 동작은 emit.
     -->
@@ -14,6 +15,7 @@
                 <code class="text-[12px] text-muted-color">{{ detail.no }}</code>
                 <Tag :value="t(`bizApplication.kind.${detail.kind}`)" severity="secondary" />
                 <Tag :value="t(`bizApplication.status.${detail.status}`)" :severity="UtilBizApplication.statusSeverity(detail.status)" />
+                <Tag v-if="detail.source === 'OPERATOR'" :value="t('bizApplication.sourceOperator')" severity="info" />
             </div>
             <h2 class="m-0 text-base font-semibold">{{ detail.business.name }} <span class="text-[12px] font-normal text-muted-color">{{ detail.business.maskedRegNo }}</span></h2>
             <span class="text-[12px] text-muted-color">{{ t('bizApplication.submittedBy', { who: detail.applicant, at: time.shortDateTime(detail.submittedAt) }) }}</span>
@@ -37,13 +39,16 @@
                 {{ won(detail.approval?.amount.total ?? detail.quote.total) }}
                 <span class="text-[11px] text-muted-color">({{ t('bizApplication.supplyVat', { supply: won(detail.approval?.amount.supply ?? detail.quote.supply), vat: won(detail.approval?.amount.vat ?? detail.quote.vat) }) }})</span>
                 <span v-if="detail.approval?.adjustReason" class="block text-[11px] text-muted-color">{{ t('bizApplication.adjusted', { reason: detail.approval.adjustReason }) }}</span>
+                <span v-for="line in quoteLines" :key="line.product" class="block text-[11px] text-muted-color">{{ t('bizApplication.quoteLine', { product: t(`bizApplication.product.${line.product}`), price: won(line.unitPrice), units: line.units, unit: t(`bizApplication.unit.${line.unit}`), supply: won(line.supply) }) }}</span>
             </dd>
             <template v-if="detail.memo">
                 <dt class="text-muted-color">{{ t('bizApplication.memo') }}</dt>
                 <dd class="m-0 [overflow-wrap:anywhere]">{{ detail.memo }}</dd>
             </template>
-            <dt class="text-muted-color">{{ t('bizApplication.agreed') }}</dt>
-            <dd class="m-0 text-[12px]">{{ detail.policyAgreedVersion }}</dd>
+            <template v-if="detail.policyAgreedVersion">
+                <dt class="text-muted-color">{{ t('bizApplication.agreed') }}</dt>
+                <dd class="m-0 text-[12px]">{{ detail.policyAgreedVersion }}</dd>
+            </template>
         </dl>
 
         <!-- 심사 대기 -->
@@ -72,7 +77,6 @@
             </div>
             <p class="m-0 text-xs text-muted-color">{{ t('bizApplication.awaitingOnlineHelp', { at: detail.deadlineAt ? time.full(detail.deadlineAt) : '—' }) }}</p>
             <div v-if="canManage" class="flex flex-wrap justify-end gap-2">
-                <Button type="button" :label="t('bizApplication.actMockPay')" icon="pi pi-credit-card" size="small" severity="secondary" variant="text" :disabled="busy" @click="emit('mockPay')" />
                 <Button type="button" :label="t('bizApplication.actCancel')" size="small" severity="danger" variant="outlined" :disabled="busy" @click="emit('cancel')" />
                 <Button type="button" :label="t('bizApplication.actSwitchManual')" icon="pi pi-file-edit" size="small" :disabled="busy" @click="emit('switchManual')" />
             </div>
@@ -93,21 +97,42 @@
             @confirm="emit('confirm')"
             @extend="emit('extend')"
             @cancel="emit('cancel')"
+            @view-contract="(id) => emit('viewContract', id)"
         />
 
         <Message v-if="detail.rejection" severity="warn" :closable="false">
             <span class="text-[13px]">{{ t('bizApplication.rejectedNote', { code: t(`bizApplication.rejectCode.${detail.rejection.code}`) }) }} — {{ detail.rejection.text }}</span>
         </Message>
 
-        <!-- 환불 심사 -->
-        <section v-if="detail.refund" class="flex flex-col gap-2 rounded-lg border px-3 py-3" :class="detail.refund.status === 'PENDING' ? 'border-red-300 dark:border-red-800' : 'border-(--line)'">
-            <div class="flex items-center justify-between gap-2">
-                <span class="text-[13px] font-semibold">{{ t('bizApplication.refundTitle') }}</span>
-                <Tag :value="t(`bizApplication.refundStatus.${detail.refund.status}`)" :severity="detail.refund.status === 'PENDING' ? 'danger' : 'secondary'" />
+        <Message v-if="detail.takedown" severity="error" :closable="false">
+            <span class="text-[13px]">{{ t('bizApplication.takedownNote', { cause: t(`bizApplication.takedownCause.${detail.takedown.cause}`), at: time.shortDateTime(detail.takedown.at) }) }}<template v-if="detail.takedown.text"> — {{ detail.takedown.text }}</template></span>
+        </Message>
+
+        <!-- 환불 -->
+        <section v-if="refund" class="flex flex-col gap-2 rounded-lg border px-3 py-3" :class="refund.status === 'REQUESTED' || refund.transferStatus === 'PENDING' ? 'border-red-300 dark:border-red-800' : 'border-(--line)'">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="text-[13px] font-semibold">{{ t('bizApplication.refundTitle') }} <span class="font-normal text-muted-color">· {{ t(`bizApplication.refundType.${refund.type}`) }}</span></span>
+                <Tag :value="t(`bizApplication.refundStatus.${refund.status}`)" :severity="refund.status === 'REQUESTED' ? 'danger' : refund.status === 'APPROVED' ? 'success' : 'secondary'" />
             </div>
-            <p class="m-0 text-[13px] [overflow-wrap:anywhere]">“{{ detail.refund.reason }}” <span class="text-[11px] text-muted-color">· {{ time.shortDateTime(detail.refund.requestedAt) }}</span></p>
-            <p class="m-0 text-[13px] tabular-nums">{{ t('bizApplication.refundCalc', { paid: won(detail.refund.paidAmount), used: detail.refund.usedDays, total: detail.refund.totalDays, proposed: won(detail.refund.proposedAmount) }) }}</p>
-            <div v-if="detail.refund.status === 'PENDING' && canRefund" class="flex justify-end gap-2">
+            <p v-if="refund.reason" class="m-0 text-[13px] [overflow-wrap:anywhere]">“{{ refund.reason }}” <span class="text-[11px] text-muted-color">· {{ time.shortDateTime(refund.requestedAt) }}</span></p>
+            <p v-if="refund.type === 'FULL_AUTO'" class="m-0 text-[13px] tabular-nums">{{ t('bizApplication.refundFull', { paid: won(refund.paidAmount) }) }}</p>
+            <p v-else class="m-0 text-[13px] tabular-nums">{{ t('bizApplication.refundCalc', { paid: won(refund.paidAmount), used: refund.usedDays, total: refund.totalDays, proposed: won(refund.proposedAmount) }) }}</p>
+            <p v-if="refund.status !== 'REQUESTED' && (refund.approvedAmount !== null || refund.decisionReason)" class="m-0 text-[13px] tabular-nums [overflow-wrap:anywhere]">
+                <template v-if="refund.approvedAmount !== null">{{ t('bizApplication.refundApprovedLine', { amount: won(refund.approvedAmount) }) }}</template>
+                <template v-if="refund.decisionReason"> — {{ refund.decisionReason }}</template>
+            </p>
+            <!-- 돌려주는 길: 온라인(PG 취소) · 수동(운영자 송금) -->
+            <template v-if="refund.status === 'APPROVED' && (refund.approvedAmount ?? 0) > 0">
+                <p v-if="refund.method === 'ONLINE'" class="m-0 text-xs text-muted-color">{{ refund.completedAt ? t('bizApplication.refundPgDone', { at: time.shortDateTime(refund.completedAt) }) : t('bizApplication.refundPgPending') }}</p>
+                <p v-else-if="refund.transferStatus === 'DONE'" class="m-0 text-xs text-muted-color">{{ t('bizApplication.refundTransferDone', { at: refund.transferredAt ? time.shortDateTime(refund.transferredAt) : '—' }) }}</p>
+                <Message v-else-if="refund.transferStatus === 'PENDING'" severity="warn" :closable="false">
+                    <div class="flex flex-wrap items-center justify-between gap-2 text-[13px]">
+                        <span>{{ t('bizApplication.refundTransferPending', { amount: won(refund.approvedAmount ?? 0) }) }}</span>
+                        <Button v-if="canRefund" type="button" :label="t('bizApplication.actMarkTransferred')" icon="pi pi-check" size="small" :disabled="busy" @click="emit('markTransferred')" />
+                    </div>
+                </Message>
+            </template>
+            <div v-if="refund.status === 'REQUESTED' && canRefund" class="flex justify-end gap-2">
                 <Button type="button" :label="t('bizApplication.actDenyRefund')" size="small" severity="secondary" variant="outlined" :disabled="busy" @click="emit('denyRefund')" />
                 <Button type="button" :label="t('bizApplication.actApproveRefund')" size="small" severity="danger" :disabled="busy" @click="emit('approveRefund')" />
             </div>
@@ -118,7 +143,7 @@
             <h3 class="m-0 text-sm font-semibold">{{ t('bizApplication.paymentRecord') }}</h3>
             <p v-if="detail.onlinePayment" class="m-0 text-[13px]">{{ t('bizApplication.paidOnline', { at: time.shortDateTime(detail.onlinePayment.paidAt), tx: detail.onlinePayment.pgTxId }) }}</p>
             <template v-else>
-                <BizContractFiles :files="detail.contracts" />
+                <BizContractFiles :files="detail.contracts" :viewable="canManage" :busy="busy" @view="(id) => emit('viewContract', id)" />
                 <p v-if="detail.deposit" class="m-0 text-[13px]">{{ t('bizApplication.depositLine', { amount: won(detail.deposit.amount), date: time.serviceDate(detail.deposit.depositedOn), name: detail.deposit.depositorName, who: detail.deposit.confirmedBy }) }}</p>
             </template>
         </section>
@@ -128,9 +153,9 @@
             <Timeline :value="history" class="text-[13px]" :pt="{ eventOpposite: { class: 'hidden' } }">
                 <template #content="{ item }">
                     <div class="flex flex-col pb-3">
-                        <span class="font-medium">{{ item.action }} <span class="font-normal text-muted-color">· {{ item.actor }}</span></span>
+                        <span class="font-medium">{{ UtilBizApplicationMessages.historyAction(t, item.action) }} <span class="font-normal text-muted-color">· {{ item.actor }}</span></span>
                         <span class="text-[11px] text-muted-color">{{ time.shortDateTime(item.at) }}</span>
-                        <span v-if="item.note" class="text-xs [overflow-wrap:anywhere]">{{ item.note }}</span>
+                        <span v-if="item.note" class="text-xs [overflow-wrap:anywhere]">{{ UtilBizApplicationMessages.historyNote(t, item.action, item.note, locale) }}</span>
                     </div>
                 </template>
             </Timeline>
@@ -158,7 +183,6 @@ const emit = defineEmits<{
     approve: [];
     reject: [];
     switchManual: [];
-    mockPay: [];
     cancel: [];
     upload: [files: File[]];
     replace: [body: { id: string; file: File }];
@@ -167,6 +191,8 @@ const emit = defineEmits<{
     extend: [];
     approveRefund: [];
     denyRefund: [];
+    markTransferred: [];
+    viewContract: [id: string];
 }>();
 
 const { t, locale } = useI18n();
@@ -176,5 +202,8 @@ const uid = useId();
 /** 점검표 — 부모가 건마다 `:key` 로 다시 만든다 */
 const checked = ref<string[]>([]);
 const won = (n: number) => UtilBizApplicationMessages.won(t, n, locale.value);
+const refund = computed(() => props.detail.refund);
+/** 요금표 줄 — 두 줄 이상(핫딜 글 + 노출)일 때만 나눠 보인다 */
+const quoteLines = computed(() => (props.detail.quote.lines && props.detail.quote.lines.length > 1 ? props.detail.quote.lines : []));
 const history = computed(() => [...props.detail.history].sort((a, b) => b.at.localeCompare(a.at)));
 </script>
