@@ -175,6 +175,15 @@ SiteAffiliateStore { id, domain(정규화), programName(≤40), transform: { typ
   - 신고 사건 `ReportCaseItem.deal?: { view }`(핫딜 글 여부·딜 상태 — 없으면 목업이 핫딜 사유 신고 유무로 추정), `DEAL_END` 처리 글 1~200자(작성자에게 가는 종료 사유, 글은 숨기지 않음), 일반 글이면 `409 REPORT_ACTION_INVALID`.
 - 못 한 것: 종료 요청 자격 미달을 미리 보이지 못함(보는 사람 자격 칸 없음 — 누른 뒤 토스트) · 하루 글 한도·같은 몰 간격은 스위치로만 · 되돌리기 남은 시간 매분 갱신 안 함 · 회원 관리는 주소로 회원을 못 열어 「회원 제재로 가기」는 `/members` 까지 · 목업 [핫딜 종료] 신고 조치는 새로고침하면 사라짐.
 
+### 제휴 방식 목업 (D5, 커밋 user-web `de9764d0` · admin-web `59cca827`)
+- 새 `?mock=` — user-web: `deal-site-affiliate`(SITE — 쓰기 체크 숨김·개인 제휴 링크 칸 오류·쿠팡·11번가 글 「제휴」) · `deal-site-affiliate-nostore`(SITE 인데 사이트 제휴 몰 없음 → 제휴 표시 없음). admin-web: `site-affiliate`(SITE 로 시작) · `site-affiliate-empty`(몰 표 빔) · `affiliate-impact-zero`(영향 0건), 기존 `conflict` 는 몰 저장에도(409), `forbidden` 이면 몰 표 보기만.
+- 화면이 새로 정한 것(확인 필요)
+  - **`affiliateMode` 를 받는 곳**: 게시판 응답 `BoardDetail.dealAffiliateMode`(핫딜 게시판만, 없으면 MEMBER — 링크를 넣기 전부터 체크를 숨기려고) + link-check `DealLinkCheck.affiliateMode`(오면 우선). link-check 에 `siteAffiliate: { programName } | null`(사이트 제휴 몰 여부 — 단정형 안내 「구매 링크는 로보얌 제휴 링크로 바뀝니다」).
+  - SITE 에서 개인 제휴 링크 칸 오류는 판정 즉시 보임. 서버는 `400 VALIDATION fields."deal.productUrl"` 또는 단독 코드 `DEAL_MEMBER_AFFILIATE_OFF` 둘 다 같은 칸에. 고치기에서 링크를 그대로 두면 SITE 여도 칸 오류 없음(차단과 같은 규칙), SITE 면 `affiliate` 는 false 로 저장.
+  - **구매 링크 `/go/deal/{postId}` 라우팅 결정 필요**: 목업도 그 주소를 그대로 둬서 지금은 새 탭에 Nuxt 404(devProxy 는 `/api` 만). 실서버에서 프론트 도메인의 `/go/` 를 서버로 넘기는 설정이 필요하고, 아니면 `/api/deals/{postId}/go` 처럼 `/api` 아래로 옮기는 안.
+  - 관리자: 방식 선택은 초안에 들어가고 **[저장] 때 확인 창**(방향별 문구 + 영향 글 수 + 켠 몰 0개 경고 + 함께 저장할 다른 칸 수). 사이트 제휴 몰 표는 초안이 SITE 면 저장 전에도 보이고 바로 저장(설정 저장과 별개). impact 응답 `{ mode, memberAffiliateActive, siteStoreMatched, siteStoreActive(켠 몰로 가는 진행 중 글 전체) }`. 상세·링크 규칙 목록 응답 `affiliateMode`. 몰 줄에 `updatedBy`·`updatedAt`. 변환: TEMPLATE 은 `{url}` 자리에 `encodeURIComponent(원래 주소)`, QUERY 는 쿼리를 붙이되 같은 이름이면 바꿈. 틀 ≤1000자·쿼리 ≤300자, 새 몰은 켠 채로, 켬/끔은 줄 전체 PUT, 몰 표 조회·편집 `hotdeal.manage`. 몰 판정은 최종 호스트 우선·접미사·긴 도메인 우선·켠 몰만. 코드 `404 HOTDEAL_SITE_AFFILIATE_NOT_FOUND`, `fields.affiliateMode`.
+- 서버 후보: `deal_settings.affiliate_mode`, 사이트 제휴 몰 표, 클릭 때 변환(`SiteAffiliateLinker` 후보)·집계.
+
 ## 미확정
 - 같은 딜 판정에 쿼리 문자열을 어디까지 남길지 — 규칙별 `keyParams` 로 정하되 기본 몰 목록은 운영하며 채움.
 - 종료 요청 자격·하루 글 5건·같은 몰 10분·마감 없는 딜 30일은 추천안 채택값(바꿀 수 있음).
