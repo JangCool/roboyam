@@ -96,6 +96,11 @@ public enum AdminNotificationEvent {
     CLUB_OPEN_REQUEST_PENDING(spec(CLUB, INFO).holders(Permission.GROUP_MANAGE).link("/group-requests").collapse(300)),
     HOTDEAL_SUSPECTED_PROMO(spec(HOTDEAL, WARNING).holders(Permission.HOTDEAL_MANAGE).reserved()),
     /**
+     * 회원 핫딜 글의 상품 링크 호스트가 바뀌었다(D3 — 작성자 고치기). 같은 글은 하루 한 건(묶음 키 = 글 ID). 링크는 관리자 핫딜 글 서랍(3단계 화면 — 계약 메모 1-8).
+     * 회원 핫딜 1차 서버 1단계에서 발행을 붙였다
+     */
+    HOTDEAL_LINK_HOST_CHANGED(spec(HOTDEAL, INFO).holders(Permission.HOTDEAL_MANAGE).link("/hotdeals?id={postId}").collapse(86400)),
+    /**
      * 공구 주문 이상 — 결제를 받았는데 공구가 거절했다(선점 부족 등 불변식이 깨진 REJECT)·에스크로 호출을 끝내 그만뒀다(2b-4, 계약 결정 12·64). 같은 주문은 하루에 한 건(묶음 키 = 주문 ID).
      * 링크는 주문 목록(주문 번호로 찾기)
      */

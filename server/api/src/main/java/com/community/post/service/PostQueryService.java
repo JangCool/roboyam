@@ -12,6 +12,14 @@ import com.community.board.service.ContentRules;
 import com.community.board.service.PublicBoardService;
 import com.community.debate.service.DebateReader;
 import com.community.group.service.GroupPostGate;
+import com.community.hotdeal.dto.response.DealStoreChipView;
+import com.community.hotdeal.dto.response.DealWarningView;
+import com.community.hotdeal.dto.response.PostDealView;
+import com.community.hotdeal.repository.master.DealQueries;
+import com.community.hotdeal.service.DealReader;
+import com.community.hotdeal.service.DealSettingsReader;
+import com.community.hotdeal.service.DealWriter;
+import java.util.Map;
 import com.community.post.dto.response.PostGroupView;
 import com.community.poll.repository.master.PollQueries;
 import com.community.poll.service.PollReader;
@@ -65,10 +73,16 @@ public class PostQueryService {
     private final PollQueries pollQueries;
     private final GroupPostGate groupGate;
     private final BoardActorResolver actors;
+    private final DealReader dealReader;
+    private final DealQueries dealQueries;
+    private final DealSettingsReader dealSettings;
 
     public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors,
                             ViewerBlocks viewerBlocks, DebateReader debate, PollReader pollReader, PollQueries pollQueries, GroupPostGate groupGate,
-                            BoardActorResolver actors) {
+                            BoardActorResolver actors, DealReader dealReader, DealQueries dealQueries, DealSettingsReader dealSettings) {
+        this.dealReader = dealReader;
+        this.dealQueries = dealQueries;
+        this.dealSettings = dealSettings;
         this.groupGate = groupGate;
         this.actors = actors;
         this.pollReader = pollReader;
@@ -101,6 +115,18 @@ public class PostQueryService {
      */
     @Transactional(readOnly = true)
     public PostListResponse list(String slug, String prefix, String sort, String q, int page, Long viewerId) {
+        return list(slug, prefix, sort, q, page, viewerId, null, null);
+    }
+
+    /**
+     * 핫딜 게시판이면 핫딜 목록(메모 1-5): 정렬 {@code latest|popular|ending}(대소문자 무시, {@code ENDING_SOON} 도), 종료 숨기기({@code hideEnded} — 빠지면 켬), 쇼핑몰 이름 거르기,
+     * 줄마다 {@code deal}, 응답 {@code stores}(상위 8몰). 차례는 진행 중 → 의심 → 끝남, 그 안에서 정렬 키. 그 밖 게시판은 새 값을 무시하고 예전 그대로.
+     *
+     * @param hideEnded 핫딜 — 종료·기간 종료 글을 뺀다(null = 켬)
+     * @param store     핫딜 — 쇼핑몰 이름(정확히 같음, 비면 전체)
+     */
+    @Transactional(readOnly = true)
+    public PostListResponse list(String slug, String prefix, String sort, String q, int page, Long viewerId, Boolean hideEnded, String store) {
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = PublicBoardService.requireActive(s, slug);
         Instant now = Instant.now();
@@ -120,28 +146,59 @@ public class PostQueryService {
         String search = query.isEmpty() ? null : query;
         boolean plain = prefixId == null && search == null && !impossible;
         boolean oldest = "OLDEST".equals(sort);
+        boolean deal = DealWriter.dealBoard(b);
+        boolean hide = !Boolean.FALSE.equals(hideEnded);
+        String storeName = store == null || store.isBlank() ? null : store.strip();
+        int autoExpireDays = deal ? dealSettings.current().autoExpireDays() : 0;
 
         List<PostRowData> pinned = plain && current == 1 ? postQueries.pinned(b.id(), b.pinnedMax(), now) : List.of();
-        PostRepositoryQDSL.Page result = impossible ? new PostRepositoryQDSL.Page(List.of(), 0)
-                : postQueries.page(b.id(), prefixId, search, oldest, plain, (long) (current - 1) * listSize, listSize, now);
+        PostRepositoryQDSL.Page result;
+        if (impossible) {
+            result = new PostRepositoryQDSL.Page(List.of(), 0);
+        } else if (deal) {
+            result = postQueries.dealPage(b.id(), prefixId, search, dealSort(sort), hide, storeName, plain, autoExpireDays, (long) (current - 1) * listSize, listSize,
+                    now);
+        } else {
+            result = postQueries.page(b.id(), prefixId, search, oldest, plain, (long) (current - 1) * listSize, listSize, now);
+        }
 
         List<Long> authorIds = Stream.concat(pinned.stream(), result.items().stream()).map(PostRowData::authorId).toList();
         AuthorMembers members = authors.members(authorIds);
         ViewerBlocks.Lens lens = viewerBlocks.lens(viewerId, authorIds);
         Set<Long> polls = pollQueries.postIdsWithPoll(Stream.concat(pinned.stream(), result.items().stream()).map(PostRowData::id).toList());
+        Map<Long, PostDealView> deals = deal ? dealReader.forRows(Stream.concat(pinned.stream(), result.items().stream()).filter(r -> !r.hiddenAt(now)).toList(), b,
+                viewerId, now) : Map.of();
+        List<DealStoreChipView> stores = !deal ? null : impossible ? List.of()
+                : dealQueries.storeChips(b.id(), prefixId, hide, autoExpireDays, now, STORE_CHIPS).stream().map(c -> new DealStoreChipView(c.name(), c.count()))
+                .toList();
         int totalPages = (int) ((result.total() + listSize - 1) / listSize);
-        return new PostListResponse(pinned.stream().map(r -> row(r, b, s, members, now, lens, polls)).toList(),
-                result.items().stream().map(r -> row(r, b, s, members, now, lens, polls)).toList(), current, totalPages, result.total());
+        return new PostListResponse(pinned.stream().map(r -> row(r, b, s, members, now, lens, polls, deals)).toList(),
+                result.items().stream().map(r -> row(r, b, s, members, now, lens, polls, deals)).toList(), current, totalPages, result.total(), stores);
+    }
+
+    /** 쇼핑몰 칩 수 */
+    static final int STORE_CHIPS = 8;
+
+    /** 핫딜 정렬 — latest(기본) · popular · ending(ENDING_SOON) */
+    static PostRepositoryQDSL.DealSort dealSort(String sort) {
+        if (sort == null) {
+            return PostRepositoryQDSL.DealSort.LATEST;
+        }
+        return switch (sort.strip().toUpperCase(java.util.Locale.ROOT)) {
+            case "POPULAR" -> PostRepositoryQDSL.DealSort.POPULAR;
+            case "ENDING", "ENDING_SOON" -> PostRepositoryQDSL.DealSort.ENDING;
+            default -> PostRepositoryQDSL.DealSort.LATEST;
+        };
     }
 
     private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
-                            Set<Long> polls) {
+                            Set<Long> polls, Map<Long, PostDealView> deals) {
         boolean hidden = r.hiddenAt(now);
         PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
         return new PostRowView(Long.toString(r.id()), hidden ? null : prefixRef(b, r.prefixId()), hidden ? "" : r.title(), hidden ? 0 : r.commentCount(),
                 !hidden && Boolean.TRUE.equals(r.hasImage()), null, hidden ? AuthorViews.blank(author) : author, r.createdAt(), r.viewCount(), r.likeCount(),
                 r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),
-                hidden ? null : lens.blockedOf(r.authorId(), r.title()), !hidden && polls.contains(r.id()));
+                hidden ? null : lens.blockedOf(r.authorId(), r.title()), !hidden && polls.contains(r.id()), hidden ? null : deals.get(r.id()));
     }
 
     /**
@@ -166,13 +223,17 @@ public class PostQueryService {
                 : post.getViewCount();
         boolean liked = userId != null && counters.postLiked(post.getId(), userId);
         List<Long> authorIds = post.getAuthorId() == null ? List.of() : List.of(post.getAuthorId());
-        return view(post, b, s, userId, viewCount, liked, now, viewerBlocks.lens(userId, authorIds), groupInfo(gate, post, userId, s));
+        return view(post, b, s, userId, viewCount, liked, now, viewerBlocks.lens(userId, authorIds), groupInfo(gate, post, userId, s), null);
     }
 
-    /** 고친 뒤의 글(조회수는 그대로) — {@link PostWriteService#update} 가 같은 트랜잭션에서 부른다. 차단·메모는 싣지 않는다(응답 모양 그대로, 두 칸 null) */
-    PostDetailView viewAfterEdit(PostEntity post, GroupPostGate.Resolved gate, BoardCatalogSnapshot s, Long userId, Instant now) {
+    /**
+     * 고친 뒤의 글(조회수는 그대로) — {@link PostWriteService#update} 가 같은 트랜잭션에서 부른다. 차단·메모는 싣지 않는다(응답 모양 그대로, 두 칸 null).
+     *
+     * @param warnings 저장은 됐지만 알릴 것(핫딜 — 없으면 빈 목록)
+     */
+    PostDetailView viewAfterEdit(PostEntity post, GroupPostGate.Resolved gate, BoardCatalogSnapshot s, Long userId, Instant now, List<DealWarningView> warnings) {
         boolean liked = userId != null && counters.postLiked(post.getId(), userId);
-        return view(post, gate.board(), s, userId, post.getViewCount(), liked, now, ViewerBlocks.Lens.none(), groupInfo(gate, post, userId, s));
+        return view(post, gate.board(), s, userId, post.getViewCount(), liked, now, ViewerBlocks.Lens.none(), groupInfo(gate, post, userId, s), warnings);
     }
 
     /** 소모임 글의 {@code group} 칸(일반 글 null) — 공개 전환 권한은 보는 사람의 쓰기 자격까지 본다 */
@@ -188,7 +249,7 @@ public class PostQueryService {
      * @param group 소모임 글이면 소모임 칸 — 소모임 글에는 이전·다음 글이 없고(null) 댓글 많은 글 보호가 걸리지 않는다(원본과 같다)
      */
     private PostDetailView view(PostEntity post, EffectiveBoard b, BoardCatalogSnapshot s, Long userId, int viewCount, boolean liked, Instant now,
-                                ViewerBlocks.Lens lens, PostGroupView group) {
+                                ViewerBlocks.Lens lens, PostGroupView group, List<DealWarningView> warnings) {
         AuthorMembers members = authors.members(post.getAuthorId() == null ? List.of() : List.of(post.getAuthorId()));
         Optional<PostNeighborData> older = post.isGroupPost() ? Optional.empty() : postQueries.older(b.id(), post.getId(), now);
         Optional<PostNeighborData> newer = post.isGroupPost() ? Optional.empty() : postQueries.newer(b.id(), post.getId(), now);
@@ -201,7 +262,7 @@ public class PostQueryService {
                 protection(b, post), post.getDeleteScheduledAt(), older.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null),
                 newer.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null), Boolean.TRUE.equals(s.security().externalLinkNofollow()),
                 lens.blockedOf(post.getAuthorId(), post.getTitle()), highlight.highlighted(), debate.summary(highlight, post, b, userId, now),
-                pollReader.forPost(post, userId, now), group);
+                pollReader.forPost(post, userId, now), group, post.isGroupPost() ? null : dealReader.forPost(post, b, userId, now), warnings);
     }
 
     /** 글의 댓글 많은 글 보호 — 소모임 글은 걸리지 않는다(게시판 정책을 받지 않는다 — 원본 「운영진·운영자·소모임 글은 해당 없다」) */

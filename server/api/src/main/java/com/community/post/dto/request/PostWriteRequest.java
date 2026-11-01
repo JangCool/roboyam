@@ -2,6 +2,7 @@ package com.community.post.dto.request;
 
 import com.community.board.dto.request.GuestCredentials;
 import com.community.debate.dto.request.DebateOptionsRequest;
+import com.community.hotdeal.dto.request.DealInput;
 import com.community.poll.dto.request.PollInput;
 
 /**
@@ -13,7 +14,14 @@ import com.community.poll.dto.request.PollInput;
  * @param debate   있으면 글과 함께 찬반 토론을 연다 — 회원이고 게시판 정책 {@code debateEnabled} 일 때만(아니면 400 {@code fields.debate}). null 이면 열지 않는다
  * @param poll     있으면 글에 투표를 붙인다 — 회원이고 게시판 정책 {@code pollEnabled} 일 때만(아니면 400 {@code fields.poll}), 칸 오류는 {@code fields."poll.*"}.
  *                 null 이면 붙이지 않는다(docs/features/post-poll-contract.md)
+ * @param deal     핫딜 게시판({@code kind DEAL})이면 필수 — 딜 정보(칸 오류는 {@code fields."deal.*"}), 그 밖 게시판은 보내면 400 {@code fields.deal}(docs/features/hotdeal-contract.md)
  */
 public record PostWriteRequest(String boardSlug, String prefixId, String title, String contentFormat, String content, Boolean adult, GuestCredentials guest,
-                               DebateOptionsRequest debate, PollInput poll) {
+                               DebateOptionsRequest debate, PollInput poll, DealInput deal) {
+
+    /** 딜 없는 글(핫딜 게시판이 아닌 곳) */
+    public PostWriteRequest(String boardSlug, String prefixId, String title, String contentFormat, String content, Boolean adult, GuestCredentials guest,
+                            DebateOptionsRequest debate, PollInput poll) {
+        this(boardSlug, prefixId, title, contentFormat, content, adult, guest, debate, poll, null);
+    }
 }

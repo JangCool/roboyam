@@ -106,6 +106,6 @@ public class PostFeedRows {
         return new PostRowView(Long.toString(r.id()), hidden ? null : PostQueryService.prefixRef(b, r.prefixId()), hidden ? "" : r.title(),
                 hidden ? 0 : r.commentCount(), !hidden && Boolean.TRUE.equals(r.hasImage()), null, hidden ? AuthorViews.blank(author) : author, r.createdAt(),
                 r.viewCount(), r.likeCount(), r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),
-                hidden ? null : lens.blockedOf(r.authorId(), r.title()), !hidden && withPoll.contains(r.id()));
+                hidden ? null : lens.blockedOf(r.authorId(), r.title()), !hidden && withPoll.contains(r.id()), null);
     }
 }

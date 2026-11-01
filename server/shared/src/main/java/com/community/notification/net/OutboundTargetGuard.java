@@ -87,6 +87,16 @@ public class OutboundTargetGuard {
      * @throws BlockedTargetException 모양이 틀리거나 막힌 주소이거나 이름을 풀지 못했을 때
      */
     public Target resolve(String url) {
+        return resolve(url, this::isBlocked);
+    }
+
+    /**
+     * 막을 주소를 부르는 쪽이 정하는 검사 — 회원이 넣은 주소처럼 <b>설정과 무관하게 사설망을 늘 막아야</b> 하는 곳(핫딜 OG 가져오기 — {@link #strictlyBlocked})이 쓴다.
+     * 모양 검사·DNS 풀이·「검사한 IP 로 연결」 규칙은 {@link #resolve(String)} 와 같다.
+     *
+     * @param blocked 이 IP 로 연결하지 않는가
+     */
+    public Target resolve(String url, java.util.function.Predicate<InetAddress> blocked) {
         URI uri = parse(url);
         String scheme = uri.getScheme().toLowerCase(Locale.ROOT);
         boolean https = scheme.equals("https");
@@ -103,7 +113,7 @@ public class OutboundTargetGuard {
         }
         List<InetAddress> addresses = new ArrayList<>();
         for (InetAddress address : resolved) {
-            if (isBlocked(address)) {
+            if (blocked.test(address)) {
                 throw new BlockedTargetException(Reason.ADDRESS);
             }
             addresses.add(address);
@@ -156,6 +166,11 @@ public class OutboundTargetGuard {
     boolean isBlocked(InetAddress address) {
         Verdict verdict = classify(address.getAddress());
         return verdict == Verdict.ALWAYS || (verdict == Verdict.PRIVATE && !allowPrivate);
+    }
+
+    /** 설정과 무관하게 막는가 — 메타데이터·링크 로컬·와일드카드·멀티캐스트에 더해 로컬호스트·사설망도 늘 막는다(회원이 넣은 주소용) */
+    public static boolean strictlyBlocked(InetAddress address) {
+        return classify(address.getAddress()) != Verdict.OK;
     }
 
     enum Verdict { OK, PRIVATE, ALWAYS }

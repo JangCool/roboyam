@@ -318,6 +318,9 @@ public class BoardService {
         if (BoardFields.KIND_DEAL.equals(board.getKind()) && !gradeList.isEmpty() && gradeList.get(0).getGradeKey().equals(in.policy.writeMin())) {
             invalid.putIfAbsent("policy.writeMin", new MessageRef("board.policy.dealGrade"));
         }
+        if (BoardFields.KIND_DEAL.equals(board.getKind()) && in.allowAdult) {
+            invalid.put("allowAdult", new MessageRef("board.allowAdult.deal")); // 핫딜 게시판은 19금 끔 고정(hotdeal-contract 서버 규칙 8)
+        }
         checkPrefixes(in.prefixes, currentOwn, invalid);
         if (in.gadgetUnknown) {
             invalid.put("gadgetExclusions", new MessageRef("board.field.choice"));

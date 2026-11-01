@@ -35,6 +35,17 @@ public final class HomeGadgetKinds {
     public static final int BOARD_BODY_MIN_W = 6;
     public static final int BOARD_BODY_MIN_H = 20;
 
+    /**
+     * 핫딜 가젯(회원 핫딜 1차 — hotdeal-contract 「데이터 모양」) — 이름 상수만 둔다(종류 목록·최소 크기·data 는 2단계가 더한다).
+     * 설정 {@code boards}(핫딜 게시판 slug, 비우면 모두) · {@code sort} · {@code count} 1~{@value #HOT_DEALS_COUNT_MAX}(기본 {@value #HOT_DEALS_COUNT_DEFAULT})
+     */
+    public static final String HOT_DEALS = "HOT_DEALS";
+    public static final int HOT_DEALS_COUNT_DEFAULT = 5;
+    public static final int HOT_DEALS_COUNT_MAX = 10;
+    /** 최신(기본) · 인기 · 마감 임박 */
+    public static final List<String> HOT_DEALS_SORTS = List.of("LATEST", "POPULAR", "ENDING_SOON");
+    public static final String HOT_DEALS_SORT_DEFAULT = "LATEST";
+
     /** 광고 배너 가젯 — {@code config.adType}(배너 넷, 처음 {@code WIDE_BANNER} — 날개 배너는 가젯에 없다) */
     public static final String AD = "AD";
     /** 한 줄 광고 가젯 — {@code config.count} 1~5(처음 3) */
