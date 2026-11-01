@@ -8,6 +8,9 @@ import com.community.board.service.AuthorViews;
 import com.community.group.entity.GroupEntity;
 import com.community.group.entity.GroupStatus;
 import com.community.group.repository.master.GroupRepository;
+import com.community.hotdeal.dto.response.PostDealView;
+import com.community.hotdeal.service.DealReader;
+import com.community.hotdeal.service.DealWriter;
 import com.community.poll.repository.master.PollQueries;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.response.PostAuthorView;
@@ -38,8 +41,10 @@ public class PostFeedRows {
     private final ViewerBlocks viewerBlocks;
     private final PollQueries polls;
     private final GroupRepository groups;
+    private final DealReader deals;
 
-    public PostFeedRows(AuthorViews authors, ViewerBlocks viewerBlocks, PollQueries polls, GroupRepository groups) {
+    public PostFeedRows(AuthorViews authors, ViewerBlocks viewerBlocks, PollQueries polls, GroupRepository groups, DealReader deals) {
+        this.deals = deals;
         this.groups = groups;
         this.authors = authors;
         this.viewerBlocks = viewerBlocks;
@@ -57,15 +62,33 @@ public class PostFeedRows {
         ViewerBlocks.Lens lens = rows.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(viewerId, authorIds);
         Set<Long> withPoll = polls.postIdsWithPoll(rows.stream().map(PostRowData::id).toList());
         Map<Long, PostGroupView> groupRefs = groupRefs(rows);
+        Map<Long, PostDealView> dealRows = dealRows(rows, s, now, viewerId);
         List<PostFeedRowView> out = new ArrayList<>(rows.size());
         for (PostRowData r : rows) {
             EffectiveBoard b = s.board(r.boardId()).filter(EffectiveBoard::active).orElse(null);
             if (b == null) {
                 continue;
             }
-            out.add(PostFeedRowView.of(row(r, b, s, members, now, lens, withPoll),
+            out.add(PostFeedRowView.of(row(r, b, s, members, now, lens, withPoll, dealRows.get(r.id())),
                     new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()), r.groupId() == null ? null : groupRefs.get(r.groupId())));
         }
+        return out;
+    }
+
+    /**
+     * 핫딜 게시판 글의 딜(hotdeal-contract — 섞인 목록·가젯도 핫딜 목록 줄과 같은 모양, 서버 2단계) — 게시판마다 한 번에 읽는다({@link DealReader#forRows}, 숨긴 줄은 뺀다).
+     * 핫딜 게시판 글이 없으면 읽지 않는다.
+     */
+    private Map<Long, PostDealView> dealRows(List<PostRowData> rows, BoardCatalogSnapshot s, Instant now, Long viewerId) {
+        Map<Long, List<PostRowData>> byBoard = new java.util.LinkedHashMap<>();
+        for (PostRowData r : rows) {
+            EffectiveBoard b = s.board(r.boardId()).orElse(null);
+            if (b != null && DealWriter.dealBoard(b) && !r.hiddenAt(now)) {
+                byBoard.computeIfAbsent(b.id(), k -> new ArrayList<>()).add(r);
+            }
+        }
+        Map<Long, PostDealView> out = new HashMap<>();
+        byBoard.forEach((boardId, list) -> out.putAll(deals.forRows(list, s.board(boardId).orElseThrow(), viewerId, now)));
         return out;
     }
 
@@ -95,17 +118,17 @@ public class PostFeedRows {
         AuthorMembers members = authors.members(authorIds);
         ViewerBlocks.Lens lens = rows.isEmpty() ? ViewerBlocks.Lens.none() : viewerBlocks.lens(viewerId, authorIds);
         Set<Long> withPoll = polls.postIdsWithPoll(rows.stream().map(PostRowData::id).toList());
-        return rows.stream().map(r -> row(r, b, s, members, now, lens, withPoll)).toList();
+        return rows.stream().map(r -> row(r, b, s, members, now, lens, withPoll, null)).toList();
     }
 
     /** {@code PostQueryService#row} 와 같은 규칙 — 신고로 숨긴 글은 자리만(이 목록들은 숨긴 글을 미리 거르므로 보통 오지 않는다) */
     private PostRowView row(PostRowData r, EffectiveBoard b, BoardCatalogSnapshot s, AuthorMembers members, Instant now, ViewerBlocks.Lens lens,
-                            Set<Long> withPoll) {
+                            Set<Long> withPoll, PostDealView deal) {
         boolean hidden = r.hiddenAt(now);
         PostAuthorView author = authors.of(r.authorId(), r.guestName(), r.authorIp(), members, s).withMemo(lens.memoOf(r.authorId()));
         return new PostRowView(Long.toString(r.id()), hidden ? null : PostQueryService.prefixRef(b, r.prefixId()), hidden ? "" : r.title(),
                 hidden ? 0 : r.commentCount(), !hidden && Boolean.TRUE.equals(r.hasImage()), null, hidden ? AuthorViews.blank(author) : author, r.createdAt(),
                 r.viewCount(), r.likeCount(), r.pinnedAt() != null, !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()),
-                hidden ? null : lens.blockedOf(r.authorId(), r.title()), !hidden && withPoll.contains(r.id()));
+                hidden ? null : lens.blockedOf(r.authorId(), r.title()), !hidden && withPoll.contains(r.id()), hidden ? null : deal);
     }
 }

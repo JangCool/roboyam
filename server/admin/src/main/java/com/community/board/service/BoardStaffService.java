@@ -88,7 +88,8 @@ public class BoardStaffService {
         if (member == null) {
             throw new MemberNotFoundException();
         }
-        if (!BoardFields.KIND_GENERAL.equals(board.getKind())) {
+        // 일반·핫딜 게시판만(핫딜 담당 = 그 게시판 매니저·스텝 — hotdeal-contract 「사용자 결정」). 직접홍보·소모임은 지정하지 않는다
+        if (!BoardFields.KIND_GENERAL.equals(board.getKind()) && !BoardFields.KIND_DEAL.equals(board.getKind())) {
             throw new BoardStaffKindException();
         }
         boolean assigned = staff.existsByBoardIdAndUserId(board.getId(), userId);

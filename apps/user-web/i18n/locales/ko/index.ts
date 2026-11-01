@@ -33,6 +33,7 @@ import groupEvent from './groupEvent';
 import groupManager from './groupManager';
 import groupVisibility from './groupVisibility';
 import home from './home';
+import hotdeal from './hotdeal';
 import gadgetPage from './gadgetPage';
 import install from './install';
 import login from './login';
@@ -90,6 +91,7 @@ export default {
     groupManager,
     groupVisibility,
     home,
+    hotdeal,
     gadgetPage,
     install,
     login,

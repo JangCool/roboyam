@@ -101,6 +101,11 @@ export default {
         OFFLINE_RISK: 'Risky offline meetup',
         STOCK_RECOMMENDATION: 'Stock tips or paid recruiting',
     },
+    // Report reasons shown only on hot deal posts (hotdeal-contract)
+    dealReason: {
+        DEAL_FALSE_PRICE: 'Price or details are wrong',
+        DEAL_HIDDEN_AD: 'Hidden ad or promotion',
+    },
     status: {
         PENDING: 'New',
         IN_REVIEW: 'In review',
@@ -115,6 +120,7 @@ export default {
         KEEP_HIDDEN: 'Keep hidden',
         DELETE: 'Delete',
         DEACTIVATE: 'Deactivate club',
+        DEAL_END: 'End hot deal',
         DISMISS: 'Dismiss',
     },
     actionName: {
@@ -122,6 +128,7 @@ export default {
         KEEP_HIDDEN: 'Kept hidden',
         DELETE: 'Deleted',
         DEACTIVATE: 'Club deactivated',
+        DEAL_END: 'Hot deal ended',
         DISMISS: 'Dismissed',
     },
     dialog: {
@@ -141,12 +148,19 @@ export default {
             title: 'Deactivate the club?',
             text: 'Same as deactivating in Clubs: the public site shows only a notice, and the leader is notified with your note (up to 200 characters) as the reason. The deactivation record keeps this case number. You can reopen the club in Clubs. The case closes as resolved.',
         },
+        DEAL_END: {
+            title: 'End this hot deal?',
+            text: 'Same as a staff end in Hot deal posts: lists show it as ended and the buy link turns off. The author is notified with your note (up to 200 characters) as the reason. The post isn’t hidden (hide it separately if needed). The case closes as resolved.',
+        },
         DISMISS: {
             title: 'Dismiss these reports?',
             text: 'Close the case as no violation. If the board policy allows, reporters are told no violation was found. Dismissed cases can be reopened.',
         },
     },
     dismissRestores: 'This target was auto-hidden by reports. Dismissing shows it again.',
+    dealCase: 'This case is about a hot deal post.',
+    dealCaseState: 'This case is about a hot deal post — deal state: {state}',
+    dealFalsePriceNote: '“Price or details are wrong” reports also count as a “price changed” end report (once per member) and are left out of the report auto-hide count. “Hidden ad or promotion” counts toward auto-hide.',
     dismissStaffKeeps: 'This target was hidden by staff. Dismissing keeps it hidden.',
     reasonCodeLabel: 'Reason',
     reasonCodePlaceholder: 'Choose a reason',
@@ -167,6 +181,7 @@ export default {
         KEEP_HIDDEN: 'Kept it hidden and closed the case.',
         DELETE: 'Deleted the target and closed the case.',
         DEACTIVATE: 'Deactivated the club and closed the case.',
+        DEAL_END: 'Ended the hot deal and closed the case.',
         DISMISS: 'Dismissed the reports.',
         REOPEN: 'Reopened the case.',
     },
@@ -208,6 +223,7 @@ export default {
     detailLoadFailed: "Couldn't load the case",
     targetTitle: 'Target',
     openPostAdmin: 'View in Posts',
+    openHotdealAdmin: 'View in Hot deal posts',
     openGroupAdmin: 'View in Clubs',
     groupLeader: 'Leader',
     groupLeaderNow: 'Current leader',

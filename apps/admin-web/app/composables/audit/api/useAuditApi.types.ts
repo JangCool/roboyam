@@ -8,7 +8,8 @@
 export type AuditResult = 'OK' | 'FAIL' | 'DENIED';
 
 /** 행위자 종류 — 운영자 `OPERATOR` · 시스템(배치 등) `SYSTEM` · 로그인 전 행위 `ANONYMOUS` */
-export type AuditActorType = 'OPERATOR' | 'SYSTEM' | 'ANONYMOUS';
+/** `MEMBER` = 회원 행위자(게시판 매니저·스텝의 핫딜 종료·재개 — 이름은 회원 닉네임) */
+export type AuditActorType = 'OPERATOR' | 'MEMBER' | 'SYSTEM' | 'ANONYMOUS';
 
 export interface AuditLogView {
     /** 기록 번호 — 문자열이다(Snowflake 64비트라 숫자로 받으면 자리가 깨진다) */

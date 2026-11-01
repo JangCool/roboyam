@@ -3,6 +3,7 @@ import type {
     HomeBoardScope,
     HomeGadgetConfig,
     HomeGroupBuySort,
+    HomeHotDealSort,
     HomeLayoutGadget,
     HomePostListSort,
     HomePostMeta,
@@ -46,6 +47,7 @@ export interface GadgetConfigProblem {
 }
 
 const GROUP_BUY_SORTS: readonly HomeGroupBuySort[] = ['DEADLINE', 'NEWEST', 'POPULAR'];
+const HOT_DEALS_SORTS: readonly HomeHotDealSort[] = ['LATEST', 'POPULAR', 'ENDING_SOON'];
 const POST_LIST_SORTS: readonly HomePostListSort[] = ['LATEST', 'POPULAR', 'VIEWS', 'LIKES', 'COMMENTS'];
 const ROW_STYLES: readonly HomePostRowStyle[] = ['HEADLINE', 'RANK', 'ARTICLE', 'COMPACT'];
 const THUMBNAILS: readonly HomePostThumbnail[] = ['AUTO', 'NONE', 'RIGHT', 'LEFT'];
@@ -60,6 +62,8 @@ const AD_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
 /** 내용 설정(⚙)을 고칠 수 있는 종류 — 8종 전부(2026-10-30) + 광고 2종. user-web `UtilAdminPreview` 의 `SETTABLE_KINDS` 와 같은 종류 */
 const SPECS: Readonly<Record<string, GadgetConfigSpec>> = {
     GROUP_BUY: { boards: false, count: { field: 'count', min: 1, max: 10, initial: 5 }, sorts: GROUP_BUY_SORTS, sort: 'DEADLINE' },
+    // 핫딜(회원 핫딜 1차) — 핫딜 게시판 고르기는 종류만의 칸(`boards` — 일반 대상 게시판 `boardScope` 와 다르다, `normalize`)
+    HOT_DEALS: { boards: false, count: { field: 'count', min: 1, max: 10, initial: 5 }, sorts: HOT_DEALS_SORTS, sort: 'LATEST' },
     POST_LIST: { boards: true, count: { field: 'count', min: 1, max: 30, initial: 10 }, sorts: POST_LIST_SORTS, sort: 'LATEST' },
     GALLERY: { boards: true, count: { field: 'count', min: 1, max: 24, initial: 6 }, sorts: [], sort: null },
     BOARD_CARDS: { boards: true, count: { field: 'perBoard', min: 1, max: 10, initial: 4 }, sorts: [], sort: null },
@@ -236,6 +240,10 @@ export default class UtilGadgetConfig {
             case 'AD':
                 out.adType = 'WIDE_BANNER';
                 break;
+            case 'HOT_DEALS':
+                // 비우면 모든 핫딜 게시판
+                out.boards = [];
+                break;
         }
         return out;
     }
@@ -298,6 +306,10 @@ export default class UtilGadgetConfig {
                 break;
             case 'AD':
                 out.adType = oneOf(c.adType, AD_BANNER_TYPES, 'WIDE_BANNER');
+                break;
+            case 'HOT_DEALS':
+                // 핫딜 게시판 slug — 모양이 맞는 것만, 겹침 없이 고른 차례로(20개까지)
+                out.boards = Array.isArray(c.boards) ? [...new Set(c.boards.filter((s): s is string => typeof s === 'string' && SLUG.test(s)))].slice(0, BOARD_PICK_MAX) : [];
                 break;
         }
         return out;

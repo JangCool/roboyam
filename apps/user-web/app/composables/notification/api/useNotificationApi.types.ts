@@ -53,7 +53,16 @@ export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'P
     // 사업자 신원(V111) — 접수·승인·반려·정지·해제·재심사(서버가 제목·본문을 그린다, `link` 는 `/business`)
     | 'BUSINESS'
     // 사업자 신청 건(V112) — 접수·승인(결제 요청)·반려·결제·기한 임박·시작·종료 임박·중단·환불 등(끌 수 없는 거래 알림, 서버가 제목·본문을 그린다, `link` 는 `/business/applications/{id}`)
-    | 'BIZ_APPLICATION';
+    | 'BIZ_APPLICATION'
+    /**
+     * 회원 핫딜(V122 — `docs/features/hotdeal-contract.md`, 묶음 `system`, 받는 사람 = 그 딜의 작성자, 모두 끌 수 없는 처리 알림. 문구는 서버 `title`·`body`, `link` `/posts/{postId}`):
+     * 종료 요청이 문턱만큼 모여 의심이 됨 · 의심 유예가 지나 자동 종료 · 운영진 종료(사유는 `body`) · 마감 없는 딜의 기간 종료(한 번) · 재개됐는데 기간이 이미 지남(「마감을 고쳐 주세요」)
+     */
+    | 'DEAL_FLAGGED'
+    | 'DEAL_AUTO_ENDED'
+    | 'DEAL_MANAGER_ENDED'
+    | 'DEAL_EXPIRED'
+    | 'DEAL_REOPENED_FIX_ENDS';
 
 /**
  * 알림 묶음 — 댓글·답글 · 계정(포인트 회수·소멸 예정·신고 숨김·닉네임 그림 검토·기능 제한 · 소모임 `GROUP_*` 전부 — 서버 `MemberNotificationType` 이 `system` 으로 묶는다) ·

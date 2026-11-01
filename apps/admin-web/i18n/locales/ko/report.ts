@@ -101,6 +101,11 @@ export default {
         OFFLINE_RISK: '오프라인 모임 위험',
         STOCK_RECOMMENDATION: '종목 추천·유료 모집',
     },
+    // 핫딜 글에서만 보이는 신고 사유(hotdeal-contract)
+    dealReason: {
+        DEAL_FALSE_PRICE: '가격·정보가 사실과 달라요',
+        DEAL_HIDDEN_AD: '광고·홍보를 숨겼어요',
+    },
     status: {
         PENDING: '대기',
         IN_REVIEW: '검토 중',
@@ -115,6 +120,7 @@ export default {
         KEEP_HIDDEN: '자동 숨김 확정',
         DELETE: '삭제',
         DEACTIVATE: '소모임 비활성화',
+        DEAL_END: '핫딜 종료',
         DISMISS: '무시',
     },
     actionName: {
@@ -122,6 +128,7 @@ export default {
         KEEP_HIDDEN: '자동 숨김 확정',
         DELETE: '삭제',
         DEACTIVATE: '소모임 비활성화',
+        DEAL_END: '핫딜 종료',
         DISMISS: '무시',
     },
     dialog: {
@@ -141,12 +148,19 @@ export default {
             title: '소모임을 비활성화할까요?',
             text: '소모임 관리의 비활성화와 같아요 — 공개 사이트에서는 안내 화면만 보이고, 모임장에게 처리 글(200자까지)이 사유로 알림으로 가요. 비활성 기록에 이 사건 번호가 남아요. 소모임 관리에서 다시 열 수 있어요. 사건은 처리됨으로 닫혀요.',
         },
+        DEAL_END: {
+            title: '이 핫딜을 종료할까요?',
+            text: '핫딜 글 관리의 운영진 종료와 같아요 — 목록에서 종료 딜로 보이고 구매 링크가 꺼져요. 작성자에게 처리 글(200자까지)이 종료 사유로 알림으로 가요. 글은 숨기지 않아요(필요하면 숨기기를 따로 해요). 사건은 처리됨으로 닫혀요.',
+        },
         DISMISS: {
             title: '이 신고를 무시할까요?',
             text: '위반이 아니라고 보고 사건을 닫아요. 게시판 정책이 켜져 있으면 신고한 회원에게 「위반이 확인되지 않았어요」 결과가 가요. 무시한 사건은 다시 열 수 있어요.',
         },
     },
     dismissRestores: '이 대상은 신고로 자동 숨겨져 있어요. 무시하면 다시 보여요.',
+    dealCase: '핫딜 글 사건이에요.',
+    dealCaseState: '핫딜 글 사건이에요 — 딜 상태: {state}',
+    dealFalsePriceNote: '「가격·정보가 사실과 달라요」 신고는 종료 요청 「가격 변경」으로도 세어지고(같은 회원 1번) 신고 자동 숨김 셈에서는 빠져요. 「광고·홍보를 숨겼어요」는 자동 숨김 셈에 들어가요.',
     dismissStaffKeeps: '운영자가 숨긴 대상이라 무시해도 숨김은 그대로예요.',
     reasonCodeLabel: '사유',
     reasonCodePlaceholder: '사유 고르기',
@@ -167,6 +181,7 @@ export default {
         KEEP_HIDDEN: '자동 숨김을 확정하고 사건을 닫았어요.',
         DELETE: '대상을 삭제하고 사건을 닫았어요.',
         DEACTIVATE: '소모임을 비활성화하고 사건을 닫았어요.',
+        DEAL_END: '핫딜을 종료하고 사건을 닫았어요.',
         DISMISS: '신고를 무시했어요.',
         REOPEN: '사건을 다시 열었어요.',
     },
@@ -208,6 +223,7 @@ export default {
     detailLoadFailed: '사건을 불러오지 못했어요',
     targetTitle: '대상',
     openPostAdmin: '게시글 관리에서 보기',
+    openHotdealAdmin: '핫딜 글에서 보기',
     openGroupAdmin: '소모임 관리에서 보기',
     groupLeader: '모임장',
     groupLeaderNow: '지금 모임장',

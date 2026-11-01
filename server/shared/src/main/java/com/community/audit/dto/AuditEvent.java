@@ -8,7 +8,7 @@ import java.util.Map;
 /**
  * 감사 기록으로 남길 일 하나. <b>비밀번호·토큰은 {@code detail} 에도 넣지 않는다</b> — 호출하는 쪽이 지킨다.
  *
- * @param actorId    행위자 운영자 ID. 로그인하지 않은 행위(로그인 실패 등)는 null
+ * @param actorId    행위자 운영자 ID(회원 행위자 {@link AuditActorType#MEMBER} 면 회원 ID). 로그인하지 않은 행위(로그인 실패 등)는 null
  * @param targetType 대상 종류(예: {@code ROLE} · {@code OPERATOR}). 없으면 null
  * @param targetId   대상 식별자(문자열). 없으면 null
  * @param ip         요청자 IP. 요청 밖의 일이면 null
@@ -24,6 +24,11 @@ public record AuditEvent(AuditActorType actorType, Long actorId, String action, 
     /** 로그인한 운영자가 한 일 */
     public static AuditEvent byOperator(long actorId, String ip, String action, AuditResult result) {
         return new AuditEvent(AuditActorType.OPERATOR, actorId, action, result, null, null, ip, Map.of());
+    }
+
+    /** 로그인한 회원이 공개 사이트에서 한 운영 일(게시판 매니저·스텝의 핫딜 종료·재개) — {@code actorId} = 회원 ID */
+    public static AuditEvent byMember(long memberId, String ip, String action, AuditResult result) {
+        return new AuditEvent(AuditActorType.MEMBER, memberId, action, result, null, null, ip, Map.of());
     }
 
     /** 로그인하지 않은 사람의 일(로그인 실패 등) */

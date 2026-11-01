@@ -221,6 +221,14 @@ public final class MessageTargetCatalog {
         out.add(member(MemberEvent.BIZ_APPLICATION, List.of(MessageVariable.of("bizTitle", "bizApplicationTitle"), MessageVariable.of("detail", "bizApplicationDetail")),
                 new InAppText("member.notification.BIZ_APPLICATION.title", "member.notification.BIZ_APPLICATION.body", null, List.of("bizTitle", "detail")),
                 "/business/applications/123", List.of()));
+        // 회원 핫딜(V122 — hotdeal-contract 규칙 9) — 글 제목(+운영진 종료 사유). 누르면 그 글
+        for (MemberEvent deal : List.of(MemberEvent.DEAL_FLAGGED, MemberEvent.DEAL_AUTO_ENDED, MemberEvent.DEAL_EXPIRED, MemberEvent.DEAL_REOPENED_FIX_ENDS)) {
+            out.add(member(deal, List.of(MessageVariable.of("postTitle", "postTitle")),
+                    new InAppText("member.notification." + deal.code() + ".title", "member.notification." + deal.code() + ".body", null, List.of("postTitle")),
+                    "/posts/123", List.of()));
+        }
+        out.add(member(MemberEvent.DEAL_MANAGER_ENDED, List.of(MessageVariable.of("postTitle", "postTitle"), MessageVariable.of("reason", "dealEndReason")),
+                new InAppText("member.notification.DEAL_MANAGER_ENDED.title", null, "{{reason}}", List.of("postTitle")), "/posts/123", List.of()));
         // 소모임(V90 — group-contract 1단계) — 소모임 이름(+반려·거절·비활성 사유, 가입 신청한 회원)
         out.add(groupEvent(MemberEvent.GROUP_APPROVED, null, "/groups/123"));
         out.add(groupEvent(MemberEvent.GROUP_REJECTED, "groupRejectReason", "/groups/me"));

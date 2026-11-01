@@ -100,9 +100,13 @@ export default {
     adReviews: '광고 심사',
     ads: '광고 일정표',
     adPlacements: '광고 기본 설정',
-    // 핫딜 묶음 — 핫딜 심사
+    // 핫딜 묶음 — 핫딜 심사 · 핫딜 글 · 링크 규칙 · 의심 후보 · 핫딜 설정
     hotdeal: '핫딜',
     hotdealReviews: '핫딜 심사',
+    hotdeals: '핫딜 글',
+    hotdealDomains: '링크 규칙',
+    hotdealSuspicions: '의심 후보',
+    hotdealSettings: '핫딜 설정',
     operatorsAndPermissions: '운영자와 권한',
     operators: '운영자 관리',
     roles: '역할 관리',

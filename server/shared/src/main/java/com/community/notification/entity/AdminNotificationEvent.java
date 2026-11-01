@@ -94,7 +94,21 @@ public enum AdminNotificationEvent {
     NICKNAME_IMAGE_PENDING(spec(MEMBER, INFO).holders(Permission.NICKNAME_IMAGE_MANAGE).link("/members/nickname-images").collapse(300)),
     /** 소모임 개설 신청 대기 — 승인제에서 회원이 개설을 신청할 때(api GroupCreateService, V90). 5분 안의 연속 신청은 한 건. 2026-10-26 예약을 풀었다 */
     CLUB_OPEN_REQUEST_PENDING(spec(CLUB, INFO).holders(Permission.GROUP_MANAGE).link("/group-requests").collapse(300)),
-    HOTDEAL_SUSPECTED_PROMO(spec(HOTDEAL, WARNING).holders(Permission.HOTDEAL_MANAGE).reserved()),
+    /**
+     * 위장 홍보 의심 후보가 새로 열렸다(회원 후보 · 판매처 후보 — 배치 hotdeal-suspicion, 자동 제재 없음). 링크는 의심 후보 서랍({@code suspicion} = 후보 ID).
+     * 회원 핫딜 1차 서버 2단계에서 예약을 풀었다. 같은 후보는 열린 동안 다시 알리지 않는다(후보 표의 열린 후보 하나)
+     */
+    HOTDEAL_SUSPECTED_PROMO(spec(HOTDEAL, WARNING).holders(Permission.HOTDEAL_MANAGE).link("/hotdeals/suspicions?suspicion={id}")),
+    /**
+     * 회원 핫딜 글의 상품 링크 호스트가 바뀌었다(D3 — 작성자 고치기). 같은 글은 하루 한 건(묶음 키 = 글 ID). 링크는 관리자 핫딜 글 서랍({@code deal} = 글 ID — 메모 1-8).
+     * 회원 핫딜 1차 서버 1단계에서 발행을 붙였다
+     */
+    HOTDEAL_LINK_HOST_CHANGED(spec(HOTDEAL, INFO).holders(Permission.HOTDEAL_MANAGE).link("/hotdeals?view=ALL&deal={postId}").collapse(86400)),
+    /**
+     * 「아직 진행 중」 한도({@code keepMaxCount})를 다 쓴 딜이 다시 의심이 됐다 — 작성자는 더 누를 수 없어 「운영자 확인 중」으로 보인다(종료 요청이 문턱에 닿은 요청 안에서).
+     * 같은 글은 하루 한 건(묶음 키 = 글 ID). 링크는 핫딜 글 서랍. 회원 핫딜 1차 서버 2단계
+     */
+    HOTDEAL_KEEP_LIMIT(spec(HOTDEAL, WARNING).holders(Permission.HOTDEAL_MANAGE).link("/hotdeals?view=ALL&deal={postId}").collapse(86400)),
     /**
      * 공구 주문 이상 — 결제를 받았는데 공구가 거절했다(선점 부족 등 불변식이 깨진 REJECT)·에스크로 호출을 끝내 그만뒀다(2b-4, 계약 결정 12·64). 같은 주문은 하루에 한 건(묶음 키 = 주문 ID).
      * 링크는 주문 목록(주문 번호로 찾기)

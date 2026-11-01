@@ -1,6 +1,7 @@
 package com.community.home.service;
 
 import com.community.board.service.BoardCatalog;
+import com.community.board.service.BoardFields;
 import com.community.home.dto.HomeGadgetSpec;
 import com.community.home.dto.HomeGridLayout;
 import com.community.home.dto.HomeLayoutItem;
@@ -101,6 +102,8 @@ public class GadgetLayoutWriter {
         Map<String, HomeGadgetEntity> storedById = new HashMap<>();
         stored.forEach(g -> storedById.put(Long.toString(g.getId()), g));
         Predicate<String> boardExists = slug -> catalog.snapshot().board(slug).isPresent();
+        // 핫딜 가젯의 boards — 있는 핫딜 게시판(kind DEAL)만
+        Predicate<String> dealBoard = slug -> catalog.snapshot().board(slug).filter(b -> BoardFields.KIND_DEAL.equals(b.kind())).isPresent();
 
         // ── 가젯: 남길 것 · 시드에서 만들 것 · 새로 만들 것 ──
         List<HomeLayoutSaveRequest.Gadget> wanted = request == null || request.gadgets() == null ? List.of() : request.gadgets();
@@ -146,7 +149,7 @@ public class GadgetLayoutWriter {
                 continue;
             }
             typeOf.put(id, base.type());
-            HomeGadgetSpec next = edited(target, base, g, created, boardExists, path, fields);
+            HomeGadgetSpec next = edited(target, base, g, created, boardExists, dealBoard, path, fields);
             if (next != null) {
                 plans.add(new Plan(id, keep, next));
             }
@@ -259,11 +262,15 @@ public class GadgetLayoutWriter {
             config.put("boardScope", target.place().initialScope());
             config.putArray("boardIds");
         }
+        if (HomeGadgetKinds.HOT_DEALS.equals(type)) {
+            config.putArray("boards"); // 비우면 모든 핫딜 게시판
+        }
         return new HomeGadgetSpec(id, type, title, true, true, HomeGadgetKinds.baseStyle(target.theme(), type), config, null);
     }
 
     /** 보낸 제목 · 노출 · 꾸미기 · 내용 설정을 덮은 값 — 틀리면 모으고 null */
-    private static HomeGadgetSpec edited(Target target, HomeGadgetSpec base, HomeLayoutSaveRequest.Gadget g, boolean fresh, Predicate<String> boardExists, String path,
+    private static HomeGadgetSpec edited(Target target, HomeGadgetSpec base, HomeLayoutSaveRequest.Gadget g, boolean fresh, Predicate<String> boardExists,
+                                         Predicate<String> dealBoard, String path,
                                          Map<String, MessageRef> fields) {
         int errors = fields.size();
         String title = base.title();
@@ -276,7 +283,7 @@ public class GadgetLayoutWriter {
             fields.put(path + ".desktop", new MessageRef("homeLayout.gadget.visible"));
         }
         ObjectNode stylePatch = GadgetPatches.style(g.style(), base.style(), path, fields);
-        ObjectNode configPatch = GadgetPatches.config(base.type(), g.config(), base.config(), target.place(), boardExists, path, fields);
+        ObjectNode configPatch = GadgetPatches.config(base.type(), g.config(), base.config(), target.place(), boardExists, dealBoard, path, fields);
         if (fields.size() > errors) {
             return null;
         }

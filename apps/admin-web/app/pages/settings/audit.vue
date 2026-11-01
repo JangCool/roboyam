@@ -323,8 +323,9 @@ function resultSeverity(result: AuditResult): 'success' | 'danger' | 'warn' {
     return 'danger';
 }
 
-/** 행위자 칸의 글자 — 서버가 준 이름, 없으면(지워진 운영자) 아이디, 둘 다 없으면 행위자 종류로 대신한다 */
+/** 행위자 칸의 글자 — 서버가 준 이름(회원 행위자는 「회원」 표시), 없으면(지워진 운영자) 아이디, 둘 다 없으면 행위자 종류로 대신한다 */
 function actorLabel(row: AuditLogView): string {
+    if (row.actorType === 'MEMBER') return t('audit.actorMember', { name: row.actorName ?? row.actorId ?? '—' });
     if (row.actorName) return row.actorName;
     if (row.actorId) return row.actorId;
     if (row.actorType === 'SYSTEM') return t('audit.actorSystem');

@@ -8,6 +8,7 @@ import type { BoardProtectDelete, PrefixView } from '~/composables/board/api/use
 import type { BlockedBy } from '~/composables/block/api/useBlockApi.types';
 import type { DebateSummary, PostDebateOpen } from '~/composables/board/api/useDebateApi.types';
 import type { PollInput, PollView } from '~/composables/board/api/usePollApi.types';
+import type { DealInput, DealModeration, DealSort, DealStoreChip, DealWarning, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopApi.types';
 
 /**
@@ -164,6 +165,12 @@ export interface PostRow {
     blocked?: BlockedBy | null;
     /** 소모임 글이면 그 소모임(2단계) — 일반 글·옛 응답은 null·없음 */
     group?: PostGroupRef | null;
+    /**
+     * 핫딜 게시판(`kind DEAL`)의 글이면 딜(가격 줄·배지) — 일반 글·숨긴 글·옛 응답은 null·없음(`hotdeal-contract.md`).
+     * 서버 2단계부터 게시판이 섞인 목록 줄(`PostFeedRow` — 가젯·최신글·인기글·검색)에도 핫딜 게시판 글이면 싣는다(숨긴 글은 null). 화면 중 딜을 그리는 곳은
+     * 핫딜 게시판 목록·글 보기·가젯 `HOT_DEALS`(`HotdealRowItem`)뿐이고, 최신글·인기글·검색 등은 계약 화면 경로에 딜 표시가 없어 일반 줄로 그린다(칸은 무시)
+     */
+    deal?: PostDeal | null;
 }
 
 /** 목록 정렬 — 최신순 · 오래된순 */
@@ -180,6 +187,22 @@ export interface PostListQuery {
     page: number;
 }
 
+/**
+ * 핫딜 게시판 목록 `GET /api/boards/{slug}/posts?prefix&sort=latest|popular|ending&hideEnded=true&store&q&page` (`hotdeal-contract.md` 「API 후보」).
+ * 차례는 진행 중 → 의심(FLAGGED) → 끝남(종료·기간 종료), 그 안에서 정렬 키. `ending` 은 마감 있는 글이 마감 빠른 차례, 마감 없는 글은 그 뒤(`autoExpireAt` 차례).
+ * 종료·기간 지난 글은 `hideEnded` 가 켜져 있으면 빠진다(서버 판정, 빠지면 켬). `store` 는 쇼핑몰 이름 정확히 일치. 응답은 `PostListResponse` 그대로(줄에 `deal`).
+ */
+export interface DealPostListQuery {
+    prefix: string;
+    sort: DealSort;
+    /** 종료·기간 지난 글 숨기기 — 기본 켬 */
+    hideEnded: boolean;
+    /** 쇼핑몰 이름(칩) — 비면 전체 */
+    store: string;
+    q: string;
+    page: number;
+}
+
 export interface PostListResponse {
     /** 고정 공지 — 첫 쪽·말머리/검색 없음일 때만, 최대 `pinnedMax` */
     pinned: PostRow[];
@@ -187,6 +210,10 @@ export interface PostListResponse {
     page: number;
     totalPages: number;
     totalCount: number;
+    /**
+     * 핫딜 게시판만 — 쇼핑몰 칩(상위 8몰, 글 수 많은 차례). 말머리·종료 숨기기를 적용하고 쇼핑몰 거르기는 적용하지 않은 공개 글 수. 일반 게시판은 null·옛 응답은 없음
+     */
+    stores?: DealStoreChip[] | null;
 }
 
 /**
@@ -279,6 +306,15 @@ export interface PostDetail {
      * 소모임 글의 게시판은 공개 게시판 API(`GET /api/boards/{slug}`)에 없으므로 화면은 `GET /api/groups/{id}/board` 로 게시판 정보를 받는다(`useGroupApi.board`).
      */
     group?: PostGroupInfo | null;
+    /** 핫딜 글이면 딜 — 본문 위 딜 카드(`hotdeal-contract.md`). 일반 글·옛 응답은 null·없음 */
+    deal?: PostDeal | null;
+    /**
+     * 게시판 관리(핫딜 종료·재개) — 보는 사람이 그 게시판 매니저·스텝(정지 아님)이고 핫딜 글이면 객체, 아니면 null·없음(옛 응답).
+     * 작성자 본인이 매니저여도 작성자 조치와 별개로 실린다(딜 카드가 「게시판 관리」 영역을 따로 그린다)
+     */
+    dealModeration?: DealModeration | null;
+    /** 고치기 응답(`PUT`)에만 — 저장은 됐지만 알릴 것(예 `DEAL_LINK_BLOCKED`). 글 보기(`GET`)는 null */
+    warnings?: DealWarning[] | null;
 }
 
 /** 비회원 작성 정보 — 이름·비밀번호(수정·삭제용, 서버는 해시로만 저장)·자동입력 방지 토큰 */
@@ -307,10 +343,14 @@ export interface PostWriteRequest {
     debate?: PostDebateOpen | null;
     /** 글과 함께 투표를 붙인다(회원이고 게시판 `pollEnabled` 일 때만 — 아니면 `400 fields.poll`). 붙이지 않으면 null */
     poll?: PollInput | null;
+    /** 핫딜 게시판이면 필수 — 딜 정보(오류는 `400 VALIDATION fields."deal.*"` 로 다른 칸 오류와 함께). 그 밖 게시판은 보내지 않는다 */
+    deal?: DealInput | null;
 }
 
 export interface PostWriteResult {
     id: string;
+    /** 저장은 됐지만 알릴 것(핫딜 — `hotdeal-contract.md`). 없으면 빈 목록 */
+    warnings?: DealWarning[];
 }
 
 /** `PUT /api/posts/{id}` — 비회원 글은 `password` 필수 */
@@ -326,6 +366,11 @@ export interface PostUpdateRequest {
      * (화면은 투표 칸을 바꾸지 않았거나 표가 있어 고칠 수 없을 때 칸을 뺀다)
      */
     poll?: PollInput | null;
+    /**
+     * 핫딜 글의 딜 — 바꿨을 때만 싣는다. **칸을 빼면 그대로**(그래도 서버가 저장된 링크를 지금 규칙으로 다시 판정해 `warnings` 로 알린다), JSON null 은 거절(`fields.deal`).
+     * 종료된 딜은 고칠 수 없어(`409 DEAL_ENDED`) 늘 뺀다
+     */
+    deal?: DealInput;
 }
 
 /** `DELETE /api/posts/{id}` 본문 — 비회원 글은 `password` 필수 */

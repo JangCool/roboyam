@@ -8,14 +8,17 @@
  */
 import type { HomeLayout } from '#layers/home-layout/utils/util-home-layout';
 
-/** 가젯 종류 8종 + 광고 2종(user-web `GadgetKind` 와 같은 키) — 광고는 서버 `HomeGadgetKinds` 가 아직 몰라 편집기가 저장을 막는다 */
-export type HomeGadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'QUICK_LINKS' | 'NOTICE_TEXT' | 'AD' | 'AD_TEXT_LINE';
+/** 가젯 종류 8종 + 광고 2종 + 핫딜(`HOT_DEALS` — 회원 핫딜 1차, user-web `GadgetKind` 와 같은 키, 서버 `HomeGadgetKinds.HOT_DEALS`) */
+export type HomeGadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'HOT_DEALS' | 'QUICK_LINKS' | 'NOTICE_TEXT' | 'AD' | 'AD_TEXT_LINE';
 
 /** 광고 일정표 유형(`AdType`) 중 배너 넷 */
 export type HomeAdBannerType = 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER';
 
 /** 공구 가젯 정렬 — 마감 임박 순(기본) · 새로 시작한 순 · 참여 많은 순(사용자 결정 2026-10-29) */
 export type HomeGroupBuySort = 'DEADLINE' | 'NEWEST' | 'POPULAR';
+
+/** 핫딜 가젯 정렬 — 최신(기본) · 인기 · 마감 임박(hotdeal-contract 「가젯 `HOT_DEALS` 설정」) */
+export type HomeHotDealSort = 'LATEST' | 'POPULAR' | 'ENDING_SOON';
 
 /** 글 목록 가젯 정렬 — 서버 `HomeGadgetService` 가 읽는 값: 최신 · 인기(순위 스냅샷) · 조회 · 추천 · 댓글(셋은 이번 주 인기글 후보를 그 수로 다시 정렬) */
 export type HomePostListSort = 'LATEST' | 'POPULAR' | 'VIEWS' | 'LIKES' | 'COMMENTS';
@@ -48,6 +51,7 @@ export interface HomeQuickLink {
 /**
  * 가젯 내용 설정(실제 화면의 ⚙ → 설정 창 「내용」) — 서버 JSON 그대로의 평평한 모양이고 종류마다 쓰는 칸만 채운다. 고칠 수 있는 칸·범위·처음 값은 `UtilGadgetConfig`.
  *   · `GROUP_BUY` `count`(1~10) · `sort`(HomeGroupBuySort)
+ *   · `HOT_DEALS` `boards`(핫딜 게시판 slug, 비우면 전체) · `sort`(HomeHotDealSort) · `count`(1~10, 기본 5) — 진행 중만, 비면 영역을 그리지 않는다(hotdeal-contract)
  *   · `POST_LIST` `boardScope`·`boardIds` · `count`(1~30) · `sort`(HomePostListSort) · `periodTabs`(인기일 때 실시간·어제·이번 주 탭)
  *       + 보기 모양 `rowStyle` · `columns` 1·2 · `thumbnail` · `titleLines` 0·1·2 · `lead` NONE·HERO · `meta` · `dividers` · `newBadgeHours` 0~72 · `hotBadgeLikes` 0~1000
  *   · `GALLERY` `boardScope`·`boardIds` · `count`(1~24)
@@ -59,7 +63,9 @@ export interface HomeQuickLink {
  */
 export interface HomeGadgetConfig {
     count?: number;
-    sort?: HomeGroupBuySort | HomePostListSort;
+    sort?: HomeGroupBuySort | HomePostListSort | HomeHotDealSort;
+    /** 핫딜 가젯의 핫딜 게시판 slug 목록(비우면 모든 핫딜 게시판 — hotdeal-contract) */
+    boards?: string[];
     boardScope?: HomeBoardScope;
     boardIds?: string[];
     periodTabs?: boolean;

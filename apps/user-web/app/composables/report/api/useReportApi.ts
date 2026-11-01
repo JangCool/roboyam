@@ -5,6 +5,8 @@ import type { ReportRequest } from '~/composables/report/api/useReportApi.types'
  * 오류: 로그인 필요 `401 UNAUTHENTICATED` · 신고 끔 `403 REPORT_DISABLED` · 대상 없음 `404 REPORT_TARGET_NOT_FOUND` · 이미 신고 `409 ALREADY_REPORTED` ·
  * 내 글 `400 CANNOT_REPORT_OWN` · 신고 차단 `403 REPORT_BLOCKED` · 간격 `429 REPORT_TOO_FAST` · 하루 한도 `429 REPORT_DAILY_LIMIT` · 정지 `403 ACCOUNT_RESTRICTED` · 권한 없음 `403 BOARD_RESTRICTED` ·
  * 입력 `400 VALIDATION`(`fields.detail` 등).
+ * 핫딜 글 전용 사유 `DEAL_FALSE_PRICE`·`DEAL_HIDDEN_AD` — 핫딜 글이 아닌 글·댓글에 보내면 `400 fields.reason`(`hotdeal-contract.md`, 서버 2단계).
+ * D4: `DEAL_FALSE_PRICE` 신고도 204 — 서버가 안에서 종료 요청 `PRICE_CHANGED` 1건으로 바꿔 접수한다(이미 알렸거나 자격 미달이면 신고만 조용히 받는다).
  *
  * 서버 연결됨(2026-10-22).
  */

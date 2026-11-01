@@ -58,6 +58,7 @@ import report from './report';
 import business from './business';
 import bizApplication from './bizApplication';
 import ad from './ad';
+import hotdeal from './hotdeal';
 
 export default {
     account,
@@ -113,4 +114,5 @@ export default {
     business,
     bizApplication,
     ad,
+    hotdeal,
 };

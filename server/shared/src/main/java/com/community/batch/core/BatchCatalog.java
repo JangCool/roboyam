@@ -168,7 +168,22 @@ public enum BatchCatalog implements BatchDefinition {
     BIZ_PAYMENT_DUE_NOTICE("biz-payment-due-notice", BatchCategory.MEMBER, BatchSource.JAVA, "0 5 * * * *", true),
 
     /** 사업자 신청 건 시작·종료 임박 알림(24시간 전 한 번씩 — F9, Java 배치 {@code BizScheduleNoticeJob}, 단계 start·end). 기본 매시 15분 */
-    BIZ_SCHEDULE_NOTICE("biz-schedule-notice", BatchCategory.MEMBER, BatchSource.JAVA, "0 15 * * * *", true);
+    BIZ_SCHEDULE_NOTICE("biz-schedule-notice", BatchCategory.MEMBER, BatchSource.JAVA, "0 15 * * * *", true),
+
+    /**
+     * 의심 핫딜 자동 종료 — 의심이 된 지 유예({@code deal_settings.end_grace_hours}, 0 = 안 함)가 지난 딜을 자동 종료 + 의심 구간 요청자 보상 + 작성자 알림(Java 배치 {@code DealAutoEndJob},
+     * hotdeal-contract 「배치」). 기본 10분마다. 포인트가 걸린 업무라 분류는 회원(MEMBER).
+     */
+    HOTDEAL_AUTO_END("hotdeal-auto-end", BatchCategory.MEMBER, BatchSource.JAVA, "0 */10 * * * *", true),
+
+    /** 마감 없는 핫딜의 기간 종료 알림(한 번 — Java 배치 {@code DealExpiryNoticeJob}). 기본 매시 20분. 분류는 회원(MEMBER) */
+    HOTDEAL_EXPIRY_NOTICE("hotdeal-expiry-notice", BatchCategory.MEMBER, BatchSource.JAVA, "0 20 * * * *", true),
+
+    /** 핫딜 정리 — OG 사본(딜 종료·글 삭제 90일 뒤)·딜 칸 수정 이력(6개월). Java 배치 {@code DealCleanupJob}(저장소 파일을 지운다), 기본 매일 04:05 KST */
+    HOTDEAL_CLEANUP("hotdeal-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 5 4 * * *", true),
+
+    /** 위장 홍보 의심 후보 계산(회원·판매처 — 자동 제재 없음, 관리자 알림). Java 배치 {@code DealSuspicionJob}, 기본 매시 40분. 알리기만 하므로 정리(SYSTEM) 분류 */
+    HOTDEAL_SUSPICION("hotdeal-suspicion", BatchCategory.SYSTEM, BatchSource.JAVA, "0 40 * * * *", true);
 
     private static final Pattern PROCEDURE_NAME = Pattern.compile("[a-z][a-z0-9_]{0,62}");
 

@@ -35,14 +35,28 @@ public final class HomeGadgetKinds {
     public static final int BOARD_BODY_MIN_W = 6;
     public static final int BOARD_BODY_MIN_H = 20;
 
+    /**
+     * 핫딜 가젯(회원 핫딜 1차 — hotdeal-contract 「데이터 모양」, 서버 2단계에서 종류 목록에 넣었다) — 최소 크기는 공구 가젯과 같다(12칸 기준 3×8, admin-web
+     * {@code UtilHomeLayoutEditor.KINDS}). 설정 {@code boards}(핫딜 게시판 slug, 비우면 모두 — 일반 대상 게시판 {@code boardScope} 와 다른 종류만의 칸) · {@code sort} ·
+     * {@code count} 1~{@value #HOT_DEALS_COUNT_MAX}(기본 {@value #HOT_DEALS_COUNT_DEFAULT}). 공개 데이터는 진행 중(ACTIVE — 의심·종료·기간 종료 제외)·공개 글만.
+     */
+    public static final String HOT_DEALS = "HOT_DEALS";
+    public static final int HOT_DEALS_COUNT_DEFAULT = 5;
+    public static final int HOT_DEALS_COUNT_MAX = 10;
+    /** 최신(기본) · 인기 · 마감 임박 */
+    public static final List<String> HOT_DEALS_SORTS = List.of("LATEST", "POPULAR", "ENDING_SOON");
+    public static final String HOT_DEALS_SORT_DEFAULT = "LATEST";
+
     /** 광고 배너 가젯 — {@code config.adType}(배너 넷, 처음 {@code WIDE_BANNER} — 날개 배너는 가젯에 없다) */
     public static final String AD = "AD";
     /** 한 줄 광고 가젯 — {@code config.count} 1~5(처음 3) */
     public static final String AD_TEXT_LINE = "AD_TEXT_LINE";
 
     /** 종류 → 머리 아이콘(로보얌 테마의 새 가젯) */
-    private static final Map<String, String> ICONS = Map.of("HIGHLIGHT", "pi-sparkles", "POST_LIST", "pi-list", "BOARD_CARDS", "pi-th-large", "GALLERY", "pi-images",
-            "GROUPS", "pi-users", "GROUP_BUY", "pi-shopping-bag", "QUICK_LINKS", "pi-link", "NOTICE_TEXT", "pi-megaphone", AD, "pi-image", AD_TEXT_LINE, "pi-bars");
+    private static final Map<String, String> ICONS = Map.ofEntries(Map.entry("HIGHLIGHT", "pi-sparkles"), Map.entry("POST_LIST", "pi-list"),
+            Map.entry("BOARD_CARDS", "pi-th-large"), Map.entry("GALLERY", "pi-images"), Map.entry("GROUPS", "pi-users"), Map.entry("GROUP_BUY", "pi-shopping-bag"),
+            Map.entry(HOT_DEALS, "pi-ticket"), Map.entry("QUICK_LINKS", "pi-link"), Map.entry("NOTICE_TEXT", "pi-megaphone"), Map.entry(AD, "pi-image"),
+            Map.entry(AD_TEXT_LINE, "pi-bars"));
 
     /** 종류 → {minW, minH}(12칸 기준) */
     private static final Map<String, int[]> MIN = minSizes();
@@ -78,6 +92,22 @@ public final class HomeGadgetKinds {
     public static String groupBuySort(JsonNode config) {
         String sort = HomeLayoutJson.text(config, "sort", GROUP_BUY_SORT_DEFAULT);
         return GROUP_BUY_SORTS.contains(sort) ? sort : GROUP_BUY_SORT_DEFAULT;
+    }
+
+    /** 핫딜 가젯 설정의 보일 개수 — 없거나 정수가 아니면 기본, 1~{@value #HOT_DEALS_COUNT_MAX} 로 자른다 */
+    public static int hotDealsCount(JsonNode config) {
+        return HomeLayoutJson.number(config, "count", HOT_DEALS_COUNT_DEFAULT, 1, HOT_DEALS_COUNT_MAX);
+    }
+
+    /** 핫딜 가젯 설정의 정렬 — 없거나 모르는 값이면 최신 */
+    public static String hotDealsSort(JsonNode config) {
+        String sort = HomeLayoutJson.text(config, "sort", HOT_DEALS_SORT_DEFAULT);
+        return HOT_DEALS_SORTS.contains(sort) ? sort : HOT_DEALS_SORT_DEFAULT;
+    }
+
+    /** 핫딜 가젯 설정의 핫딜 게시판 slug — 글자만, 겹침 없이 고른 차례로 {@value GadgetConfigs#BOARD_PICK_MAX}개까지(비면 모든 핫딜 게시판) */
+    public static List<String> hotDealsBoards(JsonNode config) {
+        return HomeLayoutJson.texts(config, "boards").stream().map(String::strip).filter(s -> !s.isEmpty()).distinct().limit(GadgetConfigs.BOARD_PICK_MAX).toList();
     }
 
     /**
@@ -141,6 +171,7 @@ public final class HomeGadgetKinds {
         min.put("GALLERY", new int[]{3, 6});
         min.put("GROUPS", new int[]{3, 6});
         min.put("GROUP_BUY", new int[]{3, 8});
+        min.put(HOT_DEALS, new int[]{3, 8});
         min.put("QUICK_LINKS", new int[]{3, 2});
         min.put("NOTICE_TEXT", new int[]{2, 3});
         min.put(AD, new int[]{2, 2});

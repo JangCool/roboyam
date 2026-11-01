@@ -217,7 +217,7 @@ export default class UtilPermissionCatalog {
         { code: 'group.settings', unit: 'CONFIG', type: 'club', nameKey: 'permission.item.groupSettings', descKey: 'permission.item.groupSettingsDesc', featureReady: true },
         { code: 'hotdeal.read', unit: 'READ', type: 'hotdeal', nameKey: 'permission.item.hotdealRead', descKey: 'permission.item.hotdealReadDesc', featureReady: true },
         { code: 'hotdeal.manage', unit: 'MANAGE', type: 'hotdeal', nameKey: 'permission.item.hotdealManage', descKey: 'permission.item.hotdealManageDesc', featureReady: true },
-        { code: 'hotdeal.domain.manage', unit: 'CONFIG', type: 'hotdeal', nameKey: 'permission.item.hotdealDomainManage', descKey: 'permission.item.hotdealDomainManageDesc', featureReady: false },
+        { code: 'hotdeal.domain.manage', unit: 'CONFIG', type: 'hotdeal', nameKey: 'permission.item.hotdealDomainManage', descKey: 'permission.item.hotdealDomainManageDesc', featureReady: true },
         { code: 'commerce.product.read', unit: 'READ', type: 'gbPlan', nameKey: 'permission.item.commerceProductRead', descKey: 'permission.item.commerceProductReadDesc', featureReady: true },
         { code: 'commerce.product.manage', unit: 'MANAGE', type: 'gbPlan', nameKey: 'permission.item.commerceProductManage', descKey: 'permission.item.commerceProductManageDesc', featureReady: true },
         { code: 'commerce.product.settings', unit: 'CONFIG', type: 'gbPlan', nameKey: 'permission.item.commerceProductSettings', descKey: 'permission.item.commerceProductSettingsDesc', featureReady: false },

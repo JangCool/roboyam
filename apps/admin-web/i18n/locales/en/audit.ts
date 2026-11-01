@@ -39,6 +39,7 @@ export default {
     filterInvalid: 'Check your filters',
     filterInvalidHint: 'Fix the fields marked below, then search again.',
     actorSystem: 'System',
+    actorMember: '{name} (member)',
     actorAnonymous: 'Not signed in',
     filterAfter: 'after {at}',
     filterBefore: 'before {at}',

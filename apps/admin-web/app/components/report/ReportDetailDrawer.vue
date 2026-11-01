@@ -5,7 +5,8 @@
         머리: 대상 제목 · 사건 상태 알약(검토자) · 사건 번호 · 이전/다음 사건(지금 쪽의 줄 순서).
         본문(위에서 아래): 대상(종류·게시판·작성자·대상 상태·첫/마지막 신고 · [게시글 관리에서 보기] `/posts?post=` · [공개 사이트에서 보기] `publicUrl`) ·
           지금 원문 + 신고 당시 스냅샷(다르면 「신고 뒤 수정됨」) · 신고 목록(신고자·사유·메모·시각) · 작성자 카드(제재 자리 「준비 중」) · 처리 결과(닫힌 사건) · 처리 기록(최근 것부터).
-        바닥: 열린 사건 + `report.manage` 면 처리 단추(`actions` — 숨기기 공개 대상만 · 자동 숨김 확정 자동 숨김 대상만 · 삭제 · 무시), 무시한 사건이면 [다시 열기], 그 밖은 까닭 한 줄.
+        핫딜 글 사건(`UtilReport.isDealCase`)이면 신고 목록 위에 「핫딜 글(상태)」 + D4 안내 한 줄.
+        바닥: 열린 사건 + `report.manage` 면 처리 단추(`actions` — 핫딜 종료 핫딜 글만 · 숨기기 공개 대상만 · 자동 숨김 확정 자동 숨김 대상만 · 삭제 · 무시), 무시한 사건이면 [다시 열기], 그 밖은 까닭 한 줄.
         소모임 대상: 게시판 줄은 소모임 게시판이 있을 때만, 작성자 줄은 「모임장」, 링크는 [소모임 관리에서 보기] `/groups?group=`(`group.read`), 원문은 소개(글자), 처리 단추는 [소모임 비활성화](열린 소모임만)·[무시].
         서버 호출은 하지 않는다(`components.md`) — 사건은 `useReportDetail` 로 부른 화면이 받는다. 대기 사건은 열람과 함께 서버가 검토 중으로 바꾼다.
     -->
@@ -139,6 +140,13 @@
                 <h3 :id="`${titleId}-reports`" class="text-sm font-semibold">
                     {{ t('report.reportsTitle') }} <span class="font-normal text-muted-color tabular-nums">{{ t('report.reportCountValue', { n: reports.length }) }}</span>
                 </h3>
+                <!-- 핫딜 글 사건 — D4: 가격 허위 신고는 종료 요청으로도 센다(hotdeal-contract) -->
+                <Message v-if="dealCase" severity="secondary" size="small" :closable="false" icon="pi pi-ticket">
+                    <span class="flex flex-col gap-0.5">
+                        <b class="font-medium">{{ dealViewLabel }}</b>
+                        <span>{{ t('report.dealFalsePriceNote') }}</span>
+                    </span>
+                </Message>
                 <p v-if="reports.length === 0" class="m-0 text-[13px] text-muted-color">{{ t('report.reportsEmpty') }}</p>
                 <ol v-else class="m-0 flex list-none flex-col divide-y divide-(--line) rounded-lg border border-(--line) p-0">
                     <li v-for="entry in reports" :key="entry.id" class="flex flex-col gap-1 px-3 py-2">
@@ -320,6 +328,12 @@ const reports = computed(() => props.detail?.reports ?? []);
 const closure = computed(() => (props.detail && !UtilReport.isOpen(props.detail.case.status) ? UtilReport.closure(props.detail) : null));
 const actionList = computed(() => UtilReport.actionList(props.actions));
 const canReopen = computed(() => props.canManage && props.detail?.case.status === 'DISMISSED');
+/** 핫딜 글 사건 — 딜 상태를 알면(서버 `deal`, 계약 밖) 함께 보인다 */
+const dealCase = computed(() => (props.detail ? UtilReport.isDealCase(props.detail.case) : false));
+const dealViewLabel = computed(() => {
+    const view = props.detail?.case.deal?.view;
+    return view ? t('report.dealCaseState', { state: t(`hotdeal.view.${view}`) }) : t('report.dealCase');
+});
 
 /** 단추가 없을 때 까닭 한 줄 */
 const footerNote = computed(() => {

@@ -2,7 +2,7 @@
     <!--
         가젯 설정 창(⚙) — 홈·가젯 페이지 편집기(`HomeLayoutEditor`)가 연다. 8종 전부(2026-10-30). 구획 셋(탭):
           · 「내용」 종류별 설정(`config` — 칸·범위·처음 값은 `UtilGadgetConfig`):
-              공동구매 — 보일 개수(1~10) · 정렬 / 글 목록 — 대상 게시판 · 개수(1~30) · 정렬 · 인기일 때 기간 탭 + 보기 모양(줄 모양·열·사진·제목 줄·큰 글·줄 정보·구분선·NEW·HOT) /
+              공동구매 — 보일 개수(1~10) · 정렬 / 핫딜(`HOT_DEALS`) — 핫딜 게시판(비우면 전체) · 개수(1~10) · 정렬(최신·인기·마감 임박) / 글 목록 — 대상 게시판 · 개수(1~30) · 정렬 · 인기일 때 기간 탭 + 보기 모양(줄 모양·열·사진·제목 줄·큰 글·줄 정보·구분선·NEW·HOT) /
               갤러리 — 대상 게시판 · 개수(1~24) / 게시판 카드 — 카드로 보일 게시판 · 카드마다 글 수 · 열 수 · 카드 머리 /
               하이라이트 — 개수(1~6) · 큰 글 · 사진(노출할 글은 「하이라이트 관리」) / 인기 소모임 — 개수(1~6) / 바로가기 — 모양 · 항목(12개까지) / 안내 글 — 글(300자) · 모양 /
               광고 배너 — 배너 유형(넓은·띠·네모·작은) / 한 줄 광고 — 줄 수(1~5) (광고 2종은 저장을 편집기가 막는다)
@@ -74,6 +74,22 @@
                                     <small class="text-xs text-muted-color">{{ t('homeLayout.boardPickHint', { max: UtilGadgetConfig.BOARD_PICK_MAX }) }}</small>
                                     <p v-if="boardError" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ boardError }}</p>
                                 </template>
+                            </div>
+
+                            <!-- 핫딜 — 핫딜 게시판(DEAL) 고르기(비우면 모든 핫딜 게시판, hotdeal-contract 「가젯 HOT_DEALS 설정」) -->
+                            <div v-if="gadget.type === 'HOT_DEALS'" class="flex flex-col gap-1.5" data-testid="gadget-hotdeal-boards">
+                                <label :for="`${uid}-hotdeal-boards`" class="text-sm font-medium">{{ t('homeLayout.hotDealBoards') }}</label>
+                                <AppMultiSelect
+                                    v-model="hotDealBoardsModel"
+                                    :options="hotDealBoardOptions"
+                                    :input-id="`${uid}-hotdeal-boards`"
+                                    :placeholder="t('homeLayout.hotDealBoardsAll')"
+                                    :aria-label="t('homeLayout.hotDealBoards')"
+                                    :max-selected-labels="4"
+                                    :selected-items-label="t('homeLayout.boardPicked')"
+                                    :empty-message="hotDealBoardsLoading ? t('common.loading') : hotDealBoardsError || t('homeLayout.boardEmpty')"
+                                />
+                                <small class="text-xs leading-relaxed text-muted-color">{{ t('homeLayout.hotDealBoardsHint') }}</small>
                             </div>
 
                             <!-- 개수 -->
@@ -457,6 +473,8 @@ const uid = useId();
 const { localizedName } = useLocalizedName();
 const { can } = useAdminPermission();
 const { boards, loading: boardsLoading, error: boardsError, load: loadBoards } = useGadgetPageFolders();
+/** 핫딜 가젯이 고를 핫딜 게시판(DEAL) — 핫딜 글 화면과 같은 선택지(`useHotdealBoards` → `GET /api/admin/hotdeals/boards`) */
+const { boards: hotDealBoards, loading: hotDealBoardsLoading, error: hotDealBoardsError, load: loadHotDealBoards } = useHotdealBoards();
 
 type TabKey = 'content' | 'look' | 'show';
 const TABS: readonly TabKey[] = ['content', 'look', 'show'];
@@ -510,6 +528,7 @@ watch(
         tab.value = TABS.find((k) => serverTabs.value.has(k)) ?? 'content';
         submitted.value = false;
         if (spec.value?.boards || g.type === 'QUICK_LINKS') void loadBoards();
+        if (g.type === 'HOT_DEALS') void loadHotDealBoards();
     },
     { immediate: true },
 );
@@ -521,9 +540,30 @@ function optionsOf<T extends string | number>(values: readonly T[], prefix: stri
 
 const scopeOptions = computed(() => UtilGadgetConfig.scopes(props.place).map((value) => ({ value, label: t(`homeLayout.scope_${value}`) })));
 
-const sortOptions = computed(() =>
-    (spec.value?.sorts ?? []).map((value) => ({ value, label: t(props.gadget?.type === 'GROUP_BUY' ? `homeLayout.sort_${value}` : `homeLayout.postSort_${value}`) })),
-);
+/** 정렬 이름 — 공구 `sort_*` · 핫딜 `hotDealSort_*` · 글 목록 `postSort_*` */
+function sortKey(value: string): string {
+    const type = props.gadget?.type;
+    if (type === 'GROUP_BUY') return `homeLayout.sort_${value}`;
+    if (type === 'HOT_DEALS') return `homeLayout.hotDealSort_${value}`;
+    return `homeLayout.postSort_${value}`;
+}
+const sortOptions = computed(() => (spec.value?.sorts ?? []).map((value) => ({ value, label: t(sortKey(value)) })));
+
+/* ── 핫딜 게시판(HOT_DEALS) ── */
+
+/** 고를 핫딜 게시판 — 이미 고른 slug 가 목록에 없으면(꺼짐·지움·종류 바뀜) 그 slug 로 남겨 보인다 */
+const hotDealBoardOptions = computed(() => {
+    const known = hotDealBoards.value.map((b) => ({ value: b.slug, label: boardLabel(b) }));
+    const missing = (draft.value?.boards ?? []).filter((slug) => !known.some((o) => o.value === slug)).map((slug) => ({ value: slug, label: slug }));
+    return [...known, ...missing];
+});
+
+const hotDealBoardsModel = computed<unknown[]>({
+    get: () => draft.value?.boards ?? [],
+    set: (value) => {
+        if (draft.value) draft.value.boards = value.map(String).slice(0, UtilGadgetConfig.BOARD_PICK_MAX);
+    },
+});
 
 /** 이름은 광고 일정표·신청 건과 같은 문구 */
 const adTypeOptions = computed(() => UtilGadgetConfig.AD_BANNER_TYPES.map((value) => ({ value, label: `${t(`bizApplication.adType.${value}`)} · ${t(`homeLayout.adTypeSize_${value}`)}` })));
@@ -692,6 +732,7 @@ const contentNoteKey = computed(() => {
     if (type === 'GROUP_BUY') return 'homeLayout.settingsPreviewNote';
     if (type === 'QUICK_LINKS' || type === 'NOTICE_TEXT') return 'homeLayout.settingsPreviewNoteDirect';
     if (type === 'AD' || type === 'AD_TEXT_LINE') return 'homeLayout.settingsPreviewNoteAd';
+    if (type === 'HOT_DEALS') return 'homeLayout.settingsPreviewNoteHotDeals';
     return 'homeLayout.settingsPreviewNoteBoards';
 });
 

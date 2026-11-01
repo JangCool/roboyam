@@ -80,6 +80,11 @@
                     <Tag v-if="post.adult" :value="t('post.chip.adult')" severity="danger" class="text-[11px]!" />
                     <Tag v-if="post.debate" :value="t('post.chip.debate')" icon="pi pi-comments" severity="secondary" class="text-[11px]!" />
                     <Tag v-if="post.poll" :value="t('post.chip.poll')" icon="pi pi-chart-bar" severity="secondary" class="text-[11px]!" />
+                    <!-- 핫딜 글 — 핫딜 글 화면의 서랍으로(`hotdeal.read`) -->
+                    <Tag v-if="post.deal && !can('hotdeal.read')" :value="t('post.chip.deal')" icon="pi pi-ticket" severity="secondary" class="text-[11px]!" />
+                    <NuxtLink v-else-if="post.deal" :to="{ path: '/hotdeals', query: { view: 'ALL', deal: post.id } }" class="inline-flex rounded-md focus-visible:outline-2 focus-visible:outline-primary" :aria-label="t('post.openHotdeal')">
+                        <Tag :value="t('post.openHotdeal')" icon="pi pi-ticket" severity="secondary" class="cursor-pointer text-[11px]! hover:underline" />
+                    </NuxtLink>
                 </dd>
                 <template v-if="post.group">
                     <dt class="text-muted-color">{{ t('post.groupLabel') }}</dt>
@@ -335,6 +340,8 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const { prefs } = useLayoutPrefs();
+/** 핫딜 글이면 핫딜 글 화면(`/hotdeals?deal=`)으로 잇는다 */
+const { can } = useAdminPermission();
 const { localizedName } = useLocalizedName();
 const time = useDisplayTime();
 const toast = useAppToast();

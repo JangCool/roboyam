@@ -2,6 +2,11 @@ package com.community.post.repository.master;
 
 import com.community.group.entity.GroupStatus;
 import com.community.group.entity.QGroupEntity;
+import com.community.hotdeal.entity.PostDealEntity;
+import com.community.hotdeal.entity.QPostDealEntity;
+import com.querydsl.core.types.OrderSpecifier;
+import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.community.post.dto.PostNeighborData;
 import com.community.post.dto.PostRowData;
 import com.community.post.dto.WriteRateData;
@@ -99,11 +104,7 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
             where = where.and(POST.pinnedAt.isNull());
         }
         if (q != null) {
-            QProfileEntity profile = QProfileEntity.profileEntity;
-            where = where.and(notHidden(POST, now)).and(POST.title.containsIgnoreCase(q)
-                    .or(POST.contentText.coalesce(POST.content).containsIgnoreCase(q))
-                    .or(POST.guestName.containsIgnoreCase(q))
-                    .or(POST.authorId.in(JPAExpressions.select(profile.userId).from(profile).where(profile.nickname.containsIgnoreCase(q)))));
+            where = where.and(search(q, now));
         }
         Long total = query.select(POST.id.count()).from(POST).where(where).fetchOne();
         if (total == null || total == 0 || offset >= total) {
@@ -111,6 +112,76 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
         }
         List<PostRowData> items = query.select(row()).from(POST).where(where)
                 .orderBy(oldest ? POST.id.asc() : POST.id.desc())
+                .offset(offset).limit(limit)
+                .fetch();
+        return new Page(items, total);
+    }
+
+    /** 게시판 안 검색 — 숨긴 글은 빼고 제목·본문(평문 칸)·비회원 이름·회원 닉네임(대소문자 무시) */
+    private static BooleanExpression search(String q, Instant now) {
+        QProfileEntity profile = QProfileEntity.profileEntity;
+        return notHidden(POST, now).and(POST.title.containsIgnoreCase(q)
+                .or(POST.contentText.coalesce(POST.content).containsIgnoreCase(q))
+                .or(POST.guestName.containsIgnoreCase(q))
+                .or(POST.authorId.in(JPAExpressions.select(profile.userId).from(profile).where(profile.nickname.containsIgnoreCase(q)))));
+    }
+
+    /** 핫딜 목록 정렬 — 최신 · 인기(추천) · 마감 임박 */
+    public enum DealSort { LATEST, POPULAR, ENDING }
+
+    /**
+     * 핫딜 게시판 글 목록 한 쪽(hotdeal-contract 「API 후보」·메모 1-5) — 차례는 진행 중 → 의심 → 끝남(종료·기간 종료), 그 안에서 정렬 키.
+     * 마감 임박은 마감 있는 글의 마감 빠른 차례, 마감 없는 글은 그 뒤(기간 종료 = 등록 + 설정 일수 차례 = 등록 차례). 딜 줄이 없는 옛 글은 끝남으로 본다.
+     * 상태 판정은 {@code DealViews#view} 와 같다(한쪽을 고치면 같이 고친다).
+     *
+     * @param hideEnded 종료·기간 종료(와 딜 줄이 없는 글)를 뺀다
+     * @param store     쇼핑몰 이름(정확히 같음) — null 이면 거르지 않는다
+     */
+    public Page dealPage(long boardId, Long prefixId, String q, DealSort sort, boolean hideEnded, String store, boolean excludePinned, int autoExpireDays, long offset,
+                         int limit, Instant now) {
+        QPostDealEntity deal = QPostDealEntity.postDealEntity;
+        BooleanExpression expired = deal.endsAt.isNotNull().and(deal.endsAt.loe(now));
+        if (autoExpireDays > 0) {
+            expired = expired.or(deal.endsAt.isNull().and(deal.createdAt.loe(now.minus(java.time.Duration.ofDays(autoExpireDays)))));
+        }
+        BooleanExpression ended = deal.postId.isNull().or(deal.status.eq(PostDealEntity.ENDED)).or(expired);
+        BooleanExpression where = POST.boardId.eq(boardId).and(alive(POST, now));
+        if (prefixId != null) {
+            where = where.and(POST.prefixId.eq(prefixId));
+        }
+        if (excludePinned) {
+            where = where.and(POST.pinnedAt.isNull());
+        }
+        if (q != null) {
+            where = where.and(search(q, now));
+        }
+        if (hideEnded) {
+            where = where.and(ended.not());
+        }
+        if (store != null) {
+            where = where.and(deal.storeName.eq(store));
+        }
+        Long total = query.select(POST.id.count()).from(POST).leftJoin(deal).on(deal.postId.eq(POST.id)).where(where).fetchOne();
+        if (total == null || total == 0 || offset >= total) {
+            return new Page(List.of(), total == null ? 0 : total);
+        }
+        NumberExpression<Integer> rank = new CaseBuilder().when(ended).then(2).when(deal.flaggedAt.isNotNull()).then(1).otherwise(0);
+        List<OrderSpecifier<?>> order = new java.util.ArrayList<>();
+        order.add(rank.asc());
+        switch (sort) {
+            case POPULAR -> order.add(POST.likeCount.desc());
+            case ENDING -> {
+                order.add(new CaseBuilder().when(deal.endsAt.isNull()).then(1).otherwise(0).asc());
+                order.add(deal.endsAt.asc());
+                order.add(deal.createdAt.asc());
+            }
+            case LATEST -> {
+                // id 차례만
+            }
+        }
+        order.add(POST.id.desc());
+        List<PostRowData> items = query.select(row()).from(POST).leftJoin(deal).on(deal.postId.eq(POST.id)).where(where)
+                .orderBy(order.toArray(OrderSpecifier[]::new))
                 .offset(offset).limit(limit)
                 .fetch();
         return new Page(items, total);

@@ -859,6 +859,36 @@ public class MemberNotificationPublisher {
     }
 
     /** 회원 알림 메일 — 커밋 뒤 발송기가 보낸다. 세이브포인트 일의 <b>마지막</b>에 부른다(뒤에서 실패해 행이 되돌려졌는데 메일만 나가는 일이 없게) */
+    /**
+     * 회원 핫딜 알림(V122 — {@code DEAL_FLAGGED}·{@code DEAL_AUTO_ENDED}·{@code DEAL_MANAGER_ENDED}·{@code DEAL_EXPIRED}·{@code DEAL_REOPENED_FIX_ENDS}) — 그 딜의 작성자에게.
+     * 글 칸 = 그 글(누르면 그 글), 덧붙임 {@code title}(알릴 때 제목) · {@code note}(운영진 종료 사유 — 적었을 때만). 끌 수 없는 처리 알림. 업무 트랜잭션 안에서 부른다
+     * (세이브포인트 — 실패해도 업무를 깨지 않는다). 발행 지점은 shared {@code DealNotices}.
+     */
+    public int deal(MemberNotificationType type, long authorId, long postId, String title, String note) {
+        return isolated.run("member-notification:deal", () -> {
+            EventSwitch on = switchOf(type, authorId);
+            if (!on.delivers() || !writer.receivable(authorId)) {
+                return 0;
+            }
+            String name = cut(title, SNAPSHOT_MAX);
+            String why = note == null || note.isBlank() ? null : note;
+            int made = 0;
+            if (on.inApp()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("title", name);
+                if (why != null) {
+                    payload.put("note", why);
+                }
+                writer.insert(ids.nextId(), authorId, type.name(), null, null, postId, null, MAPPER.writeValueAsString(payload), Instant.now());
+                made = 1;
+            }
+            if (on.email()) {
+                requestEmail(authorId, MemberNotificationMessages.Facts.deal(type, name, why), null, postId);
+            }
+            return made;
+        }, 0);
+    }
+
     private void requestEmail(long userId, MemberNotificationMessages.Facts facts, Long actorUserId, Long postId) {
         events.publishEvent(new MemberEmailRequested(userId, facts, actorUserId, postId));
     }

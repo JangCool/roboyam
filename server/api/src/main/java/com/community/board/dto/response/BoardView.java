@@ -16,9 +16,10 @@ import java.util.List;
  * @param prefixes       켜진 말머리, 정렬 순서대로
  * @param debateEnabled  글쓴이가 자기 글에 찬반 토론을 열 수 있는가(유효 정책 {@code debateEnabled}, 기본 false) — 글쓰기·고치기의 「찬반 토론」 칸(회원일 때)
  * @param pollEnabled    글쓴이가 자기 글에 투표를 붙일 수 있는가(유효 정책 {@code pollEnabled}, 기본 false) — 글쓰기·고치기의 「투표」 칸(회원일 때)
+ * @param kind           게시판 종류 GENERAL · DEAL · PROMO(공개 API 에 소모임 게시판은 나오지 않는다) — 핫딜 계약(hotdeal-contract)
  */
 public record BoardView(String id, String slug, String name, String nameEn, String description, boolean investmentNotice, boolean staffOnlyWrite,
                         String writeMin, String commentMin, String writeLock, boolean imageUploadAllowed, String postEditor, String commentEditor, String layout,
                         boolean dealEnabled, boolean promo,
-                        boolean viewToggle, boolean allowAdult, List<PrefixView> prefixes, String color, boolean debateEnabled, boolean pollEnabled) {
+                        boolean viewToggle, boolean allowAdult, List<PrefixView> prefixes, String color, boolean debateEnabled, boolean pollEnabled, String kind) {
 }

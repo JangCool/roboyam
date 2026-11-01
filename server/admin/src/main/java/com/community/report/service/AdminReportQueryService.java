@@ -13,6 +13,8 @@ import com.community.group.entity.GroupStatus;
 import com.community.group.repository.master.GroupRepository;
 import com.community.group.service.GroupCategoryLookup;
 import com.community.group.service.GroupPeople;
+import com.community.hotdeal.service.HotdealAdminQueryService;
+import com.community.report.dto.response.ReportDealView;
 import com.community.operator.entity.OperatorEntity;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.permission.dto.AdminActor;
@@ -139,11 +141,13 @@ public class AdminReportQueryService {
     private final GroupRepository groups;
     private final GroupCategoryLookup groupCategories;
     private final GroupPeople groupPeople;
+    private final HotdealAdminQueryService hotdeals;
 
     public AdminReportQueryService(AdminReportRepositoryQDSL search, ReportCaseRepository cases, ReportRepositoryQDSL reports, ReportEventRepository events,
                                    ReportCaseLog caseLog, PostRepository posts, CommentRepository comments, ProfileRepository profiles, UserRepository users,
                                    OperatorRepository operators, BoardCatalog catalog, SiteSettingsService site, GroupRepository groups,
-                                   GroupCategoryLookup groupCategories, GroupPeople groupPeople) {
+                                   GroupCategoryLookup groupCategories, GroupPeople groupPeople, HotdealAdminQueryService hotdeals) {
+        this.hotdeals = hotdeals;
         this.groups = groups;
         this.groupCategories = groupCategories;
         this.groupPeople = groupPeople;
@@ -242,7 +246,7 @@ public class AdminReportQueryService {
     // ── 한 줄 만들기 ──────────────────────────────────────────────────────
 
     /** 사건의 대상 글·댓글(지운 것 포함)·소모임(V95 — 해산한 것 포함) */
-    private record Targets(Map<Long, PostEntity> posts, Map<Long, CommentEntity> comments, Map<Long, GroupEntity> groups) {
+    private record Targets(Map<Long, PostEntity> posts, Map<Long, CommentEntity> comments, Map<Long, GroupEntity> groups, Map<Long, String> dealViews) {
     }
 
     private Targets targets(List<ReportCaseEntity> rows) {
@@ -255,7 +259,9 @@ public class AdminReportQueryService {
         List<Long> groupIds = rows.stream().filter(ReportCaseEntity::isGroup).map(ReportCaseEntity::getTargetId).distinct().toList();
         Map<Long, GroupEntity> groupById = groupIds.isEmpty() ? Map.of()
                 : groups.findAllById(groupIds).stream().collect(Collectors.toMap(GroupEntity::getId, Function.identity(), (a, b) -> a));
-        return new Targets(postById, commentById, groupById);
+        // 글 사건의 대상이 핫딜 글이면 딜 상태(hotdeal-contract — ReportCaseItem.deal)
+        List<Long> postTargets = rows.stream().filter(r -> ReportEntity.POST.equals(r.getTargetType())).map(ReportCaseEntity::getTargetId).distinct().toList();
+        return new Targets(postById, commentById, groupById, hotdeals.dealViews(postTargets));
     }
 
     /** 작성자·검토자·처리자 이름 */
@@ -339,7 +345,8 @@ public class AdminReportQueryService {
                 .map(code -> new ReportReasonCountView(code, byReason.get(code))).toList();
         return new ReportCaseItemView(Long.toString(c.getId()), c.getCaseNo() == null ? 0 : c.getCaseNo(), c.getStatus(), c.getTargetType(), target, board, author,
                 c.getReportCount(), reasonViews, c.getFirstReportedAt(), c.getLastReportedAt(), operatorRef(c.getReviewerId(), names.operators()), c.getClosedAt(),
-                operatorRef(c.getClosedBy(), names.operators()), c.getAction(), c.getReasonCode(), c.getNote(), c.isFalseReport());
+                operatorRef(c.getClosedBy(), names.operators()), c.getAction(), c.getReasonCode(), c.getNote(), c.isFalseReport(),
+                ReportEntity.POST.equals(c.getTargetType()) && targets.dealViews().containsKey(c.getTargetId()) ? new ReportDealView(targets.dealViews().get(c.getTargetId())) : null);
     }
 
     private static ReportOperatorRefView operatorRef(Long id, Map<Long, String> names) {

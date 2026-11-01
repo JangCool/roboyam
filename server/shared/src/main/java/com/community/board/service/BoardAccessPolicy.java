@@ -38,9 +38,59 @@ public final class BoardAccessPolicy {
     private BoardAccessPolicy() {
     }
 
-    /** 새 글을 쓸 수 없는 까닭(쓸 수 있으면 null) */
+    /**
+     * 새 글을 쓸 수 없는 까닭(쓸 수 있으면 null). <b>핫딜 게시판</b>({@code kind = DEAL})은 게시판 판정을 지난 뒤 핫딜 쓰기 자격(hotdeal-contract 「쓰기 자격」 — 회원 · 정지 아님 ·
+     * 이메일 인증 · 첫 등급(새싹) 아님, 매니저·스텝은 등급 면제)을 같은 까닭 값({@code LOGIN_REQUIRED}·{@code ACCOUNT_RESTRICTED}·{@code EMAIL_NOT_VERIFIED}·{@code GRADE_TOO_LOW})으로
+     * 더 본다 — 글쓰기 API·{@code /api/boards/writable}·게시판 응답 {@code viewer.writeBlockedReason} 이 같은 판정을 쓴다(폼을 다 채운 뒤에야 403 을 받지 않게).
+     */
     public static String writeBlocked(EffectiveBoard board, BoardActor actor, BoardCatalogSnapshot catalog) {
-        return decide(board, actor, catalog, board.writeMin(), board.postLocked(), MemberPermission.POST_WRITE.code());
+        String reason = decide(board, actor, catalog, board.writeMin(), board.postLocked(), MemberPermission.POST_WRITE.code());
+        if (reason != null || !BoardFields.KIND_DEAL.equals(board.kind())) {
+            return reason;
+        }
+        return dealWriteBlocked(board, actor, catalog);
+    }
+
+    /** 핫딜 쓰기 자격 — 게시판 판정을 지난 뒤에만 부른다(최소 자격 GUEST 인 핫딜 게시판도 회원·인증이 필요하다) */
+    private static String dealWriteBlocked(EffectiveBoard board, BoardActor actor, BoardCatalogSnapshot catalog) {
+        if (actor.guest()) {
+            return LOGIN_REQUIRED;
+        }
+        if (actor.restricted()) {
+            return ACCOUNT_RESTRICTED;
+        }
+        if (!actor.emailVerified()) {
+            return EMAIL_NOT_VERIFIED;
+        }
+        if (!actor.staffOf(board.id()) && actor.gradeKey() != null && actor.gradeKey().equals(catalog.firstGradeKey())) {
+            return GRADE_TOO_LOW;
+        }
+        return null;
+    }
+
+    /**
+     * {@code GRADE_TOO_LOW} 일 때 「이 등급부터 쓸 수 있어요」의 등급 키 — 게시판 최소 자격이 등급이면 그 등급, 핫딜 게시판이면 첫 등급 바로 위 등급과 견주어 더 높은 쪽.
+     * 정할 수 없으면 null(등급 표가 비었거나 등급이 하나뿐).
+     */
+    public static String requiredWriteGrade(EffectiveBoard board, BoardCatalogSnapshot catalog) {
+        String required = catalog.gradeLevel(board.writeMin()) == null ? null : board.writeMin();
+        if (BoardFields.KIND_DEAL.equals(board.kind())) {
+            String second = secondGrade(catalog);
+            if (second != null && (required == null || catalog.gradeLevel(second) > catalog.gradeLevel(required))) {
+                required = second;
+            }
+        }
+        return required;
+    }
+
+    /** 첫 등급 바로 위 등급(서열이 첫 등급보다 큰 것 중 가장 낮은 것) */
+    private static String secondGrade(BoardCatalogSnapshot catalog) {
+        Integer first = catalog.gradeLevel(catalog.firstGradeKey());
+        if (first == null) {
+            return null;
+        }
+        return catalog.grades().values().stream().filter(g -> g.level() > first).min(java.util.Comparator.comparingInt(BoardCatalogSnapshot.GradeInfo::level))
+                .map(BoardCatalogSnapshot.GradeInfo::key).orElse(null);
     }
 
     /** 새 댓글을 쓸 수 없는 까닭(쓸 수 있으면 null) */

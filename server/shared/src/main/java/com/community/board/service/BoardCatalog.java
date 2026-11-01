@@ -145,7 +145,7 @@ public class BoardCatalog {
         boolean imageSetting = or(p.imageUploadAllowed(), d.imageUploadAllowed());
         String description = b.getDescription() == null || b.getDescription().isBlank() ? null : b.getDescription();
         return new EffectiveBoard(b.getId(), b.getSlug(), b.getName(), b.getNameEn(), description, b.getKind(), b.getLayout(), b.isViewToggle(), b.getColor(),
-                b.isAllowAdult(), b.isInvestmentNotice(), b.isActive(), b.getSortOrder(), b.getWriteLock(), b.getIntroText(), b.getWriteGuideText(),
+                b.isAllowAdult() && !BoardFields.KIND_DEAL.equals(b.getKind()) /* 핫딜 게시판은 19금 끔 고정(hotdeal 서버 규칙 8) */, b.isInvestmentNotice(), b.isActive(), b.getSortOrder(), b.getWriteLock(), b.getIntroText(), b.getWriteGuideText(),
                 or(p.writeMin(), d.writeMin()), or(p.commentMin(), d.commentMin()), postEditor,
                 BoardFields.EDITOR_ADVANCED.equals(postEditor) && imageSetting, imageSetting, or(p.commentEditor(), d.commentEditor()),
                 or(p.listSize(), d.listSize()), or(p.pinnedMax(), d.pinnedMax()), or(p.commentProtectMin(), d.commentProtectMin()),

@@ -94,7 +94,8 @@ public enum Permission {
     HOTDEAL_READ("hotdeal.read", HOTDEAL, READ, true),
     /** 사업자 핫딜 신청 건 심사·승인·반려·수동 전환·계약서·입금 확인·예약 확정·취소 */
     HOTDEAL_MANAGE("hotdeal.manage", HOTDEAL, MANAGE, true),
-    HOTDEAL_DOMAIN_MANAGE("hotdeal.domain.manage", HOTDEAL, CONFIG, false),
+    /** 회원 핫딜 링크 규칙(차단·제휴·대형몰·쇼핑몰 이름) 편집 — 회원 핫딜 1차(hotdeal-contract) 서버 1단계에서 켰다 */
+    HOTDEAL_DOMAIN_MANAGE("hotdeal.domain.manage", HOTDEAL, CONFIG, true),
     COMMERCE_PRODUCT_READ("commerce.product.read", GB_PLAN, READ, true),
     COMMERCE_PRODUCT_MANAGE("commerce.product.manage", GB_PLAN, MANAGE, true),
     COMMERCE_PRODUCT_SETTINGS("commerce.product.settings", GB_PLAN, CONFIG, false),

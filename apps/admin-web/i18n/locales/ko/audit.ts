@@ -39,6 +39,7 @@ export default {
     filterInvalid: '조건을 확인해 주세요',
     filterInvalidHint: '칸 아래의 안내를 보고 고친 뒤 다시 조회해 주세요.',
     actorSystem: '시스템',
+    actorMember: '{name} (회원)',
     actorAnonymous: '로그인하지 않은 사용자',
     filterAfter: '{at} 이후',
     filterBefore: '{at} 이전',

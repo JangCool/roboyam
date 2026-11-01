@@ -111,9 +111,14 @@ public final class AdminScreenRegistry {
                     leaf(s("ads", "/ads", "menu.ads", "pi pi-calendar", Permission.AD_READ)),
                     // 노출 자리 설정(글 보기 중간 · 날개 · 목록 한 줄) — 조회 ad.read, 저장은 화면 안에서 ad.settings
                     leaf(s("adPlacements", "/ads/placements", "menu.adPlacements", "pi pi-sliders-h", Permission.AD_READ))),
-            // 핫딜 묶음 — 핫딜 심사(HOTDEAL_* 신청 건, 처리 hotdeal.manage · 환불 deal-order.refund). 핫딜 글·링크 규칙·의심 후보·설정은 화면이 생길 때 더한다
+            // 핫딜 묶음 — 핫딜 심사(HOTDEAL_* 신청 건, 처리 hotdeal.manage · 환불 deal-order.refund) · 회원 핫딜 1차(hotdeal-contract): 핫딜 글(종료·재개 hotdeal.manage) ·
+            // 링크 규칙(처리 hotdeal.domain.manage) · 의심 후보(무시 hotdeal.manage) · 핫딜 설정(조회·저장 hotdeal.manage — 사이트 제휴 몰 표 포함)
             section(NORMAL, "menu.hotdeal", "pi pi-ticket",
-                    leaf(s("hotdealReviews", "/hotdeal-reviews", "menu.hotdealReviews", "pi pi-inbox", Permission.HOTDEAL_READ))),
+                    leaf(s("hotdealReviews", "/hotdeal-reviews", "menu.hotdealReviews", "pi pi-inbox", Permission.HOTDEAL_READ)),
+                    leaf(s("hotdeals", "/hotdeals", "menu.hotdeals", "pi pi-ticket", Permission.HOTDEAL_READ)),
+                    leaf(s("hotdealDomains", "/hotdeals/domains", "menu.hotdealDomains", "pi pi-link", Permission.HOTDEAL_READ)),
+                    leaf(s("hotdealSuspicions", "/hotdeals/suspicions", "menu.hotdealSuspicions", "pi pi-exclamation-triangle", Permission.HOTDEAL_READ)),
+                    leaf(s("hotdealSettings", "/hotdeals/settings", "menu.hotdealSettings", "pi pi-sliders-h", Permission.HOTDEAL_MANAGE))),
             section(SETTINGS, "menu.system", "pi pi-cog",
                     leaf(s("siteGeneral", "/settings/general", "menu.general", "pi pi-sliders-h", Permission.SITE_READ)),
                     leaf(s("socialLogin", "/settings/social-login", "menu.socialLogin", "pi pi-key", Permission.SITE_READ)),

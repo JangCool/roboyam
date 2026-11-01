@@ -14,6 +14,9 @@ import com.community.board.dto.response.BoardViewerView;
 import com.community.board.dto.response.PrefixView;
 import com.community.board.exception.BoardInactiveException;
 import com.community.board.exception.BoardNotFoundException;
+import com.community.hotdeal.dto.DealSettings;
+import com.community.hotdeal.dto.response.DealRulesView;
+import com.community.hotdeal.service.DealSettingsReader;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,10 +36,12 @@ public class PublicBoardService {
 
     private final BoardCatalog catalog;
     private final BoardActorResolver actors;
+    private final DealSettingsReader dealSettings;
 
-    public PublicBoardService(BoardCatalog catalog, BoardActorResolver actors) {
+    public PublicBoardService(BoardCatalog catalog, BoardActorResolver actors, DealSettingsReader dealSettings) {
         this.catalog = catalog;
         this.actors = actors;
+        this.dealSettings = dealSettings;
     }
 
     public BoardListResponse boards() {
@@ -65,7 +70,8 @@ public class PublicBoardService {
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = requireActive(s, slug);
         BoardActor actor = actors.resolve(userId, s);
-        return detail(s, b, actor, BoardAccessPolicy.writeBlocked(b, actor, s), BoardAccessPolicy.commentBlocked(b, actor, s));
+        return detail(s, b, actor, BoardAccessPolicy.writeBlocked(b, actor, s), BoardAccessPolicy.commentBlocked(b, actor, s),
+                BoardFields.KIND_DEAL.equals(b.kind()) ? dealSettings.current() : null);
     }
 
     /**
@@ -73,6 +79,11 @@ public class PublicBoardService {
      * {@code GET /api/groups/{id}/board}, 소모임 2단계).
      */
     public static BoardDetailView detail(BoardCatalogSnapshot s, EffectiveBoard b, BoardActor actor, String writeBlocked, String commentBlocked) {
+        return detail(s, b, actor, writeBlocked, commentBlocked, null);
+    }
+
+    /** @param deal 핫딜 게시판이면 핫딜 설정(공개 칸 {@code dealAffiliateMode}·{@code dealRules} 를 싣는다), 아니면 null */
+    public static BoardDetailView detail(BoardCatalogSnapshot s, EffectiveBoard b, BoardActor actor, String writeBlocked, String commentBlocked, DealSettings deal) {
         BoardSecurityValues sec = s.security();
         BoardView v = view(b);
         return new BoardDetailView(v.id(), v.slug(), v.name(), v.nameEn(), v.description(), v.investmentNotice(), v.staffOnlyWrite(), v.writeMin(),
@@ -86,7 +97,8 @@ public class PublicBoardService {
                         ContentRules.GUEST_PASSWORD_MAX, sec.guestLinkLimit(), sec.guestImageUploadAllowed()),
                 new BoardNewMemberRulesView(BoardAccessPolicy.newMemberRules(b, actor, s), sec.newMemberLinkLimit(), sec.newMemberImageLimit()),
                 new BoardViewerView(actor.guest(), actor.staffOf(b.id()), writeBlocked == null, writeBlocked, commentBlocked == null, commentBlocked),
-                v.debateEnabled(), v.pollEnabled(), b.adsHidden());
+                v.debateEnabled(), v.pollEnabled(), b.adsHidden(), b.kind(), deal == null ? null : deal.affiliateMode(),
+                deal == null ? null : new DealRulesView(deal.priceMaxWon(), deal.discountWarnPercent(), deal.autoExpireDays(), deal.hotLikeThreshold()));
     }
 
     /** 켜진 게시판 — 없거나 소모임 게시판이면 404, 꺼졌으면 403 */
@@ -114,6 +126,6 @@ public class PublicBoardService {
         return new BoardView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.description(), b.investmentNotice(),
                 BoardFields.STAFF.equals(b.writeMin()), b.writeMin(), b.commentMin(), b.writeLock(), b.imageUploadAllowed(), b.postEditor(), b.commentEditor(), b.layout(),
                 BoardFields.KIND_DEAL.equals(b.kind()), BoardFields.KIND_PROMO.equals(b.kind()), b.viewToggle(), b.allowAdult(), prefixes, b.color(),
-                b.debateEnabled(), b.pollEnabled());
+                b.debateEnabled(), b.pollEnabled(), b.kind());
     }
 }

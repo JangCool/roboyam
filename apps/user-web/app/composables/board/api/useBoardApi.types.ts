@@ -4,6 +4,7 @@
  * 정책 값은 관리자 앱의 게시판 설정(`apps/admin-web/app/composables/board/api/useBoardApi.types.ts` — `BoardDefaults`·`BoardSecuritySettings`)의 **유효값**(게시판 값 ?? 기본값)을 공개 화면에 필요한 만큼만 받는다. 서버 `server/api/.../board/dto/response` 와 같다(2026-10-22 연결).
  * ⚠ ID 는 모두 문자열이다(Snowflake 64비트). 숫자로 바꾸지 않는다.
  */
+import type { AffiliateMode, DealRules } from '~/composables/hotdeal/api/useHotdealApi.types';
 
 export interface PrefixView {
     id: string;
@@ -53,6 +54,11 @@ export interface BoardView {
      */
     dealEnabled?: boolean;
     /**
+     * 게시판 종류(관리자 `BoardKind` 와 같은 값 — 핫딜 계약 `docs/features/hotdeal-contract.md`) — `DEAL` 이면 목록은 가격 줄 목록형, 글쓰기에 딜 칸, 글 보기에 딜 카드.
+     * 서버가 아직 안 주면(옛 응답) `undefined` — 일반 게시판으로 본다(판정은 `UtilHotdeal.isDealBoard` 한 곳)
+     */
+    kind?: BoardKind;
+    /**
      * 직접홍보 게시판인가(`docs/api-promo.md`) — true 면 사업자만 글을 쓰고 모든 글이 광고다(목록 머리 안내문·글 행 [광고]·추천 단추 없음). slug 로 짐작하지 않는다.
      * 서버가 아직 안 주면(옛 응답) `undefined` — 그때는 일반 게시판이다
      */
@@ -69,6 +75,9 @@ export interface BoardView {
     /** 운영자가 고른 게시판 표시색의 프리셋 이름 또는 null(자동 — 화면이 순서로 정한다). 서버가 아직 안 주면(옛 응답) `undefined` */
     color?: string | null;
 }
+
+/** 게시판 종류 — 일반 · 핫딜 · 직접홍보 · 소모임(관리자 `apps/admin-web/.../useBoardApi.types.ts` 의 `BoardKind` 와 같다) */
+export type BoardKind = 'GENERAL' | 'DEAL' | 'PROMO' | 'GROUP';
 
 /** 글 에디터 수준(관리자 게시판 설정 `postEditor`) — 평문 · 간단 · 고급 */
 export type PostEditorLevel = 'NONE' | 'SIMPLE' | 'ADVANCED';
@@ -225,6 +234,13 @@ export interface BoardDetail extends BoardView {
      * 가정: `debateEnabled` 와 같은 자리(게시판 응답의 맨 위 칸)
      */
     pollEnabled?: boolean;
+    /**
+     * 핫딜 게시판(`kind DEAL`)의 지금 제휴 링크 방식(D5 — 핫딜 설정 `affiliateMode`) — 쓰기·고치기가 「제휴 링크예요」 체크를 보일지 정한다. 핫딜이 아니면 null(`MEMBER` 로 본다).
+     * 판정 응답(`DealLinkCheck.affiliateMode`)이 오면 그 값이 우선(`UtilHotdeal.affiliateModeOf`)
+     */
+    dealAffiliateMode?: AffiliateMode | null;
+    /** 핫딜 게시판이면 핫딜 설정 공개 칸(금액 상한·할인율 경고·기간 종료 일수·HOT 문턱), 아니면 null — 화면은 `UtilHotdeal.rulesOf` 로 읽는다(없으면 기본값) */
+    dealRules?: DealRules | null;
     policy: BoardPublicPolicy;
     guestRules: BoardGuestRules;
     newMemberRules: BoardNewMemberRules;

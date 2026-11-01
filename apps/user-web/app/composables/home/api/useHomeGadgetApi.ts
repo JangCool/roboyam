@@ -5,7 +5,7 @@ import type { HomeGadgetsResponse } from '~/composables/home/api/useHomeGadgetAp
  * 응답 모양·가정은 `useHomeGadgetApi.types.ts`. 계약 `docs/features/site-theme-layout-contract.md` 「API」(서버 `HomeController`, `Cache-Control: no-store`).
  * **템플릿은 서버의 사이트 테마로 정해진다**(공개 화면은 요청에 싣지 않는다 — 관리자 미리보기만 보는 테마를 싣는다) — 배치는 그 테마의 저장 배치, 없으면 테마 기본 배치다.
  *
- * 서버 연결됨(2026-10-29).
+ * 서버 연결됨(2026-10-29). 핫딜 가젯 `HOT_DEALS`(`data = { items, more }`)는 서버 2단계 — 모양은 `hotdeal-contract.md` 대로 확정.
  */
 const PATH = {
     gadgets: '/api/home/gadgets',

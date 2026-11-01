@@ -73,14 +73,17 @@ export default {
     createKindLabel: '종류',
     createKind: {
         GENERAL: '일반 게시판',
+        DEAL: '핫딜 게시판',
         GROUP: '소모임 게시판',
     },
     createKindNote: {
         GENERAL: '메뉴와 게시판 페이지가 있어요',
+        DEAL: '글마다 딜 정보를 받고 가격 줄 목록으로 보여요',
         GROUP: '소모임 글을 담아요 · 메뉴와 게시판 페이지가 없어요',
     },
     createKindHelp: {
         GENERAL: '주소처럼 만든 뒤에는 바꿀 수 없어요',
+        DEAL: '글마다 딜 정보(가격·쇼핑몰·링크)를 받고 가격 줄 목록으로 보여요 · 19금은 끈 채로 고정돼요 · 글쓰기는 일반 등급부터예요 · 만든 뒤 종류를 바꿀 수 없어요',
         GROUP: '메뉴와 게시판 페이지가 없어요 · 글은 소모임 목록과 각 소모임에서 보여요 · 만든 뒤 종류를 바꿀 수 없어요',
     },
     createKindFixed: '소모임 분류 화면에서는 소모임 게시판만 만들 수 있어요',
@@ -539,6 +542,7 @@ export default {
     viewToggleCard: '카드형은 보기 전환을 끌 수만 있어요.',
     kindLocked: '종류는 만든 뒤 바꿀 수 없어요.',
     allowAdultHelp: '켜면 글쓴이가 19금 표시를 붙일 수 있어요.',
+    allowAdultDeal: '핫딜 게시판은 19금을 켤 수 없어요(끈 채로 고정).',
     investmentHelp: '주식·산업 게시판에 투자 권유 금지 고지를 보여요. 켜면 다시 끌 수 없어요.',
     investmentOnce: '저장하면 다시 끌 수 없어요.',
     investmentLocked: '투자 고지는 한 번 켜면 끌 수 없어요(투자 권유 방지 정책).',
@@ -584,7 +588,7 @@ export default {
 
     // ── 매니저·스텝 ──
     staffLead: '게시판 매니저·스텝은 일반 회원이에요. 지정·해제는 누르면 바로 반영돼요(저장 줄과 무관).',
-    staffKindBlocked: '핫딜·직접홍보·소모임 게시판에는 매니저·스텝을 지정할 수 없어요.',
+    staffKindBlocked: '직접홍보·소모임 게시판에는 매니저·스텝을 지정할 수 없어요.',
     staffLoadFailed: '매니저·스텝을 불러오지 못했어요',
     role: {
         MANAGER: '매니저',

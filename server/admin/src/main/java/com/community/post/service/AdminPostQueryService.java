@@ -7,6 +7,8 @@ import com.community.board.service.BoardCatalog;
 import com.community.group.entity.GroupEntity;
 import com.community.group.entity.GroupStatus;
 import com.community.group.repository.master.GroupRepository;
+import com.community.board.service.BoardFields;
+import com.community.hotdeal.repository.master.PostDealRepository;
 import com.community.operator.entity.OperatorEntity;
 import com.community.operator.repository.master.OperatorRepository;
 import com.community.poll.dto.PollData;
@@ -111,10 +113,12 @@ public class AdminPostQueryService {
     private final SiteSettingsService site;
     private final PollQueries polls;
     private final GroupRepository groupRepository;
+    private final PostDealRepository deals;
 
     public AdminPostQueryService(AdminPostRepositoryQDSL posts, PostRepository postEntities, PostModerationEventRepository events, ProfileRepository profiles,
                                  UserRepository users, OperatorRepository operators, BoardCatalog catalog, SiteSettingsService site, PollQueries polls,
-                                 GroupRepository groupRepository) {
+                                 GroupRepository groupRepository, PostDealRepository deals) {
+        this.deals = deals;
         this.groupRepository = groupRepository;
         this.polls = polls;
         this.site = site;
@@ -191,16 +195,19 @@ public class AdminPostQueryService {
         if (!groupIds.isEmpty()) {
             groupRepository.findAllById(groupIds).forEach(g -> groupById.put(g.getId(), g));
         }
+        // 핫딜 글(딜 줄이 붙은 글 — 지금 핫딜 게시판에 있을 때만 「딜」로 본다)
+        Set<Long> dealIds = new java.util.HashSet<>();
+        deals.findAllById(ids).forEach(d -> dealIds.add(d.getPostId()));
         List<AdminPostItemView> out = new ArrayList<>(rows.size());
         for (AdminPostListRow r : rows) {
-            out.add(item(r, s, profileById, userById, reports, debates, withPoll, opinions, pinRequests, groupById, now));
+            out.add(item(r, s, profileById, userById, reports, debates, withPoll, opinions, pinRequests, groupById, dealIds, now));
         }
         return out;
     }
 
     private static AdminPostItemView item(AdminPostListRow r, BoardCatalogSnapshot s, Map<Long, ProfileEntity> profileById, Map<Long, UserEntity> userById,
                                           Map<Long, Integer> reports, Set<Long> debates, Set<Long> withPoll, Map<Long, Integer> opinions,
-                                          Map<Long, Integer> pinRequests, Map<Long, GroupEntity> groupById, Instant now) {
+                                          Map<Long, Integer> pinRequests, Map<Long, GroupEntity> groupById, Set<Long> dealIds, Instant now) {
         EffectiveBoard b = r.boardId() == null ? null : s.board(r.boardId()).orElse(null);
         AdminPostBoardRefView board = new AdminPostBoardRefView(r.boardId() == null ? null : Long.toString(r.boardId()), b == null ? null : b.name(),
                 b == null ? null : b.nameEn(), b == null ? null : b.slug());
@@ -231,7 +238,7 @@ public class AdminPostQueryService {
                 hidden ? r.hiddenAt() : null, hidden ? r.hiddenUntil() : null, deletedAt, r.deleteScheduledAt(), r.purgedAt() != null, r.pinnedAt() != null,
                 p != null && NOTICE_KEY.equals(p.commonKey()), Boolean.TRUE.equals(r.adult()), debates.contains(r.id()), withPoll.contains(r.id()), n(r.likeCount()),
                 n(r.commentCount()), n(r.viewCount()), reports.getOrDefault(r.id(), 0), r.createdAt(), opinions.getOrDefault(r.id(), 0),
-                pinRequests.getOrDefault(r.id(), 0), group, r.restricted());
+                pinRequests.getOrDefault(r.id(), 0), group, r.restricted(), b != null && BoardFields.KIND_DEAL.equals(b.kind()) && dealIds.contains(r.id()));
     }
 
     private List<AdminPostEventView> eventViews(List<PostModerationEventEntity> rows) {

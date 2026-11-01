@@ -259,12 +259,20 @@ export default class UtilAdminMenu {
             ],
         },
         // 핫딜 묶음 — 핫딜 심사(`/hotdeal-reviews`, 신청 건 HOTDEAL_* — 조회 `hotdeal.read`, 처리 `hotdeal.manage`, 환불 `deal-order.refund`).
-        // 핫딜 글·링크 규칙·의심 후보·설정은 화면이 생기면 더한다(04-ia-review 1-2). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례
+        // 회원 핫딜 1차(hotdeal-contract — 서버 `useHotdeal*Api`): 핫딜 글(`/hotdeals`, 종료·재개 `hotdeal.manage`) · 링크 규칙(`/hotdeals/domains`, 처리 `hotdeal.domain.manage`) ·
+        // 의심 후보(`/hotdeals/suspicions`, 무시 `hotdeal.manage`) · 핫딜 설정(`/hotdeals/settings`, 조회·저장 `hotdeal.manage`). `/hotdeals/*` 는 `/hotdeals` 아래지만 다른 화면이다(`isActive` 가 더 구체적인 항목에 주소를 준다).
+        // 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례 — 새 네 줄(`hotdeals`·`hotdealDomains`·`hotdealSuspicions`·`hotdealSettings`)은 서버 레지스트리에도 더해야 한다(서버 단계)
         {
             key: 'hotdeal',
             icon: 'pi pi-ticket',
             labelKey: 'menu.hotdeal',
-            items: [{ key: 'hotdealReviews', to: '/hotdeal-reviews', icon: 'pi pi-inbox', labelKey: 'menu.hotdealReviews', permission: 'hotdeal.read' }],
+            items: [
+                { key: 'hotdealReviews', to: '/hotdeal-reviews', icon: 'pi pi-inbox', labelKey: 'menu.hotdealReviews', permission: 'hotdeal.read' },
+                { key: 'hotdeals', to: '/hotdeals', icon: 'pi pi-ticket', labelKey: 'menu.hotdeals', permission: 'hotdeal.read' },
+                { key: 'hotdealDomains', to: '/hotdeals/domains', icon: 'pi pi-link', labelKey: 'menu.hotdealDomains', permission: 'hotdeal.read' },
+                { key: 'hotdealSuspicions', to: '/hotdeals/suspicions', icon: 'pi pi-exclamation-triangle', labelKey: 'menu.hotdealSuspicions', permission: 'hotdeal.read' },
+                { key: 'hotdealSettings', to: '/hotdeals/settings', icon: 'pi pi-sliders-h', labelKey: 'menu.hotdealSettings', permission: 'hotdeal.manage' },
+            ],
         },
         // 설정 메뉴의 첫 묶음 — 시스템(hamonica3 의 설정 > 일반). 「일반」·「소셜 로그인」·「조직 구성」이 있고(메일 서버는 다음 「메일」 묶음, 알림 도구·템플릿·문구·이벤트는 그다음 「알림·이벤트」 묶음) 후속 설정(사이트·연동 등)이 들어올 자리다. 프로필 메뉴의 「설정」이 여기로 들어온다
         {

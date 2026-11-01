@@ -79,6 +79,8 @@ public class PointService {
     public static final String REF_ATTENDANCE = "ATTENDANCE";
     /** 가입 포인트의 대상 — 그 회원(멱등 {@code SIGNUP:USER:{user_id}}, 1-3) */
     public static final String REF_USER = "USER";
+    /** 핫딜 종료 요청 보상의 대상 — 그 요청 줄({@code deal_end_requests.id}, V122 — 원장 유일로 요청마다 한 번) */
+    public static final String REF_DEAL_END_REQUEST = "DEAL_END_REQUEST";
 
     /** 하루 총 한도에 드는 활동 적립(commerce.md 6-2 — 인기글 보상·운영 조정·충전 보너스·가입 포인트는 제외) */
     public static final Set<PointReason> DAILY_TOTAL_REASONS = EnumSet.of(PointReason.ATTENDANCE, PointReason.ATTENDANCE_STREAK, PointReason.POST,
@@ -250,6 +252,25 @@ public class PointService {
                 return 0L;
             }
             return grant(userId, PointReason.SIGNUP, REF_USER, userId, rules.signupPoints(), null, rules, null);
+        }, 0L);
+    }
+
+    /**
+     * 핫딜 종료 요청 보상(hotdeal-contract 서버 단계 고정 규칙 5) — 의심 구간에 종료를 요청한 회원에게, 그 딜이 끝난 트랜잭션(작성자·운영진·자동 종료)에서 부른다.
+     * 사유 {@code DEAL_END_REQUEST}, 대상 = 그 요청 줄(원장 유일 — 같은 요청에 두 번 주지 않는다). 금액 {@code dealEndRequestPoints} · 하루(한국 0시) 지급 횟수
+     * {@code dealEndRequestDailyLimit}(포인트 정책 소유, 둘 중 0 이면 끔). 하루 총 한도에 들지 않는다(인기글 보상과 같은 보상 계열). 동결·정상 회원 아님·미회수 상계는 다른 적립과 같다.
+     * 하루 횟수는 잔액 행 잠금 아래에서 세므로 동시 종료가 넘지 못한다. <b>실패해도 종료는 그대로</b>(세이브포인트).
+     *
+     * @return 지급한 포인트(없으면 0)
+     */
+    public long dealEndRequestReward(long userId, long requestId) {
+        return isolated.run("point:deal-end-request", () -> {
+            PointRules rules = policy.current();
+            if (rules.dealEndRequestPoints() <= 0 || rules.dealEndRequestDailyLimit() <= 0) {
+                return 0L;
+            }
+            return grant(userId, PointReason.DEAL_END_REQUEST, REF_DEAL_END_REQUEST, requestId, rules.dealEndRequestPoints(), rules.dealEndRequestDailyLimit(), rules,
+                    null);
         }, 0L);
     }
 

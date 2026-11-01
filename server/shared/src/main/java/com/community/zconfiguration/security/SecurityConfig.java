@@ -85,6 +85,8 @@ public class SecurityConfig {
                         // 공개 게시판(docs/features/board-public-contract.md) — 읽기는 누구나, 글·댓글 쓰기·고치기·지우기·비밀번호 확인은 비회원도(게시판이 허용하는지·비밀번호는
                         // 서비스가 판정한다). 추천(…/like)·신고(/api/reports)는 여기 없으므로 아래 규칙대로 로그인이 필요하다(공개 사이트 서버(api)에만 있는 주소)
                         .requestMatchers(HttpMethod.GET, "/api/boards", "/api/boards/**", "/api/posts/**").permitAll()
+                        // 핫딜 구매하기(302 — 서버 경유, hotdeal-contract D5). 판정·미리 채움(/api/deals/link-check·prefill)은 로그인 필요(아래 /api/** )
+                        .requestMatchers(HttpMethod.GET, "/api/deals/*/go").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/posts", "/api/posts/*/delete", "/api/posts/*/verify-password", "/api/posts/*/comments",
                                 "/api/comments/*/delete").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/posts/*", "/api/comments/*").permitAll()

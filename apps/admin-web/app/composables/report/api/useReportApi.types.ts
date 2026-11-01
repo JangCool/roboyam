@@ -1,4 +1,5 @@
 import type { GroupCategoryRef, GroupPerson } from '~/composables/group/api/useGroupAdminApi.types';
+import type { DealView } from '~/composables/hotdeal/api/useHotdealApi.types';
 
 /**
  * 신고 관리 API(`/api/admin/reports…`)가 주고받는 모양 — 계약 `docs/features/report-admin-contract.md` 「API」 그대로(서버 `server/admin` 의 신고 관리 DTO 와 같은 칸 이름).
@@ -22,9 +23,10 @@ export type ReportTargetType = 'POST' | 'COMMENT' | 'GROUP';
 
 /**
  * 신고 사유 코드 — 글·댓글은 게시판 신고 정책(`BoardReportReason`)과 같은 6종, 소모임은 홍보·영업 · 오프라인 위험 · 종목 추천·유료 모집 · 기타(서버 `ReportReasons.GROUP_ALL`).
+ * 핫딜 글에서만 보이는 두 사유 `DEAL_FALSE_PRICE`(가격·정보가 사실과 달라요) · `DEAL_HIDDEN_AD`(광고·홍보를 숨겼어요)가 더 있다(hotdeal-contract — 서버 `ReportReasons`, 일반 글·댓글이면 400 `fields.reason`).
  * 조치 사유 코드도 사건 대상의 체계를 따른다.
  */
-export type ReportReasonCode = 'SPAM_AD' | 'ABUSE' | 'OBSCENE' | 'ILLEGAL_FILMING' | 'RIGHTS' | 'PROMOTION' | 'OFFLINE_RISK' | 'STOCK_RECOMMENDATION' | 'OTHER';
+export type ReportReasonCode = 'SPAM_AD' | 'ABUSE' | 'OBSCENE' | 'ILLEGAL_FILMING' | 'RIGHTS' | 'PROMOTION' | 'OFFLINE_RISK' | 'STOCK_RECOMMENDATION' | 'DEAL_FALSE_PRICE' | 'DEAL_HIDDEN_AD' | 'OTHER';
 
 /** 검색 대상 — 대상 글 제목(기본) · 대상 작성자 · 사건 번호 */
 export type ReportSearchField = 'TITLE' | 'AUTHOR' | 'CASE_NO';
@@ -38,8 +40,11 @@ export type ReportTargetState = 'PUBLIC' | 'HIDDEN' | 'DELETED' | 'INACTIVE';
 /** 숨김 까닭 — 신고 자동 숨김(REPORTED) · 불법촬영물 즉시 숨김(ILLEGAL) · 권리침해 임시조치(RIGHTS) · 운영자 숨김(STAFF) */
 export type ReportHiddenReason = 'REPORTED' | 'ILLEGAL' | 'RIGHTS' | 'STAFF';
 
-/** 조치 — 숨김 · 삭제 · 자동 숨김 확정 · 소모임 비활성화(소모임 대상만) · 무시 */
-export type ReportCaseAction = 'HIDE' | 'DELETE' | 'KEEP_HIDDEN' | 'DEACTIVATE' | 'DISMISS';
+/**
+ * 조치 — 숨김 · 삭제 · 자동 숨김 확정 · 소모임 비활성화(소모임 대상만) · 핫딜 종료(핫딜 글 대상만) · 무시.
+ * `DEAL_END`(hotdeal-contract 「신고 사건 조치」): 그 글의 딜을 운영진 종료로 바꾸고(작성자 알림에 처리 글이 사유로 간다) 사건을 처리됨으로 닫는다(처리 글 1~200자, 글은 숨기지 않는다 — 핫딜 글이 아니면 `409 REPORT_ACTION_INVALID`).
+ */
+export type ReportCaseAction = 'HIDE' | 'DELETE' | 'KEEP_HIDDEN' | 'DEACTIVATE' | 'DEAL_END' | 'DISMISS';
 
 /** `POST /{id}/resolve` 의 조치 */
 export type ReportResolveAction = Exclude<ReportCaseAction, 'DISMISS'>;
@@ -119,6 +124,12 @@ export interface ReportCaseItem {
     note?: string | null;
     /** 허위 신고로 표시한 무시 — 계약 밖(가정) */
     falseReport?: boolean;
+    /**
+     * 대상이 핫딜 글(DEAL 게시판 글)이면 그 딜의 지금 상태, 그 밖(일반 글·댓글·소모임)은 null(서버·화면 공용 API 메모 1-9).
+     * 있으면 조치 사유에 핫딜 사유 2개가 더해지고 [핫딜 종료](`DEAL_END`)를 누를 수 있다(이미 종료면 없음).
+     * 칸이 없는(옛) 응답이면 핫딜 사유 신고가 있는 글 사건을 핫딜 글로 본다(`UtilReport.isDealCase`).
+     */
+    deal?: { view: DealView } | null;
 }
 
 /** `GET /api/admin/reports` */

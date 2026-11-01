@@ -15,6 +15,8 @@ const LOADERS: Readonly<Record<string, AsyncComponentLoader<Component>>> = {
     GALLERY: () => import('~/components/home/HomeGadgetGallery.vue'),
     GROUPS: () => import('~/components/home/HomeGadgetGroups.vue'),
     GROUP_BUY: () => import('~/components/home/HomeGadgetGroupBuy.vue'),
+    // 회원 핫딜 1차 — 서버 `HomeGadgetKinds` 에는 아직 없다(목업)
+    HOT_DEALS: () => import('~/components/home/HomeGadgetHotDeals.vue'),
     QUICK_LINKS: () => import('~/components/home/HomeGadgetQuickLinks.vue'),
     NOTICE_TEXT: () => import('~/components/home/HomeGadgetNoticeText.vue'),
     // 서버 `HomeGadgetKinds` 에는 아직 없다(목업)

@@ -103,7 +103,13 @@ public enum MemberEvent {
     /** 사업자 신원 접수·승인·반려·정지·해제·재심사(V111) — 내 계정의 상태가 바뀐 알림이라 회원이 끌 수 없다 */
     BUSINESS(NotificationArea.BIZ_AD, MemberNotificationType.BUSINESS, MemberEventLockReason.ACCOUNT, null),
     /** 사업자 신청 건(광고·핫딜 — V112) 접수·승인·결제·기한·시작·종료·취소·환불 — 거래 알림이라 회원이 끌 수 없다 */
-    BIZ_APPLICATION(NotificationArea.BIZ_AD, MemberNotificationType.BIZ_APPLICATION, MemberEventLockReason.ACTION, null);
+    BIZ_APPLICATION(NotificationArea.BIZ_AD, MemberNotificationType.BIZ_APPLICATION, MemberEventLockReason.ACTION, null),
+    /** 회원 핫딜(V122) — 내 딜의 상태가 바뀐 처리 알림이라 회원이 끌 수 없다(의심·자동 종료·운영진 종료·기간 종료·재개 뒤 마감 고치기) */
+    DEAL_FLAGGED(NotificationArea.HOTDEAL, MemberNotificationType.DEAL_FLAGGED, MemberEventLockReason.ACTION, null),
+    DEAL_AUTO_ENDED(NotificationArea.HOTDEAL, MemberNotificationType.DEAL_AUTO_ENDED, MemberEventLockReason.ACTION, null),
+    DEAL_MANAGER_ENDED(NotificationArea.HOTDEAL, MemberNotificationType.DEAL_MANAGER_ENDED, MemberEventLockReason.ACTION, null),
+    DEAL_EXPIRED(NotificationArea.HOTDEAL, MemberNotificationType.DEAL_EXPIRED, MemberEventLockReason.ACTION, null),
+    DEAL_REOPENED_FIX_ENDS(NotificationArea.HOTDEAL, MemberNotificationType.DEAL_REOPENED_FIX_ENDS, MemberEventLockReason.ACTION, null);
 
     private static final Map<String, MemberEvent> BY_CODE = Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(MemberEvent::code, Function.identity()));
 

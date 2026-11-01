@@ -423,6 +423,27 @@ public final class AuditActions {
     public static final String AD_RESTORE = "AD_RESTORE";
     /** 광고 노출 자리 설정 저장(글 보기 중간·날개·목록 한 줄, 대상 AD_PLACEMENTS · 1) — 바뀐 칸 {@code before}·{@code after}(처음 저장이면 기본값에서). 일반 */
     public static final String AD_PLACEMENT_UPDATE = "AD_PLACEMENT_UPDATE";
+    // ── 회원 핫딜 1차(hotdeal-contract 「권한·정책」 감사 — 모두 일반) ──
+    /** 핫딜 운영진 종료(대상 POST · 글 ID) — {@code reason}·{@code before}(그때 상태)·{@code boardId}, 신고 사건 조치면 {@code reportCaseId}. 일반 */
+    public static final String HOTDEAL_END = "HOTDEAL_END";
+    /** 핫딜 운영진 재개(대상 POST · 글 ID — 의심·종료 요청 리셋) — {@code reason}·{@code endedBy}(누가 끝냈었나)·{@code boardId}. 일반 */
+    public static final String HOTDEAL_REOPEN = "HOTDEAL_REOPEN";
+    /** 링크 규칙 추가(대상 HOTDEAL_DOMAIN · 규칙 ID) — {@code after}({@code domain}·{@code rule}·{@code common}·{@code keyParams}·{@code note}). 일반 */
+    public static final String HOTDEAL_DOMAIN_CREATE = "HOTDEAL_DOMAIN_CREATE";
+    /** 링크 규칙 고치기 — 바뀐 칸 {@code before}·{@code after}. 일반 */
+    public static final String HOTDEAL_DOMAIN_UPDATE = "HOTDEAL_DOMAIN_UPDATE";
+    /** 링크 규칙 지우기 — {@code before}(지운 줄). 일반 */
+    public static final String HOTDEAL_DOMAIN_DELETE = "HOTDEAL_DOMAIN_DELETE";
+    /** 위장 홍보 의심 후보 무시(대상 HOTDEAL_SUSPICION · 후보 ID) — {@code kind}·{@code host}·{@code note}. 일반 */
+    public static final String HOTDEAL_SUSPICION_DISMISS = "HOTDEAL_SUSPICION_DISMISS";
+    /** 핫딜 설정 저장(대상 HOTDEAL_SETTINGS · 1) — 바뀐 칸 {@code before}·{@code after}(제휴 링크 방식 전환 {@code affiliateMode} 도 여기). 일반 */
+    public static final String HOTDEAL_SETTINGS_UPDATE = "HOTDEAL_SETTINGS_UPDATE";
+    /** 사이트 제휴 몰 추가(대상 HOTDEAL_SITE_AFFILIATE · 몰 ID) — {@code after}. 일반 */
+    public static final String HOTDEAL_SITE_AFFILIATE_CREATE = "HOTDEAL_SITE_AFFILIATE_CREATE";
+    /** 사이트 제휴 몰 고치기·켬/끔 — 바뀐 칸 {@code before}·{@code after}. 일반 */
+    public static final String HOTDEAL_SITE_AFFILIATE_UPDATE = "HOTDEAL_SITE_AFFILIATE_UPDATE";
+    /** 사이트 제휴 몰 지우기 — {@code before}. 일반 */
+    public static final String HOTDEAL_SITE_AFFILIATE_DELETE = "HOTDEAL_SITE_AFFILIATE_DELETE";
 
     /** 모든 행위 이름 — 선언한 차례. 감사 로그 조회의 거르기 선택지(작업)가 이 목록을 원천으로 한다(상수를 더하면 자동으로 따라온다) */
     private static final List<String> ALL = collect();

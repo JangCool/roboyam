@@ -35,6 +35,8 @@ public class ReportCaseEntity {
     public static final String ACTION_KEEP_HIDDEN = "KEEP_HIDDEN";
     /** 조치: 소모임 비활성화(소모임 사건만 — V95) */
     public static final String ACTION_DEACTIVATE = "DEACTIVATE";
+    /** 조치: 핫딜 종료(핫딜 글 사건만 — hotdeal-contract, V122). 글은 숨기지 않고 딜을 운영진 종료로 바꾼다(처리 글 = 작성자에게 가는 종료 사유) */
+    public static final String ACTION_DEAL_END = "DEAL_END";
     /** 무시 */
     public static final String ACTION_DISMISS = "DISMISS";
 

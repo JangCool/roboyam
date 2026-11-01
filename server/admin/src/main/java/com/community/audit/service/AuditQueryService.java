@@ -130,6 +130,9 @@ public class AuditQueryService {
         Set<Long> highlightIds = new HashSet<>();
         Set<Long> caseIds = new HashSet<>();
         for (AuditRow row : rows) {
+            if (AuditActorType.MEMBER.name().equals(row.actorType()) && row.actorId() != null) {
+                memberIds.add(row.actorId()); // 회원 행위자(게시판 매니저·스텝)의 이름 = 지금 닉네임
+            }
             if (row.targetId() == null || row.targetType() == null) {
                 continue;
             }
@@ -161,12 +164,15 @@ public class AuditQueryService {
         boolean failed = !AuditResult.SUCCESS.name().equals(row.result());
         Map<String, Object> detail = AuditChangeFormatter.parse(row.detail());
         String message = failed && detail.get("reason") instanceof String reason ? labels.reasonText(reason) : null;
-        return new AuditLogView(Long.toString(row.id()), row.occurredAt(), row.actorId() == null ? null : Long.toString(row.actorId()), row.actorType(), null, actorName(row),
+        return new AuditLogView(Long.toString(row.id()), row.occurredAt(), row.actorId() == null ? null : Long.toString(row.actorId()), row.actorType(), null, actorName(row, names),
                 row.ip(), row.action(), labels.actionName(row.action()), row.targetType(), labels.targetTypeName(row.targetType()), row.targetId(),
                 targetName(row, names), resultOf(row.result()), message, AuditChangeFormatter.json(row.action(), detail, failed));
     }
 
-    private String actorName(AuditRow row) {
+    private String actorName(AuditRow row, Names names) {
+        if (AuditActorType.MEMBER.name().equals(row.actorType())) {
+            return row.actorId() == null ? null : names.members().get(row.actorId());
+        }
         if (AuditActorType.SYSTEM.name().equals(row.actorType())) {
             return labels.text("audit.actor.system");
         }

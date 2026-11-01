@@ -15,6 +15,9 @@
           그때만 의견 목록을 부른다(글 상세의 `debate` 또는 일반 목록의 `debate` 로 판정). 토론이 없는 글은 예전처럼 댓글만. 차단으로 본문이 접히거나 19금 확인 전이면 토론도 함께 가린다.
           토론을 바꿀 수 있는 사람(`debate.canManage`)은 토론 구획 머리의 [토론 설정], 토론이 없는 글에서는 글 아래 [찬반 토론 열기]로 설정 대화창(`DebateSettingsDialog`)을 열어 `PUT /api/posts/{id}/debate` 한다.
           응답(새 토론 요약)을 글에 넣고 두 댓글 목록을 다시 받는다. `403 DEBATE_MANAGE_DENIED` 는 토스트 + 목록 다시 받기, `409 DEBATE_HAS_VOTES` 는 대화창 안 서버 문구 + 목록 다시 받기.
+        핫딜 글(`deal` — `hotdeal-contract.md`): 본문 위에 딜 카드(`HotdealDealCard` — 제휴 고지·가격·몰·배송·재고·기간·가격 기준·수정 이력·[구매하기]·[이 상품 새 딜 올리기]·품절 알리기·작성자 종료/되돌리기/「아직 진행 중」·의심/종료 표시·같은 딜 묶음·판매자 아님 고지).
+          같은 딜(`sameDealCount > 0`)은 글을 받은 뒤 `GET …/deal/same` 으로 따로 받는다. 신고 대화창은 핫딜 글이면 사유 2개(가격·정보 / 숨긴 광고)를 더하고, 「가격 허위」는 종료 요청으로 접수된다(D4 — 성공하면 카드의 「보낸 사유」를 화면이 고친다). 동작은 `useHotdealApi` 로 이 화면이 한다(카드는 `actions` 만).
+          그 게시판 매니저·스텝이 보면(`dealModeration`) 카드에 작성자 조치와 따로 「게시판 관리」([핫딜 종료]·[다시 진행 중으로])가 서고, 딜이 바뀌면 단추를 새 상태에 맞추며 그새 상태가 바뀐 거절(`stale`)이면 글을 다시 읽는다.
         투표(post-poll-contract): 글에 `poll` 이 있으면 본문 바로 다음·찬반 토론 위에 투표 카드(`PostPollCard`). 투표·다시 읽기·지우기는 `usePollApi` 로 이 화면이 하고(카드는 `actions` 만 받는다),
           카드가 올린 새 투표(지우면 null)를 글의 `poll` 에 넣는다. 차단으로 본문이 접히거나 19금 확인 전이면 함께 가린다.
         소모임 글(2단계, community `docs/api-groups.md` 8절 · 「화면 (SPA) — 6-2」): 글의 `group` 이 있으면 머리의 게시판 이름 대신 「소모임 › 이름」(→ 소모임, 해산했으면 링크 없이 「해산한 소모임」)과
@@ -119,6 +122,21 @@
                         hide-class="flex justify-center pb-2"
                         data-testid="post-folded"
                     >
+                        <!-- 핫딜 딜 카드 — 본문 위 -->
+                        <HotdealDealCard
+                            v-if="post.deal"
+                            :deal="post.deal"
+                            :post-id="post.id"
+                            :board-slug="post.board.slug"
+                            :mine="post.mine"
+                            :guest="board.viewer.guest"
+                            :same-deals="sameDeals"
+                            :moderation="post.dealModeration ?? null"
+                            :actions="dealActions"
+                            @update:deal="onDealUpdate"
+                            @update:moderation="onDealModerationUpdate"
+                            @stale="refreshDeal(post.id)"
+                        />
                         <!-- 본문 — 19금 글은 확인 전에 가린다(가정: 성인 인증이 생기면 서버 판정으로 바뀐다) -->
                         <div v-if="post.adult && !adultConfirmed" class="my-6 flex flex-col items-center rounded-lg border border-surface px-5 py-8 text-center" data-testid="post-adult-gate">
                             <span class="mb-3 grid size-12 place-items-center rounded-full bg-red-600 text-base font-bold text-white" aria-hidden="true">19</span>
@@ -289,7 +307,7 @@
             @submit="deleteWithPassword"
         />
         <DebateSettingsDialog v-model:visible="debateDialogOpen" :initial="debateInitial" :close-locked="debateCloseLocked" :loading="debateSaving" :error="debateError" @save="saveDebate" />
-        <BoardReportDialog v-model:visible="reportOpen" :target="reportTarget?.type ?? 'POST'" :loading="reporting" :error="reportError" :field-error="reportFieldError" @submit="submitReport" />
+        <BoardReportDialog v-model:visible="reportOpen" :target="reportTarget?.type ?? 'POST'" :deal="Boolean(post?.deal) && reportTarget?.type === 'POST'" :deal-request-sent="Boolean(post?.deal?.endRequests.mine)" :loading="reporting" :error="reportError" :field-error="reportFieldError" @submit="submitReport" />
     </div>
 </template>
 
@@ -297,6 +315,8 @@
 import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
 import type { PostDetail } from '~/composables/board/api/usePostApi.types';
 import type { PollView } from '~/composables/board/api/usePollApi.types';
+import type { DealModeration, DealSameRef, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { DealCardActions } from '~/components/hotdeal/HotdealDealCard.types';
 import type { ReportReason, ReportTargetType } from '~/composables/report/api/useReportApi.types';
 import type { CommentActions, DebateActions } from '~/components/board/CommentSection.types';
 import type { DebateSettingsValues } from '~/components/board/DebateSettingsFields.types';
@@ -306,6 +326,8 @@ import UtilRichBody from '#layers/rich-editor/utils/util-rich-body';
 import UtilAd from '~/utils/util-ad';
 import UtilBlockMessages from '~/utils/util-block-messages';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilHotdeal from '~/utils/util-hotdeal';
+import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
 import UtilDebate from '~/utils/util-debate';
 import UtilPost from '~/utils/util-post';
 import UtilPostMessages from '~/utils/util-post-messages';
@@ -325,6 +347,7 @@ const reportApi = useReportApi();
 const debateApi = useDebateApi();
 const pollApi = usePollApi();
 const groupApi = useGroupApi();
+const hotdealApi = useHotdealApi();
 const { user } = useAuth();
 const toast = useAppToast();
 const { confirm } = useConfirmDialog();
@@ -419,6 +442,7 @@ async function load(): Promise<void> {
         opinionsStarted = false;
         void comments.load();
         startOpinions();
+        void loadSameDeals(loaded);
     } catch (e) {
         if (mine !== request) return;
         pageError.value = UtilBoardMessages.of(t, e);
@@ -476,6 +500,58 @@ function startOpinions(): void {
 }
 // 글 상세로는 몰랐지만 일반 목록이 의견이 있다고 알려 줄 때(닫힌 토론 등)·토론을 새로 열었을 때
 watch(showDebate, () => startOpinions());
+
+/* ── 핫딜 ── */
+/** 같은 딜(진행 중인 다른 글) — 받는 중이면 null */
+const sameDeals = ref<DealSameRef[] | null>(null);
+async function loadSameDeals(loaded: PostDetail): Promise<void> {
+    sameDeals.value = null;
+    if (!loaded.deal || loaded.deal.sameDealCount === 0) return;
+    try {
+        const list = await hotdealApi.same(loaded.id);
+        if (post.value?.id === loaded.id) sameDeals.value = list;
+    } catch {
+        // 못 받으면 개수만 보인다(묶음 목록 없이)
+        if (post.value?.id === loaded.id) sameDeals.value = [];
+    }
+}
+/** 딜 카드가 부르는 동작 — 지금 보는 글의 딜 */
+const dealActions: DealCardActions = {
+    endRequest: (reason) => hotdealApi.endRequest(id.value, reason),
+    end: () => hotdealApi.end(id.value),
+    reopen: () => hotdealApi.reopen(id.value),
+    keep: () => hotdealApi.keep(id.value),
+    moderateEnd: (reason) => hotdealApi.moderateEnd(id.value, reason),
+    moderateReopen: (reason) => hotdealApi.moderateReopen(id.value, reason),
+};
+/** 카드가 올린 새 딜 — 글을 다시 받지 않는다. 게시판 관리 단추(`dealModeration`)는 새 딜 상태에 맞춘다 */
+function onDealUpdate(next: PostDeal): void {
+    if (!post.value) return;
+    post.value.deal = next;
+    post.value.dealModeration = UtilHotdeal.moderationAfter(post.value.dealModeration ?? null, next);
+}
+/** 게시판 관리 자리가 빠졌다(`403 DEAL_MODERATE_FORBIDDEN`) — 카드의 영역을 거둔다 */
+function onDealModerationUpdate(next: DealModeration | null): void {
+    if (post.value) post.value.dealModeration = next;
+}
+/**
+ * 가격 허위 신고(D4) 뒤 딜만 서버 값으로 — 신고 응답(204)에는 딜이 없고, 서버는 이미 알렸거나 자격 미달·한도·끝난 딜이면 신고만 받아 집계가 그대로일 수 있다.
+ * 게시판 관리가 그새 바뀐 상태(`409 DEAL_ENDED`·`DEAL_NOT_ENDED`)를 만났을 때도 쓴다(카드 `stale`).
+ * 딜만 읽는 API 가 없어 글을 다시 읽고 `deal`·`dealModeration` 만 바꾼다(조회수는 같은 회원 중복 창 안이라 다시 세지 않는다). 못 받으면 지금 카드 그대로 두고 null
+ */
+async function refreshDeal(postId: string): Promise<PostDeal | null> {
+    try {
+        const fresh = await postApi.post(postId);
+        if (post.value?.id === postId) {
+            post.value.deal = fresh.deal ?? null;
+            post.value.dealModeration = fresh.dealModeration ?? null;
+        }
+        return fresh.deal ?? null;
+    } catch {
+        // 다음에 글을 받을 때 바로잡힌다
+        return null;
+    }
+}
 
 /* ── 투표 ── */
 /** 투표 카드가 부르는 동작 — 지금 보는 글의 투표 */
@@ -751,6 +827,13 @@ const REPORT_FINAL: ReadonlySet<string> = new Set([
     'ACCOUNT_RESTRICTED',
     'BOARD_RESTRICTED',
     'FORBIDDEN',
+    // 핫딜 종료 요청 계열 — 가격 허위 신고(D4)는 서버가 204 로 받지만(이미 알렸거나 자격 미달이면 신고만) 혹시 오면 닫고 알린다
+    'DEAL_END_REQUEST_EXISTS',
+    'DEAL_END_REQUEST_NOT_ALLOWED',
+    'DEAL_END_REQUEST_AUTHOR_LIMIT',
+    'DEAL_END_REQUEST_DAILY_LIMIT',
+    'DEAL_END_REQUEST_OWN',
+    'DEAL_ENDED',
 ]);
 
 function openReport(type: ReportTargetType, targetId: string): void {
@@ -770,7 +853,13 @@ async function submitReport(value: { reason: ReportReason; detail: string | null
     try {
         await reportApi.report({ targetType: target.type, targetId: target.id, reason: value.reason, detail: value.detail });
         reportOpen.value = false;
-        toast.success(t('post.reported'));
+        if (value.reason === 'DEAL_FALSE_PRICE' && target.type === 'POST' && post.value?.deal) {
+            // D4 — 가격 허위 신고는 서버가 종료 요청 「가격 변경」 1건으로 접수할 수도, 신고만 받을 수도 있다 — 화면이 셈하지 않고 다시 읽는다.
+            // 이번에 내 요청이 새로 생겼을 때만 「알리기로 접수」, 아니면(이미 알렸음·자격·한도·끝난 딜·다시 못 읽음) 보통 신고 접수 문구
+            const before = post.value.deal.endRequests.mine;
+            const fresh = await refreshDeal(target.id);
+            toast.success(!before && fresh?.endRequests.mine ? t('hotdeal.reportFalsePriceDone') : t('post.reported'));
+        } else toast.success(t('post.reported'));
     } catch (e) {
         if (e instanceof ApiError && e.code === 'UNAUTHENTICATED') {
             reportOpen.value = false;
@@ -779,7 +868,7 @@ async function submitReport(value: { reason: ReportReason; detail: string | null
         else if (e instanceof ApiError && REPORT_FINAL.has(e.code)) {
             // 다시 눌러도 안 되는 거절 — 대화상자를 닫고 서버 문구를 알린다
             reportOpen.value = false;
-            toast.error(e.message, 8000);
+            toast.error(UtilHotdealMessages.dealError(t, e) ?? e.message, 8000);
             if (e.code === 'REPORT_TARGET_NOT_FOUND' && reportTarget.value?.type === 'COMMENT') void comments.load();
         } else reportError.value = UtilBoardMessages.of(t, e);
     } finally {

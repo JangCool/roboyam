@@ -23,6 +23,8 @@ import com.community.captcha.CaptchaVerifier;
 import com.community.debate.entity.PostDebateEntity;
 import com.community.debate.service.PostDebateWriter;
 import com.community.group.service.GroupPostGate;
+import com.community.hotdeal.dto.response.DealWarningView;
+import com.community.hotdeal.service.DealWriter;
 import com.community.permission.entity.MemberPermission;
 import com.community.poll.service.PollRules;
 import com.community.poll.service.PollWriter;
@@ -76,6 +78,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  * 첫 표가 든 투표를 바꾸면 409 POLL_LOCKED 로 글도 고치지 않는다(docs/features/post-poll-contract.md). 속도 판정과 저장은 작성자 단위 어드바이저리 잠금 아래 한 트랜잭션이다(같은 사람의 동시 요청이 한도를 넘지 못하게).
  * 작성자 열쇠는 회원 ID, 비회원은 작성 IP 다. 하루 = 최근 24시간(목업과 같음).
  *
+ * <p><b>핫딜</b>({@link DealWriter}): 핫딜 게시판({@code kind DEAL})이면 본문 {@code deal} 필수(아니면 거절) — 쓰기 자격(일반 등급 이상 + 이메일 인증)은 게시판 판정 다음에, 칸
+ * 검사({@code fields."deal.*"})는 다른 칸과 함께, 하루 글 수·같은 판매처 간격(429)은 저장 트랜잭션의 작성자 잠금 아래에서 본다. 고치기의 {@code deal} 은 빠지면 그대로(링크만 지금
+ * 규칙으로 다시 판정해 {@code warnings}), 값이면 고치기(이력·가격 수정 셈·판매처 바뀜 알림). docs/features/hotdeal-contract.md.
+ *
  * <p>bcrypt(비회원 비밀번호 해시·확인)와 캡차 확인은 느리거나 외부 요청이라 트랜잭션 밖에서 하고, 저장은 {@link TransactionTemplate} 으로 짧게 연다.
  *
  * <p>회원 글은 저장이 커밋된 뒤 활동 수 조건 즉시 승급을 판정한다({@link WriterPromotion} — 별도 트랜잭션, 실패해도 글쓰기는 성공).
@@ -101,13 +107,15 @@ public class PostWriteService {
     private final PostDebateWriter debates;
     private final PollWriter polls;
     private final GroupPostGate groupGate;
+    private final DealWriter deals;
     private final TransactionTemplate tx;
 
     public PostWriteService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters,
                             PostQueryService queries, GuestPasswords passwords, CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion,
                             PointService points, PostImages postImages, PostDebateWriter debates, PollWriter polls, GroupPostGate groupGate,
-                            PlatformTransactionManager txManager) {
+                            DealWriter deals, PlatformTransactionManager txManager) {
         this.groupGate = groupGate;
+        this.deals = deals;
         this.postImages = postImages;
         this.debates = debates;
         this.polls = polls;
@@ -133,7 +141,9 @@ public class PostWriteService {
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = PublicBoardService.requireActive(s, body.boardSlug());
         BoardActor actor = actors.resolve(userId, s);
-        requireWritable(BoardAccessPolicy.writeBlocked(b, actor, s));
+        // 핫딜 게시판은 쓰기 자격(일반 등급 이상 + 이메일 인증 + 정지 아님)까지 같은 판정이 본다 — 새싹이면 필요한 등급을 오류 본문에
+        requireWritable(BoardAccessPolicy.writeBlocked(b, actor, s), b, s);
+        DealWriter.requireWriter(b, actor, s);
         BoardSecurityValues sec = s.security();
 
         Map<String, MessageRef> fields = new LinkedHashMap<>();
@@ -150,6 +160,8 @@ public class PostWriteService {
             fields.put("debate", new MessageRef("debate.open.notAllowed")); // 글과 함께 토론 열기 — 회원 + 게시판 debateEnabled 일 때만
         }
         PollRules.Valid poll = polls.checkForCreate(body.poll(), actor.guest(), b, Instant.now(), fields); // 회원 + 게시판 pollEnabled, 칸 오류는 poll.*
+        // 핫딜 게시판이면 딜 필수(칸 오류는 deal.*), 아니면 거절 — 새 링크의 리디렉션 체인은 여기(트랜잭션 밖)서 가져온다
+        DealWriter.Checked deal = deals.checkForCreate(body.deal(), b, actor.guest() ? null : actor.userId(), fields);
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
@@ -190,13 +202,16 @@ public class PostWriteService {
             if (poll != null) {
                 polls.create(id, poll, now);
             }
+            if (deal != null) {
+                deals.create(id, b.id(), authorId, deal, deals.now()); // 하루 글 수 · 같은 판매처 간격(429)도 작성자 잠금 아래에서
+            }
             if (authorId != null) {
                 // 실패·조건 미달·상한이어도 글은 그대로 올라간다(커머스 1-3 — 게시판 pointMode·최소 글자 수 스위치)
                 points.earnPost(new PointService.PostEarn(authorId, id, content.plain(), b.pointsEnabled(), b.pointMinLengthApplied()));
             }
         });
         promotion.afterWrite(authorId); // 커밋 뒤 — 회원 글이면 활동 수 조건 즉시 승급(실패해도 글쓰기는 성공)
-        return new PostWriteResult(Long.toString(id));
+        return new PostWriteResult(Long.toString(id), deal == null ? List.of() : deal.warnings());
     }
 
     /**
@@ -228,6 +243,7 @@ public class PostWriteService {
             fields.put("debate", new MessageRef("group.post.debate.notAllowed"));
         }
         PollRules.Valid poll = polls.checkForCreate(body.poll(), false, b, Instant.now(), fields);
+        deals.checkForCreate(body.deal(), b, actor.userId(), fields); // 소모임 게시판은 핫딜이 아니다 — deal 을 보내면 fields.deal
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
@@ -382,6 +398,7 @@ public class PostWriteService {
         Cleaned c = checkFields(b, actor.staffOf(b.id()), writer, post.getPrefixId(), body.prefixId(), body.title(), body.contentFormat(), body.content(),
                 body.adult(), sec, fields);
         PollWriter.Change pollChange = polls.checkForUpdate(body.poll(), post, b, start, fields); // 칸 빠짐 = 그대로 · null = 빼기 · 값 = 만들기·고치기
+        DealWriter.Change dealChange = deals.checkForUpdate(body.deal(), post, b, fields); // 핫딜 — 칸 빠짐 = 그대로(링크만 다시 판정) · 값 = 고치기, 종료된 딜은 409 DEAL_ENDED
         if (post.isGroupPost() && c.adult()) {
             fields.put("adult", new MessageRef("group.post.adult.notAllowed")); // 소모임 글은 19금이 될 수 없다
         }
@@ -419,9 +436,11 @@ public class PostWriteService {
                 postImages.releaseAll(locked.getId());
                 stored = content.content();
             }
+            // 글 이미지 맞추기 다음 — 올린 딜 이미지를 다시 붙이고, 딜 칸이 바뀌면 이력·셈·알림(D3). 차단 링크를 그대로 두면 경고(규칙 7)
+            List<DealWarningView> warnings = deals.apply(locked, dealChange, deals.now());
             locked.edit(c.prefixId(), title, content.format(), stored, content.plain(), c.adult(), c.hasImage(), now);
             posts.flush();
-            return queries.viewAfterEdit(locked, gate, s, userId, now);
+            return queries.viewAfterEdit(locked, gate, s, userId, now, warnings);
         });
     }
 
@@ -514,6 +533,15 @@ public class PostWriteService {
             throw new CommonException(ErrorCode.UNAUTHENTICATED);
         }
         throw new BoardWriteBlockedException(reason);
+    }
+
+    /** 새 글 쓰기 판정 — {@code GRADE_TOO_LOW} 면 오류 본문에 필요한 등급({@code minGrade}·{@code minGradeLabel} — 핫딜 게시판은 첫 등급 바로 위)을 싣는다 */
+    public static void requireWritable(String reason, EffectiveBoard b, BoardCatalogSnapshot s) {
+        if (BoardAccessPolicy.GRADE_TOO_LOW.equals(reason)) {
+            String grade = BoardAccessPolicy.requiredWriteGrade(b, s);
+            throw BoardWriteBlockedException.gradeTooLow(reason, grade, s.gradeLabel(grade));
+        }
+        requireWritable(reason);
     }
 
     /** 고치거나 지울 수 있는가 — 비회원 글은 비밀번호(시도 제한), 회원 글은 쓴 회원만(아니면 403 FORBIDDEN) */

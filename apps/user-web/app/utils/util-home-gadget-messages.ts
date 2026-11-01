@@ -26,6 +26,8 @@ export default class UtilHomeGadgetMessages {
                 return t('home.emptyGroups');
             case 'GROUP_BUY':
                 return t('home.emptyGroupBuy');
+            case 'HOT_DEALS':
+                return t('hotdeal.gadgetEmpty');
             default:
                 return t('home.emptyDefault');
         }

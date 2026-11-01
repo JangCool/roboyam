@@ -835,6 +835,15 @@ export default class UtilBoard {
         return `light-dark(var(--p-${name}-500), var(--p-${name}-400))`;
     }
 
+    /**
+     * 매니저·스텝을 지정할 수 있는 종류인가 — 일반·핫딜(핫딜 담당 = 그 게시판 매니저·스텝, hotdeal-contract). 직접홍보·소모임은 안 된다(서버 `BoardStaffService` 와 같게)
+     * @param {BoardKind} kind - 게시판 종류.
+     * @returns {boolean} 지정할 수 있으면 true.
+     */
+    static staffAssignable(kind: BoardKind): boolean {
+        return kind === 'GENERAL' || kind === 'DEAL';
+    }
+
     /** 종류 배지의 PrimeVue severity */
     static kindSeverity(kind: BoardKind): 'secondary' | 'danger' | 'warn' | 'info' {
         return kind === 'DEAL' ? 'danger' : kind === 'PROMO' ? 'warn' : kind === 'GROUP' ? 'info' : 'secondary';

@@ -72,14 +72,17 @@ export default {
     createKindLabel: 'Type',
     createKind: {
         GENERAL: 'General board',
+        DEAL: 'Hot deal board',
         GROUP: 'Club board',
     },
     createKindNote: {
         GENERAL: 'Has a menu entry and a board page',
+        DEAL: 'Each post carries deal info · shown as a price-line list',
         GROUP: 'Holds club posts · no menu entry or board page',
     },
     createKindHelp: {
         GENERAL: 'Like the address, this cannot be changed later',
+        DEAL: 'Each post carries deal info (price · store · link) and the list shows price lines · 18+ stays off · posting starts at the regular grade · the type cannot be changed later',
         GROUP: 'No menu entry or board page · posts show in the club list and in each club · the type cannot be changed later',
     },
     createKindFixed: 'Only club boards can be created from Club categories',
@@ -538,6 +541,7 @@ export default {
     viewToggleCard: 'For the card layout this can only be turned off.',
     kindLocked: 'The type cannot be changed after creation.',
     allowAdultHelp: 'When on, authors can mark posts as 18+.',
+    allowAdultDeal: 'Hot deal boards cannot allow 18+ posts (always off).',
     investmentHelp: 'Shows a no-investment-advice notice on stock/industry boards. Once on, it cannot be turned off.',
     investmentOnce: 'After saving it cannot be turned off.',
     investmentLocked: 'The investment notice cannot be turned off once on (anti-solicitation policy).',
@@ -583,7 +587,7 @@ export default {
 
     // ── Managers & staff ──
     staffLead: 'Board managers and staff are regular members. Assigning and releasing take effect immediately (separate from the save bar).',
-    staffKindBlocked: 'Managers and staff cannot be assigned to hot deal, promotion or club boards.',
+    staffKindBlocked: 'Managers and staff cannot be assigned to promotion or club boards.',
     staffLoadFailed: "Couldn't load managers and staff",
     role: {
         MANAGER: 'Managers',

@@ -16,7 +16,8 @@ import tools.jackson.databind.node.ObjectNode;
  *       {@code rowStyle}·{@code columns} 1·2·{@code thumbnail}·{@code titleLines} 0·1·2·{@code lead}·{@code meta}·{@code dividers}·{@code newBadgeHours} 0~72·{@code hotBadgeLikes} 0~1000 ·
  *       {@code GALLERY} 대상 게시판 · {@code count} 1~24(6) · {@code BOARD_CARDS} 대상 게시판 · {@code perBoard} 1~10(4) · {@code cardHead} · {@code columns} AUTO·2·3 ·
  *       {@code HIGHLIGHT} {@code count} 1~6(5) · {@code lead} · {@code thumbs} · {@code GROUPS} {@code count} 1~6(3) · {@code QUICK_LINKS} {@code shape} · {@code items} 0~12 ·
- *       {@code NOTICE_TEXT} {@code text} 0~300 · {@code format} · {@code AD} {@code adType} 배너 넷(WIDE_BANNER) · {@code AD_TEXT_LINE} {@code count} 1~5(3).</li>
+ *       {@code NOTICE_TEXT} {@code text} 0~300 · {@code format} · {@code AD} {@code adType} 배너 넷(WIDE_BANNER) · {@code AD_TEXT_LINE} {@code count} 1~5(3) ·
+ *       {@code HOT_DEALS} {@code count} 1~10(5) · {@code sort} LATEST·POPULAR·ENDING_SOON · {@code boards} 핫딜 게시판 slug 0~20(비면 모두 — 종류만의 칸).</li>
  *   <li>대상 게시판 {@code boardScope}: {@code ALL} 전체 · {@code FOLDER} 가젯 페이지의 기준 폴더 게시판 전체(페이지에서만) · {@code BOARD} 지금 보는 게시판(게시판 레이아웃에서만) ·
  *       {@code PICK} {@code boardIds}(게시판 slug). 저장 설정에 {@code boardScope} 가 없으면(옛 시드) {@code boardIds} 가 있으면 PICK, 없으면 ALL 로 읽는다.</li>
  * </ul>
@@ -58,6 +59,7 @@ public final class GadgetConfigs {
     /** 종류 → 개수 칸 {이름, 최소, 최대, 처음} — 공개 {@code HomeGadgetService} 가 읽는 범위와 같다 */
     private static final Map<String, Count> COUNTS = Map.of(
             "GROUP_BUY", new Count("count", 1, HomeGadgetKinds.GROUP_BUY_COUNT_MAX, HomeGadgetKinds.GROUP_BUY_COUNT_DEFAULT),
+            HomeGadgetKinds.HOT_DEALS, new Count("count", 1, HomeGadgetKinds.HOT_DEALS_COUNT_MAX, HomeGadgetKinds.HOT_DEALS_COUNT_DEFAULT),
             "POST_LIST", new Count("count", 1, 30, 10),
             "GALLERY", new Count("count", 1, 24, 6),
             "BOARD_CARDS", new Count("perBoard", 1, 10, 4),
@@ -116,6 +118,7 @@ public final class GadgetConfigs {
     public static List<String> sorts(String type) {
         return switch (type) {
             case "GROUP_BUY" -> HomeGadgetKinds.GROUP_BUY_SORTS;
+            case HomeGadgetKinds.HOT_DEALS -> HomeGadgetKinds.HOT_DEALS_SORTS;
             case "POST_LIST" -> POST_LIST_SORTS;
             default -> List.of();
         };
@@ -213,6 +216,10 @@ public final class GadgetConfigs {
                 out.put("format", oneOf(config, "format", NOTICE_FORMATS, "PLAIN"));
             }
             case HomeGadgetKinds.AD -> out.put("adType", oneOf(config, "adType", AD_TYPES, AD_TYPE_DEFAULT));
+            case HomeGadgetKinds.HOT_DEALS -> {
+                ArrayNode boards = out.putArray("boards");
+                HomeGadgetKinds.hotDealsBoards(config).forEach(boards::add);
+            }
             default -> {
             }
         }
