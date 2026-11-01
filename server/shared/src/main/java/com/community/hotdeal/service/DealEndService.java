@@ -95,10 +95,24 @@ public class DealEndService {
     /**
      * 운영진 종료(3단계 관리자 — 게시판 매니저·스텝·{@code hotdeal.manage}, 신고 사건 조치 {@code DEAL_END}) — 진행·의심·기간 지남 → ENDED MANAGER + 보상 + 작성자 알림(사유).
      *
+     * 운영자({@link PostDealEntity#ROLE_OPERATOR})가 한 종료 — {@link #endByManager(long, long, String, String)}.
+     *
      * @param reason 작성자에게 가는 사유(≤200자 — 검사는 부르는 쪽, 없으면 null)
      */
     @Transactional
-    public Outcome endByManager(long postId, long actorId, String reason) {
+    public Outcome endByManager(long postId, long operatorId, String reason) {
+        return endByManager(postId, operatorId, PostDealEntity.ROLE_OPERATOR, reason);
+    }
+
+    /**
+     * 운영진 종료 — 누가 했는지({@code role}: 운영자 · 그 게시판 매니저 · 스텝)를 딜 줄({@code ended_by_role})에 남긴다. 담당 판정은 부르는 쪽({@link DealModeration}).
+     *
+     * @param actorId 운영자 ID 또는 매니저·스텝 회원 ID
+     * @param role    {@link PostDealEntity#ROLE_OPERATOR} · {@link PostDealEntity#ROLE_BOARD_MANAGER} · {@link PostDealEntity#ROLE_BOARD_STAFF}
+     * @param reason  작성자에게 가는 사유(≤200자 — 검사는 부르는 쪽, 없으면 null)
+     */
+    @Transactional
+    public Outcome endByManager(long postId, long actorId, String role, String reason) {
         PostDealEntity d = deals.findWithLockByPostId(postId).orElse(null);
         if (d == null) {
             return Outcome.NOT_FOUND;
@@ -107,7 +121,7 @@ public class DealEndService {
             return Outcome.STATE_CHANGED;
         }
         String note = reason == null || reason.isBlank() ? null : reason.strip();
-        d.endByManager(actorId, note, now());
+        d.endByManager(actorId, role, note, now());
         rewardRequesters(d);
         notices.managerEnded(d, note);
         return Outcome.CHANGED;

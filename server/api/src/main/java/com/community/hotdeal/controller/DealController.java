@@ -2,6 +2,7 @@ package com.community.hotdeal.controller;
 
 import com.community.auth.dto.AuthUser;
 import com.community.hotdeal.dto.request.DealEndRequestInput;
+import com.community.hotdeal.dto.request.DealModerateInput;
 import com.community.hotdeal.dto.response.DealLinkCheckView;
 import com.community.hotdeal.dto.response.PostDealView;
 import com.community.hotdeal.service.DealStateService;
@@ -87,6 +88,20 @@ public class DealController {
     public ResponseEntity<ApiResponse<PostDealView>> endRequest(@PathVariable String id, @RequestBody(required = false) DealEndRequestInput body,
                                                                Authentication authentication) {
         return noStore(ApiResponse.success(states.request(id, userId(authentication), body == null ? null : body.reason())));
+    }
+
+    /** 게시판 매니저·스텝 종료 {reason}(1~200자 필수) — 그 글 게시판의 매니저·스텝만(403 DEAL_MODERATE_FORBIDDEN) */
+    @PostMapping("/api/posts/{id}/deal/moderate/end")
+    public ResponseEntity<ApiResponse<PostDealView>> moderateEnd(@PathVariable String id, @RequestBody(required = false) DealModerateInput body,
+                                                                Authentication authentication, HttpServletRequest request) {
+        return noStore(ApiResponse.success(states.moderateEnd(id, userId(authentication), body == null ? null : body.reason(), ipResolver.resolve(request))));
+    }
+
+    /** 게시판 매니저·스텝 재개 {reason?}(0~200자) — 운영진 재개와 같은 리셋 */
+    @PostMapping("/api/posts/{id}/deal/moderate/reopen")
+    public ResponseEntity<ApiResponse<PostDealView>> moderateReopen(@PathVariable String id, @RequestBody(required = false) DealModerateInput body,
+                                                                   Authentication authentication, HttpServletRequest request) {
+        return noStore(ApiResponse.success(states.moderateReopen(id, userId(authentication), body == null ? null : body.reason(), ipResolver.resolve(request))));
     }
 
     /** 구매하기 — 302(서버 경유, 클릭 시점의 제휴 방식으로 바꾼다). 본문 없음 */

@@ -193,20 +193,22 @@ SiteAffiliateStore { id, domain(정규화), programName(≤40), transform: { typ
 - 관리자 알림 링크는 admin-web 서랍 쿼리에 맞춘다: 글 `/hotdeals?view=ALL&deal={postId}`, 의심 후보 `/hotdeals/suspicions?suspicion={id}`.
 - 두 앱의 목업(`// MOCK:`·목업 저장소)과 위 「목업 구현 결과」의 `?mock=` 스위치·목업 글·목업 게시판 `hotdeal` 은 **모두 지웠다**(실 API 경로를 가로채지 않게) — 그 절들은 화면 확정 기록으로만 남긴다.
 - 커밋: 서버 `b3b1ed5e`(1단계)·`ce4a9ff9`(2단계)·`1ea5706f`(3단계), 화면 admin-web `0d82aca0`·user-web `707729dc`·`0e607d82`·`80bca201`.
+- 게시판 매니저·스텝 종료·재개(사용자 결정 2026-11-01, 메모 4절): 공개 `POST /api/posts/{id}/deal/moderate/end {reason}`(1~200 필수)·`/moderate/reopen {reason?}` → 새 `PostDeal` — 운영진 종료·재개와 같은 길(shared `DealModeration`), 그 글 게시판의 매니저·스텝 활성 회원만(`403 DEAL_MODERATE_FORBIDDEN`, 요청마다 다시 판정) · 글 상세 `dealModeration {role, canEnd, canReopen} | null` · 감사 `HOTDEAL_END`·`HOTDEAL_REOPEN` 행위자 새 종류 `MEMBER`(V122 감사 CHECK 에 추가, 관리자 감사 조회는 회원 닉네임) + detail `boardId`·`role`·`reason` · 딜 줄 `ended_by_role`(OPERATOR·BOARD_MANAGER·BOARD_STAFF, V122) → 관리자 상세 `endedByRole`(+ AUTHOR)·`endedByName`(운영자 이름 / 회원 닉네임).
 
 ### 서버 구현 결과
 - 1·2단계의 API 모양·빈칸 결정은 세션 공유 메모 `hotdeal-member-api.md` 0~3절(서버 DTO 가 정본). 2단계(2026-11-01): 작성자 종료·되돌리기·keep·종료 요청 API, 보상, 신고 연결, 가젯 `HOT_DEALS`, 인기글 제외, 회원 알림 5종, Java 배치 4개(`hotdeal-auto-end`·`hotdeal-expiry-notice`·`hotdeal-cleanup`·`hotdeal-suspicion`).
 - 3단계(관리자)가 부를 shared 진입점: 운영진 종료 `DealEndService#endByManager(postId, actorId, reason)`(보상·작성자 알림 포함) · 운영진 재개 `DealEndService#reopenByManager(postId)`(의심·keep·요청 리셋 + 「마감을 고쳐 주세요」) · 결과 `Outcome`(`STATE_CHANGED` → `409 HOTDEAL_STATE_CHANGED`) · 알림 `DealNotices` · 탈퇴 `DealWithdrawal#withdraw`(탈퇴 API 가 생기면).
 - 배치의 실행 서버: 계약은 「배치(api)」였지만 배치 인프라(`_backend-core.md` 「배치」)대로 작업은 shared `com.community.hotdeal.batch`, 예약·「지금 실행」은 관리자 서버(`roboyam.batch.enabled`)가 돌린다.
 - 3단계(관리자, 2026-11-01): `/api/admin/hotdeals`(boards·목록·상세·revisions·end·reopen) · `hotdeal-domains`(+impact) · `hotdeal-suspicions`(+dismiss) · `hotdeal-settings`(+affiliate-impact) · `hotdeal-site-affiliates` · 신고 사건 `DEAL_END`·`deal: {view}` · 관리자 글 줄 `deal: boolean` · `AdminScreenRegistry` 4줄 · 감사 10개(모두 일반). 딜 보기 계산은 shared `DealViewAssembler`(공개·관리자 같은 판정), 담당 판정은 shared `DealModeration`. V122 에 신고 사건 조치 CHECK `DEAL_END` 추가(로컬 DB 미적용 확인). 공개 손질: 핫딜 쓰기 자격(회원·정지 아님·이메일 인증·새싹 아님)을 `BoardAccessPolicy.writeBlocked` 에 넣어 게시판 응답 `viewer.writeBlockedReason`·`/api/boards/writable` 이 미리 막고, 글쓰기 `GRADE_TOO_LOW` 에 `minGrade`·`minGradeLabel`(핫딜은 첫 등급 바로 위 등급).
-- 3단계 결정(세션 정리): 게시판 매니저·스텝은 회원이라 관리자 앱에 들어오지 않는다 — 관리자 종료·재개 API 는 `hotdeal.manage` 만, 매니저·스텝 판정(그 게시판만)은 shared `DealModeration.Actor.boardMember` 에 두고 부를 공개 API·화면은 아직 없다. 신고 조치 `DEAL_END` 는 신고 처리 권한(`report.manage`)이 담당을 대신한다. 핫딜 설정 조회는 `hotdeal.read`(메뉴 항목은 `hotdeal.manage`).
+- 3단계 결정(세션 정리): 게시판 매니저·스텝은 회원이라 관리자 앱에 들어오지 않는다 — 관리자 종료·재개 API 는 `hotdeal.manage` 만, 매니저·스텝 판정(그 게시판만)은 shared `DealModeration.Actor.boardMember` 에 두고, 공개 사이트가 매니저·스텝 API(`/deal/moderate/end`·`reopen`)로 부른다(2026-11-01 서버 — 화면 연결은 user-web). 신고 조치 `DEAL_END` 는 신고 처리 권한(`report.manage`)이 담당을 대신한다. 핫딜 설정 조회는 `hotdeal.read`(메뉴 항목은 `hotdeal.manage`).
 
 ## 미확정
 - 「의심 구간」의 뜻(2단계 가정): 의심이 된 회차의 요청(문턱을 채운 요청 포함) + 의심인 동안의 요청, 「아직 진행 중」으로 반박된 회차는 보상하지 않음. 운영진이 재개한 딜에 같은 회원이 다시 요청하면 새 요청이라 다시 보상받을 수 있다.
 - 글에 붙지 않은 OG 사본의 정리 기한 7일(2단계 가정). 위장 홍보 열린 후보가 조건에서 벗어나도 저절로 닫지 않음. 대형몰 `smartstore.naver.com` 이 common 이라 스마트스토어 판매자는 위장 홍보 집계에서 빠진다.
 - 같은 딜 판정에 쿼리 문자열을 어디까지 남길지 — 규칙별 `keyParams` 로 정하되 기본 몰 목록은 운영하며 채움.
 - 종료 요청 자격·하루 글 5건·같은 몰 10분·마감 없는 딜 30일은 추천안 채택값(바꿀 수 있음).
-- 3단계 가정: 관리자 핫딜 목록은 지운 글(예약 삭제 지남 포함)을 빼고 숨긴 글은 넣는다 · 게시판 매니저·스텝의 종료·재개 공개 API·화면(판정만 있음) · 링크 규칙 `note` 100자(DB 200).
+- 3단계 가정: 관리자 핫딜 목록은 지운 글(예약 삭제 지남 포함)을 빼고 숨긴 글은 넣는다 · 링크 규칙 `note` 100자(DB 200).
+- 매니저·스텝 API 가정(2026-11-01): 대상 판정은 다른 공개 상태 API 와 같아 숨긴 글은 `403 POST_HIDDEN`(숨긴 글의 딜은 관리자 앱에서) · 관리자 감사 조회의 행위자 이름 검색은 지금 운영자 이름만 찾는다(회원 행위자는 ID 로 찾기) · admin-web 감사 화면 타입 `AuditActorType` 에 `MEMBER` 추가는 화면 몫.
 - `coupa.ng` 가 쿠팡 공식 단축 주소인지(지금은 제휴 시드). 사이트 제휴 몰 표 첫 줄들(어느 몰·프로그램과 계약할지)은 운영하며 채움 — 시드 없음.
 
 ## 법무 확인 (05 §5)

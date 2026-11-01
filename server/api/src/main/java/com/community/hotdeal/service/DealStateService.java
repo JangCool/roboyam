@@ -1,5 +1,9 @@
 package com.community.hotdeal.service;
 
+import com.community.audit.dto.AuditActions;
+import com.community.audit.dto.AuditEvent;
+import com.community.audit.entity.AuditResult;
+import com.community.audit.service.AuditLogService;
 import com.community.board.dto.BoardActor;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.dto.EffectiveBoard;
@@ -19,6 +23,7 @@ import com.community.hotdeal.exception.DealEndRequestNotAllowedException;
 import com.community.hotdeal.exception.DealEndRequestOwnException;
 import com.community.hotdeal.exception.DealEndedException;
 import com.community.hotdeal.exception.DealKeepLimitException;
+import com.community.hotdeal.exception.DealModerateForbiddenException;
 import com.community.hotdeal.exception.DealNotEndedException;
 import com.community.hotdeal.exception.DealNotFlaggedException;
 import com.community.hotdeal.exception.DealNotFoundException;
@@ -62,6 +67,11 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>작성자 종료</b>: 진행·의심만(종료·기간 종료 {@code 409 DEAL_ENDED}) → ENDED AUTHOR + 의심 구간 요청자 보상(규칙 5).</li>
  *   <li><b>되돌리기</b>(D2·규칙 11): 끝나지 않았으면 {@code 409 DEAL_NOT_ENDED} · 이미 썼으면 {@code 409 DEAL_REOPEN_USED} · 작성자 종료가 아니거나 24시간이 지났으면
  *       {@code 409 DEAL_REOPEN_EXPIRED}(자동·운영진 종료는 운영진만 재개). 재고가 품절이었으면 「모름」, 기간이 지났으면 작성자에게 {@code DEAL_REOPENED_FIX_ENDS}. 의심 표시는 그대로 둔다.</li>
+ *   <li><b>게시판 매니저·스텝 종료·재개</b>(사용자 결정 2026-11-01 — 메모 4절): 로그인(401) → 사유(종료 1~200자 필수 · 재개 0~200자, 앞뒤 공백 뗌 — {@code 400 fields.reason}) → 대상
+ *       → 담당(그 글 게시판의 매니저·스텝이고 활성 회원 — 다른 게시판 매니저·일반 회원·정지 {@code 403 DEAL_MODERATE_FORBIDDEN}, 요청마다 다시 판정) → 잠금 → 상태(종료: 이미 종료
+ *       {@code 409 DEAL_ENDED} · 재개: 종료가 아님 {@code 409 DEAL_NOT_ENDED}). 길은 운영진 종료·재개와 같다(shared {@link DealModeration} — ENDED MANAGER + 의심 구간 보상 + 작성자 알림
+ *       {@code DEAL_MANAGER_ENDED}(사유) · 재개는 의심·keep·요청 리셋 + 기간이 지났으면 {@code DEAL_REOPENED_FIX_ENDS}). 감사 {@code HOTDEAL_END}·{@code HOTDEAL_REOPEN}(행위자 회원,
+ *       대상 POST, detail {@code boardId}·{@code role}·{@code reason}).</li>
  * </ul>
  */
 @Service
@@ -69,6 +79,9 @@ public class DealStateService {
 
     public static final List<String> REASONS = List.of("SOLD_OUT", "PRICE_CHANGED", "LINK_DEAD");
     public static final String PRICE_CHANGED = "PRICE_CHANGED";
+    /** 매니저·스텝 종료·재개 사유 최대 길이 */
+    public static final int MODERATE_REASON_MAX = 200;
+    public static final String AUDIT_TARGET_POST = "POST";
 
     private final BoardCatalog catalog;
     private final BoardActorResolver actors;
@@ -82,10 +95,14 @@ public class DealStateService {
     private final DealReader reader;
     private final PostCounterQueries counters;
     private final SnowflakeIdGenerator ids;
+    private final DealModeration moderation;
+    private final AuditLogService audit;
 
     public DealStateService(BoardCatalog catalog, BoardActorResolver actors, PostQueryService postQueries, GroupPostGate groupGate, PostDealRepository deals,
                             DealEndService ends, DealEndRequestStore requests, DealSettingsReader settings, DealNotices notices, DealReader reader,
-                            PostCounterQueries counters, SnowflakeIdGenerator ids) {
+                            PostCounterQueries counters, SnowflakeIdGenerator ids, DealModeration moderation, AuditLogService audit) {
+        this.moderation = moderation;
+        this.audit = audit;
         this.catalog = catalog;
         this.actors = actors;
         this.postQueries = postQueries;
@@ -130,7 +147,7 @@ public class DealStateService {
         Target t = authorTarget(postId, userId, now);
         PostDealEntity d = ends.lock(t.post().getId()).orElseThrow(DealNotFoundException::new);
         if (!d.isEnded()) {
-            throw new DealNotEndedException();
+            throw DealNotEndedException.reopen();
         }
         if (d.isReopenUsed()) {
             throw new DealReopenUsedException();
@@ -159,6 +176,92 @@ public class DealStateService {
         d.keep(now);
         requests.clearFlagged(d.getPostId());
         return view(t, userId, now);
+    }
+
+    // ── 게시판 매니저·스텝 ────────────────────────────────────────────────────
+
+    /**
+     * 게시판 매니저·스텝 종료 — 운영진 종료와 같은 길(ENDED MANAGER + 의심 구간 보상 + 작성자 알림 {@code DEAL_MANAGER_ENDED} 사유)
+     *
+     * @param ip 감사 기록에 남길 요청자 IP
+     */
+    @Transactional
+    public PostDealView moderateEnd(String postId, Long userId, String rawReason, String ip) {
+        if (userId == null) {
+            throw new CommonException(ErrorCode.UNAUTHENTICATED);
+        }
+        String reason = moderateReason(rawReason, true);
+        Instant now = ends.now();
+        Target t = target(postId, userId, catalog.snapshot(), now);
+        long id = t.post().getId();
+        String role = requireBoardRole(t, userId);
+        PostDealEntity d = ends.lock(id).orElseThrow(DealNotFoundException::new);
+        String before = d.view(settings.current().autoExpireDays(), now).name();
+        switch (moderation.end(id, DealModeration.Actor.boardMember(userId), reason)) {
+            case NOT_FOUND -> throw new DealNotFoundException();
+            case FORBIDDEN -> throw new DealModerateForbiddenException();
+            case STATE_CHANGED -> throw DealEndedException.action();
+            case CHANGED -> {
+            }
+        }
+        audit.record(moderateEvent(AuditActions.HOTDEAL_END, userId, ip, t, role, reason).with("before", before));
+        return view(t, userId, now);
+    }
+
+    /** 게시판 매니저·스텝 재개 — 운영진 재개와 같은 리셋(의심·keep·종료 요청 줄) + 기간이 지났으면 작성자에게 「마감을 고쳐 주세요」 */
+    @Transactional
+    public PostDealView moderateReopen(String postId, Long userId, String rawReason, String ip) {
+        if (userId == null) {
+            throw new CommonException(ErrorCode.UNAUTHENTICATED);
+        }
+        String reason = moderateReason(rawReason, false);
+        Instant now = ends.now();
+        Target t = target(postId, userId, catalog.snapshot(), now);
+        long id = t.post().getId();
+        String role = requireBoardRole(t, userId);
+        PostDealEntity d = ends.lock(id).orElseThrow(DealNotFoundException::new);
+        String endedBy = d.getEndedBy();
+        switch (moderation.reopen(id, DealModeration.Actor.boardMember(userId))) {
+            case NOT_FOUND -> throw new DealNotFoundException();
+            case FORBIDDEN -> throw new DealModerateForbiddenException();
+            case STATE_CHANGED -> throw DealNotEndedException.reopen();
+            case CHANGED -> {
+            }
+        }
+        AuditEvent event = moderateEvent(AuditActions.HOTDEAL_REOPEN, userId, ip, t, role, reason);
+        audit.record(endedBy == null ? event : event.with("endedBy", endedBy));
+        return view(t, userId, now);
+    }
+
+    /** 그 글 게시판에서 맡은 자리(MANAGER · STAFF) — 매니저·스텝이 아니거나 활성 회원이 아니면(정지·영구 정지) 403 */
+    private String requireBoardRole(Target t, long userId) {
+        String role = moderation.boardRole(t.board().id(), userId);
+        if (role == null) {
+            throw new DealModerateForbiddenException();
+        }
+        return role;
+    }
+
+    /** 사유 — NUL 을 빼고 앞뒤 공백을 뗀 뒤 {@value #MODERATE_REASON_MAX}자까지. 종료는 필수, 재개는 비면 null */
+    static String moderateReason(String raw, boolean required) {
+        String text = raw == null ? "" : raw.replace("\u0000", "").strip();
+        if (text.isEmpty()) {
+            if (required) {
+                throw ValidationException.of("reason", new MessageRef("hotdeal.moderate.reason.required"));
+            }
+            return null;
+        }
+        if (text.codePointCount(0, text.length()) > MODERATE_REASON_MAX) {
+            throw ValidationException.of("reason", new MessageRef("hotdeal.admin.reason.tooLong", String.valueOf(MODERATE_REASON_MAX)));
+        }
+        return text;
+    }
+
+    /** 감사 — 행위자 회원(매니저·스텝), 대상 글, detail {@code boardId}·{@code role}(MANAGER · STAFF)·{@code reason}(있으면) */
+    private static AuditEvent moderateEvent(String action, long userId, String ip, Target t, String role, String reason) {
+        AuditEvent event = AuditEvent.byMember(userId, ip, action, AuditResult.SUCCESS).target(AUDIT_TARGET_POST, Long.toString(t.post().getId()))
+                .with("boardId", Long.toString(t.board().id())).with("role", role);
+        return reason == null ? event : event.with("reason", reason);
     }
 
     // ── 종료 요청 ────────────────────────────────────────────────────────────

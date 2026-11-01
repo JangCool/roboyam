@@ -55,7 +55,7 @@ class HotdealReadTest extends HotdealApiTestBase {
         jdbc.update("UPDATE post_deals SET created_at = ? WHERE post_id = ?", Timestamp.from(Instant.now().minus(Duration.ofDays(31))), flagged);
         assertThat(view(flagged).view()).as("마감 없는 딜 30일 — 기간 종료가 의심보다 먼저").isEqualTo("EXPIRED");
 
-        jdbc.update("UPDATE post_deals SET status = 'ENDED', ended_by = 'MANAGER', ended_at = now() WHERE post_id = ?", flagged);
+        jdbc.update("UPDATE post_deals SET status = 'ENDED', ended_by = 'MANAGER', ended_by_role = 'OPERATOR', ended_at = now() WHERE post_id = ?", flagged);
         assertThat(view(flagged).view()).isEqualTo("ENDED");
     }
 

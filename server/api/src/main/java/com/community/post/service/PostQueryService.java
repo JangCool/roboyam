@@ -255,6 +255,7 @@ public class PostQueryService {
         Optional<PostNeighborData> newer = post.isGroupPost() ? Optional.empty() : postQueries.newer(b.id(), post.getId(), now);
         PostAuthorView author = authors.of(post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), members, s).withMemo(lens.memoOf(post.getAuthorId()));
         DebateReader.Status highlight = debate.status(post.getId(), now);
+        PostDealView deal = post.isGroupPost() ? null : dealReader.forPost(post, b, userId, now);
         return new PostDetailView(Long.toString(post.getId()), new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()),
                 prefixRef(b, post.getPrefixId()), post.getTitle(), post.getContentFormat().name(), post.getContent(),
                 author, post.getCreatedAt(), post.getEditedAt(), viewCount,
@@ -262,7 +263,7 @@ public class PostQueryService {
                 protection(b, post), post.getDeleteScheduledAt(), older.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null),
                 newer.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null), Boolean.TRUE.equals(s.security().externalLinkNofollow()),
                 lens.blockedOf(post.getAuthorId(), post.getTitle()), highlight.highlighted(), debate.summary(highlight, post, b, userId, now),
-                pollReader.forPost(post, userId, now), group, post.isGroupPost() ? null : dealReader.forPost(post, b, userId, now), warnings);
+                pollReader.forPost(post, userId, now), group, deal, dealReader.moderationFor(deal, b, userId), warnings);
     }
 
     /** 글의 댓글 많은 글 보호 — 소모임 글은 걸리지 않는다(게시판 정책을 받지 않는다 — 원본 「운영진·운영자·소모임 글은 해당 없다」) */

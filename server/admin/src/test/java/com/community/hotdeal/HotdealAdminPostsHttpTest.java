@@ -163,6 +163,7 @@ class HotdealAdminPostsHttpTest extends HotdealAdminTestBase {
         assertThat(detail.path("affiliateMode").asString()).isEqualTo("MEMBER");
         assertThat(detail.has("publicUrl")).isTrue();
         assertThat(detail.path("endedByName").isNull()).isTrue();
+        assertThat(detail.path("endedByRole").isNull()).isTrue(); // 진행 중
 
         JsonNode revisions = data(mvc.perform(get("/api/admin/hotdeals/" + first + "/revisions").cookie(reader)).andExpect(status().isOk()).andReturn());
         assertThat(revisions.path("retentionMonths").asInt()).isEqualTo(6);
@@ -209,6 +210,8 @@ class HotdealAdminPostsHttpTest extends HotdealAdminTestBase {
 
         JsonNode detail = data(mvc.perform(get("/api/admin/hotdeals/" + postId).cookie(cookie)).andReturn());
         assertThat(detail.path("endedByName").asString()).isEqualTo(operatorName(manager));
+        assertThat(detail.path("endedByRole").asString()).isEqualTo("OPERATOR");
+        assertThat(dealRow(postId).get("ended_by_role")).isEqualTo("OPERATOR");
         assertThat(detail.path("endReason").asString()).isEqualTo("가격이 바뀌었어요");
         assertThat(detail.path("row").path("deal").path("endedBy").asString()).isEqualTo("MANAGER");
 
@@ -245,7 +248,7 @@ class HotdealAdminPostsHttpTest extends HotdealAdminTestBase {
     }
 
     @Test
-    void 게시판_매니저_스텝은_그_게시판만_다른_게시판_매니저는_안_된다() {
+    void 게시판_매니저_스텝은_그_게시판만_다른_게시판_매니저는_안_된다() throws Exception {
         long board = dealBoard();
         long other = dealBoard();
         long author = newMember();
@@ -265,11 +268,36 @@ class HotdealAdminPostsHttpTest extends HotdealAdminTestBase {
         assertThat(moderation.end(postId, DealModeration.Actor.boardMember(staff), "스텝 종료")).isEqualTo(DealModeration.Result.CHANGED);
         assertThat(dealRow(postId).get("ended_by")).isEqualTo("MANAGER");
         assertThat(dealRow(postId).get("ended_by_id")).isEqualTo(staff);
+        assertThat(dealRow(postId).get("ended_by_role")).isEqualTo("BOARD_STAFF");
+        // 관리자 상세 — 종료한 사람 종류와 회원 닉네임(운영자 이름이 아니다)
+        Cookie reader = reader();
+        JsonNode staffEnded = data(mvc.perform(get("/api/admin/hotdeals/" + postId).cookie(reader)).andExpect(status().isOk()).andReturn());
+        assertThat(staffEnded.path("endedByRole").asString()).isEqualTo("BOARD_STAFF");
+        assertThat(staffEnded.path("endedByName").asString()).isEqualTo(nickname(staff));
+        assertThat(staffEnded.path("endReason").asString()).isEqualTo("스텝 종료");
         assertThat(notices(author, "DEAL_MANAGER_ENDED", postId)).isEqualTo(1);
         assertThat(moderation.end(postId, DealModeration.Actor.boardMember(manager), null)).isEqualTo(DealModeration.Result.STATE_CHANGED);
         assertThat(moderation.reopen(postId, DealModeration.Actor.boardMember(otherManager))).isEqualTo(DealModeration.Result.FORBIDDEN);
         assertThat(moderation.reopen(postId, DealModeration.Actor.boardMember(manager))).isEqualTo(DealModeration.Result.CHANGED);
+        assertThat(dealRow(postId).get("ended_by_role")).isNull();
+        assertThat(moderation.end(postId, DealModeration.Actor.boardMember(manager), "매니저 종료")).isEqualTo(DealModeration.Result.CHANGED);
+        JsonNode managerEnded = data(mvc.perform(get("/api/admin/hotdeals/" + postId).cookie(reader)).andExpect(status().isOk()).andReturn());
+        assertThat(managerEnded.path("endedByRole").asString()).isEqualTo("BOARD_MANAGER");
+        assertThat(managerEnded.path("endedByName").asString()).isEqualTo(nickname(manager));
+        assertThat(moderation.reopen(postId, DealModeration.Actor.boardMember(manager))).isEqualTo(DealModeration.Result.CHANGED);
+        // 정지된 매니저는 안 된다
+        jdbc.update("UPDATE users SET status = 'SUSPENDED' WHERE id = ?", manager);
+        assertThat(moderation.end(postId, DealModeration.Actor.boardMember(manager), null)).isEqualTo(DealModeration.Result.FORBIDDEN);
+        // 작성자 종료 — 종류 AUTHOR, 이름은 작성자 닉네임
+        endByAuthor(postId);
+        JsonNode authorEnded = data(mvc.perform(get("/api/admin/hotdeals/" + postId).cookie(reader)).andExpect(status().isOk()).andReturn());
+        assertThat(authorEnded.path("endedByRole").asString()).isEqualTo("AUTHOR");
+        assertThat(authorEnded.path("endedByName").asString()).isEqualTo(nickname(author));
         assertThat(moderation.end(boardPost(generalBoard(), author, "일반"), DealModeration.Actor.boardMember(manager), null)).isEqualTo(DealModeration.Result.NOT_FOUND);
+    }
+
+    private String nickname(long userId) {
+        return jdbc.queryForObject("SELECT nickname FROM profiles WHERE user_id = ?", String.class, userId);
     }
 
     private static JsonNode row(JsonNode page, long postId) {

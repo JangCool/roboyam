@@ -50,13 +50,14 @@ public final class HotdealAdminView {
     /**
      * 상세(서랍).
      *
-     * @param endedByName 종료한 작성자·운영진 표시 이름(자동이면 null)
+     * @param endedByName 종료한 작성자·운영진 표시 이름(자동이면 null) — 운영자는 운영자 이름, 게시판 매니저·스텝·작성자는 회원 닉네임
+     * @param endedByRole 종료한 사람 종류 OPERATOR · BOARD_MANAGER · BOARD_STAFF · AUTHOR(자동 종료·진행 중이면 null)
      * @param endReason   운영진이 종료할 때 적은 사유
      * @param keptAt      작성자가 마지막으로 「아직 진행 중」을 누른 시각
      * @param publicUrl   공개 글 주소(사이트 공개 주소를 정하지 않았으면 null)
      * @param sameDeals   진행 중인 같은 딜 — 최근 것부터 5개까지
      */
-    public record Detail(Row row, String endedByName, String endReason, Instant keptAt, String publicUrl, List<SameDeal> sameDeals, String affiliateMode) {
+    public record Detail(Row row, String endedByName, String endedByRole, String endReason, Instant keptAt, String publicUrl, List<SameDeal> sameDeals, String affiliateMode) {
     }
 
     /** 수정 이력의 칸 하나 — 값은 그 칸의 저장 모양(금액 정수 · 시각 ISO · 코드 글자 · 불 · 없으면 null) */

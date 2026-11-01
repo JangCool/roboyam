@@ -31,6 +31,12 @@ public class PostDealEntity {
     public static final String BY_MANAGER = "MANAGER";
     public static final String BY_AUTO = "AUTO";
 
+    /** 운영진 종료(MANAGER)를 한 사람 종류 — {@code ended_by_role}. 관리자 상세 {@code endedByRole} 은 여기에 작성자 종료 {@link #ROLE_AUTHOR} 를 더한다 */
+    public static final String ROLE_OPERATOR = "OPERATOR";
+    public static final String ROLE_BOARD_MANAGER = "BOARD_MANAGER";
+    public static final String ROLE_BOARD_STAFF = "BOARD_STAFF";
+    public static final String ROLE_AUTHOR = "AUTHOR";
+
     public static final String SOURCE_MEMBER = "MEMBER";
 
     public static final String STOCK_UNKNOWN = "UNKNOWN";
@@ -70,6 +76,7 @@ public class PostDealEntity {
     private String status;
     private String endedBy;
     private Long endedById;
+    private String endedByRole;
     private Instant endedAt;
     private String endNote;
     private boolean reopenUsed;
@@ -165,9 +172,17 @@ public class PostDealEntity {
         end(BY_AUTHOR, userId, null, now);
     }
 
-    /** 운영진 종료(게시판 매니저·스텝·{@code hotdeal.manage}) — 사유는 작성자에게 가는 글(≤200자, 없을 수 있다) */
-    public void endByManager(Long actorId, String note, Instant now) {
+    /**
+     * 운영진 종료(게시판 매니저·스텝·{@code hotdeal.manage}) — 사유는 작성자에게 가는 글(≤200자, 없을 수 있다)
+     *
+     * @param role {@link #ROLE_OPERATOR} · {@link #ROLE_BOARD_MANAGER} · {@link #ROLE_BOARD_STAFF}
+     */
+    public void endByManager(Long actorId, String role, String note, Instant now) {
+        if (!ROLE_OPERATOR.equals(role) && !ROLE_BOARD_MANAGER.equals(role) && !ROLE_BOARD_STAFF.equals(role)) {
+            throw new IllegalArgumentException("운영진 종류: " + role);
+        }
         end(BY_MANAGER, actorId, note, now);
+        endedByRole = role;
     }
 
     /** 자동 종료(의심 유예가 지남 — 배치) */
@@ -179,6 +194,7 @@ public class PostDealEntity {
         status = ENDED;
         endedBy = by;
         endedById = actorId;
+        endedByRole = null;
         endedAt = now;
         endNote = note;
         updatedAt = now;
@@ -212,6 +228,7 @@ public class PostDealEntity {
         status = ACTIVE;
         endedBy = null;
         endedById = null;
+        endedByRole = null;
         endedAt = null;
         endNote = null;
         reopenedAt = now;
@@ -358,6 +375,24 @@ public class PostDealEntity {
 
     public Long getEndedById() {
         return endedById;
+    }
+
+    /** 운영진 종료를 한 사람 종류(운영진 종료가 아니면 null) */
+    public String getEndedByRole() {
+        return endedByRole;
+    }
+
+    /**
+     * 종료한 사람 종류(관리자 상세 {@code endedByRole}) — 작성자 종료 {@link #ROLE_AUTHOR} · 운영진 종료는 저장한 종류 · 자동 종료·진행 중은 null
+     */
+    public String endedByRole() {
+        if (!isEnded()) {
+            return null;
+        }
+        if (BY_AUTHOR.equals(endedBy)) {
+            return ROLE_AUTHOR;
+        }
+        return BY_MANAGER.equals(endedBy) ? endedByRole : null;
     }
 
     public Instant getEndedAt() {

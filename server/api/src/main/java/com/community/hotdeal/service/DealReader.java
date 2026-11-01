@@ -3,6 +3,7 @@ package com.community.hotdeal.service;
 import com.community.board.dto.EffectiveBoard;
 import com.community.hotdeal.dto.DealSettings;
 import com.community.hotdeal.dto.response.DealSameRefView;
+import com.community.hotdeal.dto.response.PostDealModerationView;
 import com.community.hotdeal.dto.response.PostDealView;
 import com.community.hotdeal.entity.PostDealEntity;
 import com.community.hotdeal.repository.master.DealQueries;
@@ -32,8 +33,10 @@ public class DealReader {
     private final DealQueries queries;
     private final DealSettingsReader settings;
     private final DealViewAssembler assembler;
+    private final DealModeration moderation;
 
-    public DealReader(PostDealRepository deals, DealQueries queries, DealSettingsReader settings, DealViewAssembler assembler) {
+    public DealReader(PostDealRepository deals, DealQueries queries, DealSettingsReader settings, DealViewAssembler assembler, DealModeration moderation) {
+        this.moderation = moderation;
         this.deals = deals;
         this.queries = queries;
         this.settings = settings;
@@ -54,6 +57,24 @@ public class DealReader {
             boolean selfCounted = d.view(s.autoExpireDays(), now).live() && !post.isGroupPost() && !post.isHiddenAt(now);
             return view(d, post.getLikeCount(), counts, mine, Math.max(0, live - (selfCounted ? 1 : 0)), s, now);
         }).orElse(null);
+    }
+
+    /**
+     * 글 상세의 {@code dealModeration} — 딜이 있고 보는 사람이 그 게시판의 매니저·스텝(활성 회원 — 정지·영구 정지면 아님)일 때만. 매번 지정 표를 다시 읽는다.
+     * {@code canEnd} = 종료가 아님(진행·의심·기간 지남), {@code canReopen} = 종료.
+     *
+     * @param deal 이 글의 {@link #forPost} 결과(null 이면 null)
+     */
+    public PostDealModerationView moderationFor(PostDealView deal, EffectiveBoard b, Long viewerId) {
+        if (deal == null || viewerId == null || !DealWriter.dealBoard(b)) {
+            return null;
+        }
+        String role = moderation.boardRole(b.id(), viewerId);
+        if (role == null) {
+            return null;
+        }
+        boolean ended = PostDealEntity.ENDED.equals(deal.status());
+        return new PostDealModerationView(role, !ended, ended);
     }
 
     /**

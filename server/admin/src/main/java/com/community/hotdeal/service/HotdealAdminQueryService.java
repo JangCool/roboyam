@@ -155,9 +155,11 @@ public class HotdealAdminQueryService {
         Row row = rows(List.of(r), blockedHosts(List.of(r.boardId())), s, now).get(0);
         PostDealEntity d = deals.findById(r.postId()).orElseThrow(AdminPostNotFoundException::new);
 
+        String endedByRole = d.endedByRole();
         String endedByName = null;
-        if (d.isEnded() && d.getEndedById() != null && !PostDealEntity.BY_AUTO.equals(d.getEndedBy())) {
-            endedByName = PostDealEntity.BY_AUTHOR.equals(d.getEndedBy()) ? nickname(d.getEndedById()) : actorName(d.getEndedById());
+        if (endedByRole != null && d.getEndedById() != null) {
+            // 운영자 → 운영자 이름, 작성자·게시판 매니저·스텝(회원) → 지금 닉네임
+            endedByName = PostDealEntity.ROLE_OPERATOR.equals(endedByRole) ? operatorName(d.getEndedById()) : nickname(d.getEndedById());
         }
         List<AdminDealQueries.SameRow> same = queries.sameDeals(d.getProductUrlKey(), d.getPostId(), s.autoExpireDays(), now, SAME_DEALS_MAX);
         Map<Long, PostDealEntity> sameDeals = new HashMap<>();
@@ -167,7 +169,7 @@ public class HotdealAdminQueryService {
             String v = other == null ? null : other.view(s.autoExpireDays(), now).name();
             return new HotdealAdminView.SameDeal(Long.toString(x.postId()), x.title(), x.dealPrice(), x.createdAt(), v);
         }).toList();
-        return new HotdealAdminView.Detail(row, endedByName, d.isEnded() ? d.getEndNote() : null, d.getKeptAt(), publicUrlOf(d.getPostId()), sameViews,
+        return new HotdealAdminView.Detail(row, endedByName, endedByRole, d.isEnded() ? d.getEndNote() : null, d.getKeptAt(), publicUrlOf(d.getPostId()), sameViews,
                 s.affiliateMode());
     }
 

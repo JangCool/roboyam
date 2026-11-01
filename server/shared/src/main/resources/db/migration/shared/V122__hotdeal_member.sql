@@ -6,7 +6,8 @@
 -- source: MEMBER(1차) · BUSINESS(2차 자리). product_host = 판정한 호스트(소문자·www. 뗌), final_host = 리디렉션을 따라간 최종 호스트(같거나 모르면 NULL).
 -- product_url_key = 같은 딜 키(규칙 3 — SHA-256 hex). 가격은 원 정수(배송비 0 무료 · NULL 모름).
 -- status: ACTIVE · ENDED(저장). FLAGGED·EXPIRED 는 읽을 때 계산한다(flagged_at · ends_at/created_at + autoExpireDays).
--- ended_by: AUTHOR · MANAGER · AUTO, ended_by_id = 종료한 회원(AUTHOR)·운영자(MANAGER) ID, end_note = 운영진 종료 사유(작성자에게 가는 글).
+-- ended_by: AUTHOR · MANAGER · AUTO, ended_by_id = 종료한 회원(AUTHOR)·운영진(MANAGER — 운영자 또는 게시판 매니저·스텝 회원) ID, end_note = 운영진 종료 사유(작성자에게 가는 글).
+-- ended_by_role: 운영진 종료(MANAGER)만 — 누가 했는지 OPERATOR(운영자) · BOARD_MANAGER · BOARD_STAFF(그 게시판 매니저·스텝 회원). ended_by_id 만으로는 운영자와 회원을 가를 수 없다.
 -- reopen_used: 작성자 되돌리기(D2)를 썼다. keep_count: 「아직 진행 중」 누른 수. price_edit_count: 딜가·정상가를 바꾼 수정 줄 수(D3 — 배송비 제외).
 -- link_changed: 호스트가 바뀐 적이 있다. click_count: 구매 링크 클릭(하루 같은 방문자 1번 — deal_click_daily). expiry_notified_at: 기간 종료 알림 1회(2단계 배치).
 -- 이미지: image_source OG(우리 서버 사본 deal_og_images.id = og_image_id) · UPLOAD(글 이미지 files.id = image_id), image_url = 우리 서버 주소.
@@ -37,6 +38,7 @@ CREATE TABLE post_deals (
     status             varchar(10)   NOT NULL DEFAULT 'ACTIVE',
     ended_by           varchar(10),
     ended_by_id        bigint,
+    ended_by_role      varchar(15),
     ended_at           timestamptz,
     end_note           varchar(200),
     reopen_used        boolean       NOT NULL DEFAULT false,
@@ -65,6 +67,8 @@ CREATE TABLE post_deals (
     CONSTRAINT ck_post_deals_status CHECK (status IN ('ACTIVE', 'ENDED')),
     CONSTRAINT ck_post_deals_ended CHECK ((status = 'ENDED') = (ended_by IS NOT NULL AND ended_at IS NOT NULL)),
     CONSTRAINT ck_post_deals_ended_by CHECK (ended_by IS NULL OR ended_by IN ('AUTHOR', 'MANAGER', 'AUTO')),
+    CONSTRAINT ck_post_deals_ended_by_role CHECK ((ended_by_role IS NULL OR ended_by_role IN ('OPERATOR', 'BOARD_MANAGER', 'BOARD_STAFF'))
+        AND COALESCE(ended_by = 'MANAGER', false) = (ended_by_role IS NOT NULL)),
     CONSTRAINT ck_post_deals_counts CHECK (keep_count >= 0 AND price_edit_count >= 0 AND click_count >= 0)
 );
 -- 같은 딜(공개·진행 중만 — 종료는 status 로, 기간 종료·의심은 읽을 때 거른다)
@@ -354,3 +358,8 @@ ALTER TABLE point_lots ADD CONSTRAINT ck_point_lots_source_ref CHECK (source_ref
 
 -- ── 핫딜 게시판은 19금 끔 고정(서버 규칙 8) — 이미 켠 핫딜 게시판이 있으면 끈다(앱도 저장·응답에서 막는다) ──
 UPDATE boards SET allow_adult = false WHERE kind = 'DEAL' AND allow_adult;
+
+-- ── 감사 기록 행위자 MEMBER(게시판 매니저·스텝 회원의 핫딜 종료·재개 HOTDEAL_END·HOTDEAL_REOPEN — 공개 사이트 API). V7 목록 ∪ MEMBER ──
+-- ⚠ 합칠 때 합집합 확인 — 다른 세션도 이 CHECK 를 다시 만들 수 있다
+ALTER TABLE audit_logs DROP CONSTRAINT ck_audit_logs_actor_type;
+ALTER TABLE audit_logs ADD CONSTRAINT ck_audit_logs_actor_type CHECK (actor_type IN ('OPERATOR', 'SYSTEM', 'ANONYMOUS', 'MEMBER'));
