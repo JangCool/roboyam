@@ -193,6 +193,7 @@ export interface BizHistoryEntry {
         // 사업자 핫딜 게시(2차) — `POST_FAILED` 의 note 는 실패 사유 코드(`BizDealFailReason`)
         | 'POSTED'
         | 'POST_FAILED'
+        | 'POSTED_WITHOUT_PREFIX'
         | 'POST_HIDDEN'
         | 'POST_RESTORED'
         | 'DEAL_ENDED_BY_BUSINESS'
@@ -258,7 +259,7 @@ export type BizDealFailReason = 'BOARD_CLOSED' | 'LINK_BLOCKED' | 'BUSINESS_SUSP
 export type BizDealPlacementStatus = 'WAITING' | 'SHOWING' | 'STOPPED' | 'ENDED';
 
 /** 노출 자리가 멈춘 까닭 — 딜이 끝나서(종료 요청 자동 종료·사업자 종료 — 환불 없음) · 글이 내려가서 */
-export type BizDealStopReason = 'DEAL_ENDED' | 'POST_HIDDEN';
+export type BizDealStopReason = 'DEAL_ENDED' | 'POST_HIDDEN' | 'PREFIX_MISSING';
 
 /** 같은 신청 건에 묶인 노출 자리 */
 export interface BizDealPlacementState {

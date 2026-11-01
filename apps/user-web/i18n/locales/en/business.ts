@@ -514,6 +514,7 @@ export default {
             FORFEITED: 'Closed without refund',
             POSTED: 'Posted on the deal board',
             POST_FAILED: 'Could not post · team reviewing',
+            POSTED_WITHOUT_PREFIX: 'Posted without a category (the chosen one was gone)',
             POST_HIDDEN: 'Post hidden',
             POST_RESTORED: 'Post visible again',
             DEAL_ENDED_BY_BUSINESS: 'Deal ended (no refund)',
@@ -527,6 +528,7 @@ export default {
             MISMATCH: 'Amount differs · {reason}',
             SUSPENDED: 'Business suspended',
             RESTORED: 'Restored after the suspension was lifted',
+            CATEGORY_TOP_OFF: 'The category-top placement will not show because the category no longer matches',
         },
         span: {
             DH: '{d}d {h}h',
@@ -604,6 +606,7 @@ export default {
         stopReason: {
             DEAL_ENDED: 'Stopped because the deal ended',
             POST_HIDDEN: 'Stopped because the post was taken down',
+            PREFIX_MISSING: 'Not showing because the post went up without a category',
         },
     },
 

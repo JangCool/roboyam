@@ -34,6 +34,8 @@ public enum BizEventAction {
     POSTED(true),
     /** 시작 시각에 글을 올리지 못했다 — note = 사유 코드 BOARD_CLOSED·LINK_BLOCKED·BUSINESS_SUSPENDED·OTHER */
     POST_FAILED(true),
+    /** 신청 때 고른 말머리가 없거나 꺼져 있어 말머리 없이 올렸다({@code POSTED} 다음) — note = 말머리 상단 노출이 걸려 있으면 {@code CATEGORY_TOP_OFF}(그 노출은 나오지 않음), 아니면 null */
+    POSTED_WITHOUT_PREFIX(true),
     /** 취소·환불·내림으로 글을 숨겼다 */
     POST_HIDDEN(true),
     /** 되돌리기로 글이 다시 보인다 */

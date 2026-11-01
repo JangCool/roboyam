@@ -515,6 +515,7 @@ export default {
             FORFEITED: '환불 없이 종료',
             POSTED: '핫딜 게시판에 게시',
             POST_FAILED: '게시하지 못함 · 운영팀 확인',
+            POSTED_WITHOUT_PREFIX: '말머리 없이 게시(고른 말머리가 없어짐)',
             POST_HIDDEN: '글 숨김',
             POST_RESTORED: '글 다시 보임',
             DEAL_ENDED_BY_BUSINESS: '딜 종료(환불 없음)',
@@ -528,6 +529,7 @@ export default {
             MISMATCH: '금액 다름 · {reason}',
             SUSPENDED: '사업자 정지',
             RESTORED: '정지가 풀려 되돌렸어요',
+            CATEGORY_TOP_OFF: '말머리가 맞지 않아 말머리 상단 노출은 나오지 않아요',
         },
         span: {
             DH: '{d}일 {h}시간',
@@ -605,6 +607,7 @@ export default {
         stopReason: {
             DEAL_ENDED: '딜이 끝나서 멈췄어요',
             POST_HIDDEN: '글이 내려가서 멈췄어요',
+            PREFIX_MISSING: '말머리 없이 올라가 나오지 않아요',
         },
     },
 

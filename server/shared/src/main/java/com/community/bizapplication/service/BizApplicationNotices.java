@@ -6,6 +6,7 @@ import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.notification.dto.NotificationContext;
 import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.service.NotificationPublisher;
+import com.community.zconfiguration.message.MessageRef;
 import org.springframework.stereotype.Component;
 
 /**
@@ -53,6 +54,12 @@ public class BizApplicationNotices {
     /** 운영자에게 — 사업자 핫딜 글을 시작 시각에 올리지 못했다({@code HOTDEAL_POST_FAILED}, 링크 핫딜 심사 서랍). 처리는 취소(전액 환불) */
     public void postFailed(AppRow app) {
         operators.publish(AdminNotificationEvent.HOTDEAL_POST_FAILED, context(app.id()));
+    }
+
+    /** 운영자에게 — 사업자 핫딜 글을 말머리 없이 올렸다({@code HOTDEAL_POST_PREFIX_DROPPED}). 말머리 상단 노출이 걸려 있으면 그 노출이 나오지 않는다는 문구를 붙인다 */
+    public void postPrefixDropped(AppRow app, boolean categoryPlacement) {
+        Object placement = categoryPlacement ? new MessageRef("notification.hotdeal.prefixDropped.categoryOff") : "";
+        operators.publish(AdminNotificationEvent.HOTDEAL_POST_PREFIX_DROPPED, context(app.id()).args(placement));
     }
 
     public static AdminNotificationEvent reviewEvent(BizDomain domain) {

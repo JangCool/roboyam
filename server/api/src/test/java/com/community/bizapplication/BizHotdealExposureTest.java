@@ -72,6 +72,22 @@ class BizHotdealExposureTest extends BizHotdealTestBase {
     }
 
     @Test
+    void 말머리_없이_올라간_글의_말머리_상단은_어느_말머리에도_나가지_않는다() {
+        Booked b = booked("CATEGORY_TOP");
+        String mine = Long.toString(dealPrefix());
+        jdbc.update("UPDATE board_prefixes SET active = false WHERE id = ?", dealPrefix());
+        boardCatalog.invalidate();
+        into(b, 1);
+        publisher.publishDue(b.id());
+        assertThat(postRow(postOf(b.id())).get("prefix_id")).isNull();
+        String slug = boardSlug(dealBoard());
+        long otherPrefix = jdbc.queryForObject("SELECT id FROM board_prefixes WHERE board_id = ? AND id <> ?", Long.class, dealBoard(), dealPrefix());
+        assertThat(ads("HOTDEAL_CATEGORY", slug, mine)).extracting(PublicAdView.Ad::id).doesNotContain(Long.toString(b.id()));
+        assertThat(ads("HOTDEAL_CATEGORY", slug, Long.toString(otherPrefix))).extracting(PublicAdView.Ad::id).doesNotContain(Long.toString(b.id()));
+        assertThat(ads("HOTDEAL_CATEGORY", slug, null)).extracting(PublicAdView.Ad::id).doesNotContain(Long.toString(b.id()));
+    }
+
+    @Test
     void 규칙7_게시_실패_숨김_끝난_딜은_노출에_나가지_않는다() {
         // 실패
         Booked failed = booked("HOME_TOP");

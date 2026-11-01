@@ -68,6 +68,8 @@ export default class UtilBusinessMessages {
                 return amount();
             case 'POST_FAILED':
                 return (FAIL_REASONS as readonly string[]).includes(note) ? t(`business.post.failReason.${note}`) : note;
+            case 'POSTED_WITHOUT_PREFIX':
+                return note === 'CATEGORY_TOP_OFF' ? t('business.detail.note.CATEGORY_TOP_OFF') : note;
             case 'REFUND_REQUESTED':
             case 'TAKEN_DOWN':
             case 'REFUND_DENIED':

@@ -153,13 +153,55 @@ class BizHotdealPostingTest extends BizHotdealTestBase {
     }
 
     @Test
-    void 규칙3_고른_말머리가_없어졌으면_OTHER() {
-        Booked b = booked("NONE");
+    void 말머리가_꺼졌으면_실패가_아니라_말머리_없이_게시하고_말머리_상단_노출이_나오지_않는다고_운영자에게_알린다() {
+        long operator = operatorWith(Permission.HOTDEAL_MANAGE);
+        Booked b = booked("CATEGORY_TOP");
         jdbc.update("UPDATE board_prefixes SET active = false WHERE id = ?", dealPrefix());
         boardCatalog.invalidate();
         into(b, 1);
-        assertThat(publisher.publishDue(b.id())).isEqualTo(BizHotdealPublisher.Outcome.FAILED);
-        assertFailed(b, "OTHER");
+        assertThat(publisher.publishDue(b.id())).isEqualTo(BizHotdealPublisher.Outcome.POSTED);
+        long postId = postOf(b.id());
+        assertThat(postRow(postId).get("prefix_id")).isNull();
+        assertThat(result(b.id()).get("status")).isEqualTo("POSTED");
+        assertThat(events(b.id())).contains("POSTED", "POSTED_WITHOUT_PREFIX").doesNotContain("POST_FAILED");
+        assertThat(eventNote(b.id(), "POSTED_WITHOUT_PREFIX")).isEqualTo(BizHotdealPublisher.CATEGORY_TOP_OFF);
+        assertThat(adminNotices(operator, "HOTDEAL_POST_PREFIX_DROPPED")).isEqualTo(1);
+        assertThat(adminNotices(operator, "HOTDEAL_POST_FAILED")).isZero();
+        assertThat(memberNotices(b.user(), "POSTED")).isEqualTo(1);
+        BizDealPostView v = view.detail(b.user(), b.id()).post();
+        assertThat(v.status()).isEqualTo("POSTED");
+        assertThat(v.prefixName()).isNull();
+        assertThat(v.placement().status()).isEqualTo("STOPPED");
+        assertThat(v.placement().stopReason()).isEqualTo("PREFIX_MISSING");
+        assertThat(app(b.id()).status()).isEqualTo(BizApplicationStatus.SCHEDULED);
+    }
+
+    @Test
+    void 말머리가_지워졌고_말머리_상단이_없으면_말머리_없이_게시하고_노출_문구는_붙이지_않는다() {
+        long operator = operatorWith(Permission.HOTDEAL_MANAGE);
+        Booked b = booked("HOME_TOP");
+        jdbc.update("DELETE FROM board_prefixes WHERE id = ?", dealPrefix());
+        boardCatalog.invalidate();
+        into(b, 1);
+        assertThat(publisher.publishDue(b.id())).isEqualTo(BizHotdealPublisher.Outcome.POSTED);
+        assertThat(postRow(postOf(b.id())).get("prefix_id")).isNull();
+        assertThat(events(b.id())).contains("POSTED_WITHOUT_PREFIX");
+        assertThat(eventNote(b.id(), "POSTED_WITHOUT_PREFIX")).isNull();
+        assertThat(adminNotices(operator, "HOTDEAL_POST_PREFIX_DROPPED")).isEqualTo(1);
+        // 게시판 상단 노출은 말머리와 무관해 그대로 나온다
+        assertThat(view.detail(b.user(), b.id()).post().placement().status()).isEqualTo("SHOWING");
+    }
+
+    @Test
+    void 말머리가_있으면_그대로_게시하고_말머리_없이_게시_기록_알림은_없다() {
+        long operator = operatorWith(Permission.HOTDEAL_MANAGE);
+        Booked b = booked("CATEGORY_TOP");
+        into(b, 1);
+        assertThat(publisher.publishDue(b.id())).isEqualTo(BizHotdealPublisher.Outcome.POSTED);
+        assertThat(postRow(postOf(b.id())).get("prefix_id")).isEqualTo(dealPrefix());
+        assertThat(events(b.id())).doesNotContain("POSTED_WITHOUT_PREFIX");
+        assertThat(adminNotices(operator, "HOTDEAL_POST_PREFIX_DROPPED")).isZero();
+        assertThat(view.detail(b.user(), b.id()).post().placement().status()).isEqualTo("SHOWING");
     }
 
     private void assertFailed(Booked b, String reason) {

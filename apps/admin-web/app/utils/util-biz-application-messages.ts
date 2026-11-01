@@ -49,6 +49,8 @@ export default class UtilBizApplicationMessages {
         switch (action) {
             case 'POST_FAILED':
                 return code(note, 'post.failReason', BIZ_DEAL_FAIL_REASONS);
+            case 'POSTED_WITHOUT_PREFIX':
+                return note === 'CATEGORY_TOP_OFF' ? t('bizApplication.note.CATEGORY_TOP_OFF') : note;
             case 'REJECTED':
                 return code(note, 'rejectCode', BIZ_REJECT_CODES);
             case 'APPROVED_ONLINE':

@@ -164,6 +164,11 @@ public enum AdminNotificationEvent {
      * 처리는 핫딜 심사 서랍의 [취소(전액 환불)](규칙 10)
      */
     HOTDEAL_POST_FAILED(spec(HOTDEAL, WARNING).holders(Permission.HOTDEAL_MANAGE).link("/hotdeal-reviews?id={id}")),
+    /**
+     * 사업자 핫딜 글을 신청 때 고른 말머리 없이 올렸다(말머리가 없어졌거나 꺼짐 — 사용자 결정 2026-11-02). 인자 {0} = 말머리 상단 노출이 걸려 있으면 「그 노출은 나오지 않음」 문구 참조, 아니면 빈 글자.
+     * 신청 건마다 한 번
+     */
+    HOTDEAL_POST_PREFIX_DROPPED(spec(HOTDEAL, WARNING).holders(Permission.HOTDEAL_MANAGE).link("/hotdeal-reviews?id={id}")),
     /** 운영자 신청 기능이 구현된 뒤 */
     OPERATOR_APPLICATION_PENDING(spec(SYSTEM, INFO).holders(Permission.OPERATOR_MANAGE).reserved());
 

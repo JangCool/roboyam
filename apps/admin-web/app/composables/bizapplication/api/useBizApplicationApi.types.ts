@@ -61,7 +61,7 @@ export const BIZ_DEAL_FAIL_REASONS: readonly BizDealFailReason[] = ['BOARD_CLOSE
 export interface BizDealPlacement {
     product: 'HOTDEAL_TOP' | 'HOTDEAL_CATEGORY';
     status: 'WAITING' | 'SHOWING' | 'STOPPED' | 'ENDED';
-    stopReason: 'DEAL_ENDED' | 'POST_HIDDEN' | null;
+    stopReason: 'DEAL_ENDED' | 'POST_HIDDEN' | 'PREFIX_MISSING' | null;
 }
 
 export interface BizDealPost {
@@ -230,6 +230,7 @@ export const BIZ_HISTORY_ACTIONS = [
     // 사업자 핫딜 게시(2차) — 게시 · 게시 실패(note = 실패 사유 코드) · 글 숨김 · 다시 보임 · 사업자 종료 · 자동 종료
     'POSTED',
     'POST_FAILED',
+    'POSTED_WITHOUT_PREFIX',
     'POST_HIDDEN',
     'POST_RESTORED',
     'DEAL_ENDED_BY_BUSINESS',

@@ -49,6 +49,7 @@ export default class UtilNotification {
         HOTDEAL_REFUND_REQUESTED: 'pi pi-replay',
         // 사업자 핫딜 게시 실패 — 시작 시각에 글을 만들지 못함(링크 `/hotdeal-reviews?id={applicationId}`, 운영자는 [취소(전액 환불)])
         HOTDEAL_POST_FAILED: 'pi pi-times-circle',
+        HOTDEAL_POST_PREFIX_DROPPED: 'pi pi-tag',
     };
 
     /**

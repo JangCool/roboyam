@@ -14,6 +14,7 @@
 5. **이미지**: 직접 올리기 1장 선택(기존 `POST /api/business/ad-images` 재사용), 없으면 기본 아이콘. OG 자동 가져오기는 미룸.
 6. **게시 뒤 수정 없음**: 사업자는 종료만. 가격이 바뀌면 종료 뒤 새 신청.
 7. **(2026-11-02) 사업자 글은 작성자에게 [고치기]·[지우기] 모두 숨김** — 내리는 길은 [품절로 종료]만(목업 그대로). 글을 내리는 다른 길은 운영자 숨김·신청 건 취소 흐름뿐이다(규칙 11).
+8. **(2026-11-02) 고른 말머리가 게시 시각에 없거나 꺼져 있으면 실패가 아니라 말머리 없이 게시**하고 운영자에게 알린다(처리 기록에도 「말머리 없이 게시됨」). 그 건에 말머리 상단(`HOTDEAL_CATEGORY`) 노출이 걸려 있으면 그 노출은 말머리가 맞지 않아 나오지 않는다는 것도 알림·처리 기록에 함께. 다른 실패 조건(사업자 승인·게시판·링크)은 그대로 실패(규칙 3 의 말머리 실패를 대신한다).
 
 ## 규칙 (서버 단계에서 테스트로 막을 대상 — 커머스 18절)
 1. 게시 = 배치가 `SCHEDULED` 이고 `start_at ≤ 지금` 인 `HOTDEAL_POST` 건 중 글이 없는 것을 골라 글 + `post_deals(source=BUSINESS)` 를 만든다. 신청 건 ↔ 글 1:1(유일 — 다시 돌아도 두 번 만들지 않음). `onScheduled` 는 시작이 이미 지난 건만 바로 게시(아니면 배치 몫).
@@ -87,7 +88,8 @@ PostDeal += source: MEMBER|BUSINESS, business: { name }|null        // 공개 �
 ## 서버 구현 결정 (2026-11-02 — shared V123)
 API 칸 이름·오류 키 전체는 세션 공유 메모 `biz-hotdeal-api.md` 「서버 결과」와 서버 DTO 가 정본이다. 아래는 규칙만.
 - **저장**: 새 표 `biz_deal_posts`(PK = 신청 건 — 게시 결과 한 줄, `POSTED`(글 유일)·`FAILED`(사유 CHECK)·`hidden_at`) · `post_deals` += `biz_application_id`(유일)·`business_name`(CHECK: `source=BUSINESS` ⇔ 둘 다 있음) · 세 상품 `accepting=true`. 두 번 게시는 PK + `ON CONFLICT DO NOTHING` + 신청 건 행 잠금으로 막는다. 처리 기록 action·회원 알림 kind·관리자 알림 이벤트는 DB CHECK 가 없어 고치지 않았다.
-- **게시**: 고리 구현 `BizHotdealPublisher`(+ 되돌림 고리 `onRestored`), 배치 `biz-hotdeal-publish`(1분, 작업 shared `bizapplication.batch`, 예약 admin `BatchCatalog`). 판정 차례 = 사업자 승인(`business_profiles.status = APPROVED`, 아니면 `BUSINESS_SUSPENDED`) → 게시판(있음·켬·DEAL) → 말머리(사라졌거나 꺼졌으면 `OTHER`) → 링크(`deal_domains`, 처음 호스트만 — 외부 주소는 열지 않음). **실패 건은 다시 시도하지 않는다**(게시판을 다시 켜도 그대로 — 운영자 취소·전액 환불).
+- **게시**: 고리 구현 `BizHotdealPublisher`(+ 되돌림 고리 `onRestored`), 배치 `biz-hotdeal-publish`(1분, 작업 shared `bizapplication.batch`, 예약 admin `BatchCatalog`). 판정 차례 = 사업자 승인(`business_profiles.status = APPROVED`, 아니면 `BUSINESS_SUSPENDED`) → 게시판(있음·켬·DEAL) → 링크(`deal_domains`, 처음 호스트만 — 외부 주소는 열지 않음). **실패 건은 다시 시도하지 않는다**(게시판을 다시 켜도 그대로 — 운영자 취소·전액 환불).
+- **말머리 없이 게시**(결정 8, 2026-11-02 — 처음 구현의 `OTHER` 실패를 바꿈): 위 판정을 모두 통과했는데 신청 말머리가 없거나 꺼졌으면 `prefix_id` 없이 올리고 처리 기록 `POSTED` 다음에 **`POSTED_WITHOUT_PREFIX`**(note = 말머리 상단 노출이 걸려 있으면 `CATEGORY_TOP_OFF`, 아니면 null) + 운영자 알림 **`HOTDEAL_POST_PREFIX_DROPPED`**(WARNING, `hotdeal.manage`, `/hotdeal-reviews?id=`, 말머리 상단이면 본문에 「그 노출은 나오지 않아요」). 사업자 알림은 보통 `POSTED` 그대로. 「게시된 글」의 `prefixName` = null, 말머리 상단 노출 = `STOPPED` / 새 `stopReason` **`PREFIX_MISSING`**(공개 노출에도 어느 말머리로도 안 나감), 게시판 상단은 그대로 `SHOWING`.
 - **글 모양**: 본문 평문 · 글 시각 = 게시 시각 · 작성 IP 없음 · 포인트 없음 · 옛 재고 `PLENTY → IN_STOCK`·`LIMITED → LOW` · 정가 < 딜가면 정가를 비움(신청 때도 새 검사 `deal.listPrice`). 공개 `deal.hot` 늘 false·`reopenUntil` 늘 null, keep(「아직 진행 중」)은 사업자도 쓸 수 있다.
 - **숨김·되돌림**: `onClosed` 는 보이는 글만 운영자 숨김 까닭(`STAFF`)으로 숨기고 그 시각을 `biz_deal_posts.hidden_at` 에 남긴다. 되돌림은 글의 숨김 까닭이 `STAFF` 이고 숨긴 시각이 그 값과 같을 때만 푼다(운영자가 따로 숨긴 글은 안 풂). 되돌림 때 딜 마감을 (연장된) 신청 기간 끝에 맞춘다. 시작 전에 내렸다 시작 뒤 되돌린 건은 그때 게시한다.
 - **실패 건 운영자 취소**: 게시 결과 `FAILED` 면 시작 뒤(끝난 뒤 포함)에도 기존 `POST …/cancel` 이 전액 환불(`FULL_AUTO`). 정상 게시된 진행 중 건은 그대로 409(환불 심사로).
@@ -96,10 +98,10 @@ API 칸 이름·오류 키 전체는 세션 공유 메모 `biz-hotdeal-api.md` �
 - **노출**: `HOTDEAL_TOP` 은 요청 `prefix` 를 보지 않고, `board` 를 주지 않은 호출에도 낸다. `deal` 칸은 글에서(`linkUrl = /posts/{postId}`), 사본 20초.
 - **신청 폼**: 받는 게시판 = 켜진 DEAL 게시판 전부, 말머리 = 켜짐·운영진 전용 아님만. 링크 칸 오류 키는 기존 `deal.linkUrl`(메모 초안의 `deal.productUrl` 은 안 씀), 새 키 `deal.listPrice`·`deal.imageFileId`(화면은 각 칸의 단계로 보냄). 소재 바꾸기에서 `imageFileId` 를 비우면 지금 이미지 유지(배너와 같음). `deal-link-check` 도 `deal_domains` 판정.
 - **목업 정리**: 두 앱의 2차 목업(`// MOCK:`·목업 파일·`?mock=bizdeal-*`·목업 ID)은 모두 지웠다 — 위 「목업 결과」 절은 화면 확정 기록으로만 남긴다. 기존 `HotdealClosedTest`·`withDealsOpen` 은 지우고 다시 연 상태 시험으로 옮겼다.
-- **테스트**: api `BizHotdealPostingTest`(17)·`BizHotdealExposureTest`(12) · admin `HotdealAdminBusinessHttpTest` + 기존 신청 건·핫딜 시험 갱신. `--tests` 로 bizapplication·hotdeal·ad 묶음 등을 골라 돌림 — api 267·admin 56·shared 17 통과.
+- **테스트**: api `BizHotdealPostingTest`(19 — 말머리 없이 게시 3개 포함)·`BizHotdealExposureTest`(13) · admin `HotdealAdminBusinessHttpTest` + 기존 신청 건·핫딜 시험 갱신. `--tests` 로 bizapplication·hotdeal·ad 묶음 등을 골라 돌림 — api 267·admin 56·shared 17 통과.
 
 ## 미확정
-- (서버 가정 2026-11-02) 신청 때 고른 말머리가 게시 시각에 없어지면 `OTHER` 실패 — 말머리 없이 게시할지 결정 필요. 사업자 정지 판정은 `business_profiles.status` 만 보고 서비스(HOTDEAL) 줄 상태는 보지 않는다.
+- (서버 가정 2026-11-02) 사업자 정지 판정은 `business_profiles.status` 만 보고 서비스(HOTDEAL) 줄 상태는 보지 않는다.
 - 사업자 글 게시 시각이 목록 차례에서 어디에 서는지(가정: 글 시각 = 게시 시각, 회원 글과 같은 최신순).
 - 종료 요청 문턱·keep 한도를 사업자 글에도 같은 값으로 쓸지(가정: 같은 `deal_settings`).
 - 하루 한도·같은 판매처 간격(회원 규칙)은 사업자 글에 적용하지 않음(가정 — 심사·결제가 대신함).

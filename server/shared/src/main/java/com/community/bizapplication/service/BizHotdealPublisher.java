@@ -4,6 +4,7 @@ import com.community.bizapplication.entity.BizActorType;
 import com.community.bizapplication.entity.BizApplicationKind;
 import com.community.bizapplication.entity.BizApplicationStatus;
 import com.community.bizapplication.entity.BizEventAction;
+import com.community.bizapplication.entity.BizProduct;
 import com.community.bizapplication.repository.master.BizApplicationStore;
 import com.community.bizapplication.repository.master.BizApplicationStore.AppRow;
 import com.community.bizapplication.repository.master.BizApplicationStore.CreativeRow;
@@ -36,7 +37,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * {@link #publishDue} 가 건마다 새 트랜잭션에서 행을 잠근 뒤 같은 판정을 한다 — 결제 확정과 배치가 겹쳐도 신청 건 행 잠금 + 게시 결과 PK 로 한 번만 만든다.
  *
  * <ul>
- *   <li><b>게시</b>: 예약 · 시작 ≤ 지금 &lt; 끝 · 게시 결과 없음 → 게시 직전 재판정(사업자 승인 · 게시판 있음·켬·핫딜 종류 · 말머리 · 지금 링크 규칙) → 글(작성자 = 사업자 회원, 평문,
+ *   <li><b>게시</b>: 예약 · 시작 ≤ 지금 &lt; 끝 · 게시 결과 없음 → 게시 직전 재판정(사업자 승인 · 게시판 있음·켬·핫딜 종류 · 지금 링크 규칙 — 말머리가 없어졌거나 꺼졌으면 실패가 아니라 말머리 없이 올리고
+ *       {@code POSTED_WITHOUT_PREFIX} + 운영자 알림 {@code HOTDEAL_POST_PREFIX_DROPPED}) → 글(작성자 = 사업자 회원, 평문,
  *       글 시각 = 게시 시각) + 딜({@code source = BUSINESS}, 마감 = 신청 기간 끝, 상호 스냅샷) + 처리 기록 {@code POSTED} + 사업자 알림. 하나라도 아니면 글 없이
  *       {@code POST_FAILED}(사유 코드) + 운영자 알림 {@code HOTDEAL_POST_FAILED} + 사업자 알림 — 다시 시도하지 않는다(운영자 취소·전액 환불).</li>
  *   <li><b>숨김</b>({@link #onClosed}): 보이는 글만 운영자 숨김 까닭으로 숨기고 그 시각을 게시 결과에 남긴다 + {@code POST_HIDDEN}. 이미 숨겨진 글은 건드리지 않는다.</li>
@@ -52,6 +54,8 @@ public class BizHotdealPublisher implements BizHotdealPosting {
     public static final String LINK_BLOCKED = "LINK_BLOCKED";
     public static final String BUSINESS_SUSPENDED = "BUSINESS_SUSPENDED";
     public static final String OTHER = "OTHER";
+    /** {@code POSTED_WITHOUT_PREFIX} 의 note — 말머리 상단 노출이 걸려 있어 그 노출이 나오지 않는다 */
+    public static final String CATEGORY_TOP_OFF = "CATEGORY_TOP_OFF";
 
     /** 게시 한 건의 결과 */
     public enum Outcome { POSTED, FAILED, SKIPPED }
@@ -153,12 +157,11 @@ public class BizHotdealPublisher implements BizHotdealPosting {
         String host = url == null ? null : DealHosts.hostOf(url);
         String reason = null;
         ChainVerdict verdict = null;
+        boolean prefixDropped = false;
         if (!results.businessApproved(app)) {
             reason = BUSINESS_SUSPENDED;
         } else if (board == null || !board.active() || !BoardFields.KIND_DEAL.equals(board.kind())) {
             reason = BOARD_CLOSED;
-        } else if (prefixId != null && board.prefix(prefixId).filter(BoardPrefixInfo::active).isEmpty()) {
-            reason = OTHER; // 신청 때 고른 말머리가 없어졌다(말머리 상단 노출 자리가 사라진다)
         } else if (host == null || app.userId() == null || BizDealContent.text(c.get("shopName")) == null || !(c.get("dealPrice") instanceof Number)) {
             reason = OTHER;
         } else {
@@ -166,6 +169,11 @@ public class BizHotdealPublisher implements BizHotdealPosting {
             if (verdict.blocked()) {
                 reason = LINK_BLOCKED;
             }
+        }
+        if (reason == null && prefixId != null && board.prefix(prefixId).filter(BoardPrefixInfo::active).isEmpty()) {
+            // 신청 때 고른 말머리가 없어졌거나 꺼졌다 — 실패가 아니라 말머리 없이 올리고 운영자에게 알린다(사용자 결정 2026-11-02, 말머리 상단 노출은 나오지 않음)
+            prefixId = null;
+            prefixDropped = true;
         }
         if (reason != null) {
             if (!results.claimFailed(app.id(), reason, now)) {
@@ -198,6 +206,11 @@ public class BizHotdealPublisher implements BizHotdealPosting {
         deals.persist(PostDealEntity.createBusiness(postId, board.id(), app.userId(), app.id(), app.businessName(), values, link, now));
         deals.flush();
         ops.event(app.id(), BizEventAction.POSTED, BizActorType.SYSTEM, null, Long.toString(postId), now);
+        if (prefixDropped) {
+            boolean categoryPlacement = store.items(app.id()).stream().anyMatch(i -> i.product() == BizProduct.HOTDEAL_CATEGORY);
+            ops.event(app.id(), BizEventAction.POSTED_WITHOUT_PREFIX, BizActorType.SYSTEM, null, categoryPlacement ? CATEGORY_TOP_OFF : null, now);
+            ops.notices().postPrefixDropped(app, categoryPlacement);
+        }
         ops.notices().member(app, BizApplicationNotices.Kind.POSTED, 0, null);
         return Outcome.POSTED;
     }

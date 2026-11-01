@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 신청 건 상세의 「게시된 글」({@link BizDealPostView}) — 공개·관리자 같은 판정. 핫딜 글 신청 건만, 결제 전(예약·내림이 아니고 게시 결과도 없음)이면 null.
- * 노출 자리 상태: 게시 전·실패 WAITING · 글 숨김 STOPPED/POST_HIDDEN · 딜 종료 STOPPED/DEAL_ENDED · 기간 끝(EXPIRED) ENDED · 그 밖 SHOWING.
+ * 노출 자리 상태: 게시 전·실패 WAITING · 글 숨김 STOPPED/POST_HIDDEN · 딜 종료 STOPPED/DEAL_ENDED · 기간 끝(EXPIRED) ENDED · 말머리 없이 올라간 글의 말머리 상단 STOPPED/PREFIX_MISSING · 그 밖 SHOWING.
  */
 @Service
 @Transactional(readOnly = true)
@@ -75,7 +75,9 @@ public class BizDealPostReader {
         String snapshotPrefix = BizDealContent.text(c.get("prefixName"));
         String boardSlug = board != null ? board.slug() : BizDealContent.text(c.get("boardSlug"));
         String boardName = board != null ? board.name() : BizDealContent.text(c.get("boardName"));
-        String prefixName = board != null && prefixId != null ? board.prefix(prefixId).map(BoardPrefixInfo::name).orElse(snapshotPrefix) : snapshotPrefix;
+        // 올라간 글은 글의 말머리만 본다(말머리 없이 올라갔으면 null) — 게시 전·실패만 신청 때 스냅샷으로 채운다
+        String prefixName = prefixId == null ? (post != null ? null : snapshotPrefix)
+                : board != null ? board.prefix(prefixId).map(BoardPrefixInfo::name).orElse(snapshotPrefix) : snapshotPrefix;
         if (row.isEmpty() || !row.get().posted()) {
             String failReason = row.map(PostRow::failReason).orElse(null);
             return new BizDealPostView(failReason == null ? "WAITING" : "FAILED", null, boardSlug, boardName, prefixName, app.startAt(), null, null, null, failReason,
@@ -101,6 +103,9 @@ public class BizDealPostReader {
                 placement = new BizDealPostView.Placement(product, "STOPPED", "DEAL_ENDED");
             } else if (view == DealView.EXPIRED || !app.endAt().isAfter(now)) {
                 placement = new BizDealPostView.Placement(product, "ENDED", null);
+            } else if (BizProduct.HOTDEAL_CATEGORY.name().equals(product) && post.getPrefixId() == null) {
+                // 말머리 없이 올라간 글(신청 때 고른 말머리가 없어짐) — 말머리 상단 노출은 나오지 않는다
+                placement = new BizDealPostView.Placement(product, "STOPPED", "PREFIX_MISSING");
             } else {
                 placement = new BizDealPostView.Placement(product, "SHOWING", null);
             }

@@ -25,7 +25,7 @@ public record BizDealPostView(String status, String postId, String boardSlug, St
     /**
      * @param product    HOTDEAL_TOP · HOTDEAL_CATEGORY
      * @param status     WAITING(게시 전·실패) · SHOWING · STOPPED(딜 끝남·글 숨김) · ENDED(기간 끝)
-     * @param stopReason DEAL_ENDED · POST_HIDDEN(STOPPED 만)
+     * @param stopReason DEAL_ENDED · POST_HIDDEN · PREFIX_MISSING(STOPPED 만 — 말머리 없이 올라간 글의 말머리 상단)
      */
     public record Placement(String product, String status, String stopReason) {
     }
