@@ -72,6 +72,24 @@ PostDeal { source: MEMBER, storeName(≤40), productUrl(≤1000), productHost, n
 - 배치(api): 의심 유예 지남 → 자동 종료 + 요청자 포인트.
 - 알림: 회원 `DEAL_END_REQUESTED`(작성자에게, 문턱 도달 때 한 번).
 
+## 목업 구현 결과 (2026-11-01, 화면 확정 전)
+- 커밋: user-web `eb08a133` · admin-web `730da368`. 타입 검사 두 앱 통과, 브라우저 확인은 개발자 몫.
+- `?mock=` — user-web(앞에 `deal-`): `deal-empty`·`deal-error`·`deal-flagged`·`deal-ended`·`deal-expired`·`deal-sent`·`deal-blocked`·`deal-affiliate`·`deal-og-none`·`deal-og-failed`·`deal-same`·`deal-sprout`·`deal-guest`·`deal-unverified`·`deal-card`·`deal-gallery`·`deal-gadget-off`. admin-web: `empty`·`error`·`detail-error`·`slow`·`forbidden`·`conflict`·`stale`·`save-error`. 쉼표로 여럿.
+- 목업 글: `/posts/mock-deal-mine`(내 글)·`mock-deal-2`·`mock-deal-3`(같은 딜·제휴)·`mock-deal-6`(의심)·`mock-deal-7`·`8`(종료)·`mock-deal-9`(기간 종료). 목업 게시판 `hotdeal` 은 실서버 같은 slug 를 가린다.
+- 화면이 새로 정한 것(확인 필요)
+  - 게시판 응답 `kind` 없으면 옛 칸 `dealEnabled` 로 판정(기존 핫딜 광고 자리 유지용).
+  - link-check 에 `shortener: boolean`(단축 주소 문구 구분). 이미지 `{ url, source, imageId? }` — 올린 이미지는 기존 `POST /api/images`.
+  - 목록 차례 진행 중 → 의심 → 끝남(끝난 글을 보일 때 맨 아래), 마감 임박은 마감 없는 글 뒤. 할인율 내림 정수.
+  - 고치기: ENDED 만 딜 칸 읽기 전용, EXPIRED 는 고칠 수 있게 두고 「마감을 고쳐 주세요」. 처음과 같은 마감은 다시 검사 안 함. 딜 칸은 바꿨을 때만 보냄.
+  - 끝난 딜 카드에도 [구매하기]는 남김(알리기·종료만 감춤). 쓰기의 같은 딜 링크는 새 탭.
+  - 종료 요청 응답 = 새 `PostDeal`. 오류 `DEAL_END_REQUEST_OWN`(403)·`DEAL_END_REQUEST_EXISTS`(409)·`DEAL_ENDED`(409)·`DEAL_END_REQUEST_DAILY_LIMIT`(429)·`DEAL_NOT_FLAGGED`(409, keep). 관리자 `HOTDEAL_STATE_CHANGED`·`HOTDEAL_DOMAIN_DUPLICATE`(409 + `fields.domain`)·`HOTDEAL_DOMAIN_NOT_FOUND`·`HOTDEAL_SUSPICION_NOT_FOUND`(404).
+  - 관리자 상태 우선순위 ENDED > EXPIRED > FLAGGED > ACTIVE. [종료]는 진행·의심·기간 지남, [재개]는 ENDED 만(의심·요청 리셋). 사유·메모 선택 200자.
+  - **보상 포인트는 포인트 정책이 이미 가짐**(`dealEndRequestPoints` 기본 3 · `dealEndRequestDailyLimit` 하루 지급 5회) → 핫딜 설정은 읽기만 + 「포인트 정책 열기」. 핫딜 설정 칸 `endRequestThreshold`·`endGraceHours`·`endRequestDailyLimit`(요청 한도 1~100, 기본 20 — 지급 한도와 별개)·`suspicionMinPosts`·`suspicionWindowDays`.
+  - 관리자 추가 칸: 목록 `counts`(상태별), 상세 `endedByName`·`endReason`·`keptAt`·`publicUrl`·`sameDeals`(≤5), 의심 후보 `storeName`·`windowDays`·`note`·`dismissedBy/At`, 후보 글 줄 `openReports`. 목록 조건 `createdFrom`·`createdTo`, 게시판 선택지 `GET /api/admin/hotdeals/boards`.
+  - 내 포인트 내역은 서버 `reason` 문구를 그대로 보이므로 「핫딜 종료 알림 보상」은 서버 번들에.
+- 서버에서 같이 고칠 것: `AdminScreenRegistry` 핫딜 묶음 4줄(`hotdeals`·`hotdealDomains`·`hotdealSuspicions`·`hotdealSettings`, `hotdealReviews` 다음) · `Permission.HOTDEAL_DOMAIN_MANAGE` featureReady · `HomeGadgetKinds.HOT_DEALS` · `ReportReasons` 2개(핫딜 글에서만, 일반 글이면 400) · 공개 게시판 응답 `kind` · 관리자 글 목록 줄 `deal: boolean`.
+- 못 한 것: 관리자 가젯 편집기 미리보기(user-web iframe 이라 user-web 쪽이 그림) · 신고 조치 사유 고르기에 핫딜 사유 · 내비게이션 메뉴에 목업 게시판 · 핫딜 목록의 테마 슬롯 등록 · 목업 글 댓글 쓰기(실서버로 가서 실패).
+
 ## 미확정
 - OG 가져오기: 허용 도메인·크기 제한·캐시·이미지 저장 위치(외부 주소 그대로 vs 서버 사본), 실패 재시도.
 - 같은 딜 판정 범위(진행 중만 vs 최근 N일), `product_url_key` 정규화에서 쿼리 문자열을 어디까지 남길지(상품 ID 가 쿼리에 있는 몰).
