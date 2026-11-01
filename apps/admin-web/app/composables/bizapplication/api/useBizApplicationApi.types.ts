@@ -100,7 +100,7 @@ export type BizApplicationContent =
           stock?: BizDealStock | null;
           placement?: 'NONE' | 'HOME_TOP' | 'CATEGORY_TOP' | null;
           affiliate?: boolean | null;
-          /** 올라갈 핫딜 게시판(2차 — 서버가 아직 안 주면 없음, 화면이 감춘다) */
+          /** 올라갈 핫딜 게시판(2차 — 옛 건·광고는 없음, 화면이 감춘다) */
           board?: BizRef | null;
           /** 신청 때 고른 말머리(없으면 null — 말머리 상단 노출의 자리) */
           prefix?: BizRef | null;
@@ -313,7 +313,7 @@ export interface BizApplicationDetail extends BizApplicationRow {
     weight: number;
     registrant: BizRegistrant | null;
     selfApproval: BizSelfApproval;
-    /** 사업자 핫딜 게시(2차, `HOTDEAL_POST` 만) — 예약 전이면 null, 서버가 아직 안 주면 없음(화면이 「게시」 칸을 감춘다) */
+    /** 사업자 핫딜 게시(2차, `HOTDEAL_POST` 만) — 결제 전이면 null(화면이 「게시」 칸을 감춘다) */
     post?: BizDealPost | null;
 }
 

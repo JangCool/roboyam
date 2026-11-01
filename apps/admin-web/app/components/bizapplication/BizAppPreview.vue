@@ -35,7 +35,7 @@
 
             <template v-else>
                 <p v-if="content.type === 'HOTDEAL_PLACEMENT'" class="m-0 mb-2 text-xs font-medium">{{ adType === 'HOTDEAL_CATEGORY' ? t('bizApplication.placementCategory', { name: content.categoryName ?? '—' }) : t('bizApplication.placementTop') }}</p>
-                <!-- 사업자 핫딜 글(2차) — 올라갈 게시판·말머리(서버가 아직 안 주면 감춘다) -->
+                <!-- 사업자 핫딜 글(2차) — 올라갈 게시판·말머리(소재에 없으면 감춘다) -->
                 <p v-if="content.type === 'HOTDEAL_POST' && content.board" class="m-0 mb-2 flex flex-wrap items-center gap-1 text-xs">
                     <i class="pi pi-list text-[10px] text-muted-color" aria-hidden="true" />
                     <span class="font-medium">{{ t('bizApplication.postBoardLine', { board: content.board.name }) }}</span>
@@ -85,7 +85,7 @@ const props = withDefaults(defineProps<Props>(), { adType: null, businessName: n
 
 const { t, locale } = useI18n();
 
-/** 「광고」 옆 상호 — 게시판이 정해진 사업자 핫딜 글(2차)만(서버가 아직 안 주면 예전 모양) */
+/** 「광고」 옆 상호 — 게시판이 정해진 사업자 핫딜 글(2차)만(게시판이 없는 옛 건은 예전 모양) */
 const advertiser = computed(() => (props.content.type === 'HOTDEAL_POST' && props.content.board ? props.businessName : null));
 
 const discount = computed(() => {

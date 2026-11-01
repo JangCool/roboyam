@@ -5,7 +5,6 @@
         - 조건 카드: 상태 `SelectButton`(진행·의심·종료·기간 지남·전체 + 건수) → 게시판 `Select`(핫딜 게시판) → 차단 도메인 진행 중 체크(`blockedActive` + 건수) → 검색(제목·쇼핑몰·작성자, 2자 이상) → 등록일 기간.
           상태·게시판·차단은 고르는 즉시, 검색어·기간은 [검색](Enter)을 눌러야 주소로 간다. **모두 주소 쿼리**(`?view=&board=&source=&blocked=1&q=&from=&to=&page=&size=&deal=`).
           출처(전체·회원·사업자 — 2차 사업자 핫딜 게시)는 서버가 줄에 `source` 를 줄 때만 보인다. 사업자 글은 제목 앞 「사업자·광고」 + 상호, 서랍에 [핫딜 심사에서 열기]. 종료·재개는 회원 글과 같다.
-          목업: `?mock=bizdeal-board`(`hotdeal/api/mock/bizdeal-mock.ts` 머리말).
         - 표: 썸네일 · 제목(말머리 · 제휴 · 아래 줄에 「차단 도메인」·「링크 바뀜」·「가격 수정 N회」) · 게시판 · 쇼핑몰 · 딜가 · 정상가 · 할인율 · 상태 · 종료 요청(Badge) · 신고 · 작성자 · 등록 시각.
           줄을 누르면 서랍(`?deal=` — replace, 목록은 다시 받지 않는다). 서랍 「수정 이력」 탭은 처음 열 때 이력을 받는다(D3).
         - 조치: 서랍 바닥 [종료]/[재개] → 사유 대화창(선택, `HotdealReasonDialog`) → 토스트. 재개 창은 D2 안내(자동·운영진 종료는 운영진만, 작성자 종료는 24시간 안 작성자가 되돌릴 수 있음)와
@@ -243,7 +242,6 @@
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
-import { mockBizDealBoardOn } from '~/composables/hotdeal/api/mock/bizdeal-mock';
 import type { AdminDealDetail, AdminDealPage, AdminDealRow, DealRevisionListView, DealSource, DealViewFilter } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { HotdealReasonKind } from '~/components/hotdeal/HotdealReasonDialog.vue';
 import UtilDateRange from '~/utils/util-date-range';
@@ -355,13 +353,8 @@ const boardOptions = computed(() => {
 
 const page = ref<AdminDealPage | null>(null);
 const items = computed(() => page.value?.items ?? []);
-/** 출처 거르기를 보일까 — 서버가 줄에 `source` 를 내려 주거나(2차) 주소에 조건이 있을 때. 목업 스위치면 늘 */
-const sourceReady = computed(
-    () =>
-        mockBizDealBoardOn() || // MOCK: `?mock=bizdeal-board` — 서버가 붙으면 이 줄과 import 를 지운다
-        filters.value.source !== '' ||
-        items.value.some((it) => it.source !== undefined),
-);
+/** 출처 거르기를 보일까 — 서버가 줄에 `source` 를 내려 주거나(2차) 주소에 조건이 있을 때 */
+const sourceReady = computed(() => filters.value.source !== '' || items.value.some((it) => it.source !== undefined));
 const busy = ref(false);
 const refreshing = ref(false);
 const loadError = ref<ApiError | null>(null);

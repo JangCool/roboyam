@@ -271,7 +271,6 @@
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
-import { mockQuery } from '~/composables/common/mock/mock-util';
 import type { AdminDealDetail, AdminDealRow, DealRevisionListView } from '~/composables/hotdeal/api/useHotdealApi.types';
 import UtilHotdeal from '~/utils/util-hotdeal';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
@@ -353,14 +352,13 @@ watch(open, (isOpen) => {
     if (!isOpen) tab.value = 'info';
 });
 
-/** 사업자 핫딜 글(2차)의 사업자 — 서버가 아직 안 주면 없음 */
+/** 사업자 핫딜 글(2차)의 사업자 — 회원 글이면 없음 */
 const business = computed(() => (props.detail && UtilHotdeal.isBusiness(row.value) ? (row.value.business ?? null) : null));
-/** 핫딜 심사의 그 신청 건. 목업 스위치는 그대로 싣는다 */
+/** 핫딜 심사의 그 신청 건 */
 const reviewLink = computed(() => ({
     path: '/hotdeal-reviews',
     query: {
         id: business.value?.applicationId ?? '',
-        ...mockQuery(), // MOCK: 목업 건끼리 오가게 `?mock=` 를 싣는다 — 서버가 붙으면 이 줄과 import 를 지운다
     },
 }));
 

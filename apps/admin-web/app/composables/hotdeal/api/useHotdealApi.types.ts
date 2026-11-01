@@ -152,7 +152,7 @@ export interface AdminDealRow {
      */
     blockedHost: string | null;
     deal: PostDeal;
-    /** 출처(2차 — 서버가 아직 안 주면 없음 = 회원 핫딜). `deal.source` 와 같은 값 */
+    /** 출처(2차 — 없으면 회원 핫딜). `deal.source` 와 같은 값 */
     source?: DealSource;
     /** 사업자 핫딜 글의 사업자(회원 핫딜이면 null) */
     business?: DealBusinessRef | null;

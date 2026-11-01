@@ -247,7 +247,6 @@
 </template>
 
 <script setup lang="ts">
-import { mockQuery } from '~/composables/common/mock/mock-util';
 import type { BizApplicationDetail, BizDepositRequest } from '~/composables/bizapplication/api/useBizApplicationApi.types';
 import UtilBizApplication from '~/utils/util-biz-application';
 import UtilBizApplicationMessages from '~/utils/util-biz-application-messages';
@@ -298,13 +297,12 @@ const history = computed(() => [...props.detail.history].sort((a, b) => b.at.loc
 /** 사업자 핫딜 게시(2차) — 서버가 `post` 를 내려 줄 때만 「게시」 칸 */
 const post = computed(() => (props.detail.kind === 'HOTDEAL_POST' ? (props.detail.post ?? null) : null));
 const { origin: userWebOrigin } = useUserWebOrigin();
-/** 관리자 핫딜 글 서랍(알림 링크와 같은 쿼리). 목업 스위치는 그대로 싣는다 */
+/** 관리자 핫딜 글 서랍(알림 링크와 같은 쿼리) */
 const dealLink = computed(() => ({
     path: '/hotdeals',
     query: {
         view: 'ALL',
         deal: post.value?.postId ?? '',
-        ...mockQuery(), // MOCK: 목업 건끼리 오가게 `?mock=` 를 싣는다 — 서버가 붙으면 이 줄과 import 를 지운다
     },
 }));
 /** 공개 글 주소 — 공개 사이트 origin 을 모르면 링크를 감춘다 */
