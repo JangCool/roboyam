@@ -3,6 +3,7 @@ package com.community.ad.controller;
 import com.community.ad.dto.AdAdminRequest;
 import com.community.ad.dto.AdAdminView;
 import com.community.ad.dto.AdPlacementAdmin;
+import com.community.ad.dto.AdPlacementHistory;
 import com.community.ad.service.AdAdminService;
 import com.community.ad.service.AdAdvertiserService;
 import com.community.ad.service.AdPlacementAdminService;
@@ -54,6 +55,14 @@ public class AdAdminController {
     @PutMapping("/placements")
     public ResponseEntity<ApiResponse<AdPlacementAdmin.View>> savePlacements(@RequestBody(required = false) AdPlacementAdmin.Save body, AdminActor actor) {
         return ok(placements.save(actor, body));
+    }
+
+    /** 노출 자리 설정 변경 이력 — 최신 먼저, 메일 서버 설정 이력과 같은 모양·쪽 규칙(기본 20 · 최대 100, 틀리면 400 {@code fields.page}·{@code fields.size}) */
+    @RequirePermission(Permission.AD_READ)
+    @GetMapping("/placements/history")
+    public ResponseEntity<ApiResponse<AdPlacementHistory.Page>> placementHistory(@RequestParam(required = false) String page,
+                                                                                @RequestParam(required = false) String size) {
+        return ok(placements.history(page, size));
     }
 
     /** 그 달(YYYY-MM) 날짜별 남은 칸 + 유형 요약 + 그 달에 걸친 장부 건 */
