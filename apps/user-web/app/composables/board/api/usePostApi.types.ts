@@ -8,6 +8,7 @@ import type { BoardProtectDelete, PrefixView } from '~/composables/board/api/use
 import type { BlockedBy } from '~/composables/block/api/useBlockApi.types';
 import type { DebateSummary, PostDebateOpen } from '~/composables/board/api/useDebateApi.types';
 import type { PollInput, PollView } from '~/composables/board/api/usePollApi.types';
+import type { DealInput, DealSort, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopApi.types';
 
 /**
@@ -164,6 +165,8 @@ export interface PostRow {
     blocked?: BlockedBy | null;
     /** 소모임 글이면 그 소모임(2단계) — 일반 글·옛 응답은 null·없음 */
     group?: PostGroupRef | null;
+    /** 핫딜 게시판(`kind DEAL`)의 글이면 딜(가격 줄·배지) — 일반 글·옛 응답은 null·없음(`hotdeal-contract.md`) */
+    deal?: PostDeal | null;
 }
 
 /** 목록 정렬 — 최신순 · 오래된순 */
@@ -177,6 +180,19 @@ export interface PostListQuery {
     /** 게시판 안 검색어(제목·내용·작성자) — 비면 검색하지 않는다 */
     q: string;
     /** 1부터 */
+    page: number;
+}
+
+/**
+ * 핫딜 게시판 목록 `GET /api/boards/{slug}/posts?prefix&sort=latest|popular|ending&hideEnded=true&q&page` (`hotdeal-contract.md` 「API 후보」).
+ * 의심(FLAGGED) 글은 정렬 키 뒤(아래로), 종료·기간 지난 글은 `hideEnded` 가 켜져 있으면 빠진다(서버 판정). 응답은 `PostListResponse` 그대로(줄에 `deal`).
+ */
+export interface DealPostListQuery {
+    prefix: string;
+    sort: DealSort;
+    /** 종료·기간 지난 글 숨기기 — 기본 켬 */
+    hideEnded: boolean;
+    q: string;
     page: number;
 }
 
@@ -279,6 +295,8 @@ export interface PostDetail {
      * 소모임 글의 게시판은 공개 게시판 API(`GET /api/boards/{slug}`)에 없으므로 화면은 `GET /api/groups/{id}/board` 로 게시판 정보를 받는다(`useGroupApi.board`).
      */
     group?: PostGroupInfo | null;
+    /** 핫딜 글이면 딜 — 본문 위 딜 카드(`hotdeal-contract.md`). 일반 글·옛 응답은 null·없음 */
+    deal?: PostDeal | null;
 }
 
 /** 비회원 작성 정보 — 이름·비밀번호(수정·삭제용, 서버는 해시로만 저장)·자동입력 방지 토큰 */
@@ -307,6 +325,8 @@ export interface PostWriteRequest {
     debate?: PostDebateOpen | null;
     /** 글과 함께 투표를 붙인다(회원이고 게시판 `pollEnabled` 일 때만 — 아니면 `400 fields.poll`). 붙이지 않으면 null */
     poll?: PollInput | null;
+    /** 핫딜 게시판이면 필수 — 딜 정보(오류는 `400 VALIDATION fields."deal.*"` 로 다른 칸 오류와 함께). 그 밖 게시판은 보내지 않는다 */
+    deal?: DealInput | null;
 }
 
 export interface PostWriteResult {
@@ -326,6 +346,8 @@ export interface PostUpdateRequest {
      * (화면은 투표 칸을 바꾸지 않았거나 표가 있어 고칠 수 없을 때 칸을 뺀다)
      */
     poll?: PollInput | null;
+    /** 핫딜 글의 딜 — 바꿨을 때만 싣는다(칸을 빼면 그대로). 종료된 딜은 고칠 수 없어 늘 뺀다(가정) */
+    deal?: DealInput;
 }
 
 /** `DELETE /api/posts/{id}` 본문 — 비회원 글은 `password` 필수 */

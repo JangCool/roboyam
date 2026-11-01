@@ -1,0 +1,323 @@
+import type { LocationQuery } from 'vue-router';
+import type { BoardView } from '~/composables/board/api/useBoardApi.types';
+import type { DealPostListQuery } from '~/composables/board/api/usePostApi.types';
+import type { DealEndReason, DealInput, DealLinkCheck, DealSort, DealStock, DealView, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { DealFormValues, DealShippingMode } from '~/components/hotdeal/HotdealDealFields.types';
+
+/** 상품 링크 문제 — 비었음 · http(s) 주소가 아님 · 1000자 넘음 · 차단한 쇼핑몰 · 단축 주소 */
+export type DealUrlProblem = 'REQUIRED' | 'FORMAT' | 'TOO_LONG' | 'BLOCKED' | 'SHORTENER';
+/** 딜 칸별 문제(화면 검사 — 판정은 서버. 서버 `PostDealRules`(후보)와 같은 규칙) */
+export interface DealProblems {
+    productUrl: DealUrlProblem | null;
+    storeName: 'REQUIRED' | 'TOO_LONG' | null;
+    dealPrice: 'REQUIRED' | 'INVALID' | null;
+    /** 정상가는 딜가 이상 */
+    normalPrice: 'INVALID' | 'BELOW_DEAL' | null;
+    shippingFee: 'REQUIRED' | 'INVALID' | null;
+    /** 마감은 지금 이후 ~ 365일 */
+    endsAt: 'INVALID' | 'TOO_SOON' | 'TOO_LATE' | null;
+    couponNote: 'TOO_LONG' | null;
+    priceBasis: 'TOO_LONG' | null;
+}
+
+const NO_PROBLEMS: Readonly<DealProblems> = {
+    productUrl: null,
+    storeName: null,
+    dealPrice: null,
+    normalPrice: null,
+    shippingFee: null,
+    endsAt: null,
+    couponNote: null,
+    priceBasis: null,
+};
+
+const SORT_PARAM: Readonly<Record<DealSort, string>> = { LATEST: 'latest', POPULAR: 'popular', ENDING_SOON: 'ending' };
+
+function one(value: unknown): string {
+    return Array.isArray(value) ? String(value[0] ?? '') : typeof value === 'string' ? value : '';
+}
+
+function nonNegativeInt(value: number | null): boolean {
+    return value !== null && Number.isInteger(value) && value >= 0;
+}
+
+/**
+ * 회원 핫딜(1차)의 순수 계산 — 게시판 종류 판정, 링크 호스트, 할인율 미리보기, 딜 칸의 화면 검사·변환, 목록 주소 쿼리. 상태도 요청도 없다.
+ * 규칙의 정본은 계약 `docs/features/hotdeal-contract.md` 「필드·검증」이고 판정은 서버다(서버 규칙 클래스 이름은 서버 세션이 정한다 — 후보 `PostDealRules`).
+ */
+export default class UtilHotdeal {
+    static readonly STORE_NAME_MAX = 40;
+    static readonly URL_MAX = 1000;
+    static readonly NOTE_MAX = 100;
+    /** 마감은 지금 이후 ~ 이 일수 안 */
+    static readonly ENDS_MAX_DAYS = 365;
+    /** 마감 최소 여유(1분) — 투표 마감과 같은 여유(가정) */
+    static readonly ENDS_MIN_LEAD_MS = 60_000;
+    /** 목록 정렬 — 화면에 보일 차례 */
+    static readonly SORTS: readonly DealSort[] = ['LATEST', 'POPULAR', 'ENDING_SOON'];
+    static readonly STOCKS: readonly DealStock[] = ['UNKNOWN', 'IN_STOCK', 'LOW', 'SOLD_OUT'];
+    static readonly END_REASONS: readonly DealEndReason[] = ['SOLD_OUT', 'PRICE_CHANGED', 'LINK_DEAD'];
+    static readonly SHIPPING_MODES: readonly DealShippingMode[] = ['FREE', 'UNKNOWN', 'PAID'];
+    /** 링크를 다 붙여 넣은 뒤 판정을 부르기까지 기다리는 시간 */
+    static readonly LINK_CHECK_DEBOUNCE_MS = 600;
+
+    /**
+     * 핫딜 게시판인가 — 게시판 종류 `DEAL`. 종류가 없는 옛 응답은 옛 칸 `dealEnabled` 로 본다
+     * @param {Pick<BoardView, 'kind' | 'dealEnabled'> | null | undefined} board - 게시판.
+     * @returns {boolean} 핫딜 게시판이면 true.
+     */
+    static isDealBoard(board: Pick<BoardView, 'kind' | 'dealEnabled'> | null | undefined): boolean {
+        if (!board) return false;
+        if (board.kind) return board.kind === 'DEAL';
+        return board.dealEnabled === true;
+    }
+
+    /**
+     * 링크의 호스트 — 소문자·`www.` 뗌·포트·경로 없음. http(s) 주소가 아니면 null
+     * @param {string} url - 상품 링크.
+     * @returns {string | null} 호스트.
+     */
+    static hostOf(url: string): string | null {
+        const trimmed = url.trim();
+        if (!/^https?:\/\//i.test(trimmed)) return null;
+        try {
+            const host = new URL(trimmed).hostname.toLowerCase();
+            if (!host.includes('.')) return null;
+            return host.startsWith('www.') ? host.slice(4) : host;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * 링크 칸 형식 문제(판정 결과 제외) — 비었음 · 형식 · 길이
+     * @param {string} url - 상품 링크.
+     * @returns {DealUrlProblem | null} 문제.
+     */
+    static urlFormatProblem(url: string): DealUrlProblem | null {
+        const trimmed = url.trim();
+        if (!trimmed) return 'REQUIRED';
+        if (trimmed.length > UtilHotdeal.URL_MAX) return 'TOO_LONG';
+        return UtilHotdeal.hostOf(trimmed) === null ? 'FORMAT' : null;
+    }
+
+    /**
+     * 할인율 미리보기 — 정상가가 딜가보다 클 때만 정수 %(내림). 서버가 같은 식으로 정한다(가정)
+     * @param {number | null} normal - 정상가.
+     * @param {number | null} deal - 딜가.
+     * @returns {number | null} 할인율.
+     */
+    static discountRate(normal: number | null, deal: number | null): number | null {
+        if (normal === null || deal === null || normal <= 0 || deal < 0 || normal <= deal) return null;
+        const rate = Math.floor(((normal - deal) / normal) * 100);
+        return rate > 0 ? rate : null;
+    }
+
+    /**
+     * 끝난 딜인가 — 종료 · 기간 지남(목록에서 흐리게, 글 보기 카드 흐림)
+     * @param {DealView} view - 읽을 때 계산한 상태.
+     * @returns {boolean} 끝났으면 true.
+     */
+    static isOver(view: DealView): boolean {
+        return view === 'ENDED' || view === 'EXPIRED';
+    }
+
+    /** 새 딜 칸의 처음 값 */
+    static emptyForm(): DealFormValues {
+        return {
+            productUrl: '',
+            storeName: '',
+            storeNameTouched: false,
+            dealPrice: null,
+            normalPrice: null,
+            shippingMode: 'UNKNOWN',
+            shippingFee: null,
+            endsAt: '',
+            stockState: 'UNKNOWN',
+            affiliate: false,
+            couponNote: '',
+            priceBasis: '',
+            image: null,
+            imageTouched: false,
+        };
+    }
+
+    /**
+     * 글의 딜 → 칸 값(고치기)
+     * @param {PostDeal | null | undefined} deal - 글의 딜.
+     * @returns {DealFormValues} 칸 값. 딜이 없으면 빈 값.
+     */
+    static formOf(deal: PostDeal | null | undefined): DealFormValues {
+        if (!deal) return UtilHotdeal.emptyForm();
+        const mode: DealShippingMode = deal.shippingFee === null ? 'UNKNOWN' : deal.shippingFee === 0 ? 'FREE' : 'PAID';
+        return {
+            productUrl: deal.productUrl,
+            storeName: deal.storeName,
+            storeNameTouched: true,
+            dealPrice: deal.dealPrice,
+            normalPrice: deal.normalPrice,
+            shippingMode: mode,
+            shippingFee: mode === 'PAID' ? deal.shippingFee : null,
+            endsAt: deal.endsAt ?? '',
+            stockState: deal.stockState,
+            affiliate: deal.affiliate,
+            couponNote: deal.couponNote ?? '',
+            priceBasis: deal.priceBasis ?? '',
+            image: deal.image ? { ...deal.image } : null,
+            imageTouched: true,
+        };
+    }
+
+    /**
+     * 칸 값 → 보낼 딜(`DealInput`) — 앞뒤 공백을 떼고, 빈 메모는 null
+     * @param {DealFormValues} form - 칸 값.
+     * @returns {DealInput} 보낼 딜.
+     */
+    static inputOf(form: DealFormValues): DealInput {
+        const shippingFee = form.shippingMode === 'FREE' ? 0 : form.shippingMode === 'UNKNOWN' ? null : form.shippingFee;
+        return {
+            storeName: form.storeName.trim(),
+            productUrl: form.productUrl.trim(),
+            normalPrice: form.normalPrice,
+            dealPrice: form.dealPrice ?? 0,
+            shippingFee,
+            couponNote: form.couponNote.trim() || null,
+            priceBasis: form.priceBasis.trim() || null,
+            endsAt: form.endsAt || null,
+            stockState: form.stockState,
+            affiliate: form.affiliate,
+            image: form.image ? { ...form.image } : null,
+        };
+    }
+
+    /**
+     * 링크 판정 결과로 딜 칸을 채운다 — 쇼핑몰 이름(글쓴이가 고치지 않았으면 표 이름 → OG 이름) · 이미지(글쓴이가 지우거나 올리지 않았으면 OG, 없음·실패면 비움) · 제휴(AFFILIATE 면 켬)
+     * @param {DealFormValues} form - 지금 칸 값.
+     * @param {DealLinkCheck} check - 판정 결과.
+     * @returns {DealFormValues} 채운 칸 값(새 객체).
+     */
+    static applyLinkCheck(form: DealFormValues, check: DealLinkCheck): DealFormValues {
+        const next = { ...form };
+        const name = check.storeName ?? check.og.storeName;
+        if (!form.storeNameTouched && name) next.storeName = name.slice(0, UtilHotdeal.STORE_NAME_MAX);
+        if (!form.imageTouched) next.image = check.og.status === 'OK' && check.og.imageUrl ? { url: check.og.imageUrl, source: 'OG' } : null;
+        if (check.rule === 'AFFILIATE') next.affiliate = true;
+        return next;
+    }
+
+    /**
+     * 두 칸 값이 보낼 내용으로 같은가(고치기의 「바꿨는가」)
+     * @param {DealFormValues} a - 칸 값.
+     * @param {DealFormValues} b - 칸 값.
+     * @returns {boolean} 같으면 true.
+     */
+    static same(a: DealFormValues, b: DealFormValues): boolean {
+        return JSON.stringify(UtilHotdeal.inputOf(a)) === JSON.stringify(UtilHotdeal.inputOf(b));
+    }
+
+    /**
+     * 마감으로 고를 수 있는 범위(칸을 연 때 기준)
+     * @param {number} now - 지금(밀리초).
+     * @returns {{ min: string; max: string }} ISO 범위.
+     */
+    static endsRange(now: number): { min: string; max: string } {
+        return { min: new Date(now + UtilHotdeal.ENDS_MIN_LEAD_MS).toISOString(), max: new Date(now + UtilHotdeal.ENDS_MAX_DAYS * 86_400_000).toISOString() };
+    }
+
+    /**
+     * 칸 값의 문제 — 링크 판정이 차단이면 링크 칸 문제. 고치기에서 처음 값과 같은 마감은 다시 검사하지 않는다(투표 마감과 같은 규칙 — 가정)
+     * @param {DealFormValues} form - 칸 값.
+     * @param {DealLinkCheck | null} check - 지금 링크의 판정 결과(없으면 null).
+     * @param {number} now - 지금(밀리초).
+     * @param {string} initialEndsAt - 고치기의 처음 마감(글쓰기는 '').
+     * @returns {DealProblems} 칸별 문제.
+     */
+    static problems(form: DealFormValues, check: DealLinkCheck | null, now: number, initialEndsAt = ''): DealProblems {
+        const out: DealProblems = { ...NO_PROBLEMS };
+        out.productUrl = UtilHotdeal.urlFormatProblem(form.productUrl);
+        if (!out.productUrl && check && check.host === UtilHotdeal.hostOf(form.productUrl) && check.rule === 'BLOCK') out.productUrl = check.shortener ? 'SHORTENER' : 'BLOCKED';
+
+        const store = form.storeName.trim();
+        out.storeName = !store ? 'REQUIRED' : store.length > UtilHotdeal.STORE_NAME_MAX ? 'TOO_LONG' : null;
+
+        out.dealPrice = form.dealPrice === null ? 'REQUIRED' : nonNegativeInt(form.dealPrice) ? null : 'INVALID';
+        if (form.normalPrice !== null) {
+            if (!nonNegativeInt(form.normalPrice)) out.normalPrice = 'INVALID';
+            else if (form.dealPrice !== null && form.normalPrice < form.dealPrice) out.normalPrice = 'BELOW_DEAL';
+        }
+        if (form.shippingMode === 'PAID') out.shippingFee = form.shippingFee === null ? 'REQUIRED' : nonNegativeInt(form.shippingFee) ? null : 'INVALID';
+
+        if (form.endsAt && form.endsAt !== initialEndsAt) {
+            const at = Date.parse(form.endsAt);
+            if (Number.isNaN(at)) out.endsAt = 'INVALID';
+            else if (at < now) out.endsAt = 'TOO_SOON';
+            else if (at > now + UtilHotdeal.ENDS_MAX_DAYS * 86_400_000) out.endsAt = 'TOO_LATE';
+        }
+        if (form.couponNote.trim().length > UtilHotdeal.NOTE_MAX) out.couponNote = 'TOO_LONG';
+        if (form.priceBasis.trim().length > UtilHotdeal.NOTE_MAX) out.priceBasis = 'TOO_LONG';
+        return out;
+    }
+
+    /**
+     * 문제가 하나라도 있는가
+     * @param {DealProblems} problems - 칸별 문제.
+     * @returns {boolean} 있으면 true.
+     */
+    static hasProblem(problems: DealProblems): boolean {
+        return Object.values(problems).some((v) => v !== null);
+    }
+
+    /**
+     * 서버 오류 중 딜 칸 것(`deal`·`deal.*`)이 있는가
+     * @param {Record<string, string>} fields - 서버 `fields`.
+     * @returns {boolean} 있으면 true.
+     */
+    static hasDealFields(fields: Record<string, string>): boolean {
+        return Object.keys(fields).some((k) => k === 'deal' || k.startsWith('deal.'));
+    }
+
+    /**
+     * 서버 오류에서 딜 칸 것을 뺀다(딜 칸을 고치면 낡은 서버 오류를 지운다)
+     * @param {Record<string, string>} fields - 서버 `fields`.
+     * @returns {Record<string, string>} 딜 칸 오류를 뺀 것.
+     */
+    static withoutDealFields(fields: Record<string, string>): Record<string, string> {
+        return Object.fromEntries(Object.entries(fields).filter(([k]) => k !== 'deal' && !k.startsWith('deal.')));
+    }
+
+    /**
+     * 목록 주소의 쿼리 → 핫딜 목록 조건(`?prefix=&sort=latest|popular|ending&hideEnded=false&q=&page=`). 기본값(최신·종료 숨김·1쪽)은 주소에 쓰지 않는다
+     * @param {LocationQuery} query - `route.query`.
+     * @returns {DealPostListQuery} 목록 조건.
+     */
+    static parseQuery(query: LocationQuery): DealPostListQuery {
+        const sortParam = one(query.sort);
+        const sort = (Object.entries(SORT_PARAM).find(([, v]) => v === sortParam)?.[0] as DealSort | undefined) ?? 'LATEST';
+        const page = Number.parseInt(one(query.page), 10);
+        return { prefix: one(query.prefix), sort, hideEnded: one(query.hideEnded) !== 'false', q: one(query.q).trim(), page: Number.isFinite(page) && page > 0 ? page : 1 };
+    }
+
+    /**
+     * 핫딜 목록 조건 → 주소의 쿼리(기본값은 뺀다)
+     * @param {Partial<DealPostListQuery>} value - 목록 조건.
+     * @returns {Record<string, string>} 쿼리.
+     */
+    static buildQuery(value: Partial<DealPostListQuery>): Record<string, string> {
+        const out: Record<string, string> = {};
+        if (value.prefix) out.prefix = value.prefix;
+        if (value.sort && value.sort !== 'LATEST') out.sort = SORT_PARAM[value.sort];
+        if (value.hideEnded === false) out.hideEnded = 'false';
+        if (value.q) out.q = value.q;
+        if (value.page && value.page > 1) out.page = String(value.page);
+        return out;
+    }
+
+    /**
+     * 서버로 보낼 정렬 값
+     * @param {DealSort} sort - 정렬.
+     * @returns {string} `latest` · `popular` · `ending`.
+     */
+    static sortParam(sort: DealSort): string {
+        return SORT_PARAM[sort];
+    }
+}

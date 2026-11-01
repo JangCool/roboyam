@@ -12,6 +12,9 @@
           첫 표 전인데 게시판 `pollEnabled` 가 꺼졌으면 「빼기만」 — 끄기 토글 + 읽기 전용 요약 + 「이 게시판은 이제 투표를 받지 않아요…」.
           글 수정 본문(`PUT /api/posts/{id}`)의 `poll`: 칸을 바꿨을 때만 보낸다(켬 → 만들기·고치기, 끔 → null 로 빼기). 바꾸지 않았거나 잠긴 투표면 칸을 아예 빼서 그대로 둔다.
           `409 POLL_LOCKED`(그새 첫 표가 들어옴)는 투표 칸 안 서버 문구 + 투표를 다시 읽어 잠근다.
+        핫딜 글(`deal` 이 있는 글 — `hotdeal-contract.md`): 글쓰기와 같은 딜 칸(`HotdealDealFields`)에 기존 값을 채운다. 불러온 링크는 다시 판정하지 않고, 링크를 바꾸면 판정한다.
+          종료된 딜(ENDED)은 딜 칸 읽기 전용 + 안내(제목·본문만 고친다), 기간이 지난 딜(EXPIRED)은 「마감을 고쳐 주세요」 안내 — 마감을 고칠 수 있다(가정).
+          글 수정 본문의 `deal` 은 딜 칸을 바꿨을 때만 싣는다. 좁은 화면은 글쓰기처럼 `Stepper` 단계 입력.
         소모임 글(2단계): 글의 `group` 이 있으면 게시판 정보를 `GET /api/groups/{id}/board`(로보얌 추가 후보)로 받는다. 공개 범위는 여기서 바꾸지 않는다(글 상세에서만).
     -->
     <div class="content-card mx-auto max-w-3xl">
@@ -48,8 +51,15 @@
             </div>
         </form>
 
+        <template v-else>
+        <!-- 핫딜 단계 입력(모바일) — 단계 머리만 -->
+        <Stepper v-if="formStep !== 0" :value="formStep" linear class="mb-3" :aria-label="t('hotdeal.stepsLabel')" data-testid="hotdeal-stepper" @update:value="onStepPick">
+            <StepList>
+                <Step :value="1">{{ t('hotdeal.stepDeal') }}</Step>
+                <Step :value="2">{{ t('hotdeal.stepBody') }}</Step>
+            </StepList>
+        </Stepper>
         <PostEditorForm
-            v-else
             :key="post.id"
             v-model="form"
             :board="board"
@@ -59,10 +69,35 @@
             :submitting="submitting"
             :submit-label="t('post.submitUpdate')"
             :upload="uploadImage"
+            :step="formStep"
             @editor-ready="onEditorReady"
+            @attempt="dealTried = true"
+            @next="onStepNext"
+            @prev="step = 1"
             @submit="submit"
             @cancel="cancel"
         >
+            <!-- 핫딜 딜 칸 — 제목 위 -->
+            <template v-if="dealMode !== 'hidden'" #lead>
+                <HotdealDealFields
+                    v-model="dealForm"
+                    :check="linkCheck.state.value"
+                    :errors="dealErrors"
+                    :actions="dealActions"
+                    :legend="formStep === 0"
+                    :disabled="submitting"
+                    :readonly="dealMode === 'readonly'"
+                    :expired="post.deal?.view === 'EXPIRED'"
+                    :exclude-post-id="post.id"
+                    @use-title="onUseTitle"
+                />
+            </template>
+            <template v-if="formStep === 2 && dealErrorCount > 0" #stepNotice>
+                <Message severity="error" :closable="false" size="small" data-testid="hotdeal-step-errors">
+                    {{ t('hotdeal.stepErrors', { n: dealErrorCount }) }}
+                    <Button type="button" :label="t('hotdeal.stepGoDeal')" size="small" variant="link" class="ml-1 p-0" @click="step = 1" />
+                </Message>
+            </template>
             <template #extra>
                 <PollSettingsFields v-if="pollMode !== 'hidden'" v-model="poll" :locked="pollMode === 'locked'" :remove-only="pollMode === 'removeOnly'" :disabled="submitting" :errors="pollErrors" />
                 <DebateSettingsFields
@@ -74,6 +109,7 @@
                 />
             </template>
         </PostEditorForm>
+        </template>
     </div>
 </template>
 
@@ -84,9 +120,12 @@ import type { PostDetail } from '~/composables/board/api/usePostApi.types';
 import { DEFAULT_DEBATE_SETTINGS, type DebateSettingsValues } from '~/components/board/DebateSettingsFields.types';
 import { EMPTY_POST_FORM, type PostFormValues } from '~/components/board/PostEditorForm.types';
 import type { PollFormValues } from '~/components/board/PollSettingsFields.types';
+import type { DealFieldActions } from '~/components/hotdeal/HotdealDealFields.types';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilDebate from '~/utils/util-debate';
+import UtilHotdeal from '~/utils/util-hotdeal';
+import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
 import UtilPoll from '~/utils/util-poll';
 import UtilPollMessages from '~/utils/util-poll-messages';
 import UtilPost from '~/utils/util-post';
@@ -116,6 +155,7 @@ const pageState = ref<'loading' | 'ready' | 'notfound' | 'error'>('loading');
 const pageError = ref('');
 
 const form = ref<PostFormValues>({ ...EMPTY_POST_FORM });
+const fieldErrors = ref<Record<string, string>>({});
 /** 처음 값 — 바뀐 것이 있는지(나가기 확인) */
 const initial = ref<PostFormValues>({ ...EMPTY_POST_FORM });
 
@@ -138,6 +178,10 @@ async function load(): Promise<void> {
         debate.value = { ...debateInitial.value };
         pollInitial.value = UtilPoll.formOf(loaded.poll);
         poll.value = UtilPoll.formOf(loaded.poll);
+        // 불러온 링크는 다시 판정하지 않는다(링크를 바꾸면 판정)
+        linkCheck.prime(loaded.deal?.productUrl ?? '');
+        dealInitial.value = UtilHotdeal.formOf(loaded.deal);
+        dealForm.value = UtilHotdeal.formOf(loaded.deal);
         pageState.value = 'ready';
     } catch (e) {
         pageError.value = UtilBoardMessages.of(t, e);
@@ -209,6 +253,53 @@ async function reloadPoll(postId: string): Promise<void> {
     poll.value = UtilPoll.formOf(p.poll);
 }
 
+/* ── 핫딜 딜 칸 ── */
+const hotdealApi = useHotdealApi();
+const dealForm = ref(UtilHotdeal.emptyForm());
+const dealInitial = ref(UtilHotdeal.emptyForm());
+const linkCheck = useDealLinkCheck(dealForm, computed(() => post.value?.board.slug ?? ''));
+/**
+ * 딜 칸의 모습 — 딜이 없는 글은 감추고, 종료된 딜은 읽기 전용(기간 지남은 고칠 수 있다 — 마감을 고쳐 다시 진행하게, 가정).
+ * 내 회원 글만(남의 글은 위에서 막는다)
+ */
+const dealMode = computed<'hidden' | 'edit' | 'readonly'>(() => {
+    const d = post.value?.deal;
+    if (!d) return 'hidden';
+    return d.view === 'ENDED' ? 'readonly' : 'edit';
+});
+const dealChanged = computed(() => dealMode.value === 'edit' && !UtilHotdeal.same(dealForm.value, dealInitial.value));
+const dealTried = ref(false);
+const dealProblems = computed(() => UtilHotdeal.problems(dealForm.value, linkCheck.state.value.result, Date.now(), dealInitial.value.endsAt));
+const dealErrors = computed(() => UtilHotdealMessages.fieldErrors(t, fieldErrors.value, dealTried.value && dealChanged.value ? dealProblems.value : null));
+const dealErrorCount = computed(() => UtilHotdealMessages.errorCount(dealErrors.value));
+const dealActions: DealFieldActions = {
+    upload: async (file) => {
+        const uploaded = await hotdealApi.uploadImage(file);
+        return { url: uploaded.url, source: 'UPLOAD', imageId: uploaded.id };
+    },
+    retryCheck: () => linkCheck.retry(),
+};
+watch(dealForm, () => {
+    if (UtilHotdeal.hasDealFields(fieldErrors.value)) fieldErrors.value = UtilHotdeal.withoutDealFields(fieldErrors.value);
+});
+function onUseTitle(title: string): void {
+    form.value = { ...form.value, title: title.slice(0, UtilPost.TITLE_MAX) };
+}
+/** 단계 입력 — 좁은 화면의 핫딜 글 고치기만 */
+const narrow = useMediaQuery('(max-width: 767px)');
+const step = ref<1 | 2>(1);
+const formStep = computed<0 | 1 | 2>(() => (dealMode.value !== 'hidden' && narrow.value ? step.value : 0));
+function onStepNext(): void {
+    dealTried.value = true;
+    if (dealChanged.value && UtilHotdeal.hasProblem(dealProblems.value)) return;
+    step.value = 2;
+    window.scrollTo({ top: 0 });
+}
+function onStepPick(value: string | number | undefined): void {
+    if (value === 1) step.value = 1;
+    else if (value === 2) onStepNext();
+}
+
 /* ── 비회원 글 비밀번호 ── */
 const password = ref('');
 const verified = ref(false);
@@ -230,7 +321,6 @@ async function verify(): Promise<void> {
 }
 
 /* ── 저장 ── */
-const fieldErrors = ref<Record<string, string>>({});
 const formError = ref('');
 const submitting = ref(false);
 let saved = false;
@@ -238,7 +328,7 @@ let saved = false;
 const dirty = computed(() => {
     const a = form.value;
     const b = initial.value;
-    return a.title !== b.title || a.content !== b.content || a.prefixId !== b.prefixId || a.adult !== b.adult || debateChanged.value || pollChanged.value;
+    return a.title !== b.title || a.content !== b.content || a.prefixId !== b.prefixId || a.adult !== b.adult || debateChanged.value || pollChanged.value || dealChanged.value;
 });
 
 /** 에디터가 불러온 본문을 정규화했다 — 그 HTML 을 처음 값으로 삼는다(열기만 해도 「고친 글」로 보이지 않게) */
@@ -252,6 +342,11 @@ async function submit(): Promise<void> {
     if (!p || submitting.value) return;
     pollTried.value = true;
     if (pollChanged.value && UtilPoll.hasProblem(UtilPoll.problems(poll.value, Date.now(), pollInitial.value.closesAt))) return;
+    dealTried.value = true;
+    if (dealChanged.value && UtilHotdeal.hasProblem(dealProblems.value)) {
+        step.value = 1;
+        return;
+    }
     fieldErrors.value = {};
     formError.value = '';
     submitting.value = true;
@@ -266,6 +361,8 @@ async function submit(): Promise<void> {
             password: p.author.kind === 'GUEST' ? password.value : null,
             // 바꾸지 않았거나 잠긴 투표는 칸을 아예 빼서 그대로 둔다(끄면 null 로 빼기)
             ...(pollChanged.value ? { poll: UtilPoll.inputOf(poll.value) } : {}),
+            // 딜 칸은 바꿨을 때만(종료된 딜은 늘 뺀다)
+            ...(dealChanged.value ? { deal: UtilHotdeal.inputOf(dealForm.value) } : {}),
         });
         saved = true;
         password.value = '';
@@ -275,7 +372,10 @@ async function submit(): Promise<void> {
         await router.replace(`/posts/${p.id}`);
     } catch (e) {
         if (e instanceof ApiError && e.code === 'IMAGE_UPLOAD_NOT_ALLOWED') fieldErrors.value = { content: e.message }; // 이미지를 막은 게시판 — 본문 칸 아래에 서버 문구
-        else if (e instanceof ApiError && e.code === 'VALIDATION' && e.fields && Object.keys(e.fields).length) fieldErrors.value = { ...e.fields };
+        else if (e instanceof ApiError && e.code === 'VALIDATION' && e.fields && Object.keys(e.fields).length) {
+            fieldErrors.value = { ...e.fields };
+            if (UtilHotdeal.hasDealFields(e.fields) && !('title' in e.fields) && !('content' in e.fields)) step.value = 1;
+        }
         else if (e instanceof ApiError && e.code === 'POLL_LOCKED') {
             // 그새 첫 표가 들어왔다 — 투표 칸 안에 서버 문구, 투표를 다시 읽어 잠근다(다시 [저장]하면 투표는 그대로 두고 글만 고친다)
             await reloadPoll(p.id);

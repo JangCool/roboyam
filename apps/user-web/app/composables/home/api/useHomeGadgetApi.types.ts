@@ -8,6 +8,7 @@
  *    모양·계산은 공유 레이어 `@roboyam/home-layout`(`UtilHomeLayout`) — 행 높이 15px · 간격 16px 고정, `h` 는 최소 높이. 모바일 한 열 순서는 (y, x) 순서다(따로 받지 않는다).
  *  - 가젯 종류는 8종(`HIGHLIGHT`·`POST_LIST`·`BOARD_CARDS`·`GALLERY`·`GROUPS`·`GROUP_BUY`·`QUICK_LINKS`·`NOTICE_TEXT`) + 광고 2종(`AD` · `AD_TEXT_LINE` — 서버 종류 등록 전).
  *    광고 가젯은 서버가 `data` 를 비워 보내고 화면이 채운다(`useAdGadgets`). 커뮤니티의 핫딜·직접홍보(`DEAL_PLACEMENT`·`PROMO_TOP`)는 없다.
+ *    회원 핫딜 1차의 `HOT_DEALS`(진행 중인 핫딜 가격 줄 목록 — `hotdeal-contract.md`)는 서버 종류 등록 전(목업 — `useHomeGadgetApi` 가 홈 응답 끝에 하나 더한다).
  *  - `GROUPS`·`GROUP_BUY` 도 가젯 `data` 에 목록을 싣는다(community 는 `null` + 컴포넌트가 따로 받음) — 컴포넌트는 서버를 부르지 않는다(로보얌 `components.md`).
  *  - 노출 기간·보는 사람(`audience`)은 **서버가 걸러** 응답에서 뺀다. 로그인한 사람만 보는 가젯을 로그인하지 않은 방문자에게 안내로 보일 때만 `locked: true` 뼈대로 온다.
  * ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO. 화면은 없는 칸·모르는 값에도 깨지지 않게 `UtilHomeGadget.sanitize` 로 한 번 읽는다(모르는 종류는 건너뛴다).
@@ -17,9 +18,10 @@ import type { PostFeedRow } from '~/composables/board/api/usePostApi.types';
 import type { GroupRow } from '~/composables/group/api/useGroupApi.types';
 import type { GroupBuyListItem } from '~/composables/groupbuy/api/useGroupBuyApi.types';
 import type { PopularPeriod } from '~/composables/home/api/useHomeApi.types';
+import type { DealSort } from '~/composables/hotdeal/api/useHotdealApi.types';
 
 /** 가젯 종류 8종 + 광고 2종 — 서버 레지스트리의 키. 서버가 새 종류를 먼저 보내면 화면은 모르는 키로 받아 건너뛴다 */
-export type GadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'QUICK_LINKS' | 'NOTICE_TEXT' | 'AD' | 'AD_TEXT_LINE';
+export type GadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'HOT_DEALS' | 'QUICK_LINKS' | 'NOTICE_TEXT' | 'AD' | 'AD_TEXT_LINE';
 
 /** 머리 모양 — `HIDDEN` 은 머리를 그리지 않는다(제목은 영역 이름으로만 읽힌다) */
 export type GadgetHeaderStyle = 'BAR' | 'UNDERLINE' | 'FILLED' | 'PLAIN' | 'HIDDEN';
@@ -222,6 +224,24 @@ export interface GroupsData {
 export interface GroupBuyData {
     items: GroupBuyListItem[];
     salesOpen: boolean;
+}
+
+/**
+ * `HOT_DEALS` 설정(`hotdeal-contract.md` 「가젯 `HOT_DEALS` 설정」 — 공동구매 가젯 ⚙ 방식) — `boards` 핫딜 게시판 slug 목록(비우면 모든 핫딜 게시판) ·
+ * `sort` 최신(기본)·인기·마감 임박 · `count` 1~10(기본 5). 화면은 그리기만 하고 줄은 서버가 이 설정대로 골라 `data` 에 싣는다.
+ */
+export interface HotDealsConfig {
+    boards: string[];
+    sort: DealSort;
+    count: number;
+}
+
+/**
+ * `HOT_DEALS` — 진행 중인 핫딜(ACTIVE — 의심·종료·기간 지남 제외)을 설정 차례로 `count` 개. 줄은 게시판이 섞인 글 줄(`PostFeedRow` + `deal`) — 핫딜 목록 줄과 같은 모양.
+ * 비면 영역을 그리지 않는다(기본 꾸미기 `empty.keep` 꺼짐).
+ */
+export interface HotDealsData {
+    items: PostFeedRow[];
 }
 
 /** `QUICK_LINKS` 한 항목 — `kind` 로 주소를 화면이 만든다(`UtilHomeGadget.linkOf`). `BOARD` 의 `value` 는 게시판 slug, `PATH` 는 사이트 안 경로 */

@@ -8,6 +8,7 @@ import type {
     CommentView,
     CommentWriteRequest,
 } from '~/composables/board/api/useCommentApi.types';
+import { isMockDealPostId, mockDealComments } from '~/composables/board/api/mock/board-deal-mock';
 
 /**
  * 댓글 API — 서버 주소(`/api/posts/{id}/comments`·`/api/comments/{id}`)가 있는 유일한 곳. 상태는 없다(화면 상태는 `usePostComments`).
@@ -41,6 +42,8 @@ export function useCommentApi() {
 
     return {
         list: (postId: string, sort: CommentSort, kind: CommentKind, signal?: AbortSignal): Promise<CommentListResponse> =>
+            // MOCK: 목업 핫딜 글(`mock-deal-*`)은 서버에 없어 빈 댓글 목록(`./mock/board-deal-mock.ts`)
+            isMockDealPostId(postId) ? mockDealComments() :
             client.get<CommentListResponse>(PATH.list(postId), { query: { sort, ...(kind === 'ALL' ? {} : { kind }) }, signal }),
 
         create: (postId: string, body: CommentWriteRequest): Promise<CommentView> => client.post<CommentView>(PATH.list(postId), body),

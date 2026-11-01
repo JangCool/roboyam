@@ -7,6 +7,9 @@
         찬반 토론(post-debate-contract): 게시판 `debateEnabled` 이고 회원이면 「찬반 토론」 칸(열기 + 중립도 받기 · 입장 바꾸기 허용, 기본 켬). 켜면 `POST /api/posts` 본문 `debate` 로 글과 함께 연다.
         투표(post-poll-contract): 게시판 `pollEnabled` 이고 회원이면 「투표」 칸(`PollSettingsFields` — 찬반 토론 칸 위). 켜면 화면 검사(빈 선택지 제외 2개 이상·중복·길이·마감 범위) 뒤 본문 `poll` 로 글과 함께 붙인다.
           서버 `fields."poll.*"`·`fields.poll` 은 투표 칸 안에 보인다.
+        핫딜 게시판(`kind DEAL` — `hotdeal-contract.md`): 제목 위에 딜 칸(`HotdealDealFields` — 링크 → 판정·OG 자동 채움 → 같은 딜 안내 → 가격·배송·마감·재고·제휴·메모).
+          링크는 디바운스 뒤 `link-check`(`useDealLinkCheck`). [등록]을 누르면 글 칸·딜 칸 검사 문구를 함께 보이고, 서버 `fields."deal.*"` 도 다른 칸 오류와 함께 칸 아래에 붙인다.
+          좁은 화면(md 미만)은 `Stepper` 단계 입력(딜 정보 → 설명) — [다음]은 딜 칸 검사를 통과해야 넘어가고, 2단계에서 딜 칸 오류가 생기면 「딜 정보에 확인할 칸이 N개」 + [딜 정보로].
         가정: 쓸 수 있는 게시판 목록은 서버가 판정해 준다(`GET /api/boards/writable` 후보). `?board` 가 쓸 수 없는 게시판이면 그 까닭을 보인다.
           금지어·작성 간격·하루 한도·같은 글 반복은 서버가 거절하고 그 문구를 폼 아래에 그대로 보인다. 저장하지 않고 나가면 확인을 묻는다.
     -->
@@ -34,6 +37,14 @@
                 <Button v-if="requestedReason === 'LOGIN_REQUIRED'" type="button" :label="t('common.login')" size="small" class="ml-2" @click="prompt('write')" />
             </Message>
 
+            <!-- 핫딜 단계 입력(모바일) — 단계 머리만(칸은 폼이 단계마다 보이고 숨긴다) -->
+            <Stepper v-if="formStep !== 0 && board && board.viewer.canWrite" :value="formStep" linear class="mb-3" :aria-label="t('hotdeal.stepsLabel')" data-testid="hotdeal-stepper" @update:value="onStepPick">
+                <StepList>
+                    <Step :value="1">{{ t('hotdeal.stepDeal') }}</Step>
+                    <Step :value="2">{{ t('hotdeal.stepBody') }}</Step>
+                </StepList>
+            </Stepper>
+
             <div v-if="boardState === 'loading'" role="status" :aria-label="t('common.loading')" class="h-40 animate-pulse rounded bg-surface-200 dark:bg-surface-800" />
             <ErrorState v-else-if="boardState === 'error'" :title="t('post.boardFailed')" :description="boardError" retry @retry="loadBoard" />
             <PostEditorForm
@@ -49,9 +60,31 @@
                 :submitting="submitting"
                 :submit-label="t('post.submitCreate')"
                 :upload="uploadImage"
+                :step="formStep"
+                @attempt="dealTried = true"
+                @next="onStepNext"
+                @prev="step = 1"
                 @submit="submit"
                 @cancel="cancel"
             >
+                <!-- 핫딜 딜 칸 — 제목 위(단계 입력의 1단계) -->
+                <template v-if="isDeal" #lead>
+                    <HotdealDealFields
+                        v-model="dealForm"
+                        :check="linkCheck.state.value"
+                        :errors="dealErrors"
+                        :actions="dealActions"
+                        :legend="formStep === 0"
+                        :disabled="submitting"
+                        @use-title="onUseTitle"
+                    />
+                </template>
+                <template v-if="formStep === 2 && dealErrorCount > 0" #stepNotice>
+                    <Message severity="error" :closable="false" size="small" data-testid="hotdeal-step-errors">
+                        {{ t('hotdeal.stepErrors', { n: dealErrorCount }) }}
+                        <Button type="button" :label="t('hotdeal.stepGoDeal')" size="small" variant="link" class="ml-1 p-0" @click="step = 1" />
+                    </Message>
+                </template>
                 <!-- 찬반 토론 — 게시판이 글쓴이 토론을 받고(`debateEnabled`) 회원일 때만. 켜면 글과 함께 연다 -->
                 <template #extra>
                     <PollSettingsFields v-if="pollShown" v-model="poll" :disabled="submitting" :errors="pollErrors" />
@@ -68,9 +101,12 @@ import type { BoardDetail, BoardView, WriteBlockedReason } from '~/composables/b
 import { DEFAULT_DEBATE_SETTINGS, type DebateSettingsValues } from '~/components/board/DebateSettingsFields.types';
 import type { PollFormValues } from '~/components/board/PollSettingsFields.types';
 import { EMPTY_POST_FORM, type PostBoardOption, type PostFormValues } from '~/components/board/PostEditorForm.types';
+import type { DealFieldActions } from '~/components/hotdeal/HotdealDealFields.types';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilDebate from '~/utils/util-debate';
+import UtilHotdeal from '~/utils/util-hotdeal';
+import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
 import UtilPoll from '~/utils/util-poll';
 import UtilPollMessages from '~/utils/util-poll-messages';
 import UtilPost from '~/utils/util-post';
@@ -104,7 +140,15 @@ const selectedSlug = ref('');
 /** 주소의 게시판에 쓸 수 없을 때의 까닭 — 그 게시판 정보로 판정한다 */
 const requestedReason = ref<WriteBlockedReason | null>(null);
 const requestedGrade = ref<string | null>(null);
-const requestedBlocked = computed(() => (requestedReason.value ? UtilBoardMessages.writeBlocked(t, requestedReason.value, requestedGrade.value) : ''));
+/** 주소의 게시판이 핫딜 게시판이었다 — 막힌 까닭을 핫딜 문구로 */
+const requestedDeal = ref(false);
+const requestedBlocked = computed(() =>
+    requestedReason.value
+        ? requestedDeal.value
+            ? UtilHotdealMessages.writeBlocked(t, requestedReason.value, requestedGrade.value)
+            : UtilBoardMessages.writeBlocked(t, requestedReason.value, requestedGrade.value)
+        : '',
+);
 const loggedIn = computed(() => Boolean(user.value) && board.value?.viewer.guest !== true);
 
 async function loadBoards(): Promise<void> {
@@ -131,6 +175,7 @@ async function explainBlocked(slug: string): Promise<void> {
         const detail = await boardApi.board(slug);
         requestedReason.value = detail.viewer.writeBlockedReason;
         requestedGrade.value = detail.writeMinGradeLabel;
+        requestedDeal.value = UtilHotdeal.isDealBoard(detail);
     } catch {
         // 없는 게시판이면 안내 없이 다른 게시판을 고르게 한다
     }
@@ -198,13 +243,60 @@ watch(poll, () => {
     fieldErrors.value = UtilPoll.withoutPollFields(fieldErrors.value);
 });
 
-const dirty = computed(() => form.value.title.trim() !== '' || UtilPost.hasContent(form.value.content, form.value.contentFormat) || (pollShown.value && poll.value.enabled));
+/* ── 핫딜 딜 칸 ── */
+const hotdealApi = useHotdealApi();
+const isDeal = computed(() => UtilHotdeal.isDealBoard(board.value));
+const dealForm = ref(UtilHotdeal.emptyForm());
+const linkCheck = useDealLinkCheck(dealForm, selectedSlug);
+/** 한 번 [등록]·[다음]을 누른 뒤부터 딜 칸의 화면 검사 문구를 보인다 */
+const dealTried = ref(false);
+const dealProblems = computed(() => UtilHotdeal.problems(dealForm.value, linkCheck.state.value.result, Date.now()));
+const dealErrors = computed(() => UtilHotdealMessages.fieldErrors(t, fieldErrors.value, dealTried.value ? dealProblems.value : null));
+const dealErrorCount = computed(() => UtilHotdealMessages.errorCount(dealErrors.value));
+const dealActions: DealFieldActions = {
+    upload: async (file) => {
+        const uploaded = await hotdealApi.uploadImage(file);
+        return { url: uploaded.url, source: 'UPLOAD', imageId: uploaded.id };
+    },
+    retryCheck: () => linkCheck.retry(),
+};
+// 딜 칸을 고치면 그 칸의 낡은 서버 오류를 지운다
+watch(dealForm, () => {
+    if (UtilHotdeal.hasDealFields(fieldErrors.value)) fieldErrors.value = UtilHotdeal.withoutDealFields(fieldErrors.value);
+});
+/** 「제목으로 쓰기」 — 링크의 상품 이름을 제목 칸에 */
+function onUseTitle(title: string): void {
+    form.value = { ...form.value, title: title.slice(0, UtilPost.TITLE_MAX) };
+}
+
+/** 단계 입력 — 좁은 화면의 핫딜 글쓰기만(넓으면 한 번에) */
+const narrow = useMediaQuery('(max-width: 767px)');
+const step = ref<1 | 2>(1);
+const formStep = computed<0 | 1 | 2>(() => (isDeal.value && narrow.value ? step.value : 0));
+function onStepNext(): void {
+    dealTried.value = true;
+    if (UtilHotdeal.hasProblem(dealProblems.value)) return;
+    step.value = 2;
+    window.scrollTo({ top: 0 });
+}
+/** 단계 머리를 눌러 고르기 — 앞 단계로는 늘, 뒤 단계로는 [다음]과 같은 검사 뒤 */
+function onStepPick(value: string | number | undefined): void {
+    if (value === 1) step.value = 1;
+    else if (value === 2) onStepNext();
+}
+
+const dirty = computed(() => (isDeal.value && dealForm.value.productUrl.trim() !== '') || form.value.title.trim() !== '' || UtilPost.hasContent(form.value.content, form.value.contentFormat) || (pollShown.value && poll.value.enabled));
 
 async function submit(): Promise<void> {
     const b = board.value;
     if (!b || submitting.value) return;
     pollTried.value = true;
     if (pollShown.value && UtilPoll.hasProblem(UtilPoll.problems(poll.value, Date.now()))) return;
+    dealTried.value = true;
+    if (isDeal.value && UtilHotdeal.hasProblem(dealProblems.value)) {
+        step.value = 1;
+        return;
+    }
     fieldErrors.value = {};
     formError.value = '';
     submitting.value = true;
@@ -220,17 +312,23 @@ async function submit(): Promise<void> {
             guest: b.viewer.guest ? { name: form.value.guestName.trim(), password: form.value.guestPassword, captchaToken: form.value.captcha ? UtilPost.PLACEHOLDER_CAPTCHA_TOKEN : '' } : null,
             debate: debateShown.value ? UtilDebate.openBody(debate.value) : null,
             poll: pollShown.value ? UtilPoll.inputOf(poll.value) : null,
+            ...(isDeal.value ? { deal: UtilHotdeal.inputOf(dealForm.value) } : {}),
         });
         saved = true;
         form.value = { ...EMPTY_POST_FORM };
         debate.value = { ...DEFAULT_DEBATE_SETTINGS };
         poll.value = UtilPoll.emptyForm();
+        dealForm.value = UtilHotdeal.emptyForm();
         toast.success(t('post.created'));
         await router.replace(`/posts/${result.id}`);
     } catch (e) {
         if (e instanceof ApiError && e.code === 'UNAUTHENTICATED') prompt('write');
         else if (e instanceof ApiError && e.code === 'IMAGE_UPLOAD_NOT_ALLOWED') fieldErrors.value = { content: e.message }; // 이미지를 막은 게시판 — 본문 칸 아래에 서버 문구
-        else if (e instanceof ApiError && e.code === 'VALIDATION' && e.fields && Object.keys(e.fields).length) fieldErrors.value = { ...e.fields };
+        else if (e instanceof ApiError && e.code === 'VALIDATION' && e.fields && Object.keys(e.fields).length) {
+            fieldErrors.value = { ...e.fields };
+            // 딜 칸 오류만 있으면 단계 입력은 딜 정보 단계로
+            if (UtilHotdeal.hasDealFields(e.fields) && !('title' in e.fields) && !('content' in e.fields)) step.value = 1;
+        }
         else formError.value = UtilBoardMessages.of(t, e);
     } finally {
         submitting.value = false;

@@ -53,6 +53,11 @@ export interface BoardView {
      */
     dealEnabled?: boolean;
     /**
+     * 게시판 종류(관리자 `BoardKind` 와 같은 값 — 핫딜 계약 `docs/features/hotdeal-contract.md`) — `DEAL` 이면 목록은 가격 줄 목록형, 글쓰기에 딜 칸, 글 보기에 딜 카드.
+     * 서버가 아직 안 주면(옛 응답) `undefined` — 일반 게시판으로 본다(판정은 `UtilHotdeal.isDealBoard` 한 곳)
+     */
+    kind?: BoardKind;
+    /**
      * 직접홍보 게시판인가(`docs/api-promo.md`) — true 면 사업자만 글을 쓰고 모든 글이 광고다(목록 머리 안내문·글 행 [광고]·추천 단추 없음). slug 로 짐작하지 않는다.
      * 서버가 아직 안 주면(옛 응답) `undefined` — 그때는 일반 게시판이다
      */
@@ -69,6 +74,9 @@ export interface BoardView {
     /** 운영자가 고른 게시판 표시색의 프리셋 이름 또는 null(자동 — 화면이 순서로 정한다). 서버가 아직 안 주면(옛 응답) `undefined` */
     color?: string | null;
 }
+
+/** 게시판 종류 — 일반 · 핫딜 · 직접홍보 · 소모임(관리자 `apps/admin-web/.../useBoardApi.types.ts` 의 `BoardKind` 와 같다) */
+export type BoardKind = 'GENERAL' | 'DEAL' | 'PROMO' | 'GROUP';
 
 /** 글 에디터 수준(관리자 게시판 설정 `postEditor`) — 평문 · 간단 · 고급 */
 export type PostEditorLevel = 'NONE' | 'SIMPLE' | 'ADVANCED';

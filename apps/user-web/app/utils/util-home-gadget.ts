@@ -15,6 +15,7 @@ import type {
     HomeGadget,
     HomeGadgetsResponse,
     HomeHighlight,
+    HotDealsConfig,
     NoticeTextData,
     PostListConfig,
     PostListMeta,
@@ -35,7 +36,7 @@ import UtilGroupBuy from '~/utils/util-group-buy';
  */
 
 /** 가젯 종류 8종 + 광고 2종 — 화면이 아는 것 */
-const KINDS: readonly GadgetKind[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'QUICK_LINKS', 'NOTICE_TEXT', 'AD', 'AD_TEXT_LINE'];
+const KINDS: readonly GadgetKind[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'HOT_DEALS', 'QUICK_LINKS', 'NOTICE_TEXT', 'AD', 'AD_TEXT_LINE'];
 
 /** 머리를 숨기는 것이 처음 꾸미기인 종류(키가 빠진 응답의 기본값) — 광고는 「광고」 표시가 제목 노릇을 한다(admin `UtilGadgetStyle.initial` 과 같다) */
 const HEADERLESS_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
@@ -496,6 +497,33 @@ export default class UtilHomeGadget {
                 return typeof g.id === 'string' && typeof g.title === 'string' && typeof g.groupPrice === 'number' && typeof g.endAt === 'string';
             })
             .slice(0, 10);
+    }
+
+    /**
+     * 핫딜 줄(`HOT_DEALS` — 게시판이 섞인 글 줄 + `deal`) — ID·제목·딜이 없는 줄은 뺀다. 서버가 가젯 `count` 만큼 주지만 10줄을 넘기지 않는다
+     * @param {unknown} data - 가젯 `data`(`{ items }`).
+     * @returns {PostFeedRow[]} 핫딜 줄.
+     */
+    static hotDealItems(data: unknown): PostFeedRow[] {
+        return list(obj(data).items)
+            .filter((v): v is PostFeedRow => {
+                const r = obj(v);
+                const d = obj(r.deal);
+                return typeof r.id === 'string' && typeof r.title === 'string' && typeof d.dealPrice === 'number' && typeof d.view === 'string';
+            })
+            .slice(0, 10);
+    }
+
+    /**
+     * 핫딜 가젯 설정(`hotdeal-contract.md` — 비우면 모든 핫딜 게시판 · 최신 · 5개) — 화면은 고르지 않지만(서버가 줄을 고른다) 「더보기」·문구 판단에 쓴다
+     * @param {Record<string, unknown>} config - 가젯 `config`.
+     * @returns {HotDealsConfig} 정규화한 설정.
+     */
+    static hotDealsConfig(config: Record<string, unknown>): HotDealsConfig {
+        const boards = list(config.boards).filter((v): v is string => typeof v === 'string' && SLUG.test(v));
+        const sort = config.sort === 'POPULAR' || config.sort === 'ENDING_SOON' ? config.sort : 'LATEST';
+        const count = typeof config.count === 'number' && Number.isInteger(config.count) ? Math.min(10, Math.max(1, config.count)) : 5;
+        return { boards, sort, count };
     }
 
     /**

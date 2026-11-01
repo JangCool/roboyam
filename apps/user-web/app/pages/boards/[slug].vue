@@ -2,7 +2,10 @@
     <!--
         게시판 목록 `/boards/{slug}?prefix=&sort=&q=&page=` — 주소의 쿼리가 화면 상태다.
         머리(이름·설명·안내문·투자 고지·쓰기 잠금·19금 안내·글쓰기) → 말머리 탭(전체 + 사용 중 말머리) → 정렬·보기 전환·게시판 안 검색 → 목록(LIST·CARD·GALLERY) → 쪽 번호.
-        community 대비: 핫딜·직접홍보·지킴이·한 줄 광고·커서 이어 보기·목록 캐시를 뺐다. 검색을 별도 화면 대신 게시판 안 검색칸으로 했다(`q`).
+        핫딜 게시판(`kind DEAL` — `hotdeal-contract.md`): 정렬이 최신·인기·마감 임박 `SelectButton` + 「종료 숨기기」 `ToggleSwitch`(기본 켬, 주소 `?sort=popular|ending&hideEnded=false`),
+          목록은 가격 줄 목록형(`HotdealPostList`)·카드/갤러리형(`HotdealPostGrid` — 게시판 모양·보기 전환은 그대로), 의심 글은 서버가 아래로 보낸다.
+          비면 「진행 중인 핫딜이 없어요 · 종료 글 보기」. 글쓰기가 막혔으면(새싹·비로그인·이메일 미인증) 단추를 흐리게 + 까닭 툴팁(누르면 안내·로그인).
+        community 대비: 직접홍보·지킴이·한 줄 광고·커서 이어 보기·목록 캐시를 뺐다. 검색을 별도 화면 대신 게시판 안 검색칸으로 했다(`q`).
           비회원 글쓰기(`writeMin = GUEST`)가 있어 비회원도 글쓰기 단추가 켜질 수 있다. 날짜는 관리자 기본 설정의 날짜 표시 방식(표준형·유동형)을 따른다.
         가정: 게시판 정보·판정(canWrite·reason)·유효 정책은 `GET /api/boards/{slug}` 한 번에 온다. 고정 공지는 첫 쪽·말머리/검색 없음일 때만 위에(최대 pinnedMax).
           19금 글은 목록에 「19」 표시와 함께 보이고 글 보기에서 성인 확인으로 가린다(community 는 서버가 목록에서 뺀다 — 성인 인증이 아직 없다).
@@ -30,8 +33,10 @@
                         </h1>
                         <p v-if="view?.description" class="mt-0.5 text-xs text-muted-color">{{ view.description }}</p>
                     </div>
+                    <!-- 핫딜 게시판에서 막힌 글쓰기는 까닭을 툴팁으로(단추는 눌리고 누르면 안내·로그인) -->
                     <Button
                         v-if="writeButton !== 'hidden'"
+                        v-tooltip.bottom="writeButton === 'disabled' && isDeal ? writeBlockedText : undefined"
                         type="button"
                         :label="t('shell.write')"
                         icon="pi pi-pencil"
@@ -75,9 +80,26 @@
                     </ul>
                 </nav>
 
-                <!-- 정렬 · 보기 전환 · 게시판 안 검색 -->
+                <!-- 정렬 · 보기 전환 · 게시판 안 검색 — 핫딜 게시판은 정렬(최신·인기·마감 임박) + 「종료 숨기기」 -->
                 <div class="mt-2 flex flex-wrap items-center gap-2 border-b border-surface pb-2">
-                    <div class="flex gap-1 text-xs" role="group" :aria-label="t('board.sortLabel')">
+                    <template v-if="isDeal">
+                        <SelectButton
+                            :model-value="dealQuery.sort"
+                            :options="dealSortOptions"
+                            option-label="label"
+                            option-value="value"
+                            :allow-empty="false"
+                            size="small"
+                            :aria-label="t('hotdeal.sortLabel')"
+                            data-testid="hotdeal-sort"
+                            @update:model-value="onDealSort"
+                        />
+                        <label class="inline-flex cursor-pointer items-center gap-1.5 text-xs text-muted-color">
+                            <ToggleSwitch :model-value="dealQuery.hideEnded" :input-id="hideEndedId" data-testid="hotdeal-hide-ended" @update:model-value="onHideEnded(Boolean($event))" />
+                            <span>{{ t('hotdeal.hideEnded') }}</span>
+                        </label>
+                    </template>
+                    <div v-else class="flex gap-1 text-xs" role="group" :aria-label="t('board.sortLabel')">
                         <NuxtLink
                             v-for="s in SORTS"
                             :key="s"
@@ -129,13 +151,20 @@
                         <EmptyState v-else-if="query.prefix" :title="t('board.prefixEmptyTitle', { name: activePrefixName })" :description="t('board.prefixEmptyText')" icon="pi pi-filter">
                             <Button as="router-link" :to="listLink({ prefix: '', page: 1 })" :label="t('board.allPosts')" severity="secondary" variant="outlined" />
                         </EmptyState>
-                        <EmptyState v-else :title="t('board.emptyTitle')" :description="writeButton === 'ready' ? t('board.emptyText') : t('board.emptyReadOnly')" icon="pi pi-file">
+                        <!-- 핫딜 게시판 — 종료 글을 숨겨서 비었으면 「종료 글 보기」 -->
+                        <EmptyState v-else-if="isDeal && dealQuery.hideEnded" :title="t('hotdeal.emptyTitle')" icon="pi pi-tag" data-testid="hotdeal-empty">
+                            <Button as="router-link" :to="dealLink({ hideEnded: false, page: 1 })" :label="t('hotdeal.emptyShowEnded')" severity="secondary" variant="outlined" />
+                        </EmptyState>
+                        <EmptyState v-else-if="isDeal" :title="t('hotdeal.emptyAllTitle')" :description="writeButton === 'ready' ? t('hotdeal.emptyAllText') : ''" icon="pi pi-tag">
+                            <Button v-if="writeButton === 'ready'" type="button" :label="t('shell.write')" @click="onWrite" />
+                        </EmptyState>
+                        <EmptyState v-else :title="t('board.emptyTitle')":description="writeButton === 'ready' ? t('board.emptyText') : t('board.emptyReadOnly')" icon="pi pi-file">
                             <Button v-if="writeButton === 'ready'" type="button" :label="t('shell.write')" @click="onWrite" />
                         </EmptyState>
                     </template>
 
                     <template v-else-if="list">
-                        <component :is="listComponent" :rows="list.items" :pinned="list.pinned" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :feed-ad="feedAd" />
+                        <component :is="listComponent" v-bind="listExtra" :rows="list.items" :pinned="list.pinned" :date-display="display.dateDisplay" :new-post-hours="display.newPostHours" :feed-ad="feedAd" />
                         <BoardPager :page="list.page" :total-pages="list.totalPages" :to="pageLink" />
                     </template>
                 </div>
@@ -146,11 +175,16 @@
 
 <script setup lang="ts">
 import type { BoardDetail, BoardView } from '~/composables/board/api/useBoardApi.types';
-import type { PostListQuery, PostListResponse, PostSort } from '~/composables/board/api/usePostApi.types';
+import type { DealPostListQuery, PostListQuery, PostListResponse, PostSort } from '~/composables/board/api/usePostApi.types';
+import type { DealSort } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { BoardViewMode } from '~/composables/board/useBoardViewMode';
+import HotdealPostGrid from '~/components/hotdeal/HotdealPostGrid.vue';
+import HotdealPostList from '~/components/hotdeal/HotdealPostList.vue';
 import UtilBoard from '~/utils/util-board';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilBoardQuery from '~/utils/util-board-query';
+import UtilHotdeal from '~/utils/util-hotdeal';
+import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
 import UtilTheme from '~/utils/util-theme';
 
 const SORTS: readonly PostSort[] = ['LATEST', 'OLDEST'];
@@ -184,6 +218,23 @@ const boardError = ref('');
 /** 메뉴가 받아 둔 게시판 요약으로 먼저 그리고, 자세한 정보가 오면 그것으로 바꾼다 */
 const view = computed<BoardView | BoardDetail | null>(() => (detail.value?.slug === slug.value ? detail.value : (bySlug(slug.value) ?? null)));
 
+/* ── 핫딜 게시판(`kind DEAL`) ── */
+const isDeal = computed(() => UtilHotdeal.isDealBoard(view.value));
+const dealQuery = computed<DealPostListQuery>(() => UtilHotdeal.parseQuery(route.query));
+const hideEndedId = useId();
+const dealSortOptions = computed(() =>
+    UtilHotdeal.SORTS.map((value) => ({ value, label: t(value === 'LATEST' ? 'hotdeal.sortLatest' : value === 'POPULAR' ? 'hotdeal.sortPopular' : 'hotdeal.sortEnding') })),
+);
+function dealLink(change: Partial<DealPostListQuery>) {
+    return { path: `/boards/${slug.value}`, query: UtilHotdeal.buildQuery({ ...dealQuery.value, ...change }) };
+}
+function onDealSort(value: DealSort | null): void {
+    if (value) void router.push(dealLink({ sort: value, page: 1 }));
+}
+function onHideEnded(value: boolean): void {
+    void router.push(dealLink({ hideEnded: value, page: 1 }));
+}
+
 let boardRequest = 0;
 async function loadBoard(): Promise<void> {
     const mine = ++boardRequest;
@@ -212,7 +263,13 @@ const lockNotice = computed(() => UtilBoardMessages.lockNotice(t, detail.value?.
 /** 단추가 꺼진 까닭 중 머리에 미리 알릴 것 — 등급 미달·정지·이메일 미인증(로그인 필요·운영진 전용은 단추가 말한다) */
 const blockedNotice = computed(() => {
     const reason = detail.value?.viewer.writeBlockedReason ?? null;
-    return reason === 'GRADE_TOO_LOW' || reason === 'ACCOUNT_RESTRICTED' || reason === 'EMAIL_NOT_VERIFIED' ? UtilBoardMessages.writeBlocked(t, reason, detail.value?.writeMinGradeLabel ?? null) : '';
+    return reason === 'GRADE_TOO_LOW' || reason === 'ACCOUNT_RESTRICTED' || reason === 'EMAIL_NOT_VERIFIED' ? writeBlockedText.value : '';
+});
+/** 글쓰기가 막힌 까닭 한 줄 — 핫딜 게시판은 핫딜 문구(「일반 등급부터 핫딜을 올릴 수 있어요」 등) */
+const writeBlockedText = computed(() => {
+    const reason = detail.value?.viewer.writeBlockedReason ?? null;
+    const grade = detail.value?.writeMinGradeLabel ?? null;
+    return isDeal.value ? UtilHotdealMessages.writeBlocked(t, reason, grade) : UtilBoardMessages.writeBlocked(t, reason, grade);
 });
 
 /* ── 말머리·보기 ── */
@@ -240,7 +297,9 @@ const listKind = computed<'LIST' | 'CARD' | 'GALLERY'>(() => {
 });
 /** 그릴 목록 컴포넌트 — 현재 테마의 `postList:<유형>`, 없으면 기본 테마 것(`UtilTheme.resolve`, 계약 `BoardPostListProps`) */
 const { theme } = useTheme();
-const listComponent = computed(() => UtilTheme.resolve(theme.value, 'postList', listKind.value));
+/** 핫딜 게시판은 가격 줄을 붙인 핫딜 목록(테마 슬롯 없이 하나 — 모양은 역할 변수를 따른다) */
+const listComponent = computed(() => (isDeal.value ? (listKind.value === 'LIST' ? HotdealPostList : HotdealPostGrid) : UtilTheme.resolve(theme.value, 'postList', listKind.value)));
+const listExtra = computed(() => (isDeal.value && listKind.value !== 'LIST' ? { variant: listKind.value } : {}));
 
 function onView(mode: BoardViewMode): void {
     viewMode.choose(slug.value, mode);
@@ -254,6 +313,14 @@ function pillClass(on: boolean): string {
 }
 
 function listLink(change: Partial<PostListQuery>) {
+    // 핫딜 게시판은 핫딜 조건(정렬·종료 숨기기)을 지키며 말머리·검색·쪽만 바꾼다
+    if (isDeal.value) {
+        const next: Partial<DealPostListQuery> = {};
+        if (change.prefix !== undefined) next.prefix = change.prefix;
+        if (change.q !== undefined) next.q = change.q;
+        if (change.page !== undefined) next.page = change.page;
+        return dealLink(next);
+    }
     return { path: `/boards/${slug.value}`, query: UtilBoardQuery.build({ ...query.value, ...change }) };
 }
 
@@ -282,8 +349,8 @@ const writeButton = computed<WriteButton>(() => {
     if (d.viewer.canWrite) return 'ready';
     const reason = d.viewer.writeBlockedReason;
     if (reason === 'STAFF_ONLY') return 'hidden';
-    // 로그인이 필요하면 단추는 켜 두고 누르면 로그인 안내
-    if (reason === 'LOGIN_REQUIRED') return 'ready';
+    // 로그인이 필요하면 단추는 켜 두고 누르면 로그인 안내 — 핫딜 게시판은 흐리게 + 까닭 툴팁(누르면 그대로 로그인 안내)
+    if (reason === 'LOGIN_REQUIRED') return isDeal.value ? 'disabled' : 'ready';
     return 'disabled';
 });
 
@@ -293,7 +360,7 @@ function onWrite(): void {
     const reason = d ? d.viewer.writeBlockedReason : user.value ? null : 'LOGIN_REQUIRED';
     if (!reason) return void navigateTo(target);
     if (reason === 'LOGIN_REQUIRED') return prompt('write', router.resolve(target).fullPath);
-    toast.show(UtilBoardMessages.writeBlocked(t, reason, d?.writeMinGradeLabel ?? null));
+    toast.show(isDeal.value ? UtilHotdealMessages.writeBlocked(t, reason, d?.writeMinGradeLabel ?? null) : UtilBoardMessages.writeBlocked(t, reason, d?.writeMinGradeLabel ?? null));
 }
 
 /* ── 글 목록 ── */
@@ -315,7 +382,8 @@ async function loadList(): Promise<void> {
     listAbort = new AbortController();
     listState.value = 'loading';
     try {
-        const result = await boardApi.posts(slug.value, query.value, listAbort.signal);
+        // 핫딜 게시판은 핫딜 조건(정렬·종료 숨기기)으로 — 게시판 종류를 아직 모르면 일반 목록으로 받고, 알게 되면 다시 받는다(아래 감시)
+        const result = isDeal.value ? await boardApi.dealPosts(slug.value, dealQuery.value, listAbort.signal) : await boardApi.posts(slug.value, query.value, listAbort.signal);
         if (mine !== listRequest) return;
         list.value = result;
         listState.value = 'ready';
@@ -343,7 +411,7 @@ watch(
     { immediate: true },
 );
 watch(
-    () => [slug.value, query.value.prefix, query.value.sort, query.value.q, query.value.page] as const,
+    () => [slug.value, query.value.prefix, query.value.sort, query.value.q, query.value.page, isDeal.value, dealQuery.value.sort, dealQuery.value.hideEnded] as const,
     (now, before) => {
         void loadList();
         if (before && now[0] === before[0]) window.scrollTo({ top: 0 });

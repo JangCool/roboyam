@@ -145,7 +145,9 @@ export type MyPointReasonCode =
     // 커머스 1-3 — 출석 · 연속 출석 보너스 · 가입 포인트(본인인증)
     | 'ATTENDANCE'
     | 'ATTENDANCE_STREAK'
-    | 'SIGNUP';
+    | 'SIGNUP'
+    // 회원 핫딜 1차(`hotdeal-contract.md`) — 품절·가격 변경을 알린 딜이 자동 종료되면 알린 회원에게(서버가 「핫딜 종료 알림 보상」으로 `reason` 을 준다)
+    | 'DEAL_END_REQUEST';
 
 /** 그 줄이 가리키는 글 — 글·댓글 사유만. 지웠거나 숨겼거나 볼 수 없으면 `available=false`, `title=null` */
 export interface MyPointLedgerTarget {

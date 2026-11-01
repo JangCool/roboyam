@@ -4,6 +4,8 @@
         칸: 게시판(글쓰기만) · 말머리(운영진 전용은 운영진만) · 제목 1~100 · 본문 10~200,000(게시판 글 에디터 — 평문 Textarea / 간단·고급 서식 에디터, 에디터 글은 보이는 글자 수) · 19금(허용 게시판만) · (`extra` 자리 — 찬반 토론 설정) · 비회원 이름·비밀번호·자동입력 방지.
         이미지는 고급 에디터 안에서 올린다(게시판이 허용하고 회원일 때만 — 비회원 글쓰기·비회원 글 고치기는 감춘다). 올리기 함수(`upload`)는 페이지가 API 컴포저블로 만들어 넘긴다.
         화면 검사는 미리 알려 주는 용도이고 판정은 서버다(서버 `fields` 가 있으면 그것을 칸 아래에 먼저 보인다).
+        `lead` 자리(제목 위 — 핫딜 딜 칸)와 단계 입력(`step` — 모바일 핫딜: 1 = 게시판·말머리·`lead` + [다음], 2 = 나머지 + [이전]·[등록], 0 = 한 번에)을 둔다.
+          단계를 오가도 칸 상태가 남게 숨기기만 한다(`v-show`). [등록]을 누르면 검사 전에 `attempt` 를 올린다(화면이 덧붙인 칸의 검사 문구도 함께 보이게).
     -->
     <form class="flex flex-col gap-4" novalidate @submit.prevent="submit">
         <!-- 글쓰기 안내문(운영자가 적은 평문 — 줄바꿈 유지, HTML 로 해석하지 않는다) -->
@@ -48,6 +50,14 @@
             </LabeledField>
         </div>
 
+        <!-- 화면이 제목 위에 덧붙이는 칸(핫딜 딜 칸) — 단계 입력의 1단계 -->
+        <div v-if="$slots.lead" v-show="step !== 2" class="contents">
+            <slot name="lead" />
+        </div>
+
+        <div v-show="step !== 1" class="flex flex-col gap-4">
+        <!-- 2단계로 넘어온 뒤 1단계 칸에 문제가 있으면 화면이 알린다 -->
+        <slot name="stepNotice" />
         <LabeledField :label="t('post.titleLabel')" :error="titleError">
             <template #default="{ id, describedBy, invalid }">
                 <InputText
@@ -136,11 +146,15 @@
             @update:captcha="patch({ captcha: $event })"
         />
 
+        </div>
+
         <Message v-if="formError" severity="error" variant="simple" role="alert">{{ formError }}</Message>
 
         <div class="flex justify-end gap-2 border-t border-surface pt-4">
+            <Button v-if="step === 2" type="button" :label="t('common.prev')" icon="pi pi-chevron-left" severity="secondary" variant="text" class="mr-auto" @click="$emit('prev')" />
             <Button type="button" :label="t('common.cancel')" severity="secondary" variant="text" @click="$emit('cancel')" />
-            <Button type="submit" :label="submitLabel" icon="pi pi-check" :loading="submitting" />
+            <Button v-if="step === 1" type="button" :label="t('common.next')" icon="pi pi-chevron-right" icon-pos="right" data-testid="post-step-next" @click="$emit('next')" />
+            <Button v-else type="submit" :label="submitLabel" icon="pi pi-check" :loading="submitting" />
         </div>
     </form>
 </template>
@@ -173,6 +187,8 @@ interface Props {
     submitting?: boolean;
     /** 에디터 이미지 한 장을 올리는 함수(페이지가 `useImageApi` 로 만든다) — 없으면 이미지 단추를 감춘다 */
     upload?: RichImageUploader | null;
+    /** 단계 입력 — 0 한 번에 · 1 `lead` 단계(게시판·말머리·`lead`) · 2 나머지 단계 */
+    step?: 0 | 1 | 2;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -185,6 +201,7 @@ const props = withDefaults(defineProps<Props>(), {
     formError: '',
     submitting: false,
     upload: null,
+    step: 0,
 });
 
 const emit = defineEmits<{
@@ -194,6 +211,11 @@ const emit = defineEmits<{
     editorReady: [html: string];
     submit: [];
     cancel: [];
+    /** [등록]을 눌렀다(검사 전) — 화면이 덧붙인 칸의 검사 문구를 함께 보이려고 */
+    attempt: [];
+    /** 단계 입력의 [다음]·[이전] */
+    next: [];
+    prev: [];
 }>();
 
 const { t } = useI18n();
@@ -251,6 +273,9 @@ const ruleHint = computed(() => {
 });
 
 function submit(): void {
+    // 1단계에서 엔터로 제출되면 [다음]과 같게
+    if (props.step === 1) return void emit('next');
+    emit('attempt');
     tried.value = true;
     if (props.submitting) return;
     if (titleProblem.value || contentProblem.value || nameProblem.value || passwordProblem.value || captchaMissing.value || mediaProblem.value) return;

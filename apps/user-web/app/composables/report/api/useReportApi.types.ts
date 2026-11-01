@@ -6,10 +6,25 @@
  * 글·댓글: 스팸·광고 · 욕설·비방 · 음란·선정 · 불법촬영물·아동성착취물 · 개인정보 노출·명예훼손 · 기타.
  * 소모임(서버 `ReportReasons.GROUP_ALL`, V95): 홍보·영업 목적 · 오프라인 모임 위험 · 종목 추천·유료 모집(투자 고지 게시판의 소모임만) · 기타. 두 체계를 섞어 보내면 `400 fields.reason`.
  */
-export type ReportReason = 'SPAM_AD' | 'ABUSE' | 'OBSCENE' | 'ILLEGAL_FILMING' | 'RIGHTS' | 'PROMOTION' | 'OFFLINE_RISK' | 'STOCK_RECOMMENDATION' | 'OTHER';
+export type ReportReason =
+    | 'SPAM_AD'
+    | 'ABUSE'
+    | 'OBSCENE'
+    | 'ILLEGAL_FILMING'
+    | 'RIGHTS'
+    | 'PROMOTION'
+    | 'OFFLINE_RISK'
+    | 'STOCK_RECOMMENDATION'
+    // 핫딜 글에서만(`hotdeal-contract.md` 「목업 가정」) — 가격·정보가 사실과 달라요 · 광고·홍보를 숨겼어요
+    | 'DEAL_FALSE_PRICE'
+    | 'DEAL_HIDDEN_AD'
+    | 'OTHER';
 
 /** 글·댓글 사유 — 화면에 보일 차례 */
 export const REPORT_REASONS: readonly ReportReason[] = ['SPAM_AD', 'ABUSE', 'OBSCENE', 'ILLEGAL_FILMING', 'RIGHTS', 'OTHER'];
+
+/** 핫딜 글 사유 — 글 사유에 두 개를 더한다(「기타」 앞) */
+export const DEAL_POST_REPORT_REASONS: readonly ReportReason[] = ['SPAM_AD', 'DEAL_FALSE_PRICE', 'DEAL_HIDDEN_AD', 'ABUSE', 'OBSCENE', 'ILLEGAL_FILMING', 'RIGHTS', 'OTHER'];
 
 /** 소모임 사유 — 화면에 보일 차례. `STOCK_RECOMMENDATION` 은 투자 고지 소모임(`stockNotice`)에만 보인다 */
 export const GROUP_REPORT_REASONS: readonly ReportReason[] = ['PROMOTION', 'OFFLINE_RISK', 'STOCK_RECOMMENDATION', 'OTHER'];

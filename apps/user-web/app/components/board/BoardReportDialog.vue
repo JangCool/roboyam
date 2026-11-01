@@ -3,7 +3,7 @@
         신고 — 회원만(비회원은 부르는 화면이 로그인 안내). 사유는 관리자 신고 정책의 사유 코드와 같다. 기타는 설명 필수(가정).
         대상: 글 · 댓글 · 소모임(소모임 상세 ⋯ 메뉴 · 일정 상세의 오프라인 고지 아래 — 제목·안내가 소모임 문구이고 `summary` 로 대상 한 줄을 보인다).
         · 공구 문의(`GROUP_BUY_QUESTION` — 공구 상세 Q&A, 사유는 글·댓글 체계).
-        사유는 대상 체계를 따른다 — 글·댓글 6종 / 소모임 4종(홍보·영업 · 오프라인 위험 · 종목 추천·유료 모집(`stock` 일 때만) · 기타).
+        사유는 대상 체계를 따른다 — 글·댓글 6종(핫딜 글은 `deal` 이면 「가격·정보가 사실과 달라요」·「광고·홍보를 숨겼어요」 더해 8종) / 소모임 4종(홍보·영업 · 오프라인 위험 · 종목 추천·유료 모집(`stock` 일 때만) · 기타).
     -->
     <Dialog :visible="visible" modal :header="title" :style="{ width: 'min(26rem, calc(100vw - 2rem))' }" :draggable="false" @update:visible="close">
         <form class="flex flex-col gap-3" @submit.prevent="submit">
@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { GROUP_REPORT_REASONS, REPORT_REASONS, type ReportReason, type ReportTargetType } from '~/composables/report/api/useReportApi.types';
+import { DEAL_POST_REPORT_REASONS, GROUP_REPORT_REASONS, REPORT_REASONS, type ReportReason, type ReportTargetType } from '~/composables/report/api/useReportApi.types';
 import UtilPost from '~/utils/util-post';
 
 interface Props {
@@ -46,6 +46,8 @@ interface Props {
     summary?: string;
     /** 소모임 대상 — 투자 고지 소모임(`stockNotice`)이면 「종목 추천·유료 모집」 사유가 더해진다 */
     stock?: boolean;
+    /** 핫딜 글 대상(`target` POST) — 「가격·정보가 사실과 달라요」·「광고·홍보를 숨겼어요」 사유가 더해진다 */
+    deal?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -55,6 +57,7 @@ const props = withDefaults(defineProps<Props>(), {
     fieldError: '',
     summary: '',
     stock: false,
+    deal: false,
 });
 
 const emit = defineEmits<{
@@ -78,6 +81,8 @@ const REASON_KEY: Record<ReportReason, string> = {
     PROMOTION: 'group.reasonPromotion',
     OFFLINE_RISK: 'group.reasonOfflineRisk',
     STOCK_RECOMMENDATION: 'group.reasonStockRecommendation',
+    DEAL_FALSE_PRICE: 'hotdeal.reasonFalsePrice',
+    DEAL_HIDDEN_AD: 'hotdeal.reasonHiddenAd',
     OTHER: 'post.reasonOther',
 };
 /** 대상 → 제목 키 */
@@ -85,7 +90,12 @@ const TITLE_KEY: Record<ReportTargetType, string> = { POST: 'post.reportPostTitl
 const title = computed(() => t(TITLE_KEY[props.target]));
 /** 대상의 사유 — 소모임은 소모임 사유(종목 추천은 투자 고지 소모임만), 글·댓글은 글 사유 */
 const reasons = computed(() => {
-    const list = props.target === 'GROUP' ? GROUP_REPORT_REASONS.filter((value) => value !== 'STOCK_RECOMMENDATION' || props.stock) : REPORT_REASONS;
+    const list =
+        props.target === 'GROUP'
+            ? GROUP_REPORT_REASONS.filter((value) => value !== 'STOCK_RECOMMENDATION' || props.stock)
+            : props.target === 'POST' && props.deal
+              ? DEAL_POST_REPORT_REASONS
+              : REPORT_REASONS;
     return list.map((value) => ({ value, label: t(REASON_KEY[value]) }));
 });
 
