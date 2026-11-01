@@ -22,9 +22,11 @@ import java.time.Instant;
  * @param pendingPinRequests 대기 중인 의견 고정 요청 수
  * @param group             소모임 글이면 소모임 표시, 일반 글 null(소모임 2단계)
  * @param restricted        비공개 소모임 글 — {@code title} 이 null 이고 상세 본문도 싣지 않는다(내용은 신고 처리의 신고 당시 내용으로만 본다). 이동은 409 POST_STATE_INVALID
+ * @param deal              핫딜 글 — 지금 핫딜 게시판(kind DEAL)에 있고 딜 줄이 붙었다(hotdeal-contract — 「딜」 칩과 핫딜 글 링크)
  */
 public record AdminPostItemView(String id, AdminPostBoardRefView board, AdminPostPrefixRefView prefix, String title, AdminPostAuthorView author, String state,
                                 String hiddenReason, Instant hiddenAt, Instant hiddenUntil, Instant deletedAt, Instant deleteScheduledAt, boolean purged,
                                 boolean pinned, boolean notice, boolean adult, boolean debate, boolean poll, int likeCount, int commentCount, int viewCount,
-                                int openReports, Instant createdAt, int opinionCount, int pendingPinRequests, AdminPostGroupView group, boolean restricted) {
+                                int openReports, Instant createdAt, int opinionCount, int pendingPinRequests, AdminPostGroupView group, boolean restricted,
+                                boolean deal) {
 }

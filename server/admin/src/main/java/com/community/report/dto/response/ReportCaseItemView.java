@@ -13,9 +13,10 @@ import java.util.List;
  * @param reasonCode  닫힌 사건의 사유 코드(없으면 null) — 계약에 더한 칸
  * @param note        닫힌 사건의 처리 글(없으면 null) — 계약에 더한 칸
  * @param falseReport 허위 신고로 표시한 무시인가 — 계약에 더한 칸
+ * @param deal        대상이 핫딜 글(지금 핫딜 게시판 글이고 딜 줄이 있다)이면 그 딜의 지금 상태, 그 밖(일반 글·댓글·소모임)은 null
  */
 public record ReportCaseItemView(String id, long caseNo, String status, String targetType, ReportTargetView target, ReportBoardRefView board,
                                  ReportAuthorView author, int reportCount, List<ReportReasonCountView> reasons, Instant firstReportedAt, Instant lastReportedAt,
                                  ReportOperatorRefView reviewer, Instant closedAt, ReportOperatorRefView closedBy, String action, String reasonCode, String note,
-                                 boolean falseReport) {
+                                 boolean falseReport, ReportDealView deal) {
 }

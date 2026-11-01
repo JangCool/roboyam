@@ -102,7 +102,8 @@ class BizApplicationAdminCatalogTest {
         assertThat(normal.get(group + 3).icon()).isEqualTo("pi pi-ticket");
         assertThat(normal.get(group + 1).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("businessReviews", "businesses");
         assertThat(normal.get(group + 2).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("adReviews", "ads", "adPlacements");
-        assertThat(normal.get(group + 3).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("hotdealReviews");
+        assertThat(normal.get(group + 3).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("hotdealReviews", "hotdeals", "hotdealDomains",
+                "hotdealSuspicions", "hotdealSettings");
         assertThat(AdminScreenRegistry.isGroupLabelKey("menu.ad")).isTrue();
         assertThat(AdminScreenRegistry.isGroupLabelKey("menu.hotdeal")).isTrue();
     }

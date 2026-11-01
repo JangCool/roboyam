@@ -318,6 +318,10 @@ ALTER TABLE report_cases DROP CONSTRAINT ck_report_cases_reason_code;
 ALTER TABLE report_cases ADD CONSTRAINT ck_report_cases_reason_code
     CHECK (reason_code IS NULL OR reason_code IN ('SPAM_AD', 'ABUSE', 'OBSCENE', 'ILLEGAL_FILMING', 'RIGHTS', 'PROMOTION', 'OFFLINE_RISK', 'STOCK_RECOMMENDATION',
                                                   'OTHER', 'DEAL_FALSE_PRICE', 'DEAL_HIDDEN_AD'));
+-- 신고 사건 조치 DEAL_END(핫딜 종료 — 3단계 관리자, 핫딜 글 사건만 앱이 막는다). V95 목록 ∪ DEAL_END.
+-- ⚠ 합칠 때 합집합 확인 — 다른 세션도 이 CHECK 를 다시 만들 수 있다
+ALTER TABLE report_cases DROP CONSTRAINT ck_report_cases_action;
+ALTER TABLE report_cases ADD CONSTRAINT ck_report_cases_action CHECK (action IS NULL OR action IN ('HIDE', 'DELETE', 'KEEP_HIDDEN', 'DEACTIVATE', 'DEAL_END', 'DISMISS'));
 
 -- ── 회원 알림 종류(메모 1-7 — 2단계가 발행). V112 목록 ∪ DEAL_FLAGGED · DEAL_AUTO_ENDED · DEAL_MANAGER_ENDED · DEAL_EXPIRED · DEAL_REOPENED_FIX_ENDS ──
 -- ⚠ 합칠 때 합집합 확인 — 다른 세션도 이 CHECK 를 다시 만들 수 있다(나중에 적용되는 쪽이 모든 종류를 담아야 한다).

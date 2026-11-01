@@ -141,8 +141,9 @@ public class PostWriteService {
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = PublicBoardService.requireActive(s, body.boardSlug());
         BoardActor actor = actors.resolve(userId, s);
-        requireWritable(BoardAccessPolicy.writeBlocked(b, actor, s));
-        DealWriter.requireWriter(b, actor, s); // 핫딜 게시판 — 일반 등급 이상 + 이메일 인증(hotdeal-contract 「쓰기 자격」)
+        // 핫딜 게시판은 쓰기 자격(일반 등급 이상 + 이메일 인증 + 정지 아님)까지 같은 판정이 본다 — 새싹이면 필요한 등급을 오류 본문에
+        requireWritable(BoardAccessPolicy.writeBlocked(b, actor, s), b, s);
+        DealWriter.requireWriter(b, actor, s);
         BoardSecurityValues sec = s.security();
 
         Map<String, MessageRef> fields = new LinkedHashMap<>();
@@ -532,6 +533,15 @@ public class PostWriteService {
             throw new CommonException(ErrorCode.UNAUTHENTICATED);
         }
         throw new BoardWriteBlockedException(reason);
+    }
+
+    /** 새 글 쓰기 판정 — {@code GRADE_TOO_LOW} 면 오류 본문에 필요한 등급({@code minGrade}·{@code minGradeLabel} — 핫딜 게시판은 첫 등급 바로 위)을 싣는다 */
+    public static void requireWritable(String reason, EffectiveBoard b, BoardCatalogSnapshot s) {
+        if (BoardAccessPolicy.GRADE_TOO_LOW.equals(reason)) {
+            String grade = BoardAccessPolicy.requiredWriteGrade(b, s);
+            throw BoardWriteBlockedException.gradeTooLow(reason, grade, s.gradeLabel(grade));
+        }
+        requireWritable(reason);
     }
 
     /** 고치거나 지울 수 있는가 — 비회원 글은 비밀번호(시도 제한), 회원 글은 쓴 회원만(아니면 403 FORBIDDEN) */

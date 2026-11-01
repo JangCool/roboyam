@@ -90,7 +90,7 @@ public class DealLinkService {
             throw ValidationException.of("board", new MessageRef("hotdeal.board.notDeal"));
         }
         BoardActor actor = actors.resolve(userId, s);
-        PostWriteService.requireWritable(BoardAccessPolicy.writeBlocked(b, actor, s));
+        PostWriteService.requireWritable(BoardAccessPolicy.writeBlocked(b, actor, s), b, s);
         DealWriter.requireWriter(b, actor, s);
         String link = url == null ? null : url.strip();
         if (link == null || link.isEmpty() || link.length() > DealHosts.URL_MAX || !DealHosts.isHttpUrl(link)) {

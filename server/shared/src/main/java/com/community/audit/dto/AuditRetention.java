@@ -133,7 +133,11 @@ public final class AuditRetention {
             // 사업자 신청 건 반려·수동 전환·입금 기한 — 돈이 움직이지 않는 심사 일(biz-application-contract)
             AuditActions.BIZ_APP_REJECT, AuditActions.BIZ_APP_MANUAL_SWITCH, AuditActions.BIZ_APP_DEPOSIT_DEADLINE,
             // 광고 일정표 — 광고주 만들기·긴급 내림(돈은 되돌리기가 움직인다) · 노출 자리 설정
-            AuditActions.AD_ADVERTISER_CREATE, AuditActions.AD_TAKEDOWN, AuditActions.AD_PLACEMENT_UPDATE);
+            AuditActions.AD_ADVERTISER_CREATE, AuditActions.AD_TAKEDOWN, AuditActions.AD_PLACEMENT_UPDATE,
+            // 회원 핫딜 1차 관리(hotdeal-contract 「권한·정책」 — 모두 일반 분류). 운영진 종료의 보상 포인트 이동은 포인트 원장이 기록한다
+            AuditActions.HOTDEAL_END, AuditActions.HOTDEAL_REOPEN, AuditActions.HOTDEAL_DOMAIN_CREATE, AuditActions.HOTDEAL_DOMAIN_UPDATE,
+            AuditActions.HOTDEAL_DOMAIN_DELETE, AuditActions.HOTDEAL_SUSPICION_DISMISS, AuditActions.HOTDEAL_SETTINGS_UPDATE,
+            AuditActions.HOTDEAL_SITE_AFFILIATE_CREATE, AuditActions.HOTDEAL_SITE_AFFILIATE_UPDATE, AuditActions.HOTDEAL_SITE_AFFILIATE_DELETE);
 
     private static final Map<String, AuditRetentionClass> TABLE = table();
 

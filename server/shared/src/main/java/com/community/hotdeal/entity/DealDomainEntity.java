@@ -59,6 +59,11 @@ public class DealDomainEntity {
         this.updatedAt = now;
     }
 
+    /** 관리자 고치기의 도메인 바꾸기(정규화·유일 검사는 부르는 쪽) — 규칙 칸은 {@link #change} */
+    public void rename(String domain) {
+        this.domain = domain;
+    }
+
     public Long getId() {
         return id;
     }

@@ -9,6 +9,9 @@ import com.community.board.service.BoardCatalog;
 import com.community.comment.entity.CommentEntity;
 import com.community.comment.repository.master.CommentRepository;
 import com.community.group.service.GroupAdminService;
+import com.community.hotdeal.service.DealModeration;
+import com.community.hotdeal.service.HotdealAdminQueryService;
+import com.community.hotdeal.service.HotdealModerationService;
 import com.community.membernotification.service.MemberNotificationMessages;
 import com.community.membernotification.service.MemberNotificationPublisher;
 import com.community.permission.dto.AdminActor;
@@ -64,6 +67,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       HIDE = 공개 대상만 운영자 숨김(STAFF, 댓글이면 글의 댓글 수 −1) · KEEP_HIDDEN = 자동 숨김(REPORTED · ILLEGAL · RIGHTS)인 대상을 확정(임시조치 기한을 지운다)
  *       · DELETE = 지우지 않은 대상 삭제(글은 게시글 관리 삭제와 같은 규칙 — 고정 해제·포인트 회수, 댓글은 보이던 것이면 댓글 수 −1 · 포인트 회수).
  *       글 조치는 {@code post_moderation_events} 에도(덧붙임 사건 ID·사유 코드, 사유 = 글 앞 200자). 사건의 신고들은 ACCEPTED.
+ *       <b>핫딜 종료</b>({@code DEAL_END}, hotdeal-contract): 대상이 핫딜 글(지금 핫딜 게시판·딜 줄)인 글 사건만 — 아니면 409 REPORT_ACTION_INVALID. 처리 글(1~200자)이 작성자에게 가는
+ *       종료 사유이고 글은 숨기지 않는다(운영진 종료와 같은 길 — 보상·작성자 알림 {@code DEAL_MANAGER_ENDED}, 감사 {@code HOTDEAL_END} 도 남긴다). 이미 끝난 딜이면 409 REPORT_ACTION_INVALID.
+ *       핫딜 글 사건은 사유 코드에 {@code DEAL_FALSE_PRICE}·{@code DEAL_HIDDEN_AD} 도 고를 수 있다(그 밖 사건은 400 {@code fields.reasonCode}).
  *       <b>소모임 사건</b>(V95)은 DEACTIVATE 만(그 밖 조치·글·댓글 사건의 DEACTIVATE 는 409 REPORT_ACTION_INVALID) — 열린 소모임을 관리자 소모임 관리와 같은 서비스로 비활성화한다
  *       ({@code groups.deactivate_case_id} = 사건 ID, 감사 GROUP_DEACTIVATE, 모임장 알림 GROUP_DEACTIVATED — note 가 사유로 가므로 1~200자). 이미 비활성·해산이면 409 REPORT_ACTION_INVALID.
  *       {@code reasonCode} 는 사건 대상의 사유 체계(소모임 사유 · 글·댓글 사유)여야 한다(400 {@code fields.reasonCode}).</li>
@@ -86,7 +92,7 @@ public class ReportCaseActionService {
     static final String TARGET = "REPORT_CASE";
     static final int BULK_MAX = 50;
     static final List<String> ACTIONS = List.of(ReportCaseEntity.ACTION_HIDE, ReportCaseEntity.ACTION_DELETE, ReportCaseEntity.ACTION_KEEP_HIDDEN,
-            ReportCaseEntity.ACTION_DEACTIVATE);
+            ReportCaseEntity.ACTION_DEACTIVATE, ReportCaseEntity.ACTION_DEAL_END);
 
     private final ReportCaseRepository cases;
     private final AdminReportRepositoryQDSL caseQueries;
@@ -103,12 +109,17 @@ public class ReportCaseActionService {
     private final AuditLogService audit;
     private final TransactionTemplate tx;
     private final GroupAdminService groupAdmin;
+    private final HotdealAdminQueryService hotdeals;
+    private final DealModeration dealModeration;
 
     public ReportCaseActionService(ReportCaseRepository cases, AdminReportRepositoryQDSL caseQueries, ReportRepositoryQDSL reports, ReportCaseLog caseLog,
                                    PostRepository posts, CommentRepository comments, PostCounterQueries counters, AdminPostModerationService postModeration,
                                    PostModerationLog moderation, PointService points, MemberNotificationPublisher memberNotices, BoardCatalog catalog,
-                                   AuditLogService audit, PlatformTransactionManager txManager, GroupAdminService groupAdmin) {
+                                   AuditLogService audit, PlatformTransactionManager txManager, GroupAdminService groupAdmin, HotdealAdminQueryService hotdeals,
+                                   DealModeration dealModeration) {
         this.groupAdmin = groupAdmin;
+        this.hotdeals = hotdeals;
+        this.dealModeration = dealModeration;
         this.cases = cases;
         this.caseQueries = caseQueries;
         this.reports = reports;
@@ -139,8 +150,9 @@ public class ReportCaseActionService {
             invalid.put("reasonCode", new MessageRef("report.admin.reasonCode.invalid"));
         }
         String note = clean(body == null ? null : body.note());
-        // 소모임 비활성화의 사유는 모임장에게 그대로 가고 소모임 행(200자)에 남는다
-        int noteMax = ReportCaseEntity.ACTION_DEACTIVATE.equals(action) ? GroupAdminService.REASON_MAX : ReportCaseEntity.NOTE_MAX;
+        // 소모임 비활성화의 사유는 모임장에게 그대로 가고 소모임 행(200자)에 남는다 · 핫딜 종료의 처리 글도 작성자에게 가는 종료 사유(딜 행 200자)
+        int noteMax = ReportCaseEntity.ACTION_DEACTIVATE.equals(action) ? GroupAdminService.REASON_MAX
+                : ReportCaseEntity.ACTION_DEAL_END.equals(action) ? HotdealModerationService.REASON_MAX : ReportCaseEntity.NOTE_MAX;
         MessageRef noteError = note == null ? new MessageRef("report.admin.note.required") : noteTooLong(note, noteMax);
         if (noteError != null) {
             invalid.put("note", noteError);
@@ -152,9 +164,13 @@ public class ReportCaseActionService {
         if (!c.isOpen()) {
             throw new ReportCaseClosedException();
         }
-        requireReasonFor(c, reasonCode);
+        boolean dealPost = dealPost(c);
+        requireReasonFor(c, reasonCode, dealPost);
         if (c.isGroup() != ReportCaseEntity.ACTION_DEACTIVATE.equals(action)) {
             throw new ReportActionInvalidException(); // 소모임 사건은 비활성화만, 글·댓글 사건은 비활성화 없음
+        }
+        if (ReportCaseEntity.ACTION_DEAL_END.equals(action) && !dealPost) {
+            throw new ReportActionInvalidException(); // 핫딜 종료는 핫딜 글 사건만(일반 글·댓글 사건 409)
         }
         Instant now = Instant.now();
         BoardReportValues policy = catalog.snapshot().report();
@@ -169,6 +185,16 @@ public class ReportCaseActionService {
             if (!groupAdmin.deactivateForReport(actor, c.getTargetId(), note, c.getId())) {
                 throw new ReportActionInvalidException(); // 이미 비활성·해산
             }
+            revoked = 0;
+        } else if (ReportCaseEntity.ACTION_DEAL_END.equals(action)) {
+            // 운영진 종료와 같은 길(shared DealModeration — 보상 · 작성자 알림 DEAL_MANAGER_ENDED, 처리 글이 사유) · 글은 숨기지 않는다. 신고 조치 권한(report.manage)이 담당을 대신한다
+            DealModeration.Result result = dealModeration.end(c.getTargetId(), DealModeration.Actor.operator(actor.operatorId(), true), note);
+            if (result != DealModeration.Result.CHANGED) {
+                throw new ReportActionInvalidException(); // 이미 종료 · 딜이 없어짐
+            }
+            audit.record(AuditEvent.byOperator(actor.operatorId(), actor.ip(), AuditActions.HOTDEAL_END, AuditResult.SUCCESS)
+                    .target(HotdealModerationService.TARGET_POST, Long.toString(c.getTargetId())).with("boardId", Long.toString(c.getBoardId()))
+                    .with("reason", note).with("reportCaseId", Long.toString(c.getId())));
             revoked = 0;
         } else {
             revoked = c.isComment() ? actOnComment(c, action, reasonCode, note, notifyAuthor, now)
@@ -304,7 +330,7 @@ public class ReportCaseActionService {
             throw new ReportCaseClosedException();
         }
         if (reasonCode != null) {
-            requireReasonFor(c, reasonCode);
+            requireReasonFor(c, reasonCode, dealPost(c));
         }
         Map<String, Object> detail = dismissOne(actor, c, reasonCode, note, falseReport, false, Instant.now());
         Map<String, Object> auditDetail = new LinkedHashMap<>(detail);
@@ -526,11 +552,19 @@ public class ReportCaseActionService {
         return ReportReasons.EVERY.contains(code) ? code : null;
     }
 
-    /** 사유 코드가 사건의 대상 종류 체계인가 — 소모임 사건은 소모임 사유, 글·댓글 사건은 글·댓글 사유(아니면 400 {@code fields.reasonCode}) */
-    private static void requireReasonFor(ReportCaseEntity c, String reasonCode) {
-        if (!ReportReasons.forTarget(c.getTargetType()).contains(reasonCode)) {
+    /**
+     * 사유 코드가 사건의 대상 종류 체계인가 — 소모임 사건은 소모임 사유, 글·댓글 사건은 글·댓글 사유, 핫딜 글 사건은 핫딜 사유({@code DEAL_FALSE_PRICE}·{@code DEAL_HIDDEN_AD})까지
+     * (아니면 400 {@code fields.reasonCode})
+     */
+    private static void requireReasonFor(ReportCaseEntity c, String reasonCode, boolean dealPost) {
+        if (!ReportReasons.forCase(c.getTargetType(), dealPost).contains(reasonCode)) {
             throw ValidationException.of("reasonCode", new MessageRef("report.admin.reasonCode.invalid"));
         }
+    }
+
+    /** 글 사건의 대상이 핫딜 글인가(지금 핫딜 게시판의 살아 있는 글이고 딜 줄이 있다) */
+    private boolean dealPost(ReportCaseEntity c) {
+        return ReportEntity.POST.equals(c.getTargetType()) && hotdeals.isDealPost(c.getTargetId());
     }
 
     /** 앞뒤 공백·NUL 을 뗀 글 — 비었으면 null */

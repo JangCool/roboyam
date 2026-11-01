@@ -53,11 +53,17 @@ public final class ReportReasons {
     public static final List<String> NOT_HIDE_COUNTED = List.of(DEAL_FALSE_PRICE);
 
     /** 모든 사유 — 보이는 차례(관리자 목록의 사유별 수·사유 거르기) */
-    public static final List<String> EVERY = List.of(SPAM_AD, ABUSE, OBSCENE, ILLEGAL_FILMING, RIGHTS, PROMOTION, OFFLINE_RISK, STOCK_RECOMMENDATION, OTHER);
+    public static final List<String> EVERY = List.of(SPAM_AD, ABUSE, OBSCENE, ILLEGAL_FILMING, RIGHTS, PROMOTION, OFFLINE_RISK, STOCK_RECOMMENDATION, DEAL_FALSE_PRICE,
+            DEAL_HIDDEN_AD, OTHER);
 
     /** 대상 종류의 사유 — 소모임이면 {@link #GROUP_ALL}, 그 밖(글·댓글)은 {@link #ALL} */
     public static List<String> forTarget(String targetType) {
         return ReportEntity.GROUP.equals(targetType) ? GROUP_ALL : ALL;
+    }
+
+    /** 사건 조치·무시의 사유 — 핫딜 글 사건이면 핫딜 사유까지({@link #DEAL_POST}), 그 밖은 {@link #forTarget} */
+    public static List<String> forCase(String targetType, boolean dealPost) {
+        return ReportEntity.POST.equals(targetType) && dealPost ? DEAL_POST : forTarget(targetType);
     }
 
     /** 숨김 까닭: 신고 누적(서로 다른 회원 수) */

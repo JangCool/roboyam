@@ -33,6 +33,7 @@ import com.community.notification.entity.AdminNotificationEvent;
 import com.community.notification.service.NotificationPublisher;
 import com.community.post.entity.PostEntity;
 import com.community.post.service.PostQueryService;
+import com.community.post.service.PostWriteService;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
@@ -151,7 +152,8 @@ public class DealWriter {
 
     /**
      * 핫딜 게시판 쓰기 자격 — 게시판 판정({@link BoardAccessPolicy#writeBlocked}) 다음에 더 본다: 비회원 401 · 이메일 인증 전 {@code 403 EMAIL_NOT_VERIFIED} ·
-     * 첫 등급(새싹) {@code 403 GRADE_TOO_LOW}(게시판 매니저·스텝은 면제). 게시판 {@code writeMin} 이 비회원·첫 등급으로 잘못 열려 있어도 막는다(계약 「쓰기 자격」).
+     * 첫 등급(새싹) {@code 403 GRADE_TOO_LOW}(게시판 매니저·스텝은 면제, 오류 본문 {@code minGrade}·{@code minGradeLabel}). 게시판 {@code writeMin} 이 비회원·첫 등급으로
+     * 잘못 열려 있어도 막는다(계약 「쓰기 자격」). 3단계부터 같은 자격이 {@link BoardAccessPolicy#writeBlocked} 안에도 있어(게시판 응답·쓸 수 있는 게시판 목록이 미리 막는다) 여기는 겹쳐 지키는 자리다.
      */
     public static void requireWriter(EffectiveBoard b, BoardActor actor, BoardCatalogSnapshot s) {
         if (!dealBoard(b)) {
@@ -167,7 +169,7 @@ public class DealWriter {
             throw new BoardWriteBlockedException(BoardAccessPolicy.EMAIL_NOT_VERIFIED);
         }
         if (!actor.staffOf(b.id()) && actor.gradeKey() != null && actor.gradeKey().equals(s.firstGradeKey())) {
-            throw new BoardWriteBlockedException(BoardAccessPolicy.GRADE_TOO_LOW);
+            PostWriteService.requireWritable(BoardAccessPolicy.GRADE_TOO_LOW, b, s);
         }
     }
 
