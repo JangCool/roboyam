@@ -6,6 +6,7 @@ import type {
     DealEndReason,
     DealInput,
     DealLinkCheck,
+    DealModeration,
     DealPrefill,
     DealPriceBasis,
     DealRules,
@@ -75,6 +76,8 @@ export default class UtilHotdeal {
     static readonly STORE_NAME_MAX = 40;
     static readonly URL_MAX = 1000;
     static readonly NOTE_MAX = 100;
+    /** 게시판 매니저·스텝 종료·재개 사유 — 종료는 1~이 글자 수(필수), 재개는 0~(서버와 같은 값, 앞뒤 공백을 뗀 글자 수) */
+    static readonly MODERATE_REASON_MAX = 200;
     /** 마감은 지금 이후 ~ 이 일수 안 */
     static readonly ENDS_MAX_DAYS = 365;
     /** 마감으로 고를 수 있는 가장 이른 때(1분 뒤) — 서버는 「지금 이후」만 본다. 고르는 칸의 최소값에만 쓴다 */
@@ -415,6 +418,27 @@ export default class UtilHotdeal {
      */
     static canKeep(deal: Pick<PostDeal, 'keepCount' | 'keepMax'>): boolean {
         return deal.keepMax === 0 || deal.keepCount < deal.keepMax;
+    }
+
+    /**
+     * 사유 글자 수 — 앞뒤 공백을 떼고 글자(코드 포인트) 단위
+     * @param {string} text - 사유.
+     * @returns {number} 글자 수.
+     */
+    static reasonLength(text: string): number {
+        return Array.from(text.trim()).length;
+    }
+
+    /**
+     * 딜 상태가 바뀐 뒤의 게시판 관리 단추 — 서버 규칙(`canEnd` = 진행·의심·기간 지남, `canReopen` = 종료)을 새 딜에 다시 맞춘다.
+     * 글 상세를 다시 받지 않고 딜만 바뀌는 동작(종료·재개·작성자 종료·되돌리기·알리기) 뒤에 쓴다. 자리(`role`)는 그대로
+     * @param {DealModeration | null} moderation - 지금 게시판 관리(없으면 null).
+     * @param {Pick<PostDeal, 'view'>} deal - 새 딜.
+     * @returns {DealModeration | null} 맞춘 값. 원래 없으면 null.
+     */
+    static moderationAfter(moderation: DealModeration | null, deal: Pick<PostDeal, 'view'>): DealModeration | null {
+        if (!moderation) return null;
+        return { role: moderation.role, canEnd: deal.view !== 'ENDED', canReopen: deal.view === 'ENDED' };
     }
 
     /**

@@ -8,7 +8,7 @@ import type { BoardProtectDelete, PrefixView } from '~/composables/board/api/use
 import type { BlockedBy } from '~/composables/block/api/useBlockApi.types';
 import type { DebateSummary, PostDebateOpen } from '~/composables/board/api/useDebateApi.types';
 import type { PollInput, PollView } from '~/composables/board/api/usePollApi.types';
-import type { DealInput, DealSort, DealStoreChip, DealWarning, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { DealInput, DealModeration, DealSort, DealStoreChip, DealWarning, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { AuthorDecoration } from '~/composables/pointshop/api/usePointShopApi.types';
 
 /**
@@ -308,6 +308,11 @@ export interface PostDetail {
     group?: PostGroupInfo | null;
     /** 핫딜 글이면 딜 — 본문 위 딜 카드(`hotdeal-contract.md`). 일반 글·옛 응답은 null·없음 */
     deal?: PostDeal | null;
+    /**
+     * 게시판 관리(핫딜 종료·재개) — 보는 사람이 그 게시판 매니저·스텝(정지 아님)이고 핫딜 글이면 객체, 아니면 null·없음(옛 응답).
+     * 작성자 본인이 매니저여도 작성자 조치와 별개로 실린다(딜 카드가 「게시판 관리」 영역을 따로 그린다)
+     */
+    dealModeration?: DealModeration | null;
     /** 고치기 응답(`PUT`)에만 — 저장은 됐지만 알릴 것(예 `DEAL_LINK_BLOCKED`). 글 보기(`GET`)는 null */
     warnings?: DealWarning[] | null;
 }

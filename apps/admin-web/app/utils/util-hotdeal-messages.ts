@@ -42,8 +42,11 @@ export default class UtilHotdealMessages {
         if (deal.view === 'ENDED') {
             const by = deal.endedBy ?? 'AUTO';
             const at = time.full(deal.endedAt);
+            const name = detail.endedByName ?? '—';
             if (by === 'AUTO') lines.push(t('hotdeal.endedAuto', { at }));
-            else lines.push(t(`hotdeal.endedBy_${by}`, { at, name: detail.endedByName ?? '—' }));
+            // 행위자 자리(운영자·게시판 매니저·스텝·작성자)가 오면 그것으로 가르고, 없으면 `endedBy` 묶음 문구
+            else if (detail.endedByRole) lines.push(t(`hotdeal.endedByRole_${detail.endedByRole}`, { at, name }));
+            else lines.push(t(`hotdeal.endedBy_${by}`, { at, name }));
             if (detail.endReason) lines.push(t('hotdeal.endedReason', { reason: detail.endReason }));
             if (by === 'AUTHOR') lines.push(UtilHotdeal.authorCanReopen(deal.reopenUntil, now) ? t('hotdeal.authorReopenUntil', { at: time.full(deal.reopenUntil) }) : t('hotdeal.authorReopenGone'));
             else lines.push(t('hotdeal.managerOnlyReopen'));

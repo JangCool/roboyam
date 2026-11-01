@@ -48,6 +48,21 @@ export interface DealImage {
     originUrl?: string | null;
 }
 
+/** 게시판 관리 자리 — 그 글 게시판의 매니저 · 스텝(사용자 결정 2026-11-01) */
+export type DealModeratorRole = 'MANAGER' | 'STAFF';
+
+/**
+ * 글 상세 `PostDetail.dealModeration` — 보는 사람이 그 게시판 매니저·스텝(정지 아님)이고 핫딜 글이면 객체, 아니면 null.
+ * 작성자 본인이 매니저여도 작성자 조치(`mine`·`reopenUntil`)와 별개로 실린다. 막는 것은 서버다(누를 때마다 다시 판정 → `403 DEAL_MODERATE_FORBIDDEN`)
+ */
+export interface DealModeration {
+    role: DealModeratorRole;
+    /** [핫딜 종료] — 진행·의심·기간 지남 */
+    canEnd: boolean;
+    /** [다시 진행 중으로] — 종료(ENDED) */
+    canReopen: boolean;
+}
+
 /** 종료 요청 집계 — 요청자 신원은 누구에게도 보이지 않는다(개수·사유별 개수만). `mine` 은 내가 보낸 사유(안 보냈으면 null) */
 export interface DealEndRequests {
     total: number;

@@ -13,4 +13,8 @@ export interface DealCardActions {
     reopen: () => Promise<PostDeal>;
     /** 작성자 「아직 진행 중이에요」 */
     keep: () => Promise<PostDeal>;
+    /** 게시판 매니저·스텝 [핫딜 종료] — 사유 필수(1~200자) */
+    moderateEnd: (reason: string) => Promise<PostDeal>;
+    /** 게시판 매니저·스텝 [다시 진행 중으로] — 사유 선택(없으면 null) */
+    moderateReopen: (reason: string | null) => Promise<PostDeal>;
 }

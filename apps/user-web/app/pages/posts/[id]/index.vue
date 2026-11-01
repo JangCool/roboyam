@@ -17,6 +17,7 @@
           응답(새 토론 요약)을 글에 넣고 두 댓글 목록을 다시 받는다. `403 DEBATE_MANAGE_DENIED` 는 토스트 + 목록 다시 받기, `409 DEBATE_HAS_VOTES` 는 대화창 안 서버 문구 + 목록 다시 받기.
         핫딜 글(`deal` — `hotdeal-contract.md`): 본문 위에 딜 카드(`HotdealDealCard` — 제휴 고지·가격·몰·배송·재고·기간·가격 기준·수정 이력·[구매하기]·[이 상품 새 딜 올리기]·품절 알리기·작성자 종료/되돌리기/「아직 진행 중」·의심/종료 표시·같은 딜 묶음·판매자 아님 고지).
           같은 딜(`sameDealCount > 0`)은 글을 받은 뒤 `GET …/deal/same` 으로 따로 받는다. 신고 대화창은 핫딜 글이면 사유 2개(가격·정보 / 숨긴 광고)를 더하고, 「가격 허위」는 종료 요청으로 접수된다(D4 — 성공하면 카드의 「보낸 사유」를 화면이 고친다). 동작은 `useHotdealApi` 로 이 화면이 한다(카드는 `actions` 만).
+          그 게시판 매니저·스텝이 보면(`dealModeration`) 카드에 작성자 조치와 따로 「게시판 관리」([핫딜 종료]·[다시 진행 중으로])가 서고, 딜이 바뀌면 단추를 새 상태에 맞추며 그새 상태가 바뀐 거절(`stale`)이면 글을 다시 읽는다.
         투표(post-poll-contract): 글에 `poll` 이 있으면 본문 바로 다음·찬반 토론 위에 투표 카드(`PostPollCard`). 투표·다시 읽기·지우기는 `usePollApi` 로 이 화면이 하고(카드는 `actions` 만 받는다),
           카드가 올린 새 투표(지우면 null)를 글의 `poll` 에 넣는다. 차단으로 본문이 접히거나 19금 확인 전이면 함께 가린다.
         소모임 글(2단계, community `docs/api-groups.md` 8절 · 「화면 (SPA) — 6-2」): 글의 `group` 이 있으면 머리의 게시판 이름 대신 「소모임 › 이름」(→ 소모임, 해산했으면 링크 없이 「해산한 소모임」)과
@@ -130,8 +131,11 @@
                             :mine="post.mine"
                             :guest="board.viewer.guest"
                             :same-deals="sameDeals"
+                            :moderation="post.dealModeration ?? null"
                             :actions="dealActions"
                             @update:deal="onDealUpdate"
+                            @update:moderation="onDealModerationUpdate"
+                            @stale="refreshDeal(post.id)"
                         />
                         <!-- 본문 — 19금 글은 확인 전에 가린다(가정: 성인 인증이 생기면 서버 판정으로 바뀐다) -->
                         <div v-if="post.adult && !adultConfirmed" class="my-6 flex flex-col items-center rounded-lg border border-surface px-5 py-8 text-center" data-testid="post-adult-gate">
@@ -311,7 +315,7 @@
 import type { BoardDetail } from '~/composables/board/api/useBoardApi.types';
 import type { PostDetail } from '~/composables/board/api/usePostApi.types';
 import type { PollView } from '~/composables/board/api/usePollApi.types';
-import type { DealSameRef, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { DealModeration, DealSameRef, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { DealCardActions } from '~/components/hotdeal/HotdealDealCard.types';
 import type { ReportReason, ReportTargetType } from '~/composables/report/api/useReportApi.types';
 import type { CommentActions, DebateActions } from '~/components/board/CommentSection.types';
@@ -322,6 +326,7 @@ import UtilRichBody from '#layers/rich-editor/utils/util-rich-body';
 import UtilAd from '~/utils/util-ad';
 import UtilBlockMessages from '~/utils/util-block-messages';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilHotdeal from '~/utils/util-hotdeal';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
 import UtilDebate from '~/utils/util-debate';
 import UtilPost from '~/utils/util-post';
@@ -516,20 +521,32 @@ const dealActions: DealCardActions = {
     end: () => hotdealApi.end(id.value),
     reopen: () => hotdealApi.reopen(id.value),
     keep: () => hotdealApi.keep(id.value),
+    moderateEnd: (reason) => hotdealApi.moderateEnd(id.value, reason),
+    moderateReopen: (reason) => hotdealApi.moderateReopen(id.value, reason),
 };
-/** 카드가 올린 새 딜 — 글을 다시 받지 않는다 */
+/** 카드가 올린 새 딜 — 글을 다시 받지 않는다. 게시판 관리 단추(`dealModeration`)는 새 딜 상태에 맞춘다 */
 function onDealUpdate(next: PostDeal): void {
-    if (post.value) post.value.deal = next;
+    if (!post.value) return;
+    post.value.deal = next;
+    post.value.dealModeration = UtilHotdeal.moderationAfter(post.value.dealModeration ?? null, next);
+}
+/** 게시판 관리 자리가 빠졌다(`403 DEAL_MODERATE_FORBIDDEN`) — 카드의 영역을 거둔다 */
+function onDealModerationUpdate(next: DealModeration | null): void {
+    if (post.value) post.value.dealModeration = next;
 }
 /**
  * 가격 허위 신고(D4) 뒤 딜만 서버 값으로 — 신고 응답(204)에는 딜이 없고, 서버는 이미 알렸거나 자격 미달·한도·끝난 딜이면 신고만 받아 집계가 그대로일 수 있다.
- * 딜만 읽는 API 가 없어 글을 다시 읽고 `deal` 만 바꾼다(조회수는 같은 회원 중복 창 안이라 다시 세지 않는다). 못 받으면 지금 카드 그대로 두고 null
+ * 게시판 관리가 그새 바뀐 상태(`409 DEAL_ENDED`·`DEAL_NOT_ENDED`)를 만났을 때도 쓴다(카드 `stale`).
+ * 딜만 읽는 API 가 없어 글을 다시 읽고 `deal`·`dealModeration` 만 바꾼다(조회수는 같은 회원 중복 창 안이라 다시 세지 않는다). 못 받으면 지금 카드 그대로 두고 null
  */
 async function refreshDeal(postId: string): Promise<PostDeal | null> {
     try {
-        const fresh = (await postApi.post(postId)).deal ?? null;
-        if (post.value?.id === postId) post.value.deal = fresh;
-        return fresh;
+        const fresh = await postApi.post(postId);
+        if (post.value?.id === postId) {
+            post.value.deal = fresh.deal ?? null;
+            post.value.dealModeration = fresh.dealModeration ?? null;
+        }
+        return fresh.deal ?? null;
     } catch {
         // 다음에 글을 받을 때 바로잡힌다
         return null;

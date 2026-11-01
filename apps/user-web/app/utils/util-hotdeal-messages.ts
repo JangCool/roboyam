@@ -136,18 +136,25 @@ export default class UtilHotdealMessages {
      *  - `429 DEAL_END_REQUEST_AUTHOR_LIMIT`(`days`·`limit`) · `409 DEAL_KEEP_LIMIT` · `409 DEAL_REOPEN_EXPIRED` · `409 DEAL_REOPEN_USED`
      *  - `429 DEAL_LINK_CHECK_RATE_LIMIT`(링크 판정 분당 한도 — `retryAfterSeconds`) · `409 DEAL_NOT_ENDED`(prefill 이면 끝난 딜에서만 새 딜, 그 밖(되돌리기)은 이미 진행 중으로 바뀜)
      *  - `404 DEAL_NOT_FOUND`(딜 상태 API — 종료·되돌리기·keep·종료 요청: 핫딜 글이 아니거나 딜 줄이 없음)
+     *  - 게시판 매니저·스텝 종료·재개(`moderate`): `403 DEAL_MODERATE_FORBIDDEN`(그 게시판 매니저·스텝이 아니거나 정지) · `409 DEAL_ENDED`(이미 종료) · `409 DEAL_NOT_ENDED`(종료된 딜이 아님) — 둘 다 카드가 글을 다시 읽어 지금 상태로 바꾼다
      * @param {Translate} t - 번역 함수.
      * @param {unknown} e - 오류.
-     * @param {'prefill' | 'state'} [context] - 부른 곳(`409 DEAL_NOT_ENDED` 문구가 갈린다). 기본 `state`(딜 카드의 상태 API).
+     * @param {'prefill' | 'state' | 'moderate'} [context] - 부른 곳(`409 DEAL_NOT_ENDED`·`DEAL_ENDED` 문구가 갈린다). 기본 `state`(딜 카드의 작성자·알리기 상태 API).
      * @returns {string | null} 안내.
      */
-    static dealError(t: Translate, e: unknown, context: 'prefill' | 'state' = 'state'): string | null {
+    static dealError(t: Translate, e: unknown, context: 'prefill' | 'state' | 'moderate' = 'state'): string | null {
         if (!(e instanceof ApiError)) return null;
         switch (e.code) {
             case 'DEAL_LINK_CHECK_RATE_LIMIT':
                 return e.retryAfterSeconds ? t('hotdeal.linkCheckRateLimitIn', { n: Math.max(1, Math.ceil(e.retryAfterSeconds)) }) : t('hotdeal.linkCheckRateLimit');
             case 'DEAL_NOT_ENDED':
+                if (context === 'moderate') return t('hotdeal.moderateNotEnded');
                 return context === 'prefill' ? t('hotdeal.prefillNotEnded') : t('hotdeal.dealNotEndedState');
+            case 'DEAL_ENDED':
+                // 작성자·알리기는 서버 문구(「이미 끝난 딜이에요」) 그대로
+                return context === 'moderate' ? t('hotdeal.moderateAlreadyEnded') : null;
+            case 'DEAL_MODERATE_FORBIDDEN':
+                return t('hotdeal.moderateForbidden');
             case 'DEAL_DAILY_POST_LIMIT': {
                 const limit = extraNumber(e, 'limit');
                 return limit !== null ? t('hotdeal.dailyLimit', { n: limit }) : null;

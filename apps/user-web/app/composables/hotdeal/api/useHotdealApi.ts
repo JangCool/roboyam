@@ -15,11 +15,17 @@ import type { DealEndReason, DealImageUpload, DealLinkCheck, DealPrefill, DealSa
  *      끝난 딜 `409 DEAL_ENDED` · 하루 한도 `429 DEAL_END_REQUEST_DAILY_LIMIT` · 같은 작성자 기간 한도 `429 DEAL_END_REQUEST_AUTHOR_LIMIT`(`extras` 에 `limit`·`days`)
  *  - `GET /api/posts/{id}/deal/same` → `DealSameRef[]`(공개·진행 중인 같은 딜, 이 글 제외 — 로그인 없이)
  *  - 상품 이미지 올리기 — 글 이미지 API(`POST /api/images`, `useImageApi`)를 그대로 쓴다. 글 저장 때 서버가 `imageId` 가 그 회원이 올린 이미지인지 본다
+ *  - `POST /api/posts/{id}/deal/moderate/end` `{ reason }`(필수 1~200, 앞뒤 공백 뗌) 게시판 매니저·스텝 종료 → 새 `PostDeal`(`endedBy MANAGER`, 작성자 알림에 사유)
+ *  - `POST /api/posts/{id}/deal/moderate/reopen` `{ reason? }`(0~200) 게시판 매니저·스텝 재개(종료된 딜만) → 새 `PostDeal`
+ *      오류: 로그인 `401` · 그 게시판 매니저·스텝 아님·정지 `403 DEAL_MODERATE_FORBIDDEN` · 이미 종료 `409 DEAL_ENDED` · 종료 아님 `409 DEAL_NOT_ENDED` ·
+ *      핫딜 글 아님 `404 DEAL_NOT_FOUND` · 사유 `400 fields.reason`(사용자 결정 2026-11-01 — 공용 메모 4절)
  * 종료·되돌리기·keep·종료 요청은 서버 2단계(주소·모양은 계약대로 확정).
  */
 const PATH = {
     linkCheck: '/api/deals/link-check',
     prefill: '/api/deals/prefill',
+    moderateEnd: (postId: string) => `/api/posts/${encodeURIComponent(postId)}/deal/moderate/end`,
+    moderateReopen: (postId: string) => `/api/posts/${encodeURIComponent(postId)}/deal/moderate/reopen`,
     reopen: (postId: string) => `/api/posts/${encodeURIComponent(postId)}/deal/reopen`,
     end: (postId: string) => `/api/posts/${encodeURIComponent(postId)}/deal/end`,
     keep: (postId: string) => `/api/posts/${encodeURIComponent(postId)}/deal/keep`,
@@ -48,6 +54,12 @@ export function useHotdealApi() {
 
         /** 「아직 진행 중이에요」(의심 해제) */
         keep: (postId: string): Promise<PostDeal> => client.post<PostDeal>(PATH.keep(postId)),
+
+        /** 게시판 매니저·스텝 종료 — 사유 필수(1~200자) */
+        moderateEnd: (postId: string, reason: string): Promise<PostDeal> => client.post<PostDeal>(PATH.moderateEnd(postId), { reason }),
+
+        /** 게시판 매니저·스텝 재개(다시 진행 중으로) — 사유 선택(0~200자, 비면 null 로 보낸다) */
+        moderateReopen: (postId: string, reason: string | null): Promise<PostDeal> => client.post<PostDeal>(PATH.moderateReopen(postId), { reason }),
 
         /** 품절·가격 변경 알리기 */
         endRequest: (postId: string, reason: DealEndReason): Promise<PostDeal> => client.post<PostDeal>(PATH.endRequests(postId), { reason }),

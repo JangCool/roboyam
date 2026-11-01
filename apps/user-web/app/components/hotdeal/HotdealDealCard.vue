@@ -7,9 +7,13 @@
           → 이미지 · 배지 줄(제휴·수수료·HOT·임박·링크 바뀜·가격 수정 N회) → 가격 줄 → 쇼핑몰(→ 최종 호스트)·배송·재고·기간(마감 없으면 기간 종료 시각)·가격 기준(선택지·관부가세·메모)·쿠폰·딜 정보 수정(D3)
           → [구매하기](서버 경유 `buyUrl` = `/api/deals/{postId}/go` — 서버가 제휴 방식대로 바꿔 302, 외부 새 탭, `rel="nofollow sponsored noopener"`) · 끝난 딜이면 [이 상품 새 딜 올리기](`/write?board=&from=`) · 작성자 [딜 종료](확인창)
           → 「품절·가격 변경을 알려 주세요」(작성자에게는 없음, 비로그인은 로그인 안내, 이미 보냈으면 「보낸 사유: …」) → 사유 대화창 → 토스트
+          → 「게시판 관리」(보는 사람이 그 게시판 매니저·스텝일 때만 — `moderation`, 사용자 결정 2026-11-01): 자리 표시 + [핫딜 종료](사유 필수 대화창) / 종료된 딜이면 [다시 진행 중으로](사유 선택 대화창).
+            작성자 조치와 따로 그린다 — 작성자 본인이 매니저여도 작성자 종료·24시간 되돌리기·「아직 진행 중」은 그대로 두고 이 영역을 더 보인다(매니저 조치로 작성자 조치를 덮지 않는다).
+            단추는 서버 `canEnd`(진행·의심·기간 지남)·`canReopen`(종료)대로 — 기간 지난 딜은 카드가 흐려도 [핫딜 종료]가 남는다.
           → 「같은 딜 N건」 묶음(줄마다 「이 글보다 N원 저렴/비쌈」) → 아래 고지 「로보얌은 판매자가 아니에요…」.
         끝난 딜(종료·기간 지남)은 카드 몸통을 흐리게 하고 알리기·종료를 감춘다(구매하기는 남긴다 — 링크 확인용, 가정).
         서버 호출은 페이지가 내려 준 `actions` 로 한다. 성공하면 새 딜을 `update:deal` 로 올린다.
+        게시판 관리 실패: 맡은 자리가 빠졌으면(`403 DEAL_MODERATE_FORBIDDEN`) `update:moderation` null 로 영역을 거두고, 그새 상태가 바뀌었으면(`409 DEAL_ENDED`·`DEAL_NOT_ENDED`·`404 DEAL_NOT_FOUND`) `stale` 로 페이지가 글을 다시 읽게 한다.
     -->
     <section class="my-3 flex flex-col gap-3 rounded-xl border border-surface p-3.5" :aria-label="t('hotdeal.cardLabel')" :aria-busy="busy" data-testid="hotdeal-card" :data-deal-view="deal.view">
         <!-- 제휴 고지 — 카드 첫 줄 고정 -->
@@ -125,6 +129,41 @@
             <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('hotdeal.endRequestHelp') }}</p>
         </div>
 
+        <!-- 게시판 관리(그 게시판 매니저·스텝) — 작성자 조치와 따로 -->
+        <div v-if="moderation && (moderation.canEnd || moderation.canReopen)" class="flex flex-col gap-2 border-t border-surface pt-3" data-testid="hotdeal-moderation" :data-role="moderation.role">
+            <p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold">
+                <i class="pi pi-shield text-xs text-muted-color" aria-hidden="true" />{{ t('hotdeal.moderateTitle') }}
+                <Tag :value="moderatorLabel" severity="secondary" class="text-[0.6875rem] font-medium" data-testid="hotdeal-moderation-role" />
+            </p>
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <Button
+                    v-if="moderation.canEnd"
+                    type="button"
+                    :label="t('hotdeal.moderateEnd')"
+                    icon="pi pi-stop-circle"
+                    severity="danger"
+                    variant="outlined"
+                    size="small"
+                    :disabled="busy"
+                    data-testid="hotdeal-moderate-end"
+                    @click="openModerate('end')"
+                />
+                <Button
+                    v-if="moderation.canReopen"
+                    type="button"
+                    :label="t('hotdeal.reopen')"
+                    icon="pi pi-replay"
+                    severity="secondary"
+                    variant="outlined"
+                    size="small"
+                    :disabled="busy"
+                    data-testid="hotdeal-moderate-reopen"
+                    @click="openModerate('reopen')"
+                />
+                <span class="text-xs text-muted-color">{{ moderation.canEnd ? t('hotdeal.moderateEndHelp') : t('hotdeal.moderateReopenHelp') }}</span>
+            </div>
+        </div>
+
         <!-- 같은 딜 묶음(다른 글) — 줄마다 이 글과 가격 차 -->
         <div v-if="deal.sameDealCount > 0" class="flex flex-col gap-1 border-t border-surface pt-3" data-testid="hotdeal-same-group">
             <p class="m-0 text-sm font-semibold">{{ t('hotdeal.sameGroup', { n: sameDeals?.length ?? deal.sameDealCount }) }}</p>
@@ -145,11 +184,12 @@
         <p class="m-0 border-t border-surface pt-2.5 text-xs text-muted-color" data-testid="hotdeal-card-not-seller">{{ t('hotdeal.notSeller') }}</p>
 
         <HotdealEndRequestDialog v-model:visible="requestOpen" :loading="requesting" :error="requestError" @submit="onRequest" />
+        <HotdealModerateDialog v-model:visible="moderateOpen" :mode="moderateMode" :loading="moderating" :error="moderateError" :field-error="moderateFieldError" @submit="onModerate" />
     </section>
 </template>
 
 <script setup lang="ts">
-import type { DealEndReason, DealSameRef, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { DealEndReason, DealModeration, DealSameRef, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { DealCardActions } from '~/components/hotdeal/HotdealDealCard.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilHotdeal from '~/utils/util-hotdeal';
@@ -167,11 +207,22 @@ interface Props {
     guest?: boolean;
     /** 같은 딜 목록 — 받는 중이면 null */
     sameDeals?: DealSameRef[] | null;
+    /** 게시판 관리(글 상세 `dealModeration`) — 보는 사람이 그 게시판 매니저·스텝이 아니면 null */
+    moderation?: DealModeration | null;
     actions: DealCardActions;
 }
 
-const props = withDefaults(defineProps<Props>(), { mine: false, guest: false, sameDeals: null });
-const emit = defineEmits<{ 'update:deal': [deal: PostDeal] }>();
+const props = withDefaults(defineProps<Props>(), { mine: false, guest: false, sameDeals: null, moderation: null });
+const emit = defineEmits<{
+    'update:deal': [deal: PostDeal];
+    /** 게시판 관리 자리가 빠졌다(`403 DEAL_MODERATE_FORBIDDEN`) — null 을 올리면 페이지가 영역을 거둔다 */
+    'update:moderation': [moderation: DealModeration | null];
+    /** 그새 딜 상태가 바뀌었다 — 페이지가 글을 다시 읽어 딜·게시판 관리를 지금 값으로 바꾼다 */
+    stale: [];
+}>();
+
+/** 게시판 관리에서 그새 상태가 바뀐 거절 — 대화창을 닫고 글을 다시 읽는다 */
+const MODERATE_STALE_CODES: ReadonlySet<string> = new Set(['DEAL_ENDED', 'DEAL_NOT_ENDED', 'DEAL_NOT_FOUND']);
 
 /** 다시 눌러도 같은 결과인 거절 — 알리고 대화창을 닫는다 */
 const FINAL_CODES: ReadonlySet<string> = new Set([
@@ -217,7 +268,8 @@ const requestError = ref('');
 const keeping = ref(false);
 const ending = ref(false);
 const reopening = ref(false);
-const busy = computed(() => requesting.value || keeping.value || ending.value || reopening.value);
+const moderating = ref(false);
+const busy = computed(() => requesting.value || keeping.value || ending.value || reopening.value || moderating.value);
 
 function openRequest(): void {
     if (props.guest) return prompt('dealEnd');
@@ -298,6 +350,52 @@ async function onReopen(): Promise<void> {
         toast.error(errorText(e), 8000);
     } finally {
         reopening.value = false;
+    }
+}
+
+/* ── 게시판 관리(그 게시판 매니저·스텝) ── */
+const moderateOpen = ref(false);
+const moderateMode = ref<'end' | 'reopen'>('end');
+const moderateError = ref('');
+const moderateFieldError = ref('');
+const moderatorLabel = computed(() => (props.moderation?.role === 'STAFF' ? t('hotdeal.moderatorStaff') : t('hotdeal.moderatorManager')));
+
+function openModerate(mode: 'end' | 'reopen'): void {
+    moderateMode.value = mode;
+    moderateError.value = '';
+    moderateFieldError.value = '';
+    moderateOpen.value = true;
+}
+
+async function onModerate(reason: string): Promise<void> {
+    if (moderating.value) return;
+    const mode = moderateMode.value;
+    moderating.value = true;
+    moderateError.value = '';
+    moderateFieldError.value = '';
+    try {
+        emit('update:deal', mode === 'end' ? await props.actions.moderateEnd(reason) : await props.actions.moderateReopen(reason || null));
+        moderateOpen.value = false;
+        toast.success(mode === 'end' ? t('hotdeal.moderateEnded') : t('hotdeal.moderateReopened'));
+    } catch (e) {
+        const reasonError = e instanceof ApiError ? e.field('reason') : undefined;
+        if (reasonError) moderateFieldError.value = reasonError;
+        else if (e instanceof ApiError && e.code === 'DEAL_MODERATE_FORBIDDEN') {
+            // 매니저·스텝에서 빠졌거나 정지 — 영역을 거둔다
+            moderateOpen.value = false;
+            emit('update:moderation', null);
+            toast.error(UtilHotdealMessages.dealError(t, e, 'moderate') ?? e.message, 8000);
+        } else if (e instanceof ApiError && MODERATE_STALE_CODES.has(e.code)) {
+            // 그새 다른 사람이 종료·재개했다 — 글을 다시 읽어 지금 상태로
+            moderateOpen.value = false;
+            emit('stale');
+            toast.error(UtilHotdealMessages.dealError(t, e, 'moderate') ?? e.message, 8000);
+        } else if (e instanceof ApiError && e.code === 'UNAUTHENTICATED') {
+            moderateOpen.value = false;
+            toast.error(e.message, 8000);
+        } else moderateError.value = UtilBoardMessages.of(t, e);
+    } finally {
+        moderating.value = false;
     }
 }
 </script>

@@ -185,11 +185,19 @@ export interface SameDealRef {
     view: DealView;
 }
 
+/**
+ * 누가 종료했나(관리자 상세 덧붙임 — 게시판 매니저·스텝 종료, 2026-11-01): `OPERATOR` 운영자(관리자 화면·신고 조치) · `BOARD_MANAGER`·`BOARD_STAFF` 그 게시판 매니저·스텝(글 보기 「게시판 관리」) · `AUTHOR` 작성자.
+ * `row.deal.endedBy` 는 운영자·매니저·스텝을 `MANAGER` 하나로 묶어 두고, 이 칸이 행위자를 가른다
+ */
+export type AdminDealEndedByRole = 'OPERATOR' | 'BOARD_MANAGER' | 'BOARD_STAFF' | 'AUTHOR';
+
 /** `GET /api/admin/hotdeals/{postId}` */
 export interface AdminDealDetail {
     row: AdminDealRow;
     /** 종료한 운영진·작성자 표시 이름(자동이면 null — 관리자 덧붙임) */
     endedByName: string | null;
+    /** 종료한 사람의 자리 — 자동 종료·진행 중이면 null. 없으면(옛 응답) 경위는 `row.deal.endedBy` 묶음 문구로 쓴다 */
+    endedByRole?: AdminDealEndedByRole | null;
     /** 운영진이 종료할 때 적은 사유(관리자 덧붙임) */
     endReason: string | null;
     /** 작성자가 마지막으로 「아직 진행 중」을 누른 시각(`end_flag_cleared_at`, 관리자 덧붙임) */
