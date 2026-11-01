@@ -73,14 +73,17 @@ export default {
     createKindLabel: '종류',
     createKind: {
         GENERAL: '일반 게시판',
+        DEAL: '핫딜 게시판',
         GROUP: '소모임 게시판',
     },
     createKindNote: {
         GENERAL: '메뉴와 게시판 페이지가 있어요',
+        DEAL: '글마다 딜 정보를 받고 가격 줄 목록으로 보여요',
         GROUP: '소모임 글을 담아요 · 메뉴와 게시판 페이지가 없어요',
     },
     createKindHelp: {
         GENERAL: '주소처럼 만든 뒤에는 바꿀 수 없어요',
+        DEAL: '글마다 딜 정보(가격·쇼핑몰·링크)를 받고 가격 줄 목록으로 보여요 · 19금은 끈 채로 고정돼요 · 글쓰기는 일반 등급부터예요 · 만든 뒤 종류를 바꿀 수 없어요',
         GROUP: '메뉴와 게시판 페이지가 없어요 · 글은 소모임 목록과 각 소모임에서 보여요 · 만든 뒤 종류를 바꿀 수 없어요',
     },
     createKindFixed: '소모임 분류 화면에서는 소모임 게시판만 만들 수 있어요',

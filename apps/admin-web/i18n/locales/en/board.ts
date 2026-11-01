@@ -72,14 +72,17 @@ export default {
     createKindLabel: 'Type',
     createKind: {
         GENERAL: 'General board',
+        DEAL: 'Hot deal board',
         GROUP: 'Club board',
     },
     createKindNote: {
         GENERAL: 'Has a menu entry and a board page',
+        DEAL: 'Each post carries deal info · shown as a price-line list',
         GROUP: 'Holds club posts · no menu entry or board page',
     },
     createKindHelp: {
         GENERAL: 'Like the address, this cannot be changed later',
+        DEAL: 'Each post carries deal info (price · store · link) and the list shows price lines · 18+ stays off · posting starts at the regular grade · the type cannot be changed later',
         GROUP: 'No menu entry or board page · posts show in the club list and in each club · the type cannot be changed later',
     },
     createKindFixed: 'Only club boards can be created from Club categories',

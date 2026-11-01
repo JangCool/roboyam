@@ -12,7 +12,7 @@
             공개 사이트 내비게이션 순서의 주인은 메뉴(`main` 그룹, `/menus/public`)다 — 표 아래 안내에 그 화면 링크를 둔다(`layout.read` 가 있을 때만). 새 일반 게시판은 서버가 `main` 그룹의 자동 추가 폴더 끝에 넣는다.
           · 메뉴 폴더 묶음(menuPath)이 없다(개념 없음). 「지킴이 수」 대신 매니저·스텝 수.
           · 게시판 만들기에서 고유 말머리를 함께 받지 않는다 — 만든 뒤 설정 화면의 말머리 구획에서 더한다(공통 말머리 4개는 서버가 만든다). 만들면 그 게시판 설정 화면으로 간다.
-        게시판 만들기(이 화면 전용 대화상자): 맨 위 종류 카드 둘(일반 · 소모임, 기본 일반). 소모임이면 목록 모양 칸이 없고(요청은 `LIST`) 소모임 분류 칸(선택, 기본 「분류 없음」, 분류 sortOrder 순)과 안내 줄이 나온다.
+        게시판 만들기(이 화면 전용 대화상자): 맨 위 종류 카드 셋(일반 · 핫딜 · 소모임, 기본 일반). 핫딜은 일반과 같은 칸(목록 모양 있음, 분류 칸 없음) — 19금 끔·쓰기 첫 등급 아님·비회원 글쓰기 끔은 서버가 정한다. 소모임이면 목록 모양 칸이 없고(요청은 `LIST`) 소모임 분류 칸(선택, 기본 「분류 없음」, 분류 sortOrder 순)과 안내 줄이 나온다.
           분류 칸은 `group.read` 가 없으면 숨고, `group.settings` 가 없으면 「분류 없음」에 고정된다(`groupCategoryId` 를 싣지 않는다). 분류가 0개면 상자 대신 분류 화면 링크, 목록을 못 받아도 「분류 없음」으로 만들 수 있다.
           `?create=group&category=<ID>` 로 들어오면(소모임 분류 화면의 [소모임 게시판 만들기]) 종류가 소모임으로 고정되고 그 분류가 미리 골라진 채 열린다(주소의 두 칸은 지운다). 「소모임 게시판」 칩을 켠 채 열면 종류만 소모임으로 미리 고른다.
         끄면 그 게시판은 공개 사이트의 목록·검색·글 상세에서 모두 숨는다(글은 지워지지 않고 다시 켜면 돌아온다) — 끌 때만 확인을 묻는다.
@@ -192,10 +192,10 @@
         <!-- 게시판 만들기 — 이 화면 전용 대화상자 -->
         <Dialog v-model:visible="createOpen" modal :draggable="false" :header="t('board.createTitle')" :style="{ width: 'min(32rem, calc(100vw - 2rem))' }">
             <form :id="`${idBase}-create`" class="flex flex-col gap-4" novalidate @submit.prevent="create">
-                <!-- 종류 — 맨 위. 일반 | 소모임, 기본 일반. 소모임 분류 화면에서 열면 소모임 하나만 보이고 바꿀 수 없다 -->
+                <!-- 종류 — 맨 위. 일반 | 핫딜 | 소모임, 기본 일반. 소모임 분류 화면에서 열면 소모임 하나만 보이고 바꿀 수 없다 -->
                 <fieldset class="m-0 min-w-0 border-0 p-0" :aria-describedby="`${idBase}-kind-help`">
                     <legend class="mb-1.5 p-0 text-sm font-medium">{{ t('board.createKindLabel') }}</legend>
-                    <div class="grid grid-cols-1 gap-2" :class="kindOptions.length > 1 ? 'sm:grid-cols-2' : ''">
+                    <div class="grid grid-cols-1 gap-2" :class="kindOptions.length > 2 ? 'sm:grid-cols-3' : kindOptions.length > 1 ? 'sm:grid-cols-2' : ''">
                         <label
                             v-for="option in kindOptions"
                             :key="option.value"
@@ -428,11 +428,11 @@ const createError = ref('');
 const createServerFields = ref<Record<string, string>>({});
 const createForm = reactive<BoardCreateRequest>({ name: '', slug: '', description: '', layout: 'LIST' as BoardLayout });
 
-/** 종류 — 일반 | 소모임. 소모임 분류 화면에서 열면 소모임에 고정(`kindLocked`) */
+/** 종류 — 일반 | 핫딜 | 소모임. 소모임 분류 화면에서 열면 소모임에 고정(`kindLocked`). 핫딜은 일반과 같은 칸(분류 칸 없음, 목록 모양은 요청값) */
 const createKind = ref<BoardCreateKind>('GENERAL');
 const kindLocked = ref(false);
 const createIsGroup = computed(() => createKind.value === 'GROUP');
-const CREATE_KINDS: readonly BoardCreateKind[] = ['GENERAL', 'GROUP'];
+const CREATE_KINDS: readonly BoardCreateKind[] = ['GENERAL', 'DEAL', 'GROUP'];
 const kindOptions = computed(() =>
     CREATE_KINDS.filter((value) => !kindLocked.value || value === createKind.value).map((value) => ({ value, label: t(`board.createKind.${value}`), note: t(`board.createKindNote.${value}`) })),
 );
