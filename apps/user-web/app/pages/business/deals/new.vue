@@ -7,7 +7,6 @@
         ④ 노출 추가(없음 / 핫딜 게시판 상단 / 말머리 상단 — 고른 게시판·말머리 이름으로 안내, 말머리 없는 게시판이면 말머리 상단을 못 고름 — 고르면 노출 기간 달력)
         ⑤ 결제 방식 + 예상 금액 + 게시 정책 4줄(시작 시각에 게시 · 종료 요청 받음 · 끝나도 환불 없음 · 게시 뒤 고칠 수 없음) + 동의 → [심사 신청].
         「사업자 핫딜은 심사 뒤 결제하면 게시돼요」. 노출을 고르면 같은 신청 건에 묶어 한 번에 결제한다(목업 가정).
-        MOCK: `?mock=bizdeal-open`(또는 `bizdeal-one-board`·`bizdeal-no-prefix`)이면 받기를 켠 목업 요금·게시판으로 폼을 열고, 제출하면 목업 건(`/business/applications/mock-bizdeal`)으로 간다.
     -->
     <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="business-deal-new">
         <div class="flex items-center gap-2">
@@ -276,8 +275,6 @@ import type { BusinessAgreeItem } from '~/components/business/BusinessAgreeList.
 import type { PeriodValue } from '~/components/business/BusinessPeriodCalendar.types';
 import type { AvailabilityDay, BizDeal, BizDealStock, BizPaymentMethod, BusinessFile, BusinessProfile, DealLinkCheck, DealPlacement, DealProduct } from '~/composables/business/api/useBusinessApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
-// MOCK: 목업 스위치(`?mock=`)를 목업 건 주소로 이어 준다 — 서버가 붙으면 이 줄과 쓰는 곳을 지운다
-import { bizdealMockQuery } from '~/composables/business/api/mock/bizdeal-mock';
 import UtilBusiness from '~/utils/util-business';
 import UtilBusinessMessages from '~/utils/util-business-messages';
 
@@ -581,13 +578,18 @@ async function submit(): Promise<void> {
             agreedRefundPolicyVersion: REFUND_POLICY_VERSION,
         });
         toast.success(t('business.deal.submitted'));
-        // MOCK: 목업 스위치를 목업 건 화면으로 이어 준다(스위치가 없으면 빈 쿼리)
-        await navigateTo({ path: UtilBusiness.applicationPath(created.id), query: bizdealMockQuery() });
-        // REAL: await navigateTo(UtilBusiness.applicationPath(created.id));
+        await navigateTo(UtilBusiness.applicationPath(created.id));
     } catch (e) {
         formError.value = e instanceof Error ? e.message : t('business.deal.failed');
-        // 서버 칸 오류(게시판·말머리)면 그 단계로 — 문구는 서버 몫
-        if (e instanceof ApiError && (e.field('deal.boardId') || e.field('deal.prefixId'))) step.value = 3;
+        // 서버 칸 오류면 그 칸이 있는 단계로(앞 단계가 먼저) — 문구는 서버 몫. 링크(형식·차단·단축 주소 — `deal.linkUrl`)는 ①의 링크 칸 아래에도 싣는다
+        if (e instanceof ApiError) {
+            const linkField = e.field('deal.linkUrl');
+            if (linkField) {
+                linkError.value = linkField;
+                step.value = 1;
+            } else if (e.field('deal.listPrice') || e.field('deal.stock')) step.value = 2;
+            else if (e.field('deal.boardId') || e.field('deal.prefixId') || e.field('deal.imageFileId')) step.value = 3;
+        }
         if (e instanceof ApiError && e.code === 'BIZ_SLOT_FULL') {
             step.value = 4;
             void loadAvailability();

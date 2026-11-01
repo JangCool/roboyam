@@ -227,6 +227,7 @@ export default {
     reopenExpired: 'More than 24 hours have passed since it ended. Contact staff to reopen it.',
     reopenUsed: 'You already set this deal back once. Only staff can reopen it.',
     dealNotFound: 'This post no longer has a hot deal. Refresh the page and try again.',
+    businessPostLocked: 'Business hot deal posts can’t be edited or deleted. To take it down, use [End as sold out] on the application in the business center.',
     flaggedOther: 'Members reported this deal as sold out',
     overAuthor: 'The author ended this deal',
     overManager: 'Staff ended this deal',

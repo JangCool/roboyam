@@ -139,7 +139,7 @@
             <section :aria-labelledby="`${uid}-services`">
                 <h2 :id="`${uid}-services`" class="m-0 mb-2 text-sm font-semibold">{{ t('business.home.servicesTitle') }}</h2>
                 <div class="grid gap-3 sm:grid-cols-2">
-                    <div v-for="service in services" :key="service.testid"class="panel-card flex flex-col gap-2 p-4" :data-testid="service.testid">
+                    <div v-for="service in services" :key="service.testid" class="panel-card flex flex-col gap-2 p-4" :data-testid="service.testid">
                         <p class="m-0 flex flex-wrap items-center gap-2 text-sm font-bold">
                             <i :class="[service.icon, service.closed ? 'text-muted-color' : 'text-primary']" aria-hidden="true" />{{ service.label }}
                             <PointShopTag v-if="service.closed" tone="neutral">{{ t('business.home.serviceDealClosed') }}</PointShopTag>
@@ -180,8 +180,6 @@
 import type { BizApplicationSummary, BusinessProfile } from '~/composables/business/api/useBusinessApi.types';
 import UtilBusiness from '~/utils/util-business';
 import UtilBusinessMessages from '~/utils/util-business-messages';
-// MOCK: 사업자 핫딜 목업(`?mock=bizdeal-open`)이면 핫딜 카드가 열리고 신청 화면으로 스위치를 이어 준다 — 서버가 붙으면 이 줄과 쓰는 곳을 지운다
-import { bizdealMockQuery } from '~/composables/business/api/mock/bizdeal-mock';
 
 /**
  * 사업자 센터 홈 `/business` — 로그인 필요. 사용자 메뉴의 「사업자 센터/사업자 신청」 줄·마이페이지 바로가기가 온다.
@@ -252,9 +250,7 @@ const recent = computed(() => apps.value.slice(0, 5));
 const services = computed(() => [
     { to: UtilBusiness.AD_NEW_PATH, icon: 'pi pi-megaphone', label: t('business.home.serviceAd'), text: t('business.home.serviceAdText'), testid: 'business-service-ad', closed: false },
     {
-        // MOCK:
-        to: { path: UtilBusiness.DEAL_NEW_PATH, query: bizdealMockQuery() },
-        // REAL: to: UtilBusiness.DEAL_NEW_PATH,
+        to: UtilBusiness.DEAL_NEW_PATH,
         icon: 'pi pi-tag',
         label: t('business.home.serviceDeal'),
         text: t('business.home.serviceDealText'),

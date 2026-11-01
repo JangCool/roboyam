@@ -227,6 +227,7 @@ export default {
     reopenExpired: '종료하고 24시간이 지나 다시 진행 중으로 돌릴 수 없어요. 운영진에게 문의해 주세요.',
     reopenUsed: '이미 한 번 다시 진행 중으로 돌린 딜이에요. 운영진만 다시 열 수 있어요.',
     dealNotFound: '이 글에는 핫딜 정보가 없어요. 새로고침해서 다시 확인해 주세요.',
+    businessPostLocked: '사업자 핫딜 글은 고치거나 지울 수 없어요. 내리려면 사업자 센터 신청 건에서 [품절로 종료]를 눌러 주세요.',
     flaggedOther: '품절 알림이 들어온 딜이에요',
     overAuthor: '작성자가 종료한 딜이에요',
     overManager: '운영진이 종료한 딜이에요',

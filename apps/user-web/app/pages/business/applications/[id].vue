@@ -8,7 +8,6 @@
         예약·진행 = 기간·소재 버전·[취소·환불 요청](시작 전 = 전액 자동, 진행 중 = 일할 운영팀 확인 + 사유, 한 번만) · 환불은 `refund` 하위 값(요청·승인·거절).
         사업자 핫딜(`HOTDEAL_POST`, 2차)은 「게시된 글」 칸(상세 `post`) — 게시 전(「{시각}에 {게시판}에 올라가요」) · 게시됨(딜 상태 Tag·종료 요청 사유별 수·[글 보기]·[품절로 종료] → 확인창 「환불 없음 · 노출도 멈춤」, 409 `DEAL_ENDED` 면 알리고 다시 읽기) ·
           의심(「N명이 알렸어요 — {시각}까지 확인하지 않으면 자동 종료」, keep 은 글 보기에서) · 종료(누가 끝냈는지 · 환불 없음)·기간 종료 · 게시 실패(「운영팀이 확인 중이에요」 + 사유) · 숨김(내림·취소) + 노출 줄(대기·노출 중·멈춤(까닭)·끝남).
-          MOCK: 목업 건 `/business/applications/mock-bizdeal` + `?mock=bizdeal-…` 로 상태를 바꾼다(`composables/business/api/mock/bizdeal-mock.ts`).
         `?pay=1` 로 오면(홈의 [결제하기]) 결제창을 바로 연다. 포트원 모바일 리디렉션은 쿼리 없이 이 화면으로 돌아오고 `resumeRedirect` 가 이어 간다.
     -->
     <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="business-application">
@@ -343,8 +342,6 @@ import { ApiError } from '~/composables/common/useApiClient';
 import UtilBusiness from '~/utils/util-business';
 import UtilBusinessMessages from '~/utils/util-business-messages';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
-// MOCK: 목업 글 보기로 스위치를 이어 준다 — 서버가 붙으면 이 줄과 쓰는 곳을 지운다
-import { bizdealMockQuery, isMockBizdealId } from '~/composables/business/api/mock/bizdeal-mock';
 
 /**
  * 신청 건 상세 `/business/applications/{id}` — 로그인 필요. 내 신청 건 목록·사업자 센터 홈의 할 일 카드·알림(결제 요청·기한 임박)이 온다.
@@ -569,12 +566,7 @@ const hiddenText = computed(() => {
 const requestCounts = computed(() => (dealPost.value?.endRequests ? UtilHotdealMessages.requestCounts(t, dealPost.value.endRequests) : ''));
 /** 사업자 종료 — 게시되고 진행 중·의심일 때만(끝난 딜은 다시 열 수 없다) */
 const canEndDeal = computed(() => dealPost.value?.status === 'POSTED' && (dealPost.value.view === 'ACTIVE' || dealPost.value.view === 'FLAGGED'));
-const postLink = computed(() => {
-    const path = `/posts/${dealPost.value?.postId ?? ''}`;
-    // MOCK: 목업 건이면 목업 글 보기에 스위치를 이어 주고, 글쓴이(사업자)로 보이게 한다
-    if (isMockBizdealId(id.value)) return { path, query: { ...bizdealMockQuery(['bizdeal-mine']), board: dealPost.value?.boardSlug } };
-    return path;
-});
+const postLink = computed(() => `/posts/${dealPost.value?.postId ?? ''}`);
 
 const endingDeal = ref(false);
 async function endDeal(): Promise<void> {

@@ -18,17 +18,6 @@ import type {
     DealProduct,
 } from '~/composables/business/api/useBusinessApi.types';
 import type { PaymentCompleteRequest, PaymentFakeCheckoutRequest, PaymentResult } from '~/composables/payment/api/usePaymentApi.types';
-import {
-    bizdealProductMockOn,
-    isMockBizdealId,
-    mockBizdealApplication,
-    mockBizdealCancel,
-    mockBizdealEnd,
-    mockBizdealProduct,
-    mockBizdealRefund,
-    mockBizdealSubmit,
-    mockBizdealUpload,
-} from '~/composables/business/api/mock/bizdeal-mock';
 
 /**
  * 사업자 센터 API — 서버 주소 문자열(`/api/business/…`)이 있는 **유일한 곳**이다. 상태는 없다. 로그인 필요(401).
@@ -41,10 +30,9 @@ import {
  *    `PUT …/{id}/creative`(소재 바꾸기 → 결제 전이면 다시 심사) · `POST …/{id}/refund-request` `{ reason }`(1~300자)
  *  - 결제(온라인): `POST …/{id}/payment` → 결제창 정보(`payment` 모듈 `BIZ_APPLICATION`) — 완료는 공용 결제 완료 API(`usePaymentCheckout`) 뒤 상세를 다시 읽는다
  *  - 409 `BUSINESS_NOT_APPROVED`·`BUSINESS_RE_REVIEW`·`BIZ_SLOT_FULL`·`BIZ_PRODUCT_CLOSED`·`BIZ_APPLICATION_STATE_CHANGED`(화면이 다시 읽는다) · 404 `BIZ_APPLICATION_NOT_FOUND`
- *  - 사업자 핫딜 게시(2차 — 서버 없음): `deal-products` 에 `boards`, 신청 본문 `deal.boardId`·`prefixId`·`imageFileId`, 상세 `post`(`BizDealPost`) ·
- *    사업자 종료 `POST …/{id}/deal/end` → 새 `BizDealPost`(환불 없음 · 노출도 멈춤), 이미 끝났으면 409 `DEAL_ENDED`
- * ⚠ MOCK: 2차는 `?mock=bizdeal-…` 스위치가 있을 때(신청 건은 목업 건 `mock-bizdeal`)만 `./mock/bizdeal-mock.ts` 로 돌린다 — 스위치가 없으면 실제 API 그대로.
- *   서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지운다.
+ *  - 사업자 핫딜 게시(2차 — `biz-hotdeal-contract.md`): `deal-products` 에 `boards`, 신청 본문 `deal.boardId`·`prefixId`·`imageFileId`·`stock`, 상세 `post`(`BizDealPost`) ·
+ *    칸 오류 `fields."deal.boardId"`·`"deal.prefixId"`·`"deal.linkUrl"`(형식·차단·단축 주소)·`"deal.listPrice"`·`"deal.stock"`·`"deal.imageFileId"` ·
+ *    사업자 종료 `POST …/{id}/deal/end` → 새 `BizDealPost`(환불 없음 · 노출도 멈춤) — 이미 끝남 409 `DEAL_ENDED` · 글이 없음(게시 전·실패·숨김) 409 `BIZ_APPLICATION_STATE_CHANGED`
  */
 const PATH = {
     me: '/api/business/me',
@@ -77,19 +65,13 @@ export function useBusinessApi() {
         uploadCertificate: (file: File): Promise<BusinessFile> => client.upload<BusinessFile>(PATH.files, ((f) => (f.append('file', file), f))(new FormData())),
 
         /** 광고 이미지 올리기(JPG·PNG·GIF·WEBP 10MB) — 신청·소재 바꾸기가 `imageFileId` 로 붙인다 */
-        uploadFile: (file: File): Promise<BusinessFile> =>
-            // MOCK: 사업자 핫딜 목업(`bizdeal-open`)이면 서버에 올리지 않는다
-            bizdealProductMockOn() ? mockBizdealUpload(file) :
-            client.upload<BusinessFile>(PATH.adImages, ((f) => (f.append('file', file), f))(new FormData())),
+        uploadFile: (file: File): Promise<BusinessFile> => client.upload<BusinessFile>(PATH.adImages, ((f) => (f.append('file', file), f))(new FormData())),
 
         /** 광고 종류별 단가·한도·남은 칸 요약 */
         adProducts: (): Promise<AdProduct[]> => client.get<AdProduct[]>(PATH.adProducts),
 
         /** 사업자 핫딜 요금 · 받는 게시판 */
-        dealProduct: (): Promise<DealProduct> =>
-            // MOCK:
-            bizdealProductMockOn() ? mockBizdealProduct() :
-            client.get<DealProduct>(PATH.dealProducts),
+        dealProduct: (): Promise<DealProduct> => client.get<DealProduct>(PATH.dealProducts),
 
         /** 날짜별 남은 칸 — 저장 때 서버가 다시 판정한다 */
         availability: (slot: AvailabilitySlot, from: string, to: string): Promise<AvailabilityDay[]> => client.get<AvailabilityDay[]>(PATH.availability, { query: { slot, from, to } }),
@@ -101,31 +83,19 @@ export function useBusinessApi() {
         submitAd: (body: AdApplyRequest): Promise<BizApplicationCreated> => client.post<BizApplicationCreated>(`${PATH.applications}/ads`, body),
 
         /** 사업자 핫딜 심사 신청 */
-        submitDeal: (body: DealApplyRequest): Promise<BizApplicationCreated> =>
-            // MOCK:
-            bizdealProductMockOn() ? mockBizdealSubmit(body) :
-            client.post<BizApplicationCreated>(`${PATH.applications}/deals`, body),
+        submitDeal: (body: DealApplyRequest): Promise<BizApplicationCreated> => client.post<BizApplicationCreated>(`${PATH.applications}/deals`, body),
 
         /** 내 신청 건 목록 */
         applications: (bucket: BizApplicationBucket): Promise<BizApplicationPage> => client.get<BizApplicationPage>(PATH.applications, { query: { bucket } }),
 
         /** 신청 건 상세 */
-        application: (id: string): Promise<BizApplicationDetail> =>
-            // MOCK:
-            isMockBizdealId(id) ? mockBizdealApplication() :
-            client.get<BizApplicationDetail>(PATH.application(id)),
+        application: (id: string): Promise<BizApplicationDetail> => client.get<BizApplicationDetail>(PATH.application(id)),
 
         /** 결제 전 취소(심사 중·결제 대기·입금 확인 전 입금 대기) */
-        cancel: (id: string): Promise<BizApplicationDetail> =>
-            // MOCK:
-            isMockBizdealId(id) ? mockBizdealCancel() :
-            client.post<BizApplicationDetail>(`${PATH.application(id)}/cancel`),
+        cancel: (id: string): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(`${PATH.application(id)}/cancel`),
 
         /** 사업자 핫딜 종료(게시된 글 — 품절 등) — 환불 없음, 노출 자리도 같이 멈춘다. 이미 끝났으면 409 `DEAL_ENDED` */
-        endDeal: (id: string): Promise<BizDealPost> =>
-            // MOCK:
-            isMockBizdealId(id) ? mockBizdealEnd() :
-            client.post<BizDealPost>(`${PATH.application(id)}/deal/end`),
+        endDeal: (id: string): Promise<BizDealPost> => client.post<BizDealPost>(`${PATH.application(id)}/deal/end`),
 
         /** 소재 바꾸기 — 심사 중이면 새 버전, 승인 뒤 결제 전이면 다시 심사(자리 반납) */
         updateCreative: (id: string, body: BizCreativeRequest): Promise<BizApplicationDetail> => client.put<BizApplicationDetail>(`${PATH.application(id)}/creative`, body),
@@ -140,9 +110,6 @@ export function useBusinessApi() {
         completePayment: (paymentId: string, body: PaymentCompleteRequest): Promise<PaymentResult> => paymentApi.complete(paymentId, body),
 
         /** 취소·환불 요청(예약·진행 중, 한 번만) */
-        refundRequest: (id: string, reason: string): Promise<BizApplicationDetail> =>
-            // MOCK:
-            isMockBizdealId(id) ? mockBizdealRefund(reason) :
-            client.post<BizApplicationDetail>(`${PATH.application(id)}/refund-request`, { reason }),
+        refundRequest: (id: string, reason: string): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(`${PATH.application(id)}/refund-request`, { reason }),
     };
 }

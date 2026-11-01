@@ -128,7 +128,7 @@ export interface BizDeal {
     prefixId: string | null;
     /** 상품 이미지(`POST /api/business/ad-images` 가 준 ID) — 선택, 없으면 기본 아이콘 */
     imageFileId: string | null;
-    /** (상세만 — 화면이 더한 칸, 목업 가정) 올린 상품 이미지 주소. 없으면 null·없음 */
+    /** (상세만 — 2차 서버가 준다) 올린 상품 이미지 주소. 없으면 null·없음 */
     imageUrl?: string | null;
 }
 
@@ -289,9 +289,9 @@ export interface BizDealPost {
     failReason: BizDealFailReason | null;
     /** 노출 자리를 같이 샀으면 그 상태 — 없으면 null */
     placement: BizDealPlacementState | null;
-    /** (화면이 더한 칸 — 목업 가정) 의심(`FLAGGED`)이면 자동 종료 예정 시각. 없으면 null·없음(「12시간 안에」로 말한다) */
+    /** (2차 서버가 준다) 의심(`FLAGGED`)이면 자동 종료 예정 시각. 없으면 null·없음(「12시간 안에」로 말한다) */
     autoEndAt?: string | null;
-    /** (화면이 더한 칸 — 목업 가정) 끝난 시각. 없으면 null·없음 */
+    /** (2차 서버가 준다) 끝난 시각. 없으면 null·없음 */
     endedAt?: string | null;
 }
 

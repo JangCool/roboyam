@@ -780,7 +780,7 @@ async function onDelete(): Promise<void> {
     try {
         await finishDelete(await postApi.remove(p.id, { password: null }));
     } catch (e) {
-        toast.error(UtilBoardMessages.of(t, e), 8000);
+        toast.error(UtilHotdealMessages.dealError(t, e) ?? UtilBoardMessages.of(t, e), 8000); // 사업자 핫딜 글 `403 DEAL_BUSINESS_POST_LOCKED` 는 안내 문구
     } finally {
         deleting.value = false;
     }

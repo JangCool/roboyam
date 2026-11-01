@@ -395,7 +395,7 @@ async function submit(): Promise<void> {
             await reloadPoll(p.id);
             await nextTick(); // 투표 칸이 바뀌어 낡은 오류를 지우는 감시가 먼저 돈 뒤에 싣는다
             fieldErrors.value = { poll: e.message };
-        } else formError.value = UtilBoardMessages.of(t, e);
+        } else formError.value = UtilHotdealMessages.dealError(t, e) ?? UtilBoardMessages.of(t, e); // 사업자 핫딜 글 `403 DEAL_BUSINESS_POST_LOCKED` 는 안내 문구
     } finally {
         submitting.value = false;
     }
