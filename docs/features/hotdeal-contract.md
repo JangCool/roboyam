@@ -19,6 +19,7 @@
 - **D2 작성자 종료 되돌리기**: 작성자가 직접 종료한 글만, 종료 뒤 **24시간 안 1번** 다시 진행 중. 자동 종료(AUTO)·운영진 종료는 운영진만 재개.
 - **D3 링크를 다른 몰로 바꾸는 수정은 허용 + 표시·알림**: 딜 칸 수정 이력 6개월(`post_deal_revisions`, 회원·사업자 공통), 카드 「링크 바뀜」·「가격 수정 N회」, 호스트가 바뀌면 운영자 알림.
 - **D4 가격 허위 신고는 종료 요청과 합침**: `DEAL_FALSE_PRICE` 신고 = 종료 요청 `PRICE_CHANGED` 1건(같은 회원 1회), 자동 숨김 셈 제외. `DEAL_HIDDEN_AD` 는 자동 숨김 셈 포함.
+- **D5 제휴 링크 방식은 설정으로 켜고 끔**: `affiliateMode` = `MEMBER`(개인 제휴 허용, **기본** — 초기 운영) / `SITE`(사이트 제휴 — 개인 제휴 받지 않음, 사람이 몰리면 전환). `SITE` 면 「사이트 제휴 몰」 표(몰 도메인·제휴 프로그램 이름·변환 방식·켬/끔)로 구매 링크를 바꾼다. 구매하기는 늘 서버 경유 `/go/deal/{postId}`.
 - 추천안 채택(바꿀 수 있음): **종료 요청 자격 = 게시판 쓰기 등급(`writeMin`, 기본 일반) + 이메일 인증 + 정지 아님** · **회원 하루 핫딜 글 5건·같은 판매처 연속 10분 간격** · **마감 없는 딜 30일 뒤 기간 종료**.
 
 ## 목업 가정 (03 §6 추천안 — 확인 필요)
@@ -29,7 +30,9 @@
 - 위장 홍보 후보: **회원 후보** — 같은 회원이 7일 안에 같은 판매처(대형몰 제외)를 3건 이상. **판매처 후보** — 같은 비대형몰을 30일 안에 서로 다른 회원 3명 이상이 올리고, 그 회원들의 다른 핫딜 비율이 20% 미만. 운영자 목록만, 자동 제재 없음.
 - 의심 글은 목록에서 아래로, 「종료 숨기기」 기본 켬.
 - 신고 사유 추가 2개: `DEAL_FALSE_PRICE`(가격·정보가 사실과 달라요 → 종료 요청으로 접수, D4) · `DEAL_HIDDEN_AD`(광고·홍보를 숨겼어요) — 핫딜 글에서만 보임.
-- 제휴 표기(공정위 추천·보증 심사지침 2024-12 개정 — 조건부 표현 금지·첫 부분 표시): 목록 줄·카드 제목 앞 배지 「제휴·수수료」, 카드 첫 줄 「제휴 링크 — 이 링크로 구매하면 작성자가 판매자로부터 수수료를 받습니다」, 글쓴이 체크 문구도 단정형. 카드 아래 「로보얌은 판매자가 아니에요. 가격·재고는 판매처 기준이에요」.
+- **제휴 방식 전환 때 기존 글(확인 필요)**: `SITE` 로 바꾸면 기존 개인 제휴 글은 글은 남기고, 구매 링크 클릭 때 개인 제휴 파라미터를 떼고 사이트 제휴로 바꾼다(사이트 제휴 몰이 아니면 제휴를 떼고 원래 상품 링크). `MEMBER` 로 되돌리면 다시 원래(작성자) 링크. 저장된 `productUrl` 은 바꾸지 않고 변환은 클릭 시점에만.
+- `SITE` 모드 쓰기: 「제휴 링크예요」 체크 숨김, 링크가 AFFILIATE(개인 제휴 — 제휴 네트워크 단축·추적 링크 포함, 최종 호스트까지)로 판정되면 칸 오류 「지금은 개인 제휴 링크를 받지 않아요 — 일반 상품 링크를 넣어 주세요」(`fields."deal.productUrl"`, 코드 `DEAL_MEMBER_AFFILIATE_OFF`).
+- 제휴 표기(공정위 추천·보증 심사지침 2024-12 개정 — 조건부 표현 금지·첫 부분 표시): 목록 줄·카드 제목 앞 배지 「제휴·수수료」, 카드 첫 줄 「제휴 링크 — 이 링크로 구매하면 작성자가 판매자로부터 수수료를 받습니다」, 글쓴이 체크 문구도 단정형. 카드 아래 「로보얌은 판매자가 아니에요. 가격·재고는 판매처 기준이에요」. **사이트 제휴**(`SITE` 이고 사이트 제휴 몰): 배지 「제휴」 + 카드 첫 줄 「로보얌 제휴 링크 — 이 링크로 구매하면 로보얌이 판매자로부터 수수료를 받습니다」(단정형, ko·en). `MEMBER` 모드 개인 제휴 글은 개인 제휴 문구 그대로.
 
 ## 데이터 모양 (목업 공통 — 두 앱이 같은 이름을 쓴다)
 ```
@@ -49,7 +52,10 @@ PostDeal { source: MEMBER, storeName(≤40), productUrl(≤1000), productHost, f
   status, view, endedBy|null, endedAt|null, reopenUntil|null(작성자 되돌리기 기한 — AUTHOR 종료이고 아직 안 썼을 때만),
   endRequests: { total, bySoldOut, byPriceChanged, byLinkDead, mine: DealEndReason|null },
   flaggedAt|null, autoEndAt|null(flaggedAt+유예), keepCount, keepMax,
-  revision: { priceEdits, linkChanged, lastEditedAt|null }, hot(추천 ≥ hotLikeThreshold), sameDealCount }
+  revision: { priceEdits, linkChanged, lastEditedAt|null }, hot(추천 ≥ hotLikeThreshold), sameDealCount,
+  buyUrl(`/go/deal/{postId}` — 서버 경유), affiliateKind: MEMBER | SITE | null(지금 방식으로 계산한 표시 종류), siteProgramName|null }
+AffiliateMode  = MEMBER | SITE
+SiteAffiliateStore { id, domain(정규화), programName(≤40), transform: { type: TEMPLATE, template(`{url}` 자리표시자 1개 필수) } | { type: QUERY, query(붙일 쿼리 `k=v&…`) }, enabled }
 ```
 - `startsAt` 은 1차에서 뺀다.
 - 링크 판정(`link-check`): 소문자·스킴·www.·포트·경로를 뗀 호스트, **접미사 일치·더 구체적인 규칙 우선**, 리디렉션 체인의 모든 호스트에 적용(차단 > 제휴). 결과 `{ host, finalHost, rule: BLOCK|AFFILIATE|null, shortener, common, storeName, og: { status: OK|NONE|FAILED|OFF, imageUrl, title, storeName }, sameDeals: [{postId, title, dealPrice, shippingFee, createdAt}] }`.
@@ -73,6 +79,8 @@ PostDeal { source: MEMBER, storeName(≤40), productUrl(≤1000), productHost, f
 | 위장 홍보(회원) | `suspicionMinPosts` / `suspicionWindowDays` | 0~50(0=끔) / 1~90 | 3 / 7 |
 | 위장 홍보(판매처) | `storeSuspicionMembers` / `storeSuspicionWindowDays` / `storeSuspicionOtherRatioPercent` | 0~20(0=끔) / 1~90 / 0~100 | 3 / 30 / 20 |
 | 상품 이미지 | `ogFetchEnabled` | 켬/끔 | 켬 |
+| 제휴 링크 | `affiliateMode` | `MEMBER`·`SITE` | `MEMBER` — 바꿀 때 확인 창(「바꾸면 새 글부터 개인 제휴 링크를 받지 않고, 구매 링크는 사이트 제휴로 바뀌어요」 + 영향 글 수: 진행 중 개인 제휴 글 N · 그중 사이트 제휴 몰 M) |
+| 제휴 링크 | 사이트 제휴 몰 표 `siteAffiliateStores[]` | `SITE` 일 때만 보임 | 비어 있음 |
 - 보상 포인트·하루 지급 횟수는 포인트 정책(`dealEndRequestPoints`·`dealEndRequestDailyLimit`) 소유 — 핫딜 설정은 읽기만 + 「포인트 정책 열기」.
 - OG 보안 값(시간 제한·크기·동시 수)은 설정 화면에 두지 않는다(서버 규칙 1).
 
@@ -122,12 +130,15 @@ PostDeal { source: MEMBER, storeName(≤40), productUrl(≤1000), productHost, f
   - `POST /api/posts/{id}/deal/end` · `POST /api/posts/{id}/deal/reopen`(작성자 되돌리기) · `POST /api/posts/{id}/deal/keep` · `POST /api/posts/{id}/deal/end-requests {reason}` · `GET /api/posts/{id}/deal/same`.
   - 게시판 목록 `?sort=latest|popular|ending&hideEnded=true&prefix=&store=` + 쇼핑몰 칩 목록(`stores: [{name, count}]` 상위 8).
   - 가젯 `HOT_DEALS` 의 `data`.
+  - `GET /go/deal/{postId}` → **302** 외부 상품 주소(클릭 시점의 `affiliateMode`·사이트 제휴 몰로 변환, 클릭 집계, `rel="nofollow sponsored noopener"` 는 화면 링크에 그대로). 공개·진행 중이 아니면 원래 링크 또는 글로(서버 판단).
+  - 공개 설정 전달: 쓰기 화면이 `affiliateMode` 를 알아야 함(게시판 응답 또는 link-check 응답의 `affiliateMode`).
   - 오류: `429 DEAL_DAILY_POST_LIMIT`·`DEAL_SAME_STORE_TOO_SOON`·`DEAL_END_REQUEST_DAILY_LIMIT`·`DEAL_END_REQUEST_AUTHOR_LIMIT` · `403 DEAL_END_REQUEST_OWN`·`DEAL_END_REQUEST_NOT_ALLOWED`(자격) · `409 DEAL_END_REQUEST_EXISTS`·`DEAL_ENDED`·`DEAL_NOT_FLAGGED`·`DEAL_KEEP_LIMIT`·`DEAL_REOPEN_EXPIRED`·`DEAL_REOPEN_USED`.
 - 관리자(server/admin)
   - `GET /api/admin/hotdeals?view&board&q&createdFrom&createdTo&blockedActive&page` (+ `counts`) · `GET /{postId}`(`endedByName`·`endReason`·`keptAt`·`keepCount`·`publicUrl`·`sameDeals`) · `GET /{postId}/revisions` → `[{id, at, actor: {kind: AUTHOR|MANAGER, name}, changes: [{field, before, after}], hostChanged}]` · `POST /{postId}/end {reason?}` · `POST /{postId}/reopen {reason?}` · `GET /api/admin/hotdeals/boards`.
   - `GET/POST/PUT/DELETE /api/admin/hotdeal-domains` — 줄 `{ domain, rule, common, keyParams: string[], note }` · `GET /api/admin/hotdeal-domains/impact?domain=` → 차단으로 바꿀 때 「진행 중 글 N건」.
   - `GET /api/admin/hotdeal-suspicions?status&kind=MEMBER|STORE` · `POST /{id}/dismiss {note?}` — 판매처 후보 줄 `{ kind: STORE, host, storeName, memberCount, otherRatioPercent, windowDays, posts[] }`.
-  - `GET/PUT /api/admin/hotdeal-settings`(위 표).
+  - `GET/PUT /api/admin/hotdeal-settings`(위 표) · `GET /api/admin/hotdeal-settings/affiliate-impact?mode=` → `{ memberAffiliateActive, siteStoreMatched }`.
+  - 사이트 제휴 몰 `GET/POST/PUT/DELETE /api/admin/hotdeal-site-affiliates` — 도메인 유일(`409 HOTDEAL_SITE_AFFILIATE_DUPLICATE` + `fields.domain`), `fields.template`(`{url}` 없음)·`fields.query`·`fields.programName`. 감사 `HOTDEAL_SITE_AFFILIATE_CREATE/UPDATE/DELETE`, 방식 전환은 `HOTDEAL_SETTINGS_UPDATE` 에 바뀐 칸으로.
   - 신고 사건 조치 `action: DEAL_END`(핫딜 종료) + 사유 `DEAL_FALSE_PRICE`·`DEAL_HIDDEN_AD`.
   - 오류: `409 HOTDEAL_STATE_CHANGED`·`HOTDEAL_DOMAIN_DUPLICATE`(+`fields.domain`) · `404 HOTDEAL_DOMAIN_NOT_FOUND`·`HOTDEAL_SUSPICION_NOT_FOUND`.
 - DB(shared 스트림 — 번호는 서버 세션이 develop 최신 확인 뒤): `post_deals` · `post_deal_revisions` · `deal_domains`(+`key_params`) · `deal_end_requests` · `deal_suspicions`(+`kind`) · `deal_settings` · OG 이미지 사본(저장 위치·정리 배치).
@@ -176,3 +187,4 @@ PostDeal { source: MEMBER, storeName(≤40), productUrl(≤1000), productHost, f
 - 회원 글 수정 이력 6개월 자율 보존 표기.
 - 위장 홍보 집계에 IP·기기 정보를 쓸지(1차는 안 씀).
 - 0원 딜·체험단 모집이 광고인지.
+- **사이트 제휴(D5)**: 사이트 제휴일 때 표시 의무자 = 로보얌(표시 문구·위치), 각 제휴 프로그램 약관이 커뮤니티 게시글 링크 변환·재작성을 허용하는지, 회원이 올린 링크를 사이트 제휴로 바꾸는 것에 대한 이용약관 고지.
