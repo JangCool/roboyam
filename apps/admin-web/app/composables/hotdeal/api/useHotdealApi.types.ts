@@ -52,9 +52,19 @@ export interface DealRevisionSummary {
     lastEditedAt: string | null;
 }
 
+/** 딜을 올린 쪽 — 회원 핫딜 · 사업자 핫딜(2차 — 예약된 사업자 신청 건이 시작 시각에 올린 글, 「광고」 + 상호) */
+export type DealSource = 'MEMBER' | 'BUSINESS';
+export const DEAL_SOURCES: readonly DealSource[] = ['MEMBER', 'BUSINESS'];
+
+/** 사업자 핫딜 글의 사업자 — 상호와 그 글을 올린 신청 건(`/hotdeal-reviews?id=`) */
+export interface DealBusinessRef {
+    name: string;
+    applicationId: string;
+}
+
 /** 글의 딜 정보 — 계약 `PostDeal` 그대로(`startsAt` 은 1차에서 뺐다) */
 export interface PostDeal {
-    source: 'MEMBER';
+    source: DealSource;
     /** 쇼핑몰 이름 1~40자 */
     storeName: string;
     productUrl: string;
@@ -142,6 +152,10 @@ export interface AdminDealRow {
      */
     blockedHost: string | null;
     deal: PostDeal;
+    /** 출처(2차 — 서버가 아직 안 주면 없음 = 회원 핫딜). `deal.source` 와 같은 값 */
+    source?: DealSource;
+    /** 사업자 핫딜 글의 사업자(회원 핫딜이면 null) */
+    business?: DealBusinessRef | null;
 }
 
 /** 상태 고르기 — 진행 · 의심 · 종료 · 기간 지남 · 전체 */
@@ -149,7 +163,7 @@ export type DealViewFilter = DealView | 'ALL';
 
 export const DEAL_VIEW_FILTERS: readonly DealViewFilter[] = ['ACTIVE', 'FLAGGED', 'ENDED', 'EXPIRED', 'ALL'];
 
-/** `GET /api/admin/hotdeals?view&board&q&createdFrom&createdTo&blockedActive&page&size` */
+/** `GET /api/admin/hotdeals?view&board&q&createdFrom&createdTo&blockedActive&source&page&size` */
 export interface AdminDealQuery {
     view: DealViewFilter;
     /** 게시판 ID(빈 글자면 모든 핫딜 게시판) */
@@ -160,6 +174,8 @@ export interface AdminDealQuery {
     createdTo?: string;
     /** 차단 도메인 진행 중만(`blockedHost` 가 있는 글) */
     blockedActive?: boolean;
+    /** 출처만(2차 — 없으면 전체) */
+    source?: DealSource;
     /** 0부터 */
     page: number;
     size: number;

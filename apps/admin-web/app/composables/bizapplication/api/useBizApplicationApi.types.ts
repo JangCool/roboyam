@@ -36,6 +36,51 @@ export interface BizPeriod {
     endAt: string;
 }
 
+/** 이름 붙은 참조(게시판·말머리) */
+export interface BizRef {
+    id: string;
+    name: string;
+}
+
+/** 사업자 핫딜 재고(2차, 회원 핫딜과 같은 값) — `PLENTY`·`LIMITED` 는 옛 신청 건 값(각각 IN_STOCK·LOW 와 같은 문구) */
+export type BizDealStock = 'IN_STOCK' | 'LOW' | 'UNKNOWN' | 'PLENTY' | 'LIMITED';
+
+/**
+ * 사업자 핫딜 게시(2차 — 사용자 확정 2026-11-02). 예약된 `HOTDEAL_POST` 는 시작 시각에 핫딜 게시판에 실제 글(`source=BUSINESS`, 「광고」 + 상호)로 올라간다.
+ * 딜 마감 = 신청 기간 끝. 취소·환불·긴급 내림이면 글을 숨기고, 되돌리면 다시 보인다. 게시에 실패하면 글을 만들지 않고 처리 기록 `POST_FAILED` + 운영자 알림 — 운영자는 [취소(전액 환불)]로 정리한다.
+ *  - status: 게시 전(WAITING) · 게시됨(POSTED) · 실패(FAILED) · 숨김(HIDDEN — 내림·취소)
+ *  - view: 게시된 글의 딜 상태(회원 핫딜과 같은 계산 — ACTIVE·FLAGGED·ENDED·EXPIRED), 게시 전·실패면 null
+ */
+export type BizDealPostStatus = 'WAITING' | 'POSTED' | 'FAILED' | 'HIDDEN';
+export type BizDealView = 'ACTIVE' | 'FLAGGED' | 'ENDED' | 'EXPIRED';
+/** 게시 실패 사유 — 게시판 꺼짐 · 링크가 차단 규칙으로 바뀜 · 사업자 정지 · 그 밖 */
+export type BizDealFailReason = 'BOARD_CLOSED' | 'LINK_BLOCKED' | 'BUSINESS_SUSPENDED' | 'OTHER';
+export const BIZ_DEAL_FAIL_REASONS: readonly BizDealFailReason[] = ['BOARD_CLOSED', 'LINK_BLOCKED', 'BUSINESS_SUSPENDED', 'OTHER'];
+
+/** 글에 딸린 노출 줄 — 딜이 끝나거나 글이 숨으면 같이 빠진다 */
+export interface BizDealPlacement {
+    product: 'HOTDEAL_TOP' | 'HOTDEAL_CATEGORY';
+    status: 'WAITING' | 'SHOWING' | 'STOPPED' | 'ENDED';
+    stopReason: 'DEAL_ENDED' | 'POST_HIDDEN' | null;
+}
+
+export interface BizDealPost {
+    status: BizDealPostStatus;
+    /** 게시된 글 번호(게시 전·실패면 null) — 관리자 핫딜 글 `/hotdeals?view=ALL&deal={postId}` */
+    postId: string | null;
+    boardSlug: string;
+    boardName: string;
+    prefixName: string | null;
+    /** 게시 시각(= 신청 기간 시작) */
+    publishAt: string;
+    view: BizDealView | null;
+    /** 종료한 쪽 — 사업자(AUTHOR) · 운영진 · 자동. 사업자·자동 종료 모두 환불 없음 */
+    endedBy: 'AUTHOR' | 'MANAGER' | 'AUTO' | null;
+    endRequests: { total: number; bySoldOut: number; byPriceChanged: number; byLinkDead: number } | null;
+    failReason: BizDealFailReason | null;
+    placement: BizDealPlacement | null;
+}
+
 export type BizApplicationContent =
     | { type: 'AD_BANNER'; imageUrl: string; linkUrl: string; altText: string }
     | { type: 'AD_TEXT_LINE'; text: string; linkUrl: string }
@@ -51,9 +96,16 @@ export type BizApplicationContent =
           shippingFee?: number | null;
           /** 딜 끝 날짜 `YYYY-MM-DD` */
           endsOn?: string | null;
-          stock?: 'PLENTY' | 'LIMITED' | 'UNKNOWN' | null;
+          /** 재고 — 2차부터 `IN_STOCK`·`LOW`·`UNKNOWN`(옛 신청 건의 `PLENTY`·`LIMITED` 도 문구가 깨지지 않게 받는다) */
+          stock?: BizDealStock | null;
           placement?: 'NONE' | 'HOME_TOP' | 'CATEGORY_TOP' | null;
           affiliate?: boolean | null;
+          /** 올라갈 핫딜 게시판(2차 — 서버가 아직 안 주면 없음, 화면이 감춘다) */
+          board?: BizRef | null;
+          /** 신청 때 고른 말머리(없으면 null — 말머리 상단 노출의 자리) */
+          prefix?: BizRef | null;
+          /** 상품 이미지(2차) */
+          imageUrl?: string | null;
       }
     | { type: 'HOTDEAL_PLACEMENT'; postId: string; postTitle: string; price: number; originalPrice: number | null; mallName: string; categoryName: string | null };
 
@@ -175,6 +227,13 @@ export const BIZ_HISTORY_ACTIONS = [
     'REFUND_TRANSFERRED',
     'AUTO_CANCELED',
     'FORFEITED',
+    // 사업자 핫딜 게시(2차) — 게시 · 게시 실패(note = 실패 사유 코드) · 글 숨김 · 다시 보임 · 사업자 종료 · 자동 종료
+    'POSTED',
+    'POST_FAILED',
+    'POST_HIDDEN',
+    'POST_RESTORED',
+    'DEAL_ENDED_BY_BUSINESS',
+    'DEAL_AUTO_ENDED',
 ] as const;
 export type BizHistoryAction = (typeof BIZ_HISTORY_ACTIONS)[number];
 
@@ -254,6 +313,8 @@ export interface BizApplicationDetail extends BizApplicationRow {
     weight: number;
     registrant: BizRegistrant | null;
     selfApproval: BizSelfApproval;
+    /** 사업자 핫딜 게시(2차, `HOTDEAL_POST` 만) — 예약 전이면 null, 서버가 아직 안 주면 없음(화면이 「게시」 칸을 감춘다) */
+    post?: BizDealPost | null;
 }
 
 export interface BizApplicationQuery {

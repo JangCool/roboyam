@@ -4,7 +4,7 @@
         열린 채 다른 줄을 누르면 그 글로 바뀐다. 서랍·표 줄·떠 있는 창 밖을 누르면 닫는다.
         머리: 제목 · 상태 알약 · 글 번호(복사) · 공개 글 열기(새 탭) · 이전/다음 글.
         본문: 딜 카드(이미지 · 가격 줄 · 쇼핑몰·호스트 · 상품 링크 `rel="nofollow sponsored noopener"` 새 탭 · 제휴 · 배송 · 재고 · 기간 · 쿠폰·가격 기준) →
-          상태와 종료 경위(누가·언제 · 의심 시각·자동 종료 예정 · 작성자 되돌리기 기한(D2) · keep 횟수 N/M) → 종료 요청 사유별 수(요청자 신원은 없다) → 신고 대기(신고 관리 링크) → 같은 딜 N건(누르면 그 글로) → 글 정보(게시판·말머리·작성자·등록 시각).
+          상태와 종료 경위(누가·언제 · 의심 시각·자동 종료 예정 · 작성자 되돌리기 기한(D2) · keep 횟수 N/M) → 종료 요청 사유별 수(요청자 신원은 없다) → 신고 대기(신고 관리 링크) → 같은 딜 N건(누르면 그 글로) → 글 정보(게시판·말머리·사업자(2차 사업자 핫딜 — 상호 · [핫딜 심사에서 열기])·작성자·등록 시각).
           맨 위에 「차단 도메인 진행 중」 경고(지금 규칙에서 상품·최종 호스트가 차단), 딜 카드에 최종 호스트 · HOT · 「링크 바뀜」·「가격 수정 N회」 · 가격 기준 배지.
           제휴 링크 방식이 사이트 제휴(`detail.affiliateMode = SITE`)면 상품 주소 아래 「구매 링크: 사이트 제휴로 변환 — 프로그램」 / 「개인 제휴 — 지금은 클릭 때 떼어져요」 / 「제휴 없이 원래 링크」 한 줄(D5).
         탭 「수정 이력」(D3): 처음 열 때 부른 화면이 받는다(`need-revisions`). 줄 = 시각 · 누가(작성자/운영진) · 바뀐 칸 전 → 후, 호스트가 바뀐 줄은 노랑 테두리 + 「링크 바뀜」. 6개월 보존 안내 한 줄.
@@ -189,6 +189,21 @@
                     {{ localizedName(row.board.name, row.board.nameEn) }}<span v-if="row.prefix" class="ml-1 text-muted-color">[{{ row.prefix.name }}]</span>
                 </dd>
 
+                <!-- 사업자 핫딜 글(2차) — 상호 · 그 글을 올린 신청 건 -->
+                <template v-if="business">
+                    <dt class="text-muted-color">{{ t('hotdeal.business') }}</dt>
+                    <dd class="m-0 flex flex-col gap-1">
+                        <span class="flex flex-wrap items-center gap-1.5">
+                            <Tag :value="t('hotdeal.businessAd')" icon="pi pi-megaphone" severity="warn" class="text-[11px]!" />
+                            <span class="font-medium">{{ business.name }}</span>
+                            <NuxtLink :to="reviewLink" class="inline-flex items-center gap-1 text-xs text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+                                {{ t('hotdeal.openReview') }} <i class="pi pi-arrow-right text-[10px]" aria-hidden="true" />
+                            </NuxtLink>
+                        </span>
+                        <span class="text-xs text-muted-color">{{ t('hotdeal.businessNote') }}</span>
+                    </dd>
+                </template>
+
                 <dt class="text-muted-color">{{ t('hotdeal.col.author') }}</dt>
                 <dd class="m-0 flex flex-wrap items-center gap-2">
                     <span :class="row.author.withdrawn ? 'text-muted-color' : ''">{{ UtilHotdealMessages.author(t, row.author) }}</span>
@@ -256,6 +271,7 @@
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
+import { mockQuery } from '~/composables/common/mock/mock-util';
 import type { AdminDealDetail, AdminDealRow, DealRevisionListView } from '~/composables/hotdeal/api/useHotdealApi.types';
 import UtilHotdeal from '~/utils/util-hotdeal';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
@@ -336,6 +352,17 @@ watch(
 watch(open, (isOpen) => {
     if (!isOpen) tab.value = 'info';
 });
+
+/** 사업자 핫딜 글(2차)의 사업자 — 서버가 아직 안 주면 없음 */
+const business = computed(() => (props.detail && UtilHotdeal.isBusiness(row.value) ? (row.value.business ?? null) : null));
+/** 핫딜 심사의 그 신청 건. 목업 스위치는 그대로 싣는다 */
+const reviewLink = computed(() => ({
+    path: '/hotdeal-reviews',
+    query: {
+        id: business.value?.applicationId ?? '',
+        ...mockQuery(), // MOCK: 목업 건끼리 오가게 `?mock=` 를 싣는다 — 서버가 붙으면 이 줄과 import 를 지운다
+    },
+}));
 
 const requestRows = computed(() => [
     { key: 'SOLD_OUT', n: deal.value.endRequests.bySoldOut },

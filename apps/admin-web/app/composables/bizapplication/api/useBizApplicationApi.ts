@@ -1,3 +1,4 @@
+import { mockBizDealCancel, mockBizDealDetail, mockBizDealList } from '~/composables/bizapplication/api/mock/bizdeal-mock';
 import type {
     BizApplicationDetail,
     BizApplicationList,
@@ -30,6 +31,9 @@ import type {
  *  - `POST …/{id}/deposit-deadline` `{ deadlineAt }` · `POST …/{id}/cancel` `{ reason }`(운영자 등록 건은 심사 대기에서도 취소 — 등록 실수. 계약서 올리기도 운영자 등록 건은 심사 대기부터)
  *  - `POST …/{id}/refund/approve` `{ amount, reason }` · `POST …/{id}/refund/deny` `{ reason }` · `POST …/{id}/refund/transfer` `{ note? }`(수동 환불 송금 완료 표시)
  *  상태가 이미 바뀌었으면 409 `BIZ_APPLICATION_STATE_CHANGED`.
+ *
+ * ⚠ MOCK(사업자 핫딜 게시 2차): `?mock=bizdeal-…` 일 때만 `./mock/bizdeal-mock.ts` 가 목업 건을 목록 맨 위에 끼우고, 목업 건 번호(`mock-bizdeal-…`)의 상세·취소를 흉내 낸다.
+ *   스위치가 없으면 실제 API 그대로. 서버가 게시 기능(상세 `post`)을 내려 주면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
  */
 const PATH = {
     root: '/api/admin/biz-applications',
@@ -43,9 +47,16 @@ export function useBizApplicationApi() {
     const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
-        list: (query: BizApplicationQuery): Promise<BizApplicationList> => client.get<BizApplicationList>(PATH.root, { query: { ...query } }),
+        list: (query: BizApplicationQuery): Promise<BizApplicationList> =>
+            // MOCK:
+            mockBizDealList(query, () => client.get<BizApplicationList>(PATH.root, { query: { ...query } })),
+        // REAL: client.get<BizApplicationList>(PATH.root, { query: { ...query } }),
 
-        detail: (id: string): Promise<BizApplicationDetail> => client.get<BizApplicationDetail>(PATH.one(id)),
+        detail: (id: string): Promise<BizApplicationDetail> =>
+            // MOCK:
+            mockBizDealDetail(id) ??
+            client.get<BizApplicationDetail>(PATH.one(id)),
+        // REAL: client.get<BizApplicationDetail>(PATH.one(id)),
 
         availability: (id: string, period: BizPeriod): Promise<BizAvailability> => client.get<BizAvailability>(PATH.action(id, 'availability'), { query: { ...period } }),
 
@@ -73,7 +84,11 @@ export function useBizApplicationApi() {
 
         extendDeposit: (id: string, deadlineAt: string): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(PATH.action(id, 'deposit-deadline'), { deadlineAt }),
 
-        cancel: (id: string, reason: string): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(PATH.action(id, 'cancel'), { reason }),
+        cancel: (id: string, reason: string): Promise<BizApplicationDetail> =>
+            // MOCK:
+            mockBizDealCancel(id, reason) ??
+            client.post<BizApplicationDetail>(PATH.action(id, 'cancel'), { reason }),
+        // REAL: client.post<BizApplicationDetail>(PATH.action(id, 'cancel'), { reason }),
 
         approveRefund: (id: string, body: { amount: number; reason: string }): Promise<BizApplicationDetail> =>
             client.post<BizApplicationDetail>(PATH.action(id, 'refund/approve'), body),

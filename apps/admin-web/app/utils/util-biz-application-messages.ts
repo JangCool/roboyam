@@ -1,7 +1,7 @@
 import type { DisplayTime } from '#layers/display-time/utils/util-time';
 import type { Translate } from '#layers/i18n/utils/util-i18n';
 import type { BizPeriod } from '~/composables/bizapplication/api/useBizApplicationApi.types';
-import { BIZ_HISTORY_ACTIONS, BIZ_REJECT_CODES } from '~/composables/bizapplication/api/useBizApplicationApi.types';
+import { BIZ_DEAL_FAIL_REASONS, BIZ_HISTORY_ACTIONS, BIZ_REJECT_CODES } from '~/composables/bizapplication/api/useBizApplicationApi.types';
 import UtilBizApplication from '~/utils/util-biz-application';
 
 /**
@@ -47,6 +47,8 @@ export default class UtilBizApplicationMessages {
         const code = (v: string, group: string, codes: readonly string[]) => (codes.includes(v) ? t(`bizApplication.${group}.${v}`) : v);
         const amount = () => (/^-?\d+$/.test(note) ? UtilBizApplicationMessages.won(t, Number(note), locale) : note);
         switch (action) {
+            case 'POST_FAILED':
+                return code(note, 'post.failReason', BIZ_DEAL_FAIL_REASONS);
             case 'REJECTED':
                 return code(note, 'rejectCode', BIZ_REJECT_CODES);
             case 'APPROVED_ONLINE':

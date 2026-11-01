@@ -1,7 +1,7 @@
 import type { LocationQuery } from 'vue-router';
-import type { AdminDealQuery, AdminDealRow, AffiliateMode, DealView, DealViewFilter, DomainRule } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { AdminDealQuery, AdminDealRow, AffiliateMode, DealSource, DealView, DealViewFilter, DomainRule } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { SiteAffiliateStore, SiteAffiliateTransform } from '~/composables/hotdeal/api/useHotdealSiteAffiliateApi.types';
-import { DEAL_VIEW_FILTERS } from '~/composables/hotdeal/api/useHotdealApi.types';
+import { DEAL_SOURCES, DEAL_VIEW_FILTERS } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { DealDomain, DealDomainRequest, DomainRuleFilter } from '~/composables/hotdeal/api/useHotdealDomainApi.types';
 import { DOMAIN_RULE_FILTERS } from '~/composables/hotdeal/api/useHotdealDomainApi.types';
 import type { DealSuspicionKindFilter, DealSuspicionStatus } from '~/composables/hotdeal/api/useHotdealSuspicionApi.types';
@@ -9,7 +9,7 @@ import { DEAL_SUSPICION_KIND_FILTERS, DEAL_SUSPICION_STATUSES } from '~/composab
 import type { HotdealSettingsField, HotdealSettingsNumbers } from '~/composables/hotdeal/api/useHotdealSettingsApi.types';
 import UtilMember from '~/utils/util-member';
 
-/** 핫딜 글 목록의 주소 조건(`?view=&board=&q=&from=&to=&blocked=1&page=&size=&deal=`) */
+/** 핫딜 글 목록의 주소 조건(`?view=&board=&source=&q=&from=&to=&blocked=1&page=&size=&deal=`) */
 export interface HotdealFilters {
     view: DealViewFilter;
     /** 게시판 ID(없으면 빈 글자 = 모든 핫딜 게시판) */
@@ -20,6 +20,8 @@ export interface HotdealFilters {
     to: string;
     /** 차단 도메인 진행 중만(`blockedActive`) */
     blocked: boolean;
+    /** 출처(2차 — 빈 글자면 전체) */
+    source: DealSource | '';
     page: number;
     size: number;
 }
@@ -173,7 +175,7 @@ export default class UtilHotdeal {
     /* ── 핫딜 글 목록 주소 ── */
 
     static emptyFilters(): HotdealFilters {
-        return { view: 'ACTIVE', board: '', q: '', from: '', to: '', blocked: false, page: 1, size: PAGE_SIZE };
+        return { view: 'ACTIVE', board: '', q: '', from: '', to: '', blocked: false, source: '', page: 1, size: PAGE_SIZE };
     }
 
     /** 주소 → 조건. 상태 처음 값은 「진행」(운영자가 먼저 볼 것) */
@@ -184,6 +186,7 @@ export default class UtilHotdeal {
         const board = first(query.board).trim();
         const from = first(query.from).trim();
         const to = first(query.to).trim();
+        const source = first(query.source).toUpperCase() as DealSource;
         return {
             view: DEAL_VIEW_FILTERS.includes(view) ? view : 'ACTIVE',
             board: ID.test(board) ? board : '',
@@ -191,6 +194,7 @@ export default class UtilHotdeal {
             from: YMD.test(from) ? from : '',
             to: YMD.test(to) ? to : '',
             blocked: first(query.blocked) === '1',
+            source: DEAL_SOURCES.includes(source) ? source : '',
             page: Number.isFinite(page) && page >= 1 ? page : 1,
             size: PAGE_SIZES.includes(size) ? size : PAGE_SIZE,
         };
@@ -205,6 +209,7 @@ export default class UtilHotdeal {
         if (f.from) q.from = f.from;
         if (f.to) q.to = f.to;
         if (f.blocked) q.blocked = '1';
+        if (f.source) q.source = f.source;
         if (f.page > 1) q.page = String(f.page);
         if (f.size !== PAGE_SIZE) q.size = String(f.size);
         return q;
@@ -219,6 +224,7 @@ export default class UtilHotdeal {
             createdFrom: f.from ? UtilMember.dayStart(f.from, zoneId) : undefined,
             createdTo: f.to ? UtilMember.dayEnd(f.to, zoneId) : undefined,
             blockedActive: f.blocked || undefined,
+            source: f.source || undefined,
             page: f.page - 1,
             size: f.size,
         };
@@ -238,7 +244,7 @@ export default class UtilHotdeal {
 
     /** 상태(처음 값 「진행」)를 뺀 조건이 있는가 — 빈 결과 문구를 가른다 */
     static hasConditions(f: HotdealFilters): boolean {
-        return Boolean(f.board || f.q || f.from || f.to || f.blocked);
+        return Boolean(f.board || f.q || f.from || f.to || f.blocked || f.source);
     }
 
     /** 검색어 검사 — 비우면 검색을 푼다, 한 글자는 보내지 않는다 */
@@ -262,6 +268,16 @@ export default class UtilHotdeal {
 
     static pageCount(total: number, size: number): number {
         return Math.max(1, Math.ceil(total / Math.max(1, size)));
+    }
+
+    /* ── 출처(2차) ── */
+
+    /** 출처 고르기 차례 — 전체 · 회원 · 사업자 */
+    static readonly SOURCE_FILTERS: readonly ('ALL' | DealSource)[] = ['ALL', ...DEAL_SOURCES];
+
+    /** 사업자 핫딜 글인가 — 줄의 `source`(없으면 `deal.source`, 옛 응답은 회원) */
+    static isBusiness(row: AdminDealRow): boolean {
+        return (row.source ?? row.deal.source) === 'BUSINESS';
     }
 
     /* ── 상태 ── */
