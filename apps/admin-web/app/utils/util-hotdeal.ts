@@ -1,14 +1,14 @@
 import type { LocationQuery } from 'vue-router';
 import type { AdminDealQuery, AdminDealRow, DealView, DealViewFilter, DomainRule } from '~/composables/hotdeal/api/useHotdealApi.types';
 import { DEAL_VIEW_FILTERS } from '~/composables/hotdeal/api/useHotdealApi.types';
-import type { DealDomain, DomainRuleFilter } from '~/composables/hotdeal/api/useHotdealDomainApi.types';
+import type { DealDomain, DealDomainRequest, DomainRuleFilter } from '~/composables/hotdeal/api/useHotdealDomainApi.types';
 import { DOMAIN_RULE_FILTERS } from '~/composables/hotdeal/api/useHotdealDomainApi.types';
-import type { DealSuspicionStatus } from '~/composables/hotdeal/api/useHotdealSuspicionApi.types';
-import { DEAL_SUSPICION_STATUSES } from '~/composables/hotdeal/api/useHotdealSuspicionApi.types';
-import type { HotdealSettingsField, HotdealSettingsValues } from '~/composables/hotdeal/api/useHotdealSettingsApi.types';
+import type { DealSuspicionKindFilter, DealSuspicionStatus } from '~/composables/hotdeal/api/useHotdealSuspicionApi.types';
+import { DEAL_SUSPICION_KIND_FILTERS, DEAL_SUSPICION_STATUSES } from '~/composables/hotdeal/api/useHotdealSuspicionApi.types';
+import type { HotdealSettingsField, HotdealSettingsNumbers } from '~/composables/hotdeal/api/useHotdealSettingsApi.types';
 import UtilMember from '~/utils/util-member';
 
-/** 핫딜 글 목록의 주소 조건(`?view=&board=&q=&from=&to=&page=&size=&deal=`) */
+/** 핫딜 글 목록의 주소 조건(`?view=&board=&q=&from=&to=&blocked=1&page=&size=&deal=`) */
 export interface HotdealFilters {
     view: DealViewFilter;
     /** 게시판 ID(없으면 빈 글자 = 모든 핫딜 게시판) */
@@ -17,13 +17,16 @@ export interface HotdealFilters {
     /** 등록일 시작·끝(`YYYY-MM-DD`, 사이트 시간대의 날짜 — 없으면 빈 글자) */
     from: string;
     to: string;
+    /** 차단 도메인 진행 중만(`blockedActive`) */
+    blocked: boolean;
     page: number;
     size: number;
 }
 
-/** 의심 후보 목록의 주소 조건(`?status=&page=&suspicion=`) */
+/** 의심 후보 목록의 주소 조건(`?status=&kind=&page=&suspicion=`) */
 export interface SuspicionFilters {
     status: DealSuspicionStatus;
+    kind: DealSuspicionKindFilter;
     page: number;
 }
 
@@ -33,18 +36,30 @@ export interface DomainMatch {
     match: DealDomain | null;
 }
 
+/** 리디렉션 체인 판정 — 단계마다 판정 + 전체(차단 > 제휴 > 없음). `decidedBy` 는 전체 판정을 정한 단계 */
+export interface DomainChainMatch {
+    hops: DomainMatch[];
+    verdict: 'BLOCK' | 'AFFILIATE' | 'NONE' | 'INVALID';
+    decidedBy: DomainMatch | null;
+}
+
 /** 링크 규칙 입력 검사 */
 export type DomainProblem = 'REQUIRED' | 'INVALID' | 'TOO_LONG';
+
+/** 같은 딜 판정 쿼리 이름 검사 — 형식 · 추적 파라미터(늘 지운다) · 이미 있음 · 너무 많음 */
+export type KeyParamProblem = 'INVALID' | 'TRACKING' | 'DUPLICATE' | 'TOO_MANY';
 
 /** 메모·사유 칸 검사 */
 export type TextProblem = 'TOO_LONG';
 
-/** 설정 칸 하나의 범위·처음 값 */
+/** 설정 칸 하나의 범위·처음 값 — `money` 는 천 단위 쉼표로 보이고, `zero` 는 0 의 뜻(없음 · 끔) */
 export interface HotdealSettingSpec {
     field: HotdealSettingsField;
     min: number;
     max: number;
     initial: number;
+    money?: boolean;
+    zero?: 'NONE' | 'OFF';
 }
 
 /** 설정 칸 검사 — 비었다 · 정수가 아니다 · 범위 밖 */
@@ -62,19 +77,38 @@ const REASON_MAX = 200;
 const NOTE_MAX = 100;
 /** 도메인 최대(RFC 1035 이름 길이) */
 const DOMAIN_MAX = 253;
+/** 같은 딜 판정 쿼리 이름 최대 개수(목업 가정 — 서버 `fields.keyParams`) */
+const KEY_PARAMS_MAX = 10;
 const POST_ID = /^\d{1,19}$/;
 const ID = /^[A-Za-z0-9_-]{1,40}$/;
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
 /** 라벨 1~63자(영숫자·한글·하이픈, 하이픈으로 시작·끝 안 함), 점으로 이은 둘 이상 — 서버 `DealDomainNormalizer` 후보와 같은 규칙 */
 const DOMAIN = /^(?=.{1,253}$)(?:[a-z0-9가-힣](?:[a-z0-9가-힣-]{0,61}[a-z0-9가-힣])?\.)+[a-z가-힣][a-z0-9가-힣-]{0,62}$/;
+/** 쿼리 이름 1~40자(영숫자 · `_` · `-` · `.` · `[]`) */
+const KEY_PARAM = /^[A-Za-z0-9_.[\]-]{1,40}$/;
+/** 늘 지우는 추적 파라미터(서버 규칙 3) — 앞 일치(`utm_`·`aff`)와 같은 이름 */
+const TRACKING_PREFIX = ['utm_', 'aff'];
+const TRACKING_EXACT = new Set(['fbclid', 'gclid', 'igshid', 'ref', 'tag', 'spm', '_trkparms', 'sub_id']);
 
-/** 설정 칸 차례·범위·처음 값 — 서버 `DealSettings` 후보(03-hotdeal 1-1, 계약 「목업 가정」) */
+/** 설정 칸 차례·범위·처음 값 — 서버 `DealSettings` 후보(계약 「핫딜 설정」 표) */
 const SETTINGS: readonly HotdealSettingSpec[] = [
     { field: 'endRequestThreshold', min: 1, max: 20, initial: 3 },
-    { field: 'endGraceHours', min: 0, max: 168, initial: 12 },
+    { field: 'endGraceHours', min: 0, max: 168, initial: 12, zero: 'OFF' },
     { field: 'endRequestDailyLimit', min: 1, max: 100, initial: 20 },
-    { field: 'suspicionMinPosts', min: 0, max: 50, initial: 3 },
+    { field: 'endRequestPerAuthorLimit', min: 0, max: 20, initial: 3, zero: 'NONE' },
+    { field: 'endRequestPerAuthorDays', min: 1, max: 30, initial: 7 },
+    { field: 'keepMaxCount', min: 0, max: 10, initial: 2, zero: 'NONE' },
+    { field: 'memberDailyPostLimit', min: 0, max: 50, initial: 5, zero: 'NONE' },
+    { field: 'sameStoreIntervalMinutes', min: 0, max: 1440, initial: 10, zero: 'NONE' },
+    { field: 'autoExpireDays', min: 0, max: 365, initial: 30, zero: 'OFF' },
+    { field: 'priceMaxWon', min: 1_000_000, max: 1_000_000_000, initial: 100_000_000, money: true },
+    { field: 'discountWarnPercent', min: 50, max: 99, initial: 90 },
+    { field: 'hotLikeThreshold', min: 1, max: 100, initial: 10 },
+    { field: 'suspicionMinPosts', min: 0, max: 50, initial: 3, zero: 'OFF' },
     { field: 'suspicionWindowDays', min: 1, max: 90, initial: 7 },
+    { field: 'storeSuspicionMembers', min: 0, max: 20, initial: 3, zero: 'OFF' },
+    { field: 'storeSuspicionWindowDays', min: 1, max: 90, initial: 30 },
+    { field: 'storeSuspicionOtherRatioPercent', min: 0, max: 100, initial: 20 },
 ];
 
 function first(value: LocationQuery[string] | undefined): string {
@@ -96,19 +130,24 @@ export default class UtilHotdeal {
     static readonly SEARCH_MAX = SEARCH_MAX;
     static readonly REASON_MAX = REASON_MAX;
     static readonly NOTE_MAX = NOTE_MAX;
+    static readonly KEY_PARAMS_MAX = KEY_PARAMS_MAX;
     static readonly VIEW_FILTERS = DEAL_VIEW_FILTERS;
     static readonly RULE_FILTERS = DOMAIN_RULE_FILTERS;
     static readonly SUSPICION_STATUSES = DEAL_SUSPICION_STATUSES;
+    static readonly SUSPICION_KINDS = DEAL_SUSPICION_KIND_FILTERS;
     static readonly SETTINGS = SETTINGS;
     /** 링크 규칙 고르기 차례 — 차단 · 제휴 · 없음(대형몰만) */
     static readonly RULES: readonly ('BLOCK' | 'AFFILIATE' | 'NONE')[] = ['BLOCK', 'AFFILIATE', 'NONE'];
-    /** 의심 후보 서랍에 보이는 글 수 */
+    /** 의심 후보 서랍에 보이는 글 수 — 회원 후보 · 판매처 후보 */
     static readonly SUSPICION_POSTS = 10;
+    static readonly STORE_SUSPICION_POSTS = 30;
+    /** 작성자 되돌리기 기한(D2) — 종료 뒤 24시간 */
+    static readonly AUTHOR_REOPEN_HOURS = 24;
 
     /* ── 핫딜 글 목록 주소 ── */
 
     static emptyFilters(): HotdealFilters {
-        return { view: 'ACTIVE', board: '', q: '', from: '', to: '', page: 1, size: PAGE_SIZE };
+        return { view: 'ACTIVE', board: '', q: '', from: '', to: '', blocked: false, page: 1, size: PAGE_SIZE };
     }
 
     /** 주소 → 조건. 상태 처음 값은 「진행」(운영자가 먼저 볼 것) */
@@ -125,6 +164,7 @@ export default class UtilHotdeal {
             q: Array.from(first(query.q).trim()).slice(0, SEARCH_MAX).join(''),
             from: YMD.test(from) ? from : '',
             to: YMD.test(to) ? to : '',
+            blocked: first(query.blocked) === '1',
             page: Number.isFinite(page) && page >= 1 ? page : 1,
             size: PAGE_SIZES.includes(size) ? size : PAGE_SIZE,
         };
@@ -138,6 +178,7 @@ export default class UtilHotdeal {
         if (f.q) q.q = f.q;
         if (f.from) q.from = f.from;
         if (f.to) q.to = f.to;
+        if (f.blocked) q.blocked = '1';
         if (f.page > 1) q.page = String(f.page);
         if (f.size !== PAGE_SIZE) q.size = String(f.size);
         return q;
@@ -151,6 +192,7 @@ export default class UtilHotdeal {
             q: f.q || undefined,
             createdFrom: f.from ? UtilMember.dayStart(f.from, zoneId) : undefined,
             createdTo: f.to ? UtilMember.dayEnd(f.to, zoneId) : undefined,
+            blockedActive: f.blocked || undefined,
             page: f.page - 1,
             size: f.size,
         };
@@ -170,7 +212,7 @@ export default class UtilHotdeal {
 
     /** 상태(처음 값 「진행」)를 뺀 조건이 있는가 — 빈 결과 문구를 가른다 */
     static hasConditions(f: HotdealFilters): boolean {
-        return Boolean(f.board || f.q || f.from || f.to);
+        return Boolean(f.board || f.q || f.from || f.to || f.blocked);
     }
 
     /** 검색어 검사 — 비우면 검색을 푼다, 한 글자는 보내지 않는다 */
@@ -227,6 +269,16 @@ export default class UtilHotdeal {
         return endsAt !== null && Date.parse(endsAt) <= now;
     }
 
+    /** 작성자가 아직 직접 되돌릴 수 있는가(D2 — 작성자 종료 · 기한 안 · 아직 안 씀) */
+    static authorCanReopen(reopenUntil: string | null, now: number = Date.now()): boolean {
+        return reopenUntil !== null && Date.parse(reopenUntil) > now;
+    }
+
+    /** keep 한도에 닿았나(0 = 한도 없음) — 넘으면 공개 화면은 「운영자 확인 중」 */
+    static keepLimitReached(keepCount: number, keepMax: number): boolean {
+        return keepMax > 0 && keepCount >= keepMax;
+    }
+
     /** 사유·메모(선택 칸) 검사 */
     static textProblem(text: string, max: number = REASON_MAX): TextProblem | null {
         return len(text.trim()) > max ? 'TOO_LONG' : null;
@@ -240,13 +292,19 @@ export default class UtilHotdeal {
 
     static parseSuspicionFilters(query: LocationQuery): SuspicionFilters {
         const status = first(query.status).toUpperCase() as DealSuspicionStatus;
+        const kind = first(query.kind).toUpperCase() as DealSuspicionKindFilter;
         const page = Number.parseInt(first(query.page), 10);
-        return { status: DEAL_SUSPICION_STATUSES.includes(status) ? status : 'OPEN', page: Number.isFinite(page) && page >= 1 ? page : 1 };
+        return {
+            status: DEAL_SUSPICION_STATUSES.includes(status) ? status : 'OPEN',
+            kind: DEAL_SUSPICION_KIND_FILTERS.includes(kind) ? kind : 'ALL',
+            page: Number.isFinite(page) && page >= 1 ? page : 1,
+        };
     }
 
     static suspicionQuery(f: SuspicionFilters): Record<string, string> {
         const q: Record<string, string> = {};
         if (f.status !== 'OPEN') q.status = f.status;
+        if (f.kind !== 'ALL') q.kind = f.kind;
         if (f.page > 1) q.page = String(f.page);
         return q;
     }
@@ -318,6 +376,24 @@ export default class UtilHotdeal {
         return { host, match: best };
     }
 
+    /**
+     * 리디렉션 체인 판정 — 링크를 `→`·`->`·공백으로 나눈 단계마다 `match` 를 하고, **체인의 어느 호스트든 차단이면 차단 > 제휴 > 없음**(서버 규칙 2 — 응답 `finalHost` 는 마지막 단계).
+     * 한 단계라도 읽을 수 없으면 `INVALID`.
+     */
+    static matchChain(raw: string, domains: readonly DealDomain[]): DomainChainMatch {
+        const parts = raw
+            .split(/\s*(?:→|->|=>)\s*|\s+/)
+            .map((p) => p.trim())
+            .filter(Boolean);
+        const hops = parts.map((p) => UtilHotdeal.match(p, domains));
+        if (hops.length === 0 || hops.some((h) => !h.host)) return { hops, verdict: 'INVALID', decidedBy: null };
+        const block = hops.find((h) => h.match?.rule === 'BLOCK');
+        if (block) return { hops, verdict: 'BLOCK', decidedBy: block };
+        const affiliate = hops.find((h) => h.match?.rule === 'AFFILIATE');
+        if (affiliate) return { hops, verdict: 'AFFILIATE', decidedBy: affiliate };
+        return { hops, verdict: 'NONE', decidedBy: null };
+    }
+
     /** 규칙 거르기 — 화면에서 바로 거른다(목업 · 서버도 같은 뜻의 `rule` 조건) */
     static filterDomains(items: readonly DealDomain[], rule: DomainRuleFilter, q: string): DealDomain[] {
         const needle = q.trim().toLowerCase();
@@ -326,8 +402,47 @@ export default class UtilHotdeal {
             if (rule === 'AFFILIATE' && d.rule !== 'AFFILIATE') return false;
             if (rule === 'NONE' && d.rule !== null) return false;
             if (rule === 'COMMON' && !d.common) return false;
-            return !needle || d.domain.includes(needle) || (d.note ?? '').toLowerCase().includes(needle);
+            return !needle || d.domain.includes(needle) || (d.note ?? '').toLowerCase().includes(needle) || d.keyParams.some((k) => k.toLowerCase().includes(needle));
         });
+    }
+
+    /**
+     * 저장 전에 「진행 중 글 N건」 미리 보기가 필요한가 — 새로 차단을 만들거나, 차단이 아니던 규칙을 차단으로 바꾸거나, 차단 규칙의 도메인을 바꿀 때.
+     * @param {DealDomainRequest} body - 저장할 값.
+     * @param {DealDomain | null} before - 고치기 전 규칙(추가면 null).
+     */
+    static needsImpact(body: Pick<DealDomainRequest, 'domain' | 'rule'>, before: Pick<DealDomain, 'domain' | 'rule'> | null): boolean {
+        if (body.rule !== 'BLOCK') return false;
+        if (!before || before.rule !== 'BLOCK') return true;
+        return UtilHotdeal.normalizeDomain(body.domain) !== before.domain;
+    }
+
+    /** 추적 파라미터인가 — 같은 딜 판정에서 늘 지워서 남길 수 없다 */
+    static isTrackingParam(name: string): boolean {
+        const n = name.trim().toLowerCase();
+        return TRACKING_EXACT.has(n) || TRACKING_PREFIX.some((p) => n.startsWith(p));
+    }
+
+    /**
+     * 같은 딜 판정 쿼리 이름 하나를 더할 때의 검사 — 형식 · 추적 파라미터 · 이미 있음(대소문자는 그대로 비교 — 쿼리 이름은 대소문자를 가린다) · 개수.
+     * @param {string} name - 더하려는 이름(앞뒤 공백은 뗀다).
+     * @param {readonly string[]} current - 지금 목록.
+     */
+    static keyParamProblem(name: string, current: readonly string[]): KeyParamProblem | null {
+        const n = name.trim();
+        if (!KEY_PARAM.test(n)) return 'INVALID';
+        if (UtilHotdeal.isTrackingParam(n)) return 'TRACKING';
+        if (current.includes(n)) return 'DUPLICATE';
+        if (current.length >= KEY_PARAMS_MAX) return 'TOO_MANY';
+        return null;
+    }
+
+    /** 칸에 붙여 넣은 글자를 이름들로 — 쉼표·공백·`&`·`=` 뒤 값은 버린다(`prdNo=123&x=1` 을 붙여도 `prdNo`·`x`) */
+    static splitKeyParams(raw: string): string[] {
+        return raw
+            .split(/[\s,&]+/)
+            .map((p) => (p.split('=', 1)[0] ?? '').replace(/^\?/, '').trim())
+            .filter(Boolean);
     }
 
     /* ── 설정 ── */
@@ -336,11 +451,21 @@ export default class UtilHotdeal {
         return SETTINGS.find((s) => s.field === field) as HotdealSettingSpec;
     }
 
-    /** 칸 글자 → 정수(읽을 수 없으면 null). 앞의 0 은 같은 수로 본다 */
+    /** 칸 글자 → 정수(읽을 수 없으면 null). 천 단위 쉼표는 떼고, 앞의 0 은 같은 수로 본다 */
     static parseInt(text: string): number | null {
-        const s = text.trim();
-        if (!/^\d{1,6}$/.test(s)) return null;
+        const s = text.trim().replace(/,/g, '');
+        if (!/^\d{1,10}$/.test(s)) return null;
         return Number.parseInt(s, 10);
+    }
+
+    /** 저장된 값 → 칸 글자(금액은 천 단위 쉼표) */
+    static formatSetting(field: HotdealSettingsField, n: number): string {
+        return UtilHotdeal.settingSpec(field).money ? UtilHotdeal.groupDigits(n) : String(n);
+    }
+
+    /** 천 단위 쉼표(언어와 상관없이 `,`) */
+    static groupDigits(n: number): string {
+        return String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     }
 
     static settingProblem(field: HotdealSettingsField, text: string): HotdealSettingProblem | null {
@@ -351,9 +476,9 @@ export default class UtilHotdeal {
         return n < spec.min || n > spec.max ? 'OUT_OF_RANGE' : null;
     }
 
-    /** 편집 중 글자 → 보낼 값(하나라도 틀리면 null) */
-    static settingValues(texts: Record<HotdealSettingsField, string>): HotdealSettingsValues | null {
-        const out = {} as HotdealSettingsValues;
+    /** 편집 중 글자 → 보낼 숫자 값(하나라도 틀리면 null) */
+    static settingValues(texts: Record<HotdealSettingsField, string>): HotdealSettingsNumbers | null {
+        const out = {} as HotdealSettingsNumbers;
         for (const s of SETTINGS) {
             if (UtilHotdeal.settingProblem(s.field, texts[s.field])) return null;
             out[s.field] = UtilHotdeal.parseInt(texts[s.field]) as number;
@@ -361,8 +486,8 @@ export default class UtilHotdeal {
         return out;
     }
 
-    /** 바뀐 칸 수(숫자로 비교 — 읽을 수 없는 글자는 바뀐 것으로) */
-    static changedCount(texts: Record<HotdealSettingsField, string>, saved: HotdealSettingsValues): number {
+    /** 바뀐 숫자 칸 수(숫자로 비교 — 읽을 수 없는 글자는 바뀐 것으로) */
+    static changedCount(texts: Record<HotdealSettingsField, string>, saved: HotdealSettingsNumbers): number {
         return SETTINGS.filter((s) => UtilHotdeal.parseInt(texts[s.field]) !== saved[s.field]).length;
     }
 }

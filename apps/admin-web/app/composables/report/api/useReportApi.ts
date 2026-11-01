@@ -1,4 +1,6 @@
 import type { AdminPostBoardOptionsView } from '~/composables/post/api/usePostApi.types';
+// MOCK: 핫딜 글 사건(`deal` 칸 · `DEAL_END` 조치)만 목업 — 나머지는 실제 서버
+import { mockReportDealEnd, mockReportDecorateDetail, mockReportDecorateList } from '~/composables/report/api/mock/report-deal-mock';
 import type {
     ReportBulkDismissRequest,
     ReportBulkResult,
@@ -22,6 +24,7 @@ import type {
  *   - `POST /dismiss { ids(1~50), falseReport, note? }` (`report.manage`) → `{ done, failed: [{id, code}] }` — 사건마다 따로
  *   - `POST /{id}/reopen` (`report.manage`) → 200 상세 · 409 `REPORT_CASE_CLOSED`(조치한 사건)·`REPORT_CASE_OPEN_EXISTS`
  * 쓰기는 CSRF(`useApiClient` 가 붙인다). 응답은 `Cache-Control: no-store`.
+ * ⚠ MOCK(핫딜 글 사건만): 사건 줄 `deal` 과 `resolve { action: 'DEAL_END' }` 는 서버에 아직 없다 — `./mock/report-deal-mock.ts` 가 응답에 덧씌우고 [핫딜 종료]를 흉내 낸다(스위치 `?mock=report-deal`).
  */
 const ROOT = '/api/admin/reports';
 const PATH = {
@@ -58,7 +61,9 @@ export function useReportApi() {
                     size: query.size,
                 },
                 signal,
-            }),
+            })
+                // MOCK: 핫딜 글 표시(`deal`)와 목업 [핫딜 종료] 결과를 덧씌운다 — 서버가 `deal`·`DEAL_END` 를 주면 이 줄을 지운다
+                .then(mockReportDecorateList),
 
         // REAL:
         /** 대기·검토 중 건수 */
@@ -70,16 +75,25 @@ export function useReportApi() {
 
         // REAL:
         /** 사건 하나 — 대기 사건은 열람과 함께 검토 중이 된다 */
-        get: (id: string): Promise<ReportCaseDetail> => client.get<ReportCaseDetail>(PATH.one(id)),
+        get: (id: string): Promise<ReportCaseDetail> =>
+            client
+                .get<ReportCaseDetail>(PATH.one(id))
+                // MOCK: 핫딜 글 표시와 목업 [핫딜 종료] 결과 — 서버가 붙으면 이 줄을 지운다
+                .then(mockReportDecorateDetail),
+
+        /** 조치 — `DEAL_END`(핫딜 종료)는 서버에 아직 없다(목업) */
+        resolve: (id: string, body: ReportResolveRequest): Promise<ReportCaseDetail> =>
+            body.action === 'DEAL_END'
+                ? // MOCK:
+                  mockReportDealEnd(id, body, () => client.get<ReportCaseDetail>(PATH.one(id)))
+                : // REAL:
+                  client.post<ReportCaseDetail>(PATH.act(id, 'resolve'), body).then(mockReportDecorateDetail), // MOCK: `.then(...)` 은 서버가 붙으면 지운다
 
         // REAL:
-        resolve: (id: string, body: ReportResolveRequest): Promise<ReportCaseDetail> => client.post<ReportCaseDetail>(PATH.act(id, 'resolve'), body),
+        dismiss: (id: string, body: ReportDismissRequest): Promise<ReportCaseDetail> => client.post<ReportCaseDetail>(PATH.act(id, 'dismiss'), body).then(mockReportDecorateDetail), // MOCK: `.then(...)`
 
         // REAL:
-        dismiss: (id: string, body: ReportDismissRequest): Promise<ReportCaseDetail> => client.post<ReportCaseDetail>(PATH.act(id, 'dismiss'), body),
-
-        // REAL:
-        reopen: (id: string): Promise<ReportCaseDetail> => client.post<ReportCaseDetail>(PATH.act(id, 'reopen')),
+        reopen: (id: string): Promise<ReportCaseDetail> => client.post<ReportCaseDetail>(PATH.act(id, 'reopen')).then(mockReportDecorateDetail), // MOCK: `.then(...)`
 
         // REAL:
         /** 일괄 무시 — 사건마다 따로 처리하고 못 한 사건만 까닭과 함께 */

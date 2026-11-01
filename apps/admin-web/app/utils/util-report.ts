@@ -92,6 +92,8 @@ const GROUP_REASONS: readonly ReportReasonCode[] = ['PROMOTION', 'OFFLINE_RISK',
 /** 모든 사유 — 사유 거르기·칩 차례(서버 `ReportReasons.EVERY`) */
 /** 핫딜 글에서만 보이는 사유(hotdeal-contract) — 서버 `ReportReasons` 후보 */
 const DEAL_REASONS: readonly ReportReasonCode[] = ['DEAL_FALSE_PRICE', 'DEAL_HIDDEN_AD'];
+/** 핫딜 글 사건의 조치 사유 차례 — 글 사유(기타 앞까지) + 핫딜 사유 2개 + 기타 */
+const DEAL_POST_REASONS: readonly ReportReasonCode[] = [...POST_REASONS.filter((r) => r !== 'OTHER'), ...DEAL_REASONS, 'OTHER'];
 const REASONS: readonly ReportReasonCode[] = ['SPAM_AD', 'ABUSE', 'OBSCENE', 'ILLEGAL_FILMING', 'RIGHTS', 'PROMOTION', 'OFFLINE_RISK', 'STOCK_RECOMMENDATION', 'DEAL_FALSE_PRICE', 'DEAL_HIDDEN_AD', 'OTHER'];
 const SORTS: readonly ReportSort[] = ['newest', 'oldest', 'most'];
 /** 자동 숨김(신고 누적·불법 즉시·권리침해 임시조치) — 무시하면 서버가 복구하고, 「자동 숨김 확정」을 할 수 있다. 운영자 숨김(STAFF)은 아니다 */
@@ -154,7 +156,7 @@ export default class UtilReport {
     static readonly REASONS = REASONS;
     static readonly SORTS = SORTS;
     /** 처리 단추의 차례 */
-    static readonly ACT_ORDER: readonly ReportActKind[] = ['HIDE', 'KEEP_HIDDEN', 'DELETE', 'DEACTIVATE', 'DISMISS'];
+    static readonly ACT_ORDER: readonly ReportActKind[] = ['DEAL_END', 'HIDE', 'KEEP_HIDDEN', 'DELETE', 'DEACTIVATE', 'DISMISS'];
 
     /* ── 주소 ↔ 필터 ── */
 
@@ -307,9 +309,12 @@ export default class UtilReport {
         return lengthOf(text.trim());
     }
 
-    /** 처리 종류의 글 최대 — 소모임 비활성화는 모임장에게 사유로 가고 소모임 행에 남아 200자(서버 `GroupAdminService.REASON_MAX`), 그 밖 500자 */
+    /**
+     * 처리 종류의 글 최대 — 소모임 비활성화는 모임장에게 사유로 가고 소모임 행에 남아 200자(서버 `GroupAdminService.REASON_MAX`),
+     * 핫딜 종료도 딜 종료 사유(0~200자, hotdeal-contract)로 작성자에게 가서 200자(목업 가정), 그 밖 500자
+     */
     static noteMax(kind: ReportActKind | null | undefined): number {
-        return kind === 'DEACTIVATE' ? UtilReport.GROUP_NOTE_MAX : UtilReport.NOTE_MAX;
+        return kind === 'DEACTIVATE' || kind === 'DEAL_END' ? UtilReport.GROUP_NOTE_MAX : UtilReport.NOTE_MAX;
     }
 
     /** 조치 글의 문제 — 조치는 필수 1~500자(소모임 비활성화 1~200자), 무시는 선택 0~500자(서버 `fields.note` 와 같은 규칙) */
@@ -320,9 +325,22 @@ export default class UtilReport {
         return null;
     }
 
-    /** 사건 대상의 사유 체계 — 소모임은 소모임 사유 4종, 글·댓글은 6종(조치 사유 코드도 이 안에서만 — 서버 `fields.reasonCode`) */
-    static reasonsFor(type: ReportTargetType): readonly ReportReasonCode[] {
-        return type === 'GROUP' ? GROUP_REASONS : POST_REASONS;
+    /**
+     * 사건 대상의 사유 체계 — 소모임은 소모임 사유 4종, 글·댓글은 6종, **핫딜 글은 6종 + 핫딜 사유 2개**(조치 사유 코드도 이 안에서만 — 서버 `fields.reasonCode`).
+     * 핫딜 사유는 핫딜 글에서만 보인다(댓글·일반 글에는 없다 — hotdeal-contract).
+     */
+    static reasonsFor(type: ReportTargetType, deal = false): readonly ReportReasonCode[] {
+        if (type === 'GROUP') return GROUP_REASONS;
+        return type === 'POST' && deal ? DEAL_POST_REASONS : POST_REASONS;
+    }
+
+    /**
+     * 핫딜 글 사건인가 — 글 대상이고 서버가 `deal` 을 줬거나(계약 밖 — 서버에서 같이 고칠 것), 핫딜 사유 신고가 하나라도 있다(핫딜 사유는 핫딜 글에서만 받으니 핫딜 글이다).
+     */
+    static isDealCase(item: Pick<ReportCaseItem, 'targetType' | 'reasons'> & { deal?: ReportCaseItem['deal'] }): boolean {
+        if (item.targetType !== 'POST') return false;
+        if (item.deal) return true;
+        return (item.reasons ?? []).some((r) => r.count > 0 && UtilReport.isDealReason(r.code));
     }
 
     /** 소모임 사유인가(문구 키가 다르다) */
@@ -348,15 +366,16 @@ export default class UtilReport {
     }
 
     static noActions(): ReportActions {
-        return { HIDE: false, KEEP_HIDDEN: false, DELETE: false, DEACTIVATE: false, DISMISS: false };
+        return { HIDE: false, KEEP_HIDDEN: false, DELETE: false, DEACTIVATE: false, DEAL_END: false, DISMISS: false };
     }
 
     /**
      * 사건 하나에 누를 수 있는 처리 — 열린 사건 + `report.manage` 일 때만(서버도 `409 REPORT_CASE_CLOSED`·`REPORT_ACTION_INVALID` 로 막는다).
      * 글·댓글: 숨기기 = 공개 대상만 · 자동 숨김 확정 = 자동 숨김된 대상만 · 삭제 = 지우지 않은 대상 · 무시 = 늘.
      * 소모임: 비활성화 = 열린(`PUBLIC`) 소모임만 · 무시 = 늘(숨기기·삭제는 없다 — community 와 같다).
+     * 핫딜 글: 위 글 처리 + 핫딜 종료 = 지우지 않은 글이고 딜이 아직 종료가 아닐 때(목업 — 서버가 `deal` 을 주지 않으면 상태를 몰라 늘 보인다, 이미 종료면 서버가 409).
      */
-    static actionsOf(item: Pick<ReportCaseItem, 'status' | 'target' | 'targetType'>, canManage: boolean): ReportActions {
+    static actionsOf(item: Pick<ReportCaseItem, 'status' | 'target' | 'targetType' | 'reasons' | 'deal'>, canManage: boolean): ReportActions {
         const actions = UtilReport.noActions();
         if (!canManage || !UtilReport.isOpen(item.status)) return actions;
         actions.DISMISS = true;
@@ -367,6 +386,7 @@ export default class UtilReport {
         actions.HIDE = item.target.state === 'PUBLIC';
         actions.KEEP_HIDDEN = UtilReport.isAutoHidden(item.target);
         actions.DELETE = item.target.state !== 'DELETED';
+        actions.DEAL_END = UtilReport.isDealCase(item) && item.target.state !== 'DELETED' && item.deal?.view !== 'ENDED';
         return actions;
     }
 
@@ -384,7 +404,7 @@ export default class UtilReport {
     }
 
     static actIcon(kind: ReportActKind): string {
-        const icons: Record<ReportActKind, string> = { HIDE: 'pi pi-eye-slash', KEEP_HIDDEN: 'pi pi-lock', DELETE: 'pi pi-trash', DEACTIVATE: 'pi pi-ban', DISMISS: 'pi pi-times-circle' };
+        const icons: Record<ReportActKind, string> = { HIDE: 'pi pi-eye-slash', KEEP_HIDDEN: 'pi pi-lock', DELETE: 'pi pi-trash', DEACTIVATE: 'pi pi-ban', DEAL_END: 'pi pi-stop-circle', DISMISS: 'pi pi-times-circle' };
         return icons[kind];
     }
 

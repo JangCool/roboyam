@@ -694,6 +694,7 @@ function rowMenuFor(item: ReportCaseItem): MenuItem[] {
     const postId = item.target.postId;
     const groupId = item.target.groupId;
     if (canViewPost.value && postId) menu.push({ label: t('report.openPostAdmin'), icon: 'pi pi-file-edit', command: () => void navigateTo({ path: '/posts', query: { post: postId } }) });
+    if (can('hotdeal.read') && postId && UtilReport.isDealCase(item)) menu.push({ label: t('report.openHotdealAdmin'), icon: 'pi pi-ticket', command: () => void navigateTo({ path: '/hotdeals', query: { view: 'ALL', deal: postId } }) });
     if (canViewGroup.value && item.targetType === 'GROUP' && groupId) menu.push({ label: t('report.openGroupAdmin'), icon: 'pi pi-users', command: () => void navigateTo({ path: '/groups', query: { group: groupId } }) });
     return menu;
 }

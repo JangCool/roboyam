@@ -87,7 +87,7 @@ export default class UtilReportMessages {
     static eventLines(t: Translate, ev: ReportEvent): string[] {
         const d = ev.detail ?? {};
         const lines: string[] = [];
-        if (typeof d.action === 'string' && ['HIDE', 'DELETE', 'KEEP_HIDDEN', 'DEACTIVATE'].includes(d.action)) lines.push(t(`report.actionName.${d.action}`));
+        if (typeof d.action === 'string' && ['HIDE', 'DELETE', 'KEEP_HIDDEN', 'DEACTIVATE', 'DEAL_END'].includes(d.action)) lines.push(t(`report.actionName.${d.action}`));
         if (typeof d.reasonCode === 'string') lines.push(t('report.eventReason', { reason: UtilReportMessages.reasonName(t, d.reasonCode) }));
         if (typeof d.reason === 'string') lines.push(UtilReportMessages.reasonName(t, d.reason));
         if (d.falseReport === true) lines.push(t('report.falseReportMarked'));

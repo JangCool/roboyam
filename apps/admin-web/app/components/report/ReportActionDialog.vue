@@ -1,7 +1,8 @@
 <template>
     <!--
-        사건 하나의 처리 대화창(게시글 관리 `PostReasonDialog` 방식) — [숨기기] · [자동 숨김 확정] · [삭제] · [소모임 비활성화](소모임 대상) · [무시].
-        칸: 사유 코드(사건 대상의 체계 — 글·댓글 6종(게시판 신고 정책의 사유 이름) · 소모임 4종) + 글(조치는 필수 1~500자, 무시는 선택). 무시는 「허위 신고로 표시」 체크(게시판 정책 반려 제한이 세는 값).
+        사건 하나의 처리 대화창(게시글 관리 `PostReasonDialog` 방식) — [숨기기] · [자동 숨김 확정] · [삭제] · [소모임 비활성화](소모임 대상) · [핫딜 종료](핫딜 글 대상, 목업) · [무시].
+        칸: 사유 코드(사건 대상의 체계 — 글·댓글 6종(게시판 신고 정책의 사유 이름) · 핫딜 글은 + 핫딜 사유 2개 · 소모임 4종) + 글(조치는 필수 1~500자 — 소모임 비활성화·핫딜 종료는 1~200자, 무시는 선택).
+        핫딜 글에서 「가격·정보가 사실과 달라요」를 고르면 D4 안내(종료 요청 「가격 변경」으로도 세어지고 자동 숨김 셈에서 빠진다) 한 줄. 무시는 「허위 신고로 표시」 체크(게시판 정책 반려 제한이 세는 값).
         조치는 사유 코드 필수(처음 값 = 신고가 가장 많은 사유), 무시는 사유 코드를 고르지 않아도 된다. 작성자 알림에는 사유 코드 이름과 글이 간다(게시판 정책 `notifyAuthorOnAction`).
         열 때마다 칸을 비운다(앞 사건에 적던 글이 다음 사건에 딸려 가면 안 된다). 서버 호출은 부른 화면이 `submit` 을 받아 한다.
         칸 오류(`fields.reasonCode`·`fields.note`)는 그 칸 아래, 그 밖 거절(서버 문구 그대로)은 대화창 안 한 줄. 실패해도 쓰던 글은 그대로 둔다.
@@ -18,6 +19,7 @@
             </div>
             <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t(`report.dialog.${kind}.text`) }}</p>
             <Message v-if="dismissNote" severity="secondary" size="small" :closable="false" icon="pi pi-info-circle">{{ dismissNote }}</Message>
+            <Message v-if="isDeal && reasonCode === 'DEAL_FALSE_PRICE'" severity="secondary" size="small" :closable="false" icon="pi pi-info-circle">{{ t('report.dealFalsePriceNote') }}</Message>
 
             <LabeledField :label="t('report.reasonCodeLabel')" :hint="isDismiss ? t('report.optional') : ''" :error="reasonCodeError">
                 <template #default="{ id, describedBy, invalid }">
@@ -91,7 +93,8 @@ const tried = ref(false);
 
 const isDismiss = computed(() => props.kind === 'DISMISS');
 // ⚠ `computed` 다 — 그냥 배열이면 처음 읽은 순간의 언어로 굳는다
-const reasonOptions = computed(() => UtilReport.reasonsFor(props.item?.targetType ?? 'POST').map((value) => ({ value, label: UtilReportMessages.reasonName(t, value) })));
+const isDeal = computed(() => (props.item ? UtilReport.isDealCase(props.item) : false));
+const reasonOptions = computed(() => UtilReport.reasonsFor(props.item?.targetType ?? 'POST', isDeal.value).map((value) => ({ value, label: UtilReportMessages.reasonName(t, value) })));
 /** 글 최대 — 소모임 비활성화는 200자(모임장에게 사유로 간다) */
 const noteMax = computed(() => UtilReport.noteMax(props.kind));
 const noteHint = computed(() => t('report.noteCounter', { n: UtilReport.noteLength(note.value), max: noteMax.value }));

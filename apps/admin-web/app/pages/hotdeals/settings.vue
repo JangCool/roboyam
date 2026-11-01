@@ -1,10 +1,13 @@
 <template>
     <!--
-        핫딜 › 핫딜 설정(`/hotdeals/settings`) — 회원 핫딜 1차의 숫자 규칙(03-hotdeal 1-1 「설정」, 계약 「목업 가정」). 포인트 상점 설정과 같은 모양:
-        구획 카드(`AppGadget` — 저장 전 바뀐 칸 수가 구역 내비에 점) + 칸(`LabeledField` + 숫자 `InputText` — `InputNumber` 는 범위 밖 값을 말없이 고친다) + 범위 도움말 + 하단 떠 있는 저장 줄(`StickySaveBar`, 화면 하나로 저장).
+        핫딜 › 핫딜 설정(`/hotdeals/settings`) — 회원 핫딜 1차의 숫자 규칙(계약 「핫딜 설정」 표, 05 §3). 포인트 상점 설정과 같은 모양:
+        구획 카드(`AppGadget` — 저장 전 바뀐 칸 수가 구역 내비에 점) + 칸(`LabeledField` + 숫자 `InputText` — `InputNumber` 는 범위 밖 값을 말없이 고친다) + 범위 도움말(0 의 뜻 「없음/끔」) + 하단 떠 있는 저장 줄(`StickySaveBar`, 화면 하나로 저장).
         **목업**(`useHotdealSettingsApi` → `hotdeal/api/mock`) — 스위치 `?mock=error|slow|forbidden|save-error`.
-        - 종료 요청: 문턱(1~20, 기본 3) · 유예 시간(0~168, 기본 12 — 0 = 자동 종료 안 함) · 하루 요청 한도(1~100, 기본 20) · 요청자 보상 포인트(**읽기 전용** — 포인트 정책의 「핫딜 종료 요청 보상」이 정본, 링크)
-        - 위장 홍보 후보: 같은 판매처 글 수(0~50, 기본 3 — 0 = 끔) · 세는 기간(1~90일, 기본 7)
+        - 종료 요청: 문턱 · 유예 시간(0 = 자동 종료 안 함) · 하루 요청 한도 · 같은 작성자 글 한도/기간(0 = 없음) · keep 최대(0 = 없음) · 요청자 보상 포인트(**읽기 전용** — 포인트 정책이 정본, 링크)
+        - 글쓰기: 회원 하루 글 수(0 = 없음) · 같은 판매처 간격(분, 0 = 없음) · 마감 없는 딜 기간 종료(일, 0 = 끔)
+        - 가격: 금액 상한(천 단위 쉼표 — 칸을 떠날 때 쉼표를 다시 붙인다) · 할인율 경고 % / 인기 표시: HOT 추천 수
+        - 위장 홍보(회원): 같은 판매처 글 수(0 = 끔) · 기간 / 위장 홍보(판매처): 서로 다른 회원 수(0 = 끔) · 기간 · 다른 핫딜 비율 %
+        - 상품 이미지: 링크 OG 가져오기 켬/끔(`ogFetchEnabled`). OG 보안 값(시간 제한·크기·동시 수)은 여기 두지 않는다(서버 규칙 1).
         - 권한: 조회·저장 `hotdeal.manage`(없으면 칸 `readonly` + 읽기 전용 안내). 저장하지 않고 나가면 묻는다.
     -->
     <div class="flex flex-col gap-4">
@@ -21,18 +24,18 @@
         </AppGadget>
 
         <form v-else class="flex flex-col gap-4" novalidate @submit.prevent="save">
-            <AppGadget v-for="section in SECTIONS" :key="section.key" :title="t(`hotdeal.settings.${section.key}Section`)" :anchor="`hotdeal-${section.key}`" :changes="changesOf(section.fields)" :invalid="invalidOf(section.fields)">
+            <AppGadget
+                v-for="section in SECTIONS"
+                :key="section.key"
+                :title="t(`hotdeal.settings.${section.key}Section`)"
+                :anchor="`hotdeal-${section.key}`"
+                :changes="changesOf(section.fields) + (section.key === 'image' && ogChanged ? 1 : 0)"
+                :invalid="invalidOf(section.fields)"
+            >
                 <div class="flex flex-col gap-4">
                     <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t(`hotdeal.settings.${section.key}Lead`) }}</p>
                     <div class="grid gap-4 sm:grid-cols-2">
-                        <LabeledField
-                            v-for="field in section.fields"
-                            :key="field"
-                            :label="t(`hotdeal.settings.field.${field}`)"
-                            :hint="t('hotdeal.settings.range', { min: spec(field).min, max: spec(field).max })"
-                            :error="errorOf(field)"
-                            :help="t(`hotdeal.settings.help.${field}`)"
-                        >
+                        <LabeledField v-for="field in section.fields" :key="field" :label="t(`hotdeal.settings.field.${field}`)" :hint="UtilHotdealMessages.settingRange(t, spec(field))" :error="errorOf(field)" :help="t(`hotdeal.settings.help.${field}`)">
                             <template #default="{ id, describedBy, invalid }">
                                 <div class="flex flex-wrap items-center gap-2">
                                     <InputText
@@ -44,11 +47,14 @@
                                         :readonly="!canManage || saving"
                                         :invalid="invalid"
                                         :aria-describedby="describedBy"
-                                        class="w-24 text-right tabular-nums"
+                                        class="text-right tabular-nums"
+                                        :class="spec(field).money ? 'w-40' : 'w-24'"
                                         @update:model-value="(v) => onInput(field, v)"
+                                        @blur="onBlur(field)"
                                     />
                                     <span class="text-sm text-muted-color">{{ t(`hotdeal.settings.unit.${field}`) }}</span>
-                                    <span v-if="UtilHotdeal.parseInt(texts[field]) !== saved[field]" class="text-xs text-amber-700 dark:text-amber-400">{{ t('hotdeal.settings.savedValue', { value: saved[field] }) }}</span>
+                                    <Tag v-if="spec(field).zero && UtilHotdeal.parseInt(texts[field]) === 0" :value="t(`hotdeal.settings.zeroTag.${spec(field).zero}`)" severity="secondary" class="text-[11px]!" />
+                                    <span v-if="UtilHotdeal.parseInt(texts[field]) !== saved[field]" class="text-xs text-amber-700 dark:text-amber-400">{{ t('hotdeal.settings.savedValue', { value: UtilHotdeal.formatSetting(field, saved[field]) }) }}</span>
                                 </div>
                             </template>
                         </LabeledField>
@@ -56,11 +62,21 @@
                         <!-- 보상 포인트 — 포인트 정책이 정본이라 여기서는 읽기만 -->
                         <div v-if="section.key === 'end'" class="flex flex-col gap-1.5">
                             <span class="text-sm font-medium">{{ t('hotdeal.settings.rewardLabel') }}</span>
-                            <p class="m-0 text-sm tabular-nums">{{ t('hotdeal.settings.rewardValue', { n: saved.rewardPoints }) }}</p>
+                            <p class="m-0 text-sm tabular-nums">{{ t('hotdeal.settings.rewardValue', { n: saved.rewardPoints, daily: saved.rewardDailyLimit }) }}</p>
                             <p class="m-0 text-xs leading-relaxed text-muted-color">
                                 {{ t('hotdeal.settings.rewardHelp') }}
                                 <NuxtLink v-if="can('point.read')" to="/points/policy" class="text-primary hover:underline">{{ t('hotdeal.settings.rewardLink') }}</NuxtLink>
                             </p>
+                        </div>
+
+                        <!-- 상품 이미지 — 켬/끔 -->
+                        <div v-if="section.key === 'image'" class="flex flex-col gap-1.5 sm:col-span-2">
+                            <div class="flex items-center gap-3">
+                                <ToggleSwitch v-model="ogFetchEnabled" :input-id="`${uid}-og`" :disabled="!canManage || saving" :aria-describedby="`${uid}-og-help`" />
+                                <label :for="`${uid}-og`" class="text-sm font-medium">{{ t('hotdeal.settings.field.ogFetchEnabled') }}</label>
+                                <span v-if="ogChanged" class="text-xs text-amber-700 dark:text-amber-400">{{ t('hotdeal.settings.savedValue', { value: t(saved.ogFetchEnabled ? 'hotdeal.settings.on' : 'hotdeal.settings.off') }) }}</span>
+                            </div>
+                            <p :id="`${uid}-og-help`" class="m-0 text-xs leading-relaxed text-muted-color">{{ t(ogFetchEnabled ? 'hotdeal.settings.help.ogFetchEnabledOn' : 'hotdeal.settings.help.ogFetchEnabledOff') }}</p>
                         </div>
                     </div>
                 </div>
@@ -93,10 +109,18 @@ const { confirm } = useConfirmDialog();
 const { can } = useAdminPermission();
 const perm = useHotdealPermission();
 const canManage = perm.canManage;
+const uid = useId();
 
-const SECTIONS: readonly { key: 'end' | 'suspicion'; fields: readonly HotdealSettingsField[] }[] = [
-    { key: 'end', fields: ['endRequestThreshold', 'endGraceHours', 'endRequestDailyLimit'] },
+type SectionKey = 'end' | 'post' | 'price' | 'hot' | 'suspicion' | 'storeSuspicion' | 'image';
+
+const SECTIONS: readonly { key: SectionKey; fields: readonly HotdealSettingsField[] }[] = [
+    { key: 'end', fields: ['endRequestThreshold', 'endGraceHours', 'endRequestDailyLimit', 'endRequestPerAuthorLimit', 'endRequestPerAuthorDays', 'keepMaxCount'] },
+    { key: 'post', fields: ['memberDailyPostLimit', 'sameStoreIntervalMinutes', 'autoExpireDays'] },
+    { key: 'price', fields: ['priceMaxWon', 'discountWarnPercent'] },
+    { key: 'hot', fields: ['hotLikeThreshold'] },
     { key: 'suspicion', fields: ['suspicionMinPosts', 'suspicionWindowDays'] },
+    { key: 'storeSuspicion', fields: ['storeSuspicionMembers', 'storeSuspicionWindowDays', 'storeSuspicionOtherRatioPercent'] },
+    { key: 'image', fields: [] },
 ];
 const FIELDS: readonly HotdealSettingsField[] = UtilHotdeal.SETTINGS.map((s) => s.field);
 
@@ -105,7 +129,8 @@ function spec(field: HotdealSettingsField) {
 }
 
 const saved = ref<HotdealSettingsView | null>(null);
-const texts = reactive<Record<HotdealSettingsField, string>>({ endRequestThreshold: '', endGraceHours: '', endRequestDailyLimit: '', suspicionMinPosts: '', suspicionWindowDays: '' });
+const texts = reactive(Object.fromEntries(FIELDS.map((f) => [f, ''])) as Record<HotdealSettingsField, string>);
+const ogFetchEnabled = ref(true);
 const serverErrors = ref<Partial<Record<HotdealSettingsField, string>>>({});
 const loading = ref(false);
 const loadError = ref<ApiError | null>(null);
@@ -127,7 +152,8 @@ function invalidOf(fields: readonly HotdealSettingsField[]): number {
     return fields.filter((f) => errorOf(f)).length;
 }
 
-const changed = computed(() => (saved.value ? UtilHotdeal.changedCount(texts, saved.value) : 0));
+const ogChanged = computed(() => saved.value !== null && ogFetchEnabled.value !== saved.value.ogFetchEnabled);
+const changed = computed(() => (saved.value ? UtilHotdeal.changedCount(texts, saved.value) + (ogChanged.value ? 1 : 0) : 0));
 const canSave = computed(() => canManage.value && changed.value > 0 && FIELDS.every((f) => !problemOf(f)));
 
 function onInput(field: HotdealSettingsField, value: string | undefined): void {
@@ -137,9 +163,17 @@ function onInput(field: HotdealSettingsField, value: string | undefined): void {
     serverErrors.value = next;
 }
 
+/** 금액 칸은 떠날 때 천 단위 쉼표를 다시 붙인다(읽을 수 없는 글자는 그대로 둔다) */
+function onBlur(field: HotdealSettingsField): void {
+    if (!spec(field).money) return;
+    const n = UtilHotdeal.parseInt(texts[field]);
+    if (n !== null) texts[field] = UtilHotdeal.formatSetting(field, n);
+}
+
 function applySaved(view: HotdealSettingsView): void {
     saved.value = view;
-    for (const f of FIELDS) texts[f] = String(view[f]);
+    for (const f of FIELDS) texts[f] = UtilHotdeal.formatSetting(f, view[f]);
+    ogFetchEnabled.value = view.ogFetchEnabled;
     serverErrors.value = {};
     formError.value = '';
 }
@@ -169,7 +203,7 @@ async function save(): Promise<void> {
     formError.value = '';
     serverErrors.value = {};
     try {
-        applySaved(await api.save(values));
+        applySaved(await api.save({ ...values, ogFetchEnabled: ogFetchEnabled.value }));
         toast.success(t('hotdeal.settings.saved'));
     } catch (e) {
         const failure = toApiError(e);
@@ -178,7 +212,7 @@ async function save(): Promise<void> {
         if (Object.keys(mine).length) {
             serverErrors.value = mine;
             formError.value = t('hotdeal.settings.saveFieldsRejected');
-        } else formError.value = `${t('hotdeal.settings.saveFailed')} — ${failure.message}`;
+        } else formError.value = `${t('hotdeal.settings.saveFailed')} — ${fields.ogFetchEnabled ?? failure.message}`;
     } finally {
         saving.value = false;
     }

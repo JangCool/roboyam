@@ -1,11 +1,13 @@
 <template>
     <!--
         핫딜 › 핫딜 글(`/hotdeals`) — 회원 핫딜 글을 상태별로 보고 종료·재개한다. 계약 `docs/features/hotdeal-contract.md`, 설계 03-hotdeal 7-1(글 관리 `/posts` 와 같은 골격).
-        **목업**(`useHotdealApi` → `hotdeal/api/mock`) — 스위치 `?mock=empty|error|detail-error|slow|forbidden|stale`.
-        - 조건 카드: 상태 `SelectButton`(진행·의심·종료·기간 지남·전체 + 건수) → 게시판 `Select`(핫딜 게시판) → 검색(제목·쇼핑몰·작성자, 2자 이상) → 등록일 기간.
-          상태·게시판은 고르는 즉시, 검색어·기간은 [검색](Enter)을 눌러야 주소로 간다. **모두 주소 쿼리**(`?view=&board=&q=&from=&to=&page=&size=&deal=`).
-        - 표: 썸네일 · 제목(말머리) · 게시판 · 쇼핑몰 · 딜가 · 정상가 · 할인율 · 상태 · 종료 요청(Badge) · 신고 · 작성자 · 등록 시각. 줄을 누르면 서랍(`?deal=` — replace, 목록은 다시 받지 않는다).
-        - 조치: 서랍 바닥 [종료]/[재개] → 사유 대화창(선택, `HotdealReasonDialog`) → 토스트. 재개 창은 마감이 지난 딜이면 「작성자가 마감을 고쳐야 해요」. 409(그 사이 바뀜)·404 는 토스트 + 새로 받기.
+        **목업**(`useHotdealApi` → `hotdeal/api/mock`) — 스위치 `?mock=empty|error|detail-error|slow|forbidden|stale|revisions-empty|revisions-error|link-changed`.
+        - 조건 카드: 상태 `SelectButton`(진행·의심·종료·기간 지남·전체 + 건수) → 게시판 `Select`(핫딜 게시판) → 차단 도메인 진행 중 체크(`blockedActive` + 건수) → 검색(제목·쇼핑몰·작성자, 2자 이상) → 등록일 기간.
+          상태·게시판·차단은 고르는 즉시, 검색어·기간은 [검색](Enter)을 눌러야 주소로 간다. **모두 주소 쿼리**(`?view=&board=&blocked=1&q=&from=&to=&page=&size=&deal=`).
+        - 표: 썸네일 · 제목(말머리 · 제휴 · 아래 줄에 「차단 도메인」·「링크 바뀜」·「가격 수정 N회」) · 게시판 · 쇼핑몰 · 딜가 · 정상가 · 할인율 · 상태 · 종료 요청(Badge) · 신고 · 작성자 · 등록 시각.
+          줄을 누르면 서랍(`?deal=` — replace, 목록은 다시 받지 않는다). 서랍 「수정 이력」 탭은 처음 열 때 이력을 받는다(D3).
+        - 조치: 서랍 바닥 [종료]/[재개] → 사유 대화창(선택, `HotdealReasonDialog`) → 토스트. 재개 창은 D2 안내(자동·운영진 종료는 운영진만, 작성자 종료는 24시간 안 작성자가 되돌릴 수 있음)와
+          마감이 지난 딜이면 「작성자가 마감을 고쳐야 해요」. 409(그 사이 바뀜)·404 는 토스트 + 새로 받기.
         - 상태: 대기 Skeleton 5줄 · 빈 「핫딜 글이 없어요」 + 게시판 설정 링크(`board.read`) · 오류 `Message` + 다시 시도.
         - 권한: 보기 `hotdeal.read`(메뉴), 종료·재개 `hotdeal.manage`(없으면 읽기 전용 안내 + 단추 없음). 감추는 것은 편의이고 막는 것은 서버다.
     -->
@@ -40,6 +42,13 @@
                     autocomplete="off"
                     class="min-w-0 flex-1 basis-64"
                 />
+            </FilterRow>
+            <FilterRow :label="t('hotdeal.filterBlocked')">
+                <div class="flex flex-wrap items-center gap-2">
+                    <Checkbox :model-value="filters.blocked" binary :input-id="`${uid}-blocked`" @update:model-value="setBlocked" />
+                    <label :for="`${uid}-blocked`" class="text-sm">{{ page ? t('hotdeal.blockedActiveCount', { n: page.blockedActiveCount }) : t('hotdeal.blockedActive') }}</label>
+                    <span class="text-xs text-muted-color">{{ t('hotdeal.blockedActiveHelp') }}</span>
+                </div>
             </FilterRow>
             <FilterRow :label="t('hotdeal.filterCreated')">
                 <DateRangeField v-model:from="createdFrom" v-model:to="createdTo" :presets="presets" :presets-label="t('member.presetsLabel')" :from-label="t('hotdeal.filterCreatedFrom')" :to-label="t('hotdeal.filterCreatedTo')" />
@@ -112,6 +121,11 @@
                                     {{ data.title }}
                                 </button>
                             </div>
+                            <div v-if="data.blockedHost || data.deal.revision.linkChanged || data.deal.revision.priceEdits > 0" class="mt-1 flex flex-wrap items-center gap-1">
+                                <Tag v-if="data.blockedHost" v-tooltip.top="t('hotdeal.blockedHostTip', { host: data.blockedHost })" :value="t('hotdeal.blockedTag')" icon="pi pi-ban" severity="danger" class="text-[11px]!" />
+                                <Tag v-if="data.deal.revision.linkChanged" :value="t('hotdeal.linkChanged')" icon="pi pi-link" severity="warn" class="text-[11px]!" />
+                                <Tag v-if="data.deal.revision.priceEdits > 0" :value="t('hotdeal.priceEdits', { n: data.deal.revision.priceEdits })" severity="secondary" class="text-[11px]!" />
+                            </div>
                         </template>
                     </Column>
                     <Column :header="t('hotdeal.col.board')" style="min-width: 6rem">
@@ -180,7 +194,9 @@
             :kind="reasonKind"
             :target="reasonTarget?.title ?? ''"
             :subtitle="reasonTarget ? `${reasonTarget.deal.storeName} · #${reasonTarget.postId}` : ''"
-            :expired="reasonTarget ? UtilHotdeal.endsAtPassed(reasonTarget.deal.endsAt) : false"
+            :expired="reasonTarget ? UtilHotdeal.endsAtPassed(reasonTarget.deal.endsAt ?? reasonTarget.deal.autoExpireAt) : false"
+            :ended-by="reasonTarget?.deal.endedBy ?? null"
+            :author-reopen-until="reasonTarget?.deal.reopenUntil ?? null"
             :busy="acting"
             :error="reasonError"
             :field-error="reasonFieldError"
@@ -199,7 +215,11 @@
             :can-manage="canManage"
             :can-read-reports="perm.canReadReports.value"
             :can-read-members="perm.canReadMembers.value"
+            :revisions="revisions"
+            :revisions-loading="revisionsLoading"
+            :revisions-error="revisionsError"
             @retry="loadDetail(openId)"
+            @need-revisions="loadRevisions(openId)"
             @act="openAct"
             @prev="neighbors.prev && openDeal(neighbors.prev)"
             @next="neighbors.next && openDeal(neighbors.next)"
@@ -211,7 +231,7 @@
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
-import type { AdminDealDetail, AdminDealPage, AdminDealRow, DealViewFilter } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { AdminDealDetail, AdminDealPage, AdminDealRow, DealRevisionListView, DealViewFilter } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { HotdealReasonKind } from '~/components/hotdeal/HotdealReasonDialog.vue';
 import UtilDateRange from '~/utils/util-date-range';
 import UtilHotdeal, { type HotdealFilters } from '~/utils/util-hotdeal';
@@ -256,6 +276,9 @@ function apply(next: HotdealFilters, how: 'push' | 'replace' = 'replace'): void 
 
 function setView(value: DealViewFilter): void {
     apply(UtilHotdeal.change(filters.value, { view: value }));
+}
+function setBlocked(value: boolean): void {
+    apply(UtilHotdeal.change(filters.value, { blocked: value }));
 }
 function setBoard(value: string): void {
     apply(UtilHotdeal.change(filters.value, { board: value === ALL ? '' : value }));
@@ -391,6 +414,36 @@ async function loadDetail(id: string | null, silent = false): Promise<void> {
     }
 }
 
+/* 수정 이력 — 서랍 「수정 이력」 탭을 처음 열 때 받는다(글이 바뀌면 비운다) */
+const revisions = ref<DealRevisionListView | null>(null);
+const revisionsLoading = ref(false);
+const revisionsError = ref<ApiError | null>(null);
+let revisionsSeq = 0;
+
+function resetRevisions(): void {
+    revisionsSeq++;
+    revisions.value = null;
+    revisionsLoading.value = false;
+    revisionsError.value = null;
+}
+
+async function loadRevisions(id: string | null): Promise<void> {
+    if (!id) return;
+    const mine = ++revisionsSeq;
+    revisionsLoading.value = true;
+    revisionsError.value = null;
+    try {
+        const found = await api.revisions(id);
+        if (mine === revisionsSeq) revisions.value = found;
+    } catch (e) {
+        if (mine === revisionsSeq) revisionsError.value = errorOf(e);
+    } finally {
+        if (mine === revisionsSeq) revisionsLoading.value = false;
+    }
+}
+
+watch(openId, () => resetRevisions());
+
 const drawerItem = computed<AdminDealRow | null>(() => (openId.value ? (detail.value?.row ?? items.value.find((it) => it.postId === openId.value) ?? null) : null));
 const neighbors = computed(() => UtilHotdeal.neighbors(items.value, openId.value));
 
@@ -490,14 +543,17 @@ async function submitReason(reason: string): Promise<void> {
     }
     acting.value = false;
     reasonOpen.value = false;
-    const expired = kind === 'REOPEN' && UtilHotdeal.endsAtPassed(row.deal.endsAt);
+    const expired = kind === 'REOPEN' && UtilHotdeal.endsAtPassed(row.deal.endsAt ?? row.deal.autoExpireAt);
     toast.success(t(kind === 'END' ? 'hotdeal.endedToast' : expired ? 'hotdeal.reopenedExpiredToast' : 'hotdeal.reopenedToast'), expired ? 6000 : undefined);
     await refreshAfter(row.postId);
 }
 
 async function refreshAfter(id: string): Promise<void> {
     await load(true);
-    if (openId.value === id) await loadDetail(id, true);
+    if (openId.value === id) {
+        await loadDetail(id, true);
+        if (revisions.value) void loadRevisions(id);
+    }
 }
 
 // 조건이 바뀌면 다시 받는다(처음 한 번 포함, `deal` 은 열쇠에 없다). ⚠ 맨 끝 — 위의 상태가 모두 만들어진 뒤
