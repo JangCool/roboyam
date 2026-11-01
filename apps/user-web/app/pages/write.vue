@@ -370,7 +370,7 @@ async function submit(): Promise<void> {
         // 하루 핫딜 글 한도 · 같은 쇼핑몰 간격(429) — 폼 아래 안내(쓰던 내용은 그대로)
         else if (dealLimit) formError.value = UtilHotdealMessages.dealError(t, e) ?? UtilBoardMessages.of(t, e);
         // 핫딜 쓰기 자격(403 — 이메일 인증·첫 등급·정지) — 게시판 목록 판정에 없는 핫딜 자격이라 저장 때 처음 알 수 있다. 핫딜 문구로(등급 이름은 서버가 주지 않아 「일반 등급부터」)
-        else if (isDeal.value && e instanceof ApiError && UtilHotdeal.isWriteBlockedCode(e.code)) formError.value = UtilHotdealMessages.writeBlocked(t, e.code, null);
+        else if (isDeal.value && e instanceof ApiError && UtilHotdeal.isWriteBlockedCode(e.code)) formError.value = UtilHotdealMessages.writeBlocked(t, e.code, UtilHotdealMessages.gradeLabelOf(e));
         else if (e instanceof ApiError && e.code === 'IMAGE_UPLOAD_NOT_ALLOWED') fieldErrors.value = { content: e.message }; // 이미지를 막은 게시판 — 본문 칸 아래에 서버 문구
         else if (e instanceof ApiError && UtilHotdeal.isFieldErrorCode(e.code) && e.fields && Object.keys(e.fields).length) {
             fieldErrors.value = { ...e.fields };

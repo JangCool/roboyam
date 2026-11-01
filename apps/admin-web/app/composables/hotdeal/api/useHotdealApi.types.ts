@@ -203,7 +203,7 @@ export interface AdminDealDetail {
 }
 
 /** 수정 이력이 적는 딜 칸 — 가격·링크·몰·마감·재고 등(`post_deal_revisions`, D3) */
-export type DealRevisionField = 'dealPrice' | 'normalPrice' | 'shippingFee' | 'productUrl' | 'storeName' | 'endsAt' | 'stockState' | 'couponNote' | 'priceBasisKind' | 'priceBasis' | 'affiliate';
+export type DealRevisionField = 'dealPrice' | 'normalPrice' | 'shippingFee' | 'productUrl' | 'storeName' | 'endsAt' | 'stockState' | 'couponNote' | 'priceBasisKind' | 'priceBasis' | 'dutyIncluded' | 'affiliate' | 'image';
 
 /** 칸 하나의 전·후 — 값은 그 칸의 저장 모양 그대로(금액 정수 · 시각 ISO · 코드 글자 · 불 · 없으면 null) */
 export interface DealRevisionChange {

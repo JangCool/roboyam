@@ -227,6 +227,15 @@ export default class UtilHotdealMessages {
     }
 
     /**
+     * 핫딜 쓰기 자격 오류(`403 GRADE_TOO_LOW`)의 `extras.minGradeLabel` — 필요한 등급 이름
+     * @param {ApiError} e - 오류.
+     * @returns {string | null} 등급 이름. 없으면 null.
+     */
+    static gradeLabelOf(e: ApiError): string | null {
+        return e.extraText('minGradeLabel') ?? null;
+    }
+
+    /**
      * 핫딜 게시판의 글쓰기가 막힌 까닭 — 등급·로그인·이메일은 핫딜 문구, 그 밖은 게시판 문구
      * @param {Translate} t - 번역 함수.
      * @param {WriteBlockedReason | null} reason - 서버가 준 까닭.

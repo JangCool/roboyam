@@ -11,7 +11,7 @@ import type { Translate } from '#layers/i18n/utils/util-i18n';
  */
 function checkError(t: Translate, e: unknown): string {
     if (!(e instanceof ApiError)) return '';
-    if (UtilHotdeal.isWriteBlockedCode(e.code)) return UtilHotdealMessages.writeBlocked(t, e.code, null);
+    if (UtilHotdeal.isWriteBlockedCode(e.code)) return UtilHotdealMessages.writeBlocked(t, e.code, UtilHotdealMessages.gradeLabelOf(e));
     return UtilHotdealMessages.dealError(t, e) ?? e.field('url') ?? e.field('board') ?? '';
 }
 
