@@ -148,6 +148,22 @@ PostDeal { source: MEMBER, storeName(≤40), productUrl(≤1000), productHost, f
   - 내 포인트 내역은 서버 `reason` 문구를 그대로 보이므로 「핫딜 종료 알림 보상」은 서버 번들에.
 - 못 한 것: 관리자 가젯 편집기 미리보기(user-web iframe 이라 user-web 쪽이 그림) · 내비게이션 메뉴에 목업 게시판 · 핫딜 목록의 테마 슬롯 등록 · 목업 글 댓글 쓰기(실서버로 가서 실패).
 
+### 보강 목업 (05 §2, 커밋 user-web `a3c56c04` · admin-web `515268fb`)
+- 새 `?mock=` — user-web: `deal-daily-limit`·`deal-store-interval`·`deal-keep-limit`·`deal-reopen`·`deal-reopen-expired`·`deal-reopen-used`·`deal-link-changed`·`deal-price-edited`·`deal-save-warning`·`deal-redirect`·`deal-og-off`·`deal-request-denied`·`deal-author-limit`(`deal-ended` 는 이제 1시간 전 종료라 되돌리기도 보임). admin-web: `revisions-empty`·`revisions-error`·`link-changed`·`impact-zero`·`store-suspicion`·`report-deal`.
+- 목업 글 13~19 추가(해외 직구 HOT·임박, 0원 회원가, 품절 종료, 몰 11개, `coupa.ng` 리디렉션). 관리자 시드 `cheap-robot.shop` 차단(진행 중 2건), 판매처 후보 3건, 이력 있는 글 6건.
+- 화면이 새로 정한 것(확인 필요)
+  - prefill 응답 `DealPrefill { fromPostId, title, storeName, productUrl, image }`.
+  - 오류 `extras`: `DEAL_DAILY_POST_LIMIT {limit}` · `DEAL_SAME_STORE_TOO_SOON {remainingMinutes, intervalMinutes, retryAfterSeconds}` · `DEAL_END_REQUEST_AUTHOR_LIMIT {limit, days}`. 칸 오류 키 `fields."deal.priceBasisKind"`.
+  - `?store=` 값은 쇼핑몰 이름, 칩 개수는 말머리·종료 숨기기 적용 뒤·몰 거르기 전.
+  - `warnings[]` 는 글쓰기 응답 `PostWriteResult.warnings` · 고치기 응답 `PostDetail.warnings`. **수정 때 링크를 그대로 두면 차단이어도 저장 + 경고, 차단 도메인으로 바꾸면 칸 오류**.
+  - 공개 화면은 설정값(1억·90%·30일)을 기본값 상수로 미리 검사 — 공개 쪽 설정값 전달 경로 미정.
+  - 「가격 수정 N회」 = 딜가·정상가를 바꾼 수정 줄 수(배송비 제외). 「내일 마감」 = 기기 달력 내일이고 12시간 넘게 남음.
+  - 되돌리기 때 재고가 품절이었으면 「모름」으로. 가격 허위 신고(204) 뒤 화면이 카드 `endRequests` 를 직접 고침.
+  - 가젯 「더 보기」 갈 곳: 서버 `more.to` → 설정 `boards[0]` → 첫 줄의 게시판.
+  - 관리자: 이력 응답 `{ items, retentionMonths }`, 회원 후보 판매처 칸 `domain` → **`host`**(판매처 후보와 맞춤), 판매처 후보 글은 상세 `DealSuspicionDetail.posts`(≤30) + `members[]`(회원별 이 판매처 글 수·다른 핫딜 수), 목록 `kindCounts`, 핫딜 목록 줄 `blockedHost`·응답 `blockedActiveCount`, impact `{ domain, activeCount, samples[≤3] }`, 설정 응답 `rewardDailyLimit`(읽기 전용), `keyParams` 최대 10개·추적 파라미터 거절(`fields.keyParams`).
+  - 신고 사건 `ReportCaseItem.deal?: { view }`(핫딜 글 여부·딜 상태 — 없으면 목업이 핫딜 사유 신고 유무로 추정), `DEAL_END` 처리 글 1~200자(작성자에게 가는 종료 사유, 글은 숨기지 않음), 일반 글이면 `409 REPORT_ACTION_INVALID`.
+- 못 한 것: 종료 요청 자격 미달을 미리 보이지 못함(보는 사람 자격 칸 없음 — 누른 뒤 토스트) · 하루 글 한도·같은 몰 간격은 스위치로만 · 되돌리기 남은 시간 매분 갱신 안 함 · 회원 관리는 주소로 회원을 못 열어 「회원 제재로 가기」는 `/members` 까지 · 목업 [핫딜 종료] 신고 조치는 새로고침하면 사라짐.
+
 ## 미확정
 - 같은 딜 판정에 쿼리 문자열을 어디까지 남길지 — 규칙별 `keyParams` 로 정하되 기본 몰 목록은 운영하며 채움.
 - 종료 요청 자격·하루 글 5건·같은 몰 10분·마감 없는 딜 30일은 추천안 채택값(바꿀 수 있음).
