@@ -9,6 +9,7 @@ import type {
     AdCalendar,
     AdImage,
     AdManualCreateRequest,
+    AdPlacementHistoryPage,
     AdPlacementsRequest,
     AdPlacementsView,
     AdRestoreRequest,
@@ -34,6 +35,7 @@ import type { BizContractFile, BizPeriod } from '~/composables/bizapplication/ap
  *  - `POST /api/admin/ads/{id}/takedown` `{ reason, notifyMail }` · `POST /api/admin/ads/{id}/restore` `{ compensation, reason }`
  *  - `GET  /api/admin/ads/placements`(`ad.read`) · `PUT /api/admin/ads/placements`(`ad.settings`) `AdPlacementsRequest` → `AdPlacementsView`(글 보기·날개 배너·게시판 목록 한 줄 자리 설정, 감사 `AD_PLACEMENT_UPDATE`).
  *    400 `fields.postInline.adType`·`fields.postInline.position`·`fields.wings.screens`·`fields.boardList.after`(1~20), 빠진 묶음은 `fields.postInline` 등.
+ *  - `GET  /api/admin/ads/placements/history?page=&size=`(`ad.read`) → `AdPlacementHistoryPage`(메일 서버 설정 이력과 같은 모양 — 최신이 위, 바뀐 칸이 없는 저장은 줄이 없다)
  *  상태가 이미 바뀌었으면 409 `BIZ_APPLICATION_STATE_CHANGED`.
  */
 const PATH = {
@@ -47,6 +49,7 @@ const PATH = {
     images: () => `${PATH.root}/images`,
     manual: () => `${PATH.root}/manual`,
     placements: () => `${PATH.root}/placements`,
+    placementHistory: () => `${PATH.root}/placements/history`,
 };
 
 export function useAdApi() {
@@ -92,5 +95,8 @@ export function useAdApi() {
         placements: (): Promise<AdPlacementsView> => client.get<AdPlacementsView>(PATH.placements()),
 
         savePlacements: (body: AdPlacementsRequest): Promise<AdPlacementsView> => client.put<AdPlacementsView>(PATH.placements(), body),
+
+        /** 광고 자리 설정 변경 이력 한 쪽 — `page` 0 부터 */
+        placementHistory: (page: number, size: number): Promise<AdPlacementHistoryPage> => client.get<AdPlacementHistoryPage>(PATH.placementHistory(), { query: { page, size } }),
     };
 }

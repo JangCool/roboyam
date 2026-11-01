@@ -1,4 +1,5 @@
 import type { BizAdType, BizAmount, BizContractFile, BizDeposit, BizDomain, BizPaymentMethod, BizPeriod, BizQuote, BizRefundRequest } from '~/composables/bizapplication/api/useBizApplicationApi.types';
+import type { SettingHistoryItem, SettingHistoryPage } from '~/composables/common/useSettingHistory.types';
 
 /**
  * 광고 일정표(관리자) — 광고 건 · 유형별 한도 · 날짜별 남은 칸 · 운영자 등록. 서버와 주고받는 모양(서버 `AdAdminView`·`AdAdminRequest`, `AdAdvertiserService.Option`·`Revealed` — V115).
@@ -261,3 +262,22 @@ export interface AdPlacementsView extends AdPlacementsRequest {
     updatedAt: string | null;
     updatedBy: { id: string; name: string } | null;
 }
+
+/**
+ * 광고 자리 설정 변경 이력의 칸 코드(`changes[].field`) — 서버가 이 차례로 준다.
+ * 값 글자: 켜기 칸은 `"true"`/`"false"` · 유형·위치는 enum 이름 · `wings.screens` 는 HOME·PAGE·BOARD·POST 차례 쉼표 이음(빈 목록은 `""`) · `boardList.after` 는 숫자 글자.
+ */
+export type AdPlacementHistoryField =
+    | 'postInline.enabled'
+    | 'postInline.adType'
+    | 'postInline.position'
+    | 'wings.left'
+    | 'wings.right'
+    | 'wings.screens'
+    | 'boardList.enabled'
+    | 'boardList.after'
+    | 'adult.enabled';
+
+/** `GET /api/admin/ads/placements/history` 한 줄 — 메일 서버 설정 이력과 같은 모양(공용 `SettingHistoryItem`, 출처는 늘 `ADMIN`) */
+export type AdPlacementHistoryItem = SettingHistoryItem;
+export type AdPlacementHistoryPage = SettingHistoryPage<AdPlacementHistoryItem>;

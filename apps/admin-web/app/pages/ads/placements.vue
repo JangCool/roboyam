@@ -13,9 +13,15 @@
         권한: 화면 `ad.read` · 저장 `ad.settings`(없으면 입력이 잠기고 저장 줄 대신 읽기 전용 안내). 막는 것은 서버다.
         서버가 거절한 칸(400 `fields.postInline.adType` 등)은 그 칸 아래, 빠진 묶음(`fields.postInline` 등)은 그 묶음 위, 나머지는 저장 줄에 서버 문구 그대로.
         공개 화면은 서버 사본(20초) 뒤에 따라온다. 바꾼 값은 서버가 감사(`AD_PLACEMENT_UPDATE`, 전→후)에 남긴다.
+        변경 이력: 제목 옆 「변경 이력」 단추(`ad.read`)가 오른쪽 서랍(`SettingHistoryDrawer` + `SettingHistoryTable`, 메일 서버 설정과 같은 부품)을 연다 — 처음 열 때 받고, 저장에 성공하면 받은 적이 있을 때 첫 쪽부터 다시.
+          칸 이름·값(켜짐/꺼짐, 유형·위치·화면 이름, 「5번째 글 뒤」)은 서버 `labelKey` 형식이 정해지기 전이라 칸 코드(`field`)로 화면이 고른다(`UtilAdMessages.placementHistoryItems`).
     -->
     <div class="flex min-w-0 flex-col gap-4">
-        <PageTitle :title="t('ad.placementsTitle')" :subtitle="t('ad.placementsSubtitle')" />
+        <PageTitle :title="t('ad.placementsTitle')" :subtitle="t('ad.placementsSubtitle')">
+            <template v-if="canRead" #actions>
+                <Button :label="t('settingHistory.open')" icon="pi pi-history" severity="secondary" outlined size="small" data-testid="ad-placements-history-open" @click="openHistory" />
+            </template>
+        </PageTitle>
 
         <!-- 읽는 중 -->
         <AppGadget v-if="loading && !saved" :title="t('ad.postInlineSection')">
@@ -222,6 +228,22 @@
                 </aside>
             </div>
         </form>
+
+        <!-- 설정 이력 — 제목 옆 단추가 오른쪽 서랍으로 연다(최신이 위, 메일 서버 설정과 같은 부품) -->
+        <SettingHistoryDrawer v-model:visible="historyOpen" :hint="t('ad.placementsHistoryHint')">
+            <SettingHistoryTable
+                :items="historyRows"
+                :total="history.total.value"
+                :first="history.first.value"
+                :page-size="history.size.value"
+                :loading="history.loading.value"
+                :loaded="history.loaded.value"
+                :error="history.error.value"
+                :compact="prefs.density === 'compact'"
+                @page="history.onPage"
+                @retry="history.load"
+            />
+        </SettingHistoryDrawer>
     </div>
 </template>
 
@@ -229,6 +251,7 @@
 import type { AdPlacementsRequest, AdPlacementsView } from '~/composables/ad/api/useAdApi.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import UtilAd from '~/utils/util-ad';
+import UtilAdMessages from '~/utils/util-ad-messages';
 
 type Section = 'postInline' | 'wings' | 'boardList' | 'adult';
 type PlacementTab = 'post' | 'wings' | 'list' | 'adult';
@@ -242,7 +265,7 @@ const TABS: readonly { key: PlacementTab; section: Section; label: string }[] = 
 ];
 const DEFAULT_TAB = TABS[0]!;
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 useSeoMeta({ title: () => t('ad.placementsTitle') });
 
 const route = useRoute();
@@ -307,6 +330,10 @@ const idBase = useId();
 
 /** 저장할 수 있나(정의: util-permission-catalog.ts) */
 const canEdit = computed(() => can('ad.settings'));
+/** 변경 이력을 볼 수 있나 — 화면 조회 권한과 같다 */
+const canRead = computed(() => can('ad.read'));
+// ⚠ 통째로 받아 `prefs.density` 를 쓰지 않으면 조밀 모드가 이 표에만 안 먹는다
+const { prefs } = useLayoutPrefs();
 
 const saved = ref<AdPlacementsView | null>(null);
 const form = ref<AdPlacementsRequest | null>(null);
@@ -388,6 +415,8 @@ async function save(): Promise<void> {
     try {
         applySaved(await api.savePlacements(body));
         toast.success(t('ad.placementsSaved'));
+        // 이력을 한 번이라도 받았으면 첫 쪽부터 다시(새 줄이 맨 위에 생긴다 — 메일 서버 설정과 같다)
+        if (history.loaded.value) void history.reloadFirst();
     } catch (e) {
         const failure = toApiError(e);
         const fields: Record<string, string> = {};
@@ -405,6 +434,18 @@ async function save(): Promise<void> {
     } finally {
         saving.value = false;
     }
+}
+
+/* ── 설정 이력 ── */
+
+const history = useSettingHistory((page, size) => api.placementHistory(page, size));
+/** 표에 넘길 줄 — 칸 이름·값을 사람이 읽는 글자로(언어를 바꾸면 따라 바뀌게 받은 원본에서 매번 만든다) */
+const historyRows = computed(() => UtilAdMessages.placementHistoryItems(t, te, history.rows.value));
+/** 이력 서랍 — 처음 열 때 받는다(화면을 열 때마다 이력을 부르지 않는다) */
+const historyOpen = ref(false);
+function openHistory(): void {
+    historyOpen.value = true;
+    if (!history.loaded.value && !history.loading.value) void history.load();
 }
 
 // 저장하지 않은 변경이 있는 채 다른 화면으로 가려 하면 묻는다
