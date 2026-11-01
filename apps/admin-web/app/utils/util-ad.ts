@@ -100,6 +100,43 @@ export default class UtilAd {
         'adult.enabled',
     ];
 
+    /* ── 광고 자리 미리보기(공개 화면 짜임을 단순하게 그린 도식) — 값은 user-web `UtilAd`·`AdWings` 와 같다 ── */
+
+    /** 날개 폭 · 본문과 날개 사이 · 날개와 창 끝 사이(px) — user-web `UtilAd.WING`. 한쪽 바깥 여백이 셋의 합(192px) 이상일 때만 그린다 */
+    static readonly WING = { width: 160, gap: 16, edge: 16 } as const;
+    /** 공개 셸의 본문 폭(`--content-max`, px) — 기본·네이버식 1100 · 다음식·로보얌 1168 */
+    static readonly PUBLIC_CONTENT = { base: 1100, wide: 1168 } as const;
+
+    /** 날개가 보이기 시작하는 창 너비(px) — 본문 폭 + 양쪽 (날개 + 간격 + 끝 여백) */
+    static wingMinViewport(content: number): number {
+        return content + 2 * (UtilAd.WING.width + UtilAd.WING.gap + UtilAd.WING.edge);
+    }
+
+    /** 목록 한 줄 광고가 붙는 일반 글 차례(1부터, 그 줄 뒤) — user-web `UtilAd.feedIndex` 와 같다: 글이 적으면 맨 끝, 일반 글이 없으면 null */
+    static feedSlot(rows: number, after: number): number | null {
+        if (rows <= 0) return null;
+        return Math.min(rows, after);
+    }
+
+    /**
+     * 미리보기 목록 줄 — 짧으면 다 두고, 길면 앞 두 줄 · 광고 앞뒤 줄 · 마지막 줄만 두고 사이는 「⋯ N줄」로 접는다.
+     * `slot` 은 광고가 붙는 일반 글 차례(없으면 null).
+     */
+    static previewFeedRows(rows: number, slot: number | null, keepAll = 8): ({ kind: 'row'; n: number } | { kind: 'gap'; count: number })[] {
+        const out: ({ kind: 'row'; n: number } | { kind: 'gap'; count: number })[] = [];
+        for (let n = 1; n <= rows; n++) {
+            const keep = rows <= keepAll || n <= 2 || n === rows || (slot !== null && Math.abs(n - slot) <= 1);
+            if (keep) {
+                out.push({ kind: 'row', n });
+                continue;
+            }
+            const last = out[out.length - 1];
+            if (last?.kind === 'gap') last.count++;
+            else out.push({ kind: 'gap', count: 1 });
+        }
+        return out;
+    }
+
     /** 편집용 사본(서버 응답을 그대로 고치지 않게) — 날개 화면은 정해진 차례로. `adult` 가 없는 응답(옛 서버)은 끔으로 읽는다 */
     static placementsForm(view: AdPlacementsRequest): AdPlacementsRequest {
         return {
