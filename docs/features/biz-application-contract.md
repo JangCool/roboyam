@@ -94,6 +94,7 @@ API 요청·응답 모양 전체는 서버 DTO(admin `bizapplication/dto/BizAdmi
 - ⚠ 대시보드 건수는 목록 API 의 `counts` 를 쓴다(건수 전용 API 없음 — 행도 같이 받음). 사업자 관리자 알림 아이콘은 화면 표에 아직 없다.
 
 ## 사업자 핫딜 신청 닫음 (2026-11-01 — 사용자 「닫아 둬」)
+- **→ 2026-11-02 다시 엶**: 사업자 핫딜 게시(2차) 구현과 함께 shared **V123** 이 세 상품 `accepting=true` — 게시·노출 규칙은 `biz-hotdeal-contract.md` 가 정본(`withDealsOpen` 시험 도우미는 지움).
 - **사업자 핫딜 신청 닫음 — 게시 기능(`BizHotdealPosting`) 구현 때 V1xx 로 다시 연다.** shared **V121** 이 요금표 `HOTDEAL_POST`·`HOTDEAL_TOP`·`HOTDEAL_CATEGORY` 의 `accepting=false`(새 신청 409 `BIZ_PRODUCT_CLOSED`, 이미 들어온 건은 그대로). `GET /api/business/deal-products` 에 `accepting`(글 게시)·`placements[].accepting`(노출 자리별). user-web 사업자 센터 홈 핫딜 카드는 「준비 중」·단추 비활성, `/business/deals/new` 는 폼 대신 안내(409 를 받아도 같은 안내), 닫힌 노출 자리는 「지금은 받지 않아요」. 관리자 일정표 핫딜 노출 탭·심사 화면은 그대로(받기 상태를 내려 주는 관리자 API 가 없어 안내 문구는 넣지 않음). 시험은 `withDealsOpen` 으로 신청 동안만 연다.
 
 ## 후속 (이 세션 범위 밖)

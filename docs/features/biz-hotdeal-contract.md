@@ -1,6 +1,6 @@
-# 사업자 핫딜 게시(2차) 계약 — 초안
+# 사업자 핫딜 게시(2차) 계약 (화면 확정 2026-11-02 · 서버 구현·화면 연결 2026-11-02 — V123)
 
-**상태: 범위 확정 2026-11-02(사용자 「추천안대로 진행」) · 두 앱 화면 목업 완료(서버 없음) — 화면 확정 대기.** 신청·심사·결제·예약 흐름은 `biz-application-contract.md` 가 정본이고, 핫딜 글·딜 칸·종료 요청·링크 규칙은 `hotdeal-contract.md`(회원 핫딜 1차) 가 정본이다. 이 문서는 **예약된 사업자 핫딜이 실제 글로 보이는 고리**만 다룬다.
+**상태: 범위 확정 2026-11-02(사용자 「추천안대로 진행」) · 화면 확정 2026-11-02 · 서버 구현·두 앱 실제 API 연결 2026-11-02(브랜치 `claude/biz-hotdeal-backend-8bd9cb`, develop 미병합) — 다음은 실제 호출 확인.** 신청·심사·결제·예약 흐름은 `biz-application-contract.md` 가 정본이고, 핫딜 글·딜 칸·종료 요청·링크 규칙은 `hotdeal-contract.md`(회원 핫딜 1차) 가 정본이다. 이 문서는 **예약된 사업자 핫딜이 실제 글로 보이는 고리**만 다룬다.
 
 ## 의도
 - 돈 받은 만큼 실제로 보여 준다: 예약 확정된 `HOTDEAL_POST` 건은 **시작 시각에 핫딜 게시판에 사업자 글로 올라가고**, 노출을 산 건은 그 글이 핫딜 노출 두 자리에 보인다.
@@ -84,7 +84,22 @@ PostDeal += source: MEMBER|BUSINESS, business: { name }|null        // 공개 �
 ## 뒤로 미룸
 상단 구획(24시간) · 끌올 · 쿠폰 코드 · 게시 뒤 사업자 수정·수정 이력 화면 · 사업자용 노출·클릭 리포트 · 게시된 글에 노출만 따로 붙이기(`HOTDEAL_PLACEMENT` 공개 신청) · 「내 핫딜」 목록 페이지 · OG 자동 이미지 · 홈 화면 노출 · 「다시 게시」.
 
+## 서버 구현 결정 (2026-11-02 — shared V123)
+API 칸 이름·오류 키 전체는 세션 공유 메모 `biz-hotdeal-api.md` 「서버 결과」와 서버 DTO 가 정본이다. 아래는 규칙만.
+- **저장**: 새 표 `biz_deal_posts`(PK = 신청 건 — 게시 결과 한 줄, `POSTED`(글 유일)·`FAILED`(사유 CHECK)·`hidden_at`) · `post_deals` += `biz_application_id`(유일)·`business_name`(CHECK: `source=BUSINESS` ⇔ 둘 다 있음) · 세 상품 `accepting=true`. 두 번 게시는 PK + `ON CONFLICT DO NOTHING` + 신청 건 행 잠금으로 막는다. 처리 기록 action·회원 알림 kind·관리자 알림 이벤트는 DB CHECK 가 없어 고치지 않았다.
+- **게시**: 고리 구현 `BizHotdealPublisher`(+ 되돌림 고리 `onRestored`), 배치 `biz-hotdeal-publish`(1분, 작업 shared `bizapplication.batch`, 예약 admin `BatchCatalog`). 판정 차례 = 사업자 승인(`business_profiles.status = APPROVED`, 아니면 `BUSINESS_SUSPENDED`) → 게시판(있음·켬·DEAL) → 말머리(사라졌거나 꺼졌으면 `OTHER`) → 링크(`deal_domains`, 처음 호스트만 — 외부 주소는 열지 않음). **실패 건은 다시 시도하지 않는다**(게시판을 다시 켜도 그대로 — 운영자 취소·전액 환불).
+- **글 모양**: 본문 평문 · 글 시각 = 게시 시각 · 작성 IP 없음 · 포인트 없음 · 옛 재고 `PLENTY → IN_STOCK`·`LIMITED → LOW` · 정가 < 딜가면 정가를 비움(신청 때도 새 검사 `deal.listPrice`). 공개 `deal.hot` 늘 false·`reopenUntil` 늘 null, keep(「아직 진행 중」)은 사업자도 쓸 수 있다.
+- **숨김·되돌림**: `onClosed` 는 보이는 글만 운영자 숨김 까닭(`STAFF`)으로 숨기고 그 시각을 `biz_deal_posts.hidden_at` 에 남긴다. 되돌림은 글의 숨김 까닭이 `STAFF` 이고 숨긴 시각이 그 값과 같을 때만 푼다(운영자가 따로 숨긴 글은 안 풂). 되돌림 때 딜 마감을 (연장된) 신청 기간 끝에 맞춘다. 시작 전에 내렸다 시작 뒤 되돌린 건은 그때 게시한다.
+- **실패 건 운영자 취소**: 게시 결과 `FAILED` 면 시작 뒤(끝난 뒤 포함)에도 기존 `POST …/cancel` 이 전액 환불(`FULL_AUTO`). 정상 게시된 진행 중 건은 그대로 409(환불 심사로).
+- **종료 기록**: 사업자 종료·자동 종료는 공용 `DealEndService`(`endByAuthor`·`autoEnd`)가 사업자 글일 때만 처리 기록 — 글 보기 작성자 [딜 종료]·탈퇴 경로도 `DEAL_ENDED_BY_BUSINESS`. 운영진 종료는 처리 기록 없음(글 `endedBy = MANAGER`). 사업자 알림 새 kind `POSTED`·`POST_FAILED`, 종료 요청 문턱·자동 종료는 기존 회원 딜 알림이 작성자(사업자)에게 간다. 운영자 알림 `HOTDEAL_POST_FAILED`(WARNING, `hotdeal.manage`).
+- **회원 한도 제외**: 회원 하루 글 수·같은 판매처 간격 셈에 `source = 'MEMBER'`.
+- **노출**: `HOTDEAL_TOP` 은 요청 `prefix` 를 보지 않고, `board` 를 주지 않은 호출에도 낸다. `deal` 칸은 글에서(`linkUrl = /posts/{postId}`), 사본 20초.
+- **신청 폼**: 받는 게시판 = 켜진 DEAL 게시판 전부, 말머리 = 켜짐·운영진 전용 아님만. 링크 칸 오류 키는 기존 `deal.linkUrl`(메모 초안의 `deal.productUrl` 은 안 씀), 새 키 `deal.listPrice`·`deal.imageFileId`(화면은 각 칸의 단계로 보냄). 소재 바꾸기에서 `imageFileId` 를 비우면 지금 이미지 유지(배너와 같음). `deal-link-check` 도 `deal_domains` 판정.
+- **목업 정리**: 두 앱의 2차 목업(`// MOCK:`·목업 파일·`?mock=bizdeal-*`·목업 ID)은 모두 지웠다 — 위 「목업 결과」 절은 화면 확정 기록으로만 남긴다. 기존 `HotdealClosedTest`·`withDealsOpen` 은 지우고 다시 연 상태 시험으로 옮겼다.
+- **테스트**: api `BizHotdealPostingTest`(17)·`BizHotdealExposureTest`(12) · admin `HotdealAdminBusinessHttpTest` + 기존 신청 건·핫딜 시험 갱신. `--tests` 로 bizapplication·hotdeal·ad 묶음 등을 골라 돌림 — api 267·admin 56·shared 17 통과.
+
 ## 미확정
+- (서버 가정 2026-11-02) 신청 때 고른 말머리가 게시 시각에 없어지면 `OTHER` 실패 — 말머리 없이 게시할지 결정 필요. 사업자 정지 판정은 `business_profiles.status` 만 보고 서비스(HOTDEAL) 줄 상태는 보지 않는다.
 - 사업자 글 게시 시각이 목록 차례에서 어디에 서는지(가정: 글 시각 = 게시 시각, 회원 글과 같은 최신순).
 - 종료 요청 문턱·keep 한도를 사업자 글에도 같은 값으로 쓸지(가정: 같은 `deal_settings`).
 - 하루 한도·같은 판매처 간격(회원 규칙)은 사업자 글에 적용하지 않음(가정 — 심사·결제가 대신함).
