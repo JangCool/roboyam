@@ -28,6 +28,7 @@ import tools.jackson.databind.json.JsonMapper;
  * 관리자 게시판 만들기에서 핫딜 종류({@code kind: "DEAL"}) — hotdeal-contract 「서버 구현 결정 (2026-11-01)」.
  * 만든 핫딜 게시판은 19금 끔 · 글쓰기 최소 자격 첫 등급 바로 위 · 비회원 글쓰기 없음 · 가젯 노출 금지 인기글이고, 상세를 그대로 다시 저장해도 검사에 걸리지 않는다.
  * 직접홍보(PROMO)는 여전히 거절, 소모임 분류는 소모임 게시판만. 핫딜 게시판의 19금 켜기·첫 등급 글쓰기 저장은 400.
+ * 핫딜 게시판에도 매니저·스텝을 지정할 수 있다(핫딜 담당 = 그 게시판 매니저·스텝).
  */
 class BoardDealCreateHttpTest extends Commerce04AdminTestBase {
 
@@ -42,7 +43,7 @@ class BoardDealCreateHttpTest extends Commerce04AdminTestBase {
     @BeforeEach
     void setUp() throws Exception {
         session = login(operatorWith(Permission.BOARD_READ, Permission.BOARD_MANAGE, Permission.BOARD_SETTINGS, Permission.BOARD_DELETE,
-                Permission.GROUP_SETTINGS));
+                Permission.GROUP_SETTINGS, Permission.BOARD_STAFF_MANAGE));
     }
 
     @AfterEach
@@ -198,5 +199,17 @@ class BoardDealCreateHttpTest extends Commerce04AdminTestBase {
         body.put("policy", policy);
         save(id, body).andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.fields.['policy.writeMin']").exists());
         assertThat(jdbc.queryForObject("SELECT write_min FROM boards WHERE id = ?", String.class, Long.parseLong(id))).isEqualTo(gradeAt(1));
+    }
+
+    @Test
+    void 핫딜_게시판에도_매니저를_지정할_수_있다() throws Exception {
+        String id = createDeal("LIST");
+        long member = newMember();
+        jdbc.update("UPDATE users SET email_verified_at = now() WHERE id = ?", member);
+        jdbc.update("UPDATE profiles SET grade_key = ? WHERE user_id = ?", gradeAt(1), member);
+        mvc.perform(withCsrf(post("/api/admin/boards/" + id + "/staff"), session).content("{\"memberId\":\"" + member + "\",\"role\":\"MANAGER\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].role").value("MANAGER"));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM board_staff WHERE board_id = ? AND user_id = ?", Integer.class, Long.parseLong(id), member)).isEqualTo(1);
+        mvc.perform(withCsrf(delete("/api/admin/boards/" + id + "/staff/" + member), session)).andExpect(status().isOk());
     }
 }

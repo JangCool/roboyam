@@ -587,7 +587,7 @@ export default {
 
     // ── 매니저·스텝 ──
     staffLead: '게시판 매니저·스텝은 일반 회원이에요. 지정·해제는 누르면 바로 반영돼요(저장 줄과 무관).',
-    staffKindBlocked: '핫딜·직접홍보·소모임 게시판에는 매니저·스텝을 지정할 수 없어요.',
+    staffKindBlocked: '직접홍보·소모임 게시판에는 매니저·스텝을 지정할 수 없어요.',
     staffLoadFailed: '매니저·스텝을 불러오지 못했어요',
     role: {
         MANAGER: '매니저',

@@ -314,7 +314,7 @@
 
                 <!-- 8. 게시판 매니저·스텝 — 지정/해제는 바로, 한도 칸은 저장 줄로 -->
                 <AppGadget :title="t('board.section.staff')" anchor="board-staff" :changes="changes.staff" :invalid="invalidOf([...STAFF_LIMIT_FIELDS])">
-                    <Message v-if="saved.kind !== 'GENERAL'" severity="warn" :closable="false" size="small" class="mb-4">{{ t('board.staffKindBlocked') }}</Message>
+                    <Message v-if="!UtilBoard.staffAssignable(saved.kind)" severity="warn" :closable="false" size="small" class="mb-4">{{ t('board.staffKindBlocked') }}</Message>
                     <p class="mb-4 text-xs leading-relaxed text-muted-color">{{ t('board.staffLead') }}</p>
 
                     <div v-if="staffLoading && !staff" class="flex flex-col gap-2" role="status" :aria-label="t('common.loading')">
@@ -786,7 +786,7 @@ function capOf(role: BoardStaffRole): number {
 /** 지정 단추를 막는 이유 — 종류 · 꺼짐 없음 · 인원 상한 */
 function appointBlockedReason(role: BoardStaffRole): string {
     if (!saved.value) return '';
-    if (saved.value.kind !== 'GENERAL') return t('board.staffKindBlocked');
+    if (!UtilBoard.staffAssignable(saved.value.kind)) return t('board.staffKindBlocked');
     if (staffOfRole(role).length >= capOf(role)) return t('board.staffCapReached', { max: capOf(role) });
     return '';
 }
