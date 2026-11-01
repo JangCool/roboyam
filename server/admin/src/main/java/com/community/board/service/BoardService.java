@@ -73,7 +73,9 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>가젯 노출 금지({@code gadgetExclusions}): null 이면 그대로, 중복은 하나로(목록 순서로 저장), 모르는 값은 400 {@code gadgetExclusions}.</li>
  *   <li>광고 숨김({@code adsHidden}, V117): null 이면 그대로 — 정책 묶음({@code board.settings})으로 본다(가젯 노출 금지와 같은 「노출」 설정, 가정).</li>
  *   <li>삭제는 삭제되지 않은 글(임시저장 포함)이 없을 때만(409 {@code BOARD_HAS_POSTS}) — 남은 삭제된 글·댓글도 함께 지운다.</li>
- *   <li>만들기는 종류 {@code GENERAL}(기본)·{@code GROUP}(소모임 — 메뉴에 자동으로 넣지 않는다)만. 소모임 분류({@code groupCategoryId})는 소모임 게시판만 받고
+ *   <li>만들기는 종류 {@code GENERAL}(기본)·{@code GROUP}(소모임 — 메뉴에 자동으로 넣지 않는다)·{@code DEAL}(핫딜)만 — 직접홍보({@code PROMO})는 설치 프리셋만.
+ *       핫딜 게시판은 설치 프리셋과 같은 길({@link BoardCreator} — 19금 끔, 가젯 노출 금지 인기글, 비회원 글쓰기 없음)에 글쓰기 최소 자격을 첫 등급 바로 위 등급으로 정해 만든다
+ *       (등급이 하나 이하면 STAFF — 저장 검사 {@code board.policy.dealGrade} 와 맞게). 종류는 만든 뒤 바꿀 수 없다(저장 요청에 종류 칸이 없다). 소모임 분류({@code groupCategoryId})는 소모임 게시판만 받고
  *       {@code group.settings} 도 필요하며, 같은 트랜잭션으로 그 분류 끝에 할당한다(docs/features/group-contract.md).</li>
  *   <li>감사 기록은 바뀐 값만 before/after 로 남긴다.</li>
  * </ul>
@@ -160,9 +162,10 @@ public class BoardService {
         if (layout == null || !BoardFields.LAYOUTS.contains(layout)) {
             invalid.put("layout", new MessageRef("board.field.choice"));
         }
-        // 관리자 화면은 일반·소모임만 만든다(핫딜·직접홍보는 설치 프리셋만)
+        // 관리자 화면은 일반·소모임·핫딜을 만든다(직접홍보는 설치 프리셋만)
         boolean group = BoardFields.KIND_GROUP.equals(kind);
-        if (!group && !BoardFields.KIND_GENERAL.equals(kind)) {
+        boolean deal = BoardFields.KIND_DEAL.equals(kind);
+        if (!group && !deal && !BoardFields.KIND_GENERAL.equals(kind)) {
             invalid.put("kind", new MessageRef("board.field.choice"));
         }
         Long categoryId = null;
@@ -197,9 +200,9 @@ public class BoardService {
         }
         Instant now = Instant.now();
         int nextOrder = all.stream().mapToInt(BoardEntity::getSortOrder).max().orElse(0) + 1;
-        // 소모임 게시판은 메뉴에 자동으로 넣지 않는다(BoardCreator 가 종류를 본다)
+        // 소모임 게시판은 메뉴에 자동으로 넣지 않는다(BoardCreator 가 종류를 본다). 핫딜 게시판의 가젯 노출 금지(인기글)도 BoardCreator 가 종류로 정한다
         BoardEntity board = creator.create(new NewBoard(slug, name, null, description, kind, layout, !"CARD".equals(layout), null, false,
-                null, new HashSet<>(BoardFields.COMMON_PREFIXES), List.of()), nextOrder, actor.operatorId(), now);
+                deal ? dealWriteMin() : null, new HashSet<>(BoardFields.COMMON_PREFIXES), List.of()), nextOrder, actor.operatorId(), now);
         flushOrDuplicated();
         if (category != null) {
             // 같은 트랜잭션으로 분류 끝에 할당하고 그 분류의 updatedAt 을 올린다
@@ -217,6 +220,15 @@ public class BoardService {
         audit.record(event(actor, AuditActions.BOARD_CREATE, board.getId()).with("before", Map.of()).with("after", after));
         log.info("게시판을 만들었다 boardId={} kind={} by operatorId={}", board.getId(), kind, actor.operatorId());
         return views.itemOf(board.getId());
+    }
+
+    /**
+     * 새 핫딜 게시판의 글쓰기 최소 자격 — 첫 등급 바로 위 등급(보통 REGULAR, hotdeal-contract 「쓰기 등급 기본 일반」). 핫딜 글쓰기는 첫 등급 불가라
+     * 저장 검사({@code board.policy.dealGrade})에 걸리지 않게 한다. 등급이 하나 이하면 STAFF.
+     */
+    private String dealWriteMin() {
+        List<GradeEntity> ordered = grades.findAllOrdered();
+        return ordered.size() >= 2 ? ordered.get(1).getGradeKey() : BoardFields.STAFF;
     }
 
     // ── 저장(기본 정보 + 정책 + 말머리) ──────────────────────────────────────
