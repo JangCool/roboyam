@@ -125,8 +125,9 @@ class BizHotdealExposureTest extends BizHotdealTestBase {
     private java.util.Set<String> submitFields(long user, BizDealInfo d, String placement) {
         LocalDate start = today().plusDays(2);
         boolean none = "NONE".equals(placement);
-        return fieldsOf(() -> members.submitDeal(user, new BizDealApplyRequest("제목", d, none ? null : start.toString(), none ? null : start.plusDays(1).toString(), "ONLINE",
-                POLICY, POLICY)));
+        return fieldsOf(() -> categoryOpenIf(placement, () -> members.submitDeal(user, new BizDealApplyRequest("제목", d, none ? null : start.toString(),
+                none ? null : start.plusDays(1).toString(), "ONLINE",
+                POLICY, POLICY))));
     }
 
     private static BizDealInfo with(BizDealInfo d, String stock, String boardId, String prefixId) {
@@ -150,13 +151,20 @@ class BizHotdealExposureTest extends BizHotdealTestBase {
     }
 
     @Test
-    void 규칙8_말머리가_있는_게시판은_말머리_필수_말머리_상단은_말머리_없는_게시판에서_못_고른다() {
+    void 규칙8_말머리는_선택_말머리_있는_게시판도_안_고르면_받는다_말머리_상단만_말머리_필수() {
         long user = approvedBusiness();
         BizDealInfo d = deal("NONE");
-        assertThat(submitFields(user, with(d, "IN_STOCK", Long.toString(dealBoard()), null), "NONE")).contains("deal.prefixId");
+        // 사용자 결정 2026-11-02 — 회원 글쓰기와 같게, 게시판에 말머리가 있어도 안 골라도 된다
+        assertThat(members.submitDeal(user, new BizDealApplyRequest("제목", with(d, "IN_STOCK", Long.toString(dealBoard()), null), null, null, "ONLINE", POLICY, POLICY)))
+                .isPositive();
+        LocalDate start = today().plusDays(2);
+        assertThat(members.submitDeal(user, new BizDealApplyRequest("제목", with(deal("HOME_TOP"), "IN_STOCK", Long.toString(dealBoard()), null), start.toString(),
+                start.plusDays(1).toString(), "ONLINE", POLICY, POLICY))).isPositive();
         long bare = newDealBoard(false);
         assertThat(submitFields(user, with(d, "IN_STOCK", Long.toString(bare), Long.toString(dealPrefix())), "NONE")).contains("deal.prefixId"); // 남의 게시판 말머리
+        // 말머리 상단은 시험 안에서 다시 열면 말머리 필수(말머리 있는 게시판·없는 게시판 둘 다)
         BizDealInfo category = deal("CATEGORY_TOP");
+        assertThat(submitFields(user, with(category, "IN_STOCK", Long.toString(dealBoard()), null), "CATEGORY_TOP")).contains("deal.prefixId");
         assertThat(submitFields(user, with(category, "IN_STOCK", Long.toString(bare), null), "CATEGORY_TOP")).contains("deal.prefixId");
         // 말머리 없는 게시판 · 노출 없음 → 받는다
         assertThat(members.submitDeal(user, new BizDealApplyRequest("제목", with(d, "UNKNOWN", Long.toString(bare), null), null, null, "ONLINE", POLICY, POLICY)))
@@ -200,23 +208,30 @@ class BizHotdealExposureTest extends BizHotdealTestBase {
                 with(d, "LIMITED", null, null))))).contains("deal.stock", "deal.boardId");
     }
 
-    // ── 규칙 9 다시 열기 ────────────────────────────────────────────────────
+    // ── 규칙 9 다시 열기 · 말머리 상단 닫힘(V124) ───────────────────────────
 
     @Test
-    void 규칙9_V123_뒤_세_상품은_받기_켜짐_노출을_골라도_신청되고_상품_응답에_게시판_말머리() {
-        for (BizProduct p : HOTDEAL_PRODUCTS) {
-            assertThat(priceRules.find(p).orElseThrow().accepting()).as(p.name()).isTrue();
-        }
+    void 규칙9_V124_뒤_말머리_상단만_닫힘_신청은_409_게시_글과_게시판_상단은_받는다() {
+        assertThat(priceRules.find(BizProduct.HOTDEAL_POST).orElseThrow().accepting()).isTrue();
+        assertThat(priceRules.find(BizProduct.HOTDEAL_TOP).orElseThrow().accepting()).isTrue();
+        assertThat(priceRules.find(BizProduct.HOTDEAL_CATEGORY).orElseThrow().accepting()).isFalse();
         long user = approvedBusiness();
         LocalDate start = today().plusDays(2);
         assertThat(submitDeal(user, "HOME_TOP", start, start.plusDays(1), "ONLINE")).isPositive();
-        assertThat(submitDeal(user, "CATEGORY_TOP", start, start.plusDays(1), "ONLINE")).isPositive();
+        assertThat(submitDeal(user, "NONE", null, null, "ONLINE")).isPositive();
+        assertThat(codeOf(() -> members.submitDeal(user, new BizDealApplyRequest("[시험상사] 텀블러 1+1", deal("CATEGORY_TOP"), start.toString(),
+                start.plusDays(1).toString(), "ONLINE", POLICY, POLICY)))).isEqualTo("BIZ_PRODUCT_CLOSED");
+        // 신청 화면 — 글 게시는 받고, 노출 자리는 말머리 상단만 「지금은 받지 않아요」(placements[].accepting)
         BizMemberView.DealProduct product = view.dealProduct();
         assertThat(product.accepting()).isTrue();
-        assertThat(product.placements()).extracting(BizMemberView.DealPlacement::accepting).containsOnly(true);
+        assertThat(product.placements()).extracting(BizMemberView.DealPlacement::placement, BizMemberView.DealPlacement::accepting)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("HOME_TOP", true), org.assertj.core.groups.Tuple.tuple("CATEGORY_TOP", false));
         BizMemberView.DealBoard board = product.boards().stream().filter(x -> x.id().equals(Long.toString(dealBoard()))).findFirst().orElseThrow();
         assertThat(board.prefixes()).extracting(BizMemberView.Prefix::name).containsExactly("로봇", "AI");
-        // 운영자가 요금표에서 다시 끄면 409 BIZ_PRODUCT_CLOSED(규칙 그대로)
+        // 시험 안에서 다시 열면 말머리 상단도 받는다(코드는 남아 있음)
+        assertThat(submitDeal(user, "CATEGORY_TOP", start, start.plusDays(1), "ONLINE")).isPositive();
+        assertThat(priceRules.find(BizProduct.HOTDEAL_CATEGORY).orElseThrow().accepting()).isFalse();
+        // 운영자가 요금표에서 글 게시를 끄면 409 BIZ_PRODUCT_CLOSED(규칙 그대로)
         priceRules.setAccepting(BizProduct.HOTDEAL_POST, false);
         try {
             assertThat(codeOf(() -> submitDeal(user, "NONE", null, null, "ONLINE"))).isEqualTo("BIZ_PRODUCT_CLOSED");

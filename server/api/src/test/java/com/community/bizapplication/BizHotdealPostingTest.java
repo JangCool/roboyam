@@ -2,6 +2,7 @@ package com.community.bizapplication;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.community.bizapplication.dto.request.BizDealInfo;
 import com.community.bizapplication.dto.response.BizDealPostView;
 import com.community.bizapplication.entity.BizApplicationStatus;
 import com.community.bizapplication.service.BizHotdealPublisher;
@@ -202,6 +203,22 @@ class BizHotdealPostingTest extends BizHotdealTestBase {
         assertThat(events(b.id())).doesNotContain("POSTED_WITHOUT_PREFIX");
         assertThat(adminNotices(operator, "HOTDEAL_POST_PREFIX_DROPPED")).isZero();
         assertThat(view.detail(b.user(), b.id()).post().placement().status()).isEqualTo("SHOWING");
+    }
+
+    @Test
+    void 말머리를_안_고른_신청은_말머리_없이_게시하고_말머리_없이_게시_기록_알림은_없다() {
+        long operator = operatorWith(Permission.HOTDEAL_MANAGE);
+        BizDealInfo d = deal("HOME_TOP");
+        Booked b = booked("HOME_TOP", new BizDealInfo(d.linkUrl(), d.shopName(), d.listPrice(), d.dealPrice(), d.shippingFee(), d.endsOn(), d.stock(), d.body(),
+                d.placement(), d.boardId(), null, d.imageFileId(), null));
+        into(b, 1);
+        assertThat(publisher.publishDue(b.id())).isEqualTo(BizHotdealPublisher.Outcome.POSTED);
+        assertThat(postRow(postOf(b.id())).get("prefix_id")).isNull();
+        assertThat(events(b.id())).contains("POSTED").doesNotContain("POSTED_WITHOUT_PREFIX", "POST_FAILED");
+        assertThat(adminNotices(operator, "HOTDEAL_POST_PREFIX_DROPPED")).isZero();
+        BizDealPostView v = view.detail(b.user(), b.id()).post();
+        assertThat(v.prefixName()).isNull();
+        assertThat(v.placement().status()).isEqualTo("SHOWING");
     }
 
     private void assertFailed(Booked b, String reason) {

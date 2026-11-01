@@ -1,6 +1,6 @@
-# 사업자 핫딜 게시(2차) 계약 (화면 확정 2026-11-02 · 서버 구현·화면 연결 2026-11-02 — V123)
+# 사업자 핫딜 게시(2차) 계약 (화면 확정 2026-11-02 · 서버 구현·화면 연결 2026-11-02 — V123 · 말머리 상단 닫음 V124)
 
-**상태: 범위 확정 2026-11-02(사용자 「추천안대로 진행」) · 화면 확정 2026-11-02 · 서버 구현·두 앱 실제 API 연결 2026-11-02(브랜치 `claude/biz-hotdeal-backend-8bd9cb`, develop 미병합) — 다음은 실제 호출 확인.** 신청·심사·결제·예약 흐름은 `biz-application-contract.md` 가 정본이고, 핫딜 글·딜 칸·종료 요청·링크 규칙은 `hotdeal-contract.md`(회원 핫딜 1차) 가 정본이다. 이 문서는 **예약된 사업자 핫딜이 실제 글로 보이는 고리**만 다룬다.
+**상태: 범위 확정 2026-11-02(사용자 「추천안대로 진행」) · 화면 확정 2026-11-02 · 서버 구현·두 앱 실제 API 연결 2026-11-02(develop f5aad338 병합) · 말머리 상단 닫음·말머리 선택 2026-11-02(V124, 브랜치 `claude/biz-hotdeal-backend-8bd9cb`, develop 미병합) — 다음은 실제 호출 확인.** 신청·심사·결제·예약 흐름은 `biz-application-contract.md` 가 정본이고, 핫딜 글·딜 칸·종료 요청·링크 규칙은 `hotdeal-contract.md`(회원 핫딜 1차) 가 정본이다. 이 문서는 **예약된 사업자 핫딜이 실제 글로 보이는 고리**만 다룬다.
 
 ## 의도
 - 돈 받은 만큼 실제로 보여 준다: 예약 확정된 `HOTDEAL_POST` 건은 **시작 시각에 핫딜 게시판에 사업자 글로 올라가고**, 노출을 산 건은 그 글이 핫딜 노출 두 자리에 보인다.
@@ -15,6 +15,7 @@
 6. **게시 뒤 수정 없음**: 사업자는 종료만. 가격이 바뀌면 종료 뒤 새 신청.
 7. **(2026-11-02) 사업자 글은 작성자에게 [고치기]·[지우기] 모두 숨김** — 내리는 길은 [품절로 종료]만(목업 그대로). 글을 내리는 다른 길은 운영자 숨김·신청 건 취소 흐름뿐이다(규칙 11).
 8. **(2026-11-02) 고른 말머리가 게시 시각에 없거나 꺼져 있으면 실패가 아니라 말머리 없이 게시**하고 운영자에게 알린다(처리 기록에도 「말머리 없이 게시됨」). 그 건에 말머리 상단(`HOTDEAL_CATEGORY`) 노출이 걸려 있으면 그 노출은 말머리가 맞지 않아 나오지 않는다는 것도 알림·처리 기록에 함께. 다른 실패 조건(사업자 승인·게시판·링크)은 그대로 실패(규칙 3 의 말머리 실패를 대신한다).
+9. **(2026-11-02) 말머리 상단(`HOTDEAL_CATEGORY`) 신청을 닫는다**(shared V124 — 새 신청 409 `BIZ_PRODUCT_CLOSED`, 신청 화면 노출 자리는 「지금은 받지 않아요」). 코드는 남긴다 — 다시 열 땐 새 마이그레이션으로 받기를 켜고 user-web `useHotdealAds.ts` 의 `CATEGORY_TOP_OPEN` 을 `true` 로 되돌린다. 닫힌 동안 **게시판 상단(`HOTDEAL_TOP`)은 말머리 칩을 골라도 첫 쪽 위**에 나온다. **말머리는 선택**(회원 글쓰기와 같음) — `CATEGORY_TOP` 을 고른 경우만 필수(규칙 8 의 「게시판에 말머리가 있으면 필수」를 대신한다). 처음부터 안 고른 건은 말머리 없이 게시되고 `POSTED_WITHOUT_PREFIX`·`HOTDEAL_POST_PREFIX_DROPPED` 는 남기지 않는다(결정 8 은 「골랐는데 없어진 경우」만).
 
 ## 규칙 (서버 단계에서 테스트로 막을 대상 — 커머스 18절)
 1. 게시 = 배치가 `SCHEDULED` 이고 `start_at ≤ 지금` 인 `HOTDEAL_POST` 건 중 글이 없는 것을 골라 글 + `post_deals(source=BUSINESS)` 를 만든다. 신청 건 ↔ 글 1:1(유일 — 다시 돌아도 두 번 만들지 않음). `onScheduled` 는 시작이 이미 지난 건만 바로 게시(아니면 배치 몫).
@@ -24,7 +25,7 @@
 5. 사업자 글 규칙: 종료 요청 받음 · 위장 홍보 집계 제외 · 인기글 제외 · 「광고」 표시 + 상호 · 게시 뒤 사업자 고치기 없음(공개 글 수정 API 가 `source=BUSINESS` 를 거절) · 운영진 종료·재개는 회원 글과 같음.
 6. 사업자 종료(`DEAL_ENDED_BY_BUSINESS`)·종료 요청 자동 종료(`DEAL_AUTO_ENDED`)는 신청 건 상태를 바꾸지 않고 **환불이 없다**. 노출 자리는 딜이 진행 중(ACTIVE·FLAGGED)이고 글이 보일 때만 나간다.
 7. 노출: 공개 `/api/ads` 의 `HOTDEAL_TOP`·`HOTDEAL_CATEGORY` = 노출 줄이 예약·기간 안 + 그 신청 건의 글이 진행 중·공개 → `deal` 을 글에서 채움. `HOTDEAL_CATEGORY` 는 요청 `prefix` 가 글의 말머리와 같을 때만. `board` 는 글의 게시판과 같을 때만.
-8. 신청 검사 교체: 링크는 회원 핫딜 링크 규칙(`deal_domains`)으로, 재고 값은 `IN_STOCK`·`LOW`·`UNKNOWN`(옛 PLENTY·LIMITED 는 이미 들어온 건만 읽기), `boardId` 필수(받는 핫딜 게시판), 게시판에 말머리가 있으면 `prefixId` 필수, `CATEGORY_TOP` 이면 `prefixId` 필수.
+8. 신청 검사 교체: 링크는 회원 핫딜 링크 규칙(`deal_domains`)으로, 재고 값은 `IN_STOCK`·`LOW`·`UNKNOWN`(옛 PLENTY·LIMITED 는 이미 들어온 건만 읽기), `boardId` 필수(받는 핫딜 게시판), `prefixId` 는 선택이고 `CATEGORY_TOP` 이면 필수(결정 9).
 9. 다시 열기: 새 마이그레이션이 세 상품 `accepting=true`(V121 고치지 않음).
 10. 게시 실패(`POST_FAILED`) 건은 시작 시각이 지났어도 운영자 취소 = **전액 환불**(`FULL_AUTO` — 온라인 PG 취소, 수동은 송금 대기). 실패 건은 노출도 나가지 않는다.
 11. **사업자 글(`source=BUSINESS`)은 작성자 수정·삭제 API 도 거절**한다(공개 글 고치기·지우기 — 화면이 숨기는 것만으로 두지 않음, **테스트 대상**). 글이 내려가는 길은 작성자 [품절로 종료](`…/deal/end`, 글은 남음)·운영자 숨김·신청 건 취소/환불/내림(`onClosed` → 숨김)뿐이다.
@@ -98,7 +99,8 @@ API 칸 이름·오류 키 전체는 세션 공유 메모 `biz-hotdeal-api.md` �
 - **노출**: `HOTDEAL_TOP` 은 요청 `prefix` 를 보지 않고, `board` 를 주지 않은 호출에도 낸다. `deal` 칸은 글에서(`linkUrl = /posts/{postId}`), 사본 20초.
 - **신청 폼**: 받는 게시판 = 켜진 DEAL 게시판 전부, 말머리 = 켜짐·운영진 전용 아님만. 링크 칸 오류 키는 기존 `deal.linkUrl`(메모 초안의 `deal.productUrl` 은 안 씀), 새 키 `deal.listPrice`·`deal.imageFileId`(화면은 각 칸의 단계로 보냄). 소재 바꾸기에서 `imageFileId` 를 비우면 지금 이미지 유지(배너와 같음). `deal-link-check` 도 `deal_domains` 판정.
 - **목업 정리**: 두 앱의 2차 목업(`// MOCK:`·목업 파일·`?mock=bizdeal-*`·목업 ID)은 모두 지웠다 — 위 「목업 결과」 절은 화면 확정 기록으로만 남긴다. 기존 `HotdealClosedTest`·`withDealsOpen` 은 지우고 다시 연 상태 시험으로 옮겼다.
-- **테스트**: api `BizHotdealPostingTest`(19 — 말머리 없이 게시 3개 포함)·`BizHotdealExposureTest`(13) · admin `HotdealAdminBusinessHttpTest` + 기존 신청 건·핫딜 시험 갱신. `--tests` 로 bizapplication·hotdeal·ad 묶음 등을 골라 돌림 — api 267·admin 56·shared 17 통과.
+- **말머리 상단 닫음 · 말머리 선택**(결정 9, 2026-11-02 — shared V124): `biz_price_rules` 의 `HOTDEAL_CATEGORY` 만 `accepting=false`(V121·V123 은 그대로). 신청 화면은 V121 때의 `placements[].accepting` 경로 그대로. `BizDealContent.board` 는 말머리를 `CATEGORY_TOP` 일 때만 필수로 본다. 게시는 고른 말머리가 있을 때만 `POSTED_WITHOUT_PREFIX` 판정을 하므로 안 고른 건은 기록·알림 없음(시험으로 막음). 서버 공개 노출 로직은 그대로(`HOTDEAL_TOP` 은 말머리와 무관), user-web `useHotdealAds` 가 닫힌 동안 말머리 칩에서도 `HOTDEAL_TOP` 을 부른다. 시험은 말머리 상단 신청이 필요하면 `categoryOpenIf` 로 그 신청 동안만 받기를 켠다.
+- **테스트**: api `BizHotdealPostingTest`(20 — 말머리 없이 게시 3개·안 고른 신청 1개 포함)·`BizHotdealExposureTest`(13 — 규칙 8·9 는 결정 9 로 바꿈) · admin `HotdealAdminBusinessHttpTest` + 기존 신청 건·핫딜 시험 갱신. `--tests` 로 bizapplication·hotdeal·ad 묶음 등을 골라 돌림 — api 267·admin 56·shared 17 통과.
 
 ## 미확정
 - (서버 가정 2026-11-02) 사업자 정지 판정은 `business_profiles.status` 만 보고 서비스(HOTDEAL) 줄 상태는 보지 않는다.
