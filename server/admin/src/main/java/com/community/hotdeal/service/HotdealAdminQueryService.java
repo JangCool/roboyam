@@ -127,6 +127,12 @@ public class HotdealAdminQueryService {
 
     public HotdealAdminView.Page list(String viewRaw, String board, String q, String createdFrom, String createdTo, String blockedActiveRaw, String pageRaw,
                                       String sizeRaw) {
+        return list(viewRaw, board, q, createdFrom, createdTo, blockedActiveRaw, null, pageRaw, sizeRaw);
+    }
+
+    /** @param sourceRaw 출처 거르기 MEMBER · BUSINESS(V123 — 비었거나 모르는 값이면 전체) */
+    public HotdealAdminView.Page list(String viewRaw, String board, String q, String createdFrom, String createdTo, String blockedActiveRaw, String sourceRaw,
+                                      String pageRaw, String sizeRaw) {
         Instant now = now();
         int page = Math.max(0, intOr(pageRaw, 0));
         int size = Math.min(SIZE_MAX, Math.max(1, intOr(sizeRaw, SIZE_DEFAULT)));
@@ -135,7 +141,7 @@ public class HotdealAdminQueryService {
             view = AdminDealQueries.ALL;
         }
         boolean blockedOnly = "true".equalsIgnoreCase(trim(blockedActiveRaw));
-        AdminDealQueries.Filter filter = filter(board, q, createdFrom, createdTo);
+        AdminDealQueries.Filter filter = filter(board, q, createdFrom, createdTo, sourceRaw);
         DealSettings s = settings.current();
         Set<String> blocked = blockedHosts(filter.boardIds());
 
@@ -252,7 +258,8 @@ public class HotdealAdminQueryService {
             BoardRef board = new BoardRef(Long.toString(r.boardId()), b == null ? null : b.slug(), b == null ? null : b.name(), b == null ? null : b.nameEn());
             BoardPrefixInfo p = b == null ? null : b.prefix(r.prefixId()).orElse(null);
             out.add(new Row(Long.toString(r.postId()), r.title(), board, p == null ? null : new PrefixRef(Long.toString(p.id()), p.name()),
-                    author(r.authorId(), profileById, userById), r.createdAt(), reports.getOrDefault(r.postId(), 0), blockedHost, deal, d.getClickCount()));
+                    author(r.authorId(), profileById, userById), r.createdAt(), reports.getOrDefault(r.postId(), 0), blockedHost, deal, d.getClickCount(),
+                    d.getSource(), d.isBusiness() ? new HotdealAdminView.BusinessRef(d.getBusinessName(), String.valueOf(d.getBizApplicationId())) : null));
         }
         return out;
     }
@@ -320,7 +327,7 @@ public class HotdealAdminQueryService {
         return r;
     }
 
-    private AdminDealQueries.Filter filter(String board, String q, String createdFrom, String createdTo) {
+    private AdminDealQueries.Filter filter(String board, String q, String createdFrom, String createdTo, String sourceRaw) {
         Map<String, MessageRef> invalid = new LinkedHashMap<>();
         Instant from = instant("createdFrom", createdFrom, invalid);
         Instant to = instant("createdTo", createdTo, invalid);
@@ -341,7 +348,11 @@ public class HotdealAdminQueryService {
         } else if (text != null && text.codePointCount(0, text.length()) > QUERY_MAX) {
             text = text.substring(0, text.offsetByCodePoints(0, QUERY_MAX));
         }
-        return new AdminDealQueries.Filter(boardIds, text, from, to);
+        String source = trim(sourceRaw) == null ? null : trim(sourceRaw).toUpperCase(Locale.ROOT);
+        if (!PostDealEntity.SOURCE_MEMBER.equals(source) && !PostDealEntity.SOURCE_BUSINESS.equals(source)) {
+            source = null;
+        }
+        return new AdminDealQueries.Filter(boardIds, text, from, to, source);
     }
 
     static List<EffectiveBoard> dealBoards(BoardCatalogSnapshot s) {

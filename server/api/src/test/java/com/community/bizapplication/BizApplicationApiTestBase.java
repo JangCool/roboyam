@@ -26,7 +26,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.function.Executable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,7 +45,7 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
     /** 먼 미래 기간의 차례(시험마다 40일씩 떨어진다) */
     private static final AtomicInteger SLOT = new AtomicInteger();
     protected static final String POLICY = "v1";
-    /** 사업자 핫딜 상품 — V121 이 받기를 껐다(게시 기능 구현 때 다시 연다) */
+    /** 사업자 핫딜 상품 — V121 이 껐다가 V123 이 다시 열었다(사업자 핫딜 게시 2차) */
     protected static final List<BizProduct> HOTDEAL_PRODUCTS = List.of(BizProduct.HOTDEAL_POST, BizProduct.HOTDEAL_TOP, BizProduct.HOTDEAL_CATEGORY);
 
     @Autowired
@@ -65,6 +64,12 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
     protected PaymentConfirmService confirm;
     @Autowired
     protected BizPriceRuleStore priceRules;
+    @Autowired
+    protected com.community.board.service.BoardCatalog boardCatalog;
+
+    /** 이 시험의 받는 핫딜 게시판(말머리 둘 — 처음 쓸 때 만든다) */
+    private Long dealBoardId;
+    private Long dealPrefixId;
 
     protected FakePgStore fakePg;
     protected BizOperator operator;
@@ -135,24 +140,42 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
                 "https://shop.example.com/b", "가을 특가 배너", null, method, POLICY, POLICY));
     }
 
-    protected BizDealInfo deal(String placement) {
-        return new BizDealInfo("https://smartstore.naver.com/roboyam/products/1", "네이버 스마트스토어", 32_000L, 15_900L, 0L, null, "LIMITED", "1+1 행사", placement);
-    }
-
-    /** 사업자 핫딜 신청 — V121 이 핫딜 상품을 닫아 두었으므로 이 호출 동안만 연다({@link #withDealsOpen}) */
-    protected long submitDeal(long userId, String placement, LocalDate start, LocalDate end, String method) {
-        return withDealsOpen(() -> members.submitDeal(userId, new BizDealApplyRequest("[시험상사] 텀블러 1+1", deal(placement), start == null ? null : start.toString(),
-                end == null ? null : end.toString(), method, POLICY, POLICY)));
-    }
-
-    /** 핫딜 상품(글 게시·노출 자리 둘)의 받기를 이 호출 동안만 켠다 — 신청 엔진(심사·결제·예약) 시험이 닫힌 요금표에 막히지 않게. 끝나면 V121 상태(꺼짐)로 되돌린다 */
-    protected <T> T withDealsOpen(Supplier<T> call) {
-        HOTDEAL_PRODUCTS.forEach(p -> priceRules.setAccepting(p, true));
-        try {
-            return call.get();
-        } finally {
-            HOTDEAL_PRODUCTS.forEach(p -> priceRules.setAccepting(p, false));
+    /** 받는 핫딜 게시판(말머리 둘) — 시험마다 새로 만든다 */
+    protected long dealBoard() {
+        if (dealBoardId == null) {
+            dealBoardId = newDealBoard(true);
+            dealPrefixId = jdbc.queryForObject("SELECT id FROM board_prefixes WHERE board_id = ? ORDER BY sort_order LIMIT 1", Long.class, dealBoardId);
         }
+        return dealBoardId;
+    }
+
+    protected long dealPrefix() {
+        dealBoard();
+        return dealPrefixId;
+    }
+
+    /** 새 핫딜 게시판(켬, 쓰기 REGULAR) — {@code withPrefixes} 면 말머리 「로봇」·「AI」 */
+    protected long newDealBoard(boolean withPrefixes) {
+        long id = ids.nextId();
+        jdbc.update("INSERT INTO boards (id, slug, name, sort_order, kind, write_min) VALUES (?, ?, ?, 950, 'DEAL', 'REGULAR')", id, "bz" + Long.toString(id, 36),
+                "사업자 핫딜 " + Long.toString(id, 36).substring(Long.toString(id, 36).length() - 5));
+        if (withPrefixes) {
+            jdbc.update("INSERT INTO board_prefixes (id, board_id, name, sort_order) VALUES (?, ?, '로봇', 1), (?, ?, 'AI', 2)", ids.nextId(), id, ids.nextId(), id);
+        }
+        boardCatalog.invalidate();
+        return id;
+    }
+
+    /** 핫딜 정보 — 받는 게시판·첫 말머리, 재고 IN_STOCK, 대형몰 링크(막히지 않음) */
+    protected BizDealInfo deal(String placement) {
+        return new BizDealInfo("https://smartstore.naver.com/roboyam/products/1", "네이버 스마트스토어", 32_000L, 15_900L, 0L, null, "IN_STOCK", "1+1 행사", placement,
+                Long.toString(dealBoard()), Long.toString(dealPrefix()), null, null);
+    }
+
+    /** 사업자 핫딜 신청(V123 — 받기 켜짐) */
+    protected long submitDeal(long userId, String placement, LocalDate start, LocalDate end, String method) {
+        return members.submitDeal(userId, new BizDealApplyRequest("[시험상사] 텀블러 1+1", deal(placement), start == null ? null : start.toString(),
+                end == null ? null : end.toString(), method, POLICY, POLICY));
     }
 
     // ── 심사 ───────────────────────────────────────────────────────────────

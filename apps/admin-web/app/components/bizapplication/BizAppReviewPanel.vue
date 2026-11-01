@@ -8,6 +8,7 @@
         · 환불: 종류·상태 · 일할 계산 제안 · [거절] · [환불 승인](열린 환불만) · 수동 환불 송금 대기면 [송금 완료 표시].
         · 내림(사업자 정지·긴급) 사유. 계약서 사본은 [보기](`viewContract` — 부모가 `data:` 주소로 연다, 열람 기록).
         · 그 밖: 결제 기록(온라인 결제 또는 계약서·입금 기록)만.
+        · 사업자 핫딜 글(2차): 상세 `post` 가 있으면 「게시」 칸(게시 전 · 게시됨 · 실패 → [취소(전액 환불)] · 숨김)과 노출 줄 상태.
         맨 아래 처리 기록. 서버는 부르지 않는다 — 동작은 emit.
     -->
     <div class="flex flex-col gap-5 p-4">
@@ -59,6 +60,72 @@
                 <dd class="m-0 text-[12px]">{{ detail.policyAgreedVersion }}</dd>
             </template>
         </dl>
+
+        <!--
+            게시(사업자 핫딜 2차 — 상세 `post` 가 있을 때만): 게시 전(예정 시각·게시판) · 게시됨(딜 상태·종료 요청·[핫딜 글에서 열기]·공개 글) ·
+            실패(사유 + [취소(전액 환불)] — 「다시 게시」는 없다) · 숨김(내림·취소). 노출 줄 상태도 여기.
+        -->
+        <section v-if="post" class="flex flex-col gap-2.5 rounded-lg border px-3 py-3" :class="post.status === 'FAILED' ? 'border-red-300 dark:border-red-800' : 'border-(--line)'" :aria-labelledby="`${uid}-post`">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <h3 :id="`${uid}-post`" class="m-0 text-sm font-semibold">{{ t('bizApplication.post.title') }}</h3>
+                <Tag :value="t(`bizApplication.post.status.${post.status}`)" :severity="UtilBizApplication.postSeverity(post.status)" />
+            </div>
+            <dl class="m-0 grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1.5 text-[13px]">
+                <dt class="text-muted-color">{{ t('bizApplication.post.board') }}</dt>
+                <dd class="m-0">{{ post.boardName }}<span v-if="post.prefixName" class="ml-1 text-muted-color">[{{ post.prefixName }}]</span></dd>
+                <dt class="text-muted-color">{{ post.status === 'WAITING' ? t('bizApplication.post.publishAtWaiting') : t('bizApplication.post.publishAt') }}</dt>
+                <dd class="m-0 tabular-nums">{{ time.full(post.publishAt) }}</dd>
+                <template v-if="post.view">
+                    <dt class="text-muted-color">{{ t('bizApplication.post.dealState') }}</dt>
+                    <dd class="m-0 flex flex-wrap items-center gap-1.5">
+                        <HotdealViewTag :view="post.view" />
+                        <span v-if="post.view === 'ENDED' && post.endedBy" class="text-xs text-muted-color">{{ t(`bizApplication.post.endedBy.${post.endedBy}`) }}</span>
+                    </dd>
+                </template>
+                <template v-if="post.endRequests">
+                    <dt class="text-muted-color">{{ t('bizApplication.post.endRequests') }}</dt>
+                    <dd class="m-0 tabular-nums">
+                        {{ t('bizApplication.post.endRequestsN', { n: post.endRequests.total }) }}
+                        <span v-if="post.endRequests.total > 0" class="text-xs text-muted-color">({{ t('bizApplication.post.endRequestsBy', { soldOut: post.endRequests.bySoldOut, price: post.endRequests.byPriceChanged, link: post.endRequests.byLinkDead }) }})</span>
+                    </dd>
+                </template>
+                <template v-if="post.placement">
+                    <dt class="text-muted-color">{{ t('bizApplication.post.placement') }}</dt>
+                    <dd class="m-0 flex flex-wrap items-center gap-1.5">
+                        <span>{{ t(`bizApplication.adType.${post.placement.product}`) }}</span>
+                        <Tag :value="t(`bizApplication.post.placementStatus.${post.placement.status}`)" :severity="UtilBizApplication.placementSeverity(post.placement.status)" class="text-[11px]!" />
+                        <span v-if="post.placement.stopReason" class="text-xs text-muted-color">{{ t(`bizApplication.post.stopReason.${post.placement.stopReason}`) }}</span>
+                    </dd>
+                </template>
+            </dl>
+
+            <p v-if="post.status === 'WAITING'" class="m-0 text-xs text-muted-color">{{ t('bizApplication.post.waitingNote') }}</p>
+            <template v-else-if="post.status === 'POSTED'">
+                <p v-if="post.view === 'ENDED' && post.endedBy !== 'MANAGER'" class="m-0 text-xs text-muted-color">{{ t('bizApplication.post.endedNoRefund') }}</p>
+                <div v-if="post.postId" class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+                    <NuxtLink :to="dealLink" class="inline-flex items-center gap-1 rounded text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+                        <i class="pi pi-ticket text-[11px]" aria-hidden="true" />{{ t('bizApplication.post.openDeal') }}
+                    </NuxtLink>
+                    <a v-if="publicUrl" :href="publicUrl" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 rounded text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+                        <i class="pi pi-external-link text-[11px]" aria-hidden="true" />{{ t('bizApplication.post.openPublic') }}
+                    </a>
+                </div>
+            </template>
+            <Message v-else-if="post.status === 'FAILED'" severity="error" :closable="false">
+                <div class="flex flex-col gap-2 text-[13px]">
+                    <span>
+                        <b class="font-semibold">{{ t('bizApplication.post.failedTitle', { reason: t(`bizApplication.post.failReason.${post.failReason ?? 'OTHER'}`) }) }}</b>
+                        {{ t('bizApplication.post.failedGuide') }}
+                    </span>
+                    <div v-if="canManage" class="flex justify-end">
+                        <Button type="button" :label="t('bizApplication.actCancelFullRefund')" size="small" severity="danger" variant="outlined" :disabled="busy" @click="emit('cancel')" />
+                    </div>
+                </div>
+            </Message>
+            <Message v-else-if="post.status === 'HIDDEN'" severity="secondary" :closable="false">
+                <span class="text-[13px]">{{ detail.status === 'TAKEN_DOWN' ? t('bizApplication.post.hiddenTakedown') : t('bizApplication.post.hiddenCanceled') }}</span>
+            </Message>
+        </section>
 
         <!-- 심사 대기 -->
         <section v-if="detail.status === 'SUBMITTED'" class="flex flex-col gap-3">
@@ -226,4 +293,18 @@ const selfDenied = computed(() => props.detail.registrant?.me === true && props.
 /** 요금표 줄 — 두 줄 이상(핫딜 글 + 노출)일 때만 나눠 보인다 */
 const quoteLines = computed(() => (props.detail.quote.lines && props.detail.quote.lines.length > 1 ? props.detail.quote.lines : []));
 const history = computed(() => [...props.detail.history].sort((a, b) => b.at.localeCompare(a.at)));
+
+/** 사업자 핫딜 게시(2차) — 서버가 `post` 를 내려 줄 때만 「게시」 칸 */
+const post = computed(() => (props.detail.kind === 'HOTDEAL_POST' ? (props.detail.post ?? null) : null));
+const { origin: userWebOrigin } = useUserWebOrigin();
+/** 관리자 핫딜 글 서랍(알림 링크와 같은 쿼리) */
+const dealLink = computed(() => ({
+    path: '/hotdeals',
+    query: {
+        view: 'ALL',
+        deal: post.value?.postId ?? '',
+    },
+}));
+/** 공개 글 주소 — 공개 사이트 origin 을 모르면 링크를 감춘다 */
+const publicUrl = computed(() => (post.value?.postId && userWebOrigin.value ? `${userWebOrigin.value}/posts/${encodeURIComponent(post.value.postId)}` : ''));
 </script>

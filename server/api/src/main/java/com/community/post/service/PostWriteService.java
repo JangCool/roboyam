@@ -386,6 +386,7 @@ public class PostWriteService {
             throw new PostHiddenException();
         }
         requireOwner(post, body.password(), userId, ip);
+        deals.requireNotBusiness(post.getId()); // 사업자 핫딜 글은 작성자도 고칠 수 없다(403 DEAL_BUSINESS_POST_LOCKED)
         PostProtectionView protection = PostQueryService.protection(b, post);
         if (protection.editBlocked()) {
             throw new PostProtectedException(false, protection.threshold());
@@ -453,6 +454,7 @@ public class PostWriteService {
         BoardCatalogSnapshot s = catalog.snapshot();
         EffectiveBoard b = groupGate.resolve(s, post, userId).board();
         requireOwner(post, password, userId, ip);
+        deals.requireNotBusiness(post.getId()); // 사업자 핫딜 글은 작성자도 지울 수 없다(403 DEAL_BUSINESS_POST_LOCKED)
         return tx.execute(status -> {
             Instant now = Instant.now();
             PostEntity locked = posts.findWithLockById(post.getId()).filter(p -> !p.isGoneAt(now)).orElseThrow(PostNotFoundException::new);

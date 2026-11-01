@@ -20,6 +20,8 @@ import type { DealEndReason, DealImageUpload, DealLinkCheck, DealPrefill, DealSa
  *      오류: 로그인 `401` · 그 게시판 매니저·스텝 아님·정지 `403 DEAL_MODERATE_FORBIDDEN` · 이미 종료 `409 DEAL_ENDED` · 종료 아님 `409 DEAL_NOT_ENDED` ·
  *      핫딜 글 아님 `404 DEAL_NOT_FOUND` · 사유 `400 fields.reason`(사용자 결정 2026-11-01 — 공용 메모 4절)
  * 종료·되돌리기·keep·종료 요청은 서버 2단계(주소·모양은 계약대로 확정).
+ * 사업자 글(2차 — `deal.source BUSINESS`)도 같은 주소로 종료 요청·keep·종료를 받는다(되돌리기 없음 — 종료는 환불 없음·노출도 멈춤).
+ *   사업자 글의 작성자 되돌리기는 `403 DEAL_BUSINESS_POST_LOCKED`, 작성자 종료는 신청 건 사업자 종료와 같은 효과(처리 기록 `DEAL_ENDED_BY_BUSINESS`).
  */
 const PATH = {
     linkCheck: '/api/deals/link-check',

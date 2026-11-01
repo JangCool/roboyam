@@ -171,6 +171,12 @@ public enum BatchCatalog implements BatchDefinition {
     BIZ_SCHEDULE_NOTICE("biz-schedule-notice", BatchCategory.MEMBER, BatchSource.JAVA, "0 15 * * * *", true),
 
     /**
+     * 사업자 핫딜 글 게시 — 시작 시각이 지난 예약 HOTDEAL_POST 건 중 게시 결과가 없는 것을 글로 올리거나(게시 직전 재판정) 게시 실패로 남긴다(Java 배치 {@code BizHotdealPublishJob},
+     * biz-hotdeal-contract 규칙 1~3). 기본 1분마다. 돈을 받은 서비스라 분류는 회원(MEMBER).
+     */
+    BIZ_HOTDEAL_PUBLISH("biz-hotdeal-publish", BatchCategory.MEMBER, BatchSource.JAVA, "0 * * * * *", true),
+
+    /**
      * 의심 핫딜 자동 종료 — 의심이 된 지 유예({@code deal_settings.end_grace_hours}, 0 = 안 함)가 지난 딜을 자동 종료 + 의심 구간 요청자 보상 + 작성자 알림(Java 배치 {@code DealAutoEndJob},
      * hotdeal-contract 「배치」). 기본 10분마다. 포인트가 걸린 업무라 분류는 회원(MEMBER).
      */

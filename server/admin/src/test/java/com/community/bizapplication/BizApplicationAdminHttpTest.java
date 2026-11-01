@@ -58,16 +58,18 @@ class BizApplicationAdminHttpTest extends Commerce04AdminTestBase {
                 "MANUAL", "v1", "v1"));
     }
 
-    /** 사업자 핫딜 글(노출 없음) — V121 이 받기를 꺼 두어 이 호출 동안만 연다 */
+    /** 사업자 핫딜 글(노출 없음) — 말머리 없는 새 핫딜 게시판에(V123 — 받는 게시판 필수) */
     private long submitDeal(long user) {
-        jdbc.update("UPDATE biz_price_rules SET accepting = true WHERE product = 'HOTDEAL_POST'");
-        try {
-            return members.submitDeal(user, new BizDealApplyRequest("[관리상사] 텀블러 1+1", new BizDealInfo("https://smartstore.naver.com/roboyam/products/9",
-                    "네이버 스마트스토어", 32_000L, 15_900L, 0L, null, "LIMITED", "1+1 행사", "NONE"), null, null, "MANUAL", "v1", "v1"));
-        } finally {
-            jdbc.update("UPDATE biz_price_rules SET accepting = false WHERE product = 'HOTDEAL_POST'");
-        }
+        long board = ids.nextId();
+        jdbc.update("INSERT INTO boards (id, slug, name, sort_order, kind, write_min) VALUES (?, ?, ?, 950, 'DEAL', 'REGULAR')", board, "ad" + Long.toString(board, 36),
+                "관리 핫딜 " + Long.toString(board, 36));
+        boardCatalog.invalidate();
+        return members.submitDeal(user, new BizDealApplyRequest("[관리상사] 텀블러 1+1", new BizDealInfo("https://smartstore.naver.com/roboyam/products/9",
+                "네이버 스마트스토어", 32_000L, 15_900L, 0L, null, "LOW", "1+1 행사", "NONE", Long.toString(board), null, null, null), null, null, "MANUAL", "v1", "v1"));
     }
+
+    @Autowired
+    private com.community.board.service.BoardCatalog boardCatalog;
 
     private java.util.List<String> ids(JsonNode page) {
         return page.get("items").valueStream().map(n -> n.get("id").asString()).toList();
@@ -113,6 +115,18 @@ class BizApplicationAdminHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.error.code").value("BIZ_APPLICATION_NOT_FOUND"));
         mvc.perform(get("/api/admin/biz-applications").param("domain", "AD").param("queue", "NOPE").cookie(reader)).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.fields.queue").exists());
+    }
+
+    @Test
+    void 핫딜_글_상세_내용에_받는_게시판_말머리_이미지_결제_전이면_post_는_null() throws Exception {
+        long user = approvedBusiness();
+        long deal = submitDeal(user);
+        Cookie dealOp = login(operatorWith(Permission.HOTDEAL_READ));
+        mvc.perform(get("/api/admin/biz-applications/" + deal).cookie(dealOp)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.type").value("HOTDEAL_POST")).andExpect(jsonPath("$.data.content.board.id").isString())
+                .andExpect(jsonPath("$.data.content.board.name").value(org.hamcrest.Matchers.startsWith("관리 핫딜"))).andExpect(jsonPath("$.data.content.prefix").doesNotExist())
+                .andExpect(jsonPath("$.data.content.imageUrl").doesNotExist()).andExpect(jsonPath("$.data.content.stock").value("LOW"))
+                .andExpect(jsonPath("$.data.post").doesNotExist());
     }
 
     @Test

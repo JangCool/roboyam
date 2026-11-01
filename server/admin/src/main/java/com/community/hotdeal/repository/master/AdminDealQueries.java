@@ -44,8 +44,9 @@ public class AdminDealQueries {
      *
      * @param boardIds 볼 핫딜 게시판(고른 하나 또는 모든 핫딜 게시판 — 비면 아무 글도 없다)
      * @param q        제목·쇼핑몰·작성자 닉네임 부분 일치(대소문자 무시, null 이면 없음)
+     * @param source   출처 MEMBER · BUSINESS(V123 — null 이면 전체)
      */
-    public record Filter(List<Long> boardIds, String q, Instant from, Instant to) {
+    public record Filter(List<Long> boardIds, String q, Instant from, Instant to, String source) {
     }
 
     /** 목록 한 줄의 글 칸 */
@@ -138,7 +139,7 @@ public class AdminDealQueries {
         if (boardIds.isEmpty()) {
             return null;
         }
-        Filter f = new Filter(List.copyOf(boardIds), null, null, null);
+        Filter f = new Filter(List.copyOf(boardIds), null, null, null, null);
         Where w = where(f, now);
         w.sql.append(" AND p.id = ?");
         w.args.add(postId);
@@ -349,6 +350,10 @@ public class AdminDealQueries {
         if (f.to() != null) {
             w.sql.append(" AND p.created_at <= ?");
             w.args.add(f.to());
+        }
+        if (f.source() != null) {
+            w.sql.append(" AND d.source = ?");
+            w.args.add(f.source());
         }
         if (f.q() != null) {
             String like = "%" + f.q().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";

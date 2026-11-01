@@ -5,12 +5,14 @@ import type { AdminDealDetail, AdminDealPage, AdminDealQuery, DealActionRequest,
  * 계약 `docs/features/hotdeal-contract.md` 「API 후보」. 모양은 `useHotdealApi.types.ts`(서버 DTO 가 이 칸 이름 그대로).
  * 권한: 조회 `hotdeal.read`, 종료·재개 `hotdeal.manage`(모든 핫딜 게시판) — 게시판 매니저·스텝은 그 게시판 글만(서버 판정). 없으면 `403 PERMISSION_DENIED`.
  *   - `GET  /api/admin/hotdeals/boards` → `HotdealBoardOptionsView`(DEAL 게시판과 말머리 — 관리자 덧붙임)
- *   - `GET  /api/admin/hotdeals?view&board&q&createdFrom&createdTo&blockedActive&page&size` → `AdminDealPage`(최신 등록순, `counts` 는 상태 조건만 뺀 건수)
+ *   - `GET  /api/admin/hotdeals?view&board&q&createdFrom&createdTo&blockedActive&source&page&size` → `AdminDealPage`(최신 등록순, `counts` 는 상태 조건만 뺀 건수).
+ *     `source=MEMBER|BUSINESS`(없으면 전체) · 줄·상세의 `source`·`business: { name, applicationId } | null`(2차 — 사업자 핫딜 게시)
  *   - `GET  /api/admin/hotdeals/{postId}` → `AdminDealDetail` · `404 POST_NOT_FOUND`
  *   - `GET  /api/admin/hotdeals/{postId}/revisions` → `DealRevisionListView`(딜 칸 수정 이력, 최근 것부터, 6개월 보존 — D3)
  *   - `POST /api/admin/hotdeals/{postId}/end` `{ reason? }`(0~200자) → 204 · `409 HOTDEAL_STATE_CHANGED`(이미 종료) · `400 fields.reason`
  *   - `POST /api/admin/hotdeals/{postId}/reopen` `{ reason? }` → 204(의심·종료 요청 리셋, 마감이 지났으면 작성자에게 「마감을 고쳐 주세요」 알림) · `409 HOTDEAL_STATE_CHANGED`
  * 감사 `HOTDEAL_END`·`HOTDEAL_REOPEN`. 응답 `Cache-Control: no-store`.
+
  */
 const PATH = {
     root: '/api/admin/hotdeals',

@@ -8,6 +8,7 @@ import type {
     BizApplicationDetail,
     BizApplicationPage,
     BizCreativeRequest,
+    BizDealPost,
     BizPaymentStart,
     BusinessApplyRequest,
     BusinessFile,
@@ -29,6 +30,9 @@ import type { PaymentCompleteRequest, PaymentFakeCheckoutRequest, PaymentResult 
  *    `PUT …/{id}/creative`(소재 바꾸기 → 결제 전이면 다시 심사) · `POST …/{id}/refund-request` `{ reason }`(1~300자)
  *  - 결제(온라인): `POST …/{id}/payment` → 결제창 정보(`payment` 모듈 `BIZ_APPLICATION`) — 완료는 공용 결제 완료 API(`usePaymentCheckout`) 뒤 상세를 다시 읽는다
  *  - 409 `BUSINESS_NOT_APPROVED`·`BUSINESS_RE_REVIEW`·`BIZ_SLOT_FULL`·`BIZ_PRODUCT_CLOSED`·`BIZ_APPLICATION_STATE_CHANGED`(화면이 다시 읽는다) · 404 `BIZ_APPLICATION_NOT_FOUND`
+ *  - 사업자 핫딜 게시(2차 — `biz-hotdeal-contract.md`): `deal-products` 에 `boards`, 신청 본문 `deal.boardId`·`prefixId`·`imageFileId`·`stock`, 상세 `post`(`BizDealPost`) ·
+ *    칸 오류 `fields."deal.boardId"`·`"deal.prefixId"`·`"deal.linkUrl"`(형식·차단·단축 주소)·`"deal.listPrice"`·`"deal.stock"`·`"deal.imageFileId"` ·
+ *    사업자 종료 `POST …/{id}/deal/end` → 새 `BizDealPost`(환불 없음 · 노출도 멈춤) — 이미 끝남 409 `DEAL_ENDED` · 글이 없음(게시 전·실패·숨김) 409 `BIZ_APPLICATION_STATE_CHANGED`
  */
 const PATH = {
     me: '/api/business/me',
@@ -66,7 +70,7 @@ export function useBusinessApi() {
         /** 광고 종류별 단가·한도·남은 칸 요약 */
         adProducts: (): Promise<AdProduct[]> => client.get<AdProduct[]>(PATH.adProducts),
 
-        /** 사업자 핫딜 요금 */
+        /** 사업자 핫딜 요금 · 받는 게시판 */
         dealProduct: (): Promise<DealProduct> => client.get<DealProduct>(PATH.dealProducts),
 
         /** 날짜별 남은 칸 — 저장 때 서버가 다시 판정한다 */
@@ -89,6 +93,9 @@ export function useBusinessApi() {
 
         /** 결제 전 취소(심사 중·결제 대기·입금 확인 전 입금 대기) */
         cancel: (id: string): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(`${PATH.application(id)}/cancel`),
+
+        /** 사업자 핫딜 종료(게시된 글 — 품절 등) — 환불 없음, 노출 자리도 같이 멈춘다. 이미 끝났으면 409 `DEAL_ENDED` */
+        endDeal: (id: string): Promise<BizDealPost> => client.post<BizDealPost>(`${PATH.application(id)}/deal/end`),
 
         /** 소재 바꾸기 — 심사 중이면 새 버전, 승인 뒤 결제 전이면 다시 심사(자리 반납) */
         updateCreative: (id: string, body: BizCreativeRequest): Promise<BizApplicationDetail> => client.put<BizApplicationDetail>(`${PATH.application(id)}/creative`, body),

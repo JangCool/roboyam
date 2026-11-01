@@ -66,10 +66,12 @@ public class BizApplicationReviewService {
     private final BizApplicationMemberService pricing;
     private final DataCipher cipher;
     private final BizApplicationProperties props;
+    private final com.community.bizapplication.repository.master.BizDealPostStore dealPosts;
     private final TransactionTemplate tx;
 
     public BizApplicationReviewService(BizApplicationStore store, BizContractStore contracts, BizRefundStore refunds, BizSlotService slots, BizApplicationOps ops,
-                                       BizApplicationMemberService pricing, DataCipher cipher, BizApplicationProperties props, PlatformTransactionManager transactions) {
+                                       BizApplicationMemberService pricing, DataCipher cipher, BizApplicationProperties props,
+                                       com.community.bizapplication.repository.master.BizDealPostStore dealPosts, PlatformTransactionManager transactions) {
         this.store = store;
         this.contracts = contracts;
         this.refunds = refunds;
@@ -78,6 +80,7 @@ public class BizApplicationReviewService {
         this.pricing = pricing;
         this.cipher = cipher;
         this.props = props;
+        this.dealPosts = dealPosts;
         this.tx = new TransactionTemplate(transactions);
     }
 
@@ -439,7 +442,7 @@ public class BizApplicationReviewService {
     }
 
     /**
-     * 운영자 취소 — 결제 대기·입금 대기(입금 기록이 있으면 수동 전액 환불 송금 대기) · 시작 전 예약(전액 환불) · 운영자 등록 건의 심사 대기(등록 실수 — 사업자 신청 건의 심사 대기는
+     * 운영자 취소 — 결제 대기·입금 대기(입금 기록이 있으면 수동 전액 환불 송금 대기) · 시작 전 예약(전액 환불) · 게시 실패한 사업자 핫딜 글은 시작 뒤에도 전액 환불(V123 규칙 10) · 운영자 등록 건의 심사 대기(등록 실수 — 사업자 신청 건의 심사 대기는
      * 반려로 닫는다, 409). 진행 중은 환불 승인으로만. 사유 1~200자.
      */
     public void cancel(BizOperator actor, long id, String reasonText) {
@@ -455,7 +458,9 @@ public class BizApplicationReviewService {
             Instant now = ops.now();
             long refunded = 0;
             if (app.status() == BizApplicationStatus.SCHEDULED) {
-                if (BizPhase.of(app.startAt(), app.endAt(), now) != BizPhase.UPCOMING || refunds.lockOpen(id).isPresent()) {
+                // 사업자 핫딜 글을 시작 시각에 올리지 못한 건(POST_FAILED)은 시작 뒤에도 전액 환불(biz-hotdeal-contract 규칙 10)
+                boolean postFailed = dealPosts.find(id).filter(r -> !r.posted()).isPresent();
+                if ((!postFailed && BizPhase.of(app.startAt(), app.endAt(), now) != BizPhase.UPCOMING) || refunds.lockOpen(id).isPresent()) {
                     throw BizApplicationException.stateChanged();
                 }
                 refunded = ops.paidAmount(app);

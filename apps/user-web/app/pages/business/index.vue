@@ -139,7 +139,7 @@
             <section :aria-labelledby="`${uid}-services`">
                 <h2 :id="`${uid}-services`" class="m-0 mb-2 text-sm font-semibold">{{ t('business.home.servicesTitle') }}</h2>
                 <div class="grid gap-3 sm:grid-cols-2">
-                    <div v-for="service in services" :key="service.to" class="panel-card flex flex-col gap-2 p-4" :data-testid="service.testid">
+                    <div v-for="service in services" :key="service.testid" class="panel-card flex flex-col gap-2 p-4" :data-testid="service.testid">
                         <p class="m-0 flex flex-wrap items-center gap-2 text-sm font-bold">
                             <i :class="[service.icon, service.closed ? 'text-muted-color' : 'text-primary']" aria-hidden="true" />{{ service.label }}
                             <PointShopTag v-if="service.closed" tone="neutral">{{ t('business.home.serviceDealClosed') }}</PointShopTag>

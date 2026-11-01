@@ -30,6 +30,8 @@ import type {
  *  - `POST …/{id}/deposit-deadline` `{ deadlineAt }` · `POST …/{id}/cancel` `{ reason }`(운영자 등록 건은 심사 대기에서도 취소 — 등록 실수. 계약서 올리기도 운영자 등록 건은 심사 대기부터)
  *  - `POST …/{id}/refund/approve` `{ amount, reason }` · `POST …/{id}/refund/deny` `{ reason }` · `POST …/{id}/refund/transfer` `{ note? }`(수동 환불 송금 완료 표시)
  *  상태가 이미 바뀌었으면 409 `BIZ_APPLICATION_STATE_CHANGED`.
+ *  사업자 핫딜 게시(2차 — `biz-hotdeal-contract.md`): 상세 `post`(`BizDealPost` — `HOTDEAL_POST` 만, 결제 전이면 null)·소재 `board`·`prefix`·`imageUrl`.
+ *    게시 실패(`POST_FAILED`) 건은 시작 뒤여도 `cancel` = 전액 환불(`FULL_AUTO`).
  */
 const PATH = {
     root: '/api/admin/biz-applications',

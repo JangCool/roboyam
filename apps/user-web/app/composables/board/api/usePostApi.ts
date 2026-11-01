@@ -26,6 +26,7 @@ import type {
  * 고치기 본문 `deal` 은 바꿨을 때만 싣는다(빼면 그대로 — JSON null 은 거절). 쓰기·고치기 응답 `warnings[]`(예 `DEAL_LINK_BLOCKED`).
  *
  * 서버 연결됨(2026-10-22). 핫딜 칸은 서버 1단계에 연결(2026-11-01).
+ * 사업자 핫딜 글(2차 — `deal.source BUSINESS`)은 작성자 고치기·지우기를 서버가 `403 DEAL_BUSINESS_POST_LOCKED` 로 거절한다(화면은 단추를 숨김).
  */
 const PATH = {
     posts: '/api/posts',

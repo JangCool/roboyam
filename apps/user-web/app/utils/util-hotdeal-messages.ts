@@ -136,6 +136,7 @@ export default class UtilHotdealMessages {
      *  - `429 DEAL_END_REQUEST_AUTHOR_LIMIT`(`days`·`limit`) · `409 DEAL_KEEP_LIMIT` · `409 DEAL_REOPEN_EXPIRED` · `409 DEAL_REOPEN_USED`
      *  - `429 DEAL_LINK_CHECK_RATE_LIMIT`(링크 판정 분당 한도 — `retryAfterSeconds`) · `409 DEAL_NOT_ENDED`(prefill 이면 끝난 딜에서만 새 딜, 그 밖(되돌리기)은 이미 진행 중으로 바뀜)
      *  - `404 DEAL_NOT_FOUND`(딜 상태 API — 종료·되돌리기·keep·종료 요청: 핫딜 글이 아니거나 딜 줄이 없음)
+     *  - `403 DEAL_BUSINESS_POST_LOCKED`(사업자 핫딜 글 — 작성자 고치기·지우기·되돌리기 거절, 내리는 길은 [품절로 종료])
      *  - 게시판 매니저·스텝 종료·재개(`moderate`): `403 DEAL_MODERATE_FORBIDDEN`(그 게시판 매니저·스텝이 아니거나 정지) · `409 DEAL_ENDED`(이미 종료) · `409 DEAL_NOT_ENDED`(종료된 딜이 아님) — 둘 다 카드가 글을 다시 읽어 지금 상태로 바꾼다
      * @param {Translate} t - 번역 함수.
      * @param {unknown} e - 오류.
@@ -178,6 +179,8 @@ export default class UtilHotdealMessages {
                 return t('hotdeal.reopenUsed');
             case 'DEAL_NOT_FOUND':
                 return t('hotdeal.dealNotFound');
+            case 'DEAL_BUSINESS_POST_LOCKED':
+                return t('hotdeal.businessPostLocked');
             default:
                 return null;
         }
@@ -209,7 +212,7 @@ export default class UtilHotdealMessages {
      * @param {DealEndRequests} requests - 종료 요청 집계.
      * @returns {string} 글자. 알림이 없으면 빈 글자.
      */
-    static requestCounts(t: Translate, requests: DealEndRequests): string {
+    static requestCounts(t: Translate, requests: Pick<DealEndRequests, 'bySoldOut' | 'byPriceChanged' | 'byLinkDead'>): string {
         return [
             requests.bySoldOut > 0 ? t('hotdeal.countSoldOut', { n: requests.bySoldOut }) : '',
             requests.byPriceChanged > 0 ? t('hotdeal.countPriceChanged', { n: requests.byPriceChanged }) : '',

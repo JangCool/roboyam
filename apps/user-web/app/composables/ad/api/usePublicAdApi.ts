@@ -7,6 +7,7 @@ import type { AdClickRequest, AdImpressionsRequest, PublicAdPlacements, PublicAd
  *  - `GET /api/ads/placements` → `PublicAdPlacements`(저장한 적 없으면 서버 기본값)
  *  - `POST /api/ads/impressions` `{ items[{ adId, version, placement }] }`(0~20건) · `POST /api/ads/{id}/clicks` `{ version, placement }` → data null.
  *    두 집계 주소는 서버가 CSRF 검사에서 뺀다 — `sendBeacon` 이 머리글을 붙이지 못한다.
+ *  - 사업자 핫딜 노출(2차): `HOTDEAL_TOP`·`HOTDEAL_CATEGORY` 는 서버가 그 신청 건의 글(진행 중·공개)로 `deal` 을 채운다.
  */
 const PATH = {
     ads: '/api/ads',

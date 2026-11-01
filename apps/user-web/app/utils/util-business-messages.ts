@@ -1,9 +1,11 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
-import type { BizHistoryEntry, BusinessRejectCode } from '~/composables/business/api/useBusinessApi.types';
+import type { BizDealFailReason, BizHistoryEntry, BusinessRejectCode } from '~/composables/business/api/useBusinessApi.types';
 import UtilBusiness from '~/utils/util-business';
 
 /** 신청 건 반려 사유 코드(서버 `BizRejectCode`) */
 const REJECT_CODES: readonly BusinessRejectCode[] = ['CREATIVE_SPEC', 'POLICY_VIOLATION', 'LINK_BROKEN', 'PERIOD_UNAVAILABLE', 'FALSE_PRICE', 'OTHER'];
+/** 사업자 핫딜 게시 실패 사유(2차) — 처리 기록 `POST_FAILED` 의 note */
+const FAIL_REASONS: readonly BizDealFailReason[] = ['BOARD_CLOSED', 'LINK_BLOCKED', 'BUSINESS_SUSPENDED', 'OTHER'];
 
 /**
  * 사업자 화면의 계산이 낀 문구 — 상수 문구는 컴포넌트가 `t('business.…')` 로 바로 읽는다(`i18n/locales/{ko,en}/business.ts`).
@@ -64,6 +66,10 @@ export default class UtilBusinessMessages {
             case 'REFUNDED':
             case 'REFUND_TRANSFERRED':
                 return amount();
+            case 'POST_FAILED':
+                return (FAIL_REASONS as readonly string[]).includes(note) ? t(`business.post.failReason.${note}`) : note;
+            case 'POSTED_WITHOUT_PREFIX':
+                return note === 'CATEGORY_TOP_OFF' ? t('business.detail.note.CATEGORY_TOP_OFF') : note;
             case 'REFUND_REQUESTED':
             case 'TAKEN_DOWN':
             case 'REFUND_DENIED':

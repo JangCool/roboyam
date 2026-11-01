@@ -157,10 +157,17 @@ public class BizApplicationOps {
         return refundId;
     }
 
-    /** 예약 확정 — 핫딜 글이면 게시 고리 */
+    /** 예약 확정 — 핫딜 글이면 게시 고리(시작이 이미 지났으면 바로 게시) */
     public void scheduled(AppRow app) {
         if (app.kind() == com.community.bizapplication.entity.BizApplicationKind.HOTDEAL_POST) {
             hotdeals.getIfAvailable(() -> BizHotdealPosting.NONE).onScheduled(app.id());
+        }
+    }
+
+    /** 내림 되돌리기(긴급·정지 해제) — 핫딜 글이면 숨긴 글을 다시 보이는 고리(시작 전에 내렸다 시작 뒤 되돌렸으면 게시) */
+    public void restored(AppRow app) {
+        if (app.kind() == com.community.bizapplication.entity.BizApplicationKind.HOTDEAL_POST) {
+            hotdeals.getIfAvailable(() -> BizHotdealPosting.NONE).onRestored(app.id());
         }
     }
 

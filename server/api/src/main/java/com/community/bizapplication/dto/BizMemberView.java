@@ -1,6 +1,7 @@
 package com.community.bizapplication.dto;
 
 import com.community.bizapplication.dto.request.BizDealInfo;
+import com.community.bizapplication.dto.response.BizDealPostView;
 import com.community.payment.dto.response.PaymentCheckoutView;
 import java.time.Instant;
 import java.util.List;
@@ -41,7 +42,8 @@ public final class BizMemberView {
     public record Detail(String id, String kind, String title, String adType, String placement, String startDate, String endDate, String status, String phase,
                          String paymentMethod, Amount amount, boolean amountConfirmed, Instant paymentDueAt, Instant depositDueAt, Instant submittedAt,
                          boolean refundRequested, Amount estimate, Amount confirmed, String adjustReason, Creative creative, BizDealInfo deal, String rejectCode,
-                         String rejectReason, String takedownReason, Deposit deposit, Refund refund, List<History> history) {
+                         String rejectReason, String takedownReason, Deposit deposit, Refund refund, List<History> history,
+                         BizDealPostView post) {
     }
 
     public record Page(List<Summary> items, long total, Map<String, Long> counts) {
@@ -58,7 +60,14 @@ public final class BizMemberView {
     }
 
     /** 사업자 핫딜 요금 — {@code accepting} 은 글 게시({@code HOTDEAL_POST}) 받기. 꺼져 있으면 화면은 신청 대신 「준비 중」 안내 */
-    public record DealProduct(long postPrice, boolean accepting, List<DealPlacement> placements) {
+    public record DealProduct(long postPrice, boolean accepting, List<DealPlacement> placements, List<DealBoard> boards) {
+    }
+
+    /** 받는 핫딜 게시판(2차 — 켜진 DEAL 게시판, 말머리는 켜짐·운영진 전용 아님) — user-web {@code BizDealBoard} */
+    public record DealBoard(String id, String slug, String name, List<Prefix> prefixes) {
+    }
+
+    public record Prefix(String id, String name) {
     }
 
     public record AvailabilityDay(String date, int remaining, int capacity) {

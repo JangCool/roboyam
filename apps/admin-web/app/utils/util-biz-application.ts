@@ -1,4 +1,4 @@
-import type { BizAmount, BizApplicationStatus, BizDomain, BizPeriod } from '~/composables/bizapplication/api/useBizApplicationApi.types';
+import type { BizAmount, BizApplicationStatus, BizDealPlacement, BizDealPostStatus, BizDomain, BizPeriod } from '~/composables/bizapplication/api/useBizApplicationApi.types';
 
 type Severity = 'secondary' | 'info' | 'success' | 'warn' | 'danger' | 'contrast';
 
@@ -118,6 +118,22 @@ export default class UtilBizApplication {
             default:
                 return 'secondary';
         }
+    }
+
+    /** 사업자 핫딜 게시 상태 색(2차) — 게시 전 · 게시됨 · 실패 · 숨김 */
+    static postSeverity(status: BizDealPostStatus): Severity {
+        if (status === 'POSTED') return 'success';
+        if (status === 'FAILED') return 'danger';
+        if (status === 'HIDDEN') return 'secondary';
+        return 'contrast';
+    }
+
+    /** 노출 줄 상태 색 — 대기 · 노출 중 · 멈춤 · 끝남 */
+    static placementSeverity(status: BizDealPlacement['status']): Severity {
+        if (status === 'SHOWING') return 'success';
+        if (status === 'STOPPED') return 'warn';
+        if (status === 'WAITING') return 'contrast';
+        return 'secondary';
     }
 
     /** 금액 글자(원, 단위 없이 자릿수만) */

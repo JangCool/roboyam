@@ -45,9 +45,9 @@ public class HotdealAdminController {
     public ResponseEntity<ApiResponse<HotdealAdminView.Page>> list(@RequestParam(required = false) String view, @RequestParam(required = false) String board,
                                                                    @RequestParam(required = false) String q, @RequestParam(required = false) String createdFrom,
                                                                    @RequestParam(required = false) String createdTo,
-                                                                   @RequestParam(required = false) String blockedActive, @RequestParam(required = false) String page,
-                                                                   @RequestParam(required = false) String size) {
-        return ok(queries.list(view, board, q, createdFrom, createdTo, blockedActive, page, size));
+                                                                   @RequestParam(required = false) String blockedActive, @RequestParam(required = false) String source,
+                                                                   @RequestParam(required = false) String page, @RequestParam(required = false) String size) {
+        return ok(queries.list(view, board, q, createdFrom, createdTo, blockedActive, source, page, size));
     }
 
     @RequirePermission(Permission.HOTDEAL_READ)

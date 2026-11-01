@@ -1,7 +1,7 @@
 <template>
     <!--
         딜 배지 — 목록 줄(제목 앞)·카드·갤러리·가젯·글 보기 딜 카드가 같이 쓴다. 차례(05 §2-2·§2-13):
-          제휴(첫 부분 표시 — 서버가 지금 방식으로 계산한 `affiliateKind`: `MEMBER` 「제휴·수수료」 · `SITE` 「제휴」 · null 없음, D5) → 상태(종료 / 품절 / 기간 종료 / 품절 알림 N) → 재고 얼마 안 남음 → 마감 임박(「N시간 남음」·「내일 마감」, 48시간 안) → HOT(서버 `hot`)
+          광고(사업자 글 `source BUSINESS` — 2차, 맨 앞) → 제휴(첫 부분 표시 — 서버가 지금 방식으로 계산한 `affiliateKind`: `MEMBER` 「제휴·수수료」 · `SITE` 「제휴」 · null 없음, D5) → 상태(종료 / 품절 / 기간 종료 / 품절 알림 N) → 재고 얼마 안 남음 → 마감 임박(「N시간 남음」·「내일 마감」, 48시간 안) → HOT(서버 `hot`)
           → 링크 바뀜 · 가격 수정 N회(D3).
         끝난 딜은 상태 배지만(임박·HOT·재고 얼마 안 남음은 뺀다). 품절로 끝난 딜은 「종료」 대신 「품절」.
         글자 세로 맞춤은 components.md 2-4(알약 `inline-flex items-center justify-center leading-none` + 글자 `top:-0.09em`).
@@ -19,7 +19,7 @@ import UtilHotdeal from '~/utils/util-hotdeal';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
 
 interface Props {
-    deal: Pick<PostDeal, 'affiliateKind' | 'view' | 'endRequests' | 'stockState' | 'endsAt' | 'hot' | 'revision'>;
+    deal: Pick<PostDeal, 'source' | 'affiliateKind' | 'view' | 'endRequests' | 'stockState' | 'endsAt' | 'hot' | 'revision'>;
     /** 의심 배지(「품절 알림 N」)를 보인다 — 글 보기 딜 카드는 위 안내 줄이 따로 말해서 끈다 */
     flagged?: boolean;
     /** 수정 이력 배지(링크 바뀜·가격 수정 N회)를 보인다 — 가젯은 좁아서 끈다 */
@@ -31,6 +31,7 @@ const props = withDefaults(defineProps<Props>(), { flagged: true, revision: true
 const { t } = useI18n();
 
 const TONE = {
+    ad: 'bg-surface-900 text-surface-0 dark:bg-surface-100 dark:text-surface-900',
     affiliate: 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-200',
     over: 'bg-surface-200 text-surface-700 dark:bg-surface-700 dark:text-surface-100',
     flagged: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200',
@@ -43,6 +44,7 @@ const TONE = {
 const items = computed(() => {
     const d = props.deal;
     const out: { key: string; label: string; tone: string }[] = [];
+    if (UtilHotdeal.isBusiness(d)) out.push({ key: 'ad', label: t('hotdeal.badgeAd'), tone: TONE.ad });
     if (d.affiliateKind === 'MEMBER') out.push({ key: 'affiliate', label: t('hotdeal.badgeAffiliate'), tone: TONE.affiliate });
     else if (d.affiliateKind === 'SITE') out.push({ key: 'affiliate-site', label: t('hotdeal.badgeAffiliateSite'), tone: TONE.affiliate });
     const over = UtilHotdeal.isOver(d.view);

@@ -103,17 +103,28 @@ class BizApplicationHttpTest extends BizApplicationApiTestBase {
                 .andExpect(jsonPath("$.data[4].capacity").value(4)).andExpect(jsonPath("$.data[5].type").value("TEXT_LINE"))
                 .andExpect(jsonPath("$.data[0].type").value("WIDE")).andExpect(jsonPath("$.data[0].dailyPrice").value(50_000))
                 .andExpect(jsonPath("$.data[0].capacity").value(2));
+        dealBoard(); // 받는 핫딜 게시판(말머리 둘)을 먼저 만든다
         mvc.perform(as(user, get("/api/business/deal-products"))).andExpect(status().isOk()).andExpect(jsonPath("$.data.postPrice").value(30_000))
                 .andExpect(jsonPath("$.data.placements[0].placement").value("HOME_TOP"))
-                // V121 — 사업자 핫딜 신청 닫음: 글 게시·노출 자리 각각 받기 꺼짐, 광고 상품은 켜짐
-                .andExpect(jsonPath("$.data.accepting").value(false)).andExpect(jsonPath("$.data.placements[0].accepting").value(false))
-                .andExpect(jsonPath("$.data.placements[1].accepting").value(false));
+                // V123 — 사업자 핫딜 신청 다시 엶: 글 게시·노출 자리 받기 켜짐 + 받는 핫딜 게시판(말머리)
+                .andExpect(jsonPath("$.data.accepting").value(true)).andExpect(jsonPath("$.data.placements[0].accepting").value(true))
+                .andExpect(jsonPath("$.data.placements[1].accepting").value(true)).andExpect(jsonPath("$.data.boards").isArray())
+                .andExpect(jsonPath("$.data.boards[?(@.id == '" + dealBoard() + "')].prefixes[0].name").value("로봇"));
         mvc.perform(as(user, get("/api/business/ad-products"))).andExpect(jsonPath("$.data[0].accepting").value(true));
         String dealBody = "{\"title\":\"[시험상사] 텀블러 1+1\",\"deal\":{\"linkUrl\":\"https://smartstore.naver.com/roboyam/products/1\",\"shopName\":\"네이버 스마트스토어\","
                 + "\"listPrice\":32000,\"dealPrice\":15900,\"shippingFee\":0,\"endsOn\":null,\"stock\":\"LIMITED\",\"body\":\"1+1 행사\",\"placement\":\"NONE\"},"
                 + "\"placementStartDate\":null,\"placementEndDate\":null,\"paymentMethod\":\"ONLINE\",\"agreedAdPolicyVersion\":\"v1\",\"agreedRefundPolicyVersion\":\"v1\"}";
-        mvc.perform(as(user, post("/api/business/applications/deals")).content(dealBody)).andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error.code").value("BIZ_PRODUCT_CLOSED"));
+        // 옛 모양(게시판 없음 · 재고 LIMITED) — 칸 오류 deal.boardId·deal.stock
+        mvc.perform(as(user, post("/api/business/applications/deals")).content(dealBody)).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.fields['deal.boardId']").exists()).andExpect(jsonPath("$.error.fields['deal.stock']").exists());
+        String newBody = dealBody.replace("\"stock\":\"LIMITED\"", "\"stock\":\"IN_STOCK\",\"boardId\":\"" + dealBoard() + "\",\"prefixId\":\"" + dealPrefix() + "\"");
+        String created = mvc.perform(as(user, post("/api/business/applications/deals")).content(newBody)).andExpect(status().isCreated()).andReturn().getResponse()
+                .getContentAsString();
+        String id = created.replaceAll(".*\"id\":\"(\\d+)\".*", "$1");
+        mvc.perform(as(user, get("/api/business/applications/" + id))).andExpect(status().isOk()).andExpect(jsonPath("$.data.deal.boardId").value(Long.toString(dealBoard())))
+                .andExpect(jsonPath("$.data.deal.stock").value("IN_STOCK")).andExpect(jsonPath("$.data.post").doesNotExist());
+        mvc.perform(as(user, post("/api/business/applications/" + id + "/deal/end"))).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("BIZ_APPLICATION_STATE_CHANGED"));
         LocalDate from = today().plusDays(1);
         mvc.perform(as(user, get("/api/business/availability")).param("slot", "HOME_TOP").param("from", from.toString()).param("to", from.plusDays(6).toString()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(7)).andExpect(jsonPath("$.data[0].capacity").value(3));

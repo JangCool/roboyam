@@ -17,6 +17,7 @@
           응답(새 토론 요약)을 글에 넣고 두 댓글 목록을 다시 받는다. `403 DEBATE_MANAGE_DENIED` 는 토스트 + 목록 다시 받기, `409 DEBATE_HAS_VOTES` 는 대화창 안 서버 문구 + 목록 다시 받기.
         핫딜 글(`deal` — `hotdeal-contract.md`): 본문 위에 딜 카드(`HotdealDealCard` — 제휴 고지·가격·몰·배송·재고·기간·가격 기준·수정 이력·[구매하기]·[이 상품 새 딜 올리기]·품절 알리기·작성자 종료/되돌리기/「아직 진행 중」·의심/종료 표시·같은 딜 묶음·판매자 아님 고지).
           같은 딜(`sameDealCount > 0`)은 글을 받은 뒤 `GET …/deal/same` 으로 따로 받는다. 신고 대화창은 핫딜 글이면 사유 2개(가격·정보 / 숨긴 광고)를 더하고, 「가격 허위」는 종료 요청으로 접수된다(D4 — 성공하면 카드의 「보낸 사유」를 화면이 고친다). 동작은 `useHotdealApi` 로 이 화면이 한다(카드는 `actions` 만).
+          사업자 핫딜 글(2차 — `deal.source BUSINESS`)은 작성자 자리에 상호 + 「사업자」, 딜 카드 배지 「광고」·카드 첫 줄 광고 고지, 작성자에게도 고치기·지우기 없음(종료만).
           그 게시판 매니저·스텝이 보면(`dealModeration`) 카드에 작성자 조치와 따로 「게시판 관리」([핫딜 종료]·[다시 진행 중으로])가 서고, 딜이 바뀌면 단추를 새 상태에 맞추며 그새 상태가 바뀐 거절(`stale`)이면 글을 다시 읽는다.
         투표(post-poll-contract): 글에 `poll` 이 있으면 본문 바로 다음·찬반 토론 위에 투표 카드(`PostPollCard`). 투표·다시 읽기·지우기는 `usePollApi` 로 이 화면이 하고(카드는 `actions` 만 받는다),
           카드가 올린 새 투표(지우면 null)를 글의 `poll` 에 넣는다. 차단으로 본문이 접히거나 19금 확인 전이면 함께 가린다.
@@ -82,8 +83,9 @@
                         </h1>
                         <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-color">
                             <!-- 회원 작성자 앞 작은 이니셜 동그라미 — 장착한 프로필 테두리가 여기 보인다(목록·댓글·쪽지는 줄이 좁아 닉네임 색만) -->
-                            <ProfileBorderAvatar v-if="post.author.kind === 'MEMBER'" :initial="UtilPointShop.initial(post.author.name)" :src="authorAvatar" size="xs" :border-style="authorDecoration?.profileBorder ?? null" />
-                            <PostAuthorLabel :author="post.author" show-ip strong link class="text-sm" />
+                            <!-- 사업자 핫딜 글(2차)은 회원 닉네임 대신 상호 + 「사업자」(프로필·테두리 없음) -->
+                            <ProfileBorderAvatar v-if="post.author.kind === 'MEMBER' && !bizDeal" :initial="UtilPointShop.initial(post.author.name)" :src="authorAvatar" size="xs" :border-style="authorDecoration?.profileBorder ?? null" />
+                            <PostAuthorLabel :author="UtilHotdeal.authorOf(post.author, post.deal)" show-ip strong link class="text-sm" />
                             <span aria-hidden="true">·</span>
                             <time :datetime="post.createdAt" :title="time.full(post.createdAt)">{{ time.detail(post.createdAt) }}</time>
                             <span v-if="post.updatedAt" :title="time.full(post.updatedAt)">{{ t('post.edited') }}</span>
@@ -649,8 +651,10 @@ watch(
     },
     { flush: 'post' },
 );
-/** 수정·삭제 단추 — 내 회원 글이거나 비회원 글(비밀번호로 확인) */
-const manageable = computed(() => Boolean(post.value && (post.value.mine || post.value.author.kind === 'GUEST')));
+/** 사업자 핫딜 글(2차 — `deal.source BUSINESS`) — 게시 뒤 고칠 수 없다(종료만, 사업자 센터·딜 카드에서) */
+const bizDeal = computed(() => UtilHotdeal.isBusiness(post.value?.deal));
+/** 수정·삭제 단추 — 내 회원 글이거나 비회원 글(비밀번호로 확인). 사업자 핫딜 글은 작성자에게도 없다(가정: 삭제도 종료로 대신) */
+const manageable = computed(() => Boolean(post.value && !bizDeal.value && (post.value.mine || post.value.author.kind === 'GUEST')));
 const protectionNotice = computed(() => (post.value ? UtilPostMessages.protection(t, post.value.protection) : null));
 
 function goBoard(): void {
@@ -776,7 +780,7 @@ async function onDelete(): Promise<void> {
     try {
         await finishDelete(await postApi.remove(p.id, { password: null }));
     } catch (e) {
-        toast.error(UtilBoardMessages.of(t, e), 8000);
+        toast.error(UtilHotdealMessages.dealError(t, e) ?? UtilBoardMessages.of(t, e), 8000); // 사업자 핫딜 글 `403 DEAL_BUSINESS_POST_LOCKED` 는 안내 문구
     } finally {
         deleting.value = false;
     }

@@ -1,6 +1,6 @@
 import type { LocationQuery } from 'vue-router';
 import type { BoardDetail, BoardView } from '~/composables/board/api/useBoardApi.types';
-import type { DealPostListQuery } from '~/composables/board/api/usePostApi.types';
+import type { DealPostListQuery, PostAuthor } from '~/composables/board/api/usePostApi.types';
 import type {
     AffiliateMode,
     DealEndReason,
@@ -176,6 +176,20 @@ export default class UtilHotdeal {
      */
     static isOver(view: DealView): boolean {
         return view === 'ENDED' || view === 'EXPIRED';
+    }
+
+    /** 사업자 글(2차 — `source=BUSINESS`)인가 — 「광고」 표시·상호·고치기 없음 */
+    static isBusiness(deal: Pick<PostDeal, 'source'> | null | undefined): boolean {
+        return deal?.source === 'BUSINESS';
+    }
+
+    /**
+     * 작성자 자리에 그릴 사람 — 사업자 글이면 회원 닉네임 대신 **사업자 상호 + 「사업자」 뱃지**(프로필 링크·등급·장식 없음), 그 밖은 그대로.
+     * 접기·차단 판정은 원래 `author.memberId` 로 한다(이 값은 그리기만).
+     */
+    static authorOf(author: PostAuthor, deal: Pick<PostDeal, 'source' | 'business'> | null | undefined): PostAuthor {
+        if (!UtilHotdeal.isBusiness(deal) || !deal?.business) return author;
+        return { ...author, name: deal.business.name, memberId: null, grade: null, gradeLabel: null, memo: null, decoration: null, avatarUrl: null, business: true };
     }
 
     /** 새 딜 칸의 처음 값 */

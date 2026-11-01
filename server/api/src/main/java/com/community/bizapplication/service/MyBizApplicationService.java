@@ -5,6 +5,7 @@ import com.community.bizapplication.dto.request.BizAdApplyRequest;
 import com.community.bizapplication.dto.request.BizCreativeRequest;
 import com.community.bizapplication.dto.request.BizDealApplyRequest;
 import com.community.bizapplication.dto.request.BizDealInfo;
+import com.community.bizapplication.dto.response.BizDealPostView;
 import com.community.bizapplication.entity.BizActorType;
 import com.community.bizapplication.entity.BizApplicationKind;
 import com.community.bizapplication.entity.BizEventAction;
@@ -44,12 +45,19 @@ public class MyBizApplicationService {
     private final BizApplicationReader reader;
     private final BizApplicationProperties props;
     private final Messages messages;
+    private final BizDealContent dealForm;
+    private final BizDealPostReader dealPosts;
+    private final BizDealEndService dealEnds;
 
-    public MyBizApplicationService(BizApplicationMemberService members, BizApplicationReader reader, BizApplicationProperties props, Messages messages) {
+    public MyBizApplicationService(BizApplicationMemberService members, BizApplicationReader reader, BizApplicationProperties props, Messages messages,
+                                   BizDealContent dealForm, BizDealPostReader dealPosts, BizDealEndService dealEnds) {
         this.members = members;
         this.reader = reader;
         this.props = props;
         this.messages = messages;
+        this.dealForm = dealForm;
+        this.dealPosts = dealPosts;
+        this.dealEnds = dealEnds;
     }
 
     // ── 상품·남은 칸·링크 ──────────────────────────────────────────────────
@@ -65,18 +73,23 @@ public class MyBizApplicationService {
                 .map(r -> new BizMemberView.DealPlacement(r.product().publicName(), r.unitPrice(), r.capacity() == null ? 0 : r.capacity(), r.maxDays(), r.accepting()))
                 .toList();
         PriceRule post = all.get(BizProduct.HOTDEAL_POST);
-        return new BizMemberView.DealProduct(post.unitPrice(), post.accepting(), placements);
+        List<BizMemberView.DealBoard> boards = dealForm.boards().stream().map(b -> new BizMemberView.DealBoard(Long.toString(b.id()), b.slug(), b.name(),
+                b.prefixes().stream().map(x -> new BizMemberView.Prefix(Long.toString(x.id()), x.name())).toList())).toList();
+        return new BizMemberView.DealProduct(post.unitPrice(), post.accepting(), placements, boards);
     }
 
     public List<BizMemberView.AvailabilityDay> availability(String slot, String from, String to) {
         return members.availability(slot, from, to).stream().map(d -> new BizMemberView.AvailabilityDay(d.date().toString(), d.remaining(), d.capacity())).toList();
     }
 
+    /** 링크 검사(2차 — 회원 핫딜 링크 규칙 {@code deal_domains} 로 판정, 신청 때 서버가 다시 막는다). 외부 주소를 열지 않는다 */
     public BizMemberView.DealLinkCheck checkLink(String url) {
-        BizDealLinks.Check check = BizDealLinks.check(url)
-                .orElseThrow(() -> ValidationException.of("linkUrl", new MessageRef("bizapp.link.invalid")));
-        return new BizMemberView.DealLinkCheck(check.host(), check.shopName(), check.blocked(),
-                check.blockedReason() == null ? null : messages.get(new MessageRef(check.blockedReason())), check.affiliate());
+        if (url == null || url.isBlank() || url.length() > 500 || BizDealLinks.host(url.strip()).isEmpty()) {
+            throw ValidationException.of("linkUrl", new MessageRef("bizapp.link.invalid"));
+        }
+        var v = dealForm.judge(url).orElseThrow(() -> ValidationException.of("linkUrl", new MessageRef("bizapp.link.invalid")));
+        String reason = !v.blocked() ? null : messages.get(new MessageRef(v.shortener() ? "bizapp.link.shortener" : "bizapp.link.blocked"));
+        return new BizMemberView.DealLinkCheck(v.host(), v.storeName(), v.blocked(), reason, v.affiliate());
     }
 
     // ── 신청·처리 ───────────────────────────────────────────────────────────
@@ -102,6 +115,13 @@ public class MyBizApplicationService {
     public BizMemberView.PaymentStart startPayment(long userId, long id) {
         PaymentCheckout checkout = members.startPayment(userId, id);
         return new BizMemberView.PaymentStart("BIZ_APPLICATION", Long.toString(id), checkout.expiresAt(), PaymentCheckoutView.of(checkout));
+    }
+
+    /** 사업자 종료(biz-hotdeal-contract 규칙 6) — 글의 딜을 작성자 종료로 끝낸다. 환불 없음 · 신청 건 상태 그대로 · 처리 기록 DEAL_ENDED_BY_BUSINESS. 응답 = 새 「게시된 글」 */
+    public BizDealPostView endDeal(long userId, long id) {
+        dealEnds.end(userId, id);
+        Snapshot s = reader.snapshotOwned(id, userId);
+        return dealPosts.view(s.app(), s.items(), s.creative());
     }
 
     public BizMemberView.Detail requestRefund(long userId, long id, String reason) {
@@ -146,7 +166,8 @@ public class MyBizApplicationService {
                 str(c.get("imageUrl")) == null ? null : fileName(str(c.get("imageUrl"))), str(c.get("linkUrl")), str(c.get("altText")), str(c.get("text")),
                 str(c.get("imageFileId"))) : null;
         BizDealInfo deal = a.kind() == BizApplicationKind.HOTDEAL_POST ? new BizDealInfo(str(c.get("linkUrl")), str(c.get("shopName")), num(c.get("listPrice")),
-                num(c.get("dealPrice")), num(c.get("shippingFee")), str(c.get("endsOn")), str(c.get("stock")), str(c.get("body")), str(c.get("placement"))) : null;
+                num(c.get("dealPrice")), num(c.get("shippingFee")), str(c.get("endsOn")), str(c.get("stock")), str(c.get("body")), str(c.get("placement")),
+                str(c.get("boardId")), str(c.get("prefixId")), str(c.get("imageFileId")), str(c.get("imageUrl"))) : null;
         BizMemberView.Deposit deposit = null;
         if (a.paymentMethod() == BizPaymentMethod.MANUAL) {
             BizApplicationProperties.DepositAccount acc = props.depositAccount();
@@ -161,7 +182,8 @@ public class MyBizApplicationService {
         return new BizMemberView.Detail(sum.id(), sum.kind(), sum.title(), sum.adType(), sum.placement(), sum.startDate(), sum.endDate(), sum.status(), sum.phase(),
                 sum.paymentMethod(), sum.amount(), sum.amountConfirmed(), sum.paymentDueAt(), sum.depositDueAt(), sum.submittedAt(), sum.refundRequested(),
                 amount(a.quote()), a.approved() == null ? null : amount(a.approved()), a.adjustReason(), creative, deal,
-                a.rejectCode() == null ? null : a.rejectCode().name(), a.rejectText(), a.takedownText(), deposit, refund, history);
+                a.rejectCode() == null ? null : a.rejectCode().name(), a.rejectText(), a.takedownText(), deposit, refund, history,
+                dealPosts.view(a, s.items(), s.creative()));
     }
 
     // ── 안 ──────────────────────────────────────────────────────────────────

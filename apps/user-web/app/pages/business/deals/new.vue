@@ -2,8 +2,10 @@
     <!--
         사업자 핫딜 신청 `/business/deals/new` — 사전 심사 신청(★-1, 03 §7-2). Stepper 5단계:
         ① 상품 링크 붙여넣기 → [확인](또는 칸을 벗어나면) → 쇼핑몰 자동 표시(고칠 수 있음)·제휴 표시 자동·단축 URL 차단
-        ② 가격(정상가·딜가 → 할인율 미리보기)·배송비·마감·재고 ③ 제목·본문 + 딜 미리보기
-        ④ 노출 추가(없음 / 홈 상단 / 말머리 상단 — 고르면 노출 기간 달력) ⑤ 결제 방식 + 예상 금액 + 동의 → [심사 신청].
+        ② 가격(정상가·딜가 → 할인율 미리보기)·배송비·마감·재고(재고 있음·얼마 안 남음·모름 — 회원 핫딜과 같은 값)
+        ③ 게시판(하나면 자동으로 고르고 감춤)·말머리(게시판에 있으면 필수) · 상품 이미지 한 장(선택 — 광고 이미지 올리기 API, 없으면 기본 아이콘) · 제목·본문 + 딜 미리보기(이미지·말머리)
+        ④ 노출 추가(없음 / 핫딜 게시판 상단 / 말머리 상단 — 고른 게시판·말머리 이름으로 안내, 말머리 없는 게시판이면 말머리 상단을 못 고름 — 고르면 노출 기간 달력)
+        ⑤ 결제 방식 + 예상 금액 + 게시 정책 4줄(시작 시각에 게시 · 종료 요청 받음 · 끝나도 환불 없음 · 게시 뒤 고칠 수 없음) + 동의 → [심사 신청].
         「사업자 핫딜은 심사 뒤 결제하면 게시돼요」. 노출을 고르면 같은 신청 건에 묶어 한 번에 결제한다(목업 가정).
     -->
     <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="business-deal-new">
@@ -110,6 +112,58 @@
                 <!-- ③ 내용 -->
                 <section v-else-if="step === 3" class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]">
                     <div class="flex min-w-0 flex-col gap-4">
+                        <!-- 게시판·말머리 — 게시판이 하나면 자동으로 고르고 칸을 감춘다, 말머리가 없는 게시판이면 말머리 칸도 감춘다 -->
+                        <div v-if="boards.length > 1 || boardPrefixes.length" class="grid gap-4 sm:grid-cols-2">
+                            <LabeledField v-if="boards.length > 1" :label="t('business.deal.board')" :help="t('business.deal.boardHelp')" :error="errors.board">
+                                <template #default="{ id, describedBy, invalid }">
+                                    <Select
+                                        :model-value="deal.boardId || null"
+                                        :options="boards"
+                                        option-label="name"
+                                        option-value="id"
+                                        :input-id="id"
+                                        :placeholder="t('business.deal.boardPlaceholder')"
+                                        :invalid="invalid"
+                                        :aria-describedby="describedBy"
+                                        fluid
+                                        data-testid="business-deal-board"
+                                        @update:model-value="pickBoard"
+                                    />
+                                </template>
+                            </LabeledField>
+                            <LabeledField v-if="boardPrefixes.length" :label="t('business.deal.prefix')" :help="t('business.deal.prefixHelp')" :error="errors.prefix">
+                                <template #default="{ id, describedBy, invalid }">
+                                    <Select
+                                        v-model="deal.prefixId"
+                                        :options="boardPrefixes"
+                                        option-label="name"
+                                        option-value="id"
+                                        :input-id="id"
+                                        :placeholder="t('business.deal.prefix')"
+                                        :invalid="invalid"
+                                        :aria-describedby="describedBy"
+                                        fluid
+                                        data-testid="business-deal-prefix"
+                                    />
+                                </template>
+                            </LabeledField>
+                        </div>
+                        <LabeledField :label="t('business.deal.image')" :help="t('business.deal.imageHelp')">
+                            <template #default="{ id, describedBy }">
+                                <BusinessFilePicker
+                                    :file="image"
+                                    :accept="UtilBusiness.IMAGE_ACCEPT"
+                                    :choose-label="t('business.file.choose')"
+                                    :busy="imageBusy"
+                                    :input-id="id"
+                                    :described-by="describedBy"
+                                    :type-error="t('business.file.typeError')"
+                                    :size-error="t('business.file.sizeError')"
+                                    @select="uploadImage"
+                                    @remove="image = null"
+                                />
+                            </template>
+                        </LabeledField>
                         <LabeledField :label="t('business.deal.dealTitle')" :hint="t('business.deal.titleHelp')" :error="errors.title">
                             <template #default="{ id, describedBy, invalid }">
                                 <InputText v-model="title" :id="id" :maxlength="80" :invalid="invalid" :aria-describedby="describedBy" fluid />
@@ -125,10 +179,12 @@
                     <figure class="m-0 flex flex-col gap-1.5">
                         <figcaption class="text-xs font-medium text-muted-color">{{ t('business.deal.previewTitle') }}</figcaption>
                         <div class="flex flex-col gap-1.5 rounded-lg border border-hairline p-3">
+                            <HotdealThumb :url="image?.previewUrl ?? null" class="aspect-square w-24" />
                             <p class="m-0 flex flex-wrap items-center gap-1">
                                 <PointShopTag tone="primary">{{ t('business.badge') }}</PointShopTag>
                                 <PointShopTag tone="neutral">{{ t('business.ad.adMark') }}</PointShopTag>
                                 <PointShopTag v-if="linkResult?.affiliate" tone="warn">{{ t('business.deal.affiliateTag') }}</PointShopTag>
+                                <PointShopTag v-if="pickedPrefix" tone="neutral">{{ pickedPrefix.name }}</PointShopTag>
                             </p>
                             <p class="m-0 line-clamp-2 break-words text-sm font-semibold">{{ title || t('business.deal.dealTitle') }}</p>
                             <p class="m-0 flex flex-wrap items-baseline gap-x-1.5 tabular-nums">
@@ -167,11 +223,11 @@
                                 <span class="flex flex-wrap items-center justify-between gap-x-2 text-sm font-semibold">
                                     <span class="flex flex-wrap items-center gap-1.5">
                                         {{ t(`business.placement.${option.value}`) }}
-                                        <PointShopTag v-if="!option.accepting" tone="neutral">{{ t('business.ad.notAccepting') }}</PointShopTag>
+                                        <PointShopTag v-if="option.closed" tone="neutral">{{ t('business.ad.notAccepting') }}</PointShopTag>
                                     </span>
                                     <span v-if="option.dailyPrice" class="text-xs font-semibold tabular-nums">{{ t('business.deal.placementPrice', { amount: UtilBusinessMessages.won(t, option.dailyPrice) }) }}</span>
                                 </span>
-                                <span class="mt-0.5 block text-xs text-muted-color">{{ t(`business.placementHelp.${option.value}`) }}</span>
+                                <span class="mt-0.5 block text-xs text-muted-color">{{ option.help }}</span>
                             </span>
                         </label>
                     </fieldset>
@@ -193,6 +249,16 @@
                 <section v-else class="flex flex-col gap-4">
                     <BusinessPaymentMethodPicker v-model="paymentMethod" />
                     <BusinessPriceSummary :amount="estimate" :breakdown="breakdown" />
+                    <!-- 게시 정책 — 동의 바로 위(사용자 확정 2026-11-02) -->
+                    <section class="flex flex-col gap-2 rounded-lg border border-hairline p-3.5" :aria-labelledby="`${uid}-policy`" data-testid="business-deal-policy">
+                        <h2 :id="`${uid}-policy`" class="m-0 text-sm font-semibold">{{ t('business.deal.policyTitle') }}</h2>
+                        <ul class="m-0 flex list-none flex-col gap-1.5 p-0 text-sm leading-relaxed">
+                            <li v-for="line in policyLines" :key="line.icon" class="flex items-start gap-2">
+                                <i :class="[line.icon, 'mt-1 text-xs text-muted-color']" aria-hidden="true" />
+                                <span class="min-w-0">{{ line.text }}</span>
+                            </li>
+                        </ul>
+                    </section>
                     <BusinessAgreeList v-model="agreed" :items="agreeItems" :error="errors.agree" />
                 </section>
 
@@ -207,7 +273,7 @@
 <script setup lang="ts">
 import type { BusinessAgreeItem } from '~/components/business/BusinessAgreeList.types';
 import type { PeriodValue } from '~/components/business/BusinessPeriodCalendar.types';
-import type { AvailabilityDay, BizDeal, BizPaymentMethod, BusinessProfile, DealLinkCheck, DealPlacement, DealProduct } from '~/composables/business/api/useBusinessApi.types';
+import type { AvailabilityDay, BizDeal, BizDealStock, BizPaymentMethod, BusinessFile, BusinessProfile, DealLinkCheck, DealPlacement, DealProduct } from '~/composables/business/api/useBusinessApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilBusiness from '~/utils/util-business';
 import UtilBusinessMessages from '~/utils/util-business-messages';
@@ -246,7 +312,12 @@ const deal = reactive<Omit<BizDeal, 'listPrice' | 'dealPrice'> & { listPrice: nu
     stock: 'UNKNOWN',
     body: '',
     placement: 'NONE',
+    boardId: '',
+    prefixId: null,
+    imageFileId: null,
 });
+const image = ref<BusinessFile | null>(null);
+const imageBusy = ref(false);
 const title = ref('');
 const shippingMode = ref<'FREE' | 'UNKNOWN' | 'PAID'>('FREE');
 const shippingFee = ref<number | null>(null);
@@ -276,6 +347,9 @@ async function load(): Promise<void> {
         const [p, product] = await Promise.all([api.profile(), api.dealProduct()]);
         profile.value = p;
         dealProduct.value = product;
+        // 받는 게시판이 하나면 자동으로 고른다(칸은 감춘다)
+        const list = product.boards ?? [];
+        if (list.length === 1 && !deal.boardId) deal.boardId = list[0]!.id;
         status.value = 'ready';
     } catch (e) {
         loadError.value = e instanceof Error ? e.message : '';
@@ -329,7 +403,34 @@ const shippingOptions = computed(() => [
     { value: 'UNKNOWN', label: t('business.deal.shippingUnknown') },
     { value: 'PAID', label: t('business.deal.shippingPaid') },
 ]);
-const stockOptions = computed(() => (['PLENTY', 'LIMITED', 'UNKNOWN'] as const).map((value) => ({ value, label: t(`business.deal.stockOption.${value}`) })));
+const STOCKS: readonly BizDealStock[] = ['IN_STOCK', 'LOW', 'UNKNOWN'];
+const stockOptions = computed(() => STOCKS.map((value) => ({ value, label: t(`business.deal.stockOption.${value}`) })));
+
+/* ── 게시판·말머리·이미지 ── */
+const boards = computed(() => dealProduct.value?.boards ?? []);
+const pickedBoard = computed(() => boards.value.find((b) => b.id === deal.boardId) ?? null);
+const boardPrefixes = computed(() => pickedBoard.value?.prefixes ?? []);
+const pickedPrefix = computed(() => boardPrefixes.value.find((p) => p.id === deal.prefixId) ?? null);
+
+/** 게시판을 바꾸면 말머리를 비우고, 말머리 없는 게시판이면 말머리 상단 노출도 거둔다 */
+function pickBoard(id: string | null): void {
+    if (!id || id === deal.boardId) return;
+    deal.boardId = id;
+    deal.prefixId = null;
+    if (deal.placement === 'CATEGORY_TOP' && !boardPrefixes.value.length) pickPlacement('NONE');
+}
+
+async function uploadImage(file: File): Promise<void> {
+    imageBusy.value = true;
+    formError.value = '';
+    try {
+        image.value = await api.uploadFile(file);
+    } catch (e) {
+        formError.value = e instanceof Error ? e.message : t('common.failed');
+    } finally {
+        imageBusy.value = false;
+    }
+}
 const shippingLabel = computed(() => {
     if (shippingMode.value === 'FREE') return `${t('business.deal.shipping')} ${t('business.deal.shippingFree')}`;
     if (shippingMode.value === 'UNKNOWN') return `${t('business.deal.shipping')} ${t('business.deal.shippingUnknown')}`;
@@ -337,9 +438,27 @@ const shippingLabel = computed(() => {
 });
 
 /* ── 노출 ── */
+/** 말머리 상단은 고른 말머리 목록 위에 나온다 — 게시판을 아는데(받는 게시판 목록이 있는데) 말머리가 없으면 고를 수 없다 */
+const categoryBlocked = computed(() => pickedBoard.value !== null && !boardPrefixes.value.length);
+/** 노출 자리 안내 — 고른 게시판·말머리 이름으로(모르면 일반 안내) */
+function placementHelp(value: DealPlacement): string {
+    const board = pickedBoard.value?.name;
+    if (value === 'HOME_TOP' && board) return t('business.deal.placementHelpTop', { board });
+    if (value === 'CATEGORY_TOP' && categoryBlocked.value) return t('business.deal.placementNeedPrefix');
+    if (value === 'CATEGORY_TOP' && board && pickedPrefix.value) return t('business.deal.placementHelpCategory', { board, prefix: pickedPrefix.value.name });
+    return t(`business.placementHelp.${value}`);
+}
 const placementOptions = computed(() => [
-    { value: 'NONE' as DealPlacement, dailyPrice: 0, accepting: true },
-    ...(dealProduct.value?.placements ?? []).map((p) => ({ value: p.placement as DealPlacement, dailyPrice: p.dailyPrice, accepting: p.accepting })),
+    { value: 'NONE' as DealPlacement, dailyPrice: 0, accepting: true, closed: false, help: placementHelp('NONE') },
+    ...(dealProduct.value?.placements ?? []).map((p) => ({
+        value: p.placement as DealPlacement,
+        dailyPrice: p.dailyPrice,
+        /** 고를 수 있나(받기 켬 + 말머리 상단이면 말머리 있는 게시판) */
+        accepting: p.accepting && !(p.placement === 'CATEGORY_TOP' && categoryBlocked.value),
+        /** 받기 꺼짐 — 「지금은 받지 않아요」 */
+        closed: !p.accepting,
+        help: placementHelp(p.placement),
+    })),
 ]);
 const placement = computed(() => dealProduct.value?.placements.find((p) => p.placement === deal.placement) ?? null);
 const minDay = computed(() => UtilBusiness.addDays(UtilBusiness.todayYmd(), 1));
@@ -384,6 +503,14 @@ const breakdown = computed(() => {
     return lines;
 });
 
+/** 게시 정책 4줄 — 시작 시각에 게시 · 종료 요청 · 환불 없음 · 고칠 수 없음 */
+const policyLines = computed(() => [
+    { icon: 'pi pi-calendar', text: pickedBoard.value ? t('business.deal.policyPublish', { board: pickedBoard.value.name }) : t('business.deal.policyPublishAny') },
+    { icon: 'pi pi-flag', text: t('business.deal.policyEndRequest') },
+    { icon: 'pi pi-ban', text: t('business.deal.policyNoRefund') },
+    { icon: 'pi pi-lock', text: t('business.deal.policyNoEdit') },
+]);
+
 const agreeItems = computed<BusinessAgreeItem[]>(() => [
     { key: 'adPolicy', label: t('business.agree.adPolicy'), detail: t('business.agree.adPolicyDetail'), version: AD_POLICY_VERSION },
     { key: 'refundPolicy', label: t('business.agree.refundPolicy'), detail: t('business.agree.refundPolicyDetail'), version: REFUND_POLICY_VERSION },
@@ -398,6 +525,8 @@ const errors = computed(() => {
     if (tried.value[1] && linkChecked.value && !linkResult.value?.blocked && !deal.shopName.trim()) out.shop = t('business.deal.shopRequired');
     if (tried.value[2] && !deal.dealPrice) out.dealPrice = t('business.deal.dealPriceRequired');
     else if (deal.listPrice && deal.dealPrice && deal.dealPrice >= deal.listPrice) out.dealPrice = t('business.deal.priceInvalid');
+    if (tried.value[3] && boards.value.length && !pickedBoard.value) out.board = t('business.deal.boardRequired');
+    if (tried.value[3] && boardPrefixes.value.length && !pickedPrefix.value) out.prefix = t('business.deal.prefixRequired');
     if (tried.value[3] && title.value.trim().length < 5) out.title = t('business.deal.titleRequired');
     if (tried.value[3] && !deal.body.trim()) out.body = t('business.deal.bodyRequired');
     if (deal.placement !== 'NONE') {
@@ -409,7 +538,7 @@ const errors = computed(() => {
     return out;
 });
 
-const STEP_FIELDS: Record<number, string[]> = { 1: ['link', 'shop'], 2: ['dealPrice'], 3: ['title', 'body'], 4: ['period'], 5: ['agree'] };
+const STEP_FIELDS: Record<number, string[]> = { 1: ['link', 'shop'], 2: ['dealPrice'], 3: ['board', 'prefix', 'title', 'body'], 4: ['period'], 5: ['agree'] };
 
 async function next(): Promise<void> {
     if (submitBusy.value) return;
@@ -435,6 +564,9 @@ async function submit(): Promise<void> {
             shippingFee: shippingMode.value === 'FREE' ? 0 : shippingMode.value === 'UNKNOWN' ? null : (shippingFee.value ?? 0),
             endsOn: endsOn.value || null,
             body: deal.body.trim(),
+            boardId: pickedBoard.value?.id ?? '',
+            prefixId: pickedPrefix.value?.id ?? null,
+            imageFileId: image.value?.fileId ?? null,
         };
         const created = await api.submitDeal({
             title: title.value.trim(),
@@ -449,6 +581,15 @@ async function submit(): Promise<void> {
         await navigateTo(UtilBusiness.applicationPath(created.id));
     } catch (e) {
         formError.value = e instanceof Error ? e.message : t('business.deal.failed');
+        // 서버 칸 오류면 그 칸이 있는 단계로(앞 단계가 먼저) — 문구는 서버 몫. 링크(형식·차단·단축 주소 — `deal.linkUrl`)는 ①의 링크 칸 아래에도 싣는다
+        if (e instanceof ApiError) {
+            const linkField = e.field('deal.linkUrl');
+            if (linkField) {
+                linkError.value = linkField;
+                step.value = 1;
+            } else if (e.field('deal.listPrice') || e.field('deal.stock')) step.value = 2;
+            else if (e.field('deal.boardId') || e.field('deal.prefixId') || e.field('deal.imageFileId')) step.value = 3;
+        }
         if (e instanceof ApiError && e.code === 'BIZ_SLOT_FULL') {
             step.value = 4;
             void loadAvailability();
