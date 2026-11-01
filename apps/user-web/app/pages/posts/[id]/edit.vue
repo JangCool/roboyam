@@ -13,7 +13,7 @@
           글 수정 본문(`PUT /api/posts/{id}`)의 `poll`: 칸을 바꿨을 때만 보낸다(켬 → 만들기·고치기, 끔 → null 로 빼기). 바꾸지 않았거나 잠긴 투표면 칸을 아예 빼서 그대로 둔다.
           `409 POLL_LOCKED`(그새 첫 표가 들어옴)는 투표 칸 안 서버 문구 + 투표를 다시 읽어 잠근다.
         핫딜 글(`deal` 이 있는 글 — `hotdeal-contract.md`): 글쓰기와 같은 딜 칸(`HotdealDealFields`)에 기존 값을 채운다. 불러온 링크는 다시 판정하지 않고, 링크를 바꾸면 판정한다.
-          종료된 딜(ENDED)은 딜 칸 읽기 전용 + 안내(제목·본문만 고친다), 기간이 지난 딜(EXPIRED)은 「마감을 고쳐 주세요」 안내 — 마감을 고칠 수 있다(가정).
+          종료된 딜(ENDED)은 딜 칸 읽기 전용 + 안내(제목·본문만 고친다), 기간이 지난 딜(EXPIRED)은 「마감을 고쳐 주세요」 안내 — 마감을 고칠 수 있다(서버는 저장 상태 ENDED 만 `409 DEAL_ENDED` 로 막는다).
           글 수정 본문의 `deal` 은 딜 칸을 바꿨을 때만 싣는다. 좁은 화면은 글쓰기처럼 `Stepper` 단계 입력. 제목 칸 아래 핫딜 제목 안내(`HotdealTitleHint`).
           저장 응답의 `warnings[]`(예 `DEAL_LINK_BLOCKED` — 서버가 지금 규칙으로 링크를 다시 판정해 차단이면 저장은 하고 경고)는 토스트로 알리고 글로 간다.
         소모임 글(2단계): 글의 `group` 이 있으면 게시판 정보를 `GET /api/groups/{id}/board`(로보얌 추가 후보)로 받는다. 공개 범위는 여기서 바꾸지 않는다(글 상세에서만).
@@ -85,6 +85,7 @@
                     :check="linkCheck.state.value"
                     :errors="dealErrors"
                     :actions="dealActions"
+                    :rules="dealRules"
                     :legend="formStep === 0"
                     :disabled="submitting"
                     :readonly="dealMode === 'readonly'"
@@ -264,7 +265,7 @@ const dealForm = ref(UtilHotdeal.emptyForm());
 const dealInitial = ref(UtilHotdeal.emptyForm());
 const linkCheck = useDealLinkCheck(dealForm, computed(() => post.value?.board.slug ?? ''));
 /**
- * 딜 칸의 모습 — 딜이 없는 글은 감추고, 종료된 딜은 읽기 전용(기간 지남은 고칠 수 있다 — 마감을 고쳐 다시 진행하게, 가정).
+ * 딜 칸의 모습 — 딜이 없는 글은 감추고, 종료된 딜은 읽기 전용(기간 지남은 고칠 수 있다 — 마감을 고쳐 다시 진행하게).
  * 내 회원 글만(남의 글은 위에서 막는다)
  */
 const dealMode = computed<'hidden' | 'edit' | 'readonly'>(() => {
@@ -274,8 +275,10 @@ const dealMode = computed<'hidden' | 'edit' | 'readonly'>(() => {
 });
 const dealChanged = computed(() => dealMode.value === 'edit' && !UtilHotdeal.same(dealForm.value, dealInitial.value));
 const dealTried = ref(false);
-const dealProblems = computed(() => UtilHotdeal.problems(dealForm.value, linkCheck.state.value.result, Date.now(), dealInitial.value.endsAt));
-const dealErrors = computed(() => UtilHotdealMessages.fieldErrors(t, fieldErrors.value, dealTried.value && dealChanged.value ? dealProblems.value : null));
+/** 핫딜 설정 공개 칸(게시판 응답 `dealRules`, 없으면 기본값) — 금액 상한·할인율 경고·기간 종료 일수 */
+const dealRules = computed(() => UtilHotdeal.rulesOf(board.value));
+const dealProblems = computed(() => UtilHotdeal.problems(dealForm.value, linkCheck.state.value.result, Date.now(), dealRules.value, dealInitial.value.endsAt));
+const dealErrors = computed(() => UtilHotdealMessages.fieldErrors(t, fieldErrors.value, dealTried.value && dealChanged.value ? dealProblems.value : null, dealRules.value));
 const dealErrorCount = computed(() => UtilHotdealMessages.errorCount(dealErrors.value));
 const dealActions: DealFieldActions = {
     upload: async (file) => {

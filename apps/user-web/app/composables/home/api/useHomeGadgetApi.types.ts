@@ -8,7 +8,7 @@
  *    모양·계산은 공유 레이어 `@roboyam/home-layout`(`UtilHomeLayout`) — 행 높이 15px · 간격 16px 고정, `h` 는 최소 높이. 모바일 한 열 순서는 (y, x) 순서다(따로 받지 않는다).
  *  - 가젯 종류는 8종(`HIGHLIGHT`·`POST_LIST`·`BOARD_CARDS`·`GALLERY`·`GROUPS`·`GROUP_BUY`·`QUICK_LINKS`·`NOTICE_TEXT`) + 광고 2종(`AD` · `AD_TEXT_LINE` — 서버 종류 등록 전).
  *    광고 가젯은 서버가 `data` 를 비워 보내고 화면이 채운다(`useAdGadgets`). 커뮤니티의 핫딜·직접홍보(`DEAL_PLACEMENT`·`PROMO_TOP`)는 없다.
- *    회원 핫딜 1차의 `HOT_DEALS`(진행 중인 핫딜 가격 줄 목록 — `hotdeal-contract.md`)는 서버 종류 등록 전(목업 — `useHomeGadgetApi` 가 홈 응답 끝에 하나 더한다).
+ *    회원 핫딜 1차의 `HOT_DEALS`(진행 중인 핫딜 가격 줄 목록 — `hotdeal-contract.md`)는 서버 2단계에서 데이터를 싣는다(모양 `HotDealsData` 확정).
  *  - `GROUPS`·`GROUP_BUY` 도 가젯 `data` 에 목록을 싣는다(community 는 `null` + 컴포넌트가 따로 받음) — 컴포넌트는 서버를 부르지 않는다(로보얌 `components.md`).
  *  - 노출 기간·보는 사람(`audience`)은 **서버가 걸러** 응답에서 뺀다. 로그인한 사람만 보는 가젯을 로그인하지 않은 방문자에게 안내로 보일 때만 `locked: true` 뼈대로 온다.
  * ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO. 화면은 없는 칸·모르는 값에도 깨지지 않게 `UtilHomeGadget.sanitize` 로 한 번 읽는다(모르는 종류는 건너뛴다).
@@ -237,11 +237,12 @@ export interface HotDealsConfig {
 }
 
 /**
- * `HOT_DEALS` — 진행 중인 핫딜(ACTIVE — 의심·종료·기간 지남 제외)을 설정 차례로 `count` 개. 줄은 게시판이 섞인 글 줄(`PostFeedRow` + `deal`) — 핫딜 목록 줄과 같은 모양.
- * 비면 영역을 그리지 않는다(기본 꾸미기 `empty.keep` 꺼짐).
+ * `HOT_DEALS` — 진행 중인 핫딜(ACTIVE — 의심·종료·기간 지남 제외)·공개 글을 설정 차례로 `count` 개(`boards` 가 비면 모든 핫딜 게시판). 줄은 게시판이 섞인 글 줄(`PostFeedRow` + `deal`) — 핫딜 목록 줄과 같은 모양.
+ * `more.to` 는 「핫딜 더 보기」가 갈 곳(`/boards/{slug}`), 없으면 null. 비면 `items` [] — 영역을 그리지 않는다(기본 꾸미기 `empty.keep` 꺼짐).
  */
 export interface HotDealsData {
     items: PostFeedRow[];
+    more: { to: string } | null;
 }
 
 /** `QUICK_LINKS` 한 항목 — `kind` 로 주소를 화면이 만든다(`UtilHomeGadget.linkOf`). `BOARD` 의 `value` 는 게시판 slug, `PATH` 는 사이트 안 경로 */

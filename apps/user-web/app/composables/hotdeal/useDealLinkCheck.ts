@@ -1,8 +1,19 @@
 import type { DealFormValues, DealLinkCheckState } from '~/components/hotdeal/HotdealDealFields.types';
 import type { DealLinkCheck } from '~/composables/hotdeal/api/useHotdealApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
-import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilHotdeal from '~/utils/util-hotdeal';
+import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
+import type { Translate } from '#layers/i18n/utils/util-i18n';
+
+/**
+ * 판정 API 오류의 안내 — 분당 한도(`429 DEAL_LINK_CHECK_RATE_LIMIT`)는 핫딜 문구, 핫딜 쓰기 자격(`403`)은 핫딜 자격 문구,
+ * 칸 오류(`400 fields.url`·`fields.board`)는 서버의 그 칸 문구. 그 밖(망·서버 오류)은 빈 글자 — 딜 칸이 「확인하지 못했어요. 그래도 등록할 수 있어요」를 보인다
+ */
+function checkError(t: Translate, e: unknown): string {
+    if (!(e instanceof ApiError)) return '';
+    if (UtilHotdeal.isWriteBlockedCode(e.code)) return UtilHotdealMessages.writeBlocked(t, e.code, null);
+    return UtilHotdealMessages.dealError(t, e) ?? e.field('url') ?? e.field('board') ?? '';
+}
 
 /**
  * 글쓰기·고치기의 상품 링크 판정 — 링크 칸이 바뀌면 잠시 기다렸다가(디바운스) `link-check` 를 부르고, 결과로 딜 칸을 채운다.
@@ -47,7 +58,7 @@ export function useDealLinkCheck(form: Ref<DealFormValues>, board: MaybeRef<stri
         } catch (e) {
             if (mine !== seq) return;
             if (e instanceof ApiError && e.code === 'ABORTED') return;
-            state.value = { status: 'error', result: null, error: UtilBoardMessages.of(t, e) };
+            state.value = { status: 'error', result: null, error: checkError(t, e) };
         }
     }
 

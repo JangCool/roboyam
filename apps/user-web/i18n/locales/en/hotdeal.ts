@@ -78,6 +78,8 @@ export default {
     urlHelp: 'Paste the product page link. We fill in the store name and image for you.',
     checking: 'Checking the link…',
     checkFailed: 'Couldn’t check the link. You can still post.',
+    linkCheckRateLimit: 'Too many link checks. Try again shortly — you can still post.',
+    linkCheckRateLimitIn: 'Too many link checks. Try again in {n} s — you can still post.',
     retry: 'Try again',
     affiliateAuto: 'Affiliate label turns on automatically',
     siteAffiliateConvert: 'The buy link is changed to a Roboyam affiliate link',
@@ -168,6 +170,7 @@ export default {
     prefillNotice: 'We copied the link, store, image and title from the ended deal. Enter the current price and end time again.',
     prefillLoading: 'Loading the ended deal…',
     prefillFailed: 'Couldn’t load the ended deal: {message}',
+    prefillNotEnded: 'This deal is still on. You can only post a new deal from an ended one.',
 
     // ── Deal card ──
     cardLabel: 'Deal details',

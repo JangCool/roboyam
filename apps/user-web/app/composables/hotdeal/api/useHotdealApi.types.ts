@@ -37,8 +37,9 @@ export type DealAffiliateKind = 'MEMBER' | 'SITE';
 export type DealSort = 'LATEST' | 'POPULAR' | 'ENDING_SOON';
 
 /**
- * 상품 이미지 — `url` 은 늘 **우리 서버 사본**(D1: OG 이미지는 가로 600px WebP 사본 한 장, 외부 이미지 직접 링크 금지).
- * `imageId` 는 올린 이미지(`POST /api/images` 의 id)일 때만, `originUrl` 은 OG 사본의 원본 주소(저작권 요청 때 지움 — 화면은 보이지 않는다)
+ * 상품 이미지 — `url` 은 늘 **우리 서버 주소**(D1: OG 이미지는 가로 600px JPEG 사본 한 장(WebP 원본은 작으면 그대로), 외부 이미지 직접 링크 금지).
+ * `imageId` 는 올린 이미지(`POST /api/images` 의 id)일 때만. `originUrl`(OG 사본의 원본 주소)은 **공개 응답에서 늘 null**(관리자 상세만) — 보낼 때도 서버는 보지 않는다.
+ * 글 저장 때 서버가 확인한다: `OG` 면 `url` 이 우리 OG 사본 주소, `UPLOAD` 면 `imageId` 가 그 회원이 올린 이미지(아니면 `400 fields."deal.image"`)
  */
 export interface DealImage {
     url: string;
@@ -164,22 +165,19 @@ export interface DealLinkCheck {
     rule: DomainRule | null;
     /** 대형몰(위장 홍보 후보 계산에서 빠짐) */
     common: boolean;
-    /**
-     * 단축 주소 차단인가(BLOCK 규칙 중 메모 「단축 주소」 시드) — 화면이 「단축 주소는 원래 주소로 바꿔 주세요」를 따로 보이려고 둔 칸.
-     * 가정(계약에 없음): 서버가 규칙 메모를 비교하지 않고 이 칸으로 알려 준다. 없으면 false 로 본다
-     */
-    shortener?: boolean;
+    /** 단축 주소 차단인가(BLOCK 규칙 중 단축 주소 시드) — 화면이 「단축 주소는 원래 주소로 바꿔 주세요」를 따로 보인다 */
+    shortener: boolean;
     /** 호스트 → 이름 표로 찾은 쇼핑몰 이름(없으면 null) */
     storeName: string | null;
     /** `imageUrl` 은 우리 서버 사본(D1) */
     og: { status: DealOgStatus; imageUrl: string | null; title: string | null; storeName: string | null };
     sameDeals: DealSameRef[];
     /**
-     * 지금 제휴 링크 방식(D5) — 계약 「공개 설정 전달」 후보 둘 다 싣는다(가정): 쓰기 화면은 게시판 응답 `BoardDetail.dealAffiliateMode` 로 먼저 알고, 판정이 오면 이 값이 우선한다.
-     * `SITE` 이고 `rule === 'AFFILIATE'`(개인 제휴 — 제휴 네트워크 단축·추적 링크, 최종 호스트 포함)면 등록 불가(칸 오류 `fields."deal.productUrl"`, 코드 `DEAL_MEMBER_AFFILIATE_OFF`)
+     * 지금 제휴 링크 방식(D5) — 쓰기 화면은 게시판 응답 `BoardDetail.dealAffiliateMode` 로 먼저 알고, 판정이 오면 이 값이 우선한다(더 새것).
+     * `SITE` 이고 `rule === 'AFFILIATE'`(개인 제휴 — 제휴 네트워크 단축·추적 링크, 최종 호스트 포함)면 등록 불가(저장 때 `400 VALIDATION fields."deal.productUrl"`)
      */
     affiliateMode: AffiliateMode;
-    /** `SITE` 이고 이 링크(최종 호스트 우선)가 켜진 사이트 제휴 몰이면 그 프로그램 — 쓰기 화면이 「구매 링크는 로보얌 제휴 링크로 바뀝니다」를 보인다(가정 — 계약에 없던 칸). 그 밖 null */
+    /** `SITE` 이고 이 링크(최종 호스트 우선)가 켜진 사이트 제휴 몰이면 그 프로그램 — 쓰기 화면이 「구매 링크는 로보얌 제휴 링크로 바뀝니다」를 보인다. 그 밖 null */
     siteAffiliate: { programName: string } | null;
 }
 
@@ -188,21 +186,21 @@ export interface DealEndRequestBody {
     reason: DealEndReason;
 }
 
-/** 딜 이미지 올리기 결과 — 가정: 글 이미지 API(`POST /api/images`)를 그대로 쓴다 */
+/** 딜 이미지 올리기 결과 — 글 이미지 API(`POST /api/images`)를 그대로 쓴다(`ImageUploadResult` 의 `id`·`url`) */
 export interface DealImageUpload {
     id: string;
     url: string;
 }
 
-/** 저장은 됐지만 알릴 것 — `POST/PUT /api/posts` 응답 `warnings[]`(예 `DEAL_LINK_BLOCKED` — 수정 저장 때 현재 규칙으로 다시 판정했더니 차단 도메인) */
+/** 저장은 됐지만 알릴 것 — `POST/PUT /api/posts` 응답 `warnings[]`(예 `DEAL_LINK_BLOCKED` — 수정 저장 때 현재 규칙으로 다시 판정했더니 차단 도메인). 문구는 서버 몫 */
 export interface DealWarning {
     code: string;
     message: string;
 }
 
 /**
- * `GET /api/deals/prefill?from={postId}` — 끝난 딜에서 새 딜 올리기. 링크·몰·이미지·제목을 미리 채우고 가격·마감은 비운다.
- * 가정(계약에 칸 이름이 없음): 응답 칸 이름은 화면이 정했다 — 서버가 정하면 따른다
+ * `GET /api/deals/prefill?from={postId}` — 끝난 딜(종료·기간 종료)에서 새 딜 올리기. 링크·몰·이미지·제목을 미리 채우고 가격·마감은 비운다.
+ * 진행 중인 딜이면 `409 DEAL_NOT_ENDED`. `image` 는 OG 사본일 때만(올린 이미지는 그 글의 것이라 null)
  */
 export interface DealPrefill {
     fromPostId: string;
@@ -216,4 +214,19 @@ export interface DealPrefill {
 export interface DealStoreChip {
     name: string;
     count: number;
+}
+
+/**
+ * 핫딜 게시판의 공개 설정 칸(게시판 응답 `BoardDetail.dealRules` — 서버 `DealRulesView`) — 화면의 미리 검사·안내용(최종 판정은 서버).
+ * 없으면(옛 응답·핫딜 게시판 아님) 화면은 기본값(`UtilHotdeal.DEFAULT_RULES`)으로 본다
+ */
+export interface DealRules {
+    /** 금액(딜가·정상가·배송비) 상한(원) */
+    priceMaxWon: number;
+    /** 할인율이 이 % 이상이면 경고 + 가격 기준 필수 */
+    discountWarnPercent: number;
+    /** 마감 없는 딜이 기간 종료로 바뀌는 일수(0 = 끔) */
+    autoExpireDays: number;
+    /** 추천이 이 수 이상이면 HOT(판정은 서버 `PostDeal.hot`) */
+    hotLikeThreshold: number;
 }

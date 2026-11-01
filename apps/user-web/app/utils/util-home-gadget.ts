@@ -501,7 +501,7 @@ export default class UtilHomeGadget {
 
     /**
      * 핫딜 줄(`HOT_DEALS` — 게시판이 섞인 글 줄 + `deal`) — ID·제목·딜이 없는 줄은 뺀다. 서버가 가젯 `count` 만큼 주지만 10줄을 넘기지 않는다
-     * @param {unknown} data - 가젯 `data`(`{ items }`).
+     * @param {unknown} data - 가젯 `data`(`{ items, more }`).
      * @returns {PostFeedRow[]} 핫딜 줄.
      */
     static hotDealItems(data: unknown): PostFeedRow[] {
@@ -512,6 +512,16 @@ export default class UtilHomeGadget {
                 return typeof r.id === 'string' && typeof r.title === 'string' && typeof d.dealPrice === 'number' && typeof d.view === 'string';
             })
             .slice(0, 10);
+    }
+
+    /**
+     * 핫딜 가젯의 「핫딜 더 보기」가 갈 곳(`data.more.to` — 사이트 안 경로 `/…` 만). 없으면 빈 글자
+     * @param {unknown} data - 가젯 `data`(`{ items, more }`).
+     * @returns {string} 경로.
+     */
+    static hotDealsMoreTo(data: unknown): string {
+        const to = obj(obj(data).more).to;
+        return typeof to === 'string' && to.startsWith('/') && !to.startsWith('//') ? to : '';
     }
 
     /**

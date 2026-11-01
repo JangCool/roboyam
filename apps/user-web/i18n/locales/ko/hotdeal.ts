@@ -78,6 +78,8 @@ export default {
     urlHelp: '쇼핑몰의 상품 페이지 주소를 붙여 주세요. 쇼핑몰 이름·이미지를 자동으로 채워요.',
     checking: '링크를 확인하는 중…',
     checkFailed: '링크를 확인하지 못했어요. 그래도 등록할 수 있어요.',
+    linkCheckRateLimit: '링크 확인을 너무 자주 했어요. 잠시 뒤 다시 시도해 주세요 — 그래도 등록할 수 있어요.',
+    linkCheckRateLimitIn: '링크 확인을 너무 자주 했어요. {n}초 뒤 다시 시도해 주세요 — 그래도 등록할 수 있어요.',
     retry: '다시 시도',
     affiliateAuto: '제휴 표시가 자동으로 켜져요',
     siteAffiliateConvert: '구매 링크는 로보얌 제휴 링크로 바뀝니다',
@@ -168,6 +170,7 @@ export default {
     prefillNotice: '끝난 딜에서 링크·쇼핑몰·이미지·제목을 가져왔어요. 가격·마감은 지금 기준으로 다시 적어 주세요.',
     prefillLoading: '끝난 딜 정보를 가져오는 중…',
     prefillFailed: '끝난 딜 정보를 가져오지 못했어요: {message}',
+    prefillNotEnded: '아직 진행 중인 딜이에요. 끝난 딜에서만 새 딜을 올릴 수 있어요.',
 
     // ── 글 보기 딜 카드 ──
     cardLabel: '딜 정보',

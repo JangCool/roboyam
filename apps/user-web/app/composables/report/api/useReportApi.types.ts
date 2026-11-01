@@ -15,7 +15,7 @@ export type ReportReason =
     | 'PROMOTION'
     | 'OFFLINE_RISK'
     | 'STOCK_RECOMMENDATION'
-    // 핫딜 글에서만(`hotdeal-contract.md` 「목업 가정」) — 가격·정보가 사실과 달라요 · 광고·홍보를 숨겼어요
+    // 핫딜 글에서만(서버 V122 CHECK·2단계 접수 — 그 밖 글·댓글이면 `400 fields.reason`) — 가격·정보가 사실과 달라요 · 광고·홍보를 숨겼어요
     | 'DEAL_FALSE_PRICE'
     | 'DEAL_HIDDEN_AD'
     | 'OTHER';

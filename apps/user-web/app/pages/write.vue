@@ -78,6 +78,7 @@
                         :check="linkCheck.state.value"
                         :errors="dealErrors"
                         :actions="dealActions"
+                        :rules="dealRules"
                         :legend="formStep === 0"
                         :disabled="submitting"
                         :affiliate-mode="board?.dealAffiliateMode ?? 'MEMBER'"
@@ -259,8 +260,10 @@ const dealForm = ref(UtilHotdeal.emptyForm());
 const linkCheck = useDealLinkCheck(dealForm, selectedSlug);
 /** 한 번 [등록]·[다음]을 누른 뒤부터 딜 칸의 화면 검사 문구를 보인다 */
 const dealTried = ref(false);
-const dealProblems = computed(() => UtilHotdeal.problems(dealForm.value, linkCheck.state.value.result, Date.now()));
-const dealErrors = computed(() => UtilHotdealMessages.fieldErrors(t, fieldErrors.value, dealTried.value ? dealProblems.value : null));
+/** 핫딜 설정 공개 칸(게시판 응답 `dealRules`, 없으면 기본값) — 금액 상한·할인율 경고·기간 종료 일수 */
+const dealRules = computed(() => UtilHotdeal.rulesOf(board.value));
+const dealProblems = computed(() => UtilHotdeal.problems(dealForm.value, linkCheck.state.value.result, Date.now(), dealRules.value));
+const dealErrors = computed(() => UtilHotdealMessages.fieldErrors(t, fieldErrors.value, dealTried.value ? dealProblems.value : null, dealRules.value));
 const dealErrorCount = computed(() => UtilHotdealMessages.errorCount(dealErrors.value));
 const dealActions: DealFieldActions = {
     upload: async (file) => {
@@ -298,7 +301,8 @@ async function loadPrefill(): Promise<void> {
         prefillState.value = 'done';
     } catch (e) {
         prefillState.value = 'failed';
-        toast.error(t('hotdeal.prefillFailed', { message: UtilBoardMessages.of(t, e) }), 8000);
+        // 아직 진행 중인 딜(`409 DEAL_NOT_ENDED`)은 핫딜 문구, 그 밖은 서버 문구
+        toast.error(t('hotdeal.prefillFailed', { message: UtilHotdealMessages.dealError(t, e) ?? UtilBoardMessages.of(t, e) }), 8000);
     }
 }
 // 핫딜 게시판이 정해진 뒤 한 번
@@ -365,6 +369,8 @@ async function submit(): Promise<void> {
         if (e instanceof ApiError && e.code === 'UNAUTHENTICATED') prompt('write');
         // 하루 핫딜 글 한도 · 같은 쇼핑몰 간격(429) — 폼 아래 안내(쓰던 내용은 그대로)
         else if (dealLimit) formError.value = UtilHotdealMessages.dealError(t, e) ?? UtilBoardMessages.of(t, e);
+        // 핫딜 쓰기 자격(403 — 이메일 인증·첫 등급·정지) — 게시판 목록 판정에 없는 핫딜 자격이라 저장 때 처음 알 수 있다. 핫딜 문구로(등급 이름은 서버가 주지 않아 「일반 등급부터」)
+        else if (isDeal.value && e instanceof ApiError && UtilHotdeal.isWriteBlockedCode(e.code)) formError.value = UtilHotdealMessages.writeBlocked(t, e.code, null);
         else if (e instanceof ApiError && e.code === 'IMAGE_UPLOAD_NOT_ALLOWED') fieldErrors.value = { content: e.message }; // 이미지를 막은 게시판 — 본문 칸 아래에 서버 문구
         else if (e instanceof ApiError && UtilHotdeal.isFieldErrorCode(e.code) && e.fields && Object.keys(e.fields).length) {
             fieldErrors.value = { ...e.fields };

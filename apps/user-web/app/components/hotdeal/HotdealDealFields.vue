@@ -40,7 +40,8 @@
                 <p v-else-if="memberAffiliateOff" role="alert" class="m-0 text-red-600 dark:text-red-400" data-testid="hotdeal-url-member-affiliate-off">{{ t('hotdeal.urlMemberAffiliateOff') }}</p>
                 <p v-if="check.status === 'checking'" class="m-0 flex items-center gap-1.5 text-muted-color"><i class="pi pi-spin pi-spinner text-[0.6875rem]" aria-hidden="true" />{{ t('hotdeal.checking') }}</p>
                 <p v-else-if="check.status === 'error'" class="m-0 flex flex-wrap items-center gap-1.5 text-muted-color" data-testid="hotdeal-check-error">
-                    <i class="pi pi-exclamation-circle text-[0.6875rem]" aria-hidden="true" />{{ t('hotdeal.checkFailed') }}
+                    <!-- 까닭을 아는 실패(분당 한도·쓰기 자격·칸 오류 — `useDealLinkCheck`)는 그 문구, 모르면 「확인하지 못했어요」 -->
+                    <i class="pi pi-exclamation-circle text-[0.6875rem]" aria-hidden="true" />{{ check.error || t('hotdeal.checkFailed') }}
                     <button type="button" :class="LINK_BUTTON" @click="actions.retryCheck()">{{ t('hotdeal.retry') }}</button>
                 </p>
                 <p v-else-if="result" class="m-0 flex flex-wrap items-center gap-1.5" data-testid="hotdeal-check">
@@ -190,7 +191,7 @@
         </div>
         <!-- 할인율이 경고 문턱 이상 — 경고 + 가격 기준 필수(막지는 않는다) -->
         <Message v-if="discountWarn && !locked" severity="warn" :closable="false" size="small" data-testid="hotdeal-discount-warn">
-            {{ t('hotdeal.discountWarn', { n: UtilHotdeal.DISCOUNT_WARN_PERCENT }) }}
+            {{ t('hotdeal.discountWarn', { n: rules.discountWarnPercent }) }}
         </Message>
 
         <!-- 5 배송비 -->
@@ -249,7 +250,8 @@
             <p v-if="errors.endsAt" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ errors.endsAt }}</p>
             <p :id="`${uid}-ends-help`" class="m-0 text-xs text-muted-color">
                 {{ t('hotdeal.endsHelp', { days: UtilHotdeal.ENDS_MAX_DAYS }) }}
-                <template v-if="!modelValue.endsAt"> {{ t('hotdeal.endsAutoExpire', { days: UtilHotdeal.AUTO_EXPIRE_DAYS }) }}</template>
+                <!-- 마감 없는 딜의 기간 종료 — 설정이 꺼졌으면(0일) 말하지 않는다 -->
+                <template v-if="!modelValue.endsAt && rules.autoExpireDays > 0"> {{ t('hotdeal.endsAutoExpire', { days: rules.autoExpireDays }) }}</template>
             </p>
         </div>
 
@@ -357,7 +359,7 @@
 
 <script setup lang="ts">
 import type { DealFieldActions, DealFieldErrors, DealFormValues, DealLinkCheckState, DealShippingMode } from '~/components/hotdeal/HotdealDealFields.types';
-import type { AffiliateMode, DealPriceBasis, DealStock } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { AffiliateMode, DealPriceBasis, DealRules, DealStock } from '~/composables/hotdeal/api/useHotdealApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilHotdeal from '~/utils/util-hotdeal';
@@ -368,6 +370,8 @@ interface Props {
     check: DealLinkCheckState;
     errors: DealFieldErrors;
     actions: DealFieldActions;
+    /** 핫딜 설정 공개 칸(게시판 응답 `dealRules` — `UtilHotdeal.rulesOf`) — 할인율 경고 문턱·기간 종료 일수 안내 */
+    rules: DealRules;
     /** 묶음 제목 「딜 정보」를 보인다(모바일 단계 입력은 단계 이름이 대신해 끈다) */
     legend?: boolean;
     disabled?: boolean;
@@ -417,7 +421,7 @@ const shippingOptions = computed(() =>
 const stockOptions = computed(() => UtilHotdeal.STOCKS.map((value: DealStock) => ({ value, label: UtilHotdealMessages.stock(t, value) })));
 const basisOptions = computed(() => UtilHotdeal.PRICE_BASES.map((value: DealPriceBasis) => ({ value, label: UtilHotdealMessages.priceBasis(t, value) })));
 /** 할인율이 경고 문턱 이상 */
-const discountWarn = computed(() => UtilHotdeal.discountWarn(props.modelValue));
+const discountWarn = computed(() => UtilHotdeal.discountWarn(props.modelValue, props.rules));
 /** 가격 기준이 필수인가(0원 딜 · 할인율 경고) — 「필수」 표시 */
 const basisRequired = computed(() => props.modelValue.dealPrice === 0 || discountWarn.value);
 

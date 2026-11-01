@@ -4,7 +4,7 @@
  * 정책 값은 관리자 앱의 게시판 설정(`apps/admin-web/app/composables/board/api/useBoardApi.types.ts` — `BoardDefaults`·`BoardSecuritySettings`)의 **유효값**(게시판 값 ?? 기본값)을 공개 화면에 필요한 만큼만 받는다. 서버 `server/api/.../board/dto/response` 와 같다(2026-10-22 연결).
  * ⚠ ID 는 모두 문자열이다(Snowflake 64비트). 숫자로 바꾸지 않는다.
  */
-import type { AffiliateMode } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { AffiliateMode, DealRules } from '~/composables/hotdeal/api/useHotdealApi.types';
 
 export interface PrefixView {
     id: string;
@@ -235,10 +235,12 @@ export interface BoardDetail extends BoardView {
      */
     pollEnabled?: boolean;
     /**
-     * 핫딜 게시판(`kind DEAL`)의 지금 제휴 링크 방식(D5 — 핫딜 설정 `affiliateMode`) — 쓰기·고치기가 「제휴 링크예요」 체크를 보일지 정한다. 핫딜이 아니거나 옛 응답이면 없음(`MEMBER` 로 본다).
-     * 가정: 계약 「공개 설정 전달」 후보(게시판 응답 또는 link-check 응답) 중 둘 다 — 판정 응답의 `affiliateMode` 가 오면 그 값이 우선(`UtilHotdeal.affiliateModeOf`)
+     * 핫딜 게시판(`kind DEAL`)의 지금 제휴 링크 방식(D5 — 핫딜 설정 `affiliateMode`) — 쓰기·고치기가 「제휴 링크예요」 체크를 보일지 정한다. 핫딜이 아니면 null(`MEMBER` 로 본다).
+     * 판정 응답(`DealLinkCheck.affiliateMode`)이 오면 그 값이 우선(`UtilHotdeal.affiliateModeOf`)
      */
-    dealAffiliateMode?: AffiliateMode;
+    dealAffiliateMode?: AffiliateMode | null;
+    /** 핫딜 게시판이면 핫딜 설정 공개 칸(금액 상한·할인율 경고·기간 종료 일수·HOT 문턱), 아니면 null — 화면은 `UtilHotdeal.rulesOf` 로 읽는다(없으면 기본값) */
+    dealRules?: DealRules | null;
     policy: BoardPublicPolicy;
     guestRules: BoardGuestRules;
     newMemberRules: BoardNewMemberRules;

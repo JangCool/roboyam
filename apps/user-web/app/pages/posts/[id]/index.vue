@@ -796,7 +796,7 @@ const REPORT_FINAL: ReadonlySet<string> = new Set([
     'ACCOUNT_RESTRICTED',
     'BOARD_RESTRICTED',
     'FORBIDDEN',
-    // 핫딜 가격 허위 신고 = 종료 요청(D4) — 이미 알렸거나 자격·한도에 걸림
+    // 핫딜 종료 요청 계열 — 가격 허위 신고(D4)는 서버가 204 로 받지만(이미 알렸거나 자격 미달이면 신고만) 혹시 오면 닫고 알린다
     'DEAL_END_REQUEST_EXISTS',
     'DEAL_END_REQUEST_NOT_ALLOWED',
     'DEAL_END_REQUEST_AUTHOR_LIMIT',
@@ -823,7 +823,8 @@ async function submitReport(value: { reason: ReportReason; detail: string | null
         await reportApi.report({ targetType: target.type, targetId: target.id, reason: value.reason, detail: value.detail });
         reportOpen.value = false;
         if (value.reason === 'DEAL_FALSE_PRICE' && target.type === 'POST' && post.value?.deal) {
-            // D4 — 가격 허위 신고는 서버가 종료 요청 「가격 변경」 1건으로 접수한다. 신고 응답(204)에 딜이 없어 화면이 같은 모양으로 고친다(가정 — 다음에 글을 받으면 서버 값)
+            // D4 — 가격 허위 신고는 서버가 종료 요청 「가격 변경」 1건으로 접수한다. 신고 응답(204)에 딜이 없어 화면이 같은 모양으로 고친다.
+            // 서버는 이미 알렸거나 자격이 모자라면 신고만 조용히 받으므로 이 숫자는 다음에 글을 받을 때 서버 값으로 바로잡힌다
             const d = post.value.deal;
             if (!d.endRequests.mine) post.value.deal = { ...d, endRequests: { ...d.endRequests, total: d.endRequests.total + 1, byPriceChanged: d.endRequests.byPriceChanged + 1, mine: 'PRICE_CHANGED' } };
             toast.success(t('hotdeal.reportFalsePriceDone'));

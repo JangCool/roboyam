@@ -1,7 +1,7 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
 import type { WriteBlockedReason } from '~/composables/board/api/useBoardApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
-import type { DealEndReason, DealEndRequests, DealPriceBasis, DealRevision, DealStock, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { DealEndReason, DealEndRequests, DealPriceBasis, DealRevision, DealRules, DealStock, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { DealFieldErrors } from '~/components/hotdeal/HotdealDealFields.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilHotdeal, { type DealProblems } from '~/utils/util-hotdeal';
@@ -134,6 +134,7 @@ export default class UtilHotdealMessages {
      * 핫딜 한도·자격·되돌리기 오류의 안내 — 코드로 고른 문구에 서버가 실은 값(`extras`)을 넣는다. 핫딜 코드가 아니거나 값이 모자라면 null(부르는 쪽이 서버 문구를 쓴다)
      *  - `429 DEAL_DAILY_POST_LIMIT`(`limit`) · `429 DEAL_SAME_STORE_TOO_SOON`(`remainingMinutes` — 없으면 `retryAfterSeconds`) · `403 DEAL_END_REQUEST_NOT_ALLOWED`
      *  - `429 DEAL_END_REQUEST_AUTHOR_LIMIT`(`days`·`limit`) · `409 DEAL_KEEP_LIMIT` · `409 DEAL_REOPEN_EXPIRED` · `409 DEAL_REOPEN_USED`
+     *  - `429 DEAL_LINK_CHECK_RATE_LIMIT`(링크 판정 분당 한도 — `retryAfterSeconds`) · `409 DEAL_NOT_ENDED`(끝난 딜에서 새 딜 — 아직 진행 중인 딜)
      * @param {Translate} t - 번역 함수.
      * @param {unknown} e - 오류.
      * @returns {string | null} 안내.
@@ -141,6 +142,10 @@ export default class UtilHotdealMessages {
     static dealError(t: Translate, e: unknown): string | null {
         if (!(e instanceof ApiError)) return null;
         switch (e.code) {
+            case 'DEAL_LINK_CHECK_RATE_LIMIT':
+                return e.retryAfterSeconds ? t('hotdeal.linkCheckRateLimitIn', { n: Math.max(1, Math.ceil(e.retryAfterSeconds)) }) : t('hotdeal.linkCheckRateLimit');
+            case 'DEAL_NOT_ENDED':
+                return t('hotdeal.prefillNotEnded');
             case 'DEAL_DAILY_POST_LIMIT': {
                 const limit = extraNumber(e, 'limit');
                 return limit !== null ? t('hotdeal.dailyLimit', { n: limit }) : null;
@@ -236,10 +241,11 @@ export default class UtilHotdealMessages {
      * @param {Translate} t - 번역 함수.
      * @param {Record<string, string>} server - 서버 `fields`.
      * @param {DealProblems | null} problems - 화면 검사 결과.
+     * @param {DealRules} rules - 핫딜 설정 공개 칸(`UtilHotdeal.rulesOf`) — 문구의 상한·문턱.
      * @returns {DealFieldErrors} 칸별 오류.
      */
-    static fieldErrors(t: Translate, server: Record<string, string>, problems: DealProblems | null): DealFieldErrors {
-        const local = problems ? UtilHotdealMessages.problemTexts(t, problems) : null;
+    static fieldErrors(t: Translate, server: Record<string, string>, problems: DealProblems | null, rules: DealRules): DealFieldErrors {
+        const local = problems ? UtilHotdealMessages.problemTexts(t, problems, rules) : null;
         const out = { deal: server.deal ?? '' } as DealFieldErrors;
         for (const key of FIELD_KEYS) out[key] = server[`deal.${key}`] || (local?.[key] ?? '');
         return out;
@@ -254,7 +260,7 @@ export default class UtilHotdealMessages {
         return Object.values(errors).filter(Boolean).length;
     }
 
-    private static problemTexts(t: Translate, p: DealProblems): Partial<Record<keyof DealFieldErrors, string>> {
+    private static problemTexts(t: Translate, p: DealProblems, rules: DealRules): Partial<Record<keyof DealFieldErrors, string>> {
         const url: Record<NonNullable<DealProblems['productUrl']>, string> = {
             REQUIRED: t('hotdeal.urlRequired'),
             FORMAT: t('hotdeal.urlFormat'),
@@ -264,7 +270,7 @@ export default class UtilHotdealMessages {
             MEMBER_AFFILIATE_OFF: t('hotdeal.urlMemberAffiliateOff'),
         };
         const noteTooLong = t('hotdeal.noteTooLong', { max: UtilHotdeal.NOTE_MAX });
-        const tooHigh = t('hotdeal.priceTooHigh', { max: UtilHotdeal.PRICE_MAX_WON.toLocaleString() });
+        const tooHigh = t('hotdeal.priceTooHigh', { max: rules.priceMaxWon.toLocaleString() });
         const amount = (v: 'REQUIRED' | 'INVALID' | 'TOO_HIGH' | 'BELOW_DEAL' | null, required: string): string =>
             v === 'REQUIRED' ? required : v === 'TOO_HIGH' ? tooHigh : v === 'BELOW_DEAL' ? t('hotdeal.normalBelowDeal') : v ? t('hotdeal.priceInvalid') : '';
         return {
@@ -273,7 +279,7 @@ export default class UtilHotdealMessages {
             dealPrice: amount(p.dealPrice, t('hotdeal.dealPriceRequired')),
             normalPrice: amount(p.normalPrice, ''),
             shippingFee: amount(p.shippingFee, t('hotdeal.shippingRequired')),
-            priceBasisKind: p.priceBasisKind === 'REQUIRED_FREE' ? t('hotdeal.basisRequiredFree') : p.priceBasisKind === 'REQUIRED_DISCOUNT' ? t('hotdeal.basisRequiredDiscount', { n: UtilHotdeal.DISCOUNT_WARN_PERCENT }) : '',
+            priceBasisKind: p.priceBasisKind === 'REQUIRED_FREE' ? t('hotdeal.basisRequiredFree') : p.priceBasisKind === 'REQUIRED_DISCOUNT' ? t('hotdeal.basisRequiredDiscount', { n: rules.discountWarnPercent }) : '',
             endsAt:
                 p.endsAt === 'TOO_SOON'
                     ? t('hotdeal.endsTooSoon')

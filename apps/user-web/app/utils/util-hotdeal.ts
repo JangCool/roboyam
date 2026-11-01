@@ -1,21 +1,33 @@
 import type { LocationQuery } from 'vue-router';
 import type { BoardDetail, BoardView } from '~/composables/board/api/useBoardApi.types';
 import type { DealPostListQuery } from '~/composables/board/api/usePostApi.types';
-import type { AffiliateMode, DealEndReason, DealInput, DealLinkCheck, DealPrefill, DealPriceBasis, DealSort, DealStock, DealView, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type {
+    AffiliateMode,
+    DealEndReason,
+    DealInput,
+    DealLinkCheck,
+    DealPrefill,
+    DealPriceBasis,
+    DealRules,
+    DealSort,
+    DealStock,
+    DealView,
+    PostDeal,
+} from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { DealFormValues, DealShippingMode } from '~/components/hotdeal/HotdealDealFields.types';
 
-/** 상품 링크 문제 — 비었음 · http(s) 주소가 아님 · 1000자 넘음 · 차단한 쇼핑몰 · 단축 주소 · 사이트 제휴 방식인데 개인 제휴 링크(D5 — 서버 코드 `DEAL_MEMBER_AFFILIATE_OFF`) */
+/** 상품 링크 문제 — 비었음 · http(s) 주소가 아님 · 1000자 넘음 · 차단한 쇼핑몰 · 단축 주소 · 사이트 제휴 방식인데 개인 제휴 링크(D5 — 서버는 `fields."deal.productUrl"` 로 거절) */
 export type DealUrlProblem = 'REQUIRED' | 'FORMAT' | 'TOO_LONG' | 'BLOCKED' | 'SHORTENER' | 'MEMBER_AFFILIATE_OFF';
-/** 딜 칸별 문제(화면 검사 — 판정은 서버. 서버 `PostDealRules`(후보)와 같은 규칙) */
+/** 딜 칸별 문제(화면 검사 — 판정은 서버 `DealWriter`(server/api `com.community.hotdeal.service`)와 같은 규칙) */
 export interface DealProblems {
     productUrl: DealUrlProblem | null;
     storeName: 'REQUIRED' | 'TOO_LONG' | null;
-    /** 금액은 `PRICE_MAX_WON` 까지 */
+    /** 금액은 `DealRules.priceMaxWon` 까지 */
     dealPrice: 'REQUIRED' | 'INVALID' | 'TOO_HIGH' | null;
     /** 정상가는 딜가 이상 */
     normalPrice: 'INVALID' | 'BELOW_DEAL' | 'TOO_HIGH' | null;
     shippingFee: 'REQUIRED' | 'INVALID' | 'TOO_HIGH' | null;
-    /** 가격 기준 필수 — 0원 딜 · 할인율 ≥ `DISCOUNT_WARN_PERCENT` */
+    /** 가격 기준 필수 — 0원 딜 · 할인율 ≥ `DealRules.discountWarnPercent` */
     priceBasisKind: 'REQUIRED_FREE' | 'REQUIRED_DISCOUNT' | null;
     /** 마감은 지금 이후 ~ 365일 */
     endsAt: 'INVALID' | 'TOO_SOON' | 'TOO_LATE' | null;
@@ -50,14 +62,14 @@ const TITLE_BRACKET = /^\s*\[[^\]]*\]\s*/;
 const TITLE_PRICE = /\s*[(（][^()（）]*원[)）]\s*$/;
 
 /** 금액 하나의 문제 — 비었음은 부르는 쪽이 정한다 */
-function amountProblem(value: number): 'INVALID' | 'TOO_HIGH' | null {
+function amountProblem(value: number, max: number): 'INVALID' | 'TOO_HIGH' | null {
     if (!nonNegativeInt(value)) return 'INVALID';
-    return value > UtilHotdeal.PRICE_MAX_WON ? 'TOO_HIGH' : null;
+    return value > max ? 'TOO_HIGH' : null;
 }
 
 /**
  * 회원 핫딜(1차)의 순수 계산 — 게시판 종류 판정, 링크 호스트, 할인율 미리보기, 딜 칸의 화면 검사·변환, 목록 주소 쿼리. 상태도 요청도 없다.
- * 규칙의 정본은 계약 `docs/features/hotdeal-contract.md` 「필드·검증」이고 판정은 서버다(서버 규칙 클래스 이름은 서버 세션이 정한다 — 후보 `PostDealRules`).
+ * 규칙의 정본은 계약 `docs/features/hotdeal-contract.md` 「필드·검증」이고 판정은 서버 `DealWriter` 다(길이 상수 `STORE_NAME_MAX`·`NOTE_MAX`·`ENDS_MAX_DAYS` 는 서버와 같은 값).
  */
 export default class UtilHotdeal {
     static readonly STORE_NAME_MAX = 40;
@@ -65,15 +77,13 @@ export default class UtilHotdeal {
     static readonly NOTE_MAX = 100;
     /** 마감은 지금 이후 ~ 이 일수 안 */
     static readonly ENDS_MAX_DAYS = 365;
-    /** 마감 최소 여유(1분) — 투표 마감과 같은 여유(가정) */
+    /** 마감으로 고를 수 있는 가장 이른 때(1분 뒤) — 서버는 「지금 이후」만 본다. 고르는 칸의 최소값에만 쓴다 */
     static readonly ENDS_MIN_LEAD_MS = 60_000;
     /**
-     * 핫딜 설정(`deal_settings`)의 기본값 — 화면 검사·안내에만 쓴다(판정은 서버). 가정: 공개 화면은 설정 값을 받지 않고 05 §3 기본값으로 미리 본다
-     *  - `priceMaxWon` 금액 상한 · `discountWarnPercent` 할인율 경고(가격 기준 필수) · `autoExpireDays` 마감 없는 딜의 기간 종료
+     * 핫딜 설정 공개 칸의 기본값(05 §3 — 서버 `deal_settings` 기본값과 같다) — 게시판 응답 `dealRules` 가 없을 때만 쓴다(`rulesOf`). 판정은 서버
+     *  - `priceMaxWon` 금액 상한 · `discountWarnPercent` 할인율 경고(가격 기준 필수) · `autoExpireDays` 마감 없는 딜의 기간 종료 · `hotLikeThreshold` HOT 문턱
      */
-    static readonly PRICE_MAX_WON = 100_000_000;
-    static readonly DISCOUNT_WARN_PERCENT = 90;
-    static readonly AUTO_EXPIRE_DAYS = 30;
+    static readonly DEFAULT_RULES: Readonly<DealRules> = { priceMaxWon: 100_000_000, discountWarnPercent: 90, autoExpireDays: 30, hotLikeThreshold: 10 };
     /** 마감 임박 배지 — 남은 시간이 이 시간 안 */
     static readonly ENDING_SOON_HOURS = 48;
     /** 가격 기준 선택지 — 화면에 보일 차례 */
@@ -95,6 +105,24 @@ export default class UtilHotdeal {
         if (!board) return false;
         if (board.kind) return board.kind === 'DEAL';
         return board.dealEnabled === true;
+    }
+
+    /**
+     * 핫딜 설정 공개 칸 — 게시판 응답 `dealRules` 가 있으면 그 값(빠진 칸·숫자가 아닌 칸만 기본값), 없으면 기본값(`DEFAULT_RULES`)
+     * @param {Pick<BoardDetail, 'dealRules'> | null | undefined} board - 게시판.
+     * @returns {DealRules} 설정 칸.
+     */
+    static rulesOf(board: Pick<BoardDetail, 'dealRules'> | null | undefined): DealRules {
+        const d = UtilHotdeal.DEFAULT_RULES;
+        const r = board?.dealRules;
+        if (!r) return { ...d };
+        const num = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+        return {
+            priceMaxWon: num(r.priceMaxWon, d.priceMaxWon),
+            discountWarnPercent: num(r.discountWarnPercent, d.discountWarnPercent),
+            autoExpireDays: num(r.autoExpireDays, d.autoExpireDays),
+            hotLikeThreshold: num(r.hotLikeThreshold, d.hotLikeThreshold),
+        };
     }
 
     /**
@@ -127,7 +155,7 @@ export default class UtilHotdeal {
     }
 
     /**
-     * 할인율 미리보기 — 정상가가 딜가보다 클 때만 정수 %(내림). 서버가 같은 식으로 정한다(가정)
+     * 할인율 미리보기 — 정상가가 딜가보다 클 때만 정수 %(내림). 서버 `DealViews.discountRate` 와 같은 식(서버는 0% 도 0 으로 주고, 화면 미리보기는 0% 를 보이지 않는다)
      * @param {number | null} normal - 정상가.
      * @param {number | null} deal - 딜가.
      * @returns {number | null} 할인율.
@@ -294,14 +322,15 @@ export default class UtilHotdeal {
     }
 
     /**
-     * 칸 값의 문제 — 링크 판정이 차단이면 링크 칸 문제. 고치기에서 처음 값과 같은 마감은 다시 검사하지 않는다(투표 마감과 같은 규칙 — 가정)
+     * 칸 값의 문제 — 링크 판정이 차단이면 링크 칸 문제. 고치기에서 처음 값과 같은 마감은 다시 검사하지 않는다(서버 `DealWriter` 와 같은 규칙)
      * @param {DealFormValues} form - 칸 값.
      * @param {DealLinkCheck | null} check - 지금 링크의 판정 결과(없으면 null).
      * @param {number} now - 지금(밀리초).
+     * @param {DealRules} rules - 핫딜 설정 공개 칸(`rulesOf`).
      * @param {string} initialEndsAt - 고치기의 처음 마감(글쓰기는 '').
      * @returns {DealProblems} 칸별 문제.
      */
-    static problems(form: DealFormValues, check: DealLinkCheck | null, now: number, initialEndsAt = ''): DealProblems {
+    static problems(form: DealFormValues, check: DealLinkCheck | null, now: number, rules: DealRules, initialEndsAt = ''): DealProblems {
         const out: DealProblems = { ...NO_PROBLEMS };
         out.productUrl = UtilHotdeal.urlFormatProblem(form.productUrl);
         if (!out.productUrl && check && check.host === UtilHotdeal.hostOf(form.productUrl) && check.rule === 'BLOCK') out.productUrl = check.shortener ? 'SHORTENER' : 'BLOCKED';
@@ -310,15 +339,16 @@ export default class UtilHotdeal {
         const store = form.storeName.trim();
         out.storeName = !store ? 'REQUIRED' : store.length > UtilHotdeal.STORE_NAME_MAX ? 'TOO_LONG' : null;
 
-        out.dealPrice = form.dealPrice === null ? 'REQUIRED' : amountProblem(form.dealPrice);
+        const max = rules.priceMaxWon;
+        out.dealPrice = form.dealPrice === null ? 'REQUIRED' : amountProblem(form.dealPrice, max);
         if (form.normalPrice !== null) {
-            out.normalPrice = amountProblem(form.normalPrice);
+            out.normalPrice = amountProblem(form.normalPrice, max);
             if (!out.normalPrice && form.dealPrice !== null && form.normalPrice < form.dealPrice) out.normalPrice = 'BELOW_DEAL';
         }
-        if (form.shippingMode === 'PAID') out.shippingFee = form.shippingFee === null ? 'REQUIRED' : amountProblem(form.shippingFee);
+        if (form.shippingMode === 'PAID') out.shippingFee = form.shippingFee === null ? 'REQUIRED' : amountProblem(form.shippingFee, max);
         if (!form.priceBasisKind) {
             if (form.dealPrice === 0) out.priceBasisKind = 'REQUIRED_FREE';
-            else if (UtilHotdeal.discountWarn(form)) out.priceBasisKind = 'REQUIRED_DISCOUNT';
+            else if (UtilHotdeal.discountWarn(form, rules)) out.priceBasisKind = 'REQUIRED_DISCOUNT';
         }
 
         if (form.endsAt && form.endsAt !== initialEndsAt) {
@@ -333,13 +363,14 @@ export default class UtilHotdeal {
     }
 
     /**
-     * 할인율이 경고 문턱(`DISCOUNT_WARN_PERCENT`) 이상인가 — 경고 + 가격 기준 필수
+     * 할인율이 경고 문턱(`DealRules.discountWarnPercent`) 이상인가 — 경고 + 가격 기준 필수
      * @param {Pick<DealFormValues, 'normalPrice' | 'dealPrice'>} form - 칸 값.
+     * @param {Pick<DealRules, 'discountWarnPercent'>} rules - 핫딜 설정 공개 칸.
      * @returns {boolean} 문턱 이상이면 true.
      */
-    static discountWarn(form: Pick<DealFormValues, 'normalPrice' | 'dealPrice'>): boolean {
+    static discountWarn(form: Pick<DealFormValues, 'normalPrice' | 'dealPrice'>, rules: Pick<DealRules, 'discountWarnPercent'>): boolean {
         const rate = UtilHotdeal.discountRate(form.normalPrice, form.dealPrice);
-        return rate !== null && rate >= UtilHotdeal.DISCOUNT_WARN_PERCENT;
+        return rate !== null && rate >= rules.discountWarnPercent;
     }
 
     /**
@@ -405,12 +436,21 @@ export default class UtilHotdeal {
     }
 
     /**
-     * 칸 오류(`fields`)로 붙일 오류 코드인가 — `400 VALIDATION`, 그리고 사이트 제휴 방식의 개인 제휴 링크(`DEAL_MEMBER_AFFILIATE_OFF` — 서버가 단독 코드 + `fields."deal.productUrl"` 로 줄 수도 있어 같이 받는다, 가정)
+     * 칸 오류(`fields`)로 붙일 오류 코드인가 — `400 VALIDATION`(사이트 제휴 방식의 개인 제휴 링크도 `fields."deal.productUrl"` 로 이 코드 안에 온다)
      * @param {string} code - 오류 코드.
      * @returns {boolean} 칸 오류로 붙이면 true.
      */
     static isFieldErrorCode(code: string): boolean {
-        return code === 'VALIDATION' || code === 'DEAL_MEMBER_AFFILIATE_OFF';
+        return code === 'VALIDATION';
+    }
+
+    /**
+     * 핫딜 쓰기 자격 오류인가 — 서버가 글 저장·링크 판정에서 핫딜 자격(이메일 인증·첫 등급 아님·정지 아님)으로 거절한 `403`
+     * @param {string} code - 오류 코드.
+     * @returns {boolean} 자격 오류면 true.
+     */
+    static isWriteBlockedCode(code: string): code is 'GRADE_TOO_LOW' | 'EMAIL_NOT_VERIFIED' | 'ACCOUNT_RESTRICTED' {
+        return code === 'GRADE_TOO_LOW' || code === 'EMAIL_NOT_VERIFIED' || code === 'ACCOUNT_RESTRICTED';
     }
 
     /**
