@@ -542,6 +542,7 @@ export default {
     viewToggleCard: '카드형은 보기 전환을 끌 수만 있어요.',
     kindLocked: '종류는 만든 뒤 바꿀 수 없어요.',
     allowAdultHelp: '켜면 글쓴이가 19금 표시를 붙일 수 있어요.',
+    allowAdultDeal: '핫딜 게시판은 19금을 켤 수 없어요(끈 채로 고정).',
     investmentHelp: '주식·산업 게시판에 투자 권유 금지 고지를 보여요. 켜면 다시 끌 수 없어요.',
     investmentOnce: '저장하면 다시 끌 수 없어요.',
     investmentLocked: '투자 고지는 한 번 켜면 끌 수 없어요(투자 권유 방지 정책).',

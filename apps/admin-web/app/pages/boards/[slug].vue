@@ -102,10 +102,12 @@
                                 </div>
                             </div>
                             <div class="flex items-start gap-2">
-                                <ToggleSwitch v-model="form.allowAdult" :input-id="`${idBase}-adult`" :disabled="!canManage || saving" class="shrink-0" />
+                                <ToggleSwitch v-model="form.allowAdult" :input-id="`${idBase}-adult`" :disabled="!canManage || saving || (saved.kind === 'DEAL' && !form.allowAdult)" class="shrink-0" />
                                 <label :for="`${idBase}-adult`" class="flex flex-col gap-0.5">
                                     <span class="text-sm">{{ t('board.field.allowAdult') }}</span>
-                                    <span class="text-xs text-muted-color">{{ t('board.allowAdultHelp') }}</span>
+                                    <span class="text-xs" :class="serverFields.allowAdult ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="serverFields.allowAdult ? 'alert' : undefined">
+                                        {{ serverFields.allowAdult || t(saved.kind === 'DEAL' ? 'board.allowAdultDeal' : 'board.allowAdultHelp') }}
+                                    </span>
                                 </label>
                             </div>
                             <div class="flex items-start gap-2">

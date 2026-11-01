@@ -306,7 +306,7 @@ export default {
         GALLERY: 'Photo and video posts as tiles.',
         GROUPS: 'Groups that are active lately.',
         GROUP_BUY: 'Group buys in progress.',
-        HOT_DEALS: 'Active member hot deals as price rows. (Saving after the server is ready)',
+        HOT_DEALS: 'Active member hot deals as price rows.',
         QUICK_LINKS: 'A row of buttons to popular places.',
         NOTICE_TEXT: 'A short note written by operators.',
         AD: 'One running banner ad, marked “Ad”. (Saving after server connection)',

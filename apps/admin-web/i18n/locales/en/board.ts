@@ -541,6 +541,7 @@ export default {
     viewToggleCard: 'For the card layout this can only be turned off.',
     kindLocked: 'The type cannot be changed after creation.',
     allowAdultHelp: 'When on, authors can mark posts as 18+.',
+    allowAdultDeal: 'Hot deal boards cannot allow 18+ posts (always off).',
     investmentHelp: 'Shows a no-investment-advice notice on stock/industry boards. Once on, it cannot be turned off.',
     investmentOnce: 'After saving it cannot be turned off.',
     investmentLocked: 'The investment notice cannot be turned off once on (anti-solicitation policy).',
