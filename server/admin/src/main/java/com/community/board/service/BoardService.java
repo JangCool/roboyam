@@ -200,9 +200,10 @@ public class BoardService {
         }
         Instant now = Instant.now();
         int nextOrder = all.stream().mapToInt(BoardEntity::getSortOrder).max().orElse(0) + 1;
-        // 소모임 게시판은 메뉴에 자동으로 넣지 않는다(BoardCreator 가 종류를 본다). 핫딜 게시판의 가젯 노출 금지(인기글)도 BoardCreator 가 종류로 정한다
+        // 소모임 게시판은 메뉴에 자동으로 넣지 않는다(BoardCreator 가 종류를 본다). 핫딜 게시판의 가젯 노출 금지(인기글)도 BoardCreator 가 종류로 정한다.
+        // 핫딜 게시판은 말머리를 비워 넘긴다 — BoardCreator 가 공통을 끈 채 고유 말머리 로봇·AI·메이킹·기타로 만든다
         BoardEntity board = creator.create(new NewBoard(slug, name, null, description, kind, layout, !"CARD".equals(layout), null, false,
-                deal ? dealWriteMin() : null, new HashSet<>(BoardFields.COMMON_PREFIXES), List.of()), nextOrder, actor.operatorId(), now);
+                deal ? dealWriteMin() : null, deal ? Set.of() : new HashSet<>(BoardFields.COMMON_PREFIXES), List.of()), nextOrder, actor.operatorId(), now);
         flushOrDuplicated();
         if (category != null) {
             // 같은 트랜잭션으로 분류 끝에 할당하고 그 분류의 updatedAt 을 올린다
