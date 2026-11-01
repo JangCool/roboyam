@@ -1,7 +1,9 @@
 <template>
-    <!-- ① 글 보기 미리보기 — 저장 전 폼 값으로 그린다 -->
+    <!-- ① 글 보기 미리보기 — 저장 전 폼 값으로 그린다. 회색 무대(공개 화면 바탕) 위에 흰 카드를 그린다(날개 무대와 같은 바탕) -->
     <AdPlacementFrame :caption="caption" :notes="notes" :unsaved="unsaved">
-        <AdPlacementPostDiagram :ad="enabled ? { type: adType, position } : null" />
+        <div class="min-w-0 rounded-md bg-surface-100 p-1.5 dark:bg-surface-950">
+            <AdPlacementPostDiagram :ad="enabled ? { type: adType, position } : null" />
+        </div>
     </AdPlacementFrame>
 </template>
 

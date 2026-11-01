@@ -1,6 +1,6 @@
 <template>
     <!--
-        광고 › 광고 자리 설정(`/ads/placements`) — 공개 화면의 광고 자리 셋(02-ad.md 7-2·7-3, 계약 `docs/features/ad-contract.md` 「공개 노출 목업」).
+        광고 › 기본 설정(`/ads/placements`, 옛 이름 「광고 자리 설정」) — 공개 화면의 광고 자리 셋(02-ad.md 7-2·7-3, 계약 `docs/features/ad-contract.md` 「공개 노출 목업」).
           ① 글 보기 — 켜기 · 유형(한 줄·띠 배너·네모 배너) · 위치(글 카드와 댓글 카드 사이 / 본문 바로 아래)
           ② 날개 배너 — 왼쪽·오른쪽 켜기 · 보일 화면(홈·가젯 페이지·게시판 목록·글 보기)
           ③ 게시판 목록 한 줄 — 켜기 · 일반 글 몇 번째 뒤(1~20)
@@ -83,129 +83,142 @@
                 </div>
 
                 <div class="flex min-w-0 flex-col gap-3" data-testid="ad-placements-main">
-                    <!-- 패널은 숨기기만 한다(v-show) — 탭을 바꿔도 입력이 남는다 -->
-                    <div class="min-w-0 rounded-xl border border-(--line) bg-(--p-content-background) p-5" data-testid="ad-placements-tabs">
-                        <!-- ① 글 보기 -->
-                        <div v-show="tab === 'post'" :id="panelIdOf('post')" role="tabpanel" :aria-labelledby="tabIdOf('post')" tabindex="0" class="focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
-                            <div class="flex min-w-0 flex-col gap-4">
-                                <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('ad.postInlineLead') }}</p>
-                                <Message v-if="errorOf('postInline')" severity="error" variant="simple" size="small" :closable="false" role="alert">{{ errorOf('postInline') }}</Message>
-                                <div class="flex items-center gap-2">
-                                    <ToggleSwitch v-model="form.postInline.enabled" :input-id="`${idBase}-inline-on`" :disabled="locked" @update:model-value="clearServer('postInline.enabled')" />
-                                    <label :for="`${idBase}-inline-on`" class="text-sm">{{ t('ad.postInlineEnabled') }}</label>
-                                </div>
-                                <div class="grid gap-x-8 gap-y-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2" :class="{ 'opacity-60': !form.postInline.enabled }">
-                                    <LabeledField :label="t('ad.postInlineType')" :help="form.postInline.adType === 'STRIP_BANNER' ? t('ad.postInlineTypeHint') : ''" :error="errorOf('postInline.adType')">
-                                        <template #default="{ id, describedBy, invalid }">
-                                            <Select
-                                                v-model="form.postInline.adType"
-                                                :input-id="id"
-                                                :options="inlineTypeOptions"
-                                                option-label="label"
-                                                option-value="value"
-                                                :disabled="locked"
-                                                :invalid="invalid"
-                                                :aria-describedby="describedBy"
-                                                fluid
-                                                @change="clearServer('postInline.adType')"
-                                            />
-                                        </template>
-                                    </LabeledField>
-                                    <LabeledField :label="t('ad.postInlinePosition')" :error="errorOf('postInline.position')">
-                                        <template #default="{ id, describedBy, invalid }">
-                                            <Select
-                                                v-model="form.postInline.position"
-                                                :input-id="id"
-                                                :options="inlinePositionOptions"
-                                                option-label="label"
-                                                option-value="value"
-                                                :disabled="locked"
-                                                :invalid="invalid"
-                                                :aria-describedby="describedBy"
-                                                fluid
-                                                @change="clearServer('postInline.position')"
-                                            />
-                                        </template>
-                                    </LabeledField>
-                                </div>
+                    <!--
+                        설정 카드 — 머리(고른 탭 이름 + 한 줄 설명 + 저장 전 꼬리표, 아래 구분선) · 본문(고른 탭의 패널).
+                        머리 글자는 `AppGadget` 제목(text-sm font-medium)을 따르고, 높이(min-h-16)·구분선은 오른쪽 미리보기 카드(`AdPlacementFrame`) 머리와 같아 두 카드의 선이 한 줄에 선다.
+                        패널은 숨기기만 한다(v-show) — 탭을 바꿔도 입력이 남는다.
+                    -->
+                    <div class="min-w-0 rounded-xl border border-(--line) bg-(--p-content-background)" data-testid="ad-placements-tabs">
+                        <div class="flex min-h-16 items-center gap-3 border-b border-(--line) px-5 py-3" data-testid="ad-placements-card-head">
+                            <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                                <h2 class="m-0 text-sm font-medium" data-testid="ad-placements-card-title">{{ t(current.label) }}</h2>
+                                <p class="m-0 text-xs leading-snug text-muted-color">{{ t(current.desc) }}</p>
                             </div>
+                            <Tag v-if="changes[current.section] > 0" severity="warn" :value="t('ad.previewUnsaved')" class="shrink-0" data-testid="ad-placements-card-unsaved" />
                         </div>
-
-                        <!-- ② 날개 배너 -->
-                        <div v-show="tab === 'wings'" :id="panelIdOf('wings')" role="tabpanel" :aria-labelledby="tabIdOf('wings')" tabindex="0" class="focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
-                            <div class="flex min-w-0 flex-col gap-4">
-                                <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('ad.wingsLead') }}</p>
-                                <Message v-if="errorOf('wings')" severity="error" variant="simple" size="small" :closable="false" role="alert">{{ errorOf('wings') }}</Message>
-                                <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+                        <div class="p-5">
+                            <!-- ① 글 보기 -->
+                            <div v-show="tab === 'post'" :id="panelIdOf('post')" role="tabpanel" :aria-labelledby="tabIdOf('post')" tabindex="0" class="focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
+                                <div class="flex min-w-0 flex-col gap-4">
+                                    <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('ad.postInlineLead') }}</p>
+                                    <Message v-if="errorOf('postInline')" severity="error" variant="simple" size="small" :closable="false" role="alert">{{ errorOf('postInline') }}</Message>
                                     <div class="flex items-center gap-2">
-                                        <ToggleSwitch v-model="form.wings.left" :input-id="`${idBase}-wing-left`" :disabled="locked" @update:model-value="clearServer('wings.left')" />
-                                        <label :for="`${idBase}-wing-left`" class="text-sm">{{ t('ad.wingsLeft') }}</label>
+                                        <ToggleSwitch v-model="form.postInline.enabled" :input-id="`${idBase}-inline-on`" :disabled="locked" @update:model-value="clearServer('postInline.enabled')" />
+                                        <label :for="`${idBase}-inline-on`" class="text-sm">{{ t('ad.postInlineEnabled') }}</label>
                                     </div>
-                                    <div class="flex items-center gap-2">
-                                        <ToggleSwitch v-model="form.wings.right" :input-id="`${idBase}-wing-right`" :disabled="locked" @update:model-value="clearServer('wings.right')" />
-                                        <label :for="`${idBase}-wing-right`" class="text-sm">{{ t('ad.wingsRight') }}</label>
-                                    </div>
-                                </div>
-                                <fieldset class="m-0 flex flex-col gap-2 border-0 p-0" :class="{ 'opacity-60': !form.wings.left && !form.wings.right }" :aria-describedby="`${idBase}-screens-msg`">
-                                    <legend class="mb-1 p-0 text-sm font-medium">{{ t('ad.wingsScreens') }}</legend>
-                                    <div class="flex flex-wrap gap-x-5 gap-y-2">
-                                        <div v-for="screen in UtilAd.WING_SCREENS" :key="screen" class="flex items-center gap-2">
-                                            <Checkbox v-model="form.wings.screens" :value="screen" :input-id="`${idBase}-screen-${screen}`" :disabled="locked" :invalid="!!errorOf('wings.screens')" @update:model-value="clearServer('wings.screens')" />
-                                            <label :for="`${idBase}-screen-${screen}`" class="text-sm">{{ t(`ad.wingScreen.${screen}`) }}</label>
-                                        </div>
-                                    </div>
-                                    <p :id="`${idBase}-screens-msg`" class="m-0 text-xs leading-relaxed" :class="errorOf('wings.screens') ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="errorOf('wings.screens') ? 'alert' : undefined">
-                                        {{ errorOf('wings.screens') || t('ad.wingsScreensHint') }}
-                                    </p>
-                                </fieldset>
-                            </div>
-                        </div>
-
-                        <!-- ③ 게시판 목록 한 줄 -->
-                        <div v-show="tab === 'list'" :id="panelIdOf('list')" role="tabpanel" :aria-labelledby="tabIdOf('list')" tabindex="0" class="focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
-                            <div class="flex min-w-0 flex-col gap-4">
-                                <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('ad.boardListLead') }}</p>
-                                <Message v-if="errorOf('boardList')" severity="error" variant="simple" size="small" :closable="false" role="alert">{{ errorOf('boardList') }}</Message>
-                                <div class="flex items-center gap-2">
-                                    <ToggleSwitch v-model="form.boardList.enabled" :input-id="`${idBase}-feed-on`" :disabled="locked" @update:model-value="clearServer('boardList.enabled')" />
-                                    <label :for="`${idBase}-feed-on`" class="text-sm">{{ t('ad.boardListEnabled') }}</label>
-                                </div>
-                                <div class="max-w-xs" :class="{ 'opacity-60': !form.boardList.enabled }">
-                                    <LabeledField :label="t('ad.boardListAfter')" :help="t('ad.boardListAfterHelp', { min: UtilAd.FEED_AFTER.min, max: UtilAd.FEED_AFTER.max })" :error="errorOf('boardList.after')">
-                                        <template #default="{ id, describedBy, invalid }">
-                                            <InputGroup>
-                                                <InputNumber
-                                                    v-model="afterModel"
+                                    <div class="grid gap-x-8 gap-y-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2" :class="{ 'opacity-60': !form.postInline.enabled }">
+                                        <LabeledField :label="t('ad.postInlineType')" :help="form.postInline.adType === 'STRIP_BANNER' ? t('ad.postInlineTypeHint') : ''" :error="errorOf('postInline.adType')">
+                                            <template #default="{ id, describedBy, invalid }">
+                                                <Select
+                                                    v-model="form.postInline.adType"
                                                     :input-id="id"
-                                                    :min="UtilAd.FEED_AFTER.min"
-                                                    :max="UtilAd.FEED_AFTER.max"
-                                                    :allow-empty="false"
-                                                    show-buttons
-                                                    :readonly="locked"
+                                                    :options="inlineTypeOptions"
+                                                    option-label="label"
+                                                    option-value="value"
+                                                    :disabled="locked"
                                                     :invalid="invalid"
                                                     :aria-describedby="describedBy"
-                                                    input-class="w-16 text-right tabular-nums"
+                                                    fluid
+                                                    @change="clearServer('postInline.adType')"
                                                 />
-                                                <InputGroupAddon>{{ t('ad.boardListAfterSuffix') }}</InputGroupAddon>
-                                            </InputGroup>
-                                        </template>
-                                    </LabeledField>
+                                            </template>
+                                        </LabeledField>
+                                        <LabeledField :label="t('ad.postInlinePosition')" :error="errorOf('postInline.position')">
+                                            <template #default="{ id, describedBy, invalid }">
+                                                <Select
+                                                    v-model="form.postInline.position"
+                                                    :input-id="id"
+                                                    :options="inlinePositionOptions"
+                                                    option-label="label"
+                                                    option-value="value"
+                                                    :disabled="locked"
+                                                    :invalid="invalid"
+                                                    :aria-describedby="describedBy"
+                                                    fluid
+                                                    @change="clearServer('postInline.position')"
+                                                />
+                                            </template>
+                                        </LabeledField>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- ④ 19금 게시판 -->
-                        <div v-show="tab === 'adult'" :id="panelIdOf('adult')" role="tabpanel" :aria-labelledby="tabIdOf('adult')" tabindex="0" class="focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
-                            <div class="flex min-w-0 flex-col gap-4">
-                                <Message v-if="errorOf('adult')" severity="error" variant="simple" size="small" :closable="false" role="alert">{{ errorOf('adult') }}</Message>
-                                <div class="flex items-start gap-2">
-                                    <ToggleSwitch v-model="form.adult.enabled" :input-id="`${idBase}-adult-on`" :disabled="locked" class="shrink-0" :aria-describedby="`${idBase}-adult-help`" @update:model-value="clearServer('adult.enabled')" />
-                                    <label :for="`${idBase}-adult-on`" class="flex flex-col gap-0.5">
-                                        <span class="text-sm">{{ t('ad.adultEnabled') }}</span>
-                                        <span :id="`${idBase}-adult-help`" class="text-xs leading-relaxed" :class="errorOf('adult.enabled') ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="errorOf('adult.enabled') ? 'alert' : undefined">
-                                            {{ errorOf('adult.enabled') || t('ad.adultHelp') }}
-                                        </span>
-                                    </label>
+                            <!-- ② 날개 배너 -->
+                            <div v-show="tab === 'wings'" :id="panelIdOf('wings')" role="tabpanel" :aria-labelledby="tabIdOf('wings')" tabindex="0" class="focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
+                                <div class="flex min-w-0 flex-col gap-4">
+                                    <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('ad.wingsLead') }}</p>
+                                    <Message v-if="errorOf('wings')" severity="error" variant="simple" size="small" :closable="false" role="alert">{{ errorOf('wings') }}</Message>
+                                    <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+                                        <div class="flex items-center gap-2">
+                                            <ToggleSwitch v-model="form.wings.left" :input-id="`${idBase}-wing-left`" :disabled="locked" @update:model-value="clearServer('wings.left')" />
+                                            <label :for="`${idBase}-wing-left`" class="text-sm">{{ t('ad.wingsLeft') }}</label>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <ToggleSwitch v-model="form.wings.right" :input-id="`${idBase}-wing-right`" :disabled="locked" @update:model-value="clearServer('wings.right')" />
+                                            <label :for="`${idBase}-wing-right`" class="text-sm">{{ t('ad.wingsRight') }}</label>
+                                        </div>
+                                    </div>
+                                    <fieldset class="m-0 flex flex-col gap-2 border-0 p-0" :class="{ 'opacity-60': !form.wings.left && !form.wings.right }" :aria-describedby="`${idBase}-screens-msg`">
+                                        <legend class="mb-1 p-0 text-sm font-medium">{{ t('ad.wingsScreens') }}</legend>
+                                        <div class="flex flex-wrap gap-x-5 gap-y-2">
+                                            <div v-for="screen in UtilAd.WING_SCREENS" :key="screen" class="flex items-center gap-2">
+                                                <Checkbox v-model="form.wings.screens" :value="screen" :input-id="`${idBase}-screen-${screen}`" :disabled="locked" :invalid="!!errorOf('wings.screens')" @update:model-value="clearServer('wings.screens')" />
+                                                <label :for="`${idBase}-screen-${screen}`" class="text-sm">{{ t(`ad.wingScreen.${screen}`) }}</label>
+                                            </div>
+                                        </div>
+                                        <p :id="`${idBase}-screens-msg`" class="m-0 text-xs leading-relaxed" :class="errorOf('wings.screens') ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="errorOf('wings.screens') ? 'alert' : undefined">
+                                            {{ errorOf('wings.screens') || t('ad.wingsScreensHint') }}
+                                        </p>
+                                    </fieldset>
+                                </div>
+                            </div>
+
+                            <!-- ③ 게시판 목록 한 줄 -->
+                            <div v-show="tab === 'list'" :id="panelIdOf('list')" role="tabpanel" :aria-labelledby="tabIdOf('list')" tabindex="0" class="focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
+                                <div class="flex min-w-0 flex-col gap-4">
+                                    <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('ad.boardListLead') }}</p>
+                                    <Message v-if="errorOf('boardList')" severity="error" variant="simple" size="small" :closable="false" role="alert">{{ errorOf('boardList') }}</Message>
+                                    <div class="flex items-center gap-2">
+                                        <ToggleSwitch v-model="form.boardList.enabled" :input-id="`${idBase}-feed-on`" :disabled="locked" @update:model-value="clearServer('boardList.enabled')" />
+                                        <label :for="`${idBase}-feed-on`" class="text-sm">{{ t('ad.boardListEnabled') }}</label>
+                                    </div>
+                                    <div class="max-w-xs" :class="{ 'opacity-60': !form.boardList.enabled }">
+                                        <LabeledField :label="t('ad.boardListAfter')" :help="t('ad.boardListAfterHelp', { min: UtilAd.FEED_AFTER.min, max: UtilAd.FEED_AFTER.max })" :error="errorOf('boardList.after')">
+                                            <template #default="{ id, describedBy, invalid }">
+                                                <InputGroup>
+                                                    <InputNumber
+                                                        v-model="afterModel"
+                                                        :input-id="id"
+                                                        :min="UtilAd.FEED_AFTER.min"
+                                                        :max="UtilAd.FEED_AFTER.max"
+                                                        :allow-empty="false"
+                                                        show-buttons
+                                                        :readonly="locked"
+                                                        :invalid="invalid"
+                                                        :aria-describedby="describedBy"
+                                                        input-class="w-16 text-right tabular-nums"
+                                                    />
+                                                    <InputGroupAddon>{{ t('ad.boardListAfterSuffix') }}</InputGroupAddon>
+                                                </InputGroup>
+                                            </template>
+                                        </LabeledField>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ④ 19금 게시판 -->
+                            <div v-show="tab === 'adult'" :id="panelIdOf('adult')" role="tabpanel" :aria-labelledby="tabIdOf('adult')" tabindex="0" class="focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
+                                <div class="flex min-w-0 flex-col gap-4">
+                                    <Message v-if="errorOf('adult')" severity="error" variant="simple" size="small" :closable="false" role="alert">{{ errorOf('adult') }}</Message>
+                                    <div class="flex items-start gap-2">
+                                        <ToggleSwitch v-model="form.adult.enabled" :input-id="`${idBase}-adult-on`" :disabled="locked" class="shrink-0" :aria-describedby="`${idBase}-adult-help`" @update:model-value="clearServer('adult.enabled')" />
+                                        <label :for="`${idBase}-adult-on`" class="flex flex-col gap-0.5">
+                                            <span class="text-sm">{{ t('ad.adultEnabled') }}</span>
+                                            <span :id="`${idBase}-adult-help`" class="text-xs leading-relaxed" :class="errorOf('adult.enabled') ? 'text-red-600 dark:text-red-400' : 'text-muted-color'" :role="errorOf('adult.enabled') ? 'alert' : undefined">
+                                                {{ errorOf('adult.enabled') || t('ad.adultHelp') }}
+                                            </span>
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -256,12 +269,12 @@ import UtilAdMessages from '~/utils/util-ad-messages';
 type Section = 'postInline' | 'wings' | 'boardList' | 'adult';
 type PlacementTab = 'post' | 'wings' | 'list' | 'adult';
 
-/** 탭 넷(주소 `?tab=` 의 값 · 묶음 · 이름) — 차례가 화면 차례이고, 저장 실패 때 첫 오류 탭을 고르는 차례다 */
-const TABS: readonly { key: PlacementTab; section: Section; label: string }[] = [
-    { key: 'post', section: 'postInline', label: 'ad.postInlineSection' },
-    { key: 'wings', section: 'wings', label: 'ad.wingsSection' },
-    { key: 'list', section: 'boardList', label: 'ad.boardListSection' },
-    { key: 'adult', section: 'adult', label: 'ad.adultSection' },
+/** 탭 넷(주소 `?tab=` 의 값 · 묶음 · 이름 · 설정 카드 머리의 한 줄 설명) — 차례가 화면 차례이고, 저장 실패 때 첫 오류 탭을 고르는 차례다 */
+const TABS: readonly { key: PlacementTab; section: Section; label: string; desc: string }[] = [
+    { key: 'post', section: 'postInline', label: 'ad.postInlineSection', desc: 'ad.postInlineDesc' },
+    { key: 'wings', section: 'wings', label: 'ad.wingsSection', desc: 'ad.wingsDesc' },
+    { key: 'list', section: 'boardList', label: 'ad.boardListSection', desc: 'ad.boardListDesc' },
+    { key: 'adult', section: 'adult', label: 'ad.adultSection', desc: 'ad.adultDesc' },
 ];
 const DEFAULT_TAB = TABS[0]!;
 

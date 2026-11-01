@@ -9,7 +9,10 @@
                 </AdPlacementChip>
             </div>
         </template>
-        <AdPlacementListDiagram :rows="rows" :ad-after="adAfter" />
+        <!-- 회색 무대(공개 화면 바탕) 위에 흰 목록 카드 — 날개 무대와 같은 바탕 -->
+        <div class="min-w-0 rounded-md bg-surface-100 p-1.5 dark:bg-surface-950">
+            <AdPlacementListDiagram :rows="rows" :ad-after="adAfter" />
+        </div>
     </AdPlacementFrame>
 </template>
 

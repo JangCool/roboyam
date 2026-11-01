@@ -99,7 +99,7 @@ export default {
     ad: '광고',
     adReviews: '광고 심사',
     ads: '광고 일정표',
-    adPlacements: '광고 자리 설정',
+    adPlacements: '기본 설정',
     // 핫딜 묶음 — 핫딜 심사
     hotdeal: '핫딜',
     hotdealReviews: '핫딜 심사',
