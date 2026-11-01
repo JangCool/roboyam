@@ -290,6 +290,12 @@ public class MemberNotificationService {
                         payload.get("note") instanceof String why && !why.isBlank() ? why : null);
                 link = "/business";
             }
+            case DEAL_FLAGGED, DEAL_AUTO_ENDED, DEAL_MANAGER_ENDED, DEAL_EXPIRED, DEAL_REOPENED_FIX_ENDS -> {
+                // 회원 핫딜(V122) — 글 제목(볼 수 있으면 지금 제목, 아니면 알릴 때 제목) · 운영진 종료 사유. 누르면 그 글(볼 수 없으면 링크 없음)
+                String title = post != null && post.title() != null ? post.title() : payload.get("title") instanceof String t ? t : null;
+                facts = MemberNotificationMessages.Facts.deal(type, title, payload.get("note") instanceof String n && !n.isBlank() ? n : null);
+                link = postAvailable ? "/posts/" + row.getPostId() : null;
+            }
             case BIZ_APPLICATION -> {
                 // 사업자 신청 건(V112) — 종류 · 제목(알릴 때) · 금액 · 기한·사유. 누르면 신청 건 상세
                 facts = MemberNotificationMessages.Facts.bizApplication(payload.get("kind") instanceof String k ? k : "", payload.get("title") instanceof String t ? t : null,

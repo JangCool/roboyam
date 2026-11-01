@@ -2,6 +2,7 @@ package com.community.report.repository.master;
 
 import com.community.report.entity.QReportEntity;
 import com.community.report.entity.ReportEntity;
+import com.community.report.entity.ReportReasons;
 import com.community.zconfiguration.jpa.RoboyamRepositoryQDSL;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.querydsl.core.Tuple;
@@ -44,11 +45,11 @@ public class ReportRepositoryQDSL extends RoboyamRepositoryQDSL {
 
     /**
      * 사건 하나의 자동 숨김 셈 — 셈에 넣는(최소 등급 이상) 신고의 서로 다른 신고자 수. <b>열린 사건의 신고만</b> 센다(닫힌 사건 뒤의 새 신고는 새 사건으로 0부터 — V82).
-     * 한 회원은 한 대상을 한 번만 신고하므로 행 수와 같다.
+     * 한 회원은 한 대상을 한 번만 신고하므로 행 수와 같다. 핫딜 가격 허위 신고({@link ReportReasons#NOT_HIDE_COUNTED} — D4, 종료 요청으로 접수)는 셈에 넣지 않는다.
      */
     public long countedReporters(long caseId) {
         Long n = query.select(REPORT.reporterId.countDistinct()).from(REPORT)
-                .where(REPORT.caseId.eq(caseId), REPORT.counted.isTrue())
+                .where(REPORT.caseId.eq(caseId), REPORT.counted.isTrue(), REPORT.reason.notIn(ReportReasons.NOT_HIDE_COUNTED)) // 가격 허위(D4)는 셈 제외
                 .fetchOne();
         return n == null ? 0 : n;
     }

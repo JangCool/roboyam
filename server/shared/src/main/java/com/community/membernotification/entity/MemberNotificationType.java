@@ -131,7 +131,20 @@ public enum MemberNotificationType {
     /** 공개 소모임에서 모임장·매니저가 내 글을 멤버 전용으로 돌렸다 — 누르면 그 글 */
     GROUP_POST_MEMBERS_ONLY("system"),
     /** 공개 소모임에서 멤버 전용으로 돌려 둔 내 글을 모임장·매니저가 다시 공개했다 — 누르면 그 글 */
-    GROUP_POST_RELEASED("system");
+    GROUP_POST_RELEASED("system"),
+
+    // ── 회원 핫딜(V122 — docs/features/hotdeal-contract.md 서버 단계 고정 규칙 9, 메모 1-7). 받는 사람 = 그 딜의 작성자. 덧붙임 title(알릴 때 글 제목)·note(운영진 종료 사유 — 적었을 때만).
+    //    글 칸 = 그 글, 누르면 그 글({@code /posts/{postId}}). 모두 끌 수 없는 처리 알림 ──
+    /** 내 딜에 종료 요청이 문턱만큼 모여 의심(FLAGGED)이 됐다 — 「아직 진행 중」이나 종료를 고르게 */
+    DEAL_FLAGGED("system"),
+    /** 의심 유예가 지나 내 딜이 자동으로 종료됐다(배치 hotdeal-auto-end) */
+    DEAL_AUTO_ENDED("system"),
+    /** 운영진이 내 딜을 종료했다(사유가 있으면 note) */
+    DEAL_MANAGER_ENDED("system"),
+    /** 마감 없는 내 딜이 기간 종료됐다 — 한 번만(배치 hotdeal-expiry-notice, {@code post_deals.expiry_notified_at}) */
+    DEAL_EXPIRED("system"),
+    /** 내 딜이 다시 진행 중이 됐는데 기간이 이미 지났다 — 「마감을 고쳐 주세요」 */
+    DEAL_REOPENED_FIX_ENDS("system");
 
     private final String category;
 

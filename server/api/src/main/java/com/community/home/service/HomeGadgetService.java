@@ -22,6 +22,10 @@ import com.community.home.dto.response.gadget.BoardCardsDataView;
 import com.community.home.dto.response.gadget.GalleryItemView;
 import com.community.home.dto.response.gadget.GroupBuyDataView;
 import com.community.home.dto.response.gadget.HighlightDataView;
+import com.community.home.dto.response.gadget.HotDealsDataView;
+import com.community.hotdeal.repository.master.DealQueries;
+import com.community.hotdeal.service.DealSettingsReader;
+import com.community.hotdeal.service.DealWriter;
 import com.community.home.dto.response.gadget.HighlightPickView;
 import com.community.home.dto.response.gadget.ItemsDataView;
 import com.community.home.dto.response.gadget.NoticeTextDataView;
@@ -108,12 +112,16 @@ public class HomeGadgetService {
     private final GadgetPageLayoutRepository pageLayouts;
     private final GadgetPageFolders folders;
     private final BoardLayoutRepository boardLayouts;
+    private final DealQueries dealQueries;
+    private final DealSettingsReader dealSettings;
 
     public HomeGadgetService(PublicSiteService site, HomeLayoutRepository layouts, HomeGadgetRepository gadgets, BoardCatalog catalog,
                              PostFeedRepositoryQDSL feeds, PostFeedRows rows, PopularService popular, HighlightRepository highlights, FileRepository files,
                              ImageStorage storage, GroupQueryService groups, GroupBuyMemberService groupBuys, GroupBuySalesSwitch sales,
                              GadgetPageRepository pages, GadgetPageLayoutRepository pageLayouts, GadgetPageFolders folders,
-                             BoardLayoutRepository boardLayouts) {
+                             BoardLayoutRepository boardLayouts, DealQueries dealQueries, DealSettingsReader dealSettings) {
+        this.dealQueries = dealQueries;
+        this.dealSettings = dealSettings;
         this.boardLayouts = boardLayouts;
         this.pages = pages;
         this.pageLayouts = pageLayouts;
@@ -276,6 +284,11 @@ public class HomeGadgetService {
                 data = d;
                 empty = d.items().isEmpty();
             }
+            case HomeGadgetKinds.HOT_DEALS -> {
+                HotDealsDataView d = hotDeals(config, ctx);
+                data = d;
+                empty = d.items().isEmpty();
+            }
             default -> {
                 data = null;
                 empty = true;
@@ -395,6 +408,35 @@ public class HomeGadgetService {
     GroupBuyDataView groupBuy(JsonNode config) {
         GroupBuyMemberService.RecruitingOrder order = GroupBuyMemberService.RecruitingOrder.valueOf(HomeGadgetKinds.groupBuySort(config));
         return new GroupBuyDataView(groupBuys.recruiting(HomeGadgetKinds.groupBuyCount(config), order), sales.groupBuyOpen());
+    }
+
+    // ── HOT_DEALS ───────────────────────────────────────────────────────────
+
+    /**
+     * 진행 중인 핫딜(hotdeal-contract 「가젯 HOT_DEALS 설정」, 규칙 8) — 설정 {@code boards}(핫딜 게시판 slug — 없거나 꺼졌거나 핫딜이 아닌 게시판은 건너뛰고, 비면 켜진 핫딜 게시판 전부)에서
+     * ACTIVE(의심·종료·기간 종료 제외)·공개 글을 {@code sort}·{@code count} 대로. 광고 숨김과 무관하다. 줄은 섞인 목록 줄 + {@code deal}.
+     * 「더 보기」 = 고른 첫 핫딜 게시판, 고르지 않았으면 켜진 핫딜 게시판의 첫째(게시판 차례), 없으면 null.
+     */
+    public HotDealsDataView hotDeals(JsonNode config, Long viewerId) {
+        return hotDeals(config, new Ctx(catalog.snapshot(), Instant.now(), viewerId, null, null));
+    }
+
+    HotDealsDataView hotDeals(JsonNode config, Ctx ctx) {
+        List<EffectiveBoard> all = ctx.s().boards().stream().filter(EffectiveBoard::active).filter(DealWriter::dealBoard).toList();
+        List<String> picked = HomeGadgetKinds.hotDealsBoards(config);
+        List<EffectiveBoard> boards = picked.isEmpty() ? all
+                : picked.stream().map(slug -> ctx.s().board(slug).orElse(null)).filter(Objects::nonNull).filter(EffectiveBoard::active).filter(DealWriter::dealBoard)
+                .toList();
+        if (boards.isEmpty() && !picked.isEmpty()) {
+            boards = all; // 고른 게시판이 하나도 남지 않으면 거르지 않는다(글 목록 가젯과 같다)
+        }
+        HotDealsDataView.More more = boards.isEmpty() ? null : new HotDealsDataView.More("/boards/" + boards.get(0).slug());
+        DealQueries.GadgetSort sort = DealQueries.GadgetSort.valueOf(HomeGadgetKinds.hotDealsSort(config));
+        List<Long> ids = dealQueries.gadgetDealIds(boards.stream().map(EffectiveBoard::id).toList(), sort, dealSettings.current().autoExpireDays(), ctx.now(),
+                HomeGadgetKinds.hotDealsCount(config));
+        Map<Long, PostRowData> found = feeds.visibleRows(ids, ctx.now()).stream().collect(Collectors.toMap(PostRowData::id, Function.identity()));
+        List<PostRowData> ordered = ids.stream().map(found::get).filter(Objects::nonNull).toList();
+        return new HotDealsDataView(rows.of(ordered, ctx.s(), ctx.now(), ctx.viewerId()), more);
     }
 
     // ── 게시판 고르기 ───────────────────────────────────────────────────────

@@ -1,7 +1,10 @@
 package com.community.hotdeal.controller;
 
 import com.community.auth.dto.AuthUser;
+import com.community.hotdeal.dto.request.DealEndRequestInput;
 import com.community.hotdeal.dto.response.DealLinkCheckView;
+import com.community.hotdeal.dto.response.PostDealView;
+import com.community.hotdeal.service.DealStateService;
 import com.community.hotdeal.dto.response.DealPrefillView;
 import com.community.hotdeal.dto.response.DealSameRefView;
 import com.community.hotdeal.service.DealGoService;
@@ -18,6 +21,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,8 +36,10 @@ public class DealController {
     private final DealLinkService links;
     private final DealGoService go;
     private final ClientIpResolver ipResolver;
+    private final DealStateService states;
 
-    public DealController(DealLinkService links, DealGoService go, ClientIpResolver ipResolver) {
+    public DealController(DealLinkService links, DealGoService go, ClientIpResolver ipResolver, DealStateService states) {
+        this.states = states;
         this.links = links;
         this.go = go;
         this.ipResolver = ipResolver;
@@ -55,6 +62,31 @@ public class DealController {
     @GetMapping("/api/posts/{id}/deal/same")
     public ResponseEntity<ApiResponse<List<DealSameRefView>>> same(@PathVariable String id) {
         return noStore(ApiResponse.success(links.same(id)));
+    }
+
+    /** 작성자 종료(ACTIVE·FLAGGED → ENDED AUTHOR) — 새 딜 */
+    @PostMapping("/api/posts/{id}/deal/end")
+    public ResponseEntity<ApiResponse<PostDealView>> end(@PathVariable String id, Authentication authentication) {
+        return noStore(ApiResponse.success(states.end(id, userId(authentication))));
+    }
+
+    /** 작성자 되돌리기(D2 — 작성자 종료 뒤 24시간 안 한 번) */
+    @PostMapping("/api/posts/{id}/deal/reopen")
+    public ResponseEntity<ApiResponse<PostDealView>> reopen(@PathVariable String id, Authentication authentication) {
+        return noStore(ApiResponse.success(states.reopen(id, userId(authentication))));
+    }
+
+    /** 「아직 진행 중」(FLAGGED → ACTIVE, keepMaxCount 까지) */
+    @PostMapping("/api/posts/{id}/deal/keep")
+    public ResponseEntity<ApiResponse<PostDealView>> keep(@PathVariable String id, Authentication authentication) {
+        return noStore(ApiResponse.success(states.keep(id, userId(authentication))));
+    }
+
+    /** 종료 요청 {reason} */
+    @PostMapping("/api/posts/{id}/deal/end-requests")
+    public ResponseEntity<ApiResponse<PostDealView>> endRequest(@PathVariable String id, @RequestBody(required = false) DealEndRequestInput body,
+                                                               Authentication authentication) {
+        return noStore(ApiResponse.success(states.request(id, userId(authentication), body == null ? null : body.reason())));
     }
 
     /** 구매하기 — 302(서버 경유, 클릭 시점의 제휴 방식으로 바꾼다). 본문 없음 */

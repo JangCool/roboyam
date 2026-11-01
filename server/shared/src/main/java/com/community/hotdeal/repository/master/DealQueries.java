@@ -155,6 +155,83 @@ public class DealQueries {
         return true;
     }
 
+    // ── 2단계: 가젯 · 인기글 · 배치 · 탈퇴 ─────────────────────────────────────
+
+    /** 핫딜 가젯 정렬 */
+    public enum GadgetSort {
+        /** 최신(글 ID 큰 차례) */
+        LATEST,
+        /** 인기(추천 많은 차례, 같으면 최신) */
+        POPULAR,
+        /** 마감 임박(기간 종료 시각 — 마감 또는 등록 + 설정 일수 — 빠른 차례, 그 시각이 없는 글은 뒤, 같으면 최신) */
+        ENDING_SOON
+    }
+
+    /**
+     * 핫딜 가젯의 글(규칙 8) — 공개 글 · 저장 상태 ACTIVE · 의심 아님 · 기간 종료 아님. 게시판은 부르는 쪽이 고른 핫딜 게시판들.
+     *
+     * @return 글 ID(정렬 차례)
+     */
+    public List<Long> gadgetDealIds(Collection<Long> boardIds, GadgetSort sort, int autoExpireDays, Instant now, int limit) {
+        if (boardIds.isEmpty()) {
+            return List.of();
+        }
+        List<Object> args = new ArrayList<>(boardIds);
+        args.add(ts(now));
+        args.add(autoExpireDays);
+        args.add(ts(now.minus(Duration.ofDays(autoExpireDays))));
+        args.add(ts(now));
+        args.add(ts(now));
+        String order = switch (sort) {
+            case POPULAR -> "p.like_count DESC, d.post_id DESC";
+            case ENDING_SOON -> "CASE WHEN d.ends_at IS NOT NULL THEN d.ends_at WHEN " + autoExpireDays + " > 0 THEN d.created_at + make_interval(days => "
+                    + autoExpireDays + ") END ASC NULLS LAST, d.post_id DESC";
+            default -> "d.post_id DESC";
+        };
+        args.add(limit);
+        return jdbc.queryForList("SELECT d.post_id FROM post_deals d JOIN posts p ON p.id = d.post_id WHERE d.board_id IN (" + marks(boardIds.size()) + ") AND "
+                + LIVE_DEAL + " AND d.flagged_at IS NULL AND " + PUBLIC_POST + " ORDER BY " + order + " LIMIT ?", Long.class, args.toArray());
+    }
+
+    /**
+     * 인기글에 올리지 않는 핫딜 글(규칙 8·10) — 종료 · 기간 종료 · 사업자 글. 의심은 올린다. 배치 {@code popular_rank_candidates}(R__batch_24)와 같은 판정 — 한쪽을 고치면 같이 고친다.
+     */
+    public java.util.Set<Long> unrankable(Collection<Long> postIds, int autoExpireDays, Instant now) {
+        java.util.Set<Long> out = new java.util.HashSet<>();
+        if (postIds.isEmpty()) {
+            return out;
+        }
+        List<Object> args = new ArrayList<>(postIds);
+        args.add(ts(now));
+        args.add(autoExpireDays);
+        args.add(ts(now.minus(Duration.ofDays(autoExpireDays))));
+        out.addAll(jdbc.queryForList("SELECT d.post_id FROM post_deals d WHERE d.post_id IN (" + marks(postIds.size()) + ") AND (d.source = 'BUSINESS' OR NOT ("
+                + LIVE_DEAL + "))", Long.class, args.toArray()));
+        return out;
+    }
+
+    /** 자동 종료 후보(배치) — 진행 중 · 의심 · {@code flaggedBefore} 이전에 의심이 됨. 글 ID 키셋 */
+    public List<Long> autoEndCandidates(Instant flaggedBefore, long afterPostId, int limit) {
+        return jdbc.queryForList("SELECT post_id FROM post_deals WHERE status = 'ACTIVE' AND flagged_at IS NOT NULL AND flagged_at <= ? AND post_id > ? "
+                + "ORDER BY post_id LIMIT ?", Long.class, ts(flaggedBefore), afterPostId, limit);
+    }
+
+    /** 마감 없는 딜의 기간 종료 알림 후보(배치) — 진행 중 · 마감 없음 · 아직 안 알림 · {@code createdBefore} 이전 등록. 글 ID 키셋 */
+    public List<Long> expiryCandidates(Instant createdBefore, long afterPostId, int limit) {
+        return jdbc.queryForList("SELECT post_id FROM post_deals WHERE status = 'ACTIVE' AND ends_at IS NULL AND expiry_notified_at IS NULL AND created_at <= ? "
+                + "AND post_id > ? ORDER BY post_id LIMIT ?", Long.class, ts(createdBefore), afterPostId, limit);
+    }
+
+    /** 공개 글인가(지우지 않음·공개·예약 삭제 전·숨김 아님·일반 글) */
+    public boolean publicPost(long postId, Instant now) {
+        return !jdbc.queryForList("SELECT 1 FROM posts p WHERE p.id = ? AND " + PUBLIC_POST, Integer.class, postId, ts(now), ts(now)).isEmpty();
+    }
+
+    /** 그 회원이 쓴 저장 상태 진행 중(ACTIVE) 딜(탈퇴 — 규칙 6) */
+    public List<Long> activeByAuthor(long authorId) {
+        return jdbc.queryForList("SELECT post_id FROM post_deals WHERE author_id = ? AND status = 'ACTIVE' ORDER BY post_id", Long.class, authorId);
+    }
+
     private static String marks(int n) {
         return java.util.stream.IntStream.range(0, n).mapToObj(i -> "?").collect(Collectors.joining(", "));
     }

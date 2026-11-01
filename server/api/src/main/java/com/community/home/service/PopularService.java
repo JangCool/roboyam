@@ -3,6 +3,8 @@ package com.community.home.service;
 import com.community.board.dto.BoardCatalogSnapshot;
 import com.community.board.service.BoardCatalog;
 import com.community.home.dto.response.PopularListResponse;
+import com.community.hotdeal.repository.master.DealQueries;
+import com.community.hotdeal.service.DealSettingsReader;
 import com.community.popular.entity.PopularExclusionEntity;
 import com.community.popular.entity.PopularSettingEntity;
 import com.community.popular.repository.master.PopularExclusionRepository;
@@ -53,9 +55,13 @@ public class PopularService {
     private final PopularExclusionRepository exclusions;
     private final PostFeedRepositoryQDSL feeds;
     private final PostFeedRows rows;
+    private final DealQueries dealQueries;
+    private final DealSettingsReader dealSettings;
 
     public PopularService(BoardCatalog catalog, PopularRankQueries ranks, PopularSettingRepository settings, PopularExclusionRepository exclusions,
-                          PostFeedRepositoryQDSL feeds, PostFeedRows rows) {
+                          PostFeedRepositoryQDSL feeds, PostFeedRows rows, DealQueries dealQueries, DealSettingsReader dealSettings) {
+        this.dealQueries = dealQueries;
+        this.dealSettings = dealSettings;
         this.catalog = catalog;
         this.ranks = ranks;
         this.settings = settings;
@@ -91,6 +97,8 @@ public class PopularService {
                 : exclusions.findAllById(ids).stream().map(PopularExclusionEntity::getPostId).collect(Collectors.toSet());
         Map<Long, PostRowData> found = feeds.visibleRows(ids, now).stream()
                 .collect(Collectors.toMap(PostRowData::id, Function.identity()));
+        // 핫딜 글은 종료·기간 종료·사업자 글이면 지금 상태로 다시 뺀다(규칙 8 — 스냅샷 뒤에 끝난 딜, 배치 popular_rank_candidates 와 같은 판정)
+        found.keySet().removeAll(dealQueries.unrankable(found.keySet(), dealSettings.current().autoExpireDays(), now));
         List<PostRowData> eligible = new ArrayList<>();
         Map<Long, String> fillOf = new LinkedHashMap<>();
         for (PopularRankQueries.Entry e : entries) {

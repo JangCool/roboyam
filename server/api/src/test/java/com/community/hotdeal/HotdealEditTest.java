@@ -123,7 +123,7 @@ class HotdealEditTest extends HotdealApiTestBase {
         assertThat(dealRow(id)).containsEntry("link_changed", true);
         assertThat(jdbc.queryForObject("SELECT host_changed FROM post_deal_revisions WHERE post_id = ?", Boolean.class, id)).isTrue();
         assertThat(jdbc.queryForList("SELECT event_code || ' ' || coalesce(link_path, '') FROM admin_notifications WHERE operator_id = ? AND dedupe_key = ?", String.class,
-                handler, Long.toString(id))).containsExactly("HOTDEAL_LINK_HOST_CHANGED /hotdeals?id=" + id);
+                handler, Long.toString(id))).containsExactly("HOTDEAL_LINK_HOST_CHANGED /hotdeals?view=ALL&deal=" + id);
         assertThat(postQueries.detail(Long.toString(id), null, "127.0.0.1").deal().revision().linkChanged()).isTrue();
     }
 

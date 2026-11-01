@@ -83,6 +83,8 @@ CREATE INDEX ix_post_deals_ends ON post_deals (ends_at) WHERE status = 'ACTIVE' 
 CREATE INDEX ix_post_deals_open_ended ON post_deals (created_at) WHERE status = 'ACTIVE' AND ends_at IS NULL AND expiry_notified_at IS NULL;
 -- 관리자 목록(게시판 · 최신)
 CREATE INDEX ix_post_deals_board ON post_deals (board_id, post_id DESC);
+-- OG 사본 정리(2단계 배치 — 그 사본을 쓰는 다른 딜이 있는지)
+CREATE INDEX ix_post_deals_og ON post_deals (og_image_id) WHERE og_image_id IS NOT NULL;
 
 -- ── 딜 칸 수정 이력(D3 — 6개월 보존, 정리는 2단계 배치) ──────────────────────────
 -- actor_kind: AUTHOR(작성자 고치기) · MANAGER(운영진). changes = [{field, before, after}] (바뀐 딜 칸만, 값은 글자). host_changed = 링크 호스트가 바뀐 수정.
@@ -336,6 +338,15 @@ ALTER TABLE member_notifications ADD CONSTRAINT ck_member_notifications_type
                     'BUSINESS',
                     'BIZ_APPLICATION',
                     'DEAL_FLAGGED', 'DEAL_AUTO_ENDED', 'DEAL_MANAGER_ENDED', 'DEAL_EXPIRED', 'DEAL_REOPENED_FIX_ENDS'));
+
+-- ── 포인트 원장·묶음 대상 + DEAL_END_REQUEST(종료 요청 보상 — 대상 = 그 요청 줄 deal_end_requests.id, 원장 유일 (reason, ref_type, ref_id) 로 요청마다 한 번).
+--    V89 목록 ∪ DEAL_END_REQUEST. ⚠ 합칠 때 합집합 확인 — 다른 세션도 이 CHECK 를 다시 만들 수 있다 ──
+ALTER TABLE point_ledger DROP CONSTRAINT ck_point_ledger_ref;
+ALTER TABLE point_ledger ADD CONSTRAINT ck_point_ledger_ref CHECK (ref_type IS NULL OR ref_type IN ('POST', 'COMMENT', 'POINT_SHOP_PURCHASE', 'POINT_CHARGE',
+    'GB_PARTICIPATION', 'LOT', 'LEDGER', 'USER', 'ATTENDANCE', 'DEAL_END_REQUEST'));
+ALTER TABLE point_lots DROP CONSTRAINT ck_point_lots_source_ref;
+ALTER TABLE point_lots ADD CONSTRAINT ck_point_lots_source_ref CHECK (source_ref_type IS NULL OR source_ref_type IN ('POST', 'COMMENT', 'POINT_SHOP_PURCHASE',
+    'POINT_CHARGE', 'GB_PARTICIPATION', 'LOT', 'LEDGER', 'USER', 'ATTENDANCE', 'DEAL_END_REQUEST'));
 
 -- ── 핫딜 게시판은 19금 끔 고정(서버 규칙 8) — 이미 켠 핫딜 게시판이 있으면 끈다(앱도 저장·응답에서 막는다) ──
 UPDATE boards SET allow_adult = false WHERE kind = 'DEAL' AND allow_adult;

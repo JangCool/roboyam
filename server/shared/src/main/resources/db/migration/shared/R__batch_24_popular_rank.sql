@@ -89,6 +89,14 @@ LANGUAGE sql STABLE AS $fn$
        AND p.like_count >= s.min_likes AND p.comment_count >= s.min_comments AND p.view_count >= s.min_views
        AND (p.like_count * s.like_weight + p.comment_count * s.comment_weight + p.view_count * s.view_weight) > 0
        AND NOT EXISTS (SELECT 1 FROM popular_exclusions e WHERE e.post_id = p.id)
+       -- 핫딜 글(V122 — hotdeal-contract 서버 단계 고정 규칙 8·10): 종료 · 기간 종료(마감 지남, 마감 없으면 등록 + deal_settings.auto_expire_days — 0 = 끔) · 사업자 글은 뺀다.
+       -- 의심은 올린다. Java DealQueries#unrankable(공개 API 의 읽을 때 거르기)과 같은 판정 — 한쪽을 고치면 같이 고친다
+       AND NOT EXISTS (SELECT 1 FROM post_deals pd
+                        WHERE pd.post_id = p.id
+                          AND (pd.source = 'BUSINESS' OR pd.status = 'ENDED'
+                               OR (pd.ends_at IS NOT NULL AND pd.ends_at <= p_now)
+                               OR (pd.ends_at IS NULL AND coalesce((SELECT ds.auto_expire_days FROM deal_settings ds WHERE ds.id = 1), 30) > 0
+                                   AND pd.created_at <= p_now - make_interval(days => coalesce((SELECT ds.auto_expire_days FROM deal_settings ds WHERE ds.id = 1), 30)))))
 $fn$;
 
 CREATE OR REPLACE PROCEDURE batch_popular_rank(p_trigger text DEFAULT 'SCHEDULED', p_operator bigint DEFAULT NULL, INOUT p_run_id bigint DEFAULT NULL)

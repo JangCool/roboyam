@@ -31,6 +31,8 @@ import com.community.post.service.PostModerationLog;
 import com.community.post.service.PostQueryService;
 import com.community.report.dto.request.ReportRequest;
 import com.community.groupbuy.feedback.GroupBuyUgcReportService;
+import com.community.hotdeal.service.DealStateService;
+import com.community.hotdeal.service.DealWriter;
 import com.community.report.entity.ReportCaseEntity;
 import com.community.report.entity.ReportEntity;
 import com.community.report.entity.ReportEventEntity;
@@ -121,12 +123,14 @@ public class ReportService {
     private final GroupPostGate groupGate;
     private final GroupRepository groups;
     private final GroupBuyUgcReportService groupBuyReports;
+    private final DealStateService dealStates;
 
     public ReportService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                          CommentRepositoryQDSL commentQueries, PostCounterQueries counters, ReportRepository reports, ReportRepositoryQDSL reportQueries,
                          ProfileRepository profiles, BoardStaffRepository boardStaff, NotificationPublisher publisher, MemberNotificationPublisher memberNotices,
                          SnowflakeIdGenerator ids, PostModerationLog moderation, ReportCaseRepository cases, ReportCaseLog caseLog, GroupPostGate groupGate,
-                         GroupRepository groups, GroupBuyUgcReportService groupBuyReports) {
+                         GroupRepository groups, GroupBuyUgcReportService groupBuyReports, DealStateService dealStates) {
+        this.dealStates = dealStates;
         this.groupBuyReports = groupBuyReports;
         this.groupGate = groupGate;
         this.groups = groups;
@@ -196,7 +200,9 @@ public class ReportService {
             fields.put("targetId", new MessageRef("board.report.target"));
         }
         String reason = body.reason();
-        if (reason == null || !ReportReasons.forTarget(type).contains(reason)) { // 소모임 사유와 글·댓글 사유는 섞지 않는다
+        // 소모임 사유와 글·댓글 사유는 섞지 않는다. 핫딜 사유는 글 신고에서만 받아 두고 대상 게시판을 본 뒤 다시 거른다(핫딜 게시판 글이 아니면 400 — D4)
+        List<String> allowed = ReportEntity.POST.equals(type) ? ReportReasons.forPost(true) : ReportReasons.forTarget(type);
+        if (reason == null || !allowed.contains(reason)) {
             fields.put("reason", new MessageRef("board.report.reason"));
         }
         String detail = ContentRules.normalize(body.detail());
@@ -220,6 +226,10 @@ public class ReportService {
         }
         Target target = ReportEntity.POST.equals(type) ? postTarget(targetId, s, now) : commentTarget(targetId, s, now);
         requireGroupReadable(target, s, userId); // 소모임 비공개 글·그 댓글은 멤버만 신고한다(읽을 수 없는 대상은 없는 대상과 같다)
+        boolean dealPost = target.comment() == null && DealWriter.dealBoard(target.board());
+        if (ReportReasons.DEAL_ONLY.contains(reason) && !dealPost) {
+            throw ValidationException.of("reason", new MessageRef("board.report.reason.dealOnly")); // 핫딜 사유는 핫딜 글에서만(일반 글·댓글 400)
+        }
         if (userId.equals(target.authorId())) {
             throw new CannotReportOwnException();
         }
@@ -243,6 +253,9 @@ public class ReportService {
         reportCase.reportAdded(target.post().getId(), target.board().id(), now);
         caseLog.reported(reportCase.getId(), reportId, reason, now);
         reports.flush();
+        if (ReportReasons.DEAL_FALSE_PRICE.equals(reason)) {
+            dealStates.fromReport(target.post(), target.board(), actor, s); // D4 — 가격 허위 = 종료 요청 PRICE_CHANGED 1건(자격·한도·중복이면 신고만), 자동 숨김 셈 제외
+        }
 
         autoHide(target, reportCase.getId(), reason, policy, now);
         notifyOperators(policy, reportCase);

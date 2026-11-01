@@ -99,10 +99,12 @@ public class DealWriter {
     private final NotificationPublisher publisher;
     private final Messages messages;
     private final ObjectProvider<Clock> clocks;
+    private final DealEndService ends;
 
     public DealWriter(DealSettingsReader settings, DealRuleBook rules, DealLinkInspector inspector, PostDealRepository deals, PostDealRevisionRepository revisions,
                       DealOgImageRepository ogImages, FileRepositoryQDSL files, ImageStorage storage, DealQueries queries, SnowflakeIdGenerator ids,
-                      NotificationPublisher publisher, Messages messages, ObjectProvider<Clock> clocks) {
+                      NotificationPublisher publisher, Messages messages, ObjectProvider<Clock> clocks, DealEndService ends) {
+        this.ends = ends;
         this.settings = settings;
         this.rules = rules;
         this.inspector = inspector;
@@ -295,6 +297,9 @@ public class DealWriter {
                     priceEdit, now));
             current.edit(c.values(), c.link(), priceEdit, hostChanged, now);
             deals.flush();
+            if (current.isEnded()) {
+                ends.rewardRequesters(current); // 재고를 품절로 저장 = 작성자 종료(규칙 6) — 의심이었으면 의심 구간 요청자 보상(규칙 5)
+            }
             if (hostChanged) {
                 publisher.publish(AdminNotificationEvent.HOTDEAL_LINK_HOST_CHANGED,
                         NotificationContext.empty().dedupe(Long.toString(postId)).link("postId", Long.toString(postId)));

@@ -177,7 +177,7 @@ public class UserProfileService {
                 null, hidden ? AuthorViews.blank(author) : author, r.createdAt(), r.viewCount(), r.likeCount(), r.pinnedAt() != null,
                 !hidden && Boolean.TRUE.equals(r.adult()), r.publicHiddenReason(now, b.staffHiddenNotice()), hidden ? null : lens.blockedOf(r.authorId(), r.title()),
                 !hidden && withPoll.contains(r.id()),
-                new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()), group);
+                new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()), group, null);
     }
 
     /** 공개 프로필의 주인 — 회원·프로필이 있고 탈퇴·삭제되지 않았다 */

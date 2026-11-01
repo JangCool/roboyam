@@ -118,6 +118,14 @@ final class GadgetPatches {
      */
     static ObjectNode config(String type, JsonNode raw, JsonNode current, GadgetConfigs.Place place, Predicate<String> boardExists, String path,
                              Map<String, MessageRef> fields) {
+        return config(type, raw, current, place, boardExists, boardExists, path, fields);
+    }
+
+    /**
+     * @param dealBoard 핫딜 가젯 {@code boards} 의 slug 가 있는 핫딜 게시판(kind DEAL)인가
+     */
+    static ObjectNode config(String type, JsonNode raw, JsonNode current, GadgetConfigs.Place place, Predicate<String> boardExists, Predicate<String> dealBoard,
+                             String path, Map<String, MessageRef> fields) {
         if (!GadgetConfigs.settable(type) || raw == null || raw.isNull()) {
             return null;
         }
@@ -140,8 +148,12 @@ final class GadgetPatches {
         }
         List<String> sorts = GadgetConfigs.sorts(type);
         if (!sorts.isEmpty()) {
-            option(raw, out, "sort", sorts, base.substring(0, base.length() - 1), "GROUP_BUY".equals(type) ? "homeLayout.gadget.config.sort" : "homeLayout.gadget.config.postSort",
-                    fields);
+            String sortMessage = switch (type) {
+                case "GROUP_BUY" -> "homeLayout.gadget.config.sort";
+                case HomeGadgetKinds.HOT_DEALS -> "homeLayout.gadget.config.hotDealSort";
+                default -> "homeLayout.gadget.config.postSort";
+            };
+            option(raw, out, "sort", sorts, base.substring(0, base.length() - 1), sortMessage, fields);
         }
         if (GadgetConfigs.boards(type)) {
             boards(raw, current, place, base, out, fields);
@@ -229,6 +241,11 @@ final class GadgetPatches {
                 option(raw, out, "format", GadgetConfigs.NOTICE_FORMATS, at, opt, fields);
             }
             case HomeGadgetKinds.AD -> option(raw, out, "adType", GadgetConfigs.AD_TYPES, at, opt, fields);
+            case HomeGadgetKinds.HOT_DEALS -> {
+                if (present(raw, "boards")) {
+                    hotDealBoards(raw.get("boards"), dealBoard, base, out, fields);
+                }
+            }
             default -> {
             }
         }
@@ -296,7 +313,31 @@ final class GadgetPatches {
         }
     }
 
-    /** 바로가기 항목 0~12개 — 이름 1~12자 · 종류 · 값({@code BOARD} 있는 게시판 slug, {@code PATH} 사이트 안 경로, 나머지 null) */
+    /** 핫딜 가젯의 핫딜 게시판 slug 0~20개(비면 모든 핫딜 게시판) — 있는 핫딜 게시판(kind DEAL)만, 겹치면 하나로(고른 차례) */
+    private static void hotDealBoards(JsonNode raw, Predicate<String> dealBoard, String base, ObjectNode out, Map<String, MessageRef> fields) {
+        MessageRef bad = new MessageRef("homeLayout.gadget.config.hotDealBoards", String.valueOf(GadgetConfigs.BOARD_PICK_MAX));
+        if (!raw.isArray()) {
+            fields.put(base + "boards", bad);
+            return;
+        }
+        Set<String> picked = new LinkedHashSet<>();
+        for (JsonNode v : raw) {
+            String slug = v.isString() ? v.asString().strip() : "";
+            if (slug.isEmpty() || slug.length() > SLUG_MAX || !dealBoard.test(slug)) {
+                fields.put(base + "boards", bad);
+                return;
+            }
+            picked.add(slug);
+        }
+        if (picked.size() > GadgetConfigs.BOARD_PICK_MAX) {
+            fields.put(base + "boards", bad);
+            return;
+        }
+        ArrayNode arr = out.putArray("boards");
+        picked.forEach(arr::add);
+    }
+
+    /** 바로가기 항목 0~12개 —이름 1~12자 · 종류 · 값({@code BOARD} 있는 게시판 slug, {@code PATH} 사이트 안 경로, 나머지 null) */
     private static void quickLinks(JsonNode raw, Predicate<String> boardExists, String base, ObjectNode out, Map<String, MessageRef> fields) {
         if (!raw.isArray() || raw.size() > GadgetConfigs.QUICK_LINK_MAX) {
             fields.put(base + "items", new MessageRef("homeLayout.gadget.config.items", String.valueOf(GadgetConfigs.QUICK_LINK_MAX)));

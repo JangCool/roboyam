@@ -33,14 +33,24 @@ public final class ReportReasons {
     public static final List<String> GROUP_ALL = List.of(PROMOTION, OFFLINE_RISK, STOCK_RECOMMENDATION, OTHER);
 
     /**
-     * 핫딜 사유: 가격·정보가 사실과 달라요(D4 — 종료 요청 PRICE_CHANGED 1건으로 접수, 자동 숨김 셈 제외). 핫딜 글에서만 받는다(V122 CHECK).
-     * 받는 검사·종료 요청 연결은 2단계 — 그 전까지 {@link #ALL} 에 넣지 않아 신고 API 가 받지 않는다
+     * 핫딜 사유: 가격·정보가 사실과 달라요(D4 — 종료 요청 PRICE_CHANGED 1건으로 접수, <b>자동 숨김 셈 제외</b>). 핫딜 글에서만 받는다(V122 CHECK, 신고 API 는
+     * {@link #forPost} — 일반 글·댓글이면 400 {@code fields.reason}).
      */
     public static final String DEAL_FALSE_PRICE = "DEAL_FALSE_PRICE";
-    /** 핫딜 사유: 광고·홍보를 숨겼어요(자동 숨김 셈 포함). 핫딜 글에서만(2단계) */
+    /** 핫딜 사유: 광고·홍보를 숨겼어요(자동 숨김 셈 포함). 핫딜 글에서만 */
     public static final String DEAL_HIDDEN_AD = "DEAL_HIDDEN_AD";
     /** 핫딜 글에서만 더 받는 사유 */
     public static final List<String> DEAL_ONLY = List.of(DEAL_FALSE_PRICE, DEAL_HIDDEN_AD);
+    /** 핫딜 글 신고의 사유 — 글·댓글 사유 + 핫딜 사유 */
+    public static final List<String> DEAL_POST = java.util.stream.Stream.concat(ALL.stream(), DEAL_ONLY.stream()).toList();
+
+    /** 글 신고의 사유 — 핫딜 게시판 글이면 핫딜 사유까지 */
+    public static List<String> forPost(boolean dealBoard) {
+        return dealBoard ? DEAL_POST : ALL;
+    }
+
+    /** 자동 숨김 기준(서로 다른 회원 수)에 들지 않는 사유 — 가격 허위(D4, 종료 요청으로 접수) */
+    public static final List<String> NOT_HIDE_COUNTED = List.of(DEAL_FALSE_PRICE);
 
     /** 모든 사유 — 보이는 차례(관리자 목록의 사유별 수·사유 거르기) */
     public static final List<String> EVERY = List.of(SPAM_AD, ABUSE, OBSCENE, ILLEGAL_FILMING, RIGHTS, PROMOTION, OFFLINE_RISK, STOCK_RECOMMENDATION, OTHER);
