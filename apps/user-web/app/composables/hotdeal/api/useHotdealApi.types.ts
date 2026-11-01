@@ -56,7 +56,7 @@ export interface DealEndRequests {
     mine: DealEndReason | null;
 }
 
-/** 딜 칸 수정 이력 요약(D3 — 이력 6개월 `post_deal_revisions`) — 가격(딜가·정상가·배송비)을 고친 횟수 · 링크 호스트가 바뀐 적이 있다 · 마지막으로 딜 칸을 고친 시각 */
+/** 딜 칸 수정 이력 요약(D3 — 이력 6개월 `post_deal_revisions`) — 가격(딜가·정상가 — 배송비 제외)을 고친 횟수 · 링크 호스트가 바뀐 적이 있다 · 마지막으로 딜 칸을 고친 시각 */
 export interface DealRevision {
     priceEdits: number;
     linkChanged: boolean;
@@ -116,7 +116,7 @@ export interface PostDeal {
     /** 진행 중인 같은 딜(같은 `product_url_key`) 글 수 — 이 글 제외 */
     sameDealCount: number;
     /**
-     * 구매하기 주소 — 늘 서버 경유 `/go/deal/{postId}`(D5 — 서버가 클릭 시점의 `affiliateMode`·사이트 제휴 몰로 바꿔 302). 화면은 이 주소를 그대로 링크에 쓴다(`productUrl` 로 직접 보내지 않는다)
+     * 구매하기 주소 — 늘 서버 경유 `/api/deals/{postId}/go`(D5 — 서버가 클릭 시점의 `affiliateMode`·사이트 제휴 몰로 바꿔 302). 화면은 이 주소를 그대로 링크에 쓴다(`productUrl` 로 직접 보내지 않는다)
      */
     buyUrl: string;
     /** 제휴 표시 종류(지금 방식으로 서버가 계산) — 배지·카드 첫 줄이 이것으로 가른다. null 이면 표시 없음 */

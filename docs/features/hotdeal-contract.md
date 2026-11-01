@@ -1,6 +1,6 @@
-# 회원 핫딜(1차) 계약 — 초안
+# 회원 핫딜(1차) 계약
 
-**상태: 화면 목업 진행 중(서버 없음). 화면 확정 전 초안이라 바뀔 수 있다.** 정본 설계 `docs/plans/biz-ad-hotdeal/03-hotdeal.md`(1-1·1-3·3·5-1·5-3 「1차」·7-1·7-2), 보강 검토 `05-hotdeal-review.md`(**부딪히면 05 가 정본**), 메뉴 `04-ia-review.md` §1-2·§4.
+**상태: 화면 확정 2026-11-01(목업 기준, 서버 없음) — 다음은 백엔드.** 정본 설계 `docs/plans/biz-ad-hotdeal/03-hotdeal.md`(1-1·1-3·3·5-1·5-3 「1차」·7-1·7-2), 보강 검토 `05-hotdeal-review.md`(**부딪히면 05 가 정본**), 메뉴 `04-ia-review.md` §1-2·§4.
 
 ## 의도
 - 사업자 없이 완결되는 **회원 핫딜**: DEAL 게시판(`boards.kind = DEAL`) 글에 딜 정보(가격·몰·링크·배송·마감·재고)를 붙이고, 회원이 품절·가격 변경을 알려 오래된 딜을 걸러 낸다.
@@ -19,19 +19,23 @@
 - **D2 작성자 종료 되돌리기**: 작성자가 직접 종료한 글만, 종료 뒤 **24시간 안 1번** 다시 진행 중. 자동 종료(AUTO)·운영진 종료는 운영진만 재개.
 - **D3 링크를 다른 몰로 바꾸는 수정은 허용 + 표시·알림**: 딜 칸 수정 이력 6개월(`post_deal_revisions`, 회원·사업자 공통), 카드 「링크 바뀜」·「가격 수정 N회」, 호스트가 바뀌면 운영자 알림.
 - **D4 가격 허위 신고는 종료 요청과 합침**: `DEAL_FALSE_PRICE` 신고 = 종료 요청 `PRICE_CHANGED` 1건(같은 회원 1회), 자동 숨김 셈 제외. `DEAL_HIDDEN_AD` 는 자동 숨김 셈 포함.
-- **D5 제휴 링크 방식은 설정으로 켜고 끔**: `affiliateMode` = `MEMBER`(개인 제휴 허용, **기본** — 초기 운영) / `SITE`(사이트 제휴 — 개인 제휴 받지 않음, 사람이 몰리면 전환). `SITE` 면 「사이트 제휴 몰」 표(몰 도메인·제휴 프로그램 이름·변환 방식·켬/끔)로 구매 링크를 바꾼다. 구매하기는 늘 서버 경유 `/go/deal/{postId}`.
+- **D5 제휴 링크 방식은 설정으로 켜고 끔**: `affiliateMode` = `MEMBER`(개인 제휴 허용, **기본** — 초기 운영) / `SITE`(사이트 제휴 — 개인 제휴 받지 않음, 사람이 몰리면 전환). `SITE` 면 「사이트 제휴 몰」 표(몰 도메인·제휴 프로그램 이름·변환 방식·켬/끔)로 구매 링크를 바꾼다. 구매하기는 늘 서버 경유 `/api/deals/{postId}/go`(302).
 - 추천안 채택(바꿀 수 있음): **종료 요청 자격 = 게시판 쓰기 등급(`writeMin`, 기본 일반) + 이메일 인증 + 정지 아님** · **회원 하루 핫딜 글 5건·같은 판매처 연속 10분 간격** · **마감 없는 딜 30일 뒤 기간 종료**.
 
-## 목업 가정 (03 §6 추천안 — 확인 필요)
-- 단축 주소 기본 차단 시드: `bit.ly`·`han.gl`·`vo.la`·`me2.do`·`t.co`·`goo.gl`·`tinyurl.com`·`url.kr`(BLOCK, 메모 「단축 주소」). `coupa.ng` 는 차단이 아니라 **제휴**(공식 단축 여부 확인 필요). 제휴 네트워크 도메인(링크프라이스·애드픽·텐핑 등) 제휴 시드. 리디렉션을 따라간 최종 호스트까지 판정(서버 규칙 2).
+## 확정 가정 (2026-11-01 화면 확정 — 03 §6 추천안과 목업에서 정한 것, 서버도 이대로)
+- 단축 주소 기본 차단 시드: `bit.ly`·`han.gl`·`vo.la`·`me2.do`·`t.co`·`goo.gl`·`tinyurl.com`·`url.kr`(BLOCK, 메모 「단축 주소」). `coupa.ng` 는 차단이 아니라 **제휴**(공식 단축 여부는 「미확정」). 제휴 네트워크 도메인(링크프라이스·애드픽·텐핑 등) 제휴 시드. 리디렉션을 따라간 최종 호스트까지 판정(서버 규칙 2).
 - 종료 요청: 서로 다른 회원 **3명** → 의심(FLAGGED) + 작성자 알림 → 작성자가 「아직 진행 중」을 안 누르면 **12시간** 뒤 자동 종료 → 의심 구간 요청자에게 보상(포인트 정책 `dealEndRequestPoints` 기본 3P · 하루 지급 5회, 사유 `DEAL_END_REQUEST`). 회원당 하루 요청 20회 + 같은 작성자 글에 7일 3회. 사유 3개(`SOLD_OUT`·`PRICE_CHANGED`·`LINK_DEAD`), 자유 글 없음. 작성자는 자기 글에 요청 못 함. 요청자 신원은 누구에게도 안 보임(개수·사유별 개수만).
 - keep(「아직 진행 중」)은 글마다 최대 2번, 넘으면 「운영자 확인 중」(운영자 알림).
 - 쓰기 자격: 일반 등급 이상(새싹 불가) + 이메일 인증. 비회원 불가.
 - 위장 홍보 후보: **회원 후보** — 같은 회원이 7일 안에 같은 판매처(대형몰 제외)를 3건 이상. **판매처 후보** — 같은 비대형몰을 30일 안에 서로 다른 회원 3명 이상이 올리고, 그 회원들의 다른 핫딜 비율이 20% 미만. 운영자 목록만, 자동 제재 없음.
 - 의심 글은 목록에서 아래로, 「종료 숨기기」 기본 켬.
 - 신고 사유 추가 2개: `DEAL_FALSE_PRICE`(가격·정보가 사실과 달라요 → 종료 요청으로 접수, D4) · `DEAL_HIDDEN_AD`(광고·홍보를 숨겼어요) — 핫딜 글에서만 보임.
-- **제휴 방식 전환 때 기존 글(확인 필요)**: `SITE` 로 바꾸면 기존 개인 제휴 글은 글은 남기고, 구매 링크 클릭 때 개인 제휴 파라미터를 떼고 사이트 제휴로 바꾼다(사이트 제휴 몰이 아니면 제휴를 떼고 원래 상품 링크). `MEMBER` 로 되돌리면 다시 원래(작성자) 링크. 저장된 `productUrl` 은 바꾸지 않고 변환은 클릭 시점에만.
-- `SITE` 모드 쓰기: 「제휴 링크예요」 체크 숨김, 링크가 AFFILIATE(개인 제휴 — 제휴 네트워크 단축·추적 링크 포함, 최종 호스트까지)로 판정되면 칸 오류 「지금은 개인 제휴 링크를 받지 않아요 — 일반 상품 링크를 넣어 주세요」(`fields."deal.productUrl"`, 코드 `DEAL_MEMBER_AFFILIATE_OFF`).
+- **제휴 방식 전환 때 기존 글**: `SITE` 로 바꾸면 기존 개인 제휴 글은 글은 남기고, 구매 링크 클릭 때만 개인 제휴 파라미터를 떼고 사이트 제휴로 바꾼다(사이트 제휴 몰이 아니면 제휴를 떼고 원래 상품 링크). `MEMBER` 로 되돌리면 다시 원래(작성자) 링크. **저장된 `productUrl` 은 바꾸지 않는다**.
+- `SITE` 모드 쓰기: 「제휴 링크예요」 체크 숨김, 링크가 AFFILIATE(개인 제휴 — 제휴 네트워크 단축·추적 링크 포함, 최종 호스트까지)로 판정되면 칸 오류 「지금은 개인 제휴 링크를 받지 않아요 — 일반 상품 링크를 넣어 주세요」(`fields."deal.productUrl"`, 코드 `DEAL_MEMBER_AFFILIATE_OFF`). `SITE` 면 `affiliate` 는 false 로 저장.
+- **고치기에서 링크를 그대로 두면** `SITE` 여도 개인 제휴 칸 오류 없음. 차단도 같은 규칙 — 링크를 그대로 두면 지금 규칙이 차단이어도 저장 + `warnings[]`(`DEAL_LINK_BLOCKED`), **차단 도메인으로 바꾸면 칸 오류**. `warnings[]` 는 글쓰기 응답 `PostWriteResult.warnings` · 고치기 응답 `PostDetail.warnings`.
+- **쓰기 화면이 `affiliateMode` 를 아는 곳**: 핫딜 게시판 응답 `BoardDetail.dealAffiliateMode`(없으면 MEMBER — 링크를 넣기 전부터 체크를 숨김)로 먼저 알고, link-check 응답 `DealLinkCheck.affiliateMode` 가 오면 그 값을 우선. link-check 에 `siteAffiliate: { programName } | null`.
+- **「가격 수정 N회」 = 딜가·정상가를 바꾼 수정 줄 수**(배송비 제외). 「링크 바뀜」 = 호스트가 바뀐 적 있음.
+- **공개 화면 상한·경고값**(금액 상한·할인율 경고·마감 없는 딜 기간): 서버 단계에서 핫딜 게시판 응답에 핫딜 설정 공개 칸(`priceMaxWon`·`discountWarnPercent`·`autoExpireDays`)으로 내리고 화면은 그 값으로 미리 검사(목업은 기본값 1억·90%·30일 상수). 최종 판정은 서버.
 - 제휴 표기(공정위 추천·보증 심사지침 2024-12 개정 — 조건부 표현 금지·첫 부분 표시): 목록 줄·카드 제목 앞 배지 「제휴·수수료」, 카드 첫 줄 「제휴 링크 — 이 링크로 구매하면 작성자가 판매자로부터 수수료를 받습니다」, 글쓴이 체크 문구도 단정형. 카드 아래 「로보얌은 판매자가 아니에요. 가격·재고는 판매처 기준이에요」. **사이트 제휴**(`SITE` 이고 사이트 제휴 몰): 배지 「제휴」 + 카드 첫 줄 「로보얌 제휴 링크 — 이 링크로 구매하면 로보얌이 판매자로부터 수수료를 받습니다」(단정형, ko·en). `MEMBER` 모드 개인 제휴 글은 개인 제휴 문구 그대로.
 
 ## 데이터 모양 (목업 공통 — 두 앱이 같은 이름을 쓴다)
@@ -53,7 +57,7 @@ PostDeal { source: MEMBER, storeName(≤40), productUrl(≤1000), productHost, f
   endRequests: { total, bySoldOut, byPriceChanged, byLinkDead, mine: DealEndReason|null },
   flaggedAt|null, autoEndAt|null(flaggedAt+유예), keepCount, keepMax,
   revision: { priceEdits, linkChanged, lastEditedAt|null }, hot(추천 ≥ hotLikeThreshold), sameDealCount,
-  buyUrl(`/go/deal/{postId}` — 서버 경유), affiliateKind: MEMBER | SITE | null(지금 방식으로 계산한 표시 종류), siteProgramName|null }
+  buyUrl(`/api/deals/{postId}/go` — 서버 경유), affiliateKind: MEMBER | SITE | null(지금 방식으로 계산한 표시 종류), siteProgramName|null }
 AffiliateMode  = MEMBER | SITE
 SiteAffiliateStore { id, domain(정규화), programName(≤40), transform: { type: TEMPLATE, template(`{url}` 자리표시자 1개 필수) } | { type: QUERY, query(붙일 쿼리 `k=v&…`) }, enabled }
 ```
@@ -130,8 +134,8 @@ SiteAffiliateStore { id, domain(정규화), programName(≤40), transform: { typ
   - `POST /api/posts/{id}/deal/end` · `POST /api/posts/{id}/deal/reopen`(작성자 되돌리기) · `POST /api/posts/{id}/deal/keep` · `POST /api/posts/{id}/deal/end-requests {reason}` · `GET /api/posts/{id}/deal/same`.
   - 게시판 목록 `?sort=latest|popular|ending&hideEnded=true&prefix=&store=` + 쇼핑몰 칩 목록(`stores: [{name, count}]` 상위 8).
   - 가젯 `HOT_DEALS` 의 `data`.
-  - `GET /go/deal/{postId}` → **302** 외부 상품 주소(클릭 시점의 `affiliateMode`·사이트 제휴 몰로 변환, 클릭 집계, `rel="nofollow sponsored noopener"` 는 화면 링크에 그대로). 공개·진행 중이 아니면 원래 링크 또는 글로(서버 판단).
-  - 공개 설정 전달: 쓰기 화면이 `affiliateMode` 를 알아야 함(게시판 응답 또는 link-check 응답의 `affiliateMode`).
+  - `GET /api/deals/{postId}/go` → **302** 외부 상품 주소(클릭 시점의 `affiliateMode`·사이트 제휴 몰로 변환, 클릭 집계, `rel="nofollow sponsored noopener"` 는 화면 링크에 그대로). 공개·진행 중이 아니면 원래 링크 또는 글로(서버 판단). `/api` 아래라 개발 프록시·실서버 라우팅을 따로 두지 않는다. 글 상세·목록 줄 `deal.buyUrl` 로 이 주소를 내린다.
+  - 공개 설정 전달: 핫딜 게시판 응답에 핫딜 설정 공개 칸(`dealAffiliateMode`·`priceMaxWon`·`discountWarnPercent`·`autoExpireDays`) + link-check 응답 `affiliateMode`·`siteAffiliate`.
   - 오류: `429 DEAL_DAILY_POST_LIMIT`·`DEAL_SAME_STORE_TOO_SOON`·`DEAL_END_REQUEST_DAILY_LIMIT`·`DEAL_END_REQUEST_AUTHOR_LIMIT` · `403 DEAL_END_REQUEST_OWN`·`DEAL_END_REQUEST_NOT_ALLOWED`(자격) · `409 DEAL_END_REQUEST_EXISTS`·`DEAL_ENDED`·`DEAL_NOT_FLAGGED`·`DEAL_KEEP_LIMIT`·`DEAL_REOPEN_EXPIRED`·`DEAL_REOPEN_USED`.
 - 관리자(server/admin)
   - `GET /api/admin/hotdeals?view&board&q&createdFrom&createdTo&blockedActive&page` (+ `counts`) · `GET /{postId}`(`endedByName`·`endReason`·`keptAt`·`keepCount`·`publicUrl`·`sameDeals`) · `GET /{postId}/revisions` → `[{id, at, actor: {kind: AUTHOR|MANAGER, name}, changes: [{field, before, after}], hostChanged}]` · `POST /{postId}/end {reason?}` · `POST /{postId}/reopen {reason?}` · `GET /api/admin/hotdeals/boards`.
@@ -145,11 +149,11 @@ SiteAffiliateStore { id, domain(정규화), programName(≤40), transform: { typ
 - 배치(api): 의심 유예 지남 → 자동 종료 + 보상 · 마감 없는 딜 기간 종료 알림 1회 · OG 사본 90일 정리.
 - 서버에서 같이 고칠 것: `AdminScreenRegistry` 핫딜 묶음 4줄(`hotdeals`·`hotdealDomains`·`hotdealSuspicions`·`hotdealSettings`, `hotdealReviews` 다음) · `Permission.HOTDEAL_DOMAIN_MANAGE` featureReady · `HomeGadgetKinds.HOT_DEALS` · `ReportReasons` 2개(핫딜 글에서만, 일반 글이면 400) · 공개 게시판 응답 `kind` · 관리자 글 목록 줄 `deal: boolean` · `AdminNotificationEvent.HOTDEAL_SUSPECTED_PROMO` 켬 + keep 한도·호스트 바뀜.
 
-## 목업 구현 결과 (2026-11-01, 화면 확정 전)
+## 목업 구현 결과 (2026-11-01)
 - 1차 커밋: user-web `eb08a133` · admin-web `730da368`. 타입 검사 두 앱 통과, 브라우저 확인은 개발자 몫.
 - `?mock=` — user-web(앞에 `deal-`): `deal-empty`·`deal-error`·`deal-flagged`·`deal-ended`·`deal-expired`·`deal-sent`·`deal-blocked`·`deal-affiliate`·`deal-og-none`·`deal-og-failed`·`deal-same`·`deal-sprout`·`deal-guest`·`deal-unverified`·`deal-card`·`deal-gallery`·`deal-gadget-off`. admin-web: `empty`·`error`·`detail-error`·`slow`·`forbidden`·`conflict`·`stale`·`save-error`. 쉼표로 여럿. (보강 스위치는 아래 「보강 목업」.)
 - 목업 글: `/posts/mock-deal-mine`(내 글)·`mock-deal-2`·`mock-deal-3`(같은 딜·제휴)·`mock-deal-6`(의심)·`mock-deal-7`·`8`(종료)·`mock-deal-9`(기간 종료). 목업 게시판 `hotdeal` 은 실서버 같은 slug 를 가린다.
-- 화면이 새로 정한 것(확인 필요)
+- 화면이 새로 정한 것(2026-11-01 확정)
   - 게시판 응답 `kind` 없으면 옛 칸 `dealEnabled` 로 판정(기존 핫딜 광고 자리 유지용).
   - 목록 차례 진행 중 → 의심 → 끝남, 마감 임박은 마감 없는 글 뒤.
   - 고치기: ENDED 만 딜 칸 읽기 전용, EXPIRED 는 고칠 수 있게 두고 「마감을 고쳐 주세요」. 처음과 같은 마감은 다시 검사 안 함. 딜 칸은 바꿨을 때만 보냄.
@@ -162,13 +166,11 @@ SiteAffiliateStore { id, domain(정규화), programName(≤40), transform: { typ
 ### 보강 목업 (05 §2, 커밋 user-web `a3c56c04` · admin-web `515268fb`)
 - 새 `?mock=` — user-web: `deal-daily-limit`·`deal-store-interval`·`deal-keep-limit`·`deal-reopen`·`deal-reopen-expired`·`deal-reopen-used`·`deal-link-changed`·`deal-price-edited`·`deal-save-warning`·`deal-redirect`·`deal-og-off`·`deal-request-denied`·`deal-author-limit`(`deal-ended` 는 이제 1시간 전 종료라 되돌리기도 보임). admin-web: `revisions-empty`·`revisions-error`·`link-changed`·`impact-zero`·`store-suspicion`·`report-deal`.
 - 목업 글 13~19 추가(해외 직구 HOT·임박, 0원 회원가, 품절 종료, 몰 11개, `coupa.ng` 리디렉션). 관리자 시드 `cheap-robot.shop` 차단(진행 중 2건), 판매처 후보 3건, 이력 있는 글 6건.
-- 화면이 새로 정한 것(확인 필요)
+- 화면이 새로 정한 것(2026-11-01 확정)
   - prefill 응답 `DealPrefill { fromPostId, title, storeName, productUrl, image }`.
   - 오류 `extras`: `DEAL_DAILY_POST_LIMIT {limit}` · `DEAL_SAME_STORE_TOO_SOON {remainingMinutes, intervalMinutes, retryAfterSeconds}` · `DEAL_END_REQUEST_AUTHOR_LIMIT {limit, days}`. 칸 오류 키 `fields."deal.priceBasisKind"`.
   - `?store=` 값은 쇼핑몰 이름, 칩 개수는 말머리·종료 숨기기 적용 뒤·몰 거르기 전.
-  - `warnings[]` 는 글쓰기 응답 `PostWriteResult.warnings` · 고치기 응답 `PostDetail.warnings`. **수정 때 링크를 그대로 두면 차단이어도 저장 + 경고, 차단 도메인으로 바꾸면 칸 오류**.
-  - 공개 화면은 설정값(1억·90%·30일)을 기본값 상수로 미리 검사 — 공개 쪽 설정값 전달 경로 미정.
-  - 「가격 수정 N회」 = 딜가·정상가를 바꾼 수정 줄 수(배송비 제외). 「내일 마감」 = 기기 달력 내일이고 12시간 넘게 남음.
+  - 「내일 마감」 = 기기 달력 내일이고 12시간 넘게 남음. (고치기 차단 경고·가격 수정 셈·공개 화면 상한은 「확정 가정」.)
   - 되돌리기 때 재고가 품절이었으면 「모름」으로. 가격 허위 신고(204) 뒤 화면이 카드 `endRequests` 를 직접 고침.
   - 가젯 「더 보기」 갈 곳: 서버 `more.to` → 설정 `boards[0]` → 첫 줄의 게시판.
   - 관리자: 이력 응답 `{ items, retentionMonths }`, 회원 후보 판매처 칸 `domain` → **`host`**(판매처 후보와 맞춤), 판매처 후보 글은 상세 `DealSuspicionDetail.posts`(≤30) + `members[]`(회원별 이 판매처 글 수·다른 핫딜 수), 목록 `kindCounts`, 핫딜 목록 줄 `blockedHost`·응답 `blockedActiveCount`, impact `{ domain, activeCount, samples[≤3] }`, 설정 응답 `rewardDailyLimit`(읽기 전용), `keyParams` 최대 10개·추적 파라미터 거절(`fields.keyParams`).
@@ -177,17 +179,17 @@ SiteAffiliateStore { id, domain(정규화), programName(≤40), transform: { typ
 
 ### 제휴 방식 목업 (D5, 커밋 user-web `de9764d0` · admin-web `59cca827`)
 - 새 `?mock=` — user-web: `deal-site-affiliate`(SITE — 쓰기 체크 숨김·개인 제휴 링크 칸 오류·쿠팡·11번가 글 「제휴」) · `deal-site-affiliate-nostore`(SITE 인데 사이트 제휴 몰 없음 → 제휴 표시 없음). admin-web: `site-affiliate`(SITE 로 시작) · `site-affiliate-empty`(몰 표 빔) · `affiliate-impact-zero`(영향 0건), 기존 `conflict` 는 몰 저장에도(409), `forbidden` 이면 몰 표 보기만.
-- 화면이 새로 정한 것(확인 필요)
-  - **`affiliateMode` 를 받는 곳**: 게시판 응답 `BoardDetail.dealAffiliateMode`(핫딜 게시판만, 없으면 MEMBER — 링크를 넣기 전부터 체크를 숨기려고) + link-check `DealLinkCheck.affiliateMode`(오면 우선). link-check 에 `siteAffiliate: { programName } | null`(사이트 제휴 몰 여부 — 단정형 안내 「구매 링크는 로보얌 제휴 링크로 바뀝니다」).
-  - SITE 에서 개인 제휴 링크 칸 오류는 판정 즉시 보임. 서버는 `400 VALIDATION fields."deal.productUrl"` 또는 단독 코드 `DEAL_MEMBER_AFFILIATE_OFF` 둘 다 같은 칸에. 고치기에서 링크를 그대로 두면 SITE 여도 칸 오류 없음(차단과 같은 규칙), SITE 면 `affiliate` 는 false 로 저장.
-  - **구매 링크 `/go/deal/{postId}` 라우팅 결정 필요**: 목업도 그 주소를 그대로 둬서 지금은 새 탭에 Nuxt 404(devProxy 는 `/api` 만). 실서버에서 프론트 도메인의 `/go/` 를 서버로 넘기는 설정이 필요하고, 아니면 `/api/deals/{postId}/go` 처럼 `/api` 아래로 옮기는 안.
+- 화면이 새로 정한 것(2026-11-01 확정)
+  - `siteAffiliate` 가 있으면 쓰기에 단정형 안내 「구매 링크는 로보얌 제휴 링크로 바뀝니다」. (`affiliateMode` 받는 곳·고치기 규칙은 「확정 가정」.)
+  - SITE 에서 개인 제휴 링크 칸 오류는 판정 즉시 보임. 서버는 `400 VALIDATION fields."deal.productUrl"` 또는 단독 코드 `DEAL_MEMBER_AFFILIATE_OFF` 둘 다 같은 칸에.
+  - **구매 링크 주소 결정(2026-11-01)**: `/api/deals/{postId}/go`(302). 목업은 그 주소를 받는 서버가 없어 `buyUrl` 에 저장된 상품 링크를 바로 넣는다(`// REAL:` 주석에 실주소).
   - 관리자: 방식 선택은 초안에 들어가고 **[저장] 때 확인 창**(방향별 문구 + 영향 글 수 + 켠 몰 0개 경고 + 함께 저장할 다른 칸 수). 사이트 제휴 몰 표는 초안이 SITE 면 저장 전에도 보이고 바로 저장(설정 저장과 별개). impact 응답 `{ mode, memberAffiliateActive, siteStoreMatched, siteStoreActive(켠 몰로 가는 진행 중 글 전체) }`. 상세·링크 규칙 목록 응답 `affiliateMode`. 몰 줄에 `updatedBy`·`updatedAt`. 변환: TEMPLATE 은 `{url}` 자리에 `encodeURIComponent(원래 주소)`, QUERY 는 쿼리를 붙이되 같은 이름이면 바꿈. 틀 ≤1000자·쿼리 ≤300자, 새 몰은 켠 채로, 켬/끔은 줄 전체 PUT, 몰 표 조회·편집 `hotdeal.manage`. 몰 판정은 최종 호스트 우선·접미사·긴 도메인 우선·켠 몰만. 코드 `404 HOTDEAL_SITE_AFFILIATE_NOT_FOUND`, `fields.affiliateMode`.
 - 서버 후보: `deal_settings.affiliate_mode`, 사이트 제휴 몰 표, 클릭 때 변환(`SiteAffiliateLinker` 후보)·집계.
 
 ## 미확정
 - 같은 딜 판정에 쿼리 문자열을 어디까지 남길지 — 규칙별 `keyParams` 로 정하되 기본 몰 목록은 운영하며 채움.
 - 종료 요청 자격·하루 글 5건·같은 몰 10분·마감 없는 딜 30일은 추천안 채택값(바꿀 수 있음).
-- 가젯 `HOT_DEALS` 범위: 핫딜 게시판 고르기(비우면 전체).
+- `coupa.ng` 가 쿠팡 공식 단축 주소인지(지금은 제휴 시드). 사이트 제휴 몰 표 첫 줄들(어느 몰·프로그램과 계약할지)은 운영하며 채움 — 시드 없음.
 
 ## 법무 확인 (05 §5)
 - 제휴 표시 문구·위치(지침 원문, 플랫폼 배지가 작성자 의무를 채우는지).

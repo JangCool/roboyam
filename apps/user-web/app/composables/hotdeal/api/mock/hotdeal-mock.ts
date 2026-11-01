@@ -39,10 +39,10 @@
 //   · 종료 요청: 서로 다른 회원 3명 → FLAGGED, 유예 12시간 → 자동 종료(목업은 배치가 없어 시각만 보인다). 작성자는 자기 글에 못 한다. 끝난 딜은 못 한다.
 //   · keep 최대 2번 · 작성자 되돌리기 종료 뒤 24시간 안 1번 · 추천 10 이상 HOT · 마감 없는 딜 30일 뒤 기간 종료 · 금액 상한 1억 · 할인율 90% 이상이면 가격 기준 필수.
 //   · 재고 「품절」로 저장 = 작성자 종료. 고치기 저장 때 링크를 바꾸지 않았는데 지금 규칙이 차단이면 저장 + 경고(링크를 차단 도메인으로 바꾸면 칸 오류).
-//   · 딜 칸 수정 이력: 딜가·정상가·배송비가 바뀌면 「가격 수정」 +1, 호스트가 바뀌면 「링크 바뀜」.
+//   · 딜 칸 수정 이력: 딜가·정상가가 바뀌면 「가격 수정」 +1(배송비 제외), 호스트가 바뀌면 「링크 바뀜」.
 //   · 제휴 링크 방식(D5): `affiliateKind` 는 읽을 때 지금 방식으로 계산 — `MEMBER` 면 `affiliate` 글 = MEMBER, `SITE` 면 사이트 제휴 몰(최종 호스트 우선, 접미사 일치) 글 = SITE, 그 밖 null
 //     (기존 개인 제휴 글도 글은 남고 표시만 바뀐다 — 계약 「제휴 방식 전환 때 기존 글」). 저장된 `productUrl`·`affiliate` 는 바꾸지 않는다.
-//     `buyUrl` 은 늘 `/go/deal/{postId}`(서버 302 — 목업에는 그 주소를 받는 곳이 없어 눌러도 열리지 않는다). 고치기에서 링크를 그대로 두면 `SITE` 여도 칸 오류 없음(차단과 같은 규칙).
+//     `buyUrl` 실서버는 늘 `/api/deals/{postId}/go`(서버 302). 목업은 그 주소를 받는 서버가 없어 저장된 상품 링크로 바로 연다(변환은 서버 몫). 고치기에서 링크를 그대로 두면 `SITE` 여도 칸 오류 없음(차단과 같은 규칙).
 
 import { ApiError } from '~/composables/common/useApiClient';
 import { MOCK_ERRORS, mockClone, mockDelay, mockFlags } from '~/composables/common/mock/mock-util';
@@ -732,8 +732,9 @@ export function mockDealView(p: MockDealPost, now: number = Date.now()): PostDea
     const affiliateKind = mockDealAffiliateMode() === 'SITE' ? (site ? 'SITE' : null) : d.affiliate ? 'MEMBER' : null;
     return mockClone({
         ...rest,
-        // MOCK: 서버 경유 구매 주소(`GET /go/deal/{postId}` 302) — 목업에는 받는 곳이 없다
-        buyUrl: `/go/deal/${encodeURIComponent(p.id)}`,
+        // MOCK: 서버 302 대신 저장된 상품 링크로 바로 연다(사이트 제휴 변환은 서버가 한다)
+        // REAL: buyUrl: `/api/deals/${encodeURIComponent(p.id)}/go` — 서버가 내려 준 값을 그대로 쓴다
+        buyUrl: d.productUrl,
         affiliateKind,
         siteProgramName: affiliateKind === 'SITE' ? (site?.programName ?? null) : null,
         discountRate,
@@ -789,7 +790,7 @@ function storedOf(input: DealInput, before: StoredDeal | null): StoredDeal {
         image: input.image,
     });
     if (before) {
-        const priceChanged = before.dealPrice !== next.dealPrice || before.normalPrice !== next.normalPrice || before.shippingFee !== next.shippingFee;
+        const priceChanged = before.dealPrice !== next.dealPrice || before.normalPrice !== next.normalPrice;
         next.revision = {
             priceEdits: before.revision.priceEdits + (priceChanged ? 1 : 0),
             linkChanged: before.revision.linkChanged || before.productHost !== next.productHost,

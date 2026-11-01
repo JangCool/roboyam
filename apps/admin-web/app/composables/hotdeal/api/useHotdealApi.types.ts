@@ -99,7 +99,7 @@ export interface PostDeal {
     /** 진행 중인 같은 딜(같은 `product_url_key`) 수 — 이 글 제외 */
     sameDealCount: number;
     /**
-     * 지금 `affiliateMode` 로 계산한 구매 링크 제휴 종류(읽을 때 계산 — 저장된 `productUrl` 은 바꾸지 않고 변환은 `/go/deal/{postId}` 클릭 때만).
+     * 지금 `affiliateMode` 로 계산한 구매 링크 제휴 종류(읽을 때 계산 — 저장된 `productUrl` 은 바꾸지 않고 변환은 `/api/deals/{postId}/go` 클릭 때만).
      * `MEMBER` 방식: 개인 제휴 글이면 `MEMBER`. `SITE` 방식: 상품·최종 호스트가 켠 사이트 제휴 몰이면 `SITE`, 아니면 null(개인 제휴는 떼고 원래 링크).
      */
     affiliateKind: DealAffiliateKind;
