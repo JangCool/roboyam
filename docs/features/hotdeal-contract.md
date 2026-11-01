@@ -186,7 +186,14 @@ SiteAffiliateStore { id, domain(정규화), programName(≤40), transform: { typ
   - 관리자: 방식 선택은 초안에 들어가고 **[저장] 때 확인 창**(방향별 문구 + 영향 글 수 + 켠 몰 0개 경고 + 함께 저장할 다른 칸 수). 사이트 제휴 몰 표는 초안이 SITE 면 저장 전에도 보이고 바로 저장(설정 저장과 별개). impact 응답 `{ mode, memberAffiliateActive, siteStoreMatched, siteStoreActive(켠 몰로 가는 진행 중 글 전체) }`. 상세·링크 규칙 목록 응답 `affiliateMode`. 몰 줄에 `updatedBy`·`updatedAt`. 변환: TEMPLATE 은 `{url}` 자리에 `encodeURIComponent(원래 주소)`, QUERY 는 쿼리를 붙이되 같은 이름이면 바꿈. 틀 ≤1000자·쿼리 ≤300자, 새 몰은 켠 채로, 켬/끔은 줄 전체 PUT, 몰 표 조회·편집 `hotdeal.manage`. 몰 판정은 최종 호스트 우선·접미사·긴 도메인 우선·켠 몰만. 코드 `404 HOTDEAL_SITE_AFFILIATE_NOT_FOUND`, `fields.affiliateMode`.
 - 서버 후보: `deal_settings.affiliate_mode`, 사이트 제휴 몰 표, 클릭 때 변환(`SiteAffiliateLinker` 후보)·집계.
 
+## 서버 구현 결과
+- 1·2단계의 API 모양·빈칸 결정은 세션 공유 메모 `hotdeal-member-api.md` 0~3절(서버 DTO 가 정본). 2단계(2026-11-01): 작성자 종료·되돌리기·keep·종료 요청 API, 보상, 신고 연결, 가젯 `HOT_DEALS`, 인기글 제외, 회원 알림 5종, Java 배치 4개(`hotdeal-auto-end`·`hotdeal-expiry-notice`·`hotdeal-cleanup`·`hotdeal-suspicion`).
+- 3단계(관리자)가 부를 shared 진입점: 운영진 종료 `DealEndService#endByManager(postId, actorId, reason)`(보상·작성자 알림 포함) · 운영진 재개 `DealEndService#reopenByManager(postId)`(의심·keep·요청 리셋 + 「마감을 고쳐 주세요」) · 결과 `Outcome`(`STATE_CHANGED` → `409 HOTDEAL_STATE_CHANGED`) · 알림 `DealNotices` · 탈퇴 `DealWithdrawal#withdraw`(탈퇴 API 가 생기면).
+- 배치의 실행 서버: 계약은 「배치(api)」였지만 배치 인프라(`_backend-core.md` 「배치」)대로 작업은 shared `com.community.hotdeal.batch`, 예약·「지금 실행」은 관리자 서버(`roboyam.batch.enabled`)가 돌린다.
+
 ## 미확정
+- 「의심 구간」의 뜻(2단계 가정): 의심이 된 회차의 요청(문턱을 채운 요청 포함) + 의심인 동안의 요청, 「아직 진행 중」으로 반박된 회차는 보상하지 않음. 운영진이 재개한 딜에 같은 회원이 다시 요청하면 새 요청이라 다시 보상받을 수 있다.
+- 글에 붙지 않은 OG 사본의 정리 기한 7일(2단계 가정). 위장 홍보 열린 후보가 조건에서 벗어나도 저절로 닫지 않음. 대형몰 `smartstore.naver.com` 이 common 이라 스마트스토어 판매자는 위장 홍보 집계에서 빠진다.
 - 같은 딜 판정에 쿼리 문자열을 어디까지 남길지 — 규칙별 `keyParams` 로 정하되 기본 몰 목록은 운영하며 채움.
 - 종료 요청 자격·하루 글 5건·같은 몰 10분·마감 없는 딜 30일은 추천안 채택값(바꿀 수 있음).
 - `coupa.ng` 가 쿠팡 공식 단축 주소인지(지금은 제휴 시드). 사이트 제휴 몰 표 첫 줄들(어느 몰·프로그램과 계약할지)은 운영하며 채움 — 시드 없음.
