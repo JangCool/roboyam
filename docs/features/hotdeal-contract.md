@@ -190,12 +190,15 @@ SiteAffiliateStore { id, domain(정규화), programName(≤40), transform: { typ
 - 1·2단계의 API 모양·빈칸 결정은 세션 공유 메모 `hotdeal-member-api.md` 0~3절(서버 DTO 가 정본). 2단계(2026-11-01): 작성자 종료·되돌리기·keep·종료 요청 API, 보상, 신고 연결, 가젯 `HOT_DEALS`, 인기글 제외, 회원 알림 5종, Java 배치 4개(`hotdeal-auto-end`·`hotdeal-expiry-notice`·`hotdeal-cleanup`·`hotdeal-suspicion`).
 - 3단계(관리자)가 부를 shared 진입점: 운영진 종료 `DealEndService#endByManager(postId, actorId, reason)`(보상·작성자 알림 포함) · 운영진 재개 `DealEndService#reopenByManager(postId)`(의심·keep·요청 리셋 + 「마감을 고쳐 주세요」) · 결과 `Outcome`(`STATE_CHANGED` → `409 HOTDEAL_STATE_CHANGED`) · 알림 `DealNotices` · 탈퇴 `DealWithdrawal#withdraw`(탈퇴 API 가 생기면).
 - 배치의 실행 서버: 계약은 「배치(api)」였지만 배치 인프라(`_backend-core.md` 「배치」)대로 작업은 shared `com.community.hotdeal.batch`, 예약·「지금 실행」은 관리자 서버(`roboyam.batch.enabled`)가 돌린다.
+- 3단계(관리자, 2026-11-01): `/api/admin/hotdeals`(boards·목록·상세·revisions·end·reopen) · `hotdeal-domains`(+impact) · `hotdeal-suspicions`(+dismiss) · `hotdeal-settings`(+affiliate-impact) · `hotdeal-site-affiliates` · 신고 사건 `DEAL_END`·`deal: {view}` · 관리자 글 줄 `deal: boolean` · `AdminScreenRegistry` 4줄 · 감사 10개(모두 일반). 딜 보기 계산은 shared `DealViewAssembler`(공개·관리자 같은 판정), 담당 판정은 shared `DealModeration`. V122 에 신고 사건 조치 CHECK `DEAL_END` 추가(로컬 DB 미적용 확인). 공개 손질: 핫딜 쓰기 자격(회원·정지 아님·이메일 인증·새싹 아님)을 `BoardAccessPolicy.writeBlocked` 에 넣어 게시판 응답 `viewer.writeBlockedReason`·`/api/boards/writable` 이 미리 막고, 글쓰기 `GRADE_TOO_LOW` 에 `minGrade`·`minGradeLabel`(핫딜은 첫 등급 바로 위 등급).
+- 3단계 결정(세션 정리): 게시판 매니저·스텝은 회원이라 관리자 앱에 들어오지 않는다 — 관리자 종료·재개 API 는 `hotdeal.manage` 만, 매니저·스텝 판정(그 게시판만)은 shared `DealModeration.Actor.boardMember` 에 두고 부를 공개 API·화면은 아직 없다. 신고 조치 `DEAL_END` 는 신고 처리 권한(`report.manage`)이 담당을 대신한다. 핫딜 설정 조회는 `hotdeal.read`(메뉴 항목은 `hotdeal.manage`).
 
 ## 미확정
 - 「의심 구간」의 뜻(2단계 가정): 의심이 된 회차의 요청(문턱을 채운 요청 포함) + 의심인 동안의 요청, 「아직 진행 중」으로 반박된 회차는 보상하지 않음. 운영진이 재개한 딜에 같은 회원이 다시 요청하면 새 요청이라 다시 보상받을 수 있다.
 - 글에 붙지 않은 OG 사본의 정리 기한 7일(2단계 가정). 위장 홍보 열린 후보가 조건에서 벗어나도 저절로 닫지 않음. 대형몰 `smartstore.naver.com` 이 common 이라 스마트스토어 판매자는 위장 홍보 집계에서 빠진다.
 - 같은 딜 판정에 쿼리 문자열을 어디까지 남길지 — 규칙별 `keyParams` 로 정하되 기본 몰 목록은 운영하며 채움.
 - 종료 요청 자격·하루 글 5건·같은 몰 10분·마감 없는 딜 30일은 추천안 채택값(바꿀 수 있음).
+- 3단계 가정: 관리자 핫딜 목록은 지운 글(예약 삭제 지남 포함)을 빼고 숨긴 글은 넣는다 · 게시판 매니저·스텝의 종료·재개 공개 API·화면(판정만 있음) · 수정 이력 칸에 `dutyIncluded`·`image` 도 그대로 나간다(admin-web 칸 목록 밖) · 링크 규칙 `note` 100자(DB 200).
 - `coupa.ng` 가 쿠팡 공식 단축 주소인지(지금은 제휴 시드). 사이트 제휴 몰 표 첫 줄들(어느 몰·프로그램과 계약할지)은 운영하며 채움 — 시드 없음.
 
 ## 법무 확인 (05 §5)
