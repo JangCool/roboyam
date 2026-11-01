@@ -29,6 +29,7 @@ import tools.jackson.databind.json.JsonMapper;
  * 만든 핫딜 게시판은 19금 끔 · 글쓰기 최소 자격 첫 등급 바로 위 · 비회원 글쓰기 없음 · 가젯 노출 금지 인기글이고, 상세를 그대로 다시 저장해도 검사에 걸리지 않는다.
  * 직접홍보(PROMO)는 여전히 거절, 소모임 분류는 소모임 게시판만. 핫딜 게시판의 19금 켜기·첫 등급 글쓰기 저장은 400.
  * 핫딜 게시판에도 매니저·스텝을 지정할 수 있다(핫딜 담당 = 그 게시판 매니저·스텝).
+ * 핫딜 게시판 말머리는 공통을 끄고 고유 말머리 로봇·AI·메이킹·기타로 시작하고, 일반 게시판은 공통 넷 그대로다(사용자 지시 2026-11-02).
  */
 class BoardDealCreateHttpTest extends Commerce04AdminTestBase {
 
@@ -146,6 +147,37 @@ class BoardDealCreateHttpTest extends Commerce04AdminTestBase {
         assertThat(effective.kind()).isEqualTo("DEAL");
         assertThat(effective.allowAdult()).isFalse();
         assertThat(effective.writeMin()).isEqualTo(second);
+    }
+
+    /** 사용 중인 말머리 이름(표시 순서) — 공통이면 {@code common} 이 true 인 것, 아니면 고유 */
+    private List<String> activePrefixes(String id, boolean common) {
+        return jdbc.queryForList("SELECT name FROM board_prefixes WHERE board_id = ? AND active AND (common_key IS NOT NULL) = ? ORDER BY sort_order",
+                String.class, Long.parseLong(id), common);
+    }
+
+    @Test
+    void 핫딜_게시판은_공통_말머리를_끄고_고유_말머리_로봇_AI_메이킹_기타로_시작한다() throws Exception {
+        String id = createDeal("LIST");
+        assertThat(activePrefixes(id, true)).isEmpty();
+        assertThat(activePrefixes(id, false)).containsExactly("로봇", "AI", "메이킹", "기타");
+        // 공통 말머리 줄은 꺼진 채 있다(나중에 켤 수 있게), 고유 말머리는 모두 운영진 전용 아님 · 색 없음
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM board_prefixes WHERE board_id = ? AND common_key IS NOT NULL AND NOT active", Integer.class,
+                Long.parseLong(id))).isEqualTo(4);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM board_prefixes WHERE board_id = ? AND common_key IS NULL AND (staff_only OR color IS NOT NULL)",
+                Integer.class, Long.parseLong(id))).isZero();
+        // 상세 응답에도 같은 차례로 보인다
+        List<String> shown = JsonPath.read(detail(id), "$.data.prefixes[?(@.active == true)].name");
+        assertThat(shown).containsExactly("로봇", "AI", "메이킹", "기타");
+    }
+
+    @Test
+    void 일반_게시판은_그대로_공통_말머리_넷만_켜고_고유_말머리는_없다() throws Exception {
+        String response = create("GENERAL", "LIST", "").andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String id = JsonPath.read(response, "$.data.id");
+        created.add(id);
+        assertThat(activePrefixes(id, true)).containsExactly("질문", "후기", "잡담", "공지");
+        assertThat(activePrefixes(id, false)).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM board_prefixes WHERE board_id = ? AND common_key IS NULL", Integer.class, Long.parseLong(id))).isZero();
     }
 
     @Test

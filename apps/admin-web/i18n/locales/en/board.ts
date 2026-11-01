@@ -82,7 +82,7 @@ export default {
     },
     createKindHelp: {
         GENERAL: 'Like the address, this cannot be changed later',
-        DEAL: 'Each post carries deal info (price · store · link) and the list shows price lines · 18+ stays off · posting starts at the regular grade · the type cannot be changed later',
+        DEAL: 'Each post carries deal info (price · store · link) and the list shows price lines · 18+ stays off · posting starts at the regular grade · prefixes start as Robots, AI, Making and Other (you can change them later) · the type cannot be changed later',
         GROUP: 'No menu entry or board page · posts show in the club list and in each club · the type cannot be changed later',
     },
     createKindFixed: 'Only club boards can be created from Club categories',
