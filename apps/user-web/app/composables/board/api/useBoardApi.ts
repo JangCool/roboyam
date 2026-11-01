@@ -1,6 +1,7 @@
 import type { BoardDetail, BoardView } from '~/composables/board/api/useBoardApi.types';
 import type { DealPostListQuery, PostListQuery, PostListResponse } from '~/composables/board/api/usePostApi.types';
 import UtilHotdeal from '~/utils/util-hotdeal';
+import { mockBizdealWithRows } from '~/composables/board/api/mock/bizdeal-board-mock';
 
 /**
  * 게시판 API — 서버 주소 문자열(`/api/boards/…`)이 있는 **유일한 곳**이다 (frontend-guide 2장). 상태는 없다.
@@ -17,6 +18,7 @@ import UtilHotdeal from '~/utils/util-hotdeal';
  * 공개 표시 기본값(날짜 표시 방식·새 글 기준)은 따로 묻지 않는다 — `GET /api/site/info` 의 `boardDisplay`(`useBoardDisplay`).
  *
  * 서버 연결됨(2026-10-22). 핫딜 칸은 서버 1단계에 연결(2026-11-01).
+ * ⚠ MOCK: 사업자 핫딜 글(2차) — `?mock=bizdeal-board` 이면 핫딜 목록 첫 쪽에 목업 사업자 글을 끼운다(`./mock/bizdeal-board-mock.ts`). 서버가 붙으면 분기와 목업 import 를 지운다.
  */
 const PATH = {
     boards: '/api/boards',
@@ -48,10 +50,14 @@ export function useBoardApi() {
             }),
 
         /** 핫딜 게시판 글 목록 — 정렬(최신·인기·마감 임박)·종료 숨기기. 기본값(최신·숨김 켬)도 보낸다 */
-        dealPosts: (slug: string, query: DealPostListQuery, signal?: AbortSignal): Promise<PostListResponse> =>
-            client.get<PostListResponse>(PATH.posts(slug), {
+        dealPosts: async (slug: string, query: DealPostListQuery, signal?: AbortSignal): Promise<PostListResponse> => {
+            const response = await client.get<PostListResponse>(PATH.posts(slug), {
                 query: { prefix: query.prefix || undefined, sort: UtilHotdeal.sortParam(query.sort), hideEnded: query.hideEnded, store: query.store || undefined, q: query.q || undefined, page: query.page },
                 signal,
-            }),
+            });
+            // MOCK: 목업 사업자 글을 첫 쪽에 끼운다(스위치가 없으면 응답 그대로)
+            return mockBizdealWithRows(slug, query, response);
+            // REAL: return response;
+        },
     };
 }

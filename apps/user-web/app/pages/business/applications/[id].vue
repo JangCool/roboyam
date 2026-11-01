@@ -6,6 +6,9 @@
           [소재 바꾸기](광고 — 다시 심사로) /
         입금 대기(수동) = 입금 계좌·금액·기한·입금자명, 계약서 상태, 입금 확인 전이면 [신청 취소]·[소재 바꾸기] /
         예약·진행 = 기간·소재 버전·[취소·환불 요청](시작 전 = 전액 자동, 진행 중 = 일할 운영팀 확인 + 사유, 한 번만) · 환불은 `refund` 하위 값(요청·승인·거절).
+        사업자 핫딜(`HOTDEAL_POST`, 2차)은 「게시된 글」 칸(상세 `post`) — 게시 전(「{시각}에 {게시판}에 올라가요」) · 게시됨(딜 상태 Tag·종료 요청 사유별 수·[글 보기]·[품절로 종료] → 확인창 「환불 없음 · 노출도 멈춤」, 409 `DEAL_ENDED` 면 알리고 다시 읽기) ·
+          의심(「N명이 알렸어요 — {시각}까지 확인하지 않으면 자동 종료」, keep 은 글 보기에서) · 종료(누가 끝냈는지 · 환불 없음)·기간 종료 · 게시 실패(「운영팀이 확인 중이에요」 + 사유) · 숨김(내림·취소) + 노출 줄(대기·노출 중·멈춤(까닭)·끝남).
+          MOCK: 목업 건 `/business/applications/mock-bizdeal` + `?mock=bizdeal-…` 로 상태를 바꾼다(`composables/business/api/mock/bizdeal-mock.ts`).
         `?pay=1` 로 오면(홈의 [결제하기]) 결제창을 바로 연다. 포트원 모바일 리디렉션은 쿼리 없이 이 화면으로 돌아오고 `resumeRedirect` 가 이어 간다.
     -->
     <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="business-application">
@@ -116,10 +119,12 @@
 
                 <!-- 예약·진행·종료 -->
                 <template v-else-if="app.status === 'SCHEDULED'">
+                    <!-- 사업자 핫딜이 시작 시각에 올라가지 못했으면(게시 실패) 「진행 중」 대신 운영팀 확인 중 -->
                     <h2 class="m-0 text-base font-semibold">
-                        {{ app.phase === 'RUNNING' ? t('business.detail.runningTitle') : app.phase === 'ENDED' ? t('business.detail.endedTitle') : t('business.detail.upcomingTitle') }}
+                        {{ dealPost?.status === 'FAILED' ? t('business.post.failedTitle') : app.phase === 'RUNNING' ? t('business.detail.runningTitle') : app.phase === 'ENDED' ? t('business.detail.endedTitle') : t('business.detail.upcomingTitle') }}
                     </h2>
-                    <p v-if="app.phase === 'UPCOMING'" class="m-0 text-sm text-muted-color">{{ t('business.detail.upcomingText', { date: time.serviceDate(app.startDate) }) }}</p>
+                    <p v-if="dealPost?.status === 'FAILED'" class="m-0 text-sm text-muted-color">{{ t('business.post.failedText') }}</p>
+                    <p v-else-if="app.phase === 'UPCOMING'" class="m-0 text-sm text-muted-color">{{ t('business.detail.upcomingText', { date: time.serviceDate(app.startDate) }) }}</p>
                     <p v-else-if="app.phase === 'RUNNING'" class="m-0 text-sm text-muted-color">{{ t('business.detail.runningText', { date: time.serviceDate(app.endDate) }) }}</p>
                     <div v-if="app.phase !== 'ENDED' && !app.refund">
                         <Button type="button" :label="t('business.detail.refund')" icon="pi pi-replay" severity="secondary" variant="outlined" size="small" data-testid="business-refund" @click="refundOpen = true" />
@@ -157,6 +162,87 @@
                 </div>
             </section>
 
+            <!-- 게시된 글(사업자 핫딜 2차 — 상세 `post`, 없으면 감춘다) -->
+            <section v-if="dealPost" class="panel-card flex flex-col gap-3 p-4" :aria-labelledby="`${uid}-post`" data-testid="business-deal-post" :data-post-status="dealPost.status">
+                <h2 :id="`${uid}-post`" class="m-0 flex flex-wrap items-center gap-1.5 text-sm font-semibold">
+                    {{ t('business.post.title') }}
+                    <PointShopTag :tone="postTone">{{ t(`business.post.status.${dealPost.status}`) }}</PointShopTag>
+                    <PointShopTag v-if="dealPost.status === 'POSTED' && dealPost.view" :tone="viewTone" data-testid="business-deal-post-view">{{ t(`business.post.view.${dealPost.view}`) }}</PointShopTag>
+                </h2>
+
+                <!-- 게시 전 -->
+                <p v-if="dealPost.status === 'WAITING'" class="m-0 flex items-start gap-1.5 text-sm leading-relaxed">
+                    <i class="pi pi-clock mt-1 text-xs text-muted-color" aria-hidden="true" />{{ waitingText }}
+                </p>
+
+                <!-- 게시 실패 — 운영팀이 확인 뒤 취소(전액 환불) -->
+                <Message v-else-if="dealPost.status === 'FAILED'" severity="warn" size="small" :closable="false" data-testid="business-deal-post-failed">
+                    <p class="m-0 font-semibold">{{ t('business.post.failedTitle') }}</p>
+                    <!-- 예약 상태면 위 상태 칸이 같은 말을 한다 -->
+                    <p v-if="app.status !== 'SCHEDULED'" class="m-0 mt-1 text-sm">{{ t('business.post.failedText') }}</p>
+                    <p v-if="dealPost.failReason" class="m-0 mt-1 text-sm">{{ t('business.post.failReasonLabel') }} · {{ t(`business.post.failReason.${dealPost.failReason}`) }}</p>
+                </Message>
+
+                <!-- 숨김 — 긴급 내림·취소·환불 -->
+                <Message v-else-if="dealPost.status === 'HIDDEN'" severity="secondary" size="small" :closable="false" data-testid="business-deal-post-hidden">
+                    <p class="m-0 font-semibold">{{ t('business.post.hiddenTitle') }}</p>
+                    <p class="m-0 mt-1 text-sm">{{ hiddenText }}</p>
+                </Message>
+
+                <!-- 게시됨 — 의심 · 종료 · 기간 종료 안내 -->
+                <template v-else>
+                    <Message v-if="dealPost.view === 'FLAGGED'" severity="warn" size="small" :closable="false" data-testid="business-deal-post-flagged">
+                        <p class="m-0 font-semibold">{{ flaggedText }}</p>
+                        <p class="m-0 mt-1 text-sm">{{ t('business.post.flaggedHelp') }}</p>
+                    </Message>
+                    <div v-else-if="dealPost.view === 'ENDED'" class="flex flex-col gap-1 rounded-lg bg-surface-100 px-3 py-2 text-sm dark:bg-surface-800" data-testid="business-deal-post-ended">
+                        <p class="m-0 flex flex-wrap items-center gap-x-2 font-medium">
+                            <i class="pi pi-ban text-xs text-muted-color" aria-hidden="true" />{{ dealPost.endedBy ? t(`business.post.endedBy.${dealPost.endedBy}`) : t('business.post.view.ENDED') }}
+                            <span v-if="dealPost.endedAt" class="text-xs font-normal text-muted-color">{{ t('business.post.endedAt', { at: time.full(dealPost.endedAt) }) }}</span>
+                        </p>
+                        <p class="m-0 text-xs text-muted-color">{{ t('business.post.endedNoRefund') }}</p>
+                    </div>
+                    <p v-else-if="dealPost.view === 'EXPIRED'" class="m-0 text-sm text-muted-color">{{ t('business.post.expiredText') }}</p>
+                </template>
+
+                <dl class="m-0 grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">
+                    <dt class="text-muted-color">{{ t('business.post.board') }}</dt>
+                    <dd class="m-0">{{ dealPost.boardName }}</dd>
+                    <template v-if="dealPost.prefixName">
+                        <dt class="text-muted-color">{{ t('business.post.prefix') }}</dt>
+                        <dd class="m-0">{{ dealPost.prefixName }}</dd>
+                    </template>
+                    <dt class="text-muted-color">{{ t('business.post.publishAt') }}</dt>
+                    <dd class="m-0 tabular-nums">{{ time.full(dealPost.publishAt) }}</dd>
+                    <template v-if="dealPost.endRequests">
+                        <dt class="text-muted-color">{{ t('business.post.endRequests') }}</dt>
+                        <dd class="m-0" data-testid="business-deal-post-requests">
+                            <template v-if="dealPost.endRequests.total > 0">
+                                <span class="font-semibold tabular-nums">{{ t('business.post.endRequestsTotal', { n: dealPost.endRequests.total }) }}</span>
+                                <span v-if="requestCounts" class="text-xs text-muted-color"> · {{ requestCounts }}</span>
+                            </template>
+                            <span v-else class="text-muted-color">{{ t('business.post.endRequestsNone') }}</span>
+                        </dd>
+                    </template>
+                    <template v-if="dealPost.placement">
+                        <dt class="text-muted-color">{{ t('business.post.placement') }}</dt>
+                        <dd class="m-0 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1" data-testid="business-deal-post-placement" :data-placement-status="dealPost.placement.status">
+                            {{ t(`business.post.placementProduct.${dealPost.placement.product}`) }}
+                            <PointShopTag :tone="placementTone">{{ t(`business.post.placementStatus.${dealPost.placement.status}`) }}</PointShopTag>
+                            <span v-if="dealPost.placement.status === 'STOPPED' && dealPost.placement.stopReason" class="text-xs text-muted-color">{{ t(`business.post.stopReason.${dealPost.placement.stopReason}`) }}</span>
+                        </dd>
+                    </template>
+                </dl>
+
+                <div v-if="dealPost.status === 'POSTED' && dealPost.postId" class="flex flex-col gap-1.5">
+                    <div class="flex flex-wrap gap-2">
+                        <Button as="router-link" :to="postLink" :label="t('business.post.viewPost')" icon="pi pi-external-link" size="small" severity="secondary" variant="outlined" data-testid="business-deal-post-link" />
+                        <Button v-if="canEndDeal" type="button" :label="t('business.post.endSoldOut')" icon="pi pi-stop-circle" size="small" severity="danger" variant="outlined" :loading="endingDeal" data-testid="business-deal-end" @click="endDeal" />
+                    </div>
+                    <p v-if="canEndDeal" class="m-0 text-xs text-muted-color">{{ t('business.post.endHelp') }}</p>
+                </div>
+            </section>
+
             <!-- 신청 내용 -->
             <section class="panel-card flex flex-col gap-3 p-4" :aria-labelledby="`${uid}-info`">
                 <h2 :id="`${uid}-info`" class="m-0 text-sm font-semibold">{{ t('business.detail.info') }}</h2>
@@ -189,6 +275,7 @@
                 <!-- 딜 정보(핫딜) -->
                 <div v-if="app.deal" class="flex flex-col gap-1.5">
                     <p class="m-0 text-sm font-semibold">{{ t('business.detail.dealTitle') }}</p>
+                    <HotdealThumb v-if="app.deal.imageUrl" :url="app.deal.imageUrl" class="aspect-square w-20" />
                     <p class="m-0 flex flex-wrap items-baseline gap-x-1.5 tabular-nums">
                         <span v-if="dealDiscount !== null" class="text-sm font-bold text-red-600 dark:text-red-400">{{ dealDiscount }}%</span>
                         <span class="text-base font-bold">{{ UtilBusinessMessages.won(t, app.deal.dealPrice) }}</span>
@@ -255,6 +342,9 @@ import type { PaymentResult } from '~/composables/payment/api/usePaymentApi.type
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilBusiness from '~/utils/util-business';
 import UtilBusinessMessages from '~/utils/util-business-messages';
+import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
+// MOCK: 목업 글 보기로 스위치를 이어 준다 — 서버가 붙으면 이 줄과 쓰는 곳을 지운다
+import { bizdealMockQuery, isMockBizdealId } from '~/composables/business/api/mock/bizdeal-mock';
 
 /**
  * 신청 건 상세 `/business/applications/{id}` — 로그인 필요. 내 신청 건 목록·사업자 센터 홈의 할 일 카드·알림(결제 요청·기한 임박)이 온다.
@@ -441,6 +531,72 @@ async function saveCreative(body: BizCreativeRequest): Promise<void> {
         }
     } finally {
         actionBusy.value = false;
+    }
+}
+
+/* ── 게시된 글(사업자 핫딜 2차) ── */
+const dealPost = computed(() => (app.value?.kind === 'HOTDEAL_POST' ? (app.value.post ?? null) : null));
+type PostTagTone = 'neutral' | 'primary' | 'success' | 'warn';
+const postTone = computed<PostTagTone>(() => {
+    const s = dealPost.value?.status;
+    return s === 'POSTED' ? 'success' : s === 'FAILED' ? 'warn' : 'neutral';
+});
+const viewTone = computed<PostTagTone>(() => {
+    const v = dealPost.value?.view;
+    return v === 'ACTIVE' ? 'primary' : v === 'FLAGGED' ? 'warn' : 'neutral';
+});
+const placementTone = computed<PostTagTone>(() => {
+    const s = dealPost.value?.placement?.status;
+    return s === 'SHOWING' ? 'success' : s === 'STOPPED' ? 'warn' : 'neutral';
+});
+const waitingText = computed(() => {
+    const p = dealPost.value;
+    if (!p) return '';
+    const at = time.value.full(p.publishAt);
+    return p.prefixName ? t('business.post.waitingPrefixText', { at, board: p.boardName, prefix: p.prefixName }) : t('business.post.waitingText', { at, board: p.boardName });
+});
+const flaggedText = computed(() => {
+    const p = dealPost.value;
+    const n = p?.endRequests?.total ?? 0;
+    return p?.autoEndAt ? t('business.post.flaggedText', { n, at: time.value.full(p.autoEndAt) }) : t('business.post.flaggedTextSoon', { n });
+});
+const hiddenText = computed(() => {
+    const s = app.value?.status;
+    if (s === 'TAKEN_DOWN') return t('business.post.hiddenTakenDown');
+    if (s === 'CANCELED' || app.value?.refund?.status === 'APPROVED') return t('business.post.hiddenCanceled');
+    return t('business.post.hiddenOther');
+});
+const requestCounts = computed(() => (dealPost.value?.endRequests ? UtilHotdealMessages.requestCounts(t, dealPost.value.endRequests) : ''));
+/** 사업자 종료 — 게시되고 진행 중·의심일 때만(끝난 딜은 다시 열 수 없다) */
+const canEndDeal = computed(() => dealPost.value?.status === 'POSTED' && (dealPost.value.view === 'ACTIVE' || dealPost.value.view === 'FLAGGED'));
+const postLink = computed(() => {
+    const path = `/posts/${dealPost.value?.postId ?? ''}`;
+    // MOCK: 목업 건이면 목업 글 보기에 스위치를 이어 주고, 글쓴이(사업자)로 보이게 한다
+    if (isMockBizdealId(id.value)) return { path, query: { ...bizdealMockQuery(['bizdeal-mine']), board: dealPost.value?.boardSlug } };
+    return path;
+});
+
+const endingDeal = ref(false);
+async function endDeal(): Promise<void> {
+    if (!app.value || endingDeal.value) return;
+    const ok = await confirm({ title: t('business.post.endConfirmTitle'), message: t('business.post.endConfirmMessage'), confirmLabel: t('business.post.endSoldOut'), tone: 'danger' });
+    if (!ok) return;
+    endingDeal.value = true;
+    try {
+        const post = await api.endDeal(app.value.id);
+        app.value = { ...app.value, post };
+        toast.success(t('business.post.endDone'));
+    } catch (e) {
+        if (e instanceof ApiError && e.code === 'DEAL_ENDED') {
+            // 그새 자동 종료·운영진 종료됐다 — 알리고 다시 읽는다
+            toast.show(t('business.post.endStale'));
+            await load();
+        } else {
+            const message = await handleError(e, t('common.failed'));
+            if (message) toast.error(message, 8000);
+        }
+    } finally {
+        endingDeal.value = false;
     }
 }
 

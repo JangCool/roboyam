@@ -7,6 +7,7 @@ import type {
     PostWriteRequest,
     PostWriteResult,
 } from '~/composables/board/api/usePostApi.types';
+import { isMockBizdealPostId, mockBizdealLike, mockBizdealPostDetail } from '~/composables/board/api/mock/bizdeal-board-mock';
 
 /**
  * 글 API — 서버 주소(`/api/posts…`)가 있는 유일한 곳. 상태는 없다. 목록은 게시판 아래라 `useBoardApi().posts`.
@@ -26,6 +27,7 @@ import type {
  * 고치기 본문 `deal` 은 바꿨을 때만 싣는다(빼면 그대로 — JSON null 은 거절). 쓰기·고치기 응답 `warnings[]`(예 `DEAL_LINK_BLOCKED`).
  *
  * 서버 연결됨(2026-10-22). 핫딜 칸은 서버 1단계에 연결(2026-11-01).
+ * ⚠ MOCK: 사업자 핫딜 글(2차) — 목업 글(`mock-bizdeal*`)만 `./mock/bizdeal-board-mock.ts` 로 돌린다(`// MOCK:` 분기). 서버가 붙으면 분기와 목업 import 를 지운다.
  */
 const PATH = {
     posts: '/api/posts',
@@ -41,7 +43,10 @@ export function usePostApi() {
     const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
-        post: (id: string, signal?: AbortSignal): Promise<PostDetail> => client.get<PostDetail>(PATH.post(id), { signal }),
+        post: (id: string, signal?: AbortSignal): Promise<PostDetail> =>
+            // MOCK:
+            isMockBizdealPostId(id) ? mockBizdealPostDetail(id) :
+            client.get<PostDetail>(PATH.post(id), { signal }),
 
         create: (body: PostWriteRequest): Promise<PostWriteResult> => client.post<PostWriteResult>(PATH.posts, body),
 
@@ -51,6 +56,9 @@ export function usePostApi() {
 
         verifyPassword: (id: string, password: string): Promise<void> => client.post<void>(PATH.verify(id), { password }),
 
-        like: (id: string): Promise<PostLikeResult> => client.post<PostLikeResult>(PATH.like(id)),
+        like: (id: string): Promise<PostLikeResult> =>
+            // MOCK:
+            isMockBizdealPostId(id) ? mockBizdealLike(id) :
+            client.post<PostLikeResult>(PATH.like(id)),
     };
 }

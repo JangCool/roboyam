@@ -1,7 +1,8 @@
 <template>
     <!--
         글 보기 딜 카드(본문 위) — 차례:
-          제휴 링크면 첫 줄 고정 문구(05 §2-13 — 조건부 표현 없이 단정형, 첫 부분 표시. D5 — 서버가 지금 방식으로 계산한 `affiliateKind`: `MEMBER` 작성자 개인 제휴 · `SITE` 로보얌 제휴 · null 없음)
+          사업자 글(2차 — `source BUSINESS`)이면 첫 줄 광고 고지(「광고 — {상호}에서 비용을 내고 올린…」), 끝나도 [이 상품 새 딜 올리기] 없음, 작성자(사업자) 종료 확인은 「환불 없음 · 노출도 멈춤」
+          → 제휴 링크면 첫 줄 고정 문구(05 §2-13 — 조건부 표현 없이 단정형, 첫 부분 표시. D5 — 서버가 지금 방식으로 계산한 `affiliateKind`: `MEMBER` 작성자 개인 제휴 · `SITE` 로보얌 제휴 · null 없음)
           → 상태 안내(내 글 의심: 「N명이 알렸어요 · {시각}에 자동 종료」 + [아직 진행 중이에요](확인창 「가격·재고를 고쳐 주세요」, `keepCount < keepMax` 일 때만 — 다 쓰면 「운영자 확인 중」)
             / 남의 글 의심: 「품절 알림이 들어온 딜이에요」 / 끝난 딜: 까닭·시각 + 내 글이고 `reopenUntil` 이 있으면 [다시 진행 중으로] + 남은 시간(D2), 기한 지남·이미 씀이면 안내만)
           → 이미지 · 배지 줄(제휴·수수료·HOT·임박·링크 바뀜·가격 수정 N회) → 가격 줄 → 쇼핑몰(→ 최종 호스트)·배송·재고·기간(마감 없으면 기간 종료 시각)·가격 기준(선택지·관부가세·메모)·쿠폰·딜 정보 수정(D3)
@@ -15,7 +16,11 @@
         서버 호출은 페이지가 내려 준 `actions` 로 한다. 성공하면 새 딜을 `update:deal` 로 올린다.
         게시판 관리 실패: 맡은 자리가 빠졌으면(`403 DEAL_MODERATE_FORBIDDEN`) `update:moderation` null 로 영역을 거두고, 그새 상태가 바뀌었으면(`409 DEAL_ENDED`·`DEAL_NOT_ENDED`·`404 DEAL_NOT_FOUND`) `stale` 로 페이지가 글을 다시 읽게 한다.
     -->
-    <section class="my-3 flex flex-col gap-3 rounded-xl border border-surface p-3.5" :aria-label="t('hotdeal.cardLabel')" :aria-busy="busy" data-testid="hotdeal-card" :data-deal-view="deal.view">
+    <section class="my-3 flex flex-col gap-3 rounded-xl border border-surface p-3.5" :aria-label="t('hotdeal.cardLabel')" :aria-busy="busy" data-testid="hotdeal-card" :data-deal-view="deal.view" :data-deal-source="deal.source">
+        <!-- 광고 고지(사업자 글 — 2차) — 카드 첫 줄 고정 -->
+        <p v-if="business" class="m-0 flex items-start gap-1.5 rounded-lg bg-surface-100 px-3 py-2 text-sm font-medium dark:bg-surface-800" data-testid="hotdeal-card-business">
+            <i class="pi pi-megaphone mt-0.5 text-xs" aria-hidden="true" />{{ t('hotdeal.bizNote', { name: deal.business?.name ?? '' }) }}
+        </p>
         <!-- 제휴 고지 — 카드 첫 줄 고정 -->
         <p v-if="deal.affiliateKind" class="m-0 flex items-start gap-1.5 rounded-lg bg-sky-50 px-3 py-2 text-sm font-medium text-sky-900 dark:bg-sky-950/60 dark:text-sky-100" data-testid="hotdeal-card-affiliate" :data-affiliate-kind="deal.affiliateKind">
             <i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" />{{ deal.affiliateKind === 'SITE' ? t('hotdeal.affiliateNoteSite') : t('hotdeal.affiliateNote') }}
@@ -105,7 +110,7 @@
             />
             <span :id="buyNoteId" class="text-xs text-muted-color">{{ t('hotdeal.buyNote') }}</span>
             <Button
-                v-if="over"
+                v-if="over && !business"
                 as="router-link"
                 :to="{ path: '/write', query: { board: boardSlug, from: postId } }"
                 :label="t('hotdeal.repost')"
@@ -246,6 +251,8 @@ const { prompt } = useLoginPrompt();
 const buyNoteId = useId();
 
 const over = computed(() => UtilHotdeal.isOver(props.deal.view));
+/** 사업자 글(2차) — 광고 고지 · 새 딜 올리기 없음 · 종료 확인 문구가 다르다 */
+const business = computed(() => UtilHotdeal.isBusiness(props.deal));
 const overText = computed(() => UtilHotdealMessages.overText(t, props.deal));
 const requestCounts = computed(() => UtilHotdealMessages.requestCounts(t, props.deal.endRequests));
 const revisionText = computed(() => UtilHotdealMessages.revision(t, props.deal.revision));
@@ -323,7 +330,8 @@ async function onKeep(): Promise<void> {
 
 async function onEnd(): Promise<void> {
     if (ending.value) return;
-    const ok = await confirm({ title: t('hotdeal.authorEndTitle'), message: t('hotdeal.authorEndMessage'), confirmLabel: t('hotdeal.authorEnd'), tone: 'danger' });
+    // 사업자 글은 되돌리기가 없고 환불도 없다 — 노출 자리도 같이 멈춘다
+    const ok = await confirm({ title: t('hotdeal.authorEndTitle'), message: business.value ? t('hotdeal.bizEndMessage') : t('hotdeal.authorEndMessage'), confirmLabel: t('hotdeal.authorEnd'), tone: 'danger' });
     if (!ok) return;
     ending.value = true;
     try {

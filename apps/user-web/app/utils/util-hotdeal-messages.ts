@@ -209,7 +209,7 @@ export default class UtilHotdealMessages {
      * @param {DealEndRequests} requests - 종료 요청 집계.
      * @returns {string} 글자. 알림이 없으면 빈 글자.
      */
-    static requestCounts(t: Translate, requests: DealEndRequests): string {
+    static requestCounts(t: Translate, requests: Pick<DealEndRequests, 'bySoldOut' | 'byPriceChanged' | 'byLinkDead'>): string {
         return [
             requests.bySoldOut > 0 ? t('hotdeal.countSoldOut', { n: requests.bySoldOut }) : '',
             requests.byPriceChanged > 0 ? t('hotdeal.countPriceChanged', { n: requests.byPriceChanged }) : '',

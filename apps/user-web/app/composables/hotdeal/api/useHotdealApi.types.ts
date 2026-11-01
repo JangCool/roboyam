@@ -19,8 +19,8 @@ export type DealEndReason = 'SOLD_OUT' | 'PRICE_CHANGED' | 'LINK_DEAD';
 export type DealPriceBasis = 'LISTED' | 'COUPON' | 'CARD' | 'MEMBER' | 'OVERSEAS';
 /** 링크 규칙 — 차단 · 제휴(제휴 표시 자동 켬). 규칙이 없으면 null(대형몰 표시만 있을 수 있다) */
 export type DomainRule = 'BLOCK' | 'AFFILIATE';
-/** 딜 출처 — 1차는 회원만(사업자 `BUSINESS` 는 2차) */
-export type DealSource = 'MEMBER';
+/** 딜 출처 — 회원 · 사업자(2차 — 예약된 사업자 핫딜이 시작 시각에 글로 올라간다. 「광고」 표시 + 상호, 작성자에게도 고치기 없음) */
+export type DealSource = 'MEMBER' | 'BUSINESS';
 /** 상품 이미지의 출처 — 링크 OG 자동 · 글쓴이가 올림 */
 export type DealImageSource = 'OG' | 'UPLOAD';
 /**
@@ -82,6 +82,8 @@ export interface DealRevision {
 /** 글에 붙은 딜 — 글 줄·글 상세의 `deal` */
 export interface PostDeal {
     source: DealSource;
+    /** 사업자 글(`BUSINESS`)이면 사업자 상호 — 작성자 자리·카드 첫 줄 광고 고지에 쓴다. 회원 글·옛 응답은 null·없음 */
+    business?: { name: string } | null;
     /** 쇼핑몰 이름 1~40자 */
     storeName: string;
     /** 상품 링크 ≤1000자 */

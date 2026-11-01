@@ -5,6 +5,7 @@
 import type { BusinessUserStatus } from '~/composables/auth/api/useAuthApi.types';
 import type { AddressValue } from '~/components/address/AddressInput.types';
 import type { PaymentCheckout } from '~/composables/payment/api/usePaymentApi.types';
+import type { DealEndRequests, DealEndedBy, DealView } from '~/composables/hotdeal/api/useHotdealApi.types';
 
 /* ── 사업자 신원 ─────────────────────────────────────────── */
 
@@ -82,8 +83,11 @@ export type BizPaymentMethod = 'ONLINE' | 'MANUAL';
 /** 광고 종류(공개 이름 — 서버 `BizProduct.publicName`) — 배너 4유형 + 날개 배너(`WING`) + 한 줄 */
 export type AdType = 'WIDE' | 'STRIP' | 'SQUARE' | 'SMALL' | 'WING' | 'TEXT_LINE';
 
-/** 핫딜 노출 자리 */
+/** 핫딜 노출 자리 — `HOME_TOP` 은 이름과 달리 **핫딜 게시판 첫 쪽 위**(화면 이름 「핫딜 게시판 상단」, 키 값은 그대로), `CATEGORY_TOP` 은 신청 때 고른 말머리 목록 위 */
 export type DealPlacement = 'NONE' | 'HOME_TOP' | 'CATEGORY_TOP';
+
+/** 사업자 핫딜 재고 표시 — 회원 핫딜(`DealStock`)과 같은 값(품절 제외). 옛 `PLENTY`·`LIMITED` 를 대신한다(옛 건의 값도 i18n 이 그대로 읽는다) */
+export type BizDealStock = 'IN_STOCK' | 'LOW' | 'UNKNOWN';
 
 /** 금액(원) — 공급가 + 부가세 10% = 합계 */
 export interface BizAmount {
@@ -115,9 +119,17 @@ export interface BizDeal {
     shippingFee: number | null;
     /** 마감 날짜(없으면 null) */
     endsOn: string | null;
-    stock: 'PLENTY' | 'LIMITED' | 'UNKNOWN';
+    stock: BizDealStock;
     body: string;
     placement: DealPlacement;
+    /** 받는 핫딜 게시판(`DealProduct.boards[].id`) — 게시판이 하나면 화면이 자동으로 고른다(2차 — 옛 건은 없을 수 있다) */
+    boardId: string;
+    /** 그 게시판의 말머리 — 게시판에 말머리가 있으면 필수(`CATEGORY_TOP` 은 이 말머리 목록 위에 나온다), 없으면 null */
+    prefixId: string | null;
+    /** 상품 이미지(`POST /api/business/ad-images` 가 준 ID) — 선택, 없으면 기본 아이콘 */
+    imageFileId: string | null;
+    /** (상세만 — 화면이 더한 칸, 목업 가정) 올린 상품 이미지 주소. 없으면 null·없음 */
+    imageUrl?: string | null;
 }
 
 /** 입금 계좌·계약서(수동 결제) */
@@ -178,6 +190,13 @@ export interface BizHistoryEntry {
         | 'REFUND_TRANSFERRED'
         | 'AUTO_CANCELED'
         | 'FORFEITED'
+        // 사업자 핫딜 게시(2차) — `POST_FAILED` 의 note 는 실패 사유 코드(`BizDealFailReason`)
+        | 'POSTED'
+        | 'POST_FAILED'
+        | 'POST_HIDDEN'
+        | 'POST_RESTORED'
+        | 'DEAL_ENDED_BY_BUSINESS'
+        | 'DEAL_AUTO_ENDED'
         // 서버는 기록하지 않는다 — 화면이 `phase` 로 덧붙인다(`UtilBusiness.withPhaseHistory`)
         | 'STARTED'
         | 'ENDED';
@@ -223,6 +242,66 @@ export interface BizApplicationDetail extends BizApplicationSummary {
     deposit: BizDepositInfo | null;
     refund: BizRefundRequest | null;
     history: BizHistoryEntry[];
+    /** 사업자 핫딜(`HOTDEAL_POST`)의 게시된 글 — 결제 전이거나 핫딜이 아니면 null. 2차 칸이라 옛 응답에는 없다(없으면 「게시된 글」 칸을 감춘다) */
+    post?: BizDealPost | null;
+}
+
+/* ── 사업자 핫딜 게시(2차) ─────────────────────────────────── */
+
+/** 게시 상태 — 시작 시각 전 · 핫딜 게시판에 올라감 · 올리지 못함(운영팀 확인 중 → 취소·전액 환불) · 숨김(취소·환불·긴급 내림 — 되돌리면 다시 `POSTED`) */
+export type BizDealPostStatus = 'WAITING' | 'POSTED' | 'FAILED' | 'HIDDEN';
+
+/** 시작 시각에 글을 만들지 못한 까닭 */
+export type BizDealFailReason = 'BOARD_CLOSED' | 'LINK_BLOCKED' | 'BUSINESS_SUSPENDED' | 'OTHER';
+
+/** 노출 자리 상태 — 대기 · 노출 중 · 멈춤(`stopReason`) · 끝남(기간 끝) */
+export type BizDealPlacementStatus = 'WAITING' | 'SHOWING' | 'STOPPED' | 'ENDED';
+
+/** 노출 자리가 멈춘 까닭 — 딜이 끝나서(종료 요청 자동 종료·사업자 종료 — 환불 없음) · 글이 내려가서 */
+export type BizDealStopReason = 'DEAL_ENDED' | 'POST_HIDDEN';
+
+/** 같은 신청 건에 묶인 노출 자리 */
+export interface BizDealPlacementState {
+    product: 'HOTDEAL_TOP' | 'HOTDEAL_CATEGORY';
+    status: BizDealPlacementStatus;
+    stopReason: BizDealStopReason | null;
+}
+
+/** 종료 요청 사유별 수(요청자 신원 없음 — 회원 핫딜의 `DealEndRequests` 에서 `mine` 을 뺀 것) */
+export type BizDealEndRequests = Pick<DealEndRequests, 'total' | 'bySoldOut' | 'byPriceChanged' | 'byLinkDead'>;
+
+/** 신청 건 상세 `post` · 사업자 종료 응답 — 시작 시각에 핫딜 게시판에 올라간 사업자 글(`source=BUSINESS`) */
+export interface BizDealPost {
+    status: BizDealPostStatus;
+    /** 올라간 글 — 게시 전·실패면 null */
+    postId: string | null;
+    boardSlug: string;
+    boardName: string;
+    prefixName: string | null;
+    /** 게시(예정) 시각 — 신청 기간 시작 */
+    publishAt: string;
+    /** 딜 상태(회원 핫딜과 같은 계산) — 게시 전·실패면 null. 딜 마감 = 신청 기간 끝(지나면 `EXPIRED`) */
+    view: DealView | null;
+    /** `ENDED` 일 때 끝낸 쪽 — `AUTHOR` 사업자 직접 · `MANAGER` 운영진 · `AUTO` 종료 요청으로 자동(사업자 직접·자동은 환불 없음) */
+    endedBy: DealEndedBy | null;
+    /** 게시 전·실패면 null */
+    endRequests: BizDealEndRequests | null;
+    failReason: BizDealFailReason | null;
+    /** 노출 자리를 같이 샀으면 그 상태 — 없으면 null */
+    placement: BizDealPlacementState | null;
+    /** (화면이 더한 칸 — 목업 가정) 의심(`FLAGGED`)이면 자동 종료 예정 시각. 없으면 null·없음(「12시간 안에」로 말한다) */
+    autoEndAt?: string | null;
+    /** (화면이 더한 칸 — 목업 가정) 끝난 시각. 없으면 null·없음 */
+    endedAt?: string | null;
+}
+
+/** 받는 핫딜 게시판 — `GET /api/business/deal-products` 의 `boards` */
+export interface BizDealBoard {
+    id: string;
+    slug: string;
+    name: string;
+    /** 말머리 — 없으면 빈 목록 */
+    prefixes: { id: string; name: string }[];
 }
 
 /** 목록 거르기(화면 SelectButton) — 상태 묶음 */
@@ -300,6 +379,8 @@ export interface DealProduct {
     accepting: boolean;
     /** 노출 자리별 — `accepting` 꺼짐이면 흐리게 「지금은 받지 않아요」 */
     placements: { placement: Exclude<DealPlacement, 'NONE'>; dailyPrice: number; capacity: number; maxDays: number; accepting: boolean }[];
+    /** 받는 핫딜 게시판(2차) — 하나면 화면이 자동으로 고르고 칸을 감춘다. 옛 응답에는 없다(없거나 비면 칸을 감추고 `boardId` 는 빈 글자) */
+    boards?: BizDealBoard[];
 }
 
 /** `POST /api/business/applications/deals` — 노출을 고르면 같은 신청 건에 묶는다(목업 가정) */

@@ -1,4 +1,13 @@
 import type { DealEndReason, DealImageUpload, DealLinkCheck, DealPrefill, DealSameRef, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
+import {
+    isMockBizdealPostId,
+    mockBizdealAuthorEnd,
+    mockBizdealEndRequest,
+    mockBizdealKeep,
+    mockBizdealModerate,
+    mockBizdealReopen,
+    mockBizdealSame,
+} from '~/composables/hotdeal/api/mock/bizdeal-deal-mock';
 
 /**
  * 회원 핫딜 API — 서버 주소 문자열(`/api/deals/…`·`/api/posts/{id}/deal/…`)이 있는 **유일한 곳**이다. 상태는 없다.
@@ -20,6 +29,8 @@ import type { DealEndReason, DealImageUpload, DealLinkCheck, DealPrefill, DealSa
  *      오류: 로그인 `401` · 그 게시판 매니저·스텝 아님·정지 `403 DEAL_MODERATE_FORBIDDEN` · 이미 종료 `409 DEAL_ENDED` · 종료 아님 `409 DEAL_NOT_ENDED` ·
  *      핫딜 글 아님 `404 DEAL_NOT_FOUND` · 사유 `400 fields.reason`(사용자 결정 2026-11-01 — 공용 메모 4절)
  * 종료·되돌리기·keep·종료 요청은 서버 2단계(주소·모양은 계약대로 확정).
+ * 사업자 글(2차 — `deal.source BUSINESS`)도 같은 주소로 종료 요청·keep·종료를 받는다(되돌리기 없음 — 종료는 환불 없음·노출도 멈춤).
+ * ⚠ MOCK: 목업 사업자 글(`mock-bizdeal*`)만 `./mock/bizdeal-deal-mock.ts` 로 돌린다(`// MOCK:` 분기) — 서버가 붙으면 분기와 목업 import 를 지운다.
  */
 const PATH = {
     linkCheck: '/api/deals/link-check',
@@ -47,25 +58,46 @@ export function useHotdealApi() {
         prefill: (fromPostId: string): Promise<DealPrefill> => client.get<DealPrefill>(PATH.prefill, { query: { from: fromPostId } }),
 
         /** 작성자 되돌리기(D2) — 작성자 종료 → 다시 진행 중 */
-        reopen: (postId: string): Promise<PostDeal> => client.post<PostDeal>(PATH.reopen(postId)),
+        reopen: (postId: string): Promise<PostDeal> =>
+            // MOCK:
+            isMockBizdealPostId(postId) ? mockBizdealReopen() :
+            client.post<PostDeal>(PATH.reopen(postId)),
 
         /** 작성자 종료 */
-        end: (postId: string): Promise<PostDeal> => client.post<PostDeal>(PATH.end(postId)),
+        end: (postId: string): Promise<PostDeal> =>
+            // MOCK:
+            isMockBizdealPostId(postId) ? mockBizdealAuthorEnd(postId) :
+            client.post<PostDeal>(PATH.end(postId)),
 
         /** 「아직 진행 중이에요」(의심 해제) */
-        keep: (postId: string): Promise<PostDeal> => client.post<PostDeal>(PATH.keep(postId)),
+        keep: (postId: string): Promise<PostDeal> =>
+            // MOCK:
+            isMockBizdealPostId(postId) ? mockBizdealKeep(postId) :
+            client.post<PostDeal>(PATH.keep(postId)),
 
         /** 게시판 매니저·스텝 종료 — 사유 필수(1~200자) */
-        moderateEnd: (postId: string, reason: string): Promise<PostDeal> => client.post<PostDeal>(PATH.moderateEnd(postId), { reason }),
+        moderateEnd: (postId: string, reason: string): Promise<PostDeal> =>
+            // MOCK:
+            isMockBizdealPostId(postId) ? mockBizdealModerate() :
+            client.post<PostDeal>(PATH.moderateEnd(postId), { reason }),
 
         /** 게시판 매니저·스텝 재개(다시 진행 중으로) — 사유 선택(0~200자, 비면 null 로 보낸다) */
-        moderateReopen: (postId: string, reason: string | null): Promise<PostDeal> => client.post<PostDeal>(PATH.moderateReopen(postId), { reason }),
+        moderateReopen: (postId: string, reason: string | null): Promise<PostDeal> =>
+            // MOCK:
+            isMockBizdealPostId(postId) ? mockBizdealModerate() :
+            client.post<PostDeal>(PATH.moderateReopen(postId), { reason }),
 
         /** 품절·가격 변경 알리기 */
-        endRequest: (postId: string, reason: DealEndReason): Promise<PostDeal> => client.post<PostDeal>(PATH.endRequests(postId), { reason }),
+        endRequest: (postId: string, reason: DealEndReason): Promise<PostDeal> =>
+            // MOCK:
+            isMockBizdealPostId(postId) ? mockBizdealEndRequest(postId, reason) :
+            client.post<PostDeal>(PATH.endRequests(postId), { reason }),
 
         /** 진행 중인 같은 딜 */
-        same: (postId: string, signal?: AbortSignal): Promise<DealSameRef[]> => client.get<DealSameRef[]>(PATH.same(postId), { signal }),
+        same: (postId: string, signal?: AbortSignal): Promise<DealSameRef[]> =>
+            // MOCK:
+            isMockBizdealPostId(postId) ? mockBizdealSame() :
+            client.get<DealSameRef[]>(PATH.same(postId), { signal }),
 
         /** 상품 이미지 한 장 올리기 */
         uploadImage: (file: File): Promise<DealImageUpload> => images.upload(file),

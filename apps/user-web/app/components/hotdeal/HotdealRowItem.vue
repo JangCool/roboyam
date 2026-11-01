@@ -1,7 +1,7 @@
 <template>
     <!--
-        핫딜 한 줄(가격 줄 목록형) — 썸네일(작게) · 말머리 · 배지(제휴·수수료/종료·품절·기간 종료/품절 알림 N/얼마 안 남음/마감 임박/HOT/링크 바뀜·가격 수정) · 제목 · [댓글 수]
-          / 몰 이름 · 할인율 · 딜가 굵게 · 정상가 취소선 · 배송비(무료배송 / +n원 / 배송비 모름) / 작성자 · 추천 · 댓글 · 조회 · 시각.
+        핫딜 한 줄(가격 줄 목록형) — 썸네일(작게) · 말머리 · 배지(광고(사업자 글)/제휴·수수료/종료·품절·기간 종료/품절 알림 N/얼마 안 남음/마감 임박/HOT/링크 바뀜·가격 수정) · 제목 · [댓글 수]
+          / 몰 이름 · 할인율 · 딜가 굵게 · 정상가 취소선 · 배송비(무료배송 / +n원 / 배송비 모름) / 작성자(사업자 글은 상호 + 「사업자」) · 추천 · 댓글 · 조회 · 시각.
         끝난 딜(종료·기간 지남)은 흐리게. 핫딜 게시판 목록(`HotdealPostList`)과 가젯 `HOT_DEALS`(`compact` — 말머리·메타 줄·수정 이력 배지·「배송비 모름」 없이 한 줄 더 좁게)가 같이 쓴다. 링크는 줄 전체.
     -->
     <NuxtLink
@@ -23,7 +23,7 @@
                 <HotdealPriceLine :deal="deal" shipping :compact="compact" />
             </p>
             <p v-if="!compact" class="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-color">
-                <PostAuthorLabel :author="row.author" />
+                <PostAuthorLabel :author="author" />
                 <span aria-hidden="true">·</span>
                 <span>{{ t('hotdeal.likesShort', { n: row.likeCount }) }}</span>
                 <span aria-hidden="true">·</span>
@@ -55,4 +55,6 @@ const props = withDefaults(defineProps<Props>(), { dateDisplay: 'STANDARD', comp
 const { t } = useI18n();
 const deal = computed(() => props.row.deal ?? null);
 const over = computed(() => (deal.value ? UtilHotdeal.isOver(deal.value.view) : false));
+/** 사업자 글이면 상호 + 「사업자」 */
+const author = computed(() => UtilHotdeal.authorOf(props.row.author, deal.value));
 </script>
