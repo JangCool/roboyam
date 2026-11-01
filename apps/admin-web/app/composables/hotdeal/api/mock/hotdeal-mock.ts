@@ -1,5 +1,5 @@
-// MOCK: 회원 핫딜(1차) 관리자 API(`/api/admin/hotdeals/**` · `/api/admin/hotdeal-domains/**` · `/api/admin/hotdeal-suspicions/**` · `/api/admin/hotdeal-settings`)의 메모리 목업 —
-// `useHotdealApi`·`useHotdealDomainApi`·`useHotdealSuspicionApi`·`useHotdealSettingsApi` 의 `// MOCK:` 줄이 부른다. 서버가 붙으면 이 폴더(`hotdeal/api/mock/`)째 지운다.
+// MOCK: 회원 핫딜(1차) 관리자 API(`/api/admin/hotdeals/**` · `/api/admin/hotdeal-domains/**` · `/api/admin/hotdeal-suspicions/**` · `/api/admin/hotdeal-settings/**` · `/api/admin/hotdeal-site-affiliates/**`)의 메모리 목업 —
+// `useHotdealApi`·`useHotdealDomainApi`·`useHotdealSuspicionApi`·`useHotdealSettingsApi`·`useHotdealSiteAffiliateApi` 의 `// MOCK:` 줄이 부른다. 서버가 붙으면 이 폴더(`hotdeal/api/mock/`)째 지운다.
 // 모양은 계약 `docs/features/hotdeal-contract.md` 「데이터 모양」, 화면 흐름은 03-hotdeal 7-1 · 05-hotdeal-review. 메모리 상태는 새로고침하면 처음으로 돌아간다(화면 전환 사이에는 남는다).
 //
 // ── 개발 전용 스위치 — 주소의 `?mock=이름` (쉼표로 여러 개) ─
@@ -8,7 +8,7 @@
 //   detail-error     서랍(핫딜 글·의심 후보 상세) 불러오기 실패(500)
 //   slow             모든 요청이 2.5초 걸린다(대기 Skeleton 확인)
 //   forbidden        조치 권한이 없다 — 화면은 단추를 숨기고(`useHotdealPermission`), 조치 요청은 403 PERMISSION_DENIED
-//   conflict         링크 규칙 저장이 409 HOTDEAL_DOMAIN_DUPLICATE + `fields.domain`(실제로 같은 도메인이 있어도 같은 오류)
+//   conflict         링크 규칙 저장이 409 HOTDEAL_DOMAIN_DUPLICATE · 사이트 제휴 몰 저장이 409 HOTDEAL_SITE_AFFILIATE_DUPLICATE(둘 다 + `fields.domain`, 실제로 같은 도메인이 있어도 같은 오류)
 //   stale            종료·재개·무시가 409 HOTDEAL_STATE_CHANGED(그 사이 다른 운영자가 처리) → 화면은 토스트 + 새로 받기
 //   save-error       핫딜 설정 저장 실패(500)
 //   revisions-empty  수정 이력이 하나도 없다(서랍 탭 빈 상태 · 목록의 「링크 바뀜」·「가격 수정 N회」 표시도 없음)
@@ -16,6 +16,9 @@
 //   link-changed     모든 글 수정 이력 맨 위에 「링크 바뀜」(호스트가 바뀐 줄)이 하나 더 있다 → 목록 표시·서랍 강조 확인
 //   impact-zero      차단 미리 보기가 늘 「진행 중 글 0건」 → 확인 없이 바로 저장되는 흐름
 //   store-suspicion  의심 후보가 판매처 후보만 있다(회원 후보 0건)
+//   site-affiliate        제휴 링크 방식이 사이트 제휴(`SITE`)로 시작한다 → 설정의 「사이트 제휴 몰」 표 · 링크 규칙 위 안내 · 글 서랍 「구매 링크」 안내
+//   site-affiliate-empty  `SITE` 로 시작하고 사이트 제휴 몰 표가 비었다(빈 상태 문구)
+//   affiliate-impact-zero 제휴 방식 전환 영향이 늘 0건(확인 창에 「영향받는 진행 중 글이 없어요」)
 //   (신고 사건의 핫딜 조치 스위치 `report-deal` 은 `report/api/mock/report-deal-mock.ts`)
 //
 // ── 목업 가정 ─
@@ -24,6 +27,9 @@
 //   · 「가격 수정 N회」 = 딜가·정상가를 바꾼 수정 줄 수. 「링크 바뀜」 = 호스트가 바뀐 수정 줄이 하나라도 있음. 작성자 되돌리기 기한 = 작성자 종료 + 24시간(시드는 아직 안 씀).
 //   · 「차단 도메인 진행 중」 = 진행 중(ACTIVE·FLAGGED) 글의 상품·최종 호스트가 지금 규칙에서 차단(규칙을 바꾸면 바로 따라 바뀐다).
 //   · 운영자 이름은 「관리자(나)」로 둔다. 문구는 서버 몫이라 한국어로만 준다(i18n.md 5절).
+//   · 제휴 링크(D5): 사이트 제휴 몰 시드 3개(쿠팡 파트너스 TEMPLATE · 11번가 QUERY · 알리 TEMPLATE 꺼짐 — 모두 **가짜 값**). 글의 `affiliateKind` 는 읽을 때 지금 방식으로 계산 —
+//     `SITE` 면 최종 호스트(없으면 상품 호스트)가 켠 몰이면 SITE, 아니면 null. 전환 영향 = 진행 중(ACTIVE·FLAGGED) 글 중 개인 제휴 N · 그중 켠 몰 M · 켠 몰로 가는 전체.
+//     시드의 진행 중 개인 제휴 글 3건(쿠팡 2 · 알리 1) → 처음 값으로 N 3 · M 2.
 
 import { ApiError } from '~/composables/common/useApiClient';
 import { MOCK_ERRORS, mockClone, mockDelay, mockFlags } from '~/composables/common/mock/mock-util';
@@ -55,7 +61,9 @@ import type {
     DealSuspicionStatus,
     DealStoreSuspicionMember,
 } from '~/composables/hotdeal/api/useHotdealSuspicionApi.types';
-import type { HotdealSettingsRequest, HotdealSettingsView } from '~/composables/hotdeal/api/useHotdealSettingsApi.types';
+import type { HotdealAffiliateImpact, HotdealSettingsRequest, HotdealSettingsView } from '~/composables/hotdeal/api/useHotdealSettingsApi.types';
+import type { SiteAffiliateListView, SiteAffiliateStore, SiteAffiliateStoreRequest } from '~/composables/hotdeal/api/useHotdealSiteAffiliateApi.types';
+import type { AffiliateMode, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
 import UtilHotdeal from '~/utils/util-hotdeal';
 
 const HOUR = 60 * 60 * 1000;
@@ -231,7 +239,7 @@ const SEEDS: Seed[] = [
             },
         ],
     },
-    { title: 'ESP32-S3 개발보드 2+1 (알리)', board: 1, prefix: 0, store: '알리익스프레스', host: 'aliexpress.com', path: '/item/1005', deal: 9800, normal: 15000, ship: null, stock: 'UNKNOWN', ageH: 8, author: 2, color: '#ea580c', coupon: '앱 전용 쿠폰 적용가', basisKind: 'OVERSEAS', duty: true },
+    { title: 'ESP32-S3 개발보드 2+1 (알리)', board: 1, prefix: 0, store: '알리익스프레스', host: 'aliexpress.com', path: '/item/1005', deal: 9800, normal: 15000, ship: null, stock: 'UNKNOWN', ageH: 8, author: 2, color: '#ea580c', coupon: '앱 전용 쿠폰 적용가', basisKind: 'OVERSEAS', duty: true, affiliate: true },
     { title: '3D 프린터 필라멘트 PLA 1kg 4롤', board: 0, prefix: 2, store: 'G마켓', host: 'gmarket.co.kr', path: '/item?goodscode=2201', deal: 39900, normal: 56000, ship: 0, stock: 'IN_STOCK', ageH: 11, author: 5, color: '#16a34a', endsInH: -6 },
     {
         title: '젯슨 오린 나노 슈퍼 개발자 키트 품절 임박',
@@ -435,6 +443,8 @@ function build(seed: Seed, i: number): StoredDeal {
                 revision: { priceEdits: 0, linkChanged: false, lastEditedAt: null },
                 hot: false,
                 sameDealCount: 0,
+                affiliateKind: null,
+                siteProgramName: null,
             },
         },
     };
@@ -494,6 +504,15 @@ function view(d: StoredDeal, on: Set<string> = mockFlags()): AdminDealRow {
     };
     row.blockedHost = v === 'ACTIVE' || v === 'FLAGGED' ? blockedHostOf([deal.productHost, deal.finalHost]) : null;
     deal.sameDealCount = deals.filter((o) => o !== d && o.productKey === d.productKey && o.row.deal.status === 'ACTIVE').length;
+    // 구매 링크 제휴 종류 — 지금 방식으로 계산(저장된 링크는 그대로, D5)
+    if (settingsNow().affiliateMode === 'SITE') {
+        const store = siteStoreOf(deal);
+        deal.affiliateKind = store ? 'SITE' : null;
+        deal.siteProgramName = store?.programName ?? null;
+    } else {
+        deal.affiliateKind = deal.affiliate ? 'MEMBER' : null;
+        deal.siteProgramName = null;
+    }
     return row;
 }
 
@@ -548,6 +567,7 @@ export async function mockHotdealDetail(postId: string): Promise<AdminDealDetail
         // MOCK: 공개 사이트(user-web 개발 서버) 주소 — 실제는 서버가 사이트 공개 주소로 만든다
         publicUrl: `http://localhost:3000/posts/${row.postId}`,
         sameDeals,
+        affiliateMode: settingsNow().affiliateMode,
     };
 }
 
@@ -635,9 +655,10 @@ let domains: DealDomain[] = [
 
 export async function mockDomainList(rule: DomainRuleFilter, q: string): Promise<DealDomainListView> {
     const on = await gate('error');
-    if (on.has('empty')) return { items: [] };
+    const affiliateMode = settingsNow().affiliateMode;
+    if (on.has('empty')) return { items: [], affiliateMode };
     const items = UtilHotdeal.filterDomains(domains, rule, q).sort((a, b) => a.domain.localeCompare(b.domain));
-    return { items: mockClone(items) };
+    return { items: mockClone(items), affiliateMode };
 }
 
 export async function mockDomainImpact(raw: string): Promise<DealDomainImpact> {
@@ -809,18 +830,30 @@ export async function mockSuspicionDismiss(id: string, note?: string): Promise<v
 // ── 설정 ─
 
 let settings: HotdealSettingsView = {
-    ...(Object.fromEntries(UtilHotdeal.SETTINGS.map((s) => [s.field, s.initial])) as Omit<HotdealSettingsView, 'ogFetchEnabled' | 'rewardPoints' | 'rewardDailyLimit' | 'updatedAt' | 'updatedBy'>),
+    ...(Object.fromEntries(UtilHotdeal.SETTINGS.map((s) => [s.field, s.initial])) as Omit<HotdealSettingsView, 'ogFetchEnabled' | 'affiliateMode' | 'rewardPoints' | 'rewardDailyLimit' | 'updatedAt' | 'updatedBy'>),
     ogFetchEnabled: true,
+    affiliateMode: 'MEMBER',
     // 포인트 정책의 `dealEndRequestPoints`·`dealEndRequestDailyLimit`(읽기 전용)
     rewardPoints: 3,
     rewardDailyLimit: 5,
     updatedAt: null,
     updatedBy: null,
 };
+let settingsSeeded = false;
+
+/** 지금 설정 — 처음 읽을 때 한 번 `?mock=site-affiliate`(·`site-affiliate-empty`)면 사이트 제휴로 시작한다 */
+function settingsNow(): HotdealSettingsView {
+    if (!settingsSeeded) {
+        settingsSeeded = true;
+        const on = mockFlags();
+        if (on.has('site-affiliate') || on.has('site-affiliate-empty')) settings = { ...settings, affiliateMode: 'SITE' };
+    }
+    return settings;
+}
 
 export async function mockSettingsGet(): Promise<HotdealSettingsView> {
     await gate('error');
-    return mockClone(settings);
+    return mockClone(settingsNow());
 }
 
 export async function mockSettingsSave(body: HotdealSettingsRequest): Promise<HotdealSettingsView> {
@@ -832,7 +865,104 @@ export async function mockSettingsSave(body: HotdealSettingsRequest): Promise<Ho
         if (!Number.isInteger(v) || v < spec.min || v > spec.max) fields[spec.field] = `${UtilHotdeal.groupDigits(spec.min)}~${UtilHotdeal.groupDigits(spec.max)} 사이의 정수로 입력해 주세요.`;
     }
     if (typeof body.ogFetchEnabled !== 'boolean') fields.ogFetchEnabled = '켬·끔 중 하나여야 해요.';
+    if (!UtilHotdeal.AFFILIATE_MODES.includes(body.affiliateMode)) fields.affiliateMode = '개인 제휴·사이트 제휴 중 하나여야 해요.';
     if (Object.keys(fields).length) throw MOCK_ERRORS.validation(fields);
-    settings = { ...settings, ...body, updatedAt: new Date().toISOString(), updatedBy: ME };
+    settings = { ...settingsNow(), ...body, updatedAt: new Date().toISOString(), updatedBy: ME };
     return mockClone(settings);
+}
+
+export async function mockAffiliateImpact(mode: AffiliateMode): Promise<HotdealAffiliateImpact> {
+    const on = await gate();
+    if (on.has('forbidden')) throw MOCK_ERRORS.forbidden();
+    if (!UtilHotdeal.AFFILIATE_MODES.includes(mode)) throw MOCK_ERRORS.validation({ mode: '개인 제휴·사이트 제휴 중 하나여야 해요.' });
+    if (on.has('affiliate-impact-zero')) return { mode, memberAffiliateActive: 0, siteStoreMatched: 0, siteStoreActive: 0 };
+    const active = deals.map((d) => view(d, on).deal).filter((deal) => deal.view === 'ACTIVE' || deal.view === 'FLAGGED');
+    return {
+        mode,
+        memberAffiliateActive: active.filter((deal) => deal.affiliate).length,
+        siteStoreMatched: active.filter((deal) => deal.affiliate && siteStoreOf(deal)).length,
+        siteStoreActive: active.filter((deal) => siteStoreOf(deal)).length,
+    };
+}
+
+// ── 사이트 제휴 몰(D5) ─
+
+let siteSeq = 800;
+/** 시드 — 모두 **가짜 값**(실제 제휴 프로그램의 링크 모양·코드는 서버 단계·법무 확인 뒤 운영자가 넣는다) */
+let siteStores: SiteAffiliateStore[] = [
+    { id: String(++siteSeq), domain: 'coupang.com', programName: '쿠팡 파트너스', transform: { type: 'TEMPLATE', template: 'https://link.coupang.com/re/MOCKDEEPLINK?lptag=AF0000000&pageKey={url}' }, enabled: true, updatedBy: MANAGER, updatedAt: at(-2 * DAY) },
+    { id: String(++siteSeq), domain: '11st.co.kr', programName: '11번가 제휴(목업)', transform: { type: 'QUERY', query: 'partner=roboyam&pcode=RB0001' }, enabled: true, updatedBy: MANAGER, updatedAt: at(-2 * DAY) },
+    { id: String(++siteSeq), domain: 'aliexpress.com', programName: 'AliExpress Portals(목업)', transform: { type: 'TEMPLATE', template: 'https://s.click.aliexpress.com/deep_link.htm?aff_short_key=MOCK00&dl_target_url={url}' }, enabled: false, updatedBy: null, updatedAt: at(-5 * DAY) },
+];
+let siteStoresSeeded = false;
+
+/** 지금 몰 표 — 처음 읽을 때 한 번 `?mock=site-affiliate-empty` 면 비운다 */
+function siteStoresNow(): SiteAffiliateStore[] {
+    if (!siteStoresSeeded) {
+        siteStoresSeeded = true;
+        if (mockFlags().has('site-affiliate-empty')) siteStores = [];
+    }
+    return siteStores;
+}
+
+/** 글의 구매 링크가 걸리는 켠 몰 — 최종 호스트 먼저, 없으면 상품 호스트 */
+function siteStoreOf(deal: Pick<PostDeal, 'productHost' | 'finalHost'>): SiteAffiliateStore | null {
+    const stores = siteStoresNow();
+    return UtilHotdeal.matchSiteStore(deal.finalHost, stores) ?? UtilHotdeal.matchSiteStore(deal.productHost, stores);
+}
+
+export async function mockSiteAffiliateList(): Promise<SiteAffiliateListView> {
+    await gate('error');
+    return { items: mockClone([...siteStoresNow()].sort((a, b) => a.domain.localeCompare(b.domain))) };
+}
+
+/** 저장 검사 — 칸 400 → 중복 409. 맞으면 저장할 모양(도메인 정규화 · 쿼리 앞 `?` 떼기 · 앞뒤 공백 떼기) */
+function checkSiteStore(body: SiteAffiliateStoreRequest, selfId: string | null, on: Set<string>): Omit<SiteAffiliateStore, 'id' | 'updatedBy' | 'updatedAt'> {
+    const domain = UtilHotdeal.normalizeDomain(body.domain);
+    const fields: Record<string, string> = {};
+    if (!domain) fields.domain = '도메인 형식을 확인해 주세요. 예: coupang.com';
+    const program = UtilHotdeal.programProblem(body.programName);
+    if (program === 'REQUIRED') fields.programName = '제휴 프로그램 이름을 입력해 주세요.';
+    else if (program === 'TOO_LONG') fields.programName = `제휴 프로그램 이름은 ${UtilHotdeal.SITE_PROGRAM_MAX}자까지 쓸 수 있어요.`;
+    const t = body.transform;
+    if (t.type === 'TEMPLATE') {
+        const p = UtilHotdeal.templateProblem(t.template);
+        if (p === 'NO_PLACEHOLDER' || p === 'REQUIRED') fields.template = '링크 틀에 원래 상품 주소 자리 {url} 이 있어야 해요.';
+        else if (p === 'MULTIPLE_PLACEHOLDERS') fields.template = '{url} 은 한 번만 쓸 수 있어요.';
+        else if (p) fields.template = 'http(s):// 로 시작하는 1000자 이하 주소여야 해요.';
+    } else if (t.type === 'QUERY') {
+        if (UtilHotdeal.queryProblem(t.query)) fields.query = '붙일 쿼리는 이름=값 을 & 로 이은 모양이어야 해요. 예: partner=roboyam&pcode=1';
+    } else fields.transform = '변환 방식을 골라 주세요.';
+    if (typeof body.enabled !== 'boolean') fields.enabled = '켬·끔 중 하나여야 해요.';
+    if (Object.keys(fields).length) throw MOCK_ERRORS.validation(fields);
+    if (on.has('conflict') || siteStoresNow().some((s) => s.domain === domain && s.id !== selfId)) {
+        throw new ApiError({ status: 409, code: 'HOTDEAL_SITE_AFFILIATE_DUPLICATE', message: '이미 사이트 제휴 몰로 있는 도메인이에요.', fields: { domain: `「${domain}」은 이미 표에 있어요. 그 줄을 고쳐 주세요.` } });
+    }
+    const transform = t.type === 'TEMPLATE' ? { type: 'TEMPLATE' as const, template: t.template.trim() } : { type: 'QUERY' as const, query: UtilHotdeal.normalizeQuery(t.query) };
+    return { domain: domain as string, programName: body.programName.trim(), transform, enabled: body.enabled };
+}
+
+export async function mockSiteAffiliateCreate(body: SiteAffiliateStoreRequest): Promise<SiteAffiliateStore> {
+    const on = await gate();
+    if (on.has('forbidden')) throw MOCK_ERRORS.forbidden();
+    const item: SiteAffiliateStore = { id: String(++siteSeq), ...checkSiteStore(body, null, on), updatedBy: ME, updatedAt: new Date().toISOString() };
+    siteStores = [...siteStoresNow(), item];
+    return mockClone(item);
+}
+
+export async function mockSiteAffiliateUpdate(id: string, body: SiteAffiliateStoreRequest): Promise<SiteAffiliateStore> {
+    const on = await gate();
+    if (on.has('forbidden')) throw MOCK_ERRORS.forbidden();
+    const found = siteStoresNow().find((s) => s.id === id);
+    if (!found) throw MOCK_ERRORS.notFound('HOTDEAL_SITE_AFFILIATE_NOT_FOUND', '사이트 제휴 몰을 찾을 수 없어요. 이미 지워졌을 수 있어요.');
+    // 켬/끔만 바꾼 PUT 은 `conflict` 스위치를 타지 않는다(같은 도메인 그대로)
+    Object.assign(found, checkSiteStore(body, id, body.domain === found.domain ? new Set([...on].filter((f) => f !== 'conflict')) : on), { updatedBy: ME, updatedAt: new Date().toISOString() });
+    return mockClone(found);
+}
+
+export async function mockSiteAffiliateDelete(id: string): Promise<void> {
+    const on = await gate();
+    if (on.has('forbidden')) throw MOCK_ERRORS.forbidden();
+    if (!siteStoresNow().some((s) => s.id === id)) throw MOCK_ERRORS.notFound('HOTDEAL_SITE_AFFILIATE_NOT_FOUND', '사이트 제휴 몰을 찾을 수 없어요. 이미 지워졌을 수 있어요.');
+    siteStores = siteStores.filter((s) => s.id !== id);
 }

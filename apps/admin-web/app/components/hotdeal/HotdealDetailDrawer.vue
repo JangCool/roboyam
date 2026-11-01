@@ -6,6 +6,7 @@
         본문: 딜 카드(이미지 · 가격 줄 · 쇼핑몰·호스트 · 상품 링크 `rel="nofollow sponsored noopener"` 새 탭 · 제휴 · 배송 · 재고 · 기간 · 쿠폰·가격 기준) →
           상태와 종료 경위(누가·언제 · 의심 시각·자동 종료 예정 · 작성자 되돌리기 기한(D2) · keep 횟수 N/M) → 종료 요청 사유별 수(요청자 신원은 없다) → 신고 대기(신고 관리 링크) → 같은 딜 N건(누르면 그 글로) → 글 정보(게시판·말머리·작성자·등록 시각).
           맨 위에 「차단 도메인 진행 중」 경고(지금 규칙에서 상품·최종 호스트가 차단), 딜 카드에 최종 호스트 · HOT · 「링크 바뀜」·「가격 수정 N회」 · 가격 기준 배지.
+          제휴 링크 방식이 사이트 제휴(`detail.affiliateMode = SITE`)면 상품 주소 아래 「구매 링크: 사이트 제휴로 변환 — 프로그램」 / 「개인 제휴 — 지금은 클릭 때 떼어져요」 / 「제휴 없이 원래 링크」 한 줄(D5).
         탭 「수정 이력」(D3): 처음 열 때 부른 화면이 받는다(`need-revisions`). 줄 = 시각 · 누가(작성자/운영진) · 바뀐 칸 전 → 후, 호스트가 바뀐 줄은 노랑 테두리 + 「링크 바뀜」. 6개월 보존 안내 한 줄.
         바닥: [종료](진행·의심·기간 지남) / [재개](종료) — 권한(`hotdeal.manage`)이 없으면 단추 없이 읽기 전용 안내. 서버 호출은 하지 않는다(부른 화면이 한다).
     -->
@@ -107,6 +108,11 @@
                             <i class="pi pi-external-link text-[10px]" aria-hidden="true" /><span class="truncate [overflow-wrap:anywhere]">{{ t('hotdeal.openProduct') }}</span>
                         </a>
                         <p class="m-0 text-[11px] break-all text-muted-color">{{ deal.productUrl }}</p>
+                        <!-- 사이트 제휴 방식일 때 구매 링크가 어떻게 바뀌는지(D5 — 저장된 링크는 그대로, 클릭 때 변환) -->
+                        <p v-if="buyLinkNote" class="m-0 flex items-start gap-1.5 text-[11px] leading-relaxed" :class="deal.affiliateKind === 'SITE' ? 'text-sky-700 dark:text-sky-400' : 'text-muted-color'">
+                            <i class="pi pi-link mt-0.5 text-[10px]" aria-hidden="true" />
+                            <span><b class="font-medium">{{ t('hotdeal.buyLink') }}</b> {{ buyLinkNote }}</span>
+                        </p>
                     </div>
                 </div>
                 <dl class="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-[13px]">
@@ -317,6 +323,7 @@ const head = computed(() => props.detail?.row ?? props.item);
 const row = computed(() => props.detail?.row as AdminDealRow);
 const deal = computed(() => row.value.deal);
 const dim = computed(() => deal.value.view === 'ENDED' || deal.value.view === 'EXPIRED');
+const buyLinkNote = computed(() => (props.detail ? UtilHotdealMessages.buyLinkNote(t, props.detail.affiliateMode, deal.value) : ''));
 const stateLines = computed(() => (props.detail ? UtilHotdealMessages.stateLines(t, time.value, props.detail) : []));
 /** 탭 — 정보 · 수정 이력. 이력 탭이 열려 있고 이력이 비었으면(글이 바뀌었거나 처음) 받아 달라고 한다 */
 const tab = ref<'info' | 'revisions'>('info');

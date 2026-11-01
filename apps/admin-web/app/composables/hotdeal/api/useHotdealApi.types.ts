@@ -24,6 +24,12 @@ export type DealPriceBasis = 'LISTED' | 'COUPON' | 'CARD' | 'MEMBER' | 'OVERSEAS
 /** 링크 규칙 — 차단 · 제휴 · 없음(null — 대형몰 표시만) */
 export type DomainRule = 'BLOCK' | 'AFFILIATE' | null;
 
+/** 제휴 링크 방식(D5) — 개인 제휴 허용(`MEMBER`, 기본 — 초기 운영) · 사이트 제휴(`SITE` — 개인 제휴 받지 않음, 구매 링크를 사이트 제휴 몰 표로 바꾼다) */
+export type AffiliateMode = 'MEMBER' | 'SITE';
+
+/** 지금 방식으로 계산한 구매 링크의 제휴 종류 — 개인 제휴(작성자) · 사이트 제휴(로보얌) · 없음 */
+export type DealAffiliateKind = 'MEMBER' | 'SITE' | null;
+
 /** 상품 이미지 — 링크 OG 사본(`OG` — 우리 서버에 저장한 600px WebP, D1) 또는 글쓴이가 올림(`UPLOAD`) */
 export interface DealImage {
     url: string;
@@ -92,6 +98,13 @@ export interface PostDeal {
     hot: boolean;
     /** 진행 중인 같은 딜(같은 `product_url_key`) 수 — 이 글 제외 */
     sameDealCount: number;
+    /**
+     * 지금 `affiliateMode` 로 계산한 구매 링크 제휴 종류(읽을 때 계산 — 저장된 `productUrl` 은 바꾸지 않고 변환은 `/go/deal/{postId}` 클릭 때만).
+     * `MEMBER` 방식: 개인 제휴 글이면 `MEMBER`. `SITE` 방식: 상품·최종 호스트가 켠 사이트 제휴 몰이면 `SITE`, 아니면 null(개인 제휴는 떼고 원래 링크).
+     */
+    affiliateKind: DealAffiliateKind;
+    /** `affiliateKind = SITE` 일 때 그 몰의 제휴 프로그램 이름(예 쿠팡 파트너스), 그 밖 null */
+    siteProgramName: string | null;
 }
 
 export interface HotdealBoardRef {
@@ -185,6 +198,8 @@ export interface AdminDealDetail {
     publicUrl: string | null;
     /** 진행 중인 같은 딜 — 최근 것부터 5개까지(전체 수는 `row.deal.sameDealCount`) */
     sameDeals: SameDealRef[];
+    /** 지금 제휴 링크 방식(관리자 덧붙임 — 서랍의 「구매 링크: 사이트 제휴로 변환」 안내용) */
+    affiliateMode: AffiliateMode;
 }
 
 /** 수정 이력이 적는 딜 칸 — 가격·링크·몰·마감·재고 등(`post_deal_revisions`, D3) */

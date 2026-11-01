@@ -1,5 +1,6 @@
 import type { LocationQuery } from 'vue-router';
-import type { AdminDealQuery, AdminDealRow, DealView, DealViewFilter, DomainRule } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { AdminDealQuery, AdminDealRow, AffiliateMode, DealView, DealViewFilter, DomainRule } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { SiteAffiliateStore, SiteAffiliateTransform } from '~/composables/hotdeal/api/useHotdealSiteAffiliateApi.types';
 import { DEAL_VIEW_FILTERS } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { DealDomain, DealDomainRequest, DomainRuleFilter } from '~/composables/hotdeal/api/useHotdealDomainApi.types';
 import { DOMAIN_RULE_FILTERS } from '~/composables/hotdeal/api/useHotdealDomainApi.types';
@@ -65,6 +66,15 @@ export interface HotdealSettingSpec {
 /** 설정 칸 검사 — 비었다 · 정수가 아니다 · 범위 밖 */
 export type HotdealSettingProblem = 'REQUIRED' | 'NOT_INTEGER' | 'OUT_OF_RANGE';
 
+/** 사이트 제휴 몰 — 제휴 프로그램 이름 검사 */
+export type SiteProgramProblem = 'REQUIRED' | 'TOO_LONG';
+
+/** 사이트 제휴 몰 — 링크 틀 검사(`{url}` 자리표시자 1개 · http(s) 주소 · 길이) */
+export type SiteTemplateProblem = 'REQUIRED' | 'NO_PLACEHOLDER' | 'MULTIPLE_PLACEHOLDERS' | 'NOT_URL' | 'TOO_LONG';
+
+/** 사이트 제휴 몰 — 붙일 쿼리 검사(`k=v&…`) */
+export type SiteQueryProblem = 'REQUIRED' | 'INVALID' | 'TOO_LONG';
+
 type Severity = 'success' | 'info' | 'warn' | 'danger' | 'secondary' | 'contrast';
 
 const PAGE_SIZE = 20;
@@ -89,6 +99,16 @@ const KEY_PARAM = /^[A-Za-z0-9_.[\]-]{1,40}$/;
 /** 늘 지우는 추적 파라미터(서버 규칙 3) — 앞 일치(`utm_`·`aff`)와 같은 이름 */
 const TRACKING_PREFIX = ['utm_', 'aff'];
 const TRACKING_EXACT = new Set(['fbclid', 'gclid', 'igshid', 'ref', 'tag', 'spm', '_trkparms', 'sub_id']);
+/** 사이트 제휴 몰 — 프로그램 이름 · 링크 틀 · 붙일 쿼리 최대(목업 가정 — 서버 `fields.*`) */
+const SITE_PROGRAM_MAX = 40;
+const SITE_TEMPLATE_MAX = 1000;
+const SITE_QUERY_MAX = 300;
+/** 링크 틀의 원래 상품 주소 자리 */
+const URL_PLACEHOLDER = '{url}';
+/** 링크 틀은 http(s) 주소로 시작하고 호스트는 글자 그대로(자리표시자 아님) */
+const TEMPLATE_HEAD = /^https?:\/\/[^\s/?#{}]+/i;
+/** 붙일 쿼리 한 쌍 — 이름(쿼리 이름 규칙) = 값(공백·`&`·`=`·`#` 없음) */
+const QUERY_PAIR = /^[A-Za-z0-9_.[\]-]{1,40}=[^\s&=#]+$/;
 
 /** 설정 칸 차례·범위·처음 값 — 서버 `DealSettings` 후보(계약 「핫딜 설정」 표) */
 const SETTINGS: readonly HotdealSettingSpec[] = [
@@ -143,6 +163,12 @@ export default class UtilHotdeal {
     static readonly STORE_SUSPICION_POSTS = 30;
     /** 작성자 되돌리기 기한(D2) — 종료 뒤 24시간 */
     static readonly AUTHOR_REOPEN_HOURS = 24;
+    /** 제휴 링크 방식 차례 — 개인 제휴(기본) · 사이트 제휴(D5) */
+    static readonly AFFILIATE_MODES: readonly AffiliateMode[] = ['MEMBER', 'SITE'];
+    static readonly SITE_PROGRAM_MAX = SITE_PROGRAM_MAX;
+    static readonly SITE_TEMPLATE_MAX = SITE_TEMPLATE_MAX;
+    static readonly SITE_QUERY_MAX = SITE_QUERY_MAX;
+    static readonly URL_PLACEHOLDER = URL_PLACEHOLDER;
 
     /* ── 핫딜 글 목록 주소 ── */
 
@@ -489,5 +515,82 @@ export default class UtilHotdeal {
     /** 바뀐 숫자 칸 수(숫자로 비교 — 읽을 수 없는 글자는 바뀐 것으로) */
     static changedCount(texts: Record<HotdealSettingsField, string>, saved: HotdealSettingsNumbers): number {
         return SETTINGS.filter((s) => UtilHotdeal.parseInt(texts[s.field]) !== saved[s.field]).length;
+    }
+
+    /* ── 사이트 제휴 몰(D5) ── */
+
+    static programProblem(text: string): SiteProgramProblem | null {
+        const n = len(text.trim());
+        if (n === 0) return 'REQUIRED';
+        return n > SITE_PROGRAM_MAX ? 'TOO_LONG' : null;
+    }
+
+    /**
+     * 링크 틀 검사 — 서버 `fields.template` 후보와 같은 규칙: 비었다 · 1000자 넘음 · `{url}` 이 없다 · 둘 이상 · http(s) 주소로 시작하지 않는다(호스트는 글자 그대로).
+     * @param {string} template - 예 `https://link.example.com/deeplink?url={url}&id=AF123`.
+     */
+    static templateProblem(template: string): SiteTemplateProblem | null {
+        const s = template.trim();
+        if (!s) return 'REQUIRED';
+        if (len(s) > SITE_TEMPLATE_MAX) return 'TOO_LONG';
+        const count = s.split(URL_PLACEHOLDER).length - 1;
+        if (count === 0) return 'NO_PLACEHOLDER';
+        if (count > 1) return 'MULTIPLE_PLACEHOLDERS';
+        return TEMPLATE_HEAD.test(s) && !/\s/.test(s) ? null : 'NOT_URL';
+    }
+
+    /** 붙일 쿼리 다듬기 — 앞뒤 공백과 앞의 `?`·`&` 를 뗀다 */
+    static normalizeQuery(query: string): string {
+        return query.trim().replace(/^[?&]+/, '');
+    }
+
+    /** 붙일 쿼리 검사 — `k=v` 를 `&` 로 이은 모양(이름은 쿼리 이름 규칙, 값은 공백·`&`·`=`·`#` 없음), 300자까지 */
+    static queryProblem(query: string): SiteQueryProblem | null {
+        const s = UtilHotdeal.normalizeQuery(query);
+        if (!s) return 'REQUIRED';
+        if (len(s) > SITE_QUERY_MAX) return 'TOO_LONG';
+        return s.split('&').every((pair) => QUERY_PAIR.test(pair)) ? null : 'INVALID';
+    }
+
+    /** 변환 방식 칸 검사(고른 방식의 칸만) */
+    static transformProblem(transform: SiteAffiliateTransform): SiteTemplateProblem | SiteQueryProblem | null {
+        return transform.type === 'TEMPLATE' ? UtilHotdeal.templateProblem(transform.template) : UtilHotdeal.queryProblem(transform.query);
+    }
+
+    /**
+     * 변환 미리 보기 — 서버 `SiteAffiliateLinker`(후보)와 같은 규칙: 링크 틀은 `{url}` 자리에 원래 주소를 URL 인코딩해 넣고, 붙일 쿼리는 원래 주소에 붙인다(같은 이름은 바꾼다).
+     * 개인 제휴 파라미터 떼기는 서버가 클릭 때 먼저 한다(여기서는 하지 않는다). 칸이 맞지 않거나 주소를 읽을 수 없으면 null.
+     * @param {string} productUrl - 원래 상품 주소.
+     * @param {SiteAffiliateTransform} transform - 변환 방식.
+     */
+    static applySiteTransform(productUrl: string, transform: SiteAffiliateTransform): string | null {
+        if (UtilHotdeal.transformProblem(transform)) return null;
+        let url: URL;
+        try {
+            url = new URL(productUrl.trim());
+        } catch {
+            return null;
+        }
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+        if (transform.type === 'TEMPLATE') return transform.template.trim().replace(URL_PLACEHOLDER, encodeURIComponent(url.toString()));
+        for (const [k, v] of new URLSearchParams(UtilHotdeal.normalizeQuery(transform.query))) url.searchParams.set(k, v);
+        return url.toString();
+    }
+
+    /** 변환 미리 보기의 처음 예시 상품 주소 — 몰 도메인이 있으면 그 도메인으로 */
+    static exampleProductUrl(domain: string | null): string {
+        return `https://${domain ?? 'shop.example.com'}/products/12345`;
+    }
+
+    /** 이 호스트가 걸리는 켠 사이트 제휴 몰(접미사 일치 · 더 구체적인(긴) 것 우선 — 링크 규칙과 같은 판정, 없으면 null) */
+    static matchSiteStore(raw: string | null, stores: readonly SiteAffiliateStore[]): SiteAffiliateStore | null {
+        const host = raw ? UtilHotdeal.normalizeDomain(raw) : null;
+        if (!host) return null;
+        let best: SiteAffiliateStore | null = null;
+        for (const s of stores) {
+            if (!s.enabled || (host !== s.domain && !host.endsWith(`.${s.domain}`))) continue;
+            if (!best || s.domain.length > best.domain.length) best = s;
+        }
+        return best;
     }
 }

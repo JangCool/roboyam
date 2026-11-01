@@ -1,8 +1,8 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
 import type { DisplayTime } from '#layers/display-time/utils/util-time';
-import type { AdminDealDetail, DealRevisionChange, HotdealAuthor, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { AdminDealDetail, AffiliateMode, DealRevisionChange, HotdealAuthor, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { DealSuspicion } from '~/composables/hotdeal/api/useHotdealSuspicionApi.types';
-import type { DomainChainMatch, DomainMatch, DomainProblem, HotdealSettingProblem, HotdealSettingSpec, KeyParamProblem, TextProblem } from '~/utils/util-hotdeal';
+import type { DomainChainMatch, DomainMatch, DomainProblem, HotdealSettingProblem, HotdealSettingSpec, KeyParamProblem, SiteProgramProblem, SiteQueryProblem, SiteTemplateProblem, TextProblem } from '~/utils/util-hotdeal';
 import UtilHotdeal from '~/utils/util-hotdeal';
 
 /** 계산이 낀 핫딜 문구 — 가격·배송·기간·종료 경위·수정 이력 값·검사 문구(상수 문구는 화면이 `t('hotdeal.…')` 를 바로 부른다) */
@@ -134,6 +134,44 @@ export default class UtilHotdealMessages {
     static settingRange(t: Translate, spec: HotdealSettingSpec): string {
         const range = t('hotdeal.settings.range', UtilHotdealMessages.rangeParams(spec));
         return spec.zero ? `${range} · ${t(`hotdeal.settings.zero.${spec.zero}`)}` : range;
+    }
+
+    /** 사이트 제휴 몰 — 프로그램 이름 칸 */
+    static programProblem(t: Translate, problem: SiteProgramProblem | null): string {
+        if (problem === 'REQUIRED') return t('hotdeal.siteAffiliate.programRequired');
+        if (problem === 'TOO_LONG') return t('hotdeal.textTooLong', { max: UtilHotdeal.SITE_PROGRAM_MAX });
+        return '';
+    }
+
+    /** 사이트 제휴 몰 — 링크 틀 칸 */
+    static templateProblem(t: Translate, problem: SiteTemplateProblem | null): string {
+        if (problem === 'REQUIRED') return t('hotdeal.siteAffiliate.templateRequired');
+        if (problem === 'NO_PLACEHOLDER') return t('hotdeal.siteAffiliate.templateNoPlaceholder', { ph: UtilHotdeal.URL_PLACEHOLDER });
+        if (problem === 'MULTIPLE_PLACEHOLDERS') return t('hotdeal.siteAffiliate.templateMultiple', { ph: UtilHotdeal.URL_PLACEHOLDER });
+        if (problem === 'NOT_URL') return t('hotdeal.siteAffiliate.templateNotUrl');
+        if (problem === 'TOO_LONG') return t('hotdeal.textTooLong', { max: UtilHotdeal.SITE_TEMPLATE_MAX });
+        return '';
+    }
+
+    /** 사이트 제휴 몰 — 붙일 쿼리 칸 */
+    static queryProblem(t: Translate, problem: SiteQueryProblem | null): string {
+        if (problem === 'REQUIRED') return t('hotdeal.siteAffiliate.queryRequired');
+        if (problem === 'INVALID') return t('hotdeal.siteAffiliate.queryInvalid');
+        if (problem === 'TOO_LONG') return t('hotdeal.textTooLong', { max: UtilHotdeal.SITE_QUERY_MAX });
+        return '';
+    }
+
+    /**
+     * 서랍의 구매 링크 안내 한 줄 — `SITE` 방식일 때만(개인 제휴 방식이면 빈 글자).
+     * 사이트 제휴 몰이면 「사이트 제휴로 변환 — 프로그램」(개인 제휴 글이면 「개인 제휴는 떼요」를 붙인다), 몰이 아닌 개인 제휴 글이면 「지금은 클릭 때 떼어져요」, 그 밖은 「제휴 없이 원래 링크」.
+     */
+    static buyLinkNote(t: Translate, mode: AffiliateMode, deal: Pick<PostDeal, 'affiliate' | 'affiliateKind' | 'siteProgramName'>): string {
+        if (mode !== 'SITE') return '';
+        if (deal.affiliateKind === 'SITE') {
+            const line = t('hotdeal.buyLinkSite', { program: deal.siteProgramName ?? '—' });
+            return deal.affiliate ? `${line} ${t('hotdeal.buyLinkMemberStripped')}` : line;
+        }
+        return deal.affiliate ? t('hotdeal.buyLinkMemberOff') : t('hotdeal.buyLinkOriginal');
     }
 
     private static rangeParams(spec: HotdealSettingSpec): { min: string; max: string } {

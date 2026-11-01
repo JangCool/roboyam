@@ -3,7 +3,7 @@
  * 도메인은 서버가 소문자·스킴·www.·포트·경로를 떼고 저장한다(화면 미리보기는 `UtilHotdeal.normalizeDomain` — 같은 규칙).
  * DB CHECK: 규칙이 없으면(null) 대형몰이어야 한다(`common = true`).
  */
-import type { DomainRule } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { AffiliateMode, DomainRule } from '~/composables/hotdeal/api/useHotdealApi.types';
 
 export interface DealDomain {
     id: string;
@@ -32,6 +32,8 @@ export const DOMAIN_RULE_FILTERS: readonly DomainRuleFilter[] = ['ALL', 'BLOCK',
 /** `GET /api/admin/hotdeal-domains?q=&rule=` — 작은 표라 쪽 나눔 없이 전부(도메인 차례) */
 export interface DealDomainListView {
     items: DealDomain[];
+    /** 지금 제휴 링크 방식(관리자 덧붙임 — `SITE` 면 화면 위에 「제휴 규칙 링크는 개인 제휴로 받지 않아요」 안내) */
+    affiliateMode: AffiliateMode;
 }
 
 /**

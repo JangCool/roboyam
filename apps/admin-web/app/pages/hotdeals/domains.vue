@@ -10,6 +10,7 @@
           진행 중 글이 있으면 창 안에 「진행 중 글 N건 — 저장해도 글은 그대로, 핫딜 글 「차단 도메인 진행 중」에서 볼 수 있어요」 + [그래도 저장]. 0건이면 바로 저장. 저장 뒤 토스트에 그 목록 링크 안내.
         - 들어오는 길: `?new={host}` — 의심 후보 서랍 「이 몰 규칙 등록」. 규칙을 받은 뒤 추가 창을 그 도메인으로 채워 열고 주소에서 뗀다(권한이 없으면 무시).
         - 빈: 「규칙이 없으면 모든 쇼핑몰을 허용해요」 · 오류: ErrorState 다시 시도 · 대기: Skeleton.
+        - 제휴 링크 방식이 사이트 제휴(`SITE`, 목록 응답 `affiliateMode`)면 맨 위 안내 — 「제휴」 규칙에 걸리는 링크는 개인 제휴로 보고 쓰기에서 받지 않는다(D5) + 「핫딜 설정 열기」(`hotdeal.manage` 일 때). `?mock=site-affiliate`.
         - 권한: 보기 `hotdeal.read`(메뉴), 추가·고치기·지우기 `hotdeal.domain.manage`(없으면 단추 없이 읽기 전용 안내).
     -->
     <div class="flex min-w-0 flex-col gap-4">
@@ -18,6 +19,12 @@
                 <Button v-if="canDomain" type="button" icon="pi pi-plus" :label="t('hotdeal.domain.add')" size="small" :disabled="!loaded" @click="openEdit(null)" />
             </template>
         </PageTitle>
+
+        <!-- 사이트 제휴 방식이면 — 제휴 규칙 링크는 개인 제휴로 받지 않는다(D5) -->
+        <Message v-if="affiliateMode === 'SITE'" severity="info" size="small" :closable="false" icon="pi pi-info-circle">
+            {{ t('hotdeal.domain.siteModeNote') }}
+            <NuxtLink v-if="perm.canManage.value" to="/hotdeals/settings#hotdeal-affiliate" class="ml-1 font-medium text-primary hover:underline">{{ t('hotdeal.domain.siteModeLink') }}</NuxtLink>
+        </Message>
 
         <!-- 시험 칸 -->
         <AppGadget :title="t('hotdeal.domain.testTitle')">
@@ -149,7 +156,7 @@
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
-import type { DomainRule } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { AffiliateMode, DomainRule } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { DealDomain, DealDomainImpact, DealDomainRequest, DomainRuleFilter } from '~/composables/hotdeal/api/useHotdealDomainApi.types';
 import UtilHotdeal from '~/utils/util-hotdeal';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
@@ -176,13 +183,17 @@ const items = ref<DealDomain[]>([]);
 const loaded = ref(false);
 const loading = ref(false);
 const loadError = ref<ApiError | null>(null);
+/** 지금 제휴 링크 방식(목록 응답의 관리자 덧붙임) */
+const affiliateMode = ref<AffiliateMode>('MEMBER');
 
 /** 작은 표라 한 번에 다 받는다(시험 칸도 전체 규칙으로 판정한다) */
 async function load(): Promise<void> {
     loading.value = true;
     loadError.value = null;
     try {
-        items.value = (await api.list('ALL', '')).items;
+        const view = await api.list('ALL', '');
+        items.value = view.items;
+        affiliateMode.value = view.affiliateMode;
         loaded.value = true;
     } catch (e) {
         loadError.value = errorOf(e);
