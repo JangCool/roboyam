@@ -62,8 +62,10 @@ public class MyBizApplicationService {
     public BizMemberView.DealProduct dealProduct() {
         Map<BizProduct, PriceRule> all = members.priceRules();
         List<BizMemberView.DealPlacement> placements = List.of(BizProduct.HOTDEAL_TOP, BizProduct.HOTDEAL_CATEGORY).stream().map(all::get)
-                .map(r -> new BizMemberView.DealPlacement(r.product().publicName(), r.unitPrice(), r.capacity() == null ? 0 : r.capacity(), r.maxDays())).toList();
-        return new BizMemberView.DealProduct(all.get(BizProduct.HOTDEAL_POST).unitPrice(), placements);
+                .map(r -> new BizMemberView.DealPlacement(r.product().publicName(), r.unitPrice(), r.capacity() == null ? 0 : r.capacity(), r.maxDays(), r.accepting()))
+                .toList();
+        PriceRule post = all.get(BizProduct.HOTDEAL_POST);
+        return new BizMemberView.DealProduct(post.unitPrice(), post.accepting(), placements);
     }
 
     public List<BizMemberView.AvailabilityDay> availability(String slot, String from, String to) {

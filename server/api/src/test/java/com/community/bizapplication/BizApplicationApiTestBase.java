@@ -4,8 +4,10 @@ import com.community.bizapplication.dto.BizOperator;
 import com.community.bizapplication.dto.request.BizAdApplyRequest;
 import com.community.bizapplication.dto.request.BizDealApplyRequest;
 import com.community.bizapplication.dto.request.BizDealInfo;
+import com.community.bizapplication.entity.BizProduct;
 import com.community.bizapplication.repository.master.BizApplicationStore;
 import com.community.bizapplication.repository.master.BizApplicationStore.AppRow;
+import com.community.bizapplication.repository.master.BizPriceRuleStore;
 import com.community.bizapplication.repository.master.BizRefundStore;
 import com.community.bizapplication.service.BizApplicationMemberService;
 import com.community.bizapplication.service.BizApplicationReviewService;
@@ -22,7 +24,9 @@ import com.community.zconfiguration.time.ServiceTime;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.function.Executable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +46,8 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
     /** 먼 미래 기간의 차례(시험마다 40일씩 떨어진다) */
     private static final AtomicInteger SLOT = new AtomicInteger();
     protected static final String POLICY = "v1";
+    /** 사업자 핫딜 상품 — V121 이 받기를 껐다(게시 기능 구현 때 다시 연다) */
+    protected static final List<BizProduct> HOTDEAL_PRODUCTS = List.of(BizProduct.HOTDEAL_POST, BizProduct.HOTDEAL_TOP, BizProduct.HOTDEAL_CATEGORY);
 
     @Autowired
     protected BizApplicationMemberService members;
@@ -57,6 +63,8 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
     protected BusinessApplicationHook hook;
     @Autowired
     protected PaymentConfirmService confirm;
+    @Autowired
+    protected BizPriceRuleStore priceRules;
 
     protected FakePgStore fakePg;
     protected BizOperator operator;
@@ -131,9 +139,20 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
         return new BizDealInfo("https://smartstore.naver.com/roboyam/products/1", "네이버 스마트스토어", 32_000L, 15_900L, 0L, null, "LIMITED", "1+1 행사", placement);
     }
 
+    /** 사업자 핫딜 신청 — V121 이 핫딜 상품을 닫아 두었으므로 이 호출 동안만 연다({@link #withDealsOpen}) */
     protected long submitDeal(long userId, String placement, LocalDate start, LocalDate end, String method) {
-        return members.submitDeal(userId, new BizDealApplyRequest("[시험상사] 텀블러 1+1", deal(placement), start == null ? null : start.toString(),
-                end == null ? null : end.toString(), method, POLICY, POLICY));
+        return withDealsOpen(() -> members.submitDeal(userId, new BizDealApplyRequest("[시험상사] 텀블러 1+1", deal(placement), start == null ? null : start.toString(),
+                end == null ? null : end.toString(), method, POLICY, POLICY)));
+    }
+
+    /** 핫딜 상품(글 게시·노출 자리 둘)의 받기를 이 호출 동안만 켠다 — 신청 엔진(심사·결제·예약) 시험이 닫힌 요금표에 막히지 않게. 끝나면 V121 상태(꺼짐)로 되돌린다 */
+    protected <T> T withDealsOpen(Supplier<T> call) {
+        HOTDEAL_PRODUCTS.forEach(p -> priceRules.setAccepting(p, true));
+        try {
+            return call.get();
+        } finally {
+            HOTDEAL_PRODUCTS.forEach(p -> priceRules.setAccepting(p, false));
+        }
     }
 
     // ── 심사 ───────────────────────────────────────────────────────────────

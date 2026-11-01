@@ -104,7 +104,16 @@ class BizApplicationHttpTest extends BizApplicationApiTestBase {
                 .andExpect(jsonPath("$.data[0].type").value("WIDE")).andExpect(jsonPath("$.data[0].dailyPrice").value(50_000))
                 .andExpect(jsonPath("$.data[0].capacity").value(2));
         mvc.perform(as(user, get("/api/business/deal-products"))).andExpect(status().isOk()).andExpect(jsonPath("$.data.postPrice").value(30_000))
-                .andExpect(jsonPath("$.data.placements[0].placement").value("HOME_TOP"));
+                .andExpect(jsonPath("$.data.placements[0].placement").value("HOME_TOP"))
+                // V121 — 사업자 핫딜 신청 닫음: 글 게시·노출 자리 각각 받기 꺼짐, 광고 상품은 켜짐
+                .andExpect(jsonPath("$.data.accepting").value(false)).andExpect(jsonPath("$.data.placements[0].accepting").value(false))
+                .andExpect(jsonPath("$.data.placements[1].accepting").value(false));
+        mvc.perform(as(user, get("/api/business/ad-products"))).andExpect(jsonPath("$.data[0].accepting").value(true));
+        String dealBody = "{\"title\":\"[시험상사] 텀블러 1+1\",\"deal\":{\"linkUrl\":\"https://smartstore.naver.com/roboyam/products/1\",\"shopName\":\"네이버 스마트스토어\","
+                + "\"listPrice\":32000,\"dealPrice\":15900,\"shippingFee\":0,\"endsOn\":null,\"stock\":\"LIMITED\",\"body\":\"1+1 행사\",\"placement\":\"NONE\"},"
+                + "\"placementStartDate\":null,\"placementEndDate\":null,\"paymentMethod\":\"ONLINE\",\"agreedAdPolicyVersion\":\"v1\",\"agreedRefundPolicyVersion\":\"v1\"}";
+        mvc.perform(as(user, post("/api/business/applications/deals")).content(dealBody)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("BIZ_PRODUCT_CLOSED"));
         LocalDate from = today().plusDays(1);
         mvc.perform(as(user, get("/api/business/availability")).param("slot", "HOME_TOP").param("from", from.toString()).param("to", from.plusDays(6).toString()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(7)).andExpect(jsonPath("$.data[0].capacity").value(3));

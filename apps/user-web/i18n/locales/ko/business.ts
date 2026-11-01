@@ -45,6 +45,8 @@ export default {
         serviceAdText: '홈·게시판 배너와 한 줄 광고',
         serviceDeal: '사업자 핫딜',
         serviceDealText: '핫딜 게시판에 딜을 올리고 상단에 노출',
+        serviceDealClosed: '준비 중',
+        serviceDealClosedText: '사업자 핫딜은 준비 중이에요. 열리면 여기서 바로 신청할 수 있어요.',
         serviceApply: '신청하기',
         todoTitle: '지금 할 일',
         todoPayment: '결제 대기 {count}건',
@@ -291,6 +293,9 @@ export default {
         title: '사업자 핫딜 신청',
         seoDescription: '사업자 핫딜 사전 심사 신청',
         intro: '사업자 핫딜은 심사 뒤 결제하면 게시돼요.',
+        closedTitle: '사업자 핫딜은 준비 중이에요',
+        closedText: '지금은 신청을 받지 않아요. 열리면 사업자 센터에서 바로 신청할 수 있어요. 광고 신청은 지금도 할 수 있어요.',
+        closedBack: '사업자 센터로',
         steps: {
             link: '상품',
             price: '가격',

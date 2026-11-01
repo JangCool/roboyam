@@ -296,7 +296,10 @@ export interface DealLinkCheck {
 export interface DealProduct {
     /** 게시 1건 공급가(원) */
     postPrice: number;
-    placements: { placement: Exclude<DealPlacement, 'NONE'>; dailyPrice: number; capacity: number; maxDays: number }[];
+    /** 글 게시 신청 받기 — 꺼지면 신청 화면 대신 「준비 중」 안내(사업자 핫딜 닫음 V121 — 게시 기능이 생기면 다시 연다) */
+    accepting: boolean;
+    /** 노출 자리별 — `accepting` 꺼짐이면 흐리게 「지금은 받지 않아요」 */
+    placements: { placement: Exclude<DealPlacement, 'NONE'>; dailyPrice: number; capacity: number; maxDays: number; accepting: boolean }[];
 }
 
 /** `POST /api/business/applications/deals` — 노출을 고르면 같은 신청 건에 묶는다(목업 가정) */

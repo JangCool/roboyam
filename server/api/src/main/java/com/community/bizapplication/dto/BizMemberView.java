@@ -53,10 +53,12 @@ public final class BizMemberView {
     public record AdProduct(String type, long dailyPrice, int maxDays, int maxLeadDays, int capacity, int openDays, boolean accepting) {
     }
 
-    public record DealPlacement(String placement, long dailyPrice, int capacity, int maxDays) {
+    /** 핫딜 노출 자리 — {@code accepting} 은 요금표 받기(끄면 신청 409 {@code BIZ_PRODUCT_CLOSED}) */
+    public record DealPlacement(String placement, long dailyPrice, int capacity, int maxDays, boolean accepting) {
     }
 
-    public record DealProduct(long postPrice, List<DealPlacement> placements) {
+    /** 사업자 핫딜 요금 — {@code accepting} 은 글 게시({@code HOTDEAL_POST}) 받기. 꺼져 있으면 화면은 신청 대신 「준비 중」 안내 */
+    public record DealProduct(long postPrice, boolean accepting, List<DealPlacement> placements) {
     }
 
     public record AvailabilityDay(String date, int remaining, int capacity) {

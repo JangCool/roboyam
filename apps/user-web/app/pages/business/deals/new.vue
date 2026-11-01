@@ -16,6 +16,20 @@
         <ErrorState v-else-if="status === 'error' || !profile || !dealProduct" :title="t('business.home.loadFailed')" :description="loadError" retry @retry="load" />
         <BusinessGateNotice v-else-if="profile.status !== 'APPROVED' || profile.reReview" :status="profile.status" :re-review="profile.reReview" />
 
+        <!-- 글 게시 받기 꺼짐(V121 — 게시 기능이 생길 때까지 닫음) — 직접 주소로 와도 폼 대신 안내 -->
+        <section v-else-if="!dealProduct.accepting" class="panel-card flex flex-col gap-4 p-5" data-testid="business-deal-closed">
+            <div class="flex items-start gap-3">
+                <span class="grid size-11 shrink-0 place-items-center rounded-full bg-surface-100 text-muted-color dark:bg-surface-800" aria-hidden="true"><i class="pi pi-clock text-lg" /></span>
+                <div class="min-w-0">
+                    <h2 class="m-0 text-base font-bold">{{ t('business.deal.closedTitle') }}</h2>
+                    <p class="m-0 mt-1 text-sm leading-relaxed text-muted-color">{{ t('business.deal.closedText') }}</p>
+                </div>
+            </div>
+            <div>
+                <Button as="router-link" :to="UtilBusiness.CENTER_PATH" :label="t('business.deal.closedBack')" icon="pi pi-angle-left" severity="secondary" variant="outlined" size="small" />
+            </div>
+        </section>
+
         <template v-else>
             <Message severity="info" size="small" :closable="false">{{ t('business.deal.intro') }}</Message>
             <BusinessStepHeader :steps="stepNames" :current="step" />
@@ -134,13 +148,27 @@
                         <label
                             v-for="option in placementOptions"
                             :key="option.value"
-                            class="flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 transition-colors"
-                            :class="deal.placement === option.value ? 'border-primary bg-(--p-highlight-background)' : 'border-hairline hover:bg-(--p-content-hover-background)'"
+                            class="flex items-start gap-3 rounded-lg border p-3.5 transition-colors"
+                            :class="[
+                                !option.accepting ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+                                deal.placement === option.value ? 'border-primary bg-(--p-highlight-background)' : 'border-hairline hover:bg-(--p-content-hover-background)',
+                            ]"
                         >
-                            <RadioButton :model-value="deal.placement" :value="option.value" :input-id="`${uid}-pl-${option.value}`" name="placement" class="mt-0.5" @update:model-value="pickPlacement" />
+                            <RadioButton
+                                :model-value="deal.placement"
+                                :value="option.value"
+                                :input-id="`${uid}-pl-${option.value}`"
+                                name="placement"
+                                :disabled="!option.accepting"
+                                class="mt-0.5"
+                                @update:model-value="pickPlacement"
+                            />
                             <span class="min-w-0 flex-1">
                                 <span class="flex flex-wrap items-center justify-between gap-x-2 text-sm font-semibold">
-                                    {{ t(`business.placement.${option.value}`) }}
+                                    <span class="flex flex-wrap items-center gap-1.5">
+                                        {{ t(`business.placement.${option.value}`) }}
+                                        <PointShopTag v-if="!option.accepting" tone="neutral">{{ t('business.ad.notAccepting') }}</PointShopTag>
+                                    </span>
                                     <span v-if="option.dailyPrice" class="text-xs font-semibold tabular-nums">{{ t('business.deal.placementPrice', { amount: UtilBusinessMessages.won(t, option.dailyPrice) }) }}</span>
                                 </span>
                                 <span class="mt-0.5 block text-xs text-muted-color">{{ t(`business.placementHelp.${option.value}`) }}</span>
@@ -256,6 +284,21 @@ async function load(): Promise<void> {
 }
 onMounted(load);
 
+async function reloadDealProduct(): Promise<void> {
+    try {
+        dealProduct.value = await api.dealProduct();
+    } catch {
+        // 다시 읽지 못하면 닫힌 것으로 본다 — 서버가 이미 받지 않는다고 답했다
+        if (dealProduct.value) dealProduct.value = { ...dealProduct.value, accepting: false };
+        return;
+    }
+    if (!dealProduct.value.accepting) return;
+    if (deal.placement !== 'NONE' && !placement.value?.accepting) {
+        pickPlacement('NONE');
+        step.value = 4;
+    }
+}
+
 const stepNames = computed(() => (['link', 'price', 'content', 'placement', 'payment'] as const).map((k) => t(`business.deal.steps.${k}`)));
 
 async function checkLink(): Promise<void> {
@@ -295,8 +338,8 @@ const shippingLabel = computed(() => {
 
 /* ── 노출 ── */
 const placementOptions = computed(() => [
-    { value: 'NONE' as DealPlacement, dailyPrice: 0 },
-    ...(dealProduct.value?.placements ?? []).map((p) => ({ value: p.placement as DealPlacement, dailyPrice: p.dailyPrice })),
+    { value: 'NONE' as DealPlacement, dailyPrice: 0, accepting: true },
+    ...(dealProduct.value?.placements ?? []).map((p) => ({ value: p.placement as DealPlacement, dailyPrice: p.dailyPrice, accepting: p.accepting })),
 ]);
 const placement = computed(() => dealProduct.value?.placements.find((p) => p.placement === deal.placement) ?? null);
 const minDay = computed(() => UtilBusiness.addDays(UtilBusiness.todayYmd(), 1));
@@ -308,7 +351,7 @@ const periodLabel = computed(() =>
 const periodHasFull = computed(() => placementDays.value > 0 && availability.value.some((d) => d.date >= period.value.start && d.date <= period.value.end && d.remaining <= 0));
 
 function pickPlacement(value: DealPlacement): void {
-    if (value === deal.placement) return;
+    if (value === deal.placement || !placementOptions.value.find((o) => o.value === value)?.accepting) return;
     deal.placement = value;
     period.value = { start: '', end: '' };
     availability.value = [];
@@ -410,6 +453,8 @@ async function submit(): Promise<void> {
             step.value = 4;
             void loadAvailability();
         }
+        // 받기가 꺼졌으면(409 BIZ_PRODUCT_CLOSED) 요금을 다시 읽는다 — 글 게시가 닫혔으면 폼 대신 「준비 중」 안내, 노출 자리만 닫혔으면 노출 단계로
+        if (e instanceof ApiError && e.code === 'BIZ_PRODUCT_CLOSED') await reloadDealProduct();
     } finally {
         submitBusy.value = false;
     }
