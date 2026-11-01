@@ -77,8 +77,15 @@ class BizApplicationDomainSplitMigrationTest extends Commerce04AdminTestBase {
             LocalDate start = LocalDate.now(ZoneId.of("Asia/Seoul")).plusDays(3);
             long ad = members.submitAd(user, new BizAdApplyRequest("TEXT_LINE", start.toString(), start.plusDays(2).toString(), null, "https://a.example.com", null,
                     "이관 시험 한 줄", "MANUAL", "v1", "v1"));
-            long deal = members.submitDeal(user, new BizDealApplyRequest("[이관상사] 텀블러", new BizDealInfo("https://smartstore.naver.com/roboyam/products/7",
-                    "네이버 스마트스토어", 32_000L, 15_900L, 0L, null, "LIMITED", "행사", "NONE"), null, null, "MANUAL", "v1", "v1"));
+            // V121 이 사업자 핫딜 받기를 꺼 두어 이 신청 동안만 연다
+            jdbc.update("UPDATE biz_price_rules SET accepting = true WHERE product = 'HOTDEAL_POST'");
+            long deal;
+            try {
+                deal = members.submitDeal(user, new BizDealApplyRequest("[이관상사] 텀블러", new BizDealInfo("https://smartstore.naver.com/roboyam/products/7",
+                        "네이버 스마트스토어", 32_000L, 15_900L, 0L, null, "LIMITED", "행사", "NONE"), null, null, "MANUAL", "v1", "v1"));
+            } finally {
+                jdbc.update("UPDATE biz_price_rules SET accepting = false WHERE product = 'HOTDEAL_POST'");
+            }
 
             // 옛 이름 — 운영자가 바꾼 값(심사 대기는 끄고 이메일·브라우저 켜고 팀에만, 환불은 이메일 켬)과 개인 끄기, 받은 알림
             jdbc.update("INSERT INTO notification_events (code, enabled, email_enabled, browser_enabled, default_recipients, updated_at) VALUES "

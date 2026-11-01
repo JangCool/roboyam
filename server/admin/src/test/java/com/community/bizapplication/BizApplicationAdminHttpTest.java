@@ -58,10 +58,15 @@ class BizApplicationAdminHttpTest extends Commerce04AdminTestBase {
                 "MANUAL", "v1", "v1"));
     }
 
-    /** 사업자 핫딜 글(노출 없음) */
+    /** 사업자 핫딜 글(노출 없음) — V121 이 받기를 꺼 두어 이 호출 동안만 연다 */
     private long submitDeal(long user) {
-        return members.submitDeal(user, new BizDealApplyRequest("[관리상사] 텀블러 1+1", new BizDealInfo("https://smartstore.naver.com/roboyam/products/9", "네이버 스마트스토어",
-                32_000L, 15_900L, 0L, null, "LIMITED", "1+1 행사", "NONE"), null, null, "MANUAL", "v1", "v1"));
+        jdbc.update("UPDATE biz_price_rules SET accepting = true WHERE product = 'HOTDEAL_POST'");
+        try {
+            return members.submitDeal(user, new BizDealApplyRequest("[관리상사] 텀블러 1+1", new BizDealInfo("https://smartstore.naver.com/roboyam/products/9",
+                    "네이버 스마트스토어", 32_000L, 15_900L, 0L, null, "LIMITED", "1+1 행사", "NONE"), null, null, "MANUAL", "v1", "v1"));
+        } finally {
+            jdbc.update("UPDATE biz_price_rules SET accepting = false WHERE product = 'HOTDEAL_POST'");
+        }
     }
 
     private java.util.List<String> ids(JsonNode page) {
