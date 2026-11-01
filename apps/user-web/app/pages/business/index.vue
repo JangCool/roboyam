@@ -140,10 +140,14 @@
                 <h2 :id="`${uid}-services`" class="m-0 mb-2 text-sm font-semibold">{{ t('business.home.servicesTitle') }}</h2>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <div v-for="service in services" :key="service.to" class="panel-card flex flex-col gap-2 p-4" :data-testid="service.testid">
-                        <p class="m-0 flex items-center gap-2 text-sm font-bold"><i :class="[service.icon, 'text-primary']" aria-hidden="true" />{{ service.label }}</p>
-                        <p class="m-0 flex-1 text-xs leading-relaxed text-muted-color">{{ service.text }}</p>
+                        <p class="m-0 flex flex-wrap items-center gap-2 text-sm font-bold">
+                            <i :class="[service.icon, service.closed ? 'text-muted-color' : 'text-primary']" aria-hidden="true" />{{ service.label }}
+                            <PointShopTag v-if="service.closed" tone="neutral">{{ t('business.home.serviceDealClosed') }}</PointShopTag>
+                        </p>
+                        <p class="m-0 flex-1 text-xs leading-relaxed text-muted-color">{{ service.closed ? t('business.home.serviceDealClosedText') : service.text }}</p>
                         <div>
-                            <Button as="router-link" :to="service.to" :label="t('business.home.serviceApply')" size="small" />
+                            <Button v-if="service.closed" type="button" :label="t('business.home.serviceApply')" size="small" disabled />
+                            <Button v-else as="router-link" :to="service.to" :label="t('business.home.serviceApply')" size="small" />
                         </div>
                     </div>
                 </div>
@@ -195,6 +199,8 @@ const status = ref<'loading' | 'ready' | 'error'>('loading');
 const loadError = ref('');
 const apps = ref<BizApplicationSummary[]>([]);
 const appsStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle');
+/** 사업자 핫딜 글 게시 받기 — 모르면(못 읽음) null 로 두고 단추를 연다(신청 화면이 다시 막는다) */
+const dealAccepting = ref<boolean | null>(null);
 
 async function load(): Promise<void> {
     status.value = 'loading';
@@ -202,7 +208,10 @@ async function load(): Promise<void> {
     try {
         profile.value = await api.profile();
         status.value = 'ready';
-        if (profile.value.status === 'APPROVED') void loadApplications();
+        if (profile.value.status === 'APPROVED') {
+            void loadApplications();
+            void loadDealProduct();
+        }
     } catch (e) {
         loadError.value = e instanceof Error ? e.message : '';
         status.value = 'error';
@@ -219,6 +228,14 @@ async function loadApplications(): Promise<void> {
     }
 }
 
+async function loadDealProduct(): Promise<void> {
+    try {
+        dealAccepting.value = (await api.dealProduct()).accepting;
+    } catch {
+        dealAccepting.value = null;
+    }
+}
+
 onMounted(load);
 
 const noneSteps = computed(() => [t('business.home.noneStep1'), t('business.home.noneStep2'), t('business.home.noneStep3')]);
@@ -231,7 +248,14 @@ const awaitingDeposit = computed(() => apps.value.filter((a) => a.status === 'AW
 const recent = computed(() => apps.value.slice(0, 5));
 
 const services = computed(() => [
-    { to: UtilBusiness.AD_NEW_PATH, icon: 'pi pi-megaphone', label: t('business.home.serviceAd'), text: t('business.home.serviceAdText'), testid: 'business-service-ad' },
-    { to: UtilBusiness.DEAL_NEW_PATH, icon: 'pi pi-tag', label: t('business.home.serviceDeal'), text: t('business.home.serviceDealText'), testid: 'business-service-deal' },
+    { to: UtilBusiness.AD_NEW_PATH, icon: 'pi pi-megaphone', label: t('business.home.serviceAd'), text: t('business.home.serviceAdText'), testid: 'business-service-ad', closed: false },
+    {
+        to: UtilBusiness.DEAL_NEW_PATH,
+        icon: 'pi pi-tag',
+        label: t('business.home.serviceDeal'),
+        text: t('business.home.serviceDealText'),
+        testid: 'business-service-deal',
+        closed: dealAccepting.value === false,
+    },
 ]);
 </script>

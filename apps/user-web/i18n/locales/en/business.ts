@@ -44,6 +44,8 @@ export default {
         serviceAdText: 'Banners and text-line ads on home and boards',
         serviceDeal: 'Business deals',
         serviceDealText: 'Post deals on the deal board and pin them on top',
+        serviceDealClosed: 'Coming soon',
+        serviceDealClosedText: 'Business deals are coming soon. You can request one here once they open.',
         serviceApply: 'Request',
         todoTitle: 'To do now',
         todoPayment: '{count} awaiting payment',
@@ -290,6 +292,9 @@ export default {
         title: 'Request a business deal',
         seoDescription: 'Request business deal review',
         intro: 'Business deals are posted after review and payment.',
+        closedTitle: 'Business deals are coming soon',
+        closedText: 'We are not taking requests yet. Once they open, you can request one from the business center. Ad requests are open now.',
+        closedBack: 'Business center',
         steps: {
             link: 'Product',
             price: 'Price',

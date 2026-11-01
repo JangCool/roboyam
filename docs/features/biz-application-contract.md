@@ -93,6 +93,9 @@ API 요청·응답 모양 전체는 서버 DTO(admin `bizapplication/dto/BizAdmi
 - admin-web: 공통 `BizAppReviewPage`(prop `domain`) + `/ad-reviews`·`/hotdeal-reviews`, 옛 `/biz-applications` 는 `/ad-reviews` 로 리디렉트(쿼리 유지), 사업자 `BusinessAdminPage`(mode review·directory) + `/business-reviews`·`/businesses`, 정지 해제 창(`BusinessUnsuspendDialog`), 대시보드 「처리할 일」 칸(권한 있는 칸만, 403 칸은 빠짐).
 - ⚠ 대시보드 건수는 목록 API 의 `counts` 를 쓴다(건수 전용 API 없음 — 행도 같이 받음). 사업자 관리자 알림 아이콘은 화면 표에 아직 없다.
 
+## 사업자 핫딜 신청 닫음 (2026-11-01 — 사용자 「닫아 둬」)
+- **사업자 핫딜 신청 닫음 — 게시 기능(`BizHotdealPosting`) 구현 때 V1xx 로 다시 연다.** shared **V121** 이 요금표 `HOTDEAL_POST`·`HOTDEAL_TOP`·`HOTDEAL_CATEGORY` 의 `accepting=false`(새 신청 409 `BIZ_PRODUCT_CLOSED`, 이미 들어온 건은 그대로). `GET /api/business/deal-products` 에 `accepting`(글 게시)·`placements[].accepting`(노출 자리별). user-web 사업자 센터 홈 핫딜 카드는 「준비 중」·단추 비활성, `/business/deals/new` 는 폼 대신 안내(409 를 받아도 같은 안내), 닫힌 노출 자리는 「지금은 받지 않아요」. 관리자 일정표 핫딜 노출 탭·심사 화면은 그대로(받기 상태를 내려 주는 관리자 API 가 없어 안내 문구는 넣지 않음). 시험은 `withDealsOpen` 으로 신청 동안만 연다.
+
 ## 후속 (이 세션 범위 밖)
 - ~~관리자 `/ads` 일정표 API~~(2026-10-31 구현 — `ad-contract.md` 「서버 구현 결정」), 공개 광고 노출(`AdSlot`), 핫딜 글 실제 게시·회원 핫딜, 공개 `HOTDEAL_PLACEMENT` 신청.
 - 요금표 편집 API · 「입금 기한 지남」 운영자 알림 · 계약서 5년 보존 파기 · 일할 기준·수수료·청약철회(법무).
