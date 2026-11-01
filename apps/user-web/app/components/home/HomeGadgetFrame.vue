@@ -10,6 +10,7 @@
         한 열(모바일, 격자 `stack`)에서는 머리 「더보기 ›」의 터치 영역을 44px 로 넓힌다(`main.css` `[data-grid-mode='stack'] .gadget-head .gadget-more` — 모든 테마).
     -->
     <section
+        ref="card"
         :class="rootClass"
         :style="rootStyle"
         :aria-labelledby="showHeader ? headingId : undefined"
@@ -17,6 +18,8 @@
         :data-gadget="gadget.type"
         :data-gadget-id="gadget.id"
         :data-look="look"
+        :data-headless="showHeader ? undefined : ''"
+        data-grid-fill
         data-testid="home-gadget"
     >
         <div v-if="showHeader" :class="['gadget-head', headerClass]" :style="headerStyle" data-testid="home-gadget-header">
@@ -51,10 +54,12 @@
         </div>
 
         <!-- 내용 — 접어도 DOM 은 남긴다(안쪽 상태를 잃지 않게) -->
-        <div v-show="bodyShown" :id="bodyId" class="@container min-w-0">
+        <!-- 본문이 남는 높이를 받아 바닥 줄(`mt-auto`)·「더보기」 줄은 카드 아래에 붙는다 -->
+        <div v-show="bodyShown" :id="bodyId" class="@container flex min-w-0 flex-1 flex-col" data-grid-fill>
             <template v-if="showEmpty">
+                <!-- 칸이 크면 세로 가운데에 띄운다 — 띄움 여백은 `useGadgetInk` 가 걸고 격자 높이 재기는 세지 않는다 -->
                 <!-- 아이콘을 글 위 한 줄로 — `.pi` 가 inline-block 이라 `block` 클래스로는 줄이 바뀌지 않아 세로 flex 로 쌓는다 -->
-                <p v-if="style.empty.message" class="m-0 flex flex-col items-center px-1 py-8 text-center text-sm text-muted-color" data-testid="home-gadget-empty">
+                <p v-if="style.empty.message" class="m-0 flex flex-col items-center px-1 py-8 text-center text-sm text-muted-color" data-grid-float data-testid="home-gadget-empty">
                     <i :class="[emptyIcon, 'mb-2 text-xl']" aria-hidden="true" />{{ UtilHomeGadgetMessages.emptyTitle(t, gadget) }}
                 </p>
                 <!-- 안내를 끈 경우 — 틀은 남기고 높이만 조금 가진 빈 칸 -->
@@ -67,6 +72,7 @@
         <NuxtLink
             v-if="more && look === 'classic' && bodyShown && !showEmpty"
             :to="more.to"
+            :style="classicMoreStyle"
             class="mt-1 block border-t border-surface py-2.5 text-center text-sm text-muted-color hover:bg-surface-100 hover:text-color focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary dark:hover:bg-surface-800"
             data-testid="home-gadget-more"
         >
@@ -143,8 +149,23 @@ const rootStyle = computed(() => {
     return vars;
 });
 
-/** 카드 — 평평한 가젯만 카드 없이. 나머지는 테마가 값을 채우는 `gadget-card` */
-const rootClass = computed(() => (style.value.cardLook === 'FLAT' ? 'min-w-0' : 'gadget-card'));
+/** 카드 — 평평한 가젯만 카드 없이. 세로 flex 라 운영자가 키운 높이의 남는 공간은 본문(`flex-1`)이 받는다 */
+const rootClass = computed(() => `${style.value.cardLook === 'FLAT' ? 'min-w-0' : 'gadget-card'} flex flex-col`);
+
+const card = ref<HTMLElement | null>(null);
+useGadgetInk(card, () => style.value.cardLook !== 'FLAT');
+
+/** 기본형 「더보기」 줄은 카드 좌우 끝까지 — 아래 바깥 여백은 `useGadgetInk` 가 건다 */
+const classicMoreStyle = computed(() =>
+    style.value.cardLook === 'FLAT'
+        ? undefined
+        : {
+              marginLeft: 'calc(-1 * var(--gadget-card-pad-x))',
+              marginRight: 'calc(-1 * var(--gadget-card-pad-x))',
+              borderBottomLeftRadius: 'var(--gadget-card-radius)',
+              borderBottomRightRadius: 'var(--gadget-card-radius)',
+          },
+);
 
 const headerClass = computed(() => {
     const h = style.value.headerStyle;

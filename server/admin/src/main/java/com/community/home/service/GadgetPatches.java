@@ -228,6 +228,7 @@ final class GadgetPatches {
                 }
                 option(raw, out, "format", GadgetConfigs.NOTICE_FORMATS, at, opt, fields);
             }
+            case HomeGadgetKinds.AD -> option(raw, out, "adType", GadgetConfigs.AD_TYPES, at, opt, fields);
             default -> {
             }
         }

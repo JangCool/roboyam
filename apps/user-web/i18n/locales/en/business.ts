@@ -136,6 +136,7 @@ export default {
         STRIP: 'Strip banner',
         SQUARE: 'Square banner',
         SMALL: 'Small banner',
+        WING: 'Wing banner',
         TEXT_LINE: 'Text line',
     },
 
@@ -144,6 +145,7 @@ export default {
         STRIP: 'Strip above board lists',
         SQUARE: 'Home side column · in posts',
         SMALL: 'Small spot in the board side column',
+        WING: 'Tall spots beside the page body (wide PC screens)',
         TEXT_LINE: 'One text line above board lists',
     },
 
@@ -152,6 +154,7 @@ export default {
         STRIP: '1200×100',
         SQUARE: '300×250',
         SMALL: '300×100',
+        WING: '160×600',
         TEXT_LINE: 'Up to 40 chars',
     },
 

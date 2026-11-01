@@ -38,21 +38,25 @@ function applies(screens: BoardLayoutScreens): boolean {
     return props.screen === 'LIST' ? screens.list !== false : screens.post !== false;
 }
 
-/** 그릴 레이아웃 — null 이면 슬롯만(지금 화면 그대로) */
-const resolved = computed<HomeGadgetsResponse | null>(() => {
+/** 이 화면에 켜진 레이아웃(읽은 값) — null 이면 슬롯만 */
+const base = computed<HomeGadgetsResponse | null>(() => {
     const r = raw.value;
     if (!r || r.slug !== props.board) return null;
-    let data: HomeGadgetsResponse | null;
     if (preview.active.value) {
         // 관리자 미리보기 — 관리자가 보낸 게시판 레이아웃(본문 칸이 든 것)만 덮는다
         const home = preview.home.value;
         const screens = preview.board.value?.screens;
         if (!home || !screens || !home.gadgets.some((g) => g.type === BOARD_BODY) || !applies(screens)) return null;
-        data = UtilHomeGadget.sanitize(UtilAdminPreview.applyHome(r.res, home, r.extra));
-    } else {
-        if (!applies(r.res.screens)) return null;
-        data = UtilHomeGadget.sanitize(r.res);
+        return UtilHomeGadget.sanitize(UtilAdminPreview.applyHome(r.res, home, r.extra));
     }
+    if (!applies(r.res.screens)) return null;
+    return UtilHomeGadget.sanitize(r.res);
+});
+const withAds = useAdGadgets(base, 'BOARD');
+
+/** 그릴 레이아웃 — null 이면 슬롯만(지금 화면 그대로) */
+const resolved = computed<HomeGadgetsResponse | null>(() => {
+    const data = withAds.value;
     if (!data) return null;
     const body = data.gadgets.find((g) => g.type === BOARD_BODY);
     const bodyItem = body ? data.layout.items.find((it) => it.gadgetId === body.id) : undefined;

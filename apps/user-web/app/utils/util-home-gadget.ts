@@ -34,8 +34,13 @@ import UtilGroupBuy from '~/utils/util-group-buy';
  * **모르는 키는 건너뛴다**: 모르는 종류(`type`)는 `isVisible` 이 false(그리지 않는다), 모르는 값은 칸마다 기본값.
  */
 
-/** 가젯 종류 8종 — 화면이 아는 것 */
-const KINDS: readonly GadgetKind[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'QUICK_LINKS', 'NOTICE_TEXT'];
+/** 가젯 종류 8종 + 광고 2종 — 화면이 아는 것 */
+const KINDS: readonly GadgetKind[] = ['HIGHLIGHT', 'POST_LIST', 'BOARD_CARDS', 'GALLERY', 'GROUPS', 'GROUP_BUY', 'QUICK_LINKS', 'NOTICE_TEXT', 'AD', 'AD_TEXT_LINE'];
+
+/** 머리를 숨기는 것이 처음 꾸미기인 종류(키가 빠진 응답의 기본값) — 광고는 「광고」 표시가 제목 노릇을 한다(admin `UtilGadgetStyle.initial` 과 같다) */
+const HEADERLESS_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
+/** 카드 없이(평평) 그리는 것이 처음 꾸미기인 종류 — 배너는 그림 자체가 면이라 카드를 겹치지 않는다 */
+const FLAT_KINDS: readonly string[] = ['AD'];
 
 const META_KEYS: readonly PostListMeta[] = ['BOARD', 'PREFIX', 'COMMENTS', 'TIME', 'AUTHOR'];
 /** 글 가젯의 기본 표시 칸(community 계약서 2-1) */
@@ -103,11 +108,11 @@ function readStyle(raw: unknown, type: unknown): GadgetStyle {
     const s = obj(raw);
     return {
         icon: typeof s.icon === 'string' && ICON.test(s.icon) ? s.icon : null,
-        headerStyle: oneOf(s.headerStyle, ['BAR', 'UNDERLINE', 'FILLED', 'PLAIN', 'HIDDEN'] as const, 'BAR'),
+        headerStyle: oneOf(s.headerStyle, ['BAR', 'UNDERLINE', 'FILLED', 'PLAIN', 'HIDDEN'] as const, typeof type === 'string' && HEADERLESS_KINDS.includes(type) ? 'HIDDEN' : 'BAR'),
         titleSize: oneOf(s.titleSize, ['S', 'M', 'L'] as const, 'M'),
         titleColor: UtilColor.normalize(s.titleColor),
         subtitle: text(s.subtitle, '', 40),
-        cardLook: oneOf(s.cardLook, ['DEFAULT', 'FLAT', 'OUTLINE', 'TINT'] as const, 'DEFAULT'),
+        cardLook: oneOf(s.cardLook, ['DEFAULT', 'FLAT', 'OUTLINE', 'TINT'] as const, typeof type === 'string' && FLAT_KINDS.includes(type) ? 'FLAT' : 'DEFAULT'),
         cardColor: UtilColor.normalize(s.cardColor),
         mobileFold: oneOf(s.mobileFold, ['NONE', 'OPEN', 'CLOSED'] as const, 'NONE'),
         empty: readEmpty(s.empty, type),
@@ -152,7 +157,7 @@ export default class UtilHomeGadget {
     /** 데스크톱으로 보는 폭 — Tailwind `lg`(1024px). 가젯의 PC/모바일 노출(`desktop`·`mobile`)과 홈 격자(`HomeGadgetGrid`)의 데스크톱 배치가 이 경계를 쓴다 */
     static readonly WIDE_QUERY = '(min-width: 1024px)';
 
-    /** 가젯 종류 8종 */
+    /** 가젯 종류 8종 + 광고 2종 */
     static readonly KINDS: readonly GadgetKind[] = KINDS;
 
     /**

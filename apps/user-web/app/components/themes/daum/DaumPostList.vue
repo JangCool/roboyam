@@ -8,7 +8,8 @@
     <div>
         <BoardPinnedList :rows="pinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
         <ul class="m-0 list-none p-0" data-testid="post-list-headline">
-            <li v-for="row in rows" :key="row.id" class="border-t border-hairline first:border-t-0">
+            <template v-for="(row, i) in rows" :key="row.id">
+            <li class="border-t border-hairline first:border-t-0">
                 <p v-if="row.hiddenReason" class="m-0 flex items-center gap-1.5 py-2.5 text-sm text-muted-color">
                     <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t(row.hiddenReason === 'STAFF' ? 'board.hiddenPostStaff' : 'board.hiddenPost') }}
                 </p>
@@ -33,6 +34,8 @@
                     </NuxtLink>
                 </FoldedRow>
             </li>
+            <li v-if="feedAd && i === feedAd.afterIndex" class="border-t border-hairline"><AdFeedRow :ad="feedAd.ad" variant="headline" /></li>
+            </template>
         </ul>
     </div>
 </template>
@@ -43,7 +46,7 @@ import type { PostRow } from '~/composables/board/api/usePostApi.types';
 
 interface Props extends BoardPostListProps {}
 
-withDefaults(defineProps<Props>(), {});
+withDefaults(defineProps<Props>(), { feedAd: null });
 
 const { t } = useI18n();
 const overrides = useBlockOverrides();

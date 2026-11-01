@@ -175,6 +175,12 @@
                             @settings="openDebateSettings"
                         />
 
+                        <!-- 자리 `AFTER_BODY` — 차단으로 접힌 글은 이 칸도 함께 접힌다 -->
+                        <div v-if="inlineAd?.position === 'AFTER_BODY'" class="py-3" data-testid="post-inline-ad">
+                            <AdTextLines v-if="inlineAd.type === 'TEXT_LINE'" :ads="inlineAd.ads" :count="1" placement="POST_INLINE" />
+                            <AdSlot v-else :type="inlineAd.type" :ads="inlineAd.ads" placement="POST_INLINE" align="center" />
+                        </div>
+
                         <!-- 추천 · 링크 복사 · 신고 -->
                         <div class="flex flex-wrap items-center justify-center gap-2 py-3">
                             <Button
@@ -232,6 +238,17 @@
                     </div>
                 </div>
 
+                <!-- 두 카드 사이라 `.content-card + .content-card` 간격이 걸리지 않아 위아래 여백이 그 반씩(0 이면 8px)을 맡는다 -->
+                <div
+                    v-if="inlineAd?.position === 'BETWEEN_CARDS' && inlineAd.ads && !folded"
+                    class="my-[max(calc(var(--content-card-gap)/2),0.5rem)]"
+                    :class="inlineAd.type === 'TEXT_LINE' ? 'rounded-md border border-hairline px-3' : ''"
+                    data-testid="post-inline-ad"
+                >
+                    <AdTextLines v-if="inlineAd.type === 'TEXT_LINE'" :ads="inlineAd.ads" :count="1" slim placement="POST_INLINE" />
+                    <AdSlot v-else :type="inlineAd.type" :ads="inlineAd.ads" placement="POST_INLINE" />
+                </div>
+
                 <div class="content-card" data-testid="post-comments-card">
                     <!-- 멤버 전용 댓글 안내(5단계) — 비공개 소모임의 개별 공개 글을 비멤버·비회원이 볼 때, 공개 전에 달려 가려진 댓글 수(목록의 댓글 수는 전체 그대로) -->
                     <p
@@ -286,6 +303,7 @@ import type { DebateSettingsValues } from '~/components/board/DebateSettingsFiel
 import type { PollCardActions } from '~/components/board/PostPollCard.types';
 import type { GroupPostPanelActions } from '~/components/group/GroupPostPanel.types';
 import UtilRichBody from '#layers/rich-editor/utils/util-rich-body';
+import UtilAd from '~/utils/util-ad';
 import UtilBlockMessages from '~/utils/util-block-messages';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilDebate from '~/utils/util-debate';
@@ -336,6 +354,39 @@ const adultConfirmed = ref(false);
 /** 접힌 글을 「보기」로 펼쳤다 — 이 글을 보는 동안만(다른 글로 가면 다시 접힌다) */
 const foldRevealed = ref(false);
 
+const publicAds = usePublicAds();
+void publicAds.ensurePlacements();
+/**
+ * 글 보기 광고를 물을 게시판 — 소모임 글·`adsHidden` 이면 빈 글자, 19금 글(`post.adult`)·19금 게시판은 자리 설정 `adult.enabled` 가 꺼져 있으면 빈 글자
+ * (게시판 맥락 호출이라 `board` 로 넘긴다 — 서버는 게시판만 판정하고 19금 글은 화면이 거른다)
+ */
+const inlineBoard = computed(() => {
+    const p = post.value;
+    const adultOn = publicAds.adultEnabled.value;
+    if (!p || p.group || (p.adult && !adultOn) || board.value?.slug !== p.board.slug || UtilAd.boardAdsHidden(board.value, adultOn)) return '';
+    return p.board.slug;
+});
+/** 자리 꺼짐·광고 없는 글·후보 0건이면 null */
+const inlineAd = computed(() => {
+    const p = publicAds.placements.value?.postInline;
+    if (!p?.enabled || !inlineBoard.value) return null;
+    const type = UtilAd.inlineType(p.adType);
+    const ads = publicAds.candidates(type, inlineBoard.value);
+    if (ads !== undefined && ads.length === 0) return null;
+    return { type, position: UtilAd.inlinePosition(p.position), ads: ads ?? null };
+});
+watch(
+    () => {
+        const p = publicAds.placements.value?.postInline;
+        return p?.enabled && inlineBoard.value ? `${UtilAd.inlineType(p.adType)}@${inlineBoard.value}` : '';
+    },
+    (key) => {
+        const p = publicAds.placements.value?.postInline;
+        if (key && p) void publicAds.ensure([UtilAd.inlineType(p.adType)], inlineBoard.value);
+    },
+    { immediate: true },
+);
+
 let request = 0;
 async function load(): Promise<void> {
     const mine = ++request;
@@ -355,6 +406,14 @@ async function load(): Promise<void> {
         if (mine !== request) return;
         post.value = loaded;
         board.value = loadedBoard;
+        // 날개 배너 — 그 게시판 `board` 로 부른다. 소모임 글·광고 숨김 게시판·19금 글/게시판(옵션 꺼짐)이면 그리지 않는다
+        publicAds.setWingContext({
+            path: route.path,
+            board: loaded.board.slug,
+            adsHidden: loadedBoard.adsHidden === true,
+            adult: loaded.adult || loadedBoard.allowAdult === true,
+            group: Boolean(loaded.group),
+        });
         if (!loaded.group) current.set(loaded.board.slug);
         pageState.value = 'ready';
         opinionsStarted = false;

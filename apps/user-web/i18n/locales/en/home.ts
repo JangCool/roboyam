@@ -66,4 +66,7 @@ export default {
     editRemove: 'Remove {title}',
     editSettings: '{title} settings',
     editResize: 'Resize',
+    // n = rows
+    editTooSmall: "Can't shrink further — at least {n} rows",
+    editTooLarge: '{n} rows shorter still fits',
 };

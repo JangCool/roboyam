@@ -34,6 +34,8 @@ public class BoardEntity {
     private boolean viewToggle;
     private String color;
     private boolean allowAdult;
+    /** 「이 게시판에 광고 숨김」(V117) — 목록 한 줄·글 보기·핫딜 노출 광고 없음. 게시판마다의 값 */
+    private boolean adsHidden;
     private boolean investmentNotice;
     private boolean active;
     private int sortOrder;
@@ -118,6 +120,11 @@ public class BoardEntity {
         this.color = color;
         this.allowAdult = allowAdult;
         this.investmentNotice = investmentNotice;
+    }
+
+    /** 「광고 숨김」을 바꾼다 */
+    public void changeAdsHidden(boolean adsHidden) {
+        this.adsHidden = adsHidden;
     }
 
     /** 잠금·안내문을 바꾼다 */
@@ -223,6 +230,10 @@ public class BoardEntity {
 
     public boolean isAllowAdult() {
         return allowAdult;
+    }
+
+    public boolean isAdsHidden() {
+        return adsHidden;
     }
 
     public boolean isInvestmentNotice() {

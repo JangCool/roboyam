@@ -2,8 +2,11 @@ package com.community.ad.controller;
 
 import com.community.ad.dto.AdAdminRequest;
 import com.community.ad.dto.AdAdminView;
+import com.community.ad.dto.AdPlacementAdmin;
+import com.community.ad.dto.AdPlacementHistory;
 import com.community.ad.service.AdAdminService;
 import com.community.ad.service.AdAdvertiserService;
+import com.community.ad.service.AdPlacementAdminService;
 import com.community.bizapplication.dto.BizAdminView;
 import com.community.permission.annotation.RequirePermission;
 import com.community.permission.dto.AdminActor;
@@ -15,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -23,7 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 광고 일정표(admin-web {@code useAdApi} — {@code /ads}, docs/features/ad-contract.md). 조회 {@code ad.read}(핫딜 노출 자리 탭 포함) · 운영자 등록·광고주·계약서·이미지 {@code ad.manage} ·
- * 긴급 내림 {@code ad.takedown} · 되돌리기 {@code ad.restore} · 광고주 연락처 평문 {@code ad.contact.reveal}. 운영자 등록 건의 심사·결제(승인 → 계약서 사본 + 입금 확인 → 확정)는
+ * 긴급 내림 {@code ad.takedown} · 되돌리기 {@code ad.restore} · 광고주 연락처 평문 {@code ad.contact.reveal} · 노출 자리 설정 조회 {@code ad.read}·저장 {@code ad.settings}. 운영자 등록 건의 심사·결제(승인 → 계약서 사본 + 입금 확인 → 확정)는
  * 신청 건 API({@code /api/admin/biz-applications/**})가 한다. 응답은 {@code Cache-Control: no-store}. 자리가 없으면 409 {@code BIZ_SLOT_FULL}, 상태가 이미 바뀌었으면 409
  * {@code BIZ_APPLICATION_STATE_CHANGED}.
  */
@@ -32,9 +36,33 @@ import org.springframework.web.multipart.MultipartFile;
 public class AdAdminController {
 
     private final AdAdminService service;
+    private final AdPlacementAdminService placements;
 
-    public AdAdminController(AdAdminService service) {
+    public AdAdminController(AdAdminService service, AdPlacementAdminService placements) {
         this.service = service;
+        this.placements = placements;
+    }
+
+    /** 노출 자리 설정(글 보기 중간 · 날개 배너 · 게시판 목록 한 줄) — 저장한 적 없으면 기본값 · {@code updatedAt}·{@code updatedBy} null */
+    @RequirePermission(Permission.AD_READ)
+    @GetMapping("/placements")
+    public ResponseEntity<ApiResponse<AdPlacementAdmin.View>> placements() {
+        return ok(placements.get());
+    }
+
+    /** 노출 자리 설정 저장 — 세 묶음 모두, 틀리면 400 {@code fields.<묶음>.<칸>}, 감사 {@code AD_PLACEMENT_UPDATE} */
+    @RequirePermission(Permission.AD_SETTINGS)
+    @PutMapping("/placements")
+    public ResponseEntity<ApiResponse<AdPlacementAdmin.View>> savePlacements(@RequestBody(required = false) AdPlacementAdmin.Save body, AdminActor actor) {
+        return ok(placements.save(actor, body));
+    }
+
+    /** 노출 자리 설정 변경 이력 — 최신 먼저, 메일 서버 설정 이력과 같은 모양·쪽 규칙(기본 20 · 최대 100, 틀리면 400 {@code fields.page}·{@code fields.size}) */
+    @RequirePermission(Permission.AD_READ)
+    @GetMapping("/placements/history")
+    public ResponseEntity<ApiResponse<AdPlacementHistory.Page>> placementHistory(@RequestParam(required = false) String page,
+                                                                                @RequestParam(required = false) String size) {
+        return ok(placements.history(page, size));
     }
 
     /** 그 달(YYYY-MM) 날짜별 남은 칸 + 유형 요약 + 그 달에 걸친 장부 건 */

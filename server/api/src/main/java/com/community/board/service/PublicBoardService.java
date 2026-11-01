@@ -86,7 +86,7 @@ public class PublicBoardService {
                         ContentRules.GUEST_PASSWORD_MAX, sec.guestLinkLimit(), sec.guestImageUploadAllowed()),
                 new BoardNewMemberRulesView(BoardAccessPolicy.newMemberRules(b, actor, s), sec.newMemberLinkLimit(), sec.newMemberImageLimit()),
                 new BoardViewerView(actor.guest(), actor.staffOf(b.id()), writeBlocked == null, writeBlocked, commentBlocked == null, commentBlocked),
-                v.debateEnabled(), v.pollEnabled());
+                v.debateEnabled(), v.pollEnabled(), b.adsHidden());
     }
 
     /** 켜진 게시판 — 없거나 소모임 게시판이면 404, 꺼졌으면 403 */

@@ -246,8 +246,8 @@ export default class UtilAdminMenu {
                 { key: 'businesses', to: '/businesses', icon: 'pi pi-id-card', labelKey: 'menu.businesses', permission: 'business.read' },
             ],
         },
-        // 광고 묶음 — 광고 심사(`/ad-reviews`, 신청 건 AD_* — 조회 `ad.read`, 처리 `ad.manage`, 환불 `deal-order.refund`) · 광고 일정표(`/ads`, ⚠ 목업 `useAdApi`). 04-ia-review 1-2.
-        // 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례. 주소는 앞부분이 겹치지 않게(`/ads` 와 `/ad-reviews`)
+        // 광고 묶음 — 광고 심사(`/ad-reviews`, 신청 건 AD_* — 조회 `ad.read`, 처리 `ad.manage`, 환불 `deal-order.refund`) · 광고 일정표(`/ads`) · 광고 자리 설정(`/ads/placements`, 저장 `ad.settings`). 04-ia-review 1-2.
+        // 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례. `/ads/placements` 는 `/ads` 아래지만 다른 화면이다(`isActive` 가 더 구체적인 항목에 주소를 준다)
         {
             key: 'ad',
             icon: 'pi pi-megaphone',
@@ -255,6 +255,7 @@ export default class UtilAdminMenu {
             items: [
                 { key: 'adReviews', to: '/ad-reviews', icon: 'pi pi-inbox', labelKey: 'menu.adReviews', permission: 'ad.read' },
                 { key: 'ads', to: '/ads', icon: 'pi pi-calendar', labelKey: 'menu.ads', permission: 'ad.read' },
+                { key: 'adPlacements', to: '/ads/placements', icon: 'pi pi-sliders-h', labelKey: 'menu.adPlacements', permission: 'ad.read' },
             ],
         },
         // 핫딜 묶음 — 핫딜 심사(`/hotdeal-reviews`, 신청 건 HOTDEAL_* — 조회 `hotdeal.read`, 처리 `hotdeal.manage`, 환불 `deal-order.refund`).

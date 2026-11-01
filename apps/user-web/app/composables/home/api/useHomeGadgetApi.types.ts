@@ -6,7 +6,8 @@
  *    요청에 템플릿·테마를 싣지 않는다. 이용자 유형별 템플릿 규칙·「기본 템플릿」 고르기는 없다. 응답의 `theme` 은 이 배치가 어느 테마 것인지 알려 주는 값이다.
  *  - **배치 = 격자 좌표**(사용자 결정 2026-10-28 — community 의 고정 칸 이름(`MAIN`·`SIDE` …) 대신): 운영자가 관리자 홈 배치 편집기에서 테마마다 칸 수(12·24)와 가젯별 위치·크기를 정한다.
  *    모양·계산은 공유 레이어 `@roboyam/home-layout`(`UtilHomeLayout`) — 행 높이 15px · 간격 16px 고정, `h` 는 최소 높이. 모바일 한 열 순서는 (y, x) 순서다(따로 받지 않는다).
- *  - 가젯 종류는 8종(`HIGHLIGHT`·`POST_LIST`·`BOARD_CARDS`·`GALLERY`·`GROUPS`·`GROUP_BUY`·`QUICK_LINKS`·`NOTICE_TEXT`) — 로보얌에 없는 핫딜·직접홍보·광고(`DEAL_PLACEMENT`·`PROMO_TOP`·`AD`)는 없다.
+ *  - 가젯 종류는 8종(`HIGHLIGHT`·`POST_LIST`·`BOARD_CARDS`·`GALLERY`·`GROUPS`·`GROUP_BUY`·`QUICK_LINKS`·`NOTICE_TEXT`) + 광고 2종(`AD` · `AD_TEXT_LINE` — 서버 종류 등록 전).
+ *    광고 가젯은 서버가 `data` 를 비워 보내고 화면이 채운다(`useAdGadgets`). 커뮤니티의 핫딜·직접홍보(`DEAL_PLACEMENT`·`PROMO_TOP`)는 없다.
  *  - `GROUPS`·`GROUP_BUY` 도 가젯 `data` 에 목록을 싣는다(community 는 `null` + 컴포넌트가 따로 받음) — 컴포넌트는 서버를 부르지 않는다(로보얌 `components.md`).
  *  - 노출 기간·보는 사람(`audience`)은 **서버가 걸러** 응답에서 뺀다. 로그인한 사람만 보는 가젯을 로그인하지 않은 방문자에게 안내로 보일 때만 `locked: true` 뼈대로 온다.
  * ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO. 화면은 없는 칸·모르는 값에도 깨지지 않게 `UtilHomeGadget.sanitize` 로 한 번 읽는다(모르는 종류는 건너뛴다).
@@ -17,8 +18,8 @@ import type { GroupRow } from '~/composables/group/api/useGroupApi.types';
 import type { GroupBuyListItem } from '~/composables/groupbuy/api/useGroupBuyApi.types';
 import type { PopularPeriod } from '~/composables/home/api/useHomeApi.types';
 
-/** 가젯 종류 8종 — 서버 레지스트리의 키. 서버가 새 종류를 먼저 보내면 화면은 모르는 키로 받아 건너뛴다 */
-export type GadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'QUICK_LINKS' | 'NOTICE_TEXT';
+/** 가젯 종류 8종 + 광고 2종 — 서버 레지스트리의 키. 서버가 새 종류를 먼저 보내면 화면은 모르는 키로 받아 건너뛴다 */
+export type GadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'QUICK_LINKS' | 'NOTICE_TEXT' | 'AD' | 'AD_TEXT_LINE';
 
 /** 머리 모양 — `HIDDEN` 은 머리를 그리지 않는다(제목은 영역 이름으로만 읽힌다) */
 export type GadgetHeaderStyle = 'BAR' | 'UNDERLINE' | 'FILLED' | 'PLAIN' | 'HIDDEN';

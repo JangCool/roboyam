@@ -8,8 +8,11 @@
  */
 import type { HomeLayout } from '#layers/home-layout/utils/util-home-layout';
 
-/** 가젯 종류 8종 — user-web `GadgetKind` 와 같은 키(로보얌에 없는 핫딜·직접홍보·광고는 없다) */
-export type HomeGadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'QUICK_LINKS' | 'NOTICE_TEXT';
+/** 가젯 종류 8종 + 광고 2종(user-web `GadgetKind` 와 같은 키) — 광고는 서버 `HomeGadgetKinds` 가 아직 몰라 편집기가 저장을 막는다 */
+export type HomeGadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'QUICK_LINKS' | 'NOTICE_TEXT' | 'AD' | 'AD_TEXT_LINE';
+
+/** 광고 일정표 유형(`AdType`) 중 배너 넷 */
+export type HomeAdBannerType = 'WIDE_BANNER' | 'STRIP_BANNER' | 'SQUARE_BANNER' | 'SMALL_BANNER';
 
 /** 공구 가젯 정렬 — 마감 임박 순(기본) · 새로 시작한 순 · 참여 많은 순(사용자 결정 2026-10-29) */
 export type HomeGroupBuySort = 'DEADLINE' | 'NEWEST' | 'POPULAR';
@@ -51,6 +54,7 @@ export interface HomeQuickLink {
  *   · `BOARD_CARDS` `boardScope`·`boardIds`(카드로 보일 게시판) · `perBoard`(카드마다 제목 수 1~10) · `cardHead`(카드 머리·「게시판 가기」 보이기, 기본 켬) + `columns` AUTO·2·3
  *   · `HIGHLIGHT` `count` 1~6 · `lead` HERO·NONE · `thumbs` ALL·FIRST·NONE / `GROUPS` `count` 1~6 /
  *     `QUICK_LINKS` `shape` PILL·TAB · `items`(12개까지) / `NOTICE_TEXT` `text`(0~300자) · `format` PLAIN·BULLETS
+ *   · `AD` `adType`(HomeAdBannerType, 처음 값 WIDE_BANNER) / `AD_TEXT_LINE` `count` 1~5(처음 값 3) — 서버 칸 후보
  * 관리자 응답은 그 종류의 표 칸 전부(저장 값, 없으면 처음 값 — 서버 `GadgetConfigs.view`)를 준다. 게시판 본문(`BOARD_BODY`)은 null.
  */
 export interface HomeGadgetConfig {
@@ -76,6 +80,7 @@ export interface HomeGadgetConfig {
     items?: HomeQuickLink[];
     text?: string;
     format?: 'PLAIN' | 'BULLETS';
+    adType?: HomeAdBannerType;
 }
 
 /** 머리 모양 — 막대 · 밑줄 · 색 채움 · 장식 없음 · 머리 숨김 */

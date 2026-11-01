@@ -269,6 +269,8 @@ export interface BoardDetail extends BoardRef {
     viewToggle: boolean;
     color: BoardColor | null;
     allowAdult: boolean;
+    /** 「이 게시판에 광고 숨김」(기본 false) — 켜면 목록 한 줄·글 보기·핫딜 노출 광고가 없다. 19금 게시판은 이 칸과 상관없이 늘 없다 */
+    adsHidden: boolean;
     /** 투자 고지 — 켜기만 된다(켠 뒤 끄면 409 `BOARD_INVESTMENT_NOTICE_LOCKED`) */
     investmentNotice: boolean;
     active: boolean;
@@ -336,6 +338,8 @@ export interface BoardSaveRequest {
     prefixes: BoardPrefixSaveItem[];
     /** 가젯 노출 금지 — `null` 이면 바꾸지 않는다(서버가 중복을 하나로, 목록 순서로 저장). 모르는 값은 400 `fields.gadgetExclusions`, 바꾸려면 `board.settings` */
     gadgetExclusions: string[] | null;
+    /** 「이 게시판에 광고 숨김」 — `null` 이면 바꾸지 않는다. 노출 설정이라 바꾸려면 `board.settings` */
+    adsHidden: boolean | null;
 }
 
 /** 게시판 매니저·스텝 한 명 — `GET /api/admin/boards/{id}/staff` */

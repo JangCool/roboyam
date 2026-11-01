@@ -23,7 +23,8 @@
                 {{ UtilFeedMessages.periodLabel(t, key) }}
             </button>
         </div>
-        <p v-if="periods && items.length === 0" :id="`${uid}-panel`" role="tabpanel" class="m-0 py-6 text-center text-sm text-muted-color">{{ t('home.periodEmpty') }}</p>
+        <!-- 빈 상태 안내와 같은 위·아래 균형(`data-grid-float`) -->
+        <p v-if="periods && items.length === 0" :id="`${uid}-panel`" role="tabpanel" class="m-0 py-6 text-center text-sm text-muted-color" data-grid-float data-testid="home-period-empty">{{ t('home.periodEmpty') }}</p>
         <ul
             v-else
             :id="periods ? `${uid}-panel` : undefined"
@@ -41,7 +42,7 @@
                 :cfg="cfg"
                 :rank="ranked ? i + 1 : null"
                 :hero="hero && i === 0"
-                :class="hero && i === 0 ? 'col-span-full' : ''"
+                :class="[hero && i === 0 ? 'col-span-full' : '', i === leftColumnEnd ? '@min-[28rem]:border-b-0!' : '']"
             />
         </ul>
     </HomeGadgetFrame>
@@ -83,5 +84,7 @@ const listClass = computed(() => {
     if (cfg.value.columns !== 2 || stacked.value) return '';
     return hero.value ? 'grid @min-[28rem]:grid-cols-2 @min-[28rem]:gap-x-6' : 'gadget-cols2';
 });
+/** 세로로 채우는 두 열의 왼쪽 열 끝 줄(`last:` 는 오른쪽 열 끝에만 걸린다) — 두 열이 아니면 -1 */
+const leftColumnEnd = computed(() => (cfg.value.columns === 2 && !hero.value && !stacked.value && items.value.length > 1 ? Math.ceil(items.value.length / 2) - 1 : -1));
 const listStyle = computed(() => (cfg.value.columns === 2 && !hero.value && !stacked.value ? { '--gx-rows': String(Math.ceil(items.value.length / 2)) } : undefined));
 </script>

@@ -217,12 +217,14 @@ class BizApplicationRulesUnitTest {
         assertThat(BizProduct.ofPublic("HOME_TOP")).contains(BizProduct.HOTDEAL_TOP);
         assertThat(BizProduct.ofPublic("CATEGORY_TOP")).contains(BizProduct.HOTDEAL_CATEGORY);
         assertThat(BizProduct.ofPublic("WIDE_BANNER")).isEmpty();
+        assertThat(BizProduct.ofPublic("WING")).contains(BizProduct.WING_BANNER);
         Set<BizProduct> ad = EnumSet.noneOf(BizProduct.class);
         for (BizProduct p : BizProduct.values()) {
             if (p.adProduct()) {
                 ad.add(p);
             }
         }
-        assertThat(ad).containsExactlyInAnyOrder(BizProduct.WIDE_BANNER, BizProduct.STRIP_BANNER, BizProduct.SQUARE_BANNER, BizProduct.SMALL_BANNER, BizProduct.TEXT_LINE);
+        assertThat(ad).containsExactlyInAnyOrder(BizProduct.WIDE_BANNER, BizProduct.STRIP_BANNER, BizProduct.SQUARE_BANNER, BizProduct.SMALL_BANNER, BizProduct.WING_BANNER,
+                BizProduct.TEXT_LINE);
     }
 }

@@ -155,7 +155,7 @@ public class BoardCatalog {
                 or(p.commentLikeLabel(), d.commentLikeLabel()), or(p.commentDislikeLabel(), d.commentDislikeLabel()),
                 or(p.pinRequestReviewers(), d.pinRequestReviewers()), or(p.debateEnabled(), d.debateEnabled()), or(p.pollEnabled(), d.pollEnabled()),
                 "ON".equals(or(p.pointMode(), d.pointMode())), or(p.pointMinLengthApplied(), d.pointMinLengthApplied()), prefixes,
-                Set.copyOf(b.getGadgetExclusions()));
+                Set.copyOf(b.getGadgetExclusions()), b.isAdsHidden());
     }
 
     private static <T> T or(T value, T fallback) {

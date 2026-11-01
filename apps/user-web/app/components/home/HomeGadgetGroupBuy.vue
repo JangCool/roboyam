@@ -17,11 +17,12 @@
                 <HomeGadgetGroupBuyCard :item="item" />
             </li>
         </ul>
-        <div v-else-if="current" class="pt-1" data-testid="home-group-buy">
+        <!-- 칸이 크면 남는 높이는 상품과 넘기기 줄 사이로(사진은 비율 그대로) -->
+        <div v-else-if="current" class="flex flex-1 flex-col pt-1" data-grid-fill data-testid="home-group-buy">
             <HomeGadgetGroupBuyCard :item="current" />
 
             <!-- 넘기기 — 공구가 둘 이상일 때 -->
-            <div v-if="items.length > 1" class="mt-2.5 flex items-center justify-center gap-1">
+            <div v-if="items.length > 1" class="mt-auto flex items-center justify-center gap-1 pt-2.5" data-grid-push>
                 <button type="button" :class="NAV_BUTTON" :aria-label="t('home.groupBuyPrev')" data-testid="home-group-buy-prev" @click="go(index - 1)">
                     <i class="pi pi-angle-left text-xs" aria-hidden="true" />
                 </button>

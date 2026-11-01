@@ -115,6 +115,8 @@ export interface BoardDetailForm {
     writeGuideText: string;
     /** 가젯 노출 금지로 고른 가젯 키 — 게시판마다의 값(기본값 따름 없음) */
     gadgetExclusions: string[];
+    /** 「이 게시판에 광고 숨김」 — 게시판마다의 값(기본값 따름 없음) */
+    adsHidden: boolean;
     policy: BoardPolicyForm;
     commonPrefixes: BoardCommonPrefixForm[];
     prefixes: BoardPrefixForm[];
@@ -604,6 +606,8 @@ export default class UtilBoard {
             writeGuideText: detail.writeGuideText ?? '',
             // 서버가 아직 주지 않으면(새 칸을 서버보다 먼저 배포한 경우) 빈 목록
             gadgetExclusions: [...(detail.gadgetExclusions ?? [])],
+            // 옛 서버 응답에 칸이 없으면 끔
+            adsHidden: detail.adsHidden === true,
             policy: UtilBoard.policyFormOf(detail.policy),
             commonPrefixes: detail.prefixes.flatMap((p) => (p.common ? [{ id: p.id, common: p.common, staffOnly: p.staffOnly, active: p.active, usageCount: p.usageCount }] : [])),
             prefixes: detail.prefixes.flatMap((p) => (p.common ? [] : [{ key: p.id, id: p.id, name: p.name, staffOnly: p.staffOnly, color: p.color, active: p.active, usageCount: p.usageCount }])),
@@ -630,6 +634,7 @@ export default class UtilBoard {
             commonPrefixes: form.commonPrefixes.map((p) => ({ id: p.id, active: p.active })),
             prefixes: form.prefixes.map((p): BoardPrefixSaveItem => ({ id: p.id, name: p.name.trim(), staffOnly: p.staffOnly, color: p.color, active: p.active })),
             gadgetExclusions: [...form.gadgetExclusions],
+            adsHidden: form.adsHidden,
         };
     }
 
@@ -660,7 +665,8 @@ export default class UtilBoard {
             prefix,
             guide: diff(form.introText, base.introText) + diff(form.writeGuideText, base.writeGuideText),
             // inHome 은 화면에서 다루지 않는다(가젯 노출 금지가 대신한다) — 가젯 선택은 순서 없이 묶음으로 1칸
-            exposure: policyDiff(['listSize', 'pinnedMax', 'indexable', 'searchable']) + diff(UtilBoard.gadgetKey(form.gadgetExclusions), UtilBoard.gadgetKey(base.gadgetExclusions)),
+            exposure:
+                policyDiff(['listSize', 'pinnedMax', 'indexable', 'searchable']) + diff(UtilBoard.gadgetKey(form.gadgetExclusions), UtilBoard.gadgetKey(base.gadgetExclusions)) + diff(form.adsHidden, base.adsHidden),
             protect: policyDiff(['pointMode', 'pointMinLengthApplied', 'commentProtectMin', 'commentProtectEdit', 'commentProtectDelete', 'commentProtectDelayMinutes', 'commentGuestDelayMinutes', 'staffHiddenNotice']),
             reaction: policyDiff(['debateEnabled', 'pollEnabled', 'commentDislikeEnabled', 'commentLikeLabel', 'commentDislikeLabel', 'pinRequestReviewers']),
             staff: policyDiff(['managerMax', 'staffPostDailyLimit', 'staffCommentDailyLimit', 'staffSanctionDailyLimit']),

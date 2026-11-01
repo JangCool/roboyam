@@ -1,4 +1,5 @@
 import type {
+    HomeAdBannerType,
     HomeBoardScope,
     HomeGadgetConfig,
     HomeGroupBuySort,
@@ -52,8 +53,11 @@ const META: readonly HomePostMeta[] = ['BOARD', 'PREFIX', 'COMMENTS', 'TIME', 'A
 /** 글 줄 정보 처음 값 — user-web `DEFAULT_META` */
 const DEFAULT_META: readonly HomePostMeta[] = ['BOARD', 'PREFIX', 'COMMENTS', 'TIME'];
 const QUICK_KINDS: readonly HomeQuickLinkKind[] = ['ALL', 'POPULAR', 'LATEST', 'GROUPS', 'GROUP_BUY', 'BOARD', 'PATH'];
+/** 보일 차례 */
+const AD_BANNER_TYPES: readonly HomeAdBannerType[] = ['WIDE_BANNER', 'STRIP_BANNER', 'SQUARE_BANNER', 'SMALL_BANNER'];
+const AD_KINDS: readonly string[] = ['AD', 'AD_TEXT_LINE'];
 
-/** 내용 설정(⚙)을 고칠 수 있는 종류 — 8종 전부(2026-10-30). user-web `UtilAdminPreview` 의 `SETTABLE_KINDS` 와 같은 종류 */
+/** 내용 설정(⚙)을 고칠 수 있는 종류 — 8종 전부(2026-10-30) + 광고 2종. user-web `UtilAdminPreview` 의 `SETTABLE_KINDS` 와 같은 종류 */
 const SPECS: Readonly<Record<string, GadgetConfigSpec>> = {
     GROUP_BUY: { boards: false, count: { field: 'count', min: 1, max: 10, initial: 5 }, sorts: GROUP_BUY_SORTS, sort: 'DEADLINE' },
     POST_LIST: { boards: true, count: { field: 'count', min: 1, max: 30, initial: 10 }, sorts: POST_LIST_SORTS, sort: 'LATEST' },
@@ -63,6 +67,9 @@ const SPECS: Readonly<Record<string, GadgetConfigSpec>> = {
     GROUPS: { boards: false, count: { field: 'count', min: 1, max: 6, initial: 3 }, sorts: [], sort: null },
     QUICK_LINKS: { boards: false, count: null, sorts: [], sort: null },
     NOTICE_TEXT: { boards: false, count: null, sorts: [], sort: null },
+    // 배너 유형(`adType`)은 종류만의 칸(`normalize`)
+    AD: { boards: false, count: null, sorts: [], sort: null },
+    AD_TEXT_LINE: { boards: false, count: { field: 'count', min: 1, max: 5, initial: 3 }, sorts: [], sort: null },
 };
 
 /** 직접 고를 수 있는 게시판 수 한도 */
@@ -144,6 +151,16 @@ export default class UtilGadgetConfig {
     /** 안내 글 한도 · 모양 */
     static readonly NOTICE_MAX = NOTICE_MAX;
     static readonly NOTICE_FORMATS: readonly ('PLAIN' | 'BULLETS')[] = ['PLAIN', 'BULLETS'];
+    static readonly AD_BANNER_TYPES = AD_BANNER_TYPES;
+
+    /**
+     * 광고 가젯인가(`AD`·`AD_TEXT_LINE`) — 새로 넣을 때 처음 꾸미기를 싣는다
+     * @param {string} type - 가젯 종류.
+     * @returns {boolean} 광고 가젯이면 true.
+     */
+    static isAdKind(type: string): boolean {
+        return AD_KINDS.includes(type);
+    }
 
     /**
      * 내용 설정을 고칠 수 있는 종류인가
@@ -216,6 +233,9 @@ export default class UtilGadgetConfig {
             case 'NOTICE_TEXT':
                 Object.assign(out, { text: '', format: 'PLAIN' } satisfies HomeGadgetConfig);
                 break;
+            case 'AD':
+                out.adType = 'WIDE_BANNER';
+                break;
         }
         return out;
     }
@@ -275,6 +295,9 @@ export default class UtilGadgetConfig {
             case 'NOTICE_TEXT':
                 out.text = typeof c.text === 'string' ? c.text.slice(0, NOTICE_MAX) : '';
                 out.format = oneOf(c.format, UtilGadgetConfig.NOTICE_FORMATS, 'PLAIN');
+                break;
+            case 'AD':
+                out.adType = oneOf(c.adType, AD_BANNER_TYPES, 'WIDE_BANNER');
                 break;
         }
         return out;

@@ -98,7 +98,9 @@ class BizApplicationHttpTest extends BizApplicationApiTestBase {
     @Test
     void 상품_남은_칸_링크_검사() throws Exception {
         long user = approvedBusiness();
-        mvc.perform(as(user, get("/api/business/ad-products"))).andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(5))
+        mvc.perform(as(user, get("/api/business/ad-products"))).andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(6))
+                .andExpect(jsonPath("$.data[4].type").value("WING")).andExpect(jsonPath("$.data[4].dailyPrice").value(30_000))
+                .andExpect(jsonPath("$.data[4].capacity").value(4)).andExpect(jsonPath("$.data[5].type").value("TEXT_LINE"))
                 .andExpect(jsonPath("$.data[0].type").value("WIDE")).andExpect(jsonPath("$.data[0].dailyPrice").value(50_000))
                 .andExpect(jsonPath("$.data[0].capacity").value(2));
         mvc.perform(as(user, get("/api/business/deal-products"))).andExpect(status().isOk()).andExpect(jsonPath("$.data.postPrice").value(30_000))

@@ -1,4 +1,4 @@
-import type { BizAdType, BizAmount, BizApplicationKind, BizApplicationStatus, BizDomain, BizPeriod, BizQuote } from '~/composables/bizapplication/api/useBizApplicationApi.types';
+import type { BizAmount, BizApplicationStatus, BizDomain, BizPeriod } from '~/composables/bizapplication/api/useBizApplicationApi.types';
 
 type Severity = 'secondary' | 'info' | 'success' | 'warn' | 'danger' | 'contrast';
 
@@ -15,7 +15,7 @@ const KST_OFFSET_MS = 9 * 3_600_000;
 
 /**
  * 사업자 신청 건(광고·핫딜) 화면 규칙 — 입력만 보고 답하는 순수 함수.
- * 요금·기한·파일 규칙은 목업 가정(00-overview.md ★-6)이며 서버(`BizApplicationPolicy` 예정)가 다시 판정한다.
+ * 기한·파일 규칙은 가정(00-overview.md ★-6)이며 서버가 다시 판정한다. 요금(하루 단가·한도)은 서버 응답(`quote`)을 쓴다.
  */
 export default class UtilBizApplication {
     /** 부가세율 10% */
@@ -39,19 +39,6 @@ export default class UtilBizApplication {
     /** 환불 승인·거절·수동 송금 표시 — 두 도메인 공통(1차, 04-ia-review Q2) */
     static readonly REFUND_PERMISSION = 'deal-order.refund';
 
-    /** 하루 단가(공급가, 원) — 요금표 가정 */
-    static readonly DAILY_PRICE: Record<BizAdType, number> = {
-        WIDE_BANNER: 50_000,
-        STRIP_BANNER: 30_000,
-        SQUARE_BANNER: 25_000,
-        SMALL_BANNER: 15_000,
-        TEXT_LINE: 8_000,
-        HOTDEAL_TOP: 20_000,
-        HOTDEAL_CATEGORY: 10_000,
-    };
-    /** 사업자 핫딜 글 게시 — 건당 */
-    static readonly POST_PRICE = 30_000;
-
     /** 기간의 날 수(반열림, 하루 미만은 하루로) */
     static days(period: BizPeriod): number {
         const ms = Date.parse(period.endAt) - Date.parse(period.startAt);
@@ -62,17 +49,6 @@ export default class UtilBizApplication {
         const s = Math.max(0, Math.round(supply));
         const vat = Math.floor(s * UtilBizApplication.VAT_RATE);
         return { supply: s, vat, total: s + vat };
-    }
-
-    /** 요금표 계산값 — 종류 × 하루 단가 × 일수(핫딜 글은 건당) + 부가세 */
-    static quote(kind: BizApplicationKind, adType: BizAdType | null, period: BizPeriod): BizQuote {
-        if (kind === 'HOTDEAL_POST' || !adType) {
-            const a = UtilBizApplication.amountOf(UtilBizApplication.POST_PRICE);
-            return { unitPrice: UtilBizApplication.POST_PRICE, units: 1, unit: 'POST', ...a };
-        }
-        const units = UtilBizApplication.days(period);
-        const unitPrice = UtilBizApplication.DAILY_PRICE[adType];
-        return { unitPrice, units, unit: 'DAY', ...UtilBizApplication.amountOf(unitPrice * units) };
     }
 
     /** 시작이 이미 지났나(F6 — 그대로는 승인 불가) */

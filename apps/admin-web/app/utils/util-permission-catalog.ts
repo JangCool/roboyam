@@ -245,7 +245,7 @@ export default class UtilPermissionCatalog {
         { code: 'ad.read', unit: 'READ', type: 'adPromo', nameKey: 'permission.item.adRead', descKey: 'permission.item.adReadDesc', featureReady: true },
         { code: 'ad.manage', unit: 'MANAGE', type: 'adPromo', nameKey: 'permission.item.adManage', descKey: 'permission.item.adManageDesc', featureReady: true },
         { code: 'promo.manage', unit: 'MANAGE', type: 'adPromo', nameKey: 'permission.item.promoManage', descKey: 'permission.item.promoManageDesc', featureReady: false },
-        { code: 'ad.settings', unit: 'CONFIG', type: 'adPromo', nameKey: 'permission.item.adSettings', descKey: 'permission.item.adSettingsDesc', featureReady: false },
+        { code: 'ad.settings', unit: 'CONFIG', type: 'adPromo', nameKey: 'permission.item.adSettings', descKey: 'permission.item.adSettingsDesc', featureReady: true },
         { code: 'ad.takedown', unit: 'SENSITIVE', type: 'adPromo', nameKey: 'permission.item.adTakedown', descKey: 'permission.item.adTakedownDesc', featureReady: true },
         { code: 'ad.restore', unit: 'SENSITIVE', type: 'adPromo', nameKey: 'permission.item.adRestore', descKey: 'permission.item.adRestoreDesc', featureReady: true },
         { code: 'ad.contact.reveal', unit: 'SENSITIVE', type: 'adPromo', nameKey: 'permission.item.adContactReveal', descKey: 'permission.item.adContactRevealDesc', featureReady: true },

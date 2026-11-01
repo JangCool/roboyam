@@ -133,7 +133,8 @@ public enum Permission {
     /** 사업자 광고 신청 건 심사·승인·반려·수동 전환·계약서·입금 확인·예약 확정·취소(biz-application-contract) */
     AD_MANAGE("ad.manage", AD_PROMO, MANAGE, true),
     PROMO_MANAGE("promo.manage", AD_PROMO, MANAGE, false),
-    AD_SETTINGS("ad.settings", AD_PROMO, CONFIG, false),
+    /** 광고 노출 자리 설정 저장(글 보기 중간 · 날개 배너 · 게시판 목록 한 줄 — `/ads/placements`, 조회는 ad.read) */
+    AD_SETTINGS("ad.settings", AD_PROMO, CONFIG, true),
     /** 광고 긴급 내림(광고 일정표 — 사유 필수 · 광고주 메일 선택, ad-contract) */
     AD_TAKEDOWN("ad.takedown", AD_PROMO, SENSITIVE, true),
     /** 긴급 내린 광고 되돌리기 — 보상 「끝 시각 연장」(자리가 비었을 때만) 또는 「일할 환불」(F5) */

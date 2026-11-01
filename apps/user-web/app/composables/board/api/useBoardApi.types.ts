@@ -206,6 +206,8 @@ export interface BoardDetail extends BoardView {
     writeLock: BoardWriteLock | null;
     viewToggle: boolean;
     allowAdult: boolean;
+    /** 관리자 「이 게시판에 광고 숨김」 — 켜면 목록 한 줄·글 보기·핫딜 노출이 없다(19금 게시판은 이 칸과 상관없이 없다) */
+    adsHidden: boolean;
     imageUploadAllowed: boolean;
     /** 게시판 안내문 — 평문(줄바꿈 유지), null = 없음 */
     introText: string | null;

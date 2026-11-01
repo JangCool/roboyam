@@ -290,6 +290,7 @@ export default {
         guestRetentionDays: 'Guest posts',
         guestMode: 'Guest post handling',
         gadgetExclusions: 'Hide from gadgets',
+        adsHidden: 'Hide ads on this board',
     },
     fieldHelp: {
         dateDisplay: 'How post times are shown.',
@@ -373,6 +374,8 @@ export default {
         guestRetentionDays: 'Guest posts past this period are handled as below. 0 means no processing.',
         guestMode: 'Anonymize masks the author name with *** and destroys password and IP (the post stays). Delete removes the post and destroys title, body and attachments.',
         gadgetExclusions: "This board's posts won't appear in the selected gadgets.",
+        adsHidden: 'When on, no list-line, post-view, hot-deal or wing banner ads appear on this board. With this off, 18+ boards follow the 18+ option in Ad settings.',
+        adsHiddenGroup: 'Group boards never show ads, whatever this is set to.',
     },
     /** Help that differs on the board settings page (an empty name = use the default) */
     fieldHelpBoard: {

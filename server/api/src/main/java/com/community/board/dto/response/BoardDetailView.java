@@ -12,6 +12,7 @@ import java.util.List;
  * @param reportEnabled        신고 기능 사용(관리자 신고 정책)
  * @param debateEnabled        글쓴이가 자기 글에 찬반 토론을 열 수 있는가(유효 정책, {@link BoardView#debateEnabled()} 와 같다)
  * @param pollEnabled          글쓴이가 자기 글에 투표를 붙일 수 있는가(유효 정책, {@link BoardView#pollEnabled()} 와 같다)
+ * @param adsHidden            관리자 「이 게시판에 광고 숨김」 — 켜면 목록 한 줄·글 보기·핫딜 노출 광고가 없다(19금 게시판은 광고 자리 설정 {@code adult.enabled} 가 꺼져 있으면 없다 — 화면은 {@code adsHidden || (allowAdult && !adult.enabled)})
  */
 public record BoardDetailView(String id, String slug, String name, String nameEn, String description, boolean investmentNotice, boolean staffOnlyWrite,
                               String writeMin, String commentMin, String writeLock, boolean imageUploadAllowed, String postEditor, String commentEditor,
@@ -19,5 +20,5 @@ public record BoardDetailView(String id, String slug, String name, String nameEn
                               boolean promo, boolean viewToggle, boolean allowAdult, List<PrefixView> prefixes, String color, String writeMinGradeLabel,
                               String commentMinGradeLabel, String introText, String writeGuideText, boolean reportEnabled, BoardPolicyView policy,
                               BoardGuestRulesView guestRules, BoardNewMemberRulesView newMemberRules, BoardViewerView viewer,
-                              boolean debateEnabled, boolean pollEnabled) {
+                              boolean debateEnabled, boolean pollEnabled, boolean adsHidden) {
 }

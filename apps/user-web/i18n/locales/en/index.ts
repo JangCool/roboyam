@@ -9,6 +9,7 @@
  * ⚠ **Must be the same list as `ko/index.ts`.** A feature present in only one language shows in Korean (the fallback) in the other.
  */
 import account from './account';
+import ad from './ad';
 import adult from './adult';
 import address from './address';
 import auth from './auth';
@@ -65,6 +66,7 @@ import terms from './terms';
 
 export default {
     account,
+    ad,
     adult,
     address,
     auth,

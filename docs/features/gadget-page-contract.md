@@ -23,7 +23,7 @@
   「{폴더} 인기글」(POST_LIST POPULAR·기간 탭·대상 FOLDER, 24칸) / 게시판 카드(BOARD_CARDS, 갤러리로 쓴 게시판을 뺀 폴더 게시판마다 하나 PICK, 12+12 두 열, 홀수면 마지막 24칸) /
   「{폴더} 최신글」(POST_LIST LATEST 16개 두 열·대상 FOLDER, 24칸) / 맨 아래 「{게시판}」(GALLERY PICK 8개, 24칸 — 사진·영상 게시판: 목록 모양 `GALLERY` 인 첫 폴더 게시판, 없으면 갤러리 보기 전환(`viewToggle`)이 켜진 첫 게시판, 없으면 이 줄 없음). 기준 폴더가 없으면 이름 자리는 「전체」.
   커뮤니티 예(사용자 결정 2026-10-29): 커뮤니티 인기글 / 자유게시판 · 유머게시판(두 열) / 커뮤니티 최신글 / 영상·짤(전체 폭, 맨 아래).
-  높이(h = 최소 높이, 행): 인기글 15 · 갤러리 11 · 게시판 카드 줄 13 · 최신글 15 — 보통 내용에 맞췄고(내용이 길면 격자가 늘린다), 같은 행·같은 h 로 나란한 가젯은 공개 격자가 가장 긴 가젯 높이로 함께 늘려 아래 끝을 맞춘다(user-web `UtilHomeGrid.place` 「같은 줄 맞추기」).
+  높이(h = 최소 높이, 행): 인기글 15 · 갤러리 11 · 게시판 카드 줄 13 · 최신글 15 — 보통 내용에 맞췄다(내용이 길면 격자가 늘린다). **가젯 상자 높이는 운영자 높이 hPx(= h×15 + (h−1)×16)와 내용 높이 contentPx(내용 + 테마 위·아래 여백, 정수)로 정한다. hPx − contentPx 가 한 칸(31px) 이상이면 운영자가 일부러 키운 것으로 보고 상자 = hPx 로 늘린다(내용은 위에서 시작하고 남는 공간은 아래, 빈 상태 안내는 가운데). 한 칸 미만이거나 hPx 가 더 작으면 상자 = contentPx 로 정확히 맞춰 위·아래 여백이 같다(한 칸 미만은 칸 단위 반올림일 뿐이다). 데스크톱 배치는 저장된 x·w·y 의 읽는 순서로 위에서부터 px 단위로 쌓는다: 각 가젯의 위 끝 = 앞선 가젯 중 열이 겹치는 것들의 아래 끝 중 가장 낮은 값 + 16px(없으면 0). 같은 y·같은 h 로 나란히 둔 짝은 각자 위 규칙으로 정한 상자 높이 중 가장 큰 값으로 맞춰 아래 끝을 맞추고(user-web `UtilHomeGrid.place` 「같은 줄 맞추기」), 늘어난 쪽도 내용은 위에서 시작한다. 모바일 한 열과 게시판 본문 칸은 내용 높이 그대로다**(사용자 결정 2026-10-31 「가젯을 늘리고 줄이면 높이도 따라야」 · 「최소 상태에서 상하 여백 동일」 — 칸마다 절대 위치, 저장 형식·admin 끌기 스냅·충돌 계산은 그대로, 첫 그리기는 재기 전이라 hPx 로 그렸다가 한 번 다시 쌓는다). 편집기는 칸을 점선으로 그리고(점선 = 상자), 크기 끌기 중 놓일 h 로 상자를 바로 늘이고 줄인다. 크기 꼬리표는 최적 칸 수 need = max(1, ceil((contentPx + 16) / 31))(내용이 다 들어가는 가장 작은 칸 수 — 이때 남는 0~30px 은 반올림이라 상자 = contentPx)와 h 를 견준다: h < need 빨강 「더 줄일 수 없어요 — 최소 N칸」 · h > need 주황 「n칸 줄여도 내용이 다 보여요」(n = h − max(need, admin 종류별 최소 높이 — 미리보기 메시지 `minH`)) · 같으면 없음(저장은 막지 않음 — 주황을 따라 줄인 끝은 늘 「표시 없음」). 칸에는 실제로 늘린 px 를 `data-grid-stretched` 로 붙인다(0 이면 없음 — `scripts/gadget-ink-padding.js` 가 읽음).
   저장한 적 없는 테마는 이 처음 배치를 보인다(꾸미기는 그 테마의 기본 꾸미기 + 아이콘 — 로보얌 테마는 홈 로보얌 시드처럼 흰 카드 + 아이콘 머리). 기준 폴더를 바꿔도 처음 배치는 다시 만들지 않는다.
 
 ## 가젯 설정(⚙ — 홈·가젯 페이지·게시판 레이아웃 공통, 2026-10-29 넓힘 · 2026-10-30 8종 전부 + 모양·노출, 화면 확정)
@@ -38,6 +38,8 @@
 | `GROUPS` | `count` 1~6(기본 3) |
 | `QUICK_LINKS` | `shape` PILL·TAB · `items` 0~12개 `{label 1~12자(앞뒤 공백 제거), kind ALL·POPULAR·LATEST·GROUPS·GROUP_BUY·BOARD·PATH, value}` — `BOARD` 는 있는 게시판 slug, `PATH` 는 `/` 로 시작하는 사이트 안 경로(`//`·스킴·공백·제어 문자·역슬래시 없음, 300자 이하), 나머지는 null |
 | `NOTICE_TEXT` | `text` 0~300자(줄바꿈 허용, 평문) · `format` PLAIN·BULLETS |
+| `AD` | `adType` WIDE_BANNER·STRIP_BANNER·SQUARE_BANNER·SMALL_BANNER(기본 WIDE_BANNER) — 공개 `data` null, 화면이 `/api/ads` 로 채움(`ad-contract.md` 「공개 노출 서버 구현 결정」) |
+| `AD_TEXT_LINE` | `count` 1~5(기본 3) — 위와 같음 |
 - **모양·노출(모든 종류)**: `title` 1~40자(줄바꿈·제어 문자 금지 — 저장 가젯도 바꾼다) · `desktop`·`mobile`(둘 다 false 금지) · `style`: `icon` `^pi-[a-z0-9-]{2,30}$` 또는 null · `headerStyle` BAR·UNDERLINE·FILLED·PLAIN·HIDDEN · `titleSize` S·M·L · `titleColor`·`cardColor` 프리셋 12색 이름·`#rrggbb`·null · `subtitle` 0~40 · `cardLook` DEFAULT·FLAT·OUTLINE·TINT · `mobileFold` NONE·OPEN·CLOSED · `empty{keep, message, text 0~40}`. 오류 `400 fields.gadgets[i].title|desktop|mobile|style.<칸>`.
 - `boardScope`: `ALL` 전체(글 목록·갤러리는 최신글과 같은 범위, 게시판 카드는 켜진 일반 게시판 앞 6개) · `FOLDER` 이 페이지의 기준 폴더 게시판 전체(가젯 페이지에서만 — 그 밖에서 보내면 400) · `BOARD` 지금 보는 게시판(게시판 레이아웃에서만 — `board-layout-contract.md`) · `PICK` `boardIds`(게시판 slug 1~20개, 고른 차례).
   저장된 설정에 `boardScope` 가 없으면(옛 시드) `boardIds` 가 있으면 PICK, 없으면 ALL 로 읽는다. FOLDER 인데 기준 폴더가 없거나 게시판이 없으면 ALL 과 같다.
@@ -65,6 +67,7 @@
 | `GET /api/admin/menu/target-options` | (기존) | 응답에 `gadgetPages[{id,key,name,nameEn}]` 추가 |
 
 ## 미확정 사항
+- **가젯 카드 안 여백(2026-10-31 — 공개 광고 목업 브랜치에서 모든 가젯에 적용)**: 위·아래·좌·우가 같게 보이도록 테마 카드 여백을 「아래 = 좌우, 위 = 좌우 − 머리 줄 안쪽 여백」으로 바꿨다(user-web `main.css` 의 `--gadget-card-pad`). 머리를 숨긴 카드(`data-headless`)는 네 쪽 모두 좌우 값이다. 상자 높이·배치는 위 「처음 배치」 높이 문장이 정본이다(상자 = 내용 + 위·아래 여백, px 배치·간격 16).
 - 페이지마다 SEO 설명·대표 이미지, 페이지 머리 꾸미기(배경·아이콘)는 없다.
 - 「주제」 페이지는 같은 방식으로 운영자가 만든다(기준 폴더 = 주제).
 - 관리자 미리보기에서 새로 넣은 가젯은 공개 응답의 같은 종류 데이터를 빌려 보인다(저장하면 서버가 설정대로 고른다 — 홈과 같다).

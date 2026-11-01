@@ -17,6 +17,9 @@ const LOADERS: Readonly<Record<string, AsyncComponentLoader<Component>>> = {
     GROUP_BUY: () => import('~/components/home/HomeGadgetGroupBuy.vue'),
     QUICK_LINKS: () => import('~/components/home/HomeGadgetQuickLinks.vue'),
     NOTICE_TEXT: () => import('~/components/home/HomeGadgetNoticeText.vue'),
+    // 서버 `HomeGadgetKinds` 에는 아직 없다(목업)
+    AD: () => import('~/components/home/HomeGadgetAd.vue'),
+    AD_TEXT_LINE: () => import('~/components/home/HomeGadgetAdTextLine.vue'),
 };
 
 const REGISTRY: Readonly<Record<string, Component>> = Object.fromEntries(Object.entries(LOADERS).map(([key, loader]) => [key, markRaw(defineAsyncComponent(loader))]));

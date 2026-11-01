@@ -6,6 +6,7 @@
           · iframe 이 알리는 일(`applyOp` — 놓은 칸 `place` · 칸·행 `size` · `remove` · ⚙ `settings`)을 받아 계산한다 — 최소 크기는 종류별(`UtilHomeLayoutEditor.KINDS`), 부딪친 가젯은 밀리고 늘 위로 당긴 모양(`UtilHomeLayoutEditor.setBox`).
           · 도구 줄: 격자 칸 수 12/24(바꾸면 위치·폭 2배/반 — `UtilHomeLayout.convert`) · 테마 기본 배치로(저장해야 적용) · 가젯 넣기(종류 8종 — 맨 아래 기본 크기).
           · 저장(`PUT /api/admin/home-layouts/{theme}` — 아래 붙는 저장 줄) · 되돌리기(마지막 저장으로).
+        **광고 가젯**(`AD`·`AD_TEXT_LINE`): 서버 가젯 종류라 다른 가젯처럼 저장한다(공개 응답의 `data` 는 null — 사용자 화면이 `/api/ads` 로 채운다).
         `hidden` 이면 도구 줄을 숨긴다(화면이 「보기」일 때) — 저장 줄과 편집 중인 값은 그대로다. 실제 화면은 기본 슬롯으로 받아 도구 줄과 저장 줄 사이에 둔다.
         **가젯 페이지**(`page` — 사용자 결정 2026-10-29): 주면 홈 대신 그 페이지의 이 테마 배치를 편집한다(`useGadgetPageApi` — 읽기·저장·「처음 배치로」). 모양·손잡이·도구 줄은 홈과 같다.
         **게시판 레이아웃**(`board` — 2026-10-30, `useBoardLayoutApi`): 테마마다 하나, 모든 게시판에 같이 쓴다. 고정 칸 「게시판 본문」(`BOARD_BODY`)이 꼭 하나 있다(본문 = 종류가 `BOARD_BODY` 인 가젯 — ID 는 서버가 정한다) —
@@ -358,7 +359,9 @@ function add(kind: string): void {
     newSeq += 1;
     const id = `new-${newSeq}`;
     const title = kindName(kind);
-    gadgets.value = [...gadgets.value, { id, type: kind, title, desktop: true, mobile: true, config: UtilGadgetConfig.initial(kind, place.value) }];
+    // 광고 가젯은 처음 꾸미기(머리 숨김·배너 FLAT·비면 접기 — 서버 처음 꾸미기와 같다)를 실어 미리보기에 바로 그 모양으로 보인다
+    const style = UtilGadgetConfig.isAdKind(kind) ? { style: UtilGadgetStyle.initial(kind) } : {};
+    gadgets.value = [...gadgets.value, { id, type: kind, title, desktop: true, mobile: true, ...style, config: UtilGadgetConfig.initial(kind, place.value) }];
     apply(UtilHomeLayoutEditor.add(items.value, id, kind, columns.value));
     addOpen.value = false;
     toast.show(t('homeLayout.added', { title }));

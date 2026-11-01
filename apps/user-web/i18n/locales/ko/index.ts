@@ -9,6 +9,7 @@
  * ⚠ **`en/index.ts` 와 같은 목록이어야 한다.** 한쪽에만 있는 업무는 그 언어에서 한국어(폴백)로 보인다.
  */
 import account from './account';
+import ad from './ad';
 import adult from './adult';
 import address from './address';
 import auth from './auth';
@@ -65,6 +66,7 @@ import terms from './terms';
 
 export default {
     account,
+    ad,
     adult,
     address,
     auth,

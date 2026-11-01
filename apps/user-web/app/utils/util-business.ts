@@ -34,7 +34,7 @@ export default class UtilBusiness {
     static readonly IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif';
 
     /** 광고 종류 차례(카드 순서) */
-    static readonly AD_TYPES: readonly AdType[] = ['WIDE', 'STRIP', 'SQUARE', 'SMALL', 'TEXT_LINE'];
+    static readonly AD_TYPES: readonly AdType[] = ['WIDE', 'STRIP', 'SQUARE', 'SMALL', 'WING', 'TEXT_LINE'];
 
     /** 목록 거르기 차례 */
     static readonly BUCKETS: readonly BizApplicationBucket[] = ['ALL', 'REVIEW', 'AWAITING_PAYMENT', 'AWAITING_DEPOSIT', 'UPCOMING', 'RUNNING', 'ENDED', 'CLOSED'];

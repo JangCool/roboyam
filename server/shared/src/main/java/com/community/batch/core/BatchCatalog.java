@@ -153,6 +153,12 @@ public enum BatchCatalog implements BatchDefinition {
     GROUPBUY_PRIVACY_CLEANUP("groupbuy-privacy-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
     /**
+     * 공개 광고 하루 1번 판정 표({@code ad_view_marks}) 정리 — 한국 날짜가 보관 일수(기본 2 — 오늘·어제를 남김)를 넘긴 줄 삭제(집계는 그대로). DB 배치, 기본 매일 04:15 KST
+     * ({@code R__batch_33_ad_view_mark_cleanup.sql}, ad-contract 「공개 노출 목업」 확정 2026-11-01)
+     */
+    AD_VIEW_MARK_CLEANUP("ad-view-mark-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
      * 사업자 신청 건 결제 기한 만료 — 결제 기한이 지난 결제 대기 전부를 열린 결제부터 닫고 EXPIRED(자리 반납) + 사업자 알림(Java 배치 {@code BizPaymentExpireJob},
      * biz-application-contract 「기한」·F2). 기본 10분마다. 자리·돈이 걸린 업무라 분류는 회원(MEMBER).
      */

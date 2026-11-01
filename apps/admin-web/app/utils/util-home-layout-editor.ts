@@ -32,7 +32,7 @@ export interface HomeEditorItem {
     minH: number;
 }
 
-/** 가젯 종류 8종(보일 순서) — 로보얌에 없는 핫딜·직접홍보·광고는 없다 */
+/** 가젯 종류 8종 + 광고 2종(보일 순서 — 광고는 서버 등록 전이라 넣으면 저장이 막힌다) — 커뮤니티의 핫딜·직접홍보는 없다 */
 const KINDS: readonly HomeKindSpec[] = [
     { kind: 'HIGHLIGHT', icon: 'pi-sparkles', minW: 4, minH: 8, w: 8, h: 12 },
     { kind: 'POST_LIST', icon: 'pi-list', minW: 3, minH: 6, w: 6, h: 10 },
@@ -42,6 +42,9 @@ const KINDS: readonly HomeKindSpec[] = [
     { kind: 'GROUP_BUY', icon: 'pi-shopping-bag', minW: 3, minH: 8, w: 4, h: 12 },
     { kind: 'QUICK_LINKS', icon: 'pi-link', minW: 3, minH: 2, w: 12, h: 2 },
     { kind: 'NOTICE_TEXT', icon: 'pi-megaphone', minW: 2, minH: 3, w: 4, h: 6 },
+    // 배너는 처음에 전체 폭, 한 줄 광고는 반 폭 3줄
+    { kind: 'AD', icon: 'pi-image', minW: 2, minH: 2, w: 12, h: 4 },
+    { kind: 'AD_TEXT_LINE', icon: 'pi-bars', minW: 3, minH: 2, w: 6, h: 6 },
 ];
 
 /**
@@ -73,7 +76,7 @@ export interface HomeSaveErrors {
 const GADGET_FIELD = /^gadgets\[(\d+)\]\.(.+)$/;
 
 export default class UtilHomeLayoutEditor {
-    /** 가젯 종류 8종 */
+    /** 가젯 종류 8종 + 광고 2종 */
     static readonly KINDS: readonly HomeKindSpec[] = KINDS;
 
     /**
@@ -97,7 +100,7 @@ export default class UtilHomeLayoutEditor {
     /**
      * 아는 종류인가
      * @param {string} type - 종류 키.
-     * @returns {boolean} 8종 중 하나면 true.
+     * @returns {boolean} 8종 + 광고 2종 중 하나면 true.
      */
     static isKnown(type: string): type is HomeGadgetKind {
         return KINDS.some((k) => k.kind === type);

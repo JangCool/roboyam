@@ -7,8 +7,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * 홈 가젯 종류 8종과 종류별 최소 크기 — admin-web {@code UtilHomeLayoutEditor.KINDS}(12칸 기준 minW·minH, 24칸이면 폭 ×2)와 같은 값.
- * 로보얌에 없는 핫딜·직접홍보·광고는 없다. 격자 고정값(행 높이 15px · 간격 16px, 높이 최대 {@value #MAX_H}행, 위치 최대 {@value #MAX_Y}행)은 공유 레이어 {@code UtilHomeLayout} 과 같다.
+ * 홈 가젯 종류 8종 + 광고 2종({@code AD}·{@code AD_TEXT_LINE} — ad-contract 「공개 노출 목업」 확정 2026-11-01)과 종류별 최소 크기 — admin-web {@code UtilHomeLayoutEditor.KINDS}
+ * (12칸 기준 minW·minH, 24칸이면 폭 ×2)와 같은 값. 로보얌에 없는 핫딜·직접홍보는 없다. 광고 가젯은 공개 응답의 {@code data} 가 null 이다(화면이 {@code GET /api/ads} 로 채운다). 격자 고정값(행 높이 15px · 간격 16px, 높이 최대 {@value #MAX_H}행, 위치 최대 {@value #MAX_Y}행)은 공유 레이어 {@code UtilHomeLayout} 과 같다.
  */
 public final class HomeGadgetKinds {
 
@@ -35,9 +35,14 @@ public final class HomeGadgetKinds {
     public static final int BOARD_BODY_MIN_W = 6;
     public static final int BOARD_BODY_MIN_H = 20;
 
+    /** 광고 배너 가젯 — {@code config.adType}(배너 넷, 처음 {@code WIDE_BANNER} — 날개 배너는 가젯에 없다) */
+    public static final String AD = "AD";
+    /** 한 줄 광고 가젯 — {@code config.count} 1~5(처음 3) */
+    public static final String AD_TEXT_LINE = "AD_TEXT_LINE";
+
     /** 종류 → 머리 아이콘(로보얌 테마의 새 가젯) */
     private static final Map<String, String> ICONS = Map.of("HIGHLIGHT", "pi-sparkles", "POST_LIST", "pi-list", "BOARD_CARDS", "pi-th-large", "GALLERY", "pi-images",
-            "GROUPS", "pi-users", "GROUP_BUY", "pi-shopping-bag", "QUICK_LINKS", "pi-link", "NOTICE_TEXT", "pi-megaphone");
+            "GROUPS", "pi-users", "GROUP_BUY", "pi-shopping-bag", "QUICK_LINKS", "pi-link", "NOTICE_TEXT", "pi-megaphone", AD, "pi-image", AD_TEXT_LINE, "pi-bars");
 
     /** 종류 → {minW, minH}(12칸 기준) */
     private static final Map<String, int[]> MIN = minSizes();
@@ -45,7 +50,7 @@ public final class HomeGadgetKinds {
     private HomeGadgetKinds() {
     }
 
-    /** 8종 중 하나인가 — 게시판 본문은 아니다 */
+    /** 8종 + 광고 2종 중 하나인가 — 게시판 본문은 아니다 */
     public static boolean isKnown(String type) {
         return type != null && MIN.containsKey(type);
     }
@@ -102,6 +107,29 @@ public final class HomeGadgetKinds {
         if ("roboyam".equals(theme) && icon != null) {
             style.put("icon", icon);
         }
+        return kindStyle(style, type);
+    }
+
+    /** 광고 가젯({@code AD}·{@code AD_TEXT_LINE})인가 */
+    public static boolean isAd(String type) {
+        return AD.equals(type) || AD_TEXT_LINE.equals(type);
+    }
+
+    /**
+     * 종류만의 처음 꾸미기를 테마 기본 위에 덮는다 — 광고 가젯은 머리 숨김(「광고」 표시가 제목 노릇) · 비면 접기, 배너({@code AD})는 평평(그림 자체가 면).
+     * admin-web {@code UtilGadgetStyle} 의 {@code HEADERLESS_KINDS}·{@code FLAT_KINDS} 와 같다. 다른 종류는 그대로 돌려준다.
+     */
+    public static ObjectNode kindStyle(ObjectNode style, String type) {
+        if (!isAd(type)) {
+            return style;
+        }
+        style.put("headerStyle", "HIDDEN");
+        if (AD.equals(type)) {
+            style.put("cardLook", "FLAT");
+        }
+        if (style.get("empty") instanceof ObjectNode empty) {
+            empty.put("keep", false);
+        }
         return style;
     }
 
@@ -115,6 +143,8 @@ public final class HomeGadgetKinds {
         min.put("GROUP_BUY", new int[]{3, 8});
         min.put("QUICK_LINKS", new int[]{3, 2});
         min.put("NOTICE_TEXT", new int[]{2, 3});
+        min.put(AD, new int[]{2, 2});
+        min.put(AD_TEXT_LINE, new int[]{3, 2});
         return java.util.Collections.unmodifiableMap(min);
     }
 }

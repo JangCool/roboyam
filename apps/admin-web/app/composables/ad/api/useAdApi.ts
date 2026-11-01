@@ -9,6 +9,9 @@ import type {
     AdCalendar,
     AdImage,
     AdManualCreateRequest,
+    AdPlacementHistoryPage,
+    AdPlacementsRequest,
+    AdPlacementsView,
     AdRestoreRequest,
     AdTakedownRequest,
     AdType,
@@ -30,6 +33,9 @@ import type { BizContractFile, BizPeriod } from '~/composables/bizapplication/ap
  *  - `POST /api/admin/ads/manual` → 심사 대기 `AdBookingDetail`(`SUBMITTED`, source=OPERATOR — 광고 심사 큐로 간다. 승인 → 계약서 사본 + 입금 확인 → 확정은 `/api/admin/biz-applications/**`, 04-ia-review §2).
  *    광고 종류(배너 넷·한 줄)만 — 핫딜 노출 자리는 400 `fields.type`
  *  - `POST /api/admin/ads/{id}/takedown` `{ reason, notifyMail }` · `POST /api/admin/ads/{id}/restore` `{ compensation, reason }`
+ *  - `GET  /api/admin/ads/placements`(`ad.read`) · `PUT /api/admin/ads/placements`(`ad.settings`) `AdPlacementsRequest` → `AdPlacementsView`(글 보기·날개 배너·게시판 목록 한 줄 자리 설정, 감사 `AD_PLACEMENT_UPDATE`).
+ *    400 `fields.postInline.adType`·`fields.postInline.position`·`fields.wings.screens`·`fields.boardList.after`(1~20), 빠진 묶음은 `fields.postInline` 등.
+ *  - `GET  /api/admin/ads/placements/history?page=&size=`(`ad.read`) → `AdPlacementHistoryPage`(메일 서버 설정 이력과 같은 모양 — 최신이 위, 바뀐 칸이 없는 저장은 줄이 없다)
  *  상태가 이미 바뀌었으면 409 `BIZ_APPLICATION_STATE_CHANGED`.
  */
 const PATH = {
@@ -42,6 +48,8 @@ const PATH = {
     contractFiles: () => `${PATH.root}/contract-files`,
     images: () => `${PATH.root}/images`,
     manual: () => `${PATH.root}/manual`,
+    placements: () => `${PATH.root}/placements`,
+    placementHistory: () => `${PATH.root}/placements/history`,
 };
 
 export function useAdApi() {
@@ -83,5 +91,12 @@ export function useAdApi() {
         takedown: (id: string, body: AdTakedownRequest): Promise<AdBookingDetail> => client.post<AdBookingDetail>(`${PATH.one(id)}/takedown`, body),
 
         restore: (id: string, body: AdRestoreRequest): Promise<AdBookingDetail> => client.post<AdBookingDetail>(`${PATH.one(id)}/restore`, body),
+
+        placements: (): Promise<AdPlacementsView> => client.get<AdPlacementsView>(PATH.placements()),
+
+        savePlacements: (body: AdPlacementsRequest): Promise<AdPlacementsView> => client.put<AdPlacementsView>(PATH.placements(), body),
+
+        /** 광고 자리 설정 변경 이력 한 쪽 — `page` 0 부터 */
+        placementHistory: (page: number, size: number): Promise<AdPlacementHistoryPage> => client.get<AdPlacementHistoryPage>(PATH.placementHistory(), { query: { page, size } }),
     };
 }

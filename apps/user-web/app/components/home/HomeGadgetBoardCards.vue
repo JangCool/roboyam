@@ -15,7 +15,7 @@
             :aria-label="scroll ? t('home.scrollRowLabel', { name: gadget.title }) : undefined"
             data-testid="home-board-cards"
         >
-            <article v-for="(card, i) in cards" :key="card.board.slug" class="flex min-w-0 flex-col" :class="innerCard" :aria-label="nameOf(card)" data-testid="home-board-card">
+            <article v-for="(card, i) in cards" :key="card.board.slug" class="flex min-w-0 flex-col" :class="innerCard" :data-headless="innerCard === 'gadget-card' ? '' : undefined" :aria-label="nameOf(card)" data-testid="home-board-card">
                 <header v-if="cfg.cardHead" class="mb-3 flex items-center gap-2">
                     <span class="grid size-8 shrink-0 place-items-center rounded-full text-xs font-extrabold" :class="logoClass(i, card)" :style="logoStyle(card)" aria-hidden="true">{{ UtilBoard.iconText(nameOf(card)) }}</span>
                     <NuxtLink :to="`/boards/${card.board.slug}`" class="min-w-0 flex-1 truncate rounded text-[0.9375rem] font-extrabold hover:underline focus-visible:outline-2 focus-visible:outline-primary">{{ nameOf(card) }}</NuxtLink>
@@ -88,7 +88,7 @@ const stacked = useHomeGadgetStacked();
 const mobile = useHomeGadgetLookOptions().mobile;
 const scroll = computed(() => stacked.value && mobile.boardCardsScroll);
 
-/** 안쪽 카드 — 바깥이 평평한 카드형이면 카드 한 장 한 장이 테마 카드, 그 밖은 테두리 상자 */
+/** 안쪽 카드 — 바깥이 평평한 카드형이면 카드 한 장 한 장이 테마 카드(머리 줄이 없어 네 쪽 여백을 같게 — `data-headless`, `main.css`), 그 밖은 테두리 상자 */
 const innerCard = computed(() => (look === 'card' && props.gadget.style.cardLook === 'FLAT' ? 'gadget-card' : 'rounded-lg border border-surface p-3'));
 
 function nameOf(card: BoardCard): string {

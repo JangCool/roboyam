@@ -79,8 +79,8 @@ export type BizSchedulePhase = 'UPCOMING' | 'RUNNING' | 'ENDED';
 /** 결제 방식(★-2) */
 export type BizPaymentMethod = 'ONLINE' | 'MANUAL';
 
-/** 광고 종류 — 배너 4유형 + 한 줄 */
-export type AdType = 'WIDE' | 'STRIP' | 'SQUARE' | 'SMALL' | 'TEXT_LINE';
+/** 광고 종류(공개 이름 — 서버 `BizProduct.publicName`) — 배너 4유형 + 날개 배너(`WING`) + 한 줄 */
+export type AdType = 'WIDE' | 'STRIP' | 'SQUARE' | 'SMALL' | 'WING' | 'TEXT_LINE';
 
 /** 핫딜 노출 자리 */
 export type DealPlacement = 'NONE' | 'HOME_TOP' | 'CATEGORY_TOP';

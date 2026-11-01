@@ -1,4 +1,5 @@
 import type { BizAdType, BizAmount, BizContractFile, BizDeposit, BizDomain, BizPaymentMethod, BizPeriod, BizQuote, BizRefundRequest } from '~/composables/bizapplication/api/useBizApplicationApi.types';
+import type { SettingHistoryItem, SettingHistoryPage } from '~/composables/common/useSettingHistory.types';
 
 /**
  * 광고 일정표(관리자) — 광고 건 · 유형별 한도 · 날짜별 남은 칸 · 운영자 등록. 서버와 주고받는 모양(서버 `AdAdminView`·`AdAdminRequest`, `AdAdvertiserService.Option`·`Revealed` — V115).
@@ -213,3 +214,70 @@ export interface AdRestoreRequest {
     compensation: AdRestoreCompensation;
     reason: string;
 }
+
+/* ── 광고 자리 설정(`/ads/placements`) ── */
+
+/** 글 보기 광고 유형 — 한 줄(기본)·띠 배너·네모 배너 */
+export type AdPostInlineType = 'TEXT_LINE' | 'STRIP_BANNER' | 'SQUARE_BANNER';
+
+/** 글 카드와 댓글 카드 사이(기본) · 본문 바로 아래 */
+export type AdPostInlinePosition = 'BETWEEN_CARDS' | 'AFTER_BODY';
+
+/** 날개 배너를 둘 화면 — 홈 · 가젯 페이지 · 게시판 목록 · 글 보기 */
+export type AdWingScreen = 'HOME' | 'PAGE' | 'BOARD' | 'POST';
+
+export interface AdPostInlineSetting {
+    enabled: boolean;
+    adType: AdPostInlineType;
+    position: AdPostInlinePosition;
+}
+
+export interface AdWingSetting {
+    left: boolean;
+    right: boolean;
+    screens: AdWingScreen[];
+}
+
+export interface AdBoardListSetting {
+    enabled: boolean;
+    /** 일반 글(공지·고정 제외) 몇 번째 뒤 — 1~20 */
+    after: number;
+}
+
+/** 19금 게시판·19금 글에도 광고(목록 한 줄·글 보기·핫딜 노출·날개)를 낼지 — 기본 false. 게시판 「광고 숨김」·소모임은 이 값과 상관없이 늘 빠진다 */
+export interface AdAdultSetting {
+    enabled: boolean;
+}
+
+/** `PUT /api/admin/ads/placements` 본문 */
+export interface AdPlacementsRequest {
+    postInline: AdPostInlineSetting;
+    wings: AdWingSetting;
+    boardList: AdBoardListSetting;
+    adult: AdAdultSetting;
+}
+
+/** `GET`·`PUT /api/admin/ads/placements` 응답 — 저장한 적 없으면 서버 기본값 + `updatedAt/updatedBy: null` */
+export interface AdPlacementsView extends AdPlacementsRequest {
+    updatedAt: string | null;
+    updatedBy: { id: string; name: string } | null;
+}
+
+/**
+ * 광고 자리 설정 변경 이력의 칸 코드(`changes[].field`) — 서버가 이 차례로 준다.
+ * 값 글자: 켜기 칸은 `"true"`/`"false"` · 유형·위치는 enum 이름 · `wings.screens` 는 HOME·PAGE·BOARD·POST 차례 쉼표 이음(빈 목록은 `""`) · `boardList.after` 는 숫자 글자.
+ */
+export type AdPlacementHistoryField =
+    | 'postInline.enabled'
+    | 'postInline.adType'
+    | 'postInline.position'
+    | 'wings.left'
+    | 'wings.right'
+    | 'wings.screens'
+    | 'boardList.enabled'
+    | 'boardList.after'
+    | 'adult.enabled';
+
+/** `GET /api/admin/ads/placements/history` 한 줄 — 메일 서버 설정 이력과 같은 모양(공용 `SettingHistoryItem`, 출처는 늘 `ADMIN`) */
+export type AdPlacementHistoryItem = SettingHistoryItem;
+export type AdPlacementHistoryPage = SettingHistoryPage<AdPlacementHistoryItem>;

@@ -67,4 +67,7 @@ export default {
     editRemove: '{title} 빼기',
     editSettings: '{title} 설정',
     editResize: '크기 바꾸기',
+    // n = 칸 수
+    editTooSmall: '더 줄일 수 없어요 — 최소 {n}칸',
+    editTooLarge: '{n}칸 줄여도 내용이 다 보여요',
 };

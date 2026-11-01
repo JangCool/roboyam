@@ -3,7 +3,8 @@
     <div>
         <BoardPinnedList :rows="pinned" :date-display="dateDisplay" :new-post-hours="newPostHours" />
         <ul class="m-0 mt-3 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-2">
-            <li v-for="row in rows" :key="row.id" class="overflow-hidden rounded-lg border border-surface bg-surface-0 dark:bg-surface-900">
+            <template v-for="(row, i) in rows" :key="row.id">
+            <li class="overflow-hidden rounded-lg border border-surface bg-surface-0 dark:bg-surface-900">
                 <p v-if="row.hiddenReason" class="flex items-center gap-1.5 px-4 py-6 text-sm text-muted-color">
                     <i class="pi pi-eye-slash text-xs" aria-hidden="true" />{{ t(row.hiddenReason === 'STAFF' ? 'board.hiddenPostStaff' : 'board.hiddenPost') }}
                 </p>
@@ -26,6 +27,9 @@
                     </NuxtLink>
                 </FoldedRow>
             </li>
+            <!-- 한 줄 광고는 카드 한 칸이 아니라 두 열을 가로지르는 한 줄 -->
+            <li v-if="feedAd && i === feedAd.afterIndex" class="overflow-hidden rounded-lg border border-surface bg-surface-0 md:col-span-2 dark:bg-surface-900"><AdFeedRow :ad="feedAd.ad" variant="card" /></li>
+            </template>
         </ul>
     </div>
 </template>
@@ -35,7 +39,7 @@ import type { BoardPostListProps } from '~/components/board/BoardPostList.types'
 
 interface Props extends BoardPostListProps {}
 
-const props = withDefaults(defineProps<Props>(), {});
+const props = withDefaults(defineProps<Props>(), { feedAd: null });
 
 const { t } = useI18n();
 /** 차단한 회원·단어의 글은 접힌 칸 — 서버의 `blocked`(서버 후보)에 이 기기에서 방금 바꾼 것을 겹친다 */
