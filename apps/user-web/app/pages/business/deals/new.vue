@@ -131,7 +131,7 @@
                                     />
                                 </template>
                             </LabeledField>
-                            <LabeledField v-if="boardPrefixes.length" :label="t('business.deal.prefix')" :help="t('business.deal.prefixHelp')" :error="errors.prefix">
+                            <LabeledField v-if="boardPrefixes.length" :label="t('business.deal.prefixOptional')" :help="t('business.deal.prefixHelp')" :error="errors.prefix">
                                 <template #default="{ id, describedBy, invalid }">
                                     <Select
                                         v-model="deal.prefixId"
@@ -139,7 +139,8 @@
                                         option-label="name"
                                         option-value="id"
                                         :input-id="id"
-                                        :placeholder="t('business.deal.prefix')"
+                                        :placeholder="t('business.deal.prefixNone')"
+                                        show-clear
                                         :invalid="invalid"
                                         :aria-describedby="describedBy"
                                         fluid
@@ -526,7 +527,8 @@ const errors = computed(() => {
     if (tried.value[2] && !deal.dealPrice) out.dealPrice = t('business.deal.dealPriceRequired');
     else if (deal.listPrice && deal.dealPrice && deal.dealPrice >= deal.listPrice) out.dealPrice = t('business.deal.priceInvalid');
     if (tried.value[3] && boards.value.length && !pickedBoard.value) out.board = t('business.deal.boardRequired');
-    if (tried.value[3] && boardPrefixes.value.length && !pickedPrefix.value) out.prefix = t('business.deal.prefixRequired');
+    // 말머리는 선택(회원 글쓰기와 같음) — 말머리 상단 노출을 고른 경우만 필수(서버 `BizDealContent.board`)
+    if (tried.value[3] && deal.placement === 'CATEGORY_TOP' && !pickedPrefix.value) out.prefix = t('business.deal.prefixRequired');
     if (tried.value[3] && title.value.trim().length < 5) out.title = t('business.deal.titleRequired');
     if (tried.value[3] && !deal.body.trim()) out.body = t('business.deal.bodyRequired');
     if (deal.placement !== 'NONE') {

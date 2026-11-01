@@ -66,8 +66,8 @@ abstract class BizHotdealTestBase extends BizApplicationApiTestBase {
     protected Booked booked(long user, String placement, BizDealInfo deal) {
         LocalDate start = today().plusDays(2);
         boolean none = "NONE".equals(placement);
-        long id = members.submitDeal(user, new BizDealApplyRequest("[시험상사] 텀블러 1+1", deal, none ? null : start.toString(), none ? null : start.plusDays(1).toString(),
-                "ONLINE", POLICY, POLICY));
+        long id = categoryOpenIf(placement, () -> members.submitDeal(user, new BizDealApplyRequest("[시험상사] 텀블러 1+1", deal, none ? null : start.toString(),
+                none ? null : start.plusDays(1).toString(), "ONLINE", POLICY, POLICY)));
         BizPeriods.Period p = freshPeriod(3);
         approve(id, "ONLINE", p);
         pay(user, id);

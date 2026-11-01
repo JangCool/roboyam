@@ -47,7 +47,7 @@ public class BizDealContent {
     }
 
     /**
-     * 게시판·말머리 검사 → 소재 내용에 넣는다. 게시판 필수(켜진 DEAL), 게시판에 고를 말머리가 있으면 말머리 필수, 말머리 상단({@code CATEGORY_TOP})이면 말머리 필수.
+     * 게시판·말머리 검사 → 소재 내용에 넣는다. 게시판 필수(켜진 DEAL), 말머리는 선택(회원 글쓰기와 같음 — 사용자 결정 2026-11-02) · 말머리 상단({@code CATEGORY_TOP})이면 말머리 필수.
      */
     public void board(BizFields f, String boardIdText, String prefixIdText, String placement, Map<String, Object> c) {
         Long boardId = BizFields.id(boardIdText);
@@ -66,7 +66,7 @@ public class BizDealContent {
         c.put("boardName", b.name());
         Long prefixId = BizFields.id(prefixIdText);
         if (BizFields.strip(prefixIdText) == null) {
-            if (!board.prefixes().isEmpty() || "CATEGORY_TOP".equals(placement)) {
+            if ("CATEGORY_TOP".equals(placement)) {
                 f.add("deal.prefixId", "bizapp.deal.prefixRequired");
             }
             return;

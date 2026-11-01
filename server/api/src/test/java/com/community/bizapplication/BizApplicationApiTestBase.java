@@ -26,6 +26,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.function.Executable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -172,10 +173,23 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
                 Long.toString(dealBoard()), Long.toString(dealPrefix()), null, null);
     }
 
-    /** 사업자 핫딜 신청(V123 — 받기 켜짐) */
+    /** 사업자 핫딜 신청(V123 — 받기 켜짐, 말머리 상단은 V124 로 닫혀 시험 안에서만 잠깐 연다) */
     protected long submitDeal(long userId, String placement, LocalDate start, LocalDate end, String method) {
-        return members.submitDeal(userId, new BizDealApplyRequest("[시험상사] 텀블러 1+1", deal(placement), start == null ? null : start.toString(),
-                end == null ? null : end.toString(), method, POLICY, POLICY));
+        return categoryOpenIf(placement, () -> members.submitDeal(userId, new BizDealApplyRequest("[시험상사] 텀블러 1+1", deal(placement),
+                start == null ? null : start.toString(), end == null ? null : end.toString(), method, POLICY, POLICY)));
+    }
+
+    /** 말머리 상단({@code CATEGORY_TOP})이면 그 신청 동안만 {@code HOTDEAL_CATEGORY} 받기를 켠다(V124 닫힘 — 끝나면 다시 끔) */
+    protected <T> T categoryOpenIf(String placement, Supplier<T> call) {
+        if (!"CATEGORY_TOP".equals(placement)) {
+            return call.get();
+        }
+        priceRules.setAccepting(BizProduct.HOTDEAL_CATEGORY, true);
+        try {
+            return call.get();
+        } finally {
+            priceRules.setAccepting(BizProduct.HOTDEAL_CATEGORY, false);
+        }
     }
 
     // ── 심사 ───────────────────────────────────────────────────────────────

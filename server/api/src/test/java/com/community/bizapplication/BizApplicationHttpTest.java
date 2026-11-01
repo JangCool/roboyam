@@ -106,9 +106,9 @@ class BizApplicationHttpTest extends BizApplicationApiTestBase {
         dealBoard(); // 받는 핫딜 게시판(말머리 둘)을 먼저 만든다
         mvc.perform(as(user, get("/api/business/deal-products"))).andExpect(status().isOk()).andExpect(jsonPath("$.data.postPrice").value(30_000))
                 .andExpect(jsonPath("$.data.placements[0].placement").value("HOME_TOP"))
-                // V123 — 사업자 핫딜 신청 다시 엶: 글 게시·노출 자리 받기 켜짐 + 받는 핫딜 게시판(말머리)
+                // V123 — 사업자 핫딜 신청 다시 엶: 글 게시·게시판 상단 받기 켜짐 + 받는 핫딜 게시판(말머리) · V124 — 말머리 상단만 닫힘
                 .andExpect(jsonPath("$.data.accepting").value(true)).andExpect(jsonPath("$.data.placements[0].accepting").value(true))
-                .andExpect(jsonPath("$.data.placements[1].accepting").value(true)).andExpect(jsonPath("$.data.boards").isArray())
+                .andExpect(jsonPath("$.data.placements[1].placement").value("CATEGORY_TOP")).andExpect(jsonPath("$.data.placements[1].accepting").value(false)).andExpect(jsonPath("$.data.boards").isArray())
                 .andExpect(jsonPath("$.data.boards[?(@.id == '" + dealBoard() + "')].prefixes[0].name").value("로봇"));
         mvc.perform(as(user, get("/api/business/ad-products"))).andExpect(jsonPath("$.data[0].accepting").value(true));
         String dealBody = "{\"title\":\"[시험상사] 텀블러 1+1\",\"deal\":{\"linkUrl\":\"https://smartstore.naver.com/roboyam/products/1\",\"shopName\":\"네이버 스마트스토어\","
