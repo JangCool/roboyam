@@ -123,6 +123,12 @@ public class MyBizApplicationController {
         return noStore(service.requestRefund(user(authentication), parseId(id), body == null ? null : body.reason()));
     }
 
+    /** 사업자 종료([품절로 종료] — 환불 없음 · 노출도 멈춤) → 새 「게시된 글」. 이미 끝남 409 {@code DEAL_ENDED}, 글 없음 409 {@code BIZ_APPLICATION_STATE_CHANGED} */
+    @PostMapping("/applications/{id}/deal/end")
+    public ResponseEntity<ApiResponse<com.community.bizapplication.dto.response.BizDealPostView>> endDeal(@PathVariable String id, Authentication authentication) {
+        return noStore(service.endDeal(user(authentication), parseId(id)));
+    }
+
     private static long user(Authentication authentication) {
         if (authentication != null && authentication.getPrincipal() instanceof AuthUser principal) {
             return principal.id();

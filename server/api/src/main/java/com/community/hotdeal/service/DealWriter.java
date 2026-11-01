@@ -145,6 +145,13 @@ public class DealWriter {
         return clocks.getIfUnique(Clock::systemUTC).instant();
     }
 
+    /** 사업자 핫딜 글이면 작성자 고치기·지우기를 막는다(403 {@code DEAL_BUSINESS_POST_LOCKED} — biz-hotdeal-contract 규칙 11) */
+    public void requireNotBusiness(long postId) {
+        if (deals.findById(postId).map(PostDealEntity::isBusiness).orElse(false)) {
+            throw new com.community.hotdeal.exception.DealBusinessPostLockedException();
+        }
+    }
+
     /** 핫딜 게시판인가 */
     public static boolean dealBoard(EffectiveBoard b) {
         return BoardFields.KIND_DEAL.equals(b.kind());

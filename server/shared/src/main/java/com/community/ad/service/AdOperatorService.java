@@ -334,7 +334,7 @@ public class AdOperatorService {
             if (refundAmount > 0) {
                 ops.notices().member(app, BizApplicationNotices.Kind.REFUND_APPROVED, refundAmount, null);
             }
-            ops.scheduled(app);
+            ops.restored(app);
         });
     }
 

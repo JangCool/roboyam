@@ -113,7 +113,8 @@ class BizApplicationSubmitTest extends BizApplicationApiTestBase {
     @Test
     void 핫딜_링크가_단축_URL_이면_400_fields_deal_linkUrl() {
         long user = approvedBusiness();
-        BizDealInfo shortLink = new BizDealInfo("https://bit.ly/x", "몰", null, 1000L, null, null, "UNKNOWN", "본문", "NONE");
+        BizDealInfo shortLink = new BizDealInfo("https://bit.ly/x", "몰", null, 1000L, null, null, "UNKNOWN", "본문", "NONE", Long.toString(dealBoard()),
+                Long.toString(dealPrefix()), null, null);
         assertThat(fieldsOf(() -> members.submitDeal(user, new BizDealApplyRequest("제목", shortLink, null, null, "ONLINE", POLICY, POLICY)))).contains("deal.linkUrl");
     }
 

@@ -38,6 +38,8 @@ public class PostDealEntity {
     public static final String ROLE_AUTHOR = "AUTHOR";
 
     public static final String SOURCE_MEMBER = "MEMBER";
+    /** 사업자 핫딜 글(V123 — 예약된 신청 건이 시작 시각에 올린 글) */
+    public static final String SOURCE_BUSINESS = "BUSINESS";
 
     public static final String STOCK_UNKNOWN = "UNKNOWN";
     public static final String STOCK_SOLD_OUT = "SOLD_OUT";
@@ -92,8 +94,52 @@ public class PostDealEntity {
     private Instant expiryNotifiedAt;
     private Instant createdAt;
     private Instant updatedAt;
+    /** 사업자 글이면 그 신청 건(V123 — 하나에 글 하나), 회원 글 null */
+    private Long bizApplicationId;
+    /** 사업자 글이면 신청 건의 상호 스냅샷(공개 {@code deal.business.name}) */
+    private String businessName;
 
     protected PostDealEntity() {
+    }
+
+    /**
+     * 사업자 글의 딜(V123 — biz-hotdeal-contract 규칙 1·2). 작성자 = 신청한 사업자 회원, 상호 = 신청 건 스냅샷, 마감 = 신청 기간 끝(값의 {@code endsAt}).
+     */
+    public static PostDealEntity createBusiness(long postId, long boardId, long authorId, long applicationId, String businessName, DealValues v, Link link,
+                                                Instant now) {
+        PostDealEntity d = new PostDealEntity();
+        d.postId = postId;
+        d.boardId = boardId;
+        d.authorId = authorId;
+        d.source = SOURCE_BUSINESS;
+        d.bizApplicationId = applicationId;
+        d.businessName = businessName;
+        d.assign(v, link);
+        d.status = ACTIVE;
+        d.createdAt = now;
+        d.updatedAt = now;
+        return d;
+    }
+
+    /** 사업자 글의 딜 마감을 신청 기간 끝에 맞춘다(정지 해제 기간 연장 되돌리기 EXTEND_RESTORE · 긴급 내림 되돌리기 연장) */
+    public void alignEndsAt(Instant end, Instant now) {
+        if (end != null && !end.equals(endsAt)) {
+            endsAt = end;
+            updatedAt = now;
+        }
+    }
+
+    /** 사업자 글인가(작성자 고치기·지우기·되돌리기 없음 — 규칙 11) */
+    public boolean isBusiness() {
+        return SOURCE_BUSINESS.equals(source);
+    }
+
+    public Long getBizApplicationId() {
+        return bizApplicationId;
+    }
+
+    public String getBusinessName() {
+        return businessName;
     }
 
     /**
@@ -202,7 +248,7 @@ public class PostDealEntity {
 
     /** 작성자 되돌리기를 할 수 있는가(D2) — AUTHOR 종료 · 아직 안 씀 · 종료 뒤 24시간 안 */
     public boolean canReopenByAuthor(Instant now) {
-        return ENDED.equals(status) && BY_AUTHOR.equals(endedBy) && !reopenUsed && endedAt != null && now.isBefore(endedAt.plus(REOPEN_WINDOW));
+        return !isBusiness() && ENDED.equals(status) && BY_AUTHOR.equals(endedBy) && !reopenUsed && endedAt != null && now.isBefore(endedAt.plus(REOPEN_WINDOW));
     }
 
     /** 작성자 되돌리기 기한 — 할 수 없으면 null(응답 {@code reopenUntil}) */

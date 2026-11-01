@@ -1,6 +1,7 @@
 package com.community.hotdeal.service;
 
 import com.community.hotdeal.dto.DealSettings;
+import com.community.hotdeal.dto.response.DealBusinessView;
 import com.community.hotdeal.dto.response.DealEndRequestsView;
 import com.community.hotdeal.dto.response.DealImageView;
 import com.community.hotdeal.dto.response.DealRevisionView;
@@ -64,6 +65,7 @@ public class DealViewAssembler {
                 d.getPriceBasis(), d.getEndsAt(), DealViews.autoExpireAt(d.getEndsAt(), d.getCreatedAt(), s.autoExpireDays()), d.getStockState(), d.isAffiliate(),
                 image, d.getStatus(), view.name(), d.getEndedBy(), d.getEndedAt(), d.reopenUntil(now), requests, d.getFlaggedAt(),
                 autoEndAt, d.getKeepCount(), s.keepMaxCount(), new DealRevisionView(d.getPriceEditCount(), d.isLinkChanged(), d.getLastEditedAt()),
-                likeCount >= s.hotLikeThreshold(), sameCount, String.format(BUY_PATH, d.getPostId()), affiliateKind, programName);
+                !d.isBusiness() && likeCount >= s.hotLikeThreshold(), sameCount, String.format(BUY_PATH, d.getPostId()), affiliateKind, programName,
+                d.isBusiness() ? new DealBusinessView(d.getBusinessName()) : null);
     }
 }

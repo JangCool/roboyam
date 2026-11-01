@@ -36,11 +36,11 @@ public class PublicAdController {
         this.clientIps = clientIps;
     }
 
-    /** {@code types} 쉼표 구분 1~8개 · {@code board} 게시판 맥락이면 그 slug · {@code prefix} 말머리(지금 쓰지 않는다) */
+    /** {@code types} 쉼표 구분 1~8개 · {@code board} 게시판 맥락이면 그 slug · {@code prefix} 핫딜 게시판 말머리 ID(말머리 상단 노출) */
     @GetMapping
     public ResponseEntity<ApiResponse<PublicAdView.Page>> list(@RequestParam(required = false) String types, @RequestParam(required = false) String board,
                                                                @RequestParam(required = false) String prefix) {
-        return ok(service.list(types, board));
+        return ok(service.list(types, board, prefix));
     }
 
     @GetMapping("/placements")

@@ -49,15 +49,15 @@ public class DealQueries {
     public record StoreCount(String name, long count) {
     }
 
-    /** 그 회원이 {@code since} 뒤에 올린 딜 수(지운 글 포함 — 지우고 다시 올려 한도를 넘지 못하게) */
+    /** 그 회원이 {@code since} 뒤에 올린 회원 딜 수(지운 글 포함 — 지우고 다시 올려 한도를 넘지 못하게). 사업자 글은 세지 않는다(심사·결제가 대신 — biz-hotdeal 가정) */
     public int countByAuthorSince(long authorId, Instant since) {
-        Integer n = jdbc.queryForObject("SELECT count(*) FROM post_deals WHERE author_id = ? AND created_at >= ?", Integer.class, authorId, ts(since));
+        Integer n = jdbc.queryForObject("SELECT count(*) FROM post_deals WHERE author_id = ? AND source = 'MEMBER' AND created_at >= ?", Integer.class, authorId, ts(since));
         return n == null ? 0 : n;
     }
 
     /** 그 회원이 {@code since} 뒤에 같은 판매처(최종 호스트, 없으면 호스트)에 올린 마지막 딜 시각 */
     public Optional<Instant> lastAtSameStore(long authorId, String storeHost, Instant since) {
-        List<Timestamp> rows = jdbc.queryForList("SELECT max(created_at) FROM post_deals WHERE author_id = ? AND coalesce(final_host, product_host) = ? AND created_at >= ?",
+        List<Timestamp> rows = jdbc.queryForList("SELECT max(created_at) FROM post_deals WHERE author_id = ? AND source = 'MEMBER' AND coalesce(final_host, product_host) = ? AND created_at >= ?",
                 Timestamp.class, authorId, storeHost, ts(since));
         return rows.isEmpty() || rows.get(0) == null ? Optional.empty() : Optional.of(rows.get(0).toInstant());
     }

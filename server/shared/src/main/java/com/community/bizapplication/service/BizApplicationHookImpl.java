@@ -175,7 +175,7 @@ public class BizApplicationHookImpl implements BusinessApplicationHook {
         }
         ops.event(app.id(), BizEventAction.RESTORED, BizActorType.OPERATOR, operatorId, note, now);
         ops.notices().member(app, BizApplicationNotices.Kind.RESTORED, 0, note);
-        ops.scheduled(app);
+        ops.restored(app);
     }
 
     @Override

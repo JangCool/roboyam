@@ -36,15 +36,17 @@ public class DealEndService {
     private final PointService points;
     private final DealSettingsReader settings;
     private final DealNotices notices;
+    private final ObjectProvider<com.community.bizapplication.service.BizDealHistory> bizHistory;
     private final Clock clock;
 
     public DealEndService(PostDealRepository deals, DealEndRequestStore requests, PointService points, DealSettingsReader settings, DealNotices notices,
-                          ObjectProvider<Clock> clocks) {
+                          ObjectProvider<com.community.bizapplication.service.BizDealHistory> bizHistory, ObjectProvider<Clock> clocks) {
         this.deals = deals;
         this.requests = requests;
         this.points = points;
         this.settings = settings;
         this.notices = notices;
+        this.bizHistory = bizHistory;
         this.clock = clocks.getIfUnique(Clock::systemUTC);
     }
 
@@ -76,6 +78,7 @@ public class DealEndService {
         }
         locked.endByAuthor(userId, now);
         rewardRequesters(locked);
+        bizHistory.ifAvailable(h -> h.ended(locked, false, now)); // 사업자 글: 처리 기록 DEAL_ENDED_BY_BUSINESS(환불 없음 — biz-hotdeal 규칙 6)
         return true;
     }
 
@@ -143,6 +146,7 @@ public class DealEndService {
         d.autoEnd(now);
         rewardRequesters(d);
         notices.autoEnded(d);
+        bizHistory.ifAvailable(h -> h.ended(d, true, now)); // 사업자 글: 처리 기록 DEAL_AUTO_ENDED(환불 없음)
         return true;
     }
 

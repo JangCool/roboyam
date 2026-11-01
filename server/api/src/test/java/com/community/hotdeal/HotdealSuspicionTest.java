@@ -109,7 +109,7 @@ class HotdealSuspicionTest extends HotdealStage2TestBase {
         long a = post(m, host);
         post(m, host);
         post(m, host);
-        jdbc.update("UPDATE post_deals SET source = 'BUSINESS' WHERE post_id = ?", a);
+        jdbc.update("UPDATE post_deals SET source = 'BUSINESS', biz_application_id = ?, business_name = '시험상사' WHERE post_id = ?", ids.nextId(), a);
         suspicions.detectMembers(clock.instant());
         assertThat(open("MEMBER", host)).isEmpty();
     }

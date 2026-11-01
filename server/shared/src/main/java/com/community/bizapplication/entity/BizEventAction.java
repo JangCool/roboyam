@@ -28,7 +28,20 @@ public enum BizEventAction {
     REFUNDED(true),
     REFUND_TRANSFERRED(true),
     AUTO_CANCELED(true),
-    FORFEITED(true);
+    FORFEITED(true),
+    // ── 사업자 핫딜 게시(2차 — V123, biz-hotdeal-contract) ──
+    /** 시작 시각에 핫딜 게시판에 글을 올렸다 */
+    POSTED(true),
+    /** 시작 시각에 글을 올리지 못했다 — note = 사유 코드 BOARD_CLOSED·LINK_BLOCKED·BUSINESS_SUSPENDED·OTHER */
+    POST_FAILED(true),
+    /** 취소·환불·내림으로 글을 숨겼다 */
+    POST_HIDDEN(true),
+    /** 되돌리기로 글이 다시 보인다 */
+    POST_RESTORED(true),
+    /** 사업자가 딜을 끝냈다(환불 없음 · 신청 건 상태 그대로) */
+    DEAL_ENDED_BY_BUSINESS(true),
+    /** 종료 요청이 모여 딜이 자동으로 끝났다(환불 없음 · 신청 건 상태 그대로) */
+    DEAL_AUTO_ENDED(true);
 
     private final boolean publicVisible;
 

@@ -66,7 +66,7 @@ public final class BizAdminView {
                          long total, Instant deadlineAt, boolean hasRefundRequest, String source, String applicant, Map<String, Object> content, String memo, Quote quote,
                          int remainingSlots, int slotLimit, Approval approval, OnlinePayment onlinePayment, List<Contract> contracts, Deposit deposit, Refund refund,
                          Rejection rejection, Takedown takedown, String policyAgreedVersion, List<History> history, Long proposedSupply, int weight,
-                         Registrant registrant, String selfApproval) {
+                         Registrant registrant, String selfApproval, com.community.bizapplication.dto.response.BizDealPostView post) {
     }
 
     /**

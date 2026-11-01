@@ -118,7 +118,7 @@ class HotdealGadgetPopularTest extends HotdealStage2TestBase {
         long expired = newDeal(member());
         jdbc.update("UPDATE post_deals SET ends_at = ? WHERE post_id = ?", Timestamp.from(Instant.now().minusSeconds(60)), expired);
         long business = newDeal(member());
-        jdbc.update("UPDATE post_deals SET source = 'BUSINESS' WHERE post_id = ?", business);
+        jdbc.update("UPDATE post_deals SET source = 'BUSINESS', biz_application_id = ?, business_name = '시험상사' WHERE post_id = ?", ids.nextId(), business);
         for (long id : List.of(active, flagged, ended, expired, business)) {
             popularize(id);
         }

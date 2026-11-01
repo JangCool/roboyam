@@ -149,6 +149,10 @@ class BizApplicationAdminCatalogTest {
         assertThat(BizApplicationNotices.reviewEvent(BizDomain.HOTDEAL)).isEqualTo(AdminNotificationEvent.HOTDEAL_REVIEW_PENDING);
         assertThat(BizApplicationNotices.refundEvent(BizDomain.AD)).isEqualTo(AdminNotificationEvent.AD_REFUND_REQUESTED);
         assertThat(BizApplicationNotices.refundEvent(BizDomain.HOTDEAL)).isEqualTo(AdminNotificationEvent.HOTDEAL_REFUND_REQUESTED);
+        // 사업자 핫딜 게시 실패(V123) — 핫딜 처리 권한, 핫딜 심사 서랍, 신청 건마다 한 번(묶음 없음)
+        assertThat(AdminNotificationEvent.HOTDEAL_POST_FAILED.recipientPermissions()).containsExactly(Permission.HOTDEAL_MANAGE);
+        assertThat(AdminNotificationEvent.HOTDEAL_POST_FAILED.linkPath()).isEqualTo("/hotdeal-reviews?id={id}");
+        assertThat(AdminNotificationEvent.HOTDEAL_POST_FAILED.featureReady()).isTrue();
         // 사업자 인증 알림은 「인증 심사」 화면으로
         assertThat(AdminNotificationEvent.BUSINESS_APPLICATION_PENDING.linkPath()).isEqualTo("/business-reviews?id={profileId}");
         assertThat(AdminNotificationEvent.BUSINESS_RE_REVIEW_PENDING.linkPath()).isEqualTo("/business-reviews?id={profileId}");
@@ -164,6 +168,11 @@ class BizApplicationAdminCatalogTest {
             assertThat(job.defaultEnabled()).isTrue();
         }
         assertThat(BatchCatalog.BIZ_PAYMENT_EXPIRE.defaultCron()).isEqualTo("0 */10 * * * *");
+        // 사업자 핫딜 글 게시(V123) — Java · 1분마다 · 켬
+        assertThat(BatchCatalog.BIZ_HOTDEAL_PUBLISH.key()).isEqualTo("biz-hotdeal-publish");
+        assertThat(BatchCatalog.BIZ_HOTDEAL_PUBLISH.isJava()).isTrue();
+        assertThat(BatchCatalog.BIZ_HOTDEAL_PUBLISH.defaultEnabled()).isTrue();
+        assertThat(BatchCatalog.BIZ_HOTDEAL_PUBLISH.defaultCron()).isEqualTo("0 * * * * *");
     }
 
     @Test
@@ -172,7 +181,7 @@ class BizApplicationAdminCatalogTest {
         Properties en = bundle("messages/messages_en.properties");
         List<String> keys = new ArrayList<>();
         for (String code : List.of("BIZ_APPLICATION_NOT_FOUND", "BIZ_APPLICATION_STATE_CHANGED", "BIZ_SLOT_FULL", "BIZ_DEPOSIT_INCOMPLETE", "BIZ_PRODUCT_CLOSED",
-                "BIZ_CONTRACT_NOT_FOUND", "BIZ_SELF_APPROVAL_DENIED", "AD_ADVERTISER_NOT_FOUND")) {
+                "BIZ_CONTRACT_NOT_FOUND", "BIZ_SELF_APPROVAL_DENIED", "AD_ADVERTISER_NOT_FOUND", "DEAL_BUSINESS_POST_LOCKED")) {
             keys.add("error." + code);
         }
         for (String action : AuditActions.all()) {
@@ -183,7 +192,9 @@ class BizApplicationAdminCatalogTest {
         keys.add("audit.targetType.BIZ_APPLICATION");
         keys.addAll(List.of("audit.targetType.AD_ADVERTISER", "ad.advertiser.nameTaken", "ad.advertiser.businessLinked", "ad.advertiser.notFound", "ad.advertiser.phone",
                 "ad.advertiser.email", "ad.reason.invalid", "ad.weight.range", "ad.takedown.mail.subject", "ad.takedown.mail.body", "ad.takedown.mail.reason"));
-        for (BatchCatalog job : List.of(BatchCatalog.BIZ_PAYMENT_EXPIRE, BatchCatalog.BIZ_PAYMENT_DUE_NOTICE, BatchCatalog.BIZ_SCHEDULE_NOTICE)) {
+        keys.addAll(List.of("batch.result.bizHotdealPublish", "batch.result.bizHotdealPublish.none"));
+        for (BatchCatalog job : List.of(BatchCatalog.BIZ_PAYMENT_EXPIRE, BatchCatalog.BIZ_PAYMENT_DUE_NOTICE, BatchCatalog.BIZ_SCHEDULE_NOTICE,
+                BatchCatalog.BIZ_HOTDEAL_PUBLISH)) {
             keys.add(job.nameKey());
             keys.add(job.descriptionKey());
         }
@@ -196,7 +207,7 @@ class BizApplicationAdminCatalogTest {
             keys.add("member.notification.BIZ_APPLICATION.kind." + kind.name());
         }
         for (AdminNotificationEvent event : List.of(AdminNotificationEvent.AD_REVIEW_PENDING, AdminNotificationEvent.HOTDEAL_REVIEW_PENDING,
-                AdminNotificationEvent.AD_REFUND_REQUESTED, AdminNotificationEvent.HOTDEAL_REFUND_REQUESTED)) {
+                AdminNotificationEvent.AD_REFUND_REQUESTED, AdminNotificationEvent.HOTDEAL_REFUND_REQUESTED, AdminNotificationEvent.HOTDEAL_POST_FAILED)) {
             keys.addAll(List.of(event.nameKey(), event.descriptionKey(), event.recipientsKey(), event.titleKey(), "notification.event." + event.name() + ".body"));
         }
         for (String key : keys) {

@@ -159,6 +159,11 @@ public enum AdminNotificationEvent {
     AD_REFUND_REQUESTED(spec(BIZ_AD, WARNING).holders(Permission.DEAL_ORDER_REFUND).link("/ad-reviews?id={id}").collapse(300)),
     /** 사업자 핫딜 신청 건의 진행 중 환불(일할) 심사 대기 — 링크만 광고와 다르다 */
     HOTDEAL_REFUND_REQUESTED(spec(HOTDEAL, WARNING).holders(Permission.DEAL_ORDER_REFUND).link("/hotdeal-reviews?id={id}").collapse(300)),
+    /**
+     * 예약된 사업자 핫딜 글을 시작 시각에 올리지 못했다(게시판 꺼짐 · 링크 차단 · 사업자 정지 등 — V123, biz-hotdeal-contract 결정 1·규칙 3). 신청 건마다 한 번.
+     * 처리는 핫딜 심사 서랍의 [취소(전액 환불)](규칙 10)
+     */
+    HOTDEAL_POST_FAILED(spec(HOTDEAL, WARNING).holders(Permission.HOTDEAL_MANAGE).link("/hotdeal-reviews?id={id}")),
     /** 운영자 신청 기능이 구현된 뒤 */
     OPERATOR_APPLICATION_PENDING(spec(SYSTEM, INFO).holders(Permission.OPERATOR_MANAGE).reserved());
 

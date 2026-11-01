@@ -470,7 +470,9 @@ class AdOperatorLedgerTest extends BizApplicationApiTestBase {
         assertThat(linked.maskedRegNo()).isEqualTo("***-**-*6789");
         assertThat(fieldsOf(() -> advertisers.create(operator, new AdAdvertiserService.Create("또연결" + ids.nextId(), null, null, null, null, Long.toString(profile)))))
                 .containsExactly("businessId");
-        assertThat(advertisers.search("시험상사")).extracting(AdAdvertiserService.Option::id).doesNotContain("biz-" + profile).contains(linked.id());
+        // 같은 시험 DB 에 「시험상사」 사업자가 검색 한도(30)를 넘게 쌓일 수 있어, 이 사업자의 상호를 연결 광고주 이름으로 바꿔 그 이름으로 찾는다
+        jdbc.update("UPDATE business_profiles SET company_name = ? WHERE id = ?", linked.name(), profile);
+        assertThat(advertisers.search(linked.name())).extracting(AdAdvertiserService.Option::id).doesNotContain("biz-" + profile).contains(linked.id());
         // 사업자 쪽 ID 로 등록하면 연결된 광고주도 함께 남는다
         long id = createText("biz-" + profile, freshPeriod(2), List.of());
         assertThat(app(id).advertiserId()).isEqualTo(Long.parseLong(linked.id().substring(4)));

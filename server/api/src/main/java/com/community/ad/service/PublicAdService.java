@@ -4,6 +4,7 @@ import com.community.ad.dto.AdPlacements;
 import com.community.ad.dto.PublicAdView;
 import com.community.ad.repository.master.AdPlacementStore;
 import com.community.ad.repository.master.PublicAdStore;
+import com.community.ad.repository.master.PublicAdStore.DealPost;
 import com.community.ad.repository.master.PublicAdStore.Running;
 import com.community.board.dto.EffectiveBoard;
 import com.community.board.service.BoardCatalog;
@@ -35,7 +36,8 @@ import org.springframework.stereotype.Service;
  *
  * <ul>
  *   <li><b>목록</b>: 나가는 건({@link PublicAdStore#running})의 서버 사본을 {@value #CACHE_SECONDS}초 둔다(서버마다 메모리) — 긴급 내림·되돌리기는 상태로 반영되어 최대
- *       {@value #CACHE_SECONDS}초 늦을 수 있다. 핫딜 노출 두 유형은 게시된 핫딜 글이 아직 없어 늘 빈 목록이다.</li>
+ *       {@value #CACHE_SECONDS}초 늦을 수 있다. 핫딜 노출 두 유형은 그 신청 건의 사업자 글이 진행 중(의심 포함)·공개일 때만 나가고 {@code deal} 을 글에서 채운다
+ *       (말머리 상단은 요청 말머리 = 글 말머리, 게시판 맥락이면 글의 게시판일 때만 — biz-hotdeal-contract 규칙 7).</li>
  *   <li><b>게시판 맥락</b>({@code board} 를 준 호출 — 날개 배너도 게시판·글 보기 화면에서는 붙인다): 없는 게시판 · 꺼진 게시판 · 소모임 게시판 · 「광고 숨김」이면 빈 목록,
  *       19금 게시판은 자리 설정 「19금 게시판에도 광고 보이기」가 꺼져 있으면 빈 목록.</li>
  *   <li><b>집계</b>: 같은 방문자 · 같은 광고 버전 · 같은 자리는 한국 하루 노출 1번 · 클릭 1번. 방문자 = 로그인 회원 ID, 아니면 IP + User-Agent — 날짜와 함께 서버 해시 키
@@ -54,8 +56,8 @@ public class PublicAdService {
     /** 공개 유형 — 광고 종류 여섯 + 핫딜 노출 자리 둘(받는 이름 = 상품 이름) */
     public static final List<BizProduct> TYPES = List.of(BizProduct.WIDE_BANNER, BizProduct.STRIP_BANNER, BizProduct.SQUARE_BANNER, BizProduct.SMALL_BANNER,
             BizProduct.WING_BANNER, BizProduct.TEXT_LINE, BizProduct.HOTDEAL_TOP, BizProduct.HOTDEAL_CATEGORY);
-    /** 사본에 담는 상품 — 핫딜 노출 자리는 글이 있어야 해서 아직 담지 않는다 */
-    private static final List<BizProduct> SERVED = TYPES.stream().filter(BizProduct::adProduct).toList();
+    /** 사본에 담는 상품 — 핫딜 노출 자리는 그 신청 건의 글이 진행 중·공개일 때만 담는다(biz-hotdeal-contract 규칙 7) */
+    private static final List<BizProduct> SERVED = TYPES;
     public static final List<String> PLACEMENTS = List.of("HOME", "PAGE", "BOARD", "POST_INLINE", "HOTDEAL_TOP", "HOTDEAL_CATEGORY", "WING_LEFT", "WING_RIGHT",
             "BOARD_LIST");
     static final DataPurpose VISITOR = DataPurpose.of("ad.visitor");
@@ -68,7 +70,7 @@ public class PublicAdService {
     public record Visitor(Long memberId, String ip, String userAgent) {
     }
 
-    private record Snapshot(Instant loadedAt, List<Running> rows, Map<Long, Running> byId) {
+    private record Snapshot(Instant loadedAt, List<Running> rows, Map<Long, Running> byId, Map<Long, DealPost> deals) {
     }
 
     private final PublicAdStore store;
@@ -93,17 +95,57 @@ public class PublicAdService {
      * @param board     게시판 맥락 호출의 게시판 slug(아니면 null)
      */
     public PublicAdView.Page list(String typesText, String board) {
+        return list(typesText, board, null);
+    }
+
+    /**
+     * @param prefix 핫딜 게시판 말머리 ID — {@code HOTDEAL_CATEGORY} 는 그 신청 건 글의 말머리와 같을 때만 낸다(없으면 내지 않는다). 핫딜 두 유형은 {@code board} 를 주면 글의 게시판과
+     *               같을 때만 낸다
+     */
+    public PublicAdView.Page list(String typesText, String board, String prefix) {
         Set<BizProduct> types = types(typesText);
-        if (board != null && !board.isBlank() && !boardAllows(board.strip())) {
-            return new PublicAdView.Page(List.of());
+        EffectiveBoard context = null;
+        if (board != null && !board.isBlank()) {
+            if (!boardAllows(board.strip())) {
+                return new PublicAdView.Page(List.of());
+            }
+            context = catalog.snapshot().board(board.strip()).orElse(null);
         }
+        Long prefixId = parseId(prefix);
+        Snapshot s = current();
         List<PublicAdView.Ad> items = new ArrayList<>();
-        for (Running r : current().rows()) {
-            if (types.contains(r.product())) {
+        for (Running r : s.rows()) {
+            if (!types.contains(r.product())) {
+                continue;
+            }
+            if (r.product().placement()) {
+                DealPost d = s.deals().get(r.applicationId());
+                if (d == null || (context != null && context.id() != d.boardId())
+                        || (r.product() == BizProduct.HOTDEAL_CATEGORY && (prefixId == null || !prefixId.equals(d.prefixId())))) {
+                    continue;
+                }
+                items.add(dealView(r, d));
+            } else {
                 items.add(view(r));
             }
         }
         return new PublicAdView.Page(items);
+    }
+
+    private PublicAdView.Ad dealView(Running r, DealPost d) {
+        String prefixName = d.prefixId() == null ? null
+                : catalog.snapshot().board(d.boardId()).flatMap(b -> b.prefix(d.prefixId())).map(com.community.board.dto.BoardPrefixInfo::name).orElse(null);
+        PublicAdView.Deal deal = new PublicAdView.Deal(Long.toString(d.postId()), d.title(), d.storeName(), d.dealPrice(), d.normalPrice(), d.imageUrl(), prefixName);
+        return new PublicAdView.Ad(Long.toString(r.applicationId()), r.product().name(), r.version(), null, null, "/posts/" + d.postId(), d.title(), r.weight(), deal,
+                r.advertiserName());
+    }
+
+    private static Long parseId(String text) {
+        try {
+            return text == null || text.isBlank() ? null : Long.valueOf(text.strip());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /** 노출 자리 설정(저장한 적 없으면 기본값) */
@@ -170,10 +212,13 @@ public class PublicAdService {
             if (s != null && !now.isBefore(s.loadedAt()) && Duration.between(s.loadedAt(), now).getSeconds() < CACHE_SECONDS) {
                 return s;
             }
-            List<Running> rows = store.running(SERVED, now);
+            List<Running> all = store.running(SERVED, now);
+            Map<Long, DealPost> deals = store.dealPosts(all.stream().filter(r -> r.product().placement()).map(Running::applicationId).distinct().toList(), now);
+            // 핫딜 노출 자리는 글이 진행 중·공개일 때만(실패 건·숨김·끝난 딜은 빠진다)
+            List<Running> rows = all.stream().filter(r -> !r.product().placement() || deals.containsKey(r.applicationId())).toList();
             Map<Long, Running> byId = new HashMap<>();
             rows.forEach(r -> byId.put(r.applicationId(), r));
-            s = new Snapshot(now, rows, byId);
+            s = new Snapshot(now, rows, byId, deals);
             snapshot = s;
             return s;
         }

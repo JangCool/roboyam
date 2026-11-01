@@ -146,6 +146,9 @@ public class DealStateService {
         Instant now = ends.now();
         Target t = authorTarget(postId, userId, now);
         PostDealEntity d = ends.lock(t.post().getId()).orElseThrow(DealNotFoundException::new);
+        if (d.isBusiness()) {
+            throw new com.community.hotdeal.exception.DealBusinessPostLockedException(); // 사업자 글은 작성자 되돌리기(D2)가 없다(규칙 11)
+        }
         if (!d.isEnded()) {
             throw DealNotEndedException.reopen();
         }

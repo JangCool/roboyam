@@ -29,9 +29,15 @@ public final class HotdealAdminView {
      * @param openReports 처리 대기 신고 수(글 관리 목록과 같은 뜻)
      * @param blockedHost 지금 링크 규칙에서 차단된 호스트(상품·최종 — 진행 중 글만, 그 밖 null)
      * @param clickCount  구매 링크 클릭 수(하루 같은 방문자 1번 — 관리자 덧붙임 선택 칸)
+     * @param source      출처 MEMBER · BUSINESS(= {@code deal.source}, V123)
+     * @param business    사업자 글이면 상호와 그 글을 올린 신청 건(핫딜 심사 {@code /hotdeal-reviews?id=}), 회원 글 null
      */
     public record Row(String postId, String title, BoardRef board, PrefixRef prefix, Author author, Instant createdAt, int openReports, String blockedHost,
-                      PostDealView deal, long clickCount) {
+                      PostDealView deal, long clickCount, String source, BusinessRef business) {
+    }
+
+    /** 사업자 핫딜 글의 사업자 — 상호 스냅샷 · 신청 건 ID */
+    public record BusinessRef(String name, String applicationId) {
     }
 
     /**

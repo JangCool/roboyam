@@ -76,11 +76,12 @@ public class BizApplicationMemberService {
     private final BusinessEligibility eligibility;
     private final PaymentOrderService payments;
     private final ObjectProvider<ImageStorage> images;
+    private final BizDealContent dealForm;
     private final TransactionTemplate tx;
 
     public BizApplicationMemberService(BizApplicationStore store, BizPriceRuleStore rules, BizRefundStore refunds, BizSlotService slots, BizApplicationOps ops,
                                        BusinessEligibility eligibility, PaymentOrderService payments, ObjectProvider<ImageStorage> images,
-                                       PlatformTransactionManager transactions) {
+                                       BizDealContent dealForm, PlatformTransactionManager transactions) {
         this.store = store;
         this.rules = rules;
         this.refunds = refunds;
@@ -89,6 +90,7 @@ public class BizApplicationMemberService {
         this.eligibility = eligibility;
         this.payments = payments;
         this.images = images;
+        this.dealForm = dealForm;
         this.tx = new TransactionTemplate(transactions);
     }
 
@@ -186,7 +188,7 @@ public class BizApplicationMemberService {
             Map<BizProduct, PriceRule> all = rules.all();
             BizFields f = BizFields.start();
             String title = f.text("title", b.title(), 100);
-            Map<String, Object> content = dealContent(f, title, b.deal());
+            Map<String, Object> content = dealContent(f, title, b.deal(), userId, null);
             BizProduct placement = placementOf(b.deal());
             Period period;
             List<BizProduct> products = new ArrayList<>(List.of(BizProduct.HOTDEAL_POST));
@@ -207,8 +209,10 @@ public class BizApplicationMemberService {
             if (placement != null) {
                 slots.require(placement, period.start(), period.end(), null);
             }
-            return create(userId, biz, BizApplicationKind.HOTDEAL_POST, title, period, method, products, b.agreedAdPolicyVersion(), b.agreedRefundPolicyVersion(),
+            long id = create(userId, biz, BizApplicationKind.HOTDEAL_POST, title, period, method, products, b.agreedAdPolicyVersion(), b.agreedRefundPolicyVersion(),
                     content);
+            markDealImage(content);
+            return id;
         });
     }
 
@@ -304,7 +308,7 @@ public class BizApplicationMemberService {
                 }
                 case HOTDEAL_POST -> {
                     title = f.text("title", b.title(), 100);
-                    content = dealContent(f, title, b.deal());
+                    content = dealContent(f, title, b.deal(), userId, current.content());
                     Object before = current.content().get("placement");
                     if (!f.has("deal.placement") && !String.valueOf(before).equals(String.valueOf(content.get("placement")))) {
                         f.add("deal.placement", "bizapp.placement.fixed");
@@ -323,6 +327,7 @@ public class BizApplicationMemberService {
             if (image != null) {
                 store.markImageUsed(image.id(), now);
             }
+            markDealImage(content);
             ops.event(id, BizEventAction.CREATIVE_CHANGED, BizActorType.MEMBER, userId, app.status() == BizApplicationStatus.SUBMITTED ? null : "BACK_TO_REVIEW", now);
             ops.notices().reviewPending(app);
         });
@@ -437,19 +442,26 @@ public class BizApplicationMemberService {
         };
     }
 
-    /** 핫딜 정보 검사 → 소재 내용(응답에도 같은 모양) */
-    private Map<String, Object> dealContent(BizFields f, String title, BizDealInfo deal) {
-        BizDealInfo d = deal == null ? new BizDealInfo(null, null, null, null, null, null, null, null, null) : deal;
+    /**
+     * 핫딜 정보 검사 → 소재 내용(응답에도 같은 모양). 2차(biz-hotdeal-contract 규칙 8): 링크는 회원 핫딜 링크 규칙({@code deal_domains} — 차단이면 {@code fields.deal.linkUrl}),
+     * 재고 IN_STOCK·LOW·UNKNOWN, 받는 게시판 {@code deal.boardId} 필수·말머리 {@code deal.prefixId}, 상품 이미지 {@code deal.imageFileId}(선택 — 광고 이미지 파일).
+     *
+     * @param current 소재 바꾸기면 지금 버전의 내용(이미지를 다시 고르지 않으면 그대로 쓴다), 새 신청이면 null
+     */
+    private Map<String, Object> dealContent(BizFields f, String title, BizDealInfo deal, long userId, Map<String, Object> current) {
+        BizDealInfo d = deal == null ? new BizDealInfo(null, null, null, null, null, null, null, null, null, null, null, null, null) : deal;
         Map<String, Object> c = new LinkedHashMap<>();
         c.put("title", title);
         String link = f.link("deal.linkUrl", d.linkUrl(), false);
-        BizDealLinks.check(link).ifPresent(check -> {
-            if (check.blocked()) {
-                f.add("deal.linkUrl", check.blockedReason());
-            }
-            c.put("host", check.host());
-            c.put("affiliate", check.affiliate());
-        });
+        if (!f.has("deal.linkUrl")) {
+            dealForm.judge(link).ifPresent(v -> {
+                if (v.blocked()) {
+                    f.add("deal.linkUrl", v.shortener() ? "bizapp.link.shortener" : "bizapp.link.blocked");
+                }
+                c.put("host", v.host());
+                c.put("affiliate", v.affiliate());
+            });
+        }
         c.put("linkUrl", link);
         c.put("shopName", f.text("deal.shopName", d.shopName(), 40));
         if (d.dealPrice() == null || d.dealPrice() < 1) {
@@ -457,6 +469,8 @@ public class BizApplicationMemberService {
         }
         if (d.listPrice() != null && d.listPrice() < 1) {
             f.add("deal.listPrice", "bizapp.amount.invalid");
+        } else if (d.listPrice() != null && d.dealPrice() != null && d.listPrice() < d.dealPrice()) {
+            f.add("deal.listPrice", "bizapp.deal.listBelowDeal");
         }
         if (d.shippingFee() != null && d.shippingFee() < 0) {
             f.add("deal.shippingFee", "bizapp.amount.invalid");
@@ -472,12 +486,33 @@ public class BizApplicationMemberService {
             }
         }
         c.put("endsOn", endsOn == null ? null : endsOn.toString());
-        String stock = f.oneOf("deal.stock", d.stock(), s -> Set.of("PLENTY", "LIMITED", "UNKNOWN").contains(s) ? s : null);
+        String stock = f.oneOf("deal.stock", d.stock(), s -> BizDealContent.STOCKS.contains(s) ? s : null);
         c.put("stock", stock);
         c.put("body", f.text("deal.body", d.body(), 5000));
         String placement = f.oneOf("deal.placement", d.placement(), s -> Set.of("NONE", "HOME_TOP", "CATEGORY_TOP").contains(s) ? s : null);
         c.put("placement", placement);
+        dealForm.board(f, d.boardId(), d.prefixId(), placement, c);
+        String fileText = BizFields.strip(d.imageFileId()) != null ? d.imageFileId()
+                : current != null && current.get("imageFileId") != null ? current.get("imageFileId").toString() : null;
+        if (fileText != null) {
+            Long fileId = BizFields.id(fileText);
+            AdImage image = fileId == null ? null : store.adImage(fileId, userId).orElse(null);
+            if (image == null) {
+                f.add("deal.imageFileId", "bizapp.image.notFound");
+            } else {
+                c.put("imageFileId", Long.toString(image.id()));
+                c.put("imageUrl", imageUrl(image.storageKey()));
+            }
+        }
         return c;
+    }
+
+    /** 상품 이미지를 쓰는 중으로(올리다 만 파일 정리에서 빠진다) */
+    private void markDealImage(Map<String, Object> content) {
+        Long fileId = BizDealContent.id(content.get("imageFileId"));
+        if (fileId != null) {
+            store.markImageUsed(fileId, ops.now());
+        }
     }
 
     private String imageUrl(String storageKey) {

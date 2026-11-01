@@ -24,14 +24,14 @@ public final class PublicAdView {
      * @param text           한 줄 문구(배너는 null)
      * @param altText        대체 글 — 없으면 {@code text}
      * @param weight         비중 1~10
-     * @param deal           핫딜 노출 자리의 글 정보 — 게시된 핫딜 글이 아직 없어 늘 null
+     * @param deal           핫딜 노출 자리의 글 정보(사업자 글이 진행 중·공개일 때만 — 배너·한 줄은 null)
      * @param advertiserName 광고주 표시 이름(사업자 상호 또는 광고주 이름, 없으면 null)
      */
     public record Ad(String id, String type, int version, String imageUrl, String text, String linkUrl, String altText, int weight, Deal deal,
                      String advertiserName) {
     }
 
-    /** 핫딜 노출 자리의 글 — 핫딜 게시가 생기면 채운다 */
+    /** 핫딜 노출 자리의 글(V123) — thumbnailUrl 은 딜 이미지(없으면 null), prefixName 은 글 말머리 */
     public record Deal(String postId, String title, String shopName, Long dealPrice, Long listPrice, String thumbnailUrl, String prefixName) {
     }
 

@@ -51,10 +51,12 @@ public class BizApplicationAdminService {
     private final Messages messages;
     private final AccessDeniedRecorder denied;
     private final BizApplicationProperties props;
+    private final com.community.bizapplication.service.BizDealPostReader dealPosts;
 
     public BizApplicationAdminService(BizApplicationReader reader, BizApplicationReviewService review, Messages messages, AccessDeniedRecorder denied,
-                                      BizApplicationProperties props) {
+                                      BizApplicationProperties props, com.community.bizapplication.service.BizDealPostReader dealPosts) {
         this.props = props;
+        this.dealPosts = dealPosts;
         this.reader = reader;
         this.review = review;
         this.messages = messages;
@@ -258,7 +260,14 @@ public class BizApplicationAdminService {
         return new BizAdminView.Detail(row.id(), row.no(), row.kind(), row.adType(), row.status(), row.business(), row.submittedAt(), row.period(), row.preferredMethod(),
                 row.total(), row.deadlineAt(), row.hasRefundRequest(), a.source().name(), applicant, content(a, s.creative() == null ? Map.of() : s.creative().content()),
                 a.operatorMemo(), quote(s.items(), a.quote()), remaining, limit, approval, online, contracts, deposit, refund, rejection, takedown, policy, history,
-                a.proposedSupply(), a.weight(), registrant(a, actor), props.selfApproval().name());
+                a.proposedSupply(), a.weight(), registrant(a, actor), props.selfApproval().name(), dealPosts.view(a, s.items(), s.creative()));
+    }
+
+    private static Map<String, Object> ref(Object id, Object name) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", id.toString());
+        out.put("name", name == null ? null : name.toString());
+        return out;
     }
 
     /** 종류별 내용 — admin-web {@code BizApplicationContent} 모양 */
@@ -288,6 +297,10 @@ public class BizApplicationAdminService {
                 out.put("stock", c.get("stock"));
                 out.put("placement", c.get("placement"));
                 out.put("affiliate", c.get("affiliate"));
+                // 2차(V123) — 받는 게시판·말머리(신청 때 스냅샷 이름)·상품 이미지. 옛 건은 없다(null)
+                out.put("board", c.get("boardId") == null ? null : ref(c.get("boardId"), c.get("boardName")));
+                out.put("prefix", c.get("prefixId") == null ? null : ref(c.get("prefixId"), c.get("prefixName")));
+                out.put("imageUrl", c.get("imageUrl"));
             }
             case HOTDEAL_PLACEMENT -> {
                 out.put("postId", c.get("postId"));

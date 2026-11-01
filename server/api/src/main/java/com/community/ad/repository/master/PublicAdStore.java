@@ -60,6 +60,30 @@ public class PublicAdStore {
                         rs.getInt("version"), JSON.readValue(rs.getString("content"), MAP)));
     }
 
+    /** 핫딜 노출 자리 건의 글 — 진행 중(저장 ACTIVE · 마감 전, 의심 포함)이고 공개(지움·예약 삭제 지남·숨김 아님)인 사업자 글만 */
+    public record DealPost(long applicationId, long postId, String title, long boardId, Long prefixId, String storeName, long dealPrice, Long normalPrice,
+                           String imageUrl) {
+    }
+
+    /** 그 신청 건들의 글(V123 biz_deal_posts POSTED) — 진행 중·공개인 것만(biz-hotdeal-contract 규칙 6·7) */
+    public Map<Long, DealPost> dealPosts(Collection<Long> applicationIds, Instant now) {
+        Map<Long, DealPost> out = new java.util.HashMap<>();
+        if (applicationIds.isEmpty()) {
+            return out;
+        }
+        MapSqlParameterSource params = new MapSqlParameterSource("ids", applicationIds).addValue("now", Timestamp.from(now));
+        named.query("SELECT b.application_id, p.id, p.title, p.board_id, p.prefix_id, d.store_name, d.deal_price, d.normal_price, d.image_url "
+                + "FROM biz_deal_posts b JOIN posts p ON p.id = b.post_id JOIN post_deals d ON d.post_id = p.id "
+                + "WHERE b.application_id IN (:ids) AND b.status = 'POSTED' AND d.source = 'BUSINESS' AND d.status = 'ACTIVE' AND (d.ends_at IS NULL OR d.ends_at > :now) "
+                + "AND p.deleted_at IS NULL AND p.status = 'PUBLISHED' AND (p.delete_scheduled_at IS NULL OR p.delete_scheduled_at > :now) "
+                + "AND (p.hidden_at IS NULL OR (p.hidden_until IS NOT NULL AND p.hidden_until <= :now))", params, (java.sql.ResultSet rs) -> {
+                    DealPost d = new DealPost(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getLong(4), (Long) rs.getObject(5, Long.class), rs.getString(6),
+                            rs.getLong(7), (Long) rs.getObject(8, Long.class), rs.getString(9));
+                    out.put(d.applicationId(), d);
+                });
+        return out;
+    }
+
     /**
      * 하루 1번 집계 — 같은 날·방문자·종류·건·버전·자리가 처음이면 일별 집계에 +1
      *
