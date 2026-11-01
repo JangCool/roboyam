@@ -171,6 +171,7 @@ export default {
     prefillLoading: '끝난 딜 정보를 가져오는 중…',
     prefillFailed: '끝난 딜 정보를 가져오지 못했어요: {message}',
     prefillNotEnded: '아직 진행 중인 딜이에요. 끝난 딜에서만 새 딜을 올릴 수 있어요.',
+    dealNotEndedState: '이미 다시 진행 중인 딜이에요. 화면을 새로 고쳐 주세요.',
 
     // ── 글 보기 딜 카드 ──
     cardLabel: '딜 정보',
@@ -222,6 +223,7 @@ export default {
     reopenGone: '되돌리기는 종료 뒤 24시간 안에 한 번만 할 수 있어요. 다시 열려면 운영진에게 문의해 주세요.',
     reopenExpired: '종료하고 24시간이 지나 다시 진행 중으로 돌릴 수 없어요. 운영진에게 문의해 주세요.',
     reopenUsed: '이미 한 번 다시 진행 중으로 돌린 딜이에요. 운영진만 다시 열 수 있어요.',
+    dealNotFound: '이 글에는 핫딜 정보가 없어요. 새로고침해서 다시 확인해 주세요.',
     flaggedOther: '품절 알림이 들어온 딜이에요',
     overAuthor: '작성자가 종료한 딜이에요',
     overManager: '운영진이 종료한 딜이에요',

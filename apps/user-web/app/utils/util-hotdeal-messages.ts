@@ -134,18 +134,20 @@ export default class UtilHotdealMessages {
      * 핫딜 한도·자격·되돌리기 오류의 안내 — 코드로 고른 문구에 서버가 실은 값(`extras`)을 넣는다. 핫딜 코드가 아니거나 값이 모자라면 null(부르는 쪽이 서버 문구를 쓴다)
      *  - `429 DEAL_DAILY_POST_LIMIT`(`limit`) · `429 DEAL_SAME_STORE_TOO_SOON`(`remainingMinutes` — 없으면 `retryAfterSeconds`) · `403 DEAL_END_REQUEST_NOT_ALLOWED`
      *  - `429 DEAL_END_REQUEST_AUTHOR_LIMIT`(`days`·`limit`) · `409 DEAL_KEEP_LIMIT` · `409 DEAL_REOPEN_EXPIRED` · `409 DEAL_REOPEN_USED`
-     *  - `429 DEAL_LINK_CHECK_RATE_LIMIT`(링크 판정 분당 한도 — `retryAfterSeconds`) · `409 DEAL_NOT_ENDED`(끝난 딜에서 새 딜 — 아직 진행 중인 딜)
+     *  - `429 DEAL_LINK_CHECK_RATE_LIMIT`(링크 판정 분당 한도 — `retryAfterSeconds`) · `409 DEAL_NOT_ENDED`(prefill 이면 끝난 딜에서만 새 딜, 그 밖(되돌리기)은 이미 진행 중으로 바뀜)
+     *  - `404 DEAL_NOT_FOUND`(딜 상태 API — 종료·되돌리기·keep·종료 요청: 핫딜 글이 아니거나 딜 줄이 없음)
      * @param {Translate} t - 번역 함수.
      * @param {unknown} e - 오류.
+     * @param {'prefill' | 'state'} [context] - 부른 곳(`409 DEAL_NOT_ENDED` 문구가 갈린다). 기본 `state`(딜 카드의 상태 API).
      * @returns {string | null} 안내.
      */
-    static dealError(t: Translate, e: unknown): string | null {
+    static dealError(t: Translate, e: unknown, context: 'prefill' | 'state' = 'state'): string | null {
         if (!(e instanceof ApiError)) return null;
         switch (e.code) {
             case 'DEAL_LINK_CHECK_RATE_LIMIT':
                 return e.retryAfterSeconds ? t('hotdeal.linkCheckRateLimitIn', { n: Math.max(1, Math.ceil(e.retryAfterSeconds)) }) : t('hotdeal.linkCheckRateLimit');
             case 'DEAL_NOT_ENDED':
-                return t('hotdeal.prefillNotEnded');
+                return context === 'prefill' ? t('hotdeal.prefillNotEnded') : t('hotdeal.dealNotEndedState');
             case 'DEAL_DAILY_POST_LIMIT': {
                 const limit = extraNumber(e, 'limit');
                 return limit !== null ? t('hotdeal.dailyLimit', { n: limit }) : null;
@@ -167,6 +169,8 @@ export default class UtilHotdealMessages {
                 return t('hotdeal.reopenExpired');
             case 'DEAL_REOPEN_USED':
                 return t('hotdeal.reopenUsed');
+            case 'DEAL_NOT_FOUND':
+                return t('hotdeal.dealNotFound');
             default:
                 return null;
         }

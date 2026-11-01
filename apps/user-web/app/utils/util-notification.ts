@@ -79,7 +79,7 @@ export default class UtilNotification {
     }
 
     /**
-     * 알림 한 줄의 아이콘 — 댓글은 말풍선, 답글은 답장, 포인트 회수는 지갑, 포인트 소멸 예정은 모래시계, 포인트 상점 환불 신청 수락은 되돌림·거절은 X 동그라미, 신고로 숨김은 가린 눈, 글·댓글 삭제는 휴지통, 신고 처리 결과는 깃발, 쪽지는 봉투, 닉네임 이미지 심사는 이미지, 기능 제한은 금지 표시. 모르는 종류는 말풍선.
+     * 알림 한 줄의 아이콘 — 댓글은 말풍선, 답글은 답장, 포인트 회수는 지갑, 포인트 소멸 예정은 모래시계, 포인트 상점 환불 신청 수락은 되돌림·거절은 X 동그라미, 신고로 숨김은 가린 눈, 글·댓글 삭제는 휴지통, 신고 처리 결과는 깃발, 쪽지는 봉투, 닉네임 이미지 심사는 이미지, 기능 제한은 금지 표시, 회원 핫딜은 의심 경고·마감 고치기 달력·그 밖 종료 가격표. 모르는 종류는 말풍선.
      * @param {MemberNotificationType} type - 알림 종류.
      * @returns {string} PrimeIcons 클래스.
      */
@@ -111,6 +111,10 @@ export default class UtilNotification {
         if (type === 'GROUP_BUY') return 'pi pi-shopping-cart';
         if (type === 'BUSINESS') return 'pi pi-briefcase';
         if (type === 'BIZ_APPLICATION') return 'pi pi-megaphone';
+        // 회원 핫딜(V122) — 종료 요청이 모여 의심은 경고 삼각형, 재개 뒤 마감 고치기는 달력, 자동·운영진·기간 종료는 가격표(핫딜 썸네일 자리 그림과 같다)
+        if (type === 'DEAL_FLAGGED') return 'pi pi-exclamation-triangle';
+        if (type === 'DEAL_REOPENED_FIX_ENDS') return 'pi pi-calendar';
+        if (type.startsWith('DEAL_')) return 'pi pi-tag';
         if (type.startsWith('GROUP_')) return 'pi pi-users';
         return 'pi pi-comment';
     }

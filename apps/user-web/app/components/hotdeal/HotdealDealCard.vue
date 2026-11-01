@@ -180,6 +180,7 @@ const FINAL_CODES: ReadonlySet<string> = new Set([
     'DEAL_END_REQUEST_NOT_ALLOWED',
     'DEAL_END_REQUEST_AUTHOR_LIMIT',
     'DEAL_ENDED',
+    'DEAL_NOT_FOUND',
     'DEAL_END_REQUEST_DAILY_LIMIT',
     'GRADE_TOO_LOW',
     'ACCOUNT_RESTRICTED',
@@ -277,7 +278,7 @@ async function onEnd(): Promise<void> {
         emit('update:deal', await props.actions.end());
         toast.success(t('hotdeal.authorEnded'));
     } catch (e) {
-        toast.error(UtilBoardMessages.of(t, e), 8000);
+        toast.error(errorText(e), 8000);
     } finally {
         ending.value = false;
     }

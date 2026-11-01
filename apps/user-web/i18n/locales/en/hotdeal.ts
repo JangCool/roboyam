@@ -171,6 +171,7 @@ export default {
     prefillLoading: 'Loading the ended deal…',
     prefillFailed: 'Couldn’t load the ended deal: {message}',
     prefillNotEnded: 'This deal is still on. You can only post a new deal from an ended one.',
+    dealNotEndedState: 'This deal is already back on. Please refresh the page.',
 
     // ── Deal card ──
     cardLabel: 'Deal details',
@@ -222,6 +223,7 @@ export default {
     reopenGone: 'You can only set it back once within 24 hours of ending. Contact staff to reopen it.',
     reopenExpired: 'More than 24 hours have passed since it ended. Contact staff to reopen it.',
     reopenUsed: 'You already set this deal back once. Only staff can reopen it.',
+    dealNotFound: 'This post no longer has a hot deal. Refresh the page and try again.',
     flaggedOther: 'Members reported this deal as sold out',
     overAuthor: 'The author ended this deal',
     overManager: 'Staff ended this deal',

@@ -521,6 +521,20 @@ const dealActions: DealCardActions = {
 function onDealUpdate(next: PostDeal): void {
     if (post.value) post.value.deal = next;
 }
+/**
+ * 가격 허위 신고(D4) 뒤 딜만 서버 값으로 — 신고 응답(204)에는 딜이 없고, 서버는 이미 알렸거나 자격 미달·한도·끝난 딜이면 신고만 받아 집계가 그대로일 수 있다.
+ * 딜만 읽는 API 가 없어 글을 다시 읽고 `deal` 만 바꾼다(조회수는 같은 회원 중복 창 안이라 다시 세지 않는다). 못 받으면 지금 카드 그대로 두고 null
+ */
+async function refreshDeal(postId: string): Promise<PostDeal | null> {
+    try {
+        const fresh = (await postApi.post(postId)).deal ?? null;
+        if (post.value?.id === postId) post.value.deal = fresh;
+        return fresh;
+    } catch {
+        // 다음에 글을 받을 때 바로잡힌다
+        return null;
+    }
+}
 
 /* ── 투표 ── */
 /** 투표 카드가 부르는 동작 — 지금 보는 글의 투표 */
@@ -823,11 +837,11 @@ async function submitReport(value: { reason: ReportReason; detail: string | null
         await reportApi.report({ targetType: target.type, targetId: target.id, reason: value.reason, detail: value.detail });
         reportOpen.value = false;
         if (value.reason === 'DEAL_FALSE_PRICE' && target.type === 'POST' && post.value?.deal) {
-            // D4 — 가격 허위 신고는 서버가 종료 요청 「가격 변경」 1건으로 접수한다. 신고 응답(204)에 딜이 없어 화면이 같은 모양으로 고친다.
-            // 서버는 이미 알렸거나 자격이 모자라면 신고만 조용히 받으므로 이 숫자는 다음에 글을 받을 때 서버 값으로 바로잡힌다
-            const d = post.value.deal;
-            if (!d.endRequests.mine) post.value.deal = { ...d, endRequests: { ...d.endRequests, total: d.endRequests.total + 1, byPriceChanged: d.endRequests.byPriceChanged + 1, mine: 'PRICE_CHANGED' } };
-            toast.success(t('hotdeal.reportFalsePriceDone'));
+            // D4 — 가격 허위 신고는 서버가 종료 요청 「가격 변경」 1건으로 접수할 수도, 신고만 받을 수도 있다 — 화면이 셈하지 않고 다시 읽는다.
+            // 이번에 내 요청이 새로 생겼을 때만 「알리기로 접수」, 아니면(이미 알렸음·자격·한도·끝난 딜·다시 못 읽음) 보통 신고 접수 문구
+            const before = post.value.deal.endRequests.mine;
+            const fresh = await refreshDeal(target.id);
+            toast.success(!before && fresh?.endRequests.mine ? t('hotdeal.reportFalsePriceDone') : t('post.reported'));
         } else toast.success(t('post.reported'));
     } catch (e) {
         if (e instanceof ApiError && e.code === 'UNAUTHENTICATED') {

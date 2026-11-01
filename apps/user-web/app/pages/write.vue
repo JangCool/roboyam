@@ -302,7 +302,7 @@ async function loadPrefill(): Promise<void> {
     } catch (e) {
         prefillState.value = 'failed';
         // 아직 진행 중인 딜(`409 DEAL_NOT_ENDED`)은 핫딜 문구, 그 밖은 서버 문구
-        toast.error(t('hotdeal.prefillFailed', { message: UtilHotdealMessages.dealError(t, e) ?? UtilBoardMessages.of(t, e) }), 8000);
+        toast.error(t('hotdeal.prefillFailed', { message: UtilHotdealMessages.dealError(t, e, 'prefill') ?? UtilBoardMessages.of(t, e) }), 8000);
     }
 }
 // 핫딜 게시판이 정해진 뒤 한 번

@@ -167,7 +167,8 @@ export interface PostRow {
     group?: PostGroupRef | null;
     /**
      * 핫딜 게시판(`kind DEAL`)의 글이면 딜(가격 줄·배지) — 일반 글·숨긴 글·옛 응답은 null·없음(`hotdeal-contract.md`).
-     * 서버 1단계는 핫딜 게시판 목록에서만 채운다(최신글 등 섞인 목록은 null). 가젯 `HOT_DEALS` 줄은 늘 싣는다(2단계)
+     * 서버 2단계부터 게시판이 섞인 목록 줄(`PostFeedRow` — 가젯·최신글·인기글·검색)에도 핫딜 게시판 글이면 싣는다(숨긴 글은 null). 화면 중 딜을 그리는 곳은
+     * 핫딜 게시판 목록·글 보기·가젯 `HOT_DEALS`(`HotdealRowItem`)뿐이고, 최신글·인기글·검색 등은 계약 화면 경로에 딜 표시가 없어 일반 줄로 그린다(칸은 무시)
      */
     deal?: PostDeal | null;
 }
