@@ -122,8 +122,8 @@ export default {
     manualDone: '등록했어요. 「광고 심사」에서 승인해 주세요.',
     manualCreatedNote: '{name} 광고를 심사 대기로 등록했어요. 광고 심사에서 승인해 주세요.',
     openReview: '광고 심사에서 열기',
-    // 광고 › 기본 설정(`/ads/placements` — 공개 화면의 광고 자리)
-    placementsTitle: '기본 설정',
+    // 광고 기본 설정(`/ads/placements` — 공개 화면의 광고 자리)
+    placementsTitle: '광고 기본 설정',
     placementsSubtitle: '글 보기·날개 배너·게시판 목록에 광고를 어디에 어떻게 넣을지 정해요. 홈·가젯 페이지의 광고는 가젯 편집기에서 넣어요.',
     placementsReadOnly: '보기만 할 수 있어요. 바꾸려면 「광고 유형·자리·홍보 규칙 설정」 권한이 필요해요.',
     placementsLoadFailed: '광고 기본 설정을 불러오지 못했어요.',
@@ -135,11 +135,11 @@ export default {
     placementsLeaveMessage: '이 화면을 떠나면 바꾼 광고 기본 설정이 사라져요.',
     placementsLeaveConfirm: '떠나기',
     placementsLeaveCancel: '계속 편집',
-    placementsTabs: '기본 설정 묶음',
+    placementsTabs: '광고 기본 설정 묶음',
     placementsTabUnsaved: '저장 전',
     placementsTabInvalid: '맞지 않는 칸 {n}개',
     placementsPreviewOf: '{section} 미리보기',
-    // 기본 설정 변경 이력(제목 옆 「변경 이력」 단추가 여는 서랍 — 표 머리·출처 문구는 `settingHistory.*`)
+    // 광고 기본 설정 변경 이력(제목 옆 「변경 이력」 단추가 여는 서랍 — 표 머리·출처 문구는 `settingHistory.*`)
     placementsHistoryHint: '이 화면에서 광고 기본 설정을 바꾼 기록이에요. 바뀐 칸만 남고, 최신이 위예요.',
     placementHistoryOn: '켜짐',
     placementHistoryOff: '꺼짐',

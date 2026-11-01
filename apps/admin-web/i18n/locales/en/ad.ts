@@ -122,8 +122,8 @@ export default {
     manualDone: 'Registered. Approve it in Ad review.',
     manualCreatedNote: 'The ad for {name} is waiting for review. Approve it in Ad review.',
     openReview: 'Open in Ad review',
-    // Ads › Settings (`/ads/placements` — ad spots on public pages)
-    placementsTitle: 'Settings',
+    // Ad settings (`/ads/placements` — ad spots on public pages)
+    placementsTitle: 'Ad settings',
     placementsSubtitle: 'Choose where and how ads appear in posts, wing banners and board lists. Ads on home and gadget pages are added in the gadget editor.',
     placementsReadOnly: 'View only. You need the “Ad types, placements and promo rules” permission to change these.',
     placementsLoadFailed: 'Couldn’t load the ad settings.',
@@ -135,11 +135,11 @@ export default {
     placementsLeaveMessage: 'If you leave, your changes to the ad settings will be lost.',
     placementsLeaveConfirm: 'Leave',
     placementsLeaveCancel: 'Keep editing',
-    placementsTabs: 'Settings groups',
+    placementsTabs: 'Ad settings groups',
     placementsTabUnsaved: 'Unsaved',
     placementsTabInvalid: '{n} invalid field(s)',
     placementsPreviewOf: '{section} preview',
-    // Settings change history (drawer opened by “Change history” next to the title — table headers and sources are `settingHistory.*`)
+    // Ad settings change history (drawer opened by “Change history” next to the title — table headers and sources are `settingHistory.*`)
     placementsHistoryHint: 'Changes made to the ad settings on this screen. Only changed fields are kept, newest first.',
     placementHistoryOn: 'On',
     placementHistoryOff: 'Off',
