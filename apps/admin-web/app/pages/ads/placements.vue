@@ -5,10 +5,10 @@
           ② 날개 배너 — 왼쪽·오른쪽 켜기 · 보일 화면(홈·가젯 페이지·게시판 목록·글 보기)
           ③ 게시판 목록 한 줄 — 켜기 · 일반 글 몇 번째 뒤(1~20)
           ④ 19금 — 19금 게시판·19금 글에도 광고 보이기(기본 끔. 끄면 날개까지 모두 빠짐 · 게시판 「광고 숨김」·소모임은 늘 빠짐)
-        짜임(사용자 결정 2026-11-01): 묶음 넷 = 탭 넷(PrimeVue Tabs — 주소 `?tab=post|wings|list|adult`, 모르는 값은 첫 탭). 왼쪽은 탭 단추 + 고른 탭의 폼, 오른쪽은 미리보기 한 곳(lg 이상 sticky, 좁은 화면은 폼 아래).
+        짜임(사용자 결정 2026-11-01): 묶음 넷 = 탭 넷(PrimeVue Tabs — 주소 `?tab=post|wings|list|adult`, 모르는 값은 첫 탭). 왼쪽 본문 열은 탭 단추 줄(카드 밖, 열 맨 위 왼쪽) + 고른 탭의 폼 카드 + 저장 줄, 오른쪽은 미리보기 한 곳(lg 이상 sticky, 좁은 화면은 본문 열 아래).
           미리보기 도식(`AdPlacement*Preview` — 공개 화면 짜임을 회색 상자로 단순하게 그리고 광고 자리만 주 색상)은 고른 탭의 것으로 바뀌고, 저장 전 폼 값을 바로 따라 그린다(저장된 값과 다르면 「저장 전」).
           폼 값은 이 화면(`form`)에 있고 탭 패널은 숨기기만 해서 탭을 바꿔도 입력이 남는다. 탭 단추에 저장 전이면 주황 점, 서버가 거절한 칸이 있으면 빨간 점. 저장이 칸 오류로 실패하면 지금 탭에 오류가 없을 때 첫 오류 탭으로 옮긴다.
-        화면 하나로 한 번에 저장한다(`PUT` 한 번 — 아래 떠 있는 저장 줄, `forms.md` 2-4). 홈·가젯 페이지·게시판 레이아웃의 광고는 가젯(가젯 편집기)이라 여기 없다.
+        화면 하나로 한 번에 저장한다(`PUT` 한 번 — 본문 열 맨 아래 떠 있는 저장 줄, 폭·위치는 폼 카드와 같다, `forms.md` 2-4). 홈·가젯 페이지·게시판 레이아웃의 광고는 가젯(가젯 편집기)이라 여기 없다.
         권한: 화면 `ad.read` · 저장 `ad.settings`(없으면 입력이 잠기고 저장 줄 대신 읽기 전용 안내). 막는 것은 서버다.
         서버가 거절한 칸(400 `fields.postInline.adType` 등)은 그 칸 아래, 빠진 묶음(`fields.postInline` 등)은 그 묶음 위, 나머지는 저장 줄에 서버 문구 그대로.
         공개 화면은 서버 사본(20초) 뒤에 따라온다. 바꾼 값은 서버가 감사(`AD_PLACEMENT_UPDATE`, 전→후)에 남긴다.
@@ -31,26 +31,31 @@
         <form v-else class="flex flex-col gap-4" novalidate data-testid="ad-placements-form" @submit.prevent="save">
             <Message v-if="!canEdit" severity="info" :closable="false" size="small">{{ t('ad.placementsReadOnly') }}</Message>
 
-            <!-- 두 칸 — 왼쪽 탭(묶음 넷) + 고른 탭의 폼 · 오른쪽 고른 탭의 미리보기(넓은 화면에서 스크롤을 따라 붙는다). 좁은 화면(lg 미만)은 미리보기가 폼 아래로 -->
-            <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]">
-                <div class="flex min-w-0 flex-col gap-3">
-                    <div class="min-w-0 overflow-hidden rounded-xl border border-(--line) bg-(--p-content-background)" data-testid="ad-placements-tabs">
-                        <Tabs :value="tab" scrollable class="min-w-0" @update:value="(v: string | number) => selectTab(String(v))">
-                            <TabList :aria-label="t('ad.placementsTabs')">
-                                <Tab v-for="item in TABS" :key="item.key" :value="item.key" :data-testid="`ad-placements-tab-${item.key}`">
-                                    <span class="inline-flex items-center gap-1.5">
-                                        {{ t(item.label) }}
-                                        <template v-if="invalidOf(item.section)">
-                                            <span class="inline-block size-1.5 shrink-0 rounded-full bg-red-500" aria-hidden="true" data-testid="ad-placements-tab-invalid" />
-                                            <span class="sr-only">{{ t('ad.placementsTabInvalid', { n: invalidOf(item.section) }) }}</span>
-                                        </template>
-                                        <template v-else-if="changes[item.section] > 0">
-                                            <span class="inline-block size-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden="true" data-testid="ad-placements-tab-unsaved" />
-                                            <span class="sr-only">{{ t('ad.placementsTabUnsaved') }}</span>
-                                        </template>
-                                    </span>
-                                </Tab>
-                            </TabList>
+            <!--
+                두 칸 — 왼쪽(본문 열): 탭 단추 줄(카드 밖, 열 맨 위 왼쪽) → 고른 탭의 폼 카드 → 마지막 저장 시각 → 떠 있는 저장 줄 · 오른쪽: 고른 탭의 미리보기(넓은 화면에서 스크롤을 따라 붙는다).
+                저장 줄은 본문 열 안에 두어 폭·위치가 폼 카드와 같다(`StickySaveBar` 는 sticky 라 부모 폭을 따른다 — 미리보기 열·사이드 메뉴 위로 넓게 깔리지 않는다).
+                좁은 화면(lg 미만)은 한 열 — 미리보기가 본문 열(저장 줄 포함) 아래로.
+                `Tabs` 가 두 칸 전체를 감싸 탭 단추(`TabList`)와 폼(`TabPanels`)이 떨어져 있어도 탭-패널 연결(aria)이 그대로다.
+            -->
+            <Tabs :value="tab" scrollable class="min-w-0" @update:value="(v: string | number) => selectTab(String(v))">
+                <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]">
+                    <div class="flex min-w-0 flex-col gap-3" data-testid="ad-placements-main">
+                        <TabList :aria-label="t('ad.placementsTabs')" data-testid="ad-placements-tablist">
+                            <Tab v-for="item in TABS" :key="item.key" :value="item.key" :data-testid="`ad-placements-tab-${item.key}`">
+                                <span class="inline-flex items-center gap-1.5">
+                                    {{ t(item.label) }}
+                                    <template v-if="invalidOf(item.section)">
+                                        <span class="inline-block size-1.5 shrink-0 rounded-full bg-red-500" aria-hidden="true" data-testid="ad-placements-tab-invalid" />
+                                        <span class="sr-only">{{ t('ad.placementsTabInvalid', { n: invalidOf(item.section) }) }}</span>
+                                    </template>
+                                    <template v-else-if="changes[item.section] > 0">
+                                        <span class="inline-block size-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden="true" data-testid="ad-placements-tab-unsaved" />
+                                        <span class="sr-only">{{ t('ad.placementsTabUnsaved') }}</span>
+                                    </template>
+                                </span>
+                            </Tab>
+                        </TabList>
+                        <div class="min-w-0 overflow-hidden rounded-xl border border-(--line) bg-(--p-content-background)" data-testid="ad-placements-tabs">
                             <TabPanels>
                                 <!-- ① 글 보기 -->
                                 <TabPanel value="post">
@@ -177,24 +182,25 @@
                                     </div>
                                 </TabPanel>
                             </TabPanels>
-                        </Tabs>
+                        </div>
+
+                        <p class="m-0 text-xs text-muted-color" data-testid="ad-placements-saved-at">
+                            {{ saved.updatedAt ? t('ad.placementsLastSaved', { at: time.full(saved.updatedAt), by: saved.updatedBy?.name ?? '—' }) : t('ad.placementsNeverSaved') }}
+                        </p>
+
+                        <!-- 네 묶음 한 번에 저장(PUT 한 번) — 본문 열 안이라 폼 카드와 같은 폭·위치로 창 아래에 붙는다 -->
+                        <StickySaveBar v-if="canEdit" submit revertable :dirty="dirty" :saving="saving" :count="changeCount" :error-count="errorCount" :error="formError" @revert="revert" />
                     </div>
 
-                    <p class="m-0 text-xs text-muted-color" data-testid="ad-placements-saved-at">
-                        {{ saved.updatedAt ? t('ad.placementsLastSaved', { at: time.full(saved.updatedAt), by: saved.updatedBy?.name ?? '—' }) : t('ad.placementsNeverSaved') }}
-                    </p>
+                    <!-- 고른 탭의 미리보기 한 곳 — 셸의 위쪽 막대는 스크롤 영역(.app-content) 밖이라 작은 여유(top-4)만 두고 붙인다 -->
+                    <aside class="min-w-0 lg:sticky lg:top-4" :aria-label="t('ad.placementsPreviewOf', { section: t(current.label) })" data-testid="ad-placements-preview-pane">
+                        <AdPlacementPostPreview v-if="tab === 'post'" :enabled="form.postInline.enabled" :ad-type="form.postInline.adType" :position="form.postInline.position" :unsaved="changes.postInline > 0" />
+                        <AdPlacementWingsPreview v-else-if="tab === 'wings'" :left="form.wings.left" :right="form.wings.right" :screens="form.wings.screens" :unsaved="changes.wings > 0" />
+                        <AdPlacementListPreview v-else-if="tab === 'list'" :enabled="form.boardList.enabled" :after="form.boardList.after" :unsaved="changes.boardList > 0" />
+                        <AdPlacementAdultPreview v-else :form="form" :unsaved="changes.adult > 0" />
+                    </aside>
                 </div>
-
-                <!-- 고른 탭의 미리보기 한 곳 — 셸의 위쪽 막대는 스크롤 영역(.app-content) 밖이라 작은 여유(top-4)만 두고 붙인다 -->
-                <aside class="min-w-0 lg:sticky lg:top-4" :aria-label="t('ad.placementsPreviewOf', { section: t(current.label) })" data-testid="ad-placements-preview-pane">
-                    <AdPlacementPostPreview v-if="tab === 'post'" :enabled="form.postInline.enabled" :ad-type="form.postInline.adType" :position="form.postInline.position" :unsaved="changes.postInline > 0" />
-                    <AdPlacementWingsPreview v-else-if="tab === 'wings'" :left="form.wings.left" :right="form.wings.right" :screens="form.wings.screens" :unsaved="changes.wings > 0" />
-                    <AdPlacementListPreview v-else-if="tab === 'list'" :enabled="form.boardList.enabled" :after="form.boardList.after" :unsaved="changes.boardList > 0" />
-                    <AdPlacementAdultPreview v-else :form="form" :unsaved="changes.adult > 0" />
-                </aside>
-            </div>
-
-            <StickySaveBar v-if="canEdit" submit revertable :dirty="dirty" :saving="saving" :count="changeCount" :error-count="errorCount" :error="formError" @revert="revert" />
+            </Tabs>
         </form>
     </div>
 </template>
