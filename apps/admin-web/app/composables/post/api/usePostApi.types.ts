@@ -89,6 +89,8 @@ export interface AdminPostItem {
     pendingPinRequests: number;
     /** 투표가 붙어 있다(post-poll-contract). 옛 응답에는 없을 수 있다 */
     poll?: boolean;
+    /** 핫딜 글이다(핫딜 게시판 글에 딜 정보가 붙었다 — hotdeal-contract). ⚠ 서버에 아직 없는 칸(목업 단계 — 서버가 실으면 「딜」 칩과 핫딜 글 링크가 보인다) */
+    deal?: boolean;
     likeCount: number;
     commentCount: number;
     viewCount: number;

@@ -101,6 +101,11 @@ export default {
         OFFLINE_RISK: '오프라인 모임 위험',
         STOCK_RECOMMENDATION: '종목 추천·유료 모집',
     },
+    // 핫딜 글에서만 보이는 신고 사유(hotdeal-contract)
+    dealReason: {
+        DEAL_FALSE_PRICE: '가격·정보가 사실과 달라요',
+        DEAL_HIDDEN_AD: '광고·홍보를 숨겼어요',
+    },
     status: {
         PENDING: '대기',
         IN_REVIEW: '검토 중',

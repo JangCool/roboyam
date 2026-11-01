@@ -184,6 +184,7 @@
                                     class="text-[11px]!"
                                 />
                                 <Tag v-if="data.poll" :value="t('post.chip.poll')" icon="pi pi-chart-bar" severity="secondary" class="text-[11px]!" />
+                                <Tag v-if="data.deal" :value="t('post.chip.deal')" icon="pi pi-ticket" severity="secondary" class="text-[11px]!" />
                                 <!-- 소모임 글 — 소모임 이름·공개 상태(·해산·나간 멤버). 비공개 소모임 글은 제목이 오지 않아(title null) 「소모임 비공개 글」로 보인다 -->
                                 <Tag v-for="chip in UtilPostMessages.groupChips(t, data)" :key="chip.key" :value="chip.label" :icon="chip.key === 'group' ? 'pi pi-users' : undefined" :severity="chip.severity" class="text-[11px]!" />
                                 <button

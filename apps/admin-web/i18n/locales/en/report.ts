@@ -101,6 +101,11 @@ export default {
         OFFLINE_RISK: 'Risky offline meetup',
         STOCK_RECOMMENDATION: 'Stock tips or paid recruiting',
     },
+    // Report reasons shown only on hot deal posts (hotdeal-contract)
+    dealReason: {
+        DEAL_FALSE_PRICE: 'Price or details are wrong',
+        DEAL_HIDDEN_AD: 'Hidden ad or promotion',
+    },
     status: {
         PENDING: 'New',
         IN_REVIEW: 'In review',

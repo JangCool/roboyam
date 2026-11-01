@@ -32,7 +32,10 @@ export interface HomeEditorItem {
     minH: number;
 }
 
-/** 가젯 종류 8종 + 광고 2종(보일 순서 — 광고는 서버 등록 전이라 넣으면 저장이 막힌다) — 커뮤니티의 핫딜·직접홍보는 없다 */
+/**
+ * 가젯 종류 8종 + 광고 2종 + 핫딜(보일 순서) — 커뮤니티의 직접홍보는 없다.
+ * 핫딜(`HOT_DEALS`, 회원 핫딜 1차 목업)은 서버 가젯 종류 등록 전이라 넣고 저장하면 서버가 거절한다(서버 단계 — hotdeal-contract). 크기는 공구 가젯과 같다.
+ */
 const KINDS: readonly HomeKindSpec[] = [
     { kind: 'HIGHLIGHT', icon: 'pi-sparkles', minW: 4, minH: 8, w: 8, h: 12 },
     { kind: 'POST_LIST', icon: 'pi-list', minW: 3, minH: 6, w: 6, h: 10 },
@@ -40,6 +43,7 @@ const KINDS: readonly HomeKindSpec[] = [
     { kind: 'GALLERY', icon: 'pi-images', minW: 3, minH: 6, w: 8, h: 8 },
     { kind: 'GROUPS', icon: 'pi-users', minW: 3, minH: 6, w: 4, h: 9 },
     { kind: 'GROUP_BUY', icon: 'pi-shopping-bag', minW: 3, minH: 8, w: 4, h: 12 },
+    { kind: 'HOT_DEALS', icon: 'pi-ticket', minW: 3, minH: 8, w: 4, h: 12 },
     { kind: 'QUICK_LINKS', icon: 'pi-link', minW: 3, minH: 2, w: 12, h: 2 },
     { kind: 'NOTICE_TEXT', icon: 'pi-megaphone', minW: 2, minH: 3, w: 4, h: 6 },
     // 배너는 처음에 전체 폭, 한 줄 광고는 반 폭 3줄

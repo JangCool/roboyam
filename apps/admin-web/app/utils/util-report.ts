@@ -90,7 +90,9 @@ const POST_REASONS: readonly ReportReasonCode[] = ['SPAM_AD', 'ABUSE', 'OBSCENE'
 /** 소모임 신고 사유 차례(서버 `ReportReasons.GROUP_ALL`) */
 const GROUP_REASONS: readonly ReportReasonCode[] = ['PROMOTION', 'OFFLINE_RISK', 'STOCK_RECOMMENDATION', 'OTHER'];
 /** 모든 사유 — 사유 거르기·칩 차례(서버 `ReportReasons.EVERY`) */
-const REASONS: readonly ReportReasonCode[] = ['SPAM_AD', 'ABUSE', 'OBSCENE', 'ILLEGAL_FILMING', 'RIGHTS', 'PROMOTION', 'OFFLINE_RISK', 'STOCK_RECOMMENDATION', 'OTHER'];
+/** 핫딜 글에서만 보이는 사유(hotdeal-contract) — 서버 `ReportReasons` 후보 */
+const DEAL_REASONS: readonly ReportReasonCode[] = ['DEAL_FALSE_PRICE', 'DEAL_HIDDEN_AD'];
+const REASONS: readonly ReportReasonCode[] = ['SPAM_AD', 'ABUSE', 'OBSCENE', 'ILLEGAL_FILMING', 'RIGHTS', 'PROMOTION', 'OFFLINE_RISK', 'STOCK_RECOMMENDATION', 'DEAL_FALSE_PRICE', 'DEAL_HIDDEN_AD', 'OTHER'];
 const SORTS: readonly ReportSort[] = ['newest', 'oldest', 'most'];
 /** 자동 숨김(신고 누적·불법 즉시·권리침해 임시조치) — 무시하면 서버가 복구하고, 「자동 숨김 확정」을 할 수 있다. 운영자 숨김(STAFF)은 아니다 */
 const AUTO_HIDDEN = new Set(['REPORTED', 'ILLEGAL', 'RIGHTS']);
@@ -326,6 +328,11 @@ export default class UtilReport {
     /** 소모임 사유인가(문구 키가 다르다) */
     static isGroupReason(code: string): boolean {
         return code !== 'OTHER' && (GROUP_REASONS as readonly string[]).includes(code);
+    }
+
+    /** 핫딜 글에서만 보이는 사유인가(문구 키 `report.dealReason.*`) */
+    static isDealReason(code: string): boolean {
+        return (DEAL_REASONS as readonly string[]).includes(code);
     }
 
     /* ── 가능한 처리 ── */

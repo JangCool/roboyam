@@ -181,7 +181,7 @@ export default {
         COMMENT_REVOKE: '댓글 삭제로 회수',
         TICKET_PURCHASE: '교환권·상점 구매',
         ADMIN_ADJUST: '운영 조정',
-        DEAL_END_REQUEST: '핫딜 종료 요청 보상',
+        DEAL_END_REQUEST: '핫딜 종료 알림 보상',
         LIKE_BONUS: '추천 보너스',
         LIKE_BONUS_REVOKE: '추천 보너스 회수',
         SIGNUP: '회원가입',

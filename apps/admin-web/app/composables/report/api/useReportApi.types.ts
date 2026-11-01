@@ -22,9 +22,10 @@ export type ReportTargetType = 'POST' | 'COMMENT' | 'GROUP';
 
 /**
  * 신고 사유 코드 — 글·댓글은 게시판 신고 정책(`BoardReportReason`)과 같은 6종, 소모임은 홍보·영업 · 오프라인 위험 · 종목 추천·유료 모집 · 기타(서버 `ReportReasons.GROUP_ALL`).
+ * 핫딜 글에서만 보이는 두 사유 `DEAL_FALSE_PRICE`(가격·정보가 사실과 달라요) · `DEAL_HIDDEN_AD`(광고·홍보를 숨겼어요)가 더 있다(hotdeal-contract — 서버 `ReportReasons` 에 더해야 한다, 목업 가정).
  * 조치 사유 코드도 사건 대상의 체계를 따른다.
  */
-export type ReportReasonCode = 'SPAM_AD' | 'ABUSE' | 'OBSCENE' | 'ILLEGAL_FILMING' | 'RIGHTS' | 'PROMOTION' | 'OFFLINE_RISK' | 'STOCK_RECOMMENDATION' | 'OTHER';
+export type ReportReasonCode = 'SPAM_AD' | 'ABUSE' | 'OBSCENE' | 'ILLEGAL_FILMING' | 'RIGHTS' | 'PROMOTION' | 'OFFLINE_RISK' | 'STOCK_RECOMMENDATION' | 'DEAL_FALSE_PRICE' | 'DEAL_HIDDEN_AD' | 'OTHER';
 
 /** 검색 대상 — 대상 글 제목(기본) · 대상 작성자 · 사건 번호 */
 export type ReportSearchField = 'TITLE' | 'AUTHOR' | 'CASE_NO';

@@ -13,6 +13,7 @@ export default class UtilReportMessages {
     static reasonName(t: Translate, code: ReportReasonCode | string | null | undefined): string {
         if (!code) return '';
         if (UtilReport.isGroupReason(code)) return t(`report.groupReason.${code}`);
+        if (UtilReport.isDealReason(code)) return t(`report.dealReason.${code}`);
         return (UtilReport.REASONS as readonly string[]).includes(code) ? t(`board.reason.${code}`) : code;
     }
 

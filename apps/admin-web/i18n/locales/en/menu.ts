@@ -100,9 +100,13 @@ export default {
     adReviews: 'Ad review',
     ads: 'Ad schedule',
     adPlacements: 'Ad settings',
-    // Hot deal section — hot deal review
+    // Hot deal section — hot deal review · posts · link rules · suspicious members · settings
     hotdeal: 'Hot deals',
     hotdealReviews: 'Hot deal review',
+    hotdeals: 'Hot deal posts',
+    hotdealDomains: 'Link rules',
+    hotdealSuspicions: 'Suspicious members',
+    hotdealSettings: 'Hot deal settings',
     operatorsAndPermissions: 'Operators and permissions',
     operators: 'Operators',
     roles: 'Roles',
