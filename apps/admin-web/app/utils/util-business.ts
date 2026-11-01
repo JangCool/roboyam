@@ -1,4 +1,4 @@
-import type { BusinessServiceStatus, BusinessStatus, NtsBizStatus } from '~/composables/business/api/useBusinessApi.types';
+import type { BusinessServiceStatus, BusinessStatus, NtsBizStatus, NtsCheck, NtsValidity } from '~/composables/business/api/useBusinessApi.types';
 
 type Severity = 'secondary' | 'info' | 'success' | 'warn' | 'danger' | 'contrast';
 
@@ -56,14 +56,33 @@ export default class UtilBusiness {
         return status === 'CONTINUING' ? 'pi pi-check-circle' : status === 'UNAVAILABLE' ? 'pi pi-question-circle' : 'pi pi-ban';
     }
 
+    static validitySeverity(validity: NtsValidity): Severity {
+        return validity === 'MATCH' ? 'success' : validity === 'MISMATCH' ? 'danger' : 'secondary';
+    }
+
+    static validityIcon(validity: NtsValidity): string {
+        return validity === 'MATCH' ? 'pi pi-id-card' : validity === 'MISMATCH' ? 'pi pi-times-circle' : 'pi pi-question-circle';
+    }
+
     /**
-     * 승인 가능 여부(B1) — 계속사업자만 바로, 조회 불가는 사유를 적으면, 휴·폐업은 잠금.
+     * 승인 판정의 까닭(B1 + 진위확인) — 진위 불일치·휴폐업·없는 번호는 잠금, 상태 조회 불가·진위 조회 불가·진위 미확인(옛 신청)은 사유를 적으면, 둘 다 통과면 바로.
+     * 잠금이 사유보다 앞선다(불일치 + 조회 불가 → 잠금).
+     */
+    static ntsRule(nts: Pick<NtsCheck, 'status' | 'validity'>): 'OK' | 'LOCKED_MISMATCH' | 'LOCKED_STATUS' | 'NEEDS_REASON_UNAVAILABLE' | 'NEEDS_REASON_UNCHECKED' {
+        if (nts.validity === 'MISMATCH') return 'LOCKED_MISMATCH';
+        if (nts.status === 'PAUSED' || nts.status === 'CLOSED' || nts.status === 'NOT_FOUND') return 'LOCKED_STATUS';
+        if (nts.status === 'UNAVAILABLE' || nts.validity === 'UNAVAILABLE') return 'NEEDS_REASON_UNAVAILABLE';
+        if (nts.validity === 'UNCHECKED') return 'NEEDS_REASON_UNCHECKED';
+        return 'OK';
+    }
+
+    /**
+     * 승인 가능 여부 — {@link ntsRule} 을 세 갈래로 접는다.
      * @returns `OK` · `NEEDS_REASON` · `LOCKED`
      */
-    static approvability(status: NtsBizStatus): 'OK' | 'NEEDS_REASON' | 'LOCKED' {
-        if (status === 'CONTINUING') return 'OK';
-        if (status === 'UNAVAILABLE') return 'NEEDS_REASON';
-        return 'LOCKED';
+    static approvability(nts: Pick<NtsCheck, 'status' | 'validity'>): 'OK' | 'NEEDS_REASON' | 'LOCKED' {
+        const rule = UtilBusiness.ntsRule(nts);
+        return rule === 'OK' ? 'OK' : rule.startsWith('LOCKED') ? 'LOCKED' : 'NEEDS_REASON';
     }
 
     /** 남은 초 → `9:58` */

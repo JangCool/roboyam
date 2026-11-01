@@ -87,7 +87,11 @@
                 </Column>
                 <Column :header="t('business.col.nts')" style="min-width: 8rem">
                     <template #body="{ data }">
-                        <Tag :value="t(`business.nts.${data.nts.status}`)" :severity="UtilBusiness.ntsSeverity(data.nts.status)" :icon="UtilBusiness.ntsIcon(data.nts.status)" />
+                        <div class="flex flex-wrap items-center gap-1">
+                            <Tag :value="t(`business.nts.${data.nts.status}`)" :severity="UtilBusiness.ntsSeverity(data.nts.status)" :icon="UtilBusiness.ntsIcon(data.nts.status)" />
+                            <!-- 진위확인은 일치가 아닐 때만 덧붙인다(표가 붐비지 않게) -->
+                            <Tag v-if="data.nts.validity !== 'MATCH'" :value="t(`business.ntsValidityShort.${data.nts.validity}`)" :severity="UtilBusiness.validitySeverity(data.nts.validity)" :icon="UtilBusiness.validityIcon(data.nts.validity)" />
+                        </div>
                     </template>
                 </Column>
             </DataTable>
@@ -140,8 +144,8 @@
         />
         <BizReasonDialog
             v-model:visible="dialogs.approveOverride"
-            :title="t('business.approveOverrideTitle')"
-            :description="t('business.approveOverrideBody')"
+            :title="overrideUnchecked ? t('business.approveUncheckedTitle') : t('business.approveOverrideTitle')"
+            :description="overrideUnchecked ? t('business.approveUncheckedBody') : t('business.approveOverrideBody')"
             :confirm-label="t('business.actApprove')"
             :busy="working === 'approve'"
             :error="dialogError"
@@ -283,6 +287,8 @@ const drawerOpen = ref(false);
 const drawerId = ref<string | null>(null);
 const drawerSummary = ref<BusinessRow | null>(null);
 const drawerDetail = ref<BusinessDetail | null>(null);
+/** 사유 승인 창이 「진위 미확인(개업일 없는 옛 신청)」 때문인가 — 아니면 조회 불가 */
+const overrideUnchecked = computed(() => (drawerDetail.value ? UtilBusiness.ntsRule(drawerDetail.value.nts) === 'NEEDS_REASON_UNCHECKED' : false));
 const drawerLoading = ref(false);
 const drawerError = ref<ApiError | null>(null);
 /** 지금 보이는 평문 — 서랍 대상이 바뀌거나 닫히면 지운다 */
@@ -380,7 +386,7 @@ async function run(work: Work, call: () => Promise<BusinessDetail>, done: string
 async function approve(): Promise<void> {
     const d = drawerDetail.value;
     if (!d) return;
-    const rule = UtilBusiness.approvability(d.nts.status);
+    const rule = UtilBusiness.approvability(d.nts);
     if (rule === 'LOCKED') return;
     if (rule === 'NEEDS_REASON') {
         openDialog('approveOverride');

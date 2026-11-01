@@ -16,8 +16,15 @@ export type BusinessServiceStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPE
 /** 국세청 상태조회 결과 — 계속사업자 · 휴업 · 폐업 · 국세청에 없는 번호 · 조회 불가(장애·키 없음·아직 조회 전). 「계속」일 때만 [승인] 이 켜진다(B1) */
 export type NtsBizStatus = 'CONTINUING' | 'PAUSED' | 'CLOSED' | 'NOT_FOUND' | 'UNAVAILABLE';
 
+/**
+ * 국세청 진위확인 — 등록번호·대표자명·개업일이 국세청 정보와 맞는가. 일치 · 불일치(승인 잠금) · 미확인(개업일이 없는 옛 신청 — 상태조회만 했다, 사유를 적어 승인) ·
+ * 조회 불가(장애·키 없음 — 사유를 적어 승인)
+ */
+export type NtsValidity = 'MATCH' | 'MISMATCH' | 'UNCHECKED' | 'UNAVAILABLE';
+
 export interface NtsCheck {
     status: NtsBizStatus;
+    validity: NtsValidity;
     /** 조회 시각(ISO) */
     checkedAt: string;
     /** 과세 유형(일반과세자·간이과세자 …) — 조회 불가면 null */
@@ -83,6 +90,8 @@ export interface BusinessHistory {
 export interface BusinessDetail extends BusinessRow {
     /** 가린 신원 — 대표자·주소·연락처·이메일 */
     masked: { representative: string; address: string; phone: string; email: string };
+    /** 개업일(`YYYY-MM-DD`, 가리지 않는다) — 개업일 칸이 생기기 전 신청이면 null(진위 미확인) */
+    openedOn: string | null;
     certificate: BusinessCertificate | null;
     serviceCards: BusinessServiceCard[];
     impact: BusinessSuspendImpact;
@@ -132,7 +141,7 @@ export interface BusinessUnsuspendRequest {
 }
 
 export interface BusinessApproveRequest {
-    /** 국세청 조회 불가인데 승인할 때만 — 사유(감사) */
+    /** 국세청 조회 불가·진위 미확인인데 승인할 때만 — 사유(감사) */
     ntsOverrideReason?: string;
 }
 

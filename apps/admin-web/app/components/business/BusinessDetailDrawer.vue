@@ -81,8 +81,10 @@
         <template v-if="footer" #footer>
             <div class="flex flex-col gap-2">
                 <template v-if="footer === 'review'">
-                    <p v-if="approvability === 'LOCKED'" class="m-0 flex items-center gap-1.5 text-xs text-red-700 dark:text-red-400"><i class="pi pi-lock" aria-hidden="true" />{{ t('business.approveLocked', { status: t(`business.nts.${detail!.nts.status}`) }) }}</p>
-                    <p v-else-if="approvability === 'NEEDS_REASON'" class="m-0 flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400"><i class="pi pi-info-circle" aria-hidden="true" />{{ t('business.approveNeedsReason') }}</p>
+                    <p v-if="ntsRule === 'LOCKED_MISMATCH'" class="m-0 flex items-center gap-1.5 text-xs text-red-700 dark:text-red-400"><i class="pi pi-lock" aria-hidden="true" />{{ t('business.approveLockedMismatch') }}</p>
+                    <p v-else-if="ntsRule === 'LOCKED_STATUS'" class="m-0 flex items-center gap-1.5 text-xs text-red-700 dark:text-red-400"><i class="pi pi-lock" aria-hidden="true" />{{ t('business.approveLocked', { status: t(`business.nts.${detail!.nts.status}`) }) }}</p>
+                    <p v-else-if="ntsRule === 'NEEDS_REASON_UNCHECKED'" class="m-0 flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400"><i class="pi pi-info-circle" aria-hidden="true" />{{ t('business.approveNeedsReasonUnchecked') }}</p>
+                    <p v-else-if="ntsRule === 'NEEDS_REASON_UNAVAILABLE'" class="m-0 flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400"><i class="pi pi-info-circle" aria-hidden="true" />{{ t('business.approveNeedsReason') }}</p>
                 </template>
                 <p v-else-if="footer === 'toReview' || footer === 'toDirectory'" class="m-0 flex items-center gap-1.5 text-xs text-muted-color"><i class="pi pi-info-circle" aria-hidden="true" />{{ footer === 'toReview' ? t('business.pendingElsewhere') : t('business.doneElsewhere') }}</p>
                 <div class="flex flex-wrap justify-end gap-2">
@@ -143,7 +145,8 @@ const { prefs } = useLayoutPrefs();
 const titleId = useId();
 
 const head = computed(() => props.detail ?? props.summary);
-const approvability = computed(() => (props.detail ? UtilBusiness.approvability(props.detail.nts.status) : 'LOCKED'));
+const ntsRule = computed(() => (props.detail ? UtilBusiness.ntsRule(props.detail.nts) : 'LOCKED_STATUS'));
+const approvability = computed(() => (props.detail ? UtilBusiness.approvability(props.detail.nts) : 'LOCKED'));
 /** 최신이 위 */
 const history = computed(() => [...(props.detail?.history ?? [])].sort((a, b) => b.at.localeCompare(a.at)));
 
