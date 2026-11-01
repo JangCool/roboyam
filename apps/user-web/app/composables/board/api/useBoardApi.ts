@@ -14,7 +14,7 @@ import UtilHotdeal from '~/utils/util-hotdeal';
  *  - `GET /api/boards/writable` 지금 사용자가 글을 쓸 수 있는 게시판(글쓰기 화면의 게시판 고르기 — 판정은 서버)
  *  - `GET /api/boards/{slug}` 게시판 + 유효 정책 + 지금 보는 사람의 판정(viewer). 꺼진 게시판 `403 BOARD_INACTIVE`, 없는 게시판 `404 BOARD_NOT_FOUND`
  *  - `GET /api/boards/{slug}/posts?prefix&sort&q&page` 글 목록(고정 공지 포함)
- *  - 핫딜 게시판(`kind DEAL`)은 같은 주소에 `?sort=latest|popular|ending&hideEnded=` — `dealPosts`(`hotdeal-contract.md` 「API 후보」)
+ *  - 핫딜 게시판(`kind DEAL`)은 같은 주소에 `?sort=latest|popular|ending&hideEnded=&store=`(응답에 쇼핑몰 칩 `stores`) — `dealPosts`(`hotdeal-contract.md` 「API 후보」)
  * 공개 표시 기본값(날짜 표시 방식·새 글 기준)은 따로 묻지 않는다 — `GET /api/site/info` 의 `boardDisplay`(`useBoardDisplay`).
  *
  * 서버 연결됨(2026-10-22). ⚠ MOCK: 핫딜 1차(서버 없음) — 목업 게시판 `hotdeal` 만 `./mock/board-deal-mock.ts` 로 돌린다(`// MOCK:` 분기). 서버가 `kind`·`deal` 을 주면 분기와 목업 import 를 지운다.
@@ -56,7 +56,7 @@ export function useBoardApi() {
         /** 글 목록 — 빈 말머리·검색어는 보내지 않는다 */
         posts: (slug: string, query: PostListQuery, signal?: AbortSignal): Promise<PostListResponse> =>
             // MOCK: 핫딜 게시판인지 아직 모를 때(게시판 정보 전) 목업 게시판이면 기본 조건으로
-            isMockDealBoard(slug) ? mockDealPosts({ prefix: query.prefix, sort: 'LATEST', hideEnded: true, q: query.q, page: query.page }, mockViewer()) :
+            isMockDealBoard(slug) ? mockDealPosts({ prefix: query.prefix, sort: 'LATEST', hideEnded: true, store: '', q: query.q, page: query.page }, mockViewer()) :
             client.get<PostListResponse>(PATH.posts(slug), {
                 query: { prefix: query.prefix || undefined, sort: query.sort, q: query.q || undefined, page: query.page },
                 signal,
@@ -67,7 +67,7 @@ export function useBoardApi() {
             // MOCK:
             isMockDealBoard(slug) ? mockDealPosts(query, mockViewer()) :
             client.get<PostListResponse>(PATH.posts(slug), {
-                query: { prefix: query.prefix || undefined, sort: UtilHotdeal.sortParam(query.sort), hideEnded: query.hideEnded, q: query.q || undefined, page: query.page },
+                query: { prefix: query.prefix || undefined, sort: UtilHotdeal.sortParam(query.sort), hideEnded: query.hideEnded, store: query.store || undefined, q: query.q || undefined, page: query.page },
                 signal,
             }),
     };

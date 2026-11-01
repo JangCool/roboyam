@@ -3,8 +3,8 @@
         게시판 목록 `/boards/{slug}?prefix=&sort=&q=&page=` — 주소의 쿼리가 화면 상태다.
         머리(이름·설명·안내문·투자 고지·쓰기 잠금·19금 안내·글쓰기) → 말머리 탭(전체 + 사용 중 말머리) → 정렬·보기 전환·게시판 안 검색 → 목록(LIST·CARD·GALLERY) → 쪽 번호.
         핫딜 게시판(`kind DEAL` — `hotdeal-contract.md`): 정렬이 최신·인기·마감 임박 `SelectButton` + 「종료 숨기기」 `ToggleSwitch`(기본 켬, 주소 `?sort=popular|ending&hideEnded=false`),
-          목록은 가격 줄 목록형(`HotdealPostList`)·카드/갤러리형(`HotdealPostGrid` — 게시판 모양·보기 전환은 그대로), 의심 글은 서버가 아래로 보낸다.
-          비면 「진행 중인 핫딜이 없어요 · 종료 글 보기」. 글쓰기가 막혔으면(새싹·비로그인·이메일 미인증) 단추를 흐리게 + 까닭 툴팁(누르면 안내·로그인).
+          말머리 아래 쇼핑몰 칩(전체 + 서버 `stores` 상위 8몰, 주소 `?store=`). 목록은 가격 줄 목록형(`HotdealPostList`)·카드/갤러리형(`HotdealPostGrid` — 게시판 모양·보기 전환은 그대로), 의심 글은 서버가 아래로 보낸다.
+          비면 「진행 중인 핫딜이 없어요 · 종료 글 보기」(쇼핑몰을 골라 비었으면 「전체 쇼핑몰 보기」). 글쓰기가 막혔으면(새싹·비로그인·이메일 미인증) 단추를 흐리게 + 까닭 툴팁(누르면 안내·로그인).
         community 대비: 직접홍보·지킴이·한 줄 광고·커서 이어 보기·목록 캐시를 뺐다. 검색을 별도 화면 대신 게시판 안 검색칸으로 했다(`q`).
           비회원 글쓰기(`writeMin = GUEST`)가 있어 비회원도 글쓰기 단추가 켜질 수 있다. 날짜는 관리자 기본 설정의 날짜 표시 방식(표준형·유동형)을 따른다.
         가정: 게시판 정보·판정(canWrite·reason)·유효 정책은 `GET /api/boards/{slug}` 한 번에 온다. 고정 공지는 첫 쪽·말머리/검색 없음일 때만 위에(최대 pinnedMax).
@@ -75,6 +75,22 @@
                                 :aria-current="query.prefix === chip.id ? 'page' : undefined"
                             >
                                 {{ chip.name }}
+                            </NuxtLink>
+                        </li>
+                    </ul>
+                </nav>
+
+                <!-- 핫딜 쇼핑몰 칩 — 말머리 아래, 전체 + 상위 8몰(서버 `stores`, 글 수 차례). 고른 몰이 상위 8에 없으면 끝에 붙인다. 주소 `?store=` -->
+                <nav v-if="isDeal && storeChips.length > 1" class="-mx-4 mt-1 overflow-x-auto px-4" :aria-label="t('hotdeal.storeNav')" data-testid="hotdeal-store-chips">
+                    <ul class="m-0 flex list-none gap-1.5 p-0 py-1">
+                        <li v-for="chip in storeChips" :key="chip.name || '-'">
+                            <NuxtLink
+                                :to="dealLink({ store: chip.name, page: 1 })"
+                                class="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md border px-2.5 text-xs focus-visible:outline-2 focus-visible:outline-primary"
+                                :class="dealQuery.store === chip.name ? 'border-primary bg-primary/10 font-semibold text-primary' : 'border-surface text-muted-color hover:text-color'"
+                                :aria-current="dealQuery.store === chip.name ? 'page' : undefined"
+                            >
+                                {{ chip.label }}<span v-if="chip.count !== null" class="tabular-nums opacity-70">{{ chip.count }}</span>
                             </NuxtLink>
                         </li>
                     </ul>
@@ -151,7 +167,10 @@
                         <EmptyState v-else-if="query.prefix" :title="t('board.prefixEmptyTitle', { name: activePrefixName })" :description="t('board.prefixEmptyText')" icon="pi pi-filter">
                             <Button as="router-link" :to="listLink({ prefix: '', page: 1 })" :label="t('board.allPosts')" severity="secondary" variant="outlined" />
                         </EmptyState>
-                        <!-- 핫딜 게시판 — 종료 글을 숨겨서 비었으면 「종료 글 보기」 -->
+                        <!-- 핫딜 게시판 — 쇼핑몰을 골라 비었으면 「전체 쇼핑몰」, 종료 글을 숨겨서 비었으면 「종료 글 보기」 -->
+                        <EmptyState v-else-if="isDeal && dealQuery.store" :title="t('hotdeal.storeEmptyTitle', { name: dealQuery.store })" icon="pi pi-shop" data-testid="hotdeal-store-empty">
+                            <Button as="router-link" :to="dealLink({ store: '', page: 1 })" :label="t('hotdeal.storeAll')" severity="secondary" variant="outlined" />
+                        </EmptyState>
                         <EmptyState v-else-if="isDeal && dealQuery.hideEnded" :title="t('hotdeal.emptyTitle')" icon="pi pi-tag" data-testid="hotdeal-empty">
                             <Button as="router-link" :to="dealLink({ hideEnded: false, page: 1 })" :label="t('hotdeal.emptyShowEnded')" severity="secondary" variant="outlined" />
                         </EmptyState>
@@ -176,7 +195,7 @@
 <script setup lang="ts">
 import type { BoardDetail, BoardView } from '~/composables/board/api/useBoardApi.types';
 import type { DealPostListQuery, PostListQuery, PostListResponse, PostSort } from '~/composables/board/api/usePostApi.types';
-import type { DealSort } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { DealSort, DealStoreChip } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { BoardViewMode } from '~/composables/board/useBoardViewMode';
 import HotdealPostGrid from '~/components/hotdeal/HotdealPostGrid.vue';
 import HotdealPostList from '~/components/hotdeal/HotdealPostList.vue';
@@ -234,6 +253,14 @@ function onDealSort(value: DealSort | null): void {
 function onHideEnded(value: boolean): void {
     void router.push(dealLink({ hideEnded: value, page: 1 }));
 }
+/** 쇼핑몰 칩 — 마지막으로 받은 목록의 `stores`(목록을 다시 받는 동안에도 칩은 그대로). 고른 몰이 상위 8에 없으면 끝에 붙인다 */
+const dealStores = ref<DealStoreChip[]>([]);
+const storeChips = computed(() => {
+    const chips: { name: string; label: string; count: number | null }[] = [{ name: '', label: t('common.all'), count: null }, ...dealStores.value.map((s) => ({ name: s.name, label: s.name, count: s.count }))];
+    const picked = dealQuery.value.store;
+    if (picked && !chips.some((c) => c.name === picked)) chips.push({ name: picked, label: picked, count: null });
+    return chips;
+});
 
 let boardRequest = 0;
 async function loadBoard(): Promise<void> {
@@ -386,6 +413,7 @@ async function loadList(): Promise<void> {
         const result = isDeal.value ? await boardApi.dealPosts(slug.value, dealQuery.value, listAbort.signal) : await boardApi.posts(slug.value, query.value, listAbort.signal);
         if (mine !== listRequest) return;
         list.value = result;
+        dealStores.value = isDeal.value ? (result.stores ?? []) : [];
         listState.value = 'ready';
     } catch (e) {
         if (mine !== listRequest) return;
@@ -411,7 +439,7 @@ watch(
     { immediate: true },
 );
 watch(
-    () => [slug.value, query.value.prefix, query.value.sort, query.value.q, query.value.page, isDeal.value, dealQuery.value.sort, dealQuery.value.hideEnded] as const,
+    () => [slug.value, query.value.prefix, query.value.sort, query.value.q, query.value.page, isDeal.value, dealQuery.value.sort, dealQuery.value.hideEnded, dealQuery.value.store] as const,
     (now, before) => {
         void loadList();
         if (before && now[0] === before[0]) window.scrollTo({ top: 0 });

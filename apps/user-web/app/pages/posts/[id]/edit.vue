@@ -14,7 +14,8 @@
           `409 POLL_LOCKED`(그새 첫 표가 들어옴)는 투표 칸 안 서버 문구 + 투표를 다시 읽어 잠근다.
         핫딜 글(`deal` 이 있는 글 — `hotdeal-contract.md`): 글쓰기와 같은 딜 칸(`HotdealDealFields`)에 기존 값을 채운다. 불러온 링크는 다시 판정하지 않고, 링크를 바꾸면 판정한다.
           종료된 딜(ENDED)은 딜 칸 읽기 전용 + 안내(제목·본문만 고친다), 기간이 지난 딜(EXPIRED)은 「마감을 고쳐 주세요」 안내 — 마감을 고칠 수 있다(가정).
-          글 수정 본문의 `deal` 은 딜 칸을 바꿨을 때만 싣는다. 좁은 화면은 글쓰기처럼 `Stepper` 단계 입력.
+          글 수정 본문의 `deal` 은 딜 칸을 바꿨을 때만 싣는다. 좁은 화면은 글쓰기처럼 `Stepper` 단계 입력. 제목 칸 아래 핫딜 제목 안내(`HotdealTitleHint`).
+          저장 응답의 `warnings[]`(예 `DEAL_LINK_BLOCKED` — 서버가 지금 규칙으로 링크를 다시 판정해 차단이면 저장은 하고 경고)는 토스트로 알리고 글로 간다.
         소모임 글(2단계): 글의 `group` 이 있으면 게시판 정보를 `GET /api/groups/{id}/board`(로보얌 추가 후보)로 받는다. 공개 범위는 여기서 바꾸지 않는다(글 상세에서만).
     -->
     <div class="content-card mx-auto max-w-3xl">
@@ -97,6 +98,9 @@
                     {{ t('hotdeal.stepErrors', { n: dealErrorCount }) }}
                     <Button type="button" :label="t('hotdeal.stepGoDeal')" size="small" variant="link" class="ml-1 p-0" @click="step = 1" />
                 </Message>
+            </template>
+            <template v-if="dealMode !== 'hidden'" #titleHint>
+                <HotdealTitleHint :title="form.title" @strip="onStripTitle" />
             </template>
             <template #extra>
                 <PollSettingsFields v-if="pollMode !== 'hidden'" v-model="poll" :locked="pollMode === 'locked'" :remove-only="pollMode === 'removeOnly'" :disabled="submitting" :errors="pollErrors" />
@@ -285,6 +289,10 @@ watch(dealForm, () => {
 function onUseTitle(title: string): void {
     form.value = { ...form.value, title: title.slice(0, UtilPost.TITLE_MAX) };
 }
+/** 제목 안내의 [지우기] — 앞 [몰]·끝 (…원) 을 뗀 제목 */
+function onStripTitle(title: string): void {
+    form.value = { ...form.value, title };
+}
 /** 단계 입력 — 좁은 화면의 핫딜 글 고치기만 */
 const narrow = useMediaQuery('(max-width: 767px)');
 const step = ref<1 | 2>(1);
@@ -351,7 +359,7 @@ async function submit(): Promise<void> {
     formError.value = '';
     submitting.value = true;
     try {
-        await postApi.update(p.id, {
+        const updated = await postApi.update(p.id, {
             prefixId: form.value.prefixId,
             title: form.value.title.trim(),
             // 에디터 HTML 은 그대로 보낸다(서버가 정화한다), 평문은 앞뒤 공백을 뗀다
@@ -367,6 +375,8 @@ async function submit(): Promise<void> {
         saved = true;
         password.value = '';
         toast.success(t('post.updated'));
+        // 저장은 됐지만 알릴 것(서버 `warnings[]` — 예 `DEAL_LINK_BLOCKED`: 지금 규칙으로 다시 판정했더니 차단 도메인) — 서버 문구 그대로, 오래 보인다
+        for (const w of updated.warnings ?? []) toast.show(w.message, { life: 10000 });
         // 글을 저장한 뒤 토론 칸이 바뀌었을 때만 — 실패해도 글은 저장됐으니 알리고 글로 간다(글 상세의 「토론 설정」에서 다시 할 수 있다)
         if (debateChanged.value) await saveDebate(p.id);
         await router.replace(`/posts/${p.id}`);

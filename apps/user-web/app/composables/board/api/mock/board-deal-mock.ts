@@ -27,16 +27,21 @@ import {
     mockDealInsert,
     mockDealPatch,
     mockDealPost,
+    mockDealPostLimit,
     mockDealPostsAll,
+    mockDealSaveWarnings,
+    mockDealStored,
     mockDealView,
     type MockDealPost,
 } from '~/composables/hotdeal/api/mock/hotdeal-mock';
-import type { DealView } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { DealStoreChip, DealView } from '~/composables/hotdeal/api/useHotdealApi.types';
 
 /** 목업 핫딜 게시판 slug */
 export const MOCK_DEAL_BOARD_SLUG = 'hotdeal';
 const BOARD_ID = 'mock-board-hotdeal';
 const LIST_SIZE = 20;
+/** 쇼핑몰 칩 수(상위 N몰) */
+const STORE_CHIPS = 8;
 
 /** 보는 사람 — 실제 로그인 상태 + 스위치(`deal-guest`·`deal-sprout`·`deal-unverified`) */
 export interface MockDealViewer {
@@ -197,17 +202,29 @@ function rowOf(p: MockDealPost, viewer: MockDealViewer, now: number): PostRow {
 /** 정렬 무리 — 진행 중 → 의심 → 끝남(가정: 끝난 글은 보일 때 맨 아래) */
 const VIEW_RANK: Readonly<Record<DealView, number>> = { ACTIVE: 0, FLAGGED: 1, EXPIRED: 2, ENDED: 2 };
 
-/** 핫딜 목록(`GET /api/boards/hotdeal/posts?sort&hideEnded&prefix&q&page`) */
+/** 쇼핑몰 칩 — 글 수 많은 차례 상위 8(같으면 이름 차례) */
+function storeChips(rows: PostRow[]): DealStoreChip[] {
+    const counts = new Map<string, number>();
+    for (const r of rows) if (r.deal) counts.set(r.deal.storeName, (counts.get(r.deal.storeName) ?? 0) + 1);
+    return [...counts.entries()]
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+        .slice(0, STORE_CHIPS);
+}
+
+/** 핫딜 목록(`GET /api/boards/hotdeal/posts?sort&hideEnded&prefix&store&q&page`) — 쇼핑몰 칩은 쇼핑몰 거르기 전 글로 센다(가정) */
 export async function mockDealPosts(query: DealPostListQuery, viewer: MockDealViewer): Promise<PostListResponse> {
     await mockDelay();
     mockDealFailIfAsked();
     const now = Date.now();
     const q = query.q.trim().toLowerCase();
-    const rows = mockDealPostsAll()
+    const scoped = mockDealPostsAll()
         .map((p) => rowOf(p, viewer, now))
         .filter((r) => !query.prefix || r.prefix?.id === query.prefix)
         .filter((r) => !q || r.title.toLowerCase().includes(q) || (r.deal?.storeName ?? '').toLowerCase().includes(q))
         .filter((r) => !query.hideEnded || (r.deal?.view !== 'ENDED' && r.deal?.view !== 'EXPIRED'));
+    const stores = storeChips(scoped);
+    const rows = scoped.filter((r) => !query.store || r.deal?.storeName === query.store);
     const key = (r: PostRow): number => {
         if (query.sort === 'POPULAR') return -r.likeCount;
         if (query.sort === 'ENDING_SOON') return r.deal?.endsAt && (r.deal.view === 'ACTIVE' || r.deal.view === 'FLAGGED') ? Date.parse(r.deal.endsAt) : Number.MAX_SAFE_INTEGER;
@@ -216,10 +233,10 @@ export async function mockDealPosts(query: DealPostListQuery, viewer: MockDealVi
     rows.sort((a, b) => VIEW_RANK[a.deal?.view ?? 'ACTIVE'] - VIEW_RANK[b.deal?.view ?? 'ACTIVE'] || key(a) - key(b) || Date.parse(b.createdAt) - Date.parse(a.createdAt));
     const totalPages = Math.max(1, Math.ceil(rows.length / LIST_SIZE));
     const page = Math.min(query.page, totalPages);
-    return mockClone({ pinned: [], items: rows.slice((page - 1) * LIST_SIZE, page * LIST_SIZE), page, totalPages, totalCount: rows.length });
+    return mockClone({ pinned: [], items: rows.slice((page - 1) * LIST_SIZE, page * LIST_SIZE), page, totalPages, totalCount: rows.length, stores });
 }
 
-/** 홈 가젯 `HOT_DEALS` 줄 — 진행 중(의심 제외), 최신 5개(목업 가젯 설정 그대로) */
+/** 홈 가젯 `HOT_DEALS` 줄 — 진행 중(의심 제외), 최신 N개(목업 가젯 설정 그대로) */
 export function mockHotDealRows(viewer: MockDealViewer, count = 5): PostFeedRow[] {
     const now = Date.now();
     return mockDealPostsAll()
@@ -281,25 +298,30 @@ function textErrors(title: string, content: string): Record<string, string> {
     return out;
 }
 
-/** 글쓰기(`POST /api/posts` — 핫딜 게시판) — 글 칸·딜 칸 오류를 함께 모아 `400 VALIDATION` */
+/** 글쓰기(`POST /api/posts` — 핫딜 게시판) — 하루 글 한도·같은 몰 간격(429, 스위치) 뒤 글 칸·딜 칸 오류를 함께 모아 `400 VALIDATION` */
 export async function mockDealCreate(body: PostWriteRequest, viewer: MockDealViewer): Promise<PostWriteResult> {
     await mockDelay();
     const write = canWrite(viewer);
     if (write.reason === 'LOGIN_REQUIRED') throw new ApiError({ status: 401, code: 'UNAUTHENTICATED', message: '로그인이 필요해요.' });
     if (!write.canWrite) throw new ApiError({ status: 403, code: write.reason ?? 'FORBIDDEN', message: '일반 등급부터 핫딜을 올릴 수 있어요.' });
+    mockDealPostLimit();
     const fields = { ...textErrors(body.title, body.content), ...mockDealFieldErrors(body.deal) };
     if (Object.keys(fields).length > 0) throw MOCK_ERRORS.validation(fields);
     const created = mockDealInsert({ title: body.title.trim(), content: body.content.trim(), prefixId: body.prefixId, deal: body.deal! });
     return { id: created.id };
 }
 
-/** 고치기(`PUT /api/posts/mock-deal-*`) — 딜 칸은 보냈을 때만 */
+/**
+ * 고치기(`PUT /api/posts/mock-deal-*`) — 딜 칸은 보냈을 때만. 저장 뒤 지금 규칙으로 링크를 다시 판정해 차단이면 저장은 하고 `warnings[DEAL_LINK_BLOCKED]`
+ * (링크를 차단 도메인으로 바꾸면 칸 오류 — 가정). 응답은 글 상세 + `warnings`
+ */
 export async function mockDealUpdate(id: string, body: PostUpdateRequest, viewer: MockDealViewer): Promise<PostDetail> {
     await mockDelay();
-    const fields = { ...textErrors(body.title, body.content), ...(body.deal ? mockDealFieldErrors(body.deal) : {}) };
+    const fields = { ...textErrors(body.title, body.content), ...(body.deal ? mockDealFieldErrors(body.deal, mockDealStored(id)) : {}) };
     if (Object.keys(fields).length > 0) throw MOCK_ERRORS.validation(fields);
-    mockDealPatch(id, { title: body.title.trim(), content: body.content.trim(), prefixId: body.prefixId, deal: body.deal });
-    return mockDealPostDetail(id, viewer);
+    const patched = mockDealPatch(id, { title: body.title.trim(), content: body.content.trim(), prefixId: body.prefixId, deal: body.deal });
+    const warnings = patched.deal.status === 'ENDED' ? [] : mockDealSaveWarnings(id);
+    return { ...(await mockDealPostDetail(id, viewer)), warnings };
 }
 
 export async function mockDealLike(id: string): Promise<PostLikeResult> {

@@ -9,6 +9,8 @@ export interface DealCardActions {
     endRequest: (reason: DealEndReason) => Promise<PostDeal>;
     /** 작성자 [딜 종료] */
     end: () => Promise<PostDeal>;
+    /** 작성자 되돌리기 [다시 진행 중으로](D2 — 작성자 종료 뒤 24시간 안 1번) */
+    reopen: () => Promise<PostDeal>;
     /** 작성자 「아직 진행 중이에요」 */
     keep: () => Promise<PostDeal>;
 }

@@ -1,7 +1,9 @@
 <template>
     <!--
-        핫딜 쓰기·고치기의 딜 칸(사용자 설계 7-2 순서) — 상품 링크 → 링크 판정(호스트 `Tag`·대형몰·제휴 자동/차단·단축 주소 칸 오류) → 이미지·쇼핑몰 이름 자동 채움(고칠 수 있음)
-          → 「진행 중인 같은 딜 N건」(펼침, 그래도 등록 가능) → 가격(딜가·정상가, 할인율 미리보기) → 배송비 → 마감 → 재고 → 제휴 → 쿠폰·가격 기준 메모.
+        핫딜 쓰기·고치기의 딜 칸(사용자 설계 7-2 순서) — 상품 링크 → 링크 판정(호스트 `Tag` · 「→ 최종 호스트」 · 대형몰 · 제휴 자동/차단 · 단축 주소 칸 오류)
+          → 이미지(우리 서버 사본 — 없음·실패·꺼짐 안내)·쇼핑몰 이름 자동 채움(고칠 수 있음) → 「진행 중인 같은 딜 N건」(펼침 — 줄마다 「이 글보다 N원 저렴/비쌈」, 그래도 등록 가능)
+          → 가격(딜가 = 쿠폰 적용 뒤 실제 결제가·배송비 제외 · 정상가, 할인율 미리보기 · 90% 이상 경고) → 배송비 → 마감(비우면 30일 뒤 기간 종료) → 재고(품절 = 종료 안내) → 제휴(단정형)
+          → 가격 기준(선택지 + 메모, 해외 직구면 「관부가세 포함」 — 0원 딜·할인율 경고면 필수) → 쿠폰.
         그리기만 하고 판정(`check` — `useDealLinkCheck`)·검사 문구(`errors`)·저장은 부르는 화면이 한다. 이미지 올리기·다시 시도는 `actions`.
         `readonly`(종료된 딜 고치기)면 모든 칸을 막고 안내만. `expired`(기간 지남)면 「마감을 고쳐 주세요」 안내.
     -->
@@ -39,6 +41,9 @@
                 </p>
                 <p v-else-if="result" class="m-0 flex flex-wrap items-center gap-1.5" data-testid="hotdeal-check">
                     <Tag :value="result.host" severity="secondary" class="text-[0.6875rem]" data-testid="hotdeal-host" />
+                    <span v-if="result.finalHost && result.finalHost !== result.host" class="inline-flex items-center gap-1 text-muted-color" data-testid="hotdeal-final-host">
+                        <i class="pi pi-arrow-right text-[0.625rem]" aria-hidden="true" />{{ t('hotdeal.finalHost', { host: result.finalHost }) }}
+                    </span>
                     <Tag v-if="result.common" :value="t('hotdeal.commonMall')" severity="info" class="text-[0.6875rem]" />
                     <span v-if="result.rule === 'AFFILIATE'" class="inline-flex items-center gap-1 font-medium text-sky-700 dark:text-sky-300" data-testid="hotdeal-affiliate-auto">
                         <i class="pi pi-info-circle text-[0.6875rem]" aria-hidden="true" />{{ t('hotdeal.affiliateAuto') }}
@@ -63,6 +68,9 @@
                     </span>
                     <span v-else-if="ogStatus === 'NONE' && !modelValue.imageTouched" class="px-2 text-xs text-muted-color" data-testid="hotdeal-og-none">
                         <i class="pi pi-image mb-1 block" aria-hidden="true" />{{ t('hotdeal.imageNone') }}
+                    </span>
+                    <span v-else-if="ogStatus === 'OFF' && !modelValue.imageTouched" class="px-2 text-xs text-muted-color" data-testid="hotdeal-og-off">
+                        <i class="pi pi-image mb-1 block" aria-hidden="true" />{{ t('hotdeal.imageOff') }}
                     </span>
                     <span v-else class="px-2 text-xs text-muted-color"><i class="pi pi-image mb-1 block" aria-hidden="true" />{{ t('hotdeal.imageEmpty') }}</span>
                 </div>
@@ -104,7 +112,7 @@
                     <button type="button" :class="LINK_BUTTON" @click="$emit('useTitle', ogTitle)">{{ t('hotdeal.titleUse') }}</button>
                 </p>
 
-                <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('hotdeal.imageHelp') }}</p>
+                <p class="m-0 text-xs leading-relaxed text-muted-color">{{ ogStatus === 'OFF' ? t('hotdeal.imageHelpOff') : t('hotdeal.imageHelp') }}</p>
             </div>
         </div>
 
@@ -116,13 +124,19 @@
                     <span>{{ t('hotdeal.sameText') }}</span>
                     <button type="button" :class="LINK_BUTTON" :aria-expanded="sameOpen" @click="sameOpen = !sameOpen">{{ sameOpen ? t('hotdeal.sameHide') : t('hotdeal.sameShow') }}</button>
                 </p>
-                <ul v-if="sameOpen" class="m-0 flex list-none flex-col gap-0.5 p-0">
-                    <li v-for="item in sameDeals" :key="item.postId" class="flex min-w-0 items-baseline gap-2">
-                        <NuxtLink :to="`/posts/${item.postId}`" target="_blank" class="min-w-0 truncate underline-offset-2 hover:underline">{{ item.title }}</NuxtLink>
-                        <span class="shrink-0 font-semibold tabular-nums">{{ UtilHotdealMessages.won(t, item.dealPrice) }}</span>
-                        <span class="shrink-0 opacity-80">{{ time.listLabel(item.createdAt) }}</span>
-                    </li>
-                </ul>
+                <template v-if="sameOpen">
+                    <ul class="m-0 flex list-none flex-col gap-1 p-0">
+                        <li v-for="item in sameDeals" :key="item.postId" class="flex min-w-0 flex-wrap items-baseline gap-x-2" data-testid="hotdeal-same-row">
+                            <NuxtLink :to="`/posts/${item.postId}`" target="_blank" class="min-w-0 max-w-full truncate underline-offset-2 hover:underline">{{ item.title }}</NuxtLink>
+                            <span class="shrink-0 font-semibold tabular-nums">{{ UtilHotdealMessages.won(t, item.dealPrice) }}</span>
+                            <span v-if="UtilHotdealMessages.priceDiff(t, item.dealPrice, modelValue.dealPrice)" class="shrink-0 text-xs font-medium" :class="diffTone(item.dealPrice)" data-testid="hotdeal-same-diff">
+                                {{ UtilHotdealMessages.priceDiff(t, item.dealPrice, modelValue.dealPrice) }}
+                            </span>
+                            <span class="shrink-0 opacity-80">{{ time.listLabel(item.createdAt) }}</span>
+                        </li>
+                    </ul>
+                    <p class="m-0 text-xs opacity-90">{{ t('hotdeal.sameCommentHint') }}</p>
+                </template>
             </div>
         </Message>
 
@@ -139,10 +153,12 @@
                     :invalid="Boolean(errors.dealPrice)"
                     :disabled="locked"
                     fluid
+                    :aria-describedby="`${uid}-deal-help`"
                     data-testid="hotdeal-deal-price"
                     @update:model-value="patch({ dealPrice: numberOrNull($event) })"
                 />
                 <p v-if="errors.dealPrice" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ errors.dealPrice }}</p>
+                <p :id="`${uid}-deal-help`" class="m-0 text-xs leading-relaxed text-muted-color">{{ t('hotdeal.dealPriceHelp') }}</p>
             </div>
             <div class="flex flex-col gap-1">
                 <label :for="`${uid}-normal`" class="text-sm font-medium">
@@ -164,6 +180,10 @@
                 <p v-else-if="discount !== null" class="m-0 text-xs font-semibold text-red-600 dark:text-red-400" data-testid="hotdeal-discount-preview">{{ t('hotdeal.discountPreview', { n: discount }) }}</p>
             </div>
         </div>
+        <!-- 할인율이 경고 문턱 이상 — 경고 + 가격 기준 필수(막지는 않는다) -->
+        <Message v-if="discountWarn && !locked" severity="warn" :closable="false" size="small" data-testid="hotdeal-discount-warn">
+            {{ t('hotdeal.discountWarn', { n: UtilHotdeal.DISCOUNT_WARN_PERCENT }) }}
+        </Message>
 
         <!-- 5 배송비 -->
         <div class="flex flex-col gap-1">
@@ -219,7 +239,10 @@
                 @update:model-value="patch({ endsAt: $event })"
             />
             <p v-if="errors.endsAt" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ errors.endsAt }}</p>
-            <p :id="`${uid}-ends-help`" class="m-0 text-xs text-muted-color">{{ t('hotdeal.endsHelp', { days: UtilHotdeal.ENDS_MAX_DAYS }) }}</p>
+            <p :id="`${uid}-ends-help`" class="m-0 text-xs text-muted-color">
+                {{ t('hotdeal.endsHelp', { days: UtilHotdeal.ENDS_MAX_DAYS }) }}
+                <template v-if="!modelValue.endsAt"> {{ t('hotdeal.endsAutoExpire', { days: UtilHotdeal.AUTO_EXPIRE_DAYS }) }}</template>
+            </p>
         </div>
 
         <!-- 7 재고 -->
@@ -238,6 +261,7 @@
                 data-testid="hotdeal-stock"
                 @update:model-value="patch({ stockState: $event ?? modelValue.stockState })"
             />
+            <p v-if="modelValue.stockState === 'SOLD_OUT' && !locked" class="m-0 text-xs text-amber-700 dark:text-amber-300" data-testid="hotdeal-stock-soldout">{{ t('hotdeal.stockSoldOutNote') }}</p>
         </div>
 
         <!-- 8 제휴(제휴 도메인이면 켜고 잠금) -->
@@ -258,9 +282,49 @@
             <p :id="`${uid}-aff-help`" class="m-0 text-xs text-muted-color">{{ affiliateLocked ? t('hotdeal.affiliateLocked') : t('hotdeal.affiliateHelp') }}</p>
         </div>
 
-        <!-- 9 쿠폰·가격 기준 메모(선택) -->
-        <div class="grid gap-3 sm:grid-cols-2">
-            <div class="flex flex-col gap-1">
+        <!-- 9 가격 기준(선택지 + 메모) — 0원 딜·할인율 경고 문턱 이상이면 필수. 해외 직구면 「관부가세 포함」 -->
+        <div class="flex flex-col gap-1.5" data-testid="hotdeal-basis">
+            <span :id="`${uid}-basis-kind`" class="text-sm font-medium">
+                {{ t('hotdeal.priceBasisLabel') }}<small class="ml-1 text-xs font-normal" :class="basisRequired ? 'text-red-600 dark:text-red-400' : 'text-muted-color'">{{ basisRequired ? t('hotdeal.basisRequiredMark') : t('hotdeal.priceOptional') }}</small>
+            </span>
+            <SelectButton
+                :model-value="modelValue.priceBasisKind"
+                :options="basisOptions"
+                option-label="label"
+                option-value="value"
+                :allow-empty="true"
+                :disabled="locked"
+                :invalid="Boolean(errors.priceBasisKind)"
+                size="small"
+                :aria-labelledby="`${uid}-basis-kind`"
+                class="flex-wrap"
+                data-testid="hotdeal-basis-kind"
+                @update:model-value="patch({ priceBasisKind: $event ?? null })"
+            />
+            <p v-if="errors.priceBasisKind" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400" data-testid="hotdeal-basis-error">{{ errors.priceBasisKind }}</p>
+            <label v-if="modelValue.priceBasisKind === 'OVERSEAS'" class="inline-flex cursor-pointer items-center gap-2 text-sm">
+                <Checkbox :model-value="modelValue.dutyIncluded" binary :input-id="`${uid}-duty`" :disabled="locked" data-testid="hotdeal-duty" @update:model-value="patch({ dutyIncluded: Boolean($event) })" />
+                <span>{{ t('hotdeal.dutyIncluded') }}</span>
+            </label>
+            <InputText
+                :id="`${uid}-basis`"
+                :model-value="modelValue.priceBasis"
+                :maxlength="UtilHotdeal.NOTE_MAX"
+                :placeholder="t('hotdeal.priceBasisPlaceholder')"
+                :invalid="Boolean(errors.priceBasis)"
+                :disabled="locked"
+                :aria-label="t('hotdeal.priceBasisMemoAria')"
+                autocomplete="off"
+                fluid
+                @update:model-value="patch({ priceBasis: String($event ?? '') })"
+                @keydown.enter.prevent
+            />
+            <p v-if="errors.priceBasis" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ errors.priceBasis }}</p>
+            <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('hotdeal.priceBasisHelp') }}</p>
+        </div>
+
+        <!-- 10 쿠폰·적용 방법(선택) -->
+        <div class="flex flex-col gap-1">
                 <label :for="`${uid}-coupon`" class="text-sm font-medium">
                     {{ t('hotdeal.couponLabel') }}<small class="ml-1 text-xs font-normal text-muted-color">{{ t('hotdeal.priceOptional') }}</small>
                 </label>
@@ -277,25 +341,6 @@
                     @keydown.enter.prevent
                 />
                 <p v-if="errors.couponNote" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ errors.couponNote }}</p>
-            </div>
-            <div class="flex flex-col gap-1">
-                <label :for="`${uid}-basis`" class="text-sm font-medium">
-                    {{ t('hotdeal.priceBasisLabel') }}<small class="ml-1 text-xs font-normal text-muted-color">{{ t('hotdeal.priceOptional') }}</small>
-                </label>
-                <InputText
-                    :id="`${uid}-basis`"
-                    :model-value="modelValue.priceBasis"
-                    :maxlength="UtilHotdeal.NOTE_MAX"
-                    :placeholder="t('hotdeal.priceBasisPlaceholder')"
-                    :invalid="Boolean(errors.priceBasis)"
-                    :disabled="locked"
-                    autocomplete="off"
-                    fluid
-                    @update:model-value="patch({ priceBasis: String($event ?? '') })"
-                    @keydown.enter.prevent
-                />
-                <p v-if="errors.priceBasis" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ errors.priceBasis }}</p>
-            </div>
         </div>
 
         <p v-if="errors.deal" role="alert" class="m-0 text-xs text-red-600 dark:text-red-400">{{ errors.deal }}</p>
@@ -304,7 +349,7 @@
 
 <script setup lang="ts">
 import type { DealFieldActions, DealFieldErrors, DealFormValues, DealLinkCheckState, DealShippingMode } from '~/components/hotdeal/HotdealDealFields.types';
-import type { DealStock } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { DealPriceBasis, DealStock } from '~/composables/hotdeal/api/useHotdealApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilHotdeal from '~/utils/util-hotdeal';
@@ -356,6 +401,18 @@ const shippingOptions = computed(() =>
     UtilHotdeal.SHIPPING_MODES.map((value: DealShippingMode) => ({ value, label: t(value === 'FREE' ? 'hotdeal.shipFree' : value === 'UNKNOWN' ? 'hotdeal.shipUnknown' : 'hotdeal.shipPaid') })),
 );
 const stockOptions = computed(() => UtilHotdeal.STOCKS.map((value: DealStock) => ({ value, label: UtilHotdealMessages.stock(t, value) })));
+const basisOptions = computed(() => UtilHotdeal.PRICE_BASES.map((value: DealPriceBasis) => ({ value, label: UtilHotdealMessages.priceBasis(t, value) })));
+/** 할인율이 경고 문턱 이상 */
+const discountWarn = computed(() => UtilHotdeal.discountWarn(props.modelValue));
+/** 가격 기준이 필수인가(0원 딜 · 할인율 경고) — 「필수」 표시 */
+const basisRequired = computed(() => props.modelValue.dealPrice === 0 || discountWarn.value);
+
+/** 같은 딜 줄의 가격 차 색 — 그 글이 더 싸면 강조 */
+function diffTone(other: number): string {
+    const base = props.modelValue.dealPrice;
+    if (base === null || other === base) return 'opacity-80';
+    return other < base ? 'text-red-700 dark:text-red-300' : 'opacity-80';
+}
 
 function patch(change: Partial<DealFormValues>): void {
     emit('update:modelValue', { ...props.modelValue, ...change });

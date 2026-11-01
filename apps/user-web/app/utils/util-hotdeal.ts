@@ -1,7 +1,7 @@
 import type { LocationQuery } from 'vue-router';
 import type { BoardView } from '~/composables/board/api/useBoardApi.types';
 import type { DealPostListQuery } from '~/composables/board/api/usePostApi.types';
-import type { DealEndReason, DealInput, DealLinkCheck, DealSort, DealStock, DealView, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { DealEndReason, DealInput, DealLinkCheck, DealPrefill, DealPriceBasis, DealSort, DealStock, DealView, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { DealFormValues, DealShippingMode } from '~/components/hotdeal/HotdealDealFields.types';
 
 /** 상품 링크 문제 — 비었음 · http(s) 주소가 아님 · 1000자 넘음 · 차단한 쇼핑몰 · 단축 주소 */
@@ -10,10 +10,13 @@ export type DealUrlProblem = 'REQUIRED' | 'FORMAT' | 'TOO_LONG' | 'BLOCKED' | 'S
 export interface DealProblems {
     productUrl: DealUrlProblem | null;
     storeName: 'REQUIRED' | 'TOO_LONG' | null;
-    dealPrice: 'REQUIRED' | 'INVALID' | null;
+    /** 금액은 `PRICE_MAX_WON` 까지 */
+    dealPrice: 'REQUIRED' | 'INVALID' | 'TOO_HIGH' | null;
     /** 정상가는 딜가 이상 */
-    normalPrice: 'INVALID' | 'BELOW_DEAL' | null;
-    shippingFee: 'REQUIRED' | 'INVALID' | null;
+    normalPrice: 'INVALID' | 'BELOW_DEAL' | 'TOO_HIGH' | null;
+    shippingFee: 'REQUIRED' | 'INVALID' | 'TOO_HIGH' | null;
+    /** 가격 기준 필수 — 0원 딜 · 할인율 ≥ `DISCOUNT_WARN_PERCENT` */
+    priceBasisKind: 'REQUIRED_FREE' | 'REQUIRED_DISCOUNT' | null;
     /** 마감은 지금 이후 ~ 365일 */
     endsAt: 'INVALID' | 'TOO_SOON' | 'TOO_LATE' | null;
     couponNote: 'TOO_LONG' | null;
@@ -26,6 +29,7 @@ const NO_PROBLEMS: Readonly<DealProblems> = {
     dealPrice: null,
     normalPrice: null,
     shippingFee: null,
+    priceBasisKind: null,
     endsAt: null,
     couponNote: null,
     priceBasis: null,
@@ -41,6 +45,16 @@ function nonNegativeInt(value: number | null): boolean {
     return value !== null && Number.isInteger(value) && value >= 0;
 }
 
+/** 제목 앞 `[쇼핑몰]` · 제목 끝 `(…원)` — 목록이 몰·가격을 따로 보여 주므로 지울지 묻는다 */
+const TITLE_BRACKET = /^\s*\[[^\]]*\]\s*/;
+const TITLE_PRICE = /\s*[(（][^()（）]*원[)）]\s*$/;
+
+/** 금액 하나의 문제 — 비었음은 부르는 쪽이 정한다 */
+function amountProblem(value: number): 'INVALID' | 'TOO_HIGH' | null {
+    if (!nonNegativeInt(value)) return 'INVALID';
+    return value > UtilHotdeal.PRICE_MAX_WON ? 'TOO_HIGH' : null;
+}
+
 /**
  * 회원 핫딜(1차)의 순수 계산 — 게시판 종류 판정, 링크 호스트, 할인율 미리보기, 딜 칸의 화면 검사·변환, 목록 주소 쿼리. 상태도 요청도 없다.
  * 규칙의 정본은 계약 `docs/features/hotdeal-contract.md` 「필드·검증」이고 판정은 서버다(서버 규칙 클래스 이름은 서버 세션이 정한다 — 후보 `PostDealRules`).
@@ -53,6 +67,17 @@ export default class UtilHotdeal {
     static readonly ENDS_MAX_DAYS = 365;
     /** 마감 최소 여유(1분) — 투표 마감과 같은 여유(가정) */
     static readonly ENDS_MIN_LEAD_MS = 60_000;
+    /**
+     * 핫딜 설정(`deal_settings`)의 기본값 — 화면 검사·안내에만 쓴다(판정은 서버). 가정: 공개 화면은 설정 값을 받지 않고 05 §3 기본값으로 미리 본다
+     *  - `priceMaxWon` 금액 상한 · `discountWarnPercent` 할인율 경고(가격 기준 필수) · `autoExpireDays` 마감 없는 딜의 기간 종료
+     */
+    static readonly PRICE_MAX_WON = 100_000_000;
+    static readonly DISCOUNT_WARN_PERCENT = 90;
+    static readonly AUTO_EXPIRE_DAYS = 30;
+    /** 마감 임박 배지 — 남은 시간이 이 시간 안 */
+    static readonly ENDING_SOON_HOURS = 48;
+    /** 가격 기준 선택지 — 화면에 보일 차례 */
+    static readonly PRICE_BASES: readonly DealPriceBasis[] = ['LISTED', 'COUPON', 'CARD', 'MEMBER', 'OVERSEAS'];
     /** 목록 정렬 — 화면에 보일 차례 */
     static readonly SORTS: readonly DealSort[] = ['LATEST', 'POPULAR', 'ENDING_SOON'];
     static readonly STOCKS: readonly DealStock[] = ['UNKNOWN', 'IN_STOCK', 'LOW', 'SOLD_OUT'];
@@ -136,9 +161,27 @@ export default class UtilHotdeal {
             stockState: 'UNKNOWN',
             affiliate: false,
             couponNote: '',
+            priceBasisKind: null,
+            dutyIncluded: false,
             priceBasis: '',
             image: null,
             imageTouched: false,
+        };
+    }
+
+    /**
+     * 끝난 딜에서 새 딜 올리기 — 링크·쇼핑몰 이름·이미지를 채운다(가격·마감은 빈 값 그대로). 이름·이미지는 글쓴이가 고친 것으로 둬 링크 판정이 덮어쓰지 않게 한다
+     * @param {DealPrefill} prefill - 끝난 딜에서 받은 값.
+     * @returns {DealFormValues} 칸 값.
+     */
+    static formOfPrefill(prefill: DealPrefill): DealFormValues {
+        return {
+            ...UtilHotdeal.emptyForm(),
+            productUrl: prefill.productUrl,
+            storeName: prefill.storeName.slice(0, UtilHotdeal.STORE_NAME_MAX),
+            storeNameTouched: true,
+            image: prefill.image ? { ...prefill.image } : null,
+            imageTouched: Boolean(prefill.image),
         };
     }
 
@@ -162,6 +205,8 @@ export default class UtilHotdeal {
             stockState: deal.stockState,
             affiliate: deal.affiliate,
             couponNote: deal.couponNote ?? '',
+            priceBasisKind: deal.priceBasisKind ?? null,
+            dutyIncluded: deal.dutyIncluded === true,
             priceBasis: deal.priceBasis ?? '',
             image: deal.image ? { ...deal.image } : null,
             imageTouched: true,
@@ -182,6 +227,8 @@ export default class UtilHotdeal {
             dealPrice: form.dealPrice ?? 0,
             shippingFee,
             couponNote: form.couponNote.trim() || null,
+            priceBasisKind: form.priceBasisKind,
+            dutyIncluded: form.priceBasisKind === 'OVERSEAS' && form.dutyIncluded,
             priceBasis: form.priceBasis.trim() || null,
             endsAt: form.endsAt || null,
             stockState: form.stockState,
@@ -240,12 +287,16 @@ export default class UtilHotdeal {
         const store = form.storeName.trim();
         out.storeName = !store ? 'REQUIRED' : store.length > UtilHotdeal.STORE_NAME_MAX ? 'TOO_LONG' : null;
 
-        out.dealPrice = form.dealPrice === null ? 'REQUIRED' : nonNegativeInt(form.dealPrice) ? null : 'INVALID';
+        out.dealPrice = form.dealPrice === null ? 'REQUIRED' : amountProblem(form.dealPrice);
         if (form.normalPrice !== null) {
-            if (!nonNegativeInt(form.normalPrice)) out.normalPrice = 'INVALID';
-            else if (form.dealPrice !== null && form.normalPrice < form.dealPrice) out.normalPrice = 'BELOW_DEAL';
+            out.normalPrice = amountProblem(form.normalPrice);
+            if (!out.normalPrice && form.dealPrice !== null && form.normalPrice < form.dealPrice) out.normalPrice = 'BELOW_DEAL';
         }
-        if (form.shippingMode === 'PAID') out.shippingFee = form.shippingFee === null ? 'REQUIRED' : nonNegativeInt(form.shippingFee) ? null : 'INVALID';
+        if (form.shippingMode === 'PAID') out.shippingFee = form.shippingFee === null ? 'REQUIRED' : amountProblem(form.shippingFee);
+        if (!form.priceBasisKind) {
+            if (form.dealPrice === 0) out.priceBasisKind = 'REQUIRED_FREE';
+            else if (UtilHotdeal.discountWarn(form)) out.priceBasisKind = 'REQUIRED_DISCOUNT';
+        }
 
         if (form.endsAt && form.endsAt !== initialEndsAt) {
             const at = Date.parse(form.endsAt);
@@ -256,6 +307,60 @@ export default class UtilHotdeal {
         if (form.couponNote.trim().length > UtilHotdeal.NOTE_MAX) out.couponNote = 'TOO_LONG';
         if (form.priceBasis.trim().length > UtilHotdeal.NOTE_MAX) out.priceBasis = 'TOO_LONG';
         return out;
+    }
+
+    /**
+     * 할인율이 경고 문턱(`DISCOUNT_WARN_PERCENT`) 이상인가 — 경고 + 가격 기준 필수
+     * @param {Pick<DealFormValues, 'normalPrice' | 'dealPrice'>} form - 칸 값.
+     * @returns {boolean} 문턱 이상이면 true.
+     */
+    static discountWarn(form: Pick<DealFormValues, 'normalPrice' | 'dealPrice'>): boolean {
+        const rate = UtilHotdeal.discountRate(form.normalPrice, form.dealPrice);
+        return rate !== null && rate >= UtilHotdeal.DISCOUNT_WARN_PERCENT;
+    }
+
+    /**
+     * 제목에 목록이 따로 보여 주는 말이 붙었는가 — 앞 `[쇼핑몰]` · 끝 `(…원)`
+     * @param {string} title - 제목.
+     * @returns {boolean} 붙었으면 true.
+     */
+    static titleHasAutoParts(title: string): boolean {
+        return TITLE_BRACKET.test(title) || TITLE_PRICE.test(title);
+    }
+
+    /**
+     * 제목에서 앞 `[…]`·끝 `(…원)` 을 뗀다
+     * @param {string} title - 제목.
+     * @returns {string} 뗀 제목(앞뒤 공백 없음).
+     */
+    static stripTitleAutoParts(title: string): string {
+        return title.replace(TITLE_BRACKET, '').replace(TITLE_PRICE, '').trim();
+    }
+
+    /**
+     * 마감 임박 — 진행 중이고 마감이 `ENDING_SOON_HOURS` 안이면 남은 시간(올림 시간, 최소 1). 마감이 내일(이 기기 달력)이고 12시간 넘게 남았으면 `tomorrow`
+     * @param {Pick<PostDeal, 'view' | 'endsAt'>} deal - 딜.
+     * @param {number} now - 지금(밀리초).
+     * @returns {{ hours: number; tomorrow: boolean } | null} 임박이 아니면 null.
+     */
+    static endingSoon(deal: Pick<PostDeal, 'view' | 'endsAt'>, now: number): { hours: number; tomorrow: boolean } | null {
+        if (!deal.endsAt || UtilHotdeal.isOver(deal.view)) return null;
+        const at = Date.parse(deal.endsAt);
+        const left = at - now;
+        if (Number.isNaN(at) || left <= 0 || left > UtilHotdeal.ENDING_SOON_HOURS * 3_600_000) return null;
+        const hours = Math.max(1, Math.ceil(left / 3_600_000));
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        return { hours, tomorrow: hours > 12 && new Date(at).toDateString() === tomorrow.toDateString() };
+    }
+
+    /**
+     * 「아직 진행 중이에요」를 더 누를 수 있는가 — `keepMax` 0 은 제한 없음
+     * @param {Pick<PostDeal, 'keepCount' | 'keepMax'>} deal - 딜.
+     * @returns {boolean} 누를 수 있으면 true.
+     */
+    static canKeep(deal: Pick<PostDeal, 'keepCount' | 'keepMax'>): boolean {
+        return deal.keepMax === 0 || deal.keepCount < deal.keepMax;
     }
 
     /**
@@ -286,7 +391,7 @@ export default class UtilHotdeal {
     }
 
     /**
-     * 목록 주소의 쿼리 → 핫딜 목록 조건(`?prefix=&sort=latest|popular|ending&hideEnded=false&q=&page=`). 기본값(최신·종료 숨김·1쪽)은 주소에 쓰지 않는다
+     * 목록 주소의 쿼리 → 핫딜 목록 조건(`?prefix=&sort=latest|popular|ending&hideEnded=false&store=&q=&page=`). 기본값(최신·종료 숨김·1쪽)은 주소에 쓰지 않는다
      * @param {LocationQuery} query - `route.query`.
      * @returns {DealPostListQuery} 목록 조건.
      */
@@ -294,7 +399,7 @@ export default class UtilHotdeal {
         const sortParam = one(query.sort);
         const sort = (Object.entries(SORT_PARAM).find(([, v]) => v === sortParam)?.[0] as DealSort | undefined) ?? 'LATEST';
         const page = Number.parseInt(one(query.page), 10);
-        return { prefix: one(query.prefix), sort, hideEnded: one(query.hideEnded) !== 'false', q: one(query.q).trim(), page: Number.isFinite(page) && page > 0 ? page : 1 };
+        return { prefix: one(query.prefix), sort, hideEnded: one(query.hideEnded) !== 'false', store: one(query.store).trim(), q: one(query.q).trim(), page: Number.isFinite(page) && page > 0 ? page : 1 };
     }
 
     /**
@@ -307,6 +412,7 @@ export default class UtilHotdeal {
         if (value.prefix) out.prefix = value.prefix;
         if (value.sort && value.sort !== 'LATEST') out.sort = SORT_PARAM[value.sort];
         if (value.hideEnded === false) out.hideEnded = 'false';
+        if (value.store) out.store = value.store;
         if (value.q) out.q = value.q;
         if (value.page && value.page > 1) out.page = String(value.page);
         return out;

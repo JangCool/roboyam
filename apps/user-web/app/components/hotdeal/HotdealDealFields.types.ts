@@ -1,4 +1,4 @@
-import type { DealImage, DealLinkCheck, DealStock } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { DealImage, DealLinkCheck, DealPriceBasis, DealStock } from '~/composables/hotdeal/api/useHotdealApi.types';
 
 /** 배송비 고르기 — 무료(0) · 모름(null) · 금액 */
 export type DealShippingMode = 'FREE' | 'UNKNOWN' | 'PAID';
@@ -19,6 +19,11 @@ export interface DealFormValues {
     stockState: DealStock;
     affiliate: boolean;
     couponNote: string;
+    /** 가격 기준 선택지 — 고르지 않았으면 null(0원 딜·할인율 90% 이상이면 필수) */
+    priceBasisKind: DealPriceBasis | null;
+    /** 해외 직구 「관부가세 포함」 — `OVERSEAS` 가 아니면 보내지 않는다(false) */
+    dutyIncluded: boolean;
+    /** 가격 기준 메모 */
     priceBasis: string;
     image: DealImage | null;
     /** 글쓴이가 이미지를 지웠거나 직접 올렸다 — 링크 판정의 OG 이미지로 덮어쓰지 않는다 */
@@ -35,6 +40,7 @@ export interface DealFieldErrors {
     shippingFee: string;
     endsAt: string;
     couponNote: string;
+    priceBasisKind: string;
     priceBasis: string;
     image: string;
 }

@@ -10,6 +10,8 @@
         핫딜 게시판(`kind DEAL` — `hotdeal-contract.md`): 제목 위에 딜 칸(`HotdealDealFields` — 링크 → 판정·OG 자동 채움 → 같은 딜 안내 → 가격·배송·마감·재고·제휴·메모).
           링크는 디바운스 뒤 `link-check`(`useDealLinkCheck`). [등록]을 누르면 글 칸·딜 칸 검사 문구를 함께 보이고, 서버 `fields."deal.*"` 도 다른 칸 오류와 함께 칸 아래에 붙인다.
           좁은 화면(md 미만)은 `Stepper` 단계 입력(딜 정보 → 설명) — [다음]은 딜 칸 검사를 통과해야 넘어가고, 2단계에서 딜 칸 오류가 생기면 「딜 정보에 확인할 칸이 N개」 + [딜 정보로].
+          제목 칸 아래 핫딜 제목 안내(`HotdealTitleHint`). `?from={postId}`(끝난 딜에서 새 딜)면 `prefill` 로 링크·몰·이미지·제목을 채운다(가격·마감은 비움).
+          하루 글 한도·같은 쇼핑몰 간격(`429 DEAL_DAILY_POST_LIMIT`·`DEAL_SAME_STORE_TOO_SOON`)은 폼 아래 안내, 저장 응답 `warnings[]` 는 토스트.
         가정: 쓸 수 있는 게시판 목록은 서버가 판정해 준다(`GET /api/boards/writable` 후보). `?board` 가 쓸 수 없는 게시판이면 그 까닭을 보인다.
           금지어·작성 간격·하루 한도·같은 글 반복은 서버가 거절하고 그 문구를 폼 아래에 그대로 보인다. 저장하지 않고 나가면 확인을 묻는다.
     -->
@@ -67,8 +69,10 @@
                 @submit="submit"
                 @cancel="cancel"
             >
-                <!-- 핫딜 딜 칸 — 제목 위(단계 입력의 1단계) -->
+                <!-- 핫딜 딜 칸 — 제목 위(단계 입력의 1단계). 끝난 딜에서 왔으면(`?from=`) 위에 안내 -->
                 <template v-if="isDeal" #lead>
+                    <Message v-if="prefillState === 'done'" severity="info" :closable="false" size="small" data-testid="hotdeal-prefill">{{ t('hotdeal.prefillNotice') }}</Message>
+                    <p v-else-if="prefillState === 'loading'" class="m-0 flex items-center gap-1.5 text-xs text-muted-color"><i class="pi pi-spin pi-spinner text-[0.6875rem]" aria-hidden="true" />{{ t('hotdeal.prefillLoading') }}</p>
                     <HotdealDealFields
                         v-model="dealForm"
                         :check="linkCheck.state.value"
@@ -84,6 +88,10 @@
                         {{ t('hotdeal.stepErrors', { n: dealErrorCount }) }}
                         <Button type="button" :label="t('hotdeal.stepGoDeal')" size="small" variant="link" class="ml-1 p-0" @click="step = 1" />
                     </Message>
+                </template>
+                <!-- 핫딜 제목 안내 — 「상품명만」 + 앞 [몰]·끝 (…원) 지우기 -->
+                <template v-if="isDeal" #titleHint>
+                    <HotdealTitleHint :title="form.title" @strip="onStripTitle" />
                 </template>
                 <!-- 찬반 토론 — 게시판이 글쓴이 토론을 받고(`debateEnabled`) 회원일 때만. 켜면 글과 함께 연다 -->
                 <template #extra>
@@ -268,6 +276,34 @@ watch(dealForm, () => {
 function onUseTitle(title: string): void {
     form.value = { ...form.value, title: title.slice(0, UtilPost.TITLE_MAX) };
 }
+/** 제목 안내의 [지우기] — 앞 [몰]·끝 (…원) 을 뗀 제목 */
+function onStripTitle(title: string): void {
+    form.value = { ...form.value, title };
+}
+
+/**
+ * 끝난 딜에서 새 딜 올리기(`?from={postId}` — 05 §2-10) — 핫딜 게시판을 처음 열 때 한 번 `prefill` 로 링크·몰·이미지·제목을 채운다(가격·마감은 비운다).
+ * 링크는 채운 뒤 지금 규칙으로 다시 판정한다(같은 딜·제휴·차단). 못 받으면 알리고 빈 칸으로 쓴다
+ */
+const fromPostId = computed(() => (typeof route.query.from === 'string' ? route.query.from : ''));
+const prefillState = ref<'idle' | 'loading' | 'done' | 'failed'>('idle');
+async function loadPrefill(): Promise<void> {
+    if (!fromPostId.value || prefillState.value !== 'idle') return;
+    prefillState.value = 'loading';
+    try {
+        const prefill = await hotdealApi.prefill(fromPostId.value);
+        dealForm.value = UtilHotdeal.formOfPrefill(prefill);
+        if (!form.value.title.trim()) form.value = { ...form.value, title: prefill.title.slice(0, UtilPost.TITLE_MAX) };
+        prefillState.value = 'done';
+    } catch (e) {
+        prefillState.value = 'failed';
+        toast.error(t('hotdeal.prefillFailed', { message: UtilBoardMessages.of(t, e) }), 8000);
+    }
+}
+// 핫딜 게시판이 정해진 뒤 한 번
+watch(isDeal, (deal) => {
+    if (deal) void loadPrefill();
+});
 
 /** 단계 입력 — 좁은 화면의 핫딜 글쓰기만(넓으면 한 번에) */
 const narrow = useMediaQuery('(max-width: 767px)');
@@ -320,9 +356,14 @@ async function submit(): Promise<void> {
         poll.value = UtilPoll.emptyForm();
         dealForm.value = UtilHotdeal.emptyForm();
         toast.success(t('post.created'));
+        // 저장은 됐지만 알릴 것(서버 `warnings[]`) — 서버 문구 그대로
+        for (const w of result.warnings ?? []) toast.show(w.message, { life: 8000 });
         await router.replace(`/posts/${result.id}`);
     } catch (e) {
+        const dealLimit = isDeal.value && e instanceof ApiError && (e.code === 'DEAL_DAILY_POST_LIMIT' || e.code === 'DEAL_SAME_STORE_TOO_SOON');
         if (e instanceof ApiError && e.code === 'UNAUTHENTICATED') prompt('write');
+        // 하루 핫딜 글 한도 · 같은 쇼핑몰 간격(429) — 폼 아래 안내(쓰던 내용은 그대로)
+        else if (dealLimit) formError.value = UtilHotdealMessages.dealError(t, e) ?? UtilBoardMessages.of(t, e);
         else if (e instanceof ApiError && e.code === 'IMAGE_UPLOAD_NOT_ALLOWED') fieldErrors.value = { content: e.message }; // 이미지를 막은 게시판 — 본문 칸 아래에 서버 문구
         else if (e instanceof ApiError && e.code === 'VALIDATION' && e.fields && Object.keys(e.fields).length) {
             fieldErrors.value = { ...e.fields };

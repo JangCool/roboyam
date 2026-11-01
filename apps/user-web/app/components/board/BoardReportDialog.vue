@@ -3,7 +3,7 @@
         신고 — 회원만(비회원은 부르는 화면이 로그인 안내). 사유는 관리자 신고 정책의 사유 코드와 같다. 기타는 설명 필수(가정).
         대상: 글 · 댓글 · 소모임(소모임 상세 ⋯ 메뉴 · 일정 상세의 오프라인 고지 아래 — 제목·안내가 소모임 문구이고 `summary` 로 대상 한 줄을 보인다).
         · 공구 문의(`GROUP_BUY_QUESTION` — 공구 상세 Q&A, 사유는 글·댓글 체계).
-        사유는 대상 체계를 따른다 — 글·댓글 6종(핫딜 글은 `deal` 이면 「가격·정보가 사실과 달라요」·「광고·홍보를 숨겼어요」 더해 8종) / 소모임 4종(홍보·영업 · 오프라인 위험 · 종목 추천·유료 모집(`stock` 일 때만) · 기타).
+        사유는 대상 체계를 따른다 — 글·댓글 6종(핫딜 글은 `deal` 이면 「가격·정보가 사실과 달라요」·「광고·홍보를 숨겼어요」 더해 8종 — 「가격 허위」를 고르면 「품절·가격 변경 알리기로 접수돼요」 안내, D4) / 소모임 4종(홍보·영업 · 오프라인 위험 · 종목 추천·유료 모집(`stock` 일 때만) · 기타).
     -->
     <Dialog :visible="visible" modal :header="title" :style="{ width: 'min(26rem, calc(100vw - 2rem))' }" :draggable="false" @update:visible="close">
         <form class="flex flex-col gap-3" @submit.prevent="submit">
@@ -15,6 +15,10 @@
                     <span>{{ item.label }}</span>
                 </label>
             </fieldset>
+            <!-- 핫딜 가격 허위(D4) — 신고가 아니라 품절·가격 변경 알리기로 접수된다 -->
+            <Message v-if="reason === 'DEAL_FALSE_PRICE'" :severity="dealRequestSent ? 'warn' : 'info'" :closable="false" size="small" data-testid="report-deal-false-price">
+                {{ dealRequestSent ? t('hotdeal.reportFalsePriceSent') : t('hotdeal.reportFalsePriceNote') }}
+            </Message>
             <LabeledField v-if="reason === 'OTHER'" :label="t('post.reportDetail')" :hint="t('post.maxHint', { max: UtilPost.REPORT_DETAIL_MAX })" :error="detailError">
                 <template #default="{ id, describedBy, invalid }">
                     <Textarea :id="id" v-model="detail" rows="3" :maxlength="UtilPost.REPORT_DETAIL_MAX" :invalid="invalid" :aria-describedby="describedBy" fluid auto-resize />
@@ -48,6 +52,8 @@ interface Props {
     stock?: boolean;
     /** 핫딜 글 대상(`target` POST) — 「가격·정보가 사실과 달라요」·「광고·홍보를 숨겼어요」 사유가 더해진다 */
     deal?: boolean;
+    /** 핫딜 글에 내가 이미 품절·가격 변경을 알렸다 — 「가격 허위」를 고르면 「이미 알렸어요」 안내(D4 — 같은 회원 1회) */
+    dealRequestSent?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -58,6 +64,7 @@ const props = withDefaults(defineProps<Props>(), {
     summary: '',
     stock: false,
     deal: false,
+    dealRequestSent: false,
 });
 
 const emit = defineEmits<{

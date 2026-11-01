@@ -1,6 +1,6 @@
 <template>
     <!--
-        핫딜 게시판 카드형(CARD)·갤러리형(GALLERY) — 일반 카드·갤러리와 같은 격자에 가격 줄(몰 이름 · 할인율 · 딜가 · 정상가)과 배지를 붙인다. 끝난 딜은 흐리게.
+        핫딜 게시판 카드형(CARD)·갤러리형(GALLERY) — 일반 카드·갤러리와 같은 격자에 가격 줄(몰 이름 · 할인율 · 딜가 · 정상가 · 배송비 — 갤러리는 「배송비 모름」 생략)과 배지를 붙인다. 메타 줄은 추천 · 조회 · 시각. 끝난 딜은 흐리게.
         카드: 모바일 1열 · 데스크톱 2열(썸네일 왼쪽). 갤러리: 모바일 2열 · 데스크톱 4열(정사각 썸네일). 한 줄 광고는 카드형만(두 열을 가로지르는 한 줄), 갤러리형은 그리지 않는다.
     -->
     <div>
@@ -26,10 +26,12 @@
                                 </p>
                                 <template v-if="row.deal">
                                     <p class="mt-1 truncate text-xs text-muted-color">{{ row.deal.storeName }}</p>
-                                    <HotdealPriceLine :deal="row.deal" :size="variant === 'CARD' ? 'md' : 'sm'" :shipping="variant === 'CARD'" />
+                                    <HotdealPriceLine :deal="row.deal" :size="variant === 'CARD' ? 'md' : 'sm'" shipping :compact="variant === 'GALLERY'" />
                                 </template>
                                 <p class="flex flex-wrap items-center gap-x-1.5 pt-1 text-xs text-muted-color" :class="variant === 'CARD' ? 'mt-auto' : ''">
                                     <span>{{ t('hotdeal.likesShort', { n: row.likeCount }) }}</span>
+                                    <span aria-hidden="true">·</span>
+                                    <span>{{ t('hotdeal.viewsShort', { n: row.viewCount.toLocaleString() }) }}</span>
                                     <span aria-hidden="true">·</span>
                                     <PostListDate :iso="row.createdAt" :mode="dateDisplay" />
                                 </p>

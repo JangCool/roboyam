@@ -75,6 +75,8 @@
                 <span class="text-xs text-muted-color tabular-nums">{{ modelValue.title.trim().length }} / {{ UtilPost.TITLE_MAX }}</span>
             </template>
         </LabeledField>
+        <!-- 화면이 제목 칸 바로 아래에 덧붙이는 안내(핫딜 제목 안내) -->
+        <slot name="titleHint" />
 
         <!-- 본문 — 게시판 글 에디터 설정(`postEditor` 유효값)을 따른다: 평문은 Textarea, 간단·고급은 서식 에디터(`@roboyam/rich-editor`).
              수준이 바뀌면(글쓰기에서 게시판을 바꿈) 에디터를 새로 만든다(`:key`) — 확장은 만들 때 정해진다 -->
