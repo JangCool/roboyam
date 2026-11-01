@@ -1,6 +1,6 @@
 # 회원 핫딜(1차) 계약
 
-**상태: 화면 확정 2026-11-01(목업 기준, 서버 없음) — 다음은 백엔드.** 정본 설계 `docs/plans/biz-ad-hotdeal/03-hotdeal.md`(1-1·1-3·3·5-1·5-3 「1차」·7-1·7-2), 보강 검토 `05-hotdeal-review.md`(**부딪히면 05 가 정본**), 메뉴 `04-ia-review.md` §1-2·§4.
+**상태: 화면 확정·서버 구현·두 앱 실제 API 연결 2026-11-01(브랜치 `claude/hotdeal-member-backend-100b0f`, develop 미병합) — 다음은 실제 호출 확인·QA.** 정본 설계 `docs/plans/biz-ad-hotdeal/03-hotdeal.md`(1-1·1-3·3·5-1·5-3 「1차」·7-1·7-2), 보강 검토 `05-hotdeal-review.md`(**부딪히면 05 가 정본**), 메뉴 `04-ia-review.md` §1-2·§4.
 
 ## 의도
 - 사업자 없이 완결되는 **회원 핫딜**: DEAL 게시판(`boards.kind = DEAL`) 글에 딜 정보(가격·몰·링크·배송·마감·재고)를 붙이고, 회원이 품절·가격 변경을 알려 오래된 딜을 걸러 낸다.
@@ -186,7 +186,15 @@ SiteAffiliateStore { id, domain(정규화), programName(≤40), transform: { typ
   - 관리자: 방식 선택은 초안에 들어가고 **[저장] 때 확인 창**(방향별 문구 + 영향 글 수 + 켠 몰 0개 경고 + 함께 저장할 다른 칸 수). 사이트 제휴 몰 표는 초안이 SITE 면 저장 전에도 보이고 바로 저장(설정 저장과 별개). impact 응답 `{ mode, memberAffiliateActive, siteStoreMatched, siteStoreActive(켠 몰로 가는 진행 중 글 전체) }`. 상세·링크 규칙 목록 응답 `affiliateMode`. 몰 줄에 `updatedBy`·`updatedAt`. 변환: TEMPLATE 은 `{url}` 자리에 `encodeURIComponent(원래 주소)`, QUERY 는 쿼리를 붙이되 같은 이름이면 바꿈. 틀 ≤1000자·쿼리 ≤300자, 새 몰은 켠 채로, 켬/끔은 줄 전체 PUT, 몰 표 조회·편집 `hotdeal.manage`. 몰 판정은 최종 호스트 우선·접미사·긴 도메인 우선·켠 몰만. 코드 `404 HOTDEAL_SITE_AFFILIATE_NOT_FOUND`, `fields.affiliateMode`.
 - 서버 후보: `deal_settings.affiliate_mode`, 사이트 제휴 몰 표, 클릭 때 변환(`SiteAffiliateLinker` 후보)·집계.
 
-## 서버 구현 결과
+## 서버 구현 결정 (2026-11-01)
+- OG 사본(D1 정리): 가로 600px JPEG ≤300KB·투명 배경 흰 바탕, WebP 원본은 ≤300KB·가로 ≤1200 이면 메타데이터만 떼어 그대로·넘으면 「없음」 — 의존성 없이 WebP 인코딩 불가라서, 인코딩은 `DealOgImageEncoder` 한 곳(나중에 WebP 로 바꿀 자리).
+- `/api/deals/{postId}/go`: 글 없음·비공개·지금 차단 호스트 → 302 `/posts/{postId}`, 종료·기간 종료 → 저장된 원래 링크(변환·집계 없음), 진행 중 → 클릭 시점 방식으로 변환 + 집계(`click_count`, KST 하루 같은 방문자·같은 글 1번, 봇 UA 제외).
+- 보상 원장 ref = 종료 요청 줄(`ref_type DEAL_END_REQUEST`) — 원장 유일 `(reason, ref_type, ref_id)` 로는 「ref = 글」이면 한 글의 여러 요청자에게 줄 수 없다.
+- 관리자 알림 링크는 admin-web 서랍 쿼리에 맞춘다: 글 `/hotdeals?view=ALL&deal={postId}`, 의심 후보 `/hotdeals/suspicions?suspicion={id}`.
+- 두 앱의 목업(`// MOCK:`·목업 저장소)과 위 「목업 구현 결과」의 `?mock=` 스위치·목업 글·목업 게시판 `hotdeal` 은 **모두 지웠다**(실 API 경로를 가로채지 않게) — 그 절들은 화면 확정 기록으로만 남긴다.
+- 커밋: 서버 `b3b1ed5e`(1단계)·`ce4a9ff9`(2단계)·`1ea5706f`(3단계), 화면 admin-web `0d82aca0`·user-web `707729dc`·`0e607d82`·`80bca201`.
+
+### 서버 구현 결과
 - 1·2단계의 API 모양·빈칸 결정은 세션 공유 메모 `hotdeal-member-api.md` 0~3절(서버 DTO 가 정본). 2단계(2026-11-01): 작성자 종료·되돌리기·keep·종료 요청 API, 보상, 신고 연결, 가젯 `HOT_DEALS`, 인기글 제외, 회원 알림 5종, Java 배치 4개(`hotdeal-auto-end`·`hotdeal-expiry-notice`·`hotdeal-cleanup`·`hotdeal-suspicion`).
 - 3단계(관리자)가 부를 shared 진입점: 운영진 종료 `DealEndService#endByManager(postId, actorId, reason)`(보상·작성자 알림 포함) · 운영진 재개 `DealEndService#reopenByManager(postId)`(의심·keep·요청 리셋 + 「마감을 고쳐 주세요」) · 결과 `Outcome`(`STATE_CHANGED` → `409 HOTDEAL_STATE_CHANGED`) · 알림 `DealNotices` · 탈퇴 `DealWithdrawal#withdraw`(탈퇴 API 가 생기면).
 - 배치의 실행 서버: 계약은 「배치(api)」였지만 배치 인프라(`_backend-core.md` 「배치」)대로 작업은 shared `com.community.hotdeal.batch`, 예약·「지금 실행」은 관리자 서버(`roboyam.batch.enabled`)가 돌린다.
@@ -198,7 +206,7 @@ SiteAffiliateStore { id, domain(정규화), programName(≤40), transform: { typ
 - 글에 붙지 않은 OG 사본의 정리 기한 7일(2단계 가정). 위장 홍보 열린 후보가 조건에서 벗어나도 저절로 닫지 않음. 대형몰 `smartstore.naver.com` 이 common 이라 스마트스토어 판매자는 위장 홍보 집계에서 빠진다.
 - 같은 딜 판정에 쿼리 문자열을 어디까지 남길지 — 규칙별 `keyParams` 로 정하되 기본 몰 목록은 운영하며 채움.
 - 종료 요청 자격·하루 글 5건·같은 몰 10분·마감 없는 딜 30일은 추천안 채택값(바꿀 수 있음).
-- 3단계 가정: 관리자 핫딜 목록은 지운 글(예약 삭제 지남 포함)을 빼고 숨긴 글은 넣는다 · 게시판 매니저·스텝의 종료·재개 공개 API·화면(판정만 있음) · 수정 이력 칸에 `dutyIncluded`·`image` 도 그대로 나간다(admin-web 칸 목록 밖) · 링크 규칙 `note` 100자(DB 200).
+- 3단계 가정: 관리자 핫딜 목록은 지운 글(예약 삭제 지남 포함)을 빼고 숨긴 글은 넣는다 · 게시판 매니저·스텝의 종료·재개 공개 API·화면(판정만 있음) · 링크 규칙 `note` 100자(DB 200).
 - `coupa.ng` 가 쿠팡 공식 단축 주소인지(지금은 제휴 시드). 사이트 제휴 몰 표 첫 줄들(어느 몰·프로그램과 계약할지)은 운영하며 채움 — 시드 없음.
 
 ## 법무 확인 (05 §5)
