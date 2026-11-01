@@ -69,6 +69,11 @@ public final class BoardFields {
     /** 공통 말머리 이름(고정, 기본 언어) — 고유 말머리 이름 중복 검사에 영문 이름과 함께 쓴다 */
     public static final Map<String, String> COMMON_PREFIX_NAMES = orderedMap("QUESTION", "질문", "REVIEW", "후기", "CHAT", "잡담", "NOTICE", "공지");
     public static final Map<String, String> COMMON_PREFIX_NAMES_EN = orderedMap("QUESTION", "Question", "REVIEW", "Review", "CHAT", "Chat", "NOTICE", "Notice");
+    /**
+     * 새 핫딜 게시판의 고유 말머리(표시 순서) — 상품 분류(docs/plans/biz-ad-hotdeal/03-hotdeal.md 1-1, 사용자 지시 2026-11-02). 핫딜 게시판은 공통 말머리를 켜지 않고 이것으로 시작한다.
+     * 만든 뒤에는 게시판 설정에서 바꾼다. {@link BoardCreator} 가 말머리를 받지 않은 핫딜 게시판에 쓴다
+     */
+    public static final List<String> DEAL_PREFIXES = List.of("로봇", "AI", "메이킹", "기타");
     public static final List<String> STAFF_ROLES = List.of("MANAGER", "STAFF");
     /** 글 에디터 — 평문(에디터 없음) · 간단 · 고급. 고급만 이미지·제목·코드·글자색·YouTube 를 받는다 */
     public static final String EDITOR_NONE = "NONE";
