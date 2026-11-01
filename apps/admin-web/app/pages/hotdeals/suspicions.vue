@@ -2,7 +2,7 @@
     <!--
         핫딜 › 의심 후보(`/hotdeals/suspicions`) — 위장 홍보 의심 후보 두 종류(설정 값 — 계약 「목업 가정」·05 §2-18). 03-hotdeal 7-1.
           회원 후보: 같은 회원이 N일 안에 같은 판매처(대형몰 제외)를 M건 이상 · 판매처 후보: 같은 비대형몰을 N일 안에 서로 다른 회원 K명 이상이 올리고 그 회원들의 다른 핫딜 비율이 낮음.
-        **목업**(`useHotdealSuspicionApi` → `hotdeal/api/mock`) — 스위치 `?mock=empty|error|detail-error|slow|forbidden|stale|store-suspicion`.
+        서버 호출은 `useHotdealSuspicionApi`(`/api/admin/hotdeal-suspicions`).
         - 상태 라디오(열림 · 무시 + 건수) · 종류 라디오(전체 · 회원 후보 · 판매처 후보 + 건수, `kind`) → 표(종류 · 대상(회원 / 회원 N명) · 판매처 · 기간 안 건수 · 비교(다른 회원 수 / 다른 핫딜 비율) · 처음 감지 · 마지막 글 · 무시한 경우 처리)
           → 줄을 누르면 서랍(`?suspicion=`).
         - 서랍(`HotdealSuspicionDrawer`): 회원 후보는 그 회원의 그 판매처 글, 판매처 후보는 회원별로 묶은 그 판매처 글. 바로가기 [글 관리에서 숨기기](글마다) · [회원 제재로 가기] · [이 몰 규칙 등록] · 신고 관리

@@ -1,5 +1,5 @@
 /**
- * 핫딜 설정(`deal_settings` 한 행) — 계약 「핫딜 설정」 표(05 §3 보강 포함). **서버에 아직 없다(목업)**.
+ * 핫딜 설정(`deal_settings` 한 행) — 계약 「핫딜 설정」 표(05 §3 보강 포함). 서버 DTO 는 이 칸 이름 그대로.
  * 숫자 칸의 범위·처음 값은 `UtilHotdeal.SETTINGS`(서버와 같은 규칙), 켬/끔 칸은 `ogFetchEnabled` 하나. 감사 `HOTDEAL_SETTINGS_UPDATE`(바뀐 칸만).
  * 종료 요청 보상 포인트·하루 지급 횟수는 포인트 정책(`point_settings.dealEndRequestPoints`·`dealEndRequestDailyLimit` — 포인트 › 포인트 정책) 소유라 여기서는 읽기만 한다.
  * OG 보안 값(시간 제한·크기·동시 수)은 설정 화면에 두지 않는다(서버 규칙 1).

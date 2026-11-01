@@ -1,7 +1,7 @@
 <template>
     <!--
         핫딜 › 핫딜 글(`/hotdeals`) — 회원 핫딜 글을 상태별로 보고 종료·재개한다. 계약 `docs/features/hotdeal-contract.md`, 설계 03-hotdeal 7-1(글 관리 `/posts` 와 같은 골격).
-        **목업**(`useHotdealApi` → `hotdeal/api/mock`) — 스위치 `?mock=empty|error|detail-error|slow|forbidden|stale|revisions-empty|revisions-error|link-changed`.
+        서버 호출은 `useHotdealApi`(`/api/admin/hotdeals`) · 게시판 고르기는 `useHotdealBoards`.
         - 조건 카드: 상태 `SelectButton`(진행·의심·종료·기간 지남·전체 + 건수) → 게시판 `Select`(핫딜 게시판) → 차단 도메인 진행 중 체크(`blockedActive` + 건수) → 검색(제목·쇼핑몰·작성자, 2자 이상) → 등록일 기간.
           상태·게시판·차단은 고르는 즉시, 검색어·기간은 [검색](Enter)을 눌러야 주소로 간다. **모두 주소 쿼리**(`?view=&board=&blocked=1&q=&from=&to=&page=&size=&deal=`).
         - 표: 썸네일 · 제목(말머리 · 제휴 · 아래 줄에 「차단 도메인」·「링크 바뀜」·「가격 수정 N회」) · 게시판 · 쇼핑몰 · 딜가 · 정상가 · 할인율 · 상태 · 종료 요청(Badge) · 신고 · 작성자 · 등록 시각.

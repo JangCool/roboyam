@@ -1,6 +1,6 @@
 /**
  * 회원 핫딜(1차) 관리자 API 가 주고받는 모양 — 계약 `docs/features/hotdeal-contract.md` 「데이터 모양」(두 앱이 같은 이름을 쓴다) + 관리자 쪽 덧붙임.
- * **서버에 아직 없다(목업)** — 이름·칸은 서버 단계에서 확정한다. 계약에 없는 관리자 덧붙임은 칸마다 「(관리자 덧붙임)」으로 적었다.
+ * 서버 관리자 DTO 는 이 칸 이름·null 규칙 그대로다(서버·화면 공용 API 메모 0절). 계약에 없는 관리자 덧붙임은 칸마다 「(관리자 덧붙임)」으로 적었다.
  * 링크 규칙 · 의심 후보 · 핫딜 설정의 모양은 각 API 옆 `.types.ts` 에 있고, 공통 이름(DealView · DomainRule …)은 여기서 가져간다.
  */
 
@@ -30,7 +30,7 @@ export type AffiliateMode = 'MEMBER' | 'SITE';
 /** 지금 방식으로 계산한 구매 링크의 제휴 종류 — 개인 제휴(작성자) · 사이트 제휴(로보얌) · 없음 */
 export type DealAffiliateKind = 'MEMBER' | 'SITE' | null;
 
-/** 상품 이미지 — 링크 OG 사본(`OG` — 우리 서버에 저장한 600px WebP, D1) 또는 글쓴이가 올림(`UPLOAD`) */
+/** 상품 이미지 — 링크 OG 사본(`OG` — 우리 서버에 저장한 600px JPEG, D1) 또는 글쓴이가 올림(`UPLOAD`) */
 export interface DealImage {
     url: string;
     source: 'OG' | 'UPLOAD';
@@ -223,7 +223,7 @@ export interface DealRevision {
     hostChanged: boolean;
 }
 
-/** `GET /api/admin/hotdeals/{postId}/revisions` — 계약은 배열만 적었다. 감싼 모양·보존 개월 수는 관리자 덧붙임(목업 가정) */
+/** `GET /api/admin/hotdeals/{postId}/revisions` — 계약은 배열만 적었다. 감싼 모양·보존 개월 수는 관리자 덧붙임(2026-11-01 확정) */
 export interface DealRevisionListView {
     items: DealRevision[];
     /** 보존 기간(개월) — 6 */

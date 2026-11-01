@@ -34,7 +34,7 @@ export interface HomeEditorItem {
 
 /**
  * 가젯 종류 8종 + 광고 2종 + 핫딜(보일 순서) — 커뮤니티의 직접홍보는 없다.
- * 핫딜(`HOT_DEALS`, 회원 핫딜 1차 목업)은 서버 가젯 종류 등록 전이라 넣고 저장하면 서버가 거절한다(서버 단계 — hotdeal-contract). 크기는 공구 가젯과 같다.
+ * 핫딜(`HOT_DEALS`, 회원 핫딜 1차 — 서버 `HomeGadgetKinds.HOT_DEALS`)의 크기는 공구 가젯과 같다.
  */
 const KINDS: readonly HomeKindSpec[] = [
     { kind: 'HIGHLIGHT', icon: 'pi-sparkles', minW: 4, minH: 8, w: 8, h: 12 },

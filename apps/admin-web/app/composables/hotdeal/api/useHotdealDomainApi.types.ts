@@ -1,5 +1,5 @@
 /**
- * 핫딜 링크 규칙(`deal_domains`) — 계약 `docs/features/hotdeal-contract.md` 「링크 판정」·03-hotdeal 1-1·05 §4-2·3. **서버에 아직 없다(목업)**.
+ * 핫딜 링크 규칙(`deal_domains`) — 계약 `docs/features/hotdeal-contract.md` 「링크 판정」·03-hotdeal 1-1·05 §4-2·3. 서버 DTO 는 이 칸 이름 그대로.
  * 도메인은 서버가 소문자·스킴·www.·포트·경로를 떼고 저장한다(화면 미리보기는 `UtilHotdeal.normalizeDomain` — 같은 규칙).
  * DB CHECK: 규칙이 없으면(null) 대형몰이어야 한다(`common = true`).
  */

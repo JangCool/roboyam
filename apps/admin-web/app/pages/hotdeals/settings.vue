@@ -2,7 +2,7 @@
     <!--
         핫딜 › 핫딜 설정(`/hotdeals/settings`) — 회원 핫딜 1차의 숫자 규칙(계약 「핫딜 설정」 표, 05 §3). 포인트 상점 설정과 같은 모양:
         구획 카드(`AppGadget` — 저장 전 바뀐 칸 수가 구역 내비에 점) + 칸(`LabeledField` + 숫자 `InputText` — `InputNumber` 는 범위 밖 값을 말없이 고친다) + 범위 도움말(0 의 뜻 「없음/끔」) + 하단 떠 있는 저장 줄(`StickySaveBar`, 화면 하나로 저장).
-        **목업**(`useHotdealSettingsApi`·`useHotdealSiteAffiliateApi` → `hotdeal/api/mock`) — 스위치 `?mock=error|slow|forbidden|save-error|conflict|site-affiliate|site-affiliate-empty|affiliate-impact-zero`.
+        서버 호출은 `useHotdealSettingsApi`(`/api/admin/hotdeal-settings`) · `useHotdealSiteAffiliateApi`(`/api/admin/hotdeal-site-affiliates`).
         - 종료 요청: 문턱 · 유예 시간(0 = 자동 종료 안 함) · 하루 요청 한도 · 같은 작성자 글 한도/기간(0 = 없음) · keep 최대(0 = 없음) · 요청자 보상 포인트(**읽기 전용** — 포인트 정책이 정본, 링크)
         - 글쓰기: 회원 하루 글 수(0 = 없음) · 같은 판매처 간격(분, 0 = 없음) · 마감 없는 딜 기간 종료(일, 0 = 끔)
         - 가격: 금액 상한(천 단위 쉼표 — 칸을 떠날 때 쉼표를 다시 붙인다) · 할인율 경고 % / 인기 표시: HOT 추천 수

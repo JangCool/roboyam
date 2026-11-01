@@ -1,5 +1,3 @@
-import { mockHotdealForbidden } from '~/composables/hotdeal/api/mock/hotdeal-mock';
-
 /**
  * 핫딜 화면의 조치 권한 — 감추는 것은 편의이고 막는 것은 서버다. 권한 코드는 `util-permission-catalog.ts`(이름 그대로).
  *  · `canManage` 종료·재개 · 의심 후보 무시 · 핫딜 설정 저장(`hotdeal.manage` — 모든 핫딜 게시판)
@@ -9,12 +7,10 @@ import { mockHotdealForbidden } from '~/composables/hotdeal/api/mock/hotdeal-moc
  */
 export function useHotdealPermission() {
     const { can } = useAdminPermission();
-    // MOCK: `?mock=forbidden` 이면 조치 권한이 없는 운영자처럼 보인다 — 서버가 붙으면 이 줄과 import 를 지운다
-    const mockDenied = mockHotdealForbidden();
 
     return {
-        canManage: computed(() => !mockDenied && can('hotdeal.manage')),
-        canDomain: computed(() => !mockDenied && can('hotdeal.domain.manage')),
+        canManage: computed(() => can('hotdeal.manage')),
+        canDomain: computed(() => can('hotdeal.domain.manage')),
         canReadReports: computed(() => can('report.read')),
         canReadMembers: computed(() => can('member.read')),
         canReadBoards: computed(() => can('board.read')),

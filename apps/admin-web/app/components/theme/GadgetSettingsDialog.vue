@@ -473,7 +473,7 @@ const uid = useId();
 const { localizedName } = useLocalizedName();
 const { can } = useAdminPermission();
 const { boards, loading: boardsLoading, error: boardsError, load: loadBoards } = useGadgetPageFolders();
-/** 핫딜 가젯이 고를 핫딜 게시판(DEAL) — 핫딜 글 화면과 같은 선택지(⚠ 목업 `useHotdealApi`) */
+/** 핫딜 가젯이 고를 핫딜 게시판(DEAL) — 핫딜 글 화면과 같은 선택지(`useHotdealBoards` → `GET /api/admin/hotdeals/boards`) */
 const { boards: hotDealBoards, loading: hotDealBoardsLoading, error: hotDealBoardsError, load: loadHotDealBoards } = useHotdealBoards();
 
 type TabKey = 'content' | 'look' | 'show';

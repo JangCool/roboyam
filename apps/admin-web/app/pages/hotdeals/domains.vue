@@ -1,8 +1,7 @@
 <template>
     <!--
         핫딜 › 링크 규칙(`/hotdeals/domains`) — 핫딜 상품 링크의 도메인 규칙(차단 · 제휴 · 대형몰) + 같은 딜 판정 쿼리(`keyParams`). 03-hotdeal 7-1, 계약 「링크 판정」, 05 §2-17·§4-2·3.
-        **목업**(`useHotdealDomainApi` → `hotdeal/api/mock`) — 스위치 `?mock=empty|error|slow|forbidden|conflict|impact-zero`.
-          시드: 단축 주소 BLOCK 8개(메모 「단축 주소」) · 대형몰 7개(쿠팡·11번가·G마켓·옥션은 keyParams 목업 값) · 제휴 네트워크 3개(목업 값) · `coupa.ng` 제휴(공식 여부 확인 필요) · `link.coupang.com` 제휴 · `cheap-robot.shop` 차단(위장 홍보 확인).
+        서버 호출은 `useHotdealDomainApi`(`/api/admin/hotdeal-domains`). 시드는 서버 V122(링크 규칙 시드).
         - 맨 위 「어떤 링크에 어떤 규칙이 걸리나」 시험 칸: 링크를 넣으면 정규화한 호스트와 걸리는 규칙(접미사 일치 · 더 구체적인 규칙 우선 — `UtilHotdeal.match`)을 바로 보인다.
           `단축 → 최종` 처럼 화살표(→ · ->)나 공백으로 리디렉션 체인을 이어 넣으면 단계마다 판정하고 **체인의 어느 호스트든 차단이면 차단 > 제휴 > 없음**으로 최종 판정한다(서버 규칙 2). 예시 단추 둘.
         - 표(작은 표라 한 번에 다 받고 화면에서 거른다): 도메인 · 규칙 Tag · 대형몰 · 같은 딜 쿼리 · 메모 · 수정자 · 수정 시각 · [고치기]·[지우기](useConfirmDialog). 위에 검색(도메인·메모·쿼리)·규칙 거르기.
@@ -10,7 +9,7 @@
           진행 중 글이 있으면 창 안에 「진행 중 글 N건 — 저장해도 글은 그대로, 핫딜 글 「차단 도메인 진행 중」에서 볼 수 있어요」 + [그래도 저장]. 0건이면 바로 저장. 저장 뒤 토스트에 그 목록 링크 안내.
         - 들어오는 길: `?new={host}` — 의심 후보 서랍 「이 몰 규칙 등록」. 규칙을 받은 뒤 추가 창을 그 도메인으로 채워 열고 주소에서 뗀다(권한이 없으면 무시).
         - 빈: 「규칙이 없으면 모든 쇼핑몰을 허용해요」 · 오류: ErrorState 다시 시도 · 대기: Skeleton.
-        - 제휴 링크 방식이 사이트 제휴(`SITE`, 목록 응답 `affiliateMode`)면 맨 위 안내 — 「제휴」 규칙에 걸리는 링크는 개인 제휴로 보고 쓰기에서 받지 않는다(D5) + 「핫딜 설정 열기」(`hotdeal.manage` 일 때). `?mock=site-affiliate`.
+        - 제휴 링크 방식이 사이트 제휴(`SITE`, 목록 응답 `affiliateMode`)면 맨 위 안내 — 「제휴」 규칙에 걸리는 링크는 개인 제휴로 보고 쓰기에서 받지 않는다(D5) + 「핫딜 설정 열기」(`hotdeal.manage` 일 때).
         - 권한: 보기 `hotdeal.read`(메뉴), 추가·고치기·지우기 `hotdeal.domain.manage`(없으면 단추 없이 읽기 전용 안내).
     -->
     <div class="flex min-w-0 flex-col gap-4">

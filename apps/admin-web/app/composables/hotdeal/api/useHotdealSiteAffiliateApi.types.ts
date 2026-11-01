@@ -1,5 +1,5 @@
 /**
- * 사이트 제휴 몰(`deal_site_affiliates`) — 계약 `docs/features/hotdeal-contract.md` D5 · 데이터 모양 `SiteAffiliateStore`. **서버에 아직 없다(목업)**.
+ * 사이트 제휴 몰(`deal_site_affiliates`) — 계약 `docs/features/hotdeal-contract.md` D5 · 데이터 모양 `SiteAffiliateStore`. 서버 DTO 는 이 칸 이름 그대로.
  * `affiliateMode = SITE` 일 때 `/api/deals/{postId}/go` 가 클릭 시점에 상품·최종 호스트가 이 표의 켠 몰(접미사 일치 · 더 구체적인 것 우선)이면 개인 제휴 파라미터를 떼고 이 방식으로 바꾼다.
  * 도메인은 서버가 링크 규칙과 같은 규칙으로 정규화한다(화면 미리보기는 `UtilHotdeal.normalizeDomain`). 감사 `HOTDEAL_SITE_AFFILIATE_CREATE/UPDATE/DELETE`.
  */

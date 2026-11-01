@@ -87,7 +87,7 @@ const REASON_MAX = 200;
 const NOTE_MAX = 100;
 /** 도메인 최대(RFC 1035 이름 길이) */
 const DOMAIN_MAX = 253;
-/** 같은 딜 판정 쿼리 이름 최대 개수(목업 가정 — 서버 `fields.keyParams`) */
+/** 같은 딜 판정 쿼리 이름 최대 개수(서버 `fields.keyParams` 와 같은 한도) */
 const KEY_PARAMS_MAX = 10;
 const POST_ID = /^\d{1,19}$/;
 const ID = /^[A-Za-z0-9_-]{1,40}$/;
@@ -99,7 +99,7 @@ const KEY_PARAM = /^[A-Za-z0-9_.[\]-]{1,40}$/;
 /** 늘 지우는 추적 파라미터(서버 규칙 3) — 앞 일치(`utm_`·`aff`)와 같은 이름 */
 const TRACKING_PREFIX = ['utm_', 'aff'];
 const TRACKING_EXACT = new Set(['fbclid', 'gclid', 'igshid', 'ref', 'tag', 'spm', '_trkparms', 'sub_id']);
-/** 사이트 제휴 몰 — 프로그램 이름 · 링크 틀 · 붙일 쿼리 최대(목업 가정 — 서버 `fields.*`) */
+/** 사이트 제휴 몰 — 프로그램 이름 · 링크 틀 · 붙일 쿼리 최대(서버 `fields.*` 와 같은 한도) */
 const SITE_PROGRAM_MAX = 40;
 const SITE_TEMPLATE_MAX = 1000;
 const SITE_QUERY_MAX = 300;
@@ -420,7 +420,7 @@ export default class UtilHotdeal {
         return { hops, verdict: 'NONE', decidedBy: null };
     }
 
-    /** 규칙 거르기 — 화면에서 바로 거른다(목업 · 서버도 같은 뜻의 `rule` 조건) */
+    /** 규칙 거르기 — 화면이 전부 받아 바로 거른다(서버도 같은 뜻의 `rule`·`q` 조건이 있지만 쓰지 않는다) */
     static filterDomains(items: readonly DealDomain[], rule: DomainRuleFilter, q: string): DealDomain[] {
         const needle = q.trim().toLowerCase();
         return items.filter((d) => {

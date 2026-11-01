@@ -1,5 +1,5 @@
 /**
- * 위장 홍보 의심 후보(`deal_suspicions` + `kind`) — 계약 「목업 가정」·05 §3. **서버에 아직 없다(목업)**. 대형몰로 표시한 도메인은 세지 않는다.
+ * 위장 홍보 의심 후보(`deal_suspicions` + `kind`) — 계약 「목업 가정」·05 §3. 서버 DTO 는 이 칸 이름 그대로. 대형몰로 표시한 도메인은 세지 않는다.
  *   - 회원 후보(`MEMBER`): 같은 회원이 `suspicionWindowDays` 안에 같은 판매처 글을 `suspicionMinPosts` 건 이상.
  *   - 판매처 후보(`STORE`): 같은 비대형몰을 `storeSuspicionWindowDays` 안에 서로 다른 회원 `storeSuspicionMembers` 명 이상이 올리고, 그 회원들의 다른 핫딜 비율이 `storeSuspicionOtherRatioPercent`% 미만.
  * 운영자 목록만 있고 자동 제재는 없다. 제재는 기존 글 관리(숨김)·회원 관리·신고 화면으로 간다.

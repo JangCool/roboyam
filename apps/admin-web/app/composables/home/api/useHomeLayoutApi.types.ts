@@ -8,7 +8,7 @@
  */
 import type { HomeLayout } from '#layers/home-layout/utils/util-home-layout';
 
-/** 가젯 종류 8종 + 광고 2종 + 핫딜(`HOT_DEALS` — 회원 핫딜 1차, user-web `GadgetKind` 와 같은 키). ⚠ `HOT_DEALS` 는 서버 `HomeGadgetKinds` 에 아직 없어 저장하면 서버가 거절한다(서버 단계) */
+/** 가젯 종류 8종 + 광고 2종 + 핫딜(`HOT_DEALS` — 회원 핫딜 1차, user-web `GadgetKind` 와 같은 키, 서버 `HomeGadgetKinds.HOT_DEALS`) */
 export type HomeGadgetKind = 'HIGHLIGHT' | 'POST_LIST' | 'BOARD_CARDS' | 'GALLERY' | 'GROUPS' | 'GROUP_BUY' | 'HOT_DEALS' | 'QUICK_LINKS' | 'NOTICE_TEXT' | 'AD' | 'AD_TEXT_LINE';
 
 /** 광고 일정표 유형(`AdType`) 중 배너 넷 */

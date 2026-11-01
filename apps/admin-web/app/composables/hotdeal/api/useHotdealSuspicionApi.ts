@@ -1,15 +1,12 @@
-import { mockSuspicionDetail, mockSuspicionDismiss, mockSuspicionList } from '~/composables/hotdeal/api/mock/hotdeal-mock';
-import type { DealSuspicionDetail, DealSuspicionKindFilter, DealSuspicionPage, DealSuspicionStatus } from '~/composables/hotdeal/api/useHotdealSuspicionApi.types';
+import type { DealSuspicionDetail, DealSuspicionDismissRequest, DealSuspicionKindFilter, DealSuspicionPage, DealSuspicionStatus } from '~/composables/hotdeal/api/useHotdealSuspicionApi.types';
 
 /**
- * 위장 홍보 의심 후보 API(관리자) — 서버 주소(`/api/admin/hotdeal-suspicions…`)가 있는 **유일한 곳**이다. 상태는 없다. **서버에 아직 없다(목업)**.
+ * 위장 홍보 의심 후보 API(관리자) — 서버 주소(`/api/admin/hotdeal-suspicions…`)가 있는 **유일한 곳**이다. 상태는 없다.
  * 권한: 조회 `hotdeal.read`, 무시 `hotdeal.manage`. 자동 제재는 없다(제재는 글 관리·회원·신고 화면).
  *   - `GET  /api/admin/hotdeal-suspicions?status&kind=MEMBER|STORE&page&size` → `DealSuspicionPage`(`kind` 를 빼면 둘 다)
  *   - `GET  /api/admin/hotdeal-suspicions/{id}` → `DealSuspicionDetail` · `404 HOTDEAL_SUSPICION_NOT_FOUND`
  *   - `POST /api/admin/hotdeal-suspicions/{id}/dismiss` `{ note? }`(0~200자) → 204 · `409 HOTDEAL_STATE_CHANGED`(이미 무시됨)
  * 감사 `HOTDEAL_SUSPICION_DISMISS`.
- *
- * ⚠ MOCK: 모든 메서드가 `./mock/hotdeal-mock.ts` 를 부른다.
  */
 const PATH = {
     root: '/api/admin/hotdeal-suspicions',
@@ -18,24 +15,19 @@ const PATH = {
 };
 
 export function useHotdealSuspicionApi() {
-    // REAL: const auth = useAdminAuthApi();
-    // REAL: const client = useApiClient({ refreshCsrf: () => auth.me() });
-    void PATH; // MOCK: 서버가 붙으면 이 줄을 지운다
+    const auth = useAdminAuthApi();
+    const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
         list: (status: DealSuspicionStatus, kind: DealSuspicionKindFilter, page: number, size: number): Promise<DealSuspicionPage> =>
-            // MOCK:
-            mockSuspicionList(status, kind, page, size),
-        // REAL: client.get<DealSuspicionPage>(PATH.root, { query: { status, kind: kind === 'ALL' ? undefined : kind, page, size } }),
+            client.get<DealSuspicionPage>(PATH.root, { query: { status, kind: kind === 'ALL' ? undefined : kind, page, size } }),
 
-        detail: (id: string): Promise<DealSuspicionDetail> =>
-            // MOCK:
-            mockSuspicionDetail(id),
-        // REAL: client.get<DealSuspicionDetail>(PATH.one(id)),
+        detail: (id: string): Promise<DealSuspicionDetail> => client.get<DealSuspicionDetail>(PATH.one(id)),
 
-        dismiss: (id: string, note: string): Promise<void> =>
-            // MOCK:
-            mockSuspicionDismiss(id, note || undefined),
-        // REAL: client.post<void>(PATH.dismiss(id), note ? { note } : {}),
+        /** 무시(204) — 메모가 비면 빈 본문 */
+        dismiss: (id: string, note: string): Promise<void> => {
+            const body: DealSuspicionDismissRequest = note ? { note } : {};
+            return client.post<void>(PATH.dismiss(id), body);
+        },
     };
 }

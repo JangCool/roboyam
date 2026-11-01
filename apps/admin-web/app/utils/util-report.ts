@@ -311,7 +311,7 @@ export default class UtilReport {
 
     /**
      * 처리 종류의 글 최대 — 소모임 비활성화는 모임장에게 사유로 가고 소모임 행에 남아 200자(서버 `GroupAdminService.REASON_MAX`),
-     * 핫딜 종료도 딜 종료 사유(0~200자, hotdeal-contract)로 작성자에게 가서 200자(목업 가정), 그 밖 500자
+     * 핫딜 종료도 딜 종료 사유(0~200자, hotdeal-contract)로 작성자에게 가서 200자, 그 밖 500자
      */
     static noteMax(kind: ReportActKind | null | undefined): number {
         return kind === 'DEACTIVATE' || kind === 'DEAL_END' ? UtilReport.GROUP_NOTE_MAX : UtilReport.NOTE_MAX;
@@ -335,11 +335,12 @@ export default class UtilReport {
     }
 
     /**
-     * 핫딜 글 사건인가 — 글 대상이고 서버가 `deal` 을 줬거나(계약 밖 — 서버에서 같이 고칠 것), 핫딜 사유 신고가 하나라도 있다(핫딜 사유는 핫딜 글에서만 받으니 핫딜 글이다).
+     * 핫딜 글 사건인가 — 글 대상이고 서버가 `deal` 을 줬다(`null` = 핫딜 글 아님 — 서버 판정이 정본).
+     * `deal` 칸이 없는(옛) 응답이면 핫딜 사유 신고가 하나라도 있는지로 본다(핫딜 사유는 핫딜 글에서만 받으니 핫딜 글이다).
      */
     static isDealCase(item: Pick<ReportCaseItem, 'targetType' | 'reasons'> & { deal?: ReportCaseItem['deal'] }): boolean {
         if (item.targetType !== 'POST') return false;
-        if (item.deal) return true;
+        if (item.deal !== undefined) return item.deal !== null;
         return (item.reasons ?? []).some((r) => r.count > 0 && UtilReport.isDealReason(r.code));
     }
 
@@ -373,7 +374,7 @@ export default class UtilReport {
      * 사건 하나에 누를 수 있는 처리 — 열린 사건 + `report.manage` 일 때만(서버도 `409 REPORT_CASE_CLOSED`·`REPORT_ACTION_INVALID` 로 막는다).
      * 글·댓글: 숨기기 = 공개 대상만 · 자동 숨김 확정 = 자동 숨김된 대상만 · 삭제 = 지우지 않은 대상 · 무시 = 늘.
      * 소모임: 비활성화 = 열린(`PUBLIC`) 소모임만 · 무시 = 늘(숨기기·삭제는 없다 — community 와 같다).
-     * 핫딜 글: 위 글 처리 + 핫딜 종료 = 지우지 않은 글이고 딜이 아직 종료가 아닐 때(목업 — 서버가 `deal` 을 주지 않으면 상태를 몰라 늘 보인다, 이미 종료면 서버가 409).
+     * 핫딜 글: 위 글 처리 + 핫딜 종료 = 지우지 않은 글이고 딜이 아직 종료가 아닐 때(`deal` 칸이 없는 옛 응답이면 상태를 몰라 늘 보인다, 이미 종료면 서버가 409).
      */
     static actionsOf(item: Pick<ReportCaseItem, 'status' | 'target' | 'targetType' | 'reasons' | 'deal'>, canManage: boolean): ReportActions {
         const actions = UtilReport.noActions();

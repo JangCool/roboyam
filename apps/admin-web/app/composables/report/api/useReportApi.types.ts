@@ -23,7 +23,7 @@ export type ReportTargetType = 'POST' | 'COMMENT' | 'GROUP';
 
 /**
  * 신고 사유 코드 — 글·댓글은 게시판 신고 정책(`BoardReportReason`)과 같은 6종, 소모임은 홍보·영업 · 오프라인 위험 · 종목 추천·유료 모집 · 기타(서버 `ReportReasons.GROUP_ALL`).
- * 핫딜 글에서만 보이는 두 사유 `DEAL_FALSE_PRICE`(가격·정보가 사실과 달라요) · `DEAL_HIDDEN_AD`(광고·홍보를 숨겼어요)가 더 있다(hotdeal-contract — 서버 `ReportReasons` 에 더해야 한다, 목업 가정).
+ * 핫딜 글에서만 보이는 두 사유 `DEAL_FALSE_PRICE`(가격·정보가 사실과 달라요) · `DEAL_HIDDEN_AD`(광고·홍보를 숨겼어요)가 더 있다(hotdeal-contract — 서버 `ReportReasons`, 일반 글·댓글이면 400 `fields.reason`).
  * 조치 사유 코드도 사건 대상의 체계를 따른다.
  */
 export type ReportReasonCode = 'SPAM_AD' | 'ABUSE' | 'OBSCENE' | 'ILLEGAL_FILMING' | 'RIGHTS' | 'PROMOTION' | 'OFFLINE_RISK' | 'STOCK_RECOMMENDATION' | 'DEAL_FALSE_PRICE' | 'DEAL_HIDDEN_AD' | 'OTHER';
@@ -42,7 +42,7 @@ export type ReportHiddenReason = 'REPORTED' | 'ILLEGAL' | 'RIGHTS' | 'STAFF';
 
 /**
  * 조치 — 숨김 · 삭제 · 자동 숨김 확정 · 소모임 비활성화(소모임 대상만) · 핫딜 종료(핫딜 글 대상만) · 무시.
- * `DEAL_END`(hotdeal-contract 「신고 사건 조치」): 그 글의 딜을 운영진 종료로 바꾸고(작성자 알림에 처리 글이 사유로 간다) 사건을 처리됨으로 닫는다. **서버에 아직 없다(목업 — `report/api/mock/report-deal-mock.ts`)**.
+ * `DEAL_END`(hotdeal-contract 「신고 사건 조치」): 그 글의 딜을 운영진 종료로 바꾸고(작성자 알림에 처리 글이 사유로 간다) 사건을 처리됨으로 닫는다(처리 글 1~200자, 글은 숨기지 않는다 — 핫딜 글이 아니면 `409 REPORT_ACTION_INVALID`).
  */
 export type ReportCaseAction = 'HIDE' | 'DELETE' | 'KEEP_HIDDEN' | 'DEACTIVATE' | 'DEAL_END' | 'DISMISS';
 
@@ -125,9 +125,9 @@ export interface ReportCaseItem {
     /** 허위 신고로 표시한 무시 — 계약 밖(가정) */
     falseReport?: boolean;
     /**
-     * 대상이 핫딜 글(DEAL 게시판 글)이면 그 딜의 지금 상태, 그 밖(일반 글·댓글·소모임)은 null·없음 — **계약 밖(목업 가정, 서버에서 같이 고칠 것)**.
+     * 대상이 핫딜 글(DEAL 게시판 글)이면 그 딜의 지금 상태, 그 밖(일반 글·댓글·소모임)은 null(서버·화면 공용 API 메모 1-9).
      * 있으면 조치 사유에 핫딜 사유 2개가 더해지고 [핫딜 종료](`DEAL_END`)를 누를 수 있다(이미 종료면 없음).
-     * 지금 서버는 이 칸을 주지 않는다 — 목업은 `?mock=report-deal` 이면 글 사건에 붙이고, 그 밖에는 핫딜 사유 신고가 있는 글 사건을 핫딜 글로 본다(`UtilReport.isDealCase`).
+     * 칸이 없는(옛) 응답이면 핫딜 사유 신고가 있는 글 사건을 핫딜 글로 본다(`UtilReport.isDealCase`).
      */
     deal?: { view: DealView } | null;
 }
