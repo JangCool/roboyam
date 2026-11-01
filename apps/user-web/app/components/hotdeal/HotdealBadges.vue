@@ -1,7 +1,7 @@
 <template>
     <!--
         딜 배지 — 목록 줄(제목 앞)·카드·갤러리·가젯·글 보기 딜 카드가 같이 쓴다. 차례(05 §2-2·§2-13):
-          제휴·수수료(첫 부분 표시) → 상태(종료 / 품절 / 기간 종료 / 품절 알림 N) → 재고 얼마 안 남음 → 마감 임박(「N시간 남음」·「내일 마감」, 48시간 안) → HOT(서버 `hot`)
+          제휴(첫 부분 표시 — 서버가 지금 방식으로 계산한 `affiliateKind`: `MEMBER` 「제휴·수수료」 · `SITE` 「제휴」 · null 없음, D5) → 상태(종료 / 품절 / 기간 종료 / 품절 알림 N) → 재고 얼마 안 남음 → 마감 임박(「N시간 남음」·「내일 마감」, 48시간 안) → HOT(서버 `hot`)
           → 링크 바뀜 · 가격 수정 N회(D3).
         끝난 딜은 상태 배지만(임박·HOT·재고 얼마 안 남음은 뺀다). 품절로 끝난 딜은 「종료」 대신 「품절」.
         글자 세로 맞춤은 components.md 2-4(알약 `inline-flex items-center justify-center leading-none` + 글자 `top:-0.09em`).
@@ -19,7 +19,7 @@ import UtilHotdeal from '~/utils/util-hotdeal';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
 
 interface Props {
-    deal: Pick<PostDeal, 'affiliate' | 'view' | 'endRequests' | 'stockState' | 'endsAt' | 'hot' | 'revision'>;
+    deal: Pick<PostDeal, 'affiliateKind' | 'view' | 'endRequests' | 'stockState' | 'endsAt' | 'hot' | 'revision'>;
     /** 의심 배지(「품절 알림 N」)를 보인다 — 글 보기 딜 카드는 위 안내 줄이 따로 말해서 끈다 */
     flagged?: boolean;
     /** 수정 이력 배지(링크 바뀜·가격 수정 N회)를 보인다 — 가젯은 좁아서 끈다 */
@@ -43,7 +43,8 @@ const TONE = {
 const items = computed(() => {
     const d = props.deal;
     const out: { key: string; label: string; tone: string }[] = [];
-    if (d.affiliate) out.push({ key: 'affiliate', label: t('hotdeal.badgeAffiliate'), tone: TONE.affiliate });
+    if (d.affiliateKind === 'MEMBER') out.push({ key: 'affiliate', label: t('hotdeal.badgeAffiliate'), tone: TONE.affiliate });
+    else if (d.affiliateKind === 'SITE') out.push({ key: 'affiliate-site', label: t('hotdeal.badgeAffiliateSite'), tone: TONE.affiliate });
     const over = UtilHotdeal.isOver(d.view);
     if (d.view === 'ENDED') out.push(d.stockState === 'SOLD_OUT' ? { key: 'sold-out', label: t('hotdeal.badgeSoldOut'), tone: TONE.over } : { key: 'ended', label: t('hotdeal.badgeEnded'), tone: TONE.over });
     else if (d.view === 'EXPIRED') out.push({ key: 'expired', label: t('hotdeal.badgeExpired'), tone: TONE.over });

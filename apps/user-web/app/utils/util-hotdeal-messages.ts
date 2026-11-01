@@ -261,6 +261,7 @@ export default class UtilHotdealMessages {
             TOO_LONG: t('hotdeal.urlTooLong', { max: UtilHotdeal.URL_MAX }),
             BLOCKED: t('hotdeal.urlBlocked'),
             SHORTENER: t('hotdeal.urlShortener'),
+            MEMBER_AFFILIATE_OFF: t('hotdeal.urlMemberAffiliateOff'),
         };
         const noteTooLong = t('hotdeal.noteTooLong', { max: UtilHotdeal.NOTE_MAX });
         const tooHigh = t('hotdeal.priceTooHigh', { max: UtilHotdeal.PRICE_MAX_WON.toLocaleString() });

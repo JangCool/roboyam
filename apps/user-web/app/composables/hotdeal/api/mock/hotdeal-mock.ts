@@ -21,6 +21,10 @@
 //   deal-same         링크 판정에 「진행 중인 같은 딜」 2건
 //   deal-daily-limit  등록 → 429 DEAL_DAILY_POST_LIMIT(하루 5건)    deal-store-interval  등록 → 429 DEAL_SAME_STORE_TOO_SOON(10분 간격, 7분 남음)
 //   deal-save-warning 고치기 저장 → 저장됨 + `warnings[DEAL_LINK_BLOCKED]`(차단 도메인 진행 중)
+//   ·· 제휴 링크 방식(D5 — 기본은 `MEMBER` 개인 제휴 허용)
+//   deal-site-affiliate  `SITE` 사이트 제휴 — 쓰기 「제휴 링크예요」 체크 숨김 · 개인 제휴 링크(AFFILIATE, 최종 호스트 포함 — 예 `link.coupang.com`·`coupa.ng`·`linkprice.com`)는
+//                        칸 오류 · 사이트 제휴 몰(쿠팡·11번가, 가짜 프로그램) 링크는 「구매 링크는 로보얌 제휴 링크로 바뀝니다」 · 카드·목록은 그 몰 글이 「제휴」(로보얌 제휴 문구), 그 밖 표시 없음
+//   deal-site-affiliate-nostore  `SITE` 인데 사이트 제휴 몰 표가 비었다 → 모든 글 제휴 표시 없음(개인 제휴 링크 칸 오류는 같다)
 //   ·· 보는 사람
 //   deal-sprout       새싹(글쓰기 GRADE_TOO_LOW·종료 요청 403 DEAL_END_REQUEST_NOT_ALLOWED)   deal-guest  비로그인   deal-unverified  이메일 미인증(글쓰기·종료 요청 막힘)
 //   ·· 모양
@@ -36,10 +40,14 @@
 //   · keep 최대 2번 · 작성자 되돌리기 종료 뒤 24시간 안 1번 · 추천 10 이상 HOT · 마감 없는 딜 30일 뒤 기간 종료 · 금액 상한 1억 · 할인율 90% 이상이면 가격 기준 필수.
 //   · 재고 「품절」로 저장 = 작성자 종료. 고치기 저장 때 링크를 바꾸지 않았는데 지금 규칙이 차단이면 저장 + 경고(링크를 차단 도메인으로 바꾸면 칸 오류).
 //   · 딜 칸 수정 이력: 딜가·정상가·배송비가 바뀌면 「가격 수정」 +1, 호스트가 바뀌면 「링크 바뀜」.
+//   · 제휴 링크 방식(D5): `affiliateKind` 는 읽을 때 지금 방식으로 계산 — `MEMBER` 면 `affiliate` 글 = MEMBER, `SITE` 면 사이트 제휴 몰(최종 호스트 우선, 접미사 일치) 글 = SITE, 그 밖 null
+//     (기존 개인 제휴 글도 글은 남고 표시만 바뀐다 — 계약 「제휴 방식 전환 때 기존 글」). 저장된 `productUrl`·`affiliate` 는 바꾸지 않는다.
+//     `buyUrl` 은 늘 `/go/deal/{postId}`(서버 302 — 목업에는 그 주소를 받는 곳이 없어 눌러도 열리지 않는다). 고치기에서 링크를 그대로 두면 `SITE` 여도 칸 오류 없음(차단과 같은 규칙).
 
 import { ApiError } from '~/composables/common/useApiClient';
 import { MOCK_ERRORS, mockClone, mockDelay, mockFlags } from '~/composables/common/mock/mock-util';
 import type {
+    AffiliateMode,
     DealEndReason,
     DealEndRequests,
     DealImageUpload,
@@ -114,9 +122,31 @@ const STORE_NAMES: ReadonlyArray<[string, string]> = [
     ['mechasolution.com', '메카솔루션'],
     ['yes24.com', '예스24'],
 ];
+/** 목업 사이트 제휴 몰 표(D5 `SiteAffiliateStore` — 가짜 프로그램 이름, 켠 것만). `deal-site-affiliate-nostore` 면 비운다 */
+const SITE_STORES: ReadonlyArray<{ domain: string; programName: string }> = [
+    { domain: 'coupang.com', programName: '쿠팡 파트너스(목업)' },
+    { domain: '11st.co.kr', programName: '11번가 제휴(목업)' },
+];
 
-/** 저장하는 딜 — 읽을 때 `view`·할인율·같은 딜 수·자동 종료·기간 종료·되돌리기 기한·HOT 를 계산한다 */
-interface StoredDeal extends Omit<PostDeal, 'view' | 'discountRate' | 'sameDealCount' | 'autoEndAt' | 'endRequests' | 'autoExpireAt' | 'reopenUntil' | 'keepMax' | 'hot'> {
+/** 지금 제휴 링크 방식(D5) — 스위치로만 `SITE` */
+export function mockDealAffiliateMode(): AffiliateMode {
+    const flags = mockFlags();
+    return flags.has('deal-site-affiliate') || flags.has('deal-site-affiliate-nostore') ? 'SITE' : 'MEMBER';
+}
+
+/** 사이트 제휴 몰(접미사 일치, 최종 호스트 우선) — `SITE` 가 아니거나 표에 없으면 null */
+function siteStoreOf(host: string, finalHost: string | null): { domain: string; programName: string } | null {
+    if (mockDealAffiliateMode() !== 'SITE' || mockFlags().has('deal-site-affiliate-nostore')) return null;
+    for (const h of [finalHost, host]) {
+        const hit = h ? suffixMatch(h, SITE_STORES, (s) => s.domain) : null;
+        if (hit) return hit;
+    }
+    return null;
+}
+
+/** 저장하는 딜 — 읽을 때 `view`·할인율·같은 딜 수·자동 종료·기간 종료·되돌리기 기한·HOT·제휴 표시 종류(지금 방식)·구매 주소를 계산한다 */
+interface StoredDeal
+    extends Omit<PostDeal, 'view' | 'discountRate' | 'sameDealCount' | 'autoEndAt' | 'endRequests' | 'autoExpireAt' | 'reopenUntil' | 'keepMax' | 'hot' | 'buyUrl' | 'affiliateKind' | 'siteProgramName'> {
     endRequests: Omit<DealEndRequests, 'mine'>;
     /** 내가 보낸 사유 */
     mine: DealEndReason | null;
@@ -697,8 +727,15 @@ export function mockDealView(p: MockDealPost, now: number = Date.now()): PostDea
     const discountRate = d.normalPrice !== null && d.normalPrice > d.dealPrice && d.normalPrice > 0 ? Math.floor(((d.normalPrice - d.dealPrice) / d.normalPrice) * 100) || null : null;
     const autoExpire = autoExpireOf(p);
     const { mine, endRequests, reopenUsed: _used, ...rest } = d;
+    // 제휴 표시 종류는 지금 방식으로 계산(D5) — SITE 면 사이트 제휴 몰 글만, 기존 개인 제휴 글은 몰이 아니면 표시 없음
+    const site = siteStoreOf(d.productHost, d.finalHost);
+    const affiliateKind = mockDealAffiliateMode() === 'SITE' ? (site ? 'SITE' : null) : d.affiliate ? 'MEMBER' : null;
     return mockClone({
         ...rest,
+        // MOCK: 서버 경유 구매 주소(`GET /go/deal/{postId}` 302) — 목업에는 받는 곳이 없다
+        buyUrl: `/go/deal/${encodeURIComponent(p.id)}`,
+        affiliateKind,
+        siteProgramName: affiliateKind === 'SITE' ? (site?.programName ?? null) : null,
         discountRate,
         view,
         autoExpireAt: autoExpire !== null ? new Date(autoExpire).toISOString() : null,
@@ -746,8 +783,9 @@ function storedOf(input: DealInput, before: StoredDeal | null): StoredDeal {
         priceBasis: input.priceBasis,
         endsAt: input.endsAt,
         stockState: input.stockState,
-        // 제휴 도메인(체인 포함)이면 서버가 켠다
-        affiliate: rule === 'AFFILIATE' ? true : input.affiliate,
+        // 제휴 도메인(체인 포함)이면 서버가 켠다. 사이트 제휴 방식(D5)이면 개인 제휴 표시를 받지 않는다(고치기에서 링크를 그대로 두면 지금 값 유지)
+        affiliate:
+            mockDealAffiliateMode() === 'SITE' ? (before && before.productUrl === input.productUrl ? before.affiliate : false) : rule === 'AFFILIATE' ? true : input.affiliate,
         image: input.image,
     });
     if (before) {
@@ -780,8 +818,11 @@ export function mockDealFieldErrors(input: DealInput | null | undefined, before:
     if (!/^https?:\/\//i.test(url) || !host) out['deal.productUrl'] = '상품 링크를 http(s) 주소로 적어 주세요.';
     else if (url.length > 1000) out['deal.productUrl'] = '상품 링크는 1000자까지예요.';
     else if (!before || before.productUrl !== url) {
-        const j = mockFlags().has('deal-blocked') ? { rule: 'BLOCK' as const, shortener: false } : judge(host, finalHostOf(host));
+        const flags = mockFlags();
+        const j = flags.has('deal-blocked') ? { rule: 'BLOCK' as const, shortener: false } : flags.has('deal-affiliate') ? { rule: 'AFFILIATE' as const, shortener: false } : judge(host, finalHostOf(host));
         if (j.rule === 'BLOCK') out['deal.productUrl'] = j.shortener ? '단축 주소는 원래 주소로 바꿔 주세요.' : '이 쇼핑몰 링크는 올릴 수 없어요.';
+        // 사이트 제휴 방식(D5)이면 개인 제휴 링크(최종 호스트 포함)는 받지 않는다 — 서버 코드 `DEAL_MEMBER_AFFILIATE_OFF`(목업은 다른 칸 오류와 함께 `400 VALIDATION`)
+        else if (j.rule === 'AFFILIATE' && mockDealAffiliateMode() === 'SITE') out['deal.productUrl'] = '지금은 개인 제휴 링크를 받지 않아요 — 일반 상품 링크를 넣어 주세요.';
     }
     const store = input.storeName.trim();
     if (!store || store.length > 40) out['deal.storeName'] = '쇼핑몰 이름을 1~40자로 적어 주세요.';
@@ -910,7 +951,10 @@ export async function mockLinkCheck(url: string): Promise<DealLinkCheck> {
             .slice(0, 2)
             .map(sameRefOf);
     }
-    return mockClone({ host, finalHost, rule, common: j.common, shortener, storeName, og, sameDeals });
+    // 제휴 링크 방식(D5) — 사이트 제휴 몰이면 그 프로그램(차단 링크는 null)
+    const affiliateMode = mockDealAffiliateMode();
+    const site = rule === 'BLOCK' ? null : siteStoreOf(host, finalHost);
+    return mockClone({ host, finalHost, rule, common: j.common, shortener, storeName, og, sameDeals, affiliateMode, siteAffiliate: site ? { programName: site.programName } : null });
 }
 
 /** 끝난 딜에서 새 딜 올리기 — 링크·몰·이미지·제목(가격·마감은 비운다) */

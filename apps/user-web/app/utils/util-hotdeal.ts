@@ -1,11 +1,11 @@
 import type { LocationQuery } from 'vue-router';
-import type { BoardView } from '~/composables/board/api/useBoardApi.types';
+import type { BoardDetail, BoardView } from '~/composables/board/api/useBoardApi.types';
 import type { DealPostListQuery } from '~/composables/board/api/usePostApi.types';
-import type { DealEndReason, DealInput, DealLinkCheck, DealPrefill, DealPriceBasis, DealSort, DealStock, DealView, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { AffiliateMode, DealEndReason, DealInput, DealLinkCheck, DealPrefill, DealPriceBasis, DealSort, DealStock, DealView, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
 import type { DealFormValues, DealShippingMode } from '~/components/hotdeal/HotdealDealFields.types';
 
-/** 상품 링크 문제 — 비었음 · http(s) 주소가 아님 · 1000자 넘음 · 차단한 쇼핑몰 · 단축 주소 */
-export type DealUrlProblem = 'REQUIRED' | 'FORMAT' | 'TOO_LONG' | 'BLOCKED' | 'SHORTENER';
+/** 상품 링크 문제 — 비었음 · http(s) 주소가 아님 · 1000자 넘음 · 차단한 쇼핑몰 · 단축 주소 · 사이트 제휴 방식인데 개인 제휴 링크(D5 — 서버 코드 `DEAL_MEMBER_AFFILIATE_OFF`) */
+export type DealUrlProblem = 'REQUIRED' | 'FORMAT' | 'TOO_LONG' | 'BLOCKED' | 'SHORTENER' | 'MEMBER_AFFILIATE_OFF';
 /** 딜 칸별 문제(화면 검사 — 판정은 서버. 서버 `PostDealRules`(후보)와 같은 규칙) */
 export interface DealProblems {
     productUrl: DealUrlProblem | null;
@@ -248,8 +248,30 @@ export default class UtilHotdeal {
         const name = check.storeName ?? check.og.storeName;
         if (!form.storeNameTouched && name) next.storeName = name.slice(0, UtilHotdeal.STORE_NAME_MAX);
         if (!form.imageTouched) next.image = check.og.status === 'OK' && check.og.imageUrl ? { url: check.og.imageUrl, source: 'OG' } : null;
-        if (check.rule === 'AFFILIATE') next.affiliate = true;
+        // 사이트 제휴 방식(D5)이면 개인 제휴 표시를 받지 않는다(체크를 숨긴다) — 끈다
+        if (check.affiliateMode === 'SITE') next.affiliate = false;
+        else if (check.rule === 'AFFILIATE') next.affiliate = true;
         return next;
+    }
+
+    /**
+     * 지금 제휴 링크 방식(D5) — 판정 응답의 값이 먼저(더 새것), 없으면 게시판 응답, 둘 다 없으면 `MEMBER`(기본)
+     * @param {Pick<BoardDetail, 'dealAffiliateMode'> | null | undefined} board - 게시판.
+     * @param {Pick<DealLinkCheck, 'affiliateMode'> | null | undefined} check - 지금 링크의 판정 결과.
+     * @returns {AffiliateMode} 방식.
+     */
+    static affiliateModeOf(board: Pick<BoardDetail, 'dealAffiliateMode'> | null | undefined, check: Pick<DealLinkCheck, 'affiliateMode'> | null | undefined): AffiliateMode {
+        return check?.affiliateMode ?? board?.dealAffiliateMode ?? 'MEMBER';
+    }
+
+    /**
+     * 사이트 제휴 방식인데 개인 제휴 링크인가(D5 — 등록 불가). 판정이 지금 링크의 것일 때만
+     * @param {DealLinkCheck | null} check - 판정 결과.
+     * @param {string} url - 지금 링크 칸.
+     * @returns {boolean} 막을 링크면 true.
+     */
+    static memberAffiliateOff(check: DealLinkCheck | null, url: string): boolean {
+        return Boolean(check && check.affiliateMode === 'SITE' && check.rule === 'AFFILIATE' && check.host === UtilHotdeal.hostOf(url));
     }
 
     /**
@@ -283,6 +305,7 @@ export default class UtilHotdeal {
         const out: DealProblems = { ...NO_PROBLEMS };
         out.productUrl = UtilHotdeal.urlFormatProblem(form.productUrl);
         if (!out.productUrl && check && check.host === UtilHotdeal.hostOf(form.productUrl) && check.rule === 'BLOCK') out.productUrl = check.shortener ? 'SHORTENER' : 'BLOCKED';
+        else if (!out.productUrl && UtilHotdeal.memberAffiliateOff(check, form.productUrl)) out.productUrl = 'MEMBER_AFFILIATE_OFF';
 
         const store = form.storeName.trim();
         out.storeName = !store ? 'REQUIRED' : store.length > UtilHotdeal.STORE_NAME_MAX ? 'TOO_LONG' : null;
@@ -379,6 +402,15 @@ export default class UtilHotdeal {
      */
     static hasDealFields(fields: Record<string, string>): boolean {
         return Object.keys(fields).some((k) => k === 'deal' || k.startsWith('deal.'));
+    }
+
+    /**
+     * 칸 오류(`fields`)로 붙일 오류 코드인가 — `400 VALIDATION`, 그리고 사이트 제휴 방식의 개인 제휴 링크(`DEAL_MEMBER_AFFILIATE_OFF` — 서버가 단독 코드 + `fields."deal.productUrl"` 로 줄 수도 있어 같이 받는다, 가정)
+     * @param {string} code - 오류 코드.
+     * @returns {boolean} 칸 오류로 붙이면 true.
+     */
+    static isFieldErrorCode(code: string): boolean {
+        return code === 'VALIDATION' || code === 'DEAL_MEMBER_AFFILIATE_OFF';
     }
 
     /**

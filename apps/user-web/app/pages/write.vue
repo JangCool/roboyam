@@ -80,6 +80,7 @@
                         :actions="dealActions"
                         :legend="formStep === 0"
                         :disabled="submitting"
+                        :affiliate-mode="board?.dealAffiliateMode ?? 'MEMBER'"
                         @use-title="onUseTitle"
                     />
                 </template>
@@ -365,7 +366,7 @@ async function submit(): Promise<void> {
         // 하루 핫딜 글 한도 · 같은 쇼핑몰 간격(429) — 폼 아래 안내(쓰던 내용은 그대로)
         else if (dealLimit) formError.value = UtilHotdealMessages.dealError(t, e) ?? UtilBoardMessages.of(t, e);
         else if (e instanceof ApiError && e.code === 'IMAGE_UPLOAD_NOT_ALLOWED') fieldErrors.value = { content: e.message }; // 이미지를 막은 게시판 — 본문 칸 아래에 서버 문구
-        else if (e instanceof ApiError && e.code === 'VALIDATION' && e.fields && Object.keys(e.fields).length) {
+        else if (e instanceof ApiError && UtilHotdeal.isFieldErrorCode(e.code) && e.fields && Object.keys(e.fields).length) {
             fieldErrors.value = { ...e.fields };
             // 딜 칸 오류만 있으면 단계 입력은 딜 정보 단계로
             if (UtilHotdeal.hasDealFields(e.fields) && !('title' in e.fields) && !('content' in e.fields)) step.value = 1;

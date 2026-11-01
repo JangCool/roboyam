@@ -1,11 +1,11 @@
 <template>
     <!--
         글 보기 딜 카드(본문 위) — 차례:
-          제휴 링크면 첫 줄 고정 문구(05 §2-13 — 조건부 표현 없이 단정형, 첫 부분 표시)
+          제휴 링크면 첫 줄 고정 문구(05 §2-13 — 조건부 표현 없이 단정형, 첫 부분 표시. D5 — 서버가 지금 방식으로 계산한 `affiliateKind`: `MEMBER` 작성자 개인 제휴 · `SITE` 로보얌 제휴 · null 없음)
           → 상태 안내(내 글 의심: 「N명이 알렸어요 · {시각}에 자동 종료」 + [아직 진행 중이에요](확인창 「가격·재고를 고쳐 주세요」, `keepCount < keepMax` 일 때만 — 다 쓰면 「운영자 확인 중」)
             / 남의 글 의심: 「품절 알림이 들어온 딜이에요」 / 끝난 딜: 까닭·시각 + 내 글이고 `reopenUntil` 이 있으면 [다시 진행 중으로] + 남은 시간(D2), 기한 지남·이미 씀이면 안내만)
           → 이미지 · 배지 줄(제휴·수수료·HOT·임박·링크 바뀜·가격 수정 N회) → 가격 줄 → 쇼핑몰(→ 최종 호스트)·배송·재고·기간(마감 없으면 기간 종료 시각)·가격 기준(선택지·관부가세·메모)·쿠폰·딜 정보 수정(D3)
-          → [구매하기](외부 새 탭, `rel="nofollow sponsored noopener"`) · 끝난 딜이면 [이 상품 새 딜 올리기](`/write?board=&from=`) · 작성자 [딜 종료](확인창)
+          → [구매하기](서버 경유 `buyUrl` = `/go/deal/{postId}` — 서버가 제휴 방식대로 바꿔 302, 외부 새 탭, `rel="nofollow sponsored noopener"`) · 끝난 딜이면 [이 상품 새 딜 올리기](`/write?board=&from=`) · 작성자 [딜 종료](확인창)
           → 「품절·가격 변경을 알려 주세요」(작성자에게는 없음, 비로그인은 로그인 안내, 이미 보냈으면 「보낸 사유: …」) → 사유 대화창 → 토스트
           → 「같은 딜 N건」 묶음(줄마다 「이 글보다 N원 저렴/비쌈」) → 아래 고지 「로보얌은 판매자가 아니에요…」.
         끝난 딜(종료·기간 지남)은 카드 몸통을 흐리게 하고 알리기·종료를 감춘다(구매하기는 남긴다 — 링크 확인용, 가정).
@@ -13,8 +13,8 @@
     -->
     <section class="my-3 flex flex-col gap-3 rounded-xl border border-surface p-3.5" :aria-label="t('hotdeal.cardLabel')" :aria-busy="busy" data-testid="hotdeal-card" :data-deal-view="deal.view">
         <!-- 제휴 고지 — 카드 첫 줄 고정 -->
-        <p v-if="deal.affiliate" class="m-0 flex items-start gap-1.5 rounded-lg bg-sky-50 px-3 py-2 text-sm font-medium text-sky-900 dark:bg-sky-950/60 dark:text-sky-100" data-testid="hotdeal-card-affiliate">
-            <i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" />{{ t('hotdeal.affiliateNote') }}
+        <p v-if="deal.affiliateKind" class="m-0 flex items-start gap-1.5 rounded-lg bg-sky-50 px-3 py-2 text-sm font-medium text-sky-900 dark:bg-sky-950/60 dark:text-sky-100" data-testid="hotdeal-card-affiliate" :data-affiliate-kind="deal.affiliateKind">
+            <i class="pi pi-info-circle mt-0.5 text-xs" aria-hidden="true" />{{ deal.affiliateKind === 'SITE' ? t('hotdeal.affiliateNoteSite') : t('hotdeal.affiliateNote') }}
         </p>
 
         <!-- 상태 안내 -->
@@ -90,7 +90,7 @@
         <div class="flex flex-wrap items-center gap-2">
             <Button
                 as="a"
-                :href="deal.productUrl"
+                :href="deal.buyUrl"
                 target="_blank"
                 rel="nofollow sponsored noopener"
                 :label="t('hotdeal.buy')"

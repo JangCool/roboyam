@@ -90,6 +90,7 @@
                     :readonly="dealMode === 'readonly'"
                     :expired="post.deal?.view === 'EXPIRED'"
                     :exclude-post-id="post.id"
+                    :affiliate-mode="board?.dealAffiliateMode ?? 'MEMBER'"
                     @use-title="onUseTitle"
                 />
             </template>
@@ -382,7 +383,7 @@ async function submit(): Promise<void> {
         await router.replace(`/posts/${p.id}`);
     } catch (e) {
         if (e instanceof ApiError && e.code === 'IMAGE_UPLOAD_NOT_ALLOWED') fieldErrors.value = { content: e.message }; // 이미지를 막은 게시판 — 본문 칸 아래에 서버 문구
-        else if (e instanceof ApiError && e.code === 'VALIDATION' && e.fields && Object.keys(e.fields).length) {
+        else if (e instanceof ApiError && UtilHotdeal.isFieldErrorCode(e.code) && e.fields && Object.keys(e.fields).length) {
             fieldErrors.value = { ...e.fields };
             if (UtilHotdeal.hasDealFields(e.fields) && !('title' in e.fields) && !('content' in e.fields)) step.value = 1;
         }

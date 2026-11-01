@@ -23,6 +23,15 @@ export type DomainRule = 'BLOCK' | 'AFFILIATE';
 export type DealSource = 'MEMBER';
 /** 상품 이미지의 출처 — 링크 OG 자동 · 글쓴이가 올림 */
 export type DealImageSource = 'OG' | 'UPLOAD';
+/**
+ * 제휴 링크 방식(D5 — 핫딜 설정 `affiliateMode`) — `MEMBER` 개인 제휴 허용(기본, 초기 운영) · `SITE` 사이트 제휴(개인 제휴 링크를 받지 않고, 구매 링크를 「사이트 제휴 몰」 표로 바꾼다)
+ */
+export type AffiliateMode = 'MEMBER' | 'SITE';
+/**
+ * 글의 제휴 표시 종류 — **지금 방식으로 서버가 계산**한다(저장값이 아니다). `MEMBER` 작성자 개인 제휴(「제휴·수수료」) · `SITE` 로보얌 사이트 제휴(「제휴」).
+ * `SITE` 모드면 사이트 제휴 몰 글 = `SITE`, 그 밖(기존 개인 제휴 글 포함) = null. `MEMBER` 모드면 `affiliate` 글 = `MEMBER`
+ */
+export type DealAffiliateKind = 'MEMBER' | 'SITE';
 
 /** 목록 정렬(게시판 목록·가젯 `HOT_DEALS` 공통) — 최신 · 인기(추천) · 마감 임박 */
 export type DealSort = 'LATEST' | 'POPULAR' | 'ENDING_SOON';
@@ -106,6 +115,14 @@ export interface PostDeal {
     hot: boolean;
     /** 진행 중인 같은 딜(같은 `product_url_key`) 글 수 — 이 글 제외 */
     sameDealCount: number;
+    /**
+     * 구매하기 주소 — 늘 서버 경유 `/go/deal/{postId}`(D5 — 서버가 클릭 시점의 `affiliateMode`·사이트 제휴 몰로 바꿔 302). 화면은 이 주소를 그대로 링크에 쓴다(`productUrl` 로 직접 보내지 않는다)
+     */
+    buyUrl: string;
+    /** 제휴 표시 종류(지금 방식으로 서버가 계산) — 배지·카드 첫 줄이 이것으로 가른다. null 이면 표시 없음 */
+    affiliateKind: DealAffiliateKind | null;
+    /** `affiliateKind === 'SITE'` 일 때 사이트 제휴 프로그램 이름(그 밖 null) */
+    siteProgramName: string | null;
 }
 
 /** 글쓰기·고치기 본문의 `deal` — 할인율·호스트·상태는 서버가 정한다 */
@@ -157,6 +174,13 @@ export interface DealLinkCheck {
     /** `imageUrl` 은 우리 서버 사본(D1) */
     og: { status: DealOgStatus; imageUrl: string | null; title: string | null; storeName: string | null };
     sameDeals: DealSameRef[];
+    /**
+     * 지금 제휴 링크 방식(D5) — 계약 「공개 설정 전달」 후보 둘 다 싣는다(가정): 쓰기 화면은 게시판 응답 `BoardDetail.dealAffiliateMode` 로 먼저 알고, 판정이 오면 이 값이 우선한다.
+     * `SITE` 이고 `rule === 'AFFILIATE'`(개인 제휴 — 제휴 네트워크 단축·추적 링크, 최종 호스트 포함)면 등록 불가(칸 오류 `fields."deal.productUrl"`, 코드 `DEAL_MEMBER_AFFILIATE_OFF`)
+     */
+    affiliateMode: AffiliateMode;
+    /** `SITE` 이고 이 링크(최종 호스트 우선)가 켜진 사이트 제휴 몰이면 그 프로그램 — 쓰기 화면이 「구매 링크는 로보얌 제휴 링크로 바뀝니다」를 보인다(가정 — 계약에 없던 칸). 그 밖 null */
+    siteAffiliate: { programName: string } | null;
 }
 
 /** `POST /api/posts/{id}/deal/end-requests` 본문 */

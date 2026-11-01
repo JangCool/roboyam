@@ -21,6 +21,7 @@ import type {
 import {
     MOCK_DEAL_PREFIXES,
     isMockDealPostId,
+    mockDealAffiliateMode,
     mockDealDeleteRow,
     mockDealFailIfAsked,
     mockDealFieldErrors,
@@ -132,6 +133,8 @@ export async function mockDealBoard(viewer: MockDealViewer): Promise<BoardDetail
         introText: null,
         writeGuideText: '상품 링크를 먼저 붙여 주세요. 쇼핑몰 이름·이미지를 자동으로 채워요. 가격은 글을 쓰는 지금 기준으로 적어 주세요.',
         reportEnabled: true,
+        // 제휴 링크 방식(D5 — `?mock=deal-site-affiliate` 면 SITE)
+        dealAffiliateMode: mockDealAffiliateMode(),
         debateEnabled: false,
         pollEnabled: false,
         policy: {

@@ -6,6 +6,8 @@
           → 가격 기준(선택지 + 메모, 해외 직구면 「관부가세 포함」 — 0원 딜·할인율 경고면 필수) → 쿠폰.
         그리기만 하고 판정(`check` — `useDealLinkCheck`)·검사 문구(`errors`)·저장은 부르는 화면이 한다. 이미지 올리기·다시 시도는 `actions`.
         `readonly`(종료된 딜 고치기)면 모든 칸을 막고 안내만. `expired`(기간 지남)면 「마감을 고쳐 주세요」 안내.
+        제휴 링크 방식(D5 — `affiliateMode` prop, 판정 결과의 값이 우선): `SITE` 면 「제휴 링크예요」 체크를 숨기고, 개인 제휴 링크(AFFILIATE — 최종 호스트 포함)는 칸 오류(등록 불가),
+          사이트 제휴 몰이면 판정 줄에 단정형 「구매 링크는 로보얌 제휴 링크로 바뀝니다」. `MEMBER` 면 그대로.
     -->
     <fieldset class="m-0 flex min-w-0 flex-col gap-4 rounded-lg border border-surface p-3.5" :aria-busy="check.status === 'checking'" data-testid="hotdeal-fields">
         <legend v-if="legend" class="px-1 text-sm font-semibold">{{ t('hotdeal.legend') }}</legend>
@@ -24,7 +26,7 @@
                 autocomplete="off"
                 :maxlength="UtilHotdeal.URL_MAX + 50"
                 :placeholder="t('hotdeal.urlPlaceholder')"
-                :invalid="Boolean(errors.productUrl)"
+                :invalid="Boolean(errors.productUrl) || memberAffiliateOff"
                 :disabled="locked"
                 :aria-describedby="`${uid}-url-msg`"
                 fluid
@@ -34,6 +36,8 @@
             />
             <div :id="`${uid}-url-msg`" aria-live="polite" class="flex flex-col gap-1 text-xs leading-relaxed">
                 <p v-if="errors.productUrl" role="alert" class="m-0 text-red-600 dark:text-red-400" data-testid="hotdeal-url-error">{{ errors.productUrl }}</p>
+                <!-- 사이트 제휴 방식(D5)인데 개인 제휴 링크 — 등록 전에도 바로 알린다(등록하면 같은 문구가 칸 오류로) -->
+                <p v-else-if="memberAffiliateOff" role="alert" class="m-0 text-red-600 dark:text-red-400" data-testid="hotdeal-url-member-affiliate-off">{{ t('hotdeal.urlMemberAffiliateOff') }}</p>
                 <p v-if="check.status === 'checking'" class="m-0 flex items-center gap-1.5 text-muted-color"><i class="pi pi-spin pi-spinner text-[0.6875rem]" aria-hidden="true" />{{ t('hotdeal.checking') }}</p>
                 <p v-else-if="check.status === 'error'" class="m-0 flex flex-wrap items-center gap-1.5 text-muted-color" data-testid="hotdeal-check-error">
                     <i class="pi pi-exclamation-circle text-[0.6875rem]" aria-hidden="true" />{{ t('hotdeal.checkFailed') }}
@@ -45,8 +49,12 @@
                         <i class="pi pi-arrow-right text-[0.625rem]" aria-hidden="true" />{{ t('hotdeal.finalHost', { host: result.finalHost }) }}
                     </span>
                     <Tag v-if="result.common" :value="t('hotdeal.commonMall')" severity="info" class="text-[0.6875rem]" />
-                    <span v-if="result.rule === 'AFFILIATE'" class="inline-flex items-center gap-1 font-medium text-sky-700 dark:text-sky-300" data-testid="hotdeal-affiliate-auto">
+                    <span v-if="affiliateLocked" class="inline-flex items-center gap-1 font-medium text-sky-700 dark:text-sky-300" data-testid="hotdeal-affiliate-auto">
                         <i class="pi pi-info-circle text-[0.6875rem]" aria-hidden="true" />{{ t('hotdeal.affiliateAuto') }}
+                    </span>
+                    <!-- 사이트 제휴 몰(D5) — 단정형 안내만(조건부 표현 없음) -->
+                    <span v-else-if="siteMode && result.siteAffiliate && !memberAffiliateOff" class="inline-flex items-center gap-1 font-medium text-sky-700 dark:text-sky-300" data-testid="hotdeal-site-affiliate">
+                        <i class="pi pi-info-circle text-[0.6875rem]" aria-hidden="true" />{{ t('hotdeal.siteAffiliateConvert') }}
                     </span>
                 </p>
                 <p v-else-if="!errors.productUrl" class="m-0 text-muted-color">{{ t('hotdeal.urlHelp') }}</p>
@@ -264,8 +272,8 @@
             <p v-if="modelValue.stockState === 'SOLD_OUT' && !locked" class="m-0 text-xs text-amber-700 dark:text-amber-300" data-testid="hotdeal-stock-soldout">{{ t('hotdeal.stockSoldOutNote') }}</p>
         </div>
 
-        <!-- 8 제휴(제휴 도메인이면 켜고 잠금) -->
-        <div class="flex flex-col gap-1">
+        <!-- 8 제휴(제휴 도메인이면 켜고 잠금) — 사이트 제휴 방식(D5 `SITE`)이면 개인 제휴를 받지 않아 칸을 숨긴다 -->
+        <div v-if="!siteMode" class="flex flex-col gap-1" data-testid="hotdeal-affiliate-field">
             <label class="inline-flex cursor-pointer items-center gap-2 text-sm" :class="affiliateLocked ? 'cursor-default' : ''">
                 <Checkbox
                     :model-value="modelValue.affiliate || affiliateLocked"
@@ -349,7 +357,7 @@
 
 <script setup lang="ts">
 import type { DealFieldActions, DealFieldErrors, DealFormValues, DealLinkCheckState, DealShippingMode } from '~/components/hotdeal/HotdealDealFields.types';
-import type { DealPriceBasis, DealStock } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { AffiliateMode, DealPriceBasis, DealStock } from '~/composables/hotdeal/api/useHotdealApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilHotdeal from '~/utils/util-hotdeal';
@@ -369,9 +377,11 @@ interface Props {
     expired?: boolean;
     /** 고치기 — 같은 딜 안내에서 이 글을 뺀다 */
     excludePostId?: string;
+    /** 게시판 응답의 제휴 링크 방식(D5 `BoardDetail.dealAffiliateMode`) — 판정 결과의 `affiliateMode` 가 오면 그 값이 우선 */
+    affiliateMode?: AffiliateMode;
 }
 
-const props = withDefaults(defineProps<Props>(), { legend: true, disabled: false, readonly: false, expired: false, excludePostId: '' });
+const props = withDefaults(defineProps<Props>(), { legend: true, disabled: false, readonly: false, expired: false, excludePostId: '', affiliateMode: 'MEMBER' });
 const emit = defineEmits<{
     'update:modelValue': [value: DealFormValues];
     /** 「제목으로 쓰기」 — 링크의 상품 이름을 글 제목으로 */
@@ -392,7 +402,11 @@ const wonSuffix = computed(() => t('hotdeal.wonSuffix'));
 const result = computed(() => (props.check.status === 'done' ? props.check.result : null));
 const ogStatus = computed(() => result.value?.og.status ?? null);
 const ogTitle = computed(() => (result.value && result.value.rule !== 'BLOCK' ? (result.value.og.title ?? '') : ''));
-const affiliateLocked = computed(() => result.value?.rule === 'AFFILIATE');
+/** 사이트 제휴 방식(D5) — 「제휴 링크예요」 체크를 숨기고 개인 제휴 링크를 막는다 */
+const siteMode = computed(() => UtilHotdeal.affiliateModeOf({ dealAffiliateMode: props.affiliateMode }, result.value) === 'SITE');
+/** 사이트 제휴 방식인데 개인 제휴 링크(등록 불가) */
+const memberAffiliateOff = computed(() => UtilHotdeal.memberAffiliateOff(result.value, props.modelValue.productUrl));
+const affiliateLocked = computed(() => !siteMode.value && result.value?.rule === 'AFFILIATE');
 const sameDeals = computed(() => (result.value?.sameDeals ?? []).filter((s) => s.postId !== props.excludePostId));
 const sameOpen = ref(false);
 const discount = computed(() => UtilHotdeal.discountRate(props.modelValue.normalPrice, props.modelValue.dealPrice));
