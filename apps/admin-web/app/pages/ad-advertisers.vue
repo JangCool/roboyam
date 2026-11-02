@@ -1,6 +1,6 @@
 <template>
     <!--
-        광고 › 광고주 관리(`/ad-advertisers`) — ad-contract 「후속」의 광고주 관리 화면. ⚠ 목업(`useAdAdvertiserApi` — 스위치 `?mock=adv-*`).
+        광고 › 광고주 관리(`/ad-advertisers`) — 계약 `docs/features/ad-advertiser-contract.md`. 서버 호출은 `useAdAdvertiserApi`.
         · 광고주 = 직접 등록(운영자가 만든 계정 없는 광고주) + 사업자(사업자 신원 1:1 — 광고주 줄이 없어도 광고 건·광고 서비스가 있으면 나온다).
         · 거르기: 종류 탭(전체·사업자·직접 등록, 건수) · 상태(사용 중·보관·전체) · 찾기(이름·등록번호 끝자리). 정렬: 최근 광고일(기본)·누적 결제·이름.
         · 한 줄: 이름 + 종류 · 가린 연락처 · 진행/예약/대기 건 수 · 누적 결제 · 최근 광고일 · 상태(직접 등록 = 사용 중/보관, 사업자 = 신원·광고 서비스 상태). 평문 칸은 목록에 없다.
@@ -276,7 +276,13 @@ async function loadDetail(): Promise<void> {
     drawerError.value = null;
     try {
         const found = await api.detail(id);
-        if (mine === dseq) drawerDetail.value = found;
+        if (mine !== dseq) return;
+        drawerDetail.value = found;
+        // 연결된 광고주의 옛 ID(`adv-…`)로 열면 서버가 사업자 키(`biz-…`)로 돌려준다 — 주소를 맞춘다
+        if (found.id !== id) {
+            drawerId.value = found.id;
+            void router.replace({ query: { ...route.query, id: found.id } });
+        }
     } catch (e) {
         if (mine !== dseq) return;
         drawerDetail.value = null;

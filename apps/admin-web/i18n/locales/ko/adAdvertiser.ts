@@ -1,5 +1,5 @@
 /**
- * 광고 › 광고주 관리(`/ad-advertisers`) — 목업 단계. 광고주 이름·담당자·연락처·이메일·메모 칸 이름은 `ad.*`, 사업자 상태는 `business.*`, 광고 유형·결제 방식은 `bizApplication.*` 를 같이 쓴다.
+ * 광고 › 광고주 관리(`/ad-advertisers`).광고주 이름·담당자·연락처·이메일·메모 칸 이름은 `ad.*`, 사업자 상태는 `business.*`, 광고 유형·결제 방식은 `bizApplication.*` 를 같이 쓴다.
  * `en/adAdvertiser.ts` 와 같은 키·차례.
  */
 export default {

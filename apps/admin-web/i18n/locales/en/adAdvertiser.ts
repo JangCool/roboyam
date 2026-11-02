@@ -1,5 +1,5 @@
 /**
- * Ads › Advertisers (`/ad-advertisers`) — mockup stage. Name, contact, email and memo field labels come from `ad.*`, business states from `business.*`, ad types and payment methods from `bizApplication.*`.
+ * Ads › Advertisers (`/ad-advertisers`).Name, contact, email and memo field labels come from `ad.*`, business states from `business.*`, ad types and payment methods from `bizApplication.*`.
  * Same keys and order as `ko/adAdvertiser.ts`.
  */
 export default {

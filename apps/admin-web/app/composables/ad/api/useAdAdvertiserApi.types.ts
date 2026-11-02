@@ -2,7 +2,7 @@ import type { AdAdvertiser, AdBookingRow } from '~/composables/ad/api/useAdApi.t
 import type { BusinessServiceStatus, BusinessStatus } from '~/composables/business/api/useBusinessApi.types';
 
 /**
- * 광고 › 광고주 관리(`/ad-advertisers`) — 서버와 주고받을 모양(⚠ 목업 — 서버 없음, 모양은 후보).
+ * 광고 › 광고주 관리(`/ad-advertisers`) — 서버와 주고받는 모양(계약 `docs/features/ad-advertiser-contract.md`).
  * 광고주 = 계정 없는 광고주(운영자가 직접 등록, `adv-<id>`) · 사업자 신원에 1:1 로 붙은 광고주(`adv-<id>` + `businessId`) · 광고주 줄이 없는 승인 사업자(`biz-<신원 id>`).
  * ID 모양은 일정표 `AdAdvertiser.id` 와 같다(ad-contract 「광고주 ID」).
  */
