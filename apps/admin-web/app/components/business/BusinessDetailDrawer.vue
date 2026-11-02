@@ -2,6 +2,7 @@
     <!--
         사업자 상세 서랍 — 목록에서 줄을 누르면 연다(`?id=`). 01-business.md 7-1 B.
         구획: ① 신원(가린 값 + 평문 보기) ② 국세청 상태조회 ③ 사업자등록증 사본(열람 기록) ④ 서비스 카드 ⑤ 처리 기록 Timeline. 맨 아래 처리 단추.
+        ④ 서비스 카드: 신원이 승인이면 카드마다 [서비스 정지]·「서비스만 정지」 사유 + [서비스 해제](2026-11-02 — ⚠ 서버 후보, 카드에 `impact` 가 올 때만 단추. 지금 목업 `?mock=svc-suspend`).
         [승인] 은 계속사업자일 때만(조회 불가면 부모가 사유를 받는다), 휴·폐업이면 잠그고 이유를 적는다. 서버는 부르지 않는다 — 동작은 emit.
     -->
     <Drawer v-model:visible="open" :position="prefs.drawerPosition" :aria-labelledby="titleId" :style="{ width: '44rem', maxWidth: '100vw' }">
@@ -52,12 +53,44 @@
             <section class="flex flex-col gap-2" :aria-labelledby="`${titleId}-svc`">
                 <h3 :id="`${titleId}-svc`" class="m-0 text-sm font-semibold">{{ t('business.secServices') }}</h3>
                 <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <div v-for="s in detail.serviceCards" :key="s.service" class="flex flex-col gap-1.5 rounded-lg border border-(--line) px-3 py-2.5">
+                    <div v-for="s in detail.serviceCards" :key="s.service" class="flex flex-col gap-1.5 rounded-lg border border-(--line) px-3 py-2.5" :data-testid="`business-service-${s.service}`">
                         <div class="flex items-center justify-between gap-2">
                             <span class="text-[13px] font-semibold">{{ t(`business.service.${s.service}`) }}</span>
-                            <Tag :value="t(`business.serviceStatus.${s.status}`)" :severity="UtilBusiness.serviceSeverity(s.status)" />
+                            <Tag :value="serviceOnlySuspended(s) ? t('business.serviceOnlySuspended') : t(`business.serviceStatus.${s.status}`)" :severity="UtilBusiness.serviceSeverity(s.status)" />
                         </div>
                         <span class="text-xs text-muted-color">{{ t('business.serviceCounts', { live: s.liveCount, pending: s.pendingCount }) }}</span>
+                        <!-- 서비스만 정지(신원은 승인) — 사유 코드 · 시각 · 운영자 + 사유 글 -->
+                        <div v-if="serviceOnlySuspended(s)" class="flex flex-col gap-0.5 rounded-md bg-red-50 px-2 py-1.5 text-xs dark:bg-red-950/30">
+                            <span class="font-medium text-red-700 dark:text-red-400">{{ t('business.svcSuspendedMeta', { code: s.suspendCode ? t(`business.suspendCode.${s.suspendCode}`) : '—', at: s.suspendedAt ? time.shortDateTime(s.suspendedAt) : '—', who: s.suspendedByName ?? '—' }) }}</span>
+                            <span v-if="s.suspendText" class="[overflow-wrap:anywhere]">{{ s.suspendText }}</span>
+                        </div>
+                        <!-- 서비스별 정지·해제 — 사업자 목록 화면, 신원이 승인일 때만(신원 정지가 우선이라 그때는 감춘다). 서버가 영향 건수(`impact`)를 주는 카드만 -->
+                        <div v-if="serviceAction(s)" class="flex justify-end">
+                            <Button
+                                v-if="serviceAction(s) === 'suspend'"
+                                type="button"
+                                :label="t('business.actSvcSuspend')"
+                                icon="pi pi-pause-circle"
+                                size="small"
+                                severity="danger"
+                                variant="text"
+                                :disabled="busy"
+                                :data-testid="`business-service-suspend-${s.service}`"
+                                @click="emit('serviceSuspend', s.service)"
+                            />
+                            <Button
+                                v-else
+                                type="button"
+                                :label="t('business.actSvcResume')"
+                                icon="pi pi-replay"
+                                size="small"
+                                severity="secondary"
+                                variant="outlined"
+                                :disabled="busy"
+                                :data-testid="`business-service-resume-${s.service}`"
+                                @click="emit('serviceResume', s.service)"
+                            />
+                        </div>
                     </div>
                 </div>
             </section>
@@ -68,7 +101,7 @@
                 <Timeline :value="history" class="text-[13px]" :pt="{ eventOpposite: { class: 'hidden' } }">
                     <template #content="{ item }">
                         <div class="flex flex-col pb-3">
-                            <span class="font-medium">{{ t(`business.action.${item.action}`) }} <span class="font-normal text-muted-color">· {{ item.actor }}</span></span>
+                            <span class="font-medium">{{ t(`business.action.${item.action}`) }}<template v-if="item.service"> ({{ t(`business.serviceShort.${item.service}`) }})</template> <span class="font-normal text-muted-color">· {{ item.actor }}</span></span>
                             <span class="text-[11px] text-muted-color">{{ time.shortDateTime(item.at) }}</span>
                             <span v-if="item.note" class="text-xs [overflow-wrap:anywhere]">{{ item.note }}</span>
                         </div>
@@ -119,7 +152,7 @@
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
-import type { BusinessDetail, BusinessReveal, BusinessRow } from '~/composables/business/api/useBusinessApi.types';
+import type { BusinessDetail, BusinessReveal, BusinessRow, BusinessService, BusinessServiceCard } from '~/composables/business/api/useBusinessApi.types';
 import type { BusinessScreenMode } from '~/components/business/BusinessDetailDrawer.types';
 import UtilBizApplication from '~/utils/util-biz-application';
 import UtilBusiness from '~/utils/util-business';
@@ -155,7 +188,22 @@ const props = withDefaults(defineProps<Props>(), {
     canDelete: false,
     reveal: null,
 });
-const emit = defineEmits<{ retry: []; approve: []; reject: []; suspend: []; unsuspend: []; recheck: []; reveal: []; hide: []; openCert: []; remove: [] }>();
+const emit = defineEmits<{
+    retry: [];
+    approve: [];
+    reject: [];
+    suspend: [];
+    unsuspend: [];
+    /** 서비스만 정지(권한 = 신원 정지 `business.manage`) */
+    serviceSuspend: [service: BusinessService];
+    /** 서비스만 정지 해제(권한 = 신원 정지 해제 `business.unsuspend`) */
+    serviceResume: [service: BusinessService];
+    recheck: [];
+    reveal: [];
+    hide: [];
+    openCert: [];
+    remove: [];
+}>();
 
 const { t } = useI18n();
 const time = useDisplayTime();
@@ -171,6 +219,19 @@ const hasLiveDealings = computed(() => {
     if (!d) return false;
     return d.impact.awaitingPayment + d.impact.scheduled + d.impact.running > 0 || d.serviceCards.some((s) => s.liveCount + s.pendingCount > 0);
 });
+/** 「서비스만 정지」 — 신원은 승인인데 그 서비스만 정지(신원 정지를 따라간 정지와 가른다) */
+function serviceOnlySuspended(card: BusinessServiceCard): boolean {
+    return props.detail?.status === 'APPROVED' && card.status === 'SUSPENDED';
+}
+
+/** 서비스 카드 단추 — 사업자 목록 화면 · 신원 승인 · 서버가 영향 건수를 준 카드만. 이용 중 → 정지(`business.manage`), 서비스만 정지 → 해제(`business.unsuspend`) */
+function serviceAction(card: BusinessServiceCard): 'suspend' | 'resume' | null {
+    if (props.mode !== 'directory' || props.detail?.status !== 'APPROVED' || !card.impact) return null;
+    if (card.status === 'APPROVED') return props.canManage ? 'suspend' : null;
+    if (card.status === 'SUSPENDED') return props.canUnsuspend ? 'resume' : null;
+    return null;
+}
+
 /** 최신이 위 */
 const history = computed(() => [...(props.detail?.history ?? [])].sort((a, b) => b.at.localeCompare(a.at)));
 

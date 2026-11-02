@@ -35,6 +35,15 @@ export default {
         contactHelp: 'If you disagree, contact the team by message or the help center.',
         reReviewTitle: 'We are re-reviewing your changed business info',
         reReviewText: 'New requests are paused until review ends. Scheduled and running items continue.',
+        serviceSuspendedTitle: { HOTDEAL: 'Your hot deal service is suspended', AD: 'Your ad service is suspended' },
+        serviceSuspendedText: {
+            HOTDEAL: 'New deal requests, posting and exposure stop while suspended. The team will settle your existing deal requests and notify you.',
+            AD: 'New ad requests and exposure stop while suspended. The team will settle your existing ad requests and notify you.',
+        },
+        serviceSuspendedOtherOk: { HOTDEAL: 'You can still use the ad service.', AD: 'You can still use the hot deal service.' },
+        serviceSuspendedAt: 'Suspended {at}',
+        serviceSuspendedTag: 'Suspended',
+        serviceSuspendedCardText: 'This service is suspended, so new requests are closed for now.',
         submittedAt: 'Applied {at}',
         reason: 'Reason',
         summaryTitle: 'Business info',
@@ -132,6 +141,7 @@ export default {
         REJECTED: 'Your business application was rejected. Apply again and get approved.',
         SUSPENDED: 'Your business account is suspended, so new requests are closed.',
         RE_REVIEW: 'New requests are paused while your changed business info is re-reviewed.',
+        SERVICE_SUSPENDED: { HOTDEAL: 'Your hot deal service is suspended, so new deal requests are closed.', AD: 'Your ad service is suspended, so new ad requests are closed.' },
         toCenter: 'Business center',
     },
 

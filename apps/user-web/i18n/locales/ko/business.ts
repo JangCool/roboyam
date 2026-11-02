@@ -36,6 +36,15 @@ export default {
         contactHelp: '이의가 있으면 쪽지나 고객센터로 운영팀에 알려 주세요.',
         reReviewTitle: '바뀐 사업자 정보를 다시 심사하고 있어요',
         reReviewText: '심사가 끝날 때까지 새 신청은 받을 수 없어요. 이미 예약·진행 중인 건은 그대로 나가요.',
+        serviceSuspendedTitle: { HOTDEAL: '핫딜 서비스가 정지됐어요', AD: '광고 서비스가 정지됐어요' },
+        serviceSuspendedText: {
+            HOTDEAL: '정지 중에는 새 핫딜 신청과 게시·노출이 멈춰요. 이미 낸 핫딜 신청 건은 운영팀이 정리하고 알림으로 알려 드려요.',
+            AD: '정지 중에는 새 광고 신청과 노출이 멈춰요. 이미 낸 광고 신청 건은 운영팀이 정리하고 알림으로 알려 드려요.',
+        },
+        serviceSuspendedOtherOk: { HOTDEAL: '광고 서비스는 그대로 쓸 수 있어요.', AD: '핫딜 서비스는 그대로 쓸 수 있어요.' },
+        serviceSuspendedAt: '{at} 정지',
+        serviceSuspendedTag: '정지',
+        serviceSuspendedCardText: '서비스가 정지돼 지금은 새 신청을 받을 수 없어요.',
         submittedAt: '신청 {at}',
         reason: '사유',
         summaryTitle: '사업자 정보',
@@ -133,6 +142,7 @@ export default {
         REJECTED: '사업자 신청이 반려됐어요. 다시 신청해 승인을 받아 주세요.',
         SUSPENDED: '사업자 이용이 정지돼 새 신청을 받을 수 없어요.',
         RE_REVIEW: '바뀐 사업자 정보를 다시 심사하는 동안에는 새 신청을 받을 수 없어요.',
+        SERVICE_SUSPENDED: { HOTDEAL: '핫딜 서비스가 정지돼 새 핫딜 신청을 받을 수 없어요.', AD: '광고 서비스가 정지돼 새 광고 신청을 받을 수 없어요.' },
         toCenter: '사업자 센터로',
     },
 

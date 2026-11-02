@@ -14,7 +14,7 @@
 
         <div v-if="status === 'loading'" class="h-64 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" role="status" :aria-label="t('common.loading')" />
         <ErrorState v-else-if="status === 'error' || !profile" :title="t('business.home.loadFailed')" :description="loadError" retry @retry="load" />
-        <BusinessGateNotice v-else-if="profile.status !== 'APPROVED' || profile.reReview" :status="profile.status" :re-review="profile.reReview" />
+        <BusinessGateNotice v-else-if="profile.status !== 'APPROVED' || profile.reReview || serviceSuspension" :status="profile.status" :re-review="profile.reReview" :service-suspension="serviceSuspension" />
 
         <template v-else>
             <BusinessStepHeader :steps="stepNames" :current="step" />
@@ -182,6 +182,8 @@ const api = useBusinessApi();
 const toast = useAppToast();
 
 const profile = ref<BusinessProfile | null>(null);
+/** 신원은 승인인데 광고 서비스만 정지 — 막힘 안내(⚠ 서버 후보 `services[]`, 지금 목업 `?mock=svc-suspend-ad`) */
+const serviceSuspension = computed(() => (profile.value ? UtilBusiness.serviceSuspension(profile.value, 'AD') : null));
 const products = ref<AdProduct[]>([]);
 const status = ref<'loading' | 'ready' | 'error'>('loading');
 const loadError = ref('');

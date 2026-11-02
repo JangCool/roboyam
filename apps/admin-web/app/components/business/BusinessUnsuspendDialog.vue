@@ -5,9 +5,9 @@
         · 환불 유지(`KEEP_REFUND`): 환불 심사 대기 건은 그대로 두고, 환불 대기가 없는 내린 건만 연장 없이 되돌린다.
         서버는 부르지 않는다 — 고른 값은 `submit` 으로 올린다.
     -->
-    <Dialog :visible="visible" modal :draggable="false" :closable="!busy" :close-on-escape="!busy" :header="t('business.unsuspendTitle', { name })" :style="{ width: 'min(34rem, calc(100vw - 2rem))' }" @update:visible="(v: boolean) => emit('update:visible', v)">
+    <Dialog :visible="visible" modal :draggable="false" :closable="!busy" :close-on-escape="!busy" :header="header" :style="{ width: 'min(34rem, calc(100vw - 2rem))' }" @update:visible="(v: boolean) => emit('update:visible', v)">
         <form :id="formId" class="flex flex-col gap-4" novalidate @submit.prevent="submit">
-            <p class="m-0 text-sm leading-relaxed text-muted-color">{{ t('business.unsuspendBody') }}</p>
+            <p class="m-0 text-sm leading-relaxed text-muted-color">{{ service ? t('business.svcResumeBody', { service: t(`business.service.${service}`) }) : t('business.unsuspendBody') }}</p>
 
             <fieldset class="m-0 flex flex-col gap-2.5 rounded-lg border border-(--line) px-3 py-2.5" :disabled="busy">
                 <legend class="px-1 text-[13px] font-semibold">{{ t('business.restoreLabel') }}</legend>
@@ -32,24 +32,26 @@
         </form>
         <template #footer>
             <Button type="button" :label="t('common.cancel')" severity="secondary" variant="text" :disabled="busy" @click="emit('update:visible', false)" />
-            <Button type="submit" :form="formId" :label="t('business.actUnsuspend')" icon="pi pi-replay" :loading="busy" />
+            <Button type="submit" :form="formId" :label="service ? t('business.actSvcResume') : t('business.actUnsuspend')" icon="pi pi-replay" :loading="busy" />
         </template>
     </Dialog>
 </template>
 
 <script setup lang="ts">
-import type { BusinessUnsuspendRequest, UnsuspendRestore } from '~/composables/business/api/useBusinessApi.types';
+import type { BusinessService, BusinessUnsuspendRequest, UnsuspendRestore } from '~/composables/business/api/useBusinessApi.types';
 
 interface Props {
     visible: boolean;
     name: string;
+    /** 있으면 서비스만 정지 해제(2026-11-02) — 같은 선택지를 그 서비스 건에만 적용한다(제목·설명·단추 글만 다르다) */
+    service?: BusinessService | null;
     busy?: boolean;
     error?: string;
     /** 서버 칸 오류(`note`) */
     fieldErrors?: Record<string, string>;
 }
 
-const props = withDefaults(defineProps<Props>(), { busy: false, error: '', fieldErrors: () => ({}) });
+const props = withDefaults(defineProps<Props>(), { service: null, busy: false, error: '', fieldErrors: () => ({}) });
 const emit = defineEmits<{ 'update:visible': [visible: boolean]; submit: [body: BusinessUnsuspendRequest] }>();
 
 const { t } = useI18n();
@@ -69,6 +71,8 @@ watch(
     },
     { immediate: true },
 );
+
+const header = computed(() => (props.service ? t('business.svcResumeTitle', { name: props.name, service: t(`business.service.${props.service}`) }) : t('business.unsuspendTitle', { name: props.name })));
 
 const options = computed(() => [
     { value: 'EXTEND_RESTORE' as const, label: t('business.restore.EXTEND_RESTORE'), help: t('business.restoreHelp.EXTEND_RESTORE'), default: true },

@@ -19,6 +19,7 @@ import type {
     DealProduct,
 } from '~/composables/business/api/useBusinessApi.types';
 import type { PaymentCompleteRequest, PaymentFakeCheckoutRequest, PaymentResult } from '~/composables/payment/api/usePaymentApi.types';
+import { mockBusinessServices } from '~/composables/business/api/mock/business-service-mock';
 
 /**
  * 사업자 센터 API — 서버 주소 문자열(`/api/business/…`)이 있는 **유일한 곳**이다. 상태는 없다. 로그인 필요(401).
@@ -39,6 +40,8 @@ import type { PaymentCompleteRequest, PaymentFakeCheckoutRequest, PaymentResult 
  *    일할 − 중도 해지 수수료 환불 `STOP_PRORATED` 심사, 예상액 0원이면 환불 줄 없음) — 셋 다 → `BizApplicationDetail`(`takedownCause`·`pause`). 정지 = `TAKEN_DOWN` + `ADVERTISER_PAUSE`, 중단 = `TAKEN_DOWN` + `ADVERTISER_STOP`(승인 → `CANCELED`).
  *    진행 중 `refund-request` 도 서버가 중단과 같이 처리한다(화면은 [중단하고 환불 요청] = `stop`).
  *    오류: 횟수 초과 409 `BIZ_PAUSE_LIMIT` · 이미 끝남/상태 바뀜 409 `BIZ_APPLICATION_STATE_CHANGED`(알리고 다시 읽는다) · 정지된 사업자가 다시 켜기 409 `BUSINESS_NOT_APPROVED`
+ *  - ⚠ MOCK 서비스별 정지(2026-11-02, 화면 확정 전): `GET /api/business/me` 에 `services[]`(`BusinessProfileService` — 서비스·상태·정지 사유) 후보.
+ *    지금은 `./mock/business-service-mock.ts`(`?mock=svc-suspend-hotdeal`·`svc-suspend-ad`)가 덧씌운다. 그 서비스 새 신청은 서버가 409(코드 후보 `BUSINESS_SERVICE_SUSPENDED`)로 막는다.
  *  - 환불 규정: `GET /api/business/refund-policy` → `{ version, stopFeeRate }`(신청 화면 동의 문구) · 신청 본문의 규정 버전이 지금과 다르면 400 `fields.agreedRefundPolicyVersion`
  */
 const PATH = {
@@ -61,7 +64,10 @@ export function useBusinessApi() {
 
     return {
         /** 내 사업자 신원 */
-        profile: (): Promise<BusinessProfile> => client.get<BusinessProfile>(PATH.me),
+        profile: (): Promise<BusinessProfile> =>
+            // MOCK: `?mock=svc-suspend-hotdeal`·`svc-suspend-ad` 면 서비스별 상태(`services`)를 덧씌운다(스위치가 없으면 서버 응답 그대로)
+            client.get<BusinessProfile>(PATH.me).then(mockBusinessServices),
+        // REAL: client.get<BusinessProfile>(PATH.me),
 
         /** 사업자 신청(새로·반려 뒤 다시) — 심사 대기가 된다. 번호·상호·대표자명·개업일이 국세청 정보와 다르면 400 `BUSINESS_NTS_MISMATCH` */
         apply: (body: BusinessApplyRequest): Promise<BusinessProfile> => client.post<BusinessProfile>(PATH.me, body),

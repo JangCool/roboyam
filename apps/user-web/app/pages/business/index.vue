@@ -4,6 +4,7 @@
         미신청 = 안내 + [사업자 신청] · 심사 중 = 확인 중 안내 + 가린 요약 · 반려 = 사유 + [다시 신청] · 정지 = 사유 + 문의 안내 ·
         승인 = (재심사 중이면 안내) + 할 일 카드(결제 대기 — 기한·[결제하기], 입금 확인 대기) + 서비스 카드(광고·핫딜) + 사업자 정보 요약 + 최근 신청 건.
         사업자 신원은 서버(`GET /api/business/me`), 신청 건 목록은 아직 목업(`useBusinessApi` — 신청 건 백엔드에서 붙인다).
+        승인인데 한 서비스만 정지면(2026-11-02 — ⚠ 서버 후보 `services[]`, 지금 목업 `?mock=svc-suspend-hotdeal`·`svc-suspend-ad`) 그 서비스 안내 + 사유, 그 서비스 카드 [신청하기] 잠금.
     -->
     <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="business-home">
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -93,6 +94,21 @@
                 <p class="m-0 mt-1 text-sm">{{ t('business.home.reReviewText') }}</p>
             </Message>
 
+            <!-- 서비스만 정지(신원은 승인) — 신원 정지(`business-home-suspended`)보다 가볍게: 그 서비스 새 신청만 막히고 다른 서비스는 그대로 -->
+            <Message v-for="s in suspendedServices" :key="s.service" severity="warn" :closable="false" :data-testid="`business-home-service-suspended-${s.service}`">
+                <p class="m-0 font-semibold">{{ t(`business.home.serviceSuspendedTitle.${s.service}`) }}</p>
+                <p class="m-0 mt-1 text-sm">
+                    {{ t(`business.home.serviceSuspendedText.${s.service}`) }}
+                    <template v-if="suspendedServices.length === 1">{{ t(`business.home.serviceSuspendedOtherOk.${s.service}`) }}</template>
+                </p>
+                <p v-if="s.suspendReason" class="m-0 mt-2 text-sm">
+                    <span class="font-semibold">{{ t('business.home.reason') }}</span> · <span class="whitespace-pre-line">{{ s.suspendReason }}</span>
+                </p>
+                <p class="m-0 mt-1 text-xs opacity-80">
+                    <template v-if="s.suspendedAt">{{ t('business.home.serviceSuspendedAt', { at: time.full(s.suspendedAt) }) }} · </template>{{ t('business.home.contactHelp') }}
+                </p>
+            </Message>
+
             <!-- 할 일 — 맨 위 -->
             <section class="panel-card flex flex-col gap-3 p-4" :aria-labelledby="`${uid}-todo`" data-testid="business-home-todo">
                 <h2 :id="`${uid}-todo`" class="m-0 text-sm font-semibold">{{ t('business.home.todoTitle') }}</h2>
@@ -141,12 +157,15 @@
                 <div class="grid gap-3 sm:grid-cols-2">
                     <div v-for="service in services" :key="service.testid" class="panel-card flex flex-col gap-2 p-4" :data-testid="service.testid">
                         <p class="m-0 flex flex-wrap items-center gap-2 text-sm font-bold">
-                            <i :class="[service.icon, service.closed ? 'text-muted-color' : 'text-primary']" aria-hidden="true" />{{ service.label }}
-                            <PointShopTag v-if="service.closed" tone="neutral">{{ t('business.home.serviceDealClosed') }}</PointShopTag>
+                            <i :class="[service.icon, service.closed || service.suspended ? 'text-muted-color' : 'text-primary']" aria-hidden="true" />{{ service.label }}
+                            <PointShopTag v-if="service.suspended" tone="danger">{{ t('business.home.serviceSuspendedTag') }}</PointShopTag>
+                            <PointShopTag v-else-if="service.closed" tone="neutral">{{ t('business.home.serviceDealClosed') }}</PointShopTag>
                         </p>
-                        <p class="m-0 flex-1 text-xs leading-relaxed text-muted-color">{{ service.closed ? t('business.home.serviceDealClosedText') : service.text }}</p>
+                        <p class="m-0 flex-1 text-xs leading-relaxed text-muted-color">
+                            {{ service.suspended ? t('business.home.serviceSuspendedCardText') : service.closed ? t('business.home.serviceDealClosedText') : service.text }}
+                        </p>
                         <div>
-                            <Button v-if="service.closed" type="button" :label="t('business.home.serviceApply')" size="small" disabled />
+                            <Button v-if="service.closed || service.suspended" type="button" :label="t('business.home.serviceApply')" size="small" disabled />
                             <Button v-else as="router-link" :to="service.to" :label="t('business.home.serviceApply')" size="small" />
                         </div>
                     </div>
@@ -177,7 +196,7 @@
 </template>
 
 <script setup lang="ts">
-import type { BizApplicationSummary, BusinessProfile } from '~/composables/business/api/useBusinessApi.types';
+import type { BizApplicationSummary, BusinessProfile, BusinessServiceKind } from '~/composables/business/api/useBusinessApi.types';
 import UtilBusiness from '~/utils/util-business';
 import UtilBusinessMessages from '~/utils/util-business-messages';
 
@@ -193,6 +212,7 @@ useSeoMeta({ title: () => t('business.home.title'), description: () => t('busine
 
 const uid = useId();
 const api = useBusinessApi();
+const time = useDisplayTime();
 
 const profile = ref<BusinessProfile | null>(null);
 const status = ref<'loading' | 'ready' | 'error'>('loading');
@@ -247,8 +267,20 @@ const awaitingPayment = computed(() =>
 const awaitingDeposit = computed(() => apps.value.filter((a) => a.status === 'AWAITING_DEPOSIT'));
 const recent = computed(() => apps.value.slice(0, 5));
 
+/** 신원은 승인인데 서비스만 정지된 줄(⚠ 서버 후보 `services[]` — 지금 목업 `?mock=svc-suspend-hotdeal`·`svc-suspend-ad`) */
+const suspendedServices = computed(() => (profile.value ? UtilBusiness.suspendedServices(profile.value) : []));
+const isSuspended = (service: BusinessServiceKind) => suspendedServices.value.some((s) => s.service === service);
+
 const services = computed(() => [
-    { to: UtilBusiness.AD_NEW_PATH, icon: 'pi pi-megaphone', label: t('business.home.serviceAd'), text: t('business.home.serviceAdText'), testid: 'business-service-ad', closed: false },
+    {
+        to: UtilBusiness.AD_NEW_PATH,
+        icon: 'pi pi-megaphone',
+        label: t('business.home.serviceAd'),
+        text: t('business.home.serviceAdText'),
+        testid: 'business-service-ad',
+        closed: false,
+        suspended: isSuspended('AD'),
+    },
     {
         to: UtilBusiness.DEAL_NEW_PATH,
         icon: 'pi pi-tag',
@@ -256,6 +288,7 @@ const services = computed(() => [
         text: t('business.home.serviceDealText'),
         testid: 'business-service-deal',
         closed: dealAccepting.value === false,
+        suspended: isSuspended('HOTDEAL'),
     },
 ]);
 </script>

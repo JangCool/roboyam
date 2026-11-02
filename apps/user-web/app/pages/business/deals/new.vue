@@ -16,7 +16,7 @@
 
         <div v-if="status === 'loading'" class="h-64 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" role="status" :aria-label="t('common.loading')" />
         <ErrorState v-else-if="status === 'error' || !profile || !dealProduct" :title="t('business.home.loadFailed')" :description="loadError" retry @retry="load" />
-        <BusinessGateNotice v-else-if="profile.status !== 'APPROVED' || profile.reReview" :status="profile.status" :re-review="profile.reReview" />
+        <BusinessGateNotice v-else-if="profile.status !== 'APPROVED' || profile.reReview || serviceSuspension" :status="profile.status" :re-review="profile.reReview" :service-suspension="serviceSuspension" />
 
         <!-- 글 게시 받기 꺼짐(V121 — 게시 기능이 생길 때까지 닫음) — 직접 주소로 와도 폼 대신 안내 -->
         <section v-else-if="!dealProduct.accepting" class="panel-card flex flex-col gap-4 p-5" data-testid="business-deal-closed">
@@ -299,6 +299,8 @@ const toast = useAppToast();
 const time = useDisplayTime();
 
 const profile = ref<BusinessProfile | null>(null);
+/** 신원은 승인인데 핫딜 서비스만 정지 — 막힘 안내(⚠ 서버 후보 `services[]`, 지금 목업 `?mock=svc-suspend-hotdeal`) */
+const serviceSuspension = computed(() => (profile.value ? UtilBusiness.serviceSuspension(profile.value, 'HOTDEAL') : null));
 const dealProduct = ref<DealProduct | null>(null);
 const status = ref<'loading' | 'ready' | 'error'>('loading');
 const loadError = ref('');

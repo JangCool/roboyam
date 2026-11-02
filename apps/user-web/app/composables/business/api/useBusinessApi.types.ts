@@ -50,6 +50,29 @@ export interface BusinessProfile {
     suspendReason: string | null;
     /** 승인 뒤 상호·번호를 고쳐 다시 심사 중(F7) — 이미 예약·진행 중인 건은 그대로, 새 신청만 막힌다 */
     reReview: boolean;
+    /**
+     * 서비스별 이용 상태(2026-11-02 — 신원은 승인인데 한 서비스만 정지할 수 있다. ⚠ 서버 후보, 지금 목업 `?mock=svc-suspend-hotdeal`·`svc-suspend-ad`).
+     * 칸이 없거나 그 서비스 줄이 없으면 신원 상태를 따른다(지금 서버 그대로).
+     */
+    services?: BusinessProfileService[];
+}
+
+/** 사업자 서비스 — 관리자 화면 `BusinessService` 와 같은 값 */
+export type BusinessServiceKind = 'HOTDEAL' | 'AD';
+
+/** 서비스 이용 상태 — 관리자 화면 `BusinessServiceStatus` 와 같은 값 */
+export type BusinessServiceStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'OFF';
+
+/** 내 서비스 한 줄 — 신원이 승인인데 `status === 'SUSPENDED'` 면 「그 서비스만 정지」(새 신청이 막힌다, 다른 서비스는 그대로) */
+export interface BusinessProfileService {
+    service: BusinessServiceKind;
+    status: BusinessServiceStatus;
+    /** 서비스 정지 사유 코드 — 관리자 신원 정지 코드 묶음(`POLICY_VIOLATION`·`FRAUD`·`NTS_CLOSED`·`OTHER`, 가정). 화면은 글(`suspendReason`)만 보인다 */
+    suspendCode: string | null;
+    /** 서비스 정지 사유 글(운영자가 쓴 글 그대로) */
+    suspendReason: string | null;
+    /** 서비스 정지 시각(ISO) */
+    suspendedAt: string | null;
 }
 
 /** `POST /api/business/me`(신청) · `PUT /api/business/me`(수정) */
