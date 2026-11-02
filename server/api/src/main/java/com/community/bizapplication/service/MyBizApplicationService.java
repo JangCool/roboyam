@@ -48,9 +48,11 @@ public class MyBizApplicationService {
     private final BizDealContent dealForm;
     private final BizDealPostReader dealPosts;
     private final BizDealEndService dealEnds;
+    private final BizPauseService pauses;
 
     public MyBizApplicationService(BizApplicationMemberService members, BizApplicationReader reader, BizApplicationProperties props, Messages messages,
-                                   BizDealContent dealForm, BizDealPostReader dealPosts, BizDealEndService dealEnds) {
+                                   BizDealContent dealForm, BizDealPostReader dealPosts, BizDealEndService dealEnds, BizPauseService pauses) {
+        this.pauses = pauses;
         this.members = members;
         this.reader = reader;
         this.props = props;
@@ -175,15 +177,66 @@ public class MyBizApplicationService {
                     s.contracts().stream().anyMatch(x -> x.active()) ? "RECEIVED" : "WAITING", s.deposit() != null);
         }
         RefundRow r = s.refund();
-        BizMemberView.Refund refund = r == null ? null : new BizMemberView.Refund(r.type() == BizRefundType.FULL_AUTO ? "FULL_AUTO" : "PRORATED_REVIEW", r.status().name(),
-                r.reason(), r.requestedAt(), r.proposedAmount(), r.approvedAmount(), r.decisionReason());
+        BizMemberView.Refund refund = r == null ? null : new BizMemberView.Refund(refundType(r.type()), r.status().name(), r.reason(), r.requestedAt(),
+                r.proposedAmount(), r.approvedAmount(), r.decisionReason(), r.proratedAmount(), r.feeRate(), r.feeAmount(), r.basisAt());
         List<BizMemberView.History> history = s.events().stream().filter(e -> publicAction(e.action()))
-                .map(e -> new BizMemberView.History(e.at(), actor(e.actorType()), e.action(), e.note())).toList();
+                .map(e -> new BizMemberView.History(e.at(), actor(e.actorType()), e.action(), publicNote(e.action(), e.note()))).toList();
+        BizPauseService.PauseInfo p = pauses.info(a, s.items());
+        BizMemberView.Pause pause = p == null ? null : new BizMemberView.Pause(p.used(), p.limit(), p.pausedAt(), p.pausedBy() == null ? null : actor(p.pausedBy()),
+                p.channel() == null ? null : p.channel().name(), p.pausedMinutes(), p.stoppedAt(), p.refundFrom(), p.proratableTotal(), p.feeRate());
         return new BizMemberView.Detail(sum.id(), sum.kind(), sum.title(), sum.adType(), sum.placement(), sum.startDate(), sum.endDate(), sum.status(), sum.phase(),
                 sum.paymentMethod(), sum.amount(), sum.amountConfirmed(), sum.paymentDueAt(), sum.depositDueAt(), sum.submittedAt(), sum.refundRequested(),
-                amount(a.quote()), a.approved() == null ? null : amount(a.approved()), a.adjustReason(), creative, deal,
+                sum.takedownCause(), amount(a.quote()), a.approved() == null ? null : amount(a.approved()), a.adjustReason(), creative, deal,
                 a.rejectCode() == null ? null : a.rejectCode().name(), a.rejectText(), a.takedownText(), deposit, refund, history,
-                dealPosts.view(a, s.items(), s.creative()));
+                dealPosts.view(a, s.items(), s.creative()), pause);
+    }
+
+    /** 공개 환불 종류 — 시작 전 전액 FULL_AUTO · 광고주 요청 중단 STOP_PRORATED · 그 밖 일할 심사 PRORATED_REVIEW */
+    private static String refundType(BizRefundType type) {
+        return switch (type) {
+            case FULL_AUTO -> "FULL_AUTO";
+            case STOP_PRORATED -> "STOP_PRORATED";
+            default -> "PRORATED_REVIEW";
+        };
+    }
+
+    /**
+     * 공개 처리 기록의 note — 정지·다시 켜기·중단의 운영자 대신 처리 토큰은 요청 경로까지만(메모는 관리자에게만 — biz-pause-contract 「데이터 모양」).
+     */
+    static String publicNote(String action, String note) {
+        if (note == null || !(BizEventAction.PAUSED.name().equals(action) || BizEventAction.RESUMED.name().equals(action) || BizEventAction.STOPPED.name().equals(action))) {
+            return note;
+        }
+        List<String> kept = new java.util.ArrayList<>();
+        for (String token : note.split(" · ", -1)) {
+            kept.add(token);
+            if (token.equals("PHONE") || token.equals("EMAIL") || token.equals("OTHER")) {
+                break; // 경로 뒤는 메모
+            }
+        }
+        return String.join(" · ", kept);
+    }
+
+    // ── 일시 정지·중단(V127) ───────────────────────────────────────────────
+
+    public BizMemberView.Detail pause(long userId, long id) {
+        pauses.pause(userId, id);
+        return detail(userId, id);
+    }
+
+    public BizMemberView.Detail resume(long userId, long id) {
+        pauses.resume(userId, id);
+        return detail(userId, id);
+    }
+
+    public BizMemberView.Detail stop(long userId, long id, String reason) {
+        pauses.stop(userId, id, reason);
+        return detail(userId, id);
+    }
+
+    public BizMemberView.RefundPolicy refundPolicy() {
+        BizApplicationMemberService.RefundPolicy p = members.refundPolicy();
+        return new BizMemberView.RefundPolicy(p.version(), p.stopFeeRate());
     }
 
     // ── 안 ──────────────────────────────────────────────────────────────────
@@ -203,7 +256,7 @@ public class MyBizApplicationService {
         return new BizMemberView.Summary(Long.toString(a.id()), a.kind().name(), a.title(), adType, placement, BizPeriods.startDate(a.startAt()).toString(),
                 BizPeriods.endDate(a.endAt()).toString(), a.status().name(), phase == null ? null : phase.name(),
                 (a.paymentMethod() != null ? a.paymentMethod() : a.preferredMethod()).name(), amount(shown), a.approved() != null, a.paymentDeadlineAt(),
-                a.depositDeadlineAt(), a.createdAt(), refund != null);
+                a.depositDeadlineAt(), a.createdAt(), refund != null, a.takedownCause() == null ? null : a.takedownCause().name());
     }
 
     private static boolean publicAction(String action) {

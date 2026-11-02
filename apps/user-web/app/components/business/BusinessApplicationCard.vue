@@ -10,7 +10,7 @@
         </div>
         <div class="flex min-w-0 flex-1 flex-col gap-1">
             <div class="flex flex-wrap items-center gap-1.5">
-                <BusinessStatusTag :status="item.status" :phase="item.phase" />
+                <BusinessStatusTag :status="item.status" :phase="item.phase" :cause="item.takedownCause ?? null" :end-date="item.endDate" />
                 <PointShopTag v-if="item.refundRequested" tone="warn">{{ t('business.list.refundRequested') }}</PointShopTag>
                 <span class="text-xs text-muted-color">{{ kindLabel }}</span>
             </div>

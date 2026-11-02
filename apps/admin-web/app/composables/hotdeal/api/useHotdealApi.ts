@@ -12,7 +12,7 @@ import type { AdminDealDetail, AdminDealPage, AdminDealQuery, DealActionRequest,
  *   - `POST /api/admin/hotdeals/{postId}/end` `{ reason? }`(0~200자) → 204 · `409 HOTDEAL_STATE_CHANGED`(이미 종료) · `400 fields.reason`
  *   - `POST /api/admin/hotdeals/{postId}/reopen` `{ reason? }` → 204(의심·종료 요청 리셋, 마감이 지났으면 작성자에게 「마감을 고쳐 주세요」 알림) · `409 HOTDEAL_STATE_CHANGED`
  * 감사 `HOTDEAL_END`·`HOTDEAL_REOPEN`. 응답 `Cache-Control: no-store`.
-
+ * 판매자 일시 정지·중단(서버 연결 2026-11-02 — `biz-pause-contract.md`): 줄·상세 `row.sellerHidden`(`{ cause: ADVERTISER_PAUSE|ADVERTISER_STOP, at, by, byOperator }`) — 숨긴 글도 관리자 목록·상세에는 그대로 나온다.
  */
 const PATH = {
     root: '/api/admin/hotdeals',
@@ -32,8 +32,7 @@ export function useHotdealApi() {
         boards: (): Promise<HotdealBoardOptionsView> => client.get<HotdealBoardOptionsView>(PATH.boards()),
 
         /** 목록 — 빈 조건은 보내지 않는다(`view` 는 `ALL` 이어도 늘 보낸다) */
-        list: (query: AdminDealQuery, signal?: AbortSignal): Promise<AdminDealPage> =>
-            client.get<AdminDealPage>(PATH.root, { query: { ...query, blockedActive: query.blockedActive || undefined }, signal }),
+        list: (query: AdminDealQuery, signal?: AbortSignal): Promise<AdminDealPage> => client.get<AdminDealPage>(PATH.root, { query: { ...query, blockedActive: query.blockedActive || undefined }, signal }),
 
         detail: (postId: string): Promise<AdminDealDetail> => client.get<AdminDealDetail>(PATH.one(postId)),
 

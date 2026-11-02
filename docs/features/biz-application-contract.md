@@ -4,6 +4,7 @@
 **정본·근거**: `docs/plans/biz-ad-hotdeal/00-overview.md` **★ 절**(★-1~★-5 — 사용자 확정 2026-10-30). 분석 `02-ad.md`·`03-hotdeal.md`.
 **프론트 기준**: admin-web `pages/ad-reviews.vue`·`pages/hotdeal-reviews.vue`(공통 심사 화면에 `domain` 을 넘김 — 2026-10-31 IA 결정, `pages/biz-applications.vue` 는 지움), `components/bizapplication/**`, `composables/bizapplication/api/useBizApplicationApi.ts`(+types·mock) / user-web `pages/business/ads/new.vue`·`deals/new.vue`·`applications/index.vue`·`applications/[id].vue`, `composables/business/api/useBusinessApi.ts`.
 **커머스 규칙 적용**: 돈이 움직이므로 `docs/domain/commerce.md` 18절(설계 규칙은 모두 테스트로 막고 `--tests` 로 통과해야 완료)을 따른다.
+**일시 정지·중단(2026-11-02)**: 광고주 사정으로 멈추기·끝내기와 중도 해지 수수료·환불 규정 버전 `2026-11-02` 는 `biz-pause-contract.md` 가 정본이다(진행 중 `refund-request` 는 중단과 같은 처리로 바뀜).
 
 ## 화면 경로
 - 관리자 **광고 심사 `/ad-reviews`**(메뉴 묶음 「광고」, `ad.read` — 종류 AD_BANNER·AD_TEXT_LINE) · **핫딜 심사 `/hotdeal-reviews`**(묶음 「핫딜」, `hotdeal.read` — HOTDEAL_POST·HOTDEAL_PLACEMENT) — 같은 화면 짜임: 큐 탭(심사 대기·결제 대기·입금 확인 대기·입금 기한 지남·예약·진행·환불 심사·종료/반려/취소) + 그 도메인 종류 필터 + 3단(목록 · 내용+점검표 5개 · 미리보기). 통합 `/biz-applications` 는 **없앴다**(세션 정리 결정 2026-10-31 — `docs/plans/biz-ad-hotdeal/04-ia-review.md`). 한눈 보기는 대시보드 「처리할 일」 카드.

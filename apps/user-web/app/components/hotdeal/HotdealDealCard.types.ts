@@ -17,4 +17,19 @@ export interface DealCardActions {
     moderateEnd: (reason: string) => Promise<PostDeal>;
     /** 게시판 매니저·스텝 [다시 진행 중으로] — 사유 선택(없으면 null) */
     moderateReopen: (reason: string | null) => Promise<PostDeal>;
+    /**
+     * 사업자 글 작성자 [일시 정지] 확인 창에 쓸 신청 건 정보(끝 날짜·쓴 횟수) — 지금 정지할 수 없는 건이면 null. 페이지가 신청 건 상세로 만든다.
+     * 없으면 카드에 [일시 정지]가 없다.
+     */
+    bizPauseInfo?: () => Promise<DealPauseInfo | null>;
+    /** 사업자 글 작성자 [일시 정지] — 그 글의 신청 건을 정지한다(오류는 그대로 던진다) */
+    bizPause?: () => Promise<void>;
+}
+
+/** 딜 카드 일시 정지 확인 창에 쓰는 신청 건 값 */
+export interface DealPauseInfo {
+    /** 신청 끝 날짜(포함) — 이날까지 다시 켤 수 있다 */
+    endDate: string;
+    used: number;
+    limit: number;
 }

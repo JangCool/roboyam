@@ -164,7 +164,8 @@ useSeoMeta({ title: () => t('business.ad.title'), description: () => t('business
 const TOTAL = 5;
 const LINK_PLACEHOLDER = 'https://';
 const AD_POLICY_VERSION = '2026-10-30';
-const REFUND_POLICY_VERSION = '2026-10-30';
+/** 환불 규정 버전 — 서버 `BizApplicationMemberService.REFUND_POLICY_VERSION` 과 같아야 한다(다르면 400 `fields.agreedRefundPolicyVersion`). 2026-11-02: 진행 중 중단 수수료 */
+const REFUND_POLICY_VERSION = '2026-11-02';
 
 /** 종류 카드 그림 — 페이지 틀 속 광고 자리(`absolute` 위치) */
 const SKETCH: Record<AdType, string> = {
@@ -217,6 +218,16 @@ async function load(): Promise<void> {
 }
 onMounted(load);
 
+/** 진행 중 중단의 중도 해지 수수료율 — 동의 문구에 넣는다(받지 못하면 비율 없는 문구) */
+const stopFeeRate = ref<number | null>(null);
+onMounted(async () => {
+    try {
+        stopFeeRate.value = (await api.refundPolicy()).stopFeeRate;
+    } catch {
+        stopFeeRate.value = null;
+    }
+});
+
 const product = computed(() => products.value.find((p) => p.type === adType.value) ?? null);
 const minDay = computed(() => UtilBusiness.addDays(UtilBusiness.todayYmd(), 1));
 const maxDay = computed(() => UtilBusiness.addDays(UtilBusiness.todayYmd(), product.value?.maxLeadDays ?? 60));
@@ -253,7 +264,7 @@ const periodHasFull = computed(() => {
 
 const agreeItems = computed<BusinessAgreeItem[]>(() => [
     { key: 'adPolicy', label: t('business.agree.adPolicy'), detail: t('business.agree.adPolicyDetail'), version: AD_POLICY_VERSION },
-    { key: 'refundPolicy', label: t('business.agree.refundPolicy'), detail: t('business.agree.refundPolicyDetail'), version: REFUND_POLICY_VERSION },
+    { key: 'refundPolicy', label: t('business.agree.refundPolicy'), detail: UtilBusinessMessages.refundPolicyDetail(t, stopFeeRate.value), version: REFUND_POLICY_VERSION },
 ]);
 
 const errors = computed(() => {
@@ -329,6 +340,8 @@ async function submit(): Promise<void> {
         await navigateTo(UtilBusiness.applicationPath(created.id));
     } catch (e) {
         formError.value = e instanceof Error ? e.message : t('business.ad.failed');
+        // 환불 규정이 그새 바뀌었다(400 `fields.agreedRefundPolicyVersion`) — 새 문구에 다시 동의하도록 새로 고침을 부탁한다
+        if (e instanceof ApiError && e.field('agreedRefundPolicyVersion')) formError.value = t('business.agree.refundPolicyOutdated');
         // 자리가 찼으면(409 BIZ_SLOT_FULL) 기간 단계로 돌아가 남은 칸을 다시 받는다
         if (e instanceof ApiError && e.code === 'BIZ_SLOT_FULL') {
             step.value = 2;

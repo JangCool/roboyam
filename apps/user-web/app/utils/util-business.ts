@@ -1,5 +1,15 @@
 import type { AuthUser, Role } from '~/composables/auth/api/useAuthApi.types';
-import type { AdType, BizAmount, BizApplicationBucket, BizApplicationKind, BizApplicationStatus, BizHistoryEntry, BizSchedulePhase } from '~/composables/business/api/useBusinessApi.types';
+import type {
+    AdType,
+    BizAmount,
+    BizApplicationBucket,
+    BizApplicationDetail,
+    BizApplicationKind,
+    BizApplicationStatus,
+    BizHistoryEntry,
+    BizSchedulePhase,
+    BizTakedownCause,
+} from '~/composables/business/api/useBusinessApi.types';
 
 /** 사용자 메뉴의 사업자 줄 — `CENTER` 사업자 센터(신청했거나 사업자 전용 계정) · `APPLY` 사업자 신청(일반 회원, 신청 전) */
 export type BusinessEntry = 'CENTER' | 'APPLY';
@@ -139,13 +149,20 @@ export default class UtilBusiness {
         }
     }
 
-    /** 상태 딱지 글자 키의 끝 마디 — `SCHEDULED` 는 시각 단계로 */
-    static statusKey(status: BizApplicationStatus, phase: BizSchedulePhase | null): string {
+    /**
+     * 상태 딱지 글자 키의 끝 마디 — `SCHEDULED` 는 시각 단계로, `TAKEN_DOWN` 은 내림 까닭(광고주 일시 정지 · 정지한 채 끝남 · 중단)으로. 까닭이 없거나 운영 내림이면 「내려짐」.
+     * @param {boolean} pausedEnded - 정지한 채 끝 날짜가 지났다(`pauseEnded`).
+     */
+    static statusKey(status: BizApplicationStatus, phase: BizSchedulePhase | null, cause: BizTakedownCause | null = null, pausedEnded = false): string {
+        if (status === 'TAKEN_DOWN' && cause === 'ADVERTISER_PAUSE') return pausedEnded ? 'TAKEN_DOWN_PAUSE_ENDED' : 'TAKEN_DOWN_PAUSE';
+        if (status === 'TAKEN_DOWN' && cause === 'ADVERTISER_STOP') return 'TAKEN_DOWN_STOP';
         return status === 'SCHEDULED' && phase ? `SCHEDULED_${phase}` : status;
     }
 
-    /** 상태 딱지 톤 */
-    static statusTone(status: BizApplicationStatus, phase: BizSchedulePhase | null): BizTone {
+    /** 상태 딱지 톤 — 광고주 일시 정지는 경고, 정지한 채 끝남·중단은 흐리게 */
+    static statusTone(status: BizApplicationStatus, phase: BizSchedulePhase | null, cause: BizTakedownCause | null = null, pausedEnded = false): BizTone {
+        if (status === 'TAKEN_DOWN' && cause === 'ADVERTISER_PAUSE') return pausedEnded ? 'neutral' : 'warn';
+        if (status === 'TAKEN_DOWN' && cause === 'ADVERTISER_STOP') return 'neutral';
         switch (status) {
             case 'SUBMITTED':
                 return 'primary';
@@ -199,6 +216,54 @@ export default class UtilBusiness {
         if (all <= 0) return 0;
         const left = Math.max(0, UtilBusiness.daysBetween(today, end) - 1);
         return Math.floor((total * Math.min(left, all)) / all);
+    }
+
+    /** 순간(ISO)의 한국 날짜(`YYYY-MM-DD`) — 일할 기준 날짜 */
+    static kstYmdOf(iso: string): string {
+        return new Date(Date.parse(iso) + 9 * 3_600_000).toISOString().slice(0, 10);
+    }
+
+    /** 끝 날짜(포함)가 지났나 — 끝 날짜 다음 날 00:00(KST)부터 지난 것으로 본다 */
+    static periodOver(endDate: string, now: number): boolean {
+        return now >= Date.parse(UtilBusiness.kstStartOf(UtilBusiness.addDays(endDate, 1)));
+    }
+
+    /** 정지한 채 기간이 끝났나 — 화면이 끝 날짜와 지금을 비교한다(서버는 상태를 `TAKEN_DOWN`·`ADVERTISER_PAUSE` 그대로 둔다 — biz-pause-contract) */
+    static pauseEnded(status: BizApplicationStatus, cause: BizTakedownCause | null | undefined, endDate: string, now: number): boolean {
+        return status === 'TAKEN_DOWN' && cause === 'ADVERTISER_PAUSE' && UtilBusiness.periodOver(endDate, now);
+    }
+
+    /**
+     * 진행 중이라 [일시 정지]·[중단하고 환불 요청]을 보일 건인가(서버가 다시 판정) — 예약 상태의 진행 단계 · `pause` 있음(정지할 수 있는 종류·결제 뒤) · 환불 요청 없음 ·
+     * 핫딜 글이면 게시되고 딜이 진행 중·의심일 때만(품절로 종료·기간 종료·게시 실패·운영 숨김 뒤에는 없음).
+     */
+    static runningPausable(a: Pick<BizApplicationDetail, 'status' | 'phase' | 'kind' | 'refund' | 'pause' | 'post'>): boolean {
+        if (a.status !== 'SCHEDULED' || a.phase !== 'RUNNING' || !a.pause || a.refund) return false;
+        if (a.kind !== 'HOTDEAL_POST') return true;
+        return a.post?.status === 'POSTED' && (a.post.view === 'ACTIVE' || a.post.view === 'FLAGGED');
+    }
+
+    /**
+     * 중단 예상 환불(서버 `BizPricing.stop` 과 같은 식 — biz-pause-contract 규칙 5, 법무 확정 전 가정): 일할 = floor(대상 × 남은 날 / 총 일수)(대상 = `pause.proratableTotal`,
+     * 기준 날짜 = 기준 시각의 한국 날짜 — 그날까지 쓴 날로 친다) → 중도 해지 수수료 = floor(일할 × 비율 / 100) → 예상액 = 일할 − 수수료.
+     * 서버의 `min(일할, 결제액 − 이미 환불)` 은 화면이 이미 환불한 금액을 몰라 생략한다. 금액은 운영팀 확인 뒤 확정한다.
+     * @param {string} fromIso - 기준 시각(정지 중이면 멈춘 시각, 아니면 지금·중단 시각).
+     * @param {number} feeRate - 그 건에 고정된 중도 해지 수수료율(% — `pause.feeRate`).
+     * @returns 일할·수수료·예상액·총 일수·남은 일수.
+     */
+    static stopRefund(
+        proratableTotal: number,
+        startDate: string,
+        endDate: string,
+        fromIso: string,
+        feeRate: number,
+    ): { prorated: number; fee: number; amount: number; totalDays: number; leftDays: number } {
+        const from = UtilBusiness.kstYmdOf(fromIso);
+        const totalDays = UtilBusiness.daysBetween(startDate, endDate);
+        const leftDays = Math.min(totalDays, Math.max(0, UtilBusiness.daysBetween(from, endDate) - 1));
+        const prorated = UtilBusiness.proratedRefund(proratableTotal, startDate, endDate, from);
+        const fee = Math.floor((prorated * Math.max(0, feeRate)) / 100);
+        return { prorated, fee, amount: prorated - fee, totalDays, leftDays };
     }
 
     /** 오늘(브라우저 기준 달력 날짜 `YYYY-MM-DD`) — 목업·미리보기용 */

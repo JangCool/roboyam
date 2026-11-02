@@ -5,6 +5,7 @@ import com.community.bizapplication.entity.BizApplicationKind;
 import com.community.bizapplication.entity.BizApplicationStatus;
 import com.community.bizapplication.entity.BizDomain;
 import com.community.bizapplication.entity.BizEventAction;
+import com.community.bizapplication.entity.BizPauseChannel;
 import com.community.bizapplication.entity.BizPaymentMethod;
 import com.community.bizapplication.entity.BizProduct;
 import com.community.bizapplication.entity.BizRejectCode;
@@ -50,7 +51,13 @@ public class BizApplicationStore {
                          Instant depositConfirmedAt, BizRejectCode rejectCode, String rejectText, Instant takenDownAt, BizTakedownCause takedownCause,
                          String takedownText, String adPolicyVersion, String refundPolicyVersion, Instant agreedAt, Instant closedAt, int version,
                          Instant createdAt, Instant updatedAt, Long advertiserId, Long createdBy, int weight, Long proposedSupply, String operatorMemo,
-                         Long takenDownBy, String takedownMail) {
+                         Long takenDownBy, String takedownMail, int pauseCount, Instant pausedAt, int pausedMinutes, BizActorType takedownActor,
+                         BizPauseChannel takedownChannel, String takedownMemo, Instant stoppedAt, Instant refundFrom, int stopFeeRate) {
+
+        /** 지금 정지 중인가(내림 · 까닭 정지) — 끝 시각이 지났는지는 보지 않는다 */
+        public boolean paused() {
+            return status == BizApplicationStatus.TAKEN_DOWN && takedownCause == BizTakedownCause.ADVERTISER_PAUSE;
+        }
 
         /** 결제·입금 기한(승인 뒤) */
         public Instant deadlineAt() {
@@ -66,7 +73,7 @@ public class BizApplicationStore {
     /** 새 신청 건 */
     public record NewApp(long id, BizApplicationKind kind, BizSource source, Long businessProfileId, Long userId, String advertiserName, String companyName,
                          String bizNoLast4, String title, Instant startAt, Instant endAt, BizPaymentMethod preferredMethod, Amount quote, String adPolicyVersion,
-                         String refundPolicyVersion, Instant agreedAt, Instant now) {
+                         String refundPolicyVersion, Instant agreedAt, int stopFeeRate, Instant now) {
     }
 
     /** 자리·금액 줄 */
@@ -104,17 +111,17 @@ public class BizApplicationStore {
                 String.class, now);
         jdbc.update("INSERT INTO biz_applications (id, application_no, kind, status, source, business_profile_id, user_id, advertiser_name, company_name, biz_no_last4, "
                         + "title, start_at, end_at, preferred_method, quote_supply, quote_vat, quote_total, ad_policy_version, refund_policy_version, agreed_at, "
-                        + "created_at, updated_at) VALUES (?, ?, ?, 'SUBMITTED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        + "stop_fee_rate, created_at, updated_at) VALUES (?, ?, ?, 'SUBMITTED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 a.id(), no, a.kind().name(), a.source().name(), a.businessProfileId(), a.userId(), a.advertiserName(), a.companyName(), a.bizNoLast4(), a.title(),
                 ts(a.startAt()), ts(a.endAt()), a.preferredMethod().name(), a.quote().supply(), a.quote().vat(), a.quote().total(), a.adPolicyVersion(),
-                a.refundPolicyVersion(), ts(a.agreedAt()), now, now);
+                a.refundPolicyVersion(), ts(a.agreedAt()), a.stopFeeRate(), now, now);
         return no;
     }
 
     /** 운영자 등록 건(04 §2) — 심사 대기 · 결제 방식 MANUAL · 등록자 · 광고주 · 비중 · 계약 금액 제안 · 운영 메모 */
     public record NewOperatorApp(long id, BizApplicationKind kind, Long businessProfileId, Long advertiserId, String advertiserName, String companyName,
                                  String bizNoLast4, String title, Instant startAt, Instant endAt, Amount quote, int weight, long proposedSupply, String memo,
-                                 long createdBy, Instant now) {
+                                 long createdBy, int stopFeeRate, Instant now) {
     }
 
     /** 운영자 등록 건을 넣고 화면 번호를 돌려준다 — 정책 동의·회원 없음(ck_ba_source_operator) */
@@ -123,10 +130,10 @@ public class BizApplicationStore {
         String no = jdbc.queryForObject("SELECT 'BA-' || to_char(?::timestamptz AT TIME ZONE 'Asia/Seoul', 'YYYY') || '-' || lpad(nextval('biz_application_no_seq')::text, 5, '0')",
                 String.class, now);
         jdbc.update("INSERT INTO biz_applications (id, application_no, kind, status, source, business_profile_id, advertiser_id, advertiser_name, company_name, biz_no_last4, "
-                        + "title, start_at, end_at, preferred_method, quote_supply, quote_vat, quote_total, weight, proposed_supply, operator_memo, created_by, created_at, updated_at) "
-                        + "VALUES (?, ?, ?, 'SUBMITTED', 'OPERATOR', ?, ?, ?, ?, ?, ?, ?, ?, 'MANUAL', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        + "title, start_at, end_at, preferred_method, quote_supply, quote_vat, quote_total, weight, proposed_supply, operator_memo, created_by, stop_fee_rate, "
+                        + "created_at, updated_at) VALUES (?, ?, ?, 'SUBMITTED', 'OPERATOR', ?, ?, ?, ?, ?, ?, ?, ?, 'MANUAL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 a.id(), no, a.kind().name(), a.businessProfileId(), a.advertiserId(), a.advertiserName(), a.companyName(), a.bizNoLast4(), a.title(), ts(a.startAt()),
-                ts(a.endAt()), a.quote().supply(), a.quote().vat(), a.quote().total(), a.weight(), a.proposedSupply(), a.memo(), a.createdBy(), now, now);
+                ts(a.endAt()), a.quote().supply(), a.quote().vat(), a.quote().total(), a.weight(), a.proposedSupply(), a.memo(), a.createdBy(), a.stopFeeRate(), now, now);
         return no;
     }
 
@@ -265,8 +272,43 @@ public class BizApplicationStore {
     /** 내림 → 예약(끝 시각을 바꿀 수 있다 — 연장 후 되돌리기) */
     public boolean restore(long id, Instant end, Instant now) {
         return jdbc.update("UPDATE biz_applications SET status = 'SCHEDULED', end_at = ?, taken_down_at = NULL, takedown_cause = NULL, takedown_text = NULL, "
-                + "taken_down_by = NULL, takedown_mail = NULL, end_notified_at = NULL, updated_at = ?, version = version + 1 WHERE id = ? AND status = 'TAKEN_DOWN'",
+                + "taken_down_by = NULL, takedown_mail = NULL, takedown_actor = NULL, takedown_channel = NULL, takedown_memo = NULL, paused_at = NULL, "
+                + "end_notified_at = NULL, updated_at = ?, version = version + 1 WHERE id = ? AND status = 'TAKEN_DOWN' AND takedown_cause IN ('SUSPENDED', 'EMERGENCY')",
                 ts(end), ts(now), id) == 1;
+    }
+
+    // ── 광고주 요청 정지·중단(V127 — biz-pause-contract) ───────────────────
+
+    /** 누가 정지·중단했나 — 사업자(회원) 또는 운영자 대신(경로·메모 필수) */
+    public record PauseActor(BizActorType type, Long operatorId, BizPauseChannel channel, String memo) {
+    }
+
+    /** 진행 중 예약 → 정지(내림 · 까닭 정지 · 멈춘 시각 · 정지 횟수 + 1). 한도는 조건에 같이 건다 */
+    public boolean pause(long id, PauseActor by, int limit, Instant now) {
+        return jdbc.update("UPDATE biz_applications SET status = 'TAKEN_DOWN', taken_down_at = ?, takedown_cause = 'ADVERTISER_PAUSE', takedown_text = NULL, "
+                        + "taken_down_by = ?, takedown_mail = NULL, takedown_actor = ?, takedown_channel = ?, takedown_memo = ?, paused_at = ?, pause_count = pause_count + 1, "
+                        + "updated_at = ?, version = version + 1 WHERE id = ? AND status = 'SCHEDULED' AND pause_count < ?",
+                ts(now), by.operatorId(), by.type().name(), by.channel() == null ? null : by.channel().name(), by.memo(), ts(now), ts(now), id, limit) == 1;
+    }
+
+    /** 정지 → 예약(끝 시각 그대로 — 멈춘 분을 더한다). 내림 칸을 비운다 */
+    public boolean resume(long id, int addMinutes, Instant now) {
+        return jdbc.update("UPDATE biz_applications SET status = 'SCHEDULED', taken_down_at = NULL, takedown_cause = NULL, takedown_text = NULL, taken_down_by = NULL, "
+                + "takedown_mail = NULL, takedown_actor = NULL, takedown_channel = NULL, takedown_memo = NULL, paused_at = NULL, paused_minutes = paused_minutes + ?, "
+                + "updated_at = ?, version = version + 1 WHERE id = ? AND status = 'TAKEN_DOWN' AND takedown_cause = 'ADVERTISER_PAUSE'", addMinutes, ts(now), id) == 1;
+    }
+
+    /**
+     * 진행 중 예약 또는 정지 → 중단(내림 · 까닭 중단 · 사유 · 중단 시각 · 일할 기준 시각). 정지 중 전환이면 그 정지의 멈춘 분을 더한다. 지금 상태가 {@code from} 이어야 한다
+     * (정지 중이면 까닭도 정지).
+     */
+    public boolean stop(long id, BizApplicationStatus from, PauseActor by, String reason, Instant refundFrom, int addMinutes, Instant now) {
+        String guard = from == BizApplicationStatus.TAKEN_DOWN ? " AND takedown_cause = 'ADVERTISER_PAUSE'" : "";
+        return jdbc.update("UPDATE biz_applications SET status = 'TAKEN_DOWN', taken_down_at = ?, takedown_cause = 'ADVERTISER_STOP', takedown_text = ?, taken_down_by = ?, "
+                        + "takedown_mail = NULL, takedown_actor = ?, takedown_channel = ?, takedown_memo = ?, paused_at = NULL, paused_minutes = paused_minutes + ?, "
+                        + "stopped_at = ?, refund_from = ?, updated_at = ?, version = version + 1 WHERE id = ? AND status = ?" + guard,
+                ts(now), reason, by.operatorId(), by.type().name(), by.channel() == null ? null : by.channel().name(), by.memo(), addMinutes, ts(now), ts(refundFrom),
+                ts(now), id, from.name()) == 1;
     }
 
     /** 알림 보낸 표시 — 아직 안 보냈을 때만(배치가 겹쳐도 한 번) */
@@ -471,7 +513,10 @@ public class BizApplicationStore {
                 rs.getString("refund_policy_version"), instant(rs.getTimestamp("agreed_at")), instant(rs.getTimestamp("closed_at")), rs.getInt("version"),
                 instant(rs.getTimestamp("created_at")), instant(rs.getTimestamp("updated_at")), (Long) rs.getObject("advertiser_id", Long.class),
                 (Long) rs.getObject("created_by", Long.class), rs.getInt("weight"), (Long) rs.getObject("proposed_supply", Long.class), rs.getString("operator_memo"),
-                (Long) rs.getObject("taken_down_by", Long.class), rs.getString("takedown_mail"));
+                (Long) rs.getObject("taken_down_by", Long.class), rs.getString("takedown_mail"), rs.getInt("pause_count"), instant(rs.getTimestamp("paused_at")),
+                rs.getInt("paused_minutes"), enumOrNull(BizActorType.class, rs.getString("takedown_actor")),
+                enumOrNull(BizPauseChannel.class, rs.getString("takedown_channel")), rs.getString("takedown_memo"), instant(rs.getTimestamp("stopped_at")),
+                instant(rs.getTimestamp("refund_from")), rs.getInt("stop_fee_rate"));
     }
 
     private static ItemRow item(ResultSet rs) throws SQLException {

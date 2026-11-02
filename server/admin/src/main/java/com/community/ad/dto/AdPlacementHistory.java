@@ -12,7 +12,7 @@ public final class AdPlacementHistory {
 
     /** 칸 이름 — 감사 {@code AD_PLACEMENT_UPDATE} before/after 의 키와 같고, 이 차례로 남긴다 */
     public static final List<String> FIELDS = List.of("postInline.enabled", "postInline.adType", "postInline.position", "wings.left", "wings.right", "wings.screens",
-            "boardList.enabled", "boardList.after", "adult.enabled");
+            "boardList.enabled", "boardList.after", "adult.enabled", "refund.stopFeeRate");
 
     private AdPlacementHistory() {
     }

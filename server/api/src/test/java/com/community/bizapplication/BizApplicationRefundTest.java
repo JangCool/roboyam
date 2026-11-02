@@ -80,19 +80,24 @@ class BizApplicationRefundTest extends BizApplicationApiTestBase {
     }
 
     @Test
-    void 진행_중_환불_요청은_일할_심사_대기와_제안액이고_노출은_계속된다() {
+    void 진행_중_환불_요청은_중단과_같아_바로_내리고_일할_빼기_수수료_심사_대기() {
+        // V127(biz-pause-contract) — 수수료 없는 옛 일할 길(노출 계속 + PRORATED)은 없다
         Paid p = scheduledOnline();
         clock.set(p.period().start().plus(Duration.ofDays(2)).plus(Duration.ofHours(3))); // 7일 중 3일째(오늘 포함 쓴 날 3)
         members.requestRefund(p.user(), p.id(), "남은 기간 중단");
         AppRow a = app(p.id());
-        assertThat(a.status()).isEqualTo(BizApplicationStatus.SCHEDULED);
+        assertThat(a.status()).isEqualTo(BizApplicationStatus.TAKEN_DOWN);
+        assertThat(a.takedownCause()).isEqualTo(com.community.bizapplication.entity.BizTakedownCause.ADVERTISER_STOP);
         RefundRow r = refunds.latest(p.id()).orElseThrow();
         assertThat(r.status()).isEqualTo(BizRefundStatus.REQUESTED);
-        assertThat(r.type()).isEqualTo(BizRefundType.PRORATED);
+        assertThat(r.type()).isEqualTo(BizRefundType.STOP_PRORATED);
         assertThat(r.totalDays()).isEqualTo(7);
         assertThat(r.usedDays()).isEqualTo(3);
-        assertThat(r.proposedAmount()).isEqualTo(Math.floorDiv(a.approved().total() * 4, 7));
-        assertThat(r.proposedAmount()).isEqualTo(BizPricing.prorate(a.approved().total(), a.startAt(), a.endAt(), clock.instant()).proposed());
+        long prorated = Math.floorDiv(a.approved().total() * 4, 7);
+        assertThat(prorated).isEqualTo(BizPricing.prorate(a.approved().total(), a.startAt(), a.endAt(), clock.instant()).proposed());
+        assertThat(r.proratedAmount()).isEqualTo(prorated);
+        assertThat(r.feeRate()).isEqualTo(a.stopFeeRate());
+        assertThat(r.proposedAmount()).isEqualTo(prorated - Math.floorDiv(prorated * a.stopFeeRate(), 100));
         // 열린 환불이 있으면 다시 요청할 수 없다
         assertThat(codeOf(() -> members.requestRefund(p.user(), p.id(), "다시"))).isEqualTo("BIZ_APPLICATION_STATE_CHANGED");
     }
@@ -120,7 +125,8 @@ class BizApplicationRefundTest extends BizApplicationApiTestBase {
         clock.set(p.period().start().plus(Duration.ofDays(1)));
         members.requestRefund(p.user(), p.id(), "중단");
         review.denyRefund(operator, p.id(), "정책상 환불 불가");
-        assertThat(app(p.id()).status()).isEqualTo(BizApplicationStatus.SCHEDULED);
+        // 진행 중 요청 = 중단(V127) — 거절이면 내림(중단) 그대로
+        assertThat(app(p.id()).status()).isEqualTo(BizApplicationStatus.TAKEN_DOWN);
         assertThat(refunds.latest(p.id()).orElseThrow().status()).isEqualTo(BizRefundStatus.DENIED);
         assertThat(codeOf(() -> members.requestRefund(p.user(), p.id(), "다시"))).isEqualTo("BIZ_APPLICATION_STATE_CHANGED");
         assertThat(codeOf(() -> review.denyRefund(operator, p.id(), "또"))).isEqualTo("BIZ_APPLICATION_STATE_CHANGED");

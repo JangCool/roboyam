@@ -6,6 +6,7 @@ import type {
     BizAvailability,
     BizContractView,
     BizDepositRequest,
+    BizPauseActionRequest,
     BizPeriod,
     BizRejectCode,
     BizTransferRequest,
@@ -32,6 +33,12 @@ import type {
  *  상태가 이미 바뀌었으면 409 `BIZ_APPLICATION_STATE_CHANGED`.
  *  사업자 핫딜 게시(2차 — `biz-hotdeal-contract.md`): 상세 `post`(`BizDealPost` — `HOTDEAL_POST` 만, 결제 전이면 null)·소재 `board`·`prefix`·`imageUrl`.
  *    게시 실패(`POST_FAILED`) 건은 시작 뒤여도 `cancel` = 전액 환불(`FULL_AUTO`).
+ *  광고주 요청 일시 정지·중단(서버 연결 2026-11-02 — `biz-pause-contract.md`): 운영자가 광고주 대신 처리한다(요청 경로 + 메모 1~200자 필수, 400 `fields.channel`·`fields.memo`).
+ *  - `POST …/{id}/pause` `{ channel, memo }` — 진행 중만(내림 까닭 `ADVERTISER_PAUSE`), 정지 횟수 초과 409 `BIZ_PAUSE_LIMIT`
+ *  - `POST …/{id}/resume` `{ channel, memo }` — 정지 중이고 끝 전만(→ SCHEDULED, 끝 시각 그대로 — 연장 없음)
+ *  - `POST …/{id}/stop` `{ channel, memo, reason? }` — 진행 중·정지 중(→ 내림 까닭 `ADVERTISER_STOP` + 일할 − 중도 해지 수수료 환불 `STOP_PRORATED` 심사 대기, 예상액 0원이면 환불 줄 없음).
+ *    되돌리기 없음. `reason` 은 선택(사업자 화면에 보이는 사유 — 300자 초과 400 `fields.reason`), 메모는 사업자에게 보이지 않는다(사유로 옮기지 않음)
+ *  권한 광고 `ad.manage` · 핫딜 `hotdeal.manage`, 감사 `BIZ_APP_PAUSE`·`BIZ_APP_RESUME`·`BIZ_APP_STOP`. 상세 `pause`(`BizPause`)·`takedown.channel`·`takedown.memo`, 목록 줄 `takedownCause`.
  */
 const PATH = {
     root: '/api/admin/biz-applications',
@@ -77,10 +84,18 @@ export function useBizApplicationApi() {
 
         cancel: (id: string, reason: string): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(PATH.action(id, 'cancel'), { reason }),
 
-        approveRefund: (id: string, body: { amount: number; reason: string }): Promise<BizApplicationDetail> =>
-            client.post<BizApplicationDetail>(PATH.action(id, 'refund/approve'), body),
+        approveRefund: (id: string, body: { amount: number; reason: string }): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(PATH.action(id, 'refund/approve'), body),
 
         denyRefund: (id: string, reason: string): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(PATH.action(id, 'refund/deny'), { reason }),
+
+        /** 운영자 대신 일시 정지(광고주 요청 — 진행 중만, 정지 횟수 안에서) */
+        pause: (id: string, body: BizPauseActionRequest): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(PATH.action(id, 'pause'), body),
+
+        /** 운영자 대신 다시 켜기(정지 중 · 끝 전 — 승인 없이 바로, 연장 없음) */
+        resume: (id: string, body: BizPauseActionRequest): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(PATH.action(id, 'resume'), body),
+
+        /** 운영자 대신 중단(진행 중·정지 중 — 바로 내리고 남은 기간 일할 환불 심사, 되돌리기 없음) */
+        stop: (id: string, body: BizPauseActionRequest): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(PATH.action(id, 'stop'), body),
 
         /** 수동 환불 송금 완료 표시 — 가장 최근 환불이 송금 대기일 때만(아니면 409) */
         markTransferred: (id: string, body: BizTransferRequest = {}): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(PATH.action(id, 'refund/transfer'), body),

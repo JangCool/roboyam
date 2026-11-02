@@ -62,7 +62,7 @@ class BizApplicationHttpTest extends BizApplicationApiTestBase {
         long user = approvedBusiness();
         LocalDate start = today().plusDays(5);
         String body = "{\"adType\":\"TEXT_LINE\",\"startDate\":\"" + start + "\",\"endDate\":\"" + start.plusDays(2) + "\",\"imageFileId\":null,\"linkUrl\":\"https://a.example.com\","
-                + "\"altText\":null,\"text\":\"한 줄 광고\",\"paymentMethod\":\"ONLINE\",\"agreedAdPolicyVersion\":\"v1\",\"agreedRefundPolicyVersion\":\"v1\"}";
+                + "\"altText\":null,\"text\":\"한 줄 광고\",\"paymentMethod\":\"ONLINE\",\"agreedAdPolicyVersion\":\"v1\",\"agreedRefundPolicyVersion\":\"2026-11-02\"}";
         String created = mvc.perform(as(user, post("/api/business/applications/ads")).content(body)).andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.id").isString()).andReturn().getResponse().getContentAsString();
         String id = created.replaceAll(".*\"id\":\"(\\d+)\".*", "$1");
@@ -113,7 +113,7 @@ class BizApplicationHttpTest extends BizApplicationApiTestBase {
         mvc.perform(as(user, get("/api/business/ad-products"))).andExpect(jsonPath("$.data[0].accepting").value(true));
         String dealBody = "{\"title\":\"[시험상사] 텀블러 1+1\",\"deal\":{\"linkUrl\":\"https://smartstore.naver.com/roboyam/products/1\",\"shopName\":\"네이버 스마트스토어\","
                 + "\"listPrice\":32000,\"dealPrice\":15900,\"shippingFee\":0,\"endsOn\":null,\"stock\":\"LIMITED\",\"body\":\"1+1 행사\",\"placement\":\"NONE\"},"
-                + "\"placementStartDate\":null,\"placementEndDate\":null,\"paymentMethod\":\"ONLINE\",\"agreedAdPolicyVersion\":\"v1\",\"agreedRefundPolicyVersion\":\"v1\"}";
+                + "\"placementStartDate\":null,\"placementEndDate\":null,\"paymentMethod\":\"ONLINE\",\"agreedAdPolicyVersion\":\"v1\",\"agreedRefundPolicyVersion\":\"2026-11-02\"}";
         // 옛 모양(게시판 없음 · 재고 LIMITED) — 칸 오류 deal.boardId·deal.stock
         mvc.perform(as(user, post("/api/business/applications/deals")).content(dealBody)).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.fields['deal.boardId']").exists()).andExpect(jsonPath("$.error.fields['deal.stock']").exists());

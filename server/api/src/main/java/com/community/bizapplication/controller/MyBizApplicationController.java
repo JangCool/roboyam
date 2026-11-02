@@ -116,11 +116,37 @@ public class MyBizApplicationController {
         return noStore(service.startPayment(user(authentication), parseId(id)));
     }
 
-    /** 취소·환불 요청(예약) — 시작 전 전액 자동, 진행 중 운영팀 심사 */
+    /** 취소·환불 요청 — 시작 전 전액 자동(수수료 없음), 진행 중·정지 중은 중단과 같은 처리(바로 내림 + 일할 − 수수료 심사, V127) */
     @PostMapping("/applications/{id}/refund-request")
     public ResponseEntity<ApiResponse<BizMemberView.Detail>> refundRequest(@PathVariable String id, @RequestBody(required = false) BizReasonRequest body,
                                                                            Authentication authentication) {
         return noStore(service.requestRefund(user(authentication), parseId(id), body == null ? null : body.reason()));
+    }
+
+    /** 일시 정지(진행 중 — 바로 멈춤 · 자리 유지 · 한 건에 3번, 넘으면 409 {@code BIZ_PAUSE_LIMIT}) → 상세 */
+    @PostMapping("/applications/{id}/pause")
+    public ResponseEntity<ApiResponse<BizMemberView.Detail>> pause(@PathVariable String id, Authentication authentication) {
+        return noStore(service.pause(user(authentication), parseId(id)));
+    }
+
+    /** 다시 켜기(정지 중 · 끝 전 — 승인 없이 바로, 끝 시각 그대로) → 상세 */
+    @PostMapping("/applications/{id}/resume")
+    public ResponseEntity<ApiResponse<BizMemberView.Detail>> resume(@PathVariable String id, Authentication authentication) {
+        return noStore(service.resume(user(authentication), parseId(id)));
+    }
+
+    /** 중단(진행 중·정지 중 — 바로 내림 · 되돌리기 없음 · 일할 − 수수료 환불 심사) {@code { reason 1~300 }} → 상세 */
+    @PostMapping("/applications/{id}/stop")
+    public ResponseEntity<ApiResponse<BizMemberView.Detail>> stop(@PathVariable String id, @RequestBody(required = false) BizReasonRequest body,
+                                                                  Authentication authentication) {
+        return noStore(service.stop(user(authentication), parseId(id), body == null ? null : body.reason()));
+    }
+
+    /** 지금 환불 규정 버전 + 중도 해지 수수료율(신청 화면 동의 문구) */
+    @GetMapping("/refund-policy")
+    public ResponseEntity<ApiResponse<BizMemberView.RefundPolicy>> refundPolicy(Authentication authentication) {
+        user(authentication);
+        return noStore(service.refundPolicy());
     }
 
     /** 사업자 종료([품절로 종료] — 환불 없음 · 노출도 멈춤) → 새 「게시된 글」. 이미 끝남 409 {@code DEAL_ENDED}, 글 없음 409 {@code BIZ_APPLICATION_STATE_CHANGED} */

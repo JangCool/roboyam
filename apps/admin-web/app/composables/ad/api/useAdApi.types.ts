@@ -1,4 +1,4 @@
-import type { BizAdType, BizAmount, BizContractFile, BizDeposit, BizDomain, BizPaymentMethod, BizPeriod, BizQuote, BizRefundRequest } from '~/composables/bizapplication/api/useBizApplicationApi.types';
+import type { BizAdType, BizAmount, BizContractFile, BizDeposit, BizDomain, BizPause, BizPauseChannel, BizPaymentMethod, BizPeriod, BizQuote, BizRefundRequest, BizTakedownCause } from '~/composables/bizapplication/api/useBizApplicationApi.types';
 import type { SettingHistoryItem, SettingHistoryPage } from '~/composables/common/useSettingHistory.types';
 
 /**
@@ -69,6 +69,8 @@ export interface AdBookingRow {
     lastActionAt: string;
     /** 업무 도메인 — 「심사에서 열기」 주소(AD → `/ad-reviews`, HOTDEAL → `/hotdeal-reviews`) */
     domain: BizDomain;
+    /** 내림(`TAKEN_DOWN`) 까닭 — 달력 점·표 상태 「정지 중」(`ADVERTISER_PAUSE`)·「중단」(`ADVERTISER_STOP`)을 긴급 내림과 가른다(biz-pause-contract). 내려간 적 없으면 null */
+    takedownCause: BizTakedownCause | null;
 }
 
 export interface AdCalendar {
@@ -102,14 +104,20 @@ export interface AdHistory {
 export type AdTakedownMail = 'SENT' | 'FAILED' | 'NO_ADDRESS';
 export const AD_TAKEDOWN_MAILS: readonly AdTakedownMail[] = ['SENT', 'FAILED', 'NO_ADDRESS'];
 
-/** 내림 — `cause` EMERGENCY(긴급)·SUSPENDED(사업자 정지), `mail` 광고주 메일 결과(보내지 않았으면 null) */
+/** 내림 — `cause` EMERGENCY(긴급)·SUSPENDED(사업자 정지)·ADVERTISER_PAUSE·ADVERTISER_STOP(광고주 요청 정지·중단), `mail` 광고주 메일 결과(보내지 않았으면 null) */
 export interface AdTakedown {
     at: string;
-    cause: 'EMERGENCY' | 'SUSPENDED';
+    cause: BizTakedownCause;
+    /** 운영자가 광고주 대신 정지·중단했으면 요청 경로(biz-pause-contract) */
+    channel: BizPauseChannel | null;
+    /** 운영자 대신 처리 메모(관리자에게만) */
+    memo: string | null;
     reason: string | null;
     by: string | null;
     mailSent: boolean;
     mail: AdTakedownMail | null;
+    /** 신청 건 상세와 같은 정지 칸(정지할 수 있는 종류의 결제 뒤 건만 — 상세 맨 위 `pause` 와 같은 값) */
+    pause: BizPause | null;
 }
 
 /** 운영자 등록 건의 등록자 — `me` 면 지금 운영자가 등록했다(사업자 신청 건은 null) */
@@ -134,6 +142,8 @@ export interface AdBookingDetail extends AdBookingRow {
     memo: string | null;
     registrant: AdRegistrant | null;
     history: AdHistory[];
+    /** 광고주 요청 일시 정지·중단 정보(신청 건 상세 `pause` 와 같은 모양 — 정지할 수 있는 종류의 결제 뒤 건만, 아니면 null) */
+    pause: BizPause | null;
 }
 
 export interface AdBookingQuery {
@@ -249,12 +259,21 @@ export interface AdAdultSetting {
     enabled: boolean;
 }
 
-/** `PUT /api/admin/ads/placements` 본문 */
+/**
+ * 환불 묶음(V127 — 탭 `?tab=refund`) — 진행 중 중단의 중도 해지 수수료율 0~30 정수 %(기본 10). 광고·사업자 핫딜 공통이고,
+ * 신청 건을 낼 때(사업자 신청·운영자 등록) 그때 비율이 그 건에 고정된다(바꿔도 이미 낸 건은 그대로). 시작 전 취소·운영 귀책 보상에는 붙지 않는다.
+ */
+export interface AdRefundSetting {
+    stopFeeRate: number;
+}
+
+/** `PUT /api/admin/ads/placements` 본문 — `refund` 는 서버에선 선택(빠지면 그대로)이지만 화면은 늘 보낸다(400 `fields.refund.stopFeeRate`) */
 export interface AdPlacementsRequest {
     postInline: AdPostInlineSetting;
     wings: AdWingSetting;
     boardList: AdBoardListSetting;
     adult: AdAdultSetting;
+    refund: AdRefundSetting;
 }
 
 /** `GET`·`PUT /api/admin/ads/placements` 응답 — 저장한 적 없으면 서버 기본값 + `updatedAt/updatedBy: null` */
@@ -265,7 +284,7 @@ export interface AdPlacementsView extends AdPlacementsRequest {
 
 /**
  * 광고 자리 설정 변경 이력의 칸 코드(`changes[].field`) — 서버가 이 차례로 준다.
- * 값 글자: 켜기 칸은 `"true"`/`"false"` · 유형·위치는 enum 이름 · `wings.screens` 는 HOME·PAGE·BOARD·POST 차례 쉼표 이음(빈 목록은 `""`) · `boardList.after` 는 숫자 글자.
+ * 값 글자: 켜기 칸은 `"true"`/`"false"` · 유형·위치는 enum 이름 · `wings.screens` 는 HOME·PAGE·BOARD·POST 차례 쉼표 이음(빈 목록은 `""`) · `boardList.after`·`refund.stopFeeRate` 는 숫자 글자.
  */
 export type AdPlacementHistoryField =
     | 'postInline.enabled'
@@ -276,7 +295,8 @@ export type AdPlacementHistoryField =
     | 'wings.screens'
     | 'boardList.enabled'
     | 'boardList.after'
-    | 'adult.enabled';
+    | 'adult.enabled'
+    | 'refund.stopFeeRate';
 
 /** `GET /api/admin/ads/placements/history` 한 줄 — 메일 서버 설정 이력과 같은 모양(공용 `SettingHistoryItem`, 출처는 늘 `ADMIN`) */
 export type AdPlacementHistoryItem = SettingHistoryItem;

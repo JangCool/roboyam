@@ -3,6 +3,7 @@
 **의도**: 운영자가 광고 유형별로 언제 자리가 비었는지 보고, 광고 건(사업자 신청 건에서 확정된 것 + 운영자 수동 등록)을 한 장부에서 관리한다. 긴급 내림·되돌리기로 사고에 대응한다.
 **정본·근거**: `docs/plans/biz-ad-hotdeal/00-overview.md` ★ 절(★-2 수동 결제·A1~A3·F5), 분석 `02-ad.md`. 신청·결제 흐름은 `biz-application-contract.md` 가 정본이다(광고 건 = 신청 건이 `SCHEDULED` 이후인 것).
 **프론트 기준**: admin-web `pages/ads/index.vue`, `components/ad/**`(`AdCalendar`·`AdBookingDrawer`·`AdManualDrawer`·`AdAdvertiserDialog`), `composables/ad/api/useAdApi.ts`(+types·mock).
+**광고주 요청 정지·중단(2026-11-02)**: 내림 까닭 `ADVERTISER_PAUSE`·`ADVERTISER_STOP`(「정지 중」「중단」 — 되돌리기 보상 없음)과 자리 설정 `refund.stopFeeRate` 는 `biz-pause-contract.md`.
 
 ## 화면 경로
 - 관리자 `/ads` — 유형 탭 7개(넓은·띠·네모·작은 배너·한 줄·핫딜 홈 상단·핫딜 말머리 상단) → 요약 띠(한도·진행·예약·결제·입금 대기) → **한 달 큰 달력**(하모니카3 월 보기 짜임: 칸마다 「남은/한도」 알약 + 그날 걸친 광고 건 이름·상태 색 점, 최대 3 + 「+N건 더」, 건을 누르면 상세, 오늘 이후 빈 곳을 누르면 그 날짜로 수동 등록) → 광고 건 표(상태·결제 방식·비중) → 상세 Drawer(기본·소재 버전·일정·결제·처리 기록). 메뉴 묶음 「광고」(`ad.read`).

@@ -27,6 +27,9 @@ import type {
  *
  * 서버 연결됨(2026-10-22). 핫딜 칸은 서버 1단계에 연결(2026-11-01).
  * 사업자 핫딜 글(2차 — `deal.source BUSINESS`)은 작성자 고치기·지우기를 서버가 `403 DEAL_BUSINESS_POST_LOCKED` 로 거절한다(화면은 단추를 숨김).
+ * 판매자가 내린 사업자 핫딜 글(광고주 일시 정지·중단 — 서버 연결 2026-11-02, `biz-pause-contract.md`): 글 단건 조회만 404 가 아니라 `403 DEAL_SELLER_HIDDEN` + extras
+ *   `{ state: PAUSED|STOPPED, boardSlug, boardName, boardNameEn, applicationId(작성자에게만 — 아니면 칸 없음) }` — 본문·딜·댓글은 싣지 않고 조회수도 올리지 않는다.
+ *   댓글·추천 등 다른 글 API 는 기존 `403 POST_HIDDEN`. 화면은 안내만(`POST_HIDDEN` 과 같은 오류 길).
  */
 const PATH = {
     posts: '/api/posts',

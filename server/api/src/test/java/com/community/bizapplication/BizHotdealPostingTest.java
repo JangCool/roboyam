@@ -290,13 +290,15 @@ class BizHotdealPostingTest extends BizHotdealTestBase {
     }
 
     @Test
-    void 규칙4_진행_중_환불_승인으로_취소되면_글을_숨긴다() {
-        Booked b = postedBooking("NONE");
+    void 규칙4_진행_중_환불_요청은_중단이라_글을_숨기고_환불_승인으로_취소돼도_숨김_그대로() {
+        // V127 — 진행 중 환불 요청 = 중단(바로 내림 · 글은 판매자 중단 숨김). 노출 자리 몫이 있어야 환불 줄이 생긴다
+        Booked b = postedBooking("HOME_TOP");
         long postId = postOf(b.id());
         members.requestRefund(b.user(), b.id(), "판매 종료");
+        assertThat(postRow(postId).get("hidden_reason")).isEqualTo("SELLER_STOPPED");
         review.approveRefund(operator, b.id(), 1000L, "일할");
         assertThat(app(b.id()).status()).isEqualTo(BizApplicationStatus.CANCELED);
-        assertThat(postRow(postId).get("hidden_reason")).isEqualTo("STAFF");
+        assertThat(postRow(postId).get("hidden_reason")).isEqualTo("SELLER_STOPPED");
         assertThat(events(b.id())).contains("POST_HIDDEN");
         assertThat(view.detail(b.user(), b.id()).post().status()).isEqualTo("HIDDEN");
     }

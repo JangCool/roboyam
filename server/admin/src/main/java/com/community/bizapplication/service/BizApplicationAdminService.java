@@ -52,9 +52,11 @@ public class BizApplicationAdminService {
     private final AccessDeniedRecorder denied;
     private final BizApplicationProperties props;
     private final com.community.bizapplication.service.BizDealPostReader dealPosts;
+    private final BizPauseService pauses;
 
     public BizApplicationAdminService(BizApplicationReader reader, BizApplicationReviewService review, Messages messages, AccessDeniedRecorder denied,
-                                      BizApplicationProperties props, com.community.bizapplication.service.BizDealPostReader dealPosts) {
+                                      BizApplicationProperties props, com.community.bizapplication.service.BizDealPostReader dealPosts, BizPauseService pauses) {
+        this.pauses = pauses;
         this.props = props;
         this.dealPosts = dealPosts;
         this.reader = reader;
@@ -181,6 +183,26 @@ public class BizApplicationAdminService {
         return view(actor, id);
     }
 
+    // ── 광고주 요청 정지·다시 켜기·중단(운영자 대신 — V127, 권한 = 건의 도메인 처리 권한) ──
+
+    public BizAdminView.Detail pause(AdminActor actor, long id, BizAdminRequest.PauseAction body) {
+        canManage(actor, id);
+        pauses.pauseByOperator(op(actor), id, body == null ? null : body.channel(), body == null ? null : body.memo());
+        return view(actor, id);
+    }
+
+    public BizAdminView.Detail resume(AdminActor actor, long id, BizAdminRequest.PauseAction body) {
+        canManage(actor, id);
+        pauses.resumeByOperator(op(actor), id, body == null ? null : body.channel(), body == null ? null : body.memo());
+        return view(actor, id);
+    }
+
+    public BizAdminView.Detail stop(AdminActor actor, long id, BizAdminRequest.PauseAction body) {
+        canManage(actor, id);
+        pauses.stopByOperator(op(actor), id, body == null ? null : body.channel(), body == null ? null : body.memo(), body == null ? null : body.reason());
+        return view(actor, id);
+    }
+
     public BizAdminView.Detail approveRefund(AdminActor actor, long id, BizAdminRequest.RefundApprove body) {
         review.approveRefund(op(actor), id, body == null ? null : body.amount(), body == null ? null : body.reason());
         return view(actor, id);
@@ -225,7 +247,22 @@ public class BizApplicationAdminService {
         return new BizAdminView.Row(Long.toString(a.id()), a.no(), a.kind().name(), capacity == null ? null : capacity.name(), BizApplicationReader.adminStatus(a, now),
                 business(a), a.createdAt(), new BizAdminView.Period(a.startAt(), a.endAt()), a.preferredMethod().name(),
                 a.approved() != null ? a.approved().total() : a.quote().total(), a.approved() == null ? null : a.deadlineAt(), BizApplicationReader.refundOpen(refund),
-                a.source().name());
+                a.source().name(), a.takedownCause() == null ? null : a.takedownCause().name());
+    }
+
+    /** 내림 칸(V127 — 운영자 대신 처리면 경로·메모, 내린 사람 표시 이름) — 내려간 적 없으면 null */
+    BizAdminView.Takedown takedown(AppRow a) {
+        if (a.takenDownAt() == null) {
+            return null;
+        }
+        String by;
+        if (a.takedownActor() == BizActorType.MEMBER) {
+            by = pauses.nameOf(a);
+        } else {
+            by = a.takenDownBy() == null ? null : reader.operatorName(a.takenDownBy());
+        }
+        return new BizAdminView.Takedown(a.takenDownAt(), a.takedownCause().name(), a.takedownText(), a.takedownChannel() == null ? null : a.takedownChannel().name(),
+                a.takedownMemo(), by);
     }
 
     private BizAdminView.Detail detailOf(Snapshot s, AdminActor actor) {
@@ -247,20 +284,18 @@ public class BizApplicationAdminService {
                 c.sizeBytes(), c.uploadedAt(), c.uploadedByName(), c.replacedAt(), c.replacedByName())).toList();
         BizAdminView.Deposit deposit = s.deposit() == null ? null : new BizAdminView.Deposit(s.deposit().amount(), s.deposit().depositedOn(), s.deposit().depositorName(),
                 s.deposit().mismatchReason(), s.deposit().confirmedByName(), s.deposit().confirmedAt());
-        RefundRow r = s.refund();
-        BizAdminView.Refund refund = r == null ? null : new BizAdminView.Refund(r.requestedAt(), r.reason(), r.paidAmount(), r.proposedAmount(), r.usedDays(),
-                r.totalDays(), r.status().name(), r.type().name(), r.method().name(), r.approvedAmount(), r.decisionReason(), r.transferStatus(), r.transferredAt(),
-                r.completedAt());
+        BizAdminView.Refund refund = BizAdminView.Refund.of(s.refund());
         BizAdminView.Rejection rejection = a.rejectCode() == null ? null : new BizAdminView.Rejection(a.rejectCode().name(), a.rejectText());
-        BizAdminView.Takedown takedown = a.takenDownAt() == null ? null : new BizAdminView.Takedown(a.takenDownAt(), a.takedownCause().name(), a.takedownText());
+        BizAdminView.Takedown takedown = takedown(a);
         List<BizAdminView.History> history = s.events().stream().map(e -> new BizAdminView.History(e.at(), e.action(), actorName(e.actorType(), e.actorName()),
                 e.note())).toList();
         String policy = a.adPolicyVersion() == null ? null : messages.get(new MessageRef("bizapp.admin.policyVersion", a.adPolicyVersion(), a.refundPolicyVersion()));
         String applicant = s.applicantName();
         return new BizAdminView.Detail(row.id(), row.no(), row.kind(), row.adType(), row.status(), row.business(), row.submittedAt(), row.period(), row.preferredMethod(),
-                row.total(), row.deadlineAt(), row.hasRefundRequest(), a.source().name(), applicant, content(a, s.creative() == null ? Map.of() : s.creative().content()),
-                a.operatorMemo(), quote(s.items(), a.quote()), remaining, limit, approval, online, contracts, deposit, refund, rejection, takedown, policy, history,
-                a.proposedSupply(), a.weight(), registrant(a, actor), props.selfApproval().name(), dealPosts.view(a, s.items(), s.creative()));
+                row.total(), row.deadlineAt(), row.hasRefundRequest(), a.source().name(), row.takedownCause(), applicant,
+                content(a, s.creative() == null ? Map.of() : s.creative().content()), a.operatorMemo(), quote(s.items(), a.quote()), remaining, limit, approval, online,
+                contracts, deposit, refund, rejection, takedown, policy, history, a.proposedSupply(), a.weight(), registrant(a, actor), props.selfApproval().name(),
+                dealPosts.view(a, s.items(), s.creative()), BizAdminView.Pause.of(pauses.info(a, s.items())));
     }
 
     private static Map<String, Object> ref(Object id, Object name) {

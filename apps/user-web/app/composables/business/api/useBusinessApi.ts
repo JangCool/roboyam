@@ -10,6 +10,7 @@ import type {
     BizCreativeRequest,
     BizDealPost,
     BizPaymentStart,
+    BizRefundPolicy,
     BusinessApplyRequest,
     BusinessFile,
     BusinessProfile,
@@ -33,6 +34,12 @@ import type { PaymentCompleteRequest, PaymentFakeCheckoutRequest, PaymentResult 
  *  - 사업자 핫딜 게시(2차 — `biz-hotdeal-contract.md`): `deal-products` 에 `boards`, 신청 본문 `deal.boardId`·`prefixId`·`imageFileId`·`stock`, 상세 `post`(`BizDealPost`) ·
  *    칸 오류 `fields."deal.boardId"`·`"deal.prefixId"`·`"deal.linkUrl"`(형식·차단·단축 주소)·`"deal.listPrice"`·`"deal.stock"`·`"deal.imageFileId"` ·
  *    사업자 종료 `POST …/{id}/deal/end` → 새 `BizDealPost`(환불 없음 · 노출도 멈춤) — 이미 끝남 409 `DEAL_ENDED` · 글이 없음(게시 전·실패·숨김) 409 `BIZ_APPLICATION_STATE_CHANGED`
+ *  - 일시 정지·중단(광고주 요청 — 서버 연결 2026-11-02, `biz-pause-contract.md`): 진행 중(시작 뒤·끝 전, 핫딜 글은 게시되고 진행 중·의심) 건만.
+ *    `POST …/{id}/pause`(바로 멈춤 · 자리 유지 · 한 건에 3번) · `POST …/{id}/resume`(승인 없이 바로 재개 · 끝 시각 그대로) · `POST …/{id}/stop` `{ reason }`(1~300자 — 바로 내림 · 되돌리기 없음 ·
+ *    일할 − 중도 해지 수수료 환불 `STOP_PRORATED` 심사, 예상액 0원이면 환불 줄 없음) — 셋 다 → `BizApplicationDetail`(`takedownCause`·`pause`). 정지 = `TAKEN_DOWN` + `ADVERTISER_PAUSE`, 중단 = `TAKEN_DOWN` + `ADVERTISER_STOP`(승인 → `CANCELED`).
+ *    진행 중 `refund-request` 도 서버가 중단과 같이 처리한다(화면은 [중단하고 환불 요청] = `stop`).
+ *    오류: 횟수 초과 409 `BIZ_PAUSE_LIMIT` · 이미 끝남/상태 바뀜 409 `BIZ_APPLICATION_STATE_CHANGED`(알리고 다시 읽는다) · 정지된 사업자가 다시 켜기 409 `BUSINESS_NOT_APPROVED`
+ *  - 환불 규정: `GET /api/business/refund-policy` → `{ version, stopFeeRate }`(신청 화면 동의 문구) · 신청 본문의 규정 버전이 지금과 다르면 400 `fields.agreedRefundPolicyVersion`
  */
 const PATH = {
     me: '/api/business/me',
@@ -43,6 +50,7 @@ const PATH = {
     availability: '/api/business/availability',
     dealLinkCheck: '/api/business/deal-link-check',
     applications: '/api/business/applications',
+    refundPolicy: '/api/business/refund-policy',
     application: (id: string) => `/api/business/applications/${encodeURIComponent(id)}`,
 };
 
@@ -111,5 +119,17 @@ export function useBusinessApi() {
 
         /** 취소·환불 요청(예약·진행 중, 한 번만) */
         refundRequest: (id: string, reason: string): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(`${PATH.application(id)}/refund-request`, { reason }),
+
+        /** 일시 정지(진행 중 — 바로 멈춤, 자리 유지, 한 건에 3번) — 다 썼으면 409 `BIZ_PAUSE_LIMIT` */
+        pause: (id: string): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(`${PATH.application(id)}/pause`),
+
+        /** 다시 켜기(정지 중 · 끝 시각 전) — 승인 없이 지금 승인된 소재로 바로 재개, 기간은 늘지 않는다 */
+        resume: (id: string): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(`${PATH.application(id)}/resume`),
+
+        /** 지금 환불 규정 버전 + 중도 해지 수수료율(신청 화면 동의 문구) */
+        refundPolicy: (): Promise<BizRefundPolicy> => client.get<BizRefundPolicy>(PATH.refundPolicy),
+
+        /** 중단하고 환불 요청(진행 중·정지 중) — 바로 내려가고 되돌릴 수 없다. 남은 기간 일할(정지 중이면 멈춘 시각부터) − 중도 해지 수수료를 운영팀이 확인 */
+        stop: (id: string, reason: string): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(`${PATH.application(id)}/stop`, { reason }),
     };
 }

@@ -55,7 +55,7 @@ class BizApplicationAdminHttpTest extends Commerce04AdminTestBase {
     private long submit(long user) {
         LocalDate start = LocalDate.now(ZoneId.of("Asia/Seoul")).plusDays(3);
         return members.submitAd(user, new BizAdApplyRequest("TEXT_LINE", start.toString(), start.plusDays(2).toString(), null, "https://a.example.com", null, "관리 시험 한 줄",
-                "MANUAL", "v1", "v1"));
+                "MANUAL", "v1", "2026-11-02"));
     }
 
     /** 사업자 핫딜 글(노출 없음) — 말머리 없는 새 핫딜 게시판에(V123 — 받는 게시판 필수) */
@@ -65,7 +65,7 @@ class BizApplicationAdminHttpTest extends Commerce04AdminTestBase {
                 "관리 핫딜 " + Long.toString(board, 36));
         boardCatalog.invalidate();
         return members.submitDeal(user, new BizDealApplyRequest("[관리상사] 텀블러 1+1", new BizDealInfo("https://smartstore.naver.com/roboyam/products/9",
-                "네이버 스마트스토어", 32_000L, 15_900L, 0L, null, "LOW", "1+1 행사", "NONE", Long.toString(board), null, null, null), null, null, "MANUAL", "v1", "v1"));
+                "네이버 스마트스토어", 32_000L, 15_900L, 0L, null, "LOW", "1+1 행사", "NONE", Long.toString(board), null, null, null), null, null, "MANUAL", "v1", "2026-11-02"));
     }
 
     @Autowired

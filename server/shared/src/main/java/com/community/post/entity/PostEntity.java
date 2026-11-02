@@ -27,6 +27,9 @@ public class PostEntity {
     public static final String PUBLISHED = "PUBLISHED";
     /** 숨김 까닭: 운영자가 숨김(관리자 게시글 관리 — V80). 신고 숨김 까닭은 {@code ReportReasons.HIDDEN_*} */
     public static final String STAFF_HIDDEN = "STAFF";
+    /** 숨김 까닭: 사업자 핫딜 글의 판매자(광고주)가 일시 정지·중단했다(V127 — biz-pause-contract 규칙 9). 운영 숨김과 가른다 */
+    public static final String SELLER_PAUSED = "SELLER_PAUSED";
+    public static final String SELLER_STOPPED = "SELLER_STOPPED";
 
     @Id
     private Long id;
@@ -227,6 +230,20 @@ public class PostEntity {
         this.hiddenUntil = null;
         this.pinnedAt = null;
         this.updatedAt = now;
+    }
+
+    /** 판매자 숨김({@link #SELLER_PAUSED}·{@link #SELLER_STOPPED}) — 기간 없음, 고정을 푼다. 상태 확인은 부르는 쪽(신청 건 고리)이 한다 */
+    public void sellerHide(String reason, Instant now) {
+        this.hiddenAt = now;
+        this.hiddenReason = reason;
+        this.hiddenUntil = null;
+        this.pinnedAt = null;
+        this.updatedAt = now;
+    }
+
+    /** 판매자가 숨긴 글인가(지금 숨김 중이고 까닭이 판매자 정지·중단) */
+    public boolean sellerHiddenAt(Instant now) {
+        return isHiddenAt(now) && (SELLER_PAUSED.equals(hiddenReason) || SELLER_STOPPED.equals(hiddenReason));
     }
 
     /** 숨김을 푼다(까닭이 무엇이든 — 신고 숨김도) */

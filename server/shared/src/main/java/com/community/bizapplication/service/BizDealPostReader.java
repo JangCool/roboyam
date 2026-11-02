@@ -56,6 +56,28 @@ public class BizDealPostReader {
         this.ops = ops;
     }
 
+    /**
+     * 정지·중단할 수 있는 사업자 핫딜 글인가(V127 — biz-pause-contract 「상태 모델」): 게시됨 · 지운 글 아님 · 딜 진행 중(ACTIVE·FLAGGED — 품절로 종료·기간 종료 뒤엔 없음).
+     * 진행 중 건({@code paused = false})은 글이 보여야 한다(운영 숨김 뒤엔 없음). 정지 중 건의 중단은 글 숨김 상태를 보지 않는다.
+     */
+    public boolean dealPausable(AppRow app, boolean paused) {
+        Optional<PostRow> row = results.find(app.id()).filter(PostRow::posted);
+        if (row.isEmpty()) {
+            return false;
+        }
+        Instant now = ops.now();
+        PostEntity post = posts.findById(row.get().postId()).orElse(null);
+        if (post == null || post.isGoneAt(now) || (!paused && post.isHiddenAt(now))) {
+            return false;
+        }
+        PostDealEntity deal = deals.findById(post.getId()).orElse(null);
+        if (deal == null) {
+            return false;
+        }
+        DealView view = deal.view(settings.current().autoExpireDays(), now);
+        return view == DealView.ACTIVE || view == DealView.FLAGGED;
+    }
+
     public BizDealPostView view(AppRow app, List<ItemRow> items, CreativeRow creative) {
         if (app.kind() != BizApplicationKind.HOTDEAL_POST) {
             return null;
@@ -97,7 +119,10 @@ public class BizDealPostReader {
         }
         BizDealPostView.Placement placement = null;
         if (product != null) {
-            if (hidden) {
+            if (hidden && post != null && post.isHiddenAt(now) && PostEntity.SELLER_PAUSED.equals(post.getHiddenReason())) {
+                // 광고주 일시 정지(V127) — 다시 켜면 같이 나간다
+                placement = new BizDealPostView.Placement(product, "STOPPED", "PAUSED");
+            } else if (hidden) {
                 placement = new BizDealPostView.Placement(product, "STOPPED", "POST_HIDDEN");
             } else if (view == DealView.ENDED) {
                 placement = new BizDealPostView.Placement(product, "STOPPED", "DEAL_ENDED");

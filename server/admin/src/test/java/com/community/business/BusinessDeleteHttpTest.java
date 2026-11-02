@@ -100,9 +100,9 @@ class BusinessDeleteHttpTest extends Commerce04AdminTestBase {
     private void application(Fixture f, String status) {
         long app = ids.nextId();
         jdbc.update("INSERT INTO biz_applications (id, application_no, kind, status, source, business_profile_id, user_id, company_name, biz_no_last4, title, start_at, end_at, "
-                        + "preferred_method, quote_supply, quote_vat, quote_total, ad_policy_version, refund_policy_version, agreed_at, created_at, updated_at) "
+                        + "preferred_method, quote_supply, quote_vat, quote_total, ad_policy_version, refund_policy_version, agreed_at, stop_fee_rate, created_at, updated_at) "
                         + "VALUES (?, ?, 'AD_BANNER', ?, 'BUSINESS', ?, ?, '(주)삭제상사', ?, '시험 광고', date_trunc('minute', now()) + interval '1 day', "
-                        + "date_trunc('minute', now()) + interval '8 day', 'ONLINE', 0, 0, 0, 'v1', 'v1', now(), now(), now())",
+                        + "date_trunc('minute', now()) + interval '8 day', 'ONLINE', 0, 0, 0, 'v1', 'v1', now(), 0, now(), now())",
                 app, "BT-" + (app % 1_000_000_000_000L), status, f.profileId(), f.userId(), f.bizNo().substring(6));
     }
 

@@ -25,4 +25,14 @@ public record PostDealView(String source, String storeName, String productUrl, S
                            String endedBy, Instant endedAt, Instant reopenUntil, DealEndRequestsView endRequests, Instant flaggedAt, Instant autoEndAt,
                            int keepCount, int keepMax, DealRevisionView revision, boolean hot, int sameDealCount, String buyUrl, String affiliateKind,
                            String siteProgramName, DealBusinessView business) {
+
+    /** 사업자 글의 신청 건 ID 를 싣는다(작성자에게만 — V127). 회원 글이면 그대로 */
+    public PostDealView withApplicationId(String applicationId) {
+        if (business == null) {
+            return this;
+        }
+        return new PostDealView(source, storeName, productUrl, productHost, finalHost, normalPrice, dealPrice, discountRate, shippingFee, couponNote, priceBasisKind,
+                dutyIncluded, priceBasis, endsAt, autoExpireAt, stockState, affiliate, image, status, view, endedBy, endedAt, reopenUntil, endRequests, flaggedAt,
+                autoEndAt, keepCount, keepMax, revision, hot, sameDealCount, buyUrl, affiliateKind, siteProgramName, new DealBusinessView(business.name(), applicationId));
+    }
 }

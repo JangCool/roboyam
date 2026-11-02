@@ -2,6 +2,7 @@
     <!--
         광고 일정표 달력 — 한 달을 크게(하모니카3 일정 화면의 월 보기와 같은 짜임). 02-ad.md 7-1 ③.
         · 칸마다 「남은 칸 n/한도」 알약(초록 여유 · 주황 거의 · 빨강 꽉 참)과 그날 걸친 광고 건 이름(상태 색 점)을 보인다.
+          광고주 요청 「정지 중」(청록 점)·「중단」(짙은 회색 점, 줄 긋기)은 긴급 내림(빨강 점)과 색을 가른다(`takedownCause` — biz-pause-contract).
         · 광고 건을 누르면 `open`(상세 서랍), 칸의 빈 곳을 누르면 `pick`(그 날짜로 수동 등록 시작 — 부모가 권한을 본다).
         · 좁은 화면은 칸이 작아 이름 대신 남은 칸 숫자와 점만 보인다.
         서버가 저장 때 다시 판정하므로 남은 칸은 안내다. 날짜 계산은 서비스 시간대(KST) 기준.
@@ -22,7 +23,8 @@
                     <span class="rounded-full bg-red-100 px-1.5 text-red-700 dark:bg-red-950 dark:text-red-300">{{ t('ad.legendFull') }}</span>
                 </span>
                 <span class="inline-flex flex-wrap items-center gap-2">
-                    <span v-for="s in LEGEND_STATUSES" :key="s" class="inline-flex items-center gap-1"><span class="size-2 rounded-full" :class="dotClass(s)" aria-hidden="true" />{{ t(`ad.status.${s}`) }}</span>
+                    <span v-for="s in LEGEND_STATUSES" :key="s" class="inline-flex items-center gap-1"><span class="size-2 rounded-full" :class="dotClass({ status: s, takedownCause: null })" aria-hidden="true" />{{ t(`ad.status.${s}`) }}</span>
+                    <span v-for="p in LEGEND_PAUSE" :key="p.state" class="inline-flex items-center gap-1"><span class="size-2 rounded-full" :class="dotClass({ status: 'TAKEN_DOWN', takedownCause: p.cause })" aria-hidden="true" />{{ t(`bizApplication.pauseState.${p.state}`) }}</span>
                 </span>
             </div>
         </div>
@@ -61,7 +63,7 @@
                     </div>
 
                     <div v-if="compact" class="flex flex-wrap items-center justify-center gap-0.5">
-                        <span v-for="b in d.bookings.slice(0, 4)" :key="b.id" class="size-1.5 rounded-full" :class="dotClass(b.status)" />
+                        <span v-for="b in d.bookings.slice(0, 4)" :key="b.id" class="size-1.5 rounded-full" :class="dotClass(b)" />
                     </div>
                     <div v-else class="flex min-h-0 flex-1 flex-col gap-0.5">
                         <button
@@ -69,11 +71,11 @@
                             :key="b.id"
                             type="button"
                             class="flex min-w-0 items-center gap-1 rounded px-1 py-0.5 text-left text-[11.5px] hover:bg-(--p-highlight-background)"
-                            :class="b.status === 'TAKEN_DOWN' ? 'line-through opacity-70' : b.status === 'ENDED' ? 'opacity-60' : ''"
-                            :title="`${b.advertiser.name} · ${t(`ad.status.${b.status}`)}`"
+                            :class="UtilBizApplication.pauseState(b.status, b.takedownCause) === 'PAUSED' ? 'italic opacity-80' : b.status === 'TAKEN_DOWN' ? 'line-through opacity-70' : b.status === 'ENDED' ? 'opacity-60' : ''"
+                            :title="`${b.advertiser.name} · ${t(UtilAd.statusKey(b))}`"
                             @click.stop="emit('open', b.id)"
                         >
-                            <span class="size-1.5 shrink-0 rounded-full" :class="dotClass(b.status)" aria-hidden="true" />
+                            <span class="size-1.5 shrink-0 rounded-full" :class="dotClass(b)" aria-hidden="true" />
                             <span class="truncate">{{ b.advertiser.name }}</span>
                         </button>
                         <span v-if="d.bookings.length > MAX" class="px-1 text-[10.5px] text-muted-color">{{ t('ad.moreN', { n: d.bookings.length - MAX }) }}</span>
@@ -86,6 +88,8 @@
 
 <script setup lang="ts">
 import type { AdBookingRow, AdBookingStatus, AdDaySlot } from '~/composables/ad/api/useAdApi.types';
+import type { BizTakedownCause } from '~/composables/bizapplication/api/useBizApplicationApi.types';
+import UtilAd from '~/utils/util-ad';
 import UtilBizApplication from '~/utils/util-biz-application';
 
 interface Props {
@@ -116,6 +120,11 @@ const emit = defineEmits<{ month: [month: string]; open: [id: string]; pick: [ym
 const { t, locale } = useI18n();
 const MAX = 3;
 const LEGEND_STATUSES: readonly AdBookingStatus[] = ['RUNNING', 'SCHEDULED', 'AWAITING_PAYMENT', 'SUBMITTED', 'TAKEN_DOWN', 'ENDED'];
+/** 광고주 요청 내림 — 긴급 내림과 다른 색 */
+const LEGEND_PAUSE: readonly { state: 'PAUSED' | 'STOPPED'; cause: BizTakedownCause }[] = [
+    { state: 'PAUSED', cause: 'ADVERTISER_PAUSE' },
+    { state: 'STOPPED', cause: 'ADVERTISER_STOP' },
+];
 const today = computed(() => UtilBizApplication.kstToday());
 
 const weekdays = computed(() => {
@@ -159,8 +168,11 @@ function pillClass(slot: AdDaySlot): string {
     return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
 }
 
-function dotClass(status: AdBookingStatus): string {
-    switch (status) {
+function dotClass(b: Pick<AdBookingRow, 'status' | 'takedownCause'>): string {
+    const pause = UtilBizApplication.pauseState(b.status, b.takedownCause);
+    if (pause === 'PAUSED') return 'bg-cyan-500';
+    if (pause === 'STOPPED') return 'bg-zinc-600 dark:bg-zinc-400';
+    switch (b.status) {
         case 'RUNNING':
             return 'bg-emerald-500';
         case 'SCHEDULED':

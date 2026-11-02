@@ -37,6 +37,8 @@ import type { BizContractFile, BizPeriod } from '~/composables/bizapplication/ap
  *    400 `fields.postInline.adType`·`fields.postInline.position`·`fields.wings.screens`·`fields.boardList.after`(1~20), 빠진 묶음은 `fields.postInline` 등.
  *  - `GET  /api/admin/ads/placements/history?page=&size=`(`ad.read`) → `AdPlacementHistoryPage`(메일 서버 설정 이력과 같은 모양 — 최신이 위, 바뀐 칸이 없는 저장은 줄이 없다)
  *  상태가 이미 바뀌었으면 409 `BIZ_APPLICATION_STATE_CHANGED`.
+ *  광고주 요청 일시 정지·중단(서버 연결 2026-11-02 — `biz-pause-contract.md`): 줄(달력·표) `takedownCause`, 상세 `takedownCause`·`pause`·`takedown.channel`·`takedown.memo`·`takedown.pause`(신청 건 상세와 같은 모양).
+ *    정지·재개·중단 처리는 신청 건 API(`/api/admin/biz-applications/{id}/pause|resume|stop`)만 — 이 화면은 「광고 심사에서 열기」로 보낸다. [되돌리기]는 긴급 내림만.
  */
 const PATH = {
     root: '/api/admin/ads',

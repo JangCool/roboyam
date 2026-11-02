@@ -43,7 +43,14 @@ public enum BizEventAction {
     /** 사업자가 딜을 끝냈다(환불 없음 · 신청 건 상태 그대로) */
     DEAL_ENDED_BY_BUSINESS(true),
     /** 종료 요청이 모여 딜이 자동으로 끝났다(환불 없음 · 신청 건 상태 그대로) */
-    DEAL_AUTO_ENDED(true);
+    DEAL_AUTO_ENDED(true),
+    // ── 광고주 요청 일시 정지·중단(V127 — biz-pause-contract). note 는 ` · ` 로 이은 토큰: 운영자 대신 = `PHONE|EMAIL|OTHER · 메모`(공개 응답은 경로까지만) ──
+    /** 일시 정지 */
+    PAUSED(true),
+    /** 다시 켜기 — note 맨 앞 {@code MIN:<멈춘 분>} */
+    RESUMED(true),
+    /** 중단 — 정지 중 전환이면 note 맨 앞 {@code FROM_PAUSE} */
+    STOPPED(true);
 
     private final boolean publicVisible;
 

@@ -1,4 +1,4 @@
-import type { BizAmount, BizApplicationStatus, BizDealPlacement, BizDealPostStatus, BizDomain, BizPeriod } from '~/composables/bizapplication/api/useBizApplicationApi.types';
+import type { BizAmount, BizApplicationStatus, BizDealPlacement, BizDealPostStatus, BizDomain, BizPause, BizPeriod, BizTakedownCause } from '~/composables/bizapplication/api/useBizApplicationApi.types';
 
 type Severity = 'secondary' | 'info' | 'success' | 'warn' | 'danger' | 'contrast';
 
@@ -67,6 +67,78 @@ export default class UtilBizApplication {
     static prorate(paid: number, usedDays: number, totalDays: number): number {
         if (totalDays <= 0) return 0;
         return Math.floor((paid * Math.max(0, totalDays - usedDays)) / totalDays);
+    }
+
+    // ── 광고주 요청 일시 정지·중단(biz-pause-contract — 서버가 저장 때 다시 판정한다) ──
+
+    /** 운영자 대신 처리 메모 길이(필수) */
+    static readonly PAUSE_MEMO = { min: 1, max: 200 } as const;
+
+    /** 광고주 요청(정지·중단) 까닭인가 — 이 건에는 긴급 내림 [되돌리기](연장·일할 보상)를 쓰지 않는다 */
+    static isAdvertiserCause(cause: BizTakedownCause | null | undefined): boolean {
+        return cause === 'ADVERTISER_PAUSE' || cause === 'ADVERTISER_STOP';
+    }
+
+    /** 내림 상태를 광고주 요청으로 가른다 — 정지 중 · 중단 · 그 밖(null — 긴급 내림·사업자 정지·내림 아님) */
+    static pauseState(status: string, cause: BizTakedownCause | null | undefined): 'PAUSED' | 'STOPPED' | null {
+        if (status !== 'TAKEN_DOWN') return null;
+        if (cause === 'ADVERTISER_PAUSE') return 'PAUSED';
+        if (cause === 'ADVERTISER_STOP') return 'STOPPED';
+        return null;
+    }
+
+    /**
+     * 목록·머리 Tag 로 보일 광고주 요청 상태 — 정지 중 · 중단 · 정지한 채 끝남(`PAUSE_ENDED` — 끝 시각이 지난 정지 건, 「환불 없이 종료」). 그 밖이면 null(기존 상태 Tag)
+     */
+    static pauseLabel(status: string, cause: BizTakedownCause | null | undefined, period: BizPeriod, now = Date.now()): 'PAUSED' | 'STOPPED' | 'PAUSE_ENDED' | null {
+        const state = UtilBizApplication.pauseState(status, cause);
+        if (state === 'PAUSED' && UtilBizApplication.ended(period, now)) return 'PAUSE_ENDED';
+        return state;
+    }
+
+    /** 「정지 중」은 주황(다시 켤 수 있음), 「중단」은 빨강(되돌리기 없음), 「정지한 채 종료」는 회색 */
+    static pauseStateSeverity(state: 'PAUSED' | 'STOPPED' | 'PAUSE_ENDED'): Severity {
+        return state === 'PAUSED' ? 'warn' : state === 'STOPPED' ? 'danger' : 'secondary';
+    }
+
+    /** 끝 시각이 지났나 — 정지한 채 끝났으면 「환불 없이 종료」(서버가 상태를 바꾸든 아니든 화면이 같은 문구) */
+    static ended(period: BizPeriod, now = Date.now()): boolean {
+        return Date.parse(period.endAt) <= now;
+    }
+
+    /** 정지 횟수를 다 썼나 */
+    static pauseLimitReached(pause: Pick<BizPause, 'used' | 'limit'>): boolean {
+        return pause.used >= pause.limit;
+    }
+
+    /**
+     * 광고주 요청 중단 환불 예상(서버 `BizPricing.stop` 과 같은 식 — biz-pause-contract 규칙 5, 법무 확정 전 가정):
+     * 총 일수 = 기간의 한국 날짜 수, 쓴 날 = 시작 날짜부터 기준 시각의 한국 날짜까지(그날 포함), 일할 = floor(대상 × 남은 날 / 총 일수) →
+     * `min(일할, 결제액 − 이미 승인한 환불)`(`cap` — 모르면 null 로 생략) → 중도 해지 수수료 = floor(일할 × 비율 / 100) → 예상액 = 일할 − 수수료.
+     * 기준 시각 = 정지 중 전환이면 멈춘 시각, 아니면 중단(지금) 시각. 대상 = `pause.proratableTotal`(광고 결제액 · 핫딜 글은 노출 자리 몫 — 게시비 제외).
+     * @param {number} feeRate - 그 건에 고정된 중도 해지 수수료율(% — `pause.feeRate`).
+     * @param {number | null} cap - 돌려줄 수 있는 남은 금액(결제액 − 이미 승인한 환불). 모르면 null.
+     */
+    static stopRefund(
+        total: number,
+        period: BizPeriod,
+        fromIso: string,
+        feeRate: number,
+        cap: number | null = null,
+    ): { prorated: number; fee: number; amount: number; usedDays: number; totalDays: number } {
+        const start = UtilBizApplication.kstDate(period.startAt);
+        const end = UtilBizApplication.kstDate(new Date(Date.parse(period.endAt) - 1).toISOString());
+        const totalDays = Math.max(1, UtilBizApplication.dayDiff(start, end) + 1);
+        const left = Math.min(totalDays, Math.max(0, UtilBizApplication.dayDiff(UtilBizApplication.kstDate(fromIso), end)));
+        const raw = total > 0 ? Math.floor((total * left) / totalDays) : 0;
+        const prorated = Math.max(0, cap === null ? raw : Math.min(raw, cap));
+        const fee = Math.floor((prorated * Math.max(0, feeRate)) / 100);
+        return { prorated, fee, amount: prorated - fee, usedDays: totalDays - left, totalDays };
+    }
+
+    /** 두 달력 날짜(`YYYY-MM-DD`)의 날 차이(b − a) */
+    static dayDiff(a: string, b: string): number {
+        return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / DAY_MS);
     }
 
     /** 계약서 파일 문제 — 형식·크기 */

@@ -126,6 +126,8 @@ roboyam:
     deposit-days: 7
     # 운영자 등록 건의 자기 승인(등록자 = 승인자, 04-ia-review §2) — allow(기본, 1인 운영: 승인 창 경고 + 메모 필수 + 처리 기록·감사 selfApproved) | deny(409 BIZ_SELF_APPROVAL_DENIED)
     self-approval: ${ROBOYAM_BIZ_SELF_APPROVAL:allow}
+    # 광고주 요청 일시 정지 횟수 한도(한 건에 — biz-pause-contract 규칙 1). 넘으면 409 BIZ_PAUSE_LIMIT
+    pause-limit: 3
     deposit-account:
       bank-name: ${ROBOYAM_BIZ_BANK_NAME:}
       account-no: ${ROBOYAM_BIZ_ACCOUNT_NO:}

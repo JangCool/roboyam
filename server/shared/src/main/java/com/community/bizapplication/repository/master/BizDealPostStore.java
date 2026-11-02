@@ -80,6 +80,32 @@ public class BizDealPostStore {
                 limit);
     }
 
+    /**
+     * 판매자 숨김(V127 — 광고주 일시 정지·중단) 한 줄 — 까닭(ADVERTISER_PAUSE·ADVERTISER_STOP) · 숨긴 시각 · 처리한 사람 표시 이름(운영자 이름 또는 사업자 닉네임 — 없으면 상호) ·
+     * 운영자 대신 처리였나
+     */
+    public record SellerHidden(String cause, Instant at, String by, boolean byOperator) {
+    }
+
+    /** 글 ID → 판매자 숨김(지금 판매자 숨김 까닭으로 숨겨진 사업자 글만 — 관리자 핫딜 목록·상세 {@code sellerHidden}) */
+    public Map<Long, SellerHidden> sellerHidden(Collection<Long> postIds) {
+        Map<Long, SellerHidden> out = new HashMap<>();
+        if (postIds.isEmpty()) {
+            return out;
+        }
+        named.query("SELECT p.id, p.hidden_reason, p.hidden_at, a.takedown_actor, o.operator_name, pr.nickname, a.company_name, a.advertiser_name FROM posts p "
+                        + "JOIN post_deals d ON d.post_id = p.id JOIN biz_applications a ON a.id = d.biz_application_id "
+                        + "LEFT JOIN operators o ON a.takedown_actor = 'OPERATOR' AND o.id = a.taken_down_by LEFT JOIN profiles pr ON pr.user_id = a.user_id "
+                        + "WHERE p.id IN (:ids) AND p.hidden_at IS NOT NULL AND p.hidden_until IS NULL AND p.hidden_reason IN ('SELLER_PAUSED', 'SELLER_STOPPED')",
+                new MapSqlParameterSource("ids", postIds), (ResultSet rs) -> {
+                    boolean operator = "OPERATOR".equals(rs.getString(4));
+                    String member = rs.getString(6) != null ? rs.getString(6) : rs.getString(7) != null ? rs.getString(7) : rs.getString(8);
+                    out.put(rs.getLong(1), new SellerHidden("SELLER_PAUSED".equals(rs.getString(2)) ? "ADVERTISER_PAUSE" : "ADVERTISER_STOP",
+                            rs.getTimestamp(3).toInstant(), operator ? rs.getString(5) : member, operator));
+                });
+        return out;
+    }
+
     /** 사업자 신원이 승인 상태인가(정지 · 승인 취소가 아님) — 게시 직전 재판정 */
     public boolean businessApproved(AppRow app) {
         if (app.businessProfileId() == null) {

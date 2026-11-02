@@ -71,7 +71,7 @@ class AdPlacementHistoryHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.items[0].operatorName").value(operatorName(me)))
                 .andExpect(jsonPath("$.data.items[0].operatorDeleted").value(false))
                 .andExpect(jsonPath("$.data.items[0].changedAt").isString())
-                .andExpect(jsonPath("$.data.items[0].changes.length()").value(9))
+                .andExpect(jsonPath("$.data.items[0].changes.length()").value(10))
                 .andExpect(jsonPath("$.data.items[0].changes[0].field").value("postInline.enabled"))
                 .andExpect(jsonPath("$.data.items[0].changes[0].labelKey").value("settingHistory.field.postInline.enabled"))
                 .andExpect(jsonPath("$.data.items[0].changes[0].before").doesNotExist())
@@ -88,7 +88,10 @@ class AdPlacementHistoryHttpTest extends Commerce04AdminTestBase {
                 .andExpect(jsonPath("$.data.items[0].changes[7].field").value("boardList.after")).andExpect(jsonPath("$.data.items[0].changes[7].after").value("12"))
                 .andExpect(jsonPath("$.data.items[0].changes[8].field").value("adult.enabled"))
                 .andExpect(jsonPath("$.data.items[0].changes[8].labelKey").value("settingHistory.field.adult.enabled"))
-                .andExpect(jsonPath("$.data.items[0].changes[8].after").value("true"));
+                .andExpect(jsonPath("$.data.items[0].changes[8].after").value("true"))
+                // V127 — 열째 칸 중도 해지 수수료율(환불 묶음을 안 보내면 기본 10 그대로)
+                .andExpect(jsonPath("$.data.items[0].changes[9].field").value("refund.stopFeeRate"))
+                .andExpect(jsonPath("$.data.items[0].changes[9].after").value("10"));
         // 이력 시각 = 설정 저장 시각, 운영자 ID 가 남는다
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ad_placement_history h JOIN ad_placement_settings s ON s.updated_at = h.changed_at "
                 + "WHERE h.operator_id = ?", Long.class, me)).isOne();
@@ -99,7 +102,7 @@ class AdPlacementHistoryHttpTest extends Commerce04AdminTestBase {
         Cookie session = login(operatorWith(Permission.AD_READ, Permission.AD_SETTINGS));
         save(session, DEFAULTS);
         mvc.perform(get(HISTORY).cookie(session)).andExpect(status().isOk()).andExpect(jsonPath("$.data.total").value(1))
-                .andExpect(jsonPath("$.data.items[0].action").value("CREATE")).andExpect(jsonPath("$.data.items[0].changes.length()").value(9))
+                .andExpect(jsonPath("$.data.items[0].action").value("CREATE")).andExpect(jsonPath("$.data.items[0].changes.length()").value(10))
                 .andExpect(jsonPath("$.data.items[0].changes[5].after").value("HOME,PAGE,BOARD,POST"));
         // 그다음 같은 값 — 줄 없음
         save(session, DEFAULTS);

@@ -31,7 +31,18 @@ public class BizRefundStore {
     public record RefundRow(long id, long applicationId, BizRefundType type, BizRefundStatus status, BizPaymentMethod method, long paidAmount, long proposedAmount,
                             int usedDays, int totalDays, Long approvedAmount, String reason, String decisionReason, Long paymentCancelId, String transferStatus,
                             Instant transferredAt, Long transferredBy, String transferNote, Instant completedAt, Instant requestedAt, Instant decidedAt,
-                            Long decidedBy) {
+                            Long decidedBy, Long proratedAmount, Integer feeRate, Long feeAmount, Instant basisAt) {
+    }
+
+    /**
+     * 광고주 요청 중단의 일할 환불(V127 {@code STOP_PRORATED} — 심사 대기) — 제안 내역: 일할 · 수수료율 · 수수료 · 기준 시각. 예상액({@code proposed}) = 일할 − 수수료.
+     */
+    public record NewStopRefund(long id, long applicationId, BizPaymentMethod method, long paidAmount, long proratedAmount, int feeRate, long feeAmount, int usedDays,
+                                int totalDays, Instant basisAt, String reason, Instant requestedAt) {
+
+        public long proposed() {
+            return proratedAmount - feeAmount;
+        }
     }
 
     /** 새 환불 줄 */
@@ -53,6 +64,14 @@ public class BizRefundStore {
                         + "transfer_status, requested_at, decided_at, decided_by, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 r.id(), r.applicationId(), r.type().name(), r.status().name(), r.method().name(), r.paidAmount(), r.proposedAmount(), r.usedDays(), r.totalDays(),
                 r.approvedAmount(), r.reason(), r.transferStatus(), ts(r.requestedAt()), ts(r.decidedAt()), r.decidedBy(), ts(r.completedAt()));
+    }
+
+    /** 중단 일할 환불 줄(심사 대기) — 열린 줄이 이미 있으면 부분 유일 색인이 막는다({@code DuplicateKeyException}) */
+    public void insertStop(NewStopRefund r) {
+        jdbc.update("INSERT INTO biz_refunds (id, application_id, type, status, method, paid_amount, proposed_amount, used_days, total_days, reason, requested_at, "
+                        + "prorated_amount, fee_rate, fee_amount, basis_at) VALUES (?, ?, 'STOP_PRORATED', 'REQUESTED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                r.id(), r.applicationId(), r.method().name(), r.paidAmount(), r.proposed(), r.usedDays(), r.totalDays(), r.reason(), ts(r.requestedAt()),
+                r.proratedAmount(), r.feeRate(), r.feeAmount(), ts(r.basisAt()));
     }
 
     public Optional<RefundRow> latest(long applicationId) {
@@ -123,6 +142,8 @@ public class BizRefundStore {
                 (Long) rs.getObject("approved_amount", Long.class), rs.getString("reason"), rs.getString("decision_reason"),
                 (Long) rs.getObject("payment_cancel_id", Long.class), rs.getString("transfer_status"), instant(rs.getTimestamp("transferred_at")),
                 (Long) rs.getObject("transferred_by", Long.class), rs.getString("transfer_note"), instant(rs.getTimestamp("completed_at")),
-                instant(rs.getTimestamp("requested_at")), instant(rs.getTimestamp("decided_at")), (Long) rs.getObject("decided_by", Long.class));
+                instant(rs.getTimestamp("requested_at")), instant(rs.getTimestamp("decided_at")), (Long) rs.getObject("decided_by", Long.class),
+                (Long) rs.getObject("prorated_amount", Long.class), (Integer) rs.getObject("fee_rate", Integer.class), (Long) rs.getObject("fee_amount", Long.class),
+                instant(rs.getTimestamp("basis_at")));
     }
 }

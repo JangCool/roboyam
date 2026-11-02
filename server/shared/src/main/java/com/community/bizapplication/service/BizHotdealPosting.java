@@ -17,6 +17,19 @@ public interface BizHotdealPosting {
         onScheduled(applicationId);
     }
 
+    /**
+     * 광고주가 일시 정지·중단했다(V127 — biz-pause-contract 규칙 9) — 글을 판매자 숨김 까닭({@code SELLER_PAUSED}·{@code SELLER_STOPPED})으로 숨기고 그 시각을 게시 결과에 남긴다.
+     * 정지로 숨긴 글을 중단하면 까닭을 중단으로 바꾼다. 운영자가 따로 숨긴 글은 건드리지 않는다.
+     *
+     * @param reason {@code PostEntity.SELLER_PAUSED} 또는 {@code PostEntity.SELLER_STOPPED}
+     */
+    default void onSellerHidden(long applicationId, String reason) {
+    }
+
+    /** 정지를 다시 켰다 — 까닭이 정지이고 숨긴 시각이 게시 결과의 값과 같을 때만 다시 보인다(운영자가 따로 숨긴 글은 그대로) */
+    default void onSellerShown(long applicationId) {
+    }
+
     BizHotdealPosting NONE = new BizHotdealPosting() {
         @Override
         public void onScheduled(long applicationId) {

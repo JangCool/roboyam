@@ -54,7 +54,13 @@ public final class BizTransitions {
         /** 내림 되돌리기 */
         RESTORE,
         /** 남은 기간 포기(탈퇴) */
-        FORFEIT
+        FORFEIT,
+        /** 광고주 요청 일시 정지(V127) — 진행 중(시작 ≤ 지금 &lt; 끝)·열린 환불 없음은 서비스가 본다 */
+        ADVERTISER_PAUSE,
+        /** 정지 다시 켜기 — 까닭이 정지이고 끝 전인지는 서비스가 본다(끝 시각 그대로) */
+        ADVERTISER_RESUME,
+        /** 광고주 요청 중단 — 진행 중 예약 또는 정지 중(끝 전)인 내림(서비스가 본다). 되돌리기 없음 */
+        ADVERTISER_STOP
     }
 
     private static final Map<Action, Map<BizApplicationStatus, BizApplicationStatus>> TABLE = build();
@@ -92,6 +98,10 @@ public final class BizTransitions {
         put(t, Action.RESTORE, TAKEN_DOWN, SCHEDULED);
         put(t, Action.FORFEIT, SCHEDULED, CANCELED);
         put(t, Action.FORFEIT, TAKEN_DOWN, CANCELED);
+        put(t, Action.ADVERTISER_PAUSE, SCHEDULED, TAKEN_DOWN);
+        put(t, Action.ADVERTISER_RESUME, TAKEN_DOWN, SCHEDULED);
+        put(t, Action.ADVERTISER_STOP, SCHEDULED, TAKEN_DOWN);
+        put(t, Action.ADVERTISER_STOP, TAKEN_DOWN, TAKEN_DOWN);
         Map<Action, Map<BizApplicationStatus, BizApplicationStatus>> out = new EnumMap<>(Action.class);
         t.forEach((k, v) -> out.put(k, Collections.unmodifiableMap(v)));
         return Collections.unmodifiableMap(out);

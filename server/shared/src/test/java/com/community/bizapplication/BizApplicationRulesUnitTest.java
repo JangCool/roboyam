@@ -61,6 +61,10 @@ class BizApplicationRulesUnitTest {
             t.put(Action.TAKEDOWN, Map.of(SCHEDULED, TAKEN_DOWN));
             t.put(Action.RESTORE, Map.of(TAKEN_DOWN, SCHEDULED));
             t.put(Action.FORFEIT, Map.of(SCHEDULED, CANCELED, TAKEN_DOWN, CANCELED));
+            // 광고주 요청 정지·다시 켜기·중단(V127 — biz-pause-contract)
+            t.put(Action.ADVERTISER_PAUSE, Map.of(SCHEDULED, TAKEN_DOWN));
+            t.put(Action.ADVERTISER_RESUME, Map.of(TAKEN_DOWN, SCHEDULED));
+            t.put(Action.ADVERTISER_STOP, Map.of(SCHEDULED, TAKEN_DOWN, TAKEN_DOWN, TAKEN_DOWN));
             return t;
         }
 

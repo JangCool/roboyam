@@ -33,7 +33,14 @@ public final class HotdealAdminView {
      * @param business    사업자 글이면 상호와 그 글을 올린 신청 건(핫딜 심사 {@code /hotdeal-reviews?id=}), 회원 글 null
      */
     public record Row(String postId, String title, BoardRef board, PrefixRef prefix, Author author, Instant createdAt, int openReports, String blockedHost,
-                      PostDealView deal, long clickCount, String source, BusinessRef business) {
+                      PostDealView deal, long clickCount, String source, BusinessRef business, SellerHidden sellerHidden) {
+    }
+
+    /**
+     * 판매자(광고주)가 일시 정지·중단해 숨긴 사업자 글(V127 — biz-pause-contract 규칙 10) — {@code cause} ADVERTISER_PAUSE·ADVERTISER_STOP · 숨긴 시각 · 처리한 사람 표시 이름 ·
+     * 운영자 대신이었나. 숨겨도 관리자 목록·상세에는 그대로 나온다. 그 밖 null
+     */
+    public record SellerHidden(String cause, Instant at, String by, boolean byOperator) {
     }
 
     /** 사업자 핫딜 글의 사업자 — 상호 스냅샷 · 신청 건 ID */

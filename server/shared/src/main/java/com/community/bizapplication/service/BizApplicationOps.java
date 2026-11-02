@@ -178,6 +178,20 @@ public class BizApplicationOps {
         }
     }
 
+    /** 광고주 일시 정지·중단(V127) — 핫딜 글이면 판매자 숨김 고리({@code PostEntity.SELLER_PAUSED}·{@code SELLER_STOPPED}) */
+    public void sellerHidden(AppRow app, String reason) {
+        if (app.kind() == com.community.bizapplication.entity.BizApplicationKind.HOTDEAL_POST) {
+            hotdeals.getIfAvailable(() -> BizHotdealPosting.NONE).onSellerHidden(app.id(), reason);
+        }
+    }
+
+    /** 정지 다시 켜기(V127) — 핫딜 글이면 정지로 숨긴 글을 다시 보이는 고리 */
+    public void sellerShown(AppRow app) {
+        if (app.kind() == com.community.bizapplication.entity.BizApplicationKind.HOTDEAL_POST) {
+            hotdeals.getIfAvailable(() -> BizHotdealPosting.NONE).onSellerShown(app.id());
+        }
+    }
+
     private long insertFullRefund(AppRow app, BizPaymentMethod method, long paid, String reason, Long actorId, Instant now) {
         long refundId = ids.nextId();
         boolean manual = method == BizPaymentMethod.MANUAL;

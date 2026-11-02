@@ -1,5 +1,6 @@
 package com.community.bizapplication.service;
 
+import com.community.ad.repository.master.AdPlacementStore;
 import com.community.bizapplication.dto.request.BizAdApplyRequest;
 import com.community.bizapplication.dto.request.BizCreativeRequest;
 import com.community.bizapplication.dto.request.BizDealApplyRequest;
@@ -11,7 +12,6 @@ import com.community.bizapplication.entity.BizEventAction;
 import com.community.bizapplication.entity.BizPaymentMethod;
 import com.community.bizapplication.entity.BizPhase;
 import com.community.bizapplication.entity.BizProduct;
-import com.community.bizapplication.entity.BizRefundType;
 import com.community.bizapplication.entity.BizSource;
 import com.community.bizapplication.exception.BizApplicationException;
 import com.community.bizapplication.repository.master.BizApplicationStore;
@@ -77,11 +77,18 @@ public class BizApplicationMemberService {
     private final PaymentOrderService payments;
     private final ObjectProvider<ImageStorage> images;
     private final BizDealContent dealForm;
+    private final BizPauseService pauses;
+    private final AdPlacementStore placements;
     private final TransactionTemplate tx;
+
+    /** 지금 환불 규정 버전(V127 — 진행 중 중단 수수료를 넣어 2026-10-30 에서 올림). 새 신청이 다른 버전에 동의했으면 400 {@code fields.agreedRefundPolicyVersion} */
+    public static final String REFUND_POLICY_VERSION = "2026-11-02";
 
     public BizApplicationMemberService(BizApplicationStore store, BizPriceRuleStore rules, BizRefundStore refunds, BizSlotService slots, BizApplicationOps ops,
                                        BusinessEligibility eligibility, PaymentOrderService payments, ObjectProvider<ImageStorage> images,
-                                       BizDealContent dealForm, PlatformTransactionManager transactions) {
+                                       BizDealContent dealForm, BizPauseService pauses, AdPlacementStore placements, PlatformTransactionManager transactions) {
+        this.pauses = pauses;
+        this.placements = placements;
         this.store = store;
         this.rules = rules;
         this.refunds = refunds;
@@ -164,7 +171,7 @@ public class BizApplicationMemberService {
                 content.put("linkUrl", link);
             }
             BizPaymentMethod method = f.oneOf("paymentMethod", b.paymentMethod(), BizPaymentMethod::valueOf);
-            f.agree(b.agreedAdPolicyVersion(), b.agreedRefundPolicyVersion());
+            agree(f, b.agreedAdPolicyVersion(), b.agreedRefundPolicyVersion());
             f.throwIfAny();
             PriceRule rule = all.get(product);
             if (!rule.accepting()) {
@@ -199,7 +206,7 @@ public class BizApplicationMemberService {
                 period = defaultDealPeriod(content.get("endsOn") instanceof String e ? LocalDate.parse(e) : null, all.get(BizProduct.HOTDEAL_POST));
             }
             BizPaymentMethod method = f.oneOf("paymentMethod", b.paymentMethod(), BizPaymentMethod::valueOf);
-            f.agree(b.agreedAdPolicyVersion(), b.agreedRefundPolicyVersion());
+            agree(f, b.agreedAdPolicyVersion(), b.agreedRefundPolicyVersion());
             f.throwIfAny();
             for (BizProduct p : products) {
                 if (!all.get(p).accepting()) {
@@ -222,8 +229,9 @@ public class BizApplicationMemberService {
         long id = ops.nextId();
         List<ItemRow> items = items(id, products, period);
         Amount quote = BizPricing.amountOf(items.stream().mapToLong(ItemRow::supply).sum());
+        // 중도 해지 수수료율 — 사업자가 동의한 규정(지금 버전)의 비율을 이 건에 고정한다(뒤에 설정이 바뀌어도 그대로 — 규칙 7)
         store.insert(new NewApp(id, kind, BizSource.BUSINESS, biz.profileId(), userId, null, biz.companyName(), biz.bizNoLast4(), title, period.start(), period.end(),
-                method, quote, adPolicy.strip(), refundPolicy.strip(), now, now));
+                method, quote, adPolicy.strip(), refundPolicy.strip(), now, placements.stopFeeRate(), now));
         for (ItemRow item : items) {
             store.insertItem(item, now);
         }
@@ -368,8 +376,9 @@ public class BizApplicationMemberService {
     }
 
     /**
-     * 취소·환불 요청(H1) — 예약만, 환불 줄이 한 번도 없을 때만(거절된 뒤 다시 요청도 막는다 — 가정). 시작 전 = 전액 자동(취소 + 온라인 PG 취소 / 수동 송금 대기),
-     * 진행 중 = 일할 심사 대기(제안액, 상태 그대로), 끝남 = 409.
+     * 취소·환불 요청(H1) — 시작 전 예약 = 전액 자동(취소 + 온라인 PG 취소 / 수동 송금 대기, <b>수수료 없음</b>) — 환불 줄이 한 번도 없을 때만(거절된 뒤 다시 요청도 막는다 — 가정).
+     * <b>진행 중(V127)</b> = 광고주 요청 중단과 같은 처리({@link BizPauseService} — 바로 내림 + {@code STOP_PRORATED} 일할 − 수수료 심사, 정지 중이면 정지 중 전환) — 수수료 없는 옛 일할 길은 없다.
+     * 끝남 = 409.
      */
     public void requestRefund(long userId, long id, String reasonText) {
         BizFields f = BizFields.start();
@@ -378,25 +387,35 @@ public class BizApplicationMemberService {
         tx.executeWithoutResult(status -> {
             AppRow app = store.lockOwned(id, userId).orElseThrow(BizApplicationException::notFound);
             Instant now = ops.now();
-            if (app.status() != BizApplicationStatus.SCHEDULED || refunds.exists(id)) {
+            BizPhase phase = app.status() == BizApplicationStatus.SCHEDULED ? BizPhase.of(app.startAt(), app.endAt(), now) : null;
+            if (phase == BizPhase.RUNNING || app.paused()) {
+                pauses.stopFromRefundRequest(userId, app, reason);
+                return;
+            }
+            if (phase != BizPhase.UPCOMING || refunds.exists(id)) {
                 throw BizApplicationException.stateChanged();
             }
-            BizPhase phase = BizPhase.of(app.startAt(), app.endAt(), now);
             ops.event(id, BizEventAction.REFUND_REQUESTED, BizActorType.MEMBER, userId, reason, now);
-            switch (phase) {
-                case UPCOMING -> {
-                    long paid = ops.paidAmount(app);
-                    ops.cancelWithFullRefund(app, BizActorType.SYSTEM, null, reason, now);
-                    ops.notices().member(app, BizApplicationNotices.Kind.REFUND_APPROVED, paid, null);
-                }
-                case RUNNING -> {
-                    ops.requestProrated(app, BizRefundType.PRORATED, reason, now);
-                    ops.notices().member(app, BizApplicationNotices.Kind.REFUND_REQUESTED, 0, null);
-                    ops.notices().refundRequested(app);
-                }
-                case ENDED -> throw BizApplicationException.stateChanged();
-            }
+            long paid = ops.paidAmount(app);
+            ops.cancelWithFullRefund(app, BizActorType.SYSTEM, null, reason, now);
+            ops.notices().member(app, BizApplicationNotices.Kind.REFUND_APPROVED, paid, null);
         });
+    }
+
+    /** 정책 동의(H4) + 환불 규정 버전(V127) — 형식이 맞는데 지금 버전이 아니면 400 {@code fields.agreedRefundPolicyVersion}(화면은 「새로 고침해 주세요」) */
+    private static void agree(BizFields f, String adPolicyVersion, String refundPolicyVersion) {
+        f.agree(adPolicyVersion, refundPolicyVersion);
+        if (!f.has("agree") && !REFUND_POLICY_VERSION.equals(refundPolicyVersion.strip())) {
+            f.add("agreedRefundPolicyVersion", "bizapp.refundPolicy.outdated");
+        }
+    }
+
+    /** 공개 환불 규정 — 지금 버전 + 중도 해지 수수료율(신청 화면 동의 문구) */
+    public record RefundPolicy(String version, int stopFeeRate) {
+    }
+
+    public RefundPolicy refundPolicy() {
+        return new RefundPolicy(REFUND_POLICY_VERSION, placements.stopFeeRate());
     }
 
     // ── 안 ──────────────────────────────────────────────────────────────────

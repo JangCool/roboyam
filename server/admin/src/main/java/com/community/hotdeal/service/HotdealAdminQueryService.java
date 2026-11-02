@@ -93,10 +93,14 @@ public class HotdealAdminQueryService {
     private final UserRepository users;
     private final OperatorRepository operators;
     private final SiteSettingsService site;
+    /** 판매자 숨김(V127 — 광고주 일시 정지·중단)을 줄에 싣는다 */
+    private final com.community.bizapplication.repository.master.BizDealPostStore bizDealPosts;
 
     public HotdealAdminQueryService(AdminDealQueries queries, DealQueries dealQueries, PostDealRepository deals, PostDealRevisionRepository revisions,
                                     DealViewAssembler assembler, DealSettingsReader settings, DealRuleBook rules, BoardCatalog catalog, AdminPostRepositoryQDSL posts,
-                                    ProfileRepository profiles, UserRepository users, OperatorRepository operators, SiteSettingsService site) {
+                                    ProfileRepository profiles, UserRepository users, OperatorRepository operators, SiteSettingsService site,
+                                    com.community.bizapplication.repository.master.BizDealPostStore bizDealPosts) {
+        this.bizDealPosts = bizDealPosts;
         this.queries = queries;
         this.dealQueries = dealQueries;
         this.deals = deals;
@@ -235,6 +239,8 @@ public class HotdealAdminQueryService {
                 s.autoExpireDays(), now);
         Map<Long, String> origins = queries.ogOrigins(dealById.values().stream().map(PostDealEntity::getOgImageId).filter(Objects::nonNull).distinct().toList());
         Map<Long, Integer> reports = posts.openReports(ids);
+        Map<Long, com.community.bizapplication.repository.master.BizDealPostStore.SellerHidden> sellerHidden = bizDealPosts.sellerHidden(
+                dealById.values().stream().filter(PostDealEntity::isBusiness).map(PostDealEntity::getPostId).toList());
         List<Long> authorIds = rows.stream().map(AdminDealQueries.Row::authorId).filter(Objects::nonNull).distinct().toList();
         Map<Long, ProfileEntity> profileById = new HashMap<>();
         Map<Long, UserEntity> userById = new HashMap<>();
@@ -259,9 +265,14 @@ public class HotdealAdminQueryService {
             BoardPrefixInfo p = b == null ? null : b.prefix(r.prefixId()).orElse(null);
             out.add(new Row(Long.toString(r.postId()), r.title(), board, p == null ? null : new PrefixRef(Long.toString(p.id()), p.name()),
                     author(r.authorId(), profileById, userById), r.createdAt(), reports.getOrDefault(r.postId(), 0), blockedHost, deal, d.getClickCount(),
-                    d.getSource(), d.isBusiness() ? new HotdealAdminView.BusinessRef(d.getBusinessName(), String.valueOf(d.getBizApplicationId())) : null));
+                    d.getSource(), d.isBusiness() ? new HotdealAdminView.BusinessRef(d.getBusinessName(), String.valueOf(d.getBizApplicationId())) : null,
+                    sellerHidden.containsKey(r.postId()) ? sellerHidden(sellerHidden.get(r.postId())) : null));
         }
         return out;
+    }
+
+    private static HotdealAdminView.SellerHidden sellerHidden(com.community.bizapplication.repository.master.BizDealPostStore.SellerHidden h) {
+        return new HotdealAdminView.SellerHidden(h.cause(), h.at(), h.by(), h.byOperator());
     }
 
     static Author author(Long authorId, Map<Long, ProfileEntity> profileById, Map<Long, UserEntity> userById) {
