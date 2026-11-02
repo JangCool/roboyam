@@ -84,7 +84,8 @@ class BizApplicationAdminCatalogTest {
         }
         for (Expect e : List.of(new Expect("businessReviews", "/business-reviews", Permission.BUSINESS_READ),
                 new Expect("businesses", "/businesses", Permission.BUSINESS_READ), new Expect("adReviews", "/ad-reviews", Permission.AD_READ),
-                new Expect("ads", "/ads", Permission.AD_READ), new Expect("adPlacements", "/ads/placements", Permission.AD_READ),
+                new Expect("ads", "/ads", Permission.AD_READ), new Expect("adPerformance", "/ads/performance", Permission.AD_READ),
+                new Expect("adPlacements", "/ads/placements", Permission.AD_READ),
                 new Expect("hotdealReviews", "/hotdeal-reviews", Permission.HOTDEAL_READ))) {
             AdminScreenRegistry.Screen screen = AdminScreenRegistry.screen(e.key()).orElseThrow();
             assertThat(screen.path()).as(e.key()).isEqualTo(e.path());
@@ -101,7 +102,7 @@ class BizApplicationAdminCatalogTest {
         assertThat(normal.get(group + 2).icon()).isEqualTo("pi pi-megaphone");
         assertThat(normal.get(group + 3).icon()).isEqualTo("pi pi-ticket");
         assertThat(normal.get(group + 1).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("businessReviews", "businesses");
-        assertThat(normal.get(group + 2).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("adReviews", "ads", "adPlacements");
+        assertThat(normal.get(group + 2).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("adReviews", "ads", "adPerformance", "adPlacements");
         assertThat(normal.get(group + 3).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("hotdealReviews", "hotdeals", "hotdealDomains",
                 "hotdealSuspicions", "hotdealSettings");
         assertThat(AdminScreenRegistry.isGroupLabelKey("menu.ad")).isTrue();

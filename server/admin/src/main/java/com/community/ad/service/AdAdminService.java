@@ -289,7 +289,8 @@ public class AdAdminService {
         return apps.stream().map(a -> row(type, a, advertiserOf(a, a.advertiserId() == null ? null : byId.get(a.advertiserId())), now)).toList();
     }
 
-    private static AdAdminView.Row row(BizProduct type, AppRow a, AdAdvertiserService.Option advertiser, Instant now) {
+    /** 장부 한 줄 — 광고 성과 건별 표({@link AdStatsAdminService})도 같은 줄을 쓴다 */
+    static AdAdminView.Row row(BizProduct type, AppRow a, AdAdvertiserService.Option advertiser, Instant now) {
         return new AdAdminView.Row(Long.toString(a.id()), type.name(), advertiser, new BizAdminView.Period(a.startAt(), a.endAt()), BizApplicationReader.adminStatus(a, now),
                 (a.paymentMethod() != null ? a.paymentMethod() : a.preferredMethod()).name(), a.weight(), a.source() == BizSource.OPERATOR ? "OPERATOR" : "APPLICATION",
                 a.no(), a.updatedAt(), a.kind().domain().name(), a.takedownCause() == null ? null : a.takedownCause().name());

@@ -1,6 +1,8 @@
 package com.community.bizapplication.controller;
 
 import com.community.auth.dto.AuthUser;
+import com.community.ad.dto.AdStatsView;
+import com.community.bizapplication.dto.BizAdStatsView;
 import com.community.bizapplication.dto.BizMemberView;
 import com.community.bizapplication.dto.request.BizAdApplyRequest;
 import com.community.bizapplication.dto.request.BizCreativeRequest;
@@ -8,6 +10,7 @@ import com.community.bizapplication.dto.request.BizDealApplyRequest;
 import com.community.bizapplication.dto.request.BizReasonRequest;
 import com.community.bizapplication.exception.BizApplicationException;
 import com.community.bizapplication.service.BizAdImageService;
+import com.community.bizapplication.service.MyBizAdStatsService;
 import com.community.bizapplication.service.MyBizApplicationService;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
@@ -38,10 +41,12 @@ public class MyBizApplicationController {
 
     private final MyBizApplicationService service;
     private final BizAdImageService images;
+    private final MyBizAdStatsService stats;
 
-    public MyBizApplicationController(MyBizApplicationService service, BizAdImageService images) {
+    public MyBizApplicationController(MyBizApplicationService service, BizAdImageService images, MyBizAdStatsService stats) {
         this.service = service;
         this.images = images;
+        this.stats = stats;
     }
 
     @GetMapping("/ad-products")
@@ -95,6 +100,22 @@ public class MyBizApplicationController {
     @GetMapping("/applications/{id}")
     public ResponseEntity<ApiResponse<BizMemberView.Detail>> detail(@PathVariable String id, Authentication authentication) {
         return noStore(service.detail(user(authentication), parseId(id)));
+    }
+
+    /**
+     * 한 건의 광고 성과(ad-performance-contract 규칙 2~7) — {@code from}·{@code to} KST 날짜(끝 포함, 빠지면 시작 날짜 ~ min(끝 날짜, 오늘)), 형식이 틀리거나 {@code from > to} 면
+     * 400 {@code fields.from}. 남의 건·없는 건 404, 노출 자리 줄이 없는 본인 건은 빈 결과
+     */
+    @GetMapping("/applications/{id}/stats")
+    public ResponseEntity<ApiResponse<AdStatsView.Application>> stats(@PathVariable String id, @RequestParam(required = false) String from,
+                                                                      @RequestParam(required = false) String to, Authentication authentication) {
+        return noStore(stats.application(user(authentication), parseId(id), from, to));
+    }
+
+    /** 사업자 센터 「진행 중 광고」 — 진행 중·정지 중·내려진(긴급·사업자 정지) 건 최대 5, 최근 7일(규칙 8) */
+    @GetMapping("/ads/stats-summary")
+    public ResponseEntity<ApiResponse<BizAdStatsView.Summary>> statsSummary(Authentication authentication) {
+        return noStore(stats.summary(user(authentication)));
     }
 
     /** 결제 전 취소(심사 대기·결제 대기·입금 대기 — 입금 기록 전) */

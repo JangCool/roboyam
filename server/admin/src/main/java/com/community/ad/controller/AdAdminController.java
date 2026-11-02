@@ -4,9 +4,12 @@ import com.community.ad.dto.AdAdminRequest;
 import com.community.ad.dto.AdAdminView;
 import com.community.ad.dto.AdPlacementAdmin;
 import com.community.ad.dto.AdPlacementHistory;
+import com.community.ad.dto.AdStatsAdminView;
+import com.community.ad.dto.AdStatsView;
 import com.community.ad.service.AdAdminService;
 import com.community.ad.service.AdAdvertiserService;
 import com.community.ad.service.AdPlacementAdminService;
+import com.community.ad.service.AdStatsAdminService;
 import com.community.bizapplication.dto.BizAdminView;
 import com.community.permission.annotation.RequirePermission;
 import com.community.permission.dto.AdminActor;
@@ -37,10 +40,12 @@ public class AdAdminController {
 
     private final AdAdminService service;
     private final AdPlacementAdminService placements;
+    private final AdStatsAdminService stats;
 
-    public AdAdminController(AdAdminService service, AdPlacementAdminService placements) {
+    public AdAdminController(AdAdminService service, AdPlacementAdminService placements, AdStatsAdminService stats) {
         this.service = service;
         this.placements = placements;
+        this.stats = stats;
     }
 
     /** 노출 자리 설정(글 보기 중간 · 날개 배너 · 게시판 목록 한 줄) — 저장한 적 없으면 기본값 · {@code updatedAt}·{@code updatedBy} null */
@@ -130,10 +135,43 @@ public class AdAdminController {
         return ok(service.createManual(actor, body));
     }
 
+    /**
+     * 광고 성과 합계(ad-performance-contract 규칙 9) — {@code from}·{@code to} 필수(KST 날짜, 끝 포함, 366일까지 — 넘으면 400 {@code fields.to}, {@code from > to} 400
+     * {@code fields.from}), 유형 {@code type}·광고주 {@code advertiserId}({@code adv-}·{@code biz-}) 거르기. 글자 경로라 {@code /{id}} 보다 먼저 잡힌다
+     */
+    @RequirePermission(Permission.AD_READ)
+    @GetMapping("/stats")
+    public ResponseEntity<ApiResponse<AdStatsAdminView.Overview>> statsOverview(@RequestParam(required = false) String from, @RequestParam(required = false) String to,
+                                                                               @RequestParam(required = false) String type,
+                                                                               @RequestParam(required = false) String advertiserId) {
+        return ok(stats.overview(from, to, type, advertiserId));
+    }
+
+    /** 광고 성과 건별 표(규칙 10) — 정렬 {@code sort}(impressions·clicks·ctr)·{@code dir}(asc·desc)·쪽 {@code page}·{@code size}(최대 100), 틀리면 400 {@code fields.<칸>} */
+    @RequirePermission(Permission.AD_READ)
+    @GetMapping("/stats/bookings")
+    public ResponseEntity<ApiResponse<AdStatsAdminView.BookingPage>> statsBookings(@RequestParam(required = false) String from,
+                                                                                  @RequestParam(required = false) String to,
+                                                                                  @RequestParam(required = false) String type,
+                                                                                  @RequestParam(required = false) String advertiserId,
+                                                                                  @RequestParam(required = false) String sort, @RequestParam(required = false) String dir,
+                                                                                  @RequestParam(required = false) String page,
+                                                                                  @RequestParam(required = false) String size) {
+        return ok(stats.bookings(from, to, type, advertiserId, sort, dir, page, size));
+    }
+
     @RequirePermission(Permission.AD_READ)
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<AdAdminView.Detail>> detail(@PathVariable String id, AdminActor actor) {
         return ok(service.detail(actor, id));
+    }
+
+    /** 장부 건 한 건의 성과(규칙 11 — 핫딜 노출 자리 건 포함, 장부 유형 줄이 없는 건 404). 범위 규칙은 사업자 쪽과 같다(형식·{@code from > to} 400 {@code fields.from}) */
+    @RequirePermission(Permission.AD_READ)
+    @GetMapping("/{id}/stats")
+    public ResponseEntity<ApiResponse<AdStatsView.Application>> stats(@PathVariable String id, @RequestParam(required = false) String from,
+                                                                      @RequestParam(required = false) String to) {
+        return ok(stats.application(id, from, to));
     }
 
     @RequirePermission(Permission.AD_TAKEDOWN)
