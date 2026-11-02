@@ -226,6 +226,7 @@ export default {
     keep: '아직 진행 중이에요',
     kept: '진행 중으로 표시했어요.',
     keepReview: '운영자 확인 중',
+    flaggedBusiness: '품절·가격 변경 알림이 쌓여 운영팀이 확인 중이에요.',
     keepLimit: '「아직 진행 중」은 더 누를 수 없어요. 운영자가 확인하고 있어요.',
     keepConfirmTitle: '아직 진행 중인가요?',
     keepConfirmMessage: '진행 중으로 표시하기 전에 가격·재고를 확인하고, 바뀌었으면 글을 고쳐 주세요.',
