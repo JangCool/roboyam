@@ -50,6 +50,11 @@ export default class UtilHotdealMessages {
             if (detail.endReason) lines.push(t('hotdeal.endedReason', { reason: detail.endReason }));
             if (by === 'AUTHOR') lines.push(UtilHotdeal.authorCanReopen(deal.reopenUntil, now) ? t('hotdeal.authorReopenUntil', { at: time.full(deal.reopenUntil) }) : t('hotdeal.authorReopenGone'));
             else lines.push(t('hotdeal.managerOnlyReopen'));
+        } else if (deal.view === 'FLAGGED' && UtilHotdeal.isBusiness(detail.row)) {
+            // 사업자 글 — 자동 종료 없음(`autoEndAt` 늘 null), 작성자 「아직 진행 중」도 없다. 운영자가 [유지]·[종료]로 정한다
+            lines.push(t('hotdeal.flaggedAtBusiness', { at: time.full(deal.flaggedAt), n: deal.endRequests.total }));
+            lines.push(t('hotdeal.businessReview'));
+            return lines;
         } else if (deal.view === 'FLAGGED') {
             lines.push(t('hotdeal.flaggedAt', { at: time.full(deal.flaggedAt), n: deal.endRequests.total }));
             lines.push(deal.autoEndAt ? t('hotdeal.autoEndAt', { at: time.full(deal.autoEndAt) }) : t('hotdeal.autoEndOff'));

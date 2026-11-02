@@ -53,9 +53,9 @@ export type BizDealStock = 'IN_STOCK' | 'LOW' | 'UNKNOWN' | 'PLENTY' | 'LIMITED'
  */
 export type BizDealPostStatus = 'WAITING' | 'POSTED' | 'FAILED' | 'HIDDEN';
 export type BizDealView = 'ACTIVE' | 'FLAGGED' | 'ENDED' | 'EXPIRED';
-/** 게시 실패 사유 — 게시판 꺼짐 · 링크가 차단 규칙으로 바뀜 · 사업자 정지 · 그 밖 */
-export type BizDealFailReason = 'BOARD_CLOSED' | 'LINK_BLOCKED' | 'BUSINESS_SUSPENDED' | 'OTHER';
-export const BIZ_DEAL_FAIL_REASONS: readonly BizDealFailReason[] = ['BOARD_CLOSED', 'LINK_BLOCKED', 'BUSINESS_SUSPENDED', 'OTHER'];
+/** 게시 실패 사유 — 게시판 꺼짐 · 링크가 차단 규칙으로 바뀜 · 사업자 정지 · 핫딜 서비스만 정지(`SERVICE_SUSPENDED` — 서비스를 다시 승인하면 다음 배치가 다시 올린다) · 그 밖 */
+export type BizDealFailReason = 'BOARD_CLOSED' | 'LINK_BLOCKED' | 'BUSINESS_SUSPENDED' | 'SERVICE_SUSPENDED' | 'OTHER';
+export const BIZ_DEAL_FAIL_REASONS: readonly BizDealFailReason[] = ['BOARD_CLOSED', 'LINK_BLOCKED', 'BUSINESS_SUSPENDED', 'SERVICE_SUSPENDED', 'OTHER'];
 
 /** 노출 줄이 멈춘 까닭 — 딜 끝남 · 글 숨김 · 말머리 없음 · 판매자 일시 정지(`PAUSED` — 다시 켜면 같이 나간다, biz-pause-contract) */
 export type BizDealStopReason = 'DEAL_ENDED' | 'POST_HIDDEN' | 'PREFIX_MISSING' | 'PAUSED';
@@ -271,6 +271,11 @@ export const BIZ_HISTORY_ACTIONS = [
     'POST_RESTORED',
     'DEAL_ENDED_BY_BUSINESS',
     'DEAL_AUTO_ENDED',
+    // 사업자 글 종료 요청 확인 — 운영팀 확인 필요(note 없음) · 운영자 유지 · 운영진 종료 · 운영진 재개(note = 운영자 사유 글 또는 null)
+    'DEAL_REVIEW_NEEDED',
+    'DEAL_KEPT_BY_OPERATOR',
+    'DEAL_ENDED_BY_OPERATOR',
+    'DEAL_REOPENED_BY_OPERATOR',
     // 광고주 요청 일시 정지·다시 켜기·중단(biz-pause-contract) — note 는 ` · ` 로 이은 토큰:
     //   운영자 대신 처리 `PHONE|EMAIL|OTHER · 메모` · STOPPED 가 정지 중 전환이면 맨 앞 `FROM_PAUSE` · RESUMED 는 `MIN:<멈춘 분>`(선택)
     'PAUSED',

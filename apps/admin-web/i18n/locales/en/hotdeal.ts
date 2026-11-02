@@ -152,6 +152,9 @@ export default {
     flaggedAt: 'Flagged since {at} — {n} different members reported it. The author was notified.',
     autoEndAt: 'Ends automatically at {at} unless the author marks it “still active”.',
     autoEndOff: 'Automatic ending is off (grace period 0 in hot deal settings).',
+    flaggedAtBusiness: 'Flagged since {at} — {n} different members reported it. Business posts don’t end automatically.',
+    businessReview: '[Keep] clears the flag and starts the end reports over. If it really sold out or the price changed, [End] it. The business is notified either way.',
+    reviewNeeded: 'Needs review',
     expiredAt: 'The deadline passed at {at}. Lists show it like an ended deal.',
     autoExpiredAt: 'No deadline was set, so it expired at {at} (days to expire in hot deal settings).',
     keptAt: 'The author marked it “still active” at {at}.',
@@ -173,8 +176,10 @@ export default {
     action: {
         END: 'End',
         REOPEN: 'Reopen',
+        KEEP: 'Keep',
     },
     endedToast: 'Deal ended.',
+    keptToast: 'Deal kept. End reports start over.',
     reopenedToast: 'Deal reopened. Flags and end reports start over.',
     reopenedExpiredToast: 'Deal reopened. The deadline has passed, so the author was asked to update it.',
 
@@ -221,6 +226,11 @@ export default {
             title: 'Reopen deal',
             text: 'Makes it active again. The flag and end reports are cleared and counted from scratch.',
             submit: 'Reopen',
+        },
+        KEEP: {
+            title: 'Keep deal',
+            text: 'Keeps the business post active and clears the flag. End reports start over, and the business is notified.',
+            submit: 'Keep',
         },
         DISMISS: {
             title: 'Dismiss suspicion',

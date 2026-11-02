@@ -11,7 +11,8 @@ import type { AdminDealDetail, AdminDealPage, AdminDealQuery, DealActionRequest,
  *   - `GET  /api/admin/hotdeals/{postId}/revisions` → `DealRevisionListView`(딜 칸 수정 이력, 최근 것부터, 6개월 보존 — D3)
  *   - `POST /api/admin/hotdeals/{postId}/end` `{ reason? }`(0~200자) → 204 · `409 HOTDEAL_STATE_CHANGED`(이미 종료) · `400 fields.reason`
  *   - `POST /api/admin/hotdeals/{postId}/reopen` `{ reason? }` → 204(의심·종료 요청 리셋, 마감이 지났으면 작성자에게 「마감을 고쳐 주세요」 알림) · `409 HOTDEAL_STATE_CHANGED`
- * 감사 `HOTDEAL_END`·`HOTDEAL_REOPEN`. 응답 `Cache-Control: no-store`.
+ *   - `POST /api/admin/hotdeals/{postId}/keep` `{ reason? }`(0~200자) → 204(사업자 글이고 의심일 때만 — 의심을 풀고 종료 요청을 새 회차로) · 아니면 `409 HOTDEAL_STATE_CHANGED`
+ * 감사 `HOTDEAL_END`·`HOTDEAL_REOPEN`·`HOTDEAL_KEEP`. 응답 `Cache-Control: no-store`.
  * 판매자 일시 정지·중단(서버 연결 2026-11-02 — `biz-pause-contract.md`): 줄·상세 `row.sellerHidden`(`{ cause: ADVERTISER_PAUSE|ADVERTISER_STOP, at, by, byOperator }`) — 숨긴 글도 관리자 목록·상세에는 그대로 나온다.
  */
 const PATH = {
@@ -21,6 +22,7 @@ const PATH = {
     revisions: (postId: string) => `${PATH.one(postId)}/revisions`,
     end: (postId: string) => `${PATH.one(postId)}/end`,
     reopen: (postId: string) => `${PATH.one(postId)}/reopen`,
+    keep: (postId: string) => `${PATH.one(postId)}/keep`,
 };
 
 export function useHotdealApi() {
@@ -44,5 +46,8 @@ export function useHotdealApi() {
 
         /** 재개(204) — 의심·종료 요청을 리셋한다 */
         reopen: (postId: string, body: DealActionRequest): Promise<void> => client.post<void>(PATH.reopen(postId), body),
+
+        /** 운영자 유지(204) — 사업자 글이 의심일 때만. 의심을 풀고 종료 요청을 새로 센다 */
+        keep: (postId: string, body: DealActionRequest): Promise<void> => client.post<void>(PATH.keep(postId), body),
     };
 }
