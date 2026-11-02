@@ -308,6 +308,8 @@ export default {
         businessRevealDesc: 'Open the masked registration number, owner, phone, email and address with a reason. Views are logged and hidden again after 10 minutes.',
         businessUnsuspend: 'Lift business suspension',
         businessUnsuspendDesc: 'Return a suspended business to approved and choose how to handle bookings taken down by the suspension.',
+        businessDelete: 'Delete business',
+        businessDeleteDesc: 'Permanently delete a business identity that never had requests or payments (certificate copy and NTS records included, cannot be undone). The member account stays.',
         dealOrderRead: 'View listings and orders',
         dealOrderReadDesc: 'See listing-pass orders and listed products.',
         dealOrderManage: 'Handle listings and orders',

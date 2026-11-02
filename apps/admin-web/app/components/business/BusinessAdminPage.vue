@@ -108,6 +108,7 @@
             :can-manage="can('business.manage')"
             :can-reveal="can('business.reveal')"
             :can-unsuspend="can('business.unsuspend')"
+            :can-delete="can('business.delete')"
             :reveal="revealed"
             @retry="loadDetail"
             @approve="approve"
@@ -118,6 +119,19 @@
             @reveal="openDialog('reveal')"
             @hide="revealed = null"
             @open-cert="openCert"
+            @remove="openDialog('remove')"
+        />
+        <BizReasonDialog
+            v-if="drawerDetail"
+            v-model:visible="dialogs.remove"
+            :title="t('business.deleteTitle', { name: drawerDetail.name })"
+            :description="t('business.deleteBody')"
+            :confirm-label="t('business.actDelete')"
+            tone="danger"
+            :busy="working === 'remove'"
+            :error="dialogError"
+            :field-error="dialogFields.reason ?? ''"
+            @submit="submitRemove"
         />
 
         <BizRejectDialog
@@ -181,7 +195,7 @@ import type {
 import { BUSINESS_REJECT_CODES, BUSINESS_SERVICES } from '~/composables/business/api/useBusinessApi.types';
 import UtilBusiness from '~/utils/util-business';
 
-type Work = 'approve' | 'reject' | 'suspend' | 'unsuspend' | 'reveal' | 'recheck' | 'cert';
+type Work = 'approve' | 'reject' | 'suspend' | 'unsuspend' | 'reveal' | 'recheck' | 'cert' | 'remove';
 
 interface Props {
     /** 인증 심사(`review`) · 사업자 목록(`directory`) — 탭 집합·기본 정렬·서랍 아래 단추가 갈린다 */
@@ -351,7 +365,7 @@ watch(drawerOpen, (open) => {
 const working = ref<Work | null>(null);
 const dialogError = ref('');
 const dialogFields = ref<Record<string, string>>({});
-const dialogs = reactive({ reject: false, suspend: false, unsuspend: false, reveal: false, approveOverride: false });
+const dialogs = reactive({ reject: false, suspend: false, unsuspend: false, reveal: false, approveOverride: false, remove: false });
 
 function openDialog(name: keyof typeof dialogs): void {
     dialogError.value = '';
@@ -420,6 +434,28 @@ async function submitUnsuspend(body: BusinessUnsuspendRequest): Promise<void> {
 async function recheck(): Promise<void> {
     const d = drawerDetail.value;
     if (d) await run('recheck', () => api.recheckNts(d.id), t('business.ntsRechecked'));
+}
+
+/** 사업자 삭제 — 성공하면 서랍을 닫고 목록을 새로. 거래가 있으면 409 `BUSINESS_HAS_DEALINGS`(창 안에 문구) */
+async function submitRemove(reason: string): Promise<void> {
+    const d = drawerDetail.value;
+    if (!d) return;
+    working.value = 'remove';
+    dialogError.value = '';
+    dialogFields.value = {};
+    try {
+        await api.remove(d.id, reason);
+        dialogs.remove = false;
+        drawerOpen.value = false;
+        toast.success(t('business.deleted', { name: d.name }));
+        void reload();
+    } catch (e) {
+        const failure = toApiError(e);
+        if (failure.code === 'VALIDATION' && failure.fields) dialogFields.value = failure.fields;
+        else dialogError.value = failure.message;
+    } finally {
+        working.value = null;
+    }
 }
 
 async function submitReveal(reason: string): Promise<void> {

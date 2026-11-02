@@ -308,6 +308,8 @@ export default {
         businessRevealDesc: '가린 등록번호·대표자·연락처·이메일·주소를 사유를 적고 엽니다. 열람은 기록되고 10분 뒤 다시 가려집니다.',
         businessUnsuspend: '사업자 정지 해제',
         businessUnsuspendDesc: '정지한 사업자를 다시 승인 상태로 돌리고 정지로 내려간 진행 중 건의 처리를 고릅니다.',
+        businessDelete: '사업자 삭제',
+        businessDeleteDesc: '거래(신청 건·결제)가 한 번도 없는 사업자 신원을 완전히 지웁니다(등록증 사본·국세청 조회 기록 포함, 되돌릴 수 없음). 회원 계정은 그대로입니다.',
         dealOrderRead: '입점 상품·주문 조회',
         dealOrderReadDesc: '입점권 주문과 입점 상품을 봅니다.',
         dealOrderManage: '입점 상품·주문 처리',

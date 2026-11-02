@@ -78,8 +78,10 @@
         </div>
 
         <!-- 심사 화면: 심사 중이면 승인·반려, 이미 심사가 끝난 건(옛 알림 링크)은 사업자 목록으로. 목록 화면: 승인이면 정지, 정지면 정지 해제, 심사 중이면 인증 심사로 -->
-        <template v-if="footer" #footer>
+        <!-- 삭제(`business.delete`): 어느 화면·상태든 맨 왼쪽 작은 단추. 진행·예약·결제 대기 건이 보이면 잠그고 까닭을 말한다(지난 거래는 서버가 409 로 막는다) -->
+        <template v-if="footer || canDelete" #footer>
             <div class="flex flex-col gap-2">
+                <p v-if="canDelete && hasLiveDealings" class="m-0 flex items-center gap-1.5 text-xs text-muted-color"><i class="pi pi-lock" aria-hidden="true" />{{ t('business.deleteLocked') }}</p>
                 <template v-if="footer === 'review'">
                     <p v-if="ntsRule === 'LOCKED_MISMATCH'" class="m-0 flex items-center gap-1.5 text-xs text-red-700 dark:text-red-400"><i class="pi pi-lock" aria-hidden="true" />{{ t('business.approveLockedMismatch') }}</p>
                     <p v-else-if="ntsRule === 'LOCKED_STATUS'" class="m-0 flex items-center gap-1.5 text-xs text-red-700 dark:text-red-400"><i class="pi pi-lock" aria-hidden="true" />{{ t('business.approveLocked', { status: t(`business.nts.${detail!.nts.status}`) }) }}</p>
@@ -88,6 +90,19 @@
                 </template>
                 <p v-else-if="footer === 'toReview' || footer === 'toDirectory'" class="m-0 flex items-center gap-1.5 text-xs text-muted-color"><i class="pi pi-info-circle" aria-hidden="true" />{{ footer === 'toReview' ? t('business.pendingElsewhere') : t('business.doneElsewhere') }}</p>
                 <div class="flex flex-wrap justify-end gap-2">
+                    <Button
+                        v-if="canDelete && detail"
+                        type="button"
+                        class="mr-auto"
+                        :label="t('business.actDelete')"
+                        icon="pi pi-trash"
+                        size="small"
+                        severity="danger"
+                        variant="text"
+                        :disabled="busy || hasLiveDealings"
+                        data-testid="business-delete"
+                        @click="emit('remove')"
+                    />
                     <template v-if="footer === 'review'">
                         <Button type="button" :label="t('business.actReject')" severity="danger" variant="outlined" :disabled="busy" @click="emit('reject')" />
                         <Button type="button" :label="t('business.actApprove')" icon="pi pi-check" :disabled="busy || approvability === 'LOCKED'" @click="emit('approve')" />
@@ -122,6 +137,8 @@ interface Props {
     canManage?: boolean;
     canReveal?: boolean;
     canUnsuspend?: boolean;
+    /** 사업자 삭제(`business.delete`) */
+    canDelete?: boolean;
     reveal?: BusinessReveal | null;
 }
 
@@ -135,9 +152,10 @@ const props = withDefaults(defineProps<Props>(), {
     canManage: false,
     canReveal: false,
     canUnsuspend: false,
+    canDelete: false,
     reveal: null,
 });
-const emit = defineEmits<{ retry: []; approve: []; reject: []; suspend: []; unsuspend: []; recheck: []; reveal: []; hide: []; openCert: [] }>();
+const emit = defineEmits<{ retry: []; approve: []; reject: []; suspend: []; unsuspend: []; recheck: []; reveal: []; hide: []; openCert: []; remove: [] }>();
 
 const { t } = useI18n();
 const time = useDisplayTime();
@@ -147,6 +165,12 @@ const titleId = useId();
 const head = computed(() => props.detail ?? props.summary);
 const ntsRule = computed(() => (props.detail ? UtilBusiness.ntsRule(props.detail.nts) : 'LOCKED_STATUS'));
 const approvability = computed(() => (props.detail ? UtilBusiness.approvability(props.detail.nts) : 'LOCKED'));
+/** 진행·예약·결제 대기 건이 있나 — 있으면 삭제 단추를 잠근다(정지·탈퇴로 정리) */
+const hasLiveDealings = computed(() => {
+    const d = props.detail;
+    if (!d) return false;
+    return d.impact.awaitingPayment + d.impact.scheduled + d.impact.running > 0 || d.serviceCards.some((s) => s.liveCount + s.pendingCount > 0);
+});
 /** 최신이 위 */
 const history = computed(() => [...(props.detail?.history ?? [])].sort((a, b) => b.at.localeCompare(a.at)));
 
