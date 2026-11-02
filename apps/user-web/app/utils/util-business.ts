@@ -9,6 +9,9 @@ import type {
     BizHistoryEntry,
     BizSchedulePhase,
     BizTakedownCause,
+    BusinessProfile,
+    BusinessProfileService,
+    BusinessServiceKind,
 } from '~/composables/business/api/useBusinessApi.types';
 
 /** 사용자 메뉴의 사업자 줄 — `CENTER` 사업자 센터(신청했거나 사업자 전용 계정) · `APPLY` 사업자 신청(일반 회원, 신청 전) */
@@ -69,6 +72,23 @@ export default class UtilBusiness {
         const status = user.businessStatus ?? 'NONE';
         if (status !== 'NONE') return 'CENTER';
         return user.role === 'USER' ? 'APPLY' : null;
+    }
+
+    /**
+     * 신원은 승인인데 그 서비스만 정지된 줄(2026-11-02 서비스별 정지 — `GET /api/business/me` 의 `services[]`). 신원이 승인이 아니면 빈 목록(신원 상태가 우선).
+     * 신원 정지를 따라간 줄은 신원이 승인이 아니라 여기서 걸러진다. 서버 순서에 기대지 않고 핫딜·광고 차례로 놓는다.
+     * @param {Pick<BusinessProfile, 'status' | 'services'>} profile - 내 사업자 신원.
+     * @returns {BusinessProfileService[]} 서비스만 정지된 줄(핫딜·광고 차례).
+     */
+    static suspendedServices(profile: Pick<BusinessProfile, 'status' | 'services'>): BusinessProfileService[] {
+        if (profile.status !== 'APPROVED') return [];
+        const order: BusinessServiceKind[] = ['HOTDEAL', 'AD'];
+        return profile.services.filter((s) => s.status === 'SUSPENDED').sort((a, b) => order.indexOf(a.service) - order.indexOf(b.service));
+    }
+
+    /** 그 서비스만 정지됐나 — 광고·핫딜 신청 화면의 막힘 안내 */
+    static serviceSuspension(profile: Pick<BusinessProfile, 'status' | 'services'>, service: BusinessServiceKind): BusinessProfileService | null {
+        return UtilBusiness.suspendedServices(profile).find((s) => s.service === service) ?? null;
     }
 
     /** 신청 건 상세 주소 */

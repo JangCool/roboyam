@@ -4,6 +4,7 @@
           사업자 글(2차 — `source BUSINESS`)이면 첫 줄 광고 고지(「광고 — {상호}에서 비용을 내고 올린…」), 끝나도 [이 상품 새 딜 올리기] 없음, 작성자(사업자) 종료 확인은 「환불 없음 · 노출도 멈춤」
           → 제휴 링크면 첫 줄 고정 문구(05 §2-13 — 조건부 표현 없이 단정형, 첫 부분 표시. D5 — 서버가 지금 방식으로 계산한 `affiliateKind`: `MEMBER` 작성자 개인 제휴 · `SITE` 로보얌 제휴 · null 없음)
           → 상태 안내(내 글 의심: 「N명이 알렸어요 · {시각}에 자동 종료」 + [아직 진행 중이에요](확인창 「가격·재고를 고쳐 주세요」, `keepCount < keepMax` 일 때만 — 다 쓰면 「운영자 확인 중」)
+            / 사업자 글 작성자 의심: 자동 종료·「아직 진행 중」 없음(서버 403 `DEAL_BUSINESS_POST_LOCKED`) — 「운영팀이 확인 중이에요」만(운영자가 유지·종료)
             / 남의 글 의심: 「품절 알림이 들어온 딜이에요」 / 끝난 딜: 까닭·시각 + 내 글이고 `reopenUntil` 이 있으면 [다시 진행 중으로] + 남은 시간(D2), 기한 지남·이미 씀이면 안내만)
           → 이미지 · 배지 줄(제휴·수수료·HOT·임박·링크 바뀜·가격 수정 N회) → 가격 줄 → 쇼핑몰(→ 최종 호스트)·배송·재고·기간(마감 없으면 기간 종료 시각)·가격 기준(선택지·관부가세·메모)·쿠폰·딜 정보 수정(D3)
           → [구매하기](서버 경유 `buyUrl` = `/api/deals/{postId}/go` — 서버가 제휴 방식대로 바꿔 302, 외부 새 탭, `rel="nofollow sponsored noopener"`) · 끝난 딜이면 [이 상품 새 딜 올리기](`/write?board=&from=`) · 작성자 [딜 종료](확인창)
@@ -28,7 +29,13 @@
         </p>
 
         <!-- 상태 안내 -->
-        <Message v-if="deal.view === 'FLAGGED' && mine" severity="warn" :closable="false" size="small" data-testid="hotdeal-card-flagged-mine">
+        <Message v-if="deal.view === 'FLAGGED' && mine && business" severity="warn" :closable="false" size="small" data-testid="hotdeal-card-flagged-business">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <span>{{ t('hotdeal.flaggedBusiness') }}</span>
+                <span v-if="requestCounts" class="text-xs opacity-80">{{ requestCounts }}</span>
+            </div>
+        </Message>
+        <Message v-else-if="deal.view === 'FLAGGED' && mine" severity="warn" :closable="false" size="small" data-testid="hotdeal-card-flagged-mine">
             <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                 <span>{{ t('hotdeal.flaggedMine', { n: deal.endRequests.total, at: deal.autoEndAt ? time.full(deal.autoEndAt) : '—' }) }}</span>
                 <span v-if="requestCounts" class="text-xs opacity-80">{{ requestCounts }}</span>

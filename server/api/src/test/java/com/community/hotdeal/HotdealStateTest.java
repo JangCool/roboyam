@@ -171,17 +171,17 @@ class HotdealStateTest extends HotdealStage2TestBase {
         clock.set(clock.instant().plusSeconds(1));
         requestBy(post, 3);
         ends.endByManager(post, hotdealOperator(), null);
-        assertThat(ends.reopenByManager(post)).isEqualTo(DealEndService.Outcome.CHANGED);
+        assertThat(ends.reopenByManager(post, 0L, "OPERATOR", null)).isEqualTo(DealEndService.Outcome.CHANGED);
         assertThat(dealRow(post)).containsEntry("status", "ACTIVE").containsEntry("keep_count", 0).containsEntry("flagged_at", null).containsEntry("kept_at", null);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM deal_end_requests WHERE post_id = ?", Integer.class, post)).isZero();
         assertThat(notices(author, "DEAL_REOPENED_FIX_ENDS", post)).isZero();
-        assertThat(ends.reopenByManager(post)).isEqualTo(DealEndService.Outcome.STATE_CHANGED);
-        assertThat(ends.reopenByManager(ids.nextId())).isEqualTo(DealEndService.Outcome.NOT_FOUND);
+        assertThat(ends.reopenByManager(post, 0L, "OPERATOR", null)).isEqualTo(DealEndService.Outcome.STATE_CHANGED);
+        assertThat(ends.reopenByManager(ids.nextId(), 0L, "OPERATOR", null)).isEqualTo(DealEndService.Outcome.NOT_FOUND);
 
         long expired = newDeal(author);
         ends.endByManager(expired, hotdealOperator(), null);
         jdbc.update("UPDATE post_deals SET created_at = ? WHERE post_id = ?", Timestamp.from(clock.instant().minus(Duration.ofDays(31))), expired);
-        ends.reopenByManager(expired);
+        ends.reopenByManager(expired, 0L, "OPERATOR", null);
         assertThat(notices(author, "DEAL_REOPENED_FIX_ENDS", expired)).isEqualTo(1);
     }
 

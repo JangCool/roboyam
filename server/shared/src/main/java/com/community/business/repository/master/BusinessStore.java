@@ -35,6 +35,9 @@ public class BusinessStore {
     public static final String REVEALED = "REVEALED";
     public static final String CERT_VIEWED = "CERT_VIEWED";
     public static final String WITHDRAWN = "WITHDRAWN";
+    /** 서비스만 정지·해제(V130 — 처리 기록에 서비스가 함께 남는다) */
+    public static final String SERVICE_SUSPENDED = "SERVICE_SUSPENDED";
+    public static final String SERVICE_RESUMED = "SERVICE_RESUMED";
 
     // 기록한 사람 종류(ck_bh_actor)
     public static final String MEMBER = "MEMBER";
@@ -52,7 +55,7 @@ public class BusinessStore {
     }
 
     /** 처리 기록 한 줄 — 이름은 운영자 이름 또는 회원 닉네임(지워졌으면 null) */
-    public record HistoryRow(Instant at, String action, String actorType, Long actorId, String actorName, String note) {
+    public record HistoryRow(Instant at, String action, String actorType, Long actorId, String actorName, String note, String service) {
     }
 
     /** 마지막 등록증 열람 */
@@ -142,18 +145,23 @@ public class BusinessStore {
     // ── 처리 기록 ───────────────────────────────────────────────────────────
 
     public void insertHistory(long id, long profileId, String action, String actorType, Long actorId, String note, Instant now) {
-        jdbc.update("INSERT INTO business_history (id, profile_id, action, actor_type, actor_id, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)", id, profileId, action,
-                actorType, actorId, note == null ? null : cut(note, 300), Timestamp.from(now));
+        insertHistory(id, profileId, action, actorType, actorId, note, null, now);
+    }
+
+    /** 서비스 하나에 대한 처리 기록(서비스만 정지·해제) */
+    public void insertHistory(long id, long profileId, String action, String actorType, Long actorId, String note, String service, Instant now) {
+        jdbc.update("INSERT INTO business_history (id, profile_id, action, actor_type, actor_id, note, service, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", id, profileId,
+                action, actorType, actorId, note == null ? null : cut(note, 300), service, Timestamp.from(now));
     }
 
     public List<HistoryRow> history(long profileId) {
         return jdbc.query("SELECT h.created_at, h.action, h.actor_type, h.actor_id, CASE WHEN h.actor_type = 'OPERATOR' THEN o.operator_name "
-                        + "WHEN h.actor_type = 'MEMBER' THEN p.nickname END AS actor_name, h.note FROM business_history h "
+                        + "WHEN h.actor_type = 'MEMBER' THEN p.nickname END AS actor_name, h.note, h.service FROM business_history h "
                         + "LEFT JOIN operators o ON h.actor_type = 'OPERATOR' AND o.id = h.actor_id "
                         + "LEFT JOIN profiles p ON h.actor_type = 'MEMBER' AND p.user_id = h.actor_id "
                         + "WHERE h.profile_id = ? ORDER BY h.created_at DESC, h.id DESC LIMIT 100",
                 (rs, i) -> new HistoryRow(instant(rs.getTimestamp(1)), rs.getString(2), rs.getString(3), (Long) rs.getObject(4, Long.class), rs.getString(5),
-                        rs.getString(6)), profileId);
+                        rs.getString(6), rs.getString(7)), profileId);
     }
 
     /** 그 시각 뒤 신청(재신청) 수 — 반려 뒤 재신청 하루 3회 */

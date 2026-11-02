@@ -33,8 +33,21 @@ public interface BusinessApplicationHook {
     /** 정지 — 고른 처리대로 결제·입금 대기 취소 · 시작 전 환불 · 진행 중 내림(+일할 환불 심사 대기열) */
     void onSuspended(long profileId, BusinessSuspendPlan plan, long operatorId);
 
-    /** 정지 해제 — 정지로 내려간 진행 중 건을 연장 후 되돌리기 또는 환불 유지 */
+    /** 정지 해제 — 정지로 내려간 진행 중 건을 연장 후 되돌리기 또는 환불 유지. 서비스만 정지된 서비스의 건은 되돌리지 않는다(서비스 해제가 따로 한다) */
     void onUnsuspended(long profileId, BusinessSuspendPlan.Restore restore, long operatorId);
+
+    /** 서비스만 정지할 때 영향받는 건수 — 그 서비스 신청 건만(2026-11-02) */
+    default SuspendImpact impact(long profileId, BusinessServiceKind service) {
+        return SuspendImpact.ZERO;
+    }
+
+    /** 서비스만 정지 — 신원 정지와 같은 처리를 그 서비스 신청 건에만 */
+    default void onServiceSuspended(long profileId, BusinessServiceKind service, BusinessSuspendPlan plan, long operatorId) {
+    }
+
+    /** 서비스만 정지 해제 — 신원 해제와 같은 되돌리기를 그 서비스 신청 건에만 */
+    default void onServiceResumed(long profileId, BusinessServiceKind service, BusinessSuspendPlan.Restore restore, long operatorId) {
+    }
 
     /** 탈퇴할 수 있는가(F8 — 결제 전·시작 전 건은 탈퇴 때 자동 정리, 진행 중만 막는다) */
     WithdrawalCheck withdrawalCheck(long profileId);

@@ -25,6 +25,8 @@ public class BizDealPostStore {
 
     public static final String POSTED = "POSTED";
     public static final String FAILED = "FAILED";
+    /** 서비스 줄 {@code HOTDEAL} 정지로 실패 — 줄이 다시 승인되면 다시 고른다(결정 10) */
+    public static final String SERVICE_SUSPENDED = "SERVICE_SUSPENDED";
 
     /** 게시 결과 한 줄 — {@code hiddenAt} 은 이 흐름이 숨긴 시각(그 글의 숨김 시각과 같을 때만 되돌리기가 푼다) */
     public record PostRow(long applicationId, Long postId, String status, String failReason, Instant hiddenAt, Instant createdAt) {
@@ -73,11 +75,22 @@ public class BizDealPostStore {
         jdbc.update("UPDATE biz_deal_posts SET hidden_at = ?, updated_at = ? WHERE application_id = ? AND status = 'POSTED'", ts(hiddenAt), ts(now), applicationId);
     }
 
-    /** 게시할 차례 — 예약 · 핫딜 글 · 시작 ≤ 지금 &lt; 끝 · 게시 결과 없음(ID 키셋 — 처리하면 결과 줄이 생겨 다시 고르지 않는다) */
+    /**
+     * 게시할 차례 — 예약 · 핫딜 글 · 시작 ≤ 지금 &lt; 끝 · 게시 결과 없음, 또는 서비스 정지({@code SERVICE_SUSPENDED})로 실패했는데 지금은 신원·서비스 줄 {@code HOTDEAL} 이 둘 다 승인
+     * (결정 10 — 정지를 풀면 다시 올린다. 아직 정지면 고르지 않아 알림이 되풀이되지 않는다). ID 키셋 — 처리하면 결과 줄이 생기거나 바뀌어 다시 고르지 않는다.
+     */
     public List<Long> due(Instant now, long afterId, int limit) {
         return jdbc.queryForList("SELECT a.id FROM biz_applications a WHERE a.kind = 'HOTDEAL_POST' AND a.status = 'SCHEDULED' AND a.start_at <= ? AND a.end_at > ? "
-                + "AND a.id > ? AND NOT EXISTS (SELECT 1 FROM biz_deal_posts b WHERE b.application_id = a.id) ORDER BY a.id LIMIT ?", Long.class, ts(now), ts(now), afterId,
-                limit);
+                + "AND a.id > ? AND (NOT EXISTS (SELECT 1 FROM biz_deal_posts b WHERE b.application_id = a.id) OR EXISTS (SELECT 1 FROM biz_deal_posts b "
+                + "JOIN business_profiles p ON p.id = a.business_profile_id AND p.status = 'APPROVED' "
+                + "JOIN business_services s ON s.profile_id = p.id AND s.service = 'HOTDEAL' AND s.status = 'APPROVED' "
+                + "WHERE b.application_id = a.id AND b.status = 'FAILED' AND b.fail_reason = '" + SERVICE_SUSPENDED + "')) ORDER BY a.id LIMIT ?", Long.class, ts(now), ts(now),
+                afterId, limit);
+    }
+
+    /** 서비스 정지로 실패한 줄을 지운다(다시 판정하기 전 — 신청 건 행을 잠근 뒤) — 지웠으면 true */
+    public boolean clearServiceSuspended(long applicationId) {
+        return jdbc.update("DELETE FROM biz_deal_posts WHERE application_id = ? AND status = 'FAILED' AND fail_reason = '" + SERVICE_SUSPENDED + "'", applicationId) == 1;
     }
 
     /**
@@ -112,6 +125,15 @@ public class BizDealPostStore {
             return false;
         }
         List<String> rows = jdbc.queryForList("SELECT status FROM business_profiles WHERE id = ?", String.class, app.businessProfileId());
+        return !rows.isEmpty() && "APPROVED".equals(rows.get(0));
+    }
+
+    /** 서비스 줄 {@code HOTDEAL} 이 승인 상태인가(결정 10 — 신원은 승인이어도 이 줄만 정지일 수 있다) */
+    public boolean hotdealServiceApproved(AppRow app) {
+        if (app.businessProfileId() == null) {
+            return false;
+        }
+        List<String> rows = jdbc.queryForList("SELECT status FROM business_services WHERE profile_id = ? AND service = 'HOTDEAL'", String.class, app.businessProfileId());
         return !rows.isEmpty() && "APPROVED".equals(rows.get(0));
     }
 

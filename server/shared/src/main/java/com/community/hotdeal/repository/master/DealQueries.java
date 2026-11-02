@@ -210,9 +210,9 @@ public class DealQueries {
         return out;
     }
 
-    /** 자동 종료 후보(배치) — 진행 중 · 의심 · {@code flaggedBefore} 이전에 의심이 됨. 글 ID 키셋 */
+    /** 자동 종료 후보(배치) — 진행 중 · 의심 · {@code flaggedBefore} 이전에 의심이 됨 · 회원 글만(사업자 글은 운영자 확인 — biz-hotdeal 결정 11). 글 ID 키셋 */
     public List<Long> autoEndCandidates(Instant flaggedBefore, long afterPostId, int limit) {
-        return jdbc.queryForList("SELECT post_id FROM post_deals WHERE status = 'ACTIVE' AND flagged_at IS NOT NULL AND flagged_at <= ? AND post_id > ? "
+        return jdbc.queryForList("SELECT post_id FROM post_deals WHERE status = 'ACTIVE' AND source <> 'BUSINESS' AND flagged_at IS NOT NULL AND flagged_at <= ? AND post_id > ? "
                 + "ORDER BY post_id LIMIT ?", Long.class, ts(flaggedBefore), afterPostId, limit);
     }
 

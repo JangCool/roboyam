@@ -114,7 +114,7 @@ export interface PostDeal {
     reopenUntil: string | null;
     endRequests: DealEndRequests;
     flaggedAt: string | null;
-    /** `flaggedAt` + 유예 시간(유예 0 = 자동 종료 안 함이면 null) */
+    /** `flaggedAt` + 유예 시간(유예 0 = 자동 종료 안 함이면 null). 사업자 글은 자동 종료하지 않아 늘 null */
     autoEndAt: string | null;
     /** 작성자가 「아직 진행 중」을 누른 횟수 · 최대(설정 `keepMaxCount`, 0 = 없음) */
     keepCount: number;
@@ -272,7 +272,7 @@ export interface DealRevisionListView {
     retentionMonths: number;
 }
 
-/** `POST /api/admin/hotdeals/{postId}/end` · `/reopen` — 사유는 선택(0~200자, 감사·작성자 알림에 쓴다) */
+/** `POST /api/admin/hotdeals/{postId}/end` · `/reopen` · `/keep` — 사유는 선택(0~200자, 감사·작성자 알림에 쓴다) */
 export interface DealActionRequest {
     reason?: string;
 }

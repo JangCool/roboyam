@@ -9,7 +9,7 @@
           맨 위에 「차단 도메인 진행 중」 경고(지금 규칙에서 상품·최종 호스트가 차단), 딜 카드에 최종 호스트 · HOT · 「링크 바뀜」·「가격 수정 N회」 · 가격 기준 배지.
           제휴 링크 방식이 사이트 제휴(`detail.affiliateMode = SITE`)면 상품 주소 아래 「구매 링크: 사이트 제휴로 변환 — 프로그램」 / 「개인 제휴 — 지금은 클릭 때 떼어져요」 / 「제휴 없이 원래 링크」 한 줄(D5).
         탭 「수정 이력」(D3): 처음 열 때 부른 화면이 받는다(`need-revisions`). 줄 = 시각 · 누가(작성자/운영진) · 바뀐 칸 전 → 후, 호스트가 바뀐 줄은 노랑 테두리 + 「링크 바뀜」. 6개월 보존 안내 한 줄.
-        바닥: [종료](진행·의심·기간 지남) / [재개](종료) — 권한(`hotdeal.manage`)이 없으면 단추 없이 읽기 전용 안내. 서버 호출은 하지 않는다(부른 화면이 한다).
+        바닥: [종료](진행·의심·기간 지남) / [재개](종료) / [유지](사업자 글이 의심일 때만 — 자동 종료가 없어 운영자가 정한다, 머리에 「확인 필요」) — 권한(`hotdeal.manage`)이 없으면 단추 없이 읽기 전용 안내. 서버 호출은 하지 않는다(부른 화면이 한다).
     -->
     <Drawer
         :visible="open"
@@ -34,6 +34,7 @@
                 </div>
                 <div v-if="head" class="flex flex-wrap items-center gap-2">
                     <HotdealViewTag :view="head.deal.view" />
+                    <Tag v-if="UtilHotdeal.needsReview(head)" :value="t('hotdeal.reviewNeeded')" icon="pi pi-exclamation-triangle" severity="warn" class="text-[11px]!" />
                     <Tag v-if="head.sellerHidden" :value="t(`hotdeal.sellerHold.${head.sellerHidden.cause}`)" :severity="head.sellerHidden.cause === 'ADVERTISER_PAUSE' ? 'warn' : 'danger'" icon="pi pi-eye-slash" class="text-[11px]!" />
                     <button
                         v-tooltip.bottom="t('content.copyPostId')"
@@ -272,6 +273,7 @@
             <div class="flex w-full flex-col gap-2 border-t border-(--line) pt-3">
                 <p v-if="!canManage" class="m-0 flex items-center gap-1.5 text-xs text-muted-color"><i class="pi pi-lock" aria-hidden="true" />{{ t('hotdeal.readOnly') }}</p>
                 <div v-else class="flex flex-wrap justify-end gap-2">
+                    <Button v-if="UtilHotdeal.canKeep(row)" type="button" :label="t('hotdeal.action.KEEP')" icon="pi pi-check" size="small" severity="secondary" variant="outlined" :disabled="busy || loading" @click="emit('act', 'KEEP')" />
                     <Button v-if="UtilHotdeal.canReopen(deal.view)" type="button" :label="t('hotdeal.action.REOPEN')" icon="pi pi-replay" size="small" severity="secondary" variant="outlined" :disabled="busy || loading" @click="emit('act', 'REOPEN')" />
                     <Button v-if="UtilHotdeal.canEnd(deal.view)" type="button" :label="t('hotdeal.action.END')" icon="pi pi-ban" size="small" severity="danger" :disabled="busy || loading" @click="emit('act', 'END')" />
                 </div>
@@ -327,7 +329,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 const emit = defineEmits<{
     retry: [];
-    act: [kind: 'END' | 'REOPEN'];
+    act: [kind: 'END' | 'REOPEN' | 'KEEP'];
     prev: [];
     next: [];
     /** 같은 딜 줄을 눌렀다 — 그 글로 서랍을 바꾼다 */

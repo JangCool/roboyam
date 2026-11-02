@@ -143,6 +143,7 @@
                     <dt class="text-muted-color">{{ t('bizApplication.post.dealState') }}</dt>
                     <dd class="m-0 flex flex-wrap items-center gap-1.5">
                         <HotdealViewTag :view="post.view" />
+                        <Tag v-if="post.view === 'FLAGGED'" :value="t('bizApplication.post.reviewNeeded')" icon="pi pi-exclamation-triangle" severity="warn" class="text-[11px]!" />
                         <span v-if="post.view === 'ENDED' && post.endedBy" class="text-xs text-muted-color">{{ t(`bizApplication.post.endedBy.${post.endedBy}`) }}</span>
                     </dd>
                 </template>
@@ -166,6 +167,10 @@
             <p v-if="post.status === 'WAITING'" class="m-0 text-xs text-muted-color">{{ t('bizApplication.post.waitingNote') }}</p>
             <template v-else-if="post.status === 'POSTED'">
                 <p v-if="post.view === 'ENDED' && post.endedBy !== 'MANAGER'" class="m-0 text-xs text-muted-color">{{ t('bizApplication.post.endedNoRefund') }}</p>
+                <!-- 의심 — 사업자 글은 자동 종료하지 않는다. 아래 [핫딜 글에서 열기] 서랍에서 [유지]·[종료] -->
+                <Message v-if="post.view === 'FLAGGED'" severity="warn" size="small" :closable="false" icon="pi pi-exclamation-triangle">
+                    <span class="text-[13px]">{{ t('bizApplication.post.reviewNeededNote') }}</span>
+                </Message>
                 <div v-if="post.postId" class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
                     <NuxtLink :to="dealLink" class="inline-flex items-center gap-1 rounded text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
                         <i class="pi pi-ticket text-[11px]" aria-hidden="true" />{{ t('bizApplication.post.openDeal') }}

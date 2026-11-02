@@ -53,15 +53,19 @@ public class BusinessEligibility {
     }
 
     /**
-     * 자격이 없으면 409 — 재심사 중이면 {@code BUSINESS_RE_REVIEW}(새 신청만 막힌다는 안내), 그 밖 {@code BUSINESS_NOT_APPROVED}.
+     * 자격이 없으면 409 — 재심사 중이면 {@code BUSINESS_RE_REVIEW}(새 신청만 막힌다는 안내), 신원 승인인데 그 서비스만 정지면
+     * {@code BUSINESS_SERVICE_SUSPENDED}, 그 밖 {@code BUSINESS_NOT_APPROVED}.
      */
     public ApprovedBusiness requireApproved(long userId, BusinessServiceKind service) {
         Optional<ApprovedBusiness> found = approvedProfileOf(userId, service);
         if (found.isPresent()) {
             return found.get();
         }
-        boolean reReview = profiles.findByUserId(userId).map(BusinessProfileEntity::isReReview).orElse(false);
-        throw reReview ? BusinessException.reReview() : BusinessException.notApproved();
+        Optional<BusinessProfileEntity> profile = profiles.findByUserId(userId);
+        boolean reReview = profile.map(BusinessProfileEntity::isReReview).orElse(false);
+        boolean serviceSuspended = profile.filter(p -> p.getStatus() == BusinessStatus.APPROVED)
+                .flatMap(p -> services.findByProfileIdAndService(p.getId(), service)).filter(s -> s.getStatus() == BusinessServiceStatus.SUSPENDED).isPresent();
+        throw reReview ? BusinessException.reReview() : serviceSuspended ? BusinessException.serviceSuspended() : BusinessException.notApproved();
     }
 
     /**

@@ -301,6 +301,16 @@ export default class UtilHotdeal {
         return view !== 'ENDED';
     }
 
+    /** 운영자 확인이 필요한 글 — 사업자 글이 의심(종료 요청이 문턱에 닿아도 자동 종료하지 않는다) */
+    static needsReview(row: AdminDealRow): boolean {
+        return UtilHotdeal.isBusiness(row) && row.deal.view === 'FLAGGED';
+    }
+
+    /** [유지]를 누를 수 있는 글 — 확인이 필요한 사업자 글만(서버가 아니면 409 `HOTDEAL_STATE_CHANGED`) */
+    static canKeep(row: AdminDealRow): boolean {
+        return UtilHotdeal.needsReview(row);
+    }
+
     /** [재개]를 누를 수 있는 상태 — ENDED 만(운영진만 재개, 의심·요청 리셋) */
     static canReopen(view: DealView): boolean {
         return view === 'ENDED';

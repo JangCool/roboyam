@@ -3,6 +3,7 @@
         사업자 화면 한 벌 — 사업자 › 인증 심사(`/business-reviews`, mode review) · 사업자 › 사업자 목록(`/businesses`, mode directory). 04-ia-review 5절, 01-business.md 7-1 A·B, 00-overview.md ★-4 B1~B3·H2.
         · 인증 심사: 심사 중(처음·재신청) + 재심사(승인 뒤 상호·번호를 고친 건 — 「재심사」 꼬리표) 한 큐. 오래된 것이 위. 서랍에서 국세청 [다시 조회] · 승인(계속사업자만 — 조회 불가는 사유) · 반려 · 등록증 열람.
         · 사업자 목록: 상태 탭(승인·정지·탈퇴·반려·전체, 건수). 서랍에서 정지(영향 건수와 처리 선택) · 정지 해제(진행 중이던 건 처리 선택, `business.unsuspend`) · 평문 보기(사유 → 10분) · 등록증 열람.
+        · 사업자 목록 서랍의 서비스 카드: 신원이 승인이면 서비스 하나만 정지·해제(같은 창 + 그 서비스 영향 건수, 2026-11-02 — `POST …/services/{service}/suspend`·`resume`, `useBusinessApi`).
         · 두 화면 모두 서비스(핫딜/광고) · 찾기(사업자명·번호·신청자). 한 줄: 사업자명 · 가린 등록번호 · 신원 상태 · 서비스 · 신청자 · 신청일 · 국세청 조회 결과. 평문 칸은 목록에 없다.
         · 줄을 누르면 상세 서랍(`?id=`). 심사 화면에서 이미 끝난 건은 사업자 목록으로, 목록 화면의 심사 중 건은 인증 심사로 가는 단추를 보인다.
         권한: 화면 `business.read`(메뉴 항목 — 셸이 거른다) · 처리 `business.manage` · 평문 `business.reveal`(SENSITIVE) · 정지 해제 `business.unsuspend`(SENSITIVE). 계약 `docs/features/business-contract.md`.
@@ -115,6 +116,8 @@
             @reject="openDialog('reject')"
             @suspend="openDialog('suspend')"
             @unsuspend="openDialog('unsuspend')"
+            @service-suspend="(s: BusinessService) => openServiceDialog('svcSuspend', s)"
+            @service-resume="(s: BusinessService) => openServiceDialog('svcResume', s)"
             @recheck="recheck"
             @reveal="openDialog('reveal')"
             @hide="revealed = null"
@@ -147,6 +150,27 @@
         />
         <BusinessSuspendDialog v-if="drawerDetail" v-model:visible="dialogs.suspend" :name="drawerDetail.name" :impact="drawerDetail.impact" :busy="working === 'suspend'" :error="dialogError" @submit="submitSuspend" />
         <BusinessUnsuspendDialog v-if="drawerDetail" v-model:visible="dialogs.unsuspend" :name="drawerDetail.name" :busy="working === 'unsuspend'" :error="dialogError" :field-errors="dialogFields" @submit="submitUnsuspend" />
+        <!-- 서비스만 정지·해제(2026-11-02) — 신원 정지·해제와 같은 창에 서비스를 넘긴다 -->
+        <BusinessSuspendDialog
+            v-if="drawerDetail && serviceTarget"
+            v-model:visible="dialogs.svcSuspend"
+            :name="drawerDetail.name"
+            :service="serviceTarget"
+            :impact="serviceImpact"
+            :busy="working === 'svcSuspend'"
+            :error="dialogError"
+            @submit="submitServiceSuspend"
+        />
+        <BusinessUnsuspendDialog
+            v-if="drawerDetail && serviceTarget"
+            v-model:visible="dialogs.svcResume"
+            :name="drawerDetail.name"
+            :service="serviceTarget"
+            :busy="working === 'svcResume'"
+            :error="dialogError"
+            :field-errors="dialogFields"
+            @submit="submitServiceResume"
+        />
         <BizReasonDialog
             v-model:visible="dialogs.reveal"
             :title="t('business.revealTitle')"
@@ -189,13 +213,14 @@ import type {
     BusinessRow,
     BusinessService,
     BusinessStatus,
+    BusinessSuspendImpact,
     BusinessSuspendRequest,
     BusinessUnsuspendRequest,
 } from '~/composables/business/api/useBusinessApi.types';
 import { BUSINESS_REJECT_CODES, BUSINESS_SERVICES } from '~/composables/business/api/useBusinessApi.types';
 import UtilBusiness from '~/utils/util-business';
 
-type Work = 'approve' | 'reject' | 'suspend' | 'unsuspend' | 'reveal' | 'recheck' | 'cert' | 'remove';
+type Work = 'approve' | 'reject' | 'suspend' | 'unsuspend' | 'svcSuspend' | 'svcResume' | 'reveal' | 'recheck' | 'cert' | 'remove';
 
 interface Props {
     /** 인증 심사(`review`) · 사업자 목록(`directory`) — 탭 집합·기본 정렬·서랍 아래 단추가 갈린다 */
@@ -365,12 +390,23 @@ watch(drawerOpen, (open) => {
 const working = ref<Work | null>(null);
 const dialogError = ref('');
 const dialogFields = ref<Record<string, string>>({});
-const dialogs = reactive({ reject: false, suspend: false, unsuspend: false, reveal: false, approveOverride: false, remove: false });
+const dialogs = reactive({ reject: false, suspend: false, unsuspend: false, svcSuspend: false, svcResume: false, reveal: false, approveOverride: false, remove: false });
+/** 서비스만 정지·해제 창의 대상 서비스 */
+const serviceTarget = ref<BusinessService | null>(null);
+/** 그 서비스만의 영향 건수(서버가 카드마다 준다) */
+const serviceImpact = computed<BusinessSuspendImpact>(
+    () => drawerDetail.value?.serviceCards.find((c) => c.service === serviceTarget.value)?.impact ?? { awaitingPayment: 0, scheduled: 0, running: 0 },
+);
 
 function openDialog(name: keyof typeof dialogs): void {
     dialogError.value = '';
     dialogFields.value = {};
     dialogs[name] = true;
+}
+
+function openServiceDialog(name: 'svcSuspend' | 'svcResume', service: BusinessService): void {
+    serviceTarget.value = service;
+    openDialog(name);
 }
 
 /** 동작 하나 — 성공하면 서랍·목록을 새로. 409 는 「이미 바뀌었어요」 + 다시 읽기 */
@@ -429,6 +465,18 @@ async function submitSuspend(body: BusinessSuspendRequest): Promise<void> {
 async function submitUnsuspend(body: BusinessUnsuspendRequest): Promise<void> {
     const d = drawerDetail.value;
     if (d) await run('unsuspend', () => api.unsuspend(d.id, body), t('business.unsuspended'), 'unsuspend');
+}
+
+async function submitServiceSuspend(body: BusinessSuspendRequest): Promise<void> {
+    const d = drawerDetail.value;
+    const service = serviceTarget.value;
+    if (d && service) await run('svcSuspend', () => api.suspendService(d.id, service, body), t('business.svcSuspended', { service: t(`business.service.${service}`) }), 'svcSuspend');
+}
+
+async function submitServiceResume(body: BusinessUnsuspendRequest): Promise<void> {
+    const d = drawerDetail.value;
+    const service = serviceTarget.value;
+    if (d && service) await run('svcResume', () => api.resumeService(d.id, service, body), t('business.svcResumed', { service: t(`business.service.${service}`) }), 'svcResume');
 }
 
 async function recheck(): Promise<void> {

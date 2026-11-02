@@ -14,7 +14,7 @@
 
         <div v-if="status === 'loading'" class="h-64 animate-pulse rounded-xl bg-surface-200 dark:bg-surface-800" role="status" :aria-label="t('common.loading')" />
         <ErrorState v-else-if="status === 'error' || !profile" :title="t('business.home.loadFailed')" :description="loadError" retry @retry="load" />
-        <BusinessGateNotice v-else-if="profile.status !== 'APPROVED' || profile.reReview" :status="profile.status" :re-review="profile.reReview" />
+        <BusinessGateNotice v-else-if="profile.status !== 'APPROVED' || profile.reReview || serviceSuspension" :status="profile.status" :re-review="profile.reReview" :service-suspension="serviceSuspension" />
 
         <template v-else>
             <BusinessStepHeader :steps="stepNames" :current="step" />
@@ -182,6 +182,8 @@ const api = useBusinessApi();
 const toast = useAppToast();
 
 const profile = ref<BusinessProfile | null>(null);
+/** 신원은 승인인데 광고 서비스만 정지 — 막힘 안내(`services[]`, 서버는 409 `BUSINESS_SERVICE_SUSPENDED`) */
+const serviceSuspension = computed(() => (profile.value ? UtilBusiness.serviceSuspension(profile.value, 'AD') : null));
 const products = ref<AdProduct[]>([]);
 const status = ref<'loading' | 'ready' | 'error'>('loading');
 const loadError = ref('');
@@ -217,6 +219,15 @@ async function load(): Promise<void> {
     }
 }
 onMounted(load);
+
+/** 신원만 다시 읽는다(서비스 정지 409 뒤) — 못 읽으면 지금 화면을 그대로 둔다(서버 문구가 이미 폼 오류로 보인다) */
+async function reloadProfile(): Promise<void> {
+    try {
+        profile.value = await api.profile();
+    } catch {
+        // 그대로 둔다
+    }
+}
 
 /** 진행 중 중단의 중도 해지 수수료율 — 동의 문구에 넣는다(받지 못하면 비율 없는 문구) */
 const stopFeeRate = ref<number | null>(null);
@@ -347,6 +358,8 @@ async function submit(): Promise<void> {
             step.value = 2;
             void loadAvailability();
         }
+        // 그새 광고 서비스가 정지됐다(409 BUSINESS_SERVICE_SUSPENDED) — 신원을 다시 읽어 폼 대신 막힘 안내(사유)를 보인다
+        if (e instanceof ApiError && e.code === 'BUSINESS_SERVICE_SUSPENDED') await reloadProfile();
     } finally {
         submitBusy.value = false;
     }

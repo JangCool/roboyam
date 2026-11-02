@@ -1,6 +1,6 @@
 <template>
     <!--
-        핫딜 조치 대화창 — 종료(`END`) · 재개(`REOPEN`) · 의심 후보 무시(`DISMISS`). 사유·메모는 **선택**(0~200자, 감사·작성자 알림에 쓴다 — 03-hotdeal 7-1).
+        핫딜 조치 대화창 — 종료(`END`) · 재개(`REOPEN`) · 사업자 글 유지(`KEEP`) · 의심 후보 무시(`DISMISS`). 사유·메모는 **선택**(0~200자, 감사·작성자 알림에 쓴다 — 03-hotdeal 7-1).
         재개는 「의심·종료 요청이 리셋돼요」 안내 + D2 「자동·운영진 종료는 운영진만 재개, 작성자 종료는 24시간 안 작성자가 되돌릴 수 있음」(작성자 기한이 남았으면 그 시각), 마감이 이미 지난 딜이면(`expired`) 「작성자가 마감을 고쳐야 해요」 경고를 더 보인다.
         열 때마다 칸을 비운다. 서버 호출은 부른 화면이 `submit` 을 받아 한다. 칸 오류(`fields.reason`·`fields.note`)는 칸 아래, 그 밖은 대화창 안 한 줄(서버 문구 그대로).
     -->
@@ -49,7 +49,7 @@ import type { DealEndedBy } from '~/composables/hotdeal/api/useHotdealApi.types'
 import UtilHotdeal from '~/utils/util-hotdeal';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
 
-export type HotdealReasonKind = 'END' | 'REOPEN' | 'DISMISS';
+export type HotdealReasonKind = 'END' | 'REOPEN' | 'KEEP' | 'DISMISS';
 
 const open = defineModel<boolean>('visible', { required: true });
 

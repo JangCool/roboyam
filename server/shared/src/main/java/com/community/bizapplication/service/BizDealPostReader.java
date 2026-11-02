@@ -20,7 +20,6 @@ import com.community.hotdeal.repository.master.PostDealRepository;
 import com.community.hotdeal.service.DealSettingsReader;
 import com.community.post.entity.PostEntity;
 import com.community.post.repository.master.PostRepository;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
@@ -109,13 +108,10 @@ public class BizDealPostReader {
         boolean hidden = post == null || post.isGoneAt(now) || post.isHiddenAt(now);
         DealView view = deal == null ? null : deal.view(s.autoExpireDays(), now);
         BizDealPostView.EndRequests requests = null;
-        Instant autoEndAt = null;
+        Instant autoEndAt = null; // 사업자 글은 종료 요청으로 자동 종료하지 않는다(운영자 확인 — 결정 11)
         if (deal != null) {
             DealQueries.EndCounts n = queries.endRequestCounts(List.of(deal.getPostId())).get(deal.getPostId());
             requests = n == null ? new BizDealPostView.EndRequests(0, 0, 0, 0) : new BizDealPostView.EndRequests(n.total(), n.soldOut(), n.priceChanged(), n.linkDead());
-            if (view == DealView.FLAGGED && s.endGraceHours() > 0 && deal.getFlaggedAt() != null) {
-                autoEndAt = deal.getFlaggedAt().plus(Duration.ofHours(s.endGraceHours()));
-            }
         }
         BizDealPostView.Placement placement = null;
         if (product != null) {

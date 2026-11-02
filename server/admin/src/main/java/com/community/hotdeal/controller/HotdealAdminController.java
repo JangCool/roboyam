@@ -76,6 +76,14 @@ public class HotdealAdminController {
         return ResponseEntity.noContent().build();
     }
 
+    /** 사업자 글 [유지](biz-hotdeal 결정 11) */
+    @RequirePermission(Permission.HOTDEAL_MANAGE)
+    @PostMapping("/{postId}/keep")
+    public ResponseEntity<Void> keep(@PathVariable String postId, @RequestBody(required = false) HotdealAdminRequest.Action body, AdminActor actor) {
+        moderation.keep(actor, postId, body);
+        return ResponseEntity.noContent().build();
+    }
+
     static <T> ResponseEntity<ApiResponse<T>> ok(T body) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(body));
     }

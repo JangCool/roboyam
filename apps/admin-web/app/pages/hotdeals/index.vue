@@ -5,6 +5,7 @@
         - 조건 카드: 상태 `SelectButton`(진행·의심·종료·기간 지남·전체 + 건수) → 게시판 `Select`(핫딜 게시판) → 차단 도메인 진행 중 체크(`blockedActive` + 건수) → 검색(제목·쇼핑몰·작성자, 2자 이상) → 등록일 기간.
           상태·게시판·차단은 고르는 즉시, 검색어·기간은 [검색](Enter)을 눌러야 주소로 간다. **모두 주소 쿼리**(`?view=&board=&source=&blocked=1&q=&from=&to=&page=&size=&deal=`).
           출처(전체·회원·사업자 — 2차 사업자 핫딜 게시)는 서버가 줄에 `source` 를 줄 때만 보인다. 사업자 글은 제목 앞 「사업자·광고」 + 상호, 서랍에 [핫딜 심사에서 열기]. 종료·재개는 회원 글과 같다.
+          사업자 글이 의심(`FLAGGED`)이면 자동 종료하지 않으므로 「확인 필요」 Tag + 서랍 [유지](`/keep`, 사유 선택 — [종료]와 같은 대화창).
           판매자가 일시 정지·중단해 숨긴 사업자 글은 「판매자 정지 중」·「판매자 중단」 Tag(줄 `sellerHidden` — biz-pause-contract). 숨겨도 관리자 목록·서랍에는 그대로 나온다.
         - 표: 썸네일 · 제목(말머리 · 제휴 · 아래 줄에 「차단 도메인」·「링크 바뀜」·「가격 수정 N회」) · 게시판 · 쇼핑몰 · 딜가 · 정상가 · 할인율 · 상태 · 종료 요청(Badge) · 신고 · 작성자 · 등록 시각.
           줄을 누르면 서랍(`?deal=` — replace, 목록은 다시 받지 않는다). 서랍 「수정 이력」 탭은 처음 열 때 이력을 받는다(D3).
@@ -126,6 +127,8 @@
                                 <template v-if="UtilHotdeal.isBusiness(data)">
                                     <Tag :value="t('hotdeal.businessAd')" icon="pi pi-megaphone" severity="warn" class="text-[11px]!" />
                                     <span v-if="data.business" class="shrink-0 text-xs font-medium">{{ data.business.name }}</span>
+                                    <!-- 종료 요청이 쌓인 사업자 글 — 자동 종료 없이 운영자가 유지·종료 -->
+                                    <Tag v-if="UtilHotdeal.needsReview(data)" :value="t('hotdeal.reviewNeeded')" icon="pi pi-exclamation-triangle" severity="warn" class="text-[11px]!" />
                                     <!-- 판매자 일시 정지·중단으로 숨긴 글(biz-pause-contract) -->
                                     <Tag v-if="data.sellerHidden" :value="t(`hotdeal.sellerHold.${data.sellerHidden.cause}`)" :severity="data.sellerHidden.cause === 'ADVERTISER_PAUSE' ? 'warn' : 'danger'" icon="pi pi-eye-slash" class="text-[11px]!" />
                                 </template>
@@ -527,7 +530,7 @@ const reasonFieldError = ref('');
 /** 그 사이 다른 운영자가 바꿨거나 글이 없어졌다 — 알리고 새로 받는다 */
 const STALE_CODES = new Set(['HOTDEAL_STATE_CHANGED', 'POST_NOT_FOUND']);
 
-function openAct(kind: 'END' | 'REOPEN'): void {
+function openAct(kind: 'END' | 'REOPEN' | 'KEEP'): void {
     const row = detail.value?.row;
     if (!row || acting.value || !canManage.value) return;
     reasonTarget.value = row;
@@ -547,6 +550,7 @@ async function submitReason(reason: string): Promise<void> {
     const body = reason ? { reason } : {};
     try {
         if (kind === 'END') await api.end(row.postId, body);
+        else if (kind === 'KEEP') await api.keep(row.postId, body);
         else await api.reopen(row.postId, body);
     } catch (e) {
         const error = errorOf(e);
@@ -564,7 +568,7 @@ async function submitReason(reason: string): Promise<void> {
     acting.value = false;
     reasonOpen.value = false;
     const expired = kind === 'REOPEN' && UtilHotdeal.endsAtPassed(row.deal.endsAt ?? row.deal.autoExpireAt);
-    toast.success(t(kind === 'END' ? 'hotdeal.endedToast' : expired ? 'hotdeal.reopenedExpiredToast' : 'hotdeal.reopenedToast'), expired ? 6000 : undefined);
+    toast.success(t(kind === 'END' ? 'hotdeal.endedToast' : kind === 'KEEP' ? 'hotdeal.keptToast' : expired ? 'hotdeal.reopenedExpiredToast' : 'hotdeal.reopenedToast'), expired ? 6000 : undefined);
     await refreshAfter(row.postId);
 }
 

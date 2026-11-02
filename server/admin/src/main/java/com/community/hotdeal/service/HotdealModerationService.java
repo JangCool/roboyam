@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>검사 순서: 사유 0~200자({@code 400 fields.reason}) → 대상(핫딜 게시판의 살아 있는 글이고 딜 줄 — 아니면 {@code 404 POST_NOT_FOUND}) → 담당(운영자 {@code hotdeal.manage},
  *       아니면 {@code 403 PERMISSION_DENIED}) → 상태(종료: 이미 종료 · 재개: 종료가 아님 → {@code 409 HOTDEAL_STATE_CHANGED}).</li>
  *   <li>종료 = 진행·의심·기간 지남 → ENDED MANAGER + 의심 구간 요청자 보상 + 작성자 알림 {@code DEAL_MANAGER_ENDED}(사유). 재개 = ENDED → ACTIVE(의심·keep·요청 리셋, 기간이 지났으면
- *       작성자 알림 {@code DEAL_REOPENED_FIX_ENDS}). 재개 사유는 감사에만 남는다.</li>
+ *       작성자 알림 {@code DEAL_REOPENED_FIX_ENDS}). 재개 사유는 감사와 사업자 글의 신청 건 처리 기록에 남는다. 사업자 글 [유지]({@code HOTDEAL_KEEP}) = 확인 필요를 풀고 종료 요청 셈을 새 회차로(결정 11).</li>
  * </ul>
  */
 @Service
@@ -71,9 +71,20 @@ public class HotdealModerationService {
         long postId = requireId(idText);
         PostDealEntity before = deals.findById(postId).orElse(null);
         String endedBy = before == null ? null : before.getEndedBy();
-        check(moderation.reopen(postId, actorOf(actor)));
+        check(moderation.reopen(postId, actorOf(actor), reason));
         record(actor, AuditActions.HOTDEAL_REOPEN, postId, before, endedBy == null ? Map.of() : Map.of("endedBy", endedBy), reason);
         log.info("핫딜 운영진 재개 postId={} by operatorId={}", postId, actor.operatorId());
+    }
+
+    /** 사업자 글 [유지](biz-hotdeal 결정 11) — 사업자 글이고 확인 필요(의심)일 때만, 아니면 409 {@code HOTDEAL_STATE_CHANGED}. 감사 {@code HOTDEAL_KEEP} */
+    @Transactional
+    public void keep(AdminActor actor, String idText, HotdealAdminRequest.Action body) {
+        String reason = reason(body);
+        long postId = requireId(idText);
+        PostDealEntity before = deals.findById(postId).orElse(null);
+        check(moderation.keep(postId, actorOf(actor), reason));
+        record(actor, AuditActions.HOTDEAL_KEEP, postId, before, Map.of(), reason);
+        log.info("사업자 핫딜 운영자 유지 postId={} by operatorId={}", postId, actor.operatorId());
     }
 
     static Actor actorOf(AdminActor actor) {

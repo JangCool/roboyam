@@ -169,6 +169,9 @@ public class DealStateService {
         Instant now = ends.now();
         Target t = authorTarget(postId, userId, now);
         PostDealEntity d = ends.lock(t.post().getId()).orElseThrow(DealNotFoundException::new);
+        if (d.isBusiness()) {
+            throw new com.community.hotdeal.exception.DealBusinessPostLockedException(); // 사업자 글은 운영자가 [종료]·[유지]를 고른다(biz-hotdeal 결정 11)
+        }
         DealSettings s = settings.current();
         if (d.view(s.autoExpireDays(), now) != DealView.FLAGGED) {
             throw new DealNotFlaggedException();
@@ -224,7 +227,7 @@ public class DealStateService {
         String role = requireBoardRole(t, userId);
         PostDealEntity d = ends.lock(id).orElseThrow(DealNotFoundException::new);
         String endedBy = d.getEndedBy();
-        switch (moderation.reopen(id, DealModeration.Actor.boardMember(userId))) {
+        switch (moderation.reopen(id, DealModeration.Actor.boardMember(userId), reason)) {
             case NOT_FOUND -> throw new DealNotFoundException();
             case FORBIDDEN -> throw new DealModerateForbiddenException();
             case STATE_CHANGED -> throw DealNotEndedException.reopen();
@@ -354,10 +357,7 @@ public class DealStateService {
         if (!flagged && requests.countRound(postId, d.getKeptAt()) >= s.endRequestThreshold()) {
             d.flag(now);
             requests.markRoundFlagged(postId, d.getKeptAt());
-            notices.flagged(d);
-            if (s.keepMaxCount() > 0 && d.getKeepCount() >= s.keepMaxCount()) {
-                notices.keepLimit(d); // 작성자는 더 「아직 진행 중」을 누를 수 없다 — 「운영자 확인 중」
-            }
+            ends.flagged(d, now); // 회원 글: 작성자 알림(+ keep 한도 관리자 알림) · 사업자 글: 운영자 확인(biz-hotdeal 결정 11)
         }
         return Submit.CREATED;
     }

@@ -307,6 +307,102 @@ public class BusinessAdminService {
         });
     }
 
+    // ── 서비스만 정지·해제(business-contract 「서비스만 정지·해제」 2026-11-02) ─────────
+
+    /**
+     * 서비스만 정지 — 신원 승인 · 그 서비스 줄 승인일 때만(아니면 409 {@code BUSINESS_STATE_CHANGED}). 본문·검사는 신원 정지와 같고 건 처리는 그 서비스 신청 건에만
+     * ({@link BusinessApplicationHook#onServiceSuspended}). 처리 기록 {@code SERVICE_SUSPENDED}(+ 서비스) · 감사 {@code BUSINESS_SERVICE_SUSPEND} · 사업자 알림.
+     */
+    public BusinessAdminView.Detail suspendService(AdminActor actor, String idText, String serviceText, BusinessAdminRequest.Suspend body) {
+        long id = parseId(idText);
+        BusinessServiceKind service = serviceOf(serviceText);
+        Map<String, MessageRef> errors = new LinkedHashMap<>();
+        BusinessSuspendCode code = enumOrError(BusinessSuspendCode.class, body == null ? null : body.code(), "code", errors);
+        String text = text(body == null ? null : body.text(), "text", errors);
+        BusinessSuspendPlan.Pending pending = enumOrError(BusinessSuspendPlan.Pending.class, body == null ? null : body.pendingAction(), "pendingAction", errors);
+        BusinessSuspendPlan.Scheduled scheduled = enumOrError(BusinessSuspendPlan.Scheduled.class, body == null ? null : body.scheduledAction(), "scheduledAction", errors);
+        BusinessSuspendPlan.Running running = enumOrError(BusinessSuspendPlan.Running.class, body == null ? null : body.runningAction(), "runningAction", errors);
+        throwIf(errors);
+        BusinessSuspendPlan plan = new BusinessSuspendPlan(pending, scheduled, running);
+        return tx.execute(status -> {
+            Instant now = now();
+            BusinessProfileEntity p = profiles.findWithLockById(id).orElseThrow(BusinessException::notFound);
+            BusinessServiceEntity line = services.findByProfileIdAndService(id, service).orElse(null);
+            if (p.getStatus() != BusinessStatus.APPROVED || line == null || line.getStatus() != BusinessServiceStatus.APPROVED) {
+                throw BusinessException.stateChanged();
+            }
+            line.suspendAlone(code, text, actor.operatorId(), now);
+            entityManager.flush();
+            hook().onServiceSuspended(id, service, plan, actor.operatorId());
+            store.insertHistory(ids.nextId(), id, BusinessStore.SERVICE_SUSPENDED, BusinessStore.OPERATOR, actor.operatorId(), code.name(), service.name(), now);
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("service", service.name());
+            detail.put("code", code.name());
+            detail.put("text", text);
+            detail.put("pendingAction", pending.name());
+            detail.put("scheduledAction", scheduled.name());
+            detail.put("runningAction", running.name());
+            record(actor, AuditActions.BUSINESS_SERVICE_SUSPEND, id, detail);
+            notices.member(p.getUserId(), service.name() + "_SUSPENDED", p.getCompanyName(), text);
+            return detailOf(p);
+        });
+    }
+
+    /**
+     * 서비스만 정지 해제 — 신원 승인 · 그 줄이 「서비스만 정지」일 때만(아니면 409). 본문·검사는 신원 해제와 같고 되돌리기는 그 서비스 건에만
+     * ({@link BusinessApplicationHook#onServiceResumed}). 처리 기록 {@code SERVICE_RESUMED}(+ 서비스) · 감사 {@code BUSINESS_SERVICE_RESUME} · 사업자 알림.
+     */
+    public BusinessAdminView.Detail resumeService(AdminActor actor, String idText, String serviceText, BusinessAdminRequest.Unsuspend body) {
+        long id = parseId(idText);
+        BusinessServiceKind service = serviceOf(serviceText);
+        Map<String, MessageRef> errors = new LinkedHashMap<>();
+        BusinessSuspendPlan.Restore restore = enumOrError(BusinessSuspendPlan.Restore.class, body == null ? null : body.restore(), "restore", errors);
+        String note = body == null ? null : strip(body.note());
+        if (note != null && note.length() > 200) {
+            errors.put("note", new MessageRef("business.text.invalid", 1, 200));
+        }
+        throwIf(errors);
+        return tx.execute(status -> {
+            Instant now = now();
+            BusinessProfileEntity p = profiles.findWithLockById(id).orElseThrow(BusinessException::notFound);
+            BusinessServiceEntity line = services.findByProfileIdAndService(id, service).orElse(null);
+            if (p.getStatus() != BusinessStatus.APPROVED || line == null || !line.suspendedAlone()) {
+                throw BusinessException.stateChanged();
+            }
+            line.resumeAlone(actor.operatorId(), now);
+            entityManager.flush();
+            hook().onServiceResumed(id, service, restore, actor.operatorId());
+            store.insertHistory(ids.nextId(), id, BusinessStore.SERVICE_RESUMED, BusinessStore.OPERATOR, actor.operatorId(), restore.name(), service.name(), now);
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("service", service.name());
+            detail.put("restore", restore.name());
+            if (note != null) {
+                detail.put("note", note);
+            }
+            record(actor, AuditActions.BUSINESS_SERVICE_RESUME, id, detail);
+            notices.member(p.getUserId(), service.name() + "_RESUMED", p.getCompanyName(), null);
+            return detailOf(p);
+        });
+    }
+
+    /** 운영자 표시 이름(없으면 null) */
+    private String operatorName(Long operatorId) {
+        if (operatorId == null) {
+            return null;
+        }
+        return jdbc.query("SELECT operator_name FROM operators WHERE id = :id", new MapSqlParameterSource("id", operatorId), (rs, i) -> rs.getString(1)).stream()
+                .findFirst().orElse(null);
+    }
+
+    /** 경로의 서비스 — 모르는 값이면 404 */
+    private static BusinessServiceKind serviceOf(String text) {
+        try {
+            return BusinessServiceKind.valueOf(text == null ? "" : text.strip().toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw BusinessException.notFound();
+        }
+    }
+
     // ── 삭제(business-contract 「사업자 삭제」) ────────────────────────────────
 
     /**
@@ -404,7 +500,10 @@ public class BusinessAdminService {
                 .orElseGet(() -> new BusinessAdminView.Certificate(doc.fileName(), doc.contentType(), doc.sizeBytes(), doc.createdAt(), null, null));
         List<BusinessAdminView.ServiceCard> cards = sorted(rows).stream().map(s -> {
             BusinessApplicationHook.ServiceCounts c = hook.counts(id, s.getService());
-            return new BusinessAdminView.ServiceCard(s.getService().name(), s.getStatus().name(), c.liveCount(), c.pendingCount());
+            BusinessApplicationHook.SuspendImpact si = hook.impact(id, s.getService());
+            return new BusinessAdminView.ServiceCard(s.getService().name(), s.getStatus().name(), c.liveCount(), c.pendingCount(),
+                    s.getSuspendCode() == null ? null : s.getSuspendCode().name(), s.getSuspendText(), s.getSuspendedAt(), operatorName(s.getSuspendedBy()),
+                    new BusinessAdminView.Impact(si.awaitingPayment(), si.scheduled(), si.running()));
         }).toList();
         BusinessApplicationHook.SuspendImpact impact = hook.impact(id);
         BusinessAdminView.Rejection rejection = p.getStatus() == BusinessStatus.REJECTED && p.getRejectCode() != null
@@ -412,7 +511,7 @@ public class BusinessAdminService {
         BusinessAdminView.Suspension suspension = p.getStatus() == BusinessStatus.SUSPENDED && p.getSuspendCode() != null
                 ? new BusinessAdminView.Suspension(p.getSuspendCode().name(), p.getSuspendText(), p.getSuspendedAt()) : null;
         List<BusinessAdminView.History> history = store.history(id).stream().map(h -> new BusinessAdminView.History(h.at(), historyAction(h.action()),
-                actorName(h.actorType(), h.actorName()), historyNote(h.action(), h.note()))).toList();
+                actorName(h.actorType(), h.actorName()), historyNote(h.action(), h.note()), h.service())).toList();
         return new BusinessAdminView.Detail(Long.toString(id), p.getCompanyName(), BusinessFields.maskBizNo(p.getBizNoLast4()), p.getStatus().name(), p.isReReview(),
                 serviceRows(rows), new BusinessAdminView.Applicant(Long.toString(p.getUserId()), nickname), p.getSubmittedAt(),
                 ntsView(store.latestNtsCheck(id).orElse(null), p.getSubmittedAt()), masked, p.getOpenedOn(), cert, cards,
@@ -485,8 +584,8 @@ public class BusinessAdminService {
         return switch (action) {
             case BusinessStore.NTS_CHECKED -> messages.get(new MessageRef("business.history.nts." + note));
             case BusinessStore.REJECTED -> messages.get(new MessageRef("business.rejectCode." + note));
-            case BusinessStore.SUSPENDED -> messages.get(new MessageRef("business.suspendCode." + note));
-            case BusinessStore.UNSUSPENDED -> messages.get(new MessageRef("business.restore." + note));
+            case BusinessStore.SUSPENDED, BusinessStore.SERVICE_SUSPENDED -> messages.get(new MessageRef("business.suspendCode." + note));
+            case BusinessStore.UNSUSPENDED, BusinessStore.SERVICE_RESUMED -> messages.get(new MessageRef("business.restore." + note));
             case BusinessStore.APPROVED, BusinessStore.UPDATED -> messages.get(new MessageRef("business.history.note." + note));
             default -> note;
         };

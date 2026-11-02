@@ -39,6 +39,8 @@ import type { PaymentCompleteRequest, PaymentFakeCheckoutRequest, PaymentResult 
  *    일할 − 중도 해지 수수료 환불 `STOP_PRORATED` 심사, 예상액 0원이면 환불 줄 없음) — 셋 다 → `BizApplicationDetail`(`takedownCause`·`pause`). 정지 = `TAKEN_DOWN` + `ADVERTISER_PAUSE`, 중단 = `TAKEN_DOWN` + `ADVERTISER_STOP`(승인 → `CANCELED`).
  *    진행 중 `refund-request` 도 서버가 중단과 같이 처리한다(화면은 [중단하고 환불 요청] = `stop`).
  *    오류: 횟수 초과 409 `BIZ_PAUSE_LIMIT` · 이미 끝남/상태 바뀜 409 `BIZ_APPLICATION_STATE_CHANGED`(알리고 다시 읽는다) · 정지된 사업자가 다시 켜기 409 `BUSINESS_NOT_APPROVED`
+ *  - 서비스별 정지(2026-11-02): `GET /api/business/me` 의 `services[]`(`BusinessProfileService` — 서비스·상태·정지 사유, 신청 전이면 빈 목록 · 순서에 기대지 않는다).
+ *    정지된 서비스로 새 신청하면 409 `BUSINESS_SERVICE_SUSPENDED`(문구는 서버 몫) — 신청 화면은 신원을 다시 읽어 막힘 안내를 보인다.
  *  - 환불 규정: `GET /api/business/refund-policy` → `{ version, stopFeeRate }`(신청 화면 동의 문구) · 신청 본문의 규정 버전이 지금과 다르면 400 `fields.agreedRefundPolicyVersion`
  */
 const PATH = {

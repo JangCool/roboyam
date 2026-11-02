@@ -6,6 +6,7 @@ import type {
     BusinessQuery,
     BusinessRejectRequest,
     BusinessReveal,
+    BusinessService,
     BusinessSuspendRequest,
     BusinessUnsuspendRequest,
 } from '~/composables/business/api/useBusinessApi.types';
@@ -24,11 +25,18 @@ import type {
  *  - `POST /api/admin/businesses/{id}/reveal` `{ reason }` → `BusinessReveal`(열람 기록 — 운영자·IP·사유, 10분 뒤 화면이 가린다)
  *  - `GET  /api/admin/businesses/{id}/certificate` → 사업자등록증 사본 `data:` 주소(열람 기록, B2)
  *  상태가 이미 바뀌었으면 409 `BUSINESS_STATE_CHANGED` — 화면은 "이미 바뀌었어요" + 다시 읽기.
+ *
+ * 서비스만 정지·해제(2026-11-02 — 신원은 그대로, 그 서비스 신청 건에만 적용):
+ *  - `POST /api/admin/businesses/{id}/services/{service}/suspend` `{ code, text, pendingAction, scheduledAction, runningAction }`(`business.manage`) → `BusinessDetail`
+ *  - `POST /api/admin/businesses/{id}/services/{service}/resume` `{ restore, note? }`(`business.unsuspend`) → `BusinessDetail`
+ *  - 상세 `serviceCards[]` 의 `suspendCode`(서비스만 정지면 값)·`suspendText`·`suspendedAt`·`suspendedByName`·`impact`(그 서비스 건만), `history[]` 의 `service`
+ *  상태가 맞지 않으면 409 `BUSINESS_STATE_CHANGED`, 칸 오류 400 `fields.*`. `service` 는 `HOTDEAL`·`AD`.
  */
 const PATH = {
     root: '/api/admin/businesses',
     one: (id: string) => `${PATH.root}/${encodeURIComponent(id)}`,
     action: (id: string, name: string) => `${PATH.one(id)}/${name}`,
+    service: (id: string, service: BusinessService, name: 'suspend' | 'resume') => `${PATH.one(id)}/services/${encodeURIComponent(service)}/${name}`,
 };
 
 export function useBusinessApi() {
@@ -39,6 +47,14 @@ export function useBusinessApi() {
         list: (query: BusinessQuery): Promise<BusinessPage> => client.get<BusinessPage>(PATH.root, { query: { ...query } }),
 
         detail: (id: string): Promise<BusinessDetail> => client.get<BusinessDetail>(PATH.one(id)),
+
+        /** 서비스만 정지(`business.manage`) — 신원은 그대로, 건 처리 선택은 그 서비스 신청 건에만 */
+        suspendService: (id: string, service: BusinessService, body: BusinessSuspendRequest): Promise<BusinessDetail> =>
+            client.post<BusinessDetail>(PATH.service(id, service, 'suspend'), body),
+
+        /** 서비스만 정지 해제(`business.unsuspend`) — 서비스 정지로 내려간 그 서비스 건의 되돌리기 선택 */
+        resumeService: (id: string, service: BusinessService, body: BusinessUnsuspendRequest): Promise<BusinessDetail> =>
+            client.post<BusinessDetail>(PATH.service(id, service, 'resume'), body),
 
         recheckNts: (id: string): Promise<BusinessDetail> => client.post<BusinessDetail>(PATH.action(id, 'nts-check')),
 

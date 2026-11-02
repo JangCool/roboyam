@@ -9,6 +9,7 @@ import com.community.business.entity.NtsValidity;
 import com.community.business.exception.BusinessException;
 import com.community.business.nts.NtsLookup;
 import com.community.business.repository.master.BusinessProfileRepository;
+import com.community.business.repository.master.BusinessServiceRepository;
 import com.community.business.repository.master.BusinessStore;
 import com.community.business.repository.master.BusinessStore.DocumentRow;
 import com.community.zconfiguration.exception.ValidationException;
@@ -70,6 +71,7 @@ public class MyBusinessService {
     private final BusinessStore store;
     private final BusinessPii pii;
     private final BusinessServiceRows serviceRows;
+    private final BusinessServiceRepository services;
     private final BusinessNtsService nts;
     private final BusinessNtsDailyLimiter ntsLimit;
     private final BusinessNotices notices;
@@ -77,12 +79,14 @@ public class MyBusinessService {
     private final TransactionTemplate tx;
     private final Clock clock;
 
-    public MyBusinessService(BusinessProfileRepository profiles, BusinessStore store, BusinessPii pii, BusinessServiceRows serviceRows, BusinessNtsService nts,
-                             BusinessNtsDailyLimiter ntsLimit, BusinessNotices notices, SnowflakeIdGenerator ids, PlatformTransactionManager transactions, ObjectProvider<Clock> clocks) {
+    public MyBusinessService(BusinessProfileRepository profiles, BusinessStore store, BusinessPii pii, BusinessServiceRows serviceRows, BusinessServiceRepository services,
+                             BusinessNtsService nts, BusinessNtsDailyLimiter ntsLimit, BusinessNotices notices, SnowflakeIdGenerator ids, PlatformTransactionManager transactions,
+                             ObjectProvider<Clock> clocks) {
         this.profiles = profiles;
         this.store = store;
         this.pii = pii;
         this.serviceRows = serviceRows;
+        this.services = services;
         this.nts = nts;
         this.ntsLimit = ntsLimit;
         this.notices = notices;
@@ -381,7 +385,11 @@ public class MyBusinessService {
                 plain == null ? null : new MyBusinessView.Address(plain.postcode(), plain.address1(), plain.address2() == null ? "" : plain.address2()), cert,
                 p.getSubmittedAt(), p.getReviewedAt(), p.getStatus() == BusinessStatus.REJECTED && p.getRejectCode() != null ? p.getRejectCode().name() : null,
                 p.getStatus() == BusinessStatus.REJECTED ? p.getRejectText() : null, p.getStatus() == BusinessStatus.SUSPENDED ? p.getSuspendText() : null,
-                p.isReReview());
+                p.isReReview(), services.findByProfileId(p.getId()).stream()
+                .sorted(java.util.Comparator.comparing(com.community.business.entity.BusinessServiceEntity::getService))
+                .map(s -> new MyBusinessView.Service(s.getService().name(), s.getStatus().name(), s.getSuspendCode() == null ? null : s.getSuspendCode().name(),
+                        s.getSuspendText(), s.getSuspendedAt()))
+                .toList());
     }
 
     /** 동시 신청으로 유일 색인(같은 회원 · 살아 있는 같은 번호)에 걸리면 409 */

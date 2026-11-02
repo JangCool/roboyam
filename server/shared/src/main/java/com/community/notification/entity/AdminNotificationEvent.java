@@ -169,6 +169,11 @@ public enum AdminNotificationEvent {
      * 신청 건마다 한 번
      */
     HOTDEAL_POST_PREFIX_DROPPED(spec(HOTDEAL, WARNING).holders(Permission.HOTDEAL_MANAGE).link("/hotdeal-reviews?id={id}")),
+    /**
+     * 사업자 핫딜 글(`source = BUSINESS`)에 종료 요청이 문턱만큼 모였다 — 사업자 글은 자동 종료하지 않고 운영자가 핫딜 글 서랍에서 [종료]·[유지]를 고른다(biz-hotdeal 결정 11).
+     * 같은 글은 하루 한 건(묶음 키 = 글 ID)
+     */
+    HOTDEAL_BUSINESS_REVIEW(spec(HOTDEAL, WARNING).holders(Permission.HOTDEAL_MANAGE).link("/hotdeals?view=ALL&deal={postId}").collapse(86400)),
     /** 운영자 신청 기능이 구현된 뒤 */
     OPERATOR_APPLICATION_PENDING(spec(SYSTEM, INFO).holders(Permission.OPERATOR_MANAGE).reserved());
 

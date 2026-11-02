@@ -379,6 +379,10 @@ public final class AuditActions {
     public static final String BUSINESS_SUSPEND = "BUSINESS_SUSPEND";
     /** 사업자 정지 해제 — {@code restore}(진행 중이던 건 처리)·{@code note}. 민감 */
     public static final String BUSINESS_UNSUSPEND = "BUSINESS_UNSUSPEND";
+    /** 사업자 서비스만 정지(대상 BUSINESS · 신원 ID — 2026-11-02) — {@code service}·{@code code}·{@code text}·{@code pendingAction}·{@code scheduledAction}·{@code runningAction}. 민감 */
+    public static final String BUSINESS_SERVICE_SUSPEND = "BUSINESS_SERVICE_SUSPEND";
+    /** 사업자 서비스만 정지 해제(대상 BUSINESS · 신원 ID) — {@code service}·{@code restore}·{@code note}. 민감 */
+    public static final String BUSINESS_SERVICE_RESUME = "BUSINESS_SERVICE_RESUME";
     /** 사업자 신원 평문 열람(B3) — {@code reason}. 개인정보 열람 */
     public static final String BUSINESS_REVEAL = "BUSINESS_REVEAL";
     /** 사업자등록증 사본 열람(B2). 개인정보 열람 */
@@ -442,6 +446,8 @@ public final class AuditActions {
     public static final String HOTDEAL_END = "HOTDEAL_END";
     /** 핫딜 운영진 재개(대상 POST · 글 ID — 의심·종료 요청 리셋) — {@code reason}·{@code endedBy}(누가 끝냈었나)·{@code boardId}. 일반 */
     public static final String HOTDEAL_REOPEN = "HOTDEAL_REOPEN";
+    /** 사업자 핫딜 글 운영자 [유지](대상 POST · 글 ID — 확인 필요를 풀고 종료 요청 셈을 새 회차로, biz-hotdeal 결정 11) — {@code reason}·{@code boardId}. 일반 */
+    public static final String HOTDEAL_KEEP = "HOTDEAL_KEEP";
     /** 링크 규칙 추가(대상 HOTDEAL_DOMAIN · 규칙 ID) — {@code after}({@code domain}·{@code rule}·{@code common}·{@code keyParams}·{@code note}). 일반 */
     public static final String HOTDEAL_DOMAIN_CREATE = "HOTDEAL_DOMAIN_CREATE";
     /** 링크 규칙 고치기 — 바뀐 칸 {@code before}·{@code after}. 일반 */

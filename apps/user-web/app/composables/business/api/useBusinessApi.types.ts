@@ -50,6 +50,29 @@ export interface BusinessProfile {
     suspendReason: string | null;
     /** 승인 뒤 상호·번호를 고쳐 다시 심사 중(F7) — 이미 예약·진행 중인 건은 그대로, 새 신청만 막힌다 */
     reReview: boolean;
+    /**
+     * 서비스별 이용 상태(2026-11-02 — 신원은 승인인데 한 서비스만 정지할 수 있다). 신청 전이면 빈 목록.
+     * 서버 순서에 기대지 않는다. 그 서비스 줄이 없으면 신원 상태를 따른다.
+     */
+    services: BusinessProfileService[];
+}
+
+/** 사업자 서비스 — 관리자 화면 `BusinessService` 와 같은 값 */
+export type BusinessServiceKind = 'HOTDEAL' | 'AD';
+
+/** 서비스 이용 상태 — 관리자 화면 `BusinessServiceStatus` 와 같은 값 */
+export type BusinessServiceStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'OFF';
+
+/** 내 서비스 한 줄 — 신원이 승인인데 `status === 'SUSPENDED'` 면 「그 서비스만 정지」(새 신청이 막힌다, 다른 서비스는 그대로) */
+export interface BusinessProfileService {
+    service: BusinessServiceKind;
+    status: BusinessServiceStatus;
+    /** 서비스만 정지한 사유 코드 — 관리자 신원 정지 코드 묶음. 서비스만 정지가 아니면 null. 화면은 글(`suspendReason`)만 보인다 */
+    suspendCode: string | null;
+    /** 서비스 정지 사유 글(운영자가 쓴 글 그대로) */
+    suspendReason: string | null;
+    /** 서비스 정지 시각(ISO) */
+    suspendedAt: string | null;
 }
 
 /** `POST /api/business/me`(신청) · `PUT /api/business/me`(수정) */
@@ -217,6 +240,11 @@ export interface BizHistoryEntry {
         | 'POST_RESTORED'
         | 'DEAL_ENDED_BY_BUSINESS'
         | 'DEAL_AUTO_ENDED'
+        // 사업자 글 종료 요청 확인(운영팀) — `DEAL_REVIEW_NEEDED` 는 note 없음, 나머지 note = 운영자 사유 글(없으면 null)
+        | 'DEAL_REVIEW_NEEDED'
+        | 'DEAL_KEPT_BY_OPERATOR'
+        | 'DEAL_ENDED_BY_OPERATOR'
+        | 'DEAL_REOPENED_BY_OPERATOR'
         // 일시 정지·중단(광고주 요청) — note: 운영팀 대신 처리면 요청 경로(`PHONE`·`EMAIL`·`OTHER` — 공개 응답은 메모를 자른다),
         // `STOPPED` 가 정지 중 전환이면 맨 앞 `FROM_PAUSE`, `RESUMED` 는 `MIN:<멈춘 분>`(선택). 토큰은 ` · ` 로 잇는다
         | 'PAUSED'
@@ -339,8 +367,8 @@ export interface BizRefundLine {
 /** 게시 상태 — 시작 시각 전 · 핫딜 게시판에 올라감 · 올리지 못함(운영팀 확인 중 → 취소·전액 환불) · 숨김(취소·환불·긴급 내림 — 되돌리면 다시 `POSTED`) */
 export type BizDealPostStatus = 'WAITING' | 'POSTED' | 'FAILED' | 'HIDDEN';
 
-/** 시작 시각에 글을 만들지 못한 까닭 */
-export type BizDealFailReason = 'BOARD_CLOSED' | 'LINK_BLOCKED' | 'BUSINESS_SUSPENDED' | 'OTHER';
+/** 시작 시각에 글을 만들지 못한 까닭 — `SERVICE_SUSPENDED` 는 핫딜 서비스만 정지(서비스가 다시 승인되면 다음 배치가 다시 올린다) */
+export type BizDealFailReason = 'BOARD_CLOSED' | 'LINK_BLOCKED' | 'BUSINESS_SUSPENDED' | 'SERVICE_SUSPENDED' | 'OTHER';
 
 /** 노출 자리 상태 — 대기 · 노출 중 · 멈춤(`stopReason`) · 끝남(기간 끝) */
 export type BizDealPlacementStatus = 'WAITING' | 'SHOWING' | 'STOPPED' | 'ENDED';
@@ -377,7 +405,7 @@ export interface BizDealPost {
     failReason: BizDealFailReason | null;
     /** 노출 자리를 같이 샀으면 그 상태 — 없으면 null */
     placement: BizDealPlacementState | null;
-    /** (2차 서버가 준다) 의심(`FLAGGED`)이면 자동 종료 예정 시각. 없으면 null·없음(「12시간 안에」로 말한다) */
+    /** 사업자 글은 종료 요청으로 자동 종료하지 않아 늘 null(의심이면 운영팀이 확인한다) */
     autoEndAt?: string | null;
     /** (2차 서버가 준다) 끝난 시각. 없으면 null·없음 */
     endedAt?: string | null;

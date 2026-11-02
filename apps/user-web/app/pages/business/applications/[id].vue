@@ -258,8 +258,9 @@
                 <!-- 게시됨 — 의심 · 종료 · 기간 종료 안내 -->
                 <template v-else>
                     <Message v-if="dealPost.view === 'FLAGGED'" severity="warn" size="small" :closable="false" data-testid="business-deal-post-flagged">
-                        <p class="m-0 font-semibold">{{ flaggedText }}</p>
-                        <p class="m-0 mt-1 text-sm">{{ t('business.post.flaggedHelp') }}</p>
+                        <!-- 사업자 글은 종료 요청으로 자동 종료하지 않는다(`autoEndAt` 없음) — 운영팀이 유지·종료를 정한다 -->
+                        <p class="m-0 font-semibold">{{ t('business.post.flaggedReview') }}</p>
+                        <p class="m-0 mt-1 text-sm">{{ t('business.post.flaggedReviewHelp') }}</p>
                     </Message>
                     <div v-else-if="dealPost.view === 'ENDED'" class="flex flex-col gap-1 rounded-lg bg-surface-100 px-3 py-2 text-sm dark:bg-surface-800" data-testid="business-deal-post-ended">
                         <p class="m-0 flex flex-wrap items-center gap-x-2 font-medium">
@@ -648,11 +649,6 @@ const waitingText = computed(() => {
     if (!p) return '';
     const at = time.value.full(p.publishAt);
     return p.prefixName ? t('business.post.waitingPrefixText', { at, board: p.boardName, prefix: p.prefixName }) : t('business.post.waitingText', { at, board: p.boardName });
-});
-const flaggedText = computed(() => {
-    const p = dealPost.value;
-    const n = p?.endRequests?.total ?? 0;
-    return p?.autoEndAt ? t('business.post.flaggedText', { n, at: time.value.full(p.autoEndAt) }) : t('business.post.flaggedTextSoon', { n });
 });
 const hiddenText = computed(() => {
     const s = app.value?.status;

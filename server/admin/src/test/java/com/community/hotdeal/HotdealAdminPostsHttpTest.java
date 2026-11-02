@@ -277,14 +277,14 @@ class HotdealAdminPostsHttpTest extends HotdealAdminTestBase {
         assertThat(staffEnded.path("endReason").asString()).isEqualTo("스텝 종료");
         assertThat(notices(author, "DEAL_MANAGER_ENDED", postId)).isEqualTo(1);
         assertThat(moderation.end(postId, DealModeration.Actor.boardMember(manager), null)).isEqualTo(DealModeration.Result.STATE_CHANGED);
-        assertThat(moderation.reopen(postId, DealModeration.Actor.boardMember(otherManager))).isEqualTo(DealModeration.Result.FORBIDDEN);
-        assertThat(moderation.reopen(postId, DealModeration.Actor.boardMember(manager))).isEqualTo(DealModeration.Result.CHANGED);
+        assertThat(moderation.reopen(postId, DealModeration.Actor.boardMember(otherManager), null)).isEqualTo(DealModeration.Result.FORBIDDEN);
+        assertThat(moderation.reopen(postId, DealModeration.Actor.boardMember(manager), null)).isEqualTo(DealModeration.Result.CHANGED);
         assertThat(dealRow(postId).get("ended_by_role")).isNull();
         assertThat(moderation.end(postId, DealModeration.Actor.boardMember(manager), "매니저 종료")).isEqualTo(DealModeration.Result.CHANGED);
         JsonNode managerEnded = data(mvc.perform(get("/api/admin/hotdeals/" + postId).cookie(reader)).andExpect(status().isOk()).andReturn());
         assertThat(managerEnded.path("endedByRole").asString()).isEqualTo("BOARD_MANAGER");
         assertThat(managerEnded.path("endedByName").asString()).isEqualTo(nickname(manager));
-        assertThat(moderation.reopen(postId, DealModeration.Actor.boardMember(manager))).isEqualTo(DealModeration.Result.CHANGED);
+        assertThat(moderation.reopen(postId, DealModeration.Actor.boardMember(manager), null)).isEqualTo(DealModeration.Result.CHANGED);
         // 정지된 매니저는 안 된다
         jdbc.update("UPDATE users SET status = 'SUSPENDED' WHERE id = ?", manager);
         assertThat(moderation.end(postId, DealModeration.Actor.boardMember(manager), null)).isEqualTo(DealModeration.Result.FORBIDDEN);

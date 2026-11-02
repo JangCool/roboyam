@@ -226,6 +226,7 @@ export default {
     keep: 'It’s still on',
     kept: 'Marked as still on.',
     keepReview: 'Under staff review',
+    flaggedBusiness: 'Sold-out and price-change reports piled up, so our team is checking.',
     keepLimit: 'You can’t mark it as still on again. Staff are reviewing it.',
     keepConfirmTitle: 'Is it still on?',
     keepConfirmMessage: 'Before marking it as still on, check the price and stock and update the post if they changed.',

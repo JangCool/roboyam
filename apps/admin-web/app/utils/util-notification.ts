@@ -50,6 +50,8 @@ export default class UtilNotification {
         // 사업자 핫딜 게시 실패 — 시작 시각에 글을 만들지 못함(링크 `/hotdeal-reviews?id={applicationId}`, 운영자는 [취소(전액 환불)])
         HOTDEAL_POST_FAILED: 'pi pi-times-circle',
         HOTDEAL_POST_PREFIX_DROPPED: 'pi pi-tag',
+        // 사업자 글 종료 요청 확인 필요 — 자동 종료 없이 운영자가 유지·종료(링크 `/hotdeals?view=ALL&deal={postId}`)
+        HOTDEAL_BUSINESS_REVIEW: 'pi pi-exclamation-triangle',
     };
 
     /**
