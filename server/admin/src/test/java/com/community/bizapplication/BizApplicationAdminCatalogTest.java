@@ -85,7 +85,7 @@ class BizApplicationAdminCatalogTest {
         for (Expect e : List.of(new Expect("businessReviews", "/business-reviews", Permission.BUSINESS_READ),
                 new Expect("businesses", "/businesses", Permission.BUSINESS_READ), new Expect("adReviews", "/ad-reviews", Permission.AD_READ),
                 new Expect("ads", "/ads", Permission.AD_READ), new Expect("adPerformance", "/ads/performance", Permission.AD_READ),
-                new Expect("adPlacements", "/ads/placements", Permission.AD_READ),
+                new Expect("adAdvertisers", "/ad-advertisers", Permission.AD_READ), new Expect("adPlacements", "/ads/placements", Permission.AD_READ),
                 new Expect("hotdealReviews", "/hotdeal-reviews", Permission.HOTDEAL_READ))) {
             AdminScreenRegistry.Screen screen = AdminScreenRegistry.screen(e.key()).orElseThrow();
             assertThat(screen.path()).as(e.key()).isEqualTo(e.path());
@@ -102,7 +102,8 @@ class BizApplicationAdminCatalogTest {
         assertThat(normal.get(group + 2).icon()).isEqualTo("pi pi-megaphone");
         assertThat(normal.get(group + 3).icon()).isEqualTo("pi pi-ticket");
         assertThat(normal.get(group + 1).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("businessReviews", "businesses");
-        assertThat(normal.get(group + 2).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("adReviews", "ads", "adPerformance", "adPlacements");
+        assertThat(normal.get(group + 2).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("adReviews", "ads", "adPerformance", "adAdvertisers",
+                "adPlacements");
         assertThat(normal.get(group + 3).children().stream().map(AdminMenuNode::targetKey).toList()).containsExactly("hotdealReviews", "hotdeals", "hotdealDomains",
                 "hotdealSuspicions", "hotdealSettings");
         assertThat(AdminScreenRegistry.isGroupLabelKey("menu.ad")).isTrue();
@@ -123,6 +124,11 @@ class BizApplicationAdminCatalogTest {
         assertThat(AuditRetention.classify(AuditActions.AD_CONTACT_REVEAL)).isEqualTo(AuditRetentionClass.PERSONAL_DATA);
         assertThat(AuditRetention.declared(AuditActions.AD_ADVERTISER_CREATE)).contains(AuditRetentionClass.GENERAL);
         assertThat(AuditRetention.declared(AuditActions.AD_TAKEDOWN)).contains(AuditRetentionClass.GENERAL);
+        // 광고주 관리 — 고치기·보관·보관 풀기·삭제는 일반(연락처 값은 남기지 않는다)
+        for (String action : List.of(AuditActions.AD_ADVERTISER_UPDATE, AuditActions.AD_ADVERTISER_ARCHIVE, AuditActions.AD_ADVERTISER_UNARCHIVE,
+                AuditActions.AD_ADVERTISER_DELETE)) {
+            assertThat(AuditRetention.declared(action)).as(action).contains(AuditRetentionClass.GENERAL);
+        }
         assertThat(AuditLabels.TARGET_TYPES).contains("AD_ADVERTISER");
         for (String action : List.of(AuditActions.BIZ_APP_REJECT, AuditActions.BIZ_APP_MANUAL_SWITCH, AuditActions.BIZ_APP_DEPOSIT_DEADLINE)) {
             assertThat(AuditRetention.declared(action)).as(action).contains(AuditRetentionClass.GENERAL);
@@ -182,7 +188,8 @@ class BizApplicationAdminCatalogTest {
         Properties en = bundle("messages/messages_en.properties");
         List<String> keys = new ArrayList<>();
         for (String code : List.of("BIZ_APPLICATION_NOT_FOUND", "BIZ_APPLICATION_STATE_CHANGED", "BIZ_SLOT_FULL", "BIZ_DEPOSIT_INCOMPLETE", "BIZ_PRODUCT_CLOSED",
-                "BIZ_CONTRACT_NOT_FOUND", "BIZ_SELF_APPROVAL_DENIED", "AD_ADVERTISER_NOT_FOUND", "DEAL_BUSINESS_POST_LOCKED")) {
+                "BIZ_CONTRACT_NOT_FOUND", "BIZ_SELF_APPROVAL_DENIED", "AD_ADVERTISER_NOT_FOUND", "DEAL_BUSINESS_POST_LOCKED", "AD_ADVERTISER_HAS_BOOKINGS",
+                "AD_ADVERTISER_HAS_OPEN_BOOKINGS", "AD_ADVERTISER_BUSINESS")) {
             keys.add("error." + code);
         }
         for (String action : AuditActions.all()) {
@@ -192,7 +199,8 @@ class BizApplicationAdminCatalogTest {
         }
         keys.add("audit.targetType.BIZ_APPLICATION");
         keys.addAll(List.of("audit.targetType.AD_ADVERTISER", "ad.advertiser.nameTaken", "ad.advertiser.businessLinked", "ad.advertiser.notFound", "ad.advertiser.phone",
-                "ad.advertiser.email", "ad.reason.invalid", "ad.weight.range", "ad.takedown.mail.subject", "ad.takedown.mail.body", "ad.takedown.mail.reason"));
+                "ad.advertiser.email", "ad.reason.invalid", "ad.weight.range", "ad.takedown.mail.subject", "ad.takedown.mail.body", "ad.takedown.mail.reason",
+                "ad.advertiser.archived", "ad.advertiser.businessName"));
         keys.addAll(List.of("batch.result.bizHotdealPublish", "batch.result.bizHotdealPublish.none"));
         for (BatchCatalog job : List.of(BatchCatalog.BIZ_PAYMENT_EXPIRE, BatchCatalog.BIZ_PAYMENT_DUE_NOTICE, BatchCatalog.BIZ_SCHEDULE_NOTICE,
                 BatchCatalog.BIZ_HOTDEAL_PUBLISH)) {

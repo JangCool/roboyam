@@ -35,3 +35,16 @@
 ## 미확정
 - 직접 등록 광고주를 나중에 사업자와 잇기(연결) — 화면 없음(필요하면 후속).
 - 파기 배치 기본 시각(매일 04:10 가정 — 배치 화면에서 바꿀 수 있음).
+
+## 서버 구현 결정(2026-11-03)
+계약과 다르게·더 정한 것만.
+- **마이그레이션** shared `V131__ad_advertiser_admin.sql`: `ad_advertisers` + `archived_at`·`archived_by`·`contact_purged_at`(보관은 직접 등록만 CHECK `ck_aa_archive_direct`, 파기 배치 색인 `ix_aa_purge`) · `ad_advertiser_views` 의 `advertiser_id` NULL 허용 + `business_profile_id`(신원 FK, 둘 중 하나 CHECK `ck_aav_target`) + `source`(ADVERTISER 광고 담당자 칸 · BUSINESS 신원 대표자·연락처·이메일, 예전 줄 ADVERTISER) · 처리 기록 표 `ad_advertiser_events`(광고주 줄 키, action CREATE·UPDATE·ARCHIVE·UNARCHIVE, actor_id, fields 쉼표 칸 이름) — 기존 광고주마다 CREATE 한 줄을 채움(처리 기록 ID = 광고주 ID). 사업자 신원 삭제(`BusinessStore.deleteProfile`)가 신원 키 열람 기록도 지운다.
+- **파기 배치** `R__batch_35_ad_advertiser_contact_purge.sql` · 카탈로그 `ad-advertiser-contact-purge`(SYSTEM, 매일 04:10 KST) · 설정 `retention_years`(기본 5, 5~10)·`chunk_size`(1000)·`max_per_run`. 「마지막 광고 끝」 = 그 광고주 신청 건의 가장 늦은 `end_at`(상태 무관 — 오래 남기는 쪽), 없으면 `archived_at`.
+- **광고주 키**: 목록·상세·성과·일정표 `Row.advertiser`(`AdAdminService.advertiserOf`) 모두 같은 규칙 — 건의 신원 → 건 광고주 줄의 신원 → `biz-`, 아니면 `adv-`. 사업자 줄 이름 = 신원 상호. 운영자 등록 서랍 찾기(`GET /api/admin/ads/advertisers`)·만들기 응답은 예전 그대로(`adv-` + kind BUSINESS). 성과 `adv-<연결>` 은 서비스가 `biz-` 로 풀어 거르고 `advertiser` 도 `biz-` 로 돌려준다(→ `ad-performance-contract` 「`biz-` 거르기 = 광고주 연결이 없는 그 신원의 건」은 이 계약 규칙 11 로 바뀜).
+- **types.ts 와 다른 점**: 서랍 `bookings` 는 장부 유형 줄이 있는 건만(일정표 `/ads?type=` 로 갈 수 있는 건) — 노출 자리 없는 사업자 핫딜 글 건은 `counts`·`money` 에는 들고 `bookings` 에는 없다(그래서 `counts.total > bookings.length` 일 수 있음). 그 밖의 칸 이름·뜻은 같다.
+- **목록**: `counts` = 상태·찾기를 거친 뒤 종류별 수. 찾기 `q` = 이름(상호) 포함(대소문자 무시) 또는 숫자 1~4자리면 등록번호 끝자리, 60자까지. `dir` 기본 desc(정렬 셋 모두), 같은 값이면 만든 시각(사업자 = 신원 `created_at`) 내림. 목록의 사업자 `contactMasked` = 광고 담당자 칸이 하나라도 있으면 그 연락처 → 이메일(담당자 이름만 있으면 null), 없으면 신원 연락처 → 이메일을 풀어 가린 값(데이터 키가 없으면 null). `business.adService` = `AD` 서비스 줄 상태, 없으면 `OFF`.
+- **고치기**: 연락처 칸은 지금 값과 평문으로 견주어 바뀐 것만 기록(데이터 키 필요 — 없으면 503 `DATA_KEY_MISSING`). 사업자 광고주에 처음 저장하면 붙은 광고주 줄을 만들고(이름 = 상호, 같은 이름이 있으면 `상호 (신원 ID)`) 그 줄에 UPDATE 기록을 남긴다(CREATE 기록은 없음). 빈 글자만 보내 바뀐 것이 없으면 줄을 만들지 않는다.
+- **보관·삭제**: 이미 그 상태면 기록 없이 그대로(200). 보관 판정의 「끝나지 않은 건」 = 대기 셋 + `SCHEDULED` 이고 끝 > 지금(내림 `TAKEN_DOWN` 은 세지 않음). 보관된 광고주로 운영자 등록 → 400 `fields.advertiserId`(문구 `ad.advertiser.archived`). 오류 코드 셋은 `BizApplicationException`(409).
+- **감사 대상 ID**: 직접 등록은 광고주 ID 숫자(예전과 같음), 사업자 광고주의 `AD_ADVERTISER_UPDATE`·`AD_CONTACT_REVEAL` 은 `biz-<신원 id>`(UPDATE detail 에 `advertiserId`, REVEAL detail 에 `source`). 감사 보관 분류: 새 넷 모두 일반.
+- **기록 목록**: 열람 기록 = 광고주 줄 키 또는 신원 키(사업자는 둘을 합침) 최근 20, 처리 기록 최근 100. 없어진 운영자는 `business.history.actor.UNKNOWN` 문구.
+- **시험**(`--tests` 선별): admin `AdAdvertiserAdminHttpTest` 6 · shared `AdAdvertiserContactPurgeBatchTest` 2 — 회귀 admin `AdStatsAdminHttpTest`·`AdAdminHttpTest`·`BizApplicationAdminCatalogTest`(메뉴 차례·새 문구 갱신)·`BusinessDeleteHttpTest`, api `AdOperatorLedgerTest`·`BusinessDeletedMemberHttpTest`, shared `AuditRetentionTest`·`AdViewMarkCleanupBatchTest`.

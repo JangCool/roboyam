@@ -196,6 +196,8 @@ public class BusinessStore {
         jdbc.update("DELETE FROM business_services WHERE profile_id = ?", profileId);
         jdbc.update("DELETE FROM business_history WHERE profile_id = ?", profileId);
         jdbc.update("DELETE FROM business_sensitive_views WHERE profile_id = ?", profileId);
+        // 광고주 관리의 사업자 광고주 연락처 열람 기록(V131 — 키 = 신원)
+        jdbc.update("DELETE FROM ad_advertiser_views WHERE business_profile_id = ?", profileId);
         jdbc.update("UPDATE ad_advertisers SET business_profile_id = NULL WHERE business_profile_id = ?", profileId);
         return jdbc.update("DELETE FROM business_profiles WHERE id = ?", profileId);
     }

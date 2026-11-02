@@ -296,14 +296,21 @@ public class AdAdminService {
                 a.no(), a.updatedAt(), a.kind().domain().name(), a.takedownCause() == null ? null : a.takedownCause().name());
     }
 
-    /** 건의 광고주 — 계정 없는 광고주(연결됐으면 사업자 표시) · 사업자 · 이름만 */
+    /**
+     * 건의 광고주 — 광고주 키(ad-advertiser-contract 규칙 1·11): 건의 사업자 신원 → 없으면 건 광고주 줄의 사업자 신원 → 있으면 {@code biz-<신원>}(이름 = 상호, 연락처 = 붙은 광고주 줄의
+     * 가린 값), 없으면 직접 등록 광고주 {@code adv-<id>}, 둘 다 없으면 이름만(ID null).
+     */
     static AdAdvertiserService.Option advertiserOf(AppRow a, AdvertiserRow advertiser) {
+        Long profile = a.businessProfileId() != null ? a.businessProfileId() : advertiser == null ? null : advertiser.businessProfileId();
+        if (profile != null) {
+            boolean same = advertiser != null && profile.equals(advertiser.businessProfileId());
+            String name = same && advertiser.companyName() != null ? advertiser.companyName() : a.businessName();
+            String last4 = same && advertiser.bizNoLast4() != null ? advertiser.bizNoLast4() : a.bizNoLast4();
+            String contact = advertiser == null ? null : advertiser.contactPhoneMasked() != null ? advertiser.contactPhoneMasked() : advertiser.emailMasked();
+            return new AdAdvertiserService.Option("biz-" + profile, "BUSINESS", name, Long.toString(profile), BusinessFields.maskBizNo(last4), contact);
+        }
         if (advertiser != null) {
             return AdAdvertiserService.option(advertiser);
-        }
-        if (a.businessProfileId() != null) {
-            return new AdAdvertiserService.Option("biz-" + a.businessProfileId(), "BUSINESS", a.businessName(), Long.toString(a.businessProfileId()),
-                    BusinessFields.maskBizNo(a.bizNoLast4()), null);
         }
         return new AdAdvertiserService.Option(null, "ADVERTISER", a.businessName(), null, null, null);
     }

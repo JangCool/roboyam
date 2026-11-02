@@ -165,6 +165,12 @@ public enum BatchCatalog implements BatchDefinition {
     BUSINESS_NTS_COUNT_CLEANUP("business-nts-count-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
     /**
+     * 보관한 직접 등록 광고주({@code ad_advertisers}, V131)의 연락처 파기 — 마지막 광고 끝(건이 없으면 보관 시각) + 보관 연수(기본 5년)가 지나면 담당자·연락처·이메일 암호문·가린 값을
+     * 비우고 {@code contact_purged_at} 을 찍는다. DB 배치, 기본 매일 04:10 KST({@code R__batch_35_ad_advertiser_contact_purge.sql}, ad-advertiser-contract 규칙 9)
+     */
+    AD_ADVERTISER_CONTACT_PURGE("ad-advertiser-contact-purge", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
      * 사업자 신청 건 결제 기한 만료 — 결제 기한이 지난 결제 대기 전부를 열린 결제부터 닫고 EXPIRED(자리 반납) + 사업자 알림(Java 배치 {@code BizPaymentExpireJob},
      * biz-application-contract 「기한」·F2). 기본 10분마다. 자리·돈이 걸린 업무라 분류는 회원(MEMBER).
      */
