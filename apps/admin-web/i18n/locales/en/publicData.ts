@@ -12,15 +12,13 @@ export default {
 
     usageTitle: 'Used by',
     usageNts: 'NTS business check',
-    usageNtsHelp: 'Identity check (number, business name, representative, opening date) on application and active/paused/closed status check on review.',
     provider: {
         ODCLOUD: 'Public data portal',
         FAKE: 'Fake (development)',
     },
-    providerFake: 'A fake implementation is in use, so business applications and reviews do not use the key (local/test only; dev and prod refuse to start). “Test connection” below still calls the real NTS.',
+    providerFake: 'A test-only fake check is running, so this key is used only by “Test connection”.',
     noKeyTitle: 'NTS checks are unavailable',
     noKeyText: 'Without a service key every check is “unavailable”. Operators must give a reason to approve.',
-    providerHelp: 'The implementation is set by the server deployment (ROBOYAM_NTS_PROVIDER) and cannot be changed here.',
 
     keyTitle: 'Service key',
     keyHelp: 'Paste the “General auth key (Decoding)” of the NTS business registration verification service from data.go.kr My page › Developer account.',

@@ -45,13 +45,11 @@
                             data-testid="public-data-provider"
                         />
                     </div>
-                    <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('publicData.usageNtsHelp') }}</p>
                     <Message v-if="view.ntsProvider === 'FAKE'" severity="warn" :closable="false" size="small">{{ t('publicData.providerFake') }}</Message>
                     <Message v-else-if="view.serviceKey.source === 'NONE'" severity="error" :closable="false" size="small" data-testid="public-data-no-key">
                         <b>{{ t('publicData.noKeyTitle') }}</b>
                         <span class="mt-0.5 block">{{ t('publicData.noKeyText') }}</span>
                     </Message>
-                    <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('publicData.providerHelp') }}</p>
                 </div>
             </AppGadget>
 

@@ -12,15 +12,13 @@ export default {
 
     usageTitle: '사용처',
     usageNts: '국세청 사업자 조회',
-    usageNtsHelp: '사업자 신청 때 등록번호·상호·대표자명·개업일 진위확인, 심사 때 계속·휴업·폐업 상태조회에 써요.',
     provider: {
         ODCLOUD: '공공데이터포털',
         FAKE: '가짜(개발용)',
     },
-    providerFake: '지금은 가짜 구현이라 사업자 신청·심사 조회에는 키가 쓰이지 않아요(local·시험 전용, dev·prod 에서는 서버가 뜨지 않아요). 아래 [연결 시험]은 실제 국세청으로 보내요.',
+    providerFake: '지금은 시험용 가짜 조회로 돌고 있어 이 키는 [연결 시험]에만 쓰여요.',
     noKeyTitle: '국세청 조회를 할 수 없어요',
     noKeyText: '서비스 키가 없어 모든 조회가 「조회 불가」가 돼요. 운영자는 사유를 적어야 승인할 수 있어요.',
-    providerHelp: '어떤 구현을 쓸지는 서버 배포 설정(ROBOYAM_NTS_PROVIDER)으로 정해지고, 이 화면에서는 바꿀 수 없어요.',
 
     keyTitle: '서비스 키',
     keyHelp: 'data.go.kr 마이페이지 › 개발계정 › 「국세청_사업자등록정보 진위확인 및 상태조회 서비스」의 「일반 인증키(Decoding)」를 넣어요.',
