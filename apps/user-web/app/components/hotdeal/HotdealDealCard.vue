@@ -121,7 +121,7 @@
                 class="ml-auto"
                 data-testid="hotdeal-repost"
             />
-            <Button v-if="mine && !over" type="button" :label="t('hotdeal.authorEnd')" icon="pi pi-stop-circle" severity="secondary" variant="outlined" size="small" class="ml-auto" :loading="ending" data-testid="hotdeal-author-end" @click="onEnd" />
+            <Button v-if="mine && !over" type="button" :label="business ? t('hotdeal.bizEnd') : t('hotdeal.authorEnd')" icon="pi pi-stop-circle" severity="secondary" variant="outlined" size="small" class="ml-auto" :loading="ending" data-testid="hotdeal-author-end" @click="onEnd" />
         </div>
 
         <!-- 사업자 글 작성자(신청 건을 아는 사람만 — `deal.business.applicationId`) — [일시 정지](같은 확인 창 → 신청 건으로) · 중단·환불은 신청 건에서 -->
@@ -364,7 +364,12 @@ async function onKeep(): Promise<void> {
 async function onEnd(): Promise<void> {
     if (ending.value) return;
     // 사업자 글은 되돌리기가 없고 환불도 없다 — 노출 자리도 같이 멈춘다
-    const ok = await confirm({ title: t('hotdeal.authorEndTitle'), message: business.value ? t('hotdeal.bizEndMessage') : t('hotdeal.authorEndMessage'), confirmLabel: t('hotdeal.authorEnd'), tone: 'danger' });
+    const ok = await confirm({
+        title: business.value ? t('hotdeal.bizEndTitle') : t('hotdeal.authorEndTitle'),
+        message: business.value ? t('hotdeal.bizEndMessage') : t('hotdeal.authorEndMessage'),
+        confirmLabel: business.value ? t('hotdeal.bizEnd') : t('hotdeal.authorEnd'),
+        tone: 'danger',
+    });
     if (!ok) return;
     ending.value = true;
     try {

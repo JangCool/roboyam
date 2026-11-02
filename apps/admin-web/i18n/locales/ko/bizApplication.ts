@@ -246,7 +246,7 @@ export default {
     refundDenied: '환불 요청을 거절했어요.',
     paymentRecord: '결제 기록',
     paidOnline: '온라인 결제 완료 · {at} · {tx}',
-    depositLine: '입금 {amount} · {date} · 입금자 {name} · 확인 {who}',
+    depositLine: '입금 {amount} · 입금일 {date} · 입금자 {name} · 확인 {who} {at}',
     history: '처리 기록',
     action: {
         SUBMITTED: '신청',

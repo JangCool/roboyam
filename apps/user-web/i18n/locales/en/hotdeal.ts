@@ -207,6 +207,8 @@ export default {
     sellerHiddenBoard: 'A post on the {board} board',
     sellerHiddenToBoard: 'Go to hot deals',
     sellerResumeLink: 'You can resume it from the application ›',
+    bizEnd: 'End as sold out',
+    bizEndTitle: 'End as sold out?',
     endRequest: 'Report sold out or price change',
     endRequestSent: 'You reported: {reason}',
     endRequestHelp: 'When several members report, the author is notified, and the deal ends automatically if they don’t confirm. Reporters stay anonymous.',

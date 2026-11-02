@@ -44,7 +44,8 @@
                 <SplitterPanel :size="24" :min-size="16" class="min-h-0 overflow-hidden">
                     <BizAppQueueList :items="rows" :queue="queue" :selected-id="selectedId" :loading="busy" :error="loadError" :now="now" @select="select" @retry="reload" />
                 </SplitterPanel>
-                <SplitterPanel :size="46" :min-size="30" class="min-h-0 overflow-y-auto">
+                <!-- PrimeVue 의 .p-splitter-panel { overflow: hidden } 이 이겨서 「!」 로 덮는다(없으면 결제 기록 아래가 잘림) -->
+                <SplitterPanel :size="46" :min-size="30" class="min-h-0 overflow-y-auto!">
                     <ErrorState
                         v-if="detailError"
                         :title="detailError.status === 403 ? t('bizApplication.otherDomain') : t('bizApplication.detailLoadFailed')"
@@ -86,7 +87,7 @@
                         @stop="openPause('stop')"
                     />
                 </SplitterPanel>
-                <SplitterPanel :size="30" :min-size="20" class="min-h-0 overflow-y-auto">
+                <SplitterPanel :size="30" :min-size="20" class="min-h-0 overflow-y-auto!">
                     <BizAppPreview v-if="detail" :content="detail.content" :ad-type="detail.adType" :business-name="detail.business.name" />
                 </SplitterPanel>
             </Splitter>

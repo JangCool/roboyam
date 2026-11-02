@@ -115,7 +115,7 @@
                                 <BizContractFiles :files="detail.contracts" />
                                 <h3 class="m-0 text-[13px] font-semibold">{{ t('bizApplication.deposit.title') }}</h3>
                                 <p v-if="detail.deposit" class="m-0 text-[13px]">
-                                    {{ t('bizApplication.depositLine', { amount: won(detail.deposit.amount), date: time.serviceDate(detail.deposit.depositedOn), name: detail.deposit.depositorName, who: detail.deposit.confirmedBy }) }}
+                                    {{ t('bizApplication.depositLine', { amount: won(detail.deposit.amount), date: time.serviceDate(detail.deposit.depositedOn), name: detail.deposit.depositorName, who: detail.deposit.confirmedBy, at: time.shortDateTime(detail.deposit.confirmedAt) }) }}
                                     <span v-if="detail.deposit.mismatchReason" class="block text-xs text-amber-700 dark:text-amber-400">{{ t('ad.mismatchReason', { reason: detail.deposit.mismatchReason }) }}</span>
                                 </p>
                                 <p v-else class="m-0 text-[13px] text-muted-color">{{ t('ad.noDeposit') }}</p>

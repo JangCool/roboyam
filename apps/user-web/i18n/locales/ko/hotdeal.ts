@@ -207,6 +207,8 @@ export default {
     sellerHiddenBoard: '「{board}」 게시판의 글이에요',
     sellerHiddenToBoard: '핫딜 게시판으로',
     sellerResumeLink: '신청 건에서 다시 켤 수 있어요 ›',
+    bizEnd: '품절로 종료',
+    bizEndTitle: '품절로 종료할까요?',
     endRequest:'품절·가격 변경을 알려 주세요',
     endRequestSent: '보낸 사유: {reason}',
     endRequestHelp: '여러 명이 알리면 작성자에게 알리고, 작성자가 확인하지 않으면 자동으로 종료돼요. 누가 알렸는지는 보이지 않아요.',
