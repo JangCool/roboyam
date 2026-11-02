@@ -118,6 +118,7 @@ roboyam:
     nts:
       provider: ${ROBOYAM_NTS_PROVIDER:odcloud}
       service-key: ${ROBOYAM_NTS_SERVICE_KEY:}
+      daily-validate-limit: 5   # 회원 한 명의 신청·수정 진위확인 하루(한국 날짜) 횟수 — 넘으면 429 BUSINESS_NTS_DAILY_LIMIT, 0 이면 제한 없음
   # 사업자 신청 건(docs/features/biz-application-contract.md — BizApplicationProperties). 결제 기한 기본 72시간 · 입금 기한 기본 7일(승인 화면이 기한을 정해 보낸다).
   # 입금 계좌는 수동 결제 안내(공개 상세)에 보인다 — 비면 화면은 「운영팀이 따로 안내」(가정)
   biz:

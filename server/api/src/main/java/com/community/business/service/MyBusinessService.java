@@ -46,6 +46,7 @@ import org.springframework.web.multipart.MultipartFile;
  * <ul>
  *   <li>등록번호 중복: 살아 있는 줄(심사 중·승인·정지) 사이에서 409 {@code BUSINESS_DUPLICATE}(부분 유일 색인이 동시 신청도 막는다).</li>
  *   <li>재신청: 반려 뒤 하루 3회(한국 날짜) — 넘으면 429 {@code BUSINESS_REAPPLY_LIMIT}.</li>
+ *   <li>진위확인 하루 한도: 회원별 하루 5회(한국 날짜, 신청·수정 합산, {@link BusinessNtsDailyLimiter}) — 다른 검사 뒤 국세청을 부르기 바로 앞에서 센다. 넘으면 429 {@code BUSINESS_NTS_DAILY_LIMIT}.</li>
  *   <li>수정(F7): 승인·재심사 중만. 상호·번호가 바뀌면 재심사 — 회원·운영자 알림. 민감 칸(번호·연락처)은 null 이면 유지. 개업일이 없던 옛 사업자도 개업일 필수.</li>
  * </ul>
  */
@@ -70,18 +71,20 @@ public class MyBusinessService {
     private final BusinessPii pii;
     private final BusinessServiceRows serviceRows;
     private final BusinessNtsService nts;
+    private final BusinessNtsDailyLimiter ntsLimit;
     private final BusinessNotices notices;
     private final SnowflakeIdGenerator ids;
     private final TransactionTemplate tx;
     private final Clock clock;
 
     public MyBusinessService(BusinessProfileRepository profiles, BusinessStore store, BusinessPii pii, BusinessServiceRows serviceRows, BusinessNtsService nts,
-                             BusinessNotices notices, SnowflakeIdGenerator ids, PlatformTransactionManager transactions, ObjectProvider<Clock> clocks) {
+                             BusinessNtsDailyLimiter ntsLimit, BusinessNotices notices, SnowflakeIdGenerator ids, PlatformTransactionManager transactions, ObjectProvider<Clock> clocks) {
         this.profiles = profiles;
         this.store = store;
         this.pii = pii;
         this.serviceRows = serviceRows;
         this.nts = nts;
+        this.ntsLimit = ntsLimit;
         this.notices = notices;
         this.ids = ids;
         this.tx = new TransactionTemplate(transactions);
@@ -106,7 +109,7 @@ public class MyBusinessService {
         if (current != null && store.appliedSince(current.getId(), startOfToday()) >= REAPPLY_PER_DAY) {
             throw BusinessException.reapplyLimit();
         }
-        Verified verified = verify(in, current); // 트랜잭션 밖 — 불일치면 여기서 400
+        Verified verified = verify(userId, in, current); // 트랜잭션 밖 — 불일치면 여기서 400
         long profileId = translate(() -> tx.execute(status -> {
             Instant now = now();
             BusinessProfileEntity existing = profiles.findWithLockByUserId(userId).orElse(null);
@@ -150,7 +153,7 @@ public class MyBusinessService {
             throw BusinessException.notEditable(); // 국세청을 부르기 전에 — 트랜잭션 안에서 다시 본다
         }
         // 번호·상호·대표자명·개업일 중 하나라도 바뀌면 다시 진위확인(트랜잭션 밖 — 불일치면 여기서 400)
-        Verified verified = needsVerification(in, current) ? verify(in, current) : null;
+        Verified verified = needsVerification(in, current) ? verify(userId, in, current) : null;
         long profileId = translate(() -> tx.execute(status -> {
             Instant now = now();
             BusinessProfileEntity p = profiles.findWithLockByUserId(userId).orElseThrow(BusinessException::notEditable);
@@ -194,7 +197,7 @@ public class MyBusinessService {
      * 번호(비워 두면 저장된 번호)·개업일·대표자명·상호로 진위확인 — 트랜잭션 밖에서. 불일치면 400 {@code BUSINESS_NTS_MISMATCH}(신청을 받지 않는다),
      * 조회 불가면 그대로 받는다(스냅샷 {@code UNAVAILABLE} — 운영자가 사유를 적어 승인).
      */
-    private Verified verify(Input in, BusinessProfileEntity current) {
+    private Verified verify(long userId, Input in, BusinessProfileEntity current) {
         String bizNo;
         if (in.bizNo() != null) {
             bizNo = in.bizNo();
@@ -203,6 +206,7 @@ public class MyBusinessService {
         } else {
             throw ValidationException.of("bizNo", new MessageRef("business.field.required"));
         }
+        ntsLimit.acquire(userId); // 하루 한도(신청·수정 합산) — 다른 검사 뒤, 부르기 바로 앞에서 따로 커밋해 센다. 넘으면 429
         NtsLookup result = nts.validate(bizNo, in.openedOn(), in.ownerName(), in.companyName());
         if (result.validity() == NtsValidity.MISMATCH) {
             throw BusinessException.ntsMismatchOnApply();

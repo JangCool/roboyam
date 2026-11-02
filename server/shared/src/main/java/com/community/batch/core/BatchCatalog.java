@@ -159,6 +159,12 @@ public enum BatchCatalog implements BatchDefinition {
     AD_VIEW_MARK_CLEANUP("ad-view-mark-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
 
     /**
+     * 사업자 국세청 진위확인 하루 횟수 표({@code business_nts_daily_counts}, V126) 정리 — 한국 날짜가 보관 일수(기본 2 — 오늘·어제를 남김)를 넘긴 줄 삭제. DB 배치, 기본 매일 04:55 KST
+     * ({@code R__batch_34_business_nts_count_cleanup.sql}, business-contract 「국세청 진위확인 · 공공데이터 설정」 2026-11-02)
+     */
+    BUSINESS_NTS_COUNT_CLEANUP("business-nts-count-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
+    /**
      * 사업자 신청 건 결제 기한 만료 — 결제 기한이 지난 결제 대기 전부를 열린 결제부터 닫고 EXPIRED(자리 반납) + 사업자 알림(Java 배치 {@code BizPaymentExpireJob},
      * biz-application-contract 「기한」·F2). 기본 10분마다. 자리·돈이 걸린 업무라 분류는 회원(MEMBER).
      */

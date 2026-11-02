@@ -20,6 +20,7 @@ public class BusinessException extends CommonException {
     public static final String NTS_NOT_ACTIVE = "BUSINESS_NTS_NOT_ACTIVE";
     public static final String NTS_NOT_CHECKED = "BUSINESS_NTS_NOT_CHECKED";
     public static final String NTS_MISMATCH = "BUSINESS_NTS_MISMATCH";
+    public static final String NTS_DAILY_LIMIT = "BUSINESS_NTS_DAILY_LIMIT";
     public static final String FILE_NOT_FOUND = "BUSINESS_FILE_NOT_FOUND";
     public static final String CERT_NOT_FOUND = "BUSINESS_CERT_NOT_FOUND";
     public static final String UPLOAD_LIMIT = "BUSINESS_UPLOAD_LIMIT";
@@ -32,6 +33,10 @@ public class BusinessException extends CommonException {
 
     private BusinessException(HttpStatus status, String code, Map<String, MessageRef> fields) {
         super(status, code, new MessageRef("error." + code), fields, null);
+    }
+
+    private BusinessException(HttpStatus status, String code, long retryAfterSeconds) {
+        super(status, code, new MessageRef("error." + code), Map.of(), retryAfterSeconds);
     }
 
     public static BusinessException notFound() {
@@ -83,6 +88,11 @@ public class BusinessException extends CommonException {
         fields.put("ownerName", mismatch);
         fields.put("openedOn", mismatch);
         return new BusinessException(HttpStatus.BAD_REQUEST, NTS_MISMATCH, fields);
+    }
+
+    /** 신청·수정의 국세청 진위확인을 오늘(한국 날짜) 한도만큼 했다 — 429 + 다음 한국 0시까지의 초({@code retryAfterSeconds}·{@code Retry-After}) */
+    public static BusinessException ntsDailyLimit(long retryAfterSeconds) {
+        return new BusinessException(HttpStatus.TOO_MANY_REQUESTS, NTS_DAILY_LIMIT, Math.max(1, retryAfterSeconds));
     }
 
     /** 가장 최근 진위확인이 불일치 — 승인할 수 없다(409, 휴·폐업과 같은 잠금) */

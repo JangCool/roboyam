@@ -81,6 +81,7 @@
   - 일치(01) → 함께 온 `status` 로 상태 스냅샷을 채운다(**신청 때 상태조회를 따로 부르지 않는다** — 진위확인이 대신한다). 휴·폐업이면 신청은 받고 승인 단계에서 막힌다(지금 규칙).
   - 수정: 번호·상호·대표자명·개업일 중 하나라도 바뀌면 다시 부른다(번호를 비워 두면 저장된 번호로). 상호·번호가 바뀌면 재심사(F7 그대로).
   - 승인된 옛 사업자(개업일 없음)가 고칠 때 개업일 필수.
+  - **하루 횟수 제한(사용자 결정 2026-11-02)**: 회원당 **하루 5회**(한국 날짜 0시 기준, **신청·수정 합산**, 설정 `roboyam.business.nts.daily-validate-limit` — 0 이면 제한 없음). 국세청을 **실제로 부르게 되는 시도만** 센다(결과 무관 — 불일치 400·조회 불가도 셈, 수정에서 네 칸이 그대로라 부르지 않으면 안 셈, 운영자 [다시 조회]는 안 셈). 넘으면 **429 `BUSINESS_NTS_DAILY_LIMIT`** + `retryAfterSeconds`(다음 한국 0시까지). 이미 신청함·재신청 한도·수정 불가 검사보다 뒤, 국세청 호출 바로 앞. 시도 수는 업무와 따로 먼저 커밋(shared `V126` 표 `business_nts_daily_counts`, 지난 날짜는 DB 배치 `business-nts-count-cleanup` 매일 04:55).
 - **진위 결과 `validity`** = `MATCH`(일치) · `MISMATCH`(불일치) · `UNCHECKED`(진위 미확인 — 개업일이 없는 옛 신청, 상태조회만) · `UNAVAILABLE`(조회 불가). 상태 스냅샷(`business_nts_checks`)에 함께 저장, 관리자 `nts.validity`, 상세 `openedOn`, 회원 `GET /api/business/me` 에 `openedOn`.
 - **승인 판정**(잠금이 사유보다 먼저): 진위 `MISMATCH` → **409 `BUSINESS_NTS_MISMATCH`**(휴·폐업과 같은 축 — 승인 단추 잠금) · 상태 휴업·폐업·없는 번호 → 409 `BUSINESS_NTS_NOT_ACTIVE`(그대로) · 상태 `UNAVAILABLE` 또는 진위 `UNAVAILABLE`·`UNCHECKED` → 사유(`ntsOverrideReason`) 필수(없으면 400 `fields.ntsOverrideReason`, 감사 `BUSINESS_NTS_OVERRIDE`) · 그 밖(계속 + 일치) → 바로.
 - **[다시 조회]**: 개업일이 있으면 진위확인(상태 포함), 없으면 상태조회만 + `UNCHECKED`.
