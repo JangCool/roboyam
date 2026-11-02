@@ -42,7 +42,7 @@ export interface AdAdvertiserRow {
     counts: AdAdvertiserCounts;
     /** 누적 결제(VAT 포함, 온라인 결제 + 입금 확인 합) — 환불은 빼지 않는다 */
     paidTotal: number;
-    /** 최근 광고일 = 취소·심사 대기를 뺀 건 중 가장 늦은 시작 시각(예약 포함). 건이 없으면 null */
+    /** 최근 광고일 = 결제 뒤 건(예약·진행·종료·내림) 중 이미 시작한 건의 가장 늦은 시작 시각(앞으로 시작할 예약은 빼서 미래 날짜가 나오지 않는다). 없으면 null */
     lastAdAt: string | null;
     createdAt: string;
 }

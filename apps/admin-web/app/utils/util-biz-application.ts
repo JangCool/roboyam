@@ -18,6 +18,18 @@ const KST_OFFSET_MS = 9 * 3_600_000;
  * 기한·파일 규칙은 가정(00-overview.md ★-6)이며 서버가 다시 판정한다. 요금(하루 단가·한도)은 서버 응답(`quote`)을 쓴다.
  */
 export default class UtilBizApplication {
+    /**
+     * 강조 글자 — 받는 돈 주 색 굵게 · 돌려줄 돈 빨강 · 수수료·대기 주황 · 승인·진행 초록 · 일자 하늘색(광고 심사 가운데 칸 `BizAppReviewPanel` 과 같은 값, 6e8c560f).
+     * 광고주 관리(`/ad-advertisers`)가 쓴다.
+     */
+    static readonly EMPH = {
+        money: 'font-bold text-(--p-primary-color)',
+        refund: 'font-bold text-red-600 dark:text-red-400',
+        fee: 'font-semibold text-amber-700 dark:text-amber-400',
+        ok: 'font-semibold text-green-700 dark:text-green-400',
+        date: 'font-semibold text-sky-700 dark:text-sky-400',
+    } as const;
+
     /** 부가세율 10% */
     static readonly VAT_RATE = 0.1;
     /** 온라인 결제 기한(설정값 가정) */

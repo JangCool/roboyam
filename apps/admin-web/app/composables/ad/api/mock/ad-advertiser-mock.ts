@@ -287,7 +287,7 @@ function row(rec: Record_): AdAdvertiserRow {
     const running = bs.filter((b) => b.status === 'RUNNING' || (b.status === 'SCHEDULED' && Date.parse(b.period.startAt) <= NOW)).length;
     const scheduled = bs.filter((b) => b.status === 'SCHEDULED' && Date.parse(b.period.startAt) > NOW).length;
     const waiting = bs.filter((b) => b.status === 'SUBMITTED' || b.status === 'AWAITING_PAYMENT' || b.status === 'AWAITING_DEPOSIT').length;
-    const dated = bs.filter((b) => b.status !== 'CANCELED' && b.status !== 'SUBMITTED');
+    const dated = bs.filter((b) => ['SCHEDULED', 'RUNNING', 'ENDED', 'TAKEN_DOWN'].includes(b.status) && Date.parse(b.period.startAt) <= NOW);
     const m = masked(rec).masked;
     return {
         id: rec.id,

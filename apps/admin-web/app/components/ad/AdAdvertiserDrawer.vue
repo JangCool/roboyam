@@ -19,6 +19,10 @@
                     <template v-if="head.business"> · {{ head.business.maskedRegNo }}</template>
                     · {{ t('adAdvertiser.createdOn', { date: time.serviceDate(UtilBizApplication.kstDate(head.createdAt)) }) }}
                 </span>
+                <span class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] tabular-nums">
+                    <span>{{ t('adAdvertiser.col.paid') }} <span :class="EMPH.money">{{ won(head.paidTotal) }}</span></span>
+                    <span>{{ t('adAdvertiser.col.lastAd') }} <span v-if="head.lastAdAt" :class="EMPH.date">{{ time.serviceDate(UtilBizApplication.kstDate(head.lastAdAt)) }}</span><span v-else class="text-muted-color">{{ t('adAdvertiser.noAdYet') }}</span></span>
+                </span>
                 <NuxtLink v-if="head.business" :to="{ path: '/businesses', query: { id: head.business.id } }" class="inline-flex w-fit items-center gap-1 text-[12px] font-medium text-(--p-primary-color) hover:underline">
                     <i class="pi pi-external-link text-[11px]" aria-hidden="true" />{{ t('adAdvertiser.openBusiness') }}
                 </NuxtLink>
@@ -89,7 +93,7 @@
                             <dl class="m-0 grid grid-cols-2 gap-2 sm:grid-cols-4">
                                 <div v-for="c in countCells" :key="c.key" class="flex flex-col gap-0.5 rounded-xl border border-(--line) px-3 py-2">
                                     <dt class="text-xs text-muted-color">{{ c.label }}</dt>
-                                    <dd class="m-0 text-base font-semibold tabular-nums" :class="c.tone">{{ c.value }}</dd>
+                                    <dd class="m-0 text-lg font-semibold tabular-nums" :class="c.tone">{{ c.value }}</dd>
                                 </div>
                             </dl>
 
@@ -107,12 +111,12 @@
                                 <NuxtLink :to="{ path: '/ads', query: { type: b.type, id: b.id } }" class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-[13px] hover:bg-(--p-content-hover-background)">
                                     <span class="flex min-w-0 flex-1 flex-col">
                                         <span class="font-medium">{{ t(`bizApplication.adType.${b.type}`) }} <span class="text-[11px] font-normal text-muted-color">· {{ t(`ad.sourceKind.${b.source}`) }}</span></span>
-                                        <span class="text-[12px] tabular-nums text-muted-color">{{ UtilBizApplicationMessages.period(t, time, b.period) }}</span>
+                                        <span class="text-[12px] tabular-nums" :class="EMPH.date">{{ UtilBizApplicationMessages.period(t, time, b.period) }}</span>
                                     </span>
                                     <Tag :value="t(UtilAd.statusKey(b))" :severity="UtilAd.rowSeverity(b)" />
                                     <span class="w-28 text-right tabular-nums">
-                                        {{ b.paid ? won(b.paid) : '—' }}
-                                        <span v-if="b.refunded" class="block text-[11px] text-red-600 dark:text-red-400">{{ t('adAdvertiser.refundedShort', { amount: won(b.refunded) }) }}</span>
+                                        <span v-if="b.paid" :class="EMPH.money">{{ won(b.paid) }}</span><span v-else class="text-muted-color">—</span>
+                                        <span v-if="b.refunded" class="block text-[11px]" :class="EMPH.refund">{{ t('adAdvertiser.refundedShort', { amount: won(b.refunded) }) }}</span>
                                     </span>
                                     <i class="pi pi-angle-right text-xs text-muted-color" aria-hidden="true" />
                                 </NuxtLink>
@@ -164,15 +168,15 @@
                     <TabPanel value="money">
                         <dl class="m-0 grid grid-cols-[9rem_1fr] gap-x-3 gap-y-2 text-[13px]">
                             <dt class="text-muted-color">{{ t('adAdvertiser.moneyPaid') }}</dt>
-                            <dd class="m-0 font-semibold tabular-nums">{{ won(detail.money.paid) }}</dd>
+                            <dd class="m-0 tabular-nums" :class="EMPH.money">{{ won(detail.money.paid) }}</dd>
                             <dt class="pl-3 text-muted-color">{{ t('bizApplication.method.ONLINE') }}</dt>
                             <dd class="m-0 tabular-nums">{{ won(detail.money.online) }}</dd>
                             <dt class="pl-3 text-muted-color">{{ t('bizApplication.method.MANUAL') }}</dt>
                             <dd class="m-0 tabular-nums">{{ won(detail.money.manual) }}</dd>
                             <dt class="text-muted-color">{{ t('adAdvertiser.moneyRefunded') }}</dt>
-                            <dd class="m-0 tabular-nums" :class="detail.money.refunded ? 'text-red-600 dark:text-red-400' : ''">{{ detail.money.refunded ? `− ${won(detail.money.refunded)}` : won(0) }}</dd>
+                            <dd class="m-0 tabular-nums" :class="detail.money.refunded ? EMPH.refund : 'text-muted-color'">{{ detail.money.refunded ? `− ${won(detail.money.refunded)}` : won(0) }}</dd>
                             <dt class="border-t border-(--line) pt-2 font-medium">{{ t('adAdvertiser.moneyNet') }}</dt>
-                            <dd class="m-0 border-t border-(--line) pt-2 font-semibold tabular-nums">{{ won(detail.money.paid - detail.money.refunded) }}</dd>
+                            <dd class="m-0 border-t border-(--line) pt-2 text-[15px] tabular-nums" :class="EMPH.money">{{ won(detail.money.paid - detail.money.refunded) }}</dd>
                         </dl>
                         <p class="m-0 mt-3 text-xs text-muted-color">{{ t('adAdvertiser.moneyNote') }}</p>
                     </TabPanel>
@@ -184,7 +188,7 @@
                                 <p v-if="!detail.views.length" class="m-0 text-[13px] text-muted-color">{{ t('adAdvertiser.noViews') }}</p>
                                 <ul v-else class="m-0 flex list-none flex-col divide-y divide-(--line) p-0 text-[13px]">
                                     <li v-for="(v, i) in detail.views" :key="`${v.at}-${i}`" class="flex flex-col gap-0.5 py-2">
-                                        <span><span class="font-medium">{{ v.actor }}</span> <span class="text-[11px] text-muted-color">· {{ time.shortDateTime(v.at) }}</span></span>
+                                        <span><span class="font-medium">{{ v.actor }}</span> <span class="text-[11px]" :class="EMPH.date">· {{ time.shortDateTime(v.at) }}</span></span>
                                         <span class="text-xs [overflow-wrap:anywhere]">{{ v.reason }}</span>
                                     </li>
                                 </ul>
@@ -275,8 +279,9 @@ const { prefs } = useLayoutPrefs();
 const titleId = useId();
 const tab = ref('basic');
 const won = (n: number) => UtilBizApplicationMessages.won(t, n, locale.value);
+const EMPH = UtilBizApplication.EMPH;
 
-const head = computed(() => props.detail ?? props.summary);
+const head =computed(() => props.detail ?? props.summary);
 const badge = computed(() => (head.value ? UtilAdAdvertiser.badge(head.value) : null));
 
 /** 사업자 상태 때문에 새 광고가 막힌 경우 한 줄 */
@@ -324,9 +329,9 @@ const contactRows = computed(() => {
 const countCells = computed(() => {
     const c = props.detail!.counts;
     return [
-        { key: 'running', label: t('adAdvertiser.countRunning'), value: c.running, tone: c.running ? 'text-green-700 dark:text-green-400' : '' },
-        { key: 'scheduled', label: t('adAdvertiser.countScheduled'), value: c.scheduled, tone: '' },
-        { key: 'waiting', label: t('adAdvertiser.countWaiting'), value: c.waiting, tone: c.waiting ? 'text-amber-700 dark:text-amber-400' : '' },
+        { key: 'running', label: t('adAdvertiser.countRunning'), value: c.running, tone: c.running ? EMPH.ok : 'text-muted-color' },
+        { key: 'scheduled', label: t('adAdvertiser.countScheduled'), value: c.scheduled, tone: c.scheduled ? EMPH.date : 'text-muted-color' },
+        { key: 'waiting', label: t('adAdvertiser.countWaiting'), value: c.waiting, tone: c.waiting ? EMPH.fee : 'text-muted-color' },
         { key: 'total', label: t('adAdvertiser.countTotal'), value: c.total, tone: '' },
     ];
 });

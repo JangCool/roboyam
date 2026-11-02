@@ -76,17 +76,17 @@
                 <Column :header="t('adAdvertiser.col.bookings')" style="min-width: 9rem">
                     <template #body="{ data }">
                         <span class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] tabular-nums">
-                            <span :class="data.counts.running ? 'font-semibold text-green-700 dark:text-green-400' : 'text-muted-color'">{{ t('adAdvertiser.runningN', { n: data.counts.running }) }}</span>
-                            <span :class="data.counts.scheduled ? '' : 'text-muted-color'">{{ t('adAdvertiser.scheduledN', { n: data.counts.scheduled }) }}</span>
-                            <span v-if="data.counts.waiting" class="text-amber-700 dark:text-amber-400">{{ t('adAdvertiser.waitingN', { n: data.counts.waiting }) }}</span>
+                            <span :class="data.counts.running ? EMPH.ok : 'text-muted-color'">{{ t('adAdvertiser.runningN', { n: data.counts.running }) }}</span>
+                            <span :class="data.counts.scheduled ? EMPH.date : 'text-muted-color'">{{ t('adAdvertiser.scheduledN', { n: data.counts.scheduled }) }}</span>
+                            <span v-if="data.counts.waiting" :class="EMPH.fee">{{ t('adAdvertiser.waitingN', { n: data.counts.waiting }) }}</span>
                         </span>
                     </template>
                 </Column>
                 <Column field="paidTotal" sortable :header="t('adAdvertiser.col.paid')" style="min-width: 8rem" :pt="right">
-                    <template #body="{ data }"><div class="text-right text-[13px] tabular-nums">{{ data.paidTotal ? won(data.paidTotal) : '—' }}</div></template>
+                    <template #body="{ data }"><div class="text-right text-[13px] tabular-nums" :class="data.paidTotal ? EMPH.money : 'text-muted-color'">{{ data.paidTotal ? won(data.paidTotal) : '—' }}</div></template>
                 </Column>
                 <Column field="lastAdAt" sortable :header="t('adAdvertiser.col.lastAd')" style="min-width: 7rem">
-                    <template #body="{ data }"><span class="text-[12px] tabular-nums" :class="data.lastAdAt ? '' : 'text-muted-color'">{{ data.lastAdAt ? time.serviceDate(UtilBizApplication.kstDate(data.lastAdAt)) : t('adAdvertiser.noAdYet') }}</span></template>
+                    <template #body="{ data }"><span class="text-[12px] tabular-nums" :class="data.lastAdAt ? EMPH.date : 'text-muted-color'">{{ data.lastAdAt ? time.serviceDate(UtilBizApplication.kstDate(data.lastAdAt)) : t('adAdvertiser.noAdYet') }}</span></template>
                 </Column>
                 <Column :header="t('adAdvertiser.col.state')" style="min-width: 7rem">
                     <template #body="{ data }"><Tag :value="t(`adAdvertiser.badge.${UtilAdAdvertiser.badge(data)}`)" :severity="UtilAdAdvertiser.badgeSeverity(UtilAdAdvertiser.badge(data))" /></template>
@@ -174,6 +174,7 @@ const qId = useId();
 const totalTemplate = computed(() => t('common.totalCount', { count: '{totalRecords}' }));
 const right = { columnHeaderContent: { class: 'justify-end' } };
 const won = (n: number) => UtilBizApplicationMessages.won(t, n, locale.value);
+const EMPH = UtilBizApplication.EMPH;
 const canManage = computed(() => can('ad.manage'));
 
 // ── 거르기 ──
