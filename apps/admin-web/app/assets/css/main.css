@@ -492,3 +492,10 @@ html[data-density='compact'] {
     outline: 2px solid var(--p-text-color);
     outline-offset: 2px;
 }
+
+/* 서랍 안 안내(PrimeVue Message)는 등장 애니메이션 없이 보인다 — 기본 등장(0.3초, 높이를 키우며 overflow: hidden)이 서랍이 열리는 동안 겹쳐
+   여러 줄 안내(광고 일정표 서랍의 일시 정지 안내 등)의 글자가 잘려 보였다. 서랍을 쓰는 모든 화면에 같이 건다 */
+.p-drawer .p-message-enter-active {
+    animation: none;
+    overflow: visible;
+}
