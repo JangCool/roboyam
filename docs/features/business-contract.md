@@ -69,6 +69,29 @@
 - **감사 대상 종류** `BUSINESS`. 평문 열람 감사 detail 은 사유만, 승인은 상호·국세청 상태.
 - user-web: 신원 부분(`profile`·`apply`·`update`)과 새 `uploadCertificate` 만 실제 API. **광고 이미지 `uploadFile` 과 신청 건 전부는 목업**(목업 신청 건은 목업 안의 승인 사업자로 판정 — 서버 신원과 따로). 홈의 「목업 상태 바꾸기」 상자와 `mockSetStatus` 는 지웠다. admin-web 목업 파일(`business-mock.ts`)은 지웠다.
 
+## 국세청 진위확인 · 공공데이터 설정 (화면 확정 2026-11-02 — 사용자 결정, 위 「심사 규칙」의 「신청 단계는 체크섬만」을 바꾼다)
+**의도**: 신청 때 번호·상호·대표자명·개업일이 국세청 등록 정보와 맞는지 바로 확인해, 남의 번호·가짜 이름으로 사업자 승인(→ 광고·핫딜 돈 흐름)에 이르지 못하게 한다. 서비스 키는 관리자 화면에서 넣는다.
+**화면**: user-web `/business/apply` 1단계(개업일 칸·불일치 안내) · admin-web 사업자 심사·목록 Drawer 국세청 카드(진위 줄)·목록 국세청 칸 태그 · 설정 › 시스템 › 공공데이터포털 `/settings/public-data`.
+
+- **외부 API(실제 호출로 확인 2026-11-02)**: 공공데이터포털 「국세청_사업자등록정보 진위확인 및 상태조회」(publicDataPk 15081808) — 상태조회 `POST /api/nts-businessman/v1/status`, 진위확인 `POST /api/nts-businessman/v1/validate`(`{"businesses":[{b_no, start_dt(YYYYMMDD), p_nm, b_nm}]}`), **같은 서비스 키 하나**. 진위 일치 `valid:"01"` + `status`(상태조회 한 줄과 같은 칸) · 불일치 `valid:"02"`(`valid_msg` 「확인할 수 없습니다.」, status 없음 — 국세청에 없는 번호도 02). 대표자명·개업일·상호는 **정확히 같아야** 일치(상호 「파이언넷」 02 · 「(주)파이언넷」 01, 개업일 하루 차이도 02). 본문은 UTF-8.
+- **보내는 칸 = 번호·개업일·대표자명·상호(`b_nm`)** — 상호도 보낸다(사용자 결정). 신청 화면 상호 칸이 「(주)·주식회사 표기와 띄어쓰기까지 등록증 그대로」를 안내한다.
+- **신청·수정(`POST`·`PUT /api/business/me`)**: 요청에 `openedOn`(`YYYY-MM-DD`, 필수, 오늘 이후 불가 — 400 `fields.openedOn`). 서버가 저장 **전에**(트랜잭션 밖) 진위확인을 부른다.
+  - 불일치(02) → **400 `BUSINESS_NTS_MISMATCH`** + `fields.companyName·ownerName·openedOn`(어느 칸인지 국세청이 알려 주지 않는다 — 화면 문구는 화면 i18n). 신청을 받지 않는다.
+  - 조회 불가(장애·제한 시간·키 없음) → 지금처럼 신청은 받고 스냅샷 `UNAVAILABLE` — 운영자가 사유를 적어 승인.
+  - 일치(01) → 함께 온 `status` 로 상태 스냅샷을 채운다(**신청 때 상태조회를 따로 부르지 않는다** — 진위확인이 대신한다). 휴·폐업이면 신청은 받고 승인 단계에서 막힌다(지금 규칙).
+  - 수정: 번호·상호·대표자명·개업일 중 하나라도 바뀌면 다시 부른다(번호를 비워 두면 저장된 번호로). 상호·번호가 바뀌면 재심사(F7 그대로).
+  - 승인된 옛 사업자(개업일 없음)가 고칠 때 개업일 필수.
+- **진위 결과 `validity`** = `MATCH`(일치) · `MISMATCH`(불일치) · `UNCHECKED`(진위 미확인 — 개업일이 없는 옛 신청, 상태조회만) · `UNAVAILABLE`(조회 불가). 상태 스냅샷(`business_nts_checks`)에 함께 저장, 관리자 `nts.validity`, 상세 `openedOn`, 회원 `GET /api/business/me` 에 `openedOn`.
+- **승인 판정**(잠금이 사유보다 먼저): 진위 `MISMATCH` → **409 `BUSINESS_NTS_MISMATCH`**(휴·폐업과 같은 축 — 승인 단추 잠금) · 상태 휴업·폐업·없는 번호 → 409 `BUSINESS_NTS_NOT_ACTIVE`(그대로) · 상태 `UNAVAILABLE` 또는 진위 `UNAVAILABLE`·`UNCHECKED` → 사유(`ntsOverrideReason`) 필수(없으면 400 `fields.ntsOverrideReason`, 감사 `BUSINESS_NTS_OVERRIDE`) · 그 밖(계속 + 일치) → 바로.
+- **[다시 조회]**: 개업일이 있으면 진위확인(상태 포함), 없으면 상태조회만 + `UNCHECKED`.
+- **이미 들어온 신청(개업일 없음)**: 마이그레이션은 개업일을 비워 두고 기존 스냅샷의 진위를 `UNCHECKED` 로 둔다. 심사 화면 「진위 미확인」 — 등록증으로 확인한 사유를 적어 승인. 승인된 사업자는 그대로(고칠 때 개업일 필수).
+- **local 가짜 구현**(`FakeNtsStatusClient`): 등록번호 끝에서 둘째 자리 — `5` 진위 불일치 · `6` 국세청에 없는 번호(상태 NOT_FOUND, 진위 불일치) · `7` 휴업 · `8` 폐업 · `9` 조회 불가 · 그 밖 계속 + 일치. dev·prod 가짜 기동 차단 그대로(`NtsConfig`).
+- **공공데이터포털 설정 `/settings/public-data`**(메뉴 시스템 › 공공데이터포털, 조회 `site.read` · 저장·지우기 `site.secret`, 포트원 설정과 같은 규칙):
+  - `GET /api/admin/public-data-settings` → `{ ntsProvider: ODCLOUD|FAKE, cryptoKeyConfigured, serviceKey: { source: SCREEN|ENV|NONE, updatedAt, updatedBy }, lastTest }` — 키 값은 내려가지 않는다.
+  - `PUT …` `{ serviceKey }`(빈 값·공백·500자 초과 400 `fields.serviceKey`, 암호화 키 없으면 503 `CRYPTO_KEY_MISSING`) · `DELETE …/service-key` → 204(없으면 404 `PUBLIC_DATA_KEY_NOT_FOUND`) · `POST …/test` → `{ result: OK|KEY_INVALID|NO_KEY|TIMEOUT|ERROR, testedAt, testedBy }`(`site.read`, 저장된 키로 실제 국세청 상태조회 한 번 — 구현이 가짜여도 실제로).
+  - 키 읽는 차례: **화면에서 저장한 값 → 환경 변수 `ROBOYAM_NTS_SERVICE_KEY` → 없음(조회 불가 `NO_KEY`)**. 저장은 암호문(`SecretEncryptor`). 감사는 칸 이름만.
+- **미확정**: 사업자 삭제 기능(없음 — 탈퇴·90일 파기로 정리, 사용자 답 대기) · local 기본 구현을 실제 국세청(`odcloud`)으로 바꿀지.
+
 ## 후속 (이 세션 범위 밖)
 - 보존 기간 파기 DB 배치(반려·탈퇴 90일 뒤 암호문·등록증, 붙지 않은 사본 정리) — 표 칸(`erased_at`)만 있다.
 - 사업자 약관 게시(약관 종류) · 정지 해제 화면 단추 · 서비스별 처리.
