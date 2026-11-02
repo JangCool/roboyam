@@ -91,7 +91,7 @@
   - `GET /api/admin/public-data-settings` → `{ ntsProvider: ODCLOUD|FAKE, cryptoKeyConfigured, serviceKey: { source: SCREEN|ENV|NONE, updatedAt, updatedBy }, lastTest }` — 키 값은 내려가지 않는다.
   - `PUT …` `{ serviceKey }`(빈 값·공백·500자 초과 400 `fields.serviceKey`, 암호화 키 없으면 503 `CRYPTO_KEY_MISSING`) · `DELETE …/service-key` → 204(없으면 404 `PUBLIC_DATA_KEY_NOT_FOUND`) · `POST …/test` → `{ result: OK|KEY_INVALID|NO_KEY|TIMEOUT|ERROR, testedAt, testedBy }`(`site.read`, 저장된 키로 실제 국세청 상태조회 한 번 — 구현이 가짜여도 실제로).
   - 키 읽는 차례: **화면에서 저장한 값 → 환경 변수 `ROBOYAM_NTS_SERVICE_KEY` → 없음(조회 불가 `NO_KEY`)**. 저장은 암호문(`SecretEncryptor`). 감사는 칸 이름만.
-- **미확정**: 사업자 삭제 기능(없음 — 탈퇴·90일 파기로 정리, 사용자 답 대기) · local 기본 구현을 실제 국세청(`odcloud`)으로 바꿀지.
+- **미확정**: local 기본 구현을 실제 국세청(`odcloud`)으로 바꿀지.
 - **서버 구현 결정(2026-11-02)**:
   - 마이그레이션 shared `V125__business_nts_validate.sql` — `business_profiles.opened_on`(date null) · `business_nts_checks.validity`(기존 줄 `UNCHECKED`, CHECK 넷) · 새 표 `public_data_settings`(칸마다 한 줄 `NTS_SERVICE_KEY`, `v1:` 암호문 + 마지막 저장·지움 + 마지막 연결 시험 `tested_*`). `portone_settings` 는 재사용하지 않았다(감사 분류·화면이 다르다).
   - 외부 호출: shared `OdcloudNtsApi`(HTTP·해석, 키를 호출마다 인자로 — 늘 빈으로 만든다, 연결 시험용) + `OdcloudNtsStatusClient`(키 = `PublicDataSettingsService#ntsServiceKey` 를 조회마다 읽음). 401·403 은 조회 불가 사유 `KEY_INVALID`(새 번들 문구), 연결·응답 실패 `TIMEOUT`, 그 밖 `ERROR`.
@@ -99,6 +99,15 @@
   - [다시 조회]가 진위 불일치면 국세청이 상태를 주지 않으므로 상태조회를 한 번 더 해 스냅샷에 상태(없는 번호 등)를 함께 남긴다. 처리 기록 메모는 불일치면 `MISMATCH`(「진위 불일치」), 그 밖은 상태. 감사 `BUSINESS_NTS_CHECK` detail 에 `validity`, `BUSINESS_APPROVE` 에 `ntsValidity`.
   - 조회한 적 없는 신원의 관리자 `nts` 는 `status: UNAVAILABLE` + `validity: UNCHECKED`(승인은 그대로 409 `BUSINESS_NTS_NOT_CHECKED`).
   - 공공데이터 설정: 키는 앞뒤 공백을 지우고 가운데 공백이 있으면 400. 저장·지우기는 마지막 연결 시험을 지운다(옛 키의 결과). 시험 번호 `1248100998`. 감사 `PUBLIC_DATA_SETTINGS_UPDATE`·`_DELETE`(대상 `PUBLIC_DATA_SETTINGS/nts`, 칸 이름만, **일반 분류** — 포트원은 돈 관련). 연결 시험은 감사하지 않고 표에만 남긴다.
+
+## 사업자 삭제 (화면 확정 2026-11-02)
+**의도**: 거래가 한 번도 없는 사업자 신원을 운영자가 지운다(잘못 들어온 신청·회원 요청). 거래가 있으면 기록 5년 보관 때문에 지우지 않고 정지·탈퇴로 정리한다.
+**화면**: admin-web 사업자 상세 Drawer(심사·목록 두 화면, 모든 상태) 왼쪽 아래 [삭제] + 사유 확인 창. 진행·예약·결제 대기 건이 보이면 화면이 잠그고, 지난 완료·취소 건은 서버가 막는다.
+
+- **API**: `DELETE /api/admin/businesses/{id}` 본문 `{ reason }`(앞뒤 공백 제거 5~200자, 틀리면 400 `fields.reason`) → **204**. 권한 **`business.delete`**(사업자 심사 · 민감 조치, 기능 켬). 없는 신원 404 `BUSINESS_NOT_FOUND`.
+- **거래 판정**: 그 신원에 광고·핫딜 신청 건(`biz_applications.business_profile_id`)이 **한 줄이라도** 있으면(상태 무관 — 취소·반려·만료·완료 포함) **409 `BUSINESS_HAS_DEALINGS`**(문구: 정지하거나 회원 탈퇴로 정리). 결제 주문(`BIZ_APPLICATION`)·입금·환불·계약서·처리 기록은 모두 신청 건에 매달려 있어 신청 건 유무로 충분하다. 신원 줄을 `FOR UPDATE` 로 잠그고 판정한다(승인·정지와 겹치면 한쪽만). 잠근 뒤 신청 건이 끼어들면 외래키가 막고 같은 409.
+- **지우는 것**(한 트랜잭션): `business_profiles` 줄 + 그 신원에 딸린 `business_services`·`business_nts_checks`·`business_documents`(붙은 등록증 암호문)·`business_history`·`business_sensitive_views`. 연결된 광고주(`ad_advertisers.business_profile_id`)는 **연결만 끊고** 계정 없는 광고주로 남긴다. 회원 계정·회원 알림·회원이 아직 붙이지 않은 사본·진위확인 하루 횟수는 그대로. 지운 뒤 그 회원은 사업자 `NONE`(로그인 `businessStatus`·뱃지 없음) — 다시 신청할 수 있다.
+- **감사** `BUSINESS_DELETE`(대상 `BUSINESS`/신원 ID, **일반 분류** — 다른 사업자 심사 감사와 같다): detail `companyName`·`bizNoLast4`·`status`(지우기 전)·`reReview`·`reason`. 평문·암호문은 싣지 않는다.
 
 ## 후속 (이 세션 범위 밖)
 - 보존 기간 파기 DB 배치(반려·탈퇴 90일 뒤 암호문·등록증, 붙지 않은 사본 정리) — 표 칸(`erased_at`)만 있다.

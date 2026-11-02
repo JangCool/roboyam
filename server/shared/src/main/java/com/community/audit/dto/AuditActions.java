@@ -387,6 +387,8 @@ public final class AuditActions {
     public static final String BUSINESS_NTS_CHECK = "BUSINESS_NTS_CHECK";
     /** 국세청 조회 불가인데 사유를 적고 승인(B1) — {@code reason}. 민감 */
     public static final String BUSINESS_NTS_OVERRIDE = "BUSINESS_NTS_OVERRIDE";
+    /** 사업자 삭제(신청 건이 없는 신원만) — {@code companyName}·{@code bizNoLast4}·{@code status}(지우기 전 상태)·{@code reReview}·{@code reason}. 평문·암호문은 싣지 않는다. 일반 */
+    public static final String BUSINESS_DELETE = "BUSINESS_DELETE";
     // ── 사업자 신청 건(biz-application-contract, V112) — 대상 BIZ_APPLICATION + 신청 건 ID. detail 에 개인정보를 싣지 않는다(금액·기간·사유·파일 이름만) ──
     /** 승인 — {@code method}·{@code supply}·{@code total}·기간·{@code deadlineAt}. 돈 관련(금액 확정) */
     public static final String BIZ_APP_APPROVE = "BIZ_APP_APPROVE";

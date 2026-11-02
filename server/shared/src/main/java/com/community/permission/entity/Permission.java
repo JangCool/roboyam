@@ -124,6 +124,8 @@ public enum Permission {
     BUSINESS_REVEAL("business.reveal", BIZ_REVIEW, SENSITIVE, true),
     /** 사업자 정지 해제 — 정지로 내려간 진행 중 건을 연장 후 되돌리기 · 환불 유지(B3·H2) */
     BUSINESS_UNSUSPEND("business.unsuspend", BIZ_REVIEW, SENSITIVE, true),
+    /** 사업자 삭제 — 사유 5~200자 · 감사. 광고·핫딜 신청 건이 한 줄이라도 있으면 409 {@code BUSINESS_HAS_DEALINGS}(정지·탈퇴로 정리) */
+    BUSINESS_DELETE("business.delete", BIZ_REVIEW, SENSITIVE, true),
     DEAL_ORDER_READ("deal-order.read", BIZ_PRODUCT, READ, false),
     DEAL_ORDER_MANAGE("deal-order.manage", BIZ_PRODUCT, MANAGE, false),
     DEAL_ORDER_SETTINGS("deal-order.settings", BIZ_PRODUCT, CONFIG, false),

@@ -21,6 +21,7 @@ public class BusinessException extends CommonException {
     public static final String NTS_NOT_CHECKED = "BUSINESS_NTS_NOT_CHECKED";
     public static final String NTS_MISMATCH = "BUSINESS_NTS_MISMATCH";
     public static final String NTS_DAILY_LIMIT = "BUSINESS_NTS_DAILY_LIMIT";
+    public static final String HAS_DEALINGS = "BUSINESS_HAS_DEALINGS";
     public static final String FILE_NOT_FOUND = "BUSINESS_FILE_NOT_FOUND";
     public static final String CERT_NOT_FOUND = "BUSINESS_CERT_NOT_FOUND";
     public static final String UPLOAD_LIMIT = "BUSINESS_UPLOAD_LIMIT";
@@ -88,6 +89,11 @@ public class BusinessException extends CommonException {
         fields.put("ownerName", mismatch);
         fields.put("openedOn", mismatch);
         return new BusinessException(HttpStatus.BAD_REQUEST, NTS_MISMATCH, fields);
+    }
+
+    /** 광고·핫딜 신청 건이 한 줄이라도 있는 사업자는 지울 수 없다(거래 기록 5년 보관 — 정지·탈퇴로 정리) */
+    public static BusinessException hasDealings() {
+        return new BusinessException(HttpStatus.CONFLICT, HAS_DEALINGS);
     }
 
     /** 신청·수정의 국세청 진위확인을 오늘(한국 날짜) 한도만큼 했다 — 429 + 다음 한국 0시까지의 초({@code retryAfterSeconds}·{@code Retry-After}) */

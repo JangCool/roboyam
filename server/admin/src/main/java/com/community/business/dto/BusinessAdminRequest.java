@@ -25,4 +25,8 @@ public final class BusinessAdminRequest {
     /** 평문 열람 사유 5~200자 */
     public record Reveal(String reason) {
     }
+
+    /** 사업자 삭제 사유 5~200자 */
+    public record Delete(String reason) {
+    }
 }
