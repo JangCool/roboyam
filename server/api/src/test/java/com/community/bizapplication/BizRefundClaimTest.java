@@ -360,6 +360,22 @@ class BizRefundClaimTest extends BizHotdealTestBase {
             assertThat(h.note()).isEqualTo("500");
             assertThat(h.actor()).isEqualTo("OPERATOR");
         });
+        // 환불 내역 전부(오래된 차례 — 중단 환불 → 추가 환불) + 결제액·환불 합(사유는 어느 줄에도 없다)
+        BizRefundSummary sum = summary(p.id());
+        assertThat(d.refunds()).extracting(BizMemberView.RefundLine::type).containsExactly("STOP_PRORATED", "CLAIM");
+        assertThat(d.refunds()).allSatisfy(l -> assertThat(l.status()).isEqualTo("APPROVED"));
+        assertThat(d.refunds().get(1).amount()).isEqualTo(500);
+        assertThat(d.refunds().stream().mapToLong(BizMemberView.RefundLine::amount).sum()).isEqualTo(sum.refunded());
+        assertThat(d.refundTotals()).isEqualTo(new BizMemberView.RefundTotals(sum.paid(), sum.refunded()));
         assertThat(JSON.writeValueAsString(d)).doesNotContain("7731");
+    }
+
+    @Test
+    void 결제_전이면_공개_환불_합계는_없고_내역은_빈_목록() {
+        long user = approvedBusiness();
+        long id = submitTextLine(user, 0, 3, "ONLINE");
+        BizMemberView.Detail d = view.detail(user, id);
+        assertThat(d.refundTotals()).isNull();
+        assertThat(d.refunds()).isEmpty();
     }
 }

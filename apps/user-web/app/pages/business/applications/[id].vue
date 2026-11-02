@@ -210,6 +210,21 @@
                     <p v-if="app.refund.decisionReason" class="m-0 whitespace-pre-line text-sm">{{ app.refund.decisionReason }}</p>
                     <!-- 운영팀 추가 환불(`CLAIM`)은 사유가 오지 않는다(클레임 내용은 관리자만) — 금액만 -->
                     <p v-if="app.refund.reason" class="m-0 whitespace-pre-line text-xs text-muted-color">{{ app.refund.reason }}</p>
+                    <!-- 환불이 두 줄 이상(중단 환불 + 추가 환불 등)이면 줄마다 종류·상태·금액·시각 + 합계/결제액 -->
+                    <template v-if="app.refunds.length > 1 || (app.refundTotals && app.refundTotals.refunded > 0)">
+                        <ul v-if="app.refunds.length > 1" class="m-0 mt-1 flex list-none flex-col gap-1 border-t border-hairline p-0 pt-2" :aria-label="t('business.detail.refundLines')" data-testid="business-refund-lines">
+                            <li v-for="(line, i) in app.refunds" :key="i" class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs">
+                                <span class="font-medium">{{ t(`business.detail.refundType.${line.type}`) }}</span>
+                                <span class="text-muted-color">{{ t(`business.detail.refundStatus.${line.status}`) }}</span>
+                                <span class="ml-auto font-semibold tabular-nums">{{ UtilBusinessMessages.won(t, line.amount) }}</span>
+                                <span class="w-full tabular-nums text-muted-color">{{ time.full(line.returnedAt ?? line.decidedAt ?? line.requestedAt) }}</span>
+                            </li>
+                        </ul>
+                        <p v-if="app.refundTotals" class="m-0 mt-1 flex flex-wrap items-baseline justify-between gap-x-2 border-t border-hairline pt-2 font-semibold tabular-nums" data-testid="business-refund-total">
+                            <span>{{ t('business.detail.refundTotal') }}</span>
+                            <span>{{ t('business.detail.refundTotalValue', { refunded: UtilBusinessMessages.won(t, app.refundTotals.refunded), paid: UtilBusinessMessages.won(t, app.refundTotals.paid) }) }}</span>
+                        </p>
+                    </template>
                 </div>
             </section>
 

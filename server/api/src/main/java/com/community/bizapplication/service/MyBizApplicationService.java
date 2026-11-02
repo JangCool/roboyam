@@ -215,7 +215,19 @@ public class MyBizApplicationService {
                 sum.paymentMethod(), sum.amount(), sum.amountConfirmed(), sum.paymentDueAt(), sum.depositDueAt(), sum.submittedAt(), sum.refundRequested(),
                 sum.takedownCause(), amount(a.quote()), a.approved() == null ? null : amount(a.approved()), a.adjustReason(), creative, deal,
                 a.rejectCode() == null ? null : a.rejectCode().name(), a.rejectText(), a.takedownText(), deposit, refund, history,
-                dealPosts.view(a, s.items(), s.creative()), pause);
+                dealPosts.view(a, s.items(), s.creative()), pause, refundLines(a.id()), refundTotals(a, s));
+    }
+
+    /** 환불 내역(오래된 차례) — 종류·상태·금액·시각만(사유·운영자 메모 없음) */
+    private List<BizMemberView.RefundLine> refundLines(long id) {
+        return reader.refunds(id).stream().map(r -> new BizMemberView.RefundLine(refundType(r.type()), r.status().name(),
+                r.approvedAmount() != null ? r.approvedAmount() : r.proposedAmount(), r.requestedAt(), r.decidedAt(),
+                r.method() == BizPaymentMethod.MANUAL ? r.transferredAt() : r.completedAt())).toList();
+    }
+
+    private BizMemberView.RefundTotals refundTotals(AppRow a, Snapshot s) {
+        BizRefundSummary sum = reader.refundSummary(a, s.deposit());
+        return sum == null ? null : new BizMemberView.RefundTotals(sum.paid(), sum.refunded());
     }
 
     /** 공개 환불 종류 — 시작 전 전액 FULL_AUTO · 광고주 요청 중단 STOP_PRORATED · 운영자 추가 환불 CLAIM · 그 밖 일할 심사 PRORATED_REVIEW */

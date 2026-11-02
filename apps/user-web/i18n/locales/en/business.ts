@@ -500,6 +500,9 @@ export default {
             DENIED: 'Denied',
         },
         refundTitle: 'Refund',
+        refundLines: 'Refund history',
+        refundTotal: 'Total refunded',
+        refundTotalValue: '{refunded} of {paid} paid',
         stateChanged: 'The status already changed, so we reloaded it',
         historyTitle: 'History',
         actor: {

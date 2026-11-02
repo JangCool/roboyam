@@ -316,6 +316,22 @@ export interface BizApplicationDetail extends BizApplicationSummary {
     post?: BizDealPost | null;
     /** 일시 정지·중단 정보 — 정지할 수 없는 종류·결제 전이면 null */
     pause: BizPause | null;
+    /** 환불 내역 전부(오래된 차례 — 중단 환불·추가 환불 등, 사유 없음). `refund` 는 그중 가장 최근 줄 */
+    refunds: BizRefundLine[];
+    /** 결제액·승인된 환불 합 — 결제 전이면 null */
+    refundTotals: { paid: number; refunded: number } | null;
+}
+
+/** 공개 환불 내역 한 줄 — 서버 `BizMemberView.RefundLine` */
+export interface BizRefundLine {
+    type: BizRefundRequest['type'];
+    status: BizRefundRequest['status'];
+    /** 승인 금액(승인 뒤) 또는 제안 금액(심사 중·거절) */
+    amount: number;
+    requestedAt: string;
+    decidedAt: string | null;
+    /** 돈이 실제로 돌아간 시각(온라인 카드 취소 완료 · 수동 송금 완료) — 아직이면 null */
+    returnedAt: string | null;
 }
 
 /* ── 사업자 핫딜 게시(2차) ─────────────────────────────────── */

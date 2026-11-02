@@ -584,18 +584,24 @@ async function submitClaim(body: BizRefundClaimRequest): Promise<void> {
     dialogError.value = '';
     dialogFields.value = {};
     try {
-        detail.value = await api.refundClaim(d.id, { ...body });
-        toast.success(t('bizApplication.claim.done'));
+        const updated = await api.refundClaim(d.id, { ...body });
+        // 창부터 닫는다 — 그다음 상세·토스트·목록(어느 하나가 실패해도 창이 남지 않게)
         dialogs.claim = false;
+        detail.value = updated;
+        toast.success(t('bizApplication.claim.done'));
         void reload();
     } catch (e) {
         const failure = toApiError(e);
+        if (failure.code === 'VALIDATION' && failure.fields) {
+            dialogFields.value = failure.fields;
+            return;
+        }
+        // 409 거나 응답을 받지 못했어도(연결·서버 오류) 서버가 이미 처리했을 수 있다 — 상세를 다시 읽어 창의 남은 환불 가능액을 맞춘다(같은 금액을 두 번 보내지 않게)
+        await loadDetail();
         if (failure.status === 409) {
             dialogs.claim = false;
             toast.error(failure.code === 'BIZ_APPLICATION_STATE_CHANGED' ? t('bizApplication.claim.stateChanged') : failure.message, 8000);
-            void loadDetail();
-        } else if (failure.code === 'VALIDATION' && failure.fields) dialogFields.value = failure.fields;
-        else dialogError.value = failure.message;
+        } else dialogError.value = failure.message;
     } finally {
         working.value = null;
     }
