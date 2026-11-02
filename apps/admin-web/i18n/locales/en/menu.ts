@@ -100,6 +100,7 @@ export default {
     ad: 'Ads',
     adReviews: 'Ad review',
     ads: 'Ad schedule',
+    adPerformance: 'Ad performance',
     adPlacements: 'Ad settings',
     // Hot deal section — hot deal review · posts · link rules · suspicious members · settings
     hotdeal: 'Hot deals',

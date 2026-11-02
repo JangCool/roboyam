@@ -5,6 +5,9 @@
         승인 = (재심사 중이면 안내) + 할 일 카드(결제 대기 — 기한·[결제하기], 입금 확인 대기) + 서비스 카드(광고·핫딜) + 사업자 정보 요약 + 최근 신청 건.
         사업자 신원은 서버(`GET /api/business/me`), 신청 건 목록은 아직 목업(`useBusinessApi` — 신청 건 백엔드에서 붙인다).
         승인인데 한 서비스만 정지면(2026-11-02 — `services[]`) 그 서비스 안내 + 사유, 그 서비스 카드 [신청하기] 잠금.
+        「진행 중 광고」 카드(광고 성과 목업 2026-11-02 — `useBusinessApi.adStatsSummary`): 진행 중·일시 정지 중이고 노출 자리가 있는 건 최대 5개 — 상태 딱지·종류·제목 ·
+          최근 7일(오늘 포함) 노출·클릭·클릭률 · 7일 미니 막대(`BusinessStatsChart compact` — 오늘 빗금, 정지 날 띠) · 줄을 누르면 상세의 성과 칸(`#performance`). 없으면 카드를 감춘다.
+          목업은 실제 진행 중 목록(`bucket=RUNNING`)에 숫자만 붙인다(긴급 내림·사업자 정지·중단 건은 뺀다 — 가정). 스위치 `?mock=ad-stats-empty`(0) · `ad-stats-fail`(다시 시도 줄).
     -->
     <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="business-home">
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -151,6 +154,42 @@
                 </template>
             </section>
 
+            <!-- 진행 중 광고(광고 성과 목업) — 진행 중·정지 중 건 최대 5개의 최근 7일. 없으면 카드를 감춘다(받는 중에도 감춘다 — 깜빡임 없이) -->
+            <section v-if="adStatsStatus === 'error' || (adStatsStatus === 'ready' && adStats?.items.length)" class="panel-card flex flex-col gap-3 p-4" :aria-labelledby="`${uid}-adstats`" data-testid="business-home-ad-stats">
+                <div class="flex flex-col gap-0.5">
+                    <h2 :id="`${uid}-adstats`" class="m-0 text-sm font-semibold">{{ t('business.stats.summaryTitle') }}</h2>
+                    <p class="m-0 text-xs text-muted-color">{{ t('business.stats.summaryHelp') }}<template v-if="adStats"> · {{ t('business.stats.asOf', { at: time.full(adStats.asOf) }) }}</template></p>
+                </div>
+                <p v-if="adStatsStatus === 'error'" class="m-0 flex flex-wrap items-center gap-2 text-sm text-muted-color" role="alert">
+                    {{ t('business.stats.summaryLoadFailed') }}
+                    <Button type="button" :label="t('common.retry')" size="small" variant="text" class="p-0!" @click="loadAdStats" />
+                </p>
+                <ul v-else-if="adStats" class="m-0 flex list-none flex-col p-0">
+                    <li v-for="item in adStats.items" :key="item.id" class="border-t border-hairline first:border-t-0">
+                        <NuxtLink
+                            :to="{ path: UtilBusiness.applicationPath(item.id), hash: `#${UtilAdStats.ANCHOR}` }"
+                            class="flex items-center gap-3 rounded py-2.5 hover:bg-surface-50 focus-visible:outline-2 focus-visible:outline-primary dark:hover:bg-surface-800/60"
+                            data-testid="business-home-ad-stats-row"
+                        >
+                            <div class="flex min-w-0 flex-1 flex-col gap-1">
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    <BusinessStatusTag :status="item.status" :phase="item.phase" :cause="item.takedownCause" :end-date="item.endDate" />
+                                    <span class="text-xs text-muted-color">{{ adStatsKind(item) }}</span>
+                                </div>
+                                <p class="m-0 truncate text-sm font-semibold">{{ item.title }}</p>
+                                <p class="m-0 text-xs tabular-nums text-muted-color">
+                                    {{ t('business.stats.summaryCounts', { impressions: UtilAdStats.count(item.last7.impressions), clicks: UtilAdStats.count(item.last7.clicks), ctr: UtilAdStats.ctrText(item.last7) }) }}
+                                </p>
+                            </div>
+                            <div class="w-20 shrink-0 sm:w-28">
+                                <BusinessStatsChart :days="item.spark" :today="today" compact />
+                            </div>
+                            <i class="pi pi-angle-right shrink-0 text-muted-color" aria-hidden="true" />
+                        </NuxtLink>
+                    </li>
+                </ul>
+            </section>
+
             <!-- 서비스 -->
             <section :aria-labelledby="`${uid}-services`">
                 <h2 :id="`${uid}-services`" class="m-0 mb-2 text-sm font-semibold">{{ t('business.home.servicesTitle') }}</h2>
@@ -196,7 +235,8 @@
 </template>
 
 <script setup lang="ts">
-import type { BizApplicationSummary, BusinessProfile, BusinessServiceKind } from '~/composables/business/api/useBusinessApi.types';
+import type { BizAdStatsSummary, BizAdStatsSummaryItem, BizApplicationSummary, BusinessProfile, BusinessServiceKind } from '~/composables/business/api/useBusinessApi.types';
+import UtilAdStats from '~/utils/util-ad-stats';
 import UtilBusiness from '~/utils/util-business';
 import UtilBusinessMessages from '~/utils/util-business-messages';
 
@@ -231,6 +271,7 @@ async function load(): Promise<void> {
         if (profile.value.status === 'APPROVED') {
             void loadApplications();
             void loadDealProduct();
+            void loadAdStats();
         }
     } catch (e) {
         loadError.value = e instanceof Error ? e.message : '';
@@ -254,6 +295,30 @@ async function loadDealProduct(): Promise<void> {
     } catch {
         dealAccepting.value = null;
     }
+}
+
+/* ── 진행 중 광고(광고 성과 목업) ── */
+const adStats = ref<BizAdStatsSummary | null>(null);
+const adStatsStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle');
+/** 오늘(한국 날짜) — 미니 막대의 오늘 빗금 */
+const today = UtilAdStats.today();
+
+async function loadAdStats(): Promise<void> {
+    adStatsStatus.value = 'loading';
+    try {
+        adStats.value = await api.adStatsSummary();
+        adStatsStatus.value = 'ready';
+    } catch {
+        adStatsStatus.value = 'error';
+    }
+}
+
+/** 「배너 광고 · 넓은 배너」 · 「핫딜 노출 · 핫딜 게시판 상단」 */
+function adStatsKind(item: BizAdStatsSummaryItem): string {
+    const kind = t(`business.kind.${item.kind}`);
+    if (item.adType && item.kind === 'AD_BANNER') return `${kind} · ${t(`business.adType.${item.adType}`)}`;
+    if (item.placement && item.placement !== 'NONE') return `${kind} · ${t(`business.placement.${item.placement}`)}`;
+    return kind;
 }
 
 onMounted(load);

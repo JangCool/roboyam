@@ -12,4 +12,16 @@ export default {
     price: '₩{amount}',
     wingLeftLabel: 'Left-side ad',
     wingRightLabel: 'Right-side ad',
+    // stats placements (shared V118 `ad_daily_stats.placement` — business performance screen)
+    statPlacement: {
+        HOME: 'Home',
+        PAGE: 'Gadget page',
+        BOARD: 'Board page',
+        POST_INLINE: 'Inside posts',
+        BOARD_LIST: 'Board list line',
+        WING_LEFT: 'Left wing',
+        WING_RIGHT: 'Right wing',
+        HOTDEAL_TOP: 'Hot deal board top',
+        HOTDEAL_CATEGORY: 'Hot deal category top',
+    },
 };

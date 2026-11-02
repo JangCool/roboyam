@@ -1,5 +1,7 @@
+import { mockAdStats, mockAdStatsBookings, mockAdStatsOverview } from "~/composables/ad/api/mock/ad-stats-mock";
 import type {
     AdAdvertiser,
+    AdApplicationStats,
     AdAdvertiserCreateRequest,
     AdAdvertiserRevealed,
     AdAvailability,
@@ -13,6 +15,11 @@ import type {
     AdPlacementsRequest,
     AdPlacementsView,
     AdRestoreRequest,
+    AdStatRange,
+    AdStatsBookingPage,
+    AdStatsBookingQuery,
+    AdStatsOverview,
+    AdStatsQuery,
     AdTakedownRequest,
     AdType,
 } from '~/composables/ad/api/useAdApi.types';
@@ -39,6 +46,13 @@ import type { BizContractFile, BizPeriod } from '~/composables/bizapplication/ap
  *  상태가 이미 바뀌었으면 409 `BIZ_APPLICATION_STATE_CHANGED`.
  *  광고주 요청 일시 정지·중단(서버 연결 2026-11-02 — `biz-pause-contract.md`): 줄(달력·표) `takedownCause`, 상세 `takedownCause`·`pause`·`takedown.channel`·`takedown.memo`·`takedown.pause`(신청 건 상세와 같은 모양).
  *    정지·재개·중단 처리는 신청 건 API(`/api/admin/biz-applications/{id}/pause|resume|stop`)만 — 이 화면은 「광고 심사에서 열기」로 보낸다. [되돌리기]는 긴급 내림만.
+ *  광고 성과(목업 — 서버 없음, 주소는 후보. 모양은 `useAdApi.types.ts` 「광고 성과」, 집계 원천 shared V118 `ad_daily_stats`):
+ *  - `GET  /api/admin/ads/{id}/stats?from&to`(`ad.read`) → `AdApplicationStats`(범위를 빼면 시작 날짜 ~ min(끝 날짜, 오늘))
+ *  - `GET  /api/admin/ads/stats?from&to&type&advertiserId`(`ad.read`) → `AdStatsOverview`
+ *  - `GET  /api/admin/ads/stats/bookings?from&to&type&advertiserId&sort=impressions|clicks|ctr&dir=asc|desc&page&size(≤100)`(`ad.read`) → `AdStatsBookingPage`
+ *    ⚠ `/stats` 가 `/{id}` 와 겹친다 — 서버는 글자 경로를 먼저 잡아야 한다(서버 단계).
+ *
+ * ⚠ MOCK: 성과 세 메서드는 `./mock/ad-stats-mock.ts` 를 부른다(장부·상세는 실제 `list`·`detail`, 숫자만 목업). 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
  */
 const PATH = {
     root: '/api/admin/ads',
@@ -52,18 +66,26 @@ const PATH = {
     manual: () => `${PATH.root}/manual`,
     placements: () => `${PATH.root}/placements`,
     placementHistory: () => `${PATH.root}/placements/history`,
+    stats: (id: string) => `${PATH.one(id)}/stats`,
+    statsOverview: () => `${PATH.root}/stats`,
+    statsBookings: () => `${PATH.root}/stats/bookings`,
 };
 
 export function useAdApi() {
     const auth = useAdminAuthApi();
     const client = useApiClient({ refreshCsrf: () => auth.me() });
 
+    const list = (query: AdBookingQuery): Promise<AdBookingPage> => client.get<AdBookingPage>(PATH.root, { query: { ...query } });
+    const detail = (id: string): Promise<AdBookingDetail> => client.get<AdBookingDetail>(PATH.one(id));
+    // MOCK: 성과 목업이 실제 장부를 읽는 통로
+    const ledger = { list, detail };
+
     return {
         calendar: (type: AdType, month: string): Promise<AdCalendar> => client.get<AdCalendar>(PATH.calendar(), { query: { type, month } }),
 
-        list: (query: AdBookingQuery): Promise<AdBookingPage> => client.get<AdBookingPage>(PATH.root, { query: { ...query } }),
+        list,
 
-        detail: (id: string): Promise<AdBookingDetail> => client.get<AdBookingDetail>(PATH.one(id)),
+        detail,
 
         availability: (type: AdType, period: BizPeriod): Promise<AdAvailability> => client.get<AdAvailability>(PATH.availability(), { query: { type, ...period } }),
 
@@ -100,5 +122,23 @@ export function useAdApi() {
 
         /** 광고 자리 설정 변경 이력 한 쪽 — `page` 0 부터 */
         placementHistory: (page: number, size: number): Promise<AdPlacementHistoryPage> => client.get<AdPlacementHistoryPage>(PATH.placementHistory(), { query: { page, size } }),
+
+        /** 한 건의 성과 — 범위를 빼면 건 기간 전체(시작 날짜 ~ min(끝 날짜, 오늘)) */
+        stats: (id: string, range?: AdStatRange): Promise<AdApplicationStats> =>
+            // MOCK:
+            mockAdStats(ledger, id, range),
+        // REAL: client.get<AdApplicationStats>(PATH.stats(id), { query: { ...range } }),
+
+        /** 운영자 성과 — 합계·날짜별·유형별·자리별·광고주 상위 10 */
+        statsOverview: (query: AdStatsQuery): Promise<AdStatsOverview> =>
+            // MOCK:
+            mockAdStatsOverview(ledger, query),
+        // REAL: client.get<AdStatsOverview>(PATH.statsOverview(), { query: { ...query } }),
+
+        /** 건별 성과 한 쪽 — 정렬·쪽 나눔은 서버 */
+        statsBookings: (query: AdStatsBookingQuery): Promise<AdStatsBookingPage> =>
+            // MOCK:
+            mockAdStatsBookings(ledger, query),
+        // REAL: client.get<AdStatsBookingPage>(PATH.statsBookings(), { query: { ...query } }),
     };
 }

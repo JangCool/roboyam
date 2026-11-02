@@ -307,3 +307,128 @@ export type AdPlacementHistoryField =
 /** `GET /api/admin/ads/placements/history` 한 줄 — 메일 서버 설정 이력과 같은 모양(공용 `SettingHistoryItem`, 출처는 늘 `ADMIN`) */
 export type AdPlacementHistoryItem = SettingHistoryItem;
 export type AdPlacementHistoryPage = SettingHistoryPage<AdPlacementHistoryItem>;
+
+/* ── 광고 성과(`/ads/performance`·일정표 서랍 「성과」 탭) — 목업 단계(서버 없음). 집계 원천 shared V118 `ad_daily_stats(application_id, version, day, placement, impressions, clicks)` ── */
+
+/** 노출 자리 — `ad_daily_stats.placement` 값. 화면 이름은 `ad.statPlacement.<값>` */
+export type AdStatPlacement = 'HOME' | 'PAGE' | 'BOARD' | 'POST_INLINE' | 'BOARD_LIST' | 'WING_LEFT' | 'WING_RIGHT' | 'HOTDEAL_TOP' | 'HOTDEAL_CATEGORY';
+export const AD_STAT_PLACEMENTS: readonly AdStatPlacement[] = ['HOME', 'PAGE', 'BOARD', 'POST_INLINE', 'BOARD_LIST', 'WING_LEFT', 'WING_RIGHT', 'HOTDEAL_TOP', 'HOTDEAL_CATEGORY'];
+
+/**
+ * 노출·클릭 수 — 같은 방문자·같은 소재 버전·같은 자리는 KST 하루 노출 1번·클릭 1번, 봇 제외.
+ * 클릭은 그날 노출 여부를 보지 않아 클릭률이 드물게 100% 를 넘을 수 있다(화면은 그대로 계산 — `UtilAdStats.ctr`, 노출 0 이면 「—」).
+ */
+export interface AdStatCounts {
+    impressions: number;
+    clicks: number;
+}
+
+/** 그날 상태 — 하루 중 일부라도 광고주 일시 정지(`ADVERTISER_PAUSE`)가 걸쳤으면 PAUSED, 그 밖의 내림(긴급·사업자 정지·광고주 중단)이 걸쳤으면 TAKEN_DOWN(내림이 우선) */
+export type AdStatDayState = 'SHOWING' | 'PAUSED' | 'TAKEN_DOWN';
+
+/** 날짜 하나(`YYYY-MM-DD`, KST) */
+export interface AdStatDay extends AdStatCounts {
+    date: string;
+    state: AdStatDayState;
+}
+
+/** 운영자 성과의 날짜 하나(합계 — 건마다 상태가 달라 `state` 가 없다) */
+export interface AdStatDayTotal extends AdStatCounts {
+    date: string;
+}
+
+/** 범위와 겹치는 정지·내림 구간(처리 기록에서 계산) — `to` 가 null 이면 아직 멈춰 있다 */
+export interface AdStatDowntime {
+    from: string;
+    to: string | null;
+    cause: BizTakedownCause;
+}
+
+/** 날짜 범위(`YYYY-MM-DD` KST, 양끝 포함) */
+export interface AdStatRange {
+    from: string;
+    to: string;
+}
+
+export interface AdStatPlacementRow extends AdStatCounts {
+    placement: AdStatPlacement;
+}
+
+export interface AdStatVersionRow extends AdStatCounts {
+    version: number;
+    approvedAt: string | null;
+    current: boolean;
+}
+
+/**
+ * 한 건의 성과 — `GET /api/admin/ads/{id}/stats?from&to`(`ad.read`, 장부 유형 줄이 없는 건 404). 사업자 쪽은 `GET /api/business/applications/{id}/stats`(본인 건만).
+ * `range` 를 빼면 기본 = 시작 날짜 ~ min(끝 날짜, 오늘). `days` 는 range 안 모든 날짜(0 포함), `byPlacement` 는 0 인 자리를 빼고 노출 차례.
+ */
+export interface AdApplicationStats {
+    range: AdStatRange;
+    /** 응답을 만든 시각 — 오늘 숫자는 계속 늘어난다(「오늘은 집계 중」) */
+    asOf: string;
+    totals: AdStatCounts;
+    days: AdStatDay[];
+    byPlacement: AdStatPlacementRow[];
+    /** 소재 버전 차례(오래된 것 먼저) */
+    byVersion: AdStatVersionRow[];
+    downtimes: AdStatDowntime[];
+}
+
+/** 운영자 성과 거르기 — 기간은 필수, 유형·광고주는 선택 */
+export interface AdStatsQuery {
+    from: string;
+    to: string;
+    type?: AdType;
+    advertiserId?: string;
+}
+
+export interface AdStatTypeRow extends AdStatCounts {
+    type: AdType;
+    /** 기간 안에 노출이 있었던 건 수 */
+    bookings: number;
+}
+
+export interface AdStatAdvertiserRow extends AdStatCounts {
+    advertiser: Pick<AdAdvertiser, 'id' | 'name' | 'kind'>;
+    bookings: number;
+}
+
+/**
+ * 운영자 성과 — `GET /api/admin/ads/stats?from&to&type&advertiserId`(`ad.read`).
+ * `totals.bookings` = 기간 안에 노출이 1 이상인 건 수. `byType`·`byPlacement` 는 0 인 줄을 빼고 노출 차례, `topAdvertisers` 는 노출 차례 상위 10.
+ */
+export interface AdStatsOverview {
+    asOf: string;
+    range: AdStatRange;
+    /** 거른 광고주(주소에 `advertiserId` 만 있어도 이름을 보이게 — 거르지 않았으면 null) */
+    advertiser: Pick<AdAdvertiser, 'id' | 'name' | 'kind'> | null;
+    totals: AdStatCounts & { bookings: number };
+    days: AdStatDayTotal[];
+    byType: AdStatTypeRow[];
+    byPlacement: AdStatPlacementRow[];
+    topAdvertisers: AdStatAdvertiserRow[];
+}
+
+/** 건별 표 정렬 — 노출 · 클릭 · 클릭률(노출 0 인 건은 클릭률 정렬에서 늘 뒤) */
+export type AdStatsSort = 'impressions' | 'clicks' | 'ctr';
+export const AD_STATS_SORTS: readonly AdStatsSort[] = ['impressions', 'clicks', 'ctr'];
+
+export interface AdStatsBookingQuery extends AdStatsQuery {
+    sort: AdStatsSort;
+    /** 기본 desc(서버 후보 — 노트에 없던 칸, 화면 판단) */
+    dir: 'asc' | 'desc';
+    page: number;
+    /** 100 까지 */
+    size: number;
+}
+
+/** 건별 한 줄 — 일정표 줄(`AdBookingRow`) + 기간 안 숫자 */
+export type AdStatsBookingRow = AdBookingRow & AdStatCounts;
+
+/** `GET /api/admin/ads/stats/bookings?from&to&type&advertiserId&sort&dir&page&size` — 기간과 겹치고 시작한 건(노출 0 포함) */
+export interface AdStatsBookingPage {
+    items: AdStatsBookingRow[];
+    total: number;
+}

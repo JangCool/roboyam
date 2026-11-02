@@ -1,8 +1,11 @@
+import { mockAdStats, mockAdStatsSummary } from '~/composables/business/api/mock/ad-stats-mock';
 import type {
+    AdApplicationStats,
     AdApplyRequest,
     AdProduct,
     AvailabilityDay,
     AvailabilitySlot,
+    BizAdStatsSummary,
     BizApplicationBucket,
     BizApplicationCreated,
     BizApplicationDetail,
@@ -41,7 +44,9 @@ import type { PaymentCompleteRequest, PaymentFakeCheckoutRequest, PaymentResult 
  *    오류: 횟수 초과 409 `BIZ_PAUSE_LIMIT` · 이미 끝남/상태 바뀜 409 `BIZ_APPLICATION_STATE_CHANGED`(알리고 다시 읽는다) · 정지된 사업자가 다시 켜기 409 `BUSINESS_NOT_APPROVED`
  *  - 서비스별 정지(2026-11-02): `GET /api/business/me` 의 `services[]`(`BusinessProfileService` — 서비스·상태·정지 사유, 신청 전이면 빈 목록 · 순서에 기대지 않는다).
  *    정지된 서비스로 새 신청하면 409 `BUSINESS_SERVICE_SUSPENDED`(문구는 서버 몫) — 신청 화면은 신원을 다시 읽어 막힘 안내를 보인다.
- *  - 환불 규정: `GET /api/business/refund-policy` → `{ version, stopFeeRate }`(신청 화면 동의 문구) · 신청 본문의 규정 버전이 지금과 다르면 400 `fields.agreedRefundPolicyVersion`
+ *  - 광고 성과(목업 2026-11-02 — 서버 전, 장부는 실제 · 숫자만 `./mock/ad-stats-mock.ts`): `GET …/{id}/stats?from&to` → `AdApplicationStats`(본인 건만, 없으면 404) ·
+ *    `GET /api/business/ads/stats-summary` → `BizAdStatsSummary`(진행 중·정지 중 최대 5건 · 최근 7일). ⚠ MOCK: 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
+ *  - 환불 규정:`GET /api/business/refund-policy` → `{ version, stopFeeRate }`(신청 화면 동의 문구) · 신청 본문의 규정 버전이 지금과 다르면 400 `fields.agreedRefundPolicyVersion`
  */
 const PATH = {
     me: '/api/business/me',
@@ -53,6 +58,7 @@ const PATH = {
     dealLinkCheck: '/api/business/deal-link-check',
     applications: '/api/business/applications',
     refundPolicy: '/api/business/refund-policy',
+    adStatsSummary: '/api/business/ads/stats-summary',
     application: (id: string) => `/api/business/applications/${encodeURIComponent(id)}`,
 };
 
@@ -133,5 +139,17 @@ export function useBusinessApi() {
 
         /** 중단하고 환불 요청(진행 중·정지 중) — 바로 내려가고 되돌릴 수 없다. 남은 기간 일할(정지 중이면 멈춘 시각부터) − 중도 해지 수수료를 운영팀이 확인 */
         stop: (id: string, reason: string): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(`${PATH.application(id)}/stop`, { reason }),
+
+        /** 한 건의 광고 성과(노출·클릭 — 날짜·자리·소재 버전별, 정지·내림 구간) — 기간을 빼면 서버 기본(시작 날짜 ~ min(끝 날짜, 오늘)) */
+        stats: (id: string, range?: { from: string; to: string }): Promise<AdApplicationStats> =>
+            // MOCK: 실제 상세를 받아 종류·자리를 보고 숫자만 만든다
+            mockAdStats(id, range ? { from: range.from, to: range.to } : undefined, () => client.get<BizApplicationDetail>(PATH.application(id))),
+        // REAL: client.get<AdApplicationStats>(`${PATH.application(id)}/stats`, { query: range ? { from: range.from, to: range.to } : {} }),
+
+        /** 사업자 센터 「진행 중 광고」 요약 — 진행 중·정지 중 건 최대 5개, 최근 7일 */
+        adStatsSummary: (): Promise<BizAdStatsSummary> =>
+            // MOCK: 실제 진행 중 목록(`bucket=RUNNING`)에 숫자만 붙인다
+            mockAdStatsSummary(() => client.get<BizApplicationPage>(PATH.applications, { query: { bucket: 'RUNNING' } })),
+        // REAL: client.get<BizAdStatsSummary>(PATH.adStatsSummary),
     };
 }

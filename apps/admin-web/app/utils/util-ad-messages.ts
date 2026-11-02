@@ -1,5 +1,6 @@
 import type { Translate } from '#layers/i18n/utils/util-i18n';
-import type { AdPlacementHistoryField, AdPlacementHistoryItem } from '~/composables/ad/api/useAdApi.types';
+import type { AdPlacementHistoryField, AdPlacementHistoryItem, AdStatCounts } from '~/composables/ad/api/useAdApi.types';
+import UtilAdStats from '~/utils/util-ad-stats';
 import type { SettingHistoryChange } from '~/composables/common/useSettingHistory.types';
 
 /** 칸 코드 → 칸 이름 i18n 키 — 서버 `labelKey` 형식이 정해지기 전이라 화면이 칸 코드로 고른다(모르는 칸은 서버 `labelKey` 그대로) */
@@ -81,6 +82,23 @@ export default class UtilAdMessages {
         if (field === 'boardList.after' && /^\d+$/.test(value)) return t('ad.placementHistoryAfter', { n: Number(value) });
         if (field === 'refund.stopFeeRate' && /^\d+$/.test(value)) return t('ad.placementHistoryPercent', { n: Number(value) });
         return value;
+    }
+
+    /**
+     * 성과 차트의 스크린 리더 요약(`role="img"` 의 `aria-label`) — 기간 · 날 수 · 합계 · 노출이 가장 많은 날.
+     * @param t - 번역 함수.
+     * @param days - 차트 날짜들(오래된 차례).
+     * @param locale - 숫자 표기 언어.
+     * @param dateText - 날짜(`YYYY-MM-DD`) → 보이는 글자(표시 시간대 서식).
+     */
+    static chartSummary(t: Translate, days: readonly (AdStatCounts & { date: string })[], locale: string, dateText: (ymd: string) => string): string {
+        if (!days.length) return '';
+        const from = dateText(days[0]!.date);
+        const to = dateText(days[days.length - 1]!.date);
+        const sum = days.reduce((acc, d) => ({ impressions: acc.impressions + d.impressions, clicks: acc.clicks + d.clicks }), { impressions: 0, clicks: 0 });
+        if (UtilAdStats.isEmpty(sum)) return t('ad.chartSummaryEmpty', { from, to, days: days.length });
+        const peak = days.reduce((best, d) => (d.impressions > best.impressions ? d : best), days[0]!);
+        return t('ad.chartSummary', { from, to, days: days.length, impressions: UtilAdStats.num(sum.impressions, locale), clicks: UtilAdStats.num(sum.clicks, locale), peak: dateText(peak.date) });
     }
 
     /** 고르기 칸의 이름(`<묶음 키>.<값>`) — 모르는 값은 그대로 */

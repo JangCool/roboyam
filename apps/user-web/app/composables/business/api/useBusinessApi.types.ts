@@ -6,6 +6,7 @@ import type { BusinessUserStatus } from '~/composables/auth/api/useAuthApi.types
 import type { AddressValue } from '~/components/address/AddressInput.types';
 import type { PaymentCheckout } from '~/composables/payment/api/usePaymentApi.types';
 import type { DealEndRequests, DealEndedBy, DealView } from '~/composables/hotdeal/api/useHotdealApi.types';
+import type { AdPlacement } from '~/composables/ad/usePublicAds.types';
 
 /* ── 사업자 신원 ─────────────────────────────────────────── */
 
@@ -541,4 +542,91 @@ export interface BizPaymentStart {
     checkout: PaymentCheckout;
     /** 결제창(포트원) 구매자 — 서버가 사업자 신원의 상호·연락처(숫자)·이메일로 채운다(본인 건만). 연락처가 없으면 결제 시작이 400 `BIZ_CONTACT_MISSING` */
     customer: { fullName: string; phoneNumber: string; email: string } | null;
+}
+
+/* ── 광고 성과(목업 — 2026-11-02, 서버 전. 정본 후보는 `mock/ad-stats-mock.ts` 머리말) ─────────────── */
+
+/**
+ * 집계 자리 — 공개 노출 집계(shared V118 `ad_daily_stats.placement`)의 값. 공개 광고의 `AdPlacement` 와 같은 값이라 그것을 쓴다(복사하지 않는다).
+ * 화면 이름은 `ad.statPlacement.<값>`.
+ */
+export type AdStatPlacement = AdPlacement;
+
+/** 노출·클릭 수 — 클릭률은 화면 계산(`UtilAdStats.ctr` — 노출 0 이면 「—」, 소수 한 자리 %). 클릭은 그날 노출 여부를 보지 않아 클릭률이 드물게 100% 를 넘을 수 있다 */
+export interface AdStatCounts {
+    impressions: number;
+    clicks: number;
+}
+
+/** 그날 상태 — 그날 일부라도 광고주 일시 정지(`ADVERTISER_PAUSE`)가 걸쳤으면 `PAUSED`, 그 밖의 내림(긴급·사업자 정지·중단)이 걸쳤으면 `TAKEN_DOWN` */
+export type AdStatDayState = 'SHOWING' | 'PAUSED' | 'TAKEN_DOWN';
+
+/** 하루 숫자 — 날짜는 한국 날짜(`YYYY-MM-DD`) */
+export interface AdStatDay extends AdStatCounts {
+    date: string;
+    state: AdStatDayState;
+}
+
+/** 정지·내림 구간(처리 기록에서 계산) — 정지·내림 중에는 공개 노출에 나가지 않아 집계가 0 이다 */
+export interface AdStatDowntime {
+    /** ISO 순간 */
+    from: string;
+    /** ISO 순간 — 아직 멈춰 있으면 null */
+    to: string | null;
+    cause: BizTakedownCause;
+}
+
+/** 자리 한 줄 */
+export interface AdStatPlacementRow extends AdStatCounts {
+    placement: AdStatPlacement;
+}
+
+/** 소재 버전 한 줄 — `current` = 지금 나가는 버전 */
+export interface AdStatVersionRow extends AdStatCounts {
+    version: number;
+    /** 그 버전을 승인한 시각(ISO) — 모르면 null */
+    approvedAt: string | null;
+    current: boolean;
+}
+
+/** `GET /api/business/applications/{id}/stats?from&to` — 한 건의 성과(본인 건만, 없으면 404 `BIZ_APPLICATION_NOT_FOUND`) */
+export interface AdApplicationStats {
+    /** 실제로 센 기간(한국 날짜, 끝 포함) — 빠지면 서버 기본 = 시작 날짜 ~ min(끝 날짜, 오늘) */
+    range: { from: string; to: string };
+    /** 응답을 만든 시각(ISO) — 오늘 숫자는 계속 늘어난다(「오늘은 집계 중」) */
+    asOf: string;
+    totals: AdStatCounts;
+    /** 기간 안 모든 날짜(0 포함, 오래된 차례) */
+    days: AdStatDay[];
+    /** 자리별 — 0 인 자리는 뺌, 노출 많은 차례 */
+    byPlacement: AdStatPlacementRow[];
+    /** 소재 버전별(버전 차례) */
+    byVersion: AdStatVersionRow[];
+    /** 기간과 겹치는 정지·내림 구간(오래된 차례) */
+    downtimes: AdStatDowntime[];
+}
+
+/** 사업자 센터 「진행 중 광고」 한 줄 */
+export interface BizAdStatsSummaryItem {
+    id: string;
+    title: string;
+    kind: BizApplicationKind;
+    adType: AdType | null;
+    placement: DealPlacement | null;
+    status: BizApplicationStatus;
+    phase: BizSchedulePhase | null;
+    takedownCause: BizTakedownCause | null;
+    /** (설계 노트 모양에 더함) 상태 딱지의 「정지한 채 끝남」 판정용 */
+    startDate: string;
+    endDate: string;
+    /** 최근 7일(오늘 포함) 합 */
+    last7: AdStatCounts;
+    /** 최근 7일 날짜별(오래된 차례, 마지막 = 오늘) — 설계 노트의 `AdStatCounts[]` 에 날짜·상태를 더했다(미니 차트의 오늘 빗금·정지 띠) */
+    spark: AdStatDay[];
+}
+
+/** `GET /api/business/ads/stats-summary` — 진행 중·정지 중 건 최대 5개(노출 자리가 있는 건만). 없으면 빈 목록 */
+export interface BizAdStatsSummary {
+    asOf: string;
+    items: BizAdStatsSummaryItem[];
 }
