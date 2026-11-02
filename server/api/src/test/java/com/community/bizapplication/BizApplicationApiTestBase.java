@@ -14,6 +14,7 @@ import com.community.bizapplication.service.BizApplicationReviewService;
 import com.community.bizapplication.service.BizApplicationSchedules;
 import com.community.bizapplication.service.BizPeriods;
 import com.community.business.service.BusinessApplicationHook;
+import com.community.business.service.BusinessPii;
 import com.community.commerce.CommerceApiTestBase;
 import com.community.payment.dto.ConfirmedVia;
 import com.community.payment.dto.PaymentCheckout;
@@ -51,6 +52,8 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
 
     @Autowired
     protected BizApplicationMemberService members;
+    @Autowired
+    protected BusinessPii pii;
     @Autowired
     protected BizApplicationReviewService review;
     @Autowired
@@ -102,6 +105,9 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
                         + "postcode, address1_enc, terms_version, privacy_version, agreed_at, submitted_at, created_at, updated_at) "
                         + "VALUES (?, ?, ?, ?, '시험상사', 'x', ?, '6789', 'x', 'x', 'x', '06236', 'x', 'v1', 'v1', now(), now(), now(), now())",
                 profile, user, status.equals("SUSPENDED") ? "APPROVED" : status, reReview, hash);
+        // 결제창 구매자 칸(온라인 결제 시작)이 푸는 연락처·이메일은 진짜 암호문으로 둔다
+        jdbc.update("UPDATE business_profiles SET phone_enc = ?, email_enc = ? WHERE id = ?", pii.encrypt(BusinessPii.PHONE, "010-1234-5678"),
+                pii.encrypt(BusinessPii.EMAIL, "biz" + user + "@test.local"), profile);
         if (status.equals("SUSPENDED")) {
             jdbc.update("UPDATE business_profiles SET status = 'SUSPENDED', suspend_code = 'OTHER', suspend_text = '시험', suspended_at = now(), suspend_pending_action = 'KEEP', "
                     + "suspend_scheduled_action = 'HOLD', suspend_running_action = 'TAKEDOWN_ONLY' WHERE id = ?", profile);

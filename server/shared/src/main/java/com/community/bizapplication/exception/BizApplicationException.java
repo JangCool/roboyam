@@ -19,6 +19,7 @@ public class BizApplicationException extends CommonException {
     public static final String SELF_APPROVAL_DENIED = "BIZ_SELF_APPROVAL_DENIED";
     public static final String ADVERTISER_NOT_FOUND = "AD_ADVERTISER_NOT_FOUND";
     public static final String PAUSE_LIMIT = "BIZ_PAUSE_LIMIT";
+    public static final String CONTACT_MISSING = "BIZ_CONTACT_MISSING";
 
     private BizApplicationException(HttpStatus status, String code) {
         super(status, code, new MessageRef("error." + code));
@@ -60,6 +61,11 @@ public class BizApplicationException extends CommonException {
     }
 
     /** 광고주가 없다(광고 일정표 — 계정 없는 광고주) */
+    /** 온라인 결제를 시작하려는데 사업자 신원에 연락처(전화)가 없다 — 결제창(포트원)이 구매자 전화번호를 꼭 받는다 */
+    public static BizApplicationException contactMissing() {
+        return new BizApplicationException(HttpStatus.BAD_REQUEST, CONTACT_MISSING);
+    }
+
     public static BizApplicationException advertiserNotFound() {
         return new BizApplicationException(HttpStatus.NOT_FOUND, ADVERTISER_NOT_FOUND);
     }

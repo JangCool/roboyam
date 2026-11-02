@@ -490,4 +490,6 @@ export interface BizPaymentStart {
     orderRefId: string;
     expiresAt: string;
     checkout: PaymentCheckout;
+    /** 결제창(포트원) 구매자 — 서버가 사업자 신원의 상호·연락처(숫자)·이메일로 채운다(본인 건만). 연락처가 없으면 결제 시작이 400 `BIZ_CONTACT_MISSING` */
+    customer: { fullName: string; phoneNumber: string; email: string } | null;
 }

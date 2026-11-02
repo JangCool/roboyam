@@ -13,6 +13,7 @@ import com.community.bizapplication.entity.BizPaymentMethod;
 import com.community.bizapplication.entity.BizPhase;
 import com.community.bizapplication.entity.BizProduct;
 import com.community.bizapplication.entity.BizRefundType;
+import com.community.bizapplication.exception.BizApplicationException;
 import com.community.bizapplication.repository.master.BizApplicationStore.AppRow;
 import com.community.bizapplication.repository.master.BizApplicationStore.CreativeRow;
 import com.community.bizapplication.repository.master.BizApplicationStore.ItemRow;
@@ -22,6 +23,9 @@ import com.community.bizapplication.service.BizApplicationReader.Bucket;
 import com.community.bizapplication.service.BizApplicationReader.Snapshot;
 import com.community.bizapplication.service.BizApplicationReader.Summary;
 import com.community.bizapplication.service.BizPricing.Amount;
+import com.community.business.entity.BusinessProfileEntity;
+import com.community.business.repository.master.BusinessProfileRepository;
+import com.community.business.service.BusinessPii;
 import com.community.payment.dto.PaymentCheckout;
 import com.community.payment.dto.response.PaymentCheckoutView;
 import com.community.zconfiguration.exception.ValidationException;
@@ -49,10 +53,15 @@ public class MyBizApplicationService {
     private final BizDealPostReader dealPosts;
     private final BizDealEndService dealEnds;
     private final BizPauseService pauses;
+    private final BusinessProfileRepository profiles;
+    private final BusinessPii pii;
 
     public MyBizApplicationService(BizApplicationMemberService members, BizApplicationReader reader, BizApplicationProperties props, Messages messages,
-                                   BizDealContent dealForm, BizDealPostReader dealPosts, BizDealEndService dealEnds, BizPauseService pauses) {
+                                   BizDealContent dealForm, BizDealPostReader dealPosts, BizDealEndService dealEnds, BizPauseService pauses,
+                                   BusinessProfileRepository profiles, BusinessPii pii) {
         this.pauses = pauses;
+        this.profiles = profiles;
+        this.pii = pii;
         this.members = members;
         this.reader = reader;
         this.props = props;
@@ -114,9 +123,25 @@ public class MyBizApplicationService {
         return detail(userId, id);
     }
 
+    /**
+     * 온라인 결제 시작 — 결제창 구매자 칸(포트원은 전화번호가 비면 결제창을 열지 않는다)을 사업자 신원에서 채운다: 이름 = 상호, 전화 = 연락처 평문(숫자만), 이메일 = 신원 이메일(없으면 빈 글자).
+     * 연락처가 없으면 결제 주문을 만들기 전에 400 {@code BIZ_CONTACT_MISSING}(「사업자 정보에 연락처를 넣어 주세요」 — 가정, biz-pause-contract 「결제창 구매자」).
+     */
     public BizMemberView.PaymentStart startPayment(long userId, long id) {
+        BizMemberView.Customer customer = customer(userId);
         PaymentCheckout checkout = members.startPayment(userId, id);
-        return new BizMemberView.PaymentStart("BIZ_APPLICATION", Long.toString(id), checkout.expiresAt(), PaymentCheckoutView.of(checkout));
+        return new BizMemberView.PaymentStart("BIZ_APPLICATION", Long.toString(id), checkout.expiresAt(), PaymentCheckoutView.of(checkout), customer);
+    }
+
+    private BizMemberView.Customer customer(long userId) {
+        BusinessProfileEntity profile = profiles.findByUserId(userId).filter(p -> p.getErasedAt() == null).orElse(null);
+        String phoneText = profile == null ? null : pii.decrypt(BusinessPii.PHONE, profile.getPhoneEnc());
+        String phone = phoneText == null ? "" : phoneText.replaceAll("\\D", "");
+        if (phone.isEmpty()) {
+            throw BizApplicationException.contactMissing();
+        }
+        String email = pii.decrypt(BusinessPii.EMAIL, profile.getEmailEnc());
+        return new BizMemberView.Customer(profile.getCompanyName() == null ? "" : profile.getCompanyName(), phone, email == null ? "" : email);
     }
 
     /** 사업자 종료(biz-hotdeal-contract 규칙 6) — 글의 딜을 작성자 종료로 끝낸다. 환불 없음 · 신청 건 상태 그대로 · 처리 기록 DEAL_ENDED_BY_BUSINESS. 응답 = 새 「게시된 글」 */
