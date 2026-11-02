@@ -88,6 +88,11 @@ public class BizApplicationReader {
         return paid == null ? null : BizRefundSummary.of(paid, refunds.all(app.id()));
     }
 
+    /** 그 건의 환불 줄 전부(오래된 차례) — 공개 상세 「환불 내역」 */
+    public List<RefundRow> refunds(long applicationId) {
+        return refunds.all(applicationId);
+    }
+
     /** 목록의 재료 — 줄·환불을 ID 로 모아 한 번에 */
     public List<Summary> summaries(List<AppRow> apps) {
         List<Long> ids = apps.stream().map(AppRow::id).toList();

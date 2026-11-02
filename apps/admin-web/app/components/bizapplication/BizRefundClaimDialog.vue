@@ -72,6 +72,13 @@ watch(
     },
     { immediate: true },
 );
+// 열린 채 상세를 다시 읽어 남은 환불 가능액이 줄었으면(오류 뒤 서버가 이미 처리한 경우 등) 금액을 새 상한으로 맞춘다
+watch(
+    () => props.summary.refundable,
+    (max) => {
+        if (amount.value !== null && amount.value > max) amount.value = max;
+    },
+);
 
 /** 금액 1 ~ 남은 환불 가능(서버가 행 잠금 아래에서 다시 본다 — 400 `fields.amount`) */
 const amountProblem = computed(() => (amount.value === null || !Number.isInteger(amount.value) || amount.value < 1 || amount.value > props.summary.refundable ? 'RANGE' : null));

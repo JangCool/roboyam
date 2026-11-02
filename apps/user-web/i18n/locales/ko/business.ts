@@ -501,6 +501,9 @@ export default {
             DENIED: '환불 거절',
         },
         refundTitle: '환불',
+        refundLines: '환불 내역',
+        refundTotal: '환불 합계',
+        refundTotalValue: '{refunded} / 결제 {paid}',
         stateChanged: '이미 처리 상태가 바뀌어 다시 불러왔어요',
         historyTitle: '처리 기록',
         actor: {

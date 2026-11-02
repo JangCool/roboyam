@@ -61,11 +61,28 @@ public final class BizMemberView {
                           boolean refundRequested, String takedownCause) {
     }
 
+    /**
+     * @param refunds      환불 줄 전부(오래된 차례 — 중단 환불·추가 환불 등). {@code refund} 는 그중 가장 최근 줄
+     * @param refundTotals 결제액·승인된 환불 합(결제 전이면 null)
+     */
     public record Detail(String id, String kind, String title, String adType, String placement, String startDate, String endDate, String status, String phase,
                          String paymentMethod, Amount amount, boolean amountConfirmed, Instant paymentDueAt, Instant depositDueAt, Instant submittedAt,
                          boolean refundRequested, String takedownCause, Amount estimate, Amount confirmed, String adjustReason, Creative creative, BizDealInfo deal,
                          String rejectCode, String rejectReason, String takedownReason, Deposit deposit, Refund refund, List<History> history,
-                         BizDealPostView post, Pause pause) {
+                         BizDealPostView post, Pause pause, List<RefundLine> refunds, RefundTotals refundTotals) {
+    }
+
+    /**
+     * 공개 환불 내역 한 줄(biz-pause-contract 「추가 환불」 — 사유·운영자 메모는 싣지 않는다).
+     *
+     * @param amount     승인 금액(승인 뒤) 또는 제안 금액(심사 중·거절)
+     * @param returnedAt 돈이 실제로 돌아간 시각 — 온라인 PG 취소 완료 · 수동 송금 완료(아직이면 null)
+     */
+    public record RefundLine(String type, String status, long amount, Instant requestedAt, Instant decidedAt, Instant returnedAt) {
+    }
+
+    /** 결제액(온라인 결제액 · 수동 입금 확인 금액)과 승인된 환불 합 */
+    public record RefundTotals(long paid, long refunded) {
     }
 
     public record Page(List<Summary> items, long total, Map<String, Long> counts) {
