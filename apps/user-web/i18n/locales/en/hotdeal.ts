@@ -197,6 +197,8 @@ export default {
     badgeAd: 'Ad',
     bizNote: 'Ad — a business deal {name} paid to post',
     bizEndMessage: 'It can’t be reopened. There is no refund, and the placement stops too.',
+    bizEnd: 'End as sold out',
+    bizEndTitle: 'End as sold out?',
     endRequest: 'Report sold out or price change',
     endRequestSent: 'You reported: {reason}',
     endRequestHelp: 'When several members report, the author is notified, and the deal ends automatically if they don’t confirm. Reporters stay anonymous.',

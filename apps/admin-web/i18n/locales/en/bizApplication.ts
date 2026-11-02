@@ -196,7 +196,7 @@ export default {
     refundDenied: 'Refund denied.',
     paymentRecord: 'Payment record',
     paidOnline: 'Paid online · {at} · {tx}',
-    depositLine: 'Deposit {amount} · {date} · from {name} · checked by {who}',
+    depositLine: 'Deposit {amount} · paid on {date} · from {name} · checked by {who} at {at}',
     history: 'History',
     action: {
         SUBMITTED: 'Submitted',
