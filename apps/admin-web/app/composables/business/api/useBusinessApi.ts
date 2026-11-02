@@ -7,9 +7,7 @@ import type {
     BusinessRejectRequest,
     BusinessReveal,
     BusinessSuspendRequest,
-    BusinessRow,
     BusinessUnsuspendRequest,
-    NtsValidity,
 } from '~/composables/business/api/useBusinessApi.types';
 
 /**
@@ -17,7 +15,7 @@ import type {
  * 계약 `docs/features/business-contract.md`. 권한: 조회 `business.read`, 처리 `business.manage`, 평문 열람 `business.reveal`, 정지 해제 `business.unsuspend`(둘 다 SENSITIVE — B3).
  *  - `GET  /api/admin/businesses?status=&service=&q=&page=&size=` → `BusinessPage`(목록은 가린 값만)
  *  - `GET  /api/admin/businesses/{id}` → `BusinessDetail`
- *  - `POST /api/admin/businesses/{id}/nts-check` → `BusinessDetail`(국세청 상태조회 다시 — 결과 스냅샷 저장, B1)
+ *  - `POST /api/admin/businesses/{id}/nts-check` → `BusinessDetail`(국세청 다시 조회 — 개업일이 있으면 진위확인, 없으면 상태조회만 + `UNCHECKED`, 결과 스냅샷 저장)
  *  - `POST /api/admin/businesses/{id}/approve` `{ ntsOverrideReason? }` → 계속사업자 + 진위 일치만. 휴·폐업·없는 번호 409 `BUSINESS_NTS_NOT_ACTIVE`, 진위 불일치 409 `BUSINESS_NTS_MISMATCH`,
  *    조회 전 409 `BUSINESS_NTS_NOT_CHECKED`, 조회 불가·진위 미확인 + 사유 없음 400 `fields.ntsOverrideReason`
  *  - `POST /api/admin/businesses/{id}/reject` `{ code, text }`
@@ -33,40 +31,25 @@ const PATH = {
     action: (id: string, name: string) => `${PATH.one(id)}/${name}`,
 };
 
-/**
- * ⚠ 목업 — 서버가 진위확인(`nts.validity`·`openedOn`)을 내려 주기 전까지 화면을 그려 볼 수 있게 채운다. 서버 가짜 구현과 같은 자리(등록번호 끝에서 둘째 자리 —
- * 가린 번호 `***-**-*6789` 에도 보인다): `5`·`6` 불일치 · `4` 미확인(개업일 없는 옛 신청 흉내) · `9` 조회 불가 · 그 밖 일치. 서버 구현이 들어오면 지운다.
- */
-function mockValidity<T extends BusinessRow>(row: T): T {
-    if (row.nts.validity) return row;
-    const mark = row.maskedRegNo.replace(/-/g, '')[8] ?? '';
-    const validity: NtsValidity = mark === '5' || mark === '6' ? 'MISMATCH' : mark === '4' ? 'UNCHECKED' : mark === '9' || row.nts.status === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'MATCH';
-    const out = { ...row, nts: { ...row.nts, validity } };
-    if ('masked' in out && (out as unknown as BusinessDetail).openedOn === undefined) (out as unknown as BusinessDetail).openedOn = validity === 'UNCHECKED' ? null : '2021-03-02';
-    return out;
-}
-
-const mockDetail = (p: Promise<BusinessDetail>): Promise<BusinessDetail> => p.then(mockValidity);
-
 export function useBusinessApi() {
     const auth = useAdminAuthApi();
     const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
-        list: (query: BusinessQuery): Promise<BusinessPage> => client.get<BusinessPage>(PATH.root, { query: { ...query } }).then((p) => ({ ...p, items: p.items.map(mockValidity) })),
+        list: (query: BusinessQuery): Promise<BusinessPage> => client.get<BusinessPage>(PATH.root, { query: { ...query } }),
 
-        detail: (id: string): Promise<BusinessDetail> => mockDetail(client.get<BusinessDetail>(PATH.one(id))),
+        detail: (id: string): Promise<BusinessDetail> => client.get<BusinessDetail>(PATH.one(id)),
 
-        recheckNts: (id: string): Promise<BusinessDetail> => mockDetail(client.post<BusinessDetail>(PATH.action(id, 'nts-check'))),
+        recheckNts: (id: string): Promise<BusinessDetail> => client.post<BusinessDetail>(PATH.action(id, 'nts-check')),
 
-        approve: (id: string, body: BusinessApproveRequest): Promise<BusinessDetail> => mockDetail(client.post<BusinessDetail>(PATH.action(id, 'approve'), body)),
+        approve: (id: string, body: BusinessApproveRequest): Promise<BusinessDetail> => client.post<BusinessDetail>(PATH.action(id, 'approve'), body),
 
-        reject: (id: string, body: BusinessRejectRequest): Promise<BusinessDetail> => mockDetail(client.post<BusinessDetail>(PATH.action(id, 'reject'), body)),
+        reject: (id: string, body: BusinessRejectRequest): Promise<BusinessDetail> => client.post<BusinessDetail>(PATH.action(id, 'reject'), body),
 
-        suspend: (id: string, body: BusinessSuspendRequest): Promise<BusinessDetail> => mockDetail(client.post<BusinessDetail>(PATH.action(id, 'suspend'), body)),
+        suspend: (id: string, body: BusinessSuspendRequest): Promise<BusinessDetail> => client.post<BusinessDetail>(PATH.action(id, 'suspend'), body),
 
         /** 정지 해제(`business.unsuspend`) — 화면 단추는 아직 없다(계약 「미확정」) */
-        unsuspend: (id: string, body: BusinessUnsuspendRequest): Promise<BusinessDetail> => mockDetail(client.post<BusinessDetail>(PATH.action(id, 'unsuspend'), body)),
+        unsuspend: (id: string, body: BusinessUnsuspendRequest): Promise<BusinessDetail> => client.post<BusinessDetail>(PATH.action(id, 'unsuspend'), body),
 
         reveal: (id: string, reason: string): Promise<BusinessReveal> => client.post<BusinessReveal>(PATH.action(id, 'reveal'), { reason }),
 

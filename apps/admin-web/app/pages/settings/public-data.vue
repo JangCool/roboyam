@@ -6,7 +6,7 @@
         - 서버에 암호화 키가 없으면 맨 위 경고 — 저장할 수 없다(지우기는 된다).
         - 권한: 화면 `site.read`(메뉴가 거른다) · 저장·지우기 `site.secret` — 없으면 읽기 전용 안내와 상태만. 연결 시험은 `site.read`.
         - 저장하지 않은 입력이 있는데 다른 화면으로 가면 묻는다. 지우기는 확인을 묻는다.
-        서버 API: `usePublicDataSettingsApi`(⚠ 지금은 목업).
+        서버 API: `usePublicDataSettingsApi`(서버 `PublicDataSettingsController`).
     -->
     <div class="flex flex-col gap-4">
         <PageTitle :title="t('publicData.title')" :subtitle="t('publicData.subtitle')" />

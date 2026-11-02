@@ -18,7 +18,6 @@ import type {
     DealProduct,
 } from '~/composables/business/api/useBusinessApi.types';
 import type { PaymentCompleteRequest, PaymentFakeCheckoutRequest, PaymentResult } from '~/composables/payment/api/usePaymentApi.types';
-import { ApiError } from '~/composables/common/useApiClient';
 
 /**
  * 사업자 센터 API — 서버 주소 문자열(`/api/business/…`)이 있는 **유일한 곳**이다. 상태는 없다. 로그인 필요(401).
@@ -47,18 +46,6 @@ const PATH = {
     application: (id: string) => `/api/business/applications/${encodeURIComponent(id)}`,
 };
 
-/**
- * ⚠ 목업 — 서버가 진위확인을 붙이기 전까지 화면이 불일치 안내를 그려 볼 수 있게, 서버 가짜 구현과 같은 규칙으로 막는다:
- * 등록번호 끝에서 둘째 자리 `5`(상호·대표자명·개업일 불일치)·`6`(국세청에 없는 번호 — 진위확인도 불일치) → 400 `BUSINESS_NTS_MISMATCH`.
- * 수정에서 번호를 비워 두면(그대로) 검사하지 않는다. 서버 구현이 들어오면 지운다.
- */
-function mockNtsValidate(body: BusinessApplyRequest): void {
-    const mark = body.bizNo?.length === 10 ? body.bizNo[8] : '';
-    if (mark === '5' || mark === '6') {
-        throw new ApiError({ status: 400, code: 'BUSINESS_NTS_MISMATCH', message: 'mock: NTS validate mismatch', fields: { companyName: 'mismatch', ownerName: 'mismatch', openedOn: 'mismatch' } });
-    }
-}
-
 export function useBusinessApi() {
     const client = useApiClient();
     const paymentApi = usePaymentApi();
@@ -69,10 +56,10 @@ export function useBusinessApi() {
         profile: (): Promise<BusinessProfile> => client.get<BusinessProfile>(PATH.me),
 
         /** 사업자 신청(새로·반려 뒤 다시) — 심사 대기가 된다. 번호·상호·대표자명·개업일이 국세청 정보와 다르면 400 `BUSINESS_NTS_MISMATCH` */
-        apply: (body: BusinessApplyRequest): Promise<BusinessProfile> => (mockNtsValidate(body), client.post<BusinessProfile>(PATH.me, body)),
+        apply: (body: BusinessApplyRequest): Promise<BusinessProfile> => client.post<BusinessProfile>(PATH.me, body),
 
-        /** 사업자 정보 수정 — 상호·번호를 바꾸면 다시 심사(F7). 진위확인은 신청과 같다 */
-        update: (body: BusinessApplyRequest): Promise<BusinessProfile> => (mockNtsValidate(body), client.put<BusinessProfile>(PATH.me, body)),
+        /** 사업자 정보 수정 — 상호·번호를 바꾸면 다시 심사(F7). 번호·상호·대표자명·개업일 중 하나라도 바뀌면 진위확인을 다시 한다 */
+        update: (body: BusinessApplyRequest): Promise<BusinessProfile> => client.put<BusinessProfile>(PATH.me, body),
 
         /** 사업자등록증 사본 올리기(PDF·JPG·PNG 10MB) — 신청·수정이 `certificateFileId` 로 붙인다 */
         uploadCertificate: (file: File): Promise<BusinessFile> => client.upload<BusinessFile>(PATH.files, ((f) => (f.append('file', file), f))(new FormData())),
