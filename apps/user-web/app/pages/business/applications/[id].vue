@@ -13,6 +13,9 @@
           정지한 채 끝 날짜가 지났으면 다른 제목·문구(단추 없음) / 중단(`ADVERTISER_STOP`) = 「중단했어요」 + 환불 칸(`STOP_PRORATED` · 내역 「일할 − 중도 해지 수수료(n%) = 예상액」 · 기준 시각 — 서버 환불 줄 값 그대로) + [새로 신청], 승인 뒤 `CANCELED` 는 「광고주 요청으로 중단」.
           409 `BIZ_PAUSE_LIMIT` 는 알리고 다시 읽는다. 사업자 핫딜 글은 정지·중단하면 글이 숨겨지고(「게시된 글」 칸 문구) 노출 자리도 멈춘다.
         `?pay=1` 로 오면(홈의 [결제하기]) 결제창을 바로 연다. 포트원 모바일 리디렉션은 쿼리 없이 이 화면으로 돌아오고 `resumeRedirect` 가 이어 간다.
+        성과 칸(`#performance` — 광고 성과 2026-11-02 — `ad-performance-contract.md`, `BusinessAdStats`): 노출 자리가 있는 건(광고 둘 · 핫딜 노출 · 노출 자리 있는 사업자 핫딜 글)이고 결제(입금)까지 마쳤으면
+          시작 뒤(진행·정지·내림·끝남·시작 뒤 취소) 합계 3칸·날짜별 차트·멈춘 구간·자리별·버전별, 예약(시작 전)이면 「시작하면 여기에 하루 단위로 쌓여요」 한 줄, 그 밖은 칸 없음(`UtilAdStats.section`).
+          기간 = 시작 날짜 ~ min(끝 날짜, 오늘 — 한국 날짜) 고정(기간 최대 30일이라 고르개 없음). 서버 `useBusinessApi.stats`(`ad_daily_stats` 합 — 정지·내림 구간은 서버가 처리 기록에서 계산).
     -->
     <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="business-application">
         <div class="flex items-center gap-2">
@@ -310,6 +313,22 @@
                 </div>
             </section>
 
+            <!-- 성과(광고 성과 — 노출 자리가 있고 결제 뒤. 시작 전이면 한 줄, 사업자 센터 「진행 중 광고」 줄이 `#performance` 로 건너온다) -->
+            <section
+                v-if="statsSection !== 'NONE'"
+                :id="UtilAdStats.ANCHOR"
+                class="panel-card flex scroll-mt-24 flex-col gap-3 p-4"
+                :aria-labelledby="`${uid}-stats`"
+                data-testid="business-performance"
+                :data-section="statsSection"
+            >
+                <h2 :id="`${uid}-stats`" class="m-0 text-sm font-semibold">{{ t('business.stats.title') }}</h2>
+                <p v-if="statsSection === 'UPCOMING'" class="m-0 flex items-start gap-1.5 text-sm text-muted-color">
+                    <i class="pi pi-chart-bar mt-1 text-xs" aria-hidden="true" />{{ t('business.stats.upcoming') }}
+                </p>
+                <BusinessAdStats v-else :stats="stats" :status="statsStatus" :error="statsError" :today="today" @retry="loadStats" />
+            </section>
+
             <!-- 신청 내용 -->
             <section class="panel-card flex flex-col gap-3 p-4" :aria-labelledby="`${uid}-info`">
                 <h2 :id="`${uid}-info`" class="m-0 text-sm font-semibold">{{ t('business.detail.info') }}</h2>
@@ -433,9 +452,10 @@
 </template>
 
 <script setup lang="ts">
-import type { BizApplicationDetail, BizCreativeRequest, BizPaymentStart, BusinessFile } from '~/composables/business/api/useBusinessApi.types';
+import type { AdApplicationStats, BizApplicationDetail, BizCreativeRequest, BizPaymentStart, BusinessFile } from '~/composables/business/api/useBusinessApi.types';
 import type { PaymentResult } from '~/composables/payment/api/usePaymentApi.types';
 import { ApiError } from '~/composables/common/useApiClient';
+import UtilAdStats from '~/utils/util-ad-stats';
 import UtilBusiness from '~/utils/util-business';
 import UtilBusinessMessages from '~/utils/util-business-messages';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
@@ -483,6 +503,11 @@ onMounted(async () => {
     // 포트원 모바일 리디렉션에서 돌아왔으면 이어 간다(같은 결제 번호일 때만) — 결과는 `onPaid` 가 상세를 다시 읽는다
     await pay.resumeRedirect();
     await load();
+    // 사업자 센터 「진행 중 광고」 줄에서 왔으면 성과 칸으로(상세를 받은 뒤라 라우터의 해시 스크롤이 닿지 못한다)
+    if (route.hash === `#${UtilAdStats.ANCHOR}`) {
+        await nextTick();
+        document.getElementById(UtilAdStats.ANCHOR)?.scrollIntoView({ block: 'start' });
+    }
     // 홈의 [결제하기]로 왔으면 결제창을 바로 연다(쿼리는 지운다 — 새로고침에 다시 열리지 않게)
     if (route.query.pay) {
         void router.replace({ query: { ...route.query, pay: undefined } });
@@ -835,4 +860,42 @@ async function doStop(reason: string): Promise<void> {
         actionBusy.value = false;
     }
 }
+
+/* ── 성과(광고 성과 — 노출·클릭) ── */
+/** 오늘(한국 날짜) — 집계 하루는 표시 시간대와 무관 */
+const today = computed(() => UtilAdStats.today(now.value));
+const statsSection = computed(() => (app.value ? UtilAdStats.section(app.value, paid.value, today.value) : 'NONE'));
+/** 성과를 셀 기간 — 시작 날짜 ~ min(끝 날짜, 오늘) */
+const statsRange = computed(() => (app.value && statsSection.value === 'SHOW' ? UtilAdStats.range(app.value.startDate, app.value.endDate, today.value) : null));
+const stats = ref<AdApplicationStats | null>(null);
+const statsStatus = ref<'loading' | 'ready' | 'error'>('loading');
+const statsError = ref('');
+let statsSeq = 0;
+
+async function loadStats(): Promise<void> {
+    const range = statsRange.value;
+    if (!app.value || !range) return;
+    const seq = ++statsSeq;
+    statsStatus.value = 'loading';
+    statsError.value = '';
+    try {
+        const result = await api.stats(app.value.id, { from: range.from, to: range.to });
+        if (seq !== statsSeq) return;
+        stats.value = result;
+        statsStatus.value = 'ready';
+    } catch (e) {
+        if (seq !== statsSeq) return;
+        stats.value = null;
+        statsError.value = e instanceof Error ? e.message : '';
+        statsStatus.value = 'error';
+    }
+}
+
+// 건·기간이 정해지거나 바뀔 때만 다시 받는다(정지·재개처럼 상세만 바뀌면 그대로 — 자정을 넘기면 기간 끝이 하루 늘어 다시 받는다)
+watch(
+    () => (statsRange.value && app.value ? `${app.value.id}|${statsRange.value.from}|${statsRange.value.to}` : ''),
+    (key) => {
+        if (key) void loadStats();
+    },
+);
 </script>

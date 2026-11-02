@@ -1,0 +1,19 @@
+{
+    "name": "@roboyam/chart",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "description": "user-web · admin-web 이 같이 쓰는 차트 Nuxt 레이어 — Apache ECharts(echarts/core 에서 필요한 것만 등록) 로 그리는 날짜별 추이(막대 = 노출 왼쪽 축 · 선 = 클릭 오른쪽 축) 컴포넌트",
+    "main": "./nuxt.config.ts",
+    "peerDependencies": {
+        "nuxt": "^4.6.2",
+        "vue": "^3.5.0"
+    },
+    "devDependencies": {
+        "nuxt": "4.6.2",
+        "vue": "3.5.44"
+    },
+    "dependencies": {
+        "echarts": "6.1.0"
+    }
+}

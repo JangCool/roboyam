@@ -9,6 +9,7 @@
         · 광고주 요청 「정지 중」·「중단」(`takedownCause` — biz-pause-contract): 달력 점·표 상태를 긴급 내림과 가르고, 대신 처리는 심사 화면에서(서랍의 「광고 심사에서 열기」).
         권한: 화면 `ad.read` · 등록 `ad.manage` · 긴급 내림 `ad.takedown` · 되돌리기 `ad.restore`(서버 `Permission`).
         서버 호출은 `useAdApi`(V115). 달력은 `calendar` 한 번(그 달에 걸친 장부 건 `bookings` 포함). 사업자 신청 심사에서 승인한 광고 건도 이 장부에 나타난다.
+        서랍 「성과」 탭(`api.stats` — `/api/admin/ads/{id}/stats`): 탭을 처음 열 때 그 건에 한 번 받는다. 광고 성과 화면(`/ads/performance`)의 건별 표가 `?type=&id=` 로 이 서랍을 연다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('ad.title')" :subtitle="t('ad.subtitle')">
@@ -124,6 +125,11 @@
             :can-takedown="can('ad.takedown')"
             :can-restore="can('ad.restore')"
             @retry="loadDetail"
+            :stats="drawerStats"
+            :stats-loading="statsLoading"
+            :stats-error="statsError"
+            @stats="loadStats(false)"
+            @stats-retry="loadStats(true)"
             @takedown="openDialog('takedown')"
             @restore="openDialog('restore')"
         />
@@ -185,7 +191,7 @@
 
 <script setup lang="ts">
 import type { DataTableRowClickEvent } from 'primevue/datatable';
-import type { AdBookingDetail, AdBookingRow, AdBookingStatus, AdCalendar, AdManualCreateRequest, AdRestoreCompensation, AdType } from '~/composables/ad/api/useAdApi.types';
+import type { AdApplicationStats, AdBookingDetail, AdBookingRow, AdBookingStatus, AdCalendar, AdManualCreateRequest, AdRestoreCompensation, AdType } from '~/composables/ad/api/useAdApi.types';
 import { AD_BOOKING_STATUSES } from '~/composables/ad/api/useAdApi.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import UtilAd from '~/utils/util-ad';
@@ -341,8 +347,43 @@ async function loadDetail(): Promise<void> {
     }
 }
 
+// ── 서랍 「성과」 탭 — 탭을 처음 열 때 그 건에 한 번 ──
+const drawerStats = ref<AdApplicationStats | null>(null);
+const statsLoading = ref(false);
+const statsError = ref<ApiError | null>(null);
+/** 성과를 받았거나 받는 중인 건 */
+let statsFor: string | null = null;
+let sseq = 0;
+async function loadStats(force: boolean): Promise<void> {
+    const id = drawerId.value;
+    if (!id || (!force && statsFor === id && !statsError.value)) return;
+    const mine = ++sseq;
+    statsFor = id;
+    statsLoading.value = true;
+    statsError.value = null;
+    drawerStats.value = null;
+    try {
+        const found = await api.stats(id);
+        if (mine === sseq) drawerStats.value = found;
+    } catch (e) {
+        if (mine === sseq) statsError.value = toApiError(e);
+    } finally {
+        if (mine === sseq) statsLoading.value = false;
+    }
+}
+function resetStats(): void {
+    sseq++;
+    statsFor = null;
+    drawerStats.value = null;
+    statsError.value = null;
+    statsLoading.value = false;
+}
+
 function show(id: string, row: AdBookingRow | null): void {
-    if (drawerId.value !== id) drawerDetail.value = null;
+    if (drawerId.value !== id) {
+        drawerDetail.value = null;
+        resetStats();
+    }
     drawerId.value = id;
     drawerSummary.value = row;
     drawerOpen.value = true;
@@ -401,6 +442,8 @@ async function act(work: Work, call: () => Promise<AdBookingDetail>, done: strin
         toast.success(done);
         dialogs[dialog] = false;
         refreshAll();
+        // 내림·되돌리기는 성과 띠를 바꾼다 — 받은 적이 있으면 다시
+        if (statsFor) void loadStats(true);
     } catch (e) {
         const failure = toApiError(e);
         if (failure.status === 409) void loadDetail();

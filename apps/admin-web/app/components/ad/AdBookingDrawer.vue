@@ -1,7 +1,8 @@
 <template>
     <!--
         광고 건 상세 서랍 — 일정표 목록에서 줄을 누르면 연다(`?id=`). 02-ad.md 7-1.
-        탭: 기본 · 소재(버전 목록 — 심사 승인 때 고정, 교체는 새 버전, 옛 버전 보존 — A2) · 일정 · 결제(온라인 결제 정보 또는 계약서 사본·입금 기록) · 처리 기록.
+        탭: 기본 · 소재(버전 목록 — 심사 승인 때 고정, 교체는 새 버전, 옛 버전 보존 — A2) · 일정 · 성과 · 결제(온라인 결제 정보 또는 계약서 사본·입금 기록) · 처리 기록.
+        성과(`AdBookingStats`): 건 기간 전체의 합계·날짜별 차트(정지·내림 띠)·자리별·소재 버전별. 탭을 처음 열 때 `stats` 를 내고(부모가 그 건에 한 번만 받는다), 시작 전이면 안내 한 줄만.
         맨 아래: [긴급 내림](진행·예약, `ad.takedown`) · [되돌리기](긴급 내린 건, `ad.restore`). 머리에 「광고 심사에서 열기」(건의 도메인 심사 화면 `?id=`).
         처리 기록 코드는 신청 건 것(`UtilBizApplicationMessages` 로 번역). 서버는 부르지 않는다 — 동작은 emit.
         광고주 요청 정지·중단(biz-pause-contract): 내림 줄에 까닭 「광고주 요청(일시 정지)」·「광고주 요청(중단)」 + 누가(요청 경로·메모) · 정지 횟수 · 누적 멈춘 시간 · 끝 안내.
@@ -50,6 +51,7 @@
                     <Tab value="basic">{{ t('ad.tabBasic') }}</Tab>
                     <Tab value="creative">{{ t('ad.tabCreative') }} <span class="text-[11px] text-muted-color">{{ detail.creatives.length }}</span></Tab>
                     <Tab value="schedule">{{ t('ad.tabSchedule') }}</Tab>
+                    <Tab value="stats">{{ t('ad.tabStats') }}</Tab>
                     <Tab value="payment">{{ t('ad.tabPayment') }}</Tab>
                     <Tab value="history">{{ t('ad.tabHistory') }}</Tab>
                 </TabList>
@@ -104,6 +106,10 @@
                             <dt class="text-muted-color">{{ t('ad.length') }}</dt>
                             <dd class="m-0">{{ t('bizApplication.daysN', { n: UtilBizApplication.days(detail.period) }) }}</dd>
                         </dl>
+                    </TabPanel>
+                    <TabPanel value="stats">
+                        <AdBookingStats v-if="started" :stats="stats" :loading="statsLoading" :error="statsError" @retry="emit('stats-retry')" />
+                        <p v-else class="m-0 text-[13px] text-muted-color">{{ t('ad.statNotStarted') }}</p>
                     </TabPanel>
                     <TabPanel value="payment">
                         <div class="flex flex-col gap-3">
@@ -166,9 +172,10 @@
 </template>
 
 <script setup lang="ts">
-import type { AdBookingDetail, AdBookingRow } from '~/composables/ad/api/useAdApi.types';
+import type { AdApplicationStats, AdBookingDetail, AdBookingRow } from '~/composables/ad/api/useAdApi.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import UtilAd from '~/utils/util-ad';
+import UtilAdStats from '~/utils/util-ad-stats';
 import UtilBizApplication from '~/utils/util-biz-application';
 import UtilBizApplicationMessages from '~/utils/util-biz-application-messages';
 
@@ -182,10 +189,14 @@ interface Props {
     busy?: boolean;
     canTakedown?: boolean;
     canRestore?: boolean;
+    /** 「성과」 탭 — 부모가 `stats` 를 받아 넘긴다 */
+    stats?: AdApplicationStats | null;
+    statsLoading?: boolean;
+    statsError?: ApiError | null;
 }
 
-const props = withDefaults(defineProps<Props>(), { summary: null, detail: null, loading: false, error: null, busy: false, canTakedown: false, canRestore: false });
-const emit = defineEmits<{ retry: []; takedown: []; restore: [] }>();
+const props = withDefaults(defineProps<Props>(), { summary: null, detail: null, loading: false, error: null, busy: false, canTakedown: false, canRestore: false, stats: null, statsLoading: false, statsError: null });
+const emit = defineEmits<{ retry: []; takedown: []; restore: []; stats: []; 'stats-retry': [] }>();
 
 const { t, locale } = useI18n();
 const time = useDisplayTime();
@@ -205,9 +216,15 @@ const creativesDesc = computed(() => [...(props.detail?.creatives ?? [])].sort((
 const historyDesc = computed(() => [...(props.detail?.history ?? [])].sort((a, b) => b.at.localeCompare(a.at)));
 const canTakedownNow = computed(() => props.canTakedown && Boolean(props.detail) && UtilAd.canTakedown(props.detail!.status));
 const canRestoreNow = computed(() => props.canRestore && Boolean(props.detail) && UtilAd.canRestore(props.detail!.status, props.detail!.takedown));
+/** 성과가 있을 수 있나 — 결제 전·심사 대기가 아니고 시작했다 */
+const started = computed(() => Boolean(props.detail && UtilAdStats.started(props.detail)));
 
 watch(
     () => props.summary?.id ?? props.detail?.id,
     () => (tab.value = 'basic'),
 );
+// 「성과」 탭을 열 때 부모에 알린다 — 그 건에 이미 받았으면 부모가 다시 부르지 않는다
+watch(tab, (value) => {
+    if (value === 'stats' && started.value) emit('stats');
+});
 </script>

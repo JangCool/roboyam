@@ -281,7 +281,8 @@ public class MyBizApplicationService {
 
     // ── 안 ──────────────────────────────────────────────────────────────────
 
-    private BizMemberView.Summary summary(AppRow a, List<ItemRow> items, CreativeRow creative, RefundRow refund, Instant now) {
+    /** 목록·상세·성과 요약({@link MyBizAdStatsService})이 같이 쓰는 한 줄 */
+    static BizMemberView.Summary summary(AppRow a, List<ItemRow> items, CreativeRow creative, RefundRow refund, Instant now) {
         BizProduct capacity = BizApplicationReader.capacityProduct(items);
         String adType = a.kind().ad() && capacity != null ? capacity.publicName() : null;
         String placement = null;

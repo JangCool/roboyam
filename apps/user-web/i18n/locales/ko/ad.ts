@@ -12,4 +12,16 @@ export default {
     price: '{amount}원',
     wingLeftLabel: '왼쪽 광고',
     wingRightLabel: '오른쪽 광고',
+    // 성과 집계 자리(shared V118 `ad_daily_stats.placement` — 사업자 성과 화면)
+    statPlacement: {
+        HOME: '홈',
+        PAGE: '가젯 페이지',
+        BOARD: '게시판 화면',
+        POST_INLINE: '글 보기 중간',
+        BOARD_LIST: '게시판 목록 한 줄',
+        WING_LEFT: '왼쪽 날개',
+        WING_RIGHT: '오른쪽 날개',
+        HOTDEAL_TOP: '핫딜 게시판 상단',
+        HOTDEAL_CATEGORY: '핫딜 말머리 상단',
+    },
 };

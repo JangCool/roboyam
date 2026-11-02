@@ -1,5 +1,6 @@
 import type {
     AdAdvertiser,
+    AdApplicationStats,
     AdAdvertiserCreateRequest,
     AdAdvertiserRevealed,
     AdAvailability,
@@ -13,6 +14,11 @@ import type {
     AdPlacementsRequest,
     AdPlacementsView,
     AdRestoreRequest,
+    AdStatRange,
+    AdStatsBookingPage,
+    AdStatsBookingQuery,
+    AdStatsOverview,
+    AdStatsQuery,
     AdTakedownRequest,
     AdType,
 } from '~/composables/ad/api/useAdApi.types';
@@ -39,6 +45,10 @@ import type { BizContractFile, BizPeriod } from '~/composables/bizapplication/ap
  *  상태가 이미 바뀌었으면 409 `BIZ_APPLICATION_STATE_CHANGED`.
  *  광고주 요청 일시 정지·중단(서버 연결 2026-11-02 — `biz-pause-contract.md`): 줄(달력·표) `takedownCause`, 상세 `takedownCause`·`pause`·`takedown.channel`·`takedown.memo`·`takedown.pause`(신청 건 상세와 같은 모양).
  *    정지·재개·중단 처리는 신청 건 API(`/api/admin/biz-applications/{id}/pause|resume|stop`)만 — 이 화면은 「광고 심사에서 열기」로 보낸다. [되돌리기]는 긴급 내림만.
+ *  광고 성과(서버 연결 2026-11-02 — `ad-performance-contract.md`, DTO 정본 shared `ad/dto/AdStatsView`·admin `ad/dto/AdStatsAdminView`, 집계 원천 shared V118 `ad_daily_stats`):
+ *  - `GET  /api/admin/ads/{id}/stats?from&to`(`ad.read`) → `AdApplicationStats`(범위를 빼면 시작 날짜 ~ min(끝 날짜, 오늘))
+ *  - `GET  /api/admin/ads/stats?from&to&type&advertiserId`(`ad.read`) → `AdStatsOverview`
+ *  - `GET  /api/admin/ads/stats/bookings?from&to&type&advertiserId&sort=impressions|clicks|ctr&dir=asc|desc&page&size(≤100)`(`ad.read`) → `AdStatsBookingPage`
  */
 const PATH = {
     root: '/api/admin/ads',
@@ -52,6 +62,9 @@ const PATH = {
     manual: () => `${PATH.root}/manual`,
     placements: () => `${PATH.root}/placements`,
     placementHistory: () => `${PATH.root}/placements/history`,
+    stats: (id: string) => `${PATH.one(id)}/stats`,
+    statsOverview: () => `${PATH.root}/stats`,
+    statsBookings: () => `${PATH.root}/stats/bookings`,
 };
 
 export function useAdApi() {
@@ -100,5 +113,17 @@ export function useAdApi() {
 
         /** 광고 자리 설정 변경 이력 한 쪽 — `page` 0 부터 */
         placementHistory: (page: number, size: number): Promise<AdPlacementHistoryPage> => client.get<AdPlacementHistoryPage>(PATH.placementHistory(), { query: { page, size } }),
+
+        /** 한 건의 성과 — 범위를 빼면 건 기간 전체(시작 날짜 ~ min(끝 날짜, 오늘)) */
+        stats: (id: string, range?: AdStatRange): Promise<AdApplicationStats> =>
+            client.get<AdApplicationStats>(PATH.stats(id), { query: { ...range } }),
+
+        /** 운영자 성과 — 합계·날짜별·유형별·자리별·광고주 상위 10 */
+        statsOverview: (query: AdStatsQuery): Promise<AdStatsOverview> =>
+            client.get<AdStatsOverview>(PATH.statsOverview(), { query: { ...query } }),
+
+        /** 건별 성과 한 쪽 — 정렬·쪽 나눔은 서버 */
+        statsBookings: (query: AdStatsBookingQuery): Promise<AdStatsBookingPage> =>
+            client.get<AdStatsBookingPage>(PATH.statsBookings(), { query: { ...query } }),
     };
 }
