@@ -3,7 +3,7 @@
  * Same keys and order as `ko/ad.ts`.
  */
 export default {
-    title: 'Ad schedule',
+    title: 'Ad schedule & booking',
     subtitle: 'See when slots are free per ad type, review bookings, register manually or take ads down.',
     typeTabs: 'Ad types',
     actManual: 'Register manually',
@@ -268,7 +268,7 @@ export default {
     perfEmptyHint: 'Try a longer period or clear the filters.',
     perfBookingsEmpty: 'No bookings could have been shown in this period.',
     perfTopHint: 'Top 10 by impressions · select a name to see only that advertiser',
-    perfBookingsHint: 'Select a row to open that booking in the ad schedule.',
+    perfBookingsHint: 'Select a row to open that booking in Ad schedule & booking.',
     statAsOf: 'As of {at} · today is still counting',
     exposureStop: { DEAL_ENDED: 'Paused — deal ended', POST_HIDDEN: 'Paused — post hidden', PREFIX_MISSING: 'Paused — no category', NOT_POSTED: 'Not shown — not posted' },
     exposureStopNote: { DEAL_ENDED: 'The deal has ended, so it isn’t shown even though the period isn’t over.', POST_HIDDEN: 'The post is hidden, so it isn’t shown right now.', PREFIX_MISSING: 'The post has no category, so it isn’t shown at the category top.', NOT_POSTED: 'The post hasn’t been published yet, so it isn’t shown.' },

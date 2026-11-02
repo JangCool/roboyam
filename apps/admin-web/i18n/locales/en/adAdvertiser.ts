@@ -67,7 +67,7 @@ export default {
     countTotal: 'All bookings',
     noMemo: 'No memo.',
     noBookings: 'No bookings yet.',
-    bookingsCut: 'Showing the latest {n} of {total}. Find the rest in the ad schedule.',
+    bookingsCut: 'Showing the latest {n} of {total}. Find the rest in Ad schedule & booking.',
     bookingsHotdealOnly: '{n} hot deal posts without a placement count toward bookings and payments but are not listed here (see hot deal review).',
     refundedShort:'Refunded {amount}',
     statsRange: '{from} – {to} · last {n} days',

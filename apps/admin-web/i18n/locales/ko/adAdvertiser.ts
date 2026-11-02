@@ -67,7 +67,7 @@ export default {
     countTotal: '전체 건',
     noMemo: '메모가 없어요.',
     noBookings: '아직 광고 건이 없어요.',
-    bookingsCut: '최근 {n}건만 보여요(전체 {total}건). 나머지는 광고 일정표에서 찾아 주세요.',
+    bookingsCut: '최근 {n}건만 보여요(전체 {total}건). 나머지는 「광고 일정·등록」에서 찾아 주세요.',
     bookingsHotdealOnly: '노출 자리 없는 핫딜 글 {n}건은 건 수·결제에만 들고 여기에는 없어요(핫딜 심사에서 볼 수 있어요).',
     refundedShort:'환불 {amount}',
     statsRange: '{from} ~ {to} · 최근 {n}일',

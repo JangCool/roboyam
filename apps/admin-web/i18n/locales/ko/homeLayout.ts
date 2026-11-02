@@ -94,7 +94,7 @@ export default {
     settingsLead_AD_TEXT_LINE: '한 줄 광고를 몇 줄 보일지 정해요. 진행 중인 한 줄 광고 중 겹치지 않게 비중대로 골라요.',
     settingsCount_AD_TEXT_LINE: '보일 줄 수',
     adType: '배너 유형',
-    adTypeHint: '유형마다 규격(비율)이 정해져 있어요. 광고 일정표의 같은 유형 광고가 이 자리에 나와요.',
+    adTypeHint: '유형마다 규격(비율)이 정해져 있어요. 「광고 일정·등록」의 같은 유형 광고가 이 자리에 나와요.',
     adTypeSize_WIDE_BANNER: '1200×300',
     adTypeSize_STRIP_BANNER: '1200×100',
     adTypeSize_SQUARE_BANNER: '300×250',

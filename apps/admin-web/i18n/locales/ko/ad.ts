@@ -3,7 +3,7 @@
  * 광고 유형 이름·결제 방식·계약서·입금 확인 문구는 `bizApplication.*` 를 같이 쓴다. `en/ad.ts` 와 같은 키, 같은 차례.
  */
 export default {
-    title: '광고 일정표',
+    title: '광고 일정·등록',
     subtitle: '유형별로 언제 자리가 비었는지 보고, 광고 건을 확인·수동 등록·긴급 내림해요.',
     typeTabs: '광고 유형',
     actManual: '수동 등록',
@@ -268,7 +268,7 @@ export default {
     perfEmptyHint: '기간을 넓히거나 거르기를 풀어 보세요.',
     perfBookingsEmpty: '이 기간에 노출될 수 있었던 광고 건이 없어요.',
     perfTopHint: '노출 상위 10 · 이름을 누르면 그 광고주만 봐요',
-    perfBookingsHint: '줄을 누르면 광고 일정표에서 그 건을 열어요.',
+    perfBookingsHint: '줄을 누르면 「광고 일정·등록」에서 그 건을 열어요.',
     statAsOf: '{at} 기준 · 오늘은 집계 중',
     exposureStop: { DEAL_ENDED: '딜 종료로 노출 멈춤', POST_HIDDEN: '글 숨김으로 노출 멈춤', PREFIX_MISSING: '말머리 없어 노출 멈춤', NOT_POSTED: '게시 전이라 노출 전' },
     exposureStopNote: { DEAL_ENDED: '딜이 끝나서 기간이 남아도 지금은 노출되지 않아요.', POST_HIDDEN: '글이 숨겨져서 지금은 노출되지 않아요.', PREFIX_MISSING: '글에 말머리가 없어서 말머리 상단에는 노출되지 않아요.', NOT_POSTED: '글이 아직 게시되지 않아서 노출 전이에요.' },

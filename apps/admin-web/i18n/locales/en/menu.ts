@@ -99,7 +99,7 @@ export default {
     // Ads section — ad review · schedule
     ad: 'Ads',
     adReviews: 'Ad review',
-    ads: 'Ad schedule',
+    ads: 'Ad schedule & booking',
     adPerformance: 'Ad performance',
     adAdvertisers: 'Advertisers',
     adPlacements: 'Ad settings',
