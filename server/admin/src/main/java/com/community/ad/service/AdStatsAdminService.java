@@ -86,6 +86,7 @@ public class AdStatsAdminService {
         BizFields f = BizFields.start();
         Query q = query(f, fromText, toText, typeText, advertiserText);
         f.throwIfAny();
+        q = canonical(q);
         Instant now = stats.now();
         List<SumRow> rows = store.sums(q.from(), q.to(), q.type(), q.advertiser());
 
@@ -145,6 +146,7 @@ public class AdStatsAdminService {
         int page = number(f, "page", pageText, 0, 0, Integer.MAX_VALUE);
         int size = number(f, "size", sizeText, 20, 1, AdAdminService.MAX_PAGE_SIZE);
         f.throwIfAny();
+        q = canonical(q);
         Instant now = stats.now();
         List<BookingSum> sums = new ArrayList<>(store.bookings(q.from(), q.to(), BizPeriods.startOf(q.from()), BizPeriods.startOf(q.to().plusDays(1)), q.type(),
                 q.advertiser(), now));
@@ -214,7 +216,16 @@ public class AdStatsAdminService {
         return new Query(from, to, type, ref, advertiserId);
     }
 
-    /** 거른 광고주 — 없는 광고주는 null(404 아님) */
+    /** 광고주 별칭 풀기(ad-advertiser-contract 규칙 1·11) — 사업자에 붙은 광고주 줄의 {@code adv-} 는 그 사업자 {@code biz-} 로. 없는 광고주는 그대로(합계 0 · 거른 광고주 null) */
+    private Query canonical(Query q) {
+        if (q.advertiser() == null || q.advertiser().advertiserId() == null) {
+            return q;
+        }
+        Long profile = advertisers.find(q.advertiser().advertiserId()).map(AdvertiserRow::businessProfileId).orElse(null);
+        return profile == null ? q : new Query(q.from(), q.to(), q.type(), new AdAdvertiserService.Ref(null, profile), "biz-" + profile);
+    }
+
+    /** 거른 광고주 — 없는 광고주는 null(404 아님). 사업자는 {@code biz-} · 이름 = 상호 */
     private AdStatsAdminView.Advertiser filteredAdvertiser(Query q) {
         if (q.advertiser() == null) {
             return null;

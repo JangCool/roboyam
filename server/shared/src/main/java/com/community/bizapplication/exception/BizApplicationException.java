@@ -70,6 +70,25 @@ public class BizApplicationException extends CommonException {
         return new BizApplicationException(HttpStatus.NOT_FOUND, ADVERTISER_NOT_FOUND);
     }
 
+    public static final String ADVERTISER_HAS_BOOKINGS = "AD_ADVERTISER_HAS_BOOKINGS";
+    public static final String ADVERTISER_HAS_OPEN_BOOKINGS = "AD_ADVERTISER_HAS_OPEN_BOOKINGS";
+    public static final String ADVERTISER_BUSINESS = "AD_ADVERTISER_BUSINESS";
+
+    /** 신청 건이 하나라도 있는 광고주는 지울 수 없다(광고주 관리 — ad-advertiser-contract 규칙 6, 보관으로) */
+    public static BizApplicationException advertiserHasBookings() {
+        return new BizApplicationException(HttpStatus.CONFLICT, ADVERTISER_HAS_BOOKINGS);
+    }
+
+    /** 끝나지 않은 건(진행·예약·대기)이 있으면 보관할 수 없다 */
+    public static BizApplicationException advertiserHasOpenBookings() {
+        return new BizApplicationException(HttpStatus.CONFLICT, ADVERTISER_HAS_OPEN_BOOKINGS);
+    }
+
+    /** 사업자 광고주는 보관·삭제가 없다(사업자 정지·탈퇴를 따른다) */
+    public static BizApplicationException advertiserBusiness() {
+        return new BizApplicationException(HttpStatus.CONFLICT, ADVERTISER_BUSINESS);
+    }
+
     /** 계약서 사본이 없다(다른 신청 건의 것 포함) */
     public static BizApplicationException contractNotFound() {
         return new BizApplicationException(HttpStatus.NOT_FOUND, CONTRACT_NOT_FOUND);

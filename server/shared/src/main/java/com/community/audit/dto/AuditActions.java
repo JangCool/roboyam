@@ -433,6 +433,14 @@ public final class AuditActions {
     // ── 광고 일정표(ad-contract, V115) — 긴급 내림·되돌리기는 대상 BIZ_APPLICATION, 광고주는 대상 AD_ADVERTISER + 광고주 ID. detail 에 연락처 평문을 싣지 않는다 ──
     /** 계정 없는 광고주 만들기 — {@code name}·{@code businessId}(연결했으면). 일반 */
     public static final String AD_ADVERTISER_CREATE = "AD_ADVERTISER_CREATE";
+    /** 광고주 고치기(광고주 관리 — ad-advertiser-contract 규칙 7·10) — {@code fields}(바뀐 칸 이름만, 값 없음)·{@code businessId}(사업자 광고주면). 일반 */
+    public static final String AD_ADVERTISER_UPDATE = "AD_ADVERTISER_UPDATE";
+    /** 직접 등록 광고주 보관 — 운영자 등록의 광고주 찾기에서 빠진다. 일반 */
+    public static final String AD_ADVERTISER_ARCHIVE = "AD_ADVERTISER_ARCHIVE";
+    /** 직접 등록 광고주 보관 풀기. 일반 */
+    public static final String AD_ADVERTISER_UNARCHIVE = "AD_ADVERTISER_UNARCHIVE";
+    /** 직접 등록 광고주 삭제(신청 건 0 — 광고주 줄·열람 기록·처리 기록을 지운다) — {@code name}. 일반 */
+    public static final String AD_ADVERTISER_DELETE = "AD_ADVERTISER_DELETE";
     /** 광고주 연락처 평문 열람 — {@code reason}. 개인정보 열람 */
     public static final String AD_CONTACT_REVEAL = "AD_CONTACT_REVEAL";
     /** 긴급 내림 — {@code reason}·{@code notifyMail}·{@code phase}. 일반(돈은 되돌리기 보상이 움직인다) */

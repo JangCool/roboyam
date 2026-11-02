@@ -216,6 +216,10 @@ public class AdOperatorService {
     private Party party(AdAdvertiserService.Ref ref) {
         if (ref.advertiserId() != null) {
             AdvertiserRow a = advertisers.find(ref.advertiserId()).orElseThrow(() -> ValidationException.of("advertiserId", new MessageRef("ad.advertiser.notFound")));
+            if (a.archivedAt() != null) {
+                // 보관한 광고주로는 새로 등록하지 않는다(ad-advertiser-contract 규칙 6 — 찾기에서도 빠진다)
+                throw ValidationException.of("advertiserId", new MessageRef("ad.advertiser.archived"));
+            }
             return new Party(a.businessProfileId(), a.id(), a.name(), a.companyName(), a.bizNoLast4());
         }
         BusinessHit biz = advertisers.approvedBusiness(ref.businessProfileId())

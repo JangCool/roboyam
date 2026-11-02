@@ -3,7 +3,7 @@
         광고 건 상세 서랍 — 일정표 목록에서 줄을 누르면 연다(`?id=`). 02-ad.md 7-1.
         탭: 기본 · 소재(버전 목록 — 심사 승인 때 고정, 교체는 새 버전, 옛 버전 보존 — A2) · 일정 · 성과 · 결제(온라인 결제 정보 또는 계약서 사본·입금 기록) · 처리 기록.
         성과(`AdBookingStats`): 건 기간 전체의 합계·날짜별 차트(정지·내림 띠)·자리별·소재 버전별. 탭을 처음 열 때 `stats` 를 내고(부모가 그 건에 한 번만 받는다), 시작 전이면 안내 한 줄만.
-        맨 아래: [긴급 내림](진행·예약, `ad.takedown`) · [되돌리기](긴급 내린 건, `ad.restore`). 머리에 「광고 심사에서 열기」(건의 도메인 심사 화면 `?id=`).
+        맨 아래: [긴급 내림](진행·예약, `ad.takedown`) · [되돌리기](긴급 내린 건, `ad.restore`). 머리는 광고주 이름·상태만 — 본문 맨 위 요약 영역(`AdDrawerSummary`, 탭 위 고정)에 유형·기간·결제 방식·금액과 「광고 심사에서 열기」(건의 도메인 심사 화면 `?id=`)·「광고주 관리에서 열기」.
         처리 기록 코드는 신청 건 것(`UtilBizApplicationMessages` 로 번역). 서버는 부르지 않는다 — 동작은 emit.
         광고주 요청 정지·중단(biz-pause-contract): 내림 줄에 까닭 「광고주 요청(일시 정지)」·「광고주 요청(중단)」 + 누가(요청 경로·메모) · 정지 횟수 · 누적 멈춘 시간 · 끝 안내.
           [되돌리기]는 긴급 내림만 — 대신 정지·다시 켜기·중단은 「광고 심사에서 열기」로 가서 한다.
@@ -15,12 +15,7 @@
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
                     <h2 :id="titleId" class="m-0 min-w-0 truncate text-base font-semibold">{{ head.advertiser.name }}</h2>
                     <Tag :value="t(UtilAd.statusKey(head))" :severity="UtilAd.rowSeverity(head)" />
-                    <Tag :value="t(`bizApplication.method.${head.paymentMethod}`)" severity="secondary" />
                 </div>
-                <span class="truncate text-[12px] text-muted-color">{{ t(`bizApplication.adType.${head.type}`) }} · {{ UtilBizApplicationMessages.period(t, time, head.period) }}</span>
-                <NuxtLink :to="reviewTo" class="inline-flex w-fit items-center gap-1 text-[12px] font-medium text-(--p-primary-color) hover:underline">
-                    <i class="pi pi-external-link text-[11px]" aria-hidden="true" />{{ t(`ad.openInReview.${head.domain}`) }}
-                </NuxtLink>
             </div>
         </template>
 
@@ -30,6 +25,18 @@
         </div>
 
         <template v-else>
+            <!-- 요약 — 탭 위에 고정(어느 탭에서나 보인다) -->
+            <AdDrawerSummary :label="t('ad.summary')" :items="summaryItems">
+                <template #links>
+                    <NuxtLink :to="reviewTo" class="inline-flex items-center gap-1 font-medium text-(--p-primary-color) hover:underline">
+                        <i class="pi pi-external-link text-[11px]" aria-hidden="true" />{{ t(`ad.openInReview.${detail.domain}`) }}
+                    </NuxtLink>
+                    <NuxtLink v-if="detail.advertiser.id" :to="{ path: '/ad-advertisers', query: { id: detail.advertiser.id } }" class="inline-flex items-center gap-1 font-medium text-(--p-primary-color) hover:underline">
+                        <i class="pi pi-id-card text-[11px]" aria-hidden="true" />{{ t('ad.openAdvertiser') }}
+                    </NuxtLink>
+                </template>
+            </AdDrawerSummary>
+
             <Message v-if="detail.takedown" :severity="pauseState === 'PAUSED' ? 'warn' : advertiser ? 'secondary' : 'error'" :closable="false" class="mb-3">
                 <span class="flex flex-col gap-0.5 text-[13px]">
                     <span v-if="advertiser" class="[overflow-wrap:anywhere]">
@@ -172,6 +179,7 @@
 </template>
 
 <script setup lang="ts">
+import type { AdDrawerSummaryItem } from '~/components/ad/AdDrawerSummary.types';
 import type { AdApplicationStats, AdBookingDetail, AdBookingRow } from '~/composables/ad/api/useAdApi.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import UtilAd from '~/utils/util-ad';
@@ -206,6 +214,18 @@ const tab = ref('basic');
 const won = (n: number) => UtilBizApplicationMessages.won(t, n, locale.value);
 
 const head = computed(() => props.detail ?? props.summary);
+/** 요약 영역 — 유형 · 기간(일자 강조) · 결제 방식 · 금액(주 색) */
+const summaryItems = computed<AdDrawerSummaryItem[]>(() => {
+    const d = props.detail;
+    if (!d) return [];
+    const period = UtilBizApplicationMessages.period(t, time.value, d.period);
+    return [
+        { key: 'type', label: t('ad.type'), value: t(`bizApplication.adType.${d.type}`) },
+        { key: 'period', label: t('ad.col.period'), value: period, valueClass: UtilBizApplication.EMPH.date, title: period },
+        { key: 'method', label: t('ad.col.method'), value: t(`bizApplication.method.${d.paymentMethod}`) },
+        { key: 'amount', label: t('ad.amount'), value: won(d.amount.total), valueClass: UtilBizApplication.EMPH.money },
+    ];
+});
 /** 「광고 심사에서 열기」 — 건의 도메인 심사 화면 `?id=` */
 const reviewTo = computed(() => UtilAd.reviewLink(head.value!));
 /** 광고주 요청 정지·중단 — 긴급 내림과 문구·색을 가른다 */

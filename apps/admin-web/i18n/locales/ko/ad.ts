@@ -56,6 +56,8 @@ export default {
     registrantMe: '나',
     proposedSupply: '등록 때 제안한 공급가 {supply} — 승인 때 확정해요.',
     openInReview: { AD: '광고 심사에서 열기', HOTDEAL: '핫딜 심사에서 열기' },
+    summary: '광고 건 요약',
+    openAdvertiser: '광고주 관리에서 열기',
     versionN: '버전 {n}',
     versionCurrent: '지금 나가는 소재',
     versionOld: '이전 버전',

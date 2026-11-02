@@ -14,8 +14,8 @@ import org.springframework.stereotype.Repository;
 
 /**
  * 운영자 광고 성과 읽기(ad-performance-contract 규칙 9·10) — 합계·건별. 건의 유형 = 한도가 있는 상품 줄(핫딜 게시 {@code HOTDEAL_POST} 가 아닌 첫 줄 — 상품 이름 차례,
- * {@code BizApplicationReader.capacityProduct} 와 같다). 광고주 거르기는 일정표 광고주 ID 규칙 그대로: {@code adv-<id>} = 광고주 연결 건, {@code biz-<id>} = 광고주 연결이 없는
- * 그 사업자 신원의 건.
+ * {@code BizApplicationReader.capacityProduct} 와 같다). 광고주 거르기는 광고주 키(ad-advertiser-contract 규칙 1·11): {@code adv-<id>} = 그 직접 등록 광고주의 건,
+ * {@code biz-<id>} = 그 사업자 신원의 모든 건(붙은 광고주 줄의 건 포함). 사업자에 붙은 광고주 줄의 {@code adv-} 별칭은 서비스가 {@code biz-} 로 풀어서 넘긴다.
  */
 @Repository
 public class AdStatsAdminStore {
@@ -72,7 +72,9 @@ public class AdStatsAdminStore {
             sql.append(" AND a.advertiser_id = :adv");
             args.addValue("adv", advertiser.advertiserId());
         } else if (advertiser != null && advertiser.businessProfileId() != null) {
-            sql.append(" AND a.advertiser_id IS NULL AND a.business_profile_id = :biz");
+            // 사업자 키 = 그 사업자의 모든 건(신청 건 · 사업자를 고른 운영자 등록 건 · 붙은 광고주 줄의 건 — ad-advertiser-contract 규칙 11)
+            sql.append(" AND (a.business_profile_id = :biz OR (a.business_profile_id IS NULL AND a.advertiser_id IN (SELECT x.id FROM ad_advertisers x "
+                    + "WHERE x.business_profile_id = :biz)))");
             args.addValue("biz", advertiser.businessProfileId());
         }
         return sql.toString();

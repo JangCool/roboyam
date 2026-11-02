@@ -56,6 +56,8 @@ export default {
     registrantMe: 'You',
     proposedSupply: 'Proposed net {supply} at registration — fixed on approval.',
     openInReview: { AD: 'Open in Ad review', HOTDEAL: 'Open in Hot deal review' },
+    summary: 'Booking summary',
+    openAdvertiser: 'Open in Advertisers',
     versionN: 'Version {n}',
     versionCurrent: 'Live creative',
     versionOld: 'Previous',
