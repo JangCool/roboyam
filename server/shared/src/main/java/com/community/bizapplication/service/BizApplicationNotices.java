@@ -22,7 +22,9 @@ public class BizApplicationNotices {
         SUBMITTED, APPROVED, REJECTED, MANUAL, PAID, CONFIRMED, EXPIRED, PAYMENT_DUE, START_SOON, END_SOON, CANCELED, TAKEN_DOWN, RESTORED, REFUND_REQUESTED,
         REFUND_APPROVED, REFUND_DENIED, REFUNDED, AUTO_CANCELED,
         /** 사업자 핫딜 글이 핫딜 게시판에 올라갔다 · 올리지 못했다({1} 사유 코드 — 운영팀 확인 중, V123) */
-        POSTED, POST_FAILED
+        POSTED, POST_FAILED,
+        /** 광고주 요청 일시 정지·다시 켜기·중단(V127 — {0} 중단은 환불 예상액). 운영팀이 요청을 받아 대신 처리했으면 {@code _BY_OPERATOR} 종류(문구 「운영팀이 요청을 받아…」) */
+        PAUSED, RESUMED, STOPPED, PAUSED_BY_OPERATOR, RESUMED_BY_OPERATOR, STOPPED_BY_OPERATOR
     }
 
     private final MemberNotificationPublisher members;

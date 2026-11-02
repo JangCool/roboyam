@@ -17,8 +17,16 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class AdPlacementStore {
 
-    /** 저장한 설정 + 마지막으로 고친 때·사람(운영자 이름은 지워졌으면 null) */
-    public record Stored(AdPlacements value, Instant updatedAt, long updatedBy, String updatedByName) {
+    /** 중도 해지 수수료율 기본값(%, V127 — 행이 없을 때) */
+    public static final int DEFAULT_STOP_FEE_RATE = 10;
+    public static final int STOP_FEE_RATE_MIN = 0;
+    public static final int STOP_FEE_RATE_MAX = 30;
+
+    /**
+     * 저장한 설정 + 마지막으로 고친 때·사람(운영자 이름은 지워졌으면 null) + 중도 해지 수수료율(V127 {@code stop_fee_rate} — 광고·사업자 핫딜 공통, 신청 건을 낼 때 그 건에 고정한다).
+     * 수수료율은 공개 자리 설정({@link AdPlacements})에 싣지 않는다(공개는 {@code GET /api/business/refund-policy}).
+     */
+    public record Stored(AdPlacements value, Instant updatedAt, long updatedBy, String updatedByName, int stopFeeRate) {
     }
 
     private static final String SELECT = "SELECT s.*, o.operator_name FROM ad_placement_settings s LEFT JOIN operators o ON o.id = s.updated_by WHERE s.id = 1";
@@ -43,6 +51,18 @@ public class AdPlacementStore {
         return find().map(Stored::value).orElse(AdPlacements.DEFAULTS);
     }
 
+    /** 지금 중도 해지 수수료율(%) — 저장한 적 없으면 기본 10 */
+    public int stopFeeRate() {
+        return jdbc.query("SELECT stop_fee_rate FROM ad_placement_settings WHERE id = 1", (rs, i) -> rs.getInt(1)).stream().findFirst().orElse(DEFAULT_STOP_FEE_RATE);
+    }
+
+    /** 설정 + 중도 해지 수수료율을 함께 저장한다(관리자 「광고 기본 설정」) */
+    public void save(AdPlacements p, int stopFeeRate, long operatorId, Instant now) {
+        save(p, operatorId, now);
+        jdbc.update("UPDATE ad_placement_settings SET stop_fee_rate = ? WHERE id = 1", stopFeeRate);
+    }
+
+    /** 자리 설정만 저장한다 — 수수료율은 그대로(처음 저장이면 기본 10) */
     public void save(AdPlacements p, long operatorId, Instant now) {
         jdbc.update("INSERT INTO ad_placement_settings (id, post_inline_enabled, post_inline_type, post_inline_position, wing_left, wing_right, wing_screens, "
                         + "board_list_enabled, board_list_after, adult_enabled, updated_at, updated_by) VALUES (1, ?, ?, ?, ?, ?, string_to_array(?, ','), ?, ?, ?, ?, ?) "
@@ -60,6 +80,6 @@ public class AdPlacementStore {
         AdPlacements value = new AdPlacements(new AdPlacements.PostInline(rs.getBoolean("post_inline_enabled"), rs.getString("post_inline_type"),
                 rs.getString("post_inline_position")), new AdPlacements.Wings(rs.getBoolean("wing_left"), rs.getBoolean("wing_right"), list),
                 new AdPlacements.BoardList(rs.getBoolean("board_list_enabled"), rs.getInt("board_list_after")), new AdPlacements.Adult(rs.getBoolean("adult_enabled")));
-        return new Stored(value, rs.getTimestamp("updated_at").toInstant(), rs.getLong("updated_by"), rs.getString("operator_name"));
+        return new Stored(value, rs.getTimestamp("updated_at").toInstant(), rs.getLong("updated_by"), rs.getString("operator_name"), rs.getInt("stop_fee_rate"));
     }
 }

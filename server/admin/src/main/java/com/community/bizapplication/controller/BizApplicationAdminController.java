@@ -122,6 +122,30 @@ public class BizApplicationAdminController {
         return ok(service.cancel(actor, BizApplicationAdminService.parseId(id), body));
     }
 
+    /** 광고주 대신 일시 정지(V127) {@code { channel, memo }} — 진행 중만, 횟수 초과 409 {@code BIZ_PAUSE_LIMIT}. 감사 {@code BIZ_APP_PAUSE} */
+    @RequirePermission(anyOf = {Permission.AD_MANAGE, Permission.HOTDEAL_MANAGE})
+    @PostMapping("/{id}/pause")
+    public ResponseEntity<ApiResponse<BizAdminView.Detail>> pause(@PathVariable String id, @RequestBody(required = false) BizAdminRequest.PauseAction body,
+                                                                  AdminActor actor) {
+        return ok(service.pause(actor, BizApplicationAdminService.parseId(id), body));
+    }
+
+    /** 광고주 대신 다시 켜기 {@code { channel, memo }} — 정지 중 · 끝 전(끝 시각 그대로). 감사 {@code BIZ_APP_RESUME} */
+    @RequirePermission(anyOf = {Permission.AD_MANAGE, Permission.HOTDEAL_MANAGE})
+    @PostMapping("/{id}/resume")
+    public ResponseEntity<ApiResponse<BizAdminView.Detail>> resume(@PathVariable String id, @RequestBody(required = false) BizAdminRequest.PauseAction body,
+                                                                   AdminActor actor) {
+        return ok(service.resume(actor, BizApplicationAdminService.parseId(id), body));
+    }
+
+    /** 광고주 대신 중단 {@code { channel, memo, reason? }} — 진행 중·정지 중, 일할 − 수수료 환불 심사 대기. 감사 {@code BIZ_APP_STOP}(돈) */
+    @RequirePermission(anyOf = {Permission.AD_MANAGE, Permission.HOTDEAL_MANAGE})
+    @PostMapping("/{id}/stop")
+    public ResponseEntity<ApiResponse<BizAdminView.Detail>> stop(@PathVariable String id, @RequestBody(required = false) BizAdminRequest.PauseAction body,
+                                                                 AdminActor actor) {
+        return ok(service.stop(actor, BizApplicationAdminService.parseId(id), body));
+    }
+
     @RequirePermission(Permission.DEAL_ORDER_REFUND)
     @PostMapping("/{id}/refund/approve")
     public ResponseEntity<ApiResponse<BizAdminView.Detail>> approveRefund(@PathVariable String id, @RequestBody(required = false) BizAdminRequest.RefundApprove body,

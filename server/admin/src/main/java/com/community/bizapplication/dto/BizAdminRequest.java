@@ -38,4 +38,11 @@ public final class BizAdminRequest {
 
     public record Transfer(String note) {
     }
+
+    /**
+     * 운영자가 광고주 대신 정지·다시 켜기·중단(V127) — @param channel PHONE·EMAIL·OTHER(필수) · @param memo 1~200자(필수, 관리자에게만) · @param reason 중단 사유(선택 300자 —
+     * 사업자 화면에 보인다, 정지·다시 켜기는 무시)
+     */
+    public record PauseAction(String channel, String memo, String reason) {
+    }
 }

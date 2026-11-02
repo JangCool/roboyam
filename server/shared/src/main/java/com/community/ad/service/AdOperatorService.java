@@ -90,11 +90,13 @@ public class AdOperatorService {
     private final AdAdvertiserStore advertisers;
     private final AdTakedownMailer mailer;
     private final ObjectProvider<ImageStorage> images;
+    private final com.community.ad.repository.master.AdPlacementStore placements;
     private final TransactionTemplate tx;
 
     public AdOperatorService(BizApplicationStore store, BizRefundStore refunds, BizPriceRuleStore rules, BizSlotService slots, BizApplicationOps ops,
                              BizApplicationReviewService review, AdAdvertiserStore advertisers, AdTakedownMailer mailer, ObjectProvider<ImageStorage> images,
-                             PlatformTransactionManager transactions) {
+                             com.community.ad.repository.master.AdPlacementStore placements, PlatformTransactionManager transactions) {
+        this.placements = placements;
         this.store = store;
         this.refunds = refunds;
         this.rules = rules;
@@ -182,7 +184,8 @@ public class AdOperatorService {
             Instant now = ops.now();
             BizApplicationKind kind = product.banner() ? BizApplicationKind.AD_BANNER : BizApplicationKind.AD_TEXT_LINE;
             store.insertOperator(new BizApplicationStore.NewOperatorApp(id, kind, party.profileId(), party.advertiserId(), party.name(), party.companyName(),
-                    party.bizNoLast4(), finalTitle, period.start(), period.end(), BizPricing.amountOf(quoteSupply), weight, b.supply(), memo, actor.operatorId(), now));
+                    party.bizNoLast4(), finalTitle, period.start(), period.end(), BizPricing.amountOf(quoteSupply), weight, b.supply(), memo, actor.operatorId(),
+                    placements.stopFeeRate(), now)); // 중도 해지 수수료율 — 등록 때 설정 비율을 고정(동의 기록 없음 — 오프라인 계약서에 같은 비율, 가정)
             store.insertItem(new ItemRow(ops.nextId(), id, product, rule.unitPrice(), units, quoteSupply, period.start(), period.end()), now);
             store.insertCreative(ops.nextId(), id, 1, content, BizActorType.OPERATOR, actor.operatorId(), now);
             if (usedImage != null) {

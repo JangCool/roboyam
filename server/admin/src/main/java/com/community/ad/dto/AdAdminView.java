@@ -30,7 +30,7 @@ public final class AdAdminView {
      * 장부 한 줄. {@code source} APPLICATION(사업자 신청)·OPERATOR(운영자 등록), {@code paymentMethod} 승인 전이면 희망 방식.
      */
     public record Row(String id, String type, AdAdvertiserService.Option advertiser, BizAdminView.Period period, String status, String paymentMethod, int weight,
-                      String source, String applicationNo, Instant lastActionAt, String domain) {
+                      String source, String applicationNo, Instant lastActionAt, String domain, String takedownCause) {
     }
 
     public record Page(List<Row> items, long total) {
@@ -40,8 +40,11 @@ public final class AdAdminView {
     public record Creative(int version, String imageUrl, String text, String linkUrl, String altText, Instant approvedAt, String approvedBy, boolean current) {
     }
 
-    /** 내림 — {@code cause} EMERGENCY(긴급)·SUSPENDED(사업자 정지), {@code mail} 광고주 메일 결과(보내지 않았으면 null) */
-    public record Takedown(Instant at, String cause, String reason, String by, boolean mailSent, String mail) {
+    /**
+     * 내림 — {@code cause} EMERGENCY(긴급)·SUSPENDED(사업자 정지)·ADVERTISER_PAUSE·ADVERTISER_STOP(광고주 요청 — V127, [되돌리기]는 EMERGENCY 만), {@code mail} 광고주 메일 결과
+     * (보내지 않았으면 null), 운영자 대신 처리면 {@code channel}·{@code memo}, {@code pause} = 신청 건 상세와 같은 정지 칸(정지할 수 있는 종류의 결제 뒤 건만)
+     */
+    public record Takedown(Instant at, String cause, String reason, String by, boolean mailSent, String mail, String channel, String memo, BizAdminView.Pause pause) {
     }
 
     public record History(Instant at, String action, String actor, String note) {
@@ -51,7 +54,8 @@ public final class AdAdminView {
     public record Detail(String id, String type, AdAdvertiserService.Option advertiser, BizAdminView.Period period, String status, String paymentMethod, int weight,
                          String source, String applicationNo, Instant lastActionAt, String domain, BizAdminView.Amount amount, Long proposedSupply,
                          List<Creative> creatives, BizAdminView.OnlinePayment onlinePayment, List<BizAdminView.Contract> contracts, BizAdminView.Deposit deposit,
-                         Takedown takedown, BizAdminView.Refund refund, String memo, BizAdminView.Registrant registrant, List<History> history) {
+                         Takedown takedown, BizAdminView.Refund refund, String memo, BizAdminView.Registrant registrant, List<History> history, String takedownCause,
+                         BizAdminView.Pause pause) {
     }
 
     /** 기간 판정 — 가장 빠듯한 날의 남은 칸 · 꽉 찬 날 · 요금표 계산 */

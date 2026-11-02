@@ -43,7 +43,9 @@ public final class AuditRetention {
             AuditActions.BIZ_APP_APPROVE, AuditActions.BIZ_APP_PRICE_ADJUST, AuditActions.BIZ_APP_CONTRACT_UPLOAD, AuditActions.BIZ_DEPOSIT_CONFIRM, AuditActions.BIZ_APP_CONFIRM,
             AuditActions.BIZ_APP_CANCEL, AuditActions.BIZ_APP_REFUND_APPROVE, AuditActions.BIZ_APP_REFUND_DENY, AuditActions.BIZ_APP_REFUND_TRANSFER,
             // 광고 일정표 — 운영자 등록(계약 시작)·긴급 내림 되돌리기(연장·일할 환불, F5)
-            AuditActions.BIZ_APP_OPERATOR_CREATE, AuditActions.AD_RESTORE);
+            AuditActions.BIZ_APP_OPERATOR_CREATE, AuditActions.AD_RESTORE,
+            // 광고주 요청 중단(운영자 대신 — 일할 환불·중도 해지 수수료, biz-pause-contract)
+            AuditActions.BIZ_APP_STOP);
 
     private static final Set<String> PERSONAL_DATA = Set.of(
             AuditActions.MEMBER_VIEW,
@@ -134,6 +136,8 @@ public final class AuditRetention {
             AuditActions.BUSINESS_NTS_OVERRIDE, AuditActions.BUSINESS_DELETE,
             // 사업자 신청 건 반려·수동 전환·입금 기한 — 돈이 움직이지 않는 심사 일(biz-application-contract)
             AuditActions.BIZ_APP_REJECT, AuditActions.BIZ_APP_MANUAL_SWITCH, AuditActions.BIZ_APP_DEPOSIT_DEADLINE,
+            // 광고주 요청 일시 정지·다시 켜기(운영자 대신 — 돈은 중단이 움직인다, biz-pause-contract)
+            AuditActions.BIZ_APP_PAUSE, AuditActions.BIZ_APP_RESUME,
             // 광고 일정표 — 광고주 만들기·긴급 내림(돈은 되돌리기가 움직인다) · 노출 자리 설정
             AuditActions.AD_ADVERTISER_CREATE, AuditActions.AD_TAKEDOWN, AuditActions.AD_PLACEMENT_UPDATE,
             // 회원 핫딜 1차 관리(hotdeal-contract 「권한·정책」 — 모두 일반 분류). 운영진 종료의 보상 포인트 이동은 포인트 원장이 기록한다

@@ -83,10 +83,13 @@ public class AdPlacementAdminService {
         AdPlacements next = validate(body);
         AdPlacementStore.Stored was = store.lock().orElse(null);
         AdPlacements before = was == null ? AdPlacements.DEFAULTS : was.value();
+        int beforeRate = was == null ? AdPlacementStore.DEFAULT_STOP_FEE_RATE : was.stopFeeRate();
+        // 환불 묶음(V127)은 선택 — 빠지면 지금 수수료율 그대로
+        int nextRate = body.refund() == null ? beforeRate : body.refund().stopFeeRate();
         Map<String, Object> from = new LinkedHashMap<>();
         Map<String, Object> to = new LinkedHashMap<>();
-        Map<String, Object> a = flat(before);
-        Map<String, Object> b = flat(next);
+        Map<String, Object> a = flat(before, beforeRate);
+        Map<String, Object> b = flat(next, nextRate);
         for (String key : a.keySet()) {
             if (!Objects.equals(a.get(key), b.get(key))) {
                 from.put(key, a.get(key));
@@ -97,7 +100,7 @@ public class AdPlacementAdminService {
             return get();
         }
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS); // DB(timestamptz) 정밀도 — 이력 시각과 저장 시각이 같게
-        store.save(next, actor.operatorId(), now);
+        store.save(next, nextRate, actor.operatorId(), now);
         // 이력 — 감사와 같은 계산(from/to). 처음 저장은 메일 서버 설정 이력처럼 모든 칸을 「없음 → 값」으로
         List<AdPlacementHistory.Change> changes = new ArrayList<>();
         if (was == null) {
@@ -191,7 +194,8 @@ public class AdPlacementAdminService {
     private static AdPlacementAdmin.View view(AdPlacementStore.Stored stored) {
         AdPlacements p = stored == null ? AdPlacements.DEFAULTS : stored.value();
         return new AdPlacementAdmin.View(p.postInline(), p.wings(), p.boardList(), p.adult(), stored == null ? null : stored.updatedAt().toString(),
-                stored == null ? null : new AdPlacementAdmin.Operator(Long.toString(stored.updatedBy()), stored.updatedByName()));
+                stored == null ? null : new AdPlacementAdmin.Operator(Long.toString(stored.updatedBy()), stored.updatedByName()),
+                new AdPlacementAdmin.RefundView(stored == null ? AdPlacementStore.DEFAULT_STOP_FEE_RATE : stored.stopFeeRate()));
     }
 
     private static AdPlacements validate(AdPlacementAdmin.Save body) {
@@ -247,6 +251,11 @@ public class AdPlacementAdminService {
         } else if (ad.enabled() == null) {
             fields.put("adult.enabled", required);
         }
+        AdPlacementAdmin.Refund rf = body == null ? null : body.refund();
+        if (rf != null && (rf.stopFeeRate() == null || rf.stopFeeRate() < AdPlacementStore.STOP_FEE_RATE_MIN || rf.stopFeeRate() > AdPlacementStore.STOP_FEE_RATE_MAX)) {
+            fields.put("refund.stopFeeRate", new MessageRef("ad.placement.stopFeeRate", String.valueOf(AdPlacementStore.STOP_FEE_RATE_MIN),
+                    String.valueOf(AdPlacementStore.STOP_FEE_RATE_MAX)));
+        }
         if (!fields.isEmpty()) {
             throw new ValidationException(fields);
         }
@@ -254,8 +263,8 @@ public class AdPlacementAdminService {
                 new AdPlacements.BoardList(bl.enabled(), bl.after()), new AdPlacements.Adult(ad.enabled()));
     }
 
-    /** 감사·이력 비교용 칸 이름 → 값({@link AdPlacementHistory#FIELDS} 차례) */
-    private static Map<String, Object> flat(AdPlacements p) {
+    /** 감사·이력 비교용 칸 이름 → 값({@link AdPlacementHistory#FIELDS} 차례) — 끝에 V127 {@code refund.stopFeeRate} */
+    private static Map<String, Object> flat(AdPlacements p, int stopFeeRate) {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("postInline.enabled", p.postInline().enabled());
         out.put("postInline.adType", p.postInline().adType());
@@ -266,6 +275,7 @@ public class AdPlacementAdminService {
         out.put("boardList.enabled", p.boardList().enabled());
         out.put("boardList.after", p.boardList().after());
         out.put("adult.enabled", p.adult().enabled());
+        out.put("refund.stopFeeRate", stopFeeRate);
         return out;
     }
 }

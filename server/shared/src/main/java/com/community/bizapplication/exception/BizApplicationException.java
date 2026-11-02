@@ -18,6 +18,7 @@ public class BizApplicationException extends CommonException {
     public static final String CONTRACT_NOT_FOUND = "BIZ_CONTRACT_NOT_FOUND";
     public static final String SELF_APPROVAL_DENIED = "BIZ_SELF_APPROVAL_DENIED";
     public static final String ADVERTISER_NOT_FOUND = "AD_ADVERTISER_NOT_FOUND";
+    public static final String PAUSE_LIMIT = "BIZ_PAUSE_LIMIT";
 
     private BizApplicationException(HttpStatus status, String code) {
         super(status, code, new MessageRef("error." + code));
@@ -51,6 +52,11 @@ public class BizApplicationException extends CommonException {
     /** 운영자 등록 건을 등록한 운영자가 직접 승인하려 했는데 설정이 자기 승인을 막는다(roboyam.biz.self-approval = deny) */
     public static BizApplicationException selfApprovalDenied() {
         return new BizApplicationException(HttpStatus.CONFLICT, SELF_APPROVAL_DENIED);
+    }
+
+    /** 한 건에 일시 정지할 수 있는 횟수(설정 {@code roboyam.biz.pause-limit}, 기본 3)를 다 썼다 — 사업자·운영자 대신 처리 같은 셈 */
+    public static BizApplicationException pauseLimit() {
+        return new BizApplicationException(HttpStatus.CONFLICT, PAUSE_LIMIT);
     }
 
     /** 광고주가 없다(광고 일정표 — 계정 없는 광고주) */

@@ -43,6 +43,11 @@ public class DealReader {
         this.assembler = assembler;
     }
 
+    /** 사업자 글의 신청 건(회원 글·딜 없음 null) */
+    public Long applicationIdOf(long postId) {
+        return deals.findById(postId).filter(PostDealEntity::isBusiness).map(PostDealEntity::getBizApplicationId).orElse(null);
+    }
+
     /** 글 상세의 {@code deal} — 핫딜 게시판이 아니거나 딜 줄이 없으면 null */
     public PostDealView forPost(PostEntity post, EffectiveBoard b, Long viewerId, Instant now) {
         if (!DealWriter.dealBoard(b)) {
@@ -55,7 +60,10 @@ public class DealReader {
             String mine = viewerId == null ? null : queries.myEndRequests(ids, viewerId).get(d.getPostId());
             int live = queries.liveCountsByKey(List.of(d.getProductUrlKey()), s.autoExpireDays(), now).getOrDefault(d.getProductUrlKey(), 0);
             boolean selfCounted = d.view(s.autoExpireDays(), now).live() && !post.isGroupPost() && !post.isHiddenAt(now);
-            return view(d, post.getLikeCount(), counts, mine, Math.max(0, live - (selfCounted ? 1 : 0)), s, now);
+            PostDealView v = view(d, post.getLikeCount(), counts, mine, Math.max(0, live - (selfCounted ? 1 : 0)), s, now);
+            // 사업자 글의 신청 건 — 보는 사람이 그 사업자(작성자)일 때만(딜 카드 [일시 정지] — biz-pause-contract, V127)
+            boolean author = viewerId != null && d.isBusiness() && d.getBizApplicationId() != null && viewerId.equals(post.getAuthorId());
+            return author ? v.withApplicationId(Long.toString(d.getBizApplicationId())) : v;
         }).orElse(null);
     }
 

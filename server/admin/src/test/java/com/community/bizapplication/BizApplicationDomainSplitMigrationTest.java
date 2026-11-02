@@ -78,14 +78,14 @@ class BizApplicationDomainSplitMigrationTest extends Commerce04AdminTestBase {
             long user = approvedBusiness();
             LocalDate start = LocalDate.now(ZoneId.of("Asia/Seoul")).plusDays(3);
             long ad = members.submitAd(user, new BizAdApplyRequest("TEXT_LINE", start.toString(), start.plusDays(2).toString(), null, "https://a.example.com", null,
-                    "이관 시험 한 줄", "MANUAL", "v1", "v1"));
+                    "이관 시험 한 줄", "MANUAL", "v1", "2026-11-02"));
             // V123 — 받는 핫딜 게시판 필수(말머리 없는 새 게시판)
             long board = ids.nextId();
             jdbc.update("INSERT INTO boards (id, slug, name, sort_order, kind, write_min) VALUES (?, ?, ?, 950, 'DEAL', 'REGULAR')", board, "mg" + Long.toString(board, 36),
                     "이관 핫딜 " + Long.toString(board, 36));
             boardCatalog.invalidate();
             long deal = members.submitDeal(user, new BizDealApplyRequest("[이관상사] 텀블러", new BizDealInfo("https://smartstore.naver.com/roboyam/products/7",
-                    "네이버 스마트스토어", 32_000L, 15_900L, 0L, null, "LOW", "행사", "NONE", Long.toString(board), null, null, null), null, null, "MANUAL", "v1", "v1"));
+                    "네이버 스마트스토어", 32_000L, 15_900L, 0L, null, "LOW", "행사", "NONE", Long.toString(board), null, null, null), null, null, "MANUAL", "v1", "2026-11-02"));
 
             // 옛 이름 — 운영자가 바꾼 값(심사 대기는 끄고 이메일·브라우저 켜고 팀에만, 환불은 이메일 켬)과 개인 끄기, 받은 알림
             jdbc.update("INSERT INTO notification_events (code, enabled, email_enabled, browser_enabled, default_recipients, updated_at) VALUES "

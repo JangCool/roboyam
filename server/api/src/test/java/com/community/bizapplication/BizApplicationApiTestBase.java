@@ -45,7 +45,7 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
 
     /** 먼 미래 기간의 차례(시험마다 40일씩 떨어진다) */
     private static final AtomicInteger SLOT = new AtomicInteger();
-    protected static final String POLICY = "v1";
+    protected static final String POLICY = "2026-11-02";
     /** 사업자 핫딜 상품 — V121 이 껐다가 V123 이 다시 열었다(사업자 핫딜 게시 2차) */
     protected static final List<BizProduct> HOTDEAL_PRODUCTS = List.of(BizProduct.HOTDEAL_POST, BizProduct.HOTDEAL_TOP, BizProduct.HOTDEAL_CATEGORY);
 

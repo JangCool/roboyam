@@ -5,6 +5,7 @@ import com.community.bizapplication.entity.BizApplicationKind;
 import com.community.bizapplication.entity.BizApplicationStatus;
 import com.community.bizapplication.entity.BizEventAction;
 import com.community.bizapplication.entity.BizProduct;
+import com.community.bizapplication.entity.BizTakedownCause;
 import com.community.bizapplication.repository.master.BizApplicationStore;
 import com.community.bizapplication.repository.master.BizApplicationStore.AppRow;
 import com.community.bizapplication.repository.master.BizApplicationStore.CreativeRow;
@@ -104,6 +105,48 @@ public class BizHotdealPublisher implements BizHotdealPosting {
         posts.flush();
         results.setHidden(applicationId, now, now);
         ops.event(applicationId, BizEventAction.POST_HIDDEN, BizActorType.SYSTEM, null, null, now);
+    }
+
+    @Override
+    public void onSellerHidden(long applicationId, String reason) {
+        Optional<PostRow> row = results.find(applicationId).filter(PostRow::posted);
+        if (row.isEmpty()) {
+            return;
+        }
+        Instant now = ops.now();
+        PostEntity post = posts.findWithLockById(row.get().postId()).orElse(null);
+        if (post == null || post.isGoneAt(now)) {
+            return;
+        }
+        boolean ours = post.sellerHiddenAt(now) && row.get().hiddenAt() != null && row.get().hiddenAt().equals(post.getHiddenAt());
+        if (post.isHiddenAt(now) && !ours) {
+            return; // 운영자·신고로 숨겨져 있다 — 그 숨김은 이 흐름의 것이 아니다
+        }
+        if (ours && reason.equals(post.getHiddenReason())) {
+            return;
+        }
+        post.sellerHide(reason, now);
+        posts.flush();
+        results.setHidden(applicationId, now, now);
+        String cause = PostEntity.SELLER_PAUSED.equals(reason) ? BizTakedownCause.ADVERTISER_PAUSE.name() : BizTakedownCause.ADVERTISER_STOP.name();
+        ops.event(applicationId, BizEventAction.POST_HIDDEN, BizActorType.SYSTEM, null, cause, now);
+    }
+
+    @Override
+    public void onSellerShown(long applicationId) {
+        Optional<PostRow> row = results.find(applicationId).filter(PostRow::posted);
+        if (row.isEmpty()) {
+            return;
+        }
+        Instant now = ops.now();
+        PostEntity post = posts.findWithLockById(row.get().postId()).orElse(null);
+        Instant ours = row.get().hiddenAt();
+        if (post != null && ours != null && PostEntity.SELLER_PAUSED.equals(post.getHiddenReason()) && ours.equals(post.getHiddenAt()) && !post.isGoneAt(now)) {
+            post.unhide(now);
+            posts.flush();
+            ops.event(applicationId, BizEventAction.POST_RESTORED, BizActorType.SYSTEM, null, BizTakedownCause.ADVERTISER_PAUSE.name(), now);
+        }
+        results.setHidden(applicationId, null, now);
     }
 
     @Override

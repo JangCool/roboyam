@@ -10,10 +10,19 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param depositDays    수동 입금 기한 기본값(일, ★-2 7일)
  * @param depositAccount 수동 결제 입금 계좌 안내(공개 상세 {@code deposit}) — 가정: 배포 설정 값, local 은 예시 값
  * @param selfApproval   운영자 등록 건을 등록한 운영자가 직접 승인해도 되는가(04-ia-review §2 — 1인 운영이라 기본 허용)
+ * @param pauseLimit     광고주 요청 일시 정지 횟수 한도(한 건에 — biz-pause-contract 규칙 1, 기본 3). 사업자·운영자 대신 처리 모두 같은 셈
  */
 @ConfigurationProperties(prefix = "roboyam.biz")
 public record BizApplicationProperties(@DefaultValue("72") int paymentHours, @DefaultValue("7") int depositDays, @DefaultValue DepositAccount depositAccount,
-                                       @DefaultValue("allow") SelfApproval selfApproval) {
+                                       @DefaultValue("allow") SelfApproval selfApproval, @DefaultValue("3") int pauseLimit) {
+
+    /** 정지 횟수 기본값 */
+    public static final int DEFAULT_PAUSE_LIMIT = 3;
+
+    /** 시험·옛 부르는 쪽 — 정지 횟수는 기본값 */
+    public BizApplicationProperties(int paymentHours, int depositDays, DepositAccount depositAccount, SelfApproval selfApproval) {
+        this(paymentHours, depositDays, depositAccount, selfApproval, DEFAULT_PAUSE_LIMIT);
+    }
 
     /** 입금 계좌 — 비면 화면은 「운영팀이 따로 안내」 */
     public record DepositAccount(@DefaultValue("") String bankName, @DefaultValue("") String accountNo, @DefaultValue("") String accountHolder) {
@@ -24,8 +33,10 @@ public record BizApplicationProperties(@DefaultValue("72") int paymentHours, @De
         ALLOW, DENY
     }
 
+    @org.springframework.boot.context.properties.bind.ConstructorBinding
     public BizApplicationProperties {
         selfApproval = selfApproval == null ? SelfApproval.ALLOW : selfApproval;
+        pauseLimit = pauseLimit < 1 ? DEFAULT_PAUSE_LIMIT : pauseLimit;
     }
 
     /** 시험 기본값 */

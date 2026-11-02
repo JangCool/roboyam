@@ -215,6 +215,12 @@ public class PostQueryService {
         GroupPostGate.Resolved gate = groupGate.resolve(s, post, userId); // 소모임 글: 나가서 가림 404 · 비활성 403 · 비공개는 멤버만(403 GROUP_POST_PRIVATE)
         EffectiveBoard b = gate.board();
         if (post.isHiddenAt(now)) {
+            if (post.sellerHiddenAt(now)) {
+                // 판매자가 정지·중단한 사업자 핫딜 글(V127) — 404·신고 숨김 대신 안내만(본문·댓글·딜 없음, 조회수 그대로). 신청 건은 작성자에게만
+                Long application = userId != null && userId.equals(post.getAuthorId()) ? dealReader.applicationIdOf(post.getId()) : null;
+                throw new com.community.post.exception.DealSellerHiddenException(PostEntity.SELLER_PAUSED.equals(post.getHiddenReason()) ? "PAUSED" : "STOPPED",
+                        b.slug(), b.name(), b.nameEn(), application == null ? null : Long.toString(application));
+            }
             throw new PostHiddenException();
         }
         int dedupHours = s.security().viewCountDedupHours();

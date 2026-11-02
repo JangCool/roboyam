@@ -418,6 +418,12 @@ public final class AuditActions {
     public static final String BIZ_APP_DEPOSIT_DEADLINE = "BIZ_APP_DEPOSIT_DEADLINE";
     /** 운영자 등록(광고 일정표 수동 등록 → 심사 대기, 04-ia-review §2) — {@code type}·기간·{@code proposedSupply}·{@code weight}·{@code advertiser}(ID)·{@code contracts}(미리 붙인 장수). 돈 관련(계약 시작 기록) */
     public static final String BIZ_APP_OPERATOR_CREATE = "BIZ_APP_OPERATOR_CREATE";
+    /** 운영자가 광고주 대신 일시 정지(V127 — biz-pause-contract 규칙 11) — {@code channel}·{@code memo}·{@code pauseCount}. 일반 */
+    public static final String BIZ_APP_PAUSE = "BIZ_APP_PAUSE";
+    /** 운영자가 광고주 대신 다시 켜기 — {@code channel}·{@code memo}·{@code pausedMinutes}. 일반 */
+    public static final String BIZ_APP_RESUME = "BIZ_APP_RESUME";
+    /** 운영자가 광고주 대신 중단(일할 환불 심사 대기 — 수수료) — {@code channel}·{@code memo}·{@code fromPause}·{@code refundFrom}·{@code prorated}·{@code feeRate}·{@code fee}·{@code proposed}. 돈 관련 */
+    public static final String BIZ_APP_STOP = "BIZ_APP_STOP";
     // ── 광고 일정표(ad-contract, V115) — 긴급 내림·되돌리기는 대상 BIZ_APPLICATION, 광고주는 대상 AD_ADVERTISER + 광고주 ID. detail 에 연락처 평문을 싣지 않는다 ──
     /** 계정 없는 광고주 만들기 — {@code name}·{@code businessId}(연결했으면). 일반 */
     public static final String AD_ADVERTISER_CREATE = "AD_ADVERTISER_CREATE";

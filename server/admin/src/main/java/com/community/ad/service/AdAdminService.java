@@ -67,9 +67,12 @@ public class AdAdminService {
     private final BizSlotService slots;
     private final BizPriceRuleStore rules;
     private final Messages messages;
+    private final com.community.bizapplication.service.BizPauseService pauses;
 
     public AdAdminService(AdLedgerStore ledger, AdAdvertiserStore advertiserStore, AdAdvertiserService advertisers, AdOperatorService operations, AdImageUploader images,
-                          BizApplicationReader reader, BizApplicationReviewService review, BizSlotService slots, BizPriceRuleStore rules, Messages messages) {
+                          BizApplicationReader reader, BizApplicationReviewService review, BizSlotService slots, BizPriceRuleStore rules, Messages messages,
+                          com.community.bizapplication.service.BizPauseService pauses) {
+        this.pauses = pauses;
         this.ledger = ledger;
         this.advertiserStore = advertiserStore;
         this.advertisers = advertisers;
@@ -169,19 +172,19 @@ public class AdAdminService {
         List<BizAdminView.Contract> contracts = s.contracts().stream().map(AdAdminService::contract).toList();
         BizAdminView.Deposit deposit = s.deposit() == null ? null : new BizAdminView.Deposit(s.deposit().amount(), s.deposit().depositedOn(), s.deposit().depositorName(),
                 s.deposit().mismatchReason(), s.deposit().confirmedByName(), s.deposit().confirmedAt());
-        AdAdminView.Takedown takedown = a.takenDownAt() == null ? null : new AdAdminView.Takedown(a.takenDownAt(), a.takedownCause().name(), a.takedownText(),
-                a.takenDownBy() == null ? null : reader.operatorName(a.takenDownBy()), "SENT".equals(a.takedownMail()), a.takedownMail());
-        RefundRow r = s.refund();
-        BizAdminView.Refund refund = r == null ? null : new BizAdminView.Refund(r.requestedAt(), r.reason(), r.paidAmount(), r.proposedAmount(), r.usedDays(),
-                r.totalDays(), r.status().name(), r.type().name(), r.method().name(), r.approvedAmount(), r.decisionReason(), r.transferStatus(), r.transferredAt(),
-                r.completedAt());
+        BizAdminView.Pause pause = BizAdminView.Pause.of(pauses.info(a, s.items()));
+        String by = a.takedownActor() == com.community.bizapplication.entity.BizActorType.MEMBER ? pauses.nameOf(a)
+                : a.takenDownBy() == null ? null : reader.operatorName(a.takenDownBy());
+        AdAdminView.Takedown takedown = a.takenDownAt() == null ? null : new AdAdminView.Takedown(a.takenDownAt(), a.takedownCause().name(), a.takedownText(), by,
+                "SENT".equals(a.takedownMail()), a.takedownMail(), a.takedownChannel() == null ? null : a.takedownChannel().name(), a.takedownMemo(), pause);
+        BizAdminView.Refund refund = BizAdminView.Refund.of(s.refund());
         BizAdminView.Registrant registrant = a.source() == BizSource.OPERATOR && a.createdBy() != null
                 ? new BizAdminView.Registrant(Long.toString(a.createdBy()), reader.operatorName(a.createdBy()), a.createdBy() == actor.operatorId()) : null;
         List<AdAdminView.History> history = s.events().stream().map(e -> new AdAdminView.History(e.at(), e.action(), actorName(e.actorType(), e.actorName()), e.note()))
                 .toList();
         return new AdAdminView.Detail(row.id(), row.type(), row.advertiser(), row.period(), row.status(), row.paymentMethod(), row.weight(), row.source(),
                 row.applicationNo(), row.lastActionAt(), row.domain(), amount, a.proposedSupply(), creatives, online, contracts, deposit, takedown, refund, a.operatorMemo(),
-                registrant, history);
+                registrant, history, row.takedownCause(), pause);
     }
 
     /** 기간 판정 — 그 기간 가장 빠듯한 칸 · 꽉 찬 날(한국 날짜) · 요금표 계산(자기 자신 없음 — 새 등록) */
@@ -279,7 +282,7 @@ public class AdAdminService {
     private static AdAdminView.Row row(BizProduct type, AppRow a, AdAdvertiserService.Option advertiser, Instant now) {
         return new AdAdminView.Row(Long.toString(a.id()), type.name(), advertiser, new BizAdminView.Period(a.startAt(), a.endAt()), BizApplicationReader.adminStatus(a, now),
                 (a.paymentMethod() != null ? a.paymentMethod() : a.preferredMethod()).name(), a.weight(), a.source() == BizSource.OPERATOR ? "OPERATOR" : "APPLICATION",
-                a.no(), a.updatedAt(), a.kind().domain().name());
+                a.no(), a.updatedAt(), a.kind().domain().name(), a.takedownCause() == null ? null : a.takedownCause().name());
     }
 
     /** 건의 광고주 — 계정 없는 광고주(연결됐으면 사업자 표시) · 사업자 · 이름만 */

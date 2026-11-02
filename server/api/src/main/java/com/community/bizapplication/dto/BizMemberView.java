@@ -26,24 +26,45 @@ public final class BizMemberView {
     public record Deposit(String bankName, String accountNo, String accountHolder, String depositorName, String contract, boolean depositConfirmed) {
     }
 
-    /** 취소·환불 — {@code type} FULL_AUTO·PRORATED_REVIEW, {@code status} REQUESTED·APPROVED·DENIED */
-    public record Refund(String type, String status, String reason, Instant requestedAt, long proposedAmount, Long refundAmount, String decisionReason) {
+    /**
+     * 취소·환불 — {@code type} FULL_AUTO·PRORATED_REVIEW·STOP_PRORATED(V127 광고주 요청 중단 — 예상액 {@code proposedAmount} = 일할 {@code proratedAmount} − 수수료
+     * {@code feeAmount}, 비율 {@code feeRate}·기준 시각 {@code basisAt}. 다른 종류면 네 칸 null), {@code status} REQUESTED·APPROVED·DENIED
+     */
+    public record Refund(String type, String status, String reason, Instant requestedAt, long proposedAmount, Long refundAmount, String decisionReason,
+                         Long proratedAmount, Integer feeRate, Long feeAmount, Instant basisAt) {
+    }
+
+    /**
+     * 일시 정지·중단(V127 — biz-pause-contract 「데이터 모양」) — 정지할 수 있는 종류(날짜형 자리·사업자 핫딜 글)의 결제 뒤 건만, 아니면 상세 {@code pause} = null.
+     *
+     * @param pausedBy        지금 정지를 누가 — ME · OPERATOR(정지 중이 아니면 null)
+     * @param channel         운영팀 대신 처리면 요청 경로 PHONE·EMAIL·OTHER(공개엔 메모 없음)
+     * @param proratableTotal 일할 대상 금액(결제액 기준 — 광고 = 결제액, 핫딜 글 = 노출 자리 몫, 노출 없으면 0)
+     * @param feeRate         이 건에 고정된 중도 해지 수수료율(%)
+     */
+    public record Pause(int used, int limit, Instant pausedAt, String pausedBy, String channel, int pausedMinutes, Instant stoppedAt, Instant refundFrom,
+                        long proratableTotal, int feeRate) {
+    }
+
+    /** {@code GET /api/business/refund-policy} — 지금 환불 규정 버전 + 중도 해지 수수료율(신청 화면 동의 문구) */
+    public record RefundPolicy(String version, int stopFeeRate) {
     }
 
     /** 처리 기록 — {@code actor} ME·OPERATOR·SYSTEM, {@code action} 코드(화면이 번역) */
     public record History(Instant at, String actor, String action, String note) {
     }
 
+    /** @param takedownCause 내림({@code TAKEN_DOWN})·중단 뒤 취소의 까닭 EMERGENCY·SUSPENDED·ADVERTISER_PAUSE·ADVERTISER_STOP(V127) — 내려간 적 없으면 null */
     public record Summary(String id, String kind, String title, String adType, String placement, String startDate, String endDate, String status, String phase,
                           String paymentMethod, Amount amount, boolean amountConfirmed, Instant paymentDueAt, Instant depositDueAt, Instant submittedAt,
-                          boolean refundRequested) {
+                          boolean refundRequested, String takedownCause) {
     }
 
     public record Detail(String id, String kind, String title, String adType, String placement, String startDate, String endDate, String status, String phase,
                          String paymentMethod, Amount amount, boolean amountConfirmed, Instant paymentDueAt, Instant depositDueAt, Instant submittedAt,
-                         boolean refundRequested, Amount estimate, Amount confirmed, String adjustReason, Creative creative, BizDealInfo deal, String rejectCode,
-                         String rejectReason, String takedownReason, Deposit deposit, Refund refund, List<History> history,
-                         BizDealPostView post) {
+                         boolean refundRequested, String takedownCause, Amount estimate, Amount confirmed, String adjustReason, Creative creative, BizDealInfo deal,
+                         String rejectCode, String rejectReason, String takedownReason, Deposit deposit, Refund refund, List<History> history,
+                         BizDealPostView post, Pause pause) {
     }
 
     public record Page(List<Summary> items, long total, Map<String, Long> counts) {
