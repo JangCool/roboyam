@@ -36,8 +36,7 @@ export function useBusinessApi() {
     const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
-        list: (query: BusinessQuery): Promise<BusinessPage> =>
-            client.get<BusinessPage>(PATH.root, { query: { ...query } }).then((p) => (mockDeleted.size ? { ...p, items: p.items.filter((r) => !mockDeleted.has(r.id)) } : p)),
+        list: (query: BusinessQuery): Promise<BusinessPage> => client.get<BusinessPage>(PATH.root, { query: { ...query } }),
 
         detail: (id: string): Promise<BusinessDetail> => client.get<BusinessDetail>(PATH.one(id)),
 
@@ -57,15 +56,9 @@ export function useBusinessApi() {
         certificate: (id: string): Promise<BusinessCertificateFile> => client.get<BusinessCertificateFile>(PATH.action(id, 'certificate')),
 
         /**
-         * 사업자 삭제(`business.delete`) — 서버 후보 `DELETE /api/admin/businesses/{id}` `{ reason }` → 204. 거래(신청 건·결제)가 한 번이라도 있으면 409 `BUSINESS_HAS_DEALINGS`.
-         * ⚠ 목업 — 서버가 생기기 전까지 이 파일의 메모리로 「지운 셈」 치고 목록·상세에서 뺀다(새로고침하면 돌아온다). 서버 구현이 들어오면 `client.del` 로 바꾼다.
+         * 사업자 삭제(`business.delete`) — `DELETE /api/admin/businesses/{id}` `{ reason }`(5~200자) → 204. 광고·핫딜 신청 건이 한 줄이라도 있으면(상태 무관) 409 `BUSINESS_HAS_DEALINGS`,
+         * 사유 400 `fields.reason`, 없으면 404 `BUSINESS_NOT_FOUND`. 신원·서비스 권한·국세청 기록·등록증 사본·처리 기록·열람 기록을 지우고 회원 계정은 남긴다(감사 `BUSINESS_DELETE`).
          */
-        remove: (id: string, _reason: string): Promise<void> => {
-            mockDeleted.add(id);
-            return new Promise((resolve) => setTimeout(resolve, 300));
-        },
+        remove: (id: string, reason: string): Promise<void> => client.del<void>(PATH.one(id), undefined, { reason }),
     };
 }
-
-/** ⚠ 목업 — 지운 셈 친 사업자 ID(삭제 서버 구현 전까지) */
-const mockDeleted = new Set<string>();
