@@ -59,6 +59,7 @@ import report from './report';
 import business from './business';
 import bizApplication from './bizApplication';
 import ad from './ad';
+import adAdvertiser from './adAdvertiser';
 import hotdeal from './hotdeal';
 
 export default {
@@ -116,5 +117,6 @@ export default {
     business,
     bizApplication,
     ad,
+    adAdvertiser,
     hotdeal,
 };
