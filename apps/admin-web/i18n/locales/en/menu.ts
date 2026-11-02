@@ -11,6 +11,7 @@ export default {
     themeLayout: 'Layout',
     socialLogin: 'Social login',
     portone: 'PortOne',
+    publicData: 'Public data portal',
     addressSearch: 'Address search',
     loginSecurity: 'Sign-in security',
     mail: 'Mail',
