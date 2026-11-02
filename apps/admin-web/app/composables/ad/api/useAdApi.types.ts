@@ -1,4 +1,4 @@
-import type { BizAdType, BizAmount, BizContractFile, BizDeposit, BizDomain, BizPause, BizPauseChannel, BizPaymentMethod, BizPeriod, BizQuote, BizRefundRequest, BizTakedownCause } from '~/composables/bizapplication/api/useBizApplicationApi.types';
+import type { BizAdType, BizAmount, BizContractFile, BizDeposit, BizDomain, BizPause, BizPauseChannel, BizPaymentMethod, BizPeriod, BizQuote, BizRefundRequest, BizRefundSummary, BizTakedownCause } from '~/composables/bizapplication/api/useBizApplicationApi.types';
 import type { SettingHistoryItem, SettingHistoryPage } from '~/composables/common/useSettingHistory.types';
 
 /**
@@ -25,6 +25,10 @@ export interface AdTypeSummary {
     scheduled: number;
     /** 결제·입금 대기(자리를 이미 잡고 있다) */
     awaitingPayment: number;
+    /** 광고주 일시 정지(끝나지 않음 — 자리를 계속 잡고 있다) */
+    paused: number;
+    /** 그 밖의 내림(광고주 중단 환불 심사 중 · 긴급 내림 · 사업자 정지 — 되돌리거나 환불 승인 전까지 자리를 잡고 있다) */
+    takenDown: number;
 }
 
 /** 날짜별 남은 칸 — 0 이면 꽉 참 */
@@ -144,6 +148,8 @@ export interface AdBookingDetail extends AdBookingRow {
     history: AdHistory[];
     /** 광고주 요청 일시 정지·중단 정보(신청 건 상세 `pause` 와 같은 모양 — 정지할 수 있는 종류의 결제 뒤 건만, 아니면 null) */
     pause: BizPause | null;
+    /** 환불 합계(신청 건 상세 `refundSummary` 와 같은 값 — 결제 전이면 null) */
+    refundSummary: BizRefundSummary | null;
 }
 
 export interface AdBookingQuery {

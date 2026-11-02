@@ -74,6 +74,24 @@ public class BizRefundStore {
                 r.proratedAmount(), r.feeRate(), r.feeAmount(), ts(r.basisAt()));
     }
 
+    /**
+     * 운영자 추가 환불(클레임 — V128) 줄 — 바로 승인. 사유는 운영자 결정 사유({@code decision_reason}, 관리자만 봄)에 두고 요청 사유({@code reason})는 비운다.
+     * 수동은 송금 대기(PENDING), 온라인은 결제 모듈 취소를 부르는 쪽이 건다.
+     */
+    public void insertClaim(long id, long applicationId, BizPaymentMethod method, long paidAmount, long amount, int totalDays, String decisionReason, long operatorId,
+                            Instant now) {
+        jdbc.update("INSERT INTO biz_refunds (id, application_id, type, status, method, paid_amount, proposed_amount, used_days, total_days, approved_amount, "
+                        + "decision_reason, transfer_status, requested_at, decided_at, decided_by) VALUES (?, ?, 'CLAIM', 'APPROVED', ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)",
+                id, applicationId, method.name(), paidAmount, amount, totalDays, amount, decisionReason, method == BizPaymentMethod.MANUAL ? TRANSFER_PENDING : null,
+                ts(now), ts(now), operatorId);
+    }
+
+    /** 송금 대기(수동 환불의 돈이 아직 안 나감) 줄이 있나 */
+    public boolean transferPending(long applicationId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM biz_refunds WHERE application_id = ? AND transfer_status = 'PENDING')", Boolean.class,
+                applicationId));
+    }
+
     public Optional<RefundRow> latest(long applicationId) {
         return jdbc.query("SELECT * FROM biz_refunds WHERE application_id = ? ORDER BY requested_at DESC, id DESC LIMIT 1", (rs, i) -> row(rs), applicationId).stream()
                 .findFirst();

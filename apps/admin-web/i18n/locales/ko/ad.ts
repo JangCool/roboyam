@@ -12,6 +12,8 @@ export default {
     sumRunning: '진행 중',
     sumScheduled: '예약',
     sumAwaiting: '결제·입금 대기',
+    sumPaused: '정지 중',
+    sumTakenDown: '내림·중단',
     calendarFailed: '달력을 불러오지 못했어요.',
     legendFree: '여유',
     legendTight: '거의 참',

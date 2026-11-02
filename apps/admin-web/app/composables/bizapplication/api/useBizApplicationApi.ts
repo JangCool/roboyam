@@ -8,6 +8,7 @@ import type {
     BizDepositRequest,
     BizPauseActionRequest,
     BizPeriod,
+    BizRefundClaimRequest,
     BizRejectCode,
     BizTransferRequest,
 } from '~/composables/bizapplication/api/useBizApplicationApi.types';
@@ -39,6 +40,9 @@ import type {
  *  - `POST …/{id}/stop` `{ channel, memo, reason? }` — 진행 중·정지 중(→ 내림 까닭 `ADVERTISER_STOP` + 일할 − 중도 해지 수수료 환불 `STOP_PRORATED` 심사 대기, 예상액 0원이면 환불 줄 없음).
  *    되돌리기 없음. `reason` 은 선택(사업자 화면에 보이는 사유 — 300자 초과 400 `fields.reason`), 메모는 사업자에게 보이지 않는다(사유로 옮기지 않음)
  *  권한 광고 `ad.manage` · 핫딜 `hotdeal.manage`, 감사 `BIZ_APP_PAUSE`·`BIZ_APP_RESUME`·`BIZ_APP_STOP`. 상세 `pause`(`BizPause`)·`takedown.channel`·`takedown.memo`, 목록 줄 `takedownCause`.
+ *  추가 환불(클레임 — V128, `biz-pause-contract.md` 「추가 환불」): `POST …/{id}/refund/claim` `{ amount, reason }` — 권한 `deal-order.refund`. 취소된 건 · 끝난 건 · 광고주 중단(환불 거절 뒤) 건의
+ *    남은 금액을 바로 승인(`CLAIM` — 온라인 PG 부분 취소 · 수동 송금 대기). 금액 1 ~ 남은 환불 가능액 400 `fields.amount`, 사유 5~200자 400 `fields.reason`.
+ *    시작 전·진행 중·정지 중·긴급 내림 중 · 열린 환불 · 송금 대기 줄 · 남은 가능액 0 은 409 `BIZ_APPLICATION_STATE_CHANGED`. 상세 `refundSummary`(결제 전 null), 감사 `BIZ_APP_REFUND_CLAIM`.
  */
 const PATH = {
     root: '/api/admin/biz-applications',
@@ -87,6 +91,9 @@ export function useBizApplicationApi() {
         approveRefund: (id: string, body: { amount: number; reason: string }): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(PATH.action(id, 'refund/approve'), body),
 
         denyRefund: (id: string, reason: string): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(PATH.action(id, 'refund/deny'), { reason }),
+
+        /** 추가 환불(클레임) — 남은 환불 가능액 안에서 바로 승인(되돌릴 수 없음). 대상이 아닌 상태 · 열린 환불 · 송금 대기 줄이 있으면 409 */
+        refundClaim: (id: string, body: BizRefundClaimRequest): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(PATH.action(id, 'refund/claim'), body),
 
         /** 운영자 대신 일시 정지(광고주 요청 — 진행 중만, 정지 횟수 안에서) */
         pause: (id: string, body: BizPauseActionRequest): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(PATH.action(id, 'pause'), body),

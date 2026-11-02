@@ -144,6 +144,48 @@ class BizPauseAdminHttpTest extends Commerce04AdminTestBase {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("CANCELED")).andExpect(jsonPath("$.data.takedownCause").value("ADVERTISER_STOP"));
     }
 
+    private static final tools.jackson.databind.json.JsonMapper MAPPER = tools.jackson.databind.json.JsonMapper.builder().build();
+
+    /** 광고 일정표 합계(그 유형의 끝나지 않은 장부 건) */
+    private tools.jackson.databind.JsonNode summary(Cookie cookie) throws Exception {
+        String month = java.time.YearMonth.now(ZoneId.of("Asia/Seoul")).toString();
+        String body = mvc.perform(get("/api/admin/ads/calendar").param("type", "TEXT_LINE").param("month", month).cookie(cookie)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        return MAPPER.readTree(body).get("data").get("summary");
+    }
+
+    private static int[] counts(tools.jackson.databind.JsonNode s) {
+        return new int[] {s.get("running").asInt(), s.get("paused").asInt(), s.get("takenDown").asInt()};
+    }
+
+    @Test
+    void 일정표_합계는_자리를_차지한_정지_중과_그_밖의_내림을_따로_세고_환불_승인으로_취소되면_뺀다() throws Exception {
+        long toPause = running();
+        long toStop = running();
+        long toTakedown = running();
+        Cookie manager = login(operatorWith(Permission.AD_READ, Permission.AD_MANAGE, Permission.AD_TAKEDOWN));
+        int[] base = counts(summary(manager)); // 다른 시험이 남긴 건이 있을 수 있어 차이로 본다
+
+        mvc.perform(withCsrf(post("/api/admin/biz-applications/" + toPause + "/pause"), manager).content(action("PHONE", "정지 요청"))).andExpect(status().isOk());
+        mvc.perform(withCsrf(post("/api/admin/biz-applications/" + toStop + "/stop"), manager).content(action("EMAIL", "중단 요청"))).andExpect(status().isOk());
+        mvc.perform(withCsrf(post("/api/admin/ads/" + toTakedown + "/takedown"), manager).content("{\"reason\":\"링크 사고\",\"notifyMail\":false}")).andExpect(status().isOk());
+        int[] after = counts(summary(manager));
+        assertThat(after[0]).as("진행 중").isEqualTo(base[0] - 3);
+        assertThat(after[1]).as("정지 중 = 광고주 일시 정지").isEqualTo(base[1] + 1);
+        assertThat(after[2]).as("그 밖의 내림 = 광고주 중단(환불 심사 중) + 긴급 내림").isEqualTo(base[2] + 2);
+
+        // 중단 건 환불 승인 → CANCELED(자리 반납) → 합계에서 빠진다
+        long proposed = jdbc.queryForObject("SELECT proposed_amount FROM biz_refunds WHERE application_id = ? AND status = 'REQUESTED'", Long.class, toStop);
+        mvc.perform(withCsrf(post("/api/admin/biz-applications/" + toStop + "/refund/approve"), login(operatorWith(Permission.DEAL_ORDER_REFUND)))
+                .content("{\"amount\":" + proposed + ",\"reason\":\"제안대로\"}")).andExpect(status().isOk());
+        assertThat(counts(summary(manager))[2]).isEqualTo(base[2] + 1);
+        // 다시 켜면 진행 중으로 돌아간다
+        mvc.perform(withCsrf(post("/api/admin/biz-applications/" + toPause + "/resume"), manager).content(action("PHONE", "재개 요청"))).andExpect(status().isOk());
+        int[] resumed = counts(summary(manager));
+        assertThat(resumed[0]).as("중단·긴급 내림 두 건은 그대로 빠져 있다").isEqualTo(base[0] - 2);
+        assertThat(resumed[1]).isEqualTo(base[1]);
+    }
+
     @Test
     void 정지_횟수는_사업자와_운영자가_같이_세고_넘으면_409_BIZ_PAUSE_LIMIT() throws Exception {
         long id = running();

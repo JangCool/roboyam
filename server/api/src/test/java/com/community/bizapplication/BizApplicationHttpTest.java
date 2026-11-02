@@ -1,5 +1,6 @@
 package com.community.bizapplication;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -7,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.community.auth.dto.AuthUser;
+import com.community.business.service.BusinessPii;
 import com.community.installation.service.InstallationState;
 import com.community.user.entity.Role;
 import jakarta.servlet.Filter;
@@ -78,10 +80,32 @@ class BizApplicationHttpTest extends BizApplicationApiTestBase {
         approve(Long.parseLong(id), "ONLINE", freshPeriod(3));
         mvc.perform(as(user, post("/api/business/applications/" + id + "/payment"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.orderType").value("BIZ_APPLICATION")).andExpect(jsonPath("$.data.orderRefId").value(id))
-                .andExpect(jsonPath("$.data.checkout.gateway").value("FAKE")).andExpect(jsonPath("$.data.checkout.amount").value(16_500));
+                .andExpect(jsonPath("$.data.checkout.gateway").value("FAKE")).andExpect(jsonPath("$.data.checkout.amount").value(16_500))
+                // 결제창 구매자 칸 — 사업자 신원의 상호·연락처 평문(숫자만)·이메일, 응답 no-store
+                .andExpect(header().string("Cache-Control", "no-store")).andExpect(jsonPath("$.data.customer.fullName").value("시험상사"))
+                .andExpect(jsonPath("$.data.customer.phoneNumber").value("01012345678")).andExpect(jsonPath("$.data.customer.email").value("biz" + user + "@test.local"));
         long other = approvedBusiness();
+        // 남의 신청 건 결제 시작은 404(구매자 칸도 나가지 않는다)
+        mvc.perform(as(other, post("/api/business/applications/" + id + "/payment"))).andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("BIZ_APPLICATION_NOT_FOUND")).andExpect(jsonPath("$.data").doesNotExist());
         mvc.perform(as(other, get("/api/business/applications/" + id))).andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("BIZ_APPLICATION_NOT_FOUND"));
+    }
+
+    @Test
+    void 사업자_연락처가_없으면_결제_시작은_400_BIZ_CONTACT_MISSING_이고_결제_주문을_만들지_않는다() throws Exception {
+        long user = approvedBusiness();
+        long id = submitTextLine(user, 0, 3, "ONLINE");
+        approve(id, "ONLINE", freshPeriod(3));
+        // DB CHECK(ck_bp_pii)가 연락처 칸을 비우지 못하게 막으므로, 숫자가 하나도 없는 값으로 「연락처 없음」을 만든다
+        jdbc.update("UPDATE business_profiles SET phone_enc = ? WHERE user_id = ?", pii.encrypt(BusinessPii.PHONE, "없음"), user);
+        mvc.perform(as(user, post("/api/business/applications/" + id + "/payment"))).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("BIZ_CONTACT_MISSING"));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM payment_orders WHERE order_type = 'BIZ_APPLICATION' AND order_ref_id = ?", Integer.class, id)).isZero();
+        // 연락처를 넣으면 바로 시작된다
+        jdbc.update("UPDATE business_profiles SET phone_enc = ? WHERE user_id = ?", pii.encrypt(BusinessPii.PHONE, "02-555-0101"), user);
+        mvc.perform(as(user, post("/api/business/applications/" + id + "/payment"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.customer.phoneNumber").value("025550101"));
     }
 
     @Test

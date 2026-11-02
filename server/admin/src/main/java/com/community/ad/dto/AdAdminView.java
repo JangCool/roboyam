@@ -15,8 +15,11 @@ public final class AdAdminView {
     private AdAdminView() {
     }
 
-    /** 유형 요약 — 한도 · 진행 · 예약(시작 전) · 결제·입금 대기(자리를 이미 잡고 있다) */
-    public record TypeSummary(String type, int limit, int running, int scheduled, int awaitingPayment) {
+    /**
+     * 유형 요약 — 한도 · 진행 · 예약(시작 전) · 결제·입금 대기 · 광고주 일시 정지({@code paused}) · 그 밖의 내림({@code takenDown} — 광고주 중단(환불 심사 중)·긴급 내림·사업자 정지).
+     * 모두 끝나지 않은 건이고 자리를 이미 잡고 있다(biz-pause-contract 「일정표 합계」).
+     */
+    public record TypeSummary(String type, int limit, int running, int scheduled, int awaitingPayment, int paused, int takenDown) {
     }
 
     public record DaySlot(String date, int remaining, int limit) {
@@ -55,7 +58,7 @@ public final class AdAdminView {
                          String source, String applicationNo, Instant lastActionAt, String domain, BizAdminView.Amount amount, Long proposedSupply,
                          List<Creative> creatives, BizAdminView.OnlinePayment onlinePayment, List<BizAdminView.Contract> contracts, BizAdminView.Deposit deposit,
                          Takedown takedown, BizAdminView.Refund refund, String memo, BizAdminView.Registrant registrant, List<History> history, String takedownCause,
-                         BizAdminView.Pause pause) {
+                         BizAdminView.Pause pause, BizAdminView.RefundSummary refundSummary) {
     }
 
     /** 기간 판정 — 가장 빠듯한 날의 남은 칸 · 꽉 찬 날 · 요금표 계산 */

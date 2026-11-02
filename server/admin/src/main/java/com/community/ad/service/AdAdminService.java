@@ -11,6 +11,7 @@ import com.community.bizapplication.dto.BizUpload;
 import com.community.bizapplication.entity.BizActorType;
 import com.community.bizapplication.entity.BizProduct;
 import com.community.bizapplication.entity.BizSource;
+import com.community.bizapplication.entity.BizTakedownCause;
 import com.community.bizapplication.exception.BizApplicationException;
 import com.community.bizapplication.repository.master.BizApplicationStore.AppRow;
 import com.community.bizapplication.repository.master.BizApplicationStore.CreativeRow;
@@ -110,16 +111,25 @@ public class AdAdminService {
         int running = 0;
         int scheduled = 0;
         int awaiting = 0;
+        int paused = 0;
+        int takenDown = 0;
         for (AppRow a : ledger.live(type, now)) {
             switch (BizApplicationReader.adminStatus(a, now)) {
                 case "RUNNING" -> running++;
                 case "SCHEDULED" -> scheduled++;
                 case "AWAITING_PAYMENT", "AWAITING_DEPOSIT" -> awaiting++;
+                case "TAKEN_DOWN" -> {
+                    if (a.takedownCause() == BizTakedownCause.ADVERTISER_PAUSE) {
+                        paused++;
+                    } else {
+                        takenDown++;
+                    }
+                }
                 default -> {
                 }
             }
         }
-        AdAdminView.TypeSummary summary = new AdAdminView.TypeSummary(type.name(), capacity(type), running, scheduled, awaiting);
+        AdAdminView.TypeSummary summary = new AdAdminView.TypeSummary(type.name(), capacity(type), running, scheduled, awaiting, paused, takenDown);
         List<AppRow> month0 = ledger.ledger(type, BizPeriods.startOf(first), BizPeriods.startOf(last.plusDays(1)), null);
         return new AdAdminView.Calendar(summary, days, rows(type, month0, now));
     }
@@ -184,7 +194,7 @@ public class AdAdminService {
                 .toList();
         return new AdAdminView.Detail(row.id(), row.type(), row.advertiser(), row.period(), row.status(), row.paymentMethod(), row.weight(), row.source(),
                 row.applicationNo(), row.lastActionAt(), row.domain(), amount, a.proposedSupply(), creatives, online, contracts, deposit, takedown, refund, a.operatorMemo(),
-                registrant, history, row.takedownCause(), pause);
+                registrant, history, row.takedownCause(), pause, BizAdminView.RefundSummary.of(reader.refundSummary(a, s.deposit())));
     }
 
     /** 기간 판정 — 그 기간 가장 빠듯한 칸 · 꽉 찬 날(한국 날짜) · 요금표 계산(자기 자신 없음 — 새 등록) */

@@ -50,7 +50,10 @@ public enum BizEventAction {
     /** 다시 켜기 — note 맨 앞 {@code MIN:<멈춘 분>} */
     RESUMED(true),
     /** 중단 — 정지 중 전환이면 note 맨 앞 {@code FROM_PAUSE} */
-    STOPPED(true);
+    STOPPED(true),
+    // ── 운영자 추가 환불(클레임 — V128). 돈은 기존 REFUNDED(온라인 PG 취소 완료)·REFUND_TRANSFERRED(수동 송금 완료) 줄로 이어진다 ──
+    /** 추가 환불(바로 승인) — note = 금액(사유는 관리자 상세의 환불 줄·감사에만) */
+    CLAIM_REFUNDED(true);
 
     private final boolean publicVisible;
 

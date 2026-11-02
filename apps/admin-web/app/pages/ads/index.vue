@@ -31,7 +31,7 @@
         </Message>
 
         <!-- 요약 띠 -->
-        <dl class="m-0 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <dl class="m-0 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
             <div v-for="s in summaryCells" :key="s.key" class="flex flex-col gap-0.5 rounded-xl border border-(--line) bg-(--p-content-background) px-3 py-2.5">
                 <dt class="text-xs text-muted-color">{{ s.label }}</dt>
                 <dd class="m-0 text-lg font-semibold tabular-nums" :class="s.tone">{{ calendar ? s.value : '—' }}</dd>
@@ -252,6 +252,9 @@ const summaryCells = computed(() => {
         { key: 'running', label: t('ad.sumRunning'), value: s?.running ?? 0, tone: 'text-green-700 dark:text-green-400' },
         { key: 'scheduled', label: t('ad.sumScheduled'), value: s?.scheduled ?? 0, tone: '' },
         { key: 'awaiting', label: t('ad.sumAwaiting'), value: s?.awaitingPayment ?? 0, tone: (s?.awaitingPayment ?? 0) > 0 ? 'text-amber-700 dark:text-amber-400' : '' },
+        // 정지·내림도 자리를 차지한다(biz-pause-contract 「일정표 합계」)
+        { key: 'paused', label: t('ad.sumPaused'), value: s?.paused ?? 0, tone: (s?.paused ?? 0) > 0 ? 'text-amber-700 dark:text-amber-400' : '' },
+        { key: 'takenDown', label: t('ad.sumTakenDown'), value: s?.takenDown ?? 0, tone: (s?.takenDown ?? 0) > 0 ? 'text-red-600 dark:text-red-400' : '' },
     ];
 });
 

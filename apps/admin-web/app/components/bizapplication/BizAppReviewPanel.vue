@@ -6,6 +6,9 @@
         · 결제 대기: 확정 금액 · 결제 기한 카운트다운 · [수동 결제로 전환] · [취소](결제 완료는 사업자의 온라인 결제 — 결제 모듈).
         · 입금·계약 확인 대기(기한 지남 포함): `BizAppDepositPanel`.
         · 환불: 종류·상태 · 일할 계산 제안 · [거절] · [환불 승인](열린 환불만) · 수동 환불 송금 대기면 [송금 완료 표시].
+          운영자 추가 환불(`CLAIM`)은 일할 줄 없이 승인 금액 — 클레임 내용(`decisionReason`).
+        · 환불 합계(상세 `refundSummary` — 결제 뒤만): 환불 카드 안(없으면 결제 기록 아래)에 「결제 · 환불 · 남은 환불 가능」 + [추가 환불](`deal-order.refund` · 남은 환불 가능 > 0 —
+          대상 상태는 서버가 판정, 아니면 409).
         · 내림(사업자 정지·긴급) 사유. 계약서 사본은 [보기](`viewContract` — 부모가 `data:` 주소로 연다, 열람 기록).
         · 그 밖: 결제 기록(온라인 결제 또는 계약서·입금 기록)만.
         · 사업자 핫딜 글(2차): 상세 `post` 가 있으면 「게시」 칸(게시 전 · 게시됨 · 실패 → [취소(전액 환불)] · 숨김 — 숨김 까닭 「판매자 일시 정지」·「판매자 중단」)과 노출 줄 상태.
@@ -292,7 +295,7 @@
             <i18n-t v-if="refund.type === 'FULL_AUTO'" keypath="bizApplication.refundFull" tag="p" scope="global" class="m-0 text-[13px] tabular-nums">
                 <template #paid><span :class="EMPH.refund">{{ won(refund.paidAmount) }}</span></template>
             </i18n-t>
-            <i18n-t v-else-if="refund.type !== 'STOP_PRORATED'" keypath="bizApplication.refundCalc" tag="p" scope="global" class="m-0 text-[13px] tabular-nums">
+            <i18n-t v-else-if="refund.type !== 'STOP_PRORATED' && refund.type !== 'CLAIM'" keypath="bizApplication.refundCalc" tag="p" scope="global" class="m-0 text-[13px] tabular-nums">
                 <template #paid><span class="font-semibold">{{ won(refund.paidAmount) }}</span></template>
                 <template #used>{{ refund.usedDays }}</template>
                 <template #total>{{ refund.totalDays }}</template>
@@ -321,6 +324,12 @@
                 <Button type="button" :label="t('bizApplication.actDenyRefund')" size="small" severity="secondary" variant="outlined" :disabled="busy" @click="emit('denyRefund')" />
                 <Button type="button" :label="t('bizApplication.actApproveRefund')" size="small" severity="danger" :disabled="busy" @click="emit('approveRefund')" />
             </div>
+            <!-- 환불 합계 + [추가 환불](클레임) -->
+            <div v-if="refundSummary" class="border-t border-(--line) pt-2">
+                <BizRefundSummaryLine :summary="refundSummary">
+                    <Button v-if="canClaim" type="button" :label="t('bizApplication.claim.act')" icon="pi pi-replay" size="small" severity="danger" variant="outlined" :disabled="busy" @click="emit('claimRefund')" />
+                </BizRefundSummaryLine>
+            </div>
         </section>
 
         <!-- 결제 기록(확정 뒤) -->
@@ -340,6 +349,13 @@
                     <template #at>{{ time.shortDateTime(detail.deposit.confirmedAt) }}</template>
                 </i18n-t>
             </template>
+        </section>
+
+        <!-- 환불 합계(환불 줄이 없을 때 — 결제 기록 아래) + [추가 환불](클레임) -->
+        <section v-if="!refund && refundSummary" class="rounded-lg border border-(--line) px-3 py-2.5">
+            <BizRefundSummaryLine :summary="refundSummary">
+                <Button v-if="canClaim" type="button" :label="t('bizApplication.claim.act')" icon="pi pi-replay" size="small" severity="danger" variant="outlined" :disabled="busy" @click="emit('claimRefund')" />
+            </BizRefundSummaryLine>
         </section>
 
         <section class="flex flex-col gap-2">
@@ -386,6 +402,8 @@ const emit = defineEmits<{
     approveRefund: [];
     denyRefund: [];
     markTransferred: [];
+    /** 추가 환불(클레임) 창 열기 */
+    claimRefund: [];
     viewContract: [id: string];
     /** 운영자 대신 일시 정지 · 다시 켜기 · 중단(광고주 요청) */
     pause: [];
@@ -409,6 +427,19 @@ const EMPH = {
     date: 'font-semibold text-sky-700 dark:text-sky-400',
 } as const;
 const refund = computed(() => props.detail.refund);
+/** 환불 합계(결제 전이면 null) */
+const refundSummary = computed(() => props.detail.refundSummary ?? null);
+/**
+ * [추가 환불] — 환불 권한 + 남은 환불 가능 > 0 + 서버 대상(biz-pause-contract 「추가 환불」): 취소됨 · 끝난 건 · 광고주 중단(거절 뒤).
+ * 열린 환불·수동 송금 대기 중·시작 전·진행 중·정지 중(끝 전)은 서버가 409 로 막으므로 단추를 감춘다(서버가 다시 판정).
+ */
+const canClaim = computed(() => {
+    const d = props.detail;
+    const r = refund.value;
+    if (!props.canRefund || (refundSummary.value?.refundable ?? 0) <= 0) return false;
+    if (r && (r.status === 'REQUESTED' || r.transferStatus === 'PENDING')) return false;
+    return d.status === 'CANCELED' || d.status === 'ENDED' || UtilBizApplication.ended(d.period, props.now) || d.takedown?.cause === 'ADVERTISER_STOP';
+});
 /** 운영자 등록 건(광고 일정표 수동 등록) */
 const operator = computed(() => props.detail.source === 'OPERATOR');
 /** 내가 등록한 건인데 자기 승인을 막는 설정 — 서버 409 `BIZ_SELF_APPROVAL_DENIED` */

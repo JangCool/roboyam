@@ -182,12 +182,14 @@ export type BizRefundStatus = 'REQUESTED' | 'APPROVED' | 'DENIED';
 /**
  * 환불 종류 — 시작 전 전액 자동 · 진행 중 일할 심사 · 사업자 정지로 내림(일할) · 긴급 내림 되돌리기의 중단 기간 일할(바로 승인)
  * · 광고주 요청 중단 일할 − 중도 해지 수수료(`STOP_PRORATED` — 내역 `proratedAmount`·`feeRate`·`feeAmount`·`basisAt`, 핫딜 글은 게시비 제외 노출 자리 몫만. biz-pause-contract)
+ * · 운영자 추가 환불(`CLAIM` — V128, 바로 승인. 클레임 내용은 `decisionReason`, 요청 사유 `reason` 은 null)
  */
-export type BizRefundType = 'FULL_AUTO' | 'PRORATED' | 'SUSPEND_PRORATED' | 'DOWNTIME' | 'STOP_PRORATED';
+export type BizRefundType = 'FULL_AUTO' | 'PRORATED' | 'SUSPEND_PRORATED' | 'DOWNTIME' | 'STOP_PRORATED' | 'CLAIM';
 
 export interface BizRefundRequest {
     requestedAt: string;
-    reason: string;
+    /** 요청 사유 — 운영자 추가 환불(`CLAIM`)이면 null(클레임 내용은 `decisionReason`) */
+    reason: string | null;
     paidAmount: number;
     /** 일할 계산 제안 — 남은 기간 / 전체 기간 × 결제 금액(`STOP_PRORATED` 는 일할 − 수수료 = 환불 예상액) */
     proposedAmount: number;
@@ -213,6 +215,26 @@ export interface BizRefundRequest {
     feeAmount: number | null;
     /** `STOP_PRORATED` 만 — 일할 기준 시각(정지 중 전환이면 멈춘 시각) */
     basisAt: string | null;
+}
+
+/**
+ * 환불 합계(추가 환불 클레임 — V128, 서버 `BizAdminView.RefundSummary`). 결제 전(온라인 미결제 · 수동 입금 기록 없음)이면 상세 `refundSummary` = null.
+ */
+export interface BizRefundSummary {
+    /** 결제액(온라인 결제액 · 수동 입금 확인 금액) */
+    paid: number;
+    /** 승인된 환불 합(PG 취소·송금이 끝나기 전 몫 포함) */
+    refunded: number;
+    /** 남은 환불 가능액 — 추가 환불 금액의 상한 · 창의 처음 값 */
+    refundable: number;
+    /** 아직 돌려주지 않은 중도 해지 수수료(0 ~ `refundable`) — 「수수료만」 단추 값(0 이면 단추를 감춘다) */
+    feeKept: number;
+}
+
+/** 추가 환불(클레임) 본문 — 금액 1 ~ 남은 환불 가능액(400 `fields.amount`) · 사유 5~200자(400 `fields.reason`, 관리자에게만 보인다) */
+export interface BizRefundClaimRequest {
+    amount: number;
+    reason: string;
 }
 
 /** 처리 기록 코드(서버 `BizEventAction`) — 화면이 `bizApplication.action.<코드>` 로 번역한다 */
@@ -254,6 +276,8 @@ export const BIZ_HISTORY_ACTIONS = [
     'PAUSED',
     'RESUMED',
     'STOPPED',
+    // 운영자 추가 환불(클레임 — V128) — note = 금액(원)
+    'CLAIM_REFUNDED',
 ] as const;
 export type BizHistoryAction = (typeof BIZ_HISTORY_ACTIONS)[number];
 
@@ -395,6 +419,8 @@ export interface BizApplicationDetail extends BizApplicationRow {
     post?: BizDealPost | null;
     /** 광고주 요청 일시 정지·중단(날짜로 산 자리 · 사업자 핫딜 글) — 결제 전·정지할 수 없는 종류면 null(화면이 「일시 정지·중단」 칸과 대신 처리 단추를 감춘다) */
     pause: BizPause | null;
+    /** 환불 합계(결제·환불·남은 환불 가능 — 추가 환불 클레임) — 결제 전이면 null */
+    refundSummary: BizRefundSummary | null;
 }
 
 export interface BizApplicationQuery {

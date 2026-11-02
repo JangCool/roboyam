@@ -218,6 +218,12 @@ public class BizApplicationAdminService {
         return view(actor, id);
     }
 
+    /** 추가 환불(클레임) — 환불 권한({@code deal-order.refund})만, 도메인 권한은 다시 보지 않는다(환불 승인과 같음) */
+    public BizAdminView.Detail claimRefund(AdminActor actor, long id, BizAdminRequest.RefundClaim body) {
+        review.claimRefund(op(actor), id, body == null ? null : body.amount(), body == null ? null : body.reason());
+        return view(actor, id);
+    }
+
     // ── 안 ──────────────────────────────────────────────────────────────────
 
     /** 처리 뒤 응답 — 권한은 이미 봤다 */
@@ -295,7 +301,8 @@ public class BizApplicationAdminService {
                 row.total(), row.deadlineAt(), row.hasRefundRequest(), a.source().name(), row.takedownCause(), applicant,
                 content(a, s.creative() == null ? Map.of() : s.creative().content()), a.operatorMemo(), quote(s.items(), a.quote()), remaining, limit, approval, online,
                 contracts, deposit, refund, rejection, takedown, policy, history, a.proposedSupply(), a.weight(), registrant(a, actor), props.selfApproval().name(),
-                dealPosts.view(a, s.items(), s.creative()), BizAdminView.Pause.of(pauses.info(a, s.items())));
+                dealPosts.view(a, s.items(), s.creative()), BizAdminView.Pause.of(pauses.info(a, s.items())),
+                BizAdminView.RefundSummary.of(reader.refundSummary(a, s.deposit())));
     }
 
     private static Map<String, Object> ref(Object id, Object name) {

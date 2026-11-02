@@ -39,6 +39,10 @@ public final class BizAdminRequest {
     public record Transfer(String note) {
     }
 
+    /** 추가 환불(클레임 — V128) — @param amount 1원 ~ 남은 환불 가능액 · @param reason 5~200자(클레임 내용 — 관리자만 봄) */
+    public record RefundClaim(Long amount, String reason) {
+    }
+
     /**
      * 운영자가 광고주 대신 정지·다시 켜기·중단(V127) — @param channel PHONE·EMAIL·OTHER(필수) · @param memo 1~200자(필수, 관리자에게만) · @param reason 중단 사유(선택 300자 —
      * 사업자 화면에 보인다, 정지·다시 켜기는 무시)

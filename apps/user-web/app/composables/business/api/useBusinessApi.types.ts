@@ -152,16 +152,19 @@ export interface BizDepositInfo {
 /**
  * 취소·환불(H1) — 상태가 아니라 신청 건의 하위 값이다(세션 정리 결정). 시작 전 요청 = 신청 건 CANCELED + 이 값 APPROVED(FULL_AUTO),
  * 진행 중 요청 = 중단(V127 — 바로 내림 + REQUESTED `STOP_PRORATED`) → 운영팀이 APPROVED·DENIED. 돈이 실제로 돌아간 것은 처리 기록의 `REFUNDED`·`REFUND_TRANSFERRED`.
+ * 운영팀 추가 환불(`CLAIM` — V128, biz-pause-contract 「추가 환불」): 운영팀이 클레임에 따라 남은 금액을 바로 승인 — 사유(`reason`·`decisionReason`)는 공개 응답에서 null(금액만).
  * 서버 `BizMemberView.Refund`.
  */
 export interface BizRefundRequest {
     /**
      * `FULL_AUTO` 시작 전 전액 자동 · `PRORATED_REVIEW` 진행 중 일할(운영팀 확인 — 옛 [취소·환불 요청]·긴급 내림 보상·사업자 정지 일할) ·
-     * `STOP_PRORATED` 광고주 요청 중단 일할 − 중도 해지 수수료(운영팀 확인 — 기준 시각 `basisAt`, 핫딜 글은 게시비 빼고 노출 자리만)
+     * `STOP_PRORATED` 광고주 요청 중단 일할 − 중도 해지 수수료(운영팀 확인 — 기준 시각 `basisAt`, 핫딜 글은 게시비 빼고 노출 자리만) ·
+     * `CLAIM` 운영팀 추가 환불(바로 승인 — 금액만, 사유 없음)
      */
-    type: 'FULL_AUTO' | 'PRORATED_REVIEW' | 'STOP_PRORATED';
+    type: 'FULL_AUTO' | 'PRORATED_REVIEW' | 'STOP_PRORATED' | 'CLAIM';
     status: 'REQUESTED' | 'APPROVED' | 'DENIED';
-    reason: string;
+    /** 요청 사유 — `CLAIM` 이면 null */
+    reason: string | null;
     requestedAt: string;
     /** 제안 금액(일할 계산 — 시작 전이면 전액, `STOP_PRORATED` 는 일할 − 수수료 = 환불 예상액) */
     proposedAmount: number;
@@ -219,6 +222,8 @@ export interface BizHistoryEntry {
         | 'PAUSED'
         | 'RESUMED'
         | 'STOPPED'
+        // 운영팀 추가 환불(클레임 — V128) — note = 금액(원)
+        | 'CLAIM_REFUNDED'
         // 서버는 기록하지 않는다 — 화면이 `phase` 로 덧붙인다(`UtilBusiness.withPhaseHistory`)
         | 'STARTED'
         | 'ENDED';
@@ -490,4 +495,6 @@ export interface BizPaymentStart {
     orderRefId: string;
     expiresAt: string;
     checkout: PaymentCheckout;
+    /** 결제창(포트원) 구매자 — 서버가 사업자 신원의 상호·연락처(숫자)·이메일로 채운다(본인 건만). 연락처가 없으면 결제 시작이 400 `BIZ_CONTACT_MISSING` */
+    customer: { fullName: string; phoneNumber: string; email: string } | null;
 }

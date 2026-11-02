@@ -28,7 +28,8 @@ public final class BizMemberView {
 
     /**
      * 취소·환불 — {@code type} FULL_AUTO·PRORATED_REVIEW·STOP_PRORATED(V127 광고주 요청 중단 — 예상액 {@code proposedAmount} = 일할 {@code proratedAmount} − 수수료
-     * {@code feeAmount}, 비율 {@code feeRate}·기준 시각 {@code basisAt}. 다른 종류면 네 칸 null), {@code status} REQUESTED·APPROVED·DENIED
+     * {@code feeAmount}, 비율 {@code feeRate}·기준 시각 {@code basisAt}. 다른 종류면 네 칸 null)·CLAIM(운영자 추가 환불 — V128, 바로 승인 · 사유 {@code reason}·{@code decisionReason} 은 null — 관리자만 봄),
+     * {@code status} REQUESTED·APPROVED·DENIED
      */
     public record Refund(String type, String status, String reason, Instant requestedAt, long proposedAmount, Long refundAmount, String decisionReason,
                          Long proratedAmount, Integer feeRate, Long feeAmount, Instant basisAt) {
@@ -97,8 +98,15 @@ public final class BizMemberView {
     public record DealLinkCheck(String host, String shopName, boolean blocked, String blockedReason, boolean affiliate) {
     }
 
-    /** 결제 시작 — 결제 모듈 한 길({@code BIZ_APPLICATION}) */
-    public record PaymentStart(String orderType, String orderRefId, Instant expiresAt, PaymentCheckoutView checkout) {
+    /**
+     * 결제 시작 — 결제 모듈 한 길({@code BIZ_APPLICATION}). {@code customer} = 결제창(포트원) 구매자 칸 — 사업자 신원의 상호·연락처 평문·이메일(본인 건만, 응답 no-store).
+     * 공동구매 {@code GroupBuyMemberView.PaymentStart.customer} 와 같은 모양.
+     */
+    public record PaymentStart(String orderType, String orderRefId, Instant expiresAt, PaymentCheckoutView checkout, Customer customer) {
+    }
+
+    /** 결제창 구매자 — 이름(상호) · 전화번호(숫자) · 이메일 */
+    public record Customer(String fullName, String phoneNumber, String email) {
     }
 
     /** 올린 광고 이미지 — user-web {@code BusinessFile} */

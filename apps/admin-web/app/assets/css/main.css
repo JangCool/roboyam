@@ -492,3 +492,19 @@ html[data-density='compact'] {
     outline: 2px solid var(--p-text-color);
     outline-offset: 2px;
 }
+
+/*
+ * 모달·서랍 안 안내(PrimeVue Message) — 위쪽 테두리 선과 글자가 잘리지 않게.
+ * Message 의 테두리는 상자 바깥에 그리는 outline 인데, Dialog·Drawer 본문은 위쪽 여백이 0 이고 overflow-y: auto 라 안내가 본문 첫 요소면 위쪽 선이 가려졌다 —
+ * outline 을 상자 안쪽으로 당긴다(굵기 토큰만큼). 등장 애니메이션(0.3초, 높이를 키우며 overflow: hidden)도 모달·서랍이 열리는 동안 겹쳐
+ * 여러 줄 안내(광고 일정표 서랍의 일시 정지 안내 등)의 글자를 잘라 끈다. user-web main.css 에 같은 규칙이 있다.
+ */
+.p-dialog-content .p-message,
+.p-drawer-content .p-message {
+    outline-offset: calc(-1 * var(--p-message-border-width, 1px));
+}
+.p-dialog .p-message-enter-active,
+.p-drawer .p-message-enter-active {
+    animation: none;
+    overflow: visible;
+}

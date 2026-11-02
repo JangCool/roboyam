@@ -493,6 +493,7 @@ export default {
             FULL_AUTO: '전액 환불',
             PRORATED_REVIEW: '일할 환불 확인',
             STOP_PRORATED: '중단 일할 환불 확인',
+            CLAIM: '추가 환불',
         },
         refundStatus: {
             REQUESTED: '운영팀 확인 중',
@@ -542,6 +543,7 @@ export default {
             PAUSED: '일시 정지',
             RESUMED: '다시 켬',
             STOPPED: '중단(광고주 요청)',
+            CLAIM_REFUNDED: '추가 환불',
         },
         note: {
             PERIOD_MOVED: '시작이 지나 기간을 뒤로 옮겼어요',
