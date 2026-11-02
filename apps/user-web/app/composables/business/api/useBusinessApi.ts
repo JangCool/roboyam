@@ -45,7 +45,7 @@ import type { PaymentCompleteRequest, PaymentFakeCheckoutRequest, PaymentResult 
  *  - 서비스별 정지(2026-11-02): `GET /api/business/me` 의 `services[]`(`BusinessProfileService` — 서비스·상태·정지 사유, 신청 전이면 빈 목록 · 순서에 기대지 않는다).
  *    정지된 서비스로 새 신청하면 409 `BUSINESS_SERVICE_SUSPENDED`(문구는 서버 몫) — 신청 화면은 신원을 다시 읽어 막힘 안내를 보인다.
  *  - 광고 성과(목업 2026-11-02 — 서버 전, 장부는 실제 · 숫자만 `./mock/ad-stats-mock.ts`): `GET …/{id}/stats?from&to` → `AdApplicationStats`(본인 건만, 없으면 404) ·
- *    `GET /api/business/ads/stats-summary` → `BizAdStatsSummary`(진행 중·정지 중 최대 5건 · 최근 7일). ⚠ MOCK: 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
+ *    `GET /api/business/ads/stats-summary` → `BizAdStatsSummary`(진행 중·정지 중·내려진 건(광고주 중단 제외) 최대 5건 · 최근 7일). ⚠ MOCK: 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
  *  - 환불 규정:`GET /api/business/refund-policy` → `{ version, stopFeeRate }`(신청 화면 동의 문구) · 신청 본문의 규정 버전이 지금과 다르면 400 `fields.agreedRefundPolicyVersion`
  */
 const PATH = {
@@ -146,7 +146,7 @@ export function useBusinessApi() {
             mockAdStats(id, range ? { from: range.from, to: range.to } : undefined, () => client.get<BizApplicationDetail>(PATH.application(id))),
         // REAL: client.get<AdApplicationStats>(`${PATH.application(id)}/stats`, { query: range ? { from: range.from, to: range.to } : {} }),
 
-        /** 사업자 센터 「진행 중 광고」 요약 — 진행 중·정지 중 건 최대 5개, 최근 7일 */
+        /** 사업자 센터 「진행 중 광고」 요약 — 진행 중·정지 중·내려진 건(광고주 중단 제외) 최대 5개, 최근 7일 */
         adStatsSummary: (): Promise<BizAdStatsSummary> =>
             // MOCK: 실제 진행 중 목록(`bucket=RUNNING`)에 숫자만 붙인다
             mockAdStatsSummary(() => client.get<BizApplicationPage>(PATH.applications, { query: { bucket: 'RUNNING' } })),

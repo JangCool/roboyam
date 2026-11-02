@@ -4,11 +4,11 @@
 //   GET /api/business/applications/{id}/stats?from=YYYY-MM-DD&to=YYYY-MM-DD → `AdApplicationStats`(본인 건만 — 없으면 404 `BIZ_APPLICATION_NOT_FOUND`)
 //       from·to 가 빠지면 시작 날짜 ~ min(끝 날짜, 오늘). days = 기간 안 모든 날짜(0 포함) · byPlacement = 0 인 자리는 빼고 노출 차례 · byVersion = 버전 차례 ·
 //       downtimes = 기간과 겹치는 정지·내림 구간(처리 기록에서 계산 — 정지·내림 중에는 공개 노출에 안 나가 집계 0)
-//   GET /api/business/ads/stats-summary → `BizAdStatsSummary`(진행 중 · 정지 중이고 노출 자리가 있는 건 최대 5개, 최근 7일 = 오늘 포함 · spark 오래된 차례)
+//   GET /api/business/ads/stats-summary → `BizAdStatsSummary`(진행 중 · 정지 중 · 내려짐(광고주 중단 제외)이고 노출 자리가 있는 건 최대 5개, 최근 7일 = 오늘 포함 · spark 오래된 차례)
 //
 // ── 장부는 실제, 숫자만 목업 ─
 //   · 한 건 성과: 실제 상세(`GET /api/business/applications/{id}`)를 받아 종류·광고 유형·핫딜 자리·내림 까닭을 본 뒤 숫자를 만든다(그 건이 없으면 실제 404 가 그대로 난다).
-//   · 센터 요약: 실제 목록(`bucket=RUNNING`)에서 진행 중(SCHEDULED·RUNNING) · 일시 정지 중(TAKEN_DOWN·ADVERTISER_PAUSE, 끝 날짜 전)이고 노출 자리가 있는 건만 골라 숫자를 붙인다
+//   · 센터 요약: 실제 목록(`bucket=RUNNING`)에서 진행 중(SCHEDULED·RUNNING) · 일시 정지·내려짐(TAKEN_DOWN 중 ADVERTISER_STOP 아닌 것, 끝 날짜 전)이고 노출 자리가 있는 건만 골라 숫자를 붙인다
 //     (운영 긴급 내림·사업자 정지·중단 건은 뺀다 — 가정).
 //   · 숫자는 건 ID 를 씨앗으로 한 결정적 의사 난수(새로 고쳐도 같다). 오늘은 한국 시각으로 지난 만큼만(「오늘은 집계 중」). 지금 정지·내림 중이면 그 시각부터 0.
 //
@@ -210,11 +210,11 @@ export async function mockAdStats(id: string, range: { from: string; to: string 
     });
 }
 
-/** 센터 요약에 올릴 건인가 — 진행 중 · 일시 정지 중(끝 날짜 전) · 노출 자리 있음 */
+/** 센터 요약에 올릴 건인가 — 진행 중 · 일시 정지 중 · 내려짐(긴급 내림·사업자/서비스 정지 — 사용자 결정 2026-11-02), 끝 날짜 전 · 노출 자리 있음. 광고주 중단은 뺀다 */
 function summaryTarget(a: BizApplicationSummary, now: number): boolean {
     if (!UtilAdStats.exposes(a.kind, a.placement)) return false;
     if (a.status === 'SCHEDULED') return a.phase === 'RUNNING';
-    return a.status === 'TAKEN_DOWN' && a.takedownCause === 'ADVERTISER_PAUSE' && !UtilBusiness.periodOver(a.endDate, now);
+    return a.status === 'TAKEN_DOWN' && a.takedownCause !== 'ADVERTISER_STOP' && !UtilBusiness.periodOver(a.endDate, now);
 }
 
 /** 사업자 센터 「진행 중 광고」 — `loadRunning` 은 실제 목록 API(`bucket=RUNNING`) */
@@ -231,8 +231,8 @@ export async function mockAdStatsSummary(loadRunning: () => Promise<BizApplicati
         .slice(0, UtilAdStats.SUMMARY_MAX)
         .map((a) => {
             const dates = UtilAdStats.dates(from, today);
-            // 정지 중이면 정지 시각을 모른다(목록엔 없음) — 어제 낮부터 멈춘 것으로 친다(가정)
-            const downtimes: AdStatDowntime[] = a.status === 'TAKEN_DOWN' ? [{ from: kstAt(UtilAdStats.addDays(today, -1), 13), to: null, cause: 'ADVERTISER_PAUSE' }] : [];
+            // 정지·내림 중이면 멈춘 시각을 모른다(목록엔 없음) — 어제 낮부터 멈춘 것으로 친다(가정)
+            const downtimes: AdStatDowntime[] = a.status === 'TAKEN_DOWN' ? [{ from: kstAt(UtilAdStats.addDays(today, -1), 13), to: null, cause: a.takedownCause ?? 'EMERGENCY' }] : [];
             const g = generate(a.id, kindKey(a), dates, today, downtimes, now, flags.has('ad-stats-empty'), flags.has('ad-stats-hotdeal'), null);
             // 시작 전·끝난 뒤 날은 0
             const spark = g.days.map((d) => (d.date < a.startDate || d.date > a.endDate ? { ...d, impressions: 0, clicks: 0 } : d));

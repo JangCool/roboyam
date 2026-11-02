@@ -24,7 +24,7 @@
 
             <section class="flex flex-col gap-2" :aria-labelledby="`${idBase}-daily`">
                 <h3 :id="`${idBase}-daily`" class="m-0 text-[13px] font-semibold">{{ t('ad.statDaily') }}</h3>
-                <AdStatsChart :days="stats.days" :height="200" />
+                <AdStatsChart :days="stats.days" />
             </section>
 
             <section v-if="stats.downtimes.length" class="flex flex-col gap-1.5" :aria-labelledby="`${idBase}-down`">

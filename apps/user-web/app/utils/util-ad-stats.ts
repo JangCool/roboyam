@@ -89,17 +89,4 @@ export default class UtilAdStats {
     static sum(rows: readonly AdStatCounts[]): AdStatCounts {
         return rows.reduce<AdStatCounts>((acc, r) => ({ impressions: acc.impressions + r.impressions, clicks: acc.clicks + r.clicks }), { impressions: 0, clicks: 0 });
     }
-
-    /**
-     * 축 위 끝 — 가장 큰 값을 넘는 「보기 좋은」 수(1·2·2.5·5·10 × 10ⁿ). 0 이면 1(빈 차트도 축이 선다).
-     * @returns {{ max: number; step: number }} 위 끝과 눈금 간격(눈금 4칸).
-     */
-    static niceScale(value: number, ticks = 4): { max: number; step: number } {
-        if (!(value > 0)) return { max: ticks, step: 1 };
-        const raw = value / ticks;
-        const mag = 10 ** Math.floor(Math.log10(raw));
-        const step = ([1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? 10 * mag);
-        const whole = Math.max(1, Math.ceil(step));
-        return { max: whole * ticks, step: whole };
-    }
 }

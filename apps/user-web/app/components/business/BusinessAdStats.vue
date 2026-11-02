@@ -1,7 +1,7 @@
 <template>
     <!--
         한 건의 광고 성과 조각(신청 건 상세 「성과」 칸 안) — 합계 3칸(노출 · 클릭 · 클릭률) + 「{시각} 기준 · 오늘은 집계 중」 + 집계 기준 안내 +
-        날짜별 추이(노출/클릭 전환 막대 — `BusinessStatsChart`, 정지·내림 띠·오늘 빗금 + 범례) + 멈춘 구간 + 자리별 표 + 소재 버전별 표.
+        날짜별 추이(막대 = 노출 왼쪽 축 · 선 = 클릭 오른쪽 축 — `BusinessStatsChart`(ECharts), 정지·내림 띠·오늘 빗금 + 범례) + 멈춘 구간 + 자리별 표 + 소재 버전별 표.
         자리·버전이 한 줄뿐이면 표 대신 한 줄 문구. 로딩(뼈대) · 숫자 모두 0(빈 결과) · 오류(다시 시도)를 다 그린다. 서버 호출은 화면이 한다(`useBusinessApi.stats`).
     -->
     <div class="flex flex-col gap-4" data-testid="business-ad-stats" :data-stats-status="status">
@@ -34,17 +34,8 @@
             <template v-else>
                 <!-- 날짜별 추이 -->
                 <div class="flex flex-col gap-2">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <h3 class="m-0 text-sm font-semibold">{{ t('business.stats.trendTitle') }}</h3>
-                        <SelectButton v-model="metric" :options="metricOptions" option-label="label" option-value="value" :allow-empty="false" size="small" :aria-label="t('business.stats.metricLabel')" data-testid="business-ad-stats-metric" />
-                    </div>
-                    <BusinessStatsChart :days="stats.days" :metric="metric" :today="counting ? today : ''" />
-                    <ul class="m-0 flex list-none flex-wrap gap-x-4 gap-y-1 p-0 text-xs text-muted-color" :aria-label="t('business.stats.trendTitle')">
-                        <li class="inline-flex items-center gap-1.5"><span class="legend-swatch legend-bar" aria-hidden="true" />{{ t(`business.stats.${metric}`) }}</li>
-                        <li v-if="counting" class="inline-flex items-center gap-1.5"><span class="legend-swatch legend-today" aria-hidden="true" />{{ t('business.stats.legendToday') }}</li>
-                        <li v-if="hasState.PAUSED" class="inline-flex items-center gap-1.5"><span class="legend-swatch bg-amber-400/40 dark:bg-amber-400/30" aria-hidden="true" />{{ t('business.stats.legendPaused') }}</li>
-                        <li v-if="hasState.TAKEN_DOWN" class="inline-flex items-center gap-1.5"><span class="legend-swatch bg-red-500/30 dark:bg-red-400/30" aria-hidden="true" />{{ t('business.stats.legendTakenDown') }}</li>
-                    </ul>
+                    <h3 class="m-0 text-sm font-semibold">{{ t('business.stats.trendTitle') }}</h3>
+                    <BusinessStatsChart :days="stats.days" :today="counting ? today : ''" />
                 </div>
 
                 <!-- 멈춘 구간 -->
@@ -139,12 +130,6 @@ const emit = defineEmits<{ retry: [] }>();
 const { t } = useI18n();
 const time = useDisplayTime();
 
-const metric = ref<'impressions' | 'clicks'>('impressions');
-const metricOptions = computed(() => [
-    { value: 'impressions', label: t('business.stats.impressions') },
-    { value: 'clicks', label: t('business.stats.clicks') },
-]);
-
 const counting = computed(() => Boolean(props.stats && props.today && props.stats.range.to === props.today));
 const empty = computed(() => !props.stats || (props.stats.totals.impressions === 0 && props.stats.totals.clicks === 0));
 const tiles = computed(() => {
@@ -155,27 +140,9 @@ const tiles = computed(() => {
         { key: 'ctr', label: t('business.stats.ctr'), value: UtilAdStats.ctrText(c) },
     ];
 });
-const hasState = computed(() => ({
-    PAUSED: Boolean(props.stats?.days.some((d) => d.state === 'PAUSED')),
-    TAKEN_DOWN: Boolean(props.stats?.days.some((d) => d.state === 'TAKEN_DOWN')),
-}));
 </script>
 
 <style scoped>
-.legend-swatch {
-    display: inline-block;
-    width: 0.75rem;
-    height: 0.75rem;
-    border-radius: 2px;
-}
-.legend-bar {
-    background: var(--p-primary-color);
-}
-.legend-today {
-    border: 1px solid var(--p-primary-color);
-    background: repeating-linear-gradient(-45deg, var(--p-primary-color) 0 2px, transparent 2px 4px);
-    opacity: 0.85;
-}
 .stats-table {
     width: 100%;
     border-collapse: collapse;

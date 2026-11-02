@@ -1,4 +1,4 @@
-import type { AdBookingRow, AdStatCounts, AdStatDayState, AdStatRange, AdStatsSort, AdType } from '~/composables/ad/api/useAdApi.types';
+import type { AdBookingRow, AdStatCounts, AdStatRange, AdStatsSort, AdType } from '~/composables/ad/api/useAdApi.types';
 import { AD_STATS_SORTS } from '~/composables/ad/api/useAdApi.types';
 import UtilAd from '~/utils/util-ad';
 import UtilBizApplication from '~/utils/util-biz-application';
@@ -11,13 +11,6 @@ export interface AdStatsFilter {
     advertiserId: string | null;
     sort: AdStatsSort;
     dir: 'asc' | 'desc';
-}
-
-/** 차트 띠 — 이어진 정지·내림 날 묶음(날짜 차례 번호, 양끝 포함) */
-export interface AdStatBand {
-    state: Exclude<AdStatDayState, 'SHOWING'>;
-    start: number;
-    end: number;
 }
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
@@ -88,31 +81,6 @@ export default class UtilAdStats {
         const out: string[] = [];
         for (let d = range.from; d <= range.to && out.length < 400; d = UtilBizApplication.addDays(d, 1)) out.push(d);
         return out;
-    }
-
-    /** 이어진 정지·내림 날을 띠로 묶는다 */
-    static bands(days: readonly { state?: AdStatDayState }[]): AdStatBand[] {
-        const out: AdStatBand[] = [];
-        days.forEach((d, i) => {
-            const state = d.state ?? 'SHOWING';
-            if (state === 'SHOWING') return;
-            const last = out[out.length - 1];
-            if (last && last.state === state && last.end === i - 1) last.end = i;
-            else out.push({ state, start: i, end: i });
-        });
-        return out;
-    }
-
-    /**
-     * 축 위 끝을 보기 좋은 수로 올린다(1·2·2.5·5·10 × 10ⁿ) — 눈금은 4칸.
-     * @returns 축 최댓값(0 이면 4 — 빈 차트도 눈금이 선다).
-     */
-    static niceMax(max: number, steps = 4): number {
-        if (max <= 0) return steps;
-        const raw = max / steps;
-        const pow = 10 ** Math.floor(Math.log10(raw));
-        const step = [1, 2, 2.5, 5, 10].map((m) => m * pow).find((s) => s >= raw) ?? 10 * pow;
-        return Math.max(steps, Math.ceil(step) * steps);
     }
 
     /** 축 날짜 글자 `M/D` */
