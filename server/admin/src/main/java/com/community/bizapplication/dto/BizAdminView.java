@@ -43,7 +43,7 @@ public final class BizAdminView {
     }
 
     /**
-     * 환불 — {@code type} FULL_AUTO·PRORATED·SUSPEND_PRORATED·DOWNTIME·STOP_PRORATED, {@code status} REQUESTED·APPROVED·DENIED, {@code method} ONLINE·MANUAL,
+     * 환불 — {@code type} FULL_AUTO·PRORATED·SUSPEND_PRORATED·DOWNTIME·STOP_PRORATED·CLAIM(운영자 추가 환불 — 바로 승인, 사유는 {@code decisionReason}), {@code status} REQUESTED·APPROVED·DENIED, {@code method} ONLINE·MANUAL,
      * {@code transferStatus} PENDING·DONE(수동만). 광고주 요청 중단(STOP_PRORATED, V127)이면 제안 내역 {@code proratedAmount}(일할)·{@code feeRate}·{@code feeAmount}(수수료)·
      * {@code basisAt}(기준 시각) — 예상액 = {@code proposedAmount} = 일할 − 수수료. 다른 종류면 네 칸 null
      */
@@ -55,6 +55,21 @@ public final class BizAdminView {
             return r == null ? null : new Refund(r.requestedAt(), r.reason(), r.paidAmount(), r.proposedAmount(), r.usedDays(), r.totalDays(), r.status().name(),
                     r.type().name(), r.method().name(), r.approvedAmount(), r.decisionReason(), r.transferStatus(), r.transferredAt(), r.completedAt(), r.proratedAmount(),
                     r.feeRate(), r.feeAmount(), r.basisAt());
+        }
+    }
+
+    /**
+     * 환불 합계(추가 환불 클레임 — V128) — 결제 전이면 상세 {@code refundSummary} = null.
+     *
+     * @param paid       결제액(온라인 결제액 · 수동 입금 확인 금액)
+     * @param refunded   승인된 환불 합
+     * @param refundable 남은 환불 가능액(추가 환불 금액의 상한 · 화면 기본값)
+     * @param feeKept    아직 돌려주지 않은 중도 해지 수수료(승인된 중단 환불의 수수료 합 − 추가 환불 합, 0 ~ {@code refundable}) — 「수수료만」 단추 값
+     */
+    public record RefundSummary(long paid, long refunded, long refundable, long feeKept) {
+
+        public static RefundSummary of(com.community.bizapplication.service.BizRefundSummary s) {
+            return s == null ? null : new RefundSummary(s.paid(), s.refunded(), s.refundable(), s.feeKept());
         }
     }
 
@@ -103,7 +118,7 @@ public final class BizAdminView {
                          String memo, Quote quote, int remainingSlots, int slotLimit, Approval approval, OnlinePayment onlinePayment, List<Contract> contracts,
                          Deposit deposit, Refund refund, Rejection rejection, Takedown takedown, String policyAgreedVersion, List<History> history,
                          Long proposedSupply, int weight, Registrant registrant, String selfApproval,
-                         com.community.bizapplication.dto.response.BizDealPostView post, Pause pause) {
+                         com.community.bizapplication.dto.response.BizDealPostView post, Pause pause, RefundSummary refundSummary) {
     }
 
     /**

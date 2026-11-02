@@ -168,6 +168,17 @@ public class BizApplicationAdminController {
         return ok(service.markTransferred(actor, BizApplicationAdminService.parseId(id), body));
     }
 
+    /**
+     * 추가 환불(클레임 — V128) {@code { amount, reason }} — 취소·끝난 건·광고주 중단 건의 남은 금액을 바로 승인(온라인 PG 부분 취소 · 수동 송금 대기). 그 밖 상태·열린 환불 409,
+     * 금액·사유 400. 감사 {@code BIZ_APP_REFUND_CLAIM}(돈)
+     */
+    @RequirePermission(Permission.DEAL_ORDER_REFUND)
+    @PostMapping("/{id}/refund/claim")
+    public ResponseEntity<ApiResponse<BizAdminView.Detail>> claimRefund(@PathVariable String id, @RequestBody(required = false) BizAdminRequest.RefundClaim body,
+                                                                        AdminActor actor) {
+        return ok(service.claimRefund(actor, BizApplicationAdminService.parseId(id), body));
+    }
+
     private static <T> ResponseEntity<ApiResponse<T>> ok(T body) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.success(body));
     }

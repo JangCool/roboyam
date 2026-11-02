@@ -194,7 +194,7 @@ public class AdAdminService {
                 .toList();
         return new AdAdminView.Detail(row.id(), row.type(), row.advertiser(), row.period(), row.status(), row.paymentMethod(), row.weight(), row.source(),
                 row.applicationNo(), row.lastActionAt(), row.domain(), amount, a.proposedSupply(), creatives, online, contracts, deposit, takedown, refund, a.operatorMemo(),
-                registrant, history, row.takedownCause(), pause);
+                registrant, history, row.takedownCause(), pause, BizAdminView.RefundSummary.of(reader.refundSummary(a, s.deposit())));
     }
 
     /** 기간 판정 — 그 기간 가장 빠듯한 칸 · 꽉 찬 날(한국 날짜) · 요금표 계산(자기 자신 없음 — 새 등록) */

@@ -424,6 +424,8 @@ public final class AuditActions {
     public static final String BIZ_APP_RESUME = "BIZ_APP_RESUME";
     /** 운영자가 광고주 대신 중단(일할 환불 심사 대기 — 수수료) — {@code channel}·{@code memo}·{@code fromPause}·{@code refundFrom}·{@code prorated}·{@code feeRate}·{@code fee}·{@code proposed}. 돈 관련 */
     public static final String BIZ_APP_STOP = "BIZ_APP_STOP";
+    /** 운영자 추가 환불(클레임 — V128, 닫힌·끝난 건의 남은 금액을 바로 승인) — {@code refundId}·{@code amount}·{@code reason}·{@code method}·{@code refundableBefore}. 돈 관련 */
+    public static final String BIZ_APP_REFUND_CLAIM = "BIZ_APP_REFUND_CLAIM";
     // ── 광고 일정표(ad-contract, V115) — 긴급 내림·되돌리기는 대상 BIZ_APPLICATION, 광고주는 대상 AD_ADVERTISER + 광고주 ID. detail 에 연락처 평문을 싣지 않는다 ──
     /** 계정 없는 광고주 만들기 — {@code name}·{@code businessId}(연결했으면). 일반 */
     public static final String AD_ADVERTISER_CREATE = "AD_ADVERTISER_CREATE";

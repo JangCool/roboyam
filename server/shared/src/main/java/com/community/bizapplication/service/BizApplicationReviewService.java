@@ -556,6 +556,80 @@ public class BizApplicationReviewService {
         });
     }
 
+    // ── 추가 환불(클레임 — V128, biz-pause-contract 「추가 환불(클레임)」) ─────────────
+
+    /** 추가 환불 사유 글자 수 */
+    public static final int CLAIM_REASON_MIN = 5;
+    public static final int CLAIM_REASON_MAX = 200;
+
+    /**
+     * 운영자 추가 환불 — 환불 승인으로 닫힌 뒤(또는 끝난 뒤) 남은 금액을 더 돌려준다. 종류 {@code CLAIM} 을 <b>바로 승인</b>하고 신청 건 상태는 바꾸지 않는다.
+     * <ul>
+     *   <li>입력: 금액 1원 ~ 남은 환불 가능액(400 {@code fields.amount}) · 사유 5~200자(400 {@code fields.reason} — 관리자만 봄).</li>
+     *   <li>대상: 결제된 건(온라인 결제 · 수동 입금 확인) · 남은 가능액 &gt; 0 · 열린 환불 없음 · 수동 송금 대기 없음 · {@code CANCELED}·끝난 건(끝 시각이 지난 예약·내림)·광고주
+     *       중단({@code TAKEN_DOWN}·{@code ADVERTISER_STOP}). 그 밖(시작 전·진행 중·정지 중·긴급 내림 중)은 409 {@code BIZ_APPLICATION_STATE_CHANGED}.</li>
+     *   <li>남은 가능액은 신청 건 행 잠금 아래에서 다시 계산한다(동시 요청 · 여러 번 나눠도 합계 ≤ 결제액).</li>
+     *   <li>돈: 온라인 = 결제 모듈 부분 취소(요청 키 {@code BIZ_REFUND:<환불 ID>}) → 기존 {@code REFUNDED} · 수동 = 송금 대기 → 기존 [송금 완료 표시]({@code REFUND_TRANSFERRED}).</li>
+     *   <li>처리 기록 {@code CLAIM_REFUNDED}(note = 금액) · 감사 {@code BIZ_APP_REFUND_CLAIM}(돈 5년) · 사업자 알림 {@code REFUND_APPROVED}.</li>
+     * </ul>
+     */
+    public void claimRefund(BizOperator actor, long id, Long amount, String reasonText) {
+        BizFields f = BizFields.start();
+        if (amount == null || amount < 1) {
+            f.add("amount", "bizapp.claim.amount");
+        }
+        String reason = BizFields.strip(reasonText);
+        if (reason == null || reason.length() < CLAIM_REASON_MIN || reason.length() > CLAIM_REASON_MAX) {
+            f.add("reason", "bizapp.claim.reason", CLAIM_REASON_MIN, CLAIM_REASON_MAX);
+        }
+        f.throwIfAny();
+        tx.executeWithoutResult(status -> {
+            AppRow app = store.lock(id).orElseThrow(BizApplicationException::notFound);
+            Instant now = ops.now();
+            if (!claimable(app, now) || refunds.lockOpen(id).isPresent() || refunds.transferPending(id)) {
+                throw BizApplicationException.stateChanged();
+            }
+            Long paid = BizRefundSummary.paidOf(app, store.deposit(id).orElse(null));
+            if (paid == null) {
+                throw BizApplicationException.stateChanged();
+            }
+            long refundable = paid - refunds.approvedTotal(id);
+            if (refundable <= 0) {
+                throw BizApplicationException.stateChanged();
+            }
+            if (amount > refundable) {
+                throw com.community.zconfiguration.exception.ValidationException.of("amount", new com.community.zconfiguration.message.MessageRef("bizapp.claim.amount"));
+            }
+            long refundId = ops.nextId();
+            refunds.insertClaim(refundId, id, app.paymentMethod(), paid, amount, BizPricing.serviceDays(app.startAt(), app.endAt()), reason, actor.operatorId(), now);
+            if (app.paymentMethod() == BizPaymentMethod.ONLINE) {
+                ops.requestPgCancel(app, refundId, amount, actor.operatorId());
+            }
+            ops.event(id, BizEventAction.CLAIM_REFUNDED, BizActorType.OPERATOR, actor.operatorId(), String.valueOf(amount), now);
+            Map<String, Object> detail = new LinkedHashMap<>();
+            detail.put("refundId", Long.toString(refundId));
+            detail.put("amount", amount);
+            detail.put("reason", reason);
+            detail.put("method", app.paymentMethod().name());
+            detail.put("refundableBefore", refundable);
+            ops.audit(actor.operatorId(), actor.ip(), AuditActions.BIZ_APP_REFUND_CLAIM, app, detail);
+            ops.notices().member(app, BizApplicationNotices.Kind.REFUND_APPROVED, amount, null);
+        });
+    }
+
+    /**
+     * 추가 환불을 받을 수 있는 상태 — 취소됨 · 끝난 예약·내림 · 광고주 중단(환불 거절 뒤 등). 시작 전·진행 중·정지 중·긴급 내림 중(끝 전)은 기존 취소·중단·되돌리기 흐름을 쓴다
+     * (진행 중에 돈만 돌려주면 노출과 금액이 어긋난다).
+     */
+    static boolean claimable(AppRow app, Instant now) {
+        return switch (app.status()) {
+            case CANCELED -> true;
+            case SCHEDULED -> !now.isBefore(app.endAt());
+            case TAKEN_DOWN -> !now.isBefore(app.endAt()) || app.takedownCause() == com.community.bizapplication.entity.BizTakedownCause.ADVERTISER_STOP;
+            default -> false;
+        };
+    }
+
     // ── 안 ──────────────────────────────────────────────────────────────────
 
     /** 계약서 사본을 올릴 수 있는 상태 — 입금 대기, 운영자 등록 건은 심사 대기도 */

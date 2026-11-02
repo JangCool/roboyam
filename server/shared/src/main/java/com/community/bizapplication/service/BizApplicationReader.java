@@ -82,6 +82,12 @@ public class BizApplicationReader {
                 app.paymentOrderId() == null ? null : paymentOrders.findById(app.paymentOrderId()).orElse(null), store.nickname(app.userId()));
     }
 
+    /** 환불 합계(관리자 상세 {@code refundSummary}) — 결제 전이면 null */
+    public BizRefundSummary refundSummary(AppRow app, DepositRow deposit) {
+        Long paid = BizRefundSummary.paidOf(app, deposit);
+        return paid == null ? null : BizRefundSummary.of(paid, refunds.all(app.id()));
+    }
+
     /** 목록의 재료 — 줄·환불을 ID 로 모아 한 번에 */
     public List<Summary> summaries(List<AppRow> apps) {
         List<Long> ids = apps.stream().map(AppRow::id).toList();

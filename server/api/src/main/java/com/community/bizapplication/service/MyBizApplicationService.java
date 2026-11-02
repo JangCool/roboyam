@@ -202,8 +202,10 @@ public class MyBizApplicationService {
                     s.contracts().stream().anyMatch(x -> x.active()) ? "RECEIVED" : "WAITING", s.deposit() != null);
         }
         RefundRow r = s.refund();
-        BizMemberView.Refund refund = r == null ? null : new BizMemberView.Refund(refundType(r.type()), r.status().name(), r.reason(), r.requestedAt(),
-                r.proposedAmount(), r.approvedAmount(), r.decisionReason(), r.proratedAmount(), r.feeRate(), r.feeAmount(), r.basisAt());
+        // 추가 환불(CLAIM)의 사유는 클레임 내용이라 관리자만 본다(biz-pause-contract 「추가 환불」 — 공개 응답엔 싣지 않는다)
+        boolean claim = r != null && r.type() == BizRefundType.CLAIM;
+        BizMemberView.Refund refund = r == null ? null : new BizMemberView.Refund(refundType(r.type()), r.status().name(), claim ? null : r.reason(), r.requestedAt(),
+                r.proposedAmount(), r.approvedAmount(), claim ? null : r.decisionReason(), r.proratedAmount(), r.feeRate(), r.feeAmount(), r.basisAt());
         List<BizMemberView.History> history = s.events().stream().filter(e -> publicAction(e.action()))
                 .map(e -> new BizMemberView.History(e.at(), actor(e.actorType()), e.action(), publicNote(e.action(), e.note()))).toList();
         BizPauseService.PauseInfo p = pauses.info(a, s.items());
@@ -216,11 +218,12 @@ public class MyBizApplicationService {
                 dealPosts.view(a, s.items(), s.creative()), pause);
     }
 
-    /** 공개 환불 종류 — 시작 전 전액 FULL_AUTO · 광고주 요청 중단 STOP_PRORATED · 그 밖 일할 심사 PRORATED_REVIEW */
+    /** 공개 환불 종류 — 시작 전 전액 FULL_AUTO · 광고주 요청 중단 STOP_PRORATED · 운영자 추가 환불 CLAIM · 그 밖 일할 심사 PRORATED_REVIEW */
     private static String refundType(BizRefundType type) {
         return switch (type) {
             case FULL_AUTO -> "FULL_AUTO";
             case STOP_PRORATED -> "STOP_PRORATED";
+            case CLAIM -> "CLAIM";
             default -> "PRORATED_REVIEW";
         };
     }

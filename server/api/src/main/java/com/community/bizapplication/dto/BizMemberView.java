@@ -28,7 +28,8 @@ public final class BizMemberView {
 
     /**
      * 취소·환불 — {@code type} FULL_AUTO·PRORATED_REVIEW·STOP_PRORATED(V127 광고주 요청 중단 — 예상액 {@code proposedAmount} = 일할 {@code proratedAmount} − 수수료
-     * {@code feeAmount}, 비율 {@code feeRate}·기준 시각 {@code basisAt}. 다른 종류면 네 칸 null), {@code status} REQUESTED·APPROVED·DENIED
+     * {@code feeAmount}, 비율 {@code feeRate}·기준 시각 {@code basisAt}. 다른 종류면 네 칸 null)·CLAIM(운영자 추가 환불 — V128, 바로 승인 · 사유 {@code reason}·{@code decisionReason} 은 null — 관리자만 봄),
+     * {@code status} REQUESTED·APPROVED·DENIED
      */
     public record Refund(String type, String status, String reason, Instant requestedAt, long proposedAmount, Long refundAmount, String decisionReason,
                          Long proratedAmount, Integer feeRate, Long feeAmount, Instant basisAt) {

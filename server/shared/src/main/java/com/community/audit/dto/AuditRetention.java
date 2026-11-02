@@ -45,7 +45,9 @@ public final class AuditRetention {
             // 광고 일정표 — 운영자 등록(계약 시작)·긴급 내림 되돌리기(연장·일할 환불, F5)
             AuditActions.BIZ_APP_OPERATOR_CREATE, AuditActions.AD_RESTORE,
             // 광고주 요청 중단(운영자 대신 — 일할 환불·중도 해지 수수료, biz-pause-contract)
-            AuditActions.BIZ_APP_STOP);
+            AuditActions.BIZ_APP_STOP,
+            // 운영자 추가 환불(클레임 — 닫힌·끝난 건의 남은 금액, biz-pause-contract 「추가 환불」)
+            AuditActions.BIZ_APP_REFUND_CLAIM);
 
     private static final Set<String> PERSONAL_DATA = Set.of(
             AuditActions.MEMBER_VIEW,

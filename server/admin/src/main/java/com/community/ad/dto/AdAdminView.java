@@ -58,7 +58,7 @@ public final class AdAdminView {
                          String source, String applicationNo, Instant lastActionAt, String domain, BizAdminView.Amount amount, Long proposedSupply,
                          List<Creative> creatives, BizAdminView.OnlinePayment onlinePayment, List<BizAdminView.Contract> contracts, BizAdminView.Deposit deposit,
                          Takedown takedown, BizAdminView.Refund refund, String memo, BizAdminView.Registrant registrant, List<History> history, String takedownCause,
-                         BizAdminView.Pause pause) {
+                         BizAdminView.Pause pause, BizAdminView.RefundSummary refundSummary) {
     }
 
     /** 기간 판정 — 가장 빠듯한 날의 남은 칸 · 꽉 찬 날 · 요금표 계산 */
