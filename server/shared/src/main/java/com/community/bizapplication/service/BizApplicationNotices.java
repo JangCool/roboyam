@@ -24,7 +24,9 @@ public class BizApplicationNotices {
         /** 사업자 핫딜 글이 핫딜 게시판에 올라갔다 · 올리지 못했다({1} 사유 코드 — 운영팀 확인 중, V123) */
         POSTED, POST_FAILED,
         /** 광고주 요청 일시 정지·다시 켜기·중단(V127 — {0} 중단은 환불 예상액). 운영팀이 요청을 받아 대신 처리했으면 {@code _BY_OPERATOR} 종류(문구 「운영팀이 요청을 받아…」) */
-        PAUSED, RESUMED, STOPPED, PAUSED_BY_OPERATOR, RESUMED_BY_OPERATOR, STOPPED_BY_OPERATOR
+        PAUSED, RESUMED, STOPPED, PAUSED_BY_OPERATOR, RESUMED_BY_OPERATOR, STOPPED_BY_OPERATOR,
+        /** 사업자 핫딜 글(결정 11·12): 종료 요청이 쌓여 운영팀 확인 중 · 운영팀이 그대로 두기로 함({1} 사유) · 운영진이 다시 진행 중으로({1} 사유). 운영진 종료는 핫딜 알림 DEAL_MANAGER_ENDED */
+        DEAL_REVIEW, DEAL_KEPT, DEAL_REOPENED
     }
 
     private final MemberNotificationPublisher members;
@@ -53,9 +55,15 @@ public class BizApplicationNotices {
         operators.publish(refundEvent(app.kind().domain()), context(app.id()));
     }
 
-    /** 운영자에게 — 사업자 핫딜 글을 시작 시각에 올리지 못했다({@code HOTDEAL_POST_FAILED}, 링크 핫딜 심사 서랍). 처리는 취소(전액 환불) */
-    public void postFailed(AppRow app) {
-        operators.publish(AdminNotificationEvent.HOTDEAL_POST_FAILED, context(app.id()));
+    /** 운영자에게 — 사업자 핫딜 글을 시작 시각에 올리지 못했다({@code HOTDEAL_POST_FAILED}, 링크 핫딜 심사 서랍 · 본문에 까닭). 처리는 취소(전액 환불) — 서비스 정지면 정지를 풀어도 된다 */
+    public void postFailed(AppRow app, String reason) {
+        operators.publish(AdminNotificationEvent.HOTDEAL_POST_FAILED, context(app.id()).args(new MessageRef("notification.hotdeal.postFailed.reason." + reason)));
+    }
+
+    /** 운영자에게 — 사업자 핫딜 글에 종료 요청이 문턱만큼 모였다({@code HOTDEAL_BUSINESS_REVIEW}, 핫딜 글 서랍에서 [종료]·[유지] — 결정 11) */
+    public void businessReview(long postId) {
+        String id = Long.toString(postId);
+        operators.publish(AdminNotificationEvent.HOTDEAL_BUSINESS_REVIEW, NotificationContext.empty().dedupe(id).link("postId", id));
     }
 
     /** 운영자에게 — 사업자 핫딜 글을 말머리 없이 올렸다({@code HOTDEAL_POST_PREFIX_DROPPED}). 말머리 상단 노출이 걸려 있으면 그 노출이 나오지 않는다는 문구를 붙인다 */

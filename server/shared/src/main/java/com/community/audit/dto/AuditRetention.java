@@ -143,7 +143,7 @@ public final class AuditRetention {
             // 광고 일정표 — 광고주 만들기·긴급 내림(돈은 되돌리기가 움직인다) · 노출 자리 설정
             AuditActions.AD_ADVERTISER_CREATE, AuditActions.AD_TAKEDOWN, AuditActions.AD_PLACEMENT_UPDATE,
             // 회원 핫딜 1차 관리(hotdeal-contract 「권한·정책」 — 모두 일반 분류). 운영진 종료의 보상 포인트 이동은 포인트 원장이 기록한다
-            AuditActions.HOTDEAL_END, AuditActions.HOTDEAL_REOPEN, AuditActions.HOTDEAL_DOMAIN_CREATE, AuditActions.HOTDEAL_DOMAIN_UPDATE,
+            AuditActions.HOTDEAL_END, AuditActions.HOTDEAL_REOPEN, AuditActions.HOTDEAL_KEEP, AuditActions.HOTDEAL_DOMAIN_CREATE, AuditActions.HOTDEAL_DOMAIN_UPDATE,
             AuditActions.HOTDEAL_DOMAIN_DELETE, AuditActions.HOTDEAL_SUSPICION_DISMISS, AuditActions.HOTDEAL_SETTINGS_UPDATE,
             AuditActions.HOTDEAL_SITE_AFFILIATE_CREATE, AuditActions.HOTDEAL_SITE_AFFILIATE_UPDATE, AuditActions.HOTDEAL_SITE_AFFILIATE_DELETE);
 

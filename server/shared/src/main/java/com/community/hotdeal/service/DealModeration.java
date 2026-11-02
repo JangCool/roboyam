@@ -73,14 +73,27 @@ public class DealModeration {
         return of(ends.endByManager(postId, actor.actorId(), gate.role(), reason));
     }
 
-    /** 운영진 재개 — 의심·keep·종료 요청 리셋, 기간이 지났으면 작성자에게 「마감을 고쳐 주세요」 */
+    /** 운영진 재개 — 의심·keep·종료 요청 리셋, 기간이 지났으면 작성자에게 「마감을 고쳐 주세요」. 사유(≤200자, 검사는 부르는 쪽)는 사업자 글의 신청 건 처리 기록에 남는다 */
     @Transactional
-    public Result reopen(long postId, Actor actor) {
+    public Result reopen(long postId, Actor actor, String reason) {
         Gate gate = gate(postId, actor);
         if (gate.result() != null) {
             return gate.result();
         }
-        return of(ends.reopenByManager(postId));
+        return of(ends.reopenByManager(postId, actor.actorId(), gate.role(), reason));
+    }
+
+    /** 운영자 [유지] — 사업자 글이 의심일 때만(결정 11). 운영자만 — 게시판 매니저·스텝은 {@link Result#FORBIDDEN} */
+    @Transactional
+    public Result keep(long postId, Actor actor, String reason) {
+        Gate gate = gate(postId, actor);
+        if (gate.result() != null) {
+            return gate.result();
+        }
+        if (actor.operatorId() == null) {
+            return Result.FORBIDDEN;
+        }
+        return of(ends.keepByOperator(postId, actor.operatorId(), reason));
     }
 
     /** 이 사람이 이 글의 딜을 종료·재개할 수 있는가(대상이 없으면 false) */

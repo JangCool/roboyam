@@ -124,15 +124,17 @@ public class DealEndService {
             return Outcome.STATE_CHANGED;
         }
         String note = reason == null || reason.isBlank() ? null : reason.strip();
-        d.endByManager(actorId, role, note, now());
+        Instant now = now();
+        d.endByManager(actorId, role, note, now);
         rewardRequesters(d);
         notices.managerEnded(d, note);
+        bizHistory.ifAvailable(h -> h.managerEnded(d, actorId, role, note, now)); // 사업자 글: 처리 기록 DEAL_ENDED_BY_OPERATOR(사유, 환불 없음 — biz-hotdeal 결정 12)
         return Outcome.CHANGED;
     }
 
     /**
      * 자동 종료(배치 {@code hotdeal-auto-end}) — 아직 진행 중이고 의심이며 유예({@code endGraceHours}, 0 = 자동 종료 안 함)가 지났을 때만(잠근 뒤 다시 본다 — 그새 keep·종료됐으면 그대로).
-     * 기간이 지난 딜도 의심이면 끝낸다(의심 구간 요청자의 보상). 보상 + 작성자 알림.
+     * 기간이 지난 딜도 의심이면 끝낸다(의심 구간 요청자의 보상). 보상 + 작성자 알림. 사업자 글은 자동 종료하지 않는다(운영자 [종료]·[유지] — biz-hotdeal 결정 11).
      *
      * @return 이번에 끝냈다
      */
@@ -140,7 +142,7 @@ public class DealEndService {
     public boolean autoEnd(long postId, Instant now) {
         PostDealEntity d = deals.findWithLockByPostId(postId).orElse(null);
         int grace = settings.current().endGraceHours();
-        if (d == null || d.isEnded() || d.getFlaggedAt() == null || grace <= 0 || d.getFlaggedAt().plus(Duration.ofHours(grace)).isAfter(now)) {
+        if (d == null || d.isBusiness() || d.isEnded() || d.getFlaggedAt() == null || grace <= 0 || d.getFlaggedAt().plus(Duration.ofHours(grace)).isAfter(now)) {
             return false;
         }
         d.autoEnd(now);
@@ -152,10 +154,14 @@ public class DealEndService {
 
     /**
      * 운영진 재개(3단계 관리자) — ENDED → ACTIVE, 의심·keep 을 처음으로 돌리고 종료 요청 줄을 지운다(의심·요청 리셋). 재고가 품절이었으면 「모름」. 기간이 이미 지났으면 작성자에게
-     * 「마감을 고쳐 주세요」({@code DEAL_REOPENED_FIX_ENDS}).
+     * 「마감을 고쳐 주세요」({@code DEAL_REOPENED_FIX_ENDS}). 사업자 글이면 신청 건 처리 기록 {@code DEAL_REOPENED_BY_OPERATOR}(사유) + 사업자 알림(biz-hotdeal 결정 12).
+     *
+     * @param actorId 운영자 ID 또는 매니저·스텝 회원 ID
+     * @param role    딜 줄의 운영진 종류({@link PostDealEntity#ROLE_OPERATOR} 등)
+     * @param reason  사유(≤200자 — 검사는 부르는 쪽, 없으면 null)
      */
     @Transactional
-    public Outcome reopenByManager(long postId) {
+    public Outcome reopenByManager(long postId, long actorId, String role, String reason) {
         PostDealEntity d = deals.findWithLockByPostId(postId).orElse(null);
         if (d == null) {
             return Outcome.NOT_FOUND;
@@ -167,7 +173,46 @@ public class DealEndService {
         d.reopenByManager(now);
         requests.deleteForPost(postId);
         notifyIfExpired(d, now);
+        String note = reason == null || reason.isBlank() ? null : reason.strip();
+        bizHistory.ifAvailable(h -> h.managerReopened(d, actorId, role, note, now));
         return Outcome.CHANGED;
+    }
+
+    /**
+     * 운영자 [유지](biz-hotdeal 결정 11) — 사업자 글이 의심(「확인 필요」)일 때만: 의심을 풀고 종료 요청 셈을 새 회차로(요청자 보상 없음 · 작성자 「아직 진행 중」 횟수는 쓰지 않음) +
+     * 신청 건 처리 기록 {@code DEAL_KEPT_BY_OPERATOR}(사유) + 사업자 알림. 회원 글·의심이 아님 → {@link Outcome#STATE_CHANGED}. 감사·권한은 부르는 쪽.
+     */
+    @Transactional
+    public Outcome keepByOperator(long postId, long operatorId, String reason) {
+        PostDealEntity d = deals.findWithLockByPostId(postId).orElse(null);
+        if (d == null) {
+            return Outcome.NOT_FOUND;
+        }
+        Instant now = now();
+        if (!d.isBusiness() || d.view(settings.current().autoExpireDays(), now) != com.community.hotdeal.entity.DealView.FLAGGED) {
+            return Outcome.STATE_CHANGED;
+        }
+        d.keepByOperator(now);
+        requests.clearFlagged(postId);
+        String note = reason == null || reason.isBlank() ? null : reason.strip();
+        bizHistory.ifAvailable(h -> h.keptByOperator(d, operatorId, note, now));
+        return Outcome.CHANGED;
+    }
+
+    /**
+     * 종료 요청이 문턱에 닿아 방금 의심이 됐다(부르는 쪽 — 공개 서버 종료 요청이 딜을 잠그고 {@code flag} 한 뒤) — 회원 글: 작성자 알림 {@code DEAL_FLAGGED} + 「아직 진행 중」 한도를
+     * 다 썼으면 관리자 알림. 사업자 글: 작성자 알림 대신 신청 건 처리 기록 {@code DEAL_REVIEW_NEEDED} + 운영자 알림 {@code HOTDEAL_BUSINESS_REVIEW} + 사업자 알림(결정 11).
+     */
+    public void flagged(PostDealEntity d, Instant now) {
+        if (d.isBusiness()) {
+            bizHistory.ifAvailable(h -> h.reviewNeeded(d, now));
+            return;
+        }
+        notices.flagged(d);
+        DealSettings s = settings.current();
+        if (s.keepMaxCount() > 0 && d.getKeepCount() >= s.keepMaxCount()) {
+            notices.keepLimit(d); // 작성자는 더 「아직 진행 중」을 누를 수 없다 — 「운영자 확인 중」
+        }
     }
 
     /**

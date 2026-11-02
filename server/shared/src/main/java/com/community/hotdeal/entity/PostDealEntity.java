@@ -298,6 +298,13 @@ public class PostDealEntity {
         updatedAt = now;
     }
 
+    /** 운영자 [유지](사업자 글 — biz-hotdeal 결정 11) — 의심을 풀고 종료 요청 셈을 새 회차로(작성자 「아직 진행 중」 횟수는 그대로) */
+    public void keepByOperator(Instant now) {
+        flaggedAt = null;
+        keptAt = now;
+        updatedAt = now;
+    }
+
     /** 기간 종료 알림을 한 번 보냈다(2단계 배치) */
     public void markExpiryNotified(Instant now) {
         expiryNotifiedAt = now;

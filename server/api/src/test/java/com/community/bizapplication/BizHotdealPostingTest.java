@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
- * 사업자 핫딜 게시(biz-hotdeal-contract 규칙 1~4·6·10) — 시작 시각 게시 · 1:1 · 게시 직전 재판정과 실패 · 실패 건 운영자 취소 전액 환불 · 숨김·되돌림 · 사업자 종료·자동 종료.
+ * 사업자 핫딜 게시(biz-hotdeal-contract 규칙 1~4·6·10) — 시작 시각 게시 · 1:1 · 게시 직전 재판정과 실패 · 실패 건 운영자 취소 전액 환불 · 숨김·되돌림 · 사업자 종료(종료 요청은 자동 종료하지 않음 — BizHotdealReviewTest).
  */
 class BizHotdealPostingTest extends BizHotdealTestBase {
 
@@ -338,21 +338,6 @@ class BizHotdealPostingTest extends BizHotdealTestBase {
         assertThat(events(b.id())).contains("DEAL_ENDED_BY_BUSINESS");
         assertThat(app(b.id()).status()).isEqualTo(BizApplicationStatus.SCHEDULED);
         assertThat(refundRows(b.id())).isZero();
-    }
-
-    @Test
-    void 규칙6_종료_요청_자동_종료는_DEAL_AUTO_ENDED_신청_건_상태_그대로_환불_없음() {
-        Booked b = postedBooking("NONE");
-        long postId = postOf(b.id());
-        jdbc.update("UPDATE post_deals SET flagged_at = ? WHERE post_id = ?", Timestamp.from(clock.instant()), postId);
-        assertThat(view.detail(b.user(), b.id()).post().autoEndAt()).isNotNull();
-        clock.set(clock.instant().plus(Duration.ofHours(13)));
-        assertThat(ends.autoEnd(postId, clock.instant())).isTrue();
-        assertThat(dealRow(postId).get("ended_by")).isEqualTo("AUTO");
-        assertThat(events(b.id())).contains("DEAL_AUTO_ENDED");
-        assertThat(app(b.id()).status()).isEqualTo(BizApplicationStatus.SCHEDULED);
-        assertThat(refundRows(b.id())).isZero();
-        assertThat(view.detail(b.user(), b.id()).post().endedBy()).isEqualTo("AUTO");
     }
 
     @Test

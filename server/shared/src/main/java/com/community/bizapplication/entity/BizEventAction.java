@@ -44,6 +44,13 @@ public enum BizEventAction {
     DEAL_ENDED_BY_BUSINESS(true),
     /** 종료 요청이 모여 딜이 자동으로 끝났다(환불 없음 · 신청 건 상태 그대로) */
     DEAL_AUTO_ENDED(true),
+    /** 사업자 글에 종료 요청이 문턱만큼 모였다 — 자동 종료하지 않고 운영팀 확인 중(결정 11, SYSTEM) */
+    DEAL_REVIEW_NEEDED(true),
+    /** 운영자가 확인 필요 사업자 글을 그대로 두기로 했다 — note = 사유(결정 11) */
+    DEAL_KEPT_BY_OPERATOR(true),
+    /** 운영진(운영자·게시판 매니저·스텝)이 사업자 글의 딜을 종료·재개했다 — note = 사유, 환불 없음(결정 12) */
+    DEAL_ENDED_BY_OPERATOR(true),
+    DEAL_REOPENED_BY_OPERATOR(true),
     // ── 광고주 요청 일시 정지·중단(V127 — biz-pause-contract). note 는 ` · ` 로 이은 토큰: 운영자 대신 = `PHONE|EMAIL|OTHER · 메모`(공개 응답은 경로까지만) ──
     /** 일시 정지 */
     PAUSED(true),

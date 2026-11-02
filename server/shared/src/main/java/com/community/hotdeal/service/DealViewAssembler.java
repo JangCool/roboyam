@@ -42,7 +42,7 @@ public class DealViewAssembler {
     public PostDealView view(PostDealEntity d, int likeCount, DealQueries.EndCounts counts, String mine, int sameCount, DealSettings s, Instant now,
                              String originUrl) {
         DealView view = d.view(s.autoExpireDays(), now);
-        Instant autoEndAt = view == DealView.FLAGGED && s.endGraceHours() > 0 && d.getFlaggedAt() != null ? d.getFlaggedAt().plus(Duration.ofHours(s.endGraceHours()))
+        Instant autoEndAt = !d.isBusiness() && view == DealView.FLAGGED && s.endGraceHours() > 0 && d.getFlaggedAt() != null ? d.getFlaggedAt().plus(Duration.ofHours(s.endGraceHours()))
                 : null;
         DealEndRequestsView requests = counts == null ? new DealEndRequestsView(0, 0, 0, 0, mine)
                 : new DealEndRequestsView(counts.total(), counts.soldOut(), counts.priceChanged(), counts.linkDead(), mine);
