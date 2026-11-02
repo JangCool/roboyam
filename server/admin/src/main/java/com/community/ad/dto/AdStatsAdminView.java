@@ -41,13 +41,13 @@ public final class AdStatsAdminView {
                            List<AdStatsView.PlacementRow> byPlacement, List<AdvertiserRow> topAdvertisers) {
     }
 
-    /** 건별 한 줄 — 일정표 {@link AdAdminView.Row} 칸 그대로 + 범위 합 */
+    /** 건별 한 줄 — 일정표 {@link AdAdminView.Row} 칸 그대로 + 범위 합 + {@code exposureStop}(진행 중 사업자 핫딜 글 건의 노출 멈춤 까닭 — {@link AdStatsView.Application#exposureStop}) */
     public record BookingRow(String id, String type, AdAdvertiserService.Option advertiser, BizAdminView.Period period, String status, String paymentMethod, int weight,
-                             String source, String applicationNo, Instant lastActionAt, String domain, String takedownCause, long impressions, long clicks) {
+                             String source, String applicationNo, Instant lastActionAt, String domain, String takedownCause, long impressions, long clicks, String exposureStop) {
 
-        public static BookingRow of(AdAdminView.Row r, long impressions, long clicks) {
+        public static BookingRow of(AdAdminView.Row r, long impressions, long clicks, String exposureStop) {
             return new BookingRow(r.id(), r.type(), r.advertiser(), r.period(), r.status(), r.paymentMethod(), r.weight(), r.source(), r.applicationNo(),
-                    r.lastActionAt(), r.domain(), r.takedownCause(), impressions, clicks);
+                    r.lastActionAt(), r.domain(), r.takedownCause(), impressions, clicks, exposureStop);
         }
     }
 

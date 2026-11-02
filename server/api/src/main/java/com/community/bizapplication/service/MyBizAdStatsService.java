@@ -37,10 +37,12 @@ public class MyBizAdStatsService {
 
     private final BizApplicationReader reader;
     private final AdStatsService stats;
+    private final BizDealPostReader dealPosts;
 
-    public MyBizAdStatsService(BizApplicationReader reader, AdStatsService stats) {
+    public MyBizAdStatsService(BizApplicationReader reader, AdStatsService stats, BizDealPostReader dealPosts) {
         this.reader = reader;
         this.stats = stats;
+        this.dealPosts = dealPosts;
     }
 
     /** 한 건 — 노출 자리 줄이 없는 본인 건은 빈 결과 */
@@ -72,7 +74,7 @@ public class MyBizAdStatsService {
                 last7 = last7.plus(d.impressions(), d.clicks());
             }
             return new BizAdStatsView.Item(sum.id(), sum.title(), sum.kind(), sum.adType(), sum.placement(), sum.status(), sum.phase(), sum.takedownCause(),
-                    sum.startDate(), sum.endDate(), last7, spark);
+                    sum.startDate(), sum.endDate(), last7, spark, dealPosts.exposureStop(a, s.items()));
         }).toList();
         return new BizAdStatsView.Summary(now, items);
     }

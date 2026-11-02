@@ -1,5 +1,5 @@
 /**
- * PrimeVue 컴포넌트가 스스로 쓰는 말 — DatePicker(날짜·시간 고르개)의 요일·달 이름과 단추 글자, 파일 고르기 안내.
+ * PrimeVue 컴포넌트가 스스로 쓰는 말 — DatePicker(날짜·시간 고르개)의 요일·달 이름과 단추 글자, 파일 고르기 안내, 고르기 목록의 빈 결과 안내.
  * 우리 문구(vue-i18n)와는 별개의 사전이다 — 둘을 함께 바꿔야 "달력은 영어인데 단추는 한국어"가 되지 않는다(`useLanguage`). 필요한 키만 덮는다(나머지는 PrimeVue 기본).
  * 영어는 PrimeVue 기본 사전이 영어라 따로 적지 않는다 — 시작할 때 기본 사전을 복사해 두었다가(`defaults`) 영어로 바꿀 때 그것을 되돌려 덮는다(`useLanguage`).
  * 날짜 패턴(`dateFormat`)은 표시 값의 날짜 형식을 따르므로 언어와 별개로 `@roboyam/display-time` 이 덮는다.
@@ -39,6 +39,11 @@ export type PrimeLocaleOverrides = {
     noFileChosenMessage: string;
     fileChosenMessage: string;
     fileSizeTypes: string[];
+    searchMessage: string;
+    selectionMessage: string;
+    emptySelectionMessage: string;
+    emptySearchMessage: string;
+    emptyMessage: string;
 };
 
 const KO: PrimeLocaleOverrides = {
@@ -74,6 +79,12 @@ const KO: PrimeLocaleOverrides = {
     noFileChosenMessage: '',
     fileChosenMessage: '파일 {0}개',
     fileSizeTypes: ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
+    // 고르기 목록(AutoComplete·Select·MultiSelect) — 찾은 것이 없을 때·고를 것이 없을 때 영문 안내("No results found" 등)를 보이지 않게. 화면이 `empty-message` 를 주면 그것이 이긴다
+    searchMessage: '{0}개 찾았어요',
+    selectionMessage: '{0}개 골랐어요',
+    emptySelectionMessage: '고른 것이 없어요',
+    emptySearchMessage: '찾은 결과가 없어요',
+    emptyMessage: '고를 것이 없어요',
 };
 
 export default class UtilPrimeLocale {

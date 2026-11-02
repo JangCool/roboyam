@@ -752,6 +752,8 @@ export default {
 
     // 광고 성과(노출·클릭 — 신청 건 상세 「성과」 칸 · 사업자 센터 「진행 중 광고」)
     stats: {
+        exposureStop: { DEAL_ENDED: '딜 종료로 노출 멈춤', POST_HIDDEN: '글 숨김으로 노출 멈춤', PREFIX_MISSING: '말머리 없어 노출 멈춤', NOT_POSTED: '게시 전이라 노출 전' },
+        exposureStopNote: { DEAL_ENDED: '딜이 끝나서 기간이 남아도 지금은 노출되지 않아요.', POST_HIDDEN: '글이 숨겨져서 지금은 노출되지 않아요.', PREFIX_MISSING: '글에 말머리가 없어서 말머리 상단에는 노출되지 않아요.', NOT_POSTED: '글이 아직 게시되지 않아서 노출 전이에요.' },
         title: '성과',
         upcoming: '시작하면 여기에 하루 단위로 쌓여요.',
         impressions: '노출',

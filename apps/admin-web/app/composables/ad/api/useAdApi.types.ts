@@ -324,6 +324,9 @@ export interface AdStatCounts {
 }
 
 /** 그날 상태 — 하루 중 일부라도 광고주 일시 정지(`ADVERTISER_PAUSE`)가 걸쳤으면 PAUSED, 그 밖의 내림(긴급·사업자 정지·광고주 중단)이 걸쳤으면 TAKEN_DOWN(내림이 우선) */
+/** 진행 중인데 노출이 멈춘 까닭(사업자 핫딜 글 건 — 서버 `BizDealPostReader.exposureStop`) */
+export type AdExposureStop = 'DEAL_ENDED' | 'POST_HIDDEN' | 'PREFIX_MISSING' | 'NOT_POSTED';
+
 export type AdStatDayState = 'SHOWING' | 'PAUSED' | 'TAKEN_DOWN';
 
 /** 날짜 하나(`YYYY-MM-DD`, KST) */
@@ -374,6 +377,8 @@ export interface AdApplicationStats {
     /** 소재 버전 차례(오래된 것 먼저) */
     byVersion: AdStatVersionRow[];
     downtimes: AdStatDowntime[];
+    /** 진행 중 사업자 핫딜 글 건의 노출 자리가 지금 나가지 않는 까닭(공개 노출 판정과 같음 — 딜 종료·글 숨김·말머리 없음·게시 전), 노출 중이거나 다른 종류면 null */
+    exposureStop: AdExposureStop | null;
 }
 
 /** 운영자 성과 거르기 — 기간은 필수, 유형·광고주는 선택 */
@@ -425,7 +430,10 @@ export interface AdStatsBookingQuery extends AdStatsQuery {
 }
 
 /** 건별 한 줄 — 일정표 줄(`AdBookingRow`) + 기간 안 숫자 */
-export type AdStatsBookingRow = AdBookingRow & AdStatCounts;
+export type AdStatsBookingRow = AdBookingRow & AdStatCounts & {
+    /** 진행 중 사업자 핫딜 글 건의 노출 자리가 지금 나가지 않는 까닭(공개 노출 판정과 같음 — 딜 종료·글 숨김·말머리 없음·게시 전), 노출 중이거나 다른 종류면 null */
+    exposureStop: AdExposureStop | null;
+};
 
 /** `GET /api/admin/ads/stats/bookings?from&to&type&advertiserId&sort&dir&page&size` — 기간과 겹치고 시작한 건(노출 0 포함) */
 export interface AdStatsBookingPage {

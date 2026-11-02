@@ -268,6 +268,8 @@ export default {
     perfTopHint: '노출 상위 10 · 이름을 누르면 그 광고주만 봐요',
     perfBookingsHint: '줄을 누르면 광고 일정표에서 그 건을 열어요.',
     statAsOf: '{at} 기준 · 오늘은 집계 중',
+    exposureStop: { DEAL_ENDED: '딜 종료로 노출 멈춤', POST_HIDDEN: '글 숨김으로 노출 멈춤', PREFIX_MISSING: '말머리 없어 노출 멈춤', NOT_POSTED: '게시 전이라 노출 전' },
+    exposureStopNote: { DEAL_ENDED: '딜이 끝나서 기간이 남아도 지금은 노출되지 않아요.', POST_HIDDEN: '글이 숨겨져서 지금은 노출되지 않아요.', PREFIX_MISSING: '글에 말머리가 없어서 말머리 상단에는 노출되지 않아요.', NOT_POSTED: '글이 아직 게시되지 않아서 노출 전이에요.' },
     statCountRule: '같은 방문자는 같은 소재·같은 자리에서 하루 1번만 세요(봇 제외). 클릭은 그날 노출과 따로 세서 클릭률이 100%를 넘을 수 있어요.',
     statImpressions: '노출',
     statClicks: '클릭',

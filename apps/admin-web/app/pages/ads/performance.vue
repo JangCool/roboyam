@@ -139,7 +139,10 @@
                         <template #body="{ data }"><span class="text-[12px] tabular-nums">{{ UtilBizApplicationMessages.period(t, time, data.period) }}</span></template>
                     </Column>
                     <Column :header="t('ad.col.status')" style="min-width: 7rem">
-                        <template #body="{ data }"><Tag :value="t(UtilAd.statusKey(data))" :severity="UtilAd.rowSeverity(data)" /></template>
+                        <template #body="{ data }">
+                            <Tag v-if="data.exposureStop" :value="t(`ad.exposureStop.${data.exposureStop}`)" severity="warn" />
+                            <Tag v-else :value="t(UtilAd.statusKey(data))" :severity="UtilAd.rowSeverity(data)" />
+                        </template>
                     </Column>
                     <Column field="impressions" sortable :header="t('ad.statImpressions')" style="min-width: 6rem" :pt="right">
                         <template #body="{ data }"><div class="text-right text-[13px] tabular-nums">{{ UtilAdStats.num(data.impressions, locale) }}</div></template>

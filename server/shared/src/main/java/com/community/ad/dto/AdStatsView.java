@@ -50,8 +50,11 @@ public final class AdStatsView {
     public record Downtime(Instant from, Instant to, String cause) {
     }
 
-    /** 한 건의 성과({@code AdApplicationStats}) */
+    /**
+     * 한 건의 성과({@code AdApplicationStats}). {@code exposureStop} = 사업자 핫딜 글 건이 진행 중인데 노출 자리가 지금 나가지 않는 까닭
+     * ({@code DEAL_ENDED}·{@code POST_HIDDEN}·{@code PREFIX_MISSING}·{@code NOT_POSTED} — {@code BizDealPostReader.exposureStop}), 아니면 null
+     */
     public record Application(Range range, Instant asOf, Counts totals, List<Day> days, List<PlacementRow> byPlacement, List<VersionRow> byVersion,
-                              List<Downtime> downtimes) {
+                              List<Downtime> downtimes, String exposureStop) {
     }
 }

@@ -750,6 +750,8 @@ export default {
 
     // ad performance (impressions·clicks — application detail "Performance" · business center "Running ads")
     stats: {
+        exposureStop: { DEAL_ENDED: 'Paused — deal ended', POST_HIDDEN: 'Paused — post hidden', PREFIX_MISSING: 'Paused — no category', NOT_POSTED: 'Not shown — not posted' },
+        exposureStopNote: { DEAL_ENDED: 'The deal has ended, so it isn’t shown even though the period isn’t over.', POST_HIDDEN: 'The post is hidden, so it isn’t shown right now.', PREFIX_MISSING: 'The post has no category, so it isn’t shown at the category top.', NOT_POSTED: 'The post hasn’t been published yet, so it isn’t shown.' },
         title: 'Performance',
         upcoming: 'Daily numbers will appear here once it starts.',
         impressions: 'Impressions',

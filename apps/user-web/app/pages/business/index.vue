@@ -172,7 +172,8 @@
                         >
                             <div class="flex min-w-0 flex-1 flex-col gap-1">
                                 <div class="flex flex-wrap items-center gap-1.5">
-                                    <BusinessStatusTag :status="item.status" :phase="item.phase" :cause="item.takedownCause" :end-date="item.endDate" />
+                                    <PointShopTag v-if="item.exposureStop" tone="warn" data-testid="business-home-ad-stats-stop">{{ t(`business.stats.exposureStop.${item.exposureStop}`) }}</PointShopTag>
+                                    <BusinessStatusTag v-else :status="item.status" :phase="item.phase" :cause="item.takedownCause" :end-date="item.endDate" />
                                     <span class="text-xs text-muted-color">{{ adStatsKind(item) }}</span>
                                 </div>
                                 <p class="m-0 truncate text-sm font-semibold">{{ item.title }}</p>

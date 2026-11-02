@@ -12,6 +12,7 @@ import com.community.bizapplication.repository.master.BizApplicationStore.AppRow
 import com.community.bizapplication.repository.master.BizApplicationStore.CreativeRow;
 import com.community.bizapplication.repository.master.BizApplicationStore.ItemRow;
 import com.community.bizapplication.service.BizApplicationReader;
+import com.community.bizapplication.service.BizDealPostReader;
 import com.community.bizapplication.service.BizFields;
 import com.community.bizapplication.service.BizPeriods;
 import com.community.zconfiguration.time.ServiceTime;
@@ -38,11 +39,13 @@ public class AdStatsService {
 
     private final AdStatsStore store;
     private final BizApplicationStore apps;
+    private final BizDealPostReader dealPosts;
     private final Clock clock;
 
-    public AdStatsService(AdStatsStore store, BizApplicationStore apps, ObjectProvider<Clock> clocks) {
+    public AdStatsService(AdStatsStore store, BizApplicationStore apps, BizDealPostReader dealPosts, ObjectProvider<Clock> clocks) {
         this.store = store;
         this.apps = apps;
+        this.dealPosts = dealPosts;
         this.clock = clocks.getIfUnique(Clock::systemUTC);
     }
 
@@ -59,12 +62,13 @@ public class AdStatsService {
         Instant now = now();
         LocalDate startDate = BizPeriods.startDate(app.startAt());
         if (BizApplicationReader.capacityProduct(items) == null) {
-            return empty(new AdStatsView.Range(startDate.toString(), startDate.toString()), now);
+            return empty(new AdStatsView.Range(startDate.toString(), startDate.toString()), now, null);
         }
         Window w = AdStatsCalc.window(startDate, endDate(app), ServiceTime.dateOf(now), asked[0], asked[1]);
         AdStatsView.Range range = new AdStatsView.Range(w.from().toString(), w.to().toString());
+        String exposureStop = dealPosts.exposureStop(app, items);
         if (w.empty()) {
-            return empty(range, now);
+            return empty(range, now, exposureStop);
         }
         List<StatRow> rows = store.rows(List.of(app.id()), w.from(), w.to());
         List<Span> spans = spans(app);
@@ -75,7 +79,7 @@ public class AdStatsService {
             }
         }
         return new AdStatsView.Application(range, now, AdStatsCalc.total(rows), AdStatsCalc.days(w.from(), w.to(), rows, spans), AdStatsCalc.placements(rows),
-                AdStatsCalc.versions(approved, rows), AdStatsCalc.downtimes(spans, w.from(), w.to()));
+                AdStatsCalc.versions(approved, rows), AdStatsCalc.downtimes(spans, w.from(), w.to()), exposureStop);
     }
 
     /**
@@ -144,7 +148,7 @@ public class AdStatsService {
         }
     }
 
-    private static AdStatsView.Application empty(AdStatsView.Range range, Instant now) {
-        return new AdStatsView.Application(range, now, AdStatsView.Counts.ZERO, List.of(), List.of(), List.of(), List.of());
+    private static AdStatsView.Application empty(AdStatsView.Range range, Instant now, String exposureStop) {
+        return new AdStatsView.Application(range, now, AdStatsView.Counts.ZERO, List.of(), List.of(), List.of(), List.of(), exposureStop);
     }
 }

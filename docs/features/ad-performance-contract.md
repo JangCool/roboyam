@@ -57,3 +57,9 @@
 - user-web `useBusinessApi.stats`·`adStatsSummary`, admin-web `useAdApi.stats`·`statsOverview`·`statsBookings` 는 실제 API. 목업 파일 두 개(`composables/business/api/mock/ad-stats-mock.ts`·admin `composables/ad/api/mock/`)와 `?mock=ad-stats-*` 스위치는 지웠다(user-web `mock-util.ts` 는 다른 목업이 써서 남김). admin `useAdApi` 의 `list`·`detail` 은 목업용 상수를 걷어 원래 모양으로.
 - 차트는 공유 레이어 `@roboyam/chart`(`StatsTrendChart` — ECharts 6.1.0, 노출 막대 + 클릭 선, 정지·내림 띠는 숨긴 둘째 x축의 100% 폭 막대, SVG 렌더러, 테마·다크 다시 칠하기). 두 앱의 `BusinessStatsChart`·`AdStatsChart` 는 문구·숫자 글자를 넘기는 래퍼.
 - 남은 점: 화면 실제 호출·시각 확인(띠 폭·두 축 눈금 맞춤·오늘 막대 빗금·다크 모드 다시 칠하기)은 개발자 몫. 사업자 400 은 칸이 늘 `fields.from`(성과 칸은 기간을 화면이 계산해 보내므로 화면 오류 표시는 일반 오류로 둠).
+
+## 확인 뒤 고침 (2026-11-02 — Chrome 확인 4b8dce50)
+1. **끝난 핫딜 노출이 「진행 중」으로 보임**: 사업자 핫딜 글(`HOTDEAL_POST`) 건이 예약·기간 안이어도 노출 자리가 지금 나가지 않으면 응답에 `exposureStop` — `DEAL_ENDED`(딜 종료·기간 종료) · `POST_HIDDEN`(글 숨김·지움·판매자 정지 숨김) · `PREFIX_MISSING`(말머리 없이 올라간 글의 말머리 상단) · `NOT_POSTED`(시작 뒤 아직 못 올림·게시 실패), 노출 중·다른 종류·다른 상태면 null. 판정은 신청 건 상세 「게시된 글」의 노출 자리 상태(shared `BizDealPostReader.view` — 공개 노출 판정 biz-hotdeal-contract 규칙 7 과 같은 기준)를 그대로 쓰는 `BizDealPostReader.exposureStop`. 칸: 한 건 성과 `AdStatsView.Application.exposureStop` · 사업자 요약 `BizAdStatsView.Item.exposureStop` · 운영자 건별 `AdStatsAdminView.BookingRow.exposureStop`(그 쪽의 핫딜 글 건만 자리 줄을 더 읽는다).
+   - 화면: 사업자 센터 카드 줄·운영자 건별 표 상태 칸은 「진행 중」 대신 주황 딱지(「딜 종료로 노출 멈춤」 등), 한 건 성과 칸·서랍 성과 탭은 위에 주황 안내 한 줄. 센터 카드에서는 따로 묶지 않고 같은 목록(내려진 건과 같은 줄 모양)에 둔다 — 신청 건 상태는 예약 그대로라 「내려짐」과 뜻이 달라서 딱지 글로만 가른다.
+   - 시험 api `BizAdStatsExposureStopTest`(3 — 노출 중 null → 사업자 종료 뒤 DEAL_ENDED·요약에 남음 · 운영 숨김 POST_HIDDEN · 시작 뒤 게시 전 NOT_POSTED → 게시하면 null).
+2. **PrimeVue 빈 목록 영어 문구**: 공유 레이어 `@roboyam/i18n` `UtilPrimeLocale`(한국어 사전)에 `emptySearchMessage`·`emptyMessage`·`searchMessage`·`selectionMessage`·`emptySelectionMessage` 를 더했다 — 광고주 찾기뿐 아니라 두 앱의 모든 AutoComplete·Select·MultiSelect 에 같이 먹는다(화면이 `empty-message` 를 주면 그것이 이김). 영어는 PrimeVue 기본 그대로.

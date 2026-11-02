@@ -17,6 +17,8 @@
             <span>{{ t('ad.statAsOf', { at: time.shortDateTime(stats.asOf) }) }}</span>
         </p>
 
+        <Message v-if="stats.exposureStop" severity="warn" size="small" :closable="false">{{ t(`ad.exposureStopNote.${stats.exposureStop}`) }}</Message>
+
         <EmptyState v-if="empty" icon="pi pi-chart-bar" :title="t('ad.statEmpty')" :description="t('ad.statCountRule')" />
         <template v-else>
             <AdStatsTotals :counts="stats.totals" />

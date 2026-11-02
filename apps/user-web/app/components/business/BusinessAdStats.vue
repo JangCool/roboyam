@@ -29,6 +29,8 @@
                 <p class="m-0 flex items-start gap-1.5 text-xs text-muted-color"><i class="pi pi-info-circle mt-0.5 text-[0.6875rem]" aria-hidden="true" />{{ t('business.stats.countRule') }}</p>
             </div>
 
+            <Message v-if="stats.exposureStop" severity="warn" size="small" :closable="false" data-testid="business-ad-stats-stop">{{ t(`business.stats.exposureStopNote.${stats.exposureStop}`) }}</Message>
+
             <EmptyState v-if="empty" :title="t('business.stats.empty')" :description="t('business.stats.emptyText')" icon="pi pi-chart-bar" data-testid="business-ad-stats-empty" />
 
             <template v-else>

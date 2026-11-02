@@ -268,6 +268,8 @@ export default {
     perfTopHint: 'Top 10 by impressions · select a name to see only that advertiser',
     perfBookingsHint: 'Select a row to open that booking in the ad schedule.',
     statAsOf: 'As of {at} · today is still counting',
+    exposureStop: { DEAL_ENDED: 'Paused — deal ended', POST_HIDDEN: 'Paused — post hidden', PREFIX_MISSING: 'Paused — no category', NOT_POSTED: 'Not shown — not posted' },
+    exposureStopNote: { DEAL_ENDED: 'The deal has ended, so it isn’t shown even though the period isn’t over.', POST_HIDDEN: 'The post is hidden, so it isn’t shown right now.', PREFIX_MISSING: 'The post has no category, so it isn’t shown at the category top.', NOT_POSTED: 'The post hasn’t been published yet, so it isn’t shown.' },
     statCountRule: 'Each visitor counts once a day per creative and spot (bots excluded). Clicks are counted apart from that day’s impressions, so CTR can go over 100%.',
     statImpressions: 'Impressions',
     statClicks: 'Clicks',

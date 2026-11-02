@@ -77,6 +77,28 @@ public class BizDealPostReader {
         return view == DealView.ACTIVE || view == DealView.FLAGGED;
     }
 
+    /**
+     * 노출 자리가 지금 멈춘 까닭(광고 성과 — ad-performance-contract 「확인 뒤 고침」): 사업자 핫딜 글 신청 건이 예약({@code SCHEDULED})·기간 안(시작 ≤ 지금 &lt; 끝)인데
+     * 노출 자리가 나가지 않으면 {@code DEAL_ENDED}(딜 종료·기간 종료) · {@code POST_HIDDEN}(글 숨김·지움) · {@code PREFIX_MISSING}(말머리 없이 올라간 글의 말머리 상단) ·
+     * {@code NOT_POSTED}(아직 못 올림·게시 실패). 판정은 {@link #view} 의 노출 자리 상태(= 공개 노출 판정 biz-hotdeal-contract 규칙 7)와 같다. 그 밖(노출 중·다른 종류·다른 상태)은 null.
+     */
+    public String exposureStop(AppRow app, List<ItemRow> items) {
+        Instant now = ops.now();
+        if (app.kind() != BizApplicationKind.HOTDEAL_POST || app.status() != BizApplicationStatus.SCHEDULED || app.startAt().isAfter(now) || !app.endAt().isAfter(now)) {
+            return null;
+        }
+        BizDealPostView v = view(app, items, null);
+        if (v == null || v.placement() == null) {
+            return null;
+        }
+        return switch (v.placement().status()) {
+            case "STOPPED" -> "PAUSED".equals(v.placement().stopReason()) ? "POST_HIDDEN" : v.placement().stopReason();
+            case "ENDED" -> "DEAL_ENDED";
+            case "WAITING" -> "NOT_POSTED";
+            default -> null;
+        };
+    }
+
     public BizDealPostView view(AppRow app, List<ItemRow> items, CreativeRow creative) {
         if (app.kind() != BizApplicationKind.HOTDEAL_POST) {
             return null;

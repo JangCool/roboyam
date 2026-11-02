@@ -8,12 +8,14 @@ import com.community.ad.repository.master.AdAdvertiserStore.AdvertiserRow;
 import com.community.ad.repository.master.AdStatsAdminStore;
 import com.community.ad.repository.master.AdStatsAdminStore.BookingSum;
 import com.community.ad.repository.master.AdStatsAdminStore.SumRow;
+import com.community.bizapplication.entity.BizApplicationKind;
 import com.community.bizapplication.entity.BizProduct;
 import com.community.bizapplication.exception.BizApplicationException;
 import com.community.bizapplication.repository.master.BizApplicationStore;
 import com.community.bizapplication.repository.master.BizApplicationStore.AppRow;
 import com.community.bizapplication.service.BizApplicationReader;
 import com.community.bizapplication.service.BizApplicationReader.Snapshot;
+import com.community.bizapplication.service.BizDealPostReader;
 import com.community.bizapplication.service.BizFields;
 import com.community.bizapplication.service.BizPeriods;
 import java.time.Instant;
@@ -50,13 +52,16 @@ public class AdStatsAdminService {
     private final BizApplicationReader reader;
     private final BizApplicationStore apps;
     private final AdAdvertiserStore advertisers;
+    private final BizDealPostReader dealPosts;
 
-    public AdStatsAdminService(AdStatsService stats, AdStatsAdminStore store, BizApplicationReader reader, BizApplicationStore apps, AdAdvertiserStore advertisers) {
+    public AdStatsAdminService(AdStatsService stats, AdStatsAdminStore store, BizApplicationReader reader, BizApplicationStore apps, AdAdvertiserStore advertisers,
+                               BizDealPostReader dealPosts) {
         this.stats = stats;
         this.store = store;
         this.reader = reader;
         this.apps = apps;
         this.advertisers = advertisers;
+        this.dealPosts = dealPosts;
     }
 
     /** 거르기(범위 · 유형 · 광고주) */
@@ -149,6 +154,10 @@ public class AdStatsAdminService {
         Map<Long, AppRow> byId = new HashMap<>();
         apps.findAll(slice.stream().map(BookingSum::applicationId).toList()).forEach(a -> byId.put(a.id(), a));
         Map<Long, AdvertiserRow> advs = advertiserRows(byId.values());
+        // 사업자 핫딜 글 건은 노출 자리 멈춤(딜 종료 등)을 공개 노출 판정과 같게 본다 — 그 건만 자리 줄을 읽는다
+        Map<Long, String> exposureStops = new HashMap<>();
+        reader.summaries(byId.values().stream().filter(a -> a.kind() == BizApplicationKind.HOTDEAL_POST).toList())
+                .forEach(s -> exposureStops.put(s.app().id(), dealPosts.exposureStop(s.app(), s.items())));
         List<AdStatsAdminView.BookingRow> items = new ArrayList<>();
         for (BookingSum b : slice) {
             AppRow a = byId.get(b.applicationId());
@@ -156,7 +165,7 @@ public class AdStatsAdminService {
                 continue;
             }
             AdAdminView.Row row = AdAdminService.row(b.product(), a, AdAdminService.advertiserOf(a, a.advertiserId() == null ? null : advs.get(a.advertiserId())), now);
-            items.add(AdStatsAdminView.BookingRow.of(row, b.impressions(), b.clicks()));
+            items.add(AdStatsAdminView.BookingRow.of(row, b.impressions(), b.clicks(), exposureStops.get(a.id())));
         }
         return new AdStatsAdminView.BookingPage(items, sums.size());
     }

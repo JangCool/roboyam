@@ -559,6 +559,9 @@ export interface AdStatCounts {
 }
 
 /** 그날 상태 — 그날 일부라도 광고주 일시 정지(`ADVERTISER_PAUSE`)가 걸쳤으면 `PAUSED`, 그 밖의 내림(긴급·사업자 정지·중단)이 걸쳤으면 `TAKEN_DOWN` */
+/** 진행 중인데 노출이 멈춘 까닭(사업자 핫딜 글 건 — 서버 `BizDealPostReader.exposureStop`) */
+export type AdExposureStop = 'DEAL_ENDED' | 'POST_HIDDEN' | 'PREFIX_MISSING' | 'NOT_POSTED';
+
 export type AdStatDayState = 'SHOWING' | 'PAUSED' | 'TAKEN_DOWN';
 
 /** 하루 숫자 — 날짜는 한국 날짜(`YYYY-MM-DD`) */
@@ -604,6 +607,8 @@ export interface AdApplicationStats {
     byVersion: AdStatVersionRow[];
     /** 기간과 겹치는 정지·내림 구간(오래된 차례) */
     downtimes: AdStatDowntime[];
+    /** 진행 중 사업자 핫딜 글 건의 노출 자리가 지금 나가지 않는 까닭(공개 노출 판정과 같음 — 딜 종료·글 숨김·말머리 없음·게시 전), 노출 중이거나 다른 종류면 null */
+    exposureStop: AdExposureStop | null;
 }
 
 /** 사업자 센터 「진행 중 광고」 한 줄 */
@@ -623,6 +628,8 @@ export interface BizAdStatsSummaryItem {
     last7: AdStatCounts;
     /** 최근 7일 날짜별(오래된 차례, 마지막 = 오늘) — 설계 노트의 `AdStatCounts[]` 에 날짜·상태를 더했다(미니 차트의 오늘 빗금·정지 띠) */
     spark: AdStatDay[];
+    /** 진행 중 사업자 핫딜 글 건의 노출 자리가 지금 나가지 않는 까닭(공개 노출 판정과 같음 — 딜 종료·글 숨김·말머리 없음·게시 전), 노출 중이거나 다른 종류면 null */
+    exposureStop: AdExposureStop | null;
 }
 
 /** `GET /api/business/ads/stats-summary` — 진행 중·정지 중 건 최대 5개(노출 자리가 있는 건만). 없으면 빈 목록 */
