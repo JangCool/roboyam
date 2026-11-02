@@ -4,17 +4,19 @@
         탭: 기본 · 소재(버전 목록 — 심사 승인 때 고정, 교체는 새 버전, 옛 버전 보존 — A2) · 일정 · 결제(온라인 결제 정보 또는 계약서 사본·입금 기록) · 처리 기록.
         맨 아래: [긴급 내림](진행·예약, `ad.takedown`) · [되돌리기](긴급 내린 건, `ad.restore`). 머리에 「광고 심사에서 열기」(건의 도메인 심사 화면 `?id=`).
         처리 기록 코드는 신청 건 것(`UtilBizApplicationMessages` 로 번역). 서버는 부르지 않는다 — 동작은 emit.
+        광고주 요청 정지·중단(일시 정지·중단 목업 2026-11-02): 내림 줄에 까닭 「광고주 요청(일시 정지)」·「광고주 요청(중단)」 + 누가(요청 경로·메모) · 정지 횟수 · 누적 멈춘 시간 · 끝 안내.
+          [되돌리기]는 긴급 내림만 — 대신 정지·다시 켜기·중단은 「광고 심사에서 열기」로 가서 한다.
     -->
     <Drawer v-model:visible="open" :position="prefs.drawerPosition" :aria-labelledby="titleId" :style="{ width: '44rem', maxWidth: '100vw' }">
         <template #header>
             <div v-if="head" class="flex min-w-0 flex-1 flex-col gap-1">
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
                     <h2 :id="titleId" class="m-0 min-w-0 truncate text-base font-semibold">{{ head.advertiser.name }}</h2>
-                    <Tag :value="t(`ad.status.${head.status}`)" :severity="UtilAd.statusSeverity(head.status)" />
+                    <Tag :value="t(UtilAd.statusKey(head))" :severity="UtilAd.rowSeverity(head)" />
                     <Tag :value="t(`bizApplication.method.${head.paymentMethod}`)" severity="secondary" />
                 </div>
                 <span class="truncate text-[12px] text-muted-color">{{ t(`bizApplication.adType.${head.type}`) }} · {{ UtilBizApplicationMessages.period(t, time, head.period) }}</span>
-                <NuxtLink :to="UtilAd.reviewLink(head)" class="inline-flex w-fit items-center gap-1 text-[12px] font-medium text-(--p-primary-color) hover:underline">
+                <NuxtLink :to="reviewTo" class="inline-flex w-fit items-center gap-1 text-[12px] font-medium text-(--p-primary-color) hover:underline">
                     <i class="pi pi-external-link text-[11px]" aria-hidden="true" />{{ t(`ad.openInReview.${head.domain}`) }}
                 </NuxtLink>
             </div>
@@ -26,11 +28,19 @@
         </div>
 
         <template v-else>
-            <Message v-if="detail.takedown" severity="error" :closable="false" class="mb-3">
+            <Message v-if="detail.takedown" :severity="pauseState === 'PAUSED' ? 'warn' : advertiser ? 'secondary' : 'error'" :closable="false" class="mb-3">
                 <span class="flex flex-col gap-0.5 text-[13px]">
-                    <span>
+                    <span v-if="advertiser" class="[overflow-wrap:anywhere]">
+                        {{ t('ad.takenDownNote', { at: time.shortDateTime(detail.takedown.at), cause: t(`bizApplication.takedownCause.${detail.takedown.cause}`) }) }} ·
+                        {{ UtilBizApplicationMessages.pauseWho(t, detail.takedown.by, detail.takedown.channel, detail.takedown.memo) }}
+                    </span>
+                    <span v-else>
                         {{ t('ad.takenDownNote', { at: time.shortDateTime(detail.takedown.at), cause: t(`bizApplication.takedownCause.${detail.takedown.cause}`) }) }}<template v-if="detail.takedown.by"> · {{ detail.takedown.by }}</template><template v-if="detail.takedown.reason"> — {{ detail.takedown.reason }}</template>
                     </span>
+                    <span v-if="advertiser && detail.pause" class="tabular-nums">{{ t('ad.pauseLine', { used: detail.pause.used, limit: detail.pause.limit, total: detail.pause.pausedMinutes > 0 ? UtilBizApplicationMessages.minutes(t, detail.pause.pausedMinutes) : t('bizApplication.pause.totalNone') }) }}</span>
+                    <span v-if="pauseState === 'PAUSED'">{{ ended ? t('bizApplication.pause.endedWhilePaused') : t('bizApplication.pause.noRefundIfEnds', { end: time.full(detail.period.endAt) }) }}</span>
+                    <span v-else-if="pauseState === 'STOPPED'">{{ t('bizApplication.pause.stoppedNote') }}</span>
+                    <span v-if="advertiser && !ended && pauseState === 'PAUSED'" class="text-xs">{{ t('ad.pauseProxyHint') }}</span>
                     <span v-if="detail.takedown.mail" class="text-xs">{{ t(`ad.takedownMail.${detail.takedown.mail}`) }}</span>
                 </span>
             </Message>
@@ -147,6 +157,7 @@
 <script setup lang="ts">
 import type { AdBookingDetail, AdBookingRow } from '~/composables/ad/api/useAdApi.types';
 import type { ApiError } from '~/composables/common/useApiClient';
+import { mockQuery } from '~/composables/common/mock/mock-util';
 import UtilAd from '~/utils/util-ad';
 import UtilBizApplication from '~/utils/util-biz-application';
 import UtilBizApplicationMessages from '~/utils/util-biz-application-messages';
@@ -174,6 +185,21 @@ const tab = ref('basic');
 const won = (n: number) => UtilBizApplicationMessages.won(t, n, locale.value);
 
 const head = computed(() => props.detail ?? props.summary);
+/** 「광고 심사에서 열기」 — 건의 도메인 심사 화면 `?id=` */
+const reviewTo = computed(() => {
+    const link = UtilAd.reviewLink(head.value!);
+    return {
+        ...link,
+        query: {
+            ...link.query,
+            ...mockQuery(), // MOCK: 목업 건끼리 오가게 `?mock=` 를 싣는다 — 서버가 붙으면 이 줄과 import 를 지운다
+        },
+    };
+});
+/** 광고주 요청 정지·중단 — 긴급 내림과 문구·색을 가른다 */
+const advertiser = computed(() => UtilBizApplication.isAdvertiserCause(props.detail?.takedown?.cause));
+const pauseState = computed(() => (props.detail ? UtilBizApplication.pauseState(props.detail.status, props.detail.takedown?.cause) : null));
+const ended = computed(() => Boolean(props.detail && UtilBizApplication.ended(props.detail.period)));
 const creativesDesc = computed(() => [...(props.detail?.creatives ?? [])].sort((a, b) => b.version - a.version));
 const historyDesc = computed(() => [...(props.detail?.history ?? [])].sort((a, b) => b.at.localeCompare(a.at)));
 const canTakedownNow = computed(() => props.canTakedown && Boolean(props.detail) && UtilAd.canTakedown(props.detail!.status));

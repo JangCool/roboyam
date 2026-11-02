@@ -5,7 +5,8 @@
         · 한 줄: 광고주/사업자 · 기간(「~10/10 00:00」 반열림) · 상태 · 결제 방식(온라인/수동) · 비중. 줄을 누르면 상세 서랍(`?id=`).
         · [수동 등록](광고 종류 탭 — 배너 넷·날개 배너·한 줄만, 핫딜 노출 자리는 글이 있어야 해서 서버가 400): 광고주 → 종류·기간(남은 칸) → 소재 → 계약서 사본(선택) → [심사 요청]
           → 광고 심사(`/ad-reviews`)의 심사 대기. 상세 서랍의 「광고 심사에서 열기」가 그 신청 건으로 간다.
-        · 긴급 내림(사유·메일·「최대 20초 남을 수 있어요」) · 되돌리기(중단 시간만큼 끝 시각 연장 / 일할 환불).
+        · 긴급 내림(사유·메일·「최대 20초 남을 수 있어요」) · 되돌리기(중단 시간만큼 끝 시각 연장 / 일할 환불 — 긴급 내림 건만).
+        · 광고주 요청 「정지 중」·「중단」(`takedownCause` — 일시 정지·중단 목업 2026-11-02): 달력 점·표 상태를 긴급 내림과 가르고, 대신 처리는 심사 화면에서(서랍의 「광고 심사에서 열기」).
         권한: 화면 `ad.read` · 등록 `ad.manage` · 긴급 내림 `ad.takedown` · 되돌리기 `ad.restore`(서버 `Permission`).
         서버 호출은 `useAdApi`(V115). 달력은 `calendar` 한 번(그 달에 걸친 장부 건 `bookings` 포함). 사업자 신청 심사에서 승인한 광고 건도 이 장부에 나타난다.
     -->
@@ -102,7 +103,7 @@
                     <template #body="{ data }"><span class="text-[12px] tabular-nums">{{ UtilBizApplicationMessages.period(t, time, data.period) }}</span></template>
                 </Column>
                 <Column :header="t('ad.col.status')" style="min-width: 7rem">
-                    <template #body="{ data }"><Tag :value="t(`ad.status.${data.status}`)" :severity="UtilAd.statusSeverity(data.status)" /></template>
+                    <template #body="{ data }"><Tag :value="t(UtilAd.statusKey(data))" :severity="UtilAd.rowSeverity(data)" /></template>
                 </Column>
                 <Column :header="t('ad.col.method')" style="min-width: 6rem">
                     <template #body="{ data }"><Tag :value="t(`bizApplication.method.${data.paymentMethod}`)" :severity="data.paymentMethod === 'ONLINE' ? 'info' : 'secondary'" /></template>

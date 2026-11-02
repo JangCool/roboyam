@@ -18,6 +18,8 @@
         핫딜 글(`deal` — `hotdeal-contract.md`): 본문 위에 딜 카드(`HotdealDealCard` — 제휴 고지·가격·몰·배송·재고·기간·가격 기준·수정 이력·[구매하기]·[이 상품 새 딜 올리기]·품절 알리기·작성자 종료/되돌리기/「아직 진행 중」·의심/종료 표시·같은 딜 묶음·판매자 아님 고지).
           같은 딜(`sameDealCount > 0`)은 글을 받은 뒤 `GET …/deal/same` 으로 따로 받는다. 신고 대화창은 핫딜 글이면 사유 2개(가격·정보 / 숨긴 광고)를 더하고, 「가격 허위」는 종료 요청으로 접수된다(D4 — 성공하면 카드의 「보낸 사유」를 화면이 고친다). 동작은 `useHotdealApi` 로 이 화면이 한다(카드는 `actions` 만).
           사업자 핫딜 글(2차 — `deal.source BUSINESS`)은 작성자 자리에 상호 + 「사업자」, 딜 카드 배지 「광고」·카드 첫 줄 광고 고지, 작성자에게도 고치기·지우기 없음(종료만).
+          작성자(`deal.business.applicationId` 가 있을 때)는 카드에 [일시 정지](신청 건 `useBusinessApi.pause`)와 「중단·환불은 신청 건에서」. 판매자가 내린 글(광고주 일시 정지·중단 — `403 DEAL_SELLER_HIDDEN`, 목업 제안)은
+          404 대신 안내만: 「판매자가 잠시 내린 딜이에요」/「판매자가 내린 딜이에요」 + 게시판 이름 + [핫딜 게시판으로], 정지이고 보는 사람이 그 사업자면 「신청 건에서 다시 켤 수 있어요 ›」.
           그 게시판 매니저·스텝이 보면(`dealModeration`) 카드에 작성자 조치와 따로 「게시판 관리」([핫딜 종료]·[다시 진행 중으로])가 서고, 딜이 바뀌면 단추를 새 상태에 맞추며 그새 상태가 바뀐 거절(`stale`)이면 글을 다시 읽는다.
         투표(post-poll-contract): 글에 `poll` 이 있으면 본문 바로 다음·찬반 토론 위에 투표 카드(`PostPollCard`). 투표·다시 읽기·지우기는 `usePollApi` 로 이 화면이 하고(카드는 `actions` 만 받는다),
           카드가 올린 새 투표(지우면 null)를 글의 `poll` 에 넣는다. 차단으로 본문이 접히거나 19금 확인 전이면 함께 가린다.
@@ -49,6 +51,28 @@
             <ErrorState v-else-if="pageState === 'hidden'" :title="t('post.hiddenTitle')" :description="pageError">
                 <Button type="button" :label="t('post.back')" severity="secondary" variant="outlined" @click="router.back()" />
             </ErrorState>
+            <!-- 판매자가 내린 사업자 핫딜 글(광고주 일시 정지·중단 — 403 DEAL_SELLER_HIDDEN) — 404 가 아니라 안내만(본문·구매 링크·댓글 없음) -->
+            <div
+                v-else-if="pageState === 'sellerHidden' && sellerHidden"
+                class="flex flex-col items-center gap-3 rounded-xl border border-surface px-5 py-10 text-center"
+                data-testid="post-seller-hidden"
+                :data-state="sellerHidden.state"
+            >
+                <span class="grid size-12 place-items-center rounded-full bg-surface-100 text-muted-color dark:bg-surface-800" aria-hidden="true">
+                    <i :class="[sellerHidden.state === 'PAUSED' ? 'pi pi-pause' : 'pi pi-ban', 'text-lg']" />
+                </span>
+                <h1 class="m-0 text-lg font-semibold">{{ sellerHidden.state === 'PAUSED' ? t('hotdeal.sellerPausedTitle') : t('hotdeal.sellerStoppedTitle') }}</h1>
+                <p class="m-0 max-w-md text-sm leading-relaxed text-muted-color">{{ sellerHidden.state === 'PAUSED' ? t('hotdeal.sellerPausedText') : t('hotdeal.sellerStoppedText') }}</p>
+                <p v-if="sellerHiddenBoard" class="m-0 text-xs text-muted-color">{{ t('hotdeal.sellerHiddenBoard', { board: sellerHiddenBoard }) }}</p>
+                <div class="flex flex-wrap justify-center gap-2">
+                    <Button v-if="sellerHidden.boardSlug" as="router-link" :to="`/boards/${sellerHidden.boardSlug}`" :label="t('hotdeal.sellerHiddenToBoard')" icon="pi pi-list" data-testid="post-seller-hidden-board" />
+                    <Button v-else type="button" :label="t('post.back')" severity="secondary" variant="outlined" @click="router.back()" />
+                </div>
+                <!-- 보는 사람이 그 사업자면 신청 건으로(서버가 작성자에게만 `applicationId` 를 싣는다) -->
+                <NuxtLink v-if="sellerHidden.state === 'PAUSED' && sellerHidden.applicationId" :to="UtilBusiness.applicationPath(sellerHidden.applicationId)" class="text-sm text-primary hover:underline" data-testid="post-seller-hidden-resume">
+                    {{ t('hotdeal.sellerResumeLink') }}
+                </NuxtLink>
+            </div>
             <!-- 멤버에게만 보이는 소모임 글을 멤버가 아닌 사람이 열었다(403 GROUP_POST_PRIVATE) — 오류에 소모임 ID 가 없어 소모임 목록으로 보낸다 -->
             <ErrorState v-else-if="pageState === 'groupPrivate'" :title="t('group.privatePostTitle')" :description="user ? t('group.privatePostText') : t('group.privatePostLoginText')" data-testid="post-group-private">
                 <Button v-if="!user" type="button" :label="t('common.login')" @click="prompt('view')" />
@@ -328,6 +352,7 @@ import UtilRichBody from '#layers/rich-editor/utils/util-rich-body';
 import UtilAd from '~/utils/util-ad';
 import UtilBlockMessages from '~/utils/util-block-messages';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilBusiness from '~/utils/util-business';
 import UtilHotdeal from '~/utils/util-hotdeal';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
 import UtilDebate from '~/utils/util-debate';
@@ -350,6 +375,7 @@ const debateApi = useDebateApi();
 const pollApi = usePollApi();
 const groupApi = useGroupApi();
 const hotdealApi = useHotdealApi();
+const businessApi = useBusinessApi();
 const { user } = useAuth();
 const toast = useAppToast();
 const { confirm } = useConfirmDialog();
@@ -365,8 +391,10 @@ const id = computed(() => String(route.params.id ?? ''));
 const siteOrigin = typeof window === 'undefined' ? '' : window.location.origin;
 
 /* ── 불러오기 ── */
-type PageState = 'loading' | 'ready' | 'notfound' | 'hidden' | 'groupPrivate' | 'error';
+type PageState = 'loading' | 'ready' | 'notfound' | 'hidden' | 'groupPrivate' | 'sellerHidden' | 'error';
 const post = ref<PostDetail | null>(null);
+/** 판매자가 내린 사업자 핫딜 글(`403 DEAL_SELLER_HIDDEN` 의 extras — 목업 2026-11-02 제안) */
+const sellerHidden = ref<{ state: 'PAUSED' | 'STOPPED'; boardSlug: string; boardName: string; boardNameEn: string | null; applicationId: string | null } | null>(null);
 const board = ref<BoardDetail | null>(null);
 const pageState = ref<PageState>('loading');
 /** 글쓴이 장식(테두리) — 서버 `author.decoration`(후보)에 내가 방금 장착·해제한 것을 겹친다 */
@@ -449,8 +477,12 @@ async function load(): Promise<void> {
         if (mine !== request) return;
         pageError.value = UtilBoardMessages.of(t, e);
         const code = e instanceof ApiError ? e.code : '';
-        pageState.value =
-            code === 'GROUP_POST_PRIVATE'
+        sellerHidden.value = e instanceof ApiError && code === 'DEAL_SELLER_HIDDEN' ? sellerHiddenOf(e) : null;
+        pageState.value = sellerHidden.value
+            ? 'sellerHidden'
+            : code === 'DEAL_SELLER_HIDDEN'
+              ? 'hidden'
+              : code === 'GROUP_POST_PRIVATE'
                 ? 'groupPrivate'
                 : code === 'POST_NOT_FOUND' || code === 'BOARD_NOT_FOUND' || code === 'GROUP_NOT_FOUND'
                   ? 'notfound'
@@ -525,7 +557,32 @@ const dealActions: DealCardActions = {
     keep: () => hotdealApi.keep(id.value),
     moderateEnd: (reason) => hotdealApi.moderateEnd(id.value, reason),
     moderateReopen: (reason) => hotdealApi.moderateReopen(id.value, reason),
+    // 사업자 글 작성자 [일시 정지] — 그 글의 신청 건(`deal.business.applicationId` — 작성자에게만 온다)으로
+    bizPauseInfo: async () => {
+        const appId = post.value?.deal?.business?.applicationId;
+        if (!appId) return null;
+        const a = await businessApi.application(appId);
+        return UtilBusiness.runningPausable(a) && a.pause ? { endDate: a.endDate, used: a.pause.used, limit: a.pause.limit } : null;
+    },
+    bizPause: async () => {
+        const appId = post.value?.deal?.business?.applicationId;
+        if (appId) await businessApi.pause(appId);
+    },
 };
+
+/** `403 DEAL_SELLER_HIDDEN` 의 extras → 안내 칸 — 모르는 상태면 null(숨김 글 화면으로) */
+function sellerHiddenOf(e: ApiError): NonNullable<typeof sellerHidden.value> | null {
+    const state = e.extraText('state');
+    if (state !== 'PAUSED' && state !== 'STOPPED') return null;
+    return {
+        state,
+        boardSlug: e.extraText('boardSlug') ?? '',
+        boardName: e.extraText('boardName') ?? '',
+        boardNameEn: e.extraText('boardNameEn') ?? null,
+        applicationId: e.extraText('applicationId') ?? null,
+    };
+}
+const sellerHiddenBoard = computed(() => (sellerHidden.value?.boardName ? localizedName(sellerHidden.value.boardName, sellerHidden.value.boardNameEn) : ''));
 /** 카드가 올린 새 딜 — 글을 다시 받지 않는다. 게시판 관리 단추(`dealModeration`)는 새 딜 상태에 맞춘다 */
 function onDealUpdate(next: PostDeal): void {
     if (!post.value) return;
@@ -883,6 +940,6 @@ async function submitReport(value: { reason: ReportReason; detail: string | null
 useSeoMeta({
     // 접힌 글은 탭 제목에도 제목을 쓰지 않는다(차단 단어가 제목에 있다)
     title: () => (post.value && !folded.value ? post.value.title : t('post.pageTitle')),
-    robots: () => (pageState.value === 'notfound' || pageState.value === 'hidden' || post.value?.adult ? 'noindex' : undefined),
+    robots: () => (pageState.value === 'notfound' || pageState.value === 'hidden' || pageState.value === 'sellerHidden' || post.value?.adult ? 'noindex' : undefined),
 });
 </script>

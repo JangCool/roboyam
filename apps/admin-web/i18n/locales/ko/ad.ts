@@ -68,6 +68,8 @@ export default {
     notReviewedYet: '심사 전',
     mismatchReason: '금액 차이 사유: {reason}',
     takenDownNote: '{at} {cause}',
+    pauseLine: '정지 {used}/{limit}번 · 누적 멈춘 시간 {total}',
+    pauseProxyHint: '광고주 대신 다시 켜기·중단은 심사 화면(위 링크)에서 해요.',
     takedownMail: { SENT: '광고주에게 메일을 보냈어요.', FAILED: '광고주 메일을 보내지 못했어요. 따로 연락해 주세요.', NO_ADDRESS: '광고주 이메일이 없어 메일을 보내지 못했어요.' },
     actTakedown: '긴급 내림',
     actRestore: '되돌리기',

@@ -57,11 +57,14 @@ export type BizDealView = 'ACTIVE' | 'FLAGGED' | 'ENDED' | 'EXPIRED';
 export type BizDealFailReason = 'BOARD_CLOSED' | 'LINK_BLOCKED' | 'BUSINESS_SUSPENDED' | 'OTHER';
 export const BIZ_DEAL_FAIL_REASONS: readonly BizDealFailReason[] = ['BOARD_CLOSED', 'LINK_BLOCKED', 'BUSINESS_SUSPENDED', 'OTHER'];
 
+/** 노출 줄이 멈춘 까닭 — 딜 끝남 · 글 숨김 · 말머리 없음 · 판매자 일시 정지(`PAUSED` — 다시 켜면 같이 나간다, 일시 정지·중단 목업 2026-11-02) */
+export type BizDealStopReason = 'DEAL_ENDED' | 'POST_HIDDEN' | 'PREFIX_MISSING' | 'PAUSED';
+
 /** 글에 딸린 노출 줄 — 딜이 끝나거나 글이 숨으면 같이 빠진다 */
 export interface BizDealPlacement {
     product: 'HOTDEAL_TOP' | 'HOTDEAL_CATEGORY';
     status: 'WAITING' | 'SHOWING' | 'STOPPED' | 'ENDED';
-    stopReason: 'DEAL_ENDED' | 'POST_HIDDEN' | 'PREFIX_MISSING' | null;
+    stopReason: BizDealStopReason | null;
 }
 
 export interface BizDealPost {
@@ -176,8 +179,11 @@ export interface BizDepositRequest {
 
 /** 환불 심사 상태 — 열린 환불 = REQUESTED(「환불 심사」 큐) */
 export type BizRefundStatus = 'REQUESTED' | 'APPROVED' | 'DENIED';
-/** 환불 종류 — 시작 전 전액 자동 · 진행 중 일할 심사 · 사업자 정지로 내림(일할) · 긴급 내림 되돌리기의 중단 기간 일할(바로 승인) */
-export type BizRefundType = 'FULL_AUTO' | 'PRORATED' | 'SUSPEND_PRORATED' | 'DOWNTIME';
+/**
+ * 환불 종류 — 시작 전 전액 자동 · 진행 중 일할 심사 · 사업자 정지로 내림(일할) · 긴급 내림 되돌리기의 중단 기간 일할(바로 승인)
+ * · 광고주 요청 중단 일할(`STOP_PRORATED` — 기준 시각 `pause.refundFrom`, 핫딜 글은 게시비 제외 노출 자리 몫만. 일시 정지·중단 목업 2026-11-02)
+ */
+export type BizRefundType = 'FULL_AUTO' | 'PRORATED' | 'SUSPEND_PRORATED' | 'DOWNTIME' | 'STOP_PRORATED';
 
 export interface BizRefundRequest {
     requestedAt: string;
@@ -235,6 +241,11 @@ export const BIZ_HISTORY_ACTIONS = [
     'POST_RESTORED',
     'DEAL_ENDED_BY_BUSINESS',
     'DEAL_AUTO_ENDED',
+    // 광고주 요청 일시 정지·다시 켜기·중단(일시 정지·중단 목업 2026-11-02) — note 는 ` · ` 로 이은 토큰:
+    //   운영자 대신 처리 `PHONE|EMAIL|OTHER · 메모` · STOPPED 가 정지 중 전환이면 맨 앞 `FROM_PAUSE` · RESUMED 는 `MIN:<멈춘 분>`(선택)
+    'PAUSED',
+    'RESUMED',
+    'STOPPED',
 ] as const;
 export type BizHistoryAction = (typeof BIZ_HISTORY_ACTIONS)[number];
 
@@ -251,11 +262,62 @@ export interface BizApplicationHistory {
 /** 신청 건을 만든 쪽 — 사업자 신청 · 운영자 직접 등록 */
 export type BizSource = 'BUSINESS' | 'OPERATOR';
 
-/** 내림 — 사업자 정지 · 긴급 내림 */
+/**
+ * 내림 까닭 — 긴급 내림 · 사업자 정지 · 광고주 요청 일시 정지(`ADVERTISER_PAUSE` — [다시 켜기]로 SCHEDULED, 보상 없음) · 광고주 요청 중단(`ADVERTISER_STOP` — 되돌리기 없음, 일할 환불 심사).
+ * 관리자 [되돌리기](보상 선택)는 `EMERGENCY` 만(일시 정지·중단 목업 2026-11-02).
+ */
+export type BizTakedownCause = 'EMERGENCY' | 'SUSPENDED' | 'ADVERTISER_PAUSE' | 'ADVERTISER_STOP';
+
+/** 운영자가 광고주 대신 정지·다시 켜기·중단할 때 요청 경로 — 전화 · 메일 · 기타 */
+export type BizPauseChannel = 'PHONE' | 'EMAIL' | 'OTHER';
+export const BIZ_PAUSE_CHANNELS: readonly BizPauseChannel[] = ['PHONE', 'EMAIL', 'OTHER'];
+
+/** 내림 — 사업자 정지 · 긴급 내림 · 광고주 요청 정지·중단 */
 export interface BizTakedown {
     at: string;
-    cause: 'SUSPENDED' | 'EMERGENCY';
+    cause: BizTakedownCause;
     text: string | null;
+    /** 운영자가 대신 처리했으면 요청 경로(광고주 요청 정지·중단만 — 사업자가 직접 했거나 다른 까닭이면 null) */
+    channel?: BizPauseChannel | null;
+    /** 운영자 메모(대신 처리 때 1~200자 — 관리자에게만 보인다) */
+    memo?: string | null;
+    /** 내린 사람 표시 이름(운영자 · 사업자 담당자 · 시스템) — 광고 일정표 `AdTakedown.by` 와 같은 뜻(목업이 더함) */
+    by?: string | null;
+}
+
+/**
+ * 광고주 요청 일시 정지·중단 정보 — 정지할 수 있는 종류(날짜로 산 자리 · 사업자 핫딜 글)만, 결제 전이면 null(일시 정지·중단 목업 2026-11-02).
+ * 정지는 진행 중(시작 뒤·끝 전) 건만, 한 건에 `limit` 번까지. 멈춘 시간만큼 연장하지 않는다. 정지한 채 끝나면 환불 없이 종료.
+ */
+export interface BizPause {
+    /** 쓴 정지 횟수(지금 정지 포함) */
+    used: number;
+    /** 정지 한도(설정값 — 3) */
+    limit: number;
+    /** 지금 정지 중이면 그 시작 시각 */
+    pausedAt: string | null;
+    /** 지금 정지를 건 사람 표시 이름(정지 중이 아니면 null) */
+    actor: string | null;
+    /** 운영자가 대신 정지했나 */
+    byOperator: boolean;
+    /** 운영자 대신 처리면 요청 경로 */
+    channel: BizPauseChannel | null;
+    /** 지금까지 멈춘 시간 합(분, 안내용 — 연장 없음) */
+    pausedMinutes: number;
+    /** 중단 시각 */
+    stoppedAt: string | null;
+    /** 일할 기준 시각 — 정지 중 전환이면 멈춘 시각, 아니면 중단 시각 */
+    refundFrom: string | null;
+    /** 일할 대상 금액(부가세 포함) — 광고 = 확정 합계, 핫딜 글 = 노출 자리 줄 합계(게시비 제외, 노출 없으면 0) */
+    proratableTotal: number;
+}
+
+/** 운영자 대신 정지·다시 켜기·중단 본문 — 요청 경로 필수, 메모 1~200자 필수(400 `fields.channel`·`fields.memo`) */
+export interface BizPauseActionRequest {
+    channel: BizPauseChannel;
+    memo: string;
+    /** 중단 사유(공개 중단 요청과 같은 칸 — 이 화면은 보내지 않는다) */
+    reason?: string;
 }
 
 export interface BizApplicationRow {
@@ -277,6 +339,8 @@ export interface BizApplicationRow {
     hasRefundRequest: boolean;
     /** 사업자 신청 · 운영자 등록(화면이 「운영자 등록」 Tag) */
     source: BizSource;
+    /** 내림(`TAKEN_DOWN`) 까닭 — 목록 Tag 「정지 중」·「중단」(긴급 내림 「내림」과 구분). 내림이 아니면 null */
+    takedownCause?: BizTakedownCause | null;
 }
 
 /** 운영자 등록 건의 등록자 — `me` 면 승인이 자기 승인이다(04 §2 — 경고와 메모 칸). 사업자 신청 건은 null */
@@ -316,6 +380,8 @@ export interface BizApplicationDetail extends BizApplicationRow {
     selfApproval: BizSelfApproval;
     /** 사업자 핫딜 게시(2차, `HOTDEAL_POST` 만) — 결제 전이면 null(화면이 「게시」 칸을 감춘다) */
     post?: BizDealPost | null;
+    /** 광고주 요청 일시 정지·중단(날짜로 산 자리 · 사업자 핫딜 글) — 결제 전이거나 서버가 아직 모르면 null(화면이 「일시 정지·중단」 칸과 대신 처리 단추를 감춘다) */
+    pause?: BizPause | null;
 }
 
 export interface BizApplicationQuery {

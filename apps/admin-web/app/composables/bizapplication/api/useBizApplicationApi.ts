@@ -1,3 +1,4 @@
+import { mockPause, mockPauseApproveRefund, mockPauseDenyRefund, mockPauseDetail, mockPauseList, mockResume, mockStop } from '~/composables/bizapplication/api/mock/pause-mock';
 import type {
     BizApplicationDetail,
     BizApplicationList,
@@ -6,6 +7,7 @@ import type {
     BizAvailability,
     BizContractView,
     BizDepositRequest,
+    BizPauseActionRequest,
     BizPeriod,
     BizRejectCode,
     BizTransferRequest,
@@ -32,6 +34,15 @@ import type {
  *  상태가 이미 바뀌었으면 409 `BIZ_APPLICATION_STATE_CHANGED`.
  *  사업자 핫딜 게시(2차 — `biz-hotdeal-contract.md`): 상세 `post`(`BizDealPost` — `HOTDEAL_POST` 만, 결제 전이면 null)·소재 `board`·`prefix`·`imageUrl`.
  *    게시 실패(`POST_FAILED`) 건은 시작 뒤여도 `cancel` = 전액 환불(`FULL_AUTO`).
+ *  광고주 요청 일시 정지·중단(일시 정지·중단 목업 2026-11-02 — API 후보, 서버에 아직 없음): 운영자가 광고주 대신 처리한다(요청 경로 + 메모 1~200자 필수, 400 `fields.channel`·`fields.memo`).
+ *  - `POST …/{id}/pause` `{ channel, memo }` — 진행 중만(내림 까닭 `ADVERTISER_PAUSE`), 정지 횟수 초과 409 `BIZ_PAUSE_LIMIT`
+ *  - `POST …/{id}/resume` `{ channel, memo }` — 정지 중이고 끝 전만(→ SCHEDULED, 끝 시각 그대로 — 연장 없음)
+ *  - `POST …/{id}/stop` `{ channel, memo, reason? }` — 진행 중·정지 중(→ 내림 까닭 `ADVERTISER_STOP` + 일할 환불 `STOP_PRORATED` 심사 대기, 대상 0원이면 환불 줄 없음). 되돌리기 없음
+ *  권한 광고 `ad.manage` · 핫딜 `hotdeal.manage`, 감사 `BIZ_APP_PAUSE`·`BIZ_APP_RESUME`·`BIZ_APP_STOP`. 상세 `pause`(`BizPause`)·`takedown.channel`·`takedown.memo`, 목록 줄 `takedownCause`.
+ *
+ * ⚠ MOCK(일시 정지·중단): `?mock=pause-…` 일 때만 `./mock/pause-mock.ts` 가 목업 건을 목록 맨 위에 끼우고, 목업 건 번호(`mock-pause-…`)의 상세·정지·재개·중단·환불 승인/거절을 흉내 낸다.
+ *   스위치가 없으면 실제 API 그대로(정지·재개·중단 API 는 서버에 아직 없다 — 화면은 상세에 `pause` 가 있을 때만 단추를 보인다).
+ *   서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
  */
 const PATH = {
     root: '/api/admin/biz-applications',
@@ -45,9 +56,16 @@ export function useBizApplicationApi() {
     const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
-        list: (query: BizApplicationQuery): Promise<BizApplicationList> => client.get<BizApplicationList>(PATH.root, { query: { ...query } }),
+        list: (query: BizApplicationQuery): Promise<BizApplicationList> =>
+            // MOCK:
+            mockPauseList(query, () => client.get<BizApplicationList>(PATH.root, { query: { ...query } })),
+        // REAL: client.get<BizApplicationList>(PATH.root, { query: { ...query } }),
 
-        detail: (id: string): Promise<BizApplicationDetail> => client.get<BizApplicationDetail>(PATH.one(id)),
+        detail: (id: string): Promise<BizApplicationDetail> =>
+            // MOCK:
+            mockPauseDetail(id) ??
+            client.get<BizApplicationDetail>(PATH.one(id)),
+        // REAL: client.get<BizApplicationDetail>(PATH.one(id)),
 
         availability: (id: string, period: BizPeriod): Promise<BizAvailability> => client.get<BizAvailability>(PATH.action(id, 'availability'), { query: { ...period } }),
 
@@ -78,9 +96,37 @@ export function useBizApplicationApi() {
         cancel: (id: string, reason: string): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(PATH.action(id, 'cancel'), { reason }),
 
         approveRefund: (id: string, body: { amount: number; reason: string }): Promise<BizApplicationDetail> =>
+            // MOCK:
+            mockPauseApproveRefund(id, body) ??
             client.post<BizApplicationDetail>(PATH.action(id, 'refund/approve'), body),
+        // REAL: client.post<BizApplicationDetail>(PATH.action(id, 'refund/approve'), body),
 
-        denyRefund: (id: string, reason: string): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(PATH.action(id, 'refund/deny'), { reason }),
+        denyRefund: (id: string, reason: string): Promise<BizApplicationDetail> =>
+            // MOCK:
+            mockPauseDenyRefund(id, reason) ??
+            client.post<BizApplicationDetail>(PATH.action(id, 'refund/deny'), { reason }),
+        // REAL: client.post<BizApplicationDetail>(PATH.action(id, 'refund/deny'), { reason }),
+
+        /** 운영자 대신 일시 정지(광고주 요청 — 진행 중만, 정지 횟수 안에서) */
+        pause: (id: string, body: BizPauseActionRequest): Promise<BizApplicationDetail> =>
+            // MOCK:
+            mockPause(id, body) ??
+            client.post<BizApplicationDetail>(PATH.action(id, 'pause'), body),
+        // REAL: client.post<BizApplicationDetail>(PATH.action(id, 'pause'), body),
+
+        /** 운영자 대신 다시 켜기(정지 중 · 끝 전 — 승인 없이 바로, 연장 없음) */
+        resume: (id: string, body: BizPauseActionRequest): Promise<BizApplicationDetail> =>
+            // MOCK:
+            mockResume(id, body) ??
+            client.post<BizApplicationDetail>(PATH.action(id, 'resume'), body),
+        // REAL: client.post<BizApplicationDetail>(PATH.action(id, 'resume'), body),
+
+        /** 운영자 대신 중단(진행 중·정지 중 — 바로 내리고 남은 기간 일할 환불 심사, 되돌리기 없음) */
+        stop: (id: string, body: BizPauseActionRequest): Promise<BizApplicationDetail> =>
+            // MOCK:
+            mockStop(id, body) ??
+            client.post<BizApplicationDetail>(PATH.action(id, 'stop'), body),
+        // REAL: client.post<BizApplicationDetail>(PATH.action(id, 'stop'), body),
 
         /** 수동 환불 송금 완료 표시 — 가장 최근 환불이 송금 대기일 때만(아니면 409) */
         markTransferred: (id: string, body: BizTransferRequest = {}): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(PATH.action(id, 'refund/transfer'), body),

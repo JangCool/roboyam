@@ -7,6 +7,8 @@
         · 처리: 승인(결제 방식·금액·기한·기간 옮기기·남은 자리) · 반려(코드+글, 결제 전이라 환불 없음) · 수동 결제로 전환 · 계약서 사본(한 장씩 올림 · [보기] 열람 기록) + 입금 확인 → 예약 확정
           · 입금 기한 연장/취소 · 환불 승인/거절 · 수동 환불 송금 완료 표시.
         · 사업자 핫딜 글(2차): 상세 `post` 로 「게시」 칸(게시 전·게시됨·실패·숨김) — 실패 건은 [취소(전액 환불)](기존 취소 API — 실패 건은 시작 뒤여도 전액 환불). 운영자 알림 `HOTDEAL_POST_FAILED` 의 링크가 `?id=` 로 들어온다.
+        · 광고주 요청 일시 정지·중단(일시 정지·중단 목업 2026-11-02 — 상세 `pause` 가 있을 때만): 운영자 대신 [일시 정지]·[다시 켜기]·[중단(환불 심사)] → `BizPauseDialog`(요청 경로 + 메모, 중단이면 예상 환불액).
+          처리 권한은 심사·결제 처리와 같은 `ad.manage`·`hotdeal.manage`. 중단 건의 환불 승인·거절은 기존 환불 흐름(`deal-order.refund`).
         · 운영자 등록 건(광고 일정표 수동 등록, 「운영자 등록」 Tag): 수동 결제 고정 · 공급가 처음 값 = 제안 · 자기 승인 경고·메모(막는 설정이면 안내만) · 심사 대기에서도 취소·계약서 올리기.
         권한: 화면 조회는 메뉴 항목의 권한(`ad.read`·`hotdeal.read` — 셸이 거른다) · 심사·결제 처리 `ad.manage`·`hotdeal.manage`(그 도메인 것) · 환불 승인·거절·송금 `deal-order.refund`(서버 `Permission`).
         다른 도메인 건을 `?id=` 로 열면 서버가 403 을 준다(권한 없음 안내). 관리자 알림(`AD_REVIEW_PENDING`·`HOTDEAL_REVIEW_PENDING`·`*_REFUND_REQUESTED`·`HOTDEAL_POST_FAILED`)의 링크가 `?id=` 로 들어온다.
@@ -79,6 +81,9 @@
                         @deny-refund="openDialog('denyRefund')"
                         @mark-transferred="markTransferred"
                         @view-contract="openContract"
+                        @pause="openPause('pause')"
+                        @resume="openPause('resume')"
+                        @stop="openPause('stop')"
                     />
                 </SplitterPanel>
                 <SplitterPanel :size="30" :min-size="20" class="min-h-0 overflow-y-auto">
@@ -178,6 +183,18 @@
                     </template>
                 </LabeledField>
             </BizReasonDialog>
+            <BizPauseDialog
+                v-model:visible="dialogs.pause"
+                :action="pauseAction"
+                :no="detail.no"
+                :end-at="detail.period.endAt"
+                :pause-count="detail.pause ? { next: detail.pause.used + 1, limit: detail.pause.limit } : null"
+                :refund="pauseAction === 'stop' ? stopEstimate : null"
+                :busy="working === pauseAction"
+                :error="dialogError"
+                :field-errors="dialogFields"
+                @submit="submitPause"
+            />
             <BizReasonDialog
                 v-model:visible="dialogs.denyRefund"
                 :title="t('bizApplication.refundDenyTitle')"
@@ -200,6 +217,7 @@
 </template>
 
 <script setup lang="ts">
+import type { BizPauseAction, BizPauseRefundEstimate } from '~/components/bizapplication/BizPauseDialog.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type {
     BizApplicationDetail,
@@ -210,6 +228,7 @@ import type {
     BizAvailability,
     BizDepositRequest,
     BizDomain,
+    BizPauseActionRequest,
     BizPeriod,
     BizRejectCode,
 } from '~/composables/bizapplication/api/useBizApplicationApi.types';
@@ -217,7 +236,7 @@ import { BIZ_APPLICATION_QUEUES, BIZ_DOMAIN_KINDS, BIZ_REJECT_CODES } from '~/co
 import UtilBizApplication from '~/utils/util-biz-application';
 import UtilBizApplicationMessages from '~/utils/util-biz-application-messages';
 
-type Work = 'approve' | 'reject' | 'switchManual' | 'cancel' | 'upload' | 'deposit' | 'confirm' | 'extend' | 'refund' | 'denyRefund' | 'transfer' | 'contract';
+type Work = 'approve' | 'reject' | 'switchManual' | 'cancel' | 'upload' | 'deposit' | 'confirm' | 'extend' | 'refund' | 'denyRefund' | 'transfer' | 'contract' | BizPauseAction;
 
 interface Props {
     /** 이 화면이 다루는 도메인 — 목록·건수·종류 거르기·처리 권한이 여기로 정해진다 */
@@ -340,7 +359,7 @@ const dialogFields = ref<Record<string, string>>({});
 /** 대화상자 없는 처리(입금 패널)의 오류 */
 const panelError = ref('');
 const panelFields = ref<Record<string, string>>({});
-const dialogs = reactive({ approve: false, reject: false, switchManual: false, extend: false, cancel: false, refund: false, denyRefund: false });
+const dialogs = reactive({ approve: false, reject: false, switchManual: false, extend: false, cancel: false, refund: false, denyRefund: false, pause: false });
 
 function openDialog(name: keyof typeof dialogs): void {
     dialogError.value = '';
@@ -504,6 +523,37 @@ async function submitRefund(reason: string): Promise<void> {
     const d = detail.value;
     const amount = refundAmount.value ?? 0;
     if (d) await run('refund', () => api.approveRefund(d.id, { amount, reason }), t('bizApplication.refundApproved'), 'refund');
+}
+
+// ── 광고주 요청 일시 정지·중단 — 운영자 대신 처리(한 대화상자를 세 동작이 같이 쓴다) ──
+const pauseAction = ref<BizPauseAction>('pause');
+/** 대화상자를 연 시각 — 중단 예상 환불의 「지금」 */
+const pauseOpenedAt = ref(Date.now());
+function openPause(action: BizPauseAction): void {
+    pauseAction.value = action;
+    pauseOpenedAt.value = Date.now();
+    openDialog('pause');
+}
+/**
+ * 중단 예상 환불(명세 일할 식 — 서버가 다시 계산한다): 기준 = 정지 중이면 멈춘 시각, 아니면 지금. 대상 = `pause.proratableTotal`(핫딜 글은 게시비 제외 노출 몫).
+ * 이미 승인한 환불(긴급 내림 되돌리기 보상 등)은 뺀다.
+ */
+const stopEstimate = computed<BizPauseRefundEstimate | null>(() => {
+    const d = detail.value;
+    const p = d?.pause;
+    if (!d || !p) return null;
+    const fromPause = UtilBizApplication.pauseState(d.status, d.takedown?.cause) === 'PAUSED' && Boolean(p.pausedAt);
+    const from = fromPause && p.pausedAt ? p.pausedAt : new Date(pauseOpenedAt.value).toISOString();
+    const already = d.refund?.status === 'APPROVED' ? (d.refund.approvedAmount ?? 0) : 0;
+    const r = UtilBizApplication.stopRefund(p.proratableTotal, d.period, from, already);
+    return { ...r, base: p.proratableTotal, from, fromPause, dealPost: d.kind === 'HOTDEAL_POST' };
+});
+async function submitPause(body: BizPauseActionRequest): Promise<void> {
+    const d = detail.value;
+    const action = pauseAction.value;
+    if (!d) return;
+    const call = action === 'pause' ? () => api.pause(d.id, body) : action === 'resume' ? () => api.resume(d.id, body) : () => api.stop(d.id, body);
+    await run(action, call, t(`bizApplication.pause.done.${action}`), 'pause');
 }
 
 async function submitDeny(reason: string): Promise<void> {

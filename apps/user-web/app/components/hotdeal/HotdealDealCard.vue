@@ -12,6 +12,7 @@
             작성자 조치와 따로 그린다 — 작성자 본인이 매니저여도 작성자 종료·24시간 되돌리기·「아직 진행 중」은 그대로 두고 이 영역을 더 보인다(매니저 조치로 작성자 조치를 덮지 않는다).
             단추는 서버 `canEnd`(진행·의심·기간 지남)·`canReopen`(종료)대로 — 기간 지난 딜은 카드가 흐려도 [핫딜 종료]가 남는다.
           → 「같은 딜 N건」 묶음(줄마다 「이 글보다 N원 저렴/비쌈」) → 아래 고지 「로보얌은 판매자가 아니에요…」.
+        사업자 글 작성자(`deal.business.applicationId` 가 있을 때 — 목업 2026-11-02): [일시 정지](신청 건을 받아 `BusinessPauseDialog` → 성공하면 토스트 + 신청 건 화면으로) · 「중단·환불은 신청 건에서 ›」.
         끝난 딜(종료·기간 지남)은 카드 몸통을 흐리게 하고 알리기·종료를 감춘다(구매하기는 남긴다 — 링크 확인용, 가정).
         서버 호출은 페이지가 내려 준 `actions` 로 한다. 성공하면 새 딜을 `update:deal` 로 올린다.
         게시판 관리 실패: 맡은 자리가 빠졌으면(`403 DEAL_MODERATE_FORBIDDEN`) `update:moderation` null 로 영역을 거두고, 그새 상태가 바뀌었으면(`409 DEAL_ENDED`·`DEAL_NOT_ENDED`·`404 DEAL_NOT_FOUND`) `stale` 로 페이지가 글을 다시 읽게 한다.
@@ -123,6 +124,24 @@
             <Button v-if="mine && !over" type="button" :label="t('hotdeal.authorEnd')" icon="pi pi-stop-circle" severity="secondary" variant="outlined" size="small" class="ml-auto" :loading="ending" data-testid="hotdeal-author-end" @click="onEnd" />
         </div>
 
+        <!-- 사업자 글 작성자(신청 건을 아는 사람만 — `deal.business.applicationId`) — [일시 정지](같은 확인 창 → 신청 건으로) · 중단·환불은 신청 건에서 -->
+        <div v-if="bizApplicationId && !over" class="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-surface pt-3" data-testid="hotdeal-biz-owner">
+            <Button
+                v-if="actions.bizPause && actions.bizPauseInfo"
+                type="button"
+                :label="t('business.pause.pause')"
+                icon="pi pi-pause"
+                severity="warn"
+                variant="outlined"
+                size="small"
+                :loading="pausePreparing"
+                :disabled="busy"
+                data-testid="hotdeal-biz-pause"
+                @click="openPause"
+            />
+            <NuxtLink :to="UtilBusiness.applicationPath(bizApplicationId)" class="text-xs text-primary hover:underline" data-testid="hotdeal-biz-stop-link">{{ t('hotdeal.bizStopLink') }}</NuxtLink>
+        </div>
+
         <!-- 품절·가격 변경 알리기(작성자에게는 없음) -->
         <div v-if="!mine && !over" class="flex flex-col gap-1 border-t border-surface pt-3">
             <p v-if="deal.endRequests.mine" class="m-0 flex items-center gap-1.5 text-sm text-muted-color" data-testid="hotdeal-end-sent">
@@ -190,13 +209,25 @@
 
         <HotdealEndRequestDialog v-model:visible="requestOpen" :loading="requesting" :error="requestError" @submit="onRequest" />
         <HotdealModerateDialog v-model:visible="moderateOpen" :mode="moderateMode" :loading="moderating" :error="moderateError" :field-error="moderateFieldError" @submit="onModerate" />
+        <BusinessPauseDialog
+            v-if="pauseInfo"
+            :visible="pauseOpen"
+            :end-label="pauseEndLabel"
+            :left="Math.max(0, pauseInfo.limit - pauseInfo.used - 1)"
+            deal
+            :busy="pausing"
+            :error="pauseError"
+            @submit="onPause"
+            @close="pauseOpen = false"
+        />
     </section>
 </template>
 
 <script setup lang="ts">
 import type { DealEndReason, DealModeration, DealSameRef, PostDeal } from '~/composables/hotdeal/api/useHotdealApi.types';
-import type { DealCardActions } from '~/components/hotdeal/HotdealDealCard.types';
+import type { DealCardActions, DealPauseInfo } from '~/components/hotdeal/HotdealDealCard.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
+import UtilBusiness from '~/utils/util-business';
 import UtilHotdeal from '~/utils/util-hotdeal';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
 
@@ -276,7 +307,9 @@ const keeping = ref(false);
 const ending = ref(false);
 const reopening = ref(false);
 const moderating = ref(false);
-const busy = computed(() => requesting.value || keeping.value || ending.value || reopening.value || moderating.value);
+const pausePreparing = ref(false);
+const pausing = ref(false);
+const busy = computed(() => requesting.value || keeping.value || ending.value || reopening.value || moderating.value || pausePreparing.value || pausing.value);
 
 function openRequest(): void {
     if (props.guest) return prompt('dealEnd');
@@ -358,6 +391,56 @@ async function onReopen(): Promise<void> {
         toast.error(errorText(e), 8000);
     } finally {
         reopening.value = false;
+    }
+}
+
+/* ── 사업자 글 작성자 — 일시 정지(목업 2026-11-02) ── */
+/** 그 글의 신청 건 — 내 사업자 글이고 서버가 실어 줬을 때만 */
+const bizApplicationId = computed(() => (props.mine && business.value ? (props.deal.business?.applicationId ?? null) : null));
+const pauseOpen = ref(false);
+const pauseError = ref('');
+const pauseInfo = ref<DealPauseInfo | null>(null);
+const pauseEndLabel = computed(() => (pauseInfo.value ? time.value.serviceDate(pauseInfo.value.endDate) : ''));
+
+/** 확인 창을 열기 전에 신청 건(끝 날짜·남은 횟수)을 받는다 — 정지할 수 없거나 다 썼으면 알리고 열지 않는다 */
+async function openPause(): Promise<void> {
+    if (!props.actions.bizPauseInfo || pausePreparing.value) return;
+    pausePreparing.value = true;
+    try {
+        const info = await props.actions.bizPauseInfo();
+        if (!info) toast.error(t('hotdeal.bizPauseUnavailable'), 8000);
+        else if (info.used >= info.limit) toast.error(t('hotdeal.bizPauseLimit'), 8000);
+        else {
+            pauseInfo.value = info;
+            pauseError.value = '';
+            pauseOpen.value = true;
+        }
+    } catch (e) {
+        toast.error(errorText(e), 8000);
+    } finally {
+        pausePreparing.value = false;
+    }
+}
+
+/** 정지 — 성공하면 토스트 + 신청 건 화면으로(다시 켜기·중단은 거기서) */
+async function onPause(): Promise<void> {
+    const appId = bizApplicationId.value;
+    if (!props.actions.bizPause || pausing.value || !appId) return;
+    pausing.value = true;
+    pauseError.value = '';
+    try {
+        await props.actions.bizPause();
+        pauseOpen.value = false;
+        toast.success(t('business.pause.pausedDone'));
+        await navigateTo(UtilBusiness.applicationPath(appId));
+    } catch (e) {
+        // 그새 다 썼거나 상태가 바뀌었다 — 알리고 닫는다(신청 건에서 지금 상태를 본다)
+        if (e instanceof ApiError && (e.code === 'BIZ_PAUSE_LIMIT' || e.code === 'BIZ_APPLICATION_STATE_CHANGED')) {
+            pauseOpen.value = false;
+            toast.error(e.message, 8000);
+        } else pauseError.value = UtilBoardMessages.of(t, e);
+    } finally {
+        pausing.value = false;
     }
 }
 

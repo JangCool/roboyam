@@ -18,6 +18,7 @@ import type {
     DealProduct,
 } from '~/composables/business/api/useBusinessApi.types';
 import type { PaymentCompleteRequest, PaymentFakeCheckoutRequest, PaymentResult } from '~/composables/payment/api/usePaymentApi.types';
+import { isMockPauseId, mockPause, mockPauseApplication, mockPauseEndDeal, mockPauseRefund, mockResume, mockStop } from '~/composables/business/api/mock/pause-mock';
 
 /**
  * 사업자 센터 API — 서버 주소 문자열(`/api/business/…`)이 있는 **유일한 곳**이다. 상태는 없다. 로그인 필요(401).
@@ -33,6 +34,11 @@ import type { PaymentCompleteRequest, PaymentFakeCheckoutRequest, PaymentResult 
  *  - 사업자 핫딜 게시(2차 — `biz-hotdeal-contract.md`): `deal-products` 에 `boards`, 신청 본문 `deal.boardId`·`prefixId`·`imageFileId`·`stock`, 상세 `post`(`BizDealPost`) ·
  *    칸 오류 `fields."deal.boardId"`·`"deal.prefixId"`·`"deal.linkUrl"`(형식·차단·단축 주소)·`"deal.listPrice"`·`"deal.stock"`·`"deal.imageFileId"` ·
  *    사업자 종료 `POST …/{id}/deal/end` → 새 `BizDealPost`(환불 없음 · 노출도 멈춤) — 이미 끝남 409 `DEAL_ENDED` · 글이 없음(게시 전·실패·숨김) 409 `BIZ_APPLICATION_STATE_CHANGED`
+ *  - 일시 정지·중단(광고주 요청 — 목업 2026-11-02, 서버 없음 · API 후보): 진행 중(시작 뒤·끝 전, 핫딜 글은 게시되고 진행 중·의심) 건만.
+ *    `POST …/{id}/pause`(바로 멈춤 · 자리 유지 · 한 건에 3번) · `POST …/{id}/resume`(승인 없이 바로 재개 · 끝 시각 그대로) · `POST …/{id}/stop` `{ reason }`(1~300자 — 바로 내림 · 되돌리기 없음 ·
+ *    일할 환불 `STOP_PRORATED` 심사, 대상 0원이면 환불 줄 없음) — 셋 다 → `BizApplicationDetail`(`takedownCause`·`pause`). 정지 = `TAKEN_DOWN` + `ADVERTISER_PAUSE`, 중단 = `TAKEN_DOWN` + `ADVERTISER_STOP`(승인 → `CANCELED`).
+ *    오류: 횟수 초과 409 `BIZ_PAUSE_LIMIT` · 이미 끝남/상태 바뀜 409 `BIZ_APPLICATION_STATE_CHANGED`(알리고 다시 읽는다)
+ * ⚠ MOCK: 목업 신청 건(`mock-ad-pause`·`mock-deal-pause`)만 `./mock/pause-mock.ts` 로 돌린다(`// MOCK:` 분기) — 다른 ID 는 실제 API 그대로. 서버가 붙으면 분기와 목업 import 를 지운다.
  */
 const PATH = {
     me: '/api/business/me',
@@ -89,13 +95,21 @@ export function useBusinessApi() {
         applications: (bucket: BizApplicationBucket): Promise<BizApplicationPage> => client.get<BizApplicationPage>(PATH.applications, { query: { bucket } }),
 
         /** 신청 건 상세 */
-        application: (id: string): Promise<BizApplicationDetail> => client.get<BizApplicationDetail>(PATH.application(id)),
+        application: (id: string): Promise<BizApplicationDetail> =>
+            // MOCK:
+            isMockPauseId(id) ? mockPauseApplication(id) :
+            // REAL:
+            client.get<BizApplicationDetail>(PATH.application(id)),
 
         /** 결제 전 취소(심사 중·결제 대기·입금 확인 전 입금 대기) */
         cancel: (id: string): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(`${PATH.application(id)}/cancel`),
 
         /** 사업자 핫딜 종료(게시된 글 — 품절 등) — 환불 없음, 노출 자리도 같이 멈춘다. 이미 끝났으면 409 `DEAL_ENDED` */
-        endDeal: (id: string): Promise<BizDealPost> => client.post<BizDealPost>(`${PATH.application(id)}/deal/end`),
+        endDeal: (id: string): Promise<BizDealPost> =>
+            // MOCK:
+            isMockPauseId(id) ? mockPauseEndDeal(id) :
+            // REAL:
+            client.post<BizDealPost>(`${PATH.application(id)}/deal/end`),
 
         /** 소재 바꾸기 — 심사 중이면 새 버전, 승인 뒤 결제 전이면 다시 심사(자리 반납) */
         updateCreative: (id: string, body: BizCreativeRequest): Promise<BizApplicationDetail> => client.put<BizApplicationDetail>(`${PATH.application(id)}/creative`, body),
@@ -110,6 +124,31 @@ export function useBusinessApi() {
         completePayment: (paymentId: string, body: PaymentCompleteRequest): Promise<PaymentResult> => paymentApi.complete(paymentId, body),
 
         /** 취소·환불 요청(예약·진행 중, 한 번만) */
-        refundRequest: (id: string, reason: string): Promise<BizApplicationDetail> => client.post<BizApplicationDetail>(`${PATH.application(id)}/refund-request`, { reason }),
+        refundRequest: (id: string, reason: string): Promise<BizApplicationDetail> =>
+            // MOCK:
+            isMockPauseId(id) ? mockPauseRefund(id, reason) :
+            // REAL:
+            client.post<BizApplicationDetail>(`${PATH.application(id)}/refund-request`, { reason }),
+
+        /** 일시 정지(진행 중 — 바로 멈춤, 자리 유지, 한 건에 3번) — 다 썼으면 409 `BIZ_PAUSE_LIMIT` */
+        pause: (id: string): Promise<BizApplicationDetail> =>
+            // MOCK:
+            isMockPauseId(id) ? mockPause(id) :
+            // REAL:
+            client.post<BizApplicationDetail>(`${PATH.application(id)}/pause`),
+
+        /** 다시 켜기(정지 중 · 끝 시각 전) — 승인 없이 지금 승인된 소재로 바로 재개, 기간은 늘지 않는다 */
+        resume: (id: string): Promise<BizApplicationDetail> =>
+            // MOCK:
+            isMockPauseId(id) ? mockResume(id) :
+            // REAL:
+            client.post<BizApplicationDetail>(`${PATH.application(id)}/resume`),
+
+        /** 중단하고 환불 요청(진행 중·정지 중) — 바로 내려가고 되돌릴 수 없다. 남은 기간 일할(정지 중이면 멈춘 시각부터)을 운영팀이 확인 */
+        stop: (id: string, reason: string): Promise<BizApplicationDetail> =>
+            // MOCK:
+            isMockPauseId(id) ? mockStop(id, reason) :
+            // REAL:
+            client.post<BizApplicationDetail>(`${PATH.application(id)}/stop`, { reason }),
     };
 }

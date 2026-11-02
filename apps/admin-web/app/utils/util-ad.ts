@@ -28,7 +28,21 @@ export default class UtilAd {
         return { path: UtilBizApplication.DOMAIN_SCREENS[row.domain].path, query: { id: row.id } };
     }
 
-    /** 되돌리기 — 긴급 내림만(정지 내림은 사업자 정지 해제가 되돌린다) */
+    /**
+     * 상태 글자 키 — 광고주 요청 내림은 「정지 중」(`ADVERTISER_PAUSE`)·「중단」(`ADVERTISER_STOP`)으로 긴급 내림 「내림」과 가른다(일시 정지·중단 목업 2026-11-02)
+     */
+    static statusKey(row: Pick<AdBookingRow, 'status' | 'takedownCause' | 'period'>, now = Date.now()): string {
+        const state = UtilBizApplication.pauseLabel(row.status, row.takedownCause, row.period, now);
+        return state ? `bizApplication.pauseState.${state}` : `ad.status.${row.status}`;
+    }
+
+    /** 상태 Tag 색 — 정지 중 주황 · 중단 빨강 · 그 밖은 `statusSeverity` */
+    static rowSeverity(row: Pick<AdBookingRow, 'status' | 'takedownCause' | 'period'>, now = Date.now()): Severity {
+        const state = UtilBizApplication.pauseLabel(row.status, row.takedownCause, row.period, now);
+        return state ? UtilBizApplication.pauseStateSeverity(state) : UtilAd.statusSeverity(row.status);
+    }
+
+    /** 되돌리기 — 긴급 내림만(정지 내림은 사업자 정지 해제가, 광고주 요청 정지는 광고주의 [다시 켜기]가 되돌린다. 광고주 요청 건에는 연장·일할 보상이 없다) */
     static canRestore(status: AdBookingStatus, takedown: AdTakedown | null): boolean {
         return status === 'TAKEN_DOWN' && takedown?.cause === 'EMERGENCY';
     }

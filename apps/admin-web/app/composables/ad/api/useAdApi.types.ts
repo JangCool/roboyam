@@ -1,4 +1,4 @@
-import type { BizAdType, BizAmount, BizContractFile, BizDeposit, BizDomain, BizPaymentMethod, BizPeriod, BizQuote, BizRefundRequest } from '~/composables/bizapplication/api/useBizApplicationApi.types';
+import type { BizAdType, BizAmount, BizContractFile, BizDeposit, BizDomain, BizPause, BizPauseChannel, BizPaymentMethod, BizPeriod, BizQuote, BizRefundRequest, BizTakedownCause } from '~/composables/bizapplication/api/useBizApplicationApi.types';
 import type { SettingHistoryItem, SettingHistoryPage } from '~/composables/common/useSettingHistory.types';
 
 /**
@@ -69,6 +69,8 @@ export interface AdBookingRow {
     lastActionAt: string;
     /** 업무 도메인 — 「심사에서 열기」 주소(AD → `/ad-reviews`, HOTDEAL → `/hotdeal-reviews`) */
     domain: BizDomain;
+    /** 내림(`TAKEN_DOWN`) 까닭 — 달력 점·표 상태 「정지 중」(`ADVERTISER_PAUSE`)·「중단」(`ADVERTISER_STOP`)을 긴급 내림과 가른다(일시 정지·중단 목업 2026-11-02). 내림이 아니면 null */
+    takedownCause?: BizTakedownCause | null;
 }
 
 export interface AdCalendar {
@@ -102,10 +104,14 @@ export interface AdHistory {
 export type AdTakedownMail = 'SENT' | 'FAILED' | 'NO_ADDRESS';
 export const AD_TAKEDOWN_MAILS: readonly AdTakedownMail[] = ['SENT', 'FAILED', 'NO_ADDRESS'];
 
-/** 내림 — `cause` EMERGENCY(긴급)·SUSPENDED(사업자 정지), `mail` 광고주 메일 결과(보내지 않았으면 null) */
+/** 내림 — `cause` EMERGENCY(긴급)·SUSPENDED(사업자 정지)·ADVERTISER_PAUSE·ADVERTISER_STOP(광고주 요청 정지·중단), `mail` 광고주 메일 결과(보내지 않았으면 null) */
 export interface AdTakedown {
     at: string;
-    cause: 'EMERGENCY' | 'SUSPENDED';
+    cause: BizTakedownCause;
+    /** 운영자가 광고주 대신 정지·중단했으면 요청 경로(일시 정지·중단 목업) */
+    channel?: BizPauseChannel | null;
+    /** 운영자 대신 처리 메모 */
+    memo?: string | null;
     reason: string | null;
     by: string | null;
     mailSent: boolean;
@@ -134,6 +140,8 @@ export interface AdBookingDetail extends AdBookingRow {
     memo: string | null;
     registrant: AdRegistrant | null;
     history: AdHistory[];
+    /** 광고주 요청 일시 정지·중단 정보(신청 건 상세 `pause` 와 같은 모양 — 서버가 아직 모르면 없음) */
+    pause?: BizPause | null;
 }
 
 export interface AdBookingQuery {

@@ -8,7 +8,9 @@
         · 환불: 종류·상태 · 일할 계산 제안 · [거절] · [환불 승인](열린 환불만) · 수동 환불 송금 대기면 [송금 완료 표시].
         · 내림(사업자 정지·긴급) 사유. 계약서 사본은 [보기](`viewContract` — 부모가 `data:` 주소로 연다, 열람 기록).
         · 그 밖: 결제 기록(온라인 결제 또는 계약서·입금 기록)만.
-        · 사업자 핫딜 글(2차): 상세 `post` 가 있으면 「게시」 칸(게시 전 · 게시됨 · 실패 → [취소(전액 환불)] · 숨김)과 노출 줄 상태.
+        · 사업자 핫딜 글(2차): 상세 `post` 가 있으면 「게시」 칸(게시 전 · 게시됨 · 실패 → [취소(전액 환불)] · 숨김 — 숨김 까닭 「판매자 일시 정지」·「판매자 중단」)과 노출 줄 상태.
+        · 광고주 요청 일시 정지·중단(상세 `pause` 가 있을 때만 — 일시 정지·중단 목업 2026-11-02): 까닭 · 멈춘 시각 · 누가(+ 요청 경로·메모) · 정지 횟수 · 누적 멈춘 시간 · 끝 안내,
+          운영자 대신 처리 [대신 일시 정지](진행 중 — 횟수를 다 썼으면 비활성) · [대신 다시 켜기]·[대신 중단(환불 심사)](정지 중). 광고주 요청 건에는 긴급 내림 [되돌리기] 보상이 없다.
         맨 아래 처리 기록. 서버는 부르지 않는다 — 동작은 emit.
     -->
     <div class="flex flex-col gap-5 p-4">
@@ -16,7 +18,8 @@
             <div class="flex flex-wrap items-center gap-2">
                 <code class="text-[12px] text-muted-color">{{ detail.no }}</code>
                 <Tag :value="t(`bizApplication.kind.${detail.kind}`)" severity="secondary" />
-                <Tag :value="t(`bizApplication.status.${detail.status}`)" :severity="UtilBizApplication.statusSeverity(detail.status)" />
+                <Tag v-if="pauseLabel" :value="t(`bizApplication.pauseState.${pauseLabel}`)" :severity="UtilBizApplication.pauseStateSeverity(pauseLabel)" />
+                <Tag v-else :value="t(`bizApplication.status.${detail.status}`)" :severity="UtilBizApplication.statusSeverity(detail.status)" />
                 <Tag v-if="detail.source === 'OPERATOR'" :value="t('bizApplication.sourceOperator')" severity="info" />
             </div>
             <h2 class="m-0 text-base font-semibold">{{ detail.business.name }} <span class="text-[12px] font-normal text-muted-color">{{ detail.business.maskedRegNo }}</span></h2>
@@ -62,6 +65,48 @@
         </dl>
 
         <!--
+            일시 정지·중단(광고주 요청 — 상세 `pause` 가 있을 때만): 까닭 · 멈춘(중단) 시각 · 누가(사업자 / 운영자 대신 + 요청 경로·메모) · 정지 횟수 n/한도 · 누적 멈춘 시간 · 끝 안내.
+            운영자 대신 처리(`canManage` — 광고 `ad.manage`·핫딜 `hotdeal.manage`): 진행 중 [대신 일시 정지] · 정지 중 [대신 다시 켜기]·[대신 중단(환불 심사)].
+        -->
+        <section v-if="pause && pauseView" class="flex flex-col gap-2.5 rounded-lg border px-3 py-3" :class="pauseState === 'PAUSED' ? 'border-amber-300 dark:border-amber-800' : pauseState === 'STOPPED' ? 'border-red-300 dark:border-red-800' : 'border-(--line)'" :aria-labelledby="`${uid}-pause`">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <h3 :id="`${uid}-pause`" class="m-0 text-sm font-semibold">{{ t('bizApplication.pause.title') }}</h3>
+                <Tag v-if="pauseLabel" :value="t(`bizApplication.pauseState.${pauseLabel}`)" :severity="UtilBizApplication.pauseStateSeverity(pauseLabel)" />
+            </div>
+            <dl class="m-0 grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1.5 text-[13px]">
+                <template v-if="advertiserTakedown">
+                    <dt class="text-muted-color">{{ t('bizApplication.pause.cause') }}</dt>
+                    <dd class="m-0">{{ t(`bizApplication.takedownCause.${advertiserTakedown.cause}`) }}</dd>
+                    <dt class="text-muted-color">{{ advertiserTakedown.cause === 'ADVERTISER_STOP' ? t('bizApplication.pause.stoppedAt') : t('bizApplication.pause.pausedAt') }}</dt>
+                    <dd class="m-0 tabular-nums">{{ time.full(advertiserTakedown.at) }}</dd>
+                    <dt class="text-muted-color">{{ t('bizApplication.pause.who') }}</dt>
+                    <dd class="m-0 [overflow-wrap:anywhere]">{{ UtilBizApplicationMessages.pauseWho(t, advertiserTakedown.by ?? pause.actor, advertiserTakedown.channel ?? (pauseState === 'PAUSED' ? pause.channel : null), advertiserTakedown.memo) }}</dd>
+                </template>
+                <dt class="text-muted-color">{{ t('bizApplication.pause.count') }}</dt>
+                <dd class="m-0 tabular-nums" :class="pauseLimit ? 'font-semibold text-amber-700 dark:text-amber-400' : ''">{{ t('bizApplication.pause.usedN', { used: pause.used, limit: pause.limit }) }}</dd>
+                <dt class="text-muted-color">{{ t('bizApplication.pause.total') }}</dt>
+                <dd class="m-0 tabular-nums">
+                    {{ pause.pausedMinutes > 0 ? UtilBizApplicationMessages.minutes(t, pause.pausedMinutes) : t('bizApplication.pause.totalNone') }}
+                    <span class="block text-[11px] text-muted-color">{{ t('bizApplication.pause.noExtend') }}</span>
+                </dd>
+            </dl>
+            <Message v-if="pauseState === 'PAUSED' && ended" severity="secondary" :closable="false"><span class="text-[13px]">{{ t('bizApplication.pause.endedWhilePaused') }}</span></Message>
+            <Message v-else-if="pauseState === 'PAUSED'" severity="warn" :closable="false"><span class="text-[13px]">{{ t('bizApplication.pause.noRefundIfEnds', { end: time.full(detail.period.endAt) }) }}</span></Message>
+            <Message v-else-if="stoppedByAdvertiser" severity="secondary" :closable="false"><span class="text-[13px]">{{ t('bizApplication.pause.stoppedNote') }}</span></Message>
+            <template v-if="canManage && !ended">
+                <div v-if="detail.status === 'RUNNING'" class="flex flex-col items-end gap-1">
+                    <Button type="button" :label="t('bizApplication.pause.act.pause')" icon="pi pi-pause" size="small" severity="secondary" variant="outlined" :disabled="busy || pauseLimit" @click="emit('pause')" />
+                    <p v-if="pauseLimit" class="m-0 text-right text-xs text-muted-color">{{ t('bizApplication.pause.limitReached', { limit: pause.limit }) }}</p>
+                </div>
+                <div v-else-if="pauseState === 'PAUSED'" class="flex flex-wrap justify-end gap-2">
+                    <Button type="button" :label="t('bizApplication.pause.act.stop')" size="small" severity="danger" variant="outlined" :disabled="busy" @click="emit('stop')" />
+                    <Button type="button" :label="t('bizApplication.pause.act.resume')" icon="pi pi-play" size="small" :disabled="busy" @click="emit('resume')" />
+                </div>
+                <p v-if="detail.status === 'RUNNING' || pauseState === 'PAUSED'" class="m-0 text-right text-xs text-muted-color">{{ t('bizApplication.pause.proxyNote') }}</p>
+            </template>
+        </section>
+
+        <!--
             게시(사업자 핫딜 2차 — 상세 `post` 가 있을 때만): 게시 전(예정 시각·게시판) · 게시됨(딜 상태·종료 요청·[핫딜 글에서 열기]·공개 글) ·
             실패(사유 + [취소(전액 환불)] — 「다시 게시」는 없다) · 숨김(내림·취소). 노출 줄 상태도 여기.
         -->
@@ -71,6 +116,10 @@
                 <Tag :value="t(`bizApplication.post.status.${post.status}`)" :severity="UtilBizApplication.postSeverity(post.status)" />
             </div>
             <dl class="m-0 grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1.5 text-[13px]">
+                <template v-if="post.status === 'HIDDEN' && hiddenCause">
+                    <dt class="text-muted-color">{{ t('bizApplication.post.hiddenCauseLabel') }}</dt>
+                    <dd class="m-0">{{ t(`bizApplication.post.hiddenCause.${hiddenCause}`) }}</dd>
+                </template>
                 <dt class="text-muted-color">{{ t('bizApplication.post.board') }}</dt>
                 <dd class="m-0">{{ post.boardName }}<span v-if="post.prefixName" class="ml-1 text-muted-color">[{{ post.prefixName }}]</span></dd>
                 <dt class="text-muted-color">{{ post.status === 'WAITING' ? t('bizApplication.post.publishAtWaiting') : t('bizApplication.post.publishAt') }}</dt>
@@ -123,7 +172,15 @@
                 </div>
             </Message>
             <Message v-else-if="post.status === 'HIDDEN'" severity="secondary" :closable="false">
-                <span class="text-[13px]">{{ detail.status === 'TAKEN_DOWN' ? t('bizApplication.post.hiddenTakedown') : t('bizApplication.post.hiddenCanceled') }}</span>
+                <span class="text-[13px]">{{
+                    hiddenCause === 'ADVERTISER_PAUSE'
+                        ? t('bizApplication.post.hiddenPaused')
+                        : hiddenCause === 'ADVERTISER_STOP'
+                          ? t('bizApplication.post.hiddenStopped')
+                          : detail.status === 'TAKEN_DOWN'
+                            ? t('bizApplication.post.hiddenTakedown')
+                            : t('bizApplication.post.hiddenCanceled')
+                }}</span>
             </Message>
         </section>
 
@@ -187,7 +244,8 @@
             <span class="text-[13px]">{{ t('bizApplication.rejectedNote', { code: t(`bizApplication.rejectCode.${detail.rejection.code}`) }) }} — {{ detail.rejection.text }}</span>
         </Message>
 
-        <Message v-if="detail.takedown" severity="error" :closable="false">
+        <!-- 광고주 요청 정지·중단은 위 「일시 정지·중단」 칸이 보인다 -->
+        <Message v-if="detail.takedown && !(pauseView && advertiserTakedown)" severity="error" :closable="false">
             <span class="text-[13px]">{{ t('bizApplication.takedownNote', { cause: t(`bizApplication.takedownCause.${detail.takedown.cause}`), at: time.shortDateTime(detail.takedown.at) }) }}<template v-if="detail.takedown.text"> — {{ detail.takedown.text }}</template></span>
         </Message>
 
@@ -198,6 +256,12 @@
                 <Tag :value="t(`bizApplication.refundStatus.${refund.status}`)" :severity="refund.status === 'REQUESTED' ? 'danger' : refund.status === 'APPROVED' ? 'success' : 'secondary'" />
             </div>
             <p v-if="refund.reason" class="m-0 text-[13px] [overflow-wrap:anywhere]">“{{ refund.reason }}” <span class="text-[11px] text-muted-color">· {{ time.shortDateTime(refund.requestedAt) }}</span></p>
+            <!-- 광고주 요청 중단 일할(STOP_PRORATED) — 기준 시각 · 정지 중 전환 · 핫딜 글 게시비 제외 -->
+            <p v-if="refund.type === 'STOP_PRORATED'" class="m-0 flex flex-wrap items-center gap-1.5 text-[13px]">
+                <span>{{ t('bizApplication.pause.stopRefundFrom', { at: time.shortDateTime(pause?.refundFrom ?? refund.requestedAt) }) }}</span>
+                <Tag v-if="stopFromPause" :value="t('bizApplication.pause.fromPauseTag')" severity="warn" class="text-[11px]!" />
+            </p>
+            <p v-if="refund.type === 'STOP_PRORATED' && detail.kind === 'HOTDEAL_POST'" class="m-0 text-xs text-muted-color">{{ t('bizApplication.pause.postFeeExcluded') }}</p>
             <p v-if="refund.type === 'FULL_AUTO'" class="m-0 text-[13px] tabular-nums">{{ t('bizApplication.refundFull', { paid: won(refund.paidAmount) }) }}</p>
             <p v-else class="m-0 text-[13px] tabular-nums">{{ t('bizApplication.refundCalc', { paid: won(refund.paidAmount), used: refund.usedDays, total: refund.totalDays, proposed: won(refund.proposedAmount) }) }}</p>
             <p v-if="refund.status !== 'REQUESTED' && (refund.approvedAmount !== null || refund.decisionReason)" class="m-0 text-[13px] tabular-nums [overflow-wrap:anywhere]">
@@ -276,6 +340,10 @@ const emit = defineEmits<{
     denyRefund: [];
     markTransferred: [];
     viewContract: [id: string];
+    /** 운영자 대신 일시 정지 · 다시 켜기 · 중단(광고주 요청) */
+    pause: [];
+    resume: [];
+    stop: [];
 }>();
 
 const { t, locale } = useI18n();
@@ -293,6 +361,24 @@ const selfDenied = computed(() => props.detail.registrant?.me === true && props.
 /** 요금표 줄 — 두 줄 이상(핫딜 글 + 노출)일 때만 나눠 보인다 */
 const quoteLines = computed(() => (props.detail.quote.lines && props.detail.quote.lines.length > 1 ? props.detail.quote.lines : []));
 const history = computed(() => [...props.detail.history].sort((a, b) => b.at.localeCompare(a.at)));
+
+/** 광고주 요청 일시 정지·중단 — 서버가 `pause` 를 내려 줄 때만 */
+const pause = computed(() => props.detail.pause ?? null);
+/** 정지 중 · 중단 · 그 밖(null) */
+const pauseState = computed(() => UtilBizApplication.pauseState(props.detail.status, props.detail.takedown?.cause));
+/** Tag 글자 — 끝 시각이 지난 정지 건은 「정지한 채 종료」 */
+const pauseLabel = computed(() => UtilBizApplication.pauseLabel(props.detail.status, props.detail.takedown?.cause, props.detail.period, props.now));
+/** 광고주 요청으로 내린 내림 정보(정지·중단 — 중단 뒤 환불 승인으로 취소된 건도) */
+const advertiserTakedown = computed(() => (props.detail.takedown && UtilBizApplication.isAdvertiserCause(props.detail.takedown.cause) ? props.detail.takedown : null));
+const stoppedByAdvertiser = computed(() => advertiserTakedown.value?.cause === 'ADVERTISER_STOP');
+const ended = computed(() => UtilBizApplication.ended(props.detail.period, props.now));
+const pauseLimit = computed(() => Boolean(pause.value && UtilBizApplication.pauseLimitReached(pause.value)));
+/** 칸을 보일까 — 진행 중(정지할 수 있음) · 정지·중단 건 · 정지를 쓴 적 있는 건 */
+const pauseView = computed(() => Boolean(pause.value && (props.detail.status === 'RUNNING' || advertiserTakedown.value || pause.value.used > 0 || pause.value.stoppedAt)));
+/** 중단 환불 기준이 멈춘 시각인가(정지 중에 중단) */
+const stopFromPause = computed(() => Boolean(pause.value?.refundFrom && pause.value.stoppedAt && pause.value.refundFrom !== pause.value.stoppedAt));
+/** 핫딜 글 숨김 까닭 — 판매자 일시 정지 · 판매자 중단(그 밖이면 null — 기존 문구) */
+const hiddenCause = computed(() => advertiserTakedown.value?.cause ?? null);
 
 /** 사업자 핫딜 게시(2차) — 서버가 `post` 를 내려 줄 때만 「게시」 칸 */
 const post = computed(() => (props.detail.kind === 'HOTDEAL_POST' ? (props.detail.post ?? null) : null));

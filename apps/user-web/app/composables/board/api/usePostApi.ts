@@ -7,6 +7,7 @@ import type {
     PostWriteRequest,
     PostWriteResult,
 } from '~/composables/board/api/usePostApi.types';
+import { isMockBizdealPostId, mockBizdealPostDetail } from '~/composables/board/api/mock/bizdeal-post-mock';
 
 /**
  * 글 API — 서버 주소(`/api/posts…`)가 있는 유일한 곳. 상태는 없다. 목록은 게시판 아래라 `useBoardApi().posts`.
@@ -27,6 +28,9 @@ import type {
  *
  * 서버 연결됨(2026-10-22). 핫딜 칸은 서버 1단계에 연결(2026-11-01).
  * 사업자 핫딜 글(2차 — `deal.source BUSINESS`)은 작성자 고치기·지우기를 서버가 `403 DEAL_BUSINESS_POST_LOCKED` 로 거절한다(화면은 단추를 숨김).
+ * 판매자가 내린 사업자 핫딜 글(광고주 일시 정지·중단 — 목업 2026-11-02, 서버 없음 · 제안): 404 가 아니라 `403 DEAL_SELLER_HIDDEN` + extras
+ *   `{ state: PAUSED|STOPPED, boardSlug, boardName, boardNameEn, applicationId(작성자에게만) }` — 본문·딜·댓글은 싣지 않고, 조회수도 올리지 않는다. 화면은 안내만(`POST_HIDDEN` 과 같은 오류 길).
+ * ⚠ MOCK: 목업 사업자 글(`mock-bizdeal*`)만 `./mock/bizdeal-post-mock.ts` 로 돌린다(`// MOCK:` 분기) — 서버가 붙으면 분기와 목업 import 를 지운다.
  */
 const PATH = {
     posts: '/api/posts',
@@ -42,7 +46,11 @@ export function usePostApi() {
     const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
-        post: (id: string, signal?: AbortSignal): Promise<PostDetail> => client.get<PostDetail>(PATH.post(id), { signal }),
+        post: (id: string, signal?: AbortSignal): Promise<PostDetail> =>
+            // MOCK:
+            isMockBizdealPostId(id) ? mockBizdealPostDetail(id) :
+            // REAL:
+            client.get<PostDetail>(PATH.post(id), { signal }),
 
         create: (body: PostWriteRequest): Promise<PostWriteResult> => client.post<PostWriteResult>(PATH.posts, body),
 

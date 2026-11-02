@@ -8,6 +8,10 @@
         예약·진행 = 기간·소재 버전·[취소·환불 요청](시작 전 = 전액 자동, 진행 중 = 일할 운영팀 확인 + 사유, 한 번만) · 환불은 `refund` 하위 값(요청·승인·거절).
         사업자 핫딜(`HOTDEAL_POST`, 2차)은 「게시된 글」 칸(상세 `post`) — 게시 전(「{시각}에 {게시판}에 올라가요」) · 게시됨(딜 상태 Tag·종료 요청 사유별 수·[글 보기]·[품절로 종료] → 확인창 「환불 없음 · 노출도 멈춤」, 409 `DEAL_ENDED` 면 알리고 다시 읽기) ·
           의심(「N명이 알렸어요 — {시각}까지 확인하지 않으면 자동 종료」, keep 은 글 보기에서) · 종료(누가 끝냈는지 · 환불 없음)·기간 종료 · 게시 실패(「운영팀이 확인 중이에요」 + 사유) · 숨김(내림·취소) + 노출 줄(대기·노출 중·멈춤(까닭)·끝남).
+        일시 정지·중단(광고주 요청 — 목업 2026-11-02, `useBusinessApi.pause|resume|stop`): 진행 중(정지할 수 있는 건 — `UtilBusiness.runningPausable`)이면 [일시 정지](확인 창 `BusinessPauseDialog` · 남은 횟수 n/3, 다 쓰면 비활성) +
+          [중단하고 환불 요청](`BusinessStopDialog` — 옛 진행 중 [취소·환불 요청]을 대신, 시작 전은 그대로) / 정지 중(`TAKEN_DOWN` + `ADVERTISER_PAUSE`) = 멈춘 시각·운영팀 대신 처리 경로·「{끝 날}까지 다시 켜지 않으면 환불 없이 끝나요」·[다시 켜기]·[중단하고 환불 요청],
+          정지한 채 끝 날짜가 지났으면 다른 제목·문구(단추 없음) / 중단(`ADVERTISER_STOP`) = 「중단했어요」 + 환불 칸(`STOP_PRORATED` · 기준 시각) + [새로 신청], 승인 뒤 `CANCELED` 는 「광고주 요청으로 중단」.
+          409 `BIZ_PAUSE_LIMIT` 는 알리고 다시 읽는다. 사업자 핫딜 글은 정지·중단하면 글이 숨겨지고(「게시된 글」 칸 문구) 노출 자리도 멈춘다.
         `?pay=1` 로 오면(홈의 [결제하기]) 결제창을 바로 연다. 포트원 모바일 리디렉션은 쿼리 없이 이 화면으로 돌아오고 `resumeRedirect` 가 이어 간다.
     -->
     <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="business-application">
@@ -23,7 +27,7 @@
 
         <template v-else>
             <div class="flex flex-wrap items-center gap-1.5">
-                <BusinessStatusTag :status="app.status" :phase="app.phase" />
+                <BusinessStatusTag :status="app.status" :phase="app.phase" :cause="cause" :end-date="app.endDate" />
                 <span class="text-xs text-muted-color">{{ kindLabel }} · {{ app.id }}</span>
             </div>
 
@@ -125,8 +129,51 @@
                     <p v-if="dealPost?.status === 'FAILED'" class="m-0 text-sm text-muted-color">{{ t('business.post.failedText') }}</p>
                     <p v-else-if="app.phase === 'UPCOMING'" class="m-0 text-sm text-muted-color">{{ t('business.detail.upcomingText', { date: time.serviceDate(app.startDate) }) }}</p>
                     <p v-else-if="app.phase === 'RUNNING'" class="m-0 text-sm text-muted-color">{{ t('business.detail.runningText', { date: time.serviceDate(app.endDate) }) }}</p>
-                    <div v-if="app.phase !== 'ENDED' && !app.refund">
+                    <!-- 진행 중 · 정지할 수 있는 건 — [일시 정지] + [중단하고 환불 요청](옛 진행 중 [취소·환불 요청]을 대신) -->
+                    <template v-if="pausable && pauseInfo">
+                        <p v-if="pausedSpan" class="m-0 text-xs text-muted-color" data-testid="business-paused-total">{{ t('business.pause.pausedTotal', { span: pausedSpan }) }}</p>
+                        <div class="flex flex-wrap gap-2">
+                            <Button type="button" :label="t('business.pause.pause')" icon="pi pi-pause" severity="warn" variant="outlined" size="small" :disabled="actionBusy || pausesLeft <= 0" data-testid="business-pause" @click="openPause" />
+                            <Button type="button" :label="t('business.pause.stop')" icon="pi pi-stop-circle" severity="danger" variant="outlined" size="small" :disabled="actionBusy" data-testid="business-stop" @click="openStop" />
+                        </div>
+                        <p class="m-0 text-xs" :class="pausesLeft > 0 ? 'text-muted-color' : 'font-medium text-amber-700 dark:text-amber-300'" data-testid="business-pause-left">
+                            {{ pausesLeft > 0 ? t('business.pause.left', { n: pausesLeft, limit: pauseInfo.limit }) : t('business.pause.limitReached') }}
+                        </p>
+                    </template>
+                    <div v-else-if="app.phase !== 'ENDED' && !app.refund">
                         <Button type="button" :label="t('business.detail.refund')" icon="pi pi-replay" severity="secondary" variant="outlined" size="small" data-testid="business-refund" @click="refundOpen = true" />
+                    </div>
+                </template>
+
+                <!-- 일시 정지(광고주 요청) — 정지한 채 끝 날짜가 지났으면 환불 없이 끝남 -->
+                <template v-else-if="app.status === 'TAKEN_DOWN' && cause === 'ADVERTISER_PAUSE'">
+                    <template v-if="pausedEnded">
+                        <h2 class="m-0 text-base font-semibold" data-testid="business-paused-ended">{{ t('business.pause.endedTitle') }}</h2>
+                        <p class="m-0 text-sm text-muted-color">{{ t('business.pause.endedText', { end: endLabel }) }}</p>
+                        <p v-if="pausedSince" class="m-0 text-xs tabular-nums text-muted-color">{{ t('business.pause.since', { at: pausedSince }) }}</p>
+                    </template>
+                    <template v-else>
+                        <h2 class="m-0 text-base font-semibold" data-testid="business-paused">{{ t('business.pause.pausedTitle') }}</h2>
+                        <p v-if="pausedSince" class="m-0 text-sm tabular-nums">{{ t('business.pause.since', { at: pausedSince }) }}</p>
+                        <p v-if="pauseInfo?.pausedBy === 'OPERATOR'" class="m-0 flex items-start gap-1.5 text-sm text-muted-color" data-testid="business-paused-by-operator">
+                            <i class="pi pi-shield mt-1 text-xs" aria-hidden="true" />{{ t(`business.pause.byOperator.${pauseInfo.channel ?? 'OTHER'}`) }}
+                        </p>
+                        <Message severity="warn" size="small" :closable="false" data-testid="business-paused-warn">{{ t('business.pause.pausedWarn', { end: endLabel }) }}</Message>
+                        <p class="m-0 text-xs text-muted-color">{{ t('business.pause.pausedHelp') }}<template v-if="pausedSpan"> · {{ t('business.pause.pausedTotal', { span: pausedSpan }) }}</template></p>
+                        <div class="flex flex-wrap gap-2">
+                            <Button type="button" :label="t('business.pause.resume')" icon="pi pi-play" size="small" :loading="actionBusy" data-testid="business-resume" @click="resume" />
+                            <Button type="button" :label="t('business.pause.stop')" icon="pi pi-stop-circle" severity="danger" variant="outlined" size="small" :disabled="actionBusy" data-testid="business-stop" @click="openStop" />
+                        </div>
+                    </template>
+                </template>
+
+                <!-- 중단(광고주 요청) — 되돌리기 없음, 환불은 아래 칸 -->
+                <template v-else-if="app.status === 'TAKEN_DOWN' && cause === 'ADVERTISER_STOP'">
+                    <h2 class="m-0 text-base font-semibold" data-testid="business-stopped">{{ t('business.pause.stoppedTitle') }}</h2>
+                    <p class="m-0 text-sm text-muted-color">{{ stoppedAt ? t('business.pause.stoppedText', { at: stoppedAt }) : t('business.pause.stoppedTextNoTime') }}</p>
+                    <p v-if="!app.refund" class="m-0 text-sm" data-testid="business-stopped-no-refund">{{ t('business.pause.stoppedNoRefund') }}</p>
+                    <div>
+                        <Button as="router-link" :to="retryPath" :label="t('business.detail.newAgain')" icon="pi pi-plus" size="small" severity="secondary" variant="outlined" data-testid="business-stopped-new" />
                     </div>
                 </template>
 
@@ -145,6 +192,7 @@
 
                 <template v-else>
                     <h2 class="m-0 text-base font-semibold">{{ t('business.detail.canceledTitle') }}</h2>
+                    <p v-if="stoppedByMe" class="m-0 text-sm text-muted-color" data-testid="business-canceled-stop">{{ t('business.pause.canceledByStop') }}</p>
                 </template>
 
                 <!-- 환불 요청 -->
@@ -156,6 +204,7 @@
                     </p>
                     <p v-if="app.refund.refundAmount !== null" class="m-0 tabular-nums">{{ t('business.detail.refundApproved', { amount: UtilBusinessMessages.won(t, app.refund.refundAmount) }) }}</p>
                     <p v-else-if="app.refund.status === 'REQUESTED'" class="m-0 tabular-nums">{{ t('business.detail.refundEstimate', { amount: UtilBusinessMessages.won(t, app.refund.proposedAmount) }) }}</p>
+                    <p v-if="app.refund.type === 'STOP_PRORATED' && refundFromLabel" class="m-0 text-xs tabular-nums text-muted-color" data-testid="business-refund-from">{{ t('business.pause.refundFrom', { at: refundFromLabel }) }}</p>
                     <p v-if="app.refund.decisionReason" class="m-0 whitespace-pre-line text-sm">{{ app.refund.decisionReason }}</p>
                     <p class="m-0 whitespace-pre-line text-xs text-muted-color">{{ app.refund.reason }}</p>
                 </div>
@@ -320,6 +369,32 @@
             @remove-image="creativeImage = null"
             @submit="saveCreative"
             @close="creativeOpen = false"
+        />
+        <BusinessPauseDialog
+            v-if="app && pauseInfo"
+            :visible="pauseOpen"
+            :end-label="endLabel"
+            :left="Math.max(0, pausesLeft - 1)"
+            :deal="app.kind === 'HOTDEAL_POST'"
+            :busy="actionBusy"
+            :error="pauseError"
+            @submit="doPause"
+            @close="pauseOpen = false"
+        />
+        <BusinessStopDialog
+            v-if="app && stopEstimate"
+            :visible="stopOpen"
+            :refund-amount="stopEstimate.amount"
+            :total-days="stopEstimate.totalDays"
+            :left-days="stopEstimate.leftDays"
+            :from-paused="stopEstimate.fromPaused"
+            :from-label="stopEstimate.fromLabel"
+            :post-fee="postFee"
+            :no-refund="noStopRefund"
+            :busy="actionBusy"
+            :error="stopError"
+            @submit="doStop"
+            @close="stopOpen = false"
         />
         <BusinessRefundDialog
             v-if="app"
@@ -559,6 +634,8 @@ const flaggedText = computed(() => {
 });
 const hiddenText = computed(() => {
     const s = app.value?.status;
+    if (s === 'TAKEN_DOWN' && cause.value === 'ADVERTISER_PAUSE') return pausedEnded.value ? t('business.post.hiddenPausedEnded') : t('business.post.hiddenPaused');
+    if (stoppedByMe.value) return t('business.post.hiddenStopped');
     if (s === 'TAKEN_DOWN') return t('business.post.hiddenTakenDown');
     if (s === 'CANCELED' || app.value?.refund?.status === 'APPROVED') return t('business.post.hiddenCanceled');
     return t('business.post.hiddenOther');
@@ -614,6 +691,113 @@ async function requestRefund(reason: string): Promise<void> {
     } catch (e) {
         refundError.value = await handleError(e, t('common.failed'));
         if (!refundError.value) refundOpen.value = false;
+    } finally {
+        actionBusy.value = false;
+    }
+}
+
+/* ── 일시 정지·중단(광고주 요청 — 목업 2026-11-02) ── */
+const cause = computed(() => app.value?.takedownCause ?? null);
+const pauseInfo = computed(() => app.value?.pause ?? null);
+/** 진행 중이라 [일시 정지]·[중단하고 환불 요청]을 보인다 */
+const pausable = computed(() => (app.value ? UtilBusiness.runningPausable(app.value) : false));
+const pausesLeft = computed(() => (pauseInfo.value ? Math.max(0, pauseInfo.value.limit - pauseInfo.value.used) : 0));
+/** 정지한 채 끝 날짜가 지났다 — 환불 없이 끝남(화면이 끝 날짜와 지금을 비교) */
+const pausedEnded = computed(() => (app.value ? UtilBusiness.pauseEnded(app.value.status, cause.value, app.value.endDate, now.value) : false));
+/** 지금 정지 중(끝 전) — 중단 기준 = 멈춘 시각 */
+const pausedNow = computed(() => app.value?.status === 'TAKEN_DOWN' && cause.value === 'ADVERTISER_PAUSE' && !pausedEnded.value);
+/** 광고주 요청으로 중단한 건(승인 뒤 `CANCELED` 포함) */
+const stoppedByMe = computed(() => cause.value === 'ADVERTISER_STOP' || app.value?.refund?.type === 'STOP_PRORATED');
+const endLabel = computed(() => (app.value ? time.value.serviceDate(app.value.endDate) : ''));
+const pausedSince = computed(() => (pauseInfo.value?.pausedAt ? time.value.full(pauseInfo.value.pausedAt) : ''));
+const pausedSpan = computed(() => (pauseInfo.value && pauseInfo.value.pausedMinutes > 0 ? UtilBusinessMessages.minutes(t, pauseInfo.value.pausedMinutes) : ''));
+const stoppedAt = computed(() => (pauseInfo.value?.stoppedAt ? time.value.full(pauseInfo.value.stoppedAt) : ''));
+const refundFromLabel = computed(() => (pauseInfo.value?.refundFrom ? time.value.full(pauseInfo.value.refundFrom) : ''));
+
+const pauseOpen = ref(false);
+const pauseError = ref('');
+function openPause(): void {
+    pauseError.value = '';
+    pauseOpen.value = true;
+}
+
+async function doPause(): Promise<void> {
+    if (!app.value || actionBusy.value) return;
+    actionBusy.value = true;
+    pauseError.value = '';
+    try {
+        app.value = await api.pause(app.value.id);
+        pauseOpen.value = false;
+        toast.success(t('business.pause.pausedDone'));
+    } catch (e) {
+        if (e instanceof ApiError && e.code === 'BIZ_PAUSE_LIMIT') {
+            // 그새 횟수를 다 썼다 — 알리고 다시 읽는다(중단만 남는다)
+            pauseOpen.value = false;
+            toast.error(e.message, 8000);
+            await load();
+        } else {
+            pauseError.value = await handleError(e, t('common.failed'));
+            if (!pauseError.value) pauseOpen.value = false;
+        }
+    } finally {
+        actionBusy.value = false;
+    }
+}
+
+async function resume(): Promise<void> {
+    if (!app.value || actionBusy.value) return;
+    const ok = await confirm({ title: t('business.pause.resumeConfirmTitle'), message: t('business.pause.resumeConfirmMessage', { end: endLabel.value }), confirmLabel: t('business.pause.resume') });
+    if (!ok || !app.value) return;
+    actionBusy.value = true;
+    try {
+        app.value = await api.resume(app.value.id);
+        toast.success(t('business.pause.resumedDone'));
+    } catch (e) {
+        const message = await handleError(e, t('common.failed'));
+        if (message) toast.error(message, 8000);
+    } finally {
+        actionBusy.value = false;
+    }
+}
+
+const stopOpen = ref(false);
+const stopError = ref('');
+/** 예상 환불 — 기준 = 정지 중이면 멈춘 시각, 아니면 지금 */
+const stopEstimate = computed(() => {
+    const a = app.value;
+    const p = pauseInfo.value;
+    if (!a || !p) return null;
+    const pausedAt = pausedNow.value ? p.pausedAt : null;
+    const from = pausedAt ?? new Date(now.value).toISOString();
+    return { ...UtilBusiness.stopRefund(p.proratableTotal, a.startDate, a.endDate, from), fromPaused: pausedAt !== null, fromLabel: pausedAt ? time.value.full(pausedAt) : '' };
+});
+/** 핫딜 글의 돌려드리지 않는 게시비 = 확정 합계 − 일할 대상(노출 자리 줄) */
+const postFee = computed(() => {
+    const a = app.value;
+    const p = pauseInfo.value;
+    if (!a || !p || a.kind !== 'HOTDEAL_POST') return null;
+    return Math.max(0, (a.confirmed?.total ?? a.amount.total) - p.proratableTotal);
+});
+/** 돌려드릴 금액이 없다(핫딜 글 — 노출 자리 없음) */
+const noStopRefund = computed(() => app.value?.kind === 'HOTDEAL_POST' && (pauseInfo.value?.proratableTotal ?? 0) <= 0);
+
+function openStop(): void {
+    stopError.value = '';
+    stopOpen.value = true;
+}
+
+async function doStop(reason: string): Promise<void> {
+    if (!app.value || actionBusy.value) return;
+    actionBusy.value = true;
+    stopError.value = '';
+    try {
+        const result = await api.stop(app.value.id, reason);
+        app.value = result;
+        stopOpen.value = false;
+        toast.success(result.refund ? t('business.pause.stoppedDone') : t('business.pause.stoppedDoneNoRefund'));
+    } catch (e) {
+        stopError.value = await handleError(e, t('common.failed'));
+        if (!stopError.value) stopOpen.value = false;
     } finally {
         actionBusy.value = false;
     }

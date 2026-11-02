@@ -2,7 +2,8 @@
     <!--
         핫딜 글 서랍 — 핫딜 글 목록의 줄을 누르면(또는 `?deal=` 로 들어오면) 연다. 글 관리 서랍(`PostDetailDrawer`)과 같은 손놀림: 열리는 쪽은 `prefs.drawerPosition`, 표를 가리지 않고(`modal=false`)
         열린 채 다른 줄을 누르면 그 글로 바뀐다. 서랍·표 줄·떠 있는 창 밖을 누르면 닫는다.
-        머리: 제목 · 상태 알약 · 글 번호(복사) · 공개 글 열기(새 탭) · 이전/다음 글.
+        머리: 제목 · 상태 알약 · 「판매자 정지 중」·「판매자 중단」(`row.sellerHidden` — 일시 정지·중단 목업) · 글 번호(복사) · 공개 글 열기(새 탭) · 이전/다음 글.
+        판매자가 숨긴 글은 본문 맨 위에 「{시각} {누가} 숨김(일시 정지/중단)」 + 공개 화면 안내 — 숨겨도 이 서랍에는 글·종료 요청·신고가 그대로 보인다.
         본문: 딜 카드(이미지 · 가격 줄 · 쇼핑몰·호스트 · 상품 링크 `rel="nofollow sponsored noopener"` 새 탭 · 제휴 · 배송 · 재고 · 기간 · 쿠폰·가격 기준) →
           상태와 종료 경위(누가·언제 · 의심 시각·자동 종료 예정 · 작성자 되돌리기 기한(D2) · keep 횟수 N/M) → 종료 요청 사유별 수(요청자 신원은 없다) → 신고 대기(신고 관리 링크) → 같은 딜 N건(누르면 그 글로) → 글 정보(게시판·말머리·사업자(2차 사업자 핫딜 — 상호 · [핫딜 심사에서 열기])·작성자·등록 시각).
           맨 위에 「차단 도메인 진행 중」 경고(지금 규칙에서 상품·최종 호스트가 차단), 딜 카드에 최종 호스트 · HOT · 「링크 바뀜」·「가격 수정 N회」 · 가격 기준 배지.
@@ -33,6 +34,7 @@
                 </div>
                 <div v-if="head" class="flex flex-wrap items-center gap-2">
                     <HotdealViewTag :view="head.deal.view" />
+                    <Tag v-if="head.sellerHidden" :value="t(`hotdeal.sellerHold.${head.sellerHidden.cause}`)" :severity="head.sellerHidden.cause === 'ADVERTISER_PAUSE' ? 'warn' : 'danger'" icon="pi pi-eye-slash" class="text-[11px]!" />
                     <button
                         v-tooltip.bottom="t('content.copyPostId')"
                         type="button"
@@ -79,6 +81,15 @@
             <TabPanels class="px-0">
                 <TabPanel value="info">
         <div class="flex flex-col gap-5 pt-1" :aria-busy="loading">
+            <!-- 판매자 일시 정지·중단으로 숨김(일시 정지·중단 목업) — 언제 · 누가 · 공개 화면 안내. 운영자 화면에서는 글·종료 요청·신고가 그대로 보인다 -->
+            <Message v-if="row.sellerHidden" :severity="row.sellerHidden.cause === 'ADVERTISER_PAUSE' ? 'warn' : 'secondary'" size="small" :closable="false" icon="pi pi-eye-slash">
+                <span class="flex flex-col gap-0.5">
+                    <span class="font-medium">{{ t(`hotdeal.sellerHiddenLine.${row.sellerHidden.cause}`, { at: time.full(row.sellerHidden.at), who: row.sellerHidden.byOperator ? t('hotdeal.sellerHiddenByOperator', { name: row.sellerHidden.by }) : row.sellerHidden.by }) }}</span>
+                    <span>{{ t(`hotdeal.sellerHiddenPublic.${row.sellerHidden.cause}`) }}</span>
+                    <span class="text-xs">{{ t('hotdeal.sellerHiddenAdmin') }}</span>
+                </span>
+            </Message>
+
             <!-- 차단 도메인 진행 중 -->
             <Message v-if="row.blockedHost" severity="error" size="small" :closable="false" icon="pi pi-ban">{{ t('hotdeal.blockedHostNote', { host: row.blockedHost }) }}</Message>
 
@@ -270,6 +281,7 @@
 </template>
 
 <script setup lang="ts">
+import { mockQuery } from '~/composables/common/mock/mock-util';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { AdminDealDetail, AdminDealRow, DealRevisionListView } from '~/composables/hotdeal/api/useHotdealApi.types';
 import UtilHotdeal from '~/utils/util-hotdeal';
@@ -359,6 +371,7 @@ const reviewLink = computed(() => ({
     path: '/hotdeal-reviews',
     query: {
         id: business.value?.applicationId ?? '',
+        ...mockQuery(), // MOCK: 목업 건끼리 오가게 `?mock=` 를 싣는다 — 서버가 붙으면 이 줄과 import 를 지운다
     },
 }));
 

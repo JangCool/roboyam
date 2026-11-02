@@ -68,6 +68,8 @@ export default {
     notReviewedYet: 'Not reviewed yet',
     mismatchReason: 'Amount difference: {reason}',
     takenDownNote: '{at} {cause}',
+    pauseLine: 'Pauses {used}/{limit} · total paused {total}',
+    pauseProxyHint: 'Resume or stop on the advertiser’s behalf from the review screen (link above).',
     takedownMail: { SENT: 'The advertiser was emailed.', FAILED: 'Could not email the advertiser. Contact them directly.', NO_ADDRESS: 'No advertiser email, so no mail was sent.' },
     actTakedown: 'Take down',
     actRestore: 'Restore',

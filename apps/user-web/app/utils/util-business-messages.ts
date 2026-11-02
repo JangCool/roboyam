@@ -70,6 +70,13 @@ export default class UtilBusinessMessages {
                 return (FAIL_REASONS as readonly string[]).includes(note) ? t(`business.post.failReason.${note}`) : note;
             case 'POSTED_WITHOUT_PREFIX':
                 return note === 'CATEGORY_TOP_OFF' ? t('business.detail.note.CATEGORY_TOP_OFF') : note;
+            case 'PAUSED':
+            case 'RESUMED':
+            case 'STOPPED':
+                return note
+                    .split(' · ')
+                    .map((part) => UtilBusinessMessages.pauseNoteToken(t, part))
+                    .join(' · ');
             case 'REFUND_REQUESTED':
             case 'TAKEN_DOWN':
             case 'REFUND_DENIED':
@@ -77,6 +84,16 @@ export default class UtilBusinessMessages {
             default:
                 return note;
         }
+    }
+
+    /**
+     * 일시 정지·재개·중단 기록의 토큰 하나 — 요청 경로(`PHONE`·`EMAIL`·`OTHER` — 운영팀 대신 처리) · `FROM_PAUSE`(정지 중 중단) · `MIN:<분>`(멈춘 시간). 그 밖은 그대로.
+     */
+    static pauseNoteToken(t: Translate, token: string): string {
+        if (token === 'PHONE' || token === 'EMAIL' || token === 'OTHER') return t(`business.pause.channelNote.${token}`);
+        if (token === 'FROM_PAUSE') return t('business.pause.fromPauseNote');
+        if (token.startsWith('MIN:')) return t('business.pause.minutesNote', { span: UtilBusinessMessages.minutes(t, Number(token.slice(4)) || 0) });
+        return token;
     }
 
     /** 분 → 「2일 3시간」·「3시간 10분」·「45분」 */

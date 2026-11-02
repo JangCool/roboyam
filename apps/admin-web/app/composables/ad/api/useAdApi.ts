@@ -1,3 +1,4 @@
+import { mockPauseBooking, mockPauseBookings, mockPauseCalendar } from '~/composables/ad/api/mock/pause-mock';
 import type {
     AdAdvertiser,
     AdAdvertiserCreateRequest,
@@ -37,6 +38,11 @@ import type { BizContractFile, BizPeriod } from '~/composables/bizapplication/ap
  *    400 `fields.postInline.adType`·`fields.postInline.position`·`fields.wings.screens`·`fields.boardList.after`(1~20), 빠진 묶음은 `fields.postInline` 등.
  *  - `GET  /api/admin/ads/placements/history?page=&size=`(`ad.read`) → `AdPlacementHistoryPage`(메일 서버 설정 이력과 같은 모양 — 최신이 위, 바뀐 칸이 없는 저장은 줄이 없다)
  *  상태가 이미 바뀌었으면 409 `BIZ_APPLICATION_STATE_CHANGED`.
+ *  광고주 요청 일시 정지·중단(일시 정지·중단 목업 2026-11-02 — 서버에 아직 없음): 줄(달력·표) `takedownCause`, 상세 `takedown.channel`·`takedown.memo`·`pause`(신청 건 상세와 같은 모양).
+ *    정지·재개·중단 처리는 신청 건 API(`/api/admin/biz-applications/{id}/pause|resume|stop`)만 — 이 화면은 「광고 심사에서 열기」로 보낸다. [되돌리기]는 긴급 내림만.
+ *
+ * ⚠ MOCK(일시 정지·중단): `?mock=pause-…` 일 때만 `./mock/pause-mock.ts` 가 그 달 달력·표에 정지 중·중단 목업 건을 얹고, 목업 건 번호(`mock-pause-…`)의 상세를 준다.
+ *   스위치가 없으면 실제 API 그대로. 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
  */
 const PATH = {
     root: '/api/admin/ads',
@@ -57,11 +63,21 @@ export function useAdApi() {
     const client = useApiClient({ refreshCsrf: () => auth.me() });
 
     return {
-        calendar: (type: AdType, month: string): Promise<AdCalendar> => client.get<AdCalendar>(PATH.calendar(), { query: { type, month } }),
+        calendar: (type: AdType, month: string): Promise<AdCalendar> =>
+            // MOCK:
+            mockPauseCalendar(type, month, () => client.get<AdCalendar>(PATH.calendar(), { query: { type, month } })),
+        // REAL: client.get<AdCalendar>(PATH.calendar(), { query: { type, month } }),
 
-        list: (query: AdBookingQuery): Promise<AdBookingPage> => client.get<AdBookingPage>(PATH.root, { query: { ...query } }),
+        list: (query: AdBookingQuery): Promise<AdBookingPage> =>
+            // MOCK:
+            mockPauseBookings(query, () => client.get<AdBookingPage>(PATH.root, { query: { ...query } })),
+        // REAL: client.get<AdBookingPage>(PATH.root, { query: { ...query } }),
 
-        detail: (id: string): Promise<AdBookingDetail> => client.get<AdBookingDetail>(PATH.one(id)),
+        detail: (id: string): Promise<AdBookingDetail> =>
+            // MOCK:
+            mockPauseBooking(id) ??
+            client.get<AdBookingDetail>(PATH.one(id)),
+        // REAL: client.get<AdBookingDetail>(PATH.one(id)),
 
         availability: (type: AdType, period: BizPeriod): Promise<AdAvailability> => client.get<AdAvailability>(PATH.availability(), { query: { type, ...period } }),
 

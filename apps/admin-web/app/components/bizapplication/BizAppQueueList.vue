@@ -1,7 +1,7 @@
 <template>
     <!--
         신청 건 심사 왼쪽 칸 — 지금 탭(큐)의 신청 건 목록. 심사 대기는 오래된 것이 위, 결제·입금 대기는 기한이 가까운 것이 위(서버 정렬).
-        한 줄: 번호 · 「운영자 등록」(source=OPERATOR) · 종류 · 사업자 · 기간 · 금액 · 기한(남음/지남) · 「시작 지남」(F6) · 환불 요청. 누르면 `select`.
+        한 줄: 번호 · 「운영자 등록」(source=OPERATOR) · 종류 · 사업자 · 기간 · 금액 · 기한(남음/지남) · 「시작 지남」(F6) · 환불 요청 · 광고주 요청 「정지 중」·「중단」(`takedownCause` — 긴급 내림 「내림」과 구분, 모든 탭). 누르면 `select`.
     -->
     <div class="flex h-full min-h-0 flex-col">
         <ErrorState v-if="error" :title="t('bizApplication.loadFailed')" :description="error.message" :retry="true" :retrying="loading" @retry="emit('retry')" />
@@ -32,7 +32,8 @@
                         <Tag v-if="row.deadlineAt && (queue === 'PAYMENT' || queue === 'DEPOSIT' || queue === 'DEPOSIT_OVERDUE')" :value="UtilBizApplicationMessages.remain(t, row.deadlineAt, now)" :severity="UtilBizApplicationMessages.remainSeverity(row.deadlineAt, now)" icon="pi pi-clock" />
                         <Tag v-if="queue === 'REVIEW' && UtilBizApplication.started(row.period, now)" :value="t('bizApplication.startPassed')" severity="warn" />
                         <Tag v-if="row.hasRefundRequest" :value="t('bizApplication.refundRequested')" severity="danger" />
-                        <Tag v-if="queue === 'LIVE' || queue === 'CLOSED'" :value="t(`bizApplication.status.${row.status}`)" :severity="UtilBizApplication.statusSeverity(row.status)" />
+                        <Tag v-if="pauseTag(row)" :value="t(`bizApplication.pauseState.${pauseTag(row)}`)" :severity="UtilBizApplication.pauseStateSeverity(pauseTag(row)!)" />
+                        <Tag v-else-if="queue === 'LIVE' || queue === 'CLOSED'" :value="t(`bizApplication.status.${row.status}`)" :severity="UtilBizApplication.statusSeverity(row.status)" />
                     </span>
                 </button>
             </li>
@@ -56,9 +57,14 @@ interface Props {
     now?: number;
 }
 
-withDefaults(defineProps<Props>(), { selectedId: null, loading: false, error: null, now: () => Date.now() });
+const props = withDefaults(defineProps<Props>(), { selectedId: null, loading: false, error: null, now: () => Date.now() });
 const emit = defineEmits<{ select: [id: string]; retry: [] }>();
 
 const { t, locale } = useI18n();
 const time = useDisplayTime();
+
+/** 광고주 요청 상태 Tag(정지 중 · 중단 · 정지한 채 종료) — 아니면 null(기존 상태 Tag) */
+function pauseTag(row: BizApplicationRow): 'PAUSED' | 'STOPPED' | 'PAUSE_ENDED' | null {
+    return UtilBizApplication.pauseLabel(row.status, row.takedownCause, row.period, props.now);
+}
 </script>
