@@ -3,7 +3,7 @@
         사업자 화면 한 벌 — 사업자 › 인증 심사(`/business-reviews`, mode review) · 사업자 › 사업자 목록(`/businesses`, mode directory). 04-ia-review 5절, 01-business.md 7-1 A·B, 00-overview.md ★-4 B1~B3·H2.
         · 인증 심사: 심사 중(처음·재신청) + 재심사(승인 뒤 상호·번호를 고친 건 — 「재심사」 꼬리표) 한 큐. 오래된 것이 위. 서랍에서 국세청 [다시 조회] · 승인(계속사업자만 — 조회 불가는 사유) · 반려 · 등록증 열람.
         · 사업자 목록: 상태 탭(승인·정지·탈퇴·반려·전체, 건수). 서랍에서 정지(영향 건수와 처리 선택) · 정지 해제(진행 중이던 건 처리 선택, `business.unsuspend`) · 평문 보기(사유 → 10분) · 등록증 열람.
-        · 사업자 목록 서랍의 서비스 카드: 신원이 승인이면 서비스 하나만 정지·해제(같은 창 + 그 서비스 영향 건수, 2026-11-02 — ⚠ 서버 후보·지금 목업 `?mock=svc-suspend`, `useBusinessApi`).
+        · 사업자 목록 서랍의 서비스 카드: 신원이 승인이면 서비스 하나만 정지·해제(같은 창 + 그 서비스 영향 건수, 2026-11-02 — `POST …/services/{service}/suspend`·`resume`, `useBusinessApi`).
         · 두 화면 모두 서비스(핫딜/광고) · 찾기(사업자명·번호·신청자). 한 줄: 사업자명 · 가린 등록번호 · 신원 상태 · 서비스 · 신청자 · 신청일 · 국세청 조회 결과. 평문 칸은 목록에 없다.
         · 줄을 누르면 상세 서랍(`?id=`). 심사 화면에서 이미 끝난 건은 사업자 목록으로, 목록 화면의 심사 중 건은 인증 심사로 가는 단추를 보인다.
         권한: 화면 `business.read`(메뉴 항목 — 셸이 거른다) · 처리 `business.manage` · 평문 `business.reveal`(SENSITIVE) · 정지 해제 `business.unsuspend`(SENSITIVE). 계약 `docs/features/business-contract.md`.
@@ -150,7 +150,7 @@
         />
         <BusinessSuspendDialog v-if="drawerDetail" v-model:visible="dialogs.suspend" :name="drawerDetail.name" :impact="drawerDetail.impact" :busy="working === 'suspend'" :error="dialogError" @submit="submitSuspend" />
         <BusinessUnsuspendDialog v-if="drawerDetail" v-model:visible="dialogs.unsuspend" :name="drawerDetail.name" :busy="working === 'unsuspend'" :error="dialogError" :field-errors="dialogFields" @submit="submitUnsuspend" />
-        <!-- 서비스만 정지·해제(2026-11-02 — ⚠ 서버 후보, 지금 목업) — 신원 정지·해제와 같은 창에 서비스를 넘긴다 -->
+        <!-- 서비스만 정지·해제(2026-11-02) — 신원 정지·해제와 같은 창에 서비스를 넘긴다 -->
         <BusinessSuspendDialog
             v-if="drawerDetail && serviceTarget"
             v-model:visible="dialogs.svcSuspend"

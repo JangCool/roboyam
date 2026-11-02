@@ -66,23 +66,24 @@ export interface BusinessCertificate {
 
 /**
  * 서비스 카드 — 영향 건수(진행·예약 중인 신청 건).
- * 서비스별 정지(2026-11-02 사용자 결정 — 신원은 그대로 두고 한 서비스만 정지·해제, ⚠ 서버 후보·지금 목업)는 아래 선택 칸으로 온다:
- *  · 신원이 승인(`APPROVED`)인데 `status === 'SUSPENDED'` = 「서비스만 정지」 — `suspendCode`·`suspendText`·`suspendedAt`·`suspendedByName` 이 채워진다(신원 정지를 따라간 정지면 null).
- *  · `impact` = 이 서비스만 정지하면 걸리는 건수(이 서비스 신청 건만). **이 칸이 있어야 화면이 [서비스 정지]·[서비스 해제] 를 보인다**(서버가 아직 모르면 단추가 없다).
+ * 서비스별 정지(2026-11-02 사용자 결정 — 신원은 그대로 두고 한 서비스만 정지·해제) 칸은 서버가 늘 준다:
+ *  · 「서비스만 정지」 = `suspendCode != null`(`status` 는 `SUSPENDED`). 신원 정지를 따라간 줄은 `status` 만 `SUSPENDED` 이고 사유 칸은 null —
+ *    신원 정지를 풀어도 서비스만 정지된 줄은 남으므로 신원 상태가 아니라 `suspendCode` 로 가른다.
+ *  · `impact` = 이 서비스만 정지하면 걸리는 건수(이 서비스 신청 건만).
  */
 export interface BusinessServiceCard extends BusinessServiceRow {
     liveCount: number;
     pendingCount: number;
-    /** 서비스만 정지한 사유 코드 — 신원 정지 코드 묶음을 그대로 쓴다(가정) */
-    suspendCode?: BusinessSuspendCode | null;
+    /** 서비스만 정지한 사유 코드(신원 정지 코드 묶음) — 서비스만 정지가 아니면 null */
+    suspendCode: BusinessSuspendCode | null;
     /** 서비스만 정지한 사유 글(사업자에게 그대로 보인다) */
-    suspendText?: string | null;
+    suspendText: string | null;
     /** 서비스만 정지한 시각(ISO) */
-    suspendedAt?: string | null;
+    suspendedAt: string | null;
     /** 정지한 운영자 이름 */
-    suspendedByName?: string | null;
+    suspendedByName: string | null;
     /** 이 서비스만 정지할 때의 영향 건수 */
-    impact?: BusinessSuspendImpact;
+    impact: BusinessSuspendImpact;
 }
 
 /** 정지하면 영향받는 건수 — 정지 창이 처리 방법을 고르게 보여 준다(H2) */
@@ -97,12 +98,12 @@ export interface BusinessSuspendImpact {
 
 export interface BusinessHistory {
     at: string;
-    /** `SERVICE_SUSPENDED`·`SERVICE_RESUMED` = 서비스별 정지·해제(⚠ 서버 후보 — 지금 목업) */
+    /** `SERVICE_SUSPENDED`·`SERVICE_RESUMED` = 서비스별 정지·해제(`service` 칸에 그 서비스, `note` 는 서버가 읽기 좋게 만든 글) */
     action: 'APPLIED' | 'NTS_CHECKED' | 'APPROVED' | 'REJECTED' | 'SUSPENDED' | 'UNSUSPENDED' | 'SERVICE_SUSPENDED' | 'SERVICE_RESUMED' | 'REVEALED' | 'CERT_VIEWED' | 'UPDATED' | 'WITHDRAWN';
     actor: string;
     note: string | null;
-    /** 서비스 하나에 대한 처리면 그 서비스(서비스별 정지·해제) */
-    service?: BusinessService | null;
+    /** 서비스 하나에 대한 처리면 그 서비스(서비스별 정지·해제), 아니면 null */
+    service: BusinessService | null;
 }
 
 export interface BusinessDetail extends BusinessRow {

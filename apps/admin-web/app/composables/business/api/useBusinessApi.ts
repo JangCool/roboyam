@@ -10,7 +10,6 @@ import type {
     BusinessSuspendRequest,
     BusinessUnsuspendRequest,
 } from '~/composables/business/api/useBusinessApi.types';
-import { mockResumeService, mockServiceOverlay, mockSuspendService } from '~/composables/business/api/mock/business-service-mock';
 
 /**
  * 사업자 심사 API(관리자) — 서버 주소(`/api/admin/businesses/…`)가 있는 **유일한 곳**이다. 상태는 없다.
@@ -27,11 +26,11 @@ import { mockResumeService, mockServiceOverlay, mockSuspendService } from '~/com
  *  - `GET  /api/admin/businesses/{id}/certificate` → 사업자등록증 사본 `data:` 주소(열람 기록, B2)
  *  상태가 이미 바뀌었으면 409 `BUSINESS_STATE_CHANGED` — 화면은 "이미 바뀌었어요" + 다시 읽기.
  *
- * ⚠ MOCK(서비스별 정지·해제 — 2026-11-02, 화면 확정 전): 서버 후보
- *  - `POST /api/admin/businesses/{id}/services/{service}/suspend` `{ code, text, pendingAction, scheduledAction, runningAction }`(`business.manage`, 그 서비스 건에만 적용)
- *  - `POST /api/admin/businesses/{id}/services/{service}/resume` `{ restore, note? }`(`business.unsuspend`)
- *  - 상세 `serviceCards[]` 의 `suspendCode`·`suspendText`·`suspendedAt`·`suspendedByName`·`impact`
- *  지금은 `./mock/business-service-mock.ts`(`?mock=svc-suspend` 등 — 파일 머리)가 맡는다. 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
+ * 서비스만 정지·해제(2026-11-02 — 신원은 그대로, 그 서비스 신청 건에만 적용):
+ *  - `POST /api/admin/businesses/{id}/services/{service}/suspend` `{ code, text, pendingAction, scheduledAction, runningAction }`(`business.manage`) → `BusinessDetail`
+ *  - `POST /api/admin/businesses/{id}/services/{service}/resume` `{ restore, note? }`(`business.unsuspend`) → `BusinessDetail`
+ *  - 상세 `serviceCards[]` 의 `suspendCode`(서비스만 정지면 값)·`suspendText`·`suspendedAt`·`suspendedByName`·`impact`(그 서비스 건만), `history[]` 의 `service`
+ *  상태가 맞지 않으면 409 `BUSINESS_STATE_CHANGED`, 칸 오류 400 `fields.*`. `service` 는 `HOTDEAL`·`AD`.
  */
 const PATH = {
     root: '/api/admin/businesses',
@@ -47,22 +46,15 @@ export function useBusinessApi() {
     return {
         list: (query: BusinessQuery): Promise<BusinessPage> => client.get<BusinessPage>(PATH.root, { query: { ...query } }),
 
-        detail: (id: string): Promise<BusinessDetail> =>
-            // MOCK: 스위치(`?mock=svc-…`)가 있을 때만 서비스 카드에 서비스 정지 칸·영향 건수를 덧씌운다(없으면 서버 응답 그대로)
-            client.get<BusinessDetail>(PATH.one(id)).then(mockServiceOverlay),
-        // REAL: client.get<BusinessDetail>(PATH.one(id)),
+        detail: (id: string): Promise<BusinessDetail> => client.get<BusinessDetail>(PATH.one(id)),
 
         /** 서비스만 정지(`business.manage`) — 신원은 그대로, 건 처리 선택은 그 서비스 신청 건에만 */
         suspendService: (id: string, service: BusinessService, body: BusinessSuspendRequest): Promise<BusinessDetail> =>
-            // MOCK:
-            mockSuspendService(() => client.get<BusinessDetail>(PATH.one(id)), id, service, body),
-        // REAL: client.post<BusinessDetail>(PATH.service(id, service, 'suspend'), body),
+            client.post<BusinessDetail>(PATH.service(id, service, 'suspend'), body),
 
         /** 서비스만 정지 해제(`business.unsuspend`) — 서비스 정지로 내려간 그 서비스 건의 되돌리기 선택 */
         resumeService: (id: string, service: BusinessService, body: BusinessUnsuspendRequest): Promise<BusinessDetail> =>
-            // MOCK:
-            mockResumeService(() => client.get<BusinessDetail>(PATH.one(id)), id, service, body),
-        // REAL: client.post<BusinessDetail>(PATH.service(id, service, 'resume'), body),
+            client.post<BusinessDetail>(PATH.service(id, service, 'resume'), body),
 
         recheckNts: (id: string): Promise<BusinessDetail> => client.post<BusinessDetail>(PATH.action(id, 'nts-check')),
 

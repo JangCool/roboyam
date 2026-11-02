@@ -2,7 +2,7 @@
     <!--
         사업자 상세 서랍 — 목록에서 줄을 누르면 연다(`?id=`). 01-business.md 7-1 B.
         구획: ① 신원(가린 값 + 평문 보기) ② 국세청 상태조회 ③ 사업자등록증 사본(열람 기록) ④ 서비스 카드 ⑤ 처리 기록 Timeline. 맨 아래 처리 단추.
-        ④ 서비스 카드: 신원이 승인이면 카드마다 [서비스 정지]·「서비스만 정지」 사유 + [서비스 해제](2026-11-02 — ⚠ 서버 후보, 카드에 `impact` 가 올 때만 단추. 지금 목업 `?mock=svc-suspend`).
+        ④ 서비스 카드: 「서비스만 정지」(`suspendCode != null`)면 사유 칸, 신원이 승인이면 카드마다 [서비스 정지]·[서비스 해제](2026-11-02).
         [승인] 은 계속사업자일 때만(조회 불가면 부모가 사유를 받는다), 휴·폐업이면 잠그고 이유를 적는다. 서버는 부르지 않는다 — 동작은 emit.
     -->
     <Drawer v-model:visible="open" :position="prefs.drawerPosition" :aria-labelledby="titleId" :style="{ width: '44rem', maxWidth: '100vw' }">
@@ -219,16 +219,19 @@ const hasLiveDealings = computed(() => {
     if (!d) return false;
     return d.impact.awaitingPayment + d.impact.scheduled + d.impact.running > 0 || d.serviceCards.some((s) => s.liveCount + s.pendingCount > 0);
 });
-/** 「서비스만 정지」 — 신원은 승인인데 그 서비스만 정지(신원 정지를 따라간 정지와 가른다) */
+/**
+ * 「서비스만 정지」 — 서버가 사유 코드를 준 줄(`suspendCode != null`). 신원 정지를 따라간 줄은 `SUSPENDED` 라도 코드가 null 이라 가른다.
+ * 신원 상태로 가르지 않는다 — 신원이 정지 중이어도, 신원 정지를 푼 뒤에도 서비스만 정지된 줄은 남는다.
+ */
 function serviceOnlySuspended(card: BusinessServiceCard): boolean {
-    return props.detail?.status === 'APPROVED' && card.status === 'SUSPENDED';
+    return card.status === 'SUSPENDED' && card.suspendCode != null;
 }
 
-/** 서비스 카드 단추 — 사업자 목록 화면 · 신원 승인 · 서버가 영향 건수를 준 카드만. 이용 중 → 정지(`business.manage`), 서비스만 정지 → 해제(`business.unsuspend`) */
+/** 서비스 카드 단추 — 사업자 목록 화면 · 신원 승인(신원 정지가 우선이라 그때는 감춘다)만. 이용 중 → 정지(`business.manage`), 서비스만 정지 → 해제(`business.unsuspend`) */
 function serviceAction(card: BusinessServiceCard): 'suspend' | 'resume' | null {
-    if (props.mode !== 'directory' || props.detail?.status !== 'APPROVED' || !card.impact) return null;
+    if (props.mode !== 'directory' || props.detail?.status !== 'APPROVED') return null;
     if (card.status === 'APPROVED') return props.canManage ? 'suspend' : null;
-    if (card.status === 'SUSPENDED') return props.canUnsuspend ? 'resume' : null;
+    if (serviceOnlySuspended(card)) return props.canUnsuspend ? 'resume' : null;
     return null;
 }
 
