@@ -16,6 +16,7 @@ import com.community.business.entity.BusinessServiceStatus;
 import com.community.business.entity.BusinessStatus;
 import com.community.business.entity.BusinessSuspendCode;
 import com.community.business.entity.NtsBizStatus;
+import com.community.business.entity.NtsValidity;
 import com.community.business.exception.BusinessException;
 import com.community.business.repository.master.BusinessProfileRepository;
 import com.community.business.repository.master.BusinessServiceRepository;
@@ -55,8 +56,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  * 클래스 트랜잭션을 두지 않는다(국세청 조회는 외부 호출). 처리는 신원 줄을 잠그고 상태를 다시 본다 — 이미 바뀌었으면 409 {@code BUSINESS_STATE_CHANGED}.
  *
  * <ul>
- *   <li>승인(B1): 가장 최근 국세청 조회가 계속사업자면 그대로, 조회 불가면 사유 5~200자(감사 {@code BUSINESS_NTS_OVERRIDE}), 휴·폐업·없는 번호는 409 {@code BUSINESS_NTS_NOT_ACTIVE},
- *       조회한 적이 없으면 409 {@code BUSINESS_NTS_NOT_CHECKED}.</li>
+ *   <li>승인(B1 + 진위확인): 가장 최근 국세청 조회가 계속사업자 + 진위 일치면 그대로. 진위 불일치 409 {@code BUSINESS_NTS_MISMATCH} · 휴·폐업·없는 번호 409
+ *       {@code BUSINESS_NTS_NOT_ACTIVE}(잠금이 먼저) · 상태 조회 불가·진위 조회 불가·진위 미확인이면 사유 5~200자(감사 {@code BUSINESS_NTS_OVERRIDE}) ·
+ *       조회한 적이 없으면 409 {@code BUSINESS_NTS_NOT_CHECKED}. 판정은 {@link #approvalRule}.</li>
  *   <li>정지(H2): 진행 건 처리 선택을 저장·감사하고 {@link BusinessApplicationHook#onSuspended} 를 같은 트랜잭션에서 부른다(신청 건 백엔드가 처리).</li>
  *   <li>평문·사본 열람(B2·B3): 열람 기록(운영자·IP·사유)·처리 기록·감사를 같은 트랜잭션에서 남긴 뒤에만 값을 준다. 평문은 10분 뒤 화면이 가린다.</li>
  * </ul>
@@ -194,16 +196,11 @@ public class BusinessAdminService {
             BusinessProfileEntity p = lockPending(id);
             NtsRow check = store.latestNtsCheck(id).orElseThrow(BusinessException::ntsNotChecked);
             String reason = null;
-            switch (check.status()) {
-                case CONTINUING -> {
+            if (approvalRule(check) == ApprovalRule.NEEDS_REASON) {
+                if (override == null || override.length() < 5 || override.length() > 200) {
+                    throw ValidationException.of("ntsOverrideReason", new MessageRef("business.reason.invalid", 5, 200));
                 }
-                case UNAVAILABLE -> {
-                    if (override == null || override.length() < 5 || override.length() > 200) {
-                        throw ValidationException.of("ntsOverrideReason", new MessageRef("business.reason.invalid", 5, 200));
-                    }
-                    reason = override;
-                }
-                default -> throw BusinessException.ntsNotActive();
+                reason = override;
             }
             boolean wasReReview = p.isReReview();
             p.approve(actor.operatorId(), reason, now);
@@ -212,6 +209,7 @@ public class BusinessAdminService {
             Map<String, Object> detail = new LinkedHashMap<>();
             detail.put("companyName", p.getCompanyName());
             detail.put("ntsStatus", check.status().name());
+            detail.put("ntsValidity", check.validity().name());
             detail.put("reReview", wasReReview);
             record(actor, AuditActions.BUSINESS_APPROVE, id, detail);
             if (reason != null) {
@@ -376,8 +374,30 @@ public class BusinessAdminService {
                 actorName(h.actorType(), h.actorName()), historyNote(h.action(), h.note()))).toList();
         return new BusinessAdminView.Detail(Long.toString(id), p.getCompanyName(), BusinessFields.maskBizNo(p.getBizNoLast4()), p.getStatus().name(), p.isReReview(),
                 serviceRows(rows), new BusinessAdminView.Applicant(Long.toString(p.getUserId()), nickname), p.getSubmittedAt(),
-                ntsView(store.latestNtsCheck(id).orElse(null), p.getSubmittedAt()), masked, cert, cards,
+                ntsView(store.latestNtsCheck(id).orElse(null), p.getSubmittedAt()), masked, p.getOpenedOn(), cert, cards,
                 new BusinessAdminView.Impact(impact.awaitingPayment(), impact.scheduled(), impact.running()), rejection, suspension, history);
+    }
+
+    /** 승인 판정의 갈래 — 바로 · 사유를 적으면 */
+    enum ApprovalRule {
+        OK, NEEDS_REASON
+    }
+
+    /**
+     * 가장 최근 국세청 조회로 승인 판정 — <b>잠금이 사유보다 먼저</b>: 진위 불일치 409 {@code BUSINESS_NTS_MISMATCH} → 휴업·폐업·없는 번호 409 {@code BUSINESS_NTS_NOT_ACTIVE}
+     * → 상태 조회 불가·진위 조회 불가·진위 미확인(개업일 없는 옛 신청)은 사유 → 그 밖(계속 + 일치) 바로.
+     */
+    static ApprovalRule approvalRule(NtsRow check) {
+        if (check.validity() == NtsValidity.MISMATCH) {
+            throw BusinessException.ntsMismatchOnApprove();
+        }
+        if (check.status() == NtsBizStatus.PAUSED || check.status() == NtsBizStatus.CLOSED || check.status() == NtsBizStatus.NOT_FOUND) {
+            throw BusinessException.ntsNotActive();
+        }
+        if (check.status() == NtsBizStatus.UNAVAILABLE || check.validity() != NtsValidity.MATCH) {
+            return ApprovalRule.NEEDS_REASON;
+        }
+        return ApprovalRule.OK;
     }
 
     private BusinessProfileEntity lockPending(long id) {
@@ -394,10 +414,11 @@ public class BusinessAdminService {
 
     private BusinessAdminView.Nts ntsView(NtsRow row, Instant appliedAt) {
         if (row == null) {
-            return new BusinessAdminView.Nts(NtsBizStatus.UNAVAILABLE.name(), appliedAt, null, null, messages.get(new MessageRef("business.nts.message.NOT_CHECKED")));
+            return new BusinessAdminView.Nts(NtsBizStatus.UNAVAILABLE.name(), NtsValidity.UNCHECKED.name(), appliedAt, null, null,
+                    messages.get(new MessageRef("business.nts.message.NOT_CHECKED")));
         }
         String message = row.message() == null ? null : messages.get(new MessageRef("business.nts.message." + row.message()));
-        return new BusinessAdminView.Nts(row.status().name(), row.checkedAt(), row.taxType(), row.closedOn(), message);
+        return new BusinessAdminView.Nts(row.status().name(), row.validity().name(), row.checkedAt(), row.taxType(), row.closedOn(), message);
     }
 
     private static List<BusinessAdminView.ServiceRow> serviceRows(List<BusinessServiceEntity> rows) {

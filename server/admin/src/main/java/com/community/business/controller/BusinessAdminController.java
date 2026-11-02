@@ -46,14 +46,14 @@ public class BusinessAdminController {
         return ok(service.detail(id));
     }
 
-    /** 국세청 상태조회 다시 — 결과 스냅샷을 남기고 상세를 준다(B1) */
+    /** 국세청 다시 조회 — 개업일이 있으면 진위확인(상태 포함), 없으면 상태조회만(진위 UNCHECKED). 결과 스냅샷을 남기고 상세를 준다(B1) */
     @RequirePermission(Permission.BUSINESS_MANAGE)
     @PostMapping("/{id}/nts-check")
     public ResponseEntity<ApiResponse<BusinessAdminView.Detail>> ntsCheck(@PathVariable String id, AdminActor actor) {
         return ok(service.recheckNts(actor, id));
     }
 
-    /** 승인 — 계속사업자만. 휴·폐업 409 {@code BUSINESS_NTS_NOT_ACTIVE}, 조회 불가 + 사유 없음 400 {@code fields.ntsOverrideReason} */
+    /** 승인 — 계속사업자 + 진위 일치만. 진위 불일치 409 {@code BUSINESS_NTS_MISMATCH}, 휴·폐업 409 {@code BUSINESS_NTS_NOT_ACTIVE}, 조회 불가·진위 미확인 + 사유 없음 400 {@code fields.ntsOverrideReason} */
     @RequirePermission(Permission.BUSINESS_MANAGE)
     @PostMapping("/{id}/approve")
     public ResponseEntity<ApiResponse<BusinessAdminView.Detail>> approve(@PathVariable String id, @RequestBody(required = false) BusinessAdminRequest.Approve body,

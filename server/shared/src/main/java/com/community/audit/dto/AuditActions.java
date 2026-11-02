@@ -230,6 +230,10 @@ public final class AuditActions {
     public static final String PORTONE_SETTINGS_UPDATE = "PORTONE_SETTINGS_UPDATE";
     /** 포트원 설정 칸 지우기 — 대상 PORTONE_SETTINGS, 칸 이름 {@code field} */
     public static final String PORTONE_SETTINGS_DELETE = "PORTONE_SETTINGS_DELETE";
+    /** 공공데이터포털 설정 저장(business-contract 「국세청 진위확인 · 공공데이터 설정」) — 대상 PUBLIC_DATA_SETTINGS/nts, 바꾼 칸 이름 {@code fields}(값 없음). 일반 */
+    public static final String PUBLIC_DATA_SETTINGS_UPDATE = "PUBLIC_DATA_SETTINGS_UPDATE";
+    /** 공공데이터포털 서비스 키 지우기 — 대상 PUBLIC_DATA_SETTINGS/nts, 칸 이름 {@code field}. 일반 */
+    public static final String PUBLIC_DATA_SETTINGS_DELETE = "PUBLIC_DATA_SETTINGS_DELETE";
 
     // ── 커머스 1-2 포인트 상점(commerce-stage1-contract 「B」) — 대상 POINT_SHOP_ITEM·POINT_SHOP_AVATARS·POINT_SHOP_SETTINGS·POINT_SHOP_PURCHASE ──
     /** 품목 만들기 — 대상 POINT_SHOP_ITEM + 품목 ID, {@code code}·{@code kind}·{@code after}(칸 값) */

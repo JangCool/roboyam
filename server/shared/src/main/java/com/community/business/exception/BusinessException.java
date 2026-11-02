@@ -2,6 +2,8 @@ package com.community.business.exception;
 
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.message.MessageRef;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 
 /**
@@ -17,6 +19,7 @@ public class BusinessException extends CommonException {
     public static final String REAPPLY_LIMIT = "BUSINESS_REAPPLY_LIMIT";
     public static final String NTS_NOT_ACTIVE = "BUSINESS_NTS_NOT_ACTIVE";
     public static final String NTS_NOT_CHECKED = "BUSINESS_NTS_NOT_CHECKED";
+    public static final String NTS_MISMATCH = "BUSINESS_NTS_MISMATCH";
     public static final String FILE_NOT_FOUND = "BUSINESS_FILE_NOT_FOUND";
     public static final String CERT_NOT_FOUND = "BUSINESS_CERT_NOT_FOUND";
     public static final String UPLOAD_LIMIT = "BUSINESS_UPLOAD_LIMIT";
@@ -25,6 +28,10 @@ public class BusinessException extends CommonException {
 
     private BusinessException(HttpStatus status, String code) {
         super(status, code, new MessageRef("error." + code));
+    }
+
+    private BusinessException(HttpStatus status, String code, Map<String, MessageRef> fields) {
+        super(status, code, new MessageRef("error." + code), fields, null);
     }
 
     public static BusinessException notFound() {
@@ -64,6 +71,23 @@ public class BusinessException extends CommonException {
     /** 국세청 조회를 한 번도 하지 않았다 — [다시 조회] 부터(B1) */
     public static BusinessException ntsNotChecked() {
         return new BusinessException(HttpStatus.CONFLICT, NTS_NOT_CHECKED);
+    }
+
+    /**
+     * 신청·수정의 진위확인 불일치 — 400 + {@code fields.companyName·ownerName·openedOn}(어느 칸이 틀렸는지 국세청이 알려 주지 않는다). 신청을 받지 않는다.
+     */
+    public static BusinessException ntsMismatchOnApply() {
+        Map<String, MessageRef> fields = new LinkedHashMap<>();
+        MessageRef mismatch = new MessageRef("business.nts.mismatch");
+        fields.put("companyName", mismatch);
+        fields.put("ownerName", mismatch);
+        fields.put("openedOn", mismatch);
+        return new BusinessException(HttpStatus.BAD_REQUEST, NTS_MISMATCH, fields);
+    }
+
+    /** 가장 최근 진위확인이 불일치 — 승인할 수 없다(409, 휴·폐업과 같은 잠금) */
+    public static BusinessException ntsMismatchOnApprove() {
+        return new BusinessException(HttpStatus.CONFLICT, NTS_MISMATCH);
     }
 
     /** 올린 파일이 없거나 남의 것·이미 다른 신청에 붙은 것 */

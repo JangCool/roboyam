@@ -1,6 +1,7 @@
 package com.community.business.repository.master;
 
 import com.community.business.entity.NtsBizStatus;
+import com.community.business.entity.NtsValidity;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -45,8 +46,9 @@ public class BusinessStore {
                               Instant erasedAt) {
     }
 
-    /** 국세청 조회 한 줄 */
-    public record NtsRow(long id, long profileId, NtsBizStatus status, String taxType, LocalDate closedOn, String message, Instant checkedAt, Long checkedBy) {
+    /** 국세청 조회 한 줄 — 상태 + 진위(V125, 그 전 줄은 UNCHECKED) */
+    public record NtsRow(long id, long profileId, NtsBizStatus status, String taxType, LocalDate closedOn, String message, Instant checkedAt, Long checkedBy,
+                         NtsValidity validity) {
     }
 
     /** 처리 기록 한 줄 — 이름은 운영자 이름 또는 회원 닉네임(지워졌으면 null) */
@@ -98,9 +100,11 @@ public class BusinessStore {
 
     // ── 국세청 조회 ─────────────────────────────────────────────────────────
 
-    public void insertNtsCheck(long id, long profileId, NtsBizStatus status, String taxType, LocalDate closedOn, String message, Instant checkedAt, Long checkedBy) {
-        jdbc.update("INSERT INTO business_nts_checks (id, profile_id, status, tax_type, closed_on, message, checked_at, checked_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                id, profileId, status.name(), taxType, closedOn == null ? null : Date.valueOf(closedOn), message, Timestamp.from(checkedAt), checkedBy);
+    public void insertNtsCheck(long id, long profileId, NtsBizStatus status, NtsValidity validity, String taxType, LocalDate closedOn, String message, Instant checkedAt,
+                               Long checkedBy) {
+        jdbc.update("INSERT INTO business_nts_checks (id, profile_id, status, validity, tax_type, closed_on, message, checked_at, checked_by) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", id, profileId, status.name(), validity.name(), taxType, closedOn == null ? null : Date.valueOf(closedOn), message,
+                Timestamp.from(checkedAt), checkedBy);
     }
 
     public Optional<NtsRow> latestNtsCheck(long profileId) {
@@ -165,7 +169,7 @@ public class BusinessStore {
         Date closed = rs.getDate("closed_on");
         return new NtsRow(rs.getLong("id"), rs.getLong("profile_id"), NtsBizStatus.valueOf(rs.getString("status")), rs.getString("tax_type"),
                 closed == null ? null : closed.toLocalDate(), rs.getString("message"), instant(rs.getTimestamp("checked_at")),
-                (Long) rs.getObject("checked_by", Long.class));
+                (Long) rs.getObject("checked_by", Long.class), NtsValidity.valueOf(rs.getString("validity")));
     }
 
     private static Instant instant(Timestamp ts) {

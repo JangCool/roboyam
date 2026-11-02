@@ -1,5 +1,6 @@
 package com.community.business.nts;
 
+import com.community.publicdata.service.PublicDataSettingsService;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import org.springframework.context.annotation.Bean;
@@ -10,8 +11,12 @@ import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 /**
- * 국세청 상태조회 구현 고르기 — 배포 설정 {@code roboyam.business.nts.provider}(odcloud | fake). <b>dev·prod 프로필에서 가짜 구현이면 기동을 멈춘다</b>
- * (본인인증 {@code IdentityConfig} 와 같은 규칙) — 가짜 구현은 아무 번호나 계속사업자로 만들기 때문이다. 공개 사이트(신청 뒤 조회)와 관리자 앱(다시 조회)이 같이 쓴다.
+ * 국세청 조회 구현 고르기 — 배포 설정 {@code roboyam.business.nts.provider}(odcloud | fake). <b>dev·prod 프로필에서 가짜 구현이면 기동을 멈춘다</b>
+ * (본인인증 {@code IdentityConfig} 와 같은 규칙) — 가짜 구현은 아무 번호나 계속사업자·진위 일치로 만들기 때문이다. 공개 사이트(신청·수정 때 진위확인)와
+ * 관리자 앱(다시 조회)이 같이 쓴다.
+ *
+ * <p>공공데이터포털 HTTP({@link OdcloudNtsApi})는 구현과 상관없이 늘 만든다 — 관리자 화면의 연결 시험은 구현이 가짜여도 실제 국세청을 부른다. 서비스 키는 호출마다
+ * {@link PublicDataSettingsService#ntsServiceKey()}(화면 저장값 → 환경 변수 → 없음)로 읽는다.
  */
 @Configuration
 public class NtsConfig {
@@ -24,15 +29,20 @@ public class NtsConfig {
     static final Duration READ_TIMEOUT = Duration.ofSeconds(4);
 
     @Bean
-    public NtsStatusClient ntsStatusClient(NtsProperties properties, Environment environment) {
+    public OdcloudNtsApi odcloudNtsApi(NtsProperties properties) {
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder()
+                .connectTimeout(CONNECT_TIMEOUT).followRedirects(HttpClient.Redirect.NEVER).build());
+        factory.setReadTimeout(READ_TIMEOUT);
+        return new OdcloudNtsApi(RestClient.builder().baseUrl(properties.baseUrl()).requestFactory(factory).build());
+    }
+
+    @Bean
+    public NtsStatusClient ntsStatusClient(NtsProperties properties, Environment environment, OdcloudNtsApi api, PublicDataSettingsService settings) {
         NtsProviderKind kind = guard(properties.provider(), environment);
         if (kind == NtsProviderKind.FAKE) {
             return new FakeNtsStatusClient();
         }
-        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder()
-                .connectTimeout(CONNECT_TIMEOUT).followRedirects(HttpClient.Redirect.NEVER).build());
-        factory.setReadTimeout(READ_TIMEOUT);
-        return new OdcloudNtsStatusClient(properties.serviceKey(), RestClient.builder().baseUrl(properties.baseUrl()).requestFactory(factory).build());
+        return new OdcloudNtsStatusClient(api, settings::ntsServiceKey);
     }
 
     /**

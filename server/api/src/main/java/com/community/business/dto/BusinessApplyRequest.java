@@ -6,7 +6,8 @@ package com.community.business.dto;
  * @param bizNo             숫자 10자리(하이픈 허용) — 수정·재신청 때 바꾸지 않으면 null(저장된 값 유지)
  * @param phone             수정·재신청 때 바꾸지 않으면 null
  * @param certificateFileId {@code POST /api/business/files} 가 준 번호(수정 때 지금 사본이면 그 번호)
+ * @param openedOn          개업일 {@code YYYY-MM-DD}(필수, 오늘 이후 불가) — 서버가 번호·상호·대표자명과 함께 국세청 진위확인을 부른다(불일치 400 {@code BUSINESS_NTS_MISMATCH})
  */
 public record BusinessApplyRequest(String companyName, String bizNo, String ownerName, String phone, String email, MyBusinessView.Address address,
-                                   String certificateFileId, String agreedTermsVersion, String agreedPrivacyVersion) {
+                                   String certificateFileId, String agreedTermsVersion, String agreedPrivacyVersion, String openedOn) {
 }
