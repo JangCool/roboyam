@@ -122,7 +122,9 @@
                                 </NuxtLink>
                             </li>
                         </ul>
-                        <p v-if="detail.counts.total > detail.bookings.length" class="m-0 mt-2 text-xs text-muted-color">{{ t('adAdvertiser.bookingsCut', { n: detail.bookings.length, total: detail.counts.total }) }}</p>
+                        <!-- 서버는 최근 50건만 준다. 노출 자리 없는 핫딜 글 건은 건 수에는 들고 이 목록에는 없어(일정표에 없는 건) 50건 미만이면 잘린 것이 아니다 -->
+                        <p v-if="detail.bookings.length >= BOOKINGS_CAP && detail.counts.total > detail.bookings.length" class="m-0 mt-2 text-xs text-muted-color">{{ t('adAdvertiser.bookingsCut', { n: detail.bookings.length, total: detail.counts.total }) }}</p>
+                        <p v-else-if="detail.counts.total > detail.bookings.length" class="m-0 mt-2 text-xs text-muted-color">{{ t('adAdvertiser.bookingsHotdealOnly', { n: detail.counts.total - detail.bookings.length }) }}</p>
                     </TabPanel>
 
                     <TabPanel value="stats">
@@ -280,6 +282,8 @@ const titleId = useId();
 const tab = ref('basic');
 const won = (n: number) => UtilBizApplicationMessages.won(t, n, locale.value);
 const EMPH = UtilBizApplication.EMPH;
+/** 서랍 광고 건 목록 최대 줄 수(서버와 같은 값) */
+const BOOKINGS_CAP = 50;
 
 const head =computed(() => props.detail ?? props.summary);
 const badge = computed(() => (head.value ? UtilAdAdvertiser.badge(head.value) : null));
