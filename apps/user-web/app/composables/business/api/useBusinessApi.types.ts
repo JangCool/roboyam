@@ -36,6 +36,8 @@ export interface BusinessProfile {
     /** 가린 사업자등록번호(`123-45-*****`) — 평문은 내려 주지 않는다 */
     bizNoMasked: string | null;
     ownerName: string | null;
+    /** 개업일(`YYYY-MM-DD`, 사업자등록증 「개업연월일」 — 국세청 진위확인에 쓴다). 개업일 칸이 생기기 전 신청이면 null */
+    openedOn: string | null;
     /** 가린 연락처(`010-****-5678`) */
     phoneMasked: string | null;
     email: string | null;
@@ -56,6 +58,8 @@ export interface BusinessApplyRequest {
     /** 숫자 10자리(하이픈 없이) — 수정 때 바꾸지 않으면 null */
     bizNo: string | null;
     ownerName: string;
+    /** 개업일(`YYYY-MM-DD`) — 서버가 번호·상호·대표자명과 함께 국세청 진위확인을 부른다. 맞지 않으면 400 `BUSINESS_NTS_MISMATCH`(조회 불가면 그냥 받는다) */
+    openedOn: string;
     /** 수정 때 바꾸지 않으면 null */
     phone: string | null;
     email: string;

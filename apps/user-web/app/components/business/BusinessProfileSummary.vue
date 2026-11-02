@@ -15,6 +15,8 @@
             <dd class="m-0 tabular-nums">{{ profile.bizNoMasked ?? '—' }}</dd>
             <dt class="text-muted-color">{{ t('business.field.ownerName') }}</dt>
             <dd class="m-0">{{ profile.ownerName ?? '—' }}</dd>
+            <dt class="text-muted-color">{{ t('business.field.openedOn') }}</dt>
+            <dd class="m-0 tabular-nums">{{ profile.openedOn ? time.serviceDate(profile.openedOn) : '—' }}</dd>
             <dt class="text-muted-color">{{ t('business.field.phone') }}</dt>
             <dd class="m-0 tabular-nums">{{ profile.phoneMasked ?? '—' }}</dd>
             <dt class="text-muted-color">{{ t('business.field.email') }}</dt>

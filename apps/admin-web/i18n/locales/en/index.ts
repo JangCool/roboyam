@@ -36,6 +36,7 @@ import point from './point';
 import payment from './payment';
 import pointShop from './pointShop';
 import portone from './portone';
+import publicData from './publicData';
 import profile from './profile';
 import reason from './reason';
 import restriction from './restriction';
@@ -92,6 +93,7 @@ export default {
     payment,
     pointShop,
     portone,
+    publicData,
     profile,
     reason,
     restriction,

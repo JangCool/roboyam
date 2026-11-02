@@ -1,6 +1,6 @@
 <template>
     <!--
-        사업자 신청/수정 `/business/apply` — Stepper 3단계(01 §7-2 G): ① 사업자 정보 ② 사업자등록증 사본(필수 — B2) + 국세청 휴폐업 조회 안내(B1) ③ 약관 동의 + 요약 → 신청.
+        사업자 신청/수정 `/business/apply` — Stepper 3단계(01 §7-2 G): ① 사업자 정보(개업일 — 국세청 진위확인, 불일치면 이 단계로 돌아와 안내) ② 사업자등록증 사본(필수 — B2) + 국세청 조회 안내(B1) ③ 약관 동의 + 요약 → 신청.
         미신청·반려 = 새 신청(반려면 가리지 않은 칸을 채워 둔다) · 승인 = 수정(번호·연락처는 비워 두면 그대로 — 가린 값을 자리표시로) · 심사 중·정지 = 고칠 수 없음 안내.
         수정에서 상호·번호를 바꾸면 「저장하면 다시 심사받아요」 경고 + 저장 전 확인 창(F7). 모바일은 단계당 한 화면 + 하단 고정 [다음](`BusinessStepNav`).
     -->
@@ -24,7 +24,7 @@
                 <!-- ① 사업자 정보 -->
                 <template v-if="step === 1">
                     <Message v-if="identityChanged" severity="warn" size="small" :closable="false" data-testid="business-apply-rereview-warn">{{ t('business.apply.reReviewWarn') }}</Message>
-                    <LabeledField :label="t('business.field.companyName')" :error="errors.companyName">
+                    <LabeledField :label="t('business.field.companyName')" :error="errors.companyName" :help="t('business.apply.companyHelp')">
                         <template #default="{ id, describedBy, invalid }">
                             <InputText v-model="form.companyName" :id="id" :maxlength="60" autocomplete="organization" :invalid="invalid" :aria-describedby="describedBy" fluid />
                         </template>
@@ -46,22 +46,36 @@
                         </template>
                     </LabeledField>
                     <div class="grid gap-4 sm:grid-cols-2">
-                        <LabeledField :label="t('business.field.ownerName')" :error="errors.ownerName">
+                        <LabeledField :label="t('business.field.ownerName')" :error="errors.ownerName" :help="t('business.apply.ownerHelp')">
                             <template #default="{ id, describedBy, invalid }">
                                 <InputText v-model="form.ownerName" :id="id" :maxlength="30" autocomplete="name" :invalid="invalid" :aria-describedby="describedBy" fluid />
                             </template>
                         </LabeledField>
+                        <LabeledField :label="t('business.field.openedOn')" :error="errors.openedOn" :help="t('business.apply.openedOnHelp')">
+                            <template #default="{ id, describedBy, invalid }">
+                                <AppDatePicker v-model="form.openedOn" :input-id="id" :max="UtilBusiness.todayYmd()" :invalid="invalid" :described-by="describedBy" data-testid="business-apply-opened-on" />
+                            </template>
+                        </LabeledField>
+                    </div>
+                    <!-- 국세청 진위확인 불일치(400 BUSINESS_NTS_MISMATCH) — 대표자명·개업일 칸도 붉게. 세 칸 중 하나를 고치면 사라진다 -->
+                    <Message v-if="ntsMismatch" severity="error" size="small" :closable="false" role="alert" data-testid="business-apply-nts-mismatch">
+                        <span class="flex flex-col gap-1">
+                            <span class="font-semibold">{{ t('business.apply.ntsMismatchTitle') }}</span>
+                            <span>{{ t('business.apply.ntsMismatchBody') }}</span>
+                        </span>
+                    </Message>
+                    <div class="grid gap-4 sm:grid-cols-2">
                         <LabeledField :label="t('business.field.phone')" :error="errors.phone" :help="editMode ? t('business.apply.keepHint', { masked: profile.phoneMasked ?? '' }) : ''">
                             <template #default="{ id, describedBy, invalid }">
                                 <InputText v-model="form.phone" :id="id" type="tel" inputmode="tel" :maxlength="13" autocomplete="tel" :placeholder="editMode ? (profile.phoneMasked ?? '') : '010-1234-5678'" :invalid="invalid" :aria-describedby="describedBy" fluid />
                             </template>
                         </LabeledField>
+                        <LabeledField :label="t('business.field.email')" :error="errors.email">
+                            <template #default="{ id, describedBy, invalid }">
+                                <InputText v-model="form.email" :id="id" type="email" :maxlength="120" autocomplete="email" :invalid="invalid" :aria-describedby="describedBy" fluid />
+                            </template>
+                        </LabeledField>
                     </div>
-                    <LabeledField :label="t('business.field.email')" :error="errors.email">
-                        <template #default="{ id, describedBy, invalid }">
-                            <InputText v-model="form.email" :id="id" type="email" :maxlength="120" autocomplete="email" :invalid="invalid" :aria-describedby="describedBy" fluid />
-                        </template>
-                    </LabeledField>
                     <AddressInput v-model="form.address" :legend="t('business.field.address')" :errors="addressErrors" :manual-first="Boolean(form.address.address1)" />
                 </template>
 
@@ -132,7 +146,8 @@ import UtilBusinessMessages from '~/utils/util-business-messages';
 
 /**
  * 사업자 신청/수정 `/business/apply` — 로그인 필요. 사업자 센터 홈의 [사업자 신청]·[다시 신청]·[정보 수정]이 온다.
- * 판정은 서버다(번호 체크섬·중복 409 `BUSINESS_DUPLICATE`·국세청 조회는 신청 뒤 서버가 한 번, 심사 때 운영자가 다시). 사본은 `uploadCertificate` 로 먼저 올린다.
+ * 판정은 서버다(번호 체크섬·중복 409 `BUSINESS_DUPLICATE`·국세청 진위확인은 제출 때 서버가 — 불일치면 400 `BUSINESS_NTS_MISMATCH` 로 막고, 조회 불가면 받는다 ·
+ * 심사 때 운영자가 다시 조회). 사본은 `uploadCertificate` 로 먼저 올린다.
  */
 definePageMeta({ middleware: 'auth' });
 
@@ -141,12 +156,14 @@ useSeoMeta({ title: () => t('business.apply.title'), robots: 'noindex' });
 
 const TOTAL = 3;
 const TERMS_VERSION = '2026-10-30';
-const PRIVACY_VERSION = '2026-10-30';
+// 2026-11-02: 수집 항목에 개업일을 더해 버전을 올렸다
+const PRIVACY_VERSION = '2026-11-02';
 
 const uid = useId();
 const api = useBusinessApi();
 const toast = useAppToast();
 const { confirm } = useConfirmDialog();
+const time = useDisplayTime();
 
 const profile = ref<BusinessProfile | null>(null);
 const status = ref<'loading' | 'ready' | 'error'>('loading');
@@ -157,6 +174,8 @@ const form = reactive({
     companyName: '',
     bizNo: '',
     ownerName: '',
+    /** 개업일(`YYYY-MM-DD`) — 비면 '' */
+    openedOn: '',
     phone: '',
     email: '',
     address: { postcode: '', address1: '', address2: '' } as AddressValue,
@@ -168,6 +187,10 @@ const tried = ref<Record<number, boolean>>({});
 const serverFields = ref<Record<string, string>>({});
 const formError = ref('');
 const submitBusy = ref(false);
+/** 서버가 국세청 진위확인 불일치로 막았다(400 `BUSINESS_NTS_MISMATCH`) — 번호·상호·대표자명·개업일 중 하나를 고치면 지운다 */
+const ntsMismatch = ref(false);
+/** 진위확인에 보내는 글자 칸(번호는 칸 오류 대신 위 안내로) — 국세청이 어느 칸이 틀렸는지 알려 주지 않아 함께 붉힌다 */
+const NTS_FIELDS = ['companyName', 'ownerName', 'openedOn'];
 
 /** 승인된 사업자의 정보 수정인가 */
 const editMode = computed(() => profile.value?.status === 'APPROVED');
@@ -182,6 +205,7 @@ async function load(): Promise<void> {
         if (p.status === 'APPROVED' || p.status === 'REJECTED') {
             form.companyName = p.companyName ?? '';
             form.ownerName = p.ownerName ?? '';
+            form.openedOn = p.openedOn ?? '';
             form.email = p.email ?? '';
             if (p.address) form.address = { ...p.address };
             if (p.status === 'APPROVED' && p.certificate) certificate.value = { ...p.certificate, previewUrl: null };
@@ -214,6 +238,8 @@ const errors = computed(() => {
     else if (s1 && !editMode.value && bizNoDigits.value.length === 0) out.bizNo = t('business.apply.bizNoRequired');
     else if (s1 && bizNoDigits.value.length > 0 && bizNoDigits.value.length < 10) out.bizNo = t('business.apply.bizNoInvalid');
     if (s1 && !form.ownerName.trim()) out.ownerName = t('business.apply.ownerRequired');
+    if (s1 && !form.openedOn) out.openedOn = t('business.apply.openedOnRequired');
+    else if (form.openedOn && form.openedOn > UtilBusiness.todayYmd()) out.openedOn = t('business.apply.openedOnFuture');
     const phone = UtilBusiness.digits(form.phone);
     if (s1 && !editMode.value && !phone) out.phone = t('business.apply.phoneRequired');
     else if (s1 && phone && (phone.length < 9 || phone.length > 11)) out.phone = t('business.apply.phoneInvalid');
@@ -224,6 +250,15 @@ const errors = computed(() => {
     return out;
 });
 
+watch(
+    () => [bizNoDigits.value, form.companyName.trim(), form.ownerName.trim(), form.openedOn],
+    () => {
+        if (!ntsMismatch.value) return;
+        ntsMismatch.value = false;
+        serverFields.value = Object.fromEntries(Object.entries(serverFields.value).filter(([k]) => !NTS_FIELDS.includes(k)));
+    },
+);
+
 const addressErrors = computed<AddressFieldErrors>(() => {
     if (!tried.value[1]) return {};
     const out: AddressFieldErrors = {};
@@ -231,7 +266,7 @@ const addressErrors = computed<AddressFieldErrors>(() => {
     return out;
 });
 
-const STEP_FIELDS: Record<number, string[]> = { 1: ['companyName', 'bizNo', 'ownerName', 'phone', 'email'], 2: ['certificate'], 3: ['agree'] };
+const STEP_FIELDS: Record<number, string[]> = { 1: ['companyName', 'bizNo', 'ownerName', 'openedOn', 'phone', 'email'], 2: ['certificate'], 3: ['agree'] };
 
 function stepValid(n: number): boolean {
     if (STEP_FIELDS[n]!.some((k) => errors.value[k])) return false;
@@ -248,6 +283,7 @@ const summaryRows = computed(() => [
     { label: t('business.field.companyName'), value: form.companyName },
     { label: t('business.field.bizNo'), value: bizNoDigits.value ? form.bizNo : (profile.value?.bizNoMasked ?? '') },
     { label: t('business.field.ownerName'), value: form.ownerName },
+    { label: t('business.field.openedOn'), value: form.openedOn ? time.value.serviceDate(form.openedOn) : '' },
     { label: t('business.field.phone'), value: form.phone || (profile.value?.phoneMasked ?? '') },
     { label: t('business.field.email'), value: form.email },
     { label: t('business.field.address'), value: `(${form.address.postcode}) ${form.address.address1} ${form.address.address2}`.trim() },
@@ -288,6 +324,7 @@ async function submit(): Promise<void> {
         companyName: form.companyName.trim(),
         bizNo: bizNoDigits.value || null,
         ownerName: form.ownerName.trim(),
+        openedOn: form.openedOn,
         phone: UtilBusiness.digits(form.phone) || null,
         email: form.email.trim(),
         address: { ...toRaw(form.address) },
@@ -305,7 +342,13 @@ async function submit(): Promise<void> {
         toast.success(editMode.value ? (wasReReview ? t('business.apply.reReviewSaved') : t('business.apply.saved')) : t('business.apply.submitted'));
         await navigateTo(UtilBusiness.CENTER_PATH);
     } catch (e) {
-        if (e instanceof ApiError && e.fields) {
+        if (e instanceof ApiError && e.code === 'BUSINESS_NTS_MISMATCH') {
+            // 문구는 화면 i18n
+            const hint = t('business.apply.ntsMismatchField');
+            serverFields.value = Object.fromEntries(NTS_FIELDS.map((k) => [k, hint]));
+            ntsMismatch.value = true;
+            step.value = 1;
+        } else if (e instanceof ApiError && e.fields) {
             serverFields.value = { ...e.fields };
             step.value = 1;
         } else {

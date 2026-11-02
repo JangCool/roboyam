@@ -41,6 +41,7 @@ const emit = defineEmits<{ reveal: []; hide: [] }>();
 
 const { t } = useI18n();
 const headId = useId();
+const time = useDisplayTime();
 
 const endsAt = ref(0);
 const countdown = useCountdown(endsAt, () => emit('hide'));
@@ -62,6 +63,7 @@ const rows = computed(() => {
         { key: 'name', label: t('business.col.name'), value: props.detail.name },
         { key: 'regNo', label: t('business.regNo'), value: r?.regNo ?? props.detail.maskedRegNo },
         { key: 'rep', label: t('business.representative'), value: r?.representative ?? m.representative },
+        { key: 'opened', label: t('business.openedOn'), value: props.detail.openedOn ? time.value.serviceDate(props.detail.openedOn) : t('business.openedOnNone') },
         { key: 'addr', label: t('business.address'), value: r?.address ?? m.address },
         { key: 'phone', label: t('business.phone'), value: r?.phone ?? m.phone },
         { key: 'email', label: t('business.email'), value: r?.email ?? m.email },

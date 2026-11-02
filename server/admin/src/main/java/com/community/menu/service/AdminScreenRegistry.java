@@ -124,6 +124,8 @@ public final class AdminScreenRegistry {
                     leaf(s("socialLogin", "/settings/social-login", "menu.socialLogin", "pi pi-key", Permission.SITE_READ)),
                     // 포트원 설정(본인인증 칸 — commerce-foundation-contract 「0-4」) — 조회 site.read, 저장·지우기는 화면 안에서 site.secret
                     leaf(s("portone", "/settings/portone", "menu.portone", "pi pi-credit-card", Permission.SITE_READ)),
+                    // 공공데이터포털(국세청 사업자 조회 서비스 키 — business-contract) — 조회·연결 시험 site.read, 저장·지우기는 화면 안에서 site.secret
+                    leaf(s("publicData", "/settings/public-data", "menu.publicData", "pi pi-database", Permission.SITE_READ)),
                     // 로그인 보안(관리자 2차 인증 — commerce-foundation-contract 「0-3」) — 루트 전용, 권한 코드 없음
                     leaf(superOnly("loginSecurity", "/settings/login-security", "menu.loginSecurity", "pi pi-shield")),
                     // 주소 검색(address-search-contract) — 우편번호 찾기 제공처·자체 주소 DB 올리기. 조회 site.read, 저장·올리기는 화면 안에서 site.manage

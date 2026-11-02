@@ -5,7 +5,9 @@ import com.community.business.dto.MyBusinessView;
 import com.community.business.entity.BusinessProfileEntity;
 import com.community.business.entity.BusinessServiceStatus;
 import com.community.business.entity.BusinessStatus;
+import com.community.business.entity.NtsValidity;
 import com.community.business.exception.BusinessException;
+import com.community.business.nts.NtsLookup;
 import com.community.business.repository.master.BusinessProfileRepository;
 import com.community.business.repository.master.BusinessStore;
 import com.community.business.repository.master.BusinessStore.DocumentRow;
@@ -18,6 +20,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.EnumSet;
 import java.util.HexFormat;
@@ -32,13 +36,18 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 사업자 센터의 내 신원(business-contract) — 조회·신청(반려 뒤 재신청 포함)·수정·사업자등록증 사본 올리기. 신청 단계는 체크섬만 본다(국세청 조회는 신청 뒤 서버가 한 번,
- * 실패해도 신청은 그대로 — 운영자가 심사 때 다시 조회한다). 클래스 트랜잭션을 두지 않는다(입력 검사·파일 읽기·국세청 조회가 DB 연결을 붙잡지 않게).
+ * 사업자 센터의 내 신원(business-contract) — 조회·신청(반려 뒤 재신청 포함)·수정·사업자등록증 사본 올리기. 클래스 트랜잭션을 두지 않는다
+ * (입력 검사·파일 읽기·국세청 조회가 DB 연결을 붙잡지 않게).
+ *
+ * <p>국세청 진위확인(「국세청 진위확인 · 공공데이터 설정」): 저장 <b>전에</b>(트랜잭션 밖) 번호·개업일·대표자명·상호를 보낸다. 불일치면 400 {@code BUSINESS_NTS_MISMATCH}
+ * + {@code fields.companyName·ownerName·openedOn}(신청을 받지 않는다), 조회 불가면 받고 스냅샷 {@code UNAVAILABLE}, 일치면 같은 응답의 상태로 스냅샷을 채운다
+ * (상태조회를 따로 부르지 않는다). 스냅샷은 신청·수정과 같은 트랜잭션에 남는다. 수정은 네 칸 중 하나라도 바뀌었을 때만 다시 부른다.
  *
  * <ul>
  *   <li>등록번호 중복: 살아 있는 줄(심사 중·승인·정지) 사이에서 409 {@code BUSINESS_DUPLICATE}(부분 유일 색인이 동시 신청도 막는다).</li>
  *   <li>재신청: 반려 뒤 하루 3회(한국 날짜) — 넘으면 429 {@code BUSINESS_REAPPLY_LIMIT}.</li>
- *   <li>수정(F7): 승인·재심사 중만. 상호·번호가 바뀌면 재심사 — 회원·운영자 알림, 번호가 바뀌면 국세청 다시 조회. 민감 칸(번호·연락처)은 null 이면 유지.</li>
+ *   <li>진위확인 하루 한도: 회원별 하루 5회(한국 날짜, 신청·수정 합산, {@link BusinessNtsDailyLimiter}) — 다른 검사 뒤 국세청을 부르기 바로 앞에서 센다. 넘으면 429 {@code BUSINESS_NTS_DAILY_LIMIT}.</li>
+ *   <li>수정(F7): 승인·재심사 중만. 상호·번호가 바뀌면 재심사 — 회원·운영자 알림. 민감 칸(번호·연락처)은 null 이면 유지. 개업일이 없던 옛 사업자도 개업일 필수.</li>
  * </ul>
  */
 @Service
@@ -54,24 +63,28 @@ public class MyBusinessService {
     private static final Pattern EMAIL = Pattern.compile("[^\\s@]+@[^\\s@]+\\.[^\\s@]+");
     private static final Pattern VERSION = Pattern.compile("[0-9A-Za-z.\\-]{1,20}");
     private static final Pattern POSTCODE = Pattern.compile("[0-9]{5}");
+    /** 개업일 하한 */
+    private static final LocalDate OPENED_ON_MIN = LocalDate.of(1900, 1, 1);
 
     private final BusinessProfileRepository profiles;
     private final BusinessStore store;
     private final BusinessPii pii;
     private final BusinessServiceRows serviceRows;
     private final BusinessNtsService nts;
+    private final BusinessNtsDailyLimiter ntsLimit;
     private final BusinessNotices notices;
     private final SnowflakeIdGenerator ids;
     private final TransactionTemplate tx;
     private final Clock clock;
 
     public MyBusinessService(BusinessProfileRepository profiles, BusinessStore store, BusinessPii pii, BusinessServiceRows serviceRows, BusinessNtsService nts,
-                             BusinessNotices notices, SnowflakeIdGenerator ids, PlatformTransactionManager transactions, ObjectProvider<Clock> clocks) {
+                             BusinessNtsDailyLimiter ntsLimit, BusinessNotices notices, SnowflakeIdGenerator ids, PlatformTransactionManager transactions, ObjectProvider<Clock> clocks) {
         this.profiles = profiles;
         this.store = store;
         this.pii = pii;
         this.serviceRows = serviceRows;
         this.nts = nts;
+        this.ntsLimit = ntsLimit;
         this.notices = notices;
         this.ids = ids;
         this.tx = new TransactionTemplate(transactions);
@@ -89,6 +102,14 @@ public class MyBusinessService {
     public MyBusinessView.Profile apply(long userId, BusinessApplyRequest body) {
         Input in = validate(body);
         pii.requireConfigured();
+        BusinessProfileEntity current = profiles.findByUserId(userId).orElse(null);
+        if (current != null && current.getStatus() != BusinessStatus.REJECTED) {
+            throw BusinessException.alreadyApplied(); // 국세청을 부르기 전에 — 트랜잭션 안에서 다시 본다
+        }
+        if (current != null && store.appliedSince(current.getId(), startOfToday()) >= REAPPLY_PER_DAY) {
+            throw BusinessException.reapplyLimit();
+        }
+        Verified verified = verify(userId, in, current); // 트랜잭션 밖 — 불일치면 여기서 400
         long profileId = translate(() -> tx.execute(status -> {
             Instant now = now();
             BusinessProfileEntity existing = profiles.findWithLockByUserId(userId).orElse(null);
@@ -100,6 +121,9 @@ public class MyBusinessService {
             }
             long id = existing == null ? ids.nextId() : existing.getId();
             BusinessProfileEntity.Identity identity = identity(in, existing, id, userId);
+            if (!identity.bizNoHash().equals(verified.bizNoHash())) {
+                throw BusinessException.stateChanged(); // 확인한 번호와 저장할 번호가 다르다(그 사이 다른 요청이 고침)
+            }
             if (existing == null) {
                 profiles.persist(BusinessProfileEntity.apply(id, userId, identity, now));
             } else {
@@ -111,11 +135,11 @@ public class MyBusinessService {
             }
             serviceRows.sync(id, BusinessServiceStatus.PENDING, null, now);
             store.insertHistory(ids.nextId(), id, BusinessStore.APPLIED, BusinessStore.MEMBER, userId, null, now);
+            nts.record(id, verified.lookup(), null, null);
             notices.member(userId, BusinessNotices.SUBMITTED, identity.companyName(), null);
             notices.operators(id, false);
             return id;
         }));
-        nts.checkQuietly(profileId);
         return view(profiles.findById(profileId).orElseThrow(BusinessException::notFound));
     }
 
@@ -124,32 +148,81 @@ public class MyBusinessService {
     public MyBusinessView.Profile update(long userId, BusinessApplyRequest body) {
         Input in = validate(body);
         pii.requireConfigured();
-        boolean[] numberChanged = {false};
+        BusinessProfileEntity current = profiles.findByUserId(userId).orElseThrow(BusinessException::notEditable);
+        if (!current.editable()) {
+            throw BusinessException.notEditable(); // 국세청을 부르기 전에 — 트랜잭션 안에서 다시 본다
+        }
+        // 번호·상호·대표자명·개업일 중 하나라도 바뀌면 다시 진위확인(트랜잭션 밖 — 불일치면 여기서 400)
+        Verified verified = needsVerification(in, current) ? verify(userId, in, current) : null;
         long profileId = translate(() -> tx.execute(status -> {
             Instant now = now();
             BusinessProfileEntity p = profiles.findWithLockByUserId(userId).orElseThrow(BusinessException::notEditable);
             if (!p.editable()) {
                 throw BusinessException.notEditable();
             }
+            if (verified == null && needsVerification(in, p)) {
+                throw BusinessException.stateChanged(); // 그 사이 다른 요청이 고쳐 확인하지 않은 값이 됐다
+            }
             BusinessProfileEntity.Identity identity = identity(in, p, p.getId(), userId);
-            numberChanged[0] = !identity.bizNoHash().equals(p.getBizNoHash());
-            boolean identityChanged = numberChanged[0] || !identity.companyName().equals(p.getCompanyName());
+            if (verified != null && !identity.bizNoHash().equals(verified.bizNoHash())) {
+                throw BusinessException.stateChanged();
+            }
+            boolean numberChanged = !identity.bizNoHash().equals(p.getBizNoHash());
+            boolean identityChanged = numberChanged || !identity.companyName().equals(p.getCompanyName());
             if (!store.attachDocument(identity.certificateId(), p.getId(), now)) {
                 throw BusinessException.fileNotFound();
             }
             boolean reReviewStarted = p.update(identity, identityChanged, now);
             profiles.flush(); // 살아 있는 같은 번호의 유일 색인 위반을 여기서 드러낸다(409)
             store.insertHistory(ids.nextId(), p.getId(), BusinessStore.UPDATED, BusinessStore.MEMBER, userId, identityChanged ? "IDENTITY" : null, now);
+            if (verified != null) {
+                nts.record(p.getId(), verified.lookup(), null, null);
+            }
             if (reReviewStarted) {
                 notices.member(userId, BusinessNotices.RE_REVIEW, identity.companyName(), null);
                 notices.operators(p.getId(), true);
             }
             return p.getId();
         }));
-        if (numberChanged[0]) {
-            nts.checkQuietly(profileId);
-        }
         return view(profiles.findById(profileId).orElseThrow(BusinessException::notFound));
+    }
+
+    // ── 국세청 진위확인 ─────────────────────────────────────────────────────
+
+    /** 진위확인한 결과 + 확인한 번호의 해시(트랜잭션 안에서 저장할 번호와 같은지 본다) */
+    private record Verified(NtsLookup lookup, String bizNoHash) {
+    }
+
+    /**
+     * 번호(비워 두면 저장된 번호)·개업일·대표자명·상호로 진위확인 — 트랜잭션 밖에서. 불일치면 400 {@code BUSINESS_NTS_MISMATCH}(신청을 받지 않는다),
+     * 조회 불가면 그대로 받는다(스냅샷 {@code UNAVAILABLE} — 운영자가 사유를 적어 승인).
+     */
+    private Verified verify(long userId, Input in, BusinessProfileEntity current) {
+        String bizNo;
+        if (in.bizNo() != null) {
+            bizNo = in.bizNo();
+        } else if (current != null && current.getBizNoEnc() != null) {
+            bizNo = pii.decrypt(BusinessPii.BIZ_NO, current.getBizNoEnc());
+        } else {
+            throw ValidationException.of("bizNo", new MessageRef("business.field.required"));
+        }
+        ntsLimit.acquire(userId); // 하루 한도(신청·수정 합산) — 다른 검사 뒤, 부르기 바로 앞에서 따로 커밋해 센다. 넘으면 429
+        NtsLookup result = nts.validate(bizNo, in.openedOn(), in.ownerName(), in.companyName());
+        if (result.validity() == NtsValidity.MISMATCH) {
+            throw BusinessException.ntsMismatchOnApply();
+        }
+        return new Verified(result, pii.bizNoHash(bizNo));
+    }
+
+    /** 수정 — 번호·상호·대표자명·개업일 중 하나라도 저장된 값과 다른가(번호를 비워 두면 그대로). 개업일이 없던 옛 사업자는 늘 다시 확인한다 */
+    private boolean needsVerification(Input in, BusinessProfileEntity p) {
+        if (in.bizNo() != null && !pii.bizNoHash(in.bizNo()).equals(p.getBizNoHash())) {
+            return true;
+        }
+        if (!in.companyName().equals(p.getCompanyName()) || !in.openedOn().equals(p.getOpenedOn()) || p.getOwnerNameEnc() == null) {
+            return true;
+        }
+        return !in.ownerName().equals(pii.decrypt(BusinessPii.OWNER, p.getOwnerNameEnc()));
     }
 
     // ── 사본 올리기(B2) ─────────────────────────────────────────────────────
@@ -193,7 +266,7 @@ public class MyBusinessService {
 
     /** 정규화한 입력(숫자만 남긴 번호·연락처 — 바꾸지 않으면 null) */
     private record Input(String companyName, String bizNo, String ownerName, String phone, String email, String postcode, String address1, String address2,
-                         long certificateId, String termsVersion, String privacyVersion) {
+                         long certificateId, String termsVersion, String privacyVersion, LocalDate openedOn) {
     }
 
     private Input validate(BusinessApplyRequest b) {
@@ -216,6 +289,7 @@ public class MyBusinessService {
         if (owner == null || owner.length() > 30) {
             errors.put("ownerName", new MessageRef(owner == null ? "business.field.required" : "business.field.tooLong", 30));
         }
+        LocalDate openedOn = openedOn(strip(b.openedOn()), errors);
         String phone = BusinessFields.digits(strip(b.phone()));
         if (phone != null && phone.isEmpty()) {
             phone = null;
@@ -249,7 +323,7 @@ public class MyBusinessService {
         if (!errors.isEmpty()) {
             throw new ValidationException(errors);
         }
-        return new Input(company, bizNo, owner, phone, email, postcode, address1, address2, certificateId, terms, privacy);
+        return new Input(company, bizNo, owner, phone, email, postcode, address1, address2, certificateId, terms, privacy, openedOn);
     }
 
     /** 입력 + 지금 값(바꾸지 않은 민감 칸) → 암호문·해시까지 만든 신원. 사본은 회원 것이고 파기되지 않았으며 다른 신원에 붙지 않았어야 한다 */
@@ -291,7 +365,7 @@ public class MyBusinessService {
         }
         return new BusinessProfileEntity.Identity(in.companyName(), bizNoEnc, bizNoHash, last4, pii.encrypt(BusinessPii.OWNER, in.ownerName()), phoneEnc,
                 pii.encrypt(BusinessPii.EMAIL, in.email()), in.postcode(), pii.encrypt(BusinessPii.ADDRESS1, in.address1()),
-                pii.encrypt(BusinessPii.ADDRESS2, in.address2()), in.certificateId(), in.termsVersion(), in.privacyVersion());
+                pii.encrypt(BusinessPii.ADDRESS2, in.address2()), in.certificateId(), in.termsVersion(), in.privacyVersion(), in.openedOn());
     }
 
     private MyBusinessView.Profile view(BusinessProfileEntity p) {
@@ -302,7 +376,7 @@ public class MyBusinessService {
         BusinessPii.Plain plain = pii.plain(p);
         MyBusinessView.Certificate cert = p.getCertificateId() == null ? null : store.document(p.getCertificateId()).filter(d -> d.erasedAt() == null)
                 .map(d -> new MyBusinessView.Certificate(Long.toString(d.id()), d.fileName(), d.sizeBytes())).orElse(null);
-        return new MyBusinessView.Profile(status, p.getCompanyName(), BusinessFields.maskBizNo(p.getBizNoLast4()), plain == null ? null : plain.ownerName(),
+        return new MyBusinessView.Profile(status, p.getCompanyName(), BusinessFields.maskBizNo(p.getBizNoLast4()), plain == null ? null : plain.ownerName(), p.getOpenedOn(),
                 plain == null ? null : BusinessFields.maskPhone(plain.phone()), plain == null ? null : plain.email(),
                 plain == null ? null : new MyBusinessView.Address(plain.postcode(), plain.address1(), plain.address2() == null ? "" : plain.address2()), cert,
                 p.getSubmittedAt(), p.getReviewedAt(), p.getStatus() == BusinessStatus.REJECTED && p.getRejectCode() != null ? p.getRejectCode().name() : null,
@@ -350,6 +424,29 @@ public class MyBusinessService {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    /** 개업일 {@code YYYY-MM-DD} — 필수, 1900-01-01 ~ 오늘(한국 날짜). 틀리면 {@code fields.openedOn} 에 문구를 넣고 null */
+    private LocalDate openedOn(String text, Map<String, MessageRef> errors) {
+        if (text == null) {
+            errors.put("openedOn", new MessageRef("business.field.required"));
+            return null;
+        }
+        LocalDate date;
+        try {
+            date = text.length() == 10 ? LocalDate.parse(text) : null;
+        } catch (DateTimeParseException e) {
+            date = null;
+        }
+        if (date == null || date.isBefore(OPENED_ON_MIN)) {
+            errors.put("openedOn", new MessageRef("business.openedOn.invalid"));
+            return null;
+        }
+        if (date.isAfter(ServiceTime.today(clock))) {
+            errors.put("openedOn", new MessageRef("business.openedOn.future"));
+            return null;
+        }
+        return date;
     }
 
     private static String strip(String value) {

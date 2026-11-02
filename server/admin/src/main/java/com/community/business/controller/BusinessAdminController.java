@@ -9,6 +9,7 @@ import com.community.permission.entity.Permission;
 import com.community.zconfiguration.response.ApiResponse;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 사업자 심사(admin-web {@code useBusinessApi}, docs/features/business-contract.md) — 조회 {@code business.read} · 국세청 다시 조회·승인·반려·정지·등록증 사본 {@code business.manage} ·
- * 평문 열람 {@code business.reveal}(사유 5~200자) · 정지 해제 {@code business.unsuspend}. 응답은 {@code Cache-Control: no-store}. 상태가 이미 바뀌었으면 409
+ * 평문 열람 {@code business.reveal}(사유 5~200자) · 정지 해제 {@code business.unsuspend} · 삭제 {@code business.delete}(사유 5~200자, 204). 응답은 {@code Cache-Control: no-store}. 상태가 이미 바뀌었으면 409
  * {@code BUSINESS_STATE_CHANGED}.
  */
 @RestController
@@ -46,14 +47,14 @@ public class BusinessAdminController {
         return ok(service.detail(id));
     }
 
-    /** 국세청 상태조회 다시 — 결과 스냅샷을 남기고 상세를 준다(B1) */
+    /** 국세청 다시 조회 — 개업일이 있으면 진위확인(상태 포함), 없으면 상태조회만(진위 UNCHECKED). 결과 스냅샷을 남기고 상세를 준다(B1) */
     @RequirePermission(Permission.BUSINESS_MANAGE)
     @PostMapping("/{id}/nts-check")
     public ResponseEntity<ApiResponse<BusinessAdminView.Detail>> ntsCheck(@PathVariable String id, AdminActor actor) {
         return ok(service.recheckNts(actor, id));
     }
 
-    /** 승인 — 계속사업자만. 휴·폐업 409 {@code BUSINESS_NTS_NOT_ACTIVE}, 조회 불가 + 사유 없음 400 {@code fields.ntsOverrideReason} */
+    /** 승인 — 계속사업자 + 진위 일치만. 진위 불일치 409 {@code BUSINESS_NTS_MISMATCH}, 휴·폐업 409 {@code BUSINESS_NTS_NOT_ACTIVE}, 조회 불가·진위 미확인 + 사유 없음 400 {@code fields.ntsOverrideReason} */
     @RequirePermission(Permission.BUSINESS_MANAGE)
     @PostMapping("/{id}/approve")
     public ResponseEntity<ApiResponse<BusinessAdminView.Detail>> approve(@PathVariable String id, @RequestBody(required = false) BusinessAdminRequest.Approve body,
@@ -89,6 +90,14 @@ public class BusinessAdminController {
     public ResponseEntity<ApiResponse<BusinessAdminView.Reveal>> reveal(@PathVariable String id, @RequestBody(required = false) BusinessAdminRequest.Reveal body,
                                                                         AdminActor actor) {
         return ok(service.reveal(actor, id, body));
+    }
+
+    /** 사업자 삭제 — 본문 {@code { reason }}(5~200자) → 204. 광고·핫딜 신청 건이 한 줄이라도 있으면 409 {@code BUSINESS_HAS_DEALINGS}, 없는 신원 404 */
+    @RequirePermission(Permission.BUSINESS_DELETE)
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable String id, @RequestBody(required = false) BusinessAdminRequest.Delete body, AdminActor actor) {
+        service.delete(actor, id, body);
+        return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
     }
 
     /** 사업자등록증 사본(B2) — 열 때마다 열람 기록 */

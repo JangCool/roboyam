@@ -238,6 +238,7 @@ export default class UtilPermissionCatalog {
         { code: 'business.manage', unit: 'MANAGE', type: 'bizReview', nameKey: 'permission.item.businessManage', descKey: 'permission.item.businessManageDesc', featureReady: true },
         { code: 'business.reveal', unit: 'SENSITIVE', type: 'bizReview', nameKey: 'permission.item.businessReveal', descKey: 'permission.item.businessRevealDesc', featureReady: true },
         { code: 'business.unsuspend', unit: 'SENSITIVE', type: 'bizReview', nameKey: 'permission.item.businessUnsuspend', descKey: 'permission.item.businessUnsuspendDesc', featureReady: true },
+        { code: 'business.delete', unit: 'SENSITIVE', type: 'bizReview', nameKey: 'permission.item.businessDelete', descKey: 'permission.item.businessDeleteDesc', featureReady: true },
         { code: 'deal-order.read', unit: 'READ', type: 'bizProduct', nameKey: 'permission.item.dealOrderRead', descKey: 'permission.item.dealOrderReadDesc', featureReady: false },
         { code: 'deal-order.manage', unit: 'MANAGE', type: 'bizProduct', nameKey: 'permission.item.dealOrderManage', descKey: 'permission.item.dealOrderManageDesc', featureReady: false },
         { code: 'deal-order.settings', unit: 'CONFIG', type: 'bizProduct', nameKey: 'permission.item.dealOrderSettings', descKey: 'permission.item.dealOrderSettingsDesc', featureReady: false },

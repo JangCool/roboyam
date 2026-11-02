@@ -69,6 +69,46 @@
 - **감사 대상 종류** `BUSINESS`. 평문 열람 감사 detail 은 사유만, 승인은 상호·국세청 상태.
 - user-web: 신원 부분(`profile`·`apply`·`update`)과 새 `uploadCertificate` 만 실제 API. **광고 이미지 `uploadFile` 과 신청 건 전부는 목업**(목업 신청 건은 목업 안의 승인 사업자로 판정 — 서버 신원과 따로). 홈의 「목업 상태 바꾸기」 상자와 `mockSetStatus` 는 지웠다. admin-web 목업 파일(`business-mock.ts`)은 지웠다.
 
+## 국세청 진위확인 · 공공데이터 설정 (화면 확정 2026-11-02 — 사용자 결정, 위 「심사 규칙」의 「신청 단계는 체크섬만」을 바꾼다)
+**의도**: 신청 때 번호·상호·대표자명·개업일이 국세청 등록 정보와 맞는지 바로 확인해, 남의 번호·가짜 이름으로 사업자 승인(→ 광고·핫딜 돈 흐름)에 이르지 못하게 한다. 서비스 키는 관리자 화면에서 넣는다.
+**화면**: user-web `/business/apply` 1단계(개업일 칸·불일치 안내) · admin-web 사업자 심사·목록 Drawer 국세청 카드(진위 줄)·목록 국세청 칸 태그 · 설정 › 시스템 › 공공데이터포털 `/settings/public-data`.
+
+- **외부 API(실제 호출로 확인 2026-11-02)**: 공공데이터포털 「국세청_사업자등록정보 진위확인 및 상태조회」(publicDataPk 15081808) — 상태조회 `POST /api/nts-businessman/v1/status`, 진위확인 `POST /api/nts-businessman/v1/validate`(`{"businesses":[{b_no, start_dt(YYYYMMDD), p_nm, b_nm}]}`), **같은 서비스 키 하나**. 진위 일치 `valid:"01"` + `status`(상태조회 한 줄과 같은 칸) · 불일치 `valid:"02"`(`valid_msg` 「확인할 수 없습니다.」, status 없음 — 국세청에 없는 번호도 02). 대표자명·개업일·상호는 **정확히 같아야** 일치(상호 「파이언넷」 02 · 「(주)파이언넷」 01, 개업일 하루 차이도 02). 본문은 UTF-8.
+- **보내는 칸 = 번호·개업일·대표자명·상호(`b_nm`)** — 상호도 보낸다(사용자 결정). 신청 화면 상호 칸이 「(주)·주식회사 표기와 띄어쓰기까지 등록증 그대로」를 안내한다.
+- **신청·수정(`POST`·`PUT /api/business/me`)**: 요청에 `openedOn`(`YYYY-MM-DD`, 필수, 오늘 이후 불가 — 400 `fields.openedOn`). 서버가 저장 **전에**(트랜잭션 밖) 진위확인을 부른다.
+  - 불일치(02) → **400 `BUSINESS_NTS_MISMATCH`** + `fields.companyName·ownerName·openedOn`(어느 칸인지 국세청이 알려 주지 않는다 — 화면 문구는 화면 i18n). 신청을 받지 않는다.
+  - 조회 불가(장애·제한 시간·키 없음) → 지금처럼 신청은 받고 스냅샷 `UNAVAILABLE` — 운영자가 사유를 적어 승인.
+  - 일치(01) → 함께 온 `status` 로 상태 스냅샷을 채운다(**신청 때 상태조회를 따로 부르지 않는다** — 진위확인이 대신한다). 휴·폐업이면 신청은 받고 승인 단계에서 막힌다(지금 규칙).
+  - 수정: 번호·상호·대표자명·개업일 중 하나라도 바뀌면 다시 부른다(번호를 비워 두면 저장된 번호로). 상호·번호가 바뀌면 재심사(F7 그대로).
+  - 승인된 옛 사업자(개업일 없음)가 고칠 때 개업일 필수.
+  - **하루 횟수 제한(사용자 결정 2026-11-02)**: 회원당 **하루 5회**(한국 날짜 0시 기준, **신청·수정 합산**, 설정 `roboyam.business.nts.daily-validate-limit` — 0 이면 제한 없음). 국세청을 **실제로 부르게 되는 시도만** 센다(결과 무관 — 불일치 400·조회 불가도 셈, 수정에서 네 칸이 그대로라 부르지 않으면 안 셈, 운영자 [다시 조회]는 안 셈). 넘으면 **429 `BUSINESS_NTS_DAILY_LIMIT`** + `retryAfterSeconds`(다음 한국 0시까지). 이미 신청함·재신청 한도·수정 불가 검사보다 뒤, 국세청 호출 바로 앞. 시도 수는 업무와 따로 먼저 커밋(shared `V126` 표 `business_nts_daily_counts`, 지난 날짜는 DB 배치 `business-nts-count-cleanup` 매일 04:55).
+- **진위 결과 `validity`** = `MATCH`(일치) · `MISMATCH`(불일치) · `UNCHECKED`(진위 미확인 — 개업일이 없는 옛 신청, 상태조회만) · `UNAVAILABLE`(조회 불가). 상태 스냅샷(`business_nts_checks`)에 함께 저장, 관리자 `nts.validity`, 상세 `openedOn`, 회원 `GET /api/business/me` 에 `openedOn`.
+- **승인 판정**(잠금이 사유보다 먼저): 진위 `MISMATCH` → **409 `BUSINESS_NTS_MISMATCH`**(휴·폐업과 같은 축 — 승인 단추 잠금) · 상태 휴업·폐업·없는 번호 → 409 `BUSINESS_NTS_NOT_ACTIVE`(그대로) · 상태 `UNAVAILABLE` 또는 진위 `UNAVAILABLE`·`UNCHECKED` → 사유(`ntsOverrideReason`) 필수(없으면 400 `fields.ntsOverrideReason`, 감사 `BUSINESS_NTS_OVERRIDE`) · 그 밖(계속 + 일치) → 바로.
+- **[다시 조회]**: 개업일이 있으면 진위확인(상태 포함), 없으면 상태조회만 + `UNCHECKED`.
+- **이미 들어온 신청(개업일 없음)**: 마이그레이션은 개업일을 비워 두고 기존 스냅샷의 진위를 `UNCHECKED` 로 둔다. 심사 화면 「진위 미확인」 — 등록증으로 확인한 사유를 적어 승인. 승인된 사업자는 그대로(고칠 때 개업일 필수).
+- **local 가짜 구현**(`FakeNtsStatusClient`): 등록번호 끝에서 둘째 자리 — `5` 진위 불일치 · `6` 국세청에 없는 번호(상태 NOT_FOUND, 진위 불일치) · `7` 휴업 · `8` 폐업 · `9` 조회 불가 · 그 밖 계속 + 일치. dev·prod 가짜 기동 차단 그대로(`NtsConfig`).
+- **공공데이터포털 설정 `/settings/public-data`**(메뉴 시스템 › 공공데이터포털, 조회 `site.read` · 저장·지우기 `site.secret`, 포트원 설정과 같은 규칙):
+  - `GET /api/admin/public-data-settings` → `{ ntsProvider: ODCLOUD|FAKE, cryptoKeyConfigured, serviceKey: { source: SCREEN|ENV|NONE, updatedAt, updatedBy }, lastTest }` — 키 값은 내려가지 않는다.
+  - `PUT …` `{ serviceKey }`(빈 값·공백·500자 초과 400 `fields.serviceKey`, 암호화 키 없으면 503 `CRYPTO_KEY_MISSING`) · `DELETE …/service-key` → 204(없으면 404 `PUBLIC_DATA_KEY_NOT_FOUND`) · `POST …/test` → `{ result: OK|KEY_INVALID|NO_KEY|TIMEOUT|ERROR, testedAt, testedBy }`(`site.read`, 저장된 키로 실제 국세청 상태조회 한 번 — 구현이 가짜여도 실제로).
+  - 키 읽는 차례: **화면에서 저장한 값 → 환경 변수 `ROBOYAM_NTS_SERVICE_KEY` → 없음(조회 불가 `NO_KEY`)**. 저장은 암호문(`SecretEncryptor`). 감사는 칸 이름만.
+- **미확정**: local 기본 구현을 실제 국세청(`odcloud`)으로 바꿀지.
+- **서버 구현 결정(2026-11-02)**:
+  - 마이그레이션 shared `V125__business_nts_validate.sql` — `business_profiles.opened_on`(date null) · `business_nts_checks.validity`(기존 줄 `UNCHECKED`, CHECK 넷) · 새 표 `public_data_settings`(칸마다 한 줄 `NTS_SERVICE_KEY`, `v1:` 암호문 + 마지막 저장·지움 + 마지막 연결 시험 `tested_*`). `portone_settings` 는 재사용하지 않았다(감사 분류·화면이 다르다).
+  - 외부 호출: shared `OdcloudNtsApi`(HTTP·해석, 키를 호출마다 인자로 — 늘 빈으로 만든다, 연결 시험용) + `OdcloudNtsStatusClient`(키 = `PublicDataSettingsService#ntsServiceKey` 를 조회마다 읽음). 401·403 은 조회 불가 사유 `KEY_INVALID`(새 번들 문구), 연결·응답 실패 `TIMEOUT`, 그 밖 `ERROR`.
+  - 신청·수정: 진위확인 결과 스냅샷은 신청·수정과 **같은 트랜잭션**에 남긴다(예전 「신청 뒤 한 번 조회」는 없앴다). 이미 신청함·재신청 한도·수정 불가 상태는 국세청을 부르기 **전에** 막는다. 확인한 번호와 저장할 번호가 그 사이 달라지면 409 `BUSINESS_STATE_CHANGED`. 개업일은 `1900-01-01`~오늘(한국 날짜), 틀리면 400 `fields.openedOn`(`business.field.required`·`business.openedOn.invalid`·`business.openedOn.future`).
+  - [다시 조회]가 진위 불일치면 국세청이 상태를 주지 않으므로 상태조회를 한 번 더 해 스냅샷에 상태(없는 번호 등)를 함께 남긴다. 처리 기록 메모는 불일치면 `MISMATCH`(「진위 불일치」), 그 밖은 상태. 감사 `BUSINESS_NTS_CHECK` detail 에 `validity`, `BUSINESS_APPROVE` 에 `ntsValidity`.
+  - 조회한 적 없는 신원의 관리자 `nts` 는 `status: UNAVAILABLE` + `validity: UNCHECKED`(승인은 그대로 409 `BUSINESS_NTS_NOT_CHECKED`).
+  - 공공데이터 설정: 키는 앞뒤 공백을 지우고 가운데 공백이 있으면 400. 저장·지우기는 마지막 연결 시험을 지운다(옛 키의 결과). 시험 번호 `1248100998`. 감사 `PUBLIC_DATA_SETTINGS_UPDATE`·`_DELETE`(대상 `PUBLIC_DATA_SETTINGS/nts`, 칸 이름만, **일반 분류** — 포트원은 돈 관련). 연결 시험은 감사하지 않고 표에만 남긴다.
+
+## 사업자 삭제 (화면 확정 2026-11-02)
+**의도**: 거래가 한 번도 없는 사업자 신원을 운영자가 지운다(잘못 들어온 신청·회원 요청). 거래가 있으면 기록 5년 보관 때문에 지우지 않고 정지·탈퇴로 정리한다.
+**화면**: admin-web 사업자 상세 Drawer(심사·목록 두 화면, 모든 상태) 왼쪽 아래 [삭제] + 사유 확인 창. 진행·예약·결제 대기 건이 보이면 화면이 잠그고, 지난 완료·취소 건은 서버가 막는다.
+
+- **API**: `DELETE /api/admin/businesses/{id}` 본문 `{ reason }`(앞뒤 공백 제거 5~200자, 틀리면 400 `fields.reason`) → **204**. 권한 **`business.delete`**(사업자 심사 · 민감 조치, 기능 켬). 없는 신원 404 `BUSINESS_NOT_FOUND`.
+- **거래 판정**: 그 신원에 광고·핫딜 신청 건(`biz_applications.business_profile_id`)이 **한 줄이라도** 있으면(상태 무관 — 취소·반려·만료·완료 포함) **409 `BUSINESS_HAS_DEALINGS`**(문구: 정지하거나 회원 탈퇴로 정리). 결제 주문(`BIZ_APPLICATION`)·입금·환불·계약서·처리 기록은 모두 신청 건에 매달려 있어 신청 건 유무로 충분하다. 신원 줄을 `FOR UPDATE` 로 잠그고 판정한다(승인·정지와 겹치면 한쪽만). 잠근 뒤 신청 건이 끼어들면 외래키가 막고 같은 409.
+- **지우는 것**(한 트랜잭션): `business_profiles` 줄 + 그 신원에 딸린 `business_services`·`business_nts_checks`·`business_documents`(붙은 등록증 암호문)·`business_history`·`business_sensitive_views`. 연결된 광고주(`ad_advertisers.business_profile_id`)는 **연결만 끊고** 계정 없는 광고주로 남긴다. 회원 계정·회원 알림·회원이 아직 붙이지 않은 사본·진위확인 하루 횟수는 그대로. 지운 뒤 그 회원은 사업자 `NONE`(로그인 `businessStatus`·뱃지 없음) — 다시 신청할 수 있다.
+- **감사** `BUSINESS_DELETE`(대상 `BUSINESS`/신원 ID, **일반 분류** — 다른 사업자 심사 감사와 같다): detail `companyName`·`bizNoLast4`·`status`(지우기 전)·`reReview`·`reason`. 평문·암호문은 싣지 않는다.
+
 ## 후속 (이 세션 범위 밖)
 - 보존 기간 파기 DB 배치(반려·탈퇴 90일 뒤 암호문·등록증, 붙지 않은 사본 정리) — 표 칸(`erased_at`)만 있다.
 - 사업자 약관 게시(약관 종류) · 정지 해제 화면 단추 · 서비스별 처리.

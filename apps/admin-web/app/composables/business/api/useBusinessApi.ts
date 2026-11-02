@@ -15,9 +15,9 @@ import type {
  * 계약 `docs/features/business-contract.md`. 권한: 조회 `business.read`, 처리 `business.manage`, 평문 열람 `business.reveal`, 정지 해제 `business.unsuspend`(둘 다 SENSITIVE — B3).
  *  - `GET  /api/admin/businesses?status=&service=&q=&page=&size=` → `BusinessPage`(목록은 가린 값만)
  *  - `GET  /api/admin/businesses/{id}` → `BusinessDetail`
- *  - `POST /api/admin/businesses/{id}/nts-check` → `BusinessDetail`(국세청 상태조회 다시 — 결과 스냅샷 저장, B1)
- *  - `POST /api/admin/businesses/{id}/approve` `{ ntsOverrideReason? }` → 계속사업자만. 휴·폐업·없는 번호 409 `BUSINESS_NTS_NOT_ACTIVE`, 조회 전 409 `BUSINESS_NTS_NOT_CHECKED`,
- *    조회 불가 + 사유 없음 400 `fields.ntsOverrideReason`
+ *  - `POST /api/admin/businesses/{id}/nts-check` → `BusinessDetail`(국세청 다시 조회 — 개업일이 있으면 진위확인, 없으면 상태조회만 + `UNCHECKED`, 결과 스냅샷 저장)
+ *  - `POST /api/admin/businesses/{id}/approve` `{ ntsOverrideReason? }` → 계속사업자 + 진위 일치만. 휴·폐업·없는 번호 409 `BUSINESS_NTS_NOT_ACTIVE`, 진위 불일치 409 `BUSINESS_NTS_MISMATCH`,
+ *    조회 전 409 `BUSINESS_NTS_NOT_CHECKED`, 조회 불가·진위 미확인 + 사유 없음 400 `fields.ntsOverrideReason`
  *  - `POST /api/admin/businesses/{id}/reject` `{ code, text }`
  *  - `POST /api/admin/businesses/{id}/suspend` `{ code, text, pendingAction, scheduledAction, runningAction }`(H2)
  *  - `POST /api/admin/businesses/{id}/unsuspend` `{ restore, note? }`(`business.unsuspend`)
@@ -54,5 +54,11 @@ export function useBusinessApi() {
         reveal: (id: string, reason: string): Promise<BusinessReveal> => client.post<BusinessReveal>(PATH.action(id, 'reveal'), { reason }),
 
         certificate: (id: string): Promise<BusinessCertificateFile> => client.get<BusinessCertificateFile>(PATH.action(id, 'certificate')),
+
+        /**
+         * 사업자 삭제(`business.delete`) — `DELETE /api/admin/businesses/{id}` `{ reason }`(5~200자) → 204. 광고·핫딜 신청 건이 한 줄이라도 있으면(상태 무관) 409 `BUSINESS_HAS_DEALINGS`,
+         * 사유 400 `fields.reason`, 없으면 404 `BUSINESS_NOT_FOUND`. 신원·서비스 권한·국세청 기록·등록증 사본·처리 기록·열람 기록을 지우고 회원 계정은 남긴다(감사 `BUSINESS_DELETE`).
+         */
+        remove: (id: string, reason: string): Promise<void> => client.del<void>(PATH.one(id), undefined, { reason }),
     };
 }

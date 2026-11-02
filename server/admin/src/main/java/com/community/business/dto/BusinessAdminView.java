@@ -13,8 +13,12 @@ public final class BusinessAdminView {
     private BusinessAdminView() {
     }
 
-    /** 국세청 조회 — 한 번도 조회하지 않았으면 {@code UNAVAILABLE} + 안내 문구(승인은 409 {@code BUSINESS_NTS_NOT_CHECKED}) */
-    public record Nts(String status, Instant checkedAt, String taxType, LocalDate closedOn, String message) {
+    /**
+     * 국세청 조회 — 한 번도 조회하지 않았으면 {@code UNAVAILABLE} + 진위 {@code UNCHECKED} + 안내 문구(승인은 409 {@code BUSINESS_NTS_NOT_CHECKED}).
+     *
+     * @param validity 진위확인 — {@code MATCH}·{@code MISMATCH}(승인 잠금)·{@code UNCHECKED}(개업일 없는 옛 신청 — 사유를 적어 승인)·{@code UNAVAILABLE}(조회 불가 — 사유)
+     */
+    public record Nts(String status, String validity, Instant checkedAt, String taxType, LocalDate closedOn, String message) {
     }
 
     public record ServiceRow(String service, String status) {
@@ -52,9 +56,9 @@ public final class BusinessAdminView {
     public record History(Instant at, String action, String actor, String note) {
     }
 
-    /** 상세 — 목록 한 줄의 칸 + 가린 신원·사본·서비스 카드·영향 건수·사유·처리 기록 */
+    /** 상세 — 목록 한 줄의 칸 + 가린 신원·개업일(가리지 않는다 — 옛 신청이면 null)·사본·서비스 카드·영향 건수·사유·처리 기록 */
     public record Detail(String id, String name, String maskedRegNo, String status, boolean reReview, List<ServiceRow> services, Applicant applicant, Instant appliedAt,
-                         Nts nts, Masked masked, Certificate certificate, List<ServiceCard> serviceCards, Impact impact, Rejection rejection, Suspension suspension,
+                         Nts nts, Masked masked, LocalDate openedOn, Certificate certificate, List<ServiceCard> serviceCards, Impact impact, Rejection rejection, Suspension suspension,
                          List<History> history) {
     }
 

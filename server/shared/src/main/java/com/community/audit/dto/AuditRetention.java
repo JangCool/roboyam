@@ -127,9 +127,11 @@ public final class AuditRetention {
             AuditActions.GROUPBUY_QNA_HIDE, AuditActions.GROUPBUY_QNA_ANSWER_EDIT, AuditActions.GROUPBUY_REVIEW_HIDE, AuditActions.GROUPBUY_REVIEW_REPLY_EDIT,
             // 주소 검색 설정·주소 DB 적재(address-search-contract) — 일반 운영(표에 빠져 있던 것을 더함)
             AuditActions.ADDRESS_SEARCH_SETTINGS_UPDATE, AuditActions.ADDRESS_DB_IMPORT,
+            // 공공데이터포털 서비스 키 저장·지우기(business-contract) — 일반 운영(돈이 움직이지 않는 조회 키)
+            AuditActions.PUBLIC_DATA_SETTINGS_UPDATE, AuditActions.PUBLIC_DATA_SETTINGS_DELETE,
             // 사업자 신원 심사(business-contract) — 승인·반려·정지·해제·국세청 조회(표에 빠져 있던 것을 더함)
             AuditActions.BUSINESS_APPROVE, AuditActions.BUSINESS_REJECT, AuditActions.BUSINESS_SUSPEND, AuditActions.BUSINESS_UNSUSPEND, AuditActions.BUSINESS_NTS_CHECK,
-            AuditActions.BUSINESS_NTS_OVERRIDE,
+            AuditActions.BUSINESS_NTS_OVERRIDE, AuditActions.BUSINESS_DELETE,
             // 사업자 신청 건 반려·수동 전환·입금 기한 — 돈이 움직이지 않는 심사 일(biz-application-contract)
             AuditActions.BIZ_APP_REJECT, AuditActions.BIZ_APP_MANUAL_SWITCH, AuditActions.BIZ_APP_DEPOSIT_DEADLINE,
             // 광고 일정표 — 광고주 만들기·긴급 내림(돈은 되돌리기가 움직인다) · 노출 자리 설정

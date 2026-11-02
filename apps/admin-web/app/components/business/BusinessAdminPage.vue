@@ -87,7 +87,11 @@
                 </Column>
                 <Column :header="t('business.col.nts')" style="min-width: 8rem">
                     <template #body="{ data }">
-                        <Tag :value="t(`business.nts.${data.nts.status}`)" :severity="UtilBusiness.ntsSeverity(data.nts.status)" :icon="UtilBusiness.ntsIcon(data.nts.status)" />
+                        <div class="flex flex-wrap items-center gap-1">
+                            <Tag :value="t(`business.nts.${data.nts.status}`)" :severity="UtilBusiness.ntsSeverity(data.nts.status)" :icon="UtilBusiness.ntsIcon(data.nts.status)" />
+                            <!-- 진위확인은 일치가 아닐 때만 덧붙인다(표가 붐비지 않게) -->
+                            <Tag v-if="data.nts.validity !== 'MATCH'" :value="t(`business.ntsValidityShort.${data.nts.validity}`)" :severity="UtilBusiness.validitySeverity(data.nts.validity)" :icon="UtilBusiness.validityIcon(data.nts.validity)" />
+                        </div>
                     </template>
                 </Column>
             </DataTable>
@@ -104,6 +108,7 @@
             :can-manage="can('business.manage')"
             :can-reveal="can('business.reveal')"
             :can-unsuspend="can('business.unsuspend')"
+            :can-delete="can('business.delete')"
             :reveal="revealed"
             @retry="loadDetail"
             @approve="approve"
@@ -114,6 +119,19 @@
             @reveal="openDialog('reveal')"
             @hide="revealed = null"
             @open-cert="openCert"
+            @remove="openDialog('remove')"
+        />
+        <BizReasonDialog
+            v-if="drawerDetail"
+            v-model:visible="dialogs.remove"
+            :title="t('business.deleteTitle', { name: drawerDetail.name })"
+            :description="t('business.deleteBody')"
+            :confirm-label="t('business.actDelete')"
+            tone="danger"
+            :busy="working === 'remove'"
+            :error="dialogError"
+            :field-error="dialogFields.reason ?? ''"
+            @submit="submitRemove"
         />
 
         <BizRejectDialog
@@ -140,8 +158,8 @@
         />
         <BizReasonDialog
             v-model:visible="dialogs.approveOverride"
-            :title="t('business.approveOverrideTitle')"
-            :description="t('business.approveOverrideBody')"
+            :title="overrideUnchecked ? t('business.approveUncheckedTitle') : t('business.approveOverrideTitle')"
+            :description="overrideUnchecked ? t('business.approveUncheckedBody') : t('business.approveOverrideBody')"
             :confirm-label="t('business.actApprove')"
             :busy="working === 'approve'"
             :error="dialogError"
@@ -177,7 +195,7 @@ import type {
 import { BUSINESS_REJECT_CODES, BUSINESS_SERVICES } from '~/composables/business/api/useBusinessApi.types';
 import UtilBusiness from '~/utils/util-business';
 
-type Work = 'approve' | 'reject' | 'suspend' | 'unsuspend' | 'reveal' | 'recheck' | 'cert';
+type Work = 'approve' | 'reject' | 'suspend' | 'unsuspend' | 'reveal' | 'recheck' | 'cert' | 'remove';
 
 interface Props {
     /** 인증 심사(`review`) · 사업자 목록(`directory`) — 탭 집합·기본 정렬·서랍 아래 단추가 갈린다 */
@@ -283,6 +301,8 @@ const drawerOpen = ref(false);
 const drawerId = ref<string | null>(null);
 const drawerSummary = ref<BusinessRow | null>(null);
 const drawerDetail = ref<BusinessDetail | null>(null);
+/** 사유 승인 창이 「진위 미확인(개업일 없는 옛 신청)」 때문인가 — 아니면 조회 불가 */
+const overrideUnchecked = computed(() => (drawerDetail.value ? UtilBusiness.ntsRule(drawerDetail.value.nts) === 'NEEDS_REASON_UNCHECKED' : false));
 const drawerLoading = ref(false);
 const drawerError = ref<ApiError | null>(null);
 /** 지금 보이는 평문 — 서랍 대상이 바뀌거나 닫히면 지운다 */
@@ -345,7 +365,7 @@ watch(drawerOpen, (open) => {
 const working = ref<Work | null>(null);
 const dialogError = ref('');
 const dialogFields = ref<Record<string, string>>({});
-const dialogs = reactive({ reject: false, suspend: false, unsuspend: false, reveal: false, approveOverride: false });
+const dialogs = reactive({ reject: false, suspend: false, unsuspend: false, reveal: false, approveOverride: false, remove: false });
 
 function openDialog(name: keyof typeof dialogs): void {
     dialogError.value = '';
@@ -380,7 +400,7 @@ async function run(work: Work, call: () => Promise<BusinessDetail>, done: string
 async function approve(): Promise<void> {
     const d = drawerDetail.value;
     if (!d) return;
-    const rule = UtilBusiness.approvability(d.nts.status);
+    const rule = UtilBusiness.approvability(d.nts);
     if (rule === 'LOCKED') return;
     if (rule === 'NEEDS_REASON') {
         openDialog('approveOverride');
@@ -414,6 +434,28 @@ async function submitUnsuspend(body: BusinessUnsuspendRequest): Promise<void> {
 async function recheck(): Promise<void> {
     const d = drawerDetail.value;
     if (d) await run('recheck', () => api.recheckNts(d.id), t('business.ntsRechecked'));
+}
+
+/** 사업자 삭제 — 성공하면 서랍을 닫고 목록을 새로. 거래가 있으면 409 `BUSINESS_HAS_DEALINGS`(창 안에 문구) */
+async function submitRemove(reason: string): Promise<void> {
+    const d = drawerDetail.value;
+    if (!d) return;
+    working.value = 'remove';
+    dialogError.value = '';
+    dialogFields.value = {};
+    try {
+        await api.remove(d.id, reason);
+        dialogs.remove = false;
+        drawerOpen.value = false;
+        toast.success(t('business.deleted', { name: d.name }));
+        void reload();
+    } catch (e) {
+        const failure = toApiError(e);
+        if (failure.code === 'VALIDATION' && failure.fields) dialogFields.value = failure.fields;
+        else dialogError.value = failure.message;
+    } finally {
+        working.value = null;
+    }
 }
 
 async function submitReveal(reason: string): Promise<void> {

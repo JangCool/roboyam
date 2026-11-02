@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalDate;
 import org.hibernate.annotations.DynamicUpdate;
 
 /**
@@ -22,7 +23,8 @@ public class BusinessProfileEntity {
 
     /** 신청서의 신원 칸(암호문·해시까지 만든 값) — 신청·재신청·수정이 같은 모양을 넘긴다 */
     public record Identity(String companyName, String bizNoEnc, String bizNoHash, String bizNoLast4, String ownerNameEnc, String phoneEnc, String emailEnc,
-                           String postcode, String address1Enc, String address2Enc, long certificateId, String termsVersion, String privacyVersion) {
+                           String postcode, String address1Enc, String address2Enc, long certificateId, String termsVersion, String privacyVersion,
+                           LocalDate openedOn) {
     }
 
     @Id
@@ -47,6 +49,8 @@ public class BusinessProfileEntity {
     private Long certificateId;
     private String termsVersion;
     private String privacyVersion;
+    /** 개업일(V125 — 진위확인에 쓴다). 개업일 칸이 생기기 전 신청은 null(진위 미확인) */
+    private LocalDate openedOn;
     private Instant agreedAt;
     private Instant submittedAt;
     private Instant reviewedAt;
@@ -215,6 +219,7 @@ public class BusinessProfileEntity {
         this.certificateId = identity.certificateId();
         this.termsVersion = identity.termsVersion();
         this.privacyVersion = identity.privacyVersion();
+        this.openedOn = identity.openedOn();
         this.agreedAt = now;
     }
 
@@ -290,6 +295,10 @@ public class BusinessProfileEntity {
 
     public String getPrivacyVersion() {
         return privacyVersion;
+    }
+
+    public LocalDate getOpenedOn() {
+        return openedOn;
     }
 
     public Instant getSubmittedAt() {

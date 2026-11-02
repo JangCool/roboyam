@@ -1,6 +1,7 @@
 package com.community.business.repository.master;
 
 import com.community.business.entity.NtsBizStatus;
+import com.community.business.entity.NtsValidity;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -45,8 +46,9 @@ public class BusinessStore {
                               Instant erasedAt) {
     }
 
-    /** 국세청 조회 한 줄 */
-    public record NtsRow(long id, long profileId, NtsBizStatus status, String taxType, LocalDate closedOn, String message, Instant checkedAt, Long checkedBy) {
+    /** 국세청 조회 한 줄 — 상태 + 진위(V125, 그 전 줄은 UNCHECKED) */
+    public record NtsRow(long id, long profileId, NtsBizStatus status, String taxType, LocalDate closedOn, String message, Instant checkedAt, Long checkedBy,
+                         NtsValidity validity) {
     }
 
     /** 처리 기록 한 줄 — 이름은 운영자 이름 또는 회원 닉네임(지워졌으면 null) */
@@ -98,9 +100,11 @@ public class BusinessStore {
 
     // ── 국세청 조회 ─────────────────────────────────────────────────────────
 
-    public void insertNtsCheck(long id, long profileId, NtsBizStatus status, String taxType, LocalDate closedOn, String message, Instant checkedAt, Long checkedBy) {
-        jdbc.update("INSERT INTO business_nts_checks (id, profile_id, status, tax_type, closed_on, message, checked_at, checked_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                id, profileId, status.name(), taxType, closedOn == null ? null : Date.valueOf(closedOn), message, Timestamp.from(checkedAt), checkedBy);
+    public void insertNtsCheck(long id, long profileId, NtsBizStatus status, NtsValidity validity, String taxType, LocalDate closedOn, String message, Instant checkedAt,
+                               Long checkedBy) {
+        jdbc.update("INSERT INTO business_nts_checks (id, profile_id, status, validity, tax_type, closed_on, message, checked_at, checked_by) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", id, profileId, status.name(), validity.name(), taxType, closedOn == null ? null : Date.valueOf(closedOn), message,
+                Timestamp.from(checkedAt), checkedBy);
     }
 
     public Optional<NtsRow> latestNtsCheck(long profileId) {
@@ -159,13 +163,42 @@ public class BusinessStore {
         return n == null ? 0 : n;
     }
 
+    // ── 삭제(business-contract 「사업자 삭제」) ────────────────────────────────
+
+    /**
+     * 그 신원에 광고·핫딜 신청 건이 한 줄이라도 있는가(상태 무관 — 취소·반려·완료 포함). 결제 주문(BIZ_APPLICATION)·입금·환불·처리 기록은 모두 신청 건에 매달려 있다
+     * — 신청 건이 거래의 원천이다. 있으면 지우지 않는다(거래 기록 5년 보관).
+     */
+    public boolean hasDealings(long profileId) {
+        Boolean exists = jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM biz_applications WHERE business_profile_id = ?)", Boolean.class, profileId);
+        return Boolean.TRUE.equals(exists);
+    }
+
+    /**
+     * 신원 줄과 딸린 사업자 표의 줄을 모두 지운다(외래키 차례) — 신원이 가리키는 등록증 끊기 → 등록증 사본(암호문) · 국세청 스냅샷 · 서비스 줄 · 처리 기록 · 열람 기록 →
+     * 연결된 광고주의 사업자 연결 끊기(광고주는 계정 없는 광고주로 남는다) → 신원 줄. 회원 계정·회원 알림·회원이 아직 붙이지 않은 사본은 건드리지 않는다.
+     * 호출하는 쪽이 신원 줄을 잠그고 같은 트랜잭션에서 부른다.
+     *
+     * @return 지운 신원 줄 수(0 이면 그 사이 없어졌다)
+     */
+    public int deleteProfile(long profileId) {
+        jdbc.update("UPDATE business_profiles SET certificate_id = NULL WHERE id = ?", profileId);
+        jdbc.update("DELETE FROM business_documents WHERE profile_id = ?", profileId);
+        jdbc.update("DELETE FROM business_nts_checks WHERE profile_id = ?", profileId);
+        jdbc.update("DELETE FROM business_services WHERE profile_id = ?", profileId);
+        jdbc.update("DELETE FROM business_history WHERE profile_id = ?", profileId);
+        jdbc.update("DELETE FROM business_sensitive_views WHERE profile_id = ?", profileId);
+        jdbc.update("UPDATE ad_advertisers SET business_profile_id = NULL WHERE business_profile_id = ?", profileId);
+        return jdbc.update("DELETE FROM business_profiles WHERE id = ?", profileId);
+    }
+
     // ── 안 ──────────────────────────────────────────────────────────────────
 
     private static NtsRow nts(java.sql.ResultSet rs) throws java.sql.SQLException {
         Date closed = rs.getDate("closed_on");
         return new NtsRow(rs.getLong("id"), rs.getLong("profile_id"), NtsBizStatus.valueOf(rs.getString("status")), rs.getString("tax_type"),
                 closed == null ? null : closed.toLocalDate(), rs.getString("message"), instant(rs.getTimestamp("checked_at")),
-                (Long) rs.getObject("checked_by", Long.class));
+                (Long) rs.getObject("checked_by", Long.class), NtsValidity.valueOf(rs.getString("validity")));
     }
 
     private static Instant instant(Timestamp ts) {
