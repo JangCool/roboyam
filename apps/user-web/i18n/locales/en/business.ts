@@ -405,6 +405,8 @@ export default {
         stageLabel: 'Progress',
         stageCurrent: 'Current step',
         stageStopped: 'Stopped here',
+        stagePaused: 'Paused',
+        stageAdvertiserStopped: 'Stopped at your request',
         stage: {
             SUBMIT: 'Request',
             REVIEW: 'Review',

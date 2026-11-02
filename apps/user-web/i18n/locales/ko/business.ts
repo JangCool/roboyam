@@ -406,6 +406,8 @@ export default {
         stageLabel: '진행 단계',
         stageCurrent: '지금 단계',
         stageStopped: '여기서 멈춤',
+        stagePaused: '일시 정지 중',
+        stageAdvertiserStopped: '광고주 요청으로 중단',
         stage: {
             SUBMIT: '신청',
             REVIEW: '심사',
