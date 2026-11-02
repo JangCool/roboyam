@@ -299,7 +299,7 @@ const toast = useAppToast();
 const time = useDisplayTime();
 
 const profile = ref<BusinessProfile | null>(null);
-/** 신원은 승인인데 핫딜 서비스만 정지 — 막힘 안내(⚠ 서버 후보 `services[]`, 지금 목업 `?mock=svc-suspend-hotdeal`) */
+/** 신원은 승인인데 핫딜 서비스만 정지 — 막힘 안내(`services[]`, 서버는 409 `BUSINESS_SERVICE_SUSPENDED`) */
 const serviceSuspension = computed(() => (profile.value ? UtilBusiness.serviceSuspension(profile.value, 'HOTDEAL') : null));
 const dealProduct = ref<DealProduct | null>(null);
 const status = ref<'loading' | 'ready' | 'error'>('loading');
@@ -371,6 +371,15 @@ onMounted(async () => {
         stopFeeRate.value = null;
     }
 });
+
+/** 신원만 다시 읽는다(서비스 정지 409 뒤) — 못 읽으면 지금 화면을 그대로 둔다(서버 문구가 이미 폼 오류로 보인다) */
+async function reloadProfile(): Promise<void> {
+    try {
+        profile.value = await api.profile();
+    } catch {
+        // 그대로 둔다
+    }
+}
 
 async function reloadDealProduct(): Promise<void> {
     try {
@@ -613,6 +622,8 @@ async function submit(): Promise<void> {
         }
         // 받기가 꺼졌으면(409 BIZ_PRODUCT_CLOSED) 요금을 다시 읽는다 — 글 게시가 닫혔으면 폼 대신 「준비 중」 안내, 노출 자리만 닫혔으면 노출 단계로
         if (e instanceof ApiError && e.code === 'BIZ_PRODUCT_CLOSED') await reloadDealProduct();
+        // 그새 핫딜 서비스가 정지됐다(409 BUSINESS_SERVICE_SUSPENDED) — 신원을 다시 읽어 폼 대신 막힘 안내(사유)를 보인다
+        if (e instanceof ApiError && e.code === 'BUSINESS_SERVICE_SUSPENDED') await reloadProfile();
     } finally {
         submitBusy.value = false;
     }

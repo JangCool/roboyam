@@ -75,13 +75,15 @@ export default class UtilBusiness {
     }
 
     /**
-     * 신원은 승인인데 그 서비스만 정지된 줄(2026-11-02 서비스별 정지 — ⚠ 서버 후보 `services[]`). 신원이 승인이 아니면 빈 목록(신원 상태가 우선).
+     * 신원은 승인인데 그 서비스만 정지된 줄(2026-11-02 서비스별 정지 — `GET /api/business/me` 의 `services[]`). 신원이 승인이 아니면 빈 목록(신원 상태가 우선).
+     * 신원 정지를 따라간 줄은 신원이 승인이 아니라 여기서 걸러진다. 서버 순서에 기대지 않고 핫딜·광고 차례로 놓는다.
      * @param {Pick<BusinessProfile, 'status' | 'services'>} profile - 내 사업자 신원.
      * @returns {BusinessProfileService[]} 서비스만 정지된 줄(핫딜·광고 차례).
      */
     static suspendedServices(profile: Pick<BusinessProfile, 'status' | 'services'>): BusinessProfileService[] {
         if (profile.status !== 'APPROVED') return [];
-        return (profile.services ?? []).filter((s) => s.status === 'SUSPENDED');
+        const order: BusinessServiceKind[] = ['HOTDEAL', 'AD'];
+        return profile.services.filter((s) => s.status === 'SUSPENDED').sort((a, b) => order.indexOf(a.service) - order.indexOf(b.service));
     }
 
     /** 그 서비스만 정지됐나 — 광고·핫딜 신청 화면의 막힘 안내 */

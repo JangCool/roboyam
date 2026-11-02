@@ -4,7 +4,7 @@
         미신청 = 안내 + [사업자 신청] · 심사 중 = 확인 중 안내 + 가린 요약 · 반려 = 사유 + [다시 신청] · 정지 = 사유 + 문의 안내 ·
         승인 = (재심사 중이면 안내) + 할 일 카드(결제 대기 — 기한·[결제하기], 입금 확인 대기) + 서비스 카드(광고·핫딜) + 사업자 정보 요약 + 최근 신청 건.
         사업자 신원은 서버(`GET /api/business/me`), 신청 건 목록은 아직 목업(`useBusinessApi` — 신청 건 백엔드에서 붙인다).
-        승인인데 한 서비스만 정지면(2026-11-02 — ⚠ 서버 후보 `services[]`, 지금 목업 `?mock=svc-suspend-hotdeal`·`svc-suspend-ad`) 그 서비스 안내 + 사유, 그 서비스 카드 [신청하기] 잠금.
+        승인인데 한 서비스만 정지면(2026-11-02 — `services[]`) 그 서비스 안내 + 사유, 그 서비스 카드 [신청하기] 잠금.
     -->
     <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="business-home">
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -267,7 +267,7 @@ const awaitingPayment = computed(() =>
 const awaitingDeposit = computed(() => apps.value.filter((a) => a.status === 'AWAITING_DEPOSIT'));
 const recent = computed(() => apps.value.slice(0, 5));
 
-/** 신원은 승인인데 서비스만 정지된 줄(⚠ 서버 후보 `services[]` — 지금 목업 `?mock=svc-suspend-hotdeal`·`svc-suspend-ad`) */
+/** 신원은 승인인데 서비스만 정지된 줄(`GET /api/business/me` 의 `services[]`) */
 const suspendedServices = computed(() => (profile.value ? UtilBusiness.suspendedServices(profile.value) : []));
 const isSuspended = (service: BusinessServiceKind) => suspendedServices.value.some((s) => s.service === service);
 
