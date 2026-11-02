@@ -1,6 +1,7 @@
 <template>
     <!--
         광고주 상세 서랍 — 광고주 관리(`/ad-advertisers`)에서 줄을 누르면 연다(`?id=`).
+        머리는 이름·종류·상태만 — 본문 맨 위 요약 영역(`AdDrawerSummary`, 탭 위 고정)에 ID·등록번호·등록일·누적 결제·최근 광고일과 「사업자 목록에서 열기」·「광고 성과에서 자세히」.
         탭: 기본(사업자 연결 · 연락처 가린 값 + [연락처 보기] · 광고 건 수 · 메모) · 광고 건(→ 일정표 서랍 `/ads?type=&id=`) · 성과(최근 30일 — 광고 성과 화면과 같은 차트, 「광고 성과에서 자세히」) · 결제(결제·환불 합계) · 기록(연락처 열람 기록 · 처리 기록).
         [연락처 보기](`ad.contact.reveal`) → 부모가 사유 대화상자를 열고 서버가 열람을 기록한다. 평문은 10분 카운트다운과 함께 보이고 끝나면 저절로 가린다(사업자 신원 평문 보기와 같은 모양).
         사업자 광고주는 이름·등록번호가 사업자 정보에서 오고(고칠 수 없음) 보관·삭제가 없다 — 사업자 화면의 정지·탈퇴를 따른다(「사업자 목록에서 열기」).
@@ -14,18 +15,6 @@
                     <Tag :value="t(`adAdvertiser.kind.${head.kind}`)" severity="secondary" />
                     <Tag :value="t(`adAdvertiser.badge.${badge}`)" :severity="UtilAdAdvertiser.badgeSeverity(badge!)" />
                 </div>
-                <span class="truncate text-[12px] text-muted-color">
-                    <code class="text-[11px]">{{ head.id }}</code>
-                    <template v-if="head.business"> · {{ head.business.maskedRegNo }}</template>
-                    · {{ t('adAdvertiser.createdOn', { date: time.serviceDate(UtilBizApplication.kstDate(head.createdAt)) }) }}
-                </span>
-                <span class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] tabular-nums">
-                    <span>{{ t('adAdvertiser.col.paid') }} <span :class="EMPH.money">{{ won(head.paidTotal) }}</span></span>
-                    <span>{{ t('adAdvertiser.col.lastAd') }} <span v-if="head.lastAdAt" :class="EMPH.date">{{ time.serviceDate(UtilBizApplication.kstDate(head.lastAdAt)) }}</span><span v-else class="text-muted-color">{{ t('adAdvertiser.noAdYet') }}</span></span>
-                </span>
-                <NuxtLink v-if="head.business" :to="{ path: '/businesses', query: { id: head.business.id } }" class="inline-flex w-fit items-center gap-1 text-[12px] font-medium text-(--p-primary-color) hover:underline">
-                    <i class="pi pi-external-link text-[11px]" aria-hidden="true" />{{ t('adAdvertiser.openBusiness') }}
-                </NuxtLink>
             </div>
         </template>
 
@@ -35,6 +24,18 @@
         </div>
 
         <template v-else>
+            <!-- 요약 — 탭 위에 고정(어느 탭에서나 보인다) -->
+            <AdDrawerSummary :label="t('adAdvertiser.summary')" :items="summaryItems">
+                <template #links>
+                    <NuxtLink v-if="detail.business" :to="{ path: '/businesses', query: { id: detail.business.id } }" class="inline-flex items-center gap-1 font-medium text-(--p-primary-color) hover:underline">
+                        <i class="pi pi-external-link text-[11px]" aria-hidden="true" />{{ t('adAdvertiser.openBusiness') }}
+                    </NuxtLink>
+                    <NuxtLink :to="UtilAdAdvertiser.performanceLink(detail.id, statsRange)" class="inline-flex items-center gap-1 font-medium text-(--p-primary-color) hover:underline">
+                        <i class="pi pi-chart-bar text-[11px]" aria-hidden="true" />{{ t('adAdvertiser.openPerformance') }}
+                    </NuxtLink>
+                </template>
+            </AdDrawerSummary>
+
             <Message v-if="detail.state === 'ARCHIVED'" severity="secondary" :closable="false" class="mb-3"><span class="text-[13px]">{{ t('adAdvertiser.archivedNote') }}</span></Message>
             <Message v-else-if="businessNote" :severity="badge === 'BIZ_SUSPENDED' ? 'error' : 'warn'" :closable="false" class="mb-3"><span class="text-[13px]">{{ businessNote }}</span></Message>
 
@@ -130,12 +131,7 @@
                     <TabPanel value="stats">
                         <ErrorState v-if="statsError" :title="t('ad.statLoadFailed')" :description="statsError.message" :retry="true" :retrying="statsLoading" @retry="emit('stats-retry')" />
                         <div v-else class="flex flex-col gap-3">
-                            <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-color">
-                                <span class="tabular-nums">{{ t('adAdvertiser.statsRange', { from: time.serviceDate(statsRange.from), to: time.serviceDate(statsRange.to), n: UtilAdAdvertiser.STATS_DAYS }) }}</span>
-                                <NuxtLink :to="UtilAdAdvertiser.performanceLink(detail.id, statsRange)" class="inline-flex items-center gap-1 font-medium text-(--p-primary-color) hover:underline">
-                                    {{ t('adAdvertiser.openPerformance') }}<i class="pi pi-arrow-right text-[10px]" aria-hidden="true" />
-                                </NuxtLink>
-                            </div>
+                            <p class="m-0 text-xs tabular-nums text-muted-color">{{ t('adAdvertiser.statsRange', { from: time.serviceDate(statsRange.from), to: time.serviceDate(statsRange.to), n: UtilAdAdvertiser.STATS_DAYS }) }}</p>
                             <AdStatsTotals :counts="stats?.totals ?? null" :bookings="stats?.totals.bookings ?? 0" />
                             <div v-if="statsLoading || !stats" class="h-56 rounded-xl bg-(--p-content-hover-background)" role="status" :aria-label="t('common.loading')" />
                             <template v-else-if="stats.totals.impressions === 0">
@@ -229,6 +225,7 @@
 </template>
 
 <script setup lang="ts">
+import type { AdDrawerSummaryItem } from '~/components/ad/AdDrawerSummary.types';
 import type { AdAdvertiserDetail, AdAdvertiserRow } from '~/composables/ad/api/useAdAdvertiserApi.types';
 import type { AdAdvertiserRevealed, AdStatRange, AdStatsOverview } from '~/composables/ad/api/useAdApi.types';
 import type { ApiError } from '~/composables/common/useApiClient';
@@ -287,6 +284,20 @@ const BOOKINGS_CAP = 50;
 
 const head =computed(() => props.detail ?? props.summary);
 const badge = computed(() => (head.value ? UtilAdAdvertiser.badge(head.value) : null));
+
+/** 요약 영역 — ID · 등록번호(사업자) · 등록일 · 누적 결제 · 최근 광고일 */
+const summaryItems = computed<AdDrawerSummaryItem[]>(() => {
+    const d = props.detail;
+    if (!d) return [];
+    const ymd = (iso: string) => time.value.serviceDate(UtilBizApplication.kstDate(iso));
+    return [
+        { key: 'id', label: t('adAdvertiser.sumId'), value: d.id, code: true, title: d.id },
+        ...(d.business ? [{ key: 'regNo', label: t('business.regNo'), value: d.business.maskedRegNo }] : []),
+        { key: 'created', label: t('adAdvertiser.sumCreated'), value: ymd(d.createdAt) },
+        { key: 'paid', label: t('adAdvertiser.col.paid'), value: won(d.paidTotal), valueClass: d.paidTotal ? EMPH.money : 'text-muted-color' },
+        { key: 'lastAd', label: t('adAdvertiser.col.lastAd'), value: d.lastAdAt ? ymd(d.lastAdAt) : t('adAdvertiser.noAdYet'), valueClass: d.lastAdAt ? EMPH.date : 'text-muted-color' },
+    ];
+});
 
 /** 사업자 상태 때문에 새 광고가 막힌 경우 한 줄 */
 const businessNote = computed(() => {

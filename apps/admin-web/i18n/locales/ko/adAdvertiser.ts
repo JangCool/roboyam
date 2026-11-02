@@ -34,7 +34,9 @@ export default {
     },
     // 서랍
     detailLoadFailed: '광고주 정보를 불러오지 못했어요.',
-    createdOn: '{date} 등록',
+    summary: '광고주 요약',
+    sumId: '광고주 ID',
+    sumCreated: '등록일',
     openBusiness: '사업자 목록에서 열기',
     archivedNote: '보관된 광고주예요. 운영자 광고 등록의 광고주 찾기에 나오지 않아요. 지난 광고 건·성과·기록은 그대로 남아요.',
     noteBizSuspended: '사업자가 정지되어 새 광고를 받을 수 없어요. 진행 중이던 건은 내려졌어요.',

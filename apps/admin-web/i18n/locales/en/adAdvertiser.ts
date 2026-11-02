@@ -34,7 +34,9 @@ export default {
     },
     // Drawer
     detailLoadFailed: "Couldn't load the advertiser.",
-    createdOn: 'Added {date}',
+    summary: 'Advertiser summary',
+    sumId: 'Advertiser ID',
+    sumCreated: 'Added',
     openBusiness: 'Open in businesses',
     archivedNote: "This advertiser is archived. It won't appear in the advertiser search when operators register ads. Past bookings, performance and records stay.",
     noteBizSuspended: "The business is suspended and can't take new ads. Live bookings were taken down.",
