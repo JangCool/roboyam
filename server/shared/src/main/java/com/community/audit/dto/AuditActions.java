@@ -379,6 +379,10 @@ public final class AuditActions {
     public static final String BUSINESS_SUSPEND = "BUSINESS_SUSPEND";
     /** 사업자 정지 해제 — {@code restore}(진행 중이던 건 처리)·{@code note}. 민감 */
     public static final String BUSINESS_UNSUSPEND = "BUSINESS_UNSUSPEND";
+    /** 사업자 서비스만 정지(대상 BUSINESS · 신원 ID — 2026-11-02) — {@code service}·{@code code}·{@code text}·{@code pendingAction}·{@code scheduledAction}·{@code runningAction}. 민감 */
+    public static final String BUSINESS_SERVICE_SUSPEND = "BUSINESS_SERVICE_SUSPEND";
+    /** 사업자 서비스만 정지 해제(대상 BUSINESS · 신원 ID) — {@code service}·{@code restore}·{@code note}. 민감 */
+    public static final String BUSINESS_SERVICE_RESUME = "BUSINESS_SERVICE_RESUME";
     /** 사업자 신원 평문 열람(B3) — {@code reason}. 개인정보 열람 */
     public static final String BUSINESS_REVEAL = "BUSINESS_REVEAL";
     /** 사업자등록증 사본 열람(B2). 개인정보 열람 */

@@ -17,6 +17,8 @@ import com.community.bizapplication.repository.master.BizRefundStore.RefundRow;
 import com.community.bizapplication.service.BizTransitions.Action;
 import com.community.business.dto.BusinessSuspendPlan;
 import com.community.business.entity.BusinessServiceKind;
+import com.community.business.entity.BusinessServiceEntity;
+import com.community.business.repository.master.BusinessServiceRepository;
 import com.community.business.service.BusinessApplicationHook;
 import java.time.Duration;
 import java.time.Instant;
@@ -24,6 +26,8 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 /**
@@ -34,6 +38,7 @@ import org.springframework.stereotype.Component;
  *       {@code HOLD} 내림(SUSPENDED) · 진행 중 {@code TAKEDOWN_PRORATE} 내림 + 일할 환불 심사 대기 / {@code TAKEDOWN_ONLY} 내림.</li>
  *   <li>해제: 정지로 내린 건 — {@code EXTEND_RESTORE} 내린 시간만큼 끝을 늘려(자리 잠금·판정, 꽉 차면 늘리지 않고 되돌리고 기록) 예약으로, 정지로 생긴 심사 대기 환불은 거절(「해제로 되돌림」)
  *       / {@code KEEP_REFUND} 심사 대기 환불이 있는 건은 그대로(운영자가 환불 심사), 환불이 없는 건(시작 전 보류·내림만)은 늘리지 않고 되돌린다(가정 — 그대로 두면 되돌릴 길이 없다).</li>
+ *   <li>서비스만 정지·해제(2026-11-02): 위 정지·해제와 같은 처리를 그 서비스(광고·핫딜) 건에만. 신원 해제는 서비스만 정지된 서비스의 건을 되돌리지 않는다.</li>
  *   <li>탈퇴: 진행 중(내림 포함, 끝나지 않은) 건이 있으면 막는다. 탈퇴 처리 — 결제 전 건 취소, 시작 전 전액 환불, {@code forfeitRunning} 이면 진행 중 건 취소(환불 없음, 처리 기록 FORFEITED).</li>
  * </ul>
  */
@@ -48,21 +53,35 @@ public class BizApplicationHookImpl implements BusinessApplicationHook {
     private final BizRefundStore refunds;
     private final BizSlotService slots;
     private final BizApplicationOps ops;
+    private final BusinessServiceRepository services;
 
-    public BizApplicationHookImpl(BizApplicationStore store, BizRefundStore refunds, BizSlotService slots, BizApplicationOps ops) {
+    public BizApplicationHookImpl(BizApplicationStore store, BizRefundStore refunds, BizSlotService slots, BizApplicationOps ops, BusinessServiceRepository services) {
         this.store = store;
         this.refunds = refunds;
         this.slots = slots;
         this.ops = ops;
+        this.services = services;
     }
 
     @Override
     public SuspendImpact impact(long profileId) {
+        return impact(profileId, a -> true);
+    }
+
+    @Override
+    public SuspendImpact impact(long profileId, BusinessServiceKind service) {
+        return impact(profileId, a -> a.kind().service() == service);
+    }
+
+    private SuspendImpact impact(long profileId, Predicate<AppRow> scope) {
         Instant now = ops.now();
-        int pending = store.byProfile(profileId, PENDING).size();
+        int pending = (int) store.byProfile(profileId, PENDING).stream().filter(scope).count();
         int scheduled = 0;
         int running = 0;
         for (AppRow app : store.byProfile(profileId, EnumSet.of(BizApplicationStatus.SCHEDULED))) {
+            if (!scope.test(app)) {
+                continue;
+            }
             switch (BizPhase.of(app.startAt(), app.endAt(), now)) {
                 case UPCOMING -> scheduled++;
                 case RUNNING -> running++;
@@ -83,9 +102,22 @@ public class BizApplicationHookImpl implements BusinessApplicationHook {
 
     @Override
     public void onSuspended(long profileId, BusinessSuspendPlan plan, long operatorId) {
+        suspend(profileId, a -> true, plan, operatorId);
+    }
+
+    @Override
+    public void onServiceSuspended(long profileId, BusinessServiceKind service, BusinessSuspendPlan plan, long operatorId) {
+        suspend(profileId, a -> a.kind().service() == service, plan, operatorId);
+    }
+
+    /** 정지 처리 — {@code scope} 안의 건만(신원 정지 = 모두 · 서비스만 정지 = 그 서비스 건) */
+    private void suspend(long profileId, Predicate<AppRow> scope, BusinessSuspendPlan plan, long operatorId) {
         Instant now = ops.now();
         if (plan.pending() == BusinessSuspendPlan.Pending.CANCEL) {
             for (AppRow seen : store.byProfile(profileId, PENDING)) {
+                if (!scope.test(seen)) {
+                    continue;
+                }
                 AppRow app = ops.closePaymentsThenLock(seen.id(), null, "BIZ_SUSPENDED");
                 if (PENDING.contains(app.status())) {
                     ops.cancelBeforePayment(app, Action.SYSTEM_CANCEL, BizActorType.OPERATOR, operatorId, "SUSPENDED", now);
@@ -94,6 +126,9 @@ public class BizApplicationHookImpl implements BusinessApplicationHook {
             }
         }
         for (AppRow seen : store.byProfile(profileId, EnumSet.of(BizApplicationStatus.SCHEDULED))) {
+            if (!scope.test(seen)) {
+                continue;
+            }
             AppRow app = store.lock(seen.id()).orElseThrow();
             if (app.status() != BizApplicationStatus.SCHEDULED) {
                 continue;
@@ -133,8 +168,24 @@ public class BizApplicationHookImpl implements BusinessApplicationHook {
 
     @Override
     public void onUnsuspended(long profileId, BusinessSuspendPlan.Restore restore, long operatorId) {
+        // 서비스만 정지된 서비스의 건은 그대로 — 그 서비스 해제가 되돌린다(business-contract 2026-11-02)
+        Set<BusinessServiceKind> alone = services.findByProfileId(profileId).stream().filter(BusinessServiceEntity::suspendedAlone)
+                .map(BusinessServiceEntity::getService).collect(Collectors.toSet());
+        restore(profileId, a -> !alone.contains(a.kind().service()), restore, operatorId);
+    }
+
+    @Override
+    public void onServiceResumed(long profileId, BusinessServiceKind service, BusinessSuspendPlan.Restore restore, long operatorId) {
+        restore(profileId, a -> a.kind().service() == service, restore, operatorId);
+    }
+
+    /** 해제 처리 — 정지로 내린 건 중 {@code scope} 안의 것만 */
+    private void restore(long profileId, Predicate<AppRow> scope, BusinessSuspendPlan.Restore restore, long operatorId) {
         Instant now = ops.now();
         for (AppRow seen : store.byProfile(profileId, EnumSet.of(BizApplicationStatus.TAKEN_DOWN))) {
+            if (!scope.test(seen)) {
+                continue;
+            }
             AppRow app = store.lock(seen.id()).orElseThrow();
             if (app.status() != BizApplicationStatus.TAKEN_DOWN || app.takedownCause() != BizTakedownCause.SUSPENDED) {
                 continue;

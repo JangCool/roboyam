@@ -12,7 +12,8 @@ import java.util.Set;
 import org.springframework.stereotype.Component;
 
 /**
- * 서비스별 이용 권한 줄 맞추기 — 지금은 신원 처리를 따라간다(신청 = 심사 중 · 승인 · 반려 · 정지 · 해제 = 승인 · 탈퇴 = 닫힘). 서비스별 따로 켜고 끄기는 후속.
+ * 서비스별 이용 권한 줄 맞추기 — 신원 처리를 따라간다(신청 = 심사 중 · 승인 · 반려 · 정지 · 해제 = 승인 · 탈퇴 = 닫힘). 단 「서비스만 정지」된 줄은 반려·닫힘 말고는
+ * 건드리지 않는다(서비스 정지·해제는 {@code BusinessAdminService} 가 줄 하나만 바꾼다 — 2026-11-02).
  * 신원 처리 트랜잭션 안에서 부른다.
  */
 @Component
@@ -38,6 +39,9 @@ public class BusinessServiceRows {
         EnumSet<BusinessServiceKind> missing = EnumSet.allOf(BusinessServiceKind.class);
         for (BusinessServiceEntity row : rows) {
             missing.remove(row.getService());
+            if (row.suspendedAlone() && target != BusinessServiceStatus.REJECTED && target != BusinessServiceStatus.OFF) {
+                continue; // 서비스만 정지된 줄 — 신원 정지·해제·재승인이 건드리지 않는다(서비스 해제가 따로 한다, business-contract 2026-11-02)
+            }
             if (from.contains(row.getStatus())) {
                 row.moveTo(target, operatorId, now);
             }

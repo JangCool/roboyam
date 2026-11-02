@@ -84,6 +84,22 @@ public class BusinessAdminController {
         return ok(service.unsuspend(actor, id, body));
     }
 
+    /** 서비스만 정지(2026-11-02) — 본문은 신원 정지와 같은 모양, 건 처리는 그 서비스 신청 건에만 */
+    @RequirePermission(Permission.BUSINESS_MANAGE)
+    @PostMapping("/{id}/services/{service}/suspend")
+    public ResponseEntity<ApiResponse<BusinessAdminView.Detail>> suspendService(@PathVariable String id, @PathVariable String service,
+                                                                                @RequestBody(required = false) BusinessAdminRequest.Suspend body, AdminActor actor) {
+        return ok(this.service.suspendService(actor, id, service, body));
+    }
+
+    /** 서비스만 정지 해제 — 본문은 신원 해제와 같은 모양 */
+    @RequirePermission(Permission.BUSINESS_UNSUSPEND)
+    @PostMapping("/{id}/services/{service}/resume")
+    public ResponseEntity<ApiResponse<BusinessAdminView.Detail>> resumeService(@PathVariable String id, @PathVariable String service,
+                                                                               @RequestBody(required = false) BusinessAdminRequest.Unsuspend body, AdminActor actor) {
+        return ok(this.service.resumeService(actor, id, service, body));
+    }
+
     /** 평문 열람(B3) — 열람 기록(운영자·IP·사유) 뒤 값, 화면은 {@code hideAt} 에 가린다 */
     @RequirePermission(Permission.BUSINESS_REVEAL)
     @PostMapping("/{id}/reveal")

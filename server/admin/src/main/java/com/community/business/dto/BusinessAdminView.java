@@ -41,7 +41,11 @@ public final class BusinessAdminView {
     public record Certificate(String fileName, String mimeType, long size, Instant uploadedAt, String lastViewedBy, Instant lastViewedAt) {
     }
 
-    public record ServiceCard(String service, String status, int liveCount, int pendingCount) {
+    /**
+     * 서비스 카드 — 영향 건수(진행·예약 · 대기) + 「서비스만 정지」 표시(사유 코드·글·시각·운영자 — 신원 정지를 따라간 정지면 null) + 그 서비스만 정지할 때의 영향 건수(2026-11-02)
+     */
+    public record ServiceCard(String service, String status, int liveCount, int pendingCount, String suspendCode, String suspendText, Instant suspendedAt,
+                              String suspendedByName, Impact impact) {
     }
 
     public record Impact(int awaitingPayment, int scheduled, int running) {
@@ -53,7 +57,8 @@ public final class BusinessAdminView {
     public record Suspension(String code, String text, Instant at) {
     }
 
-    public record History(Instant at, String action, String actor, String note) {
+    /** 처리 기록 한 줄 — {@code service} 는 서비스 하나에 대한 처리(서비스만 정지·해제)일 때만 */
+    public record History(Instant at, String action, String actor, String note, String service) {
     }
 
     /** 상세 — 목록 한 줄의 칸 + 가린 신원·개업일(가리지 않는다 — 옛 신청이면 null)·사본·서비스 카드·영향 건수·사유·처리 기록 */

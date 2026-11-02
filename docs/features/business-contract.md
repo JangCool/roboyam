@@ -61,7 +61,7 @@
 - **재심사(F7) 표현**: DB 는 `status = PENDING` + `re_review = true`(관리자 목록 「심사 중」, 행에 `reReview`). 회원 화면(`GET /api/business/me`·로그인 `businessStatus`)은 **`APPROVED` + `reReview: true`** — 이미 예약·진행 중인 건이 돌고 화면이 「승인 + 재심사 중」 안내를 보인다. 재심사 중에도 회원은 다시 고칠 수 있고(PUT), 운영자는 정지할 수 있다. 자격 판정은 재심사 중이면 409 `BUSINESS_RE_REVIEW`, 그 밖 409 `BUSINESS_NOT_APPROVED`.
 - **오류 코드**: 중복 409 `BUSINESS_DUPLICATE`(목업의 `BUSINESS_NUMBER_TAKEN` 폐기) · 이미 신청 409 `BUSINESS_ALREADY_APPLIED` · 고칠 수 없는 상태 409 `BUSINESS_NOT_EDITABLE` · 재신청 하루 3회 429 `BUSINESS_REAPPLY_LIMIT`(한국 날짜, 처리 기록의 신청 수) · 사본 없음 404 `BUSINESS_FILE_NOT_FOUND`·`BUSINESS_CERT_NOT_FOUND` · 상태 바뀜 409 `BUSINESS_STATE_CHANGED`. 칸 오류는 400 `fields.companyName·bizNo·ownerName·phone·email·address1·certificate·agree`(관리자: `code·text·pendingAction·scheduledAction·runningAction·ntsOverrideReason·reason·restore`).
 - **반려 코드 정본 = 관리자 화면 값** `DOC_UNREADABLE·INFO_MISMATCH·NTS_CLOSED·DUPLICATE·OTHER`(정지 `POLICY_VIOLATION·FRAUD·NTS_CLOSED·OTHER`). user-web 은 신원용 `BusinessProfileRejectCode` 를 따로 두었다 — 신청 건의 `BusinessRejectCode` 는 신청 건 백엔드가 정한다.
-- **서비스 줄은 신원 처리를 따라간다**(신청 = 심사 중 · 승인 · 반려 · 정지 · 해제 = 승인 · 탈퇴 = OFF). 서비스별 따로 켜고 끄는 API 는 없다(후속).
+- **서비스 줄은 신원 처리를 따라간다**(신청 = 심사 중 · 승인 · 반려 · 정지 · 해제 = 승인 · 탈퇴 = OFF). 단 「서비스만 정지」된 줄은 아래 절(2026-11-02)대로 신원 처리가 되살리지 않는다.
 - **정지 해제 API 추가**: `POST /api/admin/businesses/{id}/unsuspend` `{ restore: EXTEND_RESTORE | KEEP_REFUND, note? }`(`business.unsuspend`) — admin-web `useBusinessApi.unsuspend` 는 있으나 **화면 단추가 없다**(미확정).
 - **신청 건 훅**: shared `BusinessApplicationHook`(영향 건수·서비스 카드 건수·`onSuspended`·`onUnsuspended`·`withdrawalCheck`·`onWithdrawn`) — 빈이 없으면 `NONE`(건수 0, 처리 없음). 신청 건 백엔드가 구현 빈 하나를 등록하면 된다. 정지·해제 훅은 신원 처리 트랜잭션 안에서 불린다. 탈퇴는 shared `BusinessWithdrawal.check/withdraw` — 부르는 곳 없음(공개 탈퇴 API 와 함께).
 - **알림**: 회원 `BUSINESS` 한 종류(덧붙임 kind `SUBMITTED·APPROVED·REJECTED·SUSPENDED·UNSUSPENDED·RE_REVIEW`, 반려·정지 사유, 링크 `/business`, 회원 이벤트 잠금 ACCOUNT). 관리자 `BUSINESS_APPLICATION_PENDING`(예약 → 켬) · **`BUSINESS_RE_REVIEW_PENDING`(새로)** — 수신 `business.manage`, 링크 `/businesses?id={profileId}`, 신원별 5분 묶음.
@@ -109,6 +109,16 @@
 - **지우는 것**(한 트랜잭션): `business_profiles` 줄 + 그 신원에 딸린 `business_services`·`business_nts_checks`·`business_documents`(붙은 등록증 암호문)·`business_history`·`business_sensitive_views`. 연결된 광고주(`ad_advertisers.business_profile_id`)는 **연결만 끊고** 계정 없는 광고주로 남긴다. 회원 계정·회원 알림·회원이 아직 붙이지 않은 사본·진위확인 하루 횟수는 그대로. 지운 뒤 그 회원은 사업자 `NONE`(로그인 `businessStatus`·뱃지 없음) — 다시 신청할 수 있다.
 - **감사** `BUSINESS_DELETE`(대상 `BUSINESS`/신원 ID, **일반 분류** — 다른 사업자 심사 감사와 같다): detail `companyName`·`bizNoLast4`·`status`(지우기 전)·`reReview`·`reason`. 평문·암호문은 싣지 않는다.
 
+## 서비스만 정지·해제 (화면 확정 2026-11-02 — 사용자 결정, 목업 eca29bc4)
+- 의도: 사업자 신원은 그대로 두고 한 서비스(`HOTDEAL`·`AD`)만 정지·해제한다(「신원은 그대로 두고 핫딜만 정지하는 경우는 당연히 있다」).
+- 화면: 관리자 `/businesses` 서랍 서비스 카드 — 신원 승인일 때만 [서비스 정지](`business.manage`)·[서비스 해제](`business.unsuspend`), 신원 정지 창과 같은 모양(사유 코드·글·건 처리) + 그 서비스 영향 건수. 「서비스만 정지」 Tag · 사유·시각·운영자. 신원이 정지면 서비스 단추 없음. 사업자 센터 홈·신청 화면 — 「핫딜(광고) 서비스가 정지됐어요 · 사유」, 그 서비스 [신청하기] 잠금, 다른 서비스는 그대로. 사업자 목록 표에는 표시하지 않는다(서랍만).
+- 사유: 신원 정지 사유 코드 묶음(`BusinessSuspendCode`) 그대로 + 사유 글 1~200자 필수. 사업자에게는 글만 보인다.
+- 건 처리: 신원 정지와 **같은 선택지**(결제·입금 대기 취소 여부 · 시작 전 예약 전액 환불/보류(내림) · 진행 중 내림 + 일할 환불 심사/내림만)를 **그 서비스 신청 건에만**. 해제도 신원 해제와 같은 선택지(끝 시각 연장 후 되돌림 / 환불 대기 건 그대로), 그 서비스 건만.
+- 자격: 서비스 줄이 정지면 그 서비스 새 신청은 409 **`BUSINESS_SERVICE_SUSPENDED`**(신원 승인 · 다른 서비스는 그대로). 사업자 핫딜 예약 건 게시는 biz-hotdeal 결정 10(`SERVICE_SUSPENDED` 실패 → 해제 뒤 다음 배치가 다시 게시).
+- 신원 처리와의 관계: 신원 정지는 지금처럼 줄을 모두 정지로 바꾸지만 「서비스만 정지」 표시(사유)는 남긴다. **신원 해제·재승인은 서비스만 정지된 줄을 되살리지 않고**, 그 서비스의 정지로 내려간 건도 되돌리지 않는다(서비스 해제가 따로 한다). 반려·탈퇴(OFF)는 서비스 정지 표시를 지운다.
+- 기록: 사업자 처리 기록 `SERVICE_SUSPENDED`·`SERVICE_RESUMED`(+ 서비스), 감사 `BUSINESS_SERVICE_SUSPEND`·`BUSINESS_SERVICE_RESUME`(사유 코드·글·선택), 사업자 알림(서비스별 문구). API: `POST /api/admin/businesses/{id}/services/{service}/suspend`(본문 = 신원 정지와 같은 모양) · `.../resume`(본문 = 신원 해제와 같은 모양) → 상세. 상태가 맞지 않으면 409 `BUSINESS_STATE_CHANGED`. 사업자 `GET /api/business/me` 에 `services[]`(서비스·상태·정지 사유 코드·글·시각).
+- 서버 구현(2026-11-02 — shared V130): `business_services` 에 「서비스만 정지」 표시(`suspend_code`·`suspend_text`·`suspended_at`·`suspended_by`, 표시는 상태 SUSPENDED 일 때만), `business_history` action 20자 + `service` 칸. 신원 처리의 줄 맞추기(`BusinessServiceRows`)는 표시가 있는 줄을 반려·닫힘 말고는 건너뛴다. 신청 건 훅은 정지·해제·영향 건수에 서비스 범위를 받는다(`onServiceSuspended`·`onServiceResumed`·`impact(id, service)`); 신원 해제 훅은 서비스만 정지된 서비스의 건을 건너뛴다. 서비스 정지로 내린 건의 내림 까닭·처리 기록 덧붙임은 신원 정지와 같은 `SUSPENDED`. 자격 판정 `BusinessEligibility.requireApproved` 가 신원 승인 + 줄 정지면 `BUSINESS_SERVICE_SUSPENDED`. 사업자 알림 kind `HOTDEAL_SUSPENDED`·`AD_SUSPENDED`·`HOTDEAL_RESUMED`·`AD_RESUMED`. 테스트: api `BizServiceSuspendTest`(6 — 영향 건수·그 서비스 건만 정지·해제·신원 해제가 안 되살림·자격 409) · admin `BusinessServiceSuspendHttpTest`(3 — API 검사·권한·409·기록·감사·알림·신원 해제와의 관계), 옛 「서비스 줄이 승인이 아니면 BUSINESS_NOT_APPROVED」 시험은 새 코드로 바꿈.
+
 ## 후속 (이 세션 범위 밖)
 - 보존 기간 파기 DB 배치(반려·탈퇴 90일 뒤 암호문·등록증, 붙지 않은 사본 정리) — 표 칸(`erased_at`)만 있다.
-- 사업자 약관 게시(약관 종류) · 정지 해제 화면 단추 · 서비스별 처리.
+- 사업자 약관 게시(약관 종류) · 정지 해제 화면 단추. (서비스별 처리는 아래 「서비스만 정지·해제」 절로 옮김 — 2026-11-02)

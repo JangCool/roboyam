@@ -27,6 +27,7 @@ public class BusinessException extends CommonException {
     public static final String UPLOAD_LIMIT = "BUSINESS_UPLOAD_LIMIT";
     public static final String NOT_APPROVED = "BUSINESS_NOT_APPROVED";
     public static final String RE_REVIEW = "BUSINESS_RE_REVIEW";
+    public static final String SERVICE_SUSPENDED = "BUSINESS_SERVICE_SUSPENDED";
 
     private BusinessException(HttpStatus status, String code) {
         super(status, code, new MessageRef("error." + code));
@@ -124,6 +125,11 @@ public class BusinessException extends CommonException {
     /** 승인된 사업자가 아니다(그 서비스 이용 권한 없음) — 광고·핫딜 신청 건이 쓴다 */
     public static BusinessException notApproved() {
         return new BusinessException(HttpStatus.CONFLICT, NOT_APPROVED);
+    }
+
+    /** 신원은 승인인데 그 서비스만 정지 — 그 서비스 새 신청만 막힌다(2026-11-02) */
+    public static BusinessException serviceSuspended() {
+        return new BusinessException(HttpStatus.CONFLICT, SERVICE_SUSPENDED);
     }
 
     /** 상호·번호를 고쳐 재심사 중 — 새 신청만 막힌다(F7) */
