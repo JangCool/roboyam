@@ -19,8 +19,16 @@ import com.community.bizapplication.service.BizPauseService;
 import com.community.bizapplication.service.BizPeriods;
 import com.community.bizapplication.service.BizPricing;
 import com.community.business.dto.BusinessSuspendPlan;
+import com.community.home.service.HomeGadgetService;
+import com.community.hotdeal.dto.response.DealStoreChipView;
+import com.community.post.dto.response.PostFeedRowView;
+import com.community.post.dto.response.PostListResponse;
+import com.community.post.dto.response.PostRowView;
 import com.community.post.exception.DealSellerHiddenException;
 import com.community.post.service.PostQueryService;
+import com.community.profile.service.UserProfileService;
+import com.community.search.dto.response.SearchRowView;
+import com.community.search.service.SearchService;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -28,6 +36,7 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 광고·사업자 핫딜 일시 정지 / 중단 + 중도 해지 수수료(docs/features/biz-pause-contract.md 규칙 1~11 — commerce.md 18절, 돈 규칙이라 모두 시험으로 막는다).
@@ -54,6 +63,14 @@ class BizPauseStopTest extends BizHotdealTestBase {
     private AdPlacementStore placementStore;
     @Autowired
     private com.community.bizapplication.repository.master.BizDealPostStore dealPostStore;
+    @Autowired
+    private SearchService searches;
+    @Autowired
+    private HomeGadgetService gadgets;
+    @Autowired
+    private UserProfileService profiles;
+
+    private static final JsonMapper JSON = JsonMapper.builder().build();
 
     @AfterEach
     void resetSettings() {
@@ -529,6 +546,48 @@ class BizPauseStopTest extends BizHotdealTestBase {
         assertThat(live("HOTDEAL_TOP")).contains(id);
         assertThat(postQueries.detail(Long.toString(postId), null, "127.0.0.1").deal()).isNotNull();
         assertThat(view.detail(b.user(), b.id()).post().placement().status()).isEqualTo("SHOWING");
+    }
+
+    @Test
+    void 규칙9_판매자_숨김_글은_목록_검색_가젯_쇼핑몰_칩_작성자_글에서_아예_빠지고_신고_숨김_글은_숨김_줄로_남는다() {
+        // 같은 게시판의 운영 숨김 글 — 기존처럼 「숨겨진 글」 줄로 남아야 한다(먼저 만든다 — 게시하면 시계가 그 건의 기간으로 옮겨 간다)
+        Booked staff = postedBooking("NONE");
+        long staffId = postOf(staff.id());
+        jdbc.update("UPDATE posts SET hidden_at = now(), hidden_reason = 'STAFF' WHERE id = ?", staffId);
+        Booked b = postedBooking("NONE");
+        long postId = postOf(b.id());
+        String pid = Long.toString(postId);
+        String slug = boardSlug(dealBoard());
+        String title = (String) postRow(postId).get("title");
+        String store = (String) dealRow(postId).get("store_name");
+
+        PostListResponse before = postQueries.list(slug, null, null, null, 1, null, null, null);
+        assertThat(rowIds(before)).contains(pid, Long.toString(staffId));
+        long chipBefore = chip(before, store);
+
+        for (Runnable hide : List.<Runnable>of(() -> pauses.pause(b.user(), b.id()), () -> pauses.stop(b.user(), b.id(), "판매 종료"))) {
+            hide.run();
+            PostListResponse list = postQueries.list(slug, null, null, null, 1, null, null, null);
+            assertThat(rowIds(list)).doesNotContain(pid).contains(Long.toString(staffId));
+            assertThat(list.items()).filteredOn(r -> r.id().equals(Long.toString(staffId))).singleElement().satisfies(r -> assertThat(r.title()).isEmpty());
+            assertThat(list.totalCount()).as("전체 수에서도 빠진다").isEqualTo(before.totalCount() - 1);
+            assertThat(chip(list, store)).as("쇼핑몰 칩 수").isEqualTo(chipBefore - 1);
+            assertThat(rowIds(postQueries.list(slug, null, "POPULAR", null, 1, null, false, null))).as("종료 보이기·인기순").doesNotContain(pid);
+            assertThat(rowIds(postQueries.list(slug, null, null, null, 1, null, null, store))).as("쇼핑몰 거르기").doesNotContain(pid);
+            assertThat(rowIds(postQueries.list(slug, null, null, title, 1, null, null, null))).as("게시판 안 검색").doesNotContain(pid);
+            assertThat(searches.search(title, null, null, null, null, null, null, null).items()).as("통합 검색").extracting(SearchRowView::id).doesNotContain(pid);
+            assertThat(gadgets.hotDeals(JSON.createObjectNode().put("sort", "LATEST").put("count", 10), null).items()).as("가젯 HOT_DEALS")
+                    .extracting(PostFeedRowView::id).doesNotContain(pid);
+            assertThat(profiles.posts(Long.toString(b.user()), null, null, null).items()).as("작성자 글 목록").extracting(PostFeedRowView::id).doesNotContain(pid);
+        }
+    }
+
+    private static List<String> rowIds(PostListResponse list) {
+        return java.util.stream.Stream.concat(list.pinned().stream(), list.items().stream()).map(PostRowView::id).toList();
+    }
+
+    private static long chip(PostListResponse list, String store) {
+        return list.stores() == null ? 0 : list.stores().stream().filter(c -> c.name().equals(store)).mapToLong(DealStoreChipView::count).sum();
     }
 
     @Test

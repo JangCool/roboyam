@@ -87,3 +87,7 @@ BizDealStopReason ∪ PAUSED · 처리 기록 action ∪ PAUSED | RESUMED | STOP
 - **규정 버전**: 신청 화면 상수 `REFUND_POLICY_VERSION = 2026-11-02`, 동의 풀이는 `GET /api/business/refund-policy` 의 비율을 넣고 실패하면 비율 없는 문구, 400 `fields.agreedRefundPolicyVersion` 이면 「환불 규정이 바뀌었어요 — 새로 고침해 주세요」.
 - **수수료 설정**: `/ads/placements?tab=refund` 다섯째 탭(0~30 정수, 기본 10) — 같은 저장 막대·`PUT` 한 번(`refund` 늘 보냄), 칸 오류 `fields.refund.stopFeeRate`, 이력 칸 `refund.stopFeeRate`(값 「n%」), 미리보기는 예시 계산(남은 일할 100,000원 → 수수료 → 환불).
 - **남은 점**: 화면 실제 호출 확인(서버 띄워 두 앱 정지·재개·중단·환불 승인·수수료 저장)과 시각 리뷰는 개발자 몫 · 운영자 [대신 중단]은 진행 중(열린 환불 없음)·정지 중 건 모두에 둔다(서버가 둘 다 받음 — 전화로 「끝내 주세요」 대응).
+
+## Chrome 확인 뒤 고침 (2026-11-02 — develop e1b8f99d 확인 결과)
+- **판매자 숨김 글은 게시판·핫딜 목록에서 아예 뺀다**: 공개 `GET /api/boards/{slug}/posts` 의 `PostRepositoryQDSL.page`·`dealPage` 에 `notSellerHidden`(숨김 까닭 `SELLER_PAUSED`·`SELLER_STOPPED` 이 아님) — 쪽 건수·`totalCount` 도 같이. 신고·운영 숨김 글은 지금처럼 「숨겨진 글」 줄로 남는다. 통합 검색·게시판 안 검색·가젯 `HOT_DEALS`·인기글·작성자 글 목록·쇼핑몰 칩·이전/다음 글은 원래 숨김 글을 모두 빼므로 그대로(시험으로 확인). 운영자 화면(admin 쿼리)은 바꾸지 않음. 시험 `BizPauseStopTest` 「규칙9_판매자_숨김_글은_목록_검색_가젯_쇼핑몰_칩_작성자_글에서_아예_빠지고…」(고치기 전 실패 확인).
+- **사업자 신청 건 처리 기록 note**: user-web `UtilBusinessMessages.pauseNoteToken` 이 정지·재개·중단·글 숨김·다시 보임·환불 요청·내림·환불 거절 줄의 토큰을 번역한다 — `ADVERTISER_PAUSE`·`ADVERTISER_STOP`·`EMERGENCY` 는 「일시 정지해서」「중단해서」「운영팀 긴급 조치」(글 다시 보임 + 정지는 「다시 켜서」), 정지·재개·중단 줄에서는 제목과 겹쳐 뺀다. 그 밖의 코드 모양 토큰(대문자·밑줄)은 숨기고 사유 글은 그대로. user-web 에 화면 단위 시험 도구가 없어 타입 검사로만 확인.
