@@ -544,7 +544,7 @@ export interface BizPaymentStart {
     customer: { fullName: string; phoneNumber: string; email: string } | null;
 }
 
-/* ── 광고 성과(목업 — 2026-11-02, 서버 전. 정본 후보는 `mock/ad-stats-mock.ts` 머리말) ─────────────── */
+/* ── 광고 성과(2026-11-02 — 서버 DTO 정본 shared `ad/dto/AdStatsView`·api `bizapplication/dto/BizAdStatsView`) ─────────────── */
 
 /**
  * 집계 자리 — 공개 노출 집계(shared V118 `ad_daily_stats.placement`)의 값. 공개 광고의 `AdPlacement` 와 같은 값이라 그것을 쓴다(복사하지 않는다).

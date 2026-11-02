@@ -9,7 +9,7 @@
         · 광고주 요청 「정지 중」·「중단」(`takedownCause` — biz-pause-contract): 달력 점·표 상태를 긴급 내림과 가르고, 대신 처리는 심사 화면에서(서랍의 「광고 심사에서 열기」).
         권한: 화면 `ad.read` · 등록 `ad.manage` · 긴급 내림 `ad.takedown` · 되돌리기 `ad.restore`(서버 `Permission`).
         서버 호출은 `useAdApi`(V115). 달력은 `calendar` 한 번(그 달에 걸친 장부 건 `bookings` 포함). 사업자 신청 심사에서 승인한 광고 건도 이 장부에 나타난다.
-        서랍 「성과」 탭(목업 — `api.stats`, 스위치는 `ad/api/mock/ad-stats-mock.ts` 머리말): 탭을 처음 열 때 그 건에 한 번 받는다. 광고 성과 화면(`/ads/performance`)의 건별 표가 `?type=&id=` 로 이 서랍을 연다.
+        서랍 「성과」 탭(`api.stats` — `/api/admin/ads/{id}/stats`): 탭을 처음 열 때 그 건에 한 번 받는다. 광고 성과 화면(`/ads/performance`)의 건별 표가 `?type=&id=` 로 이 서랍을 연다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('ad.title')" :subtitle="t('ad.subtitle')">
@@ -347,7 +347,7 @@ async function loadDetail(): Promise<void> {
     }
 }
 
-// ── 서랍 「성과」 탭 — 탭을 처음 열 때 그 건에 한 번(목업) ──
+// ── 서랍 「성과」 탭 — 탭을 처음 열 때 그 건에 한 번 ──
 const drawerStats = ref<AdApplicationStats | null>(null);
 const statsLoading = ref(false);
 const statsError = ref<ApiError | null>(null);

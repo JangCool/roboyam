@@ -2,7 +2,7 @@
     <!--
         광고 건 상세 서랍 — 일정표 목록에서 줄을 누르면 연다(`?id=`). 02-ad.md 7-1.
         탭: 기본 · 소재(버전 목록 — 심사 승인 때 고정, 교체는 새 버전, 옛 버전 보존 — A2) · 일정 · 성과 · 결제(온라인 결제 정보 또는 계약서 사본·입금 기록) · 처리 기록.
-        성과(목업 — `AdBookingStats`): 건 기간 전체의 합계·날짜별 차트(정지·내림 띠)·자리별·소재 버전별. 탭을 처음 열 때 `stats` 를 내고(부모가 그 건에 한 번만 받는다), 시작 전이면 안내 한 줄만.
+        성과(`AdBookingStats`): 건 기간 전체의 합계·날짜별 차트(정지·내림 띠)·자리별·소재 버전별. 탭을 처음 열 때 `stats` 를 내고(부모가 그 건에 한 번만 받는다), 시작 전이면 안내 한 줄만.
         맨 아래: [긴급 내림](진행·예약, `ad.takedown`) · [되돌리기](긴급 내린 건, `ad.restore`). 머리에 「광고 심사에서 열기」(건의 도메인 심사 화면 `?id=`).
         처리 기록 코드는 신청 건 것(`UtilBizApplicationMessages` 로 번역). 서버는 부르지 않는다 — 동작은 emit.
         광고주 요청 정지·중단(biz-pause-contract): 내림 줄에 까닭 「광고주 요청(일시 정지)」·「광고주 요청(중단)」 + 누가(요청 경로·메모) · 정지 횟수 · 누적 멈춘 시간 · 끝 안내.
@@ -189,7 +189,7 @@ interface Props {
     busy?: boolean;
     canTakedown?: boolean;
     canRestore?: boolean;
-    /** 「성과」 탭 — 부모가 `stats` 를 받아 넘긴다(목업) */
+    /** 「성과」 탭 — 부모가 `stats` 를 받아 넘긴다 */
     stats?: AdApplicationStats | null;
     statsLoading?: boolean;
     statsError?: ApiError | null;

@@ -7,7 +7,7 @@
 ## 화면 경로
 - user-web `/business/applications/{id}` 「성과」 칸(`#performance` — 합계 노출·클릭·클릭률 · 날짜별 차트(정지 날 주황·내림 날 빨강 띠, 오늘은 흐리게 「집계 중」) · 자리별 · 소재 버전별 · 멈춘 구간). 보이는 건 = 노출 자리가 있고(배너·한 줄·노출 자리 있는 핫딜 글·노출만 추가) 결제 뒤 시작한 건. 시작 전은 안내 한 줄, 시작 전 취소·결제 전·노출 없는 핫딜 글은 칸 없음.
 - user-web `/business` 「진행 중 광고」 카드(최대 5 — 제목·상태 Tag·최근 7일 노출·클릭·클릭률·미니 막대, 누르면 상세 `#performance`). 없으면 카드 없음.
-- admin-web `/ads/performance` 「광고 성과」(메뉴 「광고」 넷째 — 광고 일정표 다음·광고 기본 설정 앞, `pi pi-chart-bar`): 거르기 기간(기본 최근 7일·오늘 포함)·유형·광고주(주소 쿼리 `from`·`to`·`type`·`advertiserId`·`sort`·`dir`) · 합계 띠(노출·클릭·클릭률·노출된 건 수) · 날짜별 추이 · 유형별·자리별 표 · 광고주 순위 10(누르면 그 광고주로 거름) · 건별 표(정렬 노출·클릭·클릭률, 쪽) → 줄 = `/ads?type=&id=` 일정표 서랍.
+- admin-web `/ads/performance` 「광고 성과」(메뉴 「광고」 셋째 — 광고 일정표 다음·광고 기본 설정 앞, `pi pi-chart-bar`): 거르기 기간(기본 최근 7일·오늘 포함)·유형·광고주(주소 쿼리 `from`·`to`·`type`·`advertiserId`·`sort`·`dir`) · 합계 띠(노출·클릭·클릭률·노출된 건 수) · 날짜별 추이 · 유형별·자리별 표 · 광고주 순위 10(누르면 그 광고주로 거름) · 건별 표(정렬 노출·클릭·클릭률, 쪽) → 줄 = `/ads?type=&id=` 일정표 서랍.
 - admin-web 일정표 서랍 `AdBookingDrawer` 「성과」 탭(일정 다음 — 한 건 성과, 탭을 처음 열 때 한 번 받음).
 - 화면 문구: 「같은 방문자는 하루 1번만 세요」 안내 · 「{시각} 기준 · 오늘은 집계 중」. 클릭률 = 클릭 ÷ 노출(화면 계산, 노출 0 이면 「—」, 소수 한 자리 %). 클릭은 그날 노출 여부를 보지 않아 드물게 100% 를 넘을 수 있다 — 그대로 보인다.
 
@@ -52,3 +52,8 @@
 - **메뉴**: 서버 「광고」 묶음 차례 `adReviews` → `ads` → `adPerformance` → `adPlacements`(계약의 「넷째」와 달리 셋째 — 화면 `util-admin-menu.ts` 차례와 같은 일정표 다음·광고 기본 설정 앞). 메뉴 마이그레이션 없음(관리자 셸은 저장된 구성을 읽지 않는다 — `AdminMenuService`).
 - **기존 코드 손댐(범위 안)**: `AdAdminService.row`·`MyBizApplicationService.summary` 를 package `static` 으로(건별 줄·요약 줄 재사용), 메뉴 카탈로그 시험 `BizApplicationAdminCatalogTest` 갱신.
 - **시험**(`--tests` 선별, 2026-11-02 실행): shared `AdStatsCalcTest` 9/9(범위 자르기·짝짓기·보정·날짜 상태·0 채우기·자리·버전·구간) · api `BizAdStatsHttpTest` 3/3(본인 건·남의 건/없는 건 404·401·시작 전·PAUSED/TAKEN_DOWN 날·구간 `to=null`·범위 자르기·400 `fields.from`·no-store·노출 없는 핫딜 글 빈 결과·요약 규칙 8 포함/제외·최대 5·차례·7일) · admin `AdStatsAdminHttpTest` 4/4(403·400 칸·366일·합계·유형/광고주 거르기·건별 정렬(클릭률 노출 0 뒤)·쪽·시작한 건만·한 건·취소 건 끝 날짜·경로·메뉴) · 회귀 확인 admin `BizApplicationAdminCatalogTest` 8/8·`AdAdminHttpTest` 2/2·`AdPlacementAdminHttpTest` 5/5, api `BizApplicationHttpTest` 5/5.
+
+## 화면 연결 결정 (2026-11-02)
+- user-web `useBusinessApi.stats`·`adStatsSummary`, admin-web `useAdApi.stats`·`statsOverview`·`statsBookings` 는 실제 API. 목업 파일 두 개(`composables/business/api/mock/ad-stats-mock.ts`·admin `composables/ad/api/mock/`)와 `?mock=ad-stats-*` 스위치는 지웠다(user-web `mock-util.ts` 는 다른 목업이 써서 남김). admin `useAdApi` 의 `list`·`detail` 은 목업용 상수를 걷어 원래 모양으로.
+- 차트는 공유 레이어 `@roboyam/chart`(`StatsTrendChart` — ECharts 6.1.0, 노출 막대 + 클릭 선, 정지·내림 띠는 숨긴 둘째 x축의 100% 폭 막대, SVG 렌더러, 테마·다크 다시 칠하기). 두 앱의 `BusinessStatsChart`·`AdStatsChart` 는 문구·숫자 글자를 넘기는 래퍼.
+- 남은 점: 화면 실제 호출·시각 확인(띠 폭·두 축 눈금 맞춤·오늘 막대 빗금·다크 모드 다시 칠하기)은 개발자 몫. 사업자 400 은 칸이 늘 `fields.from`(성과 칸은 기간을 화면이 계산해 보내므로 화면 오류 표시는 일반 오류로 둠).

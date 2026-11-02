@@ -1,14 +1,12 @@
 <template>
     <!--
-        광고 › 광고 성과(`/ads/performance`) — 목업 단계(서버 없음, 설계 노트 「광고 성과 화면 — 목업 설계」 3번). 집계 원천 shared V118 `ad_daily_stats`.
+        광고 › 광고 성과(`/ads/performance`) — 계약 `docs/features/ad-performance-contract.md`. 집계 원천 shared V118 `ad_daily_stats`.
         · 거르기(주소 쿼리에 남는다): 기간 `from`·`to`(`DateRangeField`, 기본 = 오늘 포함 최근 7일 — 오늘은 「집계 중」) · 유형 `type`(8개, `bizApplication.adType.*`) · 광고주 `advertiserId`(광고주 찾기 AutoComplete).
           건별 표 정렬 `sort`(impressions·clicks·ctr)·`dir`(asc·desc, 기본 노출 내림차순)도 주소에 남는다. 쪽 번호는 남기지 않는다(거르기를 바꾸면 첫 쪽).
         · 합계 띠(노출 · 클릭 · 클릭률 · 노출된 건) + asOf · 집계 기준 안내 → 날짜별 추이 차트(합계 — 띠 없음, 오늘 빗금) → 유형별 표 · 자리별 표(비중 막대)
           → 광고주 순위(노출 상위 10, 이름을 누르면 그 광고주로 거르기) → 건별 표(정렬·쪽 나눔은 서버 — 줄을 누르면 `/ads?type=&id=` 일정표 서랍).
         · CSV 내려받기는 후속(단추 없음).
-        권한: 화면 `ad.read`(메뉴 `adPerformance` — 막는 것은 서버). 서버 호출은 `useAdApi().statsOverview`·`statsBookings`(목업 — 장부 줄은 실제 `list`, 숫자만 목업).
-        목업 스위치(`?mock=`, `ad/api/mock/ad-stats-mock.ts` 머리말): `ad-stats-empty`(숫자 모두 0) · `ad-stats-fail`(500 → 다시 시도). `ad-stats-paused`·`-versions`·`-hotdeal` 은 서랍 「성과」 탭 몫.
-        목업 가정: 장부에 시작한 건이 없으면 가짜 줄 10개(`mock-ad-*` — 눌러 가면 서랍이 404). 숫자는 건 ID·날짜로 씨앗을 둔 결정적 난수, 유형마다 장부 앞 100건만 본다.
+        권한: 화면 `ad.read`(메뉴 `adPerformance` — 막는 것은 서버). 서버 호출은 `useAdApi().statsOverview`·`statsBookings`(`/api/admin/ads/stats`·`/stats/bookings`).
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('ad.perfTitle')" :subtitle="t('ad.perfSubtitle')" />

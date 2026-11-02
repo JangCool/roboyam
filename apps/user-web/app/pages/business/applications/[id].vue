@@ -13,11 +13,9 @@
           정지한 채 끝 날짜가 지났으면 다른 제목·문구(단추 없음) / 중단(`ADVERTISER_STOP`) = 「중단했어요」 + 환불 칸(`STOP_PRORATED` · 내역 「일할 − 중도 해지 수수료(n%) = 예상액」 · 기준 시각 — 서버 환불 줄 값 그대로) + [새로 신청], 승인 뒤 `CANCELED` 는 「광고주 요청으로 중단」.
           409 `BIZ_PAUSE_LIMIT` 는 알리고 다시 읽는다. 사업자 핫딜 글은 정지·중단하면 글이 숨겨지고(「게시된 글」 칸 문구) 노출 자리도 멈춘다.
         `?pay=1` 로 오면(홈의 [결제하기]) 결제창을 바로 연다. 포트원 모바일 리디렉션은 쿼리 없이 이 화면으로 돌아오고 `resumeRedirect` 가 이어 간다.
-        성과 칸(`#performance` — 광고 성과 목업 2026-11-02, `BusinessAdStats`): 노출 자리가 있는 건(광고 둘 · 핫딜 노출 · 노출 자리 있는 사업자 핫딜 글)이고 결제(입금)까지 마쳤으면
+        성과 칸(`#performance` — 광고 성과 2026-11-02 — `ad-performance-contract.md`, `BusinessAdStats`): 노출 자리가 있는 건(광고 둘 · 핫딜 노출 · 노출 자리 있는 사업자 핫딜 글)이고 결제(입금)까지 마쳤으면
           시작 뒤(진행·정지·내림·끝남·시작 뒤 취소) 합계 3칸·날짜별 차트·멈춘 구간·자리별·버전별, 예약(시작 전)이면 「시작하면 여기에 하루 단위로 쌓여요」 한 줄, 그 밖은 칸 없음(`UtilAdStats.section`).
-          기간 = 시작 날짜 ~ min(끝 날짜, 오늘 — 한국 날짜) 고정(기간 최대 30일이라 고르개 없음). 상세는 실제 API, 성과 숫자만 목업(`useBusinessApi.stats` — 건 ID 씨앗 결정적 난수).
-          목업 스위치 `?mock=` ad-stats-empty(숫자 0) · ad-stats-fail(500 → 다시 시도) · ad-stats-paused(정지 2일 + 긴급 내림 1일 띠) · ad-stats-versions(소재 버전 2개) · ad-stats-hotdeal(자리 HOTDEAL_TOP 하나).
-          지금 정지·내림 중이면 목업이 그 시각부터 0 으로 센다(실제 상세의 정지 시각·처리 기록).
+          기간 = 시작 날짜 ~ min(끝 날짜, 오늘 — 한국 날짜) 고정(기간 최대 30일이라 고르개 없음). 서버 `useBusinessApi.stats`(`ad_daily_stats` 합 — 정지·내림 구간은 서버가 처리 기록에서 계산).
     -->
     <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="business-application">
         <div class="flex items-center gap-2">
@@ -315,7 +313,7 @@
                 </div>
             </section>
 
-            <!-- 성과(광고 성과 목업 — 노출 자리가 있고 결제 뒤. 시작 전이면 한 줄, 사업자 센터 「진행 중 광고」 줄이 `#performance` 로 건너온다) -->
+            <!-- 성과(광고 성과 — 노출 자리가 있고 결제 뒤. 시작 전이면 한 줄, 사업자 센터 「진행 중 광고」 줄이 `#performance` 로 건너온다) -->
             <section
                 v-if="statsSection !== 'NONE'"
                 :id="UtilAdStats.ANCHOR"
@@ -863,7 +861,7 @@ async function doStop(reason: string): Promise<void> {
     }
 }
 
-/* ── 성과(광고 성과 목업 — 노출·클릭) ── */
+/* ── 성과(광고 성과 — 노출·클릭) ── */
 /** 오늘(한국 날짜) — 집계 하루는 표시 시간대와 무관 */
 const today = computed(() => UtilAdStats.today(now.value));
 const statsSection = computed(() => (app.value ? UtilAdStats.section(app.value, paid.value, today.value) : 'NONE'));

@@ -5,9 +5,8 @@
         승인 = (재심사 중이면 안내) + 할 일 카드(결제 대기 — 기한·[결제하기], 입금 확인 대기) + 서비스 카드(광고·핫딜) + 사업자 정보 요약 + 최근 신청 건.
         사업자 신원은 서버(`GET /api/business/me`), 신청 건 목록은 아직 목업(`useBusinessApi` — 신청 건 백엔드에서 붙인다).
         승인인데 한 서비스만 정지면(2026-11-02 — `services[]`) 그 서비스 안내 + 사유, 그 서비스 카드 [신청하기] 잠금.
-        「진행 중 광고」 카드(광고 성과 목업 2026-11-02 — `useBusinessApi.adStatsSummary`): 진행 중·일시 정지 중·내려짐(긴급 내림·사업자/서비스 정지 — 사용자 결정 2026-11-02, 광고주 중단 제외)이고 노출 자리가 있는 건 최대 5개 — 상태 딱지·종류·제목 ·
+        「진행 중 광고」 카드(광고 성과 2026-11-02 — `useBusinessApi.adStatsSummary`): 진행 중·일시 정지 중·내려짐(긴급 내림·사업자/서비스 정지 — 사용자 결정 2026-11-02, 광고주 중단 제외)이고 노출 자리가 있는 건 최대 5개 — 상태 딱지·종류·제목 ·
           최근 7일(오늘 포함) 노출·클릭·클릭률 · 7일 미니 막대(`BusinessStatsChart compact` — 오늘 빗금, 정지 날 띠) · 줄을 누르면 상세의 성과 칸(`#performance`). 없으면 카드를 감춘다.
-          목업은 실제 진행 중 목록(`bucket=RUNNING`)에 숫자만 붙인다(긴급 내림·사업자 정지·중단 건은 뺀다 — 가정). 스위치 `?mock=ad-stats-empty`(0) · `ad-stats-fail`(다시 시도 줄).
     -->
     <div class="mx-auto flex max-w-3xl flex-col gap-4" data-testid="business-home">
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -154,7 +153,7 @@
                 </template>
             </section>
 
-            <!-- 진행 중 광고(광고 성과 목업) — 진행 중·정지 중·내려진 건 최대 5개의 최근 7일. 없으면 카드를 감춘다(받는 중에도 감춘다 — 깜빡임 없이) -->
+            <!-- 진행 중 광고(광고 성과) — 진행 중·정지 중·내려진 건 최대 5개의 최근 7일. 없으면 카드를 감춘다(받는 중에도 감춘다 — 깜빡임 없이) -->
             <section v-if="adStatsStatus === 'error' || (adStatsStatus === 'ready' && adStats?.items.length)" class="panel-card flex flex-col gap-3 p-4" :aria-labelledby="`${uid}-adstats`" data-testid="business-home-ad-stats">
                 <div class="flex flex-col gap-0.5">
                     <h2 :id="`${uid}-adstats`" class="m-0 text-sm font-semibold">{{ t('business.stats.summaryTitle') }}</h2>
@@ -297,7 +296,7 @@ async function loadDealProduct(): Promise<void> {
     }
 }
 
-/* ── 진행 중 광고(광고 성과 목업) ── */
+/* ── 진행 중 광고(광고 성과) ── */
 const adStats = ref<BizAdStatsSummary | null>(null);
 const adStatsStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle');
 /** 오늘(한국 날짜) — 미니 막대의 오늘 빗금 */

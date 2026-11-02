@@ -255,7 +255,7 @@ export default class UtilAdminMenu {
             items: [
                 { key: 'adReviews', to: '/ad-reviews', icon: 'pi pi-inbox', labelKey: 'menu.adReviews', permission: 'ad.read' },
                 { key: 'ads', to: '/ads', icon: 'pi pi-calendar', labelKey: 'menu.ads', permission: 'ad.read' },
-                // 광고 성과(`/ads/performance` — 목업 단계, 서버 `AdminScreenRegistry` 한 줄은 백엔드 단계에 더한다)
+                // 광고 성과(`/ads/performance` — 서버 `AdminScreenRegistry` 「광고」 셋째와 같은 키·주소·권한·차례)
                 { key: 'adPerformance', to: '/ads/performance', icon: 'pi pi-chart-bar', labelKey: 'menu.adPerformance', permission: 'ad.read' },
                 { key: 'adPlacements', to: '/ads/placements', icon: 'pi pi-sliders-h', labelKey: 'menu.adPlacements', permission: 'ad.read' },
             ],

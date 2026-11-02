@@ -308,7 +308,7 @@ export type AdPlacementHistoryField =
 export type AdPlacementHistoryItem = SettingHistoryItem;
 export type AdPlacementHistoryPage = SettingHistoryPage<AdPlacementHistoryItem>;
 
-/* ── 광고 성과(`/ads/performance`·일정표 서랍 「성과」 탭) — 목업 단계(서버 없음). 집계 원천 shared V118 `ad_daily_stats(application_id, version, day, placement, impressions, clicks)` ── */
+/* ── 광고 성과(`/ads/performance`·일정표 서랍 「성과」 탭) — 서버 DTO 정본 shared `ad/dto/AdStatsView`·admin `ad/dto/AdStatsAdminView`. 집계 원천 shared V118 `ad_daily_stats(application_id, version, day, placement, impressions, clicks)` ── */
 
 /** 노출 자리 — `ad_daily_stats.placement` 값. 화면 이름은 `ad.statPlacement.<값>` */
 export type AdStatPlacement = 'HOME' | 'PAGE' | 'BOARD' | 'POST_INLINE' | 'BOARD_LIST' | 'WING_LEFT' | 'WING_RIGHT' | 'HOTDEAL_TOP' | 'HOTDEAL_CATEGORY';
