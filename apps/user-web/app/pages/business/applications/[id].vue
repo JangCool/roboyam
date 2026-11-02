@@ -5,12 +5,12 @@
         결제 대기(온라인) = 확정 금액·기한 카운트다운(24시간 안이면 경고)·[결제하기] → 결제 공용 흐름(`usePaymentCheckout` — 가짜 결제창 또는 포트원) → 완료 뒤 상세를 다시 읽는다 ·
           [소재 바꾸기](광고 — 다시 심사로) /
         입금 대기(수동) = 입금 계좌·금액·기한·입금자명, 계약서 상태, 입금 확인 전이면 [신청 취소]·[소재 바꾸기] /
-        예약·진행 = 기간·소재 버전·[취소·환불 요청](시작 전 = 전액 자동, 진행 중 = 일할 운영팀 확인 + 사유, 한 번만) · 환불은 `refund` 하위 값(요청·승인·거절).
+        예약·진행 = 기간·소재 버전·[취소·환불 요청](시작 전만 — 전액 자동 + 사유, 한 번만. 진행 중은 아래 [중단하고 환불 요청]) · 환불은 `refund` 하위 값(요청·승인·거절).
         사업자 핫딜(`HOTDEAL_POST`, 2차)은 「게시된 글」 칸(상세 `post`) — 게시 전(「{시각}에 {게시판}에 올라가요」) · 게시됨(딜 상태 Tag·종료 요청 사유별 수·[글 보기]·[품절로 종료] → 확인창 「환불 없음 · 노출도 멈춤」, 409 `DEAL_ENDED` 면 알리고 다시 읽기) ·
           의심(「N명이 알렸어요 — {시각}까지 확인하지 않으면 자동 종료」, keep 은 글 보기에서) · 종료(누가 끝냈는지 · 환불 없음)·기간 종료 · 게시 실패(「운영팀이 확인 중이에요」 + 사유) · 숨김(내림·취소) + 노출 줄(대기·노출 중·멈춤(까닭)·끝남).
-        일시 정지·중단(광고주 요청 — 목업 2026-11-02, `useBusinessApi.pause|resume|stop`): 진행 중(정지할 수 있는 건 — `UtilBusiness.runningPausable`)이면 [일시 정지](확인 창 `BusinessPauseDialog` · 남은 횟수 n/3, 다 쓰면 비활성) +
-          [중단하고 환불 요청](`BusinessStopDialog` — 옛 진행 중 [취소·환불 요청]을 대신, 시작 전은 그대로) / 정지 중(`TAKEN_DOWN` + `ADVERTISER_PAUSE`) = 멈춘 시각·운영팀 대신 처리 경로·「{끝 날}까지 다시 켜지 않으면 환불 없이 끝나요」·[다시 켜기]·[중단하고 환불 요청],
-          정지한 채 끝 날짜가 지났으면 다른 제목·문구(단추 없음) / 중단(`ADVERTISER_STOP`) = 「중단했어요」 + 환불 칸(`STOP_PRORATED` · 기준 시각) + [새로 신청], 승인 뒤 `CANCELED` 는 「광고주 요청으로 중단」.
+        일시 정지·중단(광고주 요청 — `biz-pause-contract.md`, `useBusinessApi.pause|resume|stop`): 진행 중(정지할 수 있는 건 — `UtilBusiness.runningPausable`)이면 [일시 정지](확인 창 `BusinessPauseDialog` · 남은 횟수 n/3, 다 쓰면 비활성) +
+          [중단하고 환불 요청](`BusinessStopDialog` — 옛 진행 중 [취소·환불 요청]을 대신(서버도 진행 중 요청을 중단으로 처리), 시작 전 [취소·환불 요청]은 그대로 전액) / 정지 중(`TAKEN_DOWN` + `ADVERTISER_PAUSE`) = 멈춘 시각·운영팀 대신 처리 경로·「{끝 날}까지 다시 켜지 않으면 환불 없이 끝나요」·[다시 켜기]·[중단하고 환불 요청],
+          정지한 채 끝 날짜가 지났으면 다른 제목·문구(단추 없음) / 중단(`ADVERTISER_STOP`) = 「중단했어요」 + 환불 칸(`STOP_PRORATED` · 내역 「일할 − 중도 해지 수수료(n%) = 예상액」 · 기준 시각 — 서버 환불 줄 값 그대로) + [새로 신청], 승인 뒤 `CANCELED` 는 「광고주 요청으로 중단」.
           409 `BIZ_PAUSE_LIMIT` 는 알리고 다시 읽는다. 사업자 핫딜 글은 정지·중단하면 글이 숨겨지고(「게시된 글」 칸 문구) 노출 자리도 멈춘다.
         `?pay=1` 로 오면(홈의 [결제하기]) 결제창을 바로 연다. 포트원 모바일 리디렉션은 쿼리 없이 이 화면으로 돌아오고 `resumeRedirect` 가 이어 간다.
     -->
@@ -140,7 +140,8 @@
                             {{ pausesLeft > 0 ? t('business.pause.left', { n: pausesLeft, limit: pauseInfo.limit }) : t('business.pause.limitReached') }}
                         </p>
                     </template>
-                    <div v-else-if="app.phase !== 'ENDED' && !app.refund">
+                    <!-- 시작 전만 [취소·환불 요청](전액) — 진행 중 요청은 서버가 중단으로 처리하므로 옛 길을 열지 않는다 -->
+                    <div v-else-if="app.phase === 'UPCOMING' && !app.refund">
                         <Button type="button" :label="t('business.detail.refund')" icon="pi pi-replay" severity="secondary" variant="outlined" size="small" data-testid="business-refund" @click="refundOpen = true" />
                     </div>
                 </template>
@@ -204,6 +205,7 @@
                     </p>
                     <p v-if="app.refund.refundAmount !== null" class="m-0 tabular-nums">{{ t('business.detail.refundApproved', { amount: UtilBusinessMessages.won(t, app.refund.refundAmount) }) }}</p>
                     <p v-else-if="app.refund.status === 'REQUESTED'" class="m-0 tabular-nums">{{ t('business.detail.refundEstimate', { amount: UtilBusinessMessages.won(t, app.refund.proposedAmount) }) }}</p>
+                    <p v-if="refundBreakdown" class="m-0 text-xs tabular-nums" data-testid="business-refund-breakdown">{{ refundBreakdown }}</p>
                     <p v-if="app.refund.type === 'STOP_PRORATED' && refundFromLabel" class="m-0 text-xs tabular-nums text-muted-color" data-testid="business-refund-from">{{ t('business.pause.refundFrom', { at: refundFromLabel }) }}</p>
                     <p v-if="app.refund.decisionReason" class="m-0 whitespace-pre-line text-sm">{{ app.refund.decisionReason }}</p>
                     <p class="m-0 whitespace-pre-line text-xs text-muted-color">{{ app.refund.reason }}</p>
@@ -385,6 +387,9 @@
             v-if="app && stopEstimate"
             :visible="stopOpen"
             :refund-amount="stopEstimate.amount"
+            :prorated-amount="stopEstimate.prorated"
+            :fee-rate="stopEstimate.feeRate"
+            :fee-amount="stopEstimate.fee"
             :total-days="stopEstimate.totalDays"
             :left-days="stopEstimate.leftDays"
             :from-paused="stopEstimate.fromPaused"
@@ -696,7 +701,7 @@ async function requestRefund(reason: string): Promise<void> {
     }
 }
 
-/* ── 일시 정지·중단(광고주 요청 — 목업 2026-11-02) ── */
+/* ── 일시 정지·중단(광고주 요청 — biz-pause-contract) ── */
 const cause = computed(() => app.value?.takedownCause ?? null);
 const pauseInfo = computed(() => app.value?.pause ?? null);
 /** 진행 중이라 [일시 정지]·[중단하고 환불 요청]을 보인다 */
@@ -712,7 +717,17 @@ const endLabel = computed(() => (app.value ? time.value.serviceDate(app.value.en
 const pausedSince = computed(() => (pauseInfo.value?.pausedAt ? time.value.full(pauseInfo.value.pausedAt) : ''));
 const pausedSpan = computed(() => (pauseInfo.value && pauseInfo.value.pausedMinutes > 0 ? UtilBusinessMessages.minutes(t, pauseInfo.value.pausedMinutes) : ''));
 const stoppedAt = computed(() => (pauseInfo.value?.stoppedAt ? time.value.full(pauseInfo.value.stoppedAt) : ''));
-const refundFromLabel = computed(() => (pauseInfo.value?.refundFrom ? time.value.full(pauseInfo.value.refundFrom) : ''));
+/** 중단 환불의 기준 시각 — 환불 줄의 `basisAt`(없으면 상세 `pause.refundFrom`) */
+const refundFromLabel = computed(() => {
+    const at = app.value?.refund?.basisAt ?? pauseInfo.value?.refundFrom ?? null;
+    return at ? time.value.full(at) : '';
+});
+/** 중단 환불 내역(`STOP_PRORATED` — 서버 환불 줄 값 그대로). 승인 뒤에는 승인 금액이 따로 보인다 */
+const refundBreakdown = computed(() => {
+    const r = app.value?.refund;
+    if (!r || r.type !== 'STOP_PRORATED' || r.proratedAmount === null) return '';
+    return UtilBusinessMessages.stopBreakdown(t, r.proratedAmount, r.feeRate ?? 0, r.feeAmount ?? 0, r.proposedAmount);
+});
 
 const pauseOpen = ref(false);
 const pauseError = ref('');
@@ -762,14 +777,19 @@ async function resume(): Promise<void> {
 
 const stopOpen = ref(false);
 const stopError = ref('');
-/** 예상 환불 — 기준 = 정지 중이면 멈춘 시각, 아니면 지금 */
+/** 환불 예상액(서버 `BizPricing.stop` 과 같은 식 — 일할 − 수수료, 비율은 그 건에 고정된 `pause.feeRate`) — 기준 = 정지 중이면 멈춘 시각, 아니면 지금 */
 const stopEstimate = computed(() => {
     const a = app.value;
     const p = pauseInfo.value;
     if (!a || !p) return null;
     const pausedAt = pausedNow.value ? p.pausedAt : null;
     const from = pausedAt ?? new Date(now.value).toISOString();
-    return { ...UtilBusiness.stopRefund(p.proratableTotal, a.startDate, a.endDate, from), fromPaused: pausedAt !== null, fromLabel: pausedAt ? time.value.full(pausedAt) : '' };
+    return {
+        ...UtilBusiness.stopRefund(p.proratableTotal, a.startDate, a.endDate, from, p.feeRate),
+        feeRate: p.feeRate,
+        fromPaused: pausedAt !== null,
+        fromLabel: pausedAt ? time.value.full(pausedAt) : '',
+    };
 });
 /** 핫딜 글의 돌려드리지 않는 게시비 = 확정 합계 − 일할 대상(노출 자리 줄) */
 const postFee = computed(() => {

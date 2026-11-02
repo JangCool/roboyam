@@ -5,13 +5,14 @@
           ② 날개 배너 — 왼쪽·오른쪽 켜기 · 보일 화면(홈·가젯 페이지·게시판 목록·글 보기)
           ③ 게시판 목록 한 줄 — 켜기 · 일반 글 몇 번째 뒤(1~20)
           ④ 19금 — 19금 게시판·19금 글에도 광고 보이기(기본 끔. 끄면 날개까지 모두 빠짐 · 게시판 「광고 숨김」·소모임은 늘 빠짐)
-        짜임(사용자 결정 2026-11-01): 묶음 넷 = 탭 넷(주소 `?tab=post|wings|list|adult`, 모르는 값은 첫 탭). 세 칸 — 왼쪽 탭 메뉴 카드(세로, lg 이상 sticky) · 가운데 고른 탭의 폼 카드 + 저장 줄 · 오른쪽 미리보기 한 곳(lg 이상 sticky).
+          ⑤ 중도 해지 수수료(biz-pause-contract 규칙 7 — V127) — 0~30 정수 %(기본 10), 광고·사업자 핫딜 공통, 신청 건을 낼 때 그 건에 고정. 미리보기는 예시 계산(남은 일할 100,000원 → 수수료 → 환불)
+        짜임(사용자 결정 2026-11-01): 묶음 다섯 = 탭 다섯(주소 `?tab=post|wings|list|adult|refund`, 모르는 값은 첫 탭). 세 칸 — 왼쪽 탭 메뉴 카드(세로, lg 이상 sticky) · 가운데 고른 탭의 폼 카드 + 저장 줄 · 오른쪽 미리보기 한 곳(lg 이상 sticky).
           좁은 화면(lg 미만)은 한 열 — 메뉴 카드(탭 가로 줄, 넘치면 가로 스크롤) → 폼 카드·저장 줄 → 미리보기.
           미리보기 도식(`AdPlacement*Preview` — 공개 화면 짜임을 회색 상자로 단순하게 그리고 광고 자리만 주 색상)은 고른 탭의 것으로 바뀌고, 저장 전 폼 값을 바로 따라 그린다(저장된 값과 다르면 「저장 전」).
           폼 값은 이 화면(`form`)에 있고 탭 패널은 숨기기만 해서 탭을 바꿔도 입력이 남는다. 탭 단추에 저장 전이면 주황 점, 서버가 거절한 칸이 있으면 빨간 점. 저장이 칸 오류로 실패하면 지금 탭에 오류가 없을 때 첫 오류 탭으로 옮긴다.
         화면 하나로 한 번에 저장한다(`PUT` 한 번 — 본문 열 맨 아래 떠 있는 저장 줄, 폭·위치는 폼 카드와 같다, `forms.md` 2-4). 홈·가젯 페이지·게시판 레이아웃의 광고는 가젯(가젯 편집기)이라 여기 없다.
         권한: 화면 `ad.read` · 저장 `ad.settings`(없으면 입력이 잠기고 저장 줄 대신 읽기 전용 안내). 막는 것은 서버다.
-        서버가 거절한 칸(400 `fields.postInline.adType` 등)은 그 칸 아래, 빠진 묶음(`fields.postInline` 등)은 그 묶음 위, 나머지는 저장 줄에 서버 문구 그대로.
+        서버가 거절한 칸(400 `fields.postInline.adType`·`fields.refund.stopFeeRate` 등)은 그 칸 아래, 빠진 묶음(`fields.postInline` 등)은 그 묶음 위, 나머지는 저장 줄에 서버 문구 그대로.
         공개 화면은 서버 사본(20초) 뒤에 따라온다. 바꾼 값은 서버가 감사(`AD_PLACEMENT_UPDATE`, 전→후)에 남긴다.
         변경 이력: 제목 옆 「변경 이력」 단추(`ad.read`)가 오른쪽 서랍(`SettingHistoryDrawer` + `SettingHistoryTable`, 메일 서버 설정과 같은 부품)을 연다 — 처음 열 때 받고, 저장에 성공하면 받은 적이 있을 때 첫 쪽부터 다시.
           칸 이름·값(켜짐/꺼짐, 유형·위치·화면 이름, 「5번째 글 뒤」)은 서버 `labelKey` 형식이 정해지기 전이라 칸 코드(`field`)로 화면이 고른다(`UtilAdMessages.placementHistoryItems`).
@@ -206,6 +207,41 @@
                                 </div>
                             </div>
 
+                            <!-- ⑤ 중도 해지 수수료 -->
+                            <div v-show="tab === 'refund'" :id="panelIdOf('refund')" role="tabpanel" :aria-labelledby="tabIdOf('refund')" tabindex="0" class="focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
+                                <div class="flex min-w-0 flex-col gap-4">
+                                    <p class="m-0 text-xs leading-relaxed text-muted-color">{{ t('ad.refundLead') }}</p>
+                                    <Message v-if="errorOf('refund')" severity="error" variant="simple" size="small" :closable="false" role="alert">{{ errorOf('refund') }}</Message>
+                                    <div class="max-w-xs">
+                                        <LabeledField
+                                            :label="t('ad.refundRate')"
+                                            :help="t('ad.refundRateHelp', { min: UtilAd.STOP_FEE_RATE.min, max: UtilAd.STOP_FEE_RATE.max, def: UtilAd.STOP_FEE_RATE.def })"
+                                            :error="errorOf('refund.stopFeeRate')"
+                                        >
+                                            <template #default="{ id, describedBy, invalid }">
+                                                <InputGroup>
+                                                    <InputNumber
+                                                        v-model="feeRateModel"
+                                                        :input-id="id"
+                                                        :min="UtilAd.STOP_FEE_RATE.min"
+                                                        :max="UtilAd.STOP_FEE_RATE.max"
+                                                        :max-fraction-digits="0"
+                                                        :allow-empty="false"
+                                                        show-buttons
+                                                        :readonly="locked"
+                                                        :invalid="invalid"
+                                                        :aria-describedby="describedBy"
+                                                        input-class="w-16 text-right tabular-nums"
+                                                        data-testid="ad-placements-stop-fee-rate"
+                                                    />
+                                                    <InputGroupAddon>{{ t('ad.refundRateSuffix') }}</InputGroupAddon>
+                                                </InputGroup>
+                                            </template>
+                                        </LabeledField>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- ④ 19금 게시판 -->
                             <div v-show="tab === 'adult'" :id="panelIdOf('adult')" role="tabpanel" :aria-labelledby="tabIdOf('adult')" tabindex="0" class="focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
                                 <div class="flex min-w-0 flex-col gap-4">
@@ -228,7 +264,7 @@
                         {{ saved.updatedAt ? t('ad.placementsLastSaved', { at: time.full(saved.updatedAt), by: saved.updatedBy?.name ?? '—' }) : t('ad.placementsNeverSaved') }}
                     </p>
 
-                    <!-- 네 묶음 한 번에 저장(PUT 한 번) — 본문 열 안이라 폼 카드와 같은 폭·위치로 창 아래에 붙는다 -->
+                    <!-- 다섯 묶음 한 번에 저장(PUT 한 번) — 본문 열 안이라 폼 카드와 같은 폭·위치로 창 아래에 붙는다 -->
                     <StickySaveBar v-if="canEdit" submit revertable :dirty="dirty" :saving="saving" :count="changeCount" :error-count="errorCount" :error="formError" @revert="revert" />
                 </div>
 
@@ -237,7 +273,8 @@
                     <AdPlacementPostPreview v-if="tab === 'post'" :enabled="form.postInline.enabled" :ad-type="form.postInline.adType" :position="form.postInline.position" :unsaved="changes.postInline > 0" />
                     <AdPlacementWingsPreview v-else-if="tab === 'wings'" :left="form.wings.left" :right="form.wings.right" :screens="form.wings.screens" :unsaved="changes.wings > 0" />
                     <AdPlacementListPreview v-else-if="tab === 'list'" :enabled="form.boardList.enabled" :after="form.boardList.after" :unsaved="changes.boardList > 0" />
-                    <AdPlacementAdultPreview v-else :form="form" :unsaved="changes.adult > 0" />
+                    <AdPlacementAdultPreview v-else-if="tab === 'adult'" :form="form" :unsaved="changes.adult > 0" />
+                    <AdPlacementRefundPreview v-else :rate="form.refund.stopFeeRate" :unsaved="changes.refund > 0" />
                 </aside>
             </div>
         </form>
@@ -266,15 +303,16 @@ import type { ApiError } from '~/composables/common/useApiClient';
 import UtilAd from '~/utils/util-ad';
 import UtilAdMessages from '~/utils/util-ad-messages';
 
-type Section = 'postInline' | 'wings' | 'boardList' | 'adult';
-type PlacementTab = 'post' | 'wings' | 'list' | 'adult';
+type Section = 'postInline' | 'wings' | 'boardList' | 'adult' | 'refund';
+type PlacementTab = 'post' | 'wings' | 'list' | 'adult' | 'refund';
 
-/** 탭 넷(주소 `?tab=` 의 값 · 묶음 · 이름 · 설정 카드 머리의 한 줄 설명) — 차례가 화면 차례이고, 저장 실패 때 첫 오류 탭을 고르는 차례다 */
+/** 탭 다섯(주소 `?tab=` 의 값 · 묶음 · 이름 · 설정 카드 머리의 한 줄 설명) — 차례가 화면 차례이고, 저장 실패 때 첫 오류 탭을 고르는 차례다 */
 const TABS: readonly { key: PlacementTab; section: Section; label: string; desc: string }[] = [
     { key: 'post', section: 'postInline', label: 'ad.postInlineSection', desc: 'ad.postInlineDesc' },
     { key: 'wings', section: 'wings', label: 'ad.wingsSection', desc: 'ad.wingsDesc' },
     { key: 'list', section: 'boardList', label: 'ad.boardListSection', desc: 'ad.boardListDesc' },
     { key: 'adult', section: 'adult', label: 'ad.adultSection', desc: 'ad.adultDesc' },
+    { key: 'refund', section: 'refund', label: 'ad.refundSection', desc: 'ad.refundDesc' },
 ];
 const DEFAULT_TAB = TABS[0]!;
 
@@ -371,8 +409,18 @@ const afterModel = computed<number | null>({
     },
 });
 
-const changes = computed(() => (form.value && saved.value ? UtilAd.placementChanges(form.value, saved.value) : { postInline: 0, wings: 0, boardList: 0, adult: 0 }));
-const changeCount = computed(() => changes.value.postInline + changes.value.wings + changes.value.boardList + changes.value.adult);
+/** 중도 해지 수수료율 — `InputNumber` 가 지우는 중에 주는 null 은 버린다(늘 0~30 정수) */
+const feeRateModel = computed<number | null>({
+    get: () => form.value?.refund.stopFeeRate ?? null,
+    set: (value) => {
+        if (!form.value || value === null) return;
+        form.value.refund.stopFeeRate = Math.round(value);
+        clearServer('refund.stopFeeRate');
+    },
+});
+
+const changes = computed(() => (form.value && saved.value ? UtilAd.placementChanges(form.value, saved.value) : { postInline: 0, wings: 0, boardList: 0, adult: 0, refund: 0 }));
+const changeCount = computed(() => changes.value.postInline + changes.value.wings + changes.value.boardList + changes.value.adult + changes.value.refund);
 const dirty = computed(() => changeCount.value > 0);
 const errorCount = computed(() => Object.keys(serverErrors.value).length);
 

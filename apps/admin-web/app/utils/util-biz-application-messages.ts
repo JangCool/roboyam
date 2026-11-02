@@ -51,7 +51,7 @@ export default class UtilBizApplicationMessages {
             case 'PAUSED':
             case 'RESUMED':
             case 'STOPPED':
-                // 운영자 대신 처리 `PHONE|EMAIL|OTHER · 메모` · 정지 중 전환 `FROM_PAUSE` · 다시 켜기 `MIN:<멈춘 분>`(일시 정지·중단 목업)
+                // 운영자 대신 처리 `PHONE|EMAIL|OTHER · 메모` · 정지 중 전환 `FROM_PAUSE` · 다시 켜기 `MIN:<멈춘 분>`(biz-pause-contract)
                 return note
                     .split(' · ')
                     .map((part) => {
@@ -113,6 +113,15 @@ export default class UtilBizApplicationMessages {
         const name = by || '—';
         const head = channel ? t('bizApplication.pause.whoOperator', { name, channel: t(`bizApplication.pauseChannel.${channel}`) }) : t('bizApplication.pause.whoBusiness', { name });
         return memo ? `${head} — ${memo}` : head;
+    }
+
+    /**
+     * 중단 환불 내역 한 줄 — 「일할 {a} − 중도 해지 수수료({rate}%) {fee} = 환불 예상액 {b}」. 수수료율 0%(옛 규정 건)면 「일할 {a} · 수수료 없음」.
+     */
+    static stopBreakdown(t: Translate, prorated: number, feeRate: number, fee: number, amount: number, locale: string): string {
+        const w = (n: number) => UtilBizApplicationMessages.won(t, n, locale);
+        if (feeRate <= 0) return t('bizApplication.stopFee.breakdownNoFee', { prorated: w(prorated) });
+        return t('bizApplication.stopFee.breakdown', { prorated: w(prorated), rate: feeRate, fee: w(fee), amount: w(amount) });
     }
 
     /** 분 → 「2일 3시간」·「3시간 10분」·「45분」 */

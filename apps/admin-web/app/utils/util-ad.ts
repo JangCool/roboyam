@@ -29,7 +29,7 @@ export default class UtilAd {
     }
 
     /**
-     * 상태 글자 키 — 광고주 요청 내림은 「정지 중」(`ADVERTISER_PAUSE`)·「중단」(`ADVERTISER_STOP`)으로 긴급 내림 「내림」과 가른다(일시 정지·중단 목업 2026-11-02)
+     * 상태 글자 키 — 광고주 요청 내림은 「정지 중」(`ADVERTISER_PAUSE`)·「중단」(`ADVERTISER_STOP`)으로 긴급 내림 「내림」과 가른다(biz-pause-contract)
      */
     static statusKey(row: Pick<AdBookingRow, 'status' | 'takedownCause' | 'period'>, now = Date.now()): string {
         const state = UtilBizApplication.pauseLabel(row.status, row.takedownCause, row.period, now);
@@ -97,6 +97,8 @@ export default class UtilAd {
     static readonly WING_SCREENS: readonly AdWingScreen[] = ['HOME', 'PAGE', 'BOARD', 'POST'];
     /** 게시판 목록 한 줄 — 일반 글 몇 번째 뒤(서버 400 `fields.boardList.after`) */
     static readonly FEED_AFTER = { min: 1, max: 20 } as const;
+    /** 중도 해지 수수료율(%) — 서버 `AdPlacementStore`·`ad_placement_settings.stop_fee_rate`(0~30 정수, 기본 10). 미리보기 예시의 남은 일할 금액 */
+    static readonly STOP_FEE_RATE = { min: 0, max: 30, def: 10, example: 100_000 } as const;
     /** 칸 아래·묶음 위에 붙이는 서버 오류 키(`fields.*`) — 나머지는 저장 줄에 모은다 */
     static readonly PLACEMENT_FIELDS: readonly string[] = [
         'postInline',
@@ -112,6 +114,8 @@ export default class UtilAd {
         'boardList.after',
         'adult',
         'adult.enabled',
+        'refund',
+        'refund.stopFeeRate',
     ];
 
     /* ── 광고 자리 미리보기(공개 화면 짜임을 단순하게 그린 도식) — 값은 user-web `UtilAd`·`AdWings` 와 같다 ── */
@@ -158,17 +162,28 @@ export default class UtilAd {
             wings: { left: view.wings.left, right: view.wings.right, screens: UtilAd.WING_SCREENS.filter((s) => view.wings.screens.includes(s)) },
             boardList: { ...view.boardList },
             adult: { enabled: view.adult?.enabled === true },
+            refund: { stopFeeRate: view.refund?.stopFeeRate ?? UtilAd.STOP_FEE_RATE.def },
         };
     }
 
+    /**
+     * 중도 해지 수수료 예시(서버 `BizPricing.stop` 의 수수료 식 — floor(일할 × 비율 / 100), 예상액 = 일할 − 수수료). 설정 탭 미리보기용.
+     * @returns 수수료·환불 예상액.
+     */
+    static stopFeeExample(prorated: number, rate: number): { fee: number; amount: number } {
+        const fee = Math.floor((prorated * Math.max(0, rate)) / 100);
+        return { fee, amount: prorated - fee };
+    }
+
     /** 묶음마다 저장된 값과 다른 칸 수 */
-    static placementChanges(form: AdPlacementsRequest, saved: AdPlacementsRequest): { postInline: number; wings: number; boardList: number; adult: number } {
+    static placementChanges(form: AdPlacementsRequest, saved: AdPlacementsRequest): { postInline: number; wings: number; boardList: number; adult: number; refund: number } {
         const screens = (a: readonly AdWingScreen[]) => UtilAd.WING_SCREENS.filter((s) => a.includes(s)).join(',');
         return {
             postInline: [form.postInline.enabled !== saved.postInline.enabled, form.postInline.adType !== saved.postInline.adType, form.postInline.position !== saved.postInline.position].filter(Boolean).length,
             wings: [form.wings.left !== saved.wings.left, form.wings.right !== saved.wings.right, screens(form.wings.screens) !== screens(saved.wings.screens)].filter(Boolean).length,
             boardList: [form.boardList.enabled !== saved.boardList.enabled, form.boardList.after !== saved.boardList.after].filter(Boolean).length,
             adult: [(form.adult?.enabled === true) !== (saved.adult?.enabled === true)].filter(Boolean).length,
+            refund: [form.refund.stopFeeRate !== saved.refund.stopFeeRate].filter(Boolean).length,
         };
     }
 }

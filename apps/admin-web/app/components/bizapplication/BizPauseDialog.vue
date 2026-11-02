@@ -1,8 +1,8 @@
 <template>
     <!--
-        운영자가 광고주 대신 일시 정지 · 다시 켜기 · 중단(환불 심사)하는 대화상자 — 세 동작이 같이 쓴다(일시 정지·중단 목업 2026-11-02, `BizReasonDialog` 짜임).
-        위에서 아래로: 안내(동작별) · 동작별 칸(정지: 몇 번째 정지·「{끝}까지 다시 켜지 않으면 환불 없이 종료」 / 다시 켜기: 연장 없음 / 중단: 예상 환불액 · 계산 기준 · 핫딜 글 게시비 제외 · 「되돌릴 수 없어요」)
-          · 요청 경로(전화·메일·기타 — 필수) · 메모(1~200자 — 필수, 관리자에게만 보인다) · 감사 안내 한 줄.
+        운영자가 광고주 대신 일시 정지 · 다시 켜기 · 중단(환불 심사)하는 대화상자 — 세 동작이 같이 쓴다(biz-pause-contract, `BizReasonDialog` 짜임).
+        위에서 아래로: 안내(동작별) · 동작별 칸(정지: 몇 번째 정지·「{끝}까지 다시 켜지 않으면 환불 없이 종료」 / 다시 켜기: 연장 없음 / 중단: 환불 예상액 · 내역(일할 − 중도 해지 수수료(n%) — 비율은 그 건의 `pause.feeRate`) · 계산 기준 · 핫딜 글 게시비 제외 · 「되돌릴 수 없어요」)
+          · 요청 경로(전화·메일·기타 — 필수) · 메모(1~200자 — 필수, 관리자에게만 보인다) · 중단만 사업자에게 보이는 사유(선택, 300자 — 메모를 사유로 옮기지 않는다) · 감사 안내 한 줄.
         서버는 부르지 않는다 — `submit` 으로 올리고 저장·토스트는 부모 몫이다. 열 때마다 칸을 비운다.
     -->
     <Dialog :visible="visible" modal :draggable="false" :closable="!busy" :close-on-escape="!busy" :header="t(`bizApplication.pause.dialogTitle.${action}`, { no })" :style="{ width: 'min(34rem, calc(100vw - 2rem))' }" @update:visible="(v: boolean) => emit('update:visible', v)">
@@ -20,11 +20,15 @@
                 <span class="text-[13px]">{{ t('bizApplication.pause.resumeNote', { end: time.full(endAt) }) }}</span>
             </Message>
 
-            <!-- 중단: 예상 환불액(명세 일할 식) · 기준 시각 · 게시비 제외 · 되돌릴 수 없음 -->
+            <!-- 중단: 환불 예상액(서버 `BizPricing.stop` 과 같은 식) · 내역 · 기준 시각 · 게시비 제외 · 되돌릴 수 없음 -->
             <template v-if="action === 'stop' && refund">
                 <dl class="m-0 grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1.5 rounded-lg border border-(--line) px-3 py-2.5 text-[13px]">
                     <dt class="text-muted-color">{{ t('bizApplication.pause.expectedRefund') }}</dt>
                     <dd class="m-0 font-semibold tabular-nums">{{ refund.amount > 0 ? won(refund.amount) : t('bizApplication.pause.noRefund') }}</dd>
+                    <template v-if="refund.prorated > 0">
+                        <dt class="text-muted-color">{{ t('bizApplication.stopFee.breakdownLabel') }}</dt>
+                        <dd class="m-0 tabular-nums [overflow-wrap:anywhere]" data-testid="biz-pause-stop-breakdown">{{ UtilBizApplicationMessages.stopBreakdown(t, refund.prorated, refund.feeRate, refund.fee, refund.amount, locale) }}</dd>
+                    </template>
                     <dt class="text-muted-color">{{ t('bizApplication.pause.refundBasis') }}</dt>
                     <dd class="m-0 tabular-nums">
                         {{ refund.fromPause ? t('bizApplication.pause.fromPausedAt', { at: time.shortDateTime(refund.from) }) : t('bizApplication.pause.fromNow') }}
@@ -48,6 +52,16 @@
                 </template>
                 <template #aside>
                     <small class="shrink-0 text-xs tabular-nums" :class="memo.trim().length > MEMO.max ? 'font-semibold text-red-600 dark:text-red-400' : 'text-muted-color'">{{ memo.trim().length }}/{{ MEMO.max }}</small>
+                </template>
+            </LabeledField>
+
+            <!-- 중단 사유(선택) — 사업자 화면의 중단 사유로 보인다. 메모는 여기에 옮기지 않는다 -->
+            <LabeledField v-if="action === 'stop'" :label="t('bizApplication.pause.reasonLabel')" :hint="t('bizApplication.pause.reasonHint', { max: STOP_REASON_MAX })" :help="t('bizApplication.pause.reasonHelp')" :error="reasonError">
+                <template #default="{ id, describedBy, invalid }">
+                    <Textarea :id="id" v-model="reason" rows="2" auto-resize :disabled="busy" :invalid="invalid" :aria-describedby="describedBy" fluid />
+                </template>
+                <template #aside>
+                    <small class="shrink-0 text-xs tabular-nums" :class="reason.trim().length > STOP_REASON_MAX ? 'font-semibold text-red-600 dark:text-red-400' : 'text-muted-color'">{{ reason.trim().length }}/{{ STOP_REASON_MAX }}</small>
                 </template>
             </LabeledField>
 
@@ -87,7 +101,7 @@ interface Props {
     busy?: boolean;
     /** 칸에 붙지 않는 오류(서버 문구 그대로) */
     error?: string;
-    /** 서버가 칸에 준 오류(`channel`·`memo`) */
+    /** 서버가 칸에 준 오류(`channel`·`memo`·`reason`) */
     fieldErrors?: Record<string, string>;
 }
 
@@ -98,11 +112,14 @@ const { t, locale } = useI18n();
 const time = useDisplayTime();
 const formId = useId();
 const MEMO = UtilBizApplication.PAUSE_MEMO;
+/** 운영자 대신 중단의 사유(선택) 길이 — 서버 `BizPauseService.stopByOperator` 300자 */
+const STOP_REASON_MAX = 300;
 const won = (n: number) => UtilBizApplicationMessages.won(t, n, locale.value);
 const channelOptions = computed(() => BIZ_PAUSE_CHANNELS.map((c) => ({ value: c, label: t(`bizApplication.pauseChannelShort.${c}`) })));
 
 const channel = ref<BizPauseChannel | null>(null);
 const memo = ref('');
+const reason = ref('');
 const submitted = ref(false);
 
 watch(
@@ -111,6 +128,7 @@ watch(
         if (!open) return;
         channel.value = null;
         memo.value = '';
+        reason.value = '';
         submitted.value = false;
     },
     { immediate: true },
@@ -124,9 +142,13 @@ const memoError = computed(() => {
     return props.fieldErrors.memo ?? '';
 });
 
+const reasonError = computed(() => (reason.value.trim().length > STOP_REASON_MAX ? t('bizApplication.pause.memoTooLong', { max: STOP_REASON_MAX }) : (props.fieldErrors.reason ?? '')));
+
 function submit(): void {
     submitted.value = true;
     if (props.busy || !channel.value || UtilBizApplication.reasonProblem(memo.value, MEMO.min)) return;
-    emit('submit', { channel: channel.value, memo: memo.value.trim() });
+    const stopReason = props.action === 'stop' ? reason.value.trim() : '';
+    if (stopReason.length > STOP_REASON_MAX) return;
+    emit('submit', { channel: channel.value, memo: memo.value.trim(), ...(stopReason ? { reason: stopReason } : {}) });
 }
 </script>

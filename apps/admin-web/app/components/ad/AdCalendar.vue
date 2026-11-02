@@ -2,7 +2,7 @@
     <!--
         광고 일정표 달력 — 한 달을 크게(하모니카3 일정 화면의 월 보기와 같은 짜임). 02-ad.md 7-1 ③.
         · 칸마다 「남은 칸 n/한도」 알약(초록 여유 · 주황 거의 · 빨강 꽉 참)과 그날 걸친 광고 건 이름(상태 색 점)을 보인다.
-          광고주 요청 「정지 중」(청록 점)·「중단」(짙은 회색 점, 줄 긋기)은 긴급 내림(빨강 점)과 색을 가른다(`takedownCause` — 일시 정지·중단 목업).
+          광고주 요청 「정지 중」(청록 점)·「중단」(짙은 회색 점, 줄 긋기)은 긴급 내림(빨강 점)과 색을 가른다(`takedownCause` — biz-pause-contract).
         · 광고 건을 누르면 `open`(상세 서랍), 칸의 빈 곳을 누르면 `pick`(그 날짜로 수동 등록 시작 — 부모가 권한을 본다).
         · 좁은 화면은 칸이 작아 이름 대신 남은 칸 숫자와 점만 보인다.
         서버가 저장 때 다시 판정하므로 남은 칸은 안내다. 날짜 계산은 서비스 시간대(KST) 기준.
@@ -23,7 +23,7 @@
                     <span class="rounded-full bg-red-100 px-1.5 text-red-700 dark:bg-red-950 dark:text-red-300">{{ t('ad.legendFull') }}</span>
                 </span>
                 <span class="inline-flex flex-wrap items-center gap-2">
-                    <span v-for="s in LEGEND_STATUSES" :key="s" class="inline-flex items-center gap-1"><span class="size-2 rounded-full" :class="dotClass({ status: s })" aria-hidden="true" />{{ t(`ad.status.${s}`) }}</span>
+                    <span v-for="s in LEGEND_STATUSES" :key="s" class="inline-flex items-center gap-1"><span class="size-2 rounded-full" :class="dotClass({ status: s, takedownCause: null })" aria-hidden="true" />{{ t(`ad.status.${s}`) }}</span>
                     <span v-for="p in LEGEND_PAUSE" :key="p.state" class="inline-flex items-center gap-1"><span class="size-2 rounded-full" :class="dotClass({ status: 'TAKEN_DOWN', takedownCause: p.cause })" aria-hidden="true" />{{ t(`bizApplication.pauseState.${p.state}`) }}</span>
                 </span>
             </div>

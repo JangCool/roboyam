@@ -12,7 +12,7 @@
             작성자 조치와 따로 그린다 — 작성자 본인이 매니저여도 작성자 종료·24시간 되돌리기·「아직 진행 중」은 그대로 두고 이 영역을 더 보인다(매니저 조치로 작성자 조치를 덮지 않는다).
             단추는 서버 `canEnd`(진행·의심·기간 지남)·`canReopen`(종료)대로 — 기간 지난 딜은 카드가 흐려도 [핫딜 종료]가 남는다.
           → 「같은 딜 N건」 묶음(줄마다 「이 글보다 N원 저렴/비쌈」) → 아래 고지 「로보얌은 판매자가 아니에요…」.
-        사업자 글 작성자(`deal.business.applicationId` 가 있을 때 — 목업 2026-11-02): [일시 정지](신청 건을 받아 `BusinessPauseDialog` → 성공하면 토스트 + 신청 건 화면으로) · 「중단·환불은 신청 건에서 ›」.
+        사업자 글 작성자(`deal.business.applicationId` 가 있을 때 — 서버가 작성자에게만 싣는다): [일시 정지](신청 건을 받아 `BusinessPauseDialog` → 성공하면 토스트 + 신청 건 화면으로) · 「중단·환불은 신청 건에서 ›」.
         끝난 딜(종료·기간 지남)은 카드 몸통을 흐리게 하고 알리기·종료를 감춘다(구매하기는 남긴다 — 링크 확인용, 가정).
         서버 호출은 페이지가 내려 준 `actions` 로 한다. 성공하면 새 딜을 `update:deal` 로 올린다.
         게시판 관리 실패: 맡은 자리가 빠졌으면(`403 DEAL_MODERATE_FORBIDDEN`) `update:moderation` null 로 영역을 거두고, 그새 상태가 바뀌었으면(`409 DEAL_ENDED`·`DEAL_NOT_ENDED`·`404 DEAL_NOT_FOUND`) `stale` 로 페이지가 글을 다시 읽게 한다.
@@ -399,7 +399,7 @@ async function onReopen(): Promise<void> {
     }
 }
 
-/* ── 사업자 글 작성자 — 일시 정지(목업 2026-11-02) ── */
+/* ── 사업자 글 작성자 — 일시 정지(biz-pause-contract) ── */
 /** 그 글의 신청 건 — 내 사업자 글이고 서버가 실어 줬을 때만 */
 const bizApplicationId = computed(() => (props.mine && business.value ? (props.deal.business?.applicationId ?? null) : null));
 const pauseOpen = ref(false);

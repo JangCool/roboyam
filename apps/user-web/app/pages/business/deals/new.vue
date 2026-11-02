@@ -290,7 +290,8 @@ useSeoMeta({ title: () => t('business.deal.title'), description: () => t('busine
 const TOTAL = 5;
 const LEAD_DAYS = 30;
 const AD_POLICY_VERSION = '2026-10-30';
-const REFUND_POLICY_VERSION = '2026-10-30';
+/** 환불 규정 버전 — 서버 `BizApplicationMemberService.REFUND_POLICY_VERSION` 과 같아야 한다(다르면 400 `fields.agreedRefundPolicyVersion`). 2026-11-02: 진행 중 중단 수수료 */
+const REFUND_POLICY_VERSION = '2026-11-02';
 
 const uid = useId();
 const api = useBusinessApi();
@@ -358,6 +359,16 @@ async function load(): Promise<void> {
     }
 }
 onMounted(load);
+
+/** 진행 중 중단의 중도 해지 수수료율 — 동의 문구에 넣는다(받지 못하면 비율 없는 문구) */
+const stopFeeRate = ref<number | null>(null);
+onMounted(async () => {
+    try {
+        stopFeeRate.value = (await api.refundPolicy()).stopFeeRate;
+    } catch {
+        stopFeeRate.value = null;
+    }
+});
 
 async function reloadDealProduct(): Promise<void> {
     try {
@@ -514,7 +525,7 @@ const policyLines = computed(() => [
 
 const agreeItems = computed<BusinessAgreeItem[]>(() => [
     { key: 'adPolicy', label: t('business.agree.adPolicy'), detail: t('business.agree.adPolicyDetail'), version: AD_POLICY_VERSION },
-    { key: 'refundPolicy', label: t('business.agree.refundPolicy'), detail: t('business.agree.refundPolicyDetail'), version: REFUND_POLICY_VERSION },
+    { key: 'refundPolicy', label: t('business.agree.refundPolicy'), detail: UtilBusinessMessages.refundPolicyDetail(t, stopFeeRate.value), version: REFUND_POLICY_VERSION },
 ]);
 
 /* ── 검사 ── */
@@ -583,6 +594,8 @@ async function submit(): Promise<void> {
         await navigateTo(UtilBusiness.applicationPath(created.id));
     } catch (e) {
         formError.value = e instanceof Error ? e.message : t('business.deal.failed');
+        // 환불 규정이 그새 바뀌었다(400 `fields.agreedRefundPolicyVersion`) — 새 문구에 다시 동의하도록 새로 고침을 부탁한다
+        if (e instanceof ApiError && e.field('agreedRefundPolicyVersion')) formError.value = t('business.agree.refundPolicyOutdated');
         // 서버 칸 오류면 그 칸이 있는 단계로(앞 단계가 먼저) — 문구는 서버 몫. 링크(형식·차단·단축 주소 — `deal.linkUrl`)는 ①의 링크 칸 아래에도 싣는다
         if (e instanceof ApiError) {
             const linkField = e.field('deal.linkUrl');

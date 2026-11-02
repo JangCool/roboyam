@@ -4,7 +4,7 @@
         탭: 기본 · 소재(버전 목록 — 심사 승인 때 고정, 교체는 새 버전, 옛 버전 보존 — A2) · 일정 · 결제(온라인 결제 정보 또는 계약서 사본·입금 기록) · 처리 기록.
         맨 아래: [긴급 내림](진행·예약, `ad.takedown`) · [되돌리기](긴급 내린 건, `ad.restore`). 머리에 「광고 심사에서 열기」(건의 도메인 심사 화면 `?id=`).
         처리 기록 코드는 신청 건 것(`UtilBizApplicationMessages` 로 번역). 서버는 부르지 않는다 — 동작은 emit.
-        광고주 요청 정지·중단(일시 정지·중단 목업 2026-11-02): 내림 줄에 까닭 「광고주 요청(일시 정지)」·「광고주 요청(중단)」 + 누가(요청 경로·메모) · 정지 횟수 · 누적 멈춘 시간 · 끝 안내.
+        광고주 요청 정지·중단(biz-pause-contract): 내림 줄에 까닭 「광고주 요청(일시 정지)」·「광고주 요청(중단)」 + 누가(요청 경로·메모) · 정지 횟수 · 누적 멈춘 시간 · 끝 안내.
           [되돌리기]는 긴급 내림만 — 대신 정지·다시 켜기·중단은 「광고 심사에서 열기」로 가서 한다.
     -->
     <Drawer v-model:visible="open" :position="prefs.drawerPosition" :aria-labelledby="titleId" :style="{ width: '44rem', maxWidth: '100vw' }">
@@ -127,6 +127,11 @@
                                     <template v-if="detail.refund.approvedAmount !== null">{{ t('bizApplication.refundApprovedLine', { amount: won(detail.refund.approvedAmount) }) }}</template>
                                     <template v-else>{{ t('bizApplication.refundCalc', { paid: won(detail.refund.paidAmount), used: detail.refund.usedDays, total: detail.refund.totalDays, proposed: won(detail.refund.proposedAmount) }) }}</template>
                                 </p>
+                                <!-- 광고주 요청 중단 — 제안 내역(일할 − 중도 해지 수수료 = 제안액, 서버 환불 줄 값 그대로) -->
+                                <p v-if="detail.refund.type === 'STOP_PRORATED' && detail.refund.proratedAmount !== null" class="m-0 text-xs tabular-nums text-muted-color [overflow-wrap:anywhere]">
+                                    {{ UtilBizApplicationMessages.stopBreakdown(t, detail.refund.proratedAmount, detail.refund.feeRate ?? 0, detail.refund.feeAmount ?? 0, detail.refund.proposedAmount, locale) }}
+                                    <template v-if="detail.refund.basisAt"> · {{ t('bizApplication.stopFee.basisAt', { at: time.shortDateTime(detail.refund.basisAt) }) }}</template>
+                                </p>
                             </template>
                         </div>
                     </TabPanel>
@@ -157,7 +162,6 @@
 <script setup lang="ts">
 import type { AdBookingDetail, AdBookingRow } from '~/composables/ad/api/useAdApi.types';
 import type { ApiError } from '~/composables/common/useApiClient';
-import { mockQuery } from '~/composables/common/mock/mock-util';
 import UtilAd from '~/utils/util-ad';
 import UtilBizApplication from '~/utils/util-biz-application';
 import UtilBizApplicationMessages from '~/utils/util-biz-application-messages';
@@ -186,16 +190,7 @@ const won = (n: number) => UtilBizApplicationMessages.won(t, n, locale.value);
 
 const head = computed(() => props.detail ?? props.summary);
 /** 「광고 심사에서 열기」 — 건의 도메인 심사 화면 `?id=` */
-const reviewTo = computed(() => {
-    const link = UtilAd.reviewLink(head.value!);
-    return {
-        ...link,
-        query: {
-            ...link.query,
-            ...mockQuery(), // MOCK: 목업 건끼리 오가게 `?mock=` 를 싣는다 — 서버가 붙으면 이 줄과 import 를 지운다
-        },
-    };
-});
+const reviewTo = computed(() => UtilAd.reviewLink(head.value!));
 /** 광고주 요청 정지·중단 — 긴급 내림과 문구·색을 가른다 */
 const advertiser = computed(() => UtilBizApplication.isAdvertiserCause(props.detail?.takedown?.cause));
 const pauseState = computed(() => (props.detail ? UtilBizApplication.pauseState(props.detail.status, props.detail.takedown?.cause) : null));

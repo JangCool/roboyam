@@ -13,6 +13,7 @@ const FIELD_KEYS: Record<AdPlacementHistoryField, string> = {
     'boardList.enabled': 'ad.placementHistoryField.boardListEnabled',
     'boardList.after': 'ad.placementHistoryField.boardListAfter',
     'adult.enabled': 'ad.placementHistoryField.adultEnabled',
+    'refund.stopFeeRate': 'ad.placementHistoryField.refundStopFeeRate',
 };
 
 /** 켜고 끄는 칸 — 값 `"true"`/`"false"` */
@@ -58,7 +59,7 @@ export default class UtilAdMessages {
      * @param te - 키가 있는지 보는 함수.
      * @param field - 칸 코드.
      * @param value - 서버가 준 값.
-     * @returns 「켜짐」·「띠 배너」·「홈, 게시판 목록」·「없음」·「5번째 글 뒤」(모르는 값은 그대로, null 은 null).
+     * @returns 「켜짐」·「띠 배너」·「홈, 게시판 목록」·「없음」·「5번째 글 뒤」·「10%」(모르는 값은 그대로, null 은 null).
      */
     static placementHistoryValue(t: Translate, te: (key: string) => boolean, field: string, value: string | null): string | null {
         if (value == null) return null;
@@ -78,6 +79,7 @@ export default class UtilAdMessages {
             return screens.map((screen) => UtilAdMessages.option(t, te, 'ad.wingScreen', screen)).join(', ');
         }
         if (field === 'boardList.after' && /^\d+$/.test(value)) return t('ad.placementHistoryAfter', { n: Number(value) });
+        if (field === 'refund.stopFeeRate' && /^\d+$/.test(value)) return t('ad.placementHistoryPercent', { n: Number(value) });
         return value;
     }
 

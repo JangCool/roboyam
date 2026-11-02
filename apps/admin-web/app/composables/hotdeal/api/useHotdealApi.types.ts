@@ -63,17 +63,17 @@ export interface DealBusinessRef {
 }
 
 /**
- * 사업자 핫딜 글을 판매자가 숨긴 까닭(일시 정지·중단 목업 2026-11-02 — 신청 건 내림 까닭 `ADVERTISER_PAUSE`·`ADVERTISER_STOP` 과 같은 값).
+ * 사업자 핫딜 글을 판매자가 숨긴 까닭(biz-pause-contract — 신청 건 내림 까닭 `ADVERTISER_PAUSE`·`ADVERTISER_STOP` 과 같은 값).
  * 공개 화면에서는 목록·검색·가젯에서 빠지고 주소로 오면 안내만(404 아님). 운영자 화면에서는 글·댓글·종료 요청·신고가 그대로 보인다.
  */
 export type DealSellerHiddenCause = 'ADVERTISER_PAUSE' | 'ADVERTISER_STOP';
 
-/** 판매자 숨김 — 언제 · 누가(사업자 담당자 / 운영자 대신) */
+/** 판매자 숨김 — 언제 · 누가(사업자 담당자 / 운영자 대신). 서버 `HotdealAdminView.SellerHidden` */
 export interface DealSellerHidden {
     cause: DealSellerHiddenCause;
     at: string;
-    /** 처리한 사람 표시 이름 */
-    by: string;
+    /** 처리한 사람 표시 이름(운영자 이름 · 사업자 닉네임·상호 — 알 수 없으면 null) */
+    by: string | null;
     /** 운영자가 광고주 대신 처리했나 */
     byOperator: boolean;
 }
@@ -172,8 +172,8 @@ export interface AdminDealRow {
     source?: DealSource;
     /** 사업자 핫딜 글의 사업자(회원 핫딜이면 null) */
     business?: DealBusinessRef | null;
-    /** 판매자가 일시 정지·중단해 숨긴 글(그 밖이면 null — 서버가 아직 모르면 없음) */
-    sellerHidden?: DealSellerHidden | null;
+    /** 판매자가 일시 정지·중단해 숨긴 글(그 밖이면 null) */
+    sellerHidden: DealSellerHidden | null;
 }
 
 /** 상태 고르기 — 진행 · 의심 · 종료 · 기간 지남 · 전체 */

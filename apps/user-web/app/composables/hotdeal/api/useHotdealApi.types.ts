@@ -84,9 +84,9 @@ export interface PostDeal {
     source: DealSource;
     /**
      * 사업자 글(`BUSINESS`)이면 사업자 상호 — 작성자 자리·카드 첫 줄 광고 고지에 쓴다. 회원 글·옛 응답은 null·없음.
-     * `applicationId` 는 그 글의 신청 건 — **보는 사람이 그 사업자(작성자)일 때만** 싣는다(카드의 [일시 정지]·「중단·환불은 신청 건에서」 — 목업 2026-11-02 제안, 없으면 단추 없음)
+     * `applicationId` 는 그 글의 신청 건 — **보는 사람이 그 사업자(작성자)일 때만** 값이고 아니면 null(카드의 [일시 정지]·「중단·환불은 신청 건에서」, 서버 `DealBusinessView.applicationId`)
      */
-    business?: { name: string; applicationId?: string | null } | null;
+    business?: { name: string; applicationId: string | null } | null;
     /** 쇼핑몰 이름 1~40자 */
     storeName: string;
     /** 상품 링크 ≤1000자 */

@@ -9,7 +9,7 @@
         · 내림(사업자 정지·긴급) 사유. 계약서 사본은 [보기](`viewContract` — 부모가 `data:` 주소로 연다, 열람 기록).
         · 그 밖: 결제 기록(온라인 결제 또는 계약서·입금 기록)만.
         · 사업자 핫딜 글(2차): 상세 `post` 가 있으면 「게시」 칸(게시 전 · 게시됨 · 실패 → [취소(전액 환불)] · 숨김 — 숨김 까닭 「판매자 일시 정지」·「판매자 중단」)과 노출 줄 상태.
-        · 광고주 요청 일시 정지·중단(상세 `pause` 가 있을 때만 — 일시 정지·중단 목업 2026-11-02): 까닭 · 멈춘 시각 · 누가(+ 요청 경로·메모) · 정지 횟수 · 누적 멈춘 시간 · 끝 안내,
+        · 광고주 요청 일시 정지·중단(상세 `pause` 가 있을 때만 — biz-pause-contract): 까닭 · 멈춘 시각 · 누가(+ 요청 경로·메모) · 정지 횟수 · 누적 멈춘 시간 · 끝 안내,
           운영자 대신 처리 [대신 일시 정지](진행 중 — 횟수를 다 썼으면 비활성) · [대신 다시 켜기]·[대신 중단(환불 심사)](정지 중). 광고주 요청 건에는 긴급 내림 [되돌리기] 보상이 없다.
         맨 아래 처리 기록. 서버는 부르지 않는다 — 동작은 emit.
     -->
@@ -89,13 +89,22 @@
                     {{ pause.pausedMinutes > 0 ? UtilBizApplicationMessages.minutes(t, pause.pausedMinutes) : t('bizApplication.pause.totalNone') }}
                     <span class="block text-[11px] text-muted-color">{{ t('bizApplication.pause.noExtend') }}</span>
                 </dd>
+                <dt class="text-muted-color">{{ t('bizApplication.stopFee.rateLabel') }}</dt>
+                <dd class="m-0 tabular-nums" data-testid="biz-pause-fee-rate">
+                    {{ t('bizApplication.stopFee.rateValue', { rate: pause.feeRate }) }}
+                    <span class="block text-[11px] text-muted-color">{{ t('bizApplication.stopFee.rateFixed') }}</span>
+                </dd>
             </dl>
             <Message v-if="pauseState === 'PAUSED' && ended" severity="secondary" :closable="false"><span class="text-[13px]">{{ t('bizApplication.pause.endedWhilePaused') }}</span></Message>
             <Message v-else-if="pauseState === 'PAUSED'" severity="warn" :closable="false"><span class="text-[13px]">{{ t('bizApplication.pause.noRefundIfEnds', { end: time.full(detail.period.endAt) }) }}</span></Message>
             <Message v-else-if="stoppedByAdvertiser" severity="secondary" :closable="false"><span class="text-[13px]">{{ t('bizApplication.pause.stoppedNote') }}</span></Message>
             <template v-if="canManage && !ended">
                 <div v-if="detail.status === 'RUNNING'" class="flex flex-col items-end gap-1">
-                    <Button type="button" :label="t('bizApplication.pause.act.pause')" icon="pi pi-pause" size="small" severity="secondary" variant="outlined" :disabled="busy || pauseLimit" @click="emit('pause')" />
+                    <!-- 진행 중에서 바로 중단도 받는다(전화로 「끝내 주세요」 — 서버는 진행 중·정지 중 모두 허용) -->
+                    <div class="flex flex-wrap justify-end gap-2">
+                        <Button v-if="!detail.refund || detail.refund.status !== 'REQUESTED'" type="button" :label="t('bizApplication.pause.act.stop')" size="small" severity="danger" variant="outlined" :disabled="busy" @click="emit('stop')" />
+                        <Button type="button" :label="t('bizApplication.pause.act.pause')" icon="pi pi-pause" size="small" severity="secondary" variant="outlined" :disabled="busy || pauseLimit" @click="emit('pause')" />
+                    </div>
                     <p v-if="pauseLimit" class="m-0 text-right text-xs text-muted-color">{{ t('bizApplication.pause.limitReached', { limit: pause.limit }) }}</p>
                 </div>
                 <div v-else-if="pauseState === 'PAUSED'" class="flex flex-wrap justify-end gap-2">
@@ -256,14 +265,29 @@
                 <Tag :value="t(`bizApplication.refundStatus.${refund.status}`)" :severity="refund.status === 'REQUESTED' ? 'danger' : refund.status === 'APPROVED' ? 'success' : 'secondary'" />
             </div>
             <p v-if="refund.reason" class="m-0 text-[13px] [overflow-wrap:anywhere]">“{{ refund.reason }}” <span class="text-[11px] text-muted-color">· {{ time.shortDateTime(refund.requestedAt) }}</span></p>
-            <!-- 광고주 요청 중단 일할(STOP_PRORATED) — 기준 시각 · 정지 중 전환 · 핫딜 글 게시비 제외 -->
-            <p v-if="refund.type === 'STOP_PRORATED'" class="m-0 flex flex-wrap items-center gap-1.5 text-[13px]">
-                <span>{{ t('bizApplication.pause.stopRefundFrom', { at: time.shortDateTime(pause?.refundFrom ?? refund.requestedAt) }) }}</span>
-                <Tag v-if="stopFromPause" :value="t('bizApplication.pause.fromPauseTag')" severity="warn" class="text-[11px]!" />
-            </p>
+            <!-- 광고주 요청 중단(STOP_PRORATED) — 제안 내역(일할 · 중도 해지 수수료 · 제안액 · 기준 시각, 서버 환불 줄 값 그대로) · 정지 중 전환 · 핫딜 글 게시비 제외 -->
+            <dl v-if="refund.type === 'STOP_PRORATED'" class="m-0 grid grid-cols-[minmax(6.5rem,auto)_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13px]" data-testid="biz-refund-stop-breakdown">
+                <dt class="text-muted-color">{{ t('bizApplication.stopFee.prorated') }}</dt>
+                <dd class="m-0 tabular-nums [overflow-wrap:anywhere]">
+                    {{ won(refund.proratedAmount ?? refund.proposedAmount) }}
+                    <span class="text-[11px] text-muted-color">· {{ t('bizApplication.stopFee.days', { paid: won(refund.paidAmount), used: refund.usedDays, total: refund.totalDays }) }}</span>
+                </dd>
+                <template v-if="(refund.feeRate ?? 0) > 0">
+                    <dt class="text-muted-color">{{ t('bizApplication.stopFee.fee', { rate: refund.feeRate }) }}</dt>
+                    <dd class="m-0 tabular-nums">− {{ won(refund.feeAmount ?? 0) }}</dd>
+                </template>
+                <dt class="text-muted-color">{{ t('bizApplication.stopFee.proposed') }}</dt>
+                <dd class="m-0 font-semibold tabular-nums">{{ won(refund.proposedAmount) }}</dd>
+                <dt class="text-muted-color">{{ t('bizApplication.stopFee.basis') }}</dt>
+                <dd class="m-0 flex flex-wrap items-center gap-1.5 tabular-nums">
+                    {{ time.shortDateTime(refund.basisAt ?? pause?.refundFrom ?? refund.requestedAt) }}
+                    <Tag v-if="stopFromPause" :value="t('bizApplication.pause.fromPauseTag')" severity="warn" class="text-[11px]!" />
+                </dd>
+            </dl>
+            <p v-if="refund.type === 'STOP_PRORATED' && (refund.feeRate ?? 0) <= 0" class="m-0 text-xs text-muted-color">{{ t('bizApplication.stopFee.noFeeOld') }}</p>
             <p v-if="refund.type === 'STOP_PRORATED' && detail.kind === 'HOTDEAL_POST'" class="m-0 text-xs text-muted-color">{{ t('bizApplication.pause.postFeeExcluded') }}</p>
             <p v-if="refund.type === 'FULL_AUTO'" class="m-0 text-[13px] tabular-nums">{{ t('bizApplication.refundFull', { paid: won(refund.paidAmount) }) }}</p>
-            <p v-else class="m-0 text-[13px] tabular-nums">{{ t('bizApplication.refundCalc', { paid: won(refund.paidAmount), used: refund.usedDays, total: refund.totalDays, proposed: won(refund.proposedAmount) }) }}</p>
+            <p v-else-if="refund.type !== 'STOP_PRORATED'" class="m-0 text-[13px] tabular-nums">{{ t('bizApplication.refundCalc', { paid: won(refund.paidAmount), used: refund.usedDays, total: refund.totalDays, proposed: won(refund.proposedAmount) }) }}</p>
             <p v-if="refund.status !== 'REQUESTED' && (refund.approvedAmount !== null || refund.decisionReason)" class="m-0 text-[13px] tabular-nums [overflow-wrap:anywhere]">
                 <template v-if="refund.approvedAmount !== null">{{ t('bizApplication.refundApprovedLine', { amount: won(refund.approvedAmount) }) }}</template>
                 <template v-if="refund.decisionReason"> — {{ refund.decisionReason }}</template>

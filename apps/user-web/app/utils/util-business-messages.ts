@@ -18,6 +18,21 @@ export default class UtilBusinessMessages {
         return t('payment.won', { amount: amount.toLocaleString('en-US') });
     }
 
+    /** 신청 화면의 환불 규정 동의 풀이 — 진행 중 중단 수수료율(`GET /api/business/refund-policy`)을 받았으면 넣고, 못 받았으면 비율 없는 문구 */
+    static refundPolicyDetail(t: Translate, stopFeeRate: number | null): string {
+        return stopFeeRate === null ? t('business.agree.refundPolicyDetailNoRate') : t('business.agree.refundPolicyDetail', { rate: stopFeeRate });
+    }
+
+    /**
+     * 중단 환불 내역 한 줄 — 「일할 금액 {a} − 중도 해지 수수료({rate}%) {fee} = 환불 예상액 {b}」. 수수료율 0%(옛 규정 건)면 수수료 없이 「남은 기간 일할 {a}」.
+     * 서버가 준 환불 줄(`refund.proratedAmount`·`feeRate`·`feeAmount`·`proposedAmount`)이 있으면 그 값을, 요청 전이면 화면 계산(`UtilBusiness.stopRefund`)을 넣는다.
+     */
+    static stopBreakdown(t: Translate, prorated: number, feeRate: number, fee: number, amount: number): string {
+        const w = (n: number) => UtilBusinessMessages.won(t, n);
+        if (feeRate <= 0) return t('business.pause.breakdownNoFee', { prorated: w(prorated) });
+        return t('business.pause.breakdown', { prorated: w(prorated), rate: feeRate, fee: w(fee), amount: w(amount) });
+    }
+
     /**
      * 남은 시간 — 「2일 05:12:09」 · 「05:12:09」, 지났으면 「기한 지남」.
      * @param {Translate} t - 번역 함수.

@@ -18,7 +18,7 @@
         핫딜 글(`deal` — `hotdeal-contract.md`): 본문 위에 딜 카드(`HotdealDealCard` — 제휴 고지·가격·몰·배송·재고·기간·가격 기준·수정 이력·[구매하기]·[이 상품 새 딜 올리기]·품절 알리기·작성자 종료/되돌리기/「아직 진행 중」·의심/종료 표시·같은 딜 묶음·판매자 아님 고지).
           같은 딜(`sameDealCount > 0`)은 글을 받은 뒤 `GET …/deal/same` 으로 따로 받는다. 신고 대화창은 핫딜 글이면 사유 2개(가격·정보 / 숨긴 광고)를 더하고, 「가격 허위」는 종료 요청으로 접수된다(D4 — 성공하면 카드의 「보낸 사유」를 화면이 고친다). 동작은 `useHotdealApi` 로 이 화면이 한다(카드는 `actions` 만).
           사업자 핫딜 글(2차 — `deal.source BUSINESS`)은 작성자 자리에 상호 + 「사업자」, 딜 카드 배지 「광고」·카드 첫 줄 광고 고지, 작성자에게도 고치기·지우기 없음(종료만).
-          작성자(`deal.business.applicationId` 가 있을 때)는 카드에 [일시 정지](신청 건 `useBusinessApi.pause`)와 「중단·환불은 신청 건에서」. 판매자가 내린 글(광고주 일시 정지·중단 — `403 DEAL_SELLER_HIDDEN`, 목업 제안)은
+          작성자(`deal.business.applicationId` 가 있을 때)는 카드에 [일시 정지](신청 건 `useBusinessApi.pause`)와 「중단·환불은 신청 건에서」. 판매자가 내린 글(광고주 일시 정지·중단 — 글 단건 조회의 `403 DEAL_SELLER_HIDDEN`, biz-pause-contract 규칙 9)은
           404 대신 안내만: 「판매자가 잠시 내린 딜이에요」/「판매자가 내린 딜이에요」 + 게시판 이름 + [핫딜 게시판으로], 정지이고 보는 사람이 그 사업자면 「신청 건에서 다시 켤 수 있어요 ›」.
           그 게시판 매니저·스텝이 보면(`dealModeration`) 카드에 작성자 조치와 따로 「게시판 관리」([핫딜 종료]·[다시 진행 중으로])가 서고, 딜이 바뀌면 단추를 새 상태에 맞추며 그새 상태가 바뀐 거절(`stale`)이면 글을 다시 읽는다.
         투표(post-poll-contract): 글에 `poll` 이 있으면 본문 바로 다음·찬반 토론 위에 투표 카드(`PostPollCard`). 투표·다시 읽기·지우기는 `usePollApi` 로 이 화면이 하고(카드는 `actions` 만 받는다),
@@ -393,7 +393,7 @@ const siteOrigin = typeof window === 'undefined' ? '' : window.location.origin;
 /* ── 불러오기 ── */
 type PageState = 'loading' | 'ready' | 'notfound' | 'hidden' | 'groupPrivate' | 'sellerHidden' | 'error';
 const post = ref<PostDetail | null>(null);
-/** 판매자가 내린 사업자 핫딜 글(`403 DEAL_SELLER_HIDDEN` 의 extras — 목업 2026-11-02 제안) */
+/** 판매자가 내린 사업자 핫딜 글(`403 DEAL_SELLER_HIDDEN` 의 extras — 서버 `DealSellerHiddenException`, `applicationId` 는 작성자에게만) */
 const sellerHidden = ref<{ state: 'PAUSED' | 'STOPPED'; boardSlug: string; boardName: string; boardNameEn: string | null; applicationId: string | null } | null>(null);
 const board = ref<BoardDetail | null>(null);
 const pageState = ref<PageState>('loading');

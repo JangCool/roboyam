@@ -69,7 +69,7 @@ export default class UtilBizApplication {
         return Math.floor((paid * Math.max(0, totalDays - usedDays)) / totalDays);
     }
 
-    // ── 광고주 요청 일시 정지·중단(일시 정지·중단 목업 2026-11-02 — 서버가 저장 때 다시 판정한다) ──
+    // ── 광고주 요청 일시 정지·중단(biz-pause-contract — 서버가 저장 때 다시 판정한다) ──
 
     /** 운영자 대신 처리 메모 길이(필수) */
     static readonly PAUSE_MEMO = { min: 1, max: 200 } as const;
@@ -112,17 +112,28 @@ export default class UtilBizApplication {
     }
 
     /**
-     * 광고주 요청 중단 일할 환불(가정 — 법무 확정 전). user-web `UtilBusiness.proratedRefund` 와 같은 식(일 단위·수수료 없음):
-     * 총 일수 = 기간의 한국 날짜 수, 쓴 날 = 시작 날짜부터 기준 시각의 한국 날짜까지(그날 포함), 금액 = floor(대상 × 남은 날 / 총 일수) − 이미 승인한 환불(0 아래면 0).
-     * 기준 시각 = 정지 중 전환이면 멈춘 시각, 아니면 중단(지금) 시각. 대상 = 광고 확정 합계 · 핫딜 글은 노출 자리 줄 합계(게시비 제외).
+     * 광고주 요청 중단 환불 예상(서버 `BizPricing.stop` 과 같은 식 — biz-pause-contract 규칙 5, 법무 확정 전 가정):
+     * 총 일수 = 기간의 한국 날짜 수, 쓴 날 = 시작 날짜부터 기준 시각의 한국 날짜까지(그날 포함), 일할 = floor(대상 × 남은 날 / 총 일수) →
+     * `min(일할, 결제액 − 이미 승인한 환불)`(`cap` — 모르면 null 로 생략) → 중도 해지 수수료 = floor(일할 × 비율 / 100) → 예상액 = 일할 − 수수료.
+     * 기준 시각 = 정지 중 전환이면 멈춘 시각, 아니면 중단(지금) 시각. 대상 = `pause.proratableTotal`(광고 결제액 · 핫딜 글은 노출 자리 몫 — 게시비 제외).
+     * @param {number} feeRate - 그 건에 고정된 중도 해지 수수료율(% — `pause.feeRate`).
+     * @param {number | null} cap - 돌려줄 수 있는 남은 금액(결제액 − 이미 승인한 환불). 모르면 null.
      */
-    static stopRefund(total: number, period: BizPeriod, fromIso: string, alreadyRefunded = 0): { amount: number; usedDays: number; totalDays: number } {
+    static stopRefund(
+        total: number,
+        period: BizPeriod,
+        fromIso: string,
+        feeRate: number,
+        cap: number | null = null,
+    ): { prorated: number; fee: number; amount: number; usedDays: number; totalDays: number } {
         const start = UtilBizApplication.kstDate(period.startAt);
         const end = UtilBizApplication.kstDate(new Date(Date.parse(period.endAt) - 1).toISOString());
         const totalDays = Math.max(1, UtilBizApplication.dayDiff(start, end) + 1);
         const left = Math.min(totalDays, Math.max(0, UtilBizApplication.dayDiff(UtilBizApplication.kstDate(fromIso), end)));
-        const amount = total > 0 ? Math.max(0, Math.floor((total * left) / totalDays) - Math.max(0, alreadyRefunded)) : 0;
-        return { amount, usedDays: totalDays - left, totalDays };
+        const raw = total > 0 ? Math.floor((total * left) / totalDays) : 0;
+        const prorated = Math.max(0, cap === null ? raw : Math.min(raw, cap));
+        const fee = Math.floor((prorated * Math.max(0, feeRate)) / 100);
+        return { prorated, fee, amount: prorated - fee, usedDays: totalDays - left, totalDays };
     }
 
     /** 두 달력 날짜(`YYYY-MM-DD`)의 날 차이(b − a) */

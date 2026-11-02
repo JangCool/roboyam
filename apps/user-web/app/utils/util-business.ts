@@ -228,7 +228,7 @@ export default class UtilBusiness {
         return now >= Date.parse(UtilBusiness.kstStartOf(UtilBusiness.addDays(endDate, 1)));
     }
 
-    /** 정지한 채 기간이 끝났나 — 화면이 끝 날짜와 지금을 비교한다(서버가 상태를 바꾸든 아니든 같은 문구 — 목업 명세) */
+    /** 정지한 채 기간이 끝났나 — 화면이 끝 날짜와 지금을 비교한다(서버는 상태를 `TAKEN_DOWN`·`ADVERTISER_PAUSE` 그대로 둔다 — biz-pause-contract) */
     static pauseEnded(status: BizApplicationStatus, cause: BizTakedownCause | null | undefined, endDate: string, now: number): boolean {
         return status === 'TAKEN_DOWN' && cause === 'ADVERTISER_PAUSE' && UtilBusiness.periodOver(endDate, now);
     }
@@ -244,16 +244,26 @@ export default class UtilBusiness {
     }
 
     /**
-     * 중단 예상 환불 — 기존 일할 식(`proratedRefund` — 일 단위·수수료 없음)에 대상 금액 `pause.proratableTotal`, 기준 날짜 = 기준 시각의 한국 날짜(그날까지 쓴 날로 친다).
-     * 법무 확정 전 가정(목업 명세). 금액은 운영팀 확인 뒤 확정한다.
+     * 중단 예상 환불(서버 `BizPricing.stop` 과 같은 식 — biz-pause-contract 규칙 5, 법무 확정 전 가정): 일할 = floor(대상 × 남은 날 / 총 일수)(대상 = `pause.proratableTotal`,
+     * 기준 날짜 = 기준 시각의 한국 날짜 — 그날까지 쓴 날로 친다) → 중도 해지 수수료 = floor(일할 × 비율 / 100) → 예상액 = 일할 − 수수료.
+     * 서버의 `min(일할, 결제액 − 이미 환불)` 은 화면이 이미 환불한 금액을 몰라 생략한다. 금액은 운영팀 확인 뒤 확정한다.
      * @param {string} fromIso - 기준 시각(정지 중이면 멈춘 시각, 아니면 지금·중단 시각).
-     * @returns {{ amount: number; totalDays: number; leftDays: number }} 예상 환불·총 일수·남은 일수.
+     * @param {number} feeRate - 그 건에 고정된 중도 해지 수수료율(% — `pause.feeRate`).
+     * @returns 일할·수수료·예상액·총 일수·남은 일수.
      */
-    static stopRefund(proratableTotal: number, startDate: string, endDate: string, fromIso: string): { amount: number; totalDays: number; leftDays: number } {
+    static stopRefund(
+        proratableTotal: number,
+        startDate: string,
+        endDate: string,
+        fromIso: string,
+        feeRate: number,
+    ): { prorated: number; fee: number; amount: number; totalDays: number; leftDays: number } {
         const from = UtilBusiness.kstYmdOf(fromIso);
         const totalDays = UtilBusiness.daysBetween(startDate, endDate);
         const leftDays = Math.min(totalDays, Math.max(0, UtilBusiness.daysBetween(from, endDate) - 1));
-        return { amount: UtilBusiness.proratedRefund(proratableTotal, startDate, endDate, from), totalDays, leftDays };
+        const prorated = UtilBusiness.proratedRefund(proratableTotal, startDate, endDate, from);
+        const fee = Math.floor((prorated * Math.max(0, feeRate)) / 100);
+        return { prorated, fee, amount: prorated - fee, totalDays, leftDays };
     }
 
     /** 오늘(브라우저 기준 달력 날짜 `YYYY-MM-DD`) — 목업·미리보기용 */

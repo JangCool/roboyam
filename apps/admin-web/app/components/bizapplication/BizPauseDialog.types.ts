@@ -3,7 +3,14 @@ export type BizPauseAction = 'pause' | 'resume' | 'stop';
 
 /** 중단 때 보일 예상 환불(부모가 `UtilBizApplication.stopRefund` 로 계산 — 서버가 다시 계산한다) */
 export interface BizPauseRefundEstimate {
+    /** 환불 예상액 = 일할 − 수수료 */
     amount: number;
+    /** 남은 기간 일할 금액 */
+    prorated: number;
+    /** 그 건에 고정된 중도 해지 수수료율(% — `pause.feeRate`) */
+    feeRate: number;
+    /** 중도 해지 수수료 */
+    fee: number;
     /** 일할 대상 금액(부가세 포함) */
     base: number;
     usedDays: number;

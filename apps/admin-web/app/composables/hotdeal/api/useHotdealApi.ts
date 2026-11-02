@@ -1,4 +1,3 @@
-import { mockPauseDealAct, mockPauseDealDetail, mockPauseDealList, mockPauseDealRevisions } from '~/composables/hotdeal/api/mock/pause-mock';
 import type { AdminDealDetail, AdminDealPage, AdminDealQuery, DealActionRequest, DealRevisionListView, HotdealBoardOptionsView } from '~/composables/hotdeal/api/useHotdealApi.types';
 
 /**
@@ -13,10 +12,7 @@ import type { AdminDealDetail, AdminDealPage, AdminDealQuery, DealActionRequest,
  *   - `POST /api/admin/hotdeals/{postId}/end` `{ reason? }`(0~200자) → 204 · `409 HOTDEAL_STATE_CHANGED`(이미 종료) · `400 fields.reason`
  *   - `POST /api/admin/hotdeals/{postId}/reopen` `{ reason? }` → 204(의심·종료 요청 리셋, 마감이 지났으면 작성자에게 「마감을 고쳐 주세요」 알림) · `409 HOTDEAL_STATE_CHANGED`
  * 감사 `HOTDEAL_END`·`HOTDEAL_REOPEN`. 응답 `Cache-Control: no-store`.
- * 판매자 일시 정지·중단(일시 정지·중단 목업 2026-11-02 — 서버에 아직 없음): 줄·상세 `row.sellerHidden`(`{ cause: ADVERTISER_PAUSE|ADVERTISER_STOP, at, by, byOperator }`) — 숨긴 글도 관리자 목록·상세에는 그대로 나온다.
- *
- * ⚠ MOCK(일시 정지·중단): `?mock=pause-…` 일 때만 `./mock/pause-mock.ts` 가 핫딜 심사 목업 건의 글을 끼우고 그 글 번호의 상세·이력·종료·재개를 받는다.
- *   스위치가 없으면 실제 API 그대로. 서버가 붙으면 `// MOCK:` 줄과 목업 import 를 지우고 `// REAL:` 줄을 살린다.
+ * 판매자 일시 정지·중단(서버 연결 2026-11-02 — `biz-pause-contract.md`): 줄·상세 `row.sellerHidden`(`{ cause: ADVERTISER_PAUSE|ADVERTISER_STOP, at, by, byOperator }`) — 숨긴 글도 관리자 목록·상세에는 그대로 나온다.
  */
 const PATH = {
     root: '/api/admin/hotdeals',
@@ -36,36 +32,17 @@ export function useHotdealApi() {
         boards: (): Promise<HotdealBoardOptionsView> => client.get<HotdealBoardOptionsView>(PATH.boards()),
 
         /** 목록 — 빈 조건은 보내지 않는다(`view` 는 `ALL` 이어도 늘 보낸다) */
-        list: (query: AdminDealQuery, signal?: AbortSignal): Promise<AdminDealPage> =>
-            // MOCK:
-            mockPauseDealList(query, () => client.get<AdminDealPage>(PATH.root, { query: { ...query, blockedActive: query.blockedActive || undefined }, signal })),
-        // REAL: client.get<AdminDealPage>(PATH.root, { query: { ...query, blockedActive: query.blockedActive || undefined }, signal }),
+        list: (query: AdminDealQuery, signal?: AbortSignal): Promise<AdminDealPage> => client.get<AdminDealPage>(PATH.root, { query: { ...query, blockedActive: query.blockedActive || undefined }, signal }),
 
-        detail: (postId: string): Promise<AdminDealDetail> =>
-            // MOCK:
-            mockPauseDealDetail(postId) ??
-            client.get<AdminDealDetail>(PATH.one(postId)),
-        // REAL: client.get<AdminDealDetail>(PATH.one(postId)),
+        detail: (postId: string): Promise<AdminDealDetail> => client.get<AdminDealDetail>(PATH.one(postId)),
 
         /** 딜 칸 수정 이력(서랍 「수정 이력」 탭을 열 때) */
-        revisions: (postId: string): Promise<DealRevisionListView> =>
-            // MOCK:
-            mockPauseDealRevisions(postId) ??
-            client.get<DealRevisionListView>(PATH.revisions(postId)),
-        // REAL: client.get<DealRevisionListView>(PATH.revisions(postId)),
+        revisions: (postId: string): Promise<DealRevisionListView> => client.get<DealRevisionListView>(PATH.revisions(postId)),
 
         /** 운영진 종료(204) — 사유는 선택 */
-        end: (postId: string, body: DealActionRequest): Promise<void> =>
-            // MOCK:
-            mockPauseDealAct(postId, 'END', body.reason) ??
-            client.post<void>(PATH.end(postId), body),
-        // REAL: client.post<void>(PATH.end(postId), body),
+        end: (postId: string, body: DealActionRequest): Promise<void> => client.post<void>(PATH.end(postId), body),
 
         /** 재개(204) — 의심·종료 요청을 리셋한다 */
-        reopen: (postId: string, body: DealActionRequest): Promise<void> =>
-            // MOCK:
-            mockPauseDealAct(postId, 'REOPEN', body.reason) ??
-            client.post<void>(PATH.reopen(postId), body),
-        // REAL: client.post<void>(PATH.reopen(postId), body),
+        reopen: (postId: string, body: DealActionRequest): Promise<void> => client.post<void>(PATH.reopen(postId), body),
     };
 }
