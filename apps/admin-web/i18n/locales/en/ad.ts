@@ -12,6 +12,8 @@ export default {
     sumRunning: 'Running',
     sumScheduled: 'Scheduled',
     sumAwaiting: 'Awaiting payment',
+    sumPaused: 'Paused',
+    sumTakenDown: 'Taken down / stopped',
     calendarFailed: 'Could not load the calendar.',
     legendFree: 'Free',
     legendTight: 'Almost full',

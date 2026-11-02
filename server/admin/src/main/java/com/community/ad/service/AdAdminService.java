@@ -11,6 +11,7 @@ import com.community.bizapplication.dto.BizUpload;
 import com.community.bizapplication.entity.BizActorType;
 import com.community.bizapplication.entity.BizProduct;
 import com.community.bizapplication.entity.BizSource;
+import com.community.bizapplication.entity.BizTakedownCause;
 import com.community.bizapplication.exception.BizApplicationException;
 import com.community.bizapplication.repository.master.BizApplicationStore.AppRow;
 import com.community.bizapplication.repository.master.BizApplicationStore.CreativeRow;
@@ -110,16 +111,25 @@ public class AdAdminService {
         int running = 0;
         int scheduled = 0;
         int awaiting = 0;
+        int paused = 0;
+        int takenDown = 0;
         for (AppRow a : ledger.live(type, now)) {
             switch (BizApplicationReader.adminStatus(a, now)) {
                 case "RUNNING" -> running++;
                 case "SCHEDULED" -> scheduled++;
                 case "AWAITING_PAYMENT", "AWAITING_DEPOSIT" -> awaiting++;
+                case "TAKEN_DOWN" -> {
+                    if (a.takedownCause() == BizTakedownCause.ADVERTISER_PAUSE) {
+                        paused++;
+                    } else {
+                        takenDown++;
+                    }
+                }
                 default -> {
                 }
             }
         }
-        AdAdminView.TypeSummary summary = new AdAdminView.TypeSummary(type.name(), capacity(type), running, scheduled, awaiting);
+        AdAdminView.TypeSummary summary = new AdAdminView.TypeSummary(type.name(), capacity(type), running, scheduled, awaiting, paused, takenDown);
         List<AppRow> month0 = ledger.ledger(type, BizPeriods.startOf(first), BizPeriods.startOf(last.plusDays(1)), null);
         return new AdAdminView.Calendar(summary, days, rows(type, month0, now));
     }

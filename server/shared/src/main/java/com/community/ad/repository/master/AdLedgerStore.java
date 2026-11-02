@@ -58,10 +58,13 @@ public class AdLedgerStore {
         return ids.stream().map(byId::get).filter(java.util.Objects::nonNull).toList();
     }
 
-    /** 그 상품의 지금 살아 있는 건(결제·입금 대기 · 끝나지 않은 예약) — 유형 요약 */
+    /**
+     * 그 상품의 지금 자리를 차지한 건(결제·입금 대기 · 끝나지 않은 예약 · 끝나지 않은 내림 — 일시 정지·중단·긴급 내림·사업자 정지, 되돌리거나 환불 승인 전까지 자리를 잡고 있다) — 유형 요약.
+     * 자리를 차지하는 상태 목록은 한도 판정({@code BizSlotStore})과 같다.
+     */
     public List<AppRow> live(BizProduct product, Instant now) {
         List<Long> ids = named.queryForList("SELECT a.id FROM biz_applications a JOIN biz_application_items i ON i.application_id = a.id AND i.product = :product "
-                        + "WHERE a.status IN ('AWAITING_PAYMENT', 'AWAITING_DEPOSIT', 'SCHEDULED') AND a.end_at > :now LIMIT " + MAX_ROWS,
+                        + "WHERE a.status IN ('AWAITING_PAYMENT', 'AWAITING_DEPOSIT', 'SCHEDULED', 'TAKEN_DOWN') AND a.end_at > :now LIMIT " + MAX_ROWS,
                 new MapSqlParameterSource("product", product.name()).addValue("now", Timestamp.from(now)), Long.class);
         return apps.findAll(ids);
     }

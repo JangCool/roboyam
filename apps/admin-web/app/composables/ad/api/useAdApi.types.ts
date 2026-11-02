@@ -25,6 +25,10 @@ export interface AdTypeSummary {
     scheduled: number;
     /** 결제·입금 대기(자리를 이미 잡고 있다) */
     awaitingPayment: number;
+    /** 광고주 일시 정지(끝나지 않음 — 자리를 계속 잡고 있다) */
+    paused: number;
+    /** 그 밖의 내림(광고주 중단 환불 심사 중 · 긴급 내림 · 사업자 정지 — 되돌리거나 환불 승인 전까지 자리를 잡고 있다) */
+    takenDown: number;
 }
 
 /** 날짜별 남은 칸 — 0 이면 꽉 참 */
