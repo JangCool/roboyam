@@ -42,7 +42,8 @@ export function useHotdealAds(target: MaybeRef<HotdealAdTarget | null>) {
         return ads.hotdealCandidates(t.board, prefix.value) ?? null;
     });
 
-    const prefixName = computed(() => toValue(target)?.prefixName ?? '');
+    /** 말머리 상단 노출일 때만 고른 칩 이름을 넘긴다 — 게시판 상단 광고에 칩 이름이 붙으면 그 글의 말머리처럼 보인다 */
+    const prefixName = computed(() => (placement.value === 'HOTDEAL_CATEGORY' ? (toValue(target)?.prefixName ?? '') : ''));
 
     return { placement, candidates, prefixName };
 }
