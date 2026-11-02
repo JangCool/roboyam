@@ -12,7 +12,7 @@ export default {
 
     usageTitle: '사용처',
     usageNts: '국세청 사업자 조회',
-    usageNtsHelp: '사업자 신청 때 등록번호·대표자명·개업일 진위확인, 심사 때 계속·휴업·폐업 상태조회에 써요.',
+    usageNtsHelp: '사업자 신청 때 등록번호·상호·대표자명·개업일 진위확인, 심사 때 계속·휴업·폐업 상태조회에 써요.',
     provider: {
         ODCLOUD: '공공데이터포털',
         FAKE: '가짜(개발용)',

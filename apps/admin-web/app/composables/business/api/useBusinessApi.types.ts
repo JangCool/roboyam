@@ -17,7 +17,7 @@ export type BusinessServiceStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPE
 export type NtsBizStatus = 'CONTINUING' | 'PAUSED' | 'CLOSED' | 'NOT_FOUND' | 'UNAVAILABLE';
 
 /**
- * 국세청 진위확인 — 등록번호·대표자명·개업일이 국세청 정보와 맞는가. 일치 · 불일치(승인 잠금) · 미확인(개업일이 없는 옛 신청 — 상태조회만 했다, 사유를 적어 승인) ·
+ * 국세청 진위확인 — 등록번호·상호·대표자명·개업일이 국세청 정보와 맞는가. 일치 · 불일치(승인 잠금) · 미확인(개업일이 없는 옛 신청 — 상태조회만 했다, 사유를 적어 승인) ·
  * 조회 불가(장애·키 없음 — 사유를 적어 승인)
  */
 export type NtsValidity = 'MATCH' | 'MISMATCH' | 'UNCHECKED' | 'UNAVAILABLE';

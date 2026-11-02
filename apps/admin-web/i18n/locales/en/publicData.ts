@@ -12,7 +12,7 @@ export default {
 
     usageTitle: 'Used by',
     usageNts: 'NTS business check',
-    usageNtsHelp: 'Identity check (number, representative, opening date) on application and active/paused/closed status check on review.',
+    usageNtsHelp: 'Identity check (number, business name, representative, opening date) on application and active/paused/closed status check on review.',
     provider: {
         ODCLOUD: 'Public data portal',
         FAKE: 'Fake (development)',

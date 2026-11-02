@@ -24,7 +24,7 @@
                 <!-- ① 사업자 정보 -->
                 <template v-if="step === 1">
                     <Message v-if="identityChanged" severity="warn" size="small" :closable="false" data-testid="business-apply-rereview-warn">{{ t('business.apply.reReviewWarn') }}</Message>
-                    <LabeledField :label="t('business.field.companyName')" :error="errors.companyName">
+                    <LabeledField :label="t('business.field.companyName')" :error="errors.companyName" :help="t('business.apply.companyHelp')">
                         <template #default="{ id, describedBy, invalid }">
                             <InputText v-model="form.companyName" :id="id" :maxlength="60" autocomplete="organization" :invalid="invalid" :aria-describedby="describedBy" fluid />
                         </template>
@@ -187,8 +187,10 @@ const tried = ref<Record<number, boolean>>({});
 const serverFields = ref<Record<string, string>>({});
 const formError = ref('');
 const submitBusy = ref(false);
-/** 서버가 국세청 진위확인 불일치로 막았다(400 `BUSINESS_NTS_MISMATCH`) — 번호·대표자명·개업일 중 하나를 고치면 지운다 */
+/** 서버가 국세청 진위확인 불일치로 막았다(400 `BUSINESS_NTS_MISMATCH`) — 번호·상호·대표자명·개업일 중 하나를 고치면 지운다 */
 const ntsMismatch = ref(false);
+/** 진위확인에 보내는 글자 칸(번호는 칸 오류 대신 위 안내로) — 국세청이 어느 칸이 틀렸는지 알려 주지 않아 함께 붉힌다 */
+const NTS_FIELDS = ['companyName', 'ownerName', 'openedOn'];
 
 /** 승인된 사업자의 정보 수정인가 */
 const editMode = computed(() => profile.value?.status === 'APPROVED');
@@ -249,11 +251,11 @@ const errors = computed(() => {
 });
 
 watch(
-    () => [bizNoDigits.value, form.ownerName.trim(), form.openedOn],
+    () => [bizNoDigits.value, form.companyName.trim(), form.ownerName.trim(), form.openedOn],
     () => {
         if (!ntsMismatch.value) return;
         ntsMismatch.value = false;
-        serverFields.value = Object.fromEntries(Object.entries(serverFields.value).filter(([k]) => k !== 'ownerName' && k !== 'openedOn'));
+        serverFields.value = Object.fromEntries(Object.entries(serverFields.value).filter(([k]) => !NTS_FIELDS.includes(k)));
     },
 );
 
@@ -341,9 +343,9 @@ async function submit(): Promise<void> {
         await navigateTo(UtilBusiness.CENTER_PATH);
     } catch (e) {
         if (e instanceof ApiError && e.code === 'BUSINESS_NTS_MISMATCH') {
-            // 문구는 화면 i18n — 어느 칸이 틀렸는지 국세청이 알려 주지 않아 두 칸을 함께 붉힌다
+            // 문구는 화면 i18n
             const hint = t('business.apply.ntsMismatchField');
-            serverFields.value = { ownerName: hint, openedOn: hint };
+            serverFields.value = Object.fromEntries(NTS_FIELDS.map((k) => [k, hint]));
             ntsMismatch.value = true;
             step.value = 1;
         } else if (e instanceof ApiError && e.fields) {
