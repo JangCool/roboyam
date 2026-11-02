@@ -208,7 +208,8 @@
                     <p v-if="refundBreakdown" class="m-0 text-xs tabular-nums" data-testid="business-refund-breakdown">{{ refundBreakdown }}</p>
                     <p v-if="app.refund.type === 'STOP_PRORATED' && refundFromLabel" class="m-0 text-xs tabular-nums text-muted-color" data-testid="business-refund-from">{{ t('business.pause.refundFrom', { at: refundFromLabel }) }}</p>
                     <p v-if="app.refund.decisionReason" class="m-0 whitespace-pre-line text-sm">{{ app.refund.decisionReason }}</p>
-                    <p class="m-0 whitespace-pre-line text-xs text-muted-color">{{ app.refund.reason }}</p>
+                    <!-- 운영팀 추가 환불(`CLAIM`)은 사유가 오지 않는다(클레임 내용은 관리자만) — 금액만 -->
+                    <p v-if="app.refund.reason" class="m-0 whitespace-pre-line text-xs text-muted-color">{{ app.refund.reason }}</p>
                 </div>
             </section>
 

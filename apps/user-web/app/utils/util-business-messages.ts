@@ -80,6 +80,7 @@ export default class UtilBusinessMessages {
             case 'REFUND_APPROVED':
             case 'REFUNDED':
             case 'REFUND_TRANSFERRED':
+            case 'CLAIM_REFUNDED':
                 return amount();
             case 'POST_FAILED':
                 return (FAIL_REASONS as readonly string[]).includes(note) ? t(`business.post.failReason.${note}`) : note;

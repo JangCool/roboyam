@@ -492,6 +492,7 @@ export default {
             FULL_AUTO: 'Full refund',
             PRORATED_REVIEW: 'Pro-rated review',
             STOP_PRORATED: 'Stop · pro-rated review',
+            CLAIM: 'Additional refund',
         },
         refundStatus: {
             REQUESTED: 'Under review',
@@ -541,6 +542,7 @@ export default {
             PAUSED: 'Paused',
             RESUMED: 'Resumed',
             STOPPED: 'Stopped (advertiser request)',
+            CLAIM_REFUNDED: 'Additional refund',
         },
         note: {
             PERIOD_MOVED: 'The start had passed, so the period was moved later',

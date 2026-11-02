@@ -6,6 +6,8 @@
         · Splitter 3단: 왼쪽 목록 · 가운데 신청 내용 + 점검표 + 상태별 처리 · 오른쪽 미리보기. 고른 건은 주소 `?id=` 에 남는다(`?queue=` 로 탭도). 좁은 화면은 위아래로 쌓는다.
         · 처리: 승인(결제 방식·금액·기한·기간 옮기기·남은 자리) · 반려(코드+글, 결제 전이라 환불 없음) · 수동 결제로 전환 · 계약서 사본(한 장씩 올림 · [보기] 열람 기록) + 입금 확인 → 예약 확정
           · 입금 기한 연장/취소 · 환불 승인/거절 · 수동 환불 송금 완료 표시.
+        · 추가 환불(클레임 — biz-pause-contract 「추가 환불」): 상세 `refundSummary` 의 남은 환불 가능 안에서 [추가 환불] → `BizRefundClaimDialog`(금액 · 빠른 채우기 · 사유) — 권한 `deal-order.refund`.
+          409(대상 상태 아님·열린 환불·송금 대기)는 토스트 + 다시 읽기, 400 은 금액·사유 칸 오류.
         · 사업자 핫딜 글(2차): 상세 `post` 로 「게시」 칸(게시 전·게시됨·실패·숨김) — 실패 건은 [취소(전액 환불)](기존 취소 API — 실패 건은 시작 뒤여도 전액 환불). 운영자 알림 `HOTDEAL_POST_FAILED` 의 링크가 `?id=` 로 들어온다.
         · 광고주 요청 일시 정지·중단(biz-pause-contract — 상세 `pause` 가 있을 때만): 운영자 대신 [일시 정지]·[다시 켜기]·[중단(환불 심사)] → `BizPauseDialog`(요청 경로 + 메모, 중단이면 예상 환불액).
           처리 권한은 심사·결제 처리와 같은 `ad.manage`·`hotdeal.manage`. 중단 건의 환불 승인·거절은 기존 환불 흐름(`deal-order.refund`).
@@ -81,6 +83,7 @@
                         @approve-refund="openRefund"
                         @deny-refund="openDialog('denyRefund')"
                         @mark-transferred="markTransferred"
+                        @claim-refund="openDialog('claim')"
                         @view-contract="openContract"
                         @pause="openPause('pause')"
                         @resume="openPause('resume')"
@@ -196,6 +199,16 @@
                 :field-errors="dialogFields"
                 @submit="submitPause"
             />
+            <BizRefundClaimDialog
+                v-if="detail.refundSummary"
+                v-model:visible="dialogs.claim"
+                :no="detail.no"
+                :summary="detail.refundSummary"
+                :busy="working === 'claim'"
+                :error="dialogError"
+                :field-errors="dialogFields"
+                @submit="submitClaim"
+            />
             <BizReasonDialog
                 v-model:visible="dialogs.denyRefund"
                 :title="t('bizApplication.refundDenyTitle')"
@@ -231,13 +244,14 @@ import type {
     BizDomain,
     BizPauseActionRequest,
     BizPeriod,
+    BizRefundClaimRequest,
     BizRejectCode,
 } from '~/composables/bizapplication/api/useBizApplicationApi.types';
 import { BIZ_APPLICATION_QUEUES, BIZ_DOMAIN_KINDS, BIZ_REJECT_CODES } from '~/composables/bizapplication/api/useBizApplicationApi.types';
 import UtilBizApplication from '~/utils/util-biz-application';
 import UtilBizApplicationMessages from '~/utils/util-biz-application-messages';
 
-type Work = 'approve' | 'reject' | 'switchManual' | 'cancel' | 'upload' | 'deposit' | 'confirm' | 'extend' | 'refund' | 'denyRefund' | 'transfer' | 'contract' | BizPauseAction;
+type Work = 'approve' | 'reject' | 'switchManual' | 'cancel' | 'upload' | 'deposit' | 'confirm' | 'extend' | 'refund' | 'denyRefund' | 'transfer' | 'contract' | 'claim' | BizPauseAction;
 
 interface Props {
     /** 이 화면이 다루는 도메인 — 목록·건수·종류 거르기·처리 권한이 여기로 정해진다 */
@@ -360,7 +374,7 @@ const dialogFields = ref<Record<string, string>>({});
 /** 대화상자 없는 처리(입금 패널)의 오류 */
 const panelError = ref('');
 const panelFields = ref<Record<string, string>>({});
-const dialogs = reactive({ approve: false, reject: false, switchManual: false, extend: false, cancel: false, refund: false, denyRefund: false, pause: false });
+const dialogs = reactive({ approve: false, reject: false, switchManual: false, extend: false, cancel: false, refund: false, denyRefund: false, pause: false, claim: false });
 
 function openDialog(name: keyof typeof dialogs): void {
     dialogError.value = '';
@@ -557,6 +571,34 @@ async function submitPause(body: BizPauseActionRequest): Promise<void> {
     if (!d) return;
     const call = action === 'pause' ? () => api.pause(d.id, body) : action === 'resume' ? () => api.resume(d.id, body) : () => api.stop(d.id, body);
     await run(action, call, t(`bizApplication.pause.done.${action}`), 'pause');
+}
+
+/**
+ * 추가 환불(클레임) — 성공하면 상세·목록을 새로. 409 `BIZ_APPLICATION_STATE_CHANGED`(대상 상태 아님 · 열린 환불 · 송금 대기 · 남은 가능액 0)는 창을 닫고
+ * 「지금은 추가 환불할 수 없어요」 토스트 + 다시 읽기. 400 은 금액·사유 칸, 그 밖은 창 안 오류(`run` 과 같은 짜임).
+ */
+async function submitClaim(body: BizRefundClaimRequest): Promise<void> {
+    const d = detail.value;
+    if (!d) return;
+    working.value = 'claim';
+    dialogError.value = '';
+    dialogFields.value = {};
+    try {
+        detail.value = await api.refundClaim(d.id, { ...body });
+        toast.success(t('bizApplication.claim.done'));
+        dialogs.claim = false;
+        void reload();
+    } catch (e) {
+        const failure = toApiError(e);
+        if (failure.status === 409) {
+            dialogs.claim = false;
+            toast.error(failure.code === 'BIZ_APPLICATION_STATE_CHANGED' ? t('bizApplication.claim.stateChanged') : failure.message, 8000);
+            void loadDetail();
+        } else if (failure.code === 'VALIDATION' && failure.fields) dialogFields.value = failure.fields;
+        else dialogError.value = failure.message;
+    } finally {
+        working.value = null;
+    }
 }
 
 async function submitDeny(reason: string): Promise<void> {

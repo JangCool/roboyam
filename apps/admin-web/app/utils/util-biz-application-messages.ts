@@ -92,6 +92,7 @@ export default class UtilBizApplicationMessages {
             case 'REFUND_APPROVED':
             case 'REFUNDED':
             case 'REFUND_TRANSFERRED':
+            case 'CLAIM_REFUNDED':
                 return amount();
             case 'TAKEN_DOWN':
                 if (note === 'EMERGENCY' || advertiser(note)) return t(`bizApplication.takedownCause.${note}`);
