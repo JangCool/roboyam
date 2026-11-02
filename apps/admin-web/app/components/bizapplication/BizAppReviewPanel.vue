@@ -32,16 +32,19 @@
                 <dd class="m-0">{{ t(`bizApplication.adType.${detail.adType}`) }}</dd>
             </template>
             <dt class="text-muted-color">{{ detail.kind === 'HOTDEAL_POST' ? t('bizApplication.dealPeriod') : t('bizApplication.periodLabel') }}</dt>
-            <dd class="m-0 tabular-nums">{{ UtilBizApplicationMessages.period(t, time, detail.period) }} <span class="text-muted-color">· {{ t('bizApplication.daysN', { n: UtilBizApplication.days(detail.period) }) }}</span></dd>
+            <dd class="m-0 tabular-nums">
+                <span :class="EMPH.date">{{ UtilBizApplicationMessages.period(t, time, detail.period) }}</span>
+                <span class="text-muted-color"> · {{ t('bizApplication.daysN', { n: UtilBizApplication.days(detail.period) }) }}</span>
+            </dd>
             <template v-if="detail.adType && detail.status === 'SUBMITTED'">
                 <dt class="text-muted-color">{{ t('bizApplication.slots') }}</dt>
-                <dd class="m-0" :class="detail.remainingSlots <= 0 ? 'font-semibold text-red-600 dark:text-red-400' : ''">{{ t('bizApplication.slotsLeft', { n: detail.remainingSlots, limit: detail.slotLimit }) }}</dd>
+                <dd class="m-0 font-semibold" :class="detail.remainingSlots <= 0 ? EMPH.refund : EMPH.ok">{{ t('bizApplication.slotsLeft', { n: detail.remainingSlots, limit: detail.slotLimit }) }}</dd>
             </template>
             <dt class="text-muted-color">{{ t('bizApplication.preferredMethod') }}</dt>
             <dd class="m-0">{{ t(`bizApplication.method.${detail.preferredMethod}`) }}</dd>
             <dt class="text-muted-color">{{ detail.approval ? t('bizApplication.amountFixed') : t('bizApplication.quoteLabel') }}</dt>
             <dd class="m-0 tabular-nums">
-                {{ won(detail.approval?.amount.total ?? detail.quote.total) }}
+                <span class="text-[15px]" :class="EMPH.money">{{ won(detail.approval?.amount.total ?? detail.quote.total) }}</span>
                 <span class="text-[11px] text-muted-color">({{ t('bizApplication.supplyVat', { supply: won(detail.approval?.amount.supply ?? detail.quote.supply), vat: won(detail.approval?.amount.vat ?? detail.quote.vat) }) }})</span>
                 <span v-if="detail.approval?.adjustReason" class="block text-[11px] text-muted-color">{{ t('bizApplication.adjusted', { reason: detail.approval.adjustReason }) }}</span>
                 <span v-for="line in quoteLines" :key="line.product" class="block text-[11px] text-muted-color">{{ t('bizApplication.quoteLine', { product: t(`bizApplication.product.${line.product}`), price: won(line.unitPrice), units: line.units, unit: t(`bizApplication.unit.${line.unit}`), supply: won(line.supply) }) }}</span>
@@ -78,7 +81,7 @@
                     <dt class="text-muted-color">{{ t('bizApplication.pause.cause') }}</dt>
                     <dd class="m-0">{{ t(`bizApplication.takedownCause.${advertiserTakedown.cause}`) }}</dd>
                     <dt class="text-muted-color">{{ advertiserTakedown.cause === 'ADVERTISER_STOP' ? t('bizApplication.pause.stoppedAt') : t('bizApplication.pause.pausedAt') }}</dt>
-                    <dd class="m-0 tabular-nums">{{ time.full(advertiserTakedown.at) }}</dd>
+                    <dd class="m-0 tabular-nums" :class="EMPH.date">{{ time.full(advertiserTakedown.at) }}</dd>
                     <dt class="text-muted-color">{{ t('bizApplication.pause.who') }}</dt>
                     <dd class="m-0 [overflow-wrap:anywhere]">{{ UtilBizApplicationMessages.pauseWho(t, advertiserTakedown.by ?? pause.actor, advertiserTakedown.channel ?? (pauseState === 'PAUSED' ? pause.channel : null), advertiserTakedown.memo) }}</dd>
                 </template>
@@ -91,7 +94,7 @@
                 </dd>
                 <dt class="text-muted-color">{{ t('bizApplication.stopFee.rateLabel') }}</dt>
                 <dd class="m-0 tabular-nums" data-testid="biz-pause-fee-rate">
-                    {{ t('bizApplication.stopFee.rateValue', { rate: pause.feeRate }) }}
+                    <span :class="pause.feeRate > 0 ? EMPH.fee : ''">{{ t('bizApplication.stopFee.rateValue', { rate: pause.feeRate }) }}</span>
                     <span class="block text-[11px] text-muted-color">{{ t('bizApplication.stopFee.rateFixed') }}</span>
                 </dd>
             </dl>
@@ -132,7 +135,7 @@
                 <dt class="text-muted-color">{{ t('bizApplication.post.board') }}</dt>
                 <dd class="m-0">{{ post.boardName }}<span v-if="post.prefixName" class="ml-1 text-muted-color">[{{ post.prefixName }}]</span></dd>
                 <dt class="text-muted-color">{{ post.status === 'WAITING' ? t('bizApplication.post.publishAtWaiting') : t('bizApplication.post.publishAt') }}</dt>
-                <dd class="m-0 tabular-nums">{{ time.full(post.publishAt) }}</dd>
+                <dd class="m-0 tabular-nums" :class="EMPH.date">{{ time.full(post.publishAt) }}</dd>
                 <template v-if="post.view">
                     <dt class="text-muted-color">{{ t('bizApplication.post.dealState') }}</dt>
                     <dd class="m-0 flex flex-wrap items-center gap-1.5">
@@ -269,27 +272,36 @@
             <dl v-if="refund.type === 'STOP_PRORATED'" class="m-0 grid grid-cols-[minmax(6.5rem,auto)_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13px]" data-testid="biz-refund-stop-breakdown">
                 <dt class="text-muted-color">{{ t('bizApplication.stopFee.prorated') }}</dt>
                 <dd class="m-0 tabular-nums [overflow-wrap:anywhere]">
-                    {{ won(refund.proratedAmount ?? refund.proposedAmount) }}
+                    <span class="font-semibold">{{ won(refund.proratedAmount ?? refund.proposedAmount) }}</span>
                     <span class="text-[11px] text-muted-color">· {{ t('bizApplication.stopFee.days', { paid: won(refund.paidAmount), used: refund.usedDays, total: refund.totalDays }) }}</span>
                 </dd>
                 <template v-if="(refund.feeRate ?? 0) > 0">
                     <dt class="text-muted-color">{{ t('bizApplication.stopFee.fee', { rate: refund.feeRate }) }}</dt>
-                    <dd class="m-0 tabular-nums">− {{ won(refund.feeAmount ?? 0) }}</dd>
+                    <dd class="m-0 tabular-nums" :class="EMPH.fee">− {{ won(refund.feeAmount ?? 0) }}</dd>
                 </template>
                 <dt class="text-muted-color">{{ t('bizApplication.stopFee.proposed') }}</dt>
-                <dd class="m-0 font-semibold tabular-nums">{{ won(refund.proposedAmount) }}</dd>
+                <dd class="m-0 text-[15px] tabular-nums" :class="EMPH.refund">{{ won(refund.proposedAmount) }}</dd>
                 <dt class="text-muted-color">{{ t('bizApplication.stopFee.basis') }}</dt>
                 <dd class="m-0 flex flex-wrap items-center gap-1.5 tabular-nums">
-                    {{ time.shortDateTime(refund.basisAt ?? pause?.refundFrom ?? refund.requestedAt) }}
+                    <span :class="EMPH.date">{{ time.shortDateTime(refund.basisAt ?? pause?.refundFrom ?? refund.requestedAt) }}</span>
                     <Tag v-if="stopFromPause" :value="t('bizApplication.pause.fromPauseTag')" severity="warn" class="text-[11px]!" />
                 </dd>
             </dl>
             <p v-if="refund.type === 'STOP_PRORATED' && (refund.feeRate ?? 0) <= 0" class="m-0 text-xs text-muted-color">{{ t('bizApplication.stopFee.noFeeOld') }}</p>
             <p v-if="refund.type === 'STOP_PRORATED' && detail.kind === 'HOTDEAL_POST'" class="m-0 text-xs text-muted-color">{{ t('bizApplication.pause.postFeeExcluded') }}</p>
-            <p v-if="refund.type === 'FULL_AUTO'" class="m-0 text-[13px] tabular-nums">{{ t('bizApplication.refundFull', { paid: won(refund.paidAmount) }) }}</p>
-            <p v-else-if="refund.type !== 'STOP_PRORATED'" class="m-0 text-[13px] tabular-nums">{{ t('bizApplication.refundCalc', { paid: won(refund.paidAmount), used: refund.usedDays, total: refund.totalDays, proposed: won(refund.proposedAmount) }) }}</p>
+            <i18n-t v-if="refund.type === 'FULL_AUTO'" keypath="bizApplication.refundFull" tag="p" scope="global" class="m-0 text-[13px] tabular-nums">
+                <template #paid><span :class="EMPH.refund">{{ won(refund.paidAmount) }}</span></template>
+            </i18n-t>
+            <i18n-t v-else-if="refund.type !== 'STOP_PRORATED'" keypath="bizApplication.refundCalc" tag="p" scope="global" class="m-0 text-[13px] tabular-nums">
+                <template #paid><span class="font-semibold">{{ won(refund.paidAmount) }}</span></template>
+                <template #used>{{ refund.usedDays }}</template>
+                <template #total>{{ refund.totalDays }}</template>
+                <template #proposed><span :class="EMPH.refund">{{ won(refund.proposedAmount) }}</span></template>
+            </i18n-t>
             <p v-if="refund.status !== 'REQUESTED' && (refund.approvedAmount !== null || refund.decisionReason)" class="m-0 text-[13px] tabular-nums [overflow-wrap:anywhere]">
-                <template v-if="refund.approvedAmount !== null">{{ t('bizApplication.refundApprovedLine', { amount: won(refund.approvedAmount) }) }}</template>
+                <i18n-t v-if="refund.approvedAmount !== null" keypath="bizApplication.refundApprovedLine" tag="span" scope="global">
+                    <template #amount><span :class="EMPH.ok">{{ won(refund.approvedAmount) }}</span></template>
+                </i18n-t>
                 <template v-if="refund.decisionReason"> — {{ refund.decisionReason }}</template>
             </p>
             <!-- 돌려주는 길: 온라인(PG 취소) · 수동(운영자 송금) -->
@@ -298,7 +310,9 @@
                 <p v-else-if="refund.transferStatus === 'DONE'" class="m-0 text-xs text-muted-color">{{ t('bizApplication.refundTransferDone', { at: refund.transferredAt ? time.shortDateTime(refund.transferredAt) : '—' }) }}</p>
                 <Message v-else-if="refund.transferStatus === 'PENDING'" severity="warn" :closable="false">
                     <div class="flex flex-wrap items-center justify-between gap-2 text-[13px]">
-                        <span>{{ t('bizApplication.refundTransferPending', { amount: won(refund.approvedAmount ?? 0) }) }}</span>
+                        <i18n-t keypath="bizApplication.refundTransferPending" tag="span" scope="global">
+                            <template #amount><span :class="EMPH.refund">{{ won(refund.approvedAmount ?? 0) }}</span></template>
+                        </i18n-t>
                         <Button v-if="canRefund" type="button" :label="t('bizApplication.actMarkTransferred')" icon="pi pi-check" size="small" :disabled="busy" @click="emit('markTransferred')" />
                     </div>
                 </Message>
@@ -312,10 +326,19 @@
         <!-- 결제 기록(확정 뒤) -->
         <section v-if="detail.onlinePayment || (detail.status !== 'AWAITING_DEPOSIT' && !(operator && canManage && detail.status === 'SUBMITTED') && (detail.contracts.length || detail.deposit))" class="flex flex-col gap-2">
             <h3 class="m-0 text-sm font-semibold">{{ t('bizApplication.paymentRecord') }}</h3>
-            <p v-if="detail.onlinePayment" class="m-0 text-[13px]">{{ t('bizApplication.paidOnline', { at: time.shortDateTime(detail.onlinePayment.paidAt), tx: detail.onlinePayment.pgTxId }) }}</p>
+            <i18n-t v-if="detail.onlinePayment" keypath="bizApplication.paidOnline" tag="p" scope="global" class="m-0 text-[13px] tabular-nums">
+                <template #at><span :class="EMPH.date">{{ time.shortDateTime(detail.onlinePayment.paidAt) }}</span></template>
+                <template #tx>{{ detail.onlinePayment.pgTxId }}</template>
+            </i18n-t>
             <template v-else>
                 <BizContractFiles :files="detail.contracts" :viewable="canManage" :busy="busy" @view="(id) => emit('viewContract', id)" />
-                <p v-if="detail.deposit" class="m-0 text-[13px]">{{ t('bizApplication.depositLine', { amount: won(detail.deposit.amount), date: time.serviceDate(detail.deposit.depositedOn), name: detail.deposit.depositorName, who: detail.deposit.confirmedBy, at: time.shortDateTime(detail.deposit.confirmedAt) }) }}</p>
+                <i18n-t v-if="detail.deposit" keypath="bizApplication.depositLine" tag="p" scope="global" class="m-0 text-[13px] tabular-nums">
+                    <template #amount><span :class="EMPH.money">{{ won(detail.deposit.amount) }}</span></template>
+                    <template #date><span :class="EMPH.date">{{ time.serviceDate(detail.deposit.depositedOn) }}</span></template>
+                    <template #name>{{ detail.deposit.depositorName }}</template>
+                    <template #who>{{ detail.deposit.confirmedBy }}</template>
+                    <template #at>{{ time.shortDateTime(detail.deposit.confirmedAt) }}</template>
+                </i18n-t>
             </template>
         </section>
 
@@ -377,6 +400,14 @@ const uid = useId();
 /** 점검표 — 부모가 건마다 `:key` 로 다시 만든다 */
 const checked = ref<string[]>([]);
 const won = (n: number) => UtilBizApplicationMessages.won(t, n, locale.value);
+/** 가운데 칸 강조 — 받는 돈(확정·견적 합계·입금액) · 돌려줄 돈(환불 제안·전액·송금할 돈) · 빼는 돈(중도 해지 수수료) · 끝난/넉넉한 값 · 일자(기간·게시·멈춘·기준·결제 시각) */
+const EMPH = {
+    money: 'font-bold text-(--p-primary-color)',
+    refund: 'font-bold text-red-600 dark:text-red-400',
+    fee: 'font-semibold text-amber-700 dark:text-amber-400',
+    ok: 'font-semibold text-green-700 dark:text-green-400',
+    date: 'font-semibold text-sky-700 dark:text-sky-400',
+} as const;
 const refund = computed(() => props.detail.refund);
 /** 운영자 등록 건(광고 일정표 수동 등록) */
 const operator = computed(() => props.detail.source === 'OPERATOR');
