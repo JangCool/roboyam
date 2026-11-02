@@ -93,7 +93,7 @@ export default {
     settingsLead_AD_TEXT_LINE: 'Choose how many text-line ads to show. Running text lines are picked by weight, without repeats.',
     settingsCount_AD_TEXT_LINE: 'Lines to show',
     adType: 'Banner type',
-    adTypeHint: 'Each type has a fixed size (ratio). Ads of the same type in the ad schedule appear here.',
+    adTypeHint: 'Each type has a fixed size (ratio). Ads of the same type in Ad schedule & booking appear here.',
     adTypeSize_WIDE_BANNER: '1200×300',
     adTypeSize_STRIP_BANNER: '1200×100',
     adTypeSize_SQUARE_BANNER: '300×250',
