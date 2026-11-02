@@ -406,6 +406,8 @@ export default {
         stageLabel: '진행 단계',
         stageCurrent: '지금 단계',
         stageStopped: '여기서 멈춤',
+        stagePaused: '일시 정지 중',
+        stageAdvertiserStopped: '광고주 요청으로 중단',
         stage: {
             SUBMIT: '신청',
             REVIEW: '심사',
@@ -550,6 +552,13 @@ export default {
             SUSPENDED: '사업자 정지',
             RESTORED: '정지가 풀려 되돌렸어요',
             CATEGORY_TOP_OFF: '말머리가 맞지 않아 말머리 상단 노출은 나오지 않아요',
+            // 글 숨김·다시 보임·환불 요청·내림 기록의 까닭(서버 note 코드 → 사람 말)
+            cause: {
+                ADVERTISER_PAUSE: '일시 정지해서',
+                ADVERTISER_STOP: '중단해서',
+                EMERGENCY: '운영팀 긴급 조치',
+                RESUMED: '다시 켜서',
+            },
         },
         span: {
             DH: '{d}일 {h}시간',

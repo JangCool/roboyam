@@ -32,7 +32,7 @@
             </div>
 
             <section class="panel-card p-4">
-                <BusinessStageTrack :status="app.status" :phase="app.phase" :paid="paid" />
+                <BusinessStageTrack :status="app.status" :phase="app.phase" :paid="paid" :cause="app.takedownCause" />
             </section>
 
             <Message v-if="justPaid && app.status === 'SCHEDULED'" severity="success" :closable="false" data-testid="business-paid">

@@ -405,6 +405,8 @@ export default {
         stageLabel: 'Progress',
         stageCurrent: 'Current step',
         stageStopped: 'Stopped here',
+        stagePaused: 'Paused',
+        stageAdvertiserStopped: 'Stopped at your request',
         stage: {
             SUBMIT: 'Request',
             REVIEW: 'Review',
@@ -549,6 +551,12 @@ export default {
             SUSPENDED: 'Business suspended',
             RESTORED: 'Restored after the suspension was lifted',
             CATEGORY_TOP_OFF: 'The category-top placement will not show because the category no longer matches',
+            cause: {
+                ADVERTISER_PAUSE: 'paused',
+                ADVERTISER_STOP: 'stopped',
+                EMERGENCY: 'emergency action by the team',
+                RESUMED: 'resumed',
+            },
         },
         span: {
             DH: '{d}d {h}h',

@@ -60,6 +60,14 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
     }
 
     /**
+     * 판매자 숨김(사업자 핫딜 일시 정지·중단 — {@link PostEntity#SELLER_PAUSED}·{@link PostEntity#SELLER_STOPPED}, biz-pause-contract 규칙 9) 중이 아닌 조건.
+     * 신고·운영 숨김 글은 게시판 목록에 「숨겨진 글」 줄로 남지만, 판매자 숨김 글은 목록에서 아예 빠진다(쪽 건수·전체 수 포함). 판매자 숨김은 기간이 없다.
+     */
+    public static BooleanExpression notSellerHidden(QPostEntity p, Instant now) {
+        return notHidden(p, now).or(p.hiddenReason.notIn(PostEntity.SELLER_PAUSED, PostEntity.SELLER_STOPPED));
+    }
+
+    /**
      * 게시판이 섞인 목록(최신글·통합 검색·회원 작성글·인기글)에 나올 수 있는 글 — 일반 글이거나, <b>비멤버에게 보이는 소모임 글</b>
      * ({@code is_public} = 유효 노출 — 공개 소모임의 글·개별 공개된 글, community api-groups.md 8절·11-1)이고 작성자가 나가서 가리지 않았으며 소모임이 비활성이 아니다
      * (비활성 소모임의 글은 글 상세가 403 {@code GROUP_INACTIVE} 라 줄을 보이지 않는다 — 해산한 소모임에 공개로 남은 글은 읽히므로 나온다).
@@ -96,7 +104,7 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
      * @param excludePinned 고정 공지를 목록에서 뺀다(첫 쪽 위에 따로 보일 때)
      */
     public Page page(long boardId, Long prefixId, String q, boolean oldest, boolean excludePinned, long offset, int limit, Instant now) {
-        BooleanExpression where = POST.boardId.eq(boardId).and(alive(POST, now));
+        BooleanExpression where = POST.boardId.eq(boardId).and(alive(POST, now)).and(notSellerHidden(POST, now));
         if (prefixId != null) {
             where = where.and(POST.prefixId.eq(prefixId));
         }
@@ -145,7 +153,7 @@ public class PostRepositoryQDSL extends RoboyamRepositoryQDSL {
             expired = expired.or(deal.endsAt.isNull().and(deal.createdAt.loe(now.minus(java.time.Duration.ofDays(autoExpireDays)))));
         }
         BooleanExpression ended = deal.postId.isNull().or(deal.status.eq(PostDealEntity.ENDED)).or(expired);
-        BooleanExpression where = POST.boardId.eq(boardId).and(alive(POST, now));
+        BooleanExpression where = POST.boardId.eq(boardId).and(alive(POST, now)).and(notSellerHidden(POST, now));
         if (prefixId != null) {
             where = where.and(POST.prefixId.eq(prefixId));
         }

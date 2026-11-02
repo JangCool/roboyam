@@ -88,27 +88,37 @@ export default class UtilBusinessMessages {
             case 'PAUSED':
             case 'RESUMED':
             case 'STOPPED':
-                return note
-                    .split(' · ')
-                    .map((part) => UtilBusinessMessages.pauseNoteToken(t, part))
-                    .join(' · ');
+            case 'POST_HIDDEN':
+            case 'POST_RESTORED':
             case 'REFUND_REQUESTED':
             case 'TAKEN_DOWN':
             case 'REFUND_DENIED':
-                return note === 'SUSPENDED' || note === 'RESTORED' ? t(`business.detail.note.${note}`) : note;
+                return note
+                    .split(' · ')
+                    .map((part) => UtilBusinessMessages.pauseNoteToken(t, part, action))
+                    .filter(Boolean)
+                    .join(' · ');
             default:
                 return note;
         }
     }
 
     /**
-     * 일시 정지·재개·중단 기록의 토큰 하나 — 요청 경로(`PHONE`·`EMAIL`·`OTHER` — 운영팀 대신 처리) · `FROM_PAUSE`(정지 중 중단) · `MIN:<분>`(멈춘 시간). 그 밖은 그대로.
+     * 정지·재개·중단·글 숨김·내림·환불 기록의 토큰 하나 — 요청 경로(`PHONE`·`EMAIL`·`OTHER` — 운영팀 대신 처리) · `FROM_PAUSE`(정지 중 중단) · `MIN:<분>`(멈춘 시간) ·
+     * 내림 까닭(`ADVERTISER_PAUSE`·`ADVERTISER_STOP`·`EMERGENCY`·`SUSPENDED` — 정지·재개·중단 줄은 제목이 이미 말하므로 뺀다) · `RESTORED`.
+     * 그 밖의 코드 모양 토큰(대문자·밑줄)은 사업자에게 뜻이 없어 빈 글자(부르는 쪽이 거른다), 사유 글은 그대로.
      */
-    static pauseNoteToken(t: Translate, token: string): string {
+    static pauseNoteToken(t: Translate, token: string, action?: BizHistoryEntry['action']): string {
         if (token === 'PHONE' || token === 'EMAIL' || token === 'OTHER') return t(`business.pause.channelNote.${token}`);
         if (token === 'FROM_PAUSE') return t('business.pause.fromPauseNote');
         if (token.startsWith('MIN:')) return t('business.pause.minutesNote', { span: UtilBusinessMessages.minutes(t, Number(token.slice(4)) || 0) });
-        return token;
+        if (token === 'SUSPENDED' || token === 'RESTORED') return t(`business.detail.note.${token}`);
+        if (token === 'ADVERTISER_PAUSE' || token === 'ADVERTISER_STOP' || token === 'EMERGENCY') {
+            if (action === 'PAUSED' || action === 'RESUMED' || action === 'STOPPED') return '';
+            if (action === 'POST_RESTORED' && token === 'ADVERTISER_PAUSE') return t('business.detail.note.cause.RESUMED');
+            return t(`business.detail.note.cause.${token}`);
+        }
+        return /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+(?::\S*)?$/.test(token) ? '' : token;
     }
 
     /** 분 → 「2일 3시간」·「3시간 10분」·「45분」 */
