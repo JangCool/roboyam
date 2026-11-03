@@ -138,6 +138,7 @@ export default {
     // ── Run details ──
     detailTitle: 'Run details',
     runNo: 'Run #{id}',
+    runId: 'Run no.',
     logNotFound: 'Run record not found',
     logLoadFailed: 'Could not load the run details',
     logDenied: 'You do not have permission to see batch logs.',
