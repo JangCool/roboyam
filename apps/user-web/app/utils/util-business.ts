@@ -45,6 +45,10 @@ export default class UtilBusiness {
     static readonly CERTIFICATE_ACCEPT = 'application/pdf,image/jpeg,image/png';
     /** 광고 이미지 형식 */
     static readonly IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif';
+    /** 배너 규격 비율(가로 ÷ 세로) — `business.adTypeSize`(1200×300 등)와 같은 값, 한 줄 광고는 없음 */
+    static readonly BANNER_RATIO: Readonly<Record<AdType, number | null>> = { WIDE: 4, STRIP: 12, SQUARE: 6 / 5, SMALL: 3, WING: 4 / 15, TEXT_LINE: null };
+    /** 배너 비율 허용 폭 ±3%(docs/plans/biz-ad-hotdeal/02-ad.md 미디어 업로드) — 공개 자리는 규격 틀에 맞춰 잘라 보이므로 크게 다르면 막는다 */
+    static readonly BANNER_RATIO_TOLERANCE = 0.03;
 
     /** 광고 종류 차례(카드 순서) */
     static readonly AD_TYPES: readonly AdType[] = ['WIDE', 'STRIP', 'SQUARE', 'SMALL', 'WING', 'TEXT_LINE'];
@@ -141,6 +145,40 @@ export default class UtilBusiness {
     static discountRate(listPrice: number | null, dealPrice: number | null): number | null {
         if (!listPrice || !dealPrice || dealPrice >= listPrice) return null;
         return Math.round(((listPrice - dealPrice) / listPrice) * 100);
+    }
+
+    /**
+     * 배너 이미지가 그 종류의 규격 비율과 맞는지(±3%).
+     * @param {AdType} type 광고 종류.
+     * @param {number} width 이미지 가로(px).
+     * @param {number} height 이미지 세로(px).
+     * @returns {boolean} 비율이 맞거나 비율이 없는 종류(한 줄)면 true.
+     */
+    static bannerRatioOk(type: AdType, width: number, height: number): boolean {
+        const ratio = UtilBusiness.BANNER_RATIO[type];
+        if (ratio === null || width <= 0 || height <= 0) return true;
+        return Math.abs(width / height / ratio - 1) <= UtilBusiness.BANNER_RATIO_TOLERANCE;
+    }
+
+    /**
+     * 고른 이미지 파일의 크기를 읽는다(올리기 전 비율 검사용).
+     * @param {File} file 이미지 파일.
+     * @returns {Promise<{ width: number; height: number } | null>} 크기, 읽지 못하면 null(검사를 건너뛴다).
+     */
+    static imageSizeOf(file: File): Promise<{ width: number; height: number } | null> {
+        return new Promise((resolve) => {
+            const url = URL.createObjectURL(file);
+            const image = new Image();
+            image.onload = () => {
+                resolve({ width: image.naturalWidth, height: image.naturalHeight });
+                URL.revokeObjectURL(url);
+            };
+            image.onerror = () => {
+                resolve(null);
+                URL.revokeObjectURL(url);
+            };
+            image.src = url;
+        });
     }
 
     /** 광고 종류인가(핫딜 아님) */

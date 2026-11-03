@@ -110,6 +110,7 @@ export default {
     imageChange: '그림 바꾸기',
     imageRule: 'PNG·JPG·GIF·WEBP, 2MB까지 — 고르면 바로 올려요',
     imageRequired: '배너 그림을 골라 주세요.',
+    imageRatio: '{size} 비율과 달라요(고른 그림 {width}×{height}). 같은 비율로 맞춰 올려 주세요.',
     imageBadType: 'PNG·JPG·GIF·WEBP 그림만 올릴 수 있어요.',
     imageTooBig: '그림은 {mb}MB까지 올릴 수 있어요.',
     altRequired: '대체 글을 적어 주세요.',

@@ -197,6 +197,8 @@ const availStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle');
 let availFor: AdType | null = null;
 
 const image = ref<BusinessFile | null>(null);
+/** 올린 배너 이미지 크기(비율 검사) — 읽지 못하면 null(서버가 다시 본다) */
+const imageSize = ref<{ width: number; height: number } | null>(null);
 const uploadBusy = ref(false);
 const creative = reactive({ linkUrl: '', altText: '', text: '' });
 const paymentMethod = ref<BizPaymentMethod>('ONLINE');
@@ -286,11 +288,15 @@ const errors = computed(() => {
         else if (product.value && days.value > product.value.maxDays) out.period = t('business.ad.periodTooLong', { max: product.value.maxDays });
         else if (periodHasFull.value) out.period = t('business.ad.periodFull');
     }
+    // 배너 비율은 올리자마자 알린다(종류를 바꿔도 다시 본다)
+    if (adType.value && image.value && imageSize.value && !UtilBusiness.bannerRatioOk(adType.value, imageSize.value.width, imageSize.value.height)) {
+        out.image = t('business.ad.imageRatio', { size: t(`business.adTypeSize.${adType.value}`), width: imageSize.value.width, height: imageSize.value.height });
+    }
     if (tried.value[3]) {
         if (adType.value === 'TEXT_LINE') {
             if (!creative.text.trim()) out.text = t('business.ad.textRequired');
         } else {
-            if (!image.value) out.image = t('business.ad.imageRequired');
+            if (!image.value) out.image ??= t('business.ad.imageRequired');
             if (!creative.altText.trim()) out.alt = t('business.ad.altRequired');
         }
         if (!linkOk.value) out.link = t('business.ad.linkInvalid');
@@ -305,7 +311,9 @@ async function uploadImage(file: File): Promise<void> {
     uploadBusy.value = true;
     formError.value = '';
     try {
+        const size = await UtilBusiness.imageSizeOf(file);
         image.value = await api.uploadFile(file);
+        imageSize.value = size;
     } catch (e) {
         formError.value = e instanceof Error ? e.message : t('common.failed');
     } finally {

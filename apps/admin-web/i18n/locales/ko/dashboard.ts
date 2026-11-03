@@ -39,5 +39,9 @@ export default {
     todoRefundNote: '진행 중 건의 환불 요청',
     todoBusinessReview: '사업자 인증 대기',
     todoBusinessReviewNote: '처음 신청·재신청 + 재심사',
+    todoHotdealFlagged: '핫딜 확인 필요',
+    todoHotdealFlaggedNote: '종료 요청이 쌓인 글 — 종료하거나 유지',
+    todoHotdealSuspicions: '위장 홍보 의심',
+    todoHotdealSuspicionsNote: '같은 판매처 글이 몰린 회원·판매처',
     todoDomainLink: '{domain} {count}',
 };

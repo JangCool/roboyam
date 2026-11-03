@@ -204,18 +204,21 @@
                     <p class="m-0 flex flex-wrap items-center gap-1.5 font-semibold">
                         {{ t('business.detail.refundTitle') }}
                         <PointShopTag :tone="app.refund.status === 'APPROVED' ? 'success' : app.refund.status === 'DENIED' ? 'danger' : 'warn'">{{ t(`business.detail.refundStatus.${app.refund.status}`) }}</PointShopTag>
-                        <span class="text-xs font-normal text-muted-color">{{ t(`business.detail.refundType.${app.refund.type}`) }}</span>
+                        <span v-if="!multiRefund" class="text-xs font-normal text-muted-color">{{ t(`business.detail.refundType.${app.refund.type}`) }}</span>
                     </p>
-                    <p v-if="app.refund.refundAmount !== null" class="m-0 tabular-nums">{{ t('business.detail.refundApproved', { amount: UtilBusinessMessages.won(t, app.refund.refundAmount) }) }}</p>
-                    <p v-else-if="app.refund.status === 'REQUESTED'" class="m-0 tabular-nums">{{ t('business.detail.refundEstimate', { amount: UtilBusinessMessages.won(t, app.refund.proposedAmount) }) }}</p>
+                    <!-- 환불이 두 줄 이상이면 마지막 건의 종류·금액은 아래 줄 목록과 겹친다 — 목록만 -->
+                    <template v-if="!multiRefund">
+                        <p v-if="app.refund.refundAmount !== null" class="m-0 tabular-nums">{{ t('business.detail.refundApproved', { amount: UtilBusinessMessages.won(t, app.refund.refundAmount) }) }}</p>
+                        <p v-else-if="app.refund.status === 'REQUESTED'" class="m-0 tabular-nums">{{ t('business.detail.refundEstimate', { amount: UtilBusinessMessages.won(t, app.refund.proposedAmount) }) }}</p>
+                    </template>
                     <p v-if="refundBreakdown" class="m-0 text-xs tabular-nums" data-testid="business-refund-breakdown">{{ refundBreakdown }}</p>
                     <p v-if="app.refund.type === 'STOP_PRORATED' && refundFromLabel" class="m-0 text-xs tabular-nums text-muted-color" data-testid="business-refund-from">{{ t('business.pause.refundFrom', { at: refundFromLabel }) }}</p>
                     <p v-if="app.refund.decisionReason" class="m-0 whitespace-pre-line text-sm">{{ app.refund.decisionReason }}</p>
                     <!-- 운영팀 추가 환불(`CLAIM`)은 사유가 오지 않는다(클레임 내용은 관리자만) — 금액만 -->
                     <p v-if="app.refund.reason" class="m-0 whitespace-pre-line text-xs text-muted-color">{{ app.refund.reason }}</p>
                     <!-- 환불이 두 줄 이상(중단 환불 + 추가 환불 등)이면 줄마다 종류·상태·금액·시각 + 합계/결제액 -->
-                    <template v-if="app.refunds.length > 1 || (app.refundTotals && app.refundTotals.refunded > 0)">
-                        <ul v-if="app.refunds.length > 1" class="m-0 mt-1 flex list-none flex-col gap-1 border-t border-hairline p-0 pt-2" :aria-label="t('business.detail.refundLines')" data-testid="business-refund-lines">
+                    <template v-if="multiRefund || (app.refundTotals && app.refundTotals.refunded > 0)">
+                        <ul v-if="multiRefund" class="m-0 mt-1 flex list-none flex-col gap-1 border-t border-hairline p-0 pt-2" :aria-label="t('business.detail.refundLines')" data-testid="business-refund-lines">
                             <li v-for="(line, i) in app.refunds" :key="i" class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs">
                                 <span class="font-medium">{{ t(`business.detail.refundType.${line.type}`) }}</span>
                                 <span class="text-muted-color">{{ t(`business.detail.refundStatus.${line.status}`) }}</span>
@@ -624,7 +627,17 @@ function openCreative(): void {
 async function uploadCreativeImage(file: File): Promise<void> {
     creativeImageBusy.value = true;
     creativeError.value = '';
+    const rest = { ...creativeFields.value };
+    delete rest.imageFileId;
+    creativeFields.value = rest;
     try {
+        // 배너 비율이 규격과 다르면 올리지 않고 이미지 칸에 알린다(±3%)
+        const size = await UtilBusiness.imageSizeOf(file);
+        const type = app.value?.adType;
+        if (type && size && !UtilBusiness.bannerRatioOk(type, size.width, size.height)) {
+            creativeFields.value = { ...rest, imageFileId: t('business.ad.imageRatio', { size: t(`business.adTypeSize.${type}`), width: size.width, height: size.height }) };
+            return;
+        }
         creativeImage.value = await api.uploadFile(file);
     } catch (e) {
         creativeError.value = e instanceof Error ? e.message : t('common.failed');
@@ -761,6 +774,8 @@ const refundFromLabel = computed(() => {
     return at ? time.value.full(at) : '';
 });
 /** 중단 환불 내역(`STOP_PRORATED` — 서버 환불 줄 값 그대로). 승인 뒤에는 승인 금액이 따로 보인다 */
+/** 환불이 두 줄 이상(중단 환불 + 추가 환불 등) — 이때 맨 위 종류·금액 줄은 줄 목록과 겹치므로 감춘다 */
+const multiRefund = computed(() => (app.value?.refunds.length ?? 0) > 1);
 const refundBreakdown = computed(() => {
     const r = app.value?.refund;
     if (!r || r.type !== 'STOP_PRORATED' || r.proratedAmount === null) return '';

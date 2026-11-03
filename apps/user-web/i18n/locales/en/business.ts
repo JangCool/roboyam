@@ -292,6 +292,7 @@ export default {
         image: 'Banner image',
         imageHelp: '{size} · JPG, PNG, WEBP or GIF, up to 10MB',
         imageRequired: 'Upload a banner image.',
+        imageRatio: 'This image does not match the {size} ratio (uploaded {width}×{height}). Upload one with the same ratio.',
         link: 'Link',
         linkInvalid: 'Enter an address starting with http:// or https://.',
         alt: 'Alt text',

@@ -178,6 +178,8 @@ const imageFileId = ref('');
 const imageUrl = ref('');
 const imageUploading = ref(false);
 const imageProblem = ref('');
+/** 고른 그림 크기(비율 검사 — 유형을 바꿔도 다시 본다), 읽지 못하면 null */
+const imageSize = ref<{ width: number; height: number } | null>(null);
 const altText = ref('');
 const lineText = ref('');
 const linkUrl = ref('');
@@ -203,6 +205,7 @@ watch(
         imageFileId.value = '';
         imageUrl.value = '';
         imageProblem.value = '';
+        imageSize.value = null;
         altText.value = '';
         lineText.value = '';
         linkUrl.value = '';
@@ -251,12 +254,18 @@ onBeforeUnmount(() => timer && clearTimeout(timer));
 
 const amount = computed(() => UtilBizApplication.amountOf(supply.value ?? 0));
 const linkOk = computed(() => /^https?:\/\/\S+\.\S+/.test(linkUrl.value.trim()));
-const creativeOk = computed(() => (UtilAd.isBanner(type.value) ? Boolean(imageFileId.value) && Boolean(altText.value.trim()) : Boolean(lineText.value.trim())) && linkOk.value);
+/** 고른 그림이 지금 유형의 규격 비율과 다르면 그 안내(맞거나 아직 모르면 빈 글자) */
+const ratioProblem = computed(() => {
+    const size = UtilAd.BANNER_SIZE[type.value];
+    if (!size || !imageFileId.value || !imageSize.value || UtilAd.bannerRatioOk(type.value, imageSize.value.width, imageSize.value.height)) return '';
+    return t('ad.imageRatio', { size: `${size[0]}×${size[1]}`, width: imageSize.value.width, height: imageSize.value.height });
+});
+const creativeOk = computed(() => (UtilAd.isBanner(type.value) ? Boolean(imageFileId.value) && !ratioProblem.value && Boolean(altText.value.trim()) : Boolean(lineText.value.trim())) && linkOk.value);
 const activeContracts = computed(() => contracts.value.filter((c) => !c.replacedAt));
 /** 이미지·계약서를 올리는 중에는 등록을 막는다(돌아온 id 가 본문에 들어간다) */
 const uploadBusy = computed(() => uploading.value || imageUploading.value);
-/** 배너 그림 칸 오류 — 고를 때 문제(형식·크기·올리기 실패) → 서버 `fields.creative.imageFileId` → 비었음 */
-const imageError = computed(() => imageProblem.value || props.fieldErrors['creative.imageFileId'] || (tried.value && !imageFileId.value ? t('ad.imageRequired') : ''));
+/** 배너 그림 칸 오류 — 고를 때 문제(형식·크기·올리기 실패) → 규격 비율(±3%) → 서버 `fields.creative.imageFileId` → 비었음 */
+const imageError = computed(() => imageProblem.value || ratioProblem.value || props.fieldErrors['creative.imageFileId'] || (tried.value && !imageFileId.value ? t('ad.imageRequired') : ''));
 const slotOk = computed(() => Boolean(availability.value && availability.value.remaining > 0 && !periodBad.value));
 /** 심사 요청에 필요한 것 — 계약서·입금은 승인 뒤라 여기서 막지 않는다 */
 const requiredReady = computed(() => Boolean(advertiser.value) && slotOk.value && creativeOk.value && Boolean(supply.value && supply.value > 0));
@@ -295,6 +304,23 @@ async function onCreateAdvertiser(body: AdAdvertiserCreateRequest): Promise<void
     }
 }
 
+/** 고른 그림의 크기(올리기 전 비율 검사용) — 읽지 못하면 null(서버가 다시 본다) */
+function sizeOf(file: File): Promise<{ width: number; height: number } | null> {
+    return new Promise((resolve) => {
+        const url = URL.createObjectURL(file);
+        const image = new Image();
+        image.onload = () => {
+            resolve({ width: image.naturalWidth, height: image.naturalHeight });
+            URL.revokeObjectURL(url);
+        };
+        image.onerror = () => {
+            resolve(null);
+            URL.revokeObjectURL(url);
+        };
+        image.src = url;
+    });
+}
+
 // 소재 그림 — 고르면 바로 올리고 돌아온 id(본문)·주소(미리보기)를 쓴다. 바꾸면 새로 올린다(먼저 올린 그림은 어느 건에도 붙지 않는다)
 async function onImage(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
@@ -312,9 +338,11 @@ async function onImage(event: Event): Promise<void> {
     imageUploading.value = true;
     imageProblem.value = '';
     try {
+        const size = await sizeOf(file);
         const uploaded = await props.uploadImage(file);
         imageFileId.value = uploaded.id;
         imageUrl.value = uploaded.url;
+        imageSize.value = size;
         if (!altText.value) altText.value = file.name.replace(/\.[^.]+$/, '').slice(0, 100);
     } catch (e) {
         const failure = props.toError(e);
