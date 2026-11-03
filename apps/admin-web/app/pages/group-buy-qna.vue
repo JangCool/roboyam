@@ -230,6 +230,10 @@ async function loadDetail(): Promise<void> {
     }
 }
 
+// 답변 오류 — `show` 가 비우므로 그보다 먼저 둔다(`?question=` 바로가기는 setup 중 `show` 를 부른다)
+const answerError = ref('');
+const answerFieldError = ref('');
+
 function show(id: string, row: GroupBuyQnaRow | null): void {
     if (drawerId.value !== id) drawerDetail.value = null;
     drawerId.value = id;
@@ -264,8 +268,6 @@ watch(drawerOpen, (open) => {
 
 // ── 동작 ──
 const working = ref<'answer' | 'hide' | null>(null);
-const answerError = ref('');
-const answerFieldError = ref('');
 
 async function submitAnswer(body: string): Promise<void> {
     const d = drawerDetail.value;
