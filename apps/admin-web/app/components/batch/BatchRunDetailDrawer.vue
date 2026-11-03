@@ -2,8 +2,8 @@
     <!--
         실행 상세 서랍 — 배치 로그 행·배치 관리의 「상세 보기」가 같은 화면에서 연다(화면 전환 없음). 늘 오른쪽, 폭 60rem(좁은 화면은 화면 폭). 열린 실행은 주소 `?run=<logId>` 에 남는다.
         상태·서버 호출·다시 읽기는 화면이 만든 `useBatchRunDetail` 이 하고(`ctl`), 여기는 그리기만 한다(`components.md` — 부품은 서버를 부르지 않는다).
-        머리: 이름 · 실행 번호 · (서랍 안에서 옮겨 왔으면) 「이전 실행」 · 단추 줄 — 「지금 실행」(+ 「파라미터 지정 실행」, 목록과 같은 확인·요청·잠금 = `useBatchRunAction`) · 「실패 지점부터 다시」 · 「실패 건만 다시」 · 「다시 조회」.
-        본문 차례: 요청 상태 띠 → 실행 정보 → 건수 · 파라미터 · 이어진 실행 → 단계별 진행(실행 중 강조, 안 돈 단계 흐리게) → 실패 건(미해결/해결/전체) → 오류 사유.
+        머리: 이름 · 상태 · (서랍 안에서 옮겨 왔으면) 「이전 실행」 · 단추 줄 — 「지금 실행」(+ 「파라미터 지정 실행」, 목록과 같은 확인·요청·잠금 = `useBatchRunAction`) · 「실패 지점부터 다시」 · 「실패 건만 다시」 · 「다시 조회」.
+        본문 차례: 요약(실행 번호 · 요청 번호 — 공통 `DrawerSummary`) → 요청 상태 띠 → 실행 정보 → 건수 · 파라미터 · 이어진 실행 → 단계별 진행(실행 중 강조, 안 돈 단계 흐리게) → 실패 건(미해결/해결/전체) → 오류 사유.
         서랍 안의 실행 링크(이어진 실행 · 해결한 실행 · 새 실행)는 화면을 옮기지 않고 서랍 내용을 그 실행으로 바꾼다(`ctl.follow`, 「이전 실행」으로 돌아온다).
         DB 배치(`source: POSTGRESQL`)는 단계 1개·처리 건수만이고 실패 건 구획은 안내만 한다(덩어리 실패는 오류 사유로).
     -->
@@ -29,7 +29,6 @@
                         @click="ctl.back()"
                     />
                     <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold">{{ d?.displayName ?? t('batch.detailTitle') }}</h2>
-                    <span v-if="ctl.logId" class="text-[12px] tabular-nums text-muted-color">{{ t('batch.runNo', { id: ctl.logId }) }}</span>
                     <Tag v-if="d" :value="UtilBatchMessages.statusLabel(t, d.status)" :icon="UtilBatch.statusIcon(d.status)" :severity="UtilBatch.statusSeverity(d.status)" />
                 </div>
                 <div v-if="d" class="flex flex-wrap items-center gap-1.5">
@@ -86,6 +85,8 @@
         </template>
 
         <div v-else class="flex flex-col gap-4">
+            <DrawerSummary :label="t('drawerSummary.label')" :items="summaryItems" class="mb-0!" />
+
             <!-- 요청 상태 띠 — 이 서랍에서 요청했거나 이 실행에 대한 요청이 대기·진행 중일 때 -->
             <Message v-if="ctl.request" :severity="UtilBatch.requestSeverity(ctl.request.status)" :closable="false" role="status">
                 <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -142,10 +143,6 @@
                     <div v-if="d.scheduledAt">
                         <dt class="text-[11px] text-muted-color">{{ t('batch.scheduledAt') }}</dt>
                         <dd class="mt-1 text-[13px] tabular-nums">{{ time.full(d.scheduledAt) }}</dd>
-                    </div>
-                    <div v-if="d.requestId">
-                        <dt class="text-[11px] text-muted-color">{{ t('batch.requestNo') }}</dt>
-                        <dd class="mt-1 text-[13px] tabular-nums">#{{ d.requestId }}</dd>
                     </div>
                     <div v-if="d.summary" class="sm:col-span-2 lg:col-span-4">
                         <dt class="text-[11px] text-muted-color">{{ t('batch.summary') }}</dt>
@@ -326,6 +323,7 @@
 </template>
 
 <script setup lang="ts">
+import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types';
 import type { BatchRunStepView } from '~/composables/batch/api/useBatchApi.types';
 import type { BatchFailFilter, BatchRunDetail } from '~/composables/batch/useBatchRunDetail';
 import UtilBatch from '~/utils/util-batch';
@@ -344,6 +342,16 @@ const { prefs } = useLayoutPrefs();
 const titleId = useId();
 
 const d = computed(() => props.ctl.detail);
+
+/** 요약 칸 — 실행 번호 · 요청 번호(「지금 실행」 등 요청으로 돈 실행만) */
+const summaryItems = computed<DrawerSummaryItem[]>(() => {
+    const run = d.value;
+    if (!run) return [];
+    return [
+        { key: 'runId', label: t('batch.runId'), value: `#${run.logId}`, code: true },
+        ...(run.requestId ? [{ key: 'requestId', label: t('batch.requestNo'), value: `#${run.requestId}`, code: true }] : []),
+    ];
+});
 
 const busyJob = computed(() => !!props.ctl.job && UtilBatch.isBusy(props.ctl.job));
 const runLock = computed(() => props.ctl.run.lockReason(props.ctl.job));
