@@ -1,7 +1,7 @@
 <template>
     <!--
         회원 상세 서랍 — 목록 행을 누르면(또는 Enter·Space) 연다. 열리는 쪽은 설정의 "서랍 위치"를 따른다(`prefs.drawerPosition`). 폭 56rem(좁은 화면은 화면 폭 — 오른쪽 구역 내비 열을 두려고 32rem 에서 넓혔다), Esc·바깥 누름으로 닫힌다(PrimeVue Drawer 의 초점·Esc 처리).
-        머리(닉네임 · 상태 딱지)와 본문 맨 위 요약 영역(`DrawerSummary` — 회원번호)은 목록 행(`member`)으로 바로 그리고(목록 행 없이 열면 — 닉네임 이미지 심사 등 — 상세가 온 뒤 상세로), 내용(`detail`)은 부모가 받아 내려 준다 — 받는 동안 뼈대, 못 받으면 서랍 안 오류 상태(다시 시도). 다른 행을 누르면 열린 채 내용만 바뀐다.
+        머리(닉네임 · 상태 딱지 — 회원번호는 본문 기본 정보에 있어 머리·요약에 두지 않는다)는 목록 행(`member`)으로 바로 그리고(목록 행 없이 열면 — 닉네임 이미지 심사 등 — 상세가 온 뒤 상세로), 내용(`detail`)은 부모가 받아 내려 준다 — 받는 동안 뼈대, 못 받으면 서랍 안 오류 상태(다시 시도). 다른 행을 누르면 열린 채 내용만 바뀐다.
         **읽기 전용**이다 — 상태 변경·제재 부여 같은 조치는 이번 범위 밖(후속). 예외(커머스 0-4): 기능 제한 걸기·해제와 탈퇴 회원 연락처 열람 — 구획이 이벤트로 올리면 부모가 대화상자를 띄운다. 탭은 없다 — 본문(`MemberDetailContent`)이 구획을 한 스크롤 영역에 모두 쌓고 오른쪽 구역 내비(`SectionNav`)로 이동한다. 그 구역 내비는 서랍 범위(`SECTION_NAV_SCOPE`)로 셸 것과 따로 쓴다.
         서버 호출은 하지 않는다(`components.md`) — 부모가 `useMemberDetail` 로 받는다.
     -->
@@ -19,9 +19,6 @@
                 <Skeleton width="10rem" height="1.25rem" />
             </div>
         </template>
-
-        <!-- 요약 — 회원번호(본문은 안쪽 여백이 없어 여기서 준다) -->
-        <DrawerSummary v-if="head" class="mx-4 mt-3 mb-0!" :label="t('drawerSummary.label')" :items="summaryItems" />
 
         <!-- 없는 회원(404 `MEMBER_NOT_FOUND`)은 다시 시도해도 같다 — 안내만 보이고 다시 시도 단추는 두지 않는다 -->
         <ErrorState v-if="error" :title="t('member.detail.loadFailed')" :description="error.message" :code="error.status === 404 ? '404' : '!'" :retry="error.status !== 404" :retrying="loading" @retry="emit('retry')" />
@@ -52,7 +49,6 @@
 </template>
 
 <script setup lang="ts">
-import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { MemberDetail, MemberRow } from '~/composables/member/api/useMemberApi.types';
 import type { MemberDetailEmits, MemberPointLotsView, MemberRestrictionsView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
@@ -86,8 +82,6 @@ const { prefs } = useLayoutPrefs();
 /** 머리에 그릴 회원 — 목록 행이 먼저, 없으면 받은 상세 */
 const head = computed(() => props.member ?? props.detail);
 const titleId = useId();
-/** 요약 칸 — 회원번호 */
-const summaryItems = computed<DrawerSummaryItem[]>(() => (head.value ? [{ key: 'memberNo', label: t('member.col.memberNo'), value: String(head.value.memberNo), code: true }] : []));
 // 구역 내비의 범위 — 서랍 본문의 `AppGadget`·`SectionNav` 가 셸과 따로 된 목록을 쓰게 한다(`useSectionNav` · 본문은 `MemberDetailContent`)
 provide(SECTION_NAV_SCOPE, `member-detail-${titleId}`);
 
