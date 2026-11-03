@@ -153,6 +153,8 @@ public class BizApplicationMemberService {
                 image = fileId == null ? null : store.adImage(fileId, userId).orElse(null);
                 if (image == null) {
                     f.add("imageFileId", BizFields.strip(b.imageFileId()) == null ? "bizapp.field.required" : "bizapp.image.notFound");
+                } else if (product != null && !product.bannerRatioOk(image.width(), image.height())) {
+                    f.add("imageFileId", "bizapp.image.ratio");
                 }
                 String link = f.link("linkUrl", b.linkUrl(), true);
                 String alt = f.text("altText", b.altText(), 100);
@@ -298,6 +300,9 @@ public class BizApplicationMemberService {
                     image = fileId == null ? null : store.adImage(fileId, userId).orElse(null);
                     if (image == null) {
                         f.add("imageFileId", BizFields.strip(fileText) == null ? "bizapp.field.required" : "bizapp.image.notFound");
+                    } else if (BizFields.strip(b.imageFileId()) != null && !bannerRatioOk(id, image)) {
+                        // 새로 올린 그림만 본다(그대로 쓰는 지금 그림은 규칙 전에 붙었을 수 있다 — 링크·대체 글만 바꾸는 걸 막지 않는다)
+                        f.add("imageFileId", "bizapp.image.ratio");
                     }
                     String link = f.link("linkUrl", b.linkUrl(), true);
                     title = f.text("altText", b.altText(), 100);
@@ -532,6 +537,12 @@ public class BizApplicationMemberService {
         if (fileId != null) {
             store.markImageUsed(fileId, ops.now());
         }
+    }
+
+    /** 신청 건의 배너 상품 규격과 그림 비율이 맞는지(±3%) — 배너 줄이 없으면 true */
+    private boolean bannerRatioOk(long applicationId, AdImage image) {
+        return store.items(applicationId).stream().map(ItemRow::product).filter(BizProduct::banner).findFirst()
+                .map(p -> p.bannerRatioOk(image.width(), image.height())).orElse(true);
     }
 
     private String imageUrl(String storageKey) {
