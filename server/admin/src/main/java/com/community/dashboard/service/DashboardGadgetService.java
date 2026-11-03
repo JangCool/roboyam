@@ -11,17 +11,21 @@ import com.community.permission.dto.AdminActor;
 import com.community.permission.exception.PermissionDeniedException;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
+import com.community.zconfiguration.message.Messages;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 가젯 데이터 묶음 조회(admin-dashboard-contract 「API 후보」·「권한·정책」) — 화면이 놓인 가젯의 종류만 부른다.
@@ -31,15 +35,25 @@ import org.springframework.transaction.annotation.Transactional;
  *       (대시보드가 1분마다 다시 부를 수 있어 거절 감사 기록은 남기지 않는다 — 입구 검사는 로그인만).</li>
  *   <li>이 API 대상이 아닌 종류(TODO · COMMERCE_TODO · MEMO · SHORTCUTS)는 null. 권한은 있으나 제공자가 없는 종류(원천 없음 · 2단계)는 null + {@code unavailable}.</li>
  *   <li>모르는 종류는 {@code 400 VALIDATION fields.types}. {@code limit.<종류>} 는 5|10, {@code days.<종류>} 는 7|30 이고 틀리면 그 질의 이름의 칸 오류다(그 칸이 없는 종류의 값은 버린다).</li>
- *   <li>서버 캐시는 없다(이 저장소에 캐시 방식이 아직 없다) — 질의마다 인덱스로 센 COUNT·10행 이하 목록·집계 표만 읽는다.</li>
+ *   <li><b>서버 캐시</b>(사용자 결정 2026-11-03 「서버 부하가 최소화되어야 한다」): 종류별 결과를 서버 메모리에 짧게(숫자·목록 60초, 기간 합·추이 300초) 둔다 —
+ *       키·수명·한 번만 계산·크기 상한은 {@link DashboardGadgetCache}. 권한 검사는 캐시 앞에서 매 요청 한다. 캐시에 없는 종류가 있을 때만 읽기 전용 트랜잭션 하나를 열어
+ *       계산하므로 모두 캐시에서 나오는 요청은 DB 연결을 잡지 않는다(그래서 메서드 트랜잭션을 두지 않는다). 계산 자체는 여전히 인덱스로 센 COUNT·10행 이하 목록·집계 표만 읽는다.</li>
+ *   <li>{@code generatedAt} = 응답에 든 종류 결과 중 <b>가장 오래된 계산 시각</b>(화면 「HH:mm 기준」이 캐시된 값보다 새로워 보이지 않게). 든 결과가 없으면 지금.</li>
+ *   <li>관리자 서버가 여러 대면 캐시는 서버마다 따로다 — 공유할 상태가 아니라 괜찮다(값이 수명 안에서 서버마다 조금 다를 수 있을 뿐).</li>
  * </ul>
  */
 @Service
 public class DashboardGadgetService {
 
     private final Map<DashboardGadgetType, DashboardGadgetProvider> providers = new EnumMap<>(DashboardGadgetType.class);
+    private final DashboardGadgetCache cache = new DashboardGadgetCache(Clock.systemUTC());
+    private final TransactionTemplate readOnly;
+    private final Messages messages;
 
-    public DashboardGadgetService(List<DashboardGadgetProvider> providers) {
+    public DashboardGadgetService(List<DashboardGadgetProvider> providers, PlatformTransactionManager transactions, Messages messages) {
+        this.readOnly = new TransactionTemplate(transactions);
+        this.readOnly.setReadOnly(true);
+        this.messages = messages;
         for (DashboardGadgetProvider provider : providers) {
             if (this.providers.put(provider.type(), provider) != null) {
                 throw new IllegalStateException("가젯 종류 하나에 제공자가 둘이다: " + provider.type());
@@ -47,7 +61,6 @@ public class DashboardGadgetService {
         }
     }
 
-    @Transactional(readOnly = true)
     public DashboardGadgetsView load(AdminActor actor, DashboardGadgetsRequest request) {
         Map<String, MessageRef> fields = new LinkedHashMap<>();
         Set<DashboardGadgetType> types = types(request, fields);
@@ -65,34 +78,52 @@ public class DashboardGadgetService {
             throw new ValidationException(fields);
         }
 
-        Instant now = Instant.now();
         Map<String, DashboardGadgetData> gadgets = new LinkedHashMap<>();
+        Map<DashboardGadgetType, DashboardGadgetCache.Key> wanted = new EnumMap<>(DashboardGadgetType.class);
         List<String> unavailable = new ArrayList<>();
+        Locale locale = messages.locale();
         boolean denied = false;
         for (DashboardGadgetType type : types) {
+            gadgets.put(type.name(), null); // 요청 차례를 지킨다 — 값은 아래에서 채운다
             if (!type.data()) {
-                gadgets.put(type.name(), null);
                 continue;
             }
-            if (!type.allowed(actor)) {
+            if (!type.allowed(actor)) { // 볼 수 있나 — 캐시 앞에서 매 요청 본다
                 denied = true;
-                gadgets.put(type.name(), null);
                 continue;
             }
-            DashboardGadgetProvider provider = providers.get(type);
-            if (provider == null) {
+            if (!providers.containsKey(type)) {
                 unavailable.add(type.name());
-                gadgets.put(type.name(), null);
                 continue;
             }
-            DashboardGadgetQuery query = new DashboardGadgetQuery(actor, limits.getOrDefault(type, DashboardGadgetQuery.DEFAULT_LIMIT),
-                    days.getOrDefault(type, DashboardGadgetQuery.DEFAULT_DAYS), now);
-            gadgets.put(type.name(), provider.load(query));
+            wanted.put(type, DashboardGadgetCache.key(type, limits.getOrDefault(type, DashboardGadgetQuery.DEFAULT_LIMIT),
+                    days.getOrDefault(type, DashboardGadgetQuery.DEFAULT_DAYS), locale, actor));
         }
         if (denied && types.size() == 1) {
             throw new PermissionDeniedException();
         }
-        return new DashboardGadgetsView(now, gadgets, unavailable);
+
+        Map<DashboardGadgetType, DashboardGadgetCache.Computed> results = new EnumMap<>(DashboardGadgetType.class);
+        List<DashboardGadgetType> misses = new ArrayList<>();
+        wanted.forEach((type, key) -> cache.peek(key).ifPresentOrElse(c -> results.put(type, c), () -> misses.add(type)));
+        if (!misses.isEmpty()) {
+            // 캐시에 없는 종류만 이 읽기 전용 트랜잭션 안에서 계산한다(모두 캐시에서 나오면 트랜잭션도 DB 연결도 잡지 않는다)
+            readOnly.executeWithoutResult(status -> {
+                for (DashboardGadgetType type : misses) {
+                    DashboardGadgetCache.Key key = wanted.get(type);
+                    DashboardGadgetProvider provider = providers.get(type);
+                    results.put(type, cache.get(key, at -> provider.load(new DashboardGadgetQuery(actor, key.limit(), key.days(), at))));
+                }
+            });
+        }
+        Instant generatedAt = null;
+        for (Map.Entry<DashboardGadgetType, DashboardGadgetCache.Computed> e : results.entrySet()) {
+            gadgets.put(e.getKey().name(), e.getValue().data());
+            if (generatedAt == null || e.getValue().computedAt().isBefore(generatedAt)) {
+                generatedAt = e.getValue().computedAt(); // 가장 오래된 계산 시각 — 「HH:mm 기준」이 거짓말하지 않게
+            }
+        }
+        return new DashboardGadgetsView(generatedAt == null ? Instant.now() : generatedAt, gadgets, unavailable);
     }
 
     /** 요청한 종류(요청 차례, 겹침 없음) — 비었거나 모르는 종류가 있으면 {@code types} 칸 오류 */

@@ -112,6 +112,36 @@ class DashboardCommerceGadgetsTest {
     }
 
     @Test
+    void 계좌_송금_환불은_송금_완료가_기록된_것만_송금_완료_시각에_환불로_센다() {
+        Instant now = kst(2092, 5, 20, 10, 0);
+        long groupBuy = groupBuy(product("송금 상품"), "송금 공구", "RECRUITING", 0, 10, 0, kst(2092, 6, 1, 0, 0), null);
+        long paid = order("GROUP_BUY", "PAID", null, 50_000, kst(2092, 5, 1, 9, 0));
+        // 오늘 송금 완료 — 전환(취소 줄 완료 시각)은 지난달 같은 기간 안이지만 송금 완료 시각으로 센다
+        bankRefund(groupBuy, paid, 3_000, kst(2092, 4, 10, 12, 0), "SENT", kst(2092, 5, 20, 9, 0));
+        // 어제 끝(23:59) 송금 완료
+        bankRefund(groupBuy, paid, 4_000, kst(2092, 5, 19, 12, 0), "SENT", kst(2092, 5, 19, 23, 59));
+        // 송금 전(계좌 있음 · 계좌 받기 전)은 처리 중이라 넣지 않는다
+        bankRefund(groupBuy, paid, 2_000, kst(2092, 5, 20, 8, 0), "READY", null);
+        bankRefund(groupBuy, paid, 1_500, kst(2092, 5, 20, 8, 0), "AWAITING_ACCOUNT", null);
+        // 송금 대기 줄이 없는 계좌 송금 전환(완료 기록 없음)도 넣지 않는다
+        cancel(paid, 700, "MANUAL", "BANK_TRANSFER", kst(2092, 5, 20, 8, 0));
+        // 보상액 중 결제액을 넘는 몫(결제를 돌려준 것이 아니다)은 송금했어도 넣지 않는다
+        transfer("GROUP_BUY_COMPENSATION", bankRefund(groupBuy, paid, 600, kst(2092, 5, 20, 8, 0), "AWAITING_ACCOUNT", null), 9_000, "SENT", kst(2092, 5, 20, 9, 30));
+        // 결제 시험의 계좌 송금 환불은 매출 범위 밖
+        long test = order("PAYMENT_TEST", "PAID", null, 9_000, kst(2092, 5, 20, 7, 0));
+        bankRefund(groupBuy, test, 9_000, kst(2092, 5, 20, 8, 0), "SENT", kst(2092, 5, 20, 9, 0));
+        // PG 환불과 함께 센다
+        cancel(paid, 1_000, "SUCCEEDED", null, kst(2092, 5, 20, 8, 30));
+
+        DashboardSalesSummaryView v = (DashboardSalesSummaryView) new SalesSummaryGadget(store).load(query(now, Permission.COMMERCE_PAYMENT_READ));
+
+        assertThat(v.today()).isEqualTo(new DashboardSalesSummaryView.Period(0, 0, 4_000, 2));
+        assertThat(v.yesterday()).isEqualTo(new DashboardSalesSummaryView.Period(0, 0, 4_000, 1));
+        assertThat(v.month()).isEqualTo(new DashboardSalesSummaryView.Period(50_000, 1, 8_000, 3));
+        assertThat(v.lastMonth()).isEqualTo(new DashboardSalesSummaryView.Period(0, 0, 0, 0));
+    }
+
+    @Test
     void 결제액은_청구액이_아니라_PG_가_알려_준_실제_결제액이다() {
         Instant now = kst(2091, 4, 20, 12, 0);
         long id = order("GROUP_BUY", "PAID", null, 10_000, kst(2091, 4, 20, 9, 0));
@@ -302,12 +332,42 @@ class DashboardCommerceGadgetsTest {
         return id;
     }
 
-    private void cancel(long orderId, long amount, String status, String manualMethod, Instant completedAt) {
+    private long cancel(long orderId, long amount, String status, String manualMethod, Instant completedAt) {
         long id = id();
         Instant created = completedAt == null ? Instant.parse("2091-01-01T00:00:00Z") : completedAt.minusSeconds(60);
         jdbc.update("INSERT INTO payment_cancels (id, payment_order_id, amount, reason, kind, request_key, status, next_attempt_at, manual_method, created_at, completed_at) "
                         + "VALUES (?, ?, ?, '시험 사유', 'REFUND', ?, ?, ?, ?, ?, ?)", id, orderId, amount, "TEST:" + id, status, Timestamp.from(created), manualMethod,
                 Timestamp.from(created), completedAt == null ? null : Timestamp.from(completedAt));
+        return id;
+    }
+
+    /**
+     * 계좌 송금으로 바꾼 공구 환불(결정 67) — 결제 취소(MANUAL · BANK_TRANSFER, 완료 시각 = 전환 시각) · 환불 기록(BANK_TRANSFER — 송금 완료면 COMPLETED) · 송금 대기 줄(GROUP_BUY_REFUND).
+     *
+     * @return 환불 기록 ID
+     */
+    private long bankRefund(long groupBuy, long orderId, long amount, Instant convertedAt, String transferStatus, Instant sentAt) {
+        long cancel = cancel(orderId, amount, "MANUAL", "BANK_TRANSFER", convertedAt);
+        long participation = id();
+        Timestamp created = Timestamp.from(convertedAt.minus(Duration.ofDays(1)));
+        jdbc.update("INSERT INTO group_buy_participations (id, order_no, group_buy_id, user_id, status, items_amount, shipping_fee, amount, cash_amount, group_buy_revision, "
+                        + "payment_order_id, reserved_until, created_at, updated_at) VALUES (?, ?, ?, 1, 'REFUNDED', ?, 0, ?, ?, 1, ?, ?, ?, ?)", participation,
+                "G20920520" + String.format("%011d", participation % 100_000_000_000L), groupBuy, amount, amount, amount, orderId, created, created, created);
+        long refund = id();
+        boolean sent = "SENT".equals(transferStatus);
+        jdbc.update("INSERT INTO group_buy_refunds (id, participation_id, group_buy_id, user_id, cause, item_refund, amount, method, payment_order_id, payment_cancel_id, "
+                        + "request_key, status, created_at, completed_at) VALUES (?, ?, ?, 1, 'ADMIN', ?, ?, 'BANK_TRANSFER', ?, ?, ?, ?, ?, ?)", refund, participation, groupBuy,
+                amount, amount, orderId, cancel, "GB_REFUND:" + refund, sent ? "COMPLETED" : "IN_PROGRESS", created, sent ? Timestamp.from(sentAt) : null);
+        transfer("GROUP_BUY_REFUND", refund, amount, transferStatus, sentAt);
+        return refund;
+    }
+
+    /** 송금 대기 줄 — 계좌 있음(READY)은 계좌 암호문 자리, 송금 완료(SENT)는 계좌를 지운 시각까지 채운다 */
+    private void transfer(String sourceKind, long sourceId, long amount, String status, Instant sentAt) {
+        boolean sent = "SENT".equals(status);
+        jdbc.update("INSERT INTO commerce_bank_transfers (id, source_kind, source_id, user_id, amount, status, account_no_enc, account_erased_at, reason, created_at, sent_by, sent_at) "
+                        + "VALUES (?, ?, ?, 1, ?, ?, ?, ?, '시험 송금', ?, ?, ?)", id(), sourceKind, sourceId, amount, status, "READY".equals(status) ? "d1:시험" : null,
+                sent ? Timestamp.from(sentAt) : null, Timestamp.from(Instant.parse("2092-01-01T00:00:00Z")), sent ? 1L : null, sent ? Timestamp.from(sentAt) : null);
     }
 
     private void webhook(String result, Instant at) {

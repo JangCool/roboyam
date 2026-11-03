@@ -50,14 +50,14 @@ export interface DashboardGroupRequests {
     recent: { id: string; name: string; requesterNickname: string; requestedAt: string }[];
 }
 
-/** 회원 숫자 */
+/** 회원 숫자 — 휴면 기능이 없어 휴면 예정 칸은 없다(사용자 결정 2026-11-03) */
 export interface DashboardMemberStats {
     joinedToday: number;
     withdrawnToday: number;
-    /** 7일 안에 휴면 전환 예정 */
-    dormantSoon: number;
     /** 이용 제한(정지) 중 */
     suspended: number;
+    /** 탈퇴 대기 — 탈퇴를 신청해 남은 일(배송·환불 등)이 끝나기를 기다리는 예약 */
+    withdrawing: number;
 }
 
 /** 가입 추이(오래된 차례, 오늘 포함) */

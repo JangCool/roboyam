@@ -140,6 +140,27 @@ public class DashboardGadgetStore {
                         instant(rs, 4)), limit);
     }
 
+    /**
+     * 회원 숫자 {가입, 탈퇴, 정지 중} — 세 COUNT 를 한 번에, 모두 인덱스로만 센다.
+     *
+     * <ul>
+     *   <li>가입: 범위 {@code [from, to)} 에 만든 회원(지금 상태와 무관 — 그날 가입한 사실을 센다) — {@code ix_users_created(created_at DESC, id DESC)} 범위.</li>
+     *   <li>탈퇴: 범위에 탈퇴를 **완료**한 회원({@code status = 'WITHDRAWN'}, 탈퇴 완료 시각 = {@code deleted_at} — 회원 탈퇴의 완료 처리 {@code WithdrawalEraseStore} 가 쓴다) —
+     *       부분 인덱스 {@code ix_users_withdrawn_at(deleted_at) WHERE status = 'WITHDRAWN'}(admin V6).</li>
+     *   <li>정지 중: 기간 정지·영구 정지({@code SUSPENDED · BANNED} — 관리자 회원 목록의 「정지」 거르기와 같은 뜻) — 부분 인덱스
+     *       {@code ix_users_suspended(id) WHERE status IN ('SUSPENDED', 'BANNED')}(admin V6).</li>
+     *   <li>탈퇴 대기: 탈퇴를 신청해 남은 일이 끝나기를 기다리는 예약({@code member_withdrawals.status = 'SCHEDULED'}) — 부분 인덱스
+     *       {@code ux_member_withdrawals_scheduled(user_id) WHERE status = 'SCHEDULED'}(shared V132).</li>
+     * </ul>
+     */
+    public long[] memberStats(Instant from, Instant to) {
+        return jdbc.queryForObject("SELECT (SELECT count(*) FROM users WHERE created_at >= ? AND created_at < ?), "
+                        + "(SELECT count(*) FROM users WHERE status = 'WITHDRAWN' AND deleted_at >= ? AND deleted_at < ?), "
+                        + "(SELECT count(*) FROM users WHERE status IN ('SUSPENDED', 'BANNED')), "
+                        + "(SELECT count(*) FROM member_withdrawals WHERE status = 'SCHEDULED')",
+                (rs, i) -> new long[] {rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4)}, ts(from), ts(to), ts(from), ts(to));
+    }
+
     /** 닉네임 이미지 심사 대기 건수 — ix_nickname_image_requests_status(status, id) */
     public long pendingNicknameImages() {
         return count("SELECT count(*) FROM nickname_image_requests WHERE status = 'PENDING'");

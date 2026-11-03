@@ -29,6 +29,9 @@ public class DashboardCommerceStore {
     /**
      * 받아들인 현금 결제(별칭 {@code o}) — 결제된 계열 상태 · 이상 없음(금액 불일치·도메인 거절·늦은 결제는 자동 취소되는 결제라 매출이 아니다) · 결제 시험 제외.
      * 「PAID 는 하나만」 부분 유일 색인({@code ux_payment_orders_accepted})이 세는 결제와 같은 뜻이다(취소된 뒤의 CANCELED 를 더한 것).
+     *
+     * <p>매출 범위(사용자 결정 2026-11-03 — 지금 그대로): 결제 시험({@code PAYMENT_TEST})만 빼고 모든 결제 종류를 센다 — 공구 주문뿐 아니라 사업자 광고 신청 결제 · 반품 배송비 ·
+     * 포인트 충전도 매출에 넣는다. 환불 합({@link #refundSums})도 같은 범위다.
      */
     static final String ACCEPTED_PAYMENT = "o.status IN ('PAID', 'PARTIAL_CANCELED', 'CANCELED') AND o.anomaly IS NULL AND o.order_type <> 'PAYMENT_TEST'";
 
@@ -123,12 +126,22 @@ public class DashboardCommerceStore {
     }
 
     /**
-     * 기간마다 끝난 현금 환불 합·건수 — 환불 완료일({@code completed_at}) 기준, 받아들인 결제의 취소만. 끝난 환불 = PG 취소 성공({@code SUCCEEDED}) + 포트원 콘솔에서 직접 취소해 수동 처리한 줄
-     * ({@code MANUAL · CONSOLE_CANCEL}) — 결제 주문의 취소 누계({@code canceled_amount})가 세는 것과 같다(PaymentCancelStore#succeededAmount, 공구 계약 결정 74). 계좌 송금
-     * ({@code BANK_TRANSFER})·표시만 닫은 수동 처리는 PG 환불이 아니라 넣지 않는다.
+     * 기간마다 끝난 현금 환불 합·건수 — 받아들인 결제의 취소만. 끝난 환불 세 가지:
      *
-     * <p>인덱스: SUCCEEDED 는 {@code ix_payment_cancels_completed(completed_at) WHERE status = 'SUCCEEDED'} 범위, MANUAL 은 따로 인덱스가 없어 표를 거른다(멈춘 취소를 운영자가 닫은
-     * 드문 줄 — 취소 표는 결제 표보다 훨씬 작다). 결제 주문은 PK 로 잇는다.
+     * <ol>
+     *   <li>PG 취소 성공({@code SUCCEEDED}) — 환불 완료일({@code completed_at}) 기준.</li>
+     *   <li>포트원 콘솔에서 직접 취소해 수동 처리한 줄({@code MANUAL · CONSOLE_CANCEL}) — 완료일 기준. 1·2 는 결제 주문의 취소 누계({@code canceled_amount})가 세는 것과 같다
+     *       (PaymentCancelStore#succeededAmount, 공구 계약 결정 74).</li>
+     *   <li><b>계좌 송금 환불</b>({@code MANUAL · BANK_TRANSFER} — PG 가 영구 거절해 계좌로 돌려준 공구 환불, 결정 67) — <b>송금 완료가 기록된 것만</b>
+     *       ({@code commerce_bank_transfers.status = 'SENT'}), 그 <b>송금 완료 시각</b>({@code sent_at}) 기준, 송금한 금액({@code amount} — 환불 기록·취소 금액과 같다).
+     *       (사용자 결정 2026-11-03). 전환만 하고 아직 송금하지 않은 것(계좌 받기 전 · 계좌 있음)은 넣지 않는다 — 취소 줄의 {@code completed_at} 은 「전환한 시각」이라 쓰지 않는다.
+     *       송금 대기 줄 → 환불 기록({@code source_id} = 환불 기록 ID, PK) → 결제 취소({@code payment_cancel_id}, PK) → 결제 주문 순으로 잇는다.
+     *       보상액 중 결제액을 넘는 몫({@code GROUP_BUY_COMPENSATION})은 결제를 돌려준 것이 아니라 넣지 않는다.</li>
+     * </ol>
+     * 표시만 닫은 수동 처리({@code MANUAL}, 방법 없음)는 돈이 나가지 않았으니 넣지 않는다.
+     *
+     * <p>인덱스: SUCCEEDED 는 {@code ix_payment_cancels_completed(completed_at) WHERE status = 'SUCCEEDED'} 범위, MANUAL · CONSOLE_CANCEL 은 따로 인덱스가 없어 표를 거른다(멈춘 취소를
+     * 운영자가 닫은 드문 줄 — 취소 표는 결제 표보다 훨씬 작다). 계좌 송금은 {@code ix_cbt_sent(sent_at) WHERE status = 'SENT'}(admin V6) 범위. 결제 주문은 PK 로 잇는다.
      *
      * @return {@code ranges} 와 같은 차례
      */
@@ -148,6 +161,10 @@ public class DashboardCommerceStore {
                 .append(rangesOn("x.completed_at", ranges, args))
                 .append(") UNION ALL SELECT y.payment_order_id, y.amount, y.completed_at FROM payment_cancels y WHERE y.status = 'MANUAL' AND y.manual_method = 'CONSOLE_CANCEL' AND (")
                 .append(rangesOn("y.completed_at", ranges, args))
+                .append(") UNION ALL SELECT z.payment_order_id, t.amount, t.sent_at FROM commerce_bank_transfers t JOIN group_buy_refunds r ON r.id = t.source_id "
+                        + "JOIN payment_cancels z ON z.id = r.payment_cancel_id WHERE t.status = 'SENT' AND t.source_kind = 'GROUP_BUY_REFUND' AND z.status = 'MANUAL' "
+                        + "AND z.manual_method = 'BANK_TRANSFER' AND (")
+                .append(rangesOn("t.sent_at", ranges, args))
                 .append(")) c JOIN payment_orders o ON o.id = c.payment_order_id WHERE o.anomaly IS NULL AND o.order_type <> 'PAYMENT_TEST'");
         return jdbc.queryForObject(select.toString(), (rs, n) -> sums(rs, ranges.size()), args.toArray());
     }

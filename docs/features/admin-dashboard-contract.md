@@ -22,7 +22,7 @@
 | 처리할 일 | `COMMERCE_TODO` | commerce.order/product/payment.read | 커머스 처리할 일(commerce.md 19절) — `GET /api/admin/commerce/dashboard` |
 | 처리할 일 | `TODAY_SCHEDULE` | ad.read·commerce.product.read·pointshop.read·batch.read | 오늘·내일 일정(광고 시작·종료, 공구 마감, 포인트 상점 판매, 예약 배치 — 항목마다 그 권한) |
 | 커뮤니티 | `REPORTS` · `POST_ACTIVITY` · `RECENT_POSTS` · `BOARD_RANKING` · `POPULAR_NOW` · `VISITORS` · `GROUP_REQUESTS` | report.read · post.read · post.read · post.read · popular.read · site.read · group.read | 신고 대기·검토 중 + 오래된 대기 · 오늘 글·댓글(어제 대비)+7일 · 최근 글 · 활발한 게시판 5 · 지금 인기글 · 방문자·페이지뷰·지금 접속 + 시간대 막대 · 개설 신청 |
-| 회원 | `MEMBER_STATS` · `SIGNUP_TREND` · `RECENT_SIGNUPS` · `SANCTIONS` · `NICKNAME_IMAGES` | member.read(제재 sanction.read) | 오늘 가입·탈퇴·7일 안 휴면·정지 중 · 가입 추이 · 최근 가입 · 진행 중 제재·이의 신청 대기 + 이의 신청 3건 · 닉네임 이미지 심사 대기 |
+| 회원 | `MEMBER_STATS` · `SIGNUP_TREND` · `RECENT_SIGNUPS` · `SANCTIONS` · `NICKNAME_IMAGES` | member.read(제재 sanction.read) | 오늘 가입·오늘 탈퇴(완료, `users.deleted_at`)·정지 중·탈퇴 대기(예약 `member_withdrawals` SCHEDULED — 회원 탈퇴 V132)(휴면 기능이 없어 휴면 칸 없음) · 가입 추이 · 최근 가입 · 진행 중 제재·이의 신청 대기 + 이의 신청 3건 · 닉네임 이미지 심사 대기 |
 | 핫딜·광고 | `HOTDEAL_STATUS` · `HOTDEAL_TOP` · `AD_PERFORMANCE` · `AD_SCHEDULE` | hotdeal.read · ad.read | 진행 중·오늘 등록·확인 필요 · 인기 핫딜 · 어제/7일 노출·클릭 · 이번 주 시작·종료 |
 | 공구·결제 | `GROUPBUY_PROGRESS` · `GROUPBUY_QNA` · `SALES_SUMMARY` · `ORDER_TREND` · `RECONCILE` | commerce.product.read · commerce.payment.read | 모집 중 공구 달성률 · 답변 대기 Q&A · 오늘/어제/이번 달/지난달 같은 기간 결제·환불 · 일별 결제 추이 · 최근 대사·웹훅 실패 |
 | 포인트 | `POINT_SUMMARY` · `POINTSHOP` | point.read · pointshop.read | 오늘 지급·사용·7일 안 만료 + 환불 승인 대기(point.refund.approve 일 때만) · 오늘 구매·품절 임박 |
@@ -30,7 +30,8 @@
 | 개인 | `MEMO` · `SHORTCUTS` | 없음 | 메모 · 바로가기(config 만, 서버 데이터 없음) |
 응답 모양의 원천은 서버 `server/admin/.../dashboard/dto/response/gadget/*` = 화면 `composables/dashboard/api/useDashboardGadgetApi.types.ts`. 이름이 있는 줄은 영어 이름 칸(`boardNameEn`·`titleEn`·`nameEn`)을 함께 준다.
 
-## 서버 부담 원칙
+## 서버 부담 원칙 (사용자 결정 2026-11-03 「서버 부하가 최소화되어야 한다」)
+- **서버 결과 캐시**: 종류별 결과를 서버 메모리에 숫자·목록 60초, 추이·기간 합 300초 담는다(키 = 종류 + limit·days + 결과가 권한에 따라 갈리는 종류만 권한 조합, 권한 검사는 매 요청). 묶음의 `generatedAt` = 든 결과 중 가장 오래된 계산 시각. 인스턴스마다 따로 캐시.
 - 숫자 = 상태별 COUNT 한 번(인덱스로, 서버 60초 캐시 가정) · 목록 = 최대 10행 · 추이 = 배치·집계 표(일별·시간별)만 읽고 원본을 GROUP BY 하지 않는다.
 - 화면은 놓인 가젯만 부른다. 자동 새로 고침은 가젯별 선택(끔·1분·5분).
 
@@ -43,7 +44,13 @@
 - `GET /api/admin/dashboard/gadgets?types=A,B&limit.A=5&days.B=30` → `{ generatedAt, gadgets: { [type]: data | null }, unavailable: type[] }` — `unavailable` = 권한은 있지만 서버가 아직 줄 수 없는 종류(화면 「준비 중」). 화면은 처음 그릴 때 놓인 가젯을 한 요청으로 묶고, 새로 고침은 그 종류만 부른다.
 - `GET /api/admin/commerce/dashboard` → `CommerceDashboardView`(커머스 처리할 일, 아직 서버 없음).
 
+## 결정 (2026-11-03, 사용자 「추천대로 · 서버 부하 최소화」)
+- 매출 요약·결제 추이의 결제 범위 = 사이트에 들어온 결제 전부(결제 시험만 뺌 — 공구·사업자 광고·반품 배송비·포인트 충전).
+- 환불 = PG 환불 완료 + 콘솔 취소 + **송금 완료가 기록된 계좌 송금 환불**(완료 시각 기준). 처리 중·포기·이상 결제 자동 취소는 뺀다.
+- 회원 현황 = 가입·탈퇴·정지·탈퇴 대기 4칸, 모두 인덱스로만 센다(탈퇴·정지는 admin V6 부분 인덱스, 탈퇴 대기는 V132 `ux_member_withdrawals_scheduled`). 회원 탈퇴 반영 2026-11-03.
+- 집계 표가 필요한 5종(방문 현황·알림 발송 상태·글·댓글 활동·가입 추이·활발한 게시판)은 이번에 만들지 않고 「준비 중」(따로 진행).
+
 ## 미확정
 - 방문 현황(`VISITORS`) — 방문 집계 표가 없다(시간별 집계 새로 필요). 알림 발송 상태 — 채널별 실패 집계 원천 확인 필요.
 - 제재(`SANCTIONS`) — 권한 `sanction.read` 「기능 준비 중」, 제재 화면 없음(지금은 회원 관리로 이동).
-- 서버 캐시 방식(60초) · 대시보드 데이터 묶음 호출 vs 종류별 호출.
+- 집계 표(일별 글·댓글·가입·게시판, 시간별 방문, 채널별 발송)와 그 배치 — 별도 작업.
