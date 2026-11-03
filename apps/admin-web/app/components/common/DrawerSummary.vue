@@ -6,10 +6,10 @@
         `links` 슬롯 = 아래 링크 줄, `note` 슬롯 = 맨 아래 흐린 안내 한 줄.
     -->
     <section class="mb-3 flex flex-col gap-2 rounded-xl border border-(--line) bg-(--p-content-hover-background) px-3 py-2.5" :aria-label="label">
-        <dl v-if="items.length" class="m-0 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+        <dl v-if="items.length" class="m-0 grid grid-cols-2 gap-x-4 gap-y-2" :class="columns === 3 ? 'sm:grid-cols-3' : ''">
             <div v-for="item in items" :key="item.key" class="flex min-w-0 flex-col gap-0.5" :class="item.wide ? 'col-span-full' : ''">
                 <dt class="text-[11px] text-muted-color">{{ item.label }}</dt>
-                <dd class="m-0 min-w-0 text-[13px] tabular-nums" :class="[item.wide ? '[overflow-wrap:anywhere]' : 'truncate', item.valueClass]" :title="item.title">
+                <dd class="m-0 min-w-0 text-[13px] tabular-nums" :class="[item.wide || item.value === undefined ? '[overflow-wrap:anywhere]' : 'truncate', item.valueClass]" :title="item.title">
                     <slot :name="`item-${item.key}`" :item="item">
                         <code v-if="item.code" class="text-[12px]">{{ item.value }}</code>
                         <template v-else>{{ item.value }}</template>
@@ -33,7 +33,9 @@ interface Props {
     /** 영역 이름(화면 읽기용) */
     label: string;
     items?: DrawerSummaryItem[];
+    /** 넓은 화면의 열 수 — 기본 3, 2 면 늘 두 단(좁은 화면은 어느 쪽이든 두 단) */
+    columns?: 2 | 3;
 }
 
-withDefaults(defineProps<Props>(), { items: () => [] });
+withDefaults(defineProps<Props>(), { items: () => [], columns: 3 });
 </script>

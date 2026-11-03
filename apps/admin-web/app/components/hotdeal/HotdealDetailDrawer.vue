@@ -36,7 +36,7 @@
         </template>
 
         <!-- 요약 — 상태 · 글 번호(복사) · 공개 글 열기. 탭 위에 고정 -->
-        <DrawerSummary v-if="head" class="mt-2" :label="t('drawerSummary.label')" :items="summaryItems">
+        <DrawerSummary v-if="head" class="mt-2" :label="t('drawerSummary.label')" :items="summaryItems" :columns="2">
             <template #item-state>
                 <span class="flex flex-wrap items-center gap-1.5">
                     <HotdealViewTag :view="head.deal.view" />
@@ -352,9 +352,9 @@ const toast = useAppToast();
 const titleId = useId();
 
 const head = computed(() => props.detail?.row ?? props.item);
-/** 요약 칸 — 값은 칸 슬롯이 그린다 */
+/** 요약 칸(두 단 — 상태 | 글 번호) — 값은 칸 슬롯이 그린다 */
 const summaryItems = computed<DrawerSummaryItem[]>(() => [
-    { key: 'state', label: t('drawerSummary.state'), wide: true },
+    { key: 'state', label: t('drawerSummary.state') },
     { key: 'postId', label: t('drawerSummary.postId') },
 ]);
 /** 본문이 그리는 줄 — 템플릿은 `detail` 이 있을 때만 읽는다 */
