@@ -157,7 +157,7 @@ export default class UtilBusiness {
     static bannerRatioOk(type: AdType, width: number, height: number): boolean {
         const ratio = UtilBusiness.BANNER_RATIO[type];
         if (ratio === null || width <= 0 || height <= 0) return true;
-        return Math.abs(width / height / ratio - 1) <= UtilBusiness.BANNER_RATIO_TOLERANCE;
+        return Math.abs(width / height / ratio - 1) <= UtilBusiness.BANNER_RATIO_TOLERANCE + 1e-9; // 경계(딱 3%)는 부동소수 오차 없이 통과
     }
 
     /**

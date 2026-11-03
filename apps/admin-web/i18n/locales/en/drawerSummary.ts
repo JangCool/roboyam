@@ -19,6 +19,8 @@ export default {
     groupBuy: 'Group buy',
     round: 'Round',
     member: 'Member',
+    questionId: 'Question no.',
+    reviewId: 'Review no.',
     orderNo: 'Order no.',
     product: 'Product',
     rating: 'Rating',

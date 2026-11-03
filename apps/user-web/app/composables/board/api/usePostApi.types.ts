@@ -25,8 +25,11 @@ export interface PostAuthor {
     kind: PostAuthorKind;
     /** 회원 ID — 비회원은 null */
     memberId: string | null;
-    /** 회원은 닉네임, 비회원은 입력한 이름 */
-    name: string;
+    /**
+     * 회원은 닉네임, 비회원은 입력한 이름. 숨긴 글·지운 댓글은 빈 글자.
+     * **탈퇴가 완료된 회원은 null** — 서버가 `profiles.nickname` 을 NULL 로 두고(`WithdrawalEraseStore`) `AuthorViews` 가 그대로 싣는다. 화면은 「탈퇴한 회원」(`board.authorWithdrawn`)으로 보인다
+     */
+    name: string | null;
     /** 회원 등급 키(등급 목록의 `gradeKey` — 고정 enum 이 아니다) — 비회원은 null */
     grade: string | null;
     /** 서버가 준 등급 이름 — 없으면 기본 이름 */

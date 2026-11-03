@@ -186,7 +186,9 @@ public class UserProfileService {
         if (id == null) {
             throw new ProfileNotFoundException();
         }
-        UserEntity user = users.findById(id).filter(u -> !u.isGone()).orElseThrow(ProfileNotFoundException::new);
+        // 탈퇴 진행 중 회원은 공개 프로필에서 빠진다(member-withdrawal-contract)
+        UserEntity user = users.findById(id).filter(u -> !u.isGone() && u.getStatus() != com.community.user.entity.UserStatus.WITHDRAWING)
+                .orElseThrow(ProfileNotFoundException::new);
         ProfileEntity profile = profiles.findById(id).orElseThrow(ProfileNotFoundException::new);
         return new Member(id, user, profile);
     }

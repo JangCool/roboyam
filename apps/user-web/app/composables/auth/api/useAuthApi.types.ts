@@ -45,12 +45,14 @@ export interface AuthUser {
  * `restriction`(7-2): 정지·영구 정지 중이거나 확인하지 않은 경고가 있을 때의 요약 — 정상이면 null. 서버가 아직 안 주면(옛 응답) 없을 수도 있어 선택으로 둔다
  * `adminUrl`(7-4): 관리자 앱 주소 — **관리자 앱에 들어갈 수 있는 사람**(정상 상태의 운영자, 메뉴 권한이 하나라도 `NONE` 이 아닌 운영진)에게만 값이 있고 그 밖에는 null.
  * 사용자 메뉴의 "관리자 앱" 링크가 쓴다(`useAuth().adminUrl` — http(s) 주소인지 한 번 더 거른 값). 옛 응답에는 칸 자체가 없을 수도 있어 선택으로 둔다
+ * `withdrawalScheduled`(member-withdrawal-contract): 탈퇴 진행 중(`users.status = WITHDRAWING`) — 전역 안내 띠(`WithdrawalBanner`)가 탈퇴 화면으로 이어 준다. 옛 응답에는 없을 수 있어 선택으로 둔다
  */
 export interface MeResponse {
     authenticated: boolean;
     user: AuthUser | null;
     restriction?: Restriction | null;
     adminUrl?: string | null;
+    withdrawalScheduled?: boolean;
 }
 
 export interface SocialProvider {

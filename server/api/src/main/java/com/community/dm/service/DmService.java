@@ -191,7 +191,7 @@ public class DmService {
         DmQueries.Person person = queries.people(List.of(box.partnerId())).get(box.partnerId());
         DmQueries.State state = queries.state(userId);
         SenderCheck check = senderCheck(userId, now);
-        String reason = reasonFor(userId, box.partnerId(), person == null || person.gone(), Optional.of(box), state, check, now);
+        String reason = reasonFor(userId, box.partnerId(), person == null || person.unreachable(), Optional.of(box), state, check, now);
         Map<Long, String> memos = blocks.memosAmong(userId, List.of(box.partnerId()));
         Map<Long, AuthorLook> looks = decorations.resolve(List.of(box.partnerId()));
         Set<Long> approved = businesses.approvedUserIds(List.of(box.partnerId()));
@@ -241,7 +241,7 @@ public class DmService {
         BoardCatalogSnapshot s = catalog.snapshot();
         Locale locale = messages.locale();
         List<DmRecipientView> items = rows.stream()
-                .map(r -> new DmRecipientView(partner(new DmQueries.Person(r.id(), r.nickname(), r.gradeKey(), false), memos, looks, approved, s, locale),
+                .map(r -> new DmRecipientView(partner(new DmQueries.Person(r.id(), r.nickname(), r.gradeKey(), false, false), memos, looks, approved, s, locale),
                         r.threadId() == null ? null : Long.toString(r.threadId())))
                 .toList();
         return new DmRecipientListView(items);
@@ -250,9 +250,12 @@ public class DmService {
     /** 이 회원에게 보낼 수 있나(읽기만 — 한도를 쓰지 않는다). 없는·탈퇴한 회원 404 {@code PROFILE_NOT_FOUND} */
     @Transactional(readOnly = true)
     public DmCanSendView canSend(long userId, String targetText) {
-        SocialMembers.Member target = members.require(targetText);
         Instant now = Instant.now();
         DmQueries.State state = queries.state(userId);
+        if (withdrawingRecipient(targetText)) {
+            return new DmCanSendView(false, "RECIPIENT_WITHDRAWN", null, null, true, false, quota(state, now));
+        }
+        SocialMembers.Member target = members.require(targetText);
         Optional<DmQueries.Box> box = target.id() == userId ? Optional.empty() : queries.boxWith(userId, target.id());
         SenderCheck check = senderCheck(userId, now);
         String reason = reasonFor(userId, target.id(), false, box, state, check, now);
@@ -268,6 +271,9 @@ public class DmService {
         String problem = DmRules.bodyProblem(body);
         if (problem != null) {
             throw ValidationException.of("body", new MessageRef(problem, String.valueOf(DmRules.BODY_MAX)));
+        }
+        if (withdrawingRecipient(targetText)) {
+            throw DmSendBlockedException.forbidden("DM_RECIPIENT_WITHDRAWN");
         }
         SocialMembers.Member target = members.require(targetText);
         if (target.id() == userId) {
@@ -394,6 +400,16 @@ public class DmService {
             return "NEW_PARTNER_LIMIT";
         }
         return null;
+    }
+
+    /** 받는 사람이 탈퇴 진행 중인가 — 살아 있는 회원 찾기({@code SocialMembers})에서는 빠지므로 그 전에 본다(403 {@code DM_RECIPIENT_WITHDRAWN}, member-withdrawal-contract) */
+    private boolean withdrawingRecipient(String targetText) {
+        Long id = SocialPaging.id(targetText);
+        if (id == null) {
+            return false;
+        }
+        DmQueries.Person person = queries.people(List.of(id)).get(id);
+        return person != null && person.withdrawing();
     }
 
     private static CommonException senderError(String reason) {

@@ -8,13 +8,13 @@
         <template #header>
             <div v-if="head" class="flex min-w-0 flex-1 flex-col gap-1">
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
-                    <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold">{{ t('groupBuyQna.secQuestion') }} #{{ head.id }}</h2>
+                    <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold">{{ t('groupBuyQna.secQuestion') }}</h2>
                     <Tag :value="t(`groupBuyQna.status.${head.status}`)" :severity="head.status === 'ANSWERED' ? 'success' : head.overdue ? 'danger' : 'warn'" />
                 </div>
             </div>
         </template>
 
-        <!-- 요약 — 공구 · 회차 · 회원 · 숨김/삭제 -->
+        <!-- 요약 — 공구 · 회차 · 회원 · 문의 번호 · 숨김/삭제 -->
         <DrawerSummary v-if="head" :label="t('drawerSummary.label')" :items="summaryItems">
             <template #item-visibility>
                 <span class="flex flex-wrap items-center gap-1.5">
@@ -127,7 +127,7 @@ const { prefs } = useLayoutPrefs();
 const titleId = useId();
 
 const head = computed(() => props.detail ?? props.summary);
-/** 요약 칸 — 공구 · 회차 · 회원 · 숨김/삭제(있을 때만, 꼬리표 — 칸 슬롯) */
+/** 요약 칸 — 공구 · 회차 · 회원 · 문의 번호 · 숨김/삭제(있을 때만, 꼬리표 — 칸 슬롯) */
 const summaryItems = computed<DrawerSummaryItem[]>(() => {
     const h = head.value;
     if (!h) return [];
@@ -135,6 +135,7 @@ const summaryItems = computed<DrawerSummaryItem[]>(() => {
         { key: 'groupBuy', label: t('drawerSummary.groupBuy'), value: h.groupBuy.title, title: h.groupBuy.title },
         { key: 'round', label: t('drawerSummary.round'), value: t('groupBuyQna.roundN', { n: h.groupBuy.roundNo }) },
         { key: 'member', label: t('drawerSummary.member'), value: h.member.nickname },
+        { key: 'questionId', label: t('drawerSummary.questionId'), value: `#${h.id}`, code: true, title: h.id },
         ...(h.hidden || h.deleted ? [{ key: 'visibility', label: t('drawerSummary.visibility') }] : []),
     ];
 });

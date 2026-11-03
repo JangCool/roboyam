@@ -237,6 +237,10 @@ async function loadDetail(): Promise<void> {
     }
 }
 
+// 댓글 오류 — `show` 가 비우므로 그보다 먼저 둔다(`?review=` 바로가기는 setup 중 `show` 를 부른다)
+const replyError = ref('');
+const replyFieldError = ref('');
+
 function show(id: string, row: GroupBuyReviewRow | null): void {
     if (drawerId.value !== id) drawerDetail.value = null;
     drawerId.value = id;
@@ -271,8 +275,6 @@ watch(drawerOpen, (open) => {
 
 // ── 동작 ──
 const working = ref<'reply' | 'hide' | null>(null);
-const replyError = ref('');
-const replyFieldError = ref('');
 
 async function submitReply(body: string): Promise<void> {
     const d = drawerDetail.value;

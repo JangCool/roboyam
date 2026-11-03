@@ -24,8 +24,9 @@ public class PointShopMemberStore {
     /** 자격 판정 재료 — {@code status} 는 users.status, {@code gone} 은 탈퇴·삭제 */
     public record MemberState(String status, boolean emailVerified, boolean gone) {
 
+        /** 정지·영구 정지·탈퇴 진행 중(새 구매·아바타 변경을 막는다 — member-withdrawal-contract) */
         public boolean suspended() {
-            return "SUSPENDED".equals(status) || "BANNED".equals(status);
+            return "SUSPENDED".equals(status) || "BANNED".equals(status) || "WITHDRAWING".equals(status);
         }
     }
 

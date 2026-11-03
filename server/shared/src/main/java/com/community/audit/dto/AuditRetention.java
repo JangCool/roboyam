@@ -47,7 +47,9 @@ public final class AuditRetention {
             // 광고주 요청 중단(운영자 대신 — 일할 환불·중도 해지 수수료, biz-pause-contract)
             AuditActions.BIZ_APP_STOP,
             // 운영자 추가 환불(클레임 — 닫힌·끝난 건의 남은 금액, biz-pause-contract 「추가 환불」)
-            AuditActions.BIZ_APP_REFUND_CLAIM);
+            AuditActions.BIZ_APP_REFUND_CLAIM,
+            // 회원 탈퇴 완료 — 충전 포인트·광고 남은 기간 포기 동의의 증빙(member-withdrawal-contract, 5년)
+            AuditActions.MEMBER_WITHDRAW);
 
     private static final Set<String> PERSONAL_DATA = Set.of(
             AuditActions.MEMBER_VIEW,
@@ -97,6 +99,8 @@ public final class AuditRetention {
             AuditActions.COMMERCE_REQUEST_LIMIT_UPDATE,
             // 0-4 회원 기능 제한·해제 — 제재와 같은 운영 일(사용자 확정 2026-10-26)
             AuditActions.MEMBER_RESTRICTION_GRANT, AuditActions.MEMBER_RESTRICTION_LIFT,
+            // 회원 탈퇴 신청·취소 — 계정 상태 변경(완료는 포기 동의 증빙이라 돈 관련)
+            AuditActions.MEMBER_WITHDRAW_REQUEST, AuditActions.MEMBER_WITHDRAW_CANCEL,
             // develop(2026-10-26)의 새 행위 — 약관·닉네임 그림·인기글·하이라이트·토론·게시글·신고 관리. 글 삭제·복구가 포인트를 회수·되돌리지만 목적은 콘텐츠 관리이고
             // 포인트 이동의 기록은 포인트 원장이 가진다 — 일반 운영(commerce-foundation-contract 「0-5」 세션 정리 결정)
             AuditActions.TERMS_PUBLISH, AuditActions.TERMS_LINKS_UPDATE,

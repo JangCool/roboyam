@@ -74,6 +74,6 @@ public class MeService {
         boolean restricted = u.getStatus() == UserStatus.SUSPENDED || u.getStatus() == UserStatus.BANNED;
         RestrictionView restriction = restricted ? new RestrictionView(u.getStatus().name(), null, 0) : null;
 
-        return Optional.of(new MeResponse(true, view, restriction, null));
+        return Optional.of(new MeResponse(true, view, restriction, null, u.getStatus() == UserStatus.WITHDRAWING));
     }
 }

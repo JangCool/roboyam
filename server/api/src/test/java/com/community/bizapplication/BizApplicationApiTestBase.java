@@ -119,12 +119,28 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
         return user;
     }
 
-    /** 회원이 올린 광고 이미지(파일 장부 한 줄 — 저장소 없이) */
+    /** 회원이 올린 광고 이미지(파일 장부 한 줄 — 저장소 없이) — 넓은 배너 규격(1200×300) */
     protected long adImage(long userId) {
+        return adImage(userId, 1200, 300);
+    }
+
+    /** 회원이 올린 광고 이미지 — 크기를 정해서(배너 비율 검사) */
+    protected long adImage(long userId, int width, int height) {
         long id = ids.nextId();
         jdbc.update("INSERT INTO files (id, purpose, storage_key, content_type, size_bytes, width, height, status, uploaded_by_user, created_at) "
-                + "VALUES (?, 'BIZ_AD_IMAGE', ?, 'image/png', 100, 10, 10, 'PENDING', ?, now())", id, "biz-ad/test/" + id + ".png", userId);
+                + "VALUES (?, 'BIZ_AD_IMAGE', ?, 'image/png', 100, ?, ?, 'PENDING', ?, now())", id, "biz-ad/test/" + id + ".png", width, height, userId);
         return id;
+    }
+
+    /** 공개 광고 종류의 규격 크기(가로, 세로) — 배너 신청 도우미가 맞는 그림을 붙인다 */
+    protected static int[] bannerSize(String adType) {
+        return switch (adType) {
+            case "STRIP" -> new int[] {1200, 100};
+            case "SQUARE" -> new int[] {300, 250};
+            case "SMALL" -> new int[] {300, 100};
+            case "WING" -> new int[] {160, 600};
+            default -> new int[] {1200, 300};
+        };
     }
 
     // ── 신청 ───────────────────────────────────────────────────────────────
@@ -143,7 +159,8 @@ public abstract class BizApplicationApiTestBase extends CommerceApiTestBase {
     /** 배너 광고 신청 */
     protected long submitBanner(long userId, String adType, int startOffset, int days, String method) {
         LocalDate start = today().plusDays(1 + startOffset);
-        return members.submitAd(userId, new BizAdApplyRequest(adType, start.toString(), start.plusDays(days - 1L).toString(), Long.toString(adImage(userId)),
+        int[] size = bannerSize(adType);
+        return members.submitAd(userId, new BizAdApplyRequest(adType, start.toString(), start.plusDays(days - 1L).toString(), Long.toString(adImage(userId, size[0], size[1])),
                 "https://shop.example.com/b", "가을 특가 배너", null, method, POLICY, POLICY));
     }
 

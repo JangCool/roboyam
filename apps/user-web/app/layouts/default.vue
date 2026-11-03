@@ -21,6 +21,8 @@
                  상단 가로 탭은 모바일 전용이고, 이메일 인증 전 안내는 로그인은 됐지만 글·댓글·추천·쪽지는 인증 뒤에 할 수 있다는 안내다 -->
             <template #after-header>
                 <RestrictionBanner />
+                <!-- 탈퇴 진행 중 안내 띠(로그인 정보 `withdrawalScheduled`) — 탈퇴 화면(`/settings/account/withdraw`)으로 이어 준다 -->
+                <WithdrawalBanner />
                 <AppTopTabs v-if="!inner" class="md:hidden" />
                 <EmailVerifyBanner />
                 <!-- 약관 변경 안내 띠(약관 요약의 `notice`, 닫기는 이 브라우저에 기억) -->

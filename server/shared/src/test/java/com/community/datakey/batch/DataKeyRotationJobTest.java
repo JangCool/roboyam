@@ -336,7 +336,7 @@ class DataKeyRotationJobTest {
                 audited.add(event);
             }
         };
-        WithdrawnContactStore store = new WithdrawnContactStore(contactRows, after, audit, new WithdrawalProperties(30, 5),
+        WithdrawnContactStore store = new WithdrawnContactStore(contactRows, after, audit, new WithdrawalProperties(30, 365, 5, 6, 1, 10, 10, ""),
                 new StaticListableBeanFactory().getBeanProvider(Clock.class));
         for (long member : members) {
             assertThat(contactRows.find(member).orElseThrow().emailCipher()).startsWith("d2:");

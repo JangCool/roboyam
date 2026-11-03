@@ -7,6 +7,7 @@ export default {
 
     guestBadge: 'Guest',
     guestIp: 'IP {ip}',
+    authorWithdrawn: 'Withdrawn member',
     pinned: 'Pinned',
     adultMark: '18+ post',
     hasImage: 'Has images',

@@ -28,6 +28,8 @@ export function useAuth() {
     const restrictionState = useState<Restriction | null>('auth-restriction', () => null);
     /** 서버가 로그인 정보에 실어 준 관리자 앱 주소 원본(7-4). 화면은 역할·주소 모양을 거른 `adminUrl` 을 쓴다 */
     const adminUrlState = useState<string | null>('auth-admin-url', () => null);
+    /** 서버가 로그인 정보에 실어 준 「탈퇴 진행 중」 원본(member-withdrawal-contract). 화면은 로그인 여부를 거친 `withdrawalScheduled` 를 쓴다 */
+    const withdrawalScheduledState = useState<boolean>('auth-withdrawal-scheduled', () => false);
 
     /**
      * 정지·영구 정지 중이거나 확인하지 않은 경고가 있을 때의 요약(`/api/auth/me`·로그인·가입 응답의 `restriction`, docs/api-sanction.md 2절).
@@ -43,6 +45,12 @@ export function useAuth() {
      */
     const adminUrl = computed<string | null>(() => UtilAdminLink.resolve(user.value?.role, adminUrlState.value));
 
+    /**
+     * 탈퇴 진행 중인가(`/api/auth/me`·로그인 응답의 `withdrawalScheduled`, member-withdrawal-contract) — 전역 안내 띠(`WithdrawalBanner`)가 본다.
+     * 탈퇴 화면(`/settings/account/withdraw`)이 신청·취소한 뒤 `refresh()` 로 새로 받는다. **로그인하지 않았으면 늘 false.**
+     */
+    const withdrawalScheduled = computed(() => user.value !== null && withdrawalScheduledState.value);
+
     const isLoggedIn = computed(() => user.value !== null);
     const emailVerified = computed(() => user.value?.emailVerified ?? false);
 
@@ -50,6 +58,7 @@ export function useAuth() {
         user.value = res.authenticated ? res.user : null;
         restrictionState.value = res.authenticated ? (res.restriction ?? null) : null;
         adminUrlState.value = res.authenticated ? (res.adminUrl ?? null) : null;
+        withdrawalScheduledState.value = res.authenticated && res.withdrawalScheduled === true;
         return user.value;
     }
 
@@ -106,18 +115,17 @@ export function useAuth() {
         try {
             await api.logout();
         } finally {
-            user.value = null;
-            restrictionState.value = null;
-            adminUrlState.value = null;
+            clear();
         }
     }
 
-    /** 세션이 서버에서 끝났음을 알았을 때(비밀번호 재설정 뒤 등) 화면 상태만 비운다 */
+    /** 세션이 서버에서 끝났음을 알았을 때(비밀번호 재설정·즉시 탈퇴 완료 뒤 등) 화면 상태만 비운다 */
     function clear(): void {
         user.value = null;
         restrictionState.value = null;
         adminUrlState.value = null;
+        withdrawalScheduledState.value = false;
     }
 
-    return { user, restriction, adminUrl, loaded, isLoggedIn, emailVerified, refresh, ensureLoaded, login, signup, completeSocialSignup, logout, clear };
+    return { user, restriction, adminUrl, withdrawalScheduled, loaded, isLoggedIn, emailVerified, refresh, ensureLoaded, login, signup, completeSocialSignup, logout, clear };
 }

@@ -71,16 +71,33 @@ public class IdentityWithdrawalRecorder {
         };
     }
 
-    /** 탈퇴한 이메일을 남긴다 */
-    @Transactional
-    public void recordEmail(String email, Instant withdrawnAt) {
-        recordHash(WithdrawalKind.EMAIL, hash(WithdrawalKind.EMAIL, email), withdrawnAt);
+    /** 기본 제한 끝 — 탈퇴 시각 + 설정 일수 */
+    public Instant defaultExpiry(Instant withdrawnAt) {
+        return withdrawnAt.plus(Duration.ofDays(properties.rejoinBlockDays()));
     }
 
-    /** 탈퇴한 소셜 계정을 남긴다 */
+    /** 탈퇴한 이메일을 남긴다(기본 기간) */
+    @Transactional
+    public void recordEmail(String email, Instant withdrawnAt) {
+        recordEmail(email, withdrawnAt, defaultExpiry(withdrawnAt));
+    }
+
+    /** 탈퇴한 이메일을 남긴다 — {@code expiresAt} 까지(제재 중 탈퇴면 제재 끝나는 날까지 — D3, 부르는 쪽이 {@code WithdrawalRejoinPolicy} 로 센다) */
+    @Transactional
+    public void recordEmail(String email, Instant withdrawnAt, Instant expiresAt) {
+        recordHash(WithdrawalKind.EMAIL, hash(WithdrawalKind.EMAIL, email), withdrawnAt, expiresAt);
+    }
+
+    /** 탈퇴한 소셜 계정을 남긴다(기본 기간) */
     @Transactional
     public void recordSocial(String provider, String providerUserId, Instant withdrawnAt) {
-        recordHash(WithdrawalKind.SOCIAL, hash(WithdrawalKind.SOCIAL, normalizeSocial(provider, providerUserId)), withdrawnAt);
+        recordSocial(provider, providerUserId, withdrawnAt, defaultExpiry(withdrawnAt));
+    }
+
+    /** 탈퇴한 소셜 계정을 남긴다 — {@code expiresAt} 까지 */
+    @Transactional
+    public void recordSocial(String provider, String providerUserId, Instant withdrawnAt, Instant expiresAt) {
+        recordHash(WithdrawalKind.SOCIAL, hash(WithdrawalKind.SOCIAL, normalizeSocial(provider, providerUserId)), withdrawnAt, expiresAt);
     }
 
     /**
@@ -90,17 +107,23 @@ public class IdentityWithdrawalRecorder {
      */
     @Transactional
     public int recordIdentity(long userId, Instant withdrawnAt) {
+        return recordIdentity(userId, withdrawnAt, defaultExpiry(withdrawnAt));
+    }
+
+    /** 본인인증 해시를 옮긴다 — {@code expiresAt} 까지 */
+    @Transactional
+    public int recordIdentity(long userId, Instant withdrawnAt, Instant expiresAt) {
         Optional<IdentityStore.Verification> removed = identities.deleteVerification(userId);
         if (removed.isEmpty()) {
             return 0;
         }
         int moved = 0;
         if (removed.get().diHash() != null) {
-            recordHash(WithdrawalKind.IDENTITY_DI, removed.get().diHash(), withdrawnAt);
+            recordHash(WithdrawalKind.IDENTITY_DI, removed.get().diHash(), withdrawnAt, expiresAt);
             moved++;
         }
         if (removed.get().ciHash() != null) {
-            recordHash(WithdrawalKind.IDENTITY_CI, removed.get().ciHash(), withdrawnAt);
+            recordHash(WithdrawalKind.IDENTITY_CI, removed.get().ciHash(), withdrawnAt, expiresAt);
             moved++;
         }
         return moved;
@@ -109,7 +132,16 @@ public class IdentityWithdrawalRecorder {
     /** 이미 해시한 값을 남긴다 — {@code expires_at} = 탈퇴 시각 + 설정 일수 */
     @Transactional
     public void recordHash(WithdrawalKind kind, String hash, Instant withdrawnAt) {
-        withdrawals.insert(ids.nextId(), kind, hash, withdrawnAt, withdrawnAt.plus(Duration.ofDays(properties.rejoinBlockDays())));
+        recordHash(kind, hash, withdrawnAt, defaultExpiry(withdrawnAt));
+    }
+
+    /** 이미 해시한 값을 남긴다 — {@code expiresAt} 까지(탈퇴 시각보다 뒤여야 한다) */
+    @Transactional
+    public void recordHash(WithdrawalKind kind, String hash, Instant withdrawnAt, Instant expiresAt) {
+        if (!expiresAt.isAfter(withdrawnAt)) {
+            throw new IllegalArgumentException("재가입 제한 끝은 탈퇴 시각보다 뒤여야 한다");
+        }
+        withdrawals.insert(ids.nextId(), kind, hash, withdrawnAt, expiresAt);
     }
 
     /**

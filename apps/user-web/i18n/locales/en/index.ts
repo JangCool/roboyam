@@ -64,6 +64,7 @@ import social from './social';
 import verify from './verify';
 import view from './view';
 import terms from './terms';
+import withdrawal from './withdrawal';
 
 export default {
     account,
@@ -122,4 +123,5 @@ export default {
     verify,
     view,
     terms,
+    withdrawal,
 };

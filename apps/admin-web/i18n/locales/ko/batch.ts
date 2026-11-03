@@ -138,6 +138,7 @@ export default {
     // ── 실행 상세 ──
     detailTitle: '실행 상세',
     runNo: '실행 #{id}',
+    runId: '실행 번호',
     logNotFound: '실행 기록을 찾을 수 없어요',
     logLoadFailed: '실행 상세를 불러오지 못했어요',
     logDenied: '배치 로그를 볼 권한이 없어요.',
