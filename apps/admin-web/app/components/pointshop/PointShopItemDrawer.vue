@@ -14,12 +14,7 @@
             <div class="flex min-w-0 flex-1 flex-col gap-1">
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
                     <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold">{{ item ? item.name : t('pointShop.item.addTitle') }}</h2>
-                    <code v-if="item" class="text-xs text-muted-color">{{ item.code }}</code>
                 </div>
-                <p v-if="item" class="m-0 text-[11px] text-muted-color">
-                    {{ t('pointShop.item.updated', { at: time.full(item.updatedAt), by: item.updatedBy ?? t('pointShop.system') }) }}
-                    · {{ t('pointShop.item.soldCount', { count: item.soldCount.toLocaleString(locale) }) }}
-                </p>
             </div>
         </template>
 

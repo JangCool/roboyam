@@ -110,6 +110,7 @@ export default {
     imageChange: 'Change image',
     imageRule: 'PNG/JPG/GIF/WEBP up to 2MB — uploads as soon as you pick',
     imageRequired: 'Choose a banner image.',
+    imageRatio: 'This image does not match the {size} ratio (picked {width}×{height}). Upload one with the same ratio.',
     imageBadType: 'Only PNG, JPG, GIF or WEBP images.',
     imageTooBig: 'Images can be up to {mb}MB.',
     altRequired: 'Enter alt text.',

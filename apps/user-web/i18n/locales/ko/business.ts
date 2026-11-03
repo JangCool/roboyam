@@ -293,6 +293,7 @@ export default {
         image: '배너 이미지',
         imageHelp: '{size} · JPG·PNG·WEBP·GIF, 10MB 까지',
         imageRequired: '배너 이미지를 올려 주세요.',
+        imageRatio: '{size} 비율과 달라요(올린 이미지 {width}×{height}). 같은 비율로 맞춰 올려 주세요.',
         link: '연결 링크',
         linkInvalid: 'http:// 또는 https:// 로 시작하는 주소를 넣어 주세요.',
         alt: '대체 글',

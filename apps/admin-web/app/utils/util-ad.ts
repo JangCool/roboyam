@@ -51,6 +51,31 @@ export default class UtilAd {
         return type === 'WIDE_BANNER' || type === 'STRIP_BANNER' || type === 'SQUARE_BANNER' || type === 'SMALL_BANNER' || type === 'WING_BANNER';
     }
 
+    /** 배너 규격(가로×세로 px) — user-web `business.adTypeSize` 와 같은 값 */
+    static readonly BANNER_SIZE: Readonly<Partial<Record<AdType, readonly [number, number]>>> = {
+        WIDE_BANNER: [1200, 300],
+        STRIP_BANNER: [1200, 100],
+        SQUARE_BANNER: [300, 250],
+        SMALL_BANNER: [300, 100],
+        WING_BANNER: [160, 600],
+    };
+
+    /** 배너 비율 허용 폭 ±3%(docs/plans/biz-ad-hotdeal/02-ad.md 미디어 업로드) — 공개 자리는 규격 틀에 맞춰 잘라 보인다 */
+    static readonly BANNER_RATIO_TOLERANCE = 0.03;
+
+    /**
+     * 배너 그림이 그 유형의 규격 비율과 맞는지(±3%).
+     * @param {AdType} type 광고 유형.
+     * @param {number} width 그림 가로(px).
+     * @param {number} height 그림 세로(px).
+     * @returns {boolean} 맞거나 규격이 없는 유형(한 줄 등)이면 true.
+     */
+    static bannerRatioOk(type: AdType, width: number, height: number): boolean {
+        const size = UtilAd.BANNER_SIZE[type];
+        if (!size || width <= 0 || height <= 0) return true;
+        return Math.abs(width / height / (size[0] / size[1]) - 1) <= UtilAd.BANNER_RATIO_TOLERANCE;
+    }
+
     static statusSeverity(status: AdBookingStatus): Severity {
         switch (status) {
             case 'RUNNING':

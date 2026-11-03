@@ -1,7 +1,8 @@
 <template>
     <!--
         대시보드 — 처리할 일 칸 + 커머스 칸.
-        · 처리할 일(04-ia-review Q5 — 통합 「신청 심사」 큐 대신 1인 운영의 「한눈에」): 광고 심사 · 핫딜 심사 · 입금 확인 대기 · 입금 기한 지남 · 환불 심사 · 사업자 인증 대기.
+        · 처리할 일(04-ia-review Q5 — 통합 「신청 심사」 큐 대신 1인 운영의 「한눈에」): 광고 심사 · 핫딜 심사 · 입금 확인 대기 · 입금 기한 지남 · 환불 심사 · 사업자 인증 대기
+          · 회원 핫딜 확인 필요(`FLAGGED`) · 위장 홍보 의심(`OPEN`) — 핫딜 글·의심 후보 목록의 상태별 건수(`hotdeal.read`).
           신청 건 숫자는 권한(`ad.read`·`hotdeal.read`)이 있는 도메인마다 목록 API 를 한 번 불러 받은 큐별 건수(`counts`)이고, 두 도메인을 합친 칸은 도메인별 링크를 따로 단다.
           사업자 인증 대기는 사업자 목록의 상태별 건수 중 심사 중(처음·재신청 + 재심사, `business.read`). 권한이 있는 칸만 보이고, 칸을 누르면 그 화면·큐로 간다.
         · 커머스(commerce.md 19절, 계약 commerce-groupbuy 「화면 목록」): 준비 대기 · 열린 요청(기한 경고) · 결제 이상 · 곧 만료될 선점 · 남은 수량 적은 공구
@@ -96,10 +97,14 @@ interface TodoCard {
     links: { label: string; to: string }[];
 }
 
-/** 처리할 일 숫자 — 볼 권한이 있는 도메인의 큐별 건수 · 사업자 심사 중 건수(권한 없으면 null) */
+/** 처리할 일 숫자 — 볼 권한이 있는 도메인의 큐별 건수 · 사업자 심사 중 건수 · 회원 핫딜 확인 필요·의심 후보 건수(권한 없으면 null) */
 interface TodoView {
     domains: Partial<Record<BizDomain, Record<BizApplicationQueue, number>>>;
     businessPending: number | null;
+    /** 종료 요청이 문턱을 넘어 운영자 확인을 기다리는 핫딜 글(`FLAGGED`, 사업자 글 포함) */
+    hotdealFlagged: number | null;
+    /** 위장 홍보 의심 후보 중 아직 처리하지 않은 것(`OPEN`, 회원·판매처) */
+    hotdealSuspicions: number | null;
 }
 
 const { t } = useI18n();
@@ -108,6 +113,8 @@ useSeoMeta({ title: () => t('dashboard.title') });
 const api = useCommerceDashboardApi();
 const bizApi = useBizApplicationApi();
 const businessApi = useBusinessApi();
+const hotdealApi = useHotdealApi();
+const suspicionApi = useHotdealSuspicionApi();
 const toApiError = useApiErrorOf();
 const time = useDisplayTime();
 const { can } = useAdminPermission();
@@ -124,7 +131,9 @@ function toneText(tone: Tone, count: number): string {
 /** 신청 건을 볼 수 있는 도메인(조회 권한) */
 const todoDomains = computed(() => BIZ_DOMAINS.filter((d) => can(UtilBizApplication.DOMAIN_SCREENS[d].read)));
 const canBusiness = computed(() => can('business.read'));
-const anyTodo = computed(() => todoDomains.value.length > 0 || canBusiness.value);
+/** 회원 핫딜 칸(확인 필요·의심 후보) — 핫딜 글·의심 후보 화면과 같은 조회 권한 */
+const canHotdeal = computed(() => can('hotdeal.read'));
+const anyTodo = computed(() => todoDomains.value.length > 0 || canBusiness.value || canHotdeal.value);
 
 const todo = ref<TodoView | null>(null);
 const todoLoading = ref(false);
@@ -155,6 +164,12 @@ const todoCards = computed<TodoCard[]>(() => {
         v.businessPending === null
             ? null
             : { key: 'businessReview', label: t('dashboard.todoBusinessReview'), count: v.businessPending, note: t('dashboard.todoBusinessReviewNote'), icon: 'pi pi-briefcase', tone: 'normal', links: [{ label: t('dashboard.todoBusinessReview'), to: '/business-reviews' }] },
+        v.hotdealFlagged === null
+            ? null
+            : { key: 'hotdealFlagged', label: t('dashboard.todoHotdealFlagged'), count: v.hotdealFlagged, note: t('dashboard.todoHotdealFlaggedNote'), icon: 'pi pi-flag', tone: v.hotdealFlagged > 0 ? 'warn' : 'normal', links: [{ label: t('dashboard.todoHotdealFlagged'), to: '/hotdeals?view=FLAGGED' }] },
+        v.hotdealSuspicions === null
+            ? null
+            : { key: 'hotdealSuspicions', label: t('dashboard.todoHotdealSuspicions'), count: v.hotdealSuspicions, note: t('dashboard.todoHotdealSuspicionsNote'), icon: 'pi pi-exclamation-triangle', tone: 'normal', links: [{ label: t('dashboard.todoHotdealSuspicions'), to: '/hotdeals/suspicions' }] },
     ];
     return cards.filter((c): c is TodoCard => c !== null);
 });
@@ -165,12 +180,14 @@ async function loadTodo(): Promise<void> {
     todoLoading.value = true;
     todoError.value = null;
     const domains = todoDomains.value;
-    const [bizResults, businessResult] = await Promise.all([
+    const [bizResults, businessResult, hotdealResults] = await Promise.all([
         Promise.allSettled(domains.map((domain) => bizApi.list({ domain, queue: 'REVIEW' }))),
         canBusiness.value ? Promise.allSettled([businessApi.list({ status: 'PENDING', page: 0, size: 1 })]).then((r) => r[0]!) : Promise.resolve(null),
+        // 회원 핫딜 — 글 목록의 상태별 건수(`counts.FLAGGED`) · 의심 후보의 상태별 건수(`counts.OPEN`), 한 줄씩만 받는다
+        canHotdeal.value ? Promise.allSettled([hotdealApi.list({ view: 'FLAGGED', page: 0, size: 1 }), suspicionApi.list('OPEN', 'ALL', 0, 1)]) : Promise.resolve(null),
     ]);
     let failure: ApiError | null = null;
-    const view: TodoView = { domains: {}, businessPending: null };
+    const view: TodoView = { domains: {}, businessPending: null, hotdealFlagged: null, hotdealSuspicions: null };
     bizResults.forEach((r, i) => {
         if (r.status === 'fulfilled') view.domains[domains[i]!] = r.value.counts;
         else {
@@ -182,6 +199,16 @@ async function loadTodo(): Promise<void> {
     else if (businessResult?.status === 'rejected') {
         const e = toApiError(businessResult.reason);
         if (e.status !== 403) failure ??= e;
+    }
+    if (hotdealResults) {
+        const [flagged, suspicions] = hotdealResults;
+        if (flagged!.status === 'fulfilled') view.hotdealFlagged = flagged!.value.counts.FLAGGED;
+        if (suspicions!.status === 'fulfilled') view.hotdealSuspicions = suspicions!.value.counts.OPEN;
+        for (const r of hotdealResults) {
+            if (r.status !== 'rejected') continue;
+            const e = toApiError(r.reason);
+            if (e.status !== 403) failure ??= e;
+        }
     }
     todoError.value = failure;
     todo.value = view;

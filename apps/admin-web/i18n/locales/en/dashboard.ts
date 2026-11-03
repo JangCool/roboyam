@@ -39,5 +39,9 @@ export default {
     todoRefundNote: 'Refund requests on running items',
     todoBusinessReview: 'Business verification',
     todoBusinessReviewNote: 'New applications, reapplications and re-reviews',
+    todoHotdealFlagged: 'Hot deals to check',
+    todoHotdealFlaggedNote: 'Posts with many end requests — end or keep',
+    todoHotdealSuspicions: 'Suspected promotion',
+    todoHotdealSuspicionsNote: 'Members or sellers with many posts for one seller',
     todoDomainLink: '{domain} {count}',
 };
