@@ -23,7 +23,10 @@ public enum RequiredMail {
     // 공급 불가 선택 · 자동 취소 등)
     GROUP_BUY_ORDER_CONFIRMED(MessageAudience.MEMBER, false),
     GROUP_BUY_REFUND_COMPLETED(MessageAudience.MEMBER, false),
-    GROUP_BUY_ORDER_NOTICE(MessageAudience.MEMBER, false);
+    GROUP_BUY_ORDER_NOTICE(MessageAudience.MEMBER, false),
+    // 회원 탈퇴(docs/features/member-withdrawal-contract.md): 완료 안내(익명화 전 주소로 — 남긴 항목·기간·고객센터·재가입 가능일) · 진행 상태(신청 뒤 10일이 지나도 남은 일이 있을 때)
+    MEMBER_WITHDRAWAL_COMPLETED(MessageAudience.MEMBER, false),
+    MEMBER_WITHDRAWAL_PROGRESS(MessageAudience.MEMBER, false);
 
     private final MessageAudience audience;
     private final boolean security;

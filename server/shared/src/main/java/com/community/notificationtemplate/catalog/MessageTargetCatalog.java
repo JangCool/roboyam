@@ -339,6 +339,12 @@ public final class MessageTargetCatalog {
         out.add(required(RequiredMail.GROUP_BUY_ORDER_NOTICE, List.of(MessageVariable.of("orderNo", "groupBuyOrderNo"),
                 MessageVariable.of("groupBuyTitle", "groupBuyTitle"), MessageVariable.of("detail", "groupBuyDetail"),
                 MessageVariable.requiredLink("orderLink", "groupBuyOrderLink")), List.of()));
+        // 회원 탈퇴(member-withdrawal-contract) — 완료 안내(익명화 전 주소로, 변수에 이메일 없음) · 진행 상태(신청 10일 뒤에도 남은 일이 있을 때)
+        out.add(required(RequiredMail.MEMBER_WITHDRAWAL_COMPLETED, List.of(MessageVariable.of("nickname", "nickname"), MessageVariable.of("retentionYears", "withdrawalRetentionYears"),
+                MessageVariable.of("contactNotice", "withdrawalContactNotice"), MessageVariable.of("rejoinDate", "withdrawalRejoinDate"),
+                MessageVariable.of("supportEmail", "withdrawalSupportEmail")), List.of()));
+        out.add(required(RequiredMail.MEMBER_WITHDRAWAL_PROGRESS, List.of(MessageVariable.of("nickname", "nickname"), MessageVariable.of("pendingSummary", "withdrawalPendingSummary"),
+                MessageVariable.of("expectedDate", "withdrawalExpectedDate"), MessageVariable.of("supportEmail", "withdrawalSupportEmail")), List.of()));
         return out;
     }
 

@@ -4,11 +4,15 @@ import com.community.auth.dto.AuthUser;
 import com.community.auth.dto.request.SignupRequest;
 import com.community.auth.dto.response.EmailAvailabilityResponse;
 import com.community.auth.dto.response.NicknameAvailabilityResponse;
+import com.community.auth.exception.AuthRejoinBlockedException;
 import com.community.user.repository.master.ProfileRepositoryQDSL;
 import com.community.user.repository.master.UserRepository;
 import com.community.user.service.UserPolicy;
+import com.community.withdrawal.entity.WithdrawalKind;
+import com.community.withdrawal.service.IdentityWithdrawalRecorder;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -41,15 +45,17 @@ public class SignupService {
     private final PasswordEncoder encoder;
     private final TermsVersionProvider terms;
     private final EmailVerificationService verification;
+    private final IdentityWithdrawalRecorder withdrawals;
 
     public SignupService(MemberSignupWriter writer, UserRepository users, ProfileRepositoryQDSL profileQueries, PasswordEncoder encoder,
-                         TermsVersionProvider terms, EmailVerificationService verification) {
+                         TermsVersionProvider terms, EmailVerificationService verification, IdentityWithdrawalRecorder withdrawals) {
         this.writer = writer;
         this.users = users;
         this.profileQueries = profileQueries;
         this.encoder = encoder;
         this.terms = terms;
         this.verification = verification;
+        this.withdrawals = withdrawals;
     }
 
     /**
@@ -81,6 +87,11 @@ public class SignupService {
         }
 
         writer.assertAvailable(email, nickname);
+        // 탈퇴 뒤 재가입 제한(commerce.md 17-2 — 같은 이메일은 30일, 제재 중 탈퇴면 더 길게)
+        Instant now = Instant.now();
+        withdrawals.blockedUntil(WithdrawalKind.EMAIL, email, now).ifPresent(until -> {
+            throw new AuthRejoinBlockedException(until, now);
+        });
         AuthUser member = writer.create(email, encoder.encode(password), nickname, terms.currentTermsVersion());
         try {
             verification.resend(member.id());

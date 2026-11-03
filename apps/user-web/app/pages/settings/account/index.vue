@@ -153,6 +153,27 @@
                 <!-- 마지막 로그인 수단이라 해제할 수 없는 줄이 있고, 다른 소셜 계정을 더 연결할 수 있을 때 -->
                 <p v-if="showLastMethodHelp" class="mt-2 px-1 text-xs leading-relaxed text-muted-color" data-testid="account-social-help">{{ t('account.lastMethodHelp') }}</p>
             </section>
+
+            <!-- 회원 탈퇴 — 숨기지 않고 다른 줄과 같은 모양으로 한 줄(다크패턴 규제: 탈퇴는 가입보다 어렵지 않게). 사실 고지·선택·본인 확인은 탈퇴 화면에서 -->
+            <section class="mt-6" :aria-labelledby="`${uid}-withdraw`">
+                <h2 :id="`${uid}-withdraw`" class="mb-2 px-1 text-xs font-semibold text-muted-color">{{ t('withdrawal.title') }}</h2>
+                <div class="panel-card">
+                    <NuxtLink
+                        to="/settings/account/withdraw"
+                        class="flex min-h-14 items-center gap-3 rounded-xl px-4 py-2.5 hover:bg-surface-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary dark:hover:bg-surface-800"
+                        data-testid="account-withdraw"
+                    >
+                        <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-surface-100 text-muted-color dark:bg-surface-800" aria-hidden="true">
+                            <i class="pi pi-user-minus" />
+                        </span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-medium">{{ t('withdrawal.title') }}</span>
+                            <small class="block text-xs leading-snug text-muted-color">{{ t('withdrawal.rowHint') }}</small>
+                        </span>
+                        <i class="pi pi-angle-right text-muted-color" aria-hidden="true" />
+                    </NuxtLink>
+                </div>
+            </section>
         </template>
     </div>
 </template>
@@ -166,7 +187,7 @@ import UtilTime from '#layers/display-time/utils/util-time';
 /**
  * 계정·로그인 연결 `/settings/account` — 로그인 필요(`auth` 미들웨어, 서버도 401). 사용자 메뉴(헤더 프로필 메뉴)의 「계정·로그인 연결」·설정 묶음의 메뉴로 온다.
  * 원본(community) `pages/settings/account/index.vue` 에서 로그인 정보(이메일·인증 상태·인증 메일 다시 보내기·이메일 변경·비밀번호 변경으로 가는 줄)와 소셜 연동을 옮겼다.
- * 로그아웃·회원 탈퇴 줄은 옮기지 않았다(로그아웃은 셸 메뉴·`/me`, 탈퇴는 다른 세션 범위).
+ * 로그아웃 줄은 옮기지 않았다(셸 메뉴·`/me`). 회원 탈퇴는 맨 아래 한 줄로 `/settings/account/withdraw` 로 간다(숨기지 않는다 — 다크패턴 규제).
  *
  * - **로그인 정보**: 이메일·인증 여부는 로그인 정보(`useAuth().user`), 비밀번호 유무는 `GET /api/me/social` 의 `hasPassword` — 모두 실제. 인증 전이면 「인증 메일 다시 받기」(실제 재발송, 배너와 같은 쿨다운).
  *   비밀번호가 없는(소셜 가입) 계정은 이메일·비밀번호 변경 줄을 감추지 않고 「사용 불가」와 이유를 적는다. 변경 대기 이메일(`GET /api/me/account` 의 `pendingEmail`)이 있으면 이메일 줄 아래에 변경 화면과 같은 안내 한 줄

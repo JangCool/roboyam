@@ -154,7 +154,13 @@ roboyam:
     cancel-max-retries: 5        # 즉시 시도 뒤 재시도 횟수 — 다 쓰면 GAVE_UP(결제 이상 목록·운영자 알림)
     cancel-backoff: 1m,5m,30m,120m,720m  # n 번째 재시도까지의 간격
     cancel-stale: 10m            # SENDING 으로 이만큼 머문 취소는 보내던 서버가 죽은 것으로 보고 되돌린다
-  # 탈퇴 대비(commerce.md 17-2 · 17-3). 쓰는 탈퇴 기능은 아직 없다 — 기록 장치(IdentityWithdrawalRecorder · WithdrawnContactStore)만 있다
+  # 회원 탈퇴(commerce.md 17절, docs/features/member-withdrawal-contract.md)
   withdrawal:
-    rejoin-block-days: 30        # 같은 이메일·소셜 계정·본인인증 값이 탈퇴 뒤 다시 가입·인증할 수 없는 기간(탈퇴 때 박는다)
-    contact-retention-years: 5   # 탈퇴 회원 연락용 이메일을 마지막 거래일부터 보관하는 기간
+    rejoin-block-days: 30        # 같은 이메일·소셜 계정·본인인증 값이 탈퇴 뒤 다시 가입·인증할 수 없는 기간(탈퇴 때 박는다). 제재 중 탈퇴면 제재 끝과 비교해 늦은 쪽
+    rejoin-block-max-days: 365   # 재가입 제한 상한 — 무기한 제한·영구 정지 중 탈퇴하면 이 값
+    contact-retention-years: 5   # 탈퇴 회원 연락용 이메일을 보존 기준일부터 보관하는 기간
+    contact-retention-basis-month: 6  # 보존 기준일 = 마지막 거래일이 속한 해의 다음 해 이 달·이 날(종합소득세 신고기한 다음날 6월 1일 — 세무사 확인 전 보수적 기준)
+    contact-retention-basis-day: 1
+    progress-notice-days: 10     # 신청 뒤 이 일수 안에 완료되지 않으면 진행 상태 메일(개인정보보호법 시행령 제44조)
+    reauth-minutes: 10           # 소셜 전용 회원의 본인 확인 — 최근 이 분 안 로그인
+    support-email: ""            # 탈퇴 화면·완료 메일의 고객센터 메일. 비우면 메일 서버의 보내는 주소

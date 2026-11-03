@@ -103,6 +103,18 @@ public enum BatchCatalog implements BatchDefinition {
      */
     DATA_KEY_ROTATION("data-key-rotation", BatchCategory.SYSTEM, BatchSource.JAVA, "0 0 5 * * *", false),
 
+    /**
+     * 탈퇴 예약 자동 완료 — 탈퇴 진행 중(WITHDRAWING) 회원의 남은 일(주문·환불·광고 등)이 모두 끝났으면 익명화해 완료하고, 신청 뒤 10일(설정값)이 지나도 남아 있으면 진행 상태 메일을 한 번
+     * 보낸다(Java 배치 {@code WithdrawalAutoCompleteJob}, 30분마다 — docs/features/member-withdrawal-contract.md, commerce.md 17-1).
+     */
+    MEMBER_WITHDRAWAL_COMPLETE("member-withdrawal-complete", BatchCategory.MEMBER, BatchSource.JAVA, "0 */30 * * * *", true),
+
+    /**
+     * 탈퇴 회원 개인정보 뒷정리 — 탈퇴 회원 글·댓글의 접속 IP(작성 90일 지난 것) · 탈퇴·반려 사업자 신원의 암호문·등록증 사본(90일 지난 것) 파기 — DB 배치, 기본 매일 04:30 KST
+     * ({@code R__batch_36_member_withdrawal_cleanup.sql}, docs/plans/member-withdrawal/00-analysis.md 4절).
+     */
+    MEMBER_WITHDRAWAL_CLEANUP("member-withdrawal-cleanup", BatchCategory.SYSTEM, BatchSource.POSTGRESQL, null, true),
+
     /** 올리기만 하고 어디에도 지정하지 않은 채 오래된 파일(files.status = PENDING) 삭제 — Java 배치(저장소 파일을 지우므로 DB 만으로 끝나지 않는다), 하루 한 번(새벽 03:45). 기준 시간은 {@code roboyam.media.orphan-retention-hours} */
     FILE_ORPHAN_CLEANUP("file-orphan-cleanup", BatchCategory.SYSTEM, BatchSource.JAVA, "0 45 3 * * *", true),
 

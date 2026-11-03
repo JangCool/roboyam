@@ -46,6 +46,7 @@ export default class UtilSettings {
             children: [
                 { to: '/settings/account/email', labelKey: 'account.emailChange', testid: 'settings-account-email' },
                 { to: '/settings/account/password', labelKey: 'account.passwordChange', testid: 'settings-account-password' },
+                { to: '/settings/account/withdraw', labelKey: 'withdrawal.title', testid: 'settings-account-withdraw' },
             ],
         },
         { to: '/settings/identity', labelKey: 'identity.title', hintKey: 'settings.identityHint', icon: 'pi pi-id-card', testid: 'settings-identity' },

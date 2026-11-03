@@ -16,7 +16,7 @@ import type {
  *
  * 보내기(`send`) 오류(위에서 처음 걸린 것 하나): `400 VALIDATION fields.body`(빈 글·500자 초과·제어 문자) · `404 PROFILE_NOT_FOUND` · `400 DM_SELF` ·
  * `403 EMAIL_NOT_VERIFIED` · `403 ACCOUNT_RESTRICTED` · `403 BUSINESS_ACCOUNT_RESTRICTED` · `403 DM_NOT_PERMITTED`(회원 역할에 `message.send` 없음) · `403 DM_SENDER_TOO_NEW`(가입 7일 전) · `403 DM_UNAVAILABLE`(차단 관계 — 어느 쪽이든) ·
- * `403 DM_RECIPIENT_REFUSES` · `400 DM_CONTACT_NOT_ALLOWED`(상대가 답장하기 전 링크·연락처) · `429 RATE_LIMITED`(3초) · `429 DM_DAILY_LIMIT`(20통) · `429 DM_NEW_PARTNER_LIMIT`(새 상대 5명).
+ * `403 DM_RECIPIENT_REFUSES` · `403 DM_RECIPIENT_WITHDRAWN`(상대가 탈퇴 진행 중) · `400 DM_CONTACT_NOT_ALLOWED`(상대가 답장하기 전 링크·연락처) · `429 RATE_LIMITED`(3초) · `429 DM_DAILY_LIMIT`(20통) · `429 DM_NEW_PARTNER_LIMIT`(새 상대 5명).
  * 대화방·읽음·삭제의 없는·남의 대화는 모두 `404 DM_THREAD_NOT_FOUND`. 받는 사람 찾기 `400 VALIDATION fields.q`(2~16자). 수신 설정 `400 VALIDATION fields.acceptDm`.
  */
 const PATH = {

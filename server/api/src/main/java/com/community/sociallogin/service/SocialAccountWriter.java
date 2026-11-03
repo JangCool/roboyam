@@ -1,6 +1,7 @@
 package com.community.sociallogin.service;
 
 import com.community.auth.dto.AuthUser;
+import com.community.auth.exception.AuthRejoinBlockedException;
 import com.community.auth.service.TermsVersionProvider;
 import com.community.social.entity.SocialProvider;
 import com.community.sociallogin.dto.CallbackOutcome;
@@ -21,6 +22,8 @@ import com.community.user.repository.master.ProfileRepository;
 import com.community.user.repository.master.ProfileRepositoryQDSL;
 import com.community.user.repository.master.UserIdentityRepository;
 import com.community.user.repository.master.UserRepository;
+import com.community.withdrawal.entity.WithdrawalKind;
+import com.community.withdrawal.service.IdentityWithdrawalRecorder;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
 import com.community.zconfiguration.id.SnowflakeIdGenerator;
@@ -55,15 +58,17 @@ public class SocialAccountWriter {
     private final SnowflakeIdGenerator ids;
     /** 가입 때 동의 받은 약관 버전 — 이메일 가입과 같은 한 곳({@link TermsVersionProvider#currentTermsVersion()})이 정한다 */
     private final TermsVersionProvider terms;
+    private final IdentityWithdrawalRecorder withdrawals;
 
     public SocialAccountWriter(UserRepository users, ProfileRepository profiles, ProfileRepositoryQDSL profileQueries, UserIdentityRepository identities,
-                               SnowflakeIdGenerator ids, TermsVersionProvider terms) {
+                               SnowflakeIdGenerator ids, TermsVersionProvider terms, IdentityWithdrawalRecorder withdrawals) {
         this.users = users;
         this.profiles = profiles;
         this.profileQueries = profileQueries;
         this.identities = identities;
         this.ids = ids;
         this.terms = terms;
+        this.withdrawals = withdrawals;
     }
 
     /**
@@ -144,6 +149,15 @@ public class SocialAccountWriter {
             throw new UserNicknameTakenException();
         }
         Instant now = Instant.now();
+        // 탈퇴 뒤 재가입 제한(commerce.md 17-2) — 같은 소셜 계정, 그리고 공급자가 준 이메일이 있으면 그 이메일도
+        withdrawals.blockedUntil(WithdrawalKind.SOCIAL, IdentityWithdrawalRecorder.normalizeSocial(pending.provider().name(), pending.subject()), now).ifPresent(until -> {
+            throw new AuthRejoinBlockedException(until, now);
+        });
+        if (pending.email() != null) {
+            withdrawals.blockedUntil(WithdrawalKind.EMAIL, pending.email(), now).ifPresent(until -> {
+                throw new AuthRejoinBlockedException(until, now);
+            });
+        }
         long userId = ids.nextId();
         try {
             users.persist(UserEntity.createSocial(userId, pending.email(), pending.emailVerified(), terms.currentTermsVersion(), now));
