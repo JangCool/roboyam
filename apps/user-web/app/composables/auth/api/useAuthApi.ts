@@ -60,7 +60,8 @@ export function useAuthApi() {
 
         /**
          * 이메일 가입 — `201` 로 `me` 와 같은 모양(가입 즉시 로그인, 인증 메일이 나간다).
-         * `400 VALIDATION`(`fields` — 이메일·비밀번호·닉네임·동의 위반을 한 번에) · `409 EMAIL_TAKEN` · `409 NICKNAME_TAKEN`
+         * `400 VALIDATION`(`fields` — 이메일·비밀번호·닉네임·동의 위반을 한 번에) · `409 EMAIL_TAKEN` · `409 NICKNAME_TAKEN` ·
+         * `409 REJOIN_BLOCKED`(탈퇴 뒤 재가입 제한 중 — 서버 문구에 다시 가입할 수 있는 날, `retryAfterSeconds`, 최상위 `rejoinAvailableAt`; 화면은 문구를 그대로 보인다)
          */
         signup: (body: SignupRequest) => client.post<MeResponse>(PATH.signup, body),
 
@@ -102,7 +103,8 @@ export function useAuthApi() {
 
         /**
          * 소셜 가입 마무리(닉네임 + 약관 동의 3개) — `201` 로 `me` 와 같은 모양(가입 즉시 로그인).
-         * `400 VALIDATION`(`fields`) · `409 NICKNAME_TAKEN` · `409 EMAIL_TAKEN`·`SOCIAL_ALREADY_REGISTERED` · `404 NO_PENDING` · `429 SOCIAL_RATE_LIMITED`
+         * `400 VALIDATION`(`fields`) · `409 NICKNAME_TAKEN` · `409 EMAIL_TAKEN`·`SOCIAL_ALREADY_REGISTERED` · `409 REJOIN_BLOCKED`(탈퇴 뒤 재가입 제한 — 소셜 계정·공급자가 준 이메일 모두 확인, 문구 그대로 보인다) ·
+         * `404 NO_PENDING` · `429 SOCIAL_RATE_LIMITED`
          */
         completeSocialSignup: (body: SocialSignupRequest) => client.post<MeResponse>(PATH.socialComplete, body),
     };

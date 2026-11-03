@@ -22,9 +22,9 @@ public class PointAttendanceStore {
     /** 출석 자격에 필요한 회원 상태 */
     public record MemberState(String status, boolean emailVerified, boolean gone) {
 
-        /** 정지·영구 정지 */
+        /** 정지·영구 정지·탈퇴 진행 중(새 출석을 막는다 — member-withdrawal-contract) */
         public boolean suspended() {
-            return "SUSPENDED".equals(status) || "BANNED".equals(status);
+            return "SUSPENDED".equals(status) || "BANNED".equals(status) || "WITHDRAWING".equals(status);
         }
     }
 

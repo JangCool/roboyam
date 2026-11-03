@@ -226,6 +226,13 @@ public final class AuditActions {
     public static final String MEMBER_RESTRICTION_LIFT = "MEMBER_RESTRICTION_LIFT";
     /** 탈퇴 회원 연락처 열람 — 대상 MEMBER, 사유 {@code reason}(이메일은 싣지 않는다). 감사 보관 분류는 개인정보 열람(0-5 와 합칠 때) */
     public static final String WITHDRAWN_CONTACT_REVEAL = "WITHDRAWN_CONTACT_REVEAL";
+    // ── 회원 탈퇴(docs/features/member-withdrawal-contract.md) ──
+    /** 탈퇴 신청(회원) — 대상 MEMBER, {@code withdrawalId}·{@code result}(COMPLETED · SCHEDULED)·{@code pendingCount}·고른 것·사유 코드(메모 없음) */
+    public static final String MEMBER_WITHDRAW_REQUEST = "MEMBER_WITHDRAW_REQUEST";
+    /** 탈퇴 완료(익명화) — 대상 MEMBER, 포기 동의 금액({@code forfeitPaidPoints}·{@code forfeitBizAmount})·{@code forfeitedFree}·{@code hasPaymentHistory}·{@code rejoinUntil}. 돈 포기 증빙이라 돈 관련(5년) */
+    public static final String MEMBER_WITHDRAW = "MEMBER_WITHDRAW";
+    /** 탈퇴 취소(회원) — 대상 MEMBER, {@code withdrawalId} */
+    public static final String MEMBER_WITHDRAW_CANCEL = "MEMBER_WITHDRAW_CANCEL";
     /** 포트원 설정 저장 — 대상 PORTONE_SETTINGS, 바꾼 칸 이름 {@code fields}(값 없음) */
     public static final String PORTONE_SETTINGS_UPDATE = "PORTONE_SETTINGS_UPDATE";
     /** 포트원 설정 칸 지우기 — 대상 PORTONE_SETTINGS, 칸 이름 {@code field} */

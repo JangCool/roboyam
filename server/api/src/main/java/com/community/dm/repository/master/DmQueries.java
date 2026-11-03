@@ -223,7 +223,12 @@ public class DmQueries {
     /**
      * 상대 회원의 지금 값 — {@code gone} 이면 탈퇴·삭제(표시는 「탈퇴한 회원」).
      */
-    public record Person(long id, String nickname, String gradeKey, boolean gone) {
+    public record Person(long id, String nickname, String gradeKey, boolean gone, boolean withdrawing) {
+
+        /** 쪽지를 받을 수 없는가 — 탈퇴했거나 탈퇴 진행 중(표시는 그대로 닉네임, 보내기만 막는다 — member-withdrawal-contract) */
+        public boolean unreachable() {
+            return gone || withdrawing;
+        }
     }
 
     public Map<Long, Person> people(Collection<Long> ids) {
@@ -231,10 +236,10 @@ public class DmQueries {
         if (ids.isEmpty()) {
             return out;
         }
-        jdbc.query("select u.id, p.nickname, p.grade_key, (u.status = 'WITHDRAWN' or u.deleted_at is not null or p.user_id is null) as gone "
-                + "from users u left join profiles p on p.user_id = u.id where u.id in (:ids)", new MapSqlParameterSource("ids", ids), rs -> {
+        jdbc.query("select u.id, p.nickname, p.grade_key, (u.status = 'WITHDRAWN' or u.deleted_at is not null or p.user_id is null) as gone, "
+                + "u.status = 'WITHDRAWING' as withdrawing from users u left join profiles p on p.user_id = u.id where u.id in (:ids)", new MapSqlParameterSource("ids", ids), rs -> {
                     long id = rs.getLong("id");
-                    out.put(id, new Person(id, rs.getString("nickname"), rs.getString("grade_key"), rs.getBoolean("gone")));
+                    out.put(id, new Person(id, rs.getString("nickname"), rs.getString("grade_key"), rs.getBoolean("gone"), rs.getBoolean("withdrawing")));
                 });
         return out;
     }
@@ -254,7 +259,7 @@ public class DmQueries {
                 .addValue("lim", limit);
         return jdbc.query("select p.user_id, p.nickname, p.grade_key, b.thread_id from profiles p join users u on u.id = p.user_id "
                 + "left join dm_boxes b on b.user_id = :u and b.partner_id = p.user_id "
-                + "where u.status <> 'WITHDRAWN' and u.deleted_at is null and p.user_id <> :u and lower(p.nickname) like :contains escape '\\' "
+                + "where u.status not in ('WITHDRAWN', 'WITHDRAWING') and u.deleted_at is null and p.user_id <> :u and lower(p.nickname) like :contains escape '\\' "
                 + "and not exists (select 1 from user_blocks k where (k.user_id = :u and k.target_id = p.user_id) or (k.user_id = p.user_id and k.target_id = :u)) "
                 + "order by (lower(p.nickname) like :prefix escape '\\') desc, lower(p.nickname), p.user_id limit :lim", p, (rs, i) -> {
                     long thread = rs.getLong("thread_id");

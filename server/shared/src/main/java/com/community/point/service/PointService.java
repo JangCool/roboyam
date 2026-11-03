@@ -693,6 +693,36 @@ public class PointService {
                 null, REF_LEDGER, credit.lineId(), null);
     }
 
+    /** 탈퇴로 포기한 포인트 — 무상·유상 포기 양 */
+    public record Forfeited(long free, long paid) {
+    }
+
+    /**
+     * 회원 탈퇴 — 남은 묶음(무상·유상 모두)을 {@code WITHDRAW_FORFEIT} 로 소멸시켜 잔액을 0 으로 만든다(commerce.md 17-2 D4: 원장은 지우지 않고 잔액만 0, 불변식 유지).
+     * 유상은 환불이 끝났거나 포기 동의 뒤에만 부른다(부르는 쪽이 본다 — 지금은 충전이 없어 늘 0). 미회수({@code revoke_debt})는 그대로 둔다(계정이 닫혀 더 생기지 않는다).
+     * 탈퇴 트랜잭션 안에서 부른다.
+     */
+    @Transactional
+    public Forfeited forfeitAll(long userId) {
+        Account a = open(userId);
+        expireDue(a);
+        long free = 0;
+        long paid = 0;
+        for (Lot lot : ledger.usableLots(userId, EnumSet.allOf(PointLotKind.class), a.now)) {
+            long amount = lot.remaining();
+            boolean isFree = lot.kind() == PointLotKind.FREE;
+            long lineId = line(a, PointKind.EXPIRE, PointReason.WITHDRAW_FORFEIT, isFree ? -amount : 0, isFree ? 0 : -amount, null, REF_LOT, lot.id(), null);
+            ledger.changeRemaining(lot.id(), -amount);
+            ledger.insertEntryLot(lineId, lot.id(), -amount);
+            if (isFree) {
+                free += amount;
+            } else {
+                paid += amount;
+            }
+        }
+        return new Forfeited(free, paid);
+    }
+
     /** 그 회원의 소멸일이 지난 무상 묶음을 모두 소멸 처리한다(차감 전에 — 지난 포인트가 쓰이지 않게) */
     private void expireDue(Account a) {
         List<Lot> due = new ArrayList<>(ledger.dueLots(a.userId, a.now));

@@ -54,6 +54,7 @@ export interface DmRejection extends DmNoticeCopy {
 const STATE_CHANGED = new Set([
     'DM_UNAVAILABLE',
     'DM_RECIPIENT_REFUSES',
+    'DM_RECIPIENT_WITHDRAWN',
     'DM_SENDER_TOO_NEW',
     'DM_DAILY_LIMIT',
     'DM_NEW_PARTNER_LIMIT',

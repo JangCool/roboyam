@@ -10,9 +10,9 @@
             :class="strong ? 'font-semibold text-color' : ''"
             :style="nameStyle"
             data-testid="author-profile-link"
-            >{{ author.name }}</NuxtLink
+            >{{ name }}</NuxtLink
         >
-        <span v-else class="truncate" :class="strong ? 'font-semibold text-color' : ''" :style="nameStyle">{{ author.name }}</span>
+        <span v-else class="truncate" :class="strong ? 'font-semibold text-color' : ''" :style="nameStyle">{{ name }}</span>
         <GradeBadge v-if="author.kind === 'MEMBER' && author.grade" :grade="author.grade as Grade" :label="author.gradeLabel ?? ''" class="shrink-0" />
         <!-- 승인된 사업자 — 서버 `author.business`(재심사 중·정지는 false, 로그인 정보의 `businessStatus` 와 따로). 모양은 공식 뱃지 부품의 사업자 스타일 -->
         <StaffBadge v-if="author.kind === 'MEMBER' && author.business" role="BUSINESS" class="shrink-0" data-testid="author-business-badge" />
@@ -60,6 +60,8 @@ const props = withDefaults(defineProps<Props>(), {
 const { t } = useI18n();
 const overrides = useBlockOverrides();
 const decorations = useMyDecoration();
+/** 보일 이름 — 탈퇴가 완료된 회원은 서버가 `name: null` 로 주므로 「탈퇴한 회원」. 빈 글자(숨긴 글·지운 댓글)는 그대로 비워 둔다 */
+const name = computed(() => props.author.name ?? t('board.authorWithdrawn'));
 /**
  * 닉네임 색 — 서버 `author.decoration`(후보)에 내가 방금 장착·해제한 것을 겹친다(`useMyDecoration`). 대비 보정은 홈 가젯 색과 같은 규칙(`UtilColor.cssPair` — 두 테마 값을 `light-dark()` 로).
  * 뱃지·메모 칩 등 줄의 나머지는 그대로다. 테두리는 이 줄이 그리지 않는다(글 보기 머리·공개 프로필이 `ProfileBorderAvatar` 로).

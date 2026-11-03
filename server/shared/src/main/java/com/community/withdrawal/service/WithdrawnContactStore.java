@@ -17,6 +17,7 @@ import com.community.zconfiguration.time.ServiceTime;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.factory.ObjectProvider;
@@ -25,7 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 탈퇴 회원 연락용 이메일의 <b>분리 보관</b>(commerce.md 17-2 · 17-3) — 결제 이력이 있는 회원이 탈퇴할 때 이메일 하나만 {@link DataCipher}(용도 {@link #EMAIL})로 암호화해
- * {@code withdrawn_member_contacts} 에 둔다. 파기 예정일 = 마지막 거래일 + 5년(설정값), 지나면 정리 배치({@code member-privacy-retention})가 지운다.
+ * {@code withdrawn_member_contacts} 에 둔다. 파기 예정일 = 보존 기준일(마지막 거래일이 속한 해의 다음 해 6월 1일 — 설정값) + 5년(설정값, {@link #purgeAfter}), 지나면 정리 배치
+ * ({@code member-privacy-retention})가 지운다.
  *
  * <ul>
  *   <li>쓰는 탈퇴 기능은 아직 없다(세션 정리 결정 14) — 탈퇴 기능이 탈퇴 트랜잭션 안에서 {@link #store} 를 부른다.</li>
@@ -76,9 +78,14 @@ public class WithdrawnContactStore {
         rows.upsert(userId, cipher.encrypt(EMAIL, email.strip()), withdrawnAt, purgeAfter(lastTransactionAt));
     }
 
-    /** 파기 예정 시각 — 마지막 거래 시각을 서비스 시간대로 보고 보관 년수를 더한다 */
+    /**
+     * 파기 예정 시각(commerce.md 17-3 보존 기준일, D5 — 2026-11-03 개정) — 마지막 거래일(서비스 시간대)이 속한 해의 <b>다음 해 기준 월·일</b>(기본 6월 1일 — 종합소득세 신고기한 다음날, 설정값)
+     * 0시 + 보관 년수. 예: 2026-03-01 거래 → 기준일 2027-06-01 → 파기 2032-06-01 00:00 KST.
+     */
     public Instant purgeAfter(Instant lastTransactionAt) {
-        return lastTransactionAt.atZone(ServiceTime.ZONE).plusYears(properties.contactRetentionYears()).toInstant();
+        LocalDate last = ServiceTime.dateOf(lastTransactionAt);
+        LocalDate basis = LocalDate.of(last.getYear() + 1, properties.contactRetentionBasisMonth(), properties.contactRetentionBasisDay());
+        return basis.plusYears(properties.contactRetentionYears()).atStartOfDay(ServiceTime.ZONE).toInstant();
     }
 
     /** 보관 중인가와 시각(이메일 없음) */

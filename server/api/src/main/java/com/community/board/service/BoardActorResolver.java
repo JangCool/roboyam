@@ -47,7 +47,8 @@ public class BoardActorResolver {
         UserEntity u = user.get();
         String gradeKey = profile.get().getGradeKey();
         Integer level = catalog.gradeLevel(gradeKey);
-        boolean restricted = u.getStatus() == UserStatus.SUSPENDED || u.getStatus() == UserStatus.BANNED;
+        // 탈퇴 진행 중(WITHDRAWING)도 새 활동(글·댓글·쪽지 보내기·소모임·핫딜·신고·이미지)을 막는다 — 정지와 같은 길(member-withdrawal-contract 「권한·정책」)
+        boolean restricted = u.getStatus() == UserStatus.SUSPENDED || u.getStatus() == UserStatus.BANNED || u.getStatus() == UserStatus.WITHDRAWING;
         MemberRoleQueries.MemberRoles roles = memberRoles.of(userId, gradeKey);
         Set<Long> staffBoards = boardStaff.findByUserId(userId).stream().map(BoardStaffEntity::getBoardId).collect(Collectors.toUnmodifiableSet());
         return new BoardActor(userId, gradeKey, level == null ? 0 : level, u.isEmailVerified(), restricted, roles.business(), roles.permissions(), staffBoards);

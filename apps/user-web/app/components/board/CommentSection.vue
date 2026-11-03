@@ -587,7 +587,7 @@ watch(mentionQuery, () => {
 });
 
 function chooseMention(c: Commenter): void {
-    mentionTarget.value = { parentId: c.parentId, replyToId: c.replyToId, name: c.author.name };
+    mentionTarget.value = { parentId: c.parentId, replyToId: c.replyToId, name: c.author.name ?? t('board.authorWithdrawn') };
     mentionOpen.value = false;
 }
 
@@ -653,7 +653,7 @@ function openReply(thread: CommentView, target: CommentView): void {
         if (!debate.value?.myStance) return toast.show(t('comment.voteFirst'));
     }
     editingId.value = null;
-    replyTarget.value = { parentId: thread.id, replyToId: target.id === thread.id ? null : target.id, name: target.author.name };
+    replyTarget.value = { parentId: thread.id, replyToId: target.id === thread.id ? null : target.id, name: target.author.name ?? t('board.authorWithdrawn') };
     clearErrors('reply');
 }
 

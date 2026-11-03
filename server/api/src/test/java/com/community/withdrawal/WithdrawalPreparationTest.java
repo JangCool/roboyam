@@ -103,9 +103,10 @@ class WithdrawalPreparationTest extends CommerceApiTestBase {
             String stored = (String) row.get("email_cipher");
             assertThat(stored).startsWith("d" + cipher.activeVersion() + ":").doesNotContain(email).doesNotContain("left-");
             assertThat(cipher.decrypt(WithdrawnContactStore.EMAIL, stored)).isEqualTo(email);
+            // 보존 기준일(D5, 2026-11-03 개정) = 마지막 거래일이 속한 해의 다음 해 6월 1일(2027-06-01) + 5년 = 2032-06-01 00:00 KST
             assertThat(((java.sql.Timestamp) row.get("purge_after")).toInstant())
-                    .isEqualTo(LocalDateTime.of(2031, 3, 1, 14, 0).atZone(ServiceTime.ZONE).toInstant());
-            assertThat(contacts.find(member)).get().extracting(info -> info.purgeAfter()).isEqualTo(Instant.parse("2031-03-01T05:00:00Z"));
+                    .isEqualTo(LocalDateTime.of(2032, 6, 1, 0, 0).atZone(ServiceTime.ZONE).toInstant());
+            assertThat(contacts.find(member)).get().extracting(info -> info.purgeAfter()).isEqualTo(Instant.parse("2032-05-31T15:00:00Z"));
         }
 
         @Test

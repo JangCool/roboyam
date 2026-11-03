@@ -219,6 +219,19 @@ public class BuiltinMessages {
                             + p(text(new MessageRef("mail.groupBuyNotice.body", "{{recipientName}}", "{{groupBuyTitle}}"), locale))
                             + p("{{detail}}")
                             + button("orderLink", text("mail.groupBuyOrder.button", locale))};
+            case MEMBER_WITHDRAWAL_COMPLETED -> new String[] {text("mail.withdrawalCompleted.subject", locale),
+                    strong(text("mail.withdrawalCompleted.title", locale))
+                            + p(text(new MessageRef("mail.withdrawalCompleted.greeting", "{{nickname}}", "{{siteName}}"), locale))
+                            + p(text(new MessageRef("mail.withdrawalCompleted.remains", "{{retentionYears}}"), locale))
+                            + p("{{contactNotice}}")
+                            + p(text(new MessageRef("mail.withdrawalCompleted.rejoin", "{{rejoinDate}}"), locale))
+                            + p(text(new MessageRef("mail.withdrawalCompleted.support", "{{supportEmail}}"), locale))};
+            case MEMBER_WITHDRAWAL_PROGRESS -> new String[] {text("mail.withdrawalProgress.subject", locale),
+                    strong(text("mail.withdrawalProgress.title", locale))
+                            + p(text(new MessageRef("mail.withdrawalProgress.greeting", "{{nickname}}", "{{siteName}}"), locale))
+                            + p("{{pendingSummary}}")
+                            + p(text(new MessageRef("mail.withdrawalProgress.expected", "{{expectedDate}}"), locale))
+                            + p(text(new MessageRef("mail.withdrawalProgress.support", "{{supportEmail}}"), locale))};
         };
     }
 

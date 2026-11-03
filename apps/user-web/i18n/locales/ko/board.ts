@@ -9,6 +9,8 @@ export default {
     // 작성자·글 줄 표시
     guestBadge: '비회원',
     guestIp: '작성 IP {ip}',
+    /** 탈퇴가 완료된 회원의 글·댓글 — 서버가 닉네임을 비워(null) 준다 */
+    authorWithdrawn: '탈퇴한 회원',
     pinned: '고정 공지',
     adultMark: '19금 글',
     hasImage: '이미지 있음',

@@ -44,7 +44,8 @@ public class SocialMembers {
     }
 
     public Optional<Member> find(long id) {
-        Optional<UserEntity> user = users.findById(id).filter(u -> !u.isGone());
+        // 탈퇴 진행 중 회원은 공개 노출(차단·메모 대상 찾기)에서 빠진다(member-withdrawal-contract)
+        Optional<UserEntity> user = users.findById(id).filter(u -> !u.isGone() && u.getStatus() != com.community.user.entity.UserStatus.WITHDRAWING);
         if (user.isEmpty()) {
             return Optional.empty();
         }
