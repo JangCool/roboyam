@@ -8,7 +8,7 @@
         <template #header>
             <div v-if="head" class="flex min-w-0 flex-1 flex-col gap-1">
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
-                    <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold">{{ t('groupBuyReview.secReview') }} #{{ head.id }}</h2>
+                    <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold">{{ t('groupBuyReview.secReview') }}</h2>
                     <Tag v-if="head.hidden" :value="t('groupBuyReview.hidden')" severity="secondary" icon="pi pi-eye-slash" />
                     <Tag v-else-if="head.deleted" :value="t('groupBuyReview.deleted')" severity="secondary" icon="pi pi-trash" />
                     <Tag v-else :value="t('groupBuyReview.visible')" severity="success" />
@@ -16,7 +16,7 @@
             </div>
         </template>
 
-        <!-- 요약 — 별점 · 신고 · 상품 · 공구 · 회차 · 회원 -->
+        <!-- 요약 — 별점 · 신고 · 상품 · 공구 · 회차 · 회원 · 리뷰 번호 -->
         <DrawerSummary v-if="head" :label="t('drawerSummary.label')" :items="summaryItems">
             <template #item-rating><GroupBuyStarsLabel :value="head.rating" /></template>
             <template #item-reports><Tag :value="t('groupBuyReview.reports', { count: head.reportCount })" severity="danger" icon="pi pi-flag" /></template>
@@ -149,6 +149,7 @@ const summaryItems = computed<DrawerSummaryItem[]>(() => {
         { key: 'groupBuy', label: t('drawerSummary.groupBuy'), value: h.groupBuy.title, title: h.groupBuy.title },
         { key: 'round', label: t('drawerSummary.round'), value: t('groupBuyReview.roundN', { n: h.groupBuy.roundNo }) },
         { key: 'member', label: t('drawerSummary.member'), value: member, title: member },
+        { key: 'reviewId', label: t('drawerSummary.reviewId'), value: `#${h.id}`, code: true, title: h.id },
     ];
 });
 </script>

@@ -19,6 +19,8 @@ export default {
     groupBuy: '공구',
     round: '회차',
     member: '회원',
+    questionId: '문의 번호',
+    reviewId: '리뷰 번호',
     orderNo: '주문 번호',
     product: '상품',
     rating: '별점',
