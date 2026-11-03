@@ -2,7 +2,7 @@
     <!--
         소모임 상세 서랍(community `GroupManageDrawer`) — 목록의 줄을 누르면 연다. 열리는 쪽은 설정의 「서랍 위치」(`prefs.drawerPosition`)를 따른다(회원 상세 서랍과 같다).
         구획 넷: ① 기본 정보 ② 사람(모임장·매니저(읽기 전용)·멤버·모임장이 가진 소모임) ③ 활동 ④ 운영 조치. 앞의 셋은 읽기 전용이고 ④ 만 조치(비활성화·다시 열기 — 부르는 쪽이 대화상자를 연다)를 한다.
-        머리(이름·상태)는 목록 줄(`summary`)로 먼저 그리고, 상세(`detail`)는 부르는 쪽이 받아 내려 준다 — 받는 동안 뼈대, 못 받으면 서랍 안 오류(없는 소모임 404 는 다시 시도 없이 안내).
+        머리(이름·상태)는 목록 줄(`summary`)로 먼저 그리고(안내 한 줄은 본문 맨 위 요약 영역 `DrawerSummary`), 상세(`detail`)는 부르는 쪽이 받아 내려 준다 — 받는 동안 뼈대, 못 받으면 서랍 안 오류(없는 소모임 404 는 다시 시도 없이 안내).
         코드 값(ACTIVE·OPEN·APPROVAL …)은 화면에 나오지 않는다 — 이름으로 푼다. 시각은 `useDisplayTime()` 으로만 그린다. 서버를 부르지 않는다(`components.md`).
         신고(`report.read` 일 때만 링크): 활동의 신고 수 옆 「신고 보기 ›」 → 신고 관리 `/reports?groupId={소모임 ID}&status=ALL`(그 소모임 사건 — 서버 `groupId` 거르기),
           비활성 기록의 사건 번호 → `/reports?report={사건 ID}&status=ALL`(그 사건 서랍이 열린다). 권한이 없으면 번호만 보인다.
@@ -15,9 +15,13 @@
                     <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold">{{ detail?.name ?? summary?.name }}</h2>
                     <GroupTag :value="t(`group.status.${status}`)" :severity="status === 'INACTIVE' ? 'danger' : 'success'" />
                 </div>
-                <p class="text-[11px] text-muted-color">{{ t('group.drawerNote') }}</p>
             </div>
         </template>
+
+        <!-- 요약 — 서랍 안내 한 줄(머리에서 옮김) -->
+        <DrawerSummary v-if="detail || summary" :label="t('drawerSummary.label')">
+            <template #note>{{ t('group.drawerNote') }}</template>
+        </DrawerSummary>
 
         <ErrorState v-if="error" :title="t('group.detailLoadFailed')" :description="error.status === 404 ? t('group.detailNotFound') : error.message" :code="error.status === 404 ? '404' : '!'" :retry="error.status !== 404" :retrying="loading" @retry="emit('retry')" />
 

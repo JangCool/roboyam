@@ -20,17 +20,23 @@
     >
         <template #header>
             <div v-if="operator" class="flex min-w-0 flex-1 flex-col gap-1">
-                <h2 :id="titleId" class="truncate text-base font-semibold">{{ operator.operatorName }}</h2>
-                <div class="flex flex-wrap items-center gap-1.5">
+                <div class="flex min-w-0 flex-wrap items-center gap-2">
+                    <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold">{{ operator.operatorName }}</h2>
                     <Tag v-if="operator.isSuper" :value="t('operator.superTag')" icon="pi pi-shield" severity="warn" />
-                    <Tag v-for="key in UtilOperator.statusKeys(operator)" :key="key" :value="UtilOperatorMessages.statusLabel(t, key)" :icon="UtilOperator.statusIcon(key)" :severity="UtilOperator.statusSeverity(key)" />
                 </div>
             </div>
             <h2 v-else :id="titleId" class="text-base font-semibold">{{ t('operator.detailTitle') }}</h2>
         </template>
 
         <div v-if="operator" class="flex flex-col gap-1">
-            <p class="break-all text-xs text-muted-color">{{ operator.email }}</p>
+            <!-- 요약 — 이메일(로그인 아이디) · 계정 상태 딱지. 탭 위에 고정 -->
+            <DrawerSummary class="mt-2" :label="t('drawerSummary.label')" :items="summaryItems">
+                <template #item-state>
+                    <span class="flex flex-wrap items-center gap-1.5">
+                        <Tag v-for="key in UtilOperator.statusKeys(operator)" :key="key" :value="UtilOperatorMessages.statusLabel(t, key)" :icon="UtilOperator.statusIcon(key)" :severity="UtilOperator.statusSeverity(key)" />
+                    </span>
+                </template>
+            </DrawerSummary>
             <Tabs v-model:value="tab">
                 <TabList>
                     <Tab value="basic">{{ t('operator.tabBasic') }}</Tab>
@@ -98,6 +104,7 @@
 </template>
 
 <script setup lang="ts">
+import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types';
 import type { OperatorRoleOption } from '~/components/operator/OperatorInfoForm.types';
 import type { OperatorMfaView } from '~/composables/mfa/api/useMfaApi.types';
 import type { OperatorStatusRequest, OperatorUpdateRequest, OperatorView } from '~/composables/operator/api/useOperatorApi.types';
@@ -163,6 +170,15 @@ const { t } = useI18n();
 // ⚠ 알림·화면 설정 서랍과 같은 규칙 — 열리는 쪽은 설정의 "서랍 위치"를 따른다
 const { prefs } = useLayoutPrefs();
 const titleId = useId();
+/** 요약 칸 — 이메일(로그인 아이디) · 계정 상태(딱지 — 칸 슬롯) */
+const summaryItems = computed<DrawerSummaryItem[]>(() => {
+    const op = props.operator;
+    if (!op) return [];
+    return [
+        { key: 'email', label: t('operator.fieldEmail'), value: op.email, wide: true },
+        { key: 'state', label: t('drawerSummary.state'), wide: true },
+    ];
+});
 const mfaTitleId = useId();
 const time = useDisplayTime();
 const mfaBadge = computed(() => (props.mfa ? UtilMfaMessages.operatorStatus(t, props.mfa) : null));

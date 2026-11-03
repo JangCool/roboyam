@@ -2,7 +2,7 @@
     <!--
         핫딜 글 서랍 — 핫딜 글 목록의 줄을 누르면(또는 `?deal=` 로 들어오면) 연다. 글 관리 서랍(`PostDetailDrawer`)과 같은 손놀림: 열리는 쪽은 `prefs.drawerPosition`, 표를 가리지 않고(`modal=false`)
         열린 채 다른 줄을 누르면 그 글로 바뀐다. 서랍·표 줄·떠 있는 창 밖을 누르면 닫는다.
-        머리: 제목 · 상태 알약 · 「판매자 정지 중」·「판매자 중단」(`row.sellerHidden` — biz-pause-contract) · 글 번호(복사) · 공개 글 열기(새 탭) · 이전/다음 글.
+        머리: 제목 · 이전/다음 글. 본문 맨 위 요약 영역(`DrawerSummary`, 탭 위): 상태 알약 · 「확인 필요」 · 「판매자 정지 중」·「판매자 중단」(`row.sellerHidden` — biz-pause-contract) · 글 번호(복사) · 공개 글 열기(새 탭).
         판매자가 숨긴 글은 본문 맨 위에 「{시각} {누가} 숨김(일시 정지/중단)」 + 공개 화면 안내 — 숨겨도 이 서랍에는 글·종료 요청·신고가 그대로 보인다.
         본문: 딜 카드(이미지 · 가격 줄 · 쇼핑몰·호스트 · 상품 링크 `rel="nofollow sponsored noopener"` 새 탭 · 제휴 · 배송 · 재고 · 기간 · 쿠폰·가격 기준) →
           상태와 종료 경위(누가·언제 · 의심 시각·자동 종료 예정 · 작성자 되돌리기 기한(D2) · keep 횟수 N/M) → 종료 요청 사유별 수(요청자 신원은 없다) → 신고 대기(신고 관리 링크) → 같은 딜 N건(누르면 그 글로) → 글 정보(게시판·말머리·사업자(2차 사업자 핫딜 — 상호 · [핫딜 심사에서 열기])·작성자·등록 시각).
@@ -32,31 +32,35 @@
                         <Button v-tooltip.bottom="t('hotdeal.next')" type="button" icon="pi pi-chevron-down" size="small" severity="secondary" variant="text" rounded :aria-label="t('hotdeal.next')" :disabled="!hasNext" @click="emit('next')" />
                     </div>
                 </div>
-                <div v-if="head" class="flex flex-wrap items-center gap-2">
+            </div>
+        </template>
+
+        <!-- 요약 — 상태 · 글 번호(복사) · 공개 글 열기. 탭 위에 고정 -->
+        <DrawerSummary v-if="head" class="mt-2" :label="t('drawerSummary.label')" :items="summaryItems" :columns="2">
+            <template #item-state>
+                <span class="flex flex-wrap items-center gap-1.5">
                     <HotdealViewTag :view="head.deal.view" />
                     <Tag v-if="UtilHotdeal.needsReview(head)" :value="t('hotdeal.reviewNeeded')" icon="pi pi-exclamation-triangle" severity="warn" class="text-[11px]!" />
                     <Tag v-if="head.sellerHidden" :value="t(`hotdeal.sellerHold.${head.sellerHidden.cause}`)" :severity="head.sellerHidden.cause === 'ADVERTISER_PAUSE' ? 'warn' : 'danger'" icon="pi pi-eye-slash" class="text-[11px]!" />
-                    <button
-                        v-tooltip.bottom="t('content.copyPostId')"
-                        type="button"
-                        class="inline-flex items-center gap-1 rounded px-1 text-xs tabular-nums text-muted-color hover:text-color focus-visible:outline-2 focus-visible:outline-primary"
-                        :aria-label="t('content.copyPostIdLabel', { id: head.postId })"
-                        @click="copyId(head.postId)"
-                    >
-                        <i class="pi pi-copy text-[10px]" aria-hidden="true" />#{{ head.postId }}
-                    </button>
-                    <a
-                        v-if="detail?.publicUrl"
-                        :href="detail.publicUrl"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex items-center gap-1 rounded px-1 text-xs text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
-                    >
-                        <i class="pi pi-external-link text-[10px]" aria-hidden="true" />{{ t('hotdeal.openPublic') }}
-                    </a>
-                </div>
-            </div>
-        </template>
+                </span>
+            </template>
+            <template #item-postId>
+                <button
+                    v-tooltip.bottom="t('content.copyPostId')"
+                    type="button"
+                    class="inline-flex items-center gap-1 rounded text-[13px] tabular-nums hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
+                    :aria-label="t('content.copyPostIdLabel', { id: head.postId })"
+                    @click="copyId(head.postId)"
+                >
+                    <i class="pi pi-copy text-[10px]" aria-hidden="true" />#{{ head.postId }}
+                </button>
+            </template>
+            <template v-if="detail?.publicUrl" #links>
+                <a :href="detail.publicUrl" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+                    <i class="pi pi-external-link text-[10px]" aria-hidden="true" />{{ t('hotdeal.openPublic') }}
+                </a>
+            </template>
+        </DrawerSummary>
 
         <ErrorState v-if="error" :title="t('hotdeal.detailLoadFailed')" :description="error.message" :code="error.status === 404 ? '404' : '!'" :retry="error.status !== 404" :retrying="loading" @retry="emit('retry')" />
 
@@ -283,6 +287,7 @@
 </template>
 
 <script setup lang="ts">
+import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { AdminDealDetail, AdminDealRow, DealRevisionListView } from '~/composables/hotdeal/api/useHotdealApi.types';
 import UtilHotdeal from '~/utils/util-hotdeal';
@@ -347,6 +352,11 @@ const toast = useAppToast();
 const titleId = useId();
 
 const head = computed(() => props.detail?.row ?? props.item);
+/** 요약 칸(두 단 — 상태 | 글 번호) — 값은 칸 슬롯이 그린다 */
+const summaryItems = computed<DrawerSummaryItem[]>(() => [
+    { key: 'state', label: t('drawerSummary.state') },
+    { key: 'postId', label: t('drawerSummary.postId') },
+]);
 /** 본문이 그리는 줄 — 템플릿은 `detail` 이 있을 때만 읽는다 */
 const row = computed(() => props.detail?.row as AdminDealRow);
 const deal = computed(() => row.value.deal);

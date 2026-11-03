@@ -1,6 +1,6 @@
 <template>
     <!--
-        공구 주문 상세 서랍 — 주문 목록에서 줄을 누르면 연다(`?order=ID`). 열리는 쪽은 설정의 「서랍 위치」. 서버가 열 때마다 열람 감사(`GROUPBUY_ORDER_VIEW`)를 남긴다는 한 줄을 머리에 둔다.
+        공구 주문 상세 서랍 — 주문 목록에서 줄을 누르면 연다(`?order=ID`). 열리는 쪽은 설정의 「서랍 위치」. 서버가 열 때마다 열람 감사(`GROUPBUY_ORDER_VIEW`)를 남긴다는 한 줄은 본문 맨 위 요약 영역(`DrawerSummary` — 공구·회원·열린 요청)에 둔다. 머리는 주문 번호 · 주문 상태.
         구획: ① 금액(주문·환불 누계·보상·남은 결제액)과 주문 줄(취소·반품·다시 판매 수량) ② 결제 ③ 배송지(가린 값 — 「배송지 열람」은 사유 5~200자 → 남은 시간 뒤 다시 가림, 열람 기록)
         ④ 배송(송장·조회 링크·교환 재발송) ⑤ 환불 기록(진행 표시 — 결정 16) ⑥ 운영 메모 ⑦ 상태 이력 ⑧ 운영 동작(준비중·발송·송장 정정·배송완료·운영 환불).
         서버는 부르지 않는다(`components.md`) — 동작은 emit 으로 올리고, 열람한 배송지(`revealed`)는 부르는 쪽 메모리에만 두고 `revealExpiresAt` 이 지나면 지운다.
@@ -11,12 +11,15 @@
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
                     <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold"><code>{{ head.orderNo }}</code></h2>
                     <Tag :value="t(`groupBuy.orderStatus.${head.status}`)" :severity="UtilGroupBuy.orderSeverity(head.status)" />
-                    <Tag v-if="head.openRequest" :value="t(`groupBuy.openRequest.${head.openRequest.type}`)" severity="warn" icon="pi pi-replay" />
                 </div>
-                <span class="truncate text-[12px] text-muted-color">{{ head.groupBuy.title }}<template v-if="head.groupBuy.roundNo > 1"> · {{ t('groupBuy.roundTag', { n: head.groupBuy.roundNo }) }}</template> · {{ head.member.nickname }}<template v-if="head.member.id"> ({{ head.member.id }})</template></span>
-                <p class="m-0 text-[11px] text-muted-color">{{ t('groupBuy.orderViewAudit') }}</p>
             </div>
         </template>
+
+        <!-- 요약 — 공구(회차) · 회원 · 열린 요청 · 열람 감사 안내 -->
+        <DrawerSummary v-if="head" :label="t('drawerSummary.label')" :items="summaryItems">
+            <template v-if="head.openRequest" #item-request><Tag :value="t(`groupBuy.openRequest.${head.openRequest.type}`)" severity="warn" icon="pi pi-replay" /></template>
+            <template #note>{{ t('groupBuy.orderViewAudit') }}</template>
+        </DrawerSummary>
 
         <ErrorState v-if="error" :title="t('groupBuy.orderLoadFailed')" :description="error.message" :code="error.status === 404 ? '404' : error.status === 403 ? '403' : '!'" :retry="error.status !== 404 && error.status !== 403" :retrying="loading" @retry="emit('retry')" />
         <div v-else-if="!detail" class="flex flex-col gap-3 py-2" role="status" :aria-label="t('common.loading')">
@@ -199,6 +202,7 @@
 
 <script setup lang="ts">
 import UtilTime from '#layers/display-time/utils/util-time';
+import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { GroupBuyOrderDetail, GroupBuyOrderRow, GroupBuyRefundRecord, GroupBuyRevealedAddress } from '~/composables/groupbuy/api/useGroupBuyOrderApi.types';
 import UtilGroupBuy from '~/utils/util-groupbuy';
@@ -238,6 +242,18 @@ const DT = 'text-[13px] text-muted-color';
 const DD = 'm-0 min-w-0 text-[13px] [overflow-wrap:anywhere]';
 
 const head = computed(() => props.detail ?? props.summary);
+/** 요약 칸 — 공구 제목(2회차부터 회차) · 회원(닉네임 · ID) · 열린 취소·반품 요청(꼬리표 — 칸 슬롯) */
+const summaryItems = computed<DrawerSummaryItem[]>(() => {
+    const h = head.value;
+    if (!h) return [];
+    const gb = h.groupBuy.roundNo > 1 ? `${h.groupBuy.title} · ${t('groupBuy.roundTag', { n: h.groupBuy.roundNo })}` : h.groupBuy.title;
+    const member = h.member.id ? `${h.member.nickname} (${h.member.id})` : h.member.nickname;
+    return [
+        { key: 'groupBuy', label: t('drawerSummary.groupBuy'), value: gb, title: gb },
+        { key: 'member', label: t('drawerSummary.member'), value: member, title: member },
+        ...(h.openRequest ? [{ key: 'request', label: t('drawerSummary.request') }] : []),
+    ];
+});
 const memo = ref('');
 watch(
     () => props.detail?.adminMemo,

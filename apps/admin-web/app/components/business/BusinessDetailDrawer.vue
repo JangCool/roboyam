@@ -12,9 +12,11 @@
                     <h2 :id="titleId" class="m-0 min-w-0 truncate text-base font-semibold">{{ head.name }}</h2>
                     <Tag :value="t(`business.status.${head.status}`)" :severity="UtilBusiness.statusSeverity(head.status)" />
                 </div>
-                <span class="truncate text-[12px] text-muted-color"><code>{{ head.maskedRegNo }}</code> · {{ head.applicant.nickname }} · {{ t('business.appliedAt', { at: time.shortDateTime(head.appliedAt) }) }}</span>
             </div>
         </template>
+
+        <!-- 요약 — 등록번호(가린 값) · 신청자 · 신청 시각 -->
+        <DrawerSummary v-if="head" :label="t('drawerSummary.label')" :items="summaryItems" />
 
         <ErrorState v-if="error" :title="t('business.detailLoadFailed')" :description="error.message" :code="error.status === 404 ? '404' : '!'" :retry="error.status !== 404" :retrying="loading" @retry="emit('retry')" />
         <div v-else-if="!detail" class="flex flex-col gap-3 py-2" role="status" :aria-label="t('common.loading')">
@@ -151,6 +153,7 @@
 </template>
 
 <script setup lang="ts">
+import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { BusinessDetail, BusinessReveal, BusinessRow, BusinessService, BusinessServiceCard } from '~/composables/business/api/useBusinessApi.types';
 import type { BusinessScreenMode } from '~/components/business/BusinessDetailDrawer.types';
@@ -211,6 +214,16 @@ const { prefs } = useLayoutPrefs();
 const titleId = useId();
 
 const head = computed(() => props.detail ?? props.summary);
+/** 요약 칸 — 등록번호(가린 값) · 신청자 · 신청 시각(일자 강조) */
+const summaryItems = computed<DrawerSummaryItem[]>(() => {
+    const h = head.value;
+    if (!h) return [];
+    return [
+        { key: 'regNo', label: t('business.regNo'), value: h.maskedRegNo, code: true },
+        { key: 'applicant', label: t('business.col.applicant'), value: h.applicant.nickname },
+        { key: 'appliedAt', label: t('business.col.appliedAt'), value: time.value.shortDateTime(h.appliedAt), valueClass: UtilBizApplication.EMPH.date },
+    ];
+});
 const ntsRule = computed(() => (props.detail ? UtilBusiness.ntsRule(props.detail.nts) : 'LOCKED_STATUS'));
 const approvability = computed(() => (props.detail ? UtilBusiness.approvability(props.detail.nts) : 'LOCKED'));
 /** 진행·예약·결제 대기 건이 있나 — 있으면 삭제 단추를 잠근다(정지·탈퇴로 정리) */
