@@ -1,263 +1,202 @@
 <template>
     <!--
-        대시보드 — 처리할 일 칸 + 커머스 칸.
-        · 처리할 일(04-ia-review Q5 — 통합 「신청 심사」 큐 대신 1인 운영의 「한눈에」): 광고 심사 · 핫딜 심사 · 입금 확인 대기 · 입금 기한 지남 · 환불 심사 · 사업자 인증 대기
-          · 회원 핫딜 확인 필요(`FLAGGED`) · 위장 홍보 의심(`OPEN`) — 핫딜 글·의심 후보 목록의 상태별 건수(`hotdeal.read`).
-          신청 건 숫자는 권한(`ad.read`·`hotdeal.read`)이 있는 도메인마다 목록 API 를 한 번 불러 받은 큐별 건수(`counts`)이고, 두 도메인을 합친 칸은 도메인별 링크를 따로 단다.
-          사업자 인증 대기는 사업자 목록의 상태별 건수 중 심사 중(처음·재신청 + 재심사, `business.read`). 권한이 있는 칸만 보이고, 칸을 누르면 그 화면·큐로 간다.
-        · 커머스(commerce.md 19절, 계약 commerce-groupbuy 「화면 목록」): 준비 대기 · 열린 요청(기한 경고) · 결제 이상 · 곧 만료될 선점 · 남은 수량 적은 공구
-          · 발송 예정일 지난 발송 전 주문 · 발송 뒤 N일 지난 SHIPPED(배송완료 처리 누락 — 청약철회 기한이 시작되지 않는다). 숫자 + 해당 화면 링크.
-          숫자는 서버가 그 운영자의 권한 안에서 센다 — 볼 권한이 없는 칸은 `null` 이라 그리지 않는다(칸이 하나도 없으면 빈 화면 안내). 「답변 안 한 Q&A」는 2b-6 에서 더한다.
-          서버 호출은 `useCommerceDashboardApi`(지금 목업 — `?mock=dashboard-fail`·`dashboard-empty`·`dashboard-partial`). 커머스 권한이 없고 처리할 일 칸이 있으면 커머스 칸은 그리지 않는다.
+        대시보드 — 운영자마다 따로 꾸미는 가젯 화면(구성 = `useDashboardLayoutApi` — `GET`·`PUT /api/admin/me/dashboard`, 서버가 세션의 운영자로 고른다).
+        · 저장 실패의 칸 오류(`400 fields` — `gadgets[i].<칸>` · `version` · `columns` · `gadgets`)는 편집 도구 줄 바로 아래에 줄마다(가젯 이름을 붙여) 보인다. 다른 실패는 알림(토스트).
+        · 저장한 적 없으면 그 운영자 권한으로 볼 수 있는 가젯으로 기본 구성(처리할 일·커머스 맨 위 전체 폭 → 나머지 3분의 1 폭, `UtilDashboardLayout.defaults`). 저장 전까지는 기본 구성 그대로다.
+        · 보기 모드가 기본. [화면 편집] → 가젯 끌어 옮기기 · 모서리로 크기 · ⚙ 설정 · ✕ 빼기, 도구 줄 [가젯 추가] [기본 구성으로] [취소] [저장]. 저장 전 변경이 있으면 나갈 때 묻는다.
+          좁은 화면(lg 미만)은 한 열로 쌓고 편집할 수 없다(단추를 막고 안내).
+        · 가젯 종류·권한·크기·서버 부담 원칙은 `utils/util-dashboard-layout.ts`, 격자·끌기·키보드는 `DashboardGrid`, 종류별 내용은 `components/dashboard/gadget/`.
+        처리할 일(`TODO`)·커머스(`COMMERCE_TODO`) 가젯은 원래 이 화면의 두 칸을 옮긴 것이다(부르는 API·규칙 그대로).
     -->
     <section class="flex flex-col gap-4">
-        <PageTitle :title="t('dashboard.title')" />
-
-        <AppGadget v-if="anyTodo" :title="t('dashboard.todoTitle')">
+        <PageTitle :title="t('dashboard.title')" :subtitle="editing ? t('dashboard.editLead') : ''">
             <template #actions>
-                <Button type="button" icon="pi pi-refresh" size="small" severity="secondary" variant="text" :aria-label="t('dashboard.refresh')" :loading="todoLoading" @click="loadTodo" />
+                <template v-if="editing">
+                    <Button type="button" icon="pi pi-plus" :label="t('dashboard.addGadget')" size="small" severity="secondary" variant="outlined" :disabled="saving" @click="addOpen = true" />
+                    <Button type="button" icon="pi pi-replay" :label="t('dashboard.resetDefaults')" size="small" severity="secondary" variant="outlined" :disabled="saving" @click="resetDefaults" />
+                    <Button type="button" :label="t('common.cancel')" size="small" severity="secondary" variant="text" :disabled="saving" @click="cancelEdit" />
+                    <Button type="button" icon="pi pi-check" :label="t('common.save')" size="small" :loading="saving" :disabled="!dirty" @click="save" />
+                </template>
+                <template v-else-if="gadgets">
+                    <span v-if="!wide" class="text-[12px] text-muted-color">{{ t('dashboard.editWideOnly') }}</span>
+                    <Button type="button" icon="pi pi-th-large" :label="t('dashboard.edit')" size="small" severity="secondary" variant="outlined" :disabled="!wide" @click="startEdit" />
+                </template>
             </template>
+        </PageTitle>
 
-            <ErrorState v-if="todoError" :title="t('dashboard.todoLoadFailed')" :description="todoError.message" retry :retrying="todoLoading" @retry="loadTodo" />
-            <div v-else-if="!todo" class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,13rem),1fr))] gap-3" role="status" :aria-label="t('common.loading')">
-                <Skeleton v-for="n in 6" :key="n" height="5.5rem" border-radius="0.75rem" />
-            </div>
-            <ul v-else class="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(min(100%,13rem),1fr))] gap-3 p-0">
-                <li v-for="card in todoCards" :key="card.key">
-                    <NuxtLink v-if="card.links.length === 1" :to="card.links[0]!.to" class="flex h-full flex-col gap-1 rounded-xl border px-4 py-3 transition-colors hover:bg-surface-50 dark:hover:bg-surface-900" :class="toneBorder(card.tone)">
-                        <span class="flex items-center gap-2 text-[13px] text-muted-color"><i :class="card.icon" class="text-xs" aria-hidden="true" />{{ card.label }}</span>
-                        <span class="text-2xl font-semibold tabular-nums" :class="toneText(card.tone, card.count)">{{ card.count }}</span>
-                        <span v-if="card.note" class="text-[11px] text-muted-color">{{ card.note }}</span>
-                    </NuxtLink>
-                    <div v-else class="flex h-full flex-col gap-1 rounded-xl border px-4 py-3" :class="toneBorder(card.tone)">
-                        <span class="flex items-center gap-2 text-[13px] text-muted-color"><i :class="card.icon" class="text-xs" aria-hidden="true" />{{ card.label }}</span>
-                        <span class="text-2xl font-semibold tabular-nums" :class="toneText(card.tone, card.count)">{{ card.count }}</span>
-                        <span v-if="card.note" class="text-[11px] text-muted-color">{{ card.note }}</span>
-                        <span class="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-[12px]">
-                            <NuxtLink v-for="link in card.links" :key="link.to" :to="link.to" class="inline-flex items-center gap-1 text-primary hover:underline">
-                                {{ link.label }}<i class="pi pi-angle-right text-[10px]" aria-hidden="true" />
-                            </NuxtLink>
-                        </span>
-                    </div>
-                </li>
-            </ul>
-        </AppGadget>
+        <Message v-if="editing && saveProblems.length" severity="error" :closable="false">
+            <span class="flex flex-col gap-1">
+                <span class="font-medium">{{ t('dashboard.saveProblemsTitle') }}</span>
+                <ul class="m-0 flex list-disc flex-col gap-0.5 pl-5 text-[13px]">
+                    <li v-for="line in saveProblems" :key="line">{{ line }}</li>
+                </ul>
+            </span>
+        </Message>
+        <Message v-if="layoutError" severity="warn" :closable="false">
+            <span class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                {{ t('dashboard.layoutLoadFailed', { reason: layoutError.message }) }}
+                <Button type="button" :label="t('common.retry')" size="small" variant="text" :loading="layoutLoading" @click="loadLayout" />
+            </span>
+        </Message>
+        <Message v-if="editing && !wide" severity="info" :closable="false">{{ t('dashboard.editNarrow') }}</Message>
 
-        <AppGadget v-if="anyCommerce || !anyTodo" :title="t('dashboard.commerceTitle')">
-            <template #actions>
-                <span v-if="view" class="text-[11px] text-muted-color">{{ t('dashboard.generatedAt', { at: time.clock(view.generatedAt) }) }}</span>
-                <Button type="button" icon="pi pi-refresh" size="small" severity="secondary" variant="text" :aria-label="t('dashboard.refresh')" :loading="loading" @click="load" />
-            </template>
+        <div v-if="!gadgets" class="grid grid-cols-1 gap-4 lg:grid-cols-3" role="status" :aria-label="t('common.loading')">
+            <Skeleton class="lg:col-span-3" height="20rem" border-radius="0.75rem" />
+            <Skeleton v-for="n in 3" :key="n" height="16rem" border-radius="0.75rem" />
+        </div>
+        <EmptyState v-else-if="!shownCount" icon="pi pi-th-large" :title="t('dashboard.noGadgetsTitle')" :description="t('dashboard.noGadgetsBody')">
+            <Button v-if="!editing && wide" type="button" icon="pi pi-th-large" :label="t('dashboard.edit')" size="small" @click="startEdit" />
+            <Button v-else-if="editing" type="button" icon="pi pi-plus" :label="t('dashboard.addGadget')" size="small" @click="addOpen = true" />
+        </EmptyState>
+        <DashboardGrid v-else :gadgets="editing ? draft : gadgets" :editing="editing" @update:gadgets="(v) => (draft = v)" @settings="openSettings" @remove="removeGadget" />
 
-            <ErrorState v-if="error && !view" :title="t('dashboard.loadFailed')" :description="error.message" retry :retrying="loading" @retry="load" />
-            <div v-else-if="!view" class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,13rem),1fr))] gap-3" role="status" :aria-label="t('common.loading')">
-                <Skeleton v-for="n in 7" :key="n" height="5.5rem" border-radius="0.75rem" />
-            </div>
-            <EmptyState v-else-if="!cards.length" icon="pi pi-chart-bar" :title="t('dashboard.emptyTitle')" :description="t('dashboard.emptyBody')" />
-            <ul v-else class="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(min(100%,13rem),1fr))] gap-3 p-0">
-                <li v-for="card in cards" :key="card.key">
-                    <NuxtLink :to="card.to" class="flex h-full flex-col gap-1 rounded-xl border px-4 py-3 transition-colors hover:bg-surface-50 dark:hover:bg-surface-900" :class="toneBorder(card.tone)">
-                        <span class="flex items-center gap-2 text-[13px] text-muted-color"><i :class="card.icon" class="text-xs" aria-hidden="true" />{{ card.label }}</span>
-                        <span class="text-2xl font-semibold tabular-nums" :class="toneText(card.tone, card.count)">{{ card.count }}</span>
-                        <span v-if="card.note" class="text-[11px] text-muted-color">{{ card.note }}</span>
-                    </NuxtLink>
-                </li>
-            </ul>
-        </AppGadget>
+        <DashboardAddDialog v-model:visible="addOpen" :gadgets="draft" @add="addGadget" />
+        <DashboardGadgetSettingsDialog v-model:visible="settingsOpen" :gadget="settingsGadget" @apply="applySettings" />
     </section>
 </template>
 
 <script setup lang="ts">
-import type { BizApplicationQueue, BizDomain } from '~/composables/bizapplication/api/useBizApplicationApi.types';
-import { BIZ_DOMAINS } from '~/composables/bizapplication/api/useBizApplicationApi.types';
-import type { CommerceDashboardView } from '~/composables/commerce/api/useCommerceDashboardApi.types';
 import type { ApiError } from '~/composables/common/useApiClient';
-import UtilBizApplication from '~/utils/util-biz-application';
-
-type Tone = 'normal' | 'warn' | 'danger';
-
-interface DashboardCard {
-    key: string;
-    label: string;
-    count: number;
-    note: string;
-    to: string;
-    icon: string;
-    tone: Tone;
-}
-
-/** 처리할 일 칸 — 링크가 하나면 칸 전체가 링크, 둘 이상(도메인을 합친 칸)이면 도메인별 링크를 단다 */
-interface TodoCard {
-    key: string;
-    label: string;
-    count: number;
-    note: string;
-    icon: string;
-    tone: Tone;
-    links: { label: string; to: string }[];
-}
-
-/** 처리할 일 숫자 — 볼 권한이 있는 도메인의 큐별 건수 · 사업자 심사 중 건수 · 회원 핫딜 확인 필요·의심 후보 건수(권한 없으면 null) */
-interface TodoView {
-    domains: Partial<Record<BizDomain, Record<BizApplicationQueue, number>>>;
-    businessPending: number | null;
-    /** 종료 요청이 문턱을 넘어 운영자 확인을 기다리는 핫딜 글(`FLAGGED`, 사업자 글 포함) */
-    hotdealFlagged: number | null;
-    /** 위장 홍보 의심 후보 중 아직 처리하지 않은 것(`OPEN`, 회원·판매처) */
-    hotdealSuspicions: number | null;
-}
+import type { DashboardGadgetConfig, DashboardGadgetItem, DashboardGadgetType, DashboardLayoutBody } from '~/composables/dashboard/api/useDashboardLayoutApi.types';
+import UtilDashboardLayout from '~/utils/util-dashboard-layout';
+import UtilDashboardMessages from '~/utils/util-dashboard-messages';
 
 const { t } = useI18n();
 useSeoMeta({ title: () => t('dashboard.title') });
 
-const api = useCommerceDashboardApi();
-const bizApi = useBizApplicationApi();
-const businessApi = useBusinessApi();
-const hotdealApi = useHotdealApi();
-const suspicionApi = useHotdealSuspicionApi();
+const api = useDashboardLayoutApi();
 const toApiError = useApiErrorOf();
-const time = useDisplayTime();
+const toast = useAppToast();
+const { confirm } = useConfirmDialog();
 const { can } = useAdminPermission();
+const wide = useDashboardWide();
 
-function toneBorder(tone: Tone): string {
-    return tone === 'danger' ? 'border-red-300 dark:border-red-800' : tone === 'warn' ? 'border-amber-300 dark:border-amber-800' : 'border-(--line)';
-}
-function toneText(tone: Tone, count: number): string {
-    if (count <= 0) return '';
-    return tone === 'danger' ? 'text-red-600 dark:text-red-400' : tone === 'warn' ? 'text-amber-700 dark:text-amber-400' : '';
-}
+/** 화면에 쓰는 구성(저장한 것 또는 기본 구성) — 받기 전 null */
+const gadgets = ref<DashboardGadgetItem[] | null>(null);
+const layoutLoading = ref(false);
+const layoutError = shallowRef<ApiError | null>(null);
 
-// ── 처리할 일 ──
-/** 신청 건을 볼 수 있는 도메인(조회 권한) */
-const todoDomains = computed(() => BIZ_DOMAINS.filter((d) => can(UtilBizApplication.DOMAIN_SCREENS[d].read)));
-const canBusiness = computed(() => can('business.read'));
-/** 회원 핫딜 칸(확인 필요·의심 후보) — 핫딜 글·의심 후보 화면과 같은 조회 권한 */
-const canHotdeal = computed(() => can('hotdeal.read'));
-const anyTodo = computed(() => todoDomains.value.length > 0 || canBusiness.value || canHotdeal.value);
+const editing = ref(false);
+/** 편집 중인 구성 */
+const draft = ref<DashboardGadgetItem[]>([]);
+const saving = ref(false);
+/** 마지막 저장의 칸 오류(400 `fields`)와 그때 보낸 본문 — `gadgets[i]` 를 가젯 이름으로 옮기려고 본문을 함께 둔다 */
+const saveFailure = shallowRef<{ fields: Record<string, string>; body: DashboardLayoutBody } | null>(null);
+const saveProblems = computed(() => (saveFailure.value ? UtilDashboardMessages.saveProblems(t, saveFailure.value.fields, saveFailure.value.body) : []));
 
-const todo = ref<TodoView | null>(null);
-const todoLoading = ref(false);
-const todoError = ref<ApiError | null>(null);
+const dirty = computed(() => editing.value && gadgets.value !== null && !UtilDashboardLayout.same(draft.value, gadgets.value));
 
-/** 신청 건 큐 하나의 칸 — 볼 수 있는 도메인의 건수를 더하고 도메인마다 그 화면·큐로 가는 링크를 단다 */
-function queueCard(view: TodoView, key: string, queue: BizApplicationQueue, label: string, note: string, icon: string, tone: (n: number) => Tone, domains: readonly BizDomain[]): TodoCard | null {
-    const seen = domains.filter((d) => view.domains[d]);
-    if (!seen.length) return null;
-    const count = seen.reduce((sum, d) => sum + (view.domains[d]?.[queue] ?? 0), 0);
-    const links = seen.map((d) => ({
-        label: t('dashboard.todoDomainLink', { domain: t(`bizApplication.domain.${d}`), count: view.domains[d]?.[queue] ?? 0 }),
-        to: `${UtilBizApplication.DOMAIN_SCREENS[d].path}?queue=${queue}`,
-    }));
-    return { key, label, count, note, icon, tone: tone(count), links };
-}
-
-const todoCards = computed<TodoCard[]>(() => {
-    const v = todo.value;
-    if (!v) return [];
-    const normal = (): Tone => 'normal';
-    const cards: (TodoCard | null)[] = [
-        queueCard(v, 'adReview', 'REVIEW', t('dashboard.todoAdReview'), t('dashboard.todoReviewNote'), 'pi pi-megaphone', normal, ['AD']),
-        queueCard(v, 'hotdealReview', 'REVIEW', t('dashboard.todoHotdealReview'), t('dashboard.todoReviewNote'), 'pi pi-ticket', normal, ['HOTDEAL']),
-        queueCard(v, 'deposit', 'DEPOSIT', t('dashboard.todoDeposit'), t('dashboard.todoDepositNote'), 'pi pi-wallet', normal, BIZ_DOMAINS),
-        queueCard(v, 'depositOverdue', 'DEPOSIT_OVERDUE', t('dashboard.todoDepositOverdue'), t('dashboard.todoDepositOverdueNote'), 'pi pi-calendar-times', (n) => (n > 0 ? 'danger' : 'normal'), BIZ_DOMAINS),
-        queueCard(v, 'refund', 'REFUND', t('dashboard.todoRefund'), t('dashboard.todoRefundNote'), 'pi pi-replay', (n) => (n > 0 ? 'warn' : 'normal'), BIZ_DOMAINS),
-        v.businessPending === null
-            ? null
-            : { key: 'businessReview', label: t('dashboard.todoBusinessReview'), count: v.businessPending, note: t('dashboard.todoBusinessReviewNote'), icon: 'pi pi-briefcase', tone: 'normal', links: [{ label: t('dashboard.todoBusinessReview'), to: '/business-reviews' }] },
-        v.hotdealFlagged === null
-            ? null
-            : { key: 'hotdealFlagged', label: t('dashboard.todoHotdealFlagged'), count: v.hotdealFlagged, note: t('dashboard.todoHotdealFlaggedNote'), icon: 'pi pi-flag', tone: v.hotdealFlagged > 0 ? 'warn' : 'normal', links: [{ label: t('dashboard.todoHotdealFlagged'), to: '/hotdeals?view=FLAGGED' }] },
-        v.hotdealSuspicions === null
-            ? null
-            : { key: 'hotdealSuspicions', label: t('dashboard.todoHotdealSuspicions'), count: v.hotdealSuspicions, note: t('dashboard.todoHotdealSuspicionsNote'), icon: 'pi pi-exclamation-triangle', tone: 'normal', links: [{ label: t('dashboard.todoHotdealSuspicions'), to: '/hotdeals/suspicions' }] },
-    ];
-    return cards.filter((c): c is TodoCard => c !== null);
+/** 그릴 가젯 수 — 보기는 권한 있는 것만, 편집은 전부 */
+const shownCount = computed(() => {
+    if (editing.value) return draft.value.length;
+    return (gadgets.value ?? []).filter((g) => UtilDashboardLayout.allowed(g.type, can)).length;
 });
 
-/** 권한 있는 도메인마다 목록 한 번(큐별 건수) + 사업자 목록 한 번(상태별 건수). 403 은 오류가 아니라 그 칸을 빼고, 다른 실패는 칸 전체를 오류로 */
-async function loadTodo(): Promise<void> {
-    if (!anyTodo.value) return;
-    todoLoading.value = true;
-    todoError.value = null;
-    const domains = todoDomains.value;
-    const [bizResults, businessResult, hotdealResults] = await Promise.all([
-        Promise.allSettled(domains.map((domain) => bizApi.list({ domain, queue: 'REVIEW' }))),
-        canBusiness.value ? Promise.allSettled([businessApi.list({ status: 'PENDING', page: 0, size: 1 })]).then((r) => r[0]!) : Promise.resolve(null),
-        // 회원 핫딜 — 글 목록의 상태별 건수(`counts.FLAGGED`) · 의심 후보의 상태별 건수(`counts.OPEN`), 한 줄씩만 받는다
-        canHotdeal.value ? Promise.allSettled([hotdealApi.list({ view: 'FLAGGED', page: 0, size: 1 }), suspicionApi.list('OPEN', 'ALL', 0, 1)]) : Promise.resolve(null),
-    ]);
-    let failure: ApiError | null = null;
-    const view: TodoView = { domains: {}, businessPending: null, hotdealFlagged: null, hotdealSuspicions: null };
-    bizResults.forEach((r, i) => {
-        if (r.status === 'fulfilled') view.domains[domains[i]!] = r.value.counts;
-        else {
-            const e = toApiError(r.reason);
-            if (e.status !== 403) failure ??= e;
-        }
-    });
-    if (businessResult?.status === 'fulfilled') view.businessPending = businessResult.value.counts.PENDING;
-    else if (businessResult?.status === 'rejected') {
-        const e = toApiError(businessResult.reason);
-        if (e.status !== 403) failure ??= e;
-    }
-    if (hotdealResults) {
-        const [flagged, suspicions] = hotdealResults;
-        if (flagged!.status === 'fulfilled') view.hotdealFlagged = flagged!.value.counts.FLAGGED;
-        if (suspicions!.status === 'fulfilled') view.hotdealSuspicions = suspicions!.value.counts.OPEN;
-        for (const r of hotdealResults) {
-            if (r.status !== 'rejected') continue;
-            const e = toApiError(r.reason);
-            if (e.status !== 403) failure ??= e;
-        }
-    }
-    todoError.value = failure;
-    todo.value = view;
-    todoLoading.value = false;
+/** 같은 구성 안에서 겹치지 않는 가젯 ID */
+function newId(type: DashboardGadgetType): string {
+    return `${type.toLowerCase()}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
 
-// ── 커머스 ──
-
-const view = ref<CommerceDashboardView | null>(null);
-const loading = ref(false);
-const error = ref<ApiError | null>(null);
-
-/** 커머스 칸을 볼 권한이 하나라도 있나 — 없으면 부르지 않는다(403 은 오류가 아니다) */
-const anyCommerce = computed(() => ['commerce.order.read', 'commerce.product.read', 'commerce.payment.read'].some(can));
-
-const cards = computed<DashboardCard[]>(() => {
-    const v = view.value;
-    if (!v) return [];
-    const out: DashboardCard[] = [];
-    if (v.preparingWaiting !== null) out.push({ key: 'preparing', label: t('dashboard.preparing'), count: v.preparingWaiting, note: t('dashboard.preparingNote'), to: '/group-buy-orders?status=CONFIRMED', icon: 'pi pi-box', tone: 'normal' });
-    if (v.openRequests !== null) out.push({ key: 'requests', label: t('dashboard.openRequests'), count: v.openRequests.total, note: t('dashboard.openRequestsNote', { warn: v.openRequests.warn, critical: v.openRequests.critical }), to: v.openRequests.warn + v.openRequests.critical > 0 ? '/group-buy-requests?status=ALL&level=WARN' : '/group-buy-requests', icon: 'pi pi-replay', tone: v.openRequests.critical > 0 ? 'danger' : v.openRequests.warn > 0 ? 'warn' : 'normal' });
-    if (v.paymentAnomalies !== null) out.push({ key: 'anomalies', label: t('dashboard.paymentAnomalies'), count: v.paymentAnomalies, note: '', to: '/payments/anomalies', icon: 'pi pi-exclamation-triangle', tone: v.paymentAnomalies > 0 ? 'danger' : 'normal' });
-    if (v.expiringHolds !== null) out.push({ key: 'holds', label: t('dashboard.expiringHolds'), count: v.expiringHolds, note: t('dashboard.expiringHoldsNote'), to: '/group-buy-stock', icon: 'pi pi-clock', tone: 'normal' });
-    if (v.lowStockGroupBuys !== null) out.push({ key: 'lowStock', label: t('dashboard.lowStock'), count: v.lowStockGroupBuys, note: t('dashboard.lowStockNote'), to: '/group-buys?status=RECRUITING', icon: 'pi pi-chart-bar', tone: v.lowStockGroupBuys > 0 ? 'warn' : 'normal' });
-    if (v.shipOverdue !== null) out.push({ key: 'overdue', label: t('dashboard.shipOverdue'), count: v.shipOverdue, note: t('dashboard.shipOverdueNote'), to: '/group-buy-orders?alert=SHIP_OVERDUE', icon: 'pi pi-calendar-times', tone: v.shipOverdue > 0 ? 'danger' : 'normal' });
-    if (v.deliveryStale !== null) out.push({ key: 'stale', label: t('dashboard.deliveryStale', { days: v.deliveryStale.days }), count: v.deliveryStale.count, note: t('dashboard.deliveryStaleNote'), to: '/group-buy-orders?alert=DELIVERY_STALE', icon: 'pi pi-truck', tone: v.deliveryStale.count > 0 ? 'warn' : 'normal' });
-    return out;
-});
-
-async function load(): Promise<void> {
-    if (!anyCommerce.value) {
-        view.value = { preparingWaiting: null, openRequests: null, paymentAnomalies: null, expiringHolds: null, lowStockGroupBuys: null, shipOverdue: null, deliveryStale: null, generatedAt: new Date().toISOString() };
-        return;
-    }
-    loading.value = true;
-    error.value = null;
+async function loadLayout(): Promise<void> {
+    layoutLoading.value = true;
+    layoutError.value = null;
     try {
-        view.value = await api.summary();
+        const body = await api.get();
+        gadgets.value = UtilDashboardLayout.read(body) ?? UtilDashboardLayout.defaults(can, newId);
+    } catch (e) {
+        // 읽지 못하면 기본 구성으로 보이고 다시 시도를 준다(저장하면 덮어쓴다)
+        layoutError.value = toApiError(e);
+        gadgets.value ??= UtilDashboardLayout.defaults(can, newId);
+    } finally {
+        layoutLoading.value = false;
+    }
+}
+
+function startEdit(): void {
+    if (!gadgets.value || !wide.value) return;
+    draft.value = gadgets.value.map((g) => ({ ...g, config: { ...g.config } }));
+    saveFailure.value = null;
+    editing.value = true;
+}
+
+async function cancelEdit(): Promise<void> {
+    if (dirty.value && !(await confirm({ title: t('dashboard.discardTitle'), message: t('dashboard.discardMessage'), confirmLabel: t('dashboard.discardConfirm'), tone: 'danger' }))) return;
+    saveFailure.value = null;
+    editing.value = false;
+}
+
+async function save(): Promise<void> {
+    if (!dirty.value) return;
+    saving.value = true;
+    saveFailure.value = null;
+    const body = UtilDashboardLayout.toBody(draft.value);
+    try {
+        const saved = await api.put(body);
+        gadgets.value = UtilDashboardLayout.read(saved) ?? UtilDashboardLayout.read(body) ?? [];
+        layoutError.value = null;
+        editing.value = false;
+        toast.success(t('dashboard.saved'));
     } catch (e) {
         const failure = toApiError(e);
-        if (failure.status === 403) view.value = { preparingWaiting: null, openRequests: null, paymentAnomalies: null, expiringHolds: null, lowStockGroupBuys: null, shipOverdue: null, deliveryStale: null, generatedAt: new Date().toISOString() };
-        else error.value = failure;
+        // 칸 오류는 도구 줄 아래에 남기고(고칠 때까지 보이게), 나머지는 알림
+        if (failure.status === 400 && failure.fields && Object.keys(failure.fields).length) saveFailure.value = { fields: failure.fields, body };
+        else toast.error(t('dashboard.saveFailed', { reason: failure.message }));
     } finally {
-        loading.value = false;
+        saving.value = false;
     }
+}
+
+/** 기본 구성으로 다시 만든다 — 저장해야 적용된다 */
+async function resetDefaults(): Promise<void> {
+    if (!(await confirm({ title: t('dashboard.resetTitle'), message: t('dashboard.resetMessage'), confirmLabel: t('dashboard.resetConfirm') }))) return;
+    draft.value = UtilDashboardLayout.defaults(can, newId);
+}
+
+/* ── 가젯 추가 · 빼기 · 설정 ── */
+
+const addOpen = ref(false);
+
+function addGadget(type: DashboardGadgetType): void {
+    if (!UtilDashboardLayout.addable(draft.value, type)) return;
+    draft.value = UtilDashboardLayout.add(draft.value, newId(type), type);
+    addOpen.value = false;
+    toast.show(t('dashboard.addedToast', { title: t(`dashboard.kind.${type}`) }));
+}
+
+function removeGadget(id: string): void {
+    draft.value = UtilDashboardLayout.remove(draft.value, id);
+}
+
+const settingsOpen = ref(false);
+const settingsId = ref<string | null>(null);
+const settingsGadget = computed(() => draft.value.find((g) => g.id === settingsId.value) ?? null);
+
+function openSettings(id: string): void {
+    settingsId.value = id;
+    settingsOpen.value = true;
+}
+
+function applySettings(config: DashboardGadgetConfig): void {
+    const id = settingsId.value;
+    draft.value = draft.value.map((g) => (g.id === id ? { ...g, config } : g));
+    settingsOpen.value = false;
+}
+
+/* ── 저장하지 않은 변경 ── */
+
+onBeforeRouteLeave(async () => {
+    if (!dirty.value) return true;
+    return confirm({ title: t('dashboard.leaveTitle'), message: t('dashboard.leaveMessage'), confirmLabel: t('dashboard.leaveConfirm'), cancelLabel: t('dashboard.leaveCancel'), tone: 'danger' });
+});
+
+function onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (!dirty.value) return;
+    event.preventDefault();
 }
 
 onMounted(() => {
-    void loadTodo();
-    void load();
+    void loadLayout();
+    window.addEventListener('beforeunload', onBeforeUnload);
 });
+onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload));
 </script>
