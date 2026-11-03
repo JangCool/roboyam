@@ -10,12 +10,19 @@
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
                     <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold">{{ t('groupBuyQna.secQuestion') }} #{{ head.id }}</h2>
                     <Tag :value="t(`groupBuyQna.status.${head.status}`)" :severity="head.status === 'ANSWERED' ? 'success' : head.overdue ? 'danger' : 'warn'" />
-                    <Tag v-if="head.hidden" :value="t('groupBuyQna.hidden')" severity="secondary" icon="pi pi-eye-slash" />
-                    <Tag v-if="head.deleted" :value="t('groupBuyQna.deleted')" severity="secondary" icon="pi pi-trash" />
                 </div>
-                <span class="truncate text-[12px] text-muted-color">{{ head.groupBuy.title }} · {{ t('groupBuyQna.roundN', { n: head.groupBuy.roundNo }) }} · {{ head.member.nickname }}</span>
             </div>
         </template>
+
+        <!-- 요약 — 공구 · 회차 · 회원 · 숨김/삭제 -->
+        <DrawerSummary v-if="head" :label="t('drawerSummary.label')" :items="summaryItems">
+            <template #item-visibility>
+                <span class="flex flex-wrap items-center gap-1.5">
+                    <Tag v-if="head.hidden" :value="t('groupBuyQna.hidden')" severity="secondary" icon="pi pi-eye-slash" />
+                    <Tag v-if="head.deleted" :value="t('groupBuyQna.deleted')" severity="secondary" icon="pi pi-trash" />
+                </span>
+            </template>
+        </DrawerSummary>
 
         <ErrorState v-if="error" :title="t('groupBuyQna.detailFailed')" :description="error.message" :code="error.status === 404 ? '404' : error.status === 403 ? '403' : '!'" :retry="error.status !== 404 && error.status !== 403" :retrying="loading" @retry="emit('retry')" />
         <div v-else-if="!detail" class="flex flex-col gap-3 py-2" role="status" :aria-label="t('common.loading')">
@@ -93,6 +100,7 @@
 </template>
 
 <script setup lang="ts">
+import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { GroupBuyQnaDetail, GroupBuyQnaRow } from '~/composables/groupbuy/api/useGroupBuyQnaAdminApi.types';
 
@@ -119,4 +127,15 @@ const { prefs } = useLayoutPrefs();
 const titleId = useId();
 
 const head = computed(() => props.detail ?? props.summary);
+/** 요약 칸 — 공구 · 회차 · 회원 · 숨김/삭제(있을 때만, 꼬리표 — 칸 슬롯) */
+const summaryItems = computed<DrawerSummaryItem[]>(() => {
+    const h = head.value;
+    if (!h) return [];
+    return [
+        { key: 'groupBuy', label: t('drawerSummary.groupBuy'), value: h.groupBuy.title, title: h.groupBuy.title },
+        { key: 'round', label: t('drawerSummary.round'), value: t('groupBuyQna.roundN', { n: h.groupBuy.roundNo }) },
+        { key: 'member', label: t('drawerSummary.member'), value: h.member.nickname },
+        ...(h.hidden || h.deleted ? [{ key: 'visibility', label: t('drawerSummary.visibility') }] : []),
+    ];
+});
 </script>

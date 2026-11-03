@@ -2,14 +2,14 @@
     <!--
         게시글 관리의 글 서랍 — 목록 줄·제목을 누르면(또는 `?post=` 로 들어오면) 연다. 열리는 쪽은 설정의 "서랍 위치"(`prefs.drawerPosition`), 표를 가리지 않는다(`modal=false`) —
         열린 채 다른 줄을 누르면 그 글로 바뀐다. 서랍·표 줄·떠 있는 창(대화창·고르개·메뉴·의견 서랍) 밖을 누르면 닫는다. Esc 는 PrimeVue Drawer 가 맡는다.
-        머리: 제목 · 상태 알약(숨김 까닭·시각 …) · 글 번호(복사) · 이전/다음 글(지금 쪽의 줄 순서).
+        머리: 제목 · 이전/다음 글(지금 쪽의 줄 순서). 본문 맨 위 요약 영역(`DrawerSummary`): 상태 알약(숨김 까닭·시각 …) · 글 번호(복사) · [공개 사이트에서 보기].
         본문(위에서 아래): 글 요약(게시판·말머리·작성자·작성/수정일·추천/댓글/조회·신고 대기·칩) · 상태 띠(지운 글 / 원문 파기 / 숨긴 글) · 본문(HTML 은 서버 정화본을 `rich-text` 로, 평문은 줄바꿈 그대로) ·
           **찬반 토론 구획**(상태 요약 + [토론 설정](`DebateSettingsDialog`) + [의견 관리](`DebateOpinionsDrawer`) — 두 부품은 부른 화면이 연다. 소모임 글이면 구획이 없다) ·
           **투표 구획**(글에 투표가 있을 때만 — 질문 · 마감/진행 · 복수/단일 · 다시 투표 허용 · 마감 시각 · 선택지별 득표 막대·퍼센트 · 참여 수. 누가 골랐는지는 없다. `post.manage` 면 [투표 지우기] → 부른 화면이 사유 대화창을 연다) ·
           조치 기록(최근 것부터, 처리자·사유·덧붙임).
         바닥: 상태가 허락하는 조치 단추만(`actions`) — 없으면 까닭 한 줄(읽기 전용 · 복구 권한 없음 · 원문 파기).
         서버 호출은 하지 않는다(`components.md`) — 글은 `usePostDetail`, 토론 요약은 `useDebateSettingsActions().get` 으로 부른 화면이 받는다.
-        [공개 사이트에서 보기](새 탭)는 서버가 준 `publicUrl` 이 있을 때만 머리에 보인다(사이트 공개 주소를 정하지 않았으면 null). 글 번호 복사는 늘 있다.
+        [공개 사이트에서 보기](새 탭)는 서버가 준 `publicUrl` 이 있을 때만 요약 영역에 보인다(사이트 공개 주소를 정하지 않았으면 null). 글 번호 복사는 늘 있다.
         소모임 글: 요약에 「소모임」 줄(이름·공개 상태·해산·나간 멤버 칩)과 「옮길 수 없어요」 띠. 비공개 소모임 글(`contentBlocked: GROUP_PRIVATE`)은 제목 자리 「소모임 비공개 글」, 본문 대신
         「신고 상세(신고 당시 내용)에서만 볼 수 있어요」 띠·안내(서버가 `content.body`·`poll` 을 null 로 준다).
     -->
@@ -36,29 +36,29 @@
                         <Button v-tooltip.bottom="t('post.nextPost')" type="button" icon="pi pi-chevron-down" size="small" severity="secondary" variant="text" rounded :aria-label="t('post.nextPost')" :disabled="!hasNext" @click="emit('next')" />
                     </div>
                 </div>
-                <div v-if="item" class="flex flex-wrap items-center gap-2">
-                    <PostStateTag :item="item" />
-                    <button
-                        v-tooltip.bottom="t('content.copyPostId')"
-                        type="button"
-                        class="inline-flex items-center gap-1 rounded px-1 text-xs tabular-nums text-muted-color hover:text-color focus-visible:outline-2 focus-visible:outline-primary"
-                        :aria-label="t('content.copyPostIdLabel', { id: item.id })"
-                        @click="copyId(item.id)"
-                    >
-                        <i class="pi pi-copy text-[10px]" aria-hidden="true" />#{{ item.id }}
-                    </button>
-                    <a
-                        v-if="detail?.publicUrl"
-                        :href="detail.publicUrl"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex items-center gap-1 rounded px-1 text-xs text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
-                    >
-                        <i class="pi pi-external-link text-[10px]" aria-hidden="true" />{{ t('post.openPublic') }}
-                    </a>
-                </div>
             </div>
         </template>
+
+        <!-- 요약 — 상태 · 글 번호(복사) · 공개 사이트에서 보기 -->
+        <DrawerSummary v-if="item" class="mt-2" :label="t('drawerSummary.label')" :items="summaryItems">
+            <template #item-state><PostStateTag :item="item" /></template>
+            <template #item-postId>
+                <button
+                    v-tooltip.bottom="t('content.copyPostId')"
+                    type="button"
+                    class="inline-flex items-center gap-1 rounded text-[13px] tabular-nums hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
+                    :aria-label="t('content.copyPostIdLabel', { id: item.id })"
+                    @click="copyId(item.id)"
+                >
+                    <i class="pi pi-copy text-[10px]" aria-hidden="true" />#{{ item.id }}
+                </button>
+            </template>
+            <template v-if="detail?.publicUrl" #links>
+                <a :href="detail.publicUrl" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+                    <i class="pi pi-external-link text-[10px]" aria-hidden="true" />{{ t('post.openPublic') }}
+                </a>
+            </template>
+        </DrawerSummary>
 
         <!-- 없는 글(404)은 다시 시도해도 같다 -->
         <ErrorState v-if="error" :title="t('post.detailLoadFailed')" :description="error.message" :code="error.status === 404 ? '404' : '!'" :retry="error.status !== 404" :retrying="loading" @retry="emit('retry')" />
@@ -275,6 +275,7 @@
 </template>
 
 <script setup lang="ts">
+import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { DebateItem } from '~/composables/content/api/useDebateApi.types';
 import type { AdminPostBoardOption, AdminPostDetail, AdminPostItem } from '~/composables/post/api/usePostApi.types';
@@ -346,6 +347,11 @@ const { localizedName } = useLocalizedName();
 const time = useDisplayTime();
 const toast = useAppToast();
 const titleId = useId();
+/** 요약 칸 — 값은 칸 슬롯이 그린다 */
+const summaryItems = computed<DrawerSummaryItem[]>(() => [
+    { key: 'state', label: t('drawerSummary.state') },
+    { key: 'postId', label: t('drawerSummary.postId') },
+]);
 
 /** 본문 영역이 그리는 글 — 받은 상세가 있을 때만 쓴다(템플릿은 `detail` 이 있을 때만 이 값을 읽는다) */
 const post = computed(() => props.detail?.post as AdminPostItem);

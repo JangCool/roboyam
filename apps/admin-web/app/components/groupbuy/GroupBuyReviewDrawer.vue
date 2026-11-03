@@ -9,15 +9,18 @@
             <div v-if="head" class="flex min-w-0 flex-1 flex-col gap-1">
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
                     <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold">{{ t('groupBuyReview.secReview') }} #{{ head.id }}</h2>
-                    <GroupBuyStarsLabel :value="head.rating" />
                     <Tag v-if="head.hidden" :value="t('groupBuyReview.hidden')" severity="secondary" icon="pi pi-eye-slash" />
                     <Tag v-else-if="head.deleted" :value="t('groupBuyReview.deleted')" severity="secondary" icon="pi pi-trash" />
                     <Tag v-else :value="t('groupBuyReview.visible')" severity="success" />
-                    <Tag v-if="head.reportCount > 0" :value="t('groupBuyReview.reports', { count: head.reportCount })" severity="danger" icon="pi pi-flag" />
                 </div>
-                <span class="truncate text-[12px] text-muted-color">{{ head.product.name }} · {{ head.groupBuy.title }} · {{ t('groupBuyReview.roundN', { n: head.groupBuy.roundNo }) }} · {{ head.member.nickname }}<template v-if="head.member.id"> ({{ head.member.id }})</template></span>
             </div>
         </template>
+
+        <!-- 요약 — 별점 · 신고 · 상품 · 공구 · 회차 · 회원 -->
+        <DrawerSummary v-if="head" :label="t('drawerSummary.label')" :items="summaryItems">
+            <template #item-rating><GroupBuyStarsLabel :value="head.rating" /></template>
+            <template #item-reports><Tag :value="t('groupBuyReview.reports', { count: head.reportCount })" severity="danger" icon="pi pi-flag" /></template>
+        </DrawerSummary>
 
         <ErrorState v-if="error" :title="t('groupBuyReview.detailFailed')" :description="error.message" :code="error.status === 404 ? '404' : error.status === 403 ? '403' : '!'" :retry="error.status !== 404 && error.status !== 403" :retrying="loading" @retry="emit('retry')" />
         <div v-else-if="!detail" class="flex flex-col gap-3 py-2" role="status" :aria-label="t('common.loading')">
@@ -108,6 +111,7 @@
 </template>
 
 <script setup lang="ts">
+import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { GroupBuyReviewDetail, GroupBuyReviewRow } from '~/composables/groupbuy/api/useGroupBuyReviewAdminApi.types';
 
@@ -133,4 +137,18 @@ const { prefs } = useLayoutPrefs();
 const titleId = useId();
 
 const head = computed(() => props.detail ?? props.summary);
+/** 요약 칸 — 별점·신고(있을 때만)는 칸 슬롯 */
+const summaryItems = computed<DrawerSummaryItem[]>(() => {
+    const h = head.value;
+    if (!h) return [];
+    const member = h.member.id ? `${h.member.nickname} (${h.member.id})` : h.member.nickname;
+    return [
+        { key: 'rating', label: t('drawerSummary.rating') },
+        ...(h.reportCount > 0 ? [{ key: 'reports', label: t('drawerSummary.reports') }] : []),
+        { key: 'product', label: t('drawerSummary.product'), value: h.product.name, title: h.product.name },
+        { key: 'groupBuy', label: t('drawerSummary.groupBuy'), value: h.groupBuy.title, title: h.groupBuy.title },
+        { key: 'round', label: t('drawerSummary.round'), value: t('groupBuyReview.roundN', { n: h.groupBuy.roundNo }) },
+        { key: 'member', label: t('drawerSummary.member'), value: member, title: member },
+    ];
+});
 </script>

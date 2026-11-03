@@ -14,14 +14,12 @@
             <div class="flex min-w-0 flex-1 flex-col gap-1">
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
                     <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold">{{ item ? item.name : t('pointShop.item.addTitle') }}</h2>
-                    <code v-if="item" class="text-xs text-muted-color">{{ item.code }}</code>
                 </div>
-                <p v-if="item" class="m-0 text-[11px] text-muted-color">
-                    {{ t('pointShop.item.updated', { at: time.full(item.updatedAt), by: item.updatedBy ?? t('pointShop.system') }) }}
-                    · {{ t('pointShop.item.soldCount', { count: item.soldCount.toLocaleString(locale) }) }}
-                </p>
             </div>
         </template>
+
+        <!-- 요약(고칠 때만) — 코드 · 마지막 변경(시각·누가) · 판 수 -->
+        <DrawerSummary v-if="item" :label="t('drawerSummary.label')" :items="summaryItems" />
 
         <form :id="formId" class="grid min-w-0 gap-6 pb-4 lg:grid-cols-[minmax(0,1fr)_auto_22rem]" novalidate @submit.prevent="submit">
             <div class="flex min-w-0 flex-col gap-6">
@@ -252,6 +250,8 @@
 </template>
 
 <script setup lang="ts">
+import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types';
+import UtilBizApplication from '~/utils/util-biz-application';
 import type { PointShopAdminItem, PointShopItemField, PointShopItemKind, PointShopItemSaveRequest } from '~/composables/pointshop/api/usePointShopAdminApi.types';
 import UtilColor from '~/utils/util-color';
 import UtilPointShop, { type PointShopItemForm } from '~/utils/util-point-shop';
@@ -281,6 +281,17 @@ const { t, locale } = useI18n();
 const time = useDisplayTime();
 const { confirm } = useConfirmDialog();
 const titleId = useId();
+/** 요약 칸(고칠 때) — 코드 · 마지막 변경(일자 강조) · 판 수 */
+const summaryItems = computed<DrawerSummaryItem[]>(() => {
+    const it = props.item;
+    if (!it) return [];
+    const updated = `${time.value.full(it.updatedAt)} · ${it.updatedBy ?? t('pointShop.system')}`;
+    return [
+        { key: 'code', label: t('drawerSummary.code'), value: it.code, code: true },
+        { key: 'updated', label: t('drawerSummary.updated'), value: updated, valueClass: UtilBizApplication.EMPH.date, title: updated },
+        { key: 'sold', label: t('drawerSummary.sold'), value: it.soldCount.toLocaleString(locale.value) },
+    ];
+});
 const formId = useId();
 
 const creating = computed(() => props.item === null);

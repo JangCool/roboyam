@@ -60,6 +60,7 @@ import business from './business';
 import bizApplication from './bizApplication';
 import ad from './ad';
 import adAdvertiser from './adAdvertiser';
+import drawerSummary from './drawerSummary';
 import hotdeal from './hotdeal';
 
 export default {
@@ -118,5 +119,6 @@ export default {
     bizApplication,
     ad,
     adAdvertiser,
+    drawerSummary,
     hotdeal,
 };

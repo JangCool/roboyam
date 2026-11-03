@@ -11,11 +11,16 @@
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
                     <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold">{{ t(`groupBuy.requestType.${head.type}`) }}<template v-if="head.resolution === 'EXCHANGE'"> · {{ t('groupBuy.resolutionExchange') }}</template></h2>
                     <Tag :value="t(`groupBuy.requestStatus.${head.status}`)" :severity="UtilGroupBuy.requestSeverity(head.status)" />
-                    <Tag v-if="isOpenRequest && head.deadlineLevel !== 'OK'" :value="t(`groupBuy.deadline.${head.deadlineLevel}`, { n: head.elapsedBusinessDays })" :severity="UtilGroupBuy.deadlineSeverity(head.deadlineLevel)" icon="pi pi-clock" />
                 </div>
-                <span class="truncate text-[12px] text-muted-color"><code>{{ head.order.orderNo }}</code> · {{ head.groupBuy.title }} · {{ head.member.nickname }}</span>
             </div>
         </template>
+
+        <!-- 요약 — 주문 번호 · 공구 · 회원 · 처리 기한(열린 요청이 늦어질 때) -->
+        <DrawerSummary v-if="head" :label="t('drawerSummary.label')" :items="summaryItems">
+            <template #item-deadline>
+                <Tag :value="t(`groupBuy.deadline.${head.deadlineLevel}`, { n: head.elapsedBusinessDays })" :severity="UtilGroupBuy.deadlineSeverity(head.deadlineLevel)" icon="pi pi-clock" />
+            </template>
+        </DrawerSummary>
 
         <ErrorState v-if="error" :title="t('groupBuy.requestLoadFailed')" :description="error.message" :code="error.status === 404 ? '404' : error.status === 403 ? '403' : '!'" :retry="error.status !== 404 && error.status !== 403" :retrying="loading" @retry="emit('retry')" />
         <div v-else-if="!detail" class="flex flex-col gap-3 py-2" role="status" :aria-label="t('common.loading')">
@@ -152,6 +157,7 @@
 </template>
 
 <script setup lang="ts">
+import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { GroupBuyDisposition, GroupBuyReasonCode, GroupBuyRequestDetail, GroupBuyRequestRow } from '~/composables/groupbuy/api/useGroupBuyRequestApi.types';
 import UtilGroupBuy from '~/utils/util-groupbuy';
@@ -181,6 +187,17 @@ const titleId = useId();
 const head = computed(() => props.detail ?? props.summary);
 /** 열린 요청(기한 표시를 보이는 것) */
 const isOpenRequest = computed(() => head.value?.status === 'REQUESTED' || head.value?.status === 'APPROVED');
+/** 요약 칸 — 주문 번호 · 공구 · 회원 · 처리 기한(열린 요청이 기한에 걸릴 때만, 꼬리표 — 칸 슬롯) */
+const summaryItems = computed<DrawerSummaryItem[]>(() => {
+    const h = head.value;
+    if (!h) return [];
+    return [
+        { key: 'orderNo', label: t('drawerSummary.orderNo'), value: h.order.orderNo, code: true },
+        { key: 'groupBuy', label: t('drawerSummary.groupBuy'), value: h.groupBuy.title, title: h.groupBuy.title },
+        { key: 'member', label: t('drawerSummary.member'), value: h.member.nickname },
+        ...(isOpenRequest.value && h.deadlineLevel !== 'OK' ? [{ key: 'deadline', label: t('drawerSummary.deadline') }] : []),
+    ];
+});
 /** 발송 전 취소 승인은 그 자리에서 환불이 나간다 */
 const needsRefundPerm = computed(() => props.detail?.type === 'CANCEL');
 const hasAction = computed(() => {

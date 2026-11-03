@@ -2,7 +2,7 @@
     <!--
         신고 관리의 사건 서랍 — 목록 줄을 누르면(또는 `?report=` 로 들어오면) 연다. 게시글 관리 글 서랍(`PostDetailDrawer`)과 같은 구조:
         열리는 쪽은 설정의 "서랍 위치"(`prefs.drawerPosition`), 표를 가리지 않는다(`modal=false`) — 열린 채 다른 줄을 누르면 그 사건으로 바뀐다. 서랍·표 줄·떠 있는 창 밖을 누르면 닫는다.
-        머리: 대상 제목 · 사건 상태 알약(검토자) · 사건 번호 · 이전/다음 사건(지금 쪽의 줄 순서).
+        머리: 대상 제목 · 이전/다음 사건(지금 쪽의 줄 순서). 본문 맨 위 요약 영역(`DrawerSummary`): 대상 종류 · 사건 상태 알약 · 사건 번호 · 검토자(열린 사건).
         본문(위에서 아래): 대상(종류·게시판·작성자·대상 상태·첫/마지막 신고 · [게시글 관리에서 보기] `/posts?post=` · [공개 사이트에서 보기] `publicUrl`) ·
           지금 원문 + 신고 당시 스냅샷(다르면 「신고 뒤 수정됨」) · 신고 목록(신고자·사유·메모·시각) · 작성자 카드(제재 자리 「준비 중」) · 처리 결과(닫힌 사건) · 처리 기록(최근 것부터).
         핫딜 글 사건(`UtilReport.isDealCase`)이면 신고 목록 위에 「핫딜 글(상태)」 + D4 안내 한 줄.
@@ -31,14 +31,14 @@
                         <Button v-tooltip.bottom="t('report.nextCase')" type="button" icon="pi pi-chevron-down" size="small" severity="secondary" variant="text" rounded :aria-label="t('report.nextCase')" :disabled="!hasNext" @click="emit('next')" />
                     </div>
                 </div>
-                <div v-if="item" class="flex flex-wrap items-center gap-2">
-                    <Tag :value="t(`report.targetType.${item.targetType}`)" :severity="UtilReport.targetTypeSeverity(item.targetType)" class="text-[11px]!" />
-                    <Tag :value="t(`report.status.${item.status}`)" :severity="UtilReport.statusSeverity(item.status)" class="text-[11px]!" />
-                    <span v-if="item.reviewer && UtilReport.isOpen(item.status)" class="text-xs text-muted-color">{{ t('report.reviewerLine', { name: item.reviewer.name }) }}</span>
-                    <span class="text-xs tabular-nums text-muted-color">{{ UtilReportMessages.caseNo(t, item) }}</span>
-                </div>
             </div>
         </template>
+
+        <!-- 요약 — 대상 종류 · 사건 상태 · 사건 번호 · 검토자(열린 사건) -->
+        <DrawerSummary v-if="item" class="mt-2" :label="t('drawerSummary.label')" :items="summaryItems">
+            <template #item-target><Tag :value="t(`report.targetType.${item.targetType}`)" :severity="UtilReport.targetTypeSeverity(item.targetType)" class="text-[11px]!" /></template>
+            <template #item-state><Tag :value="t(`report.status.${item.status}`)" :severity="UtilReport.statusSeverity(item.status)" class="text-[11px]!" /></template>
+        </DrawerSummary>
 
         <!-- 없는 사건(404)은 다시 시도해도 같다 -->
         <ErrorState v-if="error" :title="t('report.detailLoadFailed')" :description="error.message" :code="error.status === 404 ? '404' : '!'" :retry="error.status !== 404" :retrying="loading" @retry="emit('retry')" />
@@ -257,6 +257,7 @@
 </template>
 
 <script setup lang="ts">
+import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { ReportCaseDetail, ReportCaseItem } from '~/composables/report/api/useReportApi.types';
 import UtilReport, { type ReportActKind, type ReportActions } from '~/utils/util-report';
@@ -313,6 +314,17 @@ const { prefs } = useLayoutPrefs();
 const { localizedName } = useLocalizedName();
 const time = useDisplayTime();
 const titleId = useId();
+/** 요약 칸 — 대상·상태는 칸 슬롯(꼬리표), 검토자는 열린 사건에만 */
+const summaryItems = computed<DrawerSummaryItem[]>(() => {
+    const it = props.item;
+    if (!it) return [];
+    return [
+        { key: 'target', label: t('drawerSummary.target') },
+        { key: 'state', label: t('drawerSummary.state') },
+        { key: 'caseNo', label: t('report.col.caseNo'), value: UtilReportMessages.caseNo(t, it) },
+        ...(it.reviewer && UtilReport.isOpen(it.status) ? [{ key: 'reviewer', label: t('drawerSummary.reviewer'), value: it.reviewer.name }] : []),
+    ];
+});
 
 /** 본문 영역이 그리는 사건 — 받은 상세가 있을 때만 쓴다(템플릿은 `detail` 이 있을 때만 이 값을 읽는다) */
 const c = computed(() => props.detail?.case as ReportCaseItem);

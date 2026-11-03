@@ -22,12 +22,20 @@
             <div class="flex min-w-0 flex-1 flex-col gap-1.5">
                 <h2 :id="titleId" class="min-w-0 text-base font-semibold break-words">{{ head ? UtilHotdealMessages.suspicionTitle(t, head) : t('hotdeal.suspicion.title') }}</h2>
                 <div v-if="head" class="flex flex-wrap items-center gap-2">
-                    <Tag :value="t(`hotdeal.suspicion.kind.${head.kind}`)" :severity="head.kind === 'STORE' ? 'info' : 'secondary'" :icon="head.kind === 'STORE' ? 'pi pi-shop' : 'pi pi-user'" class="text-[11px]!" />
                     <Tag :value="t(`hotdeal.suspicion.status.${head.status}`)" :severity="head.status === 'OPEN' ? 'warn' : 'secondary'" class="text-[11px]!" />
-                    <Tag v-if="head.kind === 'MEMBER' && head.member.withdrawn" :value="t('hotdeal.withdrawn')" severity="secondary" class="text-[11px]!" />
                 </div>
             </div>
         </template>
+
+        <!-- 요약 — 의심 종류(가게/회원) · 탈퇴 회원 -->
+        <DrawerSummary v-if="head" class="mt-2" :label="t('drawerSummary.label')" :items="summaryItems">
+            <template #item-kind>
+                <span class="flex flex-wrap items-center gap-1.5">
+                    <Tag :value="t(`hotdeal.suspicion.kind.${head.kind}`)" :severity="head.kind === 'STORE' ? 'info' : 'secondary'" :icon="head.kind === 'STORE' ? 'pi pi-shop' : 'pi pi-user'" class="text-[11px]!" />
+                    <Tag v-if="head.kind === 'MEMBER' && head.member.withdrawn" :value="t('hotdeal.withdrawn')" severity="secondary" class="text-[11px]!" />
+                </span>
+            </template>
+        </DrawerSummary>
 
         <ErrorState v-if="error" :title="t('hotdeal.suspicion.detailLoadFailed')" :description="error.message" :code="error.status === 404 ? '404' : '!'" :retry="error.status !== 404" :retrying="loading" @retry="emit('retry')" />
 
@@ -121,6 +129,7 @@
 
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router';
+import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { DealSuspicion, DealSuspicionDetail, DealSuspicionMember, DealSuspicionPost } from '~/composables/hotdeal/api/useHotdealSuspicionApi.types';
 import UtilHotdealMessages from '~/utils/util-hotdeal-messages';
@@ -151,6 +160,8 @@ const time = useDisplayTime();
 const titleId = useId();
 
 const head = computed(() => props.detail?.suspicion ?? props.item);
+/** 요약 칸 — 종류(+ 탈퇴 회원) 꼬리표는 칸 슬롯 */
+const summaryItems = computed<DrawerSummaryItem[]>(() => [{ key: 'kind', label: t('drawerSummary.kind') }]);
 /** 본문이 그리는 후보 — 템플릿은 `detail` 이 있을 때만 읽는다 */
 const s = computed(() => props.detail?.suspicion as DealSuspicion);
 

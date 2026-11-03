@@ -2,8 +2,8 @@
     <!--
         결제 상세 서랍 — 결제 주문 목록·결제 이상·웹훅 수신 내역·대사 불일치에서 결제 한 건을 누르면 연다. 열리는 쪽은 설정의 「서랍 위치」(`prefs.drawerPosition`).
         구획: ① 금액(주문 금액 · 결제액 · 취소액 · 남은 금액)과 결제 정보 ② 이력(`payment_events` 타임라인, 오래된 것 위) ③ 취소 대기열(`payment_cancels`) ④ 이 결제의 웹훅 기록 ⑤ 운영 조치(「포트원에서 다시 확인」).
-        회원은 번호·닉네임만(이메일 없음 — 계약 결정 17). 서버가 상세를 열 때마다 열람 기록(`PAYMENT_ORDER_VIEW`, 개인정보 열람)을 남긴다는 한 줄을 머리에 둔다.
-        머리(결제 번호·상태)는 누른 줄(`summary`)로 먼저 그리고, 상세는 부르는 쪽이 받아 내려 준다. 서버는 부르지 않는다(`components.md`) — 조치는 `recheck` 로 올린다.
+        회원은 번호·닉네임만(이메일 없음 — 계약 결정 17). 서버가 상세를 열 때마다 열람 기록(`PAYMENT_ORDER_VIEW`, 개인정보 열람)을 남긴다는 한 줄은 본문 맨 위 요약 영역(`DrawerSummary` — 결제 ID · 결제 이상)에 둔다.
+        머리(주문 이름·상태)와 요약은 누른 줄(`summary`)로 먼저 그리고, 상세는 부르는 쪽이 받아 내려 준다. 서버는 부르지 않는다(`components.md`) — 조치는 `recheck` 로 올린다.
     -->
     <Drawer v-model:visible="open" :position="prefs.drawerPosition" :aria-labelledby="titleId" :style="{ width: '48rem', maxWidth: '100vw' }">
         <template #header>
@@ -11,12 +11,15 @@
                 <div class="flex min-w-0 flex-wrap items-center gap-2">
                     <h2 :id="titleId" class="min-w-0 truncate text-base font-semibold">{{ head.orderName }}</h2>
                     <Tag :value="t(`payment.status.${head.status}`)" :severity="UtilPayment.statusSeverity(head.status)" />
-                    <Tag v-if="head.anomaly" :value="t(`payment.anomaly.${head.anomaly}`)" severity="danger" icon="pi pi-exclamation-triangle" />
                 </div>
-                <code class="truncate text-[12px] text-muted-color">{{ head.paymentId }}</code>
-                <p class="m-0 text-[11px] text-muted-color">{{ t('payment.drawer.viewAudit') }}</p>
             </div>
         </template>
+
+        <!-- 요약 — 결제 ID · 결제 이상 · 열람 기록 안내 -->
+        <DrawerSummary v-if="head" :label="t('drawerSummary.label')" :items="summaryItems">
+            <template v-if="head.anomaly" #item-anomaly><Tag :value="t(`payment.anomaly.${head.anomaly}`)" severity="danger" icon="pi pi-exclamation-triangle" /></template>
+            <template #note>{{ t('payment.drawer.viewAudit') }}</template>
+        </DrawerSummary>
 
         <ErrorState v-if="error" :title="t('payment.drawer.loadFailed')" :description="error.status === 404 ? t('payment.drawer.notFound') : error.message" :code="error.status === 404 ? '404' : '!'" :retry="error.status !== 404" :retrying="loading" @retry="emit('retry')" />
 
@@ -180,6 +183,7 @@
 </template>
 
 <script setup lang="ts">
+import type { DrawerSummaryItem } from '~/components/common/DrawerSummary.types';
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { PaymentCancelView, PaymentEventKind, PaymentOrderDetail, PaymentOrderRow } from '~/composables/payment/api/usePaymentAdminApi.types';
 import UtilPayment from '~/utils/util-payment';
@@ -212,6 +216,15 @@ const DT = 'text-[13px] text-muted-color';
 const DD = 'm-0 min-w-0 text-[13px] [overflow-wrap:anywhere]';
 
 const head = computed(() => props.detail ?? props.summary);
+/** 요약 칸 — 결제 ID · 결제 이상(있을 때만, 딱지 — 칸 슬롯) */
+const summaryItems = computed<DrawerSummaryItem[]>(() => {
+    const h = head.value;
+    if (!h) return [];
+    return [
+        { key: 'paymentId', label: t('drawerSummary.paymentId'), value: h.paymentId, code: true, title: h.paymentId, wide: !h.anomaly },
+        ...(h.anomaly ? [{ key: 'anomaly', label: t('drawerSummary.flags') }] : []),
+    ];
+});
 
 /** 금액 칸 넷 — 주문 금액(서버 계산) · 결제액(포트원) · 취소액(SUCCEEDED 합) · 남은 금액(결제 − 취소) */
 const amountBoxes = computed(() => {
