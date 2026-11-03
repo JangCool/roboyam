@@ -56,7 +56,7 @@ class AdOperatorLedgerTest extends BizApplicationApiTestBase {
     private String operatorImage() {
         long id = ids.nextId();
         jdbc.update("INSERT INTO files (id, purpose, storage_key, content_type, size_bytes, width, height, status, uploaded_by, created_at) "
-                + "VALUES (?, 'BIZ_AD_IMAGE', ?, 'image/png', 100, 10, 10, 'PENDING', ?, now())", id, "biz-ad/op/test/" + id + ".png", operator.operatorId());
+                + "VALUES (?, 'BIZ_AD_IMAGE', ?, 'image/png', 100, 1200, 300, 'PENDING', ?, now())", id, "biz-ad/op/test/" + id + ".png", operator.operatorId());
         return Long.toString(id);
     }
 

@@ -100,6 +100,6 @@ class AdWingBannerTest extends BizApplicationApiTestBase {
     }
 
     private BizAdApplyRequest wing(long user, LocalDate start, LocalDate end) {
-        return new BizAdApplyRequest("WING", start.toString(), end.toString(), Long.toString(adImage(user)), "https://a.example.com/x", "날개", null, "ONLINE", POLICY, POLICY);
+        return new BizAdApplyRequest("WING", start.toString(), end.toString(), Long.toString(adImage(user, 160, 600)), "https://a.example.com/x", "날개", null, "ONLINE", POLICY, POLICY);
     }
 }

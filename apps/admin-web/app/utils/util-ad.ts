@@ -73,7 +73,7 @@ export default class UtilAd {
     static bannerRatioOk(type: AdType, width: number, height: number): boolean {
         const size = UtilAd.BANNER_SIZE[type];
         if (!size || width <= 0 || height <= 0) return true;
-        return Math.abs(width / height / (size[0] / size[1]) - 1) <= UtilAd.BANNER_RATIO_TOLERANCE;
+        return Math.abs(width / height / (size[0] / size[1]) - 1) <= UtilAd.BANNER_RATIO_TOLERANCE + 1e-9; // 경계(딱 3%)는 부동소수 오차 없이 통과
     }
 
     static statusSeverity(status: AdBookingStatus): Severity {

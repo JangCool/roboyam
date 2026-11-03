@@ -140,6 +140,8 @@ public class AdOperatorService {
             image = fileId == null ? null : store.operatorAdImage(fileId).orElse(null);
             if (image == null) {
                 f.add("creative.imageFileId", BizFields.strip(c.imageFileId()) == null ? "bizapp.field.required" : "bizapp.image.notFound");
+            } else if (product != null && !product.bannerRatioOk(image.width(), image.height())) {
+                f.add("creative.imageFileId", "bizapp.image.ratio");
             }
             String link = f.link("creative.linkUrl", c.linkUrl(), true);
             title = f.text("creative.altText", c.altText(), 100);

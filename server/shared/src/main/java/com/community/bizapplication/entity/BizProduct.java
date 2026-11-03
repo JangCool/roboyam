@@ -11,7 +11,7 @@ public enum BizProduct {
     STRIP_BANNER("STRIP"),
     SQUARE_BANNER("SQUARE"),
     SMALL_BANNER("SMALL"),
-    /** 날개 배너 — 본문 바깥 좌우 세로 160×600(4:15), V116(ad-contract 「공개 노출 목업」 확정 2026-11-01). 서버는 소재 비율을 보지 않는다(다른 배너와 같다) */
+    /** 날개 배너 — 본문 바깥 좌우 세로 160×600(4:15), V116(ad-contract 「공개 노출 목업」 확정 2026-11-01) */
     WING_BANNER("WING"),
     TEXT_LINE("TEXT_LINE"),
     HOTDEAL_TOP("HOME_TOP"),
@@ -31,6 +31,28 @@ public enum BizProduct {
 
     public boolean banner() {
         return this == WIDE_BANNER || this == STRIP_BANNER || this == SQUARE_BANNER || this == SMALL_BANNER || this == WING_BANNER;
+    }
+
+    /** 배너 규격 비율 허용 폭 ±3%(docs/plans/biz-ad-hotdeal/02-ad.md 미디어 업로드 — 공개 자리는 규격 틀에 맞춰 잘라 보인다). 화면(user-web `UtilBusiness`·admin `UtilAd`)과 같은 값 */
+    public static final double BANNER_RATIO_TOLERANCE = 0.03;
+
+    /**
+     * 배너 그림이 이 상품의 규격 비율(넓은 1200×300 · 띠 1200×100 · 네모 300×250 · 작은 300×100 · 날개 160×600)과 맞는지(±3%).
+     * 배너가 아니거나 크기를 모르는 파일(옛 파일)이면 true.
+     */
+    public boolean bannerRatioOk(Integer width, Integer height) {
+        double ratio = switch (this) {
+            case WIDE_BANNER -> 1200.0 / 300;
+            case STRIP_BANNER -> 1200.0 / 100;
+            case SQUARE_BANNER -> 300.0 / 250;
+            case SMALL_BANNER -> 300.0 / 100;
+            case WING_BANNER -> 160.0 / 600;
+            default -> 0;
+        };
+        if (ratio == 0 || width == null || height == null || width <= 0 || height <= 0) {
+            return true;
+        }
+        return Math.abs((double) width / height / ratio - 1) <= BANNER_RATIO_TOLERANCE + 1e-9; // 경계(딱 3%)는 부동소수 오차 없이 통과
     }
 
     public boolean adProduct() {

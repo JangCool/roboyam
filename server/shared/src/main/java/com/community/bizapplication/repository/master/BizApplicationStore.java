@@ -476,19 +476,19 @@ public class BizApplicationStore {
 
     // ── 광고 이미지(files — 용도 BIZ_AD_IMAGE) ─────────────────────────────
 
-    /** 회원이 올린 광고 이미지 — 주소 키·이름(올린 사람이 다르거나 없으면 비어 있다) */
-    public record AdImage(long id, String storageKey, String contentType, long sizeBytes) {
+    /** 회원이 올린 광고 이미지 — 주소 키·이름·가로·세로(배너 비율 검사, 모르면 null). 올린 사람이 다르거나 없으면 비어 있다 */
+    public record AdImage(long id, String storageKey, String contentType, long sizeBytes, Integer width, Integer height) {
     }
 
     public Optional<AdImage> adImage(long fileId, long userId) {
-        return jdbc.query("SELECT id, storage_key, content_type, size_bytes FROM files WHERE id = ? AND uploaded_by_user = ? AND purpose = 'BIZ_AD_IMAGE'",
-                (rs, i) -> new AdImage(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getLong(4)), fileId, userId).stream().findFirst();
+        return jdbc.query("SELECT id, storage_key, content_type, size_bytes, width, height FROM files WHERE id = ? AND uploaded_by_user = ? AND purpose = 'BIZ_AD_IMAGE'",
+                (rs, i) -> new AdImage(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getLong(4), rs.getObject(5, Integer.class), rs.getObject(6, Integer.class)), fileId, userId).stream().findFirst();
     }
 
     /** 운영자가 올린 광고 이미지(광고 일정표 수동 등록 — {@code POST /api/admin/ads/images}) */
     public Optional<AdImage> operatorAdImage(long fileId) {
-        return jdbc.query("SELECT id, storage_key, content_type, size_bytes FROM files WHERE id = ? AND uploaded_by IS NOT NULL AND purpose = 'BIZ_AD_IMAGE'",
-                (rs, i) -> new AdImage(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getLong(4)), fileId).stream().findFirst();
+        return jdbc.query("SELECT id, storage_key, content_type, size_bytes, width, height FROM files WHERE id = ? AND uploaded_by IS NOT NULL AND purpose = 'BIZ_AD_IMAGE'",
+                (rs, i) -> new AdImage(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getLong(4), rs.getObject(5, Integer.class), rs.getObject(6, Integer.class)), fileId).stream().findFirst();
     }
 
     /** 쓰는 중으로(올리다 만 파일 정리에서 빠진다) */
