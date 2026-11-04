@@ -164,6 +164,12 @@ export default class UtilPostMessages {
     /** 조치 기록의 처리자 */
     static actor(t: Translate, actor: PostModerationActor): string {
         if (actor.kind === 'SYSTEM') return t('post.actorSystem');
+        if (actor.kind === 'BOARD_STAFF') {
+            // 게시판 매니저·스텝 — 「닉네임(매니저)」. `role` 이 없으면 서버가 준 이름(자리를 붙여 줬을 수 있다) 그대로
+            const name = actor.name ?? t('post.actorStaffGone');
+            if (actor.role !== 'MANAGER' && actor.role !== 'STAFF') return name;
+            return t('post.actorStaff', { name, role: t(`post.actorStaffRole.${actor.role}`) });
+        }
         return actor.name ?? t('post.actorGone');
     }
 }

@@ -151,6 +151,20 @@ public class MemberNotificationPublisher {
      * @param reasonCode 조치 사유 코드(신고 사유 체계, 없으면 null)
      */
     public int hiddenByStaff(long authorId, long postId, Long commentId, String snapshot, String reason, String reasonCode) {
+        return hiddenByStaff(authorId, postId, commentId, snapshot, reason, reasonCode, true);
+    }
+
+    /**
+     * 게시판 매니저·스텝이 글을 숨겼다(board-staff-action-contract 정책 2) — 운영자 숨김과 <b>같은 종류·같은 문구</b>({@code POST_HIDDEN}, 덧붙임 {@code by STAFF}·{@code reason})라
+     * 공개 쪽에서 운영자인지 스텝인지 구별되지 않는다(처리자 비공개). <b>메일은 보내지 않는다</b>(회원 이벤트 설정의 이메일 값과 상관없이). 비회원 글이면 부르지 않는다.
+     *
+     * @param reason 사유 코드의 이름(한국어 — 「스팸·광고」)
+     */
+    public int postHiddenByBoardStaff(long authorId, long postId, String title, String reason) {
+        return hiddenByStaff(authorId, postId, null, title, reason, null, false);
+    }
+
+    private int hiddenByStaff(long authorId, long postId, Long commentId, String snapshot, String reason, String reasonCode, boolean email) {
         return isolated.run("member-notification:staff-hidden", () -> {
             MemberNotificationType type = commentId == null ? MemberNotificationType.POST_HIDDEN : MemberNotificationType.COMMENT_HIDDEN;
             EventSwitch on = switchOf(type, authorId);
@@ -170,7 +184,7 @@ public class MemberNotificationPublisher {
                 writer.insert(ids.nextId(), authorId, type.name(), null, null, postId, commentId, MAPPER.writeValueAsString(payload), Instant.now());
                 made = 1;
             }
-            if (on.email()) {
+            if (email && on.email()) {
                 // 숨긴 글은 열 수 없다 — 댓글 숨김이면 그 글로 간다(알림함 링크와 같다)
                 requestEmail(authorId, MemberNotificationMessages.Facts.hiddenByStaff(type, cut, reason, reasonCode), null, commentId == null ? null : postId);
             }
@@ -198,6 +212,20 @@ public class MemberNotificationPublisher {
      * @param revokedPoints 함께 회수한 포인트(없으면 0)
      */
     public int removedByStaff(long authorId, long postId, Long commentId, String snapshot, String reason, String reasonCode, long revokedPoints) {
+        return removedByStaff(authorId, postId, commentId, snapshot, reason, reasonCode, revokedPoints, true);
+    }
+
+    /**
+     * 게시판 매니저·스텝이 글·댓글을 지웠다(board-staff-action-contract 정책 2) — 운영자 삭제와 <b>같은 종류·같은 문구</b>({@code POST_REMOVED}·{@code COMMENT_REMOVED}, 덧붙임
+     * {@code snapshot}·{@code reason}·{@code revokedPoints}). 처리자는 싣지 않는다. <b>메일은 보내지 않는다</b>. 비회원 것이면 부르지 않는다.
+     *
+     * @param reason 사유 코드의 이름(한국어 — 「스팸·광고」)
+     */
+    public int removedByBoardStaff(long authorId, long postId, Long commentId, String snapshot, String reason, long revokedPoints) {
+        return removedByStaff(authorId, postId, commentId, snapshot, reason, null, revokedPoints, false);
+    }
+
+    private int removedByStaff(long authorId, long postId, Long commentId, String snapshot, String reason, String reasonCode, long revokedPoints, boolean email) {
         return isolated.run("member-notification:removed", () -> {
             MemberNotificationType type = commentId == null ? MemberNotificationType.POST_REMOVED : MemberNotificationType.COMMENT_REMOVED;
             EventSwitch on = switchOf(type, authorId);
@@ -217,7 +245,7 @@ public class MemberNotificationPublisher {
                 writer.insert(ids.nextId(), authorId, type.name(), null, null, postId, commentId, MAPPER.writeValueAsString(payload), Instant.now());
                 made = 1;
             }
-            if (on.email()) {
+            if (email && on.email()) {
                 requestEmail(authorId, MemberNotificationMessages.Facts.removed(type, cut, reason, reasonCode), null, commentId == null ? null : postId);
             }
             return made;

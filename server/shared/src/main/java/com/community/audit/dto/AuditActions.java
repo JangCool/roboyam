@@ -240,6 +240,8 @@ public final class AuditActions {
     public static final String BOARD_SANCTION_VOID = "BOARD_SANCTION_VOID";
     /** 반복 검토 닫기 — {@code reviewId}·{@code reviewNo}·{@code boardId}·{@code result}(KEPT · SITE_SANCTIONED · VOIDED)·{@code memo}·{@code siteSanctionId}·{@code voidedBoardSanctionIds} */
     public static final String BOARD_SANCTION_REVIEW_CLOSE = "BOARD_SANCTION_REVIEW_CLOSE";
+    /** 게시판 스텝 처리 되돌리기(운영자 — board-staff-action-contract 정책 6) — 대상 POST + 글 ID, {@code boardStaffActionId}·{@code kind}(POST_HIDE · POST_DELETE · COMMENT_DELETE)·{@code boardId}·{@code commentId}·처리한 회원 {@code actorUserId}·{@code reason}·{@code restoredPoints} */
+    public static final String BOARD_STAFF_ACTION_RESTORE = "BOARD_STAFF_ACTION_RESTORE";
     /** 탈퇴 회원 연락처 열람 — 대상 MEMBER, 사유 {@code reason}(이메일은 싣지 않는다). 감사 보관 분류는 개인정보 열람(0-5 와 합칠 때) */
     public static final String WITHDRAWN_CONTACT_REVEAL = "WITHDRAWN_CONTACT_REVEAL";
     // ── 회원 탈퇴(docs/features/member-withdrawal-contract.md) ──

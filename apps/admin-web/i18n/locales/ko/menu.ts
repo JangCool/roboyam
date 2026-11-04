@@ -69,6 +69,7 @@ export default {
     sanctions: '제재',
     appeals: '이의제기',
     boardSanctions: '게시판 제재',
+    staffActions: '스텝 처리 감독',
     content: '콘텐츠',
     posts: '게시글 관리',
     highlights: '하이라이트',

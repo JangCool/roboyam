@@ -1,0 +1,86 @@
+/**
+ * 게시판 스텝 처리 문구(`docs/features/board-staff-action-contract.md`) — 매니저·스텝의 글 숨기기·글 삭제·댓글 삭제 대화창, 게시판 머리 운영 줄, 처리 내역(`/boards/{slug}/actions`)·되돌리기,
+ * 처리 내역·제재 내역 위의 같은 탭 머리. 계산이 낀 문구는 `utils/util-board-staff-action-messages.ts` 가 고른다. 사유 코드 이름은 `boardSanction.reason_*` 를 같이 쓴다.
+ * 키는 `boardStaffAction.무엇` 두 마디. `en/boardStaffAction.ts` 와 같은 키, 같은 차례. **처리자는 작성자 쪽 문구에 넣지 않는다.**
+ */
+export default {
+    /* 종류 */
+    kind_POST_HIDE: '글 숨김',
+    kind_POST_DELETE: '글 삭제',
+    kind_COMMENT_DELETE: '댓글 삭제',
+    kind_OTHER: '처리',
+
+    /* ⋯ 메뉴 */
+    menuHidePost: '글 숨기기',
+    menuDeletePost: '글 삭제',
+    menuDeleteComment: '댓글 삭제',
+
+    /* 처리 대화창 */
+    title_POST_HIDE: '글 숨기기',
+    title_POST_DELETE: '글 삭제',
+    title_COMMENT_DELETE: '댓글 삭제',
+    title_OTHER: '처리',
+    targetPost: '대상 글',
+    targetComment: '대상 댓글',
+    reasonLegend: '사유',
+    reasonRequired: '사유를 골라 주세요.',
+    next: '다음',
+    back: '뒤로',
+    confirm_POST_HIDE: '이 글을 숨길까요?',
+    confirm_POST_DELETE: '이 글을 삭제할까요?',
+    confirm_COMMENT_DELETE: '이 댓글을 삭제할까요?',
+    confirm_OTHER: '처리할까요?',
+    confirmReason: '사유: {reason}',
+    notice_POST_HIDE: '숨기면 작성자에게 사유와 함께 알림이 가요.',
+    notice_POST_DELETE: '삭제하면 작성자에게 알림이 가요.',
+    notice_COMMENT_DELETE: '삭제하면 작성자에게 알림이 가요.',
+    notice_OTHER: '작성자에게 알림이 가요.',
+    noticePrivate: '누가 처리했는지는 작성자에게 보이지 않아요.',
+    submit_POST_HIDE: '숨기기',
+    submit_POST_DELETE: '삭제하기',
+    submit_COMMENT_DELETE: '삭제하기',
+    submit_OTHER: '처리하기',
+    quotaPost: '오늘 남은 글 처리 {n}건 / {limit}건',
+    quotaComment: '오늘 남은 댓글 삭제 {n}건 / {limit}건',
+    quotaEmpty: '오늘 처리 한도를 다 썼어요.',
+    done_POST_HIDE: '글을 숨겼어요 · 오늘 남은 글 처리 {n}건',
+    done_POST_DELETE: '글을 삭제했어요 · 오늘 남은 글 처리 {n}건',
+    done_COMMENT_DELETE: '댓글을 삭제했어요 · 오늘 남은 댓글 삭제 {n}건',
+    done_OTHER: '처리했어요 · 오늘 남은 처리 {n}건',
+
+    /* 게시판 머리 운영 줄 */
+    barRemaining: '오늘 남은 처리 {parts}',
+    barPost: '글 {n}',
+    barComment: '댓글 {n}',
+    barSanction: '제재 {n}',
+    listLink: '처리 내역',
+
+    /* 탭 머리(처리 내역 · 제재 내역) */
+    tabsLabel: '게시판 운영 내역',
+    tabActions: '처리 내역',
+    tabSanctions: '제재 내역',
+
+    /* 처리 내역 화면 */
+    listTitle: '처리 내역',
+    listLoading: '처리 내역을 불러오는 중',
+    listHintManager: '이 게시판에서 매니저·스텝이 숨기고 삭제한 글·댓글이에요. 되돌릴 수 있어요.',
+    listHintStaff: '내가 이 게시판에서 숨기고 삭제한 글·댓글이에요.',
+    listFailed: '처리 내역을 불러오지 못했어요.',
+    filterLabel: '종류',
+    filterAll: '전체',
+    filterPost: '글',
+    filterComment: '댓글',
+    emptyTitle: '아직 처리한 글·댓글이 없어요',
+    emptyFilterTitle: '이 종류의 처리가 없어요',
+    authorLine: '작성자 {name}',
+    restoredBadge: '되돌림',
+    restoredLine: '{date} 되돌림',
+    restore: '되돌리기',
+    restoreTitle: '처리 되돌리기',
+    restoreText: '{name} 님의 {kind} 처리를 되돌려요.',
+    restoreReasonLabel: '되돌리는 사유',
+    restoreReasonRequired: '되돌리는 사유를 적어 주세요.',
+    restoreNotice: '작성자에게 알리지 않아요. 오늘 한도는 돌려받지 않아요.',
+    restoreSubmit: '되돌리기',
+    restoredToast: '되돌렸어요.',
+};

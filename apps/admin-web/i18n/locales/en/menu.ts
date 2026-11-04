@@ -69,6 +69,7 @@ export default {
     sanctions: 'Sanctions',
     appeals: 'Appeals',
     boardSanctions: 'Board sanctions',
+    staffActions: 'Staff action oversight',
     content: 'Content',
     posts: 'Posts',
     highlights: 'Highlights',

@@ -13,9 +13,18 @@ import com.community.boardstaff.dto.response.BoardSanctionTargetView;
 import com.community.boardstaff.dto.response.BoardStaffQuotaView;
 import com.community.boardstaff.dto.response.BoardStaffSanctionPageView;
 import com.community.boardstaff.dto.response.BoardStaffSanctionRowView;
+import com.community.boardstaff.dto.request.BoardStaffActionRestoreRequest;
+import com.community.boardstaff.dto.request.BoardStaffCommentDeleteRequest;
+import com.community.boardstaff.dto.request.BoardStaffPostActionRequest;
+import com.community.boardstaff.dto.response.BoardStaffActionDoneView;
+import com.community.boardstaff.dto.response.BoardStaffActionPageView;
+import com.community.boardstaff.dto.response.BoardStaffActionRowView;
 import com.community.sanction.exception.BoardSanctionException;
+import com.community.sanction.exception.BoardStaffActionException;
 import com.community.sanction.repository.master.BoardSanctionStore.BoardSanctionRow;
+import com.community.sanction.repository.master.BoardStaffActionStore.ActionRow;
 import com.community.sanction.service.BoardSanctionService;
+import com.community.sanction.service.BoardStaffActionService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -33,9 +42,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class BoardStaffService {
 
     private final BoardSanctionService sanctions;
+    private final BoardStaffActionService staffActions;
 
-    public BoardStaffService(BoardSanctionService sanctions) {
+    public BoardStaffService(BoardSanctionService sanctions, BoardStaffActionService staffActions) {
         this.sanctions = sanctions;
+        this.staffActions = staffActions;
     }
 
     @Transactional(readOnly = true)
@@ -99,6 +110,75 @@ public class BoardStaffService {
         }
         BoardSanctionRow row = sanctions.liftByManager(actorId, id, body == null ? null : body.reason());
         return row(row, true, true, sanctions.now());
+    }
+
+    // ── 스텝 처리(글 숨기기 · 글 삭제 · 댓글 삭제 — docs/features/board-staff-action-contract.md) ──
+
+    @Transactional
+    public BoardStaffActionDoneView hidePost(long actorId, String postIdText, BoardStaffPostActionRequest body) {
+        Long postId = parseId(postIdText);
+        if (postId == null) {
+            throw BoardStaffActionException.postNotFound();
+        }
+        return done(staffActions.hidePost(actorId, postId, body == null ? null : body.reasonCode()));
+    }
+
+    @Transactional
+    public BoardStaffActionDoneView deletePost(long actorId, String postIdText, BoardStaffPostActionRequest body) {
+        Long postId = parseId(postIdText);
+        if (postId == null) {
+            throw BoardStaffActionException.postNotFound();
+        }
+        return done(staffActions.deletePost(actorId, postId, body == null ? null : body.reasonCode()));
+    }
+
+    @Transactional
+    public BoardStaffActionDoneView deleteComment(long actorId, String commentIdText, BoardStaffCommentDeleteRequest body) {
+        Long commentId = parseId(commentIdText);
+        if (commentId == null) {
+            throw BoardStaffActionException.commentNotFound();
+        }
+        return done(staffActions.deleteComment(actorId, body == null ? null : parseId(body.postId()), commentId, body == null ? null : body.reasonCode()));
+    }
+
+    @Transactional(readOnly = true)
+    public BoardStaffActionPageView actions(long actorId, String boardIdText, String kindRaw, String pageRaw) {
+        Long boardId = parseId(boardIdText);
+        if (boardId == null) {
+            throw BoardSanctionException.staffNotFound();
+        }
+        String kind = kindRaw == null ? "ALL" : kindRaw.strip().toUpperCase(Locale.ROOT);
+        if (!"POST".equals(kind) && !"COMMENT".equals(kind)) {
+            kind = "ALL";
+        }
+        BoardStaffActionService.Page page = staffActions.page(actorId, boardId, kind, number(pageRaw, 1));
+        List<BoardStaffActionRowView> items = page.rows().stream().map(r -> actionRow(r, page.manager(), page.canRestore())).toList();
+        int totalPages = (int) Math.max(1, (page.total() + page.size() - 1) / page.size());
+        return new BoardStaffActionPageView(page.manager(), items, page.page(), totalPages, page.total());
+    }
+
+    @Transactional
+    public BoardStaffActionRowView restore(long actorId, String idText, BoardStaffActionRestoreRequest body) {
+        Long id = parseId(idText);
+        if (id == null) {
+            throw BoardStaffActionException.actionNotFound();
+        }
+        ActionRow row = staffActions.restoreByManager(actorId, id, body == null ? null : body.reason());
+        return actionRow(row, true, true);
+    }
+
+    private static BoardStaffActionDoneView done(BoardStaffActionService.Done done) {
+        return new BoardStaffActionDoneView(BoardStaffQuotaView.of(done.quota()), done.quota().resetsAt());
+    }
+
+    /** 처리 내역 한 줄 — 처리자는 매니저에게만, 되돌린 사람·사유는 싣지 않는다(정책 8) */
+    private static BoardStaffActionRowView actionRow(ActionRow r, boolean manager, boolean managerCanRestore) {
+        BoardStaffActionRowView.Actor actor = manager && r.actorRole() != null ? new BoardStaffActionRowView.Actor(nz(r.actorNickname()), r.actorRole()) : null;
+        return new BoardStaffActionRowView(Long.toString(r.id()), r.apiKind(), r.reasonCode(),
+                new BoardStaffActionRowView.Target(Long.toString(r.postId()), r.commentId() == null ? null : Long.toString(r.commentId()), nz(r.targetTitle()),
+                        r.targetExcerpt()),
+                new BoardStaffActionRowView.Author(nz(r.authorName())), actor, r.createdAt(),
+                r.restoredAt() == null ? null : new BoardStaffActionRowView.Restored(r.restoredAt()), managerCanRestore && !r.restored());
     }
 
     /** 내역 한 줄 — 처리자는 매니저에게만, 해제한 사람은 싣지 않는다 */

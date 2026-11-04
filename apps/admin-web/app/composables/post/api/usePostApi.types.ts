@@ -174,11 +174,17 @@ export interface AdminPostContent {
 /** 조치 기록 종류 — `REPORT_HIDDEN` 은 신고 자동 숨김(시스템) */
 export type PostModerationEventType = 'HIDDEN' | 'UNHIDDEN' | 'DELETED' | 'RESTORED' | 'MOVED' | 'NOTICE' | 'PINNED' | 'UNPINNED' | 'REPORT_HIDDEN' | 'POLL_DELETED';
 
+/**
+ * 조치한 사람 — 운영자 · 시스템 · 게시판 매니저·스텝(`BOARD_STAFF`, 회원 — 계약 `board-staff-action-contract.md` 정책 8).
+ * `BOARD_STAFF` 이면 `id` 는 회원 번호, `name` 은 닉네임, `role` 은 그 게시판에서의 자리(서버가 이름에 자리를 붙여 주면 `role` 은 없을 수 있다).
+ */
 export interface PostModerationActor {
-    kind: 'OPERATOR' | 'SYSTEM';
+    kind: 'OPERATOR' | 'SYSTEM' | 'BOARD_STAFF';
     id: string | null;
-    /** 운영자 이름(없어진 운영자·시스템이면 null) */
+    /** 운영자 이름 · 스텝 닉네임(없어진 운영자·탈퇴 회원·시스템이면 null) */
     name: string | null;
+    /** `BOARD_STAFF` 의 자리 — 매니저·스텝 */
+    role?: 'MANAGER' | 'STAFF' | null;
 }
 
 export interface PostModerationEvent {

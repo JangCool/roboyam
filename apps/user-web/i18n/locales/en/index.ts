@@ -17,6 +17,7 @@ import avatar from './avatar';
 import block from './block';
 import board from './board';
 import boardSanction from './boardSanction';
+import boardStaffAction from './boardStaffAction';
 import business from './business';
 import comment from './comment';
 import commerce from './commerce';
@@ -78,6 +79,7 @@ export default {
     block,
     board,
     boardSanction,
+    boardStaffAction,
     business,
     comment,
     commerce,

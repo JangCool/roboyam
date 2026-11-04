@@ -14,6 +14,7 @@
         입장 색은 `main.css` 「토론 입장 색」(찬성 파랑 · 반대 빨강 · 중립 초록) — 늘 입장 글자와 함께 쓴다.
         게시판 제재(board-sanction-contract): 쓰기 제한 중이면(`viewer.writeRestriction`, 또는 쓰다가 받은 `403 BOARD_WRITE_RESTRICTED`) 댓글·의견 입력 자리에 `BoardWriteRestrictionNotice`, 답글 단추 없음.
           매니저·스텝(`sanctionEnabled`)에게는 남의 회원 댓글 ⋯ 에 「작성자 제재」(`sanction` 이벤트 → 페이지 대화창).
+        스텝 처리(board-staff-action-contract): `commentDeleteEnabled`(`staffTools.abilities.commentDelete`)면 남의 보이는 댓글 ⋯ 에 「댓글 삭제」(`staff-delete` 이벤트 → 페이지 사유 시트).
     -->
     <section
         :aria-labelledby="headingId"
@@ -130,6 +131,7 @@
                         :pin-requests="pinRequestsOpen"
                         :pin-busy="pinBusyId === thread.id"
                         :sanctionable="sanctionable(thread)"
+                        :staff-deletable="staffDeletable(thread)"
                         @like="like(thread)"
                         @dislike="dislike(thread)"
                         @reply="openReply(thread, thread)"
@@ -137,6 +139,7 @@
                         @delete="askDelete(thread)"
                         @report="$emit('report', thread)"
                         @sanction="$emit('sanction', thread)"
+                        @staff-delete="$emit('staff-delete', thread)"
                         @view-delayed="viewDelayed(thread)"
                         @pin-request="requestPin(thread)"
                         @pin-cancel="cancelPin(thread)"
@@ -171,6 +174,7 @@
                         :editing="editingId === r.id"
                         :reactions="reactions"
                         :sanctionable="sanctionable(r)"
+                        :staff-deletable="staffDeletable(r)"
                         @like="like(r)"
                         @dislike="dislike(r)"
                         @reply="openReply(thread, r)"
@@ -178,6 +182,7 @@
                         @delete="askDelete(r)"
                         @report="$emit('report', r)"
                         @sanction="$emit('sanction', r)"
+                        @staff-delete="$emit('staff-delete', r)"
                         @view-delayed="viewDelayed(r)"
                     >
                         <template #editor>
@@ -322,6 +327,7 @@ import type { CommentActions, DebateActions } from '~/components/board/CommentSe
 import type { BoardWriteRestriction } from '~/composables/board/api/useBoardStaffApi.types';
 import UtilBoardMessages from '~/utils/util-board-messages';
 import UtilBoardSanction from '~/utils/util-board-sanction';
+import UtilBoardStaffAction from '~/utils/util-board-staff-action';
 import UtilDebate from '~/utils/util-debate';
 import UtilPost from '~/utils/util-post';
 
@@ -340,6 +346,8 @@ interface Props {
     debateActions?: DebateActions | null;
     /** 보는 사람이 그 게시판 매니저·스텝이다 — 남의 회원 댓글 ⋯ 에 「작성자 제재」(`sanction` 이벤트 → 페이지 대화창, board-sanction-contract) */
     sanctionEnabled?: boolean;
+    /** 보는 사람에게 그 게시판 댓글 삭제 권한이 있다(`staffTools.abilities.commentDelete`) — 남의 보이는 댓글 ⋯ 에 「댓글 삭제」(`staff-delete` 이벤트, board-staff-action-contract) */
+    commentDeleteEnabled?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -348,9 +356,18 @@ const props = withDefaults(defineProps<Props>(), {
     variant: 'general',
     debateActions: null,
     sanctionEnabled: false,
+    commentDeleteEnabled: false,
 });
 
-const emit = defineEmits<{ sort: [value: CommentSort]; kind: [value: CommentKind]; retry: []; report: [comment: CommentView]; settings: []; sanction: [comment: CommentView] }>();
+const emit = defineEmits<{
+    sort: [value: CommentSort];
+    kind: [value: CommentKind];
+    retry: [];
+    report: [comment: CommentView];
+    settings: [];
+    sanction: [comment: CommentView];
+    'staff-delete': [comment: CommentView];
+}>();
 
 const SORTS: readonly CommentSort[] = ['OLDEST', 'LATEST'];
 const KINDS: readonly OpinionKind[] = ['OPINION', 'PRO', 'CON', 'NEUTRAL'];
@@ -389,6 +406,10 @@ const restriction = computed(() => props.board.viewer.writeRestriction ?? errorR
 /** 댓글 ⋯ 「작성자 제재」 — 매니저·스텝이 보는 남의 회원 댓글만(지운·숨긴 댓글·탈퇴 회원 제외) */
 function sanctionable(c: CommentView): boolean {
     return props.sanctionEnabled && !c.mine && c.state === 'VISIBLE' && c.author.kind === 'MEMBER' && Boolean(c.author.memberId) && Boolean(c.author.name);
+}
+/** 댓글 ⋯ 「댓글 삭제」 — 남의 보이는 댓글(비회원 댓글 포함 — 같은 게시판 운영진의 댓글은 서버가 막는다) */
+function staffDeletable(c: CommentView): boolean {
+    return UtilBoardStaffAction.commentDeletable(props.commentDeleteEnabled, c);
 }
 const reactions = computed(() => props.data?.reactions ?? null);
 const isDebate = computed(() => props.variant === 'debate');

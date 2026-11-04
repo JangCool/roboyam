@@ -63,8 +63,10 @@ public enum Permission {
     APPEAL_MANAGE("appeal.manage", SANCTION, MANAGE, true),
     /** 민감 조치 — 영구 정지 · 단계 건너뛰기 · 영구 정지 해제 */
     SANCTION_BAN("sanction.ban", SANCTION, SENSITIVE, true),
-    KEEPER_ACTION_READ("keeper-action.read", STAFF_AUDIT, READ, false),
-    KEEPER_ACTION_RESTORE("keeper-action.restore", STAFF_AUDIT, SENSITIVE, false),
+    /** 스텝 처리 감독 조회 — 모든 게시판의 매니저·스텝 글 숨기기·삭제·댓글 삭제(docs/features/board-staff-action-contract.md 정책 9) */
+    KEEPER_ACTION_READ("keeper-action.read", STAFF_AUDIT, READ, true),
+    /** 민감 조치 — 스텝 처리 되돌리기(숨김 해제 · 글 복구 · 댓글 복구, 감사 BOARD_STAFF_ACTION_RESTORE) */
+    KEEPER_ACTION_RESTORE("keeper-action.restore", STAFF_AUDIT, SENSITIVE, true),
     MEMBER_READ("member.read", MEMBER_VIEW, READ, true),
     MEMBER_PII("member.pii", MEMBER_VIEW, SENSITIVE, true),
     /** 탈퇴 회원 연락용 이메일(분리 보관) 열람 — 사유 + 감사(commerce.md 17-2, 커머스 0-4) */

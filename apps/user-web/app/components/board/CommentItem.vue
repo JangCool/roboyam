@@ -91,8 +91,8 @@
                     <Button v-if="manageable" type="button" :label="t('common.edit')" size="small" variant="text" severity="secondary" @click="$emit('edit')" />
                     <Button v-if="manageable" type="button" :label="t('common.delete')" size="small" variant="text" severity="secondary" @click="$emit('delete')" />
                     <Button v-if="reportable" type="button" :label="t('post.report')" size="small" variant="text" severity="secondary" @click="$emit('report')" />
-                    <!-- ⋯ 게시판 운영 메뉴 — 그 게시판 매니저·스텝이 보는 남의 회원 댓글만(board-sanction-contract). 지금은 「작성자 제재」 하나 -->
-                    <template v-if="sanctionable && !best">
+                    <!-- ⋯ 게시판 운영 메뉴 — 그 게시판 매니저·스텝이 보는 남의 댓글만. 「댓글 삭제」(board-staff-action-contract) · 「작성자 제재」(회원 댓글 — board-sanction-contract) -->
+                    <template v-if="staffMenuItems.length && !best">
                         <Button
                             type="button"
                             icon="pi pi-ellipsis-h"
@@ -158,6 +158,8 @@ interface Props {
     pinBusy?: boolean;
     /** ⋯ 에 「작성자 제재」를 보인다(매니저·스텝이 보는 남의 회원 댓글 — 판정은 부르는 쪽) */
     sanctionable?: boolean;
+    /** ⋯ 에 「댓글 삭제」를 보인다(매니저·스텝이 보는 남의 댓글 — 판정은 부르는 쪽) */
+    staffDeletable?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -170,15 +172,33 @@ const props = withDefaults(defineProps<Props>(), {
     pinRequests: false,
     pinBusy: false,
     sanctionable: false,
+    staffDeletable: false,
 });
 
-const emit = defineEmits<{ like: []; dislike: []; reply: []; edit: []; delete: []; report: []; 'view-delayed': []; 'pin-request': []; 'pin-cancel': []; sanction: [] }>();
+const emit = defineEmits<{
+    like: [];
+    dislike: [];
+    reply: [];
+    edit: [];
+    delete: [];
+    report: [];
+    'view-delayed': [];
+    'pin-request': [];
+    'pin-cancel': [];
+    sanction: [];
+    'staff-delete': [];
+}>();
 
 const { t } = useI18n();
 
-/** ⋯ 게시판 운영 메뉴 */
+/** ⋯ 게시판 운영 메뉴 — 할 수 있는 것만 */
 const staffMenu = ref<{ toggle: (event: Event) => void } | null>(null);
-const staffMenuItems = computed(() => [{ label: t('boardSanction.menuSanction'), icon: 'pi pi-ban', command: () => emit('sanction') }]);
+const staffMenuItems = computed(() => {
+    const items: { label: string; icon: string; command: () => void }[] = [];
+    if (props.staffDeletable) items.push({ label: t('boardStaffAction.menuDeleteComment'), icon: 'pi pi-trash', command: () => emit('staff-delete') });
+    if (props.sanctionable) items.push({ label: t('boardSanction.menuSanction'), icon: 'pi pi-ban', command: () => emit('sanction') });
+    return items;
+});
 const time = useDisplayTime();
 
 /** 숨긴 자리의 문구 — 운영자 숨김 · 소모임을 나간 멤버의 댓글 · 멤버 전용 댓글(소모임 5단계 — 비공개 소모임의 개별 공개 글에서 공개 전에 달린 댓글) · 신고 숨김 */

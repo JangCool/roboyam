@@ -167,6 +167,7 @@ export default class UtilAdminMenu {
         // 커뮤니티 안전 묶음(콘텐츠 묶음 앞) — 신고 관리: 글·댓글 신고를 대상별 사건으로 보고 조치·무시(docs/features/report-admin-contract.md). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한
         // 제재·이의제기(docs/features/member-sanction-contract.md): 둘 다 보기 `sanction.read`(처리는 화면 안에서 `sanction.manage`·`sanction.ban`·`appeal.manage`). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례
         // 게시판 제재(docs/features/board-sanction-contract.md): 보기 `sanction.read`(해제·무효·반복 검토 닫기는 화면 안에서 `sanction.manage`). ⚠ 서버 `AdminScreenRegistry` 에 같은 키·주소·권한·아이콘·차례로 한 줄 더해야 한다(아직 없음)
+        // 스텝 처리 감독(docs/features/board-staff-action-contract.md): 보기 `keeper-action.read`(되돌리기는 화면 안에서 `keeper-action.restore`). 서버 `AdminScreenRegistry` 의 `staffActions`(게시판 제재 다음)와 같은 키·주소·권한·아이콘·차례
         {
             key: 'safety',
             icon: 'pi pi-shield',
@@ -175,6 +176,7 @@ export default class UtilAdminMenu {
                 { key: 'reports', to: '/reports', icon: 'pi pi-flag', labelKey: 'menu.reports', permission: 'report.read' },
                 { key: 'sanctions', to: '/sanctions', icon: 'pi pi-ban', labelKey: 'menu.sanctions', permission: 'sanction.read' },
                 { key: 'boardSanctions', to: '/board-sanctions', icon: 'pi pi-list-check', labelKey: 'menu.boardSanctions', permission: 'sanction.read' },
+                { key: 'staffActions', to: '/staff-actions', icon: 'pi pi-user-edit', labelKey: 'menu.staffActions', permission: 'keeper-action.read' },
                 { key: 'appeals', to: '/appeals', icon: 'pi pi-comments', labelKey: 'menu.appeals', permission: 'sanction.read' },
             ],
         },

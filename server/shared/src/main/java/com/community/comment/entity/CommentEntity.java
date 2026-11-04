@@ -100,6 +100,12 @@ public class CommentEntity {
         this.updatedAt = now;
     }
 
+    /** 지운 댓글을 되살린다(게시판 스텝 처리 되돌리기 — board-staff-action-contract 정책 6). 숨김 상태는 그대로. 상태 확인(지움 · 파기 아님)은 부르는 쪽이 한다 */
+    public void restore(Instant now) {
+        this.deletedAt = null;
+        this.updatedAt = now;
+    }
+
     /** 신고로 숨긴다 — 이미 숨겨져 있으면 그대로(false) */
     public boolean hide(String reason, Instant until, Instant now) {
         if (isHiddenAt(now)) {

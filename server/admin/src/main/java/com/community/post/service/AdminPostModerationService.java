@@ -31,6 +31,7 @@ import com.community.post.exception.PostPurgedException;
 import com.community.post.exception.PostStateInvalidException;
 import com.community.post.repository.master.AdminPostRepositoryQDSL;
 import com.community.post.repository.master.PostRepository;
+import com.community.post.service.PostModerationActions.ModerationActor;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
@@ -91,11 +92,13 @@ public class AdminPostModerationService {
     private final AuditLogService audit;
     private final AccessDeniedRecorder denied;
     private final PollQueries polls;
+    private final PostModerationActions actions;
     private final TransactionTemplate tx;
 
     public AdminPostModerationService(PostRepository posts, AdminPostRepositoryQDSL queries, BoardCatalog catalog, PostModerationLog moderation,
                                       MemberNotificationPublisher memberNotices, PointService points, AuditLogService audit, AccessDeniedRecorder denied, PollQueries polls,
-                                      PlatformTransactionManager txManager) {
+                                      PostModerationActions actions, PlatformTransactionManager txManager) {
+        this.actions = actions;
         this.posts = posts;
         this.queries = queries;
         this.catalog = catalog;
@@ -140,22 +143,10 @@ public class AdminPostModerationService {
         String reason = reasonOf(body == null ? null : body.reason());
         PostEntity post = lock(idText);
         Instant now = Instant.now();
-        if (!post.isGoneAt(now)) {
-            throw new PostStateInvalidException();
-        }
-        if (post.isPurged()) {
-            throw new PostPurgedException();
-        }
-        if (!PostEntity.PUBLISHED.equals(post.getStatus())) {
-            throw new PostStateInvalidException(); // 임시저장은 지운 글이 아니다
-        }
-        post.restore(now);
-        long restored = post.getAuthorId() == null ? 0 : points.restoreContent(post.getAuthorId(), post.getId());
-        Map<String, Object> detail = new LinkedHashMap<>();
-        detail.put("restoredPoints", restored);
-        moderation.operator(post.getId(), PostModerationEventEntity.RESTORED, actor.operatorId(), reason, detail, now);
+        // 몸통은 shared PostModerationActions(스텝 처리 되돌리기와 같은 효과) — 열린 스텝 삭제 기록도 채운다(board-staff-action-contract 정책 7)
+        Map<String, Object> detail = actions.restore(ModerationActor.operator(actor.operatorId()), post, reason, Map.of(), now);
         record(actor, AuditActions.POST_RESTORE, post.getId(), reason, detail);
-        log.info("글 복구 postId={} by operatorId={} restoredPoints={}", post.getId(), actor.operatorId(), restored);
+        log.info("글 복구 postId={} by operatorId={} restoredPoints={}", post.getId(), actor.operatorId(), detail.get("restoredPoints"));
     }
 
     @Transactional
@@ -383,55 +374,27 @@ public class AdminPostModerationService {
         return detail;
     }
 
+    // 숨기기 · 숨김 해제 · 삭제 몸통은 shared PostModerationActions — 게시판 매니저·스텝 처리와 같은 효과(board-staff-action-contract 정책 2).
+    // 숨김 해제·복구는 그 글의 열린 스텝 처리 기록도 채운다(정책 7).
+
     /** 숨기기 몸통 — 공개 글만(아니면 409 POST_STATE_INVALID), 까닭 STAFF·고정 해제, 조치 기록 HIDDEN(덧붙임 = {@code extra} + 고정 해제) */
     private Map<String, Object> hideCore(AdminActor actor, PostEntity post, String reason, Map<String, Object> extra, Instant now) {
-        requirePublic(post, now);
-        boolean wasPinned = post.getPinnedAt() != null;
-        post.staffHide(now);
-        Map<String, Object> detail = new LinkedHashMap<>(extra);
-        if (wasPinned) {
-            detail.put("unpinned", true);
-        }
-        moderation.operator(post.getId(), PostModerationEventEntity.HIDDEN, actor.operatorId(), reason, detail, now);
-        return detail;
+        return actions.hide(ModerationActor.operator(actor.operatorId()), post, reason, extra, now);
     }
 
     /** 숨김 해제 몸통 — 숨긴 글만(까닭 무엇이든, 아니면 409 POST_STATE_INVALID), 조치 기록 UNHIDDEN(덧붙임 = 풀기 전 까닭 + {@code extra}) */
     private Map<String, Object> unhideCore(AdminActor actor, PostEntity post, String reason, Map<String, Object> extra, Instant now) {
-        if (post.isGoneAt(now) || !post.isHiddenAt(now)) {
-            throw new PostStateInvalidException();
-        }
-        String before = post.getHiddenReason();
-        post.unhide(now);
-        Map<String, Object> detail = new LinkedHashMap<>();
-        detail.put("hiddenReason", before);
-        detail.putAll(extra);
-        moderation.operator(post.getId(), PostModerationEventEntity.UNHIDDEN, actor.operatorId(), reason, detail, now);
-        return detail;
+        return actions.unhide(ModerationActor.operator(actor.operatorId()), post, reason, extra, now);
     }
 
     /** 삭제 몸통 — 지우지 않은 글만(아니면 409 POST_STATE_INVALID), 고정 해제·포인트 회수, 조치 기록 DELETED(덧붙임 = 회수한 포인트 + 고정 해제 + {@code extra}) */
     private Map<String, Object> deleteCore(AdminActor actor, PostEntity post, String reason, Map<String, Object> extra, Instant now) {
-        if (post.isGoneAt(now)) {
-            throw new PostStateInvalidException();
-        }
-        boolean wasPinned = post.getPinnedAt() != null;
-        post.staffDelete(now);
-        // 운영자 삭제 — 본인 삭제와 같은 규칙으로 글 포인트·추천 보너스를 0P 까지 회수한다(이미 회수했으면 0)
-        long revoked = post.getAuthorId() == null ? 0 : points.revokeContent(post.getAuthorId(), PointService.REF_POST, post.getId());
-        Map<String, Object> detail = new LinkedHashMap<>();
-        detail.put("revokedPoints", revoked);
-        if (wasPinned) {
-            detail.put("unpinned", true);
-        }
-        detail.putAll(extra);
-        moderation.operator(post.getId(), PostModerationEventEntity.DELETED, actor.operatorId(), reason, detail, now);
-        return detail;
+        return actions.delete(ModerationActor.operator(actor.operatorId()), post, reason, extra, now);
     }
 
     /** 덧붙임의 회수한 포인트 */
     public static long revokedOf(Map<String, Object> detail) {
-        return detail.get("revokedPoints") instanceof Number n ? n.longValue() : 0;
+        return PostModerationActions.revokedOf(detail);
     }
 
     // ── 신고 관리(docs/features/report-admin-contract.md)가 부르는 조치 — 부르는 쪽의 트랜잭션 안, 글 행 잠금 뒤. 감사·작성자 알림은 부르는 쪽이 ──
@@ -465,9 +428,7 @@ public class AdminPostModerationService {
 
     /** 공개 글(지우지 않음 · 숨김 아님)만 */
     private static void requirePublic(PostEntity post, Instant now) {
-        if (post.isGoneAt(now) || post.isHiddenAt(now)) {
-            throw new PostStateInvalidException();
-        }
+        PostModerationActions.requirePublic(post, now);
     }
 
     /** 고정 한도 — 그 게시판에 이 글 말고 보이는 고정 글이 한도만큼 있으면(한도 0 포함) 409 PIN_LIMIT */

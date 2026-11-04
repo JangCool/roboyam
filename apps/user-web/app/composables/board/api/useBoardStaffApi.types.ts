@@ -34,14 +34,30 @@ export interface BoardStaffQuota {
 }
 
 /**
- * `GET /api/boards/{slug}` 의 `viewer.staffTools` — 그 게시판 매니저·스텝 본인에게만 온다(그 밖에는 null).
- * `manager` 가 참이면 매니저(그 게시판 제재 전체를 보고 해제할 수 있다), 거짓이면 스텝(내가 준 것만 본다).
+ * 그 게시판에서 지금 보는 사람이 할 수 있는 처리 — 역할 권한(`board.post.hide`·`board.post.delete`·`board.comment.delete`·`board.sanction.issue`)과
+ * `restore` = 매니저 + `board.staff-action.restore`(board-staff-action-contract 「API > 공개」). 감추는 것은 편의이고 막는 것은 서버다.
+ */
+export interface BoardStaffAbilities {
+    postHide: boolean;
+    postDelete: boolean;
+    commentDelete: boolean;
+    sanction: boolean;
+    restore: boolean;
+}
+
+/**
+ * `GET /api/boards/{slug}` 의 `viewer.staffTools` — 그 게시판 매니저·스텝이고 계정 정상·인증이며 네 처리 권한 중 하나라도 있으면 온다(그 밖에는 null).
+ * `manager` 가 참이면 매니저(그 게시판 처리·제재 전체를 보고 되돌릴 수 있다), 거짓이면 스텝(내가 한 것만 본다).
+ * 한도: `post` = 글 숨기기 + 글 삭제 합산 · `comment` = 댓글 삭제 · `sanction` = 제재(경고 + 쓰기 제한). 모두 한국 시간 0시 기준, 되돌려도 돌려받지 않는다.
  */
 export interface BoardStaffTools {
+    manager: boolean;
+    abilities: BoardStaffAbilities;
+    post: BoardStaffQuota;
+    comment: BoardStaffQuota;
     sanction: BoardStaffQuota;
     /** 한도가 다시 채워지는 시각(다음 한국 시간 0시) */
     resetsAt: string;
-    manager: boolean;
 }
 
 /** `GET /api/boards/{slug}` 의 `viewer.writeRestriction` — 이 게시판에서 진행 중인 쓰기 제한(없으면 null). 처리자는 오지 않는다 */
@@ -151,5 +167,82 @@ export interface BoardStaffSanctionQuery {
 
 /** `POST /api/board-staff/sanctions/{id}/lift` 요청 — 사유 1~200자(결정 11, `400 fields.reason`). 응답은 바뀐 줄(`BoardStaffSanctionRow`) */
 export interface BoardSanctionLiftRequest {
+    reason: string;
+}
+
+/* ── 스텝 처리(글 숨기기·글 삭제·댓글 삭제 — docs/features/board-staff-action-contract.md 「API > 공개」) ── */
+
+/** 스텝 처리 사유 코드 — 제재와 같은 넷(기타 `OTHER` 는 제재에만 → `400 fields.reasonCode`). 자유 입력은 없다 */
+export type BoardStaffActionReasonCode = 'SPAM' | 'ABUSE' | 'INVESTMENT' | 'OFF_TOPIC';
+
+/** 화면이 그리는 사유 차례 */
+export const BOARD_STAFF_ACTION_REASONS: readonly BoardStaffActionReasonCode[] = ['SPAM', 'ABUSE', 'INVESTMENT', 'OFF_TOPIC'];
+
+/** 처리 종류 — 글 숨기기 · 글 삭제 · 댓글 삭제(댓글 숨기기는 없다) */
+export type BoardStaffActionKind = 'POST_HIDE' | 'POST_DELETE' | 'COMMENT_DELETE';
+
+/** 처리 내역 종류 거르기 — 전체 · 글(숨기기 + 삭제) · 댓글 */
+export type BoardStaffActionFilter = 'ALL' | 'POST' | 'COMMENT';
+
+/** `POST /api/board-staff/posts/{postId}/hide|delete` 요청 */
+export interface BoardStaffPostActionRequest {
+    reasonCode: BoardStaffActionReasonCode;
+}
+
+/** `POST /api/board-staff/comments/{commentId}/delete` 요청 — `postId` 필수(그 글의 댓글이 아니면 `404 COMMENT_NOT_FOUND`) */
+export interface BoardStaffCommentDeleteRequest {
+    postId: string;
+    reasonCode: BoardStaffActionReasonCode;
+}
+
+/**
+ * 처리 응답(200) — 그 종류의 남은 한도(글 처리면 글 한도, 댓글 삭제면 댓글 한도)와 다시 채워지는 시각.
+ * 거절(판정 순서): 401 → 404 `POST_NOT_FOUND`·`COMMENT_NOT_FOUND` → 403 `BOARD_STAFF_FORBIDDEN` → 409 `BOARD_STAFF_TARGET_PROTECTED`
+ * → 409 `POST_STATE_INVALID`·`COMMENT_STATE_INVALID` → 409 `BOARD_STAFF_DAILY_LIMIT`(본문 최상위 `kind` POST|COMMENT·`limit`·`used`·`resetsAt`).
+ */
+export interface BoardStaffActionDone {
+    quota: BoardStaffQuota;
+    resetsAt: string;
+}
+
+/** 처리 내역 한 줄 — 처리자(`actor`)는 그 게시판 매니저에게만 온다(스텝이 보면 null) */
+export interface BoardStaffActionRow {
+    id: string;
+    kind: BoardStaffActionKind | (string & {});
+    reasonCode: BoardStaffActionReasonCode | (string & {});
+    /** 대상 — 제목·댓글 앞 40자는 처리 때 스냅숏 */
+    target: { postId: string; commentId: string | null; title: string; excerpt: string | null };
+    /** 대상 작성자 — 회원 닉네임 또는 비회원 이름 */
+    targetAuthor: { nickname: string };
+    actor: { nickname: string; role: 'MANAGER' | 'STAFF' } | null;
+    createdAt: string;
+    /** 되돌렸으면 그 시각(되돌린 사람·사유는 공개 쪽에 없다) */
+    restored: { at: string } | null;
+    /** 지금 보는 사람이 [되돌리기] 할 수 있다(매니저 + `board.staff-action.restore` · 아직 되돌리지 않음) */
+    canRestore: boolean;
+}
+
+/**
+ * `GET /api/board-staff/boards/{boardId}/actions?kind=&page=`(1부터, 20개) — 매니저 = 그 게시판 전체, 스텝 = 본인 것만.
+ * 매니저·스텝이 아니면 `404 BOARD_STAFF_NOT_FOUND`. 게시판 제재 기록은 넣지 않는다(제재 내역이 따로 있다).
+ */
+export interface BoardStaffActionPage {
+    manager: boolean;
+    items: BoardStaffActionRow[];
+    page: number;
+    totalPages: number;
+    totalCount: number;
+}
+
+export interface BoardStaffActionQuery {
+    kind: BoardStaffActionFilter;
+    page: number;
+}
+
+/**
+ * `POST /api/board-staff/actions/{id}/restore` 요청 — 사유 1~200자(`400 fields.reason`). 응답은 바뀐 줄(`BoardStaffActionRow`).
+ * 매니저만(`403 BOARD_STAFF_FORBIDDEN`) · 이미 되돌림 `409 BOARD_STAFF_ACTION_RESTORED` · 글 상태가 달라짐 `409 POST_STATE_INVALID`(파기 `POST_PURGED`). 작성자에게 알리지 않는다.
+ */
+export interface BoardStaffActionRestoreRequest {
     reason: string;
 }

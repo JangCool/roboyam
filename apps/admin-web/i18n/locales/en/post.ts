@@ -281,6 +281,12 @@ export default {
     },
     actorSystem: 'System',
     actorGone: '(removed operator)',
+    actorStaff: '{name} ({role})',
+    actorStaffRole: {
+        MANAGER: 'Manager',
+        STAFF: 'Staff',
+    },
+    actorStaffGone: '(unknown staff)',
     restoreNeedsPermission: 'Restoring needs the “Restore posts” permission.',
     restorePurged: 'Posts whose original was purged can’t be restored.',
 };
