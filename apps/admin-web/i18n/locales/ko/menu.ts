@@ -38,6 +38,7 @@ export default {
     teams: '조직 구성',
     member: '회원',
     members: '회원 관리',
+    memberWithdrawals: '탈퇴 관리',
     grades: '등급 설정',
     nicknameImages: '닉네임 이미지 심사',
     siteMenu: '메뉴 관리',

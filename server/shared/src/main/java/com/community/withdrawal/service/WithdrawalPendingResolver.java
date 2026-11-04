@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>선택에 따른 것: 배송완료 7일(단순 변심 기한) 안 주문은 「기다리기」일 때만, 진행 중 광고·핫딜은 「기다리기」일 때만, 충전 포인트 환불은 「환불받기」이고 유상 잔액이 있을 때만
  *       (충전이 없어 지금은 생기지 않는다).</li>
  * </ul>
+ * 건마다 관리자 화면 링크용 대상 ID({@code refId} — 주문(참여)·요청·결제 취소·송금·환불 신청·광고 신청 건의 ID)를 함께 준다.
  */
 @Component
 @Transactional(readOnly = true)
@@ -42,20 +43,21 @@ public class WithdrawalPendingResolver {
     public List<WithdrawalPending> fixed(long userId) {
         List<WithdrawalPending> out = new ArrayList<>();
         for (WithdrawalQueries.Order o : queries.ordersInProgress(userId)) {
-            out.add(new WithdrawalPending(WithdrawalPendingCode.GROUP_BUY_ORDER, o.orderNo(), ORDER_PATH + o.orderNo(), null));
+            out.add(new WithdrawalPending(WithdrawalPendingCode.GROUP_BUY_ORDER, o.orderNo(), ORDER_PATH + o.orderNo(), Long.toString(o.id()), null));
         }
         for (WithdrawalQueries.Order r : queries.openRequests(userId)) {
-            out.add(new WithdrawalPending(WithdrawalPendingCode.RETURN_REQUEST, r.orderNo(), ORDER_PATH + r.orderNo(), null));
+            out.add(new WithdrawalPending(WithdrawalPendingCode.RETURN_REQUEST, r.orderNo(), ORDER_PATH + r.orderNo(), Long.toString(r.id()), null));
         }
         for (WithdrawalQueries.Refund c : queries.openPaymentCancels(userId)) {
-            out.add(new WithdrawalPending(WithdrawalPendingCode.PAYMENT_CANCEL, c.orderNo() != null ? c.orderNo() : c.label(), c.orderNo() == null ? null : ORDER_PATH + c.orderNo(), null));
+            out.add(new WithdrawalPending(WithdrawalPendingCode.PAYMENT_CANCEL, c.orderNo() != null ? c.orderNo() : c.label(), c.orderNo() == null ? null : ORDER_PATH + c.orderNo(),
+                    Long.toString(c.id()), null));
         }
         for (WithdrawalQueries.Refund t : queries.openBankTransfers(userId)) {
             out.add(new WithdrawalPending(WithdrawalPendingCode.PAYMENT_CANCEL, t.orderNo() != null ? t.orderNo() : "#" + t.id(), t.orderNo() == null ? null : ORDER_PATH + t.orderNo(),
-                    null));
+                    Long.toString(t.id()), null));
         }
         for (WithdrawalQueries.ShopRefund s : queries.pendingShopRefunds(userId)) {
-            out.add(new WithdrawalPending(WithdrawalPendingCode.POINT_SHOP_REFUND, s.itemName(), "/me/items", null));
+            out.add(new WithdrawalPending(WithdrawalPendingCode.POINT_SHOP_REFUND, s.itemName(), "/me/items", Long.toString(s.id()), null));
         }
         return out;
     }
@@ -65,17 +67,18 @@ public class WithdrawalPendingResolver {
         List<WithdrawalPending> out = new ArrayList<>(fixed(userId));
         if (choices.waitDelivered()) {
             for (WithdrawalQueries.Order o : queries.deliveredWithin(userId, RETURN_WINDOW_DAYS, now)) {
-                out.add(new WithdrawalPending(WithdrawalPendingCode.DELIVERED_RETURN_WINDOW, o.orderNo(), ORDER_PATH + o.orderNo(), o.deliveredAt().plus(Duration.ofDays(RETURN_WINDOW_DAYS))));
+                out.add(new WithdrawalPending(WithdrawalPendingCode.DELIVERED_RETURN_WINDOW, o.orderNo(), ORDER_PATH + o.orderNo(), Long.toString(o.id()),
+                        o.deliveredAt().plus(Duration.ofDays(RETURN_WINDOW_DAYS))));
             }
         }
         if (!choices.forfeitBiz()) {
             for (WithdrawalBusinessInfo.Running r : business.of(userId, now).running()) {
-                out.add(new WithdrawalPending(WithdrawalPendingCode.BIZ_APPLICATION, r.title(), "/business/applications/" + r.id(), r.endsAt()));
+                out.add(new WithdrawalPending(WithdrawalPendingCode.BIZ_APPLICATION, r.title(), "/business/applications/" + r.id(), Long.toString(r.id()), r.endsAt()));
             }
         }
         if (!choices.forfeitPaidPoints() && paidPoints > 0) {
             // 충전(커머스 3단계)·충전 환불이 아직 없어 유상 잔액은 늘 0 — 이 줄은 3단계가 충전 환불 신청을 연결할 자리다(지금은 생기지 않는다)
-            out.add(new WithdrawalPending(WithdrawalPendingCode.POINT_CHARGE_REFUND, Long.toString(paidPoints), "/me/points", null));
+            out.add(new WithdrawalPending(WithdrawalPendingCode.POINT_CHARGE_REFUND, Long.toString(paidPoints), "/me/points", null, null));
         }
         return out;
     }

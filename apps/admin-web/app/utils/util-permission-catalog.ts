@@ -196,6 +196,8 @@ export default class UtilPermissionCatalog {
         { code: 'member.read', unit: 'READ', type: 'memberView', nameKey: 'permission.memberRead', descKey: 'permission.memberReadDesc', featureReady: true },
         { code: 'member.pii', unit: 'SENSITIVE', type: 'memberView', nameKey: 'permission.memberPii', descKey: 'permission.memberPiiDesc', featureReady: true },
         { code: 'member.withdrawn.contact', unit: 'SENSITIVE', type: 'memberView', nameKey: 'permission.memberWithdrawnContact', descKey: 'permission.memberWithdrawnContactDesc', featureReady: true },
+        // 강제 탈퇴·대리 취소(서버 `Permission.MEMBER_WITHDRAW` — SENSITIVE, 역할로 위임 가능)
+        { code: 'member.withdraw', unit: 'SENSITIVE', type: 'memberView', nameKey: 'permission.memberWithdraw', descKey: 'permission.memberWithdrawDesc', featureReady: true },
         { code: 'nickname-image.read', unit: 'READ', type: 'nicknameImage', nameKey: 'permission.item.nicknameImageRead', descKey: 'permission.item.nicknameImageReadDesc', featureReady: true },
         { code: 'nickname-image.manage', unit: 'MANAGE', type: 'nicknameImage', nameKey: 'permission.item.nicknameImageManage', descKey: 'permission.item.nicknameImageManageDesc', featureReady: true },
         { code: 'grade.read', unit: 'READ', type: 'gradePoint', nameKey: 'permission.gradeRead', descKey: 'permission.gradeReadDesc', featureReady: true },

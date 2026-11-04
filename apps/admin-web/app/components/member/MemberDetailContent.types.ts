@@ -1,5 +1,6 @@
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { MemberRestriction } from '~/composables/member/api/useMemberRestrictionApi.types';
+import type { MemberWithdrawalOfMember } from '~/composables/member/api/useMemberWithdrawalApi.types';
 import type { WithdrawnContact, WithdrawnContactRevealResult } from '~/composables/member/api/useWithdrawnContactApi.types';
 import type { PointMemberLots } from '~/composables/point/api/usePointApi.types';
 
@@ -40,8 +41,21 @@ export interface WithdrawnContactView {
     remaining: number;
 }
 
+/** 탈퇴 블록(「탈퇴 신청」·「탈퇴 완료」) — `useMemberWithdrawal` 의 값. 신청 기록이 없으면 `record = null`(오류 아님) */
+export interface MemberWithdrawalView {
+    record: MemberWithdrawalOfMember | null;
+    loading: boolean;
+    error: ApiError | null;
+}
+
 /** 서랍·본문이 위로 올리는 이벤트 */
 export interface MemberDetailEmits {
+    /** 탈퇴 기록 다시 받기 */
+    'retry-withdrawal': [];
+    /** 위험 동작 [강제 탈퇴](`member.withdraw`) */
+    'force-withdraw': [];
+    /** 진행 중 탈퇴의 [대리 취소](`member.withdraw`, 회원이 요청한 경우만) */
+    'cancel-withdrawal': [];
     /** 기능 제한 목록 다시 받기 */
     'retry-restrictions': [];
     /** [제한 걸기] */

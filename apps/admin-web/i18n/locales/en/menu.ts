@@ -38,6 +38,7 @@ export default {
     teams: 'Organization',
     member: 'Members',
     members: 'Members',
+    memberWithdrawals: 'Withdrawals',
     grades: 'Grade settings',
     nicknameImages: 'Nickname image review',
     siteMenu: 'Menus',

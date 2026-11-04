@@ -36,6 +36,11 @@
             :restrictions="restrictions"
             :withdrawn-contact="withdrawnContact"
             :point-lots="pointLots"
+            :withdrawal="withdrawal"
+            :can-force-withdraw="canForceWithdraw"
+            @retry-withdrawal="emit('retry-withdrawal')"
+            @force-withdraw="emit('force-withdraw')"
+            @cancel-withdrawal="emit('cancel-withdrawal')"
             @restrict="emit('restrict')"
             @point-lots-query="(q) => emit('point-lots-query', q)"
             @retry-point-lots="emit('retry-point-lots')"
@@ -51,7 +56,7 @@
 <script setup lang="ts">
 import type { ApiError } from '~/composables/common/useApiClient';
 import type { MemberDetail, MemberRow } from '~/composables/member/api/useMemberApi.types';
-import type { MemberDetailEmits, MemberPointLotsView, MemberRestrictionsView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
+import type { MemberDetailEmits, MemberPointLotsView, MemberRestrictionsView, MemberWithdrawalView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
 import UtilMember from '~/utils/util-member';
 
 /** 서랍이 열려 있는가 */
@@ -72,9 +77,13 @@ interface Props {
     withdrawnContact?: WithdrawnContactView | null;
     /** 「등급·포인트」 구획의 포인트 묶음(커머스 1-1) — 없으면 묶음 부분을 그리지 않는다 */
     pointLots?: MemberPointLotsView | null;
+    /** 탈퇴 블록(탈퇴 진행 중·완료 회원) — `useMemberWithdrawal` 의 값 */
+    withdrawal?: MemberWithdrawalView | null;
+    /** 위험 동작 [강제 탈퇴]를 보일지(`member.withdraw`) — 탈퇴 진행 중·완료 회원에게는 어차피 안 보인다 */
+    canForceWithdraw?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { loading: false, error: null, ignoreSelector: '', restrictions: null, withdrawnContact: null, pointLots: null });
+const props = withDefaults(defineProps<Props>(), { loading: false, error: null, ignoreSelector: '', restrictions: null, withdrawnContact: null, pointLots: null, withdrawal: null, canForceWithdraw: false });
 const emit = defineEmits<{ retry: [] } & MemberDetailEmits>();
 
 const { t } = useI18n();

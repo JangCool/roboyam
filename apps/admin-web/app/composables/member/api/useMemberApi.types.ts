@@ -17,8 +17,8 @@ import type { DisplayValues } from '#layers/display-time/utils/util-time';
  *  공동구매 배송지 열람 시 사유 입력(community 는 5~200자)과 열람 기록을 남길지, 관리자 메모 편집 권한(회원 수정 권한이 권한 표에 없다), 동의 변경 이력의 경로 값, 휴면 예정 안내의 기준.
  */
 
-/** 계정 상태 — 정상 · 기간 정지 · 영구 정지 · 탈퇴 · 휴면 */
-export type MemberStatus = 'ACTIVE' | 'SUSPENDED' | 'BANNED' | 'WITHDRAWN' | 'DORMANT';
+/** 계정 상태 — 정상 · 기간 정지 · 영구 정지 · 탈퇴 진행 중(남은 일이 끝나면 완료, V132) · 탈퇴 · 휴면 */
+export type MemberStatus = 'ACTIVE' | 'SUSPENDED' | 'BANNED' | 'WITHDRAWING' | 'WITHDRAWN' | 'DORMANT';
 
 /** 등급 키 — 등급은 등급 설정이 정하는 순서 있는 목록이라(4단계 고정이 아니다) 서버가 주는 불변 문자열이다. 이름·뱃지는 등급 목록(`useGradeAppearance`)에서 읽는다 */
 export type MemberGrade = string;

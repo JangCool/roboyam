@@ -40,8 +40,15 @@
 - 배치: `member-withdrawal-complete`(Java, 30분마다 — 남은 일 다시 보고 끝났으면 완료, 10일 안내), `member-withdrawal-cleanup`(`R__batch_36`, 매일 04:30 — 탈퇴 회원 글·댓글 IP 작성 90일 지난 것 비움, 탈퇴·반려 사업자 신원 90일 뒤 암호문·등록증 파기).
 - 재가입 제한은 이메일 가입·소셜 가입·본인인증 모두에서 확인.
 
+## 관리자 (화면 확정 2026-11-04 — 사용자 「확정, 서버 구현해」)
+- 화면: `/members/withdrawals`(회원 › 탈퇴 관리, 회원 관리 다음, `pi pi-user-minus`) — 요약 4칸(진행 중·오늘 완료·이번 달 완료·10일 넘긴 진행 중), 상태 탭·기간·회원 번호, 서랍(남은 일 + 관리 화면 링크, 고른 것, 포기 동의, 사유, 강제·대리 취소 정보, 처리 이력 타임라인), 사유 분포. 회원 목록·상세에 `WITHDRAWING` 상태와 탈퇴 블록. 대시보드 회원 현황의 「탈퇴 대기」·「오늘 탈퇴」가 이 화면 조건으로 이어진다.
+- 응답·요청 모양 정본: `apps/admin-web/app/composables/member/api/useMemberWithdrawalApi.types.ts`(머리말에 API 목록·오류 코드).
+- 권한: 보기 `member.read`. 강제 탈퇴·대리 취소 = 새 `member.withdraw`(SENSITIVE, 기본 SUPER). 연락용 이메일 열람은 기존 `member.withdrawn.contact`.
+- **강제 탈퇴**: 사유 종류 `UNDER_14·POLICY_VIOLATION·ON_BEHALF·OTHER` + 운영 메모 5~500자 필수. 회원 탈퇴와 같은 서비스 — 선택값은 회원에게 유리한 기본값(배송·광고 WAIT, 충전 REFUND, 모임 AUTO)으로 고정, 남은 일이 있으면 운영자도 건너뛰지 못하고 진행 중. 본인 확인 없음. 감사 `MEMBER_WITHDRAW_FORCE`.
+- **대리 취소**: 회원이 신청한(`source = MEMBER`) 진행 중 탈퇴만 — 회원이 고객센터·전화·이메일로 취소를 요청했을 때. `memberConfirmed: true` + 요청 경로 `CS_INQUIRY·PHONE·EMAIL·OTHER` + 운영 메모 5~500자 필수. 운영자 강제 탈퇴는 대리 취소 불가(`409 WITHDRAWAL_NOT_MEMBER_REQUESTED`). 결과는 회원 본인 취소와 같다(신청 전 상태로, 기록은 CANCELED). 감사 `MEMBER_WITHDRAW_CANCEL`(운영자·경로·메모).
+
 ## 미확정
-- 관리자 화면(탈퇴 진행 중 목록·강제 탈퇴)과 관리자 대시보드 「오늘 탈퇴」 — 다음 단계.
+- 관리자 대시보드 「오늘 탈퇴」는 이미 연결됨(9e5a2148) — 카드 링크만 탈퇴 관리 화면으로.
 - 충전·충전 환불(커머스 3단계) 전이라 유상 잔액은 늘 0 → 「환불받고 탈퇴」의 실제 환불 연결은 3단계 때.
 - 거래 기록 5년 자동 파기 배치(커머스 17-3) — 탈퇴와 별개로 아직 없음.
 - 탈퇴자 닉네임을 바로 남이 쓸 수 있게 둔다(묶지 않음) — 사칭 문제가 보이면 다시 정한다.

@@ -94,6 +94,7 @@ export default {
         ACTIVE: '정상',
         SUSPENDED: '기간 정지',
         BANNED: '영구 정지',
+        WITHDRAWING: '탈퇴 진행 중',
         WITHDRAWN: '탈퇴',
         DORMANT: '휴면',
     },

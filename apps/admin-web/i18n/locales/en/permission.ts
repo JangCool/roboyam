@@ -92,6 +92,8 @@ export default {
     memberPiiDesc: 'See masked emails in full. It opens personal data, so it is separate.',
     memberWithdrawnContact: 'View withdrawn members’ contact',
     memberWithdrawnContactDesc: 'Open the separately kept contact email of a withdrawn member with payment history, with a reason. Logged and audited.',
+    memberWithdraw: 'Force member withdrawal',
+    memberWithdrawDesc: 'Withdraw a member for reasons such as confirmed under-14, policy violation or acting on the member’s request. Stays in progress while work is pending and completes when done. Audited.',
 
     // Grade settings
     gradeRead: 'View grade settings',
