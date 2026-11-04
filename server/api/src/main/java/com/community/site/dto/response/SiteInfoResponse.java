@@ -11,7 +11,8 @@ package com.community.site.dto.response;
  * @param displayDefaults 표시 기본값
  * @param boardDisplay 공개 게시판 표시 기본값(날짜 표시 방식·새 글 기준). 게시판 기본 설정 행이 없으면(설치 전) 처음 값
  * @param theme 운영자가 고른 공개 사이트 테마 id({@code SiteThemes}) — 설정 행이 없거나 목록에 없는 값이면 {@code default}. {@code GET /api/site/theme} 과 같은 값
+ * @param analytics 방문 수집 스위치(site-analytics-contract) — 모두 기본 꺼짐
  */
 public record SiteInfoResponse(String siteName, String tagline, String logoUrl, SiteIconResponse icon, String ogImageUrl,
-                               SiteDisplayDefaultsView displayDefaults, BoardDisplayView boardDisplay, String theme) {
+                               SiteDisplayDefaultsView displayDefaults, BoardDisplayView boardDisplay, String theme, SiteAnalyticsView analytics) {
 }

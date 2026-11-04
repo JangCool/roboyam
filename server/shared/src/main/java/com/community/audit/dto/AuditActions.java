@@ -456,6 +456,8 @@ public final class AuditActions {
     public static final String AD_RESTORE = "AD_RESTORE";
     /** 광고 노출 자리 설정 저장(글 보기 중간·날개·목록 한 줄, 대상 AD_PLACEMENTS · 1) — 바뀐 칸 {@code before}·{@code after}(처음 저장이면 기본값에서). 일반 */
     public static final String AD_PLACEMENT_UPDATE = "AD_PLACEMENT_UPDATE";
+    /** 통계 수집 설정 저장(대상 STATS_COLLECTION · 1, site-analytics-contract) — 바뀐 칸 {@code before}·{@code after}. 일반 */
+    public static final String STATS_COLLECTION_UPDATE = "STATS_COLLECTION_UPDATE";
     // ── 회원 핫딜 1차(hotdeal-contract 「권한·정책」 감사 — 모두 일반) ──
     /** 핫딜 운영진 종료(대상 POST · 글 ID) — {@code reason}·{@code before}(그때 상태)·{@code boardId}, 신고 사건 조치면 {@code reportCaseId}. 일반 */
     public static final String HOTDEAL_END = "HOTDEAL_END";

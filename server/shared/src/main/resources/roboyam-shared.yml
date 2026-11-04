@@ -93,6 +93,14 @@ roboyam:
     key: ${ROBOYAM_DATA_KEY:}                     # 지금 키 「<버전>:<base64 32바이트>」 — 잃으면 저장된 값을 영영 못 읽는다(백업)
     previous-keys: ${ROBOYAM_DATA_KEY_PREVIOUS:}  # 키 교체 중의 예전 키(쉼표로 여럿, 풀기만 한다). 교체 배치가 끝나면 비운다
     index-key: ${ROBOYAM_INDEX_KEY:}              # 해시 키 base64 32바이트 — 바꿀 수 없다(원문을 남기지 않아 다시 계산할 수 없다)
+  # 방문 분석(docs/features/site-analytics-contract.md). 수집은 「설정 › 통계 수집」(DB stats_collection_settings — 모두 기본 꺼짐)이 켠다.
+  # datasource.url 이 비면 분석 표(analytics_*)를 메인 DB 에 둔다. 나중에 TimescaleDB 등으로 옮길 때만 준다(AnalyticsDatabaseConfig — 비밀번호는 ENC(...) 가능)
+  analytics:
+    datasource:
+      url: ${ROBOYAM_ANALYTICS_DB_URL:}
+      username: ${ROBOYAM_ANALYTICS_DB_USERNAME:}
+      password: ${ROBOYAM_ANALYTICS_DB_PASSWORD:}
+      maximum-pool-size: 3
   # 메일 서버 연결 시험의 시간 제한(설치 마법사 mail-check)
   mail:
     connect-timeout-millis: 5000

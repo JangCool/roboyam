@@ -146,6 +146,8 @@ public final class AuditRetention {
             AuditActions.BIZ_APP_PAUSE, AuditActions.BIZ_APP_RESUME,
             // 광고 일정표 — 광고주 만들기·긴급 내림(돈은 되돌리기가 움직인다) · 노출 자리 설정
             AuditActions.AD_ADVERTISER_CREATE, AuditActions.AD_TAKEDOWN, AuditActions.AD_PLACEMENT_UPDATE,
+            // 통계 수집 설정(site-analytics-contract) — 일반 운영
+            AuditActions.STATS_COLLECTION_UPDATE,
             // 광고주 관리(ad-advertiser-contract) — 고치기·보관·보관 풀기·삭제(연락처 값은 남기지 않는다)
             AuditActions.AD_ADVERTISER_UPDATE, AuditActions.AD_ADVERTISER_ARCHIVE, AuditActions.AD_ADVERTISER_UNARCHIVE, AuditActions.AD_ADVERTISER_DELETE,
             // 회원 핫딜 1차 관리(hotdeal-contract 「권한·정책」 — 모두 일반 분류). 운영진 종료의 보상 포인트 이동은 포인트 원장이 기록한다

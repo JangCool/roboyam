@@ -1,0 +1,16 @@
+{
+    "name": "@roboyam/analytics",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "description": "공개 사이트(user-web)의 방문 신호 Nuxt 레이어 — 방문자 ID·세션·화면 이동 신호(POST /api/visits). 수집 위치·도구를 바꿀 때 이 패키지만 고친다",
+    "main": "./nuxt.config.ts",
+    "peerDependencies": {
+        "nuxt": "^4.6.2",
+        "vue": "^3.5.0"
+    },
+    "devDependencies": {
+        "nuxt": "4.6.2",
+        "vue": "3.5.44"
+    }
+}

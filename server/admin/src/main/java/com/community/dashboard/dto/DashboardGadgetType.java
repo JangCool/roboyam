@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 관리자 대시보드 가젯 종류 32 — 화면 종류표(admin-web {@code util-dashboard-layout.ts} 의 {@code KINDS_12}, 차례도 같다)의 서버 사본. 한쪽을 고치면 같이 고친다.
+ * 관리자 대시보드 가젯 종류 34 — 화면 종류 목록(admin-web {@code useDashboardLayoutApi.types.ts} 의 {@code DASHBOARD_GADGET_TYPES}, 차례도 같다 · 칸 값은 {@code util-dashboard-layout.ts} 의 {@code KINDS_12})의 서버 사본. 한쪽을 고치면 같이 고친다.
  *
  * <ul>
  *   <li>{@code permissions}: 이 중 하나라도 있으면 쓸 수 있다(비면 누구나). 가젯 데이터 묶음 조회가 종류마다 이것으로 거른다.</li>
@@ -26,6 +26,9 @@ public enum DashboardGadgetType {
     BOARD_RANKING(List.of(Permission.POST_READ), false, true, Set.of(), 3, true),
     POPULAR_NOW(List.of(Permission.POPULAR_READ), false, true, Set.of(Option.LIMIT), 3, true),
     VISITORS(List.of(Permission.SITE_READ), false, true, Set.of(), 3, true),
+    // 방문 분석(site-analytics-contract 2026-11-04) — 인기 페이지(limit 5|10) · 유입 경로. 화면 DASHBOARD_GADGET_TYPES 와 같은 차례(방문 현황 바로 뒤)
+    POPULAR_PAGES(List.of(Permission.SITE_READ), false, true, Set.of(Option.LIMIT), 3, true),
+    REFERRERS(List.of(Permission.SITE_READ), false, true, Set.of(), 3, true),
     GROUP_REQUESTS(List.of(Permission.GROUP_READ), false, true, Set.of(Option.LIMIT), 3, true),
     MEMBER_STATS(List.of(Permission.MEMBER_READ), false, true, Set.of(), 3, true),
     SIGNUP_TREND(List.of(Permission.MEMBER_READ), false, true, Set.of(Option.DAYS), 3, true),

@@ -1,5 +1,7 @@
 package com.community.dashboard.service;
 
+import com.community.analytics.settings.StatsCollection;
+import com.community.analytics.settings.StatsCollectionSettings;
 import com.community.dashboard.dto.DashboardGadgetQuery;
 import com.community.dashboard.dto.DashboardGadgetType;
 import com.community.dashboard.dto.DashboardGadgetType.Option;
@@ -34,6 +36,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li>종류마다 권한(그중 하나라도)을 서버가 본다. 권한이 없는 종류는 그 칸 null 이고, <b>한 종류만</b> 요청했는데 권한이 없으면 {@code 403 PERMISSION_DENIED}
  *       (대시보드가 1분마다 다시 부를 수 있어 거절 감사 기록은 남기지 않는다 — 입구 검사는 로그인만).</li>
  *   <li>이 API 대상이 아닌 종류(TODO · COMMERCE_TODO · MEMO · SHORTCUTS)는 null. 권한은 있으나 제공자가 없는 종류(원천 없음 · 2단계)는 null + {@code unavailable}.</li>
+ *   <li>권한은 있으나 「통계 수집」에서 그 항목이 꺼진 종류(방문 현황 · 인기 페이지 · 유입 경로 · 알림 상태 · 글 활동 · 활발한 게시판 · 가입 추이 — {@link #collectionOff})는
+ *       null + {@code disabled}(site-analytics-contract). 설정은 30초 사본이고 캐시보다 먼저 본다.</li>
  *   <li>모르는 종류는 {@code 400 VALIDATION fields.types}. {@code limit.<종류>} 는 5|10, {@code days.<종류>} 는 7|30 이고 틀리면 그 질의 이름의 칸 오류다(그 칸이 없는 종류의 값은 버린다).</li>
  *   <li><b>서버 캐시</b>(사용자 결정 2026-11-03 「서버 부하가 최소화되어야 한다」): 종류별 결과를 서버 메모리에 짧게(숫자·목록 60초, 기간 합·추이 300초) 둔다 —
  *       키·수명·한 번만 계산·크기 상한은 {@link DashboardGadgetCache}. 권한 검사는 캐시 앞에서 매 요청 한다. 캐시에 없는 종류가 있을 때만 읽기 전용 트랜잭션 하나를 열어
@@ -49,8 +53,11 @@ public class DashboardGadgetService {
     private final DashboardGadgetCache cache = new DashboardGadgetCache(Clock.systemUTC());
     private final TransactionTemplate readOnly;
     private final Messages messages;
+    private final StatsCollectionSettings statsSettings;
 
-    public DashboardGadgetService(List<DashboardGadgetProvider> providers, PlatformTransactionManager transactions, Messages messages) {
+    public DashboardGadgetService(List<DashboardGadgetProvider> providers, PlatformTransactionManager transactions, Messages messages,
+                                  StatsCollectionSettings statsSettings) {
+        this.statsSettings = statsSettings;
         this.readOnly = new TransactionTemplate(transactions);
         this.readOnly.setReadOnly(true);
         this.messages = messages;
@@ -81,7 +88,9 @@ public class DashboardGadgetService {
         Map<String, DashboardGadgetData> gadgets = new LinkedHashMap<>();
         Map<DashboardGadgetType, DashboardGadgetCache.Key> wanted = new EnumMap<>(DashboardGadgetType.class);
         List<String> unavailable = new ArrayList<>();
+        List<String> disabled = new ArrayList<>();
         Locale locale = messages.locale();
+        StatsCollection collection = statsSettings.current(); // 30초 사본 — 요청마다 DB 를 읽지 않는다
         boolean denied = false;
         for (DashboardGadgetType type : types) {
             gadgets.put(type.name(), null); // 요청 차례를 지킨다 — 값은 아래에서 채운다
@@ -90,6 +99,10 @@ public class DashboardGadgetService {
             }
             if (!type.allowed(actor)) { // 볼 수 있나 — 캐시 앞에서 매 요청 본다
                 denied = true;
+                continue;
+            }
+            if (collectionOff(type, collection)) { // 수집이 꺼진 종류 — 값 null + disabled(캐시·집계 표를 보지 않는다)
+                disabled.add(type.name());
                 continue;
             }
             if (!providers.containsKey(type)) {
@@ -123,7 +136,22 @@ public class DashboardGadgetService {
                 generatedAt = e.getValue().computedAt(); // 가장 오래된 계산 시각 — 「HH:mm 기준」이 거짓말하지 않게
             }
         }
-        return new DashboardGadgetsView(generatedAt == null ? Instant.now() : generatedAt, gadgets, unavailable);
+        return new DashboardGadgetsView(generatedAt == null ? Instant.now() : generatedAt, gadgets, unavailable, disabled);
+    }
+
+    /**
+     * 그 종류의 데이터를 만드는 「통계 수집」 항목이 꺼져 있나(site-analytics-contract — admin-web 종류표의 {@code collect} 칸과 같다). 수집과 무관한 종류는 늘 false.
+     * 방문 하위 항목은 방문 수집 전체({@code enabled})가 꺼져도 꺼진 것이다.
+     */
+    static boolean collectionOff(DashboardGadgetType type, StatsCollection s) {
+        return switch (type) {
+            case VISITORS -> !s.visitsOn();
+            case POPULAR_PAGES -> !s.rawEventsOn();
+            case REFERRERS -> !s.referrersOn();
+            case NOTIFICATION_HEALTH -> !s.notificationSends();
+            case POST_ACTIVITY, BOARD_RANKING, SIGNUP_TREND -> !s.boardActivity();
+            default -> false;
+        };
     }
 
     /** 요청한 종류(요청 차례, 겹침 없음) — 비었거나 모르는 종류가 있으면 {@code types} 칸 오류 */

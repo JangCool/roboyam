@@ -67,11 +67,12 @@ final class DashboardGadgetCache {
     /**
      * 종류별 수명 표(한 곳) — 새 종류를 더하면 이 switch 가 컴파일되지 않으니 여기서 정한다.
      * 300초: 기간 합·추이(매출 요약 · 결제 추이 · 광고 성과 · 가입 추이) — 지난 날의 값이 거의 바뀌지 않고 오늘 몫만 늦게 반영된다(최대 5분).
+     * 방문 분석·알림 상태·글 활동·활발한 게시판(site-analytics-contract)은 60초 — 집계 표 자체가 1분(방문·알림 몰아쓰기)·10분(게시판 크론)마다 바뀐다.
      */
     static Duration ttl(DashboardGadgetType type) {
         return switch (type) {
             case SALES_SUMMARY, ORDER_TREND, AD_PERFORMANCE, SIGNUP_TREND -> LONG;
-            case TODO, COMMERCE_TODO, TODAY_SCHEDULE, REPORTS, POST_ACTIVITY, RECENT_POSTS, BOARD_RANKING, POPULAR_NOW, VISITORS, GROUP_REQUESTS, MEMBER_STATS,
+            case TODO, COMMERCE_TODO, TODAY_SCHEDULE, REPORTS, POST_ACTIVITY, RECENT_POSTS, BOARD_RANKING, POPULAR_NOW, VISITORS, POPULAR_PAGES, REFERRERS, GROUP_REQUESTS, MEMBER_STATS,
                  RECENT_SIGNUPS, SANCTIONS, NICKNAME_IMAGES, HOTDEAL_STATUS, HOTDEAL_TOP, AD_SCHEDULE, GROUPBUY_PROGRESS, GROUPBUY_QNA, RECONCILE, POINT_SUMMARY,
                  POINTSHOP, BATCH_HEALTH, NOTIFICATION_HEALTH, AUDIT_RECENT, OPERATOR_SECURITY, MEMO, SHORTCUTS -> SHORT;
         };

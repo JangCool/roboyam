@@ -2,7 +2,7 @@
     <!--
         알림 상태 — 오늘 보낸 알림 수 + 채널별 실패 수를 한 줄 행으로(보낸 수는 툴팁) + 최근 실패 3건(채널 · 서버 문구 · 시각). 알림 발송 집계를 읽는다. 누르면 알림 도구
     -->
-    <DashboardGadgetFrame :title="title" :at="state.at.value" :loading="state.loading.value" :error="state.error.value" :ready="!!v" :forbidden="state.forbidden.value" :unavailable="state.unavailable.value" more="/settings/notification-channels" @refresh="state.reload">
+    <DashboardGadgetFrame :title="title" :at="state.at.value" :loading="state.loading.value" :error="state.error.value" :ready="!!v" :forbidden="state.forbidden.value" :unavailable="state.unavailable.value" :disabled="state.disabled.value" :collect="state.collect" more="/settings/notification-channels" @refresh="state.reload">
         <div v-if="v" class="flex flex-col gap-3">
             <DashboardStatGrid :min="13" row :stats="stats" />
             <template v-if="v.recentFailures.length">

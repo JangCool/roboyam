@@ -139,6 +139,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  */
 export default class UtilAdminPreview {
     /**
+     * 이 창이 관리자 미리보기로 열렸는가 — iframe 안이고 주소에 `adminPreview=1` 이 있다(관리자 `ThemeLivePreview` 가 붙인다).
+     * 미리보기 켜기(`plugins/03.admin-preview.client.ts`)와 방문 신호 빼기(`plugins/04.analytics.client.ts`)가 같은 판정을 쓴다 — 앱이 뜰 때의 주소로 한 번 본다.
+     * @param {boolean} inFrame - iframe 안인가(`window.parent !== window`).
+     * @param {string} search - 처음 주소의 쿼리(`window.location.search`).
+     * @returns {boolean} 미리보기 창이면 true.
+     */
+    static isPreviewWindow(inFrame: boolean, search: string): boolean {
+        return inFrame && new URLSearchParams(search).get('adminPreview') === '1';
+    }
+
+    /**
      * 받은 메시지를 읽는다 — 모양이 아니면 null. 값의 뜻(테마 id·메뉴 칸 값) 검사는 쓰는 곳이 기존 읽기 함수로 한다.
      * @param {unknown} data - `MessageEvent.data`.
      * @returns {AdminPreviewMessage | null} 읽은 값.

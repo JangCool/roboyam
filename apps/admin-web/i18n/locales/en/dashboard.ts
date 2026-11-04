@@ -88,9 +88,11 @@ export default {
     permissionNone: 'No permission needed',
     permissionOne: 'Requires: {name}',
     permissionAny: 'Requires one of: {names}',
+    collectNeeded: 'Needs analytics collection: {item}',
     group: {
         TODO: 'To do',
         COMMUNITY: 'Community & reports',
+        ANALYTICS: 'Visit analytics',
         MEMBER: 'Members',
         BIZ: 'Hot deals, ads & businesses',
         COMMERCE: 'Group buys & payments',
@@ -131,6 +133,8 @@ export default {
         SANCTIONS: 'Sanctions',
         HOTDEAL_TOP: 'Top hot deals',
         NOTIFICATION_HEALTH: 'Notification status',
+        POPULAR_PAGES: 'Popular pages',
+        REFERRERS: 'Traffic sources',
     },
     kindDesc: {
         TODO: 'Counts to handle now: ad and hot deal reviews, deposits and refunds, business verification, member hot deal checks',
@@ -165,6 +169,8 @@ export default {
         SANCTIONS: 'Active sanctions, appeals waiting and sanctions ending today',
         HOTDEAL_TOP: 'Hot deals with the most likes now (seller, price)',
         NOTIFICATION_HEALTH: 'Notifications sent today and failures by channel',
+        POPULAR_PAGES: 'Most viewed pages today (page type, title, views)',
+        REFERRERS: 'Where today\'s visits came from (search, social, direct, other sites, campaigns) and top domains',
     },
 
     // ── Gadget settings ─
@@ -210,6 +216,10 @@ export default {
     forbiddenBody: 'You do not have permission to view this gadget.',
     unavailableTitle: 'This gadget is not ready yet',
     unavailableBody: 'The server does not provide this data yet. It will appear here once it is ready.',
+    disabledTitle: 'Collection is off',
+    disabledBody: 'Turn on "{item}" in Analytics collection settings to start collecting from then on.',
+    disabledBodyAsk: '"{item}" is turned off in Analytics collection settings. Ask an operator who can change site settings to turn it on.',
+    disabledLink: 'Turn on in Analytics collection',
     sameAsYesterday: 'Same as yesterday',
     moreThanYesterday: '{n} more than yesterday',
     lessThanYesterday: '{n} fewer than yesterday',
@@ -339,4 +349,30 @@ export default {
     notificationChannelFailed: '{channel} failures',
     notificationChannelSent: '{n} sent today',
     notificationRecentFailures: 'Recent failures',
+
+    // ── Visit analytics (screen confirmed 2026-11-04) ─
+    popularPagesNone: 'No page views yet today',
+    pageKind: {
+        HOME: 'Home',
+        BOARD: 'Board',
+        POST: 'Post',
+        GROUP_BUY: 'Group buy',
+        HOTDEAL: 'Hot deal',
+        GROUP: 'Group',
+        POINT_SHOP: 'Point shop',
+        SEARCH: 'Search',
+        MY: 'My page',
+        OTHER: 'Other',
+    },
+    referrersNone: 'No visits yet today',
+    referrersTotal: '{n} visits today',
+    referrersCount: '{n} · {rate}%',
+    referrersDomains: 'Top referring sites',
+    referrerGroup: {
+        SEARCH: 'Search',
+        SOCIAL: 'Social',
+        DIRECT: 'Direct',
+        OTHER_SITE: 'Other sites',
+        CAMPAIGN: 'Campaigns',
+    },
 };

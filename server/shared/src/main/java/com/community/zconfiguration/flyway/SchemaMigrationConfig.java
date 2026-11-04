@@ -1,6 +1,8 @@
 package com.community.zconfiguration.flyway;
 
+import com.community.analytics.store.AnalyticsDatabase;
 import java.util.List;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.flyway.autoconfigure.FlywayConfigurationCustomizer;
 import org.springframework.boot.flyway.autoconfigure.FlywayMigrationStrategy;
@@ -34,10 +36,23 @@ public class SchemaMigrationConfig {
         return configuration -> SchemaMigration.STANDARD.configure(configuration, SchemaMigration.SHARED);
     }
 
-    /** shared 를 이관한 뒤 자기 스트림을 이관한다 — 자동 구성의 초기화 단계에서 불리므로 JPA 보다 먼저다 */
+    /**
+     * shared 를 이관한 뒤 자기 스트림을 이관한다 — 자동 구성의 초기화 단계에서 불리므로 JPA 보다 먼저다.
+     *
+     * <p>{@code roboyam.schema.analytics=true} 인 앱(공개 사이트 api 만 — 방문 표를 쓰는 쪽이 주인)은 이어서 analytics 스트림을 분석 전용 연결({@code analyticsJdbc})로 이관한다.
+     * analytics 의 크론(R__analytics_*)이 shared 의 공통 함수·설정 표를 쓰므로 shared 뒤에 둔다. 관리자 앱은 이관하지 않고 집계 표를 읽기만 한다.
+     */
     @Bean
-    FlywayMigrationStrategy schemaMigrationStrategy(@Value("${roboyam.schema.stream:}") String ownStream) {
+    FlywayMigrationStrategy schemaMigrationStrategy(@Value("${roboyam.schema.stream:}") String ownStream,
+                                                    @Value("${roboyam.schema.analytics:false}") boolean analytics,
+                                                    ObjectProvider<AnalyticsDatabase> analyticsDatabase) {
         List<String> ownStreams = ownStream == null || ownStream.isBlank() ? List.of() : List.of(ownStream.strip());
-        return flyway -> SchemaMigration.STANDARD.migrate(flyway, ownStreams);
+        return flyway -> {
+            SchemaMigration.STANDARD.migrate(flyway, ownStreams);
+            if (analytics) {
+                AnalyticsDatabase db = analyticsDatabase.getObject();
+                SchemaMigration.STANDARD.migrateStream(db.dataSource(), SchemaMigration.ANALYTICS);
+            }
+        };
     }
 }

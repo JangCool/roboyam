@@ -231,6 +231,28 @@ export interface DashboardNotificationHealth {
     recentFailures: { id: string; channel: string; summary: string; failedAt: string }[];
 }
 
+/** 인기 페이지의 화면 종류 — 서버가 경로로 가른다(모르는 화면은 `OTHER`) */
+export type DashboardPageKind = 'HOME' | 'BOARD' | 'POST' | 'GROUP_BUY' | 'HOTDEAL' | 'GROUP' | 'POINT_SHOP' | 'SEARCH' | 'MY' | 'OTHER';
+
+/**
+ * 인기 페이지 — 오늘 많이 본 페이지 `limit`(5|10)개(조회수 차례). 방문 원본 기록(`rawEvents`)을 서버가 1분마다 몰아 센 오늘 페이지별 집계를 읽는다.
+ * `title` = 글이면 글 제목, 아니면 화면 이름(게시판 이름 · 공구 제목 …) — 서버가 모르면 null(화면은 경로를 보인다). `titleEn` 은 영어 이름이 있는 것만.
+ */
+export interface DashboardPopularPages {
+    items: { path: string; kind: DashboardPageKind; title: string | null; titleEn: string | null; views: number }[];
+}
+
+/** 유입처 분류 — 검색 · SNS · 직접(주소 입력·즐겨찾기) · 다른 사이트 · 캠페인(`utm_*` 붙은 주소) */
+export type DashboardReferrerGroup = 'SEARCH' | 'SOCIAL' | 'DIRECT' | 'OTHER_SITE' | 'CAMPAIGN';
+
+/** 유입 경로 — 오늘 방문(방문 시작 기준)을 유입처 분류별로 + 상위 유입 도메인 5(많은 차례, 직접·캠페인은 도메인이 없어 빠진다) */
+export interface DashboardReferrers {
+    /** 오늘 방문 수(분류 합) */
+    total: number;
+    groups: { group: DashboardReferrerGroup; visits: number }[];
+    domains: { domain: string; visits: number }[];
+}
+
 /** 종류 → 응답 모양 */
 export interface DashboardGadgetDataMap {
     VISITORS: DashboardVisitors;
@@ -242,6 +264,8 @@ export interface DashboardGadgetDataMap {
     SANCTIONS: DashboardSanctions;
     HOTDEAL_TOP: DashboardHotdealTop;
     NOTIFICATION_HEALTH: DashboardNotificationHealth;
+    POPULAR_PAGES: DashboardPopularPages;
+    REFERRERS: DashboardReferrers;
     REPORTS: DashboardReports;
     POST_ACTIVITY: DashboardPostActivity;
     POPULAR_NOW: DashboardPopularNow;
@@ -285,11 +309,17 @@ export interface DashboardGadgetsResponse {
     gadgets: { [K in DashboardDataType]?: DashboardGadgetDataMap[K] | null };
     /** 권한은 있으나 서버가 아직 데이터를 줄 수 없는 종류(원천 없음 · 다음 단계) — 화면은 「준비 중」, 나머지 null 은 「권한 없음」 */
     unavailable: DashboardDataType[];
+    /**
+     * 권한은 있으나 「통계 수집」 설정에서 그 수집이 꺼진 종류(값은 null) — 화면은 「수집이 꺼져 있어요」(`/settings/analytics`).
+     * 옛 서버는 이 칸을 주지 않는다 — 없으면 빈 배열로 읽는다.
+     */
+    disabled?: DashboardDataType[];
 }
 
-/** 한 종류를 받은 결과 — `data` 가 null 이면 `unavailable` 일 때 준비 중, 아니면 권한 없음 */
+/** 한 종류를 받은 결과 — `data` 가 null 이면 `disabled` 일 때 수집 꺼짐, `unavailable` 일 때 준비 중, 아니면 권한 없음 */
 export interface DashboardGadgetResult<T> {
     generatedAt: string;
     data: T | null;
     unavailable?: boolean;
+    disabled?: boolean;
 }

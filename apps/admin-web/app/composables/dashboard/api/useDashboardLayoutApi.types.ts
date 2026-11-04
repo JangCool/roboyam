@@ -15,6 +15,9 @@ export const DASHBOARD_GADGET_TYPES = [
     'BOARD_RANKING',
     'POPULAR_NOW',
     'VISITORS',
+    // 방문 분석(site-analytics-contract — 서버 종류 목록·저장 검증과 같은 이름)
+    'POPULAR_PAGES',
+    'REFERRERS',
     'GROUP_REQUESTS',
     'MEMBER_STATS',
     'SIGNUP_TREND',

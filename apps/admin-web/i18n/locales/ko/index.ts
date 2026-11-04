@@ -7,6 +7,7 @@
  */
 import account from './account';
 import address from './address';
+import analytics from './analytics';
 import audit from './audit';
 import batch from './batch';
 import board from './board';
@@ -66,6 +67,7 @@ import hotdeal from './hotdeal';
 export default {
     account,
     address,
+    analytics,
     audit,
     batch,
     board,
