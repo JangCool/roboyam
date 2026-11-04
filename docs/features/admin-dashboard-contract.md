@@ -42,15 +42,14 @@
 ## API 후보
 - `GET /api/admin/me/dashboard` → 위 구성(저장한 적 없으면 `gadgets: null`) · `PUT /api/admin/me/dashboard`(CSRF) 같은 본문 → 저장한 값 · `400 fields.gadgets[i].<칸>`.
 - `GET /api/admin/dashboard/gadgets?types=A,B&limit.A=5&days.B=30` → `{ generatedAt, gadgets: { [type]: data | null }, unavailable: type[] }` — `unavailable` = 권한은 있지만 서버가 아직 줄 수 없는 종류(화면 「준비 중」). 화면은 처음 그릴 때 놓인 가젯을 한 요청으로 묶고, 새로 고침은 그 종류만 부른다.
-- `GET /api/admin/commerce/dashboard` → `CommerceDashboardView`(커머스 처리할 일, 아직 서버 없음).
+- `GET /api/admin/commerce/dashboard` → `CommerceDashboardView`(커머스 처리할 일).
 
 ## 결정 (2026-11-03, 사용자 「추천대로 · 서버 부하 최소화」)
 - 매출 요약·결제 추이의 결제 범위 = 사이트에 들어온 결제 전부(결제 시험만 뺌 — 공구·사업자 광고·반품 배송비·포인트 충전).
 - 환불 = PG 환불 완료 + 콘솔 취소 + **송금 완료가 기록된 계좌 송금 환불**(완료 시각 기준). 처리 중·포기·이상 결제 자동 취소는 뺀다.
 - 회원 현황 = 가입·탈퇴·정지·탈퇴 대기 4칸, 모두 인덱스로만 센다(탈퇴·정지는 admin V6 부분 인덱스, 탈퇴 대기는 V132 `ux_member_withdrawals_scheduled`). 회원 탈퇴 반영 2026-11-03.
-- 집계 표가 필요한 5종(방문 현황·알림 발송 상태·글·댓글 활동·가입 추이·활발한 게시판)은 이번에 만들지 않고 「준비 중」(따로 진행).
+- 집계 표가 필요한 5종(방문 현황·알림 발송 상태·글·댓글 활동·가입 추이·활발한 게시판)은 2026-11-04 통계 수집(`docs/features/site-analytics-contract.md`, shared V133·analytics 스트림)으로 붙였다 — 수집이 꺼져 있으면 「수집이 꺼져 있어요」(`disabled`).
+- 제재(`SANCTIONS`)는 2026-11-04 회원 제재(`docs/features/member-sanction-contract.md`, shared V136)로 붙였다. 이로써 34종 모두 제공자가 있다(`unavailable` 은 지금 비어 있음 — 새 종류를 원천보다 먼저 넣을 때만 쓴다).
 
 ## 미확정
-- 방문 현황(`VISITORS`) — 방문 집계 표가 없다(시간별 집계 새로 필요). 알림 발송 상태 — 채널별 실패 집계 원천 확인 필요.
-- 제재(`SANCTIONS`) — 권한 `sanction.read` 「기능 준비 중」, 제재 화면 없음(지금은 회원 관리로 이동).
-- 집계 표(일별 글·댓글·가입·게시판, 시간별 방문, 채널별 발송)와 그 배치 — 별도 작업.
+- 없음(가젯 추가 요청이 오면 여기에).
