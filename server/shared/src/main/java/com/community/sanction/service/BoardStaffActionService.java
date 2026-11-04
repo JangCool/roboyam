@@ -392,7 +392,14 @@ public class BoardStaffActionService {
     /** 공지 글(공통 「공지」 말머리) */
     private boolean notice(PostEntity post) {
         EffectiveBoard board = catalog.snapshot().board(post.getBoardId()).orElse(null);
-        return board != null && board.prefix(post.getPrefixId()).map(BoardPrefixInfo::commonKey).filter("NOTICE"::equals).isPresent();
+        return board != null && noticeOrPinned(board, post);
+    }
+
+    /**
+     * 스텝 처리가 막힌 글인가 — 공통 「공지」 말머리 · 고정 글. 글 보기 응답 {@code staffProtected} 도 이것으로 ⋯ 메뉴를 감춘다(작성자 보호는 따로 — 서버가 409)
+     */
+    public static boolean noticeOrPinned(EffectiveBoard board, PostEntity post) {
+        return post.getPinnedAt() != null || board.prefix(post.getPrefixId()).map(BoardPrefixInfo::commonKey).filter("NOTICE"::equals).isPresent();
     }
 
     private static String requireReason(String raw) {

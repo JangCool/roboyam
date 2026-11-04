@@ -39,6 +39,7 @@ import com.community.post.exception.PostNotFoundException;
 import com.community.post.repository.master.PostCounterQueries;
 import com.community.post.repository.master.PostRepository;
 import com.community.post.repository.master.PostRepositoryQDSL;
+import com.community.sanction.service.BoardStaffActionService;
 import com.community.zconfiguration.crypto.Digests;
 import java.time.Duration;
 import java.time.Instant;
@@ -269,7 +270,8 @@ public class PostQueryService {
                 protection(b, post), post.getDeleteScheduledAt(), older.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null),
                 newer.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null), Boolean.TRUE.equals(s.security().externalLinkNofollow()),
                 lens.blockedOf(post.getAuthorId(), post.getTitle()), highlight.highlighted(), debate.summary(highlight, post, b, userId, now),
-                pollReader.forPost(post, userId, now), group, deal, dealReader.moderationFor(deal, b, userId), warnings);
+                pollReader.forPost(post, userId, now), group, deal, dealReader.moderationFor(deal, b, userId), warnings,
+                BoardStaffActionService.noticeOrPinned(b, post));
     }
 
     /** 글의 댓글 많은 글 보호 — 소모임 글은 걸리지 않는다(게시판 정책을 받지 않는다 — 원본 「운영진·운영자·소모임 글은 해당 없다」) */

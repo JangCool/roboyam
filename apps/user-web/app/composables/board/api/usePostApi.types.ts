@@ -318,6 +318,8 @@ export interface PostDetail {
     dealModeration?: DealModeration | null;
     /** 고치기 응답(`PUT`)에만 — 저장은 됐지만 알릴 것(예 `DEAL_LINK_BLOCKED`). 글 보기(`GET`)는 null */
     warnings?: DealWarning[] | null;
+    /** 공지 말머리·고정 글 — 매니저·스텝의 글 숨기기·삭제가 막힌다(board-staff-action-contract 정책 4). 옛 응답에는 없다(없으면 막히지 않은 것으로 본다) */
+    staffProtected?: boolean;
 }
 
 /** 비회원 작성 정보 — 이름·비밀번호(수정·삭제용, 서버는 해시로만 저장)·자동입력 방지 토큰 */

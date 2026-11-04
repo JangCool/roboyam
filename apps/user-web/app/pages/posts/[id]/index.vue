@@ -22,7 +22,7 @@
           404 대신 안내만: 「판매자가 잠시 내린 딜이에요」/「판매자가 내린 딜이에요」 + 게시판 이름 + [핫딜 게시판으로], 정지이고 보는 사람이 그 사업자면 「신청 건에서 다시 켤 수 있어요 ›」.
           그 게시판 매니저·스텝이 보면(`dealModeration`) 카드에 작성자 조치와 따로 「게시판 관리」([핫딜 종료]·[다시 진행 중으로])가 서고, 딜이 바뀌면 단추를 새 상태에 맞추며 그새 상태가 바뀐 거절(`stale`)이면 글을 다시 읽는다.
         게시판 제재(board-sanction-contract): 그 게시판 매니저·스텝(`viewer.staffTools.abilities.sanction`)에게만 글 아래 ⋯ 와 댓글 ⋯ 에 「작성자 제재」(남의 회원 글·댓글만) → `BoardSanctionDialog`(흐름 `useBoardSanctionForm`).
-        스텝 처리(board-staff-action-contract): 글 ⋯ 「글 숨기기」·「글 삭제」(`abilities.postHide|postDelete`, 본인 글·소모임 글 제외 — 공지·고정은 서버가 409 로 막는다), 댓글 ⋯ 「댓글 삭제」(`abilities.commentDelete`, 본인·지운 댓글 제외)
+        스텝 처리(board-staff-action-contract): 글 ⋯ 「글 숨기기」·「글 삭제」(`abilities.postHide|postDelete`, 본인 글·소모임 글·공지·고정 글(`staffProtected`) 제외), 댓글 ⋯ 「댓글 삭제」(`abilities.commentDelete`, 본인·지운 댓글 제외)
           → `BoardStaffActionDialog`(사유 → 확인, 흐름 `useBoardStaffActionForm`) → 토스트(오늘 남은 횟수) → 글이면 게시판 목록으로, 댓글이면 그 목록 새로. 그새 상태가 바뀌었으면 다시 읽는다.
         투표(post-poll-contract): 글에 `poll` 이 있으면 본문 바로 다음·찬반 토론 위에 투표 카드(`PostPollCard`). 투표·다시 읽기·지우기는 `usePollApi` 로 이 화면이 하고(카드는 `actions` 만 받는다),
           카드가 올린 새 투표(지우면 null)를 글의 `poll` 에 넣는다. 차단으로 본문이 접히거나 19금 확인 전이면 함께 가린다.

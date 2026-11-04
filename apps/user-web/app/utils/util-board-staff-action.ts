@@ -51,13 +51,13 @@ export default class UtilBoardStaffAction {
     }
 
     /**
-     * 글 ⋯ 에 보일 처리 — 본인 글·소모임 글에는 없다(공지·고정은 글 응답에 표시가 없어 서버가 막는다)
+     * 글 ⋯ 에 보일 처리 — 본인 글·소모임 글·공지·고정 글(`staffProtected`)에는 없다. 같은 게시판 매니저·스텝의 글은 서버가 409 로 막는다
      * @param {BoardStaffTools | null} tools - 게시판의 `viewer.staffTools`.
-     * @param {{ mine: boolean; group?: unknown }} post - 글.
+     * @param {{ mine: boolean; group?: unknown; staffProtected?: boolean }} post - 글.
      * @returns {Array<'POST_HIDE' | 'POST_DELETE'>} 숨기기·삭제 중 할 수 있는 것.
      */
-    static postKinds(tools: BoardStaffTools | null, post: { mine: boolean; group?: unknown }): Array<'POST_HIDE' | 'POST_DELETE'> {
-        if (!tools || post.mine || post.group) return [];
+    static postKinds(tools: BoardStaffTools | null, post: { mine: boolean; group?: unknown; staffProtected?: boolean }): Array<'POST_HIDE' | 'POST_DELETE'> {
+        if (!tools || post.mine || post.group || post.staffProtected) return [];
         const kinds: Array<'POST_HIDE' | 'POST_DELETE'> = [];
         if (tools.abilities.postHide) kinds.push('POST_HIDE');
         if (tools.abilities.postDelete) kinds.push('POST_DELETE');
