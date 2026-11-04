@@ -161,6 +161,10 @@ public class BoardSanctionStore {
     public record BoardSummary(long boardId, String slug, String name, String nameEn, long recentCount, long total, Instant activeUntil) {
     }
 
+    /** 아직 확인하지 않은 게시판 경고 한 줄(게시판 머리 안내) */
+    public record PendingWarning(long id, String reasonCode, Instant issuedAt) {
+    }
+
     private final JdbcTemplate jdbc;
 
     public BoardSanctionStore(MemberSanctionStore sanctions) {
@@ -306,6 +310,13 @@ public class BoardSanctionStore {
             out.put(rs.getLong(1), new BoardWriteRestriction(rs.getLong(2), instant(rs, 3), rs.getString(4)));
         }, userId, ts(now));
         return out;
+    }
+
+    /** 그 회원이 그 게시판에서 아직 확인하지 않은 경고 — 최근 것이 위, 최대 {@code limit}(무효 제외). 색인 {@code ix_board_sanctions_user} */
+    public List<PendingWarning> pendingWarnings(long userId, long boardId, int limit) {
+        return jdbc.query("SELECT s.id, s.reason_code, s.created_at FROM board_sanctions s WHERE s.user_id = ? AND s.board_id = ? AND s.kind = 'WARNING' "
+                + "AND s.status <> 'VOIDED' AND s.acknowledged_at IS NULL ORDER BY s.created_at DESC, s.id DESC LIMIT ?",
+                (rs, i) -> new PendingWarning(rs.getLong(1), rs.getString(2), instant(rs, 3)), userId, boardId, limit);
     }
 
     // ── 제재 쓰기 ─────────────────────────────────────────────────────────

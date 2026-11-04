@@ -93,6 +93,11 @@ export default {
     restrictedMore: 'Details',
     restrictedAllowed: 'You can still read, like, edit your posts and use other boards.',
 
+    /* Unacknowledged warning notice (member — that board's header) */
+    warnedTitle: 'You got a warning on this board',
+    warnedMore: '+{count} more',
+    warnedHint: 'You can still post and comment. Repeated issues may lead to a posting restriction.',
+
     /* My board sanctions (/sanction) */
     myTitle: 'Board sanctions',
     myHint: 'Given by a board’s moderators and applied only on that board. Counted separately from site restrictions.',

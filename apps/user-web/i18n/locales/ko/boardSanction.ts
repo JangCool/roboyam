@@ -93,6 +93,11 @@ export default {
     restrictedMore: '자세히',
     restrictedAllowed: '읽기·추천·내 글 수정과 다른 게시판은 그대로 쓸 수 있어요.',
 
+    /* 확인하지 않은 경고 안내(받은 회원 — 그 게시판 머리) */
+    warnedTitle: '이 게시판에서 경고를 받았어요',
+    warnedMore: '외 {count}건',
+    warnedHint: '글·댓글은 그대로 쓸 수 있어요. 반복되면 쓰기가 제한될 수 있어요.',
+
     /* 내 게시판 제재(/sanction) */
     myTitle: '게시판 제재',
     myHint: '게시판을 운영하는 회원이 그 게시판에서만 준 제재예요. 사이트 이용 제한과는 따로 세요.',

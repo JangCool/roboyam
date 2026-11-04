@@ -82,6 +82,8 @@ public class BoardSanctionService {
     public static final int REVIEW_THRESHOLD = 3;
     /** 매니저·스텝 내역 한 쪽 */
     public static final int STAFF_PAGE_SIZE = 20;
+    /** 게시판 머리에 싣는 확인하지 않은 경고 최대 수 */
+    public static final int PENDING_WARNING_MAX = 10;
     /** 감사 대상 종류 */
     public static final String TARGET = "MEMBER";
     /** 처리 기록 action */
@@ -182,6 +184,11 @@ public class BoardSanctionService {
     /** 이 회원의 진행 중인 쓰기 제한 전부(게시판 ID → 제한) — 글·댓글 쓰기 판정, 요청당 색인 질의 하나 */
     public Map<Long, BoardWriteRestriction> writeRestrictions(long userId) {
         return store.runningOfUser(userId, now());
+    }
+
+    /** 게시판 응답의 {@code viewer.pendingWarnings} — 그 게시판에서 아직 확인하지 않은 경고(최근 것이 위, 최대 {@link #PENDING_WARNING_MAX}) */
+    public List<BoardSanctionStore.PendingWarning> pendingWarnings(long userId, long boardId) {
+        return store.pendingWarnings(userId, boardId, PENDING_WARNING_MAX);
     }
 
     /** 게시판 응답의 {@code viewer.staffTools} — 그 게시판에서 제재를 줄 수 있는 매니저·스텝에게만(아니면 빈 값) */
