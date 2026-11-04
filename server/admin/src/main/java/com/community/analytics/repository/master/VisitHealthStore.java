@@ -40,21 +40,24 @@ public class VisitHealthStore {
 
     /**
      * {@code since} 뒤에 기록한 서버(「살아 있음」 또는 시간 칸) — 시간 칸 PK(hour, instance) 범위를 서버로 묶고, 살아 있음(PK instance)과 붙인다.
-     * {@code recentSince} 뒤 시간 칸의 기록 실패는 따로 센다(지금도 실패 중인지).
+     * {@code recentSince} 뒤의 기록 실패는 따로 센다(지금도 실패 중인지) — 시간 칸은 정시라 「지난 1시간」을 칸으로 자르면 앞 칸의 실패가 빠지므로,
+     * 정확한 시각이 있는 실패 기록({@code analytics_collector_failures.failed_at}, PK 범위)도 함께 센다(둘 중 하나라도 있으면 「최근 실패」 — QA 2026-11-04).
      */
     public List<InstanceRow> instances(Instant since, Instant recentSince) {
         return jdbc.query("WITH h AS (SELECT instance, sum(flush_ok) AS ok, sum(flush_fail) AS fail, sum(dropped) AS dropped, sum(ignored_bot) AS bot, "
                         + "sum(ignored_invalid) AS invalid, coalesce(sum(flush_fail) FILTER (WHERE hour >= ?), 0) AS recent "
                         + "FROM analytics_collector_hourly WHERE hour >= ? GROUP BY instance), "
-                        + "b AS (SELECT instance, last_write_at FROM analytics_collector_beats WHERE last_write_at >= ?) "
+                        + "b AS (SELECT instance, last_write_at FROM analytics_collector_beats WHERE last_write_at >= ?), "
+                        + "f AS (SELECT instance, count(*) AS recent FROM analytics_collector_failures WHERE failed_at >= ? GROUP BY instance) "
                         + "SELECT coalesce(b.instance, h.instance), b.last_write_at, coalesce(h.ok, 0), coalesce(h.fail, 0), coalesce(h.dropped, 0), coalesce(h.bot, 0), "
-                        + "coalesce(h.invalid, 0), coalesce(h.recent, 0) FROM b FULL JOIN h ON h.instance = b.instance ORDER BY 1",
+                        + "coalesce(h.invalid, 0), coalesce(h.recent, 0) + coalesce(f.recent, 0) FROM b FULL JOIN h ON h.instance = b.instance "
+                        + "LEFT JOIN f ON f.instance = coalesce(b.instance, h.instance) ORDER BY 1",
                 (rs, i) -> {
                     Timestamp at = rs.getTimestamp(2);
                     return new InstanceRow(rs.getString(1), at == null ? null : at.toInstant(), rs.getLong(3), rs.getLong(4), rs.getLong(5), rs.getLong(6), rs.getLong(7),
                             rs.getLong(8));
                 },
-                Timestamp.from(recentSince), Timestamp.from(since), Timestamp.from(since));
+                Timestamp.from(recentSince), Timestamp.from(since), Timestamp.from(since), Timestamp.from(recentSince));
     }
 
     /** 최근 기록 실패 — PK(failed_at, id) 거꾸로 */
