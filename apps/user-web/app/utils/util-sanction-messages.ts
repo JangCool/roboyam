@@ -44,6 +44,10 @@ export interface SanctionHistoryRow {
     needsConfirm: boolean;
     appeal: { no: number; statusLabel: string; tone: SanctionTone; answer: string | null } | null;
     canAppeal: boolean;
+    /** 접수할 수 있을 때 마감 글자(「2026.10.31(금) 15:00」) — 그 밖에는 null */
+    appealDeadlineText: string | null;
+    /** 이의제기 없이 마감이 지났다 — 접수 단추 대신 「이의제기 기한이 지났어요」 */
+    appealExpired: boolean;
 }
 
 function messageOf(error: unknown): string {
@@ -281,11 +285,13 @@ export default class UtilSanctionMessages {
                 ? { no: appeal.no, statusLabel: UtilSanctionMessages.appealStatusLabel(t, appeal.status), tone: UtilSanction.appealTone(appeal.status), answer: appeal.answer?.trim() ? appeal.answer : null }
                 : null,
             canAppeal: UtilSanction.canAppeal(s),
+            appealDeadlineText: UtilSanction.canAppeal(s) ? UtilSanctionMessages.releaseText(s.appealDeadline, time) || null : null,
+            appealExpired: UtilSanction.missedAppeal(s),
         };
     }
 
     /**
-     * 이의제기 대상 요약 — 제재 · 기간(또는 처리일) · 사유
+     * 이의제기 대상 요약 — 제재 · 기간(또는 처리일) · 사유 · 이의제기 마감
      * @param {Translate} t - 번역 함수.
      * @param {MySanction} s - 제재.
      * @param {DisplayTime} time - 표시 시각.
@@ -296,6 +302,8 @@ export default class UtilSanctionMessages {
         if (s.endsAt) rows.push({ label: t('sanction.rowTerm'), value: UtilSanctionMessages.period(s.startsAt, s.endsAt, time) });
         else rows.push({ label: t('sanction.rowDate'), value: time.date(s.createdAt) });
         rows.push({ label: t('sanction.rowReason'), value: s.reason });
+        // 이의제기 마감(시작 + 30일) — 무효면 없다
+        rows.push({ label: t('sanction.rowAppealDeadline'), value: UtilSanctionMessages.releaseText(s.appealDeadline, time) });
         return rows.filter((row) => row.value !== '');
     }
 

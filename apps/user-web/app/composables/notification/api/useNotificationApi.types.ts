@@ -62,7 +62,14 @@ export type MemberNotificationType = 'COMMENT' | 'REPLY' | 'POINTS_REVOKED' | 'P
     | 'DEAL_AUTO_ENDED'
     | 'DEAL_MANAGER_ENDED'
     | 'DEAL_EXPIRED'
-    | 'DEAL_REOPENED_FIX_ENDS';
+    | 'DEAL_REOPENED_FIX_ENDS'
+    /**
+     * 사이트 제재(`docs/features/member-sanction-contract.md` 정책 8 — 묶음 `system`, 끌 수 없는 계정 알림, 문구는 서버 `title`·`body`, `link` `/sanction`):
+     * 제재를 받음(경고·정지·영구 정지) · 운영자가 정지를 풀어 줌 · 이의제기 답변이 옴(인용·기각)
+     */
+    | 'SANCTION_ISSUED'
+    | 'SANCTION_LIFTED'
+    | 'APPEAL_ANSWERED';
 
 /**
  * 알림 묶음 — 댓글·답글 · 계정(포인트 회수·소멸 예정·신고 숨김·닉네임 그림 검토·기능 제한 · 소모임 `GROUP_*` 전부 — 서버 `MemberNotificationType` 이 `system` 으로 묶는다) ·

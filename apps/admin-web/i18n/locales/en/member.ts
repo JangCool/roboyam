@@ -189,7 +189,6 @@ export default {
             consent: 'Consent history is not loaded from the server yet.',
             groupBuy: 'Group-buy orders will appear once group buying exists.',
             inbox: 'Could not load inbox counts.',
-            sanctions: 'Sanction and report history is not loaded from the server yet.',
         },
         empty: '-',
         // Shared text when a history-style list is empty (nickname, consent, grade, point and sanction history)
@@ -252,27 +251,7 @@ export default {
             recentLoginDays: 'Active days, last 7',
         },
         sanction: {
-            kind: {
-                WARNING: 'Warning',
-                SUSPENSION: 'Suspension',
-                BAN: 'Permanent ban',
-            },
-            scope: {
-                SITE: 'Site-wide',
-            },
-            board: 'Board only · {name}',
-            status: {
-                ACTIVE: 'Active',
-                ENDED: 'Ended',
-                RELEASED: 'Lifted',
-            },
-            occurredAt: 'On {at}',
-            endsAt: 'Ends {at}',
             summaryTitle: 'Sanction summary',
-            warningCount: 'Warnings',
-            warningValue: '{count}',
-            activeNow: 'Active sanction',
-            nextStep: 'Next step',
             historyTitle: 'Sanction history',
         },
         reports: {

@@ -55,10 +55,14 @@ public enum Permission {
     REPORT_READ("report.read", REPORT, READ, true),
     /** 신고 처리 — 조치(숨기기·삭제·자동 숨김 확정)·무시(허위 표시)·일괄 무시·다시 열기 */
     REPORT_MANAGE("report.manage", REPORT, MANAGE, true),
-    SANCTION_READ("sanction.read", SANCTION, READ, false),
-    SANCTION_MANAGE("sanction.manage", SANCTION, MANAGE, false),
-    APPEAL_MANAGE("appeal.manage", SANCTION, MANAGE, false),
-    SANCTION_BAN("sanction.ban", SANCTION, SENSITIVE, false),
+    /** 제재·이의제기 조회 — 제재 목록·현황(preview)·회원 찾기·이의제기 목록·상세(docs/features/member-sanction-contract.md 정책 3) */
+    SANCTION_READ("sanction.read", SANCTION, READ, true),
+    /** 경고·기간 정지 부여 · 기간 정지 해제(기능 제한 관리도 이 권한) */
+    SANCTION_MANAGE("sanction.manage", SANCTION, MANAGE, true),
+    /** 이의제기 인용·기각 */
+    APPEAL_MANAGE("appeal.manage", SANCTION, MANAGE, true),
+    /** 민감 조치 — 영구 정지 · 단계 건너뛰기 · 영구 정지 해제 */
+    SANCTION_BAN("sanction.ban", SANCTION, SENSITIVE, true),
     KEEPER_ACTION_READ("keeper-action.read", STAFF_AUDIT, READ, false),
     KEEPER_ACTION_RESTORE("keeper-action.restore", STAFF_AUDIT, SENSITIVE, false),
     MEMBER_READ("member.read", MEMBER_VIEW, READ, true),

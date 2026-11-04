@@ -302,6 +302,19 @@ public class MemberNotificationService {
                         number(payload.get("amount")), payload.get("note") instanceof String n && !n.isBlank() ? n : null);
                 link = payload.get("path") instanceof String p && p.startsWith("/") ? p : "/business/applications";
             }
+            case SANCTION_ISSUED, SANCTION_LIFTED, APPEAL_ANSWERED -> {
+                // 사이트 제재(V136 — member-sanction-contract 정책 8) — 단계(+경고 몇 번째 · 끝 · 사유) · 이의제기 결과·답변. 누르면 내 제재
+                String kind = payload.get("kind") instanceof String k ? k : "";
+                Integer warningNo = payload.get("warningNo") instanceof Number n ? n.intValue() : null;
+                String text = type == MemberNotificationType.APPEAL_ANSWERED ? (payload.get("answer") instanceof String a ? a : null)
+                        : payload.get("reason") instanceof String r ? r : null;
+                facts = switch (type) {
+                    case SANCTION_ISSUED -> MemberNotificationMessages.Facts.sanctionIssued(kind, warningNo, instantOf(payload.get("until")), text);
+                    case SANCTION_LIFTED -> MemberNotificationMessages.Facts.sanctionLifted(kind);
+                    default -> MemberNotificationMessages.Facts.appealAnswered(kind, warningNo, payload.get("result") instanceof String r ? r : null, text);
+                };
+                link = MemberNotificationPublisher.SANCTION_PATH;
+            }
             case POINT_SHOP_REFUND_REJECTED -> {
                 // 정지 중 환불 신청 거절 — 품목 이름 · 사유. 누르면 내 아이템
                 facts = MemberNotificationMessages.Facts.refundRejected(payload.get("itemName") instanceof String n ? n : null,

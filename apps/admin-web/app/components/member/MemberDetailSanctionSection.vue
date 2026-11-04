@@ -1,27 +1,32 @@
 <template>
     <!--
-        회원 상세 — 제재 이력 구획(읽기 전용). 위에 제재 요약(경고 횟수 · 진행 중인 제재 · 다음 단계)과 신고 요약(받은 · 조치한 · 제기한 신고 수), 아래에 이력 표.
-        사이트 제재(경고·기간 정지·영구 정지)와 게시판 한정 제재를 구분해 최근 것부터 보인다. 서버에 제재·신고 표가 아직 없어 요약·이력이 모두 비면 구획 전체를 「아직 연동되지 않았어요」 안내로 보인다(요약 둘 중 하나만 오면 그 블록만 그린다). 종류·범위·상태 모두 글자와 아이콘을 함께 쓴다.
+        회원 상세 — 제재 구획. 위에 제재 현황 요약(경고 n/2 · 진행 중 · 다음 단계 — 제재 API 현황 `preview` 를 부모가 받아 내려 준다) + [제재하기](`sanction.manage`)·진행 중 정지 [해제]·「제재 화면에서 보기」,
+        가운데 신고 요약(받은 · 조치한 · 제기한 신고 수 — 회원 상세 API 값), 아래 제재 이력(단계 · 상태 · 기간 · 사유 · 근거 신고 사건 · 이의제기 — 범위 칸은 없다, 사이트 제재만).
+        단계는 계약의 `WARNING|SUSPEND_3|SUSPEND_7|SUSPEND_30|BAN`, 상태 `ACTIVE|ENDED|LIFTED|VOIDED` — 글자와 아이콘을 함께(`SanctionTag`).
+        제재하기·해제는 이벤트로 올리고 대화상자는 부모(회원 관리 화면)가 띄운다. 현황을 받지 않는 화면(`view` 없음 — 닉네임 이미지 심사·탈퇴 관리의 회원 서랍)은 제재 화면 링크만 보인다.
+        탈퇴(진행 중 포함) 회원은 제재할 수 없다(서버 404) — 안내 한 줄.
     -->
-    <div v-if="hasData" class="flex flex-col gap-5">
-        <section v-if="detail.sanctionSummary" :aria-labelledby="summaryId">
-            <h3 :id="summaryId" class="mb-2 text-[13px] font-semibold">{{ t('member.detail.sanction.summaryTitle') }}</h3>
-            <dl class="m-0 flex flex-col">
-                <MemberDetailItem :label="t('member.detail.sanction.warningCount')">
-                    <span class="tabular-nums">{{ t('member.detail.sanction.warningValue', { count: detail.sanctionSummary.warningCount }) }}</span>
-                </MemberDetailItem>
-                <MemberDetailItem :label="t('member.detail.sanction.activeNow')" :empty="!active.length">
-                    <div class="flex flex-col gap-1">
-                        <div v-for="s in active" :key="s.sanctionId" class="flex flex-wrap items-center gap-1.5">
-                            <MemberDetailTag :value="t(`member.detail.sanction.kind.${s.kind}`)" :icon="UtilMember.sanctionKindIcon(s.kind)" :severity="UtilMember.sanctionKindSeverity(s.kind)" />
-                            <span v-if="s.endsAt" class="text-xs text-muted-color tabular-nums">{{ t('member.detail.sanction.endsAt', { at: time.full(s.endsAt) }) }}</span>
-                        </div>
-                    </div>
-                </MemberDetailItem>
-                <MemberDetailItem :label="t('member.detail.sanction.nextStep')" :empty="detail.sanctionSummary.next === null">
-                    <MemberDetailTag v-if="detail.sanctionSummary.next" :value="t(`member.detail.sanction.kind.${detail.sanctionSummary.next}`)" :icon="UtilMember.sanctionKindIcon(detail.sanctionSummary.next)" :severity="UtilMember.sanctionKindSeverity(detail.sanctionSummary.next)" />
-                </MemberDetailItem>
-            </dl>
+    <div class="flex flex-col gap-5">
+        <section :aria-labelledby="summaryId">
+            <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <h3 :id="summaryId" class="text-[13px] font-semibold">{{ t('member.detail.sanction.summaryTitle') }}</h3>
+                <NuxtLink v-if="perm.canRead" :to="{ path: '/sanctions', query: { userId: detail.memberNo } }" class="inline-flex items-center gap-1 rounded px-1 text-xs text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+                    <i class="pi pi-shield text-[10px]" aria-hidden="true" />{{ t('sanction.openMemberSanctions') }}
+                </NuxtLink>
+            </div>
+
+            <p v-if="withdrawn" class="m-0 flex items-center gap-1.5 rounded-md border border-dashed border-(--line) px-2.5 py-1.5 text-xs text-muted-color">
+                <i class="pi pi-info-circle text-[11px]" aria-hidden="true" />{{ t('sanction.withdrawnNote') }}
+            </p>
+            <p v-else-if="!view" class="m-0 text-[13px] text-muted-color">{{ t('sanction.previewElsewhere') }}</p>
+            <ErrorState v-else-if="view.error" :title="t('sanction.previewFailed')" :description="view.error.message" :code="view.error.status === 404 ? '404' : '!'" :retry="view.error.status !== 404" :retrying="view.loading" @retry="emit('retry-sanctions')" />
+            <Skeleton v-else-if="!view.preview" height="5.5rem" />
+            <SanctionPreviewSummary v-else :preview="view.preview">
+                <template v-if="running || canIssue" #actions>
+                    <Button v-if="running && UtilSanction.canLift(running, liftPerm)" type="button" :label="t('sanction.lift')" icon="pi pi-lock-open" size="small" severity="secondary" variant="outlined" @click="emit('lift-sanction', running)" />
+                    <Button v-if="canIssue" type="button" :label="t('sanction.issue')" icon="pi pi-plus" size="small" @click="emit('sanction')" />
+                </template>
+            </SanctionPreviewSummary>
         </section>
 
         <section v-if="detail.reports" :aria-labelledby="reportId">
@@ -34,47 +39,40 @@
             </dl>
         </section>
 
-        <section :aria-labelledby="historyId">
+        <section v-if="view?.preview" :aria-labelledby="historyId">
             <h3 :id="historyId" class="mb-2 text-[13px] font-semibold">{{ t('member.detail.sanction.historyTitle') }}</h3>
-            <p v-if="!detail.sanctions.length" class="text-[13px] text-muted-color">{{ t('member.detail.historyEmpty') }}</p>
-            <ul v-else class="m-0 flex list-none flex-col gap-2 p-0">
-                <li v-for="s in detail.sanctions" :key="s.sanctionId" class="flex flex-col gap-1.5 rounded-lg border border-(--line) px-3 py-2.5">
-                    <div class="flex flex-wrap items-center gap-1.5">
-                        <Tag :value="t(`member.detail.sanction.kind.${s.kind}`)" :icon="UtilMember.sanctionKindIcon(s.kind)" :severity="UtilMember.sanctionKindSeverity(s.kind)" />
-                        <Tag :value="s.scope === 'BOARD' ? t('member.detail.sanction.board', { name: s.boardName ?? '' }) : t('member.detail.sanction.scope.SITE')" :icon="s.scope === 'BOARD' ? 'pi pi-comments' : 'pi pi-globe'" severity="secondary" />
-                        <Tag class="ml-auto" :value="t(`member.detail.sanction.status.${s.status}`)" :icon="UtilMember.sanctionStatusIcon(s.status)" :severity="UtilMember.sanctionStatusSeverity(s.status)" />
-                    </div>
-                    <p class="text-[13px]">{{ s.reason }}</p>
-                    <p class="text-xs text-muted-color tabular-nums">
-                        {{ t('member.detail.sanction.occurredAt', { at: time.full(s.occurredAt) }) }}
-                        <template v-if="s.endsAt"> · {{ t('member.detail.sanction.endsAt', { at: time.full(s.endsAt) }) }}</template>
-                    </p>
-                </li>
-            </ul>
+            <SanctionHistoryList :lines="view.preview.history" :perm="liftPerm" link-sanction @lift="(line) => emit('lift-sanction', line)" />
         </section>
     </div>
-    <EmptyState v-else icon="pi pi-shield" :title="t('member.detail.notReady.title')" :description="t('member.detail.notReady.sanctions')" />
 </template>
 
 <script setup lang="ts">
 import type { MemberDetail } from '~/composables/member/api/useMemberApi.types';
-import UtilMember from '~/utils/util-member';
+import type { MemberSanctionsView } from '~/components/member/MemberDetailContent.types';
+import type { SanctionLine } from '~/composables/sanction/api/useSanctionApi.types';
+import UtilSanction from '~/utils/util-sanction';
 
 interface Props {
     detail: MemberDetail;
+    /** 제재 현황 — 부모가 받은 값. 받지 않는 화면은 null */
+    view?: MemberSanctionsView | null;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), { view: null });
+const emit = defineEmits<{ sanction: []; 'lift-sanction': [line: SanctionLine]; 'retry-sanctions': [] }>();
 
 const { t, locale } = useI18n();
-const time = useDisplayTime();
+const permission = useSanctionPermission();
+const perm = computed(() => ({ canRead: permission.canRead.value, canManage: permission.canManage.value, canBan: permission.canBan.value }));
+const liftPerm = computed(() => ({ canManage: perm.value.canManage, canBan: perm.value.canBan }));
 const summaryId = useId();
 const reportId = useId();
 const historyId = useId();
 
-const active = computed(() => UtilMember.activeSanctions(props.detail.sanctions));
-/** 제재 요약·신고 요약·이력 중 하나라도 있으면 그린다. 모두 없으면(서버에 제재·신고 표가 아직 없다) 구획 전체를 안내로 대신한다 */
-const hasData = computed(() => props.detail.sanctionSummary !== null || props.detail.reports !== null || props.detail.sanctions.length > 0);
+const withdrawn = computed(() => props.detail.status === 'WITHDRAWN' || props.detail.status === 'WITHDRAWING');
+const running = computed(() => props.view?.preview?.active ?? null);
+/** [제재하기] — `sanction.manage` 가 있고 줄 수 있는 단계가 있을 때(영구 정지 회원은 없다) */
+const canIssue = computed(() => UtilSanction.canIssue(liftPerm.value) && Boolean(props.view?.preview && UtilSanction.hasAnyOption(props.view.preview)));
 const reportItems = computed(() => {
     const r = props.detail.reports;
     if (!r) return [];

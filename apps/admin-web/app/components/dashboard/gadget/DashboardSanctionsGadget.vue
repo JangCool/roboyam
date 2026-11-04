@@ -1,9 +1,9 @@
 <template>
     <!--
         제재 — 진행 중 · 이의 신청 대기를 한 줄 행 두 열로(신고와 같은 모양) + 이의 신청 오래된 차례 3건(닉네임 · 제재 · 신청 시각).
-        제재 전용 화면이 아직 없어(권한 `sanction.read` 는 카탈로그에 「기능 준비 중」) 회원 관리로 간다.
+        누르면 제재 화면(`/sanctions` — 진행 중은 `?scope=ACTIVE`)·이의제기 화면(`/appeals`, 기본이 대기)으로 간다(member-sanction-contract).
     -->
-    <DashboardGadgetFrame :title="title" :at="state.at.value" :loading="state.loading.value" :error="state.error.value" :ready="!!v" :forbidden="state.forbidden.value" :unavailable="state.unavailable.value" more="/members" @refresh="state.reload">
+    <DashboardGadgetFrame :title="title" :at="state.at.value" :loading="state.loading.value" :error="state.error.value" :ready="!!v" :forbidden="state.forbidden.value" :unavailable="state.unavailable.value" more="/sanctions" @refresh="state.reload">
         <div v-if="v" class="flex flex-col gap-3">
             <!-- 건수는 한 줄 행 두 열(사용자 결정 2026-11-03 — 신고와 같은 모양, 「오늘 끝나는 제재」는 처리할 일이 아니라 뺐다) -->
             <DashboardStatGrid :cols="2" row :stats="stats" />
@@ -41,8 +41,8 @@ const stats = computed<DashboardStat[]>(() => {
     const d = v.value;
     if (!d) return [];
     return [
-        { key: 'active', label: t('dashboard.sanctionsActive'), count: d.active, to: '/members' },
-        { key: 'appeals', label: t('dashboard.sanctionsAppeals'), count: d.appealsPending, tone: d.appealsPending > 0 ? 'warn' : 'normal', to: '/members' },
+        { key: 'active', label: t('dashboard.sanctionsActive'), count: d.active, to: '/sanctions?scope=ACTIVE' },
+        { key: 'appeals', label: t('dashboard.sanctionsAppeals'), count: d.appealsPending, tone: d.appealsPending > 0 ? 'warn' : 'normal', to: '/appeals' },
     ];
 });
 </script>

@@ -121,6 +121,7 @@ export default {
         DELETE: 'Delete',
         DEACTIVATE: 'Deactivate club',
         DEAL_END: 'End hot deal',
+        SANCTION_ONLY: 'Sanction only',
         DISMISS: 'Dismiss',
     },
     actionName: {
@@ -129,6 +130,7 @@ export default {
         DELETE: 'Deleted',
         DEACTIVATE: 'Club deactivated',
         DEAL_END: 'Hot deal ended',
+        SANCTION_ONLY: 'Author sanctioned only',
         DISMISS: 'Dismissed',
     },
     dialog: {
@@ -151,6 +153,10 @@ export default {
         DEAL_END: {
             title: 'End this hot deal?',
             text: 'Same as a staff end in Hot deal posts: lists show it as ended and the buy link turns off. The author is notified with your note (up to 200 characters) as the reason. The post isn’t hidden (hide it separately if needed). The case closes as resolved.',
+        },
+        SANCTION_ONLY: {
+            title: 'Sanction the author only?',
+            text: 'Leave the target (post, comment or group) as is and only sanction its author. The sanction is linked to this case and the case closes as resolved.',
         },
         DISMISS: {
             title: 'Dismiss these reports?',
@@ -182,6 +188,7 @@ export default {
         DELETE: 'Deleted the target and closed the case.',
         DEACTIVATE: 'Deactivated the club and closed the case.',
         DEAL_END: 'Ended the hot deal and closed the case.',
+        SANCTION_ONLY: 'Sanctioned the author and closed the case.',
         DISMISS: 'Dismissed the reports.',
         REOPEN: 'Reopened the case.',
     },
@@ -254,7 +261,14 @@ export default {
     authorRecent: 'Last 90 days',
     authorClosedCases: '{resolved} actioned · {dismissed} dismissed',
     sanctionLabel: 'Sanctions',
-    sanctionPending: 'Coming soon',
+    sanctionNotMember: "Guest or withdrawn authors can't be sanctioned.",
+    sanctionWith: 'Sanction author',
+    sanctionWithLabel: 'Also sanction the author — {name}',
+    sanctionWithHelp: 'Issued together with the action. If the sanction is refused, the action is not applied either.',
+    sanctionReasonLabel: 'Sanction reason',
+    sanctionReasonSame: 'Starts as your note. Edit it to send a separate reason — the member sees it as written.',
+    actWithSanction: '{act} + {kind}',
+    doneWithSanction: '{done} {sanction}',
     closureTitle: 'Outcome',
     closureAction: 'Action',
     closedBy: 'Handled by',

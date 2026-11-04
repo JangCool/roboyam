@@ -1,0 +1,67 @@
+/**
+ * Appeal copy — same keys and order as `ko/appeal.ts`.
+ */
+export default {
+    title: 'Appeals',
+    subtitle: 'Review appeals against sanctions in the order they arrived and accept or reject them. One appeal per sanction, within 30 days of its start.',
+    filterStatus: 'Status',
+    filter: {
+        PENDING: 'Pending',
+        ACCEPTED: 'Accepted',
+        REJECTED: 'Rejected',
+        ALL: 'All',
+    },
+    status: {
+        PENDING: 'Pending',
+        ACCEPTED: 'Accepted',
+        REJECTED: 'Rejected',
+    },
+    sortBy: 'Sort: submitted, {dir}',
+    readOnly: 'View only — accepting or rejecting needs the appeal.manage permission.',
+    loadFailed: "Couldn't load appeals",
+    empty: 'No matching appeals',
+    emptyPending: 'No pending appeals',
+    emptyPendingHint: 'New appeals from members appear here in the order they arrive.',
+    col: {
+        no: 'No.',
+        member: 'Member',
+        sanction: 'Sanction',
+        status: 'Status',
+        createdAt: 'Submitted',
+        wait: 'Waiting',
+        answeredAt: 'Answered',
+    },
+    noValue: '#{no}',
+    waitMinutes: '{n} min',
+    waitHours: '{n} h',
+    waitDays: '{d} d {h} h',
+
+    // Drawer
+    drawerTitle: 'Appeal #{no} · {name}',
+    drawerTitleEmpty: 'Appeal',
+    prev: 'Previous appeal',
+    next: 'Next appeal',
+    detailFailed: "Couldn't load the appeal",
+    reasonTitle: 'Reason for appeal',
+    sanctionTitle: 'Sanction',
+    openSanction: 'Open in Sanctions',
+    evidence: 'Grounds',
+    evidenceNone: 'Not linked to a report.',
+    resultTitle: 'Result',
+    acceptedNote: 'The sanction was voided (it no longer counts).',
+    rejectedNote: 'The sanction was kept. This sanction cannot be appealed again.',
+    closedNote: 'Already answered — another operator replied first.',
+    reload: 'Reload',
+
+    // Answer
+    answerLabel: 'Answer',
+    answerHelp: 'Sent to the member as written (notification, email, My sanctions).',
+    answerPlaceholder: 'e.g. Looking at the thread again, there was no intent to insult.',
+    acceptNote: 'Accepting voids this sanction and removes it from the count.',
+    acceptNoteRunning: 'Accepting voids this sanction and lifts the current suspension right away. Rejecting keeps it.',
+    acceptNoteWarning: 'Accepting voids this warning and removes it from the count. Rejecting keeps it.',
+    accept: 'Accept',
+    reject: 'Reject',
+    acceptedToast: 'Accepted appeal #{no}.',
+    rejectedToast: 'Rejected appeal #{no}.',
+};

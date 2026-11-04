@@ -49,6 +49,7 @@ import com.community.report.repository.master.AdminReportRepositoryQDSL;
 import com.community.report.repository.master.ReportCaseRepository;
 import com.community.report.repository.master.ReportEventRepository;
 import com.community.report.repository.master.ReportRepositoryQDSL;
+import com.community.sanction.service.SanctionViews;
 import com.community.site.dto.SiteValues;
 import com.community.site.service.SiteSettingsService;
 import com.community.user.entity.ProfileEntity;
@@ -142,11 +143,13 @@ public class AdminReportQueryService {
     private final GroupCategoryLookup groupCategories;
     private final GroupPeople groupPeople;
     private final HotdealAdminQueryService hotdeals;
+    private final SanctionViews sanctionViews;
 
     public AdminReportQueryService(AdminReportRepositoryQDSL search, ReportCaseRepository cases, ReportRepositoryQDSL reports, ReportEventRepository events,
                                    ReportCaseLog caseLog, PostRepository posts, CommentRepository comments, ProfileRepository profiles, UserRepository users,
                                    OperatorRepository operators, BoardCatalog catalog, SiteSettingsService site, GroupRepository groups,
-                                   GroupCategoryLookup groupCategories, GroupPeople groupPeople, HotdealAdminQueryService hotdeals) {
+                                   GroupCategoryLookup groupCategories, GroupPeople groupPeople, HotdealAdminQueryService hotdeals, SanctionViews sanctionViews) {
+        this.sanctionViews = sanctionViews;
         this.hotdeals = hotdeals;
         this.groups = groups;
         this.groupCategories = groupCategories;
@@ -230,7 +233,7 @@ public class AdminReportQueryService {
                     : new ReportContentView(post.getContentFormat().name(), post.isPurged() ? null : post.getContent(), snapshot);
         }
         return new ReportCaseDetailView(item, content, lines(reports.ofCase(c.getId())), authorCard(c, post, comment, first, now),
-                eventViews(events.findByCaseIdOrderByIdAsc(c.getId())), publicUrlOf(c), group == null ? null : groupView(group));
+                eventViews(events.findByCaseIdOrderByIdAsc(c.getId())), publicUrlOf(c), group == null ? null : groupView(group), null);
     }
 
     /** 소모임 사건의 대상 소모임(지금 값) */
@@ -416,7 +419,7 @@ public class AdminReportQueryService {
         UserEntity user = users.findById(authorId).orElse(null);
         long[] closed = search.closedCountsOf(authorId, now.minus(AUTHOR_WINDOW));
         return new ReportAuthorCardView(Long.toString(authorId), profile == null ? "" : profile.getNickname(), profile == null ? null : profile.getGradeKey(),
-                user == null ? null : user.getCreatedAt(), new ReportClosedCasesView(closed[0], closed[1]), null);
+                user == null ? null : user.getCreatedAt(), new ReportClosedCasesView(closed[0], closed[1]), sanctionViews.previewOrNull(authorId));
     }
 
     private List<ReportEventView> eventViews(List<ReportEventEntity> rows) {

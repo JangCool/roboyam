@@ -66,6 +66,8 @@ export default {
     boardDefaultsPrivacy: 'Data retention',
     safety: 'Community safety',
     reports: 'Reports',
+    sanctions: 'Sanctions',
+    appeals: 'Appeals',
     content: 'Content',
     posts: 'Posts',
     highlights: 'Highlights',

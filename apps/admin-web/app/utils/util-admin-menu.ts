@@ -165,11 +165,16 @@ export default class UtilAdminMenu {
             ],
         },
         // 커뮤니티 안전 묶음(콘텐츠 묶음 앞) — 신고 관리: 글·댓글 신고를 대상별 사건으로 보고 조치·무시(docs/features/report-admin-contract.md). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한
+        // 제재·이의제기(docs/features/member-sanction-contract.md): 둘 다 보기 `sanction.read`(처리는 화면 안에서 `sanction.manage`·`sanction.ban`·`appeal.manage`). 서버 `AdminScreenRegistry` 와 같은 키·주소·권한·아이콘·차례
         {
             key: 'safety',
             icon: 'pi pi-shield',
             labelKey: 'menu.safety',
-            items: [{ key: 'reports', to: '/reports', icon: 'pi pi-flag', labelKey: 'menu.reports', permission: 'report.read' }],
+            items: [
+                { key: 'reports', to: '/reports', icon: 'pi pi-flag', labelKey: 'menu.reports', permission: 'report.read' },
+                { key: 'sanctions', to: '/sanctions', icon: 'pi pi-ban', labelKey: 'menu.sanctions', permission: 'sanction.read' },
+                { key: 'appeals', to: '/appeals', icon: 'pi pi-comments', labelKey: 'menu.appeals', permission: 'sanction.read' },
+            ],
         },
         // 콘텐츠 묶음 — 게시글 관리(맨 앞)·하이라이트(토론 의견 관리 포함)·인기글 관리(빼기·다시 넣기)·인기글 설정(점수식). 서버 `AdminScreenRegistry` 의 `menu.content` 와 같은 키·주소·권한·차례(docs/features/popular-highlight-contract.md).
         // `/content/popular/settings` 는 `/content/popular` 아래지만 다른 화면이다(`isActive` 가 더 구체적인 항목에 주소를 준다)

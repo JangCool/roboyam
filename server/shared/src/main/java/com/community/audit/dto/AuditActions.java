@@ -224,6 +224,15 @@ public final class AuditActions {
     public static final String MEMBER_RESTRICTION_GRANT = "MEMBER_RESTRICTION_GRANT";
     /** 기능 제한 해제 — 대상 MEMBER, {@code restrictionId}·{@code type}·해제 사유 {@code reason} */
     public static final String MEMBER_RESTRICTION_LIFT = "MEMBER_RESTRICTION_LIFT";
+    // ── 회원 제재·이의제기(docs/features/member-sanction-contract.md) — 대상 MEMBER + 회원 ID ──
+    /** 사이트 제재 부여 — {@code sanctionId}·{@code sanctionNo}·{@code kind}·{@code warningNo}·{@code skipped}·{@code endsAt}·{@code reason}·{@code reportCaseId}·대체해 끝낸 정지 {@code replacedSanctionId}·끝낸 게시판 지정 {@code boardStaffEnded} */
+    public static final String SANCTION_ISSUE = "SANCTION_ISSUE";
+    /** 진행 중 정지·영구 정지 해제 — {@code sanctionId}·{@code sanctionNo}·{@code kind}·해제 사유 {@code reason} */
+    public static final String SANCTION_LIFT = "SANCTION_LIFT";
+    /** 이의제기 인용(제재 무효) — {@code appealId}·{@code appealNo}·{@code sanctionId}·{@code kind}·{@code answer}·진행 중이던 정지를 풀었으면 {@code released} */
+    public static final String APPEAL_ACCEPT = "APPEAL_ACCEPT";
+    /** 이의제기 기각 — {@code appealId}·{@code appealNo}·{@code sanctionId}·{@code kind}·{@code answer} */
+    public static final String APPEAL_REJECT = "APPEAL_REJECT";
     /** 탈퇴 회원 연락처 열람 — 대상 MEMBER, 사유 {@code reason}(이메일은 싣지 않는다). 감사 보관 분류는 개인정보 열람(0-5 와 합칠 때) */
     public static final String WITHDRAWN_CONTACT_REVEAL = "WITHDRAWN_CONTACT_REVEAL";
     // ── 회원 탈퇴(docs/features/member-withdrawal-contract.md) ──

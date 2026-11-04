@@ -189,7 +189,6 @@ export default {
             consent: '동의 이력은 아직 서버에서 받아 오지 않아요.',
             groupBuy: '공동구매 주문은 공동구매 기능이 생기면 보여요.',
             inbox: '알림함 건수를 받아 오지 못했어요.',
-            sanctions: '제재·신고 이력은 아직 서버에서 받아 오지 않아요.',
         },
         empty: '-',
         // 목록형 이력이 비었을 때(닉네임 변경·동의 변경·등급 변경·포인트 내역·제재 이력) 공통 한 문구
@@ -252,27 +251,7 @@ export default {
             recentLoginDays: '최근 7일 접속일',
         },
         sanction: {
-            kind: {
-                WARNING: '경고',
-                SUSPENSION: '기간 정지',
-                BAN: '영구 정지',
-            },
-            scope: {
-                SITE: '사이트 제재',
-            },
-            board: '게시판 한정 · {name}',
-            status: {
-                ACTIVE: '진행',
-                ENDED: '종료',
-                RELEASED: '해제',
-            },
-            occurredAt: '일시 {at}',
-            endsAt: '종료 {at}',
             summaryTitle: '제재 요약',
-            warningCount: '경고 횟수',
-            warningValue: '{count}회',
-            activeNow: '진행 중인 제재',
-            nextStep: '다음 단계',
             historyTitle: '제재 이력',
         },
         reports: {

@@ -6,6 +6,8 @@
         행을 누르면(또는 Enter·Space) 회원 상세 서랍이 열린다(`MemberDetailDrawer`, 읽기 전용 — 조치는 후속). 행 액션은 없다. 본문 여백은 셸(`.app-content`)이 준다.
         커머스 0-4: 서랍의 「기능 제한」 구획(목록·걸기·해제)과 탈퇴 회원의 분리 보관 연락처(열람)는 이 화면이 상태(`useMemberRestrictions`·`useWithdrawnContact`)와 대화상자를 가진다.
         커머스 1-1: 「등급·포인트」 구획의 포인트 묶음(적립/충전·소멸 예정·미회수·묶음 목록)도 이 화면이 상태(`useMemberPointLots`, `point.read` 있을 때만)를 가진다.
+        제재(member-sanction-contract): 「제재」 구획의 현황·이력은 제재 API 현황(`useSanctionPreview`, `sanction.read` 있을 때만 — 회원 상세 API 의 제재 칸은 읽지 않는다),
+          [제재하기](`SanctionIssueDialog` — 회원이 정해져 찾기 없음)·진행 중 정지 [해제](사유 1~500자)는 이 화면이 대화상자를 가진다.
     -->
     <div class="flex min-w-0 flex-col gap-4">
         <PageTitle :title="t('member.title')" :subtitle="t('member.subtitle')" />
@@ -164,7 +166,33 @@
             @mask-contact="contact.mask"
             @point-lots-query="pointLots.query"
             @retry-point-lots="pointLots.retry"
+            :sanctions="sanctionPerm.canRead.value ? sanctionsView : null"
+            @sanction="openSanctionIssue"
+            @lift-sanction="openSanctionLift"
+            @retry-sanctions="sanctionPreview.retry"
         />
+
+        <!-- 제재하기·제재 해제 — 서랍 위에 뜬다 -->
+        <SanctionIssueDialog v-model:visible="sanctionIssue.open.value" :view="sanctionIssue.view.value" :perm="sanctionLiftPerm" @retry-preview="sanctionIssue.loadPreview" @submit="submitSanctionIssue" />
+        <MemberReasonDialog
+            v-model:visible="sanctionLiftOpen"
+            :title="t('sanction.liftTitle')"
+            :label="t('sanction.liftReasonLabel')"
+            :submit-label="t('sanction.lift')"
+            submit-icon="pi pi-lock-open"
+            :notice="t('sanction.liftNotice')"
+            :min="1"
+            :max="UtilSanction.TEXT_MAX"
+            :busy="sanctionLiftBusy"
+            :error="sanctionLiftError"
+            :field-error="sanctionLiftFieldError"
+            @submit="submitSanctionLift"
+        >
+            <p v-if="sanctionLiftTarget" class="m-0 flex flex-wrap items-center gap-1.5 text-sm">
+                <b>{{ sanctionLiftTarget.user.nickname }}</b>
+                <SanctionTag type="kind" :kind="sanctionLiftTarget.kind" />
+            </p>
+        </MemberReasonDialog>
 
         <!-- 기능 제한 걸기·해제, 탈퇴 회원 연락처 열람(커머스 0-4) — 서랍 위에 뜬다(서랍의 바깥 누름 판정은 대화상자를 무시한다) -->
         <MemberRestrictionDialog
@@ -240,6 +268,10 @@ import type { ForceWithdrawRequest, WithdrawalCancelRequest } from '~/composable
 import UtilMemberWithdrawal from '~/utils/util-member-withdrawal';
 import UtilMember, { type MemberColumnKey, type MemberDetailRow, type MemberFilter } from '~/utils/util-member';
 import UtilMemberMessages from '~/utils/util-member-messages';
+import type { SanctionCreateRequest, SanctionLine } from '~/composables/sanction/api/useSanctionApi.types';
+import type { MemberSanctionsView } from '~/components/member/MemberDetailContent.types';
+import UtilSanction from '~/utils/util-sanction';
+import UtilSanctionMessages from '~/utils/util-sanction-messages';
 
 // 등급 목록 — 앱 전체가 한 번 읽어 공유한다(`useGradeAppearance`). 표의 뱃지·필터 옵션·조건 칩이 이것을 본다
 const gradeState = useGradeAppearance();
@@ -319,6 +351,65 @@ function onRowClick(e: { originalEvent: Event; data: MemberRow }) {
     // 커머스 1-1 — 포인트 묶음(적립/충전·소멸 예정·미회수)은 `point.read` 가 있을 때만(탈퇴 회원은 등급·포인트 구획이 비어 받지 않는다)
     if (canReadPoints.value && e.data.status !== 'WITHDRAWN') pointLots.open(e.data.memberNo);
     else pointLots.clear();
+    // 제재 — 탈퇴(진행 중 포함) 회원은 제재 현황이 없다(서버 404)
+    if (sanctionPerm.canRead.value && e.data.status !== 'WITHDRAWN' && e.data.status !== 'WITHDRAWING') void sanctionPreview.open(e.data.memberNo);
+    else sanctionPreview.clear();
+}
+
+// ── 제재(member-sanction-contract) — 「제재」 구획의 현황·이력과 제재하기·해제 대화상자. 서버 호출은 상태 컴포저블 한 겹
+const sanctionPerm = useSanctionPermission();
+const sanctionLiftPerm = computed(() => ({ canManage: sanctionPerm.canManage.value, canBan: sanctionPerm.canBan.value }));
+const sanctionPreview = useSanctionPreview();
+const sanctionsView = computed<MemberSanctionsView>(() => ({ preview: sanctionPreview.preview.value, loading: sanctionPreview.loading.value, error: sanctionPreview.error.value }));
+const sanctionIssue = useSanctionIssue();
+
+function openSanctionIssue(): void {
+    const row = selectedRow.value ?? detail.value;
+    if (row) sanctionIssue.start({ id: row.memberNo, nickname: row.nickname });
+}
+
+async function submitSanctionIssue(body: Omit<SanctionCreateRequest, 'userId' | 'reportCaseId'>): Promise<void> {
+    const created = await sanctionIssue.submit(body);
+    if (!created) return;
+    toast.success(UtilSanctionMessages.issued(t, created));
+    void sanctionPreview.reload();
+}
+
+const sanctionLiftOpen = ref(false);
+const sanctionLiftBusy = ref(false);
+const sanctionLiftTarget = ref<SanctionLine | null>(null);
+const sanctionLiftError = ref('');
+const sanctionLiftFieldError = ref('');
+
+function openSanctionLift(line: SanctionLine): void {
+    if (!UtilSanction.canLift(line, sanctionLiftPerm.value)) return;
+    sanctionLiftTarget.value = line;
+    sanctionLiftError.value = '';
+    sanctionLiftFieldError.value = '';
+    sanctionLiftOpen.value = true;
+}
+
+async function submitSanctionLift(reason: string): Promise<void> {
+    const target = sanctionLiftTarget.value;
+    if (!target || sanctionLiftBusy.value) return;
+    sanctionLiftBusy.value = true;
+    sanctionLiftError.value = '';
+    sanctionLiftFieldError.value = '';
+    const failure = await sanctionPreview.lift(target, reason);
+    sanctionLiftBusy.value = false;
+    if (!failure) {
+        sanctionLiftOpen.value = false;
+        toast.success(t('sanction.lifted', { name: target.user.nickname }));
+        return;
+    }
+    if (failure.code === 'SANCTION_NOT_LIFTABLE' || failure.code === 'SANCTION_NOT_FOUND') {
+        sanctionLiftOpen.value = false;
+        toast.error(t('sanction.staleFailed', { reason: failure.message }), 8000);
+        return;
+    }
+    const split = splitError(failure, ['reason']);
+    sanctionLiftFieldError.value = split.fields.reason ?? '';
+    sanctionLiftError.value = split.form;
 }
 
 // ── 포인트 묶음(커머스 1-1) — 「등급·포인트」 구획이 보는 상태. 서버 호출은 상태 컴포저블 한 겹이다

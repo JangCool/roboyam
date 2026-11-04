@@ -1,5 +1,5 @@
 /**
- * 내 제재·이의제기 API 가 주고받는 모양 — **서버에 아직 없다**(목업). 모양은 community `docs/api-sanction.md` 2절(회원 쪽) 그대로이고,
+ * 내 제재·이의제기 API 가 주고받는 모양 — 서버 `server/api` `com.community.sanction.dto`(`MySanctionsView`·`MySanctionView`·`MyAppealView`·`AppealRequest`·`AppealCreatedView`)와 같은 칸 이름. 모양의 근거는 community `docs/api-sanction.md` 2절(회원 쪽)이고,
  * 게시판 한정 제재(`boardSanctions`·`BOARD_SANCTION` — community 게시판 지킴이 기능)는 로보얌에 없어 뺐다. 계약 후보: `docs/features/member-activity-contract.md`.
  * 로그인 정보의 요약(`restriction`)은 `useAuthApi.types.ts` 의 `Restriction` 이다(이미 서버에 있다).
  * ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO.
@@ -42,8 +42,13 @@ export interface MySanction {
     createdAt: string;
     /** 경고의 「확인했어요」 여부 — 정지·영구 정지는 늘 true */
     acknowledged: boolean;
-    /** 이의제기 — 없으면 null. null 이고 무효가 아니면 접수할 수 있다 */
+    /** 이의제기 — 없으면 null. null 이고 무효가 아니고 마감 전이면 접수할 수 있다 */
     appeal: AppealView | null;
+    /**
+     * 이의제기 마감 — 제재 시작(`startsAt`) + 30일(로보얌 결정, `member-sanction-contract.md` 결정 3). 무효(`VOIDED`)면 null.
+     * 지나면 접수가 `409 APPEAL_EXPIRED` 다(이미 접수한 이의제기의 처리와는 상관없다).
+     */
+    appealDeadline: string | null;
 }
 
 /** `GET /api/me/sanctions` — 로그인 필요(정지 중·인증 전에도). 읽기 전에 서버가 지난 정지를 먼저 끝낸다 */

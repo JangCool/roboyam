@@ -68,9 +68,46 @@ public class MemberNotificationMessages {
      * @param targetType 신고 처리 결과의 대상 종류({@code POST}·{@code COMMENT}·{@code GROUP}) — 그 밖 null
      * @param restriction 걸린 기능 제한(기능 제한 알림만 — 운영 메모 없음)
      * @param expiring    소멸 예정(소멸 예정 알림만 — 양은 {@code amount})
+     * @param sanction    사이트 제재(제재 알림 3종만 — member-sanction-contract 정책 8). 사유·답변은 {@code note}
      */
     public record Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
-                        boolean temporary, String snapshot, String result, String reasonCode, String targetType, Restriction restriction, Expiring expiring) {
+                        boolean temporary, String snapshot, String result, String reasonCode, String targetType, Restriction restriction, Expiring expiring,
+                        Sanction sanction) {
+
+        /** 제재 알림 밖의 사실 — 제재는 null */
+        public Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
+                     boolean temporary, String snapshot, String result, String reasonCode, String targetType, Restriction restriction, Expiring expiring) {
+            this(type, actorName, postTitle, excerpt, groupCount, amount, pointsKind, note, temporary, snapshot, result, reasonCode, targetType, restriction, expiring, null);
+        }
+
+        /**
+         * 사이트 제재 알림의 사실.
+         *
+         * @param kind      제재 단계({@code WARNING}·{@code SUSPEND_3}·{@code SUSPEND_7}·{@code SUSPEND_30}·{@code BAN})
+         * @param warningNo 경고일 때 부여 당시 몇 번째(1·2), 그 밖 null
+         * @param until     기간 정지의 끝(그 밖 null)
+         * @param result    이의제기 답변 결과({@code ACCEPTED}·{@code REJECTED}) — 답변 알림만
+         */
+        public record Sanction(String kind, Integer warningNo, Instant until, String result) {
+        }
+
+        /** 제재를 받았다 — 사유는 운영자가 적은 그대로 */
+        public static Facts sanctionIssued(String kind, Integer warningNo, Instant until, String reason) {
+            return new Facts(MemberNotificationType.SANCTION_ISSUED, null, null, null, 1, 0, null, reason, false, null, null, null, null, null, null,
+                    new Sanction(kind, warningNo, until, null));
+        }
+
+        /** 운영자가 정지·영구 정지를 풀었다 */
+        public static Facts sanctionLifted(String kind) {
+            return new Facts(MemberNotificationType.SANCTION_LIFTED, null, null, null, 1, 0, null, null, false, null, null, null, null, null, null,
+                    new Sanction(kind, null, null, null));
+        }
+
+        /** 이의제기에 답했다 — 결과 · 답변 */
+        public static Facts appealAnswered(String kind, Integer warningNo, String result, String answer) {
+            return new Facts(MemberNotificationType.APPEAL_ANSWERED, null, null, null, 1, 0, null, answer, false, null, null, null, null, null, null,
+                    new Sanction(kind, warningNo, null, result));
+        }
 
         /** 소멸 예정 알림 밖의 사실 — 소멸 예정은 null */
         public Facts(MemberNotificationType type, String actorName, String postTitle, String excerpt, int groupCount, long amount, String pointsKind, String note,
@@ -380,6 +417,11 @@ public class MemberNotificationMessages {
                             nz(facts.note())), locale));
             case DEAL_FLAGGED, DEAL_AUTO_ENDED, DEAL_EXPIRED, DEAL_REOPENED_FIX_ENDS -> builder.variable("postTitle", nz(facts.snapshot()));
             case DEAL_MANAGER_ENDED -> builder.variable("postTitle", nz(facts.snapshot())).variable("reason", nz(facts.note()));
+            case SANCTION_ISSUED -> builder.variable("sanction", sanctionName(facts, locale)).variable("until", sanctionUntil(facts, locale))
+                    .variable("reason", nz(facts.note()));
+            case SANCTION_LIFTED -> builder.variable("sanction", sanctionName(facts, locale));
+            case APPEAL_ANSWERED -> builder.variable("sanction", sanctionName(facts, locale)).variable("result", appealResult(facts, locale))
+                    .variable("answer", nz(facts.note()));
             case POINTS_EXPIRING -> builder.variable("amount", String.format("%,d", facts.amount()))
                     .variable("date", facts.expiring() == null || facts.expiring().date() == null ? "" : facts.expiring().date().toString())
                     .variable("days", facts.expiring() == null ? "" : String.valueOf(facts.expiring().days()));
@@ -400,6 +442,33 @@ public class MemberNotificationMessages {
             }
         }
         return String.join(" · ", names);
+    }
+
+    /** 제재 이름(번들 — 「경고 2회째」·「정지 7일」·「영구 정지」). 모르는 단계는 그 글자 */
+    private String sanctionName(Facts facts, Locale locale) {
+        Facts.Sanction sanction = facts.sanction();
+        if (sanction == null || sanction.kind() == null) {
+            return "";
+        }
+        if ("WARNING".equals(sanction.kind()) && sanction.warningNo() != null) {
+            return messages.get(new MessageRef("member.sanction.kind.WARNING.n", String.valueOf(sanction.warningNo())), locale);
+        }
+        return switch (sanction.kind()) {
+            case "WARNING", "SUSPEND_3", "SUSPEND_7", "SUSPEND_30", "BAN" -> messages.get(new MessageRef("member.sanction.kind." + sanction.kind()), locale);
+            default -> sanction.kind();
+        };
+    }
+
+    /** 기간 정지의 끝 — 한국 시간 「YYYY-MM-DD HH:mm까지」, 끝이 없으면 빈 글자 */
+    private String sanctionUntil(Facts facts, Locale locale) {
+        Instant until = facts.sanction() == null ? null : facts.sanction().until();
+        return until == null ? "" : messages.get(new MessageRef("member.sanction.until", UNTIL_FORMAT.format(until.atZone(ServiceTime.ZONE))), locale);
+    }
+
+    /** 이의제기 결과 이름 — 모르는 값은 기각으로 본다 */
+    private String appealResult(Facts facts, Locale locale) {
+        String result = facts.sanction() != null && "ACCEPTED".equals(facts.sanction().result()) ? "ACCEPTED" : "REJECTED";
+        return messages.get(new MessageRef("member.notification.APPEAL_ANSWERED.result." + result), locale);
     }
 
     /** 걸린 기능 이름(번들 — 「공동구매 참여」) */

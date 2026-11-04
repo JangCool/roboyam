@@ -10,6 +10,7 @@ import type {
     ReportEventType,
     ReportReasonCode,
     ReportResolveAction,
+    ReportResolveRequestAction,
     ReportSearchField,
     ReportSort,
     ReportStatusFilter,
@@ -57,7 +58,7 @@ export type ReportSearchKind = 'NONE' | 'TOO_SHORT' | 'NUMBER_INVALID' | 'OK';
 /** 조치 글의 문제 */
 export type ReportNoteProblem = 'REQUIRED' | 'TOO_LONG';
 
-/** 처리 대화창의 종류 — 조치 셋 + 무시 */
+/** 처리 대화창의 종류 — 조치들(제재만 `SANCTION_ONLY` 포함) + 무시 */
 export type ReportActKind = ReportResolveAction | 'DISMISS';
 
 /** 사건 하나에서 누를 수 있는 처리 */
@@ -156,7 +157,7 @@ export default class UtilReport {
     static readonly REASONS = REASONS;
     static readonly SORTS = SORTS;
     /** 처리 단추의 차례 */
-    static readonly ACT_ORDER: readonly ReportActKind[] = ['DEAL_END', 'HIDE', 'KEEP_HIDDEN', 'DELETE', 'DEACTIVATE', 'DISMISS'];
+    static readonly ACT_ORDER: readonly ReportActKind[] = ['DEAL_END', 'HIDE', 'KEEP_HIDDEN', 'DELETE', 'DEACTIVATE', 'SANCTION_ONLY', 'DISMISS'];
 
     /* ── 주소 ↔ 필터 ── */
 
@@ -367,7 +368,7 @@ export default class UtilReport {
     }
 
     static noActions(): ReportActions {
-        return { HIDE: false, KEEP_HIDDEN: false, DELETE: false, DEACTIVATE: false, DEAL_END: false, DISMISS: false };
+        return { HIDE: false, KEEP_HIDDEN: false, DELETE: false, DEACTIVATE: false, DEAL_END: false, SANCTION_ONLY: false, DISMISS: false };
     }
 
     /**
@@ -375,11 +376,13 @@ export default class UtilReport {
      * 글·댓글: 숨기기 = 공개 대상만 · 자동 숨김 확정 = 자동 숨김된 대상만 · 삭제 = 지우지 않은 대상 · 무시 = 늘.
      * 소모임: 비활성화 = 열린(`PUBLIC`) 소모임만 · 무시 = 늘(숨기기·삭제는 없다 — community 와 같다).
      * 핫딜 글: 위 글 처리 + 핫딜 종료 = 지우지 않은 글이고 딜이 아직 종료가 아닐 때(`deal` 칸이 없는 옛 응답이면 상태를 몰라 늘 보인다, 이미 종료면 서버가 409).
+     * 제재만(`SANCTION_ONLY`, member-sanction-contract 결정 4): 모든 대상 — 작성자가 제재할 수 있는 회원이고(`canSanctionAuthor`) `sanction.manage` 가 있을 때(`canSanction`).
      */
-    static actionsOf(item: Pick<ReportCaseItem, 'status' | 'target' | 'targetType' | 'reasons' | 'deal'>, canManage: boolean): ReportActions {
+    static actionsOf(item: Pick<ReportCaseItem, 'status' | 'target' | 'targetType' | 'reasons' | 'deal' | 'author'>, canManage: boolean, canSanction = false): ReportActions {
         const actions = UtilReport.noActions();
         if (!canManage || !UtilReport.isOpen(item.status)) return actions;
         actions.DISMISS = true;
+        actions.SANCTION_ONLY = canSanction && UtilReport.canSanctionAuthor(item.author);
         if (item.targetType === 'GROUP') {
             actions.DEACTIVATE = item.target.state === 'PUBLIC';
             return actions;
@@ -389,6 +392,21 @@ export default class UtilReport {
         actions.DELETE = item.target.state !== 'DELETED';
         actions.DEAL_END = UtilReport.isDealCase(item) && item.target.state !== 'DELETED' && item.deal?.view !== 'ENDED';
         return actions;
+    }
+
+    /** 작성자에게 제재를 줄 수 있나 — 회원이고 탈퇴하지 않았다(비회원·탈퇴 회원은 제재 불가 — 서버도 막는다) */
+    static canSanctionAuthor(author: Pick<ReportCaseItem['author'], 'kind' | 'id' | 'withdrawn'> | null | undefined): boolean {
+        return Boolean(author && author.kind === 'MEMBER' && author.id && !author.withdrawn);
+    }
+
+    /** 처리 대화창의 조치를 요청의 `action` 으로 — 「제재만」은 `NONE` */
+    static requestAction(kind: Exclude<ReportActKind, 'DISMISS'>): ReportResolveRequestAction {
+        return kind === 'SANCTION_ONLY' ? 'NONE' : kind;
+    }
+
+    /** 이 조치에 작성자 제재를 곁들일 수 있나 — 무시에는 없다, 제재만은 늘(필수) */
+    static allowsSanction(kind: ReportActKind | null | undefined): boolean {
+        return Boolean(kind) && kind !== 'DISMISS';
     }
 
     static actionList(actions: ReportActions): ReportActKind[] {
@@ -405,7 +423,7 @@ export default class UtilReport {
     }
 
     static actIcon(kind: ReportActKind): string {
-        const icons: Record<ReportActKind, string> = { HIDE: 'pi pi-eye-slash', KEEP_HIDDEN: 'pi pi-lock', DELETE: 'pi pi-trash', DEACTIVATE: 'pi pi-ban', DEAL_END: 'pi pi-stop-circle', DISMISS: 'pi pi-times-circle' };
+        const icons: Record<ReportActKind, string> = { HIDE: 'pi pi-eye-slash', KEEP_HIDDEN: 'pi pi-lock', DELETE: 'pi pi-trash', DEACTIVATE: 'pi pi-ban', DEAL_END: 'pi pi-stop-circle', SANCTION_ONLY: 'pi pi-user-minus', DISMISS: 'pi pi-times-circle' };
         return icons[kind];
     }
 

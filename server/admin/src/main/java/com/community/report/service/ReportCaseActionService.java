@@ -38,6 +38,14 @@ import com.community.report.exception.ReportCaseOpenExistsException;
 import com.community.report.repository.master.AdminReportRepositoryQDSL;
 import com.community.report.repository.master.ReportCaseRepository;
 import com.community.report.repository.master.ReportRepositoryQDSL;
+import com.community.sanction.dto.SanctionIssue;
+import com.community.sanction.dto.request.SanctionWithReportRequest;
+import com.community.sanction.dto.response.SanctionLineView;
+import com.community.sanction.exception.SanctionTargetNotFoundException;
+import com.community.sanction.repository.master.MemberSanctionStore;
+import com.community.sanction.service.AdminSanctionService;
+import com.community.sanction.service.MemberSanctionService;
+import com.community.sanction.service.SanctionViews;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ValidationException;
 import com.community.zconfiguration.message.MessageRef;
@@ -81,6 +89,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       아래에서. 복구했던 자동 숨김은 다시 숨기지 않는다. 허위 표시를 풀고 신고들은 PENDING.</li>
  *   <li><b>알림</b>(사건을 닫을 때): 게시판 신고 정책 {@code notifyReporterOnResult} 면 사건의 신고자 모두에게 {@code REPORT_RESULT}(조치됨 · 위반 아님),
  *       {@code notifyAuthorOnAction} 이면 회원 작성자에게 숨김 {@code POST_HIDDEN}·{@code COMMENT_HIDDEN} / 삭제 {@code POST_REMOVED}·{@code COMMENT_REMOVED}(사유 코드 이름 + 글).</li>
+ *   <li><b>작성자 제재</b>(member-sanction-contract 결정 4): 조치에 {@code sanction} 을 곁들이거나 조치 {@code NONE}(「제재만」 — 사건 조치 SANCTION_ONLY, 대상은 그대로)이면 대상 조치 뒤 같은 트랜잭션에서
+ *       사건 작성자({@code target_author_id})에게 shared {@code MemberSanctionService#issue}(칸 오류 경로 {@code sanction.*}, 제재에 사건 ID). 제재 오류면 조치도 롤백된다. 기록·감사 덧붙임 {@code sanctionId}·{@code sanctionNo}·{@code sanctionKind}.</li>
  *   <li><b>감사</b>: {@code REPORT_RESOLVE} · {@code REPORT_DISMISS} · {@code REPORT_BULK_DISMISS} · {@code REPORT_REOPEN}(대상 REPORT_CASE). 사건 기록 {@code report_events} 에도 한 줄.</li>
  * </ul>
  */
@@ -111,12 +121,16 @@ public class ReportCaseActionService {
     private final GroupAdminService groupAdmin;
     private final HotdealAdminQueryService hotdeals;
     private final DealModeration dealModeration;
+    private final MemberSanctionService sanctions;
+    private final AdminSanctionService sanctionAdmin;
 
     public ReportCaseActionService(ReportCaseRepository cases, AdminReportRepositoryQDSL caseQueries, ReportRepositoryQDSL reports, ReportCaseLog caseLog,
                                    PostRepository posts, CommentRepository comments, PostCounterQueries counters, AdminPostModerationService postModeration,
                                    PostModerationLog moderation, PointService points, MemberNotificationPublisher memberNotices, BoardCatalog catalog,
                                    AuditLogService audit, PlatformTransactionManager txManager, GroupAdminService groupAdmin, HotdealAdminQueryService hotdeals,
-                                   DealModeration dealModeration) {
+                                   DealModeration dealModeration, MemberSanctionService sanctions, AdminSanctionService sanctionAdmin) {
+        this.sanctions = sanctions;
+        this.sanctionAdmin = sanctionAdmin;
         this.groupAdmin = groupAdmin;
         this.hotdeals = hotdeals;
         this.dealModeration = dealModeration;
@@ -138,12 +152,24 @@ public class ReportCaseActionService {
 
     // ── 조치 ──────────────────────────────────────────────────────────────
 
+    /** 요청의 조치 「제재만」(사건에는 SANCTION_ONLY 로 남는다 — 직접 SANCTION_ONLY 를 보내면 400 {@code fields.action}) */
+    static final String ACTION_NONE = "NONE";
+
+    /**
+     * 조치 — 작성자 제재({@code sanction})를 곁들이면 같은 트랜잭션에서 사건 작성자에게 제재를 주고(사건이 제재에 이어진다) 그 줄을 돌려준다(없으면 null).
+     * 제재 오류(409 {@code SANCTION_*} · 403 · 400 {@code fields.sanction.*})면 조치도 일어나지 않는다(롤백). 비회원·탈퇴 작성자면 404 {@code SANCTION_TARGET_NOT_FOUND}.
+     */
     @Transactional
-    public void resolve(AdminActor actor, String idText, ReportResolveRequest body) {
+    public SanctionLineView resolve(AdminActor actor, String idText, ReportResolveRequest body) {
         Map<String, MessageRef> invalid = new LinkedHashMap<>();
         String action = body == null || body.action() == null ? null : body.action().strip().toUpperCase(Locale.ROOT);
-        if (action == null || !ACTIONS.contains(action)) {
+        boolean sanctionOnly = ACTION_NONE.equals(action);
+        if (action == null || !(ACTIONS.contains(action) || sanctionOnly)) {
             invalid.put("action", new MessageRef("report.admin.action.invalid"));
+        }
+        SanctionWithReportRequest sanction = body == null ? null : body.sanction();
+        if (sanctionOnly && sanction == null) {
+            invalid.put("sanction", new MessageRef("report.admin.sanction.required"));
         }
         String reasonCode = reasonCodeOf(body == null ? null : body.reasonCode());
         if (reasonCode == null) {
@@ -166,7 +192,7 @@ public class ReportCaseActionService {
         }
         boolean dealPost = dealPost(c);
         requireReasonFor(c, reasonCode, dealPost);
-        if (c.isGroup() != ReportCaseEntity.ACTION_DEACTIVATE.equals(action)) {
+        if (!sanctionOnly && c.isGroup() != ReportCaseEntity.ACTION_DEACTIVATE.equals(action)) {
             throw new ReportActionInvalidException(); // 소모임 사건은 비활성화만, 글·댓글 사건은 비활성화 없음
         }
         if (ReportCaseEntity.ACTION_DEAL_END.equals(action) && !dealPost) {
@@ -180,7 +206,9 @@ public class ReportCaseActionService {
         link.put("reportCaseId", Long.toString(c.getId()));
         link.put("reasonCode", reasonCode);
         long revoked;
-        if (c.isGroup()) {
+        if (sanctionOnly) {
+            revoked = 0; // 제재만 — 대상은 그대로
+        } else if (c.isGroup()) {
             // 관리자 소모임 관리의 비활성화와 같은 서비스 — 비활성 기록(사건 ID)·감사 GROUP_DEACTIVATE·모임장 알림 GROUP_DEACTIVATED(정책과 무관하게 늘)
             if (!groupAdmin.deactivateForReport(actor, c.getTargetId(), note, c.getId())) {
                 throw new ReportActionInvalidException(); // 이미 비활성·해산
@@ -201,10 +229,28 @@ public class ReportCaseActionService {
                     : actOnPost(actor, c, action, reasonCode, note, link, notifyAuthor, now);
         }
 
-        c.resolve(action, reasonCode, note, actor.operatorId(), now);
+        // 작성자 제재 — 대상 행 다음에 회원 행을 잠근다(차례: 사건 → 대상 → 회원). 사유가 없으면 처리 글
+        MemberSanctionStore.SanctionRow issued = null;
+        if (sanction != null) {
+            Long authorId = c.getTargetAuthorId();
+            if (authorId == null) {
+                throw new SanctionTargetNotFoundException();
+            }
+            String sanctionReason = sanction.reason() == null ? note : sanction.reason();
+            issued = sanctions.issue(new SanctionIssue(authorId, sanction.kind(), sanctionReason, Boolean.TRUE.equals(sanction.skipStep()), sanction.confirmNickname(),
+                    c.getId(), "sanction."), sanctionAdmin.operator(actor, TARGET, Long.toString(c.getId())));
+        }
+        String stored = sanctionOnly ? ReportCaseEntity.ACTION_SANCTION_ONLY : action;
+
+        c.resolve(stored, reasonCode, note, actor.operatorId(), now);
         String snapshot = snapshotOf(c);
         reports.markCase(c.getId(), ReportEntity.ACCEPTED, now, actor.operatorId());
-        Map<String, Object> detail = closeDetail(action, reasonCode, note, false);
+        Map<String, Object> detail = closeDetail(stored, reasonCode, note, false);
+        if (issued != null) {
+            detail.put("sanctionId", Long.toString(issued.id()));
+            detail.put("sanctionNo", issued.no());
+            detail.put("sanctionKind", issued.kind().name());
+        }
         if (ReportCaseEntity.ACTION_DELETE.equals(action)) {
             detail.put("revokedPoints", revoked);
         }
@@ -214,7 +260,8 @@ public class ReportCaseActionService {
         Map<String, Object> auditDetail = new LinkedHashMap<>(detail);
         auditDetail.putAll(targetFacts(c));
         record(actor, AuditActions.REPORT_RESOLVE, Long.toString(c.getId()), auditDetail);
-        log.info("신고 조치 caseId={} action={} by operatorId={}", c.getId(), action, actor.operatorId());
+        log.info("신고 조치 caseId={} action={} sanction={} by operatorId={}", c.getId(), stored, issued == null ? null : issued.kind(), actor.operatorId());
+        return issued == null ? null : SanctionViews.line(issued, sanctions.now());
     }
 
     /** 글 조치 — 글 행 잠금 뒤 상태를 확인하고 게시글 관리의 조치 몸통을 부른다. 회수한 포인트를 돌려준다 */

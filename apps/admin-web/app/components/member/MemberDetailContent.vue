@@ -54,7 +54,7 @@
                         @lift="(r) => emit('lift', r)"
                         @retry="emit('retry-restrictions')"
                     />
-                    <MemberDetailSanctionSection v-else :detail="detail" />
+                    <MemberDetailSanctionSection v-else :detail="detail" :view="sanctions" @sanction="emit('sanction')" @lift-sanction="(line) => emit('lift-sanction', line)" @retry-sanctions="emit('retry-sanctions')" />
                 </AppGadget>
             </div>
             <aside class="hidden @3xl:block">
@@ -67,7 +67,7 @@
 <script setup lang="ts">
 import type { MemberDetail } from '~/composables/member/api/useMemberApi.types';
 
-import type { MemberDetailEmits, MemberPointLotsView, MemberRestrictionsView, MemberWithdrawalView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
+import type { MemberDetailEmits, MemberPointLotsView, MemberRestrictionsView, MemberSanctionsView, MemberWithdrawalView, WithdrawnContactView } from '~/components/member/MemberDetailContent.types';
 
 interface Props {
     detail: MemberDetail;
@@ -81,9 +81,11 @@ interface Props {
     withdrawal?: MemberWithdrawalView | null;
     /** 위험 동작 [강제 탈퇴]를 보일지 */
     canForceWithdraw?: boolean;
+    /** 「제재」 구획의 현황(제재 API) — 받지 않는 화면은 null(제재 화면 링크만) */
+    sanctions?: MemberSanctionsView | null;
 }
 
-const props = withDefaults(defineProps<Props>(), { restrictions: null, withdrawnContact: null, pointLots: null, withdrawal: null, canForceWithdraw: false });
+const props = withDefaults(defineProps<Props>(), { restrictions: null, withdrawnContact: null, pointLots: null, withdrawal: null, canForceWithdraw: false, sanctions: null });
 const emit = defineEmits<MemberDetailEmits>();
 
 const { t } = useI18n();

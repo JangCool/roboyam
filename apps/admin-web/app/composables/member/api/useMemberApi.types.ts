@@ -1,4 +1,5 @@
 import type { DisplayValues } from '#layers/display-time/utils/util-time';
+import type { SanctionKind, SanctionLine, SanctionStatus } from '~/composables/sanction/api/useSanctionApi.types';
 
 /**
  * 회원 조회 API 가 주고받는 모양 — 서버(`MemberController`·`member/dto`)와 맞춘 계약이다(상세의 보강 칸 중 서버에 데이터가 없는 것은 null/빈 값 — 아래 `MemberDetail`). 회원은 공개 사이트 이용자다(운영자 계정은 여기 나오지 않는다 — `docs/domain/operator-permissions.md`).
@@ -160,27 +161,18 @@ export interface MemberActivity {
     recentLoginDays: number;
 }
 
-/** 제재 종류 — 경고 · 기간 정지 · 영구 정지 */
-export type MemberSanctionKind = 'WARNING' | 'SUSPENSION' | 'BAN';
-/** 제재 범위 — 사이트 전체 · 게시판 한정 */
-export type MemberSanctionScope = 'SITE' | 'BOARD';
-/** 제재 상태 — 진행 · 종료(기간 만료) · 해제(운영자가 풂) */
-export type MemberSanctionStatus = 'ACTIVE' | 'ENDED' | 'RELEASED';
+/**
+ * 회원 상세의 제재 칸(`sanctions`·`sanctionSummary`) — 계약 `member-sanction-contract.md` 의 단계·상태로 바꿨다(게시판 한정 범위 `scope`·`boardName` 은 없앴다 — 사이트 제재만, 결정 1).
+ * ⚠ 화면(회원 상세 제재 구획)은 이 칸을 읽지 않고 제재 API 의 현황(`GET /api/admin/sanctions/preview?userId=` — `useSanctionPreview`)을 받아 그린다(제재의 주인은 제재 API).
+ *   서버는 이 두 칸을 회원 상세에서 빼도 된다(정리 후보) — 남긴다면 모양은 아래와 같다.
+ */
+export type MemberSanctionKind = SanctionKind;
+export type MemberSanctionStatus = SanctionStatus;
 
-export interface MemberSanction {
-    sanctionId: string;
-    kind: MemberSanctionKind;
-    scope: MemberSanctionScope;
-    /** 게시판 한정이면 게시판 이름 */
-    boardName: string | null;
-    occurredAt: string;
-    /** 끝나는 시각 — 영구·경고는 null */
-    endsAt: string | null;
-    status: MemberSanctionStatus;
-    reason: string;
-}
+/** 회원 상세의 제재 한 줄 — 제재 API 의 `SanctionLine` 과 같은 모양 */
+export type MemberSanction = SanctionLine;
 
-/** 제재 요약 — 경고 횟수와 다음 단계는 서버가 계산한다(근거: community `SanctionPreview`) */
+/** 제재 요약 — 경고 횟수와 다음 단계는 서버가 계산한다(제재 API `SanctionPreview` 의 일부) */
 export interface MemberSanctionSummary {
     /** 유효한 경고 횟수(0~2) */
     warningCount: number;
@@ -477,9 +469,9 @@ export interface MemberDetail extends Omit<MemberRow, 'roles'> {
     statusReason: string | null;
     /** 활동 요약 — 글·댓글 표가 아직 없어 서버가 null */
     activity: MemberActivity | null;
-    /** 제재 이력 — 최근 것이 먼저. 제재 표가 아직 없어 서버가 늘 빈 배열 */
+    /** 제재 이력 — 최근 것이 먼저. 제재 표가 아직 없어 서버가 늘 빈 배열. ⚠ 화면은 읽지 않는다(제재 API 현황이 주인 — 위 `MemberSanction` 주석) */
     sanctions: MemberSanction[];
-    /** 제재 요약 — 서버가 아직 null */
+    /** 제재 요약 — 서버가 아직 null. ⚠ 화면은 읽지 않는다(제재 API 현황이 주인) */
     sanctionSummary: MemberSanctionSummary | null;
     /** 신고 요약 — 서버가 채운다(탈퇴 회원은 null). 제재 이력 구획 위쪽에 세 수치로 보인다 */
     reports: MemberReportSummary | null;

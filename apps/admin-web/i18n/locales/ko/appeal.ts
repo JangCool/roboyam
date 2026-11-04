@@ -1,0 +1,68 @@
+/**
+ * 이의제기 문구 — 이의제기 화면(`/appeals`)과 서랍(`AppealDetailDrawer`)이 쓴다(계약 `docs/features/member-sanction-contract.md` 정책 6).
+ * `en/appeal.ts` 와 같은 키, 같은 차례. 회원이 쓴 이의 사유·운영자 답변·서버 오류 문구는 여기 없다.
+ */
+export default {
+    title: '이의제기',
+    subtitle: '회원이 제재에 낸 이의제기를 접수 차례대로 보고 인용하거나 기각해요. 제재 하나에 한 번, 시작 후 30일 안에만 접수돼요.',
+    filterStatus: '상태',
+    filter: {
+        PENDING: '대기',
+        ACCEPTED: '인용',
+        REJECTED: '기각',
+        ALL: '전체',
+    },
+    status: {
+        PENDING: '대기',
+        ACCEPTED: '인용',
+        REJECTED: '기각',
+    },
+    sortBy: '정렬: 접수 {dir}',
+    readOnly: '조회만 할 수 있어요 — 인용·기각하려면 이의제기 처리 권한(appeal.manage)이 필요해요.',
+    loadFailed: '이의제기 목록을 불러오지 못했어요',
+    empty: '맞는 이의제기가 없어요',
+    emptyPending: '기다리는 이의제기가 없어요',
+    emptyPendingHint: '회원이 이의제기를 내면 접수 차례대로 여기에 쌓여요.',
+    col: {
+        no: '접수번호',
+        member: '회원',
+        sanction: '제재',
+        status: '상태',
+        createdAt: '접수',
+        wait: '대기 시간',
+        answeredAt: '처리',
+    },
+    noValue: '#{no}',
+    waitMinutes: '{n}분',
+    waitHours: '{n}시간',
+    waitDays: '{d}일 {h}시간',
+
+    // 서랍
+    drawerTitle: '이의제기 #{no} · {name}',
+    drawerTitleEmpty: '이의제기',
+    prev: '이전 이의제기',
+    next: '다음 이의제기',
+    detailFailed: '이의제기를 불러오지 못했어요',
+    reasonTitle: '이의 사유',
+    sanctionTitle: '대상 제재',
+    openSanction: '제재 화면에서 보기',
+    evidence: '근거',
+    evidenceNone: '신고와 이어지지 않은 제재예요.',
+    resultTitle: '처리 결과',
+    acceptedNote: '제재가 무효가 됐어요(경고·정지 횟수에서도 빠져요).',
+    rejectedNote: '제재를 유지했어요. 이 제재에는 다시 이의제기할 수 없어요.',
+    closedNote: '이미 처리됐어요 — 다른 운영자가 먼저 답했어요.',
+    reload: '다시 불러오기',
+
+    // 처리
+    answerLabel: '답변',
+    answerHelp: '회원에게 이 글 그대로 전달돼요(알림·메일·내 제재 화면).',
+    answerPlaceholder: '예: 앞뒤 댓글을 다시 보니 비방 의도가 없었어요.',
+    acceptNote: '인용하면 이 제재가 무효가 되고 경고·정지 횟수에서 빠져요.',
+    acceptNoteRunning: '인용하면 이 제재가 무효가 되고, 진행 중인 정지는 바로 풀려 회원이 정상 이용으로 돌아가요. 기각하면 제재는 그대로예요.',
+    acceptNoteWarning: '인용하면 이 경고가 무효가 되고 경고 횟수에서 빠져요. 기각하면 경고는 그대로예요.',
+    accept: '인용',
+    reject: '기각',
+    acceptedToast: '이의제기 #{no} — 인용했어요.',
+    rejectedToast: '이의제기 #{no} — 기각했어요.',
+};

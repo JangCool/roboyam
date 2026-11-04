@@ -121,6 +121,7 @@ export default {
         DELETE: '삭제',
         DEACTIVATE: '소모임 비활성화',
         DEAL_END: '핫딜 종료',
+        SANCTION_ONLY: '제재만',
         DISMISS: '무시',
     },
     actionName: {
@@ -129,6 +130,7 @@ export default {
         DELETE: '삭제',
         DEACTIVATE: '소모임 비활성화',
         DEAL_END: '핫딜 종료',
+        SANCTION_ONLY: '작성자 제재만',
         DISMISS: '무시',
     },
     dialog: {
@@ -151,6 +153,10 @@ export default {
         DEAL_END: {
             title: '이 핫딜을 종료할까요?',
             text: '핫딜 글 관리의 운영진 종료와 같아요 — 목록에서 종료 딜로 보이고 구매 링크가 꺼져요. 작성자에게 처리 글(200자까지)이 종료 사유로 알림으로 가요. 글은 숨기지 않아요(필요하면 숨기기를 따로 해요). 사건은 처리됨으로 닫혀요.',
+        },
+        SANCTION_ONLY: {
+            title: '작성자만 제재할까요?',
+            text: '대상(글·댓글·소모임)은 그대로 두고 작성자에게 제재만 줘요. 제재에 이 사건이 이어지고, 사건은 처리됨으로 닫혀요.',
         },
         DISMISS: {
             title: '이 신고를 무시할까요?',
@@ -182,6 +188,7 @@ export default {
         DELETE: '대상을 삭제하고 사건을 닫았어요.',
         DEACTIVATE: '소모임을 비활성화하고 사건을 닫았어요.',
         DEAL_END: '핫딜을 종료하고 사건을 닫았어요.',
+        SANCTION_ONLY: '작성자를 제재하고 사건을 닫았어요.',
         DISMISS: '신고를 무시했어요.',
         REOPEN: '사건을 다시 열었어요.',
     },
@@ -254,7 +261,14 @@ export default {
     authorRecent: '최근 90일',
     authorClosedCases: '조치된 사건 {resolved}건 · 무시된 사건 {dismissed}건',
     sanctionLabel: '제재',
-    sanctionPending: '준비 중',
+    sanctionNotMember: '비회원·탈퇴 회원 작성자는 제재할 수 없어요.',
+    sanctionWith: '작성자 제재',
+    sanctionWithLabel: '작성자 제재 곁들이기 — {name}',
+    sanctionWithHelp: '조치와 함께 같은 처리로 제재를 줘요. 제재가 막히면 조치도 하지 않아요.',
+    sanctionReasonLabel: '제재 사유',
+    sanctionReasonSame: '처음에는 처리 글과 같아요. 고치면 제재 사유만 따로 가요 — 회원에게 그대로 전달돼요.',
+    actWithSanction: '{act} + {kind}',
+    doneWithSanction: '{done} {sanction}',
     closureTitle: '처리 결과',
     closureAction: '처리',
     closedBy: '처리자',

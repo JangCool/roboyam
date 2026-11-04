@@ -229,6 +229,16 @@ public final class MessageTargetCatalog {
         }
         out.add(member(MemberEvent.DEAL_MANAGER_ENDED, List.of(MessageVariable.of("postTitle", "postTitle"), MessageVariable.of("reason", "dealEndReason")),
                 new InAppText("member.notification.DEAL_MANAGER_ENDED.title", null, "{{reason}}", List.of("postTitle")), "/posts/123", List.of()));
+        // 사이트 제재(V136 — member-sanction-contract 정책 8) — 제재 이름(+끝 · 사유) · 풀림 · 이의제기 답변(결과 · 답변). 누르면 내 제재
+        out.add(member(MemberEvent.SANCTION_ISSUED, List.of(MessageVariable.of("sanction", "sanctionKind"), MessageVariable.of("until", "sanctionUntil"),
+                        MessageVariable.of("reason", "sanctionReason")),
+                new InAppText("member.notification.SANCTION_ISSUED.title", null, "{{reason}}", List.of("sanction", "until")), "/sanction", List.of()));
+        out.add(member(MemberEvent.SANCTION_LIFTED, List.of(MessageVariable.of("sanction", "sanctionKind")),
+                new InAppText("member.notification.SANCTION_LIFTED.title", "member.notification.SANCTION_LIFTED.body", null, List.of("sanction")), "/sanction",
+                List.of()));
+        out.add(member(MemberEvent.APPEAL_ANSWERED, List.of(MessageVariable.of("sanction", "sanctionKind"), MessageVariable.of("result", "appealResult"),
+                        MessageVariable.of("answer", "appealAnswer")),
+                new InAppText("member.notification.APPEAL_ANSWERED.title", null, "{{answer}}", List.of("sanction", "result")), "/sanction", List.of()));
         // 소모임(V90 — group-contract 1단계) — 소모임 이름(+반려·거절·비활성 사유, 가입 신청한 회원)
         out.add(groupEvent(MemberEvent.GROUP_APPROVED, null, "/groups/123"));
         out.add(groupEvent(MemberEvent.GROUP_REJECTED, "groupRejectReason", "/groups/me"));
