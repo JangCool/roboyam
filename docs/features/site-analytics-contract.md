@@ -11,7 +11,7 @@
 ## 수집·쓰기 (앱 — 쓰기 버퍼, 배치 아님)
 - 신호 `POST /api/visits`(로그인·CSRF 없음): `visitorId`·`sessionId`·`path`(쿼리 뺌)·화면 종류·직전 페이지·세션 첫 페이지의 유입(외부 도메인·`utm_*`)·신규 여부. 수집이 꺼져 있으면 브라우저가 보내지 않고(`/api/site/info` 로 스위치 받음) 서버도 무시.
 - 각 API 서버는 메모리에 모았다가 **1분마다(그리고 종료 때) 몇 문장으로 몰아 쓴다** — 문장 수는 방문량과 무관.
-  - 방문자: 그 1분에 처음 본 방문자 해시를 `analytics_visit_marks(day, visitor_hash)` 에 한 문장 `INSERT … ON CONFLICT DO NOTHING RETURNING` → **실제로 들어간 줄만** 방문자 +n. 같은 방문자를 여러 서버가 넣어도 DB 유일 키로 한 서버만 성공(동시면 PostgreSQL 이 순서를 정하고 나머지는 건너뜀) → 서버가 몇 대든 1명은 1명. 넣기와 더하기는 한 트랜잭션.
+  - 방문자: 그 1분에 처음 본 방문자 해시를 `analytics_visit_marks(day, visitor_hash)` 에 한 문장 `INSERT … ON CONFLICT DO NOTHING RETURNING` → **실제로 들어간 줄만** 방문자 +n. 같은 방문자를 여러 서버가 넣어도 DB 유일 키로 한 서버만 성공(동시면 PostgreSQL 이 순서를 정하고 나머지는 건너뜀) → 서버가 몇 대든 1명은 1명. 넣기와 더하기는 한 트랜잭션. **신규 방문자**: 표시에 「신규」 칸(analytics V2) — 늦게 온 신규 신호가 이미 있는 표시를 false→true 로 바꿀 때만 신규 +1(첫 화면은 서버 A, 다음 화면은 서버 B 가 받고 B 가 먼저 써도 신규가 빠지지 않음, QA 재현 2026-11-04).
   - 페이지뷰·페이지별 조회·유입처별 방문·이동(A→B) 횟수: 신호 1번 = 서버 1대라 서버별로 더해도 정확 → 시간·일 집계 표에 더하기 upsert.
   - 지금 접속: `analytics_visit_active(visitor_hash, last_seen)` 한 문장 upsert, 「지금 접속」 = last_seen 5분 안 COUNT(DB 에서 한 번 — 서버 여러 대여도 중복 없음).
   - 원본(켰을 때만): `analytics_page_views` 에 여러 줄 한 번에.
@@ -42,6 +42,10 @@
 - 공개 `GET /api/site/info` 에 `analytics: { enabled, visits, rawEvents, referrers, flows }` 를 더한다 — 브라우저는 `enabled` 이고 하나라도 켜졌을 때만 신호를 보낸다.
 - 관리자 `GET/PUT /api/admin/analytics/settings`(site.read / site.manage·CSRF·감사) `{ enabled, visits, rawEvents, rawRetentionDays(30|90|180|365), referrers, flows, notificationSends, boardActivity, updatedAt, updatedBy }` · `GET …/settings/history?page&size`(기존 설정 이력 모양). 설정 표는 메인 DB(shared 스트림 — TimescaleDB 로 옮길 대상이 아니라서 `analytics_` 접두사를 쓰지 않음).
 - 대시보드 묶음 응답에 `disabled: type[]`(권한은 있으나 수집이 꺼진 종류). 새 종류 응답: `POPULAR_PAGES` `{ items[{ path, kind, title|null, titleEn|null, views }] }` · `REFERRERS` `{ total, groups[{ group: SEARCH|SOCIAL|DIRECT|OTHER_SITE|CAMPAIGN, visits }], domains[{ domain, visits }] }`. `VISITORS` 에 `newVisitorsToday`.
+
+## 테스트 (QA 2026-11-04)
+- api `com.community.analytics.*`(수집 조건·유입 분류 43, 서버 여러 대 동시 기록·자정 경계 7, 원본 파티션·보관 경계 6) · shared `com.community.analytics.*`(게시판 활동 크론 멱등·제외, 알림 발송 기록 8) · admin `com.community.analytics.*`·`DashboardAnalyticsGadgetsTest`(설정 이력·권한·disabled, 어제 같은 시각 7) — Testcontainers.
+- 알려진 경미한 점: 정시 직전·직후에 다른 서버로 간 같은 방문자는 먼저 쓴 서버의 시간 칸에 들어간다(하루 합은 정확). 사용자 화면 신호 규칙은 프론트 테스트 도구가 없어 시나리오로만.
 
 ## 미확정
 - 「방문 분석」 화면(기간·페이지 순위·유입·이동 흐름 그림)은 다음 단계 목업부터.
