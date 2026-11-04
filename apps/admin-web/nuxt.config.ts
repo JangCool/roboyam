@@ -65,7 +65,7 @@ export default defineNuxtConfig({
     // 두 앱이 같이 쓰는 공유 레이어(apps-packages/*) — 패키지 이름으로 extends 한다. 규약은 .claude/guides/frontend/layers.md
     // 홈 가젯 배치(`@roboyam/home-layout`)는 공개 홈(user-web)과 홈 배치 편집기(admin-web)가 같이 쓴다
     // 서식 에디터(`@roboyam/rich-editor`)는 메일 템플릿 편집이 쓴다(간단 수준)
-    // 차트(`@roboyam/chart` — ECharts)는 광고 성과 날짜별 추이가 쓴다
+    // 차트(`@roboyam/chart` — ECharts)는 광고 성과 날짜별 추이와 방문 분석(추이 · 이동 흐름 sankey)이 쓴다
     extends: ['@roboyam/display-time', '@roboyam/rich-editor', '@roboyam/i18n', '@roboyam/home-layout', '@roboyam/chart'],
     ssr: false,
     compatibilityDate: '2026-08-01',

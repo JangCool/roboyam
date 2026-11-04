@@ -75,6 +75,15 @@ public class AnalyticsWriteStore {
             + "SELECT t.d, t.f, t.g, t.n FROM unnest(?::date[], ?::text[], ?::text[], ?::bigint[]) AS t(d, f, g, n) ORDER BY t.d, t.f, t.g "
             + "ON CONFLICT (day, from_path, to_path) DO UPDATE SET moves = analytics_flow_daily.moves + EXCLUDED.moves";
 
+    /** 캠페인 일별(analytics V3) — 빈 utm 칸은 '' 로 온다(부르는 쪽) */
+    private static final String CAMPAIGNS = "INSERT INTO analytics_campaign_daily (day, utm_source, utm_medium, utm_campaign, visits) "
+            + "SELECT t.d, t.s, t.m, t.c, t.n FROM unnest(?::date[], ?::text[], ?::text[], ?::text[], ?::bigint[]) AS t(d, s, m, c, n) ORDER BY t.d, t.s, t.m, t.c "
+            + "ON CONFLICT (day, utm_source, utm_medium, utm_campaign) DO UPDATE SET visits = analytics_campaign_daily.visits + EXCLUDED.visits";
+
+    /** 캠페인 한 줄 — 그 날 · utm 세 칸(빈 칸 '') · 더할 방문 수 */
+    public record CampaignRow(LocalDate day, String source, String medium, String campaign, long count) {
+    }
+
     /** 방문자 줄 — 그 날 · 방문자 키 · 이 1분에 처음 본 정시 · 신규 방문자 신호가 있었나 */
     public record VisitorRow(LocalDate day, String visitorHash, Instant hour, boolean newVisitor) {
     }
@@ -162,6 +171,22 @@ public class AnalyticsWriteStore {
 
     public void flows(List<DailyRow> rows) {
         daily(FLOWS, rows);
+    }
+
+    /** 캠페인 일별 더하기(한 문장) — 유입처와 같은 트랜잭션에서 부른다 */
+    public void campaigns(List<CampaignRow> rows) {
+        if (rows.isEmpty()) {
+            return;
+        }
+        jdbc.update(con -> {
+            PreparedStatement ps = con.prepareStatement(CAMPAIGNS);
+            ps.setArray(1, SqlArrays.text(con, rows.stream().map(CampaignRow::day).toList()));
+            ps.setArray(2, SqlArrays.text(con, rows.stream().map(CampaignRow::source).toList()));
+            ps.setArray(3, SqlArrays.text(con, rows.stream().map(CampaignRow::medium).toList()));
+            ps.setArray(4, SqlArrays.text(con, rows.stream().map(CampaignRow::campaign).toList()));
+            ps.setArray(5, SqlArrays.text(con, rows.stream().map(CampaignRow::count).toList()));
+            return ps;
+        });
     }
 
     private void daily(String sql, List<DailyRow> rows) {

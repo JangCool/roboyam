@@ -35,7 +35,7 @@ export default {
     help: {
         enabled: 'When off, visitors\' browsers send no visit signals at all. The visit items below only work while this is on.',
         visits: 'Counts today\'s visitors and page views and who is online now (last 5 minutes).',
-        rawEvents: 'Keeps the raw record of which page was viewed when. It feeds "Popular pages" and later detailed analysis.',
+        rawEvents: 'Keeps the raw record of which page was viewed when. It feeds "Popular pages" and the page ranking and real-time views in Visitor stats.',
         referrers: 'Counts where visits came from (search, social, direct, other sites, campaigns) and the top referring sites.',
         flows: 'Counts which page visitors moved to from which page.',
         notificationSends: 'Records success and failure per channel each time a notification is sent.',
@@ -52,7 +52,7 @@ export default {
         boardActivity: 'A database job totals every 10 minutes',
     },
     usedBy: 'Used by',
-    usedByFlows: 'Upcoming "Visit analytics" page (coming soon)',
+    usedByPage: '{group} › {page}',
     retentionLabel: 'Raw record retention',
     retentionHelp: 'Raw records older than the retention period are deleted.',
     retentionDays: '{n} days',

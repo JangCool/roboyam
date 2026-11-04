@@ -2,7 +2,7 @@
     <!--
         통계 수집(`/settings/analytics`) — 방문 분석·알림 발송 기록·게시판 활동 집계를 항목별로 켜고 끈다. **모든 항목은 기본 꺼짐**(사용자 결정 2026-11-04 「필요하면 켤 수 있게」).
         구획: ① 수집 방식(방문자 구분·늦음·마지막 변경 — 내비에 올리지 않는다) ② 방문 수집(전체 스위치 + 방문자·페이지뷰 / 원본 기록(+ 보관 기간) / 유입 경로 / 이동 흐름)
-        ③ 알림·게시판 집계(알림 발송 기록 · 게시판 활동 집계). 항목마다 부담 꼬리표와 「쓰는 곳」(대시보드 가젯 — 종류표 `collect` 에서 읽는다).
+        ③ 알림·게시판 집계(알림 발송 기록 · 게시판 활동 집계). 항목마다 부담 꼬리표와 「쓰는 곳」(대시보드 가젯 — 종류표 `collect` 에서 읽는다 · 가젯이 없는 이동 흐름은 「방문자 통계 › 이동 흐름」 쪽 링크).
         - 방문 하위 항목은 방문 수집이 꺼지면 잠긴다(값은 그대로 저장). 원본 기록을 켜면 개인정보 처리방침 안내 + 약관 관리 링크(`terms.read` 가 있을 때).
         - 항목 줄의 `id` = `UtilAnalytics.anchor`(`analytics-raw-events` …) — 대시보드 가젯의 「수집 꺼짐」 링크가 `#앵커` 로 들어오면 불러온 뒤 그 줄로 옮기고 잠깐 강조한다.
         - 저장은 한 번에(PUT) — 떠 있는 저장 줄(`StickySaveBar`). 입력 오류는 `fields.rawRetentionDays` 를 그 칸 아래, 나머지는 저장 줄에 서버 문구 그대로.
@@ -75,6 +75,14 @@
                                     <p v-if="key !== 'enabled'" class="m-0 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-color">
                                         <span>{{ t('analytics.usedBy') }}</span>
                                         <span v-for="name in usedBy(key)" :key="name" class="inline-flex items-center rounded bg-surface-100 px-1.5 py-1 leading-none dark:bg-surface-800">{{ name }}</span>
+                                        <NuxtLink
+                                            v-for="page in usedByPages(key)"
+                                            :key="page.to"
+                                            :to="page.to"
+                                            class="inline-flex items-center gap-1 rounded bg-surface-100 px-1.5 py-1 leading-none text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:bg-surface-800"
+                                        >
+                                            {{ page.name }}<i class="pi pi-arrow-right text-[9px]" aria-hidden="true" />
+                                        </NuxtLink>
                                     </p>
 
                                     <!-- 원본 기록 — 보관 기간 + 처리방침 안내 -->
@@ -228,10 +236,19 @@ function rowClass(key: AnalyticsSwitch): string[] {
     ];
 }
 
-/** 이 항목의 데이터를 읽는 대시보드 가젯 이름(종류표 `collect`) — 없으면 다음 단계 화면 */
+/** 이 항목의 데이터를 읽는 대시보드 가젯 이름(종류표 `collect`) */
 function usedBy(key: AnalyticsSwitch): string[] {
-    const names = UtilDashboardLayout.KINDS.filter((k) => k.collect === key).map((k) => t(`dashboard.kind.${k.type}`));
-    return names.length ? names : [t('analytics.usedByFlows')];
+    return UtilDashboardLayout.KINDS.filter((k) => k.collect === key).map((k) => t(`dashboard.kind.${k.type}`));
+}
+
+/** 대시보드 가젯이 없는 항목의 「방문자 통계」 쪽(메뉴 키 · 주소) */
+const USED_BY_PAGES: Partial<Record<AnalyticsSwitch, { menu: string; to: string }[]>> = {
+    flows: [{ menu: 'visitFlows', to: '/analytics/visits/flows' }],
+};
+
+/** 이 항목의 데이터를 읽는 「방문자 통계」 쪽 링크(「방문자 통계 › 이동 흐름」) */
+function usedByPages(key: AnalyticsSwitch): { name: string; to: string }[] {
+    return (USED_BY_PAGES[key] ?? []).map((p) => ({ name: t('analytics.usedByPage', { group: t('menu.visitStats'), page: t(`menu.${p.menu}`) }), to: p.to }));
 }
 
 const changedKeys = computed(() => {
