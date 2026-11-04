@@ -2,21 +2,17 @@
 # ROBOYAM 운영 — 앱 서버 한 대분 (운영은 이 구성을 앱 서버 2대에 각각 올린다)
 # ============================================================================
 #
-# 운영 구성: ALB(HTTPS, ACM 인증서) → 앱 서버 2대(EC2) → RDS PostgreSQL 1대
-#   - DB 는 RDS 라 compose 에 넣지 않는다
+# 운영 구성: ALB(HTTPS, ACM 인증서) → 앱 서버 2대(EC2) → DB 서버 1대(EC2, PostgreSQL 직접 운영 — compose.db.yml)
+#   - RDS 는 쓰지 않는다(사용자 결정 2026-11-04 — DB 배치를 pg_cron 으로 두는 설계라). DB 는 이 compose 에 넣지 않고 DB 서버에 따로 올린다
 #   - HTTPS 는 ALB 가 받는다. 앱은 8080 으로 HTTP 만 받는다 (Caddy 없음)
 #   - ALB 대상 그룹의 헬스체크 경로: /actuator/health/readiness
 #   - /actuator/* 는 로드밸런서 헬스체크용으로만 연다 — 인터넷 쪽(ALB 리스너 규칙·보안 그룹)에서는 /actuator/* 를 막는다
 #
-# ⚠ RDS 의 DB 로캘: RDS 는 DB 를 만들 때 로캘이 정해진다(나중에 못 바꾼다). LC_CTYPE 이 C.UTF-8(또는 en_US.UTF-8 같은 UTF-8 로캘)이 아니라 `C` 이면
-#   pg_trgm 이 한글을 색인하지 못해 한글 검색이 색인을 못 타고 전체를 읽는다. 운영 확인 항목:
-#     select datcollate, datctype from pg_database where datname = current_database();
-#     select cardinality(show_trgm('한글')) > 0;   -- true 여야 한다
-#
-# DB 배치(저장 프로시저 + pg_cron — 감사 로그·토큰·로그 정리 등)를 쓰려면 RDS 쪽 준비가 필요하다(없어도 앱은 뜨고 DB 배치만 관리자 화면에 「사용 불가」로 보인다):
-#   - 파라미터 그룹: shared_preload_libraries 에 pg_cron 추가(재부팅), cron.database_name = roboyam
-#   - 마스터 계정이 roboyam DB 에서 CREATE EXTENSION pg_cron; 앱 계정이 마스터가 아니면 GRANT USAGE ON SCHEMA cron TO <앱 계정>;
-#   - RDS 의 pg_cron 은 GMT 로 돈다 — 기본 cron 은 한국시간 기준 값을 서버가 GMT 로 환산해 등록한다
+# DB 서버(compose.db.yml)는 dev 와 같은 pg_cron 이미지·설정(cron.timezone=Asia/Seoul, 로캘 C.UTF-8)이라 DB 배치가 그대로 돈다.
+#   확장은 관리자 앱이 뜰 때 만든다(DB_USERNAME 이 슈퍼유저). 운영 확인 항목:
+#     select datcollate, datctype from pg_database where datname = current_database();   -- C.UTF-8
+#     select cardinality(show_trgm('한글')) > 0;   -- true 여야 한다(한글 검색 색인)
+#     select jobname, schedule, active from cron.job order by 1;   -- DB 배치가 등록됐는지
 #   자세히: docs/features/batch-contract.md 「DB 배치」
 #
 # 서버에서:
@@ -54,7 +50,7 @@ services:
       ROBOYAM_INSTALL_TOKEN: ${ROBOYAM_INSTALL_TOKEN:-}
       # 관리자 앱 주소(http(s)://…) — 관리자 테마 화면 「실제 화면」 iframe 허락(?adminPreview=1 화면에만 frame-ancestors 로 이 origin 을 붙인다). 비우면 「실제 화면」이 뜨지 않는다
       ADMIN_URL: ${ADMIN_URL:-}
-      # 서버 2대 x 풀 크기가 RDS 최대 연결 수보다 작아야 한다
+      # 서버 2대 x 풀 크기(+ 관리자 앱)가 DB 서버 max_connections(compose.db.yml)보다 작아야 한다
       DB_POOL_SIZE: ${DB_POOL_SIZE:-20}
       PUBLIC_URL: ${PUBLIC_URL:-}
       JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=70}

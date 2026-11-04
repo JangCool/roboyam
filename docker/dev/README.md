@@ -1,7 +1,7 @@
 # AWS 개발 서버 구축 절차 (1단계: EC2 한 대)
 
 EC2 한 대에 공개 사이트(app)·관리자 앱(admin)·PostgreSQL·Caddy(HTTPS)를 docker compose로 띄운다.
-사용자가 늘면 [docker/prod](../prod/compose.yml) 구성(ALB + 앱 서버 2대 + RDS)으로 넘어간다. 앱 이미지와 환경 변수 이름은 같다.
+사용자가 늘면 [docker/prod](../prod/compose.yml) 구성(ALB + 앱 서버 2대 + DB 서버 1대 — PostgreSQL 직접 운영, RDS 는 쓰지 않는다)으로 넘어간다. 앱 이미지와 환경 변수 이름은 같다.
 
 > ⚠ 이 절차와 스크립트는 실제 AWS에서 아직 끝까지 시험하지 않았다(스크립트 문법만 확인). 처음 따라 할 때 막히는 곳은 이 문서를 고친다.
 
@@ -227,6 +227,6 @@ aws s3 ls s3://roboyam-dev-backup-123456789012/roboyam-dev/db/
 ## 13. 2단계로 넘어갈 때
 
 순서대로 하나씩 한다(자세한 주의점은 [docker/prod/compose.yml](../prod/compose.yml) 머리말).
-1. **DB → RDS PostgreSQL**: `backup.sh`의 덤프를 RDS에 `pg_restore`하고 `.env`의 `DB_URL`을 RDS 주소로 바꾼다. RDS는 로캘(UTF-8)과 pg_cron 파라미터 그룹을 만들 때 정한다. compose에서 postgres 서비스는 뺀다.
+1. **DB → DB 전용 EC2**(RDS는 쓰지 않는다 — pg_cron 크론 때문, 2026-11-04 결정): 새 EC2에 별도 EBS(gp3)를 붙이고 [docker/prod/compose.db.yml](../prod/compose.db.yml)로 같은 pg_cron 이미지를 띄운다. `backup.sh`의 덤프를 거기에 `pg_restore`하고 `.env`의 `DB_URL`을 DB 서버 사설 IP로 바꾼다. 5432는 보안 그룹으로 앱 서버에만 연다. 백업(EBS 스냅샷 DLM + `backup.sh` 같은 S3 덤프)을 그 서버에도 걸고, 복원 연습을 한 번 한다. compose에서 postgres 서비스는 뺀다.
 2. **올린 이미지 → EFS**: 서버가 2대가 되기 전에 `MEDIA_DIR`을 공유 디스크로 바꾼다.
 3. **ALB + ACM + 앱 서버 2대**: prod compose로 옮기고 Caddy는 뺀다. 서버마다 `NODE_ID`가 달라야 한다.

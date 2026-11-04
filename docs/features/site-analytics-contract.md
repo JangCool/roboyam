@@ -28,7 +28,7 @@
 - 표 접두사 `analytics_`, 마이그레이션 별도 스트림 `analytics`(표 + 크론 `R__analytics_*`). 원본 표 기본 키 맨 앞이 시각(`viewed_at, id`) — TimescaleDB hypertable 조건. 다른 표와 외래 키 없음.
 - 자바 `com.community.analytics`(collect·store·aggregate·settings), DB 접근은 분석 전용 연결 `analyticsJdbc`(지금 메인 DB, 설정만 바꾸면 다른 DB), JPA 없이 SQL.
 - 사용자 화면 공용 레이어 `apps-packages/analytics`(`@roboyam/analytics`) — 방문자 ID·세션·신호.
-- AWS RDS PostgreSQL 은 TimescaleDB 확장을 지원하지 않는다(옮길 때 EC2 직접 또는 Timescale Cloud).
+- AWS RDS PostgreSQL 은 TimescaleDB 확장을 지원하지 않는다 — **사용자 결정(2026-11-04): AWS 에서도 RDS 를 쓰지 않고 PostgreSQL 을 직접 올린다**(pg_cron 크론 때문). 그래서 옮길 때도 같은 자체 DB 에 확장만 붙이면 된다.
 
 ## 설정 (`analytics_settings`, 조회 site.read · 변경 site.manage · 감사 기록)
 `enabled`(방문 수집 전체) · `visits` · `rawEvents` + `rawRetentionDays` · `referrers` · `flows` · `notificationSends` · `boardActivity` — 전부 기본 꺼짐. 꺼진 항목의 대시보드 가젯은 「수집이 꺼져 있어요」(묶음 응답 `disabled: type[]`).
