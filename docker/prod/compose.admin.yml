@@ -38,7 +38,7 @@ services:
       ROBOYAM_INDEX_KEY: ${ROBOYAM_INDEX_KEY:-}
       # Snowflake ID 서버 번호 — 공개 사이트 앱 서버 2대(NODE_ID)와 모두 달라야 한다 (예: 앱 1·2, 관리자 앱 3)
       NODE_ID: ${ADMIN_NODE_ID}
-      # 공개 사이트 앱 서버 2대와 합친 풀 크기가 RDS 최대 연결 수보다 작아야 한다. 관리 콘솔은 작게 잡는다
+      # 공개 사이트 앱 서버 2대와 합친 풀 크기가 DB 서버 max_connections(compose.db.yml)보다 작아야 한다. 관리 콘솔은 작게 잡는다
       DB_POOL_SIZE: ${ADMIN_DB_POOL_SIZE:-5}
       # 관리자 앱 주소 — 운영자 초대·알림 메일의 관리자 링크(공개 사이트 앱 서버와 같은 .env 값)
       ADMIN_URL: ${ADMIN_URL:-}
