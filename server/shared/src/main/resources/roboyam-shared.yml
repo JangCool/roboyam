@@ -166,9 +166,7 @@ roboyam:
   withdrawal:
     rejoin-block-days: 30        # 같은 이메일·소셜 계정·본인인증 값이 탈퇴 뒤 다시 가입·인증할 수 없는 기간(탈퇴 때 박는다). 제재 중 탈퇴면 제재 끝과 비교해 늦은 쪽
     rejoin-block-max-days: 365   # 재가입 제한 상한 — 무기한 제한·영구 정지 중 탈퇴하면 이 값
-    contact-retention-years: 5   # 탈퇴 회원 연락용 이메일을 보존 기준일부터 보관하는 기간
-    contact-retention-basis-month: 6  # 보존 기준일 = 마지막 거래일이 속한 해의 다음 해 이 달·이 날(종합소득세 신고기한 다음날 6월 1일 — 세무사 확인 전 보수적 기준)
-    contact-retention-basis-day: 1
+    contact-retention-years: 5   # 탈퇴 회원 연락용 이메일을 마지막 거래 시각부터 보관하는 기간(전자상거래법 — 세법의 보존 기준일은 거래 기록에만)
     progress-notice-days: 10     # 신청 뒤 이 일수 안에 완료되지 않으면 진행 상태 메일(개인정보보호법 시행령 제44조)
     reauth-minutes: 10           # 소셜 전용 회원의 본인 확인 — 최근 이 분 안 로그인
     support-email: ""            # 탈퇴 화면·완료 메일의 고객센터 메일. 비우면 메일 서버의 보내는 주소
