@@ -19,20 +19,23 @@ import java.time.Instant;
  * @param dislikeCount 비추천 수 — 게시판 정책 {@code commentDislikeEnabled} 가 꺼져 있으면 null(쌓인 수는 보존하되 내리지 않는다)
  * @param disliked  내가 비추천했는가 — 비추천이 꺼진 게시판이면 null. 추천({@code liked})과 비추천은 동시에 참이 아니다
  * @param pinRequest 내 의견의 고정 요청 상태(대기·거절) — 내가 쓴 의견 원댓글이 아니거나 요청이 없거나 승인됐으면 null
+ * @param staffProtected 보는 사람이 그 게시판 매니저·스텝이고 댓글 작성자가 같은 게시판 매니저·스텝이다 — 스텝 「댓글 삭제」·「작성자 제재」가 막혀 화면이 ⋯ 메뉴에서 뺀다
+ *                  (docs/features/board-staff-action-contract.md 정책 4). 그 밖의 보는 사람은 늘 false
  */
 public record CommentView(String id, String postId, String parentId, ReplyToView replyTo, PostAuthorView author, String content, String contentFormat, String state,
                           Instant createdAt, Instant updatedAt, int likeCount, boolean liked, boolean mine, String blocked, String stance,
-                          String hiddenBy, boolean pinned, Integer dislikeCount, Boolean disliked, PinRequestStateView pinRequest) {
+                          String hiddenBy, boolean pinned, Integer dislikeCount, Boolean disliked, PinRequestStateView pinRequest,
+                          boolean staffProtected) {
 
     /** 차단·입장·숨김 까닭·고정·비추천 칸 없이(null·false) */
     public CommentView(String id, String postId, String parentId, ReplyToView replyTo, PostAuthorView author, String content, String contentFormat, String state,
                        Instant createdAt, Instant updatedAt, int likeCount, boolean liked, boolean mine) {
-        this(id, postId, parentId, replyTo, author, content, contentFormat, state, createdAt, updatedAt, likeCount, liked, mine, null, null, null, false, null, null, null);
+        this(id, postId, parentId, replyTo, author, content, contentFormat, state, createdAt, updatedAt, likeCount, liked, mine, null, null, null, false, null, null, null, false);
     }
 
     /** 고정 표시를 바꾼 사본 */
     public CommentView withPinned(boolean value) {
         return new CommentView(id, postId, parentId, replyTo, author, content, contentFormat, state, createdAt, updatedAt, likeCount, liked, mine, blocked, stance,
-                hiddenBy, value, dislikeCount, disliked, pinRequest);
+                hiddenBy, value, dislikeCount, disliked, pinRequest, staffProtected);
     }
 }

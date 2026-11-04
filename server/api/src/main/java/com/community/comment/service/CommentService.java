@@ -63,6 +63,7 @@ import com.community.post.repository.master.PostRepository;
 import com.community.post.service.PostQueryService;
 import com.community.post.service.PostWriteService;
 import com.community.post.service.WriterPromotion;
+import com.community.sanction.service.BoardStaffActionService;
 import com.community.zconfiguration.exception.CommonException;
 import com.community.zconfiguration.exception.ErrorCode;
 import com.community.zconfiguration.exception.ValidationException;
@@ -155,13 +156,15 @@ public class CommentService {
     private final Messages messages;
     private final TransactionTemplate tx;
     private final TransactionTemplate readTx;
+    private final BoardStaffActionService staffActions;
 
     public CommentService(BoardCatalog catalog, BoardActorResolver actors, PostRepository posts, PostQueryService postQueries, CommentRepository comments,
                           CommentRepositoryQDSL commentQueries, PostCounterQueries counters, AuthorViews authors, GuestPasswords passwords,
                           CaptchaVerifier captcha, SnowflakeIdGenerator ids, WriterPromotion promotion, PointService points, MemberNotificationPublisher notices,
                           ViewerBlocks viewerBlocks, DebateReader debate, DebateQueries debateQueries, DebatePinRequestRepository pinRequests,
                           GroupPostGate groupGate, GroupMemberRepository groupMembers, GroupPostQueries groupPosts, Messages messages,
-                          PlatformTransactionManager txManager) {
+                          PlatformTransactionManager txManager, BoardStaffActionService staffActions) {
+        this.staffActions = staffActions;
         this.groupGate = groupGate;
         this.groupMembers = groupMembers;
         this.groupPosts = groupPosts;
@@ -199,15 +202,16 @@ public class CommentService {
      * @param disliked          내가 비추천한 댓글
      * @param pinned            고정한 의견(댓글 ID)
      * @param myPinRequests     내 의견의 고정 요청 상태(댓글 ID → 상태, 대기·거절만)
+     * @param protectedAuthors  보는 사람이 그 게시판 매니저·스텝이면 같은 게시판 매니저·스텝 회원 ID(댓글 {@code staffProtected}), 아니면 빈 집합
      */
     private record Viewer(Long userId, String ip, boolean guest, int delayMinutes, Set<Long> liked, ViewerBlocks.Lens lens, boolean staffHiddenNotice,
                           boolean dislikeEnabled, Set<Long> disliked, Set<Long> pinned, Map<Long, PinRequestStateView> myPinRequests, Map<Long, Instant> leftAt,
-                          Instant membersOnlyBefore) {
+                          Instant membersOnlyBefore, Set<Long> protectedAuthors) {
 
         /** 쓰기·고치기 응답용 — 목록 칸(추천·비추천·고정·내 요청)은 부르는 쪽이 정한다. 쓴 사람은 그 글을 열 수 있는 사람이라 공개 시각 가림을 하지 않는다 */
         static Viewer self(Long userId, String ip, Set<Long> liked, EffectiveBoard b, Set<Long> disliked, Set<Long> pinned) {
             return new Viewer(userId, ip, false, 0, liked, ViewerBlocks.Lens.none(), b.staffHiddenNotice(), b.commentDislikeEnabled(), disliked, pinned, Map.of(),
-                    Map.of(), null);
+                    Map.of(), null, Set.of());
         }
 
         /** 비멤버·비회원이 보는 비공개 소모임의 개별 공개 글에서 공개 시각 이전에 달린 댓글인가(api-groups.md 11-7 — 되돌렸다 다시 공개하면 새 시각 기준) */
@@ -252,7 +256,7 @@ public class CommentService {
                     b.staffHiddenNotice(), b.commentDislikeEnabled(),
                     userId == null || all.isEmpty() || !b.commentDislikeEnabled() ? Set.of() : counters.dislikedComments(post.getId(), userId),
                     new HashSet<>(pinOrder), userId == null || all.isEmpty() ? Map.of() : myPinRequests(post.getId(), userId), leftAt(post, all),
-                    membersOnlyBefore);
+                    membersOnlyBefore, all.isEmpty() || post.isGroupPost() ? Set.of() : staffActions.protectedAuthorsFor(b.id(), userId));
             AuthorMembers members = authors.members(all.stream().map(CommentEntity::getAuthorId).toList());
             Map<Long, CommentEntity> byId = new HashMap<>();
             all.forEach(c -> byId.put(c.getId(), c));
@@ -414,7 +418,7 @@ public class CommentService {
             // 비공개 소모임의 개별 공개 글에서 공개 시각 이전의 댓글 — 비멤버·비회원에게는 자리·답글 흐름만(hiddenBy MEMBERS_ONLY, 추천 수 0, 베스트에서 빠진다)
             return new CommentView(Long.toString(c.getId()), Long.toString(c.getPostId()), c.getParentId() == null ? null : Long.toString(c.getParentId()),
                     replyTo(c, viewer, byId, members, s), groupLeftAuthor(), null, c.getContentFormat().name(), HIDDEN, c.getCreatedAt(), c.getEditedAt(), 0, false,
-                    false, null, c.getStance(), HIDDEN_BY_MEMBERS_ONLY, false, viewer.dislikeEnabled() ? 0 : null, viewer.dislikeEnabled() ? false : null, null);
+                    false, null, c.getStance(), HIDDEN_BY_MEMBERS_ONLY, false, viewer.dislikeEnabled() ? 0 : null, viewer.dislikeEnabled() ? false : null, null, false);
         } else if (delayed(c, viewer, now)) {
             state = DELAYED;
         } else {
@@ -423,7 +427,7 @@ public class CommentService {
         if (groupLeft) {
             return new CommentView(Long.toString(c.getId()), Long.toString(c.getPostId()), c.getParentId() == null ? null : Long.toString(c.getParentId()),
                     replyTo(c, viewer, byId, members, s), groupLeftAuthor(), null, c.getContentFormat().name(), state, c.getCreatedAt(), c.getEditedAt(), 0, false,
-                    false, null, c.getStance(), HIDDEN_BY_GROUP_LEFT, false, viewer.dislikeEnabled() ? 0 : null, viewer.dislikeEnabled() ? false : null, null);
+                    false, null, c.getStance(), HIDDEN_BY_GROUP_LEFT, false, viewer.dislikeEnabled() ? 0 : null, viewer.dislikeEnabled() ? false : null, null, false);
         }
         PostAuthorView author = authors.of(c.getAuthorId(), c.getGuestName(), c.getAuthorIp(), members, s).withMemo(viewer.lens().memoOf(c.getAuthorId()));
         ReplyToView replyTo = replyTo(c, viewer, byId, members, s);
@@ -435,7 +439,8 @@ public class CommentService {
                 HIDDEN.equals(state) && viewer.staffHiddenNotice() && c.isStaffHiddenAt(now) ? HIDDEN_BY_STAFF : null,
                 !DELETED.equals(state) && !HIDDEN.equals(state) && viewer.pinned().contains(c.getId()),
                 viewer.dislikeEnabled() ? c.getDislikeCount() : null, viewer.dislikeEnabled() ? viewer.disliked().contains(c.getId()) : null,
-                viewer.userId() != null && viewer.userId().equals(c.getAuthorId()) ? viewer.myPinRequests().get(c.getId()) : null);
+                viewer.userId() != null && viewer.userId().equals(c.getAuthorId()) ? viewer.myPinRequests().get(c.getId()) : null,
+                c.getAuthorId() != null && viewer.protectedAuthors().contains(c.getAuthorId()));
     }
 
     /** 답한 댓글 — 지운 댓글·나간 멤버의 가린 댓글이면 이름을 비운다 */
