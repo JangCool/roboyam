@@ -77,10 +77,13 @@ public class PostQueryService {
     private final DealReader dealReader;
     private final DealQueries dealQueries;
     private final DealSettingsReader dealSettings;
+    private final BoardStaffActionService staffActions;
 
     public PostQueryService(BoardCatalog catalog, PostRepository posts, PostRepositoryQDSL postQueries, PostCounterQueries counters, AuthorViews authors,
                             ViewerBlocks viewerBlocks, DebateReader debate, PollReader pollReader, PollQueries pollQueries, GroupPostGate groupGate,
-                            BoardActorResolver actors, DealReader dealReader, DealQueries dealQueries, DealSettingsReader dealSettings) {
+                            BoardActorResolver actors, DealReader dealReader, DealQueries dealQueries, DealSettingsReader dealSettings,
+                            BoardStaffActionService staffActions) {
+        this.staffActions = staffActions;
         this.dealReader = dealReader;
         this.dealQueries = dealQueries;
         this.dealSettings = dealSettings;
@@ -263,6 +266,7 @@ public class PostQueryService {
         PostAuthorView author = authors.of(post.getAuthorId(), post.getGuestName(), post.getAuthorIp(), members, s).withMemo(lens.memoOf(post.getAuthorId()));
         DebateReader.Status highlight = debate.status(post.getId(), now);
         PostDealView deal = post.isGroupPost() ? null : dealReader.forPost(post, b, userId, now);
+        boolean staffAuthor = staffAuthor(b, post, userId);
         return new PostDetailView(Long.toString(post.getId()), new PostBoardRefView(Long.toString(b.id()), b.slug(), b.name(), b.nameEn(), b.color()),
                 prefixRef(b, post.getPrefixId()), post.getTitle(), post.getContentFormat().name(), post.getContent(),
                 author, post.getCreatedAt(), post.getEditedAt(), viewCount,
@@ -271,7 +275,12 @@ public class PostQueryService {
                 newer.map(n -> new PostNeighborView(Long.toString(n.id()), n.title())).orElse(null), Boolean.TRUE.equals(s.security().externalLinkNofollow()),
                 lens.blockedOf(post.getAuthorId(), post.getTitle()), highlight.highlighted(), debate.summary(highlight, post, b, userId, now),
                 pollReader.forPost(post, userId, now), group, deal, dealReader.moderationFor(deal, b, userId), warnings,
-                BoardStaffActionService.noticeOrPinned(b, post));
+                staffAuthor || BoardStaffActionService.noticeOrPinned(b, post), staffAuthor);
+    }
+
+    /** 보는 사람이 그 게시판 매니저·스텝이고 글쓴이가 같은 게시판 매니저·스텝인가(처리·제재 대상 보호 — 그 밖의 보는 사람은 늘 false) */
+    private boolean staffAuthor(EffectiveBoard b, PostEntity post, Long userId) {
+        return !post.isGroupPost() && post.getAuthorId() != null && staffActions.protectedAuthorsFor(b.id(), userId).contains(post.getAuthorId());
     }
 
     /** 글의 댓글 많은 글 보호 — 소모임 글은 걸리지 않는다(게시판 정책을 받지 않는다 — 원본 「운영진·운영자·소모임 글은 해당 없다」) */

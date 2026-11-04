@@ -29,12 +29,15 @@ import java.util.List;
  * @param deal                 핫딜 게시판의 글이면 딜(docs/features/hotdeal-contract.md), 아니면 null
  * @param dealModeration       보는 사람이 그 핫딜 게시판의 매니저·스텝(정지 아님)이고 딜이 있으면 매니저·스텝 조치(role·canEnd·canReopen), 아니면 null
  * @param warnings             고치기({@code PUT}) 응답에만 — 저장은 됐지만 알릴 것(예 {@code DEAL_LINK_BLOCKED}). 글 보기는 null
- * @param staffProtected       공지 말머리·고정 글 — 매니저·스텝의 글 숨기기·삭제가 막힌다(docs/features/board-staff-action-contract.md 정책 4, 화면은 ⋯ 메뉴에서 뺀다)
+ * @param staffProtected       매니저·스텝의 글 숨기기·삭제가 막힌 글 — 공지 말머리·고정 글, 보는 사람이 그 게시판 매니저·스텝이면 같은 게시판 매니저·스텝의 글도
+ *                             (docs/features/board-staff-action-contract.md 정책 4, 화면은 ⋯ 메뉴에서 뺀다)
+ * @param sanctionProtected    보는 사람이 그 게시판 매니저·스텝이고 작성자가 같은 게시판 매니저·스텝이다 — 「작성자 제재」가 막힌다(board-sanction-contract, 화면은 ⋯ 메뉴에서 뺀다).
+ *                             그 밖의 보는 사람은 늘 false
  */
 public record PostDetailView(String id, PostBoardRefView board, PostPrefixRefView prefix, String title, String contentFormat, String content, PostAuthorView author,
                              Instant createdAt, Instant updatedAt, int viewCount, int likeCount, boolean liked, int commentCount, boolean adult, boolean mine,
                              PostProtectionView protection, Instant deleteScheduledAt, PostNeighborView prev, PostNeighborView next,
                              boolean externalLinkNofollow, String blocked, boolean highlighted, DebateSummaryView debate, PollView poll,
                              PostGroupView group, PostDealView deal, PostDealModerationView dealModeration, List<DealWarningView> warnings,
-                             boolean staffProtected) {
+                             boolean staffProtected, boolean sanctionProtected) {
 }

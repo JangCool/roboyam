@@ -165,6 +165,11 @@ public class BoardStaffActionStore {
         return !jdbc.queryForList("SELECT 1 FROM board_staff WHERE board_id = ? AND user_id = ?", Integer.class, boardId, userId).isEmpty();
     }
 
+    /** 그 게시판의 매니저·스텝 회원 ID 전부 */
+    public Set<Long> staffIds(long boardId) {
+        return Set.copyOf(jdbc.queryForList("SELECT user_id FROM board_staff WHERE board_id = ?", Long.class, boardId));
+    }
+
     /**
      * 처리 전 판정용 — 글(임시저장 제외)의 게시판. 없으면 빈 값. 엔티티를 미리 읽지 않는 까닭: 같은 영속성 문맥에서 먼저 읽은 글은 뒤의 잠금 조회가 새 값으로 바꾸지 않는다
      * (잠근 뒤의 상태 판정이 낡은 값을 보지 않게 — 글 엔티티는 잠금 조회로만 처음 읽는다).

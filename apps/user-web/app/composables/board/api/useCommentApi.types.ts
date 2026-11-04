@@ -49,6 +49,8 @@ export interface CommentView {
     disliked?: boolean | null;
     /** 내 의견 원댓글의 고정 요청 상태(대기·거절) — 그 밖은 null */
     pinRequest?: PinRequestState | null;
+    /** 보는 사람이 그 게시판 매니저·스텝이고 작성자가 같은 게시판 매니저·스텝 — 「댓글 삭제」·「작성자 제재」가 막힌다. 그 밖의 보는 사람은 늘 false(옛 응답에는 없다) */
+    staffProtected?: boolean;
 }
 
 /** 원댓글 + 그 아래 답글(오래된순) */

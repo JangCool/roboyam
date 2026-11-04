@@ -396,7 +396,19 @@ public class BoardStaffActionService {
     }
 
     /**
-     * 스텝 처리가 막힌 글인가 — 공통 「공지」 말머리 · 고정 글. 글 보기 응답 {@code staffProtected} 도 이것으로 ⋯ 메뉴를 감춘다(작성자 보호는 따로 — 서버가 409)
+     * 처리에서 보호되는 작성자(같은 게시판 매니저·스텝) — 보는 사람이 그 게시판 매니저·스텝일 때만 채운다(그 밖은 빈 집합 — 누가 스텝인지 밖으로 새지 않게).
+     * 글 보기·댓글 목록의 {@code staffProtected} 가 이것으로 ⋯ 메뉴를 감춘다. 보는 사람 자신도 들어 있다(본인 것은 화면이 {@code mine} 으로 따로 뺀다)
+     */
+    public Set<Long> protectedAuthorsFor(long boardId, Long viewerId) {
+        if (viewerId == null) {
+            return Set.of();
+        }
+        Set<Long> staff = store.staffIds(boardId);
+        return staff.contains(viewerId) ? staff : Set.of();
+    }
+
+    /**
+     * 스텝 처리가 막힌 글인가 — 공통 「공지」 말머리 · 고정 글. 글 보기 응답 {@code staffProtected} 도 이것으로 ⋯ 메뉴를 감춘다(작성자 보호는 {@link #protectedAuthorsFor})
      */
     public static boolean noticeOrPinned(EffectiveBoard board, PostEntity post) {
         return post.getPinnedAt() != null || board.prefix(post.getPrefixId()).map(BoardPrefixInfo::commonKey).filter("NOTICE"::equals).isPresent();

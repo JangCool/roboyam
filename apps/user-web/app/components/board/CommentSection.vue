@@ -403,11 +403,11 @@ const blockedText = computed(() => UtilBoardMessages.commentBlocked(t, props.boa
 const errorRestriction = ref<BoardWriteRestriction | null>(null);
 /** 이 게시판에서 쓰기 제한 중 — 댓글·답글·의견 입력 자리에 안내를 보인다 */
 const restriction = computed(() => props.board.viewer.writeRestriction ?? errorRestriction.value);
-/** 댓글 ⋯ 「작성자 제재」 — 매니저·스텝이 보는 남의 회원 댓글만(지운·숨긴 댓글·탈퇴 회원 제외) */
+/** 댓글 ⋯ 「작성자 제재」 — 매니저·스텝이 보는 남의 회원 댓글만(지운·숨긴 댓글·탈퇴 회원·같은 게시판 운영진의 댓글 제외) */
 function sanctionable(c: CommentView): boolean {
-    return props.sanctionEnabled && !c.mine && c.state === 'VISIBLE' && c.author.kind === 'MEMBER' && Boolean(c.author.memberId) && Boolean(c.author.name);
+    return props.sanctionEnabled && !c.mine && !c.staffProtected && c.state === 'VISIBLE' && c.author.kind === 'MEMBER' && Boolean(c.author.memberId) && Boolean(c.author.name);
 }
-/** 댓글 ⋯ 「댓글 삭제」 — 남의 보이는 댓글(비회원 댓글 포함 — 같은 게시판 운영진의 댓글은 서버가 막는다) */
+/** 댓글 ⋯ 「댓글 삭제」 — 남의 보이는 댓글(비회원 댓글 포함, 같은 게시판 운영진의 댓글 `staffProtected` 제외) */
 function staffDeletable(c: CommentView): boolean {
     return UtilBoardStaffAction.commentDeletable(props.commentDeleteEnabled, c);
 }

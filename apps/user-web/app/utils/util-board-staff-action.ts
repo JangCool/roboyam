@@ -51,7 +51,7 @@ export default class UtilBoardStaffAction {
     }
 
     /**
-     * 글 ⋯ 에 보일 처리 — 본인 글·소모임 글·공지·고정 글(`staffProtected`)에는 없다. 같은 게시판 매니저·스텝의 글은 서버가 409 로 막는다
+     * 글 ⋯ 에 보일 처리 — 본인 글·소모임 글·공지·고정 글·같은 게시판 매니저·스텝의 글(`staffProtected`)에는 없다
      * @param {BoardStaffTools | null} tools - 게시판의 `viewer.staffTools`.
      * @param {{ mine: boolean; group?: unknown; staffProtected?: boolean }} post - 글.
      * @returns {Array<'POST_HIDE' | 'POST_DELETE'>} 숨기기·삭제 중 할 수 있는 것.
@@ -65,13 +65,13 @@ export default class UtilBoardStaffAction {
     }
 
     /**
-     * 댓글 ⋯ 「댓글 삭제」를 보일까 — 본인 댓글·지운 댓글 제외. 숨긴 댓글(`HIDDEN`)은 자리만 그려 ⋯ 가 없고 서버도 `COMMENT_STATE_INVALID` 로 막으므로 보이는 댓글(`VISIBLE`)만
+     * 댓글 ⋯ 「댓글 삭제」를 보일까 — 본인 댓글·지운 댓글·같은 게시판 매니저·스텝의 댓글(`staffProtected`) 제외. 숨긴 댓글(`HIDDEN`)은 자리만 그려 ⋯ 가 없고 서버도 `COMMENT_STATE_INVALID` 로 막으므로 보이는 댓글(`VISIBLE`)만
      * @param {boolean} enabled - 보는 사람에게 `abilities.commentDelete` 가 있다.
-     * @param {{ mine: boolean; state: string }} comment - 댓글.
+     * @param {{ mine: boolean; state: string; staffProtected?: boolean }} comment - 댓글.
      * @returns {boolean} 보이면 true.
      */
-    static commentDeletable(enabled: boolean, comment: { mine: boolean; state: string }): boolean {
-        return enabled && !comment.mine && comment.state === 'VISIBLE';
+    static commentDeletable(enabled: boolean, comment: { mine: boolean; state: string; staffProtected?: boolean }): boolean {
+        return enabled && !comment.mine && !comment.staffProtected && comment.state === 'VISIBLE';
     }
 
     /**
