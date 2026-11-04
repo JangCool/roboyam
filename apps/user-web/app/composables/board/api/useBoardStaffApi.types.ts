@@ -1,6 +1,6 @@
 /**
  * 게시판 매니저·스텝 도구 API 가 주고받는 모양 — 게시판 제재(`docs/features/board-sanction-contract.md` 「API 후보 > 공개」).
- * 서버 `server/api` `com.community.boardstaff.dto`(`BoardSanctionPreviewView`·`BoardSanctionIssuedView`·`BoardStaffSanctionPageView`·`BoardStaffSanctionRowView`·`BoardStaffToolsView`·`BoardWriteRestrictionView` …)와 같은 칸 이름. 게시판 응답의 `viewer.staffTools`·`viewer.writeRestriction` 모양도 여기 둔다(`useBoardApi.types.ts` 의 `BoardViewer` 가 쓴다).
+ * 서버 `server/api` `com.community.boardstaff.dto`(`BoardSanctionPreviewView`·`BoardSanctionIssuedView`·`BoardStaffSanctionPageView`·`BoardStaffSanctionRowView`·`BoardStaffToolsView`·`BoardWriteRestrictionView` …)와 같은 칸 이름. 게시판 응답의 `viewer.staffTools`·`viewer.writeRestriction`·`viewer.pendingWarnings` 모양도 여기 둔다(`useBoardApi.types.ts` 의 `BoardViewer` 가 쓴다).
  * **처리자 신원**(`issuer`)은 그 게시판 매니저에게만 온다 — 스텝 목록·받은 회원 쪽 응답에는 없다(계약 결정 7).
  * ⚠ ID 는 문자열(Snowflake), 시각은 UTC ISO.
  */
@@ -66,6 +66,14 @@ export interface BoardWriteRestriction {
     /** 제한이 끝나는 시각 */
     until: string;
     reasonCode: BoardSanctionReasonCode | (string & {});
+}
+
+/** `GET /api/boards/{slug}` 의 `viewer.pendingWarnings` 한 줄 — 보는 내가 이 게시판에서 받고 아직 확인하지 않은 경고(최근 것이 위, 최대 10). 처리자는 오지 않는다 */
+export interface BoardPendingWarning {
+    boardSanctionId: string;
+    reasonCode: BoardSanctionReasonCode | (string & {});
+    /** 받은 시각 */
+    issuedAt: string;
 }
 
 /** 제재 대상 회원 — 닉네임은 읽을 때의 값 */

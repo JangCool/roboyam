@@ -5,7 +5,7 @@
  * ⚠ ID 는 모두 문자열이다(Snowflake 64비트). 숫자로 바꾸지 않는다.
  */
 import type { AffiliateMode, DealRules } from '~/composables/hotdeal/api/useHotdealApi.types';
-import type { BoardStaffTools, BoardWriteRestriction } from '~/composables/board/api/useBoardStaffApi.types';
+import type { BoardPendingWarning, BoardStaffTools, BoardWriteRestriction } from '~/composables/board/api/useBoardStaffApi.types';
 
 export interface PrefixView {
     id: string;
@@ -209,6 +209,8 @@ export interface BoardViewer {
     staffTools: BoardStaffTools | null;
     /** 보는 내가 이 게시판에서 쓰기 제한 중이면 끝 시각·사유(처리자 없음), 아니면 null */
     writeRestriction: BoardWriteRestriction | null;
+    /** 보는 내가 이 게시판에서 받고 아직 확인하지 않은 경고(최근 것이 위) — 게시판 머리 안내. 비로그인·소모임 게시판은 빈 목록(옛 서버는 칸 없음) */
+    pendingWarnings?: BoardPendingWarning[];
 }
 
 /**

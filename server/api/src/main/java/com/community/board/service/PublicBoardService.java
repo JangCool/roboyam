@@ -14,8 +14,10 @@ import com.community.board.dto.response.BoardViewerView;
 import com.community.board.dto.response.PrefixView;
 import com.community.board.exception.BoardInactiveException;
 import com.community.board.exception.BoardNotFoundException;
+import com.community.boardstaff.dto.response.BoardPendingWarningView;
 import com.community.boardstaff.dto.response.BoardStaffToolsView;
 import com.community.boardstaff.dto.response.BoardWriteRestrictionView;
+import com.community.sanction.service.BoardSanctionService;
 import com.community.sanction.service.BoardStaffActionService;
 import com.community.hotdeal.dto.DealSettings;
 import com.community.hotdeal.dto.response.DealRulesView;
@@ -41,10 +43,13 @@ public class PublicBoardService {
     private final BoardActorResolver actors;
     private final DealSettingsReader dealSettings;
     private final BoardStaffActionService staffActions;
+    private final BoardSanctionService boardSanctions;
 
-    public PublicBoardService(BoardCatalog catalog, BoardActorResolver actors, DealSettingsReader dealSettings, BoardStaffActionService staffActions) {
+    public PublicBoardService(BoardCatalog catalog, BoardActorResolver actors, DealSettingsReader dealSettings, BoardStaffActionService staffActions,
+                              BoardSanctionService boardSanctions) {
         this.catalog = catalog;
         this.staffActions = staffActions;
+        this.boardSanctions = boardSanctions;
         this.actors = actors;
         this.dealSettings = dealSettings;
     }
@@ -78,9 +83,12 @@ public class PublicBoardService {
         // 게시판 제재(board-sanction-contract) — 쓰기 제한 중이면 다른 까닭이 없을 때 BOARD_WRITE_RESTRICTED.
         // 매니저·스텝 본인에게는 할 수 있는 일 + 오늘 남은 글·댓글·제재 한도(board-staff-action-contract — 네 처리 권한 중 하나라도 있을 때만)
         BoardStaffToolsView tools = actor.staffOf(b.id()) ? staffActions.tools(b.id(), actor.userId()).map(BoardStaffToolsView::of).orElse(null) : null;
+        // 확인하지 않은 게시판 경고 — 경고를 준 게시판 머리에만 한 줄(색인 ix_board_sanctions_user)
+        List<BoardPendingWarningView> warnings = actor.userId() == null ? List.of()
+                : boardSanctions.pendingWarnings(actor.userId(), b.id()).stream().map(BoardPendingWarningView::of).toList();
         return detail(s, b, actor, BoardAccessPolicy.withWriteRestriction(BoardAccessPolicy.writeBlocked(b, actor, s), b, actor),
                 BoardAccessPolicy.withWriteRestriction(BoardAccessPolicy.commentBlocked(b, actor, s), b, actor),
-                BoardFields.KIND_DEAL.equals(b.kind()) ? dealSettings.current() : null, tools, BoardWriteRestrictionView.of(actor.writeRestriction(b.id())));
+                BoardFields.KIND_DEAL.equals(b.kind()) ? dealSettings.current() : null, tools, BoardWriteRestrictionView.of(actor.writeRestriction(b.id())), warnings);
     }
 
     /**
@@ -88,12 +96,15 @@ public class PublicBoardService {
      * {@code GET /api/groups/{id}/board}, 소모임 2단계).
      */
     public static BoardDetailView detail(BoardCatalogSnapshot s, EffectiveBoard b, BoardActor actor, String writeBlocked, String commentBlocked) {
-        return detail(s, b, actor, writeBlocked, commentBlocked, null, null, null);
+        return detail(s, b, actor, writeBlocked, commentBlocked, null, null, null, List.of());
     }
 
-    /** @param deal 핫딜 게시판이면 핫딜 설정(공개 칸 {@code dealAffiliateMode}·{@code dealRules} 를 싣는다), 아니면 null */
+    /**
+     * @param deal            핫딜 게시판이면 핫딜 설정(공개 칸 {@code dealAffiliateMode}·{@code dealRules} 를 싣는다), 아니면 null
+     * @param pendingWarnings 보는 내가 이 게시판에서 확인하지 않은 경고(없으면 빈 목록)
+     */
     public static BoardDetailView detail(BoardCatalogSnapshot s, EffectiveBoard b, BoardActor actor, String writeBlocked, String commentBlocked, DealSettings deal,
-                                         BoardStaffToolsView staffTools, BoardWriteRestrictionView writeRestriction) {
+                                         BoardStaffToolsView staffTools, BoardWriteRestrictionView writeRestriction, List<BoardPendingWarningView> pendingWarnings) {
         BoardSecurityValues sec = s.security();
         BoardView v = view(b);
         return new BoardDetailView(v.id(), v.slug(), v.name(), v.nameEn(), v.description(), v.investmentNotice(), v.staffOnlyWrite(), v.writeMin(),
@@ -107,7 +118,7 @@ public class PublicBoardService {
                         ContentRules.GUEST_PASSWORD_MAX, sec.guestLinkLimit(), sec.guestImageUploadAllowed()),
                 new BoardNewMemberRulesView(BoardAccessPolicy.newMemberRules(b, actor, s), sec.newMemberLinkLimit(), sec.newMemberImageLimit()),
                 new BoardViewerView(actor.guest(), actor.staffOf(b.id()), writeBlocked == null, writeBlocked, commentBlocked == null, commentBlocked, staffTools,
-                        writeRestriction),
+                        writeRestriction, pendingWarnings),
                 v.debateEnabled(), v.pollEnabled(), b.adsHidden(), b.kind(), deal == null ? null : deal.affiliateMode(),
                 deal == null ? null : new DealRulesView(deal.priceMaxWon(), deal.discountWarnPercent(), deal.autoExpireDays(), deal.hotLikeThreshold()));
     }
