@@ -18,7 +18,9 @@ import org.springframework.stereotype.Repository;
  * <ul>
  *   <li>방문자: {@link #visits} 의 표시 넣기가 {@code ON CONFLICT DO NOTHING RETURNING} 이라 <b>실제로 들어간 줄만</b> 방문자로 더한다. 같은 방문자를 두 서버가 같은 1분에 넣으면
  *       기본 키(day, visitor_hash)가 한 서버만 받는다 — 동시면 PostgreSQL 이 뒤 서버를 앞 서버의 커밋까지 기다리게 하고 그 줄을 건너뛴다(앞 서버가 되돌리면 뒤 서버가 넣는다).
- *       넣기와 시간 칸 더하기가 한 문장(= 한 트랜잭션)이라 표시만 남고 숫자가 빠지는 일이 없다.</li>
+ *       넣기와 시간 칸 더하기가 한 문장(= 한 트랜잭션)이라 표시만 남고 숫자가 빠지는 일이 없다.
+ *       신규 방문자: 표시에 「신규」 칸(analytics V2)을 두고, 이미 있는 표시라도 늦게 온 신호가 신규면 false → true 로 바꾸면서 그때만 신규 +1 —
+ *       첫 화면(신규)은 서버 A, 다음 화면은 서버 B 가 받고 B 가 먼저 써도 신규가 빠지지 않는다(QA 재현 2026-11-04). 방문자 수는 새로 넣은 줄만 센다({@code xmax = 0}).</li>
  *   <li>페이지뷰·페이지별·유입처별·이동 횟수: 신호 하나는 서버 한 대만 받으므로 서버마다 자기 몫을 더해도 합이 정확하다. 더하기 upsert 는 행 잠금으로 차례가 정해진다.</li>
  *   <li>교착 방지: 모든 넣기를 키 차례({@code ORDER BY})로 해서 서버끼리 같은 행을 잠그는 차례가 같다.</li>
  *   <li>지금 접속: 방문자 키 한 줄에 마지막 시각을 {@code greatest} 로 — 늦게 도착한 옛 시각이 덮어쓰지 않는다. 세기는 DB 에서 한 번(관리자 대시보드).</li>
@@ -27,14 +29,21 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class AnalyticsWriteStore {
 
-    /** 표시 넣기 → 실제로 들어간 줄만 시간 칸 방문자·신규 방문자 + 페이지뷰를 한 문장으로 더한다 */
+    /**
+     * 표시 넣기 → 새로 들어간 줄만 시간 칸 방문자 +1, 신규는 「새로 넣은 신규 표시」와 「false → true 로 바뀐 표시」만 +1 — 페이지뷰와 함께 한 문장으로 더한다.
+     * 같은 묶음에 같은 (날짜, 방문자)가 두 번 오면 하나로(신규 우선, 이른 시간 칸) — {@code ON CONFLICT DO UPDATE} 는 한 문장에서 같은 행을 두 번 바꿀 수 없다.
+     */
     private static final String VISITS = "WITH input AS ("
-            + "  SELECT t.day, t.visitor_hash, t.hour, t.new_visitor FROM unnest(?::date[], ?::text[], ?::timestamptz[], ?::boolean[]) AS t(day, visitor_hash, hour, new_visitor)"
+            + "  SELECT DISTINCT ON (t.day, t.visitor_hash) t.day, t.visitor_hash, t.hour, t.new_visitor"
+            + "    FROM unnest(?::date[], ?::text[], ?::timestamptz[], ?::boolean[]) AS t(day, visitor_hash, hour, new_visitor)"
+            + "   ORDER BY t.day, t.visitor_hash, t.new_visitor DESC, t.hour"
             + "), ins AS ("
-            + "  INSERT INTO analytics_visit_marks (day, visitor_hash) SELECT day, visitor_hash FROM input ORDER BY day, visitor_hash"
-            + "  ON CONFLICT DO NOTHING RETURNING day, visitor_hash"
+            + "  INSERT INTO analytics_visit_marks (day, visitor_hash, new_visitor) SELECT day, visitor_hash, new_visitor FROM input ORDER BY day, visitor_hash"
+            + "  ON CONFLICT (day, visitor_hash) DO UPDATE SET new_visitor = true"
+            + "    WHERE NOT analytics_visit_marks.new_visitor AND EXCLUDED.new_visitor"
+            + "  RETURNING day, visitor_hash, (xmax = 0) AS inserted"
             + "), counted AS ("
-            + "  SELECT i.hour, count(*) AS visitors, count(*) FILTER (WHERE i.new_visitor) AS new_visitors"
+            + "  SELECT i.hour, count(*) FILTER (WHERE ins.inserted) AS visitors, count(*) FILTER (WHERE i.new_visitor) AS new_visitors"
             + "    FROM ins JOIN input i ON i.day = ins.day AND i.visitor_hash = ins.visitor_hash GROUP BY i.hour"
             + "), views AS ("
             + "  SELECT p.hour, p.views FROM unnest(?::timestamptz[], ?::bigint[]) AS p(hour, views)"
