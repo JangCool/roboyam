@@ -2,6 +2,7 @@ package com.community.analytics.collect;
 
 import com.community.analytics.store.AnalyticsDatabase;
 import com.community.analytics.store.AnalyticsWriteStore;
+import com.community.analytics.store.AnalyticsWriteStore.CampaignRow;
 import com.community.analytics.store.AnalyticsWriteStore.DailyRow;
 import com.community.analytics.store.AnalyticsWriteStore.RawRow;
 import com.community.analytics.store.AnalyticsWriteStore.VisitorRow;
@@ -23,8 +24,8 @@ import org.springframework.stereotype.Component;
  *   <li>방문자 + 페이지뷰: 표시 넣기 {@code ON CONFLICT DO NOTHING RETURNING} → 실제로 들어간 줄만 시간 칸 방문자·신규 방문자, 같은 문장에서 페이지뷰 더하기 upsert (1문장)</li>
  *   <li>지금 접속 upsert (1문장) — 1·2 는 한 트랜잭션</li>
  *   <li>원본 여러 줄 (1문장) + 페이지별 일별 조회 더하기 (1문장) — 한 트랜잭션. 그 달 조각이 없으면 한 번 만들고 다시 쓴다</li>
- *   <li>유입처 일별 더하기 (1문장)</li>
- *   <li>이동 일별 더하기 (1문장)</li>
+ *   <li>유입처 일별 더하기 (1문장) + 캠페인 일별 더하기 (1문장, analytics V3) — 한 트랜잭션</li>
+ *   <li>이동 일별 더하기 (1문장) — 세션 첫 페이지의 「바로 들어옴」(from_path = '') 줄 포함</li>
  * </ol>
  * 서버 여러 대의 정확성 근거는 {@link AnalyticsWriteStore} 머리말. 묶음 하나가 실패하면(트랜잭션째 되돌려졌다) 그 묶음만 메모리에 되돌려 다음 1분에 다시 쓴다(상한은 버퍼가 지킨다).
  * 서버가 갑자기 꺼지면 아직 쓰지 않은 최대 1분치를 잃는다(통계라 허용 — 계약). 「오늘 셌다」 표시는 DB 에 있어 재시작해도 같은 방문자를 다시 세지 않는다.
@@ -79,10 +80,15 @@ public class VisitFlusher {
                 buffer.restoreRaw(b);
             }
         }
-        if (!b.referrers().isEmpty()) {
+        if (!b.referrers().isEmpty() || !b.campaigns().isEmpty()) {
             List<DailyRow> rows = new ArrayList<>(b.referrers().size());
             b.referrers().forEach((k, n) -> rows.add(new DailyRow(k.day(), k.group(), k.domain(), n)));
-            if (!run("유입처", () -> store.referrers(rows))) {
+            List<CampaignRow> campaigns = new ArrayList<>(b.campaigns().size());
+            b.campaigns().forEach((k, n) -> campaigns.add(new CampaignRow(k.day(), k.source(), k.medium(), k.campaign(), n)));
+            if (!run("유입처", () -> {
+                store.referrers(rows);
+                store.campaigns(campaigns);
+            })) {
                 buffer.restoreReferrers(b);
             }
         }

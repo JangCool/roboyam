@@ -151,17 +151,22 @@ class VisitCollectorGateTest {
     // ── 4. 이동 흐름 ─────────────────────────────────────────────────────────
 
     @Test
-    void 이동은_직전에서_이번으로_새로_고침과_세션_첫_페이지는_이동이_아니다() {
+    void 이동은_직전에서_이번으로_새로_고침은_빼고_세션_첫_페이지는_바로_들어옴으로_센다() {
         collector.accept(body("/board/free", "/", null, null), UA, HOST);
         collector.accept(body("/board/free", "/", null, null), UA, HOST);
-        collector.accept(body("/board/free", "/board/free", null, null), UA, HOST); // 새로 고침
-        collector.accept(body("/", null, null, null), UA, HOST); // 세션 첫 페이지
+        collector.accept(body("/board/free", "/board/free", null, null), UA, HOST); // 새로 고침 — 이동 아님
+        collector.accept(body("/", null, null, null), UA, HOST); // 세션 첫 페이지 — 「바로 들어옴」(출발 '') 한 줄(방문자 통계 화면 확정 2026-11-04)
         VisitBuffer.Batch b = collector.buffer().drain();
-        assertThat(b.flows()).hasSize(1);
-        assertThat(b.flows().entrySet().iterator().next()).satisfies(e -> {
+        assertThat(b.flows()).hasSize(2);
+        assertThat(b.flows().entrySet()).anySatisfy(e -> {
             assertThat(e.getKey().from()).isEqualTo("/");
             assertThat(e.getKey().to()).isEqualTo("/board/free");
             assertThat(e.getValue()).isEqualTo(2L);
+        });
+        assertThat(b.flows().entrySet()).anySatisfy(e -> {
+            assertThat(e.getKey().from()).isEmpty();
+            assertThat(e.getKey().to()).isEqualTo("/");
+            assertThat(e.getValue()).isEqualTo(1L);
         });
         // 새로 고침도 페이지뷰로는 센다(계약 — 페이지뷰는 본 횟수)
         assertThat(b.pageViews().values().stream().mapToLong(Long::longValue).sum()).isEqualTo(4);

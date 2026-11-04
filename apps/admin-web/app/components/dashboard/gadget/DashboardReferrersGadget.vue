@@ -1,7 +1,7 @@
 <template>
     <!--
         유입 경로 — 오늘 방문을 유입처 분류(검색 · SNS · 직접 · 다른 사이트 · 캠페인)별 수 + 비율 막대(오늘 방문 전체 대비), 아래 상위 유입 도메인 5.
-        통계 수집 `referrers` 가 만든 오늘 집계를 읽는다. 수집이 꺼져 있으면 틀이 「수집이 꺼져 있어요」. 이동할 방문 분석 화면이 아직 없어 링크가 없다.
+        통계 수집 `referrers` 가 만든 오늘 집계를 읽는다. 수집이 꺼져 있으면 틀이 「수집이 꺼져 있어요」. 바로 가기 = 「방문자 통계 › 유입 경로」의 오늘.
         값은 묶음 응답의 `REFERRERS`(`useDashboardGadgetApi`).
     -->
     <DashboardGadgetFrame
@@ -14,6 +14,7 @@
         :unavailable="state.unavailable.value"
         :disabled="state.disabled.value"
         :collect="state.collect"
+        :more="moreLink"
         :empty="!v?.total"
         empty-icon="pi pi-directions"
         :empty-title="t('dashboard.referrersNone')"
@@ -49,6 +50,7 @@
 <script setup lang="ts">
 import type { DashboardReferrerGroup } from '~/composables/dashboard/api/useDashboardGadgetApi.types';
 import type { DashboardGadgetItem } from '~/composables/dashboard/api/useDashboardLayoutApi.types';
+import UtilVisitAnalytics from '~/utils/util-visit-analytics';
 
 interface Props {
     gadget: DashboardGadgetItem;
@@ -60,6 +62,8 @@ const props = withDefaults(defineProps<Props>(), {});
 const { t, te, locale } = useI18n();
 const state = useDashboardKindData('REFERRERS', () => props.gadget);
 const v = computed(() => state.data.value);
+/** 바로 가기 — 방문 분석 화면의 오늘(날짜는 그릴 때 계산) */
+const moreLink = computed(() => UtilVisitAnalytics.link('TODAY', UtilVisitAnalytics.PAGES.referrers));
 
 /** 분류별 수 + 오늘 방문 전체 대비 비율(%, 반올림) — 서버 차례 그대로 */
 const groups = computed(() => {

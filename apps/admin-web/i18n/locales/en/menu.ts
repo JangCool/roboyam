@@ -5,6 +5,13 @@
  */
 export default {
     dashboard: 'Dashboard',
+    visitStats: 'Visitor stats',
+    visitOverview: 'Overview',
+    visitPages: 'Pages',
+    visitReferrers: 'Referrers',
+    visitFlows: 'Page flow',
+    visitTime: 'Day & hour',
+    visitRealtime: 'Realtime',
     system: 'System',
     general: 'General',
     theme: 'Theme',
